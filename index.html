@@ -102,6 +102,27 @@
     border-color: #a92c1d; box-shadow: 0 2px 0 #a92c1d;
   }
 
+  /* 停靠站名牌(地圖上方置中,跟隨列車停站時淡入)——復古站名牌:本站大字+左右鄰站 */
+  .dwell-plate {
+    /* top 固定在時鐘徽章下方,置中時才不會與徽章重疊 */
+    position: absolute; top: 58px; left: 50%; transform: translateX(-50%); z-index: 640;
+    display: flex; align-items: center; gap: 14px; max-width: calc(100% - 24px);
+    background: #fffdf6; border: 2.5px solid #2a4a73; border-radius: 10px;
+    box-shadow: 0 2px 0 rgba(42,74,115,.22);
+    padding: 7px 16px 8px;
+    opacity: 0; transition: opacity .45s ease; pointer-events: none;
+  }
+  .dwell-plate.show { opacity: 1; }
+  .dwell-plate b {
+    font-size: 19px; font-weight: 900; letter-spacing: 4px;
+    color: #1e2c40; white-space: nowrap;
+  }
+  .dwell-plate .side {
+    display: flex; align-items: center; gap: 5px;
+    font-size: 11.5px; font-weight: 700; color: #2a4a73; white-space: nowrap;
+  }
+  .dwell-plate .side .arr { color: #d23c2a; font-size: 11px; }
+
   /* 跟隨小面板(地圖左下角，跟隨列車時顯示) */
   .follow-panel {
     position: absolute; left: 12px; bottom: 12px; z-index: 650;
@@ -130,6 +151,16 @@
   .follow-panel .fp-next .stn { font-size: 16px; font-weight: 900; color: #1e2c40; letter-spacing: 1px; }
   .follow-panel .fp-next .eta { margin-left: auto; font-size: 13px; font-weight: 700; color: #2a4a73; }
   .follow-panel .fp-next .eta b { color: #d23c2a; }
+  .follow-panel .fp-prog { display: flex; align-items: center; gap: 8px; margin-top: 7px; }
+  .follow-panel .fp-prog .bar {
+    flex: 1; height: 7px; background: #efe6cc;
+    border: 1px solid #c9b98f; border-radius: 4px; overflow: hidden;
+  }
+  .follow-panel .fp-prog .bar i { display: block; height: 100%; width: 0; background: #d23c2a; }
+  .follow-panel .fp-prog .txt {
+    font-size: 10.5px; color: #8a7c62; font-weight: 700;
+    white-space: nowrap; font-variant-numeric: tabular-nums;
+  }
   .follow-panel .fp-dest { margin-top: 4px; font-size: 11.5px; color: #7a6c50; }
   .follow-panel .fp-status {
     margin-top: 6px; font-size: 12px; font-weight: 700; color: #b4552a;
@@ -158,6 +189,11 @@
     background: none; border: 0; cursor: pointer;
     color: #d2a12a; font-size: 20px; line-height: 1; padding: 0 2px; align-self: center;
   }
+  .traincard .tc-sparkwrap { margin-top: 9px; padding-top: 7px; border-top: 1.5px dashed #d8cba9; }
+  .traincard .tc-sparkwrap .lbl {
+    font-size: 10.5px; font-weight: 800; letter-spacing: 2px; color: #8a7c62; margin-bottom: 3px;
+  }
+  .traincard .tc-sparkwrap canvas { display: block; width: 100%; height: 46px; }
   .traincard .tc-stops {
     margin-top: 9px; padding-top: 8px; border-top: 1.5px dashed #d8cba9;
     max-height: 240px; overflow-y: auto;
@@ -237,6 +273,9 @@
   body.idle .controls, body.idle .stage-tools, body.idle .leaflet-control-container { opacity: 0; pointer-events: none; }
   body.idle .stage, body.idle * { cursor: none; }
   #overlay { position: absolute; inset: 0; pointer-events: none; z-index: 500; }
+  /* 放空模式的日夜天色(依模擬時刻連續變化,墊在轉場遮罩下) */
+  #skyTint { position: absolute; inset: 0; z-index: 550; pointer-events: none; }
+
   /* 放空模式換車的淡出淡入遮罩(蓋地圖與列車,不蓋時鐘/跟隨面板) */
   #veil {
     position: absolute; inset: 0; z-index: 560; background: #101826;
@@ -356,6 +395,14 @@
   #favPanel .row.fv:hover { background: #f7f0dd; }
   #favPanel .row .rm { margin-left: auto; color: #a89468; font-weight: 700; padding: 0 4px; }
   #favPanel .row .rm:hover { color: #d23c2a; }
+  /* 旅程收集面板(完乘章;共用 .board 外觀) */
+  .board .ride-stats { font-size: 12.5px; color: #5d5240; margin: 2px 0 6px; }
+  .board .ride-stats b { color: #d23c2a; font-variant-numeric: tabular-nums; }
+  .board .ride-kinds { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 7px; }
+  .board .kindchip {
+    font-size: 10.5px; font-weight: 700; color: #2a4a73;
+    background: #eee5ca; border: 1px solid #c9b98f; border-radius: 4px; padding: 1px 6px;
+  }
 
   /* ── 流量圖 ── */
   .flow { margin: 14px 2px 0; }
@@ -422,6 +469,7 @@
   <div class="stage">
     <div id="map"></div>
     <canvas id="overlay"></canvas>
+    <div id="skyTint"></div>
     <div id="veil"></div>
     <div class="follow-panel" id="followPanel" hidden>
       <div class="fp-head">
@@ -435,11 +483,16 @@
         <span class="stn" id="fpNext"></span>
         <span class="eta" id="fpEta"></span>
       </div>
+      <div class="fp-prog">
+        <div class="bar"><i id="fpProgFill"></i></div>
+        <span class="txt" id="fpProgTxt"></span>
+      </div>
       <div class="fp-status" id="fpStatus" hidden></div>
       <div class="fp-dest" id="fpDest"></div>
     </div>
     <div class="stage-tools">
       <button id="favBtn" title="我的最愛列車">★</button>
+      <button id="rideBtn" title="旅程收集（完乘記錄）">🎫</button>
       <button id="tourBtn" title="隨機跟隨列車（螢幕保護模式）">隨</button>
       <button id="satBtn" title="切換衛星影像">衛</button>
       <button id="themeBtn" title="地圖明暗切換">☾</button>
@@ -450,8 +503,14 @@
       <span class="peak" id="peak"></span>
       <span class="count" id="count"></span>
     </div>
+    <div class="dwell-plate" id="dwellPlate">
+      <span class="side left"><span class="arr">◀</span><span id="dpPrev"></span></span>
+      <b id="dpName"></b>
+      <span class="side right"><span id="dpNext"></span><span class="arr">▶</span></span>
+    </div>
     <div class="board" id="board" hidden></div>
     <div class="board" id="favPanel" hidden></div>
+    <div class="board" id="ridePanel" hidden></div>
   </div>
 
   <div class="traincard" id="trainCard" hidden>
@@ -469,6 +528,10 @@
         <div class="lbl">旅程日誌</div>
         <div id="tcEvents"></div>
       </div>
+    </div>
+    <div class="tc-sparkwrap">
+      <div class="lbl">全程速度曲線</div>
+      <canvas id="tcSpark" height="46"></canvas>
     </div>
     <div class="tc-stops" id="tcStops" hidden></div>
   </div>
@@ -618,6 +681,37 @@ function reproject() {
     projShape(ln);
   });
   if (state.trackLines) state.trackLines.forEach(projShape);
+}
+
+// 跟隨路線高亮:跟車時抽出全程折線一次(lat/lon),drawSched 每幀轉螢幕座標描光暈
+function shapeSlice(ln, dA, dB) {
+  ensureCum(ln);
+  const lo = Math.min(dA, dB), hi = Math.max(dA, dB);
+  const pts = [posAlongShape(ln, lo)];
+  for (let i = 0; i < ln.shape.length; i++) {
+    if (ln.cum[i] <= lo) continue;
+    if (ln.cum[i] >= hi) break;
+    pts.push({ lat: ln.shape[i][0], lon: ln.shape[i][1] });
+  }
+  pts.push(posAlongShape(ln, hi));
+  return pts;
+}
+function buildFollowRoute(tr) {
+  let pts = [];
+  for (let i = 0; i < tr.stops.length - 1; i++) {
+    const s = tr.stops[i], nx = tr.stops[i + 1];
+    pts = pts.concat(s.segLn ? shapeSlice(s.segLn, s.dA, s.dB)
+      : [{ lat: s.lat, lon: s.lon }, { lat: nx.lat, lon: nx.lon }]);
+  }
+  // 長途車折線可達數千點,均勻抽稀省每幀投影(視覺差異在 4px 線寬下看不出)
+  const CAP = 1200;
+  if (pts.length > CAP) {
+    const step = pts.length / CAP, out = [];
+    for (let i = 0; i < pts.length; i += step) out.push(pts[Math.floor(i)]);
+    out.push(pts[pts.length - 1]);
+    pts = out;
+  }
+  return pts;
 }
 
 // cumulative km per shape vertex (static, computed once)
@@ -824,6 +918,19 @@ function drawSched(w, h) {
       ctx.globalAlpha = 1;
     }
   }
+  // 跟隨路線高亮:全程光暈描在軌道上、車站與列車下
+  if (state.followTrain && state._routePts && state._routePts.length > 1) {
+    ctx.beginPath();
+    for (let i = 0; i < state._routePts.length; i++) {
+      const p = map.latLngToContainerPoint([state._routePts[i].lat, state._routePts[i].lon]);
+      i ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y);
+    }
+    ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+    ctx.strokeStyle = state.followTrain.color;
+    ctx.globalAlpha = 0.25; ctx.lineWidth = 10; ctx.stroke();
+    ctx.globalAlpha = 0.95; ctx.lineWidth = 3.6; ctx.stroke();
+    ctx.globalAlpha = 1;
+  }
   // 車站圖示(依站等分級):圖示墊在列車下、站名最後畫在最上層,遠景時小站不畫
   const labelCands = [];
   for (const st of state.schedStations) {
@@ -860,6 +967,12 @@ function drawSched(w, h) {
 }
 
 function drawFollowMarker(p, tr) {
+  const dw = dwellInfoOf(tr, effT(tr));
+  if (dw && dw.st.stop !== false) { // 停站脈動:外圈呼吸擴散
+    const ph = (performance.now() % 1600) / 1600;
+    ctx.beginPath(); ctx.arc(p.x, p.y, 17 + ph * 11, 0, 7);
+    ctx.strokeStyle = tr.color; ctx.globalAlpha = 0.35 * (1 - ph); ctx.lineWidth = 2; ctx.stroke();
+  }
   ctx.beginPath(); ctx.arc(p.x, p.y, 17, 0, 7);
   ctx.strokeStyle = tr.color; ctx.globalAlpha = 0.3; ctx.lineWidth = 2; ctx.stroke();
   ctx.beginPath(); ctx.arc(p.x, p.y, 11, 0, 7);
@@ -987,6 +1100,8 @@ function tick(now) {
     if (state.boardStation && Math.abs(state.simSec - (state.boardRenderedAt || 0)) >= 20) renderBoard();
     drawFlow();
   }
+  state._skyClock = (state._skyClock || 0) + dt;
+  if (state._skyClock >= 0.5) { state._skyClock = 0; updateSkyTint(); }
   draw();
   requestAnimationFrame(tick);
 }
@@ -1114,6 +1229,7 @@ function loadSystem(sys) {
   }
   closeBoard();
   closeFavPanel();
+  closeRidePanel();
   configTimeSlider();
   buildToggles();
   renderFavs();
@@ -1188,12 +1304,16 @@ function setFollow(tr, isAuto, noJump) {
   }
   state.followStatus = null; renderFollowBar();
   state.followEvents = []; state._evSeen = {};
+  state._routePts = buildFollowRoute(tr);
   showFollowPanel(tr);
   updateCount();
 }
 
 function clearFollow() {
   state.followTrain = null; state.followId = null; state.followStatus = null;
+  state._routePts = null;
+  state._plateStop = null;
+  const dp = document.getElementById('dwellPlate'); if (dp) dp.classList.remove('show');
   try { history.replaceState(null, '', location.pathname); } catch (e) {}
   const fb = document.getElementById('followBar');
   if (fb) { fb.hidden = true; fb.className = 'followbar'; fb.innerHTML = ''; }
@@ -1305,6 +1425,34 @@ function setAutoTour(on) {
   }
 }
 
+// 放空模式日夜天色:模擬時刻在天色停靠點間內插(深夜藍→黎明橘→白晝透明→黃昏金→暮色紫→夜)
+const SKY_STOPS = [ // [小時, r, g, b, alpha]
+  [0,    14, 24, 48, .34],
+  [5,    14, 24, 48, .34],
+  [6.5, 255, 176, 110, .12],
+  [8,     0, 0, 0, 0],
+  [16,    0, 0, 0, 0],
+  [17.5, 255, 170, 90, .13],
+  [18.8,  84, 58, 110, .22],
+  [20,   14, 24, 48, .34],
+  [24,   14, 24, 48, .34],
+];
+function updateSkyTint() {
+  const el = document.getElementById('skyTint');
+  if (!state.ambient || state.mode !== 'sched') {
+    if (el._on) { el.style.background = ''; el._on = false; }
+    return;
+  }
+  const h = state.simSec / 3600;
+  let a = SKY_STOPS[0], b = SKY_STOPS[SKY_STOPS.length - 1];
+  for (let i = 0; i < SKY_STOPS.length - 1; i++)
+    if (h >= SKY_STOPS[i][0] && h <= SKY_STOPS[i + 1][0]) { a = SKY_STOPS[i]; b = SKY_STOPS[i + 1]; break; }
+  const f = (h - a[0]) / ((b[0] - a[0]) || 1);
+  const L = i => a[i] + (b[i] - a[i]) * f;
+  el.style.background = `rgba(${L(1) | 0},${L(2) | 0},${L(3) | 0},${L(4).toFixed(3)})`;
+  el._on = true;
+}
+
 // ── 放空模式(ambient):全畫面+自動導演+閒置隱藏 UI+防休眠 ──
 // (環境音已依使用者要求移除;之後接音檔時在 setAmbient 的開/關各加播放/停止即可)
 async function acquireWakeLock() {
@@ -1355,6 +1503,7 @@ function setAmbient(on) {
     document.body.classList.remove('idle');
     state._transition = false;
     document.getElementById('veil').style.opacity = 0;
+    updateSkyTint(); // ambient 已關,立即清天色
     if (state.speedMult === 5 && state._preAmbSpd) setSpeed(state._preAmbSpd);
     if (state.nightReplay) { state.nightReplay = false; refreshBadge(); }
     if (state.autoTour) setAutoTour(false);
@@ -1387,6 +1536,7 @@ function renderTrainCard(tr) {
   updateStar();
   renderFollowEvents();
   document.getElementById('trainCard').hidden = false;
+  setTimeout(() => drawSpark(tr, effT(tr)), 0); // 等 layout 有寬度再畫速度曲線
   return it;
 }
 
@@ -1463,7 +1613,7 @@ function renderFavPanel() {
   el.querySelector('#favClose').onclick = closeFavPanel;
 }
 function openFavPanel() {
-  closeBoard();
+  closeBoard(); closeRidePanel();
   const el = document.getElementById('favPanel');
   el.hidden = false;
   document.getElementById('favBtn').classList.add('active');
@@ -1473,6 +1623,57 @@ function closeFavPanel() {
   const el = document.getElementById('favPanel');
   el.hidden = true; el.innerHTML = '';
   document.getElementById('favBtn').classList.remove('active');
+}
+
+// ── 旅程收集(完乘記錄,localStorage;參考日本「乗りつぶし」收集文化) ──
+// 手動跟隨(非放空/隨機)一路看到抵達終點=完乘一趟;同日同車次只記一次
+function loadRides() { try { return JSON.parse(localStorage.getItem('trainmap-rides') || '[]'); } catch (e) { return []; } }
+function saveRides(r) { try { localStorage.setItem('trainmap-rides', JSON.stringify(r)); } catch (e) {} }
+function recordRide(tr) {
+  if (state.autoTour) return; // 掛機自動跑完不算,親自跟完才蓋章
+  const today = new Date().toLocaleDateString('sv');
+  const rides = loadRides();
+  if (rides.some(r => r.train === tr.train && r.date === today)) return;
+  const it = trainIntro(tr), s = tr.stops;
+  journeyProgress(tr, 0); // 確保 _totalKm 已算
+  rides.push({
+    train: tr.train,
+    kind: (it.special && it.special.name) || it.kind || tr.typeName,
+    from: s[0].name, to: s[s.length - 1].name,
+    km: Math.round(tr._totalKm || 0), date: today,
+  });
+  saveRides(rides);
+  pushFollowEvent('ride:' + tr.train, '🎫 完乘達成！已記入旅程收集', true);
+  renderRidePanel();
+}
+function renderRidePanel() {
+  const el = document.getElementById('ridePanel');
+  if (el.hidden) return;
+  const rides = loadRides();
+  const totalKm = rides.reduce((a, r) => a + (r.km || 0), 0);
+  const kinds = [...new Set(rides.map(r => r.kind))];
+  el.innerHTML = `<button class="close" id="rideClose">×</button>` +
+    `<h3>旅程收集</h3><div class="sub">手動跟隨一班車到終點，就蓋一枚完乘章</div>` +
+    (rides.length
+      ? `<div class="ride-stats">完乘 <b>${rides.length}</b> 趟 · 總里程 <b>${totalKm.toLocaleString()}</b> km · 車種 <b>${kinds.length}</b> 種</div>` +
+        `<div class="ride-kinds">${kinds.map(k => `<span class="kindchip">${k}</span>`).join('')}</div>` +
+        rides.slice(-10).reverse().map(r =>
+          `<div class="row"><span class="dot" style="background:#2a4a73"></span>` +
+          `<b>${r.train}</b><span class="dest">${r.kind}　${r.from}→${r.to}</span>` +
+          `<span class="t">${r.km} km</span><span class="min">${r.date.slice(5)}</span></div>`).join('')
+      : '<div class="empty">還沒有完乘記錄——跟隨一班車看到抵達終點，就會自動蓋章！</div>');
+  el.querySelector('#rideClose').onclick = closeRidePanel;
+}
+function openRidePanel() {
+  closeBoard(); closeFavPanel();
+  document.getElementById('ridePanel').hidden = false;
+  document.getElementById('rideBtn').classList.add('active');
+  renderRidePanel();
+}
+function closeRidePanel() {
+  const el = document.getElementById('ridePanel');
+  el.hidden = true; el.innerHTML = '';
+  document.getElementById('rideBtn').classList.remove('active');
 }
 
 // ── 跟隨動態事件(停靠/交會/待避) ──
@@ -1531,6 +1732,70 @@ function scanFollowEvents() {
   }
 }
 
+// 全程速度曲線(FR24 式):整趟取樣一次快取在車上,當前時刻畫紅色游標
+function speedProfile(tr) {
+  if (tr._spdProf) return tr._spdProf;
+  const s = tr.stops, t0 = s[0].depSec, t1 = s[s.length - 1].arrSec, N = 140;
+  const v = [];
+  for (let i = 0; i < N; i++) {
+    const t = t0 + (t1 - t0) * i / (N - 1);
+    const a = trainPos(tr, t), b = trainPos(tr, Math.min(t + 30, t1));
+    v.push(a && b ? haversineKm(a, b) / 30 * 3600 : 0);
+  }
+  return (tr._spdProf = { v, t0, t1, max: Math.max(60, Math.ceil(Math.max(...v) / 20) * 20) });
+}
+function drawSpark(tr, t) {
+  const el = document.getElementById('tcSpark');
+  const w = el.clientWidth, h = el.clientHeight;
+  if (!w) return;
+  const dpr = window.devicePixelRatio || 1;
+  if (el.width !== Math.round(w * dpr)) { el.width = Math.round(w * dpr); el.height = Math.round(h * dpr); }
+  const c = el.getContext('2d');
+  c.setTransform(dpr, 0, 0, dpr, 0, 0);
+  c.clearRect(0, 0, w, h);
+  const { v, t0, t1, max } = speedProfile(tr);
+  const X = i => i / (v.length - 1) * w, Y = kmh => h - 1 - kmh / max * (h - 10);
+  c.beginPath(); c.moveTo(0, h - 1);
+  v.forEach((kmh, i) => c.lineTo(X(i), Y(kmh)));
+  c.lineTo(w, h - 1); c.closePath();
+  c.fillStyle = 'rgba(42,74,115,.16)'; c.fill();
+  c.beginPath();
+  v.forEach((kmh, i) => i ? c.lineTo(X(i), Y(kmh)) : c.moveTo(X(i), Y(kmh)));
+  c.strokeStyle = '#2a4a73'; c.lineWidth = 1.4; c.lineJoin = 'round'; c.stroke();
+  c.font = '600 9px ' + FONT; c.fillStyle = '#a89468'; c.textAlign = 'left'; c.textBaseline = 'top';
+  c.fillText(max + ' km/h', 3, 1);
+  if (t >= t0 && t <= t1) { // 當前時刻游標
+    const x = (t - t0) / (t1 - t0) * w;
+    c.beginPath(); c.moveTo(x, 2); c.lineTo(x, h - 1);
+    c.strokeStyle = '#d23c2a'; c.lineWidth = 1.3; c.stroke();
+    const kmhNow = v[Math.round((t - t0) / (t1 - t0) * (v.length - 1))] || 0;
+    c.beginPath(); c.arc(x, Y(kmhNow), 2.6, 0, 7);
+    c.fillStyle = '#d23c2a'; c.fill();
+  }
+}
+
+// 旅程進度:沿途各段里程(貼軌段用弧長、直線段用大圓距)累計,快取在車上
+function journeyProgress(tr, t) {
+  const s = tr.stops;
+  if (!tr._segKm) {
+    tr._segKm = []; tr._totalKm = 0;
+    for (let i = 0; i < s.length - 1; i++) {
+      const km = s[i].segLn ? Math.abs(s[i].dB - s[i].dA) : haversineKm(s[i], s[i + 1]);
+      tr._segKm.push(km); tr._totalKm += km;
+    }
+  }
+  let done = 0;
+  for (let i = 0; i < s.length - 1; i++) {
+    if (t >= s[i + 1].arrSec) { done += tr._segKm[i]; continue; }
+    if (t > s[i].depSec) {
+      const span = s[i + 1].arrSec - s[i].depSec;
+      done += span > 0 ? (t - s[i].depSec) / span * tr._segKm[i] : 0;
+    }
+    break;
+  }
+  return { done, total: tr._totalKm };
+}
+
 // ── 跟隨小面板(地圖左下角) ──
 function nextStopInfo(tr, t) {
   const s = tr.stops;
@@ -1568,16 +1833,40 @@ function updateFollowPanel(tr) {
   // 停靠倒數(通過不停的站不顯示)
   const stEl = document.getElementById('fpStatus');
   const dw = dwellInfoOf(tr, effT(tr));
-  if (dw && dw.st.stop !== false && dw.remain > 3 && dw.total >= 20) {
+  const dwelling = dw && dw.st.stop !== false && dw.remain > 3 && dw.total >= 20;
+  if (dwelling) {
     const mm = Math.floor(dw.remain / 60), ss = Math.round(dw.remain % 60);
     stEl.textContent = `⏸ 停靠 ${dw.st.name} · ${mm > 0 ? mm + ' 分 ' : ''}${ss} 秒後開車` +
       (dw.total >= 180 ? '（待避／調度長停）' : '');
     stEl.hidden = false;
   } else stEl.hidden = true;
+  // 停靠站名牌:進站淡入、開車淡出;左右鄰站取實際相鄰站(含通過站)
+  const plate = document.getElementById('dwellPlate');
+  if (dwelling) {
+    if (state._plateStop !== dw.st) {
+      state._plateStop = dw.st;
+      const prev = tr.stops[dw.i - 1], next = tr.stops[dw.i + 1];
+      document.getElementById('dpName').textContent = dw.st.name;
+      document.getElementById('dpPrev').textContent = prev ? prev.name : '';
+      document.getElementById('dpNext').textContent = next ? next.name : '';
+      plate.querySelector('.side.left').style.visibility = prev ? 'visible' : 'hidden';
+      plate.querySelector('.side.right').style.visibility = next ? 'visible' : 'hidden';
+    }
+    plate.classList.add('show');
+  } else { plate.classList.remove('show'); state._plateStop = null; }
   // 即時時速(取前後 20 秒位移換算)
   const pa = trainPos(tr, state.simSec), pb = trainPos(tr, state.simSec + 20);
   const kmh = (pa && pb) ? haversineKm(pa, pb) / 20 * 3600 : 0;
   document.getElementById('fpSpd').textContent = Math.round(kmh) + ' km/h';
+  // 旅程進度條
+  const pr = journeyProgress(tr, effT(tr));
+  document.getElementById('fpProgFill').style.width =
+    (pr.total > 0 ? Math.min(100, pr.done / pr.total * 100) : 0).toFixed(1) + '%';
+  document.getElementById('fpProgTxt').textContent =
+    Math.round(pr.done) + ' / ' + Math.round(pr.total) + ' km';
+  // 速度曲線游標每秒重畫一次就夠
+  const nw = performance.now();
+  if (!state._sparkAt || nw - state._sparkAt > 1000) { state._sparkAt = nw; drawSpark(tr, effT(tr)); }
   // 時刻表高亮:過站變淡、下一停靠站標紅
   const tt = document.getElementById('tcStops');
   if (!tt.hidden) {
@@ -1637,7 +1926,11 @@ function updateFollowCamera() {
   const tr = state.followTrain; if (!tr) return;
   if (state._transition) { updateFollowPanel(tr); return; } // flyTo 轉場中不搶鏡頭
   const last = tr.stops[tr.stops.length - 1];
-  if (effT(tr) > last.arrSec + 2) { setFollowStatus('done', '已抵達'); return; }
+  if (effT(tr) > last.arrSec + 2) {
+    if (state.followStatus !== 'done') recordRide(tr); // 抵達那一刻蓋完乘章
+    setFollowStatus('done', '已抵達');
+    return;
+  }
   const pos = trainPos(tr, state.simSec);
   if (!pos) { const f = tr.stops[0]; recenterTo(f.lat, f.lon); setFollowStatus('pre', '尚未發車'); return; }
   setFollowStatus('run', '');
@@ -1663,7 +1956,7 @@ function jumpToNow() {
 }
 
 // ── 車站時刻板 ──
-function openBoard(st) { closeFavPanel(); state.boardStation = st; renderBoard(); }
+function openBoard(st) { closeFavPanel(); closeRidePanel(); state.boardStation = st; renderBoard(); }
 function closeBoard() {
   state.boardStation = null;
   const el = document.getElementById('board');
@@ -1912,6 +2205,9 @@ document.getElementById('nowBtn').onclick = jumpToNow;
 document.getElementById('fpClose').onclick = () => { setAutoTour(false); clearFollow(); };
 document.getElementById('tcStar').onclick = () => toggleFav(state.followTrain);
 document.getElementById('tourBtn').onclick = () => setAutoTour(!state.autoTour);
+document.getElementById('rideBtn').onclick = () => {
+  document.getElementById('ridePanel').hidden ? openRidePanel() : closeRidePanel();
+};
 document.getElementById('favBtn').onclick = () => {
   document.getElementById('favPanel').hidden ? openFavPanel() : closeFavPanel();
 };
