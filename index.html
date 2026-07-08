@@ -1762,8 +1762,6 @@ function drawSpark(tr, t) {
   c.beginPath();
   v.forEach((kmh, i) => i ? c.lineTo(X(i), Y(kmh)) : c.moveTo(X(i), Y(kmh)));
   c.strokeStyle = '#2a4a73'; c.lineWidth = 1.4; c.lineJoin = 'round'; c.stroke();
-  c.font = '600 9px ' + FONT; c.fillStyle = '#a89468'; c.textAlign = 'left'; c.textBaseline = 'top';
-  c.fillText(max + ' km/h', 3, 1);
   if (t >= t0 && t <= t1) { // 當前時刻游標
     const x = (t - t0) / (t1 - t0) * w;
     c.beginPath(); c.moveTo(x, 2); c.lineTo(x, h - 1);
@@ -1772,6 +1770,10 @@ function drawSpark(tr, t) {
     c.beginPath(); c.arc(x, Y(kmhNow), 2.6, 0, 7);
     c.fillStyle = '#d23c2a'; c.fill();
   }
+  // 軸標最後畫+halo,游標經過時仍可讀
+  c.font = '600 9px ' + FONT; c.textAlign = 'left'; c.textBaseline = 'top';
+  c.lineWidth = 3; c.strokeStyle = '#fffdf6'; c.strokeText(max + ' km/h', 3, 1);
+  c.fillStyle = '#a89468'; c.fillText(max + ' km/h', 3, 1);
 }
 
 // 旅程進度:沿途各段里程(貼軌段用弧長、直線段用大圓距)累計,快取在車上
