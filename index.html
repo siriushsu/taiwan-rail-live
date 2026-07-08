@@ -127,20 +127,38 @@
     margin-top: 6px; font-size: 12px; font-weight: 700; color: #b4552a;
     background: #fbe9df; border: 1px solid #e0a37e; border-radius: 5px; padding: 3px 8px;
   }
-  .follow-panel .fp-intro {
-    margin-top: 7px; padding-top: 7px; border-top: 1.5px dashed #d8cba9;
-    font-size: 11.5px; line-height: 1.55; color: #6b5f4a;
+  /* ── 列車資訊卡(地圖下方,跟隨時顯示) ── */
+  .traincard {
+    margin: 14px 0 0;
+    background: #fffdf6; border: 2px solid #2a4a73; border-radius: 10px;
+    box-shadow: 0 3px 0 rgba(42,74,115,.22);
+    padding: 12px 16px 13px;
   }
-  .follow-panel .fp-intro b.tn { color: #a3641a; }
-  .follow-panel .fp-intro .amen { display: block; margin-top: 3px; color: #2a4a73; font-weight: 600; }
-  .follow-panel .fp-events { margin-top: 7px; padding-top: 6px; border-top: 1.5px dashed #d8cba9; }
-  .follow-panel .fp-ev { font-size: 11px; color: #6b5f4a; padding: 1.5px 0; display: flex; gap: 6px; }
-  .follow-panel .fp-ev .tt { color: #a89468; font-variant-numeric: tabular-nums; flex: none; }
-  .follow-panel .fp-head .fp-star {
+  .traincard .tc-head { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+  .traincard .tc-head .dot { width: 10px; height: 10px; border-radius: 50%; align-self: center; flex: none; }
+  .traincard .tc-no { font-size: 20px; font-weight: 900; color: #1e2c40; letter-spacing: 1px; }
+  .traincard .tc-kind { font-size: 13px; font-weight: 700; color: #7a6c50; }
+  .traincard .tc-route { font-size: 13px; color: #6b5f4a; font-variant-numeric: tabular-nums; }
+  .traincard .tc-star {
     margin-left: auto; background: none; border: 0; cursor: pointer;
-    color: #d2a12a; font-size: 16px; line-height: 1; padding: 0 2px;
+    color: #d2a12a; font-size: 20px; line-height: 1; padding: 0 2px; align-self: center;
   }
-  .follow-panel .fp-head .fp-close { margin-left: 0; }
+  .traincard .tc-body {
+    display: grid; grid-template-columns: 1.3fr 1fr; gap: 6px 26px;
+    margin-top: 9px; padding-top: 9px; border-top: 1.5px dashed #d8cba9;
+  }
+  .traincard .tc-intro { font-size: 13px; line-height: 1.65; color: #5d5240; }
+  .traincard .tc-intro b.tn { color: #a3641a; }
+  .traincard .tc-intro .amen { display: block; margin-top: 5px; color: #2a4a73; font-weight: 600; font-size: 12.5px; }
+  .traincard .tc-events .lbl {
+    font-size: 11px; font-weight: 800; letter-spacing: 3px; color: #a89468; margin-bottom: 4px;
+  }
+  .traincard .tc-ev {
+    font-size: 12.5px; color: #5d5240; padding: 2.5px 0; display: flex; gap: 8px;
+    border-top: 1px dashed #ece2c8;
+  }
+  .traincard .tc-ev .tt { color: #a89468; font-variant-numeric: tabular-nums; flex: none; }
+  .traincard .tc-empty { font-size: 12.5px; color: #8a7c62; }
 
   /* ── 最愛列車 chips ── */
   .favs { display: flex; flex-wrap: wrap; gap: 8px; margin: 10px 2px 0; }
@@ -293,6 +311,9 @@
     .followbar { flex-wrap: wrap; }
     .chip { font-size: 12px; padding: 4px 10px 4px 7px; }
     .follow-panel { left: 8px; bottom: 8px; width: 200px; }
+    .traincard { padding: 11px 13px 12px; }
+    .traincard .tc-body { grid-template-columns: 1fr; }
+    .traincard .tc-events { margin-top: 4px; }
   }
 </style>
 </head>
@@ -319,7 +340,6 @@
       <div class="fp-head">
         <span class="dot" id="fpDot"></span>
         <b id="fpTrain"></b><span class="kind" id="fpKind"></span>
-        <button class="fp-star" id="fpStar" title="加入最愛">☆</button>
         <button class="fp-close" id="fpClose" title="取消跟隨">×</button>
       </div>
       <div class="fp-next">
@@ -329,8 +349,6 @@
       </div>
       <div class="fp-status" id="fpStatus" hidden></div>
       <div class="fp-dest" id="fpDest"></div>
-      <div class="fp-intro" id="fpIntro" hidden></div>
-      <div class="fp-events" id="fpEvents" hidden></div>
     </div>
     <div class="stage-tools">
       <button id="satBtn" title="切換衛星影像">衛</button>
@@ -343,6 +361,23 @@
       <span class="count" id="count"></span>
     </div>
     <div class="board" id="board" hidden></div>
+  </div>
+
+  <div class="traincard" id="trainCard" hidden>
+    <div class="tc-head">
+      <span class="dot" id="tcDot"></span>
+      <b class="tc-no" id="tcNo"></b>
+      <span class="tc-kind" id="tcKind"></span>
+      <span class="tc-route" id="tcRoute"></span>
+      <button class="tc-star" id="tcStar" title="加入最愛">☆</button>
+    </div>
+    <div class="tc-body">
+      <div class="tc-intro" id="tcIntro"></div>
+      <div class="tc-events">
+        <div class="lbl">旅程日誌</div>
+        <div id="tcEvents"></div>
+      </div>
+    </div>
   </div>
 
   <div class="controls">
@@ -973,6 +1008,7 @@ function clearFollow() {
   const fb = document.getElementById('followBar');
   if (fb) { fb.hidden = true; fb.className = 'followbar'; fb.innerHTML = ''; }
   document.getElementById('followPanel').hidden = true;
+  document.getElementById('trainCard').hidden = true;
 }
 
 // ── 列車介紹(車次固定的特殊列車 + 依 CarClass 車種說明) ──
@@ -1020,15 +1056,24 @@ function trainIntro(tr) {
     : Math.round(durSec / 60) + ' 分';
   return { special: sp || null, kind, desc: sp ? sp.desc : desc, amens, nStops: stops.length, dur };
 }
-function renderIntro(tr) {
-  const el = document.getElementById('fpIntro');
+// 地圖下方的列車資訊卡:介紹+服務標記,旅程日誌由 renderFollowEvents 填
+function renderTrainCard(tr) {
   const it = trainIntro(tr);
+  const first = tr.stops[0], last = tr.stops[tr.stops.length - 1];
+  document.getElementById('tcDot').style.background = tr.color;
+  document.getElementById('tcNo').textContent = tr.train;
+  document.getElementById('tcKind').textContent = it.kind || tr.typeName;
+  document.getElementById('tcRoute').textContent =
+    `${first.name} ${fmtHM(first.depSec % 86400)} → ${last.name} ${fmtHM(last.arrSec % 86400)}`;
   let html = '';
   if (it.special) html += `<b class="tn">★ ${it.special.name}</b>　`;
   if (it.desc) html += it.desc;
   html += `<span class="amen">停靠 ${it.nStops} 站 · 全程約 ${it.dur}` +
     (it.amens.length ? ' · ' + it.amens.join('　') : '') + '</span>';
-  el.innerHTML = html; el.hidden = false;
+  document.getElementById('tcIntro').innerHTML = html;
+  updateStar();
+  renderFollowEvents();
+  document.getElementById('trainCard').hidden = false;
   return it;
 }
 
@@ -1037,7 +1082,7 @@ function loadFavs() { try { return JSON.parse(localStorage.getItem('trainmap-fav
 function saveFavs(f) { try { localStorage.setItem('trainmap-favs', JSON.stringify(f)); } catch (e) {} }
 function isFav(no) { return loadFavs().some(f => f.train === String(no)); }
 function updateStar() {
-  const b = document.getElementById('fpStar'), tr = state.followTrain;
+  const b = document.getElementById('tcStar'), tr = state.followTrain;
   if (!tr) return;
   const on = isFav(tr.train);
   b.textContent = on ? '★' : '☆';
@@ -1100,12 +1145,12 @@ function pushFollowEvent(key, msg, once) {
   renderFollowEvents();
 }
 function renderFollowEvents() {
-  const el = document.getElementById('fpEvents');
+  const el = document.getElementById('tcEvents');
   const evs = state.followEvents || [];
-  if (!state.followTrain || !evs.length) { el.hidden = true; el.innerHTML = ''; return; }
-  el.hidden = false;
-  el.innerHTML = evs.slice(-4).map(e =>
-    `<div class="fp-ev"><span class="tt">${e.tm}</span><span>${e.msg}</span></div>`).join('');
+  el.innerHTML = evs.length
+    ? evs.slice(-6).map(e =>
+        `<div class="tc-ev"><span class="tt">${e.tm}</span><span>${e.msg}</span></div>`).join('')
+    : '<div class="tc-empty">列車跑起來就會記錄——停靠、交會、待避……</div>';
 }
 // 每 ~0.5s 掃一次:進站停靠、與對向車交會、停站時被同向車通過(待避)
 function scanFollowEvents() {
@@ -1151,10 +1196,8 @@ function showFollowPanel(tr) {
   if (state.mode !== 'sched' || !tr) { fp.hidden = true; return; }
   document.getElementById('fpDot').style.background = tr.color;
   document.getElementById('fpTrain').textContent = tr.train;
-  const it = renderIntro(tr);
+  const it = renderTrainCard(tr);
   document.getElementById('fpKind').textContent = it.kind || tr.typeName;
-  updateStar();
-  renderFollowEvents();
   const first = tr.stops[0], last = tr.stops[tr.stops.length - 1];
   document.getElementById('fpDest').textContent =
     `${first.name} → ${last.name} · 終點 ${fmtHM(last.arrSec % 86400)} 抵達`;
@@ -1477,7 +1520,7 @@ document.getElementById('tod').oninput = e => {
 };
 document.getElementById('nowBtn').onclick = jumpToNow;
 document.getElementById('fpClose').onclick = clearFollow;
-document.getElementById('fpStar').onclick = () => toggleFav(state.followTrain);
+document.getElementById('tcStar').onclick = () => toggleFav(state.followTrain);
 (() => {
   const fc = document.getElementById('flowChart'), lbl = document.getElementById('flowLbl');
   const timeAt = e => Math.max(0, Math.min(86399, e.offsetX / fc.clientWidth * 86400));
