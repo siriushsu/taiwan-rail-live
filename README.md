@@ -1,6 +1,8 @@
 # 台灣鐵道 · 列車流動動畫 — 進度總結
 
-> 最後更新:2026-07-08。單頁互動網頁:在真實地圖上動畫化台灣鐵道列車運行
+**線上版：https://siriushsu.github.io/taiwan-rail-live/**
+
+> 最後更新:2026-07-09。單頁互動網頁:在真實地圖上動畫化台灣鐵道列車運行
 > (靈感來源:Brilliant Maps 的 NYC transport / 倫敦地鐵 timelapse)。
 > 全部前端都在 `index.html` 一個檔案;資料在 `data/`;抓資料腳本在 `scripts/`。
 
