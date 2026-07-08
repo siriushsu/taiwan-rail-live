@@ -237,6 +237,11 @@
   body.idle .controls, body.idle .stage-tools, body.idle .leaflet-control-container { opacity: 0; pointer-events: none; }
   body.idle .stage, body.idle * { cursor: none; }
   #overlay { position: absolute; inset: 0; pointer-events: none; z-index: 500; }
+  /* 放空模式換車的淡出淡入遮罩(蓋地圖與列車,不蓋時鐘/跟隨面板) */
+  #veil {
+    position: absolute; inset: 0; z-index: 560; background: #101826;
+    opacity: 0; pointer-events: none; transition: opacity .7s ease;
+  }
 
   /* ── HUD 小牌 ── */
   .badge {
@@ -417,6 +422,7 @@
   <div class="stage">
     <div id="map"></div>
     <canvas id="overlay"></canvas>
+    <div id="veil"></div>
     <div class="follow-panel" id="followPanel" hidden>
       <div class="fp-head">
         <span class="dot" id="fpDot"></span>
@@ -1261,21 +1267,29 @@ function nextTourTrain(now) {
     return;
   }
   const ts = document.getElementById('trainSearch'); if (ts) ts.value = tr.train;
-  if (state.ambient) cinematicSwitch(tr);
-  else setFollow(tr, true);
+  if (!state.ambient) { setFollow(tr, true); return; }
+  if (state._ambientFresh) { state._ambientFresh = false; ambientJumpTo(tr); }
+  else fadeSwitch(tr);
 }
-// 放空模式轉場:先拉高俯瞰全島,再緩降到下一班車
-function cinematicSwitch(tr) {
+// 放空模式鏡頭直接貼車(進場與換車落點共用)
+const AMBIENT_Z = 14;
+function ambientJumpTo(tr) {
+  setFollow(tr, true, true);
+  const p = trainPos(tr, state.simSec) || tr.stops[0];
+  map.setView([p.lat, p.lon], AMBIENT_Z, { animate: false });
+}
+// 放空模式換車:淡出 → 直接切到下一班 → 淡入(不拉高俯瞰)
+function fadeSwitch(tr) {
+  const veil = document.getElementById('veil');
   state._transition = true;
-  state._tourNext += 5200; // 轉場 ~5s 不計入跟隨時間
-  map.flyTo([23.85, 120.95], 8, { duration: 2.2 });
+  state._tourNext += 1600; // 轉場 ~1.6s 不計入跟隨時間
+  veil.style.opacity = 1;
   setTimeout(() => {
-    if (!state.autoTour) { state._transition = false; return; }
-    setFollow(tr, true, true);
-    const p = trainPos(tr, state.simSec) || tr.stops[0];
-    map.flyTo([p.lat, p.lon], 13, { duration: 2.6 });
-    setTimeout(() => { state._transition = false; }, 2700);
-  }, 2300);
+    if (!state.autoTour) { veil.style.opacity = 0; state._transition = false; return; }
+    ambientJumpTo(tr);
+    veil.style.opacity = 0;
+    setTimeout(() => { state._transition = false; }, 750);
+  }, 800);
 }
 function setAutoTour(on) {
   if (on && state.mode !== 'sched') {
@@ -1328,6 +1342,9 @@ function setAmbient(on) {
     if (state.simSec < 5 * 3600) { state.nightReplay = true; setSimSec(18 * 3600); refreshBadge(); }
     if (!document.body.classList.contains('fs')) (state._setFs || (() => {}))(true);
     if (!state.playing) togglePlay();
+    state._preAmbSpd = state.speedMult;
+    setSpeed(5); // 放空模式看單車,5× 節奏剛好
+    state._ambientFresh = true; // 第一班直接跳到車,不走淡出淡入
     setAutoTour(true);
     acquireWakeLock();
     ambientIdleReset();
@@ -1337,6 +1354,8 @@ function setAmbient(on) {
     clearTimeout(state._idleT);
     document.body.classList.remove('idle');
     state._transition = false;
+    document.getElementById('veil').style.opacity = 0;
+    if (state.speedMult === 5 && state._preAmbSpd) setSpeed(state._preAmbSpd);
     if (state.nightReplay) { state.nightReplay = false; refreshBadge(); }
     if (state.autoTour) setAutoTour(false);
     if (document.body.classList.contains('fs')) (state._setFs || (() => {}))(false);
