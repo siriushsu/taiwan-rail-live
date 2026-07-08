@@ -488,7 +488,7 @@
     <button class="pp" id="ambientBtn" title="全畫面+環境音+自動換車跟隨，掛著放空用">🌙 放空模式</button>
   </div>
 
-  <p class="kbd-hint">快捷鍵：<b>空白鍵</b>暫停／播放　<b>1</b>–<b>4</b>速度　<b>←</b><b>→</b>時間 ±10 分　<b>F</b>全畫面　<b>M</b>放空音訊靜音　地圖角落<b>隨</b>＝隨機跟隨（螢幕保護）</p>
+  <p class="kbd-hint">快捷鍵：<b>空白鍵</b>暫停／播放　<b>1</b>–<b>4</b>速度　<b>←</b><b>→</b>時間 ±10 分　<b>F</b>全畫面　地圖角落<b>隨</b>＝隨機跟隨（螢幕保護）</p>
 
   <div class="flow" id="flowWrap" hidden>
     <canvas id="flowChart"></canvas>
@@ -767,6 +767,7 @@ function drawFreq(w, h) {
     ctx.strokeStyle = ln.color; ctx.globalAlpha = P.railAlpha; ctx.lineWidth = 3.4; ctx.stroke();
     ctx.globalAlpha = 1;
   });
+  const freqLabels = [];
   state.lines.forEach(ln => {
     if (!state.visible.has(ln.id) || !ln.pts) return;
     ln.pts.forEach((p, idx) => {
@@ -774,10 +775,7 @@ function drawFreq(w, h) {
       ctx.fillStyle = P.stnFill; ctx.fill();
       ctx.lineWidth = 1.5; ctx.strokeStyle = ln.color; ctx.globalAlpha = 0.9; ctx.stroke();
       ctx.globalAlpha = 1;
-      if (showStation && inView(p)) {
-        const name = ln.stations[idx].name;
-        if (!drawnNames.has(name)) { drawnNames.add(name); tryLabel(p.x, p.y, name); }
-      }
+      if (showStation && inView(p)) freqLabels.push({ p, name: ln.stations[idx].name });
     });
   });
   const tau = state.elapsed * state.speedMult;
@@ -791,14 +789,19 @@ function drawFreq(w, h) {
       else drawDot(cp, ln.color);
     }
   });
+  // 站名最後畫,才不會被列車擋住
+  ctx.textAlign = 'center';
+  for (const { p, name } of freqLabels) {
+    if (drawnNames.has(name)) continue;
+    drawnNames.add(name); tryLabel(p.x, p.y, name);
+  }
 }
 
 function drawSched(w, h) {
   const P = pal();
   const z = map.getZoom();
-  const showStation = z >= 12, showTrain = z >= 11;
+  const showTrain = z >= 11;
   const inView = p => p.x >= -40 && p.x <= w + 40 && p.y >= -20 && p.y <= h + 20;
-  const drawnNames = new Set();
   if (state.trackLines) {
     for (const ln of state.trackLines) {
       if (state.trackVisible && !state.trackVisible.has(ln.id)) continue;
@@ -815,17 +818,14 @@ function drawSched(w, h) {
       ctx.globalAlpha = 1;
     }
   }
-  ctx.textAlign = 'center';
+  // 車站圖示(依站等分級):圖示墊在列車下、站名最後畫在最上層,遠景時小站不畫
+  const labelCands = [];
   for (const st of state.schedStations) {
     const cp = map.latLngToContainerPoint([st.lat, st.lon]);
     if (!inView(cp)) continue;
-    ctx.beginPath(); ctx.arc(cp.x, cp.y, 2, 0, 7);
-    ctx.fillStyle = P.stnFill; ctx.fill();
-    ctx.lineWidth = 1.2; ctx.strokeStyle = '#8aa0c0'; ctx.globalAlpha = 0.7; ctx.stroke();
-    ctx.globalAlpha = 1;
-    if (showStation && !drawnNames.has(st.name)) {
-      drawnNames.add(st.name); tryLabel(cp.x, cp.y, st.name);
-    }
+    const tier = st.tier == null ? 4 : st.tier;
+    if (z >= 10 || tier <= 2) drawStationIcon(cp, tier);
+    labelCands.push({ cp, st, tier });
   }
   let n = 0;
   for (const tr of state.trains) {
@@ -840,6 +840,16 @@ function drawSched(w, h) {
     if (showTrain) drawTag(cp, tr.train, tr.color, textColorFor(tr.color));
     else drawDot(cp, tr.color);
   }
+  // 站名標籤:大站先取位、字級隨站等、蓋在列車上層才不會被擋
+  ctx.textAlign = 'center';
+  labelCands.sort((a, b) => a.tier - b.tier);
+  const drawnNames = new Set();
+  for (const c of labelCands) {
+    const t = TIER_STYLE[c.tier];
+    if (z < t.lz || drawnNames.has(c.st.name)) continue;
+    drawnNames.add(c.st.name);
+    tryLabel(c.cp.x, c.cp.y - Math.max(0, t.r - 2), c.st.name, t.f, c.tier <= 1 ? 4 : 3);
+  }
   document.getElementById('count').textContent = `${n} 班奔跑中`;
 }
 
@@ -853,16 +863,49 @@ function drawFollowMarker(p, tr) {
 }
 
 let labelBoxes = [];
-function tryLabel(x, y, name) {
-  ctx.font = '500 11px ' + FONT;
+function tryLabel(x, y, name, font, halo) {
+  ctx.font = (font || '500 11px ') + FONT;
   const w = ctx.measureText(name).width, h = 13;
   const l = x - w / 2 - 1, r = x + w / 2 + 1, b = y - 4, t = b - h;
   for (const bx of labelBoxes) if (l < bx.r && r > bx.l && t < bx.b && b > bx.t) return;
   labelBoxes.push({ l, r, t, b });
   ctx.textAlign = 'center'; ctx.textBaseline = 'bottom';
-  ctx.lineWidth = 3; ctx.strokeStyle = pal().lblStroke;
+  ctx.lineWidth = halo || 3; ctx.strokeStyle = pal().lblStroke;
   ctx.strokeText(name, x, y - 4);
   ctx.fillStyle = pal().lbl; ctx.fillText(name, x, y - 4);
+}
+
+// ── 車站分級圖示(站等:特等/一等/二等/三等/簡易招呼) ──
+// r=圖示半徑 w=框線 ring=框色 f=標籤字級 lz=標籤最低 zoom;特等畫圓角方牌
+const TIER_STYLE = [
+  { r: 6.5, w: 2.4, ring: '#d23c2a', f: '800 12.5px ', lz: 0,    sq: true },
+  { r: 4.6, w: 2.0, ring: '#2a4a73', f: '700 12px ',   lz: 9 },
+  { r: 3.6, w: 1.7, ring: '#2a4a73', f: '600 11px ',   lz: 10.5 },
+  { r: 2.7, w: 1.4, ring: '#5b78a0', f: '500 11px ',   lz: 12 },
+  { r: 2,   w: 1.2, ring: '#8aa0c0', f: '500 10.5px ', lz: 13 },
+];
+function drawStationIcon(cp, tier) {
+  const t = TIER_STYLE[tier];
+  if (t.sq) { // 特等站:白底圓角方牌+紅框+中心點,像站名牌
+    const s = t.r, r0 = 2.5, x0 = cp.x - s, y0 = cp.y - s, ww = s * 2;
+    ctx.beginPath();
+    ctx.moveTo(x0 + r0, y0);
+    ctx.arcTo(x0 + ww, y0, x0 + ww, y0 + ww, r0);
+    ctx.arcTo(x0 + ww, y0 + ww, x0, y0 + ww, r0);
+    ctx.arcTo(x0, y0 + ww, x0, y0, r0);
+    ctx.arcTo(x0, y0, x0 + ww, y0, r0);
+    ctx.closePath();
+    ctx.fillStyle = '#fffdf6'; ctx.fill();
+    ctx.lineWidth = t.w; ctx.strokeStyle = t.ring; ctx.stroke();
+    ctx.beginPath(); ctx.arc(cp.x, cp.y, 1.8, 0, 7);
+    ctx.fillStyle = t.ring; ctx.fill();
+    return;
+  }
+  ctx.beginPath(); ctx.arc(cp.x, cp.y, t.r, 0, 7);
+  ctx.fillStyle = tier <= 1 ? '#fffdf6' : pal().stnFill; ctx.fill();
+  ctx.lineWidth = t.w; ctx.strokeStyle = t.ring;
+  ctx.globalAlpha = tier >= 3 ? 0.8 : 1; ctx.stroke();
+  ctx.globalAlpha = 1;
 }
 
 function drawTag(p, label, bg, fg) {
@@ -1019,6 +1062,18 @@ function loadSystem(sys) {
     const seen = new Map();
     sys.data.trains.forEach(tr => tr.stops.forEach(st => { if (!seen.has(st.name)) seen.set(st.name, { name: st.name, lat: st.lat, lon: st.lon }); }));
     state.schedStations = [...seen.values()];
+    // 站等 → 圖示分級:官方站等優先(特等0/一等1/二等2/三等3/簡易招呼4),
+    // 對不上的站(多為支線)以每日停靠班次數推
+    const CLS_TIER = { '特等': 0, '一等': 1, '二等': 2, '三等': 3 };
+    const clsMap = state.stnClassMap || {};
+    const stopCount = {};
+    for (const tr of state.trains)
+      for (const s of tr.stops) if (s.stop !== false) stopCount[s.name] = (stopCount[s.name] || 0) + 1;
+    state.schedStations.forEach(st => {
+      const c = clsMap[st.name] || clsMap[st.name.replace(/台/g, '臺')];
+      st.tier = c ? (CLS_TIER[c] != null ? CLS_TIER[c] : 4)
+        : (n => n >= 200 ? 1 : n >= 90 ? 2 : n >= 30 ? 3 : 4)(stopCount[st.name] || 0);
+    });
     state.types = sys.data.types || [];
     state.visible = new Set(state.types.map(t => t.key));
     state.trackLines = state.trackData ? state.trackData.lines : null;
@@ -1236,80 +1291,8 @@ function setAutoTour(on) {
   }
 }
 
-// ── 放空模式(ambient):全畫面+自動導演+環境音+閒置隱藏 UI+防休眠 ──
-// 音訊為 WebAudio 程序生成(低頻氛圍+鐵軌喀噠+暖和聲),無外部音檔、無版權問題
-let AC = null, ambNodes = null;
-function startAmbientAudio() {
-  try {
-    AC = AC || new (window.AudioContext || window.webkitAudioContext)();
-    if (AC.state === 'suspended') AC.resume();
-    const master = AC.createGain();
-    master.gain.value = 0; master.connect(AC.destination);
-    master.gain.linearRampToValueAtTime(0.9, AC.currentTime + 2.5);
-    // 1) 低頻氛圍:brown noise 過低通,像遠處車廂的風壓聲
-    const len = AC.sampleRate * 4, buf = AC.createBuffer(1, len, AC.sampleRate);
-    const d = buf.getChannelData(0);
-    let lastV = 0;
-    for (let i = 0; i < len; i++) { const w = Math.random() * 2 - 1; lastV = (lastV + 0.02 * w) / 1.02; d[i] = lastV * 3.5; }
-    const noise = AC.createBufferSource(); noise.buffer = buf; noise.loop = true;
-    const lp = AC.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 280;
-    const ng = AC.createGain(); ng.gain.value = 0.055;
-    noise.connect(lp); lp.connect(ng); ng.connect(master); noise.start();
-    // 2) 鐵軌喀噠:每 ~2.1s 一組「喀噠…喀噠」(轉向架過軌縫的雙擊×2)
-    const clackBus = AC.createBiquadFilter(); clackBus.type = 'bandpass';
-    clackBus.frequency.value = 1400; clackBus.Q.value = 1.2;
-    const cg = AC.createGain(); cg.gain.value = 0.09;
-    clackBus.connect(cg); cg.connect(master);
-    const clackT = setInterval(() => {
-      if (!ambNodes || !AC || AC.state !== 'running') return;
-      const t0 = AC.currentTime + 0.05;
-      [[0, 0.9], [0.14, 0.65], [0.62, 0.8], [0.76, 0.5]].forEach(([dt, v]) => {
-        const s = AC.createBufferSource(); s.buffer = buf; s.playbackRate.value = 2.5;
-        const g = AC.createGain();
-        g.gain.setValueAtTime(0, t0 + dt);
-        g.gain.linearRampToValueAtTime(0.5 * v, t0 + dt + 0.012);
-        g.gain.exponentialRampToValueAtTime(0.001, t0 + dt + 0.09);
-        s.connect(g); g.connect(clackBus);
-        s.start(t0 + dt, Math.random() * 3, 0.12);
-      });
-    }, 2100);
-    // 3) 暖和聲 pad:Am→F→C→G 慢速循環,音量壓很低
-    const padG = AC.createGain(); padG.gain.value = 0.05;
-    const plp = AC.createBiquadFilter(); plp.type = 'lowpass'; plp.frequency.value = 900;
-    padG.connect(plp); plp.connect(master);
-    const chords = [[220, 261.63, 329.63], [174.61, 220, 261.63], [196, 261.63, 329.63], [196, 246.94, 293.66]];
-    const oscs = chords[0].map(f => {
-      const o = AC.createOscillator(); o.type = 'triangle'; o.frequency.value = f;
-      const og = AC.createGain(); og.gain.value = 0.33;
-      o.connect(og); og.connect(padG); o.start();
-      return o;
-    });
-    let ci = 0;
-    const chordT = setInterval(() => {
-      if (!ambNodes) return;
-      ci = (ci + 1) % chords.length;
-      chords[ci].forEach((f, i) => oscs[i].frequency.linearRampToValueAtTime(f, AC.currentTime + 3));
-    }, 9000);
-    ambNodes = { master, noise, oscs, clackT, chordT, muted: false };
-  } catch (e) {}
-}
-function stopAmbientAudio() {
-  const n = ambNodes; if (!n) return;
-  ambNodes = null;
-  try {
-    clearInterval(n.clackT); clearInterval(n.chordT);
-    n.master.gain.linearRampToValueAtTime(0, AC.currentTime + 0.8);
-    setTimeout(() => {
-      try { n.noise.stop(); n.oscs.forEach(o => o.stop()); n.master.disconnect(); } catch (e) {}
-    }, 1000);
-  } catch (e) {}
-}
-function toggleAmbientMute() {
-  if (!ambNodes) return;
-  ambNodes.muted = !ambNodes.muted;
-  ambNodes.master.gain.linearRampToValueAtTime(ambNodes.muted ? 0 : 0.9, AC.currentTime + 0.3);
-}
-
+// ── 放空模式(ambient):全畫面+自動導演+閒置隱藏 UI+防休眠 ──
+// (環境音已依使用者要求移除;之後接音檔時在 setAmbient 的開/關各加播放/停止即可)
 async function acquireWakeLock() {
   try { state._wakeLock = await navigator.wakeLock.request('screen'); } catch (e) {}
 }
@@ -1345,13 +1328,11 @@ function setAmbient(on) {
     if (state.simSec < 5 * 3600) { state.nightReplay = true; setSimSec(18 * 3600); refreshBadge(); }
     if (!document.body.classList.contains('fs')) (state._setFs || (() => {}))(true);
     if (!state.playing) togglePlay();
-    startAmbientAudio();
     setAutoTour(true);
     acquireWakeLock();
     ambientIdleReset();
   } else {
     b.textContent = '🌙 放空模式';
-    stopAmbientAudio();
     releaseWakeLock();
     clearTimeout(state._idleT);
     document.body.classList.remove('idle');
@@ -1867,6 +1848,8 @@ async function boot() {
   }
   // tra.json 僅作真實班表模式的軌道底圖幾何,不列為可切換系統(台鐵班距模式已移除)
   state.trackData = await fetchJSON('./data/tra.json');
+  // 站等資料(特等/一等/…),缺檔就全走停靠班次數啟發式
+  state.stnClassMap = await fetchJSON('./data/tra_station_class.json') || {};
   if (!state.systems.length) {
     document.getElementById('note').textContent = '找不到路網資料（data/*.json 還在準備）';
     return;
@@ -1940,7 +1923,6 @@ document.addEventListener('keydown', e => {
   else if (e.key === 'f' || e.key === 'F') document.getElementById('fsBtn').click();
   else if (e.key === 'ArrowLeft' && state.mode === 'sched') setSimSec(state.simSec - 600);
   else if (e.key === 'ArrowRight' && state.mode === 'sched') setSimSec(state.simSec + 600);
-  else if (e.key === 'm' || e.key === 'M') toggleAmbientMute();
   else { const v = { 1: 1, 2: 10, 3: 30, 4: 60 }[e.key]; if (v) setSpeed(v); }
 });
 document.getElementById('ambientBtn').onclick = () => setAmbient(!state.ambient);
