@@ -232,6 +232,10 @@
     max-height: calc(100vh - 110px); overflow-y: auto; z-index: 1001;
   }
   body.fs .kbd-hint, body.fs .flow, body.fs .search, body.fs .favs, body.fs .lines, body.fs .note { display: none; }
+  /* 放空模式:閒置 5 秒淡出控制,滑鼠動了淡回(時鐘與跟隨面板留著) */
+  .controls, .stage-tools, .leaflet-control-container { transition: opacity .7s; }
+  body.idle .controls, body.idle .stage-tools, body.idle .leaflet-control-container { opacity: 0; pointer-events: none; }
+  body.idle .stage, body.idle * { cursor: none; }
   #overlay { position: absolute; inset: 0; pointer-events: none; z-index: 500; }
 
   /* ── HUD 小牌 ── */
@@ -481,9 +485,10 @@
       <output id="todOut">08:00</output>
     </div>
     <button class="pp" id="nowBtn" title="跳到現在的真實時間">現在</button>
+    <button class="pp" id="ambientBtn" title="全畫面+環境音+自動換車跟隨，掛著放空用">🌙 放空模式</button>
   </div>
 
-  <p class="kbd-hint">快捷鍵：<b>空白鍵</b>暫停／播放　<b>1</b>–<b>4</b>速度　<b>←</b><b>→</b>時間 ±10 分　<b>F</b>全畫面　地圖角落<b>隨</b>＝隨機跟隨列車（螢幕保護）</p>
+  <p class="kbd-hint">快捷鍵：<b>空白鍵</b>暫停／播放　<b>1</b>–<b>4</b>速度　<b>←</b><b>→</b>時間 ±10 分　<b>F</b>全畫面　<b>M</b>放空音訊靜音　地圖角落<b>隨</b>＝隨機跟隨（螢幕保護）</p>
 
   <div class="flow" id="flowWrap" hidden>
     <canvas id="flowChart"></canvas>
@@ -529,7 +534,7 @@ const SYS_META = {
   mrt:       { plateL: '淡水', plateR: '象山', sub: 'TAIPEI METRO LIVE',    lead: '各線列車依 TDX 班距與站間時間在城市裡穿梭（班距模擬示意，非即時班次）— 拖曳、縮放看看。' },
   krtc:      { plateL: '小港', plateR: '岡山', sub: 'KAOHSIUNG METRO LIVE', lead: '紅橘兩線與環狀輕軌正在港都穿梭（班距模擬示意，非即時班次）— 拖曳、縮放看看。' },
   tmrt:      { plateL: '北屯總站', plateR: '高鐵臺中站', sub: 'TAICHUNG METRO LIVE', lead: '綠線列車沿著文心路跑（班距模擬示意，非即時班次）— 拖曳、縮放看看。' },
-  tra_sched: { plateL: '基隆', plateR: '枋寮', sub: 'TAIWAN RAILWAY LIVE',  lead: '列車依真實時刻表在島上跑來跑去 — 點列車直接跟隨、點車站看誰要來。' },
+  tra_sched: { plateL: '基隆', plateR: '枋寮', sub: 'TAIWAN RAILWAY LIVE',  lead: '列車依當日時刻表模擬運行（推算位置，非即時）— 點列車直接跟隨、點車站看誰要來。' },
 };
 
 // 播放/速度/時間的統一入口(控制列、快捷鍵、全畫面控制共用)
@@ -971,7 +976,7 @@ function refreshBadge() {
   const cool = () => { p.style.background = '#2a4a73'; p.style.color = '#fffdf6'; };
   if (state.mode === 'sched') {
     clock.textContent = fmtHM(state.simSec);
-    p.textContent = '真實班表'; hot();
+    p.textContent = state.nightReplay ? '深夜重播 18:00' : '時刻表模擬'; hot();
   } else {
     clock.textContent = fmtHour(state.hour);
     const peak = isPeak(state.hour);
@@ -1105,18 +1110,21 @@ function effT(tr) {
     ? state.simSec + 86400 : state.simSec;
 }
 
-function setFollow(tr, isAuto) {
+function setFollow(tr, isAuto, noJump) {
   if (!tr) return;
   if (!isAuto && state.autoTour) setAutoTour(false); // 使用者手動選車即接手,退出隨機模式
   state.followTrain = tr; state.followId = tr.train;
-  try { history.replaceState(null, '', '?train=' + encodeURIComponent(tr.train)); } catch (e) {}
+  // 深連結帶模擬時間:對方打開時車在同一位置
+  try { history.replaceState(null, '', '?train=' + encodeURIComponent(tr.train) + '&t=' + fmtHM(state.simSec)); } catch (e) {}
   const first = tr.stops[0], last = tr.stops[tr.stops.length - 1];
   if (effT(tr) < first.depSec - 60 || effT(tr) > last.arrSec) {
     state.simSec = Math.max(0, first.depSec - 20) % 86400;
     syncTimeUI();
   }
-  const pos = trainPos(tr, state.simSec) || { lat: first.lat, lon: first.lon };
-  map.setView([pos.lat, pos.lon], Math.max(map.getZoom(), 13), { animate: false });
+  if (!noJump) {
+    const pos = trainPos(tr, state.simSec) || { lat: first.lat, lon: first.lon };
+    map.setView([pos.lat, pos.lon], Math.max(map.getZoom(), 13), { animate: false });
+  }
   state.followStatus = null; renderFollowBar();
   state.followEvents = []; state._evSeen = {};
   showFollowPanel(tr);
@@ -1192,10 +1200,27 @@ function pickTourTrain() {
 function nextTourTrain(now) {
   const tr = pickTourTrain();
   state._tourNext = (now || performance.now()) + (tr ? 60000 + Math.random() * 60000 : 5000);
-  if (tr) {
-    const ts = document.getElementById('trainSearch'); if (ts) ts.value = tr.train;
-    setFollow(tr, true);
+  if (!tr) {
+    // 深夜幾乎沒車 → 重播傍晚尖峰(模擬時鐘本來就支援任意時間)
+    if (state.ambient && !state.nightReplay) { state.nightReplay = true; setSimSec(18 * 3600); refreshBadge(); }
+    return;
   }
+  const ts = document.getElementById('trainSearch'); if (ts) ts.value = tr.train;
+  if (state.ambient) cinematicSwitch(tr);
+  else setFollow(tr, true);
+}
+// 放空模式轉場:先拉高俯瞰全島,再緩降到下一班車
+function cinematicSwitch(tr) {
+  state._transition = true;
+  state._tourNext += 5200; // 轉場 ~5s 不計入跟隨時間
+  map.flyTo([23.85, 120.95], 8, { duration: 2.2 });
+  setTimeout(() => {
+    if (!state.autoTour) { state._transition = false; return; }
+    setFollow(tr, true, true);
+    const p = trainPos(tr, state.simSec) || tr.stops[0];
+    map.flyTo([p.lat, p.lon], 13, { duration: 2.6 });
+    setTimeout(() => { state._transition = false; }, 2700);
+  }, 2300);
 }
 function setAutoTour(on) {
   if (on && state.mode !== 'sched') {
@@ -1208,6 +1233,132 @@ function setAutoTour(on) {
   if (on) {
     if (!state.playing) togglePlay();
     nextTourTrain();
+  }
+}
+
+// ── 放空模式(ambient):全畫面+自動導演+環境音+閒置隱藏 UI+防休眠 ──
+// 音訊為 WebAudio 程序生成(低頻氛圍+鐵軌喀噠+暖和聲),無外部音檔、無版權問題
+let AC = null, ambNodes = null;
+function startAmbientAudio() {
+  try {
+    AC = AC || new (window.AudioContext || window.webkitAudioContext)();
+    if (AC.state === 'suspended') AC.resume();
+    const master = AC.createGain();
+    master.gain.value = 0; master.connect(AC.destination);
+    master.gain.linearRampToValueAtTime(0.9, AC.currentTime + 2.5);
+    // 1) 低頻氛圍:brown noise 過低通,像遠處車廂的風壓聲
+    const len = AC.sampleRate * 4, buf = AC.createBuffer(1, len, AC.sampleRate);
+    const d = buf.getChannelData(0);
+    let lastV = 0;
+    for (let i = 0; i < len; i++) { const w = Math.random() * 2 - 1; lastV = (lastV + 0.02 * w) / 1.02; d[i] = lastV * 3.5; }
+    const noise = AC.createBufferSource(); noise.buffer = buf; noise.loop = true;
+    const lp = AC.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 280;
+    const ng = AC.createGain(); ng.gain.value = 0.055;
+    noise.connect(lp); lp.connect(ng); ng.connect(master); noise.start();
+    // 2) 鐵軌喀噠:每 ~2.1s 一組「喀噠…喀噠」(轉向架過軌縫的雙擊×2)
+    const clackBus = AC.createBiquadFilter(); clackBus.type = 'bandpass';
+    clackBus.frequency.value = 1400; clackBus.Q.value = 1.2;
+    const cg = AC.createGain(); cg.gain.value = 0.09;
+    clackBus.connect(cg); cg.connect(master);
+    const clackT = setInterval(() => {
+      if (!ambNodes || !AC || AC.state !== 'running') return;
+      const t0 = AC.currentTime + 0.05;
+      [[0, 0.9], [0.14, 0.65], [0.62, 0.8], [0.76, 0.5]].forEach(([dt, v]) => {
+        const s = AC.createBufferSource(); s.buffer = buf; s.playbackRate.value = 2.5;
+        const g = AC.createGain();
+        g.gain.setValueAtTime(0, t0 + dt);
+        g.gain.linearRampToValueAtTime(0.5 * v, t0 + dt + 0.012);
+        g.gain.exponentialRampToValueAtTime(0.001, t0 + dt + 0.09);
+        s.connect(g); g.connect(clackBus);
+        s.start(t0 + dt, Math.random() * 3, 0.12);
+      });
+    }, 2100);
+    // 3) 暖和聲 pad:Am→F→C→G 慢速循環,音量壓很低
+    const padG = AC.createGain(); padG.gain.value = 0.05;
+    const plp = AC.createBiquadFilter(); plp.type = 'lowpass'; plp.frequency.value = 900;
+    padG.connect(plp); plp.connect(master);
+    const chords = [[220, 261.63, 329.63], [174.61, 220, 261.63], [196, 261.63, 329.63], [196, 246.94, 293.66]];
+    const oscs = chords[0].map(f => {
+      const o = AC.createOscillator(); o.type = 'triangle'; o.frequency.value = f;
+      const og = AC.createGain(); og.gain.value = 0.33;
+      o.connect(og); og.connect(padG); o.start();
+      return o;
+    });
+    let ci = 0;
+    const chordT = setInterval(() => {
+      if (!ambNodes) return;
+      ci = (ci + 1) % chords.length;
+      chords[ci].forEach((f, i) => oscs[i].frequency.linearRampToValueAtTime(f, AC.currentTime + 3));
+    }, 9000);
+    ambNodes = { master, noise, oscs, clackT, chordT, muted: false };
+  } catch (e) {}
+}
+function stopAmbientAudio() {
+  const n = ambNodes; if (!n) return;
+  ambNodes = null;
+  try {
+    clearInterval(n.clackT); clearInterval(n.chordT);
+    n.master.gain.linearRampToValueAtTime(0, AC.currentTime + 0.8);
+    setTimeout(() => {
+      try { n.noise.stop(); n.oscs.forEach(o => o.stop()); n.master.disconnect(); } catch (e) {}
+    }, 1000);
+  } catch (e) {}
+}
+function toggleAmbientMute() {
+  if (!ambNodes) return;
+  ambNodes.muted = !ambNodes.muted;
+  ambNodes.master.gain.linearRampToValueAtTime(ambNodes.muted ? 0 : 0.9, AC.currentTime + 0.3);
+}
+
+async function acquireWakeLock() {
+  try { state._wakeLock = await navigator.wakeLock.request('screen'); } catch (e) {}
+}
+function releaseWakeLock() {
+  try { state._wakeLock && state._wakeLock.release(); } catch (e) {}
+  state._wakeLock = null;
+}
+document.addEventListener('visibilitychange', () => {
+  if (state.ambient && document.visibilityState === 'visible') acquireWakeLock();
+});
+
+// 閒置 5 秒淡出控制列,滑鼠/按鍵/觸碰喚回
+function ambientIdleReset() {
+  document.body.classList.remove('idle');
+  clearTimeout(state._idleT);
+  if (state.ambient) state._idleT = setTimeout(() => document.body.classList.add('idle'), 5000);
+}
+['mousemove', 'pointerdown', 'keydown', 'touchstart'].forEach(ev =>
+  document.addEventListener(ev, () => { if (state.ambient) ambientIdleReset(); }, { passive: true }));
+
+function setAmbient(on) {
+  if (on === !!state.ambient) return;
+  state.ambient = on;
+  const b = document.getElementById('ambientBtn');
+  if (on) {
+    if (state.mode !== 'sched') {
+      const s = state.systems.find(x => x.mode === 'sched');
+      if (!s) { state.ambient = false; return; }
+      loadSystem(s);
+    }
+    b.textContent = '離開放空';
+    // 深夜(00–05)車太少 → 直接重播傍晚尖峰
+    if (state.simSec < 5 * 3600) { state.nightReplay = true; setSimSec(18 * 3600); refreshBadge(); }
+    if (!document.body.classList.contains('fs')) (state._setFs || (() => {}))(true);
+    if (!state.playing) togglePlay();
+    startAmbientAudio();
+    setAutoTour(true);
+    acquireWakeLock();
+    ambientIdleReset();
+  } else {
+    b.textContent = '🌙 放空模式';
+    stopAmbientAudio();
+    releaseWakeLock();
+    clearTimeout(state._idleT);
+    document.body.classList.remove('idle');
+    state._transition = false;
+    if (state.nightReplay) { state.nightReplay = false; refreshBadge(); }
+    if (state.autoTour) setAutoTour(false);
+    if (document.body.classList.contains('fs')) (state._setFs || (() => {}))(false);
   }
 }
 
@@ -1484,6 +1635,7 @@ function setFollowStatus(s, msg) {
 }
 function updateFollowCamera() {
   const tr = state.followTrain; if (!tr) return;
+  if (state._transition) { updateFollowPanel(tr); return; } // flyTo 轉場中不搶鏡頭
   const last = tr.stops[tr.stops.length - 1];
   if (effT(tr) > last.arrSec + 2) { setFollowStatus('done', '已抵達'); return; }
   const pos = trainPos(tr, state.simSec);
@@ -1637,7 +1789,9 @@ function setupMapTools() {
     fsBtn.title = on ? '退出全畫面（Esc）' : '全畫面地圖（Esc 退出）';
     placeFsOverlays(on); // 同步執行:class 已套用,量得到 fs 版控制列高度
     requestAnimationFrame(() => { map.invalidateSize(); reproject(); });
+    if (!on && state.ambient) setAmbient(false); // 退出全畫面=退出放空
   }
+  state._setFs = setFs;
   window.addEventListener('resize', () => {
     if (document.body.classList.contains('fs')) placeFsOverlays(true);
   });
@@ -1718,12 +1872,18 @@ async function boot() {
     return;
   }
   buildSystemToggle();
-  // 深連結:?train=5899 直接跟隨該車次(可分享)。要在 loadSystem 前讀,clearFollow 會清掉 query
-  let deepTrain = null;
-  try { deepTrain = new URLSearchParams(location.search).get('train'); } catch (e) {}
+  // 深連結:?train=5899&t=11:00 直接在該時刻跟隨該車次(可分享)。要在 loadSystem 前讀,clearFollow 會清掉 query
+  let deepTrain = null, deepT = null;
+  try {
+    const qs = new URLSearchParams(location.search);
+    deepTrain = qs.get('train');
+    const m = /^(\d{1,2}):(\d{2})$/.exec(qs.get('t') || '');
+    if (m) deepT = (+m[1] % 24) * 3600 + (+m[2]) * 60;
+  } catch (e) {}
   const initial = state.systems.find(s => s.id === 'tra_sched') || state.systems[0];
   loadSystem(initial);
   if (deepTrain && state.mode === 'sched') {
+    if (deepT != null) setSimSec(deepT);
     const tr0 = findTrain(deepTrain);
     if (tr0) { document.getElementById('trainSearch').value = tr0.train; setFollow(tr0); }
   }
@@ -1780,8 +1940,10 @@ document.addEventListener('keydown', e => {
   else if (e.key === 'f' || e.key === 'F') document.getElementById('fsBtn').click();
   else if (e.key === 'ArrowLeft' && state.mode === 'sched') setSimSec(state.simSec - 600);
   else if (e.key === 'ArrowRight' && state.mode === 'sched') setSimSec(state.simSec + 600);
+  else if (e.key === 'm' || e.key === 'M') toggleAmbientMute();
   else { const v = { 1: 1, 2: 10, 3: 30, 4: 60 }[e.key]; if (v) setSpeed(v); }
 });
+document.getElementById('ambientBtn').onclick = () => setAmbient(!state.ambient);
 (() => {
   const fc = document.getElementById('flowChart'), lbl = document.getElementById('flowLbl');
   const timeAt = e => Math.max(0, Math.min(86399, e.offsetX / fc.clientWidth * 86400));
