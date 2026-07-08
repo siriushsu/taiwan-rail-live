@@ -341,6 +341,12 @@
   .board .row .min { color: #2a4a73; font-weight: 700; min-width: 44px; text-align: right; }
   .board .close { position: absolute; top: 7px; right: 9px; background: none; border: 0; color: #a89468; font-size: 17px; cursor: pointer; line-height: 1; }
   .board .empty { color: #8a7c62; font-size: 13px; padding: 8px 0; }
+  /* 我的最愛面板(共用 .board 外觀) */
+  #favBtn { color: #d2a12a; }
+  #favPanel .row.fv { cursor: pointer; }
+  #favPanel .row.fv:hover { background: #f7f0dd; }
+  #favPanel .row .rm { margin-left: auto; color: #a89468; font-weight: 700; padding: 0 4px; }
+  #favPanel .row .rm:hover { color: #d23c2a; }
 
   /* ── 流量圖 ── */
   .flow { margin: 14px 2px 0; }
@@ -423,6 +429,7 @@
       <div class="fp-dest" id="fpDest"></div>
     </div>
     <div class="stage-tools">
+      <button id="favBtn" title="我的最愛列車">★</button>
       <button id="tourBtn" title="隨機跟隨列車（螢幕保護模式）">隨</button>
       <button id="satBtn" title="切換衛星影像">衛</button>
       <button id="themeBtn" title="地圖明暗切換">☾</button>
@@ -434,6 +441,7 @@
       <span class="count" id="count"></span>
     </div>
     <div class="board" id="board" hidden></div>
+    <div class="board" id="favPanel" hidden></div>
   </div>
 
   <div class="traincard" id="trainCard" hidden>
@@ -454,6 +462,8 @@
     </div>
     <div class="tc-stops" id="tcStops" hidden></div>
   </div>
+
+  <div class="favs" id="favRow" hidden></div>
 
   <div class="controls">
     <button class="pp" id="pp"><span id="ppIcon">❚❚</span><span id="ppTxt">暫停</span></button>
@@ -485,8 +495,6 @@
     <datalist id="trainList"></datalist>
     <div class="followbar" id="followBar" hidden></div>
   </div>
-
-  <div class="favs" id="favRow" hidden></div>
 
   <div class="lines" id="lineToggles"></div>
 
@@ -1039,6 +1047,7 @@ function loadSystem(sys) {
     document.getElementById('flowWrap').hidden = true;
   }
   closeBoard();
+  closeFavPanel();
   configTimeSlider();
   buildToggles();
   renderFavs();
@@ -1251,7 +1260,25 @@ function toggleFav(tr) {
     const stops = tr.stops;
     favs.push({ train: no, label: `${sp ? sp.name : tr.typeName}　${stops[0].name}→${stops[stops.length - 1].name}` });
   }
-  saveFavs(favs); renderFavs(); updateStar();
+  saveFavs(favs); renderFavs(); renderFavPanel(); updateStar();
+}
+// 跟隨指定車次;在捷運頁會先切回台鐵
+function followTrainNo(no) {
+  if (state.mode !== 'sched') {
+    const s = state.systems.find(x => x.mode === 'sched');
+    if (!s) return;
+    loadSystem(s);
+  }
+  const tr = findTrain(no);
+  if (tr) {
+    const ts = document.getElementById('trainSearch'); if (ts) ts.value = no;
+    setFollow(tr);
+  } else showSearchMiss(no + '（今日無此班次）');
+}
+function removeFav(no) {
+  saveFavs(loadFavs().filter(x => x.train !== no));
+  renderFavs(); renderFavPanel();
+  if (state.followTrain) updateStar();
 }
 function renderFavs() {
   const box = document.getElementById('favRow');
@@ -1264,19 +1291,37 @@ function renderFavs() {
     el.className = 'favchip';
     el.innerHTML = `<span class="star">★</span><b>${f.train}</b><span>${f.label}</span><span class="rm" title="移除">×</span>`;
     el.onclick = e => {
-      if (e.target.classList.contains('rm')) {
-        saveFavs(loadFavs().filter(x => x.train !== f.train));
-        renderFavs(); if (state.followTrain) updateStar();
-        return;
-      }
-      const tr = findTrain(f.train);
-      if (tr) {
-        const ts = document.getElementById('trainSearch'); if (ts) ts.value = f.train;
-        setFollow(tr);
-      } else showSearchMiss(f.train + '（今日無此班次）');
+      if (e.target.classList.contains('rm')) { removeFav(f.train); return; }
+      followTrainNo(f.train);
     };
     box.appendChild(el);
   });
+}
+// 地圖上的最愛面板(★ 鈕開關;與車站時刻板同位置,互斥開啟)
+function renderFavPanel() {
+  const el = document.getElementById('favPanel');
+  if (el.hidden) return;
+  const favs = loadFavs();
+  el.innerHTML = `<button class="close" id="favClose">×</button>` +
+    `<h3>我的最愛</h3><div class="sub">點列車跟隨 · × 移除收藏</div>` +
+    (favs.length
+      ? favs.map(f =>
+          `<div class="row fv" data-no="${f.train}"><span class="dot" style="background:#d2a12a"></span>` +
+          `<b>${f.train}</b><span class="dest">${f.label}</span><span class="rm" data-no="${f.train}" title="移除">×</span></div>`).join('')
+      : '<div class="empty">還沒有收藏——跟隨列車後，點資訊卡的 ☆ 就能收藏。</div>');
+  el.querySelector('#favClose').onclick = closeFavPanel;
+}
+function openFavPanel() {
+  closeBoard();
+  const el = document.getElementById('favPanel');
+  el.hidden = false;
+  document.getElementById('favBtn').classList.add('active');
+  renderFavPanel();
+}
+function closeFavPanel() {
+  const el = document.getElementById('favPanel');
+  el.hidden = true; el.innerHTML = '';
+  document.getElementById('favBtn').classList.remove('active');
 }
 
 // ── 跟隨動態事件(停靠/交會/待避) ──
@@ -1466,7 +1511,7 @@ function jumpToNow() {
 }
 
 // ── 車站時刻板 ──
-function openBoard(st) { state.boardStation = st; renderBoard(); }
+function openBoard(st) { closeFavPanel(); state.boardStation = st; renderBoard(); }
 function closeBoard() {
   state.boardStation = null;
   const el = document.getElementById('board');
@@ -1705,6 +1750,15 @@ document.getElementById('nowBtn').onclick = jumpToNow;
 document.getElementById('fpClose').onclick = () => { setAutoTour(false); clearFollow(); };
 document.getElementById('tcStar').onclick = () => toggleFav(state.followTrain);
 document.getElementById('tourBtn').onclick = () => setAutoTour(!state.autoTour);
+document.getElementById('favBtn').onclick = () => {
+  document.getElementById('favPanel').hidden ? openFavPanel() : closeFavPanel();
+};
+document.getElementById('favPanel').onclick = e => {
+  const rm = e.target.closest('.rm');
+  if (rm) { removeFav(rm.dataset.no); return; }
+  const row = e.target.closest('.row.fv');
+  if (row) { closeFavPanel(); followTrainNo(row.dataset.no); }
+};
 document.getElementById('tcTT').onclick = () => {
   const el = document.getElementById('tcStops');
   el.hidden = !el.hidden;
