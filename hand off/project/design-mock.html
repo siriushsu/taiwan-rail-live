@@ -1,0 +1,705 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>台灣鐵道 · 列車流動 — DESIGN MOCK</title>
+<!--
+  DESIGN MOCK(自包含,無外部資源)— 供 Claude Design 打磨視覺用。
+  ‧ <style> 區塊與正式版 index.html 完全同步(由腳本注入)。
+  ‧ DOM 呈現所有元件的「使用中狀態」:時刻板開啟、跟隨列車中、圖例兩組、流量圖有資料。
+  ‧ 地圖區是內嵌 SVG 假地圖(正式版為 CARTO 圖磚 + canvas,列車/站名/軌道由 JS 繪製)。
+
+  DESIGN CHANGELOG(2026-07-08,方向:「復古站名牌」— 台鐵站名牌×硬票紙板,亮色暖調):
+
+  1. 改動的 CSS 區塊(全部重寫,選擇器與類名不變):
+     ‧ 全域:亮色主題。頁面底 #efe6d2(米紙板)、紙面 #fffdf6、硬票紙板 #e6d9ba、
+       邊框 #c9b98f / 深 #a89468、藏青 #2a4a73(站名牌框)、深藏青 #1e2c40、
+       墨色文字 #3a3226、次要 #7a6c50 / #8a7c62、印章紅 #d23c2a(深 #a92c1d)。
+       :root color-scheme 改 light。字體棧不變(系統字)。
+     ‧ header:新增 .plate(站名牌)、.plate-side、.plate-mid、.plate-sub 樣式。
+     ‧ .systems button:紙板膠囊+0 2px 0 硬陰影;.active 改印章紅。
+     ‧ .stage/#map:亮紙地圖底 #f7f0dd,框改牛皮色。
+     ‧ .badge:改為白紙面+藏青框的小牌(原本是無底色文字)。
+     ‧ .board:白紙面+2px 藏青框(站名牌語彙)、row 分隔線改虛線、h3 加字距。
+     ‧ .controls/.pp/input[type=range]:紙面按鈕+牛皮框;range accent 改印章紅。
+     ‧ .flow canvas:亮紙面。
+     ‧ .search input/.followbar:硬票樣式;followbar.miss 改暖紅警告(亮色系)。
+     ‧ .chip:硬票票根(方角 4px、左側打洞 ::before);.off 維持 .38。
+     ‧ .legend-lbl:小字大字距+底線分隔。
+     ‧ 新增 RWD(≤640px):時刻板變 bottom sheet、控制列直排、站名牌縮小。
+  2. 動過的 DOM(均無 id/JS 綁定,純 header 內部):
+     ‧ header 內 h1/p 外包 .plate 結構(h1 保留);副標 p 移到 plate 下方、文案微調。
+     ‧ .badge 內 #peak 的 inline style 改為 background:#d23c2a;color:#fff8ec
+       (此值由 JS 依模式設定,新值見下方 spec 第 8 條)。
+     ‧ 假地圖 SVG 配色同步亮色(正式版不用理,見 canvas spec)。
+     ‧ mock 專用流量圖腳本加了尖峰帶/整點刻度(正式版請照 spec 第 7 條移植)。
+  3. 文案微調(JS 端也要同步的字串):
+     ‧ header p → 「905 班小火車正在島上跑來跑去 — 拖曳、縮放,點個車站看看誰要來。」
+     ‧ board .sub → 「接下來 3 小時會有誰來 · 依時刻表(無誤點資訊)」
+     ‧ #count 格式建議 → 「137 班奔跑中」(JS 產生)
+
+  CANVAS 視覺 SPEC(新值——亮紙地圖版,由 Claude Code 移植進 JS):
+  1. 地圖圖磚:改用 CARTO Positron(亮色)。若保留深色圖磚,以下顏色需回退舊值。
+  2. 列車標籤 drawTag:bg=路線/車種色、外框 1.5px #fffdf6、字=白或黑(依亮度)、
+     700 10px、圓角 7.5(膠囊感)、padding 5px、高 15px。
+  3. 光點 drawDot:外暈 r6 alpha.2(路線色)、白圈 r3.2、實心 r2(路線色)。
+  4. 站名 tryLabel:500 11px、字 #3a3226、描邊 3px rgba(255,253,246,.92)、碰撞避讓不變。
+  5. 車站點:r2.4 紙底 #f7f0dd + 1.5px 路線色描邊。
+  6. 軌道線:寬 3.4、alpha 0.9(亮底需要更實)、路線色。
+  7. 流量柱 drawFlow:柱 #8fa8c6;尖峰帶 07:00–09:00、17:00–19:30 底色
+     rgba(210,60,42,.08);整點刻度 1px #c9b98f(高 4px,00/06/12/18 高 7px);
+     現在游標 #d23c2a 1.5px。
+  8. HUD #peak 模式色(JS 設定):真實班表/尖峰 bg #d23c2a fg #fff8ec;
+     離峰 bg #2a4a73 fg #fffdf6。
+  9. 跟隨雙圈 drawFollowMarker:內圈 r11 2.5px alpha.9、外圈 r17 2px alpha.35(車種色)。
+
+  新增功能(2026-07-08 第二次更新，需 Claude Code 接線):
+  A. 全畫面地圖模式:.stage-tools 內 #fsBtn 切換 body.fs。
+     body.fs 時 .stage 改 position:fixed inset:0(CSS 已寫好)，HUD/時刻板/工具鈕
+     都在 .stage 內所以照常顯示;其餘區塊被覆蓋。正式版需在切換後呼叫
+     map.invalidateSize()。Esc 鍵也應退出(mock 已示範)。
+  B. 地圖明暗切換:#themeBtn 切換 .stage.dark + localStorage('trainmap-theme')。
+     正式版對應:亮=CARTO Positron、暗=CARTO Dark Matter 圖磚互換，
+     canvas 配色也要切換 —— 暗色時:站名字 #e8e4d8/描邊 rgba(16,20,28,.9)、
+     車站點底 #10141c、列車標籤外框改 rgba(16,20,28,.9)、軌道 alpha 回 .75。
+     UI 面板(HUD/時刻板/票根)不變 —— 紙牌在暗圖上就像夜間站牌，對比足够。
+  C. 系統精簡(2026-07-08 第三次更新):移除「台鐵（班距）」模式，只留兩系統:
+     台北捷運(data-id=mrt)與台鐵(data-id=tra_sched，真實班表)。
+     JS 端同步刪除 tra(班距模擬)相關邏輯與按鈕。
+     捷運模式規格:
+     ‣ 路線 chips 換捷運色:文湖 #C48C31、淡水信義 #E3002C、松山新店 #008659、
+       中和新蘆 #F8B61C、板南 #0070BD、環狀 #FEDB00;「車種」篩選區整組隱藏
+       (捷運無車種之分)。
+     ‣ 時刻板 row:車次欄位改顯示路線代碼(如 R・BL)，dest=終點方向。
+     ‣ header 副標數字、1日班次數由 JS 依系統替換。
+  D. 衛星影像底圖:.stage-tools 新增 #satBtn(字「衛」↔「圖」)，切換 .stage.sat +
+     localStorage('trainmap-basemap')。正式版對應 Esri World Imagery 圖磚
+     (需附 attribution)。衛星模式下:站名字 #fff/描邊 rgba(20,30,20,.85)、
+     車站點底深綠、軌道 alpha .95(影像上要更實)、明暗鈕隱藏(不適用)。
+     mock 以 CSS 漸層假衛星底示意。
+  E. 系統切換實作(mock 已可互動示範兩系統完整狀態):切到捷運時 ——
+     站名牌兩端改淡水/象山、副標 TAIPEI METRO LIVE、chips 換六條路線官方色、
+     車種篩選隱藏、搜尋/跟隨列隱藏、時刻板改路線代碼(R/BL)+終點方向、
+     假地圖軌道/站名/標籤同步換色。JS 端照此狀態對接。
+  F. 跟隨小面板 #followPanel(地圖左下角):跟隨列車時顯示、取消跟隨時隱藏。
+     內容由 JS 每秒更新:fp-head=車種色點+車次+車種，× 同 #unfollow;
+     fp-next=下一停靠站名+預計到達時刻+剩餘分鐘(依時刻表與模擬時間計算，
+     <1 分顯示「即將進站」);fp-dest=起訖站+終點抵達時刻。
+     手機版置底部時刻板之上(CSS 已處理)。捷運模式無跟隨，不適用。
+-->
+<style>
+  :root { color-scheme: light; }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, "PingFang TC", "Noto Sans TC", sans-serif;
+    background: #efe6d2;
+    color: #3a3226;
+  }
+  a { color: #2a4a73; }
+  a:hover { color: #d23c2a; }
+  .wrap { max-width: 1040px; margin: 0 auto; padding: 20px 20px 48px; }
+
+  /* ── 站名牌 header ── */
+  .plate {
+    background: #fffdf6;
+    border: 3.5px solid #2a4a73;
+    border-radius: 12px;
+    box-shadow: 0 3px 0 rgba(42,74,115,.22);
+    padding: 14px 22px 15px;
+    display: flex; align-items: center; justify-content: space-between; gap: 12px;
+    margin-bottom: 10px;
+  }
+  .plate-side {
+    display: flex; flex-direction: column; gap: 1px;
+    font-size: 12px; font-weight: 700; color: #2a4a73; white-space: nowrap;
+  }
+  .plate-side.left { align-items: flex-start; }
+  .plate-side.right { align-items: flex-end; }
+  .plate-side .arr { font-size: 14px; line-height: 1; }
+  .plate-mid { text-align: center; }
+  header h1 {
+    font-size: 28px; font-weight: 900; letter-spacing: 7px;
+    color: #1e2c40; margin: 0;
+  }
+  .plate-sub {
+    margin: 3px 0 0; font-size: 10px; letter-spacing: 3px;
+    color: #8a7c62; font-weight: 600;
+  }
+  header p { margin: 0 0 16px; color: #7a6c50; font-size: 14px; }
+
+  /* ── 系統切換 ── */
+  .systems { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 14px; }
+  .systems button {
+    font: inherit; font-size: 14px; font-weight: 600; cursor: pointer;
+    background: #e6d9ba; color: #7a6c50;
+    border: 1.5px solid #c9b98f; border-radius: 6px; padding: 8px 18px;
+    box-shadow: 0 2px 0 #c9b98f;
+  }
+  .systems button.active {
+    background: #d23c2a; color: #fff8ec; font-weight: 800;
+    border-color: #a92c1d; box-shadow: 0 2px 0 #a92c1d;
+  }
+
+  /* ── 地圖 stage ── */
+  .stage {
+    position: relative;
+    height: 64vh; min-height: 460px; max-height: 760px;
+    background: #f7f0dd;
+    border: 2px solid #c9b98f;
+    border-radius: 12px;
+    overflow: hidden;
+  }
+  #map { position: absolute; inset: 0; background: #f7f0dd; }
+  #map svg { background: #f7f0dd; }
+
+  /* 地圖暗色模式(只換地圖，紙牌 UI 不變) */
+  .stage.dark, .stage.dark #map, .stage.dark #map svg { background: #10141c; }
+  .stage.dark #map .stn { fill: #10141c; }
+  .stage.dark #map .stn-lbl { fill: #e8e4d8; stroke: rgba(16,20,28,.9); }
+  .stage.dark #map .rail { opacity: .78; }
+  .stage.dark { border-color: #a89468; }
+
+  /* 衛星影像底圖(mock 以漸層示意;正式版為 Esri World Imagery 圖磚) */
+  .stage.sat, .stage.sat #map { background: #2e4636; }
+  .stage.sat #map svg {
+    background:
+      radial-gradient(120% 90% at 72% 18%, #47634a 0%, rgba(71,99,74,0) 60%),
+      radial-gradient(90% 75% at 18% 82%, #33503b 0%, rgba(51,80,59,0) 55%),
+      radial-gradient(50% 40% at 45% 50%, #55704f 0%, rgba(85,112,79,0) 70%),
+      linear-gradient(160deg, #4a6147 0%, #3b5240 42%, #2e4636 72%, #24382c 100%);
+  }
+  .stage.sat #map .stn { fill: #24382c; }
+  .stage.sat #map .stn-lbl { fill: #ffffff; stroke: rgba(20,30,20,.85); }
+  .stage.sat #map .rail { opacity: .95; }
+  .stage.sat #themeBtn { display: none; }
+
+  /* 地圖工具鈕(全畫面、明暗、衛星) */
+  .stage-tools {
+    position: absolute; right: 12px; bottom: 12px; z-index: 700;
+    display: flex; gap: 8px;
+  }
+  .stage-tools button {
+    font: inherit; font-size: 15px; font-weight: 700; cursor: pointer;
+    width: 38px; height: 38px; display: flex; align-items: center; justify-content: center;
+    background: #fffdf6; color: #2a4a73;
+    border: 1.5px solid #c9b98f; border-radius: 6px;
+    box-shadow: 0 2px 0 #c9b98f;
+  }
+  .stage-tools button:hover { background: #f7f0dd; }
+
+  /* 跟隨小面板(地圖左下角，跟隨列車時顯示) */
+  .follow-panel {
+    position: absolute; left: 12px; bottom: 12px; z-index: 650;
+    width: 230px;
+    background: rgba(255,253,246,.97); border: 2px solid #2a4a73; border-radius: 10px;
+    padding: 10px 13px 11px;
+    font-variant-numeric: tabular-nums;
+  }
+  .follow-panel .fp-head { display: flex; align-items: center; gap: 8px; }
+  .follow-panel .fp-head .dot { width: 9px; height: 9px; border-radius: 50%; flex: none; }
+  .follow-panel .fp-head b { font-size: 15px; color: #1e2c40; }
+  .follow-panel .fp-head .kind { font-size: 12px; color: #7a6c50; font-weight: 600; }
+  .follow-panel .fp-head .fp-close {
+    margin-left: auto; background: none; border: 0; cursor: pointer;
+    color: #a89468; font-size: 15px; line-height: 1; padding: 0 2px;
+  }
+  .follow-panel .fp-next {
+    display: flex; align-items: baseline; gap: 7px;
+    margin-top: 7px; padding-top: 7px; border-top: 1.5px dashed #d8cba9;
+  }
+  .follow-panel .fp-next .lbl { font-size: 11px; color: #8a7c62; font-weight: 800; letter-spacing: 2px; flex: none; }
+  .follow-panel .fp-next .stn { font-size: 16px; font-weight: 900; color: #1e2c40; letter-spacing: 1px; }
+  .follow-panel .fp-next .eta { margin-left: auto; font-size: 13px; font-weight: 700; color: #2a4a73; }
+  .follow-panel .fp-next .eta b { color: #d23c2a; }
+  .follow-panel .fp-dest { margin-top: 4px; font-size: 11.5px; color: #7a6c50; }
+
+  /* 全畫面模式 */
+  body.fs { overflow: hidden; }
+  body.fs .stage {
+    position: fixed; inset: 0; z-index: 1000;
+    height: 100vh; max-height: none; min-height: 0;
+    border: 0; border-radius: 0;
+  }
+  #overlay { position: absolute; inset: 0; pointer-events: none; z-index: 500; }
+
+  /* ── HUD 小牌 ── */
+  .badge {
+    position: absolute; top: 12px; left: 14px; z-index: 600;
+    display: flex; gap: 12px; align-items: baseline;
+    font-variant-numeric: tabular-nums; pointer-events: none;
+    background: #fffdf6; border: 2px solid #2a4a73; border-radius: 8px;
+    padding: 6px 14px 7px;
+  }
+  .badge .clock { font-size: 22px; font-weight: 900; color: #1e2c40; }
+  .badge .peak { font-size: 12px; font-weight: 800; padding: 2px 9px; border-radius: 3px; }
+  .badge .count { font-size: 13px; color: #7a6c50; font-weight: 600; }
+
+  /* ── 控制列 ── */
+  .controls {
+    display: flex; flex-wrap: wrap; gap: 18px 24px;
+    align-items: center; margin: 16px 2px 0;
+  }
+  .ctl { display: flex; align-items: center; gap: 10px; }
+  .ctl label { font-size: 13px; color: #7a6c50; font-weight: 600; white-space: nowrap; }
+  .ctl output { font-size: 13px; font-weight: 800; min-width: 48px; color: #1e2c40; }
+  input[type=range] { accent-color: #d23c2a; width: 150px; }
+  button.pp {
+    font: inherit; font-size: 14px; font-weight: 700; cursor: pointer;
+    background: #fffdf6; color: #2a4a73;
+    border: 1.5px solid #c9b98f; border-radius: 6px;
+    padding: 7px 14px; display: inline-flex; align-items: center; gap: 6px;
+    box-shadow: 0 2px 0 #c9b98f;
+  }
+  button.pp:hover { background: #f7f0dd; }
+
+  /* ── 圖例票根 ── */
+  .lines { display: flex; flex-wrap: wrap; gap: 8px; margin: 16px 2px 0; }
+  .chip {
+    display: inline-flex; align-items: center; gap: 7px;
+    font-size: 12.5px; padding: 5px 12px 5px 8px; border-radius: 4px;
+    border: 1.5px solid #c9b98f; background: #e6d9ba; cursor: pointer;
+    user-select: none; transition: opacity .15s; color: #3a3226;
+  }
+  .chip::before {
+    content: ''; width: 6px; height: 6px; border-radius: 50%;
+    background: #efe6d2; border: 1px solid #a89468; flex: none;
+  }
+  .chip .dot { width: 11px; height: 11px; border-radius: 50%; }
+  .chip.off { opacity: .38; }
+  .legend-sep { flex-basis: 100%; height: 0; }
+  .legend-lbl {
+    flex-basis: 100%; color: #a89468; font-size: 11px; font-weight: 800;
+    letter-spacing: 3px; margin: 8px 2px -2px;
+    padding-bottom: 3px; border-bottom: 1.5px dashed #d8cba9;
+  }
+  .note { margin: 22px 2px 0; color: #8a7c62; font-size: 13px; line-height: 1.6; }
+
+  /* ── 搜尋+跟隨票 ── */
+  .search { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin: 14px 2px 0; }
+  .search input[type=text] {
+    font: inherit; font-size: 14px; background: #fffdf6; color: #3a3226;
+    border: 1.5px solid #c9b98f; border-radius: 6px; padding: 8px 12px; width: 260px;
+  }
+  .search input::placeholder { color: #a89468; }
+  .followbar {
+    display: inline-flex; align-items: center; gap: 9px; font-size: 13px;
+    background: #e6d9ba; border: 1.5px solid #c9b98f; border-radius: 4px;
+    padding: 6px 13px; color: #3a3226; font-variant-numeric: tabular-nums;
+  }
+  .followbar b { color: #1e2c40; font-size: 14px; }
+  .followbar .dot { width: 9px; height: 9px; border-radius: 50%; }
+  .followbar button {
+    font: inherit; font-size: 12px; font-weight: 700; cursor: pointer;
+    background: #d23c2a; color: #fff8ec;
+    border: 1px solid #a92c1d; border-radius: 4px; padding: 3px 9px;
+  }
+  .followbar.miss { background: #fbe9df; border-color: #e0a37e; color: #b4552a; }
+
+  /* ── 車站時刻板 ── */
+  .board {
+    position: absolute; top: 12px; right: 12px; z-index: 650;
+    width: 272px; max-height: calc(100% - 24px); overflow-y: auto;
+    background: rgba(255,253,246,.97); border: 2px solid #2a4a73; border-radius: 10px;
+    padding: 12px 14px;
+  }
+  .board h3 { margin: 0 18px 1px 0; font-size: 16px; font-weight: 900; letter-spacing: 3px; color: #1e2c40; }
+  .board .sub { color: #8a7c62; font-size: 11px; margin-bottom: 7px; }
+  .board .row { display: flex; align-items: baseline; gap: 8px; padding: 5px 0; border-top: 1.5px dashed #d8cba9; font-size: 13px; }
+  .board .row b { color: #1e2c40; }
+  .board .row .dot { width: 8px; height: 8px; border-radius: 50%; flex: none; align-self: center; }
+  .board .row .dest { flex: 1; color: #6b5f4a; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .board .row .t, .board .row .min { font-variant-numeric: tabular-nums; }
+  .board .row .min { color: #2a4a73; font-weight: 700; min-width: 44px; text-align: right; }
+  .board .close { position: absolute; top: 7px; right: 9px; background: none; border: 0; color: #a89468; font-size: 17px; cursor: pointer; line-height: 1; }
+  .board .empty { color: #8a7c62; font-size: 13px; padding: 8px 0; }
+
+  /* ── 流量圖 ── */
+  .flow { margin: 14px 2px 0; }
+  .flow canvas { display: block; width: 100%; height: 64px; cursor: crosshair; border: 1.5px solid #c9b98f; border-radius: 6px; background: #fffdf6; }
+  .flow .lbl { color: #8a7c62; font-size: 12px; margin-top: 5px; font-variant-numeric: tabular-nums; }
+  .leaflet-container { background: #f7f0dd; }
+
+  /* ── 手機直立版 ── */
+  @media (max-width: 640px) {
+    .wrap { padding: 12px 12px 40px; }
+    .plate { padding: 10px 14px 11px; border-width: 3px; }
+    header h1 { font-size: 19px; letter-spacing: 4px; }
+    .plate-sub { font-size: 9px; letter-spacing: 2px; }
+    .plate-side { font-size: 10px; }
+    .plate-side .arr { font-size: 12px; }
+    header p { font-size: 13px; }
+    .stage { height: 58vh; min-height: 380px; }
+    .badge { top: 8px; left: 8px; gap: 9px; padding: 5px 11px 6px; }
+    .badge .clock { font-size: 18px; }
+    .badge .count { font-size: 12px; }
+    .board {
+      top: auto; bottom: 8px; left: 8px; right: 8px; width: auto;
+      max-height: 46%;
+      border-radius: 10px;
+    }
+    .controls { gap: 10px 14px; margin-top: 12px; }
+    .ctl { flex: 1 1 100%; }
+    .ctl input[type=range] { flex: 1; width: auto; }
+    .search input[type=text] { flex: 1 1 100%; width: auto; }
+    .followbar { flex-wrap: wrap; }
+    .chip { font-size: 12px; padding: 4px 10px 4px 7px; }
+    .follow-panel { left: 8px; bottom: 8px; width: 200px; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="plate">
+      <div class="plate-side left"><span class="arr">◀</span><span>基隆</span></div>
+      <div class="plate-mid">
+        <h1>台灣鐵道 · 列車流動</h1>
+        <p class="plate-sub">TAIWAN RAILWAY LIVE — 905 TRAINS DAILY</p>
+      </div>
+      <div class="plate-side right"><span class="arr">▶</span><span>枋寮</span></div>
+    </div>
+    <p>905 班小火車正在島上跑來跑去 — 拖曳、縮放，點個車站看看誰要來。</p>
+  </header>
+
+  <div class="systems" id="systems">
+    <button data-id="mrt">台北捷運</button>
+    <button data-id="tra_sched" class="active">台鐵</button>
+  </div>
+
+  <div class="stage">
+    <div id="map">
+      <!-- 假地圖:正式版此處為 CARTO 亮色圖磚(Positron),軌道/車站/列車皆由 canvas 繪製 -->
+      <svg width="100%" height="100%" viewBox="0 0 1000 640" preserveAspectRatio="xMidYMid slice"
+           style="display:block;">
+        <g stroke-linecap="round" fill="none">
+          <path class="rail" d="M 980 40 C 840 90 760 150 700 210 C 640 270 560 330 460 390 C 360 450 240 520 80 600"
+                stroke="#2E6FB0" stroke-width="3.4" opacity="0.9"/>
+          <path class="rail" d="M 990 210 C 900 220 830 240 770 260 C 720 277 680 292 640 310"
+                stroke="#C2185B" stroke-width="3.4" opacity="0.9"/>
+          <path class="rail" d="M 460 390 C 420 420 390 460 380 520 C 374 556 372 590 372 630"
+                stroke="#E8792B" stroke-width="3.4" opacity="0.9"/>
+        </g>
+        <g>
+          <circle class="stn" cx="700" cy="210" r="3.4" fill="#f7f0dd" stroke="#2E6FB0" stroke-width="1.5"/>
+          <circle class="stn" cx="640" cy="310" r="3.4" fill="#f7f0dd" stroke="#C2185B" stroke-width="1.5"/>
+          <circle class="stn" cx="560" cy="330" r="3.4" fill="#f7f0dd" stroke="#2E6FB0" stroke-width="1.5"/>
+          <circle class="stn" cx="460" cy="390" r="3.4" fill="#f7f0dd" stroke="#2E6FB0" stroke-width="1.5"/>
+          <circle class="stn" cx="380" cy="520" r="3.4" fill="#f7f0dd" stroke="#E8792B" stroke-width="1.5"/>
+        </g>
+        <g class="stn-lbl" font-family="-apple-system,'PingFang TC','Noto Sans TC',sans-serif" font-size="11"
+           font-weight="500" fill="#3a3226" text-anchor="middle" style="paint-order:stroke"
+           stroke="rgba(255,253,246,.92)" stroke-width="3">
+          <text x="700" y="196">南港</text>
+          <text x="560" y="316">臺北</text>
+          <text x="460" y="376">萬華</text>
+          <text x="380" y="506">板橋</text>
+          <text x="640" y="296">松山</text>
+        </g>
+        <!-- 列車標籤(正式版 drawTag 畫在 canvas;新 spec:圓角 7.5+外框 1.5px 紙白) -->
+        <g font-family="-apple-system,'PingFang TC','Noto Sans TC',sans-serif" font-size="10" font-weight="700">
+          <g class="tag" transform="translate(585,322)">
+            <rect x="-19" y="-8" width="38" height="15" rx="7.5" fill="#2E6FB0" stroke="#fffdf6" stroke-width="1.5"/>
+            <text x="0" y="3.5" fill="#fff" text-anchor="middle">4240</text>
+          </g>
+          <g class="tag" transform="translate(430,412)">
+            <circle class="fol" r="17" fill="none" stroke="#C0392B" stroke-width="2" opacity="0.35"/>
+            <circle class="fol" r="11" fill="none" stroke="#C0392B" stroke-width="2.5" opacity="0.9"/>
+            <rect x="-16" y="-8" width="32" height="15" rx="7.5" fill="#C0392B" stroke="#fffdf6" stroke-width="1.5"/>
+            <text x="0" y="3.5" fill="#fff" text-anchor="middle">448</text>
+          </g>
+          <g class="tag" transform="translate(770,262)">
+            <rect x="-19" y="-8" width="38" height="15" rx="7.5" fill="#2E6FB0" stroke="#fffdf6" stroke-width="1.5"/>
+            <text x="0" y="3.5" fill="#fff" text-anchor="middle">1248</text>
+          </g>
+        </g>
+      </svg>
+    </div>
+    <canvas id="overlay"></canvas>
+    <div class="follow-panel" id="followPanel">
+      <div class="fp-head">
+        <span class="dot" style="background:#C0392B"></span>
+        <b>448</b><span class="kind">自強</span>
+        <button class="fp-close" id="fpClose" title="取消跟隨">×</button>
+      </div>
+      <div class="fp-next">
+        <span class="lbl">下一站</span>
+        <span class="stn">板橋</span>
+        <span class="eta">19:56 · <b>7 分</b></span>
+      </div>
+      <div class="fp-dest">樹林 → 臺東 · 終點 00:26 抵達</div>
+    </div>
+    <div class="stage-tools">
+      <button id="satBtn" title="切換衛星影像">衛</button>
+      <button id="themeBtn" title="地圖明暗切換">☾</button>
+      <button id="fsBtn" title="全畫面地圖（Esc 退出）">⛶</button>
+    </div>
+    <div class="badge">
+      <span class="clock" id="clock">19:49</span>
+      <span class="peak" id="peak" style="background:#d23c2a;color:#fff8ec;">真實班表</span>
+      <span class="count" id="count">137 班奔跑中</span>
+    </div>
+    <div class="board" id="board">
+      <button class="close" id="boardClose">×</button>
+      <h3>臺北</h3>
+      <div class="sub">接下來 3 小時會有誰來 · 依時刻表（無誤點資訊）</div>
+      <div class="row"><span class="dot" style="background:#2E6FB0"></span><b>4240</b><span class="dest">區間車　往 基隆</span><span class="t">19:50</span><span class="min">即將</span></div>
+      <div class="row"><span class="dot" style="background:#C0392B"></span><b>431</b><span class="dest">自強　往 樹林</span><span class="t">19:52</span><span class="min">2 分</span></div>
+      <div class="row"><span class="dot" style="background:#2E6FB0"></span><b>1248</b><span class="dest">區間車　往 基隆</span><span class="t">19:55</span><span class="min">5 分</span></div>
+      <div class="row"><span class="dot" style="background:#C0392B"></span><b>136</b><span class="dest">自強　往 七堵</span><span class="t">19:59</span><span class="min">9 分</span></div>
+      <div class="row"><span class="dot" style="background:#2E6FB0"></span><b>2273</b><span class="dest">區間車　往 彰化</span><span class="t">20:03</span><span class="min">13 分</span></div>
+      <div class="row"><span class="dot" style="background:#C0392B"></span><b>448</b><span class="dest">自強　往 臺東</span><span class="t">20:04</span><span class="min">14 分</span></div>
+      <div class="row"><span class="dot" style="background:#2E6FB0"></span><b>1254</b><span class="dest">區間車　往 基隆</span><span class="t">20:09</span><span class="min">19 分</span></div>
+      <div class="row"><span class="dot" style="background:#2E6FB0"></span><b>4209</b><span class="dest">區間車　往 北湖</span><span class="t">20:15</span><span class="min">25 分</span></div>
+      <div class="row"><span class="dot" style="background:#C0392B"></span><b>283</b><span class="dest">自強　往 斗六</span><span class="t">20:20</span><span class="min">30 分</span></div>
+    </div>
+  </div>
+
+  <div class="controls">
+    <button class="pp" id="pp"><span id="ppIcon">❚❚</span><span id="ppTxt">暫停</span></button>
+    <div class="ctl">
+      <label for="speed">速度</label>
+      <input type="range" id="speed" min="1" max="60" step="1" value="50" />
+      <output id="speedOut">50×</output>
+    </div>
+    <div class="ctl">
+      <label for="tod">時間</label>
+      <input type="range" id="tod" min="0" max="1439" step="1" value="1189" />
+      <output id="todOut">19:49</output>
+    </div>
+    <button class="pp" id="nowBtn" title="跳到現在的真實時間">現在</button>
+  </div>
+
+  <div class="flow" id="flowWrap">
+    <canvas id="flowChart"></canvas>
+    <div class="lbl" id="flowLbl">全日同時運行列車數（依時刻表）——點擊圖表跳到該時刻</div>
+  </div>
+
+  <div class="search" id="searchRow">
+    <input type="text" id="trainSearch" list="trainList" placeholder="搜尋車次跟隨（如 123、2103）" autocomplete="off" value="448" />
+    <datalist id="trainList"></datalist>
+    <div class="followbar" id="followBar">
+      <span class="dot" style="background:#C0392B"></span>
+      <b>448</b> 自強　樹林→臺東　19:44–00:26
+      <button id="unfollow">取消跟隨</button>
+    </div>
+  </div>
+
+  <div class="lines" id="lineToggles">
+    <div class="legend-lbl">車種（篩選列車）</div>
+    <div class="chip"><span class="dot" style="background:#8E44AD"></span>其他</div>
+    <div class="chip"><span class="dot" style="background:#16A085"></span>區間快</div>
+    <div class="chip"><span class="dot" style="background:#2E6FB0"></span>區間車</div>
+    <div class="chip"><span class="dot" style="background:#C0392B"></span>自強</div>
+    <div class="chip"><span class="dot" style="background:#E8792B"></span>莒光/復興</div>
+    <div class="legend-lbl">鐵道路線（顯示／隱藏軌道）</div>
+    <div class="chip"><span class="dot" style="background:#2E6FB0"></span>縱貫線北段（基隆–竹南）</div>
+    <div class="chip"><span class="dot" style="background:#E8792B"></span>山線（竹南–彰化）</div>
+    <div class="chip off"><span class="dot" style="background:#3AA76D"></span>海線（竹南–彰化）</div>
+    <div class="chip"><span class="dot" style="background:#C0392B"></span>縱貫線南段（彰化–高雄）</div>
+    <div class="chip"><span class="dot" style="background:#8E44AD"></span>屏東線（高雄–枋寮）</div>
+    <div class="chip"><span class="dot" style="background:#16A085"></span>南迴線（枋寮–臺東）</div>
+    <div class="chip"><span class="dot" style="background:#D4A017"></span>臺東線（臺東–花蓮）</div>
+    <div class="chip"><span class="dot" style="background:#5D6D7E"></span>北迴線（花蓮–蘇澳新）</div>
+    <div class="chip"><span class="dot" style="background:#C2185B"></span>宜蘭線（蘇澳–八堵）</div>
+    <div class="chip"><span class="dot" style="background:#00A0B0"></span>內灣線（新竹–內灣）</div>
+    <div class="chip"><span class="dot" style="background:#7FB800"></span>六家線（竹中–六家）</div>
+    <div class="chip"><span class="dot" style="background:#E4572E"></span>平溪線（三貂嶺–菁桐）</div>
+    <div class="chip"><span class="dot" style="background:#F2A104"></span>深澳線（瑞芳–八斗子）</div>
+    <div class="chip"><span class="dot" style="background:#6A8EAE"></span>集集線（二水–車埕）</div>
+    <div class="chip"><span class="dot" style="background:#B565A7"></span>沙崙線（中洲–沙崙）</div>
+  </div>
+
+  <p class="note" id="note">資料來源：台鐵官方 OpenData（ods.railway.gov.tw）每日時刻表（20260708），共 905 車次。列車依真實時刻表運行，沿實際路線經過中途各站（少數支線區段為直線近似）。點地圖上的車站可看即將停靠的班次。</p>
+</div>
+
+<script>
+// 假流量圖(正式版由 drawFlow 以真實班表計算;此處僅供設計)
+// 新 spec:柱 #8fa8c6、尖峰帶 07-09 / 17-19:30 紅 alpha.08、整點刻度、現在游標紅
+(function () {
+  const c = document.getElementById('flowChart');
+  const dpr = window.devicePixelRatio || 1;
+  function render() {
+    const W = c.clientWidth, H = c.clientHeight;
+    c.width = Math.round(W * dpr); c.height = Math.round(H * dpr);
+    const g = c.getContext('2d');
+    g.setTransform(dpr, 0, 0, dpr, 0, 0);
+    g.clearRect(0, 0, W, H);
+    // 尖峰帶
+    g.fillStyle = 'rgba(210,60,42,0.08)';
+    g.fillRect(7 / 24 * W, 0, 2 / 24 * W, H);
+    g.fillRect(17 / 24 * W, 0, 2.5 / 24 * W, H);
+    // 柱
+    const N = 144, bw = W / N;
+    for (let i = 0; i < N; i++) {
+      const h = i / 6; // 小時
+      let v = 0;
+      if (h > 4.5) {
+        v = 55
+          + 75 * Math.exp(-Math.pow((h - 8) / 1.6, 2))     // 早尖峰
+          + 88 * Math.exp(-Math.pow((h - 18) / 1.9, 2))    // 晚尖峰
+          + 18 * Math.sin(h / 2.2);
+        v = Math.max(6, v * (h > 23 ? (24.6 - h) / 1.6 : 1));
+      }
+      const bh = v / 155 * (H - 12);
+      g.fillStyle = '#8fa8c6';
+      g.fillRect(i * bw, H - bh, Math.max(1, bw - 0.6), bh);
+    }
+    // 整點刻度
+    g.fillStyle = '#c9b98f';
+    for (let hh = 0; hh < 24; hh++) {
+      const tx = hh / 24 * W;
+      const th = (hh % 6 === 0) ? 7 : 4;
+      g.fillRect(tx, H - th, 1, th);
+    }
+    // 現在游標 19:49
+    const x = (19 * 3600 + 49 * 60) / 86400 * W;
+    g.strokeStyle = '#d23c2a'; g.globalAlpha = 0.9; g.lineWidth = 1.5;
+    g.beginPath(); g.moveTo(x, 2); g.lineTo(x, H - 2); g.stroke(); g.globalAlpha = 1;
+  }
+  render();
+  window.addEventListener('resize', render);
+})();
+
+// 全畫面 + 地圖明暗切換(mock 示範;正式版見檔頭 spec A/B)
+(function () {
+  const stage = document.querySelector('.stage');
+  const fsBtn = document.getElementById('fsBtn');
+  const themeBtn = document.getElementById('themeBtn');
+  function setFs(on) {
+    document.body.classList.toggle('fs', on);
+    fsBtn.textContent = on ? '×' : '⛶';
+    fsBtn.title = on ? '退出全畫面（Esc）' : '全畫面地圖（Esc 退出）';
+  }
+  fsBtn.addEventListener('click', () => setFs(!document.body.classList.contains('fs')));
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') setFs(false); });
+  function setTheme(dark) {
+    stage.classList.toggle('dark', dark);
+    themeBtn.textContent = dark ? '☀' : '☾';
+    try { localStorage.setItem('trainmap-theme', dark ? 'dark' : 'light'); } catch (e) {}
+  }
+  themeBtn.addEventListener('click', () => setTheme(!stage.classList.contains('dark')));
+  try { if (localStorage.getItem('trainmap-theme') === 'dark') setTheme(true); } catch (e) {}
+  const satBtn = document.getElementById('satBtn');
+  function setSat(on) {
+    stage.classList.toggle('sat', on);
+    satBtn.textContent = on ? '圖' : '衛';
+    satBtn.title = on ? '切回一般地圖' : '切換衛星影像';
+    try { localStorage.setItem('trainmap-basemap', on ? 'sat' : 'map'); } catch (e) {}
+  }
+  satBtn.addEventListener('click', () => setSat(!stage.classList.contains('sat')));
+  try { if (localStorage.getItem('trainmap-basemap') === 'sat') setSat(true); } catch (e) {}
+})();
+
+// 系統切換(mock 示範兩系統完整狀態;正式版見檔頭 spec C/E)
+(function () {
+  const SYS = {
+    tra_sched: {
+      plateL: '基隆', plateR: '邡寮',
+      sub: 'TAIWAN RAILWAY LIVE — 905 TRAINS DAILY',
+      lead: '905 班小火車正在島上跑來跑去 — 拖曳、縮放，點個車站看看誰要來。',
+      count: '137 班奔跑中',
+      boardTitle: '臺北',
+      boardSub: '接下來 3 小時會有誰來 · 依時刻表（無誤點資訊）',
+      rows: [
+        ['#2E6FB0','4240','區間車　往 基隆','19:50','即將'],
+        ['#C0392B','431','自強　往 樹林','19:52','2 分'],
+        ['#2E6FB0','1248','區間車　往 基隆','19:55','5 分'],
+        ['#C0392B','136','自強　往 七堵','19:59','9 分'],
+        ['#2E6FB0','2273','區間車　往 彰化','20:03','13 分'],
+        ['#C0392B','448','自強　往 臺東','20:04','14 分'],
+        ['#2E6FB0','1254','區間車　往 基隆','20:09','19 分'],
+        ['#2E6FB0','4209','區間車　往 北湖','20:15','25 分'],
+        ['#C0392B','283','自強　往 斗六','20:20','30 分']
+      ],
+      rails: ['#2E6FB0','#C2185B','#E8792B'],
+      stns: ['#2E6FB0','#C2185B','#2E6FB0','#2E6FB0','#E8792B'],
+      lbls: ['南港','臺北','萬華','板橋','松山'],
+      tags: [['#2E6FB0','4240'],['#C0392B','448'],['#2E6FB0','1248']],
+      search: true,
+      note: '資料來源：台鐵官方 OpenData（ods.railway.gov.tw）每日時刻表（20260708），共 905 車次。列車依真實時刻表運行，沿實際路線經過中途各站（少數支線區段為直線近似）。點地圖上的車站可看即將停靠的班次。',
+      chips: '<div class="legend-lbl">車種（篩選列車）</div>'
+        + chip('#8E44AD','其他') + chip('#16A085','區間快') + chip('#2E6FB0','區間車') + chip('#C0392B','自強') + chip('#E8792B','覒光/復興')
+        + '<div class="legend-lbl">鐵道路線（顯示／隱藏軌道）</div>'
+        + chip('#2E6FB0','縱貫線北段（基隆–竹南）') + chip('#E8792B','山線（竹南–彰化）')
+        + chip('#3AA76D','海線（竹南–彰化）', true) + chip('#C0392B','縱貫線南段（彰化–高雄）')
+        + chip('#8E44AD','屏東線（高雄–邡寮）') + chip('#16A085','南迴線（邡寮–臺東）')
+        + chip('#D4A017','臺東線（臺東–花蓮）') + chip('#5D6D7E','北迴線（花蓮–蘇澳新）')
+        + chip('#C2185B','宜蘭線（蘇澳–八堵）') + chip('#00A0B0','內灣線（新竹–內灣）')
+        + chip('#7FB800','六家線（竹中–六家）') + chip('#E4572E','平溪線（三貂嶺–菁桐）')
+        + chip('#F2A104','深澳線（瑞芳–八斗子）') + chip('#6A8EAE','集集線（二水–車埕）')
+        + chip('#B565A7','沙崙線（中洲–沙崙）')
+    },
+    mrt: {
+      plateL: '淡水', plateR: '象山',
+      sub: 'TAIPEI METRO LIVE — 6 LINES',
+      lead: '六條路線的小列車正在城市裡穿梭 — 拖曳、縮放，點個車站看看誰要來。',
+      count: '112 班奔跑中',
+      boardTitle: '台北車站',
+      boardSub: '即時到站 · 依 TDX 即時資料',
+      rows: [
+        ['#E3002C','R','淡水信義　往 淡水','19:50','即將'],
+        ['#0070BD','BL','板南　往 頂埔','19:51','1 分'],
+        ['#E3002C','R','淡水信義　往 象山','19:53','3 分'],
+        ['#0070BD','BL','板南　往 南港展覽館','19:54','4 分'],
+        ['#E3002C','R','淡水信義　往 北投','19:57','7 分'],
+        ['#0070BD','BL','板南　往 亞東醫院','19:59','9 分']
+      ],
+      rails: ['#E3002C','#0070BD','#008659'],
+      stns: ['#E3002C','#0070BD','#E3002C','#E3002C','#008659'],
+      lbls: ['民權西路','台北車站','中正紀念堂','古亭','松江南京'],
+      tags: [['#E3002C','淡水'],['#0070BD','頂埔'],['#008659','新店']],
+      search: false,
+      note: '資料來源：TDX 運輸資料流通服務（台北捷運即時到站）。列車位置依到站資料推估，環狀線與文湖線為自動駕駛系統。點地圖上的車站可看即時到站。',
+      chips: '<div class="legend-lbl">捷運路線（顯示／隱藏）</div>'
+        + chip('#C48C31','文湖線') + chip('#E3002C','淡水信義線') + chip('#008659','松山新店線')
+        + chip('#F8B61C','中和新蘆線') + chip('#0070BD','板南線') + chip('#FEDB00','環狀線')
+    }
+  };
+  function chip(color, name, off) {
+    return '<div class="chip' + (off ? ' off' : '') + '"><span class="dot" style="background:' + color + '"></span>' + name + '</div>';
+  }
+  function row(r) {
+    const hasNo = r.length === 5;
+    return '<div class="row"><span class="dot" style="background:' + r[0] + '"></span><b>' + r[1] + '</b><span class="dest">' + r[2] + '</span><span class="t">' + r[3] + '</span><span class="min">' + r[4] + '</span></div>';
+  }
+  const sysBtns = document.querySelectorAll('#systems button');
+  const fp = document.getElementById('followPanel');
+  document.getElementById('fpClose').addEventListener('click', () => { fp.style.display = 'none'; });
+  function apply(id) {
+    const d = SYS[id];
+    fp.style.display = d.search ? '' : 'none';
+    sysBtns.forEach(b => b.classList.toggle('active', b.dataset.id === id));
+    document.querySelector('.plate-side.left span:last-child').textContent = d.plateL;
+    document.querySelector('.plate-side.right span:last-child').textContent = d.plateR;
+    document.querySelector('.plate-sub').textContent = d.sub;
+    document.querySelector('header > p').textContent = d.lead;
+    document.getElementById('count').textContent = d.count;
+    const board = document.getElementById('board');
+    board.querySelector('h3').textContent = d.boardTitle;
+    board.querySelector('.sub').textContent = d.boardSub;
+    board.querySelectorAll('.row').forEach(el => el.remove());
+    board.insertAdjacentHTML('beforeend', d.rows.map(row).join(''));
+    document.getElementById('lineToggles').innerHTML = d.chips;
+    document.getElementById('searchRow').style.display = d.search ? '' : 'none';
+    document.getElementById('note').textContent = d.note;
+    // 假地圖同步
+    const svg = document.querySelector('#map svg');
+    svg.querySelectorAll('.rail').forEach((p, i) => p.setAttribute('stroke', d.rails[i]));
+    svg.querySelectorAll('.stn').forEach((c, i) => c.setAttribute('stroke', d.stns[i]));
+    svg.querySelectorAll('.stn-lbl text').forEach((t, i) => t.textContent = d.lbls[i]);
+    svg.querySelectorAll('.tag').forEach((g, i) => {
+      g.querySelector('rect').setAttribute('fill', d.tags[i][0]);
+      g.querySelector('text').textContent = d.tags[i][1];
+      g.querySelectorAll('.fol').forEach(c => {
+        c.setAttribute('stroke', d.tags[i][0]);
+        c.style.display = d.search ? '' : 'none';
+      });
+    });
+  }
+  sysBtns.forEach(b => b.addEventListener('click', () => apply(b.dataset.id)));
+})();
+</script>
+</body>
+</html>

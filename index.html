@@ -7,114 +7,272 @@
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css" />
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <style>
-  :root { color-scheme: dark; }
+  :root { color-scheme: light; }
   * { box-sizing: border-box; }
+  [hidden] { display: none !important; } /* .search/.followbar 的 display:flex 會蓋掉 hidden,強制優先 */
   body {
     margin: 0;
     font-family: -apple-system, "PingFang TC", "Noto Sans TC", sans-serif;
-    background: #0b0e14;
-    color: #e6e9ef;
+    background: #efe6d2;
+    color: #3a3226;
   }
+  a { color: #2a4a73; }
+  a:hover { color: #d23c2a; }
   .wrap { max-width: 1040px; margin: 0 auto; padding: 20px 20px 48px; }
-  header h1 { font-size: 20px; font-weight: 600; margin: 0 0 4px; }
-  header p { margin: 0 0 16px; color: #9aa3b2; font-size: 14px; }
+
+  /* ── 站名牌 header ── */
+  .plate {
+    background: #fffdf6;
+    border: 3.5px solid #2a4a73;
+    border-radius: 12px;
+    box-shadow: 0 3px 0 rgba(42,74,115,.22);
+    padding: 14px 22px 15px;
+    display: flex; align-items: center; justify-content: space-between; gap: 12px;
+    margin-bottom: 10px;
+  }
+  .plate-side {
+    display: flex; flex-direction: column; gap: 1px;
+    font-size: 12px; font-weight: 700; color: #2a4a73; white-space: nowrap;
+  }
+  .plate-side.left { align-items: flex-start; }
+  .plate-side.right { align-items: flex-end; }
+  .plate-side .arr { font-size: 14px; line-height: 1; }
+  .plate-mid { text-align: center; }
+  header h1 {
+    font-size: 28px; font-weight: 900; letter-spacing: 7px;
+    color: #1e2c40; margin: 0;
+  }
+  .plate-sub {
+    margin: 3px 0 0; font-size: 10px; letter-spacing: 3px;
+    color: #8a7c62; font-weight: 600;
+  }
+  header p { margin: 0 0 16px; color: #7a6c50; font-size: 14px; }
+
+  /* ── 系統切換 ── */
   .systems { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 14px; }
   .systems button {
-    font: inherit; font-size: 14px; cursor: pointer;
-    background: #151b26; color: #9aa3b2;
-    border: 1px solid #2a3546; border-radius: 8px; padding: 8px 18px;
+    font: inherit; font-size: 14px; font-weight: 600; cursor: pointer;
+    background: #e6d9ba; color: #7a6c50;
+    border: 1.5px solid #c9b98f; border-radius: 6px; padding: 8px 18px;
+    box-shadow: 0 2px 0 #c9b98f;
   }
-  .systems button.active { background: #223049; color: #fff; border-color: #3a5a8c; }
+  .systems button.active {
+    background: #d23c2a; color: #fff8ec; font-weight: 800;
+    border-color: #a92c1d; box-shadow: 0 2px 0 #a92c1d;
+  }
+
+  /* ── 地圖 stage ── */
   .stage {
     position: relative;
     height: 64vh; min-height: 460px; max-height: 760px;
-    background: #10141c;
-    border: 1px solid #1e2530;
-    border-radius: 14px;
+    background: #f7f0dd;
+    border: 2px solid #c9b98f;
+    border-radius: 12px;
     overflow: hidden;
   }
-  #map { position: absolute; inset: 0; background: #0b0e14; }
+  #map { position: absolute; inset: 0; background: #f7f0dd; }
+
+  /* 地圖暗色模式(只換地圖，紙牌 UI 不變) */
+  .stage.dark, .stage.dark #map { background: #10141c; }
+  .stage.dark { border-color: #a89468; }
+
+  /* 衛星影像底圖 */
+  .stage.sat, .stage.sat #map { background: #2e4636; }
+  .stage.sat #themeBtn { display: none; }
+
+  .leaflet-container { background: #f7f0dd; }
+  .stage.dark .leaflet-container { background: #10141c; }
+  .stage.sat .leaflet-container { background: #2e4636; }
+
+  /* 地圖工具鈕(全畫面、明暗、衛星)——疊在 Leaflet 縮放鈕上方(縮放鈕在右下角) */
+  .stage-tools {
+    position: absolute; right: 12px; bottom: 80px; z-index: 700;
+    display: flex; gap: 8px;
+  }
+  .stage-tools button {
+    font: inherit; font-size: 15px; font-weight: 700; cursor: pointer;
+    width: 38px; height: 38px; display: flex; align-items: center; justify-content: center;
+    background: #fffdf6; color: #2a4a73;
+    border: 1.5px solid #c9b98f; border-radius: 6px;
+    box-shadow: 0 2px 0 #c9b98f;
+  }
+  .stage-tools button:hover { background: #f7f0dd; }
+
+  /* 跟隨小面板(地圖左下角，跟隨列車時顯示) */
+  .follow-panel {
+    position: absolute; left: 12px; bottom: 12px; z-index: 650;
+    width: 230px;
+    background: rgba(255,253,246,.97); border: 2px solid #2a4a73; border-radius: 10px;
+    padding: 10px 13px 11px;
+    font-variant-numeric: tabular-nums;
+  }
+  .follow-panel .fp-head { display: flex; align-items: center; gap: 8px; }
+  .follow-panel .fp-head .dot { width: 9px; height: 9px; border-radius: 50%; flex: none; }
+  .follow-panel .fp-head b { font-size: 15px; color: #1e2c40; }
+  .follow-panel .fp-head .kind { font-size: 12px; color: #7a6c50; font-weight: 600; }
+  .follow-panel .fp-head .fp-close {
+    margin-left: auto; background: none; border: 0; cursor: pointer;
+    color: #a89468; font-size: 15px; line-height: 1; padding: 0 2px;
+  }
+  .follow-panel .fp-next {
+    display: flex; align-items: baseline; gap: 7px;
+    margin-top: 7px; padding-top: 7px; border-top: 1.5px dashed #d8cba9;
+  }
+  .follow-panel .fp-next .lbl { font-size: 11px; color: #8a7c62; font-weight: 800; letter-spacing: 2px; flex: none; }
+  .follow-panel .fp-next .stn { font-size: 16px; font-weight: 900; color: #1e2c40; letter-spacing: 1px; }
+  .follow-panel .fp-next .eta { margin-left: auto; font-size: 13px; font-weight: 700; color: #2a4a73; }
+  .follow-panel .fp-next .eta b { color: #d23c2a; }
+  .follow-panel .fp-dest { margin-top: 4px; font-size: 11.5px; color: #7a6c50; }
+
+  /* 全畫面模式 */
+  body.fs { overflow: hidden; }
+  body.fs .stage {
+    position: fixed; inset: 0; z-index: 1000;
+    height: 100vh; max-height: none; min-height: 0;
+    border: 0; border-radius: 0;
+  }
   #overlay { position: absolute; inset: 0; pointer-events: none; z-index: 500; }
+
+  /* ── HUD 小牌 ── */
   .badge {
     position: absolute; top: 12px; left: 14px; z-index: 600;
-    display: flex; gap: 14px; align-items: baseline;
+    display: flex; gap: 12px; align-items: baseline;
     font-variant-numeric: tabular-nums; pointer-events: none;
-    text-shadow: 0 1px 6px rgba(0,0,0,.8);
+    background: #fffdf6; border: 2px solid #2a4a73; border-radius: 8px;
+    padding: 6px 14px 7px;
   }
-  .badge .clock { font-size: 22px; font-weight: 600; }
-  .badge .peak { font-size: 12px; padding: 2px 8px; border-radius: 999px; }
-  .badge .count { font-size: 13px; color: #cdd4e0; }
+  .badge .clock { font-size: 22px; font-weight: 900; color: #1e2c40; }
+  .badge .peak { font-size: 12px; font-weight: 800; padding: 2px 9px; border-radius: 3px; }
+  .badge .count { font-size: 13px; color: #7a6c50; font-weight: 600; }
+
+  /* ── 控制列 ── */
   .controls {
     display: flex; flex-wrap: wrap; gap: 18px 24px;
     align-items: center; margin: 16px 2px 0;
   }
   .ctl { display: flex; align-items: center; gap: 10px; }
-  .ctl label { font-size: 13px; color: #9aa3b2; white-space: nowrap; }
-  .ctl output { font-size: 13px; font-weight: 600; min-width: 48px; }
-  input[type=range] { accent-color: #6ea8fe; width: 150px; }
+  .ctl label { font-size: 13px; color: #7a6c50; font-weight: 600; white-space: nowrap; }
+  .ctl output { font-size: 13px; font-weight: 800; min-width: 48px; color: #1e2c40; }
+  input[type=range] { accent-color: #d23c2a; width: 150px; }
   button.pp {
-    font: inherit; font-size: 14px; cursor: pointer;
-    background: #1a2130; color: #e6e9ef;
-    border: 1px solid #2a3546; border-radius: 8px;
+    font: inherit; font-size: 14px; font-weight: 700; cursor: pointer;
+    background: #fffdf6; color: #2a4a73;
+    border: 1.5px solid #c9b98f; border-radius: 6px;
     padding: 7px 14px; display: inline-flex; align-items: center; gap: 6px;
+    box-shadow: 0 2px 0 #c9b98f;
   }
-  button.pp:hover { background: #222c3d; }
+  button.pp:hover { background: #f7f0dd; }
+
+  /* ── 圖例票根 ── */
   .lines { display: flex; flex-wrap: wrap; gap: 8px; margin: 16px 2px 0; }
   .chip {
     display: inline-flex; align-items: center; gap: 7px;
-    font-size: 13px; padding: 5px 11px; border-radius: 999px;
-    border: 1px solid #2a3546; background: #151b26; cursor: pointer;
-    user-select: none; transition: opacity .15s;
+    font-size: 12.5px; padding: 5px 12px 5px 8px; border-radius: 4px;
+    border: 1.5px solid #c9b98f; background: #e6d9ba; cursor: pointer;
+    user-select: none; transition: opacity .15s; color: #3a3226;
+  }
+  .chip::before {
+    content: ''; width: 6px; height: 6px; border-radius: 50%;
+    background: #efe6d2; border: 1px solid #a89468; flex: none;
   }
   .chip .dot { width: 11px; height: 11px; border-radius: 50%; }
   .chip.off { opacity: .38; }
   .legend-sep { flex-basis: 100%; height: 0; }
-  .legend-lbl { flex-basis: 100%; color: #8590a2; font-size: 12px; margin: 6px 2px -2px; }
-  .note { margin: 22px 2px 0; color: #8590a2; font-size: 13px; line-height: 1.6; }
+  .legend-lbl {
+    flex-basis: 100%; color: #a89468; font-size: 11px; font-weight: 800;
+    letter-spacing: 3px; margin: 8px 2px -2px;
+    padding-bottom: 3px; border-bottom: 1.5px dashed #d8cba9;
+  }
+  .note { margin: 22px 2px 0; color: #8a7c62; font-size: 13px; line-height: 1.6; }
+
+  /* ── 搜尋+跟隨票 ── */
   .search { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin: 14px 2px 0; }
   .search input[type=text] {
-    font: inherit; font-size: 14px; background: #151b26; color: #e6e9ef;
-    border: 1px solid #2a3546; border-radius: 8px; padding: 8px 12px; width: 260px;
+    font: inherit; font-size: 14px; background: #fffdf6; color: #3a3226;
+    border: 1.5px solid #c9b98f; border-radius: 6px; padding: 8px 12px; width: 260px;
   }
-  .search input::placeholder { color: #6b7688; }
+  .search input::placeholder { color: #a89468; }
   .followbar {
     display: inline-flex; align-items: center; gap: 9px; font-size: 13px;
-    background: #12233f; border: 1px solid #26405f; border-radius: 999px;
-    padding: 6px 13px; color: #cfe0ff; font-variant-numeric: tabular-nums;
+    background: #e6d9ba; border: 1.5px solid #c9b98f; border-radius: 4px;
+    padding: 6px 13px; color: #3a3226; font-variant-numeric: tabular-nums;
   }
-  .followbar b { color: #fff; font-size: 14px; }
+  .followbar b { color: #1e2c40; font-size: 14px; }
   .followbar .dot { width: 9px; height: 9px; border-radius: 50%; }
   .followbar button {
-    font: inherit; font-size: 12px; cursor: pointer; background: #25334b;
-    color: #dfe6f2; border: 1px solid #33455f; border-radius: 6px; padding: 3px 9px;
+    font: inherit; font-size: 12px; font-weight: 700; cursor: pointer;
+    background: #d23c2a; color: #fff8ec;
+    border: 1px solid #a92c1d; border-radius: 4px; padding: 3px 9px;
   }
-  .followbar.miss { background: #3a2417; border-color: #5a3a24; color: #ffb27a; }
+  .followbar.miss { background: #fbe9df; border-color: #e0a37e; color: #b4552a; }
+
+  /* ── 車站時刻板 ── */
   .board {
     position: absolute; top: 12px; right: 12px; z-index: 650;
     width: 272px; max-height: calc(100% - 24px); overflow-y: auto;
-    background: rgba(13,18,28,.93); border: 1px solid #2a3546; border-radius: 12px;
+    background: rgba(255,253,246,.97); border: 2px solid #2a4a73; border-radius: 10px;
     padding: 12px 14px;
   }
-  .board h3 { margin: 0 18px 1px 0; font-size: 16px; }
-  .board .sub { color: #8590a2; font-size: 11px; margin-bottom: 7px; }
-  .board .row { display: flex; align-items: baseline; gap: 8px; padding: 5px 0; border-top: 1px solid #1c2432; font-size: 13px; }
+  .board h3 { margin: 0 18px 1px 0; font-size: 16px; font-weight: 900; letter-spacing: 3px; color: #1e2c40; }
+  .board .sub { color: #8a7c62; font-size: 11px; margin-bottom: 7px; }
+  .board .row { display: flex; align-items: baseline; gap: 8px; padding: 5px 0; border-top: 1.5px dashed #d8cba9; font-size: 13px; }
+  .board .row b { color: #1e2c40; }
   .board .row .dot { width: 8px; height: 8px; border-radius: 50%; flex: none; align-self: center; }
-  .board .row .dest { flex: 1; color: #cdd4e0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .board .row .dest { flex: 1; color: #6b5f4a; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .board .row .t, .board .row .min { font-variant-numeric: tabular-nums; }
-  .board .row .min { color: #7fb0ff; min-width: 44px; text-align: right; }
-  .board .close { position: absolute; top: 7px; right: 9px; background: none; border: 0; color: #8590a2; font-size: 17px; cursor: pointer; line-height: 1; }
-  .board .empty { color: #8590a2; font-size: 13px; padding: 8px 0; }
+  .board .row .min { color: #2a4a73; font-weight: 700; min-width: 44px; text-align: right; }
+  .board .close { position: absolute; top: 7px; right: 9px; background: none; border: 0; color: #a89468; font-size: 17px; cursor: pointer; line-height: 1; }
+  .board .empty { color: #8a7c62; font-size: 13px; padding: 8px 0; }
+
+  /* ── 流量圖 ── */
   .flow { margin: 14px 2px 0; }
-  .flow canvas { display: block; width: 100%; height: 64px; cursor: crosshair; border: 1px solid #1e2530; border-radius: 8px; background: #10141c; }
-  .flow .lbl { color: #8590a2; font-size: 12px; margin-top: 5px; font-variant-numeric: tabular-nums; }
-  .leaflet-container { background: #0b0e14; }
+  .flow canvas { display: block; width: 100%; height: 64px; cursor: crosshair; border: 1.5px solid #c9b98f; border-radius: 6px; background: #fffdf6; }
+  .flow .lbl { color: #8a7c62; font-size: 12px; margin-top: 5px; font-variant-numeric: tabular-nums; }
+
+  /* ── 手機直立版 ── */
+  @media (max-width: 640px) {
+    .wrap { padding: 12px 12px 40px; }
+    .plate { padding: 10px 14px 11px; border-width: 3px; }
+    header h1 { font-size: 19px; letter-spacing: 4px; }
+    .plate-sub { font-size: 9px; letter-spacing: 2px; }
+    .plate-side { font-size: 10px; }
+    .plate-side .arr { font-size: 12px; }
+    header p { font-size: 13px; }
+    .stage { height: 58vh; min-height: 380px; }
+    .badge { top: 8px; left: 8px; gap: 9px; padding: 5px 11px 6px; }
+    .badge .clock { font-size: 18px; }
+    .badge .count { font-size: 12px; }
+    /* 手機:時刻板改底部 sheet,工具鈕改右上直排,避開 HUD 與 sheet */
+    .stage-tools { top: 8px; right: 8px; bottom: auto; flex-direction: column; }
+    /* 手機改用雙指縮放,隱藏 Leaflet +/- 鈕(否則會壓在底部 sheet 上) */
+    .leaflet-control-zoom { display: none; }
+    .board {
+      top: auto; bottom: 8px; left: 8px; right: 8px; width: auto;
+      max-height: 46%;
+      border-radius: 10px;
+    }
+    .controls { gap: 10px 14px; margin-top: 12px; }
+    .ctl { flex: 1 1 100%; }
+    .ctl input[type=range] { flex: 1; width: auto; }
+    .search input[type=text] { flex: 1 1 100%; width: auto; }
+    .followbar { flex-wrap: wrap; }
+    .chip { font-size: 12px; padding: 4px 10px 4px 7px; }
+    .follow-panel { left: 8px; bottom: 8px; width: 200px; }
+  }
 </style>
 </head>
 <body>
 <div class="wrap">
   <header>
-    <h1>台灣鐵道 · 列車流動動畫</h1>
-    <p>真實地圖底圖上，模擬列車運行。可拖曳、縮放；放大時顯示車次與站名。</p>
+    <div class="plate">
+      <div class="plate-side left"><span class="arr">◀</span><span id="plateL">基隆</span></div>
+      <div class="plate-mid">
+        <h1>台灣鐵道 · 列車流動</h1>
+        <p class="plate-sub" id="plateSub">TAIWAN RAILWAY LIVE</p>
+      </div>
+      <div class="plate-side right"><span class="arr">▶</span><span id="plateR">枋寮</span></div>
+    </div>
+    <p id="lead">列車依真實時刻表在島上跑來跑去 — 點列車直接跟隨、點車站看誰要來。</p>
   </header>
 
   <div class="systems" id="systems"></div>
@@ -122,6 +280,24 @@
   <div class="stage">
     <div id="map"></div>
     <canvas id="overlay"></canvas>
+    <div class="follow-panel" id="followPanel" hidden>
+      <div class="fp-head">
+        <span class="dot" id="fpDot"></span>
+        <b id="fpTrain"></b><span class="kind" id="fpKind"></span>
+        <button class="fp-close" id="fpClose" title="取消跟隨">×</button>
+      </div>
+      <div class="fp-next">
+        <span class="lbl">下一站</span>
+        <span class="stn" id="fpNext"></span>
+        <span class="eta" id="fpEta"></span>
+      </div>
+      <div class="fp-dest" id="fpDest"></div>
+    </div>
+    <div class="stage-tools">
+      <button id="satBtn" title="切換衛星影像">衛</button>
+      <button id="themeBtn" title="地圖明暗切換">☾</button>
+      <button id="fsBtn" title="全畫面地圖（Esc 退出）">⛶</button>
+    </div>
     <div class="badge">
       <span class="clock" id="clock">08:00</span>
       <span class="peak" id="peak"></span>
@@ -168,11 +344,29 @@ const state = {
   playing: true, speedMult: 50, hour: 8, simSec: 8 * 3600,
   dpr: 1, t0: 0, elapsed: 0, ready: false,
   followTrain: null, followId: null,
+  mapDark: false, basemap: 'map', trackData: null,
 };
 let map, cv, ctx;
+let baseLayers = {}; // light / dark / sat Leaflet 圖層
 const PEAK = [[7, 9], [17, 19.5]];
 const SCHED_K = 1; // 1x speed = real time (1 sim-second per real-second)
 const FONT = '-apple-system, "PingFang TC", "Noto Sans TC", sans-serif';
+
+// 地圖三種底圖對應的 canvas 配色(軌道/站名/車站點/列車標籤外框)——見 design-mock 檔頭 spec B/D
+const MAP_PAL = {
+  light: { stnFill: '#f7f0dd', lbl: '#3a3226', lblStroke: 'rgba(255,253,246,.92)', tagOutline: '#fffdf6',            railAlpha: 0.9 },
+  dark:  { stnFill: '#10141c', lbl: '#e8e4d8', lblStroke: 'rgba(16,20,28,.9)',     tagOutline: 'rgba(16,20,28,.9)',  railAlpha: 0.75 },
+  sat:   { stnFill: '#24382c', lbl: '#ffffff', lblStroke: 'rgba(20,30,20,.85)',    tagOutline: 'rgba(20,30,20,.85)', railAlpha: 0.95 },
+};
+function pal() { return MAP_PAL[state.basemap === 'sat' ? 'sat' : (state.mapDark ? 'dark' : 'light')]; }
+
+// 各系統的站名牌／副標／導言文案(loadSystem 依系統套用)
+const SYS_META = {
+  mrt:       { plateL: '淡水', plateR: '象山', sub: 'TAIPEI METRO LIVE',    lead: '各線列車依 TDX 班距與站間時間在城市裡穿梭 — 拖曳、縮放看看。' },
+  krtc:      { plateL: '小港', plateR: '岡山', sub: 'KAOHSIUNG METRO LIVE', lead: '紅橘兩線與環狀輕軌正在港都穿梭 — 拖曳、縮放看看。' },
+  tmrt:      { plateL: '北屯總站', plateR: '高鐵臺中站', sub: 'TAICHUNG METRO LIVE', lead: '綠線列車沿著文心路跑 — 拖曳、縮放看看。' },
+  tra_sched: { plateL: '基隆', plateR: '枋寮', sub: 'TAIWAN RAILWAY LIVE',  lead: '列車依真實時刻表在島上跑來跑去 — 點列車直接跟隨、點車站看誰要來。' },
+};
 
 function isPeak(h) { return PEAK.some(([a, b]) => h >= a && h < b); }
 function headwayOf(ln, h) { return isPeak(h) ? ln.peakHeadwaySec : ln.offpeakHeadwaySec; }
@@ -249,17 +443,26 @@ const DWELL_SEC = 25;
 function buildLineSchedule(ln) {
   ensureCum(ln);
   const hasShape = !!(ln.shape && ln.stations[0].d != null);
-  // round-trip sequence: each node carries either arc-length dist (shape mode) or lat/lon
-  const fwd = ln.stations;
-  const seq = fwd.concat(fwd.slice(0, -1).reverse());
+  const fwd = ln.stations, n = fwd.length;
+  const loop = !!ln.loop && hasShape;
+  // 環線:單向循環,尾端補回起點;一般線:去程+回程折返
+  const seq = loop ? fwd.concat([{ ...fwd[0], d: ln.cum[ln.cum.length - 1] }])
+    : fwd.concat(fwd.slice(0, -1).reverse());
+  // seq 第 i 步(seq[i-1]→seq[i])對應的前向段索引:環線直取、折返段鏡射
+  const segIdx = i => loop ? i - 1 : (i <= n - 1 ? i - 1 : 2 * (n - 1) - i);
   const nodes = []; let t = 0;
   for (let i = 0; i < seq.length; i++) {
     if (i > 0) {
-      const gap = hasShape ? Math.abs(seq[i].d - seq[i - 1].d) : haversineKm(seq[i - 1], seq[i]);
-      t += gap / state.speed * 3600;
+      const sg = ln.segs && ln.segs[segIdx(i)];
+      if (sg && sg.run > 0) t += sg.run; // TDX 真實站間行駛秒
+      else {
+        const gap = hasShape ? Math.abs(seq[i].d - seq[i - 1].d) : haversineKm(seq[i - 1], seq[i]);
+        t += gap / state.speed * 3600;
+      }
     }
-    nodes.push({ lat: seq[i].lat, lon: seq[i].lon, dist: seq[i].d, arr: t, dep: t + DWELL_SEC });
-    t += DWELL_SEC;
+    const dw = seq[i].dwell || DWELL_SEC; // TDX 真實停站秒(缺值 25s)
+    nodes.push({ lat: seq[i].lat, lon: seq[i].lon, dist: seq[i].d, arr: t, dep: t + dw });
+    t += dw;
   }
   ln.sched = nodes; ln.period = t; ln.hasShape = hasShape;
 }
@@ -285,6 +488,8 @@ function posPeriodic(ln, t) {
 
 function trainPos(tr, t) {
   const s = tr.stops, n = s.length;
+  // 跨午夜車次(時刻編碼 >86400):simSec 歸零後把前一日班次接續回來
+  if (t < s[0].arrSec && t + 86400 <= s[n - 1].depSec) t += 86400;
   if (t < s[0].arrSec || t > s[n - 1].depSec) return null;
   for (let i = 0; i < n; i++) {
     if (t >= s[i].arrSec && t <= s[i].depSec) {
@@ -350,10 +555,11 @@ function updateCount() {
   } else {
     state.lines.forEach(ln => { if (state.visible.has(ln.id)) n += ln.n; });
   }
-  document.getElementById('count').textContent = `運行列車 ${n} 班`;
+  document.getElementById('count').textContent = `${n} 班奔跑中`;
 }
 
 function drawFreq(w, h) {
+  const P = pal();
   const z = map.getZoom();
   const showStation = z >= 13, showTrain = z >= 12;
   const inView = p => p.x >= -40 && p.x <= w + 40 && p.y >= -20 && p.y <= h + 20;
@@ -364,14 +570,14 @@ function drawFreq(w, h) {
     const line = ln.shapePts || ln.pts;
     ctx.beginPath();
     line.forEach((p, i) => i ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y));
-    ctx.strokeStyle = ln.color; ctx.globalAlpha = 0.7; ctx.lineWidth = 3.4; ctx.stroke();
+    ctx.strokeStyle = ln.color; ctx.globalAlpha = P.railAlpha; ctx.lineWidth = 3.4; ctx.stroke();
     ctx.globalAlpha = 1;
   });
   state.lines.forEach(ln => {
     if (!state.visible.has(ln.id) || !ln.pts) return;
     ln.pts.forEach((p, idx) => {
       ctx.beginPath(); ctx.arc(p.x, p.y, 2.4, 0, 7);
-      ctx.fillStyle = '#0b0e14'; ctx.fill();
+      ctx.fillStyle = P.stnFill; ctx.fill();
       ctx.lineWidth = 1.5; ctx.strokeStyle = ln.color; ctx.globalAlpha = 0.9; ctx.stroke();
       ctx.globalAlpha = 1;
       if (showStation && inView(p)) {
@@ -394,6 +600,7 @@ function drawFreq(w, h) {
 }
 
 function drawSched(w, h) {
+  const P = pal();
   const z = map.getZoom();
   const showStation = z >= 12, showTrain = z >= 11;
   const inView = p => p.x >= -40 && p.x <= w + 40 && p.y >= -20 && p.y <= h + 20;
@@ -410,7 +617,7 @@ function drawSched(w, h) {
           i ? ctx.lineTo(cp.x, cp.y) : ctx.moveTo(cp.x, cp.y);
         });
       }
-      ctx.strokeStyle = ln.color; ctx.globalAlpha = 0.75; ctx.lineWidth = 3.4; ctx.stroke();
+      ctx.strokeStyle = ln.color; ctx.globalAlpha = P.railAlpha; ctx.lineWidth = 3.4; ctx.stroke();
       ctx.globalAlpha = 1;
     }
   }
@@ -419,7 +626,7 @@ function drawSched(w, h) {
     const cp = map.latLngToContainerPoint([st.lat, st.lon]);
     if (!inView(cp)) continue;
     ctx.beginPath(); ctx.arc(cp.x, cp.y, 2, 0, 7);
-    ctx.fillStyle = '#0b0e14'; ctx.fill();
+    ctx.fillStyle = P.stnFill; ctx.fill();
     ctx.lineWidth = 1.2; ctx.strokeStyle = '#8aa0c0'; ctx.globalAlpha = 0.7; ctx.stroke();
     ctx.globalAlpha = 1;
     if (showStation && !drawnNames.has(st.name)) {
@@ -433,12 +640,13 @@ function drawSched(w, h) {
     const pos = trainPos(tr, state.simSec); if (!pos) continue;
     if (state.visible.has(tr.typeName)) n++;
     const cp = map.latLngToContainerPoint([pos.lat, pos.lon]);
-    if (isFollow) { drawFollowMarker(cp, tr); continue; }
+    if (isFollow) { drawFollowMarker(cp, tr); state._trainHits.push({ x: cp.x, y: cp.y, tr }); continue; }
     if (!inView(cp)) continue;
+    state._trainHits.push({ x: cp.x, y: cp.y, tr }); // 供點擊/hover 命中測試(每幀重建)
     if (showTrain) drawTag(cp, tr.train, tr.color, textColorFor(tr.color));
     else drawDot(cp, tr.color);
   }
-  document.getElementById('count').textContent = `運行列車 ${n} 班`;
+  document.getElementById('count').textContent = `${n} 班奔跑中`;
 }
 
 function drawFollowMarker(p, tr) {
@@ -458,14 +666,14 @@ function tryLabel(x, y, name) {
   for (const bx of labelBoxes) if (l < bx.r && r > bx.l && t < bx.b && b > bx.t) return;
   labelBoxes.push({ l, r, t, b });
   ctx.textAlign = 'center'; ctx.textBaseline = 'bottom';
-  ctx.lineWidth = 3; ctx.strokeStyle = 'rgba(0,0,0,.85)';
+  ctx.lineWidth = 3; ctx.strokeStyle = pal().lblStroke;
   ctx.strokeText(name, x, y - 4);
-  ctx.fillStyle = '#fff'; ctx.fillText(name, x, y - 4);
+  ctx.fillStyle = pal().lbl; ctx.fillText(name, x, y - 4);
 }
 
 function drawTag(p, label, bg, fg) {
   ctx.font = '700 10px ' + FONT; ctx.textBaseline = 'middle';
-  const pw = ctx.measureText(label).width + 10, ph = 15, rx = 4;
+  const pw = ctx.measureText(label).width + 10, ph = 15, rx = 7.5;
   const x0 = p.x - pw / 2, y0 = p.y - ph / 2;
   ctx.beginPath();
   ctx.moveTo(x0 + rx, y0);
@@ -475,22 +683,34 @@ function drawTag(p, label, bg, fg) {
   ctx.arcTo(x0, y0, x0 + pw, y0, rx);
   ctx.closePath();
   ctx.fillStyle = bg; ctx.globalAlpha = 0.96; ctx.fill(); ctx.globalAlpha = 1;
+  ctx.lineWidth = 1.5; ctx.strokeStyle = pal().tagOutline; ctx.stroke();
   ctx.fillStyle = fg; ctx.fillText(label, p.x, p.y + 0.5);
 }
 
 function drawDot(p, color) {
   ctx.beginPath(); ctx.arc(p.x, p.y, 6, 0, 7);
-  ctx.fillStyle = color; ctx.globalAlpha = 0.25; ctx.fill();
+  ctx.fillStyle = color; ctx.globalAlpha = 0.2; ctx.fill();
   ctx.beginPath(); ctx.arc(p.x, p.y, 3.2, 0, 7);
   ctx.fillStyle = '#ffffff'; ctx.globalAlpha = 0.95; ctx.fill();
   ctx.beginPath(); ctx.arc(p.x, p.y, 2, 0, 7);
   ctx.fillStyle = color; ctx.globalAlpha = 1; ctx.fill();
 }
 
+// 點擊/hover 的列車命中測試(用 drawSched 每幀重建的螢幕座標快取)
+function trainAt(cp) {
+  let best = null, bd = 16; // px
+  for (const h of (state._trainHits || [])) {
+    const d = Math.hypot(h.x - cp.x, h.y - cp.y);
+    if (d < bd) { bd = d; best = h; }
+  }
+  return best ? { tr: best.tr, dist: bd } : null;
+}
+
 function draw() {
   if (!state.ready) return;
   const w = cv.width / state.dpr, h = cv.height / state.dpr;
   ctx.clearRect(0, 0, w, h);
+  state._trainHits = [];
   labelBoxes = [];
   ctx.lineCap = 'round'; ctx.lineJoin = 'round';
   if (state.mode === 'sched') drawSched(w, h); else drawFreq(w, h);
@@ -549,15 +769,16 @@ function buildToggles() {
 
 function refreshBadge() {
   const clock = document.getElementById('clock'), p = document.getElementById('peak');
+  const hot = () => { p.style.background = '#d23c2a'; p.style.color = '#fff8ec'; };
+  const cool = () => { p.style.background = '#2a4a73'; p.style.color = '#fffdf6'; };
   if (state.mode === 'sched') {
     clock.textContent = fmtHM(state.simSec);
-    p.textContent = '真實班表'; p.style.background = '#17233a'; p.style.color = '#7fb0ff';
+    p.textContent = '真實班表'; hot();
   } else {
     clock.textContent = fmtHour(state.hour);
     const peak = isPeak(state.hour);
     p.textContent = peak ? '尖峰' : '離峰';
-    p.style.background = peak ? '#3a2417' : '#17233a';
-    p.style.color = peak ? '#ffb27a' : '#7fb0ff';
+    peak ? hot() : cool();
   }
 }
 
@@ -573,7 +794,16 @@ function configTimeSlider() {
 }
 
 function fitData(latlngs) {
-  map.fitBounds(L.latLngBounds(latlngs), { padding: [30, 30], animate: false });
+  // 容器尺寸未就緒時(部分環境在 load 後才排版)fitBounds 會誤算成最大縮放,
+  // 先等到 stage 有實際高度再 fit(最多重試約 1 秒)。
+  const b = L.latLngBounds(latlngs);
+  let tries = 0;
+  const doFit = () => {
+    map.invalidateSize();
+    if (map.getSize().y < 20 && tries++ < 60) { requestAnimationFrame(doFit); return; }
+    map.fitBounds(b, { padding: [30, 30], animate: false });
+  };
+  doFit();
 }
 
 function loadSystem(sys) {
@@ -587,8 +817,7 @@ function loadSystem(sys) {
     state.schedStations = [...seen.values()];
     state.types = sys.data.types || [];
     state.visible = new Set(state.types.map(t => t.key));
-    const traSys = state.systems.find(s => s.id === 'tra');
-    state.trackLines = traSys ? traSys.data.lines : null;
+    state.trackLines = state.trackData ? state.trackData.lines : null;
     state.trackVisible = new Set((state.trackLines || []).map(l => l.id));
     state.simSec = nowSecOfDay(); // 開頁即同步現在時刻
     assignSchedShapePaths();
@@ -609,9 +838,11 @@ function loadSystem(sys) {
     state.elapsed = 0;
     fitData(sys.data.lines.flatMap(l => l.stations.map(s => [s.lat, s.lon])));
     reproject(); recomputeTrains();
+    const hasTdxSegs = sys.data.lines.some(l => l.segs);
     document.getElementById('note').textContent =
       (sys.data.source_notes ? '資料來源：' + sys.data.source_notes + '　' : '') +
-      '平均營運速度以 ' + state.speed + ' km/h 估算，列車數＝往返週期 ÷ 班距。';
+      (hasTdxSegs ? '站間行駛與停站時間為 TDX 實際值，列車數＝運轉週期 ÷ 班距（依尖離峰）。'
+        : '平均營運速度以 ' + state.speed + ' km/h 估算，列車數＝往返週期 ÷ 班距。');
     document.getElementById('searchRow').hidden = true;
     document.getElementById('flowWrap').hidden = true;
   }
@@ -620,6 +851,13 @@ function loadSystem(sys) {
   buildToggles();
   refreshBadge();
   updateCount();
+  const meta = SYS_META[sys.id];
+  if (meta) {
+    document.getElementById('plateL').textContent = meta.plateL;
+    document.getElementById('plateR').textContent = meta.plateR;
+    document.getElementById('plateSub').textContent = meta.sub;
+    document.getElementById('lead').textContent = meta.lead;
+  }
   document.querySelectorAll('#systems button').forEach(b =>
     b.classList.toggle('active', b.dataset.id === sys.id));
 }
@@ -657,11 +895,18 @@ function findTrain(q) {
     || state.trains.find(t => ('' + t.train) === q) || null;
 }
 
+// 跨午夜車次的有效模擬時間:00:00 後仍在跑的前一日班次,把 simSec 加一天來比對
+function effT(tr) {
+  const s = tr.stops;
+  return (state.simSec < s[0].arrSec && state.simSec + 86400 <= s[s.length - 1].depSec)
+    ? state.simSec + 86400 : state.simSec;
+}
+
 function setFollow(tr) {
   if (!tr) return;
   state.followTrain = tr; state.followId = tr.train;
   const first = tr.stops[0], last = tr.stops[tr.stops.length - 1];
-  if (state.simSec < first.depSec - 60 || state.simSec > last.arrSec) {
+  if (effT(tr) < first.depSec - 60 || effT(tr) > last.arrSec) {
     state.simSec = Math.max(0, first.depSec - 20) % 86400;
     document.getElementById('tod').value = Math.floor(state.simSec / 60);
     document.getElementById('todOut').textContent = fmtHM(state.simSec);
@@ -670,6 +915,7 @@ function setFollow(tr) {
   const pos = trainPos(tr, state.simSec) || { lat: first.lat, lon: first.lon };
   map.setView([pos.lat, pos.lon], Math.max(map.getZoom(), 13), { animate: false });
   state.followStatus = null; renderFollowBar();
+  showFollowPanel(tr);
   updateCount();
 }
 
@@ -677,6 +923,42 @@ function clearFollow() {
   state.followTrain = null; state.followId = null; state.followStatus = null;
   const fb = document.getElementById('followBar');
   if (fb) { fb.hidden = true; fb.className = 'followbar'; fb.innerHTML = ''; }
+  document.getElementById('followPanel').hidden = true;
+}
+
+// ── 跟隨小面板(地圖左下角) ──
+function nextStopInfo(tr, t) {
+  const s = tr.stops;
+  for (let i = 0; i < s.length; i++) {
+    if (s[i].stop === false) continue;          // 略過通過不停的站
+    if (s[i].arrSec > t) return { name: s[i].name, at: s[i].arrSec % 86400, min: (s[i].arrSec - t) / 60 };
+  }
+  return null;
+}
+function showFollowPanel(tr) {
+  const fp = document.getElementById('followPanel');
+  if (state.mode !== 'sched' || !tr) { fp.hidden = true; return; }
+  document.getElementById('fpDot').style.background = tr.color;
+  document.getElementById('fpTrain').textContent = tr.train;
+  document.getElementById('fpKind').textContent = tr.typeName;
+  const first = tr.stops[0], last = tr.stops[tr.stops.length - 1];
+  document.getElementById('fpDest').textContent =
+    `${first.name} → ${last.name} · 終點 ${fmtHM(last.arrSec % 86400)} 抵達`;
+  fp.hidden = false;
+  updateFollowPanel(tr);
+}
+function updateFollowPanel(tr) {
+  const fp = document.getElementById('followPanel');
+  if (fp.hidden || !tr) return;
+  const nx = document.getElementById('fpNext'), eta = document.getElementById('fpEta');
+  const info = nextStopInfo(tr, effT(tr));
+  if (info) {
+    nx.textContent = info.name;
+    const mm = Math.round(info.min);
+    eta.innerHTML = mm < 1 ? '即將進站' : `${fmtHM(info.at)} · <b>${mm} 分</b>`;
+  } else {
+    nx.textContent = '—'; eta.textContent = '已抵達終點';
+  }
 }
 
 function renderFollowBar(msg) {
@@ -716,11 +998,12 @@ function setFollowStatus(s, msg) {
 function updateFollowCamera() {
   const tr = state.followTrain; if (!tr) return;
   const last = tr.stops[tr.stops.length - 1];
-  if (state.simSec > last.arrSec + 2 && state.simSec < 86400) { setFollowStatus('done', '已抵達'); return; }
+  if (effT(tr) > last.arrSec + 2) { setFollowStatus('done', '已抵達'); return; }
   const pos = trainPos(tr, state.simSec);
   if (!pos) { const f = tr.stops[0]; recenterTo(f.lat, f.lon); setFollowStatus('pre', '尚未發車'); return; }
   setFollowStatus('run', '');
   recenterTo(pos.lat, pos.lon);
+  updateFollowPanel(tr);
 }
 
 function nowSecOfDay() {
@@ -764,7 +1047,8 @@ function renderBoard() {
       if (s.name !== st.name || s.stop === false) continue;
       const isLast = i === stops.length - 1;
       const t = isLast ? s.arrSec : s.depSec;
-      const dtm = t - state.simSec;
+      let dtm = t - state.simSec;
+      if (dtm > 43200) dtm -= 86400; else if (dtm < -43200) dtm += 86400; // 跨午夜換日對齊
       if (dtm < -30 || dtm > 3 * 3600) continue; // 未來 3 小時內
       rows.push({ tr, t, dtm, isLast, dest: stops[stops.length - 1].name });
     }
@@ -778,7 +1062,7 @@ function renderBoard() {
       `<span class="t">${fmtHM(r.t % 86400)}</span><span class="min">${min}</span></div>`;
   }).join('');
   el.innerHTML = `<button class="close" id="boardClose">×</button>` +
-    `<h3>${st.name}</h3><div class="sub">未來 3 小時停靠班次 · 依時刻表（無誤點資訊）</div>` +
+    `<h3>${st.name}</h3><div class="sub">接下來 3 小時會有誰來 · 依時刻表（無誤點資訊）</div>` +
     (list || '<div class="empty">此時段無停靠班次</div>');
   el.hidden = false;
   el.querySelector('#boardClose').onclick = closeBoard;
@@ -790,10 +1074,10 @@ function computeFlow() {
   const counts = new Array(FLOW_BINS).fill(0);
   for (const tr of state.trains) {
     const a = tr.stops[0].arrSec, b = tr.stops[tr.stops.length - 1].depSec;
-    let i0 = Math.max(0, Math.floor(a / 600)), i1 = Math.min(FLOW_BINS - 1, Math.floor(b / 600));
+    let i0 = Math.max(0, Math.floor(a / 600)), i1 = Math.floor(b / 600); // 跨午夜:i 可超過 143,bin 取模
     for (let i = i0; i <= i1; i++) {
       const t = i * 600 + 300;
-      if (t >= a && t <= b) counts[i]++;
+      if (t >= a && t <= b) counts[i % FLOW_BINS]++;
     }
   }
   state.flowBins = counts;
@@ -807,15 +1091,26 @@ function drawFlow() {
   const g = c.getContext('2d');
   g.setTransform(dpr, 0, 0, dpr, 0, 0);
   g.clearRect(0, 0, cssW, cssH);
+  // 尖峰帶 07:00–09:00 / 17:00–19:30
+  g.fillStyle = 'rgba(210,60,42,0.08)';
+  g.fillRect(7 / 24 * cssW, 0, 2 / 24 * cssW, cssH);
+  g.fillRect(17 / 24 * cssW, 0, 2.5 / 24 * cssW, cssH);
+  // 柱
   const bw = cssW / FLOW_BINS;
   for (let i = 0; i < FLOW_BINS; i++) {
     const h = state.flowBins[i] / state.flowMax * (cssH - 12);
-    g.fillStyle = '#3f6fae';
+    g.fillStyle = '#8fa8c6';
     g.fillRect(i * bw, cssH - h, Math.max(1, bw - 0.6), h);
+  }
+  // 整點刻度(00/06/12/18 較高)
+  g.fillStyle = '#c9b98f';
+  for (let hh = 0; hh < 24; hh++) {
+    const tx = hh / 24 * cssW, th = (hh % 6 === 0) ? 7 : 4;
+    g.fillRect(tx, cssH - th, 1, th);
   }
   // 現在時刻游標
   const x = state.simSec / 86400 * cssW;
-  g.strokeStyle = '#ffffff'; g.globalAlpha = 0.85; g.lineWidth = 1.2;
+  g.strokeStyle = '#d23c2a'; g.globalAlpha = 0.9; g.lineWidth = 1.5;
   g.beginPath(); g.moveTo(x, 2); g.lineTo(x, cssH - 2); g.stroke(); g.globalAlpha = 1;
 }
 const FLOW_LBL_DEFAULT = '全日同時運行列車數（依時刻表）——點擊圖表跳到該時刻';
@@ -823,6 +1118,47 @@ const FLOW_LBL_DEFAULT = '全日同時運行列車數（依時刻表）——點
 async function fetchJSON(url) {
   try { const r = await fetch(url, { cache: 'no-store' }); return r.ok ? await r.json() : null; }
   catch (e) { return null; }
+}
+
+// ── 底圖切換(亮 CARTO Positron / 暗 Dark Matter / 衛星 Esri) ──
+function setBasemap() {
+  if (!map) return;
+  const stage = document.querySelector('.stage');
+  const sat = state.basemap === 'sat';
+  stage.classList.toggle('sat', sat);
+  stage.classList.toggle('dark', state.mapDark && !sat);
+  const want = sat ? 'sat' : (state.mapDark ? 'dark' : 'light');
+  for (const k in baseLayers) {
+    if (k === want) { if (!map.hasLayer(baseLayers[k])) baseLayers[k].addTo(map); }
+    else if (map.hasLayer(baseLayers[k])) map.removeLayer(baseLayers[k]);
+  }
+  baseLayers[want].bringToBack();
+  const themeBtn = document.getElementById('themeBtn'), satBtn = document.getElementById('satBtn');
+  if (themeBtn) themeBtn.textContent = state.mapDark ? '☀' : '☾';
+  if (satBtn) { satBtn.textContent = sat ? '圖' : '衛'; satBtn.title = sat ? '切回一般地圖' : '切換衛星影像'; }
+}
+function setupMapTools() {
+  const fsBtn = document.getElementById('fsBtn');
+  const themeBtn = document.getElementById('themeBtn');
+  const satBtn = document.getElementById('satBtn');
+  function setFs(on) {
+    document.body.classList.toggle('fs', on);
+    fsBtn.textContent = on ? '×' : '⛶';
+    fsBtn.title = on ? '退出全畫面（Esc）' : '全畫面地圖（Esc 退出）';
+    requestAnimationFrame(() => { map.invalidateSize(); reproject(); });
+  }
+  fsBtn.onclick = () => setFs(!document.body.classList.contains('fs'));
+  document.addEventListener('keydown', e => { if (e.key === 'Escape' && document.body.classList.contains('fs')) setFs(false); });
+  themeBtn.onclick = () => {
+    state.mapDark = !state.mapDark;
+    try { localStorage.setItem('trainmap-theme', state.mapDark ? 'dark' : 'light'); } catch (e) {}
+    setBasemap();
+  };
+  satBtn.onclick = () => {
+    state.basemap = state.basemap === 'sat' ? 'map' : 'sat';
+    try { localStorage.setItem('trainmap-basemap', state.basemap); } catch (e) {}
+    setBasemap();
+  };
 }
 
 async function boot() {
@@ -839,29 +1175,57 @@ async function boot() {
       const d = Math.hypot(p.x - cp.x, p.y - cp.y);
       if (d < bd) { bd = d; best = st; }
     }
+    // 車與站都在範圍內時取較近者:點列車跟隨(再點一下取消)、點車站開時刻板
+    const hit = trainAt(cp);
+    if (hit && (bd > 16 || hit.dist <= bd)) {
+      if (hit.tr === state.followTrain) { clearFollow(); return; }
+      const ts = document.getElementById('trainSearch');
+      if (ts) ts.value = hit.tr.train;
+      setFollow(hit.tr);
+      return;
+    }
     if (best && bd <= 16) openBoard(best);
   });
-  L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
-    subdomains: 'abcd', maxZoom: 19,
-    attribution: '&copy; OpenStreetMap &copy; CARTO',
-  }).addTo(map);
+  map.on('mousemove', e => {
+    // 滑過列車 → 手指游標(僅台鐵真實班表)
+    const c = map.getContainer();
+    if (state.mode !== 'sched') { if (c.style.cursor) c.style.cursor = ''; return; }
+    c.style.cursor = trainAt(e.containerPoint) ? 'pointer' : '';
+  });
+  baseLayers.light = L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+    subdomains: 'abcd', maxZoom: 20, attribution: '&copy; OpenStreetMap &copy; CARTO',
+  });
+  baseLayers.dark = L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+    subdomains: 'abcd', maxZoom: 20, attribution: '&copy; OpenStreetMap &copy; CARTO',
+  });
+  baseLayers.sat = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+    maxZoom: 19, attribution: 'Tiles &copy; Esri — Source: Esri, Maxar, Earthstar Geographics',
+  });
+  try { state.mapDark = localStorage.getItem('trainmap-theme') === 'dark'; } catch (e) {}
+  try { state.basemap = localStorage.getItem('trainmap-basemap') === 'sat' ? 'sat' : 'map'; } catch (e) {}
+  setBasemap();
+  setupMapTools();
   map.on('move zoom resize zoomanim', reproject);
 
   const defs = [
-    { id: 'mrt', label: '台北捷運', url: './data/mrt.json', speed: 36, mode: 'freq' },
-    { id: 'tra', label: '台鐵（班距）', url: './data/tra.json', speed: 65, mode: 'freq' },
-    { id: 'tra_sched', label: '台鐵 · 真實班表', url: './data/tra_schedule_dense.json', mode: 'sched' },
+    { id: 'mrt', label: '台北捷運', url: './data/trtc.json', speed: 34, mode: 'freq' },
+    { id: 'krtc', label: '高雄捷運', url: './data/krtc.json', speed: 36, mode: 'freq' },
+    { id: 'tmrt', label: '台中捷運', url: './data/tmrt.json', speed: 32, mode: 'freq' },
+    { id: 'tra_sched', label: '台鐵', url: './data/tra_schedule_dense.json', mode: 'sched' },
   ];
   for (const d of defs) {
     const data = await fetchJSON(d.url);
     if (data) state.systems.push({ ...d, data });
   }
+  // tra.json 僅作真實班表模式的軌道底圖幾何,不列為可切換系統(台鐵班距模式已移除)
+  state.trackData = await fetchJSON('./data/tra.json');
   if (!state.systems.length) {
     document.getElementById('note').textContent = '找不到路網資料（data/*.json 還在準備）';
     return;
   }
   buildSystemToggle();
-  loadSystem(state.systems[0]);
+  const initial = state.systems.find(s => s.id === 'tra_sched') || state.systems[0];
+  loadSystem(initial);
   state.ready = true;
   requestAnimationFrame(tick);
 }
@@ -889,6 +1253,7 @@ document.getElementById('tod').oninput = e => {
   }
 };
 document.getElementById('nowBtn').onclick = jumpToNow;
+document.getElementById('fpClose').onclick = clearFollow;
 (() => {
   const fc = document.getElementById('flowChart'), lbl = document.getElementById('flowLbl');
   const timeAt = e => Math.max(0, Math.min(86399, e.offsetX / fc.clientWidth * 86400));

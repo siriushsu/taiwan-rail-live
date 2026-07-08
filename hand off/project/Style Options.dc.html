@@ -1,0 +1,561 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<meta name="design_doc_mode" content="canvas">
+<style>
+  body { margin: 0; background: #eceae4; font-family: -apple-system, "PingFang TC", "Noto Sans TC", sans-serif; color: #e6e9ef; }
+  a { color: #7fb0ff; } a:hover { color: #aecdff; }
+</style>
+</helmet>
+
+<section style="display:flex; flex-wrap:wrap; gap:48px; align-items:flex-start; padding:48px;">
+
+  <!-- ══════════ 3a 復古站名牌 ══════════ -->
+  <div id="3a" style="width:600px; flex:none; display:flex; flex-direction:column; gap:14px;">
+    <div style="display:flex; align-items:center; gap:10px;">
+      <a href="#3a" style="text-decoration:none; background:#2a4a73; color:#fff; font-weight:700; font-size:13px; padding:3px 10px; border-radius:999px;">3a</a>
+      <div style="font-size:15px; font-weight:700; color:#1a1d24;">復古站名牌</div>
+      <div style="font-size:13px; color:#55607a;">台鐵站名牌＋硬票紙板 · 文化梗可愛 · 剪票口打洞、紅色戳章</div>
+    </div>
+    <div style="background:#efe6d2; border:1px solid #d8cba9; border-radius:14px; padding:26px 28px; display:flex; flex-direction:column; gap:18px; color:#3a3226;">
+      <div style="background:#fffdf6; border:3.5px solid #2a4a73; border-radius:12px; padding:12px 20px 14px; display:flex; align-items:center; justify-content:space-between; box-shadow:0 3px 0 rgba(42,74,115,.25);">
+        <div style="font-size:12px; color:#2a4a73; font-weight:700; display:flex; flex-direction:column; align-items:flex-start; gap:1px;"><span style="font-size:14px;">◀</span><span>基隆</span></div>
+        <div style="text-align:center;">
+          <div style="font-size:26px; font-weight:900; letter-spacing:6px; color:#1e2c40;">台灣鐵道</div>
+          <div style="font-size:11px; letter-spacing:3px; color:#8a7c62; margin-top:1px;">TAIWAN RAILWAY LIVE — 905 班列車運行中</div>
+        </div>
+        <div style="font-size:12px; color:#2a4a73; font-weight:700; display:flex; flex-direction:column; align-items:flex-end; gap:1px;"><span style="font-size:14px;">▶</span><span>枋寮</span></div>
+      </div>
+      <div style="display:flex; gap:8px;">
+        <div style="font-size:13px; padding:7px 16px; border-radius:4px; background:#e6d9ba; color:#7a6c50; border:1.5px solid #c9b98f; font-weight:600;">台北捷運</div>
+        <div style="font-size:13px; padding:7px 16px; border-radius:4px; background:#e6d9ba; color:#7a6c50; border:1.5px solid #c9b98f; font-weight:600;">台鐵（班距）</div>
+        <div style="font-size:13px; padding:7px 16px; border-radius:4px; background:#d23c2a; color:#fff8ec; font-weight:800; border:1.5px solid #a92c1d; box-shadow:0 2px 0 #a92c1d;">台鐵 · 真實班表</div>
+      </div>
+      <div style="position:relative; height:200px; background:#f7f0dd; border-radius:8px; border:2px solid #c9b98f; overflow:hidden;">
+        <svg width="100%" height="100%" viewBox="0 0 560 200" preserveAspectRatio="xMidYMid slice" style="display:block;">
+          <path d="M 550 30 C 460 60 400 100 330 130 C 260 160 160 180 30 195" stroke="#2E6FB0" stroke-width="3.4" opacity="0.9" fill="none" stroke-linecap="round"></path>
+          <path d="M 555 120 C 490 125 440 138 390 150" stroke="#C2185B" stroke-width="3.4" opacity="0.9" fill="none" stroke-linecap="round"></path>
+          <circle cx="330" cy="130" r="3.6" fill="#f7f0dd" stroke="#2E6FB0" stroke-width="1.8"></circle>
+          <g transform="translate(330,130)"><rect x="-20" y="-25" width="40" height="17" rx="3" fill="#2E6FB0"></rect><text x="0" y="-12.5" fill="#fff" text-anchor="middle" font-size="10" font-weight="700" font-family="-apple-system,'PingFang TC',sans-serif">4240</text></g>
+        </svg>
+        <div style="position:absolute; top:10px; left:12px; display:flex; align-items:center; gap:10px; background:#fffdf6; border:2px solid #2a4a73; border-radius:8px; padding:6px 14px;">
+          <span style="font-size:20px; font-weight:900; font-variant-numeric:tabular-nums; color:#1e2c40;">19:49</span>
+          <span style="font-size:11px; padding:2px 9px; border-radius:3px; background:#d23c2a; color:#fff8ec; font-weight:800;">真實班表</span>
+          <span style="font-size:12px; color:#7a6c50; font-weight:600;">137 班運行中</span>
+        </div>
+        <div style="position:absolute; top:10px; right:10px; width:214px; background:#fffdf6; border:2px solid #2a4a73; border-radius:8px; padding:10px 12px;">
+          <div style="display:flex; align-items:baseline; justify-content:space-between;"><span style="font-size:14px; font-weight:900; letter-spacing:2px; color:#1e2c40;">臺 北</span><span style="font-size:9px; color:#8a7c62; letter-spacing:1px;">開往方向</span></div>
+          <div style="display:flex; align-items:baseline; gap:7px; font-size:11px; padding:5px 0; border-bottom:1.5px dashed #c9b98f; font-variant-numeric:tabular-nums;"><span style="width:7px; height:7px; border-radius:50%; background:#2E6FB0; align-self:center;"></span><b>4240</b><span style="flex:1; color:#7a6c50;">往 基隆</span><span>19:50</span><span style="color:#d23c2a; font-weight:800;">即將</span></div>
+          <div style="display:flex; align-items:baseline; gap:7px; font-size:11px; padding:5px 0; font-variant-numeric:tabular-nums;"><span style="width:7px; height:7px; border-radius:50%; background:#C0392B; align-self:center;"></span><b>431</b><span style="flex:1; color:#7a6c50;">往 樹林</span><span>19:52</span><span style="color:#7a6c50;">2 分</span></div>
+        </div>
+      </div>
+      <div style="display:flex; align-items:center; gap:14px;">
+        <div style="width:36px; height:36px; border-radius:8px; background:#2a4a73; display:flex; align-items:center; justify-content:center; font-size:12px; color:#fffdf6; font-weight:800; box-shadow:0 2px 0 #1c3352;">❚❚</div>
+        <div style="flex:1; height:6px; border-radius:3px; background:linear-gradient(90deg,#2a4a73 70%, #d8cba9 70%); position:relative;"><span style="position:absolute; left:70%; top:-5px; width:16px; height:16px; border-radius:50%; background:#fffdf6; border:3px solid #2a4a73;"></span></div>
+        <div style="font-size:12px; font-weight:800; font-variant-numeric:tabular-nums; color:#7a6c50;">50×</div>
+        <div style="font-size:12px; padding:6px 14px; border-radius:4px; background:#fffdf6; border:1.5px solid #c9b98f; color:#7a6c50; font-weight:600;">現在</div>
+      </div>
+      <div style="display:flex; flex-wrap:wrap; gap:7px; align-items:center;">
+        <span style="font-size:11px; color:#a89468; font-weight:800; letter-spacing:2px; margin-right:2px;">車種</span>
+        <span style="display:inline-flex; align-items:center; gap:6px; font-size:12px; padding:4px 12px 4px 8px; border-radius:3px; background:#e6d9ba; border:1.5px solid #c9b98f; color:#3a3226; position:relative;"><span style="width:6px; height:6px; border-radius:50%; background:#efe6d2; border:1px solid #a89468;"></span><span style="width:9px; height:9px; border-radius:50%; background:#C0392B;"></span>自強</span>
+        <span style="display:inline-flex; align-items:center; gap:6px; font-size:12px; padding:4px 12px 4px 8px; border-radius:3px; background:#e6d9ba; border:1.5px solid #c9b98f; color:#3a3226;"><span style="width:6px; height:6px; border-radius:50%; background:#efe6d2; border:1px solid #a89468;"></span><span style="width:9px; height:9px; border-radius:50%; background:#2E6FB0;"></span>區間車</span>
+        <span style="display:inline-flex; align-items:center; gap:6px; font-size:12px; padding:4px 12px 4px 8px; border-radius:3px; background:#e6d9ba; border:1.5px solid #c9b98f; color:#3a3226; opacity:.42;"><span style="width:6px; height:6px; border-radius:50%; background:#efe6d2; border:1px solid #a89468;"></span><span style="width:9px; height:9px; border-radius:50%; background:#16A085;"></span>區間快</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════ 3b 貼紙火車 POP ══════════ -->
+  <div id="3b" style="width:600px; flex:none; display:flex; flex-direction:column; gap:14px;">
+    <div style="display:flex; align-items:center; gap:10px;">
+      <a href="#3b" style="text-decoration:none; background:#1c1a17; color:#ffd43d; font-weight:700; font-size:13px; padding:3px 10px; border-radius:999px;">3b</a>
+      <div style="font-size:15px; font-weight:700; color:#1a1d24;">貼紙火車 POP</div>
+      <div style="font-size:13px; color:#55607a;">奶油黃底 · 粗黑描邊＋硬陰影 · 每個元件都像貼紙 · 最大膽</div>
+    </div>
+    <div style="background:#ffd43d; border:2.5px solid #1c1a17; border-radius:20px; padding:26px 28px; display:flex; flex-direction:column; gap:18px; color:#1c1a17; box-shadow:5px 5px 0 #1c1a17;">
+      <div style="display:flex; align-items:center; gap:16px;">
+        <div style="width:52px; height:44px; background:#fff; border:2.5px solid #1c1a17; border-radius:12px; display:flex; align-items:center; justify-content:center; box-shadow:3px 3px 0 #1c1a17; transform:rotate(-4deg);">
+          <div style="display:flex; flex-direction:column; align-items:center; gap:3px;">
+            <span style="width:26px; height:15px; border-radius:7px 7px 3px 3px; background:#e8464a; border:2px solid #1c1a17; position:relative; display:block;"><i style="position:absolute; top:2.5px; left:3px; width:6px; height:5px; border-radius:1.5px; background:#bfe3ff; border:1px solid #1c1a17; display:block;"></i><i style="position:absolute; top:2.5px; right:3px; width:6px; height:5px; border-radius:1.5px; background:#bfe3ff; border:1px solid #1c1a17; display:block;"></i></span>
+            <span style="display:flex; gap:8px;"><i style="width:6px; height:6px; border-radius:50%; background:#1c1a17; display:block;"></i><i style="width:6px; height:6px; border-radius:50%; background:#1c1a17; display:block;"></i></span>
+          </div>
+        </div>
+        <div>
+          <div style="font-size:24px; font-weight:900; letter-spacing:1px;">台灣鐵道<span style="display:inline-block; background:#fff; border:2px solid #1c1a17; border-radius:8px; padding:0 8px; margin-left:8px; transform:rotate(2deg); box-shadow:2px 2px 0 #1c1a17; font-size:15px; vertical-align:4px;">嘟嘟—！</span></div>
+          <div style="font-size:13px; font-weight:700; margin-top:3px;">905 班小火車正在島上跑來跑去</div>
+        </div>
+      </div>
+      <div style="display:flex; gap:9px;">
+        <div style="font-size:13px; padding:7px 16px; border-radius:999px; background:#fff; color:#1c1a17; border:2px solid #1c1a17; font-weight:700;">台北捷運</div>
+        <div style="font-size:13px; padding:7px 16px; border-radius:999px; background:#fff; color:#1c1a17; border:2px solid #1c1a17; font-weight:700;">台鐵（班距）</div>
+        <div style="font-size:13px; padding:7px 16px; border-radius:999px; background:#e8464a; color:#fff; font-weight:800; border:2px solid #1c1a17; box-shadow:2.5px 2.5px 0 #1c1a17;">台鐵 · 真實班表</div>
+      </div>
+      <div style="position:relative; height:200px; background:#7ec8e3; border-radius:14px; border:2.5px solid #1c1a17; overflow:hidden;">
+        <svg width="100%" height="100%" viewBox="0 0 560 200" preserveAspectRatio="xMidYMid slice" style="display:block;">
+          <path d="M 0 168 C 90 150 180 162 290 148 C 400 134 480 150 560 128 L 560 200 L 0 200 Z" fill="#a8dba0" stroke="#1c1a17" stroke-width="2.5"></path>
+          <path d="M 550 30 C 460 60 400 100 330 130 C 260 160 160 180 30 195" stroke="#2E6FB0" stroke-width="4.5" opacity="1" fill="none" stroke-linecap="round"></path>
+          <path d="M 555 120 C 490 125 440 138 390 150" stroke="#C2185B" stroke-width="4.5" opacity="1" fill="none" stroke-linecap="round"></path>
+          <circle cx="330" cy="130" r="4.2" fill="#fff" stroke="#1c1a17" stroke-width="2"></circle>
+          <g transform="translate(330,130)"><rect x="-22" y="-27" width="44" height="19" rx="9.5" fill="#2E6FB0" stroke="#1c1a17" stroke-width="2"></rect><text x="0" y="-13" fill="#fff" text-anchor="middle" font-size="10.5" font-weight="800" font-family="-apple-system,'PingFang TC',sans-serif">4240</text></g>
+        </svg>
+        <div style="position:absolute; top:10px; left:12px; display:flex; align-items:center; gap:10px; background:#fff; border:2px solid #1c1a17; border-radius:999px; padding:6px 15px; box-shadow:2.5px 2.5px 0 #1c1a17;">
+          <span style="font-size:20px; font-weight:900; font-variant-numeric:tabular-nums;">19:49</span>
+          <span style="font-size:11px; padding:2px 9px; border-radius:999px; background:#ffd43d; border:1.5px solid #1c1a17; font-weight:800;">真實班表</span>
+          <span style="font-size:12px; font-weight:700;">137 班奔跑中</span>
+        </div>
+        <div style="position:absolute; top:10px; right:10px; width:216px; background:#fff; border:2px solid #1c1a17; border-radius:12px; padding:10px 12px; box-shadow:2.5px 2.5px 0 #1c1a17;">
+          <div style="font-size:14px; font-weight:900;">臺北 <span style="font-weight:700; font-size:10px; background:#ffd43d; border:1.5px solid #1c1a17; border-radius:999px; padding:1px 7px; margin-left:3px;">接下來</span></div>
+          <div style="display:flex; align-items:baseline; gap:7px; font-size:11px; padding:5px 0; border-bottom:2px dotted #1c1a17; font-variant-numeric:tabular-nums;"><span style="width:8px; height:8px; border-radius:50%; background:#2E6FB0; border:1.5px solid #1c1a17; align-self:center;"></span><b>4240</b><span style="flex:1; font-weight:600;">往 基隆</span><span style="font-weight:700;">19:50</span><span style="color:#e8464a; font-weight:900;">即將</span></div>
+          <div style="display:flex; align-items:baseline; gap:7px; font-size:11px; padding:5px 0; font-variant-numeric:tabular-nums;"><span style="width:8px; height:8px; border-radius:50%; background:#C0392B; border:1.5px solid #1c1a17; align-self:center;"></span><b>431</b><span style="flex:1; font-weight:600;">往 樹林</span><span style="font-weight:700;">19:52</span><span style="font-weight:700;">2 分</span></div>
+        </div>
+      </div>
+      <div style="display:flex; align-items:center; gap:14px;">
+        <div style="width:38px; height:38px; border-radius:50%; background:#fff; border:2.5px solid #1c1a17; display:flex; align-items:center; justify-content:center; font-size:12px; font-weight:900; box-shadow:2.5px 2.5px 0 #1c1a17;">❚❚</div>
+        <div style="flex:1; height:10px; border-radius:6px; background:#fff; border:2px solid #1c1a17; position:relative;"><span style="position:absolute; left:0; top:0; bottom:0; width:70%; background:#e8464a; border-radius:4px 0 0 4px;"></span><span style="position:absolute; left:70%; top:-7px; width:20px; height:20px; border-radius:50%; background:#fff; border:2.5px solid #1c1a17; box-shadow:2px 2px 0 #1c1a17;"></span></div>
+        <div style="font-size:13px; font-weight:900; font-variant-numeric:tabular-nums;">50×</div>
+        <div style="font-size:12px; padding:6px 14px; border-radius:999px; background:#fff; border:2px solid #1c1a17; font-weight:700;">回到現在</div>
+      </div>
+      <div style="display:flex; flex-wrap:wrap; gap:8px; align-items:center;">
+        <span style="font-size:11px; font-weight:900; letter-spacing:1px; margin-right:2px;">車種</span>
+        <span style="display:inline-flex; align-items:center; gap:6px; font-size:12px; padding:4px 12px; border-radius:999px; background:#fff; border:2px solid #1c1a17; font-weight:700; box-shadow:1.5px 1.5px 0 #1c1a17;"><span style="width:9px; height:9px; border-radius:50%; background:#C0392B; border:1.5px solid #1c1a17;"></span>自強</span>
+        <span style="display:inline-flex; align-items:center; gap:6px; font-size:12px; padding:4px 12px; border-radius:999px; background:#fff; border:2px solid #1c1a17; font-weight:700; box-shadow:1.5px 1.5px 0 #1c1a17;"><span style="width:9px; height:9px; border-radius:50%; background:#2E6FB0; border:1.5px solid #1c1a17;"></span>區間車</span>
+        <span style="display:inline-flex; align-items:center; gap:6px; font-size:12px; padding:4px 12px; border-radius:999px; background:#ffe58a; border:2px dashed #1c1a17; font-weight:700; opacity:.55;"><span style="width:9px; height:9px; border-radius:50%; background:#16A085; border:1.5px solid #1c1a17;"></span>區間快</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════ 3c 大色帶海報 ══════════ -->
+  <div id="3c" style="width:600px; flex:none; display:flex; flex-direction:column; gap:14px;">
+    <div style="display:flex; align-items:center; gap:10px;">
+      <a href="#3c" style="text-decoration:none; background:#E3002C; color:#fff; font-weight:700; font-size:13px; padding:3px 10px; border-radius:999px;">3c</a>
+      <div style="font-size:15px; font-weight:700; color:#1a1d24;">大色帶海報</div>
+      <div style="font-size:13px; color:#55607a;">Vignelli 式路線色帶當主角 · 純白底 · 超大字重 · 圖形感大膽</div>
+    </div>
+    <div style="background:#ffffff; border:1px solid #e4e4e0; border-radius:18px; padding:0 0 26px; display:flex; flex-direction:column; gap:18px; color:#17181c; overflow:hidden; box-shadow:0 6px 24px rgba(20,20,30,.07);">
+      <div style="display:flex; flex-direction:column;">
+        <div style="display:flex; height:14px;">
+          <span style="flex:1; background:#E3002C;"></span><span style="flex:1; background:#F8B61C;"></span><span style="flex:1; background:#008659;"></span><span style="flex:1; background:#0070BD;"></span><span style="flex:1; background:#C48C31;"></span><span style="flex:1; background:#E8792B;"></span><span style="flex:1; background:#2E6FB0;"></span><span style="flex:1; background:#C2185B;"></span>
+        </div>
+        <div style="padding:20px 28px 0; display:flex; align-items:flex-end; justify-content:space-between;">
+          <div>
+            <div style="font-size:30px; font-weight:900; letter-spacing:2px; line-height:1.1;">台灣鐵道<span style="color:#E3002C;">.</span></div>
+            <div style="font-size:13px; color:#6d6f78; margin-top:4px; font-weight:500;">905 班列車正在島上奔跑 — 點站看班次，嘟嘟</div>
+          </div>
+          <div style="display:flex; align-items:center; gap:6px; padding-bottom:4px;">
+            <span style="width:26px; height:26px; border-radius:50%; background:#17181c; color:#fff; font-size:11px; font-weight:800; display:flex; align-items:center; justify-content:center;">鐵</span>
+            <span style="width:26px; height:26px; border-radius:50%; background:#E3002C; color:#fff; font-size:11px; font-weight:800; display:flex; align-items:center; justify-content:center;">捷</span>
+          </div>
+        </div>
+      </div>
+      <div style="padding:0 28px; display:flex; flex-direction:column; gap:18px;">
+      <div style="display:flex; gap:0; border:2px solid #17181c; border-radius:999px; overflow:hidden; width:fit-content;">
+        <div style="font-size:13px; padding:8px 18px; background:#fff; color:#17181c; font-weight:700;">台北捷運</div>
+        <div style="font-size:13px; padding:8px 18px; background:#fff; color:#17181c; font-weight:700; border-left:2px solid #17181c;">台鐵（班距）</div>
+        <div style="font-size:13px; padding:8px 18px; background:#17181c; color:#fff; font-weight:800; border-left:2px solid #17181c;">台鐵 · 真實班表</div>
+      </div>
+      <div style="position:relative; height:200px; background:#f6f6f3; border-radius:14px; overflow:hidden;">
+        <svg width="100%" height="100%" viewBox="0 0 560 200" preserveAspectRatio="xMidYMid slice" style="display:block;">
+          <path d="M 550 30 C 460 60 400 100 330 130 C 260 160 160 180 30 195" stroke="#2E6FB0" stroke-width="5" fill="none" stroke-linecap="round"></path>
+          <path d="M 555 120 C 490 125 440 138 390 150" stroke="#C2185B" stroke-width="5" fill="none" stroke-linecap="round"></path>
+          <circle cx="330" cy="130" r="4.5" fill="#fff" stroke="#17181c" stroke-width="2"></circle>
+          <g transform="translate(330,130)"><rect x="-21" y="-26" width="42" height="18" rx="9" fill="#2E6FB0"></rect><text x="0" y="-13" fill="#fff" text-anchor="middle" font-size="10.5" font-weight="800" font-family="-apple-system,'PingFang TC',sans-serif">4240</text></g>
+        </svg>
+        <div style="position:absolute; top:10px; left:12px; display:flex; align-items:center; gap:10px; background:#17181c; color:#fff; border-radius:999px; padding:7px 16px;">
+          <span style="font-size:20px; font-weight:900; font-variant-numeric:tabular-nums;">19:49</span>
+          <span style="font-size:11px; padding:2px 9px; border-radius:999px; background:#E3002C; color:#fff; font-weight:800;">真實班表</span>
+          <span style="font-size:12px; color:#b9bcc6; font-weight:600;">137 班</span>
+        </div>
+        <div style="position:absolute; top:10px; right:10px; width:214px; background:#fff; border-radius:12px; padding:10px 12px; box-shadow:0 4px 16px rgba(20,20,30,.14);">
+          <div style="font-size:14px; font-weight:900;">臺北 <span style="font-weight:600; font-size:10px; color:#9a9da8;">接下來</span></div>
+          <div style="display:flex; align-items:baseline; gap:7px; font-size:11px; padding:5px 0; border-bottom:1px solid #ececea; font-variant-numeric:tabular-nums;"><span style="width:14px; height:14px; border-radius:50%; background:#2E6FB0; color:#fff; font-size:7px; font-weight:800; display:inline-flex; align-items:center; justify-content:center; align-self:center;">區</span><b>4240</b><span style="flex:1; color:#6d6f78;">往 基隆</span><span style="font-weight:700;">19:50</span><span style="color:#E3002C; font-weight:900;">即將</span></div>
+          <div style="display:flex; align-items:baseline; gap:7px; font-size:11px; padding:5px 0; font-variant-numeric:tabular-nums;"><span style="width:14px; height:14px; border-radius:50%; background:#C0392B; color:#fff; font-size:7px; font-weight:800; display:inline-flex; align-items:center; justify-content:center; align-self:center;">自</span><b>431</b><span style="flex:1; color:#6d6f78;">往 樹林</span><span style="font-weight:700;">19:52</span><span style="color:#6d6f78;">2 分</span></div>
+        </div>
+      </div>
+      <div style="display:flex; align-items:center; gap:14px;">
+        <div style="width:36px; height:36px; border-radius:50%; background:#17181c; display:flex; align-items:center; justify-content:center; font-size:12px; color:#fff; font-weight:900;">❚❚</div>
+        <div style="flex:1; height:8px; border-radius:4px; background:linear-gradient(90deg,#17181c 70%, #e9e9e5 70%); position:relative;"><span style="position:absolute; left:70%; top:-5px; width:18px; height:18px; border-radius:50%; background:#E3002C; border:3px solid #fff; box-shadow:0 1px 6px rgba(20,20,30,.3);"></span></div>
+        <div style="font-size:13px; font-weight:900; font-variant-numeric:tabular-nums;">50×</div>
+        <div style="font-size:12px; padding:7px 15px; border-radius:999px; background:#fff; border:2px solid #17181c; font-weight:700;">現在</div>
+      </div>
+      <div style="display:flex; flex-wrap:wrap; gap:8px; align-items:center;">
+        <span style="font-size:11px; color:#9a9da8; font-weight:800; letter-spacing:2px; margin-right:2px;">車種</span>
+        <span style="display:inline-flex; align-items:center; gap:6px; font-size:12px; font-weight:700; padding:4px 12px 4px 6px; border-radius:999px; background:#f2f2ef;"><span style="width:16px; height:16px; border-radius:50%; background:#C0392B; color:#fff; font-size:8px; font-weight:800; display:inline-flex; align-items:center; justify-content:center;">自</span>自強</span>
+        <span style="display:inline-flex; align-items:center; gap:6px; font-size:12px; font-weight:700; padding:4px 12px 4px 6px; border-radius:999px; background:#f2f2ef;"><span style="width:16px; height:16px; border-radius:50%; background:#2E6FB0; color:#fff; font-size:8px; font-weight:800; display:inline-flex; align-items:center; justify-content:center;">區</span>區間車</span>
+        <span style="display:inline-flex; align-items:center; gap:6px; font-size:12px; font-weight:700; padding:4px 12px 4px 6px; border-radius:999px; background:#f2f2ef; opacity:.4;"><span style="width:16px; height:16px; border-radius:50%; background:#16A085; color:#fff; font-size:8px; font-weight:800; display:inline-flex; align-items:center; justify-content:center;">快</span>區間快</span>
+      </div>
+      </div>
+    </div>
+  </div>
+
+</section>
+
+<section style="display:flex; flex-wrap:wrap; gap:48px; align-items:flex-start; padding:48px;">
+
+  <!-- ══════════ 2a 奶油紙地圖 ══════════ -->
+  <div id="2a" style="width:600px; flex:none; display:flex; flex-direction:column; gap:14px;">
+    <div style="display:flex; align-items:center; gap:10px;">
+      <a href="#2a" style="text-decoration:none; background:#e8794a; color:#fff; font-weight:700; font-size:13px; padding:3px 10px; border-radius:999px;">2a</a>
+      <div style="font-size:15px; font-weight:700; color:#1a1d24;">奶油紙地圖（全亮色）</div>
+      <div style="font-size:13px; color:#55607a;">紙本車票感 · 地圖換亮色圖磚 · 虛線票根、暖奶油底</div>
+    </div>
+    <div style="background:#fdf9f0; border:1.5px solid #e9dfc9; border-radius:22px; padding:26px 28px; display:flex; flex-direction:column; gap:18px; color:#463c2e; box-shadow:0 6px 24px rgba(90,74,50,.08);">
+      <div style="display:flex; align-items:center; gap:14px;">
+        <div style="width:44px; height:44px; border-radius:14px; background:#fff; border:1.5px solid #e9dfc9; display:flex; align-items:center; justify-content:center;">
+          <div style="display:flex; flex-direction:column; align-items:center; gap:3px;">
+            <span style="width:22px; height:13px; border-radius:6px 6px 3px 3px; background:#e8794a; position:relative; display:block;"><i style="position:absolute; top:3px; left:4px; width:5px; height:4px; border-radius:1.5px; background:#fdf3e4; display:block;"></i><i style="position:absolute; top:3px; right:4px; width:5px; height:4px; border-radius:1.5px; background:#fdf3e4; display:block;"></i></span>
+            <span style="display:flex; gap:7px;"><i style="width:5px; height:5px; border-radius:50%; background:#8a7a62; display:block;"></i><i style="width:5px; height:5px; border-radius:50%; background:#8a7a62; display:block;"></i></span>
+          </div>
+        </div>
+        <div>
+          <div style="font-size:22px; font-weight:800; color:#39301f;">台灣鐵道<span style="color:#e8794a;"> · 列車流動</span></div>
+          <div style="font-size:13px; color:#8a7a62; margin-top:2px;">905 班小火車正在島上跑來跑去，點個車站看看誰要來</div>
+        </div>
+      </div>
+      <div style="display:flex; gap:8px;">
+        <div style="font-size:13px; padding:7px 16px; border-radius:999px; background:#fff; color:#8a7a62; border:1.5px solid #e9dfc9;">台北捷運</div>
+        <div style="font-size:13px; padding:7px 16px; border-radius:999px; background:#fff; color:#8a7a62; border:1.5px solid #e9dfc9;">台鐵（班距）</div>
+        <div style="font-size:13px; padding:7px 16px; border-radius:999px; background:#e8794a; color:#fff; font-weight:700; border:1.5px solid #e8794a; box-shadow:0 2px 8px rgba(232,121,74,.3);">台鐵 · 真實班表</div>
+      </div>
+      <div style="position:relative; height:200px; background:#f6efdd; border-radius:16px; border:1.5px solid #e9dfc9; overflow:hidden;">
+        <svg width="100%" height="100%" viewBox="0 0 560 200" preserveAspectRatio="xMidYMid slice" style="display:block;">
+          <path d="M 550 30 C 460 60 400 100 330 130 C 260 160 160 180 30 195" stroke="#2E6FB0" stroke-width="3.4" opacity="0.85" fill="none" stroke-linecap="round"></path>
+          <path d="M 555 120 C 490 125 440 138 390 150" stroke="#C2185B" stroke-width="3.4" opacity="0.85" fill="none" stroke-linecap="round"></path>
+          <circle cx="330" cy="130" r="3.6" fill="#f6efdd" stroke="#2E6FB0" stroke-width="1.8"></circle>
+          <g transform="translate(330,130)"><rect x="-20" y="-25" width="40" height="17" rx="8.5" fill="#2E6FB0"></rect><text x="0" y="-12.5" fill="#fff" text-anchor="middle" font-size="10" font-weight="700" font-family="-apple-system,'PingFang TC',sans-serif">4240</text></g>
+        </svg>
+        <div style="position:absolute; top:10px; left:12px; display:flex; align-items:center; gap:10px; background:rgba(255,253,247,.94); border:1.5px solid #e9dfc9; border-radius:999px; padding:7px 16px; box-shadow:0 3px 10px rgba(90,74,50,.1);">
+          <span style="font-size:20px; font-weight:800; font-variant-numeric:tabular-nums; color:#39301f;">19:49</span>
+          <span style="font-size:11px; padding:2px 9px; border-radius:999px; background:#fdeadd; color:#c75d2e; font-weight:700;">真實班表</span>
+          <span style="font-size:12px; color:#8a7a62;">137 班奔跑中</span>
+        </div>
+        <div style="position:absolute; top:10px; right:10px; width:212px; background:rgba(255,253,247,.97); border:1.5px solid #e9dfc9; border-radius:14px; padding:10px 12px; box-shadow:0 3px 10px rgba(90,74,50,.1);">
+          <div style="font-size:14px; font-weight:800; color:#39301f;">臺北 <span style="font-weight:400; font-size:10px; color:#8a7a62;">接下來會有誰來？</span></div>
+          <div style="display:flex; align-items:baseline; gap:7px; font-size:11px; padding:5px 0; border-bottom:1.5px dashed #e9dfc9; font-variant-numeric:tabular-nums; color:#463c2e;"><span style="width:7px; height:7px; border-radius:50%; background:#2E6FB0; align-self:center;"></span><b>4240</b><span style="flex:1; color:#8a7a62;">往 基隆</span><span>19:50</span><span style="color:#c75d2e; font-weight:700;">即將</span></div>
+          <div style="display:flex; align-items:baseline; gap:7px; font-size:11px; padding:5px 0; font-variant-numeric:tabular-nums; color:#463c2e;"><span style="width:7px; height:7px; border-radius:50%; background:#C0392B; align-self:center;"></span><b>431</b><span style="flex:1; color:#8a7a62;">往 樹林</span><span>19:52</span><span style="color:#8a7a62;">2 分</span></div>
+        </div>
+      </div>
+      <div style="display:flex; align-items:center; gap:14px;">
+        <div style="width:36px; height:36px; border-radius:50%; background:#e8794a; display:flex; align-items:center; justify-content:center; font-size:12px; color:#fff; font-weight:800; box-shadow:0 2px 8px rgba(232,121,74,.3);">❚❚</div>
+        <div style="flex:1; height:6px; border-radius:3px; background:linear-gradient(90deg,#e8794a 70%, #eee3cd 70%); position:relative;"><span style="position:absolute; left:70%; top:-5px; width:16px; height:16px; border-radius:50%; background:#fff; border:3px solid #e8794a; box-shadow:0 2px 6px rgba(90,74,50,.2);"></span></div>
+        <div style="font-size:12px; font-weight:700; font-variant-numeric:tabular-nums; color:#8a7a62;">50×</div>
+        <div style="font-size:12px; padding:6px 14px; border-radius:999px; background:#fff; border:1.5px solid #e9dfc9; color:#8a7a62;">回到現在</div>
+      </div>
+      <div style="display:flex; flex-wrap:wrap; gap:7px; align-items:center;">
+        <span style="font-size:11px; color:#b0a288; font-weight:700; margin-right:2px;">車種</span>
+        <span style="display:inline-flex; align-items:center; gap:6px; font-size:12px; padding:4px 12px; border-radius:999px; background:#fff; border:1.5px solid #e9dfc9; color:#463c2e;"><span style="width:9px; height:9px; border-radius:50%; background:#C0392B;"></span>自強</span>
+        <span style="display:inline-flex; align-items:center; gap:6px; font-size:12px; padding:4px 12px; border-radius:999px; background:#fff; border:1.5px solid #e9dfc9; color:#463c2e;"><span style="width:9px; height:9px; border-radius:50%; background:#2E6FB0;"></span>區間車</span>
+        <span style="display:inline-flex; align-items:center; gap:6px; font-size:12px; padding:4px 12px; border-radius:999px; background:#fff; border:1.5px solid #e9dfc9; color:#463c2e; opacity:.4;"><span style="width:9px; height:9px; border-radius:50%; background:#16A085;"></span>區間快</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════ 2b 粉彩糖果 ══════════ -->
+  <div id="2b" style="width:600px; flex:none; display:flex; flex-direction:column; gap:14px;">
+    <div style="display:flex; align-items:center; gap:10px;">
+      <a href="#2b" style="text-decoration:none; background:#7c9ef0; color:#fff; font-weight:700; font-size:13px; padding:3px 10px; border-radius:999px;">2b</a>
+      <div style="font-size:15px; font-weight:700; color:#1a1d24;">粉彩糖果（全亮色）</div>
+      <div style="font-size:13px; color:#55607a;">雲朵白＋粉藍粉紅 · 超圓角 · 貼紙感 chips</div>
+    </div>
+    <div style="background:#f7f9fd; border:1.5px solid #e3e9f5; border-radius:26px; padding:26px 28px; display:flex; flex-direction:column; gap:18px; color:#3d4660; box-shadow:0 6px 24px rgba(80,100,150,.08);">
+      <div style="display:flex; align-items:center; gap:14px;">
+        <div style="width:44px; height:44px; border-radius:50%; background:#eaf0fc; display:flex; align-items:center; justify-content:center;">
+          <div style="display:flex; flex-direction:column; align-items:center; gap:3px;">
+            <span style="width:22px; height:13px; border-radius:7px 7px 3px 3px; background:#7c9ef0; position:relative; display:block;"><i style="position:absolute; top:3px; left:4px; width:5px; height:4px; border-radius:1.5px; background:#f7f9fd; display:block;"></i><i style="position:absolute; top:3px; right:4px; width:5px; height:4px; border-radius:1.5px; background:#f7f9fd; display:block;"></i></span>
+            <span style="display:flex; gap:7px;"><i style="width:5px; height:5px; border-radius:50%; background:#aab8d8; display:block;"></i><i style="width:5px; height:5px; border-radius:50%; background:#aab8d8; display:block;"></i></span>
+          </div>
+        </div>
+        <div>
+          <div style="font-size:22px; font-weight:800; color:#2c3452;">台灣鐵道<span style="color:#7c9ef0;">，出發！</span></div>
+          <div style="font-size:13px; color:#8c96b5; margin-top:2px;">905 班小火車正在島上跑來跑去，嘟嘟——</div>
+        </div>
+      </div>
+      <div style="display:flex; gap:8px;">
+        <div style="font-size:13px; padding:7px 16px; border-radius:999px; background:#fff; color:#8c96b5; border:1.5px solid #e3e9f5;">台北捷運</div>
+        <div style="font-size:13px; padding:7px 16px; border-radius:999px; background:#fff; color:#8c96b5; border:1.5px solid #e3e9f5;">台鐵（班距）</div>
+        <div style="font-size:13px; padding:7px 16px; border-radius:999px; background:#7c9ef0; color:#fff; font-weight:700; border:1.5px solid #7c9ef0; box-shadow:0 2px 8px rgba(124,158,240,.35);">台鐵 · 真實班表</div>
+      </div>
+      <div style="position:relative; height:200px; background:#eef3fb; border-radius:20px; border:1.5px solid #e3e9f5; overflow:hidden;">
+        <svg width="100%" height="100%" viewBox="0 0 560 200" preserveAspectRatio="xMidYMid slice" style="display:block;">
+          <path d="M 550 30 C 460 60 400 100 330 130 C 260 160 160 180 30 195" stroke="#2E6FB0" stroke-width="3.4" opacity="0.8" fill="none" stroke-linecap="round"></path>
+          <path d="M 555 120 C 490 125 440 138 390 150" stroke="#C2185B" stroke-width="3.4" opacity="0.8" fill="none" stroke-linecap="round"></path>
+          <circle cx="330" cy="130" r="3.6" fill="#eef3fb" stroke="#2E6FB0" stroke-width="1.8"></circle>
+          <g transform="translate(330,130)"><rect x="-20" y="-25" width="40" height="17" rx="8.5" fill="#2E6FB0"></rect><text x="0" y="-12.5" fill="#fff" text-anchor="middle" font-size="10" font-weight="700" font-family="-apple-system,'PingFang TC',sans-serif">4240</text></g>
+        </svg>
+        <div style="position:absolute; top:10px; left:12px; display:flex; align-items:center; gap:10px; background:rgba(255,255,255,.94); border:1.5px solid #e3e9f5; border-radius:999px; padding:7px 16px; box-shadow:0 3px 10px rgba(80,100,150,.1);">
+          <span style="font-size:20px; font-weight:800; font-variant-numeric:tabular-nums; color:#2c3452;">19:49</span>
+          <span style="font-size:11px; padding:2px 9px; border-radius:999px; background:#e7edfc; color:#5b7fe0; font-weight:700;">真實班表</span>
+          <span style="font-size:12px; color:#8c96b5;">137 班奔跑中</span>
+        </div>
+        <div style="position:absolute; top:10px; right:10px; width:212px; background:rgba(255,255,255,.97); border:1.5px solid #e3e9f5; border-radius:16px; padding:10px 12px; box-shadow:0 3px 10px rgba(80,100,150,.1);">
+          <div style="font-size:14px; font-weight:800; color:#2c3452;">臺北 <span style="font-weight:400; font-size:10px; color:#8c96b5;">接下來會有誰來？</span></div>
+          <div style="display:flex; align-items:baseline; gap:7px; font-size:11px; padding:5px 0; border-bottom:1.5px solid #eef2fa; font-variant-numeric:tabular-nums; color:#3d4660;"><span style="width:7px; height:7px; border-radius:50%; background:#2E6FB0; align-self:center;"></span><b>4240</b><span style="flex:1; color:#8c96b5;">往 基隆</span><span>19:50</span><span style="color:#e786a8; font-weight:700;">即將</span></div>
+          <div style="display:flex; align-items:baseline; gap:7px; font-size:11px; padding:5px 0; font-variant-numeric:tabular-nums; color:#3d4660;"><span style="width:7px; height:7px; border-radius:50%; background:#C0392B; align-self:center;"></span><b>431</b><span style="flex:1; color:#8c96b5;">往 樹林</span><span>19:52</span><span style="color:#8c96b5;">2 分</span></div>
+        </div>
+      </div>
+      <div style="display:flex; align-items:center; gap:14px;">
+        <div style="width:36px; height:36px; border-radius:50%; background:#7c9ef0; display:flex; align-items:center; justify-content:center; font-size:12px; color:#fff; font-weight:800; box-shadow:0 2px 8px rgba(124,158,240,.35);">❚❚</div>
+        <div style="flex:1; height:6px; border-radius:3px; background:linear-gradient(90deg,#7c9ef0 70%, #e3e9f5 70%); position:relative;"><span style="position:absolute; left:70%; top:-5px; width:16px; height:16px; border-radius:50%; background:#fff; border:3px solid #7c9ef0; box-shadow:0 2px 6px rgba(80,100,150,.2);"></span></div>
+        <div style="font-size:12px; font-weight:700; font-variant-numeric:tabular-nums; color:#8c96b5;">50×</div>
+        <div style="font-size:12px; padding:6px 14px; border-radius:999px; background:#fff; border:1.5px solid #e3e9f5; color:#8c96b5;">回到現在</div>
+      </div>
+      <div style="display:flex; flex-wrap:wrap; gap:7px; align-items:center;">
+        <span style="font-size:11px; color:#aab4cf; font-weight:700; margin-right:2px;">車種</span>
+        <span style="display:inline-flex; align-items:center; gap:6px; font-size:12px; padding:4px 12px; border-radius:999px; background:#fff; border:1.5px solid #e3e9f5; color:#3d4660; box-shadow:0 1.5px 4px rgba(80,100,150,.08);"><span style="width:9px; height:9px; border-radius:50%; background:#C0392B;"></span>自強</span>
+        <span style="display:inline-flex; align-items:center; gap:6px; font-size:12px; padding:4px 12px; border-radius:999px; background:#fff; border:1.5px solid #e3e9f5; color:#3d4660; box-shadow:0 1.5px 4px rgba(80,100,150,.08);"><span style="width:9px; height:9px; border-radius:50%; background:#2E6FB0;"></span>區間車</span>
+        <span style="display:inline-flex; align-items:center; gap:6px; font-size:12px; padding:4px 12px; border-radius:999px; background:#fff; border:1.5px solid #e3e9f5; color:#3d4660; opacity:.4;"><span style="width:9px; height:9px; border-radius:50%; background:#16A085;"></span>區間快</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════ 2c 奶油面板×深色地圖 ══════════ -->
+  <div id="2c" style="width:600px; flex:none; display:flex; flex-direction:column; gap:14px;">
+    <div style="display:flex; align-items:center; gap:10px;">
+      <a href="#2c" style="text-decoration:none; background:#39301f; color:#ffd9a8; font-weight:700; font-size:13px; padding:3px 10px; border-radius:999px;">2c</a>
+      <div style="font-size:15px; font-weight:700; color:#1a1d24;">奶油面板 × 深色地圖（折衷）</div>
+      <div style="font-size:13px; color:#55607a;">UI 全亮色可愛、地圖維持深色圖磚 — 不動任何地圖設定</div>
+    </div>
+    <div style="background:#fdf9f0; border:1.5px solid #e9dfc9; border-radius:22px; padding:26px 28px; display:flex; flex-direction:column; gap:18px; color:#463c2e; box-shadow:0 6px 24px rgba(90,74,50,.08);">
+      <div style="display:flex; align-items:center; gap:14px;">
+        <div style="width:44px; height:44px; border-radius:14px; background:#fff; border:1.5px solid #e9dfc9; display:flex; align-items:center; justify-content:center;">
+          <div style="display:flex; flex-direction:column; align-items:center; gap:3px;">
+            <span style="width:22px; height:13px; border-radius:6px 6px 3px 3px; background:#e8794a; position:relative; display:block;"><i style="position:absolute; top:3px; left:4px; width:5px; height:4px; border-radius:1.5px; background:#fdf3e4; display:block;"></i><i style="position:absolute; top:3px; right:4px; width:5px; height:4px; border-radius:1.5px; background:#fdf3e4; display:block;"></i></span>
+            <span style="display:flex; gap:7px;"><i style="width:5px; height:5px; border-radius:50%; background:#8a7a62; display:block;"></i><i style="width:5px; height:5px; border-radius:50%; background:#8a7a62; display:block;"></i></span>
+          </div>
+        </div>
+        <div>
+          <div style="font-size:22px; font-weight:800; color:#39301f;">台灣鐵道<span style="color:#e8794a;"> · 列車流動</span></div>
+          <div style="font-size:13px; color:#8a7a62; margin-top:2px;">905 班小火車正在夜色的島上跑來跑去</div>
+        </div>
+      </div>
+      <div style="display:flex; gap:8px;">
+        <div style="font-size:13px; padding:7px 16px; border-radius:999px; background:#fff; color:#8a7a62; border:1.5px solid #e9dfc9;">台北捷運</div>
+        <div style="font-size:13px; padding:7px 16px; border-radius:999px; background:#fff; color:#8a7a62; border:1.5px solid #e9dfc9;">台鐵（班距）</div>
+        <div style="font-size:13px; padding:7px 16px; border-radius:999px; background:#e8794a; color:#fff; font-weight:700; border:1.5px solid #e8794a; box-shadow:0 2px 8px rgba(232,121,74,.3);">台鐵 · 真實班表</div>
+      </div>
+      <div style="position:relative; height:200px; background:#10141c; border-radius:16px; border:1.5px solid #e9dfc9; overflow:hidden;">
+        <svg width="100%" height="100%" viewBox="0 0 560 200" preserveAspectRatio="xMidYMid slice" style="display:block;">
+          <path d="M 550 30 C 460 60 400 100 330 130 C 260 160 160 180 30 195" stroke="#2E6FB0" stroke-width="3.4" opacity="0.75" fill="none" stroke-linecap="round"></path>
+          <path d="M 555 120 C 490 125 440 138 390 150" stroke="#C2185B" stroke-width="3.4" opacity="0.75" fill="none" stroke-linecap="round"></path>
+          <circle cx="330" cy="130" r="3.6" fill="#10141c" stroke="#2E6FB0" stroke-width="1.8"></circle>
+          <g transform="translate(330,130)"><rect x="-20" y="-25" width="40" height="17" rx="8.5" fill="#2E6FB0"></rect><text x="0" y="-12.5" fill="#fff" text-anchor="middle" font-size="10" font-weight="700" font-family="-apple-system,'PingFang TC',sans-serif">4240</text></g>
+        </svg>
+        <div style="position:absolute; top:10px; left:12px; display:flex; align-items:center; gap:10px; background:rgba(255,253,247,.95); border:1.5px solid #e9dfc9; border-radius:999px; padding:7px 16px; box-shadow:0 3px 12px rgba(0,0,0,.35);">
+          <span style="font-size:20px; font-weight:800; font-variant-numeric:tabular-nums; color:#39301f;">19:49</span>
+          <span style="font-size:11px; padding:2px 9px; border-radius:999px; background:#fdeadd; color:#c75d2e; font-weight:700;">真實班表</span>
+          <span style="font-size:12px; color:#8a7a62;">137 班奔跑中</span>
+        </div>
+        <div style="position:absolute; top:10px; right:10px; width:212px; background:rgba(255,253,247,.97); border:1.5px solid #e9dfc9; border-radius:14px; padding:10px 12px; box-shadow:0 3px 12px rgba(0,0,0,.35);">
+          <div style="font-size:14px; font-weight:800; color:#39301f;">臺北 <span style="font-weight:400; font-size:10px; color:#8a7a62;">接下來會有誰來？</span></div>
+          <div style="display:flex; align-items:baseline; gap:7px; font-size:11px; padding:5px 0; border-bottom:1.5px dashed #e9dfc9; font-variant-numeric:tabular-nums; color:#463c2e;"><span style="width:7px; height:7px; border-radius:50%; background:#2E6FB0; align-self:center;"></span><b>4240</b><span style="flex:1; color:#8a7a62;">往 基隆</span><span>19:50</span><span style="color:#c75d2e; font-weight:700;">即將</span></div>
+          <div style="display:flex; align-items:baseline; gap:7px; font-size:11px; padding:5px 0; font-variant-numeric:tabular-nums; color:#463c2e;"><span style="width:7px; height:7px; border-radius:50%; background:#C0392B; align-self:center;"></span><b>431</b><span style="flex:1; color:#8a7a62;">往 樹林</span><span>19:52</span><span style="color:#8a7a62;">2 分</span></div>
+        </div>
+      </div>
+      <div style="display:flex; align-items:center; gap:14px;">
+        <div style="width:36px; height:36px; border-radius:50%; background:#e8794a; display:flex; align-items:center; justify-content:center; font-size:12px; color:#fff; font-weight:800; box-shadow:0 2px 8px rgba(232,121,74,.3);">❚❚</div>
+        <div style="flex:1; height:6px; border-radius:3px; background:linear-gradient(90deg,#e8794a 70%, #eee3cd 70%); position:relative;"><span style="position:absolute; left:70%; top:-5px; width:16px; height:16px; border-radius:50%; background:#fff; border:3px solid #e8794a; box-shadow:0 2px 6px rgba(90,74,50,.2);"></span></div>
+        <div style="font-size:12px; font-weight:700; font-variant-numeric:tabular-nums; color:#8a7a62;">50×</div>
+        <div style="font-size:12px; padding:6px 14px; border-radius:999px; background:#fff; border:1.5px solid #e9dfc9; color:#8a7a62;">回到現在</div>
+      </div>
+      <div style="display:flex; flex-wrap:wrap; gap:7px; align-items:center;">
+        <span style="font-size:11px; color:#b0a288; font-weight:700; margin-right:2px;">車種</span>
+        <span style="display:inline-flex; align-items:center; gap:6px; font-size:12px; padding:4px 12px; border-radius:999px; background:#fff; border:1.5px solid #e9dfc9; color:#463c2e;"><span style="width:9px; height:9px; border-radius:50%; background:#C0392B;"></span>自強</span>
+        <span style="display:inline-flex; align-items:center; gap:6px; font-size:12px; padding:4px 12px; border-radius:999px; background:#fff; border:1.5px solid #e9dfc9; color:#463c2e;"><span style="width:9px; height:9px; border-radius:50%; background:#2E6FB0;"></span>區間車</span>
+        <span style="display:inline-flex; align-items:center; gap:6px; font-size:12px; padding:4px 12px; border-radius:999px; background:#fff; border:1.5px solid #e9dfc9; color:#463c2e; opacity:.4;"><span style="width:9px; height:9px; border-radius:50%; background:#16A085;"></span>區間快</span>
+      </div>
+    </div>
+  </div>
+
+</section>
+
+<section style="display:flex; flex-wrap:wrap; gap:48px; align-items:flex-start; padding:48px;">
+
+  <!-- ══════════ 1a 夜空路線圖 ══════════ -->
+  <div id="1a" style="width:600px; flex:none; display:flex; flex-direction:column; gap:14px;">
+    <div style="display:flex; align-items:center; gap:10px;">
+      <a href="#1a" style="text-decoration:none; background:#7fb0ff; color:#0b0e14; font-weight:700; font-size:13px; padding:3px 10px; border-radius:999px;">1a</a>
+      <div style="font-size:15px; font-weight:700; color:#1a1d24;">夜空路線圖</div>
+      <div style="font-size:13px; color:#55607a;">精緻優先 · 海報感品牌 · 可愛藏在細節（路線符號、圓潤膠囊）</div>
+    </div>
+    <div style="background:#0d1220; border:1px solid #232c44; border-radius:18px; padding:26px 28px; display:flex; flex-direction:column; gap:18px;">
+      <div style="display:flex; align-items:center; gap:14px;">
+        <div style="display:flex; align-items:center; gap:0;">
+          <span style="width:10px; height:10px; border-radius:50%; background:#E3002C;"></span>
+          <span style="width:22px; height:3px; background:#7fb0ff; border-radius:2px;"></span>
+          <span style="width:10px; height:10px; border-radius:50%; background:#2E6FB0;"></span>
+          <span style="width:22px; height:3px; background:#7fb0ff; border-radius:2px;"></span>
+          <span style="width:10px; height:10px; border-radius:50%; background:#E8792B;"></span>
+        </div>
+        <div>
+          <div style="font-size:22px; letter-spacing:1px;"><b style="font-weight:800;">台灣鐵道</b><span style="font-weight:300; color:#9db1d6;"> · 列車流動</span></div>
+          <div style="font-size:13px; color:#8ea0c2; margin-top:2px;">905 班列車，正在島上奔跑 — 拖曳、縮放，點站看班次</div>
+        </div>
+      </div>
+      <div style="display:flex; gap:8px;">
+        <div style="font-size:13px; padding:7px 16px; border-radius:999px; background:#131a2c; color:#8ea0c2; border:1px solid #263252;">台北捷運</div>
+        <div style="font-size:13px; padding:7px 16px; border-radius:999px; background:#131a2c; color:#8ea0c2; border:1px solid #263252;">台鐵（班距）</div>
+        <div style="font-size:13px; padding:7px 16px; border-radius:999px; background:#7fb0ff; color:#0b0e14; font-weight:700; border:1px solid #7fb0ff;">台鐵 · 真實班表</div>
+      </div>
+      <div style="position:relative; height:200px; background:#0a0e18; border-radius:14px; border:1px solid #1c2438; overflow:hidden;">
+        <svg width="100%" height="100%" viewBox="0 0 560 200" preserveAspectRatio="xMidYMid slice" style="display:block;">
+          <path d="M 550 30 C 460 60 400 100 330 130 C 260 160 160 180 30 195" stroke="#2E6FB0" stroke-width="3.4" opacity="0.75" fill="none" stroke-linecap="round"></path>
+          <path d="M 555 120 C 490 125 440 138 390 150" stroke="#C2185B" stroke-width="3.4" opacity="0.75" fill="none" stroke-linecap="round"></path>
+          <circle cx="330" cy="130" r="3.4" fill="#0a0e18" stroke="#2E6FB0" stroke-width="1.5"></circle>
+          <g transform="translate(330,130)"><rect x="-19" y="-24" width="38" height="16" rx="8" fill="#2E6FB0"></rect><text x="0" y="-12" fill="#fff" text-anchor="middle" font-size="10" font-weight="700" font-family="-apple-system,'PingFang TC',sans-serif">4240</text></g>
+        </svg>
+        <div style="position:absolute; top:10px; left:12px; display:flex; align-items:center; gap:10px; background:rgba(13,18,32,.82); border:1px solid #263252; border-radius:12px; padding:8px 14px; backdrop-filter:blur(6px);">
+          <span style="font-size:20px; font-weight:800; font-variant-numeric:tabular-nums;">19:49</span>
+          <span style="font-size:11px; padding:2px 9px; border-radius:999px; background:#1a2b4d; color:#7fb0ff; font-weight:600;">真實班表</span>
+          <span style="font-size:12px; color:#9db1d6;">137 班運行中</span>
+        </div>
+        <div style="position:absolute; top:10px; right:10px; width:210px; background:rgba(11,16,28,.94); border:1px solid #263252; border-radius:12px; padding:10px 12px;">
+          <div style="font-size:14px; font-weight:800;">臺北 <span style="font-weight:400; font-size:10px; color:#8ea0c2;">未來 3 小時</span></div>
+          <div style="display:flex; align-items:baseline; gap:7px; font-size:11px; padding:5px 0; border-bottom:1px solid #1a2338; font-variant-numeric:tabular-nums;"><span style="width:7px; height:7px; border-radius:50%; background:#2E6FB0; align-self:center;"></span><b>4240</b><span style="flex:1; color:#9db1d6;">往 基隆</span><span>19:50</span><span style="color:#7fb0ff; font-weight:700;">即將</span></div>
+          <div style="display:flex; align-items:baseline; gap:7px; font-size:11px; padding:5px 0; font-variant-numeric:tabular-nums;"><span style="width:7px; height:7px; border-radius:50%; background:#C0392B; align-self:center;"></span><b>431</b><span style="flex:1; color:#9db1d6;">往 樹林</span><span>19:52</span><span style="color:#8ea0c2;">2 分</span></div>
+        </div>
+      </div>
+      <div style="display:flex; align-items:center; gap:14px;">
+        <div style="width:34px; height:34px; border-radius:50%; background:#131a2c; border:1px solid #263252; display:flex; align-items:center; justify-content:center; font-size:12px; color:#e6e9ef;">❚❚</div>
+        <div style="flex:1; height:4px; border-radius:2px; background:linear-gradient(90deg,#7fb0ff 70%, #1c2438 70%); position:relative;"><span style="position:absolute; left:70%; top:-5px; width:14px; height:14px; border-radius:50%; background:#7fb0ff; box-shadow:0 0 0 4px rgba(127,176,255,.18);"></span></div>
+        <div style="font-size:12px; font-weight:700; font-variant-numeric:tabular-nums; color:#9db1d6;">50×</div>
+        <div style="font-size:12px; padding:6px 14px; border-radius:999px; background:#131a2c; border:1px solid #263252; color:#9db1d6;">現在</div>
+      </div>
+      <div style="display:flex; flex-wrap:wrap; gap:7px; align-items:center;">
+        <span style="font-size:11px; color:#65759a; font-weight:600; letter-spacing:1px; margin-right:2px;">車種</span>
+        <span style="display:inline-flex; align-items:center; gap:6px; font-size:12px; padding:4px 12px; border-radius:999px; background:#131a2c; border:1px solid #263252;"><span style="width:9px; height:9px; border-radius:50%; background:#C0392B;"></span>自強</span>
+        <span style="display:inline-flex; align-items:center; gap:6px; font-size:12px; padding:4px 12px; border-radius:999px; background:#131a2c; border:1px solid #263252;"><span style="width:9px; height:9px; border-radius:50%; background:#2E6FB0;"></span>區間車</span>
+        <span style="display:inline-flex; align-items:center; gap:6px; font-size:12px; padding:4px 12px; border-radius:999px; background:#131a2c; border:1px solid #263252; opacity:.38;"><span style="width:9px; height:9px; border-radius:50%; background:#16A085;"></span>區間快</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════ 1b 暖燈小站 ══════════ -->
+  <div id="1b" style="width:600px; flex:none; display:flex; flex-direction:column; gap:14px;">
+    <div style="display:flex; align-items:center; gap:10px;">
+      <a href="#1b" style="text-decoration:none; background:#ffc38a; color:#1a120c; font-weight:700; font-size:13px; padding:3px 10px; border-radius:999px;">1b</a>
+      <div style="font-size:15px; font-weight:700; color:#1a1d24;">暖燈小站</div>
+      <div style="font-size:13px; color:#55607a;">可愛優先 · 暖色點綴 · 小火車 LOGO、車票造型跟隨列、俏皮文案</div>
+    </div>
+    <div style="background:#13121a; border:1px solid #2b2536; border-radius:22px; padding:26px 28px; display:flex; flex-direction:column; gap:18px;">
+      <div style="display:flex; align-items:center; gap:14px;">
+        <div style="display:flex; align-items:flex-end; gap:2px; padding-bottom:2px; border-bottom:2px dotted #4a4258;">
+          <span style="width:16px; height:12px; border-radius:5px 5px 3px 3px; background:#ffc38a;"></span>
+          <span style="width:13px; height:10px; border-radius:3px; background:#E3002C;"></span>
+          <span style="width:13px; height:10px; border-radius:3px; background:#2E6FB0;"></span>
+        </div>
+        <div>
+          <div style="font-size:22px; font-weight:800;">台灣鐵道<span style="color:#ffc38a;">，出發！</span></div>
+          <div style="font-size:13px; color:#a89bb8; margin-top:2px;">905 班小火車正在島上跑來跑去 ─ 點一個車站打個招呼吧</div>
+        </div>
+      </div>
+      <div style="display:flex; gap:8px;">
+        <div style="font-size:13px; padding:7px 16px; border-radius:999px; background:#1d1b28; color:#a89bb8; border:1px solid #332d42;">台北捷運</div>
+        <div style="font-size:13px; padding:7px 16px; border-radius:999px; background:#1d1b28; color:#a89bb8; border:1px solid #332d42;">台鐵（班距）</div>
+        <div style="font-size:13px; padding:7px 16px; border-radius:999px; background:#ffc38a; color:#1a120c; font-weight:700; border:1px solid #ffc38a;">台鐵 · 真實班表</div>
+      </div>
+      <div style="position:relative; height:200px; background:#0e0d15; border-radius:18px; border:1px solid #2b2536; overflow:hidden;">
+        <svg width="100%" height="100%" viewBox="0 0 560 200" preserveAspectRatio="xMidYMid slice" style="display:block;">
+          <path d="M 550 30 C 460 60 400 100 330 130 C 260 160 160 180 30 195" stroke="#2E6FB0" stroke-width="3.4" opacity="0.75" fill="none" stroke-linecap="round"></path>
+          <path d="M 555 120 C 490 125 440 138 390 150" stroke="#C2185B" stroke-width="3.4" opacity="0.75" fill="none" stroke-linecap="round"></path>
+          <circle cx="330" cy="130" r="3.4" fill="#0e0d15" stroke="#2E6FB0" stroke-width="1.5"></circle>
+          <g transform="translate(330,130)"><rect x="-20" y="-25" width="40" height="17" rx="8.5" fill="#2E6FB0"></rect><text x="0" y="-12.5" fill="#fff" text-anchor="middle" font-size="10" font-weight="700" font-family="-apple-system,'PingFang TC',sans-serif">4240</text></g>
+        </svg>
+        <div style="position:absolute; top:10px; left:12px; display:flex; align-items:center; gap:10px; background:rgba(22,20,30,.88); border:1px solid #332d42; border-radius:999px; padding:7px 16px;">
+          <span style="font-size:20px; font-weight:800; font-variant-numeric:tabular-nums;">19:49</span>
+          <span style="font-size:11px; padding:2px 9px; border-radius:999px; background:#3a2b1c; color:#ffc38a; font-weight:700;">真實班表</span>
+          <span style="font-size:12px; color:#a89bb8;">137 班奔跑中</span>
+        </div>
+        <div style="position:absolute; top:10px; right:10px; width:210px; background:rgba(19,17,26,.95); border:1px solid #332d42; border-radius:16px; padding:10px 12px;">
+          <div style="font-size:14px; font-weight:800;">臺北 <span style="font-weight:400; font-size:10px; color:#a89bb8;">接下來會有誰來？</span></div>
+          <div style="display:flex; align-items:baseline; gap:7px; font-size:11px; padding:5px 0; border-bottom:1px dashed #332d42; font-variant-numeric:tabular-nums;"><span style="width:7px; height:7px; border-radius:50%; background:#2E6FB0; align-self:center;"></span><b>4240</b><span style="flex:1; color:#a89bb8;">往 基隆</span><span>19:50</span><span style="color:#ffc38a; font-weight:700;">即將</span></div>
+          <div style="display:flex; align-items:baseline; gap:7px; font-size:11px; padding:5px 0; font-variant-numeric:tabular-nums;"><span style="width:7px; height:7px; border-radius:50%; background:#C0392B; align-self:center;"></span><b>431</b><span style="flex:1; color:#a89bb8;">往 樹林</span><span>19:52</span><span style="color:#a89bb8;">2 分</span></div>
+        </div>
+      </div>
+      <div style="display:flex; align-items:center; gap:14px;">
+        <div style="width:34px; height:34px; border-radius:50%; background:#ffc38a; display:flex; align-items:center; justify-content:center; font-size:12px; color:#1a120c; font-weight:800;">❚❚</div>
+        <div style="flex:1; height:6px; border-radius:3px; background:linear-gradient(90deg,#ffc38a 70%, #2b2536 70%); position:relative;"><span style="position:absolute; left:70%; top:-5px; width:16px; height:16px; border-radius:50%; background:#fff; border:3px solid #ffc38a;"></span></div>
+        <div style="font-size:12px; font-weight:700; font-variant-numeric:tabular-nums; color:#a89bb8;">50×</div>
+        <div style="font-size:12px; padding:6px 14px; border-radius:999px; background:#1d1b28; border:1px solid #332d42; color:#a89bb8;">回到現在</div>
+      </div>
+      <div style="display:inline-flex; align-items:center; gap:9px; font-size:12px; background:#241d2e; border:1px dashed #4a4258; border-radius:12px; padding:7px 14px; width:fit-content; font-variant-numeric:tabular-nums;">
+        <span style="width:9px; height:9px; border-radius:50%; background:#C0392B;"></span>
+        <b style="font-size:13px;">448</b><span style="color:#a89bb8;">自強 · 樹林→臺東 · 19:44–00:26</span>
+        <span style="width:1px; height:14px; background:#4a4258;"></span>
+        <span style="color:#ffc38a; font-weight:700;">跟車中，揮手告別 ✕</span>
+      </div>
+      <div style="display:flex; flex-wrap:wrap; gap:7px; align-items:center;">
+        <span style="font-size:11px; color:#7d7090; font-weight:600; margin-right:2px;">車種</span>
+        <span style="display:inline-flex; align-items:center; gap:6px; font-size:12px; padding:4px 12px; border-radius:999px; background:#1d1b28; border:1px solid #332d42;"><span style="width:9px; height:9px; border-radius:50%; background:#C0392B;"></span>自強</span>
+        <span style="display:inline-flex; align-items:center; gap:6px; font-size:12px; padding:4px 12px; border-radius:999px; background:#1d1b28; border:1px solid #332d42;"><span style="width:9px; height:9px; border-radius:50%; background:#2E6FB0;"></span>區間車</span>
+        <span style="display:inline-flex; align-items:center; gap:6px; font-size:12px; padding:4px 12px; border-radius:999px; background:#1d1b28; border:1px solid #332d42; opacity:.38;"><span style="width:9px; height:9px; border-radius:50%; background:#16A085;"></span>區間快</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════ 1c 月台看板 ══════════ -->
+  <div id="1c" style="width:600px; flex:none; display:flex; flex-direction:column; gap:14px;">
+    <div style="display:flex; align-items:center; gap:10px;">
+      <a href="#1c" style="text-decoration:none; background:#35d0c0; color:#06110f; font-weight:700; font-size:13px; padding:3px 10px; border-radius:999px;">1c</a>
+      <div style="font-size:15px; font-weight:700; color:#1a1d24;">月台看板</div>
+      <div style="font-size:13px; color:#55607a;">產品感優先 · 車站 LED 看板語彙 · 發光等寬數字 · 可愛在圓潤與配色</div>
+    </div>
+    <div style="background:#0a0e13; border:1px solid #1c2733; border-radius:16px; padding:26px 28px; display:flex; flex-direction:column; gap:18px;">
+      <div style="display:flex; align-items:center; gap:14px;">
+        <div style="width:40px; height:40px; border-radius:12px; background:#0e1a1e; border:1px solid #234a46; display:flex; align-items:center; justify-content:center;">
+          <div style="display:flex; flex-direction:column; gap:3px; align-items:center;">
+            <span style="width:20px; height:8px; border-radius:4px 4px 2px 2px; background:#35d0c0;"></span>
+            <span style="display:flex; gap:6px;"><i style="width:5px; height:5px; border-radius:50%; background:#67e8db; display:block;"></i><i style="width:5px; height:5px; border-radius:50%; background:#67e8db; display:block;"></i></span>
+          </div>
+        </div>
+        <div>
+          <div style="font-size:22px; font-weight:800; letter-spacing:.5px;">台灣鐵道即時動態 <span style="font-size:11px; font-weight:700; color:#35d0c0; border:1px solid #234a46; border-radius:6px; padding:2px 7px; vertical-align:3px; letter-spacing:2px;">LIVE MAP</span></div>
+          <div style="font-size:13px; color:#8fa3ad; margin-top:2px;">全島 905 班列車依真實時刻表運行中</div>
+        </div>
+      </div>
+      <div style="display:flex; gap:8px;">
+        <div style="font-size:13px; padding:7px 16px; border-radius:10px; background:#101820; color:#8fa3ad; border:1px solid #223140;">台北捷運</div>
+        <div style="font-size:13px; padding:7px 16px; border-radius:10px; background:#101820; color:#8fa3ad; border:1px solid #223140;">台鐵（班距）</div>
+        <div style="font-size:13px; padding:7px 16px; border-radius:10px; background:#0e2b28; color:#67e8db; font-weight:700; border:1px solid #35d0c0;">台鐵 · 真實班表</div>
+      </div>
+      <div style="position:relative; height:200px; background:#080c11; border-radius:12px; border:1px solid #1c2733; overflow:hidden;">
+        <svg width="100%" height="100%" viewBox="0 0 560 200" preserveAspectRatio="xMidYMid slice" style="display:block;">
+          <path d="M 550 30 C 460 60 400 100 330 130 C 260 160 160 180 30 195" stroke="#2E6FB0" stroke-width="3.4" opacity="0.75" fill="none" stroke-linecap="round"></path>
+          <path d="M 555 120 C 490 125 440 138 390 150" stroke="#C2185B" stroke-width="3.4" opacity="0.75" fill="none" stroke-linecap="round"></path>
+          <circle cx="330" cy="130" r="3.4" fill="#080c11" stroke="#2E6FB0" stroke-width="1.5"></circle>
+          <g transform="translate(330,130)"><rect x="-19" y="-24" width="38" height="16" rx="4" fill="#2E6FB0"></rect><text x="0" y="-12" fill="#fff" text-anchor="middle" font-size="10" font-weight="700" font-family="-apple-system,'PingFang TC',sans-serif">4240</text></g>
+        </svg>
+        <div style="position:absolute; top:10px; left:12px; display:flex; align-items:center; gap:12px; background:#05080c; border:1px solid #223140; border-radius:10px; padding:8px 14px;">
+          <span style="font-size:20px; font-weight:800; font-variant-numeric:tabular-nums; color:#ffd166; text-shadow:0 0 10px rgba(255,209,102,.45);">19:49</span>
+          <span style="font-size:11px; padding:2px 9px; border-radius:6px; background:#0e2b28; color:#67e8db; font-weight:700;">真實班表</span>
+          <span style="font-size:12px; color:#8fa3ad; font-variant-numeric:tabular-nums;">運行 137 班</span>
+        </div>
+        <div style="position:absolute; top:10px; right:10px; width:216px; background:#05080c; border:1px solid #223140; border-radius:10px; padding:10px 12px;">
+          <div style="display:flex; align-items:baseline; gap:8px;"><span style="font-size:14px; font-weight:800;">臺北</span><span style="font-size:9px; color:#67e8db; letter-spacing:2px;">DEPARTURES</span></div>
+          <div style="display:flex; align-items:baseline; gap:7px; font-size:11px; padding:5px 0; border-bottom:1px solid #101820; font-variant-numeric:tabular-nums;"><span style="width:7px; height:7px; border-radius:50%; background:#2E6FB0; align-self:center;"></span><b style="color:#ffd166;">4240</b><span style="flex:1; color:#9fb3bd;">往 基隆</span><span style="color:#ffd166;">19:50</span><span style="color:#67e8db; font-weight:700;">即將</span></div>
+          <div style="display:flex; align-items:baseline; gap:7px; font-size:11px; padding:5px 0; font-variant-numeric:tabular-nums;"><span style="width:7px; height:7px; border-radius:50%; background:#C0392B; align-self:center;"></span><b style="color:#ffd166;">431</b><span style="flex:1; color:#9fb3bd;">往 樹林</span><span style="color:#ffd166;">19:52</span><span style="color:#8fa3ad;">2 分</span></div>
+        </div>
+      </div>
+      <div style="display:flex; align-items:center; gap:14px;">
+        <div style="width:34px; height:34px; border-radius:10px; background:#101820; border:1px solid #223140; display:flex; align-items:center; justify-content:center; font-size:12px; color:#67e8db;">❚❚</div>
+        <div style="flex:1; height:4px; border-radius:2px; background:linear-gradient(90deg,#35d0c0 70%, #1c2733 70%); position:relative;"><span style="position:absolute; left:70%; top:-5px; width:14px; height:14px; border-radius:4px; background:#35d0c0;"></span></div>
+        <div style="font-size:12px; font-weight:700; font-variant-numeric:tabular-nums; color:#8fa3ad;">50×</div>
+        <div style="font-size:12px; padding:6px 14px; border-radius:10px; background:#101820; border:1px solid #223140; color:#8fa3ad;">現在</div>
+      </div>
+      <div style="display:flex; flex-wrap:wrap; gap:7px; align-items:center;">
+        <span style="font-size:11px; color:#5d7280; font-weight:700; letter-spacing:2px; margin-right:2px;">車種</span>
+        <span style="display:inline-flex; align-items:center; gap:6px; font-size:12px; padding:4px 12px; border-radius:999px; background:#101820; border:1px solid #223140;"><span style="width:9px; height:9px; border-radius:50%; background:#C0392B;"></span>自強</span>
+        <span style="display:inline-flex; align-items:center; gap:6px; font-size:12px; padding:4px 12px; border-radius:999px; background:#101820; border:1px solid #223140;"><span style="width:9px; height:9px; border-radius:50%; background:#2E6FB0;"></span>區間車</span>
+        <span style="display:inline-flex; align-items:center; gap:6px; font-size:12px; padding:4px 12px; border-radius:999px; background:#101820; border:1px solid #223140; opacity:.38;"><span style="width:9px; height:9px; border-radius:50%; background:#16A085;"></span>區間快</span>
+      </div>
+    </div>
+  </div>
+
+</section>
+</x-dc>
+</body>
+</html>
