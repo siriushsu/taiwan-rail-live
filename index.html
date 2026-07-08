@@ -1,0 +1,924 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>台灣鐵道 · 列車流動</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css" />
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<style>
+  :root { color-scheme: dark; }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, "PingFang TC", "Noto Sans TC", sans-serif;
+    background: #0b0e14;
+    color: #e6e9ef;
+  }
+  .wrap { max-width: 1040px; margin: 0 auto; padding: 20px 20px 48px; }
+  header h1 { font-size: 20px; font-weight: 600; margin: 0 0 4px; }
+  header p { margin: 0 0 16px; color: #9aa3b2; font-size: 14px; }
+  .systems { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 14px; }
+  .systems button {
+    font: inherit; font-size: 14px; cursor: pointer;
+    background: #151b26; color: #9aa3b2;
+    border: 1px solid #2a3546; border-radius: 8px; padding: 8px 18px;
+  }
+  .systems button.active { background: #223049; color: #fff; border-color: #3a5a8c; }
+  .stage {
+    position: relative;
+    height: 64vh; min-height: 460px; max-height: 760px;
+    background: #10141c;
+    border: 1px solid #1e2530;
+    border-radius: 14px;
+    overflow: hidden;
+  }
+  #map { position: absolute; inset: 0; background: #0b0e14; }
+  #overlay { position: absolute; inset: 0; pointer-events: none; z-index: 500; }
+  .badge {
+    position: absolute; top: 12px; left: 14px; z-index: 600;
+    display: flex; gap: 14px; align-items: baseline;
+    font-variant-numeric: tabular-nums; pointer-events: none;
+    text-shadow: 0 1px 6px rgba(0,0,0,.8);
+  }
+  .badge .clock { font-size: 22px; font-weight: 600; }
+  .badge .peak { font-size: 12px; padding: 2px 8px; border-radius: 999px; }
+  .badge .count { font-size: 13px; color: #cdd4e0; }
+  .controls {
+    display: flex; flex-wrap: wrap; gap: 18px 24px;
+    align-items: center; margin: 16px 2px 0;
+  }
+  .ctl { display: flex; align-items: center; gap: 10px; }
+  .ctl label { font-size: 13px; color: #9aa3b2; white-space: nowrap; }
+  .ctl output { font-size: 13px; font-weight: 600; min-width: 48px; }
+  input[type=range] { accent-color: #6ea8fe; width: 150px; }
+  button.pp {
+    font: inherit; font-size: 14px; cursor: pointer;
+    background: #1a2130; color: #e6e9ef;
+    border: 1px solid #2a3546; border-radius: 8px;
+    padding: 7px 14px; display: inline-flex; align-items: center; gap: 6px;
+  }
+  button.pp:hover { background: #222c3d; }
+  .lines { display: flex; flex-wrap: wrap; gap: 8px; margin: 16px 2px 0; }
+  .chip {
+    display: inline-flex; align-items: center; gap: 7px;
+    font-size: 13px; padding: 5px 11px; border-radius: 999px;
+    border: 1px solid #2a3546; background: #151b26; cursor: pointer;
+    user-select: none; transition: opacity .15s;
+  }
+  .chip .dot { width: 11px; height: 11px; border-radius: 50%; }
+  .chip.off { opacity: .38; }
+  .legend-sep { flex-basis: 100%; height: 0; }
+  .legend-lbl { flex-basis: 100%; color: #8590a2; font-size: 12px; margin: 6px 2px -2px; }
+  .note { margin: 22px 2px 0; color: #8590a2; font-size: 13px; line-height: 1.6; }
+  .search { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin: 14px 2px 0; }
+  .search input[type=text] {
+    font: inherit; font-size: 14px; background: #151b26; color: #e6e9ef;
+    border: 1px solid #2a3546; border-radius: 8px; padding: 8px 12px; width: 260px;
+  }
+  .search input::placeholder { color: #6b7688; }
+  .followbar {
+    display: inline-flex; align-items: center; gap: 9px; font-size: 13px;
+    background: #12233f; border: 1px solid #26405f; border-radius: 999px;
+    padding: 6px 13px; color: #cfe0ff; font-variant-numeric: tabular-nums;
+  }
+  .followbar b { color: #fff; font-size: 14px; }
+  .followbar .dot { width: 9px; height: 9px; border-radius: 50%; }
+  .followbar button {
+    font: inherit; font-size: 12px; cursor: pointer; background: #25334b;
+    color: #dfe6f2; border: 1px solid #33455f; border-radius: 6px; padding: 3px 9px;
+  }
+  .followbar.miss { background: #3a2417; border-color: #5a3a24; color: #ffb27a; }
+  .board {
+    position: absolute; top: 12px; right: 12px; z-index: 650;
+    width: 272px; max-height: calc(100% - 24px); overflow-y: auto;
+    background: rgba(13,18,28,.93); border: 1px solid #2a3546; border-radius: 12px;
+    padding: 12px 14px;
+  }
+  .board h3 { margin: 0 18px 1px 0; font-size: 16px; }
+  .board .sub { color: #8590a2; font-size: 11px; margin-bottom: 7px; }
+  .board .row { display: flex; align-items: baseline; gap: 8px; padding: 5px 0; border-top: 1px solid #1c2432; font-size: 13px; }
+  .board .row .dot { width: 8px; height: 8px; border-radius: 50%; flex: none; align-self: center; }
+  .board .row .dest { flex: 1; color: #cdd4e0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .board .row .t, .board .row .min { font-variant-numeric: tabular-nums; }
+  .board .row .min { color: #7fb0ff; min-width: 44px; text-align: right; }
+  .board .close { position: absolute; top: 7px; right: 9px; background: none; border: 0; color: #8590a2; font-size: 17px; cursor: pointer; line-height: 1; }
+  .board .empty { color: #8590a2; font-size: 13px; padding: 8px 0; }
+  .flow { margin: 14px 2px 0; }
+  .flow canvas { display: block; width: 100%; height: 64px; cursor: crosshair; border: 1px solid #1e2530; border-radius: 8px; background: #10141c; }
+  .flow .lbl { color: #8590a2; font-size: 12px; margin-top: 5px; font-variant-numeric: tabular-nums; }
+  .leaflet-container { background: #0b0e14; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>台灣鐵道 · 列車流動動畫</h1>
+    <p>真實地圖底圖上，模擬列車運行。可拖曳、縮放；放大時顯示車次與站名。</p>
+  </header>
+
+  <div class="systems" id="systems"></div>
+
+  <div class="stage">
+    <div id="map"></div>
+    <canvas id="overlay"></canvas>
+    <div class="badge">
+      <span class="clock" id="clock">08:00</span>
+      <span class="peak" id="peak"></span>
+      <span class="count" id="count"></span>
+    </div>
+    <div class="board" id="board" hidden></div>
+  </div>
+
+  <div class="controls">
+    <button class="pp" id="pp"><span id="ppIcon">❚❚</span><span id="ppTxt">暫停</span></button>
+    <div class="ctl">
+      <label for="speed">速度</label>
+      <input type="range" id="speed" min="1" max="60" step="1" value="50" />
+      <output id="speedOut">50×</output>
+    </div>
+    <div class="ctl">
+      <label for="tod">時間</label>
+      <input type="range" id="tod" min="5" max="24" step="1" value="8" />
+      <output id="todOut">08:00</output>
+    </div>
+    <button class="pp" id="nowBtn" title="跳到現在的真實時間">現在</button>
+  </div>
+
+  <div class="flow" id="flowWrap" hidden>
+    <canvas id="flowChart"></canvas>
+    <div class="lbl" id="flowLbl">全日同時運行列車數（依時刻表）——點擊圖表跳到該時刻</div>
+  </div>
+
+  <div class="search" id="searchRow" hidden>
+    <input type="text" id="trainSearch" list="trainList" placeholder="搜尋車次跟隨（如 123、2103）" autocomplete="off" />
+    <datalist id="trainList"></datalist>
+    <div class="followbar" id="followBar" hidden></div>
+  </div>
+
+  <div class="lines" id="lineToggles"></div>
+
+  <p class="note" id="note"></p>
+</div>
+
+<script>
+const state = {
+  systems: [], sysId: null, data: null, speed: 36, mode: 'freq',
+  lines: [], visible: new Set(), trains: [], schedStations: [], types: [],
+  playing: true, speedMult: 50, hour: 8, simSec: 8 * 3600,
+  dpr: 1, t0: 0, elapsed: 0, ready: false,
+  followTrain: null, followId: null,
+};
+let map, cv, ctx;
+const PEAK = [[7, 9], [17, 19.5]];
+const SCHED_K = 1; // 1x speed = real time (1 sim-second per real-second)
+const FONT = '-apple-system, "PingFang TC", "Noto Sans TC", sans-serif';
+
+function isPeak(h) { return PEAK.some(([a, b]) => h >= a && h < b); }
+function headwayOf(ln, h) { return isPeak(h) ? ln.peakHeadwaySec : ln.offpeakHeadwaySec; }
+function haversineKm(a, b) {
+  const R = 6371, toR = Math.PI / 180;
+  const dLat = (b.lat - a.lat) * toR, dLon = (b.lon - a.lon) * toR;
+  const la1 = a.lat * toR, la2 = b.lat * toR;
+  const x = Math.sin(dLat / 2) ** 2 + Math.cos(la1) * Math.cos(la2) * Math.sin(dLon / 2) ** 2;
+  return 2 * R * Math.asin(Math.sqrt(x));
+}
+function fmtHour(h) { return String(Math.floor(h) % 24).padStart(2, '0') + ':00'; }
+function fmtHM(sec) {
+  sec = ((sec % 86400) + 86400) % 86400;
+  return String(Math.floor(sec / 3600)).padStart(2, '0') + ':' + String(Math.floor(sec % 3600 / 60)).padStart(2, '0');
+}
+
+const TRA_ABBR = {
+  '縱貫線北段': '縱北', '山線': '山線', '海線': '海線', '縱貫線南段': '縱南',
+  '屏東線': '屏東', '南迴線': '南迴', '臺東線': '臺東', '北迴線': '北迴', '宜蘭線': '宜蘭',
+};
+function abbrOf(ln) {
+  if (/^[A-Za-z]/.test(ln.id)) return ln.id.split('_')[0];
+  return TRA_ABBR[ln.id] || ln.name.replace(/（.*$/, '');
+}
+function textColorFor(hex) {
+  const m = hex.replace('#', '');
+  const r = parseInt(m.slice(0, 2), 16), g = parseInt(m.slice(2, 4), 16), b = parseInt(m.slice(4, 6), 16);
+  return (0.299 * r + 0.587 * g + 0.114 * b) > 150 ? '#111' : '#fff';
+}
+
+function reproject() {
+  if (!map || !state.data) return;
+  const size = map.getSize();
+  state.dpr = window.devicePixelRatio || 1;
+  cv.width = size.x * state.dpr; cv.height = size.y * state.dpr;
+  cv.style.width = size.x + 'px'; cv.style.height = size.y + 'px';
+  ctx.setTransform(state.dpr, 0, 0, state.dpr, 0, 0);
+  const projShape = ln => {
+    if (ln.shape) ln.shapePts = ln.shape.map(c => {
+      const p = map.latLngToContainerPoint([c[0], c[1]]);
+      return { x: p.x, y: p.y };
+    });
+  };
+  state.lines.forEach(ln => {
+    ln.pts = ln.stations.map(s => {
+      const p = map.latLngToContainerPoint([s.lat, s.lon]);
+      return { x: p.x, y: p.y };
+    });
+    projShape(ln);
+  });
+  if (state.trackLines) state.trackLines.forEach(projShape);
+}
+
+// cumulative km per shape vertex (static, computed once)
+function ensureCum(ln) {
+  if (ln.cum || !ln.shape) return;
+  const sh = ln.shape, c = [0];
+  for (let i = 1; i < sh.length; i++)
+    c[i] = c[i - 1] + haversineKm({ lat: sh[i - 1][0], lon: sh[i - 1][1] }, { lat: sh[i][0], lon: sh[i][1] });
+  ln.cum = c;
+}
+// arc-length (km) along a line's shape -> {lat,lon}
+function posAlongShape(ln, dist) {
+  const sh = ln.shape, cum = ln.cum, n = sh.length;
+  if (dist <= 0) return { lat: sh[0][0], lon: sh[0][1] };
+  if (dist >= cum[n - 1]) return { lat: sh[n - 1][0], lon: sh[n - 1][1] };
+  let lo = 0, hi = n - 1;
+  while (lo + 1 < hi) { const m = (lo + hi) >> 1; if (cum[m] <= dist) lo = m; else hi = m; }
+  const seg = cum[hi] - cum[lo], f = seg > 0 ? (dist - cum[lo]) / seg : 0;
+  return { lat: sh[lo][0] + (sh[hi][0] - sh[lo][0]) * f, lon: sh[lo][1] + (sh[hi][1] - sh[lo][1]) * f };
+}
+
+const DWELL_SEC = 25;
+function buildLineSchedule(ln) {
+  ensureCum(ln);
+  const hasShape = !!(ln.shape && ln.stations[0].d != null);
+  // round-trip sequence: each node carries either arc-length dist (shape mode) or lat/lon
+  const fwd = ln.stations;
+  const seq = fwd.concat(fwd.slice(0, -1).reverse());
+  const nodes = []; let t = 0;
+  for (let i = 0; i < seq.length; i++) {
+    if (i > 0) {
+      const gap = hasShape ? Math.abs(seq[i].d - seq[i - 1].d) : haversineKm(seq[i - 1], seq[i]);
+      t += gap / state.speed * 3600;
+    }
+    nodes.push({ lat: seq[i].lat, lon: seq[i].lon, dist: seq[i].d, arr: t, dep: t + DWELL_SEC });
+    t += DWELL_SEC;
+  }
+  ln.sched = nodes; ln.period = t; ln.hasShape = hasShape;
+}
+function posPeriodic(ln, t) {
+  const nodes = ln.sched, n = nodes.length;
+  const tm = ((t % ln.period) + ln.period) % ln.period;
+  let node = null, interp = null;
+  for (let i = 0; i < n; i++) {
+    if (tm >= nodes[i].arr && tm <= nodes[i].dep) { node = nodes[i]; break; }
+    if (i < n - 1 && tm > nodes[i].dep && tm < nodes[i + 1].arr) {
+      const span = nodes[i + 1].arr - nodes[i].dep, f = span > 0 ? (tm - nodes[i].dep) / span : 0;
+      interp = { a: nodes[i], b: nodes[i + 1], f }; break;
+    }
+  }
+  if (!node && !interp) node = nodes[n - 1];
+  if (ln.hasShape) {
+    const dist = node ? node.dist : interp.a.dist + (interp.b.dist - interp.a.dist) * interp.f;
+    return posAlongShape(ln, dist);
+  }
+  if (node) return { lat: node.lat, lon: node.lon };
+  return { lat: interp.a.lat + (interp.b.lat - interp.a.lat) * interp.f, lon: interp.a.lon + (interp.b.lon - interp.a.lon) * interp.f };
+}
+
+function trainPos(tr, t) {
+  const s = tr.stops, n = s.length;
+  if (t < s[0].arrSec || t > s[n - 1].depSec) return null;
+  for (let i = 0; i < n; i++) {
+    if (t >= s[i].arrSec && t <= s[i].depSec) {
+      // dwelling: snap to shape so it lines up with the moving segment
+      if (s[i].segLn) return posAlongShape(s[i].segLn, s[i].dA);
+      if (i > 0 && s[i - 1].segLn) return posAlongShape(s[i - 1].segLn, s[i - 1].dB);
+      return { lat: s[i].lat, lon: s[i].lon };
+    }
+    if (i < n - 1 && t > s[i].depSec && t < s[i + 1].arrSec) {
+      const span = s[i + 1].arrSec - s[i].depSec, f = span > 0 ? (t - s[i].depSec) / span : 0;
+      if (s[i].segLn) {
+        const d = s[i].dA + (s[i].dB - s[i].dA) * f;
+        return posAlongShape(s[i].segLn, d);
+      }
+      return { lat: s[i].lat + (s[i + 1].lat - s[i].lat) * f, lon: s[i].lon + (s[i + 1].lon - s[i].lon) * f };
+    }
+  }
+  return null;
+}
+
+// map each schedule stop to (line, arc-length d) so sched trains ride the real shape
+function assignSchedShapePaths() {
+  const lines = state.trackLines || [];
+  const byName = new Map();
+  lines.forEach(ln => {
+    if (!ln.shape) return;
+    ensureCum(ln);
+    ln.stations.forEach(st => {
+      if (st.d == null) return;
+      if (!byName.has(st.name)) byName.set(st.name, []);
+      byName.get(st.name).push({ ln, d: st.d });
+    });
+  });
+  let onShape = 0, straight = 0;
+  for (const tr of state.trains) {
+    const s = tr.stops;
+    for (let i = 0; i < s.length - 1; i++) {
+      const A = byName.get(s[i].name), B = byName.get(s[i + 1].name);
+      let best = null;
+      if (A && B) for (const a of A) for (const b of B) if (a.ln === b.ln) {
+        const gap = Math.abs(b.d - a.d);
+        if (!best || gap < best.gap) best = { ln: a.ln, dA: a.d, dB: b.d, gap };
+      }
+      if (best) { s[i].segLn = best.ln; s[i].dA = best.dA; s[i].dB = best.dB; onShape++; }
+      else straight++;
+    }
+  }
+  state._segStats = { onShape, straight };
+}
+
+function recomputeTrains() {
+  state.lines.forEach(ln => {
+    buildLineSchedule(ln);
+    ln.n = Math.max(1, Math.round(ln.period / headwayOf(ln, state.hour)));
+  });
+  updateCount();
+}
+
+function updateCount() {
+  let n = 0;
+  if (state.mode === 'sched') {
+    for (const tr of state.trains) if (state.visible.has(tr.typeName) && trainPos(tr, state.simSec)) n++;
+  } else {
+    state.lines.forEach(ln => { if (state.visible.has(ln.id)) n += ln.n; });
+  }
+  document.getElementById('count').textContent = `運行列車 ${n} 班`;
+}
+
+function drawFreq(w, h) {
+  const z = map.getZoom();
+  const showStation = z >= 13, showTrain = z >= 12;
+  const inView = p => p.x >= -40 && p.x <= w + 40 && p.y >= -20 && p.y <= h + 20;
+  const drawnNames = new Set();
+  ctx.textAlign = 'center';
+  state.lines.forEach(ln => {
+    if (!state.visible.has(ln.id) || !ln.pts) return;
+    const line = ln.shapePts || ln.pts;
+    ctx.beginPath();
+    line.forEach((p, i) => i ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y));
+    ctx.strokeStyle = ln.color; ctx.globalAlpha = 0.7; ctx.lineWidth = 3.4; ctx.stroke();
+    ctx.globalAlpha = 1;
+  });
+  state.lines.forEach(ln => {
+    if (!state.visible.has(ln.id) || !ln.pts) return;
+    ln.pts.forEach((p, idx) => {
+      ctx.beginPath(); ctx.arc(p.x, p.y, 2.4, 0, 7);
+      ctx.fillStyle = '#0b0e14'; ctx.fill();
+      ctx.lineWidth = 1.5; ctx.strokeStyle = ln.color; ctx.globalAlpha = 0.9; ctx.stroke();
+      ctx.globalAlpha = 1;
+      if (showStation && inView(p)) {
+        const name = ln.stations[idx].name;
+        if (!drawnNames.has(name)) { drawnNames.add(name); tryLabel(p.x, p.y, name); }
+      }
+    });
+  });
+  const tau = state.elapsed * state.speedMult;
+  state.lines.forEach(ln => {
+    if (!state.visible.has(ln.id) || !ln.sched) return;
+    const tc = textColorFor(ln.color);
+    for (let k = 0; k < ln.n; k++) {
+      const pos = posPeriodic(ln, tau + k * ln.period / ln.n);
+      const cp = map.latLngToContainerPoint([pos.lat, pos.lon]);
+      if (showTrain && inView(cp)) drawTag(cp, ln.abbr, ln.color, tc);
+      else drawDot(cp, ln.color);
+    }
+  });
+}
+
+function drawSched(w, h) {
+  const z = map.getZoom();
+  const showStation = z >= 12, showTrain = z >= 11;
+  const inView = p => p.x >= -40 && p.x <= w + 40 && p.y >= -20 && p.y <= h + 20;
+  const drawnNames = new Set();
+  if (state.trackLines) {
+    for (const ln of state.trackLines) {
+      if (state.trackVisible && !state.trackVisible.has(ln.id)) continue;
+      ctx.beginPath();
+      if (ln.shapePts) {
+        ln.shapePts.forEach((p, i) => i ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y));
+      } else {
+        ln.stations.forEach((s, i) => {
+          const cp = map.latLngToContainerPoint([s.lat, s.lon]);
+          i ? ctx.lineTo(cp.x, cp.y) : ctx.moveTo(cp.x, cp.y);
+        });
+      }
+      ctx.strokeStyle = ln.color; ctx.globalAlpha = 0.75; ctx.lineWidth = 3.4; ctx.stroke();
+      ctx.globalAlpha = 1;
+    }
+  }
+  ctx.textAlign = 'center';
+  for (const st of state.schedStations) {
+    const cp = map.latLngToContainerPoint([st.lat, st.lon]);
+    if (!inView(cp)) continue;
+    ctx.beginPath(); ctx.arc(cp.x, cp.y, 2, 0, 7);
+    ctx.fillStyle = '#0b0e14'; ctx.fill();
+    ctx.lineWidth = 1.2; ctx.strokeStyle = '#8aa0c0'; ctx.globalAlpha = 0.7; ctx.stroke();
+    ctx.globalAlpha = 1;
+    if (showStation && !drawnNames.has(st.name)) {
+      drawnNames.add(st.name); tryLabel(cp.x, cp.y, st.name);
+    }
+  }
+  let n = 0;
+  for (const tr of state.trains) {
+    const isFollow = tr === state.followTrain;
+    if (!isFollow && !state.visible.has(tr.typeName)) continue;
+    const pos = trainPos(tr, state.simSec); if (!pos) continue;
+    if (state.visible.has(tr.typeName)) n++;
+    const cp = map.latLngToContainerPoint([pos.lat, pos.lon]);
+    if (isFollow) { drawFollowMarker(cp, tr); continue; }
+    if (!inView(cp)) continue;
+    if (showTrain) drawTag(cp, tr.train, tr.color, textColorFor(tr.color));
+    else drawDot(cp, tr.color);
+  }
+  document.getElementById('count').textContent = `運行列車 ${n} 班`;
+}
+
+function drawFollowMarker(p, tr) {
+  ctx.beginPath(); ctx.arc(p.x, p.y, 17, 0, 7);
+  ctx.strokeStyle = tr.color; ctx.globalAlpha = 0.3; ctx.lineWidth = 2; ctx.stroke();
+  ctx.beginPath(); ctx.arc(p.x, p.y, 11, 0, 7);
+  ctx.strokeStyle = tr.color; ctx.globalAlpha = 0.9; ctx.lineWidth = 2.5; ctx.stroke();
+  ctx.globalAlpha = 1;
+  drawTag(p, tr.train, tr.color, textColorFor(tr.color));
+}
+
+let labelBoxes = [];
+function tryLabel(x, y, name) {
+  ctx.font = '500 11px ' + FONT;
+  const w = ctx.measureText(name).width, h = 13;
+  const l = x - w / 2 - 1, r = x + w / 2 + 1, b = y - 4, t = b - h;
+  for (const bx of labelBoxes) if (l < bx.r && r > bx.l && t < bx.b && b > bx.t) return;
+  labelBoxes.push({ l, r, t, b });
+  ctx.textAlign = 'center'; ctx.textBaseline = 'bottom';
+  ctx.lineWidth = 3; ctx.strokeStyle = 'rgba(0,0,0,.85)';
+  ctx.strokeText(name, x, y - 4);
+  ctx.fillStyle = '#fff'; ctx.fillText(name, x, y - 4);
+}
+
+function drawTag(p, label, bg, fg) {
+  ctx.font = '700 10px ' + FONT; ctx.textBaseline = 'middle';
+  const pw = ctx.measureText(label).width + 10, ph = 15, rx = 4;
+  const x0 = p.x - pw / 2, y0 = p.y - ph / 2;
+  ctx.beginPath();
+  ctx.moveTo(x0 + rx, y0);
+  ctx.arcTo(x0 + pw, y0, x0 + pw, y0 + ph, rx);
+  ctx.arcTo(x0 + pw, y0 + ph, x0, y0 + ph, rx);
+  ctx.arcTo(x0, y0 + ph, x0, y0, rx);
+  ctx.arcTo(x0, y0, x0 + pw, y0, rx);
+  ctx.closePath();
+  ctx.fillStyle = bg; ctx.globalAlpha = 0.96; ctx.fill(); ctx.globalAlpha = 1;
+  ctx.fillStyle = fg; ctx.fillText(label, p.x, p.y + 0.5);
+}
+
+function drawDot(p, color) {
+  ctx.beginPath(); ctx.arc(p.x, p.y, 6, 0, 7);
+  ctx.fillStyle = color; ctx.globalAlpha = 0.25; ctx.fill();
+  ctx.beginPath(); ctx.arc(p.x, p.y, 3.2, 0, 7);
+  ctx.fillStyle = '#ffffff'; ctx.globalAlpha = 0.95; ctx.fill();
+  ctx.beginPath(); ctx.arc(p.x, p.y, 2, 0, 7);
+  ctx.fillStyle = color; ctx.globalAlpha = 1; ctx.fill();
+}
+
+function draw() {
+  if (!state.ready) return;
+  const w = cv.width / state.dpr, h = cv.height / state.dpr;
+  ctx.clearRect(0, 0, w, h);
+  labelBoxes = [];
+  ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+  if (state.mode === 'sched') drawSched(w, h); else drawFreq(w, h);
+  ctx.globalAlpha = 1; ctx.textAlign = 'start'; ctx.textBaseline = 'alphabetic';
+}
+
+function tick(now) {
+  if (!state.t0) state.t0 = now;
+  const dt = (now - state.t0) / 1000; state.t0 = now;
+  if (state.playing) {
+    if (state.mode === 'sched') {
+      state.simSec = (state.simSec + dt * state.speedMult * SCHED_K) % 86400;
+      document.getElementById('tod').value = Math.floor(state.simSec / 60);
+      document.getElementById('todOut').textContent = fmtHM(state.simSec);
+      document.getElementById('clock').textContent = fmtHM(state.simSec);
+    } else {
+      state.elapsed += dt;
+    }
+  }
+  if (state.mode === 'sched' && state.followTrain) updateFollowCamera();
+  if (state.mode === 'sched') {
+    if (state.boardStation && Math.abs(state.simSec - (state.boardRenderedAt || 0)) >= 20) renderBoard();
+    drawFlow();
+  }
+  draw();
+  requestAnimationFrame(tick);
+}
+
+function buildToggles() {
+  const box = document.getElementById('lineToggles');
+  box.innerHTML = '';
+  const chip = (name, color, set, id) => {
+    const el = document.createElement('div');
+    el.className = 'chip' + (set.has(id) ? '' : ' off');
+    el.innerHTML = `<span class="dot" style="background:${color}"></span>${name}`;
+    el.onclick = () => {
+      if (set.has(id)) { set.delete(id); el.classList.add('off'); }
+      else { set.add(id); el.classList.remove('off'); }
+      updateCount();
+    };
+    box.appendChild(el);
+  };
+  const label = txt => {
+    const el = document.createElement('div'); el.className = 'legend-lbl'; el.textContent = txt;
+    box.appendChild(el);
+  };
+  if (state.mode === 'sched') {
+    label('車種（篩選列車）');
+    state.types.forEach(t => chip(t.key, t.color, state.visible, t.key));
+    label('鐵道路線（顯示／隱藏軌道）');
+    (state.trackLines || []).forEach(l => chip(l.name, l.color, state.trackVisible, l.id));
+  } else {
+    state.lines.forEach(l => chip(l.name, l.color, state.visible, l.id));
+  }
+}
+
+function refreshBadge() {
+  const clock = document.getElementById('clock'), p = document.getElementById('peak');
+  if (state.mode === 'sched') {
+    clock.textContent = fmtHM(state.simSec);
+    p.textContent = '真實班表'; p.style.background = '#17233a'; p.style.color = '#7fb0ff';
+  } else {
+    clock.textContent = fmtHour(state.hour);
+    const peak = isPeak(state.hour);
+    p.textContent = peak ? '尖峰' : '離峰';
+    p.style.background = peak ? '#3a2417' : '#17233a';
+    p.style.color = peak ? '#ffb27a' : '#7fb0ff';
+  }
+}
+
+function configTimeSlider() {
+  const t = document.getElementById('tod');
+  if (state.mode === 'sched') {
+    t.min = 0; t.max = 1439; t.step = 1; t.value = Math.floor(state.simSec / 60);
+    document.getElementById('todOut').textContent = fmtHM(state.simSec);
+  } else {
+    t.min = 5; t.max = 24; t.step = 1; t.value = state.hour;
+    document.getElementById('todOut').textContent = fmtHour(state.hour);
+  }
+}
+
+function fitData(latlngs) {
+  map.fitBounds(L.latLngBounds(latlngs), { padding: [30, 30], animate: false });
+}
+
+function loadSystem(sys) {
+  state.sysId = sys.id; state.data = sys.data; state.mode = sys.mode || 'freq';
+  clearFollow();
+  const ts = document.getElementById('trainSearch'); if (ts) ts.value = '';
+  if (state.mode === 'sched') {
+    state.trains = sys.data.trains;
+    const seen = new Map();
+    sys.data.trains.forEach(tr => tr.stops.forEach(st => { if (!seen.has(st.name)) seen.set(st.name, { name: st.name, lat: st.lat, lon: st.lon }); }));
+    state.schedStations = [...seen.values()];
+    state.types = sys.data.types || [];
+    state.visible = new Set(state.types.map(t => t.key));
+    const traSys = state.systems.find(s => s.id === 'tra');
+    state.trackLines = traSys ? traSys.data.lines : null;
+    state.trackVisible = new Set((state.trackLines || []).map(l => l.id));
+    state.simSec = nowSecOfDay(); // 開頁即同步現在時刻
+    assignSchedShapePaths();
+    computeFlow();
+    fitData(state.schedStations.map(s => [s.lat, s.lon]));
+    reproject();
+    document.getElementById('note').textContent =
+      '資料來源：台鐵官方 OpenData（ods.railway.gov.tw）每日時刻表' + (sys.data.date ? '（' + sys.data.date + '）' : '') +
+      '，共 ' + state.trains.length + ' 車次。列車依真實時刻表運行，沿實際路線經過中途各站（少數支線區段為直線近似）。點地圖上的車站可看即將停靠的班次。';
+    populateTrainList();
+    document.getElementById('searchRow').hidden = false;
+    document.getElementById('flowWrap').hidden = false;
+  } else {
+    state.speed = sys.speed;
+    state.hour = Math.min(24, Math.max(5, new Date().getHours())); // 班距也跟著現在時段
+    state.lines = sys.data.lines.map(l => ({ ...l, abbr: abbrOf(l) }));
+    state.visible = new Set(state.lines.map(l => l.id));
+    state.elapsed = 0;
+    fitData(sys.data.lines.flatMap(l => l.stations.map(s => [s.lat, s.lon])));
+    reproject(); recomputeTrains();
+    document.getElementById('note').textContent =
+      (sys.data.source_notes ? '資料來源：' + sys.data.source_notes + '　' : '') +
+      '平均營運速度以 ' + state.speed + ' km/h 估算，列車數＝往返週期 ÷ 班距。';
+    document.getElementById('searchRow').hidden = true;
+    document.getElementById('flowWrap').hidden = true;
+  }
+  closeBoard();
+  configTimeSlider();
+  buildToggles();
+  refreshBadge();
+  updateCount();
+  document.querySelectorAll('#systems button').forEach(b =>
+    b.classList.toggle('active', b.dataset.id === sys.id));
+}
+
+function buildSystemToggle() {
+  const box = document.getElementById('systems');
+  box.innerHTML = '';
+  state.systems.forEach(sys => {
+    const b = document.createElement('button');
+    b.textContent = sys.label; b.dataset.id = sys.id;
+    b.onclick = () => loadSystem(sys);
+    box.appendChild(b);
+  });
+}
+
+function populateTrainList() {
+  const dl = document.getElementById('trainList'); dl.innerHTML = '';
+  const trains = [...state.trains].sort((a, b) =>
+    ('' + a.train).localeCompare('' + b.train, 'en', { numeric: true }));
+  const frag = document.createDocumentFragment();
+  for (const tr of trains) {
+    const o = document.createElement('option');
+    const a = tr.stops[0].name, b = tr.stops[tr.stops.length - 1].name;
+    o.value = tr.train;
+    o.label = `${tr.train}　${tr.typeName}　${a}→${b}`;
+    frag.appendChild(o);
+  }
+  dl.appendChild(frag);
+}
+
+function findTrain(q) {
+  q = (q || '').trim(); if (!q) return null;
+  const num = q.split(/[\s　]/)[0];
+  return state.trains.find(t => ('' + t.train) === num)
+    || state.trains.find(t => ('' + t.train) === q) || null;
+}
+
+function setFollow(tr) {
+  if (!tr) return;
+  state.followTrain = tr; state.followId = tr.train;
+  const first = tr.stops[0], last = tr.stops[tr.stops.length - 1];
+  if (state.simSec < first.depSec - 60 || state.simSec > last.arrSec) {
+    state.simSec = Math.max(0, first.depSec - 20) % 86400;
+    document.getElementById('tod').value = Math.floor(state.simSec / 60);
+    document.getElementById('todOut').textContent = fmtHM(state.simSec);
+    document.getElementById('clock').textContent = fmtHM(state.simSec);
+  }
+  const pos = trainPos(tr, state.simSec) || { lat: first.lat, lon: first.lon };
+  map.setView([pos.lat, pos.lon], Math.max(map.getZoom(), 13), { animate: false });
+  state.followStatus = null; renderFollowBar();
+  updateCount();
+}
+
+function clearFollow() {
+  state.followTrain = null; state.followId = null; state.followStatus = null;
+  const fb = document.getElementById('followBar');
+  if (fb) { fb.hidden = true; fb.className = 'followbar'; fb.innerHTML = ''; }
+}
+
+function renderFollowBar(msg) {
+  const fb = document.getElementById('followBar'), tr = state.followTrain;
+  if (!tr) { fb.hidden = true; return; }
+  const first = tr.stops[0], last = tr.stops[tr.stops.length - 1];
+  fb.className = 'followbar'; fb.hidden = false;
+  fb.innerHTML =
+    `<span class="dot" style="background:${tr.color}"></span>` +
+    `<b>${tr.train}</b> ${tr.typeName}　${first.name}→${last.name}　` +
+    `${fmtHM(first.depSec % 86400)}–${fmtHM(last.arrSec % 86400)}` +
+    (msg ? `　· ${msg}` : '') +
+    `<button id="unfollow">取消跟隨</button>`;
+  fb.querySelector('#unfollow').onclick = clearFollow;
+}
+
+function showSearchMiss(q) {
+  const fb = document.getElementById('followBar');
+  fb.className = 'followbar miss'; fb.hidden = false;
+  fb.innerHTML = `查無車次「${q}」`;
+  // if already following, let the camera loop restore the follow bar next frame
+  if (state.followTrain) state.followStatus = null;
+}
+
+function recenterTo(lat, lon) {
+  // pin the train to the exact centre every frame (no dead-zone -> no snap-back jitter);
+  // skip only when the centre is already there (train dwelling / paused) to avoid event spam
+  const c = map.getCenter();
+  if (Math.abs(c.lat - lat) < 1e-6 && Math.abs(c.lng - lon) < 1e-6) return;
+  map.setView([lat, lon], map.getZoom(), { animate: false });
+}
+
+function setFollowStatus(s, msg) {
+  if (state.followStatus === s) return;
+  state.followStatus = s; renderFollowBar(msg);
+}
+function updateFollowCamera() {
+  const tr = state.followTrain; if (!tr) return;
+  const last = tr.stops[tr.stops.length - 1];
+  if (state.simSec > last.arrSec + 2 && state.simSec < 86400) { setFollowStatus('done', '已抵達'); return; }
+  const pos = trainPos(tr, state.simSec);
+  if (!pos) { const f = tr.stops[0]; recenterTo(f.lat, f.lon); setFollowStatus('pre', '尚未發車'); return; }
+  setFollowStatus('run', '');
+  recenterTo(pos.lat, pos.lon);
+}
+
+function nowSecOfDay() {
+  const d = new Date();
+  return d.getHours() * 3600 + d.getMinutes() * 60 + d.getSeconds();
+}
+
+function jumpToNow() {
+  if (state.mode === 'sched') {
+    state.simSec = nowSecOfDay();
+    document.getElementById('tod').value = Math.floor(state.simSec / 60);
+    document.getElementById('todOut').textContent = fmtHM(state.simSec);
+    document.getElementById('clock').textContent = fmtHM(state.simSec);
+    if (state.boardStation) renderBoard();
+    updateCount();
+  } else {
+    state.hour = Math.min(24, Math.max(5, new Date().getHours()));
+    document.getElementById('tod').value = state.hour;
+    document.getElementById('todOut').textContent = fmtHour(state.hour);
+    refreshBadge();
+    if (state.data) recomputeTrains();
+  }
+}
+
+// ── 車站時刻板 ──
+function openBoard(st) { state.boardStation = st; renderBoard(); }
+function closeBoard() {
+  state.boardStation = null;
+  const el = document.getElementById('board');
+  el.hidden = true; el.innerHTML = '';
+}
+function renderBoard() {
+  const el = document.getElementById('board'), st = state.boardStation;
+  if (!st) { el.hidden = true; return; }
+  state.boardRenderedAt = state.simSec;
+  const rows = [];
+  for (const tr of state.trains) {
+    const stops = tr.stops;
+    for (let i = 0; i < stops.length; i++) {
+      const s = stops[i];
+      if (s.name !== st.name || s.stop === false) continue;
+      const isLast = i === stops.length - 1;
+      const t = isLast ? s.arrSec : s.depSec;
+      const dtm = t - state.simSec;
+      if (dtm < -30 || dtm > 3 * 3600) continue; // 未來 3 小時內
+      rows.push({ tr, t, dtm, isLast, dest: stops[stops.length - 1].name });
+    }
+  }
+  rows.sort((a, b) => a.t - b.t);
+  const list = rows.slice(0, 12).map(r => {
+    const min = r.dtm < 60 ? '即將' : Math.round(r.dtm / 60) + ' 分';
+    const dest = r.isLast ? '（終點到達）' : '往 ' + r.dest;
+    return `<div class="row"><span class="dot" style="background:${r.tr.color}"></span>` +
+      `<b>${r.tr.train}</b><span class="dest">${r.tr.typeName}　${dest}</span>` +
+      `<span class="t">${fmtHM(r.t % 86400)}</span><span class="min">${min}</span></div>`;
+  }).join('');
+  el.innerHTML = `<button class="close" id="boardClose">×</button>` +
+    `<h3>${st.name}</h3><div class="sub">未來 3 小時停靠班次 · 依時刻表（無誤點資訊）</div>` +
+    (list || '<div class="empty">此時段無停靠班次</div>');
+  el.hidden = false;
+  el.querySelector('#boardClose').onclick = closeBoard;
+}
+
+// ── 尖峰流量分析 ──
+const FLOW_BINS = 144; // 10 分鐘一格
+function computeFlow() {
+  const counts = new Array(FLOW_BINS).fill(0);
+  for (const tr of state.trains) {
+    const a = tr.stops[0].arrSec, b = tr.stops[tr.stops.length - 1].depSec;
+    let i0 = Math.max(0, Math.floor(a / 600)), i1 = Math.min(FLOW_BINS - 1, Math.floor(b / 600));
+    for (let i = i0; i <= i1; i++) {
+      const t = i * 600 + 300;
+      if (t >= a && t <= b) counts[i]++;
+    }
+  }
+  state.flowBins = counts;
+  state.flowMax = Math.max(1, ...counts);
+}
+function drawFlow() {
+  const c = document.getElementById('flowChart');
+  if (!c || document.getElementById('flowWrap').hidden || !state.flowBins) return;
+  const cssW = c.clientWidth, cssH = c.clientHeight, dpr = state.dpr || 1;
+  if (c.width !== Math.round(cssW * dpr)) { c.width = Math.round(cssW * dpr); c.height = Math.round(cssH * dpr); }
+  const g = c.getContext('2d');
+  g.setTransform(dpr, 0, 0, dpr, 0, 0);
+  g.clearRect(0, 0, cssW, cssH);
+  const bw = cssW / FLOW_BINS;
+  for (let i = 0; i < FLOW_BINS; i++) {
+    const h = state.flowBins[i] / state.flowMax * (cssH - 12);
+    g.fillStyle = '#3f6fae';
+    g.fillRect(i * bw, cssH - h, Math.max(1, bw - 0.6), h);
+  }
+  // 現在時刻游標
+  const x = state.simSec / 86400 * cssW;
+  g.strokeStyle = '#ffffff'; g.globalAlpha = 0.85; g.lineWidth = 1.2;
+  g.beginPath(); g.moveTo(x, 2); g.lineTo(x, cssH - 2); g.stroke(); g.globalAlpha = 1;
+}
+const FLOW_LBL_DEFAULT = '全日同時運行列車數（依時刻表）——點擊圖表跳到該時刻';
+
+async function fetchJSON(url) {
+  try { const r = await fetch(url, { cache: 'no-store' }); return r.ok ? await r.json() : null; }
+  catch (e) { return null; }
+}
+
+async function boot() {
+  cv = document.getElementById('overlay'); ctx = cv.getContext('2d');
+  map = L.map('map', { zoomControl: true, attributionControl: true, preferCanvas: true })
+    .setView([24.5, 121], 8);
+  map.zoomControl.setPosition('bottomright'); // 右上讓給車站時刻板
+  map.on('click', e => {
+    if (state.mode !== 'sched') return;
+    const cp = e.containerPoint || map.latLngToContainerPoint(e.latlng);
+    let best = null, bd = 1e9;
+    for (const st of state.schedStations) {
+      const p = map.latLngToContainerPoint([st.lat, st.lon]);
+      const d = Math.hypot(p.x - cp.x, p.y - cp.y);
+      if (d < bd) { bd = d; best = st; }
+    }
+    if (best && bd <= 16) openBoard(best);
+  });
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+    subdomains: 'abcd', maxZoom: 19,
+    attribution: '&copy; OpenStreetMap &copy; CARTO',
+  }).addTo(map);
+  map.on('move zoom resize zoomanim', reproject);
+
+  const defs = [
+    { id: 'mrt', label: '台北捷運', url: './data/mrt.json', speed: 36, mode: 'freq' },
+    { id: 'tra', label: '台鐵（班距）', url: './data/tra.json', speed: 65, mode: 'freq' },
+    { id: 'tra_sched', label: '台鐵 · 真實班表', url: './data/tra_schedule_dense.json', mode: 'sched' },
+  ];
+  for (const d of defs) {
+    const data = await fetchJSON(d.url);
+    if (data) state.systems.push({ ...d, data });
+  }
+  if (!state.systems.length) {
+    document.getElementById('note').textContent = '找不到路網資料（data/*.json 還在準備）';
+    return;
+  }
+  buildSystemToggle();
+  loadSystem(state.systems[0]);
+  state.ready = true;
+  requestAnimationFrame(tick);
+}
+
+document.getElementById('pp').onclick = () => {
+  state.playing = !state.playing;
+  document.getElementById('ppIcon').textContent = state.playing ? '❚❚' : '▶';
+  document.getElementById('ppTxt').textContent = state.playing ? '暫停' : '播放';
+};
+document.getElementById('speed').oninput = e => {
+  state.speedMult = parseFloat(e.target.value);
+  document.getElementById('speedOut').textContent = state.speedMult + '×';
+};
+document.getElementById('tod').oninput = e => {
+  if (state.mode === 'sched') {
+    state.simSec = parseInt(e.target.value, 10) * 60;
+    document.getElementById('todOut').textContent = fmtHM(state.simSec);
+    document.getElementById('clock').textContent = fmtHM(state.simSec);
+    updateCount();
+  } else {
+    state.hour = parseInt(e.target.value, 10);
+    document.getElementById('todOut').textContent = fmtHour(state.hour);
+    refreshBadge();
+    if (state.data) recomputeTrains();
+  }
+};
+document.getElementById('nowBtn').onclick = jumpToNow;
+(() => {
+  const fc = document.getElementById('flowChart'), lbl = document.getElementById('flowLbl');
+  const timeAt = e => Math.max(0, Math.min(86399, e.offsetX / fc.clientWidth * 86400));
+  fc.addEventListener('click', e => {
+    if (state.mode !== 'sched') return;
+    state.simSec = timeAt(e);
+    document.getElementById('tod').value = Math.floor(state.simSec / 60);
+    document.getElementById('todOut').textContent = fmtHM(state.simSec);
+    document.getElementById('clock').textContent = fmtHM(state.simSec);
+    if (state.boardStation) renderBoard();
+    updateCount();
+  });
+  fc.addEventListener('mousemove', e => {
+    if (!state.flowBins) return;
+    const t = timeAt(e), n = state.flowBins[Math.min(FLOW_BINS - 1, Math.floor(t / 600))];
+    lbl.textContent = `${fmtHM(t)} · 約 ${n} 列同時運行——點擊跳到該時刻`;
+  });
+  fc.addEventListener('mouseleave', () => { lbl.textContent = FLOW_LBL_DEFAULT; });
+})();
+(() => {
+  const ts = document.getElementById('trainSearch');
+  const go = () => {
+    const q = ts.value.trim(); if (!q) { clearFollow(); return; }
+    const tr = findTrain(q);
+    if (tr) setFollow(tr); else showSearchMiss(q);
+  };
+  ts.addEventListener('change', go);
+  ts.addEventListener('keydown', e => { if (e.key === 'Enter') go(); });
+})();
+window.addEventListener('load', boot);
+</script>
+</body>
+</html>
