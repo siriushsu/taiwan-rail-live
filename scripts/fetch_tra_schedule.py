@@ -247,6 +247,7 @@ def main():
             {
                 "train": t["Train"],
                 "typeName": type_name,
+                "carName": CARCLASS_TABLE.get(car_class, car_class),
                 "color": color,
                 "stops": stops_out,
             }

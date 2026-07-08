@@ -206,6 +206,7 @@ def main():
         out_trains.append({
             "train": t["train"],
             "typeName": t["typeName"],
+            "carName": t.get("carName"),
             "color": t["color"],
             "stops": new_stops,
         })

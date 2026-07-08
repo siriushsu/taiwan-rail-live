@@ -1,7 +1,7 @@
 {
   "system": "台鐵時刻表",
-  "date": "20260708",
-  "source_notes": "時刻表來源：https://ods.railway.gov.tw/tra-ods-web/ods/download/dataResource/railway_schedule/JSON/list 清單頁找到日期 20260708 的資源連結（resource id=8ae4c9849f3e9b3e019f3ecf682529ed，即為今日），下載自 https://ods.railway.gov.tw/tra-ods-web/ods/download/dataResource/exceptionDataResource/8ae4c9849f3e9b3e019f3ecf682529ed，UpdateTime=2026-06-17 18:50:24。 站碼→站名→座標來源：官方車站基本資料集 https://ods.railway.gov.tw/tra-ods-web/ods/download/dataResource/0518b833e8964d53bfea3f7691aea0ee（245 站，gps 欄位為 \"lat lon\"）；當日時刻表用到的站碼 100% 皆能在此表查到座標，未使用專案內 data/tra.json 的站名比對退路。 車種分類依官方 CarClass 列車種類代碼表（devDoc: https://ods.railway.gov.tw/tra-ods-web/ods/download/devDoc/8ae4cac27f4c0348017f4dbdd21d0181 第8-9頁）依中文名稱關鍵字分 5 組：自強→#C0392B、莒光/復興→#E8792B、區間快→#16A085、區間車→#2E6FB0、其他→#8E44AD。 代碼表未收錄、依「110」開頭自強號系列命名慣例歸類為自強的未知代碼與出現次數：{'110K': 4, '110M': 2}（此為命名慣例推斷，非官方逐字確認）。 跨午夜處理：同一車次內若後一停靠站原始時刻小於前一站，累加 86400 秒使 arrSec/depSec 全程單調遞增。 資料清洗：原始 905 車次；因查無站碼座標而整站被丟棄的 stop 數=0；因清洗後剩不足 2 站而整筆丟棄的車次數=0；最終輸出車次數=905。",
+  "date": "20260709",
+  "source_notes": "時刻表來源：https://ods.railway.gov.tw/tra-ods-web/ods/download/dataResource/railway_schedule/JSON/list 清單頁找到日期 20260709 的資源連結（resource id=8ae4c9849f3e9b3e019f3ecf685829ee，即為今日），下載自 https://ods.railway.gov.tw/tra-ods-web/ods/download/dataResource/exceptionDataResource/8ae4c9849f3e9b3e019f3ecf685829ee，UpdateTime=2026-06-17 18:50:24。 站碼→站名→座標來源：官方車站基本資料集 https://ods.railway.gov.tw/tra-ods-web/ods/download/dataResource/0518b833e8964d53bfea3f7691aea0ee（245 站，gps 欄位為 \"lat lon\"）；當日時刻表用到的站碼 100% 皆能在此表查到座標，未使用專案內 data/tra.json 的站名比對退路。 車種分類依官方 CarClass 列車種類代碼表（devDoc: https://ods.railway.gov.tw/tra-ods-web/ods/download/devDoc/8ae4cac27f4c0348017f4dbdd21d0181 第8-9頁）依中文名稱關鍵字分 5 組：自強→#C0392B、莒光/復興→#E8792B、區間快→#16A085、區間車→#2E6FB0、其他→#8E44AD。 代碼表未收錄、依「110」開頭自強號系列命名慣例歸類為自強的未知代碼與出現次數：{'110K': 4, '110M': 2}（此為命名慣例推斷，非官方逐字確認）。 跨午夜處理：同一車次內若後一停靠站原始時刻小於前一站，累加 86400 秒使 arrSec/depSec 全程單調遞增。 資料清洗：原始 907 車次；因查無站碼座標而整站被丟棄的 stop 數=0；因清洗後剩不足 2 站而整筆丟棄的車次數=0；最終輸出車次數=907。",
   "types": [
     {
       "key": "其他",
@@ -28,6 +28,7 @@
     {
       "train": "2551",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -211,6 +212,7 @@
     {
       "train": "1217",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -530,6 +532,7 @@
     {
       "train": "2548",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -713,6 +716,7 @@
     {
       "train": "2547",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -912,6 +916,7 @@
     {
       "train": "1214",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -1135,6 +1140,7 @@
     {
       "train": "2544",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -1318,6 +1324,7 @@
     {
       "train": "1212",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -1581,6 +1588,7 @@
     {
       "train": "2543",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -1804,6 +1812,7 @@
     {
       "train": "1211",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -2075,6 +2084,7 @@
     {
       "train": "2542",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -2274,6 +2284,7 @@
     {
       "train": "2541",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -2473,6 +2484,7 @@
     {
       "train": "4722",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -2576,6 +2588,7 @@
     {
       "train": "1218",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -2895,6 +2908,7 @@
     {
       "train": "1231",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -3134,6 +3148,7 @@
     {
       "train": "2562",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -3317,6 +3332,7 @@
     {
       "train": "2561",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -3484,6 +3500,7 @@
     {
       "train": "1228",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -3803,6 +3820,7 @@
     {
       "train": "4738",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -3906,6 +3924,7 @@
     {
       "train": "1227",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -4225,6 +4244,7 @@
     {
       "train": "2558",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -4408,6 +4428,7 @@
     {
       "train": "1226",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -4535,6 +4556,7 @@
     {
       "train": "2557",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -4718,6 +4740,7 @@
     {
       "train": "1223",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -4989,6 +5012,7 @@
     {
       "train": "2554",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -5188,6 +5212,7 @@
     {
       "train": "1222",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -5451,6 +5476,7 @@
     {
       "train": "2553",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -5634,6 +5660,7 @@
     {
       "train": "1221",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -5857,6 +5884,7 @@
     {
       "train": "2552",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -6040,6 +6068,7 @@
     {
       "train": "4733",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -6143,6 +6172,7 @@
     {
       "train": "4735",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -6222,6 +6252,7 @@
     {
       "train": "4737",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -6325,6 +6356,7 @@
     {
       "train": "1242",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -6588,6 +6620,7 @@
     {
       "train": "1241",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -6851,6 +6884,7 @@
     {
       "train": "1239",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -7050,6 +7084,7 @@
     {
       "train": "4507",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -7153,6 +7188,7 @@
     {
       "train": "1238",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -7472,6 +7508,7 @@
     {
       "train": "4508",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -7575,6 +7612,7 @@
     {
       "train": "1237",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -7894,6 +7932,7 @@
     {
       "train": "1235",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -8157,6 +8196,7 @@
     {
       "train": "1234",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -8420,6 +8460,7 @@
     {
       "train": "2564",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -8491,6 +8532,7 @@
     {
       "train": "1232",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -8754,6 +8796,7 @@
     {
       "train": "4741",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -8857,6 +8900,7 @@
     {
       "train": "4742",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -8960,6 +9004,7 @@
     {
       "train": "4744",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -9031,6 +9076,7 @@
     {
       "train": "4503",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -9118,6 +9164,7 @@
     {
       "train": "4504",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -9173,6 +9220,7 @@
     {
       "train": "1252",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -9436,6 +9484,7 @@
     {
       "train": "1251",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -9731,6 +9780,7 @@
     {
       "train": "1008",
       "typeName": "區間快",
+      "carName": "區間快",
       "color": "#16A085",
       "stops": [
         {
@@ -9842,6 +9892,7 @@
     {
       "train": "1007",
       "typeName": "區間快",
+      "carName": "區間快",
       "color": "#16A085",
       "stops": [
         {
@@ -9937,6 +9988,7 @@
     {
       "train": "4519",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -10008,6 +10060,7 @@
     {
       "train": "1006",
       "typeName": "區間快",
+      "carName": "區間快",
       "color": "#16A085",
       "stops": [
         {
@@ -10383,6 +10436,7 @@
     {
       "train": "1248",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -10702,6 +10756,7 @@
     {
       "train": "1247",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -11021,6 +11076,7 @@
     {
       "train": "1243",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -11244,6 +11300,7 @@
     {
       "train": "4512",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -11315,6 +11372,7 @@
     {
       "train": "4513",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -11490,6 +11548,7 @@
     {
       "train": "4514",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -11617,6 +11676,7 @@
     {
       "train": "4516",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -11976,6 +12036,7 @@
     {
       "train": "4517",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -12199,6 +12260,7 @@
     {
       "train": "1263",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -12462,6 +12524,7 @@
     {
       "train": "1262",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -12725,6 +12788,7 @@
     {
       "train": "1261",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -12916,6 +12980,7 @@
     {
       "train": "1258",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -13235,6 +13300,7 @@
     {
       "train": "1257",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -13578,6 +13644,7 @@
     {
       "train": "2103",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -13929,6 +13996,7 @@
     {
       "train": "1254",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -14152,6 +14220,7 @@
     {
       "train": "2101",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -14263,6 +14332,7 @@
     {
       "train": "4521",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -14486,6 +14556,7 @@
     {
       "train": "4528",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -14621,6 +14692,7 @@
     {
       "train": "4542",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -14724,6 +14796,7 @@
     {
       "train": "2122",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -14851,6 +14924,7 @@
     {
       "train": "3211",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -15202,6 +15276,7 @@
     {
       "train": "1274",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -15425,6 +15500,7 @@
     {
       "train": "1273",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -15688,6 +15764,7 @@
     {
       "train": "2120",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -16007,6 +16084,7 @@
     {
       "train": "1272",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -16270,6 +16348,7 @@
     {
       "train": "1271",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -16533,6 +16612,7 @@
     {
       "train": "3208",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -17124,6 +17204,7 @@
     {
       "train": "3207",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -17675,6 +17756,7 @@
     {
       "train": "2116",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -17738,6 +17820,7 @@
     {
       "train": "1268",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -18057,6 +18140,7 @@
     {
       "train": "2115",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -18176,6 +18260,7 @@
     {
       "train": "1025",
       "typeName": "區間快",
+      "carName": "區間快",
       "color": "#16A085",
       "stops": [
         {
@@ -18295,6 +18380,7 @@
     {
       "train": "1267",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -18614,6 +18700,7 @@
     {
       "train": "2114",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -19085,6 +19172,7 @@
     {
       "train": "2113",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -19476,6 +19564,7 @@
     {
       "train": "3202",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -19827,6 +19916,7 @@
     {
       "train": "1265",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -19938,6 +20028,7 @@
     {
       "train": "3201",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -20289,6 +20380,7 @@
     {
       "train": "602",
       "typeName": "莒光/復興",
+      "carName": "莒光",
       "color": "#E8792B",
       "stops": [
         {
@@ -20448,6 +20540,7 @@
     {
       "train": "4534",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -20671,6 +20764,7 @@
     {
       "train": "4537",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -20894,6 +20988,7 @@
     {
       "train": "4552",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -21069,6 +21164,7 @@
     {
       "train": "4553",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -21212,6 +21308,7 @@
     {
       "train": "2133",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -21811,6 +21908,7 @@
     {
       "train": "3222",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -22162,6 +22260,7 @@
     {
       "train": "3221",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -22513,6 +22612,7 @@
     {
       "train": "2131",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -22632,6 +22732,7 @@
     {
       "train": "1283",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -22831,6 +22932,7 @@
     {
       "train": "1282",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -23030,6 +23132,7 @@
     {
       "train": "1281",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -23293,6 +23396,7 @@
     {
       "train": "1280",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -23492,6 +23596,7 @@
     {
       "train": "3218",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -24083,6 +24188,7 @@
     {
       "train": "2128",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -24362,6 +24468,7 @@
     {
       "train": "3217",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -24953,6 +25060,7 @@
     {
       "train": "1038",
       "typeName": "區間快",
+      "carName": "區間快",
       "color": "#16A085",
       "stops": [
         {
@@ -25360,6 +25468,7 @@
     {
       "train": "1036",
       "typeName": "區間快",
+      "carName": "區間快",
       "color": "#16A085",
       "stops": [
         {
@@ -25471,6 +25580,7 @@
     {
       "train": "1278",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -25790,6 +25900,7 @@
     {
       "train": "2124",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -26181,6 +26292,7 @@
     {
       "train": "1276",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -26308,6 +26420,7 @@
     {
       "train": "2123",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -26699,6 +26812,7 @@
     {
       "train": "3212",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -27050,6 +27164,7 @@
     {
       "train": "4543",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -27177,6 +27292,7 @@
     {
       "train": "4547",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -27280,6 +27396,7 @@
     {
       "train": "4548",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -27383,6 +27500,7 @@
     {
       "train": "2144",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -27774,6 +27892,7 @@
     {
       "train": "2143",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -28165,6 +28284,7 @@
     {
       "train": "3232",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -28516,6 +28636,7 @@
     {
       "train": "1295",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -28555,6 +28676,7 @@
     {
       "train": "3231",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -28946,6 +29068,7 @@
     {
       "train": "3229",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -29073,6 +29196,7 @@
     {
       "train": "3228",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -29664,6 +29788,7 @@
     {
       "train": "2138",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -29967,6 +30092,7 @@
     {
       "train": "3227",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -30558,6 +30684,7 @@
     {
       "train": "1048",
       "typeName": "區間快",
+      "carName": "區間快",
       "color": "#16A085",
       "stops": [
         {
@@ -30685,6 +30812,7 @@
     {
       "train": "1289",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -30812,6 +30940,7 @@
     {
       "train": "1288",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -31131,6 +31260,7 @@
     {
       "train": "1287",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -31314,6 +31444,7 @@
     {
       "train": "2134",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -31913,6 +32044,7 @@
     {
       "train": "4556",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -32128,6 +32260,7 @@
     {
       "train": "4558",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -32255,6 +32388,7 @@
     {
       "train": "2154",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -32854,6 +32988,7 @@
     {
       "train": "3001",
       "typeName": "區間快",
+      "carName": "區間快",
       "color": "#16A085",
       "stops": [
         {
@@ -32981,6 +33116,7 @@
     {
       "train": "2153",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -33580,6 +33716,7 @@
     {
       "train": "3242",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -33947,6 +34084,7 @@
     {
       "train": "3241",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -34298,6 +34436,7 @@
     {
       "train": "3238",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -34889,6 +35028,7 @@
     {
       "train": "3237",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -35480,6 +35620,7 @@
     {
       "train": "2146",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -35543,6 +35684,7 @@
     {
       "train": "1298",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -35710,6 +35852,7 @@
     {
       "train": "5898",
       "typeName": "其他",
+      "carName": "普通車(專)",
       "color": "#8E44AD",
       "stops": [
         {
@@ -35773,6 +35916,7 @@
     {
       "train": "5899",
       "typeName": "其他",
+      "carName": "普通車(專)",
       "color": "#8E44AD",
       "stops": [
         {
@@ -35836,6 +35980,7 @@
     {
       "train": "4102",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -35987,6 +36132,7 @@
     {
       "train": "2166",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -36106,6 +36252,7 @@
     {
       "train": "2163",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -36497,6 +36644,7 @@
     {
       "train": "3010",
       "typeName": "區間快",
+      "carName": "區間快",
       "color": "#16A085",
       "stops": [
         {
@@ -36760,6 +36908,7 @@
     {
       "train": "3252",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -37447,6 +37596,7 @@
     {
       "train": "3251",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -37798,6 +37948,7 @@
     {
       "train": "3250",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -37965,6 +38116,7 @@
     {
       "train": "2159",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -38084,6 +38236,7 @@
     {
       "train": "3006",
       "typeName": "區間快",
+      "carName": "區間快",
       "color": "#16A085",
       "stops": [
         {
@@ -38203,6 +38356,7 @@
     {
       "train": "3248",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -38850,6 +39004,7 @@
     {
       "train": "3005",
       "typeName": "區間快",
+      "carName": "區間快",
       "color": "#16A085",
       "stops": [
         {
@@ -39121,6 +39276,7 @@
     {
       "train": "3247",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -39712,6 +39868,7 @@
     {
       "train": "401",
       "typeName": "自強",
+      "carName": "自強(普,障)",
       "color": "#C0392B",
       "stops": [
         {
@@ -39799,6 +39956,7 @@
     {
       "train": "402",
       "typeName": "自強",
+      "carName": "自強(普,障)",
       "color": "#C0392B",
       "stops": [
         {
@@ -39918,6 +40076,7 @@
     {
       "train": "3003",
       "typeName": "區間快",
+      "carName": "區間快",
       "color": "#16A085",
       "stops": [
         {
@@ -40077,6 +40236,7 @@
     {
       "train": "406",
       "typeName": "自強",
+      "carName": "自強(3000障)",
       "color": "#C0392B",
       "stops": [
         {
@@ -40252,6 +40412,7 @@
     {
       "train": "407",
       "typeName": "自強",
+      "carName": "自強(3000障)",
       "color": "#C0392B",
       "stops": [
         {
@@ -40427,6 +40588,7 @@
     {
       "train": "408",
       "typeName": "自強",
+      "carName": "自強(3000障)",
       "color": "#C0392B",
       "stops": [
         {
@@ -40490,6 +40652,7 @@
     {
       "train": "4111",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -40817,6 +40980,7 @@
     {
       "train": "4112",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -41040,6 +41204,7 @@
     {
       "train": "4113",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -41351,6 +41516,7 @@
     {
       "train": "3266",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -41590,6 +41756,7 @@
     {
       "train": "3023",
       "typeName": "區間快",
+      "carName": "區間快",
       "color": "#16A085",
       "stops": [
         {
@@ -41829,6 +41996,7 @@
     {
       "train": "2174",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -42436,6 +42604,7 @@
     {
       "train": "3021",
       "typeName": "區間快",
+      "carName": "區間快",
       "color": "#16A085",
       "stops": [
         {
@@ -42587,6 +42756,7 @@
     {
       "train": "2173",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -43186,6 +43356,7 @@
     {
       "train": "3262",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -43777,6 +43948,7 @@
     {
       "train": "3261",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -44128,6 +44300,7 @@
     {
       "train": "3018",
       "typeName": "區間快",
+      "carName": "區間快",
       "color": "#16A085",
       "stops": [
         {
@@ -44271,6 +44444,7 @@
     {
       "train": "410",
       "typeName": "自強",
+      "carName": "自強(3000親障)",
       "color": "#C0392B",
       "stops": [
         {
@@ -44542,6 +44716,7 @@
     {
       "train": "411",
       "typeName": "自強",
+      "carName": "自強(3000障)",
       "color": "#C0392B",
       "stops": [
         {
@@ -44781,6 +44956,7 @@
     {
       "train": "653",
       "typeName": "莒光/復興",
+      "carName": "莒光",
       "color": "#E8792B",
       "stops": [
         {
@@ -45220,6 +45396,7 @@
     {
       "train": "3258",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -45643,6 +45820,7 @@
     {
       "train": "3257",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -46234,6 +46412,7 @@
     {
       "train": "4103",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -46593,6 +46772,7 @@
     {
       "train": "415",
       "typeName": "自強",
+      "carName": "自強(3000親障)",
       "color": "#C0392B",
       "stops": [
         {
@@ -46800,6 +46980,7 @@
     {
       "train": "417",
       "typeName": "自強",
+      "carName": "自強(普,障)",
       "color": "#C0392B",
       "stops": [
         {
@@ -46919,6 +47100,7 @@
     {
       "train": "4106",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -47014,6 +47196,7 @@
     {
       "train": "4107",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -47301,6 +47484,7 @@
     {
       "train": "419",
       "typeName": "自強",
+      "carName": "自強(3000障)",
       "color": "#C0392B",
       "stops": [
         {
@@ -47452,6 +47636,7 @@
     {
       "train": "4122",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -47515,6 +47700,7 @@
     {
       "train": "4123",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -47826,6 +48012,7 @@
     {
       "train": "4124",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -48009,6 +48196,7 @@
     {
       "train": "3035",
       "typeName": "區間快",
+      "carName": "區間快",
       "color": "#16A085",
       "stops": [
         {
@@ -48288,6 +48476,7 @@
     {
       "train": "3277",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -48879,6 +49068,7 @@
     {
       "train": "3032",
       "typeName": "區間快",
+      "carName": "區間快",
       "color": "#16A085",
       "stops": [
         {
@@ -48998,6 +49188,7 @@
     {
       "train": "2184",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -49389,6 +49580,7 @@
     {
       "train": "3031",
       "typeName": "區間快",
+      "carName": "區間快",
       "color": "#16A085",
       "stops": [
         {
@@ -49532,6 +49724,7 @@
     {
       "train": "2183",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -49883,6 +50076,7 @@
     {
       "train": "3272",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -50282,6 +50476,7 @@
     {
       "train": "3271",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -50649,6 +50844,7 @@
     {
       "train": "420",
       "typeName": "自強",
+      "carName": "自強(普,障)",
       "color": "#C0392B",
       "stops": [
         {
@@ -50816,6 +51012,7 @@
     {
       "train": "3029",
       "typeName": "區間快",
+      "carName": "區間快",
       "color": "#16A085",
       "stops": [
         {
@@ -51079,6 +51276,7 @@
     {
       "train": "421",
       "typeName": "自強",
+      "carName": "自強(3000親障)",
       "color": "#C0392B",
       "stops": [
         {
@@ -51142,6 +51340,7 @@
     {
       "train": "3028",
       "typeName": "區間快",
+      "carName": "區間快",
       "color": "#16A085",
       "stops": [
         {
@@ -51429,6 +51628,7 @@
     {
       "train": "422",
       "typeName": "自強",
+      "carName": "自強(3000障)",
       "color": "#C0392B",
       "stops": [
         {
@@ -51644,6 +51844,7 @@
     {
       "train": "423",
       "typeName": "自強",
+      "carName": "自強(3000障)",
       "color": "#C0392B",
       "stops": [
         {
@@ -51891,6 +52092,7 @@
     {
       "train": "3268",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -52370,6 +52572,7 @@
     {
       "train": "3267",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -52961,6 +53164,7 @@
     {
       "train": "4114",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -53112,6 +53316,7 @@
     {
       "train": "426",
       "typeName": "自強",
+      "carName": "自強(3000障)",
       "color": "#C0392B",
       "stops": [
         {
@@ -53175,6 +53380,7 @@
     {
       "train": "428",
       "typeName": "自強",
+      "carName": "自強(3000障)",
       "color": "#C0392B",
       "stops": [
         {
@@ -53462,6 +53668,7 @@
     {
       "train": "4117",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -53645,6 +53852,7 @@
     {
       "train": "4118",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -53868,6 +54076,7 @@
     {
       "train": "4119",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -54099,6 +54308,7 @@
     {
       "train": "2191",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -54218,6 +54428,7 @@
     {
       "train": "2190",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -54337,6 +54548,7 @@
     {
       "train": "4131",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -54472,6 +54684,7 @@
     {
       "train": "4133",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -54623,6 +54836,7 @@
     {
       "train": "4135",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -54806,6 +55020,7 @@
     {
       "train": "3288",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -55085,6 +55300,7 @@
     {
       "train": "3287",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -55636,6 +55852,7 @@
     {
       "train": "2194",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -56235,6 +56452,7 @@
     {
       "train": "2193",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -56834,6 +57052,7 @@
     {
       "train": "3282",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -57153,6 +57372,7 @@
     {
       "train": "3281",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -57432,6 +57652,7 @@
     {
       "train": "431",
       "typeName": "自強",
+      "carName": "自強(3000障)",
       "color": "#C0392B",
       "stops": [
         {
@@ -57663,6 +57884,7 @@
     {
       "train": "432",
       "typeName": "自強",
+      "carName": "自強(3000障)",
       "color": "#C0392B",
       "stops": [
         {
@@ -57902,6 +58124,7 @@
     {
       "train": "3038",
       "typeName": "區間快",
+      "carName": "區間快",
       "color": "#16A085",
       "stops": [
         {
@@ -58077,6 +58300,7 @@
     {
       "train": "434",
       "typeName": "自強",
+      "carName": "自強(3000障)",
       "color": "#C0392B",
       "stops": [
         {
@@ -58308,6 +58532,7 @@
     {
       "train": "3278",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -58659,6 +58884,7 @@
     {
       "train": "438",
       "typeName": "自強",
+      "carName": "自強(3000障)",
       "color": "#C0392B",
       "stops": [
         {
@@ -58770,6 +58996,7 @@
     {
       "train": "4127",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -58961,6 +59188,7 @@
     {
       "train": "439",
       "typeName": "自強",
+      "carName": "自強(3000親障)",
       "color": "#C0392B",
       "stops": [
         {
@@ -59120,6 +59348,7 @@
     {
       "train": "4128",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -59431,6 +59660,7 @@
     {
       "train": "4129",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -59526,6 +59756,7 @@
     {
       "train": "3291",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -59653,6 +59884,7 @@
     {
       "train": "4142",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -59748,6 +59980,7 @@
     {
       "train": "4144",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -59883,6 +60116,7 @@
     {
       "train": "4146",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -60034,6 +60268,7 @@
     {
       "train": "3057",
       "typeName": "區間快",
+      "carName": "區間快",
       "color": "#16A085",
       "stops": [
         {
@@ -60153,6 +60388,7 @@
     {
       "train": "3297",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -60520,6 +60756,7 @@
     {
       "train": "3054",
       "typeName": "區間快",
+      "carName": "區間快",
       "color": "#16A085",
       "stops": [
         {
@@ -60647,6 +60884,7 @@
     {
       "train": "3053",
       "typeName": "區間快",
+      "carName": "區間快",
       "color": "#16A085",
       "stops": [
         {
@@ -60774,6 +61012,7 @@
     {
       "train": "3052",
       "typeName": "區間快",
+      "carName": "區間快",
       "color": "#16A085",
       "stops": [
         {
@@ -60893,6 +61132,7 @@
     {
       "train": "3294",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -61132,6 +61372,7 @@
     {
       "train": "3051",
       "typeName": "區間快",
+      "carName": "區間快",
       "color": "#16A085",
       "stops": [
         {
@@ -61259,6 +61500,7 @@
     {
       "train": "3292",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -61498,6 +61740,7 @@
     {
       "train": "441",
       "typeName": "自強",
+      "carName": "自強(3000障)",
       "color": "#C0392B",
       "stops": [
         {
@@ -61681,6 +61924,7 @@
     {
       "train": "442",
       "typeName": "自強",
+      "carName": "自強(3000障)",
       "color": "#C0392B",
       "stops": [
         {
@@ -61856,6 +62100,7 @@
     {
       "train": "203",
       "typeName": "自強",
+      "carName": "自強(普,障)",
       "color": "#C0392B",
       "stops": [
         {
@@ -61943,6 +62188,7 @@
     {
       "train": "445",
       "typeName": "自強",
+      "carName": "自強(3000親障)",
       "color": "#C0392B",
       "stops": [
         {
@@ -62214,6 +62460,7 @@
     {
       "train": "447",
       "typeName": "自強",
+      "carName": "自強(普,障)",
       "color": "#C0392B",
       "stops": [
         {
@@ -62349,6 +62596,7 @@
     {
       "train": "448",
       "typeName": "自強",
+      "carName": "自強(普,障)",
       "color": "#C0392B",
       "stops": [
         {
@@ -62500,6 +62748,7 @@
     {
       "train": "207",
       "typeName": "自強",
+      "carName": "自強(3000障)",
       "color": "#C0392B",
       "stops": [
         {
@@ -62619,6 +62868,7 @@
     {
       "train": "4137",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -62930,6 +63180,7 @@
     {
       "train": "4138",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -63297,6 +63548,7 @@
     {
       "train": "209",
       "typeName": "自強",
+      "carName": "自強(D31)",
       "color": "#C0392B",
       "stops": [
         {
@@ -63392,6 +63644,7 @@
     {
       "train": "4151",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -63703,6 +63956,7 @@
     {
       "train": "4152",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -63958,6 +64212,7 @@
     {
       "train": "4154",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -64189,6 +64444,7 @@
     {
       "train": "4156",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -64380,6 +64636,7 @@
     {
       "train": "3067",
       "typeName": "區間快",
+      "carName": "區間快",
       "color": "#16A085",
       "stops": [
         {
@@ -64499,6 +64756,7 @@
     {
       "train": "3064",
       "typeName": "區間快",
+      "carName": "區間快",
       "color": "#16A085",
       "stops": [
         {
@@ -64626,6 +64884,7 @@
     {
       "train": "3063",
       "typeName": "區間快",
+      "carName": "區間快",
       "color": "#16A085",
       "stops": [
         {
@@ -64745,6 +65004,7 @@
     {
       "train": "3062",
       "typeName": "區間快",
+      "carName": "區間快",
       "color": "#16A085",
       "stops": [
         {
@@ -64864,6 +65124,7 @@
     {
       "train": "3061",
       "typeName": "區間快",
+      "carName": "區間快",
       "color": "#16A085",
       "stops": [
         {
@@ -65047,6 +65308,7 @@
     {
       "train": "3058",
       "typeName": "區間快",
+      "carName": "區間快",
       "color": "#16A085",
       "stops": [
         {
@@ -65174,6 +65436,7 @@
     {
       "train": "217",
       "typeName": "自強",
+      "carName": "自強(太,障)",
       "color": "#C0392B",
       "stops": [
         {
@@ -65245,6 +65508,7 @@
     {
       "train": "218",
       "typeName": "自強",
+      "carName": "自強(太,障)",
       "color": "#C0392B",
       "stops": [
         {
@@ -65316,6 +65580,7 @@
     {
       "train": "4148",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -65683,6 +65948,7 @@
     {
       "train": "219",
       "typeName": "自強",
+      "carName": "自強(普,障)",
       "color": "#C0392B",
       "stops": [
         {
@@ -65802,6 +66068,7 @@
     {
       "train": "3071",
       "typeName": "區間快",
+      "carName": "區間快",
       "color": "#16A085",
       "stops": [
         {
@@ -65985,6 +66252,7 @@
     {
       "train": "4161",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -66136,6 +66404,7 @@
     {
       "train": "4162",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -66447,6 +66716,7 @@
     {
       "train": "3078",
       "typeName": "區間快",
+      "carName": "區間快",
       "color": "#16A085",
       "stops": [
         {
@@ -66630,6 +66900,7 @@
     {
       "train": "3074",
       "typeName": "區間快",
+      "carName": "區間快",
       "color": "#16A085",
       "stops": [
         {
@@ -66813,6 +67084,7 @@
     {
       "train": "3073",
       "typeName": "區間快",
+      "carName": "區間快",
       "color": "#16A085",
       "stops": [
         {
@@ -66940,6 +67212,7 @@
     {
       "train": "3072",
       "typeName": "區間快",
+      "carName": "區間快",
       "color": "#16A085",
       "stops": [
         {
@@ -67059,6 +67332,7 @@
     {
       "train": "221",
       "typeName": "自強",
+      "carName": "自強(D31)",
       "color": "#C0392B",
       "stops": [
         {
@@ -67186,6 +67460,7 @@
     {
       "train": "224",
       "typeName": "自強",
+      "carName": "自強(普,障)",
       "color": "#C0392B",
       "stops": [
         {
@@ -67329,6 +67604,7 @@
     {
       "train": "228",
       "typeName": "自強",
+      "carName": "自強(普,障)",
       "color": "#C0392B",
       "stops": [
         {
@@ -67448,6 +67724,7 @@
     {
       "train": "3082",
       "typeName": "區間快",
+      "carName": "區間快",
       "color": "#16A085",
       "stops": [
         {
@@ -67631,6 +67908,7 @@
     {
       "train": "4172",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -67942,6 +68220,7 @@
     {
       "train": "3081",
       "typeName": "區間快",
+      "carName": "區間快",
       "color": "#16A085",
       "stops": [
         {
@@ -68061,6 +68340,7 @@
     {
       "train": "4173",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -68372,6 +68652,7 @@
     {
       "train": "4177",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -68771,6 +69052,7 @@
     {
       "train": "4178",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -69082,6 +69364,7 @@
     {
       "train": "3087",
       "typeName": "區間快",
+      "carName": "區間快",
       "color": "#16A085",
       "stops": [
         {
@@ -69201,6 +69484,7 @@
     {
       "train": "230",
       "typeName": "自強",
+      "carName": "自強(3000障)",
       "color": "#C0392B",
       "stops": [
         {
@@ -69240,6 +69524,7 @@
     {
       "train": "4171",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -69551,6 +69836,7 @@
     {
       "train": "472",
       "typeName": "自強",
+      "carName": "自強(3000障)",
       "color": "#C0392B",
       "stops": [
         {
@@ -69782,6 +70068,7 @@
     {
       "train": "231",
       "typeName": "自強",
+      "carName": "自強(太,障)",
       "color": "#C0392B",
       "stops": [
         {
@@ -69853,6 +70140,7 @@
     {
       "train": "235",
       "typeName": "自強",
+      "carName": "自強(普,障)",
       "color": "#C0392B",
       "stops": [
         {
@@ -69996,6 +70284,7 @@
     {
       "train": "477",
       "typeName": "自強",
+      "carName": "自強(3000障)",
       "color": "#C0392B",
       "stops": [
         {
@@ -70235,6 +70524,7 @@
     {
       "train": "238",
       "typeName": "自強",
+      "carName": "自強(D31)",
       "color": "#C0392B",
       "stops": [
         {
@@ -70386,6 +70676,7 @@
     {
       "train": "4183",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -70793,6 +71084,7 @@
     {
       "train": "4184",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -70944,6 +71236,7 @@
     {
       "train": "4187",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -71127,6 +71420,7 @@
     {
       "train": "4188",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -71438,6 +71732,7 @@
     {
       "train": "4182",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -71749,6 +72044,7 @@
     {
       "train": "246",
       "typeName": "自強",
+      "carName": "自強(D31)",
       "color": "#C0392B",
       "stops": [
         {
@@ -71876,6 +72172,7 @@
     {
       "train": "248",
       "typeName": "自強",
+      "carName": "自強(太,障)",
       "color": "#C0392B",
       "stops": [
         {
@@ -71947,6 +72244,7 @@
     {
       "train": "4194",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -72042,6 +72340,7 @@
     {
       "train": "4197",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -72353,6 +72652,7 @@
     {
       "train": "4198",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -72664,6 +72964,7 @@
     {
       "train": "4191",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -73015,6 +73316,7 @@
     {
       "train": "252",
       "typeName": "自強",
+      "carName": "自強(3000障)",
       "color": "#C0392B",
       "stops": [
         {
@@ -73134,6 +73436,7 @@
     {
       "train": "4193",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -73445,6 +73748,7 @@
     {
       "train": "256",
       "typeName": "自強",
+      "carName": "自強(普,障)",
       "color": "#C0392B",
       "stops": [
         {
@@ -73532,6 +73836,7 @@
     {
       "train": "270",
       "typeName": "自強",
+      "carName": "自強(PP障12)",
       "color": "#C0392B",
       "stops": [
         {
@@ -73779,6 +74084,7 @@
     {
       "train": "271",
       "typeName": "自強",
+      "carName": "自強(普,障)",
       "color": "#C0392B",
       "stops": [
         {
@@ -73906,6 +74212,7 @@
     {
       "train": "272",
       "typeName": "自強",
+      "carName": "自強(PP障)",
       "color": "#C0392B",
       "stops": [
         {
@@ -74121,6 +74428,7 @@
     {
       "train": "273",
       "typeName": "自強",
+      "carName": "自強(普,障)",
       "color": "#C0392B",
       "stops": [
         {
@@ -74208,6 +74516,7 @@
     {
       "train": "277",
       "typeName": "自強",
+      "carName": "自強(PP障12)",
       "color": "#C0392B",
       "stops": [
         {
@@ -74495,6 +74804,7 @@
     {
       "train": "278",
       "typeName": "自強",
+      "carName": "自強(3000障)",
       "color": "#C0392B",
       "stops": [
         {
@@ -74662,6 +74972,7 @@
     {
       "train": "280",
       "typeName": "自強",
+      "carName": "自強(3000障)",
       "color": "#C0392B",
       "stops": [
         {
@@ -74789,6 +75100,7 @@
     {
       "train": "281",
       "typeName": "自強",
+      "carName": "自強(PP障)",
       "color": "#C0392B",
       "stops": [
         {
@@ -75036,6 +75348,7 @@
     {
       "train": "282",
       "typeName": "自強",
+      "carName": "自強(普,障)",
       "color": "#C0392B",
       "stops": [
         {
@@ -75123,6 +75436,7 @@
     {
       "train": "283",
       "typeName": "自強",
+      "carName": "自強(3000障)",
       "color": "#C0392B",
       "stops": [
         {
@@ -75282,6 +75596,7 @@
     {
       "train": "285",
       "typeName": "自強",
+      "carName": "自強(3000障)",
       "color": "#C0392B",
       "stops": [
         {
@@ -75441,6 +75756,7 @@
     {
       "train": "1701",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -75496,6 +75812,7 @@
     {
       "train": "288",
       "typeName": "自強",
+      "carName": "自強(普,障)",
       "color": "#C0392B",
       "stops": [
         {
@@ -75615,6 +75932,7 @@
     {
       "train": "1708",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -75670,6 +75988,7 @@
     {
       "train": "1707",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -75725,6 +76044,7 @@
     {
       "train": "1706",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -75780,6 +76100,7 @@
     {
       "train": "1705",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -75835,6 +76156,7 @@
     {
       "train": "1704",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -75890,6 +76212,7 @@
     {
       "train": "1703",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -75945,6 +76268,7 @@
     {
       "train": "1702",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -76000,6 +76324,7 @@
     {
       "train": "1712",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -76055,6 +76380,7 @@
     {
       "train": "1711",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -76110,6 +76436,7 @@
     {
       "train": "1718",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -76165,6 +76492,7 @@
     {
       "train": "1717",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -76220,6 +76548,7 @@
     {
       "train": "1716",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -76275,6 +76604,7 @@
     {
       "train": "1715",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -76330,6 +76660,7 @@
     {
       "train": "1714",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -76385,6 +76716,7 @@
     {
       "train": "1713",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -76440,6 +76772,7 @@
     {
       "train": "1723",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -76495,6 +76828,7 @@
     {
       "train": "1722",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -76550,6 +76884,7 @@
     {
       "train": "1721",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -76605,6 +76940,7 @@
     {
       "train": "1728",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -76660,6 +76996,7 @@
     {
       "train": "1727",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -76715,6 +77052,7 @@
     {
       "train": "1726",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -76770,6 +77108,7 @@
     {
       "train": "1725",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -76825,6 +77164,7 @@
     {
       "train": "1724",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -76880,6 +77220,7 @@
     {
       "train": "1734",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -76935,6 +77276,7 @@
     {
       "train": "1733",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -76990,6 +77332,7 @@
     {
       "train": "1732",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -77045,6 +77388,7 @@
     {
       "train": "1731",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -77100,6 +77444,7 @@
     {
       "train": "1738",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -77155,6 +77500,7 @@
     {
       "train": "1737",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -77210,6 +77556,7 @@
     {
       "train": "1736",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -77265,6 +77612,7 @@
     {
       "train": "1735",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -77320,6 +77668,7 @@
     {
       "train": "1745",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -77375,6 +77724,7 @@
     {
       "train": "1744",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -77430,6 +77780,7 @@
     {
       "train": "1743",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -77485,6 +77836,7 @@
     {
       "train": "1742",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -77540,6 +77892,7 @@
     {
       "train": "1741",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -77595,6 +77948,7 @@
     {
       "train": "1748",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -77650,6 +78004,7 @@
     {
       "train": "1747",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -77705,6 +78060,7 @@
     {
       "train": "1746",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -77760,6 +78116,7 @@
     {
       "train": "1756",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -77815,6 +78172,7 @@
     {
       "train": "2603",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -77982,6 +78340,7 @@
     {
       "train": "1755",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -78037,6 +78396,7 @@
     {
       "train": "2602",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -78284,6 +78644,7 @@
     {
       "train": "1754",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -78339,6 +78700,7 @@
     {
       "train": "2601",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -78506,6 +78868,7 @@
     {
       "train": "1753",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -78561,6 +78924,7 @@
     {
       "train": "2600",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -78672,6 +79036,7 @@
     {
       "train": "1752",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -78727,6 +79092,7 @@
     {
       "train": "1751",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -78782,6 +79148,7 @@
     {
       "train": "2609",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -78893,6 +79260,7 @@
     {
       "train": "2608",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -79028,6 +79396,7 @@
     {
       "train": "2607",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -79219,6 +79588,7 @@
     {
       "train": "2606",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -79354,6 +79724,7 @@
     {
       "train": "1758",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -79409,6 +79780,7 @@
     {
       "train": "1757",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -79464,6 +79836,7 @@
     {
       "train": "2604",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -79655,6 +80028,7 @@
     {
       "train": "1767",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -79710,6 +80084,7 @@
     {
       "train": "2614",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -79901,6 +80276,7 @@
     {
       "train": "3704",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -79996,6 +80372,7 @@
     {
       "train": "1766",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -80051,6 +80428,7 @@
     {
       "train": "2613",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -80242,6 +80620,7 @@
     {
       "train": "3705",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -80409,6 +80788,7 @@
     {
       "train": "1765",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -80464,6 +80844,7 @@
     {
       "train": "2612",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -80631,6 +81012,7 @@
     {
       "train": "3706",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -80726,6 +81108,7 @@
     {
       "train": "1764",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -80781,6 +81164,7 @@
     {
       "train": "2611",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -80972,6 +81356,7 @@
     {
       "train": "3707",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -81027,6 +81412,7 @@
     {
       "train": "1763",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -81082,6 +81468,7 @@
     {
       "train": "2610",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -81249,6 +81636,7 @@
     {
       "train": "3708",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -81344,6 +81732,7 @@
     {
       "train": "1762",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -81399,6 +81788,7 @@
     {
       "train": "3709",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -81566,6 +81956,7 @@
     {
       "train": "1761",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -81621,6 +82012,7 @@
     {
       "train": "2619",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -81836,6 +82228,7 @@
     {
       "train": "2618",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -81947,6 +82340,7 @@
     {
       "train": "2617",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -82138,6 +82532,7 @@
     {
       "train": "3701",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -82193,6 +82588,7 @@
     {
       "train": "3702",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -82248,6 +82644,7 @@
     {
       "train": "1768",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -82303,6 +82700,7 @@
     {
       "train": "2615",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -82494,6 +82892,7 @@
     {
       "train": "3703",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -82549,6 +82948,7 @@
     {
       "train": "1781",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -82604,6 +83004,7 @@
     {
       "train": "1778",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -82659,6 +83060,7 @@
     {
       "train": "3715",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -82754,6 +83156,7 @@
     {
       "train": "1777",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -82809,6 +83212,7 @@
     {
       "train": "2624",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -83000,6 +83404,7 @@
     {
       "train": "3716",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -83095,6 +83500,7 @@
     {
       "train": "1776",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -83150,6 +83556,7 @@
     {
       "train": "2623",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -83341,6 +83748,7 @@
     {
       "train": "3717",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -83396,6 +83804,7 @@
     {
       "train": "1775",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -83451,6 +83860,7 @@
     {
       "train": "2622",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -83690,6 +84100,7 @@
     {
       "train": "3718",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -83745,6 +84156,7 @@
     {
       "train": "1774",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -83800,6 +84212,7 @@
     {
       "train": "2621",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -83967,6 +84380,7 @@
     {
       "train": "1773",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -84022,6 +84436,7 @@
     {
       "train": "1772",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -84077,6 +84492,7 @@
     {
       "train": "1771",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -84132,6 +84548,7 @@
     {
       "train": "3711",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -84227,6 +84644,7 @@
     {
       "train": "2628",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -84418,6 +84836,7 @@
     {
       "train": "3712",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -84513,6 +84932,7 @@
     {
       "train": "2627",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -84680,6 +85100,7 @@
     {
       "train": "3713",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -84775,6 +85196,7 @@
     {
       "train": "3714",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -84830,6 +85252,7 @@
     {
       "train": "1792",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -84885,6 +85308,7 @@
     {
       "train": "1791",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -84940,6 +85364,7 @@
     {
       "train": "1790",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -84995,6 +85420,7 @@
     {
       "train": "1789",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -85050,6 +85476,7 @@
     {
       "train": "3726",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -85145,6 +85572,7 @@
     {
       "train": "1788",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -85200,6 +85628,7 @@
     {
       "train": "3727",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -85255,6 +85684,7 @@
     {
       "train": "4816",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -85350,6 +85780,7 @@
     {
       "train": "1787",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -85405,6 +85836,7 @@
     {
       "train": "2634",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -85548,6 +85980,7 @@
     {
       "train": "3728",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -85603,6 +86036,7 @@
     {
       "train": "4817",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -85698,6 +86132,7 @@
     {
       "train": "1786",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -85753,6 +86188,7 @@
     {
       "train": "2633",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -85944,6 +86380,7 @@
     {
       "train": "4818",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -86039,6 +86476,7 @@
     {
       "train": "1785",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -86094,6 +86532,7 @@
     {
       "train": "2632",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -86205,6 +86644,7 @@
     {
       "train": "1784",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -86260,6 +86700,7 @@
     {
       "train": "2631",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -86395,6 +86836,7 @@
     {
       "train": "1783",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -86450,6 +86892,7 @@
     {
       "train": "1782",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -86505,6 +86948,7 @@
     {
       "train": "3721",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -86600,6 +87044,7 @@
     {
       "train": "3722",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -86671,6 +87116,7 @@
     {
       "train": "4811",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -86766,6 +87212,7 @@
     {
       "train": "3723",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -86821,6 +87268,7 @@
     {
       "train": "3724",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -86892,6 +87340,7 @@
     {
       "train": "4813",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -86987,6 +87436,7 @@
     {
       "train": "3725",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -87082,6 +87532,7 @@
     {
       "train": "3737",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -87137,6 +87588,7 @@
     {
       "train": "4826",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -87232,6 +87684,7 @@
     {
       "train": "3738",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -87303,6 +87756,7 @@
     {
       "train": "4827",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -87398,6 +87852,7 @@
     {
       "train": "1798",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -87453,6 +87908,7 @@
     {
       "train": "4828",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -87548,6 +88004,7 @@
     {
       "train": "1797",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -87603,6 +88060,7 @@
     {
       "train": "1796",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -87658,6 +88116,7 @@
     {
       "train": "1795",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -87713,6 +88172,7 @@
     {
       "train": "1794",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -87768,6 +88228,7 @@
     {
       "train": "1793",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -87823,6 +88284,7 @@
     {
       "train": "3731",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -87894,6 +88356,7 @@
     {
       "train": "3732",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -87949,6 +88412,7 @@
     {
       "train": "4821",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -88044,6 +88508,7 @@
     {
       "train": "3733",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -88099,6 +88564,7 @@
     {
       "train": "3734",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -88194,6 +88660,7 @@
     {
       "train": "4823",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -88289,6 +88756,7 @@
     {
       "train": "3735",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -88384,6 +88852,7 @@
     {
       "train": "4824",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -88479,6 +88948,7 @@
     {
       "train": "3736",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -88534,6 +89004,7 @@
     {
       "train": "4825",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -88629,6 +89100,7 @@
     {
       "train": "3748",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -88724,6 +89196,7 @@
     {
       "train": "3741",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -88779,6 +89252,7 @@
     {
       "train": "3742",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -88874,6 +89348,7 @@
     {
       "train": "4831",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -88969,6 +89444,7 @@
     {
       "train": "3743",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -89064,6 +89540,7 @@
     {
       "train": "4832",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -89159,6 +89636,7 @@
     {
       "train": "3744",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -89214,6 +89692,7 @@
     {
       "train": "3745",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -89285,6 +89764,7 @@
     {
       "train": "4834",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -89380,6 +89860,7 @@
     {
       "train": "3746",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -89451,6 +89932,7 @@
     {
       "train": "3747",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -89506,6 +89988,7 @@
     {
       "train": "4836",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -89601,6 +90084,7 @@
     {
       "train": "3760",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -89696,6 +90180,7 @@
     {
       "train": "3761",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -89751,6 +90236,7 @@
     {
       "train": "3751",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -89846,6 +90332,7 @@
     {
       "train": "3752",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -89917,6 +90404,7 @@
     {
       "train": "3753",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -89988,6 +90476,7 @@
     {
       "train": "3754",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -90083,6 +90572,7 @@
     {
       "train": "3755",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -90154,6 +90644,7 @@
     {
       "train": "3756",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -90209,6 +90700,7 @@
     {
       "train": "3757",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -90304,6 +90796,7 @@
     {
       "train": "3758",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -90375,6 +90868,7 @@
     {
       "train": "3771",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -90470,6 +90964,7 @@
     {
       "train": "3772",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -90525,6 +91020,7 @@
     {
       "train": "1110",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -90604,6 +91100,7 @@
     {
       "train": "1107",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -90899,6 +91396,7 @@
     {
       "train": "1106",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -91026,6 +91524,7 @@
     {
       "train": "1105",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -91137,6 +91636,7 @@
     {
       "train": "1104",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -91176,6 +91676,7 @@
     {
       "train": "3762",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -91231,6 +91732,7 @@
     {
       "train": "3764",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -91326,6 +91828,7 @@
     {
       "train": "3765",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -91397,6 +91900,7 @@
     {
       "train": "3766",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -91452,6 +91956,7 @@
     {
       "train": "3767",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -91507,6 +92012,7 @@
     {
       "train": "1109",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -91658,6 +92164,7 @@
     {
       "train": "3768",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -91753,6 +92260,7 @@
     {
       "train": "1108",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -91792,6 +92300,7 @@
     {
       "train": "3781",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -91847,6 +92356,7 @@
     {
       "train": "3782",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -92014,6 +92524,7 @@
     {
       "train": "3783",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -92069,6 +92580,7 @@
     {
       "train": "1121",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -92332,6 +92844,7 @@
     {
       "train": "1120",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -92555,6 +93068,7 @@
     {
       "train": "1117",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -92874,6 +93388,7 @@
     {
       "train": "2204",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -93265,6 +93780,7 @@
     {
       "train": "2203",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -93656,6 +94172,7 @@
     {
       "train": "1112",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -93919,6 +94436,7 @@
     {
       "train": "3773",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -93974,6 +94492,7 @@
     {
       "train": "3774",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -94029,6 +94548,7 @@
     {
       "train": "3775",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -94084,6 +94604,7 @@
     {
       "train": "3776",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -94179,6 +94700,7 @@
     {
       "train": "3777",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -94274,6 +94796,7 @@
     {
       "train": "3778",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -94329,6 +94852,7 @@
     {
       "train": "1132",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -94592,6 +95116,7 @@
     {
       "train": "3310",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -94823,6 +95348,7 @@
     {
       "train": "1131",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -95086,6 +95612,7 @@
     {
       "train": "1130",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -95293,6 +95820,7 @@
     {
       "train": "1129",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -95516,6 +96044,7 @@
     {
       "train": "1128",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -95835,6 +96364,7 @@
     {
       "train": "1127",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -96130,6 +96660,7 @@
     {
       "train": "3305",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -96353,6 +96884,7 @@
     {
       "train": "2214",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -96952,6 +97484,7 @@
     {
       "train": "3303",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -97031,6 +97564,7 @@
     {
       "train": "1124",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -97254,6 +97788,7 @@
     {
       "train": "2213",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -97853,6 +98388,7 @@
     {
       "train": "1123",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -98116,6 +98652,7 @@
     {
       "train": "3301",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -98187,6 +98724,7 @@
     {
       "train": "1122",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -98450,6 +98988,7 @@
     {
       "train": "3784",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -98505,6 +99044,7 @@
     {
       "train": "3786",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -98560,6 +99100,7 @@
     {
       "train": "708",
       "typeName": "莒光/復興",
+      "carName": "莒光",
       "color": "#E8792B",
       "stops": [
         {
@@ -98711,6 +99252,7 @@
     {
       "train": "1143",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -98934,6 +99476,7 @@
     {
       "train": "1142",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -99197,6 +99740,7 @@
     {
       "train": "3320",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -99420,6 +99964,7 @@
     {
       "train": "1141",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -99683,6 +100228,7 @@
     {
       "train": "1140",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -99786,6 +100332,7 @@
     {
       "train": "1138",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -100129,6 +100676,7 @@
     {
       "train": "3316",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -100200,6 +100748,7 @@
     {
       "train": "1137",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -100519,6 +101068,7 @@
     {
       "train": "2226",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -100582,6 +101132,7 @@
     {
       "train": "1136",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -100813,6 +101364,7 @@
     {
       "train": "1135",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -101036,6 +101588,7 @@
     {
       "train": "2224",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -101427,6 +101980,7 @@
     {
       "train": "1134",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -101690,6 +102244,7 @@
     {
       "train": "2223",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -102081,6 +102636,7 @@
     {
       "train": "3311",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -102304,6 +102860,7 @@
     {
       "train": "1154",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -102535,6 +103092,7 @@
     {
       "train": "2243",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -102926,6 +103484,7 @@
     {
       "train": "3331",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -103149,6 +103708,7 @@
     {
       "train": "1152",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -103444,6 +104004,7 @@
     {
       "train": "1151",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -103707,6 +104268,7 @@
     {
       "train": "3329",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -103778,6 +104340,7 @@
     {
       "train": "3328",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -104001,6 +104564,7 @@
     {
       "train": "1148",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -104320,6 +104884,7 @@
     {
       "train": "2237",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -104567,6 +105132,7 @@
     {
       "train": "1147",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -104886,6 +105452,7 @@
     {
       "train": "2236",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -104949,6 +105516,7 @@
     {
       "train": "2234",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -105548,6 +106116,7 @@
     {
       "train": "3323",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -105619,6 +106188,7 @@
     {
       "train": "2233",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -106218,6 +106788,7 @@
     {
       "train": "727",
       "typeName": "莒光/復興",
+      "carName": "莒光",
       "color": "#E8792B",
       "stops": [
         {
@@ -106337,6 +106908,7 @@
     {
       "train": "2254",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -106936,6 +107508,7 @@
     {
       "train": "2253",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -107535,6 +108108,7 @@
     {
       "train": "3342",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -107606,6 +108180,7 @@
     {
       "train": "1163",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -107829,6 +108404,7 @@
     {
       "train": "1162",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -108092,6 +108668,7 @@
     {
       "train": "3340",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -108163,6 +108740,7 @@
     {
       "train": "1161",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -108426,6 +109004,7 @@
     {
       "train": "1160",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -108577,6 +109156,7 @@
     {
       "train": "2008",
       "typeName": "區間快",
+      "carName": "區間快",
       "color": "#16A085",
       "stops": [
         {
@@ -108824,6 +109404,7 @@
     {
       "train": "2007",
       "typeName": "區間快",
+      "carName": "區間快",
       "color": "#16A085",
       "stops": [
         {
@@ -109111,6 +109692,7 @@
     {
       "train": "3338",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -109182,6 +109764,7 @@
     {
       "train": "1158",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -109509,6 +110092,7 @@
     {
       "train": "2005",
       "typeName": "區間快",
+      "carName": "區間快",
       "color": "#16A085",
       "stops": [
         {
@@ -109740,6 +110324,7 @@
     {
       "train": "1157",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -110059,6 +110644,7 @@
     {
       "train": "2004",
       "typeName": "區間快",
+      "carName": "區間快",
       "color": "#16A085",
       "stops": [
         {
@@ -110178,6 +110764,7 @@
     {
       "train": "2246",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -110241,6 +110828,7 @@
     {
       "train": "3335",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -110464,6 +111052,7 @@
     {
       "train": "2003",
       "typeName": "區間快",
+      "carName": "區間快",
       "color": "#16A085",
       "stops": [
         {
@@ -110559,6 +111148,7 @@
     {
       "train": "3334",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -110782,6 +111372,7 @@
     {
       "train": "2244",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -111173,6 +111764,7 @@
     {
       "train": "2023",
       "typeName": "區間快",
+      "carName": "區間快",
       "color": "#16A085",
       "stops": [
         {
@@ -111260,6 +111852,7 @@
     {
       "train": "2264",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -111651,6 +112244,7 @@
     {
       "train": "3111",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -111890,6 +112484,7 @@
     {
       "train": "1174",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -112113,6 +112708,7 @@
     {
       "train": "2021",
       "typeName": "區間快",
+      "carName": "區間快",
       "color": "#16A085",
       "stops": [
         {
@@ -112184,6 +112780,7 @@
     {
       "train": "2263",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -112575,6 +113172,7 @@
     {
       "train": "1172",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -112838,6 +113436,7 @@
     {
       "train": "1171",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -113109,6 +113708,7 @@
     {
       "train": "1170",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -113212,6 +113812,7 @@
     {
       "train": "3348",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -113435,6 +114036,7 @@
     {
       "train": "2016",
       "typeName": "區間快",
+      "carName": "區間快",
       "color": "#16A085",
       "stops": [
         {
@@ -113490,6 +114092,7 @@
     {
       "train": "1168",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -113809,6 +114412,7 @@
     {
       "train": "2257",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -114064,6 +114668,7 @@
     {
       "train": "1167",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -114383,6 +114988,7 @@
     {
       "train": "501",
       "typeName": "莒光/復興",
+      "carName": "莒光",
       "color": "#E8792B",
       "stops": [
         {
@@ -114574,6 +115180,7 @@
     {
       "train": "1166",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -114677,6 +115284,7 @@
     {
       "train": "2013",
       "typeName": "區間快",
+      "carName": "區間快",
       "color": "#16A085",
       "stops": [
         {
@@ -114948,6 +115556,7 @@
     {
       "train": "503",
       "typeName": "莒光/復興",
+      "carName": "莒光",
       "color": "#E8792B",
       "stops": [
         {
@@ -115011,6 +115620,7 @@
     {
       "train": "4211",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -115322,6 +115932,7 @@
     {
       "train": "1187",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -115641,6 +116252,7 @@
     {
       "train": "2033",
       "typeName": "區間快",
+      "carName": "區間快",
       "color": "#16A085",
       "stops": [
         {
@@ -115872,6 +116484,7 @@
     {
       "train": "3122",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -116183,6 +116796,7 @@
     {
       "train": "2274",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -116574,6 +117188,7 @@
     {
       "train": "3121",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -116925,6 +117540,7 @@
     {
       "train": "2273",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -117396,6 +118012,7 @@
     {
       "train": "1183",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -117627,6 +118244,7 @@
     {
       "train": "1182",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -117890,6 +118508,7 @@
     {
       "train": "1181",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -118153,6 +118772,7 @@
     {
       "train": "2270",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -118304,6 +118924,7 @@
     {
       "train": "3118",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -118791,6 +119412,7 @@
     {
       "train": "3117",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -119110,6 +119732,7 @@
     {
       "train": "2027",
       "typeName": "區間快",
+      "carName": "區間快",
       "color": "#16A085",
       "stops": [
         {
@@ -119229,6 +119852,7 @@
     {
       "train": "2269",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -119452,6 +120076,7 @@
     {
       "train": "3116",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -119579,6 +120204,7 @@
     {
       "train": "1178",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -119898,6 +120524,7 @@
     {
       "train": "2267",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -120049,6 +120676,7 @@
     {
       "train": "1177",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -120368,6 +120996,7 @@
     {
       "train": "4206",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -120519,6 +121148,7 @@
     {
       "train": "4207",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -120670,6 +121300,7 @@
     {
       "train": "4208",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -120981,6 +121612,7 @@
     {
       "train": "4209",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -121260,6 +121892,7 @@
     {
       "train": "4221",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -121667,6 +122300,7 @@
     {
       "train": "4222",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -121762,6 +122396,7 @@
     {
       "train": "1198",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -122081,6 +122716,7 @@
     {
       "train": "1197",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -122400,6 +123036,7 @@
     {
       "train": "3132",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -123127,6 +123764,7 @@
     {
       "train": "2042",
       "typeName": "區間快",
+      "carName": "區間快",
       "color": "#16A085",
       "stops": [
         {
@@ -123414,6 +124052,7 @@
     {
       "train": "3131",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -123837,6 +124476,7 @@
     {
       "train": "1194",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -124068,6 +124708,7 @@
     {
       "train": "1192",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -124331,6 +124972,7 @@
     {
       "train": "1191",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -124594,6 +125236,7 @@
     {
       "train": "3128",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -125185,6 +125828,7 @@
     {
       "train": "3127",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -125536,6 +126180,7 @@
     {
       "train": "2037",
       "typeName": "區間快",
+      "carName": "區間快",
       "color": "#16A085",
       "stops": [
         {
@@ -125775,6 +126420,7 @@
     {
       "train": "1188",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -126094,6 +126740,7 @@
     {
       "train": "4213",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -126189,6 +126836,7 @@
     {
       "train": "4215",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -126324,6 +126972,7 @@
     {
       "train": "4216",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -126651,6 +127300,7 @@
     {
       "train": "4218",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -126744,8 +127394,65 @@
       ]
     },
     {
+      "train": "6652",
+      "typeName": "其他",
+      "carName": "電車(專)",
+      "color": "#8E44AD",
+      "stops": [
+        {
+          "name": "南港",
+          "lat": 25.05348,
+          "lon": 121.60706,
+          "order": 1,
+          "arrSec": 28560,
+          "depSec": 33840
+        },
+        {
+          "name": "大里",
+          "lat": 24.96677,
+          "lon": 121.92253,
+          "order": 2,
+          "arrSec": 39180,
+          "depSec": 40800
+        },
+        {
+          "name": "頭城",
+          "lat": 24.85898,
+          "lon": 121.82258,
+          "order": 3,
+          "arrSec": 41700,
+          "depSec": 45600
+        },
+        {
+          "name": "礁溪",
+          "lat": 24.82703,
+          "lon": 121.77535,
+          "order": 4,
+          "arrSec": 45960,
+          "depSec": 46020
+        },
+        {
+          "name": "宜蘭",
+          "lat": 24.75462,
+          "lon": 121.75791,
+          "order": 5,
+          "arrSec": 46500,
+          "depSec": 47100
+        },
+        {
+          "name": "二結",
+          "lat": 24.70528,
+          "lon": 121.77409,
+          "order": 6,
+          "arrSec": 47460,
+          "depSec": 47460
+        }
+      ]
+    },
+    {
       "train": "4232",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -127153,6 +127860,7 @@
     {
       "train": "4234",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -127336,6 +128044,7 @@
     {
       "train": "3145",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -127463,6 +128172,7 @@
     {
       "train": "3143",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -127606,6 +128316,7 @@
     {
       "train": "3142",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -127957,6 +128668,7 @@
     {
       "train": "2294",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -128100,6 +128812,7 @@
     {
       "train": "3141",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -128475,6 +129188,7 @@
     {
       "train": "3140",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -128642,6 +129356,7 @@
     {
       "train": "3138",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -129233,6 +129948,7 @@
     {
       "train": "3137",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -129712,6 +130428,7 @@
     {
       "train": "2046",
       "typeName": "區間快",
+      "carName": "區間快",
       "color": "#16A085",
       "stops": [
         {
@@ -129935,6 +130652,7 @@
     {
       "train": "4224",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -130198,6 +130916,7 @@
     {
       "train": "4225",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -130477,6 +131196,7 @@
     {
       "train": "4227",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -130628,6 +131348,7 @@
     {
       "train": "4228",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -130779,6 +131500,7 @@
     {
       "train": "4229",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -130874,6 +131596,7 @@
     {
       "train": "4240",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -131241,6 +131964,7 @@
     {
       "train": "4241",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -131568,6 +132292,7 @@
     {
       "train": "4243",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -131791,6 +132516,7 @@
     {
       "train": "4244",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -132102,6 +132828,7 @@
     {
       "train": "4003",
       "typeName": "區間快",
+      "carName": "區間快",
       "color": "#16A085",
       "stops": [
         {
@@ -132269,6 +132996,7 @@
     {
       "train": "3152",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -132620,6 +133348,7 @@
     {
       "train": "3151",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -132971,6 +133700,7 @@
     {
       "train": "301",
       "typeName": "自強",
+      "carName": "自強(3000障)",
       "color": "#C0392B",
       "stops": [
         {
@@ -133098,6 +133828,7 @@
     {
       "train": "3148",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -133689,6 +134420,7 @@
     {
       "train": "3147",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -134280,6 +135012,7 @@
     {
       "train": "304",
       "typeName": "自強",
+      "carName": "自強(3000障)",
       "color": "#C0392B",
       "stops": [
         {
@@ -134391,6 +135124,7 @@
     {
       "train": "4235",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -134774,6 +135508,7 @@
     {
       "train": "306",
       "typeName": "自強",
+      "carName": "自強(3000障)",
       "color": "#C0392B",
       "stops": [
         {
@@ -134981,6 +135716,7 @@
     {
       "train": "4236",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -135114,8 +135850,57 @@
       ]
     },
     {
+      "train": "6655",
+      "typeName": "其他",
+      "carName": "電車(專)",
+      "color": "#8E44AD",
+      "stops": [
+        {
+          "name": "二結",
+          "lat": 24.70528,
+          "lon": 121.77409,
+          "order": 1,
+          "arrSec": 49920,
+          "depSec": 49920
+        },
+        {
+          "name": "宜蘭",
+          "lat": 24.75462,
+          "lon": 121.75791,
+          "order": 2,
+          "arrSec": 50280,
+          "depSec": 51960
+        },
+        {
+          "name": "大里",
+          "lat": 24.96677,
+          "lon": 121.92253,
+          "order": 3,
+          "arrSec": 53460,
+          "depSec": 54720
+        },
+        {
+          "name": "猴硐",
+          "lat": 25.08702,
+          "lon": 121.82743,
+          "order": 4,
+          "arrSec": 56280,
+          "depSec": 59880
+        },
+        {
+          "name": "南港",
+          "lat": 25.05348,
+          "lon": 121.60706,
+          "order": 5,
+          "arrSec": 62460,
+          "depSec": 66540
+        }
+      ]
+    },
+    {
       "train": "4238",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -135211,6 +135996,7 @@
     {
       "train": "4239",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -135234,6 +136020,7 @@
     {
       "train": "4252",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -135513,6 +136300,7 @@
     {
       "train": "4253",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -135608,6 +136396,7 @@
     {
       "train": "4013",
       "typeName": "區間快",
+      "carName": "區間快",
       "color": "#16A085",
       "stops": [
         {
@@ -135791,6 +136580,7 @@
     {
       "train": "3167",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -136382,6 +137172,7 @@
     {
       "train": "3165",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -136549,6 +137340,7 @@
     {
       "train": "3162",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -136900,6 +137692,7 @@
     {
       "train": "2072",
       "typeName": "區間快",
+      "carName": "區間快",
       "color": "#16A085",
       "stops": [
         {
@@ -137019,6 +137812,7 @@
     {
       "train": "3161",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -137370,6 +138164,7 @@
     {
       "train": "554",
       "typeName": "莒光/復興",
+      "carName": "莒光",
       "color": "#E8792B",
       "stops": [
         {
@@ -137809,6 +138604,7 @@
     {
       "train": "314",
       "typeName": "自強",
+      "carName": "自強(3000障)",
       "color": "#C0392B",
       "stops": [
         {
@@ -137888,6 +138684,7 @@
     {
       "train": "3158",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -138479,6 +139276,7 @@
     {
       "train": "3157",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -139166,6 +139964,7 @@
     {
       "train": "4247",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -139317,6 +140116,7 @@
     {
       "train": "4006",
       "typeName": "區間快",
+      "carName": "區間快",
       "color": "#16A085",
       "stops": [
         {
@@ -139476,6 +140276,7 @@
     {
       "train": "4248",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -139739,6 +140540,7 @@
     {
       "train": "4007",
       "typeName": "區間快",
+      "carName": "區間快",
       "color": "#16A085",
       "stops": [
         {
@@ -139914,6 +140716,7 @@
     {
       "train": "4022",
       "typeName": "區間快",
+      "carName": "區間快",
       "color": "#16A085",
       "stops": [
         {
@@ -140049,6 +140852,7 @@
     {
       "train": "4023",
       "typeName": "區間快",
+      "carName": "區間快",
       "color": "#16A085",
       "stops": [
         {
@@ -140120,6 +140924,7 @@
     {
       "train": "3178",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -140711,6 +141516,7 @@
     {
       "train": "3177",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -141326,6 +142132,7 @@
     {
       "train": "3172",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -141677,6 +142484,7 @@
     {
       "train": "3171",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -142028,6 +142836,7 @@
     {
       "train": "323",
       "typeName": "自強",
+      "carName": "自強(3000障)",
       "color": "#C0392B",
       "stops": [
         {
@@ -142227,6 +143036,7 @@
     {
       "train": "324",
       "typeName": "自強",
+      "carName": "自強(3000親障)",
       "color": "#C0392B",
       "stops": [
         {
@@ -142330,6 +143140,7 @@
     {
       "train": "3168",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -142921,6 +143732,7 @@
     {
       "train": "327",
       "typeName": "自強",
+      "carName": "自強(3000障)",
       "color": "#C0392B",
       "stops": [
         {
@@ -143024,6 +143836,7 @@
     {
       "train": "4015",
       "typeName": "區間快",
+      "carName": "區間快",
       "color": "#16A085",
       "stops": [
         {
@@ -143111,6 +143924,7 @@
     {
       "train": "4017",
       "typeName": "區間快",
+      "carName": "區間快",
       "color": "#16A085",
       "stops": [
         {
@@ -143198,6 +144012,7 @@
     {
       "train": "4019",
       "typeName": "區間快",
+      "carName": "區間快",
       "color": "#16A085",
       "stops": [
         {
@@ -143373,6 +144188,7 @@
     {
       "train": "3181",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -143724,6 +144540,7 @@
     {
       "train": "3180",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -143851,6 +144668,7 @@
     {
       "train": "4030",
       "typeName": "區間快",
+      "carName": "區間快",
       "color": "#16A085",
       "stops": [
         {
@@ -144050,6 +144868,7 @@
     {
       "train": "4031",
       "typeName": "區間快",
+      "carName": "區間快",
       "color": "#16A085",
       "stops": [
         {
@@ -144089,6 +144908,7 @@
     {
       "train": "4032",
       "typeName": "區間快",
+      "carName": "區間快",
       "color": "#16A085",
       "stops": [
         {
@@ -144280,6 +145100,7 @@
     {
       "train": "4033",
       "typeName": "區間快",
+      "carName": "區間快",
       "color": "#16A085",
       "stops": [
         {
@@ -144375,6 +145196,7 @@
     {
       "train": "3188",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -144966,6 +145788,7 @@
     {
       "train": "3187",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -145573,6 +146396,7 @@
     {
       "train": "4026",
       "typeName": "區間快",
+      "carName": "區間快",
       "color": "#16A085",
       "stops": [
         {
@@ -145756,6 +146580,7 @@
     {
       "train": "4027",
       "typeName": "區間快",
+      "carName": "區間快",
       "color": "#16A085",
       "stops": [
         {
@@ -145939,6 +146764,7 @@
     {
       "train": "3192",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -146338,6 +147164,7 @@
     {
       "train": "4040",
       "typeName": "區間快",
+      "carName": "區間快",
       "color": "#16A085",
       "stops": [
         {
@@ -146377,6 +147204,7 @@
     {
       "train": "3191",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -146728,6 +147556,7 @@
     {
       "train": "4041",
       "typeName": "區間快",
+      "carName": "區間快",
       "color": "#16A085",
       "stops": [
         {
@@ -147023,6 +147852,7 @@
     {
       "train": "4042",
       "typeName": "區間快",
+      "carName": "區間快",
       "color": "#16A085",
       "stops": [
         {
@@ -147126,6 +147956,7 @@
     {
       "train": "4043",
       "typeName": "區間快",
+      "carName": "區間快",
       "color": "#16A085",
       "stops": [
         {
@@ -147197,6 +148028,7 @@
     {
       "train": "4044",
       "typeName": "區間快",
+      "carName": "區間快",
       "color": "#16A085",
       "stops": [
         {
@@ -147292,6 +148124,7 @@
     {
       "train": "4046",
       "typeName": "區間快",
+      "carName": "區間快",
       "color": "#16A085",
       "stops": [
         {
@@ -147579,6 +148412,7 @@
     {
       "train": "3198",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -148170,6 +149004,7 @@
     {
       "train": "3197",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -148761,6 +149596,7 @@
     {
       "train": "101",
       "typeName": "自強",
+      "carName": "自強(PP障)",
       "color": "#C0392B",
       "stops": [
         {
@@ -148920,6 +149756,7 @@
     {
       "train": "102",
       "typeName": "自強",
+      "carName": "自強(PP障12)",
       "color": "#C0392B",
       "stops": [
         {
@@ -149063,6 +149900,7 @@
     {
       "train": "103",
       "typeName": "自強",
+      "carName": "自強(PP障)",
       "color": "#C0392B",
       "stops": [
         {
@@ -149278,6 +150116,7 @@
     {
       "train": "105",
       "typeName": "自強",
+      "carName": "自強(PP障)",
       "color": "#C0392B",
       "stops": [
         {
@@ -149533,6 +150372,7 @@
     {
       "train": "107",
       "typeName": "自強",
+      "carName": "自強(普,障)",
       "color": "#C0392B",
       "stops": [
         {
@@ -149636,6 +150476,7 @@
     {
       "train": "4037",
       "typeName": "區間快",
+      "carName": "區間快",
       "color": "#16A085",
       "stops": [
         {
@@ -149867,6 +150708,7 @@
     {
       "train": "108",
       "typeName": "自強",
+      "carName": "自強(3000障)",
       "color": "#C0392B",
       "stops": [
         {
@@ -150090,6 +150932,7 @@
     {
       "train": "4038",
       "typeName": "區間快",
+      "carName": "區間快",
       "color": "#16A085",
       "stops": [
         {
@@ -150257,6 +151100,7 @@
     {
       "train": "109",
       "typeName": "自強",
+      "carName": "自強(PP障12)",
       "color": "#C0392B",
       "stops": [
         {
@@ -150456,6 +151300,7 @@
     {
       "train": "110",
       "typeName": "自強",
+      "carName": "自強(3000親障)",
       "color": "#C0392B",
       "stops": [
         {
@@ -150575,6 +151420,7 @@
     {
       "train": "111",
       "typeName": "自強",
+      "carName": "自強(3000障)",
       "color": "#C0392B",
       "stops": [
         {
@@ -150694,6 +151540,7 @@
     {
       "train": "112",
       "typeName": "自強",
+      "carName": "自強(PP親)",
       "color": "#C0392B",
       "stops": [
         {
@@ -150925,6 +151772,7 @@
     {
       "train": "113",
       "typeName": "自強",
+      "carName": "自強(PP障)",
       "color": "#C0392B",
       "stops": [
         {
@@ -151060,6 +151908,7 @@
     {
       "train": "114",
       "typeName": "自強",
+      "carName": "自強(PP親)",
       "color": "#C0392B",
       "stops": [
         {
@@ -151267,6 +152116,7 @@
     {
       "train": "115",
       "typeName": "自強",
+      "carName": "自強(PP障12)",
       "color": "#C0392B",
       "stops": [
         {
@@ -151514,6 +152364,7 @@
     {
       "train": "116",
       "typeName": "自強",
+      "carName": "110K",
       "color": "#C0392B",
       "stops": [
         {
@@ -151721,6 +152572,7 @@
     {
       "train": "117",
       "typeName": "自強",
+      "carName": "110K",
       "color": "#C0392B",
       "stops": [
         {
@@ -151960,6 +152812,7 @@
     {
       "train": "118",
       "typeName": "自強",
+      "carName": "自強(PP障)",
       "color": "#C0392B",
       "stops": [
         {
@@ -152167,6 +153020,7 @@
     {
       "train": "4048",
       "typeName": "區間快",
+      "carName": "區間快",
       "color": "#16A085",
       "stops": [
         {
@@ -152350,6 +153204,7 @@
     {
       "train": "120",
       "typeName": "自強",
+      "carName": "自強(3000障)",
       "color": "#C0392B",
       "stops": [
         {
@@ -152573,6 +153428,7 @@
     {
       "train": "121",
       "typeName": "自強",
+      "carName": "110M",
       "color": "#C0392B",
       "stops": [
         {
@@ -152780,6 +153636,7 @@
     {
       "train": "122",
       "typeName": "自強",
+      "carName": "自強(PP親)",
       "color": "#C0392B",
       "stops": [
         {
@@ -153011,6 +153868,7 @@
     {
       "train": "123",
       "typeName": "自強",
+      "carName": "自強(PP親)",
       "color": "#C0392B",
       "stops": [
         {
@@ -153210,6 +154068,7 @@
     {
       "train": "124",
       "typeName": "自強",
+      "carName": "自強(普,障)",
       "color": "#C0392B",
       "stops": [
         {
@@ -153305,6 +154164,7 @@
     {
       "train": "125",
       "typeName": "自強",
+      "carName": "自強(3000障)",
       "color": "#C0392B",
       "stops": [
         {
@@ -153528,6 +154388,7 @@
     {
       "train": "128",
       "typeName": "自強",
+      "carName": "自強(PP障)",
       "color": "#C0392B",
       "stops": [
         {
@@ -153751,6 +154612,7 @@
     {
       "train": "129",
       "typeName": "自強",
+      "carName": "自強(PP親)",
       "color": "#C0392B",
       "stops": [
         {
@@ -153958,6 +154820,7 @@
     {
       "train": "371",
       "typeName": "自強",
+      "carName": "自強(3000障)",
       "color": "#C0392B",
       "stops": [
         {
@@ -154125,6 +154988,7 @@
     {
       "train": "130",
       "typeName": "自強",
+      "carName": "自強(PP障)",
       "color": "#C0392B",
       "stops": [
         {
@@ -154276,6 +155140,7 @@
     {
       "train": "131",
       "typeName": "自強",
+      "carName": "自強(3000障)",
       "color": "#C0392B",
       "stops": [
         {
@@ -154387,6 +155252,7 @@
     {
       "train": "132",
       "typeName": "自強",
+      "carName": "自強(3000障)",
       "color": "#C0392B",
       "stops": [
         {
@@ -154506,6 +155372,7 @@
     {
       "train": "133",
       "typeName": "自強",
+      "carName": "自強(3000障)",
       "color": "#C0392B",
       "stops": [
         {
@@ -154737,6 +155604,7 @@
     {
       "train": "134",
       "typeName": "自強",
+      "carName": "自強(PP障)",
       "color": "#C0392B",
       "stops": [
         {
@@ -154976,6 +155844,7 @@
     {
       "train": "135",
       "typeName": "自強",
+      "carName": "自強(PP障)",
       "color": "#C0392B",
       "stops": [
         {
@@ -155175,6 +156044,7 @@
     {
       "train": "136",
       "typeName": "自強",
+      "carName": "自強(3000障)",
       "color": "#C0392B",
       "stops": [
         {
@@ -155286,6 +156156,7 @@
     {
       "train": "137",
       "typeName": "自強",
+      "carName": "自強(3000障)",
       "color": "#C0392B",
       "stops": [
         {
@@ -155405,6 +156276,7 @@
     {
       "train": "138",
       "typeName": "自強",
+      "carName": "自強(PP障12)",
       "color": "#C0392B",
       "stops": [
         {
@@ -155596,6 +156468,7 @@
     {
       "train": "139",
       "typeName": "自強",
+      "carName": "自強(3000障)",
       "color": "#C0392B",
       "stops": [
         {
@@ -155803,6 +156676,7 @@
     {
       "train": "141",
       "typeName": "自強",
+      "carName": "自強(PP障)",
       "color": "#C0392B",
       "stops": [
         {
@@ -156002,6 +156876,7 @@
     {
       "train": "142",
       "typeName": "自強",
+      "carName": "自強(PP障)",
       "color": "#C0392B",
       "stops": [
         {
@@ -156217,6 +157092,7 @@
     {
       "train": "143",
       "typeName": "自強",
+      "carName": "自強(3000親障)",
       "color": "#C0392B",
       "stops": [
         {
@@ -156352,6 +157228,7 @@
     {
       "train": "144",
       "typeName": "自強",
+      "carName": "110M",
       "color": "#C0392B",
       "stops": [
         {
@@ -156591,6 +157468,7 @@
     {
       "train": "386",
       "typeName": "自強",
+      "carName": "自強(3000障)",
       "color": "#C0392B",
       "stops": [
         {
@@ -156742,6 +157620,7 @@
     {
       "train": "145",
       "typeName": "自強",
+      "carName": "110K",
       "color": "#C0392B",
       "stops": [
         {
@@ -156973,6 +157852,7 @@
     {
       "train": "146",
       "typeName": "自強",
+      "carName": "110K",
       "color": "#C0392B",
       "stops": [
         {
@@ -157196,6 +158076,7 @@
     {
       "train": "149",
       "typeName": "自強",
+      "carName": "自強(PP障)",
       "color": "#C0392B",
       "stops": [
         {
@@ -157419,6 +158300,7 @@
     {
       "train": "1808",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -157498,6 +158380,7 @@
     {
       "train": "1807",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -157577,6 +158460,7 @@
     {
       "train": "1806",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -157688,6 +158572,7 @@
     {
       "train": "1805",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -157767,6 +158652,7 @@
     {
       "train": "1804",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -157878,6 +158764,7 @@
     {
       "train": "1803",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -157989,6 +158876,7 @@
     {
       "train": "1802",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -158100,6 +158988,7 @@
     {
       "train": "1801",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -158211,6 +159100,7 @@
     {
       "train": "150",
       "typeName": "自強",
+      "carName": "自強(PP親)",
       "color": "#C0392B",
       "stops": [
         {
@@ -158426,6 +159316,7 @@
     {
       "train": "152",
       "typeName": "自強",
+      "carName": "自強(PP障)",
       "color": "#C0392B",
       "stops": [
         {
@@ -158633,6 +159524,7 @@
     {
       "train": "154",
       "typeName": "自強",
+      "carName": "自強(3000障)",
       "color": "#C0392B",
       "stops": [
         {
@@ -158736,6 +159628,7 @@
     {
       "train": "1811",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -158815,6 +159708,7 @@
     {
       "train": "155",
       "typeName": "自強",
+      "carName": "自強(PP障)",
       "color": "#C0392B",
       "stops": [
         {
@@ -158926,6 +159820,7 @@
     {
       "train": "156",
       "typeName": "自強",
+      "carName": "自強(PP障12)",
       "color": "#C0392B",
       "stops": [
         {
@@ -159021,6 +159916,7 @@
     {
       "train": "157",
       "typeName": "自強",
+      "carName": "自強(PP障)",
       "color": "#C0392B",
       "stops": [
         {
@@ -159132,6 +160028,7 @@
     {
       "train": "1819",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -159211,6 +160108,7 @@
     {
       "train": "1817",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -159322,6 +160220,7 @@
     {
       "train": "1816",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -159401,6 +160300,7 @@
     {
       "train": "1814",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -159480,6 +160380,7 @@
     {
       "train": "1813",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -159559,6 +160460,7 @@
     {
       "train": "1812",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -159638,6 +160540,7 @@
     {
       "train": "161",
       "typeName": "自強",
+      "carName": "自強(3000障)",
       "color": "#C0392B",
       "stops": [
         {
@@ -159821,6 +160724,7 @@
     {
       "train": "162",
       "typeName": "自強",
+      "carName": "自強(3000障)",
       "color": "#C0392B",
       "stops": [
         {
@@ -159980,6 +160884,7 @@
     {
       "train": "164",
       "typeName": "自強",
+      "carName": "自強(3000障)",
       "color": "#C0392B",
       "stops": [
         {
@@ -160203,6 +161108,7 @@
     {
       "train": "165",
       "typeName": "自強",
+      "carName": "自強(3000障)",
       "color": "#C0392B",
       "stops": [
         {
@@ -160322,6 +161228,7 @@
     {
       "train": "1822",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -160401,6 +161308,7 @@
     {
       "train": "1821",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -160480,6 +161388,7 @@
     {
       "train": "167",
       "typeName": "自強",
+      "carName": "自強(3000障)",
       "color": "#C0392B",
       "stops": [
         {
@@ -160695,6 +161604,7 @@
     {
       "train": "1820",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -160806,6 +161716,7 @@
     {
       "train": "168",
       "typeName": "自強",
+      "carName": "自強(3000障)",
       "color": "#C0392B",
       "stops": [
         {
@@ -161005,6 +161916,7 @@
     {
       "train": "1828",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -161084,6 +161996,7 @@
     {
       "train": "1826",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -161163,6 +162076,7 @@
     {
       "train": "1825",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -161242,6 +162156,7 @@
     {
       "train": "1824",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -161321,6 +162236,7 @@
     {
       "train": "1823",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -161400,6 +162316,7 @@
     {
       "train": "171",
       "typeName": "自強",
+      "carName": "自強(普,障)",
       "color": "#C0392B",
       "stops": [
         {
@@ -161679,6 +162596,7 @@
     {
       "train": "172",
       "typeName": "自強",
+      "carName": "自強(3000親障)",
       "color": "#C0392B",
       "stops": [
         {
@@ -161878,6 +162796,7 @@
     {
       "train": "175",
       "typeName": "自強",
+      "carName": "自強(PP障)",
       "color": "#C0392B",
       "stops": [
         {
@@ -162085,6 +163004,7 @@
     {
       "train": "176",
       "typeName": "自強",
+      "carName": "自強(PP障)",
       "color": "#C0392B",
       "stops": [
         {
@@ -162284,6 +163204,7 @@
     {
       "train": "1833",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -162363,6 +163284,7 @@
     {
       "train": "178",
       "typeName": "自強",
+      "carName": "自強(普,障)",
       "color": "#C0392B",
       "stops": [
         {
@@ -162626,6 +163548,7 @@
     {
       "train": "1831",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -162737,6 +163660,7 @@
     {
       "train": "179",
       "typeName": "自強",
+      "carName": "自強(3000障)",
       "color": "#C0392B",
       "stops": [
         {
@@ -163032,6 +163956,7 @@
     {
       "train": "1838",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -163111,6 +164036,7 @@
     {
       "train": "1837",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -163190,6 +164116,7 @@
     {
       "train": "1836",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -163269,6 +164196,7 @@
     {
       "train": "1835",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -163348,6 +164276,7 @@
     {
       "train": "1834",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -163459,6 +164388,7 @@
     {
       "train": "180",
       "typeName": "自強",
+      "carName": "自強(3000障)",
       "color": "#C0392B",
       "stops": [
         {
@@ -163714,6 +164644,7 @@
     {
       "train": "1844",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -163785,6 +164716,7 @@
     {
       "train": "1843",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -163896,6 +164828,7 @@
     {
       "train": "1842",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -164007,6 +164940,7 @@
     {
       "train": "1841",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -164118,6 +165052,7 @@
     {
       "train": "1848",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -164197,6 +165132,7 @@
     {
       "train": "1847",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -164308,6 +165244,7 @@
     {
       "train": "1846",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -164419,6 +165356,7 @@
     {
       "train": "1845",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -164530,6 +165468,7 @@
     {
       "train": "191",
       "typeName": "自強",
+      "carName": "自強(3000障)",
       "color": "#C0392B",
       "stops": [
         {
@@ -164601,6 +165540,7 @@
     {
       "train": "193",
       "typeName": "自強",
+      "carName": "自強(3000障)",
       "color": "#C0392B",
       "stops": [
         {
@@ -164688,6 +165628,7 @@
     {
       "train": "194",
       "typeName": "自強",
+      "carName": "自強(3000障)",
       "color": "#C0392B",
       "stops": [
         {
@@ -164799,6 +165740,7 @@
     {
       "train": "196",
       "typeName": "自強",
+      "carName": "自強(3000障)",
       "color": "#C0392B",
       "stops": [
         {
@@ -164910,6 +165852,7 @@
     {
       "train": "198",
       "typeName": "自強",
+      "carName": "自強(PP障)",
       "color": "#C0392B",
       "stops": [
         {
@@ -164997,6 +165940,7 @@
     {
       "train": "2702",
       "typeName": "區間快",
+      "carName": "區間快",
       "color": "#16A085",
       "stops": [
         {
@@ -165076,6 +166020,7 @@
     {
       "train": "199",
       "typeName": "自強",
+      "carName": "自強(PP障)",
       "color": "#C0392B",
       "stops": [
         {
@@ -165163,6 +166108,7 @@
     {
       "train": "2708",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -165226,6 +166172,7 @@
     {
       "train": "2707",
       "typeName": "區間快",
+      "carName": "區間快",
       "color": "#16A085",
       "stops": [
         {
@@ -165313,6 +166260,7 @@
     {
       "train": "2706",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -165376,6 +166324,7 @@
     {
       "train": "2705",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -165439,6 +166388,7 @@
     {
       "train": "2704",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -165502,6 +166452,7 @@
     {
       "train": "2703",
       "typeName": "區間快",
+      "carName": "區間快",
       "color": "#16A085",
       "stops": [
         {
@@ -165589,6 +166540,7 @@
     {
       "train": "2713",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -165652,6 +166604,7 @@
     {
       "train": "2712",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -165715,6 +166668,7 @@
     {
       "train": "2711",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -165778,6 +166732,7 @@
     {
       "train": "2718",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -165841,6 +166796,7 @@
     {
       "train": "2717",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -165904,6 +166860,7 @@
     {
       "train": "2716",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -165967,6 +166924,7 @@
     {
       "train": "2715",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -166030,6 +166988,7 @@
     {
       "train": "2714",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -166093,6 +167052,7 @@
     {
       "train": "3802",
       "typeName": "區間快",
+      "carName": "區間快",
       "color": "#16A085",
       "stops": [
         {
@@ -166148,6 +167108,7 @@
     {
       "train": "2724",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -166211,6 +167172,7 @@
     {
       "train": "2723",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -166274,6 +167236,7 @@
     {
       "train": "2722",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -166337,6 +167300,7 @@
     {
       "train": "2721",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -166400,6 +167364,7 @@
     {
       "train": "2728",
       "typeName": "區間快",
+      "carName": "區間快",
       "color": "#16A085",
       "stops": [
         {
@@ -166487,6 +167452,7 @@
     {
       "train": "2727",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -166550,6 +167516,7 @@
     {
       "train": "2726",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -166613,6 +167580,7 @@
     {
       "train": "2725",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -166676,6 +167644,7 @@
     {
       "train": "2504",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -166899,6 +167868,7 @@
     {
       "train": "2503",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -167082,6 +168052,7 @@
     {
       "train": "2502",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -167209,6 +168180,7 @@
     {
       "train": "2501",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -167280,6 +168252,7 @@
     {
       "train": "2507",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -167463,6 +168436,7 @@
     {
       "train": "2514",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -167646,6 +168620,7 @@
     {
       "train": "2513",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -167829,6 +168804,7 @@
     {
       "train": "2512",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -168012,6 +168988,7 @@
     {
       "train": "2511",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -168195,6 +169172,7 @@
     {
       "train": "2518",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -168426,6 +169404,7 @@
     {
       "train": "2517",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -168641,6 +169620,7 @@
     {
       "train": "4705",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -168744,6 +169724,7 @@
     {
       "train": "4706",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -168847,6 +169828,7 @@
     {
       "train": "2524",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -168998,6 +169980,7 @@
     {
       "train": "4707",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -169101,6 +170084,7 @@
     {
       "train": "2523",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -169284,6 +170268,7 @@
     {
       "train": "4708",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -169363,6 +170348,7 @@
     {
       "train": "2522",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -169586,6 +170572,7 @@
     {
       "train": "2521",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -169769,6 +170756,7 @@
     {
       "train": "2528",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -169920,6 +170908,7 @@
     {
       "train": "4703",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -170023,6 +171012,7 @@
     {
       "train": "2527",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -170174,6 +171164,7 @@
     {
       "train": "4704",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -170253,6 +171244,7 @@
     {
       "train": "2540",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -170404,6 +171396,7 @@
     {
       "train": "2535",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -170627,6 +171620,7 @@
     {
       "train": "1203",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -170850,6 +171844,7 @@
     {
       "train": "2534",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -171033,6 +172028,7 @@
     {
       "train": "1202",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -171296,6 +172292,7 @@
     {
       "train": "2533",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -171447,6 +172444,7 @@
     {
       "train": "1201",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -171710,6 +172708,7 @@
     {
       "train": "2532",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -171861,6 +172860,7 @@
     {
       "train": "2531",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -172012,6 +173012,7 @@
     {
       "train": "3861",
       "typeName": "區間快",
+      "carName": "區間快",
       "color": "#16A085",
       "stops": [
         {
@@ -172067,6 +173068,7 @@
     {
       "train": "3863",
       "typeName": "區間快",
+      "carName": "區間快",
       "color": "#16A085",
       "stops": [
         {
@@ -172122,6 +173124,7 @@
     {
       "train": "4712",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -172225,6 +173228,7 @@
     {
       "train": "1208",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -172544,6 +173548,7 @@
     {
       "train": "2539",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -172695,6 +173700,7 @@
     {
       "train": "4714",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -172774,6 +173780,7 @@
     {
       "train": "1207",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -173093,6 +174100,7 @@
     {
       "train": "2538",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {
@@ -173316,6 +174324,7 @@
     {
       "train": "4715",
       "typeName": "區間車",
+      "carName": "區間車",
       "color": "#2E6FB0",
       "stops": [
         {

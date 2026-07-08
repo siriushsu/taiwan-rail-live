@@ -101,7 +101,7 @@
   /* 跟隨小面板(地圖左下角，跟隨列車時顯示) */
   .follow-panel {
     position: absolute; left: 12px; bottom: 12px; z-index: 650;
-    width: 230px;
+    width: 230px; max-height: calc(100% - 24px); overflow-y: auto;
     background: rgba(255,253,246,.97); border: 2px solid #2a4a73; border-radius: 10px;
     padding: 10px 13px 11px;
     font-variant-numeric: tabular-nums;
@@ -123,6 +123,41 @@
   .follow-panel .fp-next .eta { margin-left: auto; font-size: 13px; font-weight: 700; color: #2a4a73; }
   .follow-panel .fp-next .eta b { color: #d23c2a; }
   .follow-panel .fp-dest { margin-top: 4px; font-size: 11.5px; color: #7a6c50; }
+  .follow-panel .fp-status {
+    margin-top: 6px; font-size: 12px; font-weight: 700; color: #b4552a;
+    background: #fbe9df; border: 1px solid #e0a37e; border-radius: 5px; padding: 3px 8px;
+  }
+  .follow-panel .fp-intro {
+    margin-top: 7px; padding-top: 7px; border-top: 1.5px dashed #d8cba9;
+    font-size: 11.5px; line-height: 1.55; color: #6b5f4a;
+  }
+  .follow-panel .fp-intro b.tn { color: #a3641a; }
+  .follow-panel .fp-intro .amen { display: block; margin-top: 3px; color: #2a4a73; font-weight: 600; }
+  .follow-panel .fp-events { margin-top: 7px; padding-top: 6px; border-top: 1.5px dashed #d8cba9; }
+  .follow-panel .fp-ev { font-size: 11px; color: #6b5f4a; padding: 1.5px 0; display: flex; gap: 6px; }
+  .follow-panel .fp-ev .tt { color: #a89468; font-variant-numeric: tabular-nums; flex: none; }
+  .follow-panel .fp-head .fp-star {
+    margin-left: auto; background: none; border: 0; cursor: pointer;
+    color: #d2a12a; font-size: 16px; line-height: 1; padding: 0 2px;
+  }
+  .follow-panel .fp-head .fp-close { margin-left: 0; }
+
+  /* ── 最愛列車 chips ── */
+  .favs { display: flex; flex-wrap: wrap; gap: 8px; margin: 10px 2px 0; }
+  .favs .lbl {
+    flex-basis: 100%; color: #a89468; font-size: 11px; font-weight: 800;
+    letter-spacing: 3px; padding-bottom: 3px; border-bottom: 1.5px dashed #d8cba9;
+  }
+  .favchip {
+    display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px;
+    padding: 5px 10px; border: 1.5px solid #c9b98f; border-radius: 4px;
+    background: #fffdf6; cursor: pointer; color: #3a3226; user-select: none;
+  }
+  .favchip:hover { background: #f7f0dd; }
+  .favchip .star { color: #d2a12a; }
+  .favchip b { color: #1e2c40; }
+  .favchip .rm { color: #a89468; margin-left: 2px; font-weight: 700; padding: 0 2px; }
+  .favchip .rm:hover { color: #d23c2a; }
 
   /* 全畫面模式 */
   body.fs { overflow: hidden; }
@@ -284,6 +319,7 @@
       <div class="fp-head">
         <span class="dot" id="fpDot"></span>
         <b id="fpTrain"></b><span class="kind" id="fpKind"></span>
+        <button class="fp-star" id="fpStar" title="加入最愛">☆</button>
         <button class="fp-close" id="fpClose" title="取消跟隨">×</button>
       </div>
       <div class="fp-next">
@@ -291,7 +327,10 @@
         <span class="stn" id="fpNext"></span>
         <span class="eta" id="fpEta"></span>
       </div>
+      <div class="fp-status" id="fpStatus" hidden></div>
       <div class="fp-dest" id="fpDest"></div>
+      <div class="fp-intro" id="fpIntro" hidden></div>
+      <div class="fp-events" id="fpEvents" hidden></div>
     </div>
     <div class="stage-tools">
       <button id="satBtn" title="切換衛星影像">衛</button>
@@ -332,6 +371,8 @@
     <div class="followbar" id="followBar" hidden></div>
   </div>
 
+  <div class="favs" id="favRow" hidden></div>
+
   <div class="lines" id="lineToggles"></div>
 
   <p class="note" id="note"></p>
@@ -362,9 +403,9 @@ function pal() { return MAP_PAL[state.basemap === 'sat' ? 'sat' : (state.mapDark
 
 // 各系統的站名牌／副標／導言文案(loadSystem 依系統套用)
 const SYS_META = {
-  mrt:       { plateL: '淡水', plateR: '象山', sub: 'TAIPEI METRO LIVE',    lead: '各線列車依 TDX 班距與站間時間在城市裡穿梭 — 拖曳、縮放看看。' },
-  krtc:      { plateL: '小港', plateR: '岡山', sub: 'KAOHSIUNG METRO LIVE', lead: '紅橘兩線與環狀輕軌正在港都穿梭 — 拖曳、縮放看看。' },
-  tmrt:      { plateL: '北屯總站', plateR: '高鐵臺中站', sub: 'TAICHUNG METRO LIVE', lead: '綠線列車沿著文心路跑 — 拖曳、縮放看看。' },
+  mrt:       { plateL: '淡水', plateR: '象山', sub: 'TAIPEI METRO LIVE',    lead: '各線列車依 TDX 班距與站間時間在城市裡穿梭（班距模擬示意，非即時班次）— 拖曳、縮放看看。' },
+  krtc:      { plateL: '小港', plateR: '岡山', sub: 'KAOHSIUNG METRO LIVE', lead: '紅橘兩線與環狀輕軌正在港都穿梭（班距模擬示意，非即時班次）— 拖曳、縮放看看。' },
+  tmrt:      { plateL: '北屯總站', plateR: '高鐵臺中站', sub: 'TAICHUNG METRO LIVE', lead: '綠線列車沿著文心路跑（班距模擬示意，非即時班次）— 拖曳、縮放看看。' },
   tra_sched: { plateL: '基隆', plateR: '枋寮', sub: 'TAIWAN RAILWAY LIVE',  lead: '列車依真實時刻表在島上跑來跑去 — 點列車直接跟隨、點車站看誰要來。' },
 };
 
@@ -730,7 +771,11 @@ function tick(now) {
       state.elapsed += dt;
     }
   }
-  if (state.mode === 'sched' && state.followTrain) updateFollowCamera();
+  if (state.mode === 'sched' && state.followTrain) {
+    updateFollowCamera();
+    state._evClock = (state._evClock || 0) + dt;
+    if (state._evClock >= 0.5) { state._evClock = 0; scanFollowEvents(); }
+  }
   if (state.mode === 'sched') {
     if (state.boardStation && Math.abs(state.simSec - (state.boardRenderedAt || 0)) >= 20) renderBoard();
     drawFlow();
@@ -840,6 +885,7 @@ function loadSystem(sys) {
     reproject(); recomputeTrains();
     const hasTdxSegs = sys.data.lines.some(l => l.segs);
     document.getElementById('note').textContent =
+      '注意：捷運為「班距模擬」示意——發車間隔與站間時間取自官方資料，但畫面上的列車位置是推算的，並非即時班次，實際到離站時刻請以各捷運公司資訊為準。　' +
       (sys.data.source_notes ? '資料來源：' + sys.data.source_notes + '　' : '') +
       (hasTdxSegs ? '站間行駛與停站時間為 TDX 實際值，列車數＝運轉週期 ÷ 班距（依尖離峰）。'
         : '平均營運速度以 ' + state.speed + ' km/h 估算，列車數＝往返週期 ÷ 班距。');
@@ -849,6 +895,7 @@ function loadSystem(sys) {
   closeBoard();
   configTimeSlider();
   buildToggles();
+  renderFavs();
   refreshBadge();
   updateCount();
   const meta = SYS_META[sys.id];
@@ -881,8 +928,9 @@ function populateTrainList() {
   for (const tr of trains) {
     const o = document.createElement('option');
     const a = tr.stops[0].name, b = tr.stops[tr.stops.length - 1].name;
+    const sp = SPECIAL_TRAINS[String(tr.train)];
     o.value = tr.train;
-    o.label = `${tr.train}　${tr.typeName}　${a}→${b}`;
+    o.label = `${tr.train}　${sp ? sp.name + '・' : ''}${tr.typeName}　${a}→${b}`;
     frag.appendChild(o);
   }
   dl.appendChild(frag);
@@ -915,6 +963,7 @@ function setFollow(tr) {
   const pos = trainPos(tr, state.simSec) || { lat: first.lat, lon: first.lon };
   map.setView([pos.lat, pos.lon], Math.max(map.getZoom(), 13), { animate: false });
   state.followStatus = null; renderFollowBar();
+  state.followEvents = []; state._evSeen = {};
   showFollowPanel(tr);
   updateCount();
 }
@@ -924,6 +973,168 @@ function clearFollow() {
   const fb = document.getElementById('followBar');
   if (fb) { fb.hidden = true; fb.className = 'followbar'; fb.innerHTML = ''; }
   document.getElementById('followPanel').hidden = true;
+}
+
+// ── 列車介紹(車次固定的特殊列車 + 依 CarClass 車種說明) ──
+const SPECIAL_TRAINS = {
+  '5898': { name: '藍皮解憂號', desc: '南迴線臺東—枋寮的觀光列車：柴電機車牽引的復古藍皮客車，全台最後可開窗、無空調的普快車廂。沿途貼著太平洋與中央山脈尾稜跑，2021 年整修後以觀光列車之姿復駛。' },
+  '5899': { name: '藍皮解憂號', desc: '南迴線枋寮—臺東的觀光列車：柴電機車牽引的復古藍皮客車，全台最後可開窗、無空調的普快車廂。沿途貼著太平洋與中央山脈尾稜跑，2021 年整修後以觀光列車之姿復駛。' },
+};
+// carName（官方 CarClass 中文名）→ 車型說明;由上而下比對,先中先贏
+const KIND_RULES = [
+  [/普快車|普通車/, '藍皮普快', '無空調、可開窗的傳統客車，全台碩果僅存的普快車體。'],
+  [/\(太/,   '太魯閣自強號', 'TEMU1000 型傾斜式電聯車，過彎不必大幅減速，主跑東部幹線。'],
+  [/\(普/,   '普悠瑪自強號', 'TEMU2000 型傾斜式電聯車，2013 年起投入東部幹線。'],
+  [/\(PP/,   'PP 自強號', 'E1000 型推拉式自強號，前後機車頭一推一拉。'],
+  [/\(3000/, 'EMU3000 新自強', '2021 年起投入的日立製城際電聯車，安靜平穩，設「騰雲座艙」商務車廂。'],
+  [/\(D\d/,  '柴聯自強號', 'DR2800／2900／3100 型柴油電聯車，不吃電、非電化區間也能跑。'],
+  [/自強/,   '自強號', '台鐵最高等級的城際列車。'],
+  [/莒光/,   '莒光號', '機車牽引的傳統對號快車，橘黃塗裝，1970 年登場，班次已越來越少。'],
+  [/復興/,   '復興號', '藍白塗裝的傳統對號列車。'],
+  [/電車|區間/, null, null], // 區間/電車類走 typeName 預設
+];
+const TYPE_DESC = {
+  '區間快': '跳站停靠的快速通勤電聯車。',
+  '區間車': '站站皆停的通勤電聯車。',
+  '自強': '台鐵最高等級的城際列車。',
+  '莒光/復興': '機車牽引的傳統對號列車。',
+};
+// CarClass 括號附註 → 服務標記
+const AMEN_FLAGS = [
+  ['障', '♿ 身障友善座位'], ['腳', '🚲 可帶自行車（兩鐵）'],
+  ['親', '👶 親子車廂'], ['專', '🎫 團體專開列車'], ['郵', '📦 附掛郵政／行包車廂'],
+];
+function trainIntro(tr) {
+  const cn = tr.carName || '';
+  const sp = SPECIAL_TRAINS[String(tr.train)];
+  let kind = null, desc = null;
+  for (const [re, k, d] of KIND_RULES) if (re.test(cn)) { kind = k; desc = d; break; }
+  if (!desc) desc = TYPE_DESC[tr.typeName] || null;
+  const amens = [];
+  const par = (cn.match(/\(([^)]*)\)/) || [])[1] || '';
+  for (const [flag, label] of AMEN_FLAGS) if (par.includes(flag)) amens.push(label);
+  const stops = tr.stops.filter(s => s.stop !== false);
+  const durSec = tr.stops[tr.stops.length - 1].arrSec - tr.stops[0].depSec;
+  const dur = durSec >= 3600
+    ? Math.floor(durSec / 3600) + ' 小時 ' + Math.round(durSec % 3600 / 60) + ' 分'
+    : Math.round(durSec / 60) + ' 分';
+  return { special: sp || null, kind, desc: sp ? sp.desc : desc, amens, nStops: stops.length, dur };
+}
+function renderIntro(tr) {
+  const el = document.getElementById('fpIntro');
+  const it = trainIntro(tr);
+  let html = '';
+  if (it.special) html += `<b class="tn">★ ${it.special.name}</b>　`;
+  if (it.desc) html += it.desc;
+  html += `<span class="amen">停靠 ${it.nStops} 站 · 全程約 ${it.dur}` +
+    (it.amens.length ? ' · ' + it.amens.join('　') : '') + '</span>';
+  el.innerHTML = html; el.hidden = false;
+  return it;
+}
+
+// ── 最愛列車(localStorage) ──
+function loadFavs() { try { return JSON.parse(localStorage.getItem('trainmap-favs') || '[]'); } catch (e) { return []; } }
+function saveFavs(f) { try { localStorage.setItem('trainmap-favs', JSON.stringify(f)); } catch (e) {} }
+function isFav(no) { return loadFavs().some(f => f.train === String(no)); }
+function updateStar() {
+  const b = document.getElementById('fpStar'), tr = state.followTrain;
+  if (!tr) return;
+  const on = isFav(tr.train);
+  b.textContent = on ? '★' : '☆';
+  b.title = on ? '移除最愛' : '加入最愛';
+}
+function toggleFav(tr) {
+  if (!tr) return;
+  const no = String(tr.train);
+  let favs = loadFavs();
+  if (favs.some(f => f.train === no)) favs = favs.filter(f => f.train !== no);
+  else {
+    const sp = SPECIAL_TRAINS[no];
+    const stops = tr.stops;
+    favs.push({ train: no, label: `${sp ? sp.name : tr.typeName}　${stops[0].name}→${stops[stops.length - 1].name}` });
+  }
+  saveFavs(favs); renderFavs(); updateStar();
+}
+function renderFavs() {
+  const box = document.getElementById('favRow');
+  const favs = loadFavs();
+  if (state.mode !== 'sched' || !favs.length) { box.hidden = true; box.innerHTML = ''; return; }
+  box.hidden = false;
+  box.innerHTML = '<div class="lbl">我的最愛（點擊跟隨）</div>';
+  favs.forEach(f => {
+    const el = document.createElement('div');
+    el.className = 'favchip';
+    el.innerHTML = `<span class="star">★</span><b>${f.train}</b><span>${f.label}</span><span class="rm" title="移除">×</span>`;
+    el.onclick = e => {
+      if (e.target.classList.contains('rm')) {
+        saveFavs(loadFavs().filter(x => x.train !== f.train));
+        renderFavs(); if (state.followTrain) updateStar();
+        return;
+      }
+      const tr = findTrain(f.train);
+      if (tr) {
+        const ts = document.getElementById('trainSearch'); if (ts) ts.value = f.train;
+        setFollow(tr);
+      } else showSearchMiss(f.train + '（今日無此班次）');
+    };
+    box.appendChild(el);
+  });
+}
+
+// ── 跟隨動態事件(停靠/交會/待避) ──
+function dwellInfoOf(tr, t) {
+  const s = tr.stops;
+  for (let i = 0; i < s.length; i++)
+    if (t >= s[i].arrSec && t < s[i].depSec)
+      return { st: s[i], i, remain: s[i].depSec - t, total: s[i].depSec - s[i].arrSec };
+  return null;
+}
+function pushFollowEvent(key, msg, once) {
+  const now = state.simSec;
+  state._evSeen = state._evSeen || {};
+  const last = state._evSeen[key];
+  if (last != null && (once || ((now - last + 86400) % 86400) < 900)) return; // 同事件 15 分鐘內不重複;once 則整趟只記一次
+  state._evSeen[key] = now;
+  (state.followEvents = state.followEvents || []).push({ tm: fmtHM(now), msg });
+  if (state.followEvents.length > 6) state.followEvents.shift();
+  renderFollowEvents();
+}
+function renderFollowEvents() {
+  const el = document.getElementById('fpEvents');
+  const evs = state.followEvents || [];
+  if (!state.followTrain || !evs.length) { el.hidden = true; el.innerHTML = ''; return; }
+  el.hidden = false;
+  el.innerHTML = evs.slice(-4).map(e =>
+    `<div class="fp-ev"><span class="tt">${e.tm}</span><span>${e.msg}</span></div>`).join('');
+}
+// 每 ~0.5s 掃一次:進站停靠、與對向車交會、停站時被同向車通過(待避)
+function scanFollowEvents() {
+  const tr = state.followTrain;
+  if (!tr || state.mode !== 'sched') return;
+  const t = state.simSec;
+  const myP = trainPos(tr, t); if (!myP) return;
+  const dw = dwellInfoOf(tr, effT(tr));
+  if (dw && dw.st.stop !== false && dw.total >= 20) {
+    pushFollowEvent('dwell:' + dw.i,
+      dw.total >= 180 ? `停靠 ${dw.st.name}（長時間停車——待避或調度）` : `停靠 ${dw.st.name}`, true);
+  }
+  // 本車行進方向:停站時取「開車後 30 秒」的方向,行進中取「現在→30 秒後」
+  const myQ = trainPos(tr, dw ? dw.st.depSec + 30 : t + 30) || myP;
+  const mvx = myQ.lon - myP.lon, mvy = myQ.lat - myP.lat;
+  const myMoving = !dw && Math.hypot(mvx, mvy) > 1e-7;
+  for (const o of state.trains) {
+    if (o === tr) continue;
+    const p = trainPos(o, t); if (!p) continue;
+    if (Math.abs(p.lat - myP.lat) > 0.006 || Math.abs(p.lon - myP.lon) > 0.006) continue; // 粗篩 ~600m
+    if (haversineKm(myP, p) > 0.45) continue;
+    const q = trainPos(o, t + 30) || p;
+    const ovx = q.lon - p.lon, ovy = q.lat - p.lat;
+    if (Math.hypot(ovx, ovy) < 1e-7) continue; // 對方也停著(同站停靠),不記
+    const dot = mvx * ovx + mvy * ovy;
+    if (dw && dot > 0) pushFollowEvent('pass:' + o.train, `${o.typeName} ${o.train} 通過——本列車待避禮讓`);
+    else if (dot < 0) pushFollowEvent('meet:' + o.train, `與${o.typeName} ${o.train} 交會`);
+    else if (myMoving && dot > 0) { /* 同向併行,不記避免雜訊 */ }
+  }
 }
 
 // ── 跟隨小面板(地圖左下角) ──
@@ -940,7 +1151,10 @@ function showFollowPanel(tr) {
   if (state.mode !== 'sched' || !tr) { fp.hidden = true; return; }
   document.getElementById('fpDot').style.background = tr.color;
   document.getElementById('fpTrain').textContent = tr.train;
-  document.getElementById('fpKind').textContent = tr.typeName;
+  const it = renderIntro(tr);
+  document.getElementById('fpKind').textContent = it.kind || tr.typeName;
+  updateStar();
+  renderFollowEvents();
   const first = tr.stops[0], last = tr.stops[tr.stops.length - 1];
   document.getElementById('fpDest').textContent =
     `${first.name} → ${last.name} · 終點 ${fmtHM(last.arrSec % 86400)} 抵達`;
@@ -959,6 +1173,15 @@ function updateFollowPanel(tr) {
   } else {
     nx.textContent = '—'; eta.textContent = '已抵達終點';
   }
+  // 停靠倒數(通過不停的站不顯示)
+  const stEl = document.getElementById('fpStatus');
+  const dw = dwellInfoOf(tr, effT(tr));
+  if (dw && dw.st.stop !== false && dw.remain > 3 && dw.total >= 20) {
+    const mm = Math.floor(dw.remain / 60), ss = Math.round(dw.remain % 60);
+    stEl.textContent = `⏸ 停靠 ${dw.st.name} · ${mm > 0 ? mm + ' 分 ' : ''}${ss} 秒後開車` +
+      (dw.total >= 180 ? '（待避／調度長停）' : '');
+    stEl.hidden = false;
+  } else stEl.hidden = true;
 }
 
 function renderFollowBar(msg) {
@@ -1208,10 +1431,10 @@ async function boot() {
   map.on('move zoom resize zoomanim', reproject);
 
   const defs = [
+    { id: 'tra_sched', label: '台鐵', url: './data/tra_schedule_dense.json', mode: 'sched' },
     { id: 'mrt', label: '台北捷運', url: './data/trtc.json', speed: 34, mode: 'freq' },
     { id: 'krtc', label: '高雄捷運', url: './data/krtc.json', speed: 36, mode: 'freq' },
     { id: 'tmrt', label: '台中捷運', url: './data/tmrt.json', speed: 32, mode: 'freq' },
-    { id: 'tra_sched', label: '台鐵', url: './data/tra_schedule_dense.json', mode: 'sched' },
   ];
   for (const d of defs) {
     const data = await fetchJSON(d.url);
@@ -1254,6 +1477,7 @@ document.getElementById('tod').oninput = e => {
 };
 document.getElementById('nowBtn').onclick = jumpToNow;
 document.getElementById('fpClose').onclick = clearFollow;
+document.getElementById('fpStar').onclick = () => toggleFav(state.followTrain);
 (() => {
   const fc = document.getElementById('flowChart'), lbl = document.getElementById('flowLbl');
   const timeAt = e => Math.max(0, Math.min(86399, e.offsetX / fc.clientWidth * 86400));
