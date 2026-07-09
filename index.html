@@ -84,13 +84,10 @@
     border: 1.5px solid #c9b98f; border-radius: 6px; padding: 6px 13px;
     box-shadow: 0 2px 0 #c9b98f; display: inline-flex; align-items: center; gap: 7px;
   }
-  .groupmembers .mem.sched.active {
-    background: #d23c2a; color: #fff8ec; border-color: #a92c1d; box-shadow: 0 2px 0 #a92c1d;
-  }
-  .groupmembers .mem.freq.on {
+  .groupmembers .mem.on {
     background: #2f7d5b; color: #fff8ec; border-color: #246146; box-shadow: 0 2px 0 #246146;
   }
-  .groupmembers .mem.freq.off { opacity: .7; }
+  .groupmembers .mem.off { opacity: .7; }
   .groupmembers .mem .memck {
     width: 13px; height: 13px; border-radius: 3px; border: 1.5px solid currentColor;
     display: inline-flex; align-items: center; justify-content: center; font-size: 10px; line-height: 1;
@@ -954,7 +951,7 @@
 <script>
 // 版本戳記:每次改版 push 前手動遞增(字母序),畫面時鐘徽章與 console 都會顯示,
 // 供比對線上跑的是不是最新版(瀏覽器快取 max-age=600 常讓人看到舊版)
-const BUILD = 'v0709u';
+const BUILD = 'v0710a';
 const state = {
   systems: [], sysId: null, data: null, speed: 36, mode: 'freq',
   lines: [], visible: new Set(), trains: [], schedStations: [], types: [],
@@ -1210,9 +1207,9 @@ function projectOntoShape(ln, lat, lon) {
   return { d: bestD, perpKm: bestKm };
 }
 
-// map each schedule stop to (line, arc-length d) so sched trains ride the real shape
-function assignSchedShapePaths() {
-  const lines = state.trackLines || [];
+// map each schedule stop to (line, arc-length d) so sched trains ride the real shape.
+// 逐系統呼叫:byName 只收該系統自己的軌道,台鐵車不會誤貼到高鐵軌道(共站處相鄰)。
+function assignSchedShapePathsFor(trains, lines) {
   const byName = new Map();
   lines.forEach(ln => {
     if (!ln.shape) return;
@@ -1227,7 +1224,7 @@ function assignSchedShapePaths() {
   // 治兩類殘存直線:線站列缺站(百福/南樹林/暖暖/成功等)整段退化成弦;
   // 跨線站(成功在成追線＋山線)缺其中一線導致相鄰段配不到共同線。
   const uniq = new Map();
-  for (const tr of state.trains) for (const s of tr.stops)
+  for (const tr of trains) for (const s of tr.stops)
     if (!uniq.has(s.name)) uniq.set(s.name, s);
   for (const [name, st] of uniq) {
     const have = new Set((byName.get(name) || []).map(c => c.ln));
@@ -1239,8 +1236,7 @@ function assignSchedShapePaths() {
       byName.get(name).push({ ln, d: pr.d });
     }
   }
-  let onShape = 0, straight = 0;
-  for (const tr of state.trains) {
+  for (const tr of trains) {
     const s = tr.stops;
     for (let i = 0; i < s.length - 1; i++) {
       const A = byName.get(s[i].name), B = byName.get(s[i + 1].name);
@@ -1249,11 +1245,64 @@ function assignSchedShapePaths() {
         const gap = Math.abs(b.d - a.d);
         if (!best || gap < best.gap) best = { ln: a.ln, dA: a.d, dB: b.d, gap };
       }
-      if (best) { s[i].segLn = best.ln; s[i].dA = best.dA; s[i].dB = best.dB; onShape++; }
-      else straight++;
+      if (best) { s[i].segLn = best.ln; s[i].dA = best.dA; s[i].dB = best.dB; state._segStats.onShape++; }
+      else state._segStats.straight++;
     }
   }
-  state._segStats = { onShape, straight };
+}
+
+// 載入一組 sched 系統(1=單一,2=台鐵+高鐵同框):合併列車/軌道/車站/車種,各打系統標記,
+// 逐系統貼軌(不跨系統),再啟動各自的 LIVE/公告輪詢。共用於 loadSystem 與 loadSchedGroup。
+function applySchedSystems(sysList) {
+  state.schedSystems = sysList;
+  state.mode = 'sched';
+  state.sys = sysList[0] || null;
+  state.data = sysList[0] ? sysList[0].data : null;
+  state.lines = []; // 清掉可能殘留的 freq 線
+  for (const sys of sysList) if (sys.special) buildLoopTrains(sys.data); // 環島號(台鐵限定,冪等)
+  // 列車:每班標來源系統 tr.sys
+  state.trains = [];
+  for (const sys of sysList) for (const tr of sys.data.trains) { tr.sys = sys.id; state.trains.push(tr); }
+  // 軌道底圖:每條標來源系統 ln.sys
+  state.trackLines = [];
+  for (const sys of sysList) if (sys._track) for (const ln of sys._track.lines) { ln.sys = sys.id; state.trackLines.push(ln); }
+  state.trackData = state.trackLines.length ? { lines: state.trackLines } : null;
+  state.trackVisible = new Set(state.trackLines.map(l => l.id));
+  // 車站:(系統|站名) 去重——台鐵/高鐵同名站多為相距數公里的不同實體站,不可混
+  const seen = new Map();
+  for (const sys of sysList) for (const tr of sys.data.trains) for (const st of tr.stops) {
+    const k = sys.id + '|' + st.name;
+    if (!seen.has(k)) seen.set(k, { name: st.name, lat: st.lat, lon: st.lon, sys: sys.id });
+  }
+  state.schedStations = [...seen.values()];
+  // 站等分級(台鐵站等表僅台鐵;高鐵站退回停靠班次數啟發式)
+  const CLS_TIER = { '特等': 0, '一等': 1, '二等': 2, '三等': 3 };
+  const clsMap = state.stnClassMap || {};
+  const stopCount = {};
+  for (const tr of state.trains) for (const s of tr.stops)
+    if (s.stop !== false) { const k = tr.sys + '|' + s.name; stopCount[k] = (stopCount[k] || 0) + 1; }
+  state.schedStations.forEach(st => {
+    const c = st.sys === 'tra_sched' ? (clsMap[st.name] || clsMap[st.name.replace(/台/g, '臺')]) : null;
+    st.tier = c ? (CLS_TIER[c] != null ? CLS_TIER[c] : 4)
+      : (n => n >= 200 ? 1 : n >= 90 ? 2 : n >= 30 ? 3 : 4)(stopCount[st.sys + '|' + st.name] || 0);
+  });
+  // 車種:合併(key 目前不撞;撞了保留先出現的)
+  state.types = [];
+  const tkey = new Set();
+  for (const sys of sysList) for (const t of (sys.data.types || [])) if (!tkey.has(t.key)) { tkey.add(t.key); state.types.push(t); }
+  state.visible = new Set(state.types.map(t => t.key));
+  state.simSec = nowSecOfDay();
+  // 逐系統貼軌:只在同系統軌道上找,避免跨系統誤貼
+  state._segStats = { onShape: 0, straight: 0 };
+  for (const sys of sysList) {
+    const trs = state.trains.filter(t => t.sys === sys.id);
+    const lns = state.trackLines.filter(l => l.sys === sys.id);
+    if (lns.length) assignSchedShapePathsFor(trs, lns);
+  }
+  if (sysList.some(s => s.special)) retimeLoopTrains(); // 貼軌後才有弧長,環島車此時才能鋪
+  computeFlow();
+  pollLive();  // 逐車即時誤點(schedSystems 中有 live 的系統,台鐵限定)
+  pollAlert(); // 營運通阻/停駛公告(各活躍系統各自端點)
 }
 
 function recomputeTrains() {
@@ -1675,7 +1724,9 @@ function retimeLoopTrains() {
 // ── 軌道系統分組:同群同時間制,可同框;群組互斥切換,閃掉混模式統一時鐘的難題 ──
 // freq 群(北北桃/中南部):群內多選、班距示意同框。sched 群(國家鐵路):台鐵/高鐵單選(即時)。
 const GROUPS = [
-  { id: 'nat', label: '國家鐵路', mode: 'sched', members: ['tra_sched', 'thsr_sched'] },
+  { id: 'nat', label: '國家鐵路', mode: 'sched', members: ['tra_sched', 'thsr_sched'],
+    plate: { plateL: '基隆', plateR: '枋寮', sub: 'TAIWAN RAILWAY × HSR LIVE',
+      lead: '台鐵與高鐵同框運行，皆依當日真實時刻表（台鐵回到現在時刻自動套用即時誤點）— 點列車跟隨、點車站看班次，或按地圖角落「探」看今日亮點。' } },
   { id: 'north', label: '北北桃', mode: 'freq', members: ['mrt', 'tymc', 'ntdlrt', 'ntalrt'],
     plate: { plateL: '淡水', plateR: '桃園機場', sub: 'GREATER TAIPEI RAIL',
       lead: '台北捷運、桃園機捷、淡海與安坑輕軌同框運行（班距模擬示意，非即時班次）— 可在上方勾選要同時顯示的系統,拖曳、縮放地圖看看。' } },
@@ -1723,34 +1774,7 @@ function loadSystem(sys) {
   clearFollow();
   const ts = document.getElementById('trainSearch'); if (ts) ts.value = '';
   if (state.mode === 'sched') {
-    if (sys.special) buildLoopTrains(sys.data); // 無盡環島號(台鐵限定):首次載入時補進班表(冪等)
-    state.trains = sys.data.trains;
-    const seen = new Map();
-    sys.data.trains.forEach(tr => tr.stops.forEach(st => { if (!seen.has(st.name)) seen.set(st.name, { name: st.name, lat: st.lat, lon: st.lon }); }));
-    state.schedStations = [...seen.values()];
-    // 站等 → 圖示分級:官方站等優先(特等0/一等1/二等2/三等3/簡易招呼4),
-    // 對不上的站(多為支線)以每日停靠班次數推
-    const CLS_TIER = { '特等': 0, '一等': 1, '二等': 2, '三等': 3 };
-    const clsMap = state.stnClassMap || {};
-    const stopCount = {};
-    for (const tr of state.trains)
-      for (const s of tr.stops) if (s.stop !== false) stopCount[s.name] = (stopCount[s.name] || 0) + 1;
-    state.schedStations.forEach(st => {
-      const c = clsMap[st.name] || clsMap[st.name.replace(/台/g, '臺')];
-      st.tier = c ? (CLS_TIER[c] != null ? CLS_TIER[c] : 4)
-        : (n => n >= 200 ? 1 : n >= 90 ? 2 : n >= 30 ? 3 : 4)(stopCount[st.name] || 0);
-    });
-    state.types = sys.data.types || [];
-    state.visible = new Set(state.types.map(t => t.key));
-    state.trackData = sys._track || null; // 該系統的軌道底圖(台鐵/高鐵各自一份;無則站間走直線)
-    state.trackLines = state.trackData ? state.trackData.lines : null;
-    state.trackVisible = new Set((state.trackLines || []).map(l => l.id));
-    state.simSec = nowSecOfDay(); // 開頁即同步現在時刻
-    if (sys.live) pollLive();   // 逐車即時誤點(台鐵限定;高鐵 TDX 無此資料)
-    if (sys.alert) pollAlert(); // 營運通阻/停駛公告(台鐵、高鐵各自端點)
-    if (state.trackLines) assignSchedShapePaths(); // 把班表站貼到軌道幾何,列車沿線跑
-    if (sys.special) retimeLoopTrains(); // 貼軌後才有弧長,環島車時刻此時才能鋪
-    computeFlow();
+    applySchedSystems([sys]);
     fitData(state.schedStations.map(s => [s.lat, s.lon]));
     reproject();
     document.getElementById('note').textContent = sys.live
@@ -1783,6 +1807,7 @@ function loadSystem(sys) {
   finishLoad(SYS_META[sys.id]);
   state.group = groupOf(sys.id).id;
   if (state.mode === 'freq') state.freqSel = new Set([sys.id]);
+  else state.schedSel = new Set([sys.id]);
   renderSystemsBar();
 }
 
@@ -1809,9 +1834,10 @@ function renderSystemsBar() {
     const b = document.createElement('button');
     b.dataset.id = id;
     if (cur.mode === 'sched') {
-      b.className = 'mem sched' + (state.sysId === id ? ' active' : '');
-      b.textContent = sys.label;
-      b.onclick = () => loadSystem(sys);
+      const on = !!(state.schedSel && state.schedSel.has(id));
+      b.className = 'mem sched' + (on ? ' on' : ' off');
+      b.innerHTML = '<span class="memck">' + (on ? '✓' : '') + '</span>' + sys.label;
+      b.onclick = () => toggleSchedMember(id);
     } else {
       const on = !!(state.freqSel && state.freqSel.has(id));
       b.className = 'mem freq' + (on ? ' on' : ' off');
@@ -1825,11 +1851,8 @@ function renderSystemsBar() {
 
 function selectGroup(g) {
   if (state.group === g.id) return;
-  if (g.mode === 'sched') {
-    loadSystem(state.systems.find(s => s.id === g.members[0]) || state.systems[0]);
-  } else {
-    loadFreqGroup(g);
-  }
+  if (g.mode === 'sched') loadSchedGroup(g);
+  else loadFreqGroup(g);
 }
 
 // freq 群組:把選中成員系統的所有線路併入 state.lines,同框顯示(班距示意)
@@ -1881,6 +1904,42 @@ function toggleFreqMember(id) {
   reproject(); recomputeTrains();
   buildToggles(); updateCount();
   renderSystemsBar(); // 不重新 fitData,地圖不跳動
+}
+
+// sched 群組(國家鐵路):台鐵+高鐵同框(皆真實時刻表);群內可多選,預設全開
+function loadSchedGroup(g, sel, keepView) {
+  if (state.autoTour) setAutoTour(false);
+  clearFollow();
+  const ts = document.getElementById('trainSearch'); if (ts) ts.value = '';
+  state.group = g.id;
+  const avail = g.members.filter(id => state.systems.some(s => s.id === id));
+  state.schedSel = sel || new Set(avail);
+  const list = avail.filter(id => state.schedSel.has(id)).map(id => state.systems.find(s => s.id === id));
+  if (!list.length) { renderSystemsBar(); return; } // toggle 有防呆,理論上不會空
+  state.sysId = list[0].id; // 收藏/成就沿用主系統 key(台鐵),不因同框改動
+  applySchedSystems(list);
+  if (!keepView) fitData(state.schedStations.map(s => [s.lat, s.lon]));
+  reproject();
+  const total = state.trains.length;
+  document.getElementById('note').textContent = list.length > 1
+    ? ('台鐵＋高鐵同框，皆依當日真實時刻表運行（台鐵回到現在時刻自動套用即時誤點修正），共 ' + total + ' 車次。' +
+       '兩鐵路線與車站同時顯示，點列車跟隨、點車站看班次。')
+    : (list[0].live
+       ? ('台鐵依當日時刻表運行，回到現在時刻自動套用即時誤點，共 ' + total + ' 車次。點列車跟隨、點車站看班次。')
+       : ('高鐵依當日真實時刻表沿西部走廊運行，共 ' + total + ' 車次。點列車跟隨、點車站看班次。'));
+  populateTrainList();
+  document.getElementById('searchRow').hidden = false;
+  document.getElementById('flowWrap').hidden = false;
+  finishLoad(list.length > 1 ? g.plate : SYS_META[list[0].id]);
+  renderSystemsBar();
+}
+
+function toggleSchedMember(id) {
+  if (!state.schedSel) state.schedSel = new Set();
+  if (state.schedSel.has(id)) { if (state.schedSel.size <= 1) return; state.schedSel.delete(id); }
+  else state.schedSel.add(id);
+  const g = GROUPS.find(x => x.id === state.group);
+  loadSchedGroup(g, state.schedSel, true); // keepView:切換成員不重新框景
 }
 
 function populateTrainList() {
@@ -2966,7 +3025,7 @@ function updateFollowPanel(tr) {
       plate.querySelector('.side.right').style.visibility = next ? 'visible' : 'hidden';
       // 特殊車站介紹:開關開啟且此站為特等/一等或有特色時,站名牌下緣顯示介紹
       const di = document.getElementById('dpIntro');
-      const introHtml = state.stnIntro ? stationIntroText(dw.st.name) : null;
+      const introHtml = (state.stnIntro && tr.sys === 'tra_sched') ? stationIntroText(dw.st.name) : null; // 車站特色庫僅台鐵
       if (introHtml) { di.innerHTML = introHtml; di.style.display = ''; }
       else { di.innerHTML = ''; di.style.display = 'none'; }
     }
@@ -3082,16 +3141,19 @@ function nowSecOfDay() {
 // 修正語意:誤點 N 分的車=照時刻表晚 N 分跑,trainPos 等函式把該車的查詢時間回撥 N 分。
 // 只在「模擬時鐘貼近現在時刻」時套用——時間旅行/高倍速時自動停用,回到純時刻表模擬。
 function liveActive() {
-  return !!(state.live && state.mode === 'sched' && state.sys && state.sys.live &&
+  return !!(state.live && state.mode === 'sched' && state.schedSystems && state.schedSystems.some(s => s.live) &&
     Date.now() - state.live.at < 300e3 &&
     Math.abs(state.simSec - nowSecOfDay()) <= 120);
 }
 function liveDelaySec(tr) {
   if (!liveActive()) return 0;
+  const ls = state.schedSystems.find(s => s.live);
+  if (ls && tr.sys && tr.sys !== ls.id) return 0; // 即時誤點僅套用於有 live 端點的系統(台鐵),不誤套高鐵
   return (state.live.map.get(String(tr.train)) || 0) * 60;
 }
 async function pollLive() {
-  const url = state.sys && state.sys.live;
+  const ls = state.schedSystems && state.schedSystems.find(s => s.live);
+  const url = ls && ls.live;
   if (document.hidden || state.mode !== 'sched' || !url) return;
   try {
     const r = await fetch(url, { cache: 'no-store' });
@@ -3120,15 +3182,21 @@ pollLive();
 // 只轉述官方公告不推定個別班次:正常時 TDX 回單筆 Status:1「全線營運正常」,取其餘條目當異常
 const escHtml = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 async function pollAlert() {
-  const url = state.sys && state.sys.alert;
-  if (document.hidden || state.mode !== 'sched' || !url) return;
-  try {
-    const r = await fetch(url, { cache: 'no-store' });
-    if (!r.ok) throw new Error(r.status);
-    const d = await r.json();
-    if (!Array.isArray(d.alerts)) throw new Error('bad payload');
-    state.alert = { at: d.at, list: d.alerts.filter(a => a.status !== 1) };
-  } catch (e) { /* 失敗保留舊資料 */ }
+  const sysList = (state.schedSystems || []).filter(s => s.alert);
+  if (document.hidden || state.mode !== 'sched' || !sysList.length) return;
+  const merged = []; let at = '', ok = 0;
+  for (const sys of sysList) {
+    try {
+      const r = await fetch(sys.alert, { cache: 'no-store' });
+      if (!r.ok) throw new Error(r.status);
+      const d = await r.json();
+      if (!Array.isArray(d.alerts)) throw new Error('bad payload');
+      ok++;
+      if (d.at && d.at > at) at = d.at;
+      for (const a of d.alerts) if (a.status !== 1) merged.push({ ...a, sysLabel: sys.label });
+    } catch (e) { /* 單一系統失敗略過,不影響其他系統 */ }
+  }
+  if (ok) state.alert = { at, list: merged }; // 至少一個系統回應才更新(全失敗保留舊資料)
   renderAlertBanner();
 }
 // 公告文字/影響範圍 → 本站軌道線 id;「東部幹線」等總稱先展開,再比對各線基底名
@@ -3163,12 +3231,12 @@ function renderAlertDetail() {
   const list = (state.alert && state.alert.list) || [];
   const fmtT = s => s ? String(s).replace('T', ' ').slice(5, 16) : '';
   det.innerHTML = list.map(a =>
-    `<div class="ad-row"><b>${escHtml(a.title || '通阻公告')}</b>` +
+    `<div class="ad-row"><b>${a.sysLabel ? escHtml('【' + a.sysLabel + '】') : ''}${escHtml(a.title || '通阻公告')}</b>` +
     (a.start || a.end ? `<div class="ad-time">${fmtT(a.start)}${a.end ? ' ～ ' + fmtT(a.end) : ' 起'}</div>` : '') +
     (a.desc ? `<div>${escHtml(a.desc)}</div>` : '') +
     (a.lines && a.lines.length ? `<div class="ad-time">影響路線：${escHtml(a.lines.join('、'))}</div>` : '') +
     `</div>`).join('') +
-    `<div class="ad-src">來源：${escHtml((state.sys && state.sys.label) || '台鐵')}營運通阻公告（TDX，每 5 分鐘更新）· 列車動畫仍照原時刻表模擬，停駛班次不會自畫面消失，實際運行以官方公告為準</div>`;
+    `<div class="ad-src">來源：TDX 各鐵路營運通阻公告（每 5 分鐘更新）· 列車動畫仍照原時刻表模擬，停駛班次不會自畫面消失，實際運行以官方公告為準</div>`;
 }
 // 跟隨中的車行經公告影響路線 → 面板加警示列(虛構環島車不套用)
 function updateFollowAlert() {
@@ -3223,7 +3291,7 @@ function stnInfo(name) {
   return m[n] || m[n.replace(/[（(].*$/, '').trim()] || null;
 }
 function stnMetaHtml(st) {
-  const info = stnInfo(st.name);
+  const info = st.sys === 'tra_sched' ? stnInfo(st.name) : null; // 車站地址/特色資料庫僅台鐵;高鐵站只給地圖連結
   const lat = (info && info.lat != null) ? info.lat : st.lat;
   const lon = (info && info.lon != null) ? info.lon : st.lon;
   const href = `https://www.google.com/maps/search/?api=1&query=${lat},${lon}`;
@@ -3302,7 +3370,7 @@ function renderBoard() {
     const stops = tr.stops;
     for (let i = 0; i < stops.length; i++) {
       const s = stops[i];
-      if (s.name !== st.name || s.stop === false) continue;
+      if (s.name !== st.name || s.stop === false || tr.sys !== st.sys) continue; // 同框:只列該站所屬系統的班次
       const isLast = i === stops.length - 1;
       if (tr.loop && isLast) continue; // 環島車的末站=起點,同站已有發車列,不重複列「終點到達」
       const dl = Math.round(liveDelaySec(tr) / 60);
@@ -3604,8 +3672,9 @@ async function boot() {
     const m = /^(\d{1,2}):(\d{2})$/.exec(qs.get('t') || '');
     if (m) deepT = (+m[1] % 24) * 3600 + (+m[2]) * 60;
   } catch (e) {}
-  const initial = state.systems.find(s => s.id === 'tra_sched') || state.systems[0];
-  loadSystem(initial);
+  const natGroup = GROUPS.find(g => g.id === 'nat');
+  if (natGroup) loadSchedGroup(natGroup); // 首屏:台鐵+高鐵同框(缺高鐵資料時自動退回單台鐵)
+  else loadSystem(state.systems.find(s => s.id === 'tra_sched') || state.systems[0]);
   if (deepTrain && state.mode === 'sched') {
     if (deepT != null) setSimSec(deepT);
     const tr0 = findTrain(deepTrain);
