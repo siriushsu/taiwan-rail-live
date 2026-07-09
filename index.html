@@ -315,6 +315,23 @@
   .passport .ph-row .r { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .passport .ph-row .km { color: #8a7c62; }
   .passport .ph-empty { font-size: 12.5px; color: #8a7c62; }
+  .passport .stamp.na { cursor: help; } /* 成就徽章不可點,滑過看解鎖條件 */
+
+  /* ── 收集通知(toast):地圖上方置中彈出後自動消失,一般/全畫面/放空都看得到 ── */
+  .toasts {
+    position: absolute; top: 12px; left: 50%; transform: translateX(-50%); z-index: 720;
+    display: flex; flex-direction: column; align-items: center; gap: 8px;
+    pointer-events: none; max-width: calc(100% - 24px);
+  }
+  .toast {
+    background: #fffdf6; border: 2px solid #d2a12a; border-radius: 10px;
+    box-shadow: 0 3px 0 rgba(163,100,26,.3);
+    padding: 9px 18px; font-size: 14px; font-weight: 700; color: #1e2c40;
+    white-space: nowrap; max-width: 100%; overflow: hidden; text-overflow: ellipsis;
+    opacity: 0; transform: translateY(-10px); transition: opacity .4s ease, transform .4s ease;
+  }
+  .toast.show { opacity: 1; transform: none; }
+  .toast b { color: #a3641a; }
 
   /* 全畫面模式 */
   body.fs { overflow: hidden; }
@@ -579,6 +596,7 @@
     <canvas id="overlay"></canvas>
     <div id="skyTint"></div>
     <div id="veil"></div>
+    <div class="toasts" id="toasts"></div>
     <div class="follow-panel" id="followPanel" hidden>
       <div class="fp-head">
         <span class="dot" id="fpDot"></span>
@@ -702,7 +720,7 @@
 <script>
 // 版本戳記:每次改版 push 前手動遞增(字母序),畫面時鐘徽章與 console 都會顯示,
 // 供比對線上跑的是不是最新版(瀏覽器快取 max-age=600 常讓人看到舊版)
-const BUILD = 'v0709k';
+const BUILD = 'v0709l';
 const state = {
   systems: [], sysId: null, data: null, speed: 36, mode: 'freq',
   lines: [], visible: new Set(), trains: [], schedStations: [], types: [],
@@ -1965,11 +1983,13 @@ function recordRide(tr) {
   const it = trainIntro(tr), s = tr.stops;
   journeyProgress(tr, 0); // 確保 _totalKm 已算
   const spd = specialOf(tr) || {}; // 圖鑑收集用的比對 id(undefined 會被 JSON 丟掉,舊記錄以名稱字串補配)
+  const prevColl = collectionOf(rides), prevAch = unlockedAchievements(rides); // push 前快照,差分找新蓋的章
   rides.push({
     train: tr.train,
     kind: (it.special && it.special.name) || it.kind || tr.typeName,
     from: s[0].name, to: s[s.length - 1].name,
     km: Math.round(tr._totalKm || 0), date: today,
+    dep: s[0].depSec, stops: it.nStops, // 成就判定用(早鳥/夜行者/站站是風景)
     stockId: spd.stock ? spd.stock.id : undefined,
     namedId: spd.named ? spd.named.id : undefined,
     // 一趟可能跨多條支線(如平溪線直通深澳線),全部記下才能各蓋各的章
@@ -1982,6 +2002,7 @@ function recordRide(tr) {
   pushFollowEvent('ride:' + tr.train, '🎫 完乘達成！已記入旅程收集', true);
   renderRidePanel();
   renderPassport();
+  announceCollections(tr, rides, prevColl, prevAch);
 }
 function renderRidePanel() {
   const el = document.getElementById('ridePanel');
@@ -2014,6 +2035,88 @@ function closeRidePanel() {
 }
 
 // ── 旅程護照(首頁完乘記錄+圖鑑收集):搭過蓋章,沒搭過的灰章點了直接去搭一班 ──
+// 完乘記錄 → 三本圖鑑的收集狀態(id 集合);護照渲染與成就判定共用同一份邏輯
+function collectionOf(rides) {
+  const sd = state.special;
+  const named = new Set(), stock = new Set(), branch = new Set();
+  if (sd) {
+    sd.namedTrains.forEach(n => {
+      if (n.trainNos.length && rides.some(r => r.namedId === n.id || r.kind === n.name)) named.add(n.id);
+    });
+    sd.rollingStock.forEach(s => {
+      if (rides.some(r => r.stockId === s.id || r.kind === s.name)) stock.add(s.id);
+    });
+    sd.branchLines.forEach(b => {
+      if (rides.some(r => (r.branchIds || (r.branchId ? [r.branchId] : [])).includes(b.id))) branch.add(b.id);
+    });
+  }
+  return { named, stock, branch };
+}
+// 成就定義:test(完乘記錄, 收集狀態, 總里程) → 是否解鎖(全由記錄推導,不另存)
+const ACHIEVEMENTS = [
+  { id: 'first',    icon: '🎫', name: '初乘紀念',       desc: '完成第一趟完乘' },
+  { id: 'rider5',   icon: '🚉', name: '月台常客',       desc: '完乘 5 趟' },
+  { id: 'rider15',  icon: '🚂', name: '鐵道魂',         desc: '完乘 15 趟' },
+  { id: 'km100',    icon: '🛤', name: '百里行者',       desc: '累積完乘 100 km' },
+  { id: 'km500',    icon: '🗺', name: '半島縱走',       desc: '累積完乘 500 km' },
+  { id: 'km1000',   icon: '🌏', name: '千里鐵道',       desc: '累積完乘 1,000 km' },
+  { id: 'km5000',   icon: '🏅', name: '五千公里俱樂部', desc: '累積完乘 5,000 km' },
+  { id: 'long300',  icon: '🌅', name: '一氣呵成',       desc: '單趟完乘 300 km 以上' },
+  { id: 'stops50',  icon: '🐌', name: '站站是風景',     desc: '完乘一班停靠 50 站以上的慢車' },
+  { id: 'early',    icon: '🌄', name: '早鳥',           desc: '完乘一班清晨 6 點前發車的列車' },
+  { id: 'night',    icon: '🌙', name: '夜行者',         desc: '完乘一班晚上 10 點後發車的列車' },
+  { id: 'day3',     icon: '📅', name: '一日三乘',       desc: '同一天完乘 3 趟' },
+  { id: 'tilting',  icon: '⚖️', name: '傾斜雙雄',       desc: '收集太魯閣號與普悠瑪號兩枚傾斜式車種章' },
+  { id: 'namedAll', icon: '🌟', name: '明星集郵冊',     desc: '收集所有明星列車章' },
+  { id: 'stockAll', icon: '📖', name: '車種全圖鑑',     desc: '收集全部車種章' },
+  { id: 'branchAll', icon: '🌿', name: '支線制霸',      desc: '六條支線全數完乘' },
+];
+const ACH_TESTS = {
+  first:  r => r.length >= 1,
+  rider5: r => r.length >= 5,
+  rider15: r => r.length >= 15,
+  km100:  (r, c, km) => km >= 100,
+  km500:  (r, c, km) => km >= 500,
+  km1000: (r, c, km) => km >= 1000,
+  km5000: (r, c, km) => km >= 5000,
+  long300: r => r.some(x => (x.km || 0) >= 300),
+  stops50: r => r.some(x => (x.stops || 0) >= 50),
+  early:  r => r.some(x => x.dep != null && (x.dep % 86400) < 6 * 3600),
+  night:  r => r.some(x => x.dep != null && (x.dep % 86400) >= 22 * 3600),
+  day3:   r => Object.values(r.reduce((m, x) => (m[x.date] = (m[x.date] || 0) + 1, m), {})).some(n => n >= 3),
+  tilting: (r, c) => c.stock.has('taroko') && c.stock.has('puyuma'),
+  namedAll: (r, c) => { const n = state.special ? state.special.namedTrains.filter(x => x.trainNos.length).length : 0; return n > 0 && c.named.size >= n; },
+  stockAll: (r, c) => state.special && c.stock.size >= state.special.rollingStock.length,
+  branchAll: (r, c) => state.special && c.branch.size >= state.special.branchLines.length,
+};
+function unlockedAchievements(rides) {
+  const coll = collectionOf(rides);
+  const km = rides.reduce((a, r) => a + (r.km || 0), 0);
+  return new Set(ACHIEVEMENTS.filter(a => ACH_TESTS[a.id](rides, coll, km)).map(a => a.id));
+}
+// 收集通知:完乘的當下彈出「完乘達成→新蓋的章→解鎖的成就」,間隔 700ms 依序出現
+function showToast(msg) {
+  const box = document.getElementById('toasts');
+  if (!box) return;
+  const el = document.createElement('div');
+  el.className = 'toast'; el.innerHTML = msg;
+  box.appendChild(el);
+  while (box.children.length > 3) box.firstChild.remove(); // 疊太多先擠掉最舊
+  requestAnimationFrame(() => el.classList.add('show'));
+  setTimeout(() => { el.classList.remove('show'); setTimeout(() => el.remove(), 450); }, 5000);
+}
+function announceCollections(tr, rides, prevColl, prevAch) {
+  const msgs = [`🎫 完乘達成　<b>${tr.train} 次</b> 抵達終點`];
+  const coll = collectionOf(rides), sd = state.special;
+  if (sd) {
+    sd.namedTrains.forEach(n => { if (coll.named.has(n.id) && !prevColl.named.has(n.id)) msgs.push(`⭐ 明星列車　<b>${n.name}</b> 蓋章！`); });
+    sd.rollingStock.forEach(s => { if (coll.stock.has(s.id) && !prevColl.stock.has(s.id)) msgs.push(`🚆 車種圖鑑　<b>${s.name}</b> 蓋章！`); });
+    sd.branchLines.forEach(b => { if (coll.branch.has(b.id) && !prevColl.branch.has(b.id)) msgs.push(`🛤 支線行腳　<b>${b.name}</b> 蓋章！`); });
+  }
+  const ach = unlockedAchievements(rides);
+  ACHIEVEMENTS.forEach(a => { if (ach.has(a.id) && !prevAch.has(a.id)) msgs.push(`🏆 成就解鎖　<b>${a.icon} ${a.name}</b>`); });
+  msgs.forEach((m, i) => setTimeout(() => showToast(m), i * 700));
+}
 function repTrainOf(cands) {
   return cands.find(t => trainPos(t, state.simSec))
     || cands.filter(t => t.stops[0].depSec > state.simSec).sort((a, b) => a.stops[0].depSec - b.stops[0].depSec)[0]
@@ -2035,24 +2138,30 @@ function renderPassport() {
   let stamps = '';
   const sd = state.special;
   if (sd) {
+    const coll = collectionOf(rides);
     const MISS_TIP = '還沒搭過——點我去搭一班';
     const named = sd.namedTrains.filter(n => n.trainNos.length).map(n => { // 無固定車次的觀光列車搭不到,不列入收集
-      const got = rides.some(r => r.namedId === n.id || r.kind === n.name);
+      const got = coll.named.has(n.id);
       const tr = got ? null : repTrainOf(state.trains.filter(t => n.trainNos.includes(String(t.train))));
       return { name: n.name, got, no: tr && tr.train, tip: got ? n.story : MISS_TIP };
     });
     const stocks = sd.rollingStock.map(s => {
-      const got = rides.some(r => r.stockId === s.id || r.kind === s.name);
+      const got = coll.stock.has(s.id);
       const tr = got ? null : repTrainOf(state.trains.filter(t => s.carNames.includes(t.carName)));
       return { name: s.name, got, no: tr && tr.train, tip: got ? s.story : MISS_TIP };
     });
     const branches = sd.branchLines.map(b => {
-      const got = rides.some(r => (r.branchIds || (r.branchId ? [r.branchId] : [])).includes(b.id));
+      const got = coll.branch.has(b.id);
       const tr = got ? null : repTrainOf(state.trains.filter(t => t.stops.some(x => b._set.has(x.name))));
       return { name: b.name, got, no: tr && tr.train, tip: got ? b.story : MISS_TIP };
     });
     stamps = stampRow('明星列車', named) + stampRow('車種圖鑑', stocks) + stampRow('支線行腳', branches);
   }
+  // 成就徽章:全由完乘記錄推導,鎖住的滑過看解鎖條件
+  const ach = unlockedAchievements(rides);
+  stamps += `<div class="ph-sec">成就徽章<b>${ach.size}/${ACHIEVEMENTS.length}</b></div><div class="ph-stamps">` +
+    ACHIEVEMENTS.map(a =>
+      `<span class="stamp na${ach.has(a.id) ? ' got' : ''}" title="${a.desc}">${ach.has(a.id) ? '✓ ' : ''}${a.icon} ${a.name}</span>`).join('') + '</div>';
   const list = rides.slice().reverse().map(r =>
     `<div class="ph-row"><span class="d">${(r.date || '').slice(5)}</span><b>${r.train}</b>` +
     `<span class="k">${r.kind}</span><span class="r">${r.from}→${r.to}</span><span class="km">${r.km} km</span></div>`).join('');
