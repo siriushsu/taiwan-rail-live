@@ -778,6 +778,19 @@
     body.fs .controls { bottom: 8px; width: calc(100vw - 16px); padding: 7px 12px; }
     body.fs .follow-panel { bottom: 132px; }
     body.fs .stage-tools { top: 56px; } /* 帶文字的工具鈕同樣讓開左上時鐘徽章 */
+    /* 放空模式(手機):看戲不操作——控制列只留「離開放空」一顆,跟隨卡縮成迷你條
+      (車次+速度+下一站),別把列車蓋掉;速度/時間/音樂等設定進放空前調好 */
+    body.ambient .controls > :not(#ambientBtn) { display: none; }
+    body.ambient.fs .controls { width: max-content; }
+    body.ambient .follow-panel { width: 176px; padding: 7px 10px 8px; }
+    body.ambient .follow-panel .fp-prog,
+    body.ambient .follow-panel .fp-dest,
+    body.ambient .follow-panel .fp-head .kind,
+    body.ambient .follow-panel .fp-next .lbl { display: none; } /* 「下一站」字樣省下,窄卡站名才不換行 */
+    body.ambient .follow-panel .fp-head b { font-size: 13px; }
+    body.ambient .follow-panel .fp-head .spd b { font-size: 17px; }
+    body.ambient .follow-panel .fp-next .stn { font-size: 14px; white-space: nowrap; }
+    body.ambient.fs .follow-panel { bottom: 54px; } /* 控制列只剩一顆,不用讓 132px 那麼多 */
   }
 </style>
 </head>
@@ -989,7 +1002,7 @@
 <script>
 // 版本戳記:每次改版 push 前手動遞增(字母序),畫面時鐘徽章與 console 都會顯示,
 // 供比對線上跑的是不是最新版(瀏覽器快取 max-age=600 常讓人看到舊版)
-const BUILD = 'v0710i';
+const BUILD = 'v0710j';
 const state = {
   systems: [], sysId: null, data: null, speed: 36, mode: 'freq',
   lines: [], visible: new Set(), trains: [], schedStations: [], types: [],
@@ -2392,6 +2405,7 @@ function ambientIdleReset() {
 function setAmbient(on) {
   if (on === !!state.ambient) return;
   state.ambient = on;
+  document.body.classList.toggle('ambient', on); // 供 CSS 做放空專屬版面(手機迷你化)
   const b = document.getElementById('ambientBtn');
   if (on) {
     if (state.mode !== 'sched') {
