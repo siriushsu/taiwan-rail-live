@@ -65,17 +65,35 @@
   .plate-arrow { width: 108px; height: 14px; display: block; margin: 0 12px; color: #26497e; }
   header p { margin: 0 0 16px; color: #7a6c50; font-size: 14px; }
 
-  /* ── 系統切換 ── */
-  .systems { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 14px; }
-  .systems button {
-    font: inherit; font-size: 14px; font-weight: 600; cursor: pointer;
-    background: #e6d9ba; color: #7a6c50;
-    border: 1.5px solid #c9b98f; border-radius: 6px; padding: 8px 18px;
+  /* ── 系統切換:上排群組頁籤(互斥)+ 下排群內成員 ── */
+  .systems { margin: 0 0 14px; }
+  .grouptabs { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 9px; }
+  .grouptabs .gtab {
+    font: inherit; font-size: 14px; font-weight: 700; cursor: pointer;
+    background: #efe6cc; color: #7a6c50;
+    border: 1.5px solid #c9b98f; border-radius: 999px; padding: 7px 18px;
     box-shadow: 0 2px 0 #c9b98f;
   }
-  .systems button.active {
-    background: #d23c2a; color: #fff8ec; font-weight: 800;
-    border-color: #a92c1d; box-shadow: 0 2px 0 #a92c1d;
+  .grouptabs .gtab.active {
+    background: #26497e; color: #fff8ec; border-color: #1c3a68; box-shadow: 0 2px 0 #1c3a68;
+  }
+  .groupmembers { display: flex; flex-wrap: wrap; gap: 8px; }
+  .groupmembers .mem {
+    font: inherit; font-size: 13px; font-weight: 600; cursor: pointer;
+    background: #e6d9ba; color: #7a6c50;
+    border: 1.5px solid #c9b98f; border-radius: 6px; padding: 6px 13px;
+    box-shadow: 0 2px 0 #c9b98f; display: inline-flex; align-items: center; gap: 7px;
+  }
+  .groupmembers .mem.sched.active {
+    background: #d23c2a; color: #fff8ec; border-color: #a92c1d; box-shadow: 0 2px 0 #a92c1d;
+  }
+  .groupmembers .mem.freq.on {
+    background: #2f7d5b; color: #fff8ec; border-color: #246146; box-shadow: 0 2px 0 #246146;
+  }
+  .groupmembers .mem.freq.off { opacity: .7; }
+  .groupmembers .mem .memck {
+    width: 13px; height: 13px; border-radius: 3px; border: 1.5px solid currentColor;
+    display: inline-flex; align-items: center; justify-content: center; font-size: 10px; line-height: 1;
   }
 
   /* ── 地圖 stage ── */
@@ -936,7 +954,7 @@
 <script>
 // 版本戳記:每次改版 push 前手動遞增(字母序),畫面時鐘徽章與 console 都會顯示,
 // 供比對線上跑的是不是最新版(瀏覽器快取 max-age=600 常讓人看到舊版)
-const BUILD = 'v0709t';
+const BUILD = 'v0709u';
 const state = {
   systems: [], sysId: null, data: null, speed: 36, mode: 'freq',
   lines: [], visible: new Set(), trains: [], schedStations: [], types: [],
@@ -1121,7 +1139,7 @@ function buildLineSchedule(ln) {
       if (sg && sg.run > 0) t += sg.run; // TDX 真實站間行駛秒
       else {
         const gap = hasShape ? Math.abs(seq[i].d - seq[i - 1].d) : haversineKm(seq[i - 1], seq[i]);
-        t += gap / state.speed * 3600;
+        t += gap / (ln._speed || state.speed) * 3600;
       }
     }
     const dw = seq[i].dwell || DWELL_SEC; // TDX 真實停站秒(缺值 25s)
@@ -1654,6 +1672,40 @@ function retimeLoopTrains() {
   }
 }
 
+// ── 軌道系統分組:同群同時間制,可同框;群組互斥切換,閃掉混模式統一時鐘的難題 ──
+// freq 群(北北桃/中南部):群內多選、班距示意同框。sched 群(國家鐵路):台鐵/高鐵單選(即時)。
+const GROUPS = [
+  { id: 'nat', label: '國家鐵路', mode: 'sched', members: ['tra_sched', 'thsr_sched'] },
+  { id: 'north', label: '北北桃', mode: 'freq', members: ['mrt', 'tymc', 'ntdlrt', 'ntalrt'],
+    plate: { plateL: '淡水', plateR: '桃園機場', sub: 'GREATER TAIPEI RAIL',
+      lead: '台北捷運、桃園機捷、淡海與安坑輕軌同框運行（班距模擬示意，非即時班次）— 可在上方勾選要同時顯示的系統,拖曳、縮放地圖看看。' } },
+  { id: 'south', label: '中南部', mode: 'freq', members: ['tmrt', 'krtc'],
+    plate: { plateL: '台中', plateR: '高雄', sub: 'CENTRAL & SOUTHERN METRO',
+      lead: '台中捷運與高雄捷運同框（班距模擬示意，非即時班次）— 可在上方勾選要同時顯示的系統。' } },
+];
+const groupOf = id => GROUPS.find(g => g.members.includes(id)) || GROUPS[0];
+
+// loadSystem / loadFreqGroup 共用尾段:面板收合、圖例、徽章、站名牌
+function finishLoad(meta) {
+  closeBoard();
+  closeFavPanel();
+  closeRidePanel();
+  closeExplorePanel();
+  configTimeSlider();
+  buildToggles();
+  renderFavs();
+  renderPassport();
+  renderAlertBanner(); // 換到捷運模式收掉台鐵通阻橫幅
+  refreshBadge();
+  updateCount();
+  if (meta) {
+    document.getElementById('plateL').textContent = meta.plateL;
+    document.getElementById('plateR').textContent = meta.plateR;
+    document.getElementById('plateSub').textContent = meta.sub;
+    document.getElementById('lead').textContent = meta.lead;
+  }
+}
+
 function loadSystem(sys) {
   state.sysId = sys.id; state.sys = sys; state.data = sys.data; state.mode = sys.mode || 'freq';
   if (state.autoTour) setAutoTour(false); // 手動換系統即退出隨機模式
@@ -1717,37 +1769,107 @@ function loadSystem(sys) {
     document.getElementById('searchRow').hidden = true;
     document.getElementById('flowWrap').hidden = true;
   }
-  closeBoard();
-  closeFavPanel();
-  closeRidePanel();
-  closeExplorePanel();
-  configTimeSlider();
-  buildToggles();
-  renderFavs();
-  renderPassport();
-  renderAlertBanner(); // 換到捷運模式收掉台鐵通阻橫幅
-  refreshBadge();
-  updateCount();
-  const meta = SYS_META[sys.id];
-  if (meta) {
-    document.getElementById('plateL').textContent = meta.plateL;
-    document.getElementById('plateR').textContent = meta.plateR;
-    document.getElementById('plateSub').textContent = meta.sub;
-    document.getElementById('lead').textContent = meta.lead;
-  }
-  document.querySelectorAll('#systems button').forEach(b =>
-    b.classList.toggle('active', b.dataset.id === sys.id));
+  finishLoad(SYS_META[sys.id]);
+  state.group = groupOf(sys.id).id;
+  if (state.mode === 'freq') state.freqSel = new Set([sys.id]);
+  renderSystemsBar();
 }
 
-function buildSystemToggle() {
+// 系統切換列:上排群組頁籤(互斥),下排該群成員(sched 單選/freq 多選)
+function renderSystemsBar() {
   const box = document.getElementById('systems');
   box.innerHTML = '';
-  state.systems.forEach(sys => {
+  const cur = GROUPS.find(g => g.id === state.group) || GROUPS[0];
+  const tabs = document.createElement('div');
+  tabs.className = 'grouptabs';
+  GROUPS.forEach(g => {
     const b = document.createElement('button');
-    b.textContent = sys.label; b.dataset.id = sys.id;
-    b.onclick = () => loadSystem(sys);
-    box.appendChild(b);
+    b.className = 'gtab' + (g.id === cur.id ? ' active' : '');
+    b.textContent = g.label;
+    b.onclick = () => selectGroup(g);
+    tabs.appendChild(b);
   });
+  box.appendChild(tabs);
+  const mem = document.createElement('div');
+  mem.className = 'groupmembers';
+  cur.members.forEach(id => {
+    const sys = state.systems.find(s => s.id === id);
+    if (!sys) return;
+    const b = document.createElement('button');
+    b.dataset.id = id;
+    if (cur.mode === 'sched') {
+      b.className = 'mem sched' + (state.sysId === id ? ' active' : '');
+      b.textContent = sys.label;
+      b.onclick = () => loadSystem(sys);
+    } else {
+      const on = !!(state.freqSel && state.freqSel.has(id));
+      b.className = 'mem freq' + (on ? ' on' : ' off');
+      b.innerHTML = '<span class="memck">' + (on ? '✓' : '') + '</span>' + sys.label;
+      b.onclick = () => toggleFreqMember(id);
+    }
+    mem.appendChild(b);
+  });
+  box.appendChild(mem);
+}
+
+function selectGroup(g) {
+  if (state.group === g.id) return;
+  if (g.mode === 'sched') {
+    loadSystem(state.systems.find(s => s.id === g.members[0]) || state.systems[0]);
+  } else {
+    loadFreqGroup(g);
+  }
+}
+
+// freq 群組:把選中成員系統的所有線路併入 state.lines,同框顯示(班距示意)
+function loadFreqGroup(g, sel) {
+  if (state.autoTour) setAutoTour(false);
+  clearFollow();
+  const ts = document.getElementById('trainSearch'); if (ts) ts.value = '';
+  state.group = g.id;
+  state.mode = 'freq';
+  state.sys = null; state.sysId = g.id;
+  state.freqSel = sel || new Set(g.members);
+  state.speed = 30; // 僅缺 segs 的線才用到;各線另存 _speed
+  state.hour = Math.min(24, Math.max(5, new Date().getHours()));
+  rebuildFreqLines(g);
+  // 視野一次框住整個群組(含未勾選成員),之後勾選/取消不再移動地圖
+  const pts = g.members.map(id => state.systems.find(s => s.id === id)).filter(Boolean)
+    .flatMap(s => s.data.lines.flatMap(l => l.stations.map(st => [st.lat, st.lon])));
+  fitData(pts);
+  state.elapsed = 0;
+  reproject(); recomputeTrains();
+  document.getElementById('note').textContent =
+    '注意：捷運／輕軌為「班距模擬」示意——發車間隔與站間時間取自官方資料,畫面上的列車位置是推算的、並非即時班次。' +
+    '可勾選上方系統同時顯示多個路網。' + (state.lines.length ? '' : '（目前未選任何系統）');
+  document.getElementById('searchRow').hidden = true;
+  document.getElementById('flowWrap').hidden = true;
+  finishLoad(g.plate);
+  renderSystemsBar();
+}
+
+function rebuildFreqLines(g) {
+  const lines = [];
+  for (const id of g.members) {
+    if (!state.freqSel.has(id)) continue;
+    const sys = state.systems.find(s => s.id === id);
+    if (!sys) continue;
+    for (const l of sys.data.lines) lines.push({ ...l, abbr: abbrOf(l), _speed: sys.speed, _sys: sys.id, _sysLabel: sys.label });
+  }
+  state.lines = lines;
+  state.visible = new Set(lines.map(l => l.id));
+  state.data = { lines }; // reproject 只判斷真值,不讀內容
+}
+
+function toggleFreqMember(id) {
+  if (!state.freqSel) state.freqSel = new Set();
+  if (state.freqSel.has(id)) state.freqSel.delete(id);
+  else state.freqSel.add(id);
+  const g = GROUPS.find(x => x.id === state.group);
+  rebuildFreqLines(g);
+  reproject(); recomputeTrains();
+  buildToggles(); updateCount();
+  renderSystemsBar(); // 不重新 fitData,地圖不跳動
 }
 
 function populateTrainList() {
@@ -3462,7 +3584,7 @@ async function boot() {
     document.getElementById('note').textContent = '找不到路網資料（data/*.json 還在準備）';
     return;
   }
-  buildSystemToggle();
+  renderSystemsBar();
   // 深連結:?train=5899&t=11:00 直接在該時刻跟隨該車次(可分享)。要在 loadSystem 前讀,clearFollow 會清掉 query
   let deepTrain = null, deepT = null;
   try {
