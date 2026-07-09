@@ -3,7 +3,11 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>台灣鐵道 · 列車流動</title>
+<title>列車有時</title>
+<meta name="description" content="列車有時。看台鐵此刻準點嗎、捷運怎麼穿梭全台，一張會動的台灣鐵道地圖。" />
+<meta property="og:title" content="列車有時" />
+<meta property="og:description" content="Taiwan's trains, moving live." />
+<meta property="og:type" content="website" />
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css" />
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <style>
@@ -29,32 +33,35 @@
     .side-col { position: static; max-height: none; overflow: visible; padding: 0; }
   }
 
-  /* ── 站名牌 header ── */
+  /* ── 站名牌 header(仿早期台鐵琺瑯站名牌:白底藍字細鋼框,大字站名+拼音置中,
+     下緣左右鄰站夾雙向箭頭) ── */
   .plate {
-    background: #fffdf6;
-    border: 3.5px solid #2a4a73;
-    border-radius: 12px;
-    box-shadow: 0 3px 0 rgba(42,74,115,.22);
-    padding: 14px 22px 15px;
-    display: flex; align-items: center; justify-content: space-between; gap: 12px;
+    background: linear-gradient(178deg, #ffffff 0%, #f7f5ee 72%, #edebe0 100%);
+    border: 3px solid #9a958a;
+    border-radius: 10px;
+    box-shadow: 0 0 0 1.5px #767061, 0 5px 14px rgba(58,50,38,.22);
+    padding: 16px 18px 12px;
+    text-align: center;
     margin-bottom: 10px;
   }
-  .plate-side {
-    display: flex; flex-direction: column; gap: 1px;
-    font-size: 12px; font-weight: 700; color: #2a4a73; white-space: nowrap;
-  }
-  .plate-side.left { align-items: flex-start; }
-  .plate-side.right { align-items: flex-end; }
-  .plate-side .arr { font-size: 14px; line-height: 1; }
-  .plate-mid { text-align: center; }
+  /* letter-spacing 會在末字後多一格,置中會偏左;text-indent 同值補償 */
   header h1 {
-    font-size: 28px; font-weight: 900; letter-spacing: 7px;
-    color: #1e2c40; margin: 0;
+    font-size: 34px; font-weight: 900; letter-spacing: 14px; text-indent: 14px;
+    color: #26497e; margin: 0; line-height: 1.15;
   }
   .plate-sub {
-    margin: 3px 0 0; font-size: 10px; letter-spacing: 3px;
-    color: #8a7c62; font-weight: 600;
+    margin: 2px 0 0; font-size: 12px; letter-spacing: 5px; text-indent: 5px;
+    color: #26497e; font-weight: 800;
   }
+  .plate-foot {
+    margin-top: 10px;
+    display: grid; grid-template-columns: 1fr auto 1fr; align-items: center;
+  }
+  .plate-foot .stn {
+    font-size: 17px; font-weight: 800; letter-spacing: 6px; text-indent: 6px;
+    color: #26497e; white-space: nowrap;
+  }
+  .plate-arrow { width: 108px; height: 14px; display: block; margin: 0 12px; color: #26497e; }
   header p { margin: 0 0 16px; color: #7a6c50; font-size: 14px; }
 
   /* ── 系統切換 ── */
@@ -93,11 +100,15 @@
   .stage.dark .leaflet-container { background: #10141c; }
   .stage.sat .leaflet-container { background: #2e4636; }
 
-  /* 地圖工具鈕(全畫面、明暗、衛星)——疊在 Leaflet 縮放鈕上方(縮放鈕在右下角) */
+  /* 地圖工具鈕(全畫面、明暗、衛星)——貼地圖右下邊緣,Leaflet 縮放鈕疊在其正上方(見下方 .leaflet-bottom.leaflet-right) */
   .stage-tools {
-    position: absolute; right: 12px; bottom: 80px; z-index: 700;
+    position: absolute; right: 12px; bottom: 12px; z-index: 700;
     display: flex; gap: 8px;
   }
+  /* Leaflet 縮放鈕(bottomright)讓出下方空間給 .stage-tools,兩者不重疊;
+     全畫面模式下工具鈕移到右上(見 body.fs 區塊),縮放鈕改回原生底部位置 */
+  .leaflet-bottom.leaflet-right { bottom: 58px; }
+  body.fs .leaflet-bottom.leaflet-right { bottom: 10px; }
   .stage-tools button {
     font: inherit; font-size: 15px; font-weight: 700; cursor: pointer;
     width: 38px; height: 38px; display: flex; align-items: center; justify-content: center;
@@ -490,10 +501,11 @@
   }
   .followbar.miss { background: #fbe9df; border-color: #e0a37e; color: #b4552a; }
 
-  /* ── 車站時刻板 ── */
+  /* ── 車站時刻板(及其他共用外觀的面板:最愛/旅程/探索) ── */
   .board {
     position: absolute; top: 12px; right: 12px; z-index: 650;
-    width: 272px; max-height: calc(100% - 24px); overflow-y: auto;
+    /* 下緣讓開右下角同一欄的 Leaflet 縮放鈕+.stage-tools(縮放鈕疊在工具鈕上方),面板內自行捲動 */
+    width: 272px; max-height: calc(100% - 176px); overflow-y: auto;
     background: rgba(255,253,246,.97); border: 2px solid #2a4a73; border-radius: 10px;
     padding: 12px 14px;
   }
@@ -514,8 +526,6 @@
     color: #a89468; font-size: 11px; font-weight: 800; letter-spacing: 3px;
     margin: 10px 0 1px; padding-bottom: 3px; border-bottom: 1.5px dashed #d8cba9;
   }
-  /* 亮點面板條目多,下緣讓開右下角工具鈕(bottom 80px+鈕高 38px),面板內自行捲動 */
-  #explorePanel { max-height: calc(100% - 132px); }
   /* 我的最愛面板(共用 .board 外觀) */
   #favBtn { color: #d2a12a; }
   #favPanel .row.fv { cursor: pointer; }
@@ -539,11 +549,12 @@
   /* ── 手機直立版 ── */
   @media (max-width: 640px) {
     .wrap { padding: 12px 12px 40px; }
-    .plate { padding: 10px 14px 11px; border-width: 3px; }
-    header h1 { font-size: 19px; letter-spacing: 4px; }
-    .plate-sub { font-size: 9px; letter-spacing: 2px; }
-    .plate-side { font-size: 10px; }
-    .plate-side .arr { font-size: 12px; }
+    .plate { padding: 10px 10px 9px; border-width: 2.5px; }
+    header h1 { font-size: 22px; letter-spacing: 8px; text-indent: 8px; }
+    .plate-sub { font-size: 9px; letter-spacing: 3px; text-indent: 3px; }
+    .plate-foot { margin-top: 7px; }
+    .plate-foot .stn { font-size: 13px; letter-spacing: 3px; text-indent: 3px; }
+    .plate-arrow { width: 64px; height: 10px; margin: 0 6px; }
     header p { font-size: 13px; }
     .stage { height: 58vh; min-height: 380px; }
     .badge { top: 8px; left: 8px; gap: 9px; padding: 5px 11px 6px; }
@@ -565,6 +576,9 @@
     .followbar { flex-wrap: wrap; }
     .chip { font-size: 12px; padding: 4px 10px 4px 7px; }
     .follow-panel { left: 8px; bottom: 8px; width: 200px; }
+    /* 看板/最愛/旅程/探索四選一的底部 sheet 開啟時(見 updateSheetOpenClass),跟隨小卡讓道到 sheet 上方;
+       sheet 最高 46%,抓 46%+間距頂上去,不管 sheet 實際內容多寡都不會互疊 */
+    body.sheet-open .follow-panel { bottom: calc(46% + 16px); }
     .traincard { padding: 11px 13px 12px; }
     .traincard .tc-body { grid-template-columns: 1fr; }
     .traincard .tc-events { margin-top: 4px; }
@@ -581,12 +595,18 @@
 <div class="wrap">
   <header>
     <div class="plate">
-      <div class="plate-side left"><span class="arr">◀</span><span id="plateL">基隆</span></div>
-      <div class="plate-mid">
-        <h1>台灣鐵道 · 列車流動</h1>
-        <p class="plate-sub" id="plateSub">TAIWAN RAILWAY LIVE</p>
+      <h1>列車有時</h1>
+      <p class="plate-sub" id="plateSub">TAIWAN RAILWAY LIVE</p>
+      <div class="plate-foot">
+        <span class="stn" id="plateL">基隆</span>
+        <svg class="plate-arrow" viewBox="0 0 108 14" aria-hidden="true">
+          <line x1="12" y1="7" x2="96" y2="7" stroke="currentColor" stroke-width="2.6"/>
+          <path d="M1 7 L14 1.6 L14 12.4 Z" fill="currentColor"/>
+          <path d="M107 7 L94 1.6 L94 12.4 Z" fill="currentColor"/>
+          <line x1="54" y1="2.2" x2="54" y2="11.8" stroke="currentColor" stroke-width="2.6"/>
+        </svg>
+        <span class="stn" id="plateR">枋寮</span>
       </div>
-      <div class="plate-side right"><span class="arr">▶</span><span id="plateR">枋寮</span></div>
     </div>
     <p id="lead">列車依真實時刻表在島上跑來跑去 — 點列車直接跟隨、點車站看誰要來。</p>
   </header>
@@ -777,6 +797,7 @@ function syncTimeUI() {
 }
 function setSimSec(sec) {
   state.simSec = ((sec % 86400) + 86400) % 86400;
+  if (state.followTrain) state.followTimeJumped = true; // 跟隨中顯式跳時間(現在鈕/拖曳/方向鍵)一律視為作弊路徑,不計完乘
   syncTimeUI();
   if (state.boardStation) renderBoard();
   updateCount();
@@ -1503,15 +1524,23 @@ function placeTrainCard() {
   }
 }
 
-function setFollow(tr, isAuto, noJump) {
+function setFollow(tr, isAuto, noJump, opts) {
   if (!tr) return;
+  opts = opts || {};
   if (!isAuto && state.autoTour) setAutoTour(false); // 使用者手動選車即接手,退出隨機模式
   closeBoard(); // 不管從哪裡選到車(看板列/地圖點車/搜尋/最愛),車站看板一律收掉
   state.followTrain = tr; state.followId = tr.train;
   // 深連結帶模擬時間:對方打開時車在同一位置
   try { history.replaceState(null, '', '?train=' + encodeURIComponent(tr.train) + '&t=' + fmtHM(state.simSec)); } catch (e) {}
   const first = tr.stops[0], last = tr.stops[tr.stops.length - 1];
-  if (effT(tr) < first.depSec - 60 || effT(tr) > last.arrSec) {
+  if (opts.fromStart) {
+    // 護照灰章重播:強制從發車前 20 秒開始、固定倍速看完全程才算完乘(防秒蓋章)
+    state.simSec = Math.max(0, first.depSec - 20) % 86400;
+    syncTimeUI();
+    if (!state._followSpeedSaved) { state._preFollowSpd = state.speedMult; state._followSpeedSaved = true; }
+    setSpeed(30);
+    if (!state.playing) togglePlay();
+  } else if (effT(tr) < first.depSec - 60 || effT(tr) > last.arrSec) {
     state.simSec = Math.max(0, first.depSec - 20) % 86400;
     syncTimeUI();
   }
@@ -1521,6 +1550,9 @@ function setFollow(tr, isAuto, noJump) {
   }
   state.followStatus = null; renderFollowBar();
   state.followEvents = []; state._evSeen = {};
+  // 完乘資格快照:記錄跟隨起點時間,中途接手或跳時間作弊的都不蓋章(見 updateFollowCamera)
+  state.followStartEff = effT(tr);
+  state.followTimeJumped = false;
   state._routePts = buildFollowRoute(tr);
   showFollowPanel(tr);
   placeTrainCard();
@@ -1528,8 +1560,13 @@ function setFollow(tr, isAuto, noJump) {
   (state._placeFsOverlays || (() => {}))(document.body.classList.contains('fs'));
   updateCount();
 }
+// fromStart 重播强制拉高的速度只還原一次;抵達或取消跟隨時呼叫
+function restoreFollowSpeed() {
+  if (state._followSpeedSaved) { setSpeed(state._preFollowSpd); state._followSpeedSaved = false; }
+}
 
 function clearFollow() {
+  restoreFollowSpeed(); // 中途取消跟隨也要還原 fromStart 重播強制的速度
   state.followTrain = null; state.followId = null; state.followStatus = null;
   state._routePts = null;
   state._plateStop = null;
@@ -1921,8 +1958,8 @@ function toggleFav(tr) {
   }
   saveFavs(favs); renderFavs(); renderFavPanel(); updateStar();
 }
-// 跟隨指定車次;在捷運頁會先切回台鐵
-function followTrainNo(no) {
+// 跟隨指定車次;在捷運頁會先切回台鐵。opts.fromStart:護照灰章用,從發車開始固定倍速看完才算完乘
+function followTrainNo(no, opts) {
   if (state.mode !== 'sched') {
     const s = state.systems.find(x => x.mode === 'sched');
     if (!s) return;
@@ -1931,7 +1968,7 @@ function followTrainNo(no) {
   const tr = findTrain(no);
   if (tr) {
     const ts = document.getElementById('trainSearch'); if (ts) ts.value = no;
-    setFollow(tr);
+    setFollow(tr, false, false, opts);
   } else showSearchMiss(no + '（今日無此班次）');
 }
 function removeFav(no) {
@@ -1974,12 +2011,14 @@ function openFavPanel() {
   closeBoard(); closeRidePanel(); closeExplorePanel();
   const el = document.getElementById('favPanel');
   el.hidden = false;
+  updateSheetOpenClass();
   document.getElementById('favBtn').classList.add('active');
   renderFavPanel();
 }
 function closeFavPanel() {
   const el = document.getElementById('favPanel');
   el.hidden = true; el.innerHTML = '';
+  updateSheetOpenClass();
   document.getElementById('favBtn').classList.remove('active');
 }
 
@@ -2037,12 +2076,14 @@ function renderRidePanel() {
 function openRidePanel() {
   closeBoard(); closeFavPanel(); closeExplorePanel();
   document.getElementById('ridePanel').hidden = false;
+  updateSheetOpenClass();
   document.getElementById('rideBtn').classList.add('active');
   renderRidePanel();
 }
 function closeRidePanel() {
   const el = document.getElementById('ridePanel');
   el.hidden = true; el.innerHTML = '';
+  updateSheetOpenClass();
   document.getElementById('rideBtn').classList.remove('active');
 }
 
@@ -2187,7 +2228,8 @@ function renderPassport() {
       : `<div class="ph-empty">還沒有完乘記錄——從地圖角落「探」挑一班有趣的車，陪它跑完全程吧。</div>`);
   el.onclick = e => {
     const st = e.target.closest('.stamp[data-no]');
-    if (st) followTrainNo(st.dataset.no);
+    // 灰色收集章一律未收集(見上方 stampRow:只有 !got 才輸出 data-no)→ 一律從發車重播,跑完才算完乘
+    if (st) followTrainNo(st.dataset.no, { fromStart: true });
   };
   el.hidden = false;
 }
@@ -2278,12 +2320,14 @@ function surpriseFollow() {
 function openExplorePanel() {
   closeBoard(); closeFavPanel(); closeRidePanel();
   document.getElementById('explorePanel').hidden = false;
+  updateSheetOpenClass();
   document.getElementById('exploreBtn').classList.add('active');
   renderExplorePanel();
 }
 function closeExplorePanel() {
   const el = document.getElementById('explorePanel');
   el.hidden = true; el.innerHTML = ''; el.onclick = null;
+  updateSheetOpenClass();
   document.getElementById('exploreBtn').classList.remove('active');
 }
 
@@ -2554,10 +2598,15 @@ function setFollowStatus(s, msg) {
 function updateFollowCamera() {
   const tr = state.followTrain; if (!tr) return;
   if (state._transition) { updateFollowPanel(tr); return; } // flyTo 轉場中不搶鏡頭
-  const last = tr.stops[tr.stops.length - 1];
+  const first = tr.stops[0], last = tr.stops[tr.stops.length - 1];
   if (effT(tr) > last.arrSec + 2) {
-    if (state.followStatus !== 'done') recordRide(tr); // 抵達那一刻蓋完乘章
-    setFollowStatus('done', '已抵達');
+    if (state.followStatus !== 'done') {
+      // 完乘資格:從發車附近(±60秒容差)開始跟、且跟隨中沒跳過模擬時間,才蓋章;中途接手或作弊只顯示抵達
+      const qualified = state.followStartEff <= first.depSec + 60 && !state.followTimeJumped;
+      if (qualified) recordRide(tr); // 抵達那一刻蓋完乘章
+      restoreFollowSpeed(); // fromStart 重播強制的速度只在此還原一次
+      setFollowStatus('done', qualified ? '已抵達' : '已抵達(中途跟隨・不計完乘)');
+    }
     return;
   }
   const pos = trainPos(tr, state.simSec);
@@ -2624,16 +2673,24 @@ function jumpToNow() {
   }
 }
 
+// 手機底部 sheet(看板/最愛/旅程/探索,四選一互斥)開啟時,跟隨小卡要讓道到上方,
+// 避免同在左下角互疊(見 CSS body.sheet-open .follow-panel,只在手機斷點生效)
+function updateSheetOpenClass() {
+  const open = ['board', 'favPanel', 'ridePanel', 'explorePanel'].some(id => !document.getElementById(id).hidden);
+  document.body.classList.toggle('sheet-open', open);
+}
+
 // ── 車站時刻板 ──
 function openBoard(st) { closeFavPanel(); closeRidePanel(); closeExplorePanel(); state.boardStation = st; renderBoard(); }
 function closeBoard() {
   state.boardStation = null;
   const el = document.getElementById('board');
   el.hidden = true; el.innerHTML = '';
+  updateSheetOpenClass();
 }
 function renderBoard() {
   const el = document.getElementById('board'), st = state.boardStation;
-  if (!st) { el.hidden = true; return; }
+  if (!st) { el.hidden = true; updateSheetOpenClass(); return; }
   state.boardRenderedAt = state.simSec;
   const rows = [];
   for (const tr of state.trains) {
@@ -2662,6 +2719,7 @@ function renderBoard() {
     `<h3>${st.name}</h3><div class="sub">接下來 3 小時會有誰來 · ${liveActive() ? '已套用台鐵即時誤點' : '依時刻表（無誤點資訊）'} · 點班次跟隨</div>` +
     (list || '<div class="empty">此時段無停靠班次</div>');
   el.hidden = false;
+  updateSheetOpenClass();
   el.querySelector('#boardClose').onclick = closeBoard;
   // 點任一班次列 → 關看板、跟隨該車。
   // 看板每 20 模擬秒重繪(高倍速=不到半秒),按下到放開之間列可能被換掉、click 目標變成容器,
@@ -2754,13 +2812,27 @@ function setupMapTools() {
   // 控制列在窄螢幕會摺成多行,面板/資訊卡的 bottom 依實際高度讓位。
   // 跟隨中改為:控制列離開底部中央,疊到左下跟隨卡片正上方(使用者指定)。
   function placeFsOverlays(on) {
-    // 跟隨中:合併資訊卡佔左下(純 CSS),控制列改靠右下讓出位置;未跟隨:控制列回底部置中
+    // 跟隨中:合併資訊卡佔左下(純 CSS),控制列改靠右下讓出位置;未跟隨:控制列回底部置中。
+    // 手機(<=640px)的合併卡本來就藏起來(body.fs .traincard{display:none}),沒有左側卡要讓,
+    // 控制列改靠右下反而會被行動裝置窄寬度的 maxWidth 計算擠成直排,所以只在桌面/平板寬度套用。
     const st = document.querySelector('.controls').style;
-    if (on && state.followTrain && !document.getElementById('followPanel').hidden) {
-      st.left = 'auto'; st.right = '12px'; st.transform = 'none'; st.bottom = '12px';
+    const isMobile = window.matchMedia('(max-width: 640px)').matches;
+    const followVisible = state.followTrain && !document.getElementById('followPanel').hidden;
+    if (!isMobile && on && followVisible) {
+      st.left = 'auto'; st.right = '60px'; st.transform = 'none'; st.bottom = '12px';
+      // right:60px(而非 12px)讓開同一角落的 Leaflet 縮放鈕(bottomright,寬約 34px)
       st.maxWidth = 'calc(100vw - 360px)'; // 讓出左側合併卡(300px+邊距),太寬就摺行
     } else {
       st.left = ''; st.right = ''; st.transform = ''; st.bottom = ''; st.maxWidth = '';
+    }
+    // 手機全畫面+跟隨:控制列貼底、按鈕多會摺成 2~3 行,高度隨文字長短(如「離開放空」)變動,
+    // 跟隨小卡改用量到的實際高度動態讓道,避免固定 px 假設被壓到(見 CSS 裡原本寫死的 132px)
+    const fp = document.getElementById('followPanel');
+    if (isMobile && on && followVisible) {
+      const ctlH = document.querySelector('.controls').getBoundingClientRect().height;
+      fp.style.bottom = Math.round(ctlH + 24) + 'px';
+    } else {
+      fp.style.bottom = '';
     }
   }
   // 跟隨開始/結束時由 setFollow/clearFollow 經 state._placeFsOverlays 明確重排
