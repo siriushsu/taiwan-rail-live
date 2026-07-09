@@ -162,13 +162,17 @@ function s2sMaps(file) {
   return { run, dwell };
 }
 const runOf = (maps, a, b) => maps.run.get(a + '|' + b) ?? maps.run.get(b + '|' + a) ?? null;
+// 無 S2STravelTime 檔的系統(如淡海/安坑輕軌,TDX 未提供)→ 空表,前端以距離/速度回退。
+function s2sMapsOpt(file) { try { return s2sMaps(file); } catch (e) { return { run: new Map(), dwell: new Map() }; } }
 
 // Frequency → {peakSec, offSec}(平日;PeakFlag=1 取最小、離峰取涵蓋 13:00 的時段均值)
+// 部分系統(如機捷)無「平日」分類、僅「每日」→ 平日缺就退回每日。
 function freqOf(file, lineID, routeID) {
   let entries;
   try { entries = TDX(file); } catch (e) { return null; }
-  const e = entries.find(f => f.LineID === lineID && (!routeID || f.RouteID === routeID)
-    && f.ServiceDay && f.ServiceDay.ServiceTag === '平日');
+  const pick = tag => entries.find(f => f.LineID === lineID && (!routeID || f.RouteID === routeID)
+    && f.ServiceDay && f.ServiceDay.ServiceTag === tag);
+  const e = pick('平日') || pick('每日');
   if (!e || !e.Headways || !e.Headways.length) return null;
   const hs = e.Headways;
   const peaks = hs.filter(h => h.PeakFlag === '1' && h.MinHeadwayMins > 0);
@@ -369,6 +373,67 @@ function assemble({ id, name, color, ids, stations, parts, maps, freq, loop, est
   writeFileSync(path.join(ROOT, 'data/tmrt.json'), JSON.stringify({
     system: 'TMRT',
     source_notes: '交通部 TDX 運輸資料流通服務(台中捷運綠線:路線幾何/站序/班距/站間行駛時間,2026-07 抓取)',
+    lines,
+  }));
+}
+
+// ─────────────── TYMC 桃園機場捷運 ───────────────
+{
+  console.log('== TYMC 桃園機場捷運');
+  const stations = stationMap('TYMC_Station.json');
+  const sol = solOrder('TYMC_StationOfLine.json');
+  const shapes = shapeParts('TYMC_Shape.json');
+  const maps = s2sMaps('TYMC_S2STravelTime.json');
+  const lines = [
+    // 機捷同時有直達車/普通車;此處以全線 22 站的普通車停站型態繪製,班距取 TDX(每日 15 分)。
+    assemble({ id: 'A', name: '機場捷運', color: '#8246AF', ids: sol.get('A'), parts: shapes.get('A'), stations, maps, freq: freqOf('TYMC_Frequency.json', 'A', 'A-1') }),
+  ];
+  writeFileSync(path.join(ROOT, 'data/tymc.json'), JSON.stringify({
+    system: 'TYMC',
+    source_notes: '交通部 TDX 運輸資料流通服務(桃園機場捷運:路線幾何/站序/班距/站間行駛時間,2026-07 抓取);以普通車全站停靠型態繪製',
+    lines,
+  }));
+}
+
+// ─────────────── NTDLRT 淡海輕軌 ───────────────
+{
+  console.log('== NTDLRT 淡海輕軌');
+  const stations = stationMap('NTDLRT_Station.json');
+  const sol = solOrder('NTDLRT_StationOfLine.json');
+  const shapes = shapeParts('NTDLRT_Shape.json');
+  const maps = s2sMapsOpt('NTDLRT_S2STravelTime.json'); // TDX 無 S2S 檔
+  // TDX 單一 V 線站序 V01…V11崁頂→V28→V27→V26,即綠山線於崁頂銜接藍海線的連續路徑。
+  const lines = [
+    assemble({
+      id: 'V', name: '淡海輕軌', color: '#FF2A00', ids: sol.get('V'), parts: shapes.get('V'),
+      stations, maps, estimated: true,
+      freq: { peakSec: 600, offSec: 900 }, // TDX 無 Frequency 檔:官方公告尖峰約10分/離峰約15分
+    }),
+  ];
+  writeFileSync(path.join(ROOT, 'data/ntdlrt.json'), JSON.stringify({
+    system: 'NTDLRT',
+    source_notes: '交通部 TDX 運輸資料流通服務(淡海輕軌:路線幾何/站序,2026-07 抓取);班距為官方公告估算(尖峰約10分/離峰約15分),TDX 無班距/站間時間檔',
+    lines,
+  }));
+}
+
+// ─────────────── NTALRT 安坑輕軌 ───────────────
+{
+  console.log('== NTALRT 安坑輕軌');
+  const stations = stationMap('NTALRT_Station.json');
+  const sol = solOrder('NTALRT_StationOfLine.json');
+  const shapes = shapeParts('NTALRT_Shape.json');
+  const maps = s2sMapsOpt('NTALRT_S2STravelTime.json'); // TDX 無 S2S 檔
+  const lines = [
+    assemble({
+      id: 'K', name: '安坑輕軌', color: '#9E925E', ids: sol.get('K'), parts: shapes.get('K'),
+      stations, maps, estimated: true,
+      freq: { peakSec: 720, offSec: 900 }, // TDX 無 Frequency 檔:官方公告尖峰約12分/離峰約15分
+    }),
+  ];
+  writeFileSync(path.join(ROOT, 'data/ntalrt.json'), JSON.stringify({
+    system: 'NTALRT',
+    source_notes: '交通部 TDX 運輸資料流通服務(安坑輕軌:路線幾何/站序,2026-07 抓取);班距為官方公告估算(尖峰約12分/離峰約15分),TDX 無班距/站間時間檔',
     lines,
   }));
 }

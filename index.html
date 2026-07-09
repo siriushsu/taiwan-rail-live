@@ -110,18 +110,37 @@
      全畫面模式下工具鈕移到右上(見 body.fs 區塊),縮放鈕改回原生底部位置 */
   .leaflet-bottom.leaflet-right { bottom: 58px; }
   body.fs .leaflet-bottom.leaflet-right { bottom: 10px; }
+  /* 圖示鈕:平常只見單字/符號(38px 方鈕),hover 向左展開露出完整說明 */
   .stage-tools button {
     font: inherit; font-size: 15px; font-weight: 700; cursor: pointer;
-    width: 38px; height: 38px; display: flex; align-items: center; justify-content: center;
+    height: 38px; padding: 0; overflow: hidden;
+    display: flex; align-items: center;
     background: #fffdf6; color: #2a4a73;
     border: 1.5px solid #c9b98f; border-radius: 6px;
     box-shadow: 0 2px 0 #c9b98f;
+    transition: background .15s;
+  }
+  .stage-tools button .ti {
+    flex: 0 0 35px; height: 36px;
+    display: flex; align-items: center; justify-content: center; font-size: 15px;
+  }
+  .stage-tools button .tl {
+    flex: 0 0 auto; /* 不被 flex 壓縮成 0(overflow:hidden 的 flex 子項 min-width 會歸零) */
+    max-width: 0; opacity: 0; overflow: hidden; white-space: nowrap;
+    font-size: 13px; font-weight: 700; letter-spacing: .5px;
+    transition: max-width .24s ease, opacity .18s ease, padding .24s ease;
   }
   .stage-tools button:hover { background: #f7f0dd; }
+  .stage-tools button:hover .tl { max-width: 150px; opacity: 1; padding-right: 13px; }
   .stage-tools button.active {
     background: #d23c2a; color: #fff8ec;
     border-color: #a92c1d; box-shadow: 0 2px 0 #a92c1d;
   }
+  .stage-tools button.active:hover { background: #c0341f; }
+  /* 全畫面直排工具列(靠右上):hover 標籤朝左展開,不衝出右邊界 */
+  body.fs .stage-tools { align-items: flex-end; }
+  body.fs .stage-tools button { flex-direction: row-reverse; }
+  body.fs .stage-tools button:hover .tl { padding-right: 0; padding-left: 13px; }
 
   /* 停靠站名牌(地圖上方置中,跟隨列車停站時淡入)——仿台鐵月台站名牌:
      上半白底本站大字,下半藍條左右鄰站+站間里程+方向箭頭 */
@@ -426,8 +445,8 @@
   body.fs .follow-panel .tc-no,
   body.fs .follow-panel .tc-kind { display: none; }
   body.fs .follow-panel .tc-body { grid-template-columns: 1fr; height: auto; gap: 7px; }
-  /* 介紹依內容展開不出捲軸(同一般模式的卡);旅程日誌維持固定高的滾動記錄區 */
-  body.fs .follow-panel .tc-events #tcEvents { flex: none; height: 88px; }
+  /* 介紹依內容展開不出捲軸(同一般模式的卡);旅程日誌維持固定高的滾動記錄區(超出要能捲,否則會蓋到下方速度曲線) */
+  body.fs .follow-panel .tc-events #tcEvents { flex: none; height: 88px; overflow-y: auto; overflow-x: hidden; }
   body.fs .stage-tools { top: 12px; bottom: auto; flex-direction: column; }
   body.fs .board { right: 60px; }
   body.fs .kbd-hint, body.fs .flow, body.fs .search, body.fs .favs, body.fs .lines, body.fs .note, body.fs .passport, body.fs .site-foot { display: none; }
@@ -764,15 +783,15 @@
       <div class="fp-dest" id="fpDest"></div>
     </div>
     <div class="stage-tools">
-      <button id="exploreBtn" title="今日亮點——特別列車與今日之最">探</button>
-      <button id="favBtn" title="我的最愛列車">★</button>
-      <button id="rideBtn" title="旅程收集（完乘記錄）">🎫</button>
-      <button id="tourBtn" title="隨機跟隨列車（螢幕保護模式）">隨</button>
-      <button id="introBtn" title="經過特殊車站時顯示介紹">介</button>
-      <button id="satBtn" title="切換衛星影像">衛</button>
-      <button id="themeBtn" title="地圖明暗切換">☾</button>
-      <button id="immBtn" title="極簡沉浸（只留地圖與列車）">簡</button>
-      <button id="fsBtn" title="全畫面地圖（Esc 退出）">⛶</button>
+      <button id="exploreBtn" title="今日亮點——特別列車與今日之最"><span class="ti">探</span><span class="tl">今日亮點</span></button>
+      <button id="favBtn" title="我的最愛列車"><span class="ti">★</span><span class="tl">我的最愛</span></button>
+      <button id="rideBtn" title="旅程收集（完乘記錄）"><span class="ti">旅</span><span class="tl">旅程收集</span></button>
+      <button id="tourBtn" title="隨機跟隨列車（螢幕保護模式）"><span class="ti">隨</span><span class="tl">隨機跟隨</span></button>
+      <button id="introBtn" title="經過特殊車站時顯示介紹"><span class="ti">介</span><span class="tl">特殊站介紹</span></button>
+      <button id="satBtn" title="切換衛星影像"><span class="ti">衛</span><span class="tl">衛星影像</span></button>
+      <button id="themeBtn" title="地圖明暗切換"><span class="ti">☾</span><span class="tl">地圖明暗</span></button>
+      <button id="immBtn" title="極簡沉浸（只留地圖與列車）"><span class="ti">簡</span><span class="tl">極簡沉浸</span></button>
+      <button id="fsBtn" title="全畫面地圖（Esc 退出）"><span class="ti">⛶</span><span class="tl">全畫面</span></button>
     </div>
     <div class="badge">
       <span class="clock" id="clock">08:00</span>
@@ -917,7 +936,7 @@
 <script>
 // 版本戳記:每次改版 push 前手動遞增(字母序),畫面時鐘徽章與 console 都會顯示,
 // 供比對線上跑的是不是最新版(瀏覽器快取 max-age=600 常讓人看到舊版)
-const BUILD = 'v0709q';
+const BUILD = 'v0709t';
 const state = {
   systems: [], sysId: null, data: null, speed: 36, mode: 'freq',
   lines: [], visible: new Set(), trains: [], schedStations: [], types: [],
@@ -945,9 +964,13 @@ function pal() { return MAP_PAL[state.basemap === 'sat' ? 'sat' : (state.mapDark
 // 各系統的站名牌／副標／導言文案(loadSystem 依系統套用)
 const SYS_META = {
   mrt:       { plateL: '淡水', plateR: '象山', sub: 'TAIPEI METRO LIVE',    lead: '各線列車依 TDX 班距與站間時間在城市裡穿梭（班距模擬示意，非即時班次）— 拖曳、縮放看看。' },
+  tymc:      { plateL: '台北車站', plateR: '老街溪', sub: 'TAOYUAN AIRPORT MRT LIVE', lead: '機場捷運沿線連結雙北與桃園機場（班距模擬示意，非即時班次）— 拖曳、縮放看看。' },
+  ntdlrt:    { plateL: '紅樹林', plateR: '漁人碼頭', sub: 'DANHAI LIGHT RAIL LIVE', lead: '淡海輕軌沿綠山線與藍海線在淡水穿梭（班距為公告估算示意，非即時班次）— 拖曳、縮放看看。' },
+  ntalrt:    { plateL: '雙城', plateR: '十四張', sub: 'ANKENG LIGHT RAIL LIVE', lead: '安坑輕軌沿安康路串起新店丘陵（班距為公告估算示意，非即時班次）— 拖曳、縮放看看。' },
   krtc:      { plateL: '小港', plateR: '岡山', sub: 'KAOHSIUNG METRO LIVE', lead: '紅橘兩線與環狀輕軌正在港都穿梭（班距模擬示意，非即時班次）— 拖曳、縮放看看。' },
   tmrt:      { plateL: '北屯總站', plateR: '高鐵臺中站', sub: 'TAICHUNG METRO LIVE', lead: '綠線列車沿著文心路跑（班距模擬示意，非即時班次）— 拖曳、縮放看看。' },
   tra_sched: { plateL: '基隆', plateR: '枋寮', sub: 'TAIWAN RAILWAY LIVE',  lead: '列車依當日時刻表運行，回到現在時刻（1×）會自動套用台鐵即時誤點修正 — 點列車跟隨、點車站看班次，或按地圖角落「探」看今日亮點列車。' },
+  thsr_sched: { plateL: '南港', plateR: '左營', sub: 'TAIWAN HIGH SPEED RAIL LIVE', lead: '高鐵列車依當日真實時刻表沿西部走廊南北奔馳（南港－左營）— 點列車跟隨、點車站看班次。' },
 };
 
 // 播放/速度/時間的統一入口(控制列、快捷鍵、全畫面控制共用)
@@ -1632,12 +1655,12 @@ function retimeLoopTrains() {
 }
 
 function loadSystem(sys) {
-  state.sysId = sys.id; state.data = sys.data; state.mode = sys.mode || 'freq';
+  state.sysId = sys.id; state.sys = sys; state.data = sys.data; state.mode = sys.mode || 'freq';
   if (state.autoTour) setAutoTour(false); // 手動換系統即退出隨機模式
   clearFollow();
   const ts = document.getElementById('trainSearch'); if (ts) ts.value = '';
   if (state.mode === 'sched') {
-    buildLoopTrains(sys.data); // 無盡環島號:首次載入時補進班表(冪等)
+    if (sys.special) buildLoopTrains(sys.data); // 無盡環島號(台鐵限定):首次載入時補進班表(冪等)
     state.trains = sys.data.trains;
     const seen = new Map();
     sys.data.trains.forEach(tr => tr.stops.forEach(st => { if (!seen.has(st.name)) seen.set(st.name, { name: st.name, lat: st.lat, lon: st.lon }); }));
@@ -1656,20 +1679,24 @@ function loadSystem(sys) {
     });
     state.types = sys.data.types || [];
     state.visible = new Set(state.types.map(t => t.key));
+    state.trackData = sys._track || null; // 該系統的軌道底圖(台鐵/高鐵各自一份;無則站間走直線)
     state.trackLines = state.trackData ? state.trackData.lines : null;
     state.trackVisible = new Set((state.trackLines || []).map(l => l.id));
     state.simSec = nowSecOfDay(); // 開頁即同步現在時刻
-    pollLive(); // 初始 poll 在 mode 就緒前會被擋掉,進台鐵模式時補拉
-    pollAlert(); // 營運通阻公告同理
-    assignSchedShapePaths();
-    retimeLoopTrains(); // 貼軌後才有弧長,環島車時刻此時才能鋪
+    if (sys.live) pollLive();   // 逐車即時誤點(台鐵限定;高鐵 TDX 無此資料)
+    if (sys.alert) pollAlert(); // 營運通阻/停駛公告(台鐵、高鐵各自端點)
+    if (state.trackLines) assignSchedShapePaths(); // 把班表站貼到軌道幾何,列車沿線跑
+    if (sys.special) retimeLoopTrains(); // 貼軌後才有弧長,環島車時刻此時才能鋪
     computeFlow();
     fitData(state.schedStations.map(s => [s.lat, s.lon]));
     reproject();
-    document.getElementById('note').textContent =
-      '資料來源：台鐵官方 OpenData（ods.railway.gov.tw）每日時刻表' + (sys.data.date ? '（' + sys.data.date + '）' : '') +
-      '，共 ' + state.trains.length + ' 車次；即時誤點資料介接「交通部TDX平臺」（每分鐘更新，回到現在時刻自動套用）。' +
-      '列車依真實時刻表運行，沿實際路線經過中途各站（少數支線區段為直線近似）。點地圖上的車站可看即將停靠的班次。';
+    document.getElementById('note').textContent = sys.live
+      ? ('資料來源：台鐵官方 OpenData（ods.railway.gov.tw）每日時刻表' + (sys.data.date ? '（' + sys.data.date + '）' : '') +
+        '，共 ' + state.trains.length + ' 車次；即時誤點資料介接「交通部TDX平臺」（每分鐘更新，回到現在時刻自動套用）。' +
+        '列車依真實時刻表運行，沿實際路線經過中途各站（少數支線區段為直線近似）。點地圖上的車站可看即將停靠的班次。')
+      : ('資料來源：交通部TDX平臺 高鐵每日時刻表' + (sys.data.date ? '（' + sys.data.date + '）' : '') +
+        '，共 ' + state.trains.length + ' 車次；列車依當日真實時刻表運行，沿高鐵路線行駛（南港－左營）。' +
+        '停駛／營運異常時上方橫幅會顯示高鐵公告。點地圖上的車站可看即將停靠的班次。');
     populateTrainList();
     document.getElementById('searchRow').hidden = false;
     document.getElementById('flowWrap').hidden = false;
@@ -2216,14 +2243,19 @@ function toggleFav(tr) {
   }
   saveFavs(favs); renderFavs(); renderFavPanel(); updateStar();
 }
-// 跟隨指定車次;在捷運頁會先切回台鐵。opts.fromStart:護照灰章用,從發車開始固定倍速看完才算完乘
+// 跟隨指定車次;在捷運頁會先切回時刻表系統(預設台鐵)。opts.fromStart:護照灰章用,從發車開始固定倍速看完才算完乘
 function followTrainNo(no, opts) {
   if (state.mode !== 'sched') {
     const s = state.systems.find(x => x.mode === 'sched');
     if (!s) return;
     loadSystem(s);
   }
-  const tr = findTrain(no);
+  let tr = findTrain(no);
+  if (!tr) { // 當前時刻表系統找不到 → 找其他 sched 系統(台鐵↔高鐵)有此車次就切換
+    const other = state.systems.find(x => x.mode === 'sched' && x.id !== state.sysId
+      && (x.data.trains || []).some(t => String(t.train) === String(no)));
+    if (other) { loadSystem(other); tr = findTrain(no); }
+  }
   if (tr) {
     const ts = document.getElementById('trainSearch'); if (ts) ts.value = no;
     setFollow(tr, false, false, opts);
@@ -2917,7 +2949,7 @@ function nowSecOfDay() {
 // 修正語意:誤點 N 分的車=照時刻表晚 N 分跑,trainPos 等函式把該車的查詢時間回撥 N 分。
 // 只在「模擬時鐘貼近現在時刻」時套用——時間旅行/高倍速時自動停用,回到純時刻表模擬。
 function liveActive() {
-  return !!(state.live && state.mode === 'sched' &&
+  return !!(state.live && state.mode === 'sched' && state.sys && state.sys.live &&
     Date.now() - state.live.at < 300e3 &&
     Math.abs(state.simSec - nowSecOfDay()) <= 120);
 }
@@ -2926,9 +2958,10 @@ function liveDelaySec(tr) {
   return (state.live.map.get(String(tr.train)) || 0) * 60;
 }
 async function pollLive() {
-  if (document.hidden || state.mode !== 'sched') return;
+  const url = state.sys && state.sys.live;
+  if (document.hidden || state.mode !== 'sched' || !url) return;
   try {
-    const r = await fetch('api/tra-live', { cache: 'no-store' });
+    const r = await fetch(url, { cache: 'no-store' });
     if (!r.ok) throw new Error(r.status);
     const d = await r.json();
     if (!Array.isArray(d.trains)) throw new Error('bad payload');
@@ -2954,9 +2987,10 @@ pollLive();
 // 只轉述官方公告不推定個別班次:正常時 TDX 回單筆 Status:1「全線營運正常」,取其餘條目當異常
 const escHtml = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 async function pollAlert() {
-  if (document.hidden || state.mode !== 'sched') return;
+  const url = state.sys && state.sys.alert;
+  if (document.hidden || state.mode !== 'sched' || !url) return;
   try {
-    const r = await fetch('api/tra-alert', { cache: 'no-store' });
+    const r = await fetch(url, { cache: 'no-store' });
     if (!r.ok) throw new Error(r.status);
     const d = await r.json();
     if (!Array.isArray(d.alerts)) throw new Error('bad payload');
@@ -2983,7 +3017,7 @@ function renderAlertBanner() {
   const b = document.getElementById('alertBanner'), det = document.getElementById('alertDetail');
   const list = (state.alert && state.alert.list) || [];
   if (state.mode !== 'sched' || !list.length) { b.hidden = true; det.hidden = true; updateFollowAlert(); return; }
-  b.innerHTML = `<span>⚠</span><span class="ab-title">${escHtml(list[0].title || '台鐵營運通阻公告')}</span>` +
+  b.innerHTML = `<span>⚠</span><span class="ab-title">${escHtml(list[0].title || ((state.sys && state.sys.label || '') + '營運通阻公告'))}</span>` +
     `<span class="ab-more">${list.length > 1 ? `等 ${list.length} 則 · ` : ''}詳情 ▾</span>`;
   b.hidden = false;
   b.onclick = () => {
@@ -3001,7 +3035,7 @@ function renderAlertDetail() {
     (a.desc ? `<div>${escHtml(a.desc)}</div>` : '') +
     (a.lines && a.lines.length ? `<div class="ad-time">影響路線：${escHtml(a.lines.join('、'))}</div>` : '') +
     `</div>`).join('') +
-    `<div class="ad-src">來源：台鐵營運通阻公告（TDX，每 5 分鐘更新）· 列車動畫仍照原時刻表模擬，停駛班次不會自畫面消失，實際運行以台鐵公告為準</div>`;
+    `<div class="ad-src">來源：${escHtml((state.sys && state.sys.label) || '台鐵')}營運通阻公告（TDX，每 5 分鐘更新）· 列車動畫仍照原時刻表模擬，停駛班次不會自畫面消失，實際運行以官方公告為準</div>`;
 }
 // 跟隨中的車行經公告影響路線 → 面板加警示列(虛構環島車不套用)
 function updateFollowAlert() {
@@ -3013,7 +3047,7 @@ function updateFollowAlert() {
     if (aff.size) show = tr.stops.some(s => s.segLn && aff.has(s.segLn.id));
   }
   el.hidden = !show;
-  if (show) el.textContent = '⚠ 本路線有台鐵通阻公告，班次可能停駛——以台鐵公告為準';
+  if (show) el.textContent = `⚠ 本路線有${(state.sys && state.sys.label) || '台鐵'}通阻公告，班次可能停駛——以官方公告為準`;
 }
 setInterval(pollAlert, 300e3);
 document.addEventListener('visibilitychange', () => { if (!document.hidden) pollAlert(); });
@@ -3245,8 +3279,12 @@ function setBasemap() {
   }
   baseLayers[want].bringToBack();
   const themeBtn = document.getElementById('themeBtn'), satBtn = document.getElementById('satBtn');
-  if (themeBtn) themeBtn.textContent = state.mapDark ? '☀' : '☾';
-  if (satBtn) { satBtn.textContent = sat ? '圖' : '衛'; satBtn.title = sat ? '切回一般地圖' : '切換衛星影像'; }
+  if (themeBtn) themeBtn.querySelector('.ti').textContent = state.mapDark ? '☀' : '☾';
+  if (satBtn) {
+    satBtn.querySelector('.ti').textContent = sat ? '圖' : '衛';
+    satBtn.querySelector('.tl').textContent = sat ? '一般地圖' : '衛星影像';
+    satBtn.title = sat ? '切回一般地圖' : '切換衛星影像';
+  }
 }
 function setupMapTools() {
   const fsBtn = document.getElementById('fsBtn');
@@ -3283,7 +3321,8 @@ function setupMapTools() {
   state._placeFsOverlays = placeFsOverlays;
   function setFs(on) {
     document.body.classList.toggle('fs', on);
-    fsBtn.textContent = on ? '×' : '⛶';
+    fsBtn.querySelector('.ti').textContent = on ? '×' : '⛶';
+    fsBtn.querySelector('.tl').textContent = on ? '退出全畫面' : '全畫面';
     fsBtn.title = on ? '退出全畫面（Esc）' : '全畫面地圖（Esc 退出）';
     // 瀏覽器真全螢幕(Fullscreen API):吃掉網址列/分頁列;需在使用者手勢內呼叫,失敗就退回 CSS 版全畫面
     try {
@@ -3317,6 +3356,7 @@ function setupMapTools() {
   function setImmersive(on) {
     document.body.classList.toggle('immersive', on);
     immBtn.classList.toggle('active', on);
+    immBtn.querySelector('.tl').textContent = on ? '退出極簡' : '極簡沉浸';
     immBtn.title = on ? '顯示資訊（退出極簡）' : '極簡沉浸（只留地圖與列車）';
     try { localStorage.setItem('trainmap-immersive', on ? '1' : '0'); } catch (e) {}
     if (document.body.classList.contains('fs')) placeFsOverlays(true);
@@ -3396,8 +3436,12 @@ async function boot() {
   map.on('move zoom resize zoomanim', reproject);
 
   const defs = [
-    { id: 'tra_sched', label: '台鐵', url: './data/tra_schedule_dense.json', mode: 'sched' },
+    { id: 'tra_sched', label: '台鐵', url: './data/tra_schedule_dense.json', mode: 'sched', live: 'api/tra-live', alert: 'api/tra-alert', special: true, track: './data/tra.json' },
+    { id: 'thsr_sched', label: '高鐵', url: './data/thsr_schedule_dense.json', mode: 'sched', alert: 'api/thsr-alert', track: './data/thsr_track.json' },
     { id: 'mrt', label: '台北捷運', url: './data/trtc.json', speed: 34, mode: 'freq' },
+    { id: 'tymc', label: '桃園機捷', url: './data/tymc.json', speed: 45, mode: 'freq' },
+    { id: 'ntdlrt', label: '淡海輕軌', url: './data/ntdlrt.json', speed: 25, mode: 'freq' },
+    { id: 'ntalrt', label: '安坑輕軌', url: './data/ntalrt.json', speed: 25, mode: 'freq' },
     { id: 'krtc', label: '高雄捷運', url: './data/krtc.json', speed: 36, mode: 'freq' },
     { id: 'tmrt', label: '台中捷運', url: './data/tmrt.json', speed: 32, mode: 'freq' },
   ];
@@ -3405,8 +3449,8 @@ async function boot() {
     const data = await fetchJSON(d.url);
     if (data) state.systems.push({ ...d, data });
   }
-  // tra.json 僅作真實班表模式的軌道底圖幾何,不列為可切換系統(台鐵班距模式已移除)
-  state.trackData = await fetchJSON('./data/tra.json');
+  // 各 sched 系統的軌道底圖幾何(台鐵 tra.json / 高鐵 thsr_track.json)掛在該系統上,loadSystem 依系統取用
+  for (const s of state.systems) if (s.track) s._track = await fetchJSON(s.track);
   // 站等資料(特等/一等/…),缺檔就全走停靠班次數啟發式
   state.stnClassMap = await fetchJSON('./data/tra_station_class.json') || {};
   // 台鐵各站地址(TDX Rail/TRA/Station);key 為「台」正規化站名,feature 欄之後補
@@ -3530,8 +3574,7 @@ initMusic();
   const ts = document.getElementById('trainSearch');
   const go = () => {
     const q = ts.value.trim(); if (!q) { clearFollow(); return; }
-    const tr = findTrain(q);
-    if (tr) setFollow(tr); else showSearchMiss(q);
+    followTrainNo(q); // 跨 sched 系統搜尋(台鐵↔高鐵車號都可跟)
   };
   ts.addEventListener('change', go);
   ts.addEventListener('keydown', e => { if (e.key === 'Enter') go(); });

@@ -1,11 +1,13 @@
 // Cloudflare Worker 入口:靜態資產(assets binding)+ /api/tra-live 台鐵即時動態代理
-// + /api/tra-alert 營運通阻公告(颱風停駛等;TDX Rail/TRA/Alert,快取 110 秒)
+// + /api/tra-alert 台鐵營運通阻公告 + /api/thsr-alert 高鐵營運狀態公告(颱風停駛等)
 // 金鑰只存在 Worker 環境變數(dashboard Variables and Secrets),前端不直連 TDX。
 // 雙層快取護住 TDX 用量:PoP 邊緣快取 55 秒(workers.dev 網域上 Cache API 無效,
 // 屆時靠 isolate 記憶體快取,約每 isolate 每分鐘 1 次)——用量恆定,不隨訪客數增加。
 const AUTH_URL = 'https://tdx.transportdata.tw/auth/realms/TDXConnect/protocol/openid-connect/token';
 const API_URL = 'https://tdx.transportdata.tw/api/basic/v3/Rail/TRA/TrainLiveBoard?%24format=JSON';
 const ALERT_URL = 'https://tdx.transportdata.tw/api/basic/v3/Rail/TRA/Alert?%24format=JSON';
+// 高鐵營運狀態:TDX 僅 v2 有 Rail/THSR/AlertInfo(v3 為 404),回頂層陣列,正常時單筆「全線營運正常(Normal)」
+const THSR_ALERT_URL = 'https://tdx.transportdata.tw/api/basic/v2/Rail/THSR/AlertInfo?%24format=JSON';
 
 let tok = null, tokExp = 0;
 async function getToken(env) {
@@ -94,11 +96,49 @@ async function traAlert(request, env) {
   }
 }
 
+// 高鐵營運狀態公告:正常時 TDX 回單筆「全線營運正常(Normal)」(AlertID 全零),標為 status:1 供前端濾除;
+// 異常條目(颱風停駛等)標 status:0 帶出。輸出結構同 /api/tra-alert,前端 pollAlert 可共用。
+let thsrAlertMem = null, thsrAlertMemAt = 0;
+async function thsrAlert(request, env) {
+  const cacheKey = new Request(new URL('/api/thsr-alert', request.url), { method: 'GET' });
+  const edge = caches.default;
+  const hit = await edge.match(cacheKey);
+  if (hit) return hit;
+  try {
+    if (!thsrAlertMem || Date.now() - thsrAlertMemAt > 110e3) {
+      const r = await fetch(THSR_ALERT_URL, { headers: { authorization: 'Bearer ' + await getToken(env) } });
+      if (r.status === 401) { tok = null; throw new Error('tdx 401'); }
+      if (!r.ok) throw new Error('tdx api ' + r.status);
+      const d = await r.json();
+      const list = Array.isArray(d) ? d : (d.AlertInfos || []);
+      thsrAlertMem = {
+        at: new Date().toISOString(),
+        alerts: list.map(a => {
+          const normal = /正常|Normal/.test(a.Title || '') || /^0*$/.test((a.AlertID || '').replace(/-/g, ''));
+          return {
+            title: a.Title, status: normal ? 1 : 0, desc: a.Description || '',
+            start: (a.StartTime && !String(a.StartTime).startsWith('0001')) ? a.StartTime : '',
+            end: a.EndTime || '', lines: ['高鐵'],
+          };
+        }),
+      };
+      thsrAlertMemAt = Date.now();
+    }
+    const res = jsonRes(thsrAlertMem, 200, 'public, s-maxage=110, stale-while-revalidate=600');
+    await edge.put(cacheKey, res.clone());
+    return res;
+  } catch (e) {
+    if (thsrAlertMem) return jsonRes(thsrAlertMem, 200, 'public, s-maxage=30');
+    return jsonRes({ error: String(e.message || e) }, 502, 'no-store');
+  }
+}
+
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
     if (url.pathname === '/api/tra-live') return traLive(request, env);
     if (url.pathname === '/api/tra-alert') return traAlert(request, env);
+    if (url.pathname === '/api/thsr-alert') return thsrAlert(request, env);
     return env.ASSETS.fetch(request);
   },
 };
