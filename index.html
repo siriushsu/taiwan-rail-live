@@ -102,26 +102,35 @@
     border-color: #a92c1d; box-shadow: 0 2px 0 #a92c1d;
   }
 
-  /* 停靠站名牌(地圖上方置中,跟隨列車停站時淡入)——復古站名牌:本站大字+左右鄰站 */
+  /* 停靠站名牌(地圖上方置中,跟隨列車停站時淡入)——仿台鐵月台站名牌:
+     上半白底本站大字,下半藍條左右鄰站+站間里程+方向箭頭 */
   .dwell-plate {
     /* top 固定在時鐘徽章下方,置中時才不會與徽章重疊 */
     position: absolute; top: 58px; left: 50%; transform: translateX(-50%); z-index: 640;
-    display: flex; align-items: center; gap: 14px; max-width: calc(100% - 24px);
+    min-width: 320px; max-width: calc(100% - 24px);
     background: #fffdf6; border: 2.5px solid #2a4a73; border-radius: 10px;
-    box-shadow: 0 2px 0 rgba(42,74,115,.22);
-    padding: 7px 16px 8px;
+    box-shadow: 0 2px 0 rgba(42,74,115,.22); overflow: hidden;
     opacity: 0; transition: opacity .45s ease; pointer-events: none;
   }
   .dwell-plate.show { opacity: 1; }
   .dwell-plate b {
-    font-size: 19px; font-weight: 900; letter-spacing: 4px;
-    color: #1e2c40; white-space: nowrap;
+    display: block; text-align: center;
+    font-size: 26px; font-weight: 900; letter-spacing: 10px; text-indent: 10px; /* indent 抵銷尾字間距,視覺置中 */
+    color: #1e2c40; white-space: nowrap; padding: 9px 20px 7px;
+  }
+  .dwell-plate .dp-strip {
+    display: flex; justify-content: space-between; align-items: center; gap: 18px;
+    background: #2a4a73; color: #fffdf6; padding: 5px 12px 6px;
   }
   .dwell-plate .side {
-    display: flex; align-items: center; gap: 5px;
-    font-size: 11.5px; font-weight: 700; color: #2a4a73; white-space: nowrap;
+    display: flex; align-items: baseline; gap: 6px;
+    font-size: 12.5px; font-weight: 700; color: #fffdf6; white-space: nowrap;
   }
-  .dwell-plate .side .arr { color: #d23c2a; font-size: 11px; }
+  .dwell-plate .side .arr { font-size: 11px; opacity: .9; }
+  .dwell-plate .side .km {
+    font-size: 10.5px; font-weight: 600; opacity: .82;
+    font-variant-numeric: tabular-nums;
+  }
 
   /* 跟隨小面板(地圖左下角，跟隨列車時顯示) */
   .follow-panel {
@@ -166,6 +175,7 @@
     margin-top: 6px; font-size: 12px; font-weight: 700; color: #b4552a;
     background: #fbe9df; border: 1px solid #e0a37e; border-radius: 5px; padding: 3px 8px;
   }
+  .follow-panel .fp-status.run { color: #2a6b46; background: #e9f2e4; border-color: #a8c9a4; }
   /* ── 列車資訊卡(地圖下方,跟隨時顯示) ── */
   .traincard {
     margin: 14px 0 0;
@@ -176,7 +186,7 @@
   .traincard .tc-head { display: flex; align-items: baseline; gap: 10px; flex-wrap: nowrap; }
   .traincard .tc-head .dot { width: 10px; height: 10px; border-radius: 50%; align-self: center; flex: none; }
   .traincard .tc-no { font-size: 20px; font-weight: 900; color: #1e2c40; letter-spacing: 1px; }
-  .traincard .tc-kind { font-size: 13px; font-weight: 700; color: #7a6c50; }
+  .traincard .tc-kind { font-size: 13px; font-weight: 700; color: #7a6c50; white-space: nowrap; flex: none; }
   .traincard .tc-route {
     font-size: 13px; color: #6b5f4a; font-variant-numeric: tabular-nums;
     flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
@@ -188,6 +198,7 @@
     box-shadow: 0 1.5px 0 #c9b98f; align-self: center; flex: none;
   }
   .traincard .tc-tt:hover { background: #f7f0dd; }
+  .traincard .tc-tt + .tc-tt { margin-left: 0; } /* 兩顆收放鈕:只有第一顆吃 auto 推右 */
   .traincard .tc-star {
     background: none; border: 0; cursor: pointer;
     color: #d2a12a; font-size: 20px; line-height: 1; padding: 0 2px; align-self: center;
@@ -266,13 +277,23 @@
     background: rgba(255,253,246,.96); border: 2px solid #2a4a73; border-radius: 10px;
     padding: 9px 16px; gap: 10px 18px;
   }
-  body.fs .follow-panel { bottom: 88px; }
+  /* 全畫面跟隨:資訊卡塞進左下跟隨面板,合併成一張可收放的卡(placeTrainCard 搬 DOM) */
+  body.fs .follow-panel { bottom: 12px; width: 300px; max-height: calc(100vh - 90px); }
+  body.fs .follow-panel .traincard {
+    position: static; width: auto; margin: 9px -13px -11px; padding: 9px 13px 10px;
+    border: 0; border-top: 1.5px dashed #d8cba9; border-radius: 0; box-shadow: none;
+    max-height: none;
+  }
+  /* 合併卡:車號/車種/起訖都跟上方跟隨面板重複,只留收放鈕列 */
+  body.fs .follow-panel .tc-route,
+  body.fs .follow-panel .tc-head .dot,
+  body.fs .follow-panel .tc-no,
+  body.fs .follow-panel .tc-kind { display: none; }
+  body.fs .follow-panel .tc-body { grid-template-columns: 1fr; height: auto; gap: 7px; }
+  body.fs .follow-panel .tc-intro { height: 76px; }   /* 固定高:放空換車不跳動 */
+  body.fs .follow-panel .tc-events #tcEvents { flex: none; height: 88px; }
   body.fs .stage-tools { top: 12px; bottom: auto; flex-direction: column; }
   body.fs .board { right: 60px; }
-  body.fs .traincard {
-    position: fixed; right: 12px; bottom: 88px; margin: 0; width: 340px;
-    max-height: calc(100vh - 110px); overflow-y: auto; z-index: 1001;
-  }
   body.fs .kbd-hint, body.fs .flow, body.fs .search, body.fs .favs, body.fs .lines, body.fs .note { display: none; }
   /* 放空模式:閒置 5 秒淡出控制,滑鼠動了淡回(時鐘與跟隨面板留著) */
   .controls, .stage-tools, .leaflet-control-container { transition: opacity .7s; }
@@ -521,9 +542,11 @@
       <span class="ver" id="buildVer"></span>
     </div>
     <div class="dwell-plate" id="dwellPlate">
-      <span class="side left"><span class="arr">◀</span><span id="dpPrev"></span></span>
       <b id="dpName"></b>
-      <span class="side right"><span id="dpNext"></span><span class="arr">▶</span></span>
+      <div class="dp-strip">
+        <span class="side left"><span class="arr">◀</span><span id="dpPrev"></span><span class="km" id="dpPrevKm"></span></span>
+        <span class="side right"><span class="km" id="dpNextKm"></span><span id="dpNext"></span><span class="arr">▶</span></span>
+      </div>
     </div>
     <div class="board" id="board" hidden></div>
     <div class="board" id="favPanel" hidden></div>
@@ -536,6 +559,7 @@
       <b class="tc-no" id="tcNo"></b>
       <span class="tc-kind" id="tcKind"></span>
       <span class="tc-route" id="tcRoute"></span>
+      <button class="tc-tt" id="tcSC">曲線 ▴</button>
       <button class="tc-tt" id="tcTT">時刻表 ▾</button>
       <button class="tc-star" id="tcStar" title="加入最愛">☆</button>
     </div>
@@ -599,7 +623,7 @@
 <script>
 // 版本戳記:每次改版 push 前手動遞增(字母序),畫面時鐘徽章與 console 都會顯示,
 // 供比對線上跑的是不是最新版(瀏覽器快取 max-age=600 常讓人看到舊版)
-const BUILD = 'v0709d';
+const BUILD = 'v0709e';
 const state = {
   systems: [], sysId: null, data: null, speed: 36, mode: 'freq',
   lines: [], visible: new Set(), trains: [], schedStations: [], types: [],
@@ -1349,13 +1373,28 @@ function effT(tr) {
 // 跟隨時把播放/速度控制列移到地圖下第一排(資訊卡上方),取消跟隨移回原位
 function placeControls(following) {
   const c = document.querySelector('.controls');
-  if (following) document.getElementById('trainCard').before(c);
-  else document.querySelector('.kbd-hint').before(c);
+  const tc = document.getElementById('trainCard');
+  if (following) {
+    if (tc.parentElement.classList.contains('follow-panel')) return; // fs 合併卡中,控制列由 fs CSS 固定定位
+    tc.before(c);
+  } else document.querySelector('.kbd-hint').before(c);
+}
+
+// 全畫面跟隨:資訊卡搬進左下跟隨面板合併成一張;退出全畫面/取消跟隨還原到地圖下方
+function placeTrainCard() {
+  const tc = document.getElementById('trainCard');
+  if (document.body.classList.contains('fs') && state.followTrain) {
+    document.getElementById('followPanel').appendChild(tc);
+  } else if (tc.parentElement.classList.contains('follow-panel')) {
+    document.getElementById('favRow').before(tc);
+    if (state.followTrain) placeControls(true); // 回一般版面:控制列在卡上方
+  }
 }
 
 function setFollow(tr, isAuto, noJump) {
   if (!tr) return;
   if (!isAuto && state.autoTour) setAutoTour(false); // 使用者手動選車即接手,退出隨機模式
+  closeBoard(); // 不管從哪裡選到車(看板列/地圖點車/搜尋/最愛),車站看板一律收掉
   state.followTrain = tr; state.followId = tr.train;
   // 深連結帶模擬時間:對方打開時車在同一位置
   try { history.replaceState(null, '', '?train=' + encodeURIComponent(tr.train) + '&t=' + fmtHM(state.simSec)); } catch (e) {}
@@ -1372,6 +1411,7 @@ function setFollow(tr, isAuto, noJump) {
   state.followEvents = []; state._evSeen = {};
   state._routePts = buildFollowRoute(tr);
   showFollowPanel(tr);
+  placeTrainCard();
   placeControls(true);
   updateCount();
 }
@@ -1386,6 +1426,7 @@ function clearFollow() {
   if (fb) { fb.hidden = true; fb.className = 'followbar'; fb.innerHTML = ''; }
   document.getElementById('followPanel').hidden = true;
   document.getElementById('trainCard').hidden = true;
+  placeTrainCard(); // followTrain 已清空 → 還原資訊卡到地圖下方
   placeControls(false);
 }
 
@@ -1561,6 +1602,7 @@ function setAmbient(on) {
     setSpeed(5); // 放空模式看單車,5× 節奏剛好
     state._ambientFresh = true; // 第一班直接跳到車,不走淡出淡入
     setAutoTour(true);
+    setSparkOpen(false); setStopsOpen(false); // 放空預設收乾淨,中間留給地圖
     acquireWakeLock();
     ambientIdleReset();
     if (state.music && state.music.enabled) musicPlay();
@@ -1576,6 +1618,7 @@ function setAmbient(on) {
     if (state.speedMult === 5 && state._preAmbSpd) setSpeed(state._preAmbSpd);
     if (state.nightReplay) { state.nightReplay = false; refreshBadge(); }
     if (state.autoTour) setAutoTour(false);
+    setSparkOpen(true); // 回一般模式:曲線預設展開(時刻表維持收起)
     if (document.body.classList.contains('fs')) (state._setFs || (() => {}))(false);
   }
 }
@@ -2006,21 +2049,30 @@ function updateFollowPanel(tr) {
   const stEl = document.getElementById('fpStatus');
   const dw = dwellInfoOf(tr, effT(tr));
   const dwelling = dw && dw.st.stop !== false && dw.remain > 3 && dw.total >= 20;
+  // 狀態列常駐(行進中↔停靠倒數),跟隨面板高度不因停站跳動
   if (dwelling) {
     const mm = Math.floor(dw.remain / 60), ss = Math.round(dw.remain % 60);
     stEl.textContent = `⏸ 停靠 ${dw.st.name} · ${mm > 0 ? mm + ' 分 ' : ''}${ss} 秒後開車` +
       (dw.total >= 180 ? '（待避／調度長停）' : '');
-    stEl.hidden = false;
-  } else stEl.hidden = true;
+    stEl.classList.remove('run');
+  } else {
+    stEl.textContent = '▶ 行進中';
+    stEl.classList.add('run');
+  }
+  stEl.hidden = false;
   // 停靠站名牌:進站淡入、開車淡出;左右鄰站取實際相鄰站(含通過站)
   const plate = document.getElementById('dwellPlate');
   if (dwelling) {
     if (state._plateStop !== dw.st) {
       state._plateStop = dw.st;
       const prev = tr.stops[dw.i - 1], next = tr.stops[dw.i + 1];
+      journeyProgress(tr, 0); // 確保 _segKm 站間里程已快取
+      const fmtKm = k => (k >= 9.95 ? Math.round(k) : k.toFixed(1)) + ' km';
       document.getElementById('dpName').textContent = dw.st.name;
       document.getElementById('dpPrev').textContent = prev ? prev.name : '';
       document.getElementById('dpNext').textContent = next ? next.name : '';
+      document.getElementById('dpPrevKm').textContent = prev ? fmtKm(tr._segKm[dw.i - 1]) : '';
+      document.getElementById('dpNextKm').textContent = next ? fmtKm(tr._segKm[dw.i]) : '';
       plate.querySelector('.side.left').style.visibility = prev ? 'visible' : 'hidden';
       plate.querySelector('.side.right').style.visibility = next ? 'visible' : 'hidden';
     }
@@ -2256,20 +2308,13 @@ function setupMapTools() {
   // 控制列在窄螢幕會摺成多行,面板/資訊卡的 bottom 依實際高度讓位。
   // 跟隨中改為:控制列離開底部中央,疊到左下跟隨卡片正上方(使用者指定)。
   function placeFsOverlays(on) {
-    const fp = document.getElementById('followPanel'), tc = document.getElementById('trainCard');
-    const ctl = document.querySelector('.controls');
-    if (!on) { fp.style.bottom = ''; tc.style.bottom = ''; ctl.style.left = ''; ctl.style.transform = ''; ctl.style.bottom = ''; ctl.style.maxWidth = ''; return; }
-    if (state.followTrain && !fp.hidden) {
-      fp.style.bottom = '12px';
-      ctl.style.left = '12px'; ctl.style.transform = 'none';
-      ctl.style.bottom = (12 + fp.getBoundingClientRect().height + 12) + 'px';
-      ctl.style.maxWidth = tc.hidden ? '' : 'calc(100vw - 400px)'; // 讓出右側資訊卡(340px+邊距),太寬就摺行
-      tc.style.bottom = '12px'; // 控制列已不在底部中央,資訊卡不必讓位
+    // 跟隨中:合併資訊卡佔左下(純 CSS),控制列改靠右下讓出位置;未跟隨:控制列回底部置中
+    const st = document.querySelector('.controls').style;
+    if (on && state.followTrain && !document.getElementById('followPanel').hidden) {
+      st.left = 'auto'; st.right = '12px'; st.transform = 'none'; st.bottom = '12px';
+      st.maxWidth = 'calc(100vw - 360px)'; // 讓出左側合併卡(300px+邊距),太寬就摺行
     } else {
-      ctl.style.left = ''; ctl.style.transform = ''; ctl.style.bottom = ''; ctl.style.maxWidth = '';
-      const h = ctl.getBoundingClientRect().height;
-      fp.style.bottom = (h + 24) + 'px';
-      tc.style.bottom = (h + 24) + 'px';
+      st.left = ''; st.right = ''; st.transform = ''; st.bottom = ''; st.maxWidth = '';
     }
   }
   // 跟隨卡高度會變(停站狀態列出現/消失)、跟隨開始/結束都要重排
@@ -2280,6 +2325,7 @@ function setupMapTools() {
     document.body.classList.toggle('fs', on);
     fsBtn.textContent = on ? '×' : '⛶';
     fsBtn.title = on ? '退出全畫面（Esc）' : '全畫面地圖（Esc 退出）';
+    placeTrainCard(); // 進出全畫面:資訊卡在「併入跟隨面板」與「地圖下方」之間搬移
     placeFsOverlays(on); // 同步執行:class 已套用,量得到 fs 版控制列高度
     requestAnimationFrame(() => { map.invalidateSize(); reproject(); });
     if (!on && state.ambient) setAmbient(false); // 退出全畫面=退出放空
@@ -2419,12 +2465,18 @@ document.getElementById('favPanel').onclick = e => {
   const row = e.target.closest('.row.fv');
   if (row) { closeFavPanel(); followTrainNo(row.dataset.no); }
 };
-document.getElementById('tcTT').onclick = () => {
-  const el = document.getElementById('tcStops');
-  el.hidden = !el.hidden;
-  document.getElementById('tcTT').textContent = el.hidden ? '時刻表 ▾' : '時刻表 ▴';
-  if (!el.hidden) { state._tcCurIdx = null; if (state.followTrain) updateFollowPanel(state.followTrain); }
-};
+// 資訊卡兩個可收放區:停靠時刻表與全程速度曲線
+function setStopsOpen(open) {
+  document.getElementById('tcStops').hidden = !open;
+  document.getElementById('tcTT').textContent = open ? '時刻表 ▴' : '時刻表 ▾';
+  if (open) { state._tcCurIdx = null; if (state.followTrain) updateFollowPanel(state.followTrain); }
+}
+function setSparkOpen(open) {
+  document.querySelector('.tc-sparkwrap').hidden = !open;
+  document.getElementById('tcSC').textContent = open ? '曲線 ▴' : '曲線 ▾';
+}
+document.getElementById('tcTT').onclick = () => setStopsOpen(document.getElementById('tcStops').hidden);
+document.getElementById('tcSC').onclick = () => setSparkOpen(document.querySelector('.tc-sparkwrap').hidden);
 document.getElementById('tcStops').onclick = e => {
   const row = e.target.closest('.tc-st');
   if (!row || row.classList.contains('hd') || !state.followTrain) return;
