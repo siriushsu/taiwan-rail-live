@@ -580,7 +580,7 @@
 <script>
 // 版本戳記:每次改版 push 前手動遞增(字母序),畫面時鐘徽章與 console 都會顯示,
 // 供比對線上跑的是不是最新版(瀏覽器快取 max-age=600 常讓人看到舊版)
-const BUILD = 'v0709b';
+const BUILD = 'v0709c';
 const state = {
   systems: [], sysId: null, data: null, speed: 36, mode: 'freq',
   lines: [], visible: new Set(), trains: [], schedStations: [], types: [],
@@ -709,8 +709,9 @@ function buildFollowRoute(tr) {
     pts = pts.concat(s.segLn ? shapeSlice(s.segLn, s.dA, s.dB)
       : [{ lat: s.lat, lon: s.lon }, { lat: nx.lat, lon: nx.lon }]);
   }
-  // 長途車折線可達數千點,均勻抽稀省每幀投影(視覺差異在 4px 線寬下看不出)
-  const CAP = 1200;
+  // 長途車折線可達數千點,均勻抽稀省每幀投影。CAP 太低會切彎角:433km 車 1200 點=點距360m,
+  // z14 就看得出高亮偏離軌道;4800 點=點距90m,弓高<3m 在任何 zoom 都貼軌
+  const CAP = 4800;
   if (pts.length > CAP) {
     const step = pts.length / CAP, out = [];
     for (let i = 0; i < pts.length; i += step) out.push(pts[Math.floor(i)]);
@@ -1066,7 +1067,8 @@ function drawStationIcon(cp, tier) {
 }
 
 function drawTag(p, label, bg, fg) {
-  ctx.font = '700 10px ' + FONT; ctx.textBaseline = 'middle';
+  // textAlign 必須自己設:draw() 每幀結尾重設為 start,靠環境值會讓車號從中心點往右起筆(偏右半個字寬)
+  ctx.font = '700 10px ' + FONT; ctx.textBaseline = 'middle'; ctx.textAlign = 'center';
   const pw = ctx.measureText(label).width + 10, ph = 15, rx = 7.5;
   const x0 = p.x - pw / 2, y0 = p.y - ph / 2;
   ctx.beginPath();
