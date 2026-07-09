@@ -544,6 +544,8 @@
   .eq i:nth-child(2) { animation-delay: .25s; }
   .eq i:nth-child(3) { animation-delay: .5s; }
   @keyframes eqb { 0%, 100% { height: 4px; } 50% { height: 12px; } }
+  /* 停播:等化器留在原位凍結(不佔位變化=鈕寬不跳動),條子壓底、淡出存在感 */
+  #musicBtn:not(.playing) .eq i { animation: none; height: 4px; opacity: .45; }
   #musicNextBtn { padding: 7px 10px; }
   .spd-btns { display: flex; gap: 4px; }
   .spd-btns button {
@@ -892,9 +894,9 @@
       <output id="todOut">08:00</output>
     </div>
     <button class="pp" id="nowBtn" title="跳到現在的真實時間">現在</button>
-    <button class="pp" id="ambientBtn" title="全畫面+自動換車跟隨，掛著放空用">🌙 放空模式</button>
+    <button class="pp" id="ambientBtn" title="全畫面+自動換車跟隨，掛著放空用">放空模式</button>
     <div class="ctl" id="musicCtl" title="背景音樂（進放空模式會自動開始）">
-      <button class="pp" id="musicBtn" title="播放/停止背景音樂"><span id="musicIco">🔇</span> 音樂<span class="eq" id="musicEq" hidden><i></i><i></i><i></i></span></button>
+      <button class="pp" id="musicBtn" title="播放/停止背景音樂">音樂<span class="eq"><i></i><i></i><i></i></span></button>
       <button class="pp" id="musicNextBtn" title="換一首">⏭</button>
       <input type="range" id="musicVol" min="0" max="100" step="1" value="50" aria-label="音量" />
     </div>
@@ -975,7 +977,7 @@
 <script>
 // 版本戳記:每次改版 push 前手動遞增(字母序),畫面時鐘徽章與 console 都會顯示,
 // 供比對線上跑的是不是最新版(瀏覽器快取 max-age=600 常讓人看到舊版)
-const BUILD = 'v0710f';
+const BUILD = 'v0710g';
 const state = {
   systems: [], sysId: null, data: null, speed: 36, mode: 'freq',
   lines: [], visible: new Set(), trains: [], schedStations: [], types: [],
@@ -2401,9 +2403,9 @@ function setAmbient(on) {
     ambientIdleReset();
     if (state.music && state.music.enabled && state.music.audio.paused) musicPlay(); // 已在放就別重來
   } else {
-    b.textContent = '🌙 放空模式';
+    b.textContent = '放空模式';
     releaseWakeLock();
-    // 音樂跟著開關走,離開放空不強制停(要停就按 🔇)
+    // 音樂跟著開關走,離開放空不強制停(要停就按音樂鈕)
     clearTimeout(state._idleT);
     document.body.classList.remove('idle');
     state._transition = false;
@@ -2493,10 +2495,8 @@ function updateMusicBtn() {
   const b = document.getElementById('musicBtn');
   if (!b) return;
   // enabled=偏好(預設 true 但自動播放被擋時根本沒聲音),真正「在放」= 偏好開且 audio 沒暫停
-  const playing = state.music.enabled && !state.music.audio.paused;
-  document.getElementById('musicIco').textContent = playing ? '🎵' : '🔇';
-  document.getElementById('musicEq').hidden = !playing;
-  b.classList.toggle('playing', playing);
+  // 等化器常駐佔位(停播時凍結,見 CSS),鈕寬開關兩態一致不跳動
+  b.classList.toggle('playing', state.music.enabled && !state.music.audio.paused);
 }
 function musicLoadCur() {
   const m = state.music;
