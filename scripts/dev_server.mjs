@@ -1,4 +1,4 @@
-// 本機開發伺服器：靜態檔案＋ /api/tra-live（與 api/tra-live.mjs 同邏輯）
+// 本機開發伺服器：靜態檔案＋ /api/tra-live（直接載入 Cloudflare Pages Function）
 // 用法：node scripts/dev_server.mjs（金鑰讀專案根目錄 .env）
 import { createServer } from 'node:http';
 import { readFileSync, existsSync, statSync } from 'node:fs';
@@ -16,17 +16,19 @@ try {
   }
 } catch (e) { console.warn('.env 讀取失敗，/api/tra-live 將無法運作'); }
 
-const handler = (await import(path.join(ROOT, 'api/tra-live.mjs'))).default;
+// Cloudflare Workers 環境 shim:Node 沒有 caches 全域,給個不快取的假物件
+globalThis.caches = { default: { match: async () => undefined, put: async () => {} } };
+const onRequest = (await import(path.join(ROOT, 'functions/api/tra-live.js'))).onRequest;
 
 const MIME = { '.html': 'text/html', '.js': 'text/javascript', '.mjs': 'text/javascript', '.json': 'application/json', '.css': 'text/css', '.png': 'image/png', '.jpg': 'image/jpeg', '.svg': 'image/svg+xml', '.mp3': 'audio/mpeg', '.ico': 'image/x-icon' };
 
 createServer(async (req, res) => {
   const url = new URL(req.url, 'http://x');
   if (url.pathname === '/api/tra-live') {
-    // 模擬 Vercel 的 res.status().json()
-    res.status = c => { res.statusCode = c; return res; };
-    res.json = o => { res.setHeader('content-type', 'application/json; charset=utf-8'); res.end(JSON.stringify(o)); };
-    return handler(req, res);
+    const resp = await onRequest({ request: new Request('http://localhost' + req.url), env: process.env });
+    res.statusCode = resp.status;
+    resp.headers.forEach((v, k) => res.setHeader(k, v));
+    return res.end(Buffer.from(await resp.arrayBuffer()));
   }
   let fp = path.join(ROOT, decodeURIComponent(url.pathname));
   if (existsSync(fp) && statSync(fp).isDirectory()) fp = path.join(fp, 'index.html');

@@ -2613,6 +2613,7 @@ function jumpToNow() {
   if (state.mode === 'sched') {
     setSimSec(nowSecOfDay());
     setSpeed(1); // 「現在」=回到真實狀態:1× 才不會馬上漂走,誤點修正得以持續套用
+    updateLiveBadge(); // 有舊資料就先亮,不等 poll 回來
     pollLive();
   } else {
     state.hour = Math.min(24, Math.max(5, new Date().getHours()));
