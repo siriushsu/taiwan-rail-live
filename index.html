@@ -781,7 +781,8 @@
     /* 放空模式(手機):看戲不操作——控制列只留「離開放空」一顆,跟隨卡縮成迷你條
       (車次+速度+下一站),別把列車蓋掉;速度/時間/音樂等設定進放空前調好 */
     body.ambient .controls > :not(#ambientBtn) { display: none; }
-    body.ambient.fs .controls { width: max-content; }
+    /* 「離開放空」靠右下角,跟左下角迷你跟隨卡各佔一角不重疊 */
+    body.ambient.fs .controls { width: max-content; left: auto; right: 8px; transform: none; }
     body.ambient .follow-panel { width: 176px; padding: 7px 10px 8px; }
     body.ambient .follow-panel .fp-prog,
     body.ambient .follow-panel .fp-dest,
@@ -790,7 +791,7 @@
     body.ambient .follow-panel .fp-head b { font-size: 13px; }
     body.ambient .follow-panel .fp-head .spd b { font-size: 17px; }
     body.ambient .follow-panel .fp-next .stn { font-size: 14px; white-space: nowrap; }
-    body.ambient.fs .follow-panel { bottom: 54px; } /* 控制列只剩一顆,不用讓 132px 那麼多 */
+    body.ambient.fs .follow-panel { bottom: 8px; } /* 「離開放空」已靠右下,左下角整個還給迷你卡 */
   }
 </style>
 </head>
@@ -1002,7 +1003,7 @@
 <script>
 // 版本戳記:每次改版 push 前手動遞增(字母序),畫面時鐘徽章與 console 都會顯示,
 // 供比對線上跑的是不是最新版(瀏覽器快取 max-age=600 常讓人看到舊版)
-const BUILD = 'v0710j';
+const BUILD = 'v0710k';
 const state = {
   systems: [], sysId: null, data: null, speed: 36, mode: 'freq',
   lines: [], visible: new Set(), trains: [], schedStations: [], types: [],
