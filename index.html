@@ -1685,6 +1685,16 @@ const GROUPS = [
 ];
 const groupOf = id => GROUPS.find(g => g.members.includes(id)) || GROUPS[0];
 
+// 台鐵/高鐵(sched)專屬工具鈕(今日亮點/我的最愛/旅程收集/隨機跟隨/特殊站介紹)只在 sched 顯示;
+// 捷運/輕軌(freq)沒有車次、完乘、特別列車這些概念,隱藏這些鈕。用 inline display 蓋過 .stage-tools 的 flex。
+function updateSchedTools() {
+  const show = state.mode === 'sched';
+  for (const id of ['exploreBtn', 'favBtn', 'rideBtn', 'tourBtn', 'introBtn']) {
+    const b = document.getElementById(id);
+    if (b) b.style.display = show ? '' : 'none';
+  }
+}
+
 // loadSystem / loadFreqGroup 共用尾段:面板收合、圖例、徽章、站名牌
 function finishLoad(meta) {
   closeBoard();
@@ -1696,6 +1706,7 @@ function finishLoad(meta) {
   renderFavs();
   renderPassport();
   renderAlertBanner(); // 換到捷運模式收掉台鐵通阻橫幅
+  updateSchedTools();  // 捷運模式隱藏台鐵專屬工具鈕
   refreshBadge();
   updateCount();
   if (meta) {
