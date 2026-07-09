@@ -88,6 +88,7 @@
     background: #2f7d5b; color: #fff8ec; border-color: #246146; box-shadow: 0 2px 0 #246146;
   }
   .groupmembers .mem.off { opacity: .7; }
+  .groupmembers .allcap { font-size: 12.5px; color: #7a6c50; padding: 6px 3px; line-height: 1.4; }
   .groupmembers .mem .memck {
     width: 13px; height: 13px; border-radius: 3px; border: 1.5px solid currentColor;
     display: inline-flex; align-items: center; justify-content: center; font-size: 10px; line-height: 1;
@@ -951,7 +952,7 @@
 <script>
 // 版本戳記:每次改版 push 前手動遞增(字母序),畫面時鐘徽章與 console 都會顯示,
 // 供比對線上跑的是不是最新版(瀏覽器快取 max-age=600 常讓人看到舊版)
-const BUILD = 'v0710a';
+const BUILD = 'v0710b';
 const state = {
   systems: [], sysId: null, data: null, speed: 36, mode: 'freq',
   lines: [], visible: new Set(), trains: [], schedStations: [], types: [],
@@ -1064,6 +1065,10 @@ function reproject() {
     projShape(ln);
   });
   if (state.trackLines) state.trackLines.forEach(projShape);
+  if (state.decoLines) state.decoLines.forEach(ln => { // 全台同框:裝飾捷運/輕軌層的線與站投影
+    ln.pts = ln.stations.map(s => { const p = map.latLngToContainerPoint([s.lat, s.lon]); return { x: p.x, y: p.y }; });
+    projShape(ln);
+  });
 }
 
 // 跟隨路線高亮:跟車時抽出全程折線一次(lat/lon),drawSched 每幀轉螢幕座標描光暈
@@ -1256,6 +1261,7 @@ function assignSchedShapePathsFor(trains, lines) {
 function applySchedSystems(sysList) {
   state.schedSystems = sysList;
   state.mode = 'sched';
+  state.deco = false; state.decoLines = null; // 預設關裝飾層;loadAllGroup 會在之後重新開
   state.sys = sysList[0] || null;
   state.data = sysList[0] ? sysList[0].data : null;
   state.lines = []; // 清掉可能殘留的 freq 線
@@ -1366,6 +1372,34 @@ function drawFreq(w, h) {
     if (drawnNames.has(name)) continue;
     drawnNames.add(name); tryLabel(p.x, p.y, name);
   }
+}
+
+// 全台同框的裝飾層:所有捷運/輕軌路線與示意列車,畫得半透明、墊在台鐵/高鐵底下(僅豐富畫面,非即時)
+function drawDeco(w, h) {
+  if (!state.decoLines) return;
+  const inView = p => p.x >= -40 && p.x <= w + 40 && p.y >= -20 && p.y <= h + 20;
+  for (const ln of state.decoLines) {
+    const line = ln.shapePts || ln.pts;
+    if (!line || line.length < 2) continue;
+    ctx.beginPath();
+    line.forEach((p, i) => i ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y));
+    ctx.strokeStyle = ln.color; ctx.globalAlpha = 0.42; ctx.lineWidth = 2.4; ctx.stroke();
+  }
+  ctx.globalAlpha = 1;
+  const tau = state.decoElapsed * state.speedMult;
+  for (const ln of state.decoLines) {
+    if (!ln.sched) continue;
+    for (let k = 0; k < ln.n; k++) {
+      const pos = posPeriodic(ln, tau + k * ln.period / ln.n);
+      const cp = map.latLngToContainerPoint([pos.lat, pos.lon]);
+      if (!inView(cp)) continue;
+      ctx.beginPath(); ctx.arc(cp.x, cp.y, 2.7, 0, 7);
+      ctx.fillStyle = '#ffffff'; ctx.globalAlpha = 0.85; ctx.fill();
+      ctx.beginPath(); ctx.arc(cp.x, cp.y, 1.7, 0, 7);
+      ctx.fillStyle = ln.color; ctx.globalAlpha = 1; ctx.fill();
+    }
+  }
+  ctx.globalAlpha = 1;
 }
 
 function drawSched(w, h) {
@@ -1541,7 +1575,7 @@ function draw() {
   state._trainHits = [];
   labelBoxes = [];
   ctx.lineCap = 'round'; ctx.lineJoin = 'round';
-  if (state.mode === 'sched') drawSched(w, h); else drawFreq(w, h);
+  if (state.mode === 'sched') { if (state.deco) drawDeco(w, h); drawSched(w, h); } else drawFreq(w, h);
   ctx.globalAlpha = 1; ctx.textAlign = 'start'; ctx.textBaseline = 'alphabetic';
 }
 
@@ -1554,6 +1588,7 @@ function tick(now) {
       document.getElementById('tod').value = Math.floor(state.simSec / 60);
       document.getElementById('todOut').textContent = fmtHM(state.simSec);
       document.getElementById('clock').textContent = fmtHM(state.simSec);
+      if (state.deco) state.decoElapsed = (state.decoElapsed || 0) + dt; // 全台同框:裝飾捷運層獨立推進
     } else {
       state.elapsed += dt;
     }
@@ -1733,6 +1768,9 @@ const GROUPS = [
   { id: 'south', label: '中南部', mode: 'freq', members: ['tmrt', 'krtc'],
     plate: { plateL: '台中', plateR: '高雄', sub: 'CENTRAL & SOUTHERN METRO',
       lead: '台中捷運與高雄捷運同框（班距模擬示意，非即時班次）— 可在上方勾選要同時顯示的系統。' } },
+  { id: 'all', label: '全台同框', mode: 'all', members: [],
+    plate: { plateL: '基隆', plateR: '高雄', sub: 'ALL LINES · TAIWAN',
+      lead: '全台鐵道一次看 — 台鐵與高鐵依真實時刻表運行（台鐵套即時誤點），捷運與輕軌為示意動畫（非即時），只為讓整張地圖熱鬧好看。' } },
 ];
 const groupOf = id => GROUPS.find(g => g.members.includes(id)) || GROUPS[0];
 
@@ -1770,6 +1808,7 @@ function finishLoad(meta) {
 
 function loadSystem(sys) {
   state.sysId = sys.id; state.sys = sys; state.data = sys.data; state.mode = sys.mode || 'freq';
+  state.deco = false; state.decoLines = null; // 單系統載入不帶裝飾層
   if (state.autoTour) setAutoTour(false); // 手動換系統即退出隨機模式
   clearFollow();
   const ts = document.getElementById('trainSearch'); if (ts) ts.value = '';
@@ -1828,7 +1867,12 @@ function renderSystemsBar() {
   box.appendChild(tabs);
   const mem = document.createElement('div');
   mem.className = 'groupmembers';
-  cur.members.forEach(id => {
+  if (cur.mode === 'all') {
+    const cap = document.createElement('div');
+    cap.className = 'allcap';
+    cap.textContent = '台鐵 · 高鐵（真實時刻）｜ 捷運 · 輕軌（示意動畫，非即時）';
+    mem.appendChild(cap);
+  } else cur.members.forEach(id => {
     const sys = state.systems.find(s => s.id === id);
     if (!sys) return;
     const b = document.createElement('button');
@@ -1851,7 +1895,8 @@ function renderSystemsBar() {
 
 function selectGroup(g) {
   if (state.group === g.id) return;
-  if (g.mode === 'sched') loadSchedGroup(g);
+  if (g.mode === 'all') loadAllGroup(g);
+  else if (g.mode === 'sched') loadSchedGroup(g);
   else loadFreqGroup(g);
 }
 
@@ -1862,6 +1907,7 @@ function loadFreqGroup(g, sel) {
   const ts = document.getElementById('trainSearch'); if (ts) ts.value = '';
   state.group = g.id;
   state.mode = 'freq';
+  state.deco = false; state.decoLines = null;
   state.sys = null; state.sysId = g.id;
   state.freqSel = sel || new Set(g.members);
   state.speed = 30; // 僅缺 segs 的線才用到;各線另存 _speed
@@ -1940,6 +1986,52 @@ function toggleSchedMember(id) {
   else state.schedSel.add(id);
   const g = GROUPS.find(x => x.id === state.group);
   loadSchedGroup(g, state.schedSel, true); // keepView:切換成員不重新框景
+}
+
+// 全台同框:把所有 freq 系統(捷運/輕軌)的線建成裝飾層,示意動畫獨立於真實時鐘
+function buildDecoLines() {
+  const freqIds = GROUPS.filter(g => g.mode === 'freq').flatMap(g => g.members);
+  const lines = [];
+  for (const id of freqIds) {
+    const sys = state.systems.find(s => s.id === id);
+    if (!sys) continue;
+    for (const l of sys.data.lines) {
+      const ln = { ...l, abbr: abbrOf(l), _speed: sys.speed, _sys: sys.id, _sysLabel: sys.label };
+      buildLineSchedule(ln);                                        // .sched/.period/.hasShape
+      ln.n = Math.max(1, Math.round(ln.period / headwayOf(ln, 8))); // 尖峰密度,裝飾用固定值
+      lines.push(ln);
+    }
+  }
+  state.decoLines = lines;
+}
+
+// 全台同框頁籤:台鐵+高鐵真實時刻 ＋ 全捷運/輕軌裝飾層,一張圖看完整個台灣鐵道
+function loadAllGroup(g) {
+  const scheds = ['tra_sched', 'thsr_sched'].filter(id => state.systems.some(s => s.id === id))
+    .map(id => state.systems.find(s => s.id === id));
+  if (!scheds.length) return; // 無 sched 系統(理論上不會發生),不切換
+  if (state.autoTour) setAutoTour(false);
+  clearFollow();
+  const ts = document.getElementById('trainSearch'); if (ts) ts.value = '';
+  state.group = g.id;
+  state.schedSel = new Set(scheds.map(s => s.id));
+  state.sysId = scheds[0].id; // 收藏/成就沿用主系統 key(台鐵)
+  applySchedSystems(scheds);  // 台鐵+高鐵真實時刻(此處 state.deco 被設 false)
+  buildDecoLines();           // 全捷運/輕軌裝飾層
+  state.deco = true;
+  state.decoElapsed = 0;
+  const pts = state.schedStations.map(s => [s.lat, s.lon])
+    .concat(state.decoLines.flatMap(l => l.stations.map(s => [s.lat, s.lon])));
+  fitData(pts);
+  reproject();
+  document.getElementById('note').textContent =
+    '全台鐵道同框 — 台鐵、高鐵依當日真實時刻表運行（共 ' + state.trains.length + ' 車次，台鐵回到現在時刻自動套用即時誤點）；' +
+    '捷運與各輕軌為「示意動畫」，僅為讓整張地圖熱鬧好看、並非即時班次。點台鐵／高鐵列車可跟隨，點車站看班次。';
+  populateTrainList();
+  document.getElementById('searchRow').hidden = false;
+  document.getElementById('flowWrap').hidden = false;
+  finishLoad(g.plate);
+  renderSystemsBar();
 }
 
 function populateTrainList() {
