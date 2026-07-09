@@ -27,10 +27,11 @@
   /* ── 雙欄版面:地圖主欄+右側互動欄(搜尋/最愛/旅程收集/篩選),點側欄同時看得到地圖;
      窄螢幕(<1200px)回退單欄堆疊 ── */
   .cols { display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 0 18px; align-items: start; }
-  .side-col { position: sticky; top: 10px; max-height: calc(100vh - 20px); overflow-y: auto; padding: 0 2px 8px; }
+  /* 側欄不自己出捲軸:路線與旅程面板都可收合,常態下整欄放得進視窗;全展開時跟著頁面捲 */
+  .side-col { position: sticky; top: 10px; padding: 0 2px 8px; }
   @media (max-width: 1199px) {
     .cols { grid-template-columns: 1fr; }
-    .side-col { position: static; max-height: none; overflow: visible; padding: 0; }
+    .side-col { position: static; padding: 0; }
   }
 
   /* ── 站名牌 header(仿早期台鐵琺瑯站名牌:白底藍字細鋼框,大字站名+拼音置中,
@@ -383,11 +384,11 @@
   body.fs .follow-panel .tc-no,
   body.fs .follow-panel .tc-kind { display: none; }
   body.fs .follow-panel .tc-body { grid-template-columns: 1fr; height: auto; gap: 7px; }
-  body.fs .follow-panel .tc-intro { height: 76px; overflow-y: auto; }   /* 全畫面浮層維持精簡:固定高+捲動,放空換車不跳動 */
+  /* 介紹依內容展開不出捲軸(同一般模式的卡);旅程日誌維持固定高的滾動記錄區 */
   body.fs .follow-panel .tc-events #tcEvents { flex: none; height: 88px; }
   body.fs .stage-tools { top: 12px; bottom: auto; flex-direction: column; }
   body.fs .board { right: 60px; }
-  body.fs .kbd-hint, body.fs .flow, body.fs .search, body.fs .favs, body.fs .lines, body.fs .note, body.fs .passport { display: none; }
+  body.fs .kbd-hint, body.fs .flow, body.fs .search, body.fs .favs, body.fs .lines, body.fs .note, body.fs .passport, body.fs .site-foot { display: none; }
   /* 放空模式:閒置 5 秒淡出控制,滑鼠動了淡回(時鐘與跟隨面板留著) */
   .controls, .stage-tools, .leaflet-control-container { transition: opacity .7s; }
   body.idle .controls, body.idle .stage-tools, body.idle .leaflet-control-container { opacity: 0; pointer-events: none; }
@@ -481,7 +482,55 @@
     letter-spacing: 3px; margin: 8px 2px -2px;
     padding-bottom: 3px; border-bottom: 1.5px dashed #d8cba9;
   }
+  /* 鐵道路線區可收合(同旅程收集):點標題切換,收起時該區票根全藏 */
+  .legend-lbl.tgl { cursor: pointer; user-select: none; }
+  .legend-lbl.tgl .arr { letter-spacing: 0; margin-left: 6px; font-weight: 600; }
+  .lines.routes-closed .chip.rt { display: none; }
   .note { margin: 22px 2px 0; color: #8a7c62; font-size: 13px; line-height: 1.6; }
+
+  /* ── 頁尾:更新紀錄/資料來源/回報連結/抖內(收合式,參考防災手冊的做法) ── */
+  .site-foot { margin: 28px 2px 0; max-width: 760px; display: grid; gap: 10px; }
+  .foot-box { background: #f5eedd; border: 1.5px solid #d8c9a3; border-radius: 10px; }
+  .foot-box summary {
+    cursor: pointer; user-select: none; list-style: none;
+    display: flex; align-items: center; gap: 10px;
+    padding: 11px 14px; font-size: 14px; font-weight: 700; color: #7a6c50;
+  }
+  .foot-box summary::-webkit-details-marker { display: none; }
+  .foot-box summary::after { content: '▾'; margin-left: auto; color: #a89468; font-weight: 400; }
+  .foot-box[open] summary::after { content: '▴'; }
+  .foot-box summary:hover { color: #3a3226; }
+  .foot-sub { font-size: 12px; font-weight: 400; color: #a89468; }
+  .foot-list {
+    margin: 0; padding: 0 14px 12px; list-style: none;
+    display: grid; gap: 6px; font-size: 13px; color: #8a7c62; line-height: 1.6;
+  }
+  .foot-list li { display: flex; gap: 10px; }
+  .foot-list .d { color: #d23c2a; font-weight: 700; flex-shrink: 0; min-width: 34px; }
+  .foot-note { margin: 0; padding: 0 14px 12px; font-size: 12px; color: #a89468; line-height: 1.6; }
+  .foot-links { display: flex; flex-wrap: wrap; gap: 8px 20px; padding: 0 2px; font-size: 13px; }
+  .foot-links a { color: #2a4a73; text-decoration: none; }
+  .foot-links a:hover { color: #d23c2a; text-decoration: underline; }
+  .donate-body { padding: 2px 14px 14px; display: grid; gap: 10px; justify-items: center; text-align: center; }
+  .donate-thanks { margin: 0; font-size: 14px; font-weight: 700; color: #3a3226; }
+  .donate-kofi {
+    display: block; width: 100%; max-width: 320px; padding: 10px 0;
+    background: #d23c2a; color: #fff8ec !important; font-weight: 700; font-size: 14px;
+    border-radius: 8px; text-decoration: none; box-shadow: 0 2px 0 #a92c1d;
+  }
+  .donate-kofi:hover { background: #b8321f; }
+  .donate-bank p { margin: 0 0 6px; font-size: 12px; color: #a89468; }
+  .acct {
+    display: inline-flex; align-items: center; gap: 10px;
+    background: #fffdf6; border: 1px solid #d8c9a3; border-radius: 8px; padding: 8px 12px;
+    font-size: 13px; color: #8a7c62;
+  }
+  .acct b { font-family: ui-monospace, "SF Mono", Menlo, monospace; letter-spacing: .5px; color: #3a3226; }
+  .acct button {
+    font: inherit; font-size: 12px; cursor: pointer; color: #7a6c50;
+    background: #e6d9ba; border: 1px solid #c9b98f; border-radius: 5px; padding: 2px 9px;
+  }
+  .acct button:hover { background: #dccb9f; }
 
   /* ── 搜尋+跟隨票 ── */
   .search { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin: 14px 2px 0; }
@@ -762,12 +811,57 @@
     <div class="passport" id="passport" hidden></div>
   </aside>
   </div>
+
+  <footer class="site-foot">
+    <details class="foot-box">
+      <summary><span>🛠 更新紀錄</span><span class="foot-sub">最後更新：2026/7/9</span></summary>
+      <ul class="foot-list">
+        <li><span class="d">7/9</span><span>網站更名「列車有時」，標頭改為早期台鐵琺瑯站名牌樣式</span></li>
+        <li><span class="d">7/9</span><span>台鐵即時誤點上線——介接交通部 TDX 平臺每分鐘更新，回到現在時刻自動套用</span></li>
+        <li><span class="d">7/9</span><span>旅程護照與 16 枚成就徽章；「探」今日亮點面板＋特別列車故事</span></li>
+        <li><span class="d">7/9</span><span>雙欄版面：搜尋／最愛／旅程收集／路線篩選移到右側欄，點選同時看得到地圖</span></li>
+        <li><span class="d">7/9</span><span>鐵道迷功能包：跟隨路線高亮、月台站名牌、日夜天色、全程速度曲線、放空模式＋背景音樂</span></li>
+        <li><span class="d">7/8</span><span>初版上線：台鐵全日時刻表動畫＋北捷／高捷（含輕軌）／中捷班距模擬</span></li>
+      </ul>
+    </details>
+    <details class="foot-box">
+      <summary><span>📊 資料來源與授權</span></summary>
+      <ul class="foot-list">
+        <li><span class="d">台鐵</span><span>台鐵官方 OpenData（ods.railway.gov.tw）——每日時刻表、車站基本資料、車種代碼表，依「政府資料開放授權條款」使用</span></li>
+        <li><span class="d">捷運</span><span>交通部 TDX 運輸資料流通服務——北捷／高捷（含輕軌）／中捷的路線幾何、站序、班距與站間行駛時間</span></li>
+        <li><span class="d">即時</span><span>台鐵即時誤點與車站地址介接交通部 TDX 平臺（TrainLiveBoard／Station，每分鐘更新）</span></li>
+        <li><span class="d">軌道</span><span>台鐵軌道幾何取自 © OpenStreetMap 貢獻者（ODbL），經 Overpass API</span></li>
+        <li><span class="d">底圖</span><span>CARTO basemaps（© OpenStreetMap）與 Esri World Imagery（衛星影像）</span></li>
+      </ul>
+      <p class="foot-note">本站為個人愛好者專案，與台灣鐵路公司及各捷運公司皆無關。捷運列車位置為班距推算示意、台鐵列車依每日時刻表模擬，實際到離站時刻請以各營運機構官方資訊為準。</p>
+    </details>
+    <div class="foot-links">
+      <a href="https://github.com/siriushsu/taiwan-rail-live/issues/new" target="_blank" rel="noopener noreferrer">📍 回報問題或建議</a>
+      <a href="https://github.com/siriushsu/taiwan-rail-live" target="_blank" rel="noopener noreferrer">⭐ 開源專案，歡迎貢獻</a>
+    </div>
+    <details class="foot-box foot-donate">
+      <summary><span>☕ 覺得有幫助？請開發者喝杯咖啡</span></summary>
+      <div class="donate-body">
+        <p class="donate-thanks">感謝你的支持！</p>
+        <a class="donate-kofi" href="https://ko-fi.com/siriushsu" target="_blank" rel="noopener noreferrer">☕ Ko-fi（信用卡 / PayPal）</a>
+        <div class="donate-bank">
+          <p>或銀行轉帳</p>
+          <div class="acct">
+            <span>玉山銀行 (808)</span>
+            <b>0521979118500</b>
+            <button id="donateCopy">複製</button>
+          </div>
+        </div>
+        <p class="foot-note">本專案為開源免費工具，您的支持幫助我們維護伺服器與持續改善內容</p>
+      </div>
+    </details>
+  </footer>
 </div>
 
 <script>
 // 版本戳記:每次改版 push 前手動遞增(字母序),畫面時鐘徽章與 console 都會顯示,
 // 供比對線上跑的是不是最新版(瀏覽器快取 max-age=600 常讓人看到舊版)
-const BUILD = 'v0709n';
+const BUILD = 'v0709o';
 const state = {
   systems: [], sysId: null, data: null, speed: 36, mode: 'freq',
   lines: [], visible: new Set(), trains: [], schedStations: [], types: [],
@@ -978,6 +1072,7 @@ function posPeriodic(ln, t) {
 
 function trainPos(tr, t) {
   t -= liveDelaySec(tr);
+  if (tr.loop) t = tr.stops[0].arrSec + ((t - tr.stops[0].arrSec) % tr.loopSec + tr.loopSec) % tr.loopSec; // 環島車:任何時刻都映回本圈
   const s = tr.stops, n = s.length;
   // 跨午夜車次(時刻編碼 >86400):simSec 歸零後把前一日班次接續回來
   if (t < s[0].arrSec && t + 86400 <= s[n - 1].depSec) t += 86400;
@@ -1341,9 +1436,10 @@ function tick(now) {
 function buildToggles() {
   const box = document.getElementById('lineToggles');
   box.innerHTML = '';
-  const chip = (name, color, set, id) => {
+  box.classList.remove('routes-closed');
+  const chip = (name, color, set, id, cls) => {
     const el = document.createElement('div');
-    el.className = 'chip' + (set.has(id) ? '' : ' off');
+    el.className = 'chip' + (cls ? ' ' + cls : '') + (set.has(id) ? '' : ' off');
     el.innerHTML = `<span class="dot" style="background:${color}"></span>${name}`;
     el.onclick = () => {
       if (set.has(id)) { set.delete(id); el.classList.add('off'); }
@@ -1359,8 +1455,22 @@ function buildToggles() {
   if (state.mode === 'sched') {
     label('車種（篩選列車）');
     state.types.forEach(t => chip(t.key, t.color, state.visible, t.key));
-    label('鐵道路線（顯示／隱藏軌道）');
-    (state.trackLines || []).forEach(l => { if (!l.aux) chip(l.name, l.color, state.trackVisible, l.id); }); // aux=連絡線(成追線),常駐顯示不出票根
+    // 鐵道路線區可收合,狀態記 localStorage(預設收起,側欄才不用捲)
+    let rtOpen = false;
+    try { rtOpen = localStorage.getItem('trainmap-routes-open') === '1'; } catch (e) {}
+    box.classList.toggle('routes-closed', !rtOpen);
+    const rtLbl = document.createElement('div');
+    rtLbl.className = 'legend-lbl tgl';
+    const rtArr = () => `鐵道路線（顯示／隱藏軌道）<span class="arr">${box.classList.contains('routes-closed') ? '展開 ▼' : '收合 ▲'}</span>`;
+    rtLbl.innerHTML = rtArr();
+    rtLbl.onclick = () => {
+      const open = box.classList.contains('routes-closed'); // 收起→這次點擊要展開
+      try { localStorage.setItem('trainmap-routes-open', open ? '1' : '0'); } catch (e) {}
+      box.classList.toggle('routes-closed', !open);
+      rtLbl.innerHTML = rtArr();
+    };
+    box.appendChild(rtLbl);
+    (state.trackLines || []).forEach(l => { if (!l.aux) chip(l.name, l.color, state.trackVisible, l.id, 'rt'); }); // aux=連絡線(成追線),常駐顯示不出票根
   } else {
     state.lines.forEach(l => chip(l.name, l.color, state.visible, l.id));
   }
@@ -1406,12 +1516,71 @@ function fitData(latlngs) {
   doFit();
 }
 
+// ── 無盡環島號(虛構觀光列車,data/tra_special_trains.json 的 endless-loop):
+// 順逆時針各一班,永遠在環島幹線上跑。一圈固定 12 小時(每站每日固定兩個時刻),
+// 時刻由軌道弧長等速合成＋大站停 2 分;trainPos/effT 對圈長取模,所以永不到站、無限循環
+const LOOP_SEC = 43200, LOOP_DEP = 8 * 3600, LOOP_DWELL = 120;
+// 環島站序(順時針,宜蘭花蓮先行):*=接線通過點不停車;站名以時刻表資料為準(臺/台自動對應)
+const LOOP_STOPS_CW = ['臺北', '八堵*', '宜蘭', '蘇澳新*', '花蓮', '臺東', '枋寮', '高雄', '臺南', '嘉義', '彰化', '臺中', '竹南*', '新竹', '桃園'];
+function buildLoopTrains(data) {
+  if (data._loopAdded) return;
+  data._loopAdded = true;
+  if (data.trains.some(t => String(t.train) === '8888' || String(t.train) === '8889')) return; // 車次號撞真車就不出
+  const coord = new Map();
+  data.trains.forEach(tr => tr.stops.forEach(s => { if (!coord.has(s.name)) coord.set(s.name, s); }));
+  const seq = [];
+  for (const raw of LOOP_STOPS_CW) {
+    const pass = raw.endsWith('*'), name = pass ? raw.slice(0, -1) : raw;
+    const st = coord.get(name) || coord.get(name.replace(/臺/g, '台'));
+    if (!st) return; // 站名對不上就整組不出車(資料檔變動時安全退場)
+    seq.push({ st, pass });
+  }
+  const typeKey = ((data.types || []).find(t => t.key === '其他') || (data.types || [])[0] || { key: '其他' }).key;
+  const mk = (no, list) => ({
+    train: no, typeName: typeKey, color: '#d2a12a', loop: true, loopSec: LOOP_SEC,
+    stops: list.concat([list[0]]).map(x => {
+      const o = { name: x.st.name, lat: x.st.lat, lon: x.st.lon, arrSec: 0, depSec: 0 };
+      if (x.pass) o.stop = false;
+      return o;
+    }),
+  });
+  data.trains.push(mk('8888', seq));
+  data.trains.push(mk('8889', [seq[0]].concat(seq.slice(1).reverse())));
+}
+// 貼軌完成後才知道每段實際弧長,把一圈時刻按里程等比鋪滿 12 小時
+function retimeLoopTrains() {
+  for (const tr of state.trains) {
+    if (!tr.loop) continue;
+    const s = tr.stops, segKm = [];
+    let total = 0;
+    for (let i = 0; i < s.length - 1; i++) {
+      const km = s[i].segLn ? Math.abs(s[i].dB - s[i].dA) : haversineKm(s[i], s[i + 1]);
+      segKm.push(km); total += km;
+    }
+    const dwells = s.filter((x, i) => i > 0 && i < s.length - 1 && x.stop !== false).length * LOOP_DWELL + LOOP_DWELL;
+    const travel = LOOP_SEC - dwells;
+    s[0].arrSec = LOOP_DEP; s[0].depSec = LOOP_DEP + LOOP_DWELL;
+    let t = s[0].depSec;
+    for (let i = 1; i < s.length; i++) {
+      t += segKm[i - 1] / total * travel;
+      s[i].arrSec = Math.round(t);
+      s[i].depSec = s[i].arrSec + (i < s.length - 1 && s[i].stop !== false ? LOOP_DWELL : 0);
+      t = s[i].depSec;
+    }
+    // 末站=回到起點,校準到整圈(吃掉逐段捨入誤差),effT 取模才能無縫接回圈首
+    s[s.length - 1].arrSec = s[0].arrSec + LOOP_SEC;
+    s[s.length - 1].depSec = s[s.length - 1].arrSec;
+    tr._segKm = null; tr._spdProf = null; tr._sp = undefined;
+  }
+}
+
 function loadSystem(sys) {
   state.sysId = sys.id; state.data = sys.data; state.mode = sys.mode || 'freq';
   if (state.autoTour) setAutoTour(false); // 手動換系統即退出隨機模式
   clearFollow();
   const ts = document.getElementById('trainSearch'); if (ts) ts.value = '';
   if (state.mode === 'sched') {
+    buildLoopTrains(sys.data); // 無盡環島號:首次載入時補進班表(冪等)
     state.trains = sys.data.trains;
     const seen = new Map();
     sys.data.trains.forEach(tr => tr.stops.forEach(st => { if (!seen.has(st.name)) seen.set(st.name, { name: st.name, lat: st.lat, lon: st.lon }); }));
@@ -1435,6 +1604,7 @@ function loadSystem(sys) {
     state.simSec = nowSecOfDay(); // 開頁即同步現在時刻
     pollLive(); // 初始 poll 在 mode 就緒前會被擋掉,進台鐵模式時補拉
     assignSchedShapePaths();
+    retimeLoopTrains(); // 貼軌後才有弧長,環島車時刻此時才能鋪
     computeFlow();
     fitData(state.schedStations.map(s => [s.lat, s.lon]));
     reproject();
@@ -1521,6 +1691,7 @@ function findTrain(q) {
 // 跨午夜車次的有效模擬時間:00:00 後仍在跑的前一日班次,把 simSec 加一天來比對
 function effT(tr) {
   const s = tr.stops;
+  if (tr.loop) return s[0].arrSec + ((state.simSec - s[0].arrSec) % tr.loopSec + tr.loopSec) % tr.loopSec; // 環島車:映回本圈
   return (state.simSec < s[0].arrSec && state.simSec + 86400 <= s[s.length - 1].depSec)
     ? state.simSec + 86400 : state.simSec;
 }
@@ -1562,7 +1733,8 @@ function setFollow(tr, isAuto, noJump, opts) {
     if (!state._followSpeedSaved) { state._preFollowSpd = state.speedMult; state._followSpeedSaved = true; }
     setSpeed(30);
     if (!state.playing) togglePlay();
-  } else if (effT(tr) < first.depSec - 60 || effT(tr) > last.arrSec) {
+  } else if (!tr.loop && (effT(tr) < first.depSec - 60 || effT(tr) > last.arrSec)) {
+    // 環島車永遠在跑,不需要把時間拉回發車
     state.simSec = Math.max(0, first.depSec - 20) % 86400;
     syncTimeUI();
   }
@@ -1575,6 +1747,7 @@ function setFollow(tr, isAuto, noJump, opts) {
   // 完乘資格快照:記錄跟隨起點時間,中途接手或跳時間作弊的都不蓋章(見 updateFollowCamera)
   state.followStartEff = effT(tr);
   state.followTimeJumped = false;
+  state._lapPrev = null; state._lapAcc = 0; // 環島車完乘=連續跟滿一圈,換車歸零重計
   state._routePts = buildFollowRoute(tr);
   showFollowPanel(tr);
   placeTrainCard();
@@ -1677,6 +1850,8 @@ function pickTourTrain() {
   if (!cands.length) return null;
   let total = 0;
   const ws = cands.map(t => {
+    // 環島車 24 小時都在跑又掛「其他」高權重,固定成中等權重,免得隨機模式老是選到它
+    if (t.loop) { total += 3; return 3; }
     let w = TOUR_W[t.typeName] || 1;
     const sp = specialOf(t); // 具名觀光列車與稀有車種加權,放空/隨機模式更常遇到
     if (sp && (sp.named || (sp.stock && sp.stock.rarity === '稀有'))) w *= 4;
@@ -1931,7 +2106,7 @@ function renderTrainCard(tr) {
   const first = tr.stops[0], last = tr.stops[tr.stops.length - 1];
   document.getElementById('tcDot').style.background = tr.color;
   document.getElementById('tcNo').textContent = tr.train;
-  document.getElementById('tcKind').textContent = it.kind || tr.typeName;
+  document.getElementById('tcKind').textContent = tr.loop ? '觀光列車' : (it.kind || tr.typeName);
   document.getElementById('tcRoute').textContent =
     `${first.name} ${fmtHM(first.depSec % 86400)} → ${last.name} ${fmtHM(last.arrSec % 86400)}`;
   let html = '';
@@ -2140,6 +2315,7 @@ const ACHIEVEMENTS = [
   { id: 'stops50',  icon: '🐌', name: '站站是風景',     desc: '完乘一班停靠 50 站以上的慢車' },
   { id: 'early',    icon: '🌄', name: '早鳥',           desc: '完乘一班清晨 6 點前發車的列車' },
   { id: 'night',    icon: '🌙', name: '夜行者',         desc: '完乘一班晚上 10 點後發車的列車' },
+  { id: 'loop',     icon: '♾️', name: '環島一周',       desc: '跟著無盡環島號連續繞行寶島一整圈' },
   { id: 'day3',     icon: '📅', name: '一日三乘',       desc: '同一天完乘 3 趟' },
   { id: 'tilting',  icon: '⚖️', name: '傾斜雙雄',       desc: '收集太魯閣號與普悠瑪號兩枚傾斜式車種章' },
   { id: 'namedAll', icon: '🌟', name: '明星集郵冊',     desc: '收集所有明星列車章' },
@@ -2158,6 +2334,7 @@ const ACH_TESTS = {
   stops50: r => r.some(x => (x.stops || 0) >= 50),
   early:  r => r.some(x => x.dep != null && (x.dep % 86400) < 6 * 3600),
   night:  r => r.some(x => x.dep != null && (x.dep % 86400) >= 22 * 3600),
+  loop:   r => r.some(x => x.namedId === 'endless-loop'),
   day3:   r => Object.values(r.reduce((m, x) => (m[x.date] = (m[x.date] || 0) + 1, m), {})).some(n => n >= 3),
   tilting: (r, c) => c.stock.has('taroko') && c.stock.has('puyuma'),
   namedAll: (r, c) => { const n = state.special ? state.special.namedTrains.filter(x => x.trainNos.length).length : 0; return n > 0 && c.named.size >= n; },
@@ -2273,6 +2450,7 @@ function computeHighlights() {
   const out = { best: [], special: [], branches: [] };
   let far = null, long = null, most = null, fast = null;
   for (const tr of state.trains) {
+    if (tr.loop) continue; // 環島車是虛構班次,不跟真車搶「今日之最」(特別列車區會列)
     journeyProgress(tr, 0); // 確保 _totalKm 已快取
     const km = tr._totalKm || 0;
     const dur = tr.stops[tr.stops.length - 1].arrSec - tr.stops[0].depSec;
@@ -2506,10 +2684,11 @@ function showFollowPanel(tr) {
   document.getElementById('fpDot').style.background = tr.color;
   document.getElementById('fpTrain').textContent = tr.train;
   const it = renderTrainCard(tr);
-  document.getElementById('fpKind').textContent = it.kind || tr.typeName;
+  document.getElementById('fpKind').textContent = tr.loop ? '觀光列車' : (it.kind || tr.typeName);
   const first = tr.stops[0], last = tr.stops[tr.stops.length - 1];
-  document.getElementById('fpDest').textContent =
-    `${first.name} → ${last.name} · 終點 ${fmtHM(last.arrSec % 86400)} 抵達`;
+  document.getElementById('fpDest').textContent = tr.loop
+    ? '環島循環運行 · 一圈 12 小時 · 永不到站'
+    : `${first.name} → ${last.name} · 終點 ${fmtHM(last.arrSec % 86400)} 抵達`;
   fp.hidden = false;
   updateFollowPanel(tr);
 }
@@ -2602,8 +2781,8 @@ function renderFollowBar(msg) {
   fb.className = 'followbar'; fb.hidden = false;
   fb.innerHTML =
     `<span class="dot" style="background:${tr.color}"></span>` +
-    `<b>${tr.train}</b> ${tr.typeName}　${first.name}→${last.name}　` +
-    `${fmtHM(first.depSec % 86400)}–${fmtHM(last.arrSec % 86400)}` +
+    `<b>${tr.train}</b> ${tr.loop ? '無盡環島號　環島循環運行中' : `${tr.typeName}　${first.name}→${last.name}　` +
+    `${fmtHM(first.depSec % 86400)}–${fmtHM(last.arrSec % 86400)}`}` +
     (msg ? `　· ${msg}` : '') +
     `<button id="unfollow">取消跟隨</button>`;
   fb.querySelector('#unfollow').onclick = () => { setAutoTour(false); clearFollow(); };
@@ -2633,7 +2812,19 @@ function updateFollowCamera() {
   const tr = state.followTrain; if (!tr) return;
   if (state._transition) { updateFollowPanel(tr); return; } // flyTo 轉場中不搶鏡頭
   const first = tr.stops[0], last = tr.stops[tr.stops.length - 1];
-  if (effT(tr) > last.arrSec + 2) {
+  if (tr.loop) {
+    // 環島車永不到站:完乘改為「連續跟滿一整圈」(同規則:調速可以、跳時間歸零重計)
+    const t = effT(tr);
+    if (state._lapPrev != null) {
+      let d = t - state._lapPrev;
+      if (d < -tr.loopSec / 2) d += tr.loopSec; // 跨圈回繞
+      if (state.followTimeJumped) { state._lapAcc = 0; state.followTimeJumped = false; }
+      else if (d > 0 && d < 1800) state._lapAcc = (state._lapAcc || 0) + d; // 巨幅跳動視同跳時間,不累計
+      else if (d >= 1800 || d < 0) state._lapAcc = 0;
+    }
+    state._lapPrev = t;
+    if ((state._lapAcc || 0) >= tr.loopSec) { state._lapAcc = 0; recordRide(tr); }
+  } else if (effT(tr) > last.arrSec + 2) {
     if (state.followStatus !== 'done') {
       // 完乘資格:從發車附近(±60秒容差)開始跟、且跟隨中沒跳過模擬時間,才蓋章;中途接手或作弊只顯示抵達
       const qualified = state.followStartEff <= first.depSec + 60 && !state.followTimeJumped;
@@ -2750,18 +2941,21 @@ function renderBoard() {
       const s = stops[i];
       if (s.name !== st.name || s.stop === false) continue;
       const isLast = i === stops.length - 1;
-      const t = isLast ? s.arrSec : s.depSec;
+      if (tr.loop && isLast) continue; // 環島車的末站=起點,同站已有發車列,不重複列「終點到達」
       const dl = Math.round(liveDelaySec(tr) / 60);
-      let dtm = t + dl * 60 - state.simSec; // 誤點車以估計實際時刻排序/倒數
-      if (dtm > 43200) dtm -= 86400; else if (dtm < -43200) dtm += 86400; // 跨午夜換日對齊
-      if (dtm < -30 || dtm > 3 * 3600) continue; // 未來 3 小時內
-      rows.push({ tr, t, dtm, dl, isLast, dest: stops[stops.length - 1].name });
+      // 環島車一圈 12 小時=每站每日兩班,兩個時刻都要上看板
+      for (const t of (tr.loop ? [s.depSec, s.depSec + tr.loopSec] : [isLast ? s.arrSec : s.depSec])) {
+        let dtm = t + dl * 60 - state.simSec; // 誤點車以估計實際時刻排序/倒數
+        if (dtm > 43200) dtm -= 86400; else if (dtm < -43200) dtm += 86400; // 跨午夜換日對齊
+        if (dtm < -30 || dtm > 3 * 3600) continue; // 未來 3 小時內
+        rows.push({ tr, t, dtm, dl, isLast, dest: stops[stops.length - 1].name });
+      }
     }
   }
   rows.sort((a, b) => a.dtm - b.dtm);
   const list = rows.slice(0, 12).map(r => {
     const min = r.dtm < 60 ? '即將' : Math.round(r.dtm / 60) + ' 分';
-    const dest = r.isLast ? '（終點到達）' : '往 ' + r.dest;
+    const dest = r.tr.loop ? '環島循環' : (r.isLast ? '（終點到達）' : '往 ' + r.dest);
     return `<div class="row" data-no="${r.tr.train}" title="跟隨 ${r.tr.train} 次"><span class="dot" style="background:${r.tr.color}"></span>` +
       `<b>${r.tr.train}</b><span class="dest">${r.tr.typeName}　${dest}</span>` +
       `<span class="t">${fmtHM(r.t % 86400)}${r.dl > 0 ? `<span class="lateTag">+${r.dl}</span>` : ''}</span><span class="min">${min}</span></div>`;
@@ -2793,6 +2987,7 @@ const FLOW_BINS = 144; // 10 分鐘一格
 function computeFlow() {
   const counts = new Array(FLOW_BINS).fill(0);
   for (const tr of state.trains) {
+    if (tr.loop) { for (let i = 0; i < FLOW_BINS; i++) counts[i]++; continue; } // 環島車全天在跑
     const a = tr.stops[0].arrSec, b = tr.stops[tr.stops.length - 1].depSec;
     let i0 = Math.max(0, Math.floor(a / 600)), i1 = Math.floor(b / 600); // 跨午夜:i 可超過 143,bin 取模
     for (let i = i0; i <= i1; i++) {
@@ -3023,6 +3218,15 @@ document.getElementById('tod').oninput = e => {
   }
 };
 document.getElementById('nowBtn').onclick = jumpToNow;
+document.getElementById('donateCopy').onclick = () =>
+  navigator.clipboard.writeText('0521979118500')
+    .then(() => showToast('已複製帳號'))
+    .catch(() => { // clipboard 被擋(非 HTTPS/權限)時退而選取帳號文字,使用者可直接 ⌘C
+      const r = document.createRange();
+      r.selectNodeContents(document.querySelector('.acct b'));
+      const s = getSelection(); s.removeAllRanges(); s.addRange(r);
+      showToast('已選取帳號，請按 ⌘C／Ctrl+C 複製');
+    });
 document.getElementById('fpClose').onclick = () => { setAutoTour(false); clearFollow(); };
 document.getElementById('tcStar').onclick = () => toggleFav(state.followTrain);
 document.getElementById('tourBtn').onclick = () => setAutoTour(!state.autoTour);
