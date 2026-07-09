@@ -2,8 +2,9 @@
 // 補洞:fetch_shapes.py 的 Dijkstra 失敗段當年直接落站對站直線,shape 里留下多公里的
 // 「弦」(跨海岬/山體的直線,跟隨高亮特別顯眼)。本腳本用 .overpass_cache 的原始軌道圖
 // 離線重路由:先把 25m 內未相連的節點橋接(治 OSM 拓撲斷點),再對每個 >0.5km 的長段
-// 重跑 Dijkstra——路由結果比直線長 2% 以上才視為「真弦」接回真軌道;
-// 幾乎等長者是直線隧道/直線區間本來就沒中間點,不是錯誤,跳過(腳本因此冪等)。
+// 重跑 Dijkstra——路由結果對直線弦的「側向偏離 > 40m」才視為「真弦」接回真軌道;
+// 側偏近 0 者是直線隧道/直線區間本來就沒中間點,不是錯誤,跳過(腳本因此冪等)。
+// (舊版用長度比 >2% 判斷,漏掉海岸/河灣那種幾乎等長卻側偏上百米、弦會切過海面的段。)
 // 另補建成追線(追分–成功,座標取自時刻表),讓跨線車不再飛直線。
 // 用法:node scripts/repair_shape_holes.mjs   (就地改寫 data/tra.json、data/mrt.json;git 即備份)
 
@@ -142,7 +143,18 @@ function repairFile(dataFile, cacheFile) {
       let routed = 0;
       for (let k = 0; k < p.length - 1; k++) routed += distKm(G.coord.get(p[k]), G.coord.get(p[k + 1]));
       if (routed > 3 * gap + 2) { left.push(`${gap.toFixed(1)}km@detour${routed.toFixed(0)}`); continue; }
-      if (routed < gap * 1.02) { straightOk++; continue; } // 直線隧道/直線區間:本來就直,不是弦
+      // 用「側向偏離」而非長度比判斷是否真的是直線:海岸/河灣的真軌道幾乎等長卻側偏上百米
+      // (直線弦會切過海面),直線隧道則側偏近 0。側偏 < 40m 才當作本來就直、跳過(維持冪等)。
+      let maxDev = 0;
+      const ax = ln.shape[i - 1][1], ay = ln.shape[i - 1][0], bx = ln.shape[i][1], by = ln.shape[i][0];
+      const vx = bx - ax, vy = by - ay, L2 = vx * vx + vy * vy;
+      for (const nid of p) {
+        const c = G.coord.get(nid);
+        const t = L2 > 0 ? Math.max(0, Math.min(1, ((c[1] - ax) * vx + (c[0] - ay) * vy) / L2)) : 0;
+        const dev = distKm([c[0], c[1]], [ay + vy * t, ax + vx * t]);
+        if (dev > maxDev) maxDev = dev;
+      }
+      if (maxDev < 0.04) { straightOk++; continue; } // 側偏 <40m:本來就直,不灌點
       const mid = p.map(nid => G.coord.get(nid).map(v => +v.toFixed(6)));
       ln.shape.splice(i, 0, ...mid);
       i += mid.length; fixed++;
