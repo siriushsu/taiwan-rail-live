@@ -294,8 +294,11 @@
     border: 2px solid #2a4a73; border-radius: 10px;
     box-shadow: 0 3px 0 rgba(42,74,115,.22); padding: 12px 16px 14px;
   }
-  .passport .ph-head { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+  .passport .ph-head { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; cursor: pointer; user-select: none; }
   .passport .ph-head > b { font-size: 16px; font-weight: 900; letter-spacing: 3px; color: #1e2c40; }
+  .passport .ph-tgl { font-size: 12px; color: #a89468; }
+  /* 收合時只留標題列(統計摘要仍可見),說明文與內容全部藏起 */
+  .passport.closed .ph-sub, .passport.closed .ph-body { display: none; }
   .passport .ph-sub { font-size: 11px; color: #8a7c62; }
   .passport .ph-stats { margin-left: auto; font-size: 12.5px; color: #5d5240; font-variant-numeric: tabular-nums; }
   .passport .ph-stats b { color: #d23c2a; }
@@ -521,6 +524,15 @@
   .board .row .min { color: #2a4a73; font-weight: 700; min-width: 44px; text-align: right; }
   .board .close { position: absolute; top: 7px; right: 9px; background: none; border: 0; color: #a89468; font-size: 17px; cursor: pointer; line-height: 1; }
   .board .empty { color: #8a7c62; font-size: 13px; padding: 8px 0; }
+  /* 車站資訊(地址／特色／Google 地圖連結),接在站名下、時刻列上 */
+  .board .stnMeta { margin: 1px 0 8px; padding-bottom: 8px; border-bottom: 1.5px dashed #d8cba9; }
+  .board .stnMeta .addr { font-size: 12px; color: #6b5f4a; line-height: 1.5; }
+  .board .stnMeta .feat { font-size: 12px; color: #5d5240; line-height: 1.5; margin-top: 3px; }
+  .board .stnMeta .mapLink {
+    display: inline-flex; align-items: center; gap: 3px; margin-top: 6px;
+    font-size: 12px; font-weight: 700; color: #2a4a73; text-decoration: none;
+  }
+  .board .stnMeta .mapLink:hover { text-decoration: underline; }
   /* 今日亮點(探索面板)的分節標題,共用 .board 外觀 */
   .board .sec {
     color: #a89468; font-size: 11px; font-weight: 800; letter-spacing: 3px;
@@ -745,9 +757,9 @@
 
     <div class="favs" id="favRow" hidden></div>
 
-    <div class="passport" id="passport" hidden></div>
-
     <div class="lines" id="lineToggles"></div>
+
+    <div class="passport" id="passport" hidden></div>
   </aside>
   </div>
 </div>
@@ -2228,15 +2240,27 @@ function renderPassport() {
   const list = rides.slice().reverse().map(r =>
     `<div class="ph-row"><span class="d">${(r.date || '').slice(5)}</span><b>${r.train}</b>` +
     `<span class="k">${r.kind}</span><span class="r">${r.from}→${r.to}</span><span class="km">${r.km} km</span></div>`).join('');
+  // 收合狀態記 localStorage(預設收合,免得側欄一次攤開太多資訊);點標題列切換
+  let open = false;
+  try { open = localStorage.getItem('trainmap-passport-open') === '1'; } catch (e) {}
+  el.classList.toggle('closed', !open);
   el.innerHTML =
-    `<div class="ph-head"><b>旅程收集</b><span class="ph-sub">從發車一路跟到終點就蓋一枚完乘章（調速可以・跳時間不算）· 灰色的章點了帶你從發車搭一趟</span>` +
+    `<div class="ph-head"><b>旅程收集</b><span class="ph-tgl">${open ? '收合 ▲' : '展開 ▼'}</span>` +
+    `<span class="ph-sub">從發車一路跟到終點就蓋一枚完乘章（調速可以・跳時間不算）· 灰色的章點了帶你從發車搭一趟</span>` +
     `<span class="ph-stats">完乘 <b>${rides.length}</b> 趟 · 總里程 <b>${totalKm.toLocaleString()}</b> km` +
     (longest ? ` · 最長一趟 <b>${longest.toLocaleString()}</b> km` : '') + `</span></div>` +
-    stamps +
+    `<div class="ph-body">` + stamps +
     `<div class="ph-sec">完乘記錄</div>` +
     (list ? `<div class="ph-list">${list}</div>`
-      : `<div class="ph-empty">還沒有完乘記錄——從地圖角落「探」挑一班有趣的車，陪它跑完全程吧。</div>`);
+      : `<div class="ph-empty">還沒有完乘記錄——從地圖角落「探」挑一班有趣的車，陪它跑完全程吧。</div>`) + `</div>`;
   el.onclick = e => {
+    if (e.target.closest('.ph-head')) {
+      const nowOpen = el.classList.contains('closed'); // closed → 這次點擊要展開
+      try { localStorage.setItem('trainmap-passport-open', nowOpen ? '1' : '0'); } catch (e2) {}
+      el.classList.toggle('closed', !nowOpen);
+      el.querySelector('.ph-tgl').textContent = nowOpen ? '收合 ▲' : '展開 ▼';
+      return;
+    }
     const st = e.target.closest('.stamp[data-no]');
     // 灰色收集章一律未收集(見上方 stampRow:只有 !got 才輸出 data-no)→ 一律從發車重播,跑完才算完乘
     if (st) followTrainNo(st.dataset.no, { fromStart: true });
@@ -2698,6 +2722,23 @@ function closeBoard() {
   el.hidden = true; el.innerHTML = '';
   updateSheetOpenClass();
 }
+// 站名 → 地址／特色資料;先試「台」正規化全名,再試去掉括號註記(左營(舊城)→左營、新城(太魯閣)→新城)
+function stnInfo(name) {
+  const m = state.stnInfoMap || {};
+  const n = name.replace(/臺/g, '台');
+  return m[n] || m[n.replace(/[（(].*$/, '').trim()] || null;
+}
+function stnMetaHtml(st) {
+  const info = stnInfo(st.name);
+  const lat = (info && info.lat != null) ? info.lat : st.lat;
+  const lon = (info && info.lon != null) ? info.lon : st.lon;
+  const href = `https://www.google.com/maps/search/?api=1&query=${lat},${lon}`;
+  return `<div class="stnMeta">` +
+    (info && info.address ? `<div class="addr">${info.address}</div>` : '') +
+    (info && info.feature ? `<div class="feat">${info.feature}</div>` : '') +
+    `<a class="mapLink" href="${href}" target="_blank" rel="noopener">在 Google 地圖開啟 ↗</a>` +
+    `</div>`;
+}
 function renderBoard() {
   const el = document.getElementById('board'), st = state.boardStation;
   if (!st) { el.hidden = true; updateSheetOpenClass(); return; }
@@ -2726,7 +2767,8 @@ function renderBoard() {
       `<span class="t">${fmtHM(r.t % 86400)}${r.dl > 0 ? `<span class="lateTag">+${r.dl}</span>` : ''}</span><span class="min">${min}</span></div>`;
   }).join('');
   el.innerHTML = `<button class="close" id="boardClose">×</button>` +
-    `<h3>${st.name}</h3><div class="sub">接下來 3 小時會有誰來 · ${liveActive() ? '已套用台鐵即時誤點' : '依時刻表（無誤點資訊）'} · 點班次跟隨</div>` +
+    `<h3>${st.name}</h3>` + stnMetaHtml(st) +
+    `<div class="sub">接下來 3 小時會有誰來 · ${liveActive() ? '已套用台鐵即時誤點' : '依時刻表（無誤點資訊）'} · 點班次跟隨</div>` +
     (list || '<div class="empty">此時段無停靠班次</div>');
   el.hidden = false;
   updateSheetOpenClass();
@@ -2936,6 +2978,8 @@ async function boot() {
   state.trackData = await fetchJSON('./data/tra.json');
   // 站等資料(特等/一等/…),缺檔就全走停靠班次數啟發式
   state.stnClassMap = await fetchJSON('./data/tra_station_class.json') || {};
+  // 台鐵各站地址(TDX Rail/TRA/Station);key 為「台」正規化站名,feature 欄之後補
+  state.stnInfoMap = await fetchJSON('./data/tra_station_info.json') || {};
   // 特別列車故事檔案(車型/具名觀光列車/支線);缺檔時 specialOf 回 null,退回內建簡版介紹
   state.special = await fetchJSON('./data/tra_special_trains.json');
   if (state.special) state.special.branchLines.forEach(b => { b._set = new Set(b.matchStations); });
