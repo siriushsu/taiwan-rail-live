@@ -30,7 +30,7 @@
   /* 側欄不自己出捲軸:路線與旅程面板都可收合,常態下整欄放得進視窗;全展開時跟著頁面捲 */
   .side-col { position: sticky; top: 10px; padding: 0 2px 8px; }
   @media (max-width: 1199px) {
-    .cols { grid-template-columns: 1fr; }
+    .cols { grid-template-columns: minmax(0, 1fr); } /* 不用裸 1fr:min-content 會被控制列撐爆造成手機橫向捲動 */
     .side-col { position: static; padding: 0; }
   }
 
@@ -715,7 +715,7 @@
       border-radius: 10px;
     }
     .controls { gap: 10px 14px; margin-top: 12px; }
-    .ctl { flex: 1 1 100%; }
+    .ctl { flex: 1 1 100%; flex-wrap: wrap; min-width: 0; } /* 速度列(標籤+滑桿+預設鈕)放不下時換行,不撐出橫向捲動 */
     .ctl input[type=range] { flex: 1; width: auto; }
     .search input[type=text] { flex: 1 1 100%; width: auto; }
     .followbar { flex-wrap: wrap; }
