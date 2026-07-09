@@ -1,0 +1,14 @@
+// Cloudflare Workers 部署設定:根目錄當靜態資產(排除清單見 .assetsignore),
+// worker.js 只接 /api/*。name 必須對上 dashboard 建立的 Worker 名稱。
+{
+  "name": "taiwan-rail-live",
+  "compatibility_date": "2026-07-09",
+  "main": "worker.js",
+  "assets": {
+    "directory": ".",
+    "binding": "ASSETS"
+  },
+  "observability": {
+    "enabled": true
+  }
+}

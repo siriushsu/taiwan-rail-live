@@ -1,0 +1,16 @@
+# 不上傳為靜態資產的路徑(wrangler assets 用,語法同 gitignore)
+.git
+.gitignore
+.claude
+.assetsignore
+.env
+.env.example
+.DS_Store
+wrangler.jsonc
+worker.js
+scripts
+docs
+hand off
+README.md
+DESIGN_BRIEF.md
+design-mock.html

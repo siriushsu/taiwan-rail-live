@@ -1,7 +1,7 @@
-// Cloudflare Pages Function:台鐵即時列車動態代理(TDX v3 TrainLiveBoard)
-// 金鑰只存在 Cloudflare 專案環境變數,前端一律打這支、不直連 TDX。
-// 雙層快取護住 TDX 用量:PoP 邊緣快取 55 秒 + isolate 內記憶體快取,
-// 全站訪客共用同一份回應,TDX 端用量恆定約每分鐘 1 次。
+// Cloudflare Worker 入口:靜態資產(assets binding)+ /api/tra-live 台鐵即時動態代理
+// 金鑰只存在 Worker 環境變數(dashboard Variables and Secrets),前端不直連 TDX。
+// 雙層快取護住 TDX 用量:PoP 邊緣快取 55 秒(workers.dev 網域上 Cache API 無效,
+// 屆時靠 isolate 記憶體快取,約每 isolate 每分鐘 1 次)——用量恆定,不隨訪客數增加。
 const AUTH_URL = 'https://tdx.transportdata.tw/auth/realms/TDXConnect/protocol/openid-connect/token';
 const API_URL = 'https://tdx.transportdata.tw/api/basic/v3/Rail/TRA/TrainLiveBoard?%24format=JSON';
 
@@ -30,7 +30,7 @@ const jsonRes = (obj, status, cc) => new Response(JSON.stringify(obj), {
   headers: { 'content-type': 'application/json; charset=utf-8', 'cache-control': cc },
 });
 
-export async function onRequest({ request, env }) {
+async function traLive(request, env) {
   const cacheKey = new Request(new URL('/api/tra-live', request.url), { method: 'GET' });
   const edge = caches.default;
   const hit = await edge.match(cacheKey);
@@ -56,3 +56,11 @@ export async function onRequest({ request, env }) {
     return jsonRes({ error: String(e.message || e) }, 502, 'no-store');
   }
 }
+
+export default {
+  async fetch(request, env) {
+    const url = new URL(request.url);
+    if (url.pathname === '/api/tra-live') return traLive(request, env);
+    return env.ASSETS.fetch(request);
+  },
+};

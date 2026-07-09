@@ -2,3 +2,4 @@
 scripts/.overpass_cache/
 *.bak-*
 .env
+.wrangler/
