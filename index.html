@@ -952,7 +952,7 @@
 <script>
 // 版本戳記:每次改版 push 前手動遞增(字母序),畫面時鐘徽章與 console 都會顯示,
 // 供比對線上跑的是不是最新版(瀏覽器快取 max-age=600 常讓人看到舊版)
-const BUILD = 'v0710b';
+const BUILD = 'v0710c';
 const state = {
   systems: [], sysId: null, data: null, speed: 36, mode: 'freq',
   lines: [], visible: new Set(), trains: [], schedStations: [], types: [],
@@ -3310,7 +3310,7 @@ function renderAlertBanner() {
   const b = document.getElementById('alertBanner'), det = document.getElementById('alertDetail');
   const list = (state.alert && state.alert.list) || [];
   if (state.mode !== 'sched' || !list.length) { b.hidden = true; det.hidden = true; updateFollowAlert(); return; }
-  b.innerHTML = `<span>⚠</span><span class="ab-title">${escHtml(list[0].title || ((state.sys && state.sys.label || '') + '營運通阻公告'))}</span>` +
+  b.innerHTML = `<span>⚠</span><span class="ab-title">${escHtml(list[0].title || ((list[0].sysLabel || '') + '營運通阻公告'))}</span>` +
     `<span class="ab-more">${list.length > 1 ? `等 ${list.length} 則 · ` : ''}詳情 ▾</span>`;
   b.hidden = false;
   b.onclick = () => {
@@ -3340,7 +3340,11 @@ function updateFollowAlert() {
     if (aff.size) show = tr.stops.some(s => s.segLn && aff.has(s.segLn.id));
   }
   el.hidden = !show;
-  if (show) el.textContent = `⚠ 本路線有${(state.sys && state.sys.label) || '台鐵'}通阻公告，班次可能停駛——以官方公告為準`;
+  if (show) {
+    const opSys = (state.schedSystems || []).find(s => s.id === tr.sys); // 跟隨車所屬系統(台鐵/高鐵)才是公告的營運者
+    const opLabel = (opSys && opSys.label) || (state.sys && state.sys.label) || '台鐵';
+    el.textContent = `⚠ 本路線有${opLabel}通阻公告，班次可能停駛——以官方公告為準`;
+  }
 }
 setInterval(pollAlert, 300e3);
 document.addEventListener('visibilitychange', () => { if (!document.hidden) pollAlert(); });
