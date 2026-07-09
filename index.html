@@ -249,6 +249,7 @@
   }
   .traincard .tc-ev .tt { color: #a89468; font-variant-numeric: tabular-nums; flex: none; }
   .traincard .tc-empty { font-size: 12.5px; color: #8a7c62; }
+  .traincard .tc-intro .fact { display: block; margin-top: 5px; color: #8a7c62; font-size: 12px; }
 
   /* ── 最愛列車 chips ── */
   .favs { display: flex; flex-wrap: wrap; gap: 8px; margin: 10px 2px 0; }
@@ -266,6 +267,45 @@
   .favchip b { color: #1e2c40; }
   .favchip .rm { color: #a89468; margin-left: 2px; font-weight: 700; padding: 0 2px; }
   .favchip .rm:hover { color: #d23c2a; }
+
+  /* ── 旅程護照(首頁完乘記錄+圖鑑收集) ── */
+  .passport {
+    margin: 16px 2px 0; background: #fffdf6;
+    border: 2px solid #2a4a73; border-radius: 10px;
+    box-shadow: 0 3px 0 rgba(42,74,115,.22); padding: 12px 16px 14px;
+  }
+  .passport .ph-head { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+  .passport .ph-head > b { font-size: 16px; font-weight: 900; letter-spacing: 3px; color: #1e2c40; }
+  .passport .ph-sub { font-size: 11px; color: #8a7c62; }
+  .passport .ph-stats { margin-left: auto; font-size: 12.5px; color: #5d5240; font-variant-numeric: tabular-nums; }
+  .passport .ph-stats b { color: #d23c2a; }
+  .passport .ph-sec {
+    display: flex; align-items: baseline; gap: 6px;
+    font-size: 11px; font-weight: 800; letter-spacing: 3px; color: #a89468;
+    margin: 11px 0 6px; padding-bottom: 3px; border-bottom: 1.5px dashed #d8cba9;
+  }
+  .passport .ph-sec b { color: #2a4a73; letter-spacing: 0; }
+  .passport .ph-stamps { display: flex; flex-wrap: wrap; gap: 6px; }
+  .passport .stamp {
+    font-size: 12px; font-weight: 600; color: #a89468; cursor: pointer;
+    background: #f7f0dd; border: 1.5px dashed #c9b98f; border-radius: 5px; padding: 3px 9px;
+  }
+  .passport .stamp:hover { background: #efe6cc; }
+  .passport .stamp.got {
+    color: #1e2c40; font-weight: 800; cursor: default;
+    background: #fff6df; border: 1.5px solid #d2a12a; box-shadow: 0 1.5px 0 #d2a12a;
+  }
+  .passport .ph-list { max-height: 230px; overflow-y: auto; }
+  .passport .ph-row {
+    display: flex; align-items: baseline; gap: 10px; font-size: 12.5px; color: #5d5240;
+    padding: 3px 2px; border-top: 1px dashed #ece2c8; font-variant-numeric: tabular-nums;
+  }
+  .passport .ph-row .d { color: #a89468; flex: none; }
+  .passport .ph-row b { color: #1e2c40; min-width: 44px; }
+  .passport .ph-row .k { flex: none; color: #2a4a73; font-weight: 600; }
+  .passport .ph-row .r { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .passport .ph-row .km { color: #8a7c62; }
+  .passport .ph-empty { font-size: 12.5px; color: #8a7c62; }
 
   /* 全畫面模式 */
   body.fs { overflow: hidden; }
@@ -307,7 +347,7 @@
   body.fs .follow-panel .tc-events #tcEvents { flex: none; height: 88px; }
   body.fs .stage-tools { top: 12px; bottom: auto; flex-direction: column; }
   body.fs .board { right: 60px; }
-  body.fs .kbd-hint, body.fs .flow, body.fs .search, body.fs .favs, body.fs .lines, body.fs .note { display: none; }
+  body.fs .kbd-hint, body.fs .flow, body.fs .search, body.fs .favs, body.fs .lines, body.fs .note, body.fs .passport { display: none; }
   /* 放空模式:閒置 5 秒淡出控制,滑鼠動了淡回(時鐘與跟隨面板留著) */
   .controls, .stage-tools, .leaflet-control-container { transition: opacity .7s; }
   body.idle .controls, body.idle .stage-tools, body.idle .leaflet-control-container { opacity: 0; pointer-events: none; }
@@ -439,6 +479,13 @@
   .board .row .min { color: #2a4a73; font-weight: 700; min-width: 44px; text-align: right; }
   .board .close { position: absolute; top: 7px; right: 9px; background: none; border: 0; color: #a89468; font-size: 17px; cursor: pointer; line-height: 1; }
   .board .empty { color: #8a7c62; font-size: 13px; padding: 8px 0; }
+  /* 今日亮點(探索面板)的分節標題,共用 .board 外觀 */
+  .board .sec {
+    color: #a89468; font-size: 11px; font-weight: 800; letter-spacing: 3px;
+    margin: 10px 0 1px; padding-bottom: 3px; border-bottom: 1.5px dashed #d8cba9;
+  }
+  /* 亮點面板條目多,下緣讓開右下角工具鈕(bottom 80px+鈕高 38px),面板內自行捲動 */
+  #explorePanel { max-height: calc(100% - 132px); }
   /* 我的最愛面板(共用 .board 外觀) */
   #favBtn { color: #d2a12a; }
   #favPanel .row.fv { cursor: pointer; }
@@ -541,6 +588,7 @@
       <div class="fp-dest" id="fpDest"></div>
     </div>
     <div class="stage-tools">
+      <button id="exploreBtn" title="今日亮點——特別列車與今日之最">探</button>
       <button id="favBtn" title="我的最愛列車">★</button>
       <button id="rideBtn" title="旅程收集（完乘記錄）">🎫</button>
       <button id="tourBtn" title="隨機跟隨列車（螢幕保護模式）">隨</button>
@@ -564,6 +612,7 @@
     <div class="board" id="board" hidden></div>
     <div class="board" id="favPanel" hidden></div>
     <div class="board" id="ridePanel" hidden></div>
+    <div class="board" id="explorePanel" hidden></div>
   </div>
 
   <div class="traincard" id="trainCard" hidden>
@@ -628,6 +677,8 @@
     <div class="followbar" id="followBar" hidden></div>
   </div>
 
+  <div class="passport" id="passport" hidden></div>
+
   <div class="lines" id="lineToggles"></div>
 
   <p class="note" id="note"></p>
@@ -636,7 +687,7 @@
 <script>
 // 版本戳記:每次改版 push 前手動遞增(字母序),畫面時鐘徽章與 console 都會顯示,
 // 供比對線上跑的是不是最新版(瀏覽器快取 max-age=600 常讓人看到舊版)
-const BUILD = 'v0709h';
+const BUILD = 'v0709j';
 const state = {
   systems: [], sysId: null, data: null, speed: 36, mode: 'freq',
   lines: [], visible: new Set(), trains: [], schedStations: [], types: [],
@@ -664,7 +715,7 @@ const SYS_META = {
   mrt:       { plateL: '淡水', plateR: '象山', sub: 'TAIPEI METRO LIVE',    lead: '各線列車依 TDX 班距與站間時間在城市裡穿梭（班距模擬示意，非即時班次）— 拖曳、縮放看看。' },
   krtc:      { plateL: '小港', plateR: '岡山', sub: 'KAOHSIUNG METRO LIVE', lead: '紅橘兩線與環狀輕軌正在港都穿梭（班距模擬示意，非即時班次）— 拖曳、縮放看看。' },
   tmrt:      { plateL: '北屯總站', plateR: '高鐵臺中站', sub: 'TAICHUNG METRO LIVE', lead: '綠線列車沿著文心路跑（班距模擬示意，非即時班次）— 拖曳、縮放看看。' },
-  tra_sched: { plateL: '基隆', plateR: '枋寮', sub: 'TAIWAN RAILWAY LIVE',  lead: '列車依當日時刻表模擬運行（推算位置，非即時）— 點列車直接跟隨、點車站看誰要來。' },
+  tra_sched: { plateL: '基隆', plateR: '枋寮', sub: 'TAIWAN RAILWAY LIVE',  lead: '列車依當日時刻表模擬運行（推算位置，非即時）— 點列車跟隨、點車站看班次，或按地圖角落「探」看今日亮點列車。' },
 };
 
 // 播放/速度/時間的統一入口(控制列、快捷鍵、全畫面控制共用)
@@ -1326,9 +1377,11 @@ function loadSystem(sys) {
   closeBoard();
   closeFavPanel();
   closeRidePanel();
+  closeExplorePanel();
   configTimeSlider();
   buildToggles();
   renderFavs();
+  renderPassport();
   refreshBadge();
   updateCount();
   const meta = SYS_META[sys.id];
@@ -1361,7 +1414,8 @@ function populateTrainList() {
   for (const tr of trains) {
     const o = document.createElement('option');
     const a = tr.stops[0].name, b = tr.stops[tr.stops.length - 1].name;
-    const sp = SPECIAL_TRAINS[String(tr.train)];
+    const spd = specialOf(tr);
+    const sp = (spd && spd.named) || SPECIAL_TRAINS[String(tr.train)];
     o.value = tr.train;
     o.label = `${tr.train}　${sp ? sp.name + '・' : ''}${tr.typeName}　${a}→${b}`;
     frag.appendChild(o);
@@ -1474,12 +1528,33 @@ const AMEN_FLAGS = [
   ['障', '♿ 身障友善座位'], ['腳', '🚲 可帶自行車（兩鐵）'],
   ['親', '👶 親子車廂'], ['專', '🎫 團體專開列車'], ['郵', '📦 附掛郵政／行包車廂'],
 ];
+// 特別列車檔案(data/tra_special_trains.json)比對:車次號→具名列車、carName→車型、停站→支線。
+// 結果快取在車上;檔案缺失時回傳 null,呼叫端退回內建簡版(SPECIAL_TRAINS/KIND_RULES)
+function specialOf(tr) {
+  if (tr._sp !== undefined) return tr._sp;
+  const sd = state.special;
+  if (!sd) return (tr._sp = null);
+  const no = String(tr.train);
+  const named = sd.namedTrains.find(n => n.trainNos.includes(no)) || null;
+  const stock = sd.rollingStock.find(r => r.carNames.includes(tr.carName)) || null;
+  const branch = sd.branchLines.find(b => tr.stops.some(s => b._set.has(s.name))) || null;
+  return (tr._sp = { named, stock, branch });
+}
 function trainIntro(tr) {
   const cn = tr.carName || '';
-  const sp = SPECIAL_TRAINS[String(tr.train)];
-  let kind = null, desc = null;
-  for (const [re, k, d] of KIND_RULES) if (re.test(cn)) { kind = k; desc = d; break; }
-  if (!desc) desc = TYPE_DESC[tr.typeName] || null;
+  const spd = specialOf(tr);
+  const sp = (spd && spd.named && { name: spd.named.name, desc: spd.named.story })
+    || SPECIAL_TRAINS[String(tr.train)] || null;
+  let kind = null, desc = null, fact = null;
+  if (spd && spd.stock) {
+    kind = spd.stock.name; desc = spd.stock.story;
+    const fs = spd.stock.facts || [];
+    if (fs.length) fact = fs[(parseInt(tr.train, 10) || 0) % fs.length]; // 依車次號取,同車次每次看到同一則
+  } else {
+    for (const [re, k, d] of KIND_RULES) if (re.test(cn)) { kind = k; desc = d; break; }
+    if (!desc) desc = TYPE_DESC[tr.typeName] || null;
+  }
+  const branch = spd ? spd.branch : null;
   const amens = [];
   const par = (cn.match(/\(([^)]*)\)/) || [])[1] || '';
   for (const [flag, label] of AMEN_FLAGS) if (par.includes(flag)) amens.push(label);
@@ -1488,7 +1563,7 @@ function trainIntro(tr) {
   const dur = durSec >= 3600
     ? Math.floor(durSec / 3600) + ' 小時 ' + Math.round(durSec % 3600 / 60) + ' 分'
     : Math.round(durSec / 60) + ' 分';
-  return { special: sp || null, kind, desc: sp ? sp.desc : desc, amens, nStops: stops.length, dur };
+  return { special: sp || null, kind, desc: sp ? sp.desc : desc, amens, nStops: stops.length, dur, fact, branch };
 }
 // ── 隨機跟隨(螢幕保護模式):加權挑一班正在跑的車,跟 1–2 分鐘換下一班 ──
 const TOUR_W = { '其他': 24, '莒光/復興': 10, '自強': 5, '區間快': 2, '區間車': 1 };
@@ -1497,7 +1572,12 @@ function pickTourTrain() {
     t !== state.followTrain && state.visible.has(t.typeName) && trainPos(t, state.simSec));
   if (!cands.length) return null;
   let total = 0;
-  const ws = cands.map(t => { const w = TOUR_W[t.typeName] || 1; total += w; return w; });
+  const ws = cands.map(t => {
+    let w = TOUR_W[t.typeName] || 1;
+    const sp = specialOf(t); // 具名觀光列車與稀有車種加權,放空/隨機模式更常遇到
+    if (sp && (sp.named || (sp.stock && sp.stock.rarity === '稀有'))) w *= 4;
+    total += w; return w;
+  });
   let r = Math.random() * total;
   for (let i = 0; i < cands.length; i++) { r -= ws[i]; if (r <= 0) return cands[i]; }
   return cands[cands.length - 1];
@@ -1618,6 +1698,7 @@ function setAmbient(on) {
     state._ambientFresh = true; // 第一班直接跳到車,不走淡出淡入
     setAutoTour(true);
     setSparkOpen(false); setStopsOpen(false); // 放空預設收乾淨,中間留給地圖
+    closeExplorePanel(); // 亮點面板也收,資訊只留左下合併卡
     acquireWakeLock();
     ambientIdleReset();
     if (state.music && state.music.enabled && state.music.audio.paused) musicPlay(); // 已在放就別重來
@@ -1752,6 +1833,8 @@ function renderTrainCard(tr) {
   let html = '';
   if (it.special) html += `<b class="tn">★ ${it.special.name}</b>　`;
   if (it.desc) html += it.desc;
+  if (it.fact) html += `<span class="fact">💡 ${it.fact}</span>`;
+  if (it.branch) html += `<span class="fact">🛤 ${it.branch.name}：${it.branch.story}</span>`;
   html += `<span class="amen">停靠 ${it.nStops} 站 · 全程約 ${it.dur}` +
     (it.amens.length ? ' · ' + it.amens.join('　') : '') + '</span>';
   document.getElementById('tcIntro').innerHTML = html;
@@ -1786,7 +1869,8 @@ function toggleFav(tr) {
   let favs = loadFavs();
   if (favs.some(f => f.train === no)) favs = favs.filter(f => f.train !== no);
   else {
-    const sp = SPECIAL_TRAINS[no];
+    const spd = specialOf(tr);
+    const sp = (spd && spd.named) || SPECIAL_TRAINS[no];
     const stops = tr.stops;
     favs.push({ train: no, label: `${sp ? sp.name : tr.typeName}　${stops[0].name}→${stops[stops.length - 1].name}` });
   }
@@ -1842,7 +1926,7 @@ function renderFavPanel() {
   el.querySelector('#favClose').onclick = closeFavPanel;
 }
 function openFavPanel() {
-  closeBoard(); closeRidePanel();
+  closeBoard(); closeRidePanel(); closeExplorePanel();
   const el = document.getElementById('favPanel');
   el.hidden = false;
   document.getElementById('favBtn').classList.add('active');
@@ -1865,15 +1949,24 @@ function recordRide(tr) {
   if (rides.some(r => r.train === tr.train && r.date === today)) return;
   const it = trainIntro(tr), s = tr.stops;
   journeyProgress(tr, 0); // 確保 _totalKm 已算
+  const spd = specialOf(tr) || {}; // 圖鑑收集用的比對 id(undefined 會被 JSON 丟掉,舊記錄以名稱字串補配)
   rides.push({
     train: tr.train,
     kind: (it.special && it.special.name) || it.kind || tr.typeName,
     from: s[0].name, to: s[s.length - 1].name,
     km: Math.round(tr._totalKm || 0), date: today,
+    stockId: spd.stock ? spd.stock.id : undefined,
+    namedId: spd.named ? spd.named.id : undefined,
+    // 一趟可能跨多條支線(如平溪線直通深澳線),全部記下才能各蓋各的章
+    branchIds: state.special
+      ? (ids => ids.length ? ids : undefined)(
+          state.special.branchLines.filter(b => tr.stops.some(x => b._set.has(x.name))).map(b => b.id))
+      : undefined,
   });
   saveRides(rides);
   pushFollowEvent('ride:' + tr.train, '🎫 完乘達成！已記入旅程收集', true);
   renderRidePanel();
+  renderPassport();
 }
 function renderRidePanel() {
   const el = document.getElementById('ridePanel');
@@ -1894,7 +1987,7 @@ function renderRidePanel() {
   el.querySelector('#rideClose').onclick = closeRidePanel;
 }
 function openRidePanel() {
-  closeBoard(); closeFavPanel();
+  closeBoard(); closeFavPanel(); closeExplorePanel();
   document.getElementById('ridePanel').hidden = false;
   document.getElementById('rideBtn').classList.add('active');
   renderRidePanel();
@@ -1903,6 +1996,159 @@ function closeRidePanel() {
   const el = document.getElementById('ridePanel');
   el.hidden = true; el.innerHTML = '';
   document.getElementById('rideBtn').classList.remove('active');
+}
+
+// ── 旅程護照(首頁完乘記錄+圖鑑收集):搭過蓋章,沒搭過的灰章點了直接去搭一班 ──
+function repTrainOf(cands) {
+  return cands.find(t => trainPos(t, state.simSec))
+    || cands.filter(t => t.stops[0].depSec > state.simSec).sort((a, b) => a.stops[0].depSec - b.stops[0].depSec)[0]
+    || cands[0] || null;
+}
+function renderPassport() {
+  const el = document.getElementById('passport');
+  if (state.mode !== 'sched') { el.hidden = true; el.innerHTML = ''; return; }
+  const rides = loadRides();
+  const totalKm = rides.reduce((a, r) => a + (r.km || 0), 0);
+  const longest = rides.reduce((a, r) => Math.max(a, r.km || 0), 0);
+  const stampRow = (label, items) => {
+    if (!items.length) return '';
+    const got = items.filter(i => i.got).length;
+    return `<div class="ph-sec">${label}<b>${got}/${items.length}</b></div><div class="ph-stamps">` +
+      items.map(i => `<span class="stamp${i.got ? ' got' : ''}"${!i.got && i.no ? ` data-no="${i.no}"` : ''}` +
+        ` title="${i.tip || ''}">${i.got ? '✓ ' : ''}${i.name}</span>`).join('') + `</div>`;
+  };
+  let stamps = '';
+  const sd = state.special;
+  if (sd) {
+    const MISS_TIP = '還沒搭過——點我去搭一班';
+    const named = sd.namedTrains.filter(n => n.trainNos.length).map(n => { // 無固定車次的觀光列車搭不到,不列入收集
+      const got = rides.some(r => r.namedId === n.id || r.kind === n.name);
+      const tr = got ? null : repTrainOf(state.trains.filter(t => n.trainNos.includes(String(t.train))));
+      return { name: n.name, got, no: tr && tr.train, tip: got ? n.story : MISS_TIP };
+    });
+    const stocks = sd.rollingStock.map(s => {
+      const got = rides.some(r => r.stockId === s.id || r.kind === s.name);
+      const tr = got ? null : repTrainOf(state.trains.filter(t => s.carNames.includes(t.carName)));
+      return { name: s.name, got, no: tr && tr.train, tip: got ? s.story : MISS_TIP };
+    });
+    const branches = sd.branchLines.map(b => {
+      const got = rides.some(r => (r.branchIds || (r.branchId ? [r.branchId] : [])).includes(b.id));
+      const tr = got ? null : repTrainOf(state.trains.filter(t => t.stops.some(x => b._set.has(x.name))));
+      return { name: b.name, got, no: tr && tr.train, tip: got ? b.story : MISS_TIP };
+    });
+    stamps = stampRow('明星列車', named) + stampRow('車種圖鑑', stocks) + stampRow('支線行腳', branches);
+  }
+  const list = rides.slice().reverse().map(r =>
+    `<div class="ph-row"><span class="d">${(r.date || '').slice(5)}</span><b>${r.train}</b>` +
+    `<span class="k">${r.kind}</span><span class="r">${r.from}→${r.to}</span><span class="km">${r.km} km</span></div>`).join('');
+  el.innerHTML =
+    `<div class="ph-head"><b>旅程收集</b><span class="ph-sub">手動跟隨一班車到終點就蓋一枚完乘章 · 灰色的章點了直接去搭</span>` +
+    `<span class="ph-stats">完乘 <b>${rides.length}</b> 趟 · 總里程 <b>${totalKm.toLocaleString()}</b> km` +
+    (longest ? ` · 最長一趟 <b>${longest.toLocaleString()}</b> km` : '') + `</span></div>` +
+    stamps +
+    `<div class="ph-sec">完乘記錄</div>` +
+    (list ? `<div class="ph-list">${list}</div>`
+      : `<div class="ph-empty">還沒有完乘記錄——從地圖角落「探」挑一班有趣的車，陪它跑完全程吧。</div>`);
+  el.onclick = e => {
+    const st = e.target.closest('.stamp[data-no]');
+    if (st) followTrainNo(st.dataset.no);
+  };
+  el.hidden = false;
+}
+
+// ── 今日亮點(探索面板):今日之最+特別列車+支線,新手入口;點列跟隨 ──
+function computeHighlights() {
+  const out = { best: [], special: [], branches: [] };
+  let far = null, long = null, most = null, fast = null;
+  for (const tr of state.trains) {
+    journeyProgress(tr, 0); // 確保 _totalKm 已快取
+    const km = tr._totalKm || 0;
+    const dur = tr.stops[tr.stops.length - 1].arrSec - tr.stops[0].depSec;
+    const n = tr.stops.filter(s => s.stop !== false).length;
+    const v = dur > 0 ? km / dur * 3600 : 0;
+    if (!far || km > far.v) far = { tr, v: km };
+    if (!long || dur > long.v) long = { tr, v: dur };
+    if (!most || n > most.v) most = { tr, v: n };
+    if (km >= 50 && (!fast || v > fast.v)) fast = { tr, v }; // 短程沒有平均速度代表性
+  }
+  const used = new Set();
+  const add = (h, title, sub) => {
+    if (!h || used.has(h.tr)) return; // 同一班車蟬聯多冠只列最前面的頭銜
+    used.add(h.tr);
+    out.best.push({ tr: h.tr, title, sub: sub(h.v) });
+  };
+  add(far, '🏁 今日最長征', v => Math.round(v) + ' km');
+  add(long, '⏳ 開最久', v => Math.floor(v / 3600) + ' 小時 ' + Math.round(v % 3600 / 60) + ' 分');
+  add(most, '🛑 停最多站', v => v + ' 站');
+  add(fast, '⚡ 平均最快', v => '約 ' + Math.round(v) + ' km/h');
+  const sd = state.special;
+  if (sd) {
+    for (const nt of sd.namedTrains) for (const no of nt.trainNos) {
+      const tr = state.trains.find(t => String(t.train) === no);
+      if (tr) out.special.push({ tr, title: '★ ' + nt.name, sub: (nt.tags || [])[0] || '' });
+    }
+    // 稀有車種各挑一班代表:行駛中優先,其次最近一班未發車
+    const pickRep = cands =>
+      cands.find(t => trainPos(t, state.simSec))
+      || cands.filter(t => t.stops[0].depSec > state.simSec).sort((a, b) => a.stops[0].depSec - b.stops[0].depSec)[0]
+      || cands[0];
+    for (const r of sd.rollingStock) {
+      if (r.rarity !== '稀有') continue;
+      const cands = state.trains.filter(t => r.carNames.includes(t.carName) && !out.special.some(x => x.tr === t));
+      if (cands.length) out.special.push({ tr: pickRep(cands), title: r.name, sub: '今日 ' + cands.length + ' 班' });
+    }
+    for (const b of sd.branchLines) {
+      const cands = state.trains.filter(t => t.stops.some(s => b._set.has(s.name)));
+      if (cands.length) out.branches.push({ tr: pickRep(cands), title: b.name, sub: b.section });
+    }
+  }
+  return out;
+}
+function hlRow(h) {
+  const tr = h.tr, last = tr.stops[tr.stops.length - 1];
+  const running = !!trainPos(tr, state.simSec);
+  const status = running ? '行駛中'
+    : (state.simSec > last.arrSec ? '重播' : fmtHM(tr.stops[0].depSec % 86400) + ' 發');
+  return `<div class="row" data-no="${tr.train}" title="跟隨 ${tr.train} 次"><span class="dot" style="background:${tr.color}"></span>` +
+    `<b>${h.title}</b><span class="dest">${tr.train}次 ${tr.stops[0].name}→${last.name}${h.sub ? ' · ' + h.sub : ''}</span>` +
+    `<span class="min">${status}</span></div>`;
+}
+function renderExplorePanel() {
+  const el = document.getElementById('explorePanel');
+  if (el.hidden) return;
+  const hl = computeHighlights();
+  el.innerHTML = `<button class="close" id="exploreClose">×</button>` +
+    `<h3>今日亮點</h3><div class="sub">從 ${state.trains.length} 班車裡挑出來的 · 點一列跟隨</div>` +
+    `<div class="row" data-rand="1" title="加權隨機挑一班(特別車機率較高)"><span class="dot" style="background:#d23c2a"></span>` +
+    `<b>🎲 隨便帶我看一輛</b><span class="dest">交給命運</span></div>` +
+    (hl.special.length ? `<div class="sec">特別列車出沒中</div>` + hl.special.map(hlRow).join('') : '') +
+    (hl.best.length ? `<div class="sec">今日之最</div>` + hl.best.map(hlRow).join('') : '') +
+    (hl.branches.length ? `<div class="sec">支線小火車</div>` + hl.branches.map(hlRow).join('') : '');
+  el.querySelector('#exploreClose').onclick = closeExplorePanel;
+  el.onclick = e => {
+    if (e.target.closest('.close')) return;
+    if (e.target.closest('.row[data-rand]')) { closeExplorePanel(); surpriseFollow(); return; }
+    const row = e.target.closest('.row[data-no]');
+    if (row) { closeExplorePanel(); followTrainNo(row.dataset.no); }
+  };
+}
+// 一次性隨機跟隨(非放空的持續換車):沿用導覽加權;深夜沒車在跑就抽一班重播
+function surpriseFollow() {
+  const tr = pickTourTrain() || state.trains[Math.floor(Math.random() * state.trains.length)];
+  if (!tr) return;
+  const ts = document.getElementById('trainSearch'); if (ts) ts.value = tr.train;
+  setFollow(tr);
+}
+function openExplorePanel() {
+  closeBoard(); closeFavPanel(); closeRidePanel();
+  document.getElementById('explorePanel').hidden = false;
+  document.getElementById('exploreBtn').classList.add('active');
+  renderExplorePanel();
+}
+function closeExplorePanel() {
+  const el = document.getElementById('explorePanel');
+  el.hidden = true; el.innerHTML = ''; el.onclick = null;
+  document.getElementById('exploreBtn').classList.remove('active');
 }
 
 // ── 跟隨動態事件(停靠/交會/待避) ──
@@ -2197,7 +2443,7 @@ function jumpToNow() {
 }
 
 // ── 車站時刻板 ──
-function openBoard(st) { closeFavPanel(); closeRidePanel(); state.boardStation = st; renderBoard(); }
+function openBoard(st) { closeFavPanel(); closeRidePanel(); closeExplorePanel(); state.boardStation = st; renderBoard(); }
 function closeBoard() {
   state.boardStation = null;
   const el = document.getElementById('board');
@@ -2425,6 +2671,9 @@ async function boot() {
   state.trackData = await fetchJSON('./data/tra.json');
   // 站等資料(特等/一等/…),缺檔就全走停靠班次數啟發式
   state.stnClassMap = await fetchJSON('./data/tra_station_class.json') || {};
+  // 特別列車故事檔案(車型/具名觀光列車/支線);缺檔時 specialOf 回 null,退回內建簡版介紹
+  state.special = await fetchJSON('./data/tra_special_trains.json');
+  if (state.special) state.special.branchLines.forEach(b => { b._set = new Set(b.matchStations); });
   if (!state.systems.length) {
     document.getElementById('note').textContent = '找不到路網資料（data/*.json 還在準備）';
     return;
@@ -2473,6 +2722,9 @@ document.getElementById('rideBtn').onclick = () => {
 };
 document.getElementById('favBtn').onclick = () => {
   document.getElementById('favPanel').hidden ? openFavPanel() : closeFavPanel();
+};
+document.getElementById('exploreBtn').onclick = () => {
+  document.getElementById('explorePanel').hidden ? openExplorePanel() : closeExplorePanel();
 };
 document.getElementById('favPanel').onclick = e => {
   const rm = e.target.closest('.rm');

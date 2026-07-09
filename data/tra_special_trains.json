@@ -1,0 +1,352 @@
+{
+  "version": 1,
+  "generated": "2026-07-09",
+  "note": "台鐵特別列車故事檔案。事實查證日期 2026-07-09（兩份網路研究＋台鐵官網/媒體抽驗＋當日時刻表交叉比對）。時效敏感條目（班次數、季節路線、退役進度）標註於 status2026，隔年應重新查證。",
+  "matching": {
+    "how": "先以 trainNos 精確比對 namedTrains（車次號優先）；未命中者再以 carNames 比對 rollingStock；branchLines 以 matchStations 比對列車停站。",
+    "fields": { "trainNo": "trains[].train", "carName": "trains[].carName", "stationName": "trains[].stops[].name" }
+  },
+  "rollingStock": [
+    {
+      "id": "emu3000",
+      "carNames": ["自強(3000障)", "自強(3000親障)"],
+      "name": "EMU3000 新自強號",
+      "tags": ["現役主力", "得獎設計"],
+      "rarity": "常見",
+      "story": "日立團隊以「靜謐移動」為題設計的新世代城際列車，拿下日本 Good Design Best 100。2021 年登場、50 列 600 輛全數到齊，2026 年 7 月改點後正式升格為台鐵城際主力，也是首款設有商務車廂「騰雲座艙」的台鐵列車。",
+      "facts": [
+        "和太魯閣、普悠瑪不同，它沒有傾斜機制——靠新路線標準與性能取勝",
+        "全案 600 輛中有 48 輛被改造成觀光列車，海風號、山嵐號都是它的兄弟"
+      ],
+      "status2026": "現役主力，班次最多的自強號。",
+      "confidence": "high",
+      "sources": [
+        "https://zh.wikipedia.org/zh-tw/%E5%8F%B0%E9%90%B5EMU3000%E5%9E%8B%E9%9B%BB%E8%81%AF%E8%BB%8A",
+        "https://www.mirrormedia.mg/story/20210730edi015"
+      ]
+    },
+    {
+      "id": "taroko",
+      "carNames": ["自強(太,障)"],
+      "name": "TEMU1000 太魯閣號",
+      "tags": ["傾斜式", "稀有", "一天只有幾班"],
+      "rarity": "稀有",
+      "story": "台鐵第一款傾斜式列車，2006 年由日立打造、血統源自 JR 九州 885 系。車身過彎時最多傾斜 5 度，能比一般列車快 25 公里過彎，全車對號、不賣站票。2026 年 6 月改點後只跑樹林—花蓮，全台一天僅 6 列次，看到一班算一班。",
+      "facts": [
+        "名字來自公開徵名，擊敗「曙光號」「飛魚號」等候選",
+        "全車烤漆是台鐵車輛首創，配色神似高鐵 700T"
+      ],
+      "status2026": "僅營運樹林—花蓮區間，6 列次/日。",
+      "confidence": "high",
+      "sources": [
+        "https://zh.wikipedia.org/zh-tw/%E5%8F%B0%E9%90%B5TEMU1000%E5%9E%8B%E9%9B%BB%E8%81%AF%E8%BB%8A",
+        "https://news.ltn.com.tw/news/life/paper/1706272"
+      ]
+    },
+    {
+      "id": "puyuma",
+      "carNames": ["自強(普,障)"],
+      "name": "TEMU2000 普悠瑪號",
+      "tags": ["傾斜式", "東部幹線"],
+      "rarity": "中等",
+      "story": "名字取自卑南族語，意為「團結」。日本車輛製造的第二代傾斜式列車，用空氣彈簧讓車身過彎傾斜 1 到 2 度——和新幹線 N700 系同一套原理。2013 年投入營運後長年擔當東部幹線主力，把台北到台東的時間大幅拉近。",
+      "facts": [
+        "傾斜角度比太魯閣的 5 度小，但機構更簡單可靠",
+        "現役 18 列，車頭的流線紅黑塗裝辨識度極高"
+      ],
+      "status2026": "現役，東部幹線要角。",
+      "confidence": "high",
+      "sources": [
+        "https://zh.wikipedia.org/zh-tw/%E5%8F%B0%E9%90%B5TEMU2000%E5%9E%8B%E9%9B%BB%E8%81%AF%E8%BB%8A"
+      ]
+    },
+    {
+      "id": "pp",
+      "carNames": ["自強(PP障)", "自強(PP親)", "自強(PP障12)"],
+      "name": "推拉式自強號（PP）",
+      "tags": ["世代交替中", "老字號"],
+      "rarity": "中等",
+      "story": "1996 年登場的一代名車：前後各一顆機車頭一推一拉，中間全是客車廂，圓滾滾的車鼻讓鐵道迷暱稱它「豬頭」，也是台灣第一款流線型列車。2026 年 7 月改點後，服役 30 年的老 E1000 機車頭退出定期營運，改由全新日製 E500 機車頭接棒牽引，車廂則繼續服役。",
+      "facts": [
+        "客車廂是韓國現代精工製造，機車頭來自南非",
+        "你現在看到的 PP 自強，多半已是新 E500 機車頭在拉的「PP 2.0」"
+      ],
+      "status2026": "車廂續用；E1000 機車頭 2026/7/1 退出定期營運轉預備，規劃年底前汰除。",
+      "confidence": "high",
+      "sources": [
+        "https://zh.wikipedia.org/zh-tw/%E6%8E%A8%E6%8B%89%E5%BC%8F%E8%87%AA%E5%BC%B7%E8%99%9F",
+        "https://news.ltn.com.tw/news/life/breakingnews/5485744",
+        "https://newtalk.tw/news/view/2026-04-16/1030139"
+      ]
+    },
+    {
+      "id": "e500pp",
+      "carNames": ["110K", "110M"],
+      "name": "自強號（E500 新編組・官方代碼未公布）",
+      "tags": ["神祕代碼", "西部長途"],
+      "rarity": "稀有",
+      "story": "官方車種代碼表（V1.6）還沒收錄的神祕新代碼。比對車次與報導，極可能是 2024 年啟航、日本東芝製 E500 電力機車牽引的新一代 PP 自強號。這幾班車跑基隆／七堵到潮州的西部縱貫長途，單程近 6 小時，是今日班表上跑最久的自強號之一。",
+      "facts": [
+        "E500 是台鐵首款日製電力機車，共採購 88 輛",
+        "2024/9/30 E500 啟航儀式的首發列車就是本代碼的 121 次"
+      ],
+      "status2026": "推定為 E500 牽引之新 PP 編組；正式名稱待台鐵公布新版代碼表。",
+      "confidence": "medium",
+      "sources": [
+        "https://taiwan.chtsai.org/2024/10/06/tr_e500_pp/",
+        "https://zh.wikipedia.org/zh-tw/%E5%8F%B0%E9%90%B5E500%E5%9E%8B%E9%9B%BB%E5%8A%9B%E6%A9%9F%E8%BB%8A"
+      ]
+    },
+    {
+      "id": "dr3100",
+      "carNames": ["自強(D31)"],
+      "name": "DR3100 柴聯自強號",
+      "tags": ["柴油動力", "稀有", "老將"],
+      "rarity": "稀有",
+      "story": "1998 年日本車輛與唐榮聯手打造的不鏽鋼柴聯車，台鐵僅存還在定期營運的柴聯自強。自帶柴油引擎、不吃電車線，所以在早已電化的北迴線上照樣奔馳。2023 年退出西部幹線後，只剩樹林—花蓮少數班次，是活的鐵道史。",
+      "facts": [
+        "同期的 DR2800／2900／3000 都已退役，只有它因年限未滿續留",
+        "台鐵首批出廠就配自動門的柴油城際列車"
+      ],
+      "status2026": "僅存東部幹線少數班次，無確定退役日期。",
+      "confidence": "high",
+      "sources": [
+        "https://zh.wikipedia.org/zh-tw/%E5%8F%B0%E9%90%B5DR3100%E5%9E%8B%E6%9F%B4%E8%81%AF%E8%BB%8A",
+        "https://www.epochtimes.com/b5/23/4/26/n13982091.htm"
+      ]
+    },
+    {
+      "id": "chukuang",
+      "carNames": ["莒光"],
+      "name": "莒光號",
+      "tags": ["夕陽車種", "懷舊", "看一班少一班"],
+      "rarity": "稀有",
+      "story": "1970 年登場、名字來自「毋忘在莒」的年代記憶，是台鐵第一款有冷氣的對號列車，當年票價是普通車的三倍。橘色塗裝跑了半世紀，全盛期一天 76 列次，2026 年 7 月改點後全台只剩 7 班，官方規劃 2028 年底前功成身退——看一班少一班。",
+      "facts": [
+        "機車頭牽引的動力集中式列車，加減速慢是被電聯車取代的主因",
+        "米白配橘紅塗裝從 1979 年沿用至今"
+      ],
+      "status2026": "僅剩 7 列次/日；規劃 2028 年底前全數退役（期程未定案）。",
+      "confidence": "high",
+      "sources": [
+        "https://zh.wikipedia.org/zh-tw/%E8%8E%92%E5%85%89%E8%99%9F%E5%88%97%E8%BB%8A",
+        "https://money.udn.com/money/amp/story/122328/9592373"
+      ]
+    },
+    {
+      "id": "local",
+      "carNames": ["區間車"],
+      "name": "區間車（通勤電聯車）",
+      "tags": ["班次最多"],
+      "rarity": "常見",
+      "story": "台鐵的日常擔當，全日班次占了整張班表七成以上。最新一代 EMU900 由韓國 Rotem 與法國 TGV 設計團隊合作，彎彎的「微笑頭燈」配亮綠色腰帶，還首創孕婦優先座與車內直立式自行車架，被媒體稱作「最美區間車」。",
+      "facts": [
+        "時刻表資料無法區分 EMU500／700／800／900 各世代，看到微笑頭燈就是 EMU900",
+        "EMU900 一列 10 輛可載近 1,800 人，是台鐵編組最長的通勤車"
+      ],
+      "status2026": "現役，EMU900 已全數投入。",
+      "confidence": "high",
+      "sources": [
+        "https://zh.wikipedia.org/zh-tw/%E5%8F%B0%E9%90%B5EMU900%E5%9E%8B%E9%9B%BB%E8%81%AF%E8%BB%8A",
+        "https://news.ltn.com.tw/news/life/breakingnews/4494034"
+      ]
+    },
+    {
+      "id": "fast-local",
+      "carNames": ["區間快"],
+      "name": "區間快車",
+      "tags": ["通勤快車"],
+      "rarity": "常見",
+      "story": "區間車的快跑版：同樣的通勤電聯車，但跳過小站只停主要車站，是通勤族搶時間的好朋友。想在地圖上分辨它，看它一路略過小站的跳站節奏就知道。",
+      "facts": [],
+      "status2026": "現役。",
+      "confidence": "high",
+      "sources": [
+        "https://zh.wikipedia.org/zh-tw/%E5%8F%B0%E9%90%B5EMU900%E5%9E%8B%E9%9B%BB%E8%81%AF%E8%BB%8A"
+      ]
+    }
+  ],
+  "namedTrains": [
+    {
+      "id": "blue-train",
+      "name": "藍皮解憂號",
+      "trainNos": ["5898", "5899"],
+      "carNames": ["普通車(專)"],
+      "route": "枋寮↔臺東（南迴線）",
+      "operator": "台鐵（雄獅旅遊協力銷售）",
+      "tags": ["觀光列車", "骨董車", "可自行購票"],
+      "story": "全台唯一還在動態運行的骨董藍皮普快車廂：手動推窗、復古吊扇、綠皮座椅，1960–70 年代的慢車時光原封不動。行駛南迴線 98 公里的「微笑曲線」，一側太平洋、一側台灣海峽，2020 年停駛定期普快後，2021 年以觀光列車之姿復活。",
+      "status2026": "營運中，定期班次（5898 臺東→枋寮／5899 枋寮→臺東），一般旅客可購票。已對台鐵官網驗證車次吻合。",
+      "confidence": "high",
+      "sources": [
+        "https://www.railway.gov.tw/tra-tip-web/tip/tip00N/tipN01/blue/index?lang=zh_TW",
+        "https://zh.wikiversity.org/zh-tw/%E8%97%8D%E7%9A%AE%E8%A7%A3%E6%86%82%E8%99%9F"
+      ]
+    },
+    {
+      "id": "haifeng",
+      "name": "海風號",
+      "trainNos": ["6652", "6655"],
+      "carNames": ["電車(專)"],
+      "route": "南港↔二結（2026 夏季路線，4–10 月週五至週日）",
+      "operator": "台鐵（雄獅旅遊協力）",
+      "tags": ["觀光列車", "甜點列車", "季節限定"],
+      "story": "台灣第一輛甜點觀光列車，由 EMU3000 改造，湛藍與翠綠塗裝呼應近海風情，全景大窗配面海座位，車上供應與烘焙工作室合作的限定甜點。2026 年夏季開出南港—宜蘭新路線，是班表上「電車(專)」神祕車次的真身。",
+      "status2026": "營運中；6652/6655 為 2026 年 4–10 月季節性車次，車次號每季可能調整，長期顯示需留意時效。",
+      "confidence": "high",
+      "sources": [
+        "https://www.railway.gov.tw/tra-tip-web/tip/tip009/tip911/newsDtl?newsNo=8ae4cac292f89b970192fb93617d0354&page=0",
+        "https://event.liontravel.com/zh-tw/railtour/haifeng"
+      ]
+    },
+    {
+      "id": "shanlan",
+      "name": "山嵐號",
+      "trainNos": [],
+      "carNames": [],
+      "route": "花蓮↔池上（花東縱谷）",
+      "operator": "台鐵（雄獅旅遊協力）",
+      "tags": ["觀光列車", "花東縱谷"],
+      "story": "海風號的姊妹車，台灣第一輛行駛花東縱谷的觀光列車。黃綠色車身呼應縱谷稻浪，車廂裡飄著檀香與小荳蔻香氣，全景大窗把稻田與山嵐一次收進來。2024 年與海風號同步登場。",
+      "status2026": "營運中；無公開固定車次號，無法在地圖上自動辨識，僅供圖鑑介紹。",
+      "confidence": "high",
+      "sources": [
+        "https://www.railway.gov.tw/tra-tip-web/tip/tip009/tip911/newsDtl?newsNo=8ae4cac292f89b970192fb93617d0354&page=0"
+      ]
+    },
+    {
+      "id": "mingri",
+      "name": "鳴日號（含鳴日廚房）",
+      "trainNos": [],
+      "carNames": [],
+      "route": "環島／東岸／西岸套裝行程，無固定路線",
+      "operator": "台鐵車體，雄獅旅遊經營",
+      "tags": ["觀光列車", "頂級", "包車制"],
+      "story": "台鐵首款五星級觀光列車，黑橘塗裝配檜木質感內裝，結合「鳴日廚房」供應在地食材料理，主打五感體驗的頂級鐵道旅行。每月僅約 6 班、限量預約制，是台鐵觀光列車的旗艦門面。",
+      "status2026": "營運中，套裝行程制、無固定時刻表與車次號，無法在地圖上自動辨識，僅供圖鑑介紹。",
+      "confidence": "high",
+      "sources": [
+        "https://event.liontravel.com/zh-tw/railtour/future",
+        "https://www.railway.gov.tw/tra-tip-web/tip/tip00N/tipN01/sun/detail?tripNo=H20240821008&lang=zh_TW"
+      ]
+    },
+    {
+      "id": "star",
+      "name": "環島之星 萌旅號",
+      "trainNos": [],
+      "carNames": [],
+      "route": "環島（東西雙向各一班，停靠 22 站）",
+      "operator": "台鐵委外，易遊網經營",
+      "tags": ["觀光列車", "親子", "環島"],
+      "story": "全台唯一環島觀光列車，13 小時繞台灣一圈。車廂主題隨年代改朝換代：初代 Hello Kitty、迪士尼「夢想號」，到現行三麗鷗「萌旅號」——布丁狗、酷洛米、美樂蒂彩繪滿車，車上還有卡拉 OK 與吧檯。",
+      "status2026": "營運中，現行為三麗鷗萌旅號（Hello Kitty 版已於 2022 年退役，勿再使用舊名）。無公開固定車次號。",
+      "confidence": "high",
+      "sources": [
+        "https://www.railway.gov.tw/tra-tip-web/tip/tip00N/tipN01/around/index?lang=zh_TW",
+        "https://trip.eztravel.com.tw/activity/formosa/express/"
+      ]
+    },
+    {
+      "id": "cruise",
+      "name": "郵輪式列車",
+      "trainNos": [],
+      "carNames": [],
+      "route": "依公告梯次，路線不固定",
+      "operator": "台鐵",
+      "tags": ["旅遊模式"],
+      "story": "不是一輛車，而是一種玩法：模仿郵輪「長時間停靠讓旅客上岸遊覽」的節奏，火車在各站多停一兩小時讓你下車玩，玩夠再上車。2008 年開辦至今，是台鐵行之有年的一日遊列車形式。",
+      "status2026": "營運中，依公告開行、非天天有；屬服務模式而非特定車輛，僅供圖鑑介紹。",
+      "confidence": "high",
+      "sources": [
+        "https://www.railway.gov.tw/tra-tip-web/tip/tip00H/tipH11/query"
+      ]
+    },
+    {
+      "id": "steam",
+      "name": "仲夏寶島號（CT273 蒸汽火車）",
+      "trainNos": [],
+      "carNames": [],
+      "route": "玉里↔臺東（花東線，季節限定）",
+      "operator": "台鐵",
+      "tags": ["蒸汽火車", "季節限定", "一票難求"],
+      "story": "每年夏天限定的蒸汽火車專列：「蒸機女王」CT273 牽引六節莒光號車廂，噴煙鳴笛駛過花東縱谷。活動源於 CK124 與日本 JR 北海道「冬季濕原號」締結姊妹車的紀念，2026 年僅開 3 趟次，是鐵道迷的年度朝聖。",
+      "status2026": "2026 年 CT273 行駛玉里—臺東限定 3 趟次（中央社 2026/6/2 報導）；無固定車次號，依公告排點。",
+      "confidence": "high",
+      "sources": [
+        "https://www.cna.com.tw/news/ahel/202506020030.aspx",
+        "https://tip.railway.gov.tw/tra-tip-web/tip/tip00H/tipH21/summerisland"
+      ]
+    },
+    {
+      "id": "bike",
+      "name": "兩鐵列車（人車同行）",
+      "trainNos": [],
+      "carNames": [],
+      "route": "全台多路線，依班次開放",
+      "operator": "台鐵",
+      "tags": ["自行車", "常態服務"],
+      "story": "讓單車騎士連人帶車上火車的服務，「鐵馬＋鐵路」串起環島騎行的斷點。依車廂設計有 8 車到 30 車不等的容量，EMU900 區間車還有直立式車架可隨到隨上。",
+      "status2026": "常態服務營運中；屬服務類別而非特定列車，時刻表資料無法自動辨識（TDX 的 BikeFlag 欄位可辨識，待接入）。",
+      "confidence": "high",
+      "sources": [
+        "https://tip.railway.gov.tw/tra-tip-web/tip/tip00D/tipD11/view12"
+      ]
+    }
+  ],
+  "branchLines": [
+    {
+      "id": "pingxi",
+      "name": "平溪線",
+      "section": "三貂嶺—菁桐",
+      "matchStations": ["大華", "十分", "望古", "嶺腳", "平溪", "菁桐"],
+      "story": "運煤鐵道轉生的人文支線：十分老街的房子緊貼鐵軌而建，火車擦身而過是經典畫面；元宵放天燈與鹽水蜂炮並稱「南蜂炮北天燈」。",
+      "sources": ["https://www.taiwan.net.tw/m1.aspx?sNo=0001091&id=3510"]
+    },
+    {
+      "id": "jiji",
+      "name": "集集線",
+      "section": "二水—車埕",
+      "matchStations": ["源泉", "濁水", "龍泉", "集集", "水里", "車埕"],
+      "story": "台鐵最長支線（29.7 公里），前身是興建水力電廠的運輸線。1930 年的檜木集集車站歷經 921 地震損毀又重生，終點車埕保留木業聚落風貌。",
+      "sources": ["https://zh.wikipedia.org/zh-tw/%E9%9B%86%E9%9B%86%E7%B7%9A"]
+    },
+    {
+      "id": "neiwan",
+      "name": "內灣線",
+      "section": "新竹—內灣",
+      "matchStations": ["竹東", "橫山", "九讚頭", "合興", "富貴", "內灣"],
+      "story": "戰後台灣第一條新建支線，從礦業線轉型客家文化觀光線。合興車站被封為「愛情火車站」，春末螢火蟲季與內灣老街客家美食是招牌。",
+      "sources": ["https://zh.wikipedia.org/zh-tw/%E5%85%A7%E7%81%A3%E7%B7%9A"]
+    },
+    {
+      "id": "liujia",
+      "name": "六家線",
+      "section": "竹中—六家",
+      "matchStations": ["六家"],
+      "story": "2011 年通車的全高架通勤支線，從竹中站直達高鐵新竹站，讓台鐵與高鐵首次無縫接軌，是台鐵捷運化的代表作。",
+      "sources": ["https://zh.wikipedia.org/zh-tw/%E5%85%AD%E5%AE%B6%E7%B7%9A"]
+    },
+    {
+      "id": "shenao",
+      "name": "深澳線",
+      "section": "瑞芳—八斗子",
+      "matchStations": ["海科館", "八斗子"],
+      "story": "幾度停駛又復活的海岸支線，2014 年為海科館復駛，是台灣唯一山海相接的支線；停用的深澳段軌道變身鐵道自行車，在退役鐵軌上看北海岸。",
+      "sources": ["https://zh.wikipedia.org/zh-tw/%E6%B7%B1%E6%BE%B3%E7%B7%9A"]
+    },
+    {
+      "id": "shalun",
+      "name": "沙崙線",
+      "section": "中洲—沙崙（列車多自台南直通）",
+      "matchStations": ["長榮大學", "沙崙"],
+      "story": "2011 年通車的高鐵聯絡線，台鐵最南端的支線，也是南迴線之後台鐵再次新築的路線；全程高架、首例跨越國道一號，串起台南市區與高鐵站。",
+      "sources": ["https://zh.wikipedia.org/zh-tw/%E6%B2%99%E5%B4%99%E7%B7%9A"]
+    }
+  ],
+  "excluded": [
+    {
+      "name": "栩悅號／福森號",
+      "reason": "屬阿里山林業鐵路（林業及自然保育署轄下），非台鐵路網，本地圖不涵蓋其路線，故不收錄。"
+    }
+  ]
+}
