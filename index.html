@@ -18,7 +18,16 @@
   }
   a { color: #2a4a73; }
   a:hover { color: #d23c2a; }
-  .wrap { max-width: 1040px; margin: 0 auto; padding: 20px 20px 48px; }
+  .wrap { max-width: 1400px; margin: 0 auto; padding: 20px 20px 48px; }
+
+  /* ── 雙欄版面:地圖主欄+右側互動欄(搜尋/最愛/旅程收集/篩選),點側欄同時看得到地圖;
+     窄螢幕(<1200px)回退單欄堆疊 ── */
+  .cols { display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 0 18px; align-items: start; }
+  .side-col { position: sticky; top: 10px; max-height: calc(100vh - 20px); overflow-y: auto; padding: 0 2px 8px; }
+  @media (max-width: 1199px) {
+    .cols { grid-template-columns: 1fr; }
+    .side-col { position: static; max-height: none; overflow: visible; padding: 0; }
+  }
 
   /* ── 站名牌 header ── */
   .plate {
@@ -563,6 +572,8 @@
 
   <div class="systems" id="systems"></div>
 
+  <div class="cols">
+  <div class="main-col">
   <div class="stage">
     <div id="map"></div>
     <canvas id="overlay"></canvas>
@@ -639,8 +650,6 @@
     <div class="tc-stops" id="tcStops" hidden></div>
   </div>
 
-  <div class="favs" id="favRow" hidden></div>
-
   <div class="controls">
     <button class="pp" id="pp"><span id="ppIcon">❚❚</span><span id="ppTxt">暫停</span></button>
     <div class="ctl">
@@ -671,23 +680,29 @@
     <div class="lbl" id="flowLbl">全日同時運行列車數（依時刻表）——點擊圖表跳到該時刻</div>
   </div>
 
-  <div class="search" id="searchRow" hidden>
-    <input type="text" id="trainSearch" list="trainList" placeholder="搜尋車次跟隨（如 123、2103）" autocomplete="off" />
-    <datalist id="trainList"></datalist>
-    <div class="followbar" id="followBar" hidden></div>
+  <p class="note" id="note"></p>
   </div>
 
-  <div class="passport" id="passport" hidden></div>
+  <aside class="side-col">
+    <div class="search" id="searchRow" hidden>
+      <input type="text" id="trainSearch" list="trainList" placeholder="搜尋車次跟隨（如 123、2103）" autocomplete="off" />
+      <datalist id="trainList"></datalist>
+      <div class="followbar" id="followBar" hidden></div>
+    </div>
 
-  <div class="lines" id="lineToggles"></div>
+    <div class="favs" id="favRow" hidden></div>
 
-  <p class="note" id="note"></p>
+    <div class="passport" id="passport" hidden></div>
+
+    <div class="lines" id="lineToggles"></div>
+  </aside>
+  </div>
 </div>
 
 <script>
 // 版本戳記:每次改版 push 前手動遞增(字母序),畫面時鐘徽章與 console 都會顯示,
 // 供比對線上跑的是不是最新版(瀏覽器快取 max-age=600 常讓人看到舊版)
-const BUILD = 'v0709j';
+const BUILD = 'v0709k';
 const state = {
   systems: [], sysId: null, data: null, speed: 36, mode: 'freq',
   lines: [], visible: new Set(), trains: [], schedStations: [], types: [],
@@ -1453,7 +1468,7 @@ function placeTrainCard() {
   if (document.body.classList.contains('fs') && state.followTrain) {
     document.getElementById('followPanel').appendChild(tc);
   } else if (tc.parentElement.classList.contains('follow-panel')) {
-    document.getElementById('favRow').before(tc);
+    document.querySelector('.stage').after(tc); // 還原到主欄地圖正下方(最愛列已移側欄,不能當錨點)
     if (state.followTrain) placeControls(true); // 回一般版面:控制列在卡上方
   }
 }
