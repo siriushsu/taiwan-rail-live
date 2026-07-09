@@ -117,14 +117,15 @@
   .stage.dark .leaflet-container { background: #10141c; }
   .stage.sat .leaflet-container { background: #2e4636; }
 
-  /* 地圖工具鈕(全畫面、明暗、衛星)——貼地圖右下邊緣,Leaflet 縮放鈕疊在其正上方(見下方 .leaflet-bottom.leaflet-right) */
+  /* 地圖工具鈕(全畫面、明暗、衛星)——貼地圖右下,上方留給 Leaflet 縮放鈕、正下角落留給版權字 */
   .stage-tools {
-    position: absolute; right: 12px; bottom: 12px; z-index: 700;
+    position: absolute; right: 12px; bottom: 26px; z-index: 700;
     display: flex; gap: 8px;
   }
-  /* Leaflet 縮放鈕(bottomright)讓出下方空間給 .stage-tools,兩者不重疊;
-     全畫面模式下工具鈕移到右上(見 body.fs 區塊),縮放鈕改回原生底部位置 */
-  .leaflet-bottom.leaflet-right { bottom: 58px; }
+  /* Leaflet 版權字釘回地圖右下角(原生位置);縮放鈕再往上讓開工具鈕列,三者(縮放/工具鈕/版權字)由上而下不重疊。
+     全畫面時工具鈕移到右上(見 body.fs 區塊),縮放鈕不必再讓、恢復貼底。 */
+  .leaflet-bottom.leaflet-right { bottom: 0; }
+  body:not(.fs) .leaflet-control-zoom { margin-bottom: 56px; }
   body.fs .leaflet-bottom.leaflet-right { bottom: 10px; }
   /* 圖示鈕:平常只見單字/符號(38px 方鈕),hover 向左展開露出完整說明 */
   .stage-tools button {
@@ -705,8 +706,13 @@
     .badge { top: 8px; left: 8px; gap: 9px; padding: 5px 11px 6px; }
     .badge .clock { font-size: 18px; }
     .badge .count { font-size: 12px; }
-    /* 手機:時刻板改底部 sheet,工具鈕改右上直排,避開 HUD 與 sheet */
-    .stage-tools { top: 8px; right: 8px; bottom: auto; flex-direction: column; }
+    /* 手機:時刻板改底部 sheet,工具鈕改右上直排;帶文字後變寬,起點下移到時鐘徽章下方免得蓋住班次數 */
+    .stage-tools { top: 56px; right: 8px; bottom: auto; flex-direction: column; gap: 7px; }
+    /* 觸控沒有 hover:直接顯示完整文字並把按鈕加大,不再只看到一個字 */
+    .stage-tools button { height: 40px; }
+    .stage-tools button .ti { flex: 0 0 38px; height: 38px; font-size: 18px; }
+    .stage-tools button .tl { max-width: 130px; opacity: 1; padding-right: 12px; font-size: 13.5px; }
+    body.fs .stage-tools button .tl { padding-right: 0; padding-left: 12px; } /* 全畫面直排 row-reverse:文字在左 */
     /* 手機改用雙指縮放,隱藏 Leaflet +/- 鈕(否則會壓在底部 sheet 上) */
     .leaflet-control-zoom { display: none; }
     .board {
@@ -742,7 +748,7 @@
     body.fs .traincard { display: none; }
     body.fs .controls { bottom: 8px; width: calc(100vw - 16px); padding: 7px 12px; }
     body.fs .follow-panel { bottom: 132px; }
-    body.fs .stage-tools { top: 8px; }
+    body.fs .stage-tools { top: 56px; } /* 帶文字的工具鈕同樣讓開左上時鐘徽章 */
   }
 </style>
 </head>
@@ -952,7 +958,7 @@
 <script>
 // 版本戳記:每次改版 push 前手動遞增(字母序),畫面時鐘徽章與 console 都會顯示,
 // 供比對線上跑的是不是最新版(瀏覽器快取 max-age=600 常讓人看到舊版)
-const BUILD = 'v0710c';
+const BUILD = 'v0710d';
 const state = {
   systems: [], sysId: null, data: null, speed: 36, mode: 'freq',
   lines: [], visible: new Set(), trains: [], schedStations: [], types: [],
@@ -1455,8 +1461,8 @@ function drawSched(w, h) {
     if (isFollow) { drawFollowMarker(cp, tr); state._trainHits.push({ x: cp.x, y: cp.y, tr }); continue; }
     if (!inView(cp)) continue;
     state._trainHits.push({ x: cp.x, y: cp.y, tr }); // 供點擊/hover 命中測試(每幀重建)
-    if (showTrain) drawTag(cp, tr.train, tr.color, textColorFor(tr.color));
-    else drawDot(cp, tr.color);
+    if (showTrain) isHSR(tr) ? drawHSRTag(cp, tr.train) : drawTag(cp, tr.train, tr.color, textColorFor(tr.color));
+    else isHSR(tr) ? drawHSRDot(cp) : drawDot(cp, tr.color);
   }
   // 站名標籤:大站先取位、字級隨站等、蓋在列車上層才不會被擋
   ctx.textAlign = 'center';
@@ -1483,7 +1489,7 @@ function drawFollowMarker(p, tr) {
   ctx.beginPath(); ctx.arc(p.x, p.y, 11, 0, 7);
   ctx.strokeStyle = tr.color; ctx.globalAlpha = 0.9; ctx.lineWidth = 2.5; ctx.stroke();
   ctx.globalAlpha = 1;
-  drawTag(p, tr.train, tr.color, textColorFor(tr.color));
+  isHSR(tr) ? drawHSRTag(p, tr.train) : drawTag(p, tr.train, tr.color, textColorFor(tr.color));
 }
 
 let labelBoxes = [];
@@ -1557,6 +1563,31 @@ function drawDot(p, color) {
   ctx.beginPath(); ctx.arc(p.x, p.y, 2, 0, 7);
   ctx.fillStyle = color; ctx.globalAlpha = 1; ctx.fill();
 }
+
+// 高鐵列車專屬外觀:兩端尖頭的白底子彈輪廓＋橘框橘字(仿 700T/N700 白車身橘帶),
+// 一眼與台鐵的實心圓角車號牌區分——台鐵橘系(莒光/自強)與高鐵橘同色也不會認錯。
+const HSR_ORANGE = '#E85D0D';
+function drawHSRTag(p, label) {
+  ctx.font = '700 10px ' + FONT; ctx.textBaseline = 'middle'; ctx.textAlign = 'center';
+  const pw = ctx.measureText(label).width + 13, ph = 15, nose = 5;
+  const x0 = p.x - pw / 2, x1 = p.x + pw / 2, y0 = p.y - ph / 2, y1 = p.y + ph / 2;
+  ctx.beginPath();
+  ctx.moveTo(x0, y0); ctx.lineTo(x1, y0); ctx.lineTo(x1 + nose, p.y);
+  ctx.lineTo(x1, y1); ctx.lineTo(x0, y1); ctx.lineTo(x0 - nose, p.y);
+  ctx.closePath();
+  ctx.fillStyle = '#fffdf6'; ctx.globalAlpha = 0.97; ctx.fill(); ctx.globalAlpha = 1;
+  ctx.lineWidth = 2; ctx.strokeStyle = HSR_ORANGE; ctx.stroke();
+  ctx.fillStyle = HSR_ORANGE; ctx.fillText(label, p.x, p.y + 0.5);
+}
+function drawHSRDot(p) {
+  ctx.beginPath(); ctx.arc(p.x, p.y, 6, 0, 7);
+  ctx.fillStyle = HSR_ORANGE; ctx.globalAlpha = 0.2; ctx.fill(); ctx.globalAlpha = 1;
+  ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(Math.PI / 4); // 白底菱形＋橘框,低倍率也與台鐵圓點區分
+  ctx.fillStyle = '#fffdf6'; ctx.fillRect(-3.3, -3.3, 6.6, 6.6);
+  ctx.lineWidth = 1.6; ctx.strokeStyle = HSR_ORANGE; ctx.strokeRect(-3.3, -3.3, 6.6, 6.6);
+  ctx.restore();
+}
+function isHSR(tr) { return tr && tr.sys === 'thsr_sched'; }
 
 // 點擊/hover 的列車命中測試(用 drawSched 每幀重建的螢幕座標快取)
 function trainAt(cp) {
