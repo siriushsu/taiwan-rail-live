@@ -61,13 +61,6 @@ export default {
   async fetch(request, env) {
     const url = new URL(request.url);
     if (url.pathname === '/api/tra-live') return traLive(request, env);
-    // 臨時診斷:只回報 runtime 是否讀得到金鑰(存在性+長度,不回值)。驗證後移除。
-    if (url.pathname === '/api/_diag') {
-      return jsonRes({
-        hasId: !!env.TDX_CLIENT_ID, idLen: (env.TDX_CLIENT_ID || '').length,
-        hasSecret: !!env.TDX_CLIENT_SECRET, secretLen: (env.TDX_CLIENT_SECRET || '').length,
-      }, 200, 'no-store');
-    }
     return env.ASSETS.fetch(request);
   },
 };
