@@ -275,8 +275,15 @@
     position: fixed; left: 50%; bottom: 12px; transform: translateX(-50%);
     z-index: 1001; margin: 0; width: max-content; max-width: calc(100vw - 20px);
     background: rgba(255,253,246,.96); border: 2px solid #2a4a73; border-radius: 10px;
-    padding: 9px 16px; gap: 10px 18px;
+    padding: 7px 12px; gap: 8px 10px;
   }
+  /* 全畫面控制列瘦身:壓成一排,音樂不落到第二排(速度/時間字樣與預設倍速鈕藏起,鍵盤1-4照用) */
+  body.fs .controls button.pp { font-size: 12.5px; padding: 5px 9px; gap: 4px; }
+  body.fs .controls .ctl { gap: 6px; }
+  body.fs .controls .ctl label, body.fs .controls .spd-btns { display: none; }
+  body.fs .controls .ctl output { font-size: 12px; min-width: 36px; }
+  body.fs .controls input[type=range] { width: 88px; }
+  body.fs .controls #musicVol { width: 64px; }
   /* 全畫面跟隨:資訊卡塞進左下跟隨面板,合併成一張可收放的卡(placeTrainCard 搬 DOM) */
   body.fs .follow-panel { bottom: 12px; width: 300px; max-height: calc(100vh - 90px); }
   body.fs .follow-panel .traincard {
@@ -623,7 +630,7 @@
 <script>
 // 版本戳記:每次改版 push 前手動遞增(字母序),畫面時鐘徽章與 console 都會顯示,
 // 供比對線上跑的是不是最新版(瀏覽器快取 max-age=600 常讓人看到舊版)
-const BUILD = 'v0709e';
+const BUILD = 'v0709f';
 const state = {
   systems: [], sysId: null, data: null, speed: 36, mode: 'freq',
   lines: [], visible: new Set(), trains: [], schedStations: [], types: [],
@@ -1413,6 +1420,7 @@ function setFollow(tr, isAuto, noJump) {
   showFollowPanel(tr);
   placeTrainCard();
   placeControls(true);
+  (state._placeFsOverlays || (() => {}))(document.body.classList.contains('fs'));
   updateCount();
 }
 
@@ -1428,6 +1436,7 @@ function clearFollow() {
   document.getElementById('trainCard').hidden = true;
   placeTrainCard(); // followTrain 已清空 → 還原資訊卡到地圖下方
   placeControls(false);
+  (state._placeFsOverlays || (() => {}))(document.body.classList.contains('fs'));
 }
 
 // ── 列車介紹(車次固定的特殊列車 + 依 CarClass 車種說明) ──
@@ -2317,10 +2326,8 @@ function setupMapTools() {
       st.left = ''; st.right = ''; st.transform = ''; st.bottom = ''; st.maxWidth = '';
     }
   }
-  // 跟隨卡高度會變(停站狀態列出現/消失)、跟隨開始/結束都要重排
-  new ResizeObserver(() => {
-    if (document.body.classList.contains('fs')) placeFsOverlays(true);
-  }).observe(document.getElementById('followPanel'));
+  // 跟隨開始/結束時由 setFollow/clearFollow 經 state._placeFsOverlays 明確重排
+  state._placeFsOverlays = placeFsOverlays;
   function setFs(on) {
     document.body.classList.toggle('fs', on);
     fsBtn.textContent = on ? '×' : '⛶';
