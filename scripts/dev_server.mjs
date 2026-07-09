@@ -1,4 +1,4 @@
-// 本機開發伺服器：靜態檔案＋ /api/tra-live（直接載入 Cloudflare worker.js）
+// 本機開發伺服器：靜態檔案＋ /api/*（直接載入 Cloudflare worker.js）
 // 用法：node scripts/dev_server.mjs（金鑰讀專案根目錄 .env）
 import { createServer } from 'node:http';
 import { readFileSync, existsSync, statSync } from 'node:fs';
@@ -24,7 +24,7 @@ const MIME = { '.html': 'text/html', '.js': 'text/javascript', '.mjs': 'text/jav
 
 createServer(async (req, res) => {
   const url = new URL(req.url, 'http://x');
-  if (url.pathname === '/api/tra-live') {
+  if (url.pathname.startsWith('/api/')) {
     const resp = await worker.fetch(new Request('http://localhost' + req.url), process.env);
     res.statusCode = resp.status;
     resp.headers.forEach((v, k) => res.setHeader(k, v));

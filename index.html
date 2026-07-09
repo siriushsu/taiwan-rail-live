@@ -235,7 +235,6 @@
   .traincard .tc-sparkwrap canvas { display: block; width: 100%; height: 46px; }
   .traincard .tc-stops {
     margin-top: 9px; padding-top: 8px; border-top: 1.5px dashed #d8cba9;
-    max-height: 240px; overflow-y: auto;
   }
   .traincard .tc-st {
     display: flex; gap: 12px; font-size: 12.5px; padding: 2.5px 2px;
@@ -254,11 +253,11 @@
   .traincard .tc-body {
     display: grid; grid-template-columns: 1.3fr 1fr; gap: 6px 26px;
     margin-top: 9px; padding-top: 9px; border-top: 1.5px dashed #d8cba9;
-    align-items: start; /* 介紹依內容展開、卡片跟著變高不出捲軸;日誌自行設上限捲動 */
+    align-items: start; /* 介紹與日誌都依內容展開、卡片跟著變高,整頁只留頁面捲軸 */
   }
   .traincard .tc-intro { font-size: 13px; line-height: 1.65; color: #5d5240; }
   .traincard .tc-events { display: flex; flex-direction: column; min-height: 0; }
-  .traincard .tc-events #tcEvents { flex: 1; max-height: 150px; overflow-y: auto; }
+  .traincard .tc-events #tcEvents { flex: 1; }
   .traincard .tc-intro b.tn { color: #a3641a; }
   .traincard .tc-intro .amen { display: block; margin-top: 5px; color: #2a4a73; font-weight: 600; font-size: 12.5px; }
   .traincard .tc-events .lbl {
@@ -319,7 +318,6 @@
     color: #1e2c40; font-weight: 800; cursor: default;
     background: #fff6df; border: 1.5px solid #d2a12a; box-shadow: 0 1.5px 0 #d2a12a;
   }
-  .passport .ph-list { max-height: 230px; overflow-y: auto; }
   .passport .ph-row {
     display: flex; align-items: baseline; gap: 10px; font-size: 12.5px; color: #5d5240;
     padding: 3px 2px; border-top: 1px dashed #ece2c8; font-variant-numeric: tabular-nums;
@@ -331,6 +329,39 @@
   .passport .ph-row .km { color: #8a7c62; }
   .passport .ph-empty { font-size: 12.5px; color: #8a7c62; }
   .passport .stamp.na { cursor: help; } /* 成就徽章不可點,滑過看解鎖條件 */
+
+  /* ── 營運通阻公告橫幅(TDX Alert,颱風停駛等):右上角常駐,點開看官方公告全文 ── */
+  .alert-banner {
+    position: absolute; top: 12px; right: 12px; z-index: 705;
+    max-width: min(480px, 52%);
+    display: flex; align-items: baseline; gap: 7px;
+    background: #d23c2a; color: #fff8ec;
+    border: 2px solid #a92c1d; border-radius: 8px;
+    box-shadow: 0 2px 0 rgba(169,44,29,.4);
+    padding: 6px 12px 7px; font-size: 13px; font-weight: 700; cursor: pointer;
+  }
+  .alert-banner .ab-title { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .alert-banner .ab-more { flex: none; font-size: 11px; font-weight: 600; opacity: .9; white-space: nowrap; }
+  .alert-detail {
+    position: absolute; top: 52px; right: 12px; z-index: 706;
+    width: min(440px, calc(100% - 24px)); max-height: 60%; overflow-y: auto;
+    background: #fffdf6; border: 2px solid #a92c1d; border-radius: 10px;
+    box-shadow: 0 3px 0 rgba(169,44,29,.3);
+    padding: 11px 14px; font-size: 12.5px; color: #3a3226; line-height: 1.6;
+  }
+  .alert-detail .ad-row { padding: 7px 0; border-top: 1.5px dashed #e8d5c0; }
+  .alert-detail .ad-row:first-child { border-top: 0; padding-top: 0; }
+  .alert-detail .ad-row b { color: #a92c1d; }
+  .alert-detail .ad-time { color: #a89468; font-size: 11.5px; }
+  .alert-detail .ad-src { margin-top: 8px; padding-top: 6px; border-top: 1.5px dashed #e8d5c0; color: #a89468; font-size: 11px; }
+  body.fs .alert-banner { right: 60px; }
+  body.fs .alert-detail { right: 60px; }
+  /* 跟隨面板的通阻警示列(跟隨中的車行經公告影響路線時顯示) */
+  .follow-panel .fp-alert {
+    margin-top: 7px; padding: 5px 8px;
+    background: #fbe9df; border: 1.5px solid #e0a37e; border-radius: 5px;
+    color: #b4552a; font-size: 12px; font-weight: 700; line-height: 1.45;
+  }
 
   /* ── 收集通知(toast):地圖上方置中彈出後自動消失,一般/全畫面/放空都看得到 ── */
   .toasts {
@@ -692,6 +723,8 @@
     <div id="skyTint"></div>
     <div id="veil"></div>
     <div class="toasts" id="toasts"></div>
+    <div class="alert-banner" id="alertBanner" hidden></div>
+    <div class="alert-detail" id="alertDetail" hidden></div>
     <div class="follow-panel" id="followPanel" hidden>
       <div class="fp-head">
         <span class="dot" id="fpDot"></span>
@@ -709,6 +742,7 @@
         <span class="txt" id="fpProgTxt"></span>
       </div>
       <div class="fp-status" id="fpStatus" hidden></div>
+      <div class="fp-alert" id="fpAlert" hidden></div>
       <div class="fp-dest" id="fpDest"></div>
     </div>
     <div class="stage-tools">
@@ -861,7 +895,7 @@
 <script>
 // 版本戳記:每次改版 push 前手動遞增(字母序),畫面時鐘徽章與 console 都會顯示,
 // 供比對線上跑的是不是最新版(瀏覽器快取 max-age=600 常讓人看到舊版)
-const BUILD = 'v0709o';
+const BUILD = 'v0709p';
 const state = {
   systems: [], sysId: null, data: null, speed: 36, mode: 'freq',
   lines: [], visible: new Set(), trains: [], schedStations: [], types: [],
@@ -1603,6 +1637,7 @@ function loadSystem(sys) {
     state.trackVisible = new Set((state.trackLines || []).map(l => l.id));
     state.simSec = nowSecOfDay(); // 開頁即同步現在時刻
     pollLive(); // 初始 poll 在 mode 就緒前會被擋掉,進台鐵模式時補拉
+    pollAlert(); // 營運通阻公告同理
     assignSchedShapePaths();
     retimeLoopTrains(); // 貼軌後才有弧長,環島車時刻此時才能鋪
     computeFlow();
@@ -1640,6 +1675,7 @@ function loadSystem(sys) {
   buildToggles();
   renderFavs();
   renderPassport();
+  renderAlertBanner(); // 換到捷運模式收掉台鐵通阻橫幅
   refreshBadge();
   updateCount();
   const meta = SYS_META[sys.id];
@@ -2690,6 +2726,7 @@ function showFollowPanel(tr) {
     ? '環島循環運行 · 一圈 12 小時 · 永不到站'
     : `${first.name} → ${last.name} · 終點 ${fmtHM(last.arrSec % 86400)} 抵達`;
   fp.hidden = false;
+  updateFollowAlert(); // 行經通阻公告路線的車,跟隨當下就掛警示
   updateFollowPanel(tr);
 }
 function updateFollowPanel(tr) {
@@ -2882,6 +2919,75 @@ function updateLiveBadge() {
 setInterval(pollLive, 60e3);
 document.addEventListener('visibilitychange', () => { if (!document.hidden) pollLive(); });
 pollLive();
+
+// ── 台鐵營運通阻公告(TDX Rail/TRA/Alert,颱風停駛等;每 5 分鐘輪詢) ──
+// 只轉述官方公告不推定個別班次:正常時 TDX 回單筆 Status:1「全線營運正常」,取其餘條目當異常
+const escHtml = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+async function pollAlert() {
+  if (document.hidden || state.mode !== 'sched') return;
+  try {
+    const r = await fetch('api/tra-alert', { cache: 'no-store' });
+    if (!r.ok) throw new Error(r.status);
+    const d = await r.json();
+    if (!Array.isArray(d.alerts)) throw new Error('bad payload');
+    state.alert = { at: d.at, list: d.alerts.filter(a => a.status !== 1) };
+  } catch (e) { /* 失敗保留舊資料 */ }
+  renderAlertBanner();
+}
+// 公告文字/影響範圍 → 本站軌道線 id;「東部幹線」等總稱先展開,再比對各線基底名
+const ALERT_LINE_GROUPS = { '東部幹線': ['宜蘭線', '北迴線', '臺東線'], '西部幹線': ['縱貫線', '山線', '海線', '屏東線'] };
+function alertAffectedLineIds() {
+  const list = (state.alert && state.alert.list) || [];
+  if (!list.length || !state.trackLines) return new Set();
+  const text = list.map(a => [a.title, a.desc, (a.lines || []).join(' ')].join(' ')).join(' ').replace(/台/g, '臺');
+  const names = new Set();
+  for (const [grp, lns] of Object.entries(ALERT_LINE_GROUPS)) if (text.includes(grp)) lns.forEach(n => names.add(n));
+  const out = new Set();
+  for (const ln of state.trackLines) {
+    const base = ln.name.replace(/[（(].*$/, '').trim().replace(/台/g, '臺'); // 縱貫線北段（基隆—竹南）→ 縱貫線北段
+    if (text.includes(base) || [...names].some(n => base.startsWith(n))) out.add(ln.id);
+  }
+  return out;
+}
+function renderAlertBanner() {
+  const b = document.getElementById('alertBanner'), det = document.getElementById('alertDetail');
+  const list = (state.alert && state.alert.list) || [];
+  if (state.mode !== 'sched' || !list.length) { b.hidden = true; det.hidden = true; updateFollowAlert(); return; }
+  b.innerHTML = `<span>⚠</span><span class="ab-title">${escHtml(list[0].title || '台鐵營運通阻公告')}</span>` +
+    `<span class="ab-more">${list.length > 1 ? `等 ${list.length} 則 · ` : ''}詳情 ▾</span>`;
+  b.hidden = false;
+  b.onclick = () => {
+    if (det.hidden) { renderAlertDetail(); det.hidden = false; } else det.hidden = true;
+  };
+  updateFollowAlert();
+}
+function renderAlertDetail() {
+  const det = document.getElementById('alertDetail');
+  const list = (state.alert && state.alert.list) || [];
+  const fmtT = s => s ? String(s).replace('T', ' ').slice(5, 16) : '';
+  det.innerHTML = list.map(a =>
+    `<div class="ad-row"><b>${escHtml(a.title || '通阻公告')}</b>` +
+    (a.start || a.end ? `<div class="ad-time">${fmtT(a.start)}${a.end ? ' ～ ' + fmtT(a.end) : ' 起'}</div>` : '') +
+    (a.desc ? `<div>${escHtml(a.desc)}</div>` : '') +
+    (a.lines && a.lines.length ? `<div class="ad-time">影響路線：${escHtml(a.lines.join('、'))}</div>` : '') +
+    `</div>`).join('') +
+    `<div class="ad-src">來源：台鐵營運通阻公告（TDX，每 5 分鐘更新）· 列車動畫仍照原時刻表模擬，停駛班次不會自畫面消失，實際運行以台鐵公告為準</div>`;
+}
+// 跟隨中的車行經公告影響路線 → 面板加警示列(虛構環島車不套用)
+function updateFollowAlert() {
+  const el = document.getElementById('fpAlert'), tr = state.followTrain;
+  if (!el) return;
+  let show = false;
+  if (tr && !tr.loop && state.mode === 'sched') {
+    const aff = alertAffectedLineIds();
+    if (aff.size) show = tr.stops.some(s => s.segLn && aff.has(s.segLn.id));
+  }
+  el.hidden = !show;
+  if (show) el.textContent = '⚠ 本路線有台鐵通阻公告，班次可能停駛——以台鐵公告為準';
+}
+setInterval(pollAlert, 300e3);
+document.addEventListener('visibilitychange', () => { if (!document.hidden) pollAlert(); });
+pollAlert();
 
 function jumpToNow() {
   if (state.mode === 'sched') {
