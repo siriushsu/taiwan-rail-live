@@ -293,6 +293,7 @@
   .badge .clock { font-size: 22px; font-weight: 900; color: #1e2c40; }
   .badge .peak { font-size: 12px; font-weight: 800; padding: 2px 9px; border-radius: 3px; }
   .badge .count { font-size: 13px; color: #7a6c50; font-weight: 600; }
+  .badge .ver { font-size: 10px; color: #b3a37e; font-weight: 600; letter-spacing: .5px; }
 
   /* ── 控制列 ── */
   .controls {
@@ -502,6 +503,7 @@
       <span class="clock" id="clock">08:00</span>
       <span class="peak" id="peak"></span>
       <span class="count" id="count"></span>
+      <span class="ver" id="buildVer"></span>
     </div>
     <div class="dwell-plate" id="dwellPlate">
       <span class="side left"><span class="arr">◀</span><span id="dpPrev"></span></span>
@@ -576,6 +578,9 @@
 </div>
 
 <script>
+// 版本戳記:每次改版 push 前手動遞增(字母序),畫面時鐘徽章與 console 都會顯示,
+// 供比對線上跑的是不是最新版(瀏覽器快取 max-age=600 常讓人看到舊版)
+const BUILD = 'v0709b';
 const state = {
   systems: [], sysId: null, data: null, speed: 36, mode: 'freq',
   lines: [], visible: new Set(), trains: [], schedStations: [], types: [],
@@ -805,6 +810,22 @@ function trainPos(tr, t) {
   return null;
 }
 
+// 點到折線最近投影:回傳沿線里程 d 與垂距(km);缺站補登用
+function projectOntoShape(ln, lat, lon) {
+  ensureCum(ln);
+  const sh = ln.shape, kx = Math.cos(lat * Math.PI / 180) * 111.32, ky = 111.32;
+  let bestD = null, bestKm = 1e9;
+  for (let i = 0; i < sh.length - 1; i++) {
+    const ax = (sh[i][1] - lon) * kx, ay = (sh[i][0] - lat) * ky;
+    const bx = (sh[i + 1][1] - lon) * kx, by = (sh[i + 1][0] - lat) * ky;
+    const vx = bx - ax, vy = by - ay, L2 = vx * vx + vy * vy;
+    const t = L2 > 0 ? Math.max(0, Math.min(1, -(ax * vx + ay * vy) / L2)) : 0;
+    const px = ax + vx * t, py = ay + vy * t, km = Math.hypot(px, py);
+    if (km < bestKm) { bestKm = km; bestD = ln.cum[i] + Math.sqrt(L2) * t; }
+  }
+  return { d: bestD, perpKm: bestKm };
+}
+
 // map each schedule stop to (line, arc-length d) so sched trains ride the real shape
 function assignSchedShapePaths() {
   const lines = state.trackLines || [];
@@ -818,6 +839,22 @@ function assignSchedShapePaths() {
       byName.get(st.name).push({ ln, d: st.d });
     });
   });
+  // 補充式投影:每個班表站名對「線站列沒登記它、但軌道實際貼站經過」的線補一筆里程。
+  // 治兩類殘存直線:線站列缺站(百福/南樹林/暖暖/成功等)整段退化成弦;
+  // 跨線站(成功在成追線＋山線)缺其中一線導致相鄰段配不到共同線。
+  const uniq = new Map();
+  for (const tr of state.trains) for (const s of tr.stops)
+    if (!uniq.has(s.name)) uniq.set(s.name, s);
+  for (const [name, st] of uniq) {
+    const have = new Set((byName.get(name) || []).map(c => c.ln));
+    for (const ln of lines) {
+      if (!ln.shape || have.has(ln)) continue;
+      const pr = projectOntoShape(ln, st.lat, st.lon);
+      if (pr.d == null || pr.perpKm >= 0.3) continue;
+      if (!byName.has(name)) byName.set(name, []);
+      byName.get(name).push({ ln, d: pr.d });
+    }
+  }
   let onShape = 0, straight = 0;
   for (const tr of state.trains) {
     const s = tr.stops;
@@ -1129,7 +1166,7 @@ function buildToggles() {
     label('車種（篩選列車）');
     state.types.forEach(t => chip(t.key, t.color, state.visible, t.key));
     label('鐵道路線（顯示／隱藏軌道）');
-    (state.trackLines || []).forEach(l => chip(l.name, l.color, state.trackVisible, l.id));
+    (state.trackLines || []).forEach(l => { if (!l.aux) chip(l.name, l.color, state.trackVisible, l.id); }); // aux=連絡線(成追線),常駐顯示不出票根
   } else {
     state.lines.forEach(l => chip(l.name, l.color, state.visible, l.id));
   }
@@ -2071,14 +2108,29 @@ function setupMapTools() {
   const fsBtn = document.getElementById('fsBtn');
   const themeBtn = document.getElementById('themeBtn');
   const satBtn = document.getElementById('satBtn');
-  // 控制列在窄螢幕會摺成多行,面板/資訊卡的 bottom 依實際高度讓位
+  // 控制列在窄螢幕會摺成多行,面板/資訊卡的 bottom 依實際高度讓位。
+  // 跟隨中改為:控制列離開底部中央,疊到左下跟隨卡片正上方(使用者指定)。
   function placeFsOverlays(on) {
     const fp = document.getElementById('followPanel'), tc = document.getElementById('trainCard');
-    if (!on) { fp.style.bottom = ''; tc.style.bottom = ''; return; }
-    const h = document.querySelector('.controls').getBoundingClientRect().height;
-    fp.style.bottom = (h + 24) + 'px';
-    tc.style.bottom = (h + 24) + 'px';
+    const ctl = document.querySelector('.controls');
+    if (!on) { fp.style.bottom = ''; tc.style.bottom = ''; ctl.style.left = ''; ctl.style.transform = ''; ctl.style.bottom = ''; ctl.style.maxWidth = ''; return; }
+    if (state.followTrain && !fp.hidden) {
+      fp.style.bottom = '12px';
+      ctl.style.left = '12px'; ctl.style.transform = 'none';
+      ctl.style.bottom = (12 + fp.getBoundingClientRect().height + 12) + 'px';
+      ctl.style.maxWidth = tc.hidden ? '' : 'calc(100vw - 400px)'; // 讓出右側資訊卡(340px+邊距),太寬就摺行
+      tc.style.bottom = '12px'; // 控制列已不在底部中央,資訊卡不必讓位
+    } else {
+      ctl.style.left = ''; ctl.style.transform = ''; ctl.style.bottom = ''; ctl.style.maxWidth = '';
+      const h = ctl.getBoundingClientRect().height;
+      fp.style.bottom = (h + 24) + 'px';
+      tc.style.bottom = (h + 24) + 'px';
+    }
   }
+  // 跟隨卡高度會變(停站狀態列出現/消失)、跟隨開始/結束都要重排
+  new ResizeObserver(() => {
+    if (document.body.classList.contains('fs')) placeFsOverlays(true);
+  }).observe(document.getElementById('followPanel'));
   function setFs(on) {
     document.body.classList.toggle('fs', on);
     fsBtn.textContent = on ? '×' : '⛶';
@@ -2106,6 +2158,8 @@ function setupMapTools() {
 }
 
 async function boot() {
+  document.getElementById('buildVer').textContent = BUILD;
+  console.log('台灣鐵道·列車流動 BUILD', BUILD);
   cv = document.getElementById('overlay'); ctx = cv.getContext('2d');
   map = L.map('map', { zoomControl: true, attributionControl: true, preferCanvas: true })
     .setView([24.5, 121], 8);
