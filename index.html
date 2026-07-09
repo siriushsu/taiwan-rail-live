@@ -173,11 +173,14 @@
     box-shadow: 0 3px 0 rgba(42,74,115,.22);
     padding: 12px 16px 13px;
   }
-  .traincard .tc-head { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+  .traincard .tc-head { display: flex; align-items: baseline; gap: 10px; flex-wrap: nowrap; }
   .traincard .tc-head .dot { width: 10px; height: 10px; border-radius: 50%; align-self: center; flex: none; }
   .traincard .tc-no { font-size: 20px; font-weight: 900; color: #1e2c40; letter-spacing: 1px; }
   .traincard .tc-kind { font-size: 13px; font-weight: 700; color: #7a6c50; }
-  .traincard .tc-route { font-size: 13px; color: #6b5f4a; font-variant-numeric: tabular-nums; }
+  .traincard .tc-route {
+    font-size: 13px; color: #6b5f4a; font-variant-numeric: tabular-nums;
+    flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
   .traincard .tc-tt {
     margin-left: auto; font: inherit; font-size: 12px; font-weight: 700; cursor: pointer;
     background: #fffdf6; color: #2a4a73;
@@ -215,8 +218,11 @@
   .traincard .tc-body {
     display: grid; grid-template-columns: 1.3fr 1fr; gap: 6px 26px;
     margin-top: 9px; padding-top: 9px; border-top: 1.5px dashed #d8cba9;
+    height: 150px; /* 固定高度:換車/日誌增長都不跳動,超出各自捲動 */
   }
-  .traincard .tc-intro { font-size: 13px; line-height: 1.65; color: #5d5240; }
+  .traincard .tc-intro { font-size: 13px; line-height: 1.65; color: #5d5240; overflow-y: auto; }
+  .traincard .tc-events { display: flex; flex-direction: column; min-height: 0; }
+  .traincard .tc-events #tcEvents { flex: 1; overflow-y: auto; }
   .traincard .tc-intro b.tn { color: #a3641a; }
   .traincard .tc-intro .amen { display: block; margin-top: 5px; color: #2a4a73; font-weight: 600; font-size: 12.5px; }
   .traincard .tc-events .lbl {
@@ -312,6 +318,13 @@
     box-shadow: 0 2px 0 #c9b98f;
   }
   button.pp:hover { background: #f7f0dd; }
+  button.pp.on {
+    background: #2a4a73; color: #fffdf6;
+    border-color: #1e2c40; box-shadow: 0 2px 0 #1e2c40;
+  }
+  button.pp.on:hover { background: #34567f; }
+  #musicCtl { gap: 8px; }
+  #musicVol { width: 96px; }
   .spd-btns { display: flex; gap: 4px; }
   .spd-btns button {
     font: inherit; font-size: 12px; font-weight: 700; cursor: pointer;
@@ -383,6 +396,8 @@
   .board h3 { margin: 0 18px 1px 0; font-size: 16px; font-weight: 900; letter-spacing: 3px; color: #1e2c40; }
   .board .sub { color: #8a7c62; font-size: 11px; margin-bottom: 7px; }
   .board .row { display: flex; align-items: baseline; gap: 8px; padding: 5px 0; border-top: 1.5px dashed #d8cba9; font-size: 13px; }
+  .board .row[data-no] { cursor: pointer; }
+  .board .row[data-no]:hover { background: #f7f0dd; }
   .board .row b { color: #1e2c40; }
   .board .row .dot { width: 8px; height: 8px; border-radius: 50%; flex: none; align-self: center; }
   .board .row .dest { flex: 1; color: #6b5f4a; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -556,7 +571,11 @@
       <output id="todOut">08:00</output>
     </div>
     <button class="pp" id="nowBtn" title="跳到現在的真實時間">現在</button>
-    <button class="pp" id="ambientBtn" title="全畫面+環境音+自動換車跟隨，掛著放空用">🌙 放空模式</button>
+    <button class="pp" id="ambientBtn" title="全畫面+自動換車跟隨，掛著放空用">🌙 放空模式</button>
+    <div class="ctl" id="musicCtl" title="放空模式時播放背景音樂">
+      <button class="pp" id="musicBtn" title="開/關放空模式背景音樂">🎵 音樂</button>
+      <input type="range" id="musicVol" min="0" max="100" step="1" value="50" aria-label="音量" />
+    </div>
   </div>
 
   <p class="kbd-hint">快捷鍵：<b>空白鍵</b>暫停／播放　<b>1</b>–<b>4</b>速度　<b>←</b><b>→</b>時間 ±10 分　<b>F</b>全畫面　地圖角落<b>隨</b>＝隨機跟隨（螢幕保護）</p>
@@ -580,7 +599,7 @@
 <script>
 // 版本戳記:每次改版 push 前手動遞增(字母序),畫面時鐘徽章與 console 都會顯示,
 // 供比對線上跑的是不是最新版(瀏覽器快取 max-age=600 常讓人看到舊版)
-const BUILD = 'v0709c';
+const BUILD = 'v0709d';
 const state = {
   systems: [], sysId: null, data: null, speed: 36, mode: 'freq',
   lines: [], visible: new Set(), trains: [], schedStations: [], types: [],
@@ -1327,6 +1346,13 @@ function effT(tr) {
     ? state.simSec + 86400 : state.simSec;
 }
 
+// 跟隨時把播放/速度控制列移到地圖下第一排(資訊卡上方),取消跟隨移回原位
+function placeControls(following) {
+  const c = document.querySelector('.controls');
+  if (following) document.getElementById('trainCard').before(c);
+  else document.querySelector('.kbd-hint').before(c);
+}
+
 function setFollow(tr, isAuto, noJump) {
   if (!tr) return;
   if (!isAuto && state.autoTour) setAutoTour(false); // 使用者手動選車即接手,退出隨機模式
@@ -1346,6 +1372,7 @@ function setFollow(tr, isAuto, noJump) {
   state.followEvents = []; state._evSeen = {};
   state._routePts = buildFollowRoute(tr);
   showFollowPanel(tr);
+  placeControls(true);
   updateCount();
 }
 
@@ -1359,6 +1386,7 @@ function clearFollow() {
   if (fb) { fb.hidden = true; fb.className = 'followbar'; fb.innerHTML = ''; }
   document.getElementById('followPanel').hidden = true;
   document.getElementById('trainCard').hidden = true;
+  placeControls(false);
 }
 
 // ── 列車介紹(車次固定的特殊列車 + 依 CarClass 車種說明) ──
@@ -1493,8 +1521,7 @@ function updateSkyTint() {
   el._on = true;
 }
 
-// ── 放空模式(ambient):全畫面+自動導演+閒置隱藏 UI+防休眠 ──
-// (環境音已依使用者要求移除;之後接音檔時在 setAmbient 的開/關各加播放/停止即可)
+// ── 放空模式(ambient):全畫面+自動導演+閒置隱藏 UI+防休眠+背景音樂 ──
 async function acquireWakeLock() {
   try { state._wakeLock = await navigator.wakeLock.request('screen'); } catch (e) {}
 }
@@ -1536,9 +1563,11 @@ function setAmbient(on) {
     setAutoTour(true);
     acquireWakeLock();
     ambientIdleReset();
+    if (state.music && state.music.enabled) musicPlay();
   } else {
     b.textContent = '🌙 放空模式';
     releaseWakeLock();
+    if (state.music) musicStop();
     clearTimeout(state._idleT);
     document.body.classList.remove('idle');
     state._transition = false;
@@ -1549,6 +1578,106 @@ function setAmbient(on) {
     if (state.autoTour) setAutoTour(false);
     if (document.body.classList.contains('fs')) (state._setFs || (() => {}))(false);
   }
+}
+
+// ── 放空模式背景音樂(suno musics/;開關+音量,隨機循環,進出放空淡入淡出) ──
+const MUSIC_DIR = 'suno musics/';
+const MUSIC_FILES = [
+  'City Lights Whisper-2.mp3', 'City Lights Whisper.mp3',
+  'City Lights, Fading Nights-2.mp3', 'City Lights, Fading Nights.mp3',
+  'City Rain Reverie.mp3', 'Drifting Among Stars.mp3',
+  'Floating in Zero Gravity (Extend).mp3', 'Floating in Zero Gravity.mp3',
+  'Inspired by peaceful piano-2.mp3', 'Inspired by peaceful piano-3.mp3',
+  'Inspired by peaceful piano-4.mp3', 'Inspired by peaceful piano-5.mp3',
+  'Inspired by peaceful piano-6.mp3', 'Inspired by peaceful piano.mp3',
+  'Midnight Reverie.mp3', 'Midnight Whispers.mp3', 'Neon Glow.mp3',
+  'Neon Reverie-2.mp3', 'Neon Reverie-3.mp3', 'Neon Reverie.mp3',
+  'Neon Tide In Slow Motion.mp3', 'Untitled-2.mp3', 'Untitled-3.mp3',
+  'Untitled-4.mp3', 'Untitled-5.mp3', 'Untitled-6.mp3', 'Untitled-7.mp3',
+  'Untitled.mp3', 'Urban Night.mp3',
+];
+function musicShuffle(a) { // Fisher-Yates 洗牌
+  for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; }
+  return a;
+}
+function loadMusicPref() {
+  let enabled = true, vol = 0.5;
+  try {
+    const o = JSON.parse(localStorage.getItem('trainmap-music') || '{}');
+    if (o.enabled === false) enabled = false;
+    if (typeof o.vol === 'number') vol = Math.max(0, Math.min(1, o.vol));
+  } catch (e) {}
+  return { enabled, vol };
+}
+function saveMusicPref() {
+  try { localStorage.setItem('trainmap-music', JSON.stringify({ enabled: state.music.enabled, vol: state.music.vol })); } catch (e) {}
+}
+function initMusic() {
+  const pref = loadMusicPref();
+  const audio = new Audio();
+  audio.preload = 'none';
+  audio.volume = 0;
+  state.music = { enabled: pref.enabled, vol: pref.vol, audio, list: musicShuffle(MUSIC_FILES.slice()), idx: 0, _fade: null, _fails: 0 };
+  audio.addEventListener('ended', musicNext);
+  audio.addEventListener('playing', () => { state.music._fails = 0; }); // 有一首放起來就歸零
+  audio.addEventListener('error', () => { // 壞檔跳下一首;整份清單都載不到(如部署環境無音檔)就停,不空轉
+    const m = state.music;
+    if (!(state.ambient && m.enabled)) return;
+    if (++m._fails >= m.list.length) return;
+    musicNext();
+  });
+  const vs = document.getElementById('musicVol');
+  vs.value = Math.round(pref.vol * 100);
+  vs.oninput = e => {
+    const v = (+e.target.value) / 100;
+    state.music.vol = v;
+    clearInterval(state.music._fade);
+    audio.volume = v;
+    saveMusicPref();
+  };
+  document.getElementById('musicBtn').onclick = () => setMusicEnabled(!state.music.enabled);
+  updateMusicBtn();
+}
+function updateMusicBtn() {
+  const b = document.getElementById('musicBtn');
+  if (!b) return;
+  b.textContent = state.music.enabled ? '🎵 音樂' : '🔇 音樂';
+  b.classList.toggle('on', state.music.enabled);
+}
+function musicLoadCur() {
+  const m = state.music;
+  m.audio.src = encodeURI(MUSIC_DIR + m.list[m.idx]);
+}
+function musicNext() {
+  const m = state.music;
+  m.idx++;
+  if (m.idx >= m.list.length) { musicShuffle(m.list); m.idx = 0; } // 一輪播完重洗
+  musicLoadCur();
+  if (state.ambient && m.enabled) { m.audio.volume = m.vol; m.audio.play().catch(() => {}); }
+}
+function musicRamp(to, ms, thenPause) { // 音量漸變(50ms 一階)
+  const a = state.music.audio;
+  clearInterval(state.music._fade);
+  const from = a.volume, steps = Math.max(1, Math.round(ms / 50));
+  let i = 0;
+  state.music._fade = setInterval(() => {
+    i++;
+    a.volume = Math.max(0, Math.min(1, from + (to - from) * i / steps));
+    if (i >= steps) { clearInterval(state.music._fade); if (thenPause) a.pause(); }
+  }, 50);
+}
+function musicPlay() {
+  const m = state.music;
+  if (!m.audio.src) musicLoadCur();
+  m.audio.volume = 0;
+  m.audio.play().then(() => musicRamp(m.vol, 1200)).catch(() => {}); // 自動播放被擋就靜默略過
+}
+function musicStop() { musicRamp(0, 800, true); }
+function setMusicEnabled(on) {
+  state.music.enabled = on;
+  saveMusicPref();
+  updateMusicBtn();
+  if (state.ambient) { on ? musicPlay() : musicStop(); } // 放空中即時生效
 }
 
 // 地圖下方的列車資訊卡:介紹+服務標記,旅程日誌由 renderFollowEvents 填
@@ -1741,6 +1870,7 @@ function renderFollowEvents() {
     ? evs.slice(-6).map(e =>
         `<div class="tc-ev"><span class="tt">${e.tm}</span><span>${e.msg}</span></div>`).join('')
     : '<div class="tc-empty">列車跑起來就會記錄——停靠、交會、待避……</div>';
+  el.scrollTop = el.scrollHeight; // 固定高度容器,永遠捲到最新一條
 }
 // 每 ~0.5s 掃一次:進站停靠、與對向車交會、停站時被同向車通過(待避)
 function scanFollowEvents() {
@@ -2026,15 +2156,28 @@ function renderBoard() {
   const list = rows.slice(0, 12).map(r => {
     const min = r.dtm < 60 ? '即將' : Math.round(r.dtm / 60) + ' 分';
     const dest = r.isLast ? '（終點到達）' : '往 ' + r.dest;
-    return `<div class="row"><span class="dot" style="background:${r.tr.color}"></span>` +
+    return `<div class="row" data-no="${r.tr.train}" title="跟隨 ${r.tr.train} 次"><span class="dot" style="background:${r.tr.color}"></span>` +
       `<b>${r.tr.train}</b><span class="dest">${r.tr.typeName}　${dest}</span>` +
       `<span class="t">${fmtHM(r.t % 86400)}</span><span class="min">${min}</span></div>`;
   }).join('');
   el.innerHTML = `<button class="close" id="boardClose">×</button>` +
-    `<h3>${st.name}</h3><div class="sub">接下來 3 小時會有誰來 · 依時刻表（無誤點資訊）</div>` +
+    `<h3>${st.name}</h3><div class="sub">接下來 3 小時會有誰來 · 依時刻表（無誤點資訊）· 點班次跟隨</div>` +
     (list || '<div class="empty">此時段無停靠班次</div>');
   el.hidden = false;
   el.querySelector('#boardClose').onclick = closeBoard;
+  // 點任一班次列 → 關看板、跟隨該車。
+  // 看板每 20 模擬秒重繪(高倍速=不到半秒),按下到放開之間列可能被換掉、click 目標變成容器,
+  // 所以 pointerdown 先把車次記在持久的 el 上,click 撈不到列時用記下的補。
+  el.onpointerdown = e => {
+    const row = e.target.closest('.row[data-no]');
+    el._downNo = row ? row.dataset.no : null;
+  };
+  el.onclick = e => {
+    const row = e.target.closest('.row[data-no]');
+    const no = row ? row.dataset.no : el._downNo;
+    el._downNo = null;
+    if (no) { closeBoard(); followTrainNo(no); }
+  };
 }
 
 // ── 尖峰流量分析 ──
@@ -2300,6 +2443,7 @@ document.addEventListener('keydown', e => {
   else { const v = { 1: 1, 2: 10, 3: 30, 4: 60 }[e.key]; if (v) setSpeed(v); }
 });
 document.getElementById('ambientBtn').onclick = () => setAmbient(!state.ambient);
+initMusic();
 (() => {
   const fc = document.getElementById('flowChart'), lbl = document.getElementById('flowLbl');
   const timeAt = e => Math.max(0, Math.min(86399, e.offsetX / fc.clientWidth * 86400));
