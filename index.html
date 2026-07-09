@@ -281,12 +281,14 @@
     background: rgba(255,253,246,.96); border: 2px solid #2a4a73; border-radius: 10px;
     padding: 7px 12px; gap: 8px 10px;
   }
-  /* 全畫面控制列瘦身:壓成一排,音樂不落到第二排(速度/時間字樣與預設倍速鈕藏起,鍵盤1-4照用) */
+  /* 全畫面控制列瘦身:壓成一排,音樂不落到第二排(速度/時間字樣藏起,預設倍速鈕縮小保留) */
   body.fs .controls button.pp { font-size: 12.5px; padding: 5px 9px; gap: 4px; }
   body.fs .controls .ctl { gap: 6px; }
-  body.fs .controls .ctl label, body.fs .controls .spd-btns { display: none; }
+  body.fs .controls .ctl label { display: none; }
   body.fs .controls .ctl output { font-size: 12px; min-width: 36px; }
   body.fs .controls input[type=range] { width: 88px; }
+  body.fs .controls .spd-btns { gap: 3px; }
+  body.fs .controls .spd-btns button { font-size: 11px; padding: 3px 6px; }
   body.fs .controls #musicVol { width: 64px; }
   /* 全畫面跟隨:資訊卡塞進左下跟隨面板,合併成一張可收放的卡(placeTrainCard 搬 DOM) */
   body.fs .follow-panel { bottom: 12px; width: 300px; max-height: calc(100vh - 90px); }
@@ -634,7 +636,7 @@
 <script>
 // 版本戳記:每次改版 push 前手動遞增(字母序),畫面時鐘徽章與 console 都會顯示,
 // 供比對線上跑的是不是最新版(瀏覽器快取 max-age=600 常讓人看到舊版)
-const BUILD = 'v0709g';
+const BUILD = 'v0709h';
 const state = {
   systems: [], sysId: null, data: null, speed: 36, mode: 'freq',
   lines: [], visible: new Set(), trains: [], schedStations: [], types: [],
