@@ -118,13 +118,14 @@
   .stage.sat .leaflet-container { background: #2e4636; }
 
   /* 地圖工具鈕(全畫面、明暗、衛星)——貼地圖右下,上方留給 Leaflet 縮放鈕、正下角落留給版權字。
-     width:max-content＋button flex:none:絕對定位 flex 容器的 shrink-to-fit 在 Safari/WebKit
-     會把容器算窄,按鈕(預設 flex-shrink:1)被壓成半寬、字被 overflow 裁掉——鎖死不給縮 */
+     WebKit 陷阱(Playwright webkit 實測):flex 容器算「內在寬度」不理子項 .ti 的 flex-basis:35px,
+     用字形自然寬(~17px)→按鈕被算成半寬、字被 overflow 裁掉(076b43c 拿掉顯式 width 後就壞)。
+     解法:button 顯式 min-width＋.ti 顯式 width——所有引擎的內在尺寸都尊重這兩個 */
   .stage-tools {
     position: absolute; right: 12px; bottom: 26px; z-index: 700;
     display: flex; gap: 8px; width: max-content;
   }
-  .stage-tools button { flex: none; }
+  .stage-tools button { flex: none; min-width: 38px; }
   /* Leaflet 版權字釘回地圖右下角(原生位置);縮放鈕再往上讓開工具鈕列,三者(縮放/工具鈕/版權字)由上而下不重疊。
      全畫面時工具鈕移到右上(見 body.fs 區塊),縮放鈕不必再讓、恢復貼底。 */
   .leaflet-bottom.leaflet-right { bottom: 0; }
@@ -141,7 +142,7 @@
     transition: background .15s;
   }
   .stage-tools button .ti {
-    flex: 0 0 35px; height: 36px;
+    flex: 0 0 35px; width: 35px; height: 36px; /* width 與 flex-basis 同值:WebKit 內在寬度只認 width */
     display: flex; align-items: center; justify-content: center; font-size: 15px;
   }
   .stage-tools button .tl {
@@ -728,7 +729,7 @@
     .stage-tools { top: 56px; right: 8px; bottom: auto; flex-direction: column; gap: 7px; }
     /* 觸控沒有 hover:直接顯示完整文字並把按鈕加大,不再只看到一個字 */
     .stage-tools button { height: 40px; }
-    .stage-tools button .ti { flex: 0 0 38px; height: 38px; font-size: 18px; }
+    .stage-tools button .ti { flex: 0 0 38px; width: 38px; height: 38px; font-size: 18px; }
     .stage-tools button .tl { max-width: 130px; opacity: 1; padding-right: 12px; font-size: 13.5px; }
     body.fs .stage-tools button .tl { padding-right: 0; padding-left: 12px; } /* 全畫面直排 row-reverse:文字在左 */
     /* 手機改用雙指縮放,隱藏 Leaflet +/- 鈕(否則會壓在底部 sheet 上) */
@@ -977,7 +978,7 @@
 <script>
 // 版本戳記:每次改版 push 前手動遞增(字母序),畫面時鐘徽章與 console 都會顯示,
 // 供比對線上跑的是不是最新版(瀏覽器快取 max-age=600 常讓人看到舊版)
-const BUILD = 'v0710g';
+const BUILD = 'v0710h';
 const state = {
   systems: [], sysId: null, data: null, speed: 36, mode: 'freq',
   lines: [], visible: new Set(), trains: [], schedStations: [], types: [],
