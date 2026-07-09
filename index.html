@@ -253,11 +253,11 @@
   .traincard .tc-body {
     display: grid; grid-template-columns: 1.3fr 1fr; gap: 6px 26px;
     margin-top: 9px; padding-top: 9px; border-top: 1.5px dashed #d8cba9;
-    height: 150px; /* 固定高度:換車/日誌增長都不跳動,超出各自捲動 */
+    align-items: start; /* 介紹依內容展開、卡片跟著變高不出捲軸;日誌自行設上限捲動 */
   }
-  .traincard .tc-intro { font-size: 13px; line-height: 1.65; color: #5d5240; overflow-y: auto; }
+  .traincard .tc-intro { font-size: 13px; line-height: 1.65; color: #5d5240; }
   .traincard .tc-events { display: flex; flex-direction: column; min-height: 0; }
-  .traincard .tc-events #tcEvents { flex: 1; overflow-y: auto; }
+  .traincard .tc-events #tcEvents { flex: 1; max-height: 150px; overflow-y: auto; }
   .traincard .tc-intro b.tn { color: #a3641a; }
   .traincard .tc-intro .amen { display: block; margin-top: 5px; color: #2a4a73; font-weight: 600; font-size: 12.5px; }
   .traincard .tc-events .lbl {
@@ -380,7 +380,7 @@
   body.fs .follow-panel .tc-no,
   body.fs .follow-panel .tc-kind { display: none; }
   body.fs .follow-panel .tc-body { grid-template-columns: 1fr; height: auto; gap: 7px; }
-  body.fs .follow-panel .tc-intro { height: 76px; }   /* 固定高:放空換車不跳動 */
+  body.fs .follow-panel .tc-intro { height: 76px; overflow-y: auto; }   /* 全畫面浮層維持精簡:固定高+捲動,放空換車不跳動 */
   body.fs .follow-panel .tc-events #tcEvents { flex: none; height: 88px; }
   body.fs .stage-tools { top: 12px; bottom: auto; flex-direction: column; }
   body.fs .board { right: 60px; }
