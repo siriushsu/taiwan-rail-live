@@ -7,6 +7,13 @@
       "runtimeArgs": ["-c", "python3 -m http.server \"$PORT\""],
       "port": 5178,
       "autoPort": true
+    },
+    {
+      "name": "dev",
+      "runtimeExecutable": "node",
+      "runtimeArgs": ["scripts/dev_server.mjs"],
+      "port": 5179,
+      "autoPort": true
     }
   ]
 }

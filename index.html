@@ -400,6 +400,10 @@
   .badge .peak { font-size: 12px; font-weight: 800; padding: 2px 9px; border-radius: 3px; }
   .badge .count { font-size: 13px; color: #7a6c50; font-weight: 600; }
   .badge .ver { font-size: 10px; color: #b3a37e; font-weight: 600; letter-spacing: .5px; }
+  .badge .live { font-size: 11px; font-weight: 800; color: #1d9e55; letter-spacing: .5px; cursor: help; }
+  .badge .live::before { content: '●'; margin-right: 3px; animation: livePulse 2s infinite; }
+  @keyframes livePulse { 0%, 100% { opacity: 1; } 50% { opacity: .35; } }
+  .lateTag { color: #d23c2a; font-weight: 800; font-size: 11px; margin-left: 4px; }
 
   /* ── 控制列 ── */
   .controls {
@@ -627,6 +631,7 @@
     </div>
     <div class="badge">
       <span class="clock" id="clock">08:00</span>
+      <span class="live" id="liveBadge" hidden>LIVE</span>
       <span class="peak" id="peak"></span>
       <span class="count" id="count"></span>
       <span class="ver" id="buildVer"></span>
@@ -720,7 +725,7 @@
 <script>
 // 版本戳記:每次改版 push 前手動遞增(字母序),畫面時鐘徽章與 console 都會顯示,
 // 供比對線上跑的是不是最新版(瀏覽器快取 max-age=600 常讓人看到舊版)
-const BUILD = 'v0709l';
+const BUILD = 'v0709m';
 const state = {
   systems: [], sysId: null, data: null, speed: 36, mode: 'freq',
   lines: [], visible: new Set(), trains: [], schedStations: [], types: [],
@@ -728,6 +733,7 @@ const state = {
   dpr: 1, t0: 0, elapsed: 0, ready: false,
   followTrain: null, followId: null,
   mapDark: false, basemap: 'map', trackData: null,
+  live: null, // 台鐵即時誤點 {map: 車次→誤點分, at: 抓取時刻, delayed, srcAt}
 };
 let map, cv, ctx;
 let baseLayers = {}; // light / dark / sat Leaflet 圖層
@@ -748,7 +754,7 @@ const SYS_META = {
   mrt:       { plateL: '淡水', plateR: '象山', sub: 'TAIPEI METRO LIVE',    lead: '各線列車依 TDX 班距與站間時間在城市裡穿梭（班距模擬示意，非即時班次）— 拖曳、縮放看看。' },
   krtc:      { plateL: '小港', plateR: '岡山', sub: 'KAOHSIUNG METRO LIVE', lead: '紅橘兩線與環狀輕軌正在港都穿梭（班距模擬示意，非即時班次）— 拖曳、縮放看看。' },
   tmrt:      { plateL: '北屯總站', plateR: '高鐵臺中站', sub: 'TAICHUNG METRO LIVE', lead: '綠線列車沿著文心路跑（班距模擬示意，非即時班次）— 拖曳、縮放看看。' },
-  tra_sched: { plateL: '基隆', plateR: '枋寮', sub: 'TAIWAN RAILWAY LIVE',  lead: '列車依當日時刻表模擬運行（推算位置，非即時）— 點列車跟隨、點車站看班次，或按地圖角落「探」看今日亮點列車。' },
+  tra_sched: { plateL: '基隆', plateR: '枋寮', sub: 'TAIWAN RAILWAY LIVE',  lead: '列車依當日時刻表運行，回到現在時刻（1×）會自動套用台鐵即時誤點修正 — 點列車跟隨、點車站看班次，或按地圖角落「探」看今日亮點列車。' },
 };
 
 // 播放/速度/時間的統一入口(控制列、快捷鍵、全畫面控制共用)
@@ -928,6 +934,7 @@ function posPeriodic(ln, t) {
 }
 
 function trainPos(tr, t) {
+  t -= liveDelaySec(tr);
   const s = tr.stops, n = s.length;
   // 跨午夜車次(時刻編碼 >86400):simSec 歸零後把前一日班次接續回來
   if (t < s[0].arrSec && t + 86400 <= s[n - 1].depSec) t += 86400;
@@ -1282,6 +1289,8 @@ function tick(now) {
   }
   state._skyClock = (state._skyClock || 0) + dt;
   if (state._skyClock >= 0.5) { state._skyClock = 0; updateSkyTint(); }
+  state._liveClock = (state._liveClock || 0) + dt;
+  if (state._liveClock >= 1) { state._liveClock = 0; updateLiveBadge(); }
   draw();
   requestAnimationFrame(tick);
 }
@@ -1327,6 +1336,7 @@ function refreshBadge() {
     p.textContent = peak ? '尖峰' : '離峰';
     peak ? hot() : cool();
   }
+  updateLiveBadge(); // 模式切換即時同步 LIVE 徽章與標籤,不等 tick
 }
 
 function configTimeSlider() {
@@ -1380,13 +1390,15 @@ function loadSystem(sys) {
     state.trackLines = state.trackData ? state.trackData.lines : null;
     state.trackVisible = new Set((state.trackLines || []).map(l => l.id));
     state.simSec = nowSecOfDay(); // 開頁即同步現在時刻
+    pollLive(); // 初始 poll 在 mode 就緒前會被擋掉,進台鐵模式時補拉
     assignSchedShapePaths();
     computeFlow();
     fitData(state.schedStations.map(s => [s.lat, s.lon]));
     reproject();
     document.getElementById('note').textContent =
       '資料來源：台鐵官方 OpenData（ods.railway.gov.tw）每日時刻表' + (sys.data.date ? '（' + sys.data.date + '）' : '') +
-      '，共 ' + state.trains.length + ' 車次。列車依真實時刻表運行，沿實際路線經過中途各站（少數支線區段為直線近似）。點地圖上的車站可看即將停靠的班次。';
+      '，共 ' + state.trains.length + ' 車次；即時誤點資料介接「交通部TDX平臺」（每分鐘更新，回到現在時刻自動套用）。' +
+      '列車依真實時刻表運行，沿實際路線經過中途各站（少數支線區段為直線近似）。點地圖上的車站可看即將停靠的班次。';
     populateTrainList();
     document.getElementById('searchRow').hidden = false;
     document.getElementById('flowWrap').hidden = false;
@@ -2277,6 +2289,7 @@ function closeExplorePanel() {
 
 // ── 跟隨動態事件(停靠/交會/待避) ──
 function dwellInfoOf(tr, t) {
+  t -= liveDelaySec(tr);
   const s = tr.stops;
   for (let i = 0; i < s.length; i++)
     if (t >= s[i].arrSec && t < s[i].depSec)
@@ -2378,6 +2391,7 @@ function drawSpark(tr, t) {
 
 // 旅程進度:沿途各段里程(貼軌段用弧長、直線段用大圓距)累計,快取在車上
 function journeyProgress(tr, t) {
+  t -= liveDelaySec(tr);
   const s = tr.stops;
   if (!tr._segKm) {
     tr._segKm = []; tr._totalKm = 0;
@@ -2400,6 +2414,7 @@ function journeyProgress(tr, t) {
 
 // ── 跟隨小面板(地圖左下角) ──
 function nextStopInfo(tr, t) {
+  t -= liveDelaySec(tr);
   const s = tr.stops;
   for (let i = 0; i < s.length; i++) {
     if (s[i].stop === false) continue;          // 略過通過不停的站
@@ -2424,11 +2439,14 @@ function updateFollowPanel(tr) {
   const fp = document.getElementById('followPanel');
   if (fp.hidden || !tr) return;
   const nx = document.getElementById('fpNext'), eta = document.getElementById('fpEta');
+  const dlMin = Math.round(liveDelaySec(tr) / 60);
   const info = nextStopInfo(tr, effT(tr));
   if (info) {
     nx.textContent = info.name;
     const mm = Math.round(info.min);
-    eta.innerHTML = mm < 1 ? '即將進站' : `${fmtHM(info.at)} · <b>${mm} 分</b>`;
+    // info.at 是表定時刻;有誤點時顯示估計實際時刻
+    eta.innerHTML = (mm < 1 ? '即將進站' : `${fmtHM((info.at + dlMin * 60) % 86400)} · <b>${mm} 分</b>`) +
+      (dlMin > 0 ? ` <span class="lateTag">誤點 ${dlMin} 分</span>` : '');
   } else {
     nx.textContent = '—'; eta.textContent = '已抵達終點';
   }
@@ -2554,9 +2572,48 @@ function nowSecOfDay() {
   return d.getHours() * 3600 + d.getMinutes() * 60 + d.getSeconds();
 }
 
+// ── 台鐵即時誤點(TDX TrainLiveBoard,經 /api/tra-live 代理,每分鐘更新) ──
+// 修正語意:誤點 N 分的車=照時刻表晚 N 分跑,trainPos 等函式把該車的查詢時間回撥 N 分。
+// 只在「模擬時鐘貼近現在時刻」時套用——時間旅行/高倍速時自動停用,回到純時刻表模擬。
+function liveActive() {
+  return !!(state.live && state.mode === 'sched' &&
+    Date.now() - state.live.at < 300e3 &&
+    Math.abs(state.simSec - nowSecOfDay()) <= 120);
+}
+function liveDelaySec(tr) {
+  if (!liveActive()) return 0;
+  return (state.live.map.get(String(tr.train)) || 0) * 60;
+}
+async function pollLive() {
+  if (document.hidden || state.mode !== 'sched') return;
+  try {
+    const r = await fetch('api/tra-live', { cache: 'no-store' });
+    if (!r.ok) throw new Error(r.status);
+    const d = await r.json();
+    if (!Array.isArray(d.trains)) throw new Error('bad payload');
+    const m = new Map(); let delayed = 0;
+    for (const t of d.trains) { m.set(String(t.no), t.delay || 0); if (t.delay > 0) delayed++; }
+    state.live = { map: m, at: Date.now(), delayed, srcAt: d.at };
+  } catch (e) { /* 失敗保留舊資料;超過 5 分鐘未更新由 liveActive 自動停用 */ }
+  updateLiveBadge();
+}
+function updateLiveBadge() {
+  const el = document.getElementById('liveBadge');
+  const on = liveActive();
+  el.hidden = !on;
+  if (on) el.title = `台鐵即時誤點已套用(每分鐘更新)· ${state.live.delayed} 班誤點中 · 來源 ${String(state.live.srcAt).slice(11, 16)}`;
+  // LIVE 亮起時收掉「時刻表模擬」標籤,兩者並排語意矛盾;熄滅後每秒刷新會自動恢復
+  document.getElementById('peak').hidden = on && !state.nightReplay;
+}
+setInterval(pollLive, 60e3);
+document.addEventListener('visibilitychange', () => { if (!document.hidden) pollLive(); });
+pollLive();
+
 function jumpToNow() {
   if (state.mode === 'sched') {
     setSimSec(nowSecOfDay());
+    setSpeed(1); // 「現在」=回到真實狀態:1× 才不會馬上漂走,誤點修正得以持續套用
+    pollLive();
   } else {
     state.hour = Math.min(24, Math.max(5, new Date().getHours()));
     document.getElementById('tod').value = state.hour;
@@ -2585,22 +2642,23 @@ function renderBoard() {
       if (s.name !== st.name || s.stop === false) continue;
       const isLast = i === stops.length - 1;
       const t = isLast ? s.arrSec : s.depSec;
-      let dtm = t - state.simSec;
+      const dl = Math.round(liveDelaySec(tr) / 60);
+      let dtm = t + dl * 60 - state.simSec; // 誤點車以估計實際時刻排序/倒數
       if (dtm > 43200) dtm -= 86400; else if (dtm < -43200) dtm += 86400; // 跨午夜換日對齊
       if (dtm < -30 || dtm > 3 * 3600) continue; // 未來 3 小時內
-      rows.push({ tr, t, dtm, isLast, dest: stops[stops.length - 1].name });
+      rows.push({ tr, t, dtm, dl, isLast, dest: stops[stops.length - 1].name });
     }
   }
-  rows.sort((a, b) => a.t - b.t);
+  rows.sort((a, b) => a.dtm - b.dtm);
   const list = rows.slice(0, 12).map(r => {
     const min = r.dtm < 60 ? '即將' : Math.round(r.dtm / 60) + ' 分';
     const dest = r.isLast ? '（終點到達）' : '往 ' + r.dest;
     return `<div class="row" data-no="${r.tr.train}" title="跟隨 ${r.tr.train} 次"><span class="dot" style="background:${r.tr.color}"></span>` +
       `<b>${r.tr.train}</b><span class="dest">${r.tr.typeName}　${dest}</span>` +
-      `<span class="t">${fmtHM(r.t % 86400)}</span><span class="min">${min}</span></div>`;
+      `<span class="t">${fmtHM(r.t % 86400)}${r.dl > 0 ? `<span class="lateTag">+${r.dl}</span>` : ''}</span><span class="min">${min}</span></div>`;
   }).join('');
   el.innerHTML = `<button class="close" id="boardClose">×</button>` +
-    `<h3>${st.name}</h3><div class="sub">接下來 3 小時會有誰來 · 依時刻表（無誤點資訊）· 點班次跟隨</div>` +
+    `<h3>${st.name}</h3><div class="sub">接下來 3 小時會有誰來 · ${liveActive() ? '已套用台鐵即時誤點' : '依時刻表（無誤點資訊）'} · 點班次跟隨</div>` +
     (list || '<div class="empty">此時段無停靠班次</div>');
   el.hidden = false;
   el.querySelector('#boardClose').onclick = closeBoard;
