@@ -126,6 +126,7 @@
     display: flex; gap: 8px; width: max-content;
   }
   .stage-tools button { flex: none; min-width: 38px; }
+  #toolsFab { display: none; } /* 工具抽屜開關:桌機整排常駐用不到,只給手機(見 640 媒體塊) */
   /* Leaflet 版權字釘回地圖右下角(原生位置);縮放鈕再往上讓開工具鈕列,三者(縮放/工具鈕/版權字)由上而下不重疊。
      全畫面時工具鈕移到右上(見 body.fs 區塊),縮放鈕不必再讓、恢復貼底。 */
   .leaflet-bottom.leaflet-right { bottom: 0; }
@@ -727,6 +728,15 @@
     .badge .count { font-size: 12px; }
     /* 手機:時刻板改底部 sheet,工具鈕改右上直排;帶文字後變寬,起點下移到時鐘徽章下方免得蓋住班次數 */
     .stage-tools { top: 56px; right: 8px; bottom: auto; flex-direction: column; gap: 7px; }
+    /* 工具抽屜:帶字大鈕整排常駐會蓋掉小螢幕地圖(跟隨/全畫面看不到車)——
+       平時只露一顆「☰ 工具」,點開才展開,點任一工具自動收回(JS) */
+    #toolsFab { display: flex; }
+    body:not(.tools-open) .stage-tools > button:not(#toolsFab) { display: none; }
+    /* 版權字(衛星模式一長串)單行省略,不換行蓋到跟隨卡 */
+    .leaflet-control-attribution {
+      max-width: calc(100vw - 40px); white-space: nowrap;
+      overflow: hidden; text-overflow: ellipsis; font-size: 10px;
+    }
     /* 觸控沒有 hover:直接顯示完整文字並把按鈕加大,不再只看到一個字 */
     .stage-tools button { height: 40px; }
     .stage-tools button .ti { flex: 0 0 38px; width: 38px; height: 38px; font-size: 18px; }
@@ -824,6 +834,7 @@
       <div class="fp-dest" id="fpDest"></div>
     </div>
     <div class="stage-tools">
+      <button id="toolsFab" title="地圖工具"><span class="ti">☰</span><span class="tl">工具</span></button>
       <button id="exploreBtn" title="今日亮點——特別列車與今日之最"><span class="ti">探</span><span class="tl">今日亮點</span></button>
       <button id="favBtn" title="我的最愛列車"><span class="ti">★</span><span class="tl">我的最愛</span></button>
       <button id="rideBtn" title="旅程收集（完乘記錄）"><span class="ti">旅</span><span class="tl">旅程收集</span></button>
@@ -978,7 +989,7 @@
 <script>
 // 版本戳記:每次改版 push 前手動遞增(字母序),畫面時鐘徽章與 console 都會顯示,
 // 供比對線上跑的是不是最新版(瀏覽器快取 max-age=600 常讓人看到舊版)
-const BUILD = 'v0710h';
+const BUILD = 'v0710i';
 const state = {
   systems: [], sysId: null, data: null, speed: 36, mode: 'freq',
   lines: [], visible: new Set(), trains: [], schedStations: [], types: [],
@@ -3651,6 +3662,18 @@ function setupMapTools() {
   const fsBtn = document.getElementById('fsBtn');
   const themeBtn = document.getElementById('themeBtn');
   const satBtn = document.getElementById('satBtn');
+  // 手機工具抽屜:預設收合只露「☰ 工具」,點開展開整排;點任一工具後自動收回(小螢幕地圖不被長排大鈕蓋住)
+  const toolsFab = document.getElementById('toolsFab');
+  const setDrawer = on => {
+    document.body.classList.toggle('tools-open', on);
+    toolsFab.querySelector('.ti').textContent = on ? '×' : '☰';
+    toolsFab.querySelector('.tl').textContent = on ? '收合' : '工具';
+  };
+  toolsFab.onclick = () => setDrawer(!document.body.classList.contains('tools-open'));
+  document.querySelector('.stage-tools').addEventListener('click', e => {
+    const b = e.target.closest('button');
+    if (b && b !== toolsFab && matchMedia('(max-width: 640px)').matches) setDrawer(false);
+  });
   // 控制列在窄螢幕會摺成多行,面板/資訊卡的 bottom 依實際高度讓位。
   // 跟隨中改為:控制列離開底部中央,疊到左下跟隨卡片正上方(使用者指定)。
   function placeFsOverlays(on) {
