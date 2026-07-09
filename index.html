@@ -2072,7 +2072,7 @@ function renderRidePanel() {
   const totalKm = rides.reduce((a, r) => a + (r.km || 0), 0);
   const kinds = [...new Set(rides.map(r => r.kind))];
   el.innerHTML = `<button class="close" id="rideClose">×</button>` +
-    `<h3>旅程收集</h3><div class="sub">手動跟隨一班車到終點，就蓋一枚完乘章</div>` +
+    `<h3>旅程收集</h3><div class="sub">從發車一路跟到終點，就蓋一枚完乘章（調速可以・跳時間不算）</div>` +
     (rides.length
       ? `<div class="ride-stats">完乘 <b>${rides.length}</b> 趟 · 總里程 <b>${totalKm.toLocaleString()}</b> km · 車種 <b>${kinds.length}</b> 種</div>` +
         `<div class="ride-kinds">${kinds.map(k => `<span class="kindchip">${k}</span>`).join('')}</div>` +
@@ -2229,7 +2229,7 @@ function renderPassport() {
     `<div class="ph-row"><span class="d">${(r.date || '').slice(5)}</span><b>${r.train}</b>` +
     `<span class="k">${r.kind}</span><span class="r">${r.from}→${r.to}</span><span class="km">${r.km} km</span></div>`).join('');
   el.innerHTML =
-    `<div class="ph-head"><b>旅程收集</b><span class="ph-sub">手動跟隨一班車到終點就蓋一枚完乘章 · 灰色的章點了直接去搭</span>` +
+    `<div class="ph-head"><b>旅程收集</b><span class="ph-sub">從發車一路跟到終點就蓋一枚完乘章（調速可以・跳時間不算）· 灰色的章點了帶你從發車搭一趟</span>` +
     `<span class="ph-stats">完乘 <b>${rides.length}</b> 趟 · 總里程 <b>${totalKm.toLocaleString()}</b> km` +
     (longest ? ` · 最長一趟 <b>${longest.toLocaleString()}</b> km` : '') + `</span></div>` +
     stamps +
