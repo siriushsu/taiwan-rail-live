@@ -529,6 +529,19 @@
   button.pp.on:hover { background: #34567f; }
   #musicCtl { gap: 8px; }
   #musicVol { width: 96px; }
+  /* 音樂鈕:是否「真的在放」一眼可辨——播放中紅底＋跳動音量條;沒在放(含偏好開著但被瀏覽器擋自動播放)一律灰調 */
+  #musicBtn.playing {
+    background: #d23c2a; color: #fff8ec;
+    border-color: #a92c1d; box-shadow: 0 2px 0 #a92c1d;
+  }
+  #musicBtn.playing:hover { background: #c0341f; }
+  #musicBtn:not(.playing) { color: #8a7c62; }
+  .eq { display: inline-flex; align-items: flex-end; gap: 2px; height: 12px; }
+  .eq i { width: 3px; border-radius: 1px; background: currentColor; animation: eqb 1s ease-in-out infinite; }
+  .eq i:nth-child(2) { animation-delay: .25s; }
+  .eq i:nth-child(3) { animation-delay: .5s; }
+  @keyframes eqb { 0%, 100% { height: 4px; } 50% { height: 12px; } }
+  #musicNextBtn { padding: 7px 10px; }
   .spd-btns { display: flex; gap: 4px; }
   .spd-btns button {
     font: inherit; font-size: 12px; font-weight: 700; cursor: pointer;
@@ -808,7 +821,7 @@
       <button id="exploreBtn" title="今日亮點——特別列車與今日之最"><span class="ti">探</span><span class="tl">今日亮點</span></button>
       <button id="favBtn" title="我的最愛列車"><span class="ti">★</span><span class="tl">我的最愛</span></button>
       <button id="rideBtn" title="旅程收集（完乘記錄）"><span class="ti">旅</span><span class="tl">旅程收集</span></button>
-      <button id="tourBtn" title="隨機跟隨列車（螢幕保護模式）"><span class="ti">隨</span><span class="tl">隨機跟隨</span></button>
+      <button id="tourBtn" title="隨機跟隨列車——再按一次換一班（小卡 × 結束）"><span class="ti">隨</span><span class="tl">隨機跟隨</span></button>
       <button id="introBtn" title="經過特殊車站時顯示介紹"><span class="ti">介</span><span class="tl">特殊站介紹</span></button>
       <button id="satBtn" title="切換衛星影像"><span class="ti">衛</span><span class="tl">衛星影像</span></button>
       <button id="themeBtn" title="地圖明暗切換"><span class="ti">☾</span><span class="tl">地圖明暗</span></button>
@@ -878,7 +891,8 @@
     <button class="pp" id="nowBtn" title="跳到現在的真實時間">現在</button>
     <button class="pp" id="ambientBtn" title="全畫面+自動換車跟隨，掛著放空用">🌙 放空模式</button>
     <div class="ctl" id="musicCtl" title="背景音樂（進放空模式會自動開始）">
-      <button class="pp" id="musicBtn" title="播放/停止背景音樂">🎵 音樂</button>
+      <button class="pp" id="musicBtn" title="播放/停止背景音樂"><span id="musicIco">🔇</span> 音樂<span class="eq" id="musicEq" hidden><i></i><i></i><i></i></span></button>
+      <button class="pp" id="musicNextBtn" title="換一首">⏭</button>
       <input type="range" id="musicVol" min="0" max="100" step="1" value="50" aria-label="音量" />
     </div>
   </div>
@@ -958,7 +972,7 @@
 <script>
 // 版本戳記:每次改版 push 前手動遞增(字母序),畫面時鐘徽章與 console 都會顯示,
 // 供比對線上跑的是不是最新版(瀏覽器快取 max-age=600 常讓人看到舊版)
-const BUILD = 'v0710d';
+const BUILD = 'v0710e';
 const state = {
   systems: [], sysId: null, data: null, speed: 36, mode: 'freq',
   lines: [], visible: new Set(), trains: [], schedStations: [], types: [],
@@ -2459,13 +2473,27 @@ function initMusic() {
   // 沒在放就開播(含「開關亮著但還沒播」的首次載入態),在放就停
   document.getElementById('musicBtn').onclick = () =>
     setMusicEnabled(state.music.audio.paused ? true : !state.music.enabled);
+  // 換一首:沒在放就順便打開(按「下一首」的人就是想聽);淡出中取消淡出直接續播
+  document.getElementById('musicNextBtn').onclick = () => {
+    const m = state.music;
+    if (!m.enabled) { m.enabled = true; saveMusicPref(); }
+    clearInterval(m._fade);
+    musicNext();
+  };
+  // 鈕面跟著「實際播放狀態」走(而非 enabled 偏好):自動播放被擋、淡出結束、整份清單載入失敗都要即時反映
+  audio.addEventListener('playing', updateMusicBtn);
+  audio.addEventListener('pause', updateMusicBtn);
+  audio.addEventListener('error', updateMusicBtn);
   updateMusicBtn();
 }
 function updateMusicBtn() {
   const b = document.getElementById('musicBtn');
   if (!b) return;
-  b.textContent = state.music.enabled ? '🎵 音樂' : '🔇 音樂';
-  b.classList.toggle('on', state.music.enabled);
+  // enabled=偏好(預設 true 但自動播放被擋時根本沒聲音),真正「在放」= 偏好開且 audio 沒暫停
+  const playing = state.music.enabled && !state.music.audio.paused;
+  document.getElementById('musicIco').textContent = playing ? '🎵' : '🔇';
+  document.getElementById('musicEq').hidden = !playing;
+  b.classList.toggle('playing', playing);
 }
 function musicLoadCur() {
   const m = state.music;
@@ -2491,6 +2519,7 @@ function musicRamp(to, ms, thenPause) { // 音量漸變(50ms 一階)
 }
 function musicPlay() {
   const m = state.music;
+  clearInterval(m._fade); // 停播淡出未完就再開:取消殘留淡出,免得它的最後一步把剛開播的音樂又暫停(鈕面卡在🔇)
   if (!m.audio.src) musicLoadCur();
   m.audio.volume = 0;
   m.audio.play().then(() => musicRamp(m.vol, 1200)).catch(() => {}); // 自動播放被擋就靜默略過
@@ -3838,7 +3867,8 @@ document.getElementById('donateCopy').onclick = () =>
     });
 document.getElementById('fpClose').onclick = () => { setAutoTour(false); clearFollow(); };
 document.getElementById('tcStar').onclick = () => toggleFav(state.followTrain);
-document.getElementById('tourBtn').onclick = () => setAutoTour(!state.autoTour);
+// 每按一次跳一班隨機列車(已在隨機模式再按=立刻換車,不是關閉);結束靠小卡 ×/點跟隨中的列車/手動選車
+document.getElementById('tourBtn').onclick = () => state.autoTour ? nextTourTrain() : setAutoTour(true);
 document.getElementById('rideBtn').onclick = () => {
   document.getElementById('ridePanel').hidden ? openRidePanel() : closeRidePanel();
 };
