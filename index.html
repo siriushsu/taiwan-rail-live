@@ -512,8 +512,8 @@
   .board h3 { margin: 0 18px 1px 0; font-size: 16px; font-weight: 900; letter-spacing: 3px; color: #1e2c40; }
   .board .sub { color: #8a7c62; font-size: 11px; margin-bottom: 7px; }
   .board .row { display: flex; align-items: baseline; gap: 8px; padding: 5px 0; border-top: 1.5px dashed #d8cba9; font-size: 13px; }
-  .board .row[data-no] { cursor: pointer; }
-  .board .row[data-no]:hover { background: #f7f0dd; }
+  .board .row[data-no], .board .row[data-rand] { cursor: pointer; }
+  .board .row[data-no]:hover, .board .row[data-rand]:hover { background: #f7f0dd; }
   .board .row b { color: #1e2c40; }
   .board .row .dot { width: 8px; height: 8px; border-radius: 50%; flex: none; align-self: center; }
   .board .row .dest { flex: 1; color: #6b5f4a; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -576,9 +576,19 @@
     .followbar { flex-wrap: wrap; }
     .chip { font-size: 12px; padding: 4px 10px 4px 7px; }
     .follow-panel { left: 8px; bottom: 8px; width: 200px; }
+    /* 窄卡的車種名(如「區間車（通勤電聯車）」)在 flex 標題列會被擠成一字一行的直欄把卡撐高:
+       改讓標題列換行,車種名獨佔第二行橫排(order 排到最後),單行省略 */
+    .follow-panel .fp-head { flex-wrap: wrap; }
+    .follow-panel .fp-head .kind {
+      order: 9; flex: 1 1 100%; min-width: 0; margin-top: 1px;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
     /* 看板/最愛/旅程/探索四選一的底部 sheet 開啟時(見 updateSheetOpenClass),跟隨小卡讓道到 sheet 上方;
-       sheet 最高 46%,抓 46%+間距頂上去,不管 sheet 實際內容多寡都不會互疊 */
-    body.sheet-open .follow-panel { bottom: calc(46% + 16px); }
+       sheet 最高 46%,抓 46%+間距頂上去;max-height 保住左上時鐘 badge(高約 45px+邊距)不被蓋,卡內自行捲動 */
+    body.sheet-open .follow-panel { bottom: calc(46% + 16px); max-height: calc(54% - 84px); }
+    /* sheet 開啟時右緣直排工具列(高 314px)放不進 sheet 上方剩餘空間,先讓位;
+       四個 sheet 面板都有自己的 × 關閉鈕(boardClose/favClose/rideClose/exploreClose),關掉 sheet 工具列即回來 */
+    body.sheet-open .stage-tools { display: none; }
     .traincard { padding: 11px 13px 12px; }
     .traincard .tc-body { grid-template-columns: 1fr; }
     .traincard .tc-events { margin-top: 4px; }
