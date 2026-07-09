@@ -146,7 +146,11 @@
   .follow-panel .fp-head .kind { font-size: 12px; color: #7a6c50; font-weight: 600; }
   .follow-panel .fp-head .spd {
     margin-left: auto; font-size: 11px; color: #2a4a73; font-weight: 700;
-    font-variant-numeric: tabular-nums; white-space: nowrap;
+    font-variant-numeric: tabular-nums; white-space: nowrap; align-self: baseline;
+  }
+  .follow-panel .fp-head .spd b {
+    font-size: 24px; font-weight: 900; color: #d23c2a; letter-spacing: .5px;
+    line-height: 1; margin-right: 2px;
   }
   .follow-panel .fp-head .fp-close {
     margin-left: 4px; background: none; border: 0; cursor: pointer;
@@ -603,8 +607,8 @@
     </div>
     <button class="pp" id="nowBtn" title="跳到現在的真實時間">現在</button>
     <button class="pp" id="ambientBtn" title="全畫面+自動換車跟隨，掛著放空用">🌙 放空模式</button>
-    <div class="ctl" id="musicCtl" title="放空模式時播放背景音樂">
-      <button class="pp" id="musicBtn" title="開/關放空模式背景音樂">🎵 音樂</button>
+    <div class="ctl" id="musicCtl" title="背景音樂（進放空模式會自動開始）">
+      <button class="pp" id="musicBtn" title="播放/停止背景音樂">🎵 音樂</button>
       <input type="range" id="musicVol" min="0" max="100" step="1" value="50" aria-label="音量" />
     </div>
   </div>
@@ -630,7 +634,7 @@
 <script>
 // 版本戳記:每次改版 push 前手動遞增(字母序),畫面時鐘徽章與 console 都會顯示,
 // 供比對線上跑的是不是最新版(瀏覽器快取 max-age=600 常讓人看到舊版)
-const BUILD = 'v0709f';
+const BUILD = 'v0709g';
 const state = {
   systems: [], sysId: null, data: null, speed: 36, mode: 'freq',
   lines: [], visible: new Set(), trains: [], schedStations: [], types: [],
@@ -1614,11 +1618,11 @@ function setAmbient(on) {
     setSparkOpen(false); setStopsOpen(false); // 放空預設收乾淨,中間留給地圖
     acquireWakeLock();
     ambientIdleReset();
-    if (state.music && state.music.enabled) musicPlay();
+    if (state.music && state.music.enabled && state.music.audio.paused) musicPlay(); // 已在放就別重來
   } else {
     b.textContent = '🌙 放空模式';
     releaseWakeLock();
-    if (state.music) musicStop();
+    // 音樂跟著開關走,離開放空不強制停(要停就按 🔇)
     clearTimeout(state._idleT);
     document.body.classList.remove('idle');
     state._transition = false;
@@ -1674,7 +1678,7 @@ function initMusic() {
   audio.addEventListener('playing', () => { state.music._fails = 0; }); // 有一首放起來就歸零
   audio.addEventListener('error', () => { // 壞檔跳下一首;整份清單都載不到(如部署環境無音檔)就停,不空轉
     const m = state.music;
-    if (!(state.ambient && m.enabled)) return;
+    if (!m.enabled) return;
     if (++m._fails >= m.list.length) return;
     musicNext();
   });
@@ -1687,7 +1691,9 @@ function initMusic() {
     audio.volume = v;
     saveMusicPref();
   };
-  document.getElementById('musicBtn').onclick = () => setMusicEnabled(!state.music.enabled);
+  // 沒在放就開播(含「開關亮著但還沒播」的首次載入態),在放就停
+  document.getElementById('musicBtn').onclick = () =>
+    setMusicEnabled(state.music.audio.paused ? true : !state.music.enabled);
   updateMusicBtn();
 }
 function updateMusicBtn() {
@@ -1705,7 +1711,7 @@ function musicNext() {
   m.idx++;
   if (m.idx >= m.list.length) { musicShuffle(m.list); m.idx = 0; } // 一輪播完重洗
   musicLoadCur();
-  if (state.ambient && m.enabled) { m.audio.volume = m.vol; m.audio.play().catch(() => {}); }
+  if (m.enabled) { m.audio.volume = m.vol; m.audio.play().catch(() => {}); }
 }
 function musicRamp(to, ms, thenPause) { // 音量漸變(50ms 一階)
   const a = state.music.audio;
@@ -1729,7 +1735,7 @@ function setMusicEnabled(on) {
   state.music.enabled = on;
   saveMusicPref();
   updateMusicBtn();
-  if (state.ambient) { on ? musicPlay() : musicStop(); } // 放空中即時生效
+  on ? musicPlay() : musicStop(); // 開關即播/停,放空與否都一樣
 }
 
 // 地圖下方的列車資訊卡:介紹+服務標記,旅程日誌由 renderFollowEvents 填
@@ -2087,10 +2093,10 @@ function updateFollowPanel(tr) {
     }
     plate.classList.add('show');
   } else { plate.classList.remove('show'); state._plateStop = null; }
-  // 即時時速(取前後 20 秒位移換算)
+  // 即時時速(取前後 20 秒位移換算);大數字讀數,看著有速度感
   const pa = trainPos(tr, state.simSec), pb = trainPos(tr, state.simSec + 20);
   const kmh = (pa && pb) ? haversineKm(pa, pb) / 20 * 3600 : 0;
-  document.getElementById('fpSpd').textContent = Math.round(kmh) + ' km/h';
+  document.getElementById('fpSpd').innerHTML = '<b>' + Math.round(kmh) + '</b> km/h';
   // 旅程進度條
   const pr = journeyProgress(tr, effT(tr));
   document.getElementById('fpProgFill').style.width =
