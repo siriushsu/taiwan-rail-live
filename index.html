@@ -134,6 +134,17 @@
     opacity: 0; transition: opacity .45s ease; pointer-events: none;
   }
   .dwell-plate.show { opacity: 1; }
+  /* 特殊車站介紹:併入站名牌下緣,隨站名牌一起淡入(進站)淡出(開車) */
+  .dwell-plate .dp-intro {
+    background: #fffdf6; color: #3a3226;
+    font-size: 12.5px; line-height: 1.55; font-weight: 600;
+    text-align: center; padding: 7px 16px 9px;
+    border-top: 1.5px dashed #d8cba9;
+  }
+  .dwell-plate .dp-intro .dp-intro-lbl {
+    font-size: 10.5px; font-weight: 800; letter-spacing: 1px;
+    color: #a3641a; margin-right: 7px;
+  }
   .dwell-plate b {
     display: block; text-align: center;
     font-size: 26px; font-weight: 900; letter-spacing: 10px; text-indent: 10px; /* indent 抵銷尾字間距,視覺置中 */
@@ -433,6 +444,13 @@
     position: absolute; inset: 0; z-index: 560; background: #101826;
     opacity: 0; pointer-events: none; transition: opacity .7s ease;
   }
+
+  /* 極簡沉浸(全畫面/放空可切):收掉左下資訊卡與跟隨橫幅,只留地圖＋列車＋時鐘,仍持續跟車 */
+  body.fs.immersive .follow-panel,
+  body.fs.immersive .followbar { display: none !important; }
+  /* 沉浸鈕只在全畫面時才有意義 */
+  #immBtn { display: none; }
+  body.fs #immBtn { display: flex; }
 
   /* ── HUD 小牌 ── */
   .badge {
@@ -750,8 +768,10 @@
       <button id="favBtn" title="我的最愛列車">★</button>
       <button id="rideBtn" title="旅程收集（完乘記錄）">🎫</button>
       <button id="tourBtn" title="隨機跟隨列車（螢幕保護模式）">隨</button>
+      <button id="introBtn" title="經過特殊車站時顯示介紹">介</button>
       <button id="satBtn" title="切換衛星影像">衛</button>
       <button id="themeBtn" title="地圖明暗切換">☾</button>
+      <button id="immBtn" title="極簡沉浸（只留地圖與列車）">簡</button>
       <button id="fsBtn" title="全畫面地圖（Esc 退出）">⛶</button>
     </div>
     <div class="badge">
@@ -767,6 +787,7 @@
         <span class="side left"><span class="arr">◀</span><span id="dpPrev"></span><span class="km" id="dpPrevKm"></span></span>
         <span class="side right"><span class="km" id="dpNextKm"></span><span id="dpNext"></span><span class="arr">▶</span></span>
       </div>
+      <div class="dp-intro" id="dpIntro" style="display:none"></div>
     </div>
     <div class="board" id="board" hidden></div>
     <div class="board" id="favPanel" hidden></div>
@@ -850,6 +871,7 @@
     <details class="foot-box">
       <summary><span>🛠 更新紀錄</span><span class="foot-sub">最後更新：2026/7/9</span></summary>
       <ul class="foot-list">
+        <li><span class="d">7/9</span><span>沉浸放空升級：真・全螢幕（吃掉網址列）、「簡」極簡沉浸只留地圖與列車、「介」經過特殊車站自動跳站介紹</span></li>
         <li><span class="d">7/9</span><span>網站更名「列車有時」，標頭改為早期台鐵琺瑯站名牌樣式</span></li>
         <li><span class="d">7/9</span><span>台鐵即時誤點上線——介接交通部 TDX 平臺每分鐘更新，回到現在時刻自動套用</span></li>
         <li><span class="d">7/9</span><span>旅程護照與 16 枚成就徽章；「探」今日亮點面板＋特別列車故事</span></li>
@@ -895,7 +917,7 @@
 <script>
 // 版本戳記:每次改版 push 前手動遞增(字母序),畫面時鐘徽章與 console 都會顯示,
 // 供比對線上跑的是不是最新版(瀏覽器快取 max-age=600 常讓人看到舊版)
-const BUILD = 'v0709p';
+const BUILD = 'v0709q';
 const state = {
   systems: [], sysId: null, data: null, speed: 36, mode: 'freq',
   lines: [], visible: new Set(), trains: [], schedStations: [], types: [],
@@ -904,6 +926,7 @@ const state = {
   followTrain: null, followId: null,
   mapDark: false, basemap: 'map', trackData: null,
   live: null, // 台鐵即時誤點 {map: 車次→誤點分, at: 抓取時刻, delayed, srcAt}
+  stnIntro: false, immersive: false, // 特殊站介紹開關(放空自動開)、極簡沉浸(全畫面隱藏左側卡)
 };
 let map, cv, ctx;
 let baseLayers = {}; // light / dark / sat Leaflet 圖層
@@ -2014,6 +2037,7 @@ function setAmbient(on) {
     setAutoTour(true);
     setSparkOpen(false); setStopsOpen(false); // 放空預設收乾淨,中間留給地圖
     closeExplorePanel(); // 亮點面板也收,資訊只留左下合併卡
+    (state._setStnIntro || (() => {}))(true); // 放空自動開特殊站介紹
     acquireWakeLock();
     ambientIdleReset();
     if (state.music && state.music.enabled && state.music.audio.paused) musicPlay(); // 已在放就別重來
@@ -2029,6 +2053,7 @@ function setAmbient(on) {
     if (state.speedMult === 5 && state._preAmbSpd) setSpeed(state._preAmbSpd);
     if (state.nightReplay) { state.nightReplay = false; refreshBadge(); }
     if (state.autoTour) setAutoTour(false);
+    (state._setStnIntro || (() => {}))(false); // 離開放空自動關特殊站介紹
     setSparkOpen(true); // 回一般模式:曲線預設展開(時刻表維持收起)
     if (document.body.classList.contains('fs')) (state._setFs || (() => {}))(false);
   }
@@ -2774,6 +2799,11 @@ function updateFollowPanel(tr) {
       document.getElementById('dpNextKm').textContent = next ? fmtKm(tr._segKm[dw.i]) : '';
       plate.querySelector('.side.left').style.visibility = prev ? 'visible' : 'hidden';
       plate.querySelector('.side.right').style.visibility = next ? 'visible' : 'hidden';
+      // 特殊車站介紹:開關開啟且此站為特等/一等或有特色時,站名牌下緣顯示介紹
+      const di = document.getElementById('dpIntro');
+      const introHtml = state.stnIntro ? stationIntroText(dw.st.name) : null;
+      if (introHtml) { di.innerHTML = introHtml; di.style.display = ''; }
+      else { di.innerHTML = ''; di.style.display = 'none'; }
     }
     plate.classList.add('show');
   } else { plate.classList.remove('show'); state._plateStop = null; }
@@ -3036,6 +3066,66 @@ function stnMetaHtml(st) {
     `<a class="mapLink" href="${href}" target="_blank" rel="noopener">在 Google 地圖開啟 ↗</a>` +
     `</div>`;
 }
+// 特殊車站介紹文案:精選特色站的一句話介紹(起手包,可再擴充);站名資料的 feature 目前為空,先用這份。
+// key 以「台」正規化(臺北→台北 也吃得到);內容為公認事實,避免療效／誇大式描述。
+const STATION_INTRO = {
+  // 平溪線(放天燈、礦業聚落)
+  '十分': '平溪線放天燈的中心，鄰近十分瀑布，鐵軌從老街店家門前穿過',
+  '平溪': '平溪老街與天燈的故鄉，山城小站',
+  '菁桐': '平溪線終點，日式木造站房（歷史建築）與老街',
+  '猴硐': '昔日產煤重鎮，如今以「貓村」聞名，保有煤礦遺跡',
+  '三貂嶺': '無公路可達，只能搭火車或徒步抵達的秘境小站',
+  // 集集線(綠色隧道、木業小鎮)
+  '集集': '集集線代表站，綠色隧道與檜木老站房',
+  '車埕': '集集線終點，昔日木業小鎮，有「最後的火車站」之稱',
+  '二水': '集集線起點，與縱貫線在此交會',
+  // 內灣線
+  '內灣': '內灣線終點，內灣老街與吊橋',
+  '合興': '因存廢故事而得名的「愛情車站」',
+  // 深澳線／東北角(依山傍海)
+  '八斗子': '緊鄰海岸，有「最靠近海的車站」之稱',
+  '海科館': '國立海洋科技博物館的門戶車站',
+  '福隆': '福隆海水浴場與福隆便當的所在',
+  '瑞芳': '往九份、金瓜石的門戶，平溪／深澳線轉乘站',
+  // 海線木造老站群(五座日式木造車站)
+  '追分': '「追分成功」吉祥車票的一端，日式木造站房',
+  '成功': '「追分成功」吉祥車票的另一端',
+  '日南': '海線僅存的日式木造車站之一',
+  '大山': '海線日式木造老站',
+  '談文': '海線日式木造老站',
+  '新埔': '海線最靠海的木造車站',
+  '香山': '縱貫線南段的日式木造車站',
+  '崎頂': '子母隧道與觀海月台，攝影人的秘境',
+  // 其他吉祥／特色站
+  '保安': '「永保安康」吉祥車票的一端，日式木造站房',
+  '林鳳營': '南部平原上的木造老站',
+  // 花東縱谷
+  '池上': '伯朗大道與池上便當的故鄉',
+  '關山': '花東縱谷的稻香小鎮',
+  // 大站門戶
+  '台北': '全台運量最大車站，台鐵、高鐵、捷運三鐵共構',
+  '新竹': '現存最古老的站房之一（1913 年，國定古蹟）',
+  '彰化': '扇形車庫「火車頭旅館」的所在',
+  '嘉義': '阿里山森林鐵路的起點',
+  '花蓮': '東部鐵路的門戶大站',
+  '台東': '南迴與台東線交會的東南門戶',
+  '基隆': '縱貫線最北端的端點站',
+  '枋寮': '西部幹線南端，南迴鐵路的起點',
+};
+// 有精選特色 → 特色;否則有站等資料 feature → feature;再否則特等/一等當「大站」提示;都沒有 → null(非特殊站)
+function stationIntroText(name) {
+  const info = stnInfo(name);
+  const n = name.replace(/臺/g, '台');
+  const blurb = STATION_INTRO[name] || STATION_INTRO[n];
+  if (blurb) return `<span class="dp-intro-lbl">車站特色</span>${blurb}`;
+  const feat = info && info.feature;
+  if (feat) return `<span class="dp-intro-lbl">車站特色</span>${feat}`;
+  const stn = (state.schedStations || []).find(s => s.name === name);
+  const tier = stn ? stn.tier : null;
+  const tierLabel = tier === 0 ? '特等站' : tier === 1 ? '一等站' : '';
+  if (tierLabel) return `<span class="dp-intro-lbl">站等</span>台鐵${tierLabel}　鐵路運輸的重要節點`;
+  return null;
+}
 function renderBoard() {
   const el = document.getElementById('board'), st = state.boardStation;
   if (!st) { el.hidden = true; updateSheetOpenClass(); return; }
@@ -3170,7 +3260,8 @@ function setupMapTools() {
     // 控制列改靠右下反而會被行動裝置窄寬度的 maxWidth 計算擠成直排,所以只在桌面/平板寬度套用。
     const st = document.querySelector('.controls').style;
     const isMobile = window.matchMedia('(max-width: 640px)').matches;
-    const followVisible = state.followTrain && !document.getElementById('followPanel').hidden;
+    const followVisible = state.followTrain && !document.getElementById('followPanel').hidden
+      && !document.body.classList.contains('immersive');
     if (!isMobile && on && followVisible) {
       st.left = 'auto'; st.right = '60px'; st.transform = 'none'; st.bottom = '12px';
       // right:60px(而非 12px)讓開同一角落的 Leaflet 縮放鈕(bottomright,寬約 34px)
@@ -3194,6 +3285,16 @@ function setupMapTools() {
     document.body.classList.toggle('fs', on);
     fsBtn.textContent = on ? '×' : '⛶';
     fsBtn.title = on ? '退出全畫面（Esc）' : '全畫面地圖（Esc 退出）';
+    // 瀏覽器真全螢幕(Fullscreen API):吃掉網址列/分頁列;需在使用者手勢內呼叫,失敗就退回 CSS 版全畫面
+    try {
+      if (on && !document.fullscreenElement) {
+        const p = document.documentElement.requestFullscreen && document.documentElement.requestFullscreen();
+        if (p && p.catch) p.catch(() => {});
+      } else if (!on && document.fullscreenElement) {
+        const p = document.exitFullscreen && document.exitFullscreen();
+        if (p && p.catch) p.catch(() => {});
+      }
+    } catch (e) {}
     placeTrainCard(); // 進出全畫面:資訊卡在「併入跟隨面板」與「地圖下方」之間搬移
     placeFsOverlays(on); // 同步執行:class 已套用,量得到 fs 版控制列高度
     requestAnimationFrame(() => { map.invalidateSize(); reproject(); });
@@ -3203,8 +3304,36 @@ function setupMapTools() {
   window.addEventListener('resize', () => {
     if (document.body.classList.contains('fs')) placeFsOverlays(true);
   });
+  // 真全螢幕被使用者(Esc/F11/系統手勢)退掉時,同步收掉 CSS 全畫面狀態並重排地圖
+  document.addEventListener('fullscreenchange', () => {
+    if (!document.fullscreenElement && document.body.classList.contains('fs')) setFs(false);
+    requestAnimationFrame(() => { map.invalidateSize(); reproject(); });
+  });
   fsBtn.onclick = () => setFs(!document.body.classList.contains('fs'));
   document.addEventListener('keydown', e => { if (e.key === 'Escape' && document.body.classList.contains('fs')) setFs(false); });
+
+  // ── 極簡沉浸:全畫面時收掉左下資訊卡與跟隨橫幅,只留地圖＋列車,仍持續跟車 ──
+  const immBtn = document.getElementById('immBtn');
+  function setImmersive(on) {
+    document.body.classList.toggle('immersive', on);
+    immBtn.classList.toggle('active', on);
+    immBtn.title = on ? '顯示資訊（退出極簡）' : '極簡沉浸（只留地圖與列車）';
+    try { localStorage.setItem('trainmap-immersive', on ? '1' : '0'); } catch (e) {}
+    if (document.body.classList.contains('fs')) placeFsOverlays(true);
+  }
+  immBtn.onclick = () => setImmersive(!document.body.classList.contains('immersive'));
+  if (state.immersive) setImmersive(true);
+
+  // ── 特殊車站介紹:經過特等/一等/有特色的站,停靠時在站名牌下緣自動顯示介紹 ──
+  const introBtn = document.getElementById('introBtn');
+  function setStnIntro(on) {
+    state.stnIntro = on;
+    introBtn.classList.toggle('active', on);
+    introBtn.title = on ? '經過特殊車站顯示介紹（已開啟）' : '經過特殊車站時顯示介紹';
+    state._plateStop = null; // 立即重算,讓正停靠中的站即時反映開關
+  }
+  introBtn.onclick = () => setStnIntro(!state.stnIntro);
+  state._setStnIntro = setStnIntro;
   themeBtn.onclick = () => {
     state.mapDark = !state.mapDark;
     try { localStorage.setItem('trainmap-theme', state.mapDark ? 'dark' : 'light'); } catch (e) {}
@@ -3261,6 +3390,7 @@ async function boot() {
   });
   try { state.mapDark = localStorage.getItem('trainmap-theme') === 'dark'; } catch (e) {}
   try { state.basemap = localStorage.getItem('trainmap-basemap') === 'sat' ? 'sat' : 'map'; } catch (e) {}
+  try { state.immersive = localStorage.getItem('trainmap-immersive') === '1'; } catch (e) {}
   setBasemap();
   setupMapTools();
   map.on('move zoom resize zoomanim', reproject);
