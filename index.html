@@ -694,6 +694,7 @@ function shapeSlice(ln, dA, dB) {
     pts.push({ lat: ln.shape[i][0], lon: ln.shape[i][1] });
   }
   pts.push(posAlongShape(ln, hi));
+  if (dA > dB) pts.reverse(); // 依行進方向排列,里程遞減的車段與段才接得起來(否則畫出跳站直線弦)
   return pts;
 }
 function buildFollowRoute(tr) {
