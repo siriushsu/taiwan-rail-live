@@ -4,6 +4,12 @@
   "name": "taiwan-rail-live",
   "compatibility_date": "2026-07-09",
   "main": "worker.js",
+  "routes": [
+    { "pattern": "railisland.tw", "custom_domain": true },
+    { "pattern": "www.railisland.tw", "custom_domain": true }
+  ],
+  "workers_dev": true,
+  "preview_urls": true,
   "assets": {
     "directory": ".",
     "binding": "ASSETS"
