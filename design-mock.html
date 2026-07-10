@@ -186,6 +186,22 @@
   body.fs .stage-tools button.active { border-color: #a92c1d; box-shadow: 0 2px 0 #a92c1d; }
   body.fs .stage-tools button:hover .tl { padding-right: 0; padding-left: 13px; }
 
+  /* 錄影中浮條(地圖頂部置中):唯一的錄影狀態指示,點它停止並下載。
+     浮條與其他 DOM UI 都不會入鏡——錄影只合成地圖畫布(圖磚/向量層/列車 overlay) */
+  .rec-pill {
+    position: absolute; top: 10px; left: 50%; transform: translateX(-50%); z-index: 1200;
+    display: flex; align-items: center; gap: 7px;
+    background: #d23c2a; color: #fff8ec; border: 1.5px solid #a92c1d; border-radius: 999px;
+    box-shadow: 0 2px 0 #a92c1d; padding: 6px 14px;
+    font-size: 13px; font-weight: 800; letter-spacing: .5px; cursor: pointer;
+    font-variant-numeric: tabular-nums;
+  }
+  .rec-pill[hidden] { display: none; }
+  .rec-pill .rd { width: 9px; height: 9px; border-radius: 50%; background: #fff8ec; animation: recBlink 1.1s steps(2, start) infinite; }
+  .rec-pill .rstop { font-weight: 700; font-size: 12px; opacity: .85; border-left: 1px solid rgba(255,248,236,.45); padding-left: 8px; }
+  .rec-pill:hover { background: #c0341f; }
+  @keyframes recBlink { to { opacity: 0; } }
+
   /* 停靠站名牌(時鐘儀表正下方、靠左直欄,跟隨列車停站時淡入)——仿台鐵月台站名牌:
      上半白底本站大字,下半藍條左右鄰站+站間里程+方向箭頭。
      改靠左:跟隨中列車常居畫面中心,置中彈牌會壓車;左直欄(儀表→站牌→跟隨卡)固定分工,
@@ -402,24 +418,24 @@
     background: #f7f0dd; border: 1.5px dashed #c9b98f; border-radius: 5px; padding: 3px 9px;
   }
   .passport .stamp:hover { background: #efe6cc; }
-  /* 完乘章:印泥紅雙框篆刻感+微傾角,像手蓋的紀念章 */
+  /* 完乘章:印泥紅雙框篆刻感,像手蓋的紀念章(不加傾角,整排對齊乾淨) */
   .passport .stamp.got {
     color: #b8321f; font-weight: 800; cursor: default;
     background: #fdf2ec; border: 1.6px solid #cf4a37; border-radius: 6px;
     outline: 1px solid rgba(207,74,55,.38); outline-offset: 2px;
-    box-shadow: none; transform: rotate(-1.4deg);
+    box-shadow: none;
   }
-  .passport .stamp.got:nth-child(even) { transform: rotate(1deg); }
   .passport .stamp.got:hover { background: #fdf2ec; }
+  /* 窄欄(340px)一行擠不下五欄時,起訖站與里程順勢折到次行——不硬截字、不溢出框 */
   .passport .ph-row {
-    display: flex; align-items: baseline; gap: 10px; font-size: 12.5px; color: #5d5240;
-    padding: 3px 2px; border-top: 1px dashed #ece2c8; font-variant-numeric: tabular-nums;
+    display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 8px; font-size: 12.5px; color: #5d5240;
+    padding: 4px 2px; border-top: 1px dashed #ece2c8; font-variant-numeric: tabular-nums;
   }
   .passport .ph-row .d { color: #a89468; flex: none; }
-  .passport .ph-row b { color: #1e2c40; min-width: 44px; }
+  .passport .ph-row b { color: #1e2c40; flex: none; min-width: 44px; }
   .passport .ph-row .k { flex: none; color: #2a4a73; font-weight: 600; }
-  .passport .ph-row .r { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .passport .ph-row .km { color: #8a7c62; }
+  .passport .ph-row .r { flex: 1 1 6em; min-width: 6em; } /* 起訖站佔剩餘寬,放不下就整段折行,不截字 */
+  .passport .ph-row .km { flex: none; margin-left: auto; color: #8a7c62; }
   .passport .ph-empty { font-size: 12.5px; color: #8a7c62; }
   .passport .stamp.na { cursor: help; filter: grayscale(.85); } /* 成就徽章不可點,滑過看解鎖條件;未解鎖連 emoji 一起褪色 */
   /* 成就徽章(金)與完乘章(紅)兩家族區隔 */
@@ -804,6 +820,7 @@
     .badge .count { font-size: 12px; }
     /* 手機:時刻板改底部 sheet,工具鈕改右上直排;帶文字後變寬,起點下移到時鐘徽章下方免得蓋住班次數 */
     .stage-tools { top: 56px; right: 8px; bottom: auto; flex-direction: column; gap: 0; }
+    .rec-pill { top: 56px; } /* 錄影浮條同理下移:手機時鐘徽章列橫跨整寬,置頂會蓋住它 */
     .stage-tools button + button { border-left: 0; border-top: 1px solid #ece2c8; } /* 直排工具條:分隔線改橫向 */
     /* 工具抽屜:帶字大鈕整排常駐會蓋掉小螢幕地圖(跟隨/全畫面看不到車)——
        平時只露一顆「☰ 工具」,點開才展開,點任一工具自動收回(JS) */

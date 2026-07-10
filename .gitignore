@@ -3,3 +3,5 @@ scripts/.overpass_cache/
 *.bak-*
 .env
 .wrangler/
+_專案資訊.html
+授權查證*.md

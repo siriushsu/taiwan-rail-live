@@ -192,6 +192,22 @@
   body.fs .stage-tools button.active { border-color: #a92c1d; box-shadow: 0 2px 0 #a92c1d; }
   body.fs .stage-tools button:hover .tl { padding-right: 0; padding-left: 13px; }
 
+  /* 錄影中浮條(地圖頂部置中):唯一的錄影狀態指示,點它停止並下載。
+     浮條與其他 DOM UI 都不會入鏡——錄影只合成地圖畫布(圖磚/向量層/列車 overlay) */
+  .rec-pill {
+    position: absolute; top: 10px; left: 50%; transform: translateX(-50%); z-index: 1200;
+    display: flex; align-items: center; gap: 7px;
+    background: #d23c2a; color: #fff8ec; border: 1.5px solid #a92c1d; border-radius: 999px;
+    box-shadow: 0 2px 0 #a92c1d; padding: 6px 14px;
+    font-size: 13px; font-weight: 800; letter-spacing: .5px; cursor: pointer;
+    font-variant-numeric: tabular-nums;
+  }
+  .rec-pill[hidden] { display: none; }
+  .rec-pill .rd { width: 9px; height: 9px; border-radius: 50%; background: #fff8ec; animation: recBlink 1.1s steps(2, start) infinite; }
+  .rec-pill .rstop { font-weight: 700; font-size: 12px; opacity: .85; border-left: 1px solid rgba(255,248,236,.45); padding-left: 8px; }
+  .rec-pill:hover { background: #c0341f; }
+  @keyframes recBlink { to { opacity: 0; } }
+
   /* 停靠站名牌(時鐘儀表正下方、靠左直欄,跟隨列車停站時淡入)——仿台鐵月台站名牌:
      上半白底本站大字,下半藍條左右鄰站+站間里程+方向箭頭。
      改靠左:跟隨中列車常居畫面中心,置中彈牌會壓車;左直欄(儀表→站牌→跟隨卡)固定分工,
@@ -810,6 +826,7 @@
     .badge .count { font-size: 12px; }
     /* 手機:時刻板改底部 sheet,工具鈕改右上直排;帶文字後變寬,起點下移到時鐘徽章下方免得蓋住班次數 */
     .stage-tools { top: 56px; right: 8px; bottom: auto; flex-direction: column; gap: 0; }
+    .rec-pill { top: 56px; } /* 錄影浮條同理下移:手機時鐘徽章列橫跨整寬,置頂會蓋住它 */
     .stage-tools button + button { border-left: 0; border-top: 1px solid #ece2c8; } /* 直排工具條:分隔線改橫向 */
     /* 工具抽屜:帶字大鈕整排常駐會蓋掉小螢幕地圖(跟隨/全畫面看不到車)——
        平時只露一顆「☰ 工具」,點開才展開,點任一工具自動收回(JS) */
@@ -963,7 +980,9 @@
       <button id="themeBtn" title="地圖明暗切換"><span class="ti">☾</span><span class="tl">地圖明暗</span></button>
       <button id="immBtn" title="極簡沉浸（只留地圖與列車）"><span class="ti">簡</span><span class="tl">極簡沉浸</span></button>
       <button id="fsBtn" title="全畫面地圖（Esc 退出）"><span class="ti">⛶</span><span class="tl">全畫面</span></button>
+      <button id="recBtn" title="錄影（存成影片下載）"><span class="ti">⏺</span><span class="tl">錄影</span></button>
     </div>
+    <div class="rec-pill" id="recPill" hidden title="停止錄影並下載影片"><span class="rd"></span>REC <span id="recTime">0:00</span><span class="rstop">停止</span></div>
     <div class="badge">
       <span class="clock" id="clock">08:00</span>
       <span class="live" id="liveBadge" hidden>LIVE</span>
@@ -1108,7 +1127,7 @@
 <script>
 // 版本戳記:每次改版 push 前手動遞增(字母序),畫面時鐘徽章與 console 都會顯示,
 // 供比對線上跑的是不是最新版(瀏覽器快取 max-age=600 常讓人看到舊版)
-const BUILD = 'v0710n';
+const BUILD = 'v0710o';
 const state = {
   systems: [], sysId: null, data: null, speed: 36, mode: 'freq',
   lines: [], visible: new Set(), trains: [], schedStations: [], types: [],
@@ -3952,6 +3971,134 @@ function setupMapTools() {
   };
 }
 
+// ── 站內錄影:每幀把「圖磚 → Leaflet 向量層 → 列車 overlay → 浮水印」合成到離屏 canvas,
+//    captureStream＋MediaRecorder 在瀏覽器內編碼,停止即下載。全程無伺服器。
+//    DOM UI(面板、按鈕、錄影浮條)不入鏡;Leaflet 版權列是 DOM 也不入鏡,所以圖資出處補畫在影片左下。
+//    前提:三個 tile layer 都開 crossOrigin,否則合成畫布被無 CORS 圖磚汙染,captureStream 直接報廢。 ──
+const REC = { on: false, rec: null, chunks: [], cv: null, g: null, raf: 0, t0: 0, scale: 1, w: 0, h: 0, lastBlob: null };
+const WM_LOGO = new Image();
+WM_LOGO.onerror = () => { WM_LOGO._missing = true; };
+WM_LOGO.src = 'assets/wm-logo.png'; // Claude Design 產出的 logo 放這路徑即自動入浮水印;缺檔＝純文字版
+
+function recMime() {
+  // mp4 優先(LINE/IG 通吃;Safari 只出 mp4、新 Chrome 也支援),不行退 webm
+  const list = ['video/mp4;codecs=avc1', 'video/mp4', 'video/webm;codecs=vp9', 'video/webm'];
+  for (const m of list) if (MediaRecorder.isTypeSupported(m)) return m;
+  return '';
+}
+
+function drawWatermark(g, w, h) {
+  const dark = state.basemap === 'sat' || state.mapDark;
+  const ink = dark ? 'rgba(255,253,246,.95)' : 'rgba(30,44,64,.9)';
+  const halo = dark ? 'rgba(0,0,0,.6)' : 'rgba(255,253,246,.9)';
+  const pad = 12, wmFont = '-apple-system, "PingFang TC", "Noto Sans TC", sans-serif';
+  g.save();
+  g.shadowColor = halo; g.shadowBlur = 4;
+  g.fillStyle = ink; g.textAlign = 'right'; g.textBaseline = 'bottom';
+  g.font = '800 14px ' + wmFont;
+  g.fillText('列車有時', w - pad, h - pad - 16);
+  g.font = '600 11px ' + wmFont;
+  g.globalAlpha = .85;
+  g.fillText('taiwan-rail-live.sirius1984.workers.dev', w - pad, h - pad);
+  if (WM_LOGO.complete && WM_LOGO.naturalWidth && !WM_LOGO._missing) {
+    const lh = 30, lw = lh * (WM_LOGO.naturalWidth / WM_LOGO.naturalHeight);
+    g.globalAlpha = .95;
+    g.drawImage(WM_LOGO, w - pad - lw, h - pad - 36 - lh, lw, lh);
+  }
+  // 圖資出處跟著影片走(衛星=Esri,一般/暗色=OSM+CARTO)
+  g.textAlign = 'left'; g.globalAlpha = .8;
+  g.font = '10px ' + wmFont;
+  g.fillText(state.basemap === 'sat' ? '© Esri — Maxar, Earthstar Geographics' : '© OpenStreetMap © CARTO', pad, h - pad);
+  g.restore();
+}
+
+function recCompose() {
+  const mapEl = map.getContainer(), mr = mapEl.getBoundingClientRect(), g = REC.g;
+  g.setTransform(REC.scale, 0, 0, REC.scale, 0, 0);
+  g.fillStyle = getComputedStyle(mapEl).backgroundColor || '#e9e2cf'; // 圖磚未載入處墊底色
+  g.fillRect(0, 0, REC.w, REC.h);
+  for (const t of mapEl.querySelectorAll('img.leaflet-tile-loaded')) {
+    const r = t.getBoundingClientRect();
+    if (r.right < mr.left || r.left > mr.right || r.bottom < mr.top || r.top > mr.bottom) continue;
+    g.globalAlpha = t.style.opacity === '' ? 1 : +t.style.opacity; // 跟上 Leaflet 圖磚淡入,換圖不跳格
+    g.drawImage(t, r.left - mr.left, r.top - mr.top, r.width, r.height);
+  }
+  g.globalAlpha = 1;
+  for (const c of mapEl.querySelectorAll('.leaflet-overlay-pane canvas')) {
+    const r = c.getBoundingClientRect();
+    g.drawImage(c, r.left - mr.left, r.top - mr.top, r.width, r.height);
+  }
+  g.drawImage(cv, 0, 0, REC.w, REC.h);
+  drawWatermark(g, REC.w, REC.h);
+}
+
+function recFrame() {
+  recCompose();
+  const sec = Math.floor((performance.now() - REC.t0) / 1000);
+  const txt = Math.floor(sec / 60) + ':' + String(sec % 60).padStart(2, '0');
+  const tEl = document.getElementById('recTime');
+  if (tEl.textContent !== txt) tEl.textContent = txt;
+  REC.raf = requestAnimationFrame(recFrame);
+}
+
+function recStart() {
+  if (REC.on) return;
+  const mime = recMime();
+  if (!mime) { alert('這個瀏覽器不支援錄影(無可用影片編碼)'); return; }
+  const mr = map.getContainer().getBoundingClientRect();
+  REC.scale = Math.min(window.devicePixelRatio || 1, 2); // 上限 2x:畫質夠、檔案與編碼負擔不爆
+  REC.w = mr.width; REC.h = mr.height;
+  REC.cv = document.createElement('canvas');
+  REC.cv.width = Math.floor(REC.w * REC.scale / 2) * 2; // h264 要偶數邊
+  REC.cv.height = Math.floor(REC.h * REC.scale / 2) * 2;
+  REC.g = REC.cv.getContext('2d');
+  try { recCompose(); REC.g.getImageData(0, 0, 1, 1); } // 汙染防呆:合成一幀試讀,被無 CORS 圖磚汙染就會 throw
+  catch (e) { alert('錄影初始化失敗:圖磚缺 CORS,請重新整理頁面後再試'); REC.cv = REC.g = null; return; }
+  REC.chunks = [];
+  REC.rec = new MediaRecorder(REC.cv.captureStream(30), { mimeType: mime, videoBitsPerSecond: 8e6 });
+  REC.rec.ondataavailable = e => { if (e.data && e.data.size) REC.chunks.push(e.data); };
+  REC.rec.onstop = recSave;
+  REC.rec.start(1000); // 每秒吐一塊,長錄不堆單一大塊
+  REC.on = true; REC.t0 = performance.now();
+  document.getElementById('recTime').textContent = '0:00';
+  document.getElementById('recPill').hidden = false;
+  const b = document.getElementById('recBtn');
+  b.classList.add('active'); b.title = '停止錄影並下載';
+  b.querySelector('.ti').textContent = '■'; b.querySelector('.tl').textContent = '停止錄影';
+  REC.raf = requestAnimationFrame(recFrame);
+}
+
+function recStop() {
+  if (!REC.on) return;
+  REC.on = false;
+  cancelAnimationFrame(REC.raf);
+  try { REC.rec.stop(); } catch (e) {}
+  document.getElementById('recPill').hidden = true;
+  const b = document.getElementById('recBtn');
+  b.classList.remove('active'); b.title = '錄影（存成影片下載）';
+  b.querySelector('.ti').textContent = '⏺'; b.querySelector('.tl').textContent = '錄影';
+}
+
+function recSave() {
+  const mime = (REC.rec && REC.rec.mimeType) || '';
+  const blob = new Blob(REC.chunks, { type: mime });
+  REC.lastBlob = blob; REC.chunks = []; REC.cv = REC.g = null;
+  if (!blob.size) { alert('錄影失敗:沒有錄到內容'); return; }
+  const d = new Date(), p2 = n => String(n).padStart(2, '0');
+  const name = `列車有時_${d.getFullYear()}${p2(d.getMonth() + 1)}${p2(d.getDate())}_${p2(d.getHours())}${p2(d.getMinutes())}.${mime.includes('mp4') ? 'mp4' : 'webm'}`;
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob); a.download = name;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 30000); // 給瀏覽器足夠時間收下載
+}
+
+function setupRecorder() {
+  const btn = document.getElementById('recBtn');
+  if (!window.MediaRecorder || !window.HTMLCanvasElement.prototype.captureStream) { btn.style.display = 'none'; return; } // 老瀏覽器藏鈕,不擋其他功能
+  btn.onclick = () => REC.on ? recStop() : recStart();
+  document.getElementById('recPill').onclick = recStop;
+}
+
 async function boot() {
   document.getElementById('buildVer').textContent = BUILD;
   console.log('台灣鐵道·列車流動 BUILD', BUILD);
@@ -3985,20 +4132,22 @@ async function boot() {
     if (state.mode !== 'sched') { if (c.style.cursor) c.style.cursor = ''; return; }
     c.style.cursor = trainAt(e.containerPoint) ? 'pointer' : '';
   });
+  // crossOrigin: 錄影功能要把圖磚畫進合成 canvas,沒有 CORS 標記畫布會被汙染(無法 captureStream)
   baseLayers.light = L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
-    subdomains: 'abcd', maxZoom: 20, attribution: '&copy; OpenStreetMap &copy; CARTO',
+    subdomains: 'abcd', maxZoom: 20, crossOrigin: true, attribution: '&copy; OpenStreetMap &copy; CARTO',
   });
   baseLayers.dark = L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
-    subdomains: 'abcd', maxZoom: 20, attribution: '&copy; OpenStreetMap &copy; CARTO',
+    subdomains: 'abcd', maxZoom: 20, crossOrigin: true, attribution: '&copy; OpenStreetMap &copy; CARTO',
   });
   baseLayers.sat = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
-    maxZoom: 19, attribution: 'Tiles &copy; Esri — Source: Esri, Maxar, Earthstar Geographics',
+    maxZoom: 19, crossOrigin: true, attribution: 'Tiles &copy; Esri — Source: Esri, Maxar, Earthstar Geographics',
   });
   try { state.mapDark = localStorage.getItem('trainmap-theme') === 'dark'; } catch (e) {}
   try { state.basemap = localStorage.getItem('trainmap-basemap') === 'sat' ? 'sat' : 'map'; } catch (e) {}
   try { state.immersive = localStorage.getItem('trainmap-immersive') === '1'; } catch (e) {}
   setBasemap();
   setupMapTools();
+  setupRecorder();
   map.on('move zoom resize zoomanim', reproject);
 
   const defs = [
