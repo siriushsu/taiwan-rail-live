@@ -1004,7 +1004,7 @@
       <button id="themeBtn" title="地圖明暗切換"><span class="ti">☾</span><span class="tl">地圖明暗</span></button>
       <button id="immBtn" title="極簡沉浸（只留地圖與列車）"><span class="ti">簡</span><span class="tl">極簡沉浸</span></button>
       <button id="fsBtn" title="全畫面地圖（Esc 退出）"><span class="ti">⛶</span><span class="tl">全畫面</span></button>
-      <button id="recBtn" title="錄影（存成影片下載）"><span class="ti">⏺</span><span class="tl">錄影</span></button>
+      <button id="recBtn" title="錄影 Beta（存成影片下載）"><span class="ti">⏺</span><span class="tl">錄影 Beta</span></button>
     </div>
     <div class="rec-pill" id="recPill" hidden title="停止錄影並下載影片"><span class="rd"></span>REC <span id="recTime">0:00</span><span class="rstop">停止</span></div>
     <div class="rec-toast" id="recToast" hidden><span id="recToastTxt"></span><button id="recRedl">再下載一次</button><button class="x" id="recToastX" title="關閉">×</button></div>
@@ -1152,7 +1152,7 @@
 <script>
 // 版本戳記:每次改版 push 前手動遞增(字母序),畫面時鐘徽章與 console 都會顯示,
 // 供比對線上跑的是不是最新版(瀏覽器快取 max-age=600 常讓人看到舊版)
-const BUILD = 'v0710q';
+const BUILD = 'v0710r';
 const state = {
   systems: [], sysId: null, data: null, speed: 36, mode: 'freq',
   lines: [], visible: new Set(), trains: [], schedStations: [], types: [],
@@ -4111,8 +4111,8 @@ function recStop() {
   try { REC.rec.stop(); } catch (e) {}
   document.getElementById('recPill').hidden = true;
   const b = document.getElementById('recBtn');
-  b.classList.remove('active'); b.title = '錄影（存成影片下載）';
-  b.querySelector('.ti').textContent = '⏺'; b.querySelector('.tl').textContent = '錄影';
+  b.classList.remove('active'); b.title = '錄影 Beta（存成影片下載）';
+  b.querySelector('.ti').textContent = '⏺'; b.querySelector('.tl').textContent = '錄影 Beta';
 }
 
 function recSave() {
