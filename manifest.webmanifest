@@ -1,0 +1,17 @@
+{
+  "id": "/",
+  "name": "軌島 Rail Island",
+  "short_name": "軌島",
+  "description": "看台鐵此刻準點嗎、捷運怎麼穿梭全台，一張會動的台灣鐵道地圖。",
+  "lang": "zh-Hant",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#efe6d2",
+  "theme_color": "#efe6d2",
+  "icons": [
+    { "src": "/favicon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "/favicon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
