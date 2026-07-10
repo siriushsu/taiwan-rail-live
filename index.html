@@ -408,24 +408,24 @@
     background: #f7f0dd; border: 1.5px dashed #c9b98f; border-radius: 5px; padding: 3px 9px;
   }
   .passport .stamp:hover { background: #efe6cc; }
-  /* 完乘章:印泥紅雙框篆刻感+微傾角,像手蓋的紀念章 */
+  /* 完乘章:印泥紅雙框篆刻感,像手蓋的紀念章(不加傾角,整排對齊乾淨) */
   .passport .stamp.got {
     color: #b8321f; font-weight: 800; cursor: default;
     background: #fdf2ec; border: 1.6px solid #cf4a37; border-radius: 6px;
     outline: 1px solid rgba(207,74,55,.38); outline-offset: 2px;
-    box-shadow: none; transform: rotate(-1.4deg);
+    box-shadow: none;
   }
-  .passport .stamp.got:nth-child(even) { transform: rotate(1deg); }
   .passport .stamp.got:hover { background: #fdf2ec; }
+  /* 窄欄(340px)一行擠不下五欄時,起訖站與里程順勢折到次行——不硬截字、不溢出框 */
   .passport .ph-row {
-    display: flex; align-items: baseline; gap: 10px; font-size: 12.5px; color: #5d5240;
-    padding: 3px 2px; border-top: 1px dashed #ece2c8; font-variant-numeric: tabular-nums;
+    display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 8px; font-size: 12.5px; color: #5d5240;
+    padding: 4px 2px; border-top: 1px dashed #ece2c8; font-variant-numeric: tabular-nums;
   }
   .passport .ph-row .d { color: #a89468; flex: none; }
-  .passport .ph-row b { color: #1e2c40; min-width: 44px; }
+  .passport .ph-row b { color: #1e2c40; flex: none; min-width: 44px; }
   .passport .ph-row .k { flex: none; color: #2a4a73; font-weight: 600; }
-  .passport .ph-row .r { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .passport .ph-row .km { color: #8a7c62; }
+  .passport .ph-row .r { flex: 1 1 6em; min-width: 6em; } /* 起訖站佔剩餘寬,放不下就整段折行,不截字 */
+  .passport .ph-row .km { flex: none; margin-left: auto; color: #8a7c62; }
   .passport .ph-empty { font-size: 12.5px; color: #8a7c62; }
   .passport .stamp.na { cursor: help; filter: grayscale(.85); } /* 成就徽章不可點,滑過看解鎖條件;未解鎖連 emoji 一起褪色 */
   /* 成就徽章(金)與完乘章(紅)兩家族區隔 */
@@ -1626,6 +1626,9 @@ function drawSched(w, h) {
     if (isFollow) { drawFollowMarker(cp, tr); state._trainHits.push({ x: cp.x, y: cp.y, tr }); continue; }
     if (!inView(cp)) continue;
     state._trainHits.push({ x: cp.x, y: cp.y, tr }); // 供點擊/hover 命中測試(每幀重建)
+    const glowC = isHSR(tr) ? HSR_ORANGE : tr.color;
+    drawTrail(dt => trainPos(tr, state.simSec - dt), cp, glowC);
+    glowUnder(cp, glowC, showTrain ? 10 : 3.5); // 車號牌模式:光暈放大到繞出牌緣,近看也發亮
     if (showTrain) isHSR(tr) ? drawHSRTag(cp, tr.train) : drawTag(cp, tr.train, tr.color, textColorFor(tr.color));
     else isHSR(tr) ? drawHSRDot(cp) : drawDot(cp, tr.color);
   }
@@ -1643,6 +1646,9 @@ function drawSched(w, h) {
 }
 
 function drawFollowMarker(p, tr) {
+  const glowC = isHSR(tr) ? HSR_ORANGE : tr.color;
+  drawTrail(dt => trainPos(tr, state.simSec - dt), p, glowC);
+  glowUnder(p, glowC, 7); // 跟隨主角:光暈最強
   const dw = dwellInfoOf(tr, effT(tr));
   if (dw && dw.st.stop !== false) { // 停站脈動:外圈呼吸擴散
     const ph = (performance.now() % 1600) / 1600;
@@ -1727,6 +1733,47 @@ function drawDot(p, color) {
   ctx.fillStyle = '#ffffff'; ctx.globalAlpha = 0.95; ctx.fill();
   ctx.beginPath(); ctx.arc(p.x, p.y, 2, 0, 7);
   ctx.fillStyle = color; ctx.globalAlpha = 1; ctx.fill();
+}
+
+// 主題感霓虹光暈:暗色/衛星底圖下,主角列車(台鐵/高鐵)點下墊一層發光光暈,
+// 暖紙白紙底維持乾淨不發光。用 save/restore 隔離 shadow,只墊在列車下層——
+// 車號牌文字與站名標籤不吃到 shadow(否則會糊)。r 依標記大小給:圓點小、車號牌大。
+function trainGlow() { return state.basemap === 'sat' || state.mapDark; }
+function glowUnder(p, color, r) {
+  if (!trainGlow()) return;
+  ctx.save();
+  ctx.shadowColor = color; ctx.shadowBlur = 13;
+  ctx.globalAlpha = 0.85;
+  ctx.beginPath(); ctx.arc(p.x, p.y, r, 0, 7); ctx.fillStyle = color; ctx.fill();
+  ctx.fill(); // 二次疊塗加深光暈,核心更亮
+  ctx.restore();
+}
+
+// 流光拖尾:暗色/衛星底圖下,主角列車身後拖一條漸淡的彗星尾。
+// 作法是「往回取樣列車過去的位置」——位置是模擬時間的純函式,回看 dt 秒即得歷史點,
+// 逐段轉螢幕座標連成折線,頭粗亮、尾細淡。純函式無狀態:平移/縮放/拖時間都自動對齊不殘影。
+// 速度愈快、同樣回看時間走得愈遠 → 尾巴自然愈長(高鐵拖最長),不另算時速。
+const TRAIL_SEC = 44;    // 回看的模擬秒數(尾長 = 時速 × 此值);dwelling 停站時各取樣點重合,尾自然收成點
+const TRAIL_STEPS = 7;
+function drawTrail(getPos, head, color) {
+  if (!trainGlow()) return;
+  const step = TRAIL_SEC / TRAIL_STEPS;
+  ctx.save();
+  ctx.globalCompositeOperation = 'lighter'; // 疊加混色:暗底上尾巴自然透出流光,比 shadowBlur 便宜
+  ctx.lineCap = 'round';
+  let prev = head;
+  for (let k = 1; k <= TRAIL_STEPS; k++) {
+    const pos = getPos(k * step);
+    if (!pos) break; // 早於發車 / 環島與跨午夜回繞 → 沒有更早的位置,尾巴到此為止
+    const cp = map.latLngToContainerPoint([pos.lat, pos.lon]);
+    if (Math.hypot(cp.x - prev.x, cp.y - prev.y) > 200) break; // 防回繞/跳站在畫面上拉出長弦
+    const f = 1 - (k - 1) / TRAIL_STEPS; // 頭段≈1 → 尾段≈0
+    ctx.beginPath(); ctx.moveTo(prev.x, prev.y); ctx.lineTo(cp.x, cp.y);
+    ctx.strokeStyle = color; ctx.globalAlpha = 0.4 * f; ctx.lineWidth = 4.2 * f + 0.6;
+    ctx.stroke();
+    prev = cp;
+  }
+  ctx.restore();
 }
 
 // 高鐵列車專屬外觀:兩端尖頭的白底子彈輪廓＋橘框橘字(仿 700T/N700 白車身橘帶),
