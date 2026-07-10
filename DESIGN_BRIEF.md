@@ -1,89 +1,82 @@
-# DESIGN BRIEF — 帶去 Claude Design 的打磨指示
+# 列車有時 — Claude Design 打磨簡報（第二輪 · v0710k 基準）
 
-> 給 Claude Design(claude.ai)新專案的第一則訊息可以直接貼這份檔案,
-> 並上傳 `design-mock.html`(必要)與 `index.html`(參考)。
+> 給 Claude Design 的工作說明。上傳 `design-mock.html` 這一個檔案即可開工。
+> 第一輪已把工程黑底風改成現在的「米色琺瑯站牌」風；這一輪是全站打磨——
+> 尤其是第一輪之後新增的大量元件（見「本輪重點」）。
 
-## 你(Claude Design)要做什麼
+## 這是什麼網站
 
-**只做視覺設計打磨,不改任何邏輯。** 對象是一個「台灣鐵道列車即時動畫」單頁 app:
-真實地圖上有動態列車,周邊是操作 UI。目前功能完整、風格是「能用但素」的暗色工程風,
-目標是把它打磨成有品牌感、有層級、值得分享的作品。
+台鐵×高鐵即時列車動畫地圖（https://taiwan-rail-live.sirius1984.workers.dev）。
+全台列車依真實時刻表在地圖上跑，可以點車跟隨、點站看班次、收集完乘章。
+單檔 vanilla JS（index.html ~4000 行），地圖用 Leaflet，列車與車站畫在 canvas 上。
 
-## 用哪個檔案工作(重要)
+## 工作方式（重要）
 
-- **`design-mock.html` — 在這裡改。** 完全自包含(無 CDN、無外部圖磚、無資料請求),
-  在 Claude Design 的預覽可以 100% 渲染。它复制了正式版全部 CSS 與所有 UI 元件的
-  「真實使用中狀態」(時刻板開啟、跟隨列車中、圖例兩組、流量圖有資料),
-  地圖區用內嵌 SVG 假地圖代替(真品是 CARTO 圖磚,不歸設計管)。
-- **`index.html` — 只讀參考,別在 Claude Design 裡跑。** 它依賴 Leaflet CDN、
-  CARTO 圖磚、`./data/*.json`,在沙盒裡會是破圖。最終合併由 Claude Code 在本機做。
+- **只改 `design-mock.html`**。它的 `<style>` 區塊與正式版 index.html 完全同步（自動抽取），
+  body 是各元件「真實使用中狀態」的靜態複製——所見即正式版樣式。
+- 改完後把整個 design-mock.html 交回（或匯出 bundle），Claude Code 會把 CSS diff
+  合併回 index.html、並把 canvas 規格移植進 JS 繪圖碼。
+- 檔尾有 `<style id="mockOverrides">`：那是 mock 專用的展示用樣式（讓浮動面板攤平陳列），
+  **不要把設計改寫進這一塊**，正式合併時整段忽略。
+- 頁尾「specimen 區」（`.mock-spec`）正式版不存在：看板家族攤開、公告展開、
+  **canvas 繪製規格**（車牌／車站圖示／軌道線）、色票。改 specimen 的樣式＝改規格，
+  合併時 Claude Code 照著改 JS 繪圖碼。
 
-## 設計面清單(要打磨的 surfaces)
+## 不可改的硬約束
 
-1. **Header**:標題「台灣鐵道 · 列車流動動畫」+ 副標。目前太素,缺品牌感。
-2. **系統切換 pills**:台北捷運/台鐵(班距)/台鐵·真實班表。
-3. **Stage 上的 HUD badge**(左上):時鐘 19:49 + 模式膠囊 + 「運行列車 N 班」。
-4. **車站時刻板**(右上浮動面板):站名+副標+班次列(色點/車次/車種/往/時刻/幾分後)。
-   這是最有「產品感」潛力的元件——可以往真實車站電子看板的方向設計。
-5. **控制列**:暫停/播放、速度滑桿(1–60×)、時間滑桿、「現在」按鈕。
-6. **搜尋列**:車次輸入框 + 跟隨資訊膠囊(色點/車次/區間/時段/取消按鈕;
-   另有 `.followbar.miss` 查無車次的警告態)。
-7. **流量圖**:全日 144 根柱狀 + 白色現在游標 + 說明文字。可以更像儀表板元件
-   (尖峰高亮、整點刻度、hover 樣式)。
-8. **圖例 chips 兩組**:「車種(篩選列車)」5 顆、「鐵道路線(顯示/隱藏軌道)」15 顆,
-   `.off` 為半透明關閉態。15 顆會換行,目前視覺很擠。
-9. **註腳 note**:資料來源說明。
-10. **RWD**:目前桌面優先(max-width 1040px),手機版值得重排(控制列、時刻板、圖例)。
+1. **所有元素 id 不可改名**（JS 綁定）。
+2. **JS 切換的 class 不可改名**（可以改它們的樣式）：
+   `active / idle / off / run / show / routes-closed / closed / cur / dark / fs /
+   immersive / past / playing / sat / sheet-open / tools-open / ambient / on / miss / got / na / rt`
+3. **資料定義色不可改**（設計要能容納它們）：
+   車種色——其他 `#8E44AD`、區間快 `#16A085`、區間車 `#2E6FB0`、自強 `#C0392B`、
+   莒光/復興 `#E8792B`、高鐵 `#E85D0D`；路線色與捷運官方色由資料檔給值，
+   一律經由 inline `style="background:..."` 或 canvas 繪圖進畫面。
+4. 結構（DOM 巢狀）盡量不動；要動請在交回說明中點名，Claude Code 評估後合併。
 
-## 目前的設計 tokens(現狀,可重定義)
+## 現行設計語彙（第一輪定調，可微調不可翻盤）
 
-- 背景 `#0b0e14`;面板 `#10141c` / `#151b26` / `#1a2130`;邊框 `#1e2530` / `#2a3546`
-- 文字 `#e6e9ef`;次要 `#9aa3b2` / `#8590a2`;強調藍 `#6ea8fe`(滑桿 accent)
-- 跟隨膠囊 `#12233f`/`#26405f`;警告態 `#3a2417`/`#5a3a24`/`#ffb27a`
-- 圓角:pills/按鈕 8px、stage 14px、面板 12px、chips 999px
-- 字體:`-apple-system, "PingFang TC", "Noto Sans TC", sans-serif`;
-  數字處用 `font-variant-numeric: tabular-nums`
-- 路線/車種色(資料定義,**不可改**,設計要能容納它們):
-  車種:其他 `#8E44AD`、區間快 `#16A085`、區間車 `#2E6FB0`、自強 `#C0392B`、莒光/復興 `#E8792B`
-  台鐵線:縱貫北 `#2E6FB0`、山 `#E8792B`、海 `#3AA76D`、縱貫南 `#C0392B`、屏東 `#8E44AD`、
-  南迴 `#16A085`、臺東 `#D4A017`、北迴 `#5D6D7E`、宜蘭 `#C2185B`、內灣 `#00A0B0`、
-  六家 `#7FB800`、平溪 `#E4572E`、深澳 `#F2A104`、集集 `#6A8EAE`、沙崙 `#B565A7`
-  北捷:BR `#C48C31`、R `#E3002C`、G `#008659`、O `#F8B61C`、BL `#0070BD`、Y `#FFDB00`
+- 概念：**日式琺瑯站名牌×老車站告示板**。米色紙感、藏青、印章紅。
+- Tokens：底 `#f7f0dd`、面板 `#fffdf6`、邊框 `#c9b98f`、藏青 `#2a4a73`、
+  紅 `#d23c2a`、正文 `#3a3226`／`#1e2c40`、次要 `#7a6c50`。
+- 陰影是硬投影 `0 2px 0`（不是模糊 blur），圓角 6–12px。
+- 字體棧 CJK：`-apple-system, "PingFang TC", "Noto Sans TC", sans-serif`；
+  數字 `font-variant-numeric: tabular-nums`。
 
-## 硬約束(破壞任何一條,合併就會失敗)
+## 本輪重點（第一輪之後新增、還沒被設計手摸過的面）
 
-1. **所有元素 id 不可改名/刪除**(JS 綁定):
-   `map, overlay, clock, peak, count, board, pp, ppIcon, ppTxt, speed, speedOut,
-   tod, todOut, nowBtn, flowWrap, flowChart, flowLbl, searchRow, trainSearch,
-   trainList, followBar, lineToggles, systems, note`
-   以及 JS 動態產生的 `boardClose, unfollow`。
-2. **JS 產生/切換的 class 名不可改**:`.active`(系統鈕)、`.off`(chips)、
-   `.followbar` / `.followbar.miss`、`.legend-lbl`、`.chip`,
-   以及 JS innerHTML 動態產生的結構類:`.dot`(chip/followbar/board 的色點)、
-   board 內的 `.row` / `.dest` / `.t` / `.min` / `.sub` / `.empty` / `.close`。
-   想改這些元素的外觀 → **改 CSS 規則本身,不要改類名**(JS 會繼續輸出舊類名,改名=樣式失效)。
-3. `#overlay` 必須維持 `position:absolute; inset:0; pointer-events:none;` 且蓋在 `#map` 上
-   (z-index 500 級);`.badge`、`.board` 要在其上(600+)。`.stage` 維持 `position:relative`
-   與明確高度。
-4. **畫在 canvas 上的東西 CSS 管不到**:列車標籤(`drawTag`)、光點(`drawDot`)、
-   站名(`tryLabel`)、跟隨雙圈(`drawFollowMarker`)、軌道線(3.4px, alpha 0.7/0.75)、
-   流量柱(`drawFlow`)。想改它們的樣式,請在 mock 裡把新樣式做成
-   「canvas 視覺 spec」註解區(顏色/字級/圓角/粗細寫清楚),Claude Code 會改進 JS。
-5. 不引入任何外部資源(字體、框架、圖)——正式版要能離線+本機跑;系統字棧內發揮。
-6. 深色為主題基調(地圖圖磚是深色的);可以提出亮色副主題,但深色是預設。
+1. **系統群頁籤**（`.grouptabs`＋`.groupmembers`）：國家鐵路／北北桃／中南部／全台同框
+   ＋台鐵/高鐵勾選 chip。
+2. **地圖工具直欄**（`.stage-tools`：探/★/旅/隨/介/衛/☾/簡/⛶）＋手機 ☰ 抽屜（`#toolsFab`）。
+3. **跟隨面板**（`#followPanel`）：mock 裡故意放了「誤點＋長 eta 擠到換行」的真實痛點狀態。
+4. **列車卡**（`#trainCard`）：介紹＋旅程日誌＋全程速度曲線。
+5. **旅程收集護照**（`#passport`）：章（`.stamp` / `.got` / `.na` 成就）＋完乘記錄列。
+6. **今日亮點/最愛/旅程看板**（specimen 區攤開的三張 `.board`）。
+7. **通阻公告**：橫幅（`#alertBanner`）＋展開（`.alert-detail`）。
+8. **音樂控制**（`#musicCtl`：播放中紅底＋等化器動畫、⏭、音量）。
+9. **高鐵車牌**（canvas：白子彈橘框）vs 台鐵膠囊——specimen 區有規格。
+10. **停站站牌**（`#dwellPlate`）與**特殊站介紹**（`.dp-intro`、`.stnMeta`）。
+11. **頁尾**（更新紀錄／資料來源／贊助）。
 
-## 交回格式(給 Claude Code 合併)
+## 手機（務必看）
 
-改完的 `design-mock.html` 整檔傳回即可,並在檔案頂端加一段
-`<!-- DESIGN CHANGELOG: ... -->` 列出:(1)改了哪些 CSS 區塊(2)動了哪些 DOM 結構
-(3)canvas 視覺 spec(如果有)。Claude Code 會把樣式移植回 `index.html`、
-接回真地圖與真資料、在本機 preview 逐項驗證(三系統、時刻板、跟車、流量圖、RWD)。
+- 把預覽窗縮到 **390px** 寬：`@media (max-width: 640px)` 全部生效，單欄堆疊、
+  看板變全寬 bottom sheet、工具鈕收進 ☰ 抽屜。
+- 模擬狀態用 body class：`tools-open`（抽屜展開）、`ambient`（放空模式極簡 UI）、
+  `fs`（全畫面）、`ambient fs` 連用＝手機放空全畫面（跟隨小卡縮到 176px、
+  控制列只剩「放空模式」鈕靠右下角）。
+- 手機鐵則：**不可出現橫向捲動**；地圖上的浮動元件不可擋住列車本體。
 
-## 建議的打磨方向(參考,可自由發揮)
+## 已知想改善的點（給設計的起手線索,不是限制）
 
-- 標題列做出「路網圖海報」的品牌感(字重對比、字距、小 LOGO 符號如 ●▬●)。
-- 時刻板往真實車站 LED/LCD 看板靠(等寬數字、行分隔、即將進站的醒目態)。
-- HUD badge 整合成一個玻璃擬態或儀表卡。
-- 流量圖加尖峰帶高亮(07-09、17-19:30)與整點刻度。
-- chips 兩組改成可折疊/分區塊,解決 15 顆換行的擁擠。
-- 手機直立版:地圖滿寬、控制沉底、時刻板改 bottom sheet。
+- 跟隨面板資訊擠（誤點時換行）——見 mock 現況。
+- 地圖上同時開「停站站牌＋車站看板＋公告橫幅」時的層疊關係與視覺優先序。
+- 徽章區（成就 `.stamp.na`）與收集章視覺區隔可以更有「印章感」。
+- 手機版時鐘 badge 與公告橫幅同列偏擠。
+
+## 驗收（交回前自查）
+
+- 桌面 1440px ＋手機 390px 都不破版、無橫向捲動。
+- 所有 id 與第 2 條的 class 名原封未動。
+- 檔案自包含：無 CDN、無外部字體、無網路請求。
+- mockOverrides 區塊仍在檔尾且未混入正式樣式。
