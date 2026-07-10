@@ -207,19 +207,19 @@
     padding: 10px 13px 11px;
     font-variant-numeric: tabular-nums;
   }
-  .follow-panel .fp-head { display: flex; align-items: center; gap: 8px; }
+  /* 標題列允許換行,車種名(order 排最後)獨佔第二行、可折行、全名永不截:
+     時速位數變動(0↔51↔128)只動時速表自己的左緣,不再擠壓車種字造成卡高跳動;
+     極長名(如「自強號（E500 新編組・官方代碼未公布）」225px>可用 200px)折兩行而非省略 */
+  .follow-panel .fp-head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
   .follow-panel .fp-head .dot { width: 9px; height: 9px; border-radius: 50%; flex: none; }
   .follow-panel .fp-head b { font-size: 15px; color: #1e2c40; }
-  /* 車種名單行省略＋時速表預留三位數寬:時速位數變動(0↔51↔128)才不會擠壓車種字
-     造成換行、整張卡高度跳動(手機版另有第二行橫排解法,見 max-width:640 區) */
   .follow-panel .fp-head .kind {
     font-size: 12px; color: #7a6c50; font-weight: 600;
-    flex: 1 1 auto; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    order: 9; flex: 1 1 100%; min-width: 0; margin-top: 1px;
   }
   .follow-panel .fp-head .spd {
     margin-left: auto; font-size: 11px; color: #2a4a73; font-weight: 700;
     font-variant-numeric: tabular-nums; white-space: nowrap; align-self: baseline;
-    flex: none; min-width: 78px; text-align: right;
   }
   .follow-panel .fp-head .spd b {
     font-size: 24px; font-weight: 900; color: #d23c2a; letter-spacing: .5px;
@@ -756,13 +756,7 @@
     .followbar { flex-wrap: wrap; }
     .chip { font-size: 12px; padding: 4px 10px 4px 7px; }
     .follow-panel { left: 8px; bottom: 8px; width: 200px; }
-    /* 窄卡的車種名(如「區間車（通勤電聯車）」)在 flex 標題列會被擠成一字一行的直欄把卡撐高:
-       改讓標題列換行,車種名獨佔第二行橫排(order 排到最後),單行省略 */
-    .follow-panel .fp-head { flex-wrap: wrap; }
-    .follow-panel .fp-head .kind {
-      order: 9; flex: 1 1 100%; min-width: 0; margin-top: 1px;
-      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-    }
+    /* 標題列換行+車種名獨佔第二行:原本只有手機這樣做,現已升格為基礎規則(所有寬度適用) */
     /* 看板/最愛/旅程/探索四選一的底部 sheet 開啟時(見 updateSheetOpenClass),跟隨小卡讓道到 sheet 上方;
        sheet 最高 46%,抓 46%+間距頂上去;max-height 保住左上時鐘 badge(高約 45px+邊距)不被蓋,卡內自行捲動 */
     body.sheet-open .follow-panel { bottom: calc(46% + 16px); max-height: calc(54% - 84px); }
@@ -790,8 +784,6 @@
     body.ambient .follow-panel .fp-next .lbl { display: none; } /* 「下一站」字樣省下,窄卡站名才不換行 */
     body.ambient .follow-panel .fp-head b { font-size: 13px; }
     body.ambient .follow-panel .fp-head .spd b { font-size: 17px; }
-    /* 迷你卡已藏車種名,不需為時速預留寬度;桌面版的 78px 預留在 176px 窄卡會把 × 擠到第二行 */
-    body.ambient .follow-panel .fp-head .spd { min-width: 0; }
     body.ambient .follow-panel .fp-next .stn { font-size: 14px; white-space: nowrap; }
     body.ambient.fs .follow-panel { bottom: 8px; } /* 「離開放空」已靠右下,左下角整個還給迷你卡 */
   }
