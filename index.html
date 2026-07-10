@@ -668,6 +668,19 @@
   .ctl { display: flex; align-items: center; gap: 10px; }
   .ctl label { font-size: 13px; color: #7a6c50; font-weight: 600; white-space: nowrap; }
   .ctl output { font-size: 13px; font-weight: 800; min-width: 48px; color: #1e2c40; }
+  /* 點時間讀數直接指定時刻:透明 time input 疊在讀數上,手機點開原生滾輪、桌面聚焦後現形可打字 */
+  .tod-wrap { position: relative; display: inline-flex; }
+  .tod-wrap input[type=time] {
+    position: absolute; inset: 0; width: 100%; height: 100%; box-sizing: border-box;
+    opacity: 0; border: 0; padding: 0; margin: 0; cursor: pointer; font: inherit;
+  }
+  .tod-wrap:focus-within output { display: none; }
+  .tod-wrap:focus-within input[type=time] {
+    position: static; opacity: 1; width: auto; min-width: 74px;
+    background: #fffdf6; border: 1.5px solid #2a4a73; border-radius: 6px;
+    font-size: 13px; font-weight: 800; color: #1e2c40; text-align: center; padding: 1px 4px;
+  }
+  #todOut { text-decoration: underline dotted #8896ad; text-underline-offset: 3px; cursor: pointer; }
   input[type=range] { accent-color: #d23c2a; width: 150px; }
   button.pp {
     font: inherit; font-size: 14px; font-weight: 700; cursor: pointer;
@@ -1157,7 +1170,7 @@
     <div class="ctl">
       <label for="tod">時間</label>
       <input type="range" id="tod" min="5" max="24" step="1" value="8" />
-      <output id="todOut">08:00</output>
+      <span class="tod-wrap" title="點擊直接指定時刻"><output id="todOut">08:00</output><input type="time" id="todPick" aria-label="直接指定時刻"></span>
     </div>
     <button class="pp" id="nowBtn" title="跳到現在的真實時間">現在</button>
     <button class="pp" id="ambientBtn" title="全畫面+自動換車跟隨，掛著放空用">放空模式</button>
@@ -1255,7 +1268,7 @@
 <script>
 // 版本戳記:每次改版 push 前手動遞增(字母序),畫面時鐘徽章與 console 都會顯示,
 // 供比對線上跑的是不是最新版(瀏覽器快取 max-age=600 常讓人看到舊版)
-const BUILD = 'v0710zg';
+const BUILD = 'v0710zh';
 const state = {
   systems: [], sysId: null, data: null, speed: 36, mode: 'freq',
   lines: [], visible: new Set(), trains: [], schedStations: [], types: [],
@@ -4566,6 +4579,25 @@ document.getElementById('tod').oninput = e => {
     if (state.data) recomputeTrains();
   }
 };
+// 點時間讀數直接指定時刻(手機開原生滾輪、桌面打字):與滑桿走同一條套用路徑
+const todPick = document.getElementById('todPick');
+todPick.addEventListener('focus', () => {
+  todPick.value = state.mode === 'sched' ? fmtHM(state.simSec) : fmtHour(state.hour);
+});
+todPick.addEventListener('change', () => {
+  if (!todPick.value) return; // 桌面清空欄位不套用
+  const [h, m] = todPick.value.split(':').map(Number);
+  if (state.mode === 'sched') { setSimSec(h * 3600 + m * 60); return; }
+  // 班距模式以小時為粒度:分鐘就近取整;清晨 0-4 沒班次,夾回首班 5 點(00:00 視為滑桿的 24)
+  let hh = h + (m >= 30 ? 1 : 0);
+  if (hh < 5) hh = hh === 0 ? 24 : 5;
+  state.hour = hh;
+  document.getElementById('tod').value = hh;
+  document.getElementById('todOut').textContent = fmtHour(hh);
+  refreshBadge();
+  if (state.data) recomputeTrains();
+});
+todPick.addEventListener('keydown', e => { if (e.key === 'Enter') todPick.blur(); });
 document.getElementById('nowBtn').onclick = jumpToNow;
 document.getElementById('donateCopy').onclick = () =>
   navigator.clipboard.writeText('0521979118500')
