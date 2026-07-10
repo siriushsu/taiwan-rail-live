@@ -1002,6 +1002,7 @@
       <button id="introBtn" title="經過特殊車站時顯示介紹"><span class="ti">介</span><span class="tl">特殊站介紹</span></button>
       <button id="satBtn" title="切換衛星影像"><span class="ti">衛</span><span class="tl">衛星影像</span></button>
       <button id="themeBtn" title="地圖明暗切換"><span class="ti">☾</span><span class="tl">地圖明暗</span></button>
+      <button id="trackBtn" title="軌道顯示：自動（夜間自動淡化）→ 淡化 → 隱藏"><span class="ti">軌</span><span class="tl">軌道顯示</span></button>
       <button id="immBtn" title="極簡沉浸（只留地圖與列車）"><span class="ti">簡</span><span class="tl">極簡沉浸</span></button>
       <button id="fsBtn" title="全畫面地圖（Esc 退出）"><span class="ti">⛶</span><span class="tl">全畫面</span></button>
       <button id="recBtn" title="錄影 Beta（存成影片下載）"><span class="ti">⏺</span><span class="tl">錄影 Beta</span></button>
@@ -1152,7 +1153,7 @@
 <script>
 // 版本戳記:每次改版 push 前手動遞增(字母序),畫面時鐘徽章與 console 都會顯示,
 // 供比對線上跑的是不是最新版(瀏覽器快取 max-age=600 常讓人看到舊版)
-const BUILD = 'v0710t';
+const BUILD = 'v0710u';
 const state = {
   systems: [], sysId: null, data: null, speed: 36, mode: 'freq',
   lines: [], visible: new Set(), trains: [], schedStations: [], types: [],
@@ -1160,6 +1161,7 @@ const state = {
   dpr: 1, t0: 0, elapsed: 0, ready: false,
   followTrain: null, followId: null,
   mapDark: false, basemap: 'map', trackData: null,
+  trackStyle: 'auto', // 軌道顯示:auto(亮色原色/夜間衛星自動淡化)、faint(一律更淡)、hidden(只留列車與車站)
   live: null, // 台鐵即時誤點 {map: 車次→誤點分, at: 抓取時刻, delayed, srcAt}
   stnIntro: false, immersive: false, // 特殊站介紹開關(放空自動開)、極簡沉浸(全畫面隱藏左側卡)
 };
@@ -1538,14 +1540,16 @@ function drawFreq(w, h) {
   const drawnNames = new Set();
   ctx.textAlign = 'center';
   ctx.lineCap = 'round'; ctx.lineJoin = 'round';
-  state.lines.forEach(ln => {
+  if (state.trackStyle !== 'hidden') state.lines.forEach(ln => {
     if (!state.visible.has(ln.id) || !ln.pts) return;
     const line = ln.shapePts || ln.pts;
     ctx.beginPath();
     line.forEach((p, i) => i ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y));
     /* 實色線+底圖色外描(knockout):交會處乾淨讓線,取代半透明疊印 */
     ctx.strokeStyle = P.railCase; ctx.lineWidth = 5.6; ctx.stroke();
-    ctx.strokeStyle = ln.color; ctx.lineWidth = 3; ctx.stroke();
+    /* 捷運無光暈拖尾,auto 不淡化;只吃手動「淡化」 */
+    ctx.strokeStyle = state.trackStyle === 'faint' ? trackLineColor(ln.color) : ln.color;
+    ctx.lineWidth = 3; ctx.stroke();
   });
   const freqLabels = [];
   state.lines.forEach(ln => {
@@ -1594,7 +1598,7 @@ function drawDeco(w, h) {
   const P = pal();
   const inView = p => p.x >= -40 && p.x <= w + 40 && p.y >= -20 && p.y <= h + 20;
   ctx.lineCap = 'round'; ctx.lineJoin = 'round';
-  for (const ln of state.decoLines) {
+  if (state.trackStyle !== 'hidden') for (const ln of state.decoLines) {
     const line = ln.shapePts || ln.pts;
     if (!line || line.length < 2) continue;
     ctx.beginPath();
@@ -1620,10 +1624,10 @@ function drawDeco(w, h) {
 // 暗色/衛星底圖:路線官方色全亮會蓋過列車光暈與拖尾,預混向底圖色壓暗
 // (維持實色+knockout 設計,不回頭用半透明疊印);亮色紙底不壓。
 const _railDim = {};
-const RAIL_DIM = 0.40;   // 一般路線:官方色保留比例,其餘混入底圖色
+const RAIL_DIM = 0.40;   // 自動模式暗色/衛星:官方色保留比例,其餘混入底圖色
 const FOLLOW_DIM = 0.62; // 跟隨高亮:壓得少一點,層級仍高於一般線,但讓同色拖尾/光暈能亮過它
-function railDimColor(color, keep = RAIL_DIM) {
-  if (!trainGlow()) return color;
+const FAINT_GLOW = 0.22, FAINT_LIGHT = 0.35; // 手動「淡化」:暗底壓更黑、亮紙底向紙色洗淡
+function railMix(color, keep) { // 純混色(向底圖色 railCase),帶快取
   const base = pal().railCase, key = color + base + keep;
   if (_railDim[key]) return _railDim[key];
   if (!/^#[0-9a-fA-F]{6}$/.test(color) || !/^#[0-9a-fA-F]{6}$/.test(base)) return (_railDim[key] = color);
@@ -1632,13 +1636,21 @@ function railDimColor(color, keep = RAIL_DIM) {
   for (const i of [1, 3, 5]) out += Math.round(ch(color, i) * keep + ch(base, i) * (1 - keep)).toString(16).padStart(2, '0');
   return (_railDim[key] = out);
 }
+function railDimColor(color, keep = RAIL_DIM) { // 僅暗色/衛星壓暗,亮色原色直出
+  return trainGlow() ? railMix(color, keep) : color;
+}
+// 軌道底圖線最終色:吃「軌道顯示」選項(hidden 由呼叫端整段跳過不畫)
+function trackLineColor(color) {
+  if (state.trackStyle === 'faint') return railMix(color, trainGlow() ? FAINT_GLOW : FAINT_LIGHT);
+  return railDimColor(color);
+}
 
 function drawSched(w, h) {
   const P = pal();
   const z = map.getZoom();
   const showTrain = z >= 11;
   const inView = p => p.x >= -40 && p.x <= w + 40 && p.y >= -20 && p.y <= h + 20;
-  if (state.trackLines) {
+  if (state.trackLines && state.trackStyle !== 'hidden') {
     ctx.lineCap = 'round'; ctx.lineJoin = 'round';
     for (const ln of state.trackLines) {
       if (state.trackVisible && !state.trackVisible.has(ln.id)) continue;
@@ -1653,7 +1665,7 @@ function drawSched(w, h) {
       }
       /* 實色線+底圖色外描(knockout):交會處乾淨讓線,取代半透明疊印 */
       ctx.strokeStyle = P.railCase; ctx.lineWidth = 5.6; ctx.stroke();
-      ctx.strokeStyle = railDimColor(ln.color); ctx.lineWidth = 3; ctx.stroke();
+      ctx.strokeStyle = trackLineColor(ln.color); ctx.lineWidth = 3; ctx.stroke();
     }
   }
   // 跟隨路線高亮:奶白外描+加粗實線(取代模糊光暈),描在軌道上、車站與列車下
@@ -2029,36 +2041,45 @@ function fitData(latlngs) {
   doFit();
 }
 
-// ── 無盡環島號(虛構觀光列車,data/tra_special_trains.json 的 endless-loop):
-// 順逆時針各一班,永遠在環島幹線上跑。一圈固定 12 小時(每站每日固定兩個時刻),
-// 時刻由軌道弧長等速合成＋大站停 2 分;trainPos/effT 對圈長取模,所以永不到站、無限循環
+// ── 山海號・平原號(虛構觀光列車,data/tra_special_trains.json 的 endless-loop):
+// 兩台都從臺北出發:山海號(8888)走宜蘭花東線往東、平原號(8889)走西部縱貫線往西,
+// 同抵枋寮後折返,永續來回。一輪來回固定 12 小時,時刻由軌道弧長等速合成＋停靠站停 2 分;
+// trainPos/effT 對圈長取模,所以永不到站、無限循環
 const LOOP_SEC = 43200, LOOP_DEP = 8 * 3600, LOOP_DWELL = 120;
-// 環島站序(順時針,宜蘭花蓮先行):*=接線通過點不停車;站名以時刻表資料為準(臺/台自動對應)
-const LOOP_STOPS_CW = ['臺北', '八堵*', '宜蘭', '蘇澳新*', '花蓮', '臺東', '枋寮', '高雄', '臺南', '嘉義', '彰化', '臺中', '竹南*', '新竹', '桃園'];
+// 單程站序(臺北→枋寮):*=接線通過點不停車;站名以時刻表資料為準(臺/台自動對應)
+const LOOP_EAST = ['臺北', '八堵*', '宜蘭', '蘇澳新*', '花蓮', '臺東', '枋寮'];               // 山海號:一側太平洋一側山
+const LOOP_WEST = ['臺北', '桃園', '新竹', '竹南*', '臺中', '彰化', '嘉義', '臺南', '高雄', '枋寮']; // 平原號:嘉南平原稻浪
 function buildLoopTrains(data) {
   if (data._loopAdded) return;
   data._loopAdded = true;
   if (data.trains.some(t => String(t.train) === '8888' || String(t.train) === '8889')) return; // 車次號撞真車就不出
   const coord = new Map();
   data.trains.forEach(tr => tr.stops.forEach(s => { if (!coord.has(s.name)) coord.set(s.name, s); }));
-  const seq = [];
-  for (const raw of LOOP_STOPS_CW) {
-    const pass = raw.endsWith('*'), name = pass ? raw.slice(0, -1) : raw;
-    const st = coord.get(name) || coord.get(name.replace(/臺/g, '台'));
-    if (!st) return; // 站名對不上就整組不出車(資料檔變動時安全退場)
-    seq.push({ st, pass });
-  }
+  const resolve = names => {
+    const seq = [];
+    for (const raw of names) {
+      const pass = raw.endsWith('*'), name = pass ? raw.slice(0, -1) : raw;
+      const st = coord.get(name) || coord.get(name.replace(/臺/g, '台'));
+      if (!st) return null; // 站名對不上就整組不出車(資料檔變動時安全退場)
+      seq.push({ st, pass });
+    }
+    return seq;
+  };
+  const east = resolve(LOOP_EAST), west = resolve(LOOP_WEST);
+  if (!east || !west) return;
   const typeKey = ((data.types || []).find(t => t.key === '其他') || (data.types || [])[0] || { key: '其他' }).key;
-  const mk = (no, list) => ({
-    train: no, typeName: typeKey, color: '#d2a12a', loop: true, loopSec: LOOP_SEC,
-    stops: list.concat([list[0]]).map(x => {
+  // stops = 去程 + 回程(去程中間站反序) + 回到起點;loopApexIdx=折返點(枋寮)索引,看板方向判斷用
+  const mk = (no, loopName, color, oneWay) => ({
+    train: no, typeName: typeKey, color, loop: true, loopSec: LOOP_SEC,
+    loopName, loopApexIdx: oneWay.length - 1,
+    stops: oneWay.concat(oneWay.slice(1, -1).reverse(), [oneWay[0]]).map(x => {
       const o = { name: x.st.name, lat: x.st.lat, lon: x.st.lon, arrSec: 0, depSec: 0 };
       if (x.pass) o.stop = false;
       return o;
     }),
   });
-  data.trains.push(mk('8888', seq));
-  data.trains.push(mk('8889', [seq[0]].concat(seq.slice(1).reverse())));
+  data.trains.push(mk('8888', '山海號', '#2f8f83', east));
+  data.trains.push(mk('8889', '平原號', '#d2a12a', west));
 }
 // 貼軌完成後才知道每段實際弧長,把一圈時刻按里程等比鋪滿 12 小時
 function retimeLoopTrains() {
@@ -2448,7 +2469,7 @@ function setFollow(tr, isAuto, noJump, opts) {
   // 完乘資格快照:記錄跟隨起點時間,中途接手或跳時間作弊的都不蓋章(見 updateFollowCamera)
   state.followStartEff = effT(tr);
   state.followTimeJumped = false;
-  state._lapPrev = null; state._lapAcc = 0; // 環島車完乘=連續跟滿一圈,換車歸零重計
+  state._lapPrev = null; state._lapAcc = 0; // 山海/平原號完乘=連續跟滿一輪來回,換車歸零重計
   state._routePts = buildFollowRoute(tr);
   showFollowPanel(tr);
   placeTrainCard();
@@ -3037,7 +3058,7 @@ const ACHIEVEMENTS = [
   { id: 'stops50',  icon: '🐌', name: '站站是風景',     desc: '完乘一班停靠 50 站以上的慢車' },
   { id: 'early',    icon: '🌄', name: '早鳥',           desc: '完乘一班清晨 6 點前發車的列車' },
   { id: 'night',    icon: '🌙', name: '夜行者',         desc: '完乘一班晚上 10 點後發車的列車' },
-  { id: 'loop',     icon: '♾️', name: '環島一周',       desc: '跟著無盡環島號連續繞行寶島一整圈' },
+  { id: 'loop',     icon: '♾️', name: '山海平原',       desc: '跟著山海號或平原號連續跟滿一整輪來回（臺北⇄枋寮⇄臺北）' },
   { id: 'day3',     icon: '📅', name: '一日三乘',       desc: '同一天完乘 3 趟' },
   { id: 'tilting',  icon: '⚖️', name: '傾斜雙雄',       desc: '收集太魯閣號與普悠瑪號兩枚傾斜式車種章' },
   { id: 'namedAll', icon: '🌟', name: '明星集郵冊',     desc: '收集所有明星列車章' },
@@ -3406,10 +3427,10 @@ function showFollowPanel(tr) {
   document.getElementById('fpDot').style.background = tr.color;
   document.getElementById('fpTrain').textContent = tr.train;
   const it = renderTrainCard(tr);
-  document.getElementById('fpKind').textContent = tr.loop ? '觀光列車' : (it.kind || tr.typeName);
+  document.getElementById('fpKind').textContent = tr.loop ? `${tr.loopName}・觀光列車` : (it.kind || tr.typeName);
   const first = tr.stops[0], last = tr.stops[tr.stops.length - 1];
   document.getElementById('fpDest').textContent = tr.loop
-    ? '環島循環運行 · 一圈 12 小時 · 永不到站'
+    ? '臺北 ⇄ 枋寮 永續來回 · 一輪 12 小時 · 永不到站'
     : `${first.name} → ${last.name} · 終點 ${fmtHM(last.arrSec % 86400)} 抵達`;
   fp.hidden = false;
   updateFollowAlert(); // 行經通阻公告路線的車,跟隨當下就掛警示
@@ -3509,7 +3530,7 @@ function renderFollowBar(msg) {
   fb.className = 'followbar'; fb.hidden = false;
   fb.innerHTML =
     `<span class="dot" style="background:${tr.color}"></span>` +
-    `<b>${tr.train}</b> ${tr.loop ? '無盡環島號　環島循環運行中' : `${tr.typeName}　${first.name}→${last.name}　` +
+    `<b>${tr.train}</b> ${tr.loop ? `${tr.loopName}　臺北⇄枋寮 永續來回中` : `${tr.typeName}　${first.name}→${last.name}　` +
     `${fmtHM(first.depSec % 86400)}–${fmtHM(last.arrSec % 86400)}`}` +
     (msg ? `　· ${msg}` : '') +
     `<button id="unfollow">取消跟隨</button>`;
@@ -3541,7 +3562,7 @@ function updateFollowCamera() {
   if (state._transition) { updateFollowPanel(tr); return; } // flyTo 轉場中不搶鏡頭
   const first = tr.stops[0], last = tr.stops[tr.stops.length - 1];
   if (tr.loop) {
-    // 環島車永不到站:完乘改為「連續跟滿一整圈」(同規則:調速可以、跳時間歸零重計)
+    // 山海/平原號永不到站:完乘改為「連續跟滿一整輪來回」(同規則:調速可以、跳時間歸零重計)
     const t = effT(tr);
     if (state._lapPrev != null) {
       let d = t - state._lapPrev;
@@ -3815,21 +3836,22 @@ function renderBoard() {
       const isLast = i === stops.length - 1;
       if (tr.loop && isLast) continue; // 環島車的末站=起點,同站已有發車列,不重複列「終點到達」
       const dl = Math.round(liveDelaySec(tr) / 60);
-      // 環島車一圈 12 小時=每站每日兩班,兩個時刻都要上看板
+      // 山海/平原號一輪來回 12 小時=同站每日多個時刻(去程/回程×兩輪),每個都要上看板
       for (const t of (tr.loop ? [s.depSec, s.depSec + tr.loopSec] : [isLast ? s.arrSec : s.depSec])) {
         let dtm = t + dl * 60 - state.simSec; // 誤點車以估計實際時刻排序/倒數
         if (dtm > 43200) dtm -= 86400; else if (dtm < -43200) dtm += 86400; // 跨午夜換日對齊
         if (dtm < -30 || dtm > 3 * 3600) continue; // 未來 3 小時內
-        rows.push({ tr, t, dtm, dl, isLast, dest: stops[stops.length - 1].name });
+        rows.push({ tr, t, dtm, dl, isLast, dest: stops[stops.length - 1].name,
+          loopDest: tr.loop ? (i < tr.loopApexIdx ? stops[tr.loopApexIdx].name : stops[0].name) : null });
       }
     }
   }
   rows.sort((a, b) => a.dtm - b.dtm);
   const list = rows.slice(0, 12).map(r => {
     const min = r.dtm < 60 ? '即將' : Math.round(r.dtm / 60) + ' 分';
-    const dest = r.tr.loop ? '環島循環' : (r.isLast ? '（終點到達）' : '往 ' + r.dest);
+    const dest = r.tr.loop ? '往 ' + r.loopDest : (r.isLast ? '（終點到達）' : '往 ' + r.dest);
     return `<div class="row" data-no="${r.tr.train}" title="跟隨 ${r.tr.train} 次"><span class="dot" style="background:${r.tr.color}"></span>` +
-      `<b>${r.tr.train}</b><span class="dest">${r.tr.typeName}　${dest}</span>` +
+      `<b>${r.tr.train}</b><span class="dest">${r.tr.loop ? r.tr.loopName : r.tr.typeName}　${dest}</span>` +
       `<span class="t">${fmtHM(r.t % 86400)}${r.dl > 0 ? `<span class="lateTag">+${r.dl}</span>` : ''}</span><span class="min">${min}</span></div>`;
   }).join('');
   el.innerHTML = `<button class="close" id="boardClose">×</button>` +
@@ -4038,6 +4060,18 @@ function setupMapTools() {
     try { localStorage.setItem('trainmap-basemap', state.basemap); } catch (e) {}
     setBasemap();
   };
+  // 軌道顯示三段循環:自動(亮色原色、夜間/衛星自動淡化)→淡化(一律更淡)→隱藏(只留列車與車站)
+  const trackBtn = document.getElementById('trackBtn');
+  const TRACK_LBL = { auto: '軌道:自動', faint: '軌道:淡化', hidden: '軌道:隱藏' };
+  function setTrackStyle(s) {
+    state.trackStyle = s;
+    trackBtn.classList.toggle('active', s !== 'auto');
+    trackBtn.querySelector('.tl').textContent = TRACK_LBL[s];
+    trackBtn.title = `軌道顯示：${s === 'auto' ? '自動（夜間自動淡化）' : s === 'faint' ? '淡化' : '隱藏'}——點擊切換`;
+    try { localStorage.setItem('trainmap-track', s); } catch (e) {}
+  }
+  trackBtn.onclick = () => setTrackStyle(state.trackStyle === 'auto' ? 'faint' : state.trackStyle === 'faint' ? 'hidden' : 'auto');
+  setTrackStyle(state.trackStyle);
 }
 
 // ── 站內錄影:每幀把「圖磚 → Leaflet 向量層 → 列車 overlay → 浮水印」合成到離屏 canvas,
@@ -4235,6 +4269,7 @@ async function boot() {
     maxZoom: 19, crossOrigin: true, attribution: 'Tiles &copy; Esri — Source: Esri, Maxar, Earthstar Geographics',
   });
   try { state.mapDark = localStorage.getItem('trainmap-theme') === 'dark'; } catch (e) {}
+  try { const ts = localStorage.getItem('trainmap-track'); if (ts === 'faint' || ts === 'hidden') state.trackStyle = ts; } catch (e) {}
   try { state.basemap = localStorage.getItem('trainmap-basemap') === 'sat' ? 'sat' : 'map'; } catch (e) {}
   try { state.immersive = localStorage.getItem('trainmap-immersive') === '1'; } catch (e) {}
   setBasemap();
