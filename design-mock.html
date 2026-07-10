@@ -210,10 +210,16 @@
   .follow-panel .fp-head { display: flex; align-items: center; gap: 8px; }
   .follow-panel .fp-head .dot { width: 9px; height: 9px; border-radius: 50%; flex: none; }
   .follow-panel .fp-head b { font-size: 15px; color: #1e2c40; }
-  .follow-panel .fp-head .kind { font-size: 12px; color: #7a6c50; font-weight: 600; }
+  /* 車種名單行省略＋時速表預留三位數寬:時速位數變動(0↔51↔128)才不會擠壓車種字
+     造成換行、整張卡高度跳動(手機版另有第二行橫排解法,見 max-width:640 區) */
+  .follow-panel .fp-head .kind {
+    font-size: 12px; color: #7a6c50; font-weight: 600;
+    flex: 1 1 auto; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
   .follow-panel .fp-head .spd {
     margin-left: auto; font-size: 11px; color: #2a4a73; font-weight: 700;
     font-variant-numeric: tabular-nums; white-space: nowrap; align-self: baseline;
+    flex: none; min-width: 78px; text-align: right;
   }
   .follow-panel .fp-head .spd b {
     font-size: 24px; font-weight: 900; color: #d23c2a; letter-spacing: .5px;
@@ -784,6 +790,8 @@
     body.ambient .follow-panel .fp-next .lbl { display: none; } /* 「下一站」字樣省下,窄卡站名才不換行 */
     body.ambient .follow-panel .fp-head b { font-size: 13px; }
     body.ambient .follow-panel .fp-head .spd b { font-size: 17px; }
+    /* 迷你卡已藏車種名,不需為時速預留寬度;桌面版的 78px 預留在 176px 窄卡會把 × 擠到第二行 */
+    body.ambient .follow-panel .fp-head .spd { min-width: 0; }
     body.ambient .follow-panel .fp-next .stn { font-size: 14px; white-space: nowrap; }
     body.ambient.fs .follow-panel { bottom: 8px; } /* 「離開放空」已靠右下,左下角整個還給迷你卡 */
   }
