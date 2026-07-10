@@ -56,7 +56,7 @@
   header h1 {
     font-size: 34px; font-weight: 900; letter-spacing: 14px; text-indent: 14px;
     color: #26497e; margin: 0; line-height: 1.15;
-    -webkit-text-stroke: 1.1px currentColor; /* 系統字 900 已到頂,描邊再加粗 */
+    -webkit-text-stroke: 0.5px currentColor; /* 系統字 900 已到頂,描邊微加粗;1.1px 筆畫會糊在一起 */
   }
   .plate-sub {
     margin: 2px 0 0; font-size: 12px; letter-spacing: 5px; text-indent: 5px;
@@ -1150,7 +1150,7 @@
         <li><span class="d">7/10</span><span>網站更名「軌島」，正式網址 railisland.tw 上線</span></li>
         <li><span class="d">7/10</span><span>站內錄影（Beta）：一鍵錄製地圖動畫直接存檔分享，畫面附站名浮水印</span></li>
         <li><span class="d">7/10</span><span>環島觀光列車一分為二：往東「山海號」、往西「平原號」，臺北⇄枋寮到站折返永續來回</span></li>
-        <li><span class="d">7/10</span><span>夜間與衛星模式視覺升級：軌道自動變淡、列車光暈更亮、拖尾改流星式漸細光帶；副標改為中文「台灣鐵道即時軌跡」</span></li>
+        <li><span class="d">7/10</span><span>夜間與衛星模式視覺升級：夜間軌道自動變淡（衛星維持官方原色不壓暗）、列車光暈更亮、拖尾改流星式漸細光帶；副標改為中文「台灣鐵道即時軌跡」</span></li>
         <li><span class="d">7/10</span><span>「軌」軌道顯示三段切換：自動／淡化／隱藏——隱藏時全圖只剩極淡幽靈線，由流星串起軌道感</span></li>
         <li><span class="d">7/10</span><span>跟隨鎖：跟隨中直接拖曳地圖即可自由瀏覽，按「◉ 回到列車」恢復置中（Google 導航式）</span></li>
         <li><span class="d">7/9</span><span>沉浸放空升級：真・全螢幕（吃掉網址列）、「簡」極簡沉浸只留地圖與列車、「介」經過特殊車站自動跳站介紹</span></li>
@@ -1200,7 +1200,7 @@
 <script>
 // 版本戳記:每次改版 push 前手動遞增(字母序),畫面時鐘徽章與 console 都會顯示,
 // 供比對線上跑的是不是最新版(瀏覽器快取 max-age=600 常讓人看到舊版)
-const BUILD = 'v0710zb';
+const BUILD = 'v0710zc';
 const state = {
   systems: [], sysId: null, data: null, speed: 36, mode: 'freq',
   lines: [], visible: new Set(), trains: [], schedStations: [], types: [],
@@ -1710,8 +1710,8 @@ function railMix(color, keep) { // 純混色(向底圖色 railCase),帶快取
   for (const i of [1, 3, 5]) out += Math.round(ch(color, i) * keep + ch(base, i) * (1 - keep)).toString(16).padStart(2, '0');
   return (_railDim[key] = out);
 }
-function railDimColor(color, keep = RAIL_DIM) { // 僅暗色/衛星壓暗,亮色原色直出
-  return trainGlow() ? railMix(color, keep) : color;
+function railDimColor(color, keep = RAIL_DIM) { // 僅暗色壓暗;衛星底圖明暗不均,壓暗後軌道近隱形→原色直出
+  return state.mapDark && state.basemap !== 'sat' ? railMix(color, keep) : color;
 }
 // 軌道底圖線最終色:吃「軌道顯示」選項
 function trackLineColor(color) {
