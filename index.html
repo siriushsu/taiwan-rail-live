@@ -1116,6 +1116,8 @@
       <summary><span>🛠 更新紀錄</span><span class="foot-sub">最後更新：2026/7/10</span></summary>
       <ul class="foot-list">
         <li><span class="d">7/10</span><span>高鐵、機場捷運、淡海輕軌、安坑輕軌加入；系統選單改群組頁籤，新增「台鐵＋高鐵同框」與「全台同框」視圖</span></li>
+        <li><span class="d">7/10</span><span>車號牌智慧避讓：列車經過不再貼住站名、同站多車自動上下錯開，挪位的牌補上錨點與導線</span></li>
+        <li><span class="d">7/10</span><span>全台同框視覺升級：捷運與輕軌不再淡化縮小——軌道官方色、站點站名、車號牌全數比照各分頁正式樣式</span></li>
         <li><span class="d">7/10</span><span>網站更名「軌島」，正式網址 railisland.tw 上線</span></li>
         <li><span class="d">7/10</span><span>站內錄影（Beta）：一鍵錄製地圖動畫直接存檔分享，畫面附站名浮水印</span></li>
         <li><span class="d">7/10</span><span>環島觀光列車一分為二：往東「山海號」、往西「平原號」，臺北⇄枋寮到站折返永續來回</span></li>
@@ -1168,7 +1170,7 @@
 <script>
 // 版本戳記:每次改版 push 前手動遞增(字母序),畫面時鐘徽章與 console 都會顯示,
 // 供比對線上跑的是不是最新版(瀏覽器快取 max-age=600 常讓人看到舊版)
-const BUILD = 'v0710y';
+const BUILD = 'v0710z';
 const state = {
   systems: [], sysId: null, data: null, speed: 36, mode: 'freq',
   lines: [], visible: new Set(), trains: [], schedStations: [], types: [],
@@ -1598,45 +1600,58 @@ function drawFreq(w, h) {
 }
 
 // 全台同框的裝飾層:所有捷運/輕軌路線與示意列車,墊在台鐵/高鐵底下(僅豐富畫面,非即時)
-// 官方色與底圖 45/55 預混成實色,取代半透明疊印——邊緣乾淨、視覺仍退居第二層
-const _decoMix = {};
-function decoMixColor(color, base) {
-  const key = color + base;
-  if (_decoMix[key]) return _decoMix[key];
-  if (!/^#[0-9a-fA-F]{6}$/.test(color) || !/^#[0-9a-fA-F]{6}$/.test(base)) return (_decoMix[key] = color);
-  const ch = (s, i) => parseInt(s.slice(i, i + 2), 16);
-  let out = '#';
-  for (const i of [1, 3, 5]) out += Math.round(ch(color, i) * 0.45 + ch(base, i) * 0.55).toString(16).padStart(2, '0');
-  return (_decoMix[key] = out);
-}
+// 樣式與各捷運分頁(drawFreq)一致:knockout 軌道+站點圓+zoom 分級車號牌,不再預混淡化
+let decoLabels = [];
 function drawDeco(w, h) {
   if (!state.decoLines) return;
   const P = pal();
+  const z = map.getZoom();
+  const showStation = z >= 13, showTrain = z >= 12, showStop = z >= 11; // 遠景不畫站點:短線會糊成串珠
   const inView = p => p.x >= -40 && p.x <= w + 40 && p.y >= -20 && p.y <= h + 20;
   ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+  decoLabels.length = 0;
   for (const ln of state.decoLines) {
     const line = ln.shapePts || ln.pts;
     if (!line || line.length < 2) continue;
     ctx.beginPath();
     line.forEach((p, i) => i ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y));
-    const col = decoMixColor(ln.color, P.railCase); // 已預混偏底圖;「隱藏」再壓一層成幽靈線
-    ctx.strokeStyle = state.trackStyle === 'hidden' ? railMix(col, trainGlow() ? GHOST_GLOW : GHOST_LIGHT) : col;
-    ctx.lineWidth = 2.2; ctx.stroke();
+    ctx.strokeStyle = P.railCase; ctx.lineWidth = 5.6; ctx.stroke();
+    ctx.strokeStyle = state.trackStyle === 'auto' ? ln.color : trackLineColor(ln.color);
+    ctx.lineWidth = 3; ctx.stroke();
+  }
+  if (showStop) for (const ln of state.decoLines) {
+    if (!ln.pts) continue;
+    ln.pts.forEach((p, idx) => {
+      if (!inView(p)) return;
+      ctx.beginPath(); ctx.arc(p.x, p.y, 2.4, 0, 7);
+      ctx.fillStyle = P.stnFill; ctx.fill();
+      ctx.lineWidth = 1.5; ctx.strokeStyle = ln.color; ctx.globalAlpha = 0.9; ctx.stroke();
+      ctx.globalAlpha = 1;
+      if (showStation) decoLabels.push({ p, name: ln.stations[idx].name });
+    });
   }
   const tau = state.decoElapsed * state.speedMult;
   for (const ln of state.decoLines) {
     if (!ln.sched) continue;
+    const tc = textColorFor(ln.color);
     for (let k = 0; k < ln.n; k++) {
       const pos = posPeriodic(ln, tau + k * ln.period / ln.n);
       const cp = map.latLngToContainerPoint([pos.lat, pos.lon]);
       if (!inView(cp)) continue;
-      ctx.beginPath(); ctx.arc(cp.x, cp.y, 2.7, 0, 7);
-      ctx.fillStyle = '#ffffff'; ctx.fill();
-      ctx.beginPath(); ctx.arc(cp.x, cp.y, 1.7, 0, 7);
-      ctx.fillStyle = ln.color; ctx.fill();
+      if (showTrain) drawTag(cp, ln.abbr, ln.color, tc);
+      else drawDot(cp, ln.color);
     }
   }
   ctx.globalAlpha = 1;
+}
+// 裝飾層站名排在台鐵/高鐵站名之後補畫:tryLabel 撞框讓位,國鐵站名優先
+function drawDecoLabels() {
+  ctx.textAlign = 'center';
+  const drawn = new Set();
+  for (const { p, name } of decoLabels) {
+    if (drawn.has(name)) continue;
+    drawn.add(name); tryLabel(p.x, p.y, name);
+  }
 }
 
 // 暗色/衛星底圖:路線官方色全亮會蓋過列車光暈與拖尾,預混向底圖色壓暗
@@ -1709,32 +1724,63 @@ function drawSched(w, h) {
     if (z >= 10 || tier <= 2) drawStationIcon(cp, tier);
     labelCands.push({ cp, st, tier });
   }
+  // 站名標籤先「佔位」(算框不畫):當車號牌避讓的障礙框;位置每幀固定,站名不因列車經過跳動
+  ctx.textAlign = 'center';
+  labelCands.sort((a, b) => a.tier - b.tier);
+  const drawnNames = new Set(), placedLabels = [];
+  for (const c of labelCands) {
+    const t = TIER_STYLE[c.tier];
+    if (z < t.lz || drawnNames.has(c.st.name)) continue;
+    drawnNames.add(c.st.name);
+    const spot = reserveLabel(c.cp.x, c.cp.y - Math.max(0, t.r - 2), c.st.name, t.f);
+    if (spot) placedLabels.push({ ...spot, halo: c.tier <= 1 ? 4 : 3 });
+  }
   let n = 0;
+  const tags = [], tagBoxes = [];
+  ctx.font = '700 10px ' + FONT; // 車號牌量寬字型(placeTag 用寬度取位)
   for (const tr of state.trains) {
     const isFollow = tr === state.followTrain;
     if (!isFollow && !state.visible.has(tr.typeName)) continue;
     const pos = trainPos(tr, state.simSec); if (!pos) continue;
     if (state.visible.has(tr.typeName)) n++;
     const cp = map.latLngToContainerPoint([pos.lat, pos.lon]);
-    if (isFollow) { drawFollowMarker(cp, tr); state._trainHits.push({ x: cp.x, y: cp.y, tr }); continue; }
+    const hsr = isHSR(tr), glowC = hsr ? HSR_ORANGE : tr.color;
+    if (isFollow) { // 跟隨主角:脈動圈照畫在真實位置,車號牌進避讓佇列(最優先佔位)
+      drawFollowMarker(cp, tr);
+      tags.push({ cp, tr, hsr, tw: ctx.measureText(tr.train).width + (hsr ? 23 : 12), isFollow: true });
+      continue;
+    }
     if (!inView(cp)) continue;
-    state._trainHits.push({ x: cp.x, y: cp.y, tr }); // 供點擊/hover 命中測試(每幀重建)
-    const glowC = isHSR(tr) ? HSR_ORANGE : tr.color;
     drawTrail(dt => trainPos(tr, state.simSec - dt), cp, glowC);
-    glowUnder(cp, glowC, showTrain ? 10 : 3.5); // 車號牌模式:光暈放大到繞出牌緣,近看也發亮
-    if (showTrain) isHSR(tr) ? drawHSRTag(cp, tr.train) : drawTag(cp, tr.train, tr.color, textColorFor(tr.color));
-    else isHSR(tr) ? drawHSRDot(cp) : drawDot(cp, tr.color);
+    if (showTrain) {
+      tags.push({ cp, tr, hsr, tw: ctx.measureText(tr.train).width + (hsr ? 23 : 12), isFollow: false });
+    } else {
+      glowUnder(cp, glowC, 3.5);
+      state._trainHits.push({ x: cp.x, y: cp.y, tr }); // 供點擊/hover 命中測試(每幀重建)
+      hsr ? drawHSRDot(cp) : drawDot(cp, tr.color);
+    }
   }
-  // 站名標籤:大站先取位、字級隨站等、蓋在列車上層才不會被擋
-  ctx.textAlign = 'center';
-  labelCands.sort((a, b) => a.tier - b.tier);
-  const drawnNames = new Set();
-  for (const c of labelCands) {
-    const t = TIER_STYLE[c.tier];
-    if (z < t.lz || drawnNames.has(c.st.name)) continue;
-    drawnNames.add(c.st.name);
-    tryLabel(c.cp.x, c.cp.y - Math.max(0, t.r - 2), c.st.name, t.f, c.tier <= 1 ? 4 : 3);
+  // 車號牌統一取位再畫:跟隨最優先,其餘按車號穩定排序(同批重疊的牌幀間不互換位置)
+  tags.sort((a, b) => (b.isFollow ? 1 : 0) - (a.isFollow ? 1 : 0) || (a.tr.train < b.tr.train ? -1 : a.tr.train > b.tr.train ? 1 : 0));
+  for (const tg of tags) {
+    const { dy, box } = placeTag(tg.cp.x, tg.cp.y, tg.tw, TAG_DY, tagBoxes);
+    tagBoxes.push(box);
+    const p = dy ? { x: tg.cp.x, y: tg.cp.y + dy } : tg.cp;
+    const glowC = tg.hsr ? HSR_ORANGE : tg.tr.color;
+    if (dy) { // 被讓位:真實位置補錨點+導線,牌子像浮出的標註
+      ctx.beginPath(); ctx.moveTo(tg.cp.x, tg.cp.y); ctx.lineTo(p.x, p.y - Math.sign(dy) * 7.5);
+      ctx.strokeStyle = glowC; ctx.globalAlpha = 0.7; ctx.lineWidth = 1.5; ctx.stroke(); ctx.globalAlpha = 1;
+      ctx.beginPath(); ctx.arc(tg.cp.x, tg.cp.y, 2.4, 0, 7);
+      ctx.fillStyle = glowC; ctx.fill();
+    }
+    glowUnder(p, glowC, 10); // 車號牌模式:光暈放大到繞出牌緣,近看也發亮
+    tg.hsr ? drawHSRTag(p, tg.tr.train) : drawTag(p, tg.tr.train, tg.tr.color, textColorFor(tg.tr.color));
+    state._trainHits.push({ x: p.x, y: p.y, tr: tg.tr });
   }
+  // 車號牌框也加入障礙:之後補畫的裝飾層站名一併避開
+  labelBoxes.push(...tagBoxes);
+  // 站名上色(最上層):佔位已完成,直接畫
+  for (const s of placedLabels) paintLabel(s.x, s.y, s.name, s.font, s.halo);
   document.getElementById('count').textContent = `${n} 班奔跑中`;
 }
 
@@ -1753,20 +1799,44 @@ function drawFollowMarker(p, tr) {
   ctx.beginPath(); ctx.arc(p.x, p.y, 11, 0, 7);
   ctx.strokeStyle = tr.color; ctx.globalAlpha = 0.9; ctx.lineWidth = 2.5; ctx.stroke();
   ctx.globalAlpha = 1;
-  isHSR(tr) ? drawHSRTag(p, tr.train) : drawTag(p, tr.train, tr.color, textColorFor(tr.color));
+  // 車號牌改由 drawSched 的避讓佇列統一畫(跟隨最優先)
 }
 
 let labelBoxes = [];
-function tryLabel(x, y, name, font, halo) {
+function boxesHit(a, arr) {
+  for (const bx of arr) if (a.l < bx.r && a.r > bx.l && a.t < bx.b && a.b > bx.t) return true;
+  return false;
+}
+// 佔位與上色拆開:drawSched 先讓站名佔位(車號牌避讓用),列車畫完才上色蓋在最上層
+function reserveLabel(x, y, name, font) {
   ctx.font = (font || '500 11px ') + FONT;
   const w = ctx.measureText(name).width, h = 13;
-  const l = x - w / 2 - 1, r = x + w / 2 + 1, b = y - 4, t = b - h;
-  for (const bx of labelBoxes) if (l < bx.r && r > bx.l && t < bx.b && b > bx.t) return;
-  labelBoxes.push({ l, r, t, b });
+  const box = { l: x - w / 2 - 1, r: x + w / 2 + 1, t: y - 4 - h, b: y - 4 };
+  if (boxesHit(box, labelBoxes)) return null;
+  labelBoxes.push(box);
+  return { x, y, name, font };
+}
+function paintLabel(x, y, name, font, halo) {
+  ctx.font = (font || '500 11px ') + FONT;
   ctx.textAlign = 'center'; ctx.textBaseline = 'bottom';
   ctx.lineWidth = halo || 3; ctx.strokeStyle = pal().lblStroke;
   ctx.strokeText(name, x, y - 4);
   ctx.fillStyle = pal().lbl; ctx.fillText(name, x, y - 4);
+}
+function tryLabel(x, y, name, font, halo) { // freq/裝飾層用:佔位+即畫一次完成
+  if (!reserveLabel(x, y, name, font)) return;
+  paintLabel(x, y, name, font, halo);
+}
+// 車號牌避讓:站名框(labelBoxes)先佔位固定不動,牌子撞到站名或彼此就垂直錯開;
+// 錯開的牌在真實位置補錨點+導線。候選序固定(下→上→更遠),同批牌按車號排序,幀間不閃跳
+const TAG_DY = 17; // 一階錯開量:牌高15+縫
+function placeTag(cx, cy, tw, th, tagBoxes) {
+  for (const dy of [0, TAG_DY, -TAG_DY, TAG_DY * 2, -TAG_DY * 2, TAG_DY * 3]) {
+    const box = { l: cx - tw / 2, r: cx + tw / 2, t: cy + dy - th / 2, b: cy + dy + th / 2 };
+    if (!boxesHit(box, labelBoxes) && !boxesHit(box, tagBoxes)) return { dy, box };
+  }
+  // 六個候選全滿(極端密集):回原位疊,不無限搜
+  return { dy: 0, box: { l: cx - tw / 2, r: cx + tw / 2, t: cy - th / 2, b: cy + th / 2 } };
 }
 
 // ── 車站分級圖示(站等:特等/一等/二等/三等/簡易招呼) ──
@@ -1939,7 +2009,7 @@ function draw() {
   state._trainHits = [];
   labelBoxes = [];
   ctx.lineCap = 'round'; ctx.lineJoin = 'round';
-  if (state.mode === 'sched') { if (state.deco) drawDeco(w, h); drawSched(w, h); } else drawFreq(w, h);
+  if (state.mode === 'sched') { if (state.deco) drawDeco(w, h); drawSched(w, h); if (state.deco) drawDecoLabels(); } else drawFreq(w, h);
   ctx.globalAlpha = 1; ctx.textAlign = 'start'; ctx.textBaseline = 'alphabetic';
 }
 
