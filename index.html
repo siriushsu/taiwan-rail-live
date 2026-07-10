@@ -148,6 +148,13 @@
   .leaflet-control-zoom a { background: #fffdf6; color: #2a4a73; border-bottom: 1px solid #ece2c8; }
   .leaflet-control-zoom a:last-child { border-bottom: 0; }
   .leaflet-control-zoom a:hover { background: #f7f0dd; color: #2a4a73; }
+  /* 跟隨鎖鈕(縮放鈕上方):鎖定=小方鈕;解鎖後變品牌紅「回到列車」膠囊 */
+  .follow-lock-ctl button {
+    display: block; cursor: pointer; font: 700 13px/1.2 -apple-system, "PingFang TC", "Noto Sans TC", sans-serif;
+    background: #fffdf6; color: #2a4a73; border: 1.5px solid #c9b98f; border-radius: 8px;
+    box-shadow: 0 2px 0 #c9b98f; padding: 8px 9px; min-width: 34px; white-space: nowrap;
+  }
+  .follow-lock-ctl button.unlocked { background: #d23c2a; color: #fff8ec; border-color: #a92c1d; box-shadow: 0 2px 0 #a92c1d; }
   .leaflet-control-attribution { background: rgba(247,240,221,.9); color: #a89468; }
   .leaflet-control-attribution a { color: #7a6c50; }
   /* 圖示鈕:平常只見單字/符號(38px 方鈕),hover 向左展開露出完整說明 */
@@ -1153,13 +1160,14 @@
 <script>
 // 版本戳記:每次改版 push 前手動遞增(字母序),畫面時鐘徽章與 console 都會顯示,
 // 供比對線上跑的是不是最新版(瀏覽器快取 max-age=600 常讓人看到舊版)
-const BUILD = 'v0710v';
+const BUILD = 'v0710w';
 const state = {
   systems: [], sysId: null, data: null, speed: 36, mode: 'freq',
   lines: [], visible: new Set(), trains: [], schedStations: [], types: [],
   playing: true, speedMult: 50, hour: 8, simSec: 8 * 3600,
   dpr: 1, t0: 0, elapsed: 0, ready: false,
   followTrain: null, followId: null,
+  followLock: true, // 跟隨鎖:true=每幀置中;拖曳地圖自動解鎖(Google 導航式),按「回到列車」恢復
   mapDark: false, basemap: 'map', trackData: null,
   trackStyle: 'auto', // 軌道顯示:auto(亮色原色/夜間衛星自動淡化)、faint(一律更淡)、hidden(只留列車與車站)
   live: null, // 台鐵即時誤點 {map: 車次→誤點分, at: 抓取時刻, delayed, srcAt}
@@ -1540,15 +1548,15 @@ function drawFreq(w, h) {
   const drawnNames = new Set();
   ctx.textAlign = 'center';
   ctx.lineCap = 'round'; ctx.lineJoin = 'round';
-  if (state.trackStyle !== 'hidden') state.lines.forEach(ln => {
+  state.lines.forEach(ln => {
     if (!state.visible.has(ln.id) || !ln.pts) return;
     const line = ln.shapePts || ln.pts;
     ctx.beginPath();
     line.forEach((p, i) => i ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y));
     /* 實色線+底圖色外描(knockout):交會處乾淨讓線,取代半透明疊印 */
     ctx.strokeStyle = P.railCase; ctx.lineWidth = 5.6; ctx.stroke();
-    /* 捷運無光暈拖尾,auto 不淡化;只吃手動「淡化」 */
-    ctx.strokeStyle = state.trackStyle === 'faint' ? trackLineColor(ln.color) : ln.color;
+    /* 捷運無光暈拖尾,auto 不淡化;手動「淡化/隱藏」照吃 */
+    ctx.strokeStyle = state.trackStyle === 'auto' ? ln.color : trackLineColor(ln.color);
     ctx.lineWidth = 3; ctx.stroke();
   });
   const freqLabels = [];
@@ -1598,12 +1606,14 @@ function drawDeco(w, h) {
   const P = pal();
   const inView = p => p.x >= -40 && p.x <= w + 40 && p.y >= -20 && p.y <= h + 20;
   ctx.lineCap = 'round'; ctx.lineJoin = 'round';
-  if (state.trackStyle !== 'hidden') for (const ln of state.decoLines) {
+  for (const ln of state.decoLines) {
     const line = ln.shapePts || ln.pts;
     if (!line || line.length < 2) continue;
     ctx.beginPath();
     line.forEach((p, i) => i ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y));
-    ctx.strokeStyle = decoMixColor(ln.color, P.railCase); ctx.lineWidth = 2.2; ctx.stroke();
+    const col = decoMixColor(ln.color, P.railCase); // 已預混偏底圖;「隱藏」再壓一層成幽靈線
+    ctx.strokeStyle = state.trackStyle === 'hidden' ? railMix(col, trainGlow() ? GHOST_GLOW : GHOST_LIGHT) : col;
+    ctx.lineWidth = 2.2; ctx.stroke();
   }
   const tau = state.decoElapsed * state.speedMult;
   for (const ln of state.decoLines) {
@@ -1627,6 +1637,7 @@ const _railDim = {};
 const RAIL_DIM = 0.40;   // 自動模式暗色/衛星:官方色保留比例,其餘混入底圖色
 const FOLLOW_DIM = 0.62; // 跟隨高亮:壓得少一點,層級仍高於一般線,但讓同色拖尾/光暈能亮過它
 const FAINT_GLOW = 0.22, FAINT_LIGHT = 0.35; // 手動「淡化」:暗底壓更黑、亮紙底向紙色洗淡
+const GHOST_GLOW = 0.12, GHOST_LIGHT = 0.18; // 「隱藏」:全部壓到極淡的幽靈線(含跟隨路線,不留高亮)
 function railMix(color, keep) { // 純混色(向底圖色 railCase),帶快取
   const base = pal().railCase, key = color + base + keep;
   if (_railDim[key]) return _railDim[key];
@@ -1639,8 +1650,9 @@ function railMix(color, keep) { // 純混色(向底圖色 railCase),帶快取
 function railDimColor(color, keep = RAIL_DIM) { // 僅暗色/衛星壓暗,亮色原色直出
   return trainGlow() ? railMix(color, keep) : color;
 }
-// 軌道底圖線最終色:吃「軌道顯示」選項(hidden 由呼叫端整段跳過不畫)
+// 軌道底圖線最終色:吃「軌道顯示」選項
 function trackLineColor(color) {
+  if (state.trackStyle === 'hidden') return railMix(color, trainGlow() ? GHOST_GLOW : GHOST_LIGHT);
   if (state.trackStyle === 'faint') return railMix(color, trainGlow() ? FAINT_GLOW : FAINT_LIGHT);
   return railDimColor(color);
 }
@@ -1650,7 +1662,7 @@ function drawSched(w, h) {
   const z = map.getZoom();
   const showTrain = z >= 11;
   const inView = p => p.x >= -40 && p.x <= w + 40 && p.y >= -20 && p.y <= h + 20;
-  if (state.trackLines && state.trackStyle !== 'hidden') {
+  if (state.trackLines) {
     ctx.lineCap = 'round'; ctx.lineJoin = 'round';
     for (const ln of state.trackLines) {
       if (state.trackVisible && !state.trackVisible.has(ln.id)) continue;
@@ -1669,7 +1681,8 @@ function drawSched(w, h) {
     }
   }
   // 跟隨路線高亮:奶白外描+加粗實線(取代模糊光暈),描在軌道上、車站與列車下
-  if (state.followTrain && state._routePts && state._routePts.length > 1) {
+  // 「隱藏」模式不畫——使用者要的是純流星畫面,跟隨路線也不留
+  if (state.followTrain && state.trackStyle !== 'hidden' && state._routePts && state._routePts.length > 1) {
     ctx.beginPath();
     for (let i = 0; i < state._routePts.length; i++) {
       const p = map.latLngToContainerPoint([state._routePts[i].lat, state._routePts[i].lon]);
@@ -2471,6 +2484,7 @@ function setFollow(tr, isAuto, noJump, opts) {
   state.followTimeJumped = false;
   state._lapPrev = null; state._lapAcc = 0; // 山海/平原號完乘=連續跟滿一輪來回,換車歸零重計
   state._routePts = buildFollowRoute(tr);
+  state.followLock = true; updateFollowLockUI(); // 新跟隨一律回到鎖定置中
   showFollowPanel(tr);
   placeTrainCard();
   placeControls(true);
@@ -2487,6 +2501,7 @@ function clearFollow() {
   state.followTrain = null; state.followId = null; state.followStatus = null;
   state._routePts = null;
   state._plateStop = null;
+  updateFollowLockUI(); // 沒在跟隨就收起跟隨鎖鈕
   const dp = document.getElementById('dwellPlate'); if (dp) dp.classList.remove('show');
   try { history.replaceState(null, '', location.pathname); } catch (e) {}
   const fb = document.getElementById('followBar');
@@ -3586,10 +3601,35 @@ function updateFollowCamera() {
     return;
   }
   const pos = trainPos(tr, state.simSec);
-  if (!pos) { const f = tr.stops[0]; recenterTo(f.lat, f.lon); setFollowStatus('pre', '尚未發車'); return; }
+  if (!pos) { const f = tr.stops[0]; if (state.followLock) recenterTo(f.lat, f.lon); setFollowStatus('pre', '尚未發車'); return; }
   setFollowStatus('run', '');
-  recenterTo(pos.lat, pos.lon);
+  if (state.followLock) recenterTo(pos.lat, pos.lon);
   updateFollowPanel(tr);
+}
+
+// ── 跟隨鎖(Google 導航式):拖曳地圖自動解鎖可自由瀏覽,按「回到列車」恢復置中 ──
+function setFollowLock(on) {
+  state.followLock = on;
+  if (on && state.followTrain) {
+    // trainPos 為 null 有兩種:發車前回起點、抵達後回終點,不能一律回起點
+    const s = state.followTrain.stops;
+    const p = trainPos(state.followTrain, state.simSec)
+      || (state.simSec > s[s.length - 1].depSec ? s[s.length - 1] : s[0]);
+    recenterTo(p.lat, p.lon);
+  }
+  updateFollowLockUI();
+}
+function updateFollowLockUI() {
+  const b = document.getElementById('followLockBtn');
+  if (!b) return;
+  // 放空/隨機導覽自動換車,鎖沒有意義;也讓開手機放空模式右下角的「離開放空」鈕
+  const show = !!state.followTrain && !state.autoTour && !document.body.classList.contains('ambient');
+  b.parentNode.style.display = show ? '' : 'none';
+  b.classList.toggle('unlocked', !state.followLock);
+  b.textContent = state.followLock ? '🔒' : '◉ 回到列車';
+  b.title = state.followLock
+    ? '跟隨鎖定中：地圖固定列車置中——點擊或直接拖曳地圖解鎖，可自由瀏覽'
+    : '自由瀏覽中：點擊回到列車，恢復置中跟隨';
 }
 
 function nowSecOfDay() {
@@ -3988,11 +4028,16 @@ function setupMapTools() {
     // 手機全畫面+跟隨:控制列貼底、按鈕多會摺成 2~3 行,高度隨文字長短(如「離開放空」)變動,
     // 跟隨小卡改用量到的實際高度動態讓道,避免固定 px 假設被壓到(見 CSS 裡原本寫死的 132px)
     const fp = document.getElementById('followPanel');
-    if (isMobile && on && followVisible) {
+    const lc = document.querySelector('.follow-lock-ctl');
+    if (on && followVisible) {
       const ctlH = document.querySelector('.controls').getBoundingClientRect().height;
-      fp.style.bottom = Math.round(ctlH + 24) + 'px';
+      fp.style.bottom = isMobile ? Math.round(ctlH + 24) + 'px' : '';
+      // 跟隨鎖鈕不分寬度都墊到控制列上方:手機控制列貼底整排(375px 掃描抓到整顆壓上),
+      // 桌面/平板解鎖膠囊(~90px 寬)會伸進靠右下的摺行控制列(768px 掃描抓到)
+      if (lc) lc.style.marginBottom = Math.round(ctlH + 16) + 'px';
     } else {
       fp.style.bottom = '';
+      if (lc) lc.style.marginBottom = '';
     }
   }
   // 跟隨開始/結束時由 setFollow/clearFollow 經 state._placeFsOverlays 明確重排
@@ -4069,7 +4114,7 @@ function setupMapTools() {
     state.trackStyle = s;
     trackBtn.classList.toggle('active', s !== 'auto');
     trackBtn.querySelector('.tl').textContent = TRACK_LBL[s];
-    trackBtn.title = `軌道顯示：${s === 'auto' ? '自動（夜間自動淡化）' : s === 'faint' ? '淡化' : '隱藏'}——點擊切換`;
+    trackBtn.title = `軌道顯示：${s === 'auto' ? '自動（夜間自動淡化）' : s === 'faint' ? '淡化' : '隱藏（全部壓到極淡，含跟隨路線）'}——點擊切換`;
     try { localStorage.setItem('trainmap-track', s); } catch (e) {}
   }
   trackBtn.onclick = () => setTrackStyle(state.trackStyle === 'auto' ? 'faint' : state.trackStyle === 'faint' ? 'hidden' : 'auto');
@@ -4259,6 +4304,24 @@ async function boot() {
     const c = map.getContainer();
     if (state.mode !== 'sched') { if (c.style.cursor) c.style.cursor = ''; return; }
     c.style.cursor = trainAt(e.containerPoint) ? 'pointer' : '';
+  });
+  // 跟隨鎖鈕:掛在縮放鈕上方(同角落自動堆疊,免手算碰撞);跟隨中才顯示
+  const lockCtl = L.control({ position: 'bottomright' });
+  lockCtl.onAdd = () => {
+    const el = L.DomUtil.create('div', 'leaflet-control follow-lock-ctl');
+    el.innerHTML = '<button id="followLockBtn" type="button">🔒</button>';
+    L.DomEvent.disableClickPropagation(el);
+    return el;
+  };
+  lockCtl.addTo(map);
+  const zc = map.zoomControl.getContainer();
+  zc.parentNode.insertBefore(lockCtl.getContainer(), zc);
+  document.getElementById('followLockBtn').onclick = () => setFollowLock(!state.followLock);
+  updateFollowLockUI(); // 初始未跟隨 → 收起
+  // 拖曳地圖=解鎖(Google 導航式);縮放不解鎖
+  // 放空/隨機導覽不解鎖:那些模式鈕是藏的,解了鎖沒有辦法鎖回,鏡頭會永久漂走
+  map.on('dragstart', () => {
+    if (state.followTrain && state.followLock && !state.autoTour && !document.body.classList.contains('ambient')) setFollowLock(false);
   });
   // crossOrigin: 錄影功能要把圖磚畫進合成 canvas,沒有 CORS 標記畫布會被汙染(無法 captureStream)
   baseLayers.light = L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {

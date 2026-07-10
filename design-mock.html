@@ -142,6 +142,13 @@
   .leaflet-control-zoom a { background: #fffdf6; color: #2a4a73; border-bottom: 1px solid #ece2c8; }
   .leaflet-control-zoom a:last-child { border-bottom: 0; }
   .leaflet-control-zoom a:hover { background: #f7f0dd; color: #2a4a73; }
+  /* 跟隨鎖鈕(縮放鈕上方):鎖定=小方鈕;解鎖後變品牌紅「回到列車」膠囊 */
+  .follow-lock-ctl button {
+    display: block; cursor: pointer; font: 700 13px/1.2 -apple-system, "PingFang TC", "Noto Sans TC", sans-serif;
+    background: #fffdf6; color: #2a4a73; border: 1.5px solid #c9b98f; border-radius: 8px;
+    box-shadow: 0 2px 0 #c9b98f; padding: 8px 9px; min-width: 34px; white-space: nowrap;
+  }
+  .follow-lock-ctl button.unlocked { background: #d23c2a; color: #fff8ec; border-color: #a92c1d; box-shadow: 0 2px 0 #a92c1d; }
   .leaflet-control-attribution { background: rgba(247,240,221,.9); color: #a89468; }
   .leaflet-control-attribution a { color: #7a6c50; }
   /* 圖示鈕:平常只見單字/符號(38px 方鈕),hover 向左展開露出完整說明 */
