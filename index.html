@@ -946,7 +946,7 @@
   <header>
     <div class="plate">
       <h1>列車有時</h1>
-      <p class="plate-sub" id="plateSub">TAIWAN RAILWAY LIVE</p>
+      <p class="plate-sub" id="plateSub">台灣鐵道即時軌跡</p>
       <div class="plate-foot">
         <span class="stn" id="plateL">基隆</span>
         <svg class="plate-arrow" viewBox="0 0 108 14" aria-hidden="true">
@@ -1152,7 +1152,7 @@
 <script>
 // 版本戳記:每次改版 push 前手動遞增(字母序),畫面時鐘徽章與 console 都會顯示,
 // 供比對線上跑的是不是最新版(瀏覽器快取 max-age=600 常讓人看到舊版)
-const BUILD = 'v0710r';
+const BUILD = 'v0710s';
 const state = {
   systems: [], sysId: null, data: null, speed: 36, mode: 'freq',
   lines: [], visible: new Set(), trains: [], schedStations: [], types: [],
@@ -1186,8 +1186,8 @@ const SYS_META = {
   ntalrt:    { plateL: '雙城', plateR: '十四張', sub: 'ANKENG LIGHT RAIL LIVE', lead: '安坑輕軌沿安康路串起新店丘陵（班距為公告估算示意，非即時班次）— 拖曳、縮放看看。' },
   krtc:      { plateL: '小港', plateR: '岡山', sub: 'KAOHSIUNG METRO LIVE', lead: '紅橘兩線與環狀輕軌正在港都穿梭（班距模擬示意，非即時班次）— 拖曳、縮放看看。' },
   tmrt:      { plateL: '北屯總站', plateR: '高鐵臺中站', sub: 'TAICHUNG METRO LIVE', lead: '綠線列車沿著文心路跑（班距模擬示意，非即時班次）— 拖曳、縮放看看。' },
-  tra_sched: { plateL: '基隆', plateR: '枋寮', sub: 'TAIWAN RAILWAY LIVE',  lead: '列車依當日時刻表運行，回到現在時刻（1×）會自動套用台鐵即時誤點修正 — 點列車跟隨、點車站看班次，或按地圖角落「探」看今日亮點列車。' },
-  thsr_sched: { plateL: '南港', plateR: '左營', sub: 'TAIWAN HIGH SPEED RAIL LIVE', lead: '高鐵列車依當日真實時刻表沿西部走廊南北奔馳（南港－左營）— 點列車跟隨、點車站看班次。' },
+  tra_sched: { plateL: '基隆', plateR: '枋寮', sub: '台灣鐵道即時軌跡',  lead: '列車依當日時刻表運行，回到現在時刻（1×）會自動套用台鐵即時誤點修正 — 點列車跟隨、點車站看班次，或按地圖角落「探」看今日亮點列車。' },
+  thsr_sched: { plateL: '南港', plateR: '左營', sub: '台灣鐵道即時軌跡', lead: '高鐵列車依當日真實時刻表沿西部走廊南北奔馳（南港－左營）— 點列車跟隨、點車站看班次。' },
 };
 
 // 播放/速度/時間的統一入口(控制列、快捷鍵、全畫面控制共用)
@@ -1617,6 +1617,22 @@ function drawDeco(w, h) {
   ctx.globalAlpha = 1;
 }
 
+// 暗色/衛星底圖:路線官方色全亮會蓋過列車光暈與拖尾,預混向底圖色壓暗
+// (維持實色+knockout 設計,不回頭用半透明疊印);亮色紙底不壓。
+const _railDim = {};
+const RAIL_DIM = 0.55;   // 一般路線:官方色保留比例,其餘混入底圖色
+const FOLLOW_DIM = 0.62; // 跟隨高亮:壓得少一點,層級仍高於一般線,但讓同色拖尾/光暈能亮過它
+function railDimColor(color, keep = RAIL_DIM) {
+  if (!trainGlow()) return color;
+  const base = pal().railCase, key = color + base + keep;
+  if (_railDim[key]) return _railDim[key];
+  if (!/^#[0-9a-fA-F]{6}$/.test(color) || !/^#[0-9a-fA-F]{6}$/.test(base)) return (_railDim[key] = color);
+  const ch = (s, i) => parseInt(s.slice(i, i + 2), 16);
+  let out = '#';
+  for (const i of [1, 3, 5]) out += Math.round(ch(color, i) * keep + ch(base, i) * (1 - keep)).toString(16).padStart(2, '0');
+  return (_railDim[key] = out);
+}
+
 function drawSched(w, h) {
   const P = pal();
   const z = map.getZoom();
@@ -1637,7 +1653,7 @@ function drawSched(w, h) {
       }
       /* 實色線+底圖色外描(knockout):交會處乾淨讓線,取代半透明疊印 */
       ctx.strokeStyle = P.railCase; ctx.lineWidth = 5.6; ctx.stroke();
-      ctx.strokeStyle = ln.color; ctx.lineWidth = 3; ctx.stroke();
+      ctx.strokeStyle = railDimColor(ln.color); ctx.lineWidth = 3; ctx.stroke();
     }
   }
   // 跟隨路線高亮:奶白外描+加粗實線(取代模糊光暈),描在軌道上、車站與列車下
@@ -1649,7 +1665,7 @@ function drawSched(w, h) {
     }
     ctx.lineCap = 'round'; ctx.lineJoin = 'round';
     ctx.strokeStyle = P.followCase; ctx.lineWidth = 8.5; ctx.stroke();
-    ctx.strokeStyle = state.followTrain.color; ctx.lineWidth = 4.4; ctx.stroke();
+    ctx.strokeStyle = railDimColor(state.followTrain.color, FOLLOW_DIM); ctx.lineWidth = 4.4; ctx.stroke();
   }
   // 車站圖示(依站等分級):圖示墊在列車下、站名最後畫在最上層,遠景時小站不畫
   const labelCands = [];
@@ -1786,7 +1802,7 @@ function trainGlow() { return state.basemap === 'sat' || state.mapDark; }
 function glowUnder(p, color, r) {
   if (!trainGlow()) return;
   ctx.save();
-  ctx.shadowColor = color; ctx.shadowBlur = 13;
+  ctx.shadowColor = color; ctx.shadowBlur = 16;
   ctx.globalAlpha = 0.85;
   ctx.beginPath(); ctx.arc(p.x, p.y, r, 0, 7); ctx.fillStyle = color; ctx.fill();
   ctx.fill(); // 二次疊塗加深光暈,核心更亮
@@ -1813,7 +1829,10 @@ function drawTrail(getPos, head, color) {
     if (Math.hypot(cp.x - prev.x, cp.y - prev.y) > 200) break; // 防回繞/跳站在畫面上拉出長弦
     const f = 1 - (k - 1) / TRAIL_STEPS; // 頭段≈1 → 尾段≈0
     ctx.beginPath(); ctx.moveTo(prev.x, prev.y); ctx.lineTo(cp.x, cp.y);
-    ctx.strokeStyle = color; ctx.globalAlpha = 0.4 * f; ctx.lineWidth = 4.2 * f + 0.6;
+    ctx.strokeStyle = color; ctx.globalAlpha = 0.55 * f; ctx.lineWidth = 5.5 * f + 0.6;
+    ctx.stroke();
+    // 白熱芯:彗星內芯,暗底與亮衛星圖上都拉得出對比(路線同色的尾巴才不會沉進線裡)
+    ctx.strokeStyle = '#ffffff'; ctx.globalAlpha = 0.32 * f; ctx.lineWidth = 2.1 * f + 0.3;
     ctx.stroke();
     prev = cp;
   }
@@ -2047,7 +2066,7 @@ function retimeLoopTrains() {
 // freq 群(北北桃/中南部):群內多選、班距示意同框。sched 群(國家鐵路):台鐵/高鐵單選(即時)。
 const GROUPS = [
   { id: 'nat', label: '國家鐵路', mode: 'sched', members: ['tra_sched', 'thsr_sched'],
-    plate: { plateL: '基隆', plateR: '枋寮', sub: 'TAIWAN RAILWAY × HSR LIVE',
+    plate: { plateL: '基隆', plateR: '枋寮', sub: '台灣鐵道即時軌跡',
       lead: '台鐵與高鐵同框運行，皆依當日真實時刻表（台鐵回到現在時刻自動套用即時誤點）— 點列車跟隨、點車站看班次，或按地圖角落「探」看今日亮點。' } },
   { id: 'north', label: '北北桃', mode: 'freq', members: ['mrt', 'tymc', 'ntdlrt', 'ntalrt'],
     plate: { plateL: '淡水', plateR: '桃園機場', sub: 'GREATER TAIPEI RAIL',
