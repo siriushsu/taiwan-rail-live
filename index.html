@@ -22,6 +22,7 @@
   }
   a { color: #2a4a73; }
   a:hover { color: #d23c2a; }
+  :focus-visible { outline: 2px solid #d23c2a; outline-offset: 2px; } /* 鍵盤操作可見焦點 */
   .wrap { max-width: 1400px; margin: 0 auto; padding: 20px 20px 48px; }
 
   /* ── 雙欄版面:地圖主欄+右側互動欄(搜尋/最愛/旅程收集/篩選),點側欄同時看得到地圖;
@@ -37,7 +38,13 @@
   /* ── 站名牌 header(仿早期台鐵琺瑯站名牌:白底藍字細鋼框,大字站名+拼音置中,
      下緣左右鄰站夾雙向箭頭) ── */
   .plate {
-    background: linear-gradient(178deg, #ffffff 0%, #f7f5ee 72%, #edebe0 100%);
+    /* 四角螺釘:琢磨瑪瑫站名牌的安裝螺位(純背景小點,不加節點) */
+    background:
+      radial-gradient(circle 2.6px at 13px 13px, #c3bcab 0 1.8px, rgba(58,50,38,.28) 2.1px, transparent 2.7px),
+      radial-gradient(circle 2.6px at calc(100% - 13px) 13px, #c3bcab 0 1.8px, rgba(58,50,38,.28) 2.1px, transparent 2.7px),
+      radial-gradient(circle 2.6px at 13px calc(100% - 13px), #c3bcab 0 1.8px, rgba(58,50,38,.28) 2.1px, transparent 2.7px),
+      radial-gradient(circle 2.6px at calc(100% - 13px) calc(100% - 13px), #c3bcab 0 1.8px, rgba(58,50,38,.28) 2.1px, transparent 2.7px),
+      linear-gradient(178deg, #ffffff 0%, #f7f5ee 72%, #edebe0 100%);
     border: 3px solid #9a958a;
     border-radius: 10px;
     box-shadow: 0 0 0 1.5px #767061, 0 5px 14px rgba(58,50,38,.22);
@@ -63,7 +70,7 @@
     color: #26497e; white-space: nowrap;
   }
   .plate-arrow { width: 108px; height: 14px; display: block; margin: 0 12px; color: #26497e; }
-  header p { margin: 0 0 16px; color: #7a6c50; font-size: 14px; }
+  header > p { margin: 0 auto 16px; color: #7a6c50; font-size: 14px; text-align: center; max-width: 76ch; text-wrap: pretty; }
 
   /* ── 系統切換:上排群組頁籤(互斥)+ 下排群內成員 ── */
   .systems { margin: 0 0 14px; }
@@ -85,8 +92,9 @@
     box-shadow: 0 2px 0 #c9b98f; display: inline-flex; align-items: center; gap: 7px;
   }
   .groupmembers .mem.on {
-    background: #2f7d5b; color: #fff8ec; border-color: #246146; box-shadow: 0 2px 0 #246146;
+    background: #2a4a73; color: #fff8ec; border-color: #1e2c40; box-shadow: 0 2px 0 #1e2c40;
   }
+  .groupmembers .mem.on .memck { background: #d23c2a; border-color: #e8b3ab; } /* 紅印勾選,呼應印章紅 */
   .groupmembers .mem.off { opacity: .7; }
   .groupmembers .allcap { font-size: 12.5px; color: #7a6c50; padding: 6px 3px; line-height: 1.4; }
   .groupmembers .mem .memck {
@@ -123,7 +131,10 @@
      解法:button 顯式 min-width＋.ti 顯式 width——所有引擎的內在尺寸都尊重這兩個 */
   .stage-tools {
     position: absolute; right: 12px; bottom: 26px; z-index: 700;
-    display: flex; gap: 8px; width: max-content;
+    display: flex; gap: 0; width: max-content;
+    /* 九顆散鈕合併成單一工具條:地圖上少八圈框八道影,視覺安靜很多 */
+    background: #fffdf6; border: 1.5px solid #c9b98f; border-radius: 8px;
+    box-shadow: 0 2px 0 #c9b98f; overflow: hidden;
   }
   .stage-tools button { flex: none; min-width: 38px; }
   #toolsFab { display: none; } /* 工具抽屜開關:桌機整排常駐用不到,只給手機(見 640 媒體塊) */
@@ -132,16 +143,25 @@
   .leaflet-bottom.leaflet-right { bottom: 0; }
   body:not(.fs) .leaflet-control-zoom { margin-bottom: 56px; }
   body.fs .leaflet-bottom.leaflet-right { bottom: 10px; }
+  /* Leaflet 原生控制項換紙牌皮膚(mock 無真地圖,正式版生效):縮放鈕與版權字不再是白塑膠件 */
+  .leaflet-control-zoom.leaflet-bar { border: 1.5px solid #c9b98f; border-radius: 8px; box-shadow: 0 2px 0 #c9b98f; overflow: hidden; }
+  .leaflet-control-zoom a { background: #fffdf6; color: #2a4a73; border-bottom: 1px solid #ece2c8; }
+  .leaflet-control-zoom a:last-child { border-bottom: 0; }
+  .leaflet-control-zoom a:hover { background: #f7f0dd; color: #2a4a73; }
+  .leaflet-control-attribution { background: rgba(247,240,221,.9); color: #a89468; }
+  .leaflet-control-attribution a { color: #7a6c50; }
   /* 圖示鈕:平常只見單字/符號(38px 方鈕),hover 向左展開露出完整說明 */
   .stage-tools button {
     font: inherit; font-size: 15px; font-weight: 700; cursor: pointer;
     height: 38px; padding: 0; overflow: hidden;
     display: flex; align-items: center;
     background: #fffdf6; color: #2a4a73;
-    border: 1.5px solid #c9b98f; border-radius: 6px;
-    box-shadow: 0 2px 0 #c9b98f;
+    border: 0; border-radius: 0;
+    box-shadow: none;
     transition: background .15s;
   }
+  .stage-tools button + button { border-left: 1px solid #ece2c8; } /* 工具條內部分隔細線 */
+  body:not(.fs) #toolsFab + button { border-left: 0; } /* 桌機 fab 隱藏:第一顆可見鈕不畫前緣分隔線 */
   .stage-tools button .ti {
     flex: 0 0 35px; width: 35px; height: 36px; /* width 與 flex-basis 同值:WebKit 內在寬度只認 width */
     display: flex; align-items: center; justify-content: center; font-size: 15px;
@@ -159,22 +179,34 @@
     border-color: #a92c1d; box-shadow: 0 2px 0 #a92c1d;
   }
   .stage-tools button.active:hover { background: #c0341f; }
-  /* 全畫面直排工具列(靠右上):hover 標籤朝左展開,不衝出右邊界 */
-  body.fs .stage-tools { align-items: flex-end; }
-  body.fs .stage-tools button { flex-direction: row-reverse; }
+  /* 全畫面直排工具列(靠右上):hover 標籤朝左展開,不衝出右邊界。
+     直排回復「漂浮獨立鈕」:合併條在直向會因 hover 展開整條變寬,獨立鈕只有被指的那顆會動 */
+  body.fs .stage-tools {
+    align-items: flex-end; gap: 8px;
+    background: none; border: 0; box-shadow: none; overflow: visible;
+  }
+  body.fs .stage-tools button {
+    flex-direction: row-reverse;
+    border: 1.5px solid #c9b98f; border-radius: 6px; box-shadow: 0 2px 0 #c9b98f;
+  }
+  body.fs .stage-tools button.active { border-color: #a92c1d; box-shadow: 0 2px 0 #a92c1d; }
   body.fs .stage-tools button:hover .tl { padding-right: 0; padding-left: 13px; }
 
-  /* 停靠站名牌(地圖上方置中,跟隨列車停站時淡入)——仿台鐵月台站名牌:
-     上半白底本站大字,下半藍條左右鄰站+站間里程+方向箭頭 */
+  /* 停靠站名牌(時鐘儀表正下方、靠左直欄,跟隨列車停站時淡入)——仿台鐵月台站名牌:
+     上半白底本站大字,下半藍條左右鄰站+站間里程+方向箭頭。
+     改靠左:跟隨中列車常居畫面中心,置中彈牌會壓車;左直欄(儀表→站牌→跟隨卡)固定分工,
+     也不再與右側看板/公告推擠 */
   .dwell-plate {
-    /* top 固定在時鐘徽章下方,置中時才不會與徽章重疊 */
-    position: absolute; top: 58px; left: 50%; transform: translateX(-50%); z-index: 640;
-    min-width: 320px; max-width: calc(100% - 24px);
-    background: #fffdf6; border: 2.5px solid #2a4a73; border-radius: 10px;
+    /* top 固定在時鐘儀表下方,左緣與儀表/跟隨卡同對齊 12px */
+    position: absolute; top: 58px; left: 12px; z-index: 640;
+    min-width: 300px; max-width: min(560px, calc(100% - 24px));
+    background: #fffdf6; border: 2px solid #2a4a73; border-radius: 10px;
     box-shadow: 0 2px 0 rgba(42,74,115,.22); overflow: hidden;
-    opacity: 0; transition: opacity .45s ease; pointer-events: none;
+    opacity: 0; transform: translateY(-5px);
+    transition: opacity .45s ease, transform .45s ease;
+    pointer-events: none;
   }
-  .dwell-plate.show { opacity: 1; }
+  .dwell-plate.show { opacity: 1; transform: none; } /* 淡入順勢往下安座,穩穩落在儀表下方 */
   /* 特殊車站介紹:併入站名牌下緣,隨站名牌一起淡入(進站)淡出(開車) */
   .dwell-plate .dp-intro {
     background: #fffdf6; color: #3a3226;
@@ -208,17 +240,19 @@
   /* 跟隨小面板(地圖左下角，跟隨列車時顯示) */
   .follow-panel {
     position: absolute; left: 12px; bottom: 12px; z-index: 650;
-    width: 230px; max-height: calc(100% - 24px); overflow-y: auto;
+    width: 240px; max-height: calc(100% - 24px); overflow-y: auto;
     background: rgba(255,253,246,.97); border: 2px solid #2a4a73; border-radius: 10px;
     padding: 10px 13px 11px;
     font-variant-numeric: tabular-nums;
+    box-shadow: 0 3px 0 rgba(42,74,115,.22);
+    scrollbar-width: thin; scrollbar-color: #c9b98f transparent;
   }
-  /* 標題列允許換行,車種名(order 排最後)獨佔第二行、可折行、全名永不截:
-     時速位數變動(0↔51↔128)只動時速表自己的左緣,不再擠壓車種字造成卡高跳動;
-     極長名(如「自強號（E500 新編組・官方代碼未公布）」225px>可用 200px)折兩行而非省略 */
   .follow-panel .fp-head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
   .follow-panel .fp-head .dot { width: 9px; height: 9px; border-radius: 50%; flex: none; }
   .follow-panel .fp-head b { font-size: 15px; color: #1e2c40; }
+  /* 車種名獨佔第二行、可折行、全名永不截(全域):
+     極長名(如「自強號（E500 新編組・官方代碼未公布）」)折兩行而非省略;
+     卡高只隨換車變,不隨時速位數變 */
   .follow-panel .fp-head .kind {
     font-size: 12px; color: #7a6c50; font-weight: 600;
     order: 9; flex: 1 1 100%; min-width: 0; margin-top: 1px;
@@ -236,12 +270,13 @@
     color: #a89468; font-size: 15px; line-height: 1; padding: 0 2px;
   }
   .follow-panel .fp-next {
-    display: flex; align-items: baseline; gap: 7px;
+    display: flex; align-items: baseline; gap: 7px; flex-wrap: wrap; row-gap: 3px;
     margin-top: 7px; padding-top: 7px; border-top: 1.5px dashed #d8cba9;
   }
   .follow-panel .fp-next .lbl { font-size: 11px; color: #8a7c62; font-weight: 800; letter-spacing: 2px; flex: none; }
-  .follow-panel .fp-next .stn { font-size: 16px; font-weight: 900; color: #1e2c40; letter-spacing: 1px; }
-  .follow-panel .fp-next .eta { margin-left: auto; font-size: 13px; font-weight: 700; color: #2a4a73; }
+  .follow-panel .fp-next .stn { font-size: 16px; font-weight: 900; color: #1e2c40; letter-spacing: 1px; white-space: nowrap; }
+  /* eta 靠右;誤點等長字串塞不下時整段換到第二行仍靠右,站名不再被擠斷 */
+  .follow-panel .fp-next .eta { margin-left: auto; font-size: 13px; font-weight: 700; color: #2a4a73; text-align: right; white-space: nowrap; }
   .follow-panel .fp-next .eta b { color: #d23c2a; }
   .follow-panel .fp-prog { display: flex; align-items: center; gap: 8px; margin-top: 7px; }
   .follow-panel .fp-prog .bar {
@@ -254,11 +289,9 @@
     white-space: nowrap; font-variant-numeric: tabular-nums;
   }
   .follow-panel .fp-dest { margin-top: 4px; font-size: 11.5px; color: #7a6c50; }
-  .follow-panel .fp-status {
-    margin-top: 6px; font-size: 12px; font-weight: 700; color: #b4552a;
-    background: #fbe9df; border: 1px solid #e0a37e; border-radius: 5px; padding: 3px 8px;
-  }
-  .follow-panel .fp-status.run { color: #2a6b46; background: #e9f2e4; border-color: #a8c9a4; }
+  /* 狀態改純文字:跟隨卡只留通阻警示一個色框,減少一格格小方塊 */
+  .follow-panel .fp-status { margin-top: 7px; font-size: 12px; font-weight: 700; color: #b4552a; }
+  .follow-panel .fp-status.run { color: #2a6b46; }
   /* ── 列車資訊卡(地圖下方,跟隨時顯示) ── */
   .traincard {
     margin: 14px 0 0;
@@ -288,7 +321,7 @@
   }
   .traincard .tc-sparkwrap { margin-top: 9px; padding-top: 7px; border-top: 1.5px dashed #d8cba9; }
   .traincard .tc-sparkwrap .lbl {
-    font-size: 10.5px; font-weight: 800; letter-spacing: 2px; color: #8a7c62; margin-bottom: 3px;
+    font-size: 11px; font-weight: 800; letter-spacing: 3px; color: #a89468; margin-bottom: 4px;
   }
   .traincard .tc-sparkwrap canvas { display: block; width: 100%; height: 46px; }
   .traincard .tc-stops {
@@ -314,7 +347,8 @@
     align-items: start; /* 介紹與日誌都依內容展開、卡片跟著變高,整頁只留頁面捲軸 */
   }
   .traincard .tc-intro { font-size: 13px; line-height: 1.65; color: #5d5240; }
-  .traincard .tc-events { display: flex; flex-direction: column; min-height: 0; }
+  /* 介紹與旅程日誌之間加一道直向虛線,兩欄分界更清楚 */
+  .traincard .tc-events { display: flex; flex-direction: column; min-height: 0; border-left: 1.5px dashed #d8cba9; padding-left: 18px; }
   .traincard .tc-events #tcEvents { flex: 1; }
   .traincard .tc-intro b.tn { color: #a3641a; }
   .traincard .tc-intro .amen { display: block; margin-top: 5px; color: #2a4a73; font-weight: 600; font-size: 12.5px; }
@@ -354,11 +388,12 @@
   }
   .passport .ph-head { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; cursor: pointer; user-select: none; }
   .passport .ph-head > b { font-size: 16px; font-weight: 900; letter-spacing: 3px; color: #1e2c40; }
-  .passport .ph-tgl { font-size: 12px; color: #a89468; }
+  .passport .ph-tgl { font-size: 12px; color: #a89468; margin-left: auto; }
+  /* 標題列改三段式堆疊:標題+收合 / 統計 / 說明——窄欄(340px)與手機不再亂換行 */
+  .passport .ph-sub { font-size: 11px; color: #8a7c62; flex: 1 1 100%; order: 3; line-height: 1.55; }
   /* 收合時只留標題列(統計摘要仍可見),說明文與內容全部藏起 */
   .passport.closed .ph-sub, .passport.closed .ph-body { display: none; }
-  .passport .ph-sub { font-size: 11px; color: #8a7c62; }
-  .passport .ph-stats { margin-left: auto; font-size: 12.5px; color: #5d5240; font-variant-numeric: tabular-nums; }
+  .passport .ph-stats { flex: 1 1 100%; order: 2; font-size: 12.5px; color: #5d5240; font-variant-numeric: tabular-nums; }
   .passport .ph-stats b { color: #d23c2a; }
   .passport .ph-sec {
     display: flex; align-items: baseline; gap: 6px;
@@ -366,16 +401,22 @@
     margin: 11px 0 6px; padding-bottom: 3px; border-bottom: 1.5px dashed #d8cba9;
   }
   .passport .ph-sec b { color: #2a4a73; letter-spacing: 0; }
-  .passport .ph-stamps { display: flex; flex-wrap: wrap; gap: 6px; }
+  .passport .ph-stamps { display: flex; flex-wrap: wrap; gap: 8px 7px; } /* 留給完乘章外圈細框的呼吸空間 */
   .passport .stamp {
+    display: inline-flex; align-items: center; white-space: nowrap; /* 章不在內部斷行 */
     font-size: 12px; font-weight: 600; color: #a89468; cursor: pointer;
     background: #f7f0dd; border: 1.5px dashed #c9b98f; border-radius: 5px; padding: 3px 9px;
   }
   .passport .stamp:hover { background: #efe6cc; }
+  /* 完乘章:印泥紅雙框篆刻感+微傾角,像手蓋的紀念章 */
   .passport .stamp.got {
-    color: #1e2c40; font-weight: 800; cursor: default;
-    background: #fff6df; border: 1.5px solid #d2a12a; box-shadow: 0 1.5px 0 #d2a12a;
+    color: #b8321f; font-weight: 800; cursor: default;
+    background: #fdf2ec; border: 1.6px solid #cf4a37; border-radius: 6px;
+    outline: 1px solid rgba(207,74,55,.38); outline-offset: 2px;
+    box-shadow: none; transform: rotate(-1.4deg);
   }
+  .passport .stamp.got:nth-child(even) { transform: rotate(1deg); }
+  .passport .stamp.got:hover { background: #fdf2ec; }
   .passport .ph-row {
     display: flex; align-items: baseline; gap: 10px; font-size: 12.5px; color: #5d5240;
     padding: 3px 2px; border-top: 1px dashed #ece2c8; font-variant-numeric: tabular-nums;
@@ -386,12 +427,17 @@
   .passport .ph-row .r { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .passport .ph-row .km { color: #8a7c62; }
   .passport .ph-empty { font-size: 12.5px; color: #8a7c62; }
-  .passport .stamp.na { cursor: help; } /* 成就徽章不可點,滑過看解鎖條件 */
+  .passport .stamp.na { cursor: help; filter: grayscale(.85); } /* 成就徽章不可點,滑過看解鎖條件;未解鎖連 emoji 一起褪色 */
+  /* 成就徽章(金)與完乘章(紅)兩家族區隔 */
+  .passport .stamp.na.got {
+    color: #7c5a10; background: #fff6df; border-color: #c79a2b;
+    outline-color: rgba(199,154,43,.5); filter: none;
+  }
 
   /* ── 營運通阻公告橫幅(TDX Alert,颱風停駛等):右上角常駐,點開看官方公告全文 ── */
   .alert-banner {
     position: absolute; top: 12px; right: 12px; z-index: 705;
-    max-width: min(480px, 52%);
+    max-width: min(440px, 46%);
     display: flex; align-items: baseline; gap: 7px;
     background: #d23c2a; color: #fff8ec;
     border: 2px solid #a92c1d; border-radius: 8px;
@@ -403,6 +449,7 @@
   .alert-detail {
     position: absolute; top: 52px; right: 12px; z-index: 706;
     width: min(440px, calc(100% - 24px)); max-height: 60%; overflow-y: auto;
+    scrollbar-width: thin; scrollbar-color: #c9b98f transparent;
     background: #fffdf6; border: 2px solid #a92c1d; border-radius: 10px;
     box-shadow: 0 3px 0 rgba(169,44,29,.3);
     padding: 11px 14px; font-size: 12.5px; color: #3a3226; line-height: 1.6;
@@ -414,6 +461,8 @@
   .alert-detail .ad-src { margin-top: 8px; padding-top: 6px; border-top: 1.5px dashed #e8d5c0; color: #a89468; font-size: 11px; }
   body.fs .alert-banner { right: 60px; }
   body.fs .alert-detail { right: 60px; }
+  /* 公告橫幅開著時:同側的看板退到橫幅下方,不再互疊(橫幅隱藏時看板回到頂緣) */
+  .alert-banner:not([hidden]) ~ .board { top: 54px; max-height: calc(100% - 216px); }
   /* 跟隨面板的通阻警示列(跟隨中的車行經公告影響路線時顯示) */
   .follow-panel .fp-alert {
     margin-top: 7px; padding: 5px 8px;
@@ -450,6 +499,7 @@
     z-index: 1001; margin: 0; width: max-content; max-width: calc(100vw - 20px);
     background: rgba(255,253,246,.96); border: 2px solid #2a4a73; border-radius: 10px;
     padding: 7px 12px; gap: 8px 10px;
+    box-shadow: 0 3px 0 rgba(42,74,115,.22);
   }
   /* 全畫面控制列瘦身:壓成一排,音樂不落到第二排(速度/時間字樣藏起,預設倍速鈕縮小保留) */
   body.fs .controls button.pp { font-size: 12.5px; padding: 5px 9px; gap: 4px; }
@@ -473,6 +523,7 @@
   body.fs .follow-panel .tc-no,
   body.fs .follow-panel .tc-kind { display: none; }
   body.fs .follow-panel .tc-body { grid-template-columns: 1fr; height: auto; gap: 7px; }
+  body.fs .follow-panel .tc-events { border-left: 0; padding-left: 0; } /* 單欄合併卡不需直向分界線 */
   /* 介紹依內容展開不出捲軸(同一般模式的卡);旅程日誌維持固定高的滾動記錄區(超出要能捲,否則會蓋到下方速度曲線) */
   body.fs .follow-panel .tc-events #tcEvents { flex: none; height: 88px; overflow-y: auto; overflow-x: hidden; }
   body.fs .stage-tools { top: 12px; bottom: auto; flex-direction: column; }
@@ -500,26 +551,35 @@
   body.fs #immBtn { display: flex; }
 
   /* ── HUD 小牌 ── */
+  /* 時鐘徽章降為「儀表」層級:淡框淡影,不與內容面板(藏青框)搜眼 */
   .badge {
-    position: absolute; top: 12px; left: 14px; z-index: 600;
-    display: flex; gap: 12px; align-items: baseline;
+    position: absolute; top: 12px; left: 12px; z-index: 600;
+    display: flex; gap: 10px; align-items: baseline;
     font-variant-numeric: tabular-nums; pointer-events: none;
-    background: #fffdf6; border: 2px solid #2a4a73; border-radius: 8px;
-    padding: 6px 14px 7px;
+    background: #fffdf6; border: 1.5px solid #c9b98f; border-radius: 8px;
+    padding: 5px 12px 6px;
+    box-shadow: 0 2px 0 #c9b98f;
   }
-  .badge .clock { font-size: 22px; font-weight: 900; color: #1e2c40; }
+  .badge .clock { font-size: 20px; font-weight: 900; color: #1e2c40; }
   .badge .peak { font-size: 12px; font-weight: 800; padding: 2px 9px; border-radius: 3px; }
   .badge .count { font-size: 13px; color: #7a6c50; font-weight: 600; }
   .badge .ver { font-size: 10px; color: #b3a37e; font-weight: 600; letter-spacing: .5px; }
   .badge .live { font-size: 11px; font-weight: 800; color: #1d9e55; letter-spacing: .5px; cursor: help; }
   .badge .live::before { content: '●'; margin-right: 3px; animation: livePulse 2s infinite; }
   @keyframes livePulse { 0%, 100% { opacity: 1; } 50% { opacity: .35; } }
-  .lateTag { color: #d23c2a; font-weight: 800; font-size: 11px; margin-left: 4px; }
+  .lateTag {
+    color: #b8321f; font-weight: 800; font-size: 10.5px; margin-left: 4px;
+    background: #fbe9df; border: 1px solid #e0a37e; border-radius: 3px;
+    padding: 0 4px 1px; white-space: nowrap;
+  }
 
   /* ── 控制列 ── */
+  /* 控制台:收進一張紙牌,與地圖下緣對齊錨住整排滑杆與按鈕 */
   .controls {
-    display: flex; flex-wrap: wrap; gap: 18px 24px;
+    display: flex; flex-wrap: wrap; gap: 14px 22px;
     align-items: center; margin: 16px 2px 0;
+    background: #fffdf6; border: 2px solid #c9b98f; border-radius: 10px;
+    padding: 11px 14px; box-shadow: 0 3px 0 #d8c9a3;
   }
   .ctl { display: flex; align-items: center; gap: 10px; }
   .ctl label { font-size: 13px; color: #7a6c50; font-weight: 600; white-space: nowrap; }
@@ -583,8 +643,10 @@
   }
   .chip::before {
     content: ''; width: 6px; height: 6px; border-radius: 50%;
-    background: #efe6d2; border: 1px solid #a89468; flex: none;
+    background: #2a4a73; border: 1px solid #2a4a73; flex: none;
+    transition: background .15s, border-color .15s;
   }
+  .chip.off::before { background: transparent; border-color: #a89468; } /* 打洞未劃記=關閉 */
   .chip .dot { width: 11px; height: 11px; border-radius: 50%; }
   .chip.off { opacity: .38; }
   .legend-sep { flex-basis: 100%; height: 0; }
@@ -600,7 +662,10 @@
   .note { margin: 22px 2px 0; color: #8a7c62; font-size: 13px; line-height: 1.6; }
 
   /* ── 頁尾:更新紀錄/資料來源/回報連結/抖內(收合式,參考防災手冊的做法) ── */
-  .site-foot { margin: 28px 2px 0; max-width: 760px; display: grid; gap: 10px; }
+  .site-foot {
+    margin: 30px 2px 0; max-width: 760px; display: grid; gap: 10px;
+    border-top: 2px dashed #c9b98f; padding-top: 20px; /* 與正文區分隔的「版尾線」 */
+  }
   .foot-box { background: #f5eedd; border: 1.5px solid #d8c9a3; border-radius: 10px; }
   .foot-box summary {
     cursor: pointer; user-select: none; list-style: none;
@@ -647,11 +712,11 @@
   .search { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin: 14px 2px 0; }
   .search input[type=text] {
     font: inherit; font-size: 14px; background: #fffdf6; color: #3a3226;
-    border: 1.5px solid #c9b98f; border-radius: 6px; padding: 8px 12px; width: 260px;
+    border: 1.5px solid #c9b98f; border-radius: 6px; padding: 8px 12px; width: 260px; max-width: 100%;
   }
   .search input::placeholder { color: #a89468; }
   .followbar {
-    display: inline-flex; align-items: center; gap: 9px; font-size: 13px;
+    display: inline-flex; align-items: center; gap: 9px; flex-wrap: wrap; row-gap: 5px; font-size: 13px;
     background: #e6d9ba; border: 1.5px solid #c9b98f; border-radius: 4px;
     padding: 6px 13px; color: #3a3226; font-variant-numeric: tabular-nums;
   }
@@ -661,6 +726,7 @@
     font: inherit; font-size: 12px; font-weight: 700; cursor: pointer;
     background: #d23c2a; color: #fff8ec;
     border: 1px solid #a92c1d; border-radius: 4px; padding: 3px 9px;
+    margin-left: auto;
   }
   .followbar.miss { background: #fbe9df; border-color: #e0a37e; color: #b4552a; }
 
@@ -670,9 +736,16 @@
     /* 下緣讓開右下角同一欄的 Leaflet 縮放鈕+.stage-tools(縮放鈕疊在工具鈕上方),面板內自行捲動 */
     width: 272px; max-height: calc(100% - 176px); overflow-y: auto;
     background: rgba(255,253,246,.97); border: 2px solid #2a4a73; border-radius: 10px;
-    padding: 12px 14px;
+    padding: 0 14px 12px; /* 上緣由 h3 藏青標題條自帶 */
+    box-shadow: 0 3px 0 rgba(42,74,115,.22);
+    scrollbar-width: thin; scrollbar-color: #c9b98f transparent;
   }
-  .board h3 { margin: 0 18px 1px 0; font-size: 16px; font-weight: 900; letter-spacing: 3px; color: #1e2c40; }
+  /* 看板標題改藏青滿幅條:與停站牌、跟隨面板同一家族的「站內告示板」語彙 */
+  .board h3 {
+    margin: 0 -14px 7px; padding: 8px 34px 7px 14px;
+    font-size: 15px; font-weight: 900; letter-spacing: 3px;
+    background: #2a4a73; color: #fffdf6; border-radius: 8px 8px 0 0;
+  }
   .board .sub { color: #8a7c62; font-size: 11px; margin-bottom: 7px; }
   .board .row { display: flex; align-items: baseline; gap: 8px; padding: 5px 0; border-top: 1.5px dashed #d8cba9; font-size: 13px; }
   .board .row[data-no], .board .row[data-rand] { cursor: pointer; }
@@ -682,7 +755,8 @@
   .board .row .dest { flex: 1; color: #6b5f4a; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .board .row .t, .board .row .min { font-variant-numeric: tabular-nums; }
   .board .row .min { color: #2a4a73; font-weight: 700; min-width: 44px; text-align: right; }
-  .board .close { position: absolute; top: 7px; right: 9px; background: none; border: 0; color: #a89468; font-size: 17px; cursor: pointer; line-height: 1; }
+  .board .close { position: absolute; top: 8px; right: 9px; background: none; border: 0; color: #c2cede; font-size: 17px; cursor: pointer; line-height: 1; }
+  .board .close:hover { color: #fff8ec; }
   .board .empty { color: #8a7c62; font-size: 13px; padding: 8px 0; }
   /* 車站資訊(地址／特色／Google 地圖連結),接在站名下、時刻列上 */
   .board .stnMeta { margin: 1px 0 8px; padding-bottom: 8px; border-bottom: 1.5px dashed #d8cba9; }
@@ -728,16 +802,24 @@
     .plate-foot .stn { font-size: 13px; letter-spacing: 3px; text-indent: 3px; }
     .plate-arrow { width: 64px; height: 10px; margin: 0 6px; }
     header p { font-size: 13px; }
+    .grouptabs .gtab { font-size: 13px; padding: 6px 14px; }
+    .groupmembers .mem { font-size: 12.5px; padding: 5px 11px; }
     .stage { height: 58vh; min-height: 380px; }
     .badge { top: 8px; left: 8px; gap: 9px; padding: 5px 11px 6px; }
     .badge .clock { font-size: 18px; }
     .badge .count { font-size: 12px; }
     /* 手機:時刻板改底部 sheet,工具鈕改右上直排;帶文字後變寬,起點下移到時鐘徽章下方免得蓋住班次數 */
-    .stage-tools { top: 56px; right: 8px; bottom: auto; flex-direction: column; gap: 7px; }
+    .stage-tools { top: 56px; right: 8px; bottom: auto; flex-direction: column; gap: 0; }
+    .stage-tools button + button { border-left: 0; border-top: 1px solid #ece2c8; } /* 直排工具條:分隔線改橫向 */
     /* 工具抽屜:帶字大鈕整排常駐會蓋掉小螢幕地圖(跟隨/全畫面看不到車)——
        平時只露一顆「☰ 工具」,點開才展開,點任一工具自動收回(JS) */
     #toolsFab { display: flex; }
     body:not(.tools-open) .stage-tools > button:not(#toolsFab) { display: none; }
+    /* 抽屜展開時只需限高可捲(工具條本體已是單一紙牌) */
+    body.tools-open .stage-tools {
+      max-height: calc(100% - 110px); overflow-y: auto;
+      scrollbar-width: thin; scrollbar-color: #c9b98f transparent;
+    }
     /* 版權字(衛星模式一長串)單行省略,不換行蓋到跟隨卡 */
     .leaflet-control-attribution {
       max-width: calc(100vw - 40px); white-space: nowrap;
@@ -750,11 +832,29 @@
     body.fs .stage-tools button .tl { padding-right: 0; padding-left: 12px; } /* 全畫面直排 row-reverse:文字在左 */
     /* 手機改用雙指縮放,隱藏 Leaflet +/- 鈕(否則會壓在底部 sheet 上) */
     .leaflet-control-zoom { display: none; }
+    /* 公告橫幅:手機改成時鐘徽章「下方」的整寬橫條,不再與徽章同列互擠 */
+    .alert-banner {
+      top: 54px; left: 8px; right: 8px; max-width: none;
+      font-size: 12.5px; padding: 5px 10px 6px;
+    }
+    .alert-detail { top: 92px; right: 8px; width: calc(100% - 16px); }
+    /* 桌面全畫面的 right:60px(讓開右側直排工具列)不適用手機——手機 fs 工具列已收成抽屜;
+       不補會洩漏成:橫幅不對稱、詳情框左緣 -44px 被裁、看板 sheet 右縮 */
+    body.fs .alert-banner, body.fs .alert-detail, body.fs .board { right: 8px; }
+    /* 橫幅出現時,右上工具欄與停站牌往下讓一階 */
+    .alert-banner:not([hidden]) ~ .stage-tools { top: 96px; }
+    .alert-banner:not([hidden]) ~ .dwell-plate { top: 96px; }
+    /* 站名牌手機靠左橫條,右側讓出「☰ 工具」浮鈕欄位,同一頂帶並排對齊 */
+    .dwell-plate { top: 56px; left: 8px; right: 100px; min-width: 0; max-width: none; }
+    /* 特殊站介紹手機最多兩行:站牌總高有上限,公告+站牌+跟隨卡三者全開也不互蓋 */
+    .dwell-plate .dp-intro { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
     .board {
       top: auto; bottom: 8px; left: 8px; right: 8px; width: auto;
       max-height: 46%;
       border-radius: 10px;
     }
+    /* 手機看板是底部 sheet:取消桌面版「讓到公告下方」的頂緣定位 */
+    .alert-banner:not([hidden]) ~ .board { top: auto; max-height: 46%; }
     .controls { gap: 10px 14px; margin-top: 12px; }
     .ctl { flex: 1 1 100%; flex-wrap: wrap; min-width: 0; } /* 速度列(標籤+滑桿+預設鈕)放不下時換行,不撐出橫向捲動 */
     .ctl input[type=range] { flex: 1; width: auto; }
@@ -762,7 +862,12 @@
     .followbar { flex-wrap: wrap; }
     .chip { font-size: 12px; padding: 4px 10px 4px 7px; }
     .follow-panel { left: 8px; bottom: 8px; width: 200px; }
-    /* 標題列換行+車種名獨佔第二行:原本只有手機這樣做,現已升格為基礎規則(所有寬度適用) */
+    /* 窄卡的車種名(如「區間車（通勤電聯車）」)在 flex 標題列會被擠成一字一行的直欄把卡撐高:
+       改讓標題列換行,車種名獨佔第二行橫排(order 排到最後),單行省略 */
+    /* (車種名獨佔第二行已升為全域規則,見 .follow-panel .fp-head .kind) */
+    /* 時速大字手機縮級:200px 卡遇 4 位數車次+3 位數時速(≥100km/h),24px 字級會把
+       標題列擠到換行、卡高跳 23px——縮到三位數也放得下,卡高才不隨時速跳 */
+    .follow-panel .fp-head .spd b { font-size: 19px; }
     /* 看板/最愛/旅程/探索四選一的底部 sheet 開啟時(見 updateSheetOpenClass),跟隨小卡讓道到 sheet 上方;
        sheet 最高 46%,抓 46%+間距頂上去;max-height 保住左上時鐘 badge(高約 45px+邊距)不被蓋,卡內自行捲動 */
     body.sheet-open .follow-panel { bottom: calc(46% + 16px); max-height: calc(54% - 84px); }
@@ -771,12 +876,12 @@
     body.sheet-open .stage-tools { display: none; }
     .traincard { padding: 11px 13px 12px; }
     .traincard .tc-body { grid-template-columns: 1fr; }
-    .traincard .tc-events { margin-top: 4px; }
+    .traincard .tc-events { margin-top: 4px; border-left: 0; padding-left: 0; }
     .kbd-hint { display: none; }
     /* 手機全畫面:資訊卡太佔位就不浮出,控制列貼底、面板讓位 */
     body.fs .traincard { display: none; }
     body.fs .controls { bottom: 8px; width: calc(100vw - 16px); padding: 7px 12px; }
-    body.fs .follow-panel { bottom: 132px; }
+    body.fs .follow-panel { bottom: 132px; width: 200px; } /* 桌面 fs 的 300px 寬不洩漏進手機 */
     body.fs .stage-tools { top: 56px; } /* 帶文字的工具鈕同樣讓開左上時鐘徽章 */
     /* 放空模式(手機):看戲不操作——控制列只留「離開放空」一顆,跟隨卡縮成迷你條
       (車次+速度+下一站),別把列車蓋掉;速度/時間/音樂等設定進放空前調好 */
@@ -789,7 +894,7 @@
     body.ambient .follow-panel .fp-head .kind,
     body.ambient .follow-panel .fp-next .lbl { display: none; } /* 「下一站」字樣省下,窄卡站名才不換行 */
     body.ambient .follow-panel .fp-head b { font-size: 13px; }
-    body.ambient .follow-panel .fp-head .spd b { font-size: 17px; }
+    body.ambient .follow-panel .fp-head .spd b { font-size: 15px; } /* 176px 迷你卡同理:三位數時速也不換行 */
     body.ambient .follow-panel .fp-next .stn { font-size: 14px; white-space: nowrap; }
     body.ambient.fs .follow-panel { bottom: 8px; } /* 「離開放空」已靠右下,左下角整個還給迷你卡 */
   }
@@ -1003,7 +1108,7 @@
 <script>
 // 版本戳記:每次改版 push 前手動遞增(字母序),畫面時鐘徽章與 console 都會顯示,
 // 供比對線上跑的是不是最新版(瀏覽器快取 max-age=600 常讓人看到舊版)
-const BUILD = 'v0710m';
+const BUILD = 'v0710n';
 const state = {
   systems: [], sysId: null, data: null, speed: 36, mode: 'freq',
   lines: [], visible: new Set(), trains: [], schedStations: [], types: [],
@@ -1022,9 +1127,10 @@ const FONT = '-apple-system, "PingFang TC", "Noto Sans TC", sans-serif';
 
 // 地圖三種底圖對應的 canvas 配色(軌道/站名/車站點/列車標籤外框)——見 design-mock 檔頭 spec B/D
 const MAP_PAL = {
-  light: { stnFill: '#f7f0dd', lbl: '#3a3226', lblStroke: 'rgba(255,253,246,.92)', tagOutline: '#fffdf6',            railAlpha: 0.9 },
-  dark:  { stnFill: '#10141c', lbl: '#e8e4d8', lblStroke: 'rgba(16,20,28,.9)',     tagOutline: 'rgba(16,20,28,.9)',  railAlpha: 0.75 },
-  sat:   { stnFill: '#24382c', lbl: '#ffffff', lblStroke: 'rgba(20,30,20,.85)',    tagOutline: 'rgba(20,30,20,.85)', railAlpha: 0.95 },
+  /* railCase=軌道外描(底圖色 knockout)、followCase=跟隨高亮外描(奶白;暗色/衛星用底圖色) */
+  light: { stnFill: '#f7f0dd', lbl: '#3a3226', lblStroke: 'rgba(255,253,246,.92)', tagOutline: '#fffdf6',            railCase: '#f7f0dd', followCase: '#fffdf6' },
+  dark:  { stnFill: '#10141c', lbl: '#e8e4d8', lblStroke: 'rgba(16,20,28,.9)',     tagOutline: 'rgba(16,20,28,.9)',  railCase: '#10141c', followCase: '#10141c' },
+  sat:   { stnFill: '#24382c', lbl: '#ffffff', lblStroke: 'rgba(20,30,20,.85)',    tagOutline: 'rgba(20,30,20,.85)', railCase: '#24382c', followCase: '#24382c' },
 };
 function pal() { return MAP_PAL[state.basemap === 'sat' ? 'sat' : (state.mapDark ? 'dark' : 'light')]; }
 
@@ -1387,13 +1493,15 @@ function drawFreq(w, h) {
   const inView = p => p.x >= -40 && p.x <= w + 40 && p.y >= -20 && p.y <= h + 20;
   const drawnNames = new Set();
   ctx.textAlign = 'center';
+  ctx.lineCap = 'round'; ctx.lineJoin = 'round';
   state.lines.forEach(ln => {
     if (!state.visible.has(ln.id) || !ln.pts) return;
     const line = ln.shapePts || ln.pts;
     ctx.beginPath();
     line.forEach((p, i) => i ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y));
-    ctx.strokeStyle = ln.color; ctx.globalAlpha = P.railAlpha; ctx.lineWidth = 3.4; ctx.stroke();
-    ctx.globalAlpha = 1;
+    /* 實色線+底圖色外描(knockout):交會處乾淨讓線,取代半透明疊印 */
+    ctx.strokeStyle = P.railCase; ctx.lineWidth = 5.6; ctx.stroke();
+    ctx.strokeStyle = ln.color; ctx.lineWidth = 3; ctx.stroke();
   });
   const freqLabels = [];
   state.lines.forEach(ln => {
@@ -1425,18 +1533,30 @@ function drawFreq(w, h) {
   }
 }
 
-// 全台同框的裝飾層:所有捷運/輕軌路線與示意列車,畫得半透明、墊在台鐵/高鐵底下(僅豐富畫面,非即時)
+// 全台同框的裝飾層:所有捷運/輕軌路線與示意列車,墊在台鐵/高鐵底下(僅豐富畫面,非即時)
+// 官方色與底圖 45/55 預混成實色,取代半透明疊印——邊緣乾淨、視覺仍退居第二層
+const _decoMix = {};
+function decoMixColor(color, base) {
+  const key = color + base;
+  if (_decoMix[key]) return _decoMix[key];
+  if (!/^#[0-9a-fA-F]{6}$/.test(color) || !/^#[0-9a-fA-F]{6}$/.test(base)) return (_decoMix[key] = color);
+  const ch = (s, i) => parseInt(s.slice(i, i + 2), 16);
+  let out = '#';
+  for (const i of [1, 3, 5]) out += Math.round(ch(color, i) * 0.45 + ch(base, i) * 0.55).toString(16).padStart(2, '0');
+  return (_decoMix[key] = out);
+}
 function drawDeco(w, h) {
   if (!state.decoLines) return;
+  const P = pal();
   const inView = p => p.x >= -40 && p.x <= w + 40 && p.y >= -20 && p.y <= h + 20;
+  ctx.lineCap = 'round'; ctx.lineJoin = 'round';
   for (const ln of state.decoLines) {
     const line = ln.shapePts || ln.pts;
     if (!line || line.length < 2) continue;
     ctx.beginPath();
     line.forEach((p, i) => i ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y));
-    ctx.strokeStyle = ln.color; ctx.globalAlpha = 0.42; ctx.lineWidth = 2.4; ctx.stroke();
+    ctx.strokeStyle = decoMixColor(ln.color, P.railCase); ctx.lineWidth = 2.2; ctx.stroke();
   }
-  ctx.globalAlpha = 1;
   const tau = state.decoElapsed * state.speedMult;
   for (const ln of state.decoLines) {
     if (!ln.sched) continue;
@@ -1445,9 +1565,9 @@ function drawDeco(w, h) {
       const cp = map.latLngToContainerPoint([pos.lat, pos.lon]);
       if (!inView(cp)) continue;
       ctx.beginPath(); ctx.arc(cp.x, cp.y, 2.7, 0, 7);
-      ctx.fillStyle = '#ffffff'; ctx.globalAlpha = 0.85; ctx.fill();
+      ctx.fillStyle = '#ffffff'; ctx.fill();
       ctx.beginPath(); ctx.arc(cp.x, cp.y, 1.7, 0, 7);
-      ctx.fillStyle = ln.color; ctx.globalAlpha = 1; ctx.fill();
+      ctx.fillStyle = ln.color; ctx.fill();
     }
   }
   ctx.globalAlpha = 1;
@@ -1459,6 +1579,7 @@ function drawSched(w, h) {
   const showTrain = z >= 11;
   const inView = p => p.x >= -40 && p.x <= w + 40 && p.y >= -20 && p.y <= h + 20;
   if (state.trackLines) {
+    ctx.lineCap = 'round'; ctx.lineJoin = 'round';
     for (const ln of state.trackLines) {
       if (state.trackVisible && !state.trackVisible.has(ln.id)) continue;
       ctx.beginPath();
@@ -1470,11 +1591,12 @@ function drawSched(w, h) {
           i ? ctx.lineTo(cp.x, cp.y) : ctx.moveTo(cp.x, cp.y);
         });
       }
-      ctx.strokeStyle = ln.color; ctx.globalAlpha = P.railAlpha; ctx.lineWidth = 3.4; ctx.stroke();
-      ctx.globalAlpha = 1;
+      /* 實色線+底圖色外描(knockout):交會處乾淨讓線,取代半透明疊印 */
+      ctx.strokeStyle = P.railCase; ctx.lineWidth = 5.6; ctx.stroke();
+      ctx.strokeStyle = ln.color; ctx.lineWidth = 3; ctx.stroke();
     }
   }
-  // 跟隨路線高亮:全程光暈描在軌道上、車站與列車下
+  // 跟隨路線高亮:奶白外描+加粗實線(取代模糊光暈),描在軌道上、車站與列車下
   if (state.followTrain && state._routePts && state._routePts.length > 1) {
     ctx.beginPath();
     for (let i = 0; i < state._routePts.length; i++) {
@@ -1482,10 +1604,8 @@ function drawSched(w, h) {
       i ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y);
     }
     ctx.lineCap = 'round'; ctx.lineJoin = 'round';
-    ctx.strokeStyle = state.followTrain.color;
-    ctx.globalAlpha = 0.25; ctx.lineWidth = 10; ctx.stroke();
-    ctx.globalAlpha = 0.95; ctx.lineWidth = 3.6; ctx.stroke();
-    ctx.globalAlpha = 1;
+    ctx.strokeStyle = P.followCase; ctx.lineWidth = 8.5; ctx.stroke();
+    ctx.strokeStyle = state.followTrain.color; ctx.lineWidth = 4.4; ctx.stroke();
   }
   // 車站圖示(依站等分級):圖示墊在列車下、站名最後畫在最上層,遠景時小站不畫
   const labelCands = [];
