@@ -1152,7 +1152,7 @@
 <script>
 // 版本戳記:每次改版 push 前手動遞增(字母序),畫面時鐘徽章與 console 都會顯示,
 // 供比對線上跑的是不是最新版(瀏覽器快取 max-age=600 常讓人看到舊版)
-const BUILD = 'v0710p';
+const BUILD = 'v0710q';
 const state = {
   systems: [], sysId: null, data: null, speed: 36, mode: 'freq',
   lines: [], visible: new Set(), trains: [], schedStations: [], types: [],
@@ -4030,10 +4030,11 @@ function drawWatermark(g, w, h) {
     g.globalAlpha = .95;
     g.drawImage(WM_LOGO, w - pad - lw, h - pad - 36 - lh, lw, lh);
   }
-  // 圖資出處跟著影片走(衛星=Esri,一般/暗色=OSM+CARTO)
+  // 圖資出處跟著影片走(衛星=Esri,一般/暗色=OSM+CARTO)。
+  // 放上一行與短的站名同列,不與長網址同列——窄畫面(直式錄影)兩者會在中間相撞
   g.textAlign = 'left'; g.globalAlpha = .8;
   g.font = '10px ' + wmFont;
-  g.fillText(state.basemap === 'sat' ? '© Esri — Maxar, Earthstar Geographics' : '© OpenStreetMap © CARTO', pad, h - pad);
+  g.fillText(state.basemap === 'sat' ? '© Esri — Maxar, Earthstar Geographics' : '© OpenStreetMap © CARTO', pad, h - pad - 17);
   g.restore();
 }
 
@@ -4059,6 +4060,9 @@ function recCompose() {
 
 function recFrame() {
   recCompose();
+  // Safari 幀交付不能只靠合成器排程(實測影片開頭整段空白),每幀主動推;上限 ~30fps 免得高刷螢幕灌爆編碼器
+  const now = performance.now();
+  if (REC.track && REC.track.requestFrame && now - (REC._lastReq || 0) >= 33) { REC._lastReq = now; REC.track.requestFrame(); }
   const sec = Math.floor((performance.now() - REC.t0) / 1000);
   const txt = Math.floor(sec / 60) + ':' + String(sec % 60).padStart(2, '0');
   const tEl = document.getElementById('recTime');
@@ -4068,6 +4072,7 @@ function recFrame() {
 
 function recStart() {
   if (REC.on) return;
+  if (!state.ready) { alert('地圖資料還在載入中,載入完成後再開始錄影'); return; } // 沒資料就錄=整段底色+浮水印的空白片
   const mime = recMime();
   if (!mime) { alert('這個瀏覽器不支援錄影(無可用影片編碼)'); return; }
   const mr = map.getContainer().getBoundingClientRect();
@@ -4080,11 +4085,15 @@ function recStart() {
   try { recCompose(); REC.g.getImageData(0, 0, 1, 1); } // 汙染防呆:合成一幀試讀,被無 CORS 圖磚汙染就會 throw
   catch (e) { alert('錄影初始化失敗:圖磚缺 CORS,請重新整理頁面後再試'); REC.cv = REC.g = null; return; }
   REC.chunks = [];
-  REC.rec = new MediaRecorder(REC.cv.captureStream(30), { mimeType: mime, videoBitsPerSecond: 8e6 });
+  const stream = REC.cv.captureStream(30);
+  REC.track = stream.getVideoTracks()[0];
+  REC.rec = new MediaRecorder(stream, { mimeType: mime, videoBitsPerSecond: 8e6 });
   REC.rec.ondataavailable = e => { if (e.data && e.data.size) REC.chunks.push(e.data); };
   REC.rec.onstop = recSave;
-  REC.rec.start(1000); // 每秒吐一塊,長錄不堆單一大塊
   REC.on = true; REC.t0 = performance.now();
+  REC.rec.start(1000); // 立刻啟動+每秒吐一塊。真 Safari 實測:先啟動再讓幀流動,0.2s 內就有內容;延遲啟動反而整段開頭空白
+  // 背景保活:切分頁/切 app 後 rAF 停擺,退化用計時器餵幀(背景被節流到 ~1fps 也夠),錄影不會從此空白凍結
+  REC._bgTimer = setInterval(() => { if (REC.on && document.hidden) { recCompose(); if (REC.track.requestFrame) REC.track.requestFrame(); } }, 500);
   document.getElementById('recTime').textContent = '0:00';
   document.getElementById('recToast').hidden = true; // 開新錄影先收吐司;上一段的 blob URL 留到本段存檔時才回收
   document.getElementById('recPill').hidden = false;
@@ -4098,6 +4107,7 @@ function recStop() {
   if (!REC.on) return;
   REC.on = false;
   cancelAnimationFrame(REC.raf);
+  clearInterval(REC._bgTimer);
   try { REC.rec.stop(); } catch (e) {}
   document.getElementById('recPill').hidden = true;
   const b = document.getElementById('recBtn');
