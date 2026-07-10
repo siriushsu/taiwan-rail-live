@@ -1153,7 +1153,7 @@
 <script>
 // 版本戳記:每次改版 push 前手動遞增(字母序),畫面時鐘徽章與 console 都會顯示,
 // 供比對線上跑的是不是最新版(瀏覽器快取 max-age=600 常讓人看到舊版)
-const BUILD = 'v0710u';
+const BUILD = 'v0710v';
 const state = {
   systems: [], sysId: null, data: null, speed: 36, mode: 'freq',
   lines: [], visible: new Set(), trains: [], schedStations: [], types: [],
@@ -2041,7 +2041,7 @@ function fitData(latlngs) {
   doFit();
 }
 
-// ── 山海號・平原號(虛構觀光列車,data/tra_special_trains.json 的 endless-loop):
+// ── 山海號・平原號(虛構觀光列車,data/tra_special_trains.json 的 shanhai/pingyuan 條目):
 // 兩台都從臺北出發:山海號(8888)走宜蘭花東線往東、平原號(8889)走西部縱貫線往西,
 // 同抵枋寮後折返,永續來回。一輪來回固定 12 小時,時刻由軌道弧長等速合成＋停靠站停 2 分;
 // trainPos/effT 對圈長取模,所以永不到站、無限循環
@@ -3034,7 +3034,9 @@ function collectionOf(rides) {
   const named = new Set(), stock = new Set(), branch = new Set();
   if (sd) {
     sd.namedTrains.forEach(n => {
-      if (n.trainNos.length && rides.some(r => r.namedId === n.id || r.kind === n.name)) named.add(n.id);
+      // 第三個條件:拆分前的舊記錄(namedId=endless-loop)按車次號歸戶到山海/平原,舊使用者的章不消失
+      if (n.trainNos.length && rides.some(r => r.namedId === n.id || r.kind === n.name ||
+        (r.namedId === 'endless-loop' && n.trainNos.includes(String(r.train))))) named.add(n.id);
     });
     sd.rollingStock.forEach(s => {
       if (rides.some(r => r.stockId === s.id || r.kind === s.name)) stock.add(s.id);
@@ -3077,7 +3079,7 @@ const ACH_TESTS = {
   stops50: r => r.some(x => (x.stops || 0) >= 50),
   early:  r => r.some(x => x.dep != null && (x.dep % 86400) < 6 * 3600),
   night:  r => r.some(x => x.dep != null && (x.dep % 86400) >= 22 * 3600),
-  loop:   r => r.some(x => x.namedId === 'endless-loop'),
+  loop:   r => r.some(x => x.namedId === 'shanhai' || x.namedId === 'pingyuan' || x.namedId === 'endless-loop'), // endless-loop=拆分前的舊記錄
   day3:   r => Object.values(r.reduce((m, x) => (m[x.date] = (m[x.date] || 0) + 1, m), {})).some(n => n >= 3),
   tilting: (r, c) => c.stock.has('taroko') && c.stock.has('puyuma'),
   namedAll: (r, c) => { const n = state.special ? state.special.namedTrains.filter(x => x.trainNos.length).length : 0; return n > 0 && c.named.size >= n; },
