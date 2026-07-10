@@ -3,9 +3,9 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>列車有時</title>
-<meta name="description" content="列車有時。看台鐵此刻準點嗎、捷運怎麼穿梭全台，一張會動的台灣鐵道地圖。" />
-<meta property="og:title" content="列車有時" />
+<title>軌島</title>
+<meta name="description" content="軌島 railisland.tw。看台鐵此刻準點嗎、捷運怎麼穿梭全台，一張會動的台灣鐵道地圖。" />
+<meta property="og:title" content="軌島" />
 <meta property="og:description" content="Taiwan's trains, moving live." />
 <meta property="og:type" content="website" />
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css" />
@@ -56,6 +56,7 @@
   header h1 {
     font-size: 34px; font-weight: 900; letter-spacing: 14px; text-indent: 14px;
     color: #26497e; margin: 0; line-height: 1.15;
+    -webkit-text-stroke: 1.1px currentColor; /* 系統字 900 已到頂,描邊再加粗 */
   }
   .plate-sub {
     margin: 2px 0 0; font-size: 12px; letter-spacing: 5px; text-indent: 5px;
@@ -952,7 +953,7 @@
 <div class="wrap">
   <header>
     <div class="plate">
-      <h1>列車有時</h1>
+      <h1>軌島</h1>
       <p class="plate-sub" id="plateSub">台灣鐵道即時軌跡</p>
       <div class="plate-foot">
         <span class="stn" id="plateL">基隆</span>
@@ -1115,6 +1116,7 @@
       <summary><span>🛠 更新紀錄</span><span class="foot-sub">最後更新：2026/7/10</span></summary>
       <ul class="foot-list">
         <li><span class="d">7/10</span><span>高鐵、機場捷運、淡海輕軌、安坑輕軌加入；系統選單改群組頁籤，新增「台鐵＋高鐵同框」與「全台同框」視圖</span></li>
+        <li><span class="d">7/10</span><span>網站更名「軌島」，正式網址 railisland.tw 上線</span></li>
         <li><span class="d">7/10</span><span>站內錄影（Beta）：一鍵錄製地圖動畫直接存檔分享，畫面附站名浮水印</span></li>
         <li><span class="d">7/10</span><span>環島觀光列車一分為二：往東「山海號」、往西「平原號」，臺北⇄枋寮到站折返永續來回</span></li>
         <li><span class="d">7/10</span><span>夜間與衛星模式視覺升級：軌道自動變淡、列車光暈更亮、拖尾改流星式漸細光帶；副標改為中文「台灣鐵道即時軌跡」</span></li>
@@ -1166,7 +1168,7 @@
 <script>
 // 版本戳記:每次改版 push 前手動遞增(字母序),畫面時鐘徽章與 console 都會顯示,
 // 供比對線上跑的是不是最新版(瀏覽器快取 max-age=600 常讓人看到舊版)
-const BUILD = 'v0710x';
+const BUILD = 'v0710y';
 const state = {
   systems: [], sysId: null, data: null, speed: 36, mode: 'freq',
   lines: [], visible: new Set(), trains: [], schedStations: [], types: [],
@@ -4152,10 +4154,10 @@ function drawWatermark(g, w, h) {
   g.shadowColor = halo; g.shadowBlur = 4;
   g.fillStyle = ink; g.textAlign = 'right'; g.textBaseline = 'bottom';
   g.font = '800 14px ' + wmFont;
-  g.fillText('列車有時', w - pad, h - pad - 16);
+  g.fillText('軌島', w - pad, h - pad - 16);
   g.font = '600 11px ' + wmFont;
   g.globalAlpha = .85;
-  g.fillText('taiwan-rail-live.sirius1984.workers.dev', w - pad, h - pad);
+  g.fillText('railisland.tw', w - pad, h - pad);
   if (WM_LOGO.complete && WM_LOGO.naturalWidth && !WM_LOGO._missing) {
     const lh = 30, lw = lh * (WM_LOGO.naturalWidth / WM_LOGO.naturalHeight);
     g.globalAlpha = .95;
@@ -4252,7 +4254,7 @@ function recSave() {
   REC.lastBlob = blob; REC.chunks = []; REC.cv = REC.g = null;
   if (!blob.size) { alert('錄影失敗:沒有錄到內容'); return; }
   const d = new Date(), p2 = n => String(n).padStart(2, '0');
-  REC.lastName = `列車有時_${d.getFullYear()}${p2(d.getMonth() + 1)}${p2(d.getDate())}_${p2(d.getHours())}${p2(d.getMinutes())}.${mime.includes('mp4') ? 'mp4' : 'webm'}`;
+  REC.lastName = `軌島_${d.getFullYear()}${p2(d.getMonth() + 1)}${p2(d.getDate())}_${p2(d.getHours())}${p2(d.getMinutes())}.${mime.includes('mp4') ? 'mp4' : 'webm'}`;
   if (REC.lastUrl) URL.revokeObjectURL(REC.lastUrl);
   REC.lastUrl = URL.createObjectURL(blob); // 留到下一次錄影才回收,「另存」按到取消還能再下載
   recDownload();

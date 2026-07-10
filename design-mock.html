@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>列車有時 — DESIGN MOCK v0710k</title>
+<title>軌島 — DESIGN MOCK v0710k</title>
 <style>
   :root { color-scheme: light; }
   * { box-sizing: border-box; }
@@ -50,6 +50,7 @@
   header h1 {
     font-size: 34px; font-weight: 900; letter-spacing: 14px; text-indent: 14px;
     color: #26497e; margin: 0; line-height: 1.15;
+    -webkit-text-stroke: 1.1px currentColor; /* 系統字 900 已到頂,描邊再加粗 */
   }
   .plate-sub {
     margin: 2px 0 0; font-size: 12px; letter-spacing: 5px; text-indent: 5px;
@@ -960,7 +961,7 @@ h2.mock-h { text-align: center; border-top: 2px dashed #c9b98f; padding-top: 22p
 
 <body>
 <!-- ======================================================================
-  DESIGN MOCK v0710k — 列車有時(台鐵×高鐵 LIVE)
+  DESIGN MOCK v0710k — 軌島(台鐵×高鐵 LIVE)
   · <style> 與正式版 index.html 完全同步(自動抽取),改樣式請直接改上面的 CSS
   · body 是各元件「真實使用中狀態」的靜態複製;無 JS、無 CDN、無資料請求
   · 地圖區為內嵌 SVG 假地圖:其中車牌/車站圖示 = canvas 繪製規格(見最下方 specimen 區)
@@ -969,7 +970,7 @@ h2.mock-h { text-align: center; border-top: 2px dashed #c9b98f; padding-top: 22p
 <div class="wrap">
   <header>
     <div class="plate">
-      <h1>列車有時</h1>
+      <h1>軌島</h1>
       <p class="plate-sub" id="plateSub">TAIWAN RAILWAY × HSR LIVE</p>
       <div class="plate-foot">
         <span class="stn" id="plateL">基隆</span>
