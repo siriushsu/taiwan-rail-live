@@ -201,6 +201,29 @@
   .rec-pill .rstop { font-weight: 700; font-size: 12px; opacity: .85; border-left: 1px solid rgba(255,248,236,.45); padding-left: 8px; }
   .rec-pill:hover { background: #c0341f; }
   @keyframes recBlink { to { opacity: 0; } }
+  /* 錄影結束吐司:下載後留 60 秒的「再下載」保險——「另存」對話框被按到取消,錄影不再蒸發
+     (上一段錄影的 blob 保留到下一次錄影開始,期間都可重抓) */
+  .rec-toast {
+    /* top:56(徽章列下方)所有寬度一致:吐司帶檔名比浮條寬,置中在到 ~1300px 寬前都會擦到左上徽章 */
+    position: absolute; top: 56px; left: 50%; transform: translateX(-50%); z-index: 1200;
+    display: flex; align-items: center; gap: 8px; max-width: calc(100% - 24px);
+    background: #fffdf6; color: #3a3226; border: 1.5px solid #c9b98f; border-radius: 999px;
+    box-shadow: 0 2px 0 #c9b98f; padding: 6px 8px 6px 14px; font-size: 12.5px; font-weight: 600;
+  }
+  .rec-toast[hidden] { display: none; }
+  .rec-toast span { min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; } /* min-width:0:flex 子項才真的縮得動,長檔名出省略號 */
+  .rec-toast button {
+    font: inherit; font-size: 12.5px; font-weight: 700; cursor: pointer; white-space: nowrap;
+    background: #2a4a73; color: #fff8ec; border: 0; border-radius: 999px; padding: 4px 12px;
+  }
+  .rec-toast button:hover { background: #1e3a5f; }
+  .rec-toast button.x { background: none; color: #a89468; padding: 4px 6px; font-size: 15px; }
+  .rec-toast button.x:hover { background: #f7f0dd; color: #3a3226; }
+  /* 中窄寬度(平板/窄視窗):置中浮條會壓到左上時鐘徽章列(badge 寬到 ~420px),下移讓開。
+     寬桌面(>1024)徽章與浮條相距夠遠,維持與徽章同列的 top:10;吐司則一律 56(見上) */
+  @media (max-width: 1024px) {
+    .rec-pill { top: 56px; }
+  }
 
   /* 停靠站名牌(時鐘儀表正下方、靠左直欄,跟隨列車停站時淡入)——仿台鐵月台站名牌:
      上半白底本站大字,下半藍條左右鄰站+站間里程+方向箭頭。
@@ -820,7 +843,8 @@
     .badge .count { font-size: 12px; }
     /* 手機:時刻板改底部 sheet,工具鈕改右上直排;帶文字後變寬,起點下移到時鐘徽章下方免得蓋住班次數 */
     .stage-tools { top: 56px; right: 8px; bottom: auto; flex-direction: column; gap: 0; }
-    .rec-pill { top: 56px; } /* 錄影浮條同理下移:手機時鐘徽章列橫跨整寬,置頂會蓋住它 */
+    /* 吐司改靠左收窄:置中近全寬會蓋住同列(top:56,見 1024 媒體塊)右上的 ☰ 工具 FAB 達 60 秒(審查發現);讓開 FAB 寬度 */
+    .rec-toast { left: 8px; transform: none; max-width: calc(100% - 124px); }
     .stage-tools button + button { border-left: 0; border-top: 1px solid #ece2c8; } /* 直排工具條:分隔線改橫向 */
     /* 工具抽屜:帶字大鈕整排常駐會蓋掉小螢幕地圖(跟隨/全畫面看不到車)——
        平時只露一顆「☰ 工具」,點開才展開,點任一工具自動收回(JS) */
