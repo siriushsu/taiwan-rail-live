@@ -333,6 +333,18 @@
   /* 狀態改純文字:跟隨卡只留通阻警示一個色框,減少一格格小方塊 */
   .follow-panel .fp-status { margin-top: 7px; font-size: 12px; font-weight: 700; color: #b4552a; }
   .follow-panel .fp-status.run { color: #2a6b46; }
+  /* 資訊卡收合(×):跟隨不中斷,縮成小膠囊——點膠囊本體展開,「結束」才取消跟隨 */
+  .follow-panel.fp-min { width: auto; max-width: 190px; padding: 6px 10px; cursor: pointer; }
+  .follow-panel.fp-min .fp-next, .follow-panel.fp-min .fp-prog, .follow-panel.fp-min .fp-status,
+  .follow-panel.fp-min .fp-alert, .follow-panel.fp-min .fp-dest, .follow-panel.fp-min .fp-head .kind,
+  .follow-panel.fp-min .fp-close, .follow-panel.fp-min .traincard { display: none; }
+  .follow-panel.fp-min .fp-head .spd b { font-size: 15px; }
+  .follow-panel .fp-end {
+    margin-left: 6px; background: none; border: 1px solid #c9b98f; border-radius: 6px;
+    color: #a89468; font-size: 10px; font-weight: 700; padding: 2px 6px;
+    cursor: pointer; display: none; flex: none;
+  }
+  .follow-panel.fp-min .fp-end { display: inline-block; }
   /* ── 列車資訊卡(地圖下方,跟隨時顯示) ── */
   .traincard {
     margin: 14px 0 0;
@@ -553,6 +565,7 @@
   body.fs .controls #musicVol { width: 64px; }
   /* 全畫面跟隨:資訊卡塞進左下跟隨面板,合併成一張可收放的卡(placeTrainCard 搬 DOM) */
   body.fs .follow-panel { bottom: 12px; width: 300px; max-height: calc(100vh - 90px); }
+  body.fs .follow-panel.fp-min { width: auto; } /* 收合膠囊不吃 fs 的 300px 固定寬 */
   body.fs .follow-panel .traincard {
     position: static; width: auto; margin: 9px -13px -11px; padding: 9px 13px 10px;
     border: 0; border-top: 1.5px dashed #d8cba9; border-radius: 0; box-shadow: none;
@@ -604,7 +617,7 @@
   .badge .clock { font-size: 20px; font-weight: 900; color: #1e2c40; }
   .badge .peak { font-size: 12px; font-weight: 800; padding: 2px 9px; border-radius: 3px; }
   .badge .count { font-size: 13px; color: #7a6c50; font-weight: 600; }
-  .badge .ver { font-size: 10px; color: #b3a37e; font-weight: 600; letter-spacing: .5px; }
+  .foot-links .ver { margin-left: auto; align-self: center; font-size: 11px; color: #b3a37e; font-weight: 600; letter-spacing: .5px; }
   .badge .live { font-size: 11px; font-weight: 800; color: #1d9e55; letter-spacing: .5px; cursor: help; }
   .badge .live::before { content: '●'; margin-right: 3px; animation: livePulse 2s infinite; }
   @keyframes livePulse { 0%, 100% { opacity: 1; } 50% { opacity: .35; } }
@@ -904,13 +917,28 @@
     .search input[type=text] { flex: 1 1 100%; width: auto; }
     .followbar { flex-wrap: wrap; }
     .chip { font-size: 12px; padding: 4px 10px 4px 7px; }
-    .follow-panel { left: 8px; bottom: 8px; width: 200px; }
+    /* 手機資訊卡整體縮小(使用者指定):卡寬與字級圖示全面降一級 */
+    .follow-panel { left: 8px; bottom: 8px; width: 176px; padding: 8px 10px 9px; }
+    .follow-panel .fp-head { gap: 6px; }
+    .follow-panel .fp-head .dot { width: 7px; height: 7px; }
+    .follow-panel .fp-head b { font-size: 13px; }
+    .follow-panel .fp-head .kind { font-size: 10.5px; }
+    .follow-panel .fp-head .fp-close { font-size: 13px; }
+    .follow-panel .fp-next { margin-top: 5px; padding-top: 5px; gap: 5px; }
+    .follow-panel .fp-next .lbl { font-size: 9.5px; letter-spacing: 1px; }
+    .follow-panel .fp-next .stn { font-size: 13px; }
+    .follow-panel .fp-next .eta { font-size: 11px; }
+    .follow-panel .fp-prog { gap: 6px; margin-top: 5px; }
+    .follow-panel .fp-prog .txt { font-size: 9px; }
+    .follow-panel .fp-dest { font-size: 10px; }
+    .follow-panel .fp-status { font-size: 10.5px; margin-top: 5px; }
     /* 窄卡的車種名(如「區間車（通勤電聯車）」)在 flex 標題列會被擠成一字一行的直欄把卡撐高:
        改讓標題列換行,車種名獨佔第二行橫排(order 排到最後),單行省略 */
     /* (車種名獨佔第二行已升為全域規則,見 .follow-panel .fp-head .kind) */
-    /* 時速大字手機縮級:200px 卡遇 4 位數車次+3 位數時速(≥100km/h),24px 字級會把
-       標題列擠到換行、卡高跳 23px——縮到三位數也放得下,卡高才不隨時速跳 */
-    .follow-panel .fp-head .spd b { font-size: 19px; }
+    /* 時速大字手機縮級:窄卡遇 4 位數車次+3 位數時速(≥100km/h),24px 字級會把
+       標題列擠到換行、卡高跳——縮級後卡高才不隨時速跳 */
+    .follow-panel .fp-head .spd { font-size: 9.5px; }
+    .follow-panel .fp-head .spd b { font-size: 16px; }
     /* 看板/最愛/旅程/探索四選一的底部 sheet 開啟時(見 updateSheetOpenClass),跟隨小卡讓道到 sheet 上方;
        sheet 最高 46%,抓 46%+間距頂上去;max-height 保住左上時鐘 badge(高約 45px+邊距)不被蓋,卡內自行捲動 */
     body.sheet-open .follow-panel { bottom: calc(46% + 16px); max-height: calc(54% - 84px); }
@@ -924,7 +952,7 @@
     /* 手機全畫面:資訊卡太佔位就不浮出,控制列貼底、面板讓位 */
     body.fs .traincard { display: none; }
     body.fs .controls { bottom: 8px; width: calc(100vw - 16px); padding: 7px 12px; }
-    body.fs .follow-panel { bottom: 132px; width: 200px; } /* 桌面 fs 的 300px 寬不洩漏進手機 */
+    body.fs .follow-panel { bottom: 132px; width: 176px; } /* 桌面 fs 的 300px 寬不洩漏進手機 */
     body.fs .stage-tools { top: 56px; } /* 帶文字的工具鈕同樣讓開左上時鐘徽章 */
     /* 放空模式(手機):看戲不操作——控制列只留「離開放空」一顆,跟隨卡縮成迷你條
       (車次+速度+下一站),別把列車蓋掉;速度/時間/音樂等設定進放空前調好 */
@@ -1062,7 +1090,8 @@ h2.mock-h { text-align: center; border-top: 2px dashed #c9b98f; padding-top: 22p
         <span class="dot" id="fpDot" style="background:#8E44AD"></span>
         <b id="fpTrain">5898</b><span class="kind" id="fpKind">藍皮解憂號</span>
         <span class="spd" id="fpSpd"><b>51</b>km/h</span>
-        <button class="fp-close" id="fpClose" title="取消跟隨">×</button>
+        <button class="fp-close" id="fpClose" title="收起資訊卡（跟隨不中斷）">×</button>
+        <button class="fp-end" id="fpEnd" title="取消跟隨">結束</button>
       </div>
       <div class="fp-next">
         <span class="lbl">下一站</span>
