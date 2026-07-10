@@ -984,7 +984,13 @@
     .kbd-hint { display: none; }
     /* 手機全畫面:資訊卡太佔位就不浮出,控制列貼底、面板讓位 */
     body.fs .traincard { display: none; }
-    body.fs .controls { bottom: 8px; width: calc(100vw - 16px); padding: 7px 12px; }
+    /* 播放面板壓扁:速度/時間各佔整行時五行高近 200px,會蓋住右上工具抽屜最底的錄影鈕 */
+    body.fs .controls { bottom: 8px; width: calc(100vw - 16px); padding: 6px 10px; gap: 6px 8px; }
+    body.fs .controls .ctl { flex: 0 1 auto; flex-wrap: nowrap; }
+    body.fs .controls .ctl input[type=range] { flex: none; width: 72px; }
+    body.fs .controls #musicVol { width: 56px; }
+    /* 工具抽屜下緣讓開貼底播放面板(320px 窄機面板換行後約 155px 高),錄影鈕才點得到 */
+    body.fs.tools-open .stage-tools { max-height: calc(100% - 230px); }
     body.fs .follow-panel { bottom: 132px; width: 176px; } /* 桌面 fs 的 300px 寬不洩漏進手機 */
     body.fs .stage-tools { top: 56px; } /* 帶文字的工具鈕同樣讓開左上時鐘徽章 */
     /* 放空模式(手機):看戲不操作——控制列只留「離開放空」一顆,跟隨卡縮成迷你條
@@ -1249,7 +1255,7 @@
 <script>
 // 版本戳記:每次改版 push 前手動遞增(字母序),畫面時鐘徽章與 console 都會顯示,
 // 供比對線上跑的是不是最新版(瀏覽器快取 max-age=600 常讓人看到舊版)
-const BUILD = 'v0710zf';
+const BUILD = 'v0710zg';
 const state = {
   systems: [], sysId: null, data: null, speed: 36, mode: 'freq',
   lines: [], visible: new Set(), trains: [], schedStations: [], types: [],
