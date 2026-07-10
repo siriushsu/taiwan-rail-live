@@ -133,12 +133,28 @@ async function thsrAlert(request, env) {
   }
 }
 
+// 安全標頭統一在出口補（含 API 與靜態資產）；明文 HTTP 一律 301 轉 HTTPS
+const SEC_HEADERS = {
+  'Strict-Transport-Security': 'max-age=31536000; includeSubDomains',
+  'X-Content-Type-Options': 'nosniff',
+  'X-Frame-Options': 'DENY',
+  'Referrer-Policy': 'strict-origin-when-cross-origin',
+};
+
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
-    if (url.pathname === '/api/tra-live') return traLive(request, env);
-    if (url.pathname === '/api/tra-alert') return traAlert(request, env);
-    if (url.pathname === '/api/thsr-alert') return thsrAlert(request, env);
-    return env.ASSETS.fetch(request);
+    if (url.protocol === 'http:') {
+      url.protocol = 'https:';
+      return Response.redirect(url.toString(), 301);
+    }
+    let res;
+    if (url.pathname === '/api/tra-live') res = await traLive(request, env);
+    else if (url.pathname === '/api/tra-alert') res = await traAlert(request, env);
+    else if (url.pathname === '/api/thsr-alert') res = await thsrAlert(request, env);
+    else res = await env.ASSETS.fetch(request);
+    const h = new Headers(res.headers);
+    for (const [k, v] of Object.entries(SEC_HEADERS)) h.set(k, v);
+    return new Response(res.body, { status: res.status, statusText: res.statusText, headers: h });
   },
 };
