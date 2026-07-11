@@ -639,6 +639,9 @@
   /* 沉浸鈕只在全畫面時才有意義 */
   #immBtn { display: none; }
   body.fs #immBtn { display: flex; }
+  /* 放空視角切換鈕只在放空模式中才有意義 */
+  #ambientStyleBtn { display: none; }
+  body.ambient #ambientStyleBtn { display: flex; }
 
   /* ── HUD 小牌 ── */
   /* 時鐘徽章降為「儀表」層級:淡框淡影,不與內容面板(藏青框)搜眼 */
@@ -1014,7 +1017,7 @@
     body.fs .stage-tools { top: 56px; } /* 帶文字的工具鈕同樣讓開左上時鐘徽章 */
     /* 放空模式(手機):看戲不操作——控制列只留「離開放空」一顆,跟隨卡縮成迷你條
       (車次+速度+下一站),別把列車蓋掉;速度/時間/音樂等設定進放空前調好 */
-    body.ambient .controls > :not(#ambientBtn) { display: none; }
+    body.ambient .controls > :not(#ambientBtn):not(#ambientStyleBtn) { display: none; }
     /* 「離開放空」靠右下角,跟左下角迷你跟隨卡各佔一角不重疊 */
     body.ambient.fs .controls { width: max-content; left: auto; right: 8px; transform: none; }
     body.ambient .follow-panel { width: 176px; padding: 7px 10px 8px; }
@@ -1179,7 +1182,8 @@
       <span class="tod-wrap" title="點擊直接指定時刻"><output id="todOut">08:00</output><input type="time" id="todPick" aria-label="直接指定時刻"></span>
     </div>
     <button class="pp" id="nowBtn" title="跳到現在的真實時間">現在</button>
-    <button class="pp" id="ambientBtn" title="全畫面+自動換車跟隨，掛著放空用">放空模式</button>
+    <button class="pp" id="ambientBtn" title="全畫面自動導演（跟車或群車視角），掛著放空用">放空模式</button>
+    <button class="pp" id="ambientStyleBtn" title="切換放空視角：「跟車」跟著一班列車跑；「群車」不跟車，鏡頭停在當下列車最密的繁忙路段看群車交錯，並緩慢漂移縮放、定時換一段">視角：跟車</button>
     <div class="ctl" id="musicCtl" title="背景音樂（進放空模式會自動開始）">
       <button class="pp" id="musicBtn" title="播放/停止背景音樂">音樂<span class="eq"><i></i><i></i><i></i></span></button>
       <button class="pp" id="musicNextBtn" title="換一首">⏭</button>
@@ -1216,6 +1220,7 @@
     <details class="foot-box">
       <summary><span>🛠 更新紀錄</span><span class="foot-sub">最後更新：2026/7/10</span></summary>
       <ul class="foot-list">
+        <li><span class="d">7/11</span><span>放空模式新增「群車」視角：不跟單車，鏡頭自動停在當下列車最密的繁忙路段看群車交錯，緩慢漂移縮放、每分多鐘換一段；放空中按「視角」鈕切換</span></li>
         <li><span class="d">7/10</span><span>高鐵、機場捷運、淡海輕軌、安坑輕軌加入；系統選單改群組頁籤，新增「台鐵＋高鐵同框」與「全台同框」視圖</span></li>
         <li><span class="d">7/10</span><span>跟隨資訊卡可收合：×收起成小膠囊（跟隨不中斷），點膠囊展開、「結束」才取消；手機版資訊卡全面縮小；版本號移到頁尾</span></li>
         <li><span class="d">7/10</span><span>站名移到軌道側邊：列車經過不再壓住站名——標籤與車號牌位置都固定，畫面不跳動</span></li>
@@ -1274,7 +1279,7 @@
 <script>
 // 版本戳記:每次改版 push 前手動遞增(字母序),畫面時鐘徽章與 console 都會顯示,
 // 供比對線上跑的是不是最新版(瀏覽器快取 max-age=600 常讓人看到舊版)
-const BUILD = 'v0710zh';
+const BUILD = 'v0711c';
 const state = {
   systems: [], sysId: null, data: null, speed: 36, mode: 'freq',
   lines: [], visible: new Set(), trains: [], schedStations: [], types: [],
@@ -1286,6 +1291,7 @@ const state = {
   trackStyle: 'auto', // 軌道顯示:auto(亮色原色/夜間衛星自動淡化)、faint(一律更淡)、hidden(只留列車與車站)
   live: null, // 台鐵即時誤點 {map: 車次→誤點分, at: 抓取時刻, delayed, srcAt}
   stnIntro: false, immersive: false, // 特殊站介紹開關(放空自動開)、極簡沉浸(全畫面隱藏左側卡)
+  ambientStyle: 'follow', // 放空視角:follow=跟著一班車跑 / hotspot=群車(鏡頭掛在最繁忙路段看群車交錯)
 };
 let map, cv, ctx;
 let baseLayers = {}; // light / dark / sat Leaflet 圖層
@@ -1373,8 +1379,13 @@ function reproject() {
   if (!map || !state.data) return;
   const size = map.getSize();
   state.dpr = window.devicePixelRatio || 1;
-  cv.width = size.x * state.dpr; cv.height = size.y * state.dpr;
-  cv.style.width = size.x + 'px'; cv.style.height = size.y + 'px';
+  // 尺寸沒變不重設緩衝區:設 cv.width 會清空 canvas,若發生在本幀 draw 之後(如 panTo/flyTo
+  // 動畫的 move 事件),畫好的列車會整幀被抹掉;順帶省去每次 move 的 buffer 重配
+  const bw = Math.round(size.x * state.dpr), bh = Math.round(size.y * state.dpr);
+  if (cv.width !== bw || cv.height !== bh) {
+    cv.width = bw; cv.height = bh;
+    cv.style.width = size.x + 'px'; cv.style.height = size.y + 'px';
+  }
   ctx.setTransform(state.dpr, 0, 0, state.dpr, 0, 0);
   const projShape = ln => {
     if (ln.shape) ln.shapePts = ln.shape.map(c => {
@@ -1586,6 +1597,7 @@ function assignSchedShapePathsFor(trains, lines) {
 function applySchedSystems(sysList) {
   state.schedSystems = sysList;
   state.mode = 'sched';
+  state._hotScene = null; state._hotFresh = true; state._hotNext = 0; // 群車放空的熱區隨換系統作廢,重新選景
   state.deco = false; state.decoLines = null; // 預設關裝飾層;loadAllGroup 會在之後重新開
   state.sys = sysList[0] || null;
   state.data = sysList[0] ? sysList[0].data : null;
@@ -2128,6 +2140,8 @@ function tick(now) {
     if (!ftr || effT(ftr) > ftr.stops[ftr.stops.length - 1].arrSec || now >= (state._tourNext || 0))
       nextTourTrain(now);
   }
+  if (state.ambient && state.ambientStyle === 'hotspot' && !state.followTrain &&
+      state.mode === 'sched' && state.playing) hotspotTick(now);
   if (state.mode === 'sched' && state.followTrain) {
     updateFollowCamera();
     state._evClock = (state._evClock || 0) + dt;
@@ -2631,6 +2645,7 @@ function setFollow(tr, isAuto, noJump, opts) {
   if (!tr) return;
   opts = opts || {};
   if (!isAuto && state.autoTour) setAutoTour(false); // 使用者手動選車即接手,退出隨機模式
+  if (state.ambient && state.ambientStyle === 'hotspot') hotspotStop(); // 群車放空中點車=接手跟隨,導演讓位(取消跟隨即恢復)
   closeBoard(); // 不管從哪裡選到車(看板列/地圖點車/搜尋/最愛),車站看板一律收掉
   state.followTrain = tr; state.followId = tr.train;
   // 深連結帶模擬時間:對方打開時車在同一位置
@@ -2820,6 +2835,136 @@ function setAutoTour(on) {
   }
 }
 
+// ── 放空「群車」視角:不跟單車,鏡頭掛在當下列車最密的繁忙路段,緩慢漂移縮放,定時換熱區 ──
+const HOT_CELL = 0.03; // 熱區網格 ~3km:聚出「一段繁忙路段」而不是單一車站
+function computeHotspots() {
+  const bins = new Map();
+  for (const t of state.trains) {
+    if (!state.visible.has(t.typeName)) continue;
+    const p = trainPos(t, state.simSec);
+    if (!p) continue;
+    const k = Math.round(p.lat / HOT_CELL) + ',' + Math.round(p.lon / HOT_CELL);
+    let a = bins.get(k); if (!a) bins.set(k, a = []);
+    a.push(p);
+  }
+  if (!bins.size) return [];
+  // 3×3 鄰域合併計分:都會區整片密集不會被切成一堆假熱點,中心取鄰域內列車重心
+  const cells = [];
+  for (const k of bins.keys()) {
+    const [gy, gx] = k.split(',').map(Number);
+    let n = 0, lat = 0, lon = 0;
+    for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) {
+      const a = bins.get((gy + dy) + ',' + (gx + dx));
+      if (a) for (const p of a) { n++; lat += p.lat; lon += p.lon; }
+    }
+    cells.push({ lat: lat / n, lon: lon / n, n });
+  }
+  cells.sort((a, b) => b.n - a.n);
+  // 貪婪去重:高分優先,彼此至少隔 ~2.5 格,留前幾名輪播
+  const out = [];
+  for (const c of cells) {
+    if (out.every(o => Math.hypot(o.lat - c.lat, o.lon - c.lon) > HOT_CELL * 2.5)) out.push(c);
+    if (out.length >= 6) break;
+  }
+  return out;
+}
+function pickHotspot(hs) {
+  let cands = hs;
+  const last = state._hotLast; // 避免連兩幕同一區(有別區可去才避)
+  if (last && hs.length > 1) {
+    const far = hs.filter(h => Math.hypot(h.lat - last.lat, h.lon - last.lon) > HOT_CELL * 1.5);
+    if (far.length) cands = far;
+  }
+  let total = 0;
+  const ws = cands.map(h => { const w = h.n * h.n; total += w; return w; }); // n² 加權:最繁忙的最常出現
+  let r = Math.random() * total;
+  for (let i = 0; i < cands.length; i++) { r -= ws[i]; if (r <= 0) return (state._hotLast = cands[i]); }
+  return (state._hotLast = cands[cands.length - 1]);
+}
+function hotspotTick(now) {
+  if (state._transition || now < (state._hotNext || 0)) return;
+  const hs = computeHotspots();
+  if (!hs.length) {
+    // 深夜沒車 → 比照跟車視角,重播傍晚尖峰
+    if (!state.nightReplay) { state.nightReplay = true; setSimSec(18 * 3600); refreshBadge(); }
+    state._hotNext = now + 5000;
+    return;
+  }
+  const h = pickHotspot(hs);
+  state._hotScene = { lat: h.lat, lon: h.lon, z: h.n >= 20 ? 14 : 13, step: 0, dir: Math.random() * Math.PI * 2 };
+  state._hotNext = now + 60000 + Math.random() * 30000; // 一幕 60~90 秒再換熱區
+  if (state._hotFresh) {
+    state._hotFresh = false;
+    map.setView([h.lat, h.lon], state._hotScene.z, { animate: false });
+    scheduleHotDrift(1800);
+  } else hotFadeTo(state._hotScene);
+}
+// 換熱區:淡出 → 跳到新熱區 → 淡入(沿用換車遮罩)
+function hotFadeTo(sc) {
+  const veil = document.getElementById('veil');
+  state._transition = true;
+  state._hotNext += 1600; // 轉場 ~1.6s 不吃這一幕的時間
+  veil.style.opacity = 1;
+  setTimeout(() => {
+    const alive = state.ambient && state.ambientStyle === 'hotspot' && !state.followTrain;
+    if (!alive) { veil.style.opacity = 0; state._transition = false; return; }
+    map.setView([sc.lat, sc.lon], sc.z, { animate: false });
+    veil.style.opacity = 0;
+    scheduleHotDrift(2200);
+    setTimeout(() => { state._transition = false; }, 750);
+  }, 800);
+}
+// 鏡頭漂移:每段往熱區中心附近的隨機方位滑約 1/4 個畫面,每三段帶一級縮放呼吸;漂遠了就繞回來
+function scheduleHotDrift(ms) {
+  clearTimeout(state._hotDriftT);
+  state._hotDriftT = setTimeout(hotDrift, ms);
+}
+function hotDrift() {
+  const sc = state._hotScene;
+  if (!state.ambient || state.ambientStyle !== 'hotspot' || !sc || state.followTrain) return;
+  if (state._transition || !state.playing) { scheduleHotDrift(2000); return; }
+  const size = map.getSize();
+  const cur = map.latLngToContainerPoint(map.getCenter());
+  const home = map.latLngToContainerPoint([sc.lat, sc.lon]);
+  if (Math.hypot(home.x - cur.x, home.y - cur.y) > size.y * 0.55)
+    sc.dir = Math.atan2(home.y - cur.y, home.x - cur.x); // 離熱區太遠:轉頭漂回去
+  else sc.dir += (Math.random() - 0.5) * 1.4; // 方向緩慢轉彎,像空拍機遊蕩
+  const dist = size.y * (0.18 + Math.random() * 0.14);
+  const tgt = map.containerPointToLatLng([cur.x + Math.cos(sc.dir) * dist, cur.y + Math.sin(sc.dir) * dist]);
+  sc.step++;
+  if (sc.step % 3 === 0) {
+    // 縮放呼吸:離開基準就回基準,在基準就隨機推近/拉遠一級(flyTo 讓縮放平滑)
+    const zNow = map.getZoom();
+    const zTo = zNow !== sc.z ? sc.z : Math.max(12, Math.min(15, sc.z + (Math.random() < 0.5 ? -1 : 1)));
+    map.flyTo(tgt, zTo, { duration: 9, easeLinearity: 0.25 });
+    scheduleHotDrift(11000 + Math.random() * 2000);
+  } else {
+    const dur = 12 + Math.random() * 6;
+    map.panTo(tgt, { duration: dur, easeLinearity: 0.2 });
+    scheduleHotDrift(dur * 1000 + 1500 + Math.random() * 2000);
+  }
+}
+function hotspotStop() {
+  clearTimeout(state._hotDriftT); state._hotDriftT = null;
+  state._hotScene = null; state._hotNext = 0;
+  try { map.stop(); } catch (e) {} // 停掉進行中的慢速漂移動畫
+}
+function setAmbientStyle(style) {
+  state.ambientStyle = style;
+  try { localStorage.setItem('trainmap-ambient-style', style); } catch (e) {}
+  const b = document.getElementById('ambientStyleBtn');
+  if (b) b.textContent = '視角：' + (style === 'hotspot' ? '群車' : '跟車');
+  if (!state.ambient) return;
+  if (style === 'hotspot') {
+    setAutoTour(false); clearFollow();
+    state._hotFresh = true; state._hotScene = null; state._hotNext = 0;
+  } else {
+    hotspotStop();
+    state._ambientFresh = true; // 回跟車視角:第一班直接跳過去,不走淡出淡入
+    setAutoTour(true);
+  }
+}
+
 // 放空模式日夜天色:模擬時刻在天色停靠點間內插(深夜藍→黎明橘→白晝透明→黃昏金→暮色紫→夜)
 const SKY_STOPS = [ // [小時, r, g, b, alpha]
   [0,    14, 24, 48, .34],
@@ -2887,8 +3032,13 @@ function setAmbient(on) {
     if (!state.playing) togglePlay();
     state._preAmbSpd = state.speedMult;
     setSpeed(5); // 放空模式看單車,5× 節奏剛好
-    state._ambientFresh = true; // 第一班直接跳到車,不走淡出淡入
-    setAutoTour(true);
+    if (state.ambientStyle === 'hotspot') {
+      clearFollow(); // 群車視角不跟車,清掉進場前的殘留跟隨
+      state._hotFresh = true; state._hotScene = null; state._hotNext = 0;
+    } else {
+      state._ambientFresh = true; // 第一班直接跳到車,不走淡出淡入
+      setAutoTour(true);
+    }
     setSparkOpen(false); setStopsOpen(false); // 放空預設收乾淨,中間留給地圖
     closeExplorePanel(); // 亮點面板也收,資訊只留左下合併卡
     (state._setStnIntro || (() => {}))(true); // 放空自動開特殊站介紹
@@ -2907,6 +3057,7 @@ function setAmbient(on) {
     if (state.speedMult === 5 && state._preAmbSpd) setSpeed(state._preAmbSpd);
     if (state.nightReplay) { state.nightReplay = false; refreshBadge(); }
     if (state.autoTour) setAutoTour(false);
+    hotspotStop();
     (state._setStnIntro || (() => {}))(false); // 離開放空自動關特殊站介紹
     setSparkOpen(true); // 回一般模式:曲線預設展開(時刻表維持收起)
     if (document.body.classList.contains('fs')) (state._setFs || (() => {}))(false);
@@ -4555,6 +4706,10 @@ async function boot() {
   // 放空/隨機導覽不解鎖:那些模式鈕是藏的,解了鎖沒有辦法鎖回,鏡頭會永久漂走
   map.on('dragstart', () => {
     if (state.followTrain && state.followLock && !state.autoTour && !document.body.classList.contains('ambient')) setFollowLock(false);
+    if (state.ambient && state.ambientStyle === 'hotspot' && !state.followTrain) {
+      state._hotNext = performance.now() + 45000; // 使用者動手看地圖:這一幕延長,漂移也讓位幾秒再接手
+      scheduleHotDrift(8000);
+    }
   });
   // crossOrigin: 錄影功能要把圖磚畫進合成 canvas,沒有 CORS 標記畫布會被汙染(無法 captureStream)
   baseLayers.light = L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
@@ -4570,6 +4725,7 @@ async function boot() {
   try { const ts = localStorage.getItem('trainmap-track'); if (ts === 'faint' || ts === 'hidden') state.trackStyle = ts; } catch (e) {}
   try { state.basemap = localStorage.getItem('trainmap-basemap') === 'sat' ? 'sat' : 'map'; } catch (e) {}
   try { state.immersive = localStorage.getItem('trainmap-immersive') === '1'; } catch (e) {}
+  try { setAmbientStyle(localStorage.getItem('trainmap-ambient-style') === 'hotspot' ? 'hotspot' : 'follow'); } catch (e) {}
   setBasemap();
   setupMapTools();
   setupRecorder();
@@ -4677,6 +4833,8 @@ document.getElementById('followPanel').addEventListener('click', (e) => {
 document.getElementById('tcStar').onclick = () => toggleFav(state.followTrain);
 // 每按一次跳一班隨機列車(已在隨機模式再按=立刻換車,不是關閉);結束靠小卡 ×/點跟隨中的列車/手動選車
 document.getElementById('tourBtn').onclick = () => state.autoTour ? nextTourTrain() : setAutoTour(true);
+document.getElementById('ambientStyleBtn').onclick = () =>
+  setAmbientStyle(state.ambientStyle === 'hotspot' ? 'follow' : 'hotspot');
 document.getElementById('rideBtn').onclick = () => {
   document.getElementById('ridePanel').hidden ? openRidePanel() : closeRidePanel();
 };
