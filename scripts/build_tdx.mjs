@@ -402,13 +402,16 @@ function assemble({ id, name, color, ids, stations, parts, maps, freq, loop, est
   const sol = solOrder('NTDLRT_StationOfLine.json');
   const shapes = shapeParts('NTDLRT_Shape.json');
   const maps = s2sMapsOpt('NTDLRT_S2STravelTime.json'); // TDX 無 S2S 檔
-  // TDX 單一 V 線站序 V01…V11崁頂→V28→V27→V26,即綠山線於崁頂銜接藍海線的連續路徑。
+  // TDX 把 Y 字路網登記成單一 V 線 14 站序(…V09濱海沙崙→V10淡海新市鎮→V11崁頂→V28海大→V27沙崙→V26漁人碼頭),
+  // 整包餵 assemble 會讓綠山尾段(濱海沙崙→崁頂)變成折返毛刺被吃掉,V10/V11 只剩孤站(2026-07-11 使用者回報)。
+  // → 拆成兩條實際營運線各自組裝(同 TRTC 新北投支線模式,共用同一包 shape 碎片,分岔在濱海沙崙旁的三角線)。
+  const vAll = sol.get('V');
+  const vGreen = vAll.filter(s => !['V28', 'V27', 'V26'].includes(s)); // 紅樹林→…→淡海新市鎮→崁頂
+  const vBlue = vAll.filter(s => !['V10', 'V11'].includes(s));         // 紅樹林→…→濱海沙崙→海大→沙崙→漁人碼頭
+  const freq = { peakSec: 600, offSec: 900 }; // TDX 無 Frequency 檔:官方公告尖峰約10分/離峰約15分
   const lines = [
-    assemble({
-      id: 'V', name: '淡海輕軌', color: '#FF2A00', ids: sol.get('V'), parts: shapes.get('V'),
-      stations, maps, estimated: true,
-      freq: { peakSec: 600, offSec: 900 }, // TDX 無 Frequency 檔:官方公告尖峰約10分/離峰約15分
-    }),
+    assemble({ id: 'V', name: '綠山線', color: '#FF2A00', ids: vGreen, parts: shapes.get('V'), stations, maps, estimated: true, freq }),
+    assemble({ id: 'VB', name: '藍海線', color: '#FF2A00', ids: vBlue, parts: shapes.get('V'), stations, maps, estimated: true, freq }),
   ];
   writeFileSync(path.join(ROOT, 'data/ntdlrt.json'), JSON.stringify({
     system: 'NTDLRT',

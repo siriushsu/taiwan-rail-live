@@ -140,7 +140,8 @@ function chainRoute(stns, dir, stats, dbg) {
 // ── 主流程:一組營運路線 → 某前端線的 sets ──
 // routeSpecs 項可帶:destIs(只收此終點的記錄)、only(只收這些 StationID)、
 // as(虛擬路線名:跨 RouteID 合併記錄,治淡海回程幹線被亂拆在 V-1/V-2/空編號)、
-// stitchTo(本組鏈尾接到目標組的中途始發鏈,治藍海支線頭與幹線分家)、noDestOk(不計缺終點)。
+// stitchTo(本組鏈尾接到目標組的中途始發鏈,治藍海支線頭與幹線分家)、noDestOk(不計缺終點)、
+// requireFirst(只留從此站發起的鏈:幹線記錄混含多線班次時,擋掉對方線造成的幻影中途始發車)。
 function buildLineTimes(line, routeSpecs, sttCache, stnNameCache, notes, allStop) {
   const ctx = lineCtx(line);
   const groups = new Map();
@@ -167,7 +168,8 @@ function buildLineTimes(line, routeSpecs, sttCache, stnNameCache, notes, allStop
       }
       const gname = spec.as || routeId;
       const key = [gname, spec.as ? '' : rec.Direction, dest, days].join('|');
-      if (!groups.has(key)) groups.set(key, { routeId: gname, dir: rec.Direction ?? 0, dest, days, tag: rec.ServiceDay.ServiceTag, spec, stns: new Map() });
+      if (!groups.has(key)) groups.set(key, { routeId: gname, dir: rec.Direction ?? 0, dest, days, tag: rec.ServiceDay.ServiceTag, spec, stns: new Map(),
+        reqFirstIdx: spec.requireFirst ? ctx.idxOf.get(stnName.get(spec.requireFirst)) : null });
       const g = groups.get(key);
       const idx = ctx.idxOf.get(name);
       if (g.stns.has(idx)) { // 同組同站多筆記錄(虛擬路線合併時)→ 取聯集
@@ -273,6 +275,14 @@ function buildLineTimes(line, routeSpecs, sttCache, stnNameCache, notes, allStop
       stats.stitched++;
     }
     b.chains = b.chains.filter(h => !h._consumed);
+  }
+  // 支線端過濾(requireFirst):幹線記錄混含兩線班次(拆線後的淡海)→
+  // 只留從本線支線端發起的鏈,對方線的幹線段/雜訊碎片不會生成幻影班次
+  for (const b of built) {
+    if (b.g.reqFirstIdx == null) continue;
+    const before = b.chains.length;
+    b.chains = b.chains.filter(c => c.stops[0][0] === b.g.reqFirstIdx);
+    stats.dropped += before - b.chains.length;
   }
   for (const { g, stns, asc, dir, destIdx, chains } of built) {
     // 末端補終點到達(終點站本身無發車記錄)
@@ -429,18 +439,20 @@ const SYSTEMS = [
   { file: 'data/tymc.json', out: 'data/tymc_times.json', allStop: false, // 直達車合法跳站
     src: '桃園機場捷運各站時刻表:交通部TDX運輸資料流通服務(2026-07-11 抓取);普通車與直達車皆依實際時刻',
     lines: { A: [{ op: 'TYMC', routeId: 'A-1' }, { op: 'TYMC', routeId: 'A-2' }, { op: 'TYMC', routeId: 'A-3' }] } },
-  { file: 'data/ntdlrt.json', out: 'data/ntdlrt_times.json', allStop: false, // 藍海線跨崁頂段+縫合班次有合法跳點
+  { file: 'data/ntdlrt.json', out: 'data/ntdlrt_times.json', allStop: false,
     src: '淡海輕軌各站時刻表:交通部TDX運輸資料流通服務(2026-07-11 抓取);綠山線/藍海線各依實際時刻',
+    // 線檔已拆綠山線(V)/藍海線(VB)兩條實際營運線(分岔在濱海沙崙),各自站序連續。
     // 回程(往紅樹林)的幹線記錄被 TDX 亂拆在 V-1/V-2/空路線編號 → 合併成虛擬路線再鏈;
-    // 藍海支線頭(漁人碼頭-台北海洋大學)獨立成組,鏈完縫回幹線的中途始發鏈。
+    // 幹線記錄混含兩線班次 → requireFirst 只留從本線支線端(V10淡海新市鎮/V26漁人碼頭)發起的鏈。
     lines: { V: [
       // 新市一路(V06)假日去程記錄是兩線混班(班距減半)→ 兩路線都排除,列車過站以行駛時間內插
       { op: 'NTDLRT', routeId: 'V-1', destIs: 'V11', drop: [{ station: 'V06', dir: 0, tag: '假日' }] },
-      { op: 'NTDLRT', routeId: 'V-2', destIs: 'V26', drop: [{ station: 'V06', dir: 0, tag: '假日' }] },
-      { op: 'NTDLRT', routeId: '*', destIs: 'V01', as: 'V-回程幹線',
+      { op: 'NTDLRT', routeId: '*', destIs: 'V01', as: 'V-回程', requireFirst: 'V10',
         only: ['V02', 'V03', 'V04', 'V05', 'V06', 'V07', 'V08', 'V09', 'V10'] },
-      { op: 'NTDLRT', routeId: '*', destIs: 'V01', as: 'V-藍海頭', stitchTo: 'V-回程幹線', noDestOk: true,
-        only: ['V26', 'V27', 'V28'] },
+    ], VB: [
+      { op: 'NTDLRT', routeId: 'V-2', destIs: 'V26', drop: [{ station: 'V06', dir: 0, tag: '假日' }] },
+      { op: 'NTDLRT', routeId: '*', destIs: 'V01', as: 'VB-回程', requireFirst: 'V26',
+        only: ['V26', 'V27', 'V28', 'V02', 'V03', 'V04', 'V05', 'V06', 'V07', 'V08', 'V09'] },
     ] } },
   { file: 'data/ntalrt.json', out: 'data/ntalrt_times.json',
     src: '安坑輕軌各站時刻表:交通部TDX運輸資料流通服務(2026-07-11 抓取)',
