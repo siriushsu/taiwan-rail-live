@@ -1,5 +1,6 @@
 // Cloudflare Worker 入口:靜態資產(assets binding)+ /api/tra-live 台鐵即時動態代理
 // + /api/tra-alert 台鐵營運通阻公告 + /api/thsr-alert 高鐵營運狀態公告(颱風停駛等)
+// + /api/metro-alert 捷運營運狀態公告(五家聚合)
 // 金鑰只存在 Worker 環境變數(dashboard Variables and Secrets),前端不直連 TDX。
 // 雙層快取護住 TDX 用量:PoP 邊緣快取 55 秒(workers.dev 網域上 Cache API 無效,
 // 屆時靠 isolate 記憶體快取,約每 isolate 每分鐘 1 次)——用量恆定,不隨訪客數增加。
@@ -133,6 +134,57 @@ async function thsrAlert(request, env) {
   }
 }
 
+// 捷運營運狀態公告:TDX v2 Rail/Metro/Alert/{op},僅五家有端點(新北捷運/淡海/安坑輕軌無此 API)。
+// 正常條目(如中捷例行「正常營運」)標 status:1 供前端濾除;颱風調整班距/異常等帶出。
+// 每筆附 sys(前端系統 id)供捷運分頁按勾選中的系統過濾。輸出結構同 /api/tra-alert。
+const METRO_ALERT_OPS = [
+  { op: 'TRTC', sys: 'mrt', label: '台北捷運' },
+  { op: 'KRTC', sys: 'krtc', label: '高雄捷運' },
+  { op: 'KLRT', sys: 'krtc', label: '高雄輕軌' },
+  { op: 'TYMC', sys: 'tymc', label: '桃園機捷' },
+  { op: 'TMRT', sys: 'tmrt', label: '台中捷運' },
+];
+let metroAlertMem = null, metroAlertMemAt = 0;
+async function metroAlert(request, env) {
+  const cacheKey = new Request(new URL('/api/metro-alert', request.url), { method: 'GET' });
+  const edge = caches.default;
+  const hit = await edge.match(cacheKey);
+  if (hit) return hit;
+  try {
+    if (!metroAlertMem || Date.now() - metroAlertMemAt > 110e3) {
+      const token = await getToken(env);
+      const parts = await Promise.all(METRO_ALERT_OPS.map(async ({ op, sys, label }) => {
+        try {
+          const r = await fetch(`https://tdx.transportdata.tw/api/basic/v2/Rail/Metro/Alert/${op}?%24format=JSON`,
+            { headers: { authorization: 'Bearer ' + token } });
+          if (r.status === 401) { tok = null; throw new Error('tdx 401'); }
+          if (!r.ok) throw new Error('tdx api ' + r.status);
+          const d = await r.json();
+          return (d.Alerts || []).map(a => {
+            const normal = /正常營運|營運正常|正常行駛/.test(a.Title || '');
+            return {
+              title: a.Title, status: normal ? 1 : 0, desc: a.Description || '',
+              reason: a.Reason, effect: a.Effect,
+              start: (a.StartTime && !String(a.StartTime).startsWith('0001')) ? a.StartTime : '',
+              end: (a.EndTime && !String(a.EndTime).startsWith('0001')) ? a.EndTime : '',
+              lines: ((a.Scope && a.Scope.Lines) || []).map(l => (l.LineName && (l.LineName.Zh_tw || l.LineName)) || l.LineID).filter(Boolean),
+              sys, sysLabel: label,
+            };
+          });
+        } catch (e) { return []; } // 單一營運者失敗略過,不影響其他系統
+      }));
+      metroAlertMem = { at: new Date().toISOString(), alerts: parts.flat() };
+      metroAlertMemAt = Date.now();
+    }
+    const res = jsonRes(metroAlertMem, 200, 'public, s-maxage=110, stale-while-revalidate=600');
+    await edge.put(cacheKey, res.clone());
+    return res;
+  } catch (e) {
+    if (metroAlertMem) return jsonRes(metroAlertMem, 200, 'public, s-maxage=30');
+    return jsonRes({ error: String(e.message || e) }, 502, 'no-store');
+  }
+}
+
 // 安全標頭在 Worker 出口補（只涵蓋 /api/* 與非資產路徑;靜態資產直出不經 Worker,標頭見根目錄 _headers）
 const SEC_HEADERS = {
   'Strict-Transport-Security': 'max-age=31536000; includeSubDomains',
@@ -152,6 +204,7 @@ export default {
     if (url.pathname === '/api/tra-live') res = await traLive(request, env);
     else if (url.pathname === '/api/tra-alert') res = await traAlert(request, env);
     else if (url.pathname === '/api/thsr-alert') res = await thsrAlert(request, env);
+    else if (url.pathname === '/api/metro-alert') res = await metroAlert(request, env);
     else res = await env.ASSETS.fetch(request);
     const h = new Headers(res.headers);
     for (const [k, v] of Object.entries(SEC_HEADERS)) h.set(k, v);

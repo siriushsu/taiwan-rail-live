@@ -1343,7 +1343,7 @@
 <script>
 // 版本戳記:每次改版 push 前手動遞增(字母序),畫面時鐘徽章與 console 都會顯示,
 // 供比對線上跑的是不是最新版(瀏覽器快取 max-age=600 常讓人看到舊版)
-const BUILD = 'v0711l';
+const BUILD = 'v0711m';
 const state = {
   systems: [], sysId: null, data: null, speed: 36, mode: 'freq',
   lines: [], visible: new Set(), trains: [], schedStations: [], types: [],
@@ -1789,7 +1789,6 @@ function applySchedSystems(sysList) {
   if (sysList.some(s => s.special)) retimeLoopTrains(); // 貼軌後才有弧長,環島車此時才能鋪
   computeFlow();
   pollLive();  // 逐車即時誤點(schedSystems 中有 live 的系統,台鐵限定)
-  pollAlert(); // 營運通阻/停駛公告(各活躍系統各自端點)
 }
 
 function recomputeTrains() {
@@ -2656,7 +2655,8 @@ function finishLoad(meta) {
   buildToggles();
   renderFavs();
   renderPassport();
-  renderAlertBanner(); // 換到捷運模式收掉台鐵通阻橫幅
+  renderAlertBanner(); // 模式切換即刻換橫幅內容(sched=台鐵/高鐵、freq=捷運,用手上快取先畫)
+  pollAlert();         // 營運通阻/狀態公告(sched 各系統端點、freq 走 api/metro-alert)
   updateSchedTools();  // 捷運模式隱藏台鐵專屬工具鈕
   refreshBadge();
   updateCount();
@@ -2823,6 +2823,7 @@ function toggleFreqMember(id) {
   reproject(); recomputeTrains();
   buildToggles(); updateCount();
   renderSystemsBar(); // 不重新 fitData,地圖不跳動
+  renderAlertBanner(); // 勾選系統變了,公告過濾範圍跟著變(用手上快取,不重抓)
 }
 
 // sched 群組(國家鐵路):台鐵+高鐵同框(皆真實時刻表);群內可多選,預設全開
@@ -4408,25 +4409,37 @@ setInterval(pollLive, 60e3);
 document.addEventListener('visibilitychange', () => { if (!document.hidden) pollLive(); });
 pollLive();
 
-// ── 台鐵營運通阻公告(TDX Rail/TRA/Alert,颱風停駛等;每 5 分鐘輪詢) ──
-// 只轉述官方公告不推定個別班次:正常時 TDX 回單筆 Status:1「全線營運正常」,取其餘條目當異常
+// ── 營運通阻/狀態公告(每 5 分鐘輪詢):sched=台鐵/高鐵各自端點;freq=捷運五家聚合 api/metro-alert ──
+// 只轉述官方公告不推定個別班次:正常條目 status:1 濾除,其餘當異常帶出
 const escHtml = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 async function pollAlert() {
-  const sysList = (state.schedSystems || []).filter(s => s.alert);
-  if (document.hidden || state.mode !== 'sched' || !sysList.length) return;
-  const merged = []; let at = '', ok = 0;
-  for (const sys of sysList) {
+  if (document.hidden) return;
+  if (state.mode === 'sched') {
+    const sysList = (state.schedSystems || []).filter(s => s.alert);
+    if (!sysList.length) return;
+    const merged = []; let at = '', ok = 0;
+    for (const sys of sysList) {
+      try {
+        const r = await fetch(sys.alert, { cache: 'no-store' });
+        if (!r.ok) throw new Error(r.status);
+        const d = await r.json();
+        if (!Array.isArray(d.alerts)) throw new Error('bad payload');
+        ok++;
+        if (d.at && d.at > at) at = d.at;
+        for (const a of d.alerts) if (a.status !== 1) merged.push({ ...a, sysLabel: sys.label });
+      } catch (e) { /* 單一系統失敗略過,不影響其他系統 */ }
+    }
+    if (ok) state.alert = { at, list: merged }; // 至少一個系統回應才更新(全失敗保留舊資料)
+  } else {
+    // 捷運分頁:五家聚合端點(Worker 已標好 status/sys/sysLabel),颱風調整班距等異常才入列
     try {
-      const r = await fetch(sys.alert, { cache: 'no-store' });
+      const r = await fetch('api/metro-alert', { cache: 'no-store' });
       if (!r.ok) throw new Error(r.status);
       const d = await r.json();
       if (!Array.isArray(d.alerts)) throw new Error('bad payload');
-      ok++;
-      if (d.at && d.at > at) at = d.at;
-      for (const a of d.alerts) if (a.status !== 1) merged.push({ ...a, sysLabel: sys.label });
-    } catch (e) { /* 單一系統失敗略過,不影響其他系統 */ }
+      state.metroAlert = { at: d.at || '', list: d.alerts.filter(a => a.status !== 1) };
+    } catch (e) { /* 失敗保留舊資料 */ }
   }
-  if (ok) state.alert = { at, list: merged }; // 至少一個系統回應才更新(全失敗保留舊資料)
   renderAlertBanner();
 }
 // 公告文字/影響範圍 → 本站軌道線 id;「東部幹線」等總稱先展開,再比對各線基底名
@@ -4444,10 +4457,16 @@ function alertAffectedLineIds() {
   }
   return out;
 }
+// 目前模式該顯示的公告:sched=台鐵/高鐵;freq=捷運(只留畫面上勾選中系統的公告)
+function activeAlertList() {
+  if (state.mode === 'sched') return (state.alert && state.alert.list) || [];
+  const vis = state.freqSel || new Set(state.sysId ? [state.sysId] : []);
+  return ((state.metroAlert && state.metroAlert.list) || []).filter(a => !a.sys || vis.has(a.sys));
+}
 function renderAlertBanner() {
   const b = document.getElementById('alertBanner'), det = document.getElementById('alertDetail');
-  const list = (state.alert && state.alert.list) || [];
-  if (state.mode !== 'sched' || !list.length) { b.hidden = true; det.hidden = true; updateFollowAlert(); return; }
+  const list = activeAlertList();
+  if (!list.length) { b.hidden = true; det.hidden = true; updateFollowAlert(); return; }
   b.innerHTML = `<span>⚠</span><span class="ab-title">${escHtml(list[0].title || ((list[0].sysLabel || '') + '營運通阻公告'))}</span>` +
     `<span class="ab-more">${list.length > 1 ? `等 ${list.length} 則 · ` : ''}詳情 ▾</span>`;
   b.hidden = false;
@@ -4458,7 +4477,7 @@ function renderAlertBanner() {
 }
 function renderAlertDetail() {
   const det = document.getElementById('alertDetail');
-  const list = (state.alert && state.alert.list) || [];
+  const list = activeAlertList();
   const fmtT = s => s ? String(s).replace('T', ' ').slice(5, 16) : '';
   det.innerHTML = list.map(a =>
     `<div class="ad-row"><b>${a.sysLabel ? escHtml('【' + a.sysLabel + '】') : ''}${escHtml(a.title || '通阻公告')}</b>` +
@@ -4466,7 +4485,7 @@ function renderAlertDetail() {
     (a.desc ? `<div>${escHtml(a.desc)}</div>` : '') +
     (a.lines && a.lines.length ? `<div class="ad-time">影響路線：${escHtml(a.lines.join('、'))}</div>` : '') +
     `</div>`).join('') +
-    `<div class="ad-src">來源：TDX 各鐵路營運通阻公告（每 5 分鐘更新）· 列車動畫仍照原時刻表模擬，停駛班次不會自畫面消失，實際運行以官方公告為準</div>`;
+    `<div class="ad-src">來源：TDX 營運通阻／狀態公告（每 5 分鐘更新）· 列車動畫仍照原時刻表推演，停駛或班距調整不會反映在畫面上，實際運行以官方公告為準</div>`;
 }
 // 跟隨中的車行經公告影響路線 → 面板加警示列(虛構環島車不套用)
 function updateFollowAlert() {
