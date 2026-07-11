@@ -1338,7 +1338,7 @@
 <script>
 // 版本戳記:每次改版 push 前手動遞增(字母序),畫面時鐘徽章與 console 都會顯示,
 // 供比對線上跑的是不是最新版(瀏覽器快取 max-age=600 常讓人看到舊版)
-const BUILD = 'v0711g';
+const BUILD = 'v0711h';
 const state = {
   systems: [], sysId: null, data: null, speed: 36, mode: 'freq',
   lines: [], visible: new Set(), trains: [], schedStations: [], types: [],
@@ -2000,10 +2000,10 @@ function drawSched(w, h) {
     if (isFollow) { drawFollowMarker(cp, tr); state._trainHits.push({ x: cp.x, y: cp.y, tr }); continue; }
     if (!inView(cp)) continue;
     state._trainHits.push({ x: cp.x, y: cp.y, tr }); // 供點擊/hover 命中測試(每幀重建)
-    const feat = state._featured.get(tr); // 今日之最(探索面板推薦)→ 地圖上加繪金環,z≥11 再疊 emoji 徽章
+    const feat = state._featured.get(tr); // 今日之最(探索面板推薦)→ 地圖上加繪金環,z≥11 再疊 emoji 徽章(🛑 存空字串=無徽章)
     const glowC = isHSR(tr) ? HSR_ORANGE : tr.color;
     drawTrail(dt => trainPos(tr, state.simSec - dt), cp, glowC);
-    if (feat) drawFeaturedRing(cp);
+    if (feat !== undefined) drawFeaturedRing(cp);
     glowUnder(cp, glowC, showTrain ? 10 : 3.5); // 車號牌模式:光暈放大到繞出牌緣,近看也發亮
     if (showTrain) isHSR(tr) ? drawHSRTag(cp, tr.train, feat) : drawTag(cp, tr.train, tr.color, textColorFor(tr.color), feat);
     else isHSR(tr) ? drawHSRDot(cp) : drawDot(cp, tr.color);
@@ -3783,10 +3783,14 @@ function computeHighlights() {
 }
 // 每日之最(探索面板 best 四項)的地圖識別快取:tr→emoji,供 drawSched 加繪金環+徽章。
 // title 開頭本來就是該項的專屬 emoji(🏁/⏳/🛑/⚡),直接切字取用,不必改 computeHighlights 的結構。
+// 🛑 例外:12px 徽章尺寸下渲染成一顆紅點(使用者退件),停最多站存空字串=只留金環不疊徽章。
 // 換系統/時刻表時由 applySchedSystems 作廢(= null),drawSched 每幀 lazy init 重建一次。
 function buildFeatured() {
   state._featured = new Map();
-  for (const h of computeHighlights().best) state._featured.set(h.tr, h.title.split(' ')[0]);
+  for (const h of computeHighlights().best) {
+    const em = h.title.split(' ')[0];
+    state._featured.set(h.tr, em === '🛑' ? '' : em);
+  }
 }
 function hlRow(h) {
   const tr = h.tr, last = tr.stops[tr.stops.length - 1];
