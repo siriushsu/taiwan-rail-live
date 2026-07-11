@@ -55,8 +55,9 @@ def api_get(path, token):
             raise
     raise SystemExit("too many retries")
 
-# operators to fetch: 台北捷運 TRTC、高雄捷運 KRTC、高雄輕軌 KLRT、台中捷運 TMRT
-OPERATORS = os.environ.get("TDX_OPERATORS", "TRTC,KRTC,KLRT,TMRT").split(",")
+# operators to fetch: 台北捷運 TRTC、高雄捷運 KRTC、高雄輕軌 KLRT、台中捷運 TMRT、
+# 桃園機捷 TYMC、淡海輕軌 NTDLRT、安坑輕軌 NTALRT、新北捷運(環狀線) NTMC
+OPERATORS = os.environ.get("TDX_OPERATORS", "TRTC,KRTC,KLRT,TMRT,TYMC,NTDLRT,NTALRT,NTMC").split(",")
 DATASET_NAMES = [
     ("Line",          "路線清單+顏色"),
     ("Station",       "站點座標"),
@@ -64,6 +65,8 @@ DATASET_NAMES = [
     ("Frequency",     "各線各時段班距"),
     ("S2STravelTime", "站間行駛+停靠時間"),
     ("Shape",         "路線幾何"),
+    ("StationTimeTable",   "逐站發車時刻表(build_metro_times.mjs 用;TMRT 無)"),
+    ("FirstLastTimetable", "首末班車(文湖線/台中捷運班距合成用)"),
 ]
 
 def main():
