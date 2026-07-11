@@ -620,8 +620,8 @@
   body.fs .board { right: 60px; }
   body.fs .kbd-hint, body.fs .flow, body.fs .search, body.fs .favs, body.fs .lines, body.fs .note, body.fs .passport, body.fs .site-foot { display: none; }
   /* 放空模式:閒置 5 秒淡出控制,滑鼠動了淡回(時鐘與跟隨面板留著) */
-  .controls, .stage-tools, .leaflet-control-container { transition: opacity .7s; }
-  body.idle .controls, body.idle .stage-tools, body.idle .leaflet-control-container { opacity: 0; pointer-events: none; }
+  .controls, .stage-tools, .leaflet-control-container, #randBtn { transition: opacity .7s; }
+  body.idle .controls, body.idle .stage-tools, body.idle .leaflet-control-container, body.idle #randBtn { opacity: 0; pointer-events: none; }
   body.idle .stage, body.idle * { cursor: none; }
   #overlay { position: absolute; inset: 0; pointer-events: none; z-index: 500; }
   /* 放空模式的日夜天色(依模擬時刻連續變化,墊在轉場遮罩下) */
@@ -642,6 +642,27 @@
   /* 放空視角切換鈕只在放空模式中才有意義 */
   #ambientStyleBtn { display: none; }
   body.ambient #ambientStyleBtn { display: flex; }
+
+  /* 隨機跟隨升格為地圖膠囊鈕:原本擠在工具條裡(手機還要開抽屜)沒人發現,
+     改成地圖下緣常駐置中膠囊,紙卡風沿用 .stage-tools 同色系 */
+  #randBtn {
+    position: absolute; left: 50%; bottom: 14px; transform: translateX(-50%); z-index: 620;
+    font: inherit; font-size: 14.5px; font-weight: 700; cursor: pointer;
+    background: #fffdf6; color: #2a4a73;
+    border: 1.5px solid #c9b98f; border-radius: 999px;
+    box-shadow: 0 2px 0 #c9b98f; padding: 8px 18px;
+    transition: opacity .7s, transform .15s; /* opacity 與 623 行閒置淡出選擇器同值,合併宣告避免 transition 被覆蓋 */
+  }
+  #randBtn:hover { transform: translateX(-50%) translateY(-1px); }
+  #randBtn.active {
+    background: #d23c2a; color: #fff8ec;
+    border-color: #a92c1d; box-shadow: 0 2px 0 #a92c1d;
+  }
+  #randBtn.active:hover { background: #c0341f; }
+  body.ambient #randBtn { display: none; } /* 放空模式自有導演(換車/跟車鏡頭),不重複 */
+  /* 全畫面貼底控制列上方,讓開控制列——641~865px 這段控制列會換行變 89px 高(比 52px 單行高),
+     取兩者皆安全的值(寬度掃描實測校正,不能只抄單行高度算出的值) */
+  body.fs #randBtn { bottom: 111px; }
 
   /* ── HUD 小牌 ── */
   /* 時鐘徽章降為「儀表」層級:淡框淡影,不與內容面板(藏青框)搜眼 */
@@ -1015,6 +1036,7 @@
     body.fs.tools-open .stage-tools { max-height: calc(100% - 230px); }
     body.fs .follow-panel { bottom: 132px; width: 176px; } /* 桌面 fs 的 300px 寬不洩漏進手機 */
     body.fs .stage-tools { top: 56px; } /* 帶文字的工具鈕同樣讓開左上時鐘徽章 */
+    body.fs #randBtn { bottom: 178px; } /* 讓開手機 fs 換行後約 155px 高的貼底播放面板 */
     /* 放空模式(手機):看戲不操作——控制列只留「離開放空」一顆,跟隨卡縮成迷你條
       (車次+速度+下一站),別把列車蓋掉;速度/時間/音樂等設定進放空前調好 */
     body.ambient .controls > :not(#ambientBtn):not(#ambientStyleBtn) { display: none; }
@@ -1082,6 +1104,7 @@
     <canvas id="overlay"></canvas>
     <div id="skyTint"></div>
     <div id="veil"></div>
+    <button id="randBtn" title="隨機跟隨列車——再按一次換一班（小卡 × 結束）" hidden>🎲 隨機跟隨</button>
     <div class="toasts" id="toasts"></div>
     <div class="alert-banner" id="alertBanner" hidden></div>
     <div class="alert-detail" id="alertDetail" hidden></div>
@@ -1111,7 +1134,6 @@
       <button id="exploreBtn" title="今日亮點——特別列車與今日之最"><span class="ti">探</span><span class="tl">今日亮點</span></button>
       <button id="favBtn" title="我的最愛列車"><span class="ti">★</span><span class="tl">我的最愛</span></button>
       <button id="rideBtn" title="旅程收集（完乘記錄）"><span class="ti">旅</span><span class="tl">旅程收集</span></button>
-      <button id="tourBtn" title="隨機跟隨列車——再按一次換一班（小卡 × 結束）"><span class="ti">隨</span><span class="tl">隨機跟隨</span></button>
       <button id="introBtn" title="經過特殊車站時顯示介紹"><span class="ti">介</span><span class="tl">特殊站介紹</span></button>
       <button id="satBtn" title="切換衛星影像"><span class="ti">衛</span><span class="tl">衛星影像</span></button>
       <button id="themeBtn" title="地圖明暗切換"><span class="ti">☾</span><span class="tl">地圖明暗</span></button>
@@ -1191,7 +1213,7 @@
     </div>
   </div>
 
-  <p class="kbd-hint">快捷鍵：<b>空白鍵</b>暫停／播放　<b>1</b>–<b>4</b>速度　<b>←</b><b>→</b>時間 ±10 分　<b>F</b>全畫面　地圖角落<b>隨</b>＝隨機跟隨（螢幕保護）</p>
+  <p class="kbd-hint">快捷鍵：<b>空白鍵</b>暫停／播放　<b>1</b>–<b>4</b>速度　<b>←</b><b>→</b>時間 ±10 分　<b>F</b>全畫面　地圖下方 <b>🎲</b>＝隨機跟隨</p>
 
   <div class="flow" id="flowWrap" hidden>
     <canvas id="flowChart"></canvas>
@@ -1220,6 +1242,8 @@
     <details class="foot-box">
       <summary><span>🛠 更新紀錄</span><span class="foot-sub">最後更新：2026/7/10</span></summary>
       <ul class="foot-list">
+        <li><span class="d">7/11</span><span>今日之最列車地圖識別：探索面板推薦的今日之最（今日最長征／開最久／停最多站／平均最快）在地圖上加繪金色光環＋車號牌角徽章，一眼可辨</span></li>
+        <li><span class="d">7/11</span><span>隨機跟隨升格為地圖下方常駐膠囊鈕：原本藏在工具抽屜裡沒人發現，改成置中大按鈕，點一下就換一班車跟</span></li>
         <li><span class="d">7/11</span><span>三鶯線加入北北桃視圖：頂埔—鶯桃福德 12 站（2026-06-30 通車試營運）；路線幾何取自 OpenStreetMap，班距為試營運公告估算</span></li>
         <li><span class="d">7/11</span><span>放空模式新增「群車」視角：不跟單車，鏡頭自動停在當下列車最密的繁忙路段看群車交錯，緩慢漂移縮放、每分多鐘換一段；放空中按「視角」鈕切換</span></li>
         <li><span class="d">7/10</span><span>高鐵、機場捷運、淡海輕軌、安坑輕軌加入；系統選單改群組頁籤，新增「台鐵＋高鐵同框」與「全台同框」視圖</span></li>
@@ -1280,7 +1304,7 @@
 <script>
 // 版本戳記:每次改版 push 前手動遞增(字母序),畫面時鐘徽章與 console 都會顯示,
 // 供比對線上跑的是不是最新版(瀏覽器快取 max-age=600 常讓人看到舊版)
-const BUILD = 'v0711d';
+const BUILD = 'v0711e';
 const state = {
   systems: [], sysId: null, data: null, speed: 36, mode: 'freq',
   lines: [], visible: new Set(), trains: [], schedStations: [], types: [],
@@ -1600,6 +1624,7 @@ function applySchedSystems(sysList) {
   state.schedSystems = sysList;
   state.mode = 'sched';
   state._hotScene = null; state._hotFresh = true; state._hotNext = 0; // 群車放空的熱區隨換系統作廢,重新選景
+  state._featured = null; // 每日之最(地圖金環識別)隨換系統作廢,drawSched 會重新 buildFeatured()
   state.deco = false; state.decoLines = null; // 預設關裝飾層;loadAllGroup 會在之後重新開
   state.sys = sysList[0] || null;
   state.data = sysList[0] ? sysList[0].data : null;
@@ -1812,6 +1837,7 @@ function drawSched(w, h) {
   const P = pal();
   const z = map.getZoom();
   const showTrain = z >= 11;
+  if (!state._featured) buildFeatured(); // 每日之最快取:換系統/時刻表被 applySchedSystems 作廢後,這裡補建一次
   const inView = p => p.x >= -40 && p.x <= w + 40 && p.y >= -20 && p.y <= h + 20;
   if (state.trackLines) {
     ctx.lineCap = 'round'; ctx.lineJoin = 'round';
@@ -1862,10 +1888,12 @@ function drawSched(w, h) {
     if (isFollow) { drawFollowMarker(cp, tr); state._trainHits.push({ x: cp.x, y: cp.y, tr }); continue; }
     if (!inView(cp)) continue;
     state._trainHits.push({ x: cp.x, y: cp.y, tr }); // 供點擊/hover 命中測試(每幀重建)
+    const feat = state._featured.get(tr); // 今日之最(探索面板推薦)→ 地圖上加繪金環,z≥11 再疊 emoji 徽章
     const glowC = isHSR(tr) ? HSR_ORANGE : tr.color;
     drawTrail(dt => trainPos(tr, state.simSec - dt), cp, glowC);
+    if (feat) drawFeaturedRing(cp);
     glowUnder(cp, glowC, showTrain ? 10 : 3.5); // 車號牌模式:光暈放大到繞出牌緣,近看也發亮
-    if (showTrain) isHSR(tr) ? drawHSRTag(cp, tr.train) : drawTag(cp, tr.train, tr.color, textColorFor(tr.color));
+    if (showTrain) isHSR(tr) ? drawHSRTag(cp, tr.train, feat) : drawTag(cp, tr.train, tr.color, textColorFor(tr.color), feat);
     else isHSR(tr) ? drawHSRDot(cp) : drawDot(cp, tr.color);
   }
   // 站名標籤:大站先取位、字級隨站等、蓋在列車上層;錨點放軌道側邊(法線方向)——
@@ -1982,7 +2010,27 @@ function drawStationIcon(cp, tier) {
   ctx.globalAlpha = 1;
 }
 
-function drawTag(p, label, bg, fg) {
+// ── 每日之最(探索面板 best 四項)的地圖識別:金色漣漪光環(車底,z 不拘)+車號牌角徽章(z≥11 才有牌) ──
+// 光環:兩圈相位錯開 1000ms 的擴散圈+常駐淡金底盤;純視覺疊層,不影響列車本體位置與 hit-test
+function drawFeaturedRing(p) {
+  ctx.beginPath(); ctx.arc(p.x, p.y, 13, 0, 7);
+  ctx.fillStyle = 'rgba(255,215,106,.15)'; ctx.fill();
+  const now = performance.now();
+  for (let i = 0; i < 2; i++) {
+    const ph = ((now + i * 1000) % 2000) / 2000;
+    ctx.beginPath(); ctx.arc(p.x, p.y, 8 + ph * 16, 0, 7);
+    ctx.strokeStyle = '#f0b429'; ctx.globalAlpha = 0.55 * (1 - ph); ctx.lineWidth = 2.5; ctx.stroke();
+  }
+  ctx.globalAlpha = 1;
+}
+// 徽章畫在牌角外(x,y 已由呼叫端算好,不回頭動牌面本身);knockout 外描避免疊在深色底圖上糊掉
+function drawTagBadge(x, y, emoji) {
+  ctx.font = '12px ' + FONT; ctx.textBaseline = 'middle'; ctx.textAlign = 'center';
+  ctx.lineWidth = 3; ctx.strokeStyle = pal().lblStroke; ctx.strokeText(emoji, x, y);
+  ctx.fillText(emoji, x, y);
+}
+
+function drawTag(p, label, bg, fg, badge) {
   // textAlign 必須自己設:draw() 每幀結尾重設為 start,靠環境值會讓車號從中心點往右起筆(偏右半個字寬)
   ctx.font = '700 10px ' + FONT; ctx.textBaseline = 'middle'; ctx.textAlign = 'center';
   const pw = ctx.measureText(label).width + 10, ph = 15, rx = 7.5;
@@ -1997,6 +2045,8 @@ function drawTag(p, label, bg, fg) {
   ctx.fillStyle = bg; ctx.globalAlpha = 0.96; ctx.fill(); ctx.globalAlpha = 1;
   ctx.lineWidth = 1.5; ctx.strokeStyle = pal().tagOutline; ctx.stroke();
   ctx.fillStyle = fg; ctx.fillText(label, p.x, p.y + 0.5);
+  // 牌本身位置/大小完全不動(鐵則:車號牌永遠畫真實位置)——徽章只是疊在牌角的額外圖層
+  if (badge) drawTagBadge(x0 + pw + 2, y0 - 2, badge);
 }
 
 function drawDot(p, color) {
@@ -2080,7 +2130,7 @@ function drawTrail(getPos, head, color) {
 // 高鐵列車專屬外觀:兩端尖頭的白底子彈輪廓＋橘框橘字(仿 700T/N700 白車身橘帶),
 // 一眼與台鐵的實心圓角車號牌區分——台鐵橘系(莒光/自強)與高鐵橘同色也不會認錯。
 const HSR_ORANGE = '#E85D0D';
-function drawHSRTag(p, label) {
+function drawHSRTag(p, label, badge) {
   ctx.font = '700 10px ' + FONT; ctx.textBaseline = 'middle'; ctx.textAlign = 'center';
   const pw = ctx.measureText(label).width + 13, ph = 15, nose = 5;
   const x0 = p.x - pw / 2, x1 = p.x + pw / 2, y0 = p.y - ph / 2, y1 = p.y + ph / 2;
@@ -2091,6 +2141,7 @@ function drawHSRTag(p, label) {
   ctx.fillStyle = '#fffdf6'; ctx.globalAlpha = 0.97; ctx.fill(); ctx.globalAlpha = 1;
   ctx.lineWidth = 2; ctx.strokeStyle = HSR_ORANGE; ctx.stroke();
   ctx.fillStyle = HSR_ORANGE; ctx.fillText(label, p.x, p.y + 0.5);
+  if (badge) drawTagBadge(x1 + nose + 2, y0 - 2, badge); // 子彈頭牌尖突出 pw/2 之外,徽章錨點含 nose
 }
 function drawHSRDot(p) {
   ctx.beginPath(); ctx.arc(p.x, p.y, 6, 0, 7);
@@ -2334,10 +2385,13 @@ const groupOf = id => GROUPS.find(g => g.members.includes(id)) || GROUPS[0];
 // 捷運/輕軌(freq)沒有車次、完乘、特別列車這些概念,隱藏這些鈕。用 inline display 蓋過 .stage-tools 的 flex。
 function updateSchedTools() {
   const show = state.mode === 'sched';
-  for (const id of ['exploreBtn', 'favBtn', 'rideBtn', 'tourBtn', 'introBtn']) {
+  for (const id of ['exploreBtn', 'favBtn', 'rideBtn', 'introBtn']) {
     const b = document.getElementById(id);
     if (b) b.style.display = show ? '' : 'none';
   }
+  // randBtn 已搬出 .stage-tools(獨立地圖膠囊鈕),沒有 flex 蓋過的問題,用 hidden 屬性切換即可
+  const rb = document.getElementById('randBtn');
+  if (rb) rb.hidden = !show;
 }
 
 // loadSystem / loadFreqGroup 共用尾段:面板收合、圖例、徽章、站名牌
@@ -2830,7 +2884,9 @@ function setAutoTour(on) {
     loadSystem(s);
   }
   state.autoTour = on;
-  document.getElementById('tourBtn').classList.toggle('active', on);
+  const rb = document.getElementById('randBtn');
+  rb.classList.toggle('active', on);
+  rb.textContent = on ? '🎲 換一班' : '🎲 隨機跟隨';
   if (on) {
     if (!state.playing) togglePlay();
     nextTourTrain();
@@ -3584,6 +3640,13 @@ function computeHighlights() {
     }
   }
   return out;
+}
+// 每日之最(探索面板 best 四項)的地圖識別快取:tr→emoji,供 drawSched 加繪金環+徽章。
+// title 開頭本來就是該項的專屬 emoji(🏁/⏳/🛑/⚡),直接切字取用,不必改 computeHighlights 的結構。
+// 換系統/時刻表時由 applySchedSystems 作廢(= null),drawSched 每幀 lazy init 重建一次。
+function buildFeatured() {
+  state._featured = new Map();
+  for (const h of computeHighlights().best) state._featured.set(h.tr, h.title.split(' ')[0]);
 }
 function hlRow(h) {
   const tr = h.tr, last = tr.stops[tr.stops.length - 1];
@@ -4835,7 +4898,7 @@ document.getElementById('followPanel').addEventListener('click', (e) => {
 });
 document.getElementById('tcStar').onclick = () => toggleFav(state.followTrain);
 // 每按一次跳一班隨機列車(已在隨機模式再按=立刻換車,不是關閉);結束靠小卡 ×/點跟隨中的列車/手動選車
-document.getElementById('tourBtn').onclick = () => state.autoTour ? nextTourTrain() : setAutoTour(true);
+document.getElementById('randBtn').onclick = () => state.autoTour ? nextTourTrain() : setAutoTour(true);
 document.getElementById('ambientStyleBtn').onclick = () =>
   setAmbientStyle(state.ambientStyle === 'hotspot' ? 'follow' : 'hotspot');
 document.getElementById('rideBtn').onclick = () => {
