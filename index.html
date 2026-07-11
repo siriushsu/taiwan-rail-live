@@ -1622,7 +1622,7 @@ function applySchedSystems(sysList) {
   const tkey = new Set();
   for (const sys of sysList) for (const t of (sys.data.types || [])) if (!tkey.has(t.key)) { tkey.add(t.key); state.types.push(t); }
   state.visible = new Set(state.types.map(t => t.key));
-  state.simSec = nowSecOfDay();
+  state.simSec = nowSecOfDay(sysList[0] && sysList[0].tz); // 海外群組:以該群當地時間為「現在」
   // 逐系統貼軌:只在同系統軌道上找,避免跨系統誤貼
   state._segStats = { onShape: 0, straight: 0 };
   for (const sys of sysList) {
@@ -2222,7 +2222,8 @@ function fitData(latlngs) {
   let tries = 0;
   const doFit = () => {
     map.invalidateSize();
-    if (map.getSize().y < 20 && tries++ < 60) { requestAnimationFrame(doFit); return; }
+    const sz = map.getSize();
+    if ((sz.x < 20 || sz.y < 20) && tries++ < 60) { requestAnimationFrame(doFit); return; }
     map.fitBounds(b, { padding: [30, 30], animate: false });
   };
   doFit();
@@ -2367,7 +2368,7 @@ function loadSystem(sys) {
     document.getElementById('flowWrap').hidden = false;
   } else {
     state.speed = sys.speed;
-    state.hour = Math.min(24, Math.max(5, new Date().getHours())); // 班距也跟著現在時段
+    state.hour = Math.min(24, Math.max(5, nowHour(sys.tz))); // 班距也跟著現在時段(海外用該系統時區)
     state.lines = sys.data.lines.map(l => ({ ...l, abbr: abbrOf(l) }));
     state.visible = new Set(state.lines.map(l => l.id));
     state.elapsed = 0;
@@ -2450,7 +2451,7 @@ function loadFreqGroup(g, sel) {
   state.sys = null; state.sysId = g.id;
   state.freqSel = sel || new Set(g.members);
   state.speed = 30; // 僅缺 segs 的線才用到;各線另存 _speed
-  state.hour = Math.min(24, Math.max(5, new Date().getHours()));
+  state.hour = Math.min(24, Math.max(5, nowHour(activeTz()))); // 海外群組用該群時區的現在時段
   rebuildFreqLines(g);
   // 視野一次框住整個群組(含未勾選成員),之後勾選/取消不再移動地圖
   const pts = g.members.map(id => state.systems.find(s => s.id === id)).filter(Boolean)
@@ -3157,15 +3158,18 @@ function loadRides() { try { return JSON.parse(localStorage.getItem('trainmap-ri
 function saveRides(r) { try { localStorage.setItem('trainmap-rides', JSON.stringify(r)); } catch (e) {} }
 function recordRide(tr) {
   if (state.autoTour) return; // 掛機自動跑完不算,親自跟完才蓋章
-  const today = new Date().toLocaleDateString('sv');
+  const today = todayStr(activeTz()); // 海外群組:以該群當地日期判定「今天」
   const rides = loadRides();
-  if (rides.some(r => r.train === tr.train && r.date === today)) return;
+  // 去重鍵加系統維度(sys|train|date):海外車次號撞台鐵車號不再誤判為重複。
+  // 向後相容:舊紀錄無 r.sys,一律視為既有台鐵('tra_sched'),既有的章不受影響。
+  if (rides.some(r => r.train === tr.train && r.date === today && (r.sys || 'tra_sched') === tr.sys)) return;
   const it = trainIntro(tr), s = tr.stops;
   journeyProgress(tr, 0); // 確保 _totalKm 已算
   const spd = specialOf(tr) || {}; // 圖鑑收集用的比對 id(undefined 會被 JSON 丟掉,舊記錄以名稱字串補配)
   const prevColl = collectionOf(rides), prevAch = unlockedAchievements(rides); // push 前快照,差分找新蓋的章
   rides.push({
     train: tr.train,
+    sys: tr.sys, // 系統維度:去重/跨系統統計用(舊紀錄無此欄,讀取時視為 'tra_sched')
     kind: (it.special && it.special.name) || it.kind || tr.typeName,
     from: s[0].name, to: s[s.length - 1].name,
     km: Math.round(tr._totalKm || 0), date: today,
@@ -3806,9 +3810,58 @@ function updateFollowLockUI() {
     : '自由瀏覽中：點擊回到列車，恢復置中跟隨';
 }
 
-function nowSecOfDay() {
-  const d = new Date();
-  return d.getHours() * 3600 + d.getMinutes() * 60 + d.getSeconds();
+// ── per-system 時區支援(海外城市) ──
+// 預設(未設 tz 或 'Asia/Taipei')完全走原本的裝置本地時鐘,台灣行為零變化;
+// 僅顯式非台北 tz 的海外系統才用 Intl 算「該時區 UTC 偏移」。offset 按 tz 快取、≤30 秒刷新一次
+// (吃 DST 切換);每幀只做「device now + 快取offset」的加法,不每幀 new Intl.DateTimeFormat。
+const _tzFmt = new Map();            // tz -> Intl.DateTimeFormat(重用,不每幀重建)
+const _tzOff = new Map();            // tz -> { off:UTC偏移秒, at:上次算的時刻 }
+function tzOffsetSec(tz) {
+  const now = Date.now();
+  const c = _tzOff.get(tz);
+  if (c && now - c.at < 30e3) return c.off;
+  let fmt = _tzFmt.get(tz);
+  if (!fmt) {
+    fmt = new Intl.DateTimeFormat('en-US', { timeZone: tz, hour12: false,
+      year: 'numeric', month: '2-digit', day: '2-digit',
+      hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    _tzFmt.set(tz, fmt);
+  }
+  const p = {};
+  for (const x of fmt.formatToParts(new Date(now))) if (x.type !== 'literal') p[x.type] = x.value;
+  let hh = +p.hour; if (hh === 24) hh = 0; // 部分實作午夜回 '24'
+  const asUTC = Date.UTC(+p.year, +p.month - 1, +p.day, hh, +p.minute, +p.second);
+  // now 帶毫秒、formatToParts 截到整秒:兩邊都對齊整秒再相減,避免 offset 隨毫秒 ±1 秒抖動
+  const off = Math.round((asUTC - Math.floor(now / 1000) * 1000) / 1000);
+  _tzOff.set(tz, { off, at: now });
+  return off;
+}
+// 作用中情境的時區:sched 用已載入系統、freq/單系統用 state.sys 或群組首個成員,預設台北
+function activeTz() {
+  let sys = null;
+  if (state.mode === 'sched' && state.schedSystems && state.schedSystems.length) sys = state.schedSystems[0];
+  else if (state.sys) sys = state.sys;
+  else {
+    const g = GROUPS.find(x => x.id === state.group);
+    if (g && g.members.length) sys = state.systems.find(s => s.id === g.members[0]);
+  }
+  return (sys && sys.tz) || 'Asia/Taipei';
+}
+function nowSecOfDay(tz) {
+  if (!tz || tz === 'Asia/Taipei') { // 預設:原裝置本地時鐘,台灣行為零變化
+    const d = new Date();
+    return d.getHours() * 3600 + d.getMinutes() * 60 + d.getSeconds();
+  }
+  const localSec = Math.floor(Date.now() / 1000) + tzOffsetSec(tz);
+  return ((localSec % 86400) + 86400) % 86400;
+}
+function nowHour(tz) {
+  if (!tz || tz === 'Asia/Taipei') return new Date().getHours(); // 預設:裝置本地,行為零變化
+  return Math.floor(nowSecOfDay(tz) / 3600);
+}
+function todayStr(tz) {
+  if (!tz || tz === 'Asia/Taipei') return new Date().toLocaleDateString('sv'); // 預設:裝置本地日期
+  return new Date().toLocaleDateString('sv', { timeZone: tz });
 }
 
 // ── 台鐵即時誤點(TDX TrainLiveBoard,經 /api/tra-live 代理,每分鐘更新) ──
@@ -3934,12 +3987,12 @@ pollAlert();
 
 function jumpToNow() {
   if (state.mode === 'sched') {
-    setSimSec(nowSecOfDay());
+    setSimSec(nowSecOfDay(activeTz())); // 海外群組:回到該群當地的現在時刻
     setSpeed(1); // 「現在」=回到真實狀態:1× 才不會馬上漂走,誤點修正得以持續套用
     updateLiveBadge(); // 有舊資料就先亮,不等 poll 回來
     pollLive();
   } else {
-    state.hour = Math.min(24, Math.max(5, new Date().getHours()));
+    state.hour = Math.min(24, Math.max(5, nowHour(activeTz())));
     document.getElementById('tod').value = state.hour;
     document.getElementById('todOut').textContent = fmtHour(state.hour);
     refreshBadge();
