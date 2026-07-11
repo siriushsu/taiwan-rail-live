@@ -1242,6 +1242,7 @@
     <details class="foot-box">
       <summary><span>🛠 更新紀錄</span><span class="foot-sub">最後更新：2026/7/10</span></summary>
       <ul class="foot-list">
+        <li><span class="d">7/11</span><span>群車視角巡航化：鏡頭改為連續慢速滑行永不停頓、自動貼著列車群走（畫面裡總有車有軌道）、視角拉近一級</span></li>
         <li><span class="d">7/11</span><span>今日之最列車地圖識別：探索面板推薦的今日之最（今日最長征／開最久／停最多站／平均最快）在地圖上加繪金色光環＋車號牌角徽章，一眼可辨</span></li>
         <li><span class="d">7/11</span><span>隨機跟隨升格為地圖下方常駐膠囊鈕：原本藏在工具抽屜裡沒人發現，改成置中大按鈕，點一下就換一班車跟</span></li>
         <li><span class="d">7/11</span><span>三鶯線加入北北桃視圖：頂埔—鶯桃福德 12 站（2026-06-30 通車試營運）；路線幾何取自 OpenStreetMap，班距為試營運公告估算</span></li>
@@ -1304,7 +1305,7 @@
 <script>
 // 版本戳記:每次改版 push 前手動遞增(字母序),畫面時鐘徽章與 console 都會顯示,
 // 供比對線上跑的是不是最新版(瀏覽器快取 max-age=600 常讓人看到舊版)
-const BUILD = 'v0711e';
+const BUILD = 'v0711f';
 const state = {
   systems: [], sysId: null, data: null, speed: 36, mode: 'freq',
   lines: [], visible: new Set(), trains: [], schedStations: [], types: [],
@@ -2194,7 +2195,7 @@ function tick(now) {
       nextTourTrain(now);
   }
   if (state.ambient && state.ambientStyle === 'hotspot' && !state.followTrain &&
-      state.mode === 'sched' && state.playing) hotspotTick(now);
+      state.mode === 'sched' && state.playing) { hotspotTick(now); hotCruise(dt, now); }
   if (state.mode === 'sched' && state.followTrain) {
     updateFollowCamera();
     state._evClock = (state._evClock || 0) + dt;
@@ -2949,12 +2950,13 @@ function hotspotTick(now) {
     return;
   }
   const h = pickHotspot(hs);
-  state._hotScene = { lat: h.lat, lon: h.lon, z: h.n >= 20 ? 14 : 13, step: 0, dir: Math.random() * Math.PI * 2 };
+  state._hotScene = { lat: h.lat, lon: h.lon, z: h.n >= 25 ? 15 : 14, dir: Math.random() * Math.PI * 2 };
   state._hotNext = now + 60000 + Math.random() * 30000; // 一幕 60~90 秒再換熱區
   if (state._hotFresh) {
     state._hotFresh = false;
+    state._hotCam = true; // 自家跳景的 zoomstart 不算使用者操作
     map.setView([h.lat, h.lon], state._hotScene.z, { animate: false });
-    scheduleHotDrift(1800);
+    state._hotCam = false;
   } else hotFadeTo(state._hotScene);
 }
 // 換熱區:淡出 → 跳到新熱區 → 淡入(沿用換車遮罩)
@@ -2966,46 +2968,60 @@ function hotFadeTo(sc) {
   setTimeout(() => {
     const alive = state.ambient && state.ambientStyle === 'hotspot' && !state.followTrain;
     if (!alive) { veil.style.opacity = 0; state._transition = false; return; }
+    state._hotCam = true; // 自家跳景的 zoomstart 不算使用者操作
     map.setView([sc.lat, sc.lon], sc.z, { animate: false });
+    state._hotCam = false;
     veil.style.opacity = 0;
-    scheduleHotDrift(2200);
     setTimeout(() => { state._transition = false; }, 750);
   }, 800);
 }
-// 鏡頭漂移:每段往熱區中心附近的隨機方位滑約 1/4 個畫面,每三段帶一級縮放呼吸;漂遠了就繞回來
-function scheduleHotDrift(ms) {
-  clearTimeout(state._hotDriftT);
-  state._hotDriftT = setTimeout(hotDrift, ms);
-}
-function hotDrift() {
+// 鏡頭巡航:逐幀等速滑行、方向緩慢遊走,離「附近列車重心」太遠就漸進彎回去——
+// 畫面永遠貼著有車有軌道的地方,且數學上零停頓(v0711f 取代舊的 panTo 分段漂移)
+const HOT_SPEED = 7; // 螢幕像素/秒(視覺速度,與 zoom 無關)
+function hotCruise(dt, now) {
   const sc = state._hotScene;
-  if (!state.ambient || state.ambientStyle !== 'hotspot' || !sc || state.followTrain) return;
-  if (state._transition || !state.playing) { scheduleHotDrift(2000); return; }
-  const size = map.getSize();
-  const cur = map.latLngToContainerPoint(map.getCenter());
-  const home = map.latLngToContainerPoint([sc.lat, sc.lon]);
-  if (Math.hypot(home.x - cur.x, home.y - cur.y) > size.y * 0.55)
-    sc.dir = Math.atan2(home.y - cur.y, home.x - cur.x); // 離熱區太遠:轉頭漂回去
-  else sc.dir += (Math.random() - 0.5) * 1.4; // 方向緩慢轉彎,像空拍機遊蕩
-  const dist = size.y * (0.18 + Math.random() * 0.14);
-  const tgt = map.containerPointToLatLng([cur.x + Math.cos(sc.dir) * dist, cur.y + Math.sin(sc.dir) * dist]);
-  sc.step++;
-  if (sc.step % 3 === 0) {
-    // 縮放呼吸:離開基準就回基準,在基準就隨機推近/拉遠一級(flyTo 讓縮放平滑)
-    const zNow = map.getZoom();
-    const zTo = zNow !== sc.z ? sc.z : Math.max(12, Math.min(15, sc.z + (Math.random() < 0.5 ? -1 : 1)));
-    map.flyTo(tgt, zTo, { duration: 9, easeLinearity: 0.25 });
-    scheduleHotDrift(11000 + Math.random() * 2000);
-  } else {
-    const dur = 12 + Math.random() * 6;
-    map.panTo(tgt, { duration: dur, easeLinearity: 0.2 });
-    scheduleHotDrift(dur * 1000 + 1500 + Math.random() * 2000);
+  if (!sc || state._transition) return;
+  if (now < (state._hotYield || 0)) { sc.px = null; return; } // 使用者操作中讓位,回來從現況接手
+  dt = Math.min(dt, 0.1); // 分頁背景回前景的巨幅 dt 不能變成鏡頭瞬移
+  // 浮點像素游標:latLngToContainerPoint 會整數化,0.1px 級步進會被吃成不動點,
+  // 必須用不取整的 project 自己累積;使用者調了縮放就在新 zoom 重建游標接著巡
+  const zNow = map.getZoom();
+  if (!sc.px || sc.pxZ !== zNow) { sc.px = map.project(map.getCenter(), zNow); sc.pxZ = zNow; sc.anchorAt = 0; }
+  // 錨點:每 2 秒重算視野(外擴 20%)內運行列車的重心;視野內沒車就取全圖最近的一台
+  if (!sc.anchorAt || now - sc.anchorAt > 2000) {
+    sc.anchorAt = now;
+    const box = map.getBounds().pad(0.2), c = map.getCenter();
+    let lat = 0, lon = 0, n = 0, near = null, nd = Infinity;
+    for (const t of state.trains) {
+      if (!state.visible.has(t.typeName)) continue;
+      const p = trainPos(t, state.simSec);
+      if (!p) continue;
+      if (box.contains([p.lat, p.lon])) { lat += p.lat; lon += p.lon; n++; }
+      const d = Math.hypot(p.lat - c.lat, (p.lon - c.lng) * 0.9);
+      if (d < nd) { nd = d; near = p; }
+    }
+    sc.anchor = n ? { lat: lat / n, lon: lon / n } : near;
   }
+  const size = map.getSize();
+  let turn = (Math.random() - 0.5) * 0.6 * dt; // 隨機遊走轉向(rad/s)
+  if (sc.anchor) {
+    const ap = map.project([sc.anchor.lat, sc.anchor.lon], zNow);
+    const dx = ap.x - sc.px.x, dy = ap.y - sc.px.y, dist = Math.hypot(dx, dy);
+    if (dist > size.y * 0.3) {
+      // 比例轉向:超出舒適圈越遠,往列車重心彎越快(永不急轉、永不停)
+      let diff = Math.atan2(dy, dx) - sc.dir;
+      diff = ((diff + Math.PI * 3) % (Math.PI * 2)) - Math.PI;
+      const urgency = Math.min(1, (dist / size.y - 0.3) / 0.35);
+      turn += diff * Math.min(1, 1.5 * dt) * urgency;
+    }
+  }
+  sc.dir += turn;
+  const step = HOT_SPEED * dt;
+  sc.px = L.point(sc.px.x + Math.cos(sc.dir) * step, sc.px.y + Math.sin(sc.dir) * step);
+  map.setView(map.unproject(sc.px, zNow), zNow, { animate: false });
 }
 function hotspotStop() {
-  clearTimeout(state._hotDriftT); state._hotDriftT = null;
-  state._hotScene = null; state._hotNext = 0;
-  try { map.stop(); } catch (e) {} // 停掉進行中的慢速漂移動畫
+  state._hotScene = null; state._hotNext = 0; state._hotYield = 0;
 }
 function setAmbientStyle(style) {
   state.ambientStyle = style;
@@ -4772,9 +4788,14 @@ async function boot() {
   map.on('dragstart', () => {
     if (state.followTrain && state.followLock && !state.autoTour && !document.body.classList.contains('ambient')) setFollowLock(false);
     if (state.ambient && state.ambientStyle === 'hotspot' && !state.followTrain) {
-      state._hotNext = performance.now() + 45000; // 使用者動手看地圖:這一幕延長,漂移也讓位幾秒再接手
-      scheduleHotDrift(8000);
+      state._hotNext = performance.now() + 45000; // 使用者動手看地圖:這一幕延長,巡航讓位幾秒再接手
+      state._hotYield = performance.now() + 8000;
     }
+  });
+  // 群車巡航中使用者縮放(滾輪/捏合)同樣讓位;巡航會在新 zoom 重建游標接著巡
+  map.on('zoomstart', () => {
+    if (state.ambient && state.ambientStyle === 'hotspot' && !state.followTrain && !state._hotCam)
+      state._hotYield = performance.now() + 8000;
   });
   // crossOrigin: 錄影功能要把圖磚畫進合成 canvas,沒有 CORS 標記畫布會被汙染(無法 captureStream)
   baseLayers.light = L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
