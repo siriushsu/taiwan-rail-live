@@ -381,6 +381,26 @@
     cursor: pointer; display: none; flex: none;
   }
   .follow-panel.fp-min .fp-end { display: inline-block; }
+  /* ── 捷運幽靈車跟隨的輕量資訊卡(freq 模式;不走 sched 的 followPanel) ── */
+  .freq-card {
+    position: absolute; left: 12px; bottom: 12px; z-index: 650;
+    width: 220px; max-width: calc(100% - 24px);
+    background: rgba(255,253,246,.97); border: 2px solid #2a4a73; border-radius: 10px;
+    padding: 9px 13px 10px; font-variant-numeric: tabular-nums;
+    box-shadow: 0 3px 0 rgba(42,74,115,.22);
+  }
+  .freq-card[hidden] { display: none; }
+  .freq-card .fc-head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .freq-card .fc-head .dot { width: 9px; height: 9px; border-radius: 50%; flex: none; }
+  .freq-card .fc-head b { font-size: 15px; color: #1e2c40; }
+  .freq-card .fc-dir { font-size: 12px; color: #7a6c50; font-weight: 600; order: 9; flex: 1 1 100%; min-width: 0; margin-top: 1px; }
+  .freq-card .fc-end {
+    margin-left: auto; background: none; border: 1px solid #c9b98f; border-radius: 6px;
+    color: #a89468; font-size: 10px; font-weight: 700; padding: 2px 6px; cursor: pointer; flex: none;
+  }
+  .freq-card .fc-next { display: flex; align-items: baseline; gap: 8px; margin-top: 7px; }
+  .freq-card .fc-next .lbl { font-size: 11px; color: #8a7c62; font-weight: 800; letter-spacing: 2px; flex: none; }
+  .freq-card .fc-next .stn { font-size: 16px; font-weight: 900; color: #1e2c40; letter-spacing: 1px; }
   /* ── 列車資訊卡(地圖下方,跟隨時顯示) ── */
   .traincard {
     margin: 14px 0 0;
@@ -1129,6 +1149,18 @@
       <div class="fp-alert" id="fpAlert" hidden></div>
       <div class="fp-dest" id="fpDest"></div>
     </div>
+    <div class="freq-card" id="freqCard" hidden>
+      <div class="fc-head">
+        <span class="dot" id="fcDot"></span>
+        <b id="fcLine"></b>
+        <span class="fc-dir" id="fcDir"></span>
+        <button class="fc-end" id="fcEnd" title="取消跟隨">結束</button>
+      </div>
+      <div class="fc-next">
+        <span class="lbl">下一站</span>
+        <span class="stn" id="fcNext"></span>
+      </div>
+    </div>
     <div class="stage-tools">
       <button id="toolsFab" title="地圖工具"><span class="ti">☰</span><span class="tl">工具</span></button>
       <button id="exploreBtn" title="今日亮點——特別列車與今日之最"><span class="ti">探</span><span class="tl">今日亮點</span></button>
@@ -1240,8 +1272,9 @@
 
   <footer class="site-foot">
     <details class="foot-box">
-      <summary><span>🛠 更新紀錄</span><span class="foot-sub">最後更新：2026/7/10</span></summary>
+      <summary><span>🛠 更新紀錄</span><span class="foot-sub">最後更新：2026/7/11</span></summary>
       <ul class="foot-list">
+        <li><span class="d">7/11</span><span>捷運／輕軌也能點車跟隨：點任一台列車即鎖定鏡頭跟著跑，輕量資訊卡顯示線名、行進方向與下一站（示意動畫，不計完乘）</span></li>
         <li><span class="d">7/11</span><span>群車視角巡航化：鏡頭改為連續慢速滑行永不停頓、自動貼著列車群走（畫面裡總有車有軌道）、視角拉近一級</span></li>
         <li><span class="d">7/11</span><span>今日之最列車地圖識別：探索面板推薦的今日之最（今日最長征／開最久／停最多站／平均最快）在地圖上加繪金色光環＋車號牌角徽章，一眼可辨</span></li>
         <li><span class="d">7/11</span><span>隨機跟隨升格為地圖下方常駐膠囊鈕：原本藏在工具抽屜裡沒人發現，改成置中大按鈕，點一下就換一班車跟</span></li>
@@ -1305,13 +1338,14 @@
 <script>
 // 版本戳記:每次改版 push 前手動遞增(字母序),畫面時鐘徽章與 console 都會顯示,
 // 供比對線上跑的是不是最新版(瀏覽器快取 max-age=600 常讓人看到舊版)
-const BUILD = 'v0711f';
+const BUILD = 'v0711g';
 const state = {
   systems: [], sysId: null, data: null, speed: 36, mode: 'freq',
   lines: [], visible: new Set(), trains: [], schedStations: [], types: [],
   playing: true, speedMult: 50, hour: 8, simSec: 8 * 3600,
   dpr: 1, t0: 0, elapsed: 0, ready: false,
   followTrain: null, followId: null,
+  freqFollow: null, // 捷運(freq 幽靈車)跟隨:{ ln, k }——k=第 k 台幽靈車;獨立於 sched 的 followTrain
   followLock: true, // 跟隨鎖:true=每幀置中;拖曳地圖自動解鎖(Google 導航式),按「回到列車」恢復
   mapDark: false, basemap: 'map', trackData: null,
   trackStyle: 'auto', // 軌道顯示:auto(亮色原色/夜間衛星自動淡化)、faint(一律更淡)、hidden(只留列車與車站)
@@ -1681,6 +1715,11 @@ function recomputeTrains() {
     buildLineSchedule(ln);
     ln.n = Math.max(1, Math.round(ln.period / headwayOf(ln, state.hour)));
   });
+  // 班距隨時段改變 → 幽靈車數 ln.n 重算,原本跟的第 k 台可能不存在了 → 自動解除跟隨並提示
+  if (state.freqFollow) {
+    const f = state.freqFollow;
+    if (state.lines.indexOf(f.ln) < 0 || f.k >= f.ln.n) { clearFreqFollow(); showToast('班距改變，已結束跟隨'); }
+  }
   updateCount();
 }
 
@@ -1728,14 +1767,17 @@ function drawFreq(w, h) {
     });
   });
   const tau = state.elapsed * state.speedMult;
+  const ff = state.freqFollow;
   state.lines.forEach(ln => {
     if (!state.visible.has(ln.id) || !ln.sched) return;
     const tc = textColorFor(ln.color);
     for (let k = 0; k < ln.n; k++) {
       const pos = posPeriodic(ln, tau + k * ln.period / ln.n);
       const cp = map.latLngToContainerPoint([pos.lat, pos.lon]);
+      if (ff && ff.ln === ln && ff.k === k) drawFreqRing(cp, ln.color); // 跟隨中的幽靈車:高亮環(畫在牌下)
       if (showTrain && inView(cp)) drawTag(cp, ln.abbr, ln.color, tc);
       else drawDot(cp, ln.color);
+      if (inView(cp)) state._freqHits.push({ x: cp.x, y: cp.y, ln, k }); // 點擊/hover 命中測試(每幀重建;裝飾層不參加)
     }
   });
   // 站名最後畫(蓋在列車上層),錨點推到軌道側邊
@@ -1746,6 +1788,75 @@ function drawFreq(w, h) {
     const a = sideLabelAnchor(p, pa, pb, 18) || { x: p.x, y: p.y };
     tryLabel(a.x, a.y, name);
   }
+}
+
+// ── 捷運(freq 幽靈車)點擊跟隨 ──
+// 幽靈車＝班距模擬的示意列車,沒有車次號;跟隨只做「相機置中＋輕量資訊卡」,絕不寫入完乘/成就(那套只認 sched)。
+function drawFreqRing(p, color) {
+  ctx.beginPath(); ctx.arc(p.x, p.y, 14, 0, 7);
+  ctx.strokeStyle = color; ctx.globalAlpha = 0.32; ctx.lineWidth = 2; ctx.stroke();
+  ctx.beginPath(); ctx.arc(p.x, p.y, 9, 0, 7);
+  ctx.strokeStyle = color; ctx.globalAlpha = 0.9; ctx.lineWidth = 2.5; ctx.stroke();
+  ctx.globalAlpha = 1;
+}
+// posPeriodic 的資訊變體:除了座標,回傳方向(去程/回程)、目的地終點站、下一站站名。
+// 鏡像規則:非環線 seq 節點 0..F-1 是去程、F..2F-2 是回程;target=列車正前往的節點索引。
+function freqTrainInfo(ln, t) {
+  const nodes = ln.sched, S = nodes.length, F = ln.stations.length;
+  const loop = !!ln.loop && ln.hasShape;
+  const tm = ((t % ln.period) + ln.period) % ln.period;
+  let node = null, interp = null, target = S - 1;
+  for (let i = 0; i < S; i++) {
+    if (tm >= nodes[i].arr && tm <= nodes[i].dep) { node = nodes[i]; target = i + 1; break; }
+    if (i < S - 1 && tm > nodes[i].dep && tm < nodes[i + 1].arr) {
+      const span = nodes[i + 1].arr - nodes[i].dep, f = span > 0 ? (tm - nodes[i].dep) / span : 0;
+      interp = { a: nodes[i], b: nodes[i + 1], f }; target = i + 1; break;
+    }
+  }
+  if (!node && !interp) node = nodes[S - 1];
+  let lat, lon;
+  if (ln.hasShape) {
+    const dist = node ? node.dist : interp.a.dist + (interp.b.dist - interp.a.dist) * interp.f;
+    const p = posAlongShape(ln, dist); lat = p.lat; lon = p.lon;
+  } else if (node) { lat = node.lat; lon = node.lon; }
+  else { lat = interp.a.lat + (interp.b.lat - interp.a.lat) * interp.f; lon = interp.a.lon + (interp.b.lon - interp.a.lon) * interp.f; }
+  const nt = ((target % S) + S) % S;                                   // dwell 到末節點時 target=S,環回起點
+  const outbound = loop ? true : nt <= F - 1;
+  const fwdIdx = loop ? (nt >= F ? 0 : nt) : (nt <= F - 1 ? nt : 2 * (F - 1) - nt);
+  const nextName = ln.stations[fwdIdx] ? ln.stations[fwdIdx].name : '';
+  const termName = loop ? null : ln.stations[outbound ? F - 1 : 0].name;
+  return { lat, lon, outbound, loop, nextName, termName };
+}
+function setFreqFollow(ln, k) {
+  state.freqFollow = { ln, k };
+  state.followLock = true;
+  document.getElementById('freqCard').hidden = false;
+  updateFreqFollowCamera(true); // 立即置中並填卡
+  updateFollowLockUI();
+}
+function clearFreqFollow() {
+  if (!state.freqFollow) return;
+  state.freqFollow = null;
+  const c = document.getElementById('freqCard'); if (c) c.hidden = true;
+  const cnt = map && map.getContainer(); if (cnt && cnt.style.cursor) cnt.style.cursor = '';
+  updateFollowLockUI();
+}
+function updateFreqCard(info) {
+  const f = state.freqFollow; if (!f) return;
+  const ln = f.ln;
+  document.getElementById('fcDot').style.background = ln.color;
+  document.getElementById('fcLine').textContent = ln.name || ln.abbr || '';
+  document.getElementById('fcDir').textContent = info.loop ? '環狀線循環' : (info.termName ? '往 ' + info.termName : '');
+  document.getElementById('fcNext').textContent = info.nextName || '—';
+}
+function updateFreqFollowCamera(immediate) {
+  const f = state.freqFollow; if (!f) return;
+  const ln = f.ln;
+  if (!ln.sched || f.k >= ln.n) { clearFreqFollow(); return; } // 班距重算後 k 失效的保險絲(正常路徑由 recomputeTrains 帶提示解除)
+  const info = freqTrainInfo(ln, state.elapsed * state.speedMult + f.k * ln.period / ln.n);
+  if (immediate) map.setView([info.lat, info.lon], Math.max(map.getZoom(), 13), { animate: false });
+  else if (state.followLock) recenterTo(info.lat, info.lon);
+  updateFreqCard(info);
 }
 
 // 全台同框的裝飾層:所有捷運/輕軌路線與示意列車,墊在台鐵/高鐵底下(僅豐富畫面,非即時)
@@ -2163,12 +2274,22 @@ function trainAt(cp) {
   }
   return best ? { tr: best.tr, dist: bd } : null;
 }
+// 捷運幽靈車命中測試:_freqHits 由 drawFreq 每幀重建(裝飾層不入列),半徑內取最近的一台
+function freqTrainAt(cp) {
+  let best = null, bd = 18; // px
+  for (const h of (state._freqHits || [])) {
+    const d = Math.hypot(h.x - cp.x, h.y - cp.y);
+    if (d < bd) { bd = d; best = h; }
+  }
+  return best ? { ln: best.ln, k: best.k, dist: bd } : null;
+}
 
 function draw() {
   if (!state.ready) return;
   const w = cv.width / state.dpr, h = cv.height / state.dpr;
   ctx.clearRect(0, 0, w, h);
   state._trainHits = [];
+  state._freqHits = [];
   labelBoxes = [];
   ctx.lineCap = 'round'; ctx.lineJoin = 'round';
   if (state.mode === 'sched') { if (state.deco) drawDeco(w, h); drawSched(w, h); if (state.deco) drawDecoLabels(); } else drawFreq(w, h);
@@ -2201,6 +2322,7 @@ function tick(now) {
     state._evClock = (state._evClock || 0) + dt;
     if (state._evClock >= 0.5) { state._evClock = 0; scanFollowEvents(); }
   }
+  if (state.mode !== 'sched' && state.freqFollow) updateFreqFollowCamera(); // 捷運幽靈車跟隨:每幀置中+更新卡
   if (state.mode === 'sched') {
     if (state.boardStation && Math.abs(state.simSec - (state.boardRenderedAt || 0)) >= 20) renderBoard();
     drawFlow();
@@ -2553,6 +2675,7 @@ function rebuildFreqLines(g) {
 }
 
 function toggleFreqMember(id) {
+  clearFreqFollow(); // rebuildFreqLines 會產生全新 line 物件,原本 freqFollow.ln 參照失效 → 先靜默解除
   if (!state.freqSel) state.freqSel = new Set();
   if (state.freqSel.has(id)) state.freqSel.delete(id);
   else state.freqSel.add(id);
@@ -2744,6 +2867,7 @@ function restoreFollowSpeed() {
 }
 
 function clearFollow() {
+  clearFreqFollow(); // 換系統/群組/進放空都經過這裡 → 一併清掉捷運幽靈車跟隨
   restoreFollowSpeed(); // 中途取消跟隨也要還原 fromStart 重播強制的速度
   state.followTrain = null; state.followId = null; state.followStatus = null;
   state._routePts = null;
@@ -4026,6 +4150,12 @@ function setFollowLock(on) {
     const p = trainPos(state.followTrain, state.simSec)
       || (state.simSec > s[s.length - 1].depSec ? s[s.length - 1] : s[0]);
     recenterTo(p.lat, p.lon);
+  } else if (on && state.freqFollow) {
+    const f = state.freqFollow;
+    if (f.ln.sched && f.k < f.ln.n) {
+      const info = freqTrainInfo(f.ln, state.elapsed * state.speedMult + f.k * f.ln.period / f.ln.n);
+      recenterTo(info.lat, info.lon);
+    }
   }
   updateFollowLockUI();
 }
@@ -4033,7 +4163,7 @@ function updateFollowLockUI() {
   const b = document.getElementById('followLockBtn');
   if (!b) return;
   // 放空/隨機導覽自動換車,鎖沒有意義;也讓開手機放空模式右下角的「離開放空」鈕
-  const show = !!state.followTrain && !state.autoTour && !document.body.classList.contains('ambient');
+  const show = (!!state.followTrain || !!state.freqFollow) && !state.autoTour && !document.body.classList.contains('ambient');
   b.parentNode.style.display = show ? '' : 'none';
   b.classList.toggle('unlocked', !state.followLock);
   b.textContent = state.followLock ? '🔒' : '◉ 回到列車';
@@ -4745,8 +4875,17 @@ async function boot() {
     .setView([24.5, 121], 8);
   map.zoomControl.setPosition('bottomright'); // 右上讓給車站時刻板
   map.on('click', e => {
-    if (state.mode !== 'sched') return;
     const cp = e.containerPoint || map.latLngToContainerPoint(e.latlng);
+    if (state.mode !== 'sched') {
+      // 捷運 freq:點幽靈車跟隨(再點同一台=取消、點另一台=換車);點空白處不動,比照 sched 慣例
+      const fh = freqTrainAt(cp);
+      if (fh) {
+        const f = state.freqFollow;
+        if (f && f.ln === fh.ln && f.k === fh.k) clearFreqFollow();
+        else setFreqFollow(fh.ln, fh.k);
+      }
+      return;
+    }
     let best = null, bd = 1e9;
     for (const st of state.schedStations) {
       const p = map.latLngToContainerPoint([st.lat, st.lon]);
@@ -4765,9 +4904,9 @@ async function boot() {
     if (best && bd <= 16) openBoard(best);
   });
   map.on('mousemove', e => {
-    // 滑過列車 → 手指游標(僅台鐵真實班表)
+    // 滑過列車 → 手指游標(sched 真實班表 + freq 幽靈車一致)
     const c = map.getContainer();
-    if (state.mode !== 'sched') { if (c.style.cursor) c.style.cursor = ''; return; }
+    if (state.mode !== 'sched') { c.style.cursor = freqTrainAt(e.containerPoint) ? 'pointer' : ''; return; }
     c.style.cursor = trainAt(e.containerPoint) ? 'pointer' : '';
   });
   // 跟隨鎖鈕:掛在縮放鈕上方(同角落自動堆疊,免手算碰撞);跟隨中才顯示
@@ -4786,7 +4925,7 @@ async function boot() {
   // 拖曳地圖=解鎖(Google 導航式);縮放不解鎖
   // 放空/隨機導覽不解鎖:那些模式鈕是藏的,解了鎖沒有辦法鎖回,鏡頭會永久漂走
   map.on('dragstart', () => {
-    if (state.followTrain && state.followLock && !state.autoTour && !document.body.classList.contains('ambient')) setFollowLock(false);
+    if ((state.followTrain || state.freqFollow) && state.followLock && !state.autoTour && !document.body.classList.contains('ambient')) setFollowLock(false);
     if (state.ambient && state.ambientStyle === 'hotspot' && !state.followTrain) {
       state._hotNext = performance.now() + 45000; // 使用者動手看地圖:這一幕延長,巡航讓位幾秒再接手
       state._hotYield = performance.now() + 8000;
@@ -4913,6 +5052,7 @@ document.getElementById('donateCopy').onclick = () =>
 // ×＝收起資訊卡(跟隨不中斷);膠囊本體展開;「結束」才真的取消跟隨
 document.getElementById('fpClose').onclick = (e) => { e.stopPropagation(); document.getElementById('followPanel').classList.add('fp-min'); }; // stopPropagation:不然冒泡到面板的「點膠囊展開」馬上又被展開
 document.getElementById('fpEnd').onclick = (e) => { e.stopPropagation(); setAutoTour(false); clearFollow(); };
+document.getElementById('fcEnd').onclick = (e) => { e.stopPropagation(); clearFreqFollow(); };
 document.getElementById('followPanel').addEventListener('click', (e) => {
   const fp = e.currentTarget;
   if (fp.classList.contains('fp-min') && !e.target.closest('.fp-end')) fp.classList.remove('fp-min');
