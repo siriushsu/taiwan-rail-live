@@ -1274,6 +1274,7 @@
     <details class="foot-box">
       <summary><span>🛠 更新紀錄</span><span class="foot-sub">最後更新：2026/7/11</span></summary>
       <ul class="foot-list">
+        <li><span class="d">7/11</span><span>全台同框的捷運也能點擊跟隨：放大到看得見車號牌後點任一台捷運／輕軌示意車即可跟隨，資訊卡冠上系統名（台北捷運／高雄輕軌…）以免混淆</span></li>
         <li><span class="d">7/11</span><span>捷運／輕軌也能點車跟隨：點任一台列車即鎖定鏡頭跟著跑，輕量資訊卡顯示線名、行進方向與下一站（示意動畫，不計完乘）</span></li>
         <li><span class="d">7/11</span><span>群車視角巡航化：鏡頭改為連續慢速滑行永不停頓、自動貼著列車群走（畫面裡總有車有軌道）、視角拉近一級</span></li>
         <li><span class="d">7/11</span><span>今日之最列車地圖識別：探索面板推薦的今日之最（今日最長征／開最久／停最多站／平均最快）在地圖上加繪金色漣漪光環，一眼可辨</span></li>
@@ -1338,7 +1339,7 @@
 <script>
 // 版本戳記:每次改版 push 前手動遞增(字母序),畫面時鐘徽章與 console 都會顯示,
 // 供比對線上跑的是不是最新版(瀏覽器快取 max-age=600 常讓人看到舊版)
-const BUILD = 'v0711i';
+const BUILD = 'v0711j';
 const state = {
   systems: [], sysId: null, data: null, speed: 36, mode: 'freq',
   lines: [], visible: new Set(), trains: [], schedStations: [], types: [],
@@ -1716,7 +1717,8 @@ function recomputeTrains() {
     ln.n = Math.max(1, Math.round(ln.period / headwayOf(ln, state.hour)));
   });
   // 班距隨時段改變 → 幽靈車數 ln.n 重算,原本跟的第 k 台可能不存在了 → 自動解除跟隨並提示
-  if (state.freqFollow) {
+  // (sched 模式下的 freqFollow 是全台同框裝飾層,n 固定不歸這裡管,不檢查)
+  if (state.freqFollow && state.mode !== 'sched') {
     const f = state.freqFollow;
     if (state.lines.indexOf(f.ln) < 0 || f.k >= f.ln.n) { clearFreqFollow(); showToast('班距改變，已結束跟隨'); }
   }
@@ -1828,6 +1830,10 @@ function freqTrainInfo(ln, t) {
   return { lat, lon, outbound, loop, nextName, termName };
 }
 function setFreqFollow(ln, k) {
+  if (state.autoTour) setAutoTour(false); // 手動點車即接手,退出隨機模式(比照 setFollow)
+  if (state.ambient && state.ambientStyle === 'hotspot') hotspotStop(); // 群車放空中點車=接手跟隨
+  if (state.followTrain) clearFollow(); // 全台同框:與台鐵/高鐵跟隨互斥(此刻 freqFollow 尚未設,級聯清不到自己)
+  closeBoard();
   state.freqFollow = { ln, k };
   state.followLock = true;
   document.getElementById('freqCard').hidden = false;
@@ -1845,7 +1851,8 @@ function updateFreqCard(info) {
   const f = state.freqFollow; if (!f) return;
   const ln = f.ln;
   document.getElementById('fcDot').style.background = ln.color;
-  document.getElementById('fcLine').textContent = ln.name || ln.abbr || '';
+  // 冠系統名:全台同框/多系統群組裡光「綠線」分不清台中高雄
+  document.getElementById('fcLine').textContent = (ln._sysLabel ? ln._sysLabel + ' ' : '') + (ln.name || ln.abbr || '');
   document.getElementById('fcDir').textContent = info.loop ? '環狀線循環' : (info.termName ? '往 ' + info.termName : '');
   document.getElementById('fcNext').textContent = info.nextName || '—';
 }
@@ -1853,7 +1860,9 @@ function updateFreqFollowCamera(immediate) {
   const f = state.freqFollow; if (!f) return;
   const ln = f.ln;
   if (!ln.sched || f.k >= ln.n) { clearFreqFollow(); return; } // 班距重算後 k 失效的保險絲(正常路徑由 recomputeTrains 帶提示解除)
-  const info = freqTrainInfo(ln, state.elapsed * state.speedMult + f.k * ln.period / ln.n);
+  // 時間基準:全台同框(sched+裝飾層)走獨立時鐘 decoElapsed,各捷運分頁走 elapsed
+  const base = state.mode === 'sched' ? (state.decoElapsed || 0) : state.elapsed;
+  const info = freqTrainInfo(ln, base * state.speedMult + f.k * ln.period / ln.n);
   if (immediate) map.setView([info.lat, info.lon], Math.max(map.getZoom(), 13), { animate: false });
   else if (state.followLock) recenterTo(info.lat, info.lon);
   updateFreqCard(info);
@@ -1894,6 +1903,7 @@ function drawDeco(w, h) {
     });
   }
   const tau = state.decoElapsed * state.speedMult;
+  const ff = state.freqFollow;
   for (const ln of state.decoLines) {
     if (!ln.sched) continue;
     const tc = textColorFor(ln.color);
@@ -1901,8 +1911,11 @@ function drawDeco(w, h) {
       const pos = posPeriodic(ln, tau + k * ln.period / ln.n);
       const cp = map.latLngToContainerPoint([pos.lat, pos.lon]);
       if (!inView(cp)) continue;
+      if (ff && ff.ln === ln && ff.k === k) drawFreqRing(cp, ln.color); // 跟隨中的示意車:高亮環(畫在牌下)
       if (showTrain) drawTag(cp, ln.abbr, ln.color, tc);
       else drawDot(cp, ln.color);
+      // 全台同框的捷運也可點擊跟隨;只在畫車號牌的縮放才收命中(遠景是密集小點,誤點率太高)
+      if (showTrain) state._freqHits.push({ x: cp.x, y: cp.y, ln, k });
     }
   }
   ctx.globalAlpha = 1;
@@ -2305,14 +2318,14 @@ function tick(now) {
     if (!ftr || effT(ftr) > ftr.stops[ftr.stops.length - 1].arrSec || now >= (state._tourNext || 0))
       nextTourTrain(now);
   }
-  if (state.ambient && state.ambientStyle === 'hotspot' && !state.followTrain &&
+  if (state.ambient && state.ambientStyle === 'hotspot' && !state.followTrain && !state.freqFollow &&
       state.mode === 'sched' && state.playing) { hotspotTick(now); hotCruise(dt, now); }
   if (state.mode === 'sched' && state.followTrain) {
     updateFollowCamera();
     state._evClock = (state._evClock || 0) + dt;
     if (state._evClock >= 0.5) { state._evClock = 0; scanFollowEvents(); }
   }
-  if (state.mode !== 'sched' && state.freqFollow) updateFreqFollowCamera(); // 捷運幽靈車跟隨:每幀置中+更新卡
+  if (state.freqFollow) updateFreqFollowCamera(); // 捷運幽靈車跟隨(各捷運分頁+全台同框):每幀置中+更新卡
   if (state.mode === 'sched') {
     if (state.boardStation && Math.abs(state.simSec - (state.boardRenderedAt || 0)) >= 20) renderBoard();
     drawFlow();
@@ -2750,7 +2763,7 @@ function loadAllGroup(g) {
   reproject();
   document.getElementById('note').textContent =
     '全台鐵道同框 — 台鐵、高鐵依當日真實時刻表運行（共 ' + state.trains.length + ' 車次，台鐵回到現在時刻自動套用即時誤點）；' +
-    '捷運與各輕軌為「示意動畫」，僅為讓整張地圖熱鬧好看、並非即時班次。點台鐵／高鐵列車可跟隨，點車站看班次。';
+    '捷運與各輕軌為「示意動畫」，僅為讓整張地圖熱鬧好看、並非即時班次。點任一列車皆可跟隨（放大到看得見捷運車號牌即可點），點車站看班次。';
   populateTrainList();
   document.getElementById('searchRow').hidden = false;
   document.getElementById('flowWrap').hidden = false;
@@ -2814,6 +2827,7 @@ function placeTrainCard() {
 function setFollow(tr, isAuto, noJump, opts) {
   if (!tr) return;
   opts = opts || {};
+  clearFreqFollow(); // 全台同框:接手台鐵/高鐵跟隨前先解除捷運示意車跟隨(互斥)
   if (!isAuto && state.autoTour) setAutoTour(false); // 使用者手動選車即接手,退出隨機模式
   if (state.ambient && state.ambientStyle === 'hotspot') hotspotStop(); // 群車放空中點車=接手跟隨,導演讓位(取消跟隨即恢復)
   closeBoard(); // 不管從哪裡選到車(看板列/地圖點車/搜尋/最愛),車站看板一律收掉
@@ -4890,13 +4904,23 @@ async function boot() {
       setFollow(hit.tr);
       return;
     }
+    if (state.deco) {
+      // 全台同框:台鐵/高鐵沒點中時,捷運示意車也可點擊跟隨(優先序:真車>示意車>車站)
+      const fh = freqTrainAt(cp);
+      if (fh && (bd > 16 || fh.dist <= bd)) {
+        const f = state.freqFollow;
+        if (f && f.ln === fh.ln && f.k === fh.k) clearFreqFollow();
+        else setFreqFollow(fh.ln, fh.k);
+        return;
+      }
+    }
     if (best && bd <= 16) openBoard(best);
   });
   map.on('mousemove', e => {
     // 滑過列車 → 手指游標(sched 真實班表 + freq 幽靈車一致)
     const c = map.getContainer();
     if (state.mode !== 'sched') { c.style.cursor = freqTrainAt(e.containerPoint) ? 'pointer' : ''; return; }
-    c.style.cursor = trainAt(e.containerPoint) ? 'pointer' : '';
+    c.style.cursor = (trainAt(e.containerPoint) || (state.deco && freqTrainAt(e.containerPoint))) ? 'pointer' : '';
   });
   // 跟隨鎖鈕:掛在縮放鈕上方(同角落自動堆疊,免手算碰撞);跟隨中才顯示
   const lockCtl = L.control({ position: 'bottomright' });
