@@ -89,10 +89,24 @@ function ringSlice(part, cum, s1, s2) {
 // 縫合碎片:MULTILINESTRING 常被切成多段(施工分段),端點相接(≤tol km)就併成鏈,
 // 支線(接在主線中段、端點不相碰)自然留成獨立鏈。每輪取全域最小縫隙先併。
 function stitch(parts, tol = 0.15) {
-  const chains = parts.filter(p => {
-    let L = 0; for (let i = 1; i < p.length; i++) L += distKm(p[i - 1], p[i]);
-    return L > 0.02; // 丟掉退化小碎屑
-  }).map(p => p.slice());
+  const lenOf = p => { let L = 0; for (let i = 1; i < p.length; i++) L += distKm(p[i - 1], p[i]); return L; };
+  // 去重疊碎片:TDX 原始 MULTILINESTRING 會把同一段軌道重複收錄(機捷 A3 西側同段連給 3 次,
+  // 端點恰好首尾相接),縫合會串成「去-回-去」偽折返,despike 抓不到漸進式反轉。
+  // 長者優先,點有 8 成落在已保留碎片 20m 走廊內的重複碎片直接丟棄。
+  const segD = (pt, a, b) => {
+    const kx = toR * R * Math.cos(pt[0] * toR), ky = toR * R;
+    const ax = (a[1] - pt[1]) * kx, ay = (a[0] - pt[0]) * ky, bx = (b[1] - pt[1]) * kx, by = (b[0] - pt[0]) * ky;
+    const dx = bx - ax, dy = by - ay, L2 = dx * dx + dy * dy;
+    const t = L2 === 0 ? 0 : Math.max(0, Math.min(1, -(ax * dx + ay * dy) / L2));
+    return Math.hypot(ax + t * dx, ay + t * dy);
+  };
+  const kept = [];
+  const covered = pt => kept.some(k => { for (let i = 1; i < k.length; i++) if (segD(pt, k[i - 1], k[i]) < 0.02) return true; return false; });
+  for (const c of parts.map(p => p.slice()).filter(p => lenOf(p) > 0.02).sort((a, b) => lenOf(b) - lenOf(a))) {
+    if (c.filter(covered).length / c.length > 0.8) continue; // 重複碎片
+    kept.push(c);
+  }
+  const chains = kept;
   for (;;) {
     let best = null;
     for (let i = 0; i < chains.length; i++) for (let j = i + 1; j < chains.length; j++) {
@@ -279,6 +293,27 @@ function assemble({ id, name, color, ids, stations, parts, maps, freq, loop, est
     }
     d[n] = cum[cum.length - 1]; // 環線閉合端
     console.log(`  (${id} 除毛刺 ${spikesRemoved} 頂點,站里程已重投影)`);
+  }
+  // 折返防呆:非相鄰兩點相距 <15m 且行進方向相反 = 同軌反向重走(列車視覺繞圈),
+  // 去重疊漏網時在此攔截——寧可建置失敗也不出貨。
+  {
+    const cellOf = p => `${Math.round(p[0] * 2000)},${Math.round(p[1] * 2000)}`;
+    const grid = new Map();
+    shape.forEach((p, i) => { const k = cellOf(p); (grid.get(k) || grid.set(k, []).get(k)).push(i); });
+    for (let i = 1; i < shape.length - 1; i++) {
+      const [cy, cx] = cellOf(shape[i]).split(',').map(Number);
+      for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) {
+        for (const j of (grid.get(`${cy + dy},${cx + dx}`) || [])) {
+          if (j <= i + 4 || j >= shape.length - 1) continue;
+          if (distKm(shape[i], shape[j]) > 0.015) continue;
+          const vi = [shape[i + 1][0] - shape[i - 1][0], shape[i + 1][1] - shape[i - 1][1]];
+          const vj = [shape[j + 1][0] - shape[j - 1][0], shape[j + 1][1] - shape[j - 1][1]];
+          const nn = Math.hypot(...vi) * Math.hypot(...vj);
+          if (nn > 0 && (vi[0] * vj[0] + vi[1] * vj[1]) / nn < -0.5)
+            throw new Error(`${id}: shape 反向重走 idx ${i}↔${j} @ (${shape[i][0].toFixed(4)},${shape[i][1].toFixed(4)}) — TDX 碎片重疊未除盡`);
+        }
+      }
+    }
   }
   const line = {
     id, name, color,
