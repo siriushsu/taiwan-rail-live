@@ -1,5 +1,8 @@
 // Cloudflare Workers 部署設定:根目錄當靜態資產(排除清單見 .assetsignore),
 // worker.js 只接 /api/*。name 必須對上 dashboard 建立的 Worker 名稱。
+// 鐵則:不設 run_worker_first——靜態資產直出免費不限量,只有非資產路徑(/api/*)才喚醒 Worker。
+// 2026-07-11 曾因 run_worker_first:true 讓所有資產請求計入免費方案 10 萬次/天,爆 Error 1027 全站被鎖。
+// 資產的安全標頭由根目錄 _headers 檔補(Worker 不再經手資產)。
 {
   "name": "taiwan-rail-live",
   "compatibility_date": "2026-07-09",
@@ -12,8 +15,7 @@
   "preview_urls": true,
   "assets": {
     "directory": ".",
-    "binding": "ASSETS",
-    "run_worker_first": true
+    "binding": "ASSETS"
   },
   "observability": {
     "enabled": true

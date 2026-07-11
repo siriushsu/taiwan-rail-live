@@ -133,7 +133,7 @@ async function thsrAlert(request, env) {
   }
 }
 
-// 安全標頭統一在出口補（含 API 與靜態資產）；明文 HTTP 一律 301 轉 HTTPS
+// 安全標頭在 Worker 出口補（只涵蓋 /api/* 與非資產路徑;靜態資產直出不經 Worker,標頭見根目錄 _headers）
 const SEC_HEADERS = {
   'Strict-Transport-Security': 'max-age=31536000; includeSubDomains',
   'X-Content-Type-Options': 'nosniff',

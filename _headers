@@ -1,0 +1,7 @@
+# 靜態資產的安全標頭(Workers Static Assets 原生支援,同 Pages 格式)。
+# 資產不再經過 Worker(見 wrangler.jsonc 鐵則),所以標頭在這裡補;/api/* 的標頭仍由 worker.js 出口設定。
+/*
+  Strict-Transport-Security: max-age=31536000; includeSubDomains
+  X-Content-Type-Options: nosniff
+  X-Frame-Options: DENY
+  Referrer-Policy: strict-origin-when-cross-origin
