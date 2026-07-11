@@ -8,8 +8,9 @@
 <meta property="og:title" content="軌島" />
 <meta property="og:description" content="Taiwan's trains, moving live." />
 <meta property="og:type" content="website" />
-<meta property="og:url" content="https://www.railisland.tw/" />
-<meta property="og:image" content="https://www.railisland.tw/og-1200x630.png" />
+<meta property="og:url" content="https://railisland.tw/" />
+<meta property="og:image" content="https://railisland.tw/og-1200x630.png" />
+<link rel="canonical" href="https://railisland.tw/" />
 <meta property="og:image:width" content="1200" />
 <meta property="og:image:height" content="630" />
 <meta name="twitter:card" content="summary_large_image" />
@@ -1118,7 +1119,20 @@
     <p id="lead">列車依真實時刻表在島上跑來跑去 — 點列車直接跟隨、點車站看誰要來。</p>
   </header>
 
-  <div class="systems" id="systems"></div>
+  <!-- 靜態預置預設群組(國家鐵路)頁籤:首繪即佔位避免 CLS(index 檔大,4G 下尾端腳本晚於首繪)。
+       boot 的 renderSystemsBar 會整塊重建,此處類名/文字必須與其輸出一致(GROUPS/成員變動時同步改) -->
+  <div class="systems" id="systems">
+    <div class="grouptabs">
+      <button class="gtab active">國家鐵路</button>
+      <button class="gtab">北北桃</button>
+      <button class="gtab">中南部</button>
+      <button class="gtab">全台同框</button>
+    </div>
+    <div class="groupmembers">
+      <button class="mem sched on"><span class="memck">✓</span>台鐵</button>
+      <button class="mem sched on"><span class="memck">✓</span>高鐵</button>
+    </div>
+  </div>
 
   <div class="cols">
   <div class="main-col">
@@ -1277,6 +1291,7 @@
     <details class="foot-box">
       <summary><span>🛠 更新紀錄</span><span class="foot-sub">最後更新：2026/7/11</span></summary>
       <ul class="foot-list">
+        <li><span class="d">7/11</span><span>開站不再跳動：系統頁籤列改為首屏即到位，慢網路下版面不會在載入途中突然下移（版面位移歸零）；分享連結統一為 railisland.tw</span></li>
         <li><span class="d">7/11</span><span>成功站回頭路修正：成追線跨線班次（如 2234）行經成功站不再繞行追分／彰化的迂迴路徑瞬移跳動——成功站補登山線站列，全部 114 個受影響班次歸正</span></li>
         <li><span class="d">7/11</span><span>山線改走現行路線：資料誤用 1998 年停用的舊山線（勝興、舊泰安），已依 TDX 官方線形改走新線；泰安歸位新站，並補齊百福、南樹林、暖暖、精武、仁德、內惟、美術館、鼓山、三塊厝 9 個通勤車站</span></li>
         <li><span class="d">7/11</span><span>放空模式一律保留「隨機跟隨／換一班」鈕：先前開過極簡沉浸的話按鈕在放空中會消失，現在放空中恆顯示（閒置自動淡出照舊）</span></li>
@@ -1352,7 +1367,7 @@
 <script>
 // 版本戳記:每次改版 push 前手動遞增(字母序),畫面時鐘徽章與 console 都會顯示,
 // 供比對線上跑的是不是最新版(瀏覽器快取 max-age=600 常讓人看到舊版)
-const BUILD = 'v0711t';
+const BUILD = 'v0711u';
 const state = {
   systems: [], sysId: null, data: null, speed: 36, mode: 'freq',
   lines: [], visible: new Set(), trains: [], schedStations: [], types: [],
@@ -2625,6 +2640,18 @@ function retimeLoopTrains() {
 
 // ── 軌道系統分組:同群同時間制,可同框;群組互斥切換,閃掉混模式統一時鐘的難題 ──
 // freq 群(北北桃/中南部):群內多選、班距示意同框。sched 群(國家鐵路):台鐵/高鐵單選(即時)。
+// 系統靜態設定(id/標籤/資料路徑)。置頂層供 renderSystemsBar 在資料載入前取標籤預渲染;boot 依此逐一載檔
+const SYS_DEFS = [
+  { id: 'tra_sched', label: '台鐵', url: './data/tra_schedule_dense.json', mode: 'sched', live: 'api/tra-live', alert: 'api/tra-alert', special: true, track: './data/tra.json' },
+  { id: 'thsr_sched', label: '高鐵', url: './data/thsr_schedule_dense.json', mode: 'sched', alert: 'api/thsr-alert', track: './data/thsr_track.json' },
+  { id: 'mrt', label: '台北捷運', url: './data/trtc.json', speed: 34, mode: 'freq', times: './data/trtc_times.json' },
+  { id: 'tymc', label: '桃園機捷', url: './data/tymc.json', speed: 45, mode: 'freq', times: './data/tymc_times.json' },
+  { id: 'ntdlrt', label: '淡海輕軌', url: './data/ntdlrt.json', speed: 25, mode: 'freq', times: './data/ntdlrt_times.json' },
+  { id: 'ntalrt', label: '安坑輕軌', url: './data/ntalrt.json', speed: 25, mode: 'freq', times: './data/ntalrt_times.json' },
+  { id: 'sanying', label: '三鶯線', url: './data/sanying.json', speed: 34, mode: 'freq', times: './data/sanying_times.json' },
+  { id: 'krtc', label: '高雄捷運', url: './data/krtc.json', speed: 36, mode: 'freq', times: './data/krtc_times.json' },
+  { id: 'tmrt', label: '台中捷運', url: './data/tmrt.json', speed: 32, mode: 'freq', times: './data/tmrt_times.json' },
+];
 const GROUPS = [
   { id: 'nat', label: '國家鐵路', mode: 'sched', members: ['tra_sched', 'thsr_sched'],
     plate: { plateL: '基隆', plateR: '枋寮', sub: '台灣鐵道即時軌跡',
@@ -2769,7 +2796,8 @@ function renderSystemsBar() {
     cap.textContent = '台鐵 · 高鐵（真實時刻）｜ 捷運 · 輕軌（依當日時刻表推演，非即時）';
     mem.appendChild(cap);
   } else cur.members.forEach(id => {
-    const sys = state.systems.find(s => s.id === id);
+    // 資料未載入時退回 SYS_DEFS 取標籤:讓首繪就能畫出等尺寸成員列(CLS 預留)
+    const sys = state.systems.find(s => s.id === id) || SYS_DEFS.find(d => d.id === id);
     if (!sys) return;
     const b = document.createElement('button');
     b.dataset.id = id;
@@ -2790,6 +2818,7 @@ function renderSystemsBar() {
 }
 
 function selectGroup(g) {
+  if (!state.systems.length) return; // 預渲染期(資料未載入)頁籤先不動作,boot 完成後恢復
   if (state.group === g.id) return;
   if (g.mode === 'all') loadAllGroup(g);
   else if (g.mode === 'sched') loadSchedGroup(g);
@@ -5156,18 +5185,7 @@ async function boot() {
   setupRecorder();
   map.on('move zoom resize zoomanim', reproject);
 
-  const defs = [
-    { id: 'tra_sched', label: '台鐵', url: './data/tra_schedule_dense.json', mode: 'sched', live: 'api/tra-live', alert: 'api/tra-alert', special: true, track: './data/tra.json' },
-    { id: 'thsr_sched', label: '高鐵', url: './data/thsr_schedule_dense.json', mode: 'sched', alert: 'api/thsr-alert', track: './data/thsr_track.json' },
-    { id: 'mrt', label: '台北捷運', url: './data/trtc.json', speed: 34, mode: 'freq', times: './data/trtc_times.json' },
-    { id: 'tymc', label: '桃園機捷', url: './data/tymc.json', speed: 45, mode: 'freq', times: './data/tymc_times.json' },
-    { id: 'ntdlrt', label: '淡海輕軌', url: './data/ntdlrt.json', speed: 25, mode: 'freq', times: './data/ntdlrt_times.json' },
-    { id: 'ntalrt', label: '安坑輕軌', url: './data/ntalrt.json', speed: 25, mode: 'freq', times: './data/ntalrt_times.json' },
-    { id: 'sanying', label: '三鶯線', url: './data/sanying.json', speed: 34, mode: 'freq', times: './data/sanying_times.json' },
-    { id: 'krtc', label: '高雄捷運', url: './data/krtc.json', speed: 36, mode: 'freq', times: './data/krtc_times.json' },
-    { id: 'tmrt', label: '台中捷運', url: './data/tmrt.json', speed: 32, mode: 'freq', times: './data/tmrt_times.json' },
-  ];
-  for (const d of defs) {
+  for (const d of SYS_DEFS) {
     const data = await fetchJSON(d.url);
     if (data) state.systems.push({ ...d, data });
   }
