@@ -1227,10 +1227,10 @@
     <button class="pp" id="pp"><span id="ppIcon">❚❚</span><span id="ppTxt">暫停</span></button>
     <div class="ctl">
       <label for="speed">速度</label>
-      <input type="range" id="speed" min="1" max="60" step="1" value="50" />
-      <output id="speedOut">50×</output>
+      <input type="range" id="speed" min="1" max="60" step="1" value="1" />
+      <output id="speedOut">1×</output>
       <div class="spd-btns" id="spdBtns">
-        <button data-v="1">1×</button><button data-v="10">10×</button><button data-v="30">30×</button><button data-v="60">60×</button>
+        <button data-v="1" class="active">1×</button><button data-v="10">10×</button><button data-v="30">30×</button><button data-v="60">60×</button>
       </div>
     </div>
     <div class="ctl">
@@ -1343,11 +1343,11 @@
 <script>
 // 版本戳記:每次改版 push 前手動遞增(字母序),畫面時鐘徽章與 console 都會顯示,
 // 供比對線上跑的是不是最新版(瀏覽器快取 max-age=600 常讓人看到舊版)
-const BUILD = 'v0711n';
+const BUILD = 'v0711q';
 const state = {
   systems: [], sysId: null, data: null, speed: 36, mode: 'freq',
   lines: [], visible: new Set(), trains: [], schedStations: [], types: [],
-  playing: true, speedMult: 50, hour: 8, simSec: 8 * 3600,
+  playing: true, speedMult: 1, hour: 8, simSec: 8 * 3600, // 開機即 1× 真實時刻(2026-07-11 使用者裁決,舊示意預設 50×)
   dpr: 1, t0: 0, elapsed: 0, ready: false,
   followTrain: null, followId: null,
   freqFollow: null, // 捷運(freq 幽靈車)跟隨:{ ln, k }——k=第 k 台幽靈車;獨立於 sched 的 followTrain
