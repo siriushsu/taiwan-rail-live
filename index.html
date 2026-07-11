@@ -1343,7 +1343,7 @@
 <script>
 // 版本戳記:每次改版 push 前手動遞增(字母序),畫面時鐘徽章與 console 都會顯示,
 // 供比對線上跑的是不是最新版(瀏覽器快取 max-age=600 常讓人看到舊版)
-const BUILD = 'v0711m';
+const BUILD = 'v0711n';
 const state = {
   systems: [], sysId: null, data: null, speed: 36, mode: 'freq',
   lines: [], visible: new Set(), trains: [], schedStations: [], types: [],
@@ -2672,6 +2672,21 @@ function finishLoad(meta) {
 function sysTimesOf(sys, l) {
   return (sys._times && sys._times.lines && sys._times.lines[l.id]) || null;
 }
+
+// 捷運官方查詢入口:動畫非即時,說明區/告警詳情常駐官方連結讓使用者查真實狀態
+// (環狀線在 mrt 系統資料裡但營運者是新北捷運,故新北捷運同時掛 mrt)
+const METRO_OFFICIAL = [
+  { label: '台北捷運', url: 'https://www.metro.taipei/', sys: ['mrt'] },
+  { label: '新北捷運', url: 'https://www.ntmetro.com.tw/', sys: ['mrt', 'ntdlrt', 'ntalrt', 'sanying'] },
+  { label: '桃園捷運', url: 'https://www.tymetro.com.tw/', sys: ['tymc'] },
+  { label: '台中捷運', url: 'https://www.tmrt.com.tw/', sys: ['tmrt'] },
+  { label: '高雄捷運', url: 'https://www.krtc.com.tw/', sys: ['krtc'] },
+];
+function metroLinksHtml(sysIds) {
+  const items = METRO_OFFICIAL.filter(o => o.sys.some(id => sysIds.has(id)))
+    .map(o => `<a href="${o.url}" target="_blank" rel="noopener">${o.label}</a>`);
+  return items.length ? '即時運行狀態請洽官方：' + items.join('｜') : '';
+}
 function loadSystem(sys) {
   state.sysId = sys.id; state.sys = sys; state.data = sys.data; state.mode = sys.mode || 'freq';
   state.deco = false; state.decoLines = null; // 單系統載入不帶裝飾層
@@ -2704,12 +2719,13 @@ function loadSystem(sys) {
     syncTimeUI();
     const est = state.lines.filter(l => l.times && l.times.estimated).map(l => l.name);
     const timed = state.lines.some(l => l.times && !l.times.estimated);
-    document.getElementById('note').textContent = (timed
+    document.getElementById('note').innerHTML = escHtml((timed
       ? '列車依當日實際時刻表（平日／假日班表）推演——位置為推算、非即時動態，實際到離站時刻請以各捷運公司資訊為準。' +
         (est.length ? '（' + est.join('、') + '無公開逐班時刻，以官方班距與首末班車推算）' : '') + '　'
       : '注意：本系統無公開逐班時刻表——班次依官方公告班距與首末班車推算，位置為示意、並非即時班次，實際到離站時刻請以營運公司資訊為準。　') +
       (sys._times && sys._times.source_notes ? '資料來源：' + sys._times.source_notes
-        : (sys.data.source_notes ? '資料來源：' + sys.data.source_notes : ''));
+        : (sys.data.source_notes ? '資料來源：' + sys.data.source_notes : ''))) +
+      '　' + metroLinksHtml(new Set([sys.id]));
     document.getElementById('searchRow').hidden = true;
     document.getElementById('flowWrap').hidden = true;
   }
@@ -2791,9 +2807,10 @@ function loadFreqGroup(g, sel) {
   state.elapsed = 0;
   reproject(); recomputeTrains();
   syncTimeUI();
-  document.getElementById('note').textContent =
+  document.getElementById('note').innerHTML = escHtml(
     '捷運／輕軌列車依當日實際時刻表（平日／假日班表）推演——位置為推算、並非即時班次（台中捷運、三鶯線、文湖線無公開逐班時刻，為班距推算）。' +
-    '可勾選上方系統同時顯示多個路網。' + (state.lines.length ? '' : '（目前未選任何系統）');
+    '可勾選上方系統同時顯示多個路網。' + (state.lines.length ? '' : '（目前未選任何系統）')) +
+    '　' + metroLinksHtml(new Set(g.members));
   document.getElementById('searchRow').hidden = true;
   document.getElementById('flowWrap').hidden = true;
   finishLoad(g.plate);
@@ -2899,9 +2916,10 @@ function loadAllGroup(g) {
     .concat(state.decoLines.flatMap(l => l.stations.map(s => [s.lat, s.lon])));
   fitData(pts);
   reproject();
-  document.getElementById('note').textContent =
+  document.getElementById('note').innerHTML = escHtml(
     '全台鐵道同框 — 台鐵、高鐵依當日真實時刻表運行（共 ' + state.trains.length + ' 車次，台鐵回到現在時刻自動套用即時誤點）；' +
-    '捷運與各輕軌亦依當日時刻表推演（台中捷運、三鶯線、文湖線為班距推算），皆非即時班次。點任一列車皆可跟隨（放大到看得見捷運車號牌即可點），點車站看班次。';
+    '捷運與各輕軌亦依當日時刻表推演（台中捷運、三鶯線、文湖線為班距推算），皆非即時班次。點任一列車皆可跟隨（放大到看得見捷運車號牌即可點），點車站看班次。') +
+    '　捷運' + metroLinksHtml(new Set(METRO_OFFICIAL.flatMap(o => o.sys)));
   populateTrainList();
   document.getElementById('searchRow').hidden = false;
   document.getElementById('flowWrap').hidden = false;
@@ -4485,7 +4503,8 @@ function renderAlertDetail() {
     (a.desc ? `<div>${escHtml(a.desc)}</div>` : '') +
     (a.lines && a.lines.length ? `<div class="ad-time">影響路線：${escHtml(a.lines.join('、'))}</div>` : '') +
     `</div>`).join('') +
-    `<div class="ad-src">來源：TDX 營運通阻／狀態公告（每 5 分鐘更新）· 列車動畫仍照原時刻表推演，停駛或班距調整不會反映在畫面上，實際運行以官方公告為準</div>`;
+    `<div class="ad-src">來源：TDX 營運通阻／狀態公告（每 5 分鐘更新）· 列車動畫仍照原時刻表推演，停駛或班距調整不會反映在畫面上，實際運行以官方公告為準` +
+    (state.mode !== 'sched' ? '　' + metroLinksHtml(state.freqSel || new Set()) : '') + `</div>`;
 }
 // 跟隨中的車行經公告影響路線 → 面板加警示列(虛構環島車不套用)
 function updateFollowAlert() {
