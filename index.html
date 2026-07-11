@@ -1116,7 +1116,8 @@
         <span class="stn" id="plateR">枋寮</span>
       </div>
     </div>
-    <p id="lead">列車依真實時刻表在島上跑來跑去 — 點列車直接跟隨、點車站看誰要來。</p>
+    <!-- 導言靜態預置預設群組(國家鐵路)文案:boot 會換字,長短不同會多折一行把版面下推(CLS);GROUPS.nat.plate.lead 改時同步 -->
+    <p id="lead">台鐵與高鐵同框運行，皆依當日真實時刻表（台鐵回到現在時刻自動套用即時誤點）— 點列車跟隨、點車站看班次，或按地圖角落「探」看今日亮點。</p>
   </header>
 
   <!-- 靜態預置預設群組(國家鐵路)頁籤:首繪即佔位避免 CLS(index 檔大,4G 下尾端腳本晚於首繪)。
@@ -1367,7 +1368,7 @@
 <script>
 // 版本戳記:每次改版 push 前手動遞增(字母序),畫面時鐘徽章與 console 都會顯示,
 // 供比對線上跑的是不是最新版(瀏覽器快取 max-age=600 常讓人看到舊版)
-const BUILD = 'v0711u';
+const BUILD = 'v0711v';
 const state = {
   systems: [], sysId: null, data: null, speed: 36, mode: 'freq',
   lines: [], visible: new Set(), trains: [], schedStations: [], types: [],
