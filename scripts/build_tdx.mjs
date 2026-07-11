@@ -437,4 +437,25 @@ function assemble({ id, name, color, ids, stations, parts, maps, freq, loop, est
     lines,
   }));
 }
+
+// ─────────────── SANYING 三鶯線(TDX 尚未收錄,幾何/站序取自 OSM) ───────────────
+{
+  console.log('== SANYING 三鶯線');
+  const stations = stationMap('SANYING_Station.json');
+  const sol = solOrder('SANYING_StationOfLine.json');
+  const shapes = shapeParts('SANYING_Shape.json');
+  const maps = s2sMapsOpt('SANYING_S2STravelTime.json'); // TDX 未收錄,無 S2S 檔
+  const lines = [
+    assemble({
+      id: 'LB', name: '三鶯線', color: '#79BCE8', ids: sol.get('LB'), parts: shapes.get('LB'),
+      stations, maps, estimated: true,
+      freq: { peakSec: 360, offSec: 480 }, // 試營運公告:尖峰約6分/離峰約8分
+    }),
+  ];
+  writeFileSync(path.join(ROOT, 'data/sanying.json'), JSON.stringify({
+    system: 'NTMC-LB',
+    source_notes: '路線幾何與車站座標:OpenStreetMap 貢獻者(ODbL,2026-07 擷取);站序站名:新北捷運公司官網;班距為試營運公告估算(尖峰6分/離峰8分)',
+    lines,
+  }));
+}
 console.log('done');

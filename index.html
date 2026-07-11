@@ -1220,6 +1220,7 @@
     <details class="foot-box">
       <summary><span>🛠 更新紀錄</span><span class="foot-sub">最後更新：2026/7/10</span></summary>
       <ul class="foot-list">
+        <li><span class="d">7/11</span><span>三鶯線加入北北桃視圖：頂埔—鶯桃福德 12 站（2026-06-30 通車試營運）；路線幾何取自 OpenStreetMap，班距為試營運公告估算</span></li>
         <li><span class="d">7/11</span><span>放空模式新增「群車」視角：不跟單車，鏡頭自動停在當下列車最密的繁忙路段看群車交錯，緩慢漂移縮放、每分多鐘換一段；放空中按「視角」鈕切換</span></li>
         <li><span class="d">7/10</span><span>高鐵、機場捷運、淡海輕軌、安坑輕軌加入；系統選單改群組頁籤，新增「台鐵＋高鐵同框」與「全台同框」視圖</span></li>
         <li><span class="d">7/10</span><span>跟隨資訊卡可收合：×收起成小膠囊（跟隨不中斷），點膠囊展開、「結束」才取消；手機版資訊卡全面縮小；版本號移到頁尾</span></li>
@@ -1279,7 +1280,7 @@
 <script>
 // 版本戳記:每次改版 push 前手動遞增(字母序),畫面時鐘徽章與 console 都會顯示,
 // 供比對線上跑的是不是最新版(瀏覽器快取 max-age=600 常讓人看到舊版)
-const BUILD = 'v0711c';
+const BUILD = 'v0711d';
 const state = {
   systems: [], sysId: null, data: null, speed: 36, mode: 'freq',
   lines: [], visible: new Set(), trains: [], schedStations: [], types: [],
@@ -1314,6 +1315,7 @@ const SYS_META = {
   tymc:      { plateL: '台北車站', plateR: '老街溪', sub: 'TAOYUAN AIRPORT MRT LIVE', lead: '機場捷運沿線連結雙北與桃園機場（班距模擬示意，非即時班次）— 拖曳、縮放看看。' },
   ntdlrt:    { plateL: '紅樹林', plateR: '漁人碼頭', sub: 'DANHAI LIGHT RAIL LIVE', lead: '淡海輕軌沿綠山線與藍海線在淡水穿梭（班距為公告估算示意，非即時班次）— 拖曳、縮放看看。' },
   ntalrt:    { plateL: '雙城', plateR: '十四張', sub: 'ANKENG LIGHT RAIL LIVE', lead: '安坑輕軌沿安康路串起新店丘陵（班距為公告估算示意，非即時班次）— 拖曳、縮放看看。' },
+  sanying:   { plateL: '頂埔', plateR: '鶯桃福德', sub: 'SANYING LINE LIVE', lead: '三鶯線串起土城、三峽與鶯歌（2026-06-30 通車試營運；班距為公告估算示意，非即時班次）— 拖曳、縮放看看。' },
   krtc:      { plateL: '小港', plateR: '岡山', sub: 'KAOHSIUNG METRO LIVE', lead: '紅橘兩線與環狀輕軌正在港都穿梭（班距模擬示意，非即時班次）— 拖曳、縮放看看。' },
   tmrt:      { plateL: '北屯總站', plateR: '高鐵臺中站', sub: 'TAICHUNG METRO LIVE', lead: '綠線列車沿著文心路跑（班距模擬示意，非即時班次）— 拖曳、縮放看看。' },
   tra_sched: { plateL: '基隆', plateR: '枋寮', sub: '台灣鐵道即時軌跡',  lead: '列車依當日時刻表運行，回到現在時刻（1×）會自動套用台鐵即時誤點修正 — 點列車跟隨、點車站看班次，或按地圖角落「探」看今日亮點列車。' },
@@ -2316,9 +2318,9 @@ const GROUPS = [
   { id: 'nat', label: '國家鐵路', mode: 'sched', members: ['tra_sched', 'thsr_sched'],
     plate: { plateL: '基隆', plateR: '枋寮', sub: '台灣鐵道即時軌跡',
       lead: '台鐵與高鐵同框運行，皆依當日真實時刻表（台鐵回到現在時刻自動套用即時誤點）— 點列車跟隨、點車站看班次，或按地圖角落「探」看今日亮點。' } },
-  { id: 'north', label: '北北桃', mode: 'freq', members: ['mrt', 'tymc', 'ntdlrt', 'ntalrt'],
+  { id: 'north', label: '北北桃', mode: 'freq', members: ['mrt', 'tymc', 'ntdlrt', 'ntalrt', 'sanying'],
     plate: { plateL: '淡水', plateR: '桃園機場', sub: 'GREATER TAIPEI RAIL',
-      lead: '台北捷運、桃園機捷、淡海與安坑輕軌同框運行（班距模擬示意，非即時班次）— 可在上方勾選要同時顯示的系統,拖曳、縮放地圖看看。' } },
+      lead: '台北捷運、桃園機捷、淡海、安坑輕軌與三鶯線同框運行（班距模擬示意，非即時班次）— 可在上方勾選要同時顯示的系統,拖曳、縮放地圖看看。' } },
   { id: 'south', label: '中南部', mode: 'freq', members: ['tmrt', 'krtc'],
     plate: { plateL: '台中', plateR: '高雄', sub: 'CENTRAL & SOUTHERN METRO',
       lead: '台中捷運與高雄捷運同框（班距模擬示意，非即時班次）— 可在上方勾選要同時顯示的系統。' } },
@@ -4738,6 +4740,7 @@ async function boot() {
     { id: 'tymc', label: '桃園機捷', url: './data/tymc.json', speed: 45, mode: 'freq' },
     { id: 'ntdlrt', label: '淡海輕軌', url: './data/ntdlrt.json', speed: 25, mode: 'freq' },
     { id: 'ntalrt', label: '安坑輕軌', url: './data/ntalrt.json', speed: 25, mode: 'freq' },
+    { id: 'sanying', label: '三鶯線', url: './data/sanying.json', speed: 34, mode: 'freq' },
     { id: 'krtc', label: '高雄捷運', url: './data/krtc.json', speed: 36, mode: 'freq' },
     { id: 'tmrt', label: '台中捷運', url: './data/tmrt.json', speed: 32, mode: 'freq' },
   ];
