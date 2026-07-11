@@ -2799,6 +2799,7 @@ function loadFreqGroup(g, sel) {
   state.freqSel = sel || new Set(g.members);
   state.speed = 30; // 僅缺 segs 的線才用到;各線另存 _speed
   state.simSec = nowSecOfDay(activeTz()); // 實際時刻推演:以現在時刻起播(海外群組用該群時區)
+  setSpeed(1); // 時鐘既跳回「現在」,倍速也成對回 1×(同 jumpToNow 語意)——否則吃到開機預設 50×,畫面比現實快跑
   state.hour = Math.floor(state.simSec / 3600);
   rebuildFreqLines(g);
   // 視野一次框住整個群組(含未勾選成員),之後勾選/取消不再移動地圖
