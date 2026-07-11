@@ -671,15 +671,18 @@
     background: #fffdf6; color: #2a4a73;
     border: 1.5px solid #c9b98f; border-radius: 999px;
     box-shadow: 0 2px 0 #c9b98f; padding: 8px 18px;
+    display: inline-flex; align-items: center; gap: 6px; /* shuffle 圖示與文字並排 */
     transition: opacity .7s, transform .15s; /* opacity 與 623 行閒置淡出選擇器同值,合併宣告避免 transition 被覆蓋 */
   }
+  #randBtn[hidden] { display: none; } /* inline-flex 會蓋掉 hidden 屬性的預設 display:none,補回 */
   #randBtn:hover { transform: translateX(-50%) translateY(-1px); }
   #randBtn.active {
     background: #d23c2a; color: #fff8ec;
     border-color: #a92c1d; box-shadow: 0 2px 0 #a92c1d;
   }
   #randBtn.active:hover { background: #c0341f; }
-  body.ambient #randBtn { display: none; } /* 放空模式自有導演(換車/跟車鏡頭),不重複 */
+  /* 放空模式保留隨機鈕(換一班好用),閒置淡出交給 644 行的 body.idle 規則 */
+  body.fs.immersive #randBtn { display: none !important; } /* 極簡沉浸:只留地圖+列車+時鐘 */
   /* 全畫面貼底控制列上方,讓開控制列——641~865px 這段控制列會換行變 89px 高(比 52px 單行高),
      取兩者皆安全的值(寬度掃描實測校正,不能只抄單行高度算出的值) */
   body.fs #randBtn { bottom: 111px; }
@@ -1124,7 +1127,7 @@
     <canvas id="overlay"></canvas>
     <div id="skyTint"></div>
     <div id="veil"></div>
-    <button id="randBtn" title="隨機跟隨列車——再按一次換一班（小卡 × 結束）" hidden>🎲 隨機跟隨</button>
+    <button id="randBtn" title="隨機跟隨列車——再按一次換一班（小卡 × 結束）" hidden><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="16 3 21 3 21 8"/><line x1="4" y1="20" x2="21" y2="3"/><polyline points="21 16 21 21 16 21"/><line x1="15" y1="15" x2="21" y2="21"/><line x1="4" y1="4" x2="9" y2="9"/></svg><span id="randLbl">隨機跟隨</span></button>
     <div class="toasts" id="toasts"></div>
     <div class="alert-banner" id="alertBanner" hidden></div>
     <div class="alert-detail" id="alertDetail" hidden></div>
@@ -1274,6 +1277,7 @@
     <details class="foot-box">
       <summary><span>🛠 更新紀錄</span><span class="foot-sub">最後更新：2026/7/11</span></summary>
       <ul class="foot-list">
+        <li><span class="d">7/11</span><span>放空模式換車轉場修正：列車抵達終點的換車不再連跳多個隨機畫面，改為單次淡出淡入；隨機鈕圖示換成 shuffle 交叉箭頭、放空模式中保留（閒置自動淡出）、極簡沉浸模式隱藏</span></li>
         <li><span class="d">7/11</span><span>全台同框的捷運也能點擊跟隨：放大到看得見車號牌後點任一台捷運／輕軌示意車即可跟隨，資訊卡冠上系統名（台北捷運／高雄輕軌…）以免混淆</span></li>
         <li><span class="d">7/11</span><span>捷運／輕軌也能點車跟隨：點任一台列車即鎖定鏡頭跟著跑，輕量資訊卡顯示線名、行進方向與下一站（示意動畫，不計完乘）</span></li>
         <li><span class="d">7/11</span><span>群車視角巡航化：鏡頭改為連續慢速滑行永不停頓、自動貼著列車群走（畫面裡總有車有軌道）、視角拉近一級</span></li>
@@ -1339,7 +1343,7 @@
 <script>
 // 版本戳記:每次改版 push 前手動遞增(字母序),畫面時鐘徽章與 console 都會顯示,
 // 供比對線上跑的是不是最新版(瀏覽器快取 max-age=600 常讓人看到舊版)
-const BUILD = 'v0711j';
+const BUILD = 'v0711k';
 const state = {
   systems: [], sysId: null, data: null, speed: 36, mode: 'freq',
   lines: [], visible: new Set(), trains: [], schedStations: [], types: [],
@@ -2974,6 +2978,9 @@ function pickTourTrain() {
   return cands[cands.length - 1];
 }
 function nextTourTrain(now) {
+  // 轉場防重入:到站觸發的換車條件(effT>終點arrSec)在淡出等待的每一幀都成立,
+  // 不擋會機關槍連發幾十條轉場鏈,veil 淡入後殘餘 callback 輪流裸跳到不同隨機車
+  if (state._transition) return;
   const tr = pickTourTrain();
   state._tourNext = (now || performance.now()) + (tr ? 60000 + Math.random() * 60000 : 5000);
   if (!tr) {
@@ -3015,7 +3022,7 @@ function setAutoTour(on) {
   state.autoTour = on;
   const rb = document.getElementById('randBtn');
   rb.classList.toggle('active', on);
-  rb.textContent = on ? '🎲 換一班' : '🎲 隨機跟隨';
+  document.getElementById('randLbl').textContent = on ? '換一班' : '隨機跟隨'; // 只換字,shuffle 圖示不動
   if (on) {
     if (!state.playing) togglePlay();
     nextTourTrain();
@@ -4156,7 +4163,9 @@ function setFollowLock(on) {
   } else if (on && state.freqFollow) {
     const f = state.freqFollow;
     if (f.ln.sched && f.k < f.ln.n) {
-      const info = freqTrainInfo(f.ln, state.elapsed * state.speedMult + f.k * f.ln.period / f.ln.n);
+      // 時間基準與 updateFreqFollowCamera 一致:全台同框走 decoElapsed
+      const base = state.mode === 'sched' ? (state.decoElapsed || 0) : state.elapsed;
+      const info = freqTrainInfo(f.ln, base * state.speedMult + f.k * f.ln.period / f.ln.n);
       recenterTo(info.lat, info.lon);
     }
   }
