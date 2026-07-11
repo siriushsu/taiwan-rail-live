@@ -1343,7 +1343,7 @@
 <script>
 // 版本戳記:每次改版 push 前手動遞增(字母序),畫面時鐘徽章與 console 都會顯示,
 // 供比對線上跑的是不是最新版(瀏覽器快取 max-age=600 常讓人看到舊版)
-const BUILD = 'v0711q';
+const BUILD = 'v0711r';
 const state = {
   systems: [], sysId: null, data: null, speed: 36, mode: 'freq',
   lines: [], visible: new Set(), trains: [], schedStations: [], types: [],
@@ -5053,6 +5053,7 @@ async function boot() {
   cv = document.getElementById('overlay'); ctx = cv.getContext('2d');
   map = L.map('map', { zoomControl: true, attributionControl: true, preferCanvas: true })
     .setView([24.5, 121], 8);
+  window.__map = map; // 驗證腳本用的把手(map 為閉包變數,外部拿不到)
   map.zoomControl.setPosition('bottomright'); // 右上讓給車站時刻板
   map.on('click', e => {
     const cp = e.containerPoint || map.latLngToContainerPoint(e.latlng);
