@@ -2655,6 +2655,7 @@ function finishLoad(meta) {
   buildToggles();
   renderFavs();
   renderPassport();
+  document.getElementById('alertDetail').hidden = true; // 換群組先收合上一群組展開中的公告詳情
   renderAlertBanner(); // 模式切換即刻換橫幅內容(sched=台鐵/高鐵、freq=捷運,用手上快取先畫)
   pollAlert();         // 營運通阻/狀態公告(sched 各系統端點、freq 走 api/metro-alert)
   updateSchedTools();  // 捷運模式隱藏台鐵專屬工具鈕
@@ -4488,6 +4489,7 @@ function renderAlertBanner() {
   b.innerHTML = `<span>⚠</span><span class="ab-title">${escHtml(list[0].title || ((list[0].sysLabel || '') + '營運通阻公告'))}</span>` +
     `<span class="ab-more">${list.length > 1 ? `等 ${list.length} 則 · ` : ''}詳情 ▾</span>`;
   b.hidden = false;
+  if (!det.hidden) renderAlertDetail(); // 詳情展開中(勾選系統變更/每 5 分鐘重輪詢)同步換新內容,不殘留舊公告
   b.onclick = () => {
     if (det.hidden) { renderAlertDetail(); det.hidden = false; } else det.hidden = true;
   };
