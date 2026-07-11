@@ -1276,7 +1276,7 @@
       <ul class="foot-list">
         <li><span class="d">7/11</span><span>捷運／輕軌也能點車跟隨：點任一台列車即鎖定鏡頭跟著跑，輕量資訊卡顯示線名、行進方向與下一站（示意動畫，不計完乘）</span></li>
         <li><span class="d">7/11</span><span>群車視角巡航化：鏡頭改為連續慢速滑行永不停頓、自動貼著列車群走（畫面裡總有車有軌道）、視角拉近一級</span></li>
-        <li><span class="d">7/11</span><span>今日之最列車地圖識別：探索面板推薦的今日之最（今日最長征／開最久／停最多站／平均最快）在地圖上加繪金色光環＋車號牌角徽章，一眼可辨</span></li>
+        <li><span class="d">7/11</span><span>今日之最列車地圖識別：探索面板推薦的今日之最（今日最長征／開最久／停最多站／平均最快）在地圖上加繪金色漣漪光環，一眼可辨</span></li>
         <li><span class="d">7/11</span><span>隨機跟隨升格為地圖下方常駐膠囊鈕：原本藏在工具抽屜裡沒人發現，改成置中大按鈕，點一下就換一班車跟</span></li>
         <li><span class="d">7/11</span><span>三鶯線加入北北桃視圖：頂埔—鶯桃福德 12 站（2026-06-30 通車試營運）；路線幾何取自 OpenStreetMap，班距為試營運公告估算</span></li>
         <li><span class="d">7/11</span><span>放空模式新增「群車」視角：不跟單車，鏡頭自動停在當下列車最密的繁忙路段看群車交錯，緩慢漂移縮放、每分多鐘換一段；放空中按「視角」鈕切換</span></li>
@@ -1338,7 +1338,7 @@
 <script>
 // 版本戳記:每次改版 push 前手動遞增(字母序),畫面時鐘徽章與 console 都會顯示,
 // 供比對線上跑的是不是最新版(瀏覽器快取 max-age=600 常讓人看到舊版)
-const BUILD = 'v0711h';
+const BUILD = 'v0711i';
 const state = {
   systems: [], sysId: null, data: null, speed: 36, mode: 'freq',
   lines: [], visible: new Set(), trains: [], schedStations: [], types: [],
@@ -2000,12 +2000,11 @@ function drawSched(w, h) {
     if (isFollow) { drawFollowMarker(cp, tr); state._trainHits.push({ x: cp.x, y: cp.y, tr }); continue; }
     if (!inView(cp)) continue;
     state._trainHits.push({ x: cp.x, y: cp.y, tr }); // 供點擊/hover 命中測試(每幀重建)
-    const feat = state._featured.get(tr); // 今日之最(探索面板推薦)→ 地圖上加繪金環,z≥11 再疊 emoji 徽章(🛑 存空字串=無徽章)
     const glowC = isHSR(tr) ? HSR_ORANGE : tr.color;
     drawTrail(dt => trainPos(tr, state.simSec - dt), cp, glowC);
-    if (feat !== undefined) drawFeaturedRing(cp);
+    if (state._featured.has(tr)) drawFeaturedRing(cp); // 今日之最(探索面板推薦)→ 地圖上加繪金色光環識別
     glowUnder(cp, glowC, showTrain ? 10 : 3.5); // 車號牌模式:光暈放大到繞出牌緣,近看也發亮
-    if (showTrain) isHSR(tr) ? drawHSRTag(cp, tr.train, feat) : drawTag(cp, tr.train, tr.color, textColorFor(tr.color), feat);
+    if (showTrain) isHSR(tr) ? drawHSRTag(cp, tr.train) : drawTag(cp, tr.train, tr.color, textColorFor(tr.color));
     else isHSR(tr) ? drawHSRDot(cp) : drawDot(cp, tr.color);
   }
   // 站名標籤:大站先取位、字級隨站等、蓋在列車上層;錨點放軌道側邊(法線方向)——
@@ -2122,7 +2121,7 @@ function drawStationIcon(cp, tier) {
   ctx.globalAlpha = 1;
 }
 
-// ── 每日之最(探索面板 best 四項)的地圖識別:金色漣漪光環(車底,z 不拘)+車號牌角徽章(z≥11 才有牌) ──
+// ── 每日之最(探索面板 best 四項)的地圖識別:金色漣漪光環(車底,z 不拘) ──
 // 光環:兩圈相位錯開 1000ms 的擴散圈+常駐淡金底盤;純視覺疊層,不影響列車本體位置與 hit-test
 function drawFeaturedRing(p) {
   ctx.beginPath(); ctx.arc(p.x, p.y, 13, 0, 7);
@@ -2135,14 +2134,8 @@ function drawFeaturedRing(p) {
   }
   ctx.globalAlpha = 1;
 }
-// 徽章畫在牌角外(x,y 已由呼叫端算好,不回頭動牌面本身);knockout 外描避免疊在深色底圖上糊掉
-function drawTagBadge(x, y, emoji) {
-  ctx.font = '12px ' + FONT; ctx.textBaseline = 'middle'; ctx.textAlign = 'center';
-  ctx.lineWidth = 3; ctx.strokeStyle = pal().lblStroke; ctx.strokeText(emoji, x, y);
-  ctx.fillText(emoji, x, y);
-}
 
-function drawTag(p, label, bg, fg, badge) {
+function drawTag(p, label, bg, fg) {
   // textAlign 必須自己設:draw() 每幀結尾重設為 start,靠環境值會讓車號從中心點往右起筆(偏右半個字寬)
   ctx.font = '700 10px ' + FONT; ctx.textBaseline = 'middle'; ctx.textAlign = 'center';
   const pw = ctx.measureText(label).width + 10, ph = 15, rx = 7.5;
@@ -2157,8 +2150,6 @@ function drawTag(p, label, bg, fg, badge) {
   ctx.fillStyle = bg; ctx.globalAlpha = 0.96; ctx.fill(); ctx.globalAlpha = 1;
   ctx.lineWidth = 1.5; ctx.strokeStyle = pal().tagOutline; ctx.stroke();
   ctx.fillStyle = fg; ctx.fillText(label, p.x, p.y + 0.5);
-  // 牌本身位置/大小完全不動(鐵則:車號牌永遠畫真實位置)——徽章只是疊在牌角的額外圖層
-  if (badge) drawTagBadge(x0 + pw + 2, y0 - 2, badge);
 }
 
 function drawDot(p, color) {
@@ -2242,7 +2233,7 @@ function drawTrail(getPos, head, color) {
 // 高鐵列車專屬外觀:兩端尖頭的白底子彈輪廓＋橘框橘字(仿 700T/N700 白車身橘帶),
 // 一眼與台鐵的實心圓角車號牌區分——台鐵橘系(莒光/自強)與高鐵橘同色也不會認錯。
 const HSR_ORANGE = '#E85D0D';
-function drawHSRTag(p, label, badge) {
+function drawHSRTag(p, label) {
   ctx.font = '700 10px ' + FONT; ctx.textBaseline = 'middle'; ctx.textAlign = 'center';
   const pw = ctx.measureText(label).width + 13, ph = 15, nose = 5;
   const x0 = p.x - pw / 2, x1 = p.x + pw / 2, y0 = p.y - ph / 2, y1 = p.y + ph / 2;
@@ -2253,7 +2244,6 @@ function drawHSRTag(p, label, badge) {
   ctx.fillStyle = '#fffdf6'; ctx.globalAlpha = 0.97; ctx.fill(); ctx.globalAlpha = 1;
   ctx.lineWidth = 2; ctx.strokeStyle = HSR_ORANGE; ctx.stroke();
   ctx.fillStyle = HSR_ORANGE; ctx.fillText(label, p.x, p.y + 0.5);
-  if (badge) drawTagBadge(x1 + nose + 2, y0 - 2, badge); // 子彈頭牌尖突出 pw/2 之外,徽章錨點含 nose
 }
 function drawHSRDot(p) {
   ctx.beginPath(); ctx.arc(p.x, p.y, 6, 0, 7);
@@ -3782,15 +3772,10 @@ function computeHighlights() {
   return out;
 }
 // 每日之最(探索面板 best 四項)的地圖識別快取:tr→emoji,供 drawSched 加繪金環+徽章。
-// title 開頭本來就是該項的專屬 emoji(🏁/⏳/🛑/⚡),直接切字取用,不必改 computeHighlights 的結構。
-// 🛑 例外:12px 徽章尺寸下渲染成一顆紅點(使用者退件),停最多站存空字串=只留金環不疊徽章。
+// 地圖識別只畫金色光環(徽章 emoji 曾疊在牌角,12px 下🛑成一顆紅點,使用者裁定全部拿掉)。
 // 換系統/時刻表時由 applySchedSystems 作廢(= null),drawSched 每幀 lazy init 重建一次。
 function buildFeatured() {
-  state._featured = new Map();
-  for (const h of computeHighlights().best) {
-    const em = h.title.split(' ')[0];
-    state._featured.set(h.tr, em === '🛑' ? '' : em);
-  }
+  state._featured = new Set(computeHighlights().best.map(h => h.tr));
 }
 function hlRow(h) {
   const tr = h.tr, last = tr.stops[tr.stops.length - 1];
