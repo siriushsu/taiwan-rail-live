@@ -664,6 +664,18 @@
   #ambientStyleBtn { display: none; }
   body.ambient #ambientStyleBtn { display: flex; }
 
+  /* ── 直播模式(?live=1,OBS 訊號源):隱藏一切互動 UI,留時鐘徽章/attribution/曲名/浮水印 ── */
+  body.live .controls, body.live .stage-tools, body.live #randBtn,
+  body.live .rec-pill, body.live .rec-toast, body.live .leaflet-control-zoom,
+  body.live .follow-lock-ctl { display: none !important; }
+  body.live .leaflet-control-container { opacity: 1 !important; } /* 閒置淡出不得帶走底圖 attribution(CARTO/OSM 授權要求) */
+  .live-hud { position: absolute; top: 64px; left: 12px; z-index: 600; pointer-events: none; display: flex; flex-direction: column; align-items: flex-start; gap: 5px; }
+  .live-hud[hidden] { display: none; } /* flex 會蓋掉 hidden 的預設 display:none,補回 */
+  .live-np { opacity: 0; transition: opacity .8s; background: rgba(255,253,246,.82); border-radius: 6px; padding: 3px 10px 4px; font-size: 12.5px; font-weight: 700; color: #5f5340; }
+  .live-np.show { opacity: 1; }
+  .live-wm { font-size: 11.5px; font-weight: 800; letter-spacing: .8px; color: rgba(30,44,64,.55); padding-left: 2px; }
+  .badge .replay { font-size: 11px; font-weight: 800; color: #d23c2a; letter-spacing: .5px; }
+
   /* 隨機跟隨升格為地圖膠囊鈕:原本擠在工具條裡(手機還要開抽屜)沒人發現,
      改成地圖下緣常駐置中膠囊,紙卡風沿用 .stage-tools 同色系 */
   #randBtn {
@@ -1197,8 +1209,14 @@
     <div class="badge">
       <span class="clock" id="clock">08:00</span>
       <span class="live" id="liveBadge" hidden>LIVE</span>
+      <span class="replay" id="replayBadge" hidden>REPLAY</span>
       <span class="peak" id="peak"></span>
       <span class="count" id="count"></span>
+    </div>
+    <!-- 直播模式(?live=1)角落資訊:曲名字幕+頻道浮水印(與右下 attribution 對角) -->
+    <div class="live-hud" id="liveHud" hidden>
+      <div class="live-np" id="liveNp">♪ <span id="liveNpTitle"></span></div>
+      <div class="live-wm">railisland.tw</div>
     </div>
     <div class="dwell-plate" id="dwellPlate">
       <b id="dpName"></b>
@@ -1368,7 +1386,7 @@
 <script>
 // 版本戳記:每次改版 push 前手動遞增(字母序),畫面時鐘徽章與 console 都會顯示,
 // 供比對線上跑的是不是最新版(瀏覽器快取 max-age=600 常讓人看到舊版)
-const BUILD = 'v0712a';
+const BUILD = 'v0712c';
 const state = {
   systems: [], sysId: null, data: null, speed: 36, mode: 'freq',
   lines: [], visible: new Set(), trains: [], schedStations: [], types: [],
@@ -1380,6 +1398,7 @@ const state = {
   mapDark: false, basemap: 'map', trackData: null,
   trackStyle: 'auto', // 軌道顯示:auto(亮色原色/夜間衛星自動淡化)、faint(一律更淡)、hidden(只留列車與車站)
   live: null, // 台鐵即時誤點 {map: 車次→誤點分, at: 抓取時刻, delayed, srcAt}
+  liveMode: false, liveReplay: false, // 直播模式(?live=1)與其深夜重播段(00:45–05:15 重播 08:00 起)
   stnIntro: false, immersive: false, // 特殊站介紹開關(放空自動開)、極簡沉浸(全畫面隱藏左側卡)
   ambientStyle: 'follow', // 放空視角:follow=跟著一班車跑 / hotspot=群車(鏡頭掛在最繁忙路段看群車交錯)
 };
@@ -2488,7 +2507,7 @@ function tick(now) {
   state._skyClock = (state._skyClock || 0) + dt;
   if (state._skyClock >= 0.5) { state._skyClock = 0; updateSkyTint(); }
   state._liveClock = (state._liveClock || 0) + dt;
-  if (state._liveClock >= 1) { state._liveClock = 0; updateLiveBadge(); }
+  if (state._liveClock >= 1) { state._liveClock = 0; updateLiveBadge(); if (state.liveMode) liveClockTick(); }
   // 省電三板斧(繪製節流,不動上面的時間積分):
   // (1) 分頁隱藏停繪——時間照積分,只是不畫;錄影中例外(recCompose 每幀從主畫布拷貝,停繪會凍結成靜止幀)
   // (2) 待機時 draw 節流到 ~30fps;跟隨/幽靈車跟隨/放空/錄影/剛互動(1.5s 內)維持顯示器全速,體驗優先
@@ -3589,6 +3608,55 @@ function setMusicEnabled(on) {
   saveMusicPref();
   updateMusicBtn();
   on ? musicPlay() : musicStop(); // 開關即播/停,放空與否都一樣
+}
+
+// ── 直播模式(?live=1,隱藏入口):OBS Browser Source 當 24/7 訊號源,一般訪客不受影響 ──
+// boot 完成後自動進放空巡航+背景音樂;互動 UI 由 body.live CSS 隱藏(attribution 依授權保留)
+const LIVE_REPLAY_FROM = 45 * 60, LIVE_REPLAY_TO = 5 * 3600 + 15 * 60; // 深夜重播時段 00:45–05:15
+function initLive() {
+  try { map.attributionControl.addAttribution('資料: 交通部TDX'); } catch (e) {} // 底圖字樣外補資料來源
+  document.getElementById('liveHud').hidden = false;
+  // Now Playing 字幕:換曲淡出→換字→淡入(檔名去 .mp3 當曲名)
+  const np = document.getElementById('liveNp'), npT = document.getElementById('liveNpTitle');
+  state.music.audio.addEventListener('playing', () => {
+    const name = (state.music.list[state.music.idx] || '').replace(/\.mp3$/i, '');
+    if (npT.textContent === name && np.classList.contains('show')) return; // 暫停續播不重跑淡入
+    np.classList.remove('show');
+    setTimeout(() => { npT.textContent = name; np.classList.add('show'); }, 650);
+  });
+  const go = () => {
+    if (!state.ready || !state.trains.length) { setTimeout(go, 500); return; } // 等資料載完列車出現,不空畫面巡航
+    setAmbientStyle('hotspot'); // 直播固定群車巡航視角
+    setAmbient(true); // 進放空:全畫面+自動導演+防休眠+音樂(enabled 者自動開播)
+    setSpeed(1); // 蓋掉放空預設 5×:直播貼真實時刻跑(重播段亦 1×)
+    if (!state.music.enabled) setMusicEnabled(true); // 上次關過音樂也強制開,直播要有聲
+    // 自動播放被擋的保險(OBS 帶 --autoplay-policy 旗標時不會走到):首次點擊補播一次
+    setTimeout(() => {
+      if (state.music.enabled && state.music.audio.paused)
+        document.addEventListener('pointerdown', () => { if (state.music.audio.paused) musicPlay(); }, { once: true });
+    }, 1500);
+    liveClockTick(); // 立即判一次深夜重播,不等下一秒
+  };
+  go();
+}
+// 每秒由 tick 呼叫:真實時刻 00:45–05:15 沒車,切到 08:00 起 1× 重播(REPLAY 標記);時段外貼回真實時刻
+function liveClockTick() {
+  if (state.mode !== 'sched') return;
+  const now = nowSecOfDay(activeTz());
+  const inWin = now >= LIVE_REPLAY_FROM && now < LIVE_REPLAY_TO;
+  if (inWin && !state.liveReplay) {
+    state.liveReplay = true;
+    state.nightReplay = false; // 接手放空自帶的 18:00 深夜重播
+    setSpeed(1);
+    setSimSec(8 * 3600); // 既有時光機路徑:清晨 08:00 起連續前進
+    refreshBadge();
+  } else if (!inWin && state.liveReplay) {
+    state.liveReplay = false;
+    jumpToNow(); // 既有「回到現在」路徑:真實時刻+1×+誤點重新套用
+  } else if (!inWin && !state.liveReplay && !state.nightReplay && Math.abs(state.simSec - now) > 120) {
+    setSimSec(now); // 24/7 長跑防漂移:非重播時段把模擬時鐘貼回真實時刻(誤點套用門檻 ±120s)
+  }
+  document.getElementById('replayBadge').hidden = !state.liveReplay;
 }
 
 // 地圖下方的列車資訊卡:介紹+服務標記,旅程日誌由 renderFollowEvents 填
@@ -5099,6 +5167,9 @@ function setupRecorder() {
 async function boot() {
   document.getElementById('buildVer').textContent = BUILD;
   console.log('台灣鐵道·列車流動 BUILD', BUILD);
+  // 直播模式(?live=1):開頭就掛 class,互動 UI 首繪即隱藏(資料載入要幾秒,不在 OBS 畫面閃 UI)
+  try { state.liveMode = !!new URLSearchParams(location.search).get('live'); } catch (e) {}
+  if (state.liveMode) document.body.classList.add('live');
   cv = document.getElementById('overlay'); ctx = cv.getContext('2d');
   map = L.map('map', { zoomControl: true, attributionControl: true, preferCanvas: true })
     .setView([24.5, 121], 8);
@@ -5240,6 +5311,7 @@ async function boot() {
   }
   state.ready = true;
   requestAnimationFrame(tick);
+  if (state.liveMode) initLive(); // 直播模式:資料就緒後自動進放空巡航+音樂(與 ?train= 同給時以 live 為準)
 }
 
 document.getElementById('pp').onclick = togglePlay;
