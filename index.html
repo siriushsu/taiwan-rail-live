@@ -1075,6 +1075,26 @@
        整卡下移到工具列下方一階,靠垂直間隔避開;橫幅在時再讓一階 */
     .xing-help { top: 108px; }
     .alert-banner:not([hidden]) ~ .xing-help { top: 150px; }
+    /* 平交道通過預測卡(手機):原本 top:12 右上 264px,會蓋住左上時鐘徽章、被右上「☰」工具 FAB 疊住
+       (使用者回報「跟其他按鈕重疊」)。改小卡+下移到頂列(徽章/FAB)之下,限高留出底部跟隨卡/隨機鈕的空間,
+       超量的班次靠內部捲動;字級 padding 全面降一級(使用者要求縮小)。 */
+    .xing-card {
+      top: 106px; right: 8px; left: auto;
+      width: 200px; max-width: calc(100% - 16px);
+      max-height: calc(100% - 274px); /* 上留頂列、下留跟隨卡(底 157px)+餘裕,清所有互動控件 */
+    }
+    .alert-banner:not([hidden]) ~ .xing-card { top: 144px; max-height: calc(100% - 312px); } /* 橫幅時頂列再下移一階 */
+    .xing-card .xc-head { padding: 6px 8px 6px 10px; gap: 7px; }
+    .xing-card .xc-ttl b { font-size: 14px; }
+    .xing-card .xc-meta { font-size: 10px; }
+    .xing-card .xc-close { font-size: 14px; }
+    .xing-card .xc-row { padding: 5px 10px; font-size: 11.5px; gap: 6px; }
+    .xing-card .xc-no { min-width: 34px; }
+    .xing-card .xc-kind { display: none; } /* 手機藏車種欄:200px 寬下讓「往○○」方向完整顯示(方向比車種有用) */
+    .xing-card .xc-dl { font-size: 10px; }
+    .xing-card .xc-cd { min-width: 40px; }
+    .xing-card .xc-foot { padding: 6px 10px 8px; font-size: 10px; }
+    .xing-card .xc-empty { padding: 12px 10px; font-size: 11.5px; }
     /* 站名牌手機靠左橫條,右側讓出「☰ 工具」浮鈕欄位,同一頂帶並排對齊 */
     .dwell-plate { top: 56px; left: 8px; right: 100px; min-width: 0; max-width: none; }
     /* 特殊站介紹手機最多兩行:站牌總高有上限,公告+站牌+跟隨卡三者全開也不互蓋 */
@@ -1478,7 +1498,7 @@
 <script>
 // 版本戳記:每次改版 push 前手動遞增(字母序),畫面時鐘徽章與 console 都會顯示,
 // 供比對線上跑的是不是最新版(瀏覽器快取 max-age=600 常讓人看到舊版)
-const BUILD = 'v0712i';
+const BUILD = 'v0712j';
 const state = {
   systems: [], sysId: null, data: null, speed: 36, mode: 'freq',
   lines: [], visible: new Set(), trains: [], schedStations: [], types: [],
@@ -2613,6 +2633,11 @@ function crossingPasses(cr) {
 }
 function openCrossingCard(cr) {
   closeBoard(); // 站牌看板與平交道卡同用右上欄,擇一顯示
+  // 使用說明卡是暫態吐司——點到平交道即代表已看懂用法,一律收掉(768 中間寬度兩者會相疊)
+  {
+    const hp = document.getElementById('xingHelp');
+    if (hp && !hp.hidden) { clearTimeout(state._xingHelpT); hp.classList.remove('show'); hp.hidden = true; hp.onclick = null; }
+  }
   state.crossingSel = cr;
   state._xingRenderedAt = -1e9;
   renderCrossingCard();
