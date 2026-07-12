@@ -373,6 +373,14 @@
   .xing-card .xc-cd { font-weight: 800; color: #a3641a; min-width: 44px; text-align: right; }
   .xing-card .xc-empty { padding: 15px 12px; text-align: center; color: #7a6c50; font-size: 12.5px; }
   .xing-card .xc-foot { padding: 8px 12px 10px; border-top: 1.5px dashed #d8cba9; color: #a89468; font-size: 10.5px; line-height: 1.5; }
+  /* 落釘卡:存最愛鈕(頭列)＋可點班次列;釘 marker 去掉 Leaflet divIcon 預設白框 */
+  .xing-card .xc-save { flex: none; background: rgba(255,255,255,.16); border: 0; color: #fffdf6; font-size: 11.5px; font-weight: 800; cursor: pointer; padding: 3px 9px; border-radius: 999px; white-space: nowrap; }
+  .xing-card .xc-save:hover { background: rgba(255,255,255,.3); }
+  .xing-card .xc-row[data-no] { cursor: pointer; }
+  .xing-card .xc-row[data-no]:hover { background: #f3ecd8; }
+  .pin-ico { background: none; border: 0; font-size: 22px; line-height: 26px; text-align: center; }
+  /* 釘卡 meta(線名+距離)較長,允許換行不截尾——平交道卡不受影響 */
+  .xing-card.pin-card .xc-meta { white-space: normal; overflow: visible; text-overflow: clip; line-height: 1.3; }
   .alert-banner:not([hidden]) ~ .xing-card { top: 54px; }
 
   /* 平交道使用說明卡(開關打開時浮出、約 8 秒自動淡出、點擊即關;地圖上方居中,紙卡風) */
@@ -1372,6 +1380,7 @@
       <button id="themeBtn" title="地圖明暗切換"><span class="ti">☾</span><span class="tl">地圖明暗</span></button>
       <button id="trackBtn" title="軌道顯示：自動（夜間自動淡化）→ 淡化 → 隱藏"><span class="ti">軌</span><span class="tl">軌道顯示</span></button>
       <button id="xingBtn" title="顯示平交道位置"><span class="ti">平</span><span class="tl">平交道</span></button>
+      <button id="pinBtn" title="落釘看附近經過的火車"><span class="ti">釘</span><span class="tl">附近火車</span></button>
       <button id="immBtn" title="極簡沉浸（只留地圖與列車）"><span class="ti">簡</span><span class="tl">極簡沉浸</span></button>
       <button id="recBtn" title="錄影 Beta（存成影片下載）"><span class="ti">⏺</span><span class="tl">錄影 Beta</span></button>
     </div>
@@ -1404,6 +1413,7 @@
     </div>
     <div class="board" id="board" hidden></div>
     <div class="xing-card" id="xingCard" hidden></div>
+    <div class="xing-card pin-card" id="pinCard" hidden></div>
     <div class="xing-help" id="xingHelp" hidden>顯示全台 415 處台鐵平交道（官方公開資料）。點擊任一平交道，可查看接下來通過的列車與倒數；貨運／專用線上的道口僅標示位置。預測依時刻表與即時誤點推算，遮斷機通常提前 30–60 秒動作，請以現場號誌為準。</div>
     <div class="board" id="favPanel" hidden></div>
     <div class="board" id="ridePanel" hidden></div>
@@ -1488,6 +1498,7 @@
     <details class="foot-box">
       <summary><span>🛠 更新紀錄</span><span class="foot-sub">最後更新：2026/7/13</span></summary>
       <ul class="foot-list">
+        <li><span class="d">7/13</span><span>新功能「附近火車」：地圖工具列開啟「釘」後，點地圖任一處落釘，即顯示最近軌道接下來 60 分鐘經過的列車、方向與倒數；可按★存為最愛地點（釘留在地圖上，隨時重開查看）。並行路段可能吸到鄰線，拖曳釘子可微調；依時刻表推算僅供參考。另：地圖最小縮放限定為「整個台灣」，不再能縮到看世界</span></li>
         <li><span class="d">7/13</span><span>平交道圖示改為白底紅邊叉叉（台灣鐵路平交道意象，衛星／深色底圖也清楚）；移除台中港線等貨運／專用線上的道口——那些路段本圖沒畫軌道，記號會浮在空地看似錯誤（謝謝網友回報台中港站旁那一串）；另修正 4 處投影偏移的道口改標官方原始座標</span></li>
         <li><span class="d">7/13</span><span>平交道連點直跳：卡片開著時直接點下一個平交道／列車／車站就切換，不用先關卡片；使用說明卡不再擋住地圖點擊</span></li>
         <li><span class="d">7/13</span><span>手機介面整修：「工具」鈕上移與左上時鐘對齊；全畫面改為地圖上的獨立按鈕——原本藏在工具列深處、小螢幕上點不到（謝謝網友回報）；全畫面時速度控制縮成小膠囊，點一下展開、閒置自動收合，不再擋住地圖與平交道資訊</span></li>
@@ -1573,7 +1584,7 @@
 <script>
 // 版本戳記:每次改版 push 前手動遞增(字母序),畫面時鐘徽章與 console 都會顯示,
 // 供比對線上跑的是不是最新版(瀏覽器快取 max-age=600 常讓人看到舊版)
-const BUILD = 'v0713b';
+const BUILD = 'v0713c';
 const state = {
   systems: [], sysId: null, data: null, speed: 36, mode: 'freq',
   lines: [], visible: new Set(), trains: [], schedStations: [], types: [],
@@ -2709,7 +2720,7 @@ function crossingPasses(cr) {
   return [...byTrain.values()].sort((a, b) => a.delta - b.delta).slice(0, 5);
 }
 function openCrossingCard(cr) {
-  closeBoard(); // 站牌看板與平交道卡同用右上欄,擇一顯示
+  closeBoard(); closePinCard(); // 站牌看板/落釘卡/平交道卡同用右上欄,擇一顯示
   // 使用說明卡是暫態吐司——點到平交道即代表已看懂用法,一律收掉(768 中間寬度兩者會相疊)
   {
     const hp = document.getElementById('xingHelp');
@@ -2755,6 +2766,99 @@ function renderCrossingCard() {
     `<div class="xc-foot">依時刻表推算僅供參考，遮斷機通常提前 30–60 秒動作，請以現場號誌為準</div>`;
   const el = document.getElementById('xingCard'); el.hidden = false;
   document.getElementById('xcClose').onclick = closeCrossingCard;
+}
+// ── 落釘看附近火車 ───────────────────────────────────────────────────────────
+// 「任意落一釘 → 吸附到最近軌道 → 顯示接下來經過的列車」。吸附複用 projectOntoShape
+// (點→線里程 d ＋垂距 km);預測複用 crossingPasses(只吃 {lnId,d})。候選線只取「列車
+// 實際貼上的 segLn 線集合」——保證 id 對得上、也天然只吸到真有車在跑的線(不吸空的貨運線)。
+const PIN_MAX_KM = 1.5;         // 落釘離最近軌道超過此距離視為「附近無鐵路」不預測(可調常數)
+const PIN_LS = 'trainmap-pins'; // 已存最愛地點:localStorage [{lat,lon}]
+let pinDraft = null;            // 查看中的釘 {lat,lon,marker};草稿(可拖曳微調)
+let pinSaved = [];              // 已存地點的常駐 marker
+function pinFmtKm(km) { return km < 1 ? Math.round(km * 1000) + ' 公尺' : km.toFixed(1) + ' 公里'; }
+function railSegLines() { const set = new Set(); for (const tr of state.trains) for (const s of tr.stops) if (s.segLn) set.add(s.segLn); return set; }
+function snapToRail(lat, lon) { // → {ln,d,perpKm} 垂距最小者;無候選 null
+  let best = null;
+  for (const ln of railSegLines()) {
+    if (!ln.shape) continue;
+    const pr = projectOntoShape(ln, lat, lon);
+    if (pr.d == null) continue;
+    if (!best || pr.perpKm < best.perpKm) best = { ln, d: pr.d, perpKm: pr.perpKm };
+  }
+  return best;
+}
+function pinIcon(saved) { return L.divIcon({ className: 'pin-ico', html: saved ? '📌' : '📍', iconSize: [26, 28], iconAnchor: [13, 26] }); }
+function loadPins() { try { return JSON.parse(localStorage.getItem(PIN_LS) || '[]'); } catch (e) { return []; } }
+function savePins(a) { try { localStorage.setItem(PIN_LS, JSON.stringify(a)); } catch (e) {} }
+function pinSavedIdx(lat, lon) { return loadPins().findIndex(p => Math.abs(p.lat - lat) < 1e-6 && Math.abs(p.lon - lon) < 1e-6); }
+function openPinAt(lat, lon) { // 落/移釘 → 開卡(右上欄三卡擇一)
+  closeBoard(); closeCrossingCard();
+  if (pinDraft && pinDraft.marker) map.removeLayer(pinDraft.marker);
+  const mk = L.marker([lat, lon], { icon: pinIcon(false), draggable: true, zIndexOffset: 1000 }).addTo(map);
+  pinDraft = { lat, lon, marker: mk };
+  mk.on('dragend', () => { const ll = mk.getLatLng(); pinDraft.lat = ll.lat; pinDraft.lon = ll.lon; renderPinCard(); });
+  renderPinCard();
+}
+function closePinCard() {
+  if (pinDraft && pinDraft.marker) map.removeLayer(pinDraft.marker);
+  pinDraft = null;
+  const el = document.getElementById('pinCard'); if (el) { el.hidden = true; el.innerHTML = ''; }
+}
+function renderPinCard() {
+  const el = document.getElementById('pinCard'); if (!el || !pinDraft) return;
+  const snap = snapToRail(pinDraft.lat, pinDraft.lon);
+  const ico = '<svg class="xc-ico" width="18" height="18" viewBox="0 0 18 18" aria-hidden="true">' +
+    '<path d="M9 1.6c-2.9 0-5.2 2.3-5.2 5.2 0 3.7 5.2 9.4 5.2 9.4s5.2-5.7 5.2-9.4c0-2.9-2.3-5.2-5.2-5.2z" fill="none" stroke="currentColor" stroke-width="1.5"/>' +
+    '<circle cx="9" cy="6.8" r="1.9" fill="currentColor"/></svg>';
+  const saved = pinSavedIdx(pinDraft.lat, pinDraft.lon) >= 0;
+  let title, meta, rows, foot = '';
+  if (!snap || snap.perpKm > PIN_MAX_KM) {
+    title = '附近沒有鐵路';
+    meta = snap ? '最近軌道約 ' + pinFmtKm(snap.perpKm) + ' 外' : '找不到軌道';
+    rows = '<div class="xc-empty">這個位置離最近的鐵路太遠，無法預測經過的火車。拖曳釘子靠近鐵路再試。</div>';
+  } else {
+    // 線名去掉括號區段(「縱貫線北段（基隆–竹南）」→「縱貫線北段」),手機窄卡才放得下線名+距離
+    const lnName = (snap.ln.name || XING_LN_NAME[snap.ln.id] || snap.ln.id).replace(/[（(][^）)]*[）)]/g, '').trim();
+    const list = crossingPasses({ lnId: snap.ln.id, d: snap.d });
+    title = '附近火車';
+    meta = '最近軌道：' + lnName + ' · 約 ' + pinFmtKm(snap.perpKm);
+    rows = list.length ? list.map(r => {
+      const mm = Math.floor(r.delta / 60), ss = Math.floor(r.delta % 60);
+      const cd = String(mm).padStart(2, '0') + ':' + String(ss).padStart(2, '0');
+      const dl = r.delayMin > 0 ? '<span class="xc-dl">+' + r.delayMin + '分</span>' : '';
+      return '<div class="xc-row" data-no="' + r.tr.train + '" title="跟隨 ' + r.tr.train + ' 次"><span class="xc-no">' + r.tr.train + '</span>' +
+        '<span class="xc-kind">' + r.tr.typeName + '</span><span class="xc-dir">往' + r.dir + '</span>' +
+        '<span class="xc-time">' + fmtHM(r.pass) + dl + '</span><span class="xc-cd">' + cd + '</span></div>';
+    }).join('') : '<div class="xc-empty">未來 60 分鐘無列車經過此處</div>';
+    foot = '<div class="xc-foot">吸附最近軌道依時刻表推算，僅供參考；並行路段可能吸到鄰線，拖曳釘子可微調。</div>';
+  }
+  el.innerHTML = '<div class="xc-head">' + ico + '<div class="xc-ttl"><b>' + title + '</b>' +
+    '<span class="xc-meta">' + meta + '</span></div>' +
+    '<button class="xc-save" id="pinSave" type="button">' + (saved ? '★ 已存' : '☆ 存') + '</button>' +
+    '<button class="xc-close" id="pinClose" type="button" aria-label="關閉">✕</button></div>' +
+    '<div class="xc-list">' + rows + '</div>' + foot;
+  el.hidden = false;
+  document.getElementById('pinClose').onclick = closePinCard;
+  document.getElementById('pinSave').onclick = togglePinSave;
+  el.querySelectorAll('.xc-row[data-no]').forEach(row => {
+    row.onclick = () => { const tr = state.trains.find(t => String(t.train) === row.dataset.no); if (tr) setFollow(tr); };
+  });
+}
+function togglePinSave() {
+  if (!pinDraft) return;
+  const pins = loadPins(), at = pinSavedIdx(pinDraft.lat, pinDraft.lon);
+  if (at >= 0) { pins.splice(at, 1); showToast('已移除最愛地點'); }
+  else { pins.push({ lat: pinDraft.lat, lon: pinDraft.lon }); showToast('已存為最愛地點'); }
+  savePins(pins); renderSavedPins(); renderPinCard();
+}
+function renderSavedPins() { // 已存地點:恆掛地圖的釘,點了重開卡;預測只在 sched,捷運頁不掛
+  pinSaved.forEach(m => map.removeLayer(m)); pinSaved = [];
+  if (state.mode !== 'sched') return;
+  for (const p of loadPins()) {
+    const mk = L.marker([p.lat, p.lon], { icon: pinIcon(true), zIndexOffset: 900 }).addTo(map);
+    mk.on('click', () => { map.panTo([p.lat, p.lon]); openPinAt(p.lat, p.lon); });
+    pinSaved.push(mk);
+  }
 }
 // 捷運幽靈車命中測試:_freqHits 由 drawFreq 每幀重建(裝飾層不入列),半徑內取最近的一台
 function freqTrainAt(cp) {
@@ -3065,13 +3169,15 @@ function buildCitySelect() {
 // 捷運/輕軌(freq)沒有車次、完乘、特別列車這些概念,隱藏這些鈕。用 inline display 蓋過 .stage-tools 的 flex。
 function updateSchedTools() {
   const show = state.mode === 'sched';
-  for (const id of ['exploreBtn', 'favBtn', 'rideBtn', 'introBtn', 'xingBtn']) {
+  for (const id of ['exploreBtn', 'favBtn', 'rideBtn', 'introBtn', 'xingBtn', 'pinBtn']) {
     const b = document.getElementById(id);
     if (b) b.style.display = show ? '' : 'none';
   }
   // randBtn 已搬出 .stage-tools(獨立地圖膠囊鈕),沒有 flex 蓋過的問題,用 hidden 屬性切換即可
   const rb = document.getElementById('randBtn');
   if (rb) rb.hidden = !show;
+  if (typeof closePinCard === 'function') closePinCard(); // 換系統:收掉舊系統的落釘卡(預測隨系統作廢)
+  if (typeof renderSavedPins === 'function') renderSavedPins(); // 已存最愛地點:換系統時重掛(非 sched 自動清)
 }
 
 // loadSystem / loadFreqGroup 共用尾段:面板收合、圖例、徽章、站名牌
@@ -5033,7 +5139,7 @@ function updateSheetOpenClass() {
 }
 
 // ── 車站時刻板 ──
-function openBoard(st) { closeFavPanel(); closeRidePanel(); closeExplorePanel(); state.boardStation = st; renderBoard(); }
+function openBoard(st) { closeFavPanel(); closeRidePanel(); closeExplorePanel(); closePinCard(); state.boardStation = st; renderBoard(); }
 function closeBoard() {
   state.boardStation = null;
   const el = document.getElementById('board');
@@ -5443,6 +5549,19 @@ function setupMapTools() {
   }
   xingBtn.onclick = () => setXing(!state.xingOn, true);
   setXing(state.xingOn, false); // 初始化按鈕態(還原 localStorage,不彈說明)
+
+  // ── 落釘看附近火車:開關(落釘模式下點地圖任一處落釘) ──
+  const pinBtn = document.getElementById('pinBtn');
+  function setDropMode(on) {
+    state.dropMode = on;
+    pinBtn.classList.toggle('active', on);
+    pinBtn.querySelector('.tl').textContent = on ? '點地圖落釘' : '附近火車';
+    pinBtn.title = on ? '點地圖任一處落釘（再按一次取消）' : '落釘看附近經過的火車';
+    const cnt = map.getContainer(); if (cnt) cnt.style.cursor = on ? 'crosshair' : '';
+    if (on) showToast('點地圖任一處，看附近經過的火車');
+  }
+  pinBtn.onclick = () => setDropMode(!state.dropMode);
+  state._setDropMode = setDropMode; // 供 boot 內地圖點擊處理器跨作用域呼叫(比照 state._setFs)
 }
 
 // ── 站內錄影:每幀把「圖磚 → Leaflet 向量層 → 列車 overlay → 浮水印」合成到離屏 canvas,
@@ -5614,6 +5733,16 @@ async function boot() {
   window.__map = map; // 驗證腳本用的把手(map 為閉包變數,外部拿不到)
   window.__state = state; // 同上:唯讀給驗證腳本讀命中快取/模擬時鐘(平交道等)
   map.zoomControl.setPosition('bottomright'); // 右上讓給車站時刻板
+  // 這是台灣鐵道圖:最小縮放地板=「整個台灣剛好塞滿畫面」,不讓人縮到看見全世界。
+  // 地板依視窗尺寸動態算(手機直式與桌機寬螢幕塞下台灣的 zoom 不同),Leaflet 預設 trackResize
+  // 會在視窗變動時 invalidateSize 並觸發 'resize',於此重算。全台同框視圖本就等於此地板,不受影響。
+  const TW_BOUNDS = L.latLngBounds([21.88, 119.9], [25.35, 122.05]); // 台灣本島外接框(離島無鐵路不納)
+  function applyTaiwanFloor() {
+    const z = map.getBoundsZoom(TW_BOUNDS, false); // 整個框剛好可見的最大 zoom
+    if (Number.isFinite(z)) map.setMinZoom(z);
+  }
+  applyTaiwanFloor();
+  map.on('resize', applyTaiwanFloor);
   map.on('click', e => {
     const cp = e.containerPoint || map.latLngToContainerPoint(e.latlng);
     if (state.mode !== 'sched') {
@@ -5626,6 +5755,12 @@ async function boot() {
       }
       return;
     }
+    if (state.dropMode) { // 落釘模式:點地圖任一處落釘查看附近火車,一次性(落完退出模式,可拖曳微調)
+      const ll = e.latlng || map.containerPointToLatLng(cp); // Leaflet LatLng 用 .lng(非本專案的 .lon)
+      if (state._setDropMode) state._setDropMode(false); else state.dropMode = false;
+      openPinAt(ll.lat, ll.lng); return;
+    }
+    closePinCard();      // 一般點擊(選車/站/平交道)先收掉可能開著的落釘卡
     closeCrossingCard(); // 點任何地方先收平交道卡;下面命中平交道會重開
     let best = null, bd = 1e9;
     for (const st of state.schedStations) {
