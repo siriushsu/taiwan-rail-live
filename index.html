@@ -242,6 +242,22 @@
   body.fs .stage-tools button.active { border-color: #a92c1d; box-shadow: 0 2px 0 #a92c1d; }
   body.fs .stage-tools button:hover .tl { padding-right: 0; padding-left: 13px; }
 
+  /* 全畫面切換獨立鈕(移出工具抽屜):紙牌皮膚同工具鈕,常駐地圖右上角。桌面 top:12/right:12(手機定位見 640 媒體塊)。
+     圖示隨 body.fs 切換:非全畫面顯示外展箭頭,全畫面中顯示內收箭頭。 */
+  #fsFab {
+    position: absolute; top: 12px; right: 12px; z-index: 704;
+    display: flex; align-items: center; justify-content: center;
+    width: 44px; height: 44px; padding: 0; cursor: pointer;
+    background: #fffdf6; color: #2a4a73;
+    border: 1.5px solid #c9b98f; border-radius: 8px;
+    box-shadow: 0 2px 0 #c9b98f; transition: background .15s;
+  }
+  #fsFab:hover { background: #f7f0dd; }
+  #fsFab .fs-ic { display: block; }
+  #fsFab .fs-ic-close { display: none; }
+  body.fs #fsFab .fs-ic-open { display: none; }
+  body.fs #fsFab .fs-ic-close { display: block; }
+
   /* 錄影中浮條(地圖頂部置中):唯一的錄影狀態指示,點它停止並下載。
      浮條與其他 DOM UI 都不會入鏡——錄影只合成地圖畫布(圖磚/向量層/列車 overlay) */
   .rec-pill {
@@ -699,8 +715,8 @@
   body.fs .board { right: 60px; }
   body.fs .kbd-hint, body.fs .flow, body.fs .search, body.fs .favs, body.fs .lines, body.fs .note, body.fs .passport, body.fs .site-foot { display: none; }
   /* 放空模式:閒置 5 秒淡出控制,滑鼠動了淡回(時鐘與跟隨面板留著) */
-  .controls, .stage-tools, .leaflet-control-container, #randBtn { transition: opacity .7s; }
-  body.idle .controls, body.idle .stage-tools, body.idle .leaflet-control-container, body.idle #randBtn { opacity: 0; pointer-events: none; }
+  .controls, .stage-tools, .leaflet-control-container, #randBtn, #fsFab { transition: opacity .7s; }
+  body.idle .controls, body.idle .stage-tools, body.idle .leaflet-control-container, body.idle #randBtn, body.idle #fsFab { opacity: 0; pointer-events: none; }
   body.idle .stage, body.idle * { cursor: none; }
   #overlay { position: absolute; inset: 0; pointer-events: none; z-index: 500; }
   /* 放空模式的日夜天色(依模擬時刻連續變化,墊在轉場遮罩下) */
@@ -725,7 +741,7 @@
   /* ── 直播模式(?live=1,OBS 訊號源):隱藏一切互動 UI,留時鐘徽章/attribution/曲名/浮水印 ── */
   body.live .controls, body.live .stage-tools, body.live #randBtn,
   body.live .rec-pill, body.live .rec-toast, body.live .leaflet-control-zoom,
-  body.live .follow-lock-ctl, body.live .citysel { display: none !important; }
+  body.live .follow-lock-ctl, body.live .citysel, body.live #fsFab { display: none !important; }
   body.live .leaflet-control-container { opacity: 1 !important; } /* 閒置淡出不得帶走底圖 attribution(CARTO/OSM 授權要求) */
   .live-hud { position: absolute; top: 64px; left: 12px; z-index: 600; pointer-events: none; display: flex; flex-direction: column; align-items: flex-start; gap: 5px; }
   .live-hud[hidden] { display: none; } /* flex 會蓋掉 hidden 的預設 display:none,補回 */
@@ -1033,20 +1049,28 @@
     .badge { top: 8px; left: 8px; gap: 9px; padding: 5px 11px 6px; }
     .badge .clock { font-size: 18px; }
     .badge .count { font-size: 12px; }
-    /* 手機:時刻板改底部 sheet,工具鈕改右上直排;帶文字後變寬,起點下移到時鐘徽章下方免得蓋住班次數 */
-    .stage-tools { top: 56px; right: 8px; bottom: auto; flex-direction: column; gap: 0; }
-    /* 吐司改靠左收窄:置中近全寬會蓋住同列(top:56,見 1024 媒體塊)右上的 ☰ 工具 FAB 達 60 秒(審查發現);讓開 FAB 寬度 */
+    /* 手機:時刻板改底部 sheet,工具鈕改右上直排。「☰ 工具」FAB 上移到 top:8,與左上時鐘徽章同一列對齊(徽章 left:8、FAB right:8) */
+    .stage-tools { top: 8px; right: 8px; bottom: auto; flex-direction: column; gap: 0; }
+    /* 吐司靠左收窄:右上 top:56 是獨立全畫面鈕 #fsFab(44px),置中近全寬吐司會擦到它;max-width 讓開其寬度(FAB 已上移到 top:8,不再同列) */
     .rec-toast { left: 8px; transform: none; max-width: calc(100% - 124px); }
     .stage-tools button + button { border-left: 0; border-top: 1px solid #ece2c8; } /* 直排工具條:分隔線改橫向 */
     /* 工具抽屜:帶字大鈕整排常駐會蓋掉小螢幕地圖(跟隨/全畫面看不到車)——
        平時只露一顆「☰ 工具」,點開才展開,點任一工具自動收回(JS) */
     #toolsFab { display: flex; }
     body:not(.tools-open) .stage-tools > button:not(#toolsFab) { display: none; }
-    /* 抽屜展開時只需限高可捲(工具條本體已是單一紙牌) */
+    /* 抽屜展開時限高可捲(工具條本體已是單一紙牌)。起點上移到 top:8 後,可用高度增加,reserve 從 110→62(8 頂+底部 randBtn/版權字餘裕)。
+       z-index 抬到 705(公告橫幅)之上:抽屜下展會蓋到橫幅一列,但本體不透明,短暫遮蓋可接受,收合即還原 */
     body.tools-open .stage-tools {
-      max-height: calc(100% - 110px); overflow-y: auto;
+      max-height: calc(100% - 62px); overflow-y: auto; z-index: 710;
       scrollbar-width: thin; scrollbar-color: #c9b98f transparent;
     }
+    /* 抽屜展開時工具鈕撐寬到最長標籤(~120px);FAB 若跟著撐寬,其左緣會伸進同列(top:8)的時鐘徽章。
+       FAB 改貼右不撐寬(內容寬,右緣仍對齊按鈕欄),留在徽章右側不相交;下方工具鈕照舊等寬整齊。 */
+    body.tools-open .stage-tools > #toolsFab { align-self: flex-end; }
+    /* 獨立全畫面鈕(手機):落在「☰ 工具」FAB 上移後空出的 top:56 位置;有橫幅時下移一階;抽屜展開時暫藏免得被抽屜壓住 */
+    #fsFab { top: 56px; right: 8px; }
+    .alert-banner:not([hidden]) ~ #fsFab { top: 96px; }
+    body.tools-open #fsFab { display: none; }
     /* 版權字(衛星模式一長串)單行省略,不換行蓋到跟隨卡 */
     .leaflet-control-attribution {
       max-width: calc(100vw - 40px); white-space: nowrap;
@@ -1068,8 +1092,7 @@
     /* 桌面全畫面的 right:60px(讓開右側直排工具列)不適用手機——手機 fs 工具列已收成抽屜;
        不補會洩漏成:橫幅不對稱、詳情框左緣 -44px 被裁、看板 sheet 右縮 */
     body.fs .alert-banner, body.fs .alert-detail, body.fs .board { right: 8px; }
-    /* 橫幅出現時,右上工具欄與停站牌往下讓一階 */
-    .alert-banner:not([hidden]) ~ .stage-tools { top: 96px; }
+    /* 橫幅出現時停站牌往下讓一階(「☰ 工具」FAB 已在 top:8,橫幅在其下方一列,不需再讓;獨立全畫面鈕的讓位見上方 ~ #fsFab) */
     .alert-banner:not([hidden]) ~ .dwell-plate { top: 96px; }
     /* 平交道說明卡:手機置中會與右上「☰」工具 FAB 同列擦邊(審查發現 1px 重疊),
        整卡下移到工具列下方一階,靠垂直間隔避開;橫幅在時再讓一階 */
@@ -1146,7 +1169,7 @@
     .kbd-hint { display: none; }
     /* 手機全畫面:資訊卡太佔位就不浮出,控制列貼底、面板讓位 */
     body.fs .traincard { display: none; }
-    /* 播放面板壓扁:速度/時間各佔整行時五行高近 200px,會蓋住右上工具抽屜最底的錄影鈕 */
+    /* 「展開」控制列(cexp)與放空/直播沿用:速度/時間各佔整行時五行高近 200px,壓扁成一排 */
     body.fs .controls { bottom: 8px; width: calc(100vw - 16px); padding: 6px 10px; gap: 6px 8px; }
     body.fs .controls .ctl { flex: 0 1 auto; flex-wrap: nowrap; }
     body.fs .controls .ctl input[type=range] { flex: none; width: 72px; }
@@ -1154,8 +1177,43 @@
     /* 工具抽屜下緣讓開貼底播放面板(320px 窄機面板換行後約 155px 高),錄影鈕才點得到 */
     body.fs.tools-open .stage-tools { max-height: calc(100% - 230px); }
     body.fs .follow-panel { bottom: 132px; width: 176px; } /* 桌面 fs 的 300px 寬不洩漏進手機 */
-    body.fs .stage-tools { top: 56px; } /* 帶文字的工具鈕同樣讓開左上時鐘徽章 */
+    body.fs .stage-tools { top: 8px; } /* 「☰ 工具」FAB 與一般模式同列 top:8,對齊左上時鐘徽章 */
     body.fs #randBtn { bottom: 178px; } /* 讓開手機 fs 換行後約 155px 高的貼底播放面板 */
+
+    /* ── 手機全畫面速度控制膠囊(僅 ≤640 且 body.fs,且非放空非直播;桌面與放空/直播完全不變) ──
+       預設 slim:貼底置中細長膠囊,只露 ▶/⏸ + 目前倍速 + 模擬時刻(單手可點、一眼可讀)。
+       點膠囊本體(非 ▶/⏸)→ JS 加 .cexp 展開成完整控制列;展開 5s 無互動自動收回;
+       膠囊再閒置 5s → 加 .cfaint 淡成半透明把手(保留倍速);任何觸碰即回實體(見 setupFsCapsule)。 */
+    body.fs:not(.ambient):not(.live):not(.cexp) .controls {
+      left: 50%; right: auto; transform: translateX(-50%);
+      bottom: 10px; width: max-content; max-width: calc(100vw - 24px);
+      flex-wrap: nowrap; align-items: center; gap: 7px;
+      padding: 5px 14px; border-radius: 999px; cursor: pointer;
+      transition: opacity .5s ease;
+    }
+    /* 膠囊只留 #pp 圖示 + 倍速 output + 時刻 output;其餘控件(滑桿/預設鈕/標籤/時間選擇/現在/放空/音樂)全收 */
+    body.fs:not(.ambient):not(.live):not(.cexp) .controls #ppTxt,
+    body.fs:not(.ambient):not(.live):not(.cexp) .controls .ctl label,
+    body.fs:not(.ambient):not(.live):not(.cexp) .controls #speed,
+    body.fs:not(.ambient):not(.live):not(.cexp) .controls #spdBtns,
+    body.fs:not(.ambient):not(.live):not(.cexp) .controls #tod,
+    body.fs:not(.ambient):not(.live):not(.cexp) .controls #todPick,
+    body.fs:not(.ambient):not(.live):not(.cexp) .controls #nowBtn,
+    body.fs:not(.ambient):not(.live):not(.cexp) .controls #ambientBtn,
+    body.fs:not(.ambient):not(.live):not(.cexp) .controls #ambientStyleBtn,
+    body.fs:not(.ambient):not(.live):not(.cexp) .controls #musicCtl { display: none; }
+    body.fs:not(.ambient):not(.live):not(.cexp) .controls .ctl { flex: none; gap: 0; margin: 0; padding: 0; border: 0; min-width: 0; }
+    body.fs:not(.ambient):not(.live):not(.cexp) .controls .tod-wrap { padding: 0; }
+    body.fs:not(.ambient):not(.live):not(.cexp) .controls #pp { padding: 3px 6px; font-size: 15px; background: none; border: 0; box-shadow: none; color: #1e2c40; }
+    body.fs:not(.ambient):not(.live):not(.cexp) .controls #speedOut { font-size: 14.5px; font-weight: 800; color: #d23c2a; min-width: 0; }
+    body.fs:not(.ambient):not(.live):not(.cexp) .controls #todOut { font-size: 14px; font-weight: 700; color: #2a4a73; min-width: 0; }
+    /* 閒置淡成半透明把手:整條變淡,倍速數字仍讀得到(藏 ▶/⏸ 與時刻,只留倍速) */
+    body.fs:not(.ambient):not(.live):not(.cexp).cfaint .controls { opacity: .5; padding: 4px 13px; }
+    body.fs:not(.ambient):not(.live):not(.cexp).cfaint .controls #pp,
+    body.fs:not(.ambient):not(.live):not(.cexp).cfaint .controls #todOut { display: none; }
+    /* 膠囊(slim/faint)時卡片依新膠囊高度重新讓位:跟隨卡(跟隨時 JS placeFsOverlays 動態量高覆寫)與隨機鈕不需再讓開整條控制列 */
+    body.fs:not(.ambient):not(.live):not(.cexp) .follow-panel { bottom: 60px; }
+    body.fs:not(.ambient):not(.live):not(.cexp) #randBtn { bottom: 60px; }
     /* 放空模式(手機):看戲不操作——控制列只留「離開放空」一顆,跟隨卡縮成迷你條
       (車次+速度+下一站),別把列車蓋掉;速度/時間/音樂等設定進放空前調好 */
     body.ambient .controls > :not(#ambientBtn):not(#ambientStyleBtn) { display: none; }
@@ -1170,6 +1228,12 @@
     body.ambient .follow-panel .fp-head .spd b { font-size: 15px; } /* 176px 迷你卡同理:三位數時速也不換行 */
     body.ambient .follow-panel .fp-next .stn { font-size: 14px; white-space: nowrap; }
     body.ambient.fs .follow-panel { bottom: 8px; } /* 「離開放空」已靠右下,左下角整個還給迷你卡 */
+  }
+
+  /* ── 桌面(≥641):獨立全畫面鈕 #fsFab 佔右上角 top:12/right:12,原本擠在該角的橫幅/詳情/平交道卡/看板整體左移 52px 讓開(44px 鈕+8 間距) ── */
+  @media (min-width: 641px) {
+    .alert-banner, .alert-detail, .xing-card, .board { right: 64px; }
+    body.fs .stage-tools { top: 64px; } /* 桌面全畫面右上直排工具列起點下移,讓開 #fsFab */
   }
 </style>
 </head>
@@ -1306,9 +1370,13 @@
       <button id="trackBtn" title="軌道顯示：自動（夜間自動淡化）→ 淡化 → 隱藏"><span class="ti">軌</span><span class="tl">軌道顯示</span></button>
       <button id="xingBtn" title="顯示平交道位置"><span class="ti">平</span><span class="tl">平交道</span></button>
       <button id="immBtn" title="極簡沉浸（只留地圖與列車）"><span class="ti">簡</span><span class="tl">極簡沉浸</span></button>
-      <button id="fsBtn" title="全畫面地圖（Esc 退出）"><span class="ti">⛶</span><span class="tl">全畫面</span></button>
       <button id="recBtn" title="錄影 Beta（存成影片下載）"><span class="ti">⏺</span><span class="tl">錄影 Beta</span></button>
     </div>
+    <!-- 全畫面切換獨立鈕(移出工具抽屜,常駐地圖上,手機也點得到):進入=四角外展,fs 中=四角內收 -->
+    <button id="fsFab" type="button" title="全畫面地圖（Esc 退出）" aria-label="全畫面">
+      <svg class="fs-ic fs-ic-open" viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 9V5a1 1 0 0 1 1-1h4M20 9V5a1 1 0 0 0-1-1h-4M4 15v4a1 1 0 0 0 1 1h4M20 15v4a1 1 0 0 1-1 1h-4"/></svg>
+      <svg class="fs-ic fs-ic-close" viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 4v4a1 1 0 0 1-1 1H4M15 4v4a1 1 0 0 0 1 1h4M9 20v-4a1 1 0 0 0-1-1H4M15 20v-4a1 1 0 0 1 1-1h4"/></svg>
+    </button>
     <div class="rec-pill" id="recPill" hidden title="停止錄影並下載影片"><span class="rd"></span>REC <span id="recTime">0:00</span><span class="rstop">停止</span></div>
     <div class="rec-toast" id="recToast" hidden><span id="recToastTxt"></span><button id="recRedl">再下載一次</button><button class="x" id="recToastX" title="關閉">×</button></div>
     <div class="badge">
@@ -1333,7 +1401,7 @@
     </div>
     <div class="board" id="board" hidden></div>
     <div class="xing-card" id="xingCard" hidden></div>
-    <div class="xing-help" id="xingHelp" hidden>顯示全台 394 處台鐵平交道。點擊任一平交道，可查看接下來通過的列車與倒數。預測依時刻表與即時誤點推算，遮斷機通常提前 30–60 秒動作，請以現場號誌為準。</div>
+    <div class="xing-help" id="xingHelp" hidden>顯示全台 415 處台鐵平交道（官方公開資料）。點擊任一平交道，可查看接下來通過的列車與倒數；貨運／專用線上的道口僅標示位置。預測依時刻表與即時誤點推算，遮斷機通常提前 30–60 秒動作，請以現場號誌為準。</div>
     <div class="board" id="favPanel" hidden></div>
     <div class="board" id="ridePanel" hidden></div>
     <div class="board" id="explorePanel" hidden></div>
@@ -1415,9 +1483,11 @@
 
   <footer class="site-foot">
     <details class="foot-box">
-      <summary><span>🛠 更新紀錄</span><span class="foot-sub">最後更新：2026/7/12</span></summary>
+      <summary><span>🛠 更新紀錄</span><span class="foot-sub">最後更新：2026/7/13</span></summary>
       <ul class="foot-list">
-        <li><span class="d">7/12</span><span>平交道功能：開啟地圖角落「平」鈕後，顯示全台 394 處台鐵平交道位置，點擊查看接下來通過的列車——車次、方向、預計通過時刻與倒數；依時刻表推算僅供參考，請以現場號誌為準（謝謝網友建議）</span></li>
+        <li><span class="d">7/13</span><span>手機介面整修：「工具」鈕上移與左上時鐘對齊；全畫面改為地圖上的獨立按鈕——原本藏在工具列深處、小螢幕上點不到（謝謝網友回報）；全畫面時速度控制縮成小膠囊，點一下展開、閒置自動收合，不再擋住地圖與平交道資訊</span></li>
+        <li><span class="d">7/13</span><span>平交道對齊官方現役 415 處：補上台中港線等貨運／專用線上的 21 處道口——這些路段本圖未收錄列車，點開僅標示位置、不提供班次預測</span></li>
+        <li><span class="d">7/12</span><span>平交道功能：開啟地圖角落「平」鈕後，顯示全台台鐵平交道位置，點擊查看接下來通過的列車——車次、方向、預計通過時刻與倒數；依時刻表推算僅供參考，請以現場號誌為準（謝謝網友建議）</span></li>
         <li><span class="d">7/12</span><span>省電大改：待機時繪製降頻至 30fps、高解析螢幕繪製上限 2×、切到背景分頁完全停繪——手機與筆電掛著看明顯省電；跟隨、放空、錄影時維持原本流暢度</span></li>
         <li><span class="d">7/12</span><span>縣市快速移動：系統頁籤列新增「縣市」選單，選了直接飛到該縣市的軌道範圍（謝謝網友建議）</span></li>
         <li><span class="d">7/12</span><span>環狀線營運方標示：導言註明環狀線由新北捷運營運，不再被讀成台北捷運路線（謝謝網友指正）</span></li>
@@ -1498,7 +1568,7 @@
 <script>
 // 版本戳記:每次改版 push 前手動遞增(字母序),畫面時鐘徽章與 console 都會顯示,
 // 供比對線上跑的是不是最新版(瀏覽器快取 max-age=600 常讓人看到舊版)
-const BUILD = 'v0712j';
+const BUILD = 'v0712n';
 const state = {
   systems: [], sysId: null, data: null, speed: 36, mode: 'freq',
   lines: [], visible: new Set(), trains: [], schedStations: [], types: [],
@@ -2286,7 +2356,7 @@ function drawSched(w, h) {
   if (state.xingOn && z >= 12 && state.crossings && state.crossings.length) {
     const cb = map.getBounds().pad(0.06);
     for (const cr of state.crossings) {
-      if (state.trackVisible && !state.trackVisible.has(cr.lnId)) continue; // 只顯示屬於當前已載入線形的平交道
+      if (state.trackVisible && !cr.noSched && !state.trackVisible.has(cr.lnId)) continue; // 只顯示屬於當前已載入線形的平交道(noSched 筆無 lnId,一律放行)
       if (!cb.contains([cr.lat, cr.lon])) continue;                          // 僅視口內才計算/繪製
       const cp = map.latLngToContainerPoint([cr.lat, cr.lon]);
       drawCrossing(cp);
@@ -2651,9 +2721,12 @@ function closeCrossingCard() {
 function renderCrossingCard() {
   const cr = state.crossingSel; if (!cr) return;
   state._xingRenderedAt = state.simSec;
-  const list = crossingPasses(cr);
-  const lnName = XING_LN_NAME[cr.lnId] || cr.lnId;
-  const rows = list.length ? list.map(r => {
+  // noSched 筆(貨運港線/專用線/已停用線,官方 415 處中的 21 處):不掛線形,無列車模擬——只標點不算班次
+  const list = cr.noSched ? [] : crossingPasses(cr);
+  const lnName = cr.noSched ? (cr.xline || '專用線') : (XING_LN_NAME[cr.lnId] || cr.lnId);
+  const rows = cr.noSched
+    ? `<div class="xc-empty">此道口位於${cr.xline || '貨運／專用'}——本圖未收錄該路段列車，無法提供通過班次預測</div>`
+    : list.length ? list.map(r => {
     const mm = Math.floor(r.delta / 60), ss = Math.floor(r.delta % 60);
     const cd = String(mm).padStart(2, '0') + ':' + String(ss).padStart(2, '0');
     const dl = r.delayMin > 0 ? `<span class="xc-dl">+${r.delayMin}分</span>` : '';
@@ -2663,6 +2736,7 @@ function renderCrossingCard() {
       `<span class="xc-time">${fmtHM(r.pass)}${dl}</span>` +
       `<span class="xc-cd">${cd}</span></div>`;
   }).join('') : `<div class="xc-empty">未來 60 分鐘無列車通過</div>`;
+
   const ico = `<svg class="xc-ico" width="18" height="18" viewBox="0 0 18 18" aria-hidden="true">` +
     `<circle cx="9" cy="9" r="7.2" fill="none" stroke="currentColor" stroke-width="1.6"/>` +
     `<path d="M4.5 4.5 L13.5 13.5 M4.5 13.5 L13.5 4.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>`;
@@ -5164,7 +5238,7 @@ function setBasemap() {
   }
 }
 function setupMapTools() {
-  const fsBtn = document.getElementById('fsBtn');
+  const fsFab = document.getElementById('fsFab');
   const themeBtn = document.getElementById('themeBtn');
   const satBtn = document.getElementById('satBtn');
   // 手機工具抽屜:預設收合只露「☰ 工具」,點開展開整排;點任一工具後自動收回(小螢幕地圖不被長排大鈕蓋住)
@@ -5215,9 +5289,9 @@ function setupMapTools() {
   state._placeFsOverlays = placeFsOverlays;
   function setFs(on) {
     document.body.classList.toggle('fs', on);
-    fsBtn.querySelector('.ti').textContent = on ? '×' : '⛶';
-    fsBtn.querySelector('.tl').textContent = on ? '退出全畫面' : '全畫面';
-    fsBtn.title = on ? '退出全畫面（Esc）' : '全畫面地圖（Esc 退出）';
+    // #fsFab 是 SVG 圖示鈕(展開/收合箭頭由 body.fs CSS 切換),只更新無障礙標籤與提示
+    fsFab.title = on ? '退出全畫面（Esc）' : '全畫面地圖（Esc 退出）';
+    fsFab.setAttribute('aria-label', on ? '退出全畫面' : '全畫面');
     // 瀏覽器真全螢幕(Fullscreen API):吃掉網址列/分頁列;需在使用者手勢內呼叫,失敗就退回 CSS 版全畫面
     try {
       if (on && !document.fullscreenElement) {
@@ -5230,19 +5304,65 @@ function setupMapTools() {
     } catch (e) {}
     placeTrainCard(); // 進出全畫面:資訊卡在「併入跟隨面板」與「地圖下方」之間搬移
     placeFsOverlays(on); // 同步執行:class 已套用,量得到 fs 版控制列高度
+    if (state._fsCapsuleSync) state._fsCapsuleSync(true); // 手機全畫面速度控制膠囊:進 fs 起手 slim、出 fs 清狀態
     requestAnimationFrame(() => { map.invalidateSize(); reproject(); });
     if (!on && state.ambient) setAmbient(false); // 退出全畫面=退出放空
   }
   state._setFs = setFs;
+  // ── 手機全畫面速度控制膠囊狀態機(僅 ≤640 & fs & 非放空非直播;膠囊/展開/把手的樣式見 640 媒體塊)──
+  (function setupFsCapsule() {
+    const controls = document.querySelector('.controls');
+    const pp = document.getElementById('pp');
+    const body = document.body;
+    let collapseT = null, faintT = null, sliderHold = false, wokeFromFaint = false;
+    const capsule = () => body.classList.contains('fs')
+      && window.matchMedia('(max-width: 640px)').matches
+      && !body.classList.contains('ambient') && !body.classList.contains('live');
+    const clearTimers = () => { clearTimeout(collapseT); clearTimeout(faintT); collapseT = faintT = null; };
+    const syncOverlays = () => { if (body.classList.contains('fs')) placeFsOverlays(true); }; // 膠囊高度變 → 跟隨卡/鈕依實高重新讓位
+    function scheduleCollapse() { clearTimers(); if (!sliderHold) collapseT = setTimeout(toSlim, 5000); } // 展開 5s 無互動 → slim
+    function scheduleFaint() { clearTimers(); if (!sliderHold) faintT = setTimeout(toFaint, 5000); }      // slim 閒置 5s → 淡成把手
+    function toExpanded() { if (!capsule()) return; body.classList.add('cexp'); body.classList.remove('cfaint'); scheduleCollapse(); syncOverlays(); }
+    function toSlim() { if (!capsule()) return; body.classList.remove('cexp', 'cfaint'); scheduleFaint(); syncOverlays(); }
+    function toFaint() { if (!capsule()) return; body.classList.remove('cexp'); body.classList.add('cfaint'); syncOverlays(); }
+    // 展開或 slim 中任何互動重置對應計時器(拖曳中除外)
+    function bump() { if (!capsule() || sliderHold) return; if (body.classList.contains('cexp')) scheduleCollapse(); else if (!body.classList.contains('cfaint')) scheduleFaint(); }
+    controls.addEventListener('pointerdown', bump);
+    // faint 把手:任何觸碰立即回實體(slim),且吞掉同一次點擊的展開(「回實體」與「展開」分兩次操作)
+    controls.addEventListener('touchstart', () => { if (capsule() && body.classList.contains('cfaint')) { wokeFromFaint = true; toSlim(); } }, { passive: true });
+    // 點膠囊本體(非 ▶/⏸)→ 展開;▶/⏸ 照常播放暫停;已展開則交給內部真控件
+    controls.addEventListener('click', (e) => {
+      if (!capsule()) return;
+      if (pp.contains(e.target)) return;
+      if (wokeFromFaint) { wokeFromFaint = false; return; }
+      if (body.classList.contains('cexp')) return;
+      toExpanded();
+    });
+    // 滑桿拖曳/觸摸中暫停計時,放手才重新計時(避免調速中膠囊突然收掉)
+    const release = () => { if (!sliderHold) return; sliderHold = false; if (!capsule()) return; if (body.classList.contains('cexp')) scheduleCollapse(); else if (!body.classList.contains('cfaint')) scheduleFaint(); };
+    ['speed', 'tod', 'musicVol'].forEach(id => {
+      const el = document.getElementById(id); if (!el) return;
+      const hold = () => { sliderHold = true; clearTimers(); };
+      el.addEventListener('pointerdown', hold);
+      el.addEventListener('touchstart', hold, { passive: true });
+    });
+    window.addEventListener('pointerup', release);
+    window.addEventListener('touchend', release);
+    // 進出 fs / 尺寸變 / 放空切換時同步:force=進膠囊模式一律起手 slim;非 force=只在尚無膠囊狀態時初始化(避免手機網址列縮放把展開中的膠囊收掉)
+    state._fsCapsuleSync = (force) => {
+      if (capsule()) { if (force || (!body.classList.contains('cexp') && !body.classList.contains('cfaint'))) toSlim(); }
+      else { clearTimers(); sliderHold = false; body.classList.remove('cexp', 'cfaint'); }
+    };
+  })();
   window.addEventListener('resize', () => {
-    if (document.body.classList.contains('fs')) placeFsOverlays(true);
+    if (document.body.classList.contains('fs')) { placeFsOverlays(true); if (state._fsCapsuleSync) state._fsCapsuleSync(false); }
   });
   // 真全螢幕被使用者(Esc/F11/系統手勢)退掉時,同步收掉 CSS 全畫面狀態並重排地圖
   document.addEventListener('fullscreenchange', () => {
     if (!document.fullscreenElement && document.body.classList.contains('fs')) setFs(false);
     requestAnimationFrame(() => { map.invalidateSize(); reproject(); });
   });
-  fsBtn.onclick = () => setFs(!document.body.classList.contains('fs'));
+  fsFab.onclick = () => setFs(!document.body.classList.contains('fs'));
   document.addEventListener('keydown', e => { if (e.key === 'Escape' && document.body.classList.contains('fs')) setFs(false); });
 
   // ── 極簡沉浸:全畫面時收掉左下資訊卡與跟隨橫幅,只留地圖＋列車,仍持續跟車 ──
@@ -5710,7 +5830,7 @@ document.addEventListener('keydown', e => {
   if (tg && (tg.tagName === 'INPUT' || tg.tagName === 'TEXTAREA' || tg.isContentEditable)) return;
   if (tg && tg.tagName === 'BUTTON') tg.blur(); // 避免空白鍵同時觸發聚焦中的按鈕
   if (e.code === 'Space') { e.preventDefault(); togglePlay(); }
-  else if (e.key === 'f' || e.key === 'F') document.getElementById('fsBtn').click();
+  else if (e.key === 'f' || e.key === 'F') document.getElementById('fsFab').click();
   else if (e.key === 'ArrowLeft' && state.mode === 'sched') setSimSec(state.simSec - 600);
   else if (e.key === 'ArrowRight' && state.mode === 'sched') setSimSec(state.simSec + 600);
   else { const v = { 1: 1, 2: 10, 3: 30, 4: 60 }[e.key]; if (v) setSpeed(v); }
