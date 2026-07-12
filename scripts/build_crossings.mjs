@@ -193,13 +193,24 @@ async function main() {
   for (const n of withPos) {
     const pt = [n.lat, n.lon];
     if (EXCLUDED_LINES.has(n.line)) {
-      // 診斷用:仍算出全網最近線,供稽核報告判斷是否真的無關
-      let diag = null;
-      for (const id of allLnIds) {
-        const r = projectPoint(pt, lineById.get(id).shape, cumOfLine(id));
-        if (!diag || r.dist < diag.dist) diag = { lnId: id, dist: r.dist };
-      }
-      excluded.push({ name: n.name, line: n.line, county: n.county, reason: '港區/專用/特種支線/未分類,無對應現行線形', diagLnId: diag.lnId, diagDistM: +(diag.dist * 1000).toFixed(1) });
+      // 2026-07-13 使用者裁決:官方現役 415 處全數上圖。不在我們路網上的(台中港線等貨運支線、
+      // 高雄港線/林口線等已停用線)用官方原始座標直接標點,不掛線形、不給班次預測(noSched),
+      // 前端卡片改顯示 xline 線別說明——官方說有的都標,但不對沒模擬的線編造預測
+      matched.push({
+        name: n.name,
+        type: n.type,
+        county: n.county,
+        lnId: '', // 不掛線形:d/snapDist 無意義
+        d: 0,
+        lat: +n.lat.toFixed(6),
+        lon: +n.lon.toFixed(6),
+        rawLat: +n.lat.toFixed(6),
+        rawLon: +n.lon.toFixed(6),
+        snapDistM: null,
+        src: 'tra',
+        noSched: true,
+        xline: n.line,
+      });
       continue;
     }
     const candidates = LINE_MAP[n.line];
@@ -372,14 +383,15 @@ async function main() {
     source_notes: `官方 XML 共 ${all.length} 筆,含座標 ${withPos.length} 筆(src:tra;與台鐵官方公布現役平交道數一致,無座標 ${all.length - withPos.length} 筆為已裁撤/立體化)。` +
       (osmMerged.length ? `另以 OpenStreetMap (Overpass) railway=level_crossing 節點投影 data/tra.json 線形(≤${SNAP_MAX_M}m)補缺 ${osmMerged.length} 筆(src:osm),` +
         `對官方去重、OSM 內部聚類雙軌;OSM 筆命名取通過道路名(無名者「平交道」),縣市取最近官方筆。` : '') +
-      `座標投影取沿線位置(d,km,haversine 弧長,算法與站點 d 一致);港區/專用/特種支線等無對應現行線形者排除。合計 ${cleanOut.length} 筆。`,
+      `座標投影取沿線位置(d,km,haversine 弧長,算法與站點 d 一致);貨運港線/專用線/已停用線上的 ${cleanOut.filter(c => c.noSched).length} 筆` +
+      `不掛線形、標 noSched(僅標點,無班次預測)。合計 ${cleanOut.length} 筆。`,
     crossings: cleanOut,
   };
   writeFileSync(path.join(ROOT, 'data/crossings.json'), JSON.stringify(out));
 
   // ─────────────── console 統計(供稽核報告引用) ───────────────
   const pctOf = arr => { const s = [...arr].sort((a, b) => a - b); return p => s[Math.min(s.length - 1, Math.floor(s.length * p))]; };
-  const traDists = matched.map(m => m.snapDistM);
+  const traDists = matched.filter(m => m.snapDistM != null).map(m => m.snapDistM);
   const osmDists = osmMerged.map(m => m.snapDistM);
   const tp = pctOf(traDists), op = pctOf(osmDists);
   console.log(`\n=== 合計 ${merged.length} 筆(官方 ${matched.length} + OSM ${osmMerged.length}) ===`);
@@ -390,7 +402,7 @@ async function main() {
 
   // 可疑清單:聚類後仍與同線鄰筆 <80m、無名筆、snapDist 25–30m 邊緣筆
   let nearNbr = 0;
-  for (let i = 1; i < merged.length; i++) if (merged[i].lnId === merged[i - 1].lnId && Math.abs(merged[i].d - merged[i - 1].d) * 1000 < 80) nearNbr++;
+  for (let i = 1; i < merged.length; i++) if (merged[i].lnId && merged[i].lnId === merged[i - 1].lnId && Math.abs(merged[i].d - merged[i - 1].d) * 1000 < 80) nearNbr++;
   const unnamed = osmMerged.filter(m => m.name.startsWith('平交道(')).length;
   const edgeSnap = osmMerged.filter(m => m.snapDistM >= 25).length;
   console.log(`可疑:同線<80m 鄰筆對 ${nearNbr};OSM 無名筆 ${unnamed}/${osmMerged.length};OSM snapDist 25–30m 邊緣 ${edgeSnap}`);
