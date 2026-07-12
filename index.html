@@ -1368,7 +1368,7 @@
 <script>
 // 版本戳記:每次改版 push 前手動遞增(字母序),畫面時鐘徽章與 console 都會顯示,
 // 供比對線上跑的是不是最新版(瀏覽器快取 max-age=600 常讓人看到舊版)
-const BUILD = 'v0711w';
+const BUILD = 'v0712a';
 const state = {
   systems: [], sysId: null, data: null, speed: 36, mode: 'freq',
   lines: [], visible: new Set(), trains: [], schedStations: [], types: [],
@@ -1472,7 +1472,7 @@ function textColorFor(hex) {
 function reproject() {
   if (!map || !state.data) return;
   const size = map.getSize();
-  state.dpr = window.devicePixelRatio || 1;
+  state.dpr = Math.min(window.devicePixelRatio || 1, 2); // 省電:主畫布 dpr 上限 2x(比照錄影 REC.scale;3x 螢幕多畫 2.25 倍像素卻幾乎看不出差)
   // 尺寸沒變不重設緩衝區:設 cv.width 會清空 canvas,若發生在本幀 draw 之後(如 panTo/flyTo
   // 動畫的 move 事件),畫好的列車會整幀被抹掉;順帶省去每次 move 的 buffer 重配
   const bw = Math.round(size.x * state.dpr), bh = Math.round(size.y * state.dpr);
@@ -2436,6 +2436,7 @@ function freqTrainAt(cp) {
 
 function draw() {
   if (!state.ready) return;
+  state._drawCount = (state._drawCount || 0) + 1; // 省電節流的實測計數器(測試讀取繪製頻率用)
   const w = cv.width / state.dpr, h = cv.height / state.dpr;
   ctx.clearRect(0, 0, w, h);
   state._trainHits = [];
@@ -2488,7 +2489,14 @@ function tick(now) {
   if (state._skyClock >= 0.5) { state._skyClock = 0; updateSkyTint(); }
   state._liveClock = (state._liveClock || 0) + dt;
   if (state._liveClock >= 1) { state._liveClock = 0; updateLiveBadge(); }
-  draw();
+  // 省電三板斧(繪製節流,不動上面的時間積分):
+  // (1) 分頁隱藏停繪——時間照積分,只是不畫;錄影中例外(recCompose 每幀從主畫布拷貝,停繪會凍結成靜止幀)
+  // (2) 待機時 draw 節流到 ~30fps;跟隨/幽靈車跟隨/放空/錄影/剛互動(1.5s 內)維持顯示器全速,體驗優先
+  if (!document.hidden || REC.on) {
+    const fullRate = state.followTrain || state.freqFollow || state.ambient || REC.on ||
+                     (now - (state._interactAt || 0) < 1500);
+    if (fullRate || now - (state._drawAt || 0) >= 30) { state._drawAt = now; draw(); } // 30ms 門檻→~30fps(略低於 33 免 60Hz 誤跳成 20fps)
+  }
   requestAnimationFrame(tick);
 }
 
@@ -3405,6 +3413,8 @@ function releaseWakeLock() {
 }
 document.addEventListener('visibilitychange', () => {
   if (state.ambient && document.visibilityState === 'visible') acquireWakeLock();
+  // 省電:隱藏期間停繪,回前景立即補一幀(否則畫面停在切走前的舊格,等下一次節流才更新)
+  if (!document.hidden && state.ready) { state._drawAt = performance.now(); draw(); }
 });
 
 // 閒置 5 秒淡出控制列,滑鼠/按鍵/觸碰喚回
@@ -5185,6 +5195,12 @@ async function boot() {
   setupMapTools();
   setupRecorder();
   map.on('move zoom resize zoomanim', reproject);
+  // 省電:互動時標記時戳,tick 據此維持全速 1.5s(見 tick 節流)。map 'move'/'zoom' 覆蓋整段拖曳/縮放
+  // (滑鼠拖曳中只有 pointermove 不重發,靠 map move 續命);pointerdown/wheel/touch 覆蓋點擊與觸控起手
+  const markInteract = () => { state._interactAt = performance.now(); };
+  map.on('movestart move zoomstart zoom dragstart', markInteract);
+  ['pointerdown', 'wheel', 'touchstart', 'touchmove'].forEach(ev =>
+    document.addEventListener(ev, markInteract, { passive: true }));
 
   for (const d of SYS_DEFS) {
     const data = await fetchJSON(d.url);
