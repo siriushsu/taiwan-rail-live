@@ -326,6 +326,39 @@
     font-variant-numeric: tabular-nums;
   }
 
+  /* 平交道通過預測卡(點地圖上的平交道記號時彈出;紙卡風,右上角同看板欄) */
+  .xing-card {
+    position: absolute; top: 12px; right: 12px; z-index: 660;
+    width: 264px; max-width: calc(100% - 24px); max-height: calc(100% - 176px);
+    overflow-y: auto; background: rgba(255,253,246,.98);
+    border: 2px solid #2a4a73; border-radius: 10px;
+    box-shadow: 0 3px 0 rgba(42,74,115,.22);
+    font-variant-numeric: tabular-nums;
+    scrollbar-width: thin; scrollbar-color: #c9b98f transparent;
+  }
+  .xing-card .xc-head {
+    display: flex; align-items: center; gap: 9px; position: sticky; top: 0;
+    background: #2a4a73; color: #fffdf6; padding: 8px 10px 8px 12px;
+  }
+  .xing-card .xc-ico { flex: none; display: flex; opacity: .9; }
+  .xing-card .xc-ttl { flex: 1; min-width: 0; display: flex; flex-direction: column; line-height: 1.25; }
+  .xing-card .xc-ttl b { font-size: 16px; font-weight: 900; letter-spacing: 1px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .xing-card .xc-meta { font-size: 11px; font-weight: 600; opacity: .85; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .xing-card .xc-close { flex: none; background: none; border: 0; color: #fffdf6; font-size: 15px; line-height: 1; cursor: pointer; opacity: .82; padding: 2px 4px; }
+  .xing-card .xc-close:hover { opacity: 1; }
+  .xing-card .xc-list { padding: 2px 0; }
+  .xing-card .xc-row { display: flex; align-items: baseline; gap: 8px; padding: 6px 12px; border-top: 1px dashed #ece2c8; font-size: 12.5px; }
+  .xing-card .xc-row:first-child { border-top: 0; }
+  .xing-card .xc-no { font-weight: 800; color: #1e2c40; min-width: 40px; }
+  .xing-card .xc-kind { font-size: 11px; color: #7a6c50; flex: none; }
+  .xing-card .xc-dir { flex: 1; min-width: 0; color: #5d5240; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .xing-card .xc-time { font-weight: 700; color: #2a4a73; white-space: nowrap; }
+  .xing-card .xc-dl { font-size: 10.5px; font-weight: 800; color: #d23c2a; margin-left: 2px; }
+  .xing-card .xc-cd { font-weight: 800; color: #a3641a; min-width: 44px; text-align: right; }
+  .xing-card .xc-empty { padding: 15px 12px; text-align: center; color: #7a6c50; font-size: 12.5px; }
+  .xing-card .xc-foot { padding: 8px 12px 10px; border-top: 1.5px dashed #d8cba9; color: #a89468; font-size: 10.5px; line-height: 1.5; }
+  .alert-banner:not([hidden]) ~ .xing-card { top: 54px; }
+
   /* 跟隨小面板(地圖左下角，跟隨列車時顯示) */
   .follow-panel {
     position: absolute; left: 12px; bottom: 12px; z-index: 650;
@@ -1260,6 +1293,7 @@
       <div class="dp-intro" id="dpIntro" style="display:none"></div>
     </div>
     <div class="board" id="board" hidden></div>
+    <div class="xing-card" id="xingCard" hidden></div>
     <div class="board" id="favPanel" hidden></div>
     <div class="board" id="ridePanel" hidden></div>
     <div class="board" id="explorePanel" hidden></div>
@@ -1343,6 +1377,7 @@
     <details class="foot-box">
       <summary><span>🛠 更新紀錄</span><span class="foot-sub">最後更新：2026/7/12</span></summary>
       <ul class="foot-list">
+        <li><span class="d">7/12</span><span>平交道上線：地圖拉近即可見台鐵平交道位置（全台 394 處現役），點擊查看接下來通過的列車——車次、方向、預計通過時刻與倒數；依時刻表推算僅供參考，遮斷機通常提前動作，請以現場號誌為準（謝謝網友建議）</span></li>
         <li><span class="d">7/12</span><span>省電大改：待機時繪製降頻至 30fps、高解析螢幕繪製上限 2×、切到背景分頁完全停繪——手機與筆電掛著看明顯省電；跟隨、放空、錄影時維持原本流暢度</span></li>
         <li><span class="d">7/12</span><span>縣市快速移動：系統頁籤列新增「縣市」選單，選了直接飛到該縣市的軌道範圍（謝謝網友建議）</span></li>
         <li><span class="d">7/12</span><span>環狀線營運方標示：導言註明環狀線由新北捷運營運，不再被讀成台北捷運路線（謝謝網友指正）</span></li>
@@ -1423,7 +1458,7 @@
 <script>
 // 版本戳記:每次改版 push 前手動遞增(字母序),畫面時鐘徽章與 console 都會顯示,
 // 供比對線上跑的是不是最新版(瀏覽器快取 max-age=600 常讓人看到舊版)
-const BUILD = 'v0712g';
+const BUILD = 'v0712h';
 const state = {
   systems: [], sysId: null, data: null, speed: 36, mode: 'freq',
   lines: [], visible: new Set(), trains: [], schedStations: [], types: [],
@@ -1870,6 +1905,15 @@ function applySchedSystems(sysList) {
   if (sysList.some(s => s.special)) retimeLoopTrains(); // 貼軌後才有弧長,環島車此時才能鋪
   computeFlow();
   pollLive();  // 逐車即時誤點(schedSystems 中有 live 的系統,台鐵限定)
+  if (sysList.some(s => s.id === 'tra_sched')) ensureCrossings(); // 含台鐵才 lazy fetch 平交道(一次快取)
+}
+// 台鐵平交道資料:首次進入含台鐵的 sched 模式時抓一次,之後常駐快取
+async function ensureCrossings() {
+  if (state.crossings || state._crossPending) return;
+  state._crossPending = true;
+  const d = await fetchJSON('./data/crossings.json');
+  state.crossings = (d && d.crossings) || [];
+  state._crossPending = false;
 }
 
 function recomputeTrains() {
@@ -2197,6 +2241,17 @@ function drawSched(w, h) {
     ctx.strokeStyle = P.followCase; ctx.lineWidth = 8.5; ctx.stroke();
     ctx.strokeStyle = railDimColor(state.followTrain.color, FOLLOW_DIM); ctx.lineWidth = 4.4; ctx.stroke();
   }
+  // 台鐵平交道:zoom 深(≥13)才畫、僅視口內、記號墊在車站與列車之下(名稱進點擊卡片)
+  if (z >= 13 && state.crossings && state.crossings.length) {
+    const cb = map.getBounds().pad(0.06);
+    for (const cr of state.crossings) {
+      if (state.trackVisible && !state.trackVisible.has(cr.lnId)) continue; // 只顯示屬於當前已載入線形的平交道
+      if (!cb.contains([cr.lat, cr.lon])) continue;                          // 僅視口內才計算/繪製
+      const cp = map.latLngToContainerPoint([cr.lat, cr.lon]);
+      drawCrossing(cp);
+      state._crossHits.push({ x: cp.x, y: cp.y, cr }); // 供點擊命中(每幀重建)
+    }
+  }
   // 車站圖示(依站等分級):圖示墊在列車下、站名最後畫在最上層,遠景時小站不畫
   const labelCands = [];
   for (const st of state.schedStations) {
@@ -2335,6 +2390,19 @@ function drawStationIcon(cp, tier) {
   ctx.lineWidth = t.w; ctx.strokeStyle = t.ring;
   ctx.globalAlpha = tier >= 3 ? 0.8 : 1; ctx.stroke();
   ctx.globalAlpha = 1;
+}
+
+// 平交道記號:淺底小圓+交叉 X(鐵路道口意象),低調配色,墊在車站/列車之下
+function drawCrossing(cp) {
+  const r = 4.8, s = r * 0.6;
+  ctx.beginPath(); ctx.arc(cp.x, cp.y, r, 0, 7);
+  ctx.fillStyle = '#fffdf6'; ctx.globalAlpha = 0.95; ctx.fill(); ctx.globalAlpha = 1;
+  ctx.lineWidth = 1.4; ctx.strokeStyle = '#9c8a63'; ctx.stroke();
+  ctx.lineWidth = 1.4; ctx.strokeStyle = '#a24a2f';
+  ctx.beginPath();
+  ctx.moveTo(cp.x - s, cp.y - s); ctx.lineTo(cp.x + s, cp.y + s);
+  ctx.moveTo(cp.x - s, cp.y + s); ctx.lineTo(cp.x + s, cp.y - s);
+  ctx.stroke();
 }
 
 // ── 每日之最(探索面板 best 四項)的地圖識別:金色漣漪光環(車底,z 不拘) ──
@@ -2480,6 +2548,87 @@ function trainAt(cp) {
   }
   return best ? { tr: best.tr, dist: bd } : null;
 }
+
+// ── 台鐵平交道通過預測 ──────────────────────────────────────────────────────
+// 支線英文 id → 顯示線名(其餘 lnId 本身即中文線名)
+const XING_LN_NAME = { JIJI: '集集線', NEIWAN: '內灣線', PINGXI: '平溪線', SHENAO: '深澳線' };
+const XING_WIN = 3600; // 未來 60 分鐘
+// 平交道命中:_crossHits 由 drawSched 每幀重建(僅視口內),半徑內取最近者
+function crossingAt(cp) {
+  let best = null, bd = 15; // px
+  for (const h of (state._crossHits || [])) {
+    const d = Math.hypot(h.x - cp.x, h.y - cp.y);
+    if (d < bd) { bd = d; best = h; }
+  }
+  return best ? { cr: best.cr, dist: bd } : null;
+}
+// 精確法(演算法 A):對每班車,找其路徑上位於本平交道所屬線、且 dA/dB 夾住 crossing.d 的
+// 相鄰停靠段,依沿線里程比例線性插值出通過時刻(等同反解 trainPos)。segLn/dA/dB 由
+// assignSchedShapePathsFor 依「路徑組裝時的站-線對應」逐段指派,跨線班次自然吃對線,免自行猜。
+function crossingPasses(cr) {
+  const now = state.simSec;
+  const byTrain = new Map();
+  for (const tr of state.trains) {
+    const s = tr.stops;
+    for (let i = 0; i < s.length - 1; i++) {
+      const sg = s[i];
+      if (!sg.segLn || sg.segLn.id !== cr.lnId) continue; // 只認貼在本線的段 → 自動濾掉不行經此線的車
+      const denom = sg.dB - sg.dA;
+      if (!denom) continue;
+      const lo = Math.min(sg.dA, sg.dB), hi = Math.max(sg.dA, sg.dB);
+      if (cr.d < lo || cr.d > hi) continue;
+      const f = (cr.d - sg.dA) / denom;                    // 沿線里程比例
+      const tSched = sg.depSec + f * (s[i + 1].arrSec - sg.depSec);
+      const dlSec = liveDelaySec(tr);                       // 台鐵即時誤點(貼近現在時刻才作用)
+      const pass = tSched + dlSec;
+      const delta = ((pass - now) % 86400 + 86400) % 86400; // 跨午夜循環時刻
+      if (delta > XING_WIN) continue;
+      const prev = byTrain.get(tr);
+      if (!prev || delta < prev.delta)
+        byTrain.set(tr, { tr, pass, delta, dir: s[s.length - 1].name, delayMin: Math.round(dlSec / 60) });
+    }
+  }
+  return [...byTrain.values()].sort((a, b) => a.delta - b.delta).slice(0, 5);
+}
+function openCrossingCard(cr) {
+  closeBoard(); // 站牌看板與平交道卡同用右上欄,擇一顯示
+  state.crossingSel = cr;
+  state._xingRenderedAt = -1e9;
+  renderCrossingCard();
+}
+function closeCrossingCard() {
+  if (!state.crossingSel && document.getElementById('xingCard').hidden) return;
+  state.crossingSel = null;
+  const el = document.getElementById('xingCard');
+  el.hidden = true; el.innerHTML = '';
+}
+function renderCrossingCard() {
+  const cr = state.crossingSel; if (!cr) return;
+  state._xingRenderedAt = state.simSec;
+  const list = crossingPasses(cr);
+  const lnName = XING_LN_NAME[cr.lnId] || cr.lnId;
+  const rows = list.length ? list.map(r => {
+    const mm = Math.floor(r.delta / 60), ss = Math.floor(r.delta % 60);
+    const cd = String(mm).padStart(2, '0') + ':' + String(ss).padStart(2, '0');
+    const dl = r.delayMin > 0 ? `<span class="xc-dl">+${r.delayMin}分</span>` : '';
+    return `<div class="xc-row"><span class="xc-no">${r.tr.train}</span>` +
+      `<span class="xc-kind">${r.tr.typeName}</span>` +
+      `<span class="xc-dir">往${r.dir}</span>` +
+      `<span class="xc-time">${fmtHM(r.pass)}${dl}</span>` +
+      `<span class="xc-cd">${cd}</span></div>`;
+  }).join('') : `<div class="xc-empty">未來 60 分鐘無列車通過</div>`;
+  const ico = `<svg class="xc-ico" width="18" height="18" viewBox="0 0 18 18" aria-hidden="true">` +
+    `<circle cx="9" cy="9" r="7.2" fill="none" stroke="currentColor" stroke-width="1.6"/>` +
+    `<path d="M4.5 4.5 L13.5 13.5 M4.5 13.5 L13.5 4.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>`;
+  document.getElementById('xingCard').innerHTML =
+    `<div class="xc-head">${ico}<div class="xc-ttl"><b>${cr.name}</b>` +
+    `<span class="xc-meta">${lnName} · ${cr.type}</span></div>` +
+    `<button class="xc-close" id="xcClose" type="button" aria-label="關閉">✕</button></div>` +
+    `<div class="xc-list">${rows}</div>` +
+    `<div class="xc-foot">依時刻表推算僅供參考，遮斷機通常提前 30–60 秒動作，請以現場號誌為準</div>`;
+  const el = document.getElementById('xingCard'); el.hidden = false;
+  document.getElementById('xcClose').onclick = closeCrossingCard;
+}
 // 捷運幽靈車命中測試:_freqHits 由 drawFreq 每幀重建(裝飾層不入列),半徑內取最近的一台
 function freqTrainAt(cp) {
   let best = null, bd = 18; // px
@@ -2497,6 +2646,7 @@ function draw() {
   ctx.clearRect(0, 0, w, h);
   state._trainHits = [];
   state._freqHits = [];
+  state._crossHits = [];
   labelBoxes = [];
   ctx.lineCap = 'round'; ctx.lineJoin = 'round';
   if (state.mode === 'sched') { if (state.deco) drawDeco(w, h); drawSched(w, h); if (state.deco) drawDecoLabels(); } else drawFreq(w, h);
@@ -2539,6 +2689,7 @@ function tick(now) {
   if (state.freqFollow) updateFreqFollowCamera(); // 捷運幽靈車跟隨(各捷運分頁+全台同框):每幀置中+更新卡
   if (state.mode === 'sched') {
     if (state.boardStation && Math.abs(state.simSec - (state.boardRenderedAt || 0)) >= 20) renderBoard();
+    if (state.crossingSel && Math.abs(state.simSec - (state._xingRenderedAt || 0)) >= 1) renderCrossingCard(); // 倒數每秒刷新+已通過班次退出
     drawFlow();
   }
   state._skyClock = (state._skyClock || 0) + dt;
@@ -5262,6 +5413,7 @@ async function boot() {
   map = L.map('map', { zoomControl: true, attributionControl: true, preferCanvas: true })
     .setView([24.5, 121], 8);
   window.__map = map; // 驗證腳本用的把手(map 為閉包變數,外部拿不到)
+  window.__state = state; // 同上:唯讀給驗證腳本讀命中快取/模擬時鐘(平交道等)
   map.zoomControl.setPosition('bottomright'); // 右上讓給車站時刻板
   map.on('click', e => {
     const cp = e.containerPoint || map.latLngToContainerPoint(e.latlng);
@@ -5275,6 +5427,7 @@ async function boot() {
       }
       return;
     }
+    closeCrossingCard(); // 點任何地方先收平交道卡;下面命中平交道會重開
     let best = null, bd = 1e9;
     for (const st of state.schedStations) {
       const p = map.latLngToContainerPoint([st.lat, st.lon]);
@@ -5290,6 +5443,9 @@ async function boot() {
       setFollow(hit.tr);
       return;
     }
+    // 命中優先序 列車 > 平交道 > 車站:平交道記號比最近車站近就開通過預測卡
+    const xh = crossingAt(cp);
+    if (xh && (bd > 16 || xh.dist <= bd)) { openCrossingCard(xh.cr); return; }
     if (state.deco) {
       // 全台同框:台鐵/高鐵沒點中時,捷運示意車也可點擊跟隨(優先序:真車>示意車>車站)
       const fh = freqTrainAt(cp);
