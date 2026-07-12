@@ -1352,12 +1352,12 @@
       <summary><span>📊 資料來源與授權</span></summary>
       <ul class="foot-list">
         <li><span class="d">台鐵</span><span>台鐵官方 OpenData（ods.railway.gov.tw）——每日時刻表、車站基本資料、車種代碼表，依「政府資料開放授權條款」使用</span></li>
-        <li><span class="d">捷運</span><span>交通部 TDX 運輸資料流通服務——北捷／高捷（含輕軌）／中捷的路線幾何、站序、班距與站間行駛時間</span></li>
+        <li><span class="d">捷運</span><span>交通部 TDX 運輸資料流通服務——北捷／機捷／新北捷（淡海・安坑・三鶯）／中捷／高捷（含輕軌）的路線幾何、站序、逐班時刻表與班距資料</span></li>
         <li><span class="d">即時</span><span>台鐵即時誤點與車站地址介接交通部 TDX 平臺（TrainLiveBoard／Station，每分鐘更新）</span></li>
         <li><span class="d">軌道</span><span>台鐵軌道幾何取自 © OpenStreetMap 貢獻者（ODbL），經 Overpass API</span></li>
         <li><span class="d">底圖</span><span>CARTO basemaps（© OpenStreetMap）與 Esri World Imagery（衛星影像）</span></li>
       </ul>
-      <p class="foot-note">本站為個人愛好者專案，與台灣鐵路公司及各捷運公司皆無關。捷運列車位置為班距推算示意、台鐵列車依每日時刻表模擬，實際到離站時刻請以各營運機構官方資訊為準。</p>
+      <p class="foot-note">本站為個人愛好者專案，與台灣鐵路公司及各捷運公司皆無關。台鐵列車依每日時刻表模擬、捷運列車依當日實際時刻表推演（部分路線無公開逐班時刻，為班距推算）；位置皆為推演而非即時動態，實際到離站時刻請以各營運機構官方資訊為準。</p>
     </details>
     <div class="foot-links">
       <a href="https://github.com/siriushsu/taiwan-rail-live/issues/new" target="_blank" rel="noopener noreferrer">📍 回報問題或建議</a>
@@ -1386,7 +1386,7 @@
 <script>
 // 版本戳記:每次改版 push 前手動遞增(字母序),畫面時鐘徽章與 console 都會顯示,
 // 供比對線上跑的是不是最新版(瀏覽器快取 max-age=600 常讓人看到舊版)
-const BUILD = 'v0712c';
+const BUILD = 'v0712d';
 const state = {
   systems: [], sysId: null, data: null, speed: 36, mode: 'freq',
   lines: [], visible: new Set(), trains: [], schedStations: [], types: [],
