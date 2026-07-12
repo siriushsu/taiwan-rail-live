@@ -1488,6 +1488,7 @@
     <details class="foot-box">
       <summary><span>🛠 更新紀錄</span><span class="foot-sub">最後更新：2026/7/13</span></summary>
       <ul class="foot-list">
+        <li><span class="d">7/13</span><span>平交道圖示改為白底紅邊叉叉（台灣鐵路平交道意象，衛星／深色底圖也清楚）；移除台中港線等貨運／專用線上的道口——那些路段本圖沒畫軌道，記號會浮在空地看似錯誤（謝謝網友回報台中港站旁那一串）；另修正 4 處投影偏移的道口改標官方原始座標</span></li>
         <li><span class="d">7/13</span><span>平交道連點直跳：卡片開著時直接點下一個平交道／列車／車站就切換，不用先關卡片；使用說明卡不再擋住地圖點擊</span></li>
         <li><span class="d">7/13</span><span>手機介面整修：「工具」鈕上移與左上時鐘對齊；全畫面改為地圖上的獨立按鈕——原本藏在工具列深處、小螢幕上點不到（謝謝網友回報）；全畫面時速度控制縮成小膠囊，點一下展開、閒置自動收合，不再擋住地圖與平交道資訊</span></li>
         <li><span class="d">7/13</span><span>平交道對齊官方現役 415 處：補上台中港線等貨運／專用線上的 21 處道口——這些路段本圖未收錄列車，點開僅標示位置、不提供班次預測</span></li>
@@ -1572,7 +1573,7 @@
 <script>
 // 版本戳記:每次改版 push 前手動遞增(字母序),畫面時鐘徽章與 console 都會顯示,
 // 供比對線上跑的是不是最新版(瀏覽器快取 max-age=600 常讓人看到舊版)
-const BUILD = 'v0713a';
+const BUILD = 'v0713b';
 const state = {
   systems: [], sysId: null, data: null, speed: 36, mode: 'freq',
   lines: [], visible: new Set(), trains: [], schedStations: [], types: [],
@@ -2507,13 +2508,15 @@ function drawStationIcon(cp, tier) {
   ctx.globalAlpha = 1;
 }
 
-// 平交道記號:暖黃底圓+深色描邊+粗 X(鐵路道口警示意象),顯眼版(開關開啟才畫),墊在車站/列車之下
+// 平交道記號:台灣鐵路平交道意象——白底、紅邊、紅叉叉(白圓盤在衛星/深色底圖也清楚),墊在車站/列車之下
 function drawCrossing(cp) {
-  const r = 7.5, s = r * 0.5;
+  const r = 8, s = 4.4;
+  // 白底圓盤 + 紅邊
   ctx.beginPath(); ctx.arc(cp.x, cp.y, r, 0, 7);
-  ctx.fillStyle = '#f5c02c'; ctx.globalAlpha = 0.97; ctx.fill(); ctx.globalAlpha = 1;
-  ctx.lineWidth = 2; ctx.strokeStyle = '#4a3410'; ctx.stroke();
-  ctx.lineWidth = 2.6; ctx.strokeStyle = '#3a2a0c'; ctx.lineCap = 'round';
+  ctx.fillStyle = '#ffffff'; ctx.globalAlpha = 0.98; ctx.fill(); ctx.globalAlpha = 1;
+  ctx.lineWidth = 2; ctx.strokeStyle = '#d0021b'; ctx.stroke();
+  // 紅色叉叉
+  ctx.lineCap = 'round'; ctx.lineWidth = 2.4; ctx.strokeStyle = '#d0021b';
   ctx.beginPath();
   ctx.moveTo(cp.x - s, cp.y - s); ctx.lineTo(cp.x + s, cp.y + s);
   ctx.moveTo(cp.x - s, cp.y + s); ctx.lineTo(cp.x + s, cp.y - s);

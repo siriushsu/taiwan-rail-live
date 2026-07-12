@@ -193,24 +193,11 @@ async function main() {
   for (const n of withPos) {
     const pt = [n.lat, n.lon];
     if (EXCLUDED_LINES.has(n.line)) {
-      // 2026-07-13 使用者裁決:官方現役 415 處全數上圖。不在我們路網上的(台中港線等貨運支線、
-      // 高雄港線/林口線等已停用線)用官方原始座標直接標點,不掛線形、不給班次預測(noSched),
-      // 前端卡片改顯示 xline 線別說明——官方說有的都標,但不對沒模擬的線編造預測
-      matched.push({
-        name: n.name,
-        type: n.type,
-        county: n.county,
-        lnId: '', // 不掛線形:d/snapDist 無意義
-        d: 0,
-        lat: +n.lat.toFixed(6),
-        lon: +n.lon.toFixed(6),
-        rawLat: +n.lat.toFixed(6),
-        rawLon: +n.lon.toFixed(6),
-        snapDistM: null,
-        src: 'tra',
-        noSched: true,
-        xline: n.line,
-      });
+      // 2026-07-13 使用者裁決(修正前案):貨運支線(台中港線等)、已停用線(高雄港線/林口線等)
+      // 不在本圖模擬路網上,底下沒有畫出的軌道,原始座標標點會變成一串浮在空地/道路上的記號,
+      // 看起來像明顯錯誤(使用者實測回報台中港站左邊那一串)。這些道口也無班次預測。故不上圖,
+      // 僅記入 excluded 稽核清單。要重開就把這批改回 matched.push(noSched)。
+      excluded.push({ name: n.name, line: n.line, county: n.county, reason: '貨運/專用/已停用線,不在模擬路網(使用者裁決不上圖)' });
       continue;
     }
     const candidates = LINE_MAP[n.line];
@@ -231,17 +218,23 @@ async function main() {
       const r = projectPoint(pt, ln.shape, cumOfLine(id));
       if (!best || r.dist < best.dist) best = { lnId: id, ...r };
     }
+    // 投影垂足離原始座標過遠(>50m):候選線群不含實際路廊(如八股頭/光復路實在舊山線、
+    // 中正路投影退化到線首 d=0),垂足會把記號拉到錯的位置。此時垂足不可信,顯示點改回官方原始座標
+    // (位置就正確);d/snapDistM 仍保留供記錄與粗略預測。閾值 50m:正常筆 snapDist 最大 28m,乾淨分隔。
+    const snapM = +(best.dist * 1000).toFixed(1);
+    const badProj = snapM > 50;
     matched.push({
       name: n.name,
       type: n.type,
       county: n.county,
       lnId: best.lnId,
       d: +best.s.toFixed(4),
-      lat: +best.foot[0].toFixed(6),
-      lon: +best.foot[1].toFixed(6),
+      lat: badProj ? +n.lat.toFixed(6) : +best.foot[0].toFixed(6),
+      lon: badProj ? +n.lon.toFixed(6) : +best.foot[1].toFixed(6),
       rawLat: +n.lat.toFixed(6),
       rawLon: +n.lon.toFixed(6),
-      snapDistM: +(best.dist * 1000).toFixed(1),
+      snapDistM: snapM,
+      ...(badProj ? { projFallback: true } : {}), // 稽核旗標:此筆用原始座標而非投影垂足
       src: 'tra',
       xmlLine: n.line, // 稽核用:原始 XML LINE 中文欄位(多候選線群組要看它與 lnId 是否合理對應);不寫入 crossings.json
     });
@@ -383,8 +376,9 @@ async function main() {
     source_notes: `官方 XML 共 ${all.length} 筆,含座標 ${withPos.length} 筆(src:tra;與台鐵官方公布現役平交道數一致,無座標 ${all.length - withPos.length} 筆為已裁撤/立體化)。` +
       (osmMerged.length ? `另以 OpenStreetMap (Overpass) railway=level_crossing 節點投影 data/tra.json 線形(≤${SNAP_MAX_M}m)補缺 ${osmMerged.length} 筆(src:osm),` +
         `對官方去重、OSM 內部聚類雙軌;OSM 筆命名取通過道路名(無名者「平交道」),縣市取最近官方筆。` : '') +
-      `座標投影取沿線位置(d,km,haversine 弧長,算法與站點 d 一致);貨運港線/專用線/已停用線上的 ${cleanOut.filter(c => c.noSched).length} 筆` +
-      `不掛線形、標 noSched(僅標點,無班次預測)。合計 ${cleanOut.length} 筆。`,
+      `座標投影取沿線位置(d,km,haversine 弧長,算法與站點 d 一致);投影垂足離原點 >50m 的 ${cleanOut.filter(c => c.projFallback).length} 筆` +
+      `(候選線不含實際路廊,如八股頭/光復路實在舊山線)改用官方原始座標標點。貨運/專用/已停用線平交道不在模擬路網上、` +
+      `底下無軌道,不上圖(見 audit excluded)。合計 ${cleanOut.length} 筆。`,
     crossings: cleanOut,
   };
   writeFileSync(path.join(ROOT, 'data/crossings.json'), JSON.stringify(out));
