@@ -1341,8 +1341,12 @@
 
   <footer class="site-foot">
     <details class="foot-box">
-      <summary><span>🛠 更新紀錄</span><span class="foot-sub">最後更新：2026/7/11</span></summary>
+      <summary><span>🛠 更新紀錄</span><span class="foot-sub">最後更新：2026/7/12</span></summary>
       <ul class="foot-list">
+        <li><span class="d">7/12</span><span>省電大改：待機時繪製降頻至 30fps、高解析螢幕繪製上限 2×、切到背景分頁完全停繪——手機與筆電掛著看明顯省電；跟隨、放空、錄影時維持原本流暢度</span></li>
+        <li><span class="d">7/12</span><span>縣市快速移動：系統頁籤列新增「縣市」選單，選了直接飛到該縣市的軌道範圍（謝謝網友建議）</span></li>
+        <li><span class="d">7/12</span><span>環狀線營運方標示：導言註明環狀線由新北捷運營運，不再被讀成台北捷運路線（謝謝網友指正）</span></li>
+        <li><span class="d">7/12</span><span>資料來源說明更新：捷運已依當日實際時刻表推演，頁尾說明不再寫「班距推算示意」；來源清單補上機捷與新北捷各線</span></li>
         <li><span class="d">7/11</span><span>開站不再跳動：系統頁籤列改為首屏即到位，慢網路下版面不會在載入途中突然下移（版面位移歸零）；分享連結統一為 railisland.tw</span></li>
         <li><span class="d">7/11</span><span>成功站回頭路修正：成追線跨線班次（如 2234）行經成功站不再繞行追分／彰化的迂迴路徑瞬移跳動——成功站補登山線站列，全部 114 個受影響班次歸正</span></li>
         <li><span class="d">7/11</span><span>山線改走現行路線：資料誤用 1998 年停用的舊山線（勝興、舊泰安），已依 TDX 官方線形改走新線；泰安歸位新站，並補齊百福、南樹林、暖暖、精武、仁德、內惟、美術館、鼓山、三塊厝 9 個通勤車站</span></li>
@@ -1419,7 +1423,7 @@
 <script>
 // 版本戳記:每次改版 push 前手動遞增(字母序),畫面時鐘徽章與 console 都會顯示,
 // 供比對線上跑的是不是最新版(瀏覽器快取 max-age=600 常讓人看到舊版)
-const BUILD = 'v0712f';
+const BUILD = 'v0712g';
 const state = {
   systems: [], sysId: null, data: null, speed: 36, mode: 'freq',
   lines: [], visible: new Set(), trains: [], schedStations: [], types: [],
