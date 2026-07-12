@@ -359,6 +359,20 @@
   .xing-card .xc-foot { padding: 8px 12px 10px; border-top: 1.5px dashed #d8cba9; color: #a89468; font-size: 10.5px; line-height: 1.5; }
   .alert-banner:not([hidden]) ~ .xing-card { top: 54px; }
 
+  /* 平交道使用說明卡(開關打開時浮出、約 8 秒自動淡出、點擊即關;地圖上方居中,紙卡風) */
+  .xing-help {
+    position: absolute; top: 56px; left: 50%; z-index: 715;
+    transform: translateX(-50%) translateY(-8px);
+    max-width: min(360px, calc(100% - 140px));
+    background: #fffdf6; border: 2px solid #d2a12a; border-radius: 10px;
+    box-shadow: 0 3px 0 rgba(163,100,26,.3);
+    padding: 11px 15px; font-size: 12.5px; font-weight: 600; color: #3a3226; line-height: 1.6;
+    cursor: pointer; opacity: 0; transition: opacity .4s ease, transform .4s ease;
+  }
+  .xing-help.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+  .xing-help[hidden] { display: none; }
+  .alert-banner:not([hidden]) ~ .xing-help { top: 96px; }
+
   /* 跟隨小面板(地圖左下角，跟隨列車時顯示) */
   .follow-panel {
     position: absolute; left: 12px; bottom: 12px; z-index: 650;
@@ -1057,6 +1071,10 @@
     /* 橫幅出現時,右上工具欄與停站牌往下讓一階 */
     .alert-banner:not([hidden]) ~ .stage-tools { top: 96px; }
     .alert-banner:not([hidden]) ~ .dwell-plate { top: 96px; }
+    /* 平交道說明卡:手機置中會與右上「☰」工具 FAB 同列擦邊(審查發現 1px 重疊),
+       整卡下移到工具列下方一階,靠垂直間隔避開;橫幅在時再讓一階 */
+    .xing-help { top: 108px; }
+    .alert-banner:not([hidden]) ~ .xing-help { top: 150px; }
     /* 站名牌手機靠左橫條,右側讓出「☰ 工具」浮鈕欄位,同一頂帶並排對齊 */
     .dwell-plate { top: 56px; left: 8px; right: 100px; min-width: 0; max-width: none; }
     /* 特殊站介紹手機最多兩行:站牌總高有上限,公告+站牌+跟隨卡三者全開也不互蓋 */
@@ -1266,6 +1284,7 @@
       <button id="satBtn" title="切換衛星影像"><span class="ti">衛</span><span class="tl">衛星影像</span></button>
       <button id="themeBtn" title="地圖明暗切換"><span class="ti">☾</span><span class="tl">地圖明暗</span></button>
       <button id="trackBtn" title="軌道顯示：自動（夜間自動淡化）→ 淡化 → 隱藏"><span class="ti">軌</span><span class="tl">軌道顯示</span></button>
+      <button id="xingBtn" title="顯示平交道位置"><span class="ti">平</span><span class="tl">平交道</span></button>
       <button id="immBtn" title="極簡沉浸（只留地圖與列車）"><span class="ti">簡</span><span class="tl">極簡沉浸</span></button>
       <button id="fsBtn" title="全畫面地圖（Esc 退出）"><span class="ti">⛶</span><span class="tl">全畫面</span></button>
       <button id="recBtn" title="錄影 Beta（存成影片下載）"><span class="ti">⏺</span><span class="tl">錄影 Beta</span></button>
@@ -1294,6 +1313,7 @@
     </div>
     <div class="board" id="board" hidden></div>
     <div class="xing-card" id="xingCard" hidden></div>
+    <div class="xing-help" id="xingHelp" hidden>顯示全台 394 處台鐵平交道。點擊任一平交道，可查看接下來通過的列車與倒數。預測依時刻表與即時誤點推算，遮斷機通常提前 30–60 秒動作，請以現場號誌為準。</div>
     <div class="board" id="favPanel" hidden></div>
     <div class="board" id="ridePanel" hidden></div>
     <div class="board" id="explorePanel" hidden></div>
@@ -1377,7 +1397,7 @@
     <details class="foot-box">
       <summary><span>🛠 更新紀錄</span><span class="foot-sub">最後更新：2026/7/12</span></summary>
       <ul class="foot-list">
-        <li><span class="d">7/12</span><span>平交道上線：地圖拉近即可見台鐵平交道位置（全台 394 處現役），點擊查看接下來通過的列車——車次、方向、預計通過時刻與倒數；依時刻表推算僅供參考，遮斷機通常提前動作，請以現場號誌為準（謝謝網友建議）</span></li>
+        <li><span class="d">7/12</span><span>平交道功能：開啟地圖角落「平」鈕後，顯示全台 394 處台鐵平交道位置，點擊查看接下來通過的列車——車次、方向、預計通過時刻與倒數；依時刻表推算僅供參考，請以現場號誌為準（謝謝網友建議）</span></li>
         <li><span class="d">7/12</span><span>省電大改：待機時繪製降頻至 30fps、高解析螢幕繪製上限 2×、切到背景分頁完全停繪——手機與筆電掛著看明顯省電；跟隨、放空、錄影時維持原本流暢度</span></li>
         <li><span class="d">7/12</span><span>縣市快速移動：系統頁籤列新增「縣市」選單，選了直接飛到該縣市的軌道範圍（謝謝網友建議）</span></li>
         <li><span class="d">7/12</span><span>環狀線營運方標示：導言註明環狀線由新北捷運營運，不再被讀成台北捷運路線（謝謝網友指正）</span></li>
@@ -1458,7 +1478,7 @@
 <script>
 // 版本戳記:每次改版 push 前手動遞增(字母序),畫面時鐘徽章與 console 都會顯示,
 // 供比對線上跑的是不是最新版(瀏覽器快取 max-age=600 常讓人看到舊版)
-const BUILD = 'v0712h';
+const BUILD = 'v0712i';
 const state = {
   systems: [], sysId: null, data: null, speed: 36, mode: 'freq',
   lines: [], visible: new Set(), trains: [], schedStations: [], types: [],
@@ -1472,6 +1492,7 @@ const state = {
   live: null, // 台鐵即時誤點 {map: 車次→誤點分, at: 抓取時刻, delayed, srcAt}
   liveMode: false, liveReplay: false, // 直播模式(?live=1)與其深夜重播段(00:45–05:15 重播 08:00 起)
   stnIntro: false, immersive: false, // 特殊站介紹開關(放空自動開)、極簡沉浸(全畫面隱藏左側卡)
+  xingOn: false, // 台鐵平交道顯示開關(預設關;開了才畫記號、建命中、攔點擊)
   ambientStyle: 'follow', // 放空視角:follow=跟著一班車跑 / hotspot=群車(鏡頭掛在最繁忙路段看群車交錯)
 };
 let map, cv, ctx;
@@ -2241,8 +2262,8 @@ function drawSched(w, h) {
     ctx.strokeStyle = P.followCase; ctx.lineWidth = 8.5; ctx.stroke();
     ctx.strokeStyle = railDimColor(state.followTrain.color, FOLLOW_DIM); ctx.lineWidth = 4.4; ctx.stroke();
   }
-  // 台鐵平交道:zoom 深(≥13)才畫、僅視口內、記號墊在車站與列車之下(名稱進點擊卡片)
-  if (z >= 13 && state.crossings && state.crossings.length) {
+  // 台鐵平交道:開關開啟且 zoom 深(≥12)才畫、僅視口內、記號墊在車站與列車之下(名稱進點擊卡片)
+  if (state.xingOn && z >= 12 && state.crossings && state.crossings.length) {
     const cb = map.getBounds().pad(0.06);
     for (const cr of state.crossings) {
       if (state.trackVisible && !state.trackVisible.has(cr.lnId)) continue; // 只顯示屬於當前已載入線形的平交道
@@ -2392,13 +2413,13 @@ function drawStationIcon(cp, tier) {
   ctx.globalAlpha = 1;
 }
 
-// 平交道記號:淺底小圓+交叉 X(鐵路道口意象),低調配色,墊在車站/列車之下
+// 平交道記號:暖黃底圓+深色描邊+粗 X(鐵路道口警示意象),顯眼版(開關開啟才畫),墊在車站/列車之下
 function drawCrossing(cp) {
-  const r = 4.8, s = r * 0.6;
+  const r = 7.5, s = r * 0.5;
   ctx.beginPath(); ctx.arc(cp.x, cp.y, r, 0, 7);
-  ctx.fillStyle = '#fffdf6'; ctx.globalAlpha = 0.95; ctx.fill(); ctx.globalAlpha = 1;
-  ctx.lineWidth = 1.4; ctx.strokeStyle = '#9c8a63'; ctx.stroke();
-  ctx.lineWidth = 1.4; ctx.strokeStyle = '#a24a2f';
+  ctx.fillStyle = '#f5c02c'; ctx.globalAlpha = 0.97; ctx.fill(); ctx.globalAlpha = 1;
+  ctx.lineWidth = 2; ctx.strokeStyle = '#4a3410'; ctx.stroke();
+  ctx.lineWidth = 2.6; ctx.strokeStyle = '#3a2a0c'; ctx.lineCap = 'round';
   ctx.beginPath();
   ctx.moveTo(cp.x - s, cp.y - s); ctx.lineTo(cp.x + s, cp.y + s);
   ctx.moveTo(cp.x - s, cp.y + s); ctx.lineTo(cp.x + s, cp.y - s);
@@ -2938,7 +2959,7 @@ function buildCitySelect() {
 // 捷運/輕軌(freq)沒有車次、完乘、特別列車這些概念,隱藏這些鈕。用 inline display 蓋過 .stage-tools 的 flex。
 function updateSchedTools() {
   const show = state.mode === 'sched';
-  for (const id of ['exploreBtn', 'favBtn', 'rideBtn', 'introBtn']) {
+  for (const id of ['exploreBtn', 'favBtn', 'rideBtn', 'introBtn', 'xingBtn']) {
     const b = document.getElementById(id);
     if (b) b.style.display = show ? '' : 'none';
   }
@@ -5244,6 +5265,32 @@ function setupMapTools() {
   }
   trackBtn.onclick = () => setTrackStyle(state.trackStyle === 'auto' ? 'faint' : state.trackStyle === 'faint' ? 'hidden' : 'auto');
   setTrackStyle(state.trackStyle);
+
+  // ── 平交道顯示開關:開了才畫全台台鐵平交道記號、建點擊命中;每次打開浮出使用說明卡 ──
+  const xingBtn = document.getElementById('xingBtn');
+  function showXingHelp() {
+    const el = document.getElementById('xingHelp'); if (!el) return;
+    clearTimeout(state._xingHelpT);
+    const hide = () => {
+      clearTimeout(state._xingHelpT);
+      el.classList.remove('show'); el.onclick = null;
+      state._xingHelpT = setTimeout(() => { el.hidden = true; }, 400);
+    };
+    el.hidden = false; el.onclick = hide;
+    requestAnimationFrame(() => el.classList.add('show')); // 先掛上再加 class 才有淡入過渡
+    state._xingHelpT = setTimeout(hide, 8000); // 約 8 秒自動淡出
+  }
+  function setXing(on, showHelp) {
+    state.xingOn = on;
+    xingBtn.classList.toggle('active', on);
+    xingBtn.querySelector('.tl').textContent = on ? '平交道：開' : '平交道';
+    xingBtn.title = on ? '平交道顯示中（點擊關閉）' : '顯示平交道位置';
+    try { localStorage.setItem('trainmap-xing', on ? '1' : '0'); } catch (e) {}
+    if (!on) closeCrossingCard(); // 關掉時一併收起可能開著的通過預測卡
+    if (on && showHelp) showXingHelp();
+  }
+  xingBtn.onclick = () => setXing(!state.xingOn, true);
+  setXing(state.xingOn, false); // 初始化按鈕態(還原 localStorage,不彈說明)
 }
 
 // ── 站內錄影:每幀把「圖磚 → Leaflet 向量層 → 列車 overlay → 浮水印」合成到離屏 canvas,
@@ -5505,6 +5552,7 @@ async function boot() {
   try { const ts = localStorage.getItem('trainmap-track'); if (ts === 'faint' || ts === 'hidden') state.trackStyle = ts; } catch (e) {}
   try { state.basemap = localStorage.getItem('trainmap-basemap') === 'sat' ? 'sat' : 'map'; } catch (e) {}
   try { state.immersive = localStorage.getItem('trainmap-immersive') === '1'; } catch (e) {}
+  try { state.xingOn = localStorage.getItem('trainmap-xing') === '1'; } catch (e) {}
   try { setAmbientStyle(localStorage.getItem('trainmap-ambient-style') === 'hotspot' ? 'hotspot' : 'follow'); } catch (e) {}
   setBasemap();
   setupMapTools();
