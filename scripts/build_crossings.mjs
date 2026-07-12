@@ -27,6 +27,9 @@ const SNAP_MAX_M = 30;      // OSM 節點離最近 tra.json 線形 ≤ 此距離
 const DEDUP_TRA_DM = 60;    // 對官方筆:同 lnId 且 |Δd|<此值(m) 視為同一平交道
 const DEDUP_TRA_GEOM_M = 40;// 對官方筆:raw 座標(任一線)在此半徑(m)內亦視為重複(防平行線 lnId 不一致漏抓)
 const CLUSTER_DM = 40;      // OSM 內部:同 lnId 且 |Δd|<此值(m) 聚類成一筆(雙軌常拆兩節點)
+// 2026-07-13 使用者裁決:平交道回歸純官方資料——台鐵官方現役 415 處與 dataset 帶座標筆數恰吻合
+// (無座標 386 筆=已裁撤/立體化),OSM 聯集反而混入非台鐵管理道口。OSM 邏輯保留,要重開加 --with-osm
+const WITH_OSM = process.argv.includes('--with-osm');
 
 const R = 6371, toR = Math.PI / 180;
 function haversineKm(a, b) { // a,b: [lat,lon]
@@ -233,12 +236,15 @@ async function main() {
     });
   }
 
-  // ─────────────── 4. OSM 補缺:抓 level_crossing 節點,投影 tra.json,去重合併 ───────────────
+  // ─────────────── 4. OSM 補缺(預設停用,--with-osm 才跑;見檔頭 WITH_OSM 註解) ───────────────
+  let osmMerged = [], osmSnapped = [], levelNodes = [], pedNodes = [];
+  let matchedToTra = 0, traMatchedFlag = new Set(), crossValidDiffs = [];
+  if (WITH_OSM) {
   const osmJson = await fetchOsm();
   const osmElements = osmJson.elements || [];
   const osmNodes = osmElements.filter(e => e.type === 'node');
-  const levelNodes = osmNodes.filter(e => e.tags && e.tags.railway === 'level_crossing');
-  const pedNodes = osmNodes.filter(e => e.tags && e.tags.railway === 'crossing');
+  levelNodes = osmNodes.filter(e => e.tags && e.tags.railway === 'level_crossing');
+  pedNodes = osmNodes.filter(e => e.tags && e.tags.railway === 'crossing');
   console.log(`\nOSM 原始:level_crossing ${levelNodes.length} 節點,crossing(行人,不納入) ${pedNodes.length} 節點`);
 
   // 節點 id → 道路名:反查通過此節點的 highway way,優先取有 name 的
@@ -251,7 +257,6 @@ async function main() {
   }
 
   // 每個 level_crossing 節點投影到全網 16 線,取最近線,snapDist ≤ 30m 才收
-  const osmSnapped = [];
   let droppedFar = 0;
   for (const nd of levelNodes) {
     const pt = [nd.lat, nd.lon];
@@ -275,10 +280,7 @@ async function main() {
     if (!officialByLn.has(m.lnId)) officialByLn.set(m.lnId, []);
     officialByLn.get(m.lnId).push(m);
   }
-  let matchedToTra = 0;
-  const traMatchedFlag = new Set(); // 官方筆 index 被 OSM 命中(覆蓋率用)
-  const crossValidDiffs = [];       // 命中對的座標偏差(交叉驗證用)
-  const osmNew = [];
+  const osmNew = []; // (matchedToTra/traMatchedFlag/crossValidDiffs 已提升到 if 外,尾端稽核統計要用)
   for (const o of osmSnapped) {
     let hit = null;
     const sameLn = officialByLn.get(o.lnId) || [];
@@ -311,7 +313,6 @@ async function main() {
       clusters.push({ lnId: o.lnId, members: [o], _lastD: o.d });
     }
   }
-  const osmMerged = [];
   const lineShortName = new Map(tra.lines.map(l => [l.id, l.name.split('（')[0]])); // 「山線（竹南–彰化）」→「山線」
   const unnamedSeq = new Map(); // lnId -> 序號計數器(clusters 已依 lnId,d 排序,序號沿線遞增)
   for (const c of clusters) {
@@ -355,6 +356,9 @@ async function main() {
     }
     rec.county = nc ? nc.county : '';
   }
+  } else {
+    console.log('\nOSM 補缺:停用(純官方資料;需要時 node scripts/build_crossings.mjs --with-osm)');
+  }
 
   const merged = matched.concat(osmMerged);
   merged.sort((a, b) => a.lnId === b.lnId ? a.d - b.d : a.lnId.localeCompare(b.lnId));
@@ -362,12 +366,12 @@ async function main() {
   const cleanOut = merged.map(({ xmlLine, _clusterN, ...rec }) => rec); // 稽核欄位不寫入輸出
   const out = {
     system: '台鐵平交道',
-    source: '交通部台鐵局「平交道公開資料」+ OpenStreetMap (ODbL)',
+    source: '交通部台鐵局「平交道公開資料」' + (osmMerged.length ? ' + OpenStreetMap (ODbL)' : ''),
     sourceUrl: SOURCE_URL,
     fetchedAt: new Date().toISOString().slice(0, 10),
-    source_notes: `官方 XML 共 ${all.length} 筆,含座標 ${withPos.length} 筆(src:tra);其中 ${all.length - withPos.length} 筆無座標。` +
-      `另以 OpenStreetMap (Overpass) railway=level_crossing 節點投影 data/tra.json 線形(≤${SNAP_MAX_M}m)補缺 ${osmMerged.length} 筆(src:osm),` +
-      `對官方去重、OSM 內部聚類雙軌;OSM 筆命名取通過道路名(無名者「平交道」),縣市取最近官方筆。` +
+    source_notes: `官方 XML 共 ${all.length} 筆,含座標 ${withPos.length} 筆(src:tra;與台鐵官方公布現役平交道數一致,無座標 ${all.length - withPos.length} 筆為已裁撤/立體化)。` +
+      (osmMerged.length ? `另以 OpenStreetMap (Overpass) railway=level_crossing 節點投影 data/tra.json 線形(≤${SNAP_MAX_M}m)補缺 ${osmMerged.length} 筆(src:osm),` +
+        `對官方去重、OSM 內部聚類雙軌;OSM 筆命名取通過道路名(無名者「平交道」),縣市取最近官方筆。` : '') +
       `座標投影取沿線位置(d,km,haversine 弧長,算法與站點 d 一致);港區/專用/特種支線等無對應現行線形者排除。合計 ${cleanOut.length} 筆。`,
     crossings: cleanOut,
   };
