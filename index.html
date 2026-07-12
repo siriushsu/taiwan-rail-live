@@ -383,7 +383,10 @@
     background: #fffdf6; border: 2px solid #d2a12a; border-radius: 10px;
     box-shadow: 0 3px 0 rgba(163,100,26,.3);
     padding: 11px 15px; font-size: 12.5px; font-weight: 600; color: #3a3226; line-height: 1.6;
-    cursor: pointer; opacity: 0; transition: opacity .4s ease, transform .4s ease;
+    opacity: 0; transition: opacity .4s ease, transform .4s ease;
+    /* 純吐司不擋點擊:實測它展示中(8s)＋淡出殘影(400ms)會攔截整塊地圖 tap,
+       使用者點說明卡底下的平交道毫無反應(v0712o);8s 自動淡出,不需要點擊關閉 */
+    pointer-events: none;
   }
   .xing-help.show { opacity: 1; transform: translateX(-50%) translateY(0); }
   .xing-help[hidden] { display: none; }
@@ -1485,6 +1488,7 @@
     <details class="foot-box">
       <summary><span>🛠 更新紀錄</span><span class="foot-sub">最後更新：2026/7/13</span></summary>
       <ul class="foot-list">
+        <li><span class="d">7/13</span><span>平交道連點直跳：卡片開著時直接點下一個平交道／列車／車站就切換，不用先關卡片；使用說明卡不再擋住地圖點擊</span></li>
         <li><span class="d">7/13</span><span>手機介面整修：「工具」鈕上移與左上時鐘對齊；全畫面改為地圖上的獨立按鈕——原本藏在工具列深處、小螢幕上點不到（謝謝網友回報）；全畫面時速度控制縮成小膠囊，點一下展開、閒置自動收合，不再擋住地圖與平交道資訊</span></li>
         <li><span class="d">7/13</span><span>平交道對齊官方現役 415 處：補上台中港線等貨運／專用線上的 21 處道口——這些路段本圖未收錄列車，點開僅標示位置、不提供班次預測</span></li>
         <li><span class="d">7/12</span><span>平交道功能：開啟地圖角落「平」鈕後，顯示全台台鐵平交道位置，點擊查看接下來通過的列車——車次、方向、預計通過時刻與倒數；依時刻表推算僅供參考，請以現場號誌為準（謝謝網友建議）</span></li>
@@ -1568,7 +1572,7 @@
 <script>
 // 版本戳記:每次改版 push 前手動遞增(字母序),畫面時鐘徽章與 console 都會顯示,
 // 供比對線上跑的是不是最新版(瀏覽器快取 max-age=600 常讓人看到舊版)
-const BUILD = 'v0712n';
+const BUILD = 'v0712o';
 const state = {
   systems: [], sysId: null, data: null, speed: 36, mode: 'freq',
   lines: [], visible: new Set(), trains: [], schedStations: [], types: [],
@@ -2706,7 +2710,7 @@ function openCrossingCard(cr) {
   // 使用說明卡是暫態吐司——點到平交道即代表已看懂用法,一律收掉(768 中間寬度兩者會相疊)
   {
     const hp = document.getElementById('xingHelp');
-    if (hp && !hp.hidden) { clearTimeout(state._xingHelpT); hp.classList.remove('show'); hp.hidden = true; hp.onclick = null; }
+    if (hp && !hp.hidden) { clearTimeout(state._xingHelpT); hp.classList.remove('show'); hp.hidden = true; }
   }
   state.crossingSel = cr;
   state._xingRenderedAt = -1e9;
@@ -5418,10 +5422,10 @@ function setupMapTools() {
     clearTimeout(state._xingHelpT);
     const hide = () => {
       clearTimeout(state._xingHelpT);
-      el.classList.remove('show'); el.onclick = null;
+      el.classList.remove('show');
       state._xingHelpT = setTimeout(() => { el.hidden = true; }, 400);
     };
-    el.hidden = false; el.onclick = hide;
+    el.hidden = false; // pointer-events:none 純吐司,不掛點擊關閉
     requestAnimationFrame(() => el.classList.add('show')); // 先掛上再加 class 才有淡入過渡
     state._xingHelpT = setTimeout(hide, 8000); // 約 8 秒自動淡出
   }
@@ -5649,6 +5653,21 @@ async function boot() {
       }
     }
     if (best && bd <= 16) openBoard(best);
+  });
+  // 平交道卡穿透轉發:卡片(含空白列/邊距)壓住的列車/平交道/車站,點卡片即視同點地圖,
+  // 走上方同一套命中優先序直接切換——手機 375px 卡片蓋掉右半地圖,實測得先關卡才點得到下一個(v0712o)。
+  // 卡片下沒壓到可點目標就不轉發:點卡片內文不該把卡關掉;按鈕(關閉鈕)照舊不轉發。
+  document.getElementById('xingCard').addEventListener('click', ev => {
+    if (ev.target.closest('button')) return;
+    const r = map.getContainer().getBoundingClientRect();
+    const cp = L.point(ev.clientX - r.left, ev.clientY - r.top);
+    let stD = 1e9;
+    for (const st of (state.schedStations || [])) {
+      const p = map.latLngToContainerPoint([st.lat, st.lon]);
+      stD = Math.min(stD, Math.hypot(p.x - cp.x, p.y - cp.y));
+    }
+    if (!trainAt(cp) && !crossingAt(cp) && stD > 16 && !(state.deco && freqTrainAt(cp))) return;
+    map.fire('click', { containerPoint: cp, latlng: map.containerPointToLatLng(cp) });
   });
   map.on('mousemove', e => {
     // 滑過列車 → 手指游標(sched 真實班表 + freq 幽靈車一致)
