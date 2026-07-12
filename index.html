@@ -1386,7 +1386,7 @@
 <script>
 // 版本戳記:每次改版 push 前手動遞增(字母序),畫面時鐘徽章與 console 都會顯示,
 // 供比對線上跑的是不是最新版(瀏覽器快取 max-age=600 常讓人看到舊版)
-const BUILD = 'v0712d';
+const BUILD = 'v0712e';
 const state = {
   systems: [], sysId: null, data: null, speed: 36, mode: 'freq',
   lines: [], visible: new Set(), trains: [], schedStations: [], types: [],
@@ -1419,7 +1419,7 @@ function pal() { return MAP_PAL[state.basemap === 'sat' ? 'sat' : (state.mapDark
 
 // 各系統的站名牌／副標／導言文案(loadSystem 依系統套用)
 const SYS_META = {
-  mrt:       { plateL: '淡水', plateR: '象山', sub: 'TAIPEI METRO LIVE',    lead: '各線列車依當日實際時刻表在城市裡穿梭（文湖線為班距推算；位置為推演，非即時班次）— 拖曳、縮放看看。' },
+  mrt:       { plateL: '淡水', plateR: '象山', sub: 'TAIPEI METRO LIVE',    lead: '各線列車依當日實際時刻表在城市裡穿梭（環狀線由新北捷運營運；文湖線為班距推算；位置為推演，非即時班次）— 拖曳、縮放看看。' },
   tymc:      { plateL: '台北車站', plateR: '老街溪', sub: 'TAOYUAN AIRPORT MRT LIVE', lead: '機場捷運直達車與普通車依當日實際時刻表連結雙北與桃園機場（位置為推演，非即時班次）— 拖曳、縮放看看。' },
   ntdlrt:    { plateL: '紅樹林', plateR: '漁人碼頭', sub: 'DANHAI LIGHT RAIL LIVE', lead: '淡海輕軌綠山線與藍海線依當日實際時刻表在淡水穿梭（位置為推演，非即時班次）— 拖曳、縮放看看。' },
   ntalrt:    { plateL: '雙城', plateR: '十四張', sub: 'ANKENG LIGHT RAIL LIVE', lead: '安坑輕軌依當日實際時刻表沿安康路串起新店丘陵（位置為推演，非即時班次）— 拖曳、縮放看看。' },
@@ -2686,7 +2686,7 @@ const GROUPS = [
       lead: '台鐵與高鐵同框運行，皆依當日真實時刻表（台鐵回到現在時刻自動套用即時誤點）— 點列車跟隨、點車站看班次，或按地圖角落「探」看今日亮點。' } },
   { id: 'north', label: '北北桃', mode: 'freq', members: ['mrt', 'tymc', 'ntdlrt', 'ntalrt', 'sanying'],
     plate: { plateL: '淡水', plateR: '桃園機場', sub: 'GREATER TAIPEI RAIL',
-      lead: '台北捷運、桃園機捷、淡海、安坑輕軌與三鶯線同框運行，依當日實際時刻表推演（三鶯線、文湖線為班距推算；非即時班次）— 可在上方勾選要同時顯示的系統,拖曳、縮放地圖看看。' } },
+      lead: '台北捷運、新北捷運（環狀線・淡海・安坑・三鶯）與桃園機捷同框運行，依當日實際時刻表推演（三鶯線、文湖線為班距推算；非即時班次）— 可在上方勾選要同時顯示的系統,拖曳、縮放地圖看看。' } },
   { id: 'south', label: '中南部', mode: 'freq', members: ['tmrt', 'krtc'],
     plate: { plateL: '台中', plateR: '高雄', sub: 'CENTRAL & SOUTHERN METRO',
       lead: '台中捷運與高雄捷運同框，依當日實際時刻表推演（台中捷運為班距推算；非即時班次）— 可在上方勾選要同時顯示的系統。' } },
