@@ -1572,7 +1572,7 @@
 <script>
 // 版本戳記:每次改版 push 前手動遞增(字母序),畫面時鐘徽章與 console 都會顯示,
 // 供比對線上跑的是不是最新版(瀏覽器快取 max-age=600 常讓人看到舊版)
-const BUILD = 'v0712o';
+const BUILD = 'v0713a';
 const state = {
   systems: [], sysId: null, data: null, speed: 36, mode: 'freq',
   lines: [], visible: new Set(), trains: [], schedStations: [], types: [],
@@ -4808,8 +4808,8 @@ function setFollowLock(on) {
 function updateFollowLockUI() {
   const b = document.getElementById('followLockBtn');
   if (!b) return;
-  // 放空/隨機導覽自動換車,鎖沒有意義;也讓開手機放空模式右下角的「離開放空」鈕
-  const show = (!!state.followTrain || !!state.freqFollow) && !state.autoTour && !document.body.classList.contains('ambient');
+  // 放空模式藏 UI(鈕藏了解鎖鎖不回,鏡頭會漂走);隨機跟隨仍跟單車,保留鎖頭讓使用者能解鎖瀏覽/點回置中
+  const show = (!!state.followTrain || !!state.freqFollow) && !document.body.classList.contains('ambient');
   b.parentNode.style.display = show ? '' : 'none';
   b.classList.toggle('unlocked', !state.followLock);
   b.textContent = state.followLock ? '🔒' : '◉ 回到列車';
@@ -5689,9 +5689,9 @@ async function boot() {
   document.getElementById('followLockBtn').onclick = () => setFollowLock(!state.followLock);
   updateFollowLockUI(); // 初始未跟隨 → 收起
   // 拖曳地圖=解鎖(Google 導航式);縮放不解鎖
-  // 放空/隨機導覽不解鎖:那些模式鈕是藏的,解了鎖沒有辦法鎖回,鏡頭會永久漂走
+  // 放空模式不解鎖:鈕是藏的,解了鎖沒辦法鎖回,鏡頭會永久漂走;隨機跟隨鈕有顯示,可解鎖也可點回置中
   map.on('dragstart', () => {
-    if ((state.followTrain || state.freqFollow) && state.followLock && !state.autoTour && !document.body.classList.contains('ambient')) setFollowLock(false);
+    if ((state.followTrain || state.freqFollow) && state.followLock && !document.body.classList.contains('ambient')) setFollowLock(false);
     if (state.ambient && state.ambientStyle === 'hotspot' && !state.followTrain) {
       state._hotNext = performance.now() + 45000; // 使用者動手看地圖:這一幕延長,巡航讓位幾秒再接手
       state._hotYield = performance.now() + 8000;
