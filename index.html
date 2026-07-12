@@ -116,6 +116,17 @@
   .grouptabs .gtab.active {
     background: #26497e; color: #fff8ec; border-color: #1c3a68; box-shadow: 0 2px 0 #1c3a68;
   }
+  /* 縣市視角書籤:選單樣式對齊群組頁籤膠囊(同高同框同影),右側留白放自繪箭頭 */
+  .grouptabs .citysel {
+    font: inherit; font-size: 14px; font-weight: 700; cursor: pointer;
+    background-color: #efe6cc; color: #7a6c50;
+    border: 1.5px solid #c9b98f; border-radius: 999px; padding: 7px 32px 7px 16px;
+    box-shadow: 0 2px 0 #c9b98f;
+    -webkit-appearance: none; -moz-appearance: none; appearance: none;
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='7' viewBox='0 0 10 7'><path d='M1 1l4 4 4-4' fill='none' stroke='%237a6c50' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/></svg>");
+    background-repeat: no-repeat; background-position: right 13px center;
+  }
+  .grouptabs .citysel:focus-visible { outline: 2px solid #26497e; outline-offset: 1px; }
   .groupmembers { display: flex; flex-wrap: wrap; gap: 8px; }
   .groupmembers .mem {
     font: inherit; font-size: 13px; font-weight: 600; cursor: pointer;
@@ -667,7 +678,7 @@
   /* ── 直播模式(?live=1,OBS 訊號源):隱藏一切互動 UI,留時鐘徽章/attribution/曲名/浮水印 ── */
   body.live .controls, body.live .stage-tools, body.live #randBtn,
   body.live .rec-pill, body.live .rec-toast, body.live .leaflet-control-zoom,
-  body.live .follow-lock-ctl { display: none !important; }
+  body.live .follow-lock-ctl, body.live .citysel { display: none !important; }
   body.live .leaflet-control-container { opacity: 1 !important; } /* 閒置淡出不得帶走底圖 attribution(CARTO/OSM 授權要求) */
   .live-hud { position: absolute; top: 64px; left: 12px; z-index: 600; pointer-events: none; display: flex; flex-direction: column; align-items: flex-start; gap: 5px; }
   .live-hud[hidden] { display: none; } /* flex 會蓋掉 hidden 的預設 display:none,補回 */
@@ -969,6 +980,7 @@
     .plate-arrow { width: 58px; height: 9px; margin: 0 8px; }
     header p { font-size: 13px; }
     .grouptabs .gtab { font-size: 13px; padding: 6px 14px; }
+    .grouptabs .citysel { font-size: 13px; padding: 6px 28px 6px 14px; background-position: right 11px center; }
     .groupmembers .mem { font-size: 12.5px; padding: 5px 11px; }
     .stage { height: 58vh; min-height: 380px; }
     .badge { top: 8px; left: 8px; gap: 9px; padding: 5px 11px 6px; }
@@ -1140,6 +1152,27 @@
       <button class="gtab">北北桃</button>
       <button class="gtab">中南部</button>
       <button class="gtab">全台同框</button>
+      <!-- 縣市視角書籤(靜態預置佔位):boot 的 renderSystemsBar 會整塊重建,options 由 CITY_LIST 生成,此處須與其結構一致(CLS 預留) -->
+      <select class="citysel" id="citySel" aria-label="移動到縣市">
+        <option value="">縣市</option>
+        <option value="keelung">基隆</option>
+        <option value="taipei">台北</option>
+        <option value="ntpc">新北</option>
+        <option value="taoyuan">桃園</option>
+        <option value="hsinchu">新竹</option>
+        <option value="miaoli">苗栗</option>
+        <option value="taichung">台中</option>
+        <option value="changhua">彰化</option>
+        <option value="nantou">南投</option>
+        <option value="yunlin">雲林</option>
+        <option value="chiayi">嘉義</option>
+        <option value="tainan">台南</option>
+        <option value="kaohsiung">高雄</option>
+        <option value="pingtung">屏東</option>
+        <option value="yilan">宜蘭</option>
+        <option value="hualien">花蓮</option>
+        <option value="taitung">台東</option>
+      </select>
     </div>
     <div class="groupmembers">
       <button class="mem sched on"><span class="memck">✓</span>台鐵</button>
@@ -1386,7 +1419,7 @@
 <script>
 // 版本戳記:每次改版 push 前手動遞增(字母序),畫面時鐘徽章與 console 都會顯示,
 // 供比對線上跑的是不是最新版(瀏覽器快取 max-age=600 常讓人看到舊版)
-const BUILD = 'v0712e';
+const BUILD = 'v0712f';
 const state = {
   systems: [], sysId: null, data: null, speed: 36, mode: 'freq',
   lines: [], visible: new Set(), trains: [], schedStations: [], types: [],
@@ -2696,6 +2729,56 @@ const GROUPS = [
 ];
 const groupOf = id => GROUPS.find(g => g.members.includes(id)) || GROUPS[0];
 
+// 縣市視角書籤:純 viewport 書籤——選一縣市即 flyToBounds 到該縣市軌道範圍,不過濾列車、不改系統載入。
+// bbox = [南緯, 西經, 北緯, 東經](涵蓋該縣市軌道的合理行政區範圍即可,不必精確到界)。新竹/嘉義縣市合一。
+const CITY_BBOX = {
+  keelung:  [25.06, 121.63, 25.20, 121.82],
+  taipei:   [24.96, 121.45, 25.21, 121.66],
+  ntpc:     [24.85, 121.28, 25.30, 121.95],
+  taoyuan:  [24.60, 120.96, 25.12, 121.45],
+  hsinchu:  [24.55, 120.85, 24.92, 121.30],
+  miaoli:   [24.30, 120.60, 24.75, 121.05],
+  taichung: [24.05, 120.50, 24.45, 121.05],
+  changhua: [23.80, 120.30, 24.18, 120.65],
+  nantou:   [23.55, 120.60, 24.10, 121.25],
+  yunlin:   [23.50, 120.10, 23.90, 120.70],
+  chiayi:   [23.25, 120.10, 23.60, 120.90],
+  tainan:   [22.90, 120.00, 23.40, 120.50],
+  kaohsiung:[22.45, 120.20, 23.00, 120.80],
+  pingtung: [21.90, 120.40, 22.70, 120.90],
+  yilan:    [24.30, 121.30, 24.90, 121.90],
+  hualien:  [23.10, 121.30, 24.40, 121.70],
+  taitung:  [22.50, 120.80, 23.45, 121.50],
+};
+// 選單顯示順序(北→南);label 與靜態預置佔位(#systems 內)必須一致
+const CITY_LIST = [
+  ['keelung','基隆'], ['taipei','台北'], ['ntpc','新北'], ['taoyuan','桃園'],
+  ['hsinchu','新竹'], ['miaoli','苗栗'], ['taichung','台中'], ['changhua','彰化'],
+  ['nantou','南投'], ['yunlin','雲林'], ['chiayi','嘉義'], ['tainan','台南'],
+  ['kaohsiung','高雄'], ['pingtung','屏東'], ['yilan','宜蘭'], ['hualien','花蓮'],
+  ['taitung','台東'],
+];
+function flyToCity(id) {
+  if (!map || !id) return;
+  const b = CITY_BBOX[id]; if (!b) return;
+  if (state.autoTour) setAutoTour(false); // 手動書籤即接手,退出隨機/放空巡航(比照換系統)
+  map.flyToBounds(L.latLngBounds([[b[0], b[1]], [b[2], b[3]]]), { padding: [30, 30], duration: 0.8, maxZoom: 13 });
+}
+// 縣市選單(附到 renderSystemsBar 的群組頁籤列尾端):選了就飛,飛完重置回「縣市」佔位——純動作選單,可連續使用同一縣市
+function buildCitySelect() {
+  const sel = document.createElement('select');
+  sel.className = 'citysel'; sel.id = 'citySel';
+  sel.setAttribute('aria-label', '移動到縣市');
+  const ph = document.createElement('option'); ph.value = ''; ph.textContent = '縣市';
+  sel.appendChild(ph);
+  for (const [id, label] of CITY_LIST) {
+    const o = document.createElement('option'); o.value = id; o.textContent = label;
+    sel.appendChild(o);
+  }
+  sel.onchange = e => { flyToCity(e.target.value); e.target.selectedIndex = 0; };
+  return sel;
+}
+
 // 台鐵/高鐵(sched)專屬工具鈕(今日亮點/我的最愛/旅程收集/隨機跟隨/特殊站介紹)只在 sched 顯示;
 // 捷運/輕軌(freq)沒有車次、完乘、特別列車這些概念,隱藏這些鈕。用 inline display 蓋過 .stage-tools 的 flex。
 function updateSchedTools() {
@@ -2815,6 +2898,7 @@ function renderSystemsBar() {
     b.onclick = () => selectGroup(g);
     tabs.appendChild(b);
   });
+  tabs.appendChild(buildCitySelect()); // 縣市視角書籤:群組頁籤列尾端;整塊重建即回「縣市」佔位
   box.appendChild(tabs);
   const mem = document.createElement('div');
   mem.className = 'groupmembers';
