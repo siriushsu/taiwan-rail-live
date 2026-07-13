@@ -1591,7 +1591,7 @@
 <script>
 // 版本戳記:每次改版 push 前手動遞增(字母序),畫面時鐘徽章與 console 都會顯示,
 // 供比對線上跑的是不是最新版(瀏覽器快取 max-age=600 常讓人看到舊版)
-const BUILD = 'v0713d';
+const BUILD = 'v0713e';
 const state = {
   systems: [], sysId: null, data: null, speed: 36, mode: 'freq',
   lines: [], visible: new Set(), trains: [], schedStations: [], types: [],
@@ -2858,11 +2858,19 @@ function renderPinCard() {
     '<button class="xc-close" id="pinClose" type="button" aria-label="關閉">✕</button></div>' +
     '<div class="xc-list">' + body + '</div>' + foot;
   el.hidden = false;
-  document.getElementById('pinClose').onclick = closePinCard;
-  document.getElementById('pinSave').onclick = togglePinSave;
-  el.querySelectorAll('.xc-row[data-no]').forEach(row => {
-    row.onclick = () => { const tr = state.trains.find(t => String(t.train) === row.dataset.no); if (tr) setFollow(tr); };
-  });
+  state._pinRenderedAt = state.simSec;
+  if (!el._wired) { // 事件委派只掛一次:卡片每模擬秒重繪(倒數要跳),per-render 綁 handler 會在重繪瞬間掉點擊
+    el._wired = true;
+    el.onpointerdown = e => { const row = e.target.closest('.xc-row[data-no]'); el._downNo = row ? row.dataset.no : null; };
+    el.onclick = e => {
+      if (e.target.closest('#pinClose')) return closePinCard();
+      if (e.target.closest('#pinSave')) return togglePinSave();
+      const row = e.target.closest('.xc-row[data-no]');
+      const no = row ? row.dataset.no : el._downNo; // 按下到放開之間列被重繪換走時,用 pointerdown 記的車次補(比照站牌看板)
+      if (!no) return;
+      const tr = state.trains.find(t => String(t.train) === no); if (tr) setFollow(tr);
+    };
+  }
 }
 function togglePinSave() {
   if (!pinDraft) return;
@@ -2941,6 +2949,7 @@ function tick(now) {
   if (state.mode === 'sched') {
     if (state.boardStation && Math.abs(state.simSec - (state.boardRenderedAt || 0)) >= 20) renderBoard();
     if (state.crossingSel && Math.abs(state.simSec - (state._xingRenderedAt || 0)) >= 1) renderCrossingCard(); // 倒數每秒刷新+已通過班次退出
+    if (pinDraft && Math.abs(state.simSec - (state._pinRenderedAt || 0)) >= 1) renderPinCard(); // 釘卡倒數同樣每秒刷新(已通過班次自動退出)
     drawFlow();
   }
   state._skyClock = (state._skyClock || 0) + dt;
