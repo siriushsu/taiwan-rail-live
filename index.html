@@ -1510,6 +1510,7 @@
     <details class="foot-box">
       <summary><span>🛠 更新紀錄</span><span class="foot-sub">最後更新：2026/7/13</span></summary>
       <ul class="foot-list">
+        <li><span class="d">7/13</span><span>列車位置改用「車種加減速」模型：不同車種依實際的加速／減速特性運行——出站漸加速、進站漸減速、中段等速巡航，取代原本全程等速，站區附近的位置更貼近真實；跟隨列車時的即時時速與速度曲線也隨之呈現真實的加減速起伏，平交道通過倒數一併更精準</span></li>
         <li><span class="d">7/13</span><span>預設視圖改為「全台同框」：打開網站就看整個台灣鐵道（台鐵＋高鐵＋各捷運／輕軌）同框運行；系統頁籤順序調整，「國家鐵路」移到第二個</span></li>
         <li><span class="d">7/13</span><span>新增「分享畫面」：地圖工具列點「↗ 分享畫面」，一鍵把目前的地點、時間與路網（或正在跟隨的列車）打包成連結——手機叫出分享面板傳給朋友、電腦複製連結；對方打開就直接落在你當時看的同一個畫面（回報問題時也會自動夾帶這個位置，之後接上表單）</span></li>
         <li><span class="d">7/13</span><span>平交道圖示改用台灣鐵路「交叉標」牌面意象——白臂紅邊的紅叉（單線單叉、雙線以上於叉下加人字、電化加閃電小徽章，拉近顯示），點開的資訊卡也標示「單線／雙線以上・電化」分類；軌道數與電化由 OpenStreetMap 逐處推算，少數推算不到的維持通用圖示</span></li>
@@ -1908,6 +1909,63 @@ function freqTrainInfoAt(ln, tr, t) {
     termName: ln.loop ? null : (term ? term.name : ''), loop: !!ln.loop };
 }
 
+// ── 車種加減速運動模型 ──────────────────────────────────────────────────────
+// 每站間以「停→停」梯形速度曲線(加速→巡航→減速)重新分配段內位置,取代等速線性。
+// 時刻表釘死總距離 L 與總時間 T,曲線面積=L → 端點(到離站時刻)恆不變;巡航速度由
+// L/T 與加減速反解,自然被時刻表隱含的路段限速蓋住。研究見 KB 2026-07-12 筆記。
+// 加減速單位 km/h/s、極速 km/h(比對維基各車種條目;確定度低的估值已上修至可行率合理)。
+const PERF_DEFAULT = { a: 1.5, b: 2.5, v: 110 };
+const PERF_HSR = { a: 2.0, b: 2.7, v: 300 };
+const PERF_RULES = [ // carName 正整比對(鏡射 KIND_RULES 順序,先中先贏)
+  [/普快車|普通車/, { a: 1.3, b: 2.4, v: 100 }],     // 藍皮普快/傳統客車
+  [/\(太/,   { a: 1.88, b: 3.6, v: 135 }],           // 太魯閣 TEMU1000(傾斜式)
+  [/\(普/,   { a: 1.84, b: 3.6, v: 135 }],           // 普悠瑪 TEMU2000(傾斜式)
+  [/\(PP/,   { a: 1.6,  b: 2.8, v: 130 }],           // PP 自強 E1000(推拉,加速估~0.44m/s²)
+  [/\(3000/, { a: 2.52, b: 3.6, v: 135 }],           // EMU3000 新自強
+  [/\(D\d/,  { a: 1.5,  b: 2.448, v: 110 }],         // 柴聯自強 DR2800/2900/3100
+  [/自強/,   { a: 1.8,  b: 2.9, v: 130 }],           // 泛自強(無括號標記,如 E500 110K/M)
+  [/莒光|復興/, { a: 1.5, b: 2.6, v: 120 }],          // 機車牽引傳統對號
+  [/電車|區間/, { a: 2.5, b: 3.0, v: 120 }],          // 區間/電車類 EMU
+];
+const PERF_BY_TYPE = { // carName 未中時退 typeName
+  '區間車': { a: 2.5, b: 3.0, v: 120 }, '區間快': { a: 2.5, b: 3.0, v: 120 },
+  '自強': { a: 1.8, b: 2.9, v: 130 }, '莒光/復興': { a: 1.5, b: 2.6, v: 120 },
+};
+function resolvePerf(tr) {
+  if (isHSR(tr)) return PERF_HSR;
+  const cn = tr.carName || '';
+  for (const [re, p] of PERF_RULES) if (re.test(cn)) return p;
+  return PERF_BY_TYPE[tr.typeName] || PERF_DEFAULT;
+}
+// 給段距離 Lkm、段時間 T 秒、加速 aK/減速 bK(km/h/s)、極速 vK(km/h) → 相位參數(內部 SI)。
+// 不可行(時間太緊/太短/需超速才追上時刻)回 null,呼叫端退回等速(端點恆安全)。
+function buildProfile(Lkm, T, aK, bK, vK) {
+  const L = Lkm * 1000, a = aK / 3.6, b = bK / 3.6, vmax = vK / 3.6; // → m, m/s², m/s
+  if (!(L > 0) || !(T > 0) || !(a > 0) || !(b > 0)) return null;
+  const k = 1 / a + 1 / b, disc = T * T - 2 * k * L;
+  if (disc < 0) return null;                     // 段太緊:此加減速下 T 內跑不完 L
+  const vc = (T - Math.sqrt(disc)) / k;          // 巡航速度(較小根),恆 ≥ 平均速度
+  if (vc > vmax) return null;                    // 需超過極速才追得上時刻表 → 退等速
+  const tAcc = vc / a, tDec = vc / b, tCru = Math.sqrt(disc); // tCru = T - tAcc - tDec
+  return { T, L, a, b, vc, tAcc, tCru, tDec, dAcc: vc * vc / (2 * a), dCru: vc * tCru, dDec: vc * vc / (2 * b) };
+}
+function profTimeToProg(p, t) { // 段內時間(0..T秒) → 歸一化距離進度(0..1)
+  if (t <= 0) return 0; if (t >= p.T) return 1;
+  let d;
+  if (t < p.tAcc) d = 0.5 * p.a * t * t;
+  else if (t < p.tAcc + p.tCru) d = p.dAcc + p.vc * (t - p.tAcc);
+  else { const td = t - p.tAcc - p.tCru; d = p.dAcc + p.dCru + p.vc * td - 0.5 * p.b * td * td; }
+  return d / p.L;
+}
+function profProgToTime(p, f) { // 距離進度(0..1) → 段內時間(秒);profTimeToProg 的逆(平交道反解)
+  if (f <= 0) return 0; if (f >= 1) return p.T;
+  const d = f * p.L;
+  if (d < p.dAcc) return Math.sqrt(2 * d / p.a);
+  if (d < p.dAcc + p.dCru) return p.tAcc + (d - p.dAcc) / p.vc;
+  const dd = d - p.dAcc - p.dCru, disc = p.vc * p.vc - 2 * p.b * dd;
+  return p.tAcc + p.tCru + (disc > 0 ? (p.vc - Math.sqrt(disc)) / p.b : p.tDec);
+}
+
 function trainPos(tr, t) {
   t -= liveDelaySec(tr);
   if (tr.loop) t = tr.stops[0].arrSec + ((t - tr.stops[0].arrSec) % tr.loopSec + tr.loopSec) % tr.loopSec; // 環島車:任何時刻都映回本圈
@@ -1923,7 +1981,9 @@ function trainPos(tr, t) {
       return { lat: s[i].lat, lon: s[i].lon };
     }
     if (i < n - 1 && t > s[i].depSec && t < s[i + 1].arrSec) {
-      const span = s[i + 1].arrSec - s[i].depSec, f = span > 0 ? (t - s[i].depSec) / span : 0;
+      const span = s[i + 1].arrSec - s[i].depSec;
+      let f = span > 0 ? (t - s[i].depSec) / span : 0;
+      if (s[i].prof) f = profTimeToProg(s[i].prof, t - s[i].depSec); // 車種加減速:等速→梯形曲線(緩起/巡航/緩停)
       if (s[i].segLn) {
         const d = s[i].dA + (s[i].dB - s[i].dA) * f;
         return posAlongShape(s[i].segLn, d);
@@ -1980,7 +2040,7 @@ function assignSchedShapePathsFor(trains, lines) {
     }
   }
   for (const tr of trains) {
-    const s = tr.stops;
+    const s = tr.stops, perf = resolvePerf(tr); // 車種加減速參數(HSR/carName/typeName 解析)
     for (let i = 0; i < s.length - 1; i++) {
       const A = byName.get(s[i].name), B = byName.get(s[i + 1].name);
       let best = null;
@@ -1988,8 +2048,14 @@ function assignSchedShapePathsFor(trains, lines) {
         const gap = Math.abs(b.d - a.d);
         if (!best || gap < best.gap) best = { ln: a.ln, dA: a.d, dB: b.d, gap };
       }
-      if (best) { s[i].segLn = best.ln; s[i].dA = best.dA; s[i].dB = best.dB; state._segStats.onShape++; }
-      else state._segStats.straight++;
+      const T = s[i + 1].arrSec - s[i].depSec; // 段時間(發車→下一站到站):梯形曲線積分守恆邊界
+      if (best) {
+        s[i].segLn = best.ln; s[i].dA = best.dA; s[i].dB = best.dB; state._segStats.onShape++;
+        s[i].prof = buildProfile(Math.abs(best.dB - best.dA), T, perf.a, perf.b, perf.v);
+      } else {
+        state._segStats.straight++;
+        s[i].prof = buildProfile(haversineKm(s[i], s[i + 1]), T, perf.a, perf.b, perf.v);
+      }
     }
   }
 }
@@ -2740,7 +2806,8 @@ function crossingPasses(cr) {
       const lo = Math.min(sg.dA, sg.dB), hi = Math.max(sg.dA, sg.dB);
       if (cr.d < lo || cr.d > hi) continue;
       const f = (cr.d - sg.dA) / denom;                    // 沿線里程比例
-      const tSched = sg.depSec + f * (s[i + 1].arrSec - sg.depSec);
+      const tSched = sg.prof ? sg.depSec + profProgToTime(sg.prof, f)
+        : sg.depSec + f * (s[i + 1].arrSec - sg.depSec);   // 加減速反解通過時刻;無 prof 退等速
       const dlSec = liveDelaySec(tr);                       // 台鐵即時誤點(貼近現在時刻才作用)
       const pass = tSched + dlSec;
       const delta = ((pass - now) % 86400 + 86400) % 86400; // 跨午夜循環時刻
@@ -4765,8 +4832,11 @@ function journeyProgress(tr, t) {
     if (t >= s[i + 1].arrSec) { done += tr._segKm[i]; continue; }
     if (t > s[i].depSec) {
       const span = s[i + 1].arrSec - s[i].depSec;
-      done += span > 0 ? (t - s[i].depSec) / span * tr._segKm[i] : 0;
+      const f = s[i].prof ? profTimeToProg(s[i].prof, t - s[i].depSec) // 車種加減速:已行駛里程與動畫位置一致
+        : (span > 0 ? (t - s[i].depSec) / span : 0);
+      done += f * tr._segKm[i];
     }
+
     break;
   }
   return { done, total: tr._totalKm };
