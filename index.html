@@ -1510,6 +1510,7 @@
     <details class="foot-box">
       <summary><span>🛠 更新紀錄</span><span class="foot-sub">最後更新：2026/7/13</span></summary>
       <ul class="foot-list">
+        <li><span class="d">7/13</span><span>高速播放不再整片全黑：放到很大（接近最大）又用 ≥30× 高速跟車時，底圖要的圖磚會暴增到整片載不進來、變全黑——現在高速時會自動把縮放收到還讀得動的範圍（約市區街廓層級），底圖維持完整；降回低速就恢復成你加速前的縮放</span></li>
         <li><span class="d">7/13</span><span>旅程收集的收集章更好逛：明星列車／車種圖鑑／支線行腳，每點一次就換搭一班不同的車（同一枚章重複點不再都是同一輛）；已完成（打勾）的章也一樣能點，隨時再挑一班回味</span></li>
         <li><span class="d">7/13</span><span>高速跟隨底圖更跟得上：加速播放（如 30×、60×）跟著列車跑時，會沿行進方向「預先載入」前方的地圖圖磚——鏡頭跳得再快，底圖也較不會來不及顯示、露出空白。預抓只使用剩餘頻寬（標記為低優先），不會跟眼前的地圖搶載入，網速受限時也不會反而變慢</span></li>
         <li><span class="d">7/13</span><span>列車位置改用「車種加減速」模型：不同車種依實際的加速／減速特性運行——出站漸加速、進站漸減速、中段等速巡航，取代原本全程等速，站區附近的位置更貼近真實；跟隨列車時的即時時速與速度曲線也隨之呈現真實的加減速起伏，平交道通過倒數一併更精準</span></li>
@@ -1603,7 +1604,7 @@
 <script>
 // 版本戳記:每次改版 push 前手動遞增(字母序),畫面時鐘徽章與 console 都會顯示,
 // 供比對線上跑的是不是最新版(瀏覽器快取 max-age=600 常讓人看到舊版)
-const BUILD = 'v0713m';
+const BUILD = 'v0713n';
 const state = {
   systems: [], sysId: null, data: null, speed: 36, mode: 'freq',
   lines: [], visible: new Set(), trains: [], schedStations: [], types: [],
@@ -1660,6 +1661,29 @@ function setSpeed(v) {
   document.getElementById('speedOut').textContent = v + '×';
   document.querySelectorAll('#spdBtns button').forEach(b =>
     b.classList.toggle('active', +b.dataset.v === v));
+  applySpeedZoomCap();
+}
+// 高速鎖縮放:播放 ≥30× 時把地圖縮放上限收到 z16(每圖磚約1.2km,60×也只需~2.6張/秒、讀得動)。
+// 因為最大 zoom(z19-20)+快車+高速時圖磚需求爆到~28張/秒,連眼前那屏都載不進來→底圖整片全黑(實測)。
+// 降回 <30× 即解除上限,並還原到加速前的縮放。用 _zoomCapped 只在跨越門檻時動作。
+const HISPEED_ZOOM_CAP = 16;
+function applySpeedZoomCap() {
+  if (!map) return;
+  const fast = state.speedMult >= 30;
+  if (fast === !!state._zoomCapped) return;
+  state._zoomCapped = fast;
+  if (fast) {
+    // 只有真的把他從高處壓下來才記(≤CAP 就沒動他,也無從還原)
+    state._preCapZoom = map.getZoom() > HISPEED_ZOOM_CAP ? map.getZoom() : null;
+    if (map.getZoom() > HISPEED_ZOOM_CAP) map.setView(map.getCenter(), HISPEED_ZOOM_CAP, { animate: false });
+    map.setMaxZoom(HISPEED_ZOOM_CAP);
+  } else {
+    map.setMaxZoom(state.basemap === 'sat' ? 19 : 20); // 還原各底圖層原本的上限
+    // 只有他還停在 CAP(高速時沒自己再改縮放)才還原,免得蓋掉他刻意選的全景視角
+    if (state._preCapZoom != null && Math.abs(map.getZoom() - HISPEED_ZOOM_CAP) < 0.01)
+      map.setView(map.getCenter(), state._preCapZoom, { animate: false });
+    state._preCapZoom = null;
+  }
 }
 function syncTimeUI() {
   document.getElementById('tod').value = Math.floor(state.simSec / 60);
