@@ -1511,6 +1511,7 @@
     <details class="foot-box">
       <summary><span>🛠 更新紀錄</span><span class="foot-sub">最後更新：2026/7/13</span></summary>
       <ul class="foot-list">
+        <li><span class="d">7/13</span><span>放大播放更滑順：用較高倍速（如 5×）又把地圖縮小一些時，跟隨列車與「群車」巡航的鏡頭移動原本會有一格一格的細微鋸齒——現在改用次像素平移，背景與列車都移動得平順連續</span></li>
         <li><span class="d">7/13</span><span>手機提示不再擋住列車資訊：開「附近火車（釘）」「平交道」時跳出的說明、以及切換「省電」的提示，會自動避開左上時鐘與左下的列車資訊卡，改在中間空檔顯示（謝謝網友回報重疊）；電腦版不受影響。另外切換省電模式時會給一句確認提示</span></li>
         <li><span class="d">7/13</span><span>贊助方式更新：「請開發者喝咖啡」的銀行轉帳帳戶改用 LINE Bank（連線商業銀行 824）——謝謝每一位抖內支持軌島的朋友 🙏</span></li>
         <li><span class="d">7/13</span><span>高速播放不再整片全黑：放到很大（接近最大）又用 ≥30× 高速跟車時，底圖要的圖磚會暴增到整片載不進來、變全黑——現在高速時會自動把縮放收到還讀得動的範圍（約市區街廓層級），底圖維持完整；降回低速就恢復成你加速前的縮放</span></li>
@@ -1609,7 +1610,7 @@
 <script>
 // 版本戳記:每次改版 push 前手動遞增(字母序),畫面時鐘徽章與 console 都會顯示,
 // 供比對線上跑的是不是最新版(瀏覽器快取 max-age=600 常讓人看到舊版)
-const BUILD = 'v0713r';
+const BUILD = 'v0713s';
 const state = {
   systems: [], sysId: null, data: null, speed: 36, mode: 'freq',
   lines: [], visible: new Set(), trains: [], schedStations: [], types: [],
