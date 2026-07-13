@@ -1294,21 +1294,21 @@
           <path d="M107 7 L94 1.6 L94 12.4 Z" fill="currentColor"/>
           <line x1="54" y1="2.2" x2="54" y2="11.8" stroke="currentColor" stroke-width="2.6"/>
         </svg>
-        <span class="stn" id="plateR">枋寮</span>
+        <span class="stn" id="plateR">高雄</span>
       </div>
     </div>
-    <!-- 導言靜態預置預設群組(國家鐵路)文案:boot 會換字,長短不同會多折一行把版面下推(CLS);GROUPS.nat.plate.lead 改時同步 -->
-    <p id="lead">台鐵與高鐵同框運行，皆依當日真實時刻表（台鐵回到現在時刻自動套用即時誤點）— 點列車跟隨、點車站看班次，或按地圖角落「探」看今日亮點。</p>
+    <!-- 導言靜態預置預設群組(全台同框)文案:boot 會換字,長短不同會多折一行把版面下推(CLS);GROUPS.all.plate.lead 改時同步 -->
+    <p id="lead">全台鐵道一次看 — 台鐵、高鐵與各捷運／輕軌皆依當日時刻表同一時間軸運行（台鐵套即時誤點；捷運非即時班次）。</p>
   </header>
 
-  <!-- 靜態預置預設群組(國家鐵路)頁籤:首繪即佔位避免 CLS(index 檔大,4G 下尾端腳本晚於首繪)。
+  <!-- 靜態預置預設群組(全台同框)頁籤:首繪即佔位避免 CLS(index 檔大,4G 下尾端腳本晚於首繪)。
        boot 的 renderSystemsBar 會整塊重建,此處類名/文字必須與其輸出一致(GROUPS/成員變動時同步改) -->
   <div class="systems" id="systems">
     <div class="grouptabs">
-      <button class="gtab active">國家鐵路</button>
+      <button class="gtab active">全台同框</button>
+      <button class="gtab">國家鐵路</button>
       <button class="gtab">北北桃</button>
       <button class="gtab">中南部</button>
-      <button class="gtab">全台同框</button>
       <!-- 縣市視角書籤(靜態預置佔位):boot 的 renderSystemsBar 會整塊重建,options 由 CITY_LIST 生成,此處須與其結構一致(CLS 預留) -->
       <select class="citysel" id="citySel" aria-label="移動到縣市">
         <option value="">縣市</option>
@@ -1332,8 +1332,7 @@
       </select>
     </div>
     <div class="groupmembers">
-      <button class="mem sched on"><span class="memck">✓</span>台鐵</button>
-      <button class="mem sched on"><span class="memck">✓</span>高鐵</button>
+      <div class="allcap">台鐵 · 高鐵（真實時刻）｜ 捷運 · 輕軌（依當日時刻表推演，非即時）</div>
     </div>
   </div>
 
@@ -1511,6 +1510,7 @@
     <details class="foot-box">
       <summary><span>🛠 更新紀錄</span><span class="foot-sub">最後更新：2026/7/13</span></summary>
       <ul class="foot-list">
+        <li><span class="d">7/13</span><span>預設視圖改為「全台同框」：打開網站就看整個台灣鐵道（台鐵＋高鐵＋各捷運／輕軌）同框運行；系統頁籤順序調整，「國家鐵路」移到第二個</span></li>
         <li><span class="d">7/13</span><span>新增「分享畫面」：地圖工具列點「↗ 分享畫面」，一鍵把目前的地點、時間與路網（或正在跟隨的列車）打包成連結——手機叫出分享面板傳給朋友、電腦複製連結；對方打開就直接落在你當時看的同一個畫面（回報問題時也會自動夾帶這個位置，之後接上表單）</span></li>
         <li><span class="d">7/13</span><span>平交道圖示改用台灣鐵路「交叉標」牌面意象——白臂紅邊的紅叉（單線單叉、雙線以上於叉下加人字、電化加閃電小徽章，拉近顯示），點開的資訊卡也標示「單線／雙線以上・電化」分類；軌道數與電化由 OpenStreetMap 逐處推算，少數推算不到的維持通用圖示</span></li>
         <li><span class="d">7/13</span><span>手機介面：「隨機跟隨／換一班」按鈕移到左上時鐘卡下方——原本在地圖下緣置中，跟隨時會與列車資訊卡重疊（謝謝網友回報）</span></li>
@@ -1600,7 +1600,7 @@
 <script>
 // 版本戳記:每次改版 push 前手動遞增(字母序),畫面時鐘徽章與 console 都會顯示,
 // 供比對線上跑的是不是最新版(瀏覽器快取 max-age=600 常讓人看到舊版)
-const BUILD = 'v0713i';
+const BUILD = 'v0713j';
 const state = {
   systems: [], sysId: null, data: null, speed: 36, mode: 'freq',
   lines: [], visible: new Set(), trains: [], schedStations: [], types: [],
@@ -3157,6 +3157,9 @@ const SYS_DEFS = [
   { id: 'tmrt', label: '台中捷運', url: './data/tmrt.json', speed: 32, mode: 'freq', times: './data/tmrt_times.json' },
 ];
 const GROUPS = [
+  { id: 'all', label: '全台同框', mode: 'all', members: [],
+    plate: { plateL: '基隆', plateR: '高雄', sub: 'ALL LINES · TAIWAN',
+      lead: '全台鐵道一次看 — 台鐵、高鐵與各捷運／輕軌皆依當日時刻表同一時間軸運行（台鐵套即時誤點；捷運非即時班次）。' } },
   { id: 'nat', label: '國家鐵路', mode: 'sched', members: ['tra_sched', 'thsr_sched'],
     plate: { plateL: '基隆', plateR: '枋寮', sub: '台灣鐵道即時軌跡',
       lead: '台鐵與高鐵同框運行，皆依當日真實時刻表（台鐵回到現在時刻自動套用即時誤點）— 點列車跟隨、點車站看班次，或按地圖角落「探」看今日亮點。' } },
@@ -3166,9 +3169,6 @@ const GROUPS = [
   { id: 'south', label: '中南部', mode: 'freq', members: ['tmrt', 'krtc'],
     plate: { plateL: '台中', plateR: '高雄', sub: 'CENTRAL & SOUTHERN METRO',
       lead: '台中捷運與高雄捷運同框，依當日實際時刻表推演（台中捷運為班距推算；非即時班次）— 可在上方勾選要同時顯示的系統。' } },
-  { id: 'all', label: '全台同框', mode: 'all', members: [],
-    plate: { plateL: '基隆', plateR: '高雄', sub: 'ALL LINES · TAIWAN',
-      lead: '全台鐵道一次看 — 台鐵、高鐵與各捷運／輕軌皆依當日時刻表同一時間軸運行（台鐵套即時誤點；捷運非即時班次）。' } },
 ];
 const groupOf = id => GROUPS.find(g => g.members.includes(id)) || GROUPS[0];
 
@@ -5957,8 +5957,8 @@ async function boot() {
     const mz = parseInt(qs.get('z') || '', 10);
     if (!isNaN(mz)) deepZ = Math.min(18, Math.max(7, mz));
   } catch (e) {}
-  // 開場群組:分享連結帶 g 就開該群組,否則首屏台鐵+高鐵同框
-  let bootGroup = GROUPS.find(g => g.id === 'nat');
+  // 開場群組:分享連結帶 g 就開該群組,否則首屏全台同框
+  let bootGroup = GROUPS.find(g => g.id === 'all');
   if (deepG) { const gg = GROUPS.find(g => g.id === deepG); if (gg) bootGroup = gg; }
   if (bootGroup) {
     if (bootGroup.mode === 'all') loadAllGroup(bootGroup);
