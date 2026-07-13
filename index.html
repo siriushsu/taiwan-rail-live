@@ -1393,6 +1393,7 @@
       <button id="xingBtn" title="顯示平交道位置"><span class="ti">平</span><span class="tl">平交道</span></button>
       <button id="pinBtn" title="落釘看附近經過的火車"><span class="ti">釘</span><span class="tl">附近火車</span></button>
       <button id="immBtn" title="極簡沉浸（只留地圖與列車）"><span class="ti">簡</span><span class="tl">極簡沉浸</span></button>
+      <button id="powerBtn" title="省電模式（更新降頻至約 30fps，手機掛著看更省電、更不易卡）"><span class="ti">省</span><span class="tl">省電模式</span></button>
       <button id="recBtn" title="錄影 Beta（存成影片下載）"><span class="ti">⏺</span><span class="tl">錄影 Beta</span></button>
       <button id="shareBtn" title="分享目前畫面（地點＋時間，或正在跟的車）"><span class="ti">↗</span><span class="tl">分享畫面</span></button>
     </div>
@@ -1513,6 +1514,7 @@
         <li><span class="d">7/13</span><span>高速播放不再整片全黑：放到很大（接近最大）又用 ≥30× 高速跟車時，底圖要的圖磚會暴增到整片載不進來、變全黑——現在高速時會自動把縮放收到還讀得動的範圍（約市區街廓層級），底圖維持完整；降回低速就恢復成你加速前的縮放</span></li>
         <li><span class="d">7/13</span><span>旅程收集的收集章更好逛：明星列車／車種圖鑑／支線行腳，每點一次就換搭一班不同的車（同一枚章重複點不再都是同一輛）；已完成（打勾）的章也一樣能點，隨時再挑一班回味</span></li>
         <li><span class="d">7/13</span><span>高速跟隨底圖更跟得上：加速播放（如 30×、60×）跟著列車跑時，會沿行進方向「預先載入」前方的地圖圖磚——鏡頭跳得再快，底圖也較不會來不及顯示、露出空白。預抓只使用剩餘頻寬（標記為低優先），不會跟眼前的地圖搶載入，網速受限時也不會反而變慢</span></li>
+        <li><span class="d">7/13</span><span>新增「省電模式」：地圖工具列多了「省」鈕，開啟後畫面更新降到約 30fps、並關閉高速預抓——手機（尤其加到桌面的版本）掛著看更省電，跟隨列車又同時開好幾個資訊面板時也比較不會卡住按不動（謝謝網友回報手機當掉）。手機預設自動開啟，隨時可關</span></li>
         <li><span class="d">7/13</span><span>列車位置改用「車種加減速」模型：不同車種依實際的加速／減速特性運行——出站漸加速、進站漸減速、中段等速巡航，取代原本全程等速，站區附近的位置更貼近真實；跟隨列車時的即時時速與速度曲線也隨之呈現真實的加減速起伏，平交道通過倒數一併更精準</span></li>
         <li><span class="d">7/13</span><span>預設視圖改為「全台同框」：打開網站就看整個台灣鐵道（台鐵＋高鐵＋各捷運／輕軌）同框運行；系統頁籤順序調整，「國家鐵路」移到第二個</span></li>
         <li><span class="d">7/13</span><span>新增「分享畫面」：地圖工具列點「↗ 分享畫面」，一鍵把目前的地點、時間與路網（或正在跟隨的列車）打包成連結——手機叫出分享面板傳給朋友、電腦複製連結；對方打開就直接落在你當時看的同一個畫面（回報問題時也會自動夾帶這個位置，之後接上表單）</span></li>
@@ -1604,12 +1606,13 @@
 <script>
 // 版本戳記:每次改版 push 前手動遞增(字母序),畫面時鐘徽章與 console 都會顯示,
 // 供比對線上跑的是不是最新版(瀏覽器快取 max-age=600 常讓人看到舊版)
-const BUILD = 'v0713n';
+const BUILD = 'v0713o';
 const state = {
   systems: [], sysId: null, data: null, speed: 36, mode: 'freq',
   lines: [], visible: new Set(), trains: [], schedStations: [], types: [],
   playing: true, speedMult: 1, hour: 8, simSec: 8 * 3600, // 開機即 1× 真實時刻(2026-07-11 使用者裁決,舊示意預設 50×)
-  dpr: 1, t0: 0, elapsed: 0, ready: false,
+  dpr: 1, powerSave: false, t0: 0, elapsed: 0, ready: false, // powerSave:省電模式(相機置中+繪製統一降 30fps,手機預設開),見 tick 節流
+
   followTrain: null, followId: null,
   freqFollow: null, // 捷運(freq 幽靈車)跟隨:{ ln, k }——k=第 k 台幽靈車;獨立於 sched 的 followTrain
   followLock: true, // 跟隨鎖:true=每幀置中;拖曳地圖自動解鎖(Google 導航式),按「回到列車」恢復
@@ -3061,13 +3064,18 @@ function tick(now) {
   }
   if (state.ambient && state.ambientStyle === 'hotspot' && !state.followTrain && !state.freqFollow &&
       state.mode === 'sched' && state.playing) { hotspotTick(now); hotCruise(dt, now); }
+  // 省電模式:把「相機每幀 setView 置中(觸發 reflow,手機跟隨時的主要卡點)＋繪製」統一節流到 ~30fps。
+  // 放空/錄影不套(放空游標以 dt 積分,節流會變慢;錄影要滿幀);時間積分與各資訊卡時鐘照每幀跑,不受影響。
+  const psActive = state.powerSave && !REC.on && !state.ambient;
+  let renderNow = true;
+  if (psActive) { renderNow = now - (state._psAt || 0) >= 33; if (renderNow) state._psAt = now; }
   if (state.mode === 'sched' && state.followTrain) {
-    updateFollowCamera();
+    if (renderNow) updateFollowCamera(); // 省電時降 30fps 置中(讀絕對位置,不積分,半速置中仍平順)
     state._evClock = (state._evClock || 0) + dt;
     if (state._evClock >= 0.5) { state._evClock = 0; scanFollowEvents(); }
   }
-  if (state.freqFollow) updateFreqFollowCamera(); // 捷運幽靈車跟隨(各捷運分頁+全台同框):每幀置中+更新卡
-  prefetchFollowAhead(dt); // 高速跟隨時往行進方向預熱底圖圖磚,避免鏡頭跳太快底圖來不及讀(內部自行節流/門檻判斷)
+  if (renderNow && state.freqFollow) updateFreqFollowCamera(); // 捷運幽靈車跟隨(各捷運分頁+全台同框):每幀置中+更新卡
+  prefetchFollowAhead(dt); // 高速跟隨時往行進方向預熱底圖圖磚,避免鏡頭跳太快底圖來不及讀(省電模式內部直接跳過)
   if (state.mode === 'sched') {
     if (state.boardStation && Math.abs(state.simSec - (state.boardRenderedAt || 0)) >= 20) renderBoard();
     if (state.crossingSel && Math.abs(state.simSec - (state._xingRenderedAt || 0)) >= 1) renderCrossingCard(); // 倒數每秒刷新+已通過班次退出
@@ -3082,9 +3090,13 @@ function tick(now) {
   // (1) 分頁隱藏停繪——時間照積分,只是不畫;錄影中例外(recCompose 每幀從主畫布拷貝,停繪會凍結成靜止幀)
   // (2) 待機時 draw 節流到 ~30fps;跟隨/幽靈車跟隨/放空/錄影/剛互動(1.5s 內)維持顯示器全速,體驗優先
   if (!document.hidden || REC.on) {
-    const fullRate = state.followTrain || state.freqFollow || state.ambient || REC.on ||
-                     (now - (state._interactAt || 0) < 1500);
-    if (fullRate || now - (state._drawAt || 0) >= 30) { state._drawAt = now; draw(); } // 30ms 門檻→~30fps(略低於 33 免 60Hz 誤跳成 20fps)
+    if (psActive) {
+      if (renderNow) { state._drawAt = now; draw(); } // 省電:跟隨也降到 ~30fps;相機與繪製同一個 renderNow 閘,列車不會與底圖錯位
+    } else {
+      const fullRate = state.followTrain || state.freqFollow || state.ambient || REC.on ||
+                       (now - (state._interactAt || 0) < 1500);
+      if (fullRate || now - (state._drawAt || 0) >= 30) { state._drawAt = now; draw(); } // 30ms 門檻→~30fps(略低於 33 免 60Hz 誤跳成 20fps)
+    }
   }
   requestAnimationFrame(tick);
 }
@@ -5060,8 +5072,8 @@ function warmTileWindow(minX, minY, maxX, maxY, z, layer) {
   if (_warmedTiles.size > 3000) _warmedTiles.clear(); // 長途跟隨上限保險,清空後可重熱,無害
 }
 function prefetchFollowAhead(dt) {
-  // 只在「跟隨 + 鎖定 + 高速(≥4×)」時預抓;1×/自由瀏覽/低速一律不多抓任何圖磚
-  if (!dt || !state.followLock || state.speedMult < 4 || !(state.followTrain || state.freqFollow)) {
+  // 只在「跟隨 + 鎖定 + 高速(≥4×)」時預抓;1×/自由瀏覽/低速/省電模式一律不多抓任何圖磚
+  if (!dt || state.powerSave || !state.followLock || state.speedMult < 4 || !(state.followTrain || state.freqFollow)) {
     state._pfLast = null; state._pfClock = 0; return;
   }
   const layer = activeBaseLayer(); if (!layer) return;
@@ -5716,6 +5728,19 @@ function setupMapTools() {
   immBtn.onclick = () => setImmersive(!document.body.classList.contains('immersive'));
   if (state.immersive) setImmersive(true);
 
+  // ── 省電模式:相機置中＋繪製降到 ~30fps、關掉高速預抓,手機掛著看更省電、跟隨也不易卡死 ──
+  const powerBtn = document.getElementById('powerBtn');
+  function setPowerSave(on, save) {
+    state.powerSave = on;
+    powerBtn.classList.toggle('active', on);
+    powerBtn.querySelector('.tl').textContent = on ? '省電中' : '省電模式';
+    powerBtn.title = on ? '省電模式已開：更新降頻至約 30fps、關閉高速預抓（點擊關閉）'
+                        : '省電模式（更新降頻至約 30fps，手機掛著看更省電、更不易卡）';
+    if (save !== false) { try { localStorage.setItem('trainmap-powersave', on ? '1' : '0'); } catch (e) {} }
+  }
+  powerBtn.onclick = () => setPowerSave(!state.powerSave);
+  setPowerSave(state.powerSave, false); // 初始化按鈕態(沿用 boot 載入的預設:手機預設開、桌機關,或使用者記住的選擇)
+
   // ── 特殊車站介紹:經過特等/一等/有特色的站,停靠時在站名牌下緣自動顯示介紹 ──
   const introBtn = document.getElementById('introBtn');
   function setStnIntro(on) {
@@ -6066,15 +6091,17 @@ async function boot() {
       state._hotYield = performance.now() + 8000;
   });
   // crossOrigin: 錄影功能要把圖磚畫進合成 canvas,沒有 CORS 標記畫布會被汙染(無法 captureStream)
-  // keepBuffer 由預設 2 加大到 4:視窗外多留兩排圖磚才卸載,快速平移(加速跟隨)時較常命中已載入的邊界圖磚,少一輪重抓
+  // keepBuffer:桌機加大到 4(視窗外多留兩排,快速平移較常命中已載入邊界圖磚,少一輪重抓);
+  // 手機退回預設 2——多留的圖磚 DOM 會讓每幀 setView 的 reflow 更重、也多吃記憶體,小螢幕划不來
+  const kb = window.matchMedia('(max-width: 640px)').matches ? 2 : 4;
   baseLayers.light = L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
-    subdomains: 'abcd', maxZoom: 20, crossOrigin: true, keepBuffer: 4, attribution: '&copy; OpenStreetMap &copy; CARTO',
+    subdomains: 'abcd', maxZoom: 20, crossOrigin: true, keepBuffer: kb, attribution: '&copy; OpenStreetMap &copy; CARTO',
   });
   baseLayers.dark = L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
-    subdomains: 'abcd', maxZoom: 20, crossOrigin: true, keepBuffer: 4, attribution: '&copy; OpenStreetMap &copy; CARTO',
+    subdomains: 'abcd', maxZoom: 20, crossOrigin: true, keepBuffer: kb, attribution: '&copy; OpenStreetMap &copy; CARTO',
   });
   baseLayers.sat = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
-    maxZoom: 19, crossOrigin: true, keepBuffer: 4, attribution: 'Tiles &copy; Esri — Source: Esri, Maxar, Earthstar Geographics',
+    maxZoom: 19, crossOrigin: true, keepBuffer: kb, attribution: 'Tiles &copy; Esri — Source: Esri, Maxar, Earthstar Geographics',
   });
   try { state.mapDark = localStorage.getItem('trainmap-theme') === 'dark'; } catch (e) {}
   try { const ts = localStorage.getItem('trainmap-track'); if (ts === 'faint' || ts === 'hidden') state.trackStyle = ts; } catch (e) {}
@@ -6082,6 +6109,11 @@ async function boot() {
   try { state.immersive = localStorage.getItem('trainmap-immersive') === '1'; } catch (e) {}
   try { state.xingOn = localStorage.getItem('trainmap-xing') === '1'; } catch (e) {}
   try { setAmbientStyle(localStorage.getItem('trainmap-ambient-style') === 'hotspot' ? 'hotspot' : 'follow'); } catch (e) {}
+  // 省電模式預設:手機開、桌機關;使用者手動切過就記住(setupMapTools 內 setPowerSave 讀此值初始化按鈕)
+  try {
+    const ps = localStorage.getItem('trainmap-powersave');
+    state.powerSave = ps === null ? window.matchMedia('(max-width: 640px)').matches : ps === '1';
+  } catch (e) { state.powerSave = false; }
   setBasemap();
   setupMapTools();
   setupRecorder();
