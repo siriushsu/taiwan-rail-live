@@ -1510,6 +1510,7 @@
     <details class="foot-box">
       <summary><span>🛠 更新紀錄</span><span class="foot-sub">最後更新：2026/7/13</span></summary>
       <ul class="foot-list">
+        <li><span class="d">7/13</span><span>旅程收集的收集章更好逛：明星列車／車種圖鑑／支線行腳，每點一次就換搭一班不同的車（同一枚章重複點不再都是同一輛）；已完成（打勾）的章也一樣能點，隨時再挑一班回味</span></li>
         <li><span class="d">7/13</span><span>高速跟隨底圖更跟得上：加速播放（如 30×、60×）跟著列車跑時，會沿行進方向「預先載入」前方的地圖圖磚——鏡頭跳得再快，底圖也較不會來不及顯示、露出空白。預抓只使用剩餘頻寬（標記為低優先），不會跟眼前的地圖搶載入，網速受限時也不會反而變慢</span></li>
         <li><span class="d">7/13</span><span>列車位置改用「車種加減速」模型：不同車種依實際的加速／減速特性運行——出站漸加速、進站漸減速、中段等速巡航，取代原本全程等速，站區附近的位置更貼近真實；跟隨列車時的即時時速與速度曲線也隨之呈現真實的加減速起伏，平交道通過倒數一併更精準</span></li>
         <li><span class="d">7/13</span><span>預設視圖改為「全台同框」：打開網站就看整個台灣鐵道（台鐵＋高鐵＋各捷運／輕軌）同框運行；系統頁籤順序調整，「國家鐵路」移到第二個</span></li>
@@ -1602,7 +1603,7 @@
 <script>
 // 版本戳記:每次改版 push 前手動遞增(字母序),畫面時鐘徽章與 console 都會顯示,
 // 供比對線上跑的是不是最新版(瀏覽器快取 max-age=600 常讓人看到舊版)
-const BUILD = 'v0713l';
+const BUILD = 'v0713m';
 const state = {
   systems: [], sysId: null, data: null, speed: 36, mode: 'freq',
   lines: [], visible: new Set(), trains: [], schedStations: [], types: [],
@@ -4536,10 +4537,27 @@ function announceCollections(tr, rides, prevColl, prevAch) {
   ACHIEVEMENTS.forEach(a => { if (ach.has(a.id) && !prevAch.has(a.id)) msgs.push(`🏆 成就解鎖　<b>${a.icon} ${a.name}</b>`); });
   msgs.forEach((m, i) => setTimeout(() => showToast(m), i * 700));
 }
-function repTrainOf(cands) {
-  return cands.find(t => trainPos(t, state.simSec))
-    || cands.filter(t => t.stops[0].depSec > state.simSec).sort((a, b) => a.stops[0].depSec - b.stops[0].depSec)[0]
-    || cands[0] || null;
+// 收集章(明星/圖鑑/支線)的候選車:同類今日所有班次。點擊時當場算,才能每次挑不同的一班。
+function dexCandidates(cat, id) {
+  const sd = state.special; if (!sd) return [];
+  if (cat === 'named') { const n = sd.namedTrains.find(x => x.id === id);
+    return n ? state.trains.filter(t => n.trainNos.includes(String(t.train))) : []; }
+  if (cat === 'stock') { const s = sd.rollingStock.find(x => x.id === id);
+    return s ? state.trains.filter(t => s.carNames.includes(t.carName)) : []; }
+  if (cat === 'branch') { const b = sd.branchLines.find(x => x.id === id);
+    return b ? state.trains.filter(t => t.stops.some(x => b._set.has(x.name))) : []; }
+  return [];
+}
+// 點收集章:隨機挑一班該類的車(避開上次那班→每點必換),從發車跟一趟;完成過的章一樣能點來再看一班。
+function followDexStamp(cat, id) {
+  const cands = dexCandidates(cat, id);
+  if (!cands.length) { showToast('今天沒有這一類的班次可搭'); return; }
+  state._dexLast = state._dexLast || {};
+  const key = cat + ':' + id, last = state._dexLast[key];
+  const pool = cands.length > 1 ? cands.filter(t => String(t.train) !== String(last)) : cands;
+  const tr = pool[Math.floor(Math.random() * pool.length)];
+  state._dexLast[key] = String(tr.train);
+  followTrainNo(String(tr.train), { fromStart: true });
 }
 function renderPassport() {
   const el = document.getElementById('passport');
@@ -4547,11 +4565,11 @@ function renderPassport() {
   const rides = loadRides();
   const totalKm = rides.reduce((a, r) => a + (r.km || 0), 0);
   const longest = rides.reduce((a, r) => Math.max(a, r.km || 0), 0);
-  const stampRow = (label, items) => {
+  const stampRow = (label, cat, items) => {
     if (!items.length) return '';
     const got = items.filter(i => i.got).length;
     return `<div class="ph-sec">${label}<b>${got}/${items.length}</b></div><div class="ph-stamps">` +
-      items.map(i => `<span class="stamp${i.got ? ' got' : ''}"${!i.got && i.no ? ` data-no="${i.no}"` : ''}` +
+      items.map(i => `<span class="stamp${i.got ? ' got' : ''}" data-cat="${cat}" data-id="${i.id}"` + // 完成與否皆掛點擊鉤子→got 章也可點
         ` title="${i.tip || ''}">${i.got ? '✓ ' : ''}${i.name}</span>`).join('') + `</div>`;
   };
   let stamps = '';
@@ -4559,22 +4577,14 @@ function renderPassport() {
   if (sd) {
     const coll = collectionOf(rides);
     const MISS_TIP = '還沒搭過——點我去搭一班';
-    const named = sd.namedTrains.filter(n => n.trainNos.length).map(n => { // 無固定車次的觀光列車搭不到,不列入收集
-      const got = coll.named.has(n.id);
-      const tr = got ? null : repTrainOf(state.trains.filter(t => n.trainNos.includes(String(t.train))));
-      return { name: n.name, got, no: tr && tr.train, tip: got ? n.story : MISS_TIP };
-    });
-    const stocks = sd.rollingStock.map(s => {
-      const got = coll.stock.has(s.id);
-      const tr = got ? null : repTrainOf(state.trains.filter(t => s.carNames.includes(t.carName)));
-      return { name: s.name, got, no: tr && tr.train, tip: got ? s.story : MISS_TIP };
-    });
-    const branches = sd.branchLines.map(b => {
-      const got = coll.branch.has(b.id);
-      const tr = got ? null : repTrainOf(state.trains.filter(t => t.stops.some(x => b._set.has(x.name))));
-      return { name: b.name, got, no: tr && tr.train, tip: got ? b.story : MISS_TIP };
-    });
-    stamps = stampRow('明星列車', named) + stampRow('車種圖鑑', stocks) + stampRow('支線行腳', branches);
+    // 收集章不再烤固定代表車;點擊時由 followDexStamp 當場挑一班(隨機不重複),故完成的章也能點來再看一班
+    const named = sd.namedTrains.filter(n => n.trainNos.length).map(n => // 無固定車次的觀光列車搭不到,不列入收集
+      ({ name: n.name, got: coll.named.has(n.id), id: n.id, tip: coll.named.has(n.id) ? n.story : MISS_TIP }));
+    const stocks = sd.rollingStock.map(s =>
+      ({ name: s.name, got: coll.stock.has(s.id), id: s.id, tip: coll.stock.has(s.id) ? s.story : MISS_TIP }));
+    const branches = sd.branchLines.map(b =>
+      ({ name: b.name, got: coll.branch.has(b.id), id: b.id, tip: coll.branch.has(b.id) ? b.story : MISS_TIP }));
+    stamps = stampRow('明星列車', 'named', named) + stampRow('車種圖鑑', 'stock', stocks) + stampRow('支線行腳', 'branch', branches);
   }
   // 成就徽章:全由完乘記錄推導,鎖住的滑過看解鎖條件
   const ach = unlockedAchievements(rides);
@@ -4605,9 +4615,9 @@ function renderPassport() {
       el.querySelector('.ph-tgl').textContent = nowOpen ? '收合 ▲' : '展開 ▼';
       return;
     }
-    const st = e.target.closest('.stamp[data-no]');
-    // 灰色收集章一律未收集(見上方 stampRow:只有 !got 才輸出 data-no)→ 一律從發車重播,跑完才算完乘
-    if (st) followTrainNo(st.dataset.no, { fromStart: true });
+    const st = e.target.closest('.stamp[data-cat]');
+    // 明星/圖鑑/支線章:每次點挑一班不同的車從發車跟(完成的章也可點來再看);成就徽章 .stamp.na 無 data-cat,不觸發
+    if (st) followDexStamp(st.dataset.cat, st.dataset.id);
   };
   el.hidden = false;
 }
