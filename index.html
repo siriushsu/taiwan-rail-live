@@ -1511,6 +1511,7 @@
     <details class="foot-box">
       <summary><span>🛠 更新紀錄</span><span class="foot-sub">最後更新：2026/7/13</span></summary>
       <ul class="foot-list">
+        <li><span class="d">7/13</span><span>贊助方式更新：「請開發者喝咖啡」的銀行轉帳帳戶改用 LINE Bank（連線商業銀行 824）——謝謝每一位抖內支持軌島的朋友 🙏</span></li>
         <li><span class="d">7/13</span><span>高速播放不再整片全黑：放到很大（接近最大）又用 ≥30× 高速跟車時，底圖要的圖磚會暴增到整片載不進來、變全黑——現在高速時會自動把縮放收到還讀得動的範圍（約市區街廓層級），底圖維持完整；降回低速就恢復成你加速前的縮放</span></li>
         <li><span class="d">7/13</span><span>旅程收集的收集章更好逛：明星列車／車種圖鑑／支線行腳，每點一次就換搭一班不同的車（同一枚章重複點不再都是同一輛）；已完成（打勾）的章也一樣能點，隨時再挑一班回味</span></li>
         <li><span class="d">7/13</span><span>高速跟隨底圖更跟得上：加速播放（如 30×、60×）跟著列車跑時，會沿行進方向「預先載入」前方的地圖圖磚——鏡頭跳得再快，底圖也較不會來不及顯示、露出空白。預抓只使用剩餘頻寬（標記為低優先），不會跟眼前的地圖搶載入，網速受限時也不會反而變慢</span></li>
@@ -1593,8 +1594,8 @@
         <div class="donate-bank">
           <p>或銀行轉帳</p>
           <div class="acct">
-            <span>玉山銀行 (808)</span>
-            <b>0521979118500</b>
+            <span>LINE Bank (824)</span>
+            <b>111010691056</b>
             <button id="donateCopy">複製</button>
           </div>
         </div>
@@ -1607,7 +1608,7 @@
 <script>
 // 版本戳記:每次改版 push 前手動遞增(字母序),畫面時鐘徽章與 console 都會顯示,
 // 供比對線上跑的是不是最新版(瀏覽器快取 max-age=600 常讓人看到舊版)
-const BUILD = 'v0713p';
+const BUILD = 'v0713q';
 const state = {
   systems: [], sysId: null, data: null, speed: 36, mode: 'freq',
   lines: [], visible: new Set(), trains: [], schedStations: [], types: [],
@@ -6237,7 +6238,7 @@ todPick.addEventListener('change', () => {
 todPick.addEventListener('keydown', e => { if (e.key === 'Enter') todPick.blur(); });
 document.getElementById('nowBtn').onclick = jumpToNow;
 document.getElementById('donateCopy').onclick = () =>
-  navigator.clipboard.writeText('0521979118500')
+  navigator.clipboard.writeText('111010691056')
     .then(() => showToast('已複製帳號'))
     .catch(() => { // clipboard 被擋(非 HTTPS/權限)時退而選取帳號文字,使用者可直接 ⌘C
       const r = document.createRange();
