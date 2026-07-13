@@ -1510,6 +1510,7 @@
     <details class="foot-box">
       <summary><span>🛠 更新紀錄</span><span class="foot-sub">最後更新：2026/7/13</span></summary>
       <ul class="foot-list">
+        <li><span class="d">7/13</span><span>高速跟隨底圖更跟得上：加速播放（如 30×、60×）跟著列車跑時，會沿行進方向「預先載入」前方的地圖圖磚——鏡頭跳得再快，底圖也較不會來不及顯示、露出空白。預抓只使用剩餘頻寬（標記為低優先），不會跟眼前的地圖搶載入，網速受限時也不會反而變慢</span></li>
         <li><span class="d">7/13</span><span>列車位置改用「車種加減速」模型：不同車種依實際的加速／減速特性運行——出站漸加速、進站漸減速、中段等速巡航，取代原本全程等速，站區附近的位置更貼近真實；跟隨列車時的即時時速與速度曲線也隨之呈現真實的加減速起伏，平交道通過倒數一併更精準</span></li>
         <li><span class="d">7/13</span><span>預設視圖改為「全台同框」：打開網站就看整個台灣鐵道（台鐵＋高鐵＋各捷運／輕軌）同框運行；系統頁籤順序調整，「國家鐵路」移到第二個</span></li>
         <li><span class="d">7/13</span><span>新增「分享畫面」：地圖工具列點「↗ 分享畫面」，一鍵把目前的地點、時間與路網（或正在跟隨的列車）打包成連結——手機叫出分享面板傳給朋友、電腦複製連結；對方打開就直接落在你當時看的同一個畫面（回報問題時也會自動夾帶這個位置，之後接上表單）</span></li>
@@ -1601,7 +1602,7 @@
 <script>
 // 版本戳記:每次改版 push 前手動遞增(字母序),畫面時鐘徽章與 console 都會顯示,
 // 供比對線上跑的是不是最新版(瀏覽器快取 max-age=600 常讓人看到舊版)
-const BUILD = 'v0713j';
+const BUILD = 'v0713l';
 const state = {
   systems: [], sysId: null, data: null, speed: 36, mode: 'freq',
   lines: [], visible: new Set(), trains: [], schedStations: [], types: [],
@@ -3041,6 +3042,7 @@ function tick(now) {
     if (state._evClock >= 0.5) { state._evClock = 0; scanFollowEvents(); }
   }
   if (state.freqFollow) updateFreqFollowCamera(); // 捷運幽靈車跟隨(各捷運分頁+全台同框):每幀置中+更新卡
+  prefetchFollowAhead(dt); // 高速跟隨時往行進方向預熱底圖圖磚,避免鏡頭跳太快底圖來不及讀(內部自行節流/門檻判斷)
   if (state.mode === 'sched') {
     if (state.boardStation && Math.abs(state.simSec - (state.boardRenderedAt || 0)) >= 20) renderBoard();
     if (state.crossingSel && Math.abs(state.simSec - (state._xingRenderedAt || 0)) >= 1) renderCrossingCard(); // 倒數每秒刷新+已通過班次退出
@@ -4984,6 +4986,68 @@ function recenterTo(lat, lon) {
   map.setView([lat, lon], map.getZoom(), { animate: false });
 }
 
+// ── 高速跟隨底圖預抓 ─────────────────────────────────────────────
+// 加速時鏡頭一幀跳好幾公里,底圖是「移動後才反應性去抓」CARTO 圖磚(往返 100–400ms),於是永遠在追→前緣留白。
+// 對策:往行進方向前瞻約 2 real-sec,先用 new Image() 預熱那段走廊的圖磚進瀏覽器 HTTP 快取;
+// Leaflet 之後請求同一 URL 即 cache hit 秒出。用速度外推(鏡頭中心每幀位移)統一涵蓋台鐵/高鐵/捷運/放空所有跟隨型態。
+// 用量中性:走廊上的圖磚經過時本來就會抓,只是提早;dedupe 過的不重抓,只在跟隨+鎖定+高速時啟用。
+const _warmedTiles = new Set(); // 已預熱的圖磚 URL(去重)
+let _warmZoom = null;           // 目前預熱集合對應的縮放;縮放一變即清空重來
+window.__warmedTiles = _warmedTiles; // 驗證腳本用的把手(閉包 const,外部拿不到),比照 __map/__state
+function activeBaseLayer() {
+  for (const k in baseLayers) if (map.hasLayer(baseLayers[k])) return baseLayers[k];
+  return null;
+}
+function warmTileWindow(minX, minY, maxX, maxY, z, layer) {
+  const ts = layer.getTileSize();
+  const tx0 = Math.floor(minX / ts.x), tx1 = Math.floor(maxX / ts.x);
+  const ty0 = Math.floor(minY / ts.y), ty1 = Math.floor(maxY / ts.y);
+  if ((tx1 - tx0 + 1) * (ty1 - ty0 + 1) > 80) return; // 視窗過大(多半是跳時間/瞬移造成的壞外推),放棄本次
+  const maxIdx = Math.pow(2, z);
+  const co = layer.options.crossOrigin;
+  const crossVal = co === true ? '' : co; // 與圖層一致(''=anonymous)才能共用同一筆 HTTP 快取
+  for (let tx = tx0; tx <= tx1; tx++) {
+    for (let ty = ty0; ty <= ty1; ty++) {
+      if (ty < 0 || ty >= maxIdx) continue;
+      const wx = ((tx % maxIdx) + maxIdx) % maxIdx;
+      const coords = new L.Point(wx, ty); coords.z = z;
+      const url = layer.getTileUrl(coords); // 用圖層自己的 getTileUrl→子網域/{r}retina/縮放全與 Leaflet 稍後的請求對齊
+      if (_warmedTiles.has(url)) continue;
+      _warmedTiles.add(url);
+      const img = new Image();
+      // 低優先:預抓只吃「剩餘頻寬」,絕不與目前視窗的圖磚搶連線/頻寬。頻寬受限時瀏覽器會把這些排到可見圖磚之後,
+      // 避免「為了預熱前方,反而餓死眼前」的反效果(實測 2Mbps 快車場景會整片空掉)
+      img.fetchPriority = 'low';
+      img.decoding = 'async';
+      if (typeof crossVal === 'string') img.crossOrigin = crossVal;
+      img.src = url;
+    }
+  }
+  if (_warmedTiles.size > 3000) _warmedTiles.clear(); // 長途跟隨上限保險,清空後可重熱,無害
+}
+function prefetchFollowAhead(dt) {
+  // 只在「跟隨 + 鎖定 + 高速(≥4×)」時預抓;1×/自由瀏覽/低速一律不多抓任何圖磚
+  if (!dt || !state.followLock || state.speedMult < 4 || !(state.followTrain || state.freqFollow)) {
+    state._pfLast = null; state._pfClock = 0; return;
+  }
+  const layer = activeBaseLayer(); if (!layer) return;
+  const z = map.getZoom();
+  if (z !== _warmZoom) { _warmedTiles.clear(); _warmZoom = z; state._pfLast = null; }
+  state._pfClock = (state._pfClock || 0) + dt;
+  if (state._pfClock < 0.12) return; // 節流:約每 120ms 外推一次(取樣窗夠長,速度估計較穩)
+  const acc = state._pfClock; state._pfClock = 0;
+  const curPx = map.project(map.getCenter(), z);
+  const last = state._pfLast; state._pfLast = curPx;
+  if (!last) return; // 需前一取樣點才能算速度(跟隨剛起步/剛跳時間時自動略過一次)
+  const velX = (curPx.x - last.x) / acc, velY = (curPx.y - last.y) / acc; // px / real-sec
+  const LOOK = 2; // 前瞻秒數(適中:約 2 real-sec 視窗)
+  const aheadX = curPx.x + velX * LOOK, aheadY = curPx.y + velY * LOOK;
+  const sz = map.getSize(), padX = sz.x / 2 + 64, padY = sz.y / 2 + 64; // 走廊:現在中心→前瞻點,各邊補半個螢幕
+  warmTileWindow(
+    Math.min(curPx.x, aheadX) - padX, Math.min(curPx.y, aheadY) - padY,
+    Math.max(curPx.x, aheadX) + padX, Math.max(curPx.y, aheadY) + padY, z, layer);
+}
+
 function setFollowStatus(s, msg) {
   if (state.followStatus === s) return;
   state.followStatus = s; renderFollowBar(msg);
@@ -5968,14 +6032,15 @@ async function boot() {
       state._hotYield = performance.now() + 8000;
   });
   // crossOrigin: 錄影功能要把圖磚畫進合成 canvas,沒有 CORS 標記畫布會被汙染(無法 captureStream)
+  // keepBuffer 由預設 2 加大到 4:視窗外多留兩排圖磚才卸載,快速平移(加速跟隨)時較常命中已載入的邊界圖磚,少一輪重抓
   baseLayers.light = L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
-    subdomains: 'abcd', maxZoom: 20, crossOrigin: true, attribution: '&copy; OpenStreetMap &copy; CARTO',
+    subdomains: 'abcd', maxZoom: 20, crossOrigin: true, keepBuffer: 4, attribution: '&copy; OpenStreetMap &copy; CARTO',
   });
   baseLayers.dark = L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
-    subdomains: 'abcd', maxZoom: 20, crossOrigin: true, attribution: '&copy; OpenStreetMap &copy; CARTO',
+    subdomains: 'abcd', maxZoom: 20, crossOrigin: true, keepBuffer: 4, attribution: '&copy; OpenStreetMap &copy; CARTO',
   });
   baseLayers.sat = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
-    maxZoom: 19, crossOrigin: true, attribution: 'Tiles &copy; Esri — Source: Esri, Maxar, Earthstar Geographics',
+    maxZoom: 19, crossOrigin: true, keepBuffer: 4, attribution: 'Tiles &copy; Esri — Source: Esri, Maxar, Earthstar Geographics',
   });
   try { state.mapDark = localStorage.getItem('trainmap-theme') === 'dark'; } catch (e) {}
   try { const ts = localStorage.getItem('trainmap-track'); if (ts === 'faint' || ts === 'hidden') state.trackStyle = ts; } catch (e) {}
