@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 // 台鐵平交道公開資料 → 投影到 data/tra.json 既有線形 → 產出 data/crossings.json
+// 重建本檔輸出後,要再跑 enrich_crossings_osm.mjs 補 tracks/elec 欄位(OSM 推算)
 // 資料源:交通部台鐵局「平交道公開資料」XML
 //   https://ods.railway.gov.tw/tra-ods-web/ods/download/dataResource/e3ad2d341b2143b0a5d3db8da7be4467
 // 欄位:NAME(名稱) LINE(線別,中文) TYPE(種類) LOC(縣市,舊行政區名) POS("緯度, 經度" WGS84;約半數為 NULL)

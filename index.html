@@ -1426,7 +1426,7 @@
     <div class="board" id="board" hidden></div>
     <div class="xing-card" id="xingCard" hidden></div>
     <div class="xing-card pin-card" id="pinCard" hidden></div>
-    <div class="xing-help" id="xingHelp" hidden>顯示全台 415 處台鐵平交道（官方公開資料）。點擊任一平交道，可查看接下來通過的列車與倒數；貨運／專用線上的道口僅標示位置。預測依時刻表與即時誤點推算，遮斷機通常提前 30–60 秒動作，請以現場號誌為準。</div>
+    <div class="xing-help" id="xingHelp" hidden>顯示全台 415 處台鐵平交道（官方公開資料）。圖示比照官方標誌：雙層叉＝雙線以上、閃電＝電化（拉近顯示）。點擊任一平交道，可查看接下來通過的列車與倒數；貨運／專用線上的道口僅標示位置。預測依時刻表與即時誤點推算，遮斷機通常提前 30–60 秒動作，請以現場號誌為準。</div>
     <div class="board" id="favPanel" hidden></div>
     <div class="board" id="ridePanel" hidden></div>
     <div class="board" id="explorePanel" hidden></div>
@@ -1510,6 +1510,7 @@
     <details class="foot-box">
       <summary><span>🛠 更新紀錄</span><span class="foot-sub">最後更新：2026/7/13</span></summary>
       <ul class="foot-list">
+        <li><span class="d">7/13</span><span>平交道圖示比照台灣官方四款標誌：雙線以上畫兩組交叉臂相疊、電化路段加閃電小徽章（拉近顯示），點開的資訊卡也標示「單線／雙線以上・電化」分類——軌道數與電化由 OpenStreetMap 逐處推算（390/394 處），少數推算不到的維持通用圖示</span></li>
         <li><span class="d">7/13</span><span>手機介面：「隨機跟隨／換一班」按鈕移到左上時鐘卡下方——原本在地圖下緣置中，跟隨時會與列車資訊卡重疊（謝謝網友回報）</span></li>
         <li><span class="d">7/13</span><span>新功能「附近火車」：地圖工具列開啟「釘」後，點地圖任一處落釘，顯示 1.5 公里內鐵路接下來 60 分鐘經過的列車、方向與倒數——並行的多條路線（如台鐵＋高鐵）會分組全部標示，各附距離與班次；可按★存為最愛地點（釘留在地圖上，隨時重開查看）。拖曳釘子可微調位置；依時刻表推算僅供參考。另：地圖最小縮放限定為「整個台灣」，不再能縮到看世界</span></li>
         <li><span class="d">7/13</span><span>平交道圖示改為白底紅邊叉叉（台灣鐵路平交道意象，衛星／深色底圖也清楚）；移除台中港線等貨運／專用線上的道口——那些路段本圖沒畫軌道，記號會浮在空地看似錯誤（謝謝網友回報台中港站旁那一串）；另修正 4 處投影偏移的道口改標官方原始座標</span></li>
@@ -1597,7 +1598,7 @@
 <script>
 // 版本戳記:每次改版 push 前手動遞增(字母序),畫面時鐘徽章與 console 都會顯示,
 // 供比對線上跑的是不是最新版(瀏覽器快取 max-age=600 常讓人看到舊版)
-const BUILD = 'v0713f';
+const BUILD = 'v0713g';
 const state = {
   systems: [], sysId: null, data: null, speed: 36, mode: 'freq',
   lines: [], visible: new Set(), trains: [], schedStations: [], types: [],
@@ -2388,7 +2389,7 @@ function drawSched(w, h) {
       if (state.trackVisible && !cr.noSched && !state.trackVisible.has(cr.lnId)) continue; // 只顯示屬於當前已載入線形的平交道(noSched 筆無 lnId,一律放行)
       if (!cb.contains([cr.lat, cr.lon])) continue;                          // 僅視口內才計算/繪製
       const cp = map.latLngToContainerPoint([cr.lat, cr.lon]);
-      drawCrossing(cp);
+      drawCrossing(cp, cr, z);
       state._crossHits.push({ x: cp.x, y: cp.y, cr }); // 供點擊命中(每幀重建)
     }
   }
@@ -2532,19 +2533,41 @@ function drawStationIcon(cp, tier) {
   ctx.globalAlpha = 1;
 }
 
-// 平交道記號:台灣鐵路平交道意象——白底、紅邊、紅叉叉(白圓盤在衛星/深色底圖也清楚),墊在車站/列車之下
-function drawCrossing(cp) {
+// 平交道記號:台灣官方四款標誌意象——白底紅邊圓盤;單線=單叉、雙線以上=兩組交叉臂上下相疊、
+// 電化=右上閃電小徽章(z≥13 拉近才畫,遠景 7px 徽章會糊成點;tracks/elec 由 OSM 推算,缺欄退單叉通用款)
+function drawCrossing(cp, cr, z) {
   const r = 8, s = 4.4;
   // 白底圓盤 + 紅邊
   ctx.beginPath(); ctx.arc(cp.x, cp.y, r, 0, 7);
   ctx.fillStyle = '#ffffff'; ctx.globalAlpha = 0.98; ctx.fill(); ctx.globalAlpha = 1;
   ctx.lineWidth = 2; ctx.strokeStyle = '#d0021b'; ctx.stroke();
   // 紅色叉叉
-  ctx.lineCap = 'round'; ctx.lineWidth = 2.4; ctx.strokeStyle = '#d0021b';
-  ctx.beginPath();
-  ctx.moveTo(cp.x - s, cp.y - s); ctx.lineTo(cp.x + s, cp.y + s);
-  ctx.moveTo(cp.x - s, cp.y + s); ctx.lineTo(cp.x + s, cp.y - s);
-  ctx.stroke();
+  ctx.lineCap = 'round'; ctx.strokeStyle = '#d0021b';
+  if (cr && cr.tracks >= 2) { // 雙線以上:兩組叉臂垂直錯位相疊
+    const dy = 2.1;
+    ctx.lineWidth = 1.9;
+    ctx.beginPath();
+    ctx.moveTo(cp.x - s, cp.y - s - dy); ctx.lineTo(cp.x + s, cp.y + s - dy);
+    ctx.moveTo(cp.x - s, cp.y + s - dy); ctx.lineTo(cp.x + s, cp.y - s - dy);
+    ctx.moveTo(cp.x - s, cp.y - s + dy); ctx.lineTo(cp.x + s, cp.y + s + dy);
+    ctx.moveTo(cp.x - s, cp.y + s + dy); ctx.lineTo(cp.x + s, cp.y - s + dy);
+    ctx.stroke();
+  } else {
+    ctx.lineWidth = 2.4;
+    ctx.beginPath();
+    ctx.moveTo(cp.x - s, cp.y - s); ctx.lineTo(cp.x + s, cp.y + s);
+    ctx.moveTo(cp.x - s, cp.y + s); ctx.lineTo(cp.x + s, cp.y - s);
+    ctx.stroke();
+  }
+  if (cr && cr.elec && z >= 13) { // 電化:右上閃電小徽章(白圓紅邊+迷你閃電)
+    const bx = cp.x + 6, by = cp.y - 6;
+    ctx.beginPath(); ctx.arc(bx, by, 3.6, 0, 7);
+    ctx.fillStyle = '#ffffff'; ctx.fill();
+    ctx.lineWidth = 1.2; ctx.strokeStyle = '#d0021b'; ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(bx + 1.1, by - 2.1); ctx.lineTo(bx - 0.9, by + 0.3); ctx.lineTo(bx + 0.6, by + 0.3); ctx.lineTo(bx - 1.1, by + 2.3);
+    ctx.lineWidth = 1.1; ctx.stroke();
+  }
 }
 
 // ── 每日之最(探索面板 best 四項)的地圖識別:金色漣漪光環(車底,z 不拘) ──
@@ -2755,6 +2778,8 @@ function renderCrossingCard() {
   // noSched 筆(貨運港線/專用線/已停用線,官方 415 處中的 21 處):不掛線形,無列車模擬——只標點不算班次
   const list = cr.noSched ? [] : crossingPasses(cr);
   const lnName = cr.noSched ? (cr.xline || '專用線') : (XING_LN_NAME[cr.lnId] || cr.lnId);
+  // 官方四款分類名(單線/雙線以上+電化,tracks/elec 由 OSM 推算;缺欄不標)
+  const cls = cr.tracks ? (cr.tracks >= 2 ? '雙線以上' : '單線') + (cr.elec ? '電化' : '') : '';
   const rows = cr.noSched
     ? `<div class="xc-empty">此道口位於${cr.xline || '貨運／專用'}——本圖未收錄該路段列車，無法提供通過班次預測</div>`
     : list.length ? list.map(r => {
@@ -2773,7 +2798,7 @@ function renderCrossingCard() {
     `<path d="M4.5 4.5 L13.5 13.5 M4.5 13.5 L13.5 4.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>`;
   document.getElementById('xingCard').innerHTML =
     `<div class="xc-head">${ico}<div class="xc-ttl"><b>${cr.name}</b>` +
-    `<span class="xc-meta">${lnName} · ${cr.type}</span></div>` +
+    `<span class="xc-meta">${lnName} · ${cr.type}${cls ? ' · ' + cls : ''}</span></div>` +
     `<button class="xc-close" id="xcClose" type="button" aria-label="關閉">✕</button></div>` +
     `<div class="xc-list">${rows}</div>` +
     `<div class="xc-foot">依時刻表推算僅供參考，遮斷機通常提前 30–60 秒動作，請以現場號誌為準</div>`;
