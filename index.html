@@ -1511,8 +1511,7 @@
     <details class="foot-box">
       <summary><span>🛠 更新紀錄</span><span class="foot-sub">最後更新：2026/7/13</span></summary>
       <ul class="foot-list">
-        <li><span class="d">7/13</span><span>省電＋跟車不再卡死、路線不再亂飄：先前在「全台同框」開省電又跟著一班車看時，畫面外的其他路線（例如台中捷運）整條軌道會跟著車子移動、偏離地圖，接著整個畫面卡住按不動——原因是那些明明在畫面外、根本看不到的路線，每一格仍被逐條重畫（上萬個點）。現在畫面外的路線與軌道會整條略過不畫，省電模式也把地圖畫質降一階，大幅減少每一格的運算量；跟車時更順、也更不容易卡（謝謝網友詳細回報）</span></li>
-        <li><span class="d">7/13</span><span>放大播放更滑順：用較高倍速（如 5×）又把地圖縮小一些時，跟隨列車與「群車」巡航的鏡頭移動原本會有一格一格的細微鋸齒——現在改用次像素平移，背景與列車都移動得平順連續</span></li>
+        <li><span class="d">7/13</span><span>修正跟車時路線抖動／整條跟著車移動：先前為了讓「放大播放更滑順」而做的次像素平移，在手機上會讓地圖圖磚和列車／軌道圖層對不齊——省電時整片路線不停抖動、非省電時整條路線跟著車子跑、偏離地圖。已移除該平移、回到穩定的置中方式，路線現在會牢牢貼在地圖上。另外畫面外（根本看不到）的路線與軌道仍會整條略過不畫，跟車更省效能（謝謝網友詳細回報，先前兩版沒修好、抱歉）</span></li>
         <li><span class="d">7/13</span><span>手機提示不再擋住列車資訊：開「附近火車（釘）」「平交道」時跳出的說明、以及切換「省電」的提示，會自動避開左上時鐘與左下的列車資訊卡，改在中間空檔顯示（謝謝網友回報重疊）；電腦版不受影響。另外切換省電模式時會給一句確認提示</span></li>
         <li><span class="d">7/13</span><span>贊助方式更新：「請開發者喝咖啡」的銀行轉帳帳戶改用 LINE Bank（連線商業銀行 824）——謝謝每一位抖內支持軌島的朋友 🙏</span></li>
         <li><span class="d">7/13</span><span>高速播放不再整片全黑：放到很大（接近最大）又用 ≥30× 高速跟車時，底圖要的圖磚會暴增到整片載不進來、變全黑——現在高速時會自動把縮放收到還讀得動的範圍（約市區街廓層級），底圖維持完整；降回低速就恢復成你加速前的縮放</span></li>
@@ -1611,7 +1610,7 @@
 <script>
 // 版本戳記:每次改版 push 前手動遞增(字母序),畫面時鐘徽章與 console 都會顯示,
 // 供比對線上跑的是不是最新版(瀏覽器快取 max-age=600 常讓人看到舊版)
-const BUILD = 'v0713t';
+const BUILD = 'v0713u';
 const state = {
   systems: [], sysId: null, data: null, speed: 36, mode: 'freq',
   lines: [], visible: new Set(), trains: [], schedStations: [], types: [],
@@ -1741,8 +1740,7 @@ function textColorFor(hex) {
 function reproject() {
   if (!map || !state.data) return;
   const size = map.getSize();
-  // 省電:主畫布 dpr 降到 1(每幀 clearRect+redraw 是最大單一成本,手機 2x→1x 少畫 4× 像素);平時上限 2x
-  state.dpr = state.powerSave ? 1 : Math.min(window.devicePixelRatio || 1, 2);
+  state.dpr = Math.min(window.devicePixelRatio || 1, 2); // 主畫布 dpr 上限 2x
   // 尺寸沒變不重設緩衝區:設 cv.width 會清空 canvas,若發生在本幀 draw 之後(如 panTo/flyTo
   // 動畫的 move 事件),畫好的列車會整幀被抹掉;順帶省去每次 move 的 buffer 重配
   const bw = Math.round(size.x * state.dpr), bh = Math.round(size.y * state.dpr);
@@ -4032,7 +4030,6 @@ function hotCruise(dt, now) {
   sc.px = L.point(sc.px.x + Math.cos(sc.dir) * step, sc.px.y + Math.sin(sc.dir) * step);
   const dst = map.unproject(sc.px, zNow);
   map.setView(dst, zNow, { animate: false });
-  subpixelCenter(dst.lat, dst.lng); // 次像素平移,消鋸齒(見 recenterTo 上方註解)
 }
 function hotspotStop() {
   state._hotScene = null; state._hotNext = 0; state._hotYield = 0;
@@ -5118,21 +5115,12 @@ function showSearchMiss(q) {
   if (state.followTrain) state.followStatus = null;
 }
 
-// 次像素置中:Leaflet setView/panBy 把 map pane 取整到整數像素,慢速(縮小/低速)每幀位移<1px 就被吃成階梯(鋸齒)。
-// 對策:setView 後把 map pane 設到「目標經緯度精準落在畫面中心」的浮點位置(setPosition 不取整),
-// tiles 與 #overlay(canvas 依 pane 位置換算座標)一起次像素平移,零階梯;pane 自帶圖磚緩衝故不露邊。
-function subpixelCenter(lat, lon) {
-  const z = map.getZoom(), size = map.getSize();
-  const Pc = map.project([lat, lon], z), O = map.getPixelOrigin();
-  L.DomUtil.setPosition(map.getPane('mapPane'), L.point(size.x / 2 - Pc.x + O.x, size.y / 2 - Pc.y + O.y));
-}
 function recenterTo(lat, lon) {
-  // pin the train to the exact centre every frame (no dead-zone -> no snap-back jitter);
-  // skip only when the centre is already there (train dwelling / paused) to avoid event spam
+  // 每幀把列車釘在畫面中心。曾用「次像素平移」(移動 mapPane 消階梯鋸齒),但 mapPane(圖磚)與獨立的
+  // 列車/軌道 canvas 圖層在真機幀率下會脫鉤→整條路線跟著車移動/抖動(v0713r 引入),已移除,回歸穩定整數像素置中。
   const c = map.getCenter();
-  if (Math.abs(c.lat - lat) < 1e-6 && Math.abs(c.lng - lon) < 1e-6) { subpixelCenter(lat, lon); return; }
+  if (Math.abs(c.lat - lat) < 1e-6 && Math.abs(c.lng - lon) < 1e-6) return; // 中心已到位(停站/暫停)免重複 setView
   map.setView([lat, lon], map.getZoom(), { animate: false });
-  subpixelCenter(lat, lon);
 }
 
 // ── 高速跟隨底圖預抓 ─────────────────────────────────────────────
@@ -5848,7 +5836,6 @@ function setupMapTools() {
   const powerBtn = document.getElementById('powerBtn');
   function setPowerSave(on, save) {
     state.powerSave = on;
-    reproject(); // dpr 隨 powerSave 改變(1↔2),立即重配主畫布緩衝(reproject 內含 !map/!data 防呆)
     powerBtn.classList.toggle('active', on);
     powerBtn.querySelector('.tl').textContent = on ? '省電中' : '省電模式';
     powerBtn.title = on ? '省電模式已開：更新降頻至約 30fps、關閉高速預抓（點擊關閉）'
