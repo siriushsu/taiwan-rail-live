@@ -1514,6 +1514,7 @@
         <li><span class="d">7/13</span><span>高速播放不再整片全黑：放到很大（接近最大）又用 ≥30× 高速跟車時，底圖要的圖磚會暴增到整片載不進來、變全黑——現在高速時會自動把縮放收到還讀得動的範圍（約市區街廓層級），底圖維持完整；降回低速就恢復成你加速前的縮放</span></li>
         <li><span class="d">7/13</span><span>旅程收集的收集章更好逛：明星列車／車種圖鑑／支線行腳，每點一次就換搭一班不同的車（同一枚章重複點不再都是同一輛）；已完成（打勾）的章也一樣能點，隨時再挑一班回味</span></li>
         <li><span class="d">7/13</span><span>高速跟隨底圖更跟得上：加速播放（如 30×、60×）跟著列車跑時，會沿行進方向「預先載入」前方的地圖圖磚——鏡頭跳得再快，底圖也較不會來不及顯示、露出空白。預抓只使用剩餘頻寬（標記為低優先），不會跟眼前的地圖搶載入，網速受限時也不會反而變慢</span></li>
+        <li><span class="d">7/13</span><span>手機介面精簡：一次只開一個面板——打開「站牌看板／平交道／附近火車」或「最愛／旅程收集／今日亮點」其中任一個，會自動收起其他的，不再一堆資訊欄疊成一坨（電腦版寬螢幕維持可並排）。跟隨中的列車資訊卡不受影響</span></li>
         <li><span class="d">7/13</span><span>新增「省電模式」：地圖工具列多了「省」鈕，開啟後畫面更新降到約 30fps、並關閉高速預抓——手機（尤其加到桌面的版本）掛著看更省電，跟隨列車又同時開好幾個資訊面板時也比較不會卡住按不動（謝謝網友回報手機當掉）。手機預設自動開啟，隨時可關</span></li>
         <li><span class="d">7/13</span><span>列車位置改用「車種加減速」模型：不同車種依實際的加速／減速特性運行——出站漸加速、進站漸減速、中段等速巡航，取代原本全程等速，站區附近的位置更貼近真實；跟隨列車時的即時時速與速度曲線也隨之呈現真實的加減速起伏，平交道通過倒數一併更精準</span></li>
         <li><span class="d">7/13</span><span>預設視圖改為「全台同框」：打開網站就看整個台灣鐵道（台鐵＋高鐵＋各捷運／輕軌）同框運行；系統頁籤順序調整，「國家鐵路」移到第二個</span></li>
@@ -1606,7 +1607,7 @@
 <script>
 // 版本戳記:每次改版 push 前手動遞增(字母序),畫面時鐘徽章與 console 都會顯示,
 // 供比對線上跑的是不是最新版(瀏覽器快取 max-age=600 常讓人看到舊版)
-const BUILD = 'v0713o';
+const BUILD = 'v0713p';
 const state = {
   systems: [], sysId: null, data: null, speed: 36, mode: 'freq',
   lines: [], visible: new Set(), trains: [], schedStations: [], types: [],
@@ -2849,6 +2850,7 @@ function crossingPasses(cr) {
   return [...byTrain.values()].sort((a, b) => a.delta - b.delta).slice(0, 5);
 }
 function openCrossingCard(cr) {
+  soloPanel('crossing');
   closeBoard(); closePinCard(); // 站牌看板/落釘卡/平交道卡同用右上欄,擇一顯示
   // 使用說明卡是暫態吐司——點到平交道即代表已看懂用法,一律收掉(768 中間寬度兩者會相疊)
   {
@@ -2926,6 +2928,7 @@ function loadPins() { try { return JSON.parse(localStorage.getItem(PIN_LS) || '[
 function savePins(a) { try { localStorage.setItem(PIN_LS, JSON.stringify(a)); } catch (e) {} }
 function pinSavedIdx(lat, lon) { return loadPins().findIndex(p => Math.abs(p.lat - lat) < 1e-6 && Math.abs(p.lon - lon) < 1e-6); }
 function openPinAt(lat, lon) { // 落/移釘 → 開卡(右上欄三卡擇一)
+  soloPanel('pin');
   closeBoard(); closeCrossingCard();
   if (pinDraft && pinDraft.marker) map.removeLayer(pinDraft.marker);
   const mk = L.marker([lat, lon], { icon: pinIcon(false), draggable: true, zIndexOffset: 1000 }).addTo(map);
@@ -4404,6 +4407,7 @@ function renderFavPanel() {
   el.querySelector('#favClose').onclick = closeFavPanel;
 }
 function openFavPanel() {
+  soloPanel('fav');
   closeBoard(); closeRidePanel(); closeExplorePanel();
   const el = document.getElementById('favPanel');
   el.hidden = false;
@@ -4473,6 +4477,7 @@ function renderRidePanel() {
   el.querySelector('#rideClose').onclick = closeRidePanel;
 }
 function openRidePanel() {
+  soloPanel('ride');
   closeBoard(); closeFavPanel(); closeExplorePanel();
   document.getElementById('ridePanel').hidden = false;
   updateSheetOpenClass();
@@ -4749,6 +4754,7 @@ function surpriseFollow() {
   setFollow(tr);
 }
 function openExplorePanel() {
+  soloPanel('explore');
   closeBoard(); closeFavPanel(); closeRidePanel();
   document.getElementById('explorePanel').hidden = false;
   updateSheetOpenClass();
@@ -5376,7 +5382,20 @@ function updateSheetOpenClass() {
 }
 
 // ── 車站時刻板 ──
-function openBoard(st) { closeFavPanel(); closeRidePanel(); closeExplorePanel(); closePinCard(); state.boardStation = st; renderBoard(); }
+// 手機一次只開一個面板:六個暫態面板——站牌看板／平交道卡／落釘卡(右上欄)＋最愛／旅程／今日亮點(下方 sheet)
+// ——互斥,開一個就收掉其餘五個,免得小螢幕疊成一坨(也順帶減輕跟隨時的重排負擔)。
+// 桌機寬螢幕各面板分居不同區、不擋彼此→此處早退,維持原本可並存的行為(下面各 open 內原有的部分互閉即桌機行為)。
+// 跟隨資訊卡(sched followTrain / 捷運 freqCard)是「正在跟的車」的常駐脈絡,不屬此組、不收。
+function soloPanel(keep) {
+  if (!window.matchMedia('(max-width: 640px)').matches) return;
+  if (keep !== 'board') closeBoard();
+  if (keep !== 'crossing') closeCrossingCard();
+  if (keep !== 'pin') closePinCard();
+  if (keep !== 'fav') closeFavPanel();
+  if (keep !== 'ride') closeRidePanel();
+  if (keep !== 'explore') closeExplorePanel();
+}
+function openBoard(st) { soloPanel('board'); closeFavPanel(); closeRidePanel(); closeExplorePanel(); closePinCard(); state.boardStation = st; renderBoard(); }
 function closeBoard() {
   state.boardStation = null;
   const el = document.getElementById('board');
