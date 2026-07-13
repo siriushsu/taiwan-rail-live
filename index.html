@@ -1196,7 +1196,6 @@
     body.fs.tools-open .stage-tools { max-height: calc(100% - 230px); }
     body.fs .follow-panel { bottom: 132px; width: 176px; } /* 桌面 fs 的 300px 寬不洩漏進手機 */
     body.fs .stage-tools { top: 8px; } /* 「☰ 工具」FAB 與一般模式同列 top:8,對齊左上時鐘徽章 */
-    body.fs #randBtn { bottom: 178px; } /* 讓開手機 fs 換行後約 155px 高的貼底播放面板 */
 
     /* ── 手機全畫面速度控制膠囊(僅 ≤640 且 body.fs,且非放空非直播;桌面與放空/直播完全不變) ──
        預設 slim:貼底置中細長膠囊,只露 ▶/⏸ + 目前倍速 + 模擬時刻(單手可點、一眼可讀)。
@@ -1229,9 +1228,9 @@
     body.fs:not(.ambient):not(.live):not(.cexp).cfaint .controls { opacity: .5; padding: 4px 13px; }
     body.fs:not(.ambient):not(.live):not(.cexp).cfaint .controls #pp,
     body.fs:not(.ambient):not(.live):not(.cexp).cfaint .controls #todOut { display: none; }
-    /* 膠囊(slim/faint)時卡片依新膠囊高度重新讓位:跟隨卡(跟隨時 JS placeFsOverlays 動態量高覆寫)與隨機鈕不需再讓開整條控制列 */
+    /* 膠囊(slim/faint)時卡片依新膠囊高度重新讓位:跟隨卡(跟隨時 JS placeFsOverlays 動態量高覆寫)不需再讓開整條控制列
+       (隨機鈕已改左上頂部錨定,貼底讓位規則作廢移除) */
     body.fs:not(.ambient):not(.live):not(.cexp) .follow-panel { bottom: 60px; }
-    body.fs:not(.ambient):not(.live):not(.cexp) #randBtn { bottom: 60px; }
     /* 放空模式(手機):看戲不操作——控制列只留「離開放空」一顆,跟隨卡縮成迷你條
       (車次+速度+下一站),別把列車蓋掉;速度/時間/音樂等設定進放空前調好 */
     body.ambient .controls > :not(#ambientBtn):not(#ambientStyleBtn) { display: none; }
@@ -1246,6 +1245,11 @@
     body.ambient .follow-panel .fp-head .spd b { font-size: 15px; } /* 176px 迷你卡同理:三位數時速也不換行 */
     body.ambient .follow-panel .fp-next .stn { font-size: 14px; white-space: nowrap; }
     body.ambient.fs .follow-panel { bottom: 8px; } /* 「離開放空」已靠右下,左下角整個還給迷你卡 */
+    /* 隨機跟隨鈕(手機):移到左上時鐘徽章下方——原本置中貼底會與列車資訊卡重疊(使用者回報)。
+       選擇器含 body.fs 蓋過上面 1199/1234 的 fs 貼底讓位(頂部錨定後作廢);hover 位移歸零(桌面版是 translateX 置中用) */
+    #randBtn, body.fs #randBtn { left: 8px; top: 50px; bottom: auto; transform: none; font-size: 13px; padding: 6px 13px; }
+    #randBtn:hover { transform: none; }
+    .alert-banner:not([hidden]) ~ #randBtn { top: 96px; } /* 公告橫幅(滿版 top:54)出現時下移一階 */
   }
 
   /* ── 桌面(≥641):獨立全畫面鈕 #fsFab 佔右上角 top:12/right:12,原本擠在該角的橫幅/詳情/平交道卡/看板整體左移 52px 讓開(44px 鈕+8 間距) ── */
@@ -1340,9 +1344,10 @@
     <canvas id="overlay"></canvas>
     <div id="skyTint"></div>
     <div id="veil"></div>
-    <button id="randBtn" title="隨機跟隨列車——再按一次換一班（小卡 × 結束）" hidden><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="16 3 21 3 21 8"/><line x1="4" y1="20" x2="21" y2="3"/><polyline points="21 16 21 21 16 21"/><line x1="15" y1="15" x2="21" y2="21"/><line x1="4" y1="4" x2="9" y2="9"/></svg><span id="randLbl">隨機跟隨</span></button>
     <div class="toasts" id="toasts"></div>
     <div class="alert-banner" id="alertBanner" hidden></div>
+    <!-- randBtn 放在 alertBanner 之後:手機版靠 .alert-banner ~ #randBtn 兄弟選擇器讓位(橫幅出現時下移) -->
+    <button id="randBtn" title="隨機跟隨列車——再按一次換一班（小卡 × 結束）" hidden><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="16 3 21 3 21 8"/><line x1="4" y1="20" x2="21" y2="3"/><polyline points="21 16 21 21 16 21"/><line x1="15" y1="15" x2="21" y2="21"/><line x1="4" y1="4" x2="9" y2="9"/></svg><span id="randLbl">隨機跟隨</span></button>
     <div class="alert-detail" id="alertDetail" hidden></div>
     <div class="follow-panel" id="followPanel" hidden>
       <div class="fp-head">
@@ -1505,6 +1510,7 @@
     <details class="foot-box">
       <summary><span>🛠 更新紀錄</span><span class="foot-sub">最後更新：2026/7/13</span></summary>
       <ul class="foot-list">
+        <li><span class="d">7/13</span><span>手機介面：「隨機跟隨／換一班」按鈕移到左上時鐘卡下方——原本在地圖下緣置中，跟隨時會與列車資訊卡重疊（謝謝網友回報）</span></li>
         <li><span class="d">7/13</span><span>新功能「附近火車」：地圖工具列開啟「釘」後，點地圖任一處落釘，顯示 1.5 公里內鐵路接下來 60 分鐘經過的列車、方向與倒數——並行的多條路線（如台鐵＋高鐵）會分組全部標示，各附距離與班次；可按★存為最愛地點（釘留在地圖上，隨時重開查看）。拖曳釘子可微調位置；依時刻表推算僅供參考。另：地圖最小縮放限定為「整個台灣」，不再能縮到看世界</span></li>
         <li><span class="d">7/13</span><span>平交道圖示改為白底紅邊叉叉（台灣鐵路平交道意象，衛星／深色底圖也清楚）；移除台中港線等貨運／專用線上的道口——那些路段本圖沒畫軌道，記號會浮在空地看似錯誤（謝謝網友回報台中港站旁那一串）；另修正 4 處投影偏移的道口改標官方原始座標</span></li>
         <li><span class="d">7/13</span><span>平交道連點直跳：卡片開著時直接點下一個平交道／列車／車站就切換，不用先關卡片；使用說明卡不再擋住地圖點擊</span></li>
@@ -1591,7 +1597,7 @@
 <script>
 // 版本戳記:每次改版 push 前手動遞增(字母序),畫面時鐘徽章與 console 都會顯示,
 // 供比對線上跑的是不是最新版(瀏覽器快取 max-age=600 常讓人看到舊版)
-const BUILD = 'v0713e';
+const BUILD = 'v0713f';
 const state = {
   systems: [], sysId: null, data: null, speed: 36, mode: 'freq',
   lines: [], visible: new Set(), trains: [], schedStations: [], types: [],
