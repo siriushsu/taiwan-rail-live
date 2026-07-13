@@ -219,10 +219,17 @@ async function main() {
       const r = projectPoint(pt, ln.shape, cumOfLine(id));
       if (!best || r.dist < best.dist) best = { lnId: id, ...r };
     }
-    // 投影垂足離原始座標過遠(>50m):候選線群不含實際路廊(如八股頭/光復路實在舊山線、
-    // 中正路投影退化到線首 d=0),垂足會把記號拉到錯的位置。此時垂足不可信,顯示點改回官方原始座標
-    // (位置就正確);d/snapDistM 仍保留供記錄與粗略預測。閾值 50m:正常筆 snapDist 最大 28m,乾淨分隔。
     const snapM = +(best.dist * 1000).toFixed(1);
+    // >250m:官方座標落在本圖未繪的路廊上,硬標到現役線會浮在旁邊數百公尺看似錯誤(同貨運線處理)。
+    // 經 OSM 查證,八股頭/光復路實在「舊山線」(1998-09-24 三義隧道通車後停用的保存/觀光段),
+    // OSM node 2794053375 / 774940324 均帶 description=位於舊山線,距現役山線約 285/318m。故不上圖,僅記稽核。
+    // 閾值 250m:候選線群含實際路廊但投影退化的正常筆最大為中正路(退到宜蘭線線首 d=0)191m,250m 乾淨分隔。
+    if (snapM > 250) {
+      excluded.push({ name: n.name, line: n.line, county: n.county, reason: '官方座標離現役路網>250m(實在本圖未繪線,如舊山線),不上圖', diagLnId: best.lnId, diagDistM: snapM });
+      continue;
+    }
+    // 50<snapM≤250:候選線群含實際路廊但投影垂足退化(如中正路退到線首 d=0),垂足不可信,
+    // 顯示點改回官方原始座標(位置就正確);d/snapDistM 仍保留供記錄與粗略預測。
     const badProj = snapM > 50;
     matched.push({
       name: n.name,
