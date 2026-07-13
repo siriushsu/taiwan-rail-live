@@ -1511,6 +1511,7 @@
     <details class="foot-box">
       <summary><span>🛠 更新紀錄</span><span class="foot-sub">最後更新：2026/7/13</span></summary>
       <ul class="foot-list">
+        <li><span class="d">7/13</span><span>手機提示不再擋住列車資訊：開「附近火車（釘）」「平交道」時跳出的說明、以及切換「省電」的提示，會自動避開左上時鐘與左下的列車資訊卡，改在中間空檔顯示（謝謝網友回報重疊）；電腦版不受影響。另外切換省電模式時會給一句確認提示</span></li>
         <li><span class="d">7/13</span><span>贊助方式更新：「請開發者喝咖啡」的銀行轉帳帳戶改用 LINE Bank（連線商業銀行 824）——謝謝每一位抖內支持軌島的朋友 🙏</span></li>
         <li><span class="d">7/13</span><span>高速播放不再整片全黑：放到很大（接近最大）又用 ≥30× 高速跟車時，底圖要的圖磚會暴增到整片載不進來、變全黑——現在高速時會自動把縮放收到還讀得動的範圍（約市區街廓層級），底圖維持完整；降回低速就恢復成你加速前的縮放</span></li>
         <li><span class="d">7/13</span><span>旅程收集的收集章更好逛：明星列車／車種圖鑑／支線行腳，每點一次就換搭一班不同的車（同一枚章重複點不再都是同一輛）；已完成（打勾）的章也一樣能點，隨時再挑一班回味</span></li>
@@ -1608,7 +1609,7 @@
 <script>
 // 版本戳記:每次改版 push 前手動遞增(字母序),畫面時鐘徽章與 console 都會顯示,
 // 供比對線上跑的是不是最新版(瀏覽器快取 max-age=600 常讓人看到舊版)
-const BUILD = 'v0713q';
+const BUILD = 'v0713r';
 const state = {
   systems: [], sysId: null, data: null, speed: 36, mode: 'freq',
   lines: [], visible: new Set(), trains: [], schedStations: [], types: [],
@@ -1621,7 +1622,7 @@ const state = {
   mapDark: false, basemap: 'map', trackData: null,
   trackStyle: 'auto', // 軌道顯示:auto(亮色原色/夜間衛星自動淡化)、faint(一律更淡)、hidden(只留列車與車站)
   live: null, // 台鐵即時誤點 {map: 車次→誤點分, at: 抓取時刻, delayed, srcAt}
-  liveMode: false, liveReplay: false, // 直播模式(?live=1)與其深夜重播段(00:45–05:15 重播 08:00 起)
+  liveMode: false, director: false, liveReplay: false, // 直播模式(?live=1 即時 / ?live=2 導播)與其深夜重播段(00:45–05:15 重播 08:00 起)
   stnIntro: false, immersive: false, // 特殊站介紹開關(放空自動開)、極簡沉浸(全畫面隱藏左側卡)
   xingOn: false, // 台鐵平交道顯示開關(預設關;開了才畫記號、建命中、攔點擊)
   ambientStyle: 'follow', // 放空視角:follow=跟著一班車跑 / hotspot=群車(鏡頭掛在最繁忙路段看群車交錯)
@@ -3061,6 +3062,7 @@ function tick(now) {
       if (h !== state.hour) { state.hour = h; recomputeTrains(); refreshBadge(); } // 換小時:尖離峰班距(僅班距合成線)+徽章+車數
     }
   }
+  if (state.director && state.playing) directorTick(now); // 導播相位機:跟車段↔群車段循環(先於 autoTour,可能切換 autoTour 開關)
   if (state.autoTour && state.mode === 'sched' && state.playing) {
     const ftr = state.followTrain;
     if (!ftr || effT(ftr) > ftr.stops[ftr.stops.length - 1].arrSec || now >= (state._tourNext || 0))
@@ -3089,7 +3091,7 @@ function tick(now) {
   state._skyClock = (state._skyClock || 0) + dt;
   if (state._skyClock >= 0.5) { state._skyClock = 0; updateSkyTint(); }
   state._liveClock = (state._liveClock || 0) + dt;
-  if (state._liveClock >= 1) { state._liveClock = 0; updateLiveBadge(); if (state.liveMode) liveClockTick(); }
+  if (state._liveClock >= 1) { state._liveClock = 0; updateLiveBadge(); if (state.liveMode && !state.director) liveClockTick(); } // 導播是 5× 循環,不做即時對齊(會跟循環打架)
   // 省電三板斧(繪製節流,不動上面的時間積分):
   // (1) 分頁隱藏停繪——時間照積分,只是不畫;錄影中例外(recCompose 每幀從主畫布拷貝,停繪會凍結成靜止幀)
   // (2) 待機時 draw 節流到 ~30fps;跟隨/幽靈車跟隨/放空/錄影/剛互動(1.5s 內)維持顯示器全速,體驗優先
@@ -3841,10 +3843,11 @@ function nextTourTrain(now) {
   // 不擋會機關槍連發幾十條轉場鏈,veil 淡入後殘餘 callback 輪流裸跳到不同隨機車
   if (state._transition) return;
   const tr = pickTourTrain();
-  state._tourNext = (now || performance.now()) + (tr ? 60000 + Math.random() * 60000 : 5000);
+  // 導播模式每車跟 5–10 分鐘(使用者要求),放空一般 1–2 分鐘
+  state._tourNext = (now || performance.now()) + (tr ? (state.director ? 300000 + Math.random() * 300000 : 60000 + Math.random() * 60000) : 5000);
   if (!tr) {
-    // 深夜幾乎沒車 → 重播傍晚尖峰(模擬時鐘本來就支援任意時間)
-    if (state.ambient && !state.nightReplay) { state.nightReplay = true; setSimSec(18 * 3600); refreshBadge(); }
+    // 深夜幾乎沒車 → 重播傍晚尖峰(模擬時鐘本來就支援任意時間);導播要 5× 忠實循環,深夜就少,不跳
+    if (state.ambient && !state.nightReplay && !state.director) { state.nightReplay = true; setSimSec(18 * 3600); refreshBadge(); }
     return;
   }
   const ts = document.getElementById('trainSearch'); if (ts) ts.value = tr.train;
@@ -3857,7 +3860,7 @@ const AMBIENT_Z = 14;
 function ambientJumpTo(tr) {
   setFollow(tr, true, true);
   const p = trainPos(tr, state.simSec) || tr.stops[0];
-  map.setView([p.lat, p.lon], AMBIENT_Z, { animate: false });
+  map.setView([p.lat, p.lon], state.director ? DIRECTOR_FOLLOW_Z : AMBIENT_Z, { animate: false }); // 導播跟車放大到 z18(最大縮小兩級)
 }
 // 放空模式換車:淡出 → 直接切到下一班 → 淡入(不拉高俯瞰)
 function fadeSwitch(tr) {
@@ -4012,7 +4015,9 @@ function hotCruise(dt, now) {
   sc.dir += turn;
   const step = HOT_SPEED * dt;
   sc.px = L.point(sc.px.x + Math.cos(sc.dir) * step, sc.px.y + Math.sin(sc.dir) * step);
-  map.setView(map.unproject(sc.px, zNow), zNow, { animate: false });
+  const dst = map.unproject(sc.px, zNow);
+  map.setView(dst, zNow, { animate: false });
+  subpixelCenter(dst.lat, dst.lng); // 次像素平移,消鋸齒(見 recenterTo 上方註解)
 }
 function hotspotStop() {
   state._hotScene = null; state._hotNext = 0; state._hotYield = 0;
@@ -4298,6 +4303,48 @@ function liveClockTick() {
   document.getElementById('replayBadge').hidden = !state.liveReplay;
 }
 
+// ── 導播模式(?live=2&k=,隱藏私用,密鑰 gated):5× 循環,跟單車 5–10 分輪替(z18)+偶爾群車俯瞰,列車資訊/站介紹全開 ──
+const DIRECTOR_KEY = 'S4_1HiKreSVsjFHN';   // 只有帶此 key 的網址能開;換 key 即失效舊連結
+const DIRECTOR_FOLLOW_Z = 18;              // 跟車縮放(使用者要求「最大縮小兩級」≈z18)
+const DIR_FOLLOW_BLOCK = 20 * 60000, DIR_GROUP_BLOCK = 2.5 * 60000; // 跟車段~20分 ↔ 群車段~2.5分 循環
+function initDirector() {
+  try { map.attributionControl.addAttribution('資料: 交通部TDX'); } catch (e) {}
+  document.getElementById('liveHud').hidden = false;
+  const np = document.getElementById('liveNp'), npT = document.getElementById('liveNpTitle');
+  state.music.audio.addEventListener('playing', () => {
+    const name = (state.music.list[state.music.idx] || '').replace(/\.mp3$/i, '');
+    if (npT.textContent === name && np.classList.contains('show')) return;
+    np.classList.remove('show');
+    setTimeout(() => { npT.textContent = name; np.classList.add('show'); }, 650);
+  });
+  const go = () => {
+    if (!state.ready || !state.trains.length) { setTimeout(go, 500); return; }
+    setAmbientStyle('follow');  // 跟單車風格(自動導演),非群車
+    setAmbient(true);           // 進放空:全畫面+自動導演+5×+站介紹+音樂+防休眠(setAmbient 內建 5×,不覆蓋)
+    state.nightReplay = false;  // 導播要 5× 忠實循環,取消放空自帶的深夜跳 18:00
+    if (!state.music.enabled) setMusicEnabled(true);
+    setTimeout(() => { if (state.music.enabled && state.music.audio.paused)
+      document.addEventListener('pointerdown', () => { if (state.music.audio.paused) musicPlay(); }, { once: true }); }, 1500);
+    state._dirPhase = 'follow'; state._dirNext = performance.now() + DIR_FOLLOW_BLOCK;
+  };
+  go();
+}
+// 相位機:跟車段(autoTour 輪車 z18)↔ 群車段(hotspot 俯瞰)循環;每幀由 tick 呼叫
+function directorTick(now) {
+  if (state.mode !== 'sched' || now < (state._dirNext || 0)) return;
+  if (state._dirPhase === 'group') {          // 群車段結束 → 回跟車段
+    state._dirPhase = 'follow';
+    setAmbientStyle('follow'); state._ambientFresh = true; setAutoTour(true);
+    state._dirNext = now + DIR_FOLLOW_BLOCK;
+  } else {                                      // 跟車段結束 → 群車段
+    state._dirPhase = 'group';
+    if (state.autoTour) setAutoTour(false);
+    clearFollow();
+    setAmbientStyle('hotspot'); state._hotFresh = true; state._hotScene = null; state._hotNext = 0;
+    state._dirNext = now + DIR_GROUP_BLOCK;
+  }
+}
+
 // 地圖下方的列車資訊卡:介紹+服務標記,旅程日誌由 renderFollowEvents 填
 function renderTrainCard(tr) {
   const it = trainIntro(tr);
@@ -4557,6 +4604,30 @@ function unlockedAchievements(rides) {
   return new Set(ACHIEVEMENTS.filter(a => ACH_TESTS[a.id](rides, coll, km)).map(a => a.id));
 }
 // 收集通知:完乘的當下彈出「完乘達成→新蓋的章→解鎖的成就」,間隔 700ms 依序出現
+// 手機:把暫態通知(收集/工具吐司、平交道說明)塞進「頂列控件之下、跟隨資訊卡之上」的空檔,
+// 免得蓋住左上時鐘或左下列車資訊卡(使用者回報「省電/釘的說明跟列車資訊疊在一起」)。
+// 全用即時 getBoundingClientRect,螢幕/卡片大小不同都自動避讓;桌機清掉 inline 覆寫,維持原本頂端置中。
+function placeMobileNotice(el) {
+  if (!el) return;
+  const mob = window.matchMedia('(max-width: 640px)').matches;
+  if (!mob || el.hidden) { el.style.top = ''; el.style.bottom = ''; el.style.maxHeight = ''; el.style.overflowY = ''; return; }
+  const par = el.offsetParent; if (!par) return;
+  const pr = par.getBoundingClientRect();
+  let topV = pr.top + 12; // 上界:頂列控件(左上時鐘/換一班、右上工具/全畫面)最低的底 + 8px
+  for (const sel of ['#clock', '#randBtn', '#toolsFab', '#fsFab']) {
+    const c = document.querySelector(sel);
+    if (c && c.offsetParent) { const r = c.getBoundingClientRect(); if (r.height && r.bottom > pr.top) topV = Math.max(topV, r.bottom + 8); }
+  }
+  let botV = pr.bottom - 8; // 下界:跟隨資訊卡頂(若顯示) - 8px,否則到 stage 底
+  for (const id of ['followPanel', 'freqCard']) {
+    const f = document.getElementById(id);
+    if (f && !f.hidden && f.offsetParent) { const r = f.getBoundingClientRect(); if (r.height) botV = Math.min(botV, r.top - 8); }
+  }
+  el.style.top = (topV - pr.top) + 'px';
+  el.style.bottom = 'auto';
+  el.style.maxHeight = Math.max(64, botV - topV) + 'px';
+  el.style.overflowY = 'auto';
+}
 function showToast(msg) {
   const box = document.getElementById('toasts');
   if (!box) return;
@@ -4564,6 +4635,7 @@ function showToast(msg) {
   el.className = 'toast'; el.innerHTML = msg;
   box.appendChild(el);
   while (box.children.length > 3) box.firstChild.remove(); // 疊太多先擠掉最舊
+  placeMobileNotice(box); // 手機:避開時鐘/列車資訊卡
   requestAnimationFrame(() => el.classList.add('show'));
   setTimeout(() => { el.classList.remove('show'); setTimeout(() => el.remove(), 450); }, 5000);
 }
@@ -5031,12 +5103,21 @@ function showSearchMiss(q) {
   if (state.followTrain) state.followStatus = null;
 }
 
+// 次像素置中:Leaflet setView/panBy 把 map pane 取整到整數像素,慢速(縮小/低速)每幀位移<1px 就被吃成階梯(鋸齒)。
+// 對策:setView 後把 map pane 設到「目標經緯度精準落在畫面中心」的浮點位置(setPosition 不取整),
+// tiles 與 #overlay(canvas 依 pane 位置換算座標)一起次像素平移,零階梯;pane 自帶圖磚緩衝故不露邊。
+function subpixelCenter(lat, lon) {
+  const z = map.getZoom(), size = map.getSize();
+  const Pc = map.project([lat, lon], z), O = map.getPixelOrigin();
+  L.DomUtil.setPosition(map.getPane('mapPane'), L.point(size.x / 2 - Pc.x + O.x, size.y / 2 - Pc.y + O.y));
+}
 function recenterTo(lat, lon) {
   // pin the train to the exact centre every frame (no dead-zone -> no snap-back jitter);
   // skip only when the centre is already there (train dwelling / paused) to avoid event spam
   const c = map.getCenter();
-  if (Math.abs(c.lat - lat) < 1e-6 && Math.abs(c.lng - lon) < 1e-6) return;
+  if (Math.abs(c.lat - lat) < 1e-6 && Math.abs(c.lng - lon) < 1e-6) { subpixelCenter(lat, lon); return; }
   map.setView([lat, lon], map.getZoom(), { animate: false });
+  subpixelCenter(lat, lon);
 }
 
 // ── 高速跟隨底圖預抓 ─────────────────────────────────────────────
@@ -5756,7 +5837,10 @@ function setupMapTools() {
     powerBtn.querySelector('.tl').textContent = on ? '省電中' : '省電模式';
     powerBtn.title = on ? '省電模式已開：更新降頻至約 30fps、關閉高速預抓（點擊關閉）'
                         : '省電模式（更新降頻至約 30fps，手機掛著看更省電、更不易卡）';
-    if (save !== false) { try { localStorage.setItem('trainmap-powersave', on ? '1' : '0'); } catch (e) {} }
+    if (save !== false) {
+      try { localStorage.setItem('trainmap-powersave', on ? '1' : '0'); } catch (e) {}
+      showToast(on ? '省電模式已開，畫面更新降到約 30fps' : '已關閉省電模式'); // 手動切換才提示(初始化 save=false 不彈)
+    }
   }
   powerBtn.onclick = () => setPowerSave(!state.powerSave);
   setPowerSave(state.powerSave, false); // 初始化按鈕態(沿用 boot 載入的預設:手機預設開、桌機關,或使用者記住的選擇)
@@ -5805,6 +5889,7 @@ function setupMapTools() {
       state._xingHelpT = setTimeout(() => { el.hidden = true; }, 400);
     };
     el.hidden = false; // pointer-events:none 純吐司,不掛點擊關閉
+    placeMobileNotice(el); // 手機:塞進頂列與跟隨卡之間,說明不再蓋住列車資訊卡
     requestAnimationFrame(() => el.classList.add('show')); // 先掛上再加 class 才有淡入過渡
     state._xingHelpT = setTimeout(hide, 8000); // 約 8 秒自動淡出
   }
@@ -5994,9 +6079,15 @@ function setupRecorder() {
 async function boot() {
   document.getElementById('buildVer').textContent = BUILD;
   console.log('台灣鐵道·列車流動 BUILD', BUILD);
-  // 直播模式(?live=1):開頭就掛 class,互動 UI 首繪即隱藏(資料載入要幾秒,不在 OBS 畫面閃 UI)
-  try { state.liveMode = !!new URLSearchParams(location.search).get('live'); } catch (e) {}
+  // 直播模式:開頭就掛 class,互動 UI 首繪即隱藏(資料載入要幾秒,不在 OBS 畫面閃 UI)
+  // ?live=1 即時模式;?live=2&k=<密鑰> 導播模式(隱藏私用,密鑰對才開,否則當一般站台)
+  try {
+    const sp = new URLSearchParams(location.search), lv = sp.get('live');
+    if (lv === '2') { if (sp.get('k') === DIRECTOR_KEY) { state.liveMode = true; state.director = true; } }
+    else if (lv) state.liveMode = true;
+  } catch (e) {}
   if (state.liveMode) document.body.classList.add('live');
+  if (state.director) document.body.classList.add('director');
   cv = document.getElementById('overlay'); ctx = cv.getContext('2d');
   map = L.map('map', { zoomControl: true, attributionControl: true, preferCanvas: true })
     .setView([24.5, 121], 8);
@@ -6196,7 +6287,8 @@ async function boot() {
   }
   state.ready = true;
   requestAnimationFrame(tick);
-  if (state.liveMode) initLive(); // 直播模式:資料就緒後自動進放空巡航+音樂(與 ?train= 同給時以 live 為準)
+  if (state.director) initDirector(); // 導播模式(?live=2):5× 循環,跟車 5–10 分輪替(z18)+偶爾群車俯瞰,資訊卡全開
+  else if (state.liveMode) initLive(); // 即時模式(?live=1):資料就緒後貼真實時刻放空巡航+音樂
 }
 
 // 分享目前畫面:正在跟車→沿用 ?train= 深連結;否則打包 地點+縮放+路網+時間。手機叫原生分享面板,桌面複製連結。
