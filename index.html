@@ -1537,7 +1537,7 @@
     <details class="foot-box">
       <summary><span>🛠 更新紀錄</span><span class="foot-sub">最後更新：2026/7/14</span></summary>
       <ul class="foot-list">
-        <li><span class="d">7/14</span><span>捷運／輕軌車站新增「來車看板」：點任一捷運站（不只台鐵、高鐵），會列出接下來的班次——往哪個方向、幾點發車、還有幾分鐘，轉乘站會分線分方向列出；點班次可直接跟隨。班次依當日時刻表推演，非即時到站（文湖線／台中捷運／三鶯線無官方逐班時刻，看板會註明「班距推算」）</span></li>
+        <li><span class="d">7/14</span><span>捷運／輕軌車站新增「來車看板」：點任一捷運站（各捷運分頁、以及預設「全台同框」視圖裡的捷運站都適用），會列出接下來的班次——往哪個方向、幾點發車、還有幾分鐘，轉乘站會分線分方向列出；點班次可直接跟隨。班次依當日時刻表推演，非即時到站（文湖線／台中捷運／三鶯線無官方逐班時刻，看板會註明「班距推算」）</span></li>
         <li><span class="d">7/14</span><span>「附近火車（釘）」改成開關式：打開後可以在地圖上連續點好幾個地方、逐一按「存」收藏成最愛地點，不會點一次就自動關掉；要結束再按一次「釘」即可（先前每落一個點就得重按一次，很不方便）</span></li>
         <li><span class="d">7/14</span><span>地點釘換新樣式：把原本有點老氣的圖釘 emoji 換成類似 Google 地圖的圓點（查看中是藍點、已收藏是橘點加星星）；地圖縮小時圓點會自動放大、加上淡光環，比較不會跟背景車站的小點混在一起</span></li>
         <li><span class="d">7/14</span><span>修正縮放時的路線殘影：用滑鼠滾輪或縮放鈕放大／縮小的瞬間，路線會短暫「跳開」街道再歸位——因為底圖圖磚原本有約 0.25 秒的平滑縮放動畫，而路線圖層是每格瞬間跳到新倍率，兩層短暫對不齊。已讓底圖改為與路線同時瞬間定位，縮放乾淨俐落、不再殘影（謝謝網友回報）</span></li>
@@ -5728,7 +5728,8 @@ function renderBoard() {
   const el = document.getElementById('board'), st = state.boardStation;
   if (!st) { el.hidden = true; updateSheetOpenClass(); return; }
   state.boardRenderedAt = state.simSec;
-  if (state.mode !== 'sched') { renderFreqBoard(el, st); return; } // 捷運/輕軌走獨立邏輯,sched(台鐵/高鐵)以下維持原樣
+  if (state.mode !== 'sched') { renderFreqBoard(el, st, state.lines, false); return; } // 捷運/輕軌分頁走獨立邏輯,sched(台鐵/高鐵)以下維持原樣
+  if (st.sys === 'deco') { renderFreqBoard(el, st, state.decoLines, true); return; } // 全台同框:點裝飾層捷運站,同款看板但讀 decoLines(無 state.visible 個別開關)
   const rows = [];
   for (const tr of state.trains) {
     const stops = tr.stops;
@@ -5779,13 +5780,15 @@ function renderBoard() {
 }
 
 // 捷運/輕軌看板:掃經過本站的每條線當日時刻表(ln._tt),抓最近幾班到離站倒數(-30秒~未來2小時內)。
-// 轉乘站(多條線經過本站)每條線各自成組(依 state.lines 順序排列)、線內再依方向(該班最後停靠站名)分組,各取最近 3 班。
+// 轉乘站(多條線經過本站)每條線各自成組(依 lines 順序排列)、線內再依方向(該班最後停靠站名)分組,各取最近 3 班。
 // 捷運沒有車次號,跟隨走 setFreqFollow({ln,tr}) (tr=ln._tt 裡的那班陣列本身,不是台鐵的 followTrainNo)。
-function renderFreqBoard(el, st) {
+// lines:資料來源陣列——各捷運分頁傳 state.lines,全台同框裝飾層傳 state.decoLines。
+// isDeco:裝飾層沒有 state.visible 個別開關(全開),跳過該項篩選;分頁模式仍照使用者勾選的系統過濾。
+function renderFreqBoard(el, st, lines, isDeco) {
   const key = st.name.replace(/臺/g, '台');
   const groups = []; // { ln, li, destName, rows:[{t,dtm,ci}] }
-  state.lines.forEach((ln, li) => {
-    if (!state.visible.has(ln.id) || !ln._tt) return; // 未勾選的線不上板;班距合成線(BR/TG/LB)當日也有 _tt,一併列入
+  lines.forEach((ln, li) => {
+    if ((!isDeco && !state.visible.has(ln.id)) || !ln._tt) return; // 未勾選的線不上板;班距合成線(BR/TG/LB)當日也有 _tt,一併列入
     const si = ln.stations.findIndex(s => s.name.replace(/臺/g, '台') === key);
     if (si < 0) return; // 這條線不經過本站
     const byDir = new Map(); // destName -> rows[]
@@ -5835,7 +5838,7 @@ function renderFreqBoard(el, st) {
     el._downKey = null;
     if (!rowKey) return;
     const [li, ci] = rowKey.split('/').map(Number);
-    const ln = state.lines[li];
+    const ln = lines[li]; // 閉包捕捉的來源陣列(state.lines 或 state.decoLines),不可寫死 state.lines——全台同框下 state.lines 是空的
     const trip = ln && ln._tt && ln._tt[ci];
     if (ln && trip) { closeBoard(); setFreqFollow({ ln, tr: trip }); }
   };
@@ -6395,6 +6398,20 @@ async function boot() {
         const f = state.freqFollow;
         if (f && f.ln === fh.ln && (fh.tr ? f.tr === fh.tr : f.k === fh.k)) clearFreqFollow();
         else setFreqFollow(fh);
+        return;
+      }
+      // 示意層車站命中測試:裝飾層站點原本從未參與點擊判定(點下去毫無反應)。
+      // 台鐵/高鐵站候選(best/bd)已算好,這裡另外找最近的裝飾層站,兩者取距離較近的開看板。
+      let bestDeco = null, bdDeco = 1e9;
+      state.decoLines.forEach(ln => {
+        if (!ln.pts) return;
+        ln.pts.forEach((p, idx) => {
+          const d = Math.hypot(p.x - cp.x, p.y - cp.y);
+          if (d < bdDeco) { bdDeco = d; bestDeco = ln.stations[idx]; }
+        });
+      });
+      if (bestDeco && bdDeco <= 16 && (!(best && bd <= 16) || bdDeco < bd)) {
+        openBoard({ name: bestDeco.name, lat: bestDeco.lat, lon: bestDeco.lon, sys: 'deco' });
         return;
       }
     }
