@@ -1536,6 +1536,7 @@
     <details class="foot-box">
       <summary><span>🛠 更新紀錄</span><span class="foot-sub">最後更新：2026/7/14</span></summary>
       <ul class="foot-list">
+        <li><span class="d">7/14</span><span>「附近火車（釘）」改成開關式：打開後可以在地圖上連續點好幾個地方、逐一按「存」收藏成最愛地點，不會點一次就自動關掉；要結束再按一次「釘」即可（先前每落一個點就得重按一次，很不方便）</span></li>
         <li><span class="d">7/14</span><span>新增「定位我」：工具列多了一顆「定位我」，按一下（會問你一次位置權限）就能在地圖上看到自己的所在，並列出附近幾處平交道、以及每一處下一班火車幾分幾秒後通過、開往哪裡。只定位這一次、不會持續追蹤，你的位置只留在自己手機、不會上傳。仍請以現場號誌為準，別靠這個決定要不要闖越平交道</span></li>
         <li><span class="d">7/14</span><span>地點釘換新樣式：把原本有點老氣的圖釘 emoji 換成類似 Google 地圖的圓點（查看中是藍點、已收藏是橘點加星星）；地圖縮小時圓點會自動放大、加上淡光環，比較不會跟背景車站的小點混在一起</span></li>
         <li><span class="d">7/14</span><span>修正縮放時的路線殘影：用滑鼠滾輪或縮放鈕放大／縮小的瞬間，路線會短暫「跳開」街道再歸位——因為底圖圖磚原本有約 0.25 秒的平滑縮放動畫，而路線圖層是每格瞬間跳到新倍率，兩層短暫對不齊。已讓底圖改為與路線同時瞬間定位，縮放乾淨俐落、不再殘影（謝謝網友回報）</span></li>
@@ -1639,7 +1640,7 @@
 <script>
 // 版本戳記:每次改版 push 前手動遞增(字母序),畫面時鐘徽章與 console 都會顯示,
 // 供比對線上跑的是不是最新版(瀏覽器快取 max-age=600 常讓人看到舊版)
-const BUILD = 'v0714b';
+const BUILD = 'v0714c';
 const state = {
   systems: [], sysId: null, data: null, speed: 36, mode: 'freq',
   lines: [], visible: new Set(), trains: [], schedStations: [], types: [],
@@ -6053,9 +6054,9 @@ function setupMapTools() {
     state.dropMode = on;
     pinBtn.classList.toggle('active', on);
     pinBtn.querySelector('.tl').textContent = on ? '點地圖落釘' : '附近火車';
-    pinBtn.title = on ? '點地圖任一處落釘（再按一次取消）' : '落釘看附近經過的火車';
+    pinBtn.title = on ? '落釘模式中：點地圖可連續落釘、存點（再按一次關閉）' : '落釘看附近經過的火車';
     const cnt = map.getContainer(); if (cnt) cnt.style.cursor = on ? 'crosshair' : '';
-    if (on) showToast('點地圖任一處，看附近經過的火車');
+    if (on) showToast('落釘模式：點地圖可連續落釘看附近火車、按「存」收藏；再按一次「釘」關閉');
   }
   pinBtn.onclick = () => setDropMode(!state.dropMode);
   state._setDropMode = setDropMode; // 供 boot 內地圖點擊處理器跨作用域呼叫(比照 state._setFs)
@@ -6268,10 +6269,9 @@ async function boot() {
       }
       return;
     }
-    if (state.dropMode) { // 落釘模式:點地圖任一處落釘查看附近火車,一次性(落完退出模式,可拖曳微調)
+    if (state.dropMode) { // 落釘模式(開關式):點地圖任一處落釘查看附近火車,落完「維持」模式可連續落釘/存點(可拖曳微調)
       const ll = e.latlng || map.containerPointToLatLng(cp); // Leaflet LatLng 用 .lng(非本專案的 .lon)
-      if (state._setDropMode) state._setDropMode(false); else state.dropMode = false;
-      openPinAt(ll.lat, ll.lng); return;
+      openPinAt(ll.lat, ll.lng); return; // 不再自動退出——開著就能一直新增要存的點,再按一次「釘」才關(使用者要求)
     }
     closePinCard();      // 一般點擊(選車/站/平交道)先收掉可能開著的落釘卡
     closeCrossingCard(); // 點任何地方先收平交道卡;下面命中平交道會重開
