@@ -1427,7 +1427,7 @@
     <div class="board" id="board" hidden></div>
     <div class="xing-card" id="xingCard" hidden></div>
     <div class="xing-card pin-card" id="pinCard" hidden></div>
-    <div class="xing-help" id="xingHelp" hidden>顯示全台 415 處台鐵平交道（官方公開資料）。圖示比照官方交叉標誌：雙線以上於紅叉下加人字、閃電＝電化（拉近顯示）。點擊任一平交道，可查看接下來通過的列車與倒數；貨運／專用線上的道口僅標示位置。預測依時刻表與即時誤點推算，遮斷機通常提前 30–60 秒動作，請以現場號誌為準。</div>
+    <div class="xing-help" id="xingHelp" hidden>顯示全台 415 處台鐵平交道（官方公開資料）。圖示比照官方交叉標誌：雙線以上於紅叉下加人字、閃電＝電化（拉近顯示）。點擊任一平交道，可查看接下來通過的列車與倒數；貨運／專用線上的道口僅標示位置。預測依時刻表與即時誤點推算，遮斷機通常提前 30–60 秒動作，請以現場號誌為準。平交道位置以台鐵官方資料為準，可能與現場實際略有落差，歡迎透過頁尾「回報問題或建議」提供修正。</div>
     <div class="board" id="favPanel" hidden></div>
     <div class="board" id="ridePanel" hidden></div>
     <div class="board" id="explorePanel" hidden></div>
@@ -1509,8 +1509,9 @@
 
   <footer class="site-foot">
     <details class="foot-box">
-      <summary><span>🛠 更新紀錄</span><span class="foot-sub">最後更新：2026/7/13</span></summary>
+      <summary><span>🛠 更新紀錄</span><span class="foot-sub">最後更新：2026/7/14</span></summary>
       <ul class="foot-list">
+        <li><span class="d">7/14</span><span>平交道位置說明：平交道位置依台鐵官方公開資料標示，可能與現場實際位置略有落差——歡迎透過頁尾「回報問題或建議」告訴我們修正</span></li>
         <li><span class="d">7/13</span><span>修正跟車時路線抖動／整條跟著車移動：先前為了讓「放大播放更滑順」而做的次像素平移，在手機上會讓地圖圖磚和列車／軌道圖層對不齊——省電時整片路線不停抖動、非省電時整條路線跟著車子跑、偏離地圖。已移除該平移、回到穩定的置中方式，路線現在會牢牢貼在地圖上。另外畫面外（根本看不到）的路線與軌道仍會整條略過不畫，跟車更省效能（先前兩版沒修好，這版才抓到根因徹底移除）</span></li>
         <li><span class="d">7/13</span><span>手機提示不再擋住列車資訊：開「附近火車（釘）」「平交道」時跳出的說明、以及切換「省電」的提示，會自動避開左上時鐘與左下的列車資訊卡，改在中間空檔顯示；電腦版不受影響。另外切換省電模式時會給一句確認提示</span></li>
         <li><span class="d">7/13</span><span>贊助方式更新：「請開發者喝咖啡」的銀行轉帳帳戶改用 LINE Bank（連線商業銀行 824）——謝謝每一位抖內支持軌島的朋友 🙏</span></li>
@@ -1610,7 +1611,7 @@
 <script>
 // 版本戳記:每次改版 push 前手動遞增(字母序),畫面時鐘徽章與 console 都會顯示,
 // 供比對線上跑的是不是最新版(瀏覽器快取 max-age=600 常讓人看到舊版)
-const BUILD = 'v0713w';
+const BUILD = 'v0713x';
 const state = {
   systems: [], sysId: null, data: null, speed: 36, mode: 'freq',
   lines: [], visible: new Set(), trains: [], schedStations: [], types: [],
