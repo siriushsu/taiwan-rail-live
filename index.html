@@ -1415,7 +1415,8 @@
       <button id="trackBtn" title="軌道顯示：自動（夜間自動淡化）→ 淡化 → 隱藏"><span class="ti">軌</span><span class="tl">軌道顯示</span></button>
       <button id="xingBtn" title="顯示平交道位置"><span class="ti">平</span><span class="tl">平交道</span></button>
       <button id="pinBtn" title="落釘看附近經過的火車"><span class="ti">釘</span><span class="tl">附近火車</span></button>
-      <button id="locateBtn" title="定位我的位置，看附近有哪些平交道、火車是否快通過"><span class="ti">位</span><span class="tl">定位我</span></button>
+      <!-- 定位我暫緩:iOS「加到主畫面」standalone PWA 無法取用定位,延到原生 App 再啟用;見 LOCATE_ENABLED。按鈕先 hidden、程式全保留 -->
+      <button id="locateBtn" style="display:none" title="定位我的位置，看附近有哪些平交道、火車是否快通過"><span class="ti">位</span><span class="tl">定位我</span></button>
       <button id="immBtn" title="極簡沉浸（只留地圖與列車）"><span class="ti">簡</span><span class="tl">極簡沉浸</span></button>
       <button id="powerBtn" title="省電模式（更新降頻至約 30fps，手機掛著看更省電、更不易卡）"><span class="ti">省</span><span class="tl">省電模式</span></button>
       <button id="recBtn" title="錄影 Beta（存成影片下載）"><span class="ti">⏺</span><span class="tl">錄影 Beta</span></button>
@@ -1536,9 +1537,7 @@
     <details class="foot-box">
       <summary><span>🛠 更新紀錄</span><span class="foot-sub">最後更新：2026/7/14</span></summary>
       <ul class="foot-list">
-        <li><span class="d">7/14</span><span>改善「定位我」被拒絕時的處理：手機（尤其 iPhone「加到主畫面」的 App）常常因系統限制無法使用定位，這時不再只丟一句看不懂又找不到的「去網址列鎖頭開啟」，而是自動切到「釘」讓你直接在地圖上點自己的位置看附近火車；並依你的裝置給正確的開啟說明</span></li>
         <li><span class="d">7/14</span><span>「附近火車（釘）」改成開關式：打開後可以在地圖上連續點好幾個地方、逐一按「存」收藏成最愛地點，不會點一次就自動關掉；要結束再按一次「釘」即可（先前每落一個點就得重按一次，很不方便）</span></li>
-        <li><span class="d">7/14</span><span>新增「定位我」：工具列多了一顆「定位我」，按一下（會問你一次位置權限）就能在地圖上看到自己的所在，並列出附近幾處平交道、以及每一處下一班火車幾分幾秒後通過、開往哪裡。只定位這一次、不會持續追蹤，你的位置只留在自己手機、不會上傳。仍請以現場號誌為準，別靠這個決定要不要闖越平交道</span></li>
         <li><span class="d">7/14</span><span>地點釘換新樣式：把原本有點老氣的圖釘 emoji 換成類似 Google 地圖的圓點（查看中是藍點、已收藏是橘點加星星）；地圖縮小時圓點會自動放大、加上淡光環，比較不會跟背景車站的小點混在一起</span></li>
         <li><span class="d">7/14</span><span>修正縮放時的路線殘影：用滑鼠滾輪或縮放鈕放大／縮小的瞬間，路線會短暫「跳開」街道再歸位——因為底圖圖磚原本有約 0.25 秒的平滑縮放動畫，而路線圖層是每格瞬間跳到新倍率，兩層短暫對不齊。已讓底圖改為與路線同時瞬間定位，縮放乾淨俐落、不再殘影（謝謝網友回報）</span></li>
         <li><span class="d">7/14</span><span>平交道位置說明：平交道位置依台鐵官方公開資料標示，可能與現場實際位置略有落差——歡迎透過頁尾「回報問題或建議」告訴我們修正</span></li>
@@ -1641,7 +1640,7 @@
 <script>
 // 版本戳記:每次改版 push 前手動遞增(字母序),畫面時鐘徽章與 console 都會顯示,
 // 供比對線上跑的是不是最新版(瀏覽器快取 max-age=600 常讓人看到舊版)
-const BUILD = 'v0714d';
+const BUILD = 'v0714e';
 const state = {
   systems: [], sysId: null, data: null, speed: 36, mode: 'freq',
   lines: [], visible: new Set(), trains: [], schedStations: [], types: [],
@@ -2949,6 +2948,10 @@ function renderCrossingCard() {
 // ── 定位我 → 看附近平交道有沒有火車快通過 ─────────────────────────────────────
 // 一次性 geolocation(getCurrentPosition,不持續追蹤、座標純留本機不上傳)。成功後飛到所在地、
 // 標藍點+精度圈、打開平交道圖層,並列出最近幾處平交道與各自下一班通過列車(複用 crossingPasses)。
+// 定位我暫緩(2026-07-14):iOS「加到主畫面」standalone PWA 無法取用定位(系統限制),而使用者主力情境正是主畫面 App;
+// 延到原生 App(Capacitor 原生定位)階段再啟用。以下程式(locateMe/onLocated/onLocateFail/renderNearbyXing…)全部保留,
+// 改 LOCATE_ENABLED=true 即復活(工具列按鈕重新出現並綁定)。
+const LOCATE_ENABLED = false;
 let meMarker = null, meCircle = null;
 const NEAR_XING_KM = 5;  // 「附近平交道」搜尋半徑(公里,可調)
 const NEAR_XING_N = 8;   // 清單最多列幾處
@@ -6080,7 +6083,7 @@ function setupMapTools() {
 
   // ── 定位我:一次性瀏覽器定位 → 飛到所在地、標藍點、開附近平交道清單 ──
   const locateBtn = document.getElementById('locateBtn');
-  if (locateBtn) locateBtn.onclick = locateMe;
+  if (locateBtn) { if (LOCATE_ENABLED) { locateBtn.style.display = ''; locateBtn.onclick = locateMe; } else locateBtn.remove(); } // 暫緩:CSS display:flex 會蓋過 [hidden],故 inline none + 直接移除;改 LOCATE_ENABLED 復活
   // 地圖縮小(z<12)時給地點釘加光環放大,避免與背景車站點混淆(使用者要求)
   function applyZfar() { const c = map.getContainer(); if (c) c.classList.toggle('zfar', map.getZoom() < 12); }
   map.on('zoomend', applyZfar); applyZfar();
