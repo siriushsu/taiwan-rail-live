@@ -1511,6 +1511,7 @@
     <details class="foot-box">
       <summary><span>🛠 更新紀錄</span><span class="foot-sub">最後更新：2026/7/14</span></summary>
       <ul class="foot-list">
+        <li><span class="d">7/14</span><span>修正縮放時的路線殘影：用滑鼠滾輪或縮放鈕放大／縮小的瞬間，路線會短暫「跳開」街道再歸位——因為底圖圖磚原本有約 0.25 秒的平滑縮放動畫，而路線圖層是每格瞬間跳到新倍率，兩層短暫對不齊。已讓底圖改為與路線同時瞬間定位，縮放乾淨俐落、不再殘影（謝謝網友回報）</span></li>
         <li><span class="d">7/14</span><span>平交道位置說明：平交道位置依台鐵官方公開資料標示，可能與現場實際位置略有落差——歡迎透過頁尾「回報問題或建議」告訴我們修正</span></li>
         <li><span class="d">7/13</span><span>修正跟車時路線抖動／整條跟著車移動：先前為了讓「放大播放更滑順」而做的次像素平移，在手機上會讓地圖圖磚和列車／軌道圖層對不齊——省電時整片路線不停抖動、非省電時整條路線跟著車子跑、偏離地圖。已移除該平移、回到穩定的置中方式，路線現在會牢牢貼在地圖上。另外畫面外（根本看不到）的路線與軌道仍會整條略過不畫，跟車更省效能（先前兩版沒修好，這版才抓到根因徹底移除）</span></li>
         <li><span class="d">7/13</span><span>手機提示不再擋住列車資訊：開「附近火車（釘）」「平交道」時跳出的說明、以及切換「省電」的提示，會自動避開左上時鐘與左下的列車資訊卡，改在中間空檔顯示；電腦版不受影響。另外切換省電模式時會給一句確認提示</span></li>
@@ -1611,7 +1612,7 @@
 <script>
 // 版本戳記:每次改版 push 前手動遞增(字母序),畫面時鐘徽章與 console 都會顯示,
 // 供比對線上跑的是不是最新版(瀏覽器快取 max-age=600 常讓人看到舊版)
-const BUILD = 'v0713x';
+const BUILD = 'v0714a';
 const state = {
   systems: [], sysId: null, data: null, speed: 36, mode: 'freq',
   lines: [], visible: new Set(), trains: [], schedStations: [], types: [],
@@ -6093,7 +6094,10 @@ async function boot() {
   if (state.liveMode) document.body.classList.add('live');
   if (state.director) document.body.classList.add('director');
   cv = document.getElementById('overlay'); ctx = cv.getContext('2d');
-  map = L.map('map', { zoomControl: true, attributionControl: true, preferCanvas: true })
+  // zoomAnimation:false —— 縮放時圖磚不做 250ms CSS 補間、直接跳到新倍率。overlay 畫布是每幀
+  // 重投影的離散圖層(縮放瞬間就跳到新位置),圖磚若補間會落後它 ~250ms→路線與街道錯位「殘影」(issue #4)。
+  // 讓圖磚與 overlay 同幀落定即根除。此設定只影響縮放補間,平移/跟車動畫不受影響。
+  map = L.map('map', { zoomControl: true, attributionControl: true, preferCanvas: true, zoomAnimation: false })
     .setView([24.5, 121], 8);
   window.__map = map; // 驗證腳本用的把手(map 為閉包變數,外部拿不到)
   window.__state = state; // 同上:唯讀給驗證腳本讀命中快取/模擬時鐘(平交道等)
