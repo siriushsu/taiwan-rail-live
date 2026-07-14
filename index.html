@@ -1026,8 +1026,8 @@
   }
   .board .sub { color: #8a7c62; font-size: 11px; margin-bottom: 7px; }
   .board .row { display: flex; align-items: baseline; gap: 8px; padding: 5px 0; border-top: 1.5px dashed #d8cba9; font-size: 13px; }
-  .board .row[data-no], .board .row[data-rand] { cursor: pointer; }
-  .board .row[data-no]:hover, .board .row[data-rand]:hover { background: #f7f0dd; }
+  .board .row[data-no], .board .row[data-rand], .board .row[data-li] { cursor: pointer; }
+  .board .row[data-no]:hover, .board .row[data-rand]:hover, .board .row[data-li]:hover { background: #f7f0dd; }
   .board .row b { color: #1e2c40; }
   .board .row .dot { width: 8px; height: 8px; border-radius: 50%; flex: none; align-self: center; }
   .board .row .dest { flex: 1; color: #6b5f4a; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -1537,6 +1537,7 @@
     <details class="foot-box">
       <summary><span>🛠 更新紀錄</span><span class="foot-sub">最後更新：2026/7/14</span></summary>
       <ul class="foot-list">
+        <li><span class="d">7/14</span><span>捷運／輕軌車站新增「來車看板」：點任一捷運站（不只台鐵、高鐵），會列出接下來的班次——往哪個方向、幾點發車、還有幾分鐘，轉乘站會分線分方向列出；點班次可直接跟隨。班次依當日時刻表推演，非即時到站（文湖線／台中捷運／三鶯線無官方逐班時刻，看板會註明「班距推算」）</span></li>
         <li><span class="d">7/14</span><span>「附近火車（釘）」改成開關式：打開後可以在地圖上連續點好幾個地方、逐一按「存」收藏成最愛地點，不會點一次就自動關掉；要結束再按一次「釘」即可（先前每落一個點就得重按一次，很不方便）</span></li>
         <li><span class="d">7/14</span><span>地點釘換新樣式：把原本有點老氣的圖釘 emoji 換成類似 Google 地圖的圓點（查看中是藍點、已收藏是橘點加星星）；地圖縮小時圓點會自動放大、加上淡光環，比較不會跟背景車站的小點混在一起</span></li>
         <li><span class="d">7/14</span><span>修正縮放時的路線殘影：用滑鼠滾輪或縮放鈕放大／縮小的瞬間，路線會短暫「跳開」街道再歸位——因為底圖圖磚原本有約 0.25 秒的平滑縮放動畫，而路線圖層是每格瞬間跳到新倍率，兩層短暫對不齊。已讓底圖改為與路線同時瞬間定位，縮放乾淨俐落、不再殘影（謝謝網友回報）</span></li>
@@ -5727,6 +5728,7 @@ function renderBoard() {
   const el = document.getElementById('board'), st = state.boardStation;
   if (!st) { el.hidden = true; updateSheetOpenClass(); return; }
   state.boardRenderedAt = state.simSec;
+  if (state.mode !== 'sched') { renderFreqBoard(el, st); return; } // 捷運/輕軌走獨立邏輯,sched(台鐵/高鐵)以下維持原樣
   const rows = [];
   for (const tr of state.trains) {
     const stops = tr.stops;
@@ -5773,6 +5775,69 @@ function renderBoard() {
     const no = row ? row.dataset.no : el._downNo;
     el._downNo = null;
     if (no) { closeBoard(); followTrainNo(no); }
+  };
+}
+
+// 捷運/輕軌看板:掃經過本站的每條線當日時刻表(ln._tt),抓最近幾班到離站倒數(-30秒~未來2小時內)。
+// 轉乘站(多條線經過本站)每條線各自成組(依 state.lines 順序排列)、線內再依方向(該班最後停靠站名)分組,各取最近 3 班。
+// 捷運沒有車次號,跟隨走 setFreqFollow({ln,tr}) (tr=ln._tt 裡的那班陣列本身,不是台鐵的 followTrainNo)。
+function renderFreqBoard(el, st) {
+  const key = st.name.replace(/臺/g, '台');
+  const groups = []; // { ln, li, destName, rows:[{t,dtm,ci}] }
+  state.lines.forEach((ln, li) => {
+    if (!state.visible.has(ln.id) || !ln._tt) return; // 未勾選的線不上板;班距合成線(BR/TG/LB)當日也有 _tt,一併列入
+    const si = ln.stations.findIndex(s => s.name.replace(/臺/g, '台') === key);
+    if (si < 0) return; // 這條線不經過本站
+    const byDir = new Map(); // destName -> rows[]
+    ln._tt.forEach((trip, ci) => {
+      let i = -1;
+      for (let k = 0; k < trip.length; k += 2) if (trip[k] === si) { i = k; break; }
+      if (i < 0 || i === trip.length - 2) return; // 本班未停本站,或本站正是本班終點(到站不發車,不列)
+      const t = trip[i + 1];
+      let dtm = t - state.simSec;
+      if (dtm > 43200) dtm -= 86400; else if (dtm < -43200) dtm += 86400; // 跨午夜換日對齊(比照台鐵看板)
+      if (dtm < -30 || dtm > 7200) return; // 未來 2 小時內
+      const destName = ln.stations[trip[trip.length - 2]].name;
+      if (!byDir.has(destName)) byDir.set(destName, []);
+      byDir.get(destName).push({ t, dtm, ci });
+    });
+    byDir.forEach((rows, destName) => {
+      rows.sort((a, b) => a.dtm - b.dtm);
+      groups.push({ ln, li, destName, rows: rows.slice(0, 3) });
+    });
+  });
+  groups.sort((a, b) => a.li - b.li || a.rows[0].dtm - b.rows[0].dtm);
+  const hasEstimated = groups.some(g => g.ln.times && g.ln.times.estimated);
+  const body = groups.map(g => {
+    const lineLabel = (g.ln._sysLabel ? g.ln._sysLabel + ' ' : '') + (g.ln.name || g.ln.abbr || '');
+    return g.rows.map(r => {
+      const min = r.dtm < 60 ? '即將進站' : Math.round(r.dtm / 60) + ' 分';
+      return `<div class="row" data-li="${g.li}" data-ci="${r.ci}" title="跟隨 往${g.destName} 班次"><span class="dot" style="background:${g.ln.color}"></span>` +
+        `<b>往 ${g.destName}</b><span class="dest">${lineLabel}</span>` +
+        `<span class="t">${fmtHM(r.t % 86400)}</span><span class="min">${min}</span></div>`;
+    }).join('');
+  }).join('');
+  el.innerHTML = `<button class="close" id="boardClose">×</button>` +
+    `<h3>${st.name}</h3>` + stnMetaHtml(st) +
+    `<div class="sub">接下來的班車 · 依當日時刻表推演、非即時 · 點班次跟隨${hasEstimated ? '（部分路線為班距推算）' : ''}</div>` +
+    (body || '<div class="empty">此時段無停靠班次</div>');
+  el.hidden = false;
+  updateSheetOpenClass();
+  el.querySelector('#boardClose').onclick = closeBoard;
+  // 點任一班次列 → 關看板、跟隨該班;防抖比照台鐵看板(pointerdown 先記,看板每 20 模擬秒重繪,click 補撈不到的列)。
+  el.onpointerdown = e => {
+    const row = e.target.closest('.row[data-li]');
+    el._downKey = row ? row.dataset.li + '/' + row.dataset.ci : null;
+  };
+  el.onclick = e => {
+    const row = e.target.closest('.row[data-li]');
+    const rowKey = row ? row.dataset.li + '/' + row.dataset.ci : el._downKey;
+    el._downKey = null;
+    if (!rowKey) return;
+    const [li, ci] = rowKey.split('/').map(Number);
+    const ln = state.lines[li];
+    const trip = ln && ln._tt && ln._tt[ci];
+    if (ln && trip) { closeBoard(); setFreqFollow({ ln, tr: trip }); }
   };
 }
 
@@ -6280,13 +6345,23 @@ async function boot() {
   map.on('click', e => {
     const cp = e.containerPoint || map.latLngToContainerPoint(e.latlng);
     if (state.mode !== 'sched') {
-      // 捷運 freq:點列車跟隨(再點同一台=取消、點另一台=換車);點空白處不動,比照 sched 慣例
+      // 捷運 freq:點列車跟隨(再點同一台=取消、點另一台=換車);優先序同 sched:先試列車,沒點中再試車站開時刻板
       const fh = freqTrainAt(cp);
       if (fh) {
         const f = state.freqFollow;
         if (f && f.ln === fh.ln && (fh.tr ? f.tr === fh.tr : f.k === fh.k)) clearFreqFollow();
         else setFreqFollow(fh);
+        return;
       }
+      let bestSt = null, bdSt = 1e9;
+      state.lines.forEach(ln => {
+        if (!state.visible.has(ln.id) || !ln.pts) return;
+        ln.pts.forEach((p, idx) => {
+          const d = Math.hypot(p.x - cp.x, p.y - cp.y);
+          if (d < bdSt) { bdSt = d; bestSt = ln.stations[idx]; }
+        });
+      });
+      if (bestSt && bdSt <= 16) openBoard({ name: bestSt.name, lat: bestSt.lat, lon: bestSt.lon, sys: 'freq' });
       return;
     }
     if (state.dropMode) { // 落釘模式(開關式):點地圖任一處落釘查看附近火車,落完「維持」模式可連續落釘/存點(可拖曳微調)
