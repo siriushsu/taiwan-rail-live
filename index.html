@@ -1536,6 +1536,7 @@
     <details class="foot-box">
       <summary><span>🛠 更新紀錄</span><span class="foot-sub">最後更新：2026/7/14</span></summary>
       <ul class="foot-list">
+        <li><span class="d">7/14</span><span>改善「定位我」被拒絕時的處理：手機（尤其 iPhone「加到主畫面」的 App）常常因系統限制無法使用定位，這時不再只丟一句看不懂又找不到的「去網址列鎖頭開啟」，而是自動切到「釘」讓你直接在地圖上點自己的位置看附近火車；並依你的裝置給正確的開啟說明</span></li>
         <li><span class="d">7/14</span><span>「附近火車（釘）」改成開關式：打開後可以在地圖上連續點好幾個地方、逐一按「存」收藏成最愛地點，不會點一次就自動關掉；要結束再按一次「釘」即可（先前每落一個點就得重按一次，很不方便）</span></li>
         <li><span class="d">7/14</span><span>新增「定位我」：工具列多了一顆「定位我」，按一下（會問你一次位置權限）就能在地圖上看到自己的所在，並列出附近幾處平交道、以及每一處下一班火車幾分幾秒後通過、開往哪裡。只定位這一次、不會持續追蹤，你的位置只留在自己手機、不會上傳。仍請以現場號誌為準，別靠這個決定要不要闖越平交道</span></li>
         <li><span class="d">7/14</span><span>地點釘換新樣式：把原本有點老氣的圖釘 emoji 換成類似 Google 地圖的圓點（查看中是藍點、已收藏是橘點加星星）；地圖縮小時圓點會自動放大、加上淡光環，比較不會跟背景車站的小點混在一起</span></li>
@@ -1640,7 +1641,7 @@
 <script>
 // 版本戳記:每次改版 push 前手動遞增(字母序),畫面時鐘徽章與 console 都會顯示,
 // 供比對線上跑的是不是最新版(瀏覽器快取 max-age=600 常讓人看到舊版)
-const BUILD = 'v0714c';
+const BUILD = 'v0714d';
 const state = {
   systems: [], sysId: null, data: null, speed: 36, mode: 'freq',
   lines: [], visible: new Set(), trains: [], schedStations: [], types: [],
@@ -2962,9 +2963,25 @@ function locateMe() {
   ensureCrossings(); // 與定位並行,先開始抓平交道資料
   navigator.geolocation.getCurrentPosition(
     pos => onLocated(pos.coords.latitude, pos.coords.longitude, pos.coords.accuracy),
-    err => showToast(err.code === 1 ? '定位被拒絕——可在網址列鎖頭圖示重新允許位置權限'
-      : err.code === 3 ? '定位逾時,請在收訊較好處再試一次' : '目前無法取得你的位置'),
+    onLocateFail,
     { enableHighAccuracy: true, timeout: 12000, maximumAge: 60000 });
+}
+// 定位失敗不留死路:給對平台正確的說明(手機沒有「網址列鎖頭」),並自動切到『釘』——免任何權限,
+// 直接在地圖上點自己的位置就能看附近火車。iPhone「加到主畫面」的 App 常常根本不跳權限詢問就被拒
+// (iOS 對 standalone PWA 的系統限制),此時再多的權限說明都沒用,唯一實際出路就是手動落釘。
+function onLocateFail(err) {
+  const ua = navigator.userAgent || '';
+  const iOS = /iPhone|iPad|iPod/.test(ua) || (/Macintosh/.test(ua) && 'ontouchend' in document);
+  const standalone = navigator.standalone === true || matchMedia('(display-mode: standalone)').matches;
+  const android = /Android/.test(ua);
+  if (err && err.code === 3) { showToast('定位逾時，請在收訊較好處再試一次；或用「釘」直接點你的位置看附近火車。'); return; }
+  let note;
+  if (iOS && standalone) note = 'iPhone 主畫面 App 常無法自動定位，用 Safari 開較穩定';
+  else if (iOS) note = '可到 iPhone 設定→隱私權與安全性→定位服務 開啟並允許 Safari';
+  else if (android) note = '可在網址列旁圖示→網站設定→位置 允許';
+  else note = '可在網址列鎖頭圖示→位置 允許';
+  if (state._setDropMode) state._setDropMode(true, true); // 靜默開啟落釘(不彈它自己的提示,由下面統一說明)
+  showToast('無法自動定位，已改用「釘」：在地圖上點你的位置就能看附近火車。（' + note + '）');
 }
 async function onLocated(lat, lon, accM) {
   if (meMarker) { map.removeLayer(meMarker); meMarker = null; }
@@ -6050,13 +6067,13 @@ function setupMapTools() {
 
   // ── 落釘看附近火車:開關(落釘模式下點地圖任一處落釘) ──
   const pinBtn = document.getElementById('pinBtn');
-  function setDropMode(on) {
+  function setDropMode(on, silent) {
     state.dropMode = on;
     pinBtn.classList.toggle('active', on);
     pinBtn.querySelector('.tl').textContent = on ? '點地圖落釘' : '附近火車';
     pinBtn.title = on ? '落釘模式中：點地圖可連續落釘、存點（再按一次關閉）' : '落釘看附近經過的火車';
     const cnt = map.getContainer(); if (cnt) cnt.style.cursor = on ? 'crosshair' : '';
-    if (on) showToast('落釘模式：點地圖可連續落釘看附近火車、按「存」收藏；再按一次「釘」關閉');
+    if (on && !silent) showToast('落釘模式：點地圖可連續落釘看附近火車、按「存」收藏；再按一次「釘」關閉');
   }
   pinBtn.onclick = () => setDropMode(!state.dropMode);
   state._setDropMode = setDropMode; // 供 boot 內地圖點擊處理器跨作用域呼叫(比照 state._setFs)
