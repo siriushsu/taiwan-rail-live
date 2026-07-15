@@ -4044,7 +4044,7 @@ function fadeSwitch(tr) {
   setTimeout(() => {
     if (!state.autoTour) { veil.style.opacity = 0; state._transition = false; return; }
     ambientJumpTo(tr);
-    if (state.director) advanceDirectorBasemap(); // 導播每換一班車順便換底圖,藏在遮幕後面切,不會看到硬切
+    if (state.director && !state._liveMapOverride) advanceDirectorBasemap(); // 導播每換一班車順便換底圖,藏在遮幕後面切,不會看到硬切;&map= 指定固定底圖時不輪替
     veil.style.opacity = 0;
     setTimeout(() => { state._transition = false; }, 750);
   }, 800);
@@ -4431,6 +4431,7 @@ function setMusicEnabled(on) {
 // boot 完成後自動進放空巡航+背景音樂;互動 UI 由 body.live CSS 隱藏(attribution 依授權保留)
 const LIVE_REPLAY_FROM = 45 * 60, LIVE_REPLAY_TO = 5 * 3600 + 15 * 60; // 深夜重播時段 00:45–05:15
 function initLive() {
+  if (state._liveMapOverride) { state.mapDark = state._liveMapOverride === 'dark'; state.basemap = state._liveMapOverride === 'sat' ? 'sat' : 'map'; setBasemap(); } // &map= 固定底圖
   try { map.attributionControl.addAttribution('資料: 交通部TDX'); } catch (e) {} // 底圖字樣外補資料來源
   document.getElementById('liveHud').hidden = false;
   // Now Playing 字幕:換曲淡出→換字→淡入(檔名去 .mp3 當曲名)
@@ -4488,6 +4489,7 @@ function advanceDirectorBasemap() {
   setBasemap();
 }
 function initDirector() {
+  if (state._liveMapOverride) { state.mapDark = state._liveMapOverride === 'dark'; state.basemap = state._liveMapOverride === 'sat' ? 'sat' : 'map'; setBasemap(); } // &map= 固定底圖,停用自動輪替(見 fadeSwitch)
   try { map.attributionControl.addAttribution('資料: 交通部TDX'); } catch (e) {}
   document.getElementById('liveHud').hidden = false;
   const np = document.getElementById('liveNp'), npT = document.getElementById('liveNpTitle');
@@ -6332,6 +6334,7 @@ async function boot() {
     const sp = new URLSearchParams(location.search), lv = sp.get('live');
     if (lv === '2') { if (sp.get('k') === DIRECTOR_KEY) { state.liveMode = true; state.director = true; } }
     else if (lv) state.liveMode = true;
+    if (state.liveMode) { const m = sp.get('map'); if (m === 'light' || m === 'dark' || m === 'sat') state._liveMapOverride = m; } // &map= 固定底圖,導播模式並停用自動輪替
   } catch (e) {}
   if (state.liveMode) document.body.classList.add('live');
   if (state.director) document.body.classList.add('director');
