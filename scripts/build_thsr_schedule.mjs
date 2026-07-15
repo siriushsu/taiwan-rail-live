@@ -121,7 +121,7 @@ const rawShape = TDX('THSR_Shape.json')[0].Geometry;
 const chains = stitch(parseWKT(rawShape));
 chains.sort((a, b) => cumOf(b)[b.length - 1] - cumOf(a)[a.length - 1]);
 const rawLine = chains[0];
-const LINE = rdp(rawLine, 0.05), CUM = cumOf(LINE); // 簡化至~50m 垂距
+const LINE = rdp(rawLine, 0.003), CUM = cumOf(LINE); // 簡化至~3m 垂距(原 50m 太粗,z18 跟車看得出彎道被拉直折角)
 console.log(`主線 ${rawLine.length}→${LINE.length} 點(RDP 簡化), ${CUM[CUM.length - 1].toFixed(1)}km (縫合 ${chains.length} 段取最長)`);
 
 const stMap = new Map(); // StationID → {name,lat,lon,s}
