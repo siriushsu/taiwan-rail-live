@@ -3263,7 +3263,7 @@ function tick(now) {
   state._skyClock = (state._skyClock || 0) + dt;
   if (state._skyClock >= 0.5) { state._skyClock = 0; updateSkyTint(); }
   state._liveClock = (state._liveClock || 0) + dt;
-  if (state._liveClock >= 1) { state._liveClock = 0; updateLiveBadge(); if (state.liveMode && !state.director) liveClockTick(); } // 導播是 5× 循環,不做即時對齊(會跟循環打架)
+  if (state._liveClock >= 1) { state._liveClock = 0; updateLiveBadge(); if (state.liveMode && !state.director) liveClockTick(); else if (state.director) directorClockTick(); } // 導播現在也是 1× 貼真實時刻,只是用不含深夜重播替代的簡化版
   // 省電三板斧(繪製節流,不動上面的時間積分):
   // (1) 分頁隱藏停繪——時間照積分,只是不畫;錄影中例外(recCompose 每幀從主畫布拷貝,停繪會凍結成靜止幀)
   // (2) 待機時 draw 節流到 ~30fps;跟隨/幽靈車跟隨/放空/錄影/剛互動(1.5s 內)維持顯示器全速,體驗優先
@@ -4502,8 +4502,10 @@ function initDirector() {
   const go = () => {
     if (!state.ready || !state.trains.length) { setTimeout(go, 500); return; }
     setAmbientStyle('follow');  // 跟單車風格(自動導演),非群車
-    setAmbient(true);           // 進放空:全畫面+自動導演+5×+站介紹+音樂+防休眠(setAmbient 內建 5×,不覆蓋)
-    state.nightReplay = false;  // 導播要 5× 忠實循環,取消放空自帶的深夜跳 18:00
+    setAmbient(true);           // 進放空:全畫面+自動導演+站介紹+音樂+防休眠
+    state.nightReplay = false;  // 取消放空自帶的深夜跳 18:00,一律播現在時刻的真實列車
+    setSpeed(1);                 // 直播固定 1× 貼真實時刻,蓋掉放空預設的 5×
+    setSimSec(nowSecOfDay(activeTz())); // 貼回現在時刻(蓋掉上一行 setAmbient 深夜時段可能做的跳 18:00)
     if (!state.music.enabled) setMusicEnabled(true);
     setTimeout(() => { if (state.music.enabled && state.music.audio.paused)
       document.addEventListener('pointerdown', () => { if (state.music.audio.paused) musicPlay(); }, { once: true }); }, 1500);
@@ -4525,6 +4527,12 @@ function directorTick(now) {
     setAmbientStyle('hotspot'); state._hotFresh = true; state._hotScene = null; state._hotNext = 0;
     state._dirNext = now + DIR_GROUP_BLOCK;
   }
+}
+// 導播 1× 防漂移:每秒由 tick 呼叫,只貼回現在時刻,不做 liveClockTick 的深夜 08:00 重播替代(直播只播現在真實列車)
+function directorClockTick() {
+  if (state.mode !== 'sched') return;
+  const now = nowSecOfDay(activeTz());
+  if (Math.abs(state.simSec - now) > 120) setSimSec(now);
 }
 
 // 地圖下方的列車資訊卡:介紹+服務標記,旅程日誌由 renderFollowEvents 填
