@@ -2334,9 +2334,7 @@ function freqTrainInfo(ln, t) {
   const termName = loop ? null : ln.stations[outbound ? F - 1 : 0].name;
   return { lat, lon, outbound, loop, nextName, termName };
 }
-function setFreqFollow(hit) { // hit = {ln, tr}(實際時刻班次) 或 {ln, k}(班距幽靈車)
-  if (state.autoTour) setAutoTour(false); // 手動點車即接手,退出隨機模式(比照 setFollow)
-  if (state.ambient && state.ambientStyle === 'hotspot') hotspotStop(); // 群車放空中點車=接手跟隨
+function applyFreqFollow(hit) { // hit = {ln, tr} 或 {ln, k};不動 autoTour/hotspot 狀態,供導播內部輪車重用(見 nextTourTrain)
   if (state.followTrain) clearFollow(); // 全台同框:與台鐵/高鐵跟隨互斥(此刻 freqFollow 尚未設,級聯清不到自己)
   closeBoard();
   state.freqFollow = hit.tr ? { ln: hit.ln, tr: hit.tr } : { ln: hit.ln, k: hit.k };
@@ -2344,6 +2342,11 @@ function setFreqFollow(hit) { // hit = {ln, tr}(實際時刻班次) 或 {ln, k}(
   document.getElementById('freqCard').hidden = false;
   updateFreqFollowCamera(true); // 立即置中並填卡
   updateFollowLockUI();
+}
+function setFreqFollow(hit) { // hit = {ln, tr}(實際時刻班次) 或 {ln, k}(班距幽靈車)
+  if (state.autoTour) setAutoTour(false); // 手動點車即接手,退出隨機模式(比照 setFollow)
+  if (state.ambient && state.ambientStyle === 'hotspot') hotspotStop(); // 群車放空中點車=接手跟隨
+  applyFreqFollow(hit);
 }
 function clearFreqFollow() {
   if (!state.freqFollow) return;
@@ -3236,7 +3239,8 @@ function tick(now) {
   if (state.director && state.playing) directorTick(now); // 導播相位機:跟車段↔群車段循環(先於 autoTour,可能切換 autoTour 開關)
   if (state.autoTour && state.mode === 'sched' && state.playing) {
     const ftr = state.followTrain;
-    if (!ftr || effT(ftr) > ftr.stops[ftr.stops.length - 1].arrSec || now >= (state._tourNext || 0))
+    // 捷運幽靈車跟隨中(freqFollow 有值、無 followTrain)不算「沒目標」,否則每幀都會誤判成該換車
+    if ((!ftr && !state.freqFollow) || (ftr && effT(ftr) > ftr.stops[ftr.stops.length - 1].arrSec) || now >= (state._tourNext || 0))
       nextTourTrain(now);
   }
   if (state.ambient && state.ambientStyle === 'hotspot' && !state.followTrain && !state.freqFollow &&
@@ -4011,16 +4015,36 @@ function pickTourTrain() {
   for (let i = 0; i < cands.length; i++) { r -= ws[i]; if (r <= 0) return cands[i]; }
   return cands[cands.length - 1];
 }
+// 導播偶爾跟捷運/輕軌幽靈車(比照台鐵/高鐵輪車,借 applyFreqFollow 不動 autoTour 狀態)
+const METRO_TOUR_CHANCE = 0.25; // 「偶爾」跟捷運,不要太常搶戲
+function pickTourMetro() {
+  if (!state.decoLines) return null;
+  const cands = [];
+  for (const ln of state.decoLines) {
+    if (ln._tt && ln._tt.length) { // 大多數線現已有實際時刻(v0711l):挑一班現在真的在跑的班次
+      const running = ln._tt.filter(tr => freqTrainTime(tr, state.simSec) != null);
+      if (running.length) cands.push({ ln, tr: running[Math.floor(Math.random() * running.length)] });
+    } else if (ln.sched && ln.n > 0) cands.push({ ln, k: Math.floor(Math.random() * ln.n) }); // 無時刻檔的線退回班距幽靈車
+  }
+  if (!cands.length) return null;
+  return cands[Math.floor(Math.random() * cands.length)];
+}
 function nextTourTrain(now) {
   // 轉場防重入:到站觸發的換車條件(effT>終點arrSec)在淡出等待的每一幀都成立,
   // 不擋會機關槍連發幾十條轉場鏈,veil 淡入後殘餘 callback 輪流裸跳到不同隨機車
   if (state._transition) return;
-  const tr = pickTourTrain();
+  const metro = (state.director && Math.random() < METRO_TOUR_CHANCE) ? pickTourMetro() : null;
+  const tr = metro ? null : pickTourTrain();
   // 導播模式每車跟 5–10 分鐘(使用者要求),放空一般 1–2 分鐘
-  state._tourNext = (now || performance.now()) + (tr ? (state.director ? 300000 + Math.random() * 300000 : 60000 + Math.random() * 60000) : 5000);
-  if (!tr) {
+  state._tourNext = (now || performance.now()) + ((tr || metro) ? (state.director ? 300000 + Math.random() * 300000 : 60000 + Math.random() * 60000) : 5000);
+  if (!tr && !metro) {
     // 深夜幾乎沒車 → 重播傍晚尖峰(模擬時鐘本來就支援任意時間);導播要 5× 忠實循環,深夜就少,不跳
     if (state.ambient && !state.nightReplay && !state.director) { state.nightReplay = true; setSimSec(18 * 3600); refreshBadge(); }
+    return;
+  }
+  if (metro) {
+    if (state._ambientFresh) { state._ambientFresh = false; ambientJumpToMetro(metro); }
+    else fadeSwitchMetro(metro);
     return;
   }
   const ts = document.getElementById('trainSearch'); if (ts) ts.value = tr.train;
@@ -4035,6 +4059,10 @@ function ambientJumpTo(tr) {
   const p = trainPos(tr, state.simSec) || tr.stops[0];
   map.setView([p.lat, p.lon], state.director ? DIRECTOR_FOLLOW_Z : AMBIENT_Z, { animate: false }); // 導播跟車放大到 z18(最大縮小兩級)
 }
+function ambientJumpToMetro(pick) {
+  applyFreqFollow(pick);
+  map.setView(map.getCenter(), DIRECTOR_FOLLOW_Z, { animate: false }); // 導播跟捷運也放大到 z18,跟台鐵/高鐵跟車一致
+}
 // 放空模式換車:淡出 → 直接切到下一班 → 淡入(不拉高俯瞰)
 function fadeSwitch(tr) {
   const veil = document.getElementById('veil');
@@ -4045,6 +4073,20 @@ function fadeSwitch(tr) {
     if (!state.autoTour) { veil.style.opacity = 0; state._transition = false; return; }
     ambientJumpTo(tr);
     if (state.director && !state._liveMapOverride) advanceDirectorBasemap(); // 導播每換一班車順便換底圖,藏在遮幕後面切,不會看到硬切;&map= 指定固定底圖時不輪替
+    veil.style.opacity = 0;
+    setTimeout(() => { state._transition = false; }, 750);
+  }, 800);
+}
+// 放空模式換捷運幽靈車:結構同 fadeSwitch,套 freqFollow 而非 followTrain
+function fadeSwitchMetro(pick) {
+  const veil = document.getElementById('veil');
+  state._transition = true;
+  state._tourNext += 1600;
+  veil.style.opacity = 1;
+  setTimeout(() => {
+    if (!state.autoTour) { veil.style.opacity = 0; state._transition = false; return; }
+    ambientJumpToMetro(pick);
+    if (state.director && !state._liveMapOverride) advanceDirectorBasemap();
     veil.style.opacity = 0;
     setTimeout(() => { state._transition = false; }, 750);
   }, 800);
@@ -4098,6 +4140,15 @@ function computeHotspots() {
   }
   return out;
 }
+// 導播群車:該熱區附近有幾條捷運/輕軌路線經過(供 pickHotspot 加權,不影響一般放空使用者)
+function metroCoverage(lat, lon) {
+  if (!state.decoLines) return 0;
+  let n = 0;
+  for (const ln of state.decoLines) {
+    if (ln.stations.some(s => Math.abs(s.lat - lat) < HOT_CELL * 1.5 && Math.abs(s.lon - lon) < HOT_CELL * 1.5)) n++;
+  }
+  return n;
+}
 function pickHotspot(hs) {
   let cands = hs;
   const last = state._hotLast; // 避免連兩幕同一區(有別區可去才避)
@@ -4106,7 +4157,11 @@ function pickHotspot(hs) {
     if (far.length) cands = far;
   }
   let total = 0;
-  const ws = cands.map(h => { const w = h.n * h.n; total += w; return w; }); // n² 加權:最繁忙的最常出現
+  const ws = cands.map(h => {
+    let w = h.n * h.n; // n² 加權:最繁忙的最常出現
+    if (state.director) w *= 1 + 0.2 * metroCoverage(h.lat, h.lon); // 導播:捷運線覆蓋地區加權重一點
+    total += w; return w;
+  });
   let r = Math.random() * total;
   for (let i = 0; i < cands.length; i++) { r -= ws[i]; if (r <= 0) return (state._hotLast = cands[i]); }
   return (state._hotLast = cands[cands.length - 1]);
@@ -4524,7 +4579,7 @@ function directorTick(now) {
   } else {                                      // 跟車段結束 → 群車段
     state._dirPhase = 'group';
     if (state.autoTour) setAutoTour(false);
-    clearFollow();
+    clearFollow(); clearFreqFollow(); // 跟車段可能正跟捷運幽靈車,群車段開始前一併清掉(否則卡住擋 hotspotTick 的 !freqFollow 條件)
     setAmbientStyle('hotspot'); state._hotFresh = true; state._hotScene = null; state._hotNext = 0;
     state._dirNext = now + DIR_GROUP_BLOCK;
   }
