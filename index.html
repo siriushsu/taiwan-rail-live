@@ -4115,13 +4115,14 @@ function hotspotTick(now) {
   if (state._transition || now < (state._hotNext || 0)) return;
   const hs = computeHotspots();
   if (!hs.length) {
-    // 深夜沒車 → 比照跟車視角,重播傍晚尖峰
-    if (!state.nightReplay) { state.nightReplay = true; setSimSec(18 * 3600); refreshBadge(); }
+    // 深夜沒車 → 比照跟車視角,重播傍晚尖峰(導播直播不要,只播現在真的在跑的車,見 initDirector)
+    if (!state.nightReplay && !state.director) { state.nightReplay = true; setSimSec(18 * 3600); refreshBadge(); }
     state._hotNext = now + 5000;
     return;
   }
   const h = pickHotspot(hs);
-  state._hotScene = { lat: h.lat, lon: h.lon, z: h.n >= 25 ? 15 : 14, dir: Math.random() * Math.PI * 2 };
+  const zTier = state.director ? [16, 15] : [15, 14]; // 導播 1× 較慢,群車俯瞰放大一級才看得出移動
+  state._hotScene = { lat: h.lat, lon: h.lon, z: h.n >= 25 ? zTier[0] : zTier[1], dir: Math.random() * Math.PI * 2 };
   state._hotNext = now + 60000 + Math.random() * 30000; // 一幕 60~90 秒再換熱區
   if (state._hotFresh) {
     state._hotFresh = false;
@@ -6009,6 +6010,7 @@ function setupMapTools() {
     if (!on && state.ambient) setAmbient(false); // 退出全畫面=退出放空
   }
   state._setFs = setFs;
+  if (state.liveMode && !document.body.classList.contains('fs')) setFs(true); // 直播/導播不等資料就緒就先進全畫面,OBS 一開始就是乾淨地圖,不會先閃出整頁版型
   // ── 手機全畫面速度控制膠囊狀態機(僅 ≤640 & fs & 非放空非直播;膠囊/展開/把手的樣式見 640 媒體塊)──
   (function setupFsCapsule() {
     const controls = document.querySelector('.controls');
