@@ -4166,6 +4166,18 @@ function pickHotspot(hs) {
   for (let i = 0; i < cands.length; i++) { r -= ws[i]; if (r <= 0) return (state._hotLast = cands[i]); }
   return (state._hotLast = cands[cands.length - 1]);
 }
+// 導播群車偶爾整座城市俯瞰(北北基/台中/高雄),極慢速飄移,不追熱區——錨點固定在城市中心,見 hotCruise 的 sc.slow 分支
+const CITY_OVERVIEW_CHANCE = 0.3; // 「偶爾」出現整座城市畫面
+const CITY_OVERVIEW_SPEED = 1.5;  // 極慢速飄移(對比 HOT_SPEED=7 的熱區巡航)
+const CITY_OVERVIEWS = ['taipei', 'taichung', 'kaohsiung']; // 沿用既有 CITY_BBOX(縣市書籤同一份資料)
+function pickCityOverview() {
+  const id = CITY_OVERVIEWS[Math.floor(Math.random() * CITY_OVERVIEWS.length)];
+  const b = CITY_BBOX[id];
+  const bounds = L.latLngBounds([[b[0], b[1]], [b[2], b[3]]]);
+  const z = map.getBoundsZoom(bounds, false, [20, 20]);
+  const c = bounds.getCenter();
+  return { lat: c.lat, lon: c.lng, z, dir: Math.random() * Math.PI * 2, anchor: { lat: c.lat, lon: c.lng }, slow: true };
+}
 function hotspotTick(now) {
   if (state._transition || now < (state._hotNext || 0)) return;
   const hs = computeHotspots();
@@ -4175,14 +4187,19 @@ function hotspotTick(now) {
     state._hotNext = now + 5000;
     return;
   }
-  const h = pickHotspot(hs);
-  const zTier = state.director ? [16, 15] : [15, 14]; // 導播 1× 較慢,群車俯瞰放大一級才看得出移動
-  state._hotScene = { lat: h.lat, lon: h.lon, z: h.n >= 25 ? zTier[0] : zTier[1], dir: Math.random() * Math.PI * 2 };
-  state._hotNext = now + 60000 + Math.random() * 30000; // 一幕 60~90 秒再換熱區
+  const useCity = state.director && Math.random() < CITY_OVERVIEW_CHANCE;
+  if (useCity) state._hotScene = pickCityOverview();
+  else {
+    const h = pickHotspot(hs);
+    const zTier = state.director ? [16, 15] : [15, 14]; // 導播 1× 較慢,群車俯瞰放大一級才看得出移動
+    state._hotScene = { lat: h.lat, lon: h.lon, z: h.n >= 25 ? zTier[0] : zTier[1], dir: Math.random() * Math.PI * 2 };
+  }
+  // 城市俯瞰是慢節奏的定場鏡頭,一幕拉長到 90~150 秒;一般熱區維持 60~90 秒
+  state._hotNext = now + (useCity ? 90000 + Math.random() * 60000 : 60000 + Math.random() * 30000);
   if (state._hotFresh) {
     state._hotFresh = false;
     state._hotCam = true; // 自家跳景的 zoomstart 不算使用者操作
-    map.setView([h.lat, h.lon], state._hotScene.z, { animate: false });
+    map.setView([state._hotScene.lat, state._hotScene.lon], state._hotScene.z, { animate: false });
     state._hotCam = false;
   } else hotFadeTo(state._hotScene);
 }
@@ -4214,8 +4231,9 @@ function hotCruise(dt, now) {
   // 必須用不取整的 project 自己累積;使用者調了縮放就在新 zoom 重建游標接著巡
   const zNow = map.getZoom();
   if (!sc.px || sc.pxZ !== zNow) { sc.px = map.project(map.getCenter(), zNow); sc.pxZ = zNow; sc.anchorAt = 0; }
-  // 錨點:每 2 秒重算視野(外擴 20%)內運行列車的重心;視野內沒車就取全圖最近的一台
-  if (!sc.anchorAt || now - sc.anchorAt > 2000) {
+  // 錨點:一般熱區每 2 秒重算視野(外擴 20%)內運行列車的重心,視野內沒車就取全圖最近的一台;
+  // 城市俯瞰(sc.slow)錨點固定在城市中心(pickCityOverview 已給),不追熱區,避免拉走整座城市的構圖
+  if (!sc.slow && (!sc.anchorAt || now - sc.anchorAt > 2000)) {
     sc.anchorAt = now;
     const box = map.getBounds().pad(0.2), c = map.getCenter();
     let lat = 0, lon = 0, n = 0, near = null, nd = Infinity;
@@ -4243,7 +4261,7 @@ function hotCruise(dt, now) {
     }
   }
   sc.dir += turn;
-  const step = HOT_SPEED * dt;
+  const step = (sc.slow ? CITY_OVERVIEW_SPEED : HOT_SPEED) * dt;
   sc.px = L.point(sc.px.x + Math.cos(sc.dir) * step, sc.px.y + Math.sin(sc.dir) * step);
   const dst = map.unproject(sc.px, zNow);
   map.setView(dst, zNow, { animate: false });
@@ -4536,7 +4554,7 @@ function liveClockTick() {
 // ── 導播模式(?live=2&k=,隱藏私用,密鑰 gated):5× 循環,跟單車 5–10 分輪替(z18)+偶爾群車俯瞰,列車資訊/站介紹全開 ──
 const DIRECTOR_KEY = 'S4_1HiKreSVsjFHN';   // 只有帶此 key 的網址能開;換 key 即失效舊連結
 const DIRECTOR_FOLLOW_Z = 18;              // 跟車縮放(使用者要求「最大縮小兩級」≈z18)
-const DIR_FOLLOW_BLOCK = 20 * 60000, DIR_GROUP_BLOCK = 2.5 * 60000; // 跟車段~20分 ↔ 群車段~2.5分 循環
+const DIR_FOLLOW_BLOCK = 20 * 60000, DIR_GROUP_BLOCK = 5 * 60000; // 跟車段~20分 ↔ 群車段~5分 循環(使用者要求群車畫面多一些,原 2.5 分加倍)
 const DIR_BASEMAPS = ['light', 'dark', 'sat']; // 每換一班跟隨列車依序輪一種底圖(白/黑/衛星)
 function advanceDirectorBasemap() {
   const mode = DIR_BASEMAPS[(state._dirBmIdx = ((state._dirBmIdx || 0) + 1) % DIR_BASEMAPS.length)];
