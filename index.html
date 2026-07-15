@@ -791,6 +791,40 @@
   .live-wm { font-size: 11.5px; font-weight: 800; letter-spacing: .8px; color: rgba(30,44,64,.55); padding-left: 2px; }
   .badge .replay { font-size: 11px; font-weight: 800; color: #d23c2a; letter-spacing: .5px; }
 
+  /* 直播訊號資訊欄放大(僅 body.live,不影響一般訪客):時鐘儀表/曲名浮水印/站名牌/跟隨卡片文字統一調大約 1.3 倍 */
+  body.live .badge { padding: 8px 18px 9px; gap: 14px; }
+  body.live .badge .clock { font-size: 30px; }
+  body.live .badge .peak { font-size: 15px; padding: 3px 11px; }
+  body.live .badge .count { font-size: 16px; }
+  body.live .badge .live, body.live .badge .replay { font-size: 14px; }
+  body.live .live-hud { gap: 7px; }
+  body.live .live-np { font-size: 16px; padding: 5px 14px 6px; }
+  body.live .live-wm { font-size: 15px; }
+  body.live .dwell-plate { min-width: 380px; }
+  body.live .dwell-plate b { font-size: 34px; padding: 12px 26px 9px; }
+  body.live .dwell-plate .dp-intro { font-size: 15px; }
+  body.live .dwell-plate .dp-intro .dp-intro-lbl { font-size: 12.5px; }
+  body.live .dwell-plate .dp-strip { padding: 7px 16px 8px; }
+  body.live .dwell-plate .side { font-size: 15px; }
+  body.live .dwell-plate .side .arr { font-size: 13px; }
+  body.live .dwell-plate .side .km { font-size: 12.5px; }
+  body.live .follow-panel { width: 320px; }
+  body.live .follow-panel .fp-head b { font-size: 19px; }
+  body.live .follow-panel .fp-head .kind { font-size: 15px; }
+  body.live .follow-panel .fp-head .spd { font-size: 14px; }
+  body.live .follow-panel .fp-head .spd b { font-size: 30px; }
+  body.live .follow-panel .fp-next .lbl { font-size: 13px; }
+  body.live .follow-panel .fp-next .stn { font-size: 20px; }
+  body.live .follow-panel .fp-next .eta { font-size: 16px; }
+  body.live .follow-panel .fp-prog .txt { font-size: 13px; }
+  body.live .follow-panel .fp-dest { font-size: 14px; }
+  body.live .follow-panel .fp-status { font-size: 15px; }
+  body.live .freq-card { width: 260px; }
+  body.live .freq-card .fc-head b { font-size: 18px; }
+  body.live .freq-card .fc-dir { font-size: 14px; }
+  body.live .freq-card .fc-next .lbl { font-size: 13px; }
+  body.live .freq-card .fc-next .stn { font-size: 19px; }
+
   /* 隨機跟隨升格為地圖膠囊鈕:原本擠在工具條裡(手機還要開抽屜)沒人發現,
      改成地圖下緣常駐置中膠囊,紙卡風沿用 .stage-tools 同色系 */
   #randBtn {
@@ -4150,6 +4184,23 @@ function metroCoverage(lat, lon) {
   }
   return n;
 }
+// 熱區概略歸類北/中/南/東(取最近 CITY_BBOX 縣市中心),供導播地區輪替加權——
+// 台鐵/高鐵車流與捷運覆蓋皆天生偏北,不加此輪替北部幾乎壟斷群車畫面
+const REGION_OF_CITY = {
+  keelung: '北', taipei: '北', ntpc: '北', taoyuan: '北', hsinchu: '北',
+  miaoli: '中', taichung: '中', changhua: '中', nantou: '中', yunlin: '中',
+  chiayi: '南', tainan: '南', kaohsiung: '南', pingtung: '南',
+  yilan: '東', hualien: '東', taitung: '東',
+};
+function regionOf(lat, lon) {
+  let best = null, bd = Infinity;
+  for (const id in CITY_BBOX) {
+    const b = CITY_BBOX[id], cy = (b[0] + b[2]) / 2, cx = (b[1] + b[3]) / 2;
+    const d = Math.hypot(lat - cy, lon - cx);
+    if (d < bd) { bd = d; best = id; }
+  }
+  return REGION_OF_CITY[best] || '北';
+}
 function pickHotspot(hs) {
   let cands = hs;
   const last = state._hotLast; // 避免連兩幕同一區(有別區可去才避)
@@ -4157,15 +4208,26 @@ function pickHotspot(hs) {
     const far = hs.filter(h => Math.hypot(h.lat - last.lat, h.lon - last.lon) > HOT_CELL * 1.5);
     if (far.length) cands = far;
   }
+  const hist = state._hotRegionHist || (state._hotRegionHist = []); // 近幾幕的地區序列(導播限定)
   let total = 0;
   const ws = cands.map(h => {
-    let w = h.n * h.n; // n² 加權:最繁忙的最常出現
-    if (state.director) w *= 1 + 0.2 * metroCoverage(h.lat, h.lon); // 導播:捷運線覆蓋地區加權重一點
+    let w = h.n; // 改線性(原 n² 讓車流本就偏多的北部幾乎壟斷,削弱才吃得到下面的地區輪替)
+    if (state.director) {
+      w *= 1 + 0.08 * metroCoverage(h.lat, h.lon); // 捷運覆蓋加權調輕(原 0.2 疊北部車流優勢過重)
+      const recent = hist.filter(r => r === regionOf(h.lat, h.lon)).length;
+      w /= (1 + recent); // 近期出現越多次的地區,這次權重打越低,讓北中南東更平均輪替
+    }
     total += w; return w;
   });
   let r = Math.random() * total;
-  for (let i = 0; i < cands.length; i++) { r -= ws[i]; if (r <= 0) return (state._hotLast = cands[i]); }
-  return (state._hotLast = cands[cands.length - 1]);
+  let picked = cands[cands.length - 1];
+  for (let i = 0; i < cands.length; i++) { r -= ws[i]; if (r <= 0) { picked = cands[i]; break; } }
+  state._hotLast = picked;
+  if (state.director) {
+    hist.push(regionOf(picked.lat, picked.lon));
+    if (hist.length > 6) hist.shift();
+  }
+  return picked;
 }
 // 導播群車偶爾整座城市俯瞰(北北基/台中/高雄),極慢速飄移,不追熱區——錨點固定在城市中心,見 hotCruise 的 sc.slow 分支
 const CITY_OVERVIEW_CHANCE = 0.3; // 「偶爾」出現整座城市畫面
