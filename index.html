@@ -4044,6 +4044,7 @@ function fadeSwitch(tr) {
   setTimeout(() => {
     if (!state.autoTour) { veil.style.opacity = 0; state._transition = false; return; }
     ambientJumpTo(tr);
+    if (state.director) advanceDirectorBasemap(); // 導播每換一班車順便換底圖,藏在遮幕後面切,不會看到硬切
     veil.style.opacity = 0;
     setTimeout(() => { state._transition = false; }, 750);
   }, 800);
@@ -4479,6 +4480,13 @@ function liveClockTick() {
 const DIRECTOR_KEY = 'S4_1HiKreSVsjFHN';   // 只有帶此 key 的網址能開;換 key 即失效舊連結
 const DIRECTOR_FOLLOW_Z = 18;              // 跟車縮放(使用者要求「最大縮小兩級」≈z18)
 const DIR_FOLLOW_BLOCK = 20 * 60000, DIR_GROUP_BLOCK = 2.5 * 60000; // 跟車段~20分 ↔ 群車段~2.5分 循環
+const DIR_BASEMAPS = ['light', 'dark', 'sat']; // 每換一班跟隨列車依序輪一種底圖(白/黑/衛星)
+function advanceDirectorBasemap() {
+  const mode = DIR_BASEMAPS[(state._dirBmIdx = ((state._dirBmIdx || 0) + 1) % DIR_BASEMAPS.length)];
+  state.mapDark = mode === 'dark';
+  state.basemap = mode === 'sat' ? 'sat' : 'map';
+  setBasemap();
+}
 function initDirector() {
   try { map.attributionControl.addAttribution('資料: 交通部TDX'); } catch (e) {}
   document.getElementById('liveHud').hidden = false;
