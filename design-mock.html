@@ -925,6 +925,14 @@
   .board .row .min { color: var(--navy); font-weight: 700; min-width: 44px; text-align: right; }
   .board .close { position: absolute; top: 8px; right: 9px; z-index: 2; background: none; border: 0; color: var(--on-navy); opacity: .8; font-size: 17px; cursor: pointer; line-height: 1; }
   .board .close:hover { opacity: 1; }
+  /* 車站看板 ☆ 收藏鈕(挨著 × 左側,樣式比照) */
+  .board .board-star { position: absolute; top: 8px; right: 32px; z-index: 2; background: none; border: 0; color: var(--on-navy); opacity: .8; font-size: 15px; cursor: pointer; line-height: 1; padding: 1px 2px; }
+  .board .board-star:hover { opacity: 1; }
+  .board .board-star.on { color: #ffd977; opacity: 1; }
+  /* 最愛面板的車站列(比照列車列可點) */
+  #favPanel .row.fvst { cursor: pointer; }
+  #favPanel .row.fvst:hover { background: var(--bg-stage); }
+  #favPanel .row.fvst .ico { flex: none; font-size: 13px; line-height: 1; }
   .board .empty { color: var(--faint); font-size: 13px; padding: 8px 0; }
   .board .stnMeta { margin: 1px 0 8px; padding-bottom: 8px; border-bottom: 1.5px dashed var(--line-dash); }
   .board .stnMeta .addr { font-size: 12px; color: var(--muted); line-height: 1.5; }
@@ -1297,6 +1305,7 @@
     .board::before { content: ""; display: block; width: 38px; height: 4px; border-radius: 3px; background: rgba(255,253,246,.55); position: absolute; top: 5px; left: 50%; transform: translateX(-50%); z-index: 3; }
     .board h3 { border-radius: 13px 13px 0 0; padding-top: 12px; }
     .board .close { top: 11px; }
+    .board .board-star { top: 11px; }
     .takeout-modal { padding: 8px; place-items: stretch; }
     .takeout-dialog { width: 100%; max-height: calc(100dvh - 16px); align-self: center; }
     .takeout-head { padding: 8px 10px 8px 14px; }

@@ -6,11 +6,11 @@ service cloud.firestore {
       return request.auth != null && request.auth.uid == uid;
     }
 
-    // 三份同步文件：pins / favs / rides。只能由本人讀寫，其他使用者完全看不到。
+    // 四份同步文件：pins / favs / rides / stations。只能由本人讀寫，其他使用者完全看不到。
     match /users/{uid}/data/{kind} {
-      allow read, delete: if owns(uid) && kind in ['pins', 'favs', 'rides'];
+      allow read, delete: if owns(uid) && kind in ['pins', 'favs', 'rides', 'stations'];
       allow create, update: if owns(uid)
-        && kind in ['pins', 'favs', 'rides']
+        && kind in ['pins', 'favs', 'rides', 'stations']
         && request.resource.data.keys().hasOnly([
           'version', 'kind', 'revision', 'clientUpdatedAt', 'items', 'tombstones', 'updatedAt'
         ])
@@ -24,7 +24,8 @@ service cloud.firestore {
         && request.resource.data.tombstones.size() <= 2000
         && (kind != 'pins' || request.resource.data.items.size() <= 800)
         && (kind != 'favs' || request.resource.data.items.size() <= 1000)
-        && (kind != 'rides' || request.resource.data.items.size() <= 2000);
+        && (kind != 'rides' || request.resource.data.items.size() <= 2000)
+        && (kind != 'stations' || request.resource.data.items.size() <= 500);
     }
 
     // Plus 資格只能由本人讀；寫入必須由受信任的購買驗證後端使用 Admin SDK 完成。

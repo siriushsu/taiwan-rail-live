@@ -949,6 +949,14 @@
   .board .row .min { color: var(--navy); font-weight: 700; min-width: 44px; text-align: right; }
   .board .close { position: absolute; top: 8px; right: 9px; z-index: 2; background: none; border: 0; color: var(--on-navy); opacity: .8; font-size: 17px; cursor: pointer; line-height: 1; }
   .board .close:hover { opacity: 1; }
+  /* 車站看板 ☆ 收藏鈕(挨著 × 左側,樣式比照) */
+  .board .board-star { position: absolute; top: 8px; right: 32px; z-index: 2; background: none; border: 0; color: var(--on-navy); opacity: .8; font-size: 15px; cursor: pointer; line-height: 1; padding: 1px 2px; }
+  .board .board-star:hover { opacity: 1; }
+  .board .board-star.on { color: #ffd977; opacity: 1; }
+  /* 最愛面板的車站列(比照列車列可點) */
+  #favPanel .row.fvst { cursor: pointer; }
+  #favPanel .row.fvst:hover { background: var(--bg-stage); }
+  #favPanel .row.fvst .ico { flex: none; font-size: 13px; line-height: 1; }
   .board .empty { color: var(--faint); font-size: 13px; padding: 8px 0; }
   .board .stnMeta { margin: 1px 0 8px; padding-bottom: 8px; border-bottom: 1.5px dashed var(--line-dash); }
   .board .stnMeta .addr { font-size: 12px; color: var(--muted); line-height: 1.5; }
@@ -1321,6 +1329,7 @@
     .board::before { content: ""; display: block; width: 38px; height: 4px; border-radius: 3px; background: rgba(255,253,246,.55); position: absolute; top: 5px; left: 50%; transform: translateX(-50%); z-index: 3; }
     .board h3 { border-radius: 13px 13px 0 0; padding-top: 12px; }
     .board .close { top: 11px; }
+    .board .board-star { top: 11px; }
     .takeout-modal { padding: 8px; place-items: stretch; }
     .takeout-dialog { width: 100%; max-height: calc(100dvh - 16px); align-self: center; }
     .takeout-head { padding: 8px 10px 8px 14px; }
@@ -1739,6 +1748,7 @@
     <details class="foot-box">
       <summary><span>🛠 更新紀錄</span><span class="foot-sub">最後更新：2026/7/17</span></summary>
       <ul class="foot-list">
+        <li><span class="d">7/17</span><span>新功能「最愛車站」：打開任何車站看板（台鐵、高鐵、捷運都行），點站名旁的 ☆ 就能收藏；之後在「★ 最愛」面板點一下車站，就直接飛過去打開它的看板，常看的站不用再從地圖上找。已登入軌島帳號的話，最愛車站也會跟著跨裝置同步</span></li>
         <li><span class="d">7/17</span><span>列車停在車站時，車站點得到了：以前車蓋住站點，怎麼點都是跟隨列車、看板永遠開不了——現在點到「車與站疊在一起」的地方會跳出小選單，讓你選要跟隨列車還是打開車站看板；點得明顯偏向某一邊時維持直接執行，平常操作手感不變（台鐵、高鐵、各捷運都適用）</span></li>
         <li><span class="d">7/17</span><span>手機版修正：點「搜尋車次」輸入框時，畫面不再被自動放大——之前 iPhone 一點搜尋框整頁就突然變大、收鍵盤後也縮不回來，很干擾；「指定時刻」的輸入框也一併修正</span></li>
         <li><span class="d">7/17</span><span>捷運準確度大升級（四）新北捷運也即時了：環狀線、淡海輕軌、安坑輕軌的列車位置，營運時段會依新北捷運官方列車動態自動校正（約每分鐘）——環狀線直接對照逐車軌道區間，淡海、安坑對照逐站到站倒數，跟隨面板會標示「已依官方列車動態校正」。至此北捷、新北捷、機捷、高捷、高雄輕軌全數接上官方即時資訊，全台主要捷運路網看到的位置都不再只是照表推演</span></li>
@@ -1887,7 +1897,7 @@
 <script>
 // 版本戳記:每次改版 push 前手動遞增(字母序),畫面時鐘徽章與 console 都會顯示,
 // 供比對線上跑的是不是最新版(瀏覽器快取 max-age=600 常讓人看到舊版)
-const BUILD = 'v0717c';
+const BUILD = 'v0717d';
 const state = {
   systems: [], sysId: null, data: null, speed: 36, mode: 'freq',
   lines: [], visible: new Set(), trains: [], schedStations: [], types: [],
@@ -3365,8 +3375,8 @@ function renderNearbyXing() {
 // 舊版仍讀得到；成就由 rides 推導，不另存。裝置偏好（主題、音量等）刻意不納入同步。
 const USER_DATA_KEY = 'trainmap-user-data-v1';
 const USER_DATA_VERSION = 1;
-const USER_DATA_COLLECTIONS = ['pins', 'favs', 'rides'];
-const USER_DATA_LEGACY = { pins: 'trainmap-pins', favs: 'trainmap-favs', rides: 'trainmap-rides' };
+const USER_DATA_COLLECTIONS = ['pins', 'favs', 'rides', 'stations'];
+const USER_DATA_LEGACY = { pins: 'trainmap-pins', favs: 'trainmap-favs', rides: 'trainmap-rides', stations: 'trainmap-fav-stations' };
 const USER_DATA_PIN_LIMIT = 800;
 const USER_DATA_TOMBSTONE_LIMIT = 2000;
 function userDataNow() { return Date.now(); }
@@ -3406,6 +3416,14 @@ function userDataCleanValue(kind, value) {
     v.train = String(v.train == null ? '' : v.train).trim();
     if (!v.train) return null;
     if (v.label != null) v.label = String(v.label);
+  } else if (kind === 'stations') {
+    const lat = Number(v.lat), lon = Number(v.lon);
+    const name = String(v.name == null ? '' : v.name).trim().slice(0, 80);
+    if (!name || !Number.isFinite(lat) || !Number.isFinite(lon) || Math.abs(lat) > 90 || Math.abs(lon) > 180) return null;
+    const out = { name, lat, lon, sys: String(v.sys || 'metro').slice(0, 40) };
+    if (v.group != null) out.group = String(v.group).slice(0, 40);
+    if (v.label != null) out.label = String(v.label).slice(0, 120);
+    v = out;
   } else if (kind === 'rides') {
     v.train = String(v.train == null ? '' : v.train).trim();
     v.sys = String(v.sys || 'tra_sched');
@@ -3417,6 +3435,7 @@ function userDataCleanValue(kind, value) {
 function userDataItemId(kind, v) {
   if (kind === 'pins') return Number(v.lat).toFixed(6) + ',' + Number(v.lon).toFixed(6);
   if (kind === 'favs') return String(v.train);
+  if (kind === 'stations') return String(v.sys) + '|' + String(v.name); // 同站從分頁或同框收藏都算同一筆(捷運 sys 一律 'metro')
   return String(v.sys || 'tra_sched') + '|' + String(v.train) + '|' + String(v.date);
 }
 function userDataNormalizeCollection(kind, src) {
@@ -3824,7 +3843,7 @@ function accountRender() {
   if (a.error) body.innerHTML = `<p class="account-intro">登入與同步目前無法使用。</p><div class="account-error">${escHtml(a.error)}</div>`;
   else if (!a.ready) body.innerHTML = '<p class="account-intro">正在讀取登入狀態…</p>';
   else if (!a.user) body.innerHTML =
-    `<p class="account-intro">登入後會同步「最愛地點、最愛列車、完乘紀錄」。主題、音量與省電等裝置偏好不會同步；目前裝置上的訪客資料會在首次登入時合併進帳號。</p>` +
+    `<p class="account-intro">登入後會同步「最愛地點、最愛車站、最愛列車、完乘紀錄」。主題、音量與省電等裝置偏好不會同步；目前裝置上的訪客資料會在首次登入時合併進帳號。</p>` +
     `<div class="account-login"><button type="button" data-login="google">使用 Google 登入</button>${window.RAIL_APPLE_LOGIN === true ? '<button class="apple" type="button" data-login="apple">使用 Apple 登入</button>' : ''}</div>` +
     `<div class="account-note">Google 登入只用於軌島帳號，不會因此取得 Google Maps 已儲存清單；清單匯入仍需使用 Google Takeout。</div>`;
   else {
@@ -3858,13 +3877,16 @@ async function accountSyncNow(reason) {
   if (!a || !a.user || !a.db || a.syncing) return false;
   a.syncing = true; a.actionError = ''; accountRender();
   try {
-    const refs = Object.fromEntries(USER_DATA_COLLECTIONS.map(kind => [kind, a.fb.doc(a.db, 'users', a.user.uid, 'data', kind)]));
+    // Firestore rules 尚未放行新 collection 時,整筆交易會 permission-denied——退回舊清單重試,
+    // 別讓新收藏類型上線的時間差中斷既有同步(stations 資料仍留在本機,rules 部署後重整即恢復上傳)
+    const kinds = a.legacyKinds ? USER_DATA_COLLECTIONS.filter(k => k !== 'stations') : USER_DATA_COLLECTIONS;
+    const refs = Object.fromEntries(kinds.map(kind => [kind, a.fb.doc(a.db, 'users', a.user.uid, 'data', kind)]));
     const local = userDataRead();
     const merged = await a.fb.runTransaction(a.db, async tx => {
       const docs = {};
-      for (const kind of USER_DATA_COLLECTIONS) { const snap = await tx.get(refs[kind]); docs[kind] = snap.exists() ? snap.data() : null; }
+      for (const kind of kinds) { const snap = await tx.get(refs[kind]); docs[kind] = snap.exists() ? snap.data() : null; }
       const out = userDataMergeEnvelopes(local, accountCloudEnvelope(docs));
-      for (const kind of USER_DATA_COLLECTIONS) tx.set(refs[kind], {
+      for (const kind of kinds) tx.set(refs[kind], {
         version: USER_DATA_VERSION, kind, revision: out.revision, clientUpdatedAt: out.updatedAt,
         items: out.collections[kind].items, tombstones: out.collections[kind].tombstones,
         updatedAt: a.fb.serverTimestamp(),
@@ -3882,6 +3904,10 @@ async function accountSyncNow(reason) {
     if (typeof renderPassport === 'function') renderPassport();
     return true;
   } catch (e) {
+    if (!a.legacyKinds && e && e.code === 'permission-denied') {
+      a.legacyKinds = true; a.syncing = false; // 新 collection 被 rules 擋下 → 本 session 改用舊清單同步
+      return accountSyncNow(reason + '-legacy');
+    }
     a.actionError = '同步失敗：' + (e && e.message ? e.message : String(e)); return false;
   } finally { a.syncing = false; accountRender(); }
 }
@@ -5825,6 +5851,64 @@ function removeFav(no) {
   renderFavs(); renderFavPanel();
   if (state.followTrain) updateStar();
 }
+
+// ── 最愛車站(與最愛列車同一套 userData 同步;車站看板 ☆ 收藏、最愛面板點站跳轉開板) ──
+function loadFavStations() { return userDataLoadCollection('stations'); }
+// 捷運站不分「分頁(freq)/同框(deco)」視角,一律以 'metro' 當系統鍵——同一站只收藏一筆
+function favStationKey(st) { return (st.sys === 'freq' || st.sys === 'deco' ? 'metro' : st.sys) + '|' + st.name; }
+function isFavStation(st) { return loadFavStations().some(f => f.sys + '|' + f.name === favStationKey(st)); }
+function toggleFavStation(st) {
+  const key = favStationKey(st);
+  let favs = loadFavStations();
+  if (favs.some(f => f.sys + '|' + f.name === key)) {
+    favs = favs.filter(f => f.sys + '|' + f.name !== key);
+    showToast('已移除最愛車站');
+  } else {
+    const metro = st.sys === 'freq' || st.sys === 'deco';
+    let label = '';
+    if (metro) { // 標籤取第一條經過本站的線(北捷 板南線…),找不到就通稱
+      const src = st.sys === 'deco' ? state.decoLines : state.lines;
+      const k = st.name.replace(/臺/g, '台');
+      const ln = (src || []).find(l => l.stations && l.stations.some(s => s.name.replace(/臺/g, '台') === k));
+      label = ln ? ((ln._sysLabel ? ln._sysLabel + ' ' : '') + (ln.name || ln.abbr || '')) : '捷運/輕軌';
+    } else {
+      const s = state.systems.find(x => x.id === st.sys);
+      label = s ? s.label : '';
+    }
+    favs.push({ name: st.name, lat: st.lat, lon: st.lon, sys: metro ? 'metro' : st.sys, group: state.group, label });
+    showToast('已加入最愛車站');
+  }
+  userDataSaveCollection('stations', favs);
+  renderFavPanel();
+  const b = document.getElementById('boardStar');
+  if (b) {
+    const on = isFavStation(st);
+    b.textContent = on ? '★' : '☆'; b.title = on ? '移除最愛車站' : '加入最愛車站'; b.classList.toggle('on', on);
+  }
+}
+function removeFavStation(key) {
+  userDataSaveCollection('stations', loadFavStations().filter(f => f.sys + '|' + f.name !== key));
+  renderFavPanel();
+  const st = state.boardStation, b = document.getElementById('boardStar');
+  if (st && b && favStationKey(st) === key) { b.textContent = '☆'; b.title = '加入最愛車站'; b.classList.remove('on'); }
+}
+// 點最愛車站:必要時切到收藏當下的群組,鏡頭帶過去並開該站看板
+function gotoFavStationKey(key) {
+  const f = loadFavStations().find(x => x.sys + '|' + x.name === key);
+  if (!f) return;
+  const g = GROUPS.find(x => x.id === f.group)
+    || GROUPS.find(x => x.mode === 'all') // 群組欄位缺失的舊資料退到全台同框(台鐵/高鐵/捷運站都開得了板)
+    || GROUPS[0];
+  selectGroup(g); // 已在該群組時內部直接 return,不重載
+  closeFavPanel();
+  map.setView([f.lat, f.lon], Math.max(map.getZoom(), 13), { animate: false });
+  let st = null;
+  if (state.mode !== 'sched') st = { name: f.name, lat: f.lat, lon: f.lon, sys: 'freq' };
+  else if (f.sys === 'metro') st = state.deco ? { name: f.name, lat: f.lat, lon: f.lon, sys: 'deco' } : null;
+  else st = state.schedStations.find(s => s.name === f.name && s.sys === f.sys) || null; // 看板靠 name+sys 過濾班次,用活體站物件
+  if (st) openBoard(st);
+  else showToast('目前的檢視沒有「' + f.name + '」，請切到含該站的分頁再點');
+}
 function renderFavs() {
   const box = document.getElementById('favRow');
   const favs = loadFavs();
@@ -5846,14 +5930,21 @@ function renderFavs() {
 function renderFavPanel() {
   const el = document.getElementById('favPanel');
   if (el.hidden) return;
-  const favs = loadFavs();
+  const favs = loadFavs(), stns = loadFavStations();
   el.innerHTML = `<button class="close" id="favClose">×</button>` +
-    `<h3>我的最愛</h3><div class="sub">點列車跟隨 · × 移除收藏</div>` +
+    `<h3>我的最愛</h3><div class="sub">點車站開看板 · 點列車跟隨 · × 移除收藏</div>` +
+    (stns.length
+      ? `<div class="sec">車站</div>` + stns.map(f =>
+          `<div class="row fvst" data-stkey="${f.sys}|${f.name}"><span class="ico">🚉</span>` +
+          `<b>${f.name}</b><span class="dest">${f.label || ''}</span><span class="rm" data-stkey="${f.sys}|${f.name}" title="移除">×</span></div>`).join('')
+      : '') +
     (favs.length
-      ? favs.map(f =>
+      ? (stns.length ? `<div class="sec">列車</div>` : '') + favs.map(f =>
           `<div class="row fv" data-no="${f.train}"><span class="dot" style="background:#d2a12a"></span>` +
           `<b>${f.train}</b><span class="dest">${f.label}</span><span class="rm" data-no="${f.train}" title="移除">×</span></div>`).join('')
-      : '<div class="empty">還沒有收藏——跟隨列車後，點資訊卡的 ☆ 就能收藏。</div>');
+      : '') +
+    (!favs.length && !stns.length
+      ? '<div class="empty">還沒有收藏——跟隨列車後點資訊卡的 ☆ 收藏列車；打開車站看板點 ☆ 收藏車站。</div>' : '');
   el.querySelector('#favClose').onclick = closeFavPanel;
 }
 function openFavPanel() {
@@ -7275,13 +7366,16 @@ function renderBoard() {
       `<b>${r.tr.train}</b><span class="dest">${r.tr.loop ? r.tr.loopName : r.tr.typeName}　${dest}</span>` +
       `<span class="t">${fmtHM(r.t % 86400)}${r.dl > 0 ? `<span class="lateTag">+${r.dl}</span>` : ''}</span><span class="min">${min}</span></div>`;
   }).join('');
+  const fav = isFavStation(st);
   el.innerHTML = `<button class="close" id="boardClose">×</button>` +
+    `<button class="board-star${fav ? ' on' : ''}" id="boardStar" title="${fav ? '移除最愛車站' : '加入最愛車站'}">${fav ? '★' : '☆'}</button>` +
     `<h3>${st.name}</h3>` + stnMetaHtml(st) +
     `<div class="sub">接下來 3 小時會有誰來 · ${liveActive() ? '已套用台鐵即時誤點' : '依時刻表（無誤點資訊）'} · 點班次跟隨</div>` +
     (list || '<div class="empty">此時段無停靠班次</div>');
   el.hidden = false;
   updateSheetOpenClass();
   el.querySelector('#boardClose').onclick = closeBoard;
+  el.querySelector('#boardStar').onclick = () => toggleFavStation(st);
   // 點任一班次列 → 關看板、跟隨該車。
   // 看板每 20 模擬秒重繪(高倍速=不到半秒),按下到放開之間列可能被換掉、click 目標變成容器,
   // 所以 pointerdown 先把車次記在持久的 el 上,click 撈不到列時用記下的補。
@@ -7339,13 +7433,16 @@ function renderFreqBoard(el, st, lines, isDeco) {
         `<span class="t">${fmtHM(r.t % 86400)}</span><span class="min">${min}</span></div>`;
     }).join('');
   }).join('');
+  const fav = isFavStation(st);
   el.innerHTML = `<button class="close" id="boardClose">×</button>` +
+    `<button class="board-star${fav ? ' on' : ''}" id="boardStar" title="${fav ? '移除最愛車站' : '加入最愛車站'}">${fav ? '★' : '☆'}</button>` +
     `<h3>${st.name}</h3>` + stnMetaHtml(st) +
     `<div class="sub">接下來的班車 · ${hasLive ? '已依官方即時資訊校正' : '依官方當日時刻表'} · 點班次跟隨${hasEstimated ? '（部分路線為班距推算）' : ''}</div>` +
     (body || '<div class="empty">此時段無停靠班次</div>');
   el.hidden = false;
   updateSheetOpenClass();
   el.querySelector('#boardClose').onclick = closeBoard;
+  el.querySelector('#boardStar').onclick = () => toggleFavStation(st);
   // 點任一班次列 → 關看板、跟隨該班;防抖比照台鐵看板(pointerdown 先記,看板每 20 模擬秒重繪,click 補撈不到的列)。
   el.onpointerdown = e => {
     const row = e.target.closest('.row[data-li]');
@@ -8344,7 +8441,9 @@ document.getElementById('exploreBtn').onclick = () => {
 };
 document.getElementById('favPanel').onclick = e => {
   const rm = e.target.closest('.rm');
-  if (rm) { removeFav(rm.dataset.no); return; }
+  if (rm) { rm.dataset.stkey ? removeFavStation(rm.dataset.stkey) : removeFav(rm.dataset.no); return; }
+  const sr = e.target.closest('.row.fvst');
+  if (sr) { gotoFavStationKey(sr.dataset.stkey); return; }
   const row = e.target.closest('.row.fv');
   if (row) { closeFavPanel(); followTrainNo(row.dataset.no); }
 };
