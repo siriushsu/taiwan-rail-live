@@ -29,697 +29,743 @@
 <script src="firebase-config.js"></script>
 <script src="revenuecat-config.js"></script>
 <style>
-  :root { color-scheme: light; }
+  /* ============================================================
+     軌島 design tokens — 琺瑯 2.0（2026-07-16 整站重做）
+     亮=琺瑯（預設） 暗=夜行：html[data-theme=dark] 換值，結構零改動
+     ============================================================ */
+  :root{
+    color-scheme:light;
+    /* 面 */
+    --paper:#FFFDF6;            /* 卡片底（兩種暖白已合併，#FFF8EC 廢止） */
+    --paper-tr:rgba(255,253,246,.97);
+    --bg-page:#EFE6D2;          /* 頁面底 */
+    --bg-stage:#F7F0DD;         /* stage 底/hover */
+    --map-bg:#F2EDE2;           /* 地圖底（圖磚未到時） */
+    /* 線 */
+    --line:#C9B98F; --line-dash:#D8CBA9; --line-faint:#ECE2C8;
+    /* 墨（五階棕褐收斂為三階） */
+    --ink:#3A3226; --muted:#6B5F4A; --faint:#8A7C62;
+    --ink-strong:#1E2C40;       /* 標題/強調 */
+    /* 色 */
+    --navy:#2A4A73; --on-navy:#FFFDF6;
+    --plate-ink:#26497E;
+    --plate-g1:#FFFFFF; --plate-g2:#F7F5EE; --plate-g3:#EDEBE0; --plate-frame:#767061;
+    --red:#D23C2A; --red-deep:#A92C1D;
+    --gold:#D2A12A; --ok:#1B8F4D; --gps:#2B8FFF;
+    --warn-bg:#FBE9DF; --warn-line:#E0A37E; --warn-ink:#A3641A;
+    /* 影（硬投影＝簽名） */
+    --shadow-1:0 2px 0 var(--line);
+    --shadow-navy:0 3px 0 rgba(42,74,115,.22);
+    --shadow-red:0 2px 0 var(--red-deep);
+    /* 圓角尺度 */
+    --r-s:4px; --r-m:8px; --r-l:12px; --r-pill:999px;
+    --font:-apple-system,"PingFang TC","Noto Sans TC",sans-serif;
+    --mono:ui-monospace,"SF Mono",Menlo,monospace;
+  }
+  html[data-theme=dark]{
+    color-scheme:dark;
+    --paper:#141D31; --paper-tr:rgba(20,29,49,.97);
+    --bg-page:#0A0F1C; --bg-stage:#0E1526; --map-bg:#10141c;
+    --line:#2A3B5C; --line-dash:#31456B; --line-faint:#22304C;
+    --ink:#ECF0F8; --muted:#93A3C0; --faint:#7286A8; --ink-strong:#ECF0F8;
+    --navy:#7FA6E0; --on-navy:#0A0F1C;
+    --plate-ink:#CFE0F8; --plate-g1:#1B2740; --plate-g2:#141D31; --plate-g3:#10182A; --plate-frame:#3A4E76;
+    --red:#F0564A; --red-deep:#B23227;
+    --gold:#E8B84B; --ok:#3DBF77;
+    --warn-bg:#3A2A1A; --warn-line:#7A5A2E; --warn-ink:#E8B183;
+    --shadow-1:0 2px 0 rgba(0,0,0,.5);
+    --shadow-navy:0 3px 0 rgba(0,0,0,.45);
+    --shadow-red:0 2px 0 rgba(0,0,0,.5);
+  }
   * { box-sizing: border-box; }
   [hidden] { display: none !important; } /* .search/.followbar 的 display:flex 會蓋掉 hidden,強制優先 */
   body {
     margin: 0;
-    font-family: -apple-system, "PingFang TC", "Noto Sans TC", sans-serif;
-    background: #efe6d2;
-    color: #3a3226;
+    font-family: var(--font);
+    background: var(--bg-page);
+    color: var(--ink);
   }
-  a { color: #2a4a73; }
-  a:hover { color: #d23c2a; }
-  :focus-visible { outline: 2px solid #d23c2a; outline-offset: 2px; } /* 鍵盤操作可見焦點 */
-  .wrap { max-width: 1400px; margin: 0 auto; padding: 20px 20px 48px; }
+  a { color: var(--navy); }
+  a:hover { color: var(--red); }
+  :focus-visible { outline: 2px solid var(--red); outline-offset: 2px; } /* 鍵盤操作可見焦點 */
+  .wrap { max-width: 1400px; margin: 0 auto; padding: 14px 16px 48px; }
+  .num, .tabular { font-variant-numeric: tabular-nums; }
 
-  /* ── 雙欄版面:地圖主欄+右側互動欄(搜尋/最愛/旅程收集/篩選),點側欄同時看得到地圖;
-     窄螢幕(<1200px)回退單欄堆疊 ── */
-  .cols { display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 0 18px; align-items: start; }
-  /* 側欄不自己出捲軸:路線與旅程面板都可收合,常態下整欄放得進視窗;全展開時跟著頁面捲 */
-  .side-col { position: sticky; top: 10px; padding: 0 2px 8px; }
-  @media (max-width: 1199px) {
-    .cols { grid-template-columns: minmax(0, 1fr); } /* 不用裸 1fr:min-content 會被控制列撐爆造成手機橫向捲動 */
-    .side-col { position: static; padding: 0; }
+  /* ── header 一列化（琺瑯 2.0:緊湊懸掛牌+群組頁籤+導言+搜尋同列;300px→~72px） ── */
+  .header-row {
+    display: flex; align-items: flex-start; gap: 18px; flex-wrap: wrap;
+    padding: 2px 0 10px;
   }
-
-  /* ── 站名牌 header(仿早期台鐵琺瑯站名牌:白底藍字細鋼框,大字站名+拼音置中,
-     下緣左右鄰站夾雙向箭頭) ── */
   .plate {
-    /* 四角螺釘:琢磨瑪瑫站名牌的安裝螺位(純背景小點,不加節點) */
-    background:
-      radial-gradient(circle 2.6px at 13px 13px, #c3bcab 0 1.8px, rgba(58,50,38,.28) 2.1px, transparent 2.7px),
-      radial-gradient(circle 2.6px at calc(100% - 13px) 13px, #c3bcab 0 1.8px, rgba(58,50,38,.28) 2.1px, transparent 2.7px),
-      linear-gradient(178deg, #ffffff 0%, #f7f5ee 72%, #edebe0 100%);
-    border: 3px solid #9a958a;
+    flex: none; align-self: center;
+    background: linear-gradient(178deg, var(--plate-g1) 0%, var(--plate-g2) 72%, var(--plate-g3) 100%);
+    border: 3px solid var(--plate-frame);
     border-radius: 10px;
-    box-shadow: 0 0 0 1.5px #767061, 0 5px 14px rgba(58,50,38,.22);
-    width: min(100%, 700px);
-    margin: 0 auto 12px;
-    padding: 15px 22px 0;
+    box-shadow: 0 0 0 1.5px var(--plate-frame), 0 5px 14px rgba(58,50,38,.22);
+    padding: 7px 22px 0;
     text-align: center;
-    /* 緊湊懸掛牌:1fr|島|站名|1fr 置中,藏青反白帶收底 */
-    display: grid; grid-template-columns: 1fr auto auto 1fr;
-    align-items: center;
   }
-  /* 新增節點 .plate-isle:定案第一版 logo 的橫島真實路網(上東下西、左北右南;header 用幹線簡化版) */
-  .plate-isle { grid-column: 2; grid-row: 1 / 3; width: 158px; height: 64px; display: none; margin-right: 32px; margin-bottom: 4px; } /* 先拿掉 header 的島(0710 定調;og/favicon/浮水印保留)——恢復:改回 display:block */
+  html[data-theme=dark] .plate { box-shadow: 0 0 0 1.5px var(--plate-frame), 0 5px 14px rgba(0,0,0,.5); }
+  .plate-isle { display: none; } /* 橫島路網 logo:header 已不用(og/favicon/浮水印保留);恢復=display:block */
   /* letter-spacing 會在末字後多一格,置中會偏左;text-indent 同值補償 */
   header h1 {
-    font-size: 40px; font-weight: 900; letter-spacing: 15px; text-indent: 15px;
-    color: #26497e; margin: 0; line-height: 1.1;
-    grid-column: 3; grid-row: 1; align-self: end; justify-self: center;
+    font-size: 26px; font-weight: 900; letter-spacing: 8px; text-indent: 8px;
+    color: var(--plate-ink); margin: 0; line-height: 1.2;
   }
   .plate-sub {
-    margin: 4px 0 0; font-size: 12px; letter-spacing: 5.5px; text-indent: 5.5px;
-    color: #26497e; font-weight: 800;
-    grid-column: 3; grid-row: 2; align-self: start; justify-self: center;
+    margin: 0; font-size: 8px; letter-spacing: 3px; text-indent: 3px;
+    color: var(--plate-ink); font-weight: 800; opacity: .85;
   }
   /* 藏青反白鄰站帶:負邊距吃回 padding 貼齊牌內緣收底——真站名牌的雙色構造 */
   .plate-foot {
-    grid-column: 1 / -1; grid-row: 3;
-    margin: 13px -22px 0;
-    padding: 8px 18px 9px;
+    margin: 5px -22px 0;
+    padding: 2px 10px 3px;
     background: linear-gradient(178deg, #2c4f86 0%, #26497e 55%, #1f3d6b 100%);
-    border-radius: 0 0 7px 7px;
-    box-shadow: inset 0 1.5px 0 rgba(255,253,246,.14);
-    display: grid; grid-template-columns: 1fr auto 1fr; align-items: center;
+    border-radius: 0 0 6px 6px;
+    display: flex; justify-content: space-between; align-items: center; gap: 12px;
   }
-  .plate-foot .stn:first-child { justify-self: start; }
-  .plate-foot .stn:last-child { justify-self: end; }
-  .plate-foot .stn:first-child::before { content: "◀"; font-size: 11px; margin-right: 10px; position: relative; top: -1.5px; opacity: .9; }
-  .plate-foot .stn:last-child::after { content: "▶"; font-size: 11px; margin-left: 10px; position: relative; top: -1.5px; opacity: .9; }
+  .plate-foot .stn:first-child::before { content: "◀"; font-size: 8px; margin-right: 6px; position: relative; top: -1px; opacity: .9; }
+  .plate-foot .stn:last-child::after { content: "▶"; font-size: 8px; margin-left: 6px; position: relative; top: -1px; opacity: .9; }
   .plate-foot .stn {
-    font-size: 16px; font-weight: 800; letter-spacing: 5px; text-indent: 5px;
+    font-size: 10px; font-weight: 800; letter-spacing: 2px; text-indent: 2px;
     color: #fff8ec; white-space: nowrap;
   }
-  .plate-arrow { width: 96px; height: 13px; display: block; margin: 0 12px; color: #fff8ec; justify-self: center; }
-  header > p { margin: 0 auto 18px; color: #7a6c50; font-size: 14px; text-align: center; max-width: 64ch; text-wrap: pretty; }
+  .plate-arrow { width: 52px; height: 9px; display: block; margin: 0 6px; color: #fff8ec; }
+  .header-mid { display: flex; flex-direction: column; gap: 8px; flex: 1 1 420px; min-width: 0; }
+  header #lead { margin: 0; color: var(--faint); font-size: 12px; line-height: 1.55; max-width: 640px; text-wrap: pretty; }
 
-  /* ── 系統切換:上排群組頁籤(互斥)+ 下排群內成員 ── */
-  .systems { margin: 0 0 14px; }
-  .grouptabs { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 9px; }
+  /* ── 系統切換:群組頁籤(互斥)+縣市+群內成員——pill 家族 ── */
+  .systems { margin: 0; }
+  .grouptabs { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 8px; align-items: center; }
   .grouptabs .gtab {
     font: inherit; font-size: 14px; font-weight: 700; cursor: pointer;
-    background: #efe6cc; color: #7a6c50;
-    border: 1.5px solid #c9b98f; border-radius: 999px; padding: 7px 18px;
-    box-shadow: 0 2px 0 #c9b98f;
+    background: var(--paper); color: var(--muted);
+    border: 1.5px solid var(--line); border-radius: var(--r-pill); padding: 7px 18px;
+    box-shadow: var(--shadow-1); min-height: 38px;
   }
+  .grouptabs .gtab:hover { background: var(--bg-stage); }
   .grouptabs .gtab.active {
-    background: #26497e; color: #fff8ec; border-color: #1c3a68; box-shadow: 0 2px 0 #1c3a68;
+    background: var(--navy); color: var(--on-navy); border-color: var(--navy);
+    box-shadow: 0 2px 0 var(--ink-strong); font-weight: 800;
   }
-  /* 縣市視角書籤:選單樣式對齊群組頁籤膠囊(同高同框同影),右側留白放自繪箭頭 */
+  html[data-theme=dark] .grouptabs .gtab.active { box-shadow: 0 2px 0 rgba(0,0,0,.5); }
+  /* 縣市視角書籤:虛線 pill(同家族;虛線=「傳送門」非狀態鈕) */
   .grouptabs .citysel {
     font: inherit; font-size: 14px; font-weight: 700; cursor: pointer;
-    background-color: #efe6cc; color: #7a6c50;
-    border: 1.5px solid #c9b98f; border-radius: 999px; padding: 7px 32px 7px 16px;
-    box-shadow: 0 2px 0 #c9b98f;
+    background-color: var(--paper); color: var(--muted);
+    border: 1.5px dashed var(--line); border-radius: var(--r-pill); padding: 7px 32px 7px 16px;
+    min-height: 38px;
     -webkit-appearance: none; -moz-appearance: none; appearance: none;
-    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='7' viewBox='0 0 10 7'><path d='M1 1l4 4 4-4' fill='none' stroke='%237a6c50' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/></svg>");
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='7' viewBox='0 0 10 7'><path d='M1 1l4 4 4-4' fill='none' stroke='%238A7C62' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/></svg>");
     background-repeat: no-repeat; background-position: right 13px center;
   }
-  .grouptabs .citysel:focus-visible { outline: 2px solid #26497e; outline-offset: 1px; }
+  .grouptabs .citysel:focus-visible { outline: 2px solid var(--navy); outline-offset: 1px; }
   .groupmembers { display: flex; flex-wrap: wrap; gap: 8px; }
   .groupmembers .mem {
-    font: inherit; font-size: 13px; font-weight: 600; cursor: pointer;
-    background: #e6d9ba; color: #7a6c50;
-    border: 1.5px solid #c9b98f; border-radius: 6px; padding: 6px 13px;
-    box-shadow: 0 2px 0 #c9b98f; display: inline-flex; align-items: center; gap: 7px;
+    font: inherit; font-size: 12.5px; font-weight: 700; cursor: pointer;
+    background: var(--paper); color: var(--muted);
+    border: 1.5px solid var(--line); border-radius: var(--r-pill); padding: 5px 13px;
+    display: inline-flex; align-items: center; gap: 7px;
   }
-  .groupmembers .mem.on {
-    background: #2a4a73; color: #fff8ec; border-color: #1e2c40; box-shadow: 0 2px 0 #1e2c40;
-  }
-  .groupmembers .mem.on .memck { background: #d23c2a; border-color: #e8b3ab; } /* 紅印勾選,呼應印章紅 */
-  .groupmembers .mem.off { opacity: .7; }
-  .groupmembers .allcap { font-size: 12.5px; color: #7a6c50; padding: 6px 3px; line-height: 1.4; }
+  .groupmembers .mem.on { background: var(--bg-stage); color: var(--ink); }
+  .groupmembers .mem.on .memck { background: var(--red); border-color: var(--red); color: #fffdf6; }
+  .groupmembers .mem.off { opacity: .6; }
+  .groupmembers .allcap { font-size: 12px; color: var(--faint); padding: 4px 3px; line-height: 1.4; }
   .groupmembers .mem .memck {
     width: 13px; height: 13px; border-radius: 3px; border: 1.5px solid currentColor;
     display: inline-flex; align-items: center; justify-content: center; font-size: 10px; line-height: 1;
   }
 
+  /* ── 搜尋+跟隨票(移入 header 右側;側欄已取消) ── */
+  .search { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 0 0 0 auto; flex: 0 1 300px; min-width: 220px; }
+  .search input[type=text] {
+    font: inherit; font-size: 14px; background: var(--paper); color: var(--ink);
+    border: 1.5px solid var(--line); border-radius: 6px; padding: 9px 14px; width: 100%; min-height: 42px;
+  }
+  .search input::placeholder { color: var(--faint); }
+  .followbar {
+    display: inline-flex; align-items: center; gap: 9px; flex-wrap: wrap; row-gap: 5px; font-size: 13px;
+    background: var(--bg-stage); border: 1.5px solid var(--line); border-radius: var(--r-s);
+    padding: 6px 13px; color: var(--ink); font-variant-numeric: tabular-nums; width: 100%;
+  }
+  .followbar b { color: var(--ink-strong); font-size: 14px; }
+  .followbar .dot { width: 9px; height: 9px; border-radius: 50%; }
+  .followbar button {
+    font: inherit; font-size: 12px; font-weight: 700; cursor: pointer;
+    background: var(--red); color: #fff8ec;
+    border: 1px solid var(--red-deep); border-radius: 4px; padding: 3px 9px;
+    margin-left: auto;
+  }
+  .followbar.miss { background: var(--warn-bg); border-color: var(--warn-line); color: var(--warn-ink); }
+
   /* ── 地圖 stage ── */
   .stage {
     position: relative;
-    height: 64vh; min-height: 460px; max-height: 760px;
-    background: #f7f0dd;
-    border: 2px solid #c9b98f;
-    border-radius: 12px;
+    height: 70vh; min-height: 460px; max-height: 820px;
+    background: var(--map-bg);
+    border: 1.5px solid var(--line);
+    border-radius: var(--r-l);
     overflow: hidden;
   }
-  #map { position: absolute; inset: 0; background: #f7f0dd; }
+  #map { position: absolute; inset: 0; background: var(--map-bg); }
   /* 圖磚還沒到／離線時先顯示內建的台灣海陸輪廓，不讓放空畫面只剩一塊米色。 */
   .stage.offline-land #map, .stage.offline-land .leaflet-container { background: #c9d8dc; }
 
-  /* 地圖暗色模式(只換地圖，紙牌 UI 不變) */
+  /* 地圖暗色模式(隨「外觀」一起換;canvas railCase=#10141c 同步) */
   .stage.dark, .stage.dark #map { background: #10141c; }
   .stage.offline-land.dark #map, .stage.offline-land.dark .leaflet-container { background: #0a1a26; }
-  .stage.dark { border-color: #a89468; }
 
   /* 衛星影像底圖 */
   .stage.sat, .stage.sat #map { background: #2e4636; }
   .stage.offline-land.sat #map, .stage.offline-land.sat .leaflet-container { background: #132a35; }
-  .stage.sat #themeBtn { display: none; }
 
-  .leaflet-container { background: #f7f0dd; }
+  .leaflet-container { background: var(--map-bg); }
   .stage.dark .leaflet-container { background: #10141c; }
   .stage.sat .leaflet-container { background: #2e4636; }
 
-  /* 地圖工具鈕(全畫面、明暗、衛星)——貼地圖右下,上方留給 Leaflet 縮放鈕、正下角落留給版權字。
-     WebKit 陷阱(Playwright webkit 實測):flex 容器算「內在寬度」不理子項 .ti 的 flex-basis:35px,
-     用字形自然寬(~17px)→按鈕被算成半寬、字被 overflow 裁掉(076b43c 拿掉顯式 width 後就壞)。
-     解法:button 顯式 min-width＋.ti 顯式 width——所有引擎的內在尺寸都尊重這兩個 */
-  .stage-tools {
-    position: absolute; right: 12px; bottom: 26px; z-index: 700;
-    display: flex; gap: 0; width: max-content;
-    /* 九顆散鈕合併成單一工具條:地圖上少八圈框八道影,視覺安靜很多 */
-    background: #fffdf6; border: 1.5px solid #c9b98f; border-radius: 8px;
-    box-shadow: 0 2px 0 #c9b98f; overflow: hidden;
-  }
-  .stage-tools button { flex: none; min-width: 38px; }
-  #toolsFab { display: none; } /* 工具抽屜開關:桌機整排常駐用不到,只給手機(見 640 媒體塊) */
-  /* Leaflet 版權字釘回地圖右下角(原生位置);縮放鈕再往上讓開工具鈕列,三者(縮放/工具鈕/版權字)由上而下不重疊。
-     全畫面時工具鈕移到右上(見 body.fs 區塊),縮放鈕不必再讓、恢復貼底。 */
-  .leaflet-bottom.leaflet-right { bottom: 0; }
-  body:not(.fs) .leaflet-control-zoom { margin-bottom: 56px; }
-  body.fs .leaflet-bottom.leaflet-right { bottom: 10px; }
-  /* Leaflet 原生控制項換紙牌皮膚(mock 無真地圖,正式版生效):縮放鈕與版權字不再是白塑膠件 */
-  .leaflet-control-zoom.leaflet-bar { border: 1.5px solid #c9b98f; border-radius: 8px; box-shadow: 0 2px 0 #c9b98f; overflow: hidden; }
-  .leaflet-control-zoom a { background: #fffdf6; color: #2a4a73; border-bottom: 1px solid #ece2c8; }
+  /* Leaflet 原生控制項換紙牌皮膚:縮放鈕與版權字不再是白塑膠件。
+     底部整欄(縮放/跟隨鎖/版權字)抬到站台帶上方。 */
+  .leaflet-bottom.leaflet-right { bottom: 78px; }
+  .leaflet-control-zoom.leaflet-bar { border: 1.5px solid var(--line); border-radius: 8px; box-shadow: var(--shadow-1); overflow: hidden; }
+  .leaflet-control-zoom a { background: var(--paper); color: var(--navy); border-bottom: 1px solid var(--line-faint); }
   .leaflet-control-zoom a:last-child { border-bottom: 0; }
-  .leaflet-control-zoom a:hover { background: #f7f0dd; color: #2a4a73; }
+  .leaflet-control-zoom a:hover { background: var(--bg-stage); color: var(--navy); }
   /* 跟隨鎖鈕(縮放鈕上方):鎖定=小方鈕;解鎖後變品牌紅「回到列車」膠囊 */
   .follow-lock-ctl button {
-    display: block; cursor: pointer; font: 700 13px/1.2 -apple-system, "PingFang TC", "Noto Sans TC", sans-serif;
-    background: #fffdf6; color: #2a4a73; border: 1.5px solid #c9b98f; border-radius: 8px;
-    box-shadow: 0 2px 0 #c9b98f; padding: 8px 9px; min-width: 34px; white-space: nowrap;
+    display: block; cursor: pointer; font: 700 13px/1.2 var(--font);
+    background: var(--paper); color: var(--navy); border: 1.5px solid var(--line); border-radius: 8px;
+    box-shadow: var(--shadow-1); padding: 8px 9px; min-width: 34px; white-space: nowrap;
   }
-  .follow-lock-ctl button.unlocked { background: #d23c2a; color: #fff8ec; border-color: #a92c1d; box-shadow: 0 2px 0 #a92c1d; }
-  .leaflet-control-attribution { background: rgba(247,240,221,.9); color: #a89468; }
-  .leaflet-control-attribution a { color: #7a6c50; }
-  /* 圖示鈕:平常只見單字/符號(38px 方鈕),hover 向左展開露出完整說明 */
-  .stage-tools button {
-    font: inherit; font-size: 15px; font-weight: 700; cursor: pointer;
-    height: 38px; padding: 0; overflow: hidden;
-    display: flex; align-items: center;
-    background: #fffdf6; color: #2a4a73;
-    border: 0; border-radius: 0;
-    box-shadow: none;
-    transition: background .15s;
-  }
-  .stage-tools button + button { border-left: 1px solid #ece2c8; } /* 工具條內部分隔細線 */
-  body:not(.fs) #toolsFab + button { border-left: 0; } /* 桌機 fab 隱藏:第一顆可見鈕不畫前緣分隔線 */
-  .stage-tools button .ti {
-    flex: 0 0 35px; width: 35px; height: 36px; /* width 與 flex-basis 同值:WebKit 內在寬度只認 width */
-    display: flex; align-items: center; justify-content: center; font-size: 15px;
-  }
-  .stage-tools button .tl {
-    flex: 0 0 auto; /* 不被 flex 壓縮成 0(overflow:hidden 的 flex 子項 min-width 會歸零) */
-    max-width: 0; opacity: 0; overflow: hidden; white-space: nowrap;
-    font-size: 13px; font-weight: 700; letter-spacing: .5px;
-    transition: max-width .24s ease, opacity .18s ease, padding .24s ease;
-  }
-  .stage-tools button:hover { background: #f7f0dd; }
-  .stage-tools button:hover .tl { max-width: 150px; opacity: 1; padding-right: 13px; }
-  .stage-tools button.active {
-    background: #d23c2a; color: #fff8ec;
-    border-color: #a92c1d; box-shadow: 0 2px 0 #a92c1d;
-  }
-  .stage-tools button.active:hover { background: #c0341f; }
-  /* 全畫面直排工具列(靠右上):hover 標籤朝左展開,不衝出右邊界。
-     直排回復「漂浮獨立鈕」:合併條在直向會因 hover 展開整條變寬,獨立鈕只有被指的那顆會動 */
-  body.fs .stage-tools {
-    align-items: flex-end; gap: 8px;
-    background: none; border: 0; box-shadow: none; overflow: visible;
-  }
-  body.fs .stage-tools button {
-    flex-direction: row-reverse;
-    border: 1.5px solid #c9b98f; border-radius: 6px; box-shadow: 0 2px 0 #c9b98f;
-  }
-  body.fs .stage-tools button.active { border-color: #a92c1d; box-shadow: 0 2px 0 #a92c1d; }
-  body.fs .stage-tools button:hover .tl { padding-right: 0; padding-left: 13px; }
+  .follow-lock-ctl button.unlocked { background: var(--red); color: #fff8ec; border-color: var(--red-deep); box-shadow: var(--shadow-red); border-radius: var(--r-pill); }
+  .leaflet-control-attribution { background: rgba(247,240,221,.9); color: var(--faint); }
+  html[data-theme=dark] .leaflet-control-attribution { background: rgba(14,21,38,.85); }
+  .leaflet-control-attribution a { color: var(--muted); }
 
-  /* 全畫面切換獨立鈕(移出工具抽屜):紙牌皮膚同工具鈕,常駐地圖右上角。桌面 top:12/right:12(手機定位見 640 媒體塊)。
-     圖示隨 body.fs 切換:非全畫面顯示外展箭頭,全畫面中顯示內收箭頭。 */
+  /* ── 站台帶(工具＋播放合體,貼 stage 下緣;金色月台警戒線收邊) ── */
+  .controls {
+    position: absolute; left: 12px; right: 12px; bottom: 12px; z-index: 700;
+    display: flex; align-items: center; gap: 10px;
+    background: var(--paper-tr); border: 1.5px solid var(--line); border-radius: 10px;
+    box-shadow: var(--shadow-1), inset 0 3px 0 var(--gold);
+    padding: 7px 12px 5px;
+    overflow-x: auto; overflow-y: hidden; /* 中窄桌面塞不下時帶內橫捲,帶高恆定不推擠疊層 */
+    scrollbar-width: thin; scrollbar-color: var(--line) transparent;
+  }
+  .controls > * { flex: none; }
+  .band-div { align-self: stretch; border-left: 1.5px dashed var(--line-dash); margin: 2px 0; }
+  .ctl { display: flex; align-items: center; gap: 8px; }
+  .ctl label { font-size: 13px; color: var(--muted); font-weight: 600; white-space: nowrap; }
+  .ctl output { font-size: 13px; font-weight: 800; color: var(--ink-strong); }
+  #speedOut { font-size: 13px; font-weight: 900; color: var(--red); min-width: 38px; text-align: center; }
+  /* 點時間讀數直接指定時刻:透明 time input 疊在讀數上,手機點開原生滾輪、桌面聚焦後現形可打字 */
+  .tod-wrap { position: relative; display: inline-flex; }
+  .tod-wrap input[type=time] {
+    position: absolute; inset: 0; width: 100%; height: 100%; box-sizing: border-box;
+    opacity: 0; border: 0; padding: 0; margin: 0; cursor: pointer; font: inherit;
+  }
+  .tod-wrap:focus-within output { display: none; }
+  .tod-wrap:focus-within input[type=time] {
+    position: static; opacity: 1; width: auto; min-width: 74px;
+    background: var(--paper); border: 1.5px solid var(--navy); border-radius: 6px;
+    font-size: 13px; font-weight: 800; color: var(--ink-strong); text-align: center; padding: 1px 4px;
+  }
+  #todOut { font-size: 13px; font-weight: 800; color: var(--ink-strong); border: 1.5px dashed var(--line); border-radius: 6px; padding: 4px 10px; cursor: pointer; min-width: 0; }
+  input[type=range] { accent-color: var(--red); width: 150px; }
+  /* 速度軌:枕木刻度+號誌柱+紅色道班車拇指(1/10/30/60 磁吸由 JS 處理) */
+  .speedrail { position: relative; width: 250px; height: 40px; flex: none; }
+  .speedrail input {
+    -webkit-appearance: none; appearance: none; width: 100%; height: 26px; margin: 0;
+    background: transparent; position: relative; z-index: 2; accent-color: var(--red);
+  }
+  .speedrail input::-webkit-slider-runnable-track {
+    height: 15px; border-radius: 2px;
+    background:
+      repeating-linear-gradient(90deg, var(--line) 0 2px, transparent 2px 14px),
+      linear-gradient(var(--faint), var(--faint));
+    background-size: auto 15px, 100% 3px; background-position: 0 0, 0 6px; background-repeat: repeat-x, no-repeat;
+  }
+  .speedrail input::-webkit-slider-thumb {
+    -webkit-appearance: none; width: 38px; height: 19px; margin-top: -2px;
+    background: var(--red); border: 1.5px solid var(--red-deep);
+    border-radius: 4px 10px 10px 4px; box-shadow: var(--shadow-red); cursor: grab;
+  }
+  .speedrail input::-moz-range-track { height: 15px; background: repeating-linear-gradient(90deg, var(--line) 0 2px, transparent 2px 14px); }
+  .speedrail input::-moz-range-thumb { width: 38px; height: 19px; background: var(--red); border: 1.5px solid var(--red-deep); border-radius: 4px 10px 10px 4px; box-shadow: var(--shadow-red); }
+  .speedrail .post { position: absolute; top: 4px; height: 18px; border-left: 2px solid var(--line); z-index: 1; }
+  .speedrail .post.end { border-color: var(--navy); }
+  .speedrail .tick { position: absolute; top: 26px; font-size: 9px; color: var(--faint); transform: translateX(-50%); font-variant-numeric: tabular-nums; }
+  button.pp {
+    font: inherit; font-size: 14px; font-weight: 800; cursor: pointer;
+    background: var(--paper); color: var(--navy);
+    border: 1.5px solid var(--navy); border-radius: var(--r-m);
+    padding: 5px 13px; display: inline-flex; align-items: center; gap: 6px;
+    box-shadow: var(--shadow-navy); min-height: 36px;
+  }
+  button.pp:hover { background: var(--bg-stage); }
+  button.pp.on { background: var(--navy); color: var(--on-navy); }
+  /* 現在/放空/視角:次階小鈕(帶上不與播放鍵搶重量) */
+  button.pp.sub {
+    font-size: 12px; font-weight: 700; color: var(--muted);
+    border: 1.5px solid var(--line); border-radius: var(--r-pill); box-shadow: none;
+    padding: 4px 12px; min-height: 32px;
+  }
+  button.pp.sub:hover { background: var(--bg-stage); }
+  #musicCtl { gap: 4px; }
+  #musicVol { width: 64px; }
+  /* 音樂鈕:是否「真的在放」一眼可辨——播放中紅底＋跳動音量條;沒在放一律灰調 */
+  #musicBtn.playing { background: var(--red); }
+  #musicBtn.playing:hover { background: var(--red); }
+  #musicBtn.playing .ti, #musicBtn.playing .tl { color: #fff8ec; }
+  #musicBtn:not(.playing) .ti { color: var(--faint); }
+  .eq { display: inline-flex; align-items: flex-end; gap: 2px; height: 12px; }
+  .eq i { width: 3px; border-radius: 1px; background: currentColor; animation: eqb 1s ease-in-out infinite; }
+  .eq i:nth-child(2) { animation-delay: .25s; }
+  .eq i:nth-child(3) { animation-delay: .5s; }
+  @keyframes eqb { 0%, 100% { height: 4px; } 50% { height: 12px; } }
+  /* 停播:等化器留在原位凍結(不佔位變化=鈕寬不跳動),條子壓底、淡出存在感 */
+  #musicBtn:not(.playing) .eq i { animation: none; height: 4px; opacity: .45; }
+  #musicNextBtn { padding: 5px 9px; }
+  .kbd-hint { margin: 8px 2px 0; color: var(--faint); font-size: 12px; line-height: 1.9; }
+  .kbd-hint b {
+    color: var(--muted); font-weight: 700; background: var(--bg-stage);
+    border: 1px solid var(--line); border-radius: 4px; padding: 0 5px; margin: 0 2px;
+  }
+
+  /* ── 地圖工具群(站台帶內):直立迷你鈕=單字圖示+8.5px 標籤恆顯 ── */
+  .stage-tools { display: flex; align-items: center; gap: 2px; }
+  #toolsFab { display: none !important; } /* ☰ 抽屜開關已由手機 tab bar「更多」sheet 取代,元素保留給 JS 引用 */
+  .stage-tools button, button.tmini {
+    font: inherit; cursor: pointer;
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px;
+    background: none; color: var(--navy);
+    border: 0; border-radius: 6px; padding: 3px 6px; min-width: 42px; min-height: 40px;
+    box-shadow: none; transition: background .15s;
+  }
+  .stage-tools button:hover, button.tmini:hover { background: var(--bg-stage); }
+  .stage-tools button .ti, button.tmini .ti {
+    display: flex; align-items: center; justify-content: center; gap: 3px;
+    font-size: 15px; font-weight: 700; line-height: 1.1; color: var(--navy);
+  }
+  .stage-tools button .tl, button.tmini .tl { font-size: 8.5px; color: var(--faint); white-space: nowrap; font-weight: 600; letter-spacing: .3px; }
+  #ppTxt { display: none; } /* 帶上播放鍵只出圖示(mock §02);字留在 DOM 給 JS 更新與無障礙 */
+  #favRow { display: none !important; } /* 側欄最愛常駐列已取消(統一住 ★ 面板);renderFavs 仍寫這個 stub */
+  #favBtn .ti { color: var(--gold); }
+  #recBtn .ti { color: var(--red); }
+  .stage-tools button.active { background: var(--red); }
+  .stage-tools button.active .ti, .stage-tools button.active .tl { color: #fffdf6; }
+
+  /* 全畫面切換獨立鈕:紙牌皮膚,常駐地圖右上角。圖示隨 body.fs 切換。 */
   #fsFab {
     position: absolute; top: 12px; right: 12px; z-index: 704;
     display: flex; align-items: center; justify-content: center;
     width: 44px; height: 44px; padding: 0; cursor: pointer;
-    background: #fffdf6; color: #2a4a73;
-    border: 1.5px solid #c9b98f; border-radius: 8px;
-    box-shadow: 0 2px 0 #c9b98f; transition: background .15s;
+    background: var(--paper); color: var(--navy);
+    border: 1.5px solid var(--line); border-radius: 10px;
+    box-shadow: var(--shadow-1); transition: background .15s;
   }
-  #fsFab:hover { background: #f7f0dd; }
+  #fsFab:hover { background: var(--bg-stage); }
   #fsFab .fs-ic { display: block; }
   #fsFab .fs-ic-close { display: none; }
   body.fs #fsFab .fs-ic-open { display: none; }
   body.fs #fsFab .fs-ic-close { display: block; }
 
-  /* 錄影中浮條(地圖頂部置中):唯一的錄影狀態指示,點它停止並下載。
-     浮條與其他 DOM UI 都不會入鏡——錄影只合成地圖畫布(圖磚/向量層/列車 overlay) */
+  /* 錄影中浮條(地圖頂部置中):唯一的錄影狀態指示,點它停止並下載。 */
   .rec-pill {
     position: absolute; top: 10px; left: 50%; transform: translateX(-50%); z-index: 1200;
     display: flex; align-items: center; gap: 7px;
-    background: #d23c2a; color: #fff8ec; border: 1.5px solid #a92c1d; border-radius: 999px;
-    box-shadow: 0 2px 0 #a92c1d; padding: 6px 14px;
+    background: var(--paper); color: var(--red); border: 1.5px solid var(--red); border-radius: var(--r-pill);
+    box-shadow: var(--shadow-red); padding: 6px 14px;
     font-size: 13px; font-weight: 800; letter-spacing: .5px; cursor: pointer;
     font-variant-numeric: tabular-nums;
   }
   .rec-pill[hidden] { display: none; }
-  .rec-pill .rd { width: 9px; height: 9px; border-radius: 50%; background: #fff8ec; animation: recBlink 1.1s steps(2, start) infinite; }
-  .rec-pill .rstop { font-weight: 700; font-size: 12px; opacity: .85; border-left: 1px solid rgba(255,248,236,.45); padding-left: 8px; }
-  .rec-pill:hover { background: #c0341f; }
+  .rec-pill .rd { width: 9px; height: 9px; border-radius: 50%; background: var(--red); animation: recBlink 1.1s steps(2, start) infinite; }
+  .rec-pill .rstop { font-weight: 700; font-size: 12px; opacity: .85; border-left: 1px solid var(--line); padding-left: 8px; color: var(--muted); }
+  .rec-pill:hover { background: var(--bg-stage); }
   @keyframes recBlink { to { opacity: 0; } }
-  /* 錄影結束吐司:下載後留 60 秒的「再下載」保險——「另存」對話框被按到取消,錄影不再蒸發
-     (上一段錄影的 blob 保留到下一次錄影開始,期間都可重抓) */
+  /* 錄影結束吐司:下載後留 60 秒的「再下載」保險 */
   .rec-toast {
-    /* top:56(徽章列下方)所有寬度一致:吐司帶檔名比浮條寬,置中在到 ~1300px 寬前都會擦到左上徽章 */
     position: absolute; top: 56px; left: 50%; transform: translateX(-50%); z-index: 1200;
     display: flex; align-items: center; gap: 8px; max-width: calc(100% - 24px);
-    background: #fffdf6; color: #3a3226; border: 1.5px solid #c9b98f; border-radius: 999px;
-    box-shadow: 0 2px 0 #c9b98f; padding: 6px 8px 6px 14px; font-size: 12.5px; font-weight: 600;
+    background: var(--paper); color: var(--ink); border: 1.5px solid var(--line); border-radius: var(--r-pill);
+    box-shadow: var(--shadow-1); padding: 6px 8px 6px 14px; font-size: 12.5px; font-weight: 600;
   }
   .rec-toast[hidden] { display: none; }
-  .rec-toast span { min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; } /* min-width:0:flex 子項才真的縮得動,長檔名出省略號 */
+  .rec-toast span { min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .rec-toast button {
     font: inherit; font-size: 12.5px; font-weight: 700; cursor: pointer; white-space: nowrap;
-    background: #2a4a73; color: #fff8ec; border: 0; border-radius: 999px; padding: 4px 12px;
+    background: var(--navy); color: var(--on-navy); border: 0; border-radius: var(--r-pill); padding: 4px 12px;
   }
-  .rec-toast button:hover { background: #1e3a5f; }
-  .rec-toast button.x { background: none; color: #a89468; padding: 4px 6px; font-size: 15px; }
-  .rec-toast button.x:hover { background: #f7f0dd; color: #3a3226; }
-  /* 中窄寬度(平板/窄視窗):置中浮條會壓到左上時鐘徽章列(badge 寬到 ~420px),下移讓開。
-     寬桌面(>1024)徽章與浮條相距夠遠,維持與徽章同列的 top:10;吐司則一律 56(見上) */
-  @media (max-width: 1024px) {
-    .rec-pill { top: 56px; }
-  }
+  .rec-toast button:hover { opacity: .9; }
+  .rec-toast button.x { background: none; color: var(--faint); padding: 4px 6px; font-size: 15px; }
+  .rec-toast button.x:hover { background: var(--bg-stage); color: var(--ink); }
 
-  /* 停靠站名牌(時鐘儀表正下方、靠左直欄,跟隨列車停站時淡入)——仿台鐵月台站名牌:
-     上半白底本站大字,下半藍條左右鄰站+站間里程+方向箭頭。
-     改靠左:跟隨中列車常居畫面中心,置中彈牌會壓車;左直欄(儀表→站牌→跟隨卡)固定分工,
-     也不再與右側看板/公告推擠 */
+  /* 停靠站名牌(時鐘儀表正下方、靠左直欄,跟隨列車停站時淡入)——仿台鐵月台站名牌 */
   .dwell-plate {
-    /* top 固定在時鐘儀表下方,左緣與儀表/跟隨卡同對齊 12px */
-    position: absolute; top: 58px; left: 12px; z-index: 640;
+    position: absolute; top: 64px; left: 12px; z-index: 640;
     min-width: 300px; max-width: min(560px, calc(100% - 24px));
-    background: #fffdf6; border: 2px solid #2a4a73; border-radius: 10px;
-    box-shadow: 0 2px 0 rgba(42,74,115,.22); overflow: hidden;
+    background: var(--paper); border: 2px solid var(--navy); border-radius: 10px;
+    box-shadow: var(--shadow-navy); overflow: hidden;
     opacity: 0; transform: translateY(-5px);
     transition: opacity .45s ease, transform .45s ease;
     pointer-events: none;
   }
-  .dwell-plate.show { opacity: 1; transform: none; } /* 淡入順勢往下安座,穩穩落在儀表下方 */
-  /* 特殊車站介紹:併入站名牌下緣,隨站名牌一起淡入(進站)淡出(開車) */
+  .dwell-plate.show { opacity: 1; transform: none; }
   .dwell-plate .dp-intro {
-    background: #fffdf6; color: #3a3226;
+    background: var(--paper); color: var(--ink);
     font-size: 12.5px; line-height: 1.55; font-weight: 600;
     text-align: center; padding: 7px 16px 9px;
-    border-top: 1.5px dashed #d8cba9;
+    border-top: 1.5px dashed var(--line-dash);
   }
   .dwell-plate .dp-intro .dp-intro-lbl {
     font-size: 10.5px; font-weight: 800; letter-spacing: 1px;
-    color: #a3641a; margin-right: 7px;
+    color: var(--warn-ink); margin-right: 7px;
   }
   .dwell-plate b {
     display: block; text-align: center;
-    font-size: 26px; font-weight: 900; letter-spacing: 10px; text-indent: 10px; /* indent 抵銷尾字間距,視覺置中 */
-    color: #1e2c40; white-space: nowrap; padding: 9px 20px 7px;
+    font-size: 26px; font-weight: 900; letter-spacing: 10px; text-indent: 10px;
+    color: var(--ink-strong); white-space: nowrap; padding: 9px 20px 7px;
   }
   .dwell-plate .dp-strip {
     display: flex; justify-content: space-between; align-items: center; gap: 18px;
-    background: #2a4a73; color: #fffdf6; padding: 5px 12px 6px;
+    background: linear-gradient(178deg, #2c4f86, #1f3d6b); color: #fff8ec; padding: 4px 12px 5px;
   }
   .dwell-plate .side {
     display: flex; align-items: baseline; gap: 6px;
-    font-size: 12.5px; font-weight: 700; color: #fffdf6; white-space: nowrap;
+    font-size: 12.5px; font-weight: 800; color: #fff8ec; white-space: nowrap;
   }
   .dwell-plate .side .arr { font-size: 11px; opacity: .9; }
-  .dwell-plate .side .km {
-    font-size: 10.5px; font-weight: 600; opacity: .82;
-    font-variant-numeric: tabular-nums;
-  }
+  .dwell-plate .side .km { font-size: 10.5px; font-weight: 600; opacity: .78; font-variant-numeric: tabular-nums; }
 
-  /* 平交道通過預測卡(點地圖上的平交道記號時彈出;紙卡風,右上角同看板欄) */
+  /* 平交道通過預測卡(點地圖上的平交道記號時彈出;面板家族,右上角同看板欄) */
   .xing-card {
     position: absolute; top: 12px; right: 12px; z-index: 660;
     width: 264px; max-width: calc(100% - 24px); max-height: calc(100% - 176px);
-    overflow-y: auto; background: rgba(255,253,246,.98);
-    border: 2px solid #2a4a73; border-radius: 10px;
-    box-shadow: 0 3px 0 rgba(42,74,115,.22);
+    overflow-y: auto; background: var(--paper-tr);
+    border: 2px solid var(--navy); border-radius: 10px;
+    box-shadow: var(--shadow-navy);
     font-variant-numeric: tabular-nums;
-    scrollbar-width: thin; scrollbar-color: #c9b98f transparent;
+    scrollbar-width: thin; scrollbar-color: var(--line) transparent;
   }
   .xing-card .xc-head {
-    display: flex; align-items: center; gap: 9px; position: sticky; top: 0;
-    background: #2a4a73; color: #fffdf6; padding: 8px 10px 8px 12px;
+    display: flex; align-items: center; gap: 9px; position: sticky; top: 0; z-index: 1;
+    background: var(--navy); color: var(--on-navy); padding: 8px 10px 8px 12px;
   }
   .xing-card .xc-ico { flex: none; display: flex; opacity: .9; }
   .xing-card .xc-ttl { flex: 1; min-width: 0; display: flex; flex-direction: column; line-height: 1.25; }
-  .xing-card .xc-ttl b { font-size: 16px; font-weight: 900; letter-spacing: 1px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .xing-card .xc-ttl b { font-size: 15px; font-weight: 900; letter-spacing: 1px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .xing-card .xc-meta { font-size: 11px; font-weight: 600; opacity: .85; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .xing-card .xc-close { flex: none; background: none; border: 0; color: #fffdf6; font-size: 15px; line-height: 1; cursor: pointer; opacity: .82; padding: 2px 4px; }
+  .xing-card .xc-close { flex: none; background: none; border: 0; color: var(--on-navy); font-size: 15px; line-height: 1; cursor: pointer; opacity: .82; padding: 2px 4px; }
   .xing-card .xc-close:hover { opacity: 1; }
   .xing-card .xc-list { padding: 2px 0; }
-  .xing-card .xc-row { display: flex; align-items: baseline; gap: 8px; padding: 6px 12px; border-top: 1px dashed #ece2c8; font-size: 12.5px; }
+  .xing-card .xc-row { display: flex; align-items: baseline; gap: 8px; padding: 6px 12px; border-top: 1px dashed var(--line-faint); font-size: 12.5px; }
   .xing-card .xc-row:first-child { border-top: 0; }
-  .xing-card .xc-no { font-weight: 800; color: #1e2c40; min-width: 40px; }
-  .xing-card .xc-kind { font-size: 11px; color: #7a6c50; flex: none; }
-  .xing-card .xc-dir { flex: 1; min-width: 0; color: #5d5240; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .xing-card .xc-time { font-weight: 700; color: #2a4a73; white-space: nowrap; }
-  .xing-card .xc-dl { font-size: 10.5px; font-weight: 800; color: #d23c2a; margin-left: 2px; }
-  .xing-card .xc-cd { font-weight: 800; color: #a3641a; min-width: 44px; text-align: right; }
-  .xing-card .xc-empty { padding: 15px 12px; text-align: center; color: #7a6c50; font-size: 12.5px; }
-  .xing-card .xc-foot { padding: 8px 12px 10px; border-top: 1.5px dashed #d8cba9; color: #a89468; font-size: 10.5px; line-height: 1.5; }
-  /* 落釘卡:存最愛鈕(頭列)＋可點班次列;釘 marker 去掉 Leaflet divIcon 預設白框 */
-  .xing-card .xc-save { flex: none; background: rgba(255,255,255,.16); border: 0; color: #fffdf6; font-size: 11.5px; font-weight: 800; cursor: pointer; padding: 3px 9px; border-radius: 999px; white-space: nowrap; }
+  .xing-card .xc-no { font-weight: 800; color: var(--ink-strong); min-width: 40px; }
+  .xing-card .xc-kind { font-size: 11px; color: var(--muted); flex: none; }
+  .xing-card .xc-dir { flex: 1; min-width: 0; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .xing-card .xc-time { font-weight: 700; color: var(--navy); white-space: nowrap; }
+  .xing-card .xc-dl { font-size: 10.5px; font-weight: 800; color: var(--red); margin-left: 2px; }
+  .xing-card .xc-cd { font-weight: 800; color: var(--warn-ink); min-width: 44px; text-align: right; }
+  .xing-card .xc-empty { padding: 15px 12px; text-align: center; color: var(--muted); font-size: 12.5px; }
+  .xing-card .xc-foot { padding: 8px 12px 10px; background: var(--bg-stage); border-top: 1.5px dashed var(--line-dash); color: var(--faint); font-size: 10.5px; line-height: 1.5; }
+  .xing-card .xc-save { flex: none; background: rgba(255,255,255,.16); border: 0; color: var(--on-navy); font-size: 11.5px; font-weight: 800; cursor: pointer; padding: 3px 9px; border-radius: var(--r-pill); white-space: nowrap; }
   .xing-card .xc-save:hover { background: rgba(255,255,255,.3); }
   .xing-card .xc-row[data-no] { cursor: pointer; }
-  .xing-card .xc-row[data-no]:hover { background: #f3ecd8; }
-  /* 地點釘:改用 Google Maps 風格圓點(取代老氣的 📍/📌 emoji)。草稿=藏青、已存=琥珀+白星 */
+  .xing-card .xc-row[data-no]:hover { background: var(--bg-stage); }
+  /* 地點釘:Google Maps 風圓點。草稿=藏青、已存=琥珀+白星 */
   .pin-ico { background: none; border: 0; }
   .pin-ico svg { display: block; filter: drop-shadow(0 1px 1.5px rgba(0,0,0,.42)); transform-origin: center; transition: transform .18s ease; }
-  .pin-ico .ph { opacity: 0; transition: opacity .18s ease; } /* 光環:平常隱形 */
-  /* 地圖縮小(z<12)時圓點放大+淡光環浮現,不與背景車站點混淆(使用者要求) */
+  .pin-ico .ph { opacity: 0; transition: opacity .18s ease; }
   #map.zfar .pin-ico svg { transform: scale(1.32); }
   #map.zfar .pin-ico .ph { opacity: .22; }
   /* GPS「我的位置」藍點+外擴脈動 */
   .geo-ico { background: none; border: 0; }
   .geo-ico svg { display: block; position: relative; z-index: 2; filter: drop-shadow(0 1px 2px rgba(0,0,0,.32)); }
-  .geo-pulse { position: absolute; left: 50%; top: 50%; width: 22px; height: 22px; margin: -11px 0 0 -11px; border-radius: 50%; background: #2b8fff; opacity: .4; animation: geoPulse 2.1s ease-out infinite; }
+  .geo-pulse { position: absolute; left: 50%; top: 50%; width: 22px; height: 22px; margin: -11px 0 0 -11px; border-radius: 50%; background: var(--gps); opacity: .4; animation: geoPulse 2.1s ease-out infinite; }
   @keyframes geoPulse { 0% { transform: scale(.55); opacity: .5; } 100% { transform: scale(2.7); opacity: 0; } }
   @media (prefers-reduced-motion: reduce) { .geo-pulse { animation: none; opacity: .25; } }
   /* 附近平交道清單卡的列(名稱+距離+下一班通過列車) */
-  .xing-card .nx-row { display: block; padding: 7px 12px; border-top: 1px dashed #ece2c8; cursor: pointer; }
+  .xing-card .nx-row { display: block; padding: 7px 12px; border-top: 1px dashed var(--line-faint); cursor: pointer; }
   .xing-card .nx-row:first-child { border-top: 0; }
-  .xing-card .nx-row:hover { background: #f3ecd8; }
+  .xing-card .nx-row:hover { background: var(--bg-stage); }
   .xing-card .nx-top { display: flex; align-items: baseline; gap: 8px; }
-  .xing-card .nx-name { flex: 1; min-width: 0; font-weight: 800; color: #1e2c40; font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .xing-card .nx-km { flex: none; font-weight: 800; color: #a3641a; font-size: 11px; }
-  .xing-card .nx-sub { margin-top: 2px; font-size: 11.5px; color: #5d5240; display: flex; align-items: baseline; gap: 6px; }
-  .xing-card .nx-sub b { color: #1e2c40; font-weight: 800; }
-  .xing-card .nx-cd { margin-left: auto; font-weight: 800; color: #a3641a; }
-  .xing-card .nx-none { color: #9a8a63; }
+  .xing-card .nx-name { flex: 1; min-width: 0; font-weight: 800; color: var(--ink-strong); font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .xing-card .nx-km { flex: none; font-weight: 800; color: var(--warn-ink); font-size: 11px; }
+  .xing-card .nx-sub { margin-top: 2px; font-size: 11.5px; color: var(--muted); display: flex; align-items: baseline; gap: 6px; }
+  .xing-card .nx-sub b { color: var(--ink-strong); font-weight: 800; }
+  .xing-card .nx-cd { margin-left: auto; font-weight: 800; color: var(--warn-ink); }
+  .xing-card .nx-none { color: var(--faint); }
   /* 釘卡 meta(線名+距離)較長,允許換行不截尾——平交道卡不受影響 */
   .xing-card.pin-card .xc-meta { white-space: normal; overflow: visible; text-overflow: clip; line-height: 1.3; }
   /* 釘卡多線分組:範圍內並行線各成一組(線色點+線名+距離),組間虛線分隔 */
-  .xing-card .xc-grp { display: flex; align-items: center; gap: 6px; padding: 8px 12px 3px; font-size: 11.5px; font-weight: 800; color: #4a5f7d; border-top: 1.5px dashed #d8cba9; }
+  .xing-card .xc-grp { display: flex; align-items: center; gap: 6px; padding: 8px 12px 3px; font-size: 11.5px; font-weight: 800; color: var(--navy); border-top: 1.5px dashed var(--line-dash); }
   .xing-card .xc-grp:first-child { border-top: 0; }
   .xing-card .xc-grp-dot { width: 8px; height: 8px; border-radius: 50%; flex: none; box-shadow: 0 0 0 1px rgba(0,0,0,.12); }
-  .xing-card .xc-grp-km { margin-left: auto; font-weight: 700; color: #a3641a; font-size: 10.5px; white-space: nowrap; }
+  .xing-card .xc-grp-km { margin-left: auto; font-weight: 700; color: var(--warn-ink); font-size: 10.5px; white-space: nowrap; }
   .xing-card .xc-grp + .xc-row { border-top: 0; }
   .xing-card .xc-empty-s { padding: 6px 12px 10px; text-align: left; font-size: 12px; }
   .alert-banner:not([hidden]) ~ .xing-card { top: 54px; }
 
-  /* 平交道使用說明卡(開關打開時浮出、約 8 秒自動淡出、點擊即關;地圖上方居中,紙卡風) */
+  /* 平交道使用說明卡(開關打開時浮出、約 8 秒自動淡出;純吐司不擋點擊) */
   .xing-help {
     position: absolute; top: 56px; left: 50%; z-index: 715;
     transform: translateX(-50%) translateY(-8px);
     max-width: min(360px, calc(100% - 140px));
-    background: #fffdf6; border: 2px solid #d2a12a; border-radius: 10px;
+    background: var(--paper); border: 1.5px solid var(--gold); border-radius: 10px;
     box-shadow: 0 3px 0 rgba(163,100,26,.3);
-    padding: 11px 15px; font-size: 12.5px; font-weight: 600; color: #3a3226; line-height: 1.6;
+    padding: 11px 15px; font-size: 12.5px; font-weight: 600; color: var(--ink); line-height: 1.6;
     opacity: 0; transition: opacity .4s ease, transform .4s ease;
-    /* 純吐司不擋點擊:實測它展示中(8s)＋淡出殘影(400ms)會攔截整塊地圖 tap,
-       使用者點說明卡底下的平交道毫無反應(v0712o);8s 自動淡出,不需要點擊關閉 */
     pointer-events: none;
   }
   .xing-help.show { opacity: 1; transform: translateX(-50%) translateY(0); }
   .xing-help[hidden] { display: none; }
   .alert-banner:not([hidden]) ~ .xing-help { top: 96px; }
 
-  /* 跟隨小面板(地圖左下角，跟隨列車時顯示) */
+  /* 跟隨小面板(地圖左下角、站台帶上方,跟隨列車時顯示) */
   .follow-panel {
-    position: absolute; left: 12px; bottom: 12px; z-index: 650;
-    width: 240px; max-height: calc(100% - 24px); overflow-y: auto;
-    background: rgba(255,253,246,.97); border: 2px solid #2a4a73; border-radius: 10px;
+    position: absolute; left: 12px; bottom: 86px; z-index: 650;
+    width: 240px; max-height: calc(100% - 98px); overflow-y: auto;
+    background: var(--paper); border: 2px solid var(--navy); border-radius: 10px;
     padding: 10px 13px 11px;
     font-variant-numeric: tabular-nums;
-    box-shadow: 0 3px 0 rgba(42,74,115,.22);
-    scrollbar-width: thin; scrollbar-color: #c9b98f transparent;
+    box-shadow: var(--shadow-navy);
+    scrollbar-width: thin; scrollbar-color: var(--line) transparent;
   }
   .follow-panel .fp-head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
   .follow-panel .fp-head .dot { width: 9px; height: 9px; border-radius: 50%; flex: none; }
-  .follow-panel .fp-head b { font-size: 15px; color: #1e2c40; }
-  /* 車種名獨佔第二行、可折行、全名永不截(全域):
-     極長名(如「自強號（E500 新編組・官方代碼未公布）」)折兩行而非省略;
-     卡高只隨換車變,不隨時速位數變 */
+  .follow-panel .fp-head b { font-size: 15px; color: var(--ink-strong); }
+  /* 車種名獨佔第二行、可折行、全名永不截(全域):卡高只隨換車變,不隨時速位數變 */
   .follow-panel .fp-head .kind {
-    font-size: 12px; color: #7a6c50; font-weight: 600;
+    font-size: 12px; color: var(--faint); font-weight: 600;
     order: 9; flex: 1 1 100%; min-width: 0; margin-top: 1px;
   }
   .follow-panel .fp-head .spd {
-    margin-left: auto; font-size: 11px; color: #2a4a73; font-weight: 700;
+    margin-left: auto; font-size: 11px; color: var(--muted); font-weight: 700;
     font-variant-numeric: tabular-nums; white-space: nowrap; align-self: baseline;
   }
   .follow-panel .fp-head .spd b {
-    font-size: 24px; font-weight: 900; color: #d23c2a; letter-spacing: .5px;
+    font-size: 24px; font-weight: 900; color: var(--red); letter-spacing: .5px;
     line-height: 1; margin-right: 2px;
   }
   .follow-panel .fp-head .fp-close {
     margin-left: 4px; background: none; border: 0; cursor: pointer;
-    color: #a89468; font-size: 15px; line-height: 1; padding: 0 2px;
+    color: var(--faint); font-size: 15px; line-height: 1; padding: 0 2px;
   }
   .follow-panel .fp-next {
     display: flex; align-items: baseline; gap: 7px; flex-wrap: wrap; row-gap: 3px;
-    margin-top: 7px; padding-top: 7px; border-top: 1.5px dashed #d8cba9;
+    margin-top: 7px; padding-top: 7px; border-top: 1.5px dashed var(--line-dash);
   }
-  .follow-panel .fp-next .lbl { font-size: 11px; color: #8a7c62; font-weight: 800; letter-spacing: 2px; flex: none; }
-  .follow-panel .fp-next .stn { font-size: 16px; font-weight: 900; color: #1e2c40; letter-spacing: 1px; white-space: nowrap; }
-  /* eta 靠右;誤點等長字串塞不下時整段換到第二行仍靠右,站名不再被擠斷 */
-  .follow-panel .fp-next .eta { margin-left: auto; font-size: 13px; font-weight: 700; color: #2a4a73; text-align: right; white-space: nowrap; }
-  .follow-panel .fp-next .eta b { color: #d23c2a; }
-  .follow-panel .fp-prog { display: flex; align-items: center; gap: 8px; margin-top: 7px; }
+  .follow-panel .fp-next .lbl { font-size: 11px; color: var(--faint); font-weight: 800; letter-spacing: 2px; flex: none; }
+  .follow-panel .fp-next .stn { font-size: 16px; font-weight: 900; color: var(--ink-strong); letter-spacing: 1px; white-space: nowrap; }
+  .follow-panel .fp-next .eta { margin-left: auto; font-size: 13px; font-weight: 700; color: var(--navy); text-align: right; white-space: nowrap; }
+  .follow-panel .fp-next .eta b { color: var(--red); }
+  .follow-panel .fp-prog { display: flex; align-items: center; gap: 8px; margin-top: 8px; }
   .follow-panel .fp-prog .bar {
-    flex: 1; height: 7px; background: #efe6cc;
-    border: 1px solid #c9b98f; border-radius: 4px; overflow: hidden;
+    flex: 1; height: 5px; background: var(--line-faint);
+    border: 0; border-radius: 3px; overflow: hidden;
   }
-  .follow-panel .fp-prog .bar i { display: block; height: 100%; width: 0; background: #d23c2a; }
+  .follow-panel .fp-prog .bar i { display: block; height: 100%; width: 0; background: var(--red); border-radius: 3px; }
   .follow-panel .fp-prog .txt {
-    font-size: 10.5px; color: #8a7c62; font-weight: 700;
+    font-size: 10.5px; color: var(--faint); font-weight: 700;
     white-space: nowrap; font-variant-numeric: tabular-nums;
   }
-  .follow-panel .fp-dest { margin-top: 4px; font-size: 11.5px; color: #7a6c50; }
-  /* 狀態改純文字:跟隨卡只留通阻警示一個色框,減少一格格小方塊 */
-  .follow-panel .fp-status { margin-top: 7px; font-size: 12px; font-weight: 700; color: #b4552a; }
-  .follow-panel .fp-status.run { color: #2a6b46; }
+  .follow-panel .fp-dest { margin-top: 5px; font-size: 11.5px; color: var(--muted); }
+  .follow-panel .fp-status { margin-top: 7px; font-size: 12px; font-weight: 700; color: var(--warn-ink); border-top: 1px dashed var(--line-faint); padding-top: 6px; }
+  .follow-panel .fp-status.run { color: var(--ok); }
   /* 資訊卡收合(×):跟隨不中斷,縮成小膠囊——點膠囊本體展開,「結束」才取消跟隨 */
-  .follow-panel.fp-min { width: auto; max-width: 190px; padding: 6px 10px; cursor: pointer; }
+  .follow-panel.fp-min { width: auto; max-width: 190px; padding: 6px 12px; cursor: pointer; border-radius: var(--r-pill); }
   .follow-panel.fp-min .fp-next, .follow-panel.fp-min .fp-prog, .follow-panel.fp-min .fp-status,
   .follow-panel.fp-min .fp-alert, .follow-panel.fp-min .fp-dest, .follow-panel.fp-min .fp-head .kind,
   .follow-panel.fp-min .fp-close, .follow-panel.fp-min .traincard { display: none; }
   .follow-panel.fp-min .fp-head .spd b { font-size: 15px; }
   .follow-panel .fp-end {
-    margin-left: 6px; background: none; border: 1px solid #c9b98f; border-radius: 6px;
-    color: #a89468; font-size: 10px; font-weight: 700; padding: 2px 6px;
+    margin-left: 6px; background: none; border: 1px solid var(--line); border-radius: 6px;
+    color: var(--faint); font-size: 10px; font-weight: 700; padding: 2px 6px;
     cursor: pointer; display: none; flex: none;
   }
   .follow-panel.fp-min .fp-end { display: inline-block; }
-  /* ── 捷運幽靈車跟隨的輕量資訊卡(freq 模式;不走 sched 的 followPanel) ── */
+  /* ── 捷運幽靈車跟隨的輕量資訊卡(freq 模式) ── */
   .freq-card {
-    position: absolute; left: 12px; bottom: 12px; z-index: 650;
+    position: absolute; left: 12px; bottom: 86px; z-index: 650;
     width: 220px; max-width: calc(100% - 24px);
-    background: rgba(255,253,246,.97); border: 2px solid #2a4a73; border-radius: 10px;
+    background: var(--paper); border: 2px solid var(--navy); border-radius: 10px;
     padding: 9px 13px 10px; font-variant-numeric: tabular-nums;
-    box-shadow: 0 3px 0 rgba(42,74,115,.22);
+    box-shadow: var(--shadow-navy);
   }
   .freq-card[hidden] { display: none; }
   .freq-card .fc-head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
   .freq-card .fc-head .dot { width: 9px; height: 9px; border-radius: 50%; flex: none; }
-  .freq-card .fc-head b { font-size: 15px; color: #1e2c40; }
-  .freq-card .fc-dir { font-size: 12px; color: #7a6c50; font-weight: 600; order: 9; flex: 1 1 100%; min-width: 0; margin-top: 1px; }
+  .freq-card .fc-head b { font-size: 15px; color: var(--ink-strong); }
+  .freq-card .fc-dir { font-size: 12px; color: var(--faint); font-weight: 600; order: 9; flex: 1 1 100%; min-width: 0; margin-top: 1px; }
   .freq-card .fc-end {
-    margin-left: auto; background: none; border: 1px solid #c9b98f; border-radius: 6px;
-    color: #a89468; font-size: 10px; font-weight: 700; padding: 2px 6px; cursor: pointer; flex: none;
+    margin-left: auto; background: none; border: 1px solid var(--line); border-radius: 6px;
+    color: var(--faint); font-size: 10px; font-weight: 700; padding: 2px 6px; cursor: pointer; flex: none;
   }
   .freq-card .fc-next { display: flex; align-items: baseline; gap: 8px; margin-top: 7px; }
-  .freq-card .fc-next .lbl { font-size: 11px; color: #8a7c62; font-weight: 800; letter-spacing: 2px; flex: none; }
-  .freq-card .fc-next .stn { font-size: 16px; font-weight: 900; color: #1e2c40; letter-spacing: 1px; }
-  .freq-card .fc-status { margin-top: 6px; font-size: 11px; color: #8a7c62; font-weight: 600; }
+  .freq-card .fc-next .lbl { font-size: 11px; color: var(--faint); font-weight: 800; letter-spacing: 2px; flex: none; }
+  .freq-card .fc-next .stn { font-size: 16px; font-weight: 900; color: var(--ink-strong); letter-spacing: 1px; }
+  .freq-card .fc-status { margin-top: 6px; font-size: 11px; color: var(--faint); font-weight: 600; }
   .freq-card .fc-status:empty { display: none; }
   .freq-card .fc-status.on { color: #0f7fa8; }
-  .freq-card .fc-status.warn { color: #b8321f; }
+  .freq-card .fc-status.warn { color: var(--red); }
   /* ── 列車資訊卡(地圖下方,跟隨時顯示) ── */
   .traincard {
     margin: 14px 0 0;
-    background: #fffdf6; border: 2px solid #2a4a73; border-radius: 10px;
-    box-shadow: 0 3px 0 rgba(42,74,115,.22);
+    background: var(--paper); border: 2px solid var(--navy); border-radius: 10px;
+    box-shadow: var(--shadow-navy);
     padding: 12px 16px 13px;
   }
   .traincard .tc-head { display: flex; align-items: baseline; gap: 10px; flex-wrap: nowrap; }
   .traincard .tc-head .dot { width: 10px; height: 10px; border-radius: 50%; align-self: center; flex: none; }
-  .traincard .tc-no { font-size: 20px; font-weight: 900; color: #1e2c40; letter-spacing: 1px; }
-  .traincard .tc-kind { font-size: 13px; font-weight: 700; color: #7a6c50; white-space: nowrap; flex: none; }
+  .traincard .tc-no { font-size: 20px; font-weight: 900; color: var(--ink-strong); letter-spacing: 1px; }
+  .traincard .tc-kind { font-size: 13px; font-weight: 700; color: var(--muted); white-space: nowrap; flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
   .traincard .tc-route {
-    font-size: 13px; color: #6b5f4a; font-variant-numeric: tabular-nums;
+    font-size: 13px; color: var(--muted); font-variant-numeric: tabular-nums;
     flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
   }
   .traincard .tc-tt {
     margin-left: auto; font: inherit; font-size: 12px; font-weight: 700; cursor: pointer;
-    background: #fffdf6; color: #2a4a73;
-    border: 1.5px solid #c9b98f; border-radius: 5px; padding: 3px 9px;
-    box-shadow: 0 1.5px 0 #c9b98f; align-self: center; flex: none;
+    background: var(--paper); color: var(--navy);
+    border: 1.5px solid var(--line); border-radius: 5px; padding: 3px 9px;
+    box-shadow: 0 1.5px 0 var(--line); align-self: center; flex: none;
   }
-  .traincard .tc-tt:hover { background: #f7f0dd; }
-  .traincard .tc-tt + .tc-tt { margin-left: 0; } /* 兩顆收放鈕:只有第一顆吃 auto 推右 */
+  .traincard .tc-tt:hover { background: var(--bg-stage); }
+  .traincard .tc-tt + .tc-tt { margin-left: 0; }
   .traincard .tc-star {
     background: none; border: 0; cursor: pointer;
-    color: #d2a12a; font-size: 20px; line-height: 1; padding: 0 2px; align-self: center;
+    color: var(--gold); font-size: 20px; line-height: 1; padding: 0 2px; align-self: center;
   }
-  .traincard .tc-sparkwrap { margin-top: 9px; padding-top: 7px; border-top: 1.5px dashed #d8cba9; }
-  .traincard .tc-sparkwrap .lbl {
-    font-size: 11px; font-weight: 800; letter-spacing: 3px; color: #a89468; margin-bottom: 4px;
-  }
+  .traincard .tc-sparkwrap { margin-top: 9px; padding-top: 7px; border-top: 1.5px dashed var(--line-dash); }
+  .traincard .tc-sparkwrap .lbl { font-size: 11px; font-weight: 800; letter-spacing: 3px; color: var(--faint); margin-bottom: 4px; }
   .traincard .tc-sparkwrap canvas { display: block; width: 100%; height: 46px; }
-  .traincard .tc-stops {
-    margin-top: 9px; padding-top: 8px; border-top: 1.5px dashed #d8cba9;
-  }
+  .traincard .tc-stops { margin-top: 9px; padding-top: 8px; border-top: 1.5px dashed var(--line-dash); }
   .traincard .tc-st {
     display: flex; gap: 12px; font-size: 12.5px; padding: 2.5px 2px;
-    border-top: 1px dashed #ece2c8; cursor: pointer; color: #5d5240;
+    border-top: 1px dashed var(--line-faint); cursor: pointer; color: var(--muted);
     font-variant-numeric: tabular-nums;
   }
-  .traincard .tc-st:hover { background: #f7f0dd; }
+  .traincard .tc-st:hover { background: var(--bg-stage); }
   .traincard .tc-st .n { flex: 1; }
-  .traincard .tc-st.hd {
-    font-weight: 800; color: #a89468; border-top: 0; cursor: default;
-    font-size: 11px; letter-spacing: 1px;
-  }
+  .traincard .tc-st.hd { font-weight: 800; color: var(--faint); border-top: 0; cursor: default; font-size: 11px; letter-spacing: 1px; }
   .traincard .tc-st.hd:hover { background: none; }
   .traincard .tc-st.past { opacity: .45; }
-  .traincard .tc-st.cur { color: #d23c2a; font-weight: 800; }
+  .traincard .tc-st.cur { color: var(--red); font-weight: 800; }
   .traincard .tc-body {
     display: grid; grid-template-columns: 1.3fr 1fr; gap: 6px 26px;
-    margin-top: 9px; padding-top: 9px; border-top: 1.5px dashed #d8cba9;
-    align-items: start; /* 介紹與日誌都依內容展開、卡片跟著變高,整頁只留頁面捲軸 */
+    margin-top: 9px; padding-top: 9px; border-top: 1.5px dashed var(--line-dash);
+    align-items: start;
   }
-  .traincard .tc-intro { font-size: 13px; line-height: 1.65; color: #5d5240; }
-  /* 介紹與旅程日誌之間加一道直向虛線,兩欄分界更清楚 */
-  .traincard .tc-events { display: flex; flex-direction: column; min-height: 0; border-left: 1.5px dashed #d8cba9; padding-left: 18px; }
+  .traincard .tc-intro { font-size: 13px; line-height: 1.65; color: var(--muted); }
+  .traincard .tc-events { display: flex; flex-direction: column; min-height: 0; border-left: 1.5px dashed var(--line-dash); padding-left: 18px; }
   .traincard .tc-events #tcEvents { flex: 1; }
-  .traincard .tc-intro b.tn { color: #a3641a; }
-  .traincard .tc-intro .amen { display: block; margin-top: 5px; color: #2a4a73; font-weight: 600; font-size: 12.5px; }
-  .traincard .tc-events .lbl {
-    font-size: 11px; font-weight: 800; letter-spacing: 3px; color: #a89468; margin-bottom: 4px;
-  }
+  .traincard .tc-intro b.tn { color: var(--warn-ink); }
+  .traincard .tc-intro .amen { display: block; margin-top: 5px; color: var(--navy); font-weight: 600; font-size: 12.5px; }
+  .traincard .tc-events .lbl { font-size: 11px; font-weight: 800; letter-spacing: 3px; color: var(--faint); margin-bottom: 4px; }
   .traincard .tc-ev {
-    font-size: 12.5px; color: #5d5240; padding: 2.5px 0; display: flex; gap: 8px;
-    border-top: 1px dashed #ece2c8;
+    font-size: 12.5px; color: var(--muted); padding: 2.5px 0; display: flex; gap: 8px;
+    border-top: 1px dashed var(--line-faint);
   }
-  .traincard .tc-ev .tt { color: #a89468; font-variant-numeric: tabular-nums; flex: none; }
-  .traincard .tc-empty { font-size: 12.5px; color: #8a7c62; }
-  .traincard .tc-intro .fact { display: block; margin-top: 5px; color: #8a7c62; font-size: 12px; }
+  .traincard .tc-ev .tt { color: var(--faint); font-variant-numeric: tabular-nums; flex: none; }
+  .traincard .tc-empty { font-size: 12.5px; color: var(--faint); }
+  .traincard .tc-intro .fact { display: block; margin-top: 5px; color: var(--faint); font-size: 12px; }
 
-  /* ── 最愛列車 chips ── */
-  .favs { display: flex; flex-wrap: wrap; gap: 8px; margin: 10px 2px 0; }
-  .favs .lbl {
-    flex-basis: 100%; color: #a89468; font-size: 11px; font-weight: 800;
-    letter-spacing: 3px; padding-bottom: 3px; border-bottom: 1.5px dashed #d8cba9;
-  }
-  .favchip {
-    display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px;
-    padding: 5px 10px; border: 1.5px solid #c9b98f; border-radius: 4px;
-    background: #fffdf6; cursor: pointer; color: #3a3226; user-select: none;
-  }
-  .favchip:hover { background: #f7f0dd; }
-  .favchip .star { color: #d2a12a; }
-  .favchip b { color: #1e2c40; }
-  .favchip .rm { color: #a89468; margin-left: 2px; font-weight: 700; padding: 0 2px; }
-  .favchip .rm:hover { color: #d23c2a; }
-
-  /* ── 旅程護照(首頁完乘記錄+圖鑑收集) ── */
+  /* ── 旅程護照(地圖下方;完乘記錄+圖鑑收集——章=真印章) ── */
   .passport {
-    margin: 16px 2px 0; background: #fffdf6;
-    border: 2px solid #2a4a73; border-radius: 10px;
-    box-shadow: 0 3px 0 rgba(42,74,115,.22); padding: 12px 16px 14px;
+    margin: 16px 2px 0; background: var(--paper);
+    border: 2px solid var(--navy); border-radius: 10px;
+    box-shadow: var(--shadow-navy); padding: 12px 16px 14px;
   }
   .passport .ph-head { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; cursor: pointer; user-select: none; }
-  .passport .ph-head > b { font-size: 16px; font-weight: 900; letter-spacing: 3px; color: #1e2c40; }
-  .passport .ph-tgl { font-size: 12px; color: #a89468; margin-left: auto; }
-  /* 標題列改三段式堆疊:標題+收合 / 統計 / 說明——窄欄(340px)與手機不再亂換行 */
-  .passport .ph-sub { font-size: 11px; color: #8a7c62; flex: 1 1 100%; order: 3; line-height: 1.55; }
-  /* 收合時只留標題列(統計摘要仍可見),說明文與內容全部藏起 */
+  .passport .ph-head > b { font-size: 16px; font-weight: 900; letter-spacing: 3px; color: var(--ink-strong); }
+  .passport .ph-tgl { font-size: 12px; color: var(--faint); margin-left: auto; }
+  .passport .ph-sub { font-size: 11px; color: var(--faint); flex: 1 1 100%; order: 3; line-height: 1.55; }
   .passport.closed .ph-sub, .passport.closed .ph-body { display: none; }
-  .passport .ph-stats { flex: 1 1 100%; order: 2; font-size: 12.5px; color: #5d5240; font-variant-numeric: tabular-nums; }
-  .passport .ph-stats b { color: #d23c2a; }
+  .passport .ph-stats { flex: 1 1 100%; order: 2; font-size: 12.5px; color: var(--muted); font-variant-numeric: tabular-nums; }
+  .passport .ph-stats b { color: var(--red); }
   .passport .ph-sec {
     display: flex; align-items: baseline; gap: 6px;
-    font-size: 11px; font-weight: 800; letter-spacing: 3px; color: #a89468;
-    margin: 11px 0 6px; padding-bottom: 3px; border-bottom: 1.5px dashed #d8cba9;
+    font-size: 11px; font-weight: 800; letter-spacing: 3px; color: var(--faint);
+    margin: 13px 0 8px; padding-bottom: 3px; border-bottom: 1.5px dashed var(--line-dash);
   }
-  .passport .ph-sec b { color: #2a4a73; letter-spacing: 0; }
-  .passport .ph-stamps { display: flex; flex-wrap: wrap; gap: 8px 7px; } /* 留給完乘章外圈細框的呼吸空間 */
-  .passport .stamp {
-    display: inline-flex; align-items: center; white-space: nowrap; /* 章不在內部斷行 */
-    font-size: 12px; font-weight: 600; color: #a89468; cursor: pointer;
-    background: #f7f0dd; border: 1.5px dashed #c9b98f; border-radius: 5px; padding: 3px 9px;
+  .passport .ph-sec b { color: var(--navy); letter-spacing: 0; }
+  .passport .ph-stamps { display: flex; flex-wrap: wrap; gap: 10px 10px; align-items: flex-start; }
+  /* 印章(.seal):圓章 52px、框 2.5、旋 -8°;得章=印泥紅、成就=金、未得=虛線灰不旋轉可點重播 */
+  .seal {
+    width: 56px; height: 56px; border-radius: 50%; border: 2.5px solid var(--red); color: var(--red);
+    display: inline-flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px;
+    transform: rotate(-8deg); background: transparent; flex: none; cursor: pointer;
+    text-align: center; overflow: hidden; padding: 3px;
   }
-  .passport .stamp:hover { background: #efe6cc; }
-  /* 完乘章:印泥紅雙框篆刻感,像手蓋的紀念章(不加傾角,整排對齊乾淨) */
-  .passport .stamp.got {
-    color: #b8321f; font-weight: 800; cursor: default;
-    background: #fdf2ec; border: 1.6px solid #cf4a37; border-radius: 6px;
-    outline: 1px solid rgba(207,74,55,.38); outline-offset: 2px;
-    box-shadow: none;
+  .seal b { font-size: 10px; font-weight: 900; letter-spacing: .5px; line-height: 1.2; }
+  .seal small { font-size: 7.5px; font-weight: 700; letter-spacing: .3px; opacity: .85; font-variant-numeric: tabular-nums; }
+  .seal.gold { border-color: var(--gold); color: var(--warn-ink); }
+  html[data-theme=dark] .seal.gold { color: var(--gold); }
+  .seal.na { border-color: var(--line); color: var(--faint); border-style: dashed; transform: rotate(0); }
+  .seal.na small { opacity: .7; }
+  .datestamp {
+    display: inline-block; font-family: var(--mono); font-size: 9px; font-weight: 700;
+    color: var(--navy); border: 1.5px solid var(--navy); border-radius: 3px; padding: 0 5px;
+    transform: rotate(-4deg); opacity: .85; font-variant-numeric: tabular-nums;
   }
-  .passport .stamp.got:hover { background: #fdf2ec; }
-  /* 窄欄(340px)一行擠不下五欄時,起訖站與里程順勢折到次行——不硬截字、不溢出框 */
   .passport .ph-row {
-    display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 8px; font-size: 12.5px; color: #5d5240;
-    padding: 4px 2px; border-top: 1px dashed #ece2c8; font-variant-numeric: tabular-nums;
+    display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 8px; font-size: 12.5px; color: var(--muted);
+    padding: 5px 2px; border-top: 1px dashed var(--line-faint); font-variant-numeric: tabular-nums;
   }
-  .passport .ph-row .d { color: #a89468; flex: none; }
-  .passport .ph-row b { color: #1e2c40; flex: none; min-width: 44px; }
-  .passport .ph-row .k { flex: none; color: #2a4a73; font-weight: 600; }
-  .passport .ph-row .r { flex: 1 1 6em; min-width: 6em; } /* 起訖站佔剩餘寬,放不下就整段折行,不截字 */
-  .passport .ph-row .km { flex: none; margin-left: auto; color: #8a7c62; }
-  .passport .ph-empty { font-size: 12.5px; color: #8a7c62; }
-  .passport .stamp.na { cursor: help; filter: grayscale(.85); } /* 成就徽章不可點,滑過看解鎖條件;未解鎖連 emoji 一起褪色 */
-  /* 成就徽章(金)與完乘章(紅)兩家族區隔 */
-  .passport .stamp.na.got {
-    color: #7c5a10; background: #fff6df; border-color: #c79a2b;
-    outline-color: rgba(199,154,43,.5); filter: none;
-  }
+  .passport .ph-row .d { color: var(--faint); flex: none; font-family: var(--mono); font-size: 11px; }
+  .passport .ph-row b { color: var(--ink-strong); flex: none; min-width: 44px; }
+  .passport .ph-row .k { flex: none; color: var(--navy); font-weight: 600; }
+  .passport .ph-row .r { flex: 1 1 6em; min-width: 6em; }
+  .passport .ph-row .km { flex: none; margin-left: auto; color: var(--faint); }
+  .passport .ph-empty { font-size: 12.5px; color: var(--faint); }
 
-  /* ── 營運通阻公告橫幅(TDX Alert,颱風停駛等):右上角常駐,點開看官方公告全文 ── */
+  /* ── 營運通阻公告橫幅(TDX Alert):琥珀警示卡,點開看官方公告全文 ── */
   .alert-banner {
     position: absolute; top: 12px; right: 12px; z-index: 705;
     max-width: min(440px, 46%);
     display: flex; align-items: baseline; gap: 7px;
-    background: #d23c2a; color: #fff8ec;
-    border: 2px solid #a92c1d; border-radius: 8px;
-    box-shadow: 0 2px 0 rgba(169,44,29,.4);
-    padding: 6px 12px 7px; font-size: 13px; font-weight: 700; cursor: pointer;
+    background: var(--warn-bg); color: var(--warn-ink);
+    border: 1.5px solid var(--warn-line); border-radius: var(--r-m);
+    padding: 6px 12px 7px; font-size: 12.5px; font-weight: 700; cursor: pointer;
   }
   .alert-banner .ab-title { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .alert-banner .ab-more { flex: none; font-size: 11px; font-weight: 600; opacity: .9; white-space: nowrap; }
   .alert-detail {
     position: absolute; top: 52px; right: 12px; z-index: 706;
     width: min(440px, calc(100% - 24px)); max-height: 60%; overflow-y: auto;
-    scrollbar-width: thin; scrollbar-color: #c9b98f transparent;
-    background: #fffdf6; border: 2px solid #a92c1d; border-radius: 10px;
-    box-shadow: 0 3px 0 rgba(169,44,29,.3);
-    padding: 11px 14px; font-size: 12.5px; color: #3a3226; line-height: 1.6;
+    scrollbar-width: thin; scrollbar-color: var(--line) transparent;
+    background: var(--paper); border: 2px solid var(--warn-line); border-radius: 10px;
+    box-shadow: 0 3px 0 rgba(163,100,26,.25);
+    padding: 11px 14px; font-size: 12.5px; color: var(--ink); line-height: 1.6;
   }
-  .alert-detail .ad-row { padding: 7px 0; border-top: 1.5px dashed #e8d5c0; }
+  .alert-detail .ad-row { padding: 7px 0; border-top: 1.5px dashed var(--line-dash); }
   .alert-detail .ad-row:first-child { border-top: 0; padding-top: 0; }
-  .alert-detail .ad-row b { color: #a92c1d; }
-  .alert-detail .ad-time { color: #a89468; font-size: 11.5px; }
-  .alert-detail .ad-src { margin-top: 8px; padding-top: 6px; border-top: 1.5px dashed #e8d5c0; color: #a89468; font-size: 11px; }
-  body.fs .alert-banner { right: 60px; }
-  body.fs .alert-detail { right: 60px; }
-  /* 公告橫幅開著時:同側的看板退到橫幅下方,不再互疊(橫幅隱藏時看板回到頂緣) */
+  .alert-detail .ad-row b { color: var(--warn-ink); }
+  .alert-detail .ad-time { color: var(--faint); font-size: 11.5px; }
+  .alert-detail .ad-src { margin-top: 8px; padding-top: 6px; border-top: 1.5px dashed var(--line-dash); color: var(--faint); font-size: 11px; }
+  /* 公告橫幅開著時:同側的看板退到橫幅下方,不再互疊 */
   .alert-banner:not([hidden]) ~ .board { top: 54px; max-height: calc(100% - 216px); }
   /* 跟隨面板的通阻警示列(跟隨中的車行經公告影響路線時顯示) */
   .follow-panel .fp-alert {
     margin-top: 7px; padding: 5px 8px;
-    background: #fbe9df; border: 1.5px solid #e0a37e; border-radius: 5px;
-    color: #b4552a; font-size: 12px; font-weight: 700; line-height: 1.45;
+    background: var(--warn-bg); border: 1.5px solid var(--warn-line); border-radius: 5px;
+    color: var(--warn-ink); font-size: 12px; font-weight: 700; line-height: 1.45;
   }
 
-  /* ── 收集通知(toast):地圖上方置中彈出後自動消失,一般/全畫面/放空都看得到 ── */
+  /* ── 收集通知(toast):金框紙卡,自動消失 ── */
   .toasts {
     position: absolute; top: 12px; left: 50%; transform: translateX(-50%); z-index: 720;
     display: flex; flex-direction: column; align-items: center; gap: 8px;
     pointer-events: none; max-width: calc(100% - 24px);
   }
   .toast {
-    background: #fffdf6; border: 2px solid #d2a12a; border-radius: 10px;
+    background: var(--paper); border: 1.5px solid var(--gold); border-radius: 10px;
     box-shadow: 0 3px 0 rgba(163,100,26,.3);
-    padding: 9px 18px; font-size: 14px; font-weight: 700; color: #1e2c40;
+    padding: 9px 18px; font-size: 14px; font-weight: 700; color: var(--ink);
     white-space: nowrap; max-width: 100%; overflow: hidden; text-overflow: ellipsis;
     opacity: 0; transform: translateY(-10px); transition: opacity .4s ease, transform .4s ease;
   }
   .toast.show { opacity: 1; transform: none; }
-  .toast b { color: #a3641a; }
+  .toast b { color: var(--ink-strong); }
 
   /* 全畫面模式 */
   body.fs { overflow: hidden; }
@@ -728,46 +774,25 @@
     height: 100vh; max-height: none; min-height: 0;
     border: 0; border-radius: 0;
   }
-  /* 全畫面時:控制列浮在底部中央、資訊卡浮在右下、工具鈕移右上、面板讓出高度 */
-  body.fs .controls {
-    position: fixed; left: 50%; bottom: 12px; transform: translateX(-50%);
-    z-index: 1001; margin: 0; width: max-content; max-width: calc(100vw - 20px);
-    background: rgba(255,253,246,.96); border: 2px solid #2a4a73; border-radius: 10px;
-    padding: 7px 12px; gap: 8px 10px;
-    box-shadow: 0 3px 0 rgba(42,74,115,.22);
-  }
-  /* 全畫面控制列瘦身:壓成一排,音樂不落到第二排(速度/時間字樣藏起,預設倍速鈕縮小保留) */
-  body.fs .controls button.pp { font-size: 12.5px; padding: 5px 9px; gap: 4px; }
-  body.fs .controls .ctl { gap: 6px; }
-  body.fs .controls .ctl label { display: none; }
-  body.fs .controls .ctl output { font-size: 12px; min-width: 36px; }
-  body.fs .controls input[type=range] { width: 88px; }
-  body.fs .controls .spd-btns { gap: 3px; }
-  body.fs .controls .spd-btns button { font-size: 11px; padding: 3px 6px; }
-  body.fs .controls #musicVol { width: 64px; }
   /* 全畫面跟隨:資訊卡塞進左下跟隨面板,合併成一張可收放的卡(placeTrainCard 搬 DOM) */
-  body.fs .follow-panel { bottom: 12px; width: 300px; max-height: calc(100vh - 90px); }
-  body.fs .follow-panel.fp-min { width: auto; } /* 收合膠囊不吃 fs 的 300px 固定寬 */
+  body.fs .follow-panel { width: 300px; max-height: calc(100vh - 160px); }
+  body.fs .follow-panel.fp-min { width: auto; }
   body.fs .follow-panel .traincard {
     position: static; width: auto; margin: 9px -13px -11px; padding: 9px 13px 10px;
-    border: 0; border-top: 1.5px dashed #d8cba9; border-radius: 0; box-shadow: none;
+    border: 0; border-top: 1.5px dashed var(--line-dash); border-radius: 0; box-shadow: none;
     max-height: none;
   }
-  /* 合併卡:車號/車種/起訖都跟上方跟隨面板重複,只留收放鈕列 */
   body.fs .follow-panel .tc-route,
   body.fs .follow-panel .tc-head .dot,
   body.fs .follow-panel .tc-no,
   body.fs .follow-panel .tc-kind { display: none; }
   body.fs .follow-panel .tc-body { grid-template-columns: 1fr; height: auto; gap: 7px; }
-  body.fs .follow-panel .tc-events { border-left: 0; padding-left: 0; } /* 單欄合併卡不需直向分界線 */
-  /* 介紹依內容展開不出捲軸(同一般模式的卡);旅程日誌維持固定高的滾動記錄區(超出要能捲,否則會蓋到下方速度曲線) */
+  body.fs .follow-panel .tc-events { border-left: 0; padding-left: 0; }
   body.fs .follow-panel .tc-events #tcEvents { flex: none; height: 88px; overflow-y: auto; overflow-x: hidden; }
-  body.fs .stage-tools { top: 12px; bottom: auto; flex-direction: column; }
-  body.fs .board { right: 60px; }
-  body.fs .kbd-hint, body.fs .flow, body.fs .search, body.fs .favs, body.fs .lines, body.fs .note, body.fs .passport, body.fs .site-foot { display: none; }
+  body.fs .kbd-hint, body.fs .flow, body.fs .search, body.fs .note, body.fs .passport, body.fs .site-foot { display: none; }
   /* 放空模式:閒置 5 秒淡出控制,滑鼠動了淡回(時鐘與跟隨面板留著) */
-  .controls, .stage-tools, .leaflet-control-container, #randBtn, #fsFab { transition: opacity .7s; }
-  body.idle .controls, body.idle .stage-tools, body.idle .leaflet-control-container, body.idle #randBtn, body.idle #fsFab { opacity: 0; pointer-events: none; }
+  .controls, .leaflet-control-container, #randBtn, #fsFab, .tabbar { transition: opacity .7s; }
+  body.idle .controls, body.idle .leaflet-control-container, body.idle #randBtn, body.idle #fsFab, body.idle .tabbar { opacity: 0; pointer-events: none; }
   body.idle .stage, body.idle * { cursor: none; }
   #overlay { position: absolute; inset: 0; pointer-events: none; z-index: 500; }
   /* 放空模式的日夜天色(依模擬時刻連續變化,墊在轉場遮罩下) */
@@ -779,37 +804,36 @@
     opacity: 0; pointer-events: none; transition: opacity .7s ease;
   }
 
-  /* 極簡沉浸(全畫面/放空可切):收掉左下資訊卡與跟隨橫幅,只留地圖＋列車＋時鐘,仍持續跟車 */
+  /* 極簡沉浸(全畫面/放空可切):收掉左下資訊卡與跟隨橫幅,只留地圖＋列車＋時鐘 */
   body.fs.immersive .follow-panel,
   body.fs.immersive .followbar { display: none !important; }
-  /* 沉浸鈕只在全畫面時才有意義 */
   #immBtn { display: none; }
   body.fs #immBtn { display: flex; }
-  /* 放空視角切換鈕只在放空模式中才有意義 */
   #ambientStyleBtn { display: none; }
-  body.ambient #ambientStyleBtn { display: flex; }
+  body.ambient #ambientStyleBtn { display: inline-flex; }
 
-  /* ── 直播模式(?live=1,OBS 訊號源):隱藏一切互動 UI,留時鐘徽章/attribution/曲名/浮水印 ── */
-  body.live .controls, body.live .stage-tools, body.live #randBtn,
+  /* ── 直播模式(?live=1,OBS 訊號源):隱藏一切互動 UI,留時鐘徽章/attribution/浮水印 ── */
+  body.live .controls, body.live #randBtn,
   body.live .rec-pill, body.live .rec-toast, body.live .leaflet-control-zoom,
-  body.live .follow-lock-ctl, body.live .citysel, body.live #fsFab { display: none !important; }
-  body.live .leaflet-control-container { opacity: 1 !important; } /* 閒置淡出不得帶走底圖 attribution(CARTO/OSM 授權要求) */
+  body.live .follow-lock-ctl, body.live .citysel, body.live #fsFab, body.live .tabbar { display: none !important; }
+  body.live .leaflet-control-container { opacity: 1 !important; }
+  body.live .leaflet-bottom.leaflet-right { bottom: 0; }
   .live-hud { position: absolute; top: 64px; left: 12px; z-index: 600; pointer-events: none; display: flex; flex-direction: column; align-items: flex-start; gap: 5px; }
-  .live-hud[hidden] { display: none; } /* flex 會蓋掉 hidden 的預設 display:none,補回 */
+  .live-hud[hidden] { display: none; }
   .live-wm { font-size: 11.5px; font-weight: 800; letter-spacing: .8px; color: rgba(30,44,64,.55); padding-left: 2px; }
-  .badge .replay { font-size: 11px; font-weight: 800; color: #d23c2a; letter-spacing: .5px; }
+  html[data-theme=dark] .live-wm { color: rgba(236,240,248,.5); }
+  .badge .replay { font-size: 11px; font-weight: 900; color: #fffdf6; background: var(--red); border-radius: 3px; padding: 0 5px; letter-spacing: .5px; }
 
-  /* 直播訊號資訊欄放大(僅 body.live,不影響一般訪客):OBS 常見輸出畫布 1920×1080,
-     桌機瀏覽器尺寸的字級在整片畫布裡顯得很小——統一放大到約原尺寸 2.3 倍(比照廣播圖文尺度) */
+  /* 直播訊號資訊欄放大(僅 body.live):1080p 實尺——時鐘 46/LIVE 22/REPLAY 20/浮水印 24/attribution 16 */
   body.live .badge { padding: 14px 26px 15px; gap: 18px; }
   body.live .badge .clock { font-size: 46px; }
   body.live .badge .peak { font-size: 20px; padding: 4px 14px; }
   body.live .badge .count { font-size: 20px; }
-  body.live .badge .live, body.live .badge .replay { font-size: 18px; }
-  body.live .live-hud { top: 118px; gap: 10px; } /* 時鐘儀表放大變高,原 64px 會疊到儀表上,下移讓開 */
-  body.live .live-wm { font-size: 20px; }
-  /* 站名牌改置頂置中(不與左上時鐘儀表同欄堆疊)——一般站左靠儀表下方是刻意設計(避免壓到常置中的跟隨列車),
-     直播固定俯瞰/跟車鏡頭較寬,置中更醒目也不擋時鐘,故僅 body.live 覆寫定位,不動一般站規則 */
+  body.live .badge .live, body.live .badge .mlive { font-size: 22px; }
+  body.live .badge .replay { font-size: 20px; }
+  body.live .live-hud { top: 118px; gap: 10px; }
+  body.live .live-wm { font-size: 24px; }
+  body.live .leaflet-control-attribution { font-size: 16px; }
   body.live .dwell-plate {
     min-width: 460px; left: 50%; top: 20px;
     transform: translateX(-50%) translateY(-5px);
@@ -822,7 +846,7 @@
   body.live .dwell-plate .side { font-size: 19px; }
   body.live .dwell-plate .side .arr { font-size: 17px; }
   body.live .dwell-plate .side .km { font-size: 16px; }
-  body.live .follow-panel { width: 400px; }
+  body.live .follow-panel { width: 400px; bottom: 12px; }
   body.live .follow-panel .fp-head b { font-size: 25px; }
   body.live .follow-panel .fp-head .kind { font-size: 19px; }
   body.live .follow-panel .fp-head .spd { font-size: 18px; }
@@ -833,474 +857,451 @@
   body.live .follow-panel .fp-prog .txt { font-size: 17px; }
   body.live .follow-panel .fp-dest { font-size: 18px; }
   body.live .follow-panel .fp-status { font-size: 19px; }
-  body.live .freq-card { width: 340px; }
+  body.live .freq-card { width: 340px; bottom: 12px; }
   body.live .freq-card .fc-head b { font-size: 24px; }
   body.live .freq-card .fc-dir { font-size: 18px; }
   body.live .freq-card .fc-next .lbl { font-size: 17px; }
   body.live .freq-card .fc-next .stn { font-size: 25px; }
 
-  /* 隨機跟隨升格為地圖膠囊鈕:原本擠在工具條裡(手機還要開抽屜)沒人發現,
-     改成地圖下緣常駐置中膠囊,紙卡風沿用 .stage-tools 同色系 */
+  /* 隨機跟隨:地圖下緣常駐置中膠囊(站台帶上方) */
   #randBtn {
-    position: absolute; left: 50%; bottom: 14px; transform: translateX(-50%); z-index: 620;
+    position: absolute; left: 50%; bottom: 86px; transform: translateX(-50%); z-index: 620;
     font: inherit; font-size: 14.5px; font-weight: 700; cursor: pointer;
-    background: #fffdf6; color: #2a4a73;
-    border: 1.5px solid #c9b98f; border-radius: 999px;
-    box-shadow: 0 2px 0 #c9b98f; padding: 8px 18px;
-    display: inline-flex; align-items: center; gap: 6px; /* shuffle 圖示與文字並排 */
-    transition: opacity .7s, transform .15s; /* opacity 與 623 行閒置淡出選擇器同值,合併宣告避免 transition 被覆蓋 */
+    background: var(--paper); color: var(--navy);
+    border: 1.5px solid var(--line); border-radius: var(--r-pill);
+    box-shadow: var(--shadow-1); padding: 8px 18px;
+    display: inline-flex; align-items: center; gap: 6px;
+    transition: opacity .7s, transform .15s;
   }
-  #randBtn[hidden] { display: none; } /* inline-flex 會蓋掉 hidden 屬性的預設 display:none,補回 */
+  #randBtn[hidden] { display: none; }
   #randBtn:hover { transform: translateX(-50%) translateY(-1px); }
   #randBtn.active {
-    background: #d23c2a; color: #fff8ec;
-    border-color: #a92c1d; box-shadow: 0 2px 0 #a92c1d;
+    background: var(--red); color: #fff8ec;
+    border-color: var(--red-deep); box-shadow: var(--shadow-red);
   }
-  #randBtn.active:hover { background: #c0341f; }
-  /* 放空模式保留隨機鈕(換一班好用),閒置淡出交給 644 行的 body.idle 規則 */
-  body.fs.immersive:not(.ambient) #randBtn { display: none !important; } /* 極簡沉浸:只留地圖+列車+時鐘;放空中例外保留隨機換車鈕(閒置淡出照舊) */
-  /* 全畫面貼底控制列上方,讓開控制列——641~865px 這段控制列會換行變 89px 高(比 52px 單行高),
-     取兩者皆安全的值(寬度掃描實測校正,不能只抄單行高度算出的值) */
-  body.fs #randBtn { bottom: 111px; }
+  body.fs.immersive:not(.ambient) #randBtn { display: none !important; }
 
   /* ── HUD 小牌 ── */
-  /* 時鐘徽章降為「儀表」層級:淡框淡影,不與內容面板(藏青框)搜眼 */
   .badge {
     position: absolute; top: 12px; left: 12px; z-index: 600;
     display: flex; gap: 10px; align-items: baseline;
     font-variant-numeric: tabular-nums; pointer-events: none;
-    background: #fffdf6; border: 1.5px solid #c9b98f; border-radius: 8px;
+    background: var(--paper); border: 1.5px solid var(--line); border-radius: var(--r-m);
     padding: 5px 12px 6px;
-    box-shadow: 0 2px 0 #c9b98f;
+    box-shadow: var(--shadow-1);
   }
-  .badge .clock { font-size: 20px; font-weight: 900; color: #1e2c40; }
+  .badge .clock { font-size: 20px; font-weight: 900; color: var(--ink-strong); }
   .badge .peak { font-size: 12px; font-weight: 800; padding: 2px 9px; border-radius: 3px; }
-  .badge .count { font-size: 13px; color: #7a6c50; font-weight: 600; }
-  .foot-links .ver { margin-left: auto; align-self: center; font-size: 11px; color: #b3a37e; font-weight: 600; letter-spacing: .5px; }
-  .badge .live { font-size: 11px; font-weight: 800; color: #1d9e55; letter-spacing: .5px; cursor: help; }
+  .badge .count { font-size: 13px; color: var(--faint); font-weight: 600; }
+  .foot-links .ver { margin-left: auto; align-self: center; font-size: 11px; color: var(--faint); font-weight: 600; letter-spacing: .5px; }
+  .badge .live { font-size: 11px; font-weight: 800; color: var(--ok); letter-spacing: .5px; cursor: help; }
   .badge .live::before { content: '●'; margin-right: 3px; animation: livePulse 2s infinite; }
   .badge .mlive { font-size: 11px; font-weight: 800; color: #0f7fa8; letter-spacing: .5px; cursor: help; }
   .badge .mlive::before { content: '●'; margin-right: 3px; animation: livePulse 2s infinite; }
   @keyframes livePulse { 0%, 100% { opacity: 1; } 50% { opacity: .35; } }
   .lateTag {
-    color: #b8321f; font-weight: 800; font-size: 10.5px; margin-left: 4px;
-    background: #fbe9df; border: 1px solid #e0a37e; border-radius: 3px;
+    color: var(--warn-ink); font-weight: 800; font-size: 10.5px; margin-left: 4px;
+    background: var(--warn-bg); border: 1px solid var(--warn-line); border-radius: 3px;
     padding: 0 4px 1px; white-space: nowrap;
   }
 
-  /* ── 控制列 ── */
-  /* 控制台:收進一張紙牌,與地圖下緣對齊錨住整排滑杆與按鈕 */
-  .controls {
-    display: flex; flex-wrap: wrap; gap: 14px 22px;
-    align-items: center; margin: 16px 2px 0;
-    background: #fffdf6; border: 2px solid #c9b98f; border-radius: 10px;
-    padding: 11px 14px; box-shadow: 0 3px 0 #d8c9a3;
+  /* ── 車站時刻板(及其他共用外觀的面板:最愛/旅程/探索/軌道與路線——面板家族統一骨架) ── */
+  .board {
+    position: absolute; top: 12px; right: 12px; z-index: 650;
+    width: 280px; max-height: calc(100% - 176px); overflow-y: auto;
+    background: var(--paper-tr); border: 2px solid var(--navy); border-radius: 10px;
+    padding: 0 14px 12px;
+    box-shadow: var(--shadow-navy);
+    scrollbar-width: thin; scrollbar-color: var(--line) transparent;
   }
-  .ctl { display: flex; align-items: center; gap: 10px; }
-  .ctl label { font-size: 13px; color: #7a6c50; font-weight: 600; white-space: nowrap; }
-  .ctl output { font-size: 13px; font-weight: 800; min-width: 48px; color: #1e2c40; }
-  /* 點時間讀數直接指定時刻:透明 time input 疊在讀數上,手機點開原生滾輪、桌面聚焦後現形可打字 */
-  .tod-wrap { position: relative; display: inline-flex; }
-  .tod-wrap input[type=time] {
-    position: absolute; inset: 0; width: 100%; height: 100%; box-sizing: border-box;
-    opacity: 0; border: 0; padding: 0; margin: 0; cursor: pointer; font: inherit;
+  .board h3 {
+    margin: 0 -14px 7px; padding: 8px 34px 7px 14px;
+    font-size: 14px; font-weight: 900; letter-spacing: 3px;
+    background: var(--navy); color: var(--on-navy); border-radius: 7px 7px 0 0;
+    position: sticky; top: 0; z-index: 1;
   }
-  .tod-wrap:focus-within output { display: none; }
-  .tod-wrap:focus-within input[type=time] {
-    position: static; opacity: 1; width: auto; min-width: 74px;
-    background: #fffdf6; border: 1.5px solid #2a4a73; border-radius: 6px;
-    font-size: 13px; font-weight: 800; color: #1e2c40; text-align: center; padding: 1px 4px;
+  .board .sub { color: var(--faint); font-size: 11px; margin-bottom: 7px; }
+  .board .row { display: flex; align-items: baseline; gap: 8px; padding: 6px 0; border-top: 1px dashed var(--line-faint); font-size: 13px; }
+  .board .row:first-of-type { border-top: 0; }
+  .board .row[data-no], .board .row[data-rand], .board .row[data-li] { cursor: pointer; }
+  .board .row[data-no]:hover, .board .row[data-rand]:hover, .board .row[data-li]:hover { background: var(--bg-stage); }
+  .board .row b { color: var(--ink-strong); }
+  .board .row .dot { width: 8px; height: 8px; border-radius: 50%; flex: none; align-self: center; }
+  .board .row .dest { flex: 1; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .board .row .t, .board .row .min { font-variant-numeric: tabular-nums; }
+  .board .row .t { font-weight: 800; color: var(--ink-strong); }
+  .board .row .min { color: var(--navy); font-weight: 700; min-width: 44px; text-align: right; }
+  .board .close { position: absolute; top: 8px; right: 9px; z-index: 2; background: none; border: 0; color: var(--on-navy); opacity: .8; font-size: 17px; cursor: pointer; line-height: 1; }
+  .board .close:hover { opacity: 1; }
+  .board .empty { color: var(--faint); font-size: 13px; padding: 8px 0; }
+  .board .stnMeta { margin: 1px 0 8px; padding-bottom: 8px; border-bottom: 1.5px dashed var(--line-dash); }
+  .board .stnMeta .addr { font-size: 12px; color: var(--muted); line-height: 1.5; }
+  .board .stnMeta .feat { font-size: 12px; color: var(--muted); line-height: 1.5; margin-top: 3px; }
+  .board .stnMeta .mapLink {
+    display: inline-flex; align-items: center; gap: 3px; margin-top: 6px;
+    font-size: 12px; font-weight: 700; color: var(--navy); text-decoration: none;
   }
-  #todOut { text-decoration: underline dotted #8896ad; text-underline-offset: 3px; cursor: pointer; }
-  input[type=range] { accent-color: #d23c2a; width: 150px; }
-  button.pp {
-    font: inherit; font-size: 14px; font-weight: 700; cursor: pointer;
-    background: #fffdf6; color: #2a4a73;
-    border: 1.5px solid #c9b98f; border-radius: 6px;
-    padding: 7px 14px; display: inline-flex; align-items: center; gap: 6px;
-    box-shadow: 0 2px 0 #c9b98f;
+  .board .stnMeta .mapLink:hover { text-decoration: underline; }
+  .board .sec {
+    color: var(--faint); font-size: 11px; font-weight: 800; letter-spacing: 3px;
+    margin: 10px 0 1px; padding-bottom: 3px; border-bottom: 1.5px dashed var(--line-dash);
   }
-  button.pp:hover { background: #f7f0dd; }
-  button.pp.on {
-    background: #2a4a73; color: #fffdf6;
-    border-color: #1e2c40; box-shadow: 0 2px 0 #1e2c40;
-  }
-  button.pp.on:hover { background: #34567f; }
-  #musicCtl { gap: 8px; }
-  #musicVol { width: 96px; }
-  /* 音樂鈕:是否「真的在放」一眼可辨——播放中紅底＋跳動音量條;沒在放(含偏好開著但被瀏覽器擋自動播放)一律灰調 */
-  #musicBtn.playing {
-    background: #d23c2a; color: #fff8ec;
-    border-color: #a92c1d; box-shadow: 0 2px 0 #a92c1d;
-  }
-  #musicBtn.playing:hover { background: #c0341f; }
-  #musicBtn:not(.playing) { color: #8a7c62; }
-  .eq { display: inline-flex; align-items: flex-end; gap: 2px; height: 12px; }
-  .eq i { width: 3px; border-radius: 1px; background: currentColor; animation: eqb 1s ease-in-out infinite; }
-  .eq i:nth-child(2) { animation-delay: .25s; }
-  .eq i:nth-child(3) { animation-delay: .5s; }
-  @keyframes eqb { 0%, 100% { height: 4px; } 50% { height: 12px; } }
-  /* 停播:等化器留在原位凍結(不佔位變化=鈕寬不跳動),條子壓底、淡出存在感 */
-  #musicBtn:not(.playing) .eq i { animation: none; height: 4px; opacity: .45; }
-  #musicNextBtn { padding: 7px 10px; }
-  .spd-btns { display: flex; gap: 4px; }
-  .spd-btns button {
-    font: inherit; font-size: 12px; font-weight: 700; cursor: pointer;
-    background: #fffdf6; color: #2a4a73;
-    border: 1.5px solid #c9b98f; border-radius: 5px; padding: 4px 8px;
-    box-shadow: 0 1.5px 0 #c9b98f;
-  }
-  .spd-btns button:hover { background: #f7f0dd; }
-  .spd-btns button.active {
-    background: #2a4a73; color: #fffdf6;
-    border-color: #1e2c40; box-shadow: 0 1.5px 0 #1e2c40;
-  }
-  .kbd-hint { margin: 8px 2px 0; color: #a89468; font-size: 12px; line-height: 1.9; }
-  .kbd-hint b {
-    color: #7a6c50; font-weight: 700; background: #e6d9ba;
-    border: 1px solid #c9b98f; border-radius: 4px; padding: 0 5px; margin: 0 2px;
+  #favPanel .row.fv { cursor: pointer; }
+  #favPanel .row.fv:hover { background: var(--bg-stage); }
+  #favPanel .row .rm { margin-left: auto; color: var(--faint); font-weight: 700; padding: 0 4px; }
+  #favPanel .row .rm:hover { color: var(--red); }
+  .board .ride-stats { font-size: 12.5px; color: var(--muted); margin: 2px 0 6px; }
+  .board .ride-stats b { color: var(--red); font-variant-numeric: tabular-nums; }
+  .board .ride-kinds { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 7px; }
+  .board .kindchip {
+    font-size: 10.5px; font-weight: 700; color: var(--navy);
+    background: var(--bg-stage); border: 1px solid var(--line); border-radius: 4px; padding: 1px 6px;
   }
 
-  /* ── 圖例票根 ── */
-  .lines { display: flex; flex-wrap: wrap; gap: 8px; margin: 16px 2px 0; }
+  /* ── 軌道與路線面板(「軌」告示卡:軌道顯示三段+車種/路線篩選——側欄取消後的新家) ── */
+  .track-panel .seg-row {
+    display: flex; justify-content: space-between; align-items: center; gap: 10px;
+    padding: 4px 0 9px; font-size: 13px; font-weight: 700; color: var(--ink);
+  }
+  .seg { display: inline-flex; border: 1px solid var(--line); border-radius: 6px; overflow: hidden; }
+  .seg button {
+    font: inherit; font-size: 11.5px; color: var(--muted); background: none; border: 0;
+    padding: 4px 12px; cursor: pointer; border-left: 1px solid var(--line);
+  }
+  .seg button:first-child { border-left: 0; }
+  .seg button.on { font-weight: 800; color: var(--on-navy); background: var(--navy); }
+  .toggle {
+    width: 34px; height: 19px; border-radius: var(--r-pill); background: var(--line-faint);
+    border: 1px solid var(--line); position: relative; cursor: pointer; flex: none; padding: 0;
+  }
+  .toggle::after {
+    content: ""; position: absolute; left: 2px; top: 1.5px; width: 13px; height: 13px;
+    border-radius: 50%; background: var(--paper); border: 1px solid var(--line);
+  }
+  .toggle.on { background: var(--navy); border-color: var(--navy); }
+  .toggle.on::after { left: auto; right: 2px; border-color: transparent; background: #fffdf6; }
+
+  /* ── 圖例票根(車種/路線篩選 chips,在軌道面板內) ── */
+  .lines { display: flex; flex-wrap: wrap; gap: 7px; margin: 4px 0 0; }
   .chip {
-    display: inline-flex; align-items: center; gap: 7px;
-    font-size: 12.5px; padding: 5px 12px 5px 8px; border-radius: 4px;
-    border: 1.5px solid #c9b98f; background: #e6d9ba; cursor: pointer;
-    user-select: none; transition: opacity .15s; color: #3a3226;
+    display: inline-flex; align-items: center; gap: 6px;
+    font-size: 12.5px; font-weight: 700; padding: 4px 10px; border-radius: var(--r-s);
+    border: 1.5px solid var(--line); background: var(--paper); cursor: pointer;
+    user-select: none; transition: opacity .15s; color: var(--ink); min-height: 30px;
   }
-  .chip::before {
-    content: ''; width: 6px; height: 6px; border-radius: 50%;
-    background: #2a4a73; border: 1px solid #2a4a73; flex: none;
-    transition: background .15s, border-color .15s;
-  }
-  .chip.off::before { background: transparent; border-color: #a89468; } /* 打洞未劃記=關閉 */
-  .chip .dot { width: 11px; height: 11px; border-radius: 50%; }
-  .chip.off { opacity: .38; }
+  .chip:hover { background: var(--bg-stage); }
+  .chip .dot { width: 9px; height: 9px; border-radius: 50%; flex: none; }
+  .chip.off { opacity: .45; text-decoration: line-through; }
   .legend-sep { flex-basis: 100%; height: 0; }
   .legend-lbl {
-    flex-basis: 100%; color: #a89468; font-size: 11px; font-weight: 800;
+    flex-basis: 100%; color: var(--faint); font-size: 11px; font-weight: 800;
     letter-spacing: 3px; margin: 8px 2px -2px;
-    padding-bottom: 3px; border-bottom: 1.5px dashed #d8cba9;
+    padding-bottom: 3px; border-bottom: 1.5px dashed var(--line-dash);
   }
-  /* 鐵道路線區可收合(同旅程收集):點標題切換,收起時該區票根全藏 */
   .legend-lbl.tgl { cursor: pointer; user-select: none; }
   .legend-lbl.tgl .arr { letter-spacing: 0; margin-left: 6px; font-weight: 600; }
   .lines.routes-closed .chip.rt { display: none; }
-  .note { margin: 22px 2px 0; color: #8a7c62; font-size: 13px; line-height: 1.6; }
+  .note { margin: 22px 2px 0; color: var(--faint); font-size: 13px; line-height: 1.6; }
 
-  /* ── 頁尾:更新紀錄/資料來源/回報連結/抖內(收合式,參考防災手冊的做法) ── */
+  /* ── 首訪「怎麼玩」卡(僅首次,localStorage 記憶) ── */
+  .howto-wrap { position: absolute; inset: 0; z-index: 800; background: rgba(30,44,64,.34); display: grid; place-items: start center; padding: 56px 16px 16px; }
+  .howto {
+    width: min(400px, 100%); background: var(--paper); border: 1.5px solid var(--line);
+    border-radius: var(--r-l); box-shadow: var(--shadow-1);
+  }
+  .howto .hw-head { padding: 16px 18px 6px; text-align: center; }
+  .howto .hw-head .lbl { font-size: 11px; font-weight: 800; letter-spacing: 3px; color: var(--faint); }
+  .howto .hw-head .ttl { font-size: 20px; font-weight: 900; letter-spacing: 4px; color: var(--plate-ink); margin-top: 2px; }
+  .howto .hw-rows { padding: 8px 18px 4px; display: flex; flex-direction: column; gap: 11px; }
+  .howto .hw-row { display: flex; gap: 11px; align-items: center; font-size: 13px; color: var(--ink); }
+  .howto .hw-row .ic { flex: none; width: 30px; display: flex; justify-content: center; }
+  .howto .hw-foot { padding: 12px 18px 16px; display: flex; align-items: center; gap: 12px; }
+  .howto .hw-go {
+    flex: 1; font: inherit; font-size: 14px; font-weight: 800; cursor: pointer;
+    color: #fffdf6; background: var(--red); border: 1.5px solid var(--red-deep);
+    border-radius: var(--r-pill); box-shadow: var(--shadow-red); padding: 9px 16px; min-height: 42px;
+  }
+  .howto .hw-skip { font-size: 11px; color: var(--faint); text-decoration: underline; cursor: pointer; background: none; border: 0; font-family: inherit; }
+  .hw-tag { font-size: 10.5px; font-weight: 800; color: #fff; border-radius: var(--r-s); padding: 1px 7px; background: #c0392b; }
+  .hw-stnbox { width: 26px; height: 17px; border: 2px solid var(--red); border-radius: 4px; display: flex; align-items: center; justify-content: center; }
+  .hw-stnbox i { width: 5px; height: 5px; border-radius: 50%; background: var(--red); }
+
+  /* ── 頁尾:更新紀錄/資料來源/回報連結/抖內(收合式) ── */
   .site-foot {
     margin: 30px 2px 0; max-width: 760px; display: grid; gap: 10px;
-    border-top: 2px dashed #c9b98f; padding-top: 20px; /* 與正文區分隔的「版尾線」 */
+    border-top: 2px dashed var(--line); padding-top: 20px;
   }
-  .foot-box { background: #f5eedd; border: 1.5px solid #d8c9a3; border-radius: 10px; }
+  .foot-box { background: var(--paper); border: 1.5px solid var(--line); border-radius: 10px; }
   .foot-box summary {
     cursor: pointer; user-select: none; list-style: none;
     display: flex; align-items: center; gap: 10px;
-    padding: 11px 14px; font-size: 14px; font-weight: 700; color: #7a6c50;
+    padding: 11px 14px; font-size: 14px; font-weight: 700; color: var(--muted);
   }
   .foot-box summary::-webkit-details-marker { display: none; }
-  .foot-box summary::after { content: '▾'; margin-left: auto; color: #a89468; font-weight: 400; }
+  .foot-box summary::after { content: '▾'; margin-left: auto; color: var(--faint); font-weight: 400; }
   .foot-box[open] summary::after { content: '▴'; }
-  .foot-box summary:hover { color: #3a3226; }
-  .foot-sub { font-size: 12px; font-weight: 400; color: #a89468; }
+  .foot-box summary:hover { color: var(--ink); }
+  .foot-sub { font-size: 12px; font-weight: 400; color: var(--faint); }
   .foot-list {
     margin: 0; padding: 0 14px 12px; list-style: none;
-    display: grid; gap: 6px; font-size: 13px; color: #8a7c62; line-height: 1.6;
+    display: grid; gap: 6px; font-size: 13px; color: var(--muted); line-height: 1.6;
   }
   .foot-list li { display: flex; gap: 10px; }
-  .foot-list .d { color: #d23c2a; font-weight: 700; flex-shrink: 0; min-width: 34px; }
-  .foot-note { margin: 0; padding: 0 14px 12px; font-size: 12px; color: #a89468; line-height: 1.6; }
+  .foot-list .d { color: var(--red); font-weight: 700; flex-shrink: 0; min-width: 34px; }
+  .foot-note { margin: 0; padding: 0 14px 12px; font-size: 12px; color: var(--faint); line-height: 1.6; }
   .foot-links { display: flex; flex-wrap: wrap; gap: 8px 20px; padding: 0 2px; font-size: 13px; }
-  .foot-links a { color: #2a4a73; text-decoration: none; }
-  .foot-links a:hover { color: #d23c2a; text-decoration: underline; }
+  .foot-links a { color: var(--navy); text-decoration: none; }
+  .foot-links a:hover { color: var(--red); text-decoration: underline; }
   .donate-body { padding: 2px 14px 14px; display: grid; gap: 10px; justify-items: center; text-align: center; }
-  .donate-thanks { margin: 0; font-size: 14px; font-weight: 700; color: #3a3226; }
+  .donate-thanks { margin: 0; font-size: 14px; font-weight: 700; color: var(--ink); }
   .donate-kofi {
     display: block; width: 100%; max-width: 320px; padding: 10px 0;
-    background: #d23c2a; color: #fff8ec !important; font-weight: 700; font-size: 14px;
-    border-radius: 8px; text-decoration: none; box-shadow: 0 2px 0 #a92c1d;
+    background: var(--red); color: #fff8ec !important; font-weight: 700; font-size: 14px;
+    border-radius: 8px; text-decoration: none; box-shadow: var(--shadow-red);
   }
-  .donate-kofi:hover { background: #b8321f; }
-  .donate-bank p { margin: 0 0 6px; font-size: 12px; color: #a89468; }
+  .donate-kofi:hover { opacity: .92; }
+  .donate-bank p { margin: 0 0 6px; font-size: 12px; color: var(--faint); }
   .acct {
     display: inline-flex; align-items: center; gap: 10px;
-    background: #fffdf6; border: 1px solid #d8c9a3; border-radius: 8px; padding: 8px 12px;
-    font-size: 13px; color: #8a7c62;
+    background: var(--paper); border: 1px solid var(--line); border-radius: 8px; padding: 8px 12px;
+    font-size: 13px; color: var(--muted);
   }
-  .acct b { font-family: ui-monospace, "SF Mono", Menlo, monospace; letter-spacing: .5px; color: #3a3226; }
+  .acct b { font-family: var(--mono); letter-spacing: .5px; color: var(--ink); }
   .acct button {
-    font: inherit; font-size: 12px; cursor: pointer; color: #7a6c50;
-    background: #e6d9ba; border: 1px solid #c9b98f; border-radius: 5px; padding: 2px 9px;
+    font: inherit; font-size: 12px; cursor: pointer; color: var(--muted);
+    background: var(--bg-stage); border: 1px solid var(--line); border-radius: 5px; padding: 2px 9px;
   }
-  .acct button:hover { background: #dccb9f; }
+  .acct button:hover { background: var(--line-faint); }
 
-  /* ── 搜尋+跟隨票 ── */
-  .search { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin: 14px 2px 0; }
-  .search input[type=text] {
-    font: inherit; font-size: 14px; background: #fffdf6; color: #3a3226;
-    border: 1.5px solid #c9b98f; border-radius: 6px; padding: 8px 12px; width: 260px; max-width: 100%;
-  }
-  .search input::placeholder { color: #a89468; }
-  .followbar {
-    display: inline-flex; align-items: center; gap: 9px; flex-wrap: wrap; row-gap: 5px; font-size: 13px;
-    background: #e6d9ba; border: 1.5px solid #c9b98f; border-radius: 4px;
-    padding: 6px 13px; color: #3a3226; font-variant-numeric: tabular-nums;
-  }
-  .followbar b { color: #1e2c40; font-size: 14px; }
-  .followbar .dot { width: 9px; height: 9px; border-radius: 50%; }
-  .followbar button {
-    font: inherit; font-size: 12px; font-weight: 700; cursor: pointer;
-    background: #d23c2a; color: #fff8ec;
-    border: 1px solid #a92c1d; border-radius: 4px; padding: 3px 9px;
-    margin-left: auto;
-  }
-  .followbar.miss { background: #fbe9df; border-color: #e0a37e; color: #b4552a; }
-
-  /* ── 車站時刻板(及其他共用外觀的面板:最愛/旅程/探索) ── */
-  .board {
-    position: absolute; top: 12px; right: 12px; z-index: 650;
-    /* 下緣讓開右下角同一欄的 Leaflet 縮放鈕+.stage-tools(縮放鈕疊在工具鈕上方),面板內自行捲動 */
-    width: 272px; max-height: calc(100% - 176px); overflow-y: auto;
-    background: rgba(255,253,246,.97); border: 2px solid #2a4a73; border-radius: 10px;
-    padding: 0 14px 12px; /* 上緣由 h3 藏青標題條自帶 */
-    box-shadow: 0 3px 0 rgba(42,74,115,.22);
-    scrollbar-width: thin; scrollbar-color: #c9b98f transparent;
-  }
-  /* 看板標題改藏青滿幅條:與停站牌、跟隨面板同一家族的「站內告示板」語彙 */
-  .board h3 {
-    margin: 0 -14px 7px; padding: 8px 34px 7px 14px;
-    font-size: 15px; font-weight: 900; letter-spacing: 3px;
-    background: #2a4a73; color: #fffdf6; border-radius: 8px 8px 0 0;
-  }
-  .board .sub { color: #8a7c62; font-size: 11px; margin-bottom: 7px; }
-  .board .row { display: flex; align-items: baseline; gap: 8px; padding: 5px 0; border-top: 1.5px dashed #d8cba9; font-size: 13px; }
-  .board .row[data-no], .board .row[data-rand], .board .row[data-li] { cursor: pointer; }
-  .board .row[data-no]:hover, .board .row[data-rand]:hover, .board .row[data-li]:hover { background: #f7f0dd; }
-  .board .row b { color: #1e2c40; }
-  .board .row .dot { width: 8px; height: 8px; border-radius: 50%; flex: none; align-self: center; }
-  .board .row .dest { flex: 1; color: #6b5f4a; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .board .row .t, .board .row .min { font-variant-numeric: tabular-nums; }
-  .board .row .min { color: #2a4a73; font-weight: 700; min-width: 44px; text-align: right; }
-  .board .close { position: absolute; top: 8px; right: 9px; background: none; border: 0; color: #c2cede; font-size: 17px; cursor: pointer; line-height: 1; }
-  .board .close:hover { color: #fff8ec; }
-  .board .empty { color: #8a7c62; font-size: 13px; padding: 8px 0; }
-  /* 車站資訊(地址／特色／Google 地圖連結),接在站名下、時刻列上 */
-  .board .stnMeta { margin: 1px 0 8px; padding-bottom: 8px; border-bottom: 1.5px dashed #d8cba9; }
-  .board .stnMeta .addr { font-size: 12px; color: #6b5f4a; line-height: 1.5; }
-  .board .stnMeta .feat { font-size: 12px; color: #5d5240; line-height: 1.5; margin-top: 3px; }
-  .board .stnMeta .mapLink {
-    display: inline-flex; align-items: center; gap: 3px; margin-top: 6px;
-    font-size: 12px; font-weight: 700; color: #2a4a73; text-decoration: none;
-  }
-  .board .stnMeta .mapLink:hover { text-decoration: underline; }
-  /* 今日亮點(探索面板)的分節標題,共用 .board 外觀 */
-  .board .sec {
-    color: #a89468; font-size: 11px; font-weight: 800; letter-spacing: 3px;
-    margin: 10px 0 1px; padding-bottom: 3px; border-bottom: 1.5px dashed #d8cba9;
-  }
-  /* 我的最愛面板(共用 .board 外觀) */
-  #favBtn { color: #d2a12a; }
-  #favPanel .row.fv { cursor: pointer; }
-  #favPanel .row.fv:hover { background: #f7f0dd; }
-  #favPanel .row .rm { margin-left: auto; color: #a89468; font-weight: 700; padding: 0 4px; }
-  #favPanel .row .rm:hover { color: #d23c2a; }
-  /* 旅程收集面板(完乘章;共用 .board 外觀) */
-  .board .ride-stats { font-size: 12.5px; color: #5d5240; margin: 2px 0 6px; }
-  .board .ride-stats b { color: #d23c2a; font-variant-numeric: tabular-nums; }
-  .board .ride-kinds { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 7px; }
-  .board .kindchip {
-    font-size: 10.5px; font-weight: 700; color: #2a4a73;
-    background: #eee5ca; border: 1px solid #c9b98f; border-radius: 4px; padding: 1px 6px;
-  }
-
-  /* ── Google Takeout 匯入確認（目前隱藏原型入口） ── */
+  /* ── Modal 家族(Takeout 匯入/帳號/Plus 共用殼;唯一允許 blur 陰影的懸浮層) ── */
   .takeout-modal {
     position: fixed; inset: 0; z-index: 2200; display: grid; place-items: center;
-    padding: 18px; background: rgba(20,29,42,.58); backdrop-filter: blur(2px);
+    padding: 18px; background: rgba(20,29,42,.58);
   }
   .takeout-modal[hidden] { display: none; }
   .takeout-dialog {
     width: min(620px, 100%); max-height: min(760px, calc(100dvh - 36px)); overflow: hidden;
-    display: flex; flex-direction: column; background: #fffdf6; color: #3a3226;
-    border: 2px solid #2a4a73; border-radius: 12px; box-shadow: 0 12px 40px rgba(15,25,40,.32);
+    display: flex; flex-direction: column; background: var(--paper); color: var(--ink);
+    border: 2px solid var(--navy); border-radius: 14px; box-shadow: 0 12px 40px rgba(15,25,40,.32);
   }
   .takeout-head {
     display: flex; align-items: center; gap: 10px; padding: 11px 14px;
-    background: #2a4a73; color: #fffdf6;
+    background: var(--navy); color: var(--on-navy);
   }
-  .takeout-head h2 { flex: 1; margin: 0; font-size: 17px; letter-spacing: 2px; }
-  .takeout-head button { border: 0; background: transparent; color: #fffdf6; font-size: 24px; line-height: 1; cursor: pointer; min-width: 44px; min-height: 44px; }
-  .takeout-body { padding: 14px; overflow-y: auto; overscroll-behavior: contain; }
-  .takeout-help { margin: 0 0 10px; color: #6b5f4a; font-size: 12px; line-height: 1.6; }
+  .takeout-head h2 { flex: 1; margin: 0; font-size: 16px; font-weight: 900; letter-spacing: 3px; }
+  .takeout-head button { border: 0; background: transparent; color: var(--on-navy); font-size: 24px; line-height: 1; cursor: pointer; min-width: 44px; min-height: 44px; }
+  .takeout-body { padding: 14px 16px; overflow-y: auto; overscroll-behavior: contain; }
+  .takeout-help { margin: 0 0 10px; color: var(--muted); font-size: 12px; line-height: 1.6; }
   .takeout-file {
-    display: block; width: 100%; box-sizing: border-box; margin-bottom: 12px; padding: 10px;
-    border: 1.5px dashed #b9aa84; border-radius: 8px; background: #f7f0dd; color: #3a3226;
+    display: block; width: 100%; box-sizing: border-box; margin-bottom: 12px; padding: 16px 10px;
+    border: 2px dashed var(--line); border-radius: 10px; background: var(--bg-stage); color: var(--ink);
   }
-  .takeout-status { min-height: 20px; color: #6b5f4a; font-size: 12px; }
-  .takeout-status.err { color: #b53a27; font-weight: 700; }
+  .takeout-status { min-height: 20px; color: var(--muted); font-size: 12px; }
+  .takeout-status.err { color: var(--red); font-weight: 700; }
   .takeout-summary { display: flex; flex-wrap: wrap; gap: 6px; margin: 10px 0; }
-  .takeout-summary span { padding: 3px 8px; border: 1px solid #c9b98f; border-radius: 999px; background: #eee5ca; font-size: 11px; }
-  .takeout-summary .ok { color: #235c3d; border-color: #9abca6; background: #e9f3e9; }
-  .takeout-summary .warn { color: #9b5a16; border-color: #d8b27a; background: #fbf0d9; }
+  .takeout-summary span { padding: 3px 8px; border: 1px solid var(--line); border-radius: var(--r-pill); background: var(--bg-stage); font-size: 11px; }
+  .takeout-summary .ok { color: var(--ok); border-color: var(--ok); background: transparent; }
+  .takeout-summary .warn { color: var(--warn-ink); border-color: var(--warn-line); background: var(--warn-bg); }
   .takeout-sec { margin-top: 12px; }
-  .takeout-sec h3 { margin: 0 0 5px; color: #2a4a73; font-size: 13px; letter-spacing: 1px; }
+  .takeout-sec h3 { margin: 0 0 5px; color: var(--navy); font-size: 13px; letter-spacing: 1px; }
   .takeout-row {
     display: grid; grid-template-columns: 28px minmax(0,1fr) auto; align-items: center; gap: 8px;
-    min-height: 42px; padding: 5px 0; border-top: 1px dashed #d8cba9; font-size: 12px;
+    min-height: 42px; padding: 5px 0; border-top: 1px dashed var(--line-dash); font-size: 12px;
   }
   .takeout-row input { width: 18px; height: 18px; }
   .takeout-row .name { min-width: 0; }
   .takeout-row .name b, .takeout-row .name small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .takeout-row .name small { margin-top: 2px; color: #8a7c62; }
-  .takeout-row a, .takeout-row button { color: #2a4a73; font: inherit; font-weight: 700; }
+  .takeout-row .name small { margin-top: 2px; color: var(--faint); }
+  .takeout-row a, .takeout-row button { color: var(--navy); font: inherit; font-weight: 700; }
   .takeout-row a { display: inline-flex; align-items: center; min-height: 44px; }
-  .takeout-row button { min-height: 44px; padding: 5px 9px; border: 1px solid #9aabc0; border-radius: 6px; background: #edf2f7; cursor: pointer; }
-  .takeout-more { color: #8a7c62; font-size: 11px; margin-top: 5px; }
+  .takeout-row button { min-height: 44px; padding: 5px 9px; border: 1px solid var(--line); border-radius: 6px; background: var(--bg-stage); cursor: pointer; }
+  .takeout-more { color: var(--faint); font-size: 11px; margin-top: 5px; }
   .takeout-actions {
     display: flex; justify-content: flex-end; gap: 8px; padding: 10px 14px;
-    border-top: 1px solid #d8cba9; background: #f7f0dd;
+    border-top: 1px solid var(--line-dash); background: var(--bg-stage);
   }
-  .takeout-actions button { min-height: 44px; padding: 7px 15px; border-radius: 7px; font-weight: 800; cursor: pointer; }
-  .takeout-actions .cancel { border: 1px solid #b9aa84; background: #fffdf6; color: #5d5240; }
-  .takeout-actions .confirm { border: 1px solid #a92c1d; background: #d23c2a; color: #fffdf6; }
+  .takeout-actions button { min-height: 44px; padding: 7px 15px; border-radius: 7px; font-weight: 800; cursor: pointer; font-family: inherit; }
+  .takeout-actions .cancel { border: 1px solid var(--line); background: var(--paper); color: var(--muted); }
+  .takeout-actions .confirm { border: 1px solid var(--red-deep); background: var(--red); color: #fffdf6; }
   .takeout-actions .confirm:disabled { opacity: .45; cursor: default; }
-  .account-intro { margin: 0 0 14px; color: #6b5f4a; font-size: 13px; line-height: 1.65; }
+  .account-intro { margin: 0 0 14px; color: var(--muted); font-size: 13px; line-height: 1.65; }
+  .account-intro b { color: var(--ink-strong); }
   .account-login { display: grid; gap: 9px; }
   .account-login button, .account-user-actions button {
-    min-height: 46px; border: 1.5px solid #b9aa84; border-radius: 8px; background: #fffdf6;
-    color: #2a3f5d; font: inherit; font-weight: 800; cursor: pointer;
+    min-height: 48px; border: 1.5px solid var(--line); border-radius: var(--r-m); background: var(--paper);
+    color: var(--ink); font: inherit; font-weight: 700; cursor: pointer;
   }
-  .account-login button:hover, .account-user-actions button:hover { background: #f7f0dd; }
-  .account-login .apple { background: #1d2734; border-color: #1d2734; color: #fff; }
-  .account-profile { display: flex; align-items: center; gap: 11px; padding: 10px; border: 1px solid #d8cba9; border-radius: 9px; background: #f7f0dd; }
-  .account-avatar { width: 42px; height: 42px; border-radius: 50%; display: grid; place-items: center; background: #2a4a73; color: #fff; font-weight: 900; overflow: hidden; }
+  .account-login button:hover, .account-user-actions button:hover { background: var(--bg-stage); }
+  .account-login .apple { background: #101010; border-color: #101010; color: #fff; }
+  .account-login .apple:hover { background: #1c1c1c; }
+  .account-profile { display: flex; align-items: center; gap: 11px; padding: 10px 13px; border: 1.5px solid var(--line); border-radius: 10px; background: var(--bg-stage); }
+  .account-avatar { width: 42px; height: 42px; border-radius: 50%; display: grid; place-items: center; background: var(--navy); color: var(--on-navy); font-weight: 900; overflow: hidden; flex: none; }
   .account-avatar img { width: 100%; height: 100%; object-fit: cover; }
   .account-profile b, .account-profile small { display: block; }
-  .account-profile small { margin-top: 2px; color: #8a7c62; overflow-wrap: anywhere; }
-  .account-syncbox { margin-top: 12px; padding: 10px; border: 1px solid #d8cba9; border-radius: 8px; font-size: 12px; line-height: 1.55; }
-  .account-syncbox b { display: block; color: #2a4a73; margin-bottom: 2px; }
+  .account-profile small { margin-top: 2px; color: var(--faint); overflow-wrap: anywhere; }
+  .account-syncbox { margin-top: 12px; padding: 10px; border: 1px solid var(--line-dash); border-radius: 8px; font-size: 12px; line-height: 1.55; }
+  .account-syncbox b { display: block; color: var(--navy); margin-bottom: 2px; }
   .account-user-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 12px; }
   .account-user-actions .wide { grid-column: 1 / -1; }
-  .account-user-actions .danger { color: #a92c1d; border-color: #d59b91; }
-  .account-error { margin-top: 10px; color: #b53a27; font-size: 12px; font-weight: 700; line-height: 1.5; }
-  .account-note { margin-top: 10px; color: #8a7c62; font-size: 11px; line-height: 1.55; }
+  .account-user-actions .danger { color: var(--red-deep); border-color: var(--warn-line); }
+  .account-error { margin-top: 10px; color: var(--red); font-size: 12px; font-weight: 700; line-height: 1.5; }
+  .account-note { margin-top: 10px; color: var(--faint); font-size: 11px; line-height: 1.55; }
   .plus-hero { text-align: center; padding: 6px 4px 12px; }
-  .plus-mark { display: inline-grid; place-items: center; width: 58px; height: 58px; border-radius: 50%; background: #d2a12a; color: #fffdf6; font-size: 23px; font-weight: 900; box-shadow: 0 3px 0 #a87a19; }
-  .plus-hero h3 { margin: 11px 0 4px; color: #1e2c40; font-size: 19px; letter-spacing: 2px; }
-  .plus-hero p { margin: 0; color: #6b5f4a; font-size: 12px; line-height: 1.55; }
-  .plus-features { display: grid; gap: 7px; margin: 4px 0 14px; }
-  .plus-feature { display: flex; gap: 9px; padding: 9px 10px; border: 1px solid #d8cba9; border-radius: 8px; background: #f7f0dd; font-size: 13px; }
-  .plus-feature span { color: #b47b12; font-weight: 900; }
-  .plus-buy { width: 100%; min-height: 48px; border: 1px solid #a92c1d; border-radius: 8px; background: #d23c2a; color: #fffdf6; font: inherit; font-weight: 900; cursor: pointer; }
+  .plus-mark { display: inline-grid; place-items: center; width: 64px; height: 64px; border-radius: 50%; border: 2.5px solid var(--gold); color: var(--gold); background: transparent; font-size: 15px; font-weight: 900; transform: rotate(-8deg); }
+  .plus-hero h3 { margin: 11px 0 4px; color: var(--ink-strong); font-size: 19px; letter-spacing: 2px; }
+  .plus-hero p { margin: 0; color: var(--muted); font-size: 12px; line-height: 1.55; }
+  .plus-features { display: grid; gap: 0; margin: 4px 0 14px; }
+  .plus-feature { display: flex; gap: 10px; padding: 9px 2px; border-bottom: 1px dashed var(--line-faint); font-size: 13px; align-items: flex-start; }
+  .plus-feature span { color: var(--navy); font-weight: 900; }
+  .plus-buy { width: 100%; min-height: 48px; border: 1.5px solid var(--red-deep); border-radius: var(--r-pill); background: var(--red); color: #fffdf6; font: inherit; font-weight: 900; cursor: pointer; box-shadow: var(--shadow-red); }
   .plus-buy:disabled { opacity: .5; cursor: default; }
-  .plus-restore { display: block; margin: 9px auto 0; min-height: 44px; border: 0; background: transparent; color: #2a4a73; font: inherit; font-size: 12px; font-weight: 800; cursor: pointer; text-decoration: underline; }
-  .plus-owned { padding: 13px; border: 1px solid #9abca6; border-radius: 9px; background: #e9f3e9; color: #235c3d; text-align: center; font-weight: 800; }
+  .plus-restore { display: block; margin: 9px auto 0; min-height: 44px; border: 0; background: transparent; color: var(--navy); font: inherit; font-size: 12px; font-weight: 800; cursor: pointer; text-decoration: underline; }
+  .plus-owned { padding: 13px; border: 1.5px solid var(--ok); border-radius: 9px; color: var(--ok); text-align: center; font-weight: 800; }
 
   /* ── 流量圖 ── */
   .flow { margin: 14px 2px 0; }
-  .flow canvas { display: block; width: 100%; height: 64px; cursor: crosshair; border: 1.5px solid #c9b98f; border-radius: 6px; background: #fffdf6; }
-  .flow .lbl { color: #8a7c62; font-size: 12px; margin-top: 5px; font-variant-numeric: tabular-nums; }
+  .flow canvas { display: block; width: 100%; height: 64px; cursor: crosshair; border: 1.5px solid var(--line); border-radius: 6px; background: var(--paper); }
+  .flow .lbl { color: var(--faint); font-size: 12px; margin-top: 5px; font-variant-numeric: tabular-nums; }
+
+  /* ── 手機 tab bar(≤640 常駐;地圖/亮點/最愛/護照/更多)＋「更多」sheet ── */
+  .tabbar {
+    position: fixed; left: 0; right: 0; bottom: 0; z-index: 1100;
+    display: none; align-items: flex-start;
+    height: calc(58px + env(safe-area-inset-bottom, 0px));
+    padding: 6px 4px calc(2px + env(safe-area-inset-bottom, 0px));
+    background: var(--paper); border-top: 1.5px solid var(--line);
+    box-shadow: inset 0 3px 0 var(--gold);
+  }
+  .tabbar button {
+    flex: 1; display: flex; flex-direction: column; align-items: center; gap: 2px;
+    background: none; border: 0; cursor: pointer; min-height: 44px; padding: 2px 0;
+    font-family: inherit;
+  }
+  .tabbar .ti { font-size: 17px; font-weight: 700; color: var(--faint); line-height: 1.1; }
+  .tabbar .tl { font-size: 9.5px; color: var(--faint); }
+  .tabbar button.active .ti, .tabbar button.active .tl { color: var(--navy); font-weight: 800; }
+  /* 「更多」sheet:承接原 ☰ 抽屜全部條目(外觀/圖層/動作) */
+  .more-sheet {
+    position: fixed; left: 0; right: 0; bottom: 0; z-index: 1110;
+    display: none; flex-direction: column;
+    max-height: 76dvh;
+    background: var(--paper); border-top: 2px solid var(--navy);
+    border-radius: 16px 16px 0 0;
+    padding-bottom: calc(10px + env(safe-area-inset-bottom, 0px));
+  }
+  .more-sheet .grab { display: block; width: 38px; height: 5px; border-radius: 3px; background: var(--line); margin: 7px auto 4px; flex: none; }
+  .more-sheet .ms-head {
+    display: flex; align-items: center; gap: 8px; background: var(--navy); color: var(--on-navy);
+    margin: 0 12px; border-radius: 8px 8px 0 0; padding: 7px 14px; flex: none;
+  }
+  .more-sheet .ms-head h3 { margin: 0; font-size: 13px; font-weight: 900; letter-spacing: 3px; }
+  .more-sheet .ms-head .ms-close { margin-left: auto; background: none; border: 0; color: var(--on-navy); font-size: 15px; cursor: pointer; padding: 2px 4px; }
+  .more-sheet .ms-body {
+    margin: 0 12px; border: 1.5px solid var(--line); border-top: 0; border-radius: 0 0 8px 8px;
+    overflow-y: auto; overscroll-behavior: contain;
+  }
+  .more-sheet .ms-row {
+    display: flex; justify-content: space-between; align-items: center; gap: 10px;
+    padding: 12px 14px; border-bottom: 1px dashed var(--line-faint);
+    font-size: 13.5px; font-weight: 700; color: var(--ink); cursor: pointer; min-height: 48px;
+  }
+  .more-sheet .ms-row:last-child { border-bottom: 0; }
+  .more-sheet .ms-row .chev { font-size: 12px; color: var(--faint); font-weight: 600; }
+  .more-sheet .ms-sec { padding: 9px 14px 3px; font-size: 11px; font-weight: 800; letter-spacing: 3px; color: var(--faint); border-bottom: 1px dashed var(--line-faint); }
+  .more-sheet .ms-row.warnrow { background: var(--warn-bg); color: var(--warn-ink); font-weight: 800; }
+  .more-sheet .ms-note { margin: 10px 14px 0; font-size: 10.5px; color: var(--faint); flex: none; }
+  .more-scrim { position: fixed; inset: 0; z-index: 1105; background: rgba(30,44,64,.26); display: none; }
+  body.tools-open .more-sheet, body.tools-open .more-scrim { display: flex; }
+  body.tools-open .more-scrim { display: block; }
+
+  /* ── 中窄寬度(平板/窄視窗):錄影浮條下移讓開左上時鐘徽章;版權字截短讓開置中隨機鈕 ── */
+  @media (max-width: 1024px) {
+    .rec-pill { top: 56px; }
+    .leaflet-control-attribution {
+      max-width: 38vw; white-space: nowrap;
+      overflow: hidden; text-overflow: ellipsis;
+    }
+  }
 
   /* ── 手機直立版 ── */
   @media (max-width: 640px) {
-    .wrap { padding: 12px 12px 40px; }
-    .plate { padding: 10px 12px 0; border-width: 2.5px; grid-template-columns: 1fr; width: 100%; }
-    .plate-isle { grid-column: 1; grid-row: auto; width: 120px; height: 49px; justify-self: center; margin: 0 0 2px; }
-    header h1 { font-size: 23px; letter-spacing: 9px; text-indent: 9px; grid-column: 1; grid-row: auto; }
-    .plate-sub { font-size: 9px; letter-spacing: 3px; text-indent: 3px; grid-column: 1; grid-row: auto; }
-    .plate-foot { margin: 8px -12px 0; padding: 6px 11px 7px; grid-column: 1; grid-row: auto; border-radius: 0 0 5px 5px; }
-    .plate-foot .stn:first-child::before { font-size: 8.5px; top: -1px; margin-right: 6px; }
-    .plate-foot .stn:last-child::after { font-size: 8.5px; top: -1px; margin-left: 6px; }
-    .plate-foot .stn { font-size: 12.5px; letter-spacing: 3px; text-indent: 3px; }
-    .plate-arrow { width: 58px; height: 9px; margin: 0 8px; }
-    header p { font-size: 13px; }
-    .grouptabs .gtab { font-size: 13px; padding: 6px 14px; }
-    .grouptabs .citysel { font-size: 13px; padding: 6px 28px 6px 14px; background-position: right 11px center; }
-    .groupmembers .mem { font-size: 12.5px; padding: 5px 11px; }
-    .stage { height: 58vh; min-height: 380px; }
+    .wrap { padding: 8px 10px calc(70px + env(safe-area-inset-bottom, 0px)); }
+    /* 手機 header 收斂(mock §04-A):牌＋頁籤同列、導言藏、頁籤單列橫捲——省出地圖高度 */
+    .header-row { gap: 8px; padding-bottom: 6px; }
+    .header-mid { flex: 1 1 0; min-width: 0; gap: 6px; }
+    header #lead { display: none; }
+    .plate { padding: 4px 12px 0; border-width: 2px; align-self: flex-start; }
+    header h1 { font-size: 17px; letter-spacing: 5px; text-indent: 5px; }
+    .plate-sub { display: none; } /* 手機牌面只留站名+鄰站帶(mock §04) */
+    .plate-foot { margin: 3px -12px 0; padding: 1px 8px 2px; }
+    .plate-foot .stn { font-size: 8px; letter-spacing: 1px; text-indent: 1px; }
+    .plate-foot .stn:first-child::before, .plate-foot .stn:last-child::after { font-size: 7px; }
+    .plate-arrow { width: 34px; height: 7px; margin: 0 4px; }
+    .grouptabs { gap: 6px; margin-bottom: 6px; flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; }
+    .grouptabs::-webkit-scrollbar { display: none; }
+    .grouptabs .gtab, .grouptabs .citysel { flex: none; white-space: nowrap; }
+    .grouptabs .gtab { font-size: 12px; padding: 6px 13px; min-height: 36px; }
+    .grouptabs .citysel { font-size: 12px; padding: 6px 26px 6px 13px; min-height: 36px; background-position: right 10px center; }
+    .groupmembers .mem { font-size: 12px; padding: 5px 11px; }
+    .search { flex: 1 1 100%; min-width: 0; margin: 0; }
+    .search input[type=text] { min-height: 40px; font-size: 13px; padding: 7px 12px; }
+    /* 跟隨票手機不出(地圖上的跟隨小卡已有同資訊):它多佔一行會把 stage 推破視窗底 */
+    #followBar { display: none !important; }
+    .stage { height: calc(100dvh - 252px); min-height: 380px; }
     .badge { top: 8px; left: 8px; gap: 9px; padding: 5px 11px 6px; }
-    .badge .clock { font-size: 18px; }
+    .badge .clock { font-size: 17px; }
     .badge .count { font-size: 12px; }
-    /* 手機:時刻板改底部 sheet,工具鈕改右上直排。「☰ 工具」FAB 上移到 top:8,與左上時鐘徽章同一列對齊(徽章 left:8、FAB right:8) */
-    .stage-tools { top: 8px; right: 8px; bottom: auto; flex-direction: column; gap: 0; }
-    /* 吐司靠左收窄:右上 top:56 是獨立全畫面鈕 #fsFab(44px),置中近全寬吐司會擦到它;max-width 讓開其寬度(FAB 已上移到 top:8,不再同列) */
+    /* 手機:工具全部住在 tab bar「更多」sheet;帶收成速度膠囊(見下) */
+    .tabbar { display: flex; }
     .rec-toast { left: 8px; transform: none; max-width: calc(100% - 124px); }
-    .stage-tools button + button { border-left: 0; border-top: 1px solid #ece2c8; } /* 直排工具條:分隔線改橫向 */
-    /* 工具抽屜:帶字大鈕整排常駐會蓋掉小螢幕地圖(跟隨/全畫面看不到車)——
-       平時只露一顆「☰ 工具」,點開才展開,點任一工具自動收回(JS) */
-    #toolsFab { display: flex; }
-    body:not(.tools-open) .stage-tools > button:not(#toolsFab) { display: none; }
-    /* 抽屜展開時限高可捲(工具條本體已是單一紙牌)。起點上移到 top:8 後,可用高度增加,reserve 從 110→62(8 頂+底部 randBtn/版權字餘裕)。
-       z-index 抬到 705(公告橫幅)之上:抽屜下展會蓋到橫幅一列,但本體不透明,短暫遮蓋可接受,收合即還原 */
-    body.tools-open .stage-tools {
-      max-height: calc(100% - 62px); overflow-y: auto; z-index: 710;
-      scrollbar-width: thin; scrollbar-color: #c9b98f transparent;
-    }
-    /* 抽屜展開時工具鈕撐寬到最長標籤(~120px);FAB 若跟著撐寬,其左緣會伸進同列(top:8)的時鐘徽章。
-       FAB 改貼右不撐寬(內容寬,右緣仍對齊按鈕欄),留在徽章右側不相交;下方工具鈕照舊等寬整齊。 */
-    body.tools-open .stage-tools > #toolsFab { align-self: flex-end; }
-    /* 獨立全畫面鈕(手機):落在「☰ 工具」FAB 上移後空出的 top:56 位置;有橫幅時下移一階;抽屜展開時暫藏免得被抽屜壓住 */
-    #fsFab { top: 56px; right: 8px; }
-    .alert-banner:not([hidden]) ~ #fsFab { top: 96px; }
-    body.tools-open #fsFab { display: none; }
-    /* 版權字(衛星模式一長串)單行省略,不換行蓋到跟隨卡 */
+    /* 版權字單行省略且讓開左下跟隨卡(卡寬 176+邊距):抬到膠囊上方後與卡同高,不截寬會相撞 */
     .leaflet-control-attribution {
-      max-width: calc(100vw - 40px); white-space: nowrap;
+      max-width: calc(100vw - 216px); white-space: nowrap;
       overflow: hidden; text-overflow: ellipsis; font-size: 10px;
     }
-    /* 觸控沒有 hover:直接顯示完整文字並把按鈕加大,不再只看到一個字 */
-    .stage-tools button { height: 40px; }
-    .stage-tools button .ti { flex: 0 0 38px; width: 38px; height: 38px; font-size: 18px; }
-    .stage-tools button .tl { max-width: 130px; opacity: 1; padding-right: 12px; font-size: 13.5px; }
-    body.fs .stage-tools button .tl { padding-right: 0; padding-left: 12px; } /* 全畫面直排 row-reverse:文字在左 */
-    /* 手機改用雙指縮放,隱藏 Leaflet +/- 鈕(否則會壓在底部 sheet 上) */
+    /* 手機改用雙指縮放,隱藏 Leaflet +/- 鈕 */
     .leaflet-control-zoom { display: none; }
-    /* 公告橫幅:手機改成時鐘徽章「下方」的整寬橫條,不再與徽章同列互擠 */
+    .leaflet-bottom.leaflet-right { bottom: 58px; }
+    /* 公告橫幅:手機改成時鐘徽章「下方」的整寬橫條 */
     .alert-banner {
       top: 54px; left: 8px; right: 8px; max-width: none;
-      font-size: 12.5px; padding: 5px 10px 6px;
+      font-size: 12px; padding: 5px 10px 6px;
     }
     .alert-detail { top: 92px; right: 8px; width: calc(100% - 16px); }
-    /* 桌面全畫面的 right:60px(讓開右側直排工具列)不適用手機——手機 fs 工具列已收成抽屜;
-       不補會洩漏成:橫幅不對稱、詳情框左緣 -44px 被裁、看板 sheet 右縮 */
     body.fs .alert-banner, body.fs .alert-detail, body.fs .board { right: 8px; }
-    /* 橫幅出現時停站牌往下讓一階(「☰ 工具」FAB 已在 top:8,橫幅在其下方一列,不需再讓;獨立全畫面鈕的讓位見上方 ~ #fsFab) */
     .alert-banner:not([hidden]) ~ .dwell-plate { top: 96px; }
-    /* 平交道說明卡:手機置中會與右上「☰」工具 FAB 同列擦邊(審查發現 1px 重疊),
-       整卡下移到工具列下方一階,靠垂直間隔避開;橫幅在時再讓一階 */
     .xing-help { top: 108px; }
     .alert-banner:not([hidden]) ~ .xing-help { top: 150px; }
-    /* 平交道通過預測卡(手機):原本 top:12 右上 264px,會蓋住左上時鐘徽章、被右上「☰」工具 FAB 疊住
-       (使用者回報「跟其他按鈕重疊」)。改小卡+下移到頂列(徽章/FAB)之下,限高留出底部跟隨卡/隨機鈕的空間,
-       超量的班次靠內部捲動;字級 padding 全面降一級(使用者要求縮小)。 */
+    /* 平交道通過預測卡(手機):小卡+下移到頂列之下,限高留出底部跟隨卡空間 */
     .xing-card {
       top: 106px; right: 8px; left: auto;
       width: 200px; max-width: calc(100% - 16px);
-      max-height: calc(100% - 274px); /* 上留頂列、下留跟隨卡(底 157px)+餘裕,清所有互動控件 */
+      max-height: calc(100% - 274px);
     }
-    .alert-banner:not([hidden]) ~ .xing-card { top: 144px; max-height: calc(100% - 312px); } /* 橫幅時頂列再下移一階 */
+    .alert-banner:not([hidden]) ~ .xing-card { top: 144px; max-height: calc(100% - 312px); }
     .xing-card .xc-head { padding: 6px 8px 6px 10px; gap: 7px; }
     .xing-card .xc-ttl b { font-size: 14px; }
     .xing-card .xc-meta { font-size: 10px; }
     .xing-card .xc-close { font-size: 14px; }
     .xing-card .xc-row { padding: 5px 10px; font-size: 11.5px; gap: 6px; }
     .xing-card .xc-no { min-width: 34px; }
-    .xing-card .xc-kind { display: none; } /* 手機藏車種欄:200px 寬下讓「往○○」方向完整顯示(方向比車種有用) */
+    .xing-card .xc-kind { display: none; }
     .xing-card .xc-dl { font-size: 10px; }
     .xing-card .xc-cd { min-width: 40px; }
     .xing-card .xc-foot { padding: 6px 10px 8px; font-size: 10px; }
     .xing-card .xc-empty { padding: 12px 10px; font-size: 11.5px; }
-    /* 站名牌手機靠左橫條,右側讓出「☰ 工具」浮鈕欄位,同一頂帶並排對齊 */
+    /* 站名牌手機靠左橫條,右側讓出全畫面鈕欄位 */
     .dwell-plate { top: 56px; left: 8px; right: 100px; min-width: 0; max-width: none; }
-    /* 特殊站介紹手機最多兩行:站牌總高有上限,公告+站牌+跟隨卡三者全開也不互蓋 */
     .dwell-plate .dp-intro { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+    /* 面板家族:手機一律變底部 sheet(圓上角+抓把) */
     .board {
       top: auto; bottom: 8px; left: 8px; right: 8px; width: auto;
       max-height: 46%;
-      border-radius: 10px;
+      border-radius: 14px 14px 10px 10px;
     }
+    .board::before { content: ""; display: block; width: 38px; height: 4px; border-radius: 3px; background: rgba(255,253,246,.55); position: absolute; top: 5px; left: 50%; transform: translateX(-50%); z-index: 3; }
+    .board h3 { border-radius: 13px 13px 0 0; padding-top: 12px; }
+    .board .close { top: 11px; }
     .takeout-modal { padding: 8px; place-items: stretch; }
     .takeout-dialog { width: 100%; max-height: calc(100dvh - 16px); align-self: center; }
     .takeout-head { padding: 8px 10px 8px 14px; }
@@ -1310,14 +1311,9 @@
     .takeout-actions button { flex: 1; }
     /* 手機看板是底部 sheet:取消桌面版「讓到公告下方」的頂緣定位 */
     .alert-banner:not([hidden]) ~ .board { top: auto; max-height: 46%; }
-    .controls { gap: 10px 14px; margin-top: 12px; }
-    .ctl { flex: 1 1 100%; flex-wrap: wrap; min-width: 0; } /* 速度列(標籤+滑桿+預設鈕)放不下時換行,不撐出橫向捲動 */
-    .ctl input[type=range] { flex: 1; width: auto; }
-    .search input[type=text] { flex: 1 1 100%; width: auto; }
-    .followbar { flex-wrap: wrap; }
-    .chip { font-size: 12px; padding: 4px 10px 4px 7px; }
-    /* 手機資訊卡整體縮小(使用者指定):卡寬與字級圖示全面降一級 */
-    .follow-panel { left: 8px; bottom: 8px; width: 176px; padding: 8px 10px 9px; }
+    /* 手機資訊卡整體縮小:卡寬與字級圖示全面降一級;底部讓開速度膠囊 */
+    .follow-panel { left: 8px; bottom: 60px; width: 176px; padding: 8px 10px 9px; }
+    .freq-card { left: 8px; bottom: 60px; width: 176px; padding: 8px 10px 9px; }
     .follow-panel .fp-head { gap: 6px; }
     .follow-panel .fp-head .dot { width: 7px; height: 7px; }
     .follow-panel .fp-head b { font-size: 13px; }
@@ -1331,100 +1327,97 @@
     .follow-panel .fp-prog .txt { font-size: 9px; }
     .follow-panel .fp-dest { font-size: 10px; }
     .follow-panel .fp-status { font-size: 10.5px; margin-top: 5px; }
-    /* 窄卡的車種名(如「區間車（通勤電聯車）」)在 flex 標題列會被擠成一字一行的直欄把卡撐高:
-       改讓標題列換行,車種名獨佔第二行橫排(order 排到最後),單行省略 */
-    /* (車種名獨佔第二行已升為全域規則,見 .follow-panel .fp-head .kind) */
-    /* 時速大字手機縮級:窄卡遇 4 位數車次+3 位數時速(≥100km/h),24px 字級會把
-       標題列擠到換行、卡高跳——縮級後卡高才不隨時速跳 */
+    /* 時速大字手機縮級:窄卡遇 4 位數車次+3 位數時速也不撐爆標題列 */
     .follow-panel .fp-head .spd { font-size: 9.5px; }
     .follow-panel .fp-head .spd b { font-size: 16px; }
-    /* 看板/最愛/旅程/探索四選一的底部 sheet 開啟時(見 updateSheetOpenClass),跟隨小卡讓道到 sheet 上方;
-       sheet 最高 46%,抓 46%+間距頂上去;max-height 保住左上時鐘 badge(高約 45px+邊距)不被蓋,卡內自行捲動 */
-    body.sheet-open .follow-panel { bottom: calc(46% + 16px); max-height: calc(54% - 84px); }
-    /* sheet 開啟時右緣直排工具列(高 314px)放不進 sheet 上方剩餘空間,先讓位;
-       四個 sheet 面板都有自己的 × 關閉鈕(boardClose/favClose/rideClose/exploreClose),關掉 sheet 工具列即回來 */
-    body.sheet-open .stage-tools { display: none; }
+    /* sheet 開啟時跟隨小卡讓道到 sheet 上方 */
+    body.sheet-open .follow-panel, body.sheet-open .freq-card { bottom: calc(46% + 16px); max-height: calc(54% - 84px); }
     .traincard { padding: 11px 13px 12px; }
     .traincard .tc-body { grid-template-columns: 1fr; }
     .traincard .tc-events { margin-top: 4px; border-left: 0; padding-left: 0; }
     .kbd-hint { display: none; }
-    /* 手機全畫面:資訊卡太佔位就不浮出,控制列貼底、面板讓位 */
     body.fs .traincard { display: none; }
-    /* 「展開」控制列(cexp)與放空/直播沿用:速度/時間各佔整行時五行高近 200px,壓扁成一排 */
-    body.fs .controls { bottom: 8px; width: calc(100vw - 16px); padding: 6px 10px; gap: 6px 8px; }
-    body.fs .controls .ctl { flex: 0 1 auto; flex-wrap: nowrap; }
-    body.fs .controls .ctl input[type=range] { flex: none; width: 72px; }
-    body.fs .controls #musicVol { width: 56px; }
-    /* 工具抽屜下緣讓開貼底播放面板(320px 窄機面板換行後約 155px 高),錄影鈕才點得到 */
-    body.fs.tools-open .stage-tools { max-height: calc(100% - 230px); }
-    body.fs .follow-panel { bottom: 132px; width: 176px; } /* 桌面 fs 的 300px 寬不洩漏進手機 */
-    body.fs .stage-tools { top: 8px; } /* 「☰ 工具」FAB 與一般模式同列 top:8,對齊左上時鐘徽章 */
+    /* 全畫面:tab bar 疊在地圖上,底欄元素上移讓開 */
+    body.fs .leaflet-bottom.leaflet-right { bottom: calc(64px + env(safe-area-inset-bottom, 0px)); }
+    body.fs .follow-panel, body.fs .freq-card { width: 176px; }
 
-    /* ── 手機全畫面速度控制膠囊(僅 ≤640 且 body.fs,且非放空非直播;桌面與放空/直播完全不變) ──
-       預設 slim:貼底置中細長膠囊,只露 ▶/⏸ + 目前倍速 + 模擬時刻(單手可點、一眼可讀)。
-       點膠囊本體(非 ▶/⏸)→ JS 加 .cexp 展開成完整控制列;展開 5s 無互動自動收回;
-       膠囊再閒置 5s → 加 .cfaint 淡成半透明把手(保留倍速);任何觸碰即回實體(見 setupFsCapsule)。 */
-    body.fs:not(.ambient):not(.live):not(.cexp) .controls {
+    /* ── 手機速度控制膠囊(≤640 一律;非放空非直播;桌面完全不變) ──
+       預設 slim:貼底置中細長膠囊,只露 ▶/⏸ + 倍速 + 模擬時刻。
+       點膠囊本體 → body.cexp 展開成完整帶;5s 無互動自動收回;再閒置 5s → cfaint 半透明把手。 */
+    body:not(.ambient):not(.live):not(.cexp) .controls {
       left: 50%; right: auto; transform: translateX(-50%);
       bottom: 10px; width: max-content; max-width: calc(100vw - 24px);
       flex-wrap: nowrap; align-items: center; gap: 7px;
-      padding: 5px 14px; border-radius: 999px; cursor: pointer;
+      padding: 6px 16px; border-radius: 999px; cursor: pointer;
+      overflow: visible;
       transition: opacity .5s ease;
     }
-    /* 膠囊只留 #pp 圖示 + 倍速 output + 時刻 output;其餘控件(滑桿/預設鈕/標籤/時間選擇/現在/放空/音樂)全收 */
-    body.fs:not(.ambient):not(.live):not(.cexp) .controls #ppTxt,
-    body.fs:not(.ambient):not(.live):not(.cexp) .controls .ctl label,
-    body.fs:not(.ambient):not(.live):not(.cexp) .controls #speed,
-    body.fs:not(.ambient):not(.live):not(.cexp) .controls #spdBtns,
-    body.fs:not(.ambient):not(.live):not(.cexp) .controls #tod,
-    body.fs:not(.ambient):not(.live):not(.cexp) .controls #todPick,
-    body.fs:not(.ambient):not(.live):not(.cexp) .controls #nowBtn,
-    body.fs:not(.ambient):not(.live):not(.cexp) .controls #ambientBtn,
-    body.fs:not(.ambient):not(.live):not(.cexp) .controls #ambientStyleBtn,
-    body.fs:not(.ambient):not(.live):not(.cexp) .controls #musicCtl { display: none; }
-    body.fs:not(.ambient):not(.live):not(.cexp) .controls .ctl { flex: none; gap: 0; margin: 0; padding: 0; border: 0; min-width: 0; }
-    body.fs:not(.ambient):not(.live):not(.cexp) .controls .tod-wrap { padding: 0; }
-    body.fs:not(.ambient):not(.live):not(.cexp) .controls #pp { padding: 3px 6px; font-size: 15px; background: none; border: 0; box-shadow: none; color: #1e2c40; }
-    body.fs:not(.ambient):not(.live):not(.cexp) .controls #speedOut { font-size: 14.5px; font-weight: 800; color: #d23c2a; min-width: 0; }
-    body.fs:not(.ambient):not(.live):not(.cexp) .controls #todOut { font-size: 14px; font-weight: 700; color: #2a4a73; min-width: 0; }
-    /* 閒置淡成半透明把手:整條變淡,倍速數字仍讀得到(藏 ▶/⏸ 與時刻,只留倍速) */
-    body.fs:not(.ambient):not(.live):not(.cexp).cfaint .controls { opacity: .5; padding: 4px 13px; }
-    body.fs:not(.ambient):not(.live):not(.cexp).cfaint .controls #pp,
-    body.fs:not(.ambient):not(.live):not(.cexp).cfaint .controls #todOut { display: none; }
-    /* 膠囊(slim/faint)時卡片依新膠囊高度重新讓位:跟隨卡(跟隨時 JS placeFsOverlays 動態量高覆寫)不需再讓開整條控制列
-       (隨機鈕已改左上頂部錨定,貼底讓位規則作廢移除) */
-    body.fs:not(.ambient):not(.live):not(.cexp) .follow-panel { bottom: 60px; }
-    /* 放空模式(手機):看戲不操作——控制列只留「離開放空」一顆,跟隨卡縮成迷你條
-      (車次+速度+下一站),別把列車蓋掉;速度/時間/音樂等設定進放空前調好 */
+    body.fs:not(.ambient):not(.live):not(.cexp) .controls { bottom: calc(68px + env(safe-area-inset-bottom, 0px)); }
+    body:not(.ambient):not(.live):not(.cexp) .controls #ppTxt,
+    body:not(.ambient):not(.live):not(.cexp) .controls .speedrail,
+    body:not(.ambient):not(.live):not(.cexp) .controls .band-div,
+    body:not(.ambient):not(.live):not(.cexp) .controls .stage-tools,
+    body:not(.ambient):not(.live):not(.cexp) .controls #nowBtn,
+    body:not(.ambient):not(.live):not(.cexp) .controls #ambientBtn,
+    body:not(.ambient):not(.live):not(.cexp) .controls #ambientStyleBtn,
+    body:not(.ambient):not(.live):not(.cexp) .controls #musicCtl { display: none; }
+    body:not(.ambient):not(.live):not(.cexp) .controls .ctl { flex: none; gap: 0; margin: 0; padding: 0; border: 0; min-width: 0; }
+    body:not(.ambient):not(.live):not(.cexp) .controls .tod-wrap { padding: 0; }
+    body:not(.ambient):not(.live):not(.cexp) .controls #pp { padding: 3px 6px; font-size: 15px; background: none; border: 0; box-shadow: none; color: var(--ink-strong); min-height: 0; }
+    body:not(.ambient):not(.live):not(.cexp) .controls #speedOut { font-size: 14.5px; font-weight: 800; color: var(--red); min-width: 0; }
+    body:not(.ambient):not(.live):not(.cexp) .controls #todOut { font-size: 14px; font-weight: 700; color: var(--navy); min-width: 0; border: 0; padding: 0; }
+    /* 閒置淡成半透明把手:整條變淡,倍速數字仍讀得到 */
+    body:not(.ambient):not(.live):not(.cexp).cfaint .controls { opacity: .5; padding: 4px 13px; }
+    body:not(.ambient):not(.live):not(.cexp).cfaint .controls #pp,
+    body:not(.ambient):not(.live):not(.cexp).cfaint .controls #todOut { display: none; }
+    /* 展開態(cexp):完整帶貼底整寬,可換行 */
+    body.cexp .controls {
+      left: 8px; right: 8px; bottom: 8px; transform: none;
+      flex-wrap: wrap; overflow: visible; padding: 8px 12px;
+    }
+    body.fs.cexp .controls { bottom: calc(66px + env(safe-area-inset-bottom, 0px)); }
+    body.cexp .controls .stage-tools { display: none; } /* 工具住「更多」sheet,展開帶只留播放/速度/時間 */
+    body.cexp .controls .speedrail { width: min(250px, calc(100vw - 150px)); }
+    /* 放空模式(手機):看戲不操作——控制列只留「離開放空」一顆,tab bar 也收 */
     body.ambient .controls > :not(#ambientBtn):not(#ambientStyleBtn) { display: none; }
-    /* 「離開放空」靠右下角,跟左下角迷你跟隨卡各佔一角不重疊 */
-    body.ambient.fs .controls { width: max-content; left: auto; right: 8px; transform: none; }
-    body.ambient .follow-panel { width: 176px; padding: 7px 10px 8px; }
+    body.ambient .tabbar, body.ambient .more-sheet, body.ambient .more-scrim { display: none; }
+    body.ambient .controls { left: auto; right: 8px; bottom: 8px; width: max-content; transform: none; overflow: visible; }
+    body.ambient .follow-panel, body.ambient .freq-card { width: 176px; padding: 7px 10px 8px; bottom: 8px; }
     body.ambient .follow-panel .fp-prog,
     body.ambient .follow-panel .fp-dest,
     body.ambient .follow-panel .fp-head .kind,
-    body.ambient .follow-panel .fp-next .lbl { display: none; } /* 「下一站」字樣省下,窄卡站名才不換行 */
+    body.ambient .follow-panel .fp-next .lbl { display: none; }
     body.ambient .follow-panel .fp-head b { font-size: 13px; }
-    body.ambient .follow-panel .fp-head .spd b { font-size: 15px; } /* 176px 迷你卡同理:三位數時速也不換行 */
+    body.ambient .follow-panel .fp-head .spd b { font-size: 15px; }
     body.ambient .follow-panel .fp-next .stn { font-size: 14px; white-space: nowrap; }
-    body.ambient.fs .follow-panel { bottom: 8px; } /* 「離開放空」已靠右下,左下角整個還給迷你卡 */
-    /* 隨機跟隨鈕(手機):移到左上時鐘徽章下方——原本置中貼底會與列車資訊卡重疊(使用者回報)。
-       選擇器含 body.fs 蓋過上面 1199/1234 的 fs 貼底讓位(頂部錨定後作廢);hover 位移歸零(桌面版是 translateX 置中用) */
+    /* 隨機跟隨鈕(手機):移到左上時鐘徽章下方 */
     #randBtn, body.fs #randBtn { left: 8px; top: 50px; bottom: auto; transform: none; font-size: 13px; padding: 6px 13px; }
     #randBtn:hover { transform: none; }
-    .alert-banner:not([hidden]) ~ #randBtn { top: 96px; } /* 公告橫幅(滿版 top:54)出現時下移一階 */
+    .alert-banner:not([hidden]) ~ #randBtn { top: 96px; }
+    /* 首訪卡手機貼齊 mock */
+    .howto-wrap { padding: 26px 14px 14px; }
   }
 
-  /* ── 桌面(≥641):獨立全畫面鈕 #fsFab 佔右上角 top:12/right:12,原本擠在該角的橫幅/詳情/平交道卡/看板整體左移 52px 讓開(44px 鈕+8 間距) ── */
+  /* ── 桌面(≥641):tab bar/更多 sheet 不出現;右上角橫幅/詳情/平交道卡/看板讓開 #fsFab ── */
   @media (min-width: 641px) {
+    .tabbar, .more-sheet, .more-scrim { display: none !important; }
     .alert-banner, .alert-detail, .xing-card, .board { right: 64px; }
-    body.fs .stage-tools { top: 64px; } /* 桌面全畫面右上直排工具列起點下移,讓開 #fsFab */
   }
 </style>
+<script>
+// 外觀 FOUC 防護:首繪前先套主題(亮/暗/自動),完整切換邏輯在檔尾 applyAppearance
+(function () { try {
+  var ap = localStorage.getItem('trainmap-appearance') || localStorage.getItem('trainmap-theme') || 'auto';
+  if (ap !== 'light' && ap !== 'dark') ap = 'auto';
+  var dark = ap === 'auto' ? matchMedia('(prefers-color-scheme: dark)').matches : ap === 'dark';
+  document.documentElement.setAttribute('data-theme', dark ? 'dark' : 'light');
+  var mt = document.querySelector('meta[name=theme-color]'); if (mt) mt.content = dark ? '#0A0F1C' : '#EFE6D2';
+} catch (e) {} })();
+</script>
 </head>
 <body>
 <div class="wrap">
-  <header>
+  <header class="header-row">
     <div class="plate">
       <!-- 新增節點 .plate-isle:定案第一版 logo 的橫島真實路網圖(島形與軌道皆真實資料;合併時整段帶走) -->
       <svg class="plate-isle" viewBox="16.5 18.5 87 35" aria-hidden="true">
@@ -1460,13 +1453,10 @@
         <span class="stn" id="plateR">高雄</span>
       </div>
     </div>
-    <!-- 導言靜態預置預設群組(全台同框)文案:boot 會換字,長短不同會多折一行把版面下推(CLS);GROUPS.all.plate.lead 改時同步 -->
-    <p id="lead">全台鐵道一次看 — 台鐵、高鐵與各捷運／輕軌皆依當日時刻表同一時間軸運行（台鐵套即時誤點；捷運非即時班次）。</p>
-  </header>
-
-  <!-- 靜態預置預設群組(全台同框)頁籤:首繪即佔位避免 CLS(index 檔大,4G 下尾端腳本晚於首繪)。
+    <div class="header-mid">
+    <!-- 靜態預置預設群組(全台同框)頁籤:首繪即佔位避免 CLS(index 檔大,4G 下尾端腳本晚於首繪)。
        boot 的 renderSystemsBar 會整塊重建,此處類名/文字必須與其輸出一致(GROUPS/成員變動時同步改) -->
-  <div class="systems" id="systems">
+    <div class="systems" id="systems">
     <div class="grouptabs">
       <button class="gtab active">全台同框</button>
       <button class="gtab">國家鐵路</button>
@@ -1497,10 +1487,18 @@
     <div class="groupmembers">
       <div class="allcap">台鐵 · 高鐵（真實時刻）｜ 捷運 · 輕軌（依當日時刻表推演，非即時）</div>
     </div>
-  </div>
+    </div>
+    <!-- 導言靜態預置預設群組(全台同框)文案:boot 會換字,長短不同會多折一行把版面下推(CLS);GROUPS.all.plate.lead 改時同步 -->
+    <p id="lead">全台鐵道一次看 — 台鐵、高鐵與各捷運／輕軌皆依當日時刻表同一時間軸運行（台鐵套即時誤點；捷運非即時班次）。</p>
+    </div>
+    <!-- 搜尋+跟隨票:側欄取消後上移 header 右側 -->
+    <div class="search" id="searchRow" hidden>
+      <input type="text" id="trainSearch" list="trainList" placeholder="搜尋車次跟隨（如 123、2103）" autocomplete="off" />
+      <datalist id="trainList"></datalist>
+      <div class="followbar" id="followBar" hidden></div>
+    </div>
+  </header>
 
-  <div class="cols">
-  <div class="main-col">
   <div class="stage">
     <div id="map"></div>
     <canvas id="overlay"></canvas>
@@ -1545,27 +1543,7 @@
       </div>
       <div class="fc-status" id="fcStatus"></div>
     </div>
-    <div class="stage-tools">
-      <button id="toolsFab" title="地圖工具"><span class="ti">☰</span><span class="tl">工具</span></button>
-      <button id="exploreBtn" title="今日亮點——特別列車與今日之最"><span class="ti">探</span><span class="tl">今日亮點</span></button>
-      <button id="favBtn" title="我的最愛列車"><span class="ti">★</span><span class="tl">我的最愛</span></button>
-      <button id="rideBtn" title="旅程收集（完乘記錄）"><span class="ti">旅</span><span class="tl">旅程收集</span></button>
-      <button id="introBtn" title="經過特殊車站時顯示介紹"><span class="ti">介</span><span class="tl">特殊站介紹</span></button>
-      <button id="satBtn" title="切換衛星影像"><span class="ti">衛</span><span class="tl">衛星影像</span></button>
-      <button id="themeBtn" title="地圖明暗切換"><span class="ti">☾</span><span class="tl">地圖明暗</span></button>
-      <button id="trackBtn" title="軌道顯示：自動（夜間自動淡化）→ 淡化 → 隱藏"><span class="ti">軌</span><span class="tl">軌道顯示</span></button>
-      <button id="xingBtn" title="顯示平交道位置"><span class="ti">平</span><span class="tl">平交道</span></button>
-      <button id="pinBtn" title="落釘看附近經過的火車"><span class="ti">釘</span><span class="tl">附近火車</span></button>
-      <!-- 定位我暫緩:iOS「加到主畫面」standalone PWA 無法取用定位,延到原生 App 再啟用;見 LOCATE_ENABLED。按鈕先 hidden、程式全保留 -->
-      <button id="locateBtn" style="display:none" title="定位我的位置，看附近有哪些平交道、火車是否快通過"><span class="ti">位</span><span class="tl">定位我</span></button>
-      <button id="immBtn" title="極簡沉浸（只留地圖與列車）"><span class="ti">簡</span><span class="tl">極簡沉浸</span></button>
-      <button id="powerBtn" title="省電模式（更新降頻至約 30fps，手機掛著看更省電、更不易卡）"><span class="ti">省</span><span class="tl">省電模式</span></button>
-      <button id="recBtn" title="錄影 Beta（存成影片下載）"><span class="ti">⏺</span><span class="tl">錄影 Beta</span></button>
-      <button id="importBtn" style="display:none" title="匯入 Google Maps 已儲存清單"><span class="ti">匯</span><span class="tl">Google 清單</span></button>
-      <button id="accountBtn" style="display:none" title="登入與跨裝置同步"><span class="ti">帳</span><span class="tl">帳號同步</span></button>
-      <button id="shareBtn" title="分享目前畫面（地點＋時間，或正在跟的車）"><span class="ti">↗</span><span class="tl">分享畫面</span></button>
-    </div>
-    <!-- 全畫面切換獨立鈕(移出工具抽屜,常駐地圖上,手機也點得到):進入=四角外展,fs 中=四角內收 -->
+    <!-- 全畫面切換獨立鈕(常駐地圖右上,手機也點得到):進入=四角外展,fs 中=四角內收 -->
     <button id="fsFab" type="button" title="全畫面地圖（Esc 退出）" aria-label="全畫面">
       <svg class="fs-ic fs-ic-open" viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 9V5a1 1 0 0 1 1-1h4M20 9V5a1 1 0 0 0-1-1h-4M4 15v4a1 1 0 0 0 1 1h4M20 15v4a1 1 0 0 1-1 1h-4"/></svg>
       <svg class="fs-ic fs-ic-close" viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 4v4a1 1 0 0 1-1 1H4M15 4v4a1 1 0 0 0 1 1h4M9 20v-4a1 1 0 0 0-1-1H4M15 20v-4a1 1 0 0 1 1-1h4"/></svg>
@@ -1624,6 +1602,73 @@
     <div class="board" id="favPanel" hidden></div>
     <div class="board" id="ridePanel" hidden></div>
     <div class="board" id="explorePanel" hidden></div>
+    <!-- 軌道與路線告示卡(「軌」鈕開啟):軌道顯示三段＋車種/路線篩選票根(原側欄的新家) -->
+    <div class="board track-panel" id="trackPanel" hidden>
+      <button class="close" id="trackClose" title="關閉">×</button>
+      <h3>軌道與路線</h3>
+      <div class="seg-row"><span>軌道顯示</span><span class="seg" id="trackSeg"><button data-v="auto">自動</button><button data-v="faint">淡化</button><button data-v="hidden">隱藏</button></span></div>
+      <div class="lines" id="lineToggles"></div>
+    </div>
+    <!-- 首訪「怎麼玩」卡:僅首次(localStorage 記憶),setupHowto 決定顯示 -->
+    <div class="howto-wrap" id="howtoWrap" hidden>
+      <div class="howto">
+        <div class="hw-head"><div class="lbl">歡迎搭乘</div><div class="ttl">軌島怎麼玩</div></div>
+        <div class="hw-rows">
+          <div class="hw-row"><span class="ic"><span class="hw-tag">431</span></span><span>點<b>列車</b>＝跟著它跑，陪到終點蓋完乘章</span></div>
+          <div class="hw-row"><span class="ic"><span class="hw-stnbox"><i></i></span></span><span>點<b>車站</b>＝看接下來的班次看板</span></div>
+          <div class="hw-row"><span class="ic"><span class="seal na" style="width:30px;height:30px;padding:0"><b style="font-size:7px">章</b></span></span><span><b>灰章可點</b>＝隨機挑一班該類列車重播</span></div>
+          <div class="hw-row"><span class="ic" style="font-size:15px;color:var(--navy)">⤮</span><span>不知看哪班？<b>隨機跟隨</b>幫你挑</span></div>
+        </div>
+        <div class="hw-foot"><button class="hw-go" id="howtoGo">開始看車</button><button class="hw-skip" id="howtoSkip">不再顯示</button></div>
+      </div>
+    </div>
+    <!-- 站台帶:播放/速度/時間＋地圖工具合體,貼 stage 下緣(金色月台警戒線收邊) -->
+    <div class="controls">
+      <button class="pp" id="pp" title="暫停／播放（空白鍵）"><span id="ppIcon">❚❚</span><span id="ppTxt">暫停</span></button>
+      <div class="ctl">
+        <span class="speedrail">
+          <input type="range" id="speed" min="1" max="60" step="1" value="1" aria-label="倍速" />
+          <span class="post end" style="left:5px"></span><span class="post" style="left:calc(15.25% + 5px)"></span><span class="post" style="left:calc(49.15% + 8px)"></span><span class="post end" style="right:6px"></span>
+          <span class="tick" style="left:7px">1×</span><span class="tick" style="left:calc(15.25% + 6px)">10×</span><span class="tick" style="left:calc(49.15% + 9px)">30×</span><span class="tick" style="left:calc(100% - 8px)">60×</span>
+        </span>
+        <output id="speedOut">1×</output>
+      </div>
+      <div class="band-div"></div>
+      <div class="ctl">
+        <input type="range" id="tod" min="5" max="24" step="1" value="8" hidden />
+        <span class="tod-wrap" title="點擊直接指定時刻"><output id="todOut">08:00</output><input type="time" id="todPick" aria-label="直接指定時刻"></span>
+      </div>
+      <button class="pp sub" id="nowBtn" title="跳到現在的真實時間">現在</button>
+      <div class="band-div"></div>
+      <div class="stage-tools">
+        <button id="toolsFab" title="地圖工具"><span class="ti">☰</span><span class="tl">工具</span></button>
+        <button id="exploreBtn" title="今日亮點——特別列車與今日之最"><span class="ti">探</span><span class="tl">亮點</span></button>
+        <button id="favBtn" title="我的最愛列車"><span class="ti">★</span><span class="tl">最愛</span></button>
+        <button id="rideBtn" title="旅程護照（完乘記錄與收集章）"><span class="ti">旅</span><span class="tl">護照</span></button>
+        <button id="introBtn" title="經過特殊車站時顯示介紹"><span class="ti">介</span><span class="tl">站介紹</span></button>
+        <button id="satBtn" title="切換衛星影像"><span class="ti">衛</span><span class="tl">衛星</span></button>
+        <button id="themeBtn" title="外觀切換：亮／暗／自動"><span class="ti">◐</span><span class="tl">外觀</span></button>
+        <button id="trackBtn" title="軌道與路線：顯示方式與車種/路線篩選"><span class="ti">軌</span><span class="tl">軌道:自動</span></button>
+        <button id="xingBtn" title="顯示平交道位置"><span class="ti">平</span><span class="tl">平交道</span></button>
+        <button id="pinBtn" title="落釘看附近經過的火車"><span class="ti">釘</span><span class="tl">附近</span></button>
+        <!-- 定位我暫緩:iOS「加到主畫面」standalone PWA 無法取用定位,延到原生 App 再啟用;見 LOCATE_ENABLED。按鈕先 hidden、程式全保留 -->
+        <button id="locateBtn" style="display:none" title="定位我的位置，看附近有哪些平交道、火車是否快通過"><span class="ti">◎</span><span class="tl">定位</span></button>
+        <button id="immBtn" title="極簡沉浸（只留地圖與列車）"><span class="ti">簡</span><span class="tl">極簡</span></button>
+        <button id="powerBtn" title="省電模式（更新降頻至約 30fps，手機掛著看更省電、更不易卡）"><span class="ti">省</span><span class="tl">省電</span></button>
+        <button id="recBtn" title="錄影 Beta（存成影片下載）"><span class="ti">⏺</span><span class="tl">錄影</span></button>
+        <button id="importBtn" style="display:none" title="匯入 Google Maps 已儲存清單"><span class="ti">匯</span><span class="tl">匯入</span></button>
+        <button id="accountBtn" style="display:none" title="登入與跨裝置同步"><span class="ti">帳</span><span class="tl">帳號</span></button>
+        <button id="shareBtn" title="分享目前畫面（地點＋時間，或正在跟的車）"><span class="ti">↗</span><span class="tl">分享</span></button>
+      </div>
+      <div class="band-div"></div>
+      <button class="pp sub" id="ambientBtn" title="全畫面自動導演（跟車或群車視角），掛著放空用">放空模式</button>
+      <button class="pp sub" id="ambientStyleBtn" title="切換放空視角：「跟車」跟著一班列車跑；「群車」不跟車，鏡頭停在當下列車最密的繁忙路段看群車交錯，並緩慢漂移縮放、定時換一段">視角：跟車</button>
+      <div class="ctl" id="musicCtl" title="背景音樂（進放空模式會自動開始）">
+        <button class="tmini" id="musicBtn" title="播放/停止背景音樂"><span class="ti">♪<span class="eq"><i></i><i></i><i></i></span></span><span class="tl">音樂</span></button>
+        <button class="tmini" id="musicNextBtn" title="換一首"><span class="ti">⏭</span><span class="tl">換首</span></button>
+        <input type="range" id="musicVol" min="0" max="100" step="1" value="50" aria-label="音量" />
+      </div>
+    </div>
   </div>
 
   <div class="traincard" id="trainCard" hidden>
@@ -1650,30 +1695,8 @@
     <div class="tc-stops" id="tcStops" hidden></div>
   </div>
 
-  <div class="controls">
-    <button class="pp" id="pp"><span id="ppIcon">❚❚</span><span id="ppTxt">暫停</span></button>
-    <div class="ctl">
-      <label for="speed">速度</label>
-      <input type="range" id="speed" min="1" max="60" step="1" value="1" />
-      <output id="speedOut">1×</output>
-      <div class="spd-btns" id="spdBtns">
-        <button data-v="1" class="active">1×</button><button data-v="10">10×</button><button data-v="30">30×</button><button data-v="60">60×</button>
-      </div>
-    </div>
-    <div class="ctl">
-      <label for="tod">時間</label>
-      <input type="range" id="tod" min="5" max="24" step="1" value="8" />
-      <span class="tod-wrap" title="點擊直接指定時刻"><output id="todOut">08:00</output><input type="time" id="todPick" aria-label="直接指定時刻"></span>
-    </div>
-    <button class="pp" id="nowBtn" title="跳到現在的真實時間">現在</button>
-    <button class="pp" id="ambientBtn" title="全畫面自動導演（跟車或群車視角），掛著放空用">放空模式</button>
-    <button class="pp" id="ambientStyleBtn" title="切換放空視角：「跟車」跟著一班列車跑；「群車」不跟車，鏡頭停在當下列車最密的繁忙路段看群車交錯，並緩慢漂移縮放、定時換一段">視角：跟車</button>
-    <div class="ctl" id="musicCtl" title="背景音樂（進放空模式會自動開始）">
-      <button class="pp" id="musicBtn" title="播放/停止背景音樂">音樂<span class="eq"><i></i><i></i><i></i></span></button>
-      <button class="pp" id="musicNextBtn" title="換一首">⏭</button>
-      <input type="range" id="musicVol" min="0" max="100" step="1" value="50" aria-label="音量" />
-    </div>
-  </div>
+  <!-- 旅程護照(側欄取消後移到地圖下方主欄;renderPassport 整卡重建) -->
+  <div class="passport" id="passport" hidden></div>
 
   <p class="kbd-hint">快捷鍵：<b>空白鍵</b>暫停／播放　<b>1</b>–<b>4</b>速度　<b>←</b><b>→</b>時間 ±10 分　<b>F</b>全畫面　地圖下方 <b>🎲</b>＝隨機跟隨</p>
 
@@ -1683,27 +1706,15 @@
   </div>
 
   <p class="note" id="note"></p>
-  </div>
 
-  <aside class="side-col">
-    <div class="search" id="searchRow" hidden>
-      <input type="text" id="trainSearch" list="trainList" placeholder="搜尋車次跟隨（如 123、2103）" autocomplete="off" />
-      <datalist id="trainList"></datalist>
-      <div class="followbar" id="followBar" hidden></div>
-    </div>
-
-    <div class="favs" id="favRow" hidden></div>
-
-    <div class="lines" id="lineToggles"></div>
-
-    <div class="passport" id="passport" hidden></div>
-  </aside>
-  </div>
+  <!-- 最愛常駐列 stub:列已取消(CSS 永久隱藏),renderFavs 仍寫入這裡,避免大改呼叫點 -->
+  <div class="favs" id="favRow" hidden></div>
 
   <footer class="site-foot">
     <details class="foot-box">
       <summary><span>🛠 更新紀錄</span><span class="foot-sub">最後更新：2026/7/16</span></summary>
       <ul class="foot-list">
+        <li><span class="d">7/16</span><span>整站外觀大改版「琺瑯 2.0」：整個網站重新上漆——奶油紙色打底、藏青與號誌紅描邊，操作全部收進地圖底下的「站台帶」一條長板（播放、速度、時間、各種開關一字排開，像月台邊那條金線）；頁首瘦身成一列，地圖更大更好看。新增「外觀」切換：亮／暗／自動——暗色現在連介面一起變，夜間掛著看不再刺眼（謝謝網友許願）。手機版全面改成 App 式操作：底部分頁列（地圖／亮點／最愛／護照／更多）＋「更多」抽屜集中所有設定，速度膠囊常駐地圖下緣、點一下展開調速；旅程護照改成一顆顆紀念章的樣子，蓋過的章有日期戳。調速度時靠近 1×／10×／30×／60× 會自動吸附，不用瞄準；速度拉桿也換上月台燈號樣式</span></li>
         <li><span class="d">7/16</span><span>捷運準確度大升級（一）即時校正：北捷、高捷、高雄輕軌、桃園機捷的列車位置，營運時段會依官方到站看板資料自動校正（約每分鐘），不再只是照表推演——時鐘旁亮起藍色「看板校正」就代表生效中，車站來車看板與跟隨面板的到站時間也會跟著對齊；時間旅行或快轉時自動回到純時刻表模式。跟隨面板同時新增資料等級標示（即時校正／時刻表推演／班距推算），營運異常公告期間會提醒「位置僅供參考」</span></li>
         <li><span class="d">7/16</span><span>捷運準確度大升級（二）國定假日班表：以前國定假日落在平日時（如教師節、光復節連假），捷運會誤跑平日班表——現在內建 2026–2027 官方行事曆，國定假日與補假日自動改跑假日班表（高捷比較特別：國定假日跑的是週六型班表而非週日班表，也一併做對了）。各捷運時刻表同步更新至 7/16 版</span></li>
         <li><span class="d">7/15</span><span>修正高鐵路線折角：地圖上高鐵軌道原本在多處彎道會出現不自然的直角轉折（尤其站區附近），是路線簡化得太粗糙所致——已改用更精細的簡化門檻，彎道現在平滑許多（謝謝網友回報）</span></li>
@@ -1809,10 +1820,42 @@
   </footer>
 </div>
 
+<!-- 手機 App 殼(≤640 顯示;桌面 CSS 藏):底部 tab bar＋「更多」sheet(原 ☰ 抽屜的繼承者) -->
+<nav class="tabbar" id="tabbar" aria-label="主要導覽">
+  <button id="tabMap" class="active"><span class="ti">◉</span><span class="tl">地圖</span></button>
+  <button id="tabExplore"><span class="ti">探</span><span class="tl">亮點</span></button>
+  <button id="tabFav"><span class="ti">★</span><span class="tl">最愛</span></button>
+  <button id="tabRide"><span class="ti">旅</span><span class="tl">護照</span></button>
+  <button id="tabMore"><span class="ti">⋯</span><span class="tl">更多</span></button>
+</nav>
+<div class="more-scrim" id="moreScrim"></div>
+<div class="more-sheet" id="moreSheet">
+  <span class="grab"></span>
+  <div class="ms-head"><h3>更多</h3><button class="ms-close" id="moreClose" title="關閉">✕</button></div>
+  <div class="ms-body" id="moreBody">
+    <div class="ms-row" data-act="theme"><span>◐ 外觀</span><span class="seg" id="msThemeSeg"><button data-v="light">亮</button><button data-v="dark">暗</button><button data-v="auto">自動</button></span></div>
+    <div class="ms-row" data-proxy="satBtn"><span>衛 衛星影像</span><span class="toggle" data-tg="satBtn"></span></div>
+    <div class="ms-row" data-act="track"><span>軌 軌道與路線</span><span class="chev">›</span></div>
+    <div class="ms-row" data-proxy="xingBtn"><span>平 平交道記號</span><span class="toggle" data-tg="xingBtn"></span></div>
+    <div class="ms-row" data-proxy="introBtn"><span>介 特殊站介紹</span><span class="toggle" data-tg="introBtn"></span></div>
+    <div class="ms-row" data-proxy="pinBtn"><span>釘 附近火車</span><span class="toggle" data-tg="pinBtn"></span></div>
+    <div class="ms-sec">動作</div>
+    <div class="ms-row warnrow" data-proxy="powerBtn"><span>省 省電模式（30fps）</span><span class="toggle" data-tg="powerBtn"></span></div>
+    <div class="ms-row" data-proxy="musicBtn"><span>♪ 背景音樂</span><span class="toggle" data-tg="musicBtn"></span></div>
+    <div class="ms-row" data-proxy="ambientBtn" data-close="1"><span>◌ 放空模式</span><span class="chev">›</span></div>
+    <div class="ms-row" data-proxy="recBtn" data-close="1"><span>⏺ 錄影 Beta</span><span class="chev">›</span></div>
+    <div class="ms-row" data-proxy="shareBtn" data-close="1"><span>↗ 分享畫面</span><span class="chev">›</span></div>
+    <div class="ms-row" data-proxy="importBtn" data-close="1"><span>匯 Google 清單匯入</span><span class="chev">›</span></div>
+    <div class="ms-row" data-proxy="accountBtn" data-close="1"><span>帳 帳號同步</span><span class="chev">›</span></div>
+    <div class="ms-row" data-proxy="locateBtn" data-close="1"><span>◎ 定位我</span><span class="chev">›</span></div>
+  </div>
+  <div class="ms-note">本站為個人愛好者專案，與台灣鐵路公司及各捷運公司皆無關。</div>
+</div>
+
 <script>
 // 版本戳記:每次改版 push 前手動遞增(字母序),畫面時鐘徽章與 console 都會顯示,
 // 供比對線上跑的是不是最新版(瀏覽器快取 max-age=600 常讓人看到舊版)
-const BUILD = 'v0716a';
+const BUILD = 'v0716b';
 const state = {
   systems: [], sysId: null, data: null, speed: 36, mode: 'freq',
   lines: [], visible: new Set(), trains: [], schedStations: [], types: [],
@@ -1839,7 +1882,7 @@ const FONT = '-apple-system, "PingFang TC", "Noto Sans TC", sans-serif';
 // 地圖三種底圖對應的 canvas 配色(軌道/站名/車站點/列車標籤外框)——見 design-mock 檔頭 spec B/D
 const MAP_PAL = {
   /* railCase=軌道外描(底圖色 knockout)、followCase=跟隨高亮外描(奶白;暗色/衛星用底圖色) */
-  light: { stnFill: '#f7f0dd', lbl: '#3a3226', lblStroke: 'rgba(255,253,246,.92)', tagOutline: '#fffdf6',            railCase: '#f7f0dd', followCase: '#fffdf6' },
+  light: { stnFill: '#f2ede2', lbl: '#3a3226', lblStroke: 'rgba(255,253,246,.92)', tagOutline: '#fffdf6',            railCase: '#f2ede2', followCase: '#fffdf6' },
   dark:  { stnFill: '#10141c', lbl: '#e8e4d8', lblStroke: 'rgba(16,20,28,.9)',     tagOutline: 'rgba(16,20,28,.9)',  railCase: '#10141c', followCase: '#10141c' },
   sat:   { stnFill: '#24382c', lbl: '#ffffff', lblStroke: 'rgba(20,30,20,.85)',    tagOutline: 'rgba(20,30,20,.85)', railCase: '#24382c', followCase: '#24382c' },
 };
@@ -1868,8 +1911,6 @@ function setSpeed(v) {
   state.speedMult = v;
   document.getElementById('speed').value = v;
   document.getElementById('speedOut').textContent = v + '×';
-  document.querySelectorAll('#spdBtns button').forEach(b =>
-    b.classList.toggle('active', +b.dataset.v === v));
   applySpeedZoomCap();
 }
 // 高速鎖縮放:播放 ≥30× 時把地圖縮放上限收到 z16(每圖磚約1.2km,60×也只需~2.6張/秒、讀得動)。
@@ -4868,15 +4909,8 @@ function effT(tr) {
     ? state.simSec + 86400 : state.simSec;
 }
 
-// 跟隨時把播放/速度控制列移到地圖下第一排(資訊卡上方),取消跟隨移回原位
-function placeControls(following) {
-  const c = document.querySelector('.controls');
-  const tc = document.getElementById('trainCard');
-  if (following) {
-    if (tc.parentElement.classList.contains('follow-panel')) return; // fs 合併卡中,控制列由 fs CSS 固定定位
-    tc.before(c);
-  } else document.querySelector('.kbd-hint').before(c);
-}
+// 站台帶(琺瑯 2.0)常駐 stage 下緣,不再隨跟隨搬移 DOM;保留空殼給 setFollow/clearFollow 既有呼叫點
+function placeControls(following) {}
 
 // 全畫面跟隨:資訊卡搬進左下跟隨面板合併成一張;退出全畫面/取消跟隨還原到地圖下方
 function placeTrainCard() {
@@ -5789,7 +5823,7 @@ function renderFavPanel() {
 }
 function openFavPanel() {
   soloPanel('fav');
-  closeBoard(); closeRidePanel(); closeExplorePanel();
+  closeBoard(); closeRidePanel(); closeExplorePanel(); closeTrackPanel();
   const el = document.getElementById('favPanel');
   el.hidden = false;
   updateSheetOpenClass();
@@ -5859,7 +5893,7 @@ function renderRidePanel() {
 }
 function openRidePanel() {
   soloPanel('ride');
-  closeBoard(); closeFavPanel(); closeExplorePanel();
+  closeBoard(); closeFavPanel(); closeExplorePanel(); closeTrackPanel();
   document.getElementById('ridePanel').hidden = false;
   updateSheetOpenClass();
   document.getElementById('rideBtn').classList.add('active');
@@ -6012,12 +6046,14 @@ function renderPassport() {
   const rides = loadRides();
   const totalKm = rides.reduce((a, r) => a + (r.km || 0), 0);
   const longest = rides.reduce((a, r) => Math.max(a, r.km || 0), 0);
+  // 章名折行:4 字以上折兩行塞進圓章(仿 mock「藍皮/解憂號」)
+  const sealName = n => n.length >= 4 ? n.slice(0, Math.floor(n.length / 2)) + '<br>' + n.slice(Math.floor(n.length / 2)) : n;
   const stampRow = (label, cat, items) => {
     if (!items.length) return '';
     const got = items.filter(i => i.got).length;
     return `<div class="ph-sec">${label}<b>${got}/${items.length}</b></div><div class="ph-stamps">` +
-      items.map(i => `<span class="stamp${i.got ? ' got' : ''}" data-cat="${cat}" data-id="${i.id}"` + // 完成與否皆掛點擊鉤子→got 章也可點
-        ` title="${i.tip || ''}">${i.got ? '✓ ' : ''}${i.name}</span>`).join('') + `</div>`;
+      items.map(i => `<span class="seal${i.got ? '' : ' na'}" data-cat="${cat}" data-id="${i.id}"` + // 完成與否皆掛點擊鉤子→got 章也可點
+        ` title="${i.tip || ''}"><b>${sealName(i.name)}</b><small>${i.got ? '已收藏' : '點我重播'}</small></span>`).join('') + `</div>`;
   };
   let stamps = '';
   const sd = state.special;
@@ -6037,16 +6073,16 @@ function renderPassport() {
   const ach = unlockedAchievements(rides);
   stamps += `<div class="ph-sec">成就徽章<b>${ach.size}/${ACHIEVEMENTS.length}</b></div><div class="ph-stamps">` +
     ACHIEVEMENTS.map(a =>
-      `<span class="stamp na${ach.has(a.id) ? ' got' : ''}" title="${a.desc}">${ach.has(a.id) ? '✓ ' : ''}${a.icon} ${a.name}</span>`).join('') + '</div>';
+      `<span class="seal${ach.has(a.id) ? ' gold' : ' na'}" title="${a.desc}"><b>${sealName(a.name)}</b><small>${a.icon}</small></span>`).join('') + '</div>';
   const list = rides.slice().reverse().map(r =>
-    `<div class="ph-row"><span class="d">${(r.date || '').slice(5)}</span><b>${r.train}</b>` +
+    `<div class="ph-row"><span class="datestamp">${(r.date || '').slice(5).replace(/-/g, '.')}</span><b>${r.train}</b>` +
     `<span class="k">${r.kind}</span><span class="r">${r.from}→${r.to}</span><span class="km">${r.km} km</span></div>`).join('');
   // 收合狀態記 localStorage(預設收合,免得側欄一次攤開太多資訊);點標題列切換
   let open = false;
   try { open = localStorage.getItem('trainmap-passport-open') === '1'; } catch (e) {}
   el.classList.toggle('closed', !open);
   el.innerHTML =
-    `<div class="ph-head"><b>旅程收集</b><span class="ph-tgl">${open ? '收合 ▲' : '展開 ▼'}</span>` +
+    `<div class="ph-head"><b>旅程護照</b><span class="ph-tgl">${open ? '收合 ▲' : '展開 ▼'}</span>` +
     `<span class="ph-sub">從發車一路跟到終點就蓋一枚完乘章（調速可以・跳時間不算）· 灰色的章點了帶你從發車搭一趟</span>` +
     `<span class="ph-stats">完乘 <b>${rides.length}</b> 趟 · 總里程 <b>${totalKm.toLocaleString()}</b> km` +
     (longest ? ` · 最長一趟 <b>${longest.toLocaleString()}</b> km` : '') + `</span></div>` +
@@ -6062,8 +6098,8 @@ function renderPassport() {
       el.querySelector('.ph-tgl').textContent = nowOpen ? '收合 ▲' : '展開 ▼';
       return;
     }
-    const st = e.target.closest('.stamp[data-cat]');
-    // 明星/圖鑑/支線章:每次點挑一班不同的車從發車跟(完成的章也可點來再看);成就徽章 .stamp.na 無 data-cat,不觸發
+    const st = e.target.closest('.seal[data-cat]');
+    // 明星/圖鑑/支線章:每次點挑一班不同的車從發車跟(完成的章也可點來再看);成就徽章無 data-cat,不觸發
     if (st) followDexStamp(st.dataset.cat, st.dataset.id);
   };
   el.hidden = false;
@@ -6161,7 +6197,7 @@ function surpriseFollow() {
 }
 function openExplorePanel() {
   soloPanel('explore');
-  closeBoard(); closeFavPanel(); closeRidePanel();
+  closeBoard(); closeFavPanel(); closeRidePanel(); closeTrackPanel();
   document.getElementById('explorePanel').hidden = false;
   updateSheetOpenClass();
   document.getElementById('exploreBtn').classList.add('active');
@@ -6922,8 +6958,35 @@ function jumpToNow() {
 // 手機底部 sheet(看板/最愛/旅程/探索,四選一互斥)開啟時,跟隨小卡要讓道到上方,
 // 避免同在左下角互疊(見 CSS body.sheet-open .follow-panel,只在手機斷點生效)
 function updateSheetOpenClass() {
-  const open = ['board', 'favPanel', 'ridePanel', 'explorePanel'].some(id => !document.getElementById(id).hidden);
+  const open = ['board', 'favPanel', 'ridePanel', 'explorePanel', 'trackPanel'].some(id => !document.getElementById(id).hidden);
   document.body.classList.toggle('sheet-open', open);
+  // 手機 tab bar 選中態跟著面板走:有開面板亮該 tab,全關回「地圖」
+  const tabOf = { tabExplore: 'explorePanel', tabFav: 'favPanel', tabRide: 'ridePanel' };
+  let any = false;
+  for (const tid in tabOf) {
+    const on = !document.getElementById(tabOf[tid]).hidden;
+    const tb = document.getElementById(tid); if (tb) tb.classList.toggle('active', on);
+    if (on) any = true;
+  }
+  const tm = document.getElementById('tabMap'); if (tm) tm.classList.toggle('active', !any);
+}
+
+// ──「軌道與路線」告示卡:軌道顯示三段＋車種/路線篩選票根(「軌」鈕開關;與其他面板同槽互斥) ──
+function openTrackPanel() {
+  soloPanel('track');
+  closeBoard(); closeFavPanel(); closeRidePanel(); closeExplorePanel();
+  document.getElementById('trackPanel').hidden = false;
+  document.getElementById('trackBtn').classList.add('active');
+  syncTrackSeg();
+  updateSheetOpenClass();
+}
+function closeTrackPanel() {
+  document.getElementById('trackPanel').hidden = true;
+  document.getElementById('trackBtn').classList.remove('active');
+  updateSheetOpenClass();
+}
+function syncTrackSeg() {
+  document.querySelectorAll('#trackSeg button').forEach(b => b.classList.toggle('on', b.dataset.v === state.trackStyle));
 }
 
 // ── 車站時刻板 ──
@@ -6940,8 +7003,9 @@ function soloPanel(keep) {
   if (keep !== 'fav') closeFavPanel();
   if (keep !== 'ride') closeRidePanel();
   if (keep !== 'explore') closeExplorePanel();
+  if (keep !== 'track') closeTrackPanel();
 }
-function openBoard(st) { soloPanel('board'); closeFavPanel(); closeRidePanel(); closeExplorePanel(); closePinCard(); closeNearbyXing(); state.boardStation = st; renderBoard(); }
+function openBoard(st) { soloPanel('board'); closeFavPanel(); closeRidePanel(); closeExplorePanel(); closeTrackPanel(); closePinCard(); closeNearbyXing(); state.boardStation = st; renderBoard(); }
 function closeBoard() {
   state.boardStation = null;
   const el = document.getElementById('board');
@@ -7233,11 +7297,10 @@ function setBasemap() {
   }
   if (baseLayers[want]) baseLayers[want].bringToBack();
   if (state.offlineLand) state.offlineLand.setStyle(offlineLandStyle());
-  const themeBtn = document.getElementById('themeBtn'), satBtn = document.getElementById('satBtn');
-  if (themeBtn) themeBtn.querySelector('.ti').textContent = state.mapDark ? '☀' : '☾';
+  const satBtn = document.getElementById('satBtn');
   if (satBtn && online) {
     satBtn.querySelector('.ti').textContent = sat ? '圖' : '衛';
-    satBtn.querySelector('.tl').textContent = sat ? '一般地圖' : '衛星影像';
+    satBtn.querySelector('.tl').textContent = sat ? '地圖' : '衛星';
     satBtn.title = sat ? '切回一般地圖' : '切換衛星影像';
   }
 }
@@ -7248,45 +7311,76 @@ function setupMapTools() {
   setupTakeoutUi();
   setupAccountUi();
   setupPlusUi();
-  // 手機工具抽屜:預設收合只露「☰ 工具」,點開展開整排;點任一工具後自動收回(小螢幕地圖不被長排大鈕蓋住)
-  const toolsFab = document.getElementById('toolsFab');
-  const setDrawer = on => {
+  // 手機 tab bar＋「更多」sheet(原 ☰ 抽屜的繼承者;桌面 CSS 直接藏。#toolsFab 已停用,保留在 DOM)
+  const setMore = on => {
     document.body.classList.toggle('tools-open', on);
-    toolsFab.querySelector('.ti').textContent = on ? '×' : '☰';
-    toolsFab.querySelector('.tl').textContent = on ? '收合' : '工具';
+    if (on) syncMoreSheet();
   };
-  toolsFab.onclick = () => setDrawer(!document.body.classList.contains('tools-open'));
-  document.querySelector('.stage-tools').addEventListener('click', e => {
-    const b = e.target.closest('button');
-    if (b && b !== toolsFab && matchMedia('(max-width: 640px)').matches) setDrawer(false);
+  document.getElementById('tabMore').onclick = () => setMore(!document.body.classList.contains('tools-open'));
+  document.getElementById('moreClose').onclick = () => setMore(false);
+  document.getElementById('moreScrim').onclick = () => setMore(false);
+  document.getElementById('tabMap').onclick = () => { setMore(false); soloPanel(''); };
+  document.getElementById('tabExplore').onclick = () => { setMore(false); document.getElementById('exploreBtn').click(); };
+  document.getElementById('tabFav').onclick = () => { setMore(false); document.getElementById('favBtn').click(); };
+  document.getElementById('tabRide').onclick = () => { setMore(false); document.getElementById('rideBtn').click(); };
+  // sheet 列=代理真實工具鈕:開關列同步 on 態、代理鈕被藏(功能未開放)整列跟著藏
+  const MS_STATE = {
+    satBtn: () => state.basemap === 'sat',
+    xingBtn: () => !!state.xingOn,
+    introBtn: () => !!state.stnIntro,
+    pinBtn: () => !!state.dropMode,
+    powerBtn: () => !!state.powerSave,
+    musicBtn: () => !!(state.music && state.music.enabled && state.music.audio && !state.music.audio.paused),
+  };
+  function syncMoreSheet() {
+    document.querySelectorAll('#moreBody .ms-row').forEach(row => {
+      const id = row.dataset.proxy, btn = id && document.getElementById(id);
+      if (btn) {
+        const host = btn.closest('#musicCtl') || btn; // 音樂鈕的可用性掛在 #musicCtl.hidden
+        row.style.display = (host.hidden || btn.style.display === 'none') ? 'none' : '';
+      }
+      const tg = row.querySelector('.toggle');
+      if (tg && MS_STATE[tg.dataset.tg]) tg.classList.toggle('on', MS_STATE[tg.dataset.tg]());
+    });
+    document.querySelectorAll('#msThemeSeg button').forEach(b =>
+      b.classList.toggle('on', b.dataset.v === (state.appearance || 'auto')));
+  }
+  state._syncMoreSheet = syncMoreSheet;
+  document.getElementById('moreBody').addEventListener('click', e => {
+    const segBtn = e.target.closest('#msThemeSeg button');
+    if (segBtn) { setAppearance(segBtn.dataset.v); syncMoreSheet(); return; }
+    const row = e.target.closest('.ms-row'); if (!row) return;
+    if (row.dataset.act === 'track') { setMore(false); openTrackPanel(); return; }
+    const btn = row.dataset.proxy && document.getElementById(row.dataset.proxy); if (!btn) return;
+    if (row.dataset.close === '1') setMore(false);
+    btn.click();
+    syncMoreSheet();
   });
-  // 控制列在窄螢幕會摺成多行,面板/資訊卡的 bottom 依實際高度讓位。
-  // 跟隨中改為:控制列離開底部中央,疊到左下跟隨卡片正上方(使用者指定)。
-  function placeFsOverlays(on) {
-    // 跟隨中:合併資訊卡佔左下(純 CSS),控制列改靠右下讓出位置;未跟隨:控制列回底部置中。
-    // 手機(<=640px)的合併卡本來就藏起來(body.fs .traincard{display:none}),沒有左側卡要讓,
-    // 控制列改靠右下反而會被行動裝置窄寬度的 maxWidth 計算擠成直排,所以只在桌面/平板寬度套用。
-    const st = document.querySelector('.controls').style;
+  // 首訪「怎麼玩」卡:僅首次(localStorage 記憶);直播/導播模式不彈
+  (function setupHowto() {
+    const wrap = document.getElementById('howtoWrap');
+    let seen = null; try { seen = localStorage.getItem('trainmap-howto-seen'); } catch (e) {}
+    if (!wrap || seen || state.liveMode || state.director) return;
+    const done = () => { wrap.hidden = true; try { localStorage.setItem('trainmap-howto-seen', '1'); } catch (e) {} };
+    wrap.hidden = false;
+    document.getElementById('howtoGo').onclick = done;
+    document.getElementById('howtoSkip').onclick = done;
+    wrap.addEventListener('click', e => { if (e.target === wrap) done(); });
+  })();
+  // 手機:跟隨小卡與跟隨鎖鈕依站台帶(速度膠囊)實際位置讓位——膠囊展開(cexp)變高時上移,收回還原。
+  // 桌面帶常駐 stage 下緣、跟隨卡 CSS 固定 bottom 86px 在帶上方,不需 JS 重排。
+  function placeFsOverlays() {
     const isMobile = window.matchMedia('(max-width: 640px)').matches;
-    const followVisible = state.followTrain && !document.getElementById('followPanel').hidden
-      && !document.body.classList.contains('immersive');
-    if (!isMobile && on && followVisible) {
-      st.left = 'auto'; st.right = '60px'; st.transform = 'none'; st.bottom = '12px';
-      // right:60px(而非 12px)讓開同一角落的 Leaflet 縮放鈕(bottomright,寬約 34px)
-      st.maxWidth = 'calc(100vw - 360px)'; // 讓出左側合併卡(300px+邊距),太寬就摺行
-    } else {
-      st.left = ''; st.right = ''; st.transform = ''; st.bottom = ''; st.maxWidth = '';
-    }
-    // 手機全畫面+跟隨:控制列貼底、按鈕多會摺成 2~3 行,高度隨文字長短(如「離開放空」)變動,
-    // 跟隨小卡改用量到的實際高度動態讓道,避免固定 px 假設被壓到(見 CSS 裡原本寫死的 132px)
     const fp = document.getElementById('followPanel');
     const lc = document.querySelector('.follow-lock-ctl');
-    if (on && followVisible) {
-      const ctlH = document.querySelector('.controls').getBoundingClientRect().height;
-      fp.style.bottom = isMobile ? Math.round(ctlH + 24) + 'px' : '';
-      // 跟隨鎖鈕不分寬度都墊到控制列上方:手機控制列貼底整排(375px 掃描抓到整顆壓上),
-      // 桌面/平板解鎖膠囊(~90px 寬)會伸進靠右下的摺行控制列(768px 掃描抓到)
-      if (lc) lc.style.marginBottom = Math.round(ctlH + 16) + 'px';
+    const followVisible = state.followTrain && !fp.hidden && !document.body.classList.contains('immersive');
+    if (isMobile && followVisible
+      && !document.body.classList.contains('ambient') && !document.body.classList.contains('live')) {
+      const stR = document.querySelector('.stage').getBoundingClientRect();
+      const ctR = document.querySelector('.controls').getBoundingClientRect();
+      const lift = Math.max(52, Math.round(stR.bottom - ctR.top) + 8); // 膠囊頂到 stage 底的高度+8
+      fp.style.bottom = lift + 'px';
+      if (lc) lc.style.marginBottom = (lift - 10) + 'px';
     } else {
       fp.style.bottom = '';
       if (lc) lc.style.marginBottom = '';
@@ -7317,17 +7411,16 @@ function setupMapTools() {
   }
   state._setFs = setFs;
   if (state.liveMode && !document.body.classList.contains('fs')) setFs(true); // 直播/導播不等資料就緒就先進全畫面,OBS 一開始就是乾淨地圖,不會先閃出整頁版型
-  // ── 手機全畫面速度控制膠囊狀態機(僅 ≤640 & fs & 非放空非直播;膠囊/展開/把手的樣式見 640 媒體塊)──
+  // ── 手機速度控制膠囊狀態機(≤640 一律;非放空非直播;膠囊/展開/把手的樣式見 640 媒體塊)──
   (function setupFsCapsule() {
     const controls = document.querySelector('.controls');
     const pp = document.getElementById('pp');
     const body = document.body;
     let collapseT = null, faintT = null, sliderHold = false, wokeFromFaint = false;
-    const capsule = () => body.classList.contains('fs')
-      && window.matchMedia('(max-width: 640px)').matches
+    const capsule = () => window.matchMedia('(max-width: 640px)').matches
       && !body.classList.contains('ambient') && !body.classList.contains('live');
     const clearTimers = () => { clearTimeout(collapseT); clearTimeout(faintT); collapseT = faintT = null; };
-    const syncOverlays = () => { if (body.classList.contains('fs')) placeFsOverlays(true); }; // 膠囊高度變 → 跟隨卡/鈕依實高重新讓位
+    const syncOverlays = () => placeFsOverlays(); // 膠囊高度變 → 跟隨卡/鈕依實高重新讓位
     function scheduleCollapse() { clearTimers(); if (!sliderHold) collapseT = setTimeout(toSlim, 5000); } // 展開 5s 無互動 → slim
     function scheduleFaint() { clearTimers(); if (!sliderHold) faintT = setTimeout(toFaint, 5000); }      // slim 閒置 5s → 淡成把手
     function toExpanded() { if (!capsule()) return; body.classList.add('cexp'); body.classList.remove('cfaint'); scheduleCollapse(); syncOverlays(); }
@@ -7340,6 +7433,7 @@ function setupMapTools() {
     controls.addEventListener('touchstart', () => { if (capsule() && body.classList.contains('cfaint')) { wokeFromFaint = true; toSlim(); } }, { passive: true });
     // 點膠囊本體(非 ▶/⏸)→ 展開;▶/⏸ 照常播放暫停;已展開則交給內部真控件
     controls.addEventListener('click', (e) => {
+      if (!e.isTrusted) return; // 「更多」sheet 代理點擊帶內工具鈕(btn.click())會冒泡到這裡,別把膠囊偷偷展開
       if (!capsule()) return;
       if (pp.contains(e.target)) return;
       if (wokeFromFaint) { wokeFromFaint = false; return; }
@@ -7361,9 +7455,10 @@ function setupMapTools() {
       if (capsule()) { if (force || (!body.classList.contains('cexp') && !body.classList.contains('cfaint'))) toSlim(); }
       else { clearTimers(); sliderHold = false; body.classList.remove('cexp', 'cfaint'); }
     };
+    state._fsCapsuleSync(true); // 膠囊改為手機常駐:開站就初始化 slim 態
   })();
   window.addEventListener('resize', () => {
-    if (document.body.classList.contains('fs')) { placeFsOverlays(true); if (state._fsCapsuleSync) state._fsCapsuleSync(false); }
+    placeFsOverlays(); if (state._fsCapsuleSync) state._fsCapsuleSync(false);
   });
   // 真全螢幕被使用者(Esc/F11/系統手勢)退掉時,同步收掉 CSS 全畫面狀態並重排地圖
   document.addEventListener('fullscreenchange', () => {
@@ -7378,7 +7473,7 @@ function setupMapTools() {
   function setImmersive(on) {
     document.body.classList.toggle('immersive', on);
     immBtn.classList.toggle('active', on);
-    immBtn.querySelector('.tl').textContent = on ? '退出極簡' : '極簡沉浸';
+    immBtn.querySelector('.tl').textContent = on ? '退出極簡' : '極簡';
     immBtn.title = on ? '顯示資訊（退出極簡）' : '極簡沉浸（只留地圖與列車）';
     try { localStorage.setItem('trainmap-immersive', on ? '1' : '0'); } catch (e) {}
     if (document.body.classList.contains('fs')) placeFsOverlays(true);
@@ -7391,7 +7486,7 @@ function setupMapTools() {
   function setPowerSave(on, save) {
     state.powerSave = on;
     powerBtn.classList.toggle('active', on);
-    powerBtn.querySelector('.tl').textContent = on ? '省電中' : '省電模式';
+    powerBtn.querySelector('.tl').textContent = on ? '省電中' : '省電';
     powerBtn.title = on ? '省電模式已開：更新降頻至約 30fps、關閉高速預抓（點擊關閉）'
                         : '省電模式（更新降頻至約 30fps，手機掛著看更省電、更不易卡）';
     if (save !== false) {
@@ -7412,11 +7507,30 @@ function setupMapTools() {
   }
   introBtn.onclick = () => setStnIntro(!state.stnIntro);
   state._setStnIntro = setStnIntro;
-  themeBtn.onclick = () => {
-    state.mapDark = !state.mapDark;
-    try { localStorage.setItem('trainmap-theme', state.mapDark ? 'dark' : 'light'); } catch (e) {}
+  // ── 外觀三段:亮/暗/自動——html[data-theme] 全介面換色,地圖底圖與 canvas 調色盤(MAP_PAL)連動 ──
+  function setAppearance(mode) {
+    state.appearance = mode;
+    try { localStorage.setItem('trainmap-appearance', mode); } catch (e) {}
+    applyAppearance();
+  }
+  function applyAppearance() {
+    const mode = state.appearance || 'auto';
+    const dark = mode === 'auto' ? window.matchMedia('(prefers-color-scheme: dark)').matches : mode === 'dark';
+    document.documentElement.setAttribute('data-theme', dark ? 'dark' : 'light');
+    const mt = document.querySelector('meta[name=theme-color]'); if (mt) mt.content = dark ? '#0A0F1C' : '#EFE6D2';
+    state.mapDark = dark;
+    themeBtn.querySelector('.tl').textContent = { light: '外觀:亮', dark: '外觀:暗', auto: '外觀:自動' }[mode];
     setBasemap();
-  };
+    if (state.ready) draw(); // 調色盤變了立即補一幀(暫停中也要換色)
+  }
+  state._setAppearance = setAppearance;
+  themeBtn.onclick = () => setAppearance({ light: 'dark', dark: 'auto', auto: 'light' }[state.appearance || 'auto']);
+  try { // 自動模式跟著系統亮暗即時切
+    window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => {
+      if ((state.appearance || 'auto') === 'auto') applyAppearance();
+    });
+  } catch (e) {}
+  applyAppearance(); // 初始化鈕面與主題(FOUC 腳本已先套 data-theme,這裡對齊 state 與地圖)
   if (onlineBasemapsAvailable()) {
     satBtn.onclick = () => {
       state.basemap = state.basemap === 'sat' ? 'map' : 'sat';
@@ -7424,17 +7538,20 @@ function setupMapTools() {
       setBasemap();
     };
   } else satBtn.style.display = 'none';
-  // 軌道顯示三段循環:自動(亮色原色、夜間/衛星自動淡化)→淡化(一律更淡)→隱藏(只留列車與車站)
+  // 軌道顯示三段(自動/淡化/隱藏)住進「軌道與路線」告示卡;「軌」鈕改為開關面板
   const trackBtn = document.getElementById('trackBtn');
   const TRACK_LBL = { auto: '軌道:自動', faint: '軌道:淡化', hidden: '軌道:隱藏' };
   function setTrackStyle(s) {
     state.trackStyle = s;
-    trackBtn.classList.toggle('active', s !== 'auto');
     trackBtn.querySelector('.tl').textContent = TRACK_LBL[s];
-    trackBtn.title = `軌道顯示：${s === 'auto' ? '自動（夜間自動淡化）' : s === 'faint' ? '淡化' : '隱藏（全部壓到極淡，含跟隨路線）'}——點擊切換`;
+    trackBtn.title = `軌道顯示：${s === 'auto' ? '自動（夜間自動淡化）' : s === 'faint' ? '淡化' : '隱藏（全部壓到極淡，含跟隨路線）'}`;
+    syncTrackSeg();
     try { localStorage.setItem('trainmap-track', s); } catch (e) {}
   }
-  trackBtn.onclick = () => setTrackStyle(state.trackStyle === 'auto' ? 'faint' : state.trackStyle === 'faint' ? 'hidden' : 'auto');
+  state._setTrackStyle = setTrackStyle;
+  trackBtn.onclick = () => document.getElementById('trackPanel').hidden ? openTrackPanel() : closeTrackPanel();
+  document.getElementById('trackClose').onclick = closeTrackPanel;
+  document.querySelectorAll('#trackSeg button').forEach(b => { b.onclick = () => setTrackStyle(b.dataset.v); });
   setTrackStyle(state.trackStyle);
 
   // ── 平交道顯示開關:開了才畫全台台鐵平交道記號、建點擊命中;每次打開浮出使用說明卡 ──
@@ -7470,7 +7587,7 @@ function setupMapTools() {
   function setDropMode(on, silent) {
     state.dropMode = on;
     pinBtn.classList.toggle('active', on);
-    pinBtn.querySelector('.tl').textContent = on ? '點地圖落釘' : '附近火車';
+    pinBtn.querySelector('.tl').textContent = on ? '點地圖落釘' : '附近';
     pinBtn.title = on ? '落釘模式中：點地圖可連續落釘、存點（再按一次關閉）' : '落釘看附近經過的火車';
     const cnt = map.getContainer(); if (cnt) cnt.style.cursor = on ? 'crosshair' : '';
     if (on && !silent) showToast('落釘模式：點地圖可連續落釘看附近火車、按「存」收藏；再按一次「釘」關閉');
@@ -7847,7 +7964,14 @@ async function boot() {
       maxZoom: 19, crossOrigin: true, keepBuffer: kb, attribution: 'Tiles &copy; Esri — Source: Esri, Maxar, Earthstar Geographics',
     });
   }
-  try { state.mapDark = localStorage.getItem('trainmap-theme') === 'dark'; } catch (e) {}
+  // 外觀三段(亮/暗/自動;自動=跟隨系統)。舊鍵 trainmap-theme(light/dark)沿用為固定亮/暗
+  try {
+    const ap = localStorage.getItem('trainmap-appearance') || localStorage.getItem('trainmap-theme');
+    state.appearance = (ap === 'light' || ap === 'dark') ? ap : 'auto';
+  } catch (e) { state.appearance = 'auto'; }
+  state.mapDark = state.appearance === 'auto'
+    ? window.matchMedia('(prefers-color-scheme: dark)').matches
+    : state.appearance === 'dark';
   try { const ts = localStorage.getItem('trainmap-track'); if (ts === 'faint' || ts === 'hidden') state.trackStyle = ts; } catch (e) {}
   try { state.basemap = onlineBasemapsAvailable() && localStorage.getItem('trainmap-basemap') === 'sat' ? 'sat' : 'map'; } catch (e) {}
   try { state.immersive = localStorage.getItem('trainmap-immersive') === '1'; } catch (e) {}
@@ -7949,10 +8073,12 @@ async function shareView() {
 }
 document.getElementById('shareBtn').onclick = shareView;
 document.getElementById('pp').onclick = togglePlay;
-document.getElementById('speed').oninput = e => setSpeed(parseFloat(e.target.value));
-document.querySelectorAll('#spdBtns button').forEach(b => {
-  b.onclick = () => setSpeed(+b.dataset.v);
-});
+// 速度軌磁吸:拖到常用檔位(1/10/30/60)±2 內就吸附——取代舊的四顆預設鈕
+document.getElementById('speed').oninput = e => {
+  let v = parseFloat(e.target.value);
+  for (const s of [1, 10, 30, 60]) if (Math.abs(v - s) <= 2) { v = s; break; }
+  setSpeed(v);
+};
 document.getElementById('tod').oninput = e => setSimSec(parseInt(e.target.value, 10) * 60); // sched 與捷運同走 simSec 分鐘滑桿
 // 點時間讀數直接指定時刻(手機開原生滾輪、桌面打字):與滑桿走同一條套用路徑
 const todPick = document.getElementById('todPick');
