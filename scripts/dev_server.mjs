@@ -25,7 +25,7 @@ const MIME = { '.html': 'text/html', '.js': 'text/javascript', '.mjs': 'text/jav
 createServer(async (req, res) => {
   const url = new URL(req.url, 'http://x');
   if (url.pathname.startsWith('/api/')) {
-    const resp = await worker.fetch(new Request('http://localhost' + req.url), process.env);
+    const resp = await worker.fetch(new Request('https://localhost' + req.url), process.env); // https:worker 對 http 一律 301,本機直連要繞過
     res.statusCode = resp.status;
     resp.headers.forEach((v, k) => res.setHeader(k, v));
     return res.end(Buffer.from(await resp.arrayBuffer()));

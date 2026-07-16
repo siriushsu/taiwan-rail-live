@@ -523,6 +523,10 @@
   .freq-card .fc-next { display: flex; align-items: baseline; gap: 8px; margin-top: 7px; }
   .freq-card .fc-next .lbl { font-size: 11px; color: #8a7c62; font-weight: 800; letter-spacing: 2px; flex: none; }
   .freq-card .fc-next .stn { font-size: 16px; font-weight: 900; color: #1e2c40; letter-spacing: 1px; }
+  .freq-card .fc-status { margin-top: 6px; font-size: 11px; color: #8a7c62; font-weight: 600; }
+  .freq-card .fc-status:empty { display: none; }
+  .freq-card .fc-status.on { color: #0f7fa8; }
+  .freq-card .fc-status.warn { color: #b8321f; }
   /* ── 列車資訊卡(地圖下方,跟隨時顯示) ── */
   .traincard {
     margin: 14px 0 0;
@@ -875,6 +879,8 @@
   .foot-links .ver { margin-left: auto; align-self: center; font-size: 11px; color: #b3a37e; font-weight: 600; letter-spacing: .5px; }
   .badge .live { font-size: 11px; font-weight: 800; color: #1d9e55; letter-spacing: .5px; cursor: help; }
   .badge .live::before { content: '●'; margin-right: 3px; animation: livePulse 2s infinite; }
+  .badge .mlive { font-size: 11px; font-weight: 800; color: #0f7fa8; letter-spacing: .5px; cursor: help; }
+  .badge .mlive::before { content: '●'; margin-right: 3px; animation: livePulse 2s infinite; }
   @keyframes livePulse { 0%, 100% { opacity: 1; } 50% { opacity: .35; } }
   .lateTag {
     color: #b8321f; font-weight: 800; font-size: 10.5px; margin-left: 4px;
@@ -1537,6 +1543,7 @@
         <span class="lbl">下一站</span>
         <span class="stn" id="fcNext"></span>
       </div>
+      <div class="fc-status" id="fcStatus"></div>
     </div>
     <div class="stage-tools">
       <button id="toolsFab" title="地圖工具"><span class="ti">☰</span><span class="tl">工具</span></button>
@@ -1592,6 +1599,7 @@
     <div class="badge">
       <span class="clock" id="clock">08:00</span>
       <span class="live" id="liveBadge" hidden>LIVE</span>
+      <span class="mlive" id="metroBadge" hidden>看板校正</span>
       <span class="replay" id="replayBadge" hidden>REPLAY</span>
       <span class="peak" id="peak"></span>
       <span class="count" id="count"></span>
@@ -1694,8 +1702,10 @@
 
   <footer class="site-foot">
     <details class="foot-box">
-      <summary><span>🛠 更新紀錄</span><span class="foot-sub">最後更新：2026/7/15</span></summary>
+      <summary><span>🛠 更新紀錄</span><span class="foot-sub">最後更新：2026/7/16</span></summary>
       <ul class="foot-list">
+        <li><span class="d">7/16</span><span>捷運準確度大升級（一）即時校正：北捷、高捷、高雄輕軌、桃園機捷的列車位置，營運時段會依官方到站看板資料自動校正（約每分鐘），不再只是照表推演——時鐘旁亮起藍色「看板校正」就代表生效中，車站來車看板與跟隨面板的到站時間也會跟著對齊；時間旅行或快轉時自動回到純時刻表模式。跟隨面板同時新增資料等級標示（即時校正／時刻表推演／班距推算），營運異常公告期間會提醒「位置僅供參考」</span></li>
+        <li><span class="d">7/16</span><span>捷運準確度大升級（二）國定假日班表：以前國定假日落在平日時（如教師節、光復節連假），捷運會誤跑平日班表——現在內建 2026–2027 官方行事曆，國定假日與補假日自動改跑假日班表（高捷比較特別：國定假日跑的是週六型班表而非週日班表，也一併做對了）。各捷運時刻表同步更新至 7/16 版</span></li>
         <li><span class="d">7/15</span><span>修正高鐵路線折角：地圖上高鐵軌道原本在多處彎道會出現不自然的直角轉折（尤其站區附近），是路線簡化得太粗糙所致——已改用更精細的簡化門檻，彎道現在平滑許多（謝謝網友回報）</span></li>
         <li><span class="d">7/14</span><span>修正跟隨列車時的誤判交會／待避：台鐵與高鐵在台北—板橋段共用地下走廊（各自獨立軌道），先前判斷邏輯只看兩車地理距離、沒分系統，導致台鐵列車經過該段時常被誤記「與高鐵交會」或「待避高鐵」——但兩者軌距不同、完全不會真的交會。已改為只比對同系統列車（謝謝網友回報並指出根因）</span></li>
         <li><span class="d">7/14</span><span>捷運／輕軌車站新增「來車看板」：點任一捷運站（各捷運分頁、以及預設「全台同框」視圖裡的捷運站都適用），會列出接下來的班次——往哪個方向、幾點發車、還有幾分鐘，轉乘站會分線分方向列出；點班次可直接跟隨。班次依當日時刻表推演，非即時到站（文湖線／台中捷運／三鶯線無官方逐班時刻，看板會註明「班距推算」）</span></li>
@@ -1802,7 +1812,7 @@
 <script>
 // 版本戳記:每次改版 push 前手動遞增(字母序),畫面時鐘徽章與 console 都會顯示,
 // 供比對線上跑的是不是最新版(瀏覽器快取 max-age=600 常讓人看到舊版)
-const BUILD = 'v0714e';
+const BUILD = 'v0716a';
 const state = {
   systems: [], sysId: null, data: null, speed: 36, mode: 'freq',
   lines: [], visible: new Set(), trains: [], schedStations: [], types: [],
@@ -2131,7 +2141,11 @@ function posBetweenStations(ln, ia, ib, f) {
   const A = ln.stations[ia], B = ln.stations[ib];
   return { lat: A.lat + (B.lat - A.lat) * f, lon: A.lon + (B.lon - A.lon) * f };
 }
+// 對外入口套即時校正回撥(比照台鐵 trainPos 的 liveDelaySec 語意);內層 raw 給已自行回撥的呼叫端
 function freqTrainPosAt(ln, tr, t) {
+  return freqTrainPosRaw(ln, tr, t - metroShiftSec(ln, tr));
+}
+function freqTrainPosRaw(ln, tr, t) {
   const tm = freqTrainTime(tr, t);
   if (tm == null) return null;
   const pairs = tr.length >> 1;
@@ -2146,16 +2160,18 @@ function freqTrainPosAt(ln, tr, t) {
   const f = Math.min(1, span > 0 ? (tm - ta) / moveT : 1);
   return posBetweenStations(ln, ia, ib, f);
 }
-// 跟隨資訊卡:目前位置+下一停靠站(名稱與時刻)+終點
+// 跟隨資訊卡:目前位置+下一停靠站(名稱與時刻)+終點;nextSec 加回校正量=預期實際到離站時刻
 function freqTrainInfoAt(ln, tr, t) {
+  const sh = metroShiftSec(ln, tr);
+  t -= sh;
   const tm = freqTrainTime(tr, t);
   const n = tr.length;
   if (tm == null) return { pos: null, done: t > tr[n - 1] || (t < tr[1] && t + 86400 > tr[n - 1]) };
-  const pos = freqTrainPosAt(ln, tr, t);
+  const pos = freqTrainPosRaw(ln, tr, t);
   let ni = n - 2;
   for (let i = 1; i < n; i += 2) if (tr[i] > tm) { ni = i - 1; break; }
   const term = ln.stations[tr[n - 2]];
-  return { pos, nextName: (ln.stations[tr[ni]] || {}).name || '', nextSec: tr[ni + 1],
+  return { pos, nextName: (ln.stations[tr[ni]] || {}).name || '', nextSec: tr[ni + 1] + sh,
     termName: ln.loop ? null : (term ? term.name : ''), loop: !!ln.loop };
 }
 
@@ -2398,7 +2414,7 @@ function updateCount() {
   } else {
     state.lines.forEach(ln => {
       if (!state.visible.has(ln.id)) return;
-      if (ln._tt) { for (const tr of ln._tt) if (freqTrainTime(tr, state.simSec) != null) n++; }
+      if (ln._tt) { for (const tr of ln._tt) if (freqTrainTime(tr, state.simSec - metroShiftSec(ln, tr)) != null) n++; }
       else n += ln.n;
     });
   }
@@ -2543,6 +2559,19 @@ function updateFreqCard(info) {
   // 實際時刻班次附下一站發車時刻(HH:MM);班距幽靈車只有站名
   document.getElementById('fcNext').textContent = (info.nextName || '—') +
     (info.nextSec != null ? '(' + fmtHM(info.nextSec % 86400) + ')' : '');
+  // 資料等級誠實標示:即時校正中/時刻表推演/班距推算;營運異常公告時降級為僅供參考
+  const st = document.getElementById('fcStatus');
+  let txt, cls = '';
+  if (metroAlertFor(ln)) { txt = '⚠ 營運異常公告中，位置僅供參考'; cls = 'warn'; }
+  else if (f.tr && metroLiveOn(ln)) {
+    const sh = metroShiftSec(ln, f.tr);
+    txt = '● 已依官方到站看板校正' + (Math.abs(sh) >= 90 ? '（較表定約' + (sh > 0 ? '慢' : '快') + Math.round(Math.abs(sh) / 60) + ' 分)' : '');
+    cls = 'on';
+  } else if (ln.times && ln.times.estimated) txt = '班距推算（非公告時刻），位置為示意';
+  else if (f.tr) txt = '依當日時刻表推演，非即時位置';
+  else txt = '班距示意列車，非即時位置';
+  st.textContent = txt;
+  st.className = 'fc-status' + (cls ? ' ' + cls : '');
 }
 function updateFreqFollowCamera(immediate) {
   const f = state.freqFollow; if (!f) return;
@@ -4527,6 +4556,7 @@ function finishLoad(meta) {
   document.getElementById('alertDetail').hidden = true; // 換群組先收合上一群組展開中的公告詳情
   renderAlertBanner(); // 模式切換即刻換橫幅內容(sched=台鐵/高鐵、freq=捷運,用手上快取先畫)
   pollAlert();         // 營運通阻/狀態公告(sched 各系統端點、freq 走 api/metro-alert)
+  pollMetroLive();     // 捷運即時校正(freq 且系統有 LiveBoard 源才會真的打;換線後 shift 隨新 line 物件重建)
   updateSchedTools();  // 捷運模式隱藏台鐵專屬工具鈕
   refreshBadge();
   updateCount();
@@ -4590,7 +4620,9 @@ function loadSystem(sys) {
     const est = state.lines.filter(l => l.times && l.times.estimated).map(l => l.name);
     const timed = state.lines.some(l => l.times && !l.times.estimated);
     document.getElementById('note').innerHTML = escHtml((timed
-      ? '列車依當日實際時刻表（平日／假日／國定假日班表）推演——位置為推算、非即時動態，實際到離站時刻請以各捷運公司資訊為準。' +
+      ? '列車依當日實際時刻表（平日／假日／國定假日班表）推演' +
+        (METRO_LIVE_SYS[sys.id] ? '，營運時段並依 TDX 官方到站看板即時校正（約每分鐘，時鐘徽章亮「看板校正」時生效）' : '') +
+        '——實際到離站時刻仍請以各捷運公司資訊為準。' +
         (est.length ? '（' + est.join('、') + '無公開逐班時刻，以官方班距與首末班車推算）' : '') + '　'
       : '注意：本系統無公開逐班時刻表——班次依官方公告班距與首末班車推算，位置為示意、並非即時班次，實際到離站時刻請以營運公司資訊為準。　') +
       (sys._times && sys._times.source_notes ? '資料來源：' + sys._times.source_notes
@@ -4682,7 +4714,9 @@ function loadFreqGroup(g, sel) {
   reproject(); recomputeTrains();
   syncTimeUI();
   document.getElementById('note').innerHTML = escHtml(
-    '捷運／輕軌列車依當日實際時刻表（平日／假日／國定假日班表）推演——位置為推算、並非即時班次（台中捷運、三鶯線、文湖線無公開逐班時刻，為班距推算）。' +
+    '捷運／輕軌列車依當日實際時刻表（平日／假日／國定假日班表）推演，' +
+    '北捷、高捷、高雄輕軌與機捷營運時段並依 TDX 官方到站看板即時校正（約每分鐘）——其餘系統為推算、非即時班次' +
+    '（台中捷運、三鶯線、文湖線無公開逐班時刻，為班距推算）。' +
     '可勾選上方系統同時顯示多個路網。' + (state.lines.length ? '' : '（目前未選任何系統）')) +
     '　' + metroLinksHtml(new Set(g.members));
   document.getElementById('searchRow').hidden = true;
@@ -4715,6 +4749,7 @@ function toggleFreqMember(id) {
   buildToggles(); updateCount();
   renderSystemsBar(); // 不重新 fitData,地圖不跳動
   renderAlertBanner(); // 勾選系統變了,公告過濾範圍跟著變(用手上快取,不重抓)
+  pollMetroLive(); // rebuildFreqLines 產生全新 line 物件,_liveShift 需重新拉
 }
 
 // sched 群組(國家鐵路):台鐵+高鐵同框(皆真實時刻表);群內可多選,預設全開
@@ -6632,6 +6667,145 @@ setInterval(pollLive, 60e3);
 document.addEventListener('visibilitychange', () => { if (!document.hidden) pollLive(); });
 pollLive();
 
+// ── 捷運即時校正(TDX Metro LiveBoard,經 /api/metro-live 代理,約每分鐘) ──
+// 「準」的使用者標準=跟月台官方看板一致。對每列看板資料(某站往某方向下一班倒數),
+// 找模型該站該方向「最近的一次到離站事件」(過去或未來皆可),差值=該班較表定的早晚;
+// 逐線各方向取中位數存 ln._liveShift,查詢時刻回撥(語意比照台鐵 liveDelaySec)。
+// 最近事件匹配對「剛開走/快到了」歧義天然穩健,也吃得下北捷「只發佈進站中(eta≈0)」的稀疏樣本。
+// 只在「模擬時鐘貼近現在」時輪詢與套用;時間旅行/高倍速自動停用,回到純時刻表推演。
+const METRO_LIVE_SYS = { mrt: 1, krtc: 1, tymc: 1 }; // 有 LiveBoard 源的系統(新北捷運/中捷無公開即時源)
+const METRO_LIVE_LINES = { // TDX LineID → 本站線 id(北捷支線拆線;高捷 R/O 本站命名為 KR/KO)
+  TRTC: { BR: ['BR'], R: ['R', 'R_XBT'], G: ['G', 'G_XBT'], O: ['O_XINZHUANG', 'O_LUZHOU'], BL: ['BL'] },
+  KRTC: { R: ['KR'], O: ['KO'] },
+  KLRT: { C: ['C'] },
+  TYMC: { A: ['A'] },
+};
+let _mlGateAt = 0, _mlGate = false;
+function metroLiveGate() { // 每秒記憶化:貼近現在才套用(nowSecOfDay 每次配置 Date,不能進每幀熱路徑)
+  const n = Date.now();
+  if (n - _mlGateAt > 1000) { _mlGateAt = n; _mlGate = Math.abs(state.simSec - nowSecOfDay()) <= 120; }
+  return _mlGate;
+}
+function metroLiveOn(ln) {
+  const s = ln._liveShift;
+  return !!(s && Date.now() - s.at < 300e3 && metroLiveGate());
+}
+function metroShiftSec(ln, tr) { // 正=實際比表定晚跑(誤點);非環線分方向,環線(高雄輕軌)全線共用
+  if (!metroLiveOn(ln)) return 0;
+  const s = ln._liveShift;
+  if (ln.loop || !tr) return s.all || 0;
+  const v = tr[0] <= tr[tr.length - 2] ? s.f : s.b;
+  return v != null ? v : (s.all || 0);
+}
+function freqSysIdOf(ln) { return ln._sys || (state.sys && state.sys.id); }
+// 該站該方向的到離站事件索引(發車秒排序);換日/換線自動重建
+function buildArrIdx(ln) {
+  const idx = new Map();
+  for (const tr of ln._tt) {
+    const dir = ln.loop ? 0 : (tr[0] <= tr[tr.length - 2] ? 1 : -1);
+    for (let k = 0; k < tr.length; k += 2) {
+      const key = tr[k] * 4 + (dir + 1);
+      let a = idx.get(key); if (!a) idx.set(key, a = []);
+      a.push(tr[k + 1]);
+    }
+  }
+  for (const a of idx.values()) a.sort((x, y) => x - y);
+  return idx;
+}
+function nearestArrDiff(idx, si, dir, t) { // 官方預期到站時刻 t vs 最近事件:回傳 t-事件(秒);跨午夜秒值 >86400 各試一日
+  const a = idx.get(si * 4 + (dir + 1));
+  if (!a || !a.length) return null;
+  let best = null;
+  for (const tt of [t, t + 86400]) {
+    let lo = 0, hi = a.length - 1;
+    while (lo < hi) { const m = (lo + hi) >> 1; if (a[m] < tt) lo = m + 1; else hi = m; }
+    for (const j of [lo - 1, lo]) if (j >= 0 && j < a.length) {
+      const d = Math.abs(tt - a[j]);
+      if (!best || d < best.d) best = { d, diff: tt - a[j] };
+    }
+  }
+  return best ? best.diff : null;
+}
+function applyMetroLive(sysId, rows) {
+  const nowSec = nowSecOfDay(), nowAbs = Date.now();
+  const mine = state.lines.filter(ln => freqSysIdOf(ln) === sysId && ln._tt && ln._tt.length);
+  for (const ln of mine) {
+    if (!ln._evIdx || ln._evIdxTT !== ln._tt) {
+      ln._nameIdx = new Map(ln.stations.map((s, i) => [s.name, i]));
+      ln._evIdx = buildArrIdx(ln);
+      ln._evIdxTT = ln._tt;
+    }
+  }
+  const perLine = new Map();
+  for (const row of rows) {
+    if (row.st !== 0 || row.e == null) continue; // 只取正常營運且有倒數的列
+    const mapped = (METRO_LIVE_LINES[row.op] || {})[row.l];
+    if (!mapped) continue;
+    // (站,終點)須唯一命中一條本站線;命中兩條=班次歸屬不明(中和新蘆共用段往南勢角),整列不採
+    const cands = [];
+    for (const ln of mine) {
+      if (!mapped.includes(ln.id)) continue;
+      const si = ln._nameIdx.get(row.s);
+      if (si == null) continue;
+      if (ln.loop) { cands.push({ ln, si, dir: 0 }); continue; }
+      const di = ln._nameIdx.get(row.d);
+      if (di == null || di === si) continue;
+      cands.push({ ln, si, dir: di > si ? 1 : -1 });
+    }
+    if (cands.length !== 1) continue;
+    const { ln, si, dir } = cands[0];
+    const diff = nearestArrDiff(ln._evIdx, si, dir, nowSec + row.e * 60 + 30); // 倒數取分鐘中值
+    if (diff == null || Math.abs(diff) > 600) continue; // ±10 分外=配錯班或重大異常,不當樣本
+    let rec = perLine.get(ln); if (!rec) perLine.set(ln, rec = { f: [], b: [], all: [] });
+    if (dir > 0) rec.f.push(diff); else if (dir < 0) rec.b.push(diff);
+    rec.all.push(diff);
+  }
+  const med = a => { if (a.length < 3) return null; const s = a.slice().sort((x, y) => x - y); return Math.round(s[s.length >> 1]); };
+  for (const [ln, rec] of perLine) {
+    const all = med(rec.all);
+    if (all == null) continue; // 樣本不足:保留舊 shift,>5 分鐘未更新由 metroLiveOn 自動停用
+    ln._liveShift = { f: med(rec.f), b: med(rec.b), all, at: nowAbs, n: rec.all.length };
+  }
+}
+async function pollMetroLive() {
+  if (document.hidden || state.mode === 'sched' || !state.lines || !state.lines.length) return;
+  if (Math.abs(state.simSec - nowSecOfDay()) > 120) return; // 時間旅行中不打 API 也不校正
+  const ids = new Set();
+  for (const ln of state.lines) { const id = freqSysIdOf(ln); if (METRO_LIVE_SYS[id]) ids.add(id); }
+  await Promise.all([...ids].map(async id => {
+    try {
+      const r = await fetch(apiUrl('api/metro-live?sys=' + id), { cache: 'no-store' });
+      if (!r.ok) throw new Error(r.status);
+      const d = await r.json();
+      if (Array.isArray(d.rows)) applyMetroLive(id, d.rows);
+    } catch (e) { /* 失敗保留舊 shift */ }
+  }));
+  updateMetroBadge();
+}
+// 該線是否有生效中的營運異常公告(異常時不停用校正,但標示「僅供參考」)
+function metroAlertFor(ln) {
+  const list = (state.metroAlert && state.metroAlert.list) || [];
+  const sysId = freqSysIdOf(ln);
+  return list.some(a => (!a.sys || a.sys === sysId) &&
+    (!a.lines || !a.lines.length || a.lines.some(n => (ln.name || '').includes(n) || String(n).includes(ln.name || ''))));
+}
+function updateMetroBadge() {
+  const el = document.getElementById('metroBadge');
+  if (!el) return;
+  const on = state.mode !== 'sched' && state.lines && state.lines.some(ln => metroLiveOn(ln));
+  el.hidden = !on;
+  if (on) {
+    const parts = state.lines.filter(ln => metroLiveOn(ln)).map(ln => {
+      const m = Math.round((ln._liveShift.all || 0) / 60);
+      return (ln.name || ln.id) + (m > 0 ? '晚' + m + '分' : m < 0 ? '早' + (-m) + '分' : '準點');
+    });
+    el.title = '動畫已依官方到站看板校正(約每分鐘更新):' + parts.join('、');
+  }
+}
+setInterval(pollMetroLive, 60e3);
+setInterval(updateMetroBadge, 10e3); // 資料過期/時間旅行時徽章自動熄
+document.addEventListener('visibilitychange', () => { if (!document.hidden) pollMetroLive(); });
+
 // ── 營運通阻/狀態公告(每 5 分鐘輪詢):sched=台鐵/高鐵各自端點;freq=捷運五家聚合 api/metro-alert ──
 // 只轉述官方公告不推定個別班次:正常條目 status:1 濾除,其餘當異常帶出
 const escHtml = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
@@ -6923,7 +7097,7 @@ function renderFreqBoard(el, st, lines, isDeco) {
       let i = -1;
       for (let k = 0; k < trip.length; k += 2) if (trip[k] === si) { i = k; break; }
       if (i < 0 || i === trip.length - 2) return; // 本班未停本站,或本站正是本班終點(到站不發車,不列)
-      const t = trip[i + 1];
+      const t = trip[i + 1] + metroShiftSec(ln, trip); // 即時校正生效時,看板倒數與月台官方看板對齊
       let dtm = t - state.simSec;
       if (dtm > 43200) dtm -= 86400; else if (dtm < -43200) dtm += 86400; // 跨午夜換日對齊(比照台鐵看板)
       if (dtm < -30 || dtm > 7200) return; // 未來 2 小時內
@@ -6938,6 +7112,7 @@ function renderFreqBoard(el, st, lines, isDeco) {
   });
   groups.sort((a, b) => a.li - b.li || a.rows[0].dtm - b.rows[0].dtm);
   const hasEstimated = groups.some(g => g.ln.times && g.ln.times.estimated);
+  const hasLive = groups.some(g => metroLiveOn(g.ln));
   const body = groups.map(g => {
     const lineLabel = (g.ln._sysLabel ? g.ln._sysLabel + ' ' : '') + (g.ln.name || g.ln.abbr || '');
     return g.rows.map(r => {
@@ -6949,7 +7124,7 @@ function renderFreqBoard(el, st, lines, isDeco) {
   }).join('');
   el.innerHTML = `<button class="close" id="boardClose">×</button>` +
     `<h3>${st.name}</h3>` + stnMetaHtml(st) +
-    `<div class="sub">接下來的班車 · 依當日時刻表推演、非即時 · 點班次跟隨${hasEstimated ? '（部分路線為班距推算）' : ''}</div>` +
+    `<div class="sub">接下來的班車 · ${hasLive ? '已依官方到站看板校正' : '依當日時刻表推演、非即時'} · 點班次跟隨${hasEstimated ? '（部分路線為班距推算）' : ''}</div>` +
     (body || '<div class="empty">此時段無停靠班次</div>');
   el.hidden = false;
   updateSheetOpenClass();

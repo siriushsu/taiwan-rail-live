@@ -94,6 +94,17 @@
   .grouptabs .gtab.active {
     background: #26497e; color: #fff8ec; border-color: #1c3a68; box-shadow: 0 2px 0 #1c3a68;
   }
+  /* 縣市視角書籤:選單樣式對齊群組頁籤膠囊(同高同框同影),右側留白放自繪箭頭 */
+  .grouptabs .citysel {
+    font: inherit; font-size: 14px; font-weight: 700; cursor: pointer;
+    background-color: #efe6cc; color: #7a6c50;
+    border: 1.5px solid #c9b98f; border-radius: 999px; padding: 7px 32px 7px 16px;
+    box-shadow: 0 2px 0 #c9b98f;
+    -webkit-appearance: none; -moz-appearance: none; appearance: none;
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='7' viewBox='0 0 10 7'><path d='M1 1l4 4 4-4' fill='none' stroke='%237a6c50' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/></svg>");
+    background-repeat: no-repeat; background-position: right 13px center;
+  }
+  .grouptabs .citysel:focus-visible { outline: 2px solid #26497e; outline-offset: 1px; }
   .groupmembers { display: flex; flex-wrap: wrap; gap: 8px; }
   .groupmembers .mem {
     font: inherit; font-size: 13px; font-weight: 600; cursor: pointer;
@@ -122,13 +133,17 @@
     overflow: hidden;
   }
   #map { position: absolute; inset: 0; background: #f7f0dd; }
+  /* 圖磚還沒到／離線時先顯示內建的台灣海陸輪廓，不讓放空畫面只剩一塊米色。 */
+  .stage.offline-land #map, .stage.offline-land .leaflet-container { background: #c9d8dc; }
 
   /* 地圖暗色模式(只換地圖，紙牌 UI 不變) */
   .stage.dark, .stage.dark #map { background: #10141c; }
+  .stage.offline-land.dark #map, .stage.offline-land.dark .leaflet-container { background: #0a1a26; }
   .stage.dark { border-color: #a89468; }
 
   /* 衛星影像底圖 */
   .stage.sat, .stage.sat #map { background: #2e4636; }
+  .stage.offline-land.sat #map, .stage.offline-land.sat .leaflet-container { background: #132a35; }
   .stage.sat #themeBtn { display: none; }
 
   .leaflet-container { background: #f7f0dd; }
@@ -208,6 +223,22 @@
   }
   body.fs .stage-tools button.active { border-color: #a92c1d; box-shadow: 0 2px 0 #a92c1d; }
   body.fs .stage-tools button:hover .tl { padding-right: 0; padding-left: 13px; }
+
+  /* 全畫面切換獨立鈕(移出工具抽屜):紙牌皮膚同工具鈕,常駐地圖右上角。桌面 top:12/right:12(手機定位見 640 媒體塊)。
+     圖示隨 body.fs 切換:非全畫面顯示外展箭頭,全畫面中顯示內收箭頭。 */
+  #fsFab {
+    position: absolute; top: 12px; right: 12px; z-index: 704;
+    display: flex; align-items: center; justify-content: center;
+    width: 44px; height: 44px; padding: 0; cursor: pointer;
+    background: #fffdf6; color: #2a4a73;
+    border: 1.5px solid #c9b98f; border-radius: 8px;
+    box-shadow: 0 2px 0 #c9b98f; transition: background .15s;
+  }
+  #fsFab:hover { background: #f7f0dd; }
+  #fsFab .fs-ic { display: block; }
+  #fsFab .fs-ic-close { display: none; }
+  body.fs #fsFab .fs-ic-open { display: none; }
+  body.fs #fsFab .fs-ic-close { display: block; }
 
   /* 錄影中浮條(地圖頂部置中):唯一的錄影狀態指示,點它停止並下載。
      浮條與其他 DOM UI 都不會入鏡——錄影只合成地圖畫布(圖磚/向量層/列車 overlay) */
@@ -293,6 +324,94 @@
     font-variant-numeric: tabular-nums;
   }
 
+  /* 平交道通過預測卡(點地圖上的平交道記號時彈出;紙卡風,右上角同看板欄) */
+  .xing-card {
+    position: absolute; top: 12px; right: 12px; z-index: 660;
+    width: 264px; max-width: calc(100% - 24px); max-height: calc(100% - 176px);
+    overflow-y: auto; background: rgba(255,253,246,.98);
+    border: 2px solid #2a4a73; border-radius: 10px;
+    box-shadow: 0 3px 0 rgba(42,74,115,.22);
+    font-variant-numeric: tabular-nums;
+    scrollbar-width: thin; scrollbar-color: #c9b98f transparent;
+  }
+  .xing-card .xc-head {
+    display: flex; align-items: center; gap: 9px; position: sticky; top: 0;
+    background: #2a4a73; color: #fffdf6; padding: 8px 10px 8px 12px;
+  }
+  .xing-card .xc-ico { flex: none; display: flex; opacity: .9; }
+  .xing-card .xc-ttl { flex: 1; min-width: 0; display: flex; flex-direction: column; line-height: 1.25; }
+  .xing-card .xc-ttl b { font-size: 16px; font-weight: 900; letter-spacing: 1px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .xing-card .xc-meta { font-size: 11px; font-weight: 600; opacity: .85; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .xing-card .xc-close { flex: none; background: none; border: 0; color: #fffdf6; font-size: 15px; line-height: 1; cursor: pointer; opacity: .82; padding: 2px 4px; }
+  .xing-card .xc-close:hover { opacity: 1; }
+  .xing-card .xc-list { padding: 2px 0; }
+  .xing-card .xc-row { display: flex; align-items: baseline; gap: 8px; padding: 6px 12px; border-top: 1px dashed #ece2c8; font-size: 12.5px; }
+  .xing-card .xc-row:first-child { border-top: 0; }
+  .xing-card .xc-no { font-weight: 800; color: #1e2c40; min-width: 40px; }
+  .xing-card .xc-kind { font-size: 11px; color: #7a6c50; flex: none; }
+  .xing-card .xc-dir { flex: 1; min-width: 0; color: #5d5240; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .xing-card .xc-time { font-weight: 700; color: #2a4a73; white-space: nowrap; }
+  .xing-card .xc-dl { font-size: 10.5px; font-weight: 800; color: #d23c2a; margin-left: 2px; }
+  .xing-card .xc-cd { font-weight: 800; color: #a3641a; min-width: 44px; text-align: right; }
+  .xing-card .xc-empty { padding: 15px 12px; text-align: center; color: #7a6c50; font-size: 12.5px; }
+  .xing-card .xc-foot { padding: 8px 12px 10px; border-top: 1.5px dashed #d8cba9; color: #a89468; font-size: 10.5px; line-height: 1.5; }
+  /* 落釘卡:存最愛鈕(頭列)＋可點班次列;釘 marker 去掉 Leaflet divIcon 預設白框 */
+  .xing-card .xc-save { flex: none; background: rgba(255,255,255,.16); border: 0; color: #fffdf6; font-size: 11.5px; font-weight: 800; cursor: pointer; padding: 3px 9px; border-radius: 999px; white-space: nowrap; }
+  .xing-card .xc-save:hover { background: rgba(255,255,255,.3); }
+  .xing-card .xc-row[data-no] { cursor: pointer; }
+  .xing-card .xc-row[data-no]:hover { background: #f3ecd8; }
+  /* 地點釘:改用 Google Maps 風格圓點(取代老氣的 📍/📌 emoji)。草稿=藏青、已存=琥珀+白星 */
+  .pin-ico { background: none; border: 0; }
+  .pin-ico svg { display: block; filter: drop-shadow(0 1px 1.5px rgba(0,0,0,.42)); transform-origin: center; transition: transform .18s ease; }
+  .pin-ico .ph { opacity: 0; transition: opacity .18s ease; } /* 光環:平常隱形 */
+  /* 地圖縮小(z<12)時圓點放大+淡光環浮現,不與背景車站點混淆(使用者要求) */
+  #map.zfar .pin-ico svg { transform: scale(1.32); }
+  #map.zfar .pin-ico .ph { opacity: .22; }
+  /* GPS「我的位置」藍點+外擴脈動 */
+  .geo-ico { background: none; border: 0; }
+  .geo-ico svg { display: block; position: relative; z-index: 2; filter: drop-shadow(0 1px 2px rgba(0,0,0,.32)); }
+  .geo-pulse { position: absolute; left: 50%; top: 50%; width: 22px; height: 22px; margin: -11px 0 0 -11px; border-radius: 50%; background: #2b8fff; opacity: .4; animation: geoPulse 2.1s ease-out infinite; }
+  @keyframes geoPulse { 0% { transform: scale(.55); opacity: .5; } 100% { transform: scale(2.7); opacity: 0; } }
+  @media (prefers-reduced-motion: reduce) { .geo-pulse { animation: none; opacity: .25; } }
+  /* 附近平交道清單卡的列(名稱+距離+下一班通過列車) */
+  .xing-card .nx-row { display: block; padding: 7px 12px; border-top: 1px dashed #ece2c8; cursor: pointer; }
+  .xing-card .nx-row:first-child { border-top: 0; }
+  .xing-card .nx-row:hover { background: #f3ecd8; }
+  .xing-card .nx-top { display: flex; align-items: baseline; gap: 8px; }
+  .xing-card .nx-name { flex: 1; min-width: 0; font-weight: 800; color: #1e2c40; font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .xing-card .nx-km { flex: none; font-weight: 800; color: #a3641a; font-size: 11px; }
+  .xing-card .nx-sub { margin-top: 2px; font-size: 11.5px; color: #5d5240; display: flex; align-items: baseline; gap: 6px; }
+  .xing-card .nx-sub b { color: #1e2c40; font-weight: 800; }
+  .xing-card .nx-cd { margin-left: auto; font-weight: 800; color: #a3641a; }
+  .xing-card .nx-none { color: #9a8a63; }
+  /* 釘卡 meta(線名+距離)較長,允許換行不截尾——平交道卡不受影響 */
+  .xing-card.pin-card .xc-meta { white-space: normal; overflow: visible; text-overflow: clip; line-height: 1.3; }
+  /* 釘卡多線分組:範圍內並行線各成一組(線色點+線名+距離),組間虛線分隔 */
+  .xing-card .xc-grp { display: flex; align-items: center; gap: 6px; padding: 8px 12px 3px; font-size: 11.5px; font-weight: 800; color: #4a5f7d; border-top: 1.5px dashed #d8cba9; }
+  .xing-card .xc-grp:first-child { border-top: 0; }
+  .xing-card .xc-grp-dot { width: 8px; height: 8px; border-radius: 50%; flex: none; box-shadow: 0 0 0 1px rgba(0,0,0,.12); }
+  .xing-card .xc-grp-km { margin-left: auto; font-weight: 700; color: #a3641a; font-size: 10.5px; white-space: nowrap; }
+  .xing-card .xc-grp + .xc-row { border-top: 0; }
+  .xing-card .xc-empty-s { padding: 6px 12px 10px; text-align: left; font-size: 12px; }
+  .alert-banner:not([hidden]) ~ .xing-card { top: 54px; }
+
+  /* 平交道使用說明卡(開關打開時浮出、約 8 秒自動淡出、點擊即關;地圖上方居中,紙卡風) */
+  .xing-help {
+    position: absolute; top: 56px; left: 50%; z-index: 715;
+    transform: translateX(-50%) translateY(-8px);
+    max-width: min(360px, calc(100% - 140px));
+    background: #fffdf6; border: 2px solid #d2a12a; border-radius: 10px;
+    box-shadow: 0 3px 0 rgba(163,100,26,.3);
+    padding: 11px 15px; font-size: 12.5px; font-weight: 600; color: #3a3226; line-height: 1.6;
+    opacity: 0; transition: opacity .4s ease, transform .4s ease;
+    /* 純吐司不擋點擊:實測它展示中(8s)＋淡出殘影(400ms)會攔截整塊地圖 tap,
+       使用者點說明卡底下的平交道毫無反應(v0712o);8s 自動淡出,不需要點擊關閉 */
+    pointer-events: none;
+  }
+  .xing-help.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+  .xing-help[hidden] { display: none; }
+  .alert-banner:not([hidden]) ~ .xing-help { top: 96px; }
+
   /* 跟隨小面板(地圖左下角，跟隨列車時顯示) */
   .follow-panel {
     position: absolute; left: 12px; bottom: 12px; z-index: 650;
@@ -360,6 +479,30 @@
     cursor: pointer; display: none; flex: none;
   }
   .follow-panel.fp-min .fp-end { display: inline-block; }
+  /* ── 捷運幽靈車跟隨的輕量資訊卡(freq 模式;不走 sched 的 followPanel) ── */
+  .freq-card {
+    position: absolute; left: 12px; bottom: 12px; z-index: 650;
+    width: 220px; max-width: calc(100% - 24px);
+    background: rgba(255,253,246,.97); border: 2px solid #2a4a73; border-radius: 10px;
+    padding: 9px 13px 10px; font-variant-numeric: tabular-nums;
+    box-shadow: 0 3px 0 rgba(42,74,115,.22);
+  }
+  .freq-card[hidden] { display: none; }
+  .freq-card .fc-head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .freq-card .fc-head .dot { width: 9px; height: 9px; border-radius: 50%; flex: none; }
+  .freq-card .fc-head b { font-size: 15px; color: #1e2c40; }
+  .freq-card .fc-dir { font-size: 12px; color: #7a6c50; font-weight: 600; order: 9; flex: 1 1 100%; min-width: 0; margin-top: 1px; }
+  .freq-card .fc-end {
+    margin-left: auto; background: none; border: 1px solid #c9b98f; border-radius: 6px;
+    color: #a89468; font-size: 10px; font-weight: 700; padding: 2px 6px; cursor: pointer; flex: none;
+  }
+  .freq-card .fc-next { display: flex; align-items: baseline; gap: 8px; margin-top: 7px; }
+  .freq-card .fc-next .lbl { font-size: 11px; color: #8a7c62; font-weight: 800; letter-spacing: 2px; flex: none; }
+  .freq-card .fc-next .stn { font-size: 16px; font-weight: 900; color: #1e2c40; letter-spacing: 1px; }
+  .freq-card .fc-status { margin-top: 6px; font-size: 11px; color: #8a7c62; font-weight: 600; }
+  .freq-card .fc-status:empty { display: none; }
+  .freq-card .fc-status.on { color: #0f7fa8; }
+  .freq-card .fc-status.warn { color: #b8321f; }
   /* ── 列車資訊卡(地圖下方,跟隨時顯示) ── */
   .traincard {
     margin: 14px 0 0;
@@ -599,8 +742,8 @@
   body.fs .board { right: 60px; }
   body.fs .kbd-hint, body.fs .flow, body.fs .search, body.fs .favs, body.fs .lines, body.fs .note, body.fs .passport, body.fs .site-foot { display: none; }
   /* 放空模式:閒置 5 秒淡出控制,滑鼠動了淡回(時鐘與跟隨面板留著) */
-  .controls, .stage-tools, .leaflet-control-container { transition: opacity .7s; }
-  body.idle .controls, body.idle .stage-tools, body.idle .leaflet-control-container { opacity: 0; pointer-events: none; }
+  .controls, .stage-tools, .leaflet-control-container, #randBtn, #fsFab { transition: opacity .7s; }
+  body.idle .controls, body.idle .stage-tools, body.idle .leaflet-control-container, body.idle #randBtn, body.idle #fsFab { opacity: 0; pointer-events: none; }
   body.idle .stage, body.idle * { cursor: none; }
   #overlay { position: absolute; inset: 0; pointer-events: none; z-index: 500; }
   /* 放空模式的日夜天色(依模擬時刻連續變化,墊在轉場遮罩下) */
@@ -618,6 +761,83 @@
   /* 沉浸鈕只在全畫面時才有意義 */
   #immBtn { display: none; }
   body.fs #immBtn { display: flex; }
+  /* 放空視角切換鈕只在放空模式中才有意義 */
+  #ambientStyleBtn { display: none; }
+  body.ambient #ambientStyleBtn { display: flex; }
+
+  /* ── 直播模式(?live=1,OBS 訊號源):隱藏一切互動 UI,留時鐘徽章/attribution/曲名/浮水印 ── */
+  body.live .controls, body.live .stage-tools, body.live #randBtn,
+  body.live .rec-pill, body.live .rec-toast, body.live .leaflet-control-zoom,
+  body.live .follow-lock-ctl, body.live .citysel, body.live #fsFab { display: none !important; }
+  body.live .leaflet-control-container { opacity: 1 !important; } /* 閒置淡出不得帶走底圖 attribution(CARTO/OSM 授權要求) */
+  .live-hud { position: absolute; top: 64px; left: 12px; z-index: 600; pointer-events: none; display: flex; flex-direction: column; align-items: flex-start; gap: 5px; }
+  .live-hud[hidden] { display: none; } /* flex 會蓋掉 hidden 的預設 display:none,補回 */
+  .live-wm { font-size: 11.5px; font-weight: 800; letter-spacing: .8px; color: rgba(30,44,64,.55); padding-left: 2px; }
+  .badge .replay { font-size: 11px; font-weight: 800; color: #d23c2a; letter-spacing: .5px; }
+
+  /* 直播訊號資訊欄放大(僅 body.live,不影響一般訪客):OBS 常見輸出畫布 1920×1080,
+     桌機瀏覽器尺寸的字級在整片畫布裡顯得很小——統一放大到約原尺寸 2.3 倍(比照廣播圖文尺度) */
+  body.live .badge { padding: 14px 26px 15px; gap: 18px; }
+  body.live .badge .clock { font-size: 46px; }
+  body.live .badge .peak { font-size: 20px; padding: 4px 14px; }
+  body.live .badge .count { font-size: 20px; }
+  body.live .badge .live, body.live .badge .replay { font-size: 18px; }
+  body.live .live-hud { top: 118px; gap: 10px; } /* 時鐘儀表放大變高,原 64px 會疊到儀表上,下移讓開 */
+  body.live .live-wm { font-size: 20px; }
+  /* 站名牌改置頂置中(不與左上時鐘儀表同欄堆疊)——一般站左靠儀表下方是刻意設計(避免壓到常置中的跟隨列車),
+     直播固定俯瞰/跟車鏡頭較寬,置中更醒目也不擋時鐘,故僅 body.live 覆寫定位,不動一般站規則 */
+  body.live .dwell-plate {
+    min-width: 460px; left: 50%; top: 20px;
+    transform: translateX(-50%) translateY(-5px);
+  }
+  body.live .dwell-plate.show { transform: translateX(-50%); }
+  body.live .dwell-plate b { font-size: 46px; padding: 15px 32px 11px; }
+  body.live .dwell-plate .dp-intro { font-size: 19px; }
+  body.live .dwell-plate .dp-intro .dp-intro-lbl { font-size: 16px; }
+  body.live .dwell-plate .dp-strip { padding: 9px 20px 10px; }
+  body.live .dwell-plate .side { font-size: 19px; }
+  body.live .dwell-plate .side .arr { font-size: 17px; }
+  body.live .dwell-plate .side .km { font-size: 16px; }
+  body.live .follow-panel { width: 400px; }
+  body.live .follow-panel .fp-head b { font-size: 25px; }
+  body.live .follow-panel .fp-head .kind { font-size: 19px; }
+  body.live .follow-panel .fp-head .spd { font-size: 18px; }
+  body.live .follow-panel .fp-head .spd b { font-size: 40px; }
+  body.live .follow-panel .fp-next .lbl { font-size: 17px; }
+  body.live .follow-panel .fp-next .stn { font-size: 26px; }
+  body.live .follow-panel .fp-next .eta { font-size: 20px; }
+  body.live .follow-panel .fp-prog .txt { font-size: 17px; }
+  body.live .follow-panel .fp-dest { font-size: 18px; }
+  body.live .follow-panel .fp-status { font-size: 19px; }
+  body.live .freq-card { width: 340px; }
+  body.live .freq-card .fc-head b { font-size: 24px; }
+  body.live .freq-card .fc-dir { font-size: 18px; }
+  body.live .freq-card .fc-next .lbl { font-size: 17px; }
+  body.live .freq-card .fc-next .stn { font-size: 25px; }
+
+  /* 隨機跟隨升格為地圖膠囊鈕:原本擠在工具條裡(手機還要開抽屜)沒人發現,
+     改成地圖下緣常駐置中膠囊,紙卡風沿用 .stage-tools 同色系 */
+  #randBtn {
+    position: absolute; left: 50%; bottom: 14px; transform: translateX(-50%); z-index: 620;
+    font: inherit; font-size: 14.5px; font-weight: 700; cursor: pointer;
+    background: #fffdf6; color: #2a4a73;
+    border: 1.5px solid #c9b98f; border-radius: 999px;
+    box-shadow: 0 2px 0 #c9b98f; padding: 8px 18px;
+    display: inline-flex; align-items: center; gap: 6px; /* shuffle 圖示與文字並排 */
+    transition: opacity .7s, transform .15s; /* opacity 與 623 行閒置淡出選擇器同值,合併宣告避免 transition 被覆蓋 */
+  }
+  #randBtn[hidden] { display: none; } /* inline-flex 會蓋掉 hidden 屬性的預設 display:none,補回 */
+  #randBtn:hover { transform: translateX(-50%) translateY(-1px); }
+  #randBtn.active {
+    background: #d23c2a; color: #fff8ec;
+    border-color: #a92c1d; box-shadow: 0 2px 0 #a92c1d;
+  }
+  #randBtn.active:hover { background: #c0341f; }
+  /* 放空模式保留隨機鈕(換一班好用),閒置淡出交給 644 行的 body.idle 規則 */
+  body.fs.immersive:not(.ambient) #randBtn { display: none !important; } /* 極簡沉浸:只留地圖+列車+時鐘;放空中例外保留隨機換車鈕(閒置淡出照舊) */
+  /* 全畫面貼底控制列上方,讓開控制列——641~865px 這段控制列會換行變 89px 高(比 52px 單行高),
+     取兩者皆安全的值(寬度掃描實測校正,不能只抄單行高度算出的值) */
+  body.fs #randBtn { bottom: 111px; }
 
   /* ── HUD 小牌 ── */
   /* 時鐘徽章降為「儀表」層級:淡框淡影,不與內容面板(藏青框)搜眼 */
@@ -635,6 +855,8 @@
   .foot-links .ver { margin-left: auto; align-self: center; font-size: 11px; color: #b3a37e; font-weight: 600; letter-spacing: .5px; }
   .badge .live { font-size: 11px; font-weight: 800; color: #1d9e55; letter-spacing: .5px; cursor: help; }
   .badge .live::before { content: '●'; margin-right: 3px; animation: livePulse 2s infinite; }
+  .badge .mlive { font-size: 11px; font-weight: 800; color: #0f7fa8; letter-spacing: .5px; cursor: help; }
+  .badge .mlive::before { content: '●'; margin-right: 3px; animation: livePulse 2s infinite; }
   @keyframes livePulse { 0%, 100% { opacity: 1; } 50% { opacity: .35; } }
   .lateTag {
     color: #b8321f; font-weight: 800; font-size: 10.5px; margin-left: 4px;
@@ -653,6 +875,19 @@
   .ctl { display: flex; align-items: center; gap: 10px; }
   .ctl label { font-size: 13px; color: #7a6c50; font-weight: 600; white-space: nowrap; }
   .ctl output { font-size: 13px; font-weight: 800; min-width: 48px; color: #1e2c40; }
+  /* 點時間讀數直接指定時刻:透明 time input 疊在讀數上,手機點開原生滾輪、桌面聚焦後現形可打字 */
+  .tod-wrap { position: relative; display: inline-flex; }
+  .tod-wrap input[type=time] {
+    position: absolute; inset: 0; width: 100%; height: 100%; box-sizing: border-box;
+    opacity: 0; border: 0; padding: 0; margin: 0; cursor: pointer; font: inherit;
+  }
+  .tod-wrap:focus-within output { display: none; }
+  .tod-wrap:focus-within input[type=time] {
+    position: static; opacity: 1; width: auto; min-width: 74px;
+    background: #fffdf6; border: 1.5px solid #2a4a73; border-radius: 6px;
+    font-size: 13px; font-weight: 800; color: #1e2c40; text-align: center; padding: 1px 4px;
+  }
+  #todOut { text-decoration: underline dotted #8896ad; text-underline-offset: 3px; cursor: pointer; }
   input[type=range] { accent-color: #d23c2a; width: 150px; }
   button.pp {
     font: inherit; font-size: 14px; font-weight: 700; cursor: pointer;
@@ -817,8 +1052,8 @@
   }
   .board .sub { color: #8a7c62; font-size: 11px; margin-bottom: 7px; }
   .board .row { display: flex; align-items: baseline; gap: 8px; padding: 5px 0; border-top: 1.5px dashed #d8cba9; font-size: 13px; }
-  .board .row[data-no], .board .row[data-rand] { cursor: pointer; }
-  .board .row[data-no]:hover, .board .row[data-rand]:hover { background: #f7f0dd; }
+  .board .row[data-no], .board .row[data-rand], .board .row[data-li] { cursor: pointer; }
+  .board .row[data-no]:hover, .board .row[data-rand]:hover, .board .row[data-li]:hover { background: #f7f0dd; }
   .board .row b { color: #1e2c40; }
   .board .row .dot { width: 8px; height: 8px; border-radius: 50%; flex: none; align-self: center; }
   .board .row .dest { flex: 1; color: #6b5f4a; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -856,6 +1091,89 @@
     background: #eee5ca; border: 1px solid #c9b98f; border-radius: 4px; padding: 1px 6px;
   }
 
+  /* ── Google Takeout 匯入確認（目前隱藏原型入口） ── */
+  .takeout-modal {
+    position: fixed; inset: 0; z-index: 2200; display: grid; place-items: center;
+    padding: 18px; background: rgba(20,29,42,.58); backdrop-filter: blur(2px);
+  }
+  .takeout-modal[hidden] { display: none; }
+  .takeout-dialog {
+    width: min(620px, 100%); max-height: min(760px, calc(100dvh - 36px)); overflow: hidden;
+    display: flex; flex-direction: column; background: #fffdf6; color: #3a3226;
+    border: 2px solid #2a4a73; border-radius: 12px; box-shadow: 0 12px 40px rgba(15,25,40,.32);
+  }
+  .takeout-head {
+    display: flex; align-items: center; gap: 10px; padding: 11px 14px;
+    background: #2a4a73; color: #fffdf6;
+  }
+  .takeout-head h2 { flex: 1; margin: 0; font-size: 17px; letter-spacing: 2px; }
+  .takeout-head button { border: 0; background: transparent; color: #fffdf6; font-size: 24px; line-height: 1; cursor: pointer; min-width: 44px; min-height: 44px; }
+  .takeout-body { padding: 14px; overflow-y: auto; overscroll-behavior: contain; }
+  .takeout-help { margin: 0 0 10px; color: #6b5f4a; font-size: 12px; line-height: 1.6; }
+  .takeout-file {
+    display: block; width: 100%; box-sizing: border-box; margin-bottom: 12px; padding: 10px;
+    border: 1.5px dashed #b9aa84; border-radius: 8px; background: #f7f0dd; color: #3a3226;
+  }
+  .takeout-status { min-height: 20px; color: #6b5f4a; font-size: 12px; }
+  .takeout-status.err { color: #b53a27; font-weight: 700; }
+  .takeout-summary { display: flex; flex-wrap: wrap; gap: 6px; margin: 10px 0; }
+  .takeout-summary span { padding: 3px 8px; border: 1px solid #c9b98f; border-radius: 999px; background: #eee5ca; font-size: 11px; }
+  .takeout-summary .ok { color: #235c3d; border-color: #9abca6; background: #e9f3e9; }
+  .takeout-summary .warn { color: #9b5a16; border-color: #d8b27a; background: #fbf0d9; }
+  .takeout-sec { margin-top: 12px; }
+  .takeout-sec h3 { margin: 0 0 5px; color: #2a4a73; font-size: 13px; letter-spacing: 1px; }
+  .takeout-row {
+    display: grid; grid-template-columns: 28px minmax(0,1fr) auto; align-items: center; gap: 8px;
+    min-height: 42px; padding: 5px 0; border-top: 1px dashed #d8cba9; font-size: 12px;
+  }
+  .takeout-row input { width: 18px; height: 18px; }
+  .takeout-row .name { min-width: 0; }
+  .takeout-row .name b, .takeout-row .name small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .takeout-row .name small { margin-top: 2px; color: #8a7c62; }
+  .takeout-row a, .takeout-row button { color: #2a4a73; font: inherit; font-weight: 700; }
+  .takeout-row a { display: inline-flex; align-items: center; min-height: 44px; }
+  .takeout-row button { min-height: 44px; padding: 5px 9px; border: 1px solid #9aabc0; border-radius: 6px; background: #edf2f7; cursor: pointer; }
+  .takeout-more { color: #8a7c62; font-size: 11px; margin-top: 5px; }
+  .takeout-actions {
+    display: flex; justify-content: flex-end; gap: 8px; padding: 10px 14px;
+    border-top: 1px solid #d8cba9; background: #f7f0dd;
+  }
+  .takeout-actions button { min-height: 44px; padding: 7px 15px; border-radius: 7px; font-weight: 800; cursor: pointer; }
+  .takeout-actions .cancel { border: 1px solid #b9aa84; background: #fffdf6; color: #5d5240; }
+  .takeout-actions .confirm { border: 1px solid #a92c1d; background: #d23c2a; color: #fffdf6; }
+  .takeout-actions .confirm:disabled { opacity: .45; cursor: default; }
+  .account-intro { margin: 0 0 14px; color: #6b5f4a; font-size: 13px; line-height: 1.65; }
+  .account-login { display: grid; gap: 9px; }
+  .account-login button, .account-user-actions button {
+    min-height: 46px; border: 1.5px solid #b9aa84; border-radius: 8px; background: #fffdf6;
+    color: #2a3f5d; font: inherit; font-weight: 800; cursor: pointer;
+  }
+  .account-login button:hover, .account-user-actions button:hover { background: #f7f0dd; }
+  .account-login .apple { background: #1d2734; border-color: #1d2734; color: #fff; }
+  .account-profile { display: flex; align-items: center; gap: 11px; padding: 10px; border: 1px solid #d8cba9; border-radius: 9px; background: #f7f0dd; }
+  .account-avatar { width: 42px; height: 42px; border-radius: 50%; display: grid; place-items: center; background: #2a4a73; color: #fff; font-weight: 900; overflow: hidden; }
+  .account-avatar img { width: 100%; height: 100%; object-fit: cover; }
+  .account-profile b, .account-profile small { display: block; }
+  .account-profile small { margin-top: 2px; color: #8a7c62; overflow-wrap: anywhere; }
+  .account-syncbox { margin-top: 12px; padding: 10px; border: 1px solid #d8cba9; border-radius: 8px; font-size: 12px; line-height: 1.55; }
+  .account-syncbox b { display: block; color: #2a4a73; margin-bottom: 2px; }
+  .account-user-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 12px; }
+  .account-user-actions .wide { grid-column: 1 / -1; }
+  .account-user-actions .danger { color: #a92c1d; border-color: #d59b91; }
+  .account-error { margin-top: 10px; color: #b53a27; font-size: 12px; font-weight: 700; line-height: 1.5; }
+  .account-note { margin-top: 10px; color: #8a7c62; font-size: 11px; line-height: 1.55; }
+  .plus-hero { text-align: center; padding: 6px 4px 12px; }
+  .plus-mark { display: inline-grid; place-items: center; width: 58px; height: 58px; border-radius: 50%; background: #d2a12a; color: #fffdf6; font-size: 23px; font-weight: 900; box-shadow: 0 3px 0 #a87a19; }
+  .plus-hero h3 { margin: 11px 0 4px; color: #1e2c40; font-size: 19px; letter-spacing: 2px; }
+  .plus-hero p { margin: 0; color: #6b5f4a; font-size: 12px; line-height: 1.55; }
+  .plus-features { display: grid; gap: 7px; margin: 4px 0 14px; }
+  .plus-feature { display: flex; gap: 9px; padding: 9px 10px; border: 1px solid #d8cba9; border-radius: 8px; background: #f7f0dd; font-size: 13px; }
+  .plus-feature span { color: #b47b12; font-weight: 900; }
+  .plus-buy { width: 100%; min-height: 48px; border: 1px solid #a92c1d; border-radius: 8px; background: #d23c2a; color: #fffdf6; font: inherit; font-weight: 900; cursor: pointer; }
+  .plus-buy:disabled { opacity: .5; cursor: default; }
+  .plus-restore { display: block; margin: 9px auto 0; min-height: 44px; border: 0; background: transparent; color: #2a4a73; font: inherit; font-size: 12px; font-weight: 800; cursor: pointer; text-decoration: underline; }
+  .plus-owned { padding: 13px; border: 1px solid #9abca6; border-radius: 9px; background: #e9f3e9; color: #235c3d; text-align: center; font-weight: 800; }
+
   /* ── 流量圖 ── */
   .flow { margin: 14px 2px 0; }
   .flow canvas { display: block; width: 100%; height: 64px; cursor: crosshair; border: 1.5px solid #c9b98f; border-radius: 6px; background: #fffdf6; }
@@ -875,25 +1193,34 @@
     .plate-arrow { width: 58px; height: 9px; margin: 0 8px; }
     header p { font-size: 13px; }
     .grouptabs .gtab { font-size: 13px; padding: 6px 14px; }
+    .grouptabs .citysel { font-size: 13px; padding: 6px 28px 6px 14px; background-position: right 11px center; }
     .groupmembers .mem { font-size: 12.5px; padding: 5px 11px; }
     .stage { height: 58vh; min-height: 380px; }
     .badge { top: 8px; left: 8px; gap: 9px; padding: 5px 11px 6px; }
     .badge .clock { font-size: 18px; }
     .badge .count { font-size: 12px; }
-    /* 手機:時刻板改底部 sheet,工具鈕改右上直排;帶文字後變寬,起點下移到時鐘徽章下方免得蓋住班次數 */
-    .stage-tools { top: 56px; right: 8px; bottom: auto; flex-direction: column; gap: 0; }
-    /* 吐司改靠左收窄:置中近全寬會蓋住同列(top:56,見 1024 媒體塊)右上的 ☰ 工具 FAB 達 60 秒(審查發現);讓開 FAB 寬度 */
+    /* 手機:時刻板改底部 sheet,工具鈕改右上直排。「☰ 工具」FAB 上移到 top:8,與左上時鐘徽章同一列對齊(徽章 left:8、FAB right:8) */
+    .stage-tools { top: 8px; right: 8px; bottom: auto; flex-direction: column; gap: 0; }
+    /* 吐司靠左收窄:右上 top:56 是獨立全畫面鈕 #fsFab(44px),置中近全寬吐司會擦到它;max-width 讓開其寬度(FAB 已上移到 top:8,不再同列) */
     .rec-toast { left: 8px; transform: none; max-width: calc(100% - 124px); }
     .stage-tools button + button { border-left: 0; border-top: 1px solid #ece2c8; } /* 直排工具條:分隔線改橫向 */
     /* 工具抽屜:帶字大鈕整排常駐會蓋掉小螢幕地圖(跟隨/全畫面看不到車)——
        平時只露一顆「☰ 工具」,點開才展開,點任一工具自動收回(JS) */
     #toolsFab { display: flex; }
     body:not(.tools-open) .stage-tools > button:not(#toolsFab) { display: none; }
-    /* 抽屜展開時只需限高可捲(工具條本體已是單一紙牌) */
+    /* 抽屜展開時限高可捲(工具條本體已是單一紙牌)。起點上移到 top:8 後,可用高度增加,reserve 從 110→62(8 頂+底部 randBtn/版權字餘裕)。
+       z-index 抬到 705(公告橫幅)之上:抽屜下展會蓋到橫幅一列,但本體不透明,短暫遮蓋可接受,收合即還原 */
     body.tools-open .stage-tools {
-      max-height: calc(100% - 110px); overflow-y: auto;
+      max-height: calc(100% - 62px); overflow-y: auto; z-index: 710;
       scrollbar-width: thin; scrollbar-color: #c9b98f transparent;
     }
+    /* 抽屜展開時工具鈕撐寬到最長標籤(~120px);FAB 若跟著撐寬,其左緣會伸進同列(top:8)的時鐘徽章。
+       FAB 改貼右不撐寬(內容寬,右緣仍對齊按鈕欄),留在徽章右側不相交;下方工具鈕照舊等寬整齊。 */
+    body.tools-open .stage-tools > #toolsFab { align-self: flex-end; }
+    /* 獨立全畫面鈕(手機):落在「☰ 工具」FAB 上移後空出的 top:56 位置;有橫幅時下移一階;抽屜展開時暫藏免得被抽屜壓住 */
+    #fsFab { top: 56px; right: 8px; }
+    .alert-banner:not([hidden]) ~ #fsFab { top: 96px; }
+    body.tools-open #fsFab { display: none; }
     /* 版權字(衛星模式一長串)單行省略,不換行蓋到跟隨卡 */
     .leaflet-control-attribution {
       max-width: calc(100vw - 40px); white-space: nowrap;
@@ -915,9 +1242,32 @@
     /* 桌面全畫面的 right:60px(讓開右側直排工具列)不適用手機——手機 fs 工具列已收成抽屜;
        不補會洩漏成:橫幅不對稱、詳情框左緣 -44px 被裁、看板 sheet 右縮 */
     body.fs .alert-banner, body.fs .alert-detail, body.fs .board { right: 8px; }
-    /* 橫幅出現時,右上工具欄與停站牌往下讓一階 */
-    .alert-banner:not([hidden]) ~ .stage-tools { top: 96px; }
+    /* 橫幅出現時停站牌往下讓一階(「☰ 工具」FAB 已在 top:8,橫幅在其下方一列,不需再讓;獨立全畫面鈕的讓位見上方 ~ #fsFab) */
     .alert-banner:not([hidden]) ~ .dwell-plate { top: 96px; }
+    /* 平交道說明卡:手機置中會與右上「☰」工具 FAB 同列擦邊(審查發現 1px 重疊),
+       整卡下移到工具列下方一階,靠垂直間隔避開;橫幅在時再讓一階 */
+    .xing-help { top: 108px; }
+    .alert-banner:not([hidden]) ~ .xing-help { top: 150px; }
+    /* 平交道通過預測卡(手機):原本 top:12 右上 264px,會蓋住左上時鐘徽章、被右上「☰」工具 FAB 疊住
+       (使用者回報「跟其他按鈕重疊」)。改小卡+下移到頂列(徽章/FAB)之下,限高留出底部跟隨卡/隨機鈕的空間,
+       超量的班次靠內部捲動;字級 padding 全面降一級(使用者要求縮小)。 */
+    .xing-card {
+      top: 106px; right: 8px; left: auto;
+      width: 200px; max-width: calc(100% - 16px);
+      max-height: calc(100% - 274px); /* 上留頂列、下留跟隨卡(底 157px)+餘裕,清所有互動控件 */
+    }
+    .alert-banner:not([hidden]) ~ .xing-card { top: 144px; max-height: calc(100% - 312px); } /* 橫幅時頂列再下移一階 */
+    .xing-card .xc-head { padding: 6px 8px 6px 10px; gap: 7px; }
+    .xing-card .xc-ttl b { font-size: 14px; }
+    .xing-card .xc-meta { font-size: 10px; }
+    .xing-card .xc-close { font-size: 14px; }
+    .xing-card .xc-row { padding: 5px 10px; font-size: 11.5px; gap: 6px; }
+    .xing-card .xc-no { min-width: 34px; }
+    .xing-card .xc-kind { display: none; } /* 手機藏車種欄:200px 寬下讓「往○○」方向完整顯示(方向比車種有用) */
+    .xing-card .xc-dl { font-size: 10px; }
+    .xing-card .xc-cd { min-width: 40px; }
+    .xing-card .xc-foot { padding: 6px 10px 8px; font-size: 10px; }
+    .xing-card .xc-empty { padding: 12px 10px; font-size: 11.5px; }
     /* 站名牌手機靠左橫條,右側讓出「☰ 工具」浮鈕欄位,同一頂帶並排對齊 */
     .dwell-plate { top: 56px; left: 8px; right: 100px; min-width: 0; max-width: none; }
     /* 特殊站介紹手機最多兩行:站牌總高有上限,公告+站牌+跟隨卡三者全開也不互蓋 */
@@ -927,6 +1277,13 @@
       max-height: 46%;
       border-radius: 10px;
     }
+    .takeout-modal { padding: 8px; place-items: stretch; }
+    .takeout-dialog { width: 100%; max-height: calc(100dvh - 16px); align-self: center; }
+    .takeout-head { padding: 8px 10px 8px 14px; }
+    .takeout-body { padding: 12px; }
+    .takeout-row { grid-template-columns: 28px minmax(0,1fr); }
+    .takeout-row > a, .takeout-row > button { grid-column: 2; justify-self: start; }
+    .takeout-actions button { flex: 1; }
     /* 手機看板是底部 sheet:取消桌面版「讓到公告下方」的頂緣定位 */
     .alert-banner:not([hidden]) ~ .board { top: auto; max-height: 46%; }
     .controls { gap: 10px 14px; margin-top: 12px; }
@@ -969,12 +1326,53 @@
     .kbd-hint { display: none; }
     /* 手機全畫面:資訊卡太佔位就不浮出,控制列貼底、面板讓位 */
     body.fs .traincard { display: none; }
-    body.fs .controls { bottom: 8px; width: calc(100vw - 16px); padding: 7px 12px; }
+    /* 「展開」控制列(cexp)與放空/直播沿用:速度/時間各佔整行時五行高近 200px,壓扁成一排 */
+    body.fs .controls { bottom: 8px; width: calc(100vw - 16px); padding: 6px 10px; gap: 6px 8px; }
+    body.fs .controls .ctl { flex: 0 1 auto; flex-wrap: nowrap; }
+    body.fs .controls .ctl input[type=range] { flex: none; width: 72px; }
+    body.fs .controls #musicVol { width: 56px; }
+    /* 工具抽屜下緣讓開貼底播放面板(320px 窄機面板換行後約 155px 高),錄影鈕才點得到 */
+    body.fs.tools-open .stage-tools { max-height: calc(100% - 230px); }
     body.fs .follow-panel { bottom: 132px; width: 176px; } /* 桌面 fs 的 300px 寬不洩漏進手機 */
-    body.fs .stage-tools { top: 56px; } /* 帶文字的工具鈕同樣讓開左上時鐘徽章 */
+    body.fs .stage-tools { top: 8px; } /* 「☰ 工具」FAB 與一般模式同列 top:8,對齊左上時鐘徽章 */
+
+    /* ── 手機全畫面速度控制膠囊(僅 ≤640 且 body.fs,且非放空非直播;桌面與放空/直播完全不變) ──
+       預設 slim:貼底置中細長膠囊,只露 ▶/⏸ + 目前倍速 + 模擬時刻(單手可點、一眼可讀)。
+       點膠囊本體(非 ▶/⏸)→ JS 加 .cexp 展開成完整控制列;展開 5s 無互動自動收回;
+       膠囊再閒置 5s → 加 .cfaint 淡成半透明把手(保留倍速);任何觸碰即回實體(見 setupFsCapsule)。 */
+    body.fs:not(.ambient):not(.live):not(.cexp) .controls {
+      left: 50%; right: auto; transform: translateX(-50%);
+      bottom: 10px; width: max-content; max-width: calc(100vw - 24px);
+      flex-wrap: nowrap; align-items: center; gap: 7px;
+      padding: 5px 14px; border-radius: 999px; cursor: pointer;
+      transition: opacity .5s ease;
+    }
+    /* 膠囊只留 #pp 圖示 + 倍速 output + 時刻 output;其餘控件(滑桿/預設鈕/標籤/時間選擇/現在/放空/音樂)全收 */
+    body.fs:not(.ambient):not(.live):not(.cexp) .controls #ppTxt,
+    body.fs:not(.ambient):not(.live):not(.cexp) .controls .ctl label,
+    body.fs:not(.ambient):not(.live):not(.cexp) .controls #speed,
+    body.fs:not(.ambient):not(.live):not(.cexp) .controls #spdBtns,
+    body.fs:not(.ambient):not(.live):not(.cexp) .controls #tod,
+    body.fs:not(.ambient):not(.live):not(.cexp) .controls #todPick,
+    body.fs:not(.ambient):not(.live):not(.cexp) .controls #nowBtn,
+    body.fs:not(.ambient):not(.live):not(.cexp) .controls #ambientBtn,
+    body.fs:not(.ambient):not(.live):not(.cexp) .controls #ambientStyleBtn,
+    body.fs:not(.ambient):not(.live):not(.cexp) .controls #musicCtl { display: none; }
+    body.fs:not(.ambient):not(.live):not(.cexp) .controls .ctl { flex: none; gap: 0; margin: 0; padding: 0; border: 0; min-width: 0; }
+    body.fs:not(.ambient):not(.live):not(.cexp) .controls .tod-wrap { padding: 0; }
+    body.fs:not(.ambient):not(.live):not(.cexp) .controls #pp { padding: 3px 6px; font-size: 15px; background: none; border: 0; box-shadow: none; color: #1e2c40; }
+    body.fs:not(.ambient):not(.live):not(.cexp) .controls #speedOut { font-size: 14.5px; font-weight: 800; color: #d23c2a; min-width: 0; }
+    body.fs:not(.ambient):not(.live):not(.cexp) .controls #todOut { font-size: 14px; font-weight: 700; color: #2a4a73; min-width: 0; }
+    /* 閒置淡成半透明把手:整條變淡,倍速數字仍讀得到(藏 ▶/⏸ 與時刻,只留倍速) */
+    body.fs:not(.ambient):not(.live):not(.cexp).cfaint .controls { opacity: .5; padding: 4px 13px; }
+    body.fs:not(.ambient):not(.live):not(.cexp).cfaint .controls #pp,
+    body.fs:not(.ambient):not(.live):not(.cexp).cfaint .controls #todOut { display: none; }
+    /* 膠囊(slim/faint)時卡片依新膠囊高度重新讓位:跟隨卡(跟隨時 JS placeFsOverlays 動態量高覆寫)不需再讓開整條控制列
+       (隨機鈕已改左上頂部錨定,貼底讓位規則作廢移除) */
+    body.fs:not(.ambient):not(.live):not(.cexp) .follow-panel { bottom: 60px; }
     /* 放空模式(手機):看戲不操作——控制列只留「離開放空」一顆,跟隨卡縮成迷你條
       (車次+速度+下一站),別把列車蓋掉;速度/時間/音樂等設定進放空前調好 */
-    body.ambient .controls > :not(#ambientBtn) { display: none; }
+    body.ambient .controls > :not(#ambientBtn):not(#ambientStyleBtn) { display: none; }
     /* 「離開放空」靠右下角,跟左下角迷你跟隨卡各佔一角不重疊 */
     body.ambient.fs .controls { width: max-content; left: auto; right: 8px; transform: none; }
     body.ambient .follow-panel { width: 176px; padding: 7px 10px 8px; }
@@ -986,6 +1384,17 @@
     body.ambient .follow-panel .fp-head .spd b { font-size: 15px; } /* 176px 迷你卡同理:三位數時速也不換行 */
     body.ambient .follow-panel .fp-next .stn { font-size: 14px; white-space: nowrap; }
     body.ambient.fs .follow-panel { bottom: 8px; } /* 「離開放空」已靠右下,左下角整個還給迷你卡 */
+    /* 隨機跟隨鈕(手機):移到左上時鐘徽章下方——原本置中貼底會與列車資訊卡重疊(使用者回報)。
+       選擇器含 body.fs 蓋過上面 1199/1234 的 fs 貼底讓位(頂部錨定後作廢);hover 位移歸零(桌面版是 translateX 置中用) */
+    #randBtn, body.fs #randBtn { left: 8px; top: 50px; bottom: auto; transform: none; font-size: 13px; padding: 6px 13px; }
+    #randBtn:hover { transform: none; }
+    .alert-banner:not([hidden]) ~ #randBtn { top: 96px; } /* 公告橫幅(滿版 top:54)出現時下移一階 */
+  }
+
+  /* ── 桌面(≥641):獨立全畫面鈕 #fsFab 佔右上角 top:12/right:12,原本擠在該角的橫幅/詳情/平交道卡/看板整體左移 52px 讓開(44px 鈕+8 間距) ── */
+  @media (min-width: 641px) {
+    .alert-banner, .alert-detail, .xing-card, .board { right: 64px; }
+    body.fs .stage-tools { top: 64px; } /* 桌面全畫面右上直排工具列起點下移,讓開 #fsFab */
   }
 </style>
 
