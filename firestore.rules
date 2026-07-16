@@ -1,0 +1,40 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function owns(uid) {
+      return request.auth != null && request.auth.uid == uid;
+    }
+
+    // 三份同步文件：pins / favs / rides。只能由本人讀寫，其他使用者完全看不到。
+    match /users/{uid}/data/{kind} {
+      allow read, delete: if owns(uid) && kind in ['pins', 'favs', 'rides'];
+      allow create, update: if owns(uid)
+        && kind in ['pins', 'favs', 'rides']
+        && request.resource.data.keys().hasOnly([
+          'version', 'kind', 'revision', 'clientUpdatedAt', 'items', 'tombstones', 'updatedAt'
+        ])
+        && request.resource.data.version == 1
+        && request.resource.data.kind == kind
+        && request.resource.data.revision is int
+        && request.resource.data.clientUpdatedAt is int
+        && request.resource.data.items is list
+        && request.resource.data.tombstones is list
+        && request.resource.data.updatedAt is timestamp
+        && request.resource.data.tombstones.size() <= 2000
+        && (kind != 'pins' || request.resource.data.items.size() <= 800)
+        && (kind != 'favs' || request.resource.data.items.size() <= 1000)
+        && (kind != 'rides' || request.resource.data.items.size() <= 2000);
+    }
+
+    // Plus 資格只能由本人讀；寫入必須由受信任的購買驗證後端使用 Admin SDK 完成。
+    match /entitlements/{uid} {
+      allow read: if owns(uid);
+      allow write: if false;
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

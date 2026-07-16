@@ -9,7 +9,10 @@
 .DS_Store
 wrangler.jsonc
 worker.js
+firebase.json
+firestore.rules
 scripts
+app
 docs
 hand off
 README.md

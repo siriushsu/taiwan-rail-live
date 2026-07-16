@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#efe6d2">
+  <meta name="description" content="軌島 Rail Island App 使用說明、常見問題、購買恢復、帳號刪除與問題回報。">
+  <title>軌島 App 支援｜Rail Island</title>
+  <style>
+    *{box-sizing:border-box}body{margin:0;background:#efe6d2;color:#243247;font-family:-apple-system,BlinkMacSystemFont,"Noto Sans TC","PingFang TC",sans-serif;line-height:1.75}
+    main{width:min(720px,calc(100% - 32px));margin:48px auto;padding:34px;background:#fffdf7;border:1px solid #cfbf9b;box-shadow:0 12px 36px #43391f1c}
+    h1{margin:0 0 8px;font-size:clamp(26px,6vw,38px);letter-spacing:.06em}h2{margin:30px 0 8px;font-size:20px}h3{margin:22px 0 5px;font-size:16px}p,li{font-size:15px}ul,ol{padding-left:1.4em}
+    a{color:#324f75}.brand{color:#9c2f27;font-weight:800;letter-spacing:.12em}.lead{font-size:16px;color:#554a38}.actions{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:26px 0}
+    .action{display:flex;align-items:center;justify-content:center;padding:13px 16px;background:#b43b31;color:#fff;text-align:center;text-decoration:none;font-weight:800;border-radius:4px;min-height:52px}
+    .action.secondary{background:#324f75}.action:focus-visible,a:focus-visible{outline:3px solid #243247;outline-offset:3px}.note{padding:13px 15px;background:#f5eddc;border-left:4px solid #b49a67;color:#554a38}
+    details{border-top:1px solid #dfd2b7;padding:12px 0}details:last-of-type{border-bottom:1px solid #dfd2b7}summary{cursor:pointer;font-weight:800;min-height:44px;display:flex;align-items:center}details a,footer a{display:inline-flex;align-items:center;min-height:44px}footer{margin-top:30px;color:#6b604e;font-size:14px}
+    @media(max-width:520px){main{width:100%;margin:0;min-height:100vh;padding:26px 20px;border:0;box-shadow:none}.actions{grid-template-columns:1fr}}
+  </style>
+</head>
+<body>
+<main>
+  <div class="brand">軌島 · RAIL ISLAND</div>
+  <h1>App 支援與使用說明</h1>
+  <p class="lead">軌島把台鐵、高鐵、捷運與輕軌依時刻表畫在同一張台灣地圖上。核心地圖不需登入；帳號用於跨裝置同步與恢復 Plus 購買資格。</p>
+
+  <div class="actions">
+    <a class="action" href="https://github.com/siriushsu/taiwan-rail-live/issues/new">回報問題或建議</a>
+    <a class="action secondary" href="./">開啟軌島網站</a>
+  </div>
+  <p class="note">GitHub Issue 是公開頁面，請勿張貼姓名、電子郵件、精確住址、購買收據、登入憑證或其他私人資料。</p>
+
+  <h2>常見問題</h2>
+  <details>
+    <summary>地圖上的列車是真實位置嗎？</summary>
+    <p>多數列車位置是依公開時刻表與軌道幾何推演；台鐵另套用可取得的即時誤點資訊。捷運與輕軌通常不是營運單位提供的即時車輛定位。請勿把軌島當作行車安全、平交道通行或官方乘車保證。</p>
+  </details>
+  <details>
+    <summary>沒有網路時還能使用嗎？</summary>
+    <p>App 內建台灣輪廓、軌道與時刻表資料，可在沒有線上圖磚時維持台灣形狀與列車動畫。即時誤點、營運公告、線上底圖、登入同步及購買驗證仍需要網路。</p>
+  </details>
+  <details>
+    <summary>為什麼定位功能沒有反應？</summary>
+    <p>請到 iOS 或 Android 系統設定確認已允許軌島在使用期間取得位置。定位只用於裝置內計算附近鐵道與列車；不授權時仍可使用「落釘」手動選擇位置。</p>
+  </details>
+  <details>
+    <summary>如何匯入 Google Maps 已儲存清單？</summary>
+    <ol>
+      <li>從 Google Takeout 匯出 Maps／已儲存地點資料。</li>
+      <li>登入軌島帳號並解鎖 Plus。</li>
+      <li>選擇 Takeout ZIP、CSV、JSON 或 GeoJSON，預覽後確認匯入。</li>
+    </ol>
+    <p>原始檔案只在裝置內解析；只有確認匯入的台灣地點會加入軌島收藏並依登入狀態同步。</p>
+  </details>
+
+  <h2>帳號與 Plus</h2>
+  <details>
+    <summary>Plus 是訂閱嗎？</summary>
+    <p>不是。軌島 Plus 是一次購買的永久資格，不會定期續扣。實際價格由 App Store、Google Play 或網站付款畫面顯示。</p>
+  </details>
+  <details>
+    <summary>已購買卻仍顯示未解鎖</summary>
+    <ol>
+      <li>確認登入的是原購買時連結的同一個軌島帳號。</li>
+      <li>開啟「軌島帳號」→「查看 Plus」→「恢復購買」。</li>
+      <li>確認裝置可連線，且 App Store／Google Play 使用原購買商店帳號。</li>
+    </ol>
+    <p>請勿在公開 Issue 張貼完整收據。若仍無法恢復，回報時只需提供平台、App 版本、發生時間與錯誤畫面中不含個資的部分。</p>
+  </details>
+  <details>
+    <summary>如何刪除帳號與同步資料？</summary>
+    <p>在 App 或網站開啟「軌島帳號」，選擇「刪除帳號與同步資料」並重新驗證身分。即使已移除 App，也可使用下方網頁入口。</p>
+    <p><a href="./account-deletion.html">前往帳號刪除說明</a></p>
+  </details>
+
+  <h2>錄影與分享</h2>
+  <p>錄影檔在裝置內產生，軌島不會自動上傳。背景音樂只有在目前版本已取得相應授權且帳號具有 Plus 資格時才會寫入影片；否則影片仍可正常輸出但不含音樂。</p>
+
+  <h2>問題回報建議資訊</h2>
+  <ul>
+    <li>裝置型號與 iOS／Android 版本。</li>
+    <li>軌島畫面顯示的版本號。</li>
+    <li>可重現問題的操作順序、路線與大約時間。</li>
+    <li>不含私人資料的截圖或短片。</li>
+  </ul>
+  <p>安全漏洞請不要在公開 Issue 揭露可被濫用的細節；正式上架前將於隱私權政策公布非公開聯絡管道。</p>
+
+  <footer>
+    <p>軌島由獨立開發者許翔（Hsu Hsiang）維護。</p>
+    <p><a href="./">返回軌島</a> · <a href="https://github.com/siriushsu/taiwan-rail-live">開源專案</a></p>
+  </footer>
+</main>
+</body>
+</html>

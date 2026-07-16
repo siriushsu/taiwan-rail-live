@@ -1,0 +1,113 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#efe6d2">
+  <meta name="description" content="軌島 Rail Island 隱私權政策：說明軌島網站及 iOS／Android App 如何處理帳號、定位、購買與其他使用者資料。">
+  <title>軌島隱私權政策｜Rail Island</title>
+  <style>
+    *{box-sizing:border-box}body{margin:0;background:#efe6d2;color:#243247;font-family:-apple-system,BlinkMacSystemFont,"Noto Sans TC","PingFang TC",sans-serif;line-height:1.75}
+    main{width:min(720px,calc(100% - 32px));margin:48px auto;padding:34px;background:#fffdf7;border:1px solid #cfbf9b;box-shadow:0 12px 36px #43391f1c}
+    h1{margin:0 0 8px;font-size:clamp(26px,6vw,38px);letter-spacing:.06em}h2{margin:30px 0 8px;font-size:20px}h3{margin:22px 0 5px;font-size:16px}p,li{font-size:15px}ul,ol{padding-left:1.4em}
+    a{color:#324f75}.brand{color:#9c2f27;font-weight:800;letter-spacing:.12em}.lead{font-size:16px;color:#554a38}.effective{color:#6b604e;font-size:14px;margin:0 0 20px}.actions{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:26px 0}
+    .action{display:flex;align-items:center;justify-content:center;padding:13px 16px;background:#b43b31;color:#fff;text-align:center;text-decoration:none;font-weight:800;border-radius:4px;min-height:52px}
+    .action.secondary{background:#324f75}.action:focus-visible,a:focus-visible{outline:3px solid #243247;outline-offset:3px}.note{padding:13px 15px;background:#f5eddc;border-left:4px solid #b49a67;color:#554a38}
+    .note a,.linkline a{display:inline-flex;align-items:center;min-height:44px}
+    footer{margin-top:30px;color:#6b604e;font-size:14px}footer a{display:inline-flex;align-items:center;min-height:44px}
+    @media(max-width:520px){main{width:100%;margin:0;min-height:100vh;padding:26px 20px;border:0;box-shadow:none}.actions{grid-template-columns:1fr}}
+  </style>
+</head>
+<body>
+<main>
+  <div class="brand">軌島 · RAIL ISLAND</div>
+  <h1>隱私權政策</h1>
+  <p class="effective">生效日期：2026 年 7 月 16 日</p>
+  <p class="lead">「軌島 Rail Island」（以下稱「軌島」）由獨立開發者許翔（Hsu Hsiang）提供。本政策說明軌島網站及 iOS／Android App 如何處理使用者資料。</p>
+
+  <div class="actions">
+    <a class="action" href="./terms.html">查看服務條款</a>
+    <a class="action secondary" href="./">返回軌島</a>
+  </div>
+
+  <h2>一、軌島處理哪些資料</h2>
+
+  <h3>1. 帳號資料</h3>
+  <p>當你選擇以 Google 或 Apple 登入時，Firebase Authentication 會處理你的 Firebase 使用者識別碼、登入供應商，以及供應商提供的名稱、電子郵件地址或頭像（實際欄位依你的供應商設定與授權選擇而定）。軌島使用這些資料建立帳號、顯示登入狀態及同步私人收藏，不用於廣告或行銷分析。</p>
+
+  <h3>2. 你主動保存或匯入的內容</h3>
+  <p>登入後，軌島可透過 Firebase Firestore 同步以下內容：</p>
+  <ul>
+    <li>最愛地點的座標、名稱、清單名稱與來源連結；</li>
+    <li>最愛列車；</li>
+    <li>完乘日期、車次、路線與相關旅程紀錄。</li>
+  </ul>
+  <p>Google Takeout ZIP、CSV、JSON 或 GeoJSON 會先在你的裝置內解析，不會把原始檔案上傳。只有你在預覽後確認匯入的台灣地點，才會成為軌島最愛地點；登入狀態下，這些地點會依上述方式同步。</p>
+
+  <h3>3. 定位資料</h3>
+  <p>只有在你主動按下「定位我」並授予系統權限時，軌島才會取得裝置目前位置，用來在裝置內計算附近鐵道、平交道與列車。軌島不把精確位置保存到帳號或傳送到軌島伺服器。</p>
+  <p>若地圖依目前位置移動到附近區域，底圖供應商仍會像一般地圖服務一樣收到所請求的圖磚區域、IP 位址與必要的網路資訊。你也可以不授予定位權限，改用手動落釘。</p>
+
+  <h3>4. 購買與 Plus 資格</h3>
+  <p>App 內購買由 Apple App Store 或 Google Play 處理；網站付款由 RevenueCat Web Billing 及其付款處理服務處理。軌島不取得完整信用卡號。RevenueCat 會以你的 Firebase 使用者識別碼管理 Plus entitlement、商品、交易狀態與恢復購買；網站結帳時也可能使用你的帳號電子郵件地址，以完成付款與收據流程。</p>
+
+  <h3>5. 錄影、音樂與分享</h3>
+  <p>軌島的畫面錄影、背景音樂混音與輸出檔案在裝置內產生。除非你主動使用系統分享功能選擇其他 App 或服務，軌島不會把影片上傳到軌島伺服器。</p>
+
+  <h3>6. 網路與安全紀錄</h3>
+  <p>軌島網站、靜態資產與 API 使用 Cloudflare 提供傳輸、快取與安全防護。Cloudflare 可能依其服務運作需要處理 IP 位址、請求時間、網址、裝置／瀏覽器資訊與安全事件紀錄。軌島目前沒有廣告 SDK，也沒有另外安裝使用者行為分析 SDK。</p>
+
+  <h2>二、資料用途</h2>
+  <p>軌島只在下列目的範圍處理資料：</p>
+  <ul>
+    <li>提供登入、跨裝置同步、資料備份與帳號刪除；</li>
+    <li>提供 Plus 購買、資格驗證與恢復購買；</li>
+    <li>顯示附近鐵道、平交道及列車；</li>
+    <li>解析你主動選擇的 Google Takeout 清單；</li>
+    <li>產生你主動要求的錄影與分享內容；</li>
+    <li>維持服務安全、可靠性與除錯。</li>
+  </ul>
+  <p>軌島不出售個人資料，也不使用你的收藏、定位或旅程紀錄投放個人化廣告。</p>
+
+  <h2>三、服務供應商</h2>
+  <p>為提供上述功能，資料可能由下列服務供應商依其各自政策處理：</p>
+  <ul>
+    <li>Google Firebase：登入與 Firestore 同步；</li>
+    <li>Apple、Google Play：App 登入與商店交易；</li>
+    <li>RevenueCat 及其 Web Billing 付款處理服務：Plus 商品、entitlement、付款與恢復購買；</li>
+    <li>Cloudflare：網站、API、快取與安全防護；</li>
+    <li>CARTO、OpenStreetMap、Esri 及其影像資料來源：線上底圖；</li>
+    <li>Natural Earth：App 內建的離線海陸輪廓資料，不接收使用者資料。</li>
+  </ul>
+  <p>這些供應商可能在不同國家或地區處理資料。軌島只提供完成相應功能所需的資料。</p>
+
+  <h2>四、保存與刪除</h2>
+  <ul>
+    <li>未登入時的收藏與偏好保存在你的瀏覽器或裝置，直到你清除網站資料或移除 App。</li>
+    <li>登入後的同步資料保存在 Firebase，直到你在軌島帳號面板刪除帳號。</li>
+    <li>刪除帳號會刪除 Firebase 帳號、三類同步資料及同一使用者識別碼的 RevenueCat customer profile，並清除目前裝置內的私人收藏。</li>
+    <li>Apple、Google Play 或付款服務因法令、會計、防詐或爭議處理需要保留的交易紀錄，由各平台依其政策處理；刪除軌島帳號不等同申請刪除商店交易紀錄或退款。</li>
+  </ul>
+  <p>你可在 App 或網站的「軌島帳號」面板刪除帳號。即使已移除 App，也可前往：</p>
+  <p class="note"><a href="./account-deletion.html">https://railisland.tw/account-deletion.html</a></p>
+
+  <h2>五、資料安全</h2>
+  <p>軌島透過 HTTPS 傳輸資料；Firestore 規則只允許登入者讀寫本人資料。RevenueCat secret API key 僅存在伺服器環境，刪除購買資料前會驗證 Firebase ID token。任何網路服務都無法保證絕對安全，但軌島會採取與個人專案規模及資料性質相稱的合理保護措施。</p>
+
+  <h2>六、兒童隱私</h2>
+  <p>軌島不是以兒童為主要對象，也不要求填寫年齡。若你認為兒童在未取得監護人同意下提供了個人資料，請使用下方聯絡方式提出刪除要求。</p>
+
+  <h2>七、政策變更</h2>
+  <p>若資料處理方式有重大改變，軌島會更新本頁生效日期，並在適當情況下於網站或 App 提示。</p>
+
+  <h2>八、聯絡方式</h2>
+  <p>開發者：許翔（Hsu Hsiang）</p>
+  <p class="linkline">隱私權聯絡信箱：<a href="mailto:support@railisland.tw">support@railisland.tw</a></p>
+
+  <footer>
+    <p>軌島由獨立開發者許翔（Hsu Hsiang）維護。</p>
+    <p><a href="./">返回軌島</a> · <a href="./terms.html">服務條款</a> · <a href="./app-support.html">App 支援</a> · <a href="https://github.com/siriushsu/taiwan-rail-live">開源專案</a></p>
+  </footer>
+</main>
+</body>
+</html>

@@ -1,0 +1,6 @@
+# GitHub Pages（siriushsu.github.io/taiwan-rail-live/）用 legacy Jekyll build，
+# 直接從 main 分支根目錄建置、push 就自動更新，且沒有 .assetsignore 那層保護。
+# app/ 底下有還沒 commit 到 gitignore 的草稿文件（隱私政策、條款、商店文案、
+# 原生 bridge 原始碼等），排除它們，避免 push 後被 Jekyll 當一般靜態檔公開發布。
+exclude:
+  - app

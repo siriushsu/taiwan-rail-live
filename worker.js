@@ -185,6 +185,34 @@ async function metroAlert(request, env) {
   }
 }
 
+// 刪除帳號前清除 RevenueCat customer。Secret API key 只能存在 Worker runtime；
+// 先以 Firebase Auth REST lookup 驗證呼叫者的 ID token，再只刪除該 token 自己的 uid，
+// 不接受前端傳 customer id，避免知道別人 uid 就能刪除對方購買資料。
+async function deletePaidProfile(request, env) {
+  if (request.method !== 'POST') return jsonRes({ error: 'method not allowed' }, 405, 'no-store');
+  if (!env.FIREBASE_WEB_API_KEY || !env.REVENUECAT_PROJECT_ID || !env.REVENUECAT_V2_SECRET_KEY)
+    return jsonRes({ error: 'account deletion service is not configured' }, 503, 'no-store');
+  const auth = request.headers.get('Authorization') || '';
+  const match = auth.match(/^Bearer\s+(.+)$/i), idToken = match && match[1];
+  if (!idToken || idToken.length > 4096) return jsonRes({ error: 'unauthorized' }, 401, 'no-store');
+  try {
+    const lookup = await fetch(`https://identitytoolkit.googleapis.com/v1/accounts:lookup?key=${encodeURIComponent(env.FIREBASE_WEB_API_KEY)}`, {
+      method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ idToken }),
+    });
+    if (!lookup.ok) return jsonRes({ error: 'unauthorized' }, 401, 'no-store');
+    const identity = await lookup.json(), uid = identity && identity.users && identity.users[0] && identity.users[0].localId;
+    if (!uid || typeof uid !== 'string') return jsonRes({ error: 'unauthorized' }, 401, 'no-store');
+    const rc = await fetch(`https://api.revenuecat.com/v2/projects/${encodeURIComponent(env.REVENUECAT_PROJECT_ID)}/customers/${encodeURIComponent(uid)}`, {
+      method: 'DELETE', headers: { Authorization: `Bearer ${env.REVENUECAT_V2_SECRET_KEY}`, Accept: 'application/json' },
+    });
+    // 從未開過購買頁的帳號可能沒有 RevenueCat customer；404 代表已達成「沒有資料可刪」。
+    if (!(rc.ok || rc.status === 404)) return jsonRes({ error: 'purchase profile deletion failed' }, 502, 'no-store');
+    return jsonRes({ ok: true }, 200, 'no-store');
+  } catch (e) {
+    return jsonRes({ error: 'account deletion service unavailable' }, 502, 'no-store');
+  }
+}
+
 // 安全標頭在 Worker 出口補（只涵蓋 /api/* 與非資產路徑;靜態資產直出不經 Worker,標頭見根目錄 _headers）
 const SEC_HEADERS = {
   'Strict-Transport-Security': 'max-age=31536000; includeSubDomains',
@@ -192,6 +220,15 @@ const SEC_HEADERS = {
   'X-Frame-Options': 'DENY',
   'Referrer-Policy': 'strict-origin-when-cross-origin',
 };
+const APP_ORIGINS = new Set(['capacitor://localhost', 'https://localhost']);
+
+function addAppCors(headers, origin) {
+  if (!APP_ORIGINS.has(origin)) return;
+  headers.set('Access-Control-Allow-Origin', origin);
+  const vary = (headers.get('Vary') || '').split(',').map(v => v.trim()).filter(Boolean);
+  if (!vary.some(v => v.toLowerCase() === 'origin')) vary.push('Origin');
+  headers.set('Vary', vary.join(', '));
+}
 
 export default {
   async fetch(request, env) {
@@ -200,14 +237,28 @@ export default {
       url.protocol = 'https:';
       return Response.redirect(url.toString(), 301);
     }
+    const isApi = url.pathname.startsWith('/api/');
+    const origin = request.headers.get('Origin') || '';
+    if (isApi && request.method === 'OPTIONS') {
+      const h = new Headers(SEC_HEADERS);
+      if (APP_ORIGINS.has(origin)) {
+        addAppCors(h, origin);
+        h.set('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+        h.set('Access-Control-Allow-Headers', 'Authorization, Content-Type');
+        h.set('Access-Control-Max-Age', '86400');
+      }
+      return new Response(null, { status: APP_ORIGINS.has(origin) ? 204 : 403, headers: h });
+    }
     let res;
     if (url.pathname === '/api/tra-live') res = await traLive(request, env);
     else if (url.pathname === '/api/tra-alert') res = await traAlert(request, env);
     else if (url.pathname === '/api/thsr-alert') res = await thsrAlert(request, env);
     else if (url.pathname === '/api/metro-alert') res = await metroAlert(request, env);
+    else if (url.pathname === '/api/account-delete') res = await deletePaidProfile(request, env);
     else res = await env.ASSETS.fetch(request);
     const h = new Headers(res.headers);
     for (const [k, v] of Object.entries(SEC_HEADERS)) h.set(k, v);
+    if (isApi) addAppCors(h, origin);
     return new Response(res.body, { status: res.status, statusText: res.statusText, headers: h });
   },
 };
