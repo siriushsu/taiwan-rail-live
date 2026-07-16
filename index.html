@@ -791,39 +791,40 @@
   .live-wm { font-size: 11.5px; font-weight: 800; letter-spacing: .8px; color: rgba(30,44,64,.55); padding-left: 2px; }
   .badge .replay { font-size: 11px; font-weight: 800; color: #d23c2a; letter-spacing: .5px; }
 
-  /* 直播訊號資訊欄放大(僅 body.live,不影響一般訪客):時鐘儀表/曲名浮水印/站名牌/跟隨卡片文字統一調大約 1.3 倍 */
-  body.live .badge { padding: 8px 18px 9px; gap: 14px; }
-  body.live .badge .clock { font-size: 30px; }
-  body.live .badge .peak { font-size: 15px; padding: 3px 11px; }
-  body.live .badge .count { font-size: 16px; }
-  body.live .badge .live, body.live .badge .replay { font-size: 14px; }
-  body.live .live-hud { gap: 7px; }
-  body.live .live-np { font-size: 16px; padding: 5px 14px 6px; }
-  body.live .live-wm { font-size: 15px; }
-  body.live .dwell-plate { min-width: 380px; }
-  body.live .dwell-plate b { font-size: 34px; padding: 12px 26px 9px; }
-  body.live .dwell-plate .dp-intro { font-size: 15px; }
-  body.live .dwell-plate .dp-intro .dp-intro-lbl { font-size: 12.5px; }
-  body.live .dwell-plate .dp-strip { padding: 7px 16px 8px; }
-  body.live .dwell-plate .side { font-size: 15px; }
-  body.live .dwell-plate .side .arr { font-size: 13px; }
-  body.live .dwell-plate .side .km { font-size: 12.5px; }
-  body.live .follow-panel { width: 320px; }
-  body.live .follow-panel .fp-head b { font-size: 19px; }
-  body.live .follow-panel .fp-head .kind { font-size: 15px; }
-  body.live .follow-panel .fp-head .spd { font-size: 14px; }
-  body.live .follow-panel .fp-head .spd b { font-size: 30px; }
-  body.live .follow-panel .fp-next .lbl { font-size: 13px; }
-  body.live .follow-panel .fp-next .stn { font-size: 20px; }
-  body.live .follow-panel .fp-next .eta { font-size: 16px; }
-  body.live .follow-panel .fp-prog .txt { font-size: 13px; }
-  body.live .follow-panel .fp-dest { font-size: 14px; }
-  body.live .follow-panel .fp-status { font-size: 15px; }
-  body.live .freq-card { width: 260px; }
-  body.live .freq-card .fc-head b { font-size: 18px; }
-  body.live .freq-card .fc-dir { font-size: 14px; }
-  body.live .freq-card .fc-next .lbl { font-size: 13px; }
-  body.live .freq-card .fc-next .stn { font-size: 19px; }
+  /* 直播訊號資訊欄放大(僅 body.live,不影響一般訪客):OBS 常見輸出畫布 1920×1080,
+     桌機瀏覽器尺寸的字級在整片畫布裡顯得很小——統一放大到約原尺寸 2.3 倍(比照廣播圖文尺度) */
+  body.live .badge { padding: 14px 26px 15px; gap: 18px; }
+  body.live .badge .clock { font-size: 46px; }
+  body.live .badge .peak { font-size: 20px; padding: 4px 14px; }
+  body.live .badge .count { font-size: 20px; }
+  body.live .badge .live, body.live .badge .replay { font-size: 18px; }
+  body.live .live-hud { gap: 10px; }
+  body.live .live-np { font-size: 22px; padding: 7px 18px 8px; }
+  body.live .live-wm { font-size: 20px; }
+  body.live .dwell-plate { min-width: 460px; }
+  body.live .dwell-plate b { font-size: 46px; padding: 15px 32px 11px; }
+  body.live .dwell-plate .dp-intro { font-size: 19px; }
+  body.live .dwell-plate .dp-intro .dp-intro-lbl { font-size: 16px; }
+  body.live .dwell-plate .dp-strip { padding: 9px 20px 10px; }
+  body.live .dwell-plate .side { font-size: 19px; }
+  body.live .dwell-plate .side .arr { font-size: 17px; }
+  body.live .dwell-plate .side .km { font-size: 16px; }
+  body.live .follow-panel { width: 400px; }
+  body.live .follow-panel .fp-head b { font-size: 25px; }
+  body.live .follow-panel .fp-head .kind { font-size: 19px; }
+  body.live .follow-panel .fp-head .spd { font-size: 18px; }
+  body.live .follow-panel .fp-head .spd b { font-size: 40px; }
+  body.live .follow-panel .fp-next .lbl { font-size: 17px; }
+  body.live .follow-panel .fp-next .stn { font-size: 26px; }
+  body.live .follow-panel .fp-next .eta { font-size: 20px; }
+  body.live .follow-panel .fp-prog .txt { font-size: 17px; }
+  body.live .follow-panel .fp-dest { font-size: 18px; }
+  body.live .follow-panel .fp-status { font-size: 19px; }
+  body.live .freq-card { width: 340px; }
+  body.live .freq-card .fc-head b { font-size: 24px; }
+  body.live .freq-card .fc-dir { font-size: 18px; }
+  body.live .freq-card .fc-next .lbl { font-size: 17px; }
+  body.live .freq-card .fc-next .stn { font-size: 25px; }
 
   /* 隨機跟隨升格為地圖膠囊鈕:原本擠在工具條裡(手機還要開抽屜)沒人發現,
      改成地圖下緣常駐置中膠囊,紙卡風沿用 .stage-tools 同色系 */
