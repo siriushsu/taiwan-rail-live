@@ -801,7 +801,13 @@
   body.live .live-hud { gap: 10px; }
   body.live .live-np { font-size: 22px; padding: 7px 18px 8px; }
   body.live .live-wm { font-size: 20px; }
-  body.live .dwell-plate { min-width: 460px; }
+  /* 站名牌改置頂置中(不與左上時鐘儀表同欄堆疊)——一般站左靠儀表下方是刻意設計(避免壓到常置中的跟隨列車),
+     直播固定俯瞰/跟車鏡頭較寬,置中更醒目也不擋時鐘,故僅 body.live 覆寫定位,不動一般站規則 */
+  body.live .dwell-plate {
+    min-width: 460px; left: 50%; top: 20px;
+    transform: translateX(-50%) translateY(-5px);
+  }
+  body.live .dwell-plate.show { transform: translateX(-50%); }
   body.live .dwell-plate b { font-size: 46px; padding: 15px 32px 11px; }
   body.live .dwell-plate .dp-intro { font-size: 19px; }
   body.live .dwell-plate .dp-intro .dp-intro-lbl { font-size: 16px; }
