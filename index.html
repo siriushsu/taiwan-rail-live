@@ -786,8 +786,6 @@
   body.live .leaflet-control-container { opacity: 1 !important; } /* 閒置淡出不得帶走底圖 attribution(CARTO/OSM 授權要求) */
   .live-hud { position: absolute; top: 64px; left: 12px; z-index: 600; pointer-events: none; display: flex; flex-direction: column; align-items: flex-start; gap: 5px; }
   .live-hud[hidden] { display: none; } /* flex 會蓋掉 hidden 的預設 display:none,補回 */
-  .live-np { opacity: 0; transition: opacity .8s; background: rgba(255,253,246,.82); border-radius: 6px; padding: 3px 10px 4px; font-size: 12.5px; font-weight: 700; color: #5f5340; }
-  .live-np.show { opacity: 1; }
   .live-wm { font-size: 11.5px; font-weight: 800; letter-spacing: .8px; color: rgba(30,44,64,.55); padding-left: 2px; }
   .badge .replay { font-size: 11px; font-weight: 800; color: #d23c2a; letter-spacing: .5px; }
 
@@ -798,8 +796,7 @@
   body.live .badge .peak { font-size: 20px; padding: 4px 14px; }
   body.live .badge .count { font-size: 20px; }
   body.live .badge .live, body.live .badge .replay { font-size: 18px; }
-  body.live .live-hud { gap: 10px; }
-  body.live .live-np { font-size: 22px; padding: 7px 18px 8px; }
+  body.live .live-hud { top: 118px; gap: 10px; } /* 時鐘儀表放大變高,原 64px 會疊到儀表上,下移讓開 */
   body.live .live-wm { font-size: 20px; }
   /* 站名牌改置頂置中(不與左上時鐘儀表同欄堆疊)——一般站左靠儀表下方是刻意設計(避免壓到常置中的跟隨列車),
      直播固定俯瞰/跟車鏡頭較寬,置中更醒目也不擋時鐘,故僅 body.live 覆寫定位,不動一般站規則 */
@@ -1477,9 +1474,8 @@
       <span class="peak" id="peak"></span>
       <span class="count" id="count"></span>
     </div>
-    <!-- 直播模式(?live=1)角落資訊:曲名字幕+頻道浮水印(與右下 attribution 對角) -->
+    <!-- 直播模式(?live=1)角落資訊:頻道浮水印(與右下 attribution 對角) -->
     <div class="live-hud" id="liveHud" hidden>
-      <div class="live-np" id="liveNp">♪ <span id="liveNpTitle"></span></div>
       <div class="live-wm">railisland.tw</div>
     </div>
     <div class="dwell-plate" id="dwellPlate">
@@ -4578,14 +4574,6 @@ function initLive() {
   if (state._liveMapOverride) { state.mapDark = state._liveMapOverride === 'dark'; state.basemap = state._liveMapOverride === 'sat' ? 'sat' : 'map'; setBasemap(); } // &map= 固定底圖
   try { map.attributionControl.addAttribution('資料: 交通部TDX'); } catch (e) {} // 底圖字樣外補資料來源
   document.getElementById('liveHud').hidden = false;
-  // Now Playing 字幕:換曲淡出→換字→淡入(檔名去 .mp3 當曲名)
-  const np = document.getElementById('liveNp'), npT = document.getElementById('liveNpTitle');
-  state.music.audio.addEventListener('playing', () => {
-    const name = (state.music.list[state.music.idx] || '').replace(/\.mp3$/i, '');
-    if (npT.textContent === name && np.classList.contains('show')) return; // 暫停續播不重跑淡入
-    np.classList.remove('show');
-    setTimeout(() => { npT.textContent = name; np.classList.add('show'); }, 650);
-  });
   const go = () => {
     if (!state.ready || !state.trains.length) { setTimeout(go, 500); return; } // 等資料載完列車出現,不空畫面巡航
     setAmbientStyle('hotspot'); // 直播固定群車巡航視角
@@ -4636,13 +4624,6 @@ function initDirector() {
   if (state._liveMapOverride) { state.mapDark = state._liveMapOverride === 'dark'; state.basemap = state._liveMapOverride === 'sat' ? 'sat' : 'map'; setBasemap(); } // &map= 固定底圖,停用自動輪替(見 fadeSwitch)
   try { map.attributionControl.addAttribution('資料: 交通部TDX'); } catch (e) {}
   document.getElementById('liveHud').hidden = false;
-  const np = document.getElementById('liveNp'), npT = document.getElementById('liveNpTitle');
-  state.music.audio.addEventListener('playing', () => {
-    const name = (state.music.list[state.music.idx] || '').replace(/\.mp3$/i, '');
-    if (npT.textContent === name && np.classList.contains('show')) return;
-    np.classList.remove('show');
-    setTimeout(() => { npT.textContent = name; np.classList.add('show'); }, 650);
-  });
   const go = () => {
     if (!state.ready || !state.trains.length) { setTimeout(go, 500); return; }
     setAmbientStyle('follow');  // 跟單車風格(自動導演),非群車
