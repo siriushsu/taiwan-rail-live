@@ -189,6 +189,16 @@ for (const [engName, engine] of [['chromium', chromium], ['webkit', webkit]]) {
     await page.waitForTimeout(700);
     const fp = await rect(page, '#followPanel'), cap2 = await rect(page, '.stage .controls'), tb = await rect(page, '.tabbar');
     ok(`${engName} C9 跟隨卡/膠囊/tabbar 無疊`, !!(fp && fp.vis) && !overlap(fp, cap2) && !overlap(fp, tb) && !overlap(cap2, tb), JSON.stringify({ fp, cap2, tb }));
+    // C11 全畫面組合:fs 時 stage 佔滿視窗,底部面板必須讓開 fixed tabbar;fs+跟隨時跟隨卡讓到面板上方
+    await page.evaluate(() => state._setFs(true));
+    await page.waitForTimeout(600);
+    await page.tap('#tabRide');
+    await page.waitForTimeout(600);
+    const fsRp = await rect(page, '#ridePanel'), fsFp = await rect(page, '#followPanel'), fsTb = await rect(page, '.tabbar');
+    const fsOk = !!(fsRp && fsRp.vis) && fsRp.y + fsRp.h <= fsTb.y && (!fsFp || !fsFp.vis || fsFp.y + fsFp.h <= fsRp.y);
+    ok(`${engName} C11 fs+面板讓開 tabbar+跟隨卡`, fsOk, JSON.stringify({ fsRp, fsFp, fsTb }));
+    await page.tap('#tabMap');
+    await page.evaluate(() => state._setFs(false));
     ok(`${engName} C10 手機無 console 錯誤`, errors.length === 0, errors.slice(0, 3).join(' | '));
     await ctx.close();
   }
