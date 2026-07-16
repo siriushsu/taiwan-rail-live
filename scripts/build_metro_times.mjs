@@ -6,7 +6,7 @@
 //   相鄰站的預期行駛秒(線檔 segs.run+停站)開時間窗,發車時刻逐站串成一班車;
 //   窗前多出的發車=中途始發(如板南線亞東醫院加班車),缺配對=通過不停(機捷直達)。
 // 台中捷運/三鶯線無 StationTimeTable → 以官方班距+首末班合成(estimated 標記)。
-// 輸出格式:lines[id] = { days:[週日..週六 → set 名], sets:{名:[班...]}};
+// 輸出格式:lines[id] = { days:[週日..週六 → set 名], sets:{名:[班...]}, holiday:國定假日 set 名 };
 //   一班 = [idx,sec, idx,sec, ...] 攤平的 (線檔站序 index, 當日發車秒) 對,跨午夜 sec>86400。
 // 用法:node scripts/build_metro_times.mjs
 import { readFileSync, writeFileSync } from 'node:fs';
@@ -157,6 +157,7 @@ function buildLineTimes(line, routeSpecs, sttCache, stnNameCache, notes, allStop
         (rec.DestinationStationName && rec.DestinationStationName.Zh_tw) || '';
       if (spec.destIs && stnNameCache(op).get(spec.destIs) !== dest) continue;
       const days = DAY_KEYS.map(k => rec.ServiceDay[k] ? '1' : '0').join('');
+      const nh = !!rec.ServiceDay.NationalHolidays; // 國定假日適用的班表(高捷=假日(週六型),多數系統=週末型)
       if ((spec.drop || []).some(x => x.station === rec.StationID && x.dir === rec.Direction && x.tag === rec.ServiceDay.ServiceTag)) {
         notes.push(`${line.id} ${rec.StationID}/dir${rec.Direction}/${rec.ServiceDay.ServiceTag}: 已知損壞記錄,整筆排除`);
         continue;
@@ -167,8 +168,8 @@ function buildLineTimes(line, routeSpecs, sttCache, stnNameCache, notes, allStop
         continue;
       }
       const gname = spec.as || routeId;
-      const key = [gname, spec.as ? '' : rec.Direction, dest, days].join('|');
-      if (!groups.has(key)) groups.set(key, { routeId: gname, dir: rec.Direction ?? 0, dest, days, tag: rec.ServiceDay.ServiceTag, spec, stns: new Map(),
+      const key = [gname, spec.as ? '' : rec.Direction, dest, days, nh ? 'H' : ''].join('|');
+      if (!groups.has(key)) groups.set(key, { routeId: gname, dir: rec.Direction ?? 0, dest, days, nh, tag: rec.ServiceDay.ServiceTag, spec, stns: new Map(),
         reqFirstIdx: spec.requireFirst ? ctx.idxOf.get(stnName.get(spec.requireFirst)) : null });
       const g = groups.get(key);
       const idx = ctx.idxOf.get(name);
@@ -192,6 +193,7 @@ function buildLineTimes(line, routeSpecs, sttCache, stnNameCache, notes, allStop
   }
   const byDay = Array.from({ length: 7 }, () => []);
   const tagOfDay = Array.from({ length: 7 }, () => new Set());
+  const byHol = [], holTags = new Set(); // NationalHolidays 記錄另聚一份:國定假日(含落在平日者)適用
   const stats = { midStart: 0, noDest: 0, dropped: 0, trains: 0, stitched: 0, merged: 0 };
   // 第一遍:各組先鏈起來(暫存,供 stitch)
   const built = [];
@@ -333,6 +335,7 @@ function buildLineTimes(line, routeSpecs, sttCache, stnNameCache, notes, allStop
       byDay[w].push(...good);
       tagOfDay[w].add(g.tag);
     }
+    if (g.nh) { byHol.push(...good); holTags.add(g.tag); }
   }
   // 各曜日班表去重成 sets(內容相同共用一份)
   const sets = {}; const days = []; const seen = new Map();
@@ -347,7 +350,20 @@ function buildLineTimes(line, routeSpecs, sttCache, stnNameCache, notes, allStop
     }
     days.push(seen.get(sig));
   }
-  return { days, sets, stats };
+  // 國定假日 set:內容通常與某週末 set 相同(共用一份,不增檔案大小);高捷=假日(週六型)≠週日,靠 NH 旗標選對
+  let holiday = null;
+  if (byHol.length) {
+    const trains = byHol.slice().sort((a, b) => a[1] - b[1]);
+    const sig = trains.map(t => t[1] + '.' + t[0] + '.' + t.length).join(',');
+    if (!seen.has(sig)) {
+      const tag = [...holTags].sort().join('+') || '國定假日';
+      let key = tag, i = 2;
+      while (key in sets) key = tag + i++;
+      sets[key] = trains; seen.set(sig, key);
+    }
+    holiday = seen.get(sig);
+  }
+  return { days, sets, holiday, stats };
 }
 
 // ── 班距合成(TMRT/三鶯線):首末班+時段班距 → 推算班表 ──
@@ -376,7 +392,7 @@ function synthTimes(line, cfg) {
     }
     sets[tag] = trains.sort((a, b) => a[1] - b[1]);
   }
-  return { days: cfg.dayMap, sets };
+  return { days: cfg.dayMap, sets, holiday: cfg.dayMap[0] }; // 班距合成線:國定假日=週日型班距
 }
 
 // TDX 班距+首末班 → synthTimes 的 cfg(文湖線/台中捷運這類無逐站時刻表的線)
@@ -415,7 +431,7 @@ const stnNameCache = op => {
 
 const SYSTEMS = [
   { file: 'data/trtc.json', out: 'data/trtc_times.json',
-    src: '台北捷運/新北捷運(環狀線)各站時刻表:交通部TDX運輸資料流通服務(2026-07-11 抓取);班次依平日/週六/週日對應,國定假日未特別處理(以週幾歸類);文湖線無逐站時刻表,以官方班距與首末班推算(非公告時刻)',
+    src: '台北捷運/新北捷運(環狀線)各站時刻表:交通部TDX運輸資料流通服務(2026-07-16 抓取);班次依平日/週六/週日/國定假日對應;文湖線無逐站時刻表,以官方班距與首末班推算(非公告時刻)',
     synth: [{ lineId: 'BR', freqFile: 'data/tdx/TRTC_Frequency.json', routeId: 'BR-1',
       flFile: 'data/tdx/TRTC_FirstLastTimetable.json', terminals: ['BR01', 'BR24'] }],
     lines: {
@@ -430,17 +446,17 @@ const SYSTEMS = [
       Y: [{ op: 'NTMC', routeId: 'Y-1', anchorTags: ['假日'], drop: [{ station: 'Y19', dir: 1, tag: '假日' }] }],
     } },
   { file: 'data/krtc.json', out: 'data/krtc_times.json',
-    src: '高雄捷運/高雄輕軌各站時刻表:交通部TDX運輸資料流通服務(2026-07-11 抓取);高捷班表分平日(週一~四)/假日前一天(週五)/假日(週六)/週日',
+    src: '高雄捷運/高雄輕軌各站時刻表:交通部TDX運輸資料流通服務(2026-07-16 抓取);高捷班表分平日(週一~四)/假日前一天(週五)/假日(週六)/週日,國定假日跑假日班表',
     lines: {
       KR: [{ op: 'KRTC', routeId: 'R' }],
       KO: [{ op: 'KRTC', routeId: 'O' }],
       C: [{ op: 'KLRT', routeId: 'C' }],
     } },
   { file: 'data/tymc.json', out: 'data/tymc_times.json', allStop: false, // 直達車合法跳站
-    src: '桃園機場捷運各站時刻表:交通部TDX運輸資料流通服務(2026-07-11 抓取);普通車與直達車皆依實際時刻',
+    src: '桃園機場捷運各站時刻表:交通部TDX運輸資料流通服務(2026-07-16 抓取);普通車與直達車皆依實際時刻',
     lines: { A: [{ op: 'TYMC', routeId: 'A-1' }, { op: 'TYMC', routeId: 'A-2' }, { op: 'TYMC', routeId: 'A-3' }] } },
   { file: 'data/ntdlrt.json', out: 'data/ntdlrt_times.json', allStop: false,
-    src: '淡海輕軌各站時刻表:交通部TDX運輸資料流通服務(2026-07-11 抓取);綠山線/藍海線各依實際時刻',
+    src: '淡海輕軌各站時刻表:交通部TDX運輸資料流通服務(2026-07-16 抓取);綠山線/藍海線各依實際時刻',
     // 線檔已拆綠山線(V)/藍海線(VB)兩條實際營運線(分岔在濱海沙崙),各自站序連續。
     // 回程(往紅樹林)的幹線記錄被 TDX 亂拆在 V-1/V-2/空路線編號 → 合併成虛擬路線再鏈;
     // 幹線記錄混含兩線班次 → requireFirst 只留從本線支線端(V10淡海新市鎮/V26漁人碼頭)發起的鏈。
@@ -455,10 +471,10 @@ const SYSTEMS = [
         only: ['V26', 'V27', 'V28', 'V02', 'V03', 'V04', 'V05', 'V06', 'V07', 'V08', 'V09'] },
     ] } },
   { file: 'data/ntalrt.json', out: 'data/ntalrt_times.json',
-    src: '安坑輕軌各站時刻表:交通部TDX運輸資料流通服務(2026-07-11 抓取)',
+    src: '安坑輕軌各站時刻表:交通部TDX運輸資料流通服務(2026-07-16 抓取)',
     lines: { K: [{ op: 'NTALRT', routeId: 'K-1' }] } },
   { file: 'data/tmrt.json', out: 'data/tmrt_times.json', estimated: true,
-    src: '台中捷運無公開逐班時刻表:以交通部TDX官方班距(各時段)與首末班車推算班次(2026-07-11 抓取),非公告時刻',
+    src: '台中捷運無公開逐班時刻表:以交通部TDX官方班距(各時段)與首末班車推算班次(2026-07-16 抓取),非公告時刻',
     synth: [{ lineId: 'TG', freqFile: 'data/tdx/TMRT_Frequency.json', lineIdF: 'G',
       flFile: 'data/tdx/TMRT_FirstLastTimetable.json', terminals: ['G0', 'G17'] }],
     lines: {} },
@@ -485,6 +501,7 @@ for (const sys of SYSTEMS) {
     if (!line) { console.warn(`  ⚠ 線檔缺 ${lid}`); continue; }
     const r = buildLineTimes(line, specs, sttCache, stnNameCache, notes, sys.allStop !== false);
     out.lines[lid] = { days: r.days, sets: r.sets };
+    if (r.holiday) out.lines[lid].holiday = r.holiday;
     const setInfo = Object.entries(r.sets).map(([k, v]) => `${k}:${v.length}班`).join(' ');
     console.log(`  ${lid.padEnd(12)} ${setInfo}  (中途始發${r.stats.midStart} 併碎片${r.stats.merged} 缺終點${r.stats.noDest} 剔除${r.stats.dropped})`);
   }
@@ -494,7 +511,7 @@ for (const sys of SYSTEMS) {
     const cfg = s.cfg || tdxSynthCfg(s);
     if (!Object.keys(cfg.services).length) { console.warn(`  ⚠ ${s.lineId}: 班距/首末班資料不足,無法合成`); continue; }
     const r = synthTimes(line, cfg);
-    out.lines[s.lineId] = { days: r.days, sets: r.sets, estimated: true };
+    out.lines[s.lineId] = { days: r.days, sets: r.sets, holiday: r.holiday, estimated: true };
     console.log(`  ${s.lineId.padEnd(12)} ${Object.entries(r.sets).map(([k, v]) => `${k}:${v.length}班`).join(' ')}  (班距合成)`);
   }
   for (const n of notes) console.log(`  ℹ ${n}`);

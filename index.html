@@ -2068,12 +2068,30 @@ function posPeriodic(ln, t) {
 }
 
 // ── 捷運實際時刻列車:*_times.json 的一班 = [站idx,發車秒, 站idx,發車秒, ...] 攤平對 ──
-// 取代舊「班距均勻撒車」:位置由當日(平日/假日)實際發車時刻+站間行駛時間推演,跟 simSec 時鐘走。
+// 取代舊「班距均勻撒車」:位置由當日(平日/假日/國定假日)實際發車時刻+站間行駛時間推演,跟 simSec 時鐘走。
+// 國定假日與補假日(含落在平日者)各捷運改跑假日班表,不能只看週幾——高捷國定假日=假日(週六型)班表≠週日班表。
+// 1=放假(國定假日+補假日→假日班表) 2=補行上班週六(→平日班表;2025修法後只補假不補班,115-116年無,保留語意)
+// 來源:政府行政機關辦公日曆表(人事行政總處,data.gov.tw 資料集14718;2026-07-16 查核);新年度公告後在此補列
+const TW_DAYTYPE = {
+  '2026-01-01': 1, '2026-02-15': 1, '2026-02-16': 1, '2026-02-17': 1, '2026-02-18': 1, '2026-02-19': 1,
+  '2026-02-20': 1, '2026-02-27': 1, '2026-02-28': 1, '2026-04-03': 1, '2026-04-04': 1, '2026-04-05': 1,
+  '2026-04-06': 1, '2026-05-01': 1, '2026-06-19': 1, '2026-09-25': 1, '2026-09-28': 1, '2026-10-09': 1,
+  '2026-10-10': 1, '2026-10-25': 1, '2026-10-26': 1, '2026-12-25': 1,
+  '2027-01-01': 1, '2027-02-04': 1, '2027-02-05': 1, '2027-02-06': 1, '2027-02-07': 1, '2027-02-08': 1,
+  '2027-02-09': 1, '2027-02-10': 1, '2027-02-28': 1, '2027-03-01': 1, '2027-04-04': 1, '2027-04-05': 1,
+  '2027-04-06': 1, '2027-04-30': 1, '2027-05-01': 1, '2027-06-09': 1, '2027-09-15': 1, '2027-09-28': 1,
+  '2027-10-10': 1, '2027-10-11': 1, '2027-10-25': 1, '2027-12-24': 1, '2027-12-25': 1, '2027-12-31': 1,
+};
 function prepFreqTimes(ln) {
   ln._tt = null;
   if (!ln.times) return;
-  const day = ln.times.days ? ln.times.days[new Date().getDay()] : null;
-  ln._tt = (day && ln.times.sets && ln.times.sets[day]) || [];
+  const t = ln.times;
+  let day;
+  const dt = TW_DAYTYPE[todayStr()];
+  if (dt === 1) day = t.holiday || (t.days && t.days[0]);
+  else if (dt === 2) day = t.days && t.days[1];
+  else day = t.days ? t.days[new Date().getDay()] : null;
+  ln._tt = (day && t.sets && t.sets[day]) || [];
 }
 // 跨午夜正規化:班次秒值可 >86400,清晨檢視時把前一日跨午夜班接回來(比照 sched trainPos)
 function freqTrainTime(tr, t) {
@@ -4572,7 +4590,7 @@ function loadSystem(sys) {
     const est = state.lines.filter(l => l.times && l.times.estimated).map(l => l.name);
     const timed = state.lines.some(l => l.times && !l.times.estimated);
     document.getElementById('note').innerHTML = escHtml((timed
-      ? '列車依當日實際時刻表（平日／假日班表）推演——位置為推算、非即時動態，實際到離站時刻請以各捷運公司資訊為準。' +
+      ? '列車依當日實際時刻表（平日／假日／國定假日班表）推演——位置為推算、非即時動態，實際到離站時刻請以各捷運公司資訊為準。' +
         (est.length ? '（' + est.join('、') + '無公開逐班時刻，以官方班距與首末班車推算）' : '') + '　'
       : '注意：本系統無公開逐班時刻表——班次依官方公告班距與首末班車推算，位置為示意、並非即時班次，實際到離站時刻請以營運公司資訊為準。　') +
       (sys._times && sys._times.source_notes ? '資料來源：' + sys._times.source_notes
@@ -4664,7 +4682,7 @@ function loadFreqGroup(g, sel) {
   reproject(); recomputeTrains();
   syncTimeUI();
   document.getElementById('note').innerHTML = escHtml(
-    '捷運／輕軌列車依當日實際時刻表（平日／假日班表）推演——位置為推算、並非即時班次（台中捷運、三鶯線、文湖線無公開逐班時刻，為班距推算）。' +
+    '捷運／輕軌列車依當日實際時刻表（平日／假日／國定假日班表）推演——位置為推算、並非即時班次（台中捷運、三鶯線、文湖線無公開逐班時刻，為班距推算）。' +
     '可勾選上方系統同時顯示多個路網。' + (state.lines.length ? '' : '（目前未選任何系統）')) +
     '　' + metroLinksHtml(new Set(g.members));
   document.getElementById('searchRow').hidden = true;
