@@ -1717,8 +1717,9 @@
 
   <footer class="site-foot">
     <details class="foot-box">
-      <summary><span>🛠 更新紀錄</span><span class="foot-sub">最後更新：2026/7/16</span></summary>
+      <summary><span>🛠 更新紀錄</span><span class="foot-sub">最後更新：2026/7/17</span></summary>
       <ul class="foot-list">
+        <li><span class="d">7/17</span><span>捷運準確度大升級（四）新北捷運也即時了：環狀線、淡海輕軌、安坑輕軌的列車位置，營運時段會依新北捷運官方列車動態自動校正（約每分鐘）——環狀線直接對照逐車軌道區間，淡海、安坑對照逐站到站倒數，跟隨面板會標示「已依官方列車動態校正」。至此北捷、新北捷、機捷、高捷、高雄輕軌全數接上官方即時資訊，全台主要捷運路網看到的位置都不再只是照表推演</span></li>
         <li><span class="d">7/16</span><span>軌島帳號上線：工具列新增「帳號同步」——用 Google 帳號登入後，最愛地點、最愛列車與完乘紀錄會在你的手機、電腦間自動同步；資料只有本人看得到，也可以隨時刪除帳號帶走一切。Apple 登入正在整備中，近日推出</span></li>
         <li><span class="d">7/16</span><span>手機全畫面模式修正：全畫面時打開「亮點／最愛／護照」等面板，下半部會被底部分頁列蓋住看不到——現在面板會自動讓開分頁列；全畫面跟隨中開面板，跟隨小卡也會移到面板上方，不再互相遮擋（謝謝網友回報）</span></li>
         <li><span class="d">7/16</span><span>手機版修正：底部分頁打開「亮點／最愛／護照」等面板時，速度膠囊與版權標示會先讓開，不再壓住面板文字（謝謝網友回報）</span></li>
@@ -1803,7 +1804,7 @@
         <li><span class="d">軌道</span><span>台鐵軌道幾何取自 © OpenStreetMap 貢獻者（ODbL），經 Overpass API</span></li>
         <li><span class="d">底圖</span><span>CARTO basemaps（© OpenStreetMap）、Esri World Imagery（衛星影像）與 Natural Earth（離線海陸輪廓）</span></li>
       </ul>
-      <p class="foot-note">本站為個人愛好者專案，與台灣鐵路公司及各捷運公司皆無關。台鐵套用官方即時誤點；北捷、高捷、桃園機捷與高雄輕軌營運時段依官方到站看板即時校正；其餘捷運／輕軌依當日官方時刻表推演（部分路線無公開逐班時刻，為班距推算）。實際到離站時刻請以各營運機構官方資訊為準。</p>
+      <p class="foot-note">本站為個人愛好者專案，與台灣鐵路公司及各捷運公司皆無關。台鐵套用官方即時誤點；北捷、高捷、桃園機捷與高雄輕軌營運時段依官方到站看板即時校正；新北捷運（環狀線、淡海輕軌、安坑輕軌）營運時段依官方列車動態即時校正；其餘捷運／輕軌依當日官方時刻表推演（部分路線無公開逐班時刻，為班距推算）。實際到離站時刻請以各營運機構官方資訊為準。</p>
     </details>
     <div class="foot-links">
       <a href="https://github.com/siriushsu/taiwan-rail-live/issues/new" target="_blank" rel="noopener noreferrer">📍 回報問題或建議</a>
@@ -1864,7 +1865,7 @@
 <script>
 // 版本戳記:每次改版 push 前手動遞增(字母序),畫面時鐘徽章與 console 都會顯示,
 // 供比對線上跑的是不是最新版(瀏覽器快取 max-age=600 常讓人看到舊版)
-const BUILD = 'v0716d';
+const BUILD = 'v0717a';
 const state = {
   systems: [], sysId: null, data: null, speed: 36, mode: 'freq',
   lines: [], visible: new Set(), trains: [], schedStations: [], types: [],
@@ -1899,10 +1900,10 @@ function pal() { return MAP_PAL[state.basemap === 'sat' ? 'sat' : (state.mapDark
 
 // 各系統的站名牌／副標／導言文案(loadSystem 依系統套用)
 const SYS_META = {
-  mrt:       { plateL: '淡水', plateR: '象山', sub: 'TAIPEI METRO LIVE',    lead: '各線列車依當日實際時刻表在城市裡穿梭，營運時段依官方到站看板即時校正（環狀線由新北捷運營運；文湖線為班距推算）— 拖曳、縮放看看。' },
+  mrt:       { plateL: '淡水', plateR: '象山', sub: 'TAIPEI METRO LIVE',    lead: '各線列車依當日實際時刻表在城市裡穿梭，營運時段依官方到站看板即時校正（環狀線依新北捷運官方列車動態；文湖線為班距推算）— 拖曳、縮放看看。' },
   tymc:      { plateL: '台北車站', plateR: '老街溪', sub: 'TAOYUAN AIRPORT MRT LIVE', lead: '機場捷運直達車與普通車依當日實際時刻表連結雙北與桃園機場，營運時段依官方到站看板即時校正 — 拖曳、縮放看看。' },
-  ntdlrt:    { plateL: '紅樹林', plateR: '漁人碼頭', sub: 'DANHAI LIGHT RAIL LIVE', lead: '淡海輕軌綠山線與藍海線依官方當日時刻表在淡水穿梭 — 拖曳、縮放看看。' },
-  ntalrt:    { plateL: '雙城', plateR: '十四張', sub: 'ANKENG LIGHT RAIL LIVE', lead: '安坑輕軌依官方當日時刻表沿安康路串起新店丘陵 — 拖曳、縮放看看。' },
+  ntdlrt:    { plateL: '紅樹林', plateR: '漁人碼頭', sub: 'DANHAI LIGHT RAIL LIVE', lead: '淡海輕軌綠山線與藍海線依官方當日時刻表在淡水穿梭，營運時段依官方列車動態即時校正 — 拖曳、縮放看看。' },
+  ntalrt:    { plateL: '雙城', plateR: '十四張', sub: 'ANKENG LIGHT RAIL LIVE', lead: '安坑輕軌依官方當日時刻表沿安康路串起新店丘陵，營運時段依官方列車動態即時校正 — 拖曳、縮放看看。' },
   sanying:   { plateL: '頂埔', plateR: '鶯桃福德', sub: 'SANYING LINE LIVE', lead: '三鶯線串起土城、三峽與鶯歌（2026-06-30 通車試營運；無公開逐班時刻，班次依官方班距推算）— 拖曳、縮放看看。' },
   krtc:      { plateL: '小港', plateR: '岡山', sub: 'KAOHSIUNG METRO LIVE', lead: '紅橘兩線與環狀輕軌依當日實際時刻表在港都穿梭，營運時段依官方到站看板即時校正 — 拖曳、縮放看看。' },
   tmrt:      { plateL: '北屯總站', plateR: '高鐵臺中站', sub: 'TAICHUNG METRO LIVE', lead: '綠線列車沿著文心路跑（無公開逐班時刻，班次依官方班距與首末班車推算）— 拖曳、縮放看看。' },
@@ -2615,7 +2616,7 @@ function updateFreqCard(info) {
   if (metroAlertFor(ln)) { txt = '⚠ 營運異常公告中，位置僅供參考'; cls = 'warn'; }
   else if (f.tr && metroLiveOn(ln)) {
     const sh = metroShiftSec(ln, f.tr);
-    txt = '● 已依官方到站看板校正' + (Math.abs(sh) >= 90 ? '（較表定約' + (sh > 0 ? '慢' : '快') + Math.round(Math.abs(sh) / 60) + ' 分)' : '');
+    txt = '● 已依官方' + (ln._liveShift && ln._liveShift.src === 'ntm' ? '列車動態' : '到站看板') + '校正' + (Math.abs(sh) >= 90 ? '（較表定約' + (sh > 0 ? '慢' : '快') + Math.round(Math.abs(sh) / 60) + ' 分)' : '');
     cls = 'on';
   } else if (ln.times && ln.times.estimated) txt = '依官方班距推算（未公告逐班時刻），位置為示意';
   else if (f.tr) txt = '依官方當日時刻表行駛' + (metroAlertCovered(ln) ? '；有異常公告會提醒' : '');
@@ -4520,7 +4521,7 @@ const GROUPS = [
       lead: '台鐵與高鐵同框運行，皆依當日真實時刻表（台鐵回到現在時刻自動套用即時誤點）— 點列車跟隨、點車站看班次，或按地圖角落「探」看今日亮點。' } },
   { id: 'north', label: '北北桃', mode: 'freq', members: ['mrt', 'tymc', 'ntdlrt', 'ntalrt', 'sanying'],
     plate: { plateL: '淡水', plateR: '桃園機場', sub: 'GREATER TAIPEI RAIL',
-      lead: '台北捷運、新北捷運（環狀線・淡海・安坑・三鶯）與桃園機捷同框運行，北捷與機捷營運時段依官方到站看板校正（三鶯線、文湖線為班距推算）— 可在上方勾選要同時顯示的系統,拖曳、縮放地圖看看。' } },
+      lead: '台北捷運、新北捷運（環狀線・淡海・安坑・三鶯）與桃園機捷同框運行，北捷、新北捷與機捷營運時段依官方即時資訊校正（三鶯線、文湖線為班距推算）— 可在上方勾選要同時顯示的系統,拖曳、縮放地圖看看。' } },
   { id: 'south', label: '中南部', mode: 'freq', members: ['tmrt', 'krtc'],
     plate: { plateL: '台中', plateR: '高雄', sub: 'CENTRAL & SOUTHERN METRO',
       lead: '台中捷運與高雄捷運同框，高捷與輕軌營運時段依官方到站看板校正（台中捷運為班距推算）— 可在上方勾選要同時顯示的系統。' } },
@@ -4607,6 +4608,7 @@ function finishLoad(meta) {
   renderAlertBanner(); // 模式切換即刻換橫幅內容(sched=台鐵/高鐵、freq=捷運,用手上快取先畫)
   pollAlert();         // 營運通阻/狀態公告(sched 各系統端點、freq 走 api/metro-alert)
   pollMetroLive();     // 捷運即時校正(捷運分頁與全台同框、系統有 LiveBoard 源才會真的打;換線後 shift 隨新 line 物件重建)
+  pollNtmLive();       // 新北捷即時校正(環狀線/淡海/安坑,官方列車動態)
   updateSchedTools();  // 捷運模式隱藏台鐵專屬工具鈕
   refreshBadge();
   updateCount();
@@ -4671,7 +4673,8 @@ function loadSystem(sys) {
     const timed = state.lines.some(l => l.times && !l.times.estimated);
     document.getElementById('note').innerHTML = escHtml((timed
       ? '列車依當日實際時刻表（平日／假日／國定假日班表）推演' +
-        (METRO_LIVE_SYS[sys.id] ? '，營運時段並依 TDX 官方到站看板即時校正（約每分鐘，時鐘徽章亮「看板校正」時生效）' : '') +
+        (METRO_LIVE_SYS[sys.id] ? '，營運時段並依 TDX 官方到站看板即時校正（約每分鐘，時鐘徽章亮「看板校正」時生效）' :
+          sys.id === 'ntdlrt' || sys.id === 'ntalrt' ? '，營運時段並依新北捷運官方列車動態即時校正（約每分鐘，時鐘徽章亮「看板校正」時生效）' : '') +
         '——實際到離站時刻仍請以各捷運公司資訊為準。' +
         (est.length ? '（' + est.join('、') + '無公開逐班時刻，以官方班距與首末班車推算）' : '') + '　'
       : '本系統無公開逐班時刻——班次依官方公告班距與首末班車推算（位置為示意），實際到離站時刻請以營運公司資訊為準。　') +
@@ -4765,7 +4768,7 @@ function loadFreqGroup(g, sel) {
   syncTimeUI();
   document.getElementById('note').innerHTML = escHtml(
     '捷運／輕軌列車依當日實際時刻表（平日／假日／國定假日班表）推演，' +
-    '北捷、高捷、高雄輕軌與機捷營運時段並依 TDX 官方到站看板即時校正（約每分鐘）——其餘系統依官方時刻表推演' +
+    '北捷、高捷、高雄輕軌與機捷依 TDX 官方到站看板、新北捷運（環狀線・淡海・安坑）依官方列車動態，營運時段即時校正（約每分鐘）——其餘系統依官方時刻表推演' +
     '（台中捷運、三鶯線、文湖線無公開逐班時刻，為班距推算）。' +
     '可勾選上方系統同時顯示多個路網。' + (state.lines.length ? '' : '（目前未選任何系統）')) +
     '　' + metroLinksHtml(new Set(g.members));
@@ -4800,6 +4803,7 @@ function toggleFreqMember(id) {
   renderSystemsBar(); // 不重新 fitData,地圖不跳動
   renderAlertBanner(); // 勾選系統變了,公告過濾範圍跟著變(用手上快取,不重抓)
   pollMetroLive(); // rebuildFreqLines 產生全新 line 物件,_liveShift 需重新拉
+  pollNtmLive();
 }
 
 // sched 群組(國家鐵路):台鐵+高鐵同框(皆真實時刻表);群內可多選,預設全開
@@ -4877,7 +4881,7 @@ function loadAllGroup(g) {
   reproject();
   document.getElementById('note').innerHTML = escHtml(
     '全台鐵道同框 — 台鐵、高鐵依當日真實時刻表運行（共 ' + state.trains.length + ' 車次，台鐵回到現在時刻自動套用即時誤點）；' +
-    '捷運與各輕軌亦依當日時刻表推演，北捷、高捷、高雄輕軌與機捷營運時段並依官方到站看板即時校正（台中捷運、三鶯線、文湖線為班距推算）。點任一列車皆可跟隨（放大到看得見捷運車號牌即可點），點車站看班次。') +
+    '捷運與各輕軌亦依當日時刻表推演，北捷、高捷、高雄輕軌、機捷與新北捷運營運時段並依官方即時資訊校正（台中捷運、三鶯線、文湖線為班距推算）。點任一列車皆可跟隨（放大到看得見捷運車號牌即可點），點車站看班次。') +
     '　捷運' + metroLinksHtml(new Set(METRO_OFFICIAL.flatMap(o => o.sys)));
   populateTrainList();
   document.getElementById('searchRow').hidden = false;
@@ -6859,12 +6863,115 @@ function updateMetroBadge() {
       const m = Math.round((ln._liveShift.all || 0) / 60);
       return (ln.name || ln.id) + (m > 0 ? '晚' + m + '分' : m < 0 ? '早' + (-m) + '分' : '準點');
     });
-    el.title = '動畫已依官方到站看板校正(約每分鐘更新):' + parts.join('、');
+    el.title = '動畫已依官方即時資訊校正(約每分鐘更新):' + parts.join('、');
   }
 }
 setInterval(pollMetroLive, 60e3);
 setInterval(updateMetroBadge, 10e3); // 資料過期/時間旅行時徽章自動熄
-document.addEventListener('visibilitychange', () => { if (!document.hidden) pollMetroLive(); });
+document.addEventListener('visibilitychange', () => { if (!document.hidden) { pollMetroLive(); pollNtmLive(); } });
+
+// ── 新北捷即時校正(官方列車動態 trainstatus.ntmetro.com.tw,經 /api/ntmetro-live 代理,約每分鐘) ──
+// 環狀線=逐車軌道區間佔用碼(站台/站間段)換算預計到站時刻;淡海/安坑=逐站到站倒數秒。
+// 與 TDX LiveBoard 同一套最近事件匹配:樣本餵進 nearestArrDiff→逐線中位數,寫同一個 _liveShift,
+// 繪製/看板/徽章消費端零改動。碼表與段秒取自官方 roadmap 頁 JS(未文件化來源,已去函詢問,對方拒絕即移除)。
+const NTM_LIVE_FEEDS = { // feed → 對象線(sys+line id 雙鍵定位,避免跨系統撞名)
+  circular: { sys: 'mrt', lines: ['Y'] },
+  danhai: { sys: 'ntdlrt', lines: ['V', 'VB'] },
+  ankeng: { sys: 'ntalrt', lines: ['K'] },
+};
+// 環狀線軌道碼表(站序 0=大坪林 Y07 … 13=新北產業園區 Y20);rem=距抵達目的站的剩餘行駛秒
+const NTM_Y_TRACK = (() => {
+  const plat = [[601, 602], [703, 704], [801, 802], [901, 902], [1001, 1002], [1101, 1102], [1201, 1202], [1301, 1302], [1401, 1402], [1501, 1502], [1601, 1602], [1701, 1702], [1801, 1802], [1901, 1902]]; // [下行,上行]站台
+  const segUp = [[606, 608, 610, 612, 702], [706, 708, 714], [804, 806], [904, 906], [1004, 1006, 1008, 1010], [1104, 1106], [1204, 1206], [1304, 1306], [1404, 1406], [1504, 1506], [1604, 1606], [1704, 1706], [1804, 1806, 1808, 1810, 1812, 1818]]; // 段i=站i→站i+1,行進順序
+  const segDn = [[701, 611, 609, 607, 605], [713, 707, 705], [805, 803], [905, 903], [1009, 1007, 1005, 1003], [1105, 1103], [1205, 1203], [1305, 1303], [1405, 1403], [1505, 1503], [1605, 1603], [1705, 1703], [1817, 1811, 1809, 1807, 1805, 1803]]; // 段i=站i+1→站i,行進順序
+  const secUp = [127, 107, 79, 86, 184, 96, 72, 110, 141, 167, 125, 93, 130], secDn = [172, 105, 83, 86, 178, 95, 76, 110, 133, 180, 139, 96, 141]; // 官方標準段行駛秒(方向別)
+  const m = new Map();
+  plat.forEach((p, i) => { m.set(p[0], { si: i, dir: -1, rem: 0 }); m.set(p[1], { si: i, dir: 1, rem: 0 }); });
+  segUp.forEach((a, i) => a.forEach((tk, k) => m.set(tk, { si: i + 1, dir: 1, rem: (1 - (k + 1) / (a.length + 1)) * secUp[i] })));
+  segDn.forEach((a, i) => a.forEach((tk, k) => m.set(tk, { si: i, dir: -1, rem: (1 - (k + 1) / (a.length + 1)) * secDn[i] })));
+  return m;
+})();
+const NTM_Y_DN18 = { 1818: 1817, 1816: 1811, 1812: 1811, 1815: 1809, 1814: 1807, 1813: 1805 }; // Y19-Y20 並行軌依實際方向正規化(官方 JS 同款)
+const NTM_Y_UP18 = { 1813: 1806, 1814: 1808, 1815: 1810, 1816: 1812, 1811: 1812, 1817: 1818 };
+const NTM_ST_IDX = (() => { // 淡海/安坑站碼→本站站序:共線段 V01-V09 兩線同序;綠山尾段 V10/V11、藍海尾段 V28/V27/V26
+  const v = {}, vb = {}, kk = {};
+  for (let i = 1; i <= 9; i++) { v['V0' + i] = vb['V0' + i] = i - 1; kk['K0' + i] = i - 1; }
+  v.V10 = 9; v.V11 = 10; vb.V28 = 9; vb.V27 = 10; vb.V26 = 11;
+  return { V: v, VB: vb, K: kk };
+})();
+function applyNtmLive(feed, src) {
+  const cfg = NTM_LIVE_FEEDS[feed];
+  if (!cfg || src == null) return;
+  const nowSec = nowSecOfDay(), nowAbs = Date.now();
+  const byId = new Map();
+  for (const ln of metroLivePool())
+    if (freqSysIdOf(ln) === cfg.sys && cfg.lines.includes(ln.id) && ln._tt && ln._tt.length) byId.set(ln.id, ln);
+  if (!byId.size) return;
+  for (const ln of byId.values())
+    if (!ln._evIdx || ln._evIdxTT !== ln._tt) { ln._evIdx = buildArrIdx(ln); ln._evIdxTT = ln._tt; }
+  const perLine = new Map();
+  const add = (ln, si, dir, t) => { // t=官方預期該站該方向停靠事件時刻(秒)
+    const diff = nearestArrDiff(ln._evIdx, si, dir, t);
+    if (diff == null || Math.abs(diff) > 600) return; // ±10 分外=配錯班或重大異常,不當樣本
+    let rec = perLine.get(ln); if (!rec) perLine.set(ln, rec = { f: [], b: [], all: [] });
+    (dir > 0 ? rec.f : rec.b).push(diff);
+    rec.all.push(diff);
+  };
+  if (feed === 'circular') {
+    const ln = byId.get('Y');
+    if (ln && Array.isArray(src)) for (const trn of src) {
+      let tk = Number(trn && trn.occupiedTrackId1);
+      if (trn.trainDirection === 2 && NTM_Y_DN18[tk] != null) tk = NTM_Y_DN18[tk];
+      else if (trn.trainDirection === 1 && NTM_Y_UP18[tk] != null) tk = NTM_Y_UP18[tk];
+      if (tk === 604 || tk === 606) tk = 602; // 官方 JS 同款:大坪林端尾軌視同在站
+      if (tk === 603) tk = 601;
+      if (tk === 601 || tk === 602 || tk === 1901 || tk === 1902) continue; // 端點站台=折返停放中,發車時刻不明,不當樣本
+      const p = NTM_Y_TRACK.get(tk);
+      if (p) add(ln, p.si, p.dir, nowSec + p.rem + 15); // 未知碼(如尾軌 716)不猜;+15≈到站與發車事件的半個停站
+    }
+  } else if (Array.isArray(src.gpsData)) {
+    src.gpsData.forEach((grp, gi) => {
+      if (!grp || typeof grp !== 'object') return;
+      const dir = (feed === 'ankeng' ? gi === 0 : gi <= 2) ? 1 : -1; // 官方分組前半=上行=本站站序遞增方向
+      for (const code in grp) {
+        const row = grp[code];
+        if (!row || row.routeId == null || row.time == null || row.time < 0) continue; // routeId null=時刻表推估列(非真列車);time -1=無資料
+        const ln = byId.get(feed === 'ankeng' ? 'K' : row.routeId === 4 ? 'VB' : row.routeId === 3 ? 'V' : ''); // 淡海共線段以 routeId 分流
+        if (!ln) continue;
+        const si = NTM_ST_IDX[ln.id][code];
+        if (si == null) continue;
+        if (row.time <= 0 && (dir > 0 ? si === 0 : si === ln.stations.length - 1)) continue; // 起點端停放待發,倒數恆 0 非到站樣本
+        add(ln, si, dir, nowSec + row.time + 15);
+      }
+    });
+  }
+  const med = a => { if (a.length < 3) return null; const s = a.slice().sort((x, y) => x - y); return Math.round(s[s.length >> 1]); };
+  for (const [ln, rec] of perLine) {
+    const all = med(rec.all);
+    if (all == null) continue; // 樣本不足:保留舊 shift,>5 分鐘未更新由 metroLiveOn 自動停用
+    ln._liveShift = { f: med(rec.f), b: med(rec.b), all, at: nowAbs, n: rec.all.length, src: 'ntm' };
+  }
+}
+async function pollNtmLive() {
+  const pool = metroLivePool();
+  if (document.hidden || !pool.length) return;
+  if (Math.abs(state.simSec - nowSecOfDay()) > 120) return; // 時間旅行中不打 API 也不校正
+  const feeds = new Set();
+  for (const ln of pool) {
+    const sys = freqSysIdOf(ln);
+    for (const f in NTM_LIVE_FEEDS) { const c = NTM_LIVE_FEEDS[f]; if (c.sys === sys && c.lines.includes(ln.id)) feeds.add(f); }
+  }
+  await Promise.all([...feeds].map(async f => {
+    try {
+      const r = await fetch(apiUrl('api/ntmetro-live?sys=' + f), { cache: 'no-store' });
+      if (!r.ok) throw new Error(r.status);
+      const d = await r.json();
+      applyNtmLive(f, d && d.src);
+    } catch (e) { /* 失敗保留舊 shift */ }
+  }));
+  updateMetroBadge();
+}
+setInterval(pollNtmLive, 60e3);
 
 // ── 營運通阻/狀態公告(每 5 分鐘輪詢):sched=台鐵/高鐵各自端點;freq=捷運五家聚合 api/metro-alert ──
 // 只轉述官方公告不推定個別班次:正常條目 status:1 濾除,其餘當異常帶出
@@ -7212,7 +7319,7 @@ function renderFreqBoard(el, st, lines, isDeco) {
   }).join('');
   el.innerHTML = `<button class="close" id="boardClose">×</button>` +
     `<h3>${st.name}</h3>` + stnMetaHtml(st) +
-    `<div class="sub">接下來的班車 · ${hasLive ? '已依官方到站看板校正' : '依官方當日時刻表'} · 點班次跟隨${hasEstimated ? '（部分路線為班距推算）' : ''}</div>` +
+    `<div class="sub">接下來的班車 · ${hasLive ? '已依官方即時資訊校正' : '依官方當日時刻表'} · 點班次跟隨${hasEstimated ? '（部分路線為班距推算）' : ''}</div>` +
     (body || '<div class="empty">此時段無停靠班次</div>');
   el.hidden = false;
   updateSheetOpenClass();

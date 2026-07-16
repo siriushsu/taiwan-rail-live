@@ -228,6 +228,37 @@ async function metroLive(request, env, sys) {
   }
 }
 
+// ── 新北捷官網列車動態代理(trainstatus.ntmetro.com.tw,免金鑰) ──
+// 環狀線=逐車軌道區間佔用、淡海/安坑=逐站到站倒數。未文件化端點:已去函詢問使用同意(2026-07-16),
+// 對方拒絕即移除本段;失敗前端自動退回時刻表推演,零損害。快取後全站對上游=每端點約 55s 一次,
+// 遠低於其官網單一訪客的 10s 輪詢負載。
+const NTM_LIVE_SYS = { circular: 1, danhai: 1, ankeng: 1 };
+const ntmLiveMem = new Map(); // sys → { data, at }
+async function ntmetroLive(request, env, sys) {
+  const cacheKey = new Request(new URL('/api/ntmetro-live?sys=' + sys, request.url), { method: 'GET' });
+  const edge = caches.default;
+  const hit = await edge.match(cacheKey);
+  if (hit) return hit;
+  const stale = ntmLiveMem.get(sys);
+  try {
+    if (!stale || Date.now() - stale.at > 55e3) {
+      const r = await fetch(`https://trainstatus.ntmetro.com.tw/roadmap/${sys}_data.php`,
+        { headers: { 'user-agent': 'railisland.tw metro animation (+https://railisland.tw)' } });
+      if (!r.ok) throw new Error('ntmetro ' + r.status);
+      const d = await r.json();
+      ntmLiveMem.set(sys, { data: { at: new Date().toISOString(), src: d && d.data != null ? d.data : null }, at: Date.now() });
+    }
+    const res = jsonRes(ntmLiveMem.get(sys).data, 200, 'public, s-maxage=50, stale-while-revalidate=120');
+    await edge.put(cacheKey, res.clone());
+    return res;
+  } catch (e) {
+    if (stale) return jsonRes(stale.data, 200, 'public, s-maxage=15');
+    // 軟失敗:回 200+src:null(前端 applyNtmLive 對 null 直接 no-op,退回時刻表推演),
+    // 不回 5xx 免得上游瞬斷時訪客 console 留紅字
+    return jsonRes({ at: new Date().toISOString(), src: null, error: String(e.message || e) }, 200, 'no-store');
+  }
+}
+
 // 刪除帳號前清除 RevenueCat customer。Secret API key 只能存在 Worker runtime；
 // 先以 Firebase Auth REST lookup 驗證呼叫者的 ID token，再只刪除該 token 自己的 uid，
 // 不接受前端傳 customer id，避免知道別人 uid 就能刪除對方購買資料。
@@ -300,6 +331,10 @@ export default {
     else if (url.pathname === '/api/metro-live') {
       const sys = url.searchParams.get('sys');
       res = METRO_LIVE_OPS[sys] ? await metroLive(request, env, sys) : jsonRes({ error: 'bad sys' }, 400, 'no-store');
+    }
+    else if (url.pathname === '/api/ntmetro-live') {
+      const sys = url.searchParams.get('sys');
+      res = NTM_LIVE_SYS[sys] ? await ntmetroLive(request, env, sys) : jsonRes({ error: 'bad sys' }, 400, 'no-store');
     }
     else if (url.pathname === '/api/account-delete') res = await deletePaidProfile(request, env);
     else res = await env.ASSETS.fetch(request);
