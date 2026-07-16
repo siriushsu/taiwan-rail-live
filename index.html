@@ -905,6 +905,22 @@
     padding: 0 4px 1px; white-space: nowrap;
   }
 
+  /* ── 點擊歧義小選單(tap-pick):列車停靠中壓住車站時,貼點擊處彈兩列讓使用者選車或站 ── */
+  .tap-pick {
+    position: absolute; z-index: 730; min-width: 190px; max-width: 270px;
+    display: flex; flex-direction: column; gap: 2px; padding: 5px;
+    background: var(--paper); border: 2px solid var(--navy); border-radius: 10px;
+    box-shadow: var(--shadow-navy);
+  }
+  .tap-pick .tp-row {
+    display: flex; align-items: center; gap: 9px; min-height: 44px; padding: 5px 11px;
+    font: inherit; font-size: 14px; font-weight: 700; color: var(--ink-strong); text-align: left;
+    background: none; border: 0; border-radius: 7px; cursor: pointer;
+  }
+  .tap-pick .tp-row:hover { background: var(--bg-stage); }
+  .tap-pick .tp-ic { flex: none; }
+  .tap-pick .tp-tx { min-width: 0; }
+
   /* ── 車站時刻板(及其他共用外觀的面板:最愛/旅程/探索/軌道與路線——面板家族統一骨架) ── */
   .board {
     position: absolute; top: 12px; right: 12px; z-index: 650;
@@ -1603,6 +1619,7 @@
       <div class="dp-intro" id="dpIntro" style="display:none"></div>
     </div>
     <div class="board" id="board" hidden></div>
+    <div class="tap-pick" id="tapPick" hidden></div>
     <div class="xing-card" id="xingCard" hidden></div>
     <div class="xing-card pin-card" id="pinCard" hidden></div>
     <div class="xing-card" id="nearCard" hidden></div>
@@ -1722,6 +1739,7 @@
     <details class="foot-box">
       <summary><span>🛠 更新紀錄</span><span class="foot-sub">最後更新：2026/7/17</span></summary>
       <ul class="foot-list">
+        <li><span class="d">7/17</span><span>列車停在車站時，車站點得到了：以前車蓋住站點，怎麼點都是跟隨列車、看板永遠開不了——現在點到「車與站疊在一起」的地方會跳出小選單，讓你選要跟隨列車還是打開車站看板；點得明顯偏向某一邊時維持直接執行，平常操作手感不變（台鐵、高鐵、各捷運都適用）</span></li>
         <li><span class="d">7/17</span><span>手機版修正：點「搜尋車次」輸入框時，畫面不再被自動放大——之前 iPhone 一點搜尋框整頁就突然變大、收鍵盤後也縮不回來，很干擾；「指定時刻」的輸入框也一併修正</span></li>
         <li><span class="d">7/17</span><span>捷運準確度大升級（四）新北捷運也即時了：環狀線、淡海輕軌、安坑輕軌的列車位置，營運時段會依新北捷運官方列車動態自動校正（約每分鐘）——環狀線直接對照逐車軌道區間，淡海、安坑對照逐站到站倒數，跟隨面板會標示「已依官方列車動態校正」。至此北捷、新北捷、機捷、高捷、高雄輕軌全數接上官方即時資訊，全台主要捷運路網看到的位置都不再只是照表推演</span></li>
         <li><span class="d">7/16</span><span>軌島帳號上線：工具列新增「帳號同步」——用 Google 帳號登入後，最愛地點、最愛列車與完乘紀錄會在你的手機、電腦間自動同步；資料只有本人看得到，也可以隨時刪除帳號帶走一切。Apple 登入正在整備中，近日推出</span></li>
@@ -1869,7 +1887,7 @@
 <script>
 // 版本戳記:每次改版 push 前手動遞增(字母序),畫面時鐘徽章與 console 都會顯示,
 // 供比對線上跑的是不是最新版(瀏覽器快取 max-age=600 常讓人看到舊版)
-const BUILD = 'v0717b';
+const BUILD = 'v0717c';
 const state = {
   systems: [], sysId: null, data: null, speed: 36, mode: 'freq',
   lines: [], visible: new Set(), trains: [], schedStations: [], types: [],
@@ -7952,8 +7970,55 @@ async function boot() {
   }
   applyTaiwanFloor();
   map.on('resize', applyTaiwanFloor);
+  // ── 點擊歧義小選單:列車停靠中壓住車站時,點下去彈兩列(跟隨列車/車站看板)讓使用者選。
+  // 只在「車與站到點擊處的距離差 <TAP_AMBIG_PX」的分不出來場景出現;點得明顯偏向一方維持直接執行,平常手感不變。
+  const TAP_AMBIG_PX = 8;
+  function closeTapPick() {
+    const el = document.getElementById('tapPick');
+    if (el.hidden) return;
+    el.hidden = true; el.innerHTML = '';
+    map.off('movestart', closeTapPick); map.off('zoomstart', closeTapPick);
+  }
+  function openTapPick(cp, items) {
+    const el = document.getElementById('tapPick');
+    el.innerHTML = items.map((it, i) =>
+      `<button class="tp-row" type="button" data-i="${i}"><span class="tp-ic">${it.icon}</span><span class="tp-tx">${it.label}</span></button>`).join('');
+    el.hidden = false;
+    // 先顯示才量得到尺寸;貼點擊處下方、夾回 stage 內;手機全畫面讓開底部 tab bar(v0716c 教訓)
+    const stage = document.querySelector('.stage');
+    const mob = window.matchMedia('(max-width: 640px)').matches;
+    const botPad = document.body.classList.contains('fs') && mob ? 80 : 8;
+    el.style.left = Math.max(8, Math.min(cp.x - el.offsetWidth / 2, stage.clientWidth - el.offsetWidth - 8)) + 'px';
+    el.style.top = Math.max(8, Math.min(cp.y + 14, stage.clientHeight - el.offsetHeight - botPad)) + 'px';
+    el.querySelectorAll('.tp-row').forEach(b => b.onclick = ev => {
+      ev.stopPropagation();
+      const it = items[Number(b.dataset.i)];
+      closeTapPick(); it.run();
+    });
+    map.on('movestart', closeTapPick); map.on('zoomstart', closeTapPick);
+  }
+  function tapPickStation(st) { return { icon: '🚉', label: `${st.name}　車站看板`, run: () => openBoard(st) }; }
+  function tapPickSchedTrain(hit) {
+    const tr = hit.tr, on = tr === state.followTrain;
+    const dest = tr.loop ? tr.loopName : `${tr.typeName} 往 ${tr.stops[tr.stops.length - 1].name}`;
+    return {
+      icon: '🚆', label: on ? `取消跟隨 ${tr.train} 次` : `跟隨 ${tr.train} 次　${dest}`,
+      run: () => {
+        if (on) { setAutoTour(false); clearFollow(); return; }
+        const ts = document.getElementById('trainSearch'); if (ts) ts.value = tr.train;
+        setFollow(tr);
+      },
+    };
+  }
+  function tapPickFreqTrain(fh) {
+    const f = state.freqFollow;
+    const same = f && f.ln === fh.ln && (fh.tr ? f.tr === fh.tr : f.k === fh.k);
+    const nm = (fh.ln._sysLabel ? fh.ln._sysLabel + ' ' : '') + (fh.ln.name || fh.ln.abbr || '捷運');
+    return { icon: '🚆', label: same ? `取消跟隨（${nm}）` : `跟隨列車（${nm}）`, run: () => { if (same) clearFreqFollow(); else setFreqFollow(fh); } };
+  }
   map.on('click', e => {
     const cp = e.containerPoint || map.latLngToContainerPoint(e.latlng);
+    closeTapPick(); // 點地圖任何地方先收掉歧義選單(選單列自身的點擊不會冒泡到 map)
     if (state.takeoutPick && state.takeoutResult) {
       const pick = state.takeoutPick, ll = e.latlng || map.containerPointToLatLng(cp);
       const item = pick.item; item.coord = { lat: ll.lat, lon: ll.lng }; item.selected = true;
@@ -7967,14 +8032,9 @@ async function boot() {
       return;
     }
     if (state.mode !== 'sched') {
-      // 捷運 freq:點列車跟隨(再點同一台=取消、點另一台=換車);優先序同 sched:先試列車,沒點中再試車站開時刻板
+      // 捷運 freq:點列車跟隨(再點同一台=取消、點另一台=換車);優先序同 sched:先試列車,沒點中再試車站開時刻板。
+      // 車與站黏在一起分不出(列車停靠中)→ 彈小選單,兩個都點得到。
       const fh = freqTrainAt(cp);
-      if (fh) {
-        const f = state.freqFollow;
-        if (f && f.ln === fh.ln && (fh.tr ? f.tr === fh.tr : f.k === fh.k)) clearFreqFollow();
-        else setFreqFollow(fh);
-        return;
-      }
       let bestSt = null, bdSt = 1e9;
       state.lines.forEach(ln => {
         if (!state.visible.has(ln.id) || !ln.pts) return;
@@ -7983,7 +8043,15 @@ async function boot() {
           if (d < bdSt) { bdSt = d; bestSt = ln.stations[idx]; }
         });
       });
-      if (bestSt && bdSt <= 16) openBoard({ name: bestSt.name, lat: bestSt.lat, lon: bestSt.lon, sys: 'freq' });
+      const stHit = bestSt && bdSt <= 16 ? { name: bestSt.name, lat: bestSt.lat, lon: bestSt.lon, sys: 'freq' } : null;
+      if (fh && stHit && Math.abs(fh.dist - bdSt) < TAP_AMBIG_PX) { openTapPick(cp, [tapPickFreqTrain(fh), tapPickStation(stHit)]); return; }
+      if (fh) {
+        const f = state.freqFollow;
+        if (f && f.ln === fh.ln && (fh.tr ? f.tr === fh.tr : f.k === fh.k)) clearFreqFollow();
+        else setFreqFollow(fh);
+        return;
+      }
+      if (stHit) openBoard(stHit);
       return;
     }
     if (state.dropMode) { // 落釘模式(開關式):點地圖任一處落釘查看附近火車,落完「維持」模式可連續落釘/存點(可拖曳微調)
@@ -7998,8 +8066,11 @@ async function boot() {
       const d = Math.hypot(p.x - cp.x, p.y - cp.y);
       if (d < bd) { bd = d; best = st; }
     }
-    // 車與站都在範圍內時取較近者:點列車跟隨(再點一下取消)、點車站開時刻板
+    // 車與站都在範圍內時取較近者:點列車跟隨(再點一下取消)、點車站開時刻板;
+    // 兩者距離幾乎相同(列車停靠中)分不出意圖 → 彈小選單讓使用者選。
+    // 歧義判定要在勝負判定「之前」:停靠時車站常以次像素之差險勝,檢查放在車勝分支內會漏掉站險勝的那半
     const hit = trainAt(cp);
+    if (hit && best && bd <= 16 && Math.abs(hit.dist - bd) < TAP_AMBIG_PX) { openTapPick(cp, [tapPickSchedTrain(hit), tapPickStation(best)]); return; }
     if (hit && (bd > 16 || hit.dist <= bd)) {
       if (hit.tr === state.followTrain) { setAutoTour(false); clearFollow(); return; }
       const ts = document.getElementById('trainSearch');
@@ -8011,14 +8082,6 @@ async function boot() {
     const xh = crossingAt(cp);
     if (xh && (bd > 16 || xh.dist <= bd)) { openCrossingCard(xh.cr); return; }
     if (state.deco) {
-      // 全台同框:台鐵/高鐵沒點中時,捷運示意車也可點擊跟隨(優先序:真車>示意車>車站)
-      const fh = freqTrainAt(cp);
-      if (fh && (bd > 16 || fh.dist <= bd)) {
-        const f = state.freqFollow;
-        if (f && f.ln === fh.ln && (fh.tr ? f.tr === fh.tr : f.k === fh.k)) clearFreqFollow();
-        else setFreqFollow(fh);
-        return;
-      }
       // 示意層車站命中測試:裝飾層站點原本從未參與點擊判定(點下去毫無反應)。
       // 台鐵/高鐵站候選(best/bd)已算好,這裡另外找最近的裝飾層站,兩者取距離較近的開看板。
       let bestDeco = null, bdDeco = 1e9;
@@ -8029,6 +8092,24 @@ async function boot() {
           if (d < bdDeco) { bdDeco = d; bestDeco = ln.stations[idx]; }
         });
       });
+      // 全台同框:台鐵/高鐵沒點中時,捷運示意車也可點擊跟隨(優先序:真車>示意車>車站);
+      // 示意車與站(台鐵站/裝飾層站取較近者)黏在一起分不出 → 彈小選單。歧義判定同樣要在勝負判定之前
+      const fh = freqTrainAt(cp);
+      if (fh) {
+        const decoSt = bestDeco && bdDeco <= 16 ? { name: bestDeco.name, lat: bestDeco.lat, lon: bestDeco.lon, sys: 'deco' } : null;
+        const stD = Math.min(best && bd <= 16 ? bd : 1e9, decoSt ? bdDeco : 1e9);
+        if (stD < 1e9 && Math.abs(fh.dist - stD) < TAP_AMBIG_PX) {
+          const stOpt = decoSt && (!(best && bd <= 16) || bdDeco < bd) ? decoSt : best;
+          openTapPick(cp, [tapPickFreqTrain(fh), tapPickStation(stOpt)]);
+          return;
+        }
+      }
+      if (fh && (bd > 16 || fh.dist <= bd)) {
+        const f = state.freqFollow;
+        if (f && f.ln === fh.ln && (fh.tr ? f.tr === fh.tr : f.k === fh.k)) clearFreqFollow();
+        else setFreqFollow(fh);
+        return;
+      }
       if (bestDeco && bdDeco <= 16 && (!(best && bd <= 16) || bdDeco < bd)) {
         openBoard({ name: bestDeco.name, lat: bestDeco.lat, lon: bestDeco.lon, sys: 'deco' });
         return;

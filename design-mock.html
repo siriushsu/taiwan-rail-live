@@ -881,6 +881,22 @@
     padding: 0 4px 1px; white-space: nowrap;
   }
 
+  /* ── 點擊歧義小選單(tap-pick):列車停靠中壓住車站時,貼點擊處彈兩列讓使用者選車或站 ── */
+  .tap-pick {
+    position: absolute; z-index: 730; min-width: 190px; max-width: 270px;
+    display: flex; flex-direction: column; gap: 2px; padding: 5px;
+    background: var(--paper); border: 2px solid var(--navy); border-radius: 10px;
+    box-shadow: var(--shadow-navy);
+  }
+  .tap-pick .tp-row {
+    display: flex; align-items: center; gap: 9px; min-height: 44px; padding: 5px 11px;
+    font: inherit; font-size: 14px; font-weight: 700; color: var(--ink-strong); text-align: left;
+    background: none; border: 0; border-radius: 7px; cursor: pointer;
+  }
+  .tap-pick .tp-row:hover { background: var(--bg-stage); }
+  .tap-pick .tp-ic { flex: none; }
+  .tap-pick .tp-tx { min-width: 0; }
+
   /* ── 車站時刻板(及其他共用外觀的面板:最愛/旅程/探索/軌道與路線——面板家族統一骨架) ── */
   .board {
     position: absolute; top: 12px; right: 12px; z-index: 650;
