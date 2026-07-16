@@ -9,3 +9,4 @@ _專案資訊.html
 hand off/
 .dev.vars*
 scripts/.crossings_cache/
+node_modules/

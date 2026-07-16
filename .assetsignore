@@ -9,6 +9,11 @@
 .DS_Store
 wrangler.jsonc
 worker.js
+node_modules
+package.json
+package-lock.json
+AGENTS.md
+_config.yml
 firebase.json
 firestore.rules
 scripts
