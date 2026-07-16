@@ -936,6 +936,12 @@
     background: var(--navy); color: var(--on-navy); border-radius: 7px 7px 0 0;
     position: sticky; top: 0; z-index: 1;
   }
+  .board h3 .sys-chip { /* 共構站(台北/板橋/南港…)看板標題的系統徽章:標清楚這張板是台鐵還是高鐵/哪個捷運 */
+    display: inline-block; margin-left: 7px; padding: 0 7px 1px;
+    font-size: 10.5px; font-weight: 700; letter-spacing: 1px; line-height: 1.5;
+    color: var(--on-navy); border: 1px solid var(--on-navy); opacity: .8;
+    border-radius: 999px; vertical-align: 1px; white-space: nowrap;
+  }
   .board .sub { color: var(--faint); font-size: 11px; margin-bottom: 7px; }
   .board .row { display: flex; align-items: baseline; gap: 8px; padding: 6px 0; border-top: 1px dashed var(--line-faint); font-size: 13px; }
   .board .row:first-of-type { border-top: 0; }
@@ -1754,6 +1760,7 @@
     <details class="foot-box">
       <summary><span>🛠 更新紀錄</span><span class="foot-sub">最後更新：2026/7/17</span></summary>
       <ul class="foot-list">
+        <li><span class="d">7/17</span><span>共構車站分清楚了：台北、板橋、南港這類台鐵與高鐵（還有捷運）疊在同一個點的車站，以前點下去永遠只開得了其中一張看板——現在會跳出小選單列出「台北・台鐵」「台北・高鐵」讓你選；看板標題也加上系統標示，一眼就知道現在看的是哪一家的班次。高鐵台中×新烏日、左營×新左營這種名字不同的共構站也適用</span></li>
         <li><span class="d">7/17</span><span>最愛車站在地圖上會亮 ★ 了：收藏過的車站，地圖站點上方會掛一顆金色星星（換分頁會跟著你目前看得到的路網顯示），點星星直接打開該站看板</span></li>
         <li><span class="d">7/17</span><span>手機修正：全畫面時點下方收合的速度膠囊，不再直接跳出「改時間」滾輪——現在會先展開完整控制帶，展開後再點時間才會進入改時間</span></li>
         <li><span class="d">7/17</span><span>新功能「最愛車站」：打開任何車站看板（台鐵、高鐵、捷運都行），點站名旁的 ☆ 就能收藏；之後在「★ 最愛」面板點一下車站，就直接飛過去打開它的看板，常看的站不用再從地圖上找。已登入軌島帳號的話，最愛車站也會跟著跨裝置同步</span></li>
@@ -1905,7 +1912,7 @@
 <script>
 // 版本戳記:每次改版 push 前手動遞增(字母序),畫面時鐘徽章與 console 都會顯示,
 // 供比對線上跑的是不是最新版(瀏覽器快取 max-age=600 常讓人看到舊版)
-const BUILD = 'v0717e';
+const BUILD = 'v0717f';
 const state = {
   systems: [], sysId: null, data: null, speed: 36, mode: 'freq',
   lines: [], visible: new Set(), trains: [], schedStations: [], types: [],
@@ -7406,9 +7413,11 @@ function renderBoard() {
       `<span class="t">${fmtHM(r.t % 86400)}${r.dl > 0 ? `<span class="lateTag">+${r.dl}</span>` : ''}</span><span class="min">${min}</span></div>`;
   }).join('');
   const fav = isFavStation(st);
+  // 共構站(台北/板橋/南港…)台鐵/高鐵各自成板,標題標系統才分得清這張是誰的
+  const sysName = (state.systems.find(x => x.id === st.sys) || {}).label || '';
   el.innerHTML = `<button class="close" id="boardClose">×</button>` +
     `<button class="board-star${fav ? ' on' : ''}" id="boardStar" title="${fav ? '移除最愛車站' : '加入最愛車站'}">${fav ? '★' : '☆'}</button>` +
-    `<h3>${st.name}</h3>` + stnMetaHtml(st) +
+    `<h3>${st.name}${sysName ? `<span class="sys-chip">${sysName}</span>` : ''}</h3>` + stnMetaHtml(st) +
     `<div class="sub">接下來 3 小時會有誰來 · ${liveActive() ? '已套用台鐵即時誤點' : '依時刻表（無誤點資訊）'} · 點班次跟隨</div>` +
     (list || '<div class="empty">此時段無停靠班次</div>');
   el.hidden = false;
@@ -7473,9 +7482,15 @@ function renderFreqBoard(el, st, lines, isDeco) {
     }).join('');
   }).join('');
   const fav = isFavStation(st);
+  // 標題標「哪些系統經過本站」(北捷/機捷…):與台鐵/高鐵共構或捷運轉乘時,名字才分得清;篩選同上板邏輯
+  const sysNames = [];
+  lines.forEach(ln => {
+    if ((!isDeco && !state.visible.has(ln.id)) || !ln.stations || !ln._sysLabel || sysNames.includes(ln._sysLabel)) return;
+    if (ln.stations.some(s => s.name.replace(/臺/g, '台') === key)) sysNames.push(ln._sysLabel);
+  });
   el.innerHTML = `<button class="close" id="boardClose">×</button>` +
     `<button class="board-star${fav ? ' on' : ''}" id="boardStar" title="${fav ? '移除最愛車站' : '加入最愛車站'}">${fav ? '★' : '☆'}</button>` +
-    `<h3>${st.name}</h3>` + stnMetaHtml(st) +
+    `<h3>${st.name}${sysNames.map(n => `<span class="sys-chip">${n}</span>`).join('')}</h3>` + stnMetaHtml(st) +
     `<div class="sub">接下來的班車 · ${hasLive ? '已依官方即時資訊校正' : '依官方當日時刻表'} · 點班次跟隨${hasEstimated ? '（部分路線為班距推算）' : ''}</div>` +
     (body || '<div class="empty">此時段無停靠班次</div>');
   el.hidden = false;
@@ -8133,7 +8148,11 @@ async function boot() {
     });
     map.on('movestart', closeTapPick); map.on('zoomstart', closeTapPick);
   }
-  function tapPickStation(st) { return { icon: '🚉', label: `${st.name}　車站看板`, run: () => openBoard(st) }; }
+  function tapPickStation(st) {
+    // 共構疊站(台鐵/高鐵/捷運的「台北」們)靠系統名分清楚選的是哪張板;捷運分頁內(freq)無跨系統疊站,不標
+    const sys = st.sys === 'deco' ? '捷運' : st.sys === 'freq' ? '' : ((state.systems.find(x => x.id === st.sys) || {}).label || '');
+    return { icon: '🚉', label: `${st.name}${sys ? '・' + sys : ''}　車站看板`, run: () => openBoard(st) };
+  }
   function tapPickSchedTrain(hit) {
     const tr = hit.tr, on = tr === state.followTrain;
     const dest = tr.loop ? tr.loopName : `${tr.typeName} 往 ${tr.stops[tr.stops.length - 1].name}`;
@@ -8197,16 +8216,34 @@ async function boot() {
     closePinCard();      // 一般點擊(選車/站/平交道)先收掉可能開著的落釘卡
     closeCrossingCard(); // 點任何地方先收平交道卡;下面命中平交道會重開
     let best = null, bd = 1e9;
+    const stCands = []; // ≤16px 的候選站全收:共構站(台北/板橋/南港…台鐵與高鐵)座標幾乎重疊,只留最近一顆會讓另一顆永遠點不到
     for (const st of state.schedStations) {
       const p = map.latLngToContainerPoint([st.lat, st.lon]);
       const d = Math.hypot(p.x - cp.x, p.y - cp.y);
       if (d < bd) { bd = d; best = st; }
+      if (d <= 16) stCands.push({ st, d });
     }
+    // 全台同框:裝飾層(捷運示意層)最近站先併入候選——共構點(台鐵/高鐵/捷運的「台北」)的疊站選單要一次列齊,
+    // 不能等真車歧義判定之後才補(真車停靠共構站時會走上面那條路,捷運顆漏列)。同距時 sched 顆排前(排序穩定)。
+    if (state.deco) {
+      let bestDeco = null, bdDeco = 1e9;
+      state.decoLines.forEach(ln => {
+        if (!ln.pts) return;
+        ln.pts.forEach((p, idx) => {
+          const d = Math.hypot(p.x - cp.x, p.y - cp.y);
+          if (d < bdDeco) { bdDeco = d; bestDeco = ln.stations[idx]; }
+        });
+      });
+      if (bestDeco && bdDeco <= 16) stCands.push({ st: { name: bestDeco.name, lat: bestDeco.lat, lon: bestDeco.lon, sys: 'deco' }, d: bdDeco });
+    }
+    stCands.sort((a, b) => a.d - b.d);
+    // 與最近顆距離差 <TAP_AMBIG_PX 的視為疊站,選單一次列出(含系統名)讓使用者分開開板
+    const stAmb = () => stCands.filter(c => c.d - stCands[0].d < TAP_AMBIG_PX).map(c => tapPickStation(c.st));
     // 車與站都在範圍內時取較近者:點列車跟隨(再點一下取消)、點車站開時刻板;
     // 兩者距離幾乎相同(列車停靠中)分不出意圖 → 彈小選單讓使用者選。
     // 歧義判定要在勝負判定「之前」:停靠時車站常以次像素之差險勝,檢查放在車勝分支內會漏掉站險勝的那半
     const hit = trainAt(cp);
-    if (hit && best && bd <= 16 && Math.abs(hit.dist - bd) < TAP_AMBIG_PX) { openTapPick(cp, [tapPickSchedTrain(hit), tapPickStation(best)]); return; }
+    if (hit && best && bd <= 16 && Math.abs(hit.dist - bd) < TAP_AMBIG_PX) { openTapPick(cp, [tapPickSchedTrain(hit), ...stAmb()]); return; }
     if (hit && (bd > 16 || hit.dist <= bd)) {
       if (hit.tr === state.followTrain) { setAutoTour(false); clearFollow(); return; }
       const ts = document.getElementById('trainSearch');
@@ -8218,27 +8255,12 @@ async function boot() {
     const xh = crossingAt(cp);
     if (xh && (bd > 16 || xh.dist <= bd)) { openCrossingCard(xh.cr); return; }
     if (state.deco) {
-      // 示意層車站命中測試:裝飾層站點原本從未參與點擊判定(點下去毫無反應)。
-      // 台鐵/高鐵站候選(best/bd)已算好,這裡另外找最近的裝飾層站,兩者取距離較近的開看板。
-      let bestDeco = null, bdDeco = 1e9;
-      state.decoLines.forEach(ln => {
-        if (!ln.pts) return;
-        ln.pts.forEach((p, idx) => {
-          const d = Math.hypot(p.x - cp.x, p.y - cp.y);
-          if (d < bdDeco) { bdDeco = d; bestDeco = ln.stations[idx]; }
-        });
-      });
       // 全台同框:台鐵/高鐵沒點中時,捷運示意車也可點擊跟隨(優先序:真車>示意車>車站);
-      // 示意車與站(台鐵站/裝飾層站取較近者)黏在一起分不出 → 彈小選單。歧義判定同樣要在勝負判定之前
+      // 示意車與站(候選已含裝飾層顆)黏在一起分不出 → 彈小選單。歧義判定同樣要在勝負判定之前
       const fh = freqTrainAt(cp);
-      if (fh) {
-        const decoSt = bestDeco && bdDeco <= 16 ? { name: bestDeco.name, lat: bestDeco.lat, lon: bestDeco.lon, sys: 'deco' } : null;
-        const stD = Math.min(best && bd <= 16 ? bd : 1e9, decoSt ? bdDeco : 1e9);
-        if (stD < 1e9 && Math.abs(fh.dist - stD) < TAP_AMBIG_PX) {
-          const stOpt = decoSt && (!(best && bd <= 16) || bdDeco < bd) ? decoSt : best;
-          openTapPick(cp, [tapPickFreqTrain(fh), tapPickStation(stOpt)]);
-          return;
-        }
+      if (fh && stCands.length && Math.abs(fh.dist - stCands[0].d) < TAP_AMBIG_PX) {
+        openTapPick(cp, [tapPickFreqTrain(fh), ...stAmb()]);
+        return;
       }
       if (fh && (bd > 16 || fh.dist <= bd)) {
         const f = state.freqFollow;
@@ -8246,12 +8268,13 @@ async function boot() {
         else setFreqFollow(fh);
         return;
       }
-      if (bestDeco && bdDeco <= 16 && (!(best && bd <= 16) || bdDeco < bd)) {
-        openBoard({ name: bestDeco.name, lat: bestDeco.lat, lon: bestDeco.lon, sys: 'deco' });
-        return;
-      }
     }
-    if (best && bd <= 16) openBoard(best);
+    // 站終段:疊站(共構)彈選單分開開板;單顆明確直接開
+    if (stCands.length) {
+      const amb = stAmb();
+      if (amb.length >= 2) { openTapPick(cp, amb); return; }
+      openBoard(stCands[0].st);
+    }
   });
   // 平交道卡穿透轉發:卡片(含空白列/邊距)壓住的列車/平交道/車站,點卡片即視同點地圖,
   // 走上方同一套命中優先序直接切換——手機 375px 卡片蓋掉右半地圖,實測得先關卡才點得到下一個(v0712o)。

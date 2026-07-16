@@ -912,6 +912,12 @@
     background: var(--navy); color: var(--on-navy); border-radius: 7px 7px 0 0;
     position: sticky; top: 0; z-index: 1;
   }
+  .board h3 .sys-chip { /* 共構站(台北/板橋/南港…)看板標題的系統徽章:標清楚這張板是台鐵還是高鐵/哪個捷運 */
+    display: inline-block; margin-left: 7px; padding: 0 7px 1px;
+    font-size: 10.5px; font-weight: 700; letter-spacing: 1px; line-height: 1.5;
+    color: var(--on-navy); border: 1px solid var(--on-navy); opacity: .8;
+    border-radius: 999px; vertical-align: 1px; white-space: nowrap;
+  }
   .board .sub { color: var(--faint); font-size: 11px; margin-bottom: 7px; }
   .board .row { display: flex; align-items: baseline; gap: 8px; padding: 6px 0; border-top: 1px dashed var(--line-faint); font-size: 13px; }
   .board .row:first-of-type { border-top: 0; }
