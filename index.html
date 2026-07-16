@@ -1719,6 +1719,7 @@
     <details class="foot-box">
       <summary><span>🛠 更新紀錄</span><span class="foot-sub">最後更新：2026/7/16</span></summary>
       <ul class="foot-list">
+        <li><span class="d">7/16</span><span>軌島帳號上線：工具列新增「帳號同步」——用 Google 帳號登入後，最愛地點、最愛列車與完乘紀錄會在你的手機、電腦間自動同步；資料只有本人看得到，也可以隨時刪除帳號帶走一切。Apple 登入正在整備中，近日推出</span></li>
         <li><span class="d">7/16</span><span>手機全畫面模式修正：全畫面時打開「亮點／最愛／護照」等面板，下半部會被底部分頁列蓋住看不到——現在面板會自動讓開分頁列；全畫面跟隨中開面板，跟隨小卡也會移到面板上方，不再互相遮擋（謝謝網友回報）</span></li>
         <li><span class="d">7/16</span><span>手機版修正：底部分頁打開「亮點／最愛／護照」等面板時，速度膠囊與版權標示會先讓開，不再壓住面板文字（謝謝網友回報）</span></li>
         <li><span class="d">7/16</span><span>捷運準確度大升級（三）「全台同框」也套即時校正：預設的全台視圖裡，北捷、高捷、桃園機捷與高雄輕軌的列車位置現在同樣依官方到站看板校正，點捷運站的來車看板也會顯示校正後時間，不再只有各捷運分頁才準。同場加映：把站內各處「非即時」的說法改寫得更清楚——列車本來就照官方當日時刻表行駛，有異常公告會主動提醒，大家可以放心參考</span></li>
@@ -3801,7 +3802,7 @@ function accountRender() {
   else if (!a.ready) body.innerHTML = '<p class="account-intro">正在讀取登入狀態…</p>';
   else if (!a.user) body.innerHTML =
     `<p class="account-intro">登入後會同步「最愛地點、最愛列車、完乘紀錄」。主題、音量與省電等裝置偏好不會同步；目前裝置上的訪客資料會在首次登入時合併進帳號。</p>` +
-    `<div class="account-login"><button type="button" data-login="google">使用 Google 登入</button><button class="apple" type="button" data-login="apple">使用 Apple 登入</button></div>` +
+    `<div class="account-login"><button type="button" data-login="google">使用 Google 登入</button>${window.RAIL_APPLE_LOGIN === true ? '<button class="apple" type="button" data-login="apple">使用 Apple 登入</button>' : ''}</div>` +
     `<div class="account-note">Google 登入只用於軌島帳號，不會因此取得 Google Maps 已儲存清單；清單匯入仍需使用 Google Takeout。</div>`;
   else {
     const u = a.user, photo = takeoutSafeHref(u.photoURL, '');
