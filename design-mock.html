@@ -929,6 +929,9 @@
   .board .board-star { position: absolute; top: 8px; right: 32px; z-index: 2; background: none; border: 0; color: var(--on-navy); opacity: .8; font-size: 15px; cursor: pointer; line-height: 1; padding: 1px 2px; }
   .board .board-star:hover { opacity: 1; }
   .board .board-star.on { color: #ffd977; opacity: 1; }
+  /* 最愛車站的地圖 ★ 記號(掛站點上方一點;點了直接開該站看板) */
+  .favst-ico { font-size: 15px; line-height: 16px; text-align: center; color: #d9a62e; cursor: pointer;
+    text-shadow: 0 0 3px #fff8ec, 0 1px 2px rgba(20, 26, 40, .55); }
   /* 最愛面板的車站列(比照列車列可點) */
   #favPanel .row.fvst { cursor: pointer; }
   #favPanel .row.fvst:hover { background: var(--bg-stage); }
@@ -1375,6 +1378,9 @@
     body:not(.ambient):not(.live):not(.cexp) .controls #pp { padding: 3px 6px; font-size: 15px; background: none; border: 0; box-shadow: none; color: var(--ink-strong); min-height: 0; }
     body:not(.ambient):not(.live):not(.cexp) .controls #speedOut { font-size: 14.5px; font-weight: 800; color: var(--red); min-width: 0; }
     body:not(.ambient):not(.live):not(.cexp) .controls #todOut { font-size: 14px; font-weight: 700; color: var(--navy); min-width: 0; border: 0; padding: 0; }
+    /* 收合膠囊點到時間讀數要先「展開完整帶」,不能直接跳原生選時器——非展開態關掉透明 time input 的點擊,
+       點擊落到膠囊本體走展開;展開(cexp)後規則失效,再點時間才開選時器 */
+    body:not(.ambient):not(.live):not(.cexp) .controls .tod-wrap input[type=time] { pointer-events: none; }
     /* 閒置淡成半透明把手:整條變淡,倍速數字仍讀得到 */
     body:not(.ambient):not(.live):not(.cexp).cfaint .controls { opacity: .5; padding: 4px 13px; }
     body:not(.ambient):not(.live):not(.cexp).cfaint .controls #pp,

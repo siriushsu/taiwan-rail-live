@@ -953,6 +953,9 @@
   .board .board-star { position: absolute; top: 8px; right: 32px; z-index: 2; background: none; border: 0; color: var(--on-navy); opacity: .8; font-size: 15px; cursor: pointer; line-height: 1; padding: 1px 2px; }
   .board .board-star:hover { opacity: 1; }
   .board .board-star.on { color: #ffd977; opacity: 1; }
+  /* 最愛車站的地圖 ★ 記號(掛站點上方一點;點了直接開該站看板) */
+  .favst-ico { font-size: 15px; line-height: 16px; text-align: center; color: #d9a62e; cursor: pointer;
+    text-shadow: 0 0 3px #fff8ec, 0 1px 2px rgba(20, 26, 40, .55); }
   /* 最愛面板的車站列(比照列車列可點) */
   #favPanel .row.fvst { cursor: pointer; }
   #favPanel .row.fvst:hover { background: var(--bg-stage); }
@@ -1399,6 +1402,9 @@
     body:not(.ambient):not(.live):not(.cexp) .controls #pp { padding: 3px 6px; font-size: 15px; background: none; border: 0; box-shadow: none; color: var(--ink-strong); min-height: 0; }
     body:not(.ambient):not(.live):not(.cexp) .controls #speedOut { font-size: 14.5px; font-weight: 800; color: var(--red); min-width: 0; }
     body:not(.ambient):not(.live):not(.cexp) .controls #todOut { font-size: 14px; font-weight: 700; color: var(--navy); min-width: 0; border: 0; padding: 0; }
+    /* 收合膠囊點到時間讀數要先「展開完整帶」,不能直接跳原生選時器——非展開態關掉透明 time input 的點擊,
+       點擊落到膠囊本體走展開;展開(cexp)後規則失效,再點時間才開選時器 */
+    body:not(.ambient):not(.live):not(.cexp) .controls .tod-wrap input[type=time] { pointer-events: none; }
     /* 閒置淡成半透明把手:整條變淡,倍速數字仍讀得到 */
     body:not(.ambient):not(.live):not(.cexp).cfaint .controls { opacity: .5; padding: 4px 13px; }
     body:not(.ambient):not(.live):not(.cexp).cfaint .controls #pp,
@@ -1748,6 +1754,8 @@
     <details class="foot-box">
       <summary><span>🛠 更新紀錄</span><span class="foot-sub">最後更新：2026/7/17</span></summary>
       <ul class="foot-list">
+        <li><span class="d">7/17</span><span>最愛車站在地圖上會亮 ★ 了：收藏過的車站，地圖站點上方會掛一顆金色星星（換分頁會跟著你目前看得到的路網顯示），點星星直接打開該站看板</span></li>
+        <li><span class="d">7/17</span><span>手機修正：全畫面時點下方收合的速度膠囊，不再直接跳出「改時間」滾輪——現在會先展開完整控制帶，展開後再點時間才會進入改時間</span></li>
         <li><span class="d">7/17</span><span>新功能「最愛車站」：打開任何車站看板（台鐵、高鐵、捷運都行），點站名旁的 ☆ 就能收藏；之後在「★ 最愛」面板點一下車站，就直接飛過去打開它的看板，常看的站不用再從地圖上找。已登入軌島帳號的話，最愛車站也會跟著跨裝置同步</span></li>
         <li><span class="d">7/17</span><span>列車停在車站時，車站點得到了：以前車蓋住站點，怎麼點都是跟隨列車、看板永遠開不了——現在點到「車與站疊在一起」的地方會跳出小選單，讓你選要跟隨列車還是打開車站看板；點得明顯偏向某一邊時維持直接執行，平常操作手感不變（台鐵、高鐵、各捷運都適用）</span></li>
         <li><span class="d">7/17</span><span>手機版修正：點「搜尋車次」輸入框時，畫面不再被自動放大——之前 iPhone 一點搜尋框整頁就突然變大、收鍵盤後也縮不回來，很干擾；「指定時刻」的輸入框也一併修正</span></li>
@@ -1897,7 +1905,7 @@
 <script>
 // 版本戳記:每次改版 push 前手動遞增(字母序),畫面時鐘徽章與 console 都會顯示,
 // 供比對線上跑的是不是最新版(瀏覽器快取 max-age=600 常讓人看到舊版)
-const BUILD = 'v0717d';
+const BUILD = 'v0717e';
 const state = {
   systems: [], sysId: null, data: null, speed: 36, mode: 'freq',
   lines: [], visible: new Set(), trains: [], schedStations: [], types: [],
@@ -3900,6 +3908,7 @@ async function accountSyncNow(reason) {
     if (typeof renderSavedPins === 'function') renderSavedPins();
     if (typeof renderFavs === 'function') renderFavs();
     if (typeof renderFavPanel === 'function') renderFavPanel();
+    if (typeof renderFavStationMarkers === 'function') renderFavStationMarkers();
     if (typeof renderRidePanel === 'function') renderRidePanel();
     if (typeof renderPassport === 'function') renderPassport();
     return true;
@@ -3947,6 +3956,7 @@ function accountClearLocal() {
   try { localStorage.removeItem('trainmap-last-sync-uid'); } catch (e) {}
   if (typeof renderSavedPins === 'function') renderSavedPins();
   if (typeof renderFavs === 'function') renderFavs();
+  if (typeof renderFavStationMarkers === 'function') renderFavStationMarkers();
   if (typeof renderPassport === 'function') renderPassport();
 }
 async function accountSignOut() {
@@ -4640,6 +4650,7 @@ function updateSchedTools() {
   if (typeof closePinCard === 'function') closePinCard(); // 換系統:收掉舊系統的落釘卡(預測隨系統作廢)
   if (typeof closeNearbyXing === 'function') closeNearbyXing(); // 換系統:收掉附近平交道卡(預測隨系統作廢)
   if (typeof renderSavedPins === 'function') renderSavedPins(); // 已存最愛地點:換系統時重掛(非 sched 自動清)
+  if (typeof renderFavStationMarkers === 'function') renderFavStationMarkers(); // 最愛車站 ★:換系統時依目前檢視重掛
 }
 
 // loadSystem / loadFreqGroup 共用尾段:面板收合、圖例、徽章、站名牌
@@ -5879,7 +5890,7 @@ function toggleFavStation(st) {
     showToast('已加入最愛車站');
   }
   userDataSaveCollection('stations', favs);
-  renderFavPanel();
+  renderFavPanel(); renderFavStationMarkers();
   const b = document.getElementById('boardStar');
   if (b) {
     const on = isFavStation(st);
@@ -5888,7 +5899,7 @@ function toggleFavStation(st) {
 }
 function removeFavStation(key) {
   userDataSaveCollection('stations', loadFavStations().filter(f => f.sys + '|' + f.name !== key));
-  renderFavPanel();
+  renderFavPanel(); renderFavStationMarkers();
   const st = state.boardStation, b = document.getElementById('boardStar');
   if (st && b && favStationKey(st) === key) { b.textContent = '☆'; b.title = '加入最愛車站'; b.classList.remove('on'); }
 }
@@ -5908,6 +5919,34 @@ function gotoFavStationKey(key) {
   else st = state.schedStations.find(s => s.name === f.name && s.sys === f.sys) || null; // 看板靠 name+sys 過濾班次,用活體站物件
   if (st) openBoard(st);
   else showToast('目前的檢視沒有「' + f.name + '」，請切到含該站的分頁再點');
+}
+// 地圖上的最愛車站 ★ 記號:恆掛在收藏站點上(目前檢視載有該站才掛),點 ★ 直接開該站看板
+let favStMarks = [];
+function favStationHere(f) { // 解析目前檢視能開板的站物件;開不了(例如北捷收藏在中南部分頁)回 null=不掛
+  const k = f.name.replace(/臺/g, '台');
+  if (state.mode !== 'sched') {
+    return state.lines.some(l => l.stations && l.stations.some(s => s.name.replace(/臺/g, '台') === k))
+      ? { name: f.name, lat: f.lat, lon: f.lon, sys: 'freq' } : null;
+  }
+  if (f.sys === 'metro') {
+    return (state.deco && state.decoLines.some(l => l.stations && l.stations.some(s => s.name.replace(/臺/g, '台') === k)))
+      ? { name: f.name, lat: f.lat, lon: f.lon, sys: 'deco' } : null;
+  }
+  return state.schedStations.find(s => s.name === f.name && s.sys === f.sys) || null;
+}
+function renderFavStationMarkers() {
+  favStMarks.forEach(m => map.removeLayer(m)); favStMarks = [];
+  if (state.liveMode) return; // 直播訊號源不放個人收藏(OBS 契約:藏 UI)
+  for (const f of loadFavStations()) {
+    const st = favStationHere(f);
+    if (!st) continue;
+    const mk = L.marker([f.lat, f.lon], {
+      icon: L.divIcon({ className: 'favst-ico', html: '★', iconSize: [16, 16], iconAnchor: [8, 19] }), // 錨在站點上方一點,不壓站上的列車
+      zIndexOffset: 880, keyboard: false,
+    }).addTo(map);
+    mk.on('click', () => openBoard(favStationHere(f) || st)); // 點 ★=明確要看板,不經車/站歧義判定
+    favStMarks.push(mk);
+  }
 }
 function renderFavs() {
   const box = document.getElementById('favRow');
