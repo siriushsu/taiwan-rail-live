@@ -185,6 +185,47 @@ async function metroAlert(request, env) {
   }
 }
 
+// 捷運到站看板(TDX Metro LiveBoard,上游 30-60 秒更新):前端把動畫錨定到官方看板倒數用。
+// op 依前端系統 id 聚合:mrt=TRTC、krtc=KRTC+KLRT、tymc=TYMC(新北捷/中捷無此 API)。
+// 北捷特性:只在列車即將進站時發佈(EstimateTime 幾乎全 0),桃捷/高捷/輕軌為全站倒數。
+// 雙層快取比照 tra-live:有人看才打上游,用量恆定不隨訪客數增加。$top 必帶(TDX 預設截斷 30 筆)。
+const METRO_LIVE_OPS = { mrt: ['TRTC'], krtc: ['KRTC', 'KLRT'], tymc: ['TYMC'] };
+const metroLiveMem = new Map(); // sys → { data, at }
+async function metroLive(request, env, sys) {
+  const cacheKey = new Request(new URL('/api/metro-live?sys=' + sys, request.url), { method: 'GET' });
+  const edge = caches.default;
+  const hit = await edge.match(cacheKey);
+  if (hit) return hit;
+  const stale = metroLiveMem.get(sys);
+  try {
+    if (!stale || Date.now() - stale.at > 55e3) {
+      const token = await getToken(env);
+      const parts = await Promise.all(METRO_LIVE_OPS[sys].map(async op => {
+        const r = await fetch(`https://tdx.transportdata.tw/api/basic/v2/Rail/Metro/LiveBoard/${op}?%24top=5000&%24format=JSON`,
+          { headers: { authorization: 'Bearer ' + token } });
+        if (r.status === 401) { tok = null; throw new Error('tdx 401'); }
+        if (!r.ok) throw new Error('tdx api ' + r.status);
+        const d = await r.json();
+        return (Array.isArray(d) ? d : []).map(x => ({
+          l: x.LineID,
+          s: (x.StationName && x.StationName.Zh_tw) || '',
+          d: (x.DestinationStationName && x.DestinationStationName.Zh_tw) || '',
+          e: x.EstimateTime,   // 到站倒數(整數分鐘,可 null)
+          st: x.ServiceStatus, // 0=正常 1=未發車 2=交管不停 3=末班已過 4=未營運
+          op,
+        }));
+      }));
+      metroLiveMem.set(sys, { data: { at: new Date().toISOString(), rows: parts.flat() }, at: Date.now() });
+    }
+    const res = jsonRes(metroLiveMem.get(sys).data, 200, 'public, s-maxage=50, stale-while-revalidate=120');
+    await edge.put(cacheKey, res.clone());
+    return res;
+  } catch (e) {
+    if (stale) return jsonRes(stale.data, 200, 'public, s-maxage=15');
+    return jsonRes({ error: String(e.message || e) }, 502, 'no-store');
+  }
+}
+
 // 刪除帳號前清除 RevenueCat customer。Secret API key 只能存在 Worker runtime；
 // 先以 Firebase Auth REST lookup 驗證呼叫者的 ID token，再只刪除該 token 自己的 uid，
 // 不接受前端傳 customer id，避免知道別人 uid 就能刪除對方購買資料。
@@ -254,6 +295,10 @@ export default {
     else if (url.pathname === '/api/tra-alert') res = await traAlert(request, env);
     else if (url.pathname === '/api/thsr-alert') res = await thsrAlert(request, env);
     else if (url.pathname === '/api/metro-alert') res = await metroAlert(request, env);
+    else if (url.pathname === '/api/metro-live') {
+      const sys = url.searchParams.get('sys');
+      res = METRO_LIVE_OPS[sys] ? await metroLive(request, env, sys) : jsonRes({ error: 'bad sys' }, 400, 'no-store');
+    }
     else if (url.pathname === '/api/account-delete') res = await deletePaidProfile(request, env);
     else res = await env.ASSETS.fetch(request);
     const h = new Headers(res.headers);
