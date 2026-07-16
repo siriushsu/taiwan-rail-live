@@ -1220,7 +1220,10 @@
     .grouptabs .citysel { font-size: 12px; padding: 6px 26px 6px 13px; min-height: 36px; background-position: right 10px center; }
     .groupmembers .mem { font-size: 12px; padding: 5px 11px; }
     .search { flex: 1 1 100%; min-width: 0; margin: 0; }
-    .search input[type=text] { min-height: 40px; font-size: 13px; padding: 7px 12px; }
+    /* iOS 聚焦時字級 <16px 會自動放大整頁(WKWebView 同):可打字的輸入框手機一律 16px。
+       時刻輸入要連 :focus-within 態一起蓋——聚焦態規則特異性較高,只蓋常態蓋不住。 */
+    .search input[type=text] { min-height: 40px; font-size: 16px; padding: 7px 12px; }
+    .tod-wrap input[type=time], .tod-wrap:focus-within input[type=time] { font-size: 16px; }
     /* 跟隨票手機不出(地圖上的跟隨小卡已有同資訊):它多佔一行會把 stage 推破視窗底 */
     #followBar { display: none !important; }
     .stage { height: calc(100dvh - 252px); min-height: 380px; }
@@ -1306,8 +1309,13 @@
     /* 時速大字手機縮級:窄卡遇 4 位數車次+3 位數時速也不撐爆標題列 */
     .follow-panel .fp-head .spd { font-size: 9.5px; }
     .follow-panel .fp-head .spd b { font-size: 16px; }
-    /* sheet 開啟時跟隨小卡讓道到 sheet 上方 */
-    body.sheet-open .follow-panel, body.sheet-open .freq-card { bottom: calc(46% + 16px); max-height: calc(54% - 84px); }
+    /* sheet 開啟時跟隨小卡讓道到 sheet 上方(!important:fs 時 placeFsOverlays 會寫 inline bottom,必須蓋過) */
+    body.sheet-open .follow-panel, body.sheet-open .freq-card { bottom: calc(46% + 16px) !important; max-height: calc(54% - 84px); }
+    /* sheet 開啟時速度膠囊與版權條淡出讓位,不壓面板文字(見 updateSheetOpenClass) */
+    body.sheet-open .controls, body.sheet-open .leaflet-control-attribution { opacity: 0; pointer-events: none; }
+    /* 全畫面時 stage 佔滿視窗:底部 sheet(與其上讓位的跟隨小卡)要再讓開 fixed tab bar(58px+safe-area) */
+    body.fs .board { bottom: calc(66px + env(safe-area-inset-bottom, 0px)); }
+    body.fs.sheet-open .follow-panel, body.fs.sheet-open .freq-card { bottom: calc(46% + 82px + env(safe-area-inset-bottom, 0px)) !important; }
     .traincard { padding: 11px 13px 12px; }
     .traincard .tc-body { grid-template-columns: 1fr; }
     .traincard .tc-events { margin-top: 4px; border-left: 0; padding-left: 0; }
