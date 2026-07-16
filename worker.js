@@ -198,7 +198,9 @@ async function metroLive(request, env, sys) {
   if (hit) return hit;
   const stale = metroLiveMem.get(sys);
   try {
-    if (!stale || Date.now() - stale.at > 55e3) {
+    // TTL 115s(v0716c 自 55s 上調):全台同框(預設視圖+24/7 直播分頁)也套校正後,55s 會讓上游翻倍貼爆 TDX 銅級點數;
+    // shift 是逐線中位數、變化以分鐘計,前端 60s 輪詢下實際約每 2 分鐘拿到新值,無感差異
+    if (!stale || Date.now() - stale.at > 115e3) {
       const token = await getToken(env);
       const parts = await Promise.all(METRO_LIVE_OPS[sys].map(async op => {
         const r = await fetch(`https://tdx.transportdata.tw/api/basic/v2/Rail/Metro/LiveBoard/${op}?%24top=5000&%24format=JSON`,
@@ -217,7 +219,7 @@ async function metroLive(request, env, sys) {
       }));
       metroLiveMem.set(sys, { data: { at: new Date().toISOString(), rows: parts.flat() }, at: Date.now() });
     }
-    const res = jsonRes(metroLiveMem.get(sys).data, 200, 'public, s-maxage=50, stale-while-revalidate=120');
+    const res = jsonRes(metroLiveMem.get(sys).data, 200, 'public, s-maxage=110, stale-while-revalidate=240');
     await edge.put(cacheKey, res.clone());
     return res;
   } catch (e) {
