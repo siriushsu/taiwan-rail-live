@@ -1707,7 +1707,8 @@
         <button id="locateBtn" style="display:none" title="定位我的位置，看附近有哪些平交道、火車是否快通過"><span class="ti">◎</span><span class="tl">定位</span></button>
         <button id="immBtn" title="極簡沉浸（只留地圖與列車）"><span class="ti">簡</span><span class="tl">極簡</span></button>
         <button id="powerBtn" title="省電模式（更新降頻至約 30fps，手機掛著看更省電、更不易卡）"><span class="ti">省</span><span class="tl">省電</span></button>
-        <button id="recBtn" title="錄影 Beta（存成影片下載）"><span class="ti">⏺</span><span class="tl">錄影</span></button>
+        <!-- 錄影暫時下架:入口隱藏、程式全保留;見 RECORDING_ENABLED。比照 locateBtn 先 inline 藏(首繪不閃現),setupRecorder 再移除 -->
+        <button id="recBtn" style="display:none" title="錄影 Beta（存成影片下載）"><span class="ti">⏺</span><span class="tl">錄影</span></button>
         <button id="importBtn" style="display:none" title="匯入 Google Maps 已儲存清單"><span class="ti">匯</span><span class="tl">匯入</span></button>
         <button id="accountBtn" style="display:none" title="登入與跨裝置同步"><span class="ti">帳</span><span class="tl">帳號</span></button>
         <button id="shareBtn" title="分享目前畫面（地點＋時間，或正在跟的車）"><span class="ti">↗</span><span class="tl">分享</span></button>
@@ -1766,6 +1767,7 @@
     <details class="foot-box">
       <summary><span>🛠 更新紀錄</span><span class="foot-sub">最後更新：2026/7/17</span></summary>
       <ul class="foot-list">
+        <li><span class="d">7/17</span><span>錄影功能暫時下架調整中：工具列的「⏺ 錄影 Beta」先收起來，整理好之後會再回來；想留下畫面的話，手機或電腦內建的螢幕錄影都不受影響</span></li>
         <li><span class="d">7/17</span><span>選擇選單不會自己跑掉了：跟隨列車時，點到「車與站疊在一起」的地方跳出的選擇按鈕，以前會瞬間消失、根本來不及點——原因是跟隨鏡頭每一格把列車拉回畫面中心，被程式誤當成「你在移動地圖」。現在選單會一直等你，只有你自己拖曳地圖、縮放，或點了別的地方才會收起來（謝謝網友回報）</span></li>
         <li><span class="d">7/17</span><span>地圖上的共構車站也標出來了：台北、板橋、南港、新左營×左營、六家×新竹這些台鐵高鐵疊在同一點的站，地圖拉近後站名會成組顯示「臺北・台鐵」「台北・高鐵」，一眼看出這個點其實有兩家的車站——之前兩個站名疊在一起，永遠只看得到其中一個</span></li>
         <li><span class="d">7/17</span><span>跨日列車能完乘了：152、554 這類跨過午夜才到終點的列車，以前從發車一路跟到底也蓋不了完乘章——現在過了午夜照樣判定抵達、照樣蓋章（謝謝網友回報）</span></li>
@@ -1924,7 +1926,7 @@
 <script>
 // 版本戳記:每次改版 push 前手動遞增(字母序),畫面時鐘徽章與 console 都會顯示,
 // 供比對線上跑的是不是最新版(瀏覽器快取 max-age=600 常讓人看到舊版)
-const BUILD = 'v0717i';
+const BUILD = 'v0717j';
 const state = {
   systems: [], sysId: null, data: null, speed: 36, mode: 'freq',
   lines: [], visible: new Set(), trains: [], schedStations: [], types: [],
@@ -3307,6 +3309,7 @@ function renderCrossingCard() {
 // 延到原生 App(Capacitor 原生定位)階段再啟用。以下程式(locateMe/onLocated/onLocateFail/renderNearbyXing…)全部保留,
 // 網站/PWA 仍關閉；Capacitor App 注入原生定位 bridge 後才自動復活。
 const LOCATE_ENABLED = !!window.RAIL_NATIVE_GEOLOCATION;
+const RECORDING_ENABLED = false; // 2026-07-17 錄影暫時下架(整備中):所有入口隱藏、實作全保留;改 true 即復活(工具列鈕+更多抽屜列+Plus 文案)
 let meMarker = null, meCircle = null;
 const NEAR_XING_KM = 5;  // 「附近平交道」搜尋半徑(公里,可調)
 const NEAR_XING_N = 8;   // 清單最多列幾處
@@ -4179,7 +4182,7 @@ function plusFinishPending() {
 function plusRender() {
   const body = document.getElementById('plusBody'), p = state.plus; if (!body || !p) return;
   const hero = `<div class="plus-hero"><span class="plus-mark">＋</span><h3>一次購買，永久解鎖</h3><p>同一個軌島帳號可在網站與 App 恢復資格，不是訂閱。</p></div>`;
-  const musicFeature = musicRecordingLicensed() ? '<div class="plus-feature"><span>✓</span>錄影時保留軌島背景音樂</div>' : '';
+  const musicFeature = (RECORDING_ENABLED && musicRecordingLicensed()) ? '<div class="plus-feature"><span>✓</span>錄影時保留軌島背景音樂</div>' : ''; // 錄影下架期間不列這條賣點
   const features = `<div class="plus-features">${musicFeature}<div class="plus-feature"><span>✓</span>匯入 Google Maps 已儲存清單</div></div>`;
   if (p.active) body.innerHTML = hero + features + '<div class="plus-owned">Plus 已永久解鎖</div><button class="plus-restore" type="button" data-plus="refresh">重新檢查購買資格</button>';
   else if (p.loading) body.innerHTML = hero + features + '<p class="account-intro">正在讀取價格與購買資格…</p>';
@@ -8132,7 +8135,9 @@ function recDownload() {
 
 function setupRecorder() {
   const btn = document.getElementById('recBtn');
+  if (!RECORDING_ENABLED) { btn.remove(); const row = document.querySelector('.ms-row[data-proxy="recBtn"]'); if (row) row.remove(); return; } // 下架:鈕與抽屜列一併移除(CSS display:flex 會蓋過 [hidden];syncMoreSheet 不會藏無目標的列)
   if (!window.MediaRecorder || !window.HTMLCanvasElement.prototype.captureStream) { btn.style.display = 'none'; return; } // 老瀏覽器藏鈕,不擋其他功能
+  btn.style.display = ''; // 旗標開啟且瀏覽器支援,才還原 HTML 預設的 display:none
   btn.onclick = () => REC.on ? recStop() : recStart();
   document.getElementById('recPill').onclick = recStop;
   document.getElementById('recRedl').onclick = recDownload;
