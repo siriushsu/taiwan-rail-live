@@ -1,6 +1,7 @@
 // Cloudflare Worker 入口:靜態資產(assets binding)+ /api/tra-live 台鐵即時動態代理
 // + /api/tra-alert 台鐵營運通阻公告 + /api/thsr-alert 高鐵營運狀態公告(颱風停駛等)
 // + /api/metro-alert 捷運營運狀態公告(五家聚合)
+// + /api/delay-stats 台鐵準點率統計(唯讀查 D1 預先算好的 blob,原樣回傳,不解析)
 // 金鑰只存在 Worker 環境變數(dashboard Variables and Secrets),前端不直連 TDX。
 // 雙層快取護住 TDX 用量:PoP 邊緣快取 55 秒(workers.dev 網域上 Cache API 無效,
 // 屆時靠 isolate 記憶體快取,約每 isolate 每分鐘 1 次)——用量恆定,不隨訪客數增加。
@@ -259,6 +260,30 @@ async function ntmetroLive(request, env, sys) {
   }
 }
 
+// 台鐵準點率統計(D1 唯讀查詢):資料由外部批次工作預先算好寫入 kv_blobs,Worker 只做單列查詢+
+// 原樣回傳字串,不 JSON.parse 再 stringify、不跑 cron/scheduled handler——免費方案 10ms CPU 預算裡最省的做法。
+async function delayStats(request, env) {
+  const cacheKey = new Request(new URL('/api/delay-stats', request.url), { method: 'GET' });
+  const edge = caches.default;
+  const hit = await edge.match(cacheKey);
+  if (hit) return hit;
+  try {
+    const row = await env.DELAY_DB.prepare("SELECT v FROM kv_blobs WHERE k='tra_delay_stats_30d'").first();
+    if (!row) return jsonRes({ error: 'not_ready' }, 503, 'public, s-maxage=60');
+    const res = new Response(row.v, {
+      status: 200,
+      headers: {
+        'content-type': 'application/json; charset=utf-8',
+        'cache-control': 'public, max-age=300, s-maxage=3600, stale-while-revalidate=86400',
+      },
+    });
+    await edge.put(cacheKey, res.clone());
+    return res;
+  } catch (e) {
+    return jsonRes({ error: 'not_ready' }, 503, 'public, s-maxage=60');
+  }
+}
+
 // 刪除帳號前清除 RevenueCat customer。Secret API key 只能存在 Worker runtime；
 // 先以 Firebase Auth REST lookup 驗證呼叫者的 ID token，再只刪除該 token 自己的 uid，
 // 不接受前端傳 customer id，避免知道別人 uid 就能刪除對方購買資料。
@@ -336,6 +361,7 @@ export default {
       const sys = url.searchParams.get('sys');
       res = NTM_LIVE_SYS[sys] ? await ntmetroLive(request, env, sys) : jsonRes({ error: 'bad sys' }, 400, 'no-store');
     }
+    else if (url.pathname === '/api/delay-stats') res = await delayStats(request, env);
     else if (url.pathname === '/api/account-delete') res = await deletePaidProfile(request, env);
     else res = await env.ASSETS.fetch(request);
     const h = new Headers(res.headers);

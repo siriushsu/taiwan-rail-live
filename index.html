@@ -1603,6 +1603,7 @@
       <div class="fp-status" id="fpStatus" hidden></div>
       <div class="fp-alert" id="fpAlert" hidden></div>
       <div class="fp-dest" id="fpDest"></div>
+      <div class="fp-dest" id="fpDelay" hidden></div>
     </div>
     <div class="freq-card" id="freqCard" hidden>
       <div class="fc-head">
@@ -1798,6 +1799,7 @@
     <details class="foot-box">
       <summary><span>🛠 更新紀錄</span><span class="foot-sub">最後更新：2026/7/17</span></summary>
       <ul class="foot-list">
+        <li><span class="d">7/17</span><span>跟隨台鐵列車時，資訊卡多了「近 30 天平均誤點・準點率」一行：這班車平常準不準、最慘誤點過幾分（滑鼠移上去看），一眼看得出來。統計來自官方歷史資料，每天更新，之後還會長出更多誤點統計玩法</span></li>
         <li><span class="d">7/17</span><span>新增「搜尋車站」：點工具列的「找 找站」，輸入站名就能跨台鐵、高鐵、機捷、淡海／安坑／三鶯輕軌、北捷、中捷、高捷（含高雄輕軌）找到任何一站——輸入「台北」會列出台鐵、高鐵、北捷、機捷各自的台北站，點一下就飛過去、直接打開那站的到站看板看接下來有哪些車。打「臺」或「台」都找得到</span></li>
         <li><span class="d">7/17</span><span>列車不會再突然「跳一下」了：開著即時校正看動畫時，把播放調快約兩分鐘後（或把時間拉回過去），有誤點的台鐵與捷運列車以前會瞬間跳位——那是動畫在「即時位置」與「純時刻表」之間硬切換造成的。現在改成約三秒的平滑滑行；而且往未來快轉時不再丟掉即時資訊，會沿用最後收到的官方誤點持續推估（時鐘徽章與跟隨面板會標示「推估」），只有回看過去才回到純時刻表模擬</span></li>
         <li><span class="d">7/17</span><span>平板與窄視窗更好找工具了：底部工具帶一列塞不下時，其實可以左右滑動看到更多工具（外觀、平交道、分享⋯），但以前完全沒有提示——現在帶子下緣會顯示一條細細的捲動條，提醒你右邊還有東西</span></li>
@@ -1961,7 +1963,7 @@
 <script>
 // 版本戳記:每次改版 push 前手動遞增(字母序),畫面時鐘徽章與 console 都會顯示,
 // 供比對線上跑的是不是最新版(瀏覽器快取 max-age=600 常讓人看到舊版)
-const BUILD = 'v0717m';
+const BUILD = 'v0717n';
 const state = {
   systems: [], sysId: null, data: null, speed: 36, mode: 'freq',
   lines: [], visible: new Set(), trains: [], schedStations: [], types: [],
@@ -6611,6 +6613,29 @@ function nextStopInfo(tr, t) {
   }
   return null;
 }
+// ── 台鐵列車近 30 天準點統計(誤點歷史資料庫;後端 /api/delay-stats) ──
+// 首次需要時才 lazy fetch 一次:in-flight 去重、失敗靜默不重試(標記已載入空物件)、成功存 state 本 session 共用。
+function ensureDelayStats() {
+  if (state.delayStats || state._delayStatsFetching) return; // 已載入(含空)或載入中→不重複打
+  state._delayStatsFetching = true;
+  fetch(apiUrl('api/delay-stats'), { cache: 'no-store' })
+    .then(r => r.ok ? r.json() : Promise.reject(r.status))
+    .then(j => { state.delayStats = (j && j.trains) || {}; })
+    .catch(() => { state.delayStats = {}; }) // 靜默失敗:標記已載入(空)不再重試,也不噴 console
+    .finally(() => { state._delayStatsFetching = false; renderDelayRow(); }); // 到貨後補上這行(面板仍開著才會顯示)
+}
+// 只在跟隨「台鐵」列車且該車次有足夠樣本(d≥5)時顯示;高鐵/捷運車次可能與台鐵撞號(如 152),
+// 必用系統別 gate(tr.sys==='tra_sched'),不是只查車次號在不在資料庫。
+function renderDelayRow() {
+  const el = document.getElementById('fpDelay'); if (!el) return;
+  const tr = state.followTrain;
+  const s = (tr && tr.sys === 'tra_sched' && state.delayStats) ? state.delayStats[String(tr.train)] : null;
+  if (!s || s.d < 5) { el.hidden = true; el.textContent = ''; el.removeAttribute('title'); return; }
+  const a = Number.isInteger(s.a) ? String(s.a) : s.a.toFixed(1); // 2.0→「2」尾數 .0 去掉
+  el.textContent = `近30天平均誤點 ${a}分・準點 ${s.p}%（${s.d}天）`;
+  el.title = `單日最大誤點 ${s.m} 分`;
+  el.hidden = false;
+}
 function showFollowPanel(tr) {
   const fp = document.getElementById('followPanel');
   if (state.mode !== 'sched' || !tr) { fp.hidden = true; return; }
@@ -6622,6 +6647,8 @@ function showFollowPanel(tr) {
   document.getElementById('fpDest').textContent = tr.loop
     ? '臺北 ⇄ 枋寮 永續來回 · 一輪 12 小時 · 永不到站'
     : `${first.name} → ${last.name} · 終點 ${fmtHM(last.arrSec % 86400)} 抵達`;
+  renderDelayRow(); // 有快取即即時顯示;無則先隱藏,由 ensureDelayStats 到貨後補
+  if (tr.sys === 'tra_sched') ensureDelayStats(); // 只有台鐵才觸發載入,跟高鐵不打這支 API
   fp.hidden = false;
   updateFollowAlert(); // 行經通阻公告路線的車,跟隨當下就掛警示
   updateFollowPanel(tr);

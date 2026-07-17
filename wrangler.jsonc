@@ -13,6 +13,10 @@
   ],
   "workers_dev": true,
   "preview_urls": true,
+  // D1 綁定:預先算好的統計 blob(如台鐵準點率)存放處,/api/delay-stats 唯讀單列查詢用
+  "d1_databases": [
+    { "binding": "DELAY_DB", "database_name": "railisland-delay-history", "database_id": "33a943cc-50af-4ee3-905c-534db842a48b" }
+  ],
   "assets": {
     "directory": ".",
     "binding": "ASSETS"
