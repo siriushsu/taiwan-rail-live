@@ -1573,11 +1573,12 @@
     <!-- 導言靜態預置預設群組(全台同框)文案:boot 會換字,長短不同會多折一行把版面下推(CLS);GROUPS.all.plate.lead 改時同步 -->
     <p id="lead">全台鐵道一次看 — 台鐵、高鐵與各捷運／輕軌皆依當日時刻表同一時間軸運行（台鐵套即時誤點；主要捷運營運時段依官方到站看板校正）。</p>
     </div>
-    <!-- 搜尋+跟隨票:側欄取消後上移 header 右側。搜尋框常駐(首繪即在=零 CLS),站名與車次共用一框;
-         placeholder 依模式動態設定(updateSearchPlaceholder);.search-field 是下拉的相對錨(錨在輸入框正下方,不受 followbar 影響) -->
+    <!-- 搜尋+跟隨票:側欄取消後上移 header 右側。搜尋框常駐(首繪即在=零 CLS),站名與車次共用一框
+         (車次在捷運分頁也可搜,會自動切國家鐵路,故 placeholder 全模式同一句);
+         .search-field 是下拉的相對錨(錨在輸入框正下方,不受 followbar 影響) -->
     <div class="search" id="searchRow">
       <div class="search-field">
-        <input type="text" id="trainSearch" placeholder="搜尋車站（台北、動物園）" autocomplete="off" enterkeyhint="search" />
+        <input type="text" id="trainSearch" placeholder="搜尋車站或車次（台北、123）" autocomplete="off" enterkeyhint="search" />
         <div class="search-drop" id="searchDrop" hidden></div>
       </div>
       <div class="followbar" id="followBar" hidden></div>
@@ -1802,6 +1803,7 @@
     <details class="foot-box">
       <summary><span>🛠 更新紀錄</span><span class="foot-sub">最後更新：2026/7/17</span></summary>
       <ul class="foot-list">
+        <li><span class="d">7/17</span><span>搜尋框提示文字說清楚：原本在捷運分頁只寫「搜尋車站」，讓人以為不能搜車次——其實打車次號一直都可以（會自動切到國家鐵路跟隨），現在提示改成「搜尋車站或車次」，不再誤導（謝謝回報）</span></li>
         <li><span class="d">7/17</span><span>看板右上角的 ☆ 收藏與 × 關閉鈕不再神隱：以前在班次多的車站往下捲列表，這兩顆按鈕會跟著內容捲走不見（標題還在、按鈕沒了）——現在它們釘在標題列上，怎麼捲都在。我的最愛、旅程收集、今日亮點、軌道面板的關閉鈕也一併釘好（謝謝回報）</span></li>
         <li><span class="d">7/17</span><span>搜尋合而為一：上方那個搜尋框現在打站名、打車次都行——輸入「台北」會列出台鐵、高鐵、北捷、機捷各自的台北站，點一下就飛過去、直接開那站的到站看板；輸入車次號（像 152、2103）則直接跟隨那班車。原本工具列的「找 找站」按鈕功成身退，一個框搞定兩件事</span></li>
         <li><span class="d">7/17</span><span>跟隨台鐵列車時，資訊卡多了「近 30 天平均誤點・準點率」一行：這班車平常準不準、最慘誤點過幾分（滑鼠移上去看），一眼看得出來。統計來自官方歷史資料，每天更新，之後還會長出更多誤點統計玩法</span></li>
@@ -1967,7 +1969,7 @@
 <script>
 // 版本戳記:每次改版 push 前手動遞增(字母序),畫面時鐘徽章與 console 都會顯示,
 // 供比對線上跑的是不是最新版(瀏覽器快取 max-age=600 常讓人看到舊版)
-const BUILD = 'v0717p';
+const BUILD = 'v0717q';
 const state = {
   systems: [], sysId: null, data: null, speed: 36, mode: 'freq',
   lines: [], visible: new Set(), trains: [], schedStations: [], types: [],
@@ -4890,15 +4892,6 @@ function renderSystemsBar() {
     mem.appendChild(b);
   });
   box.appendChild(mem);
-  updateSearchPlaceholder();
-}
-
-// 搜尋框 placeholder 依模式:sched 群組(國家鐵路)可搜站也可搜車次;freq/全台同框以搜站為主
-// (車次區仍會在打數字時出現,這裡只是提示語)。每個 loader 結尾都呼叫 renderSystemsBar,故集中在此更新。
-function updateSearchPlaceholder() {
-  const inp = document.getElementById('trainSearch'); if (!inp) return;
-  inp.placeholder = (state.mode === 'sched' && state.group !== 'all')
-    ? '搜尋車站或車次（台北、123）' : '搜尋車站（台北、動物園）';
 }
 
 function selectGroup(g) {
