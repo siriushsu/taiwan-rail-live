@@ -145,6 +145,85 @@ const METRO_ALERT_OPS = [
   { op: 'TYMC', sys: 'tymc', label: '桃園機捷' },
   { op: 'TMRT', sys: 'tmrt', label: '台中捷運' },
 ];
+
+// 單一營運者「上次成功結果」留存(2026-07-17 修法:上游一次抖動失敗會讓 metroAlertMem 整批
+// 快取 alerts:[],連帶把還活著的事故公告吃掉數分鐘,被高雄輕軌一次實際事故撞到)。某營運者
+// 本輪 fetch 失敗時,若留存 ≤30 分鐘內就沿用,超過才回空——這層記的是「每個營運者各自」
+// 最後一次成功的結果,與整體 metroAlertMem 的 110s 快取是不同層,互不影響。
+const metroAlertOpMem = new Map(); // op → { list, at }
+const METRO_ALERT_STALE_MS = 30 * 60e3;
+function metroAlertOpFallback(prev, nowMs) {
+  if (prev && nowMs - prev.at <= METRO_ALERT_STALE_MS) return prev.list;
+  return [];
+}
+
+// 桃園機捷新聞稿(TDX v2 Rail/Metro/News/TYMC):Alert 端點對「設備異常」等事後才澄清的事故
+// 常常全程回「正常營運」,News 事後新聞稿是唯一機器可讀痕跡(2026-07-17 A6 站設備異常案實測:
+// Alert 全程正常,News 延遲約 2 小時補發新聞稿)。只接 TYMC,其他家 News 全是行銷內容不接。
+// 獨立 10 分鐘快取(News 更新慢,不跟著 Alert 的 110s 打);失敗沿用舊值,無舊值就略過,
+// 不影響 Alert 聚合。
+const TYMC_NEWS_URL = 'https://tdx.transportdata.tw/api/basic/v2/Rail/Metro/News/TYMC?%24top=30&%24format=JSON';
+const METRO_NEWS_TTL_MS = 10 * 60e3;
+const METRO_NEWS_RECENT_MS = 24 * 3600e3;
+const METRO_NEWS_DESC_MAX = 300;
+const METRO_NEWS_INCIDENT_RE = /異常|延誤|誤點|事故|暫停|中斷|停駛|疏運|故障/;
+
+// UpdateTime(不用 PublishTime——實測 PublishTime 只給日期 00:00:00,不可信)是否在 24 小時內。
+function isRecentNews(updateTimeIso, nowMs) {
+  const ms = Date.parse(updateTimeIso);
+  if (!Number.isFinite(ms)) return false;
+  return Math.abs(nowMs - ms) <= METRO_NEWS_RECENT_MS;
+}
+// 標題是否為事故類新聞稿(排除行銷/活動類)。
+function isIncidentNewsTitle(title) {
+  return typeof title === 'string' && METRO_NEWS_INCIDENT_RE.test(title);
+}
+// 去 HTML 標籤、把換行(\r\n)與連續空白壓成單一空白,超長截斷加刪節號。
+function stripHtmlAndTruncate(html, maxLen) {
+  if (typeof html !== 'string') return '';
+  const text = html.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
+  return text.length > maxLen ? text.slice(0, maxLen) + '…' : text;
+}
+// 標題不含「新聞稿」字樣就前綴【官方新聞稿】,讓前端能區分事後公告與即時通阻;含了就不重複加。
+function formatNewsTitle(title) {
+  const t = String(title || '');
+  return t.includes('新聞稿') ? t : '【官方新聞稿】' + t;
+}
+// 單筆 TDX News 項目 → 與現有 alert 條目相容的結構。
+function mapNewsToAlert(item) {
+  return {
+    title: formatNewsTitle(item.Title),
+    status: 0,
+    desc: stripHtmlAndTruncate(item.Description, METRO_NEWS_DESC_MAX),
+    start: item.UpdateTime, end: '', lines: [],
+    sys: 'tymc', sysLabel: '桃園機捷', news: true,
+  };
+}
+// 篩選(UpdateTime 24 小時內 + 標題含事故關鍵字,全部成立才帶出)+ 轉換。
+function filterAndMapNews(items, nowMs) {
+  if (!Array.isArray(items)) return [];
+  return items
+    .filter(it => it && isRecentNews(it.UpdateTime, nowMs) && isIncidentNewsTitle(it.Title))
+    .map(mapNewsToAlert);
+}
+
+let tymcNewsMem = null, tymcNewsMemAt = 0;
+async function fetchTymcNewsAlerts(token) {
+  if (tymcNewsMem && Date.now() - tymcNewsMemAt <= METRO_NEWS_TTL_MS) return tymcNewsMem;
+  try {
+    const r = await fetch(TYMC_NEWS_URL, { headers: { authorization: 'Bearer ' + token } });
+    if (r.status === 401) { tok = null; throw new Error('tdx 401'); }
+    if (!r.ok) throw new Error('tdx api ' + r.status);
+    const d = await r.json();
+    const list = Array.isArray(d) ? d : (d.Newses || d.News || d.NewsList || []);
+    tymcNewsMem = filterAndMapNews(list, Date.now());
+    tymcNewsMemAt = Date.now();
+    return tymcNewsMem;
+  } catch (e) {
+    return tymcNewsMem || []; // 失敗沿用舊值;無舊值就略過,不影響 Alert 聚合
+  }
+}
+
 let metroAlertMem = null, metroAlertMemAt = 0;
 async function metroAlert(request, env) {
   const cacheKey = new Request(new URL('/api/metro-alert', request.url), { method: 'GET' });
@@ -154,27 +233,35 @@ async function metroAlert(request, env) {
   try {
     if (!metroAlertMem || Date.now() - metroAlertMemAt > 110e3) {
       const token = await getToken(env);
-      const parts = await Promise.all(METRO_ALERT_OPS.map(async ({ op, sys, label }) => {
-        try {
-          const r = await fetch(`https://tdx.transportdata.tw/api/basic/v2/Rail/Metro/Alert/${op}?%24format=JSON`,
-            { headers: { authorization: 'Bearer ' + token } });
-          if (r.status === 401) { tok = null; throw new Error('tdx 401'); }
-          if (!r.ok) throw new Error('tdx api ' + r.status);
-          const d = await r.json();
-          return (d.Alerts || []).map(a => {
-            const normal = /正常營運|營運正常|正常行駛/.test(a.Title || '');
-            return {
-              title: a.Title, status: normal ? 1 : 0, desc: a.Description || '',
-              reason: a.Reason, effect: a.Effect,
-              start: (a.StartTime && !String(a.StartTime).startsWith('0001')) ? a.StartTime : '',
-              end: (a.EndTime && !String(a.EndTime).startsWith('0001')) ? a.EndTime : '',
-              lines: ((a.Scope && a.Scope.Lines) || []).map(l => (l.LineName && (l.LineName.Zh_tw || l.LineName)) || l.LineID).filter(Boolean),
-              sys, sysLabel: label,
-            };
-          });
-        } catch (e) { return []; } // 單一營運者失敗略過,不影響其他系統
-      }));
-      metroAlertMem = { at: new Date().toISOString(), alerts: parts.flat() };
+      const [parts, newsAlerts] = await Promise.all([
+        Promise.all(METRO_ALERT_OPS.map(async ({ op, sys, label }) => {
+          try {
+            const r = await fetch(`https://tdx.transportdata.tw/api/basic/v2/Rail/Metro/Alert/${op}?%24format=JSON`,
+              { headers: { authorization: 'Bearer ' + token } });
+            if (r.status === 401) { tok = null; throw new Error('tdx 401'); }
+            if (!r.ok) throw new Error('tdx api ' + r.status);
+            const d = await r.json();
+            const list = (d.Alerts || []).map(a => {
+              const normal = /正常營運|營運正常|正常行駛/.test(a.Title || '');
+              return {
+                title: a.Title, status: normal ? 1 : 0, desc: a.Description || '',
+                reason: a.Reason, effect: a.Effect,
+                start: (a.StartTime && !String(a.StartTime).startsWith('0001')) ? a.StartTime : '',
+                end: (a.EndTime && !String(a.EndTime).startsWith('0001')) ? a.EndTime : '',
+                lines: ((a.Scope && a.Scope.Lines) || []).map(l => (l.LineName && (l.LineName.Zh_tw || l.LineName)) || l.LineID).filter(Boolean),
+                sys, sysLabel: label,
+              };
+            });
+            metroAlertOpMem.set(op, { list, at: Date.now() });
+            return list;
+          } catch (e) {
+            // 單一營運者失敗不再靜默回空:沿用該營運者 ≤30 分鐘內的上次成功結果(見上方 metroAlertOpFallback)
+            return metroAlertOpFallback(metroAlertOpMem.get(op), Date.now());
+          }
+        })),
+        fetchTymcNewsAlerts(token),
+      ]);
+      metroAlertMem = { at: new Date().toISOString(), alerts: parts.flat().concat(newsAlerts) };
       metroAlertMemAt = Date.now();
     }
     const res = jsonRes(metroAlertMem, 200, 'public, s-maxage=110, stale-while-revalidate=600');
@@ -680,3 +767,8 @@ export default {
 
 // 純函式導出,供離線回歸測試 import(不影響 fetch/scheduled 執行路徑)。
 export const _ingest = { parseDayEvents, buildDayRows, buildBlob, roundHalfUpStr, addDays, twParts };
+// 純函式導出,供離線回歸測試 import:metroAlert 的 per-op last-known-good + News/TYMC 過濾轉換。
+export const _metroAlert = {
+  metroAlertOpFallback, isRecentNews, isIncidentNewsTitle,
+  stripHtmlAndTruncate, formatNewsTitle, mapNewsToAlert, filterAndMapNews,
+};

@@ -750,6 +750,7 @@
   .alert-detail .ad-row { padding: 7px 0; border-top: 1.5px dashed var(--line-dash); }
   .alert-detail .ad-row:first-child { border-top: 0; padding-top: 0; }
   .alert-detail .ad-row b { color: var(--warn-ink); }
+  .alert-detail .ad-self { display: inline-block; font-size: 10px; font-weight: 800; color: var(--warn-ink); border: 1px solid var(--warn-line); border-radius: 4px; padding: 0 5px; margin-right: 5px; vertical-align: 1px; }
   .alert-detail .ad-time { color: var(--faint); font-size: 11.5px; }
   .alert-detail .ad-src { margin-top: 8px; padding-top: 6px; border-top: 1.5px dashed var(--line-dash); color: var(--faint); font-size: 11px; }
   /* 公告橫幅開著時:同側的看板退到橫幅下方,不再互疊 */
@@ -911,6 +912,9 @@
   /* 推估 tier(快轉投射未來/資料稍舊):灰化+靜止圓點,與 fresh 校正的綠/藍脈動視覺區分 */
   .badge .live.est, .badge .mlive.est { color: var(--muted); }
   .badge .live.est::before, .badge .mlive.est::before { animation: none; opacity: .55; }
+  /* 異常推定:警示色靜態圓點(即使窄機把字樣收起,仍看得到警示點,不與健康校正的藍/綠脈動混淆) */
+  .badge .mlive.anom { color: var(--warn-ink); }
+  .badge .mlive.anom::before { animation: none; opacity: 1; }
   @keyframes livePulse { 0%, 100% { opacity: 1; } 50% { opacity: .35; } }
   .lateTag {
     color: var(--warn-ink); font-weight: 800; font-size: 10.5px; margin-left: 4px;
@@ -1810,6 +1814,7 @@
     <details class="foot-box">
       <summary><span>🛠 更新紀錄</span><span class="foot-sub">最後更新：2026/7/17</span></summary>
       <ul class="foot-list">
+        <li><span class="d">7/17</span><span>網站現在會自己偵測「營運異常」並主動標示：官方公告系統對「誤點型」異常常常無感（例如台鐵幾十班誤點時，官方 API 仍顯示全線正常），所以軌島改用手上的即時資料自行判斷——台鐵大面積誤點、或某條捷運的官方到站看板與時刻表明顯對不上時，畫面右上會跳出提醒、並把該路線標成「位置僅供參考」。這是本站的自動推定、不是官方公告，會在提醒裡註明清楚。另外，預設的「全台同框」視圖現在也看得到捷運／輕軌的官方公告了（例如高雄輕軌的通阻公告，以前只有進到高捷分頁才看得到）</span></li>
         <li><span class="d">7/17</span><span>跟隨列車時搜尋不再擋到「取消跟隨」：跟著一班車跑的時候，點上方搜尋框想找下一班，跳出的搜尋結果以前會整片蓋住底下那顆紅色「取消跟隨」鈕、連點都點不到——現在結果清單會讓開、落在跟隨列下方，取消鈕隨時點得到</span></li>
         <li><span class="d">7/17</span><span>軌島帳號暫時下架：7/16 剛推出的「帳號同步」（Google 登入跨裝置同步）先下架整備，工具列的「帳」鈕暫時收起來；存在這台裝置上的最愛與完乘紀錄完全不受影響，先前同步到雲端的資料也原封保留。已建立帳號想刪除帳號與雲端資料的話，仍可從<a href="account-deletion.html">「刪除軌島帳號」</a>頁面完成</span></li>
         <li><span class="d">7/17</span><span>快轉時左上角 LIVE 徽章不再一直亮著：模擬時間離開「現在」兩分鐘以上，台鐵「LIVE」會轉成灰色「推估」、捷運「看板校正」轉成「看板推估」，表示畫面是依最後收到的官方資料投射；回到現在就自動恢復綠 LIVE／藍看板校正（謝謝回報）</span></li>
@@ -1979,7 +1984,7 @@
 <script>
 // 版本戳記:每次改版 push 前手動遞增(字母序),畫面時鐘徽章與 console 都會顯示,
 // 供比對線上跑的是不是最新版(瀏覽器快取 max-age=600 常讓人看到舊版)
-const BUILD = 'v0717t';
+const BUILD = 'v0717u';
 const state = {
   systems: [], sysId: null, data: null, speed: 36, mode: 'freq',
   lines: [], visible: new Set(), trains: [], schedStations: [], types: [],
@@ -1992,6 +1997,7 @@ const state = {
   mapDark: false, basemap: 'map', trackData: null, offlineLand: null,
   trackStyle: 'auto', // 軌道顯示:auto(亮色原色/夜間衛星自動淡化)、faint(一律更淡)、hidden(只留列車與車站)
   live: null, // 台鐵即時誤點 {map: 車次→誤點分, at: 抓取時刻, delayed, srcAt}
+  traAnomaly: null, // 台鐵系統級大面積誤點的自家觀測 {delayed, maxDelay, since} 或 null(非官方公告)
   liveMode: false, director: false, liveReplay: false, // 直播模式(?live=1 即時 / ?live=2 導播)與其深夜重播段(00:45–05:15 重播 08:00 起)
   stnIntro: false, immersive: false, // 特殊站介紹開關(放空自動開)、極簡沉浸(全畫面隱藏左側卡)
   xingOn: false, // 台鐵平交道顯示開關(預設關;開了才畫記號、建命中、攔點擊)
@@ -2742,6 +2748,7 @@ function updateFreqCard(info) {
   const st = document.getElementById('fcStatus');
   let txt, cls = '';
   if (metroAlertFor(ln)) { txt = '⚠ 營運異常公告中，位置僅供參考'; cls = 'warn'; }
+  else if (anomalyOf(ln)) { txt = '⚠ 偵測到營運異常跡象（本站推定），位置僅供參考'; cls = 'warn'; }
   else if (f.tr && metroLiveOn(ln)) {
     const sh = metroShiftSec(ln, f.tr);
     const ntm = ln._liveShift && ln._liveShift.src === 'ntm';
@@ -6963,6 +6970,51 @@ function easedShift(key, target) {
   return e.cur;
 }
 
+// ── 自家營運異常偵測(非官方公告) ──
+// 官方 Alert API 對「誤點型」異常結構性無感(台鐵幾十班誤點時仍回「全線營運正常」),故用手上的即時資料流
+// 自行推定並標示。只多統計、多標示,完全不動 _liveShift 校正行為;所有對外文案一律標「本站推定/觀測、非官方公告」。
+function madSec(a) { // 中位數絕對離差(秒):對「矛盾兩群」的雙峰離散比標準差穩健
+  if (!a.length) return 0;
+  const s = a.slice().sort((x, y) => x - y), m = s[s.length >> 1];
+  const dev = a.map(x => Math.abs(x - m)).sort((x, y) => x - y);
+  return dev[dev.length >> 1];
+}
+// 捷運線級異常狀態機:計數器與異常記錄存模組級 Map(穩定 key,跨 rebuildFreqLines 存活,比照 easedShift)
+const _lineAnom = new Map(); // key → { strike, clear, cur:{since,kind}|null, at }
+function anomKey(ln) { return freqSysIdOf(ln) + ':' + ln.id; }
+function anomalyOf(ln) { // 消費端一律走這裡讀(line 物件會重建,ln._anomaly 只是同週期便利鏡射)
+  const e = _lineAnom.get(anomKey(ln));
+  if (!e || !e.cur) return null;
+  if (Date.now() - e.at > 1800e3) { e.cur = null; e.strike = 0; e.clear = 0; return null; } // 30 分鐘無任何評估=自動清除
+  return e.cur;
+}
+// 逐線三訊號 + 2 進 2 出遲滯。acc=接受樣本 diff 陣列, rej=超 ±10 分窗丟棄 row 數, st2=交管不停 row 數。
+function evalLineAnomaly(ln, acc, rej, st2) {
+  const key = anomKey(ln);
+  let e = _lineAnom.get(key);
+  if (!e) e = { strike: 0, clear: 0, cur: null, at: 0 };
+  const n = acc.length + rej;
+  if (n < 6 && st2 < 2) { if (e.cur || e.strike || e.clear) _lineAnom.set(key, e); return; } // 樣本不足且無交管訊號=無資料,維持現狀(不加 strike/clear、不更新 at)
+  let kind = null;
+  // reject 須同時「倖存樣本塌掉」(acc<5):分岔線(淡海 Y 字)與末班時段有結構性對不上的看板列,
+  // 若仍有 5+ 個接受樣本=該線明明追蹤正常,rejects 是噪音非脫節(2026-07-17 綠山線 acc6/rej7 實測誤報案)
+  if (n >= 6 && rej / n >= 0.5 && acc.length < 5) kind = 'reject'; // 過半樣本落窗外且倖存樣本塌掉=看板與時刻表重大脫節
+  else if (acc.length >= 6 && madSec(acc) >= 180) kind = 'spread'; // 接受樣本仍高度離散=誤點把班次錯配成矛盾兩群(機捷 9 分誤點型)
+  else if (st2 >= 2) kind = 'skip';                              // 多站交管不停=營運調整
+  e.at = Date.now();
+  if (kind) { e.strike++; e.clear = 0; if (e.strike >= 2) { if (!e.cur) e.cur = { since: Date.now(), kind }; else e.cur.kind = kind; } }
+  else { e.clear++; e.strike = 0; if (e.clear >= 2) e.cur = null; }
+  ln._anomaly = e.cur; // 同週期便利鏡射;跨重建後以 anomalyOf 為準
+  _lineAnom.set(key, e);
+}
+// 台鐵系統級大面積誤點:同樣 2 進 2 出遲滯,寫 state.traAnomaly。
+let _traStrike = 0, _traClear = 0;
+function evalTraAnomaly(total, delayed, d10, maxDelay) {
+  const hit = total > 0 && ((delayed >= 20 && delayed / total >= 0.25) || d10 >= 8);
+  if (hit) { _traStrike++; _traClear = 0; if (_traStrike >= 2) state.traAnomaly = { delayed, maxDelay, since: (state.traAnomaly && state.traAnomaly.since) || Date.now() }; }
+  else { _traClear++; _traStrike = 0; if (_traClear >= 2) state.traAnomaly = null; }
+}
+
 // ── 台鐵即時誤點(TDX TrainLiveBoard,經 /api/tra-live 代理,每分鐘更新) ──
 // 修正語意:誤點 N 分的車=照時刻表晚 N 分跑,trainPos 等函式把該車的查詢時間回撥 N 分。
 // 套用政策:未來方向(含高倍速快轉)持續投射最後已知誤點,只有模擬時鐘回看過去 >120 秒才退場;
@@ -6992,11 +7044,13 @@ async function pollLive() {
     if (!r.ok) throw new Error(r.status);
     const d = await r.json();
     if (!Array.isArray(d.trains)) throw new Error('bad payload');
-    const m = new Map(); let delayed = 0;
-    for (const t of d.trains) { m.set(String(t.no), t.delay || 0); if (t.delay > 0) delayed++; }
+    const m = new Map(); let delayed = 0, d10 = 0, maxDelay = 0;
+    for (const t of d.trains) { const dl = t.delay || 0; m.set(String(t.no), dl); if (dl > 0) delayed++; if (dl >= 10) d10++; if (dl > maxDelay) maxDelay = dl; }
     state.live = { map: m, at: Date.now(), delayed, srcAt: d.at };
+    evalTraAnomaly(d.trains.length, delayed, d10, maxDelay); // 大面積誤點自家觀測(2 進 2 出遲滯)
   } catch (e) { /* 失敗保留舊資料;超過 30 分鐘未更新由 liveActive 自動停用 */ }
   updateLiveBadge();
+  renderAlertBanner(); // 異常狀態變更即時反映到橫幅(每分鐘一次;非 sched 時 pollLive 已提早 return)
 }
 function updateLiveBadge() {
   const el = document.getElementById('liveBadge');
@@ -7096,8 +7150,9 @@ function applyMetroLive(sysId, rows) {
     }
   }
   const perLine = new Map();
+  const anomStat = new Map(); // ln → {rej, st2}:異常偵測統計,不影響既有取樣
+  const stat = ln => { let s = anomStat.get(ln); if (!s) anomStat.set(ln, s = { rej: 0, st2: 0 }); return s; };
   for (const row of rows) {
-    if (row.st !== 0 || row.e == null) continue; // 只取正常營運且有倒數的列
     const mapped = (METRO_LIVE_LINES[row.op] || {})[row.l];
     if (!mapped) continue;
     // (站,終點)須唯一命中一條本站線;命中兩條=班次歸屬不明(中和新蘆共用段往南勢角),整列不採
@@ -7113,8 +7168,11 @@ function applyMetroLive(sysId, rows) {
     }
     if (cands.length !== 1) continue;
     const { ln, si, dir } = cands[0];
+    if (row.st === 2) { stat(ln).st2++; continue; }             // 交管不停:異常訊號,不當樣本
+    if (row.st !== 0 || row.e == null) continue;                 // 非正常營運或無倒數:不當樣本(既有行為)
     const diff = nearestArrDiff(ln._evIdx, si, dir, nowSec + row.e * 60 + 30); // 倒數取分鐘中值
-    if (diff == null || Math.abs(diff) > 600) continue; // ±10 分外=配錯班或重大異常,不當樣本
+    if (diff == null) continue;                                 // 無對應事件:非樣本
+    if (Math.abs(diff) > 600) { stat(ln).rej++; continue; }     // ±10 分外=配錯班或重大脫節,不當樣本但計異常
     let rec = perLine.get(ln); if (!rec) perLine.set(ln, rec = { f: [], b: [], all: [] });
     if (dir > 0) rec.f.push(diff); else if (dir < 0) rec.b.push(diff);
     rec.all.push(diff);
@@ -7125,6 +7183,7 @@ function applyMetroLive(sysId, rows) {
     if (all == null) continue; // 樣本不足:保留舊 shift,>30 分鐘未更新由 metroLiveOn 自動停用
     ln._liveShift = { f: med(rec.f), b: med(rec.b), all, at: nowAbs, n: rec.all.length };
   }
+  for (const ln of mine) { const rec = perLine.get(ln), s = anomStat.get(ln); evalLineAnomaly(ln, rec ? rec.all : [], s ? s.rej : 0, s ? s.st2 : 0); } // 逐線異常評估
 }
 async function pollMetroLive() {
   const pool = metroLivePool();
@@ -7141,6 +7200,7 @@ async function pollMetroLive() {
     } catch (e) { /* 失敗保留舊 shift */ }
   }));
   updateMetroBadge();
+  renderAlertBanner(); // 線級異常變更即時反映到橫幅
 }
 // 該線是否有官方 Alert 源,可對使用者承諾「有異常公告會提醒」(metro-alert 聚合五家;
 // 新北捷各線與環狀線無官方 Alert API;全台同框(sched)不輪詢 metro-alert,一律不承諾)
@@ -7163,9 +7223,15 @@ function updateMetroBadge() {
   const el = document.getElementById('metroBadge');
   if (!el) return;
   const pool = metroLivePool();
+  const anomLines = pool.filter(ln => anomalyOf(ln));
   const onLines = pool.filter(ln => metroLiveOn(ln));
-  el.hidden = !onLines.length;
-  if (onLines.length) {
+  el.hidden = !(anomLines.length || onLines.length);
+  if (anomLines.length) { // 異常優先:任一線偵測到異常,徽章轉「異常推定」(est 靜態外觀 + 警示色)
+    el.textContent = '⚠ 異常推定';
+    el.classList.add('est'); el.classList.add('anom');
+    el.title = anomLines.map(ln => (ln.name || ln.id) + '：看板與時刻表明顯不符,位置僅供參考').join('\n');
+  } else if (onLines.length) {
+    el.classList.remove('anom');
     const parts = onLines.map(ln => {
       const m = Math.round((ln._liveShift.all || 0) / 60);
       return (ln.name || ln.id) + (m > 0 ? '晚' + m + '分' : m < 0 ? '早' + (-m) + '分' : '準點');
@@ -7174,7 +7240,7 @@ function updateMetroBadge() {
     el.textContent = allFresh ? '看板校正' : '看板推估';
     el.classList.toggle('est', !allFresh);
     el.title = (allFresh ? '動畫已依官方即時資訊校正(約每分鐘更新):' : '動畫依稍早官方資料推估:') + parts.join('、');
-  }
+  } else { el.classList.remove('anom'); }
 }
 setInterval(pollMetroLive, 60e3);
 // 徽章刷新走 draw 的 1 秒 tick(與台鐵 LIVE 同步),資料過期/時間旅行/快轉跨門檻都會即時轉態
@@ -7220,9 +7286,11 @@ function applyNtmLive(feed, src) {
   for (const ln of byId.values())
     if (!ln._evIdx || ln._evIdxTT !== ln._tt) { ln._evIdx = buildArrIdx(ln); ln._evIdxTT = ln._tt; }
   const perLine = new Map();
+  const anomStat = new Map(); // ln → {rej}:新北捷無 st 概念,只統計超窗脫節
   const add = (ln, si, dir, t) => { // t=官方預期該站該方向停靠事件時刻(秒)
     const diff = nearestArrDiff(ln._evIdx, si, dir, t);
-    if (diff == null || Math.abs(diff) > 600) return; // ±10 分外=配錯班或重大異常,不當樣本
+    if (diff == null) return; // 無對應事件:非樣本
+    if (Math.abs(diff) > 600) { let s = anomStat.get(ln); if (!s) anomStat.set(ln, s = { rej: 0 }); s.rej++; return; } // ±10 分外=脫節,不當樣本但計異常
     let rec = perLine.get(ln); if (!rec) perLine.set(ln, rec = { f: [], b: [], all: [] });
     (dir > 0 ? rec.f : rec.b).push(diff);
     rec.all.push(diff);
@@ -7261,6 +7329,7 @@ function applyNtmLive(feed, src) {
     if (all == null) continue; // 樣本不足:保留舊 shift,>30 分鐘未更新由 metroLiveOn 自動停用
     ln._liveShift = { f: med(rec.f), b: med(rec.b), all, at: nowAbs, n: rec.all.length, src: 'ntm' };
   }
+  for (const ln of byId.values()) { const rec = perLine.get(ln), s = anomStat.get(ln); evalLineAnomaly(ln, rec ? rec.all : [], s ? s.rej : 0, 0); } // 逐線異常評估
 }
 async function pollNtmLive() {
   const pool = metroLivePool();
@@ -7280,6 +7349,7 @@ async function pollNtmLive() {
     } catch (e) { /* 失敗保留舊 shift */ }
   }));
   updateMetroBadge();
+  renderAlertBanner(); // 線級異常變更即時反映到橫幅
 }
 setInterval(pollNtmLive, 60e3);
 
@@ -7304,6 +7374,12 @@ async function pollAlert() {
       } catch (e) { /* 單一系統失敗略過,不影響其他系統 */ }
     }
     if (ok) state.alert = { at, list: merged }; // 至少一個系統回應才更新(全失敗保留舊資料)
+    if (state.deco) { // 全台同框:額外抓捷運公告(高雄輕軌等),與台鐵/高鐵公告合併顯示(純台鐵/高鐵分頁不抓)
+      try {
+        const r = await fetch(apiUrl('api/metro-alert'), { cache: 'no-store' });
+        if (r.ok) { const d = await r.json(); if (Array.isArray(d.alerts)) state.metroAlert = { at: d.at || '', list: d.alerts.filter(a => a.status !== 1) }; }
+      } catch (e) { /* 失敗保留舊資料 */ }
+    }
   } else {
     // 捷運分頁:五家聚合端點(Worker 已標好 status/sys/sysLabel),颱風調整班距等異常才入列
     try {
@@ -7331,11 +7407,43 @@ function alertAffectedLineIds() {
   }
   return out;
 }
-// 目前模式該顯示的公告:sched=台鐵/高鐵;freq=捷運(只留畫面上勾選中系統的公告)
+// 自家異常條目文案(kind → 一句白話)
+const ANOM_KIND_DESC = { reject: '官方到站看板倒數與時刻表大幅不符', spread: '官方看板各站到站時間彼此矛盾', skip: '部分車站顯示交管不停靠' };
+function metroSelfEntry(ln, an) {
+  const name = (ln._sysLabel ? ln._sysLabel + ' ' : '') + (ln.name || ln.id);
+  return { self: true, title: name + '疑似營運異常',
+    desc: '本站偵測到官方到站看板與時刻表明顯不符（' + (ANOM_KIND_DESC[an.kind] || '看板與時刻表不符') + '），該線列車位置僅供參考。此為本站自動推定，非官方公告。' };
+}
+// 自家觀測條目(非官方公告):台鐵大面積誤點(sched)、捷運線級異常(對應模式可見的線)
+function selfAnomalyEntries() {
+  const out = [];
+  if (state.mode === 'sched') {
+    if (state.traAnomaly && liveActive()) {
+      const a = state.traAnomaly;
+      out.push({ self: true, title: '台鐵大面積誤點中：' + a.delayed + ' 班誤點（最高 ' + a.maxDelay + ' 分）',
+        desc: '列車位置已依台鐵官方即時誤點資料逐車校正，動畫如實反映延誤。此為本站自動觀測，非官方公告。' });
+    }
+    if (state.deco && state.decoLines) for (const ln of state.decoLines) { const an = anomalyOf(ln); if (an) out.push(metroSelfEntry(ln, an)); }
+  } else {
+    const vis = state.freqSel || new Set(state.sysId ? [state.sysId] : []);
+    for (const ln of (state.lines || [])) { if (!vis.has(freqSysIdOf(ln))) continue; const an = anomalyOf(ln); if (an) out.push(metroSelfEntry(ln, an)); }
+  }
+  return out;
+}
+// 目前模式該顯示的公告:官方公告在前、自家觀測在後。sched=台鐵/高鐵(+全台同框帶捷運公告);freq=捷運(只留畫面上勾選中系統)
 function activeAlertList() {
-  if (state.mode === 'sched') return (state.alert && state.alert.list) || [];
-  const vis = state.freqSel || new Set(state.sysId ? [state.sysId] : []);
-  return ((state.metroAlert && state.metroAlert.list) || []).filter(a => !a.sys || vis.has(a.sys));
+  let official;
+  if (state.mode === 'sched') {
+    official = (state.alert && state.alert.list) || [];
+    if (state.deco && state.metroAlert && state.metroAlert.list) { // 全台同框:裝飾捷運層的官方公告也帶進來(純台鐵/高鐵分頁 state.deco=false 不顯示)
+      const decoSys = new Set((state.decoLines || []).map(freqSysIdOf));
+      official = official.concat(state.metroAlert.list.filter(a => !a.sys || decoSys.has(a.sys)));
+    }
+  } else {
+    const vis = state.freqSel || new Set(state.sysId ? [state.sysId] : []);
+    official = ((state.metroAlert && state.metroAlert.list) || []).filter(a => !a.sys || vis.has(a.sys));
+  }
+  return official.concat(selfAnomalyEntries());
 }
 function renderAlertBanner() {
   const b = document.getElementById('alertBanner'), det = document.getElementById('alertDetail');
@@ -7355,7 +7463,7 @@ function renderAlertDetail() {
   const list = activeAlertList();
   const fmtT = s => s ? String(s).replace('T', ' ').slice(5, 16) : '';
   det.innerHTML = list.map(a =>
-    `<div class="ad-row"><b>${a.sysLabel ? escHtml('【' + a.sysLabel + '】') : ''}${escHtml(a.title || '通阻公告')}</b>` +
+    `<div class="ad-row${a.self ? ' is-self' : ''}"><b>${a.self ? '<span class="ad-self">本站觀測</span>' : ''}${a.sysLabel ? escHtml('【' + a.sysLabel + '】') : ''}${escHtml(a.title || '通阻公告')}</b>` +
     (a.start || a.end ? `<div class="ad-time">${escHtml(fmtT(a.start))}${a.end ? ' ～ ' + escHtml(fmtT(a.end)) : ' 起'}</div>` : '') +
     (a.desc ? `<div>${escHtml(a.desc)}</div>` : '') +
     (a.lines && a.lines.length ? `<div class="ad-time">影響路線：${escHtml(a.lines.join('、'))}</div>` : '') +
