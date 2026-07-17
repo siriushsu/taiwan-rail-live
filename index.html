@@ -1766,6 +1766,7 @@
     <details class="foot-box">
       <summary><span>🛠 更新紀錄</span><span class="foot-sub">最後更新：2026/7/17</span></summary>
       <ul class="foot-list">
+        <li><span class="d">7/17</span><span>選擇選單不會自己跑掉了：跟隨列車時，點到「車與站疊在一起」的地方跳出的選擇按鈕，以前會瞬間消失、根本來不及點——原因是跟隨鏡頭每一格把列車拉回畫面中心，被程式誤當成「你在移動地圖」。現在選單會一直等你，只有你自己拖曳地圖、縮放，或點了別的地方才會收起來（謝謝網友回報）</span></li>
         <li><span class="d">7/17</span><span>地圖上的共構車站也標出來了：台北、板橋、南港、新左營×左營、六家×新竹這些台鐵高鐵疊在同一點的站，地圖拉近後站名會成組顯示「臺北・台鐵」「台北・高鐵」，一眼看出這個點其實有兩家的車站——之前兩個站名疊在一起，永遠只看得到其中一個</span></li>
         <li><span class="d">7/17</span><span>跨日列車能完乘了：152、554 這類跨過午夜才到終點的列車，以前從發車一路跟到底也蓋不了完乘章——現在過了午夜照樣判定抵達、照樣蓋章（謝謝網友回報）</span></li>
         <li><span class="d">7/17</span><span>安坑輕軌「台北小城」站歸位：上游資料把它跟隔壁「耕莘安康院區」放在同一個點上，現在已依實際位置（安一路・僑信路口）修正（謝謝網友回報）</span></li>
@@ -1923,7 +1924,7 @@
 <script>
 // 版本戳記:每次改版 push 前手動遞增(字母序),畫面時鐘徽章與 console 都會顯示,
 // 供比對線上跑的是不是最新版(瀏覽器快取 max-age=600 常讓人看到舊版)
-const BUILD = 'v0717h';
+const BUILD = 'v0717i';
 const state = {
   systems: [], sysId: null, data: null, speed: 36, mode: 'freq',
   lines: [], visible: new Set(), trains: [], schedStations: [], types: [],
@@ -6697,7 +6698,9 @@ function recenterTo(lat, lon) {
   // 列車/軌道 canvas 圖層在真機幀率下會脫鉤→整條路線跟著車移動/抖動(v0713r 引入),已移除,回歸穩定整數像素置中。
   const c = map.getCenter();
   if (Math.abs(c.lat - lat) < 1e-6 && Math.abs(c.lng - lon) < 1e-6) return; // 中心已到位(停站/暫停)免重複 setView
+  state._autoPan = true; // 標記「這是跟隨鏡頭不是使用者拖曳」——tap-pick 選單靠它分辨,別誤收(見 closeTapPickOnUserMove)
   map.setView([lat, lon], map.getZoom(), { animate: false });
+  state._autoPan = false;
 }
 
 // ── 高速跟隨底圖預抓 ─────────────────────────────────────────────
@@ -8176,8 +8179,11 @@ async function boot() {
     const el = document.getElementById('tapPick');
     if (el.hidden) return;
     el.hidden = true; el.innerHTML = '';
-    map.off('movestart', closeTapPick); map.off('zoomstart', closeTapPick);
+    map.off('movestart', closeTapPickOnUserMove); map.off('zoomstart', closeTapPickOnUserMove);
   }
+  // 只有「使用者自己移動地圖」才收選單。跟隨中 recenterTo 每幀把車釘回中心(setView)也發 movestart,
+  // 那是自家鏡頭不是使用者意圖——照收的話選單開瞬間就被自己關掉,根本來不及點(v0717i 使用者回報)。
+  function closeTapPickOnUserMove() { if (!state._autoPan) closeTapPick(); }
   function openTapPick(cp, items) {
     const el = document.getElementById('tapPick');
     el.innerHTML = items.map((it, i) =>
@@ -8194,7 +8200,7 @@ async function boot() {
       const it = items[Number(b.dataset.i)];
       closeTapPick(); it.run();
     });
-    map.on('movestart', closeTapPick); map.on('zoomstart', closeTapPick);
+    map.on('movestart', closeTapPickOnUserMove); map.on('zoomstart', closeTapPickOnUserMove);
   }
   function tapPickStation(st) {
     // 共構疊站(台鐵/高鐵/捷運的「台北」們)靠系統名分清楚選的是哪張板;捷運分頁內(freq)無跨系統疊站,不標
