@@ -36,7 +36,7 @@ const jsonRes = (obj, status, cc) => new Response(JSON.stringify(obj), {
   headers: { 'content-type': 'application/json; charset=utf-8', 'cache-control': cc },
 });
 
-async function traLive(request, env) {
+async function traLive(request, env, ctx) {
   // 用量埋點:前景分鐘計數器(cam/z 由前端輪詢帶,cache 命中與否都要記到)。觀測絕不可影響服務,例外整段吞掉。
   if (env.USAGE) {
     try {
@@ -64,6 +64,8 @@ async function traLive(request, env) {
         trains: list.map(t => ({ no: t.TrainNo, delay: t.DelayTime || 0, sta: t.StationID, status: t.TrainStationStatus })),
       };
       memAt = Date.now();
+      // 逐站觀測事件擷取:只搭「真的刷新上游」這班順風車(cache 命中/mem 未過期都到不了這裡),零新增 TDX 呼叫
+      recordStationEvents(mem, env, ctx);
     }
     const res = jsonRes(mem, 200, 'public, s-maxage=55, stale-while-revalidate=300');
     await edge.put(cacheKey, res.clone());
@@ -72,6 +74,70 @@ async function traLive(request, env) {
     if (mem) return jsonRes(mem, 200, 'public, s-maxage=15');
     return jsonRes({ error: String(e.message || e) }, 502, 'no-store');
   }
+}
+
+// ── 台鐵逐站觀測事件擷取:piggyback /api/tra-live 上游刷新,零新增 TDX 呼叫、零新增 cron ──
+// 為「今日逐站歷程」「今日準點/誤點榜」累積資料。鐵則:記錄絕不可影響 tra-live 服務本身——
+// diff 是純函式微秒級同步做完,只有 D1 寫入丟 ctx.waitUntil 背景跑,失敗整段吞掉(比照上方 USAGE 埋點精神)。
+// POP 之間、isolate 重生造成的重複觀測,靠下面 upsert 的 PK(service_date,train_no,sta,status)天然去重。
+const STATION_EVENT_UPSERT = 'INSERT INTO tra_station_events (service_date,train_no,sta,status,delay,delay_max,obs_at) VALUES (?,?,?,?,?,?,?) ON CONFLICT(service_date,train_no,sta,status) DO UPDATE SET delay_max = excluded.delay_max WHERE excluded.delay_max > tra_station_events.delay_max';
+let stEventsPrev = null; // train_no → {sta,status,delay};null=本 isolate 尚未播種(第一次刷新只播種、不寫事件)
+
+// 台北今日 YYYY-MM-DD(台北無日光節約,固定 +8;沿用 isoFromDate 讀 UTC 欄位即得台北日)。
+function twToday() { return isoFromDate(new Date(Date.now() + 8 * 3600 * 1000)); }
+// mem.at(TDX UpdateTime)→台北服務日。帶 +08:00 的已是台北牆鐘,直接 slice 日期(不可再 +8);
+// fallback 是 new Date().toISOString() 的 UTC ISO(以 Z / +00:00 結尾)→ +8 小時再取日期。
+function twDayFromMemAt(at) {
+  const s = String(at == null ? '' : at);
+  if (s.includes('+08:00')) return s.slice(0, 10);
+  const ms = Date.parse(s);
+  return isoFromDate(new Date((Number.isNaN(ms) ? Date.now() : ms) + 8 * 3600 * 1000));
+}
+
+// 逐車 diff → 回傳「有變化、要寫的」車列 [{no,sta,status,delay}]。純函式:不碰 D1、不碰時間,供離線測試。
+// prevMap=null 代表本 isolate 尚未播種 → 一律回 [](首輪只播種,避免 isolate 重生把整批當新事件)。
+// 有變才發:prev 沒這車 / 換站 / 換狀態 / 誤點變動;no 或 sta 缺一律跳過(sta 空的觀測無意義)。
+function diffTrains(prevMap, trains) {
+  if (!(prevMap instanceof Map) || !Array.isArray(trains)) return [];
+  const out = [];
+  for (const t of trains) {
+    const no = t && t.no != null ? String(t.no) : '';
+    const sta = t && t.sta != null ? String(t.sta) : '';
+    if (!no || !sta) continue;
+    const p = prevMap.get(no);
+    if (!p || p.sta !== sta || p.status !== t.status || p.delay !== t.delay) out.push({ no, sta, status: t.status, delay: t.delay });
+  }
+  return out;
+}
+
+// 當前 trains → 下輪 diff 的 prev 快照;與 diffTrains 用同一套 no/sta 有效性規則,避免兩邊漂移。
+function snapshotTrains(trains) {
+  const m = new Map();
+  if (!Array.isArray(trains)) return m;
+  for (const t of trains) {
+    const no = t && t.no != null ? String(t.no) : '';
+    const sta = t && t.sta != null ? String(t.sta) : '';
+    if (!no || !sta) continue;
+    m.set(no, { sta, status: t.status, delay: t.delay });
+  }
+  return m;
+}
+
+// 把本次刷新的變動寫進 D1。delay 與 delay_max 都填當下誤點:新事件是首見值;同 PK 已存在時 upsert 只在
+// 「當下誤點更大」才升 delay_max(見 STATION_EVENT_UPSERT 的 WHERE),誤點回落不覆蓋。整段 try/catch 吞掉。
+function recordStationEvents(mem, env, ctx) {
+  try {
+    if (!env || !env.DELAY_DB || !mem || !Array.isArray(mem.trains)) return;
+    const changed = diffTrains(stEventsPrev, mem.trains); // 首輪 prev=null → [](只播種)
+    stEventsPrev = snapshotTrains(mem.trains);            // 即使本輪零事件也要更新快照當下輪基準
+    if (!changed.length) return;
+    const serviceDate = twDayFromMemAt(mem.at), obsAt = String(mem.at);
+    const stmt = env.DELAY_DB.prepare(STATION_EVENT_UPSERT);
+    const write = env.DELAY_DB.batch(changed.map(c => stmt.bind(serviceDate, c.no, c.sta, c.status, c.delay, c.delay, obsAt)));
+    // D1 寫入丟背景不擋 tra-live 回應;ctx 可能為 undefined(防),rejection 一律吞掉不冒泡
+    if (ctx && typeof ctx.waitUntil === 'function') ctx.waitUntil(write.catch(() => {}));
+    else if (write && typeof write.catch === 'function') write.catch(() => {});
+  } catch (e) {}
 }
 
 // 營運通阻公告:來源每 120 秒更新,快取 110 秒。正常時 TDX 回單筆 Status:1「全線營運正常」,
@@ -384,6 +450,55 @@ async function delayStats(request, env) {
     return res;
   } catch (e) {
     return jsonRes({ error: 'not_ready' }, 503, 'public, s-maxage=60');
+  }
+}
+
+// 今日逐站歷程(唯讀查 D1 tra_station_events):給前端「這班車今天到過哪些站、各站誤點/最大誤點」。
+// train 白名單化(台鐵車次 1~6 碼英數),擋任意字串打 D1;只查台北今日、按觀測時間升冪。空/無列自然回空陣列。
+async function stationEvents(request, env) {
+  const train = new URL(request.url).searchParams.get('train') || '';
+  if (!/^[0-9A-Za-z]{1,6}$/.test(train)) return jsonRes({ error: 'bad train' }, 400, 'no-store');
+  const cacheKey = new Request(new URL('/api/station-events?train=' + train, request.url), { method: 'GET' });
+  const edge = caches.default;
+  const hit = await edge.match(cacheKey);
+  if (hit) return hit;
+  try {
+    const date = twToday();
+    const rs = await env.DELAY_DB.prepare(
+      'SELECT sta, status, delay, delay_max, obs_at FROM tra_station_events WHERE service_date=? AND train_no=? ORDER BY obs_at ASC'
+    ).bind(date, train).all();
+    const events = (rs.results || []).map(r => ({ sta: r.sta, status: r.status, delay: r.delay, delayMax: r.delay_max, at: r.obs_at }));
+    const res = jsonRes({ date, train, events }, 200, 'public, s-maxage=30, stale-while-revalidate=120');
+    await edge.put(cacheKey, res.clone());
+    return res;
+  } catch (e) {
+    return jsonRes({ error: 'not_ready' }, 503, 'public, s-maxage=30');
+  }
+}
+
+// 今日準點/誤點榜(唯讀查 D1):每班車一列=今天最新一筆事件(obs_at 最大)+今天整體 max(delay_max)。
+// 用視窗函式在 SQL 端聚合(絕不把全日事件撈回 JS 再算);空表優雅回空陣列。
+async function todayBoard(request, env) {
+  const cacheKey = new Request(new URL('/api/today-board', request.url), { method: 'GET' });
+  const edge = caches.default;
+  const hit = await edge.match(cacheKey);
+  if (hit) return hit;
+  try {
+    const date = twToday();
+    const rs = await env.DELAY_DB.prepare(
+      'SELECT train_no, sta, status, delay, obs_at, dmax FROM (' +
+      ' SELECT train_no, sta, status, delay, obs_at,' +
+      ' ROW_NUMBER() OVER (PARTITION BY train_no ORDER BY obs_at DESC) AS rn,' +
+      ' MAX(delay_max) OVER (PARTITION BY train_no) AS dmax' +
+      ' FROM tra_station_events WHERE service_date=?' +
+      ') WHERE rn=1 ORDER BY train_no'
+    ).bind(date).all();
+    const trains = (rs.results || []).map(r => ({ no: r.train_no, sta: r.sta, status: r.status, delay: r.delay, delayMax: r.dmax, at: r.obs_at }));
+    const res = jsonRes({ date, trains }, 200, 'public, s-maxage=120, stale-while-revalidate=300');
+    await edge.put(cacheKey, res.clone());
+    return res;
+  } catch (e) {
+    return jsonRes({ error: 'not_ready' }, 503, 'public, s-maxage=30');
   }
 }
 
@@ -722,6 +837,15 @@ async function ingestDelayHistory(env) {
   return { written, dbMax };
 }
 
+// 逐站事件保留期 30 天:刪掉台北今日往前 30 天以外的舊列(重用 addDays/twToday)。獨立於 delay ingest——
+// 放進 scheduled 的 finally,ingest 成功或失敗(rethrow)都會執行;本函式失敗只由呼叫端 console.error、
+// 不 rethrow,不動既有「ingest 失敗要 rethrow」的語意。
+async function pruneStationEvents(env) {
+  const cutoff = addDays(twToday(), -30);
+  const r = await env.DELAY_DB.prepare('DELETE FROM tra_station_events WHERE service_date < ?').bind(cutoff).run();
+  console.log(`[cron station-events] 清理 < ${cutoff}: ${(r.meta && r.meta.changes) || 0} 列`);
+}
+
 export default {
   // 每天台北 09:15 / 12:15 觸發(wrangler.jsonc triggers.crons)。錯誤 console.error 後
   // rethrow,讓 Cloudflare 把該次 cron 標記為失敗(observability 可查)。
@@ -732,9 +856,13 @@ export default {
     } catch (e) {
       console.error('[cron delay] 失敗:', (e && e.stack) || String(e));
       throw e;
+    } finally {
+      // 逐站事件保留期清理:獨立 try/catch,不影響上面 ingest 的成功/失敗(rethrow)語意;finally 確保 ingest 失敗也會跑
+      try { await pruneStationEvents(env); }
+      catch (e) { console.error('[cron station-events] 清理失敗:', (e && e.stack) || String(e)); }
     }
   },
-  async fetch(request, env) {
+  async fetch(request, env, ctx) {
     const url = new URL(request.url);
     if (url.protocol === 'http:') {
       url.protocol = 'https:';
@@ -753,7 +881,7 @@ export default {
       return new Response(null, { status: APP_ORIGINS.has(origin) ? 204 : 403, headers: h });
     }
     let res;
-    if (url.pathname === '/api/tra-live') res = await traLive(request, env);
+    if (url.pathname === '/api/tra-live') res = await traLive(request, env, ctx);
     else if (url.pathname === '/api/tra-alert') res = await traAlert(request, env);
     else if (url.pathname === '/api/thsr-alert') res = await thsrAlert(request, env);
     else if (url.pathname === '/api/metro-alert') res = await metroAlert(request, env);
@@ -767,6 +895,8 @@ export default {
       res = NTM_LIVE_SYS.has(sys) ? await ntmetroLive(request, env, sys) : jsonRes({ error: 'bad sys' }, 400, 'no-store');
     }
     else if (url.pathname === '/api/delay-stats') res = await delayStats(request, env);
+    else if (url.pathname === '/api/station-events') res = await stationEvents(request, env);
+    else if (url.pathname === '/api/today-board') res = await todayBoard(request, env);
     else if (url.pathname === '/api/account-delete') res = await deletePaidProfile(request, env);
     else res = await env.ASSETS.fetch(request);
     const h = new Headers(res.headers);
@@ -783,3 +913,5 @@ export const _metroAlert = {
   metroAlertOpFallback, isRecentNews, isIncidentNewsTitle,
   stripHtmlAndTruncate, formatNewsTitle, mapNewsToAlert, filterAndMapNews,
 };
+// 純函式導出,供離線回歸測試 import:逐站事件 diff 與 mem.at→台北日換算。
+export const _stationEvents = { diffTrains, twDayFromMemAt };
