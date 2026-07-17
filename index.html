@@ -1749,6 +1749,7 @@
         <!-- 錄影暫時下架:入口隱藏、程式全保留;見 RECORDING_ENABLED。比照 locateBtn 先 inline 藏(首繪不閃現),setupRecorder 再移除 -->
         <button id="recBtn" style="display:none" title="錄影 Beta（存成影片下載）"><span class="ti">⏺</span><span class="tl">錄影</span></button>
         <button id="importBtn" style="display:none" title="匯入 Google Maps 已儲存清單"><span class="ti">匯</span><span class="tl">匯入</span></button>
+        <!-- 帳號同步暫時下架(轉收費整備):入口隱藏、程式全保留;見 ACCOUNT_ENABLED。?account=delete 深連結仍可進刪帳號流程 -->
         <button id="accountBtn" style="display:none" title="登入與跨裝置同步"><span class="ti">帳</span><span class="tl">帳號</span></button>
         <button id="shareBtn" title="分享目前畫面（地點＋時間，或正在跟的車）"><span class="ti">↗</span><span class="tl">分享</span></button>
       </div>
@@ -1806,6 +1807,7 @@
     <details class="foot-box">
       <summary><span>🛠 更新紀錄</span><span class="foot-sub">最後更新：2026/7/17</span></summary>
       <ul class="foot-list">
+        <li><span class="d">7/17</span><span>軌島帳號暫時下架：7/16 剛推出的「帳號同步」（Google 登入跨裝置同步）先下架整備，工具列的「帳」鈕暫時收起來；存在這台裝置上的最愛與完乘紀錄完全不受影響，先前同步到雲端的資料也原封保留。已建立帳號想刪除帳號與雲端資料的話，仍可從<a href="account-deletion.html">「刪除軌島帳號」</a>頁面完成</span></li>
         <li><span class="d">7/17</span><span>快轉時左上角 LIVE 徽章不再一直亮著：模擬時間離開「現在」兩分鐘以上，台鐵「LIVE」會轉成灰色「推估」、捷運「看板校正」轉成「看板推估」，表示畫面是依最後收到的官方資料投射；回到現在就自動恢復綠 LIVE／藍看板校正（謝謝回報）</span></li>
         <li><span class="d">7/17</span><span>搜尋框提示文字說清楚：原本在捷運分頁只寫「搜尋車站」，讓人以為不能搜車次——其實打車次號一直都可以（會自動切到國家鐵路跟隨），現在提示改成「搜尋車站或車次」，不再誤導（謝謝回報）</span></li>
         <li><span class="d">7/17</span><span>看板右上角的 ☆ 收藏與 × 關閉鈕不再神隱：以前在班次多的車站往下捲列表，這兩顆按鈕會跟著內容捲走不見（標題還在、按鈕沒了）——現在它們釘在標題列上，怎麼捲都在。我的最愛、旅程收集、今日亮點、軌道面板的關閉鈕也一併釘好（謝謝回報）</span></li>
@@ -3361,6 +3363,7 @@ function renderCrossingCard() {
 // 網站/PWA 仍關閉；Capacitor App 注入原生定位 bridge 後才自動復活。
 const LOCATE_ENABLED = !!window.RAIL_NATIVE_GEOLOCATION;
 const RECORDING_ENABLED = false; // 2026-07-17 錄影暫時下架(整備中):所有入口隱藏、實作全保留;改 true 即復活(工具列鈕+更多抽屜列+Plus 文案)
+const ACCOUNT_ENABLED = false; // 2026-07-17 帳號同步轉收費前暫時下架:入口全藏、不載 Firebase SDK、實作全保留;僅 ?account=delete 深連結(account-deletion.html)留給既有帳號刪資料;改 true 即復活
 let meMarker = null, meCircle = null;
 const NEAR_XING_KM = 5;  // 「附近平交道」搜尋半徑(公里,可調)
 const NEAR_XING_N = 8;   // 清單最多列幾處
@@ -4116,6 +4119,9 @@ async function setupAccountUi() {
   const btn = document.getElementById('accountBtn'), modal = document.getElementById('accountModal');
   if (!btn || !modal || !accountConfigured()) return;
   let accountIntent = new URLSearchParams(location.search).get('account');
+  if (!ACCOUNT_ENABLED && accountIntent !== 'delete') { // 下架:鈕與抽屜列一併移除、不載 SDK;刪帳號深連結照常走完整流程
+    btn.remove(); const row = document.querySelector('.ms-row[data-proxy="accountBtn"]'); if (row) row.remove(); return;
+  }
   btn.style.display = ''; btn.onclick = accountOpen;
   document.getElementById('accountX').onclick = accountClose;
   modal.addEventListener('click', e => { if (e.target === modal) accountClose(); });
