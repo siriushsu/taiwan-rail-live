@@ -287,7 +287,8 @@ def build_merge_update_sql(prev_date, train_no, final_delay, max_delay, events, 
 
 
 def build_blob_upsert_sql(key, value_json):
-    return f"INSERT OR REPLACE INTO {KV_TABLE} (k, v) VALUES ({sql_str(key)}, {sql_str(value_json)});"
+    return (f"INSERT OR REPLACE INTO {KV_TABLE} (k, v, updated) "
+            f"VALUES ({sql_str(key)}, {sql_str(value_json)}, datetime('now'));")
 
 
 # ---------------------------------------------------------------------------

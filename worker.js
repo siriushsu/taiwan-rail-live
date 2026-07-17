@@ -329,7 +329,308 @@ function addAppCors(headers, origin) {
   headers.set('Vary', vary.join(', '));
 }
 
+// ── 台鐵準點統計「每日增量」cron(scheduled handler) ────────────────────────
+// 把本機 python 腳本 scripts/ingest_tra_delay.py 的邏輯搬進 worker:每天自動抓 TDX
+// 歷史 API 前一日資料 → 寫 D1 tra_delay_daily → 重建 kv_blobs 統計 blob(供 /api/
+// delay-stats 唯讀吐回)。python 腳本留作手動備援,不動。解析/建列/聚合切成純函式並
+// export const _ingest 供離線回歸測試;scheduled 只做 IO 編排。語意須與 python 版一致。
+const HIST_DELAY_URL = 'https://tdx.transportdata.tw/api/historical/v2/Historical/Rail/TRA/LiveTrainDelay';
+const DELAY_BLOB_KEY = 'tra_delay_stats_30d';
+const DELAY_BLOB_NOTE = 'a=平均最終誤點(分,1位小數) p=準點率%(final_delay≤5,四捨五入整數) d=有紀錄天數 m=單日最大誤點(分)。最終誤點=最後回報站(終點前一站)離站時誤點';
+const BLOB_WINDOW_DAYS = 30;   // 統計 blob 的日曆窗
+const SCAN_WINDOW_DAYS = 35;   // 缺日偵測觀察窗
+const MAX_DATES_PER_RUN = 3;   // 單次 cron 最多補幾天(避免單發吃太多 CPU/流量)
+const D1_BATCH_SIZE = 80;      // 每個 batch() 最多幾句 prepared statement
+
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+
+// 日期工具:全走 UTC 計算(台北無日光節約,固定 +8);ISO 皆 YYYY-MM-DD。
+function pad2(n) { return String(n).padStart(2, '0'); }
+function isoFromDate(d) { return `${d.getUTCFullYear()}-${pad2(d.getUTCMonth() + 1)}-${pad2(d.getUTCDate())}`; }
+function addDays(iso, delta) {
+  const [y, m, d] = iso.split('-').map(Number);
+  return isoFromDate(new Date(Date.UTC(y, m - 1, d + delta)));
+}
+// SrcUpdateTime(UTC ISO,帶 +00:00 offset)→台北當地 { ms, date, hour }。
+// P0 鐵則:SrcUpdateTime 是 UTC,跨日判斷務必先 +8 轉台北再看日期/時。
+function twParts(srcIso) {
+  const ms = Date.parse(srcIso);
+  if (Number.isNaN(ms)) return null;
+  const tw = new Date(ms + 8 * 3600 * 1000);
+  return { ms, date: isoFromDate(tw), hour: tw.getUTCHours() };
+}
+// python datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ") 等價(去掉毫秒)
+function utcStamp() { return new Date().toISOString().replace(/\.\d{3}Z$/, 'Z'); }
+
+// python int():數字截尾、純整數字串可、其餘無效(回 null=跳過該筆)。
+function toInt(v) {
+  if (typeof v === 'number') return Number.isFinite(v) ? Math.trunc(v) : null;
+  if (typeof v === 'string') { const s = v.trim(); return /^[+-]?\d+$/.test(s) ? parseInt(s, 10) : null; }
+  return null;
+}
+
+// python round_half_up:對「數值的最短字串表示」做 ROUND_HALF_UP(逢五進位、遠離零),
+// 回傳定小數位字串。刻意對字串(而非 double)取整——與 python Decimal(str(x)) 一致,避開
+// JS Math.round(2.05*10)/10=2.0 而 python 得 2.1 的分歧(P0 明列的 .5 邊界地雷)。
+function incDigits(s) {
+  const a = s.split('');
+  let i = a.length - 1;
+  for (; i >= 0; i--) {
+    if (a[i] === '9') a[i] = '0';
+    else { a[i] = String.fromCharCode(a[i].charCodeAt(0) + 1); break; }
+  }
+  if (i < 0) a.unshift('1');
+  return a.join('');
+}
+function roundHalfUpStr(value, ndigits) {
+  let s = String(value);
+  // 本資料域(分鐘級均值、0~100 百分率)不會出現指數表示;出現即屬非預期,直接擋下。
+  if (s.indexOf('e') !== -1 || s.indexOf('E') !== -1) throw new Error('roundHalfUpStr exponent: ' + s);
+  let neg = false;
+  if (s[0] === '-') { neg = true; s = s.slice(1); }
+  const dot = s.indexOf('.');
+  const intPart = dot === -1 ? s : s.slice(0, dot);
+  let frac = dot === -1 ? '' : s.slice(dot + 1);
+  let roundUp = false;
+  if (frac.length > ndigits) {
+    roundUp = frac.charCodeAt(ndigits) - 48 >= 5;   // HALF_UP:首個捨去位 >=5 即進位
+    frac = frac.slice(0, ndigits);
+  } else {
+    frac = frac.padEnd(ndigits, '0');
+  }
+  let digits = intPart + frac;
+  if (roundUp) digits = incDigits(digits);
+  let outInt, outFrac;
+  if (ndigits === 0) { outInt = digits; outFrac = ''; }
+  else {
+    const cut = digits.length - ndigits;
+    outInt = cut <= 0 ? '0' : digits.slice(0, cut);
+    outFrac = cut <= 0 ? digits.padStart(ndigits, '0') : digits.slice(cut);
+  }
+  outInt = outInt.replace(/^0+(?=\d)/, '');
+  let out = ndigits === 0 ? outInt : outInt + '.' + outFrac;
+  // 本資料 DelayTime 恆 >=0 → 均值恆 >=0,不會生 -0.0;仍保守:結果為全零就去負號。
+  if (neg && !/^0(\.0*)?$/.test(out)) out = '-' + out;
+  return out;
+}
+
+// 解析 TDX JSONL 回應:剝 BOM、逐行 JSON.parse、只留四欄。解析失敗的行略過。
+function parseDayEvents(text) {
+  if (typeof text !== 'string') return [];
+  if (text.charCodeAt(0) === 0xFEFF) text = text.slice(1);   // BOM 地雷
+  const out = [];
+  for (const raw of text.split('\n')) {
+    const line = raw.trim();
+    if (!line) continue;
+    let r;
+    try { r = JSON.parse(line); } catch { continue; }
+    out.push({ TrainNo: r.TrainNo, StationID: r.StationID, DelayTime: r.DelayTime, SrcUpdateTime: r.SrcUpdateTime });
+  }
+  return out;
+}
+
+// 依 TrainNo 分組、SrcUpdateTime 轉台北時間後依時間排序。欄位缺漏/型別不對整筆跳過。
+function groupAndSort(events) {
+  const byTrain = new Map();
+  for (const r of events) {
+    if (r.SrcUpdateTime == null || r.TrainNo == null || r.StationID == null) continue;
+    const tp = twParts(r.SrcUpdateTime);
+    if (!tp) continue;
+    const delay = toInt(r.DelayTime);
+    if (delay == null) continue;
+    const trainNo = String(r.TrainNo);
+    let arr = byTrain.get(trainNo);
+    if (!arr) { arr = []; byTrain.set(trainNo, arr); }
+    arr.push({ ms: tp.ms, hour: tp.hour, delay, station: String(r.StationID), src: r.SrcUpdateTime });
+  }
+  for (const arr of byTrain.values()) arr.sort((a, b) => a.ms - b.ms);   // 穩定排序,同時間保留檔序
+  return byTrain;
+}
+
+// 建 run + 跨日併回(語意逐字對齊 ingest_tra_delay.process_day)。
+// serviceDate:當日 ISO;events:當日抓取原始事件;prevDayRows:前一日 D1 既有列
+// (Map<train_no,{final_delay,max_delay,events,last_station,last_seen}>)。
+// 回傳 { ownRows, mergedPrev }:ownRows=當日 INSERT OR REPLACE 列;mergedPrev=併回前一日 UPDATE。
+function buildDayRows(serviceDate, events, prevDayRows) {
+  const prevDate = addDays(serviceDate, -1);
+  const byTrain = groupAndSort(events);
+  const prev = prevDayRows instanceof Map ? prevDayRows : new Map(Object.entries(prevDayRows || {}));
+  const ownRows = [];
+  const mergedPrev = [];
+  for (const [trainNo, evs] of byTrain) {
+    const early = evs.filter(e => e.hour < 3);
+    const rest = evs.filter(e => e.hour >= 3);
+    const p = prev.get(trainNo);
+    let mergeNow = false, alreadyAbsorbed = false;
+    if (p != null && early.length) {
+      const pl = twParts(String(p.last_seen));
+      if (pl && pl.date === prevDate && pl.hour >= 22) mergeNow = true;             // 前一天跑到深夜 → 併回
+      else if (pl && pl.date === serviceDate && pl.hour < 3) alreadyAbsorbed = true; // 上次已併過 → 冪等保護
+    }
+    if (mergeNow) {
+      const last = early[early.length - 1];
+      let em = early[0].delay;
+      for (const e of early) if (e.delay > em) em = e.delay;
+      mergedPrev.push({
+        train_no: trainNo,
+        final_delay: last.delay,
+        max_delay: Math.max(toInt(p.max_delay), em),
+        events: toInt(p.events) + early.length,
+        last_station: last.station,
+        last_seen: last.src,
+      });
+    }
+    const own = (mergeNow || alreadyAbsorbed) ? rest : early.concat(rest);
+    if (own.length) {
+      const last = own[own.length - 1];
+      let mx = own[0].delay;
+      for (const e of own) if (e.delay > mx) mx = e.delay;
+      ownRows.push({
+        train_no: trainNo,
+        final_delay: last.delay,
+        max_delay: mx,
+        events: own.length,
+        last_station: last.station,
+        last_seen: last.src,
+      });
+    }
+  }
+  return { ownRows, mergedPrev };
+}
+
+// 重建近 30 天(日曆窗:max(service_date) 往前 29 天)逐車次統計 blob。
+// rows:{service_date,train_no,final_delay,max_delay}[];generatedIso:_meta.generated。
+// 回傳 { _meta, trains, json }:trains={train_no:{a,p,d,m}}(數值,供測試);json 為緊湊字串
+// (數字格式對齊 python json.dumps:a 帶小數點如 "5.0",p/d/m 為整數)。rows 空回 null。
+function buildBlob(rows, generatedIso) {
+  let maxDate = null;
+  for (const r of rows) { const sd = String(r.service_date); if (maxDate === null || sd > maxDate) maxDate = sd; }
+  if (maxDate === null) return null;
+  const startDate = addDays(maxDate, -(BLOB_WINDOW_DAYS - 1));
+  const byTrain = new Map();
+  for (const r of rows) {
+    const sd = String(r.service_date);
+    if (sd < startDate || sd > maxDate) continue;
+    const t = String(r.train_no);
+    let g = byTrain.get(t);
+    if (!g) { g = { finals: [], maxes: [] }; byTrain.set(t, g); }
+    g.finals.push(toInt(r.final_delay));
+    g.maxes.push(toInt(r.max_delay));
+  }
+  const trains = {};
+  const parts = [];
+  for (const [t, g] of byTrain) {
+    const n = g.finals.length;
+    let sum = 0, onTime = 0, m = g.maxes[0];
+    for (const d of g.finals) { sum += d; if (d <= 5) onTime++; }
+    for (const x of g.maxes) if (x > m) m = x;
+    const aStr = roundHalfUpStr(sum / n, 1);
+    const pStr = roundHalfUpStr(100 * onTime / n, 0);
+    trains[t] = { a: Number(aStr), p: Number(pStr), d: n, m };
+    parts.push(JSON.stringify(t) + ':{"a":' + aStr + ',"p":' + pStr + ',"d":' + n + ',"m":' + m + '}');
+  }
+  const nTrains = byTrain.size;
+  const meta = { window_days: BLOB_WINDOW_DAYS, date_range: [startDate, maxDate], n_trains: nTrains, generated: generatedIso, note: DELAY_BLOB_NOTE };
+  const json = '{"_meta":{"window_days":' + BLOB_WINDOW_DAYS
+    + ',"date_range":[' + JSON.stringify(startDate) + ',' + JSON.stringify(maxDate) + ']'
+    + ',"n_trains":' + nTrains
+    + ',"generated":' + JSON.stringify(generatedIso)
+    + ',"note":' + JSON.stringify(DELAY_BLOB_NOTE) + '}'
+    + ',"trains":{' + parts.join(',') + '}}';
+  return { _meta: meta, trains, json };
+}
+
+// 抓單日 TDX 歷史 LiveTrainDelay(JSONL,$top 必帶大值)。429 等 5 秒重試一次。
+async function fetchDelayDay(token, dayIso) {
+  const url = `${HIST_DELAY_URL}?Dates=${dayIso}&%24top=1000000&%24format=JSONL`;
+  const headers = { authorization: 'Bearer ' + token, accept: 'application/json, text/plain, */*' };
+  let r = await fetch(url, { headers });
+  if (r.status === 429) { await sleep(5000); r = await fetch(url, { headers }); }
+  if (r.status === 401) { tok = null; throw new Error('tdx 401 historical'); }
+  if (!r.ok) throw new Error('tdx historical ' + r.status + ' for ' + dayIso);
+  return await r.text();
+}
+
+// 把一日的 mergedPrev(UPDATE 前一日)+ ownRows(INSERT OR REPLACE 當日)分批寫入 D1。
+async function writeDayRows(db, prevDate, dayIso, ownRows, mergedPrev) {
+  const upd = db.prepare('UPDATE tra_delay_daily SET final_delay=?, max_delay=?, events=?, last_station=?, last_seen=? WHERE service_date=? AND train_no=?');
+  const ins = db.prepare('INSERT OR REPLACE INTO tra_delay_daily (service_date, train_no, final_delay, max_delay, events, last_station, last_seen) VALUES (?,?,?,?,?,?,?)');
+  const stmts = [];
+  for (const r of mergedPrev) stmts.push(upd.bind(r.final_delay, r.max_delay, r.events, r.last_station, r.last_seen, prevDate, r.train_no));
+  for (const r of ownRows) stmts.push(ins.bind(dayIso, r.train_no, r.final_delay, r.max_delay, r.events, r.last_station, r.last_seen));
+  for (let i = 0; i < stmts.length; i += D1_BATCH_SIZE) await db.batch(stmts.slice(i, i + D1_BATCH_SIZE));
+  return stmts.length;
+}
+
+// scheduled handler 的主流程(冪等:中途死掉下次 cron 自動從缺日續補)。
+async function ingestDelayHistory(env) {
+  const db = env.DELAY_DB;
+  // 1. 缺日掃描:到「昨天」為止近 35 天(cron 跑台北 09:15/12:15,昨天必已發布)。
+  const yesterday = isoFromDate(new Date(Date.now() + 8 * 3600 * 1000 - 24 * 3600 * 1000));
+  const expected = [];
+  for (let i = SCAN_WINDOW_DAYS - 1; i >= 0; i--) expected.push(addDays(yesterday, -i));   // 時間序,舊→新
+  const since = expected[0];
+  const existRes = await db.prepare('SELECT DISTINCT service_date FROM tra_delay_daily WHERE service_date >= ?').bind(since).all();
+  const existing = new Set((existRes.results || []).map(r => String(r.service_date)));
+  const missing = expected.filter(d => !existing.has(d));
+  const todo = missing.slice(0, MAX_DATES_PER_RUN);
+  console.log(`[cron delay] 窗 ${since}..${yesterday} 缺 ${missing.length} 天, 本次 ${JSON.stringify(todo)}`);
+
+  const written = [];
+  if (todo.length) {
+    const token = await getToken(env);
+    for (let i = 0; i < todo.length; i++) {
+      const day = todo[i];
+      if (i > 0) await sleep(2000);   // 兩日抓取間隔 2 秒(與即時代理共用金鑰 5 req/s 上限)
+      const text = await fetchDelayDay(token, day);
+      const events = parseDayEvents(text);
+      if (events.length === 0) { console.log(`[cron delay] ${day} 空回應(尚未發布),跳過`); continue; }
+      const prevDate = addDays(day, -1);
+      const prevRes = await db.prepare('SELECT train_no, final_delay, max_delay, events, last_station, last_seen FROM tra_delay_daily WHERE service_date = ?').bind(prevDate).all();
+      const prevRows = new Map((prevRes.results || []).map(r => [String(r.train_no), r]));
+      const { ownRows, mergedPrev } = buildDayRows(day, events, prevRows);
+      const nStmt = await writeDayRows(db, prevDate, day, ownRows, mergedPrev);
+      written.push(day);
+      console.log(`[cron delay] ${day}: 事件 ${events.length}, 本日列 ${ownRows.length}, 併回前一日 ${mergedPrev.length}, 寫入 ${nStmt} 句`);
+    }
+  }
+
+  // 4. blob 重建:任何一天有寫入就做;零寫入時若 blob 迄日 < D1 max(service_date) 也做(自癒)。
+  const dbMaxRow = await db.prepare('SELECT MAX(service_date) AS m FROM tra_delay_daily').first();
+  const dbMax = dbMaxRow && dbMaxRow.m ? String(dbMaxRow.m) : null;
+  let doBlob = written.length > 0;
+  if (!doBlob && dbMax) {
+    const blobRow = await db.prepare('SELECT v FROM kv_blobs WHERE k=?').bind(DELAY_BLOB_KEY).first();
+    let blobMax = null;
+    if (blobRow && blobRow.v) { try { blobMax = (JSON.parse(blobRow.v)._meta || {}).date_range[1] || null; } catch { blobMax = null; } }
+    if (!blobMax || blobMax < dbMax) doBlob = true;
+  }
+  if (doBlob && dbMax) {
+    const start = addDays(dbMax, -(BLOB_WINDOW_DAYS - 1));
+    const rowsRes = await db.prepare('SELECT service_date, train_no, final_delay, max_delay FROM tra_delay_daily WHERE service_date >= ?').bind(start).all();
+    const blob = buildBlob(rowsRes.results || [], utcStamp());
+    if (blob) {
+      await db.prepare("INSERT OR REPLACE INTO kv_blobs(k,v,updated) VALUES(?,?,datetime('now'))").bind(DELAY_BLOB_KEY, blob.json).run();
+      console.log(`[cron delay] blob 重建: n_trains=${blob._meta.n_trains} range=${JSON.stringify(blob._meta.date_range)} bytes=${blob.json.length}`);
+    }
+  } else {
+    console.log('[cron delay] blob 無需重建');
+  }
+  return { written, dbMax };
+}
+
 export default {
+  // 每天台北 09:15 / 12:15 觸發(wrangler.jsonc triggers.crons)。錯誤 console.error 後
+  // rethrow,讓 Cloudflare 把該次 cron 標記為失敗(observability 可查)。
+  async scheduled(event, env) {
+    try {
+      const r = await ingestDelayHistory(env);
+      console.log(`[cron delay] 完成: 寫入日 ${JSON.stringify(r.written)}, D1 迄日 ${r.dbMax}`);
+    } catch (e) {
+      console.error('[cron delay] 失敗:', (e && e.stack) || String(e));
+      throw e;
+    }
+  },
   async fetch(request, env) {
     const url = new URL(request.url);
     if (url.protocol === 'http:') {
@@ -370,3 +671,6 @@ export default {
     return new Response(res.body, { status: res.status, statusText: res.statusText, headers: h });
   },
 };
+
+// 純函式導出,供離線回歸測試 import(不影響 fetch/scheduled 執行路徑)。
+export const _ingest = { parseDayEvents, buildDayRows, buildBlob, roundHalfUpStr, addDays, twParts };
