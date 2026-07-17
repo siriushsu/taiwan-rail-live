@@ -1772,6 +1772,7 @@
     <details class="foot-box">
       <summary><span>🛠 更新紀錄</span><span class="foot-sub">最後更新：2026/7/17</span></summary>
       <ul class="foot-list">
+        <li><span class="d">7/17</span><span>列車不會再突然「跳一下」了：開著即時校正看動畫時，把播放調快約兩分鐘後（或把時間拉回過去），有誤點的台鐵與捷運列車以前會瞬間跳位——那是動畫在「即時位置」與「純時刻表」之間硬切換造成的。現在改成約三秒的平滑滑行；而且往未來快轉時不再丟掉即時資訊，會沿用最後收到的官方誤點持續推估（時鐘徽章與跟隨面板會標示「推估」），只有回看過去才回到純時刻表模擬</span></li>
         <li><span class="d">7/17</span><span>平板與窄視窗更好找工具了：底部工具帶一列塞不下時，其實可以左右滑動看到更多工具（外觀、平交道、分享⋯），但以前完全沒有提示——現在帶子下緣會顯示一條細細的捲動條，提醒你右邊還有東西</span></li>
         <li><span class="d">7/17</span><span>錄影功能暫時下架調整中：工具列的「⏺ 錄影 Beta」先收起來，整理好之後會再回來；想留下畫面的話，手機或電腦內建的螢幕錄影都不受影響</span></li>
         <li><span class="d">7/17</span><span>選擇選單不會自己跑掉了：跟隨列車時，點到「車與站疊在一起」的地方跳出的選擇按鈕，以前會瞬間消失、根本來不及點——原因是跟隨鏡頭每一格把列車拉回畫面中心，被程式誤當成「你在移動地圖」。現在選單會一直等你，只有你自己拖曳地圖、縮放，或點了別的地方才會收起來（謝謝網友回報）</span></li>
@@ -1932,7 +1933,7 @@
 <script>
 // 版本戳記:每次改版 push 前手動遞增(字母序),畫面時鐘徽章與 console 都會顯示,
 // 供比對線上跑的是不是最新版(瀏覽器快取 max-age=600 常讓人看到舊版)
-const BUILD = 'v0717k';
+const BUILD = 'v0717l';
 const state = {
   systems: [], sysId: null, data: null, speed: 36, mode: 'freq',
   lines: [], visible: new Set(), trains: [], schedStations: [], types: [],
@@ -2697,7 +2698,11 @@ function updateFreqCard(info) {
   if (metroAlertFor(ln)) { txt = '⚠ 營運異常公告中，位置僅供參考'; cls = 'warn'; }
   else if (f.tr && metroLiveOn(ln)) {
     const sh = metroShiftSec(ln, f.tr);
-    txt = '● 已依官方' + (ln._liveShift && ln._liveShift.src === 'ntm' ? '列車動態' : '到站看板') + '校正' + (Math.abs(sh) >= 90 ? '（較表定約' + (sh > 0 ? '慢' : '快') + Math.round(Math.abs(sh) / 60) + ' 分)' : '');
+    const ntm = ln._liveShift && ln._liveShift.src === 'ntm';
+    const dc = Math.abs(sh) >= 90 ? '（較表定約' + (sh > 0 ? '慢' : '快') + Math.round(Math.abs(sh) / 60) + ' 分)' : '';
+    txt = metroFresh(ln) // fresh=校正中用現行文案;非 fresh(高倍速投射/資料稍舊)改「推估」措辭
+      ? '● 已依官方' + (ntm ? '列車動態' : '到站看板') + '校正' + dc
+      : '● 依稍早官方' + (ntm ? '列車動態' : '看板') + '資料推估' + dc;
     cls = 'on';
   } else if (ln.times && ln.times.estimated) txt = '依官方班距推算（未公告逐班時刻），位置為示意';
   else if (f.tr) txt = '依官方當日時刻表行駛' + (metroAlertCovered(ln) ? '；有異常公告會提醒' : '');
@@ -6894,19 +6899,39 @@ function todayStr(tz) {
   return new Date().toLocaleDateString('sv', { timeZone: tz });
 }
 
+// ── 即時校正共用漸變層:偏移目標任何變化(門檻進出/每分鐘資料更新/開機首拉)都以真實時間
+//    ~3 秒指數收斂,消除硬切跳位。advance-on-query:查詢時就地推進,dt 上限 0.1s
+//    (未被查詢期間等同凍結,回前景/回視野再滑,不會瞬跳)。
+const _easedShift = new Map(); // key → {cur, at}
+function easedShift(key, target) {
+  let e = _easedShift.get(key);
+  if (!e) { if (!target) return 0; _easedShift.set(key, e = { cur: 0, at: performance.now() }); } // 無 entry 且目標 0=絕大多數無誤點車,走 fast path 不建 entry
+  const n = performance.now(), dt = Math.min(.1, (n - e.at) / 1000);
+  e.at = n;
+  e.cur += (target - e.cur) * (1 - Math.exp(-dt)); // τ=1s,約 3 秒收斂
+  if (!target && Math.abs(e.cur) < .25) { _easedShift.delete(key); return 0; } // 已滑回表定(<0.25s)=清 entry 回 fast path
+  return e.cur;
+}
+
 // ── 台鐵即時誤點(TDX TrainLiveBoard,經 /api/tra-live 代理,每分鐘更新) ──
 // 修正語意:誤點 N 分的車=照時刻表晚 N 分跑,trainPos 等函式把該車的查詢時間回撥 N 分。
-// 只在「模擬時鐘貼近現在時刻」時套用——時間旅行/高倍速時自動停用,回到純時刻表模擬。
-function liveActive() {
+// 套用政策:未來方向(含高倍速快轉)持續投射最後已知誤點,只有模擬時鐘回看過去 >120 秒才退場;
+// 偏移一律經 easedShift 平滑進出,不硬切。Δ=simSec−nowSecOfDay 用普通減法,不處理跨午夜(盲區同現行)。
+function liveActive() { // 語意=偏移套用中(未必新鮮):資料齡放寬到 30 分(防 API 停擺套陳舊誤點),只往過去退場
   return !!(state.live && state.mode === 'sched' && state.schedSystems && state.schedSystems.some(s => s.live) &&
-    Date.now() - state.live.at < 300e3 &&
-    Math.abs(state.simSec - nowSecOfDay()) <= 120);
+    Date.now() - state.live.at < 1800e3 &&
+    state.simSec - nowSecOfDay() >= -120);
+}
+function liveFresh() { // 新鮮 tier(校正中):資料 5 分內且模擬時鐘貼近現在;liveActive 但非 fresh=推估 tier
+  return liveActive() && Date.now() - state.live.at < 300e3 && Math.abs(state.simSec - nowSecOfDay()) <= 120;
 }
 function liveDelaySec(tr) {
-  if (!liveActive()) return 0;
-  const ls = state.schedSystems.find(s => s.live);
-  if (ls && tr.sys && tr.sys !== ls.id) return 0; // 即時誤點僅套用於有 live 端點的系統(台鐵),不誤套高鐵
-  return (state.live.map.get(String(tr.train)) || 0) * 60;
+  let target = 0;
+  if (liveActive()) {
+    const ls = state.schedSystems.find(s => s.live); // liveActive 已確保 schedSystems 有 live 端點
+    if (!(ls && tr.sys && tr.sys !== ls.id)) target = (state.live.map.get(String(tr.train)) || 0) * 60; // 高鐵等非 live 系統 target 恆 0
+  }
+  return easedShift('tra:' + tr.train, target); // 退場也經漸變滑出,不在門檻關閉時提前 return 0
 }
 async function pollLive() {
   const ls = state.schedSystems && state.schedSystems.find(s => s.live);
@@ -6920,14 +6945,16 @@ async function pollLive() {
     const m = new Map(); let delayed = 0;
     for (const t of d.trains) { m.set(String(t.no), t.delay || 0); if (t.delay > 0) delayed++; }
     state.live = { map: m, at: Date.now(), delayed, srcAt: d.at };
-  } catch (e) { /* 失敗保留舊資料;超過 5 分鐘未更新由 liveActive 自動停用 */ }
+  } catch (e) { /* 失敗保留舊資料;超過 30 分鐘未更新由 liveActive 自動停用 */ }
   updateLiveBadge();
 }
 function updateLiveBadge() {
   const el = document.getElementById('liveBadge');
   const on = liveActive();
   el.hidden = !on;
-  if (on) el.title = `台鐵即時誤點已套用(每分鐘更新)· ${state.live.delayed} 班誤點中 · 來源 ${String(state.live.srcAt).slice(11, 16)}`;
+  if (on) el.title = liveFresh() // fresh=校正中用現行文案;推估 tier(高倍速投射/資料稍舊)改「推估」措辭,不誤稱即時
+    ? `台鐵即時誤點已套用(每分鐘更新)· ${state.live.delayed} 班誤點中 · 來源 ${String(state.live.srcAt).slice(11, 16)}`
+    : `台鐵誤點推估(依 ${String(state.live.srcAt).slice(11, 16)} 即時資料投射)· ${state.live.delayed} 班誤點中`;
   // LIVE 亮起時收掉「時刻表模擬」標籤,兩者並排語意矛盾;熄滅後每秒刷新會自動恢復
   document.getElementById('peak').hidden = on && !state.nightReplay;
 }
@@ -6940,7 +6967,8 @@ pollLive();
 // 找模型該站該方向「最近的一次到離站事件」(過去或未來皆可),差值=該班較表定的早晚;
 // 逐線各方向取中位數存 ln._liveShift,查詢時刻回撥(語意比照台鐵 liveDelaySec)。
 // 最近事件匹配對「剛開走/快到了」歧義天然穩健,也吃得下北捷「只發佈進站中(eta≈0)」的稀疏樣本。
-// 只在「模擬時鐘貼近現在」時輪詢與套用;時間旅行/高倍速自動停用,回到純時刻表推演。
+// 輪詢只在「模擬時鐘貼近現在」時進行(不浪費 TDX 額度);套用政策同台鐵:未來方向(含快轉)持續投射,
+// 只有回看過去 >120 秒才退場,偏移經 easedShift 平滑進出。
 const METRO_LIVE_SYS = { mrt: 1, krtc: 1, tymc: 1 }; // 有 LiveBoard 源的系統(新北捷運/中捷無公開即時源)
 const METRO_LIVE_LINES = { // TDX LineID → 本站線 id(北捷支線拆線;高捷 R/O 本站命名為 KR/KO)
   TRTC: { BR: ['BR'], R: ['R', 'R_XBT'], G: ['G', 'G_XBT'], O: ['O_XINZHUANG', 'O_LUZHOU'], BL: ['BL'] },
@@ -6949,21 +6977,26 @@ const METRO_LIVE_LINES = { // TDX LineID → 本站線 id(北捷支線拆線;高
   TYMC: { A: ['A'] },
 };
 let _mlGateAt = 0, _mlGate = false;
-function metroLiveGate() { // 每秒記憶化:貼近現在才套用(nowSecOfDay 每次配置 Date,不能進每幀熱路徑)
+function metroLiveGate() { // 每秒記憶化:未來方向(含快轉)持續套用,只往過去 >120 秒退場(nowSecOfDay 每次配置 Date,不能進每幀熱路徑)
   const n = Date.now();
-  if (n - _mlGateAt > 1000) { _mlGateAt = n; _mlGate = Math.abs(state.simSec - nowSecOfDay()) <= 120; }
+  if (n - _mlGateAt > 1000) { _mlGateAt = n; _mlGate = state.simSec - nowSecOfDay() >= -120; }
   return _mlGate;
 }
-function metroLiveOn(ln) {
+function metroLiveOn(ln) { // 偏移套用中(未必新鮮):資料齡放寬到 30 分,防 API 停擺套陳舊 shift
   const s = ln._liveShift;
-  return !!(s && Date.now() - s.at < 300e3 && metroLiveGate());
+  return !!(s && Date.now() - s.at < 1800e3 && metroLiveGate());
 }
-function metroShiftSec(ln, tr) { // 正=實際比表定晚跑(誤點);非環線分方向,環線(高雄輕軌)全線共用
-  if (!metroLiveOn(ln)) return 0;
+function metroFresh(ln) { // 新鮮 tier(校正中):資料 5 分內且模擬時鐘貼近現在;metroLiveOn 但非 fresh=推估 tier
   const s = ln._liveShift;
-  if (ln.loop || !tr) return s.all || 0;
-  const v = tr[0] <= tr[tr.length - 2] ? s.f : s.b;
-  return v != null ? v : (s.all || 0);
+  return !!(metroLiveOn(ln) && Date.now() - s.at < 300e3 && Math.abs(state.simSec - nowSecOfDay()) <= 120);
+}
+function metroShiftSec(ln, tr) { // 正=實際比表定晚跑(誤點);非環線分方向,環線(高雄輕軌)全線共用;經 easedShift 平滑進出
+  const s = ln._liveShift, on = metroLiveOn(ln);
+  let target = 0, dch; // 方向字元 f/b/a:eased 偏移逐線逐方向共用(非逐車)
+  if (ln.loop || !tr) { dch = 'a'; if (on) target = s.all || 0; }
+  else { const fwd = tr[0] <= tr[tr.length - 2]; dch = fwd ? 'f' : 'b'; if (on) { const v = fwd ? s.f : s.b; target = v != null ? v : (s.all || 0); } }
+  // key 須跨 rebuildFreqLines 穩定(line 物件會重建,不可用 ln 物件當 key)
+  return easedShift(freqSysIdOf(ln) + ':' + ln.id + ':' + dch, target);
 }
 function freqSysIdOf(ln) { return ln._sys || (state.sys && state.sys.id); }
 function metroLivePool() { // 校正對象:各捷運分頁=state.lines;全台同框=裝飾捷運層(deco 也吃 _tt+simSec,同一套錨定直接適用)
@@ -7034,7 +7067,7 @@ function applyMetroLive(sysId, rows) {
   const med = a => { if (a.length < 3) return null; const s = a.slice().sort((x, y) => x - y); return Math.round(s[s.length >> 1]); };
   for (const [ln, rec] of perLine) {
     const all = med(rec.all);
-    if (all == null) continue; // 樣本不足:保留舊 shift,>5 分鐘未更新由 metroLiveOn 自動停用
+    if (all == null) continue; // 樣本不足:保留舊 shift,>30 分鐘未更新由 metroLiveOn 自動停用
     ln._liveShift = { f: med(rec.f), b: med(rec.b), all, at: nowAbs, n: rec.all.length };
   }
 }
@@ -7075,14 +7108,15 @@ function updateMetroBadge() {
   const el = document.getElementById('metroBadge');
   if (!el) return;
   const pool = metroLivePool();
-  const on = pool.some(ln => metroLiveOn(ln));
-  el.hidden = !on;
-  if (on) {
-    const parts = pool.filter(ln => metroLiveOn(ln)).map(ln => {
+  const onLines = pool.filter(ln => metroLiveOn(ln));
+  el.hidden = !onLines.length;
+  if (onLines.length) {
+    const parts = onLines.map(ln => {
       const m = Math.round((ln._liveShift.all || 0) / 60);
       return (ln.name || ln.id) + (m > 0 ? '晚' + m + '分' : m < 0 ? '早' + (-m) + '分' : '準點');
     });
-    el.title = '動畫已依官方即時資訊校正(約每分鐘更新):' + parts.join('、');
+    const allFresh = onLines.every(ln => metroFresh(ln)); // 有任一線非 fresh(高倍速投射/資料稍舊)整體改推估措辭,不逐線精雕
+    el.title = (allFresh ? '動畫已依官方即時資訊校正(約每分鐘更新):' : '動畫依稍早官方資料推估:') + parts.join('、');
   }
 }
 setInterval(pollMetroLive, 60e3);
@@ -7167,7 +7201,7 @@ function applyNtmLive(feed, src) {
   const med = a => { if (a.length < 3) return null; const s = a.slice().sort((x, y) => x - y); return Math.round(s[s.length >> 1]); };
   for (const [ln, rec] of perLine) {
     const all = med(rec.all);
-    if (all == null) continue; // 樣本不足:保留舊 shift,>5 分鐘未更新由 metroLiveOn 自動停用
+    if (all == null) continue; // 樣本不足:保留舊 shift,>30 分鐘未更新由 metroLiveOn 自動停用
     ln._liveShift = { f: med(rec.f), b: med(rec.b), all, at: nowAbs, n: rec.all.length, src: 'ntm' };
   }
 }
@@ -7478,7 +7512,7 @@ function renderBoard() {
   el.innerHTML = `<button class="close" id="boardClose">×</button>` +
     `<button class="board-star${fav ? ' on' : ''}" id="boardStar" title="${fav ? '移除最愛車站' : '加入最愛車站'}">${fav ? '★' : '☆'}</button>` +
     `<h3>${st.name}${sysName ? `<span class="sys-chip">${sysName}</span>` : ''}</h3>` + stnMetaHtml(st) +
-    `<div class="sub">接下來 3 小時會有誰來 · ${liveActive() ? '已套用台鐵即時誤點' : '依時刻表（無誤點資訊）'} · 點班次跟隨</div>` +
+    `<div class="sub">接下來 3 小時會有誰來 · ${liveFresh() ? '已套用台鐵即時誤點' : liveActive() ? '已依即時誤點推估' : '依時刻表（無誤點資訊）'} · 點班次跟隨</div>` +
     (list || '<div class="empty">此時段無停靠班次</div>');
   el.hidden = false;
   updateSheetOpenClass();
