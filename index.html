@@ -905,6 +905,9 @@
   .badge .live::before { content: '●'; margin-right: 3px; animation: livePulse 2s infinite; }
   .badge .mlive { font-size: 11px; font-weight: 800; color: #0f7fa8; letter-spacing: .5px; cursor: help; }
   .badge .mlive::before { content: '●'; margin-right: 3px; animation: livePulse 2s infinite; }
+  /* 推估 tier(快轉投射未來/資料稍舊):灰化+靜止圓點,與 fresh 校正的綠/藍脈動視覺區分 */
+  .badge .live.est, .badge .mlive.est { color: var(--muted); }
+  .badge .live.est::before, .badge .mlive.est::before { animation: none; opacity: .55; }
   @keyframes livePulse { 0%, 100% { opacity: 1; } 50% { opacity: .35; } }
   .lateTag {
     color: var(--warn-ink); font-weight: 800; font-size: 10.5px; margin-left: 4px;
@@ -1803,6 +1806,7 @@
     <details class="foot-box">
       <summary><span>🛠 更新紀錄</span><span class="foot-sub">最後更新：2026/7/17</span></summary>
       <ul class="foot-list">
+        <li><span class="d">7/17</span><span>快轉時左上角 LIVE 徽章不再一直亮著：模擬時間離開「現在」兩分鐘以上，台鐵「LIVE」會轉成灰色「推估」、捷運「看板校正」轉成「看板推估」，表示畫面是依最後收到的官方資料投射；回到現在就自動恢復綠 LIVE／藍看板校正（謝謝回報）</span></li>
         <li><span class="d">7/17</span><span>搜尋框提示文字說清楚：原本在捷運分頁只寫「搜尋車站」，讓人以為不能搜車次——其實打車次號一直都可以（會自動切到國家鐵路跟隨），現在提示改成「搜尋車站或車次」，不再誤導（謝謝回報）</span></li>
         <li><span class="d">7/17</span><span>看板右上角的 ☆ 收藏與 × 關閉鈕不再神隱：以前在班次多的車站往下捲列表，這兩顆按鈕會跟著內容捲走不見（標題還在、按鈕沒了）——現在它們釘在標題列上，怎麼捲都在。我的最愛、旅程收集、今日亮點、軌道面板的關閉鈕也一併釘好（謝謝回報）</span></li>
         <li><span class="d">7/17</span><span>搜尋合而為一：上方那個搜尋框現在打站名、打車次都行——輸入「台北」會列出台鐵、高鐵、北捷、機捷各自的台北站，點一下就飛過去、直接開那站的到站看板；輸入車次號（像 152、2103）則直接跟隨那班車。原本工具列的「找 找站」按鈕功成身退，一個框搞定兩件事</span></li>
@@ -1969,7 +1973,7 @@
 <script>
 // 版本戳記:每次改版 push 前手動遞增(字母序),畫面時鐘徽章與 console 都會顯示,
 // 供比對線上跑的是不是最新版(瀏覽器快取 max-age=600 常讓人看到舊版)
-const BUILD = 'v0717q';
+const BUILD = 'v0717r';
 const state = {
   systems: [], sysId: null, data: null, speed: 36, mode: 'freq',
   lines: [], visible: new Set(), trains: [], schedStations: [], types: [],
@@ -4493,7 +4497,7 @@ function tick(now) {
   state._skyClock = (state._skyClock || 0) + dt;
   if (state._skyClock >= 0.5) { state._skyClock = 0; updateSkyTint(); }
   state._liveClock = (state._liveClock || 0) + dt;
-  if (state._liveClock >= 1) { state._liveClock = 0; updateLiveBadge(); if (state.liveMode && !state.director) liveClockTick(); else if (state.director) directorClockTick(); } // 導播現在也是 1× 貼真實時刻,只是用不含深夜重播替代的簡化版
+  if (state._liveClock >= 1) { state._liveClock = 0; updateLiveBadge(); updateMetroBadge(); if (state.liveMode && !state.director) liveClockTick(); else if (state.director) directorClockTick(); } // 導播現在也是 1× 貼真實時刻,只是用不含深夜重播替代的簡化版;兩徽章同秒刷,快轉跨門檻時同步轉推估
   // 省電三板斧(繪製節流,不動上面的時間積分):
   // (1) 分頁隱藏停繪——時間照積分,只是不畫;錄影中例外(recCompose 每幀從主畫布拷貝,停繪會凍結成靜止幀)
   // (2) 待機時 draw 節流到 ~30fps;跟隨/幽靈車跟隨/放空/錄影/剛互動(1.5s 內)維持顯示器全速,體驗優先
@@ -6985,9 +6989,14 @@ function updateLiveBadge() {
   const el = document.getElementById('liveBadge');
   const on = liveActive();
   el.hidden = !on;
-  if (on) el.title = liveFresh() // fresh=校正中用現行文案;推估 tier(高倍速投射/資料稍舊)改「推估」措辭,不誤稱即時
-    ? `台鐵即時誤點已套用(每分鐘更新)· ${state.live.delayed} 班誤點中 · 來源 ${String(state.live.srcAt).slice(11, 16)}`
-    : `台鐵誤點推估(依 ${String(state.live.srcAt).slice(11, 16)} 即時資料投射)· ${state.live.delayed} 班誤點中`;
+  if (on) {
+    const fresh = liveFresh(); // fresh=校正中綠 LIVE;推估 tier(高倍速投射/資料稍舊)灰化改「推估」,不誤稱即時
+    el.textContent = fresh ? 'LIVE' : '推估';
+    el.classList.toggle('est', !fresh);
+    el.title = fresh
+      ? `台鐵即時誤點已套用(每分鐘更新)· ${state.live.delayed} 班誤點中 · 來源 ${String(state.live.srcAt).slice(11, 16)}`
+      : `台鐵誤點推估(依 ${String(state.live.srcAt).slice(11, 16)} 即時資料投射)· ${state.live.delayed} 班誤點中`;
+  }
   // LIVE 亮起時收掉「時刻表模擬」標籤,兩者並排語意矛盾;熄滅後每秒刷新會自動恢復
   document.getElementById('peak').hidden = on && !state.nightReplay;
 }
@@ -7149,11 +7158,13 @@ function updateMetroBadge() {
       return (ln.name || ln.id) + (m > 0 ? '晚' + m + '分' : m < 0 ? '早' + (-m) + '分' : '準點');
     });
     const allFresh = onLines.every(ln => metroFresh(ln)); // 有任一線非 fresh(高倍速投射/資料稍舊)整體改推估措辭,不逐線精雕
+    el.textContent = allFresh ? '看板校正' : '看板推估';
+    el.classList.toggle('est', !allFresh);
     el.title = (allFresh ? '動畫已依官方即時資訊校正(約每分鐘更新):' : '動畫依稍早官方資料推估:') + parts.join('、');
   }
 }
 setInterval(pollMetroLive, 60e3);
-setInterval(updateMetroBadge, 10e3); // 資料過期/時間旅行時徽章自動熄
+// 徽章刷新走 draw 的 1 秒 tick(與台鐵 LIVE 同步),資料過期/時間旅行/快轉跨門檻都會即時轉態
 document.addEventListener('visibilitychange', () => { if (!document.hidden) { pollMetroLive(); pollNtmLive(); } });
 
 // ── 新北捷即時校正(官方列車動態 trainstatus.ntmetro.com.tw,經 /api/ntmetro-live 代理,約每分鐘) ──
