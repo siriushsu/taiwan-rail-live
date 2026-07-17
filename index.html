@@ -1287,6 +1287,12 @@
     .badge { top: 8px; left: 8px; gap: 9px; padding: 5px 11px 6px; }
     .badge .clock { font-size: 17px; }
     .badge .count { font-size: 12px; }
+    /* ≤400px 窄機:尖峰跟隨時 LIVE＋看板校正＋三位數班次會把徽章撐到壓住全畫面鈕——
+       「看板校正」縮成純脈動藍點(400px 以上字樣不變) */
+    @media (max-width: 400px) {
+      .badge .mlive { font-size: 0; letter-spacing: 0; }
+      .badge .mlive::before { font-size: 11px; }
+    }
     /* 手機:工具全部住在 tab bar「更多」sheet;帶收成速度膠囊(見下) */
     .tabbar { display: flex; }
     .rec-toast { left: 8px; transform: none; max-width: calc(100% - 124px); }
@@ -1760,6 +1766,8 @@
     <details class="foot-box">
       <summary><span>🛠 更新紀錄</span><span class="foot-sub">最後更新：2026/7/17</span></summary>
       <ul class="foot-list">
+        <li><span class="d">7/17</span><span>地圖上的共構車站也標出來了：台北、板橋、南港、新左營×左營、六家×新竹這些台鐵高鐵疊在同一點的站，地圖拉近後站名會成組顯示「臺北・台鐵」「台北・高鐵」，一眼看出這個點其實有兩家的車站——之前兩個站名疊在一起，永遠只看得到其中一個</span></li>
+        <li><span class="d">7/17</span><span>小螢幕手機修正：尖峰時段跟隨列車時，左上角時鐘徽章的「LIVE＋看板校正」加上三位數班次會撐到壓住全畫面按鈕——400px 以下的窄機把「看板校正」縮成脈動藍點，不再重疊</span></li>
         <li><span class="d">7/17</span><span>共構車站分清楚了：台北、板橋、南港這類台鐵與高鐵（還有捷運）疊在同一個點的車站，以前點下去永遠只開得了其中一張看板——現在會跳出小選單列出「台北・台鐵」「台北・高鐵」讓你選；看板標題也加上系統標示，一眼就知道現在看的是哪一家的班次。高鐵台中×新烏日、左營×新左營這種名字不同的共構站也適用</span></li>
         <li><span class="d">7/17</span><span>最愛車站在地圖上會亮 ★ 了：收藏過的車站，地圖站點上方會掛一顆金色星星（換分頁會跟著你目前看得到的路網顯示），點星星直接打開該站看板</span></li>
         <li><span class="d">7/17</span><span>手機修正：全畫面時點下方收合的速度膠囊，不再直接跳出「改時間」滾輪——現在會先展開完整控制帶，展開後再點時間才會進入改時間</span></li>
@@ -1912,7 +1920,7 @@
 <script>
 // 版本戳記:每次改版 push 前手動遞增(字母序),畫面時鐘徽章與 console 都會顯示,
 // 供比對線上跑的是不是最新版(瀏覽器快取 max-age=600 常讓人看到舊版)
-const BUILD = 'v0717f';
+const BUILD = 'v0717g';
 const state = {
   systems: [], sysId: null, data: null, speed: 36, mode: 'freq',
   lines: [], visible: new Set(), trains: [], schedStations: [], types: [],
@@ -2462,6 +2470,20 @@ function applySchedSystems(sysList) {
     st.tier = c ? (CLS_TIER[c] != null ? CLS_TIER[c] : 4)
       : (n => n >= 200 ? 1 : n >= 90 ? 2 : n >= 30 ? 3 : 4)(stopCount[st.sys + '|' + st.name] || 0);
   });
+  // 共構站群(跨系統 ≤150m:台北/板橋/南港 台鐵×高鐵、新左營×左營、六家×新竹、沙崙×台南…):
+  // 地圖站名標籤要成組帶系統名標出「這個點疊著兩家」;新烏日×台中 347m 拉近即分開,不列
+  for (const st of state.schedStations) st._co = null;
+  for (let i = 0; i < state.schedStations.length; i++) {
+    const a = state.schedStations[i];
+    for (let j = i + 1; j < state.schedStations.length; j++) {
+      const b = state.schedStations[j];
+      if (a.sys === b.sys) continue;
+      if (map.distance([a.lat, a.lon], [b.lat, b.lon]) <= 150) {
+        (a._co = a._co || []).push(b);
+        (b._co = b._co || []).push(a);
+      }
+    }
+  }
   // 車種:合併(key 目前不撞;撞了保留先出現的)
   state.types = [];
   const tkey = new Set();
@@ -2877,12 +2899,31 @@ function drawSched(w, h) {
   ctx.textAlign = 'center';
   labelCands.sort((a, b) => a.tier - b.tier);
   const drawnNames = new Set();
+  const sysLabelOf = st => (state.systems.find(x => x.id === st.sys) || {}).label || '';
+  // 去重鍵=實際要畫的字串:共構展開時「新竹・高鐵」(六家旁)與台鐵縱貫線「新竹」是兩個不同實體站,
+  // 純站名去重會讓後者把前者吃掉(桌機寬視野同框時);z<11 不展開,回到「一個名字只標一次」
+  const labelTextOf = st => (st._co && z >= 11) ? st.name + '・' + sysLabelOf(st) : st.name;
   for (const c of labelCands) {
     const t = TIER_STYLE[c.tier];
-    if (z < t.lz || drawnNames.has(c.st.name)) continue;
-    drawnNames.add(c.st.name);
+    const key = labelTextOf(c.st);
+    if (z < t.lz || drawnNames.has(key)) continue;
+    drawnNames.add(key);
     const a = stationLabelAnchor(c.cp, c.st, t);
-    tryLabel(a.x, a.y, c.st.name, t.f, c.tier <= 1 ? 4 : 3);
+    if (c.st._co && z >= 11) {
+      // 共構點(台鐵×高鐵同址):成組標示——主站在錨位、同群站逐行往下,各帶系統名,
+      // 不然兩顆標籤幾乎同位置互撞,永遠只看得到其中一家(拉遠 z<11 視覺上是同一點,只標主站名)
+      tryLabel(a.x, a.y, key, t.f, c.tier <= 1 ? 4 : 3);
+      let dy = 0;
+      for (const sib of c.st._co) {
+        const sk = labelTextOf(sib);
+        if (drawnNames.has(sk)) continue;
+        drawnNames.add(sk);
+        dy += 14;
+        tryLabel(a.x, a.y + dy, sk, TIER_STYLE[sib.tier == null ? 4 : sib.tier].f, 3);
+      }
+    } else {
+      tryLabel(a.x, a.y, key, t.f, c.tier <= 1 ? 4 : 3);
+    }
   }
   document.getElementById('count').textContent = `${n} 班奔跑中`;
 }

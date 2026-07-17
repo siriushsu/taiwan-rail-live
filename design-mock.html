@@ -1263,6 +1263,12 @@
     .badge { top: 8px; left: 8px; gap: 9px; padding: 5px 11px 6px; }
     .badge .clock { font-size: 17px; }
     .badge .count { font-size: 12px; }
+    /* ≤400px 窄機:尖峰跟隨時 LIVE＋看板校正＋三位數班次會把徽章撐到壓住全畫面鈕——
+       「看板校正」縮成純脈動藍點(400px 以上字樣不變) */
+    @media (max-width: 400px) {
+      .badge .mlive { font-size: 0; letter-spacing: 0; }
+      .badge .mlive::before { font-size: 11px; }
+    }
     /* 手機:工具全部住在 tab bar「更多」sheet;帶收成速度膠囊(見下) */
     .tabbar { display: flex; }
     .rec-toast { left: 8px; transform: none; max-width: calc(100% - 124px); }
