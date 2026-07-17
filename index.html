@@ -249,8 +249,13 @@
     box-shadow: var(--shadow-1), inset 0 3px 0 var(--gold);
     padding: 7px 12px 5px;
     overflow-x: auto; overflow-y: hidden; /* 中窄桌面塞不下時帶內橫捲,帶高恆定不推擠疊層 */
-    scrollbar-width: thin; scrollbar-color: var(--line) transparent;
   }
+  /* 帶的橫捲軸「溢出時常駐可見」:平板/窄桌面(768~1024)下這是「右邊還有工具」的唯一提示——
+     overlay 捲軸平時全隱形,使用者不知道帶可捲(themeBtn 起會被右緣裁掉)。
+     注意 Blink 下標準 scrollbar-width/color 一旦設定就會停用 ::-webkit-scrollbar,故只用偽元素。 */
+  .controls::-webkit-scrollbar { height: 6px; }
+  .controls::-webkit-scrollbar-track { background: transparent; }
+  .controls::-webkit-scrollbar-thumb { background: var(--line); border-radius: 3px; }
   .controls > * { flex: none; }
   .band-div { align-self: stretch; border-left: 1.5px dashed var(--line-dash); margin: 2px 0; }
   .ctl { display: flex; align-items: center; gap: 8px; }
@@ -1767,6 +1772,7 @@
     <details class="foot-box">
       <summary><span>🛠 更新紀錄</span><span class="foot-sub">最後更新：2026/7/17</span></summary>
       <ul class="foot-list">
+        <li><span class="d">7/17</span><span>平板與窄視窗更好找工具了：底部工具帶一列塞不下時，其實可以左右滑動看到更多工具（外觀、平交道、分享⋯），但以前完全沒有提示——現在帶子下緣會顯示一條細細的捲動條，提醒你右邊還有東西</span></li>
         <li><span class="d">7/17</span><span>錄影功能暫時下架調整中：工具列的「⏺ 錄影 Beta」先收起來，整理好之後會再回來；想留下畫面的話，手機或電腦內建的螢幕錄影都不受影響</span></li>
         <li><span class="d">7/17</span><span>選擇選單不會自己跑掉了：跟隨列車時，點到「車與站疊在一起」的地方跳出的選擇按鈕，以前會瞬間消失、根本來不及點——原因是跟隨鏡頭每一格把列車拉回畫面中心，被程式誤當成「你在移動地圖」。現在選單會一直等你，只有你自己拖曳地圖、縮放，或點了別的地方才會收起來（謝謝網友回報）</span></li>
         <li><span class="d">7/17</span><span>地圖上的共構車站也標出來了：台北、板橋、南港、新左營×左營、六家×新竹這些台鐵高鐵疊在同一點的站，地圖拉近後站名會成組顯示「臺北・台鐵」「台北・高鐵」，一眼看出這個點其實有兩家的車站——之前兩個站名疊在一起，永遠只看得到其中一個</span></li>
@@ -1926,7 +1932,7 @@
 <script>
 // 版本戳記:每次改版 push 前手動遞增(字母序),畫面時鐘徽章與 console 都會顯示,
 // 供比對線上跑的是不是最新版(瀏覽器快取 max-age=600 常讓人看到舊版)
-const BUILD = 'v0717j';
+const BUILD = 'v0717k';
 const state = {
   systems: [], sysId: null, data: null, speed: 36, mode: 'freq',
   lines: [], visible: new Set(), trains: [], schedStations: [], types: [],

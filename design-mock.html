@@ -225,8 +225,13 @@
     box-shadow: var(--shadow-1), inset 0 3px 0 var(--gold);
     padding: 7px 12px 5px;
     overflow-x: auto; overflow-y: hidden; /* 中窄桌面塞不下時帶內橫捲,帶高恆定不推擠疊層 */
-    scrollbar-width: thin; scrollbar-color: var(--line) transparent;
   }
+  /* 帶的橫捲軸「溢出時常駐可見」:平板/窄桌面(768~1024)下這是「右邊還有工具」的唯一提示——
+     overlay 捲軸平時全隱形,使用者不知道帶可捲(themeBtn 起會被右緣裁掉)。
+     注意 Blink 下標準 scrollbar-width/color 一旦設定就會停用 ::-webkit-scrollbar,故只用偽元素。 */
+  .controls::-webkit-scrollbar { height: 6px; }
+  .controls::-webkit-scrollbar-track { background: transparent; }
+  .controls::-webkit-scrollbar-thumb { background: var(--line); border-radius: 3px; }
   .controls > * { flex: none; }
   .band-div { align-self: stretch; border-left: 1.5px dashed var(--line-dash); margin: 2px 0; }
   .ctl { display: flex; align-items: center; gap: 8px; }
