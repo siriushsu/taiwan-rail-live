@@ -459,6 +459,9 @@ function assemble({ id, name, color, ids, stations, parts, maps, freq, loop, est
 {
   console.log('== NTALRT 安坑輕軌');
   const stations = stationMap('NTALRT_Station.json');
+  // TDX 上游把台北小城(K03)座標誤植成與耕莘安康院區(K04)幾乎重疊(相距僅13m,issue #6);
+  // 正確位置在安一路/僑信路口(維基百科與 OSM 互證、恰落於 TDX 軌道幾何上,離軌 0m)
+  Object.assign(stations.get('K03'), { lat: 24.95369, lon: 121.49937 });
   const sol = solOrder('NTALRT_StationOfLine.json');
   const shapes = shapeParts('NTALRT_Shape.json');
   const maps = s2sMapsOpt('NTALRT_S2STravelTime.json'); // TDX 無 S2S 檔

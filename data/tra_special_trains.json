@@ -9,7 +9,7 @@
   "rollingStock": [
     {
       "id": "emu3000",
-      "carNames": ["自強(3000障)", "自強(3000親障)"],
+      "carNames": ["自強(3000障)", "自強(3000親障)", "110K", "110M"],
       "name": "EMU3000 新自強號",
       "tags": ["現役主力", "得獎設計"],
       "rarity": "常見",
@@ -76,24 +76,6 @@
         "https://zh.wikipedia.org/zh-tw/%E6%8E%A8%E6%8B%89%E5%BC%8F%E8%87%AA%E5%BC%B7%E8%99%9F",
         "https://news.ltn.com.tw/news/life/breakingnews/5485744",
         "https://newtalk.tw/news/view/2026-04-16/1030139"
-      ]
-    },
-    {
-      "id": "e500pp",
-      "carNames": ["110K", "110M"],
-      "name": "自強號（E500 新編組・官方代碼未公布）",
-      "tags": ["神祕代碼", "西部長途"],
-      "rarity": "稀有",
-      "story": "官方車種代碼表（V1.6）還沒收錄的神祕新代碼。比對車次與報導，極可能是 2024 年啟航、日本東芝製 E500 電力機車牽引的新一代 PP 自強號。這幾班車跑基隆／七堵到潮州的西部縱貫長途，單程近 6 小時，是今日班表上跑最久的自強號之一。",
-      "facts": [
-        "E500 是台鐵首款日製電力機車，共採購 88 輛",
-        "2024/9/30 E500 啟航儀式的首發列車就是本代碼的 121 次"
-      ],
-      "status2026": "推定為 E500 牽引之新 PP 編組；正式名稱待台鐵公布新版代碼表。",
-      "confidence": "medium",
-      "sources": [
-        "https://taiwan.chtsai.org/2024/10/06/tr_e500_pp/",
-        "https://zh.wikipedia.org/zh-tw/%E5%8F%B0%E9%90%B5E500%E5%9E%8B%E9%9B%BB%E5%8A%9B%E6%A9%9F%E8%BB%8A"
       ]
     },
     {
