@@ -1832,6 +1832,7 @@
     <details class="foot-box">
       <summary><span>🛠 更新紀錄</span><span class="foot-sub">最後更新：2026/7/18</span></summary>
       <ul class="foot-list">
+        <li><span class="d">7/18</span><span>放空模式新增「都會呼吸」運鏡：鏡頭偶爾會停在台北、台中、高雄上空，畫面化為乾淨的島嶼輪廓（劇場風格），列車與路網浮在其上，像深呼吸一樣緩緩拉近再緩緩拉遠，當作一個定場的療癒畫面；動一下地圖，就會回到平常的街道地圖、把控制權交還給你</span></li>
         <li><span class="d">7/18</span><span>平溪、深澳、集集、內灣（竹中以南）這幾條還沒電氣化的支線，車種說明原本誤標成「通勤電聯車」——其實這些山線跑的是 DR1000 型柴油客車（自帶柴油引擎、不靠電車線）。現在跟這些支線的車、或點開它的資訊卡，車種會正確顯示「DR1000 型柴油客車」（六家、沙崙線是電氣化的電聯車，維持不變）</span></li>
         <li><span class="d">7/18</span><span>「山海平原」成就更好拿、也看得到進度了：以前要連續跟山海號或平原號整整一輪來回（等於盯著看 12 分鐘不能中斷）才蓋章，門檻太硬——現在改成跟到折返點枋寮（半圈）就達成；跟車面板的進度條也會即時顯示「環島完乘 XX%」，不再是跟半天不知道到底有沒有在算</span></li>
         <li><span class="d">7/17</span><span>放空模式兩項調整：放空看久了、一段時間沒碰畫面，會自動進入「劇場模式」——地圖化為乾淨的全島輪廓，列車與背景音樂照常運行，畫面清爽得像螢幕保護程式；手指或滑鼠動一下，就回到平常的地圖。另外，放空的預設視角改成「群車」——鏡頭停在當下最熱鬧的路段看多班列車交錯，而不是只跟著一班車跑；想專心跟一班車的話，放空面板的「視角」按鈕一鍵切回跟車</span></li>
@@ -2005,7 +2006,7 @@
 <script>
 // 版本戳記:每次改版 push 前手動遞增(字母序),畫面時鐘徽章與 console 都會顯示,
 // 供比對線上跑的是不是最新版(瀏覽器快取 max-age=600 常讓人看到舊版)
-const BUILD = 'v0717v';
+const BUILD = 'v0717x';
 const state = {
   systems: [], sysId: null, data: null, speed: 36, mode: 'freq',
   lines: [], visible: new Set(), trains: [], schedStations: [], types: [],
@@ -3402,6 +3403,8 @@ const THEATER_IDLE_SEC = (() => {
   try { const v = parseInt(new URLSearchParams(location.search).get('theater'), 10); if (v > 0) return v; } catch (e) {}
   return 75 * 60;
 })();
+// ?breath=1 → 放空只抽「都會呼吸」幕(測試用,比照 ?theater 除錯先例;?live 訊號源不受此參數影響)。見 hotspotTick 的城市幕抽選。
+const FORCE_BREATH = (() => { try { return new URLSearchParams(location.search).get('breath') === '1'; } catch (e) { return false; } })();
 let meMarker = null, meCircle = null;
 const NEAR_XING_KM = 5;  // 「附近平交道」搜尋半徑(公里,可調)
 const NEAR_XING_N = 8;   // 清單最多列幾處
@@ -4522,6 +4525,7 @@ function tick(now) {
   }
   if (state.ambient && state.ambientStyle === 'hotspot' && !state.followTrain && !state.freqFollow &&
       state.mode === 'sched' && state.playing) { hotspotTick(now); hotCruise(dt, now); }
+  else if (map && (map.options.zoomSnap === 0 || state._breathStage)) { breathSnapRestore(true); breathStageRestore(); } // 離開群車放空時,呼吸幕殘留的分數 zoom/離線舞台兜底還原(安全網:漏掉任一離場點也不會把分數 zoom 或無街圖狀態交到使用者手上)
   // 省電模式:把「相機每幀 setView 置中(觸發 reflow,手機跟隨時的主要卡點)＋繪製」統一節流到 ~30fps。
   // 放空/錄影不套(放空游標以 dt 積分,節流會變慢;錄影要滿幀);時間積分與各資訊卡時鐘照每幀跑,不受影響。
   const psActive = state.powerSave && !REC.on && !state.ambient;
@@ -5477,6 +5481,58 @@ function pickCityOverview() {
   const c = bounds.getCenter();
   return { lat: c.lat, lon: c.lng, z, dir: Math.random() * Math.PI * 2, anchor: { lat: c.lat, lon: c.lng }, slow: true };
 }
+// 都會呼吸(放空定場鏡頭):鏡頭停在三大都會上空「固定錨點」,z 沿正弦緩緩放大到頂再縮回,
+// 畫面採劇場美學上台(離線輪廓+列車路網浮其上,見 breathStage)——圖磚零載入(站長點名要的療癒定場)。
+const BREATH_CHANCE = 0.5;      // 抽到城市幕後,一半機率改走呼吸(淨機率約 15% = CITY_OVERVIEW_CHANCE × 此值)
+const BREATH_PERIOD_SEC = 150;  // 一個完整呼吸(放大到頂再縮回)= 150 秒
+const BREATH_Z = [11, 15];      // 正弦在 z11(整座都會)⇄ z15(街廓)之間呼吸
+const BREATH_SCENE_MIN = 150000, BREATH_SCENE_MAX = 300000; // 幕長 150–300 秒(1–2 個完整循環)
+function pickBreathCity() {
+  // 城市選擇沿用 pickHotspot 的「近幾幕地區懲罰」(regionOf):近期停過的都會權重打低,三大都會輪替不連停同一座
+  const hist = state._hotRegionHist || (state._hotRegionHist = []);
+  let total = 0;
+  const ws = CITY_OVERVIEWS.map(id => {
+    const b = CITY_BBOX[id], r = regionOf((b[0] + b[2]) / 2, (b[1] + b[3]) / 2);
+    const w = 1 / (1 + hist.filter(x => x === r).length); total += w; return w;
+  });
+  let r = Math.random() * total, id = CITY_OVERVIEWS[CITY_OVERVIEWS.length - 1];
+  for (let i = 0; i < CITY_OVERVIEWS.length; i++) { r -= ws[i]; if (r <= 0) { id = CITY_OVERVIEWS[i]; break; } }
+  const b = CITY_BBOX[id];
+  hist.push(regionOf((b[0] + b[2]) / 2, (b[1] + b[3]) / 2)); if (hist.length > 6) hist.shift(); // 記入近幾幕歷史(同 pickHotspot 上限 6)
+  return id;
+}
+function pickBreathScene() {
+  const id = pickBreathCity(), b = CITY_BBOX[id];
+  const c = L.latLngBounds([[b[0], b[1]], [b[2], b[3]]]).getCenter();
+  // 錨點固定城市中心、零漂移;z 初始落在 z0(整座都會),hotCruise 的 sc.breath 分支逐幀沿正弦推進
+  return { lat: c.lat, lon: c.lng, anchor: { lat: c.lat, lon: c.lng }, z: BREATH_Z[0], breath: true, z0: BREATH_Z[0], z1: BREATH_Z[1], bt: 0 };
+}
+// 呼吸幕要分數 zoom(z11.0→15.0 平滑),故運行中把 Leaflet zoomSnap 設 0(每次 _limitZoom 動態讀)。離場——換幕、
+// 使用者互動、關放空、進劇場——必須還原原值(1)並把 zoom 收回整數,否則使用者拿到手的地圖會卡在分數 zoom、連滾輪級距都變了。
+// 呼叫點:hotspotTick 換幕、dragstart/zoomstart 使用者接管、enterTheater、主迴圈兜底;呼吸中的 zoomSnap=0 由 hotCruise 逐幀重設。
+function breathSnapRestore(round) {
+  if (!map) return;
+  map.options.zoomSnap = 1; // 還原 Leaflet 預設(本圖從沒設過別的值)
+  if (round) { const z = map.getZoom(); if (z !== Math.round(z)) { state._hotCam = true; map.setZoom(Math.round(z), { animate: false }); state._hotCam = false; } }
+}
+// 呼吸幕舞台(劇場美學):比照 enterTheater 的底圖處理——卸下線上圖磚、露出墊底的離線海陸輪廓(offlineLand,劇場同款)。
+// 為什麼:逐幀分數 zoom 的 setView 每幀走 Leaflet 硬重置路徑,圖磚清了又載永遠上不了畫面(zoomAnimation:false 是 v0714a
+// 殘影鐵則不可動)——街圖在呼吸幕物理上顯示不出來,索性作為刻意的定場畫面呈現,順帶圖磚零載入。不動劇場模式本身的行為。
+function breathStage() {
+  if (!map || state._theater) return; // 劇場擁有舞台時不搶(劇場自己已卸圖磚)
+  if (!state._breathStage) {
+    state._breathStage = true;
+    if (!state.offlineLand) setupOfflineLand();
+    else state.offlineLand.setStyle(offlineLandStyle()); // 跟隨當前亮暗/衛星主題配色(同 enterTheater)
+  }
+  // 每幀冪等掃(hasLayer 為 O(1)):呼吸中若有人 setBasemap(如換主題)把圖磚加回來,下一幀再卸掉,舞台自癒
+  for (const k in baseLayers) if (map.hasLayer(baseLayers[k])) map.removeLayer(baseLayers[k]);
+}
+function breathStageRestore() {
+  if (!map || !state._breathStage) return; // 冪等:沒上過台就不動底圖
+  state._breathStage = false;
+  if (!state._theater) setBasemap(); // 劇場為真時不還原——劇場擁有舞台,exitTheater 自己會 setBasemap(含衛星偏好)
+}
 function hotspotTick(now) {
   if (camBlocked()) return; // 劇場/背景分頁:不切換熱區場景、不飛鏡頭(成本防線)
   if (state._transition || now < (state._hotNext || 0)) return;
@@ -5487,21 +5543,33 @@ function hotspotTick(now) {
     state._hotNext = now + 5000;
     return;
   }
-  const useCity = state.director && Math.random() < CITY_OVERVIEW_CHANCE;
-  if (useCity) state._hotScene = pickCityOverview();
-  else {
+  // 城市幕抽選:放空 30% 出城市幕(director⟹ambient,故閘只看 ambient)。抽中後一半機率改走「都會呼吸」
+  // 定場鏡頭(?breath=1 強制,測試用);導播維持既有平移俯瞰。OBS 訊號源(?live)一律不抽呼吸——
+  // 呼吸幕上台的是離線輪廓舞台(見 breathStage),直播畫面要維持街圖。
+  const canBreath = !state.liveMode;
+  let sc = null;
+  if ((FORCE_BREATH && canBreath) || (state.ambient && Math.random() < CITY_OVERVIEW_CHANCE)) {
+    if (canBreath && (FORCE_BREATH || Math.random() < BREATH_CHANCE)) sc = pickBreathScene();
+    else if (state.director) sc = pickCityOverview();
+  }
+  if (!sc) {
     const h = pickHotspot(hs);
     const zTier = state.director ? [16, 15] : [15, 14]; // 導播 1× 較慢,群車俯瞰放大一級才看得出移動
-    state._hotScene = { lat: h.lat, lon: h.lon, z: h.n >= 25 ? zTier[0] : zTier[1], dir: Math.random() * Math.PI * 2 };
+    sc = { lat: h.lat, lon: h.lon, z: h.n >= 25 ? zTier[0] : zTier[1], dir: Math.random() * Math.PI * 2 };
   }
-  // 城市俯瞰是慢節奏的定場鏡頭,一幕拉長到 90~150 秒;一般熱區維持 60~90 秒
-  state._hotNext = now + (useCity ? 90000 + Math.random() * 60000 : 60000 + Math.random() * 30000);
+  state._hotScene = sc;
+  if (!sc.breath) breathSnapRestore(true); // 換到非呼吸幕:還原 zoomSnap 並收整 zoom(呼吸幕留待 hotCruise 首幀 zoomSnap=0 接手)
+  // 城市俯瞰/呼吸是慢節奏定場,幕拉長:呼吸 150–300 秒、平移俯瞰 90–150 秒;一般熱區維持 60–90 秒
+  state._hotNext = now + (sc.breath ? BREATH_SCENE_MIN + Math.random() * (BREATH_SCENE_MAX - BREATH_SCENE_MIN)
+                          : sc.slow ? 90000 + Math.random() * 60000
+                          : 60000 + Math.random() * 30000);
   if (state._hotFresh) {
     state._hotFresh = false;
     state._hotCam = true; // 自家跳景的 zoomstart 不算使用者操作
-    map.setView([state._hotScene.lat, state._hotScene.lon], state._hotScene.z, { animate: false });
+    if (sc.breath) breathStage(); else breathStageRestore(); // 瞬跳同時切舞台(進:卸圖磚露輪廓/出:還原底圖)
+    map.setView([sc.lat, sc.lon], sc.z, { animate: false });
     state._hotCam = false;
-  } else hotFadeTo(state._hotScene);
+  } else hotFadeTo(sc);
 }
 // 換熱區:淡出 → 跳到新熱區 → 淡入(沿用換車遮罩)
 function hotFadeTo(sc) {
@@ -5513,6 +5581,7 @@ function hotFadeTo(sc) {
     const alive = state.ambient && state.ambientStyle === 'hotspot' && !state.followTrain;
     if (!alive) { veil.style.opacity = 0; state._transition = false; return; }
     state._hotCam = true; // 自家跳景的 zoomstart 不算使用者操作
+    if (sc.breath) breathStage(); else breathStageRestore(); // 舞台切換藏在遮幕後(進呼吸:卸圖磚露輪廓/出呼吸:還原底圖),不露硬切
     map.setView([sc.lat, sc.lon], sc.z, { animate: false });
     state._hotCam = false;
     veil.style.opacity = 0;
@@ -5528,6 +5597,19 @@ function hotCruise(dt, now) {
   if (camBlocked()) return; // 劇場/背景分頁:群車巡航平移凍結(成本防線)
   if (now < (state._hotYield || 0)) { sc.px = null; return; } // 使用者操作中讓位,回來從現況接手
   dt = Math.min(dt, 0.1); // 分頁背景回前景的巨幅 dt 不能變成鏡頭瞬移
+  if (sc.breath) {
+    // 都會呼吸:錨點固定城市中心、零漂移,z 沿正弦放大到頂再縮回(見 BREATH_*)。zoomSnap=0 才吃得到分數 zoom
+    // (每次 _limitZoom 動態讀,逐幀重設即自癒)。上方 camBlocked/讓位 guard 已提早 return→bt 不累積→呼吸凍結,回來接著呼吸。
+    breathStage(); // 冪等(見 _breathStage):讓位/劇場回場時重新上台,途中被 setBasemap 加回的圖磚也在此卸掉
+    map.options.zoomSnap = 0;
+    sc.bt = (sc.bt || 0) + dt;
+    const frac = (1 - Math.cos(2 * Math.PI * sc.bt / BREATH_PERIOD_SEC)) / 2; // 0→1→0 一個 T 完成放大再縮回
+    const z = sc.z0 + (sc.z1 - sc.z0) * frac;
+    state._hotCam = true; // 自家逐幀縮放:zoomstart 不算使用者操作(否則每幀誤觸讓位)
+    map.setView([sc.anchor.lat, sc.anchor.lon], z, { animate: false });
+    state._hotCam = false;
+    return;
+  }
   // 浮點像素游標:latLngToContainerPoint 會整數化,0.1px 級步進會被吃成不動點,
   // 必須用不取整的 project 自己累積;使用者調了縮放就在新 zoom 重建游標接著巡
   const zNow = map.getZoom();
@@ -5637,6 +5719,8 @@ function camBlocked() { return !!state._theater || document.hidden; }
 function enterTheater() {
   if (!state.ambient || state._theater || state.liveMode || REC.on || !map) return; // OBS(?live)/錄影/非放空一律不進
   state._theater = true;
+  breathSnapRestore(true); // 進劇場:呼吸幕可能留 zoomSnap=0 與分數 zoom,還原原值並收整——下一行 flyToBounds 隨即改鏡,從整數起飛才落在整數 bounds zoom(與非呼吸進劇場一致)
+  breathStageRestore();    // 呼吸舞台交棒給劇場:只清旗標不動底圖(_theater 已真→內部跳過 setBasemap),圖磚本就已卸、劇場下面接手同一個離線輪廓
   document.body.classList.add('theater');
   // 切離線海陸向量底層:移除所有線上圖磚圖層(亮/暗/衛星皆適用),露出墊在底下的 taiwan_land(斷線備援層,劇場主動啟用)
   if (!state.offlineLand) setupOfflineLand();
@@ -5657,7 +5741,14 @@ function exitTheater() {
 // 閒置 5 秒淡出控制列,滑鼠/按鍵/觸碰喚回;久無互動再進劇場模式,任何互動即退場並重新起算閒置計時
 function ambientIdleReset() {
   document.body.classList.remove('idle');
-  if (state._theater) exitTheater(); // 任何互動即退出劇場,還原底圖與相機守衛
+  if (state._theater) {
+    exitTheater(); // 任何互動即退出劇場,還原底圖與相機守衛
+    // 退劇場時若當幕是呼吸幕:比照拖曳接管讓位——否則下一幀呼吸馬上重新上台(卸圖磚),跟 exitTheater 剛還原的街圖對打,使用者「動一下」看不回街圖
+    if (state._hotScene && state._hotScene.breath) {
+      state._hotNext = performance.now() + 45000;
+      state._hotYield = performance.now() + 8000;
+    }
+  }
   clearTimeout(state._idleT);
   clearTimeout(state._theaterT);
   if (state.ambient) {
@@ -8790,12 +8881,15 @@ async function boot() {
     if (state.ambient && state.ambientStyle === 'hotspot' && !state.followTrain) {
       state._hotNext = performance.now() + 45000; // 使用者動手看地圖:這一幕延長,巡航讓位幾秒再接手
       state._hotYield = performance.now() + 8000;
+      if (state._hotScene && state._hotScene.breath) { breathSnapRestore(true); breathStageRestore(); } // 呼吸幕被使用者拖曳接管:交還乾淨地圖(還原 zoomSnap+收整 zoom+街圖底圖回場)
     }
   });
   // 群車巡航中使用者縮放(滾輪/捏合)同樣讓位;巡航會在新 zoom 重建游標接著巡
   map.on('zoomstart', () => {
-    if (state.ambient && state.ambientStyle === 'hotspot' && !state.followTrain && !state._hotCam)
+    if (state.ambient && state.ambientStyle === 'hotspot' && !state.followTrain && !state._hotCam) {
       state._hotYield = performance.now() + 8000;
+      if (!state._theater && state._hotScene && state._hotScene.breath) { breathSnapRestore(true); breathStageRestore(); } // 使用者自己縮放才交還(含街圖回場);劇場入場的 flyToBounds(_theater 已真)不算
+    }
   });
   // crossOrigin: 錄影功能要把圖磚畫進合成 canvas,沒有 CORS 標記畫布會被汙染(無法 captureStream)
   // keepBuffer:桌機加大到 4(視窗外多留兩排,快速平移較常命中已載入邊界圖磚,少一輪重抓);
@@ -8840,6 +8934,13 @@ async function boot() {
   map.on('movestart move zoomstart zoom dragstart', markInteract);
   ['pointerdown', 'wheel', 'touchstart', 'touchmove'].forEach(ev =>
     document.addEventListener(ev, markInteract, { passive: true }));
+  // 呼吸幕被使用者縮放(滾輪/捏合/雙擊)接管:Leaflet 的 wheel 縮放即使 zoomSnap 已還原成 1 仍可能落在分數 zoom,
+  // 故在縮放收尾(zoomend)把它收回整數,交還乾淨地圖。自家逐幀呼吸的 setView 也發 zoomend,但都在 _hotCam=true 期間→排除;
+  // breathSnapRestore 內的 setZoom 也在 _hotCam 期間,不會遞迴。
+  map.on('zoomend', () => {
+    if (state.ambient && state.ambientStyle === 'hotspot' && !state.followTrain && !state._hotCam &&
+        state._hotScene && state._hotScene.breath) { breathSnapRestore(true); breathStageRestore(); }
+  });
 
   for (const d of SYS_DEFS) {
     const data = await fetchJSON(d.url);
