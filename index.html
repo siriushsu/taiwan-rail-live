@@ -1830,8 +1830,10 @@
 
   <footer class="site-foot">
     <details class="foot-box">
-      <summary><span>🛠 更新紀錄</span><span class="foot-sub">最後更新：2026/7/17</span></summary>
+      <summary><span>🛠 更新紀錄</span><span class="foot-sub">最後更新：2026/7/18</span></summary>
       <ul class="foot-list">
+        <li><span class="d">7/18</span><span>平溪、深澳、集集、內灣（竹中以南）這幾條還沒電氣化的支線，車種說明原本誤標成「通勤電聯車」——其實這些山線跑的是 DR1000 型柴油客車（自帶柴油引擎、不靠電車線）。現在跟這些支線的車、或點開它的資訊卡，車種會正確顯示「DR1000 型柴油客車」（六家、沙崙線是電氣化的電聯車，維持不變）</span></li>
+        <li><span class="d">7/18</span><span>「山海平原」成就更好拿、也看得到進度了：以前要連續跟山海號或平原號整整一輪來回（等於盯著看 12 分鐘不能中斷）才蓋章，門檻太硬——現在改成跟到折返點枋寮（半圈）就達成；跟車面板的進度條也會即時顯示「環島完乘 XX%」，不再是跟半天不知道到底有沒有在算</span></li>
         <li><span class="d">7/17</span><span>放空模式兩項調整：放空看久了、一段時間沒碰畫面，會自動進入「劇場模式」——地圖化為乾淨的全島輪廓，列車與背景音樂照常運行，畫面清爽得像螢幕保護程式；手指或滑鼠動一下，就回到平常的地圖。另外，放空的預設視角改成「群車」——鏡頭停在當下最熱鬧的路段看多班列車交錯，而不是只跟著一班車跑；想專心跟一班車的話，放空面板的「視角」按鈕一鍵切回跟車</span></li>
         <li><span class="d">7/17</span><span>網站現在會自己偵測「營運異常」並主動標示：官方公告系統對「誤點型」異常常常無感（例如台鐵幾十班誤點時，官方 API 仍顯示全線正常），所以軌島改用手上的即時資料自行判斷——台鐵大面積誤點、或某條捷運的官方到站看板與時刻表明顯對不上時，畫面右上會跳出提醒、並把該路線標成「位置僅供參考」。這是本站的自動推定、不是官方公告，會在提醒裡註明清楚。另外，預設的「全台同框」視圖現在也看得到捷運／輕軌的官方公告了（例如高雄輕軌的通阻公告，以前只有進到高捷分頁才看得到）</span></li>
         <li><span class="d">7/17</span><span>跟隨列車時搜尋不再擋到「取消跟隨」：跟著一班車跑的時候，點上方搜尋框想找下一班，跳出的搜尋結果以前會整片蓋住底下那顆紅色「取消跟隨」鈕、連點都點不到——現在結果清單會讓開、落在跟隨列下方，取消鈕隨時點得到</span></li>
@@ -4644,6 +4646,7 @@ function fitData(latlngs) {
 // 同抵枋寮後折返,永續來回。一輪來回固定 12 小時,時刻由軌道弧長等速合成＋停靠站停 2 分;
 // trainPos/effT 對圈長取模,所以永不到站、無限循環
 const LOOP_SEC = 43200, LOOP_DEP = 8 * 3600, LOOP_DWELL = 120;
+const LOOP_ACH_SEC = LOOP_SEC / 2; // 山海/平原完乘門檻:連續跟滿半圈(臺北→折返點枋寮)即蓋章,不必整輪來回
 // 單程站序(臺北→枋寮):*=接線通過點不停車;站名以時刻表資料為準(臺/台自動對應)
 const LOOP_EAST = ['臺北', '八堵*', '宜蘭', '蘇澳新*', '花蓮', '臺東', '枋寮'];               // 山海號:一側太平洋一側山
 const LOOP_WEST = ['臺北', '桃園', '新竹', '竹南*', '臺中', '彰化', '嘉義', '臺南', '高雄', '枋寮']; // 平原號:嘉南平原稻浪
@@ -5193,6 +5196,11 @@ const SPECIAL_TRAINS = {
   '5898': { name: '藍皮解憂號', desc: '南迴線臺東—枋寮的觀光列車：柴電機車牽引的復古藍皮客車，全台最後可開窗、無空調的普快車廂。沿途貼著太平洋與中央山脈尾稜跑，2021 年整修後以觀光列車之姿復駛。' },
   '5899': { name: '藍皮解憂號', desc: '南迴線枋寮—臺東的觀光列車：柴電機車牽引的復古藍皮客車，全台最後可開窗、無空調的普快車廂。沿途貼著太平洋與中央山脈尾稜跑，2021 年整修後以觀光列車之姿復駛。' },
 };
+// 非電化支線(平溪/集集/深澳/內灣竹中以南)跑 DR1000 柴油客車、非電聯車;台鐵班表一律標「區間車」
+// 分不出,靠支線覆寫車種說明(六家/沙崙已電化不在此列)。id 對應 data/tra_special_trains.json branchLines
+const DIESEL_BRANCH_IDS = new Set(['pingxi', 'jiji', 'shenao', 'neiwan']);
+const DR1000_KIND = 'DR1000 型柴油客車';
+const DR1000_DESC = '1998 年起投入的冷氣柴油客車，自帶柴油引擎、不靠電車線，專跑平溪、深澳、集集與內灣（竹中以南）等未電氣化支線。';
 // carName（官方 CarClass 中文名）→ 車型說明;由上而下比對,先中先贏
 const KIND_RULES = [
   [/普快車|普通車/, '藍皮普快', '無空調、可開窗的傳統客車，全台碩果僅存的普快車體。'],
@@ -5244,6 +5252,10 @@ function trainIntro(tr) {
     if (!desc) desc = TYPE_DESC[tr.typeName] || null;
   }
   const branch = spd ? spd.branch : null;
+  // 非電化支線的區間車/區間快實為 DR1000 柴油客車,覆寫班表「區間車＝通勤電聯車」的誤標
+  if (branch && DIESEL_BRANCH_IDS.has(branch.id) && /區間/.test(tr.typeName || cn)) {
+    kind = DR1000_KIND; desc = DR1000_DESC; fact = null;
+  }
   const amens = [];
   const par = (cn.match(/\(([^)]*)\)/) || [])[1] || '';
   for (const [flag, label] of AMEN_FLAGS) if (par.includes(flag)) amens.push(label);
@@ -6269,7 +6281,7 @@ const ACHIEVEMENTS = [
   { id: 'stops50',  icon: '🐌', name: '站站是風景',     desc: '完乘一班停靠 50 站以上的慢車' },
   { id: 'early',    icon: '🌄', name: '早鳥',           desc: '完乘一班清晨 6 點前發車的列車' },
   { id: 'night',    icon: '🌙', name: '夜行者',         desc: '完乘一班晚上 10 點後發車的列車' },
-  { id: 'loop',     icon: '♾️', name: '山海平原',       desc: '跟著山海號或平原號連續跟滿一整輪來回（臺北⇄枋寮⇄臺北）' },
+  { id: 'loop',     icon: '♾️', name: '山海平原',       desc: '跟著山海號或平原號連續跟滿半圈（臺北→折返點枋寮）' },
   { id: 'day3',     icon: '📅', name: '一日三乘',       desc: '同一天完乘 3 趟' },
   { id: 'tilting',  icon: '⚖️', name: '傾斜雙雄',       desc: '收集太魯閣號與普悠瑪號兩枚傾斜式車種章' },
   { id: 'namedAll', icon: '🌟', name: '明星集郵冊',     desc: '收集所有明星列車章' },
@@ -6774,12 +6786,18 @@ function updateFollowPanel(tr) {
   const pa = trainPos(tr, state.simSec), pb = trainPos(tr, state.simSec + 20);
   const kmh = (pa && pb) ? haversineKm(pa, pb) / 20 * 3600 : 0;
   document.getElementById('fpSpd').innerHTML = '<b>' + Math.round(kmh) + '</b> km/h';
-  // 旅程進度條
-  const pr = journeyProgress(tr, effT(tr));
-  document.getElementById('fpProgFill').style.width =
-    (pr.total > 0 ? Math.min(100, pr.done / pr.total * 100) : 0).toFixed(1) + '%';
-  document.getElementById('fpProgTxt').textContent =
-    Math.round(pr.done) + ' / ' + Math.round(pr.total) + ' km';
+  // 旅程進度條:環島車永不到站,改顯示完乘成就累積(連續跟滿半圈=到折返點枋寮即蓋章)
+  if (tr.loop) {
+    const pct = Math.min(100, (state._lapAcc || 0) / LOOP_ACH_SEC * 100);
+    document.getElementById('fpProgFill').style.width = pct.toFixed(1) + '%';
+    document.getElementById('fpProgTxt').textContent = '環島完乘 ' + Math.floor(pct) + '%';
+  } else {
+    const pr = journeyProgress(tr, effT(tr));
+    document.getElementById('fpProgFill').style.width =
+      (pr.total > 0 ? Math.min(100, pr.done / pr.total * 100) : 0).toFixed(1) + '%';
+    document.getElementById('fpProgTxt').textContent =
+      Math.round(pr.done) + ' / ' + Math.round(pr.total) + ' km';
+  }
   // 速度曲線游標每秒重畫一次就夠
   const nw = performance.now();
   if (!state._sparkAt || nw - state._sparkAt > 1000) { state._sparkAt = nw; drawSpark(tr, effT(tr)); }
@@ -6918,7 +6936,7 @@ function updateFollowCamera() {
       else if (d >= 1800 || d < 0) state._lapAcc = 0;
     }
     state._lapPrev = t;
-    if ((state._lapAcc || 0) >= tr.loopSec) { state._lapAcc = 0; recordRide(tr); }
+    if ((state._lapAcc || 0) >= LOOP_ACH_SEC) { state._lapAcc = 0; recordRide(tr); }
   } else if (effT(tr) > last.arrSec + 2) {
     if (state.followStatus !== 'done') {
       // 完乘資格:從發車附近(±60秒容差)開始跟、且跟隨中沒跳過模擬時間,才蓋章;中途接手或作弊只顯示抵達
