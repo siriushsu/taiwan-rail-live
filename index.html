@@ -177,8 +177,11 @@
   }
 
   /* ── 搜尋+跟隨票(移入 header 右側;側欄已取消) ── */
-  .search { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 0 0 0 auto; flex: 0 1 300px; min-width: 220px; }
-  .search-field { position: relative; flex: 1 1 100%; min-width: 0; } /* 下拉的相對定位錨:只包 input,followbar 在外,下拉恆錨輸入框正下方 */
+  /* position:relative → 這裡是下拉(#searchDrop)的定位錨。錨在整個 .search 而非只包 input 的 .search-field:
+     跟車時 followbar 換到第二列、就在 input 正下方,若錨在 input 下方下拉會整片蓋住 followbar 的取消鈕並攔截點擊;
+     錨在 .search 底部則下拉落在 followbar 下方,取消鈕恆可點。未跟車時 .search 只有一列,下拉仍緊貼 input 下方。 */
+  .search { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 0 0 0 auto; flex: 0 1 300px; min-width: 220px; position: relative; }
+  .search-field { flex: 1 1 100%; min-width: 0; }
   .search input[type=text] {
     /* 16px:站名/車次共用的主搜尋框,iOS/iPad(含 768 平板)聚焦不放大整頁;沿用退場的站搜框設定 */
     font: inherit; font-size: 16px; background: var(--paper); color: var(--ink);
@@ -1807,6 +1810,7 @@
     <details class="foot-box">
       <summary><span>🛠 更新紀錄</span><span class="foot-sub">最後更新：2026/7/17</span></summary>
       <ul class="foot-list">
+        <li><span class="d">7/17</span><span>跟隨列車時搜尋不再擋到「取消跟隨」：跟著一班車跑的時候，點上方搜尋框想找下一班，跳出的搜尋結果以前會整片蓋住底下那顆紅色「取消跟隨」鈕、連點都點不到——現在結果清單會讓開、落在跟隨列下方，取消鈕隨時點得到</span></li>
         <li><span class="d">7/17</span><span>軌島帳號暫時下架：7/16 剛推出的「帳號同步」（Google 登入跨裝置同步）先下架整備，工具列的「帳」鈕暫時收起來；存在這台裝置上的最愛與完乘紀錄完全不受影響，先前同步到雲端的資料也原封保留。已建立帳號想刪除帳號與雲端資料的話，仍可從<a href="account-deletion.html">「刪除軌島帳號」</a>頁面完成</span></li>
         <li><span class="d">7/17</span><span>快轉時左上角 LIVE 徽章不再一直亮著：模擬時間離開「現在」兩分鐘以上，台鐵「LIVE」會轉成灰色「推估」、捷運「看板校正」轉成「看板推估」，表示畫面是依最後收到的官方資料投射；回到現在就自動恢復綠 LIVE／藍看板校正（謝謝回報）</span></li>
         <li><span class="d">7/17</span><span>搜尋框提示文字說清楚：原本在捷運分頁只寫「搜尋車站」，讓人以為不能搜車次——其實打車次號一直都可以（會自動切到國家鐵路跟隨），現在提示改成「搜尋車站或車次」，不再誤導（謝謝回報）</span></li>
@@ -1975,7 +1979,7 @@
 <script>
 // 版本戳記:每次改版 push 前手動遞增(字母序),畫面時鐘徽章與 console 都會顯示,
 // 供比對線上跑的是不是最新版(瀏覽器快取 max-age=600 常讓人看到舊版)
-const BUILD = 'v0717r';
+const BUILD = 'v0717t';
 const state = {
   systems: [], sysId: null, data: null, speed: 36, mode: 'freq',
   lines: [], visible: new Set(), trains: [], schedStations: [], types: [],
@@ -3847,7 +3851,10 @@ function takeoutSelectedCount() {
   return r ? r.resolved.filter(x => x.selected !== false).length : 0;
 }
 function takeoutSafeHref(value, fallback) {
-  try { const u = new URL(String(value || ''), location.href); if (u.protocol === 'https:' || u.protocol === 'http:') return u.href; }
+  // 空值直接回 fallback:否則 new URL('', location.href) 會解析成本頁網址(https,truthy),
+  // 讓「無 photoURL 的使用者(所有 Apple 登入者)」頭像判斷誤走 <img> 分支→破圖,首字 fallback 變死碼。
+  if (!value) return fallback;
+  try { const u = new URL(String(value), location.href); if (u.protocol === 'https:' || u.protocol === 'http:') return u.href; }
   catch (e) {}
   return fallback;
 }

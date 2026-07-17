@@ -233,7 +233,9 @@ async function metroLive(request, env, sys) {
 // 環狀線=逐車軌道區間佔用、淡海/安坑=逐站到站倒數。未文件化端點:去函詢問使用同意中(2026-07 起),
 // 對方拒絕即移除本段;失敗前端自動退回時刻表推演,零損害。快取後全站對上游=每端點約 55s 一次,
 // 遠低於其官網單一訪客的 10s 輪詢負載。
-const NTM_LIVE_SYS = { circular: 1, danhai: 1, ankeng: 1 };
+// Set 而非物件字面量:物件的 in/[] 查表吃原型鏈(sys='constructor'/'__proto__'/'toString' 會誤判 truthy),
+// Set.has() 只認自身成員,擋掉用原型成員名繞過白名單、把本 proxy 打成對新北捷官網的未快取放大代理。
+const NTM_LIVE_SYS = new Set(['circular', 'danhai', 'ankeng']);
 const ntmLiveMem = new Map(); // sys → { data, at }
 async function ntmetroLive(request, env, sys) {
   const cacheKey = new Request(new URL('/api/ntmetro-live?sys=' + sys, request.url), { method: 'GET' });
@@ -254,9 +256,12 @@ async function ntmetroLive(request, env, sys) {
     return res;
   } catch (e) {
     if (stale) return jsonRes(stale.data, 200, 'public, s-maxage=15');
-    // 軟失敗:回 200+src:null(前端 applyNtmLive 對 null 直接 no-op,退回時刻表推演),
-    // 不回 5xx 免得上游瞬斷時訪客 console 留紅字
-    return jsonRes({ at: new Date().toISOString(), src: null, error: String(e.message || e) }, 200, 'no-store');
+    // 軟失敗:回 200+src:null(前端 applyNtmLive 對 null 直接 no-op,退回時刻表推演),不回 5xx 免得訪客 console 留紅字。
+    // 負向結果也快取 15s:白名單收緊後雖已無繞過放大,但合法 sys 遇上游持續 5xx 時,無此快取會讓每個請求 1:1 重打上游,
+    // 上游越掛我們打越兇。不帶 error 字串進 body,免洩內部訊息。
+    const res = jsonRes({ at: new Date().toISOString(), src: null }, 200, 'public, s-maxage=15');
+    await edge.put(cacheKey, res.clone());
+    return res;
   }
 }
 
@@ -656,11 +661,12 @@ export default {
     else if (url.pathname === '/api/metro-alert') res = await metroAlert(request, env);
     else if (url.pathname === '/api/metro-live') {
       const sys = url.searchParams.get('sys');
-      res = METRO_LIVE_OPS[sys] ? await metroLive(request, env, sys) : jsonRes({ error: 'bad sys' }, 400, 'no-store');
+      // hasOwnProperty.call 而非 METRO_LIVE_OPS[sys]:後者吃原型鏈,sys='constructor' 等會誤過閘門
+      res = Object.prototype.hasOwnProperty.call(METRO_LIVE_OPS, sys) ? await metroLive(request, env, sys) : jsonRes({ error: 'bad sys' }, 400, 'no-store');
     }
     else if (url.pathname === '/api/ntmetro-live') {
       const sys = url.searchParams.get('sys');
-      res = NTM_LIVE_SYS[sys] ? await ntmetroLive(request, env, sys) : jsonRes({ error: 'bad sys' }, 400, 'no-store');
+      res = NTM_LIVE_SYS.has(sys) ? await ntmetroLive(request, env, sys) : jsonRes({ error: 'bad sys' }, 400, 'no-store');
     }
     else if (url.pathname === '/api/delay-stats') res = await delayStats(request, env);
     else if (url.pathname === '/api/account-delete') res = await deletePaidProfile(request, env);

@@ -5,6 +5,8 @@
 .assetsignore
 .env
 .env.example
+.dev.vars*
+*.bak-*
 .wrangler
 .DS_Store
 wrangler.jsonc
@@ -26,6 +28,6 @@ TODO.md
 火車頭
 design-mock.html
 _專案資訊.html
-授權查證*.md
+授權查證*
 安全審查*.md
 ntmetro_fixtures

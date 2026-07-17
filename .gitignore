@@ -4,7 +4,7 @@ scripts/.overpass_cache/
 .env
 .wrangler/
 _專案資訊.html
-授權查證*.md
+授權查證*
 安全審查*.md
 hand off/
 .dev.vars*
