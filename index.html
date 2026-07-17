@@ -393,6 +393,22 @@
   .rec-pill .rstop { font-weight: 700; font-size: 12px; opacity: .85; border-left: 1px solid var(--line); padding-left: 8px; color: var(--muted); }
   .rec-pill:hover { background: var(--bg-stage); }
   @keyframes recBlink { to { opacity: 0; } }
+  /* ── 劇場模式提示膠囊(獨立 class,亮暗雙主題走 CSS 變數;不被 body.idle 隱藏) ── */
+  .theater-pill {
+    position: absolute; left: 50%; bottom: calc(env(safe-area-inset-bottom, 0px) + 22px);
+    z-index: 900; display: flex; align-items: center; gap: 8px;
+    max-width: calc(100% - 28px); box-sizing: border-box;
+    background: var(--paper-tr); color: var(--ink-strong);
+    border: 1.5px solid var(--line); border-radius: var(--r-pill);
+    box-shadow: var(--shadow-1); padding: 8px 16px;
+    font-size: 13.5px; font-weight: 800; letter-spacing: .3px;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    opacity: 0; pointer-events: none;
+    transform: translateX(-50%) translateY(6px);
+    transition: opacity .6s ease, transform .6s ease;
+  }
+  .theater-pill .tp-emoji { font-size: 15px; }
+  body.theater .theater-pill { opacity: .96; transform: translateX(-50%) translateY(0); }
   /* 錄影結束吐司:下載後留 60 秒的「再下載」保險 */
   .rec-toast {
     position: absolute; top: 56px; left: 50%; transform: translateX(-50%); z-index: 1200;
@@ -1600,6 +1616,8 @@
     <canvas id="overlay"></canvas>
     <div id="skyTint"></div>
     <div id="veil"></div>
+    <!-- 劇場模式提示膠囊:放空久無互動進劇場時淡入,動一下即回(由 body.theater 驅動顯示,獨立 class 不動共用 token) -->
+    <div class="theater-pill" id="theaterPill" aria-hidden="true"><span class="tp-emoji" aria-hidden="true">🎭</span>劇場模式・動一下回到地圖</div>
     <div class="toasts" id="toasts"></div>
     <div class="alert-banner" id="alertBanner" hidden></div>
     <!-- randBtn 放在 alertBanner 之後:手機版靠 .alert-banner ~ #randBtn 兄弟選擇器讓位(橫幅出現時下移) -->
@@ -1762,7 +1780,7 @@
       </div>
       <div class="band-div"></div>
       <button class="pp sub" id="ambientBtn" title="全畫面自動導演（跟車或群車視角），掛著放空用">放空模式</button>
-      <button class="pp sub" id="ambientStyleBtn" title="切換放空視角：「跟車」跟著一班列車跑；「群車」不跟車，鏡頭停在當下列車最密的繁忙路段看群車交錯，並緩慢漂移縮放、定時換一段">視角：跟車</button>
+      <button class="pp sub" id="ambientStyleBtn" title="切換放空視角：「跟車」跟著一班列車跑；「群車」不跟車，鏡頭停在當下列車最密的繁忙路段看群車交錯，並緩慢漂移縮放、定時換一段">視角：群車</button>
       <div class="ctl" id="musicCtl" title="背景音樂（進放空模式會自動開始）">
         <button class="tmini" id="musicBtn" title="播放/停止背景音樂"><span class="ti">♪<span class="eq"><i></i><i></i><i></i></span></span><span class="tl">音樂</span></button>
         <button class="tmini" id="musicNextBtn" title="換一首"><span class="ti">⏭</span><span class="tl">換首</span></button>
@@ -1814,6 +1832,7 @@
     <details class="foot-box">
       <summary><span>🛠 更新紀錄</span><span class="foot-sub">最後更新：2026/7/17</span></summary>
       <ul class="foot-list">
+        <li><span class="d">7/17</span><span>放空模式兩項調整：放空看久了、一段時間沒碰畫面，會自動進入「劇場模式」——地圖化為乾淨的全島輪廓，列車與背景音樂照常運行，畫面清爽得像螢幕保護程式；手指或滑鼠動一下，就回到平常的地圖。另外，放空的預設視角改成「群車」——鏡頭停在當下最熱鬧的路段看多班列車交錯，而不是只跟著一班車跑；想專心跟一班車的話，放空面板的「視角」按鈕一鍵切回跟車</span></li>
         <li><span class="d">7/17</span><span>網站現在會自己偵測「營運異常」並主動標示：官方公告系統對「誤點型」異常常常無感（例如台鐵幾十班誤點時，官方 API 仍顯示全線正常），所以軌島改用手上的即時資料自行判斷——台鐵大面積誤點、或某條捷運的官方到站看板與時刻表明顯對不上時，畫面右上會跳出提醒、並把該路線標成「位置僅供參考」。這是本站的自動推定、不是官方公告，會在提醒裡註明清楚。另外，預設的「全台同框」視圖現在也看得到捷運／輕軌的官方公告了（例如高雄輕軌的通阻公告，以前只有進到高捷分頁才看得到）</span></li>
         <li><span class="d">7/17</span><span>跟隨列車時搜尋不再擋到「取消跟隨」：跟著一班車跑的時候，點上方搜尋框想找下一班，跳出的搜尋結果以前會整片蓋住底下那顆紅色「取消跟隨」鈕、連點都點不到——現在結果清單會讓開、落在跟隨列下方，取消鈕隨時點得到</span></li>
         <li><span class="d">7/17</span><span>軌島帳號暫時下架：7/16 剛推出的「帳號同步」（Google 登入跨裝置同步）先下架整備，工具列的「帳」鈕暫時收起來；存在這台裝置上的最愛與完乘紀錄完全不受影響，先前同步到雲端的資料也原封保留。已建立帳號想刪除帳號與雲端資料的話，仍可從<a href="account-deletion.html">「刪除軌島帳號」</a>頁面完成</span></li>
@@ -1984,7 +2003,7 @@
 <script>
 // 版本戳記:每次改版 push 前手動遞增(字母序),畫面時鐘徽章與 console 都會顯示,
 // 供比對線上跑的是不是最新版(瀏覽器快取 max-age=600 常讓人看到舊版)
-const BUILD = 'v0717u';
+const BUILD = 'v0717v';
 const state = {
   systems: [], sysId: null, data: null, speed: 36, mode: 'freq',
   lines: [], visible: new Set(), trains: [], schedStations: [], types: [],
@@ -2001,7 +2020,7 @@ const state = {
   liveMode: false, director: false, liveReplay: false, // 直播模式(?live=1 即時 / ?live=2 導播)與其深夜重播段(00:45–05:15 重播 08:00 起)
   stnIntro: false, immersive: false, // 特殊站介紹開關(放空自動開)、極簡沉浸(全畫面隱藏左側卡)
   xingOn: false, // 台鐵平交道顯示開關(預設關;開了才畫記號、建命中、攔點擊)
-  ambientStyle: 'follow', // 放空視角:follow=跟著一班車跑 / hotspot=群車(鏡頭掛在最繁忙路段看群車交錯)
+  ambientStyle: 'hotspot', // 放空視角:follow=跟著一班車跑 / hotspot=群車(鏡頭掛在最繁忙路段看群車交錯);預設群車(v0717v)
 };
 let map, cv, ctx;
 let baseLayers = {}; // light / dark / sat Leaflet 圖層
@@ -3375,6 +3394,12 @@ function renderCrossingCard() {
 const LOCATE_ENABLED = !!window.RAIL_NATIVE_GEOLOCATION;
 const RECORDING_ENABLED = false; // 2026-07-17 錄影暫時下架(整備中):所有入口隱藏、實作全保留;改 true 即復活(工具列鈕+更多抽屜列+Plus 文案)
 const ACCOUNT_ENABLED = false; // 2026-07-17 帳號同步轉收費前暫時下架:入口全藏、不載 Firebase SDK、實作全保留;僅 ?account=delete 深連結(account-deletion.html)留給既有帳號刪資料;改 true 即復活
+// 放空閒置達此秒數→劇場模式:切離線海陸底層(零圖磚)、相機停在全群組視角,列車/音樂/完乘全照常,只是不再抓圖磚。
+// ?theater=N 覆寫門檻(秒,測試用,不限環境——只會讓使用者自己更早進入省磚畫面,無風險)。見 enterTheater/camBlocked。
+const THEATER_IDLE_SEC = (() => {
+  try { const v = parseInt(new URLSearchParams(location.search).get('theater'), 10); if (v > 0) return v; } catch (e) {}
+  return 75 * 60;
+})();
 let meMarker = null, meCircle = null;
 const NEAR_XING_KM = 5;  // 「附近平交道」搜尋半徑(公里,可調)
 const NEAR_XING_N = 8;   // 清單最多列幾處
@@ -4603,6 +4628,7 @@ function fitData(latlngs) {
   // 容器尺寸未就緒時(部分環境在 load 後才排版)fitBounds 會誤算成最大縮放,
   // 先等到 stage 有實際高度再 fit(最多重試約 1 秒)。
   const b = L.latLngBounds(latlngs);
+  state._fitBounds = b; // 記住當前群組的外接框:劇場模式 flyToBounds 沿用此框回到全群組視角
   let tries = 0;
   const doFit = () => {
     map.invalidateSize();
@@ -5262,6 +5288,7 @@ function pickTourMetro() {
   return cands[Math.floor(Math.random() * cands.length)];
 }
 function nextTourTrain(now) {
+  if (camBlocked()) return; // 劇場/背景分頁:不切換跟隨列車、不飛鏡頭(autoTour 狀態保留,回場續跑;成本防線)
   // 轉場防重入:到站觸發的換車條件(effT>終點arrSec)在淡出等待的每一幀都成立,
   // 不擋會機關槍連發幾十條轉場鏈,veil 淡入後殘餘 callback 輪流裸跳到不同隨機車
   if (state._transition) return;
@@ -5439,6 +5466,7 @@ function pickCityOverview() {
   return { lat: c.lat, lon: c.lng, z, dir: Math.random() * Math.PI * 2, anchor: { lat: c.lat, lon: c.lng }, slow: true };
 }
 function hotspotTick(now) {
+  if (camBlocked()) return; // 劇場/背景分頁:不切換熱區場景、不飛鏡頭(成本防線)
   if (state._transition || now < (state._hotNext || 0)) return;
   const hs = computeHotspots();
   if (!hs.length) {
@@ -5485,6 +5513,7 @@ const HOT_SPEED = 7; // 螢幕像素/秒(視覺速度,與 zoom 無關)
 function hotCruise(dt, now) {
   const sc = state._hotScene;
   if (!sc || state._transition) return;
+  if (camBlocked()) return; // 劇場/背景分頁:群車巡航平移凍結(成本防線)
   if (now < (state._hotYield || 0)) { sc.px = null; return; } // 使用者操作中讓位,回來從現況接手
   dt = Math.min(dt, 0.1); // 分頁背景回前景的巨幅 dt 不能變成鏡頭瞬移
   // 浮點像素游標:latLngToContainerPoint 會整數化,0.1px 級步進會被吃成不動點,
@@ -5587,11 +5616,42 @@ document.addEventListener('visibilitychange', () => {
   if (!document.hidden && state.ready) { state._drawAt = performance.now(); draw(); }
 });
 
-// 閒置 5 秒淡出控制列,滑鼠/按鍵/觸碰喚回
+// ── 相機守衛(成本防線):背景分頁(document.hidden)或劇場模式時,所有「程式驅動的相機移動」一律 no-op。 ──
+// 背景分頁不得觸發圖磚載入(成本防線,勿移除)——現況相機都在 rAF 主迴圈天然凍結,此為明文保證,防未來有人把相機移進 setInterval。
+// 套在 recenterTo / hotCruise / hotspotTick / nextTourTrain 頂端;劇場自己的入場運鏡(flyToBounds 直呼 map)不經這幾個函數,天然豁免。
+function camBlocked() { return !!state._theater || document.hidden; }
+
+// ── 劇場模式:放空久無互動→切離線海陸向量底層(零圖磚)、相機停在全群組視角。模擬/列車/音樂/完乘全照常,只是相機不再跟、不再抓圖磚。 ──
+function enterTheater() {
+  if (!state.ambient || state._theater || state.liveMode || REC.on || !map) return; // OBS(?live)/錄影/非放空一律不進
+  state._theater = true;
+  document.body.classList.add('theater');
+  // 切離線海陸向量底層:移除所有線上圖磚圖層(亮/暗/衛星皆適用),露出墊在底下的 taiwan_land(斷線備援層,劇場主動啟用)
+  if (!state.offlineLand) setupOfflineLand();
+  else state.offlineLand.setStyle(offlineLandStyle()); // 跟隨當前亮暗/衛星主題配色
+  for (const k in baseLayers) if (map.hasLayer(baseLayers[k])) map.removeLayer(baseLayers[k]);
+  // 相機平滑移到當前群組全域視角後停住(離線底層,飛行不吃圖磚)。_theater 已為真→巡航/跟隨鏡頭同幀凍結,不搶鏡。
+  const b = state._fitBounds;
+  if (b) { try { map.flyToBounds(b, { padding: [30, 30], duration: 1.2 }); } catch (e) {} }
+}
+function exitTheater() {
+  if (!state._theater) return;
+  state._theater = false;
+  document.body.classList.remove('theater');
+  setBasemap();           // 還原原本底圖(亮/暗/衛星依 state 現況)——含衛星
+  state._hotFresh = true; // 群車視角回場用瞬跳重新取景,不走淡出淡入(follow 視角無此欄位,無副作用)
+}
+
+// 閒置 5 秒淡出控制列,滑鼠/按鍵/觸碰喚回;久無互動再進劇場模式,任何互動即退場並重新起算閒置計時
 function ambientIdleReset() {
   document.body.classList.remove('idle');
+  if (state._theater) exitTheater(); // 任何互動即退出劇場,還原底圖與相機守衛
   clearTimeout(state._idleT);
-  if (state.ambient) state._idleT = setTimeout(() => document.body.classList.add('idle'), 5000);
+  clearTimeout(state._theaterT);
+  if (state.ambient) {
+    state._idleT = setTimeout(() => document.body.classList.add('idle'), 5000);
+    if (!state.liveMode) state._theaterT = setTimeout(enterTheater, THEATER_IDLE_SEC * 1000); // OBS 不進劇場
+  }
 }
 ['mousemove', 'pointerdown', 'keydown', 'touchstart'].forEach(ev =>
   document.addEventListener(ev, () => { if (state.ambient) ambientIdleReset(); }, { passive: true }));
@@ -5632,6 +5692,8 @@ function setAmbient(on) {
     releaseWakeLock();
     // 音樂跟著開關走,離開放空不強制停(要停就按音樂鈕)
     clearTimeout(state._idleT);
+    clearTimeout(state._theaterT);
+    if (state._theater) exitTheater(); // 離開放空一併退出劇場,還原底圖
     document.body.classList.remove('idle');
     state._transition = false;
     document.getElementById('veil').style.opacity = 0;
@@ -6765,6 +6827,7 @@ function showSearchMiss(q) {
 }
 
 function recenterTo(lat, lon) {
+  if (camBlocked()) return; // 劇場/背景分頁:跟隨鏡頭不置中(成本防線,勿移除)
   // 每幀把列車釘在畫面中心。曾用「次像素平移」(移動 mapPane 消階梯鋸齒),但 mapPane(圖磚)與獨立的
   // 列車/軌道 canvas 圖層在真機幀率下會脫鉤→整條路線跟著車移動/抖動(v0713r 引入),已移除,回歸穩定整數像素置中。
   const c = map.getCenter();
@@ -7039,8 +7102,11 @@ async function pollLive() {
   const ls = state.schedSystems && state.schedSystems.find(s => s.live);
   const url = ls && ls.live;
   if (document.hidden || state.mode !== 'sched' || !url) return;
+  // cam/z:用量觀測埋點(前端半邊)——標記當前鏡頭型態與縮放,Worker 端據此讀取。僅台鐵 tra-live 帶;metro/ntm/alert 不加。
+  const cam = state._theater ? 'theater' : (state.followTrain || state.freqFollow) ? 'follow' : state.ambient ? 'amb' : 'idle';
+  const reqUrl = url + (url.includes('?') ? '&' : '?') + 'cam=' + cam + '&z=' + (map ? Math.round(map.getZoom()) : 0);
   try {
-    const r = await fetch(url, { cache: 'no-store' });
+    const r = await fetch(reqUrl, { cache: 'no-store' });
     if (!r.ok) throw new Error(r.status);
     const d = await r.json();
     if (!Array.isArray(d.trains)) throw new Error('bad payload');
@@ -8740,7 +8806,7 @@ async function boot() {
   try { state.basemap = onlineBasemapsAvailable() && localStorage.getItem('trainmap-basemap') === 'sat' ? 'sat' : 'map'; } catch (e) {}
   try { state.immersive = localStorage.getItem('trainmap-immersive') === '1'; } catch (e) {}
   try { state.xingOn = localStorage.getItem('trainmap-xing') === '1'; } catch (e) {}
-  try { setAmbientStyle(localStorage.getItem('trainmap-ambient-style') === 'hotspot' ? 'hotspot' : 'follow'); } catch (e) {}
+  try { setAmbientStyle(localStorage.getItem('trainmap-ambient-style') === 'follow' ? 'follow' : 'hotspot'); } catch (e) {} // 預設群車(v0717v);使用者切過跟車才存 'follow'
   // 省電模式預設:手機開、桌機關;使用者手動切過就記住(setupMapTools 內 setPowerSave 讀此值初始化按鈕)
   try {
     const ps = localStorage.getItem('trainmap-powersave');

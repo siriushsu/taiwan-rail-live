@@ -37,6 +37,17 @@ const jsonRes = (obj, status, cc) => new Response(JSON.stringify(obj), {
 });
 
 async function traLive(request, env) {
+  // 用量埋點:前景分鐘計數器(cam/z 由前端輪詢帶,cache 命中與否都要記到)。觀測絕不可影響服務,例外整段吞掉。
+  if (env.USAGE) {
+    try {
+      const u = new URL(request.url);
+      const camRaw = u.searchParams.get('cam');
+      const cam = ['follow', 'amb', 'idle', 'theater'].includes(camRaw) ? camRaw : 'na';
+      const z = parseInt(u.searchParams.get('z'), 10);
+      const dev = /Mobile/.test(request.headers.get('user-agent') || '') ? 'm' : 'd';
+      env.USAGE.writeDataPoint({ blobs: [cam, dev], doubles: [isNaN(z) ? 0 : z], indexes: [cam] });
+    } catch (e) {}
+  }
   const cacheKey = new Request(new URL('/api/tra-live', request.url), { method: 'GET' });
   const edge = caches.default;
   const hit = await edge.match(cacheKey);

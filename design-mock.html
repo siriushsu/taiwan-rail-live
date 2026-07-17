@@ -153,9 +153,14 @@
   }
 
   /* ── 搜尋+跟隨票(移入 header 右側;側欄已取消) ── */
-  .search { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 0 0 0 auto; flex: 0 1 300px; min-width: 220px; }
+  /* position:relative → 這裡是下拉(#searchDrop)的定位錨。錨在整個 .search 而非只包 input 的 .search-field:
+     跟車時 followbar 換到第二列、就在 input 正下方,若錨在 input 下方下拉會整片蓋住 followbar 的取消鈕並攔截點擊;
+     錨在 .search 底部則下拉落在 followbar 下方,取消鈕恆可點。未跟車時 .search 只有一列,下拉仍緊貼 input 下方。 */
+  .search { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 0 0 0 auto; flex: 0 1 300px; min-width: 220px; position: relative; }
+  .search-field { flex: 1 1 100%; min-width: 0; }
   .search input[type=text] {
-    font: inherit; font-size: 14px; background: var(--paper); color: var(--ink);
+    /* 16px:站名/車次共用的主搜尋框,iOS/iPad(含 768 平板)聚焦不放大整頁;沿用退場的站搜框設定 */
+    font: inherit; font-size: 16px; background: var(--paper); color: var(--ink);
     border: 1.5px solid var(--line); border-radius: 6px; padding: 9px 14px; width: 100%; min-height: 42px;
   }
   .search input::placeholder { color: var(--faint); }
@@ -364,6 +369,22 @@
   .rec-pill .rstop { font-weight: 700; font-size: 12px; opacity: .85; border-left: 1px solid var(--line); padding-left: 8px; color: var(--muted); }
   .rec-pill:hover { background: var(--bg-stage); }
   @keyframes recBlink { to { opacity: 0; } }
+  /* ── 劇場模式提示膠囊(獨立 class,亮暗雙主題走 CSS 變數;不被 body.idle 隱藏) ── */
+  .theater-pill {
+    position: absolute; left: 50%; bottom: calc(env(safe-area-inset-bottom, 0px) + 22px);
+    z-index: 900; display: flex; align-items: center; gap: 8px;
+    max-width: calc(100% - 28px); box-sizing: border-box;
+    background: var(--paper-tr); color: var(--ink-strong);
+    border: 1.5px solid var(--line); border-radius: var(--r-pill);
+    box-shadow: var(--shadow-1); padding: 8px 16px;
+    font-size: 13.5px; font-weight: 800; letter-spacing: .3px;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    opacity: 0; pointer-events: none;
+    transform: translateX(-50%) translateY(6px);
+    transition: opacity .6s ease, transform .6s ease;
+  }
+  .theater-pill .tp-emoji { font-size: 15px; }
+  body.theater .theater-pill { opacity: .96; transform: translateX(-50%) translateY(0); }
   /* 錄影結束吐司:下載後留 60 秒的「再下載」保險 */
   .rec-toast {
     position: absolute; top: 56px; left: 50%; transform: translateX(-50%); z-index: 1200;
@@ -721,6 +742,7 @@
   .alert-detail .ad-row { padding: 7px 0; border-top: 1.5px dashed var(--line-dash); }
   .alert-detail .ad-row:first-child { border-top: 0; padding-top: 0; }
   .alert-detail .ad-row b { color: var(--warn-ink); }
+  .alert-detail .ad-self { display: inline-block; font-size: 10px; font-weight: 800; color: var(--warn-ink); border: 1px solid var(--warn-line); border-radius: 4px; padding: 0 5px; margin-right: 5px; vertical-align: 1px; }
   .alert-detail .ad-time { color: var(--faint); font-size: 11.5px; }
   .alert-detail .ad-src { margin-top: 8px; padding-top: 6px; border-top: 1.5px dashed var(--line-dash); color: var(--faint); font-size: 11px; }
   /* 公告橫幅開著時:同側的看板退到橫幅下方,不再互疊 */
@@ -879,6 +901,12 @@
   .badge .live::before { content: '●'; margin-right: 3px; animation: livePulse 2s infinite; }
   .badge .mlive { font-size: 11px; font-weight: 800; color: #0f7fa8; letter-spacing: .5px; cursor: help; }
   .badge .mlive::before { content: '●'; margin-right: 3px; animation: livePulse 2s infinite; }
+  /* 推估 tier(快轉投射未來/資料稍舊):灰化+靜止圓點,與 fresh 校正的綠/藍脈動視覺區分 */
+  .badge .live.est, .badge .mlive.est { color: var(--muted); }
+  .badge .live.est::before, .badge .mlive.est::before { animation: none; opacity: .55; }
+  /* 異常推定:警示色靜態圓點(即使窄機把字樣收起,仍看得到警示點,不與健康校正的藍/綠脈動混淆) */
+  .badge .mlive.anom { color: var(--warn-ink); }
+  .badge .mlive.anom::before { animation: none; opacity: 1; }
   @keyframes livePulse { 0%, 100% { opacity: 1; } 50% { opacity: .35; } }
   .lateTag {
     color: var(--warn-ink); font-weight: 800; font-size: 10.5px; margin-left: 4px;
@@ -947,6 +975,30 @@
   #favPanel .row.fvst { cursor: pointer; }
   #favPanel .row.fvst:hover { background: var(--bg-stage); }
   #favPanel .row.fvst .ico { flex: none; font-size: 13px; line-height: 1; }
+  /* ── 常駐搜尋框的下拉結果(#searchDrop):站名+車次共用一框,錨在輸入框正下方;跳出 header 蓋地圖
+       (z-index 720:>controls 700、蓋所有 leaflet pane/overlay/board,<tap-pick 730<toasts 1200)。
+       sys-chip 是淺底版,與看板標題深底版(.board h3 .sys-chip)分開。 ── */
+  #searchDrop {
+    position: absolute; top: calc(100% + 6px); left: 0; right: 0; z-index: 720;
+    max-height: 55vh; overflow-y: auto;
+    background: var(--paper); border: 2px solid var(--navy); border-radius: 10px;
+    box-shadow: var(--shadow-navy); padding: 3px 13px 9px;
+    scrollbar-width: thin; scrollbar-color: var(--line) transparent;
+  }
+  #searchDrop .sd-sec { color: var(--faint); font-size: 11px; font-weight: 800; letter-spacing: 2px; padding: 9px 0 3px; }
+  #searchDrop .row { display: flex; align-items: center; gap: 8px; padding: 7px 0; border-top: 1px dashed var(--line-faint); font-size: 13px; cursor: pointer; }
+  #searchDrop .sd-sec + .row { border-top: 0; } /* 區段標題後第一列不畫上框線 */
+  #searchDrop .row:hover { background: var(--bg-stage); }
+  #searchDrop .row .nm { font-weight: 800; color: var(--ink-strong); white-space: nowrap; font-variant-numeric: tabular-nums; }
+  #searchDrop .sys-chip {
+    margin-left: 7px; padding: 0 7px 1px; font-size: 10.5px; font-weight: 700; letter-spacing: 1px;
+    line-height: 1.5; color: var(--navy); border: 1px solid var(--line); border-radius: 999px; white-space: nowrap; flex: none;
+  }
+  #searchDrop .tr-meta { color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+  #searchDrop .ldots { margin-left: auto; display: inline-flex; align-items: center; gap: 3px; flex: none; }
+  #searchDrop .ldots .dot { width: 8px; height: 8px; border-radius: 50%; }
+  #searchDrop .stn-count { color: var(--faint); font-size: 11px; padding: 8px 0 2px; }
+  #searchDrop .empty { color: var(--faint); font-size: 13px; padding: 10px 2px; }
   .board .empty { color: var(--faint); font-size: 13px; padding: 8px 0; }
   .board .stnMeta { margin: 1px 0 8px; padding-bottom: 8px; border-bottom: 1.5px dashed var(--line-dash); }
   .board .stnMeta .addr { font-size: 12px; color: var(--muted); line-height: 1.5; }
