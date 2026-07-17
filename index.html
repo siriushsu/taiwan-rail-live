@@ -178,8 +178,10 @@
 
   /* ── 搜尋+跟隨票(移入 header 右側;側欄已取消) ── */
   .search { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 0 0 0 auto; flex: 0 1 300px; min-width: 220px; }
+  .search-field { position: relative; flex: 1 1 100%; min-width: 0; } /* 下拉的相對定位錨:只包 input,followbar 在外,下拉恆錨輸入框正下方 */
   .search input[type=text] {
-    font: inherit; font-size: 14px; background: var(--paper); color: var(--ink);
+    /* 16px:站名/車次共用的主搜尋框,iOS/iPad(含 768 平板)聚焦不放大整頁;沿用退場的站搜框設定 */
+    font: inherit; font-size: 16px; background: var(--paper); color: var(--ink);
     border: 1.5px solid var(--line); border-radius: 6px; padding: 9px 14px; width: 100%; min-height: 42px;
   }
   .search input::placeholder { color: var(--faint); }
@@ -971,24 +973,30 @@
   #favPanel .row.fvst { cursor: pointer; }
   #favPanel .row.fvst:hover { background: var(--bg-stage); }
   #favPanel .row.fvst .ico { flex: none; font-size: 13px; line-height: 1; }
-  /* ── 搜尋車站面板:輸入框＋結果列(沿用 .board 骨架;sys-chip 這裡是淺底版,與看板標題深底版分開) ── */
-  #stnSearchInput {
-    width: 100%; box-sizing: border-box; margin: 1px 0 8px; padding: 8px 11px; min-height: 40px;
-    font: inherit; font-size: 16px; color: var(--ink-strong); /* 16px:iOS/iPad 聚焦不放大整頁(含 768 平板);搜尋框是主互動,略大也合適 */
-    background: var(--paper); border: 1.5px solid var(--line); border-radius: 8px;
+  /* ── 常駐搜尋框的下拉結果(#searchDrop):站名+車次共用一框,錨在輸入框正下方;跳出 header 蓋地圖
+       (z-index 720:>controls 700、蓋所有 leaflet pane/overlay/board,<tap-pick 730<toasts 1200)。
+       sys-chip 是淺底版,與看板標題深底版(.board h3 .sys-chip)分開。 ── */
+  #searchDrop {
+    position: absolute; top: calc(100% + 6px); left: 0; right: 0; z-index: 720;
+    max-height: 55vh; overflow-y: auto;
+    background: var(--paper); border: 2px solid var(--navy); border-radius: 10px;
+    box-shadow: var(--shadow-navy); padding: 3px 13px 9px;
+    scrollbar-width: thin; scrollbar-color: var(--line) transparent;
   }
-  #stnSearchInput:focus { outline: none; border-color: var(--navy); }
-  #stnSearchInput::placeholder { color: var(--faint); }
-  .stn-results .row.stn-row { cursor: pointer; align-items: center; }
-  .stn-results .row.stn-row:hover { background: var(--bg-stage); }
-  .stn-results .row .nm { font-weight: 800; color: var(--ink-strong); white-space: nowrap; }
-  .stn-results .sys-chip {
+  #searchDrop .sd-sec { color: var(--faint); font-size: 11px; font-weight: 800; letter-spacing: 2px; padding: 9px 0 3px; }
+  #searchDrop .row { display: flex; align-items: center; gap: 8px; padding: 7px 0; border-top: 1px dashed var(--line-faint); font-size: 13px; cursor: pointer; }
+  #searchDrop .sd-sec + .row { border-top: 0; } /* 區段標題後第一列不畫上框線 */
+  #searchDrop .row:hover { background: var(--bg-stage); }
+  #searchDrop .row .nm { font-weight: 800; color: var(--ink-strong); white-space: nowrap; font-variant-numeric: tabular-nums; }
+  #searchDrop .sys-chip {
     margin-left: 7px; padding: 0 7px 1px; font-size: 10.5px; font-weight: 700; letter-spacing: 1px;
-    line-height: 1.5; color: var(--navy); border: 1px solid var(--line); border-radius: 999px; white-space: nowrap;
+    line-height: 1.5; color: var(--navy); border: 1px solid var(--line); border-radius: 999px; white-space: nowrap; flex: none;
   }
-  .stn-results .ldots { margin-left: auto; display: inline-flex; align-items: center; gap: 3px; flex: none; }
-  .stn-results .ldots .dot { width: 8px; height: 8px; border-radius: 50%; }
-  .stn-results .stn-count { color: var(--faint); font-size: 11px; padding: 8px 0 2px; }
+  #searchDrop .tr-meta { color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+  #searchDrop .ldots { margin-left: auto; display: inline-flex; align-items: center; gap: 3px; flex: none; }
+  #searchDrop .ldots .dot { width: 8px; height: 8px; border-radius: 50%; }
+  #searchDrop .stn-count { color: var(--faint); font-size: 11px; padding: 8px 0 2px; }
+  #searchDrop .empty { color: var(--faint); font-size: 13px; padding: 10px 2px; }
   .board .empty { color: var(--faint); font-size: 13px; padding: 8px 0; }
   .board .stnMeta { margin: 1px 0 8px; padding-bottom: 8px; border-bottom: 1.5px dashed var(--line-dash); }
   .board .stnMeta .addr { font-size: 12px; color: var(--muted); line-height: 1.5; }
@@ -1565,10 +1573,13 @@
     <!-- 導言靜態預置預設群組(全台同框)文案:boot 會換字,長短不同會多折一行把版面下推(CLS);GROUPS.all.plate.lead 改時同步 -->
     <p id="lead">全台鐵道一次看 — 台鐵、高鐵與各捷運／輕軌皆依當日時刻表同一時間軸運行（台鐵套即時誤點；主要捷運營運時段依官方到站看板校正）。</p>
     </div>
-    <!-- 搜尋+跟隨票:側欄取消後上移 header 右側 -->
-    <div class="search" id="searchRow" hidden>
-      <input type="text" id="trainSearch" list="trainList" placeholder="搜尋車次跟隨（如 123、2103）" autocomplete="off" />
-      <datalist id="trainList"></datalist>
+    <!-- 搜尋+跟隨票:側欄取消後上移 header 右側。搜尋框常駐(首繪即在=零 CLS),站名與車次共用一框;
+         placeholder 依模式動態設定(updateSearchPlaceholder);.search-field 是下拉的相對錨(錨在輸入框正下方,不受 followbar 影響) -->
+    <div class="search" id="searchRow">
+      <div class="search-field">
+        <input type="text" id="trainSearch" placeholder="搜尋車站（台北、動物園）" autocomplete="off" enterkeyhint="search" />
+        <div class="search-drop" id="searchDrop" hidden></div>
+      </div>
       <div class="followbar" id="followBar" hidden></div>
     </div>
   </header>
@@ -1678,13 +1689,6 @@
     <div class="board" id="favPanel" hidden></div>
     <div class="board" id="ridePanel" hidden></div>
     <div class="board" id="explorePanel" hidden></div>
-    <!-- 搜尋車站面板(「找站」鈕開啟):輸入框常駐(不隨每次輸入重建、免失焦),只重繪結果列;跨九系統索引懶建 -->
-    <div class="board stn-search" id="stnSearchPanel" hidden>
-      <button class="close" id="stnSearchClose" title="關閉">×</button>
-      <h3>搜尋車站</h3>
-      <input type="text" id="stnSearchInput" placeholder="輸入站名（台北、高雄、動物園…）" autocomplete="off" enterkeyhint="search" />
-      <div class="stn-results" id="stnSearchResults"></div>
-    </div>
     <!-- 軌道與路線告示卡(「軌」鈕開啟):軌道顯示三段＋車種/路線篩選票根(原側欄的新家) -->
     <div class="board track-panel" id="trackPanel" hidden>
       <button class="close" id="trackClose" title="關閉">×</button>
@@ -1728,7 +1732,6 @@
         <button id="exploreBtn" title="今日亮點——特別列車與今日之最"><span class="ti">探</span><span class="tl">亮點</span></button>
         <button id="favBtn" title="我的最愛列車"><span class="ti">★</span><span class="tl">最愛</span></button>
         <button id="rideBtn" title="旅程護照（完乘記錄與收集章）"><span class="ti">旅</span><span class="tl">護照</span></button>
-        <button id="stnBtn" title="搜尋車站——跨台鐵／高鐵／捷運／輕軌找站，飛過去看班車"><span class="ti">找</span><span class="tl">找站</span></button>
         <button id="introBtn" title="經過特殊車站時顯示介紹"><span class="ti">介</span><span class="tl">站介紹</span></button>
         <button id="satBtn" title="切換衛星影像"><span class="ti">衛</span><span class="tl">衛星</span></button>
         <button id="themeBtn" title="外觀切換：亮／暗／自動"><span class="ti">◐</span><span class="tl">外觀</span></button>
@@ -1799,6 +1802,7 @@
     <details class="foot-box">
       <summary><span>🛠 更新紀錄</span><span class="foot-sub">最後更新：2026/7/17</span></summary>
       <ul class="foot-list">
+        <li><span class="d">7/17</span><span>搜尋合而為一：上方那個搜尋框現在打站名、打車次都行——輸入「台北」會列出台鐵、高鐵、北捷、機捷各自的台北站，點一下就飛過去、直接開那站的到站看板；輸入車次號（像 152、2103）則直接跟隨那班車。原本工具列的「找 找站」按鈕功成身退，一個框搞定兩件事</span></li>
         <li><span class="d">7/17</span><span>跟隨台鐵列車時，資訊卡多了「近 30 天平均誤點・準點率」一行：這班車平常準不準、最慘誤點過幾分（滑鼠移上去看），一眼看得出來。統計來自官方歷史資料，每天更新，之後還會長出更多誤點統計玩法</span></li>
         <li><span class="d">7/17</span><span>新增「搜尋車站」：點工具列的「找 找站」，輸入站名就能跨台鐵、高鐵、機捷、淡海／安坑／三鶯輕軌、北捷、中捷、高捷（含高雄輕軌）找到任何一站——輸入「台北」會列出台鐵、高鐵、北捷、機捷各自的台北站，點一下就飛過去、直接打開那站的到站看板看接下來有哪些車。打「臺」或「台」都找得到</span></li>
         <li><span class="d">7/17</span><span>列車不會再突然「跳一下」了：開著即時校正看動畫時，把播放調快約兩分鐘後（或把時間拉回過去），有誤點的台鐵與捷運列車以前會瞬間跳位——那是動畫在「即時位置」與「純時刻表」之間硬切換造成的。現在改成約三秒的平滑滑行；而且往未來快轉時不再丟掉即時資訊，會沿用最後收到的官方誤點持續推估（時鐘徽章與跟隨面板會標示「推估」），只有回看過去才回到純時刻表模擬</span></li>
@@ -1940,7 +1944,6 @@
   <span class="grab"></span>
   <div class="ms-head"><h3>更多</h3><button class="ms-close" id="moreClose" title="關閉">✕</button></div>
   <div class="ms-body" id="moreBody">
-    <div class="ms-row" data-proxy="stnBtn" data-close="1"><span>找 搜尋車站</span><span class="chev">›</span></div>
     <div class="ms-row" data-act="theme"><span>◐ 外觀</span><span class="seg" id="msThemeSeg"><button data-v="light">亮</button><button data-v="dark">暗</button><button data-v="auto">自動</button></span></div>
     <div class="ms-row" data-proxy="satBtn"><span>衛 衛星影像</span><span class="toggle" data-tg="satBtn"></span></div>
     <div class="ms-row" data-act="track"><span>軌 軌道與路線</span><span class="chev">›</span></div>
@@ -1963,7 +1966,7 @@
 <script>
 // 版本戳記:每次改版 push 前手動遞增(字母序),畫面時鐘徽章與 console 都會顯示,
 // 供比對線上跑的是不是最新版(瀏覽器快取 max-age=600 常讓人看到舊版)
-const BUILD = 'v0717n';
+const BUILD = 'v0717o';
 const state = {
   systems: [], sysId: null, data: null, speed: 36, mode: 'freq',
   lines: [], visible: new Set(), trains: [], schedStations: [], types: [],
@@ -4811,8 +4814,6 @@ function loadSystem(sys) {
       : ('資料來源：交通部TDX平臺 高鐵每日時刻表' + (sys.data.date ? '（' + sys.data.date + '）' : '') +
         '，共 ' + state.trains.length + ' 車次；列車依當日真實時刻表運行，沿高鐵路線行駛（南港－左營）。' +
         '停駛／營運異常時上方橫幅會顯示高鐵公告。點地圖上的車站可看即將停靠的班次。');
-    populateTrainList();
-    document.getElementById('searchRow').hidden = false;
     document.getElementById('flowWrap').hidden = false;
   } else {
     state.speed = sys.speed;
@@ -4836,7 +4837,6 @@ function loadSystem(sys) {
       (sys._times && sys._times.source_notes ? '資料來源：' + sys._times.source_notes
         : (sys.data.source_notes ? '資料來源：' + sys.data.source_notes : ''))) +
       '　' + metroLinksHtml(new Set([sys.id]));
-    document.getElementById('searchRow').hidden = true;
     document.getElementById('flowWrap').hidden = true;
   }
   finishLoad(SYS_META[sys.id]);
@@ -4889,6 +4889,15 @@ function renderSystemsBar() {
     mem.appendChild(b);
   });
   box.appendChild(mem);
+  updateSearchPlaceholder();
+}
+
+// 搜尋框 placeholder 依模式:sched 群組(國家鐵路)可搜站也可搜車次;freq/全台同框以搜站為主
+// (車次區仍會在打數字時出現,這裡只是提示語)。每個 loader 結尾都呼叫 renderSystemsBar,故集中在此更新。
+function updateSearchPlaceholder() {
+  const inp = document.getElementById('trainSearch'); if (!inp) return;
+  inp.placeholder = (state.mode === 'sched' && state.group !== 'all')
+    ? '搜尋車站或車次（台北、123）' : '搜尋車站（台北、動物園）';
 }
 
 function selectGroup(g) {
@@ -4927,7 +4936,6 @@ function loadFreqGroup(g, sel) {
     '（台中捷運、三鶯線、文湖線無公開逐班時刻，為班距推算）。' +
     '可勾選上方系統同時顯示多個路網。' + (state.lines.length ? '' : '（目前未選任何系統）')) +
     '　' + metroLinksHtml(new Set(g.members));
-  document.getElementById('searchRow').hidden = true;
   document.getElementById('flowWrap').hidden = true;
   finishLoad(g.plate);
   renderSystemsBar();
@@ -4982,8 +4990,6 @@ function loadSchedGroup(g, sel, keepView) {
     : (list[0].live
        ? ('台鐵依當日時刻表運行，回到現在時刻自動套用即時誤點，共 ' + total + ' 車次。點列車跟隨、點車站看班次。')
        : ('高鐵依當日真實時刻表沿西部走廊運行，共 ' + total + ' 車次。點列車跟隨、點車站看班次。'));
-  populateTrainList();
-  document.getElementById('searchRow').hidden = false;
   document.getElementById('flowWrap').hidden = false;
   finishLoad(list.length > 1 ? g.plate : SYS_META[list[0].id]);
   renderSystemsBar();
@@ -5038,28 +5044,9 @@ function loadAllGroup(g) {
     '全台鐵道同框 — 台鐵、高鐵依當日真實時刻表運行（共 ' + state.trains.length + ' 車次，台鐵回到現在時刻自動套用即時誤點）；' +
     '捷運與各輕軌亦依當日時刻表推演，北捷、高捷、高雄輕軌、機捷與新北捷運營運時段並依官方即時資訊校正（台中捷運、三鶯線、文湖線為班距推算）。點任一列車皆可跟隨（放大到看得見捷運車號牌即可點），點車站看班次。') +
     '　捷運' + metroLinksHtml(new Set(METRO_OFFICIAL.flatMap(o => o.sys)));
-  populateTrainList();
-  document.getElementById('searchRow').hidden = false;
   document.getElementById('flowWrap').hidden = false;
   finishLoad(g.plate);
   renderSystemsBar();
-}
-
-function populateTrainList() {
-  const dl = document.getElementById('trainList'); dl.innerHTML = '';
-  const trains = [...state.trains].sort((a, b) =>
-    ('' + a.train).localeCompare('' + b.train, 'en', { numeric: true }));
-  const frag = document.createDocumentFragment();
-  for (const tr of trains) {
-    const o = document.createElement('option');
-    const a = tr.stops[0].name, b = tr.stops[tr.stops.length - 1].name;
-    const spd = specialOf(tr);
-    const sp = (spd && spd.named) || SPECIAL_TRAINS[String(tr.train)];
-    o.value = tr.train;
-    o.label = `${tr.train}　${sp ? sp.name + '・' : ''}${tr.typeName}　${a}→${b}`;
-    frag.appendChild(o);
-  }
-  dl.appendChild(frag);
 }
 
 function findTrain(q) {
@@ -6086,7 +6073,7 @@ function renderFavPanel() {
 }
 function openFavPanel() {
   soloPanel('fav');
-  closeBoard(); closeRidePanel(); closeExplorePanel(); closeTrackPanel(); closeStnSearch();
+  closeBoard(); closeRidePanel(); closeExplorePanel(); closeTrackPanel();
   const el = document.getElementById('favPanel');
   el.hidden = false;
   updateSheetOpenClass();
@@ -6156,7 +6143,7 @@ function renderRidePanel() {
 }
 function openRidePanel() {
   soloPanel('ride');
-  closeBoard(); closeFavPanel(); closeExplorePanel(); closeTrackPanel(); closeStnSearch();
+  closeBoard(); closeFavPanel(); closeExplorePanel(); closeTrackPanel();
   document.getElementById('ridePanel').hidden = false;
   updateSheetOpenClass();
   document.getElementById('rideBtn').classList.add('active');
@@ -6462,7 +6449,7 @@ function surpriseFollow() {
 }
 function openExplorePanel() {
   soloPanel('explore');
-  closeBoard(); closeFavPanel(); closeRidePanel(); closeTrackPanel(); closeStnSearch();
+  closeBoard(); closeFavPanel(); closeRidePanel(); closeTrackPanel();
   document.getElementById('explorePanel').hidden = false;
   updateSheetOpenClass();
   document.getElementById('exploreBtn').classList.add('active');
@@ -7397,7 +7384,7 @@ function jumpToNow() {
 // 手機底部 sheet(看板/最愛/旅程/探索,四選一互斥)開啟時,跟隨小卡要讓道到上方,
 // 避免同在左下角互疊(見 CSS body.sheet-open .follow-panel,只在手機斷點生效)
 function updateSheetOpenClass() {
-  const open = ['board', 'favPanel', 'ridePanel', 'explorePanel', 'trackPanel', 'stnSearchPanel'].some(id => !document.getElementById(id).hidden);
+  const open = ['board', 'favPanel', 'ridePanel', 'explorePanel', 'trackPanel'].some(id => !document.getElementById(id).hidden);
   document.body.classList.toggle('sheet-open', open);
   // 手機 tab bar 選中態跟著面板走:有開面板亮該 tab,全關回「地圖」
   const tabOf = { tabExplore: 'explorePanel', tabFav: 'favPanel', tabRide: 'ridePanel' };
@@ -7413,7 +7400,7 @@ function updateSheetOpenClass() {
 // ──「軌道與路線」告示卡:軌道顯示三段＋車種/路線篩選票根(「軌」鈕開關;與其他面板同槽互斥) ──
 function openTrackPanel() {
   soloPanel('track');
-  closeBoard(); closeFavPanel(); closeRidePanel(); closeExplorePanel(); closeStnSearch();
+  closeBoard(); closeFavPanel(); closeRidePanel(); closeExplorePanel();
   document.getElementById('trackPanel').hidden = false;
   document.getElementById('trackBtn').classList.add('active');
   syncTrackSeg();
@@ -7480,24 +7467,58 @@ function stnSearchMatch(q) {
     || (STN_SYS_ORDER[a.e.sysId] - STN_SYS_ORDER[b.e.sysId]) || a.e.name.localeCompare(b.e.name));
   return out.map(o => o.e);
 }
-const STN_MAX_ROWS = 40;
-function renderStnResults() {
-  const inp = document.getElementById('stnSearchInput'), list = document.getElementById('stnSearchResults');
-  if (!inp || !list) return;
-  const q = inp.value;
-  if (!q.trim()) { list.innerHTML = '<div class="empty">輸入站名開始搜尋（例如 台北、高雄、動物園）</div>'; state._stnResults = []; return; }
-  const res = stnSearchMatch(q);
-  if (!res.length) { list.innerHTML = '<div class="empty">查無車站</div>'; state._stnResults = []; return; }
-  const shown = res.slice(0, STN_MAX_ROWS);
-  state._stnResults = shown;
-  const rows = shown.map((e, i) => {
-    const dots = e.lines.filter(l => l.color).map(l => `<span class="dot" style="background:${l.color}"></span>`).join('');
-    return `<div class="row stn-row" data-i="${i}"><span class="nm">${escHtml(e.name)}</span>`
-      + `<span class="sys-chip">${escHtml(e.sysLabel)}</span>${dots ? `<span class="ldots">${dots}</span>` : ''}</div>`;
-  }).join('');
-  const tail = `<div class="stn-count">共 ${res.length} 站符合${res.length > STN_MAX_ROWS ? `（顯示前 ${STN_MAX_ROWS}）` : ''}</div>`;
-  list.innerHTML = rows + tail;
+// 車次比對:掃兩個 sched 系統(台鐵/高鐵)的原始 data.trains,車次號前綴命中(取首個空白 token,免受寫回值干擾);
+// 精準命中(===)排前、再依號碼自然排序,最多 8 筆。撞號(台鐵/高鐵同號)兩系統各列一筆,以 sys-chip 區分。
+function searchTrainMatch(q) {
+  const nq = (q || '').trim().split(/[\s　]/)[0];
+  if (!nq || !/\d/.test(nq)) return []; // 需含數字才視為車次查詢
+  const out = [];
+  for (const sid of ['tra_sched', 'thsr_sched']) {
+    const sys = state.systems.find(s => s.id === sid);
+    if (!sys) continue;
+    for (const tr of (sys.data.trains || [])) if (String(tr.train).startsWith(nq)) out.push({ tr, sys });
+  }
+  out.sort((a, b) => ((String(a.tr.train) === nq ? 0 : 1) - (String(b.tr.train) === nq ? 0 : 1))
+    || String(a.tr.train).localeCompare(String(b.tr.train), 'en', { numeric: true }));
+  return out.slice(0, 8);
 }
+const SEARCH_STN_ROWS = 12;
+// 常駐搜尋框的下拉:車次區(含數字才出現,置頂)＋車站區。即時重繪、量小免 debounce。
+function renderSearchDrop() {
+  const inp = document.getElementById('trainSearch'), drop = document.getElementById('searchDrop');
+  if (!inp || !drop) return;
+  const q = inp.value;
+  if (!q.trim()) { closeSearchDrop(); drop.innerHTML = ''; state._searchTrains = []; state._searchStns = []; return; }
+  const trs = searchTrainMatch(q);
+  const stns = stnSearchMatch(q);          // stnSearchMatch 內部自行正規化(臺→台、去空白)
+  const stnShown = stns.slice(0, SEARCH_STN_ROWS);
+  state._searchTrains = trs; state._searchStns = stnShown;
+  let html = '';
+  if (trs.length) {
+    html += '<div class="sd-sec">車次</div>';
+    html += trs.map((o, i) => {
+      const tr = o.tr, a = tr.stops[0].name, b = tr.stops[tr.stops.length - 1].name;
+      const spd = specialOf(tr), sp = (spd && spd.named) || SPECIAL_TRAINS[String(tr.train)];
+      return `<div class="row tr-row" data-ti="${i}"><span class="nm">${escHtml(String(tr.train))}</span>`
+        + `<span class="sys-chip">${escHtml(o.sys.label)}</span>`
+        + `<span class="tr-meta">${sp ? escHtml(sp.name) + '・' : ''}${escHtml(tr.typeName)}　${escHtml(a)}→${escHtml(b)}</span></div>`;
+    }).join('');
+  }
+  if (stnShown.length) {
+    if (trs.length) html += '<div class="sd-sec">車站</div>';
+    html += stnShown.map((e, i) => {
+      const dots = e.lines.filter(l => l.color).map(l => `<span class="dot" style="background:${l.color}"></span>`).join('');
+      return `<div class="row stn-row" data-i="${i}"><span class="nm">${escHtml(e.name)}</span>`
+        + `<span class="sys-chip">${escHtml(e.sysLabel)}</span>${dots ? `<span class="ldots">${dots}</span>` : ''}</div>`;
+    }).join('');
+    html += `<div class="stn-count">共 ${stns.length} 站符合${stns.length > SEARCH_STN_ROWS ? `（顯示前 ${SEARCH_STN_ROWS}）` : ''}</div>`;
+  }
+  if (!trs.length && !stnShown.length) html = '<div class="empty">查無車站或車次</div>';
+  drop.innerHTML = html;
+  openSearchDrop();
+}
+function openSearchDrop() { const d = document.getElementById('searchDrop'); if (d) d.hidden = false; }
+function closeSearchDrop() { const d = document.getElementById('searchDrop'); if (d) d.hidden = true; }
 // 導航:決定要不要切群組＋看板 st 形狀。sched→sys:系統id(nat/all 皆真實時刻板);freq 分頁→sys:'freq';
 // 全台同框(all)的捷運→sys:'deco'(裝飾層看板)。當前群組開得了就地開,否則切到該系統母群組再開。
 function stnNavResolve(e) {
@@ -7513,26 +7534,9 @@ function stnNavResolve(e) {
 function gotoStn(e) {
   const r = stnNavResolve(e);
   if (r.group) selectGroup(r.group); // 已在該群組時內部直接 return,不重載
-  closeStnSearch();
+  closeSearchDrop();
   map.setView([e.lat, e.lon], Math.max(map.getZoom(), 13), { animate: false });
   openBoard(r.st);
-}
-function openStnSearch() {
-  soloPanel('stn');
-  closeBoard(); closeFavPanel(); closeRidePanel(); closeExplorePanel(); closeTrackPanel();
-  document.getElementById('stnSearchPanel').hidden = false;
-  updateSheetOpenClass();
-  document.getElementById('stnBtn').classList.add('active');
-  renderStnResults();
-  // 桌面自動聚焦輸入框;手機不聚焦(免鍵盤彈起蓋住面板)
-  if (!window.matchMedia('(max-width: 640px)').matches) { const inp = document.getElementById('stnSearchInput'); if (inp) inp.focus(); }
-}
-function closeStnSearch() {
-  const el = document.getElementById('stnSearchPanel');
-  if (!el) return;
-  el.hidden = true;
-  updateSheetOpenClass();
-  document.getElementById('stnBtn').classList.remove('active');
 }
 
 // ── 車站時刻板 ──
@@ -7550,9 +7554,8 @@ function soloPanel(keep) {
   if (keep !== 'ride') closeRidePanel();
   if (keep !== 'explore') closeExplorePanel();
   if (keep !== 'track') closeTrackPanel();
-  if (keep !== 'stn') closeStnSearch();
 }
-function openBoard(st) { soloPanel('board'); closeFavPanel(); closeRidePanel(); closeExplorePanel(); closeTrackPanel(); closeStnSearch(); closePinCard(); closeNearbyXing(); state.boardStation = st; renderBoard(); }
+function openBoard(st) { soloPanel('board'); closeFavPanel(); closeRidePanel(); closeExplorePanel(); closeTrackPanel(); closePinCard(); closeNearbyXing(); state.boardStation = st; renderBoard(); }
 function closeBoard() {
   state.boardStation = null;
   const el = document.getElementById('board');
@@ -8764,24 +8767,6 @@ document.getElementById('favBtn').onclick = () => {
 document.getElementById('exploreBtn').onclick = () => {
   document.getElementById('explorePanel').hidden ? openExplorePanel() : closeExplorePanel();
 };
-document.getElementById('stnBtn').onclick = () => {
-  document.getElementById('stnSearchPanel').hidden ? openStnSearch() : closeStnSearch();
-};
-(() => {
-  const inp = document.getElementById('stnSearchInput'), list = document.getElementById('stnSearchResults');
-  if (!inp || !list) return;
-  inp.addEventListener('input', renderStnResults); // 量小免 debounce
-  inp.addEventListener('keydown', e => {
-    if (e.key === 'Enter') { e.preventDefault(); const r = state._stnResults; if (r && r.length) gotoStn(r[0]); } // Enter 開第一列
-    else if (e.key === 'Escape') closeStnSearch();
-  });
-  list.addEventListener('click', e => {
-    const row = e.target.closest('.row.stn-row'); if (!row) return;
-    const r = state._stnResults, i = +row.dataset.i;
-    if (r && r[i]) gotoStn(r[i]);
-  });
-  document.getElementById('stnSearchClose').onclick = closeStnSearch;
-})();
 document.getElementById('favPanel').onclick = e => {
   const rm = e.target.closest('.rm');
   if (rm) { rm.dataset.stkey ? removeFavStation(rm.dataset.stkey) : removeFav(rm.dataset.no); return; }
@@ -8835,14 +8820,40 @@ initMusic();
   });
   fc.addEventListener('mouseleave', () => { lbl.textContent = FLOW_LBL_DEFAULT; });
 })();
+// 常駐搜尋框:站名/車次共用一框。input 即時重繪下拉;Enter 依歧義規則(全數字且車次精準命中→跟車、
+// 否則有車站→開第一站、都沒有→維持舊 followTrainNo 行為);下拉列點擊分流;點框外收下拉。
 (() => {
-  const ts = document.getElementById('trainSearch');
-  const go = () => {
-    const q = ts.value.trim(); if (!q) { clearFollow(); return; }
-    followTrainNo(q); // 跨 sched 系統搜尋(台鐵↔高鐵車號都可跟)
-  };
-  ts.addEventListener('change', go);
-  ts.addEventListener('keydown', e => { if (e.key === 'Enter') go(); });
+  const ts = document.getElementById('trainSearch'), drop = document.getElementById('searchDrop');
+  // 跟車次:不在 sched 群組時先切「國家鐵路」(頁籤一致);followTrainNo 本身亦可跨系統
+  const followNo = no => { if (state.mode !== 'sched') selectGroup(GROUPS.find(g => g.id === 'nat')); followTrainNo(no); };
+  ts.addEventListener('input', renderSearchDrop);
+  ts.addEventListener('focus', () => { if (ts.value.trim()) renderSearchDrop(); });
+  ts.addEventListener('keydown', e => {
+    if (e.key === 'Escape') { closeSearchDrop(); return; }
+    if (e.key !== 'Enter') return;
+    e.preventDefault();
+    const q = ts.value.trim();
+    const trs = state._searchTrains || [], stns = state._searchStns || [];
+    const exact = /^\d+$/.test(q) && trs.some(o => String(o.tr.train) === q);
+    closeSearchDrop();
+    if (exact) followNo(q);                       // 全數字且車次精準命中→跟隨
+    else if (stns.length) gotoStn(stns[0]);       // 否則有車站→開第一站
+    else if (q) followTrainNo(q);                 // 都沒有→舊行為(含查無提示)
+    else clearFollow();
+  });
+  // 失焦:空值取消跟隨(保留既有行為)
+  ts.addEventListener('change', () => { if (!ts.value.trim()) clearFollow(); });
+  // 下拉列點擊:車次列跟隨、車站列飛站開板
+  drop.addEventListener('click', e => {
+    const trRow = e.target.closest('.row.tr-row');
+    if (trRow) { const o = (state._searchTrains || [])[+trRow.dataset.ti]; if (o) { closeSearchDrop(); followNo(String(o.tr.train)); } return; }
+    const stRow = e.target.closest('.row.stn-row');
+    if (stRow) { const st = (state._searchStns || [])[+stRow.dataset.i]; if (st) gotoStn(st); } // gotoStn 內已 closeSearchDrop
+  });
+  // 點下拉外部收起(pointerdown 判 closest #searchRow)
+  document.addEventListener('pointerdown', e => {
+    if (!drop.hidden && !e.target.closest('#searchRow')) closeSearchDrop();
+  });
 })();
 window.addEventListener('load', boot);
 </script>
