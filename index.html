@@ -7566,6 +7566,7 @@ function renderFreqBoard(el, st, lines, isDeco) {
   groups.sort((a, b) => a.li - b.li || a.rows[0].dtm - b.rows[0].dtm);
   const hasEstimated = groups.some(g => g.ln.times && g.ln.times.estimated);
   const hasLive = groups.some(g => metroLiveOn(g.ln));
+  const allFresh = hasLive && groups.filter(g => metroLiveOn(g.ln)).every(g => metroFresh(g.ln)); // 有任一線非 fresh(高倍速投射/資料稍舊)整體改推估措辭,同 updateMetroBadge
   const body = groups.map(g => {
     const lineLabel = (g.ln._sysLabel ? g.ln._sysLabel + ' ' : '') + (g.ln.name || g.ln.abbr || '');
     return g.rows.map(r => {
@@ -7585,7 +7586,7 @@ function renderFreqBoard(el, st, lines, isDeco) {
   el.innerHTML = `<button class="close" id="boardClose">×</button>` +
     `<button class="board-star${fav ? ' on' : ''}" id="boardStar" title="${fav ? '移除最愛車站' : '加入最愛車站'}">${fav ? '★' : '☆'}</button>` +
     `<h3>${st.name}${sysNames.map(n => `<span class="sys-chip">${n}</span>`).join('')}</h3>` + stnMetaHtml(st) +
-    `<div class="sub">接下來的班車 · ${hasLive ? '已依官方即時資訊校正' : '依官方當日時刻表'} · 點班次跟隨${hasEstimated ? '（部分路線為班距推算）' : ''}</div>` +
+    `<div class="sub">接下來的班車 · ${hasLive ? (allFresh ? '已依官方即時資訊校正' : '依稍早官方資料推估') : '依官方當日時刻表'} · 點班次跟隨${hasEstimated ? '（部分路線為班距推算）' : ''}</div>` +
     (body || '<div class="empty">此時段無停靠班次</div>');
   el.hidden = false;
   updateSheetOpenClass();
