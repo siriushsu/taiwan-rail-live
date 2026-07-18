@@ -1,7 +1,7 @@
 // 具名列車搜尋驗證(WebKit+Chromium):名稱→觀光列車介紹卡/可跟班次、既有站名車次不退化
 import { chromium, webkit } from 'playwright';
 
-const URL = 'http://localhost:5178/index.html';
+const URL = process.env.VURL || 'http://localhost:5178/index.html';
 let fail = 0;
 const ck = (ok, msg) => { console.log((ok ? '  ✓ ' : '  ✗ ') + msg); if (!ok) fail++; };
 
