@@ -2029,6 +2029,7 @@
     <details class="foot-box">
       <summary><span>🛠 更新紀錄</span><span class="foot-sub">最後更新：2026/7/18</span></summary>
       <ul class="foot-list">
+        <li><span class="d">7/18</span><span>下次打開就回到你上次看的地方了：地圖位置、縮放倍率，還有你選的路網頁籤與勾選的系統（例如「北北桃」裡只留台北捷運），通通會記住，不用每次重點一次。不需要註冊或登入，紀錄只留在你自己的裝置裡。從別人分享的連結進來時一律以連結指定的畫面為準、不會被蓋掉；跟隨列車與放空巡航時鏡頭是自己在跑的，不會被誤記成「你在看的位置」；時間軸則維持每次打開都回到「現在」（謝謝網友建議）</span></li>
         <li><span class="d">7/18</span><span>從 Threads、IG、LINE 這些 App 裡點連結進來的朋友，畫面下方會出現一張小卡，提醒你改用 Safari／Chrome 開啟——App 內建的瀏覽器沒辦法把軌島加入主畫面，看完常常就再也找不回來了。Android 點一下按鈕直接跳到瀏覽器；iPhone 一鍵複製網址、或照指引點角落「⋯」用外部瀏覽器開啟。在一般瀏覽器或主畫面 App 裡完全不會看到這張卡，按 × 關掉後也不會再出現</span></li>
         <li><span class="d">7/18</span><span>iPad 直式與中等寬度的視窗不再擠壞版面：這個寬度以前拿到的是桌面版工具列，按鈕多到裁出畫面外，現在改用手機版的底部工具列與「更多」選單，每顆按鈕都摸得到。桌面版工具列也瘦身了：音樂控制收成一顆 ♪ 小鈕，滑鼠移過去（或鍵盤 Tab 過去）會彈出換首與音量的小面板，1280 寬的螢幕從此一顆不裁；「更多」選單重新分成「地圖顯示／資訊／觀看模式／分享與資料」四組更好找；左上角「時刻表模擬／深夜重播」徽章改成灰藍色，不再跟紅色誤點警示同色好分辨；手機頁籤列右緣加了淡出提示還有更多可滑；站名牌下的英文副標也放大了一點更易讀</span></li>
         <li><span class="d">7/18</span><span>搜尋框現在打「列車名字」也找得到：輸入山嵐、鳴日、藍皮、海風…這些觀光列車的名字，有開行班次的（藍皮解憂號、海風號）直接列出車次點了就跟隨；沒有固定車次的（山嵐號、鳴日號、環島之星…）會顯示「觀光列車」，點開看它的介紹故事——這些名車以前在站上根本找不到入口，現在搜得到了</span></li>
@@ -2226,7 +2227,7 @@
 <script>
 // 版本戳記:每次改版 push 前手動遞增(字母序),畫面時鐘徽章與 console 都會顯示,
 // 供比對線上跑的是不是最新版(瀏覽器快取 max-age=600 常讓人看到舊版)
-const BUILD = 'v0718n';
+const BUILD = 'v0718o';
 // 手機/平板直式「殼」斷點(議題1:640→900,iPad 直式改拿 tabbar＋更多抽屜):與 CSS @media 同步,版面類判斷一律用此常數。
 // 注意:裝置等級判斷(keepBuffer/powerSave 預設)刻意不用此常數、維持 640——iPad 不該因為改拿 tabbar 就被當低階裝置。
 const MOBILE_MQ = '(max-width: 900px)';
@@ -5249,6 +5250,7 @@ function toggleFreqMember(id) {
   renderAlertBanner(); // 勾選系統變了,公告過濾範圍跟著變(用手上快取,不重抓)
   pollMetroLive(); // rebuildFreqLines 產生全新 line 物件,_liveShift 需重新拉
   pollNtmLive();
+  saveLastView(); // 勾選不移動地圖→不發 moveend,得自己記一次
 }
 
 // sched 群組(國家鐵路):台鐵+高鐵同框(皆真實時刻表);群內可多選,預設全開
@@ -5283,6 +5285,7 @@ function toggleSchedMember(id) {
   else state.schedSel.add(id);
   const g = GROUPS.find(x => x.id === state.group);
   loadSchedGroup(g, state.schedSel, true); // keepView:切換成員不重新框景
+  saveLastView(); // 同 toggleFreqMember:不框景就不會發 moveend
 }
 
 // 全台同框:把所有 freq 系統(捷運/輕軌)的線建成裝飾層,示意動畫獨立於真實時鐘
@@ -9504,13 +9507,18 @@ async function boot() {
     if (!isNaN(mz)) deepZ = Math.min(18, Math.max(7, mz));
     deepTrip = parseTripParam(qs.get('trip'));
   } catch (e) {}
-  // 開場群組:分享連結帶 g 就開該群組,否則首屏全台同框
+  // 上次視野:沒帶任何深連結、也不是直播/導播時,回到使用者上次離開的路網與位置(回訪不必每次重點一次)。
+  // 優先序 深連結 > 上次視野 > 首屏全台同框——分享連結進來的訪客絕不能被自己本機的記憶蓋掉。
+  const lastView = (deepG || deepAt || deepTrain || deepTrip || state.liveMode) ? null : loadLastView();
+  // 開場群組:分享連結帶 g 就開該群組,其次上次待的群組,否則首屏全台同框
   let bootGroup = GROUPS.find(g => g.id === 'all');
   if (deepG) { const gg = GROUPS.find(g => g.id === deepG); if (gg) bootGroup = gg; }
+  else if (lastView) { const gg = GROUPS.find(g => g.id === lastView.g); if (gg) bootGroup = gg; }
   if (bootGroup) {
+    const lastSel = lastView && lastView.g === bootGroup.id ? lastView.sel : null; // 上次勾了哪幾個系統
     if (bootGroup.mode === 'all') loadAllGroup(bootGroup);
-    else if (bootGroup.mode === 'sched') loadSchedGroup(bootGroup); // 台鐵+高鐵同框(缺高鐵資料時自動退回單台鐵)
-    else loadFreqGroup(bootGroup);
+    else if (bootGroup.mode === 'sched') loadSchedGroup(bootGroup, lastSel); // 台鐵+高鐵同框(缺高鐵資料時自動退回單台鐵)
+    else loadFreqGroup(bootGroup, lastSel);
   } else loadSystem(state.systems.find(s => s.id === 'tra_sched') || state.systems[0]);
   // 套用分享時刻,再套用「跟車」或「地點視野」;行程分享連結一律強制 live,故獨佔一路(忽略 t/at)
   if (deepTrip) {
@@ -9522,12 +9530,50 @@ async function boot() {
       if (tr0) { document.getElementById('trainSearch').value = tr0.train; setFollow(tr0); }
     } else if (deepAt) {
       map.setView(deepAt, deepZ != null ? deepZ : map.getZoom(), { animate: false });
+    } else if (lastView) {
+      map.setView([lastView.lat, lastView.lon], lastView.z, { animate: false }); // 回到上次離開的位置(群組已於上面一併還原)
     }
   }
+  map.on('moveend', saveLastView); // 記住使用者最後看的畫面;守門條件都在 saveLastView 內(巡航/跟車/直播皆不寫)
   state.ready = true;
   requestAnimationFrame(tick);
   if (state.director) initDirector(); // 導播模式(?live=2):5× 循環,跟車 5–10 分輪替(z18)+偶爾群車俯瞰,資訊卡全開
   else if (state.liveMode) initLive(); // 即時模式(?live=1):資料就緒後貼真實時刻放空巡航+音樂
+}
+
+// ══════════ 上次視野記憶(v0718o)：回訪自動回到離開時的路網與位置，不需登入 ══════════
+// 只記「使用者自己在看的畫面」——放空巡航/跟車/導播的鏡頭不是使用者的意圖，一律不寫入；
+// 也不記時刻與跟隨中的車次(那班車隔天就不存在了，時間軸每次開一律回到「現在」)。
+const LAST_VIEW_KEY = 'trainmap-last-view';
+function saveLastView() {
+  if (!state.ready) return;                          // 開機期間的框景不算(還原用的 setView 也在 ready 之前)
+  if (state.liveMode || state.director) return;      // ?live= 是 OBS 訊號源契約：不讀也不寫
+  if (state.autoTour || state._hotScene) return;     // 放空巡航/群車俯瞰的鏡頭自己會飄，存了下次開就被丟到隨機位置
+  if (state.followTrain || state.freqFollow) return; // 跟車鏡頭同理
+  const g = GROUPS.find(x => x.id === state.group);
+  if (!g) return;
+  const sel = g.mode === 'freq' ? state.freqSel : g.mode === 'sched' ? state.schedSel : null;
+  try {
+    const c = map.getCenter();
+    localStorage.setItem(LAST_VIEW_KEY, JSON.stringify({
+      g: g.id, lat: +c.lat.toFixed(5), lon: +c.lng.toFixed(5), z: Math.round(map.getZoom()),
+      sel: sel ? [...sel] : null,
+    }));
+  } catch (e) {}
+}
+// 還原前逐項防呆：群組與成員都可能改版下架，壞值一律當沒存過(退回首屏全台同框)。
+function loadLastView() {
+  try {
+    const v = JSON.parse(localStorage.getItem(LAST_VIEW_KEY) || 'null');
+    if (!v || !isFinite(v.lat) || !isFinite(v.lon)) return null;
+    const g = GROUPS.find(x => x.id === v.g);
+    if (!g) return null;
+    const sel = Array.isArray(v.sel) ? v.sel.filter(id => g.members.includes(id)) : [];
+    return {
+      g: g.id, lat: +v.lat, lon: +v.lon, z: Math.min(18, Math.max(7, Math.round(+v.z) || 12)),
+      sel: sel.length ? new Set(sel) : null,
+    };
+  } catch (e) { return null; }
 }
 
 // 分享目前畫面:正在跟車→沿用 ?train= 深連結;否則打包 地點+縮放+路網+時間。手機叫原生分享面板,桌面複製連結。
