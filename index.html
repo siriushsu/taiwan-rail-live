@@ -1857,6 +1857,7 @@
     <details class="foot-box">
       <summary><span>🛠 更新紀錄</span><span class="foot-sub">最後更新：2026/7/18</span></summary>
       <ul class="foot-list">
+        <li><span class="d">7/18</span><span>「今日台鐵動態」的「跟這班車」按鈕修正：之前只要切去過捷運路線、或把時間軸拉回過去看過，按鈕就會從此消失，看起來像只出現一次。現在只要那班車還在即時名單上（30 分鐘內有更新），按鈕就會一直在，點下去會自動幫你切回台鐵畫面開始跟車</span></li>
         <li><span class="d">7/18</span><span>公告視窗的說明文字不再自相矛盾：昨天上線的「台鐵大面積誤點」提醒寫「動畫如實反映延誤」，底下的來源說明卻寫「動畫仍照原時刻表推演、不會反映」——謝謝眼尖的回報，現在寫清楚了：誤點確實有逐車跟上（晚幾分就畫在晚幾分的位置）、部分捷運也有看板校正，但停駛、取消或加開的班次動畫不會反映，該班車仍會照表出現在畫面上，實際運行請以官方公告為準</span></li>
         <li><span class="d">7/18</span><span>新增「今日台鐵動態」：全台鐵今天每班車的誤點排行一目了然，點任何一班可展開它今天的逐站歷程——幾點到哪站、當時誤點幾分、最慘誤點到幾分，全都記下來。工具列的「今日」按鈕（手機在「更多」裡）打開，資料每天清晨重新開始累積</span></li>
         <li><span class="d">7/18</span><span>放空模式新增「都會呼吸」運鏡：鏡頭偶爾會停在台北、台中、高雄上空，畫面化為乾淨的島嶼輪廓（劇場風格），列車與路網浮在其上，像深呼吸一樣緩緩拉近再緩緩拉遠，當作一個定場的療癒畫面；動一下地圖，就會回到平常的街道地圖、把控制權交還給你</span></li>
@@ -2034,7 +2035,7 @@
 <script>
 // 版本戳記:每次改版 push 前手動遞增(字母序),畫面時鐘徽章與 console 都會顯示,
 // 供比對線上跑的是不是最新版(瀏覽器快取 max-age=600 常讓人看到舊版)
-const BUILD = 'v0718a';
+const BUILD = 'v0718b';
 const state = {
   systems: [], sysId: null, data: null, speed: 36, mode: 'freq',
   lines: [], visible: new Set(), trains: [], schedStations: [], types: [],
@@ -6731,7 +6732,10 @@ function renderTodayEvents(no) {
       `<span class="td-ev-stat">${traStatusTxt(e.status)}</span>` +
       `<span class="td-ev-d${dl > 0 ? ' late' : ''}">${dtxt}</span>${peak}</div>`;
   }).join('');
-  const live = liveActive() && state.live && state.live.map && state.live.map.has(no); // 只有即時名單裡的車才給跟車鈕
+  // 只有即時名單裡的車才給跟車鈕。只看資料鮮度,不用 liveActive()——它綁著「當前分頁是時刻表＋時間軸沒回看」
+  // 的地圖徽章語意,切到捷運分頁或暫停/重播過就把鈕全滅;跟車動作本身會自行切系統,不需要那些前提。
+  const lv = state.live;
+  const live = lv && lv.map && lv.map.has(no) && Date.now() - lv.at < 1800e3;
   return rows + (live ? `<button class="td-follow" data-follow="${no}">跟這班車 →</button>` : '');
 }
 function renderTodayPanel() {
