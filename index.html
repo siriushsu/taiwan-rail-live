@@ -2,7 +2,9 @@
 <html lang="zh-Hant">
 <head>
 <meta charset="utf-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1" />
+<!-- 鎖頁面級縮放:手機誤觸 pinch 把頁面放大後,地圖佔滿全屏就再也捏不回來(地圖自己吃掉觸控)。
+     地圖內縮放由 Leaflet 自理不受影響。iOS Safari 會無視 user-scalable,另以 gesturestart 補擋(見檔尾) -->
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
 <title>軌島</title>
 <meta name="description" content="軌島 railisland.tw。看台鐵此刻準點嗎、捷運怎麼穿梭全台，一張會動的台灣鐵道地圖。" />
 <meta property="og:title" content="軌島" />
@@ -84,6 +86,7 @@
     font-family: var(--font);
     background: var(--bg-page);
     color: var(--ink);
+    touch-action: pan-x pan-y; /* 禁頁面級 pinch/double-tap 縮放(誤觸放大後地圖佔滿屏就捏不回來);地圖內縮放 Leaflet 自設 touch-action 不受繼承影響 */
   }
   a { color: var(--navy); }
   a:hover { color: var(--red); }
@@ -714,6 +717,8 @@
     margin: 13px 0 8px; padding-bottom: 3px; border-bottom: 1.5px dashed var(--line-dash);
   }
   .passport .ph-sec b { color: var(--navy); letter-spacing: 0; }
+  .passport .ph-sec.ph-sec-rides { flex-wrap: wrap; justify-content: space-between; } /* 排序控制擠不下就整組換行,不擠壓按鈕本身 */
+  .passport .ph-sec .seg { letter-spacing: normal; } /* .ph-sec 的 3px letter-spacing 不inherit 進排序鈕文字 */
   .passport .ph-stamps { display: flex; flex-wrap: wrap; gap: 10px 10px; align-items: flex-start; }
   /* 印章(.seal):圓章 52px、框 2.5、旋 -8°;得章=印泥紅、成就=金、未得=虛線灰不旋轉可點重播 */
   .seal {
@@ -1857,6 +1862,9 @@
     <details class="foot-box">
       <summary><span>🛠 更新紀錄</span><span class="foot-sub">最後更新：2026/7/18</span></summary>
       <ul class="foot-list">
+        <li><span class="d">7/18</span><span>「旅程護照」的完乘記錄可以自選排序了：展開護照卡片，完乘記錄標題旁多了「日期／車次／距離／車種」四顆按鈕，想看最近搭的、找特定車次、比誰跑得遠、或依車種分組看，點一下就切換，選擇會記住。預設維持最新完乘在最上面（謝謝網友建議）</span></li>
+        <li><span class="d">7/18</span><span>手機版不再會不小心把整個網頁放大：之前誤觸雙指縮放把頁面放大後，地圖佔滿畫面、想捏回來手勢卻被地圖吃掉，卡在放大狀態回不去。現在網頁本身固定不縮放，地圖內的雙指縮放完全不受影響</span></li>
+        <li><span class="d">7/18</span><span>人在國外，畫面的「現在」也是台灣的現在了：過去時間軸跟著你裝置的當地時區走，在海外開軌島會看到列車對到當地時間、位置整個錯開。現在一律以台灣時間推演，時刻表、誤點資訊與看板校正在世界任何角落都對得上（台灣使用者完全無感、行為不變）</span></li>
         <li><span class="d">7/18</span><span>「都會呼吸」定場畫面抖動修正：昨天上線的呼吸運鏡在緩緩拉近、拉遠時，整個畫面（島嶼輪廓與列車路網）會有一種細微的晃動、抖動感——原因是分數縮放逐幀重繪時的像素取整誤差。現在改用平滑的浮點重繪，海陸輪廓與路網每一幀都精準對齊、隨呼吸平順縮放，不再抖動</span></li>
         <li><span class="d">7/18</span><span>「今日台鐵動態」的「跟這班車」按鈕修正：之前只要切去過捷運路線、或把時間軸拉回過去看過，按鈕就會從此消失，看起來像只出現一次。現在只要那班車還在即時名單上（30 分鐘內有更新），按鈕就會一直在，點下去會自動幫你切回台鐵畫面開始跟車</span></li>
         <li><span class="d">7/18</span><span>公告視窗的說明文字不再自相矛盾：昨天上線的「台鐵大面積誤點」提醒寫「動畫如實反映延誤」，底下的來源說明卻寫「動畫仍照原時刻表推演、不會反映」——謝謝眼尖的回報，現在寫清楚了：誤點確實有逐車跟上（晚幾分就畫在晚幾分的位置）、部分捷運也有看板校正，但停駛、取消或加開的班次動畫不會反映，該班車仍會照表出現在畫面上，實際運行請以官方公告為準</span></li>
@@ -2036,7 +2044,7 @@
 <script>
 // 版本戳記:每次改版 push 前手動遞增(字母序),畫面時鐘徽章與 console 都會顯示,
 // 供比對線上跑的是不是最新版(瀏覽器快取 max-age=600 常讓人看到舊版)
-const BUILD = 'v0718c';
+const BUILD = 'v0718d';
 const state = {
   systems: [], sysId: null, data: null, speed: 36, mode: 'freq',
   lines: [], visible: new Set(), trains: [], schedStations: [], types: [],
@@ -2323,7 +2331,7 @@ function prepFreqTimes(ln) {
   const dt = TW_DAYTYPE[todayStr()];
   if (dt === 1) day = t.holiday || (t.days && t.days[0]);
   else if (dt === 2) day = t.days && t.days[1];
-  else day = t.days ? t.days[new Date().getDay()] : null;
+  else day = t.days ? t.days[new Date(todayStr() + 'T00:00:00Z').getUTCDay()] : null; // 週幾以台北日為準(海外裝置勿用當地週幾)
   ln._tt = (day && t.sets && t.sets[day]) || [];
 }
 // 跨午夜正規化:班次秒值可 >86400,清晨檢視時把前一日跨午夜班接回來(比照 sched trainPos)
@@ -5765,6 +5773,11 @@ document.addEventListener('visibilitychange', () => {
   if (!document.hidden && state.ready) { state._drawAt = performance.now(); draw(); }
 });
 
+// 鎖頁面級縮放的 iOS 補擋:Safari 無視 viewport 的 user-scalable=no,要 preventDefault 它專有的
+// gesture 事件才真的擋住頁面 pinch。Leaflet 地圖縮放走 touch 事件自行處理,不經 gesture,不受影響。
+document.addEventListener('gesturestart', e => e.preventDefault());
+document.addEventListener('gesturechange', e => e.preventDefault());
+
 // ── 相機守衛(成本防線):背景分頁(document.hidden)或劇場模式時,所有「程式驅動的相機移動」一律 no-op。 ──
 // 背景分頁不得觸發圖磚載入(成本防線,勿移除)——現況相機都在 rAF 主迴圈天然凍結,此為明文保證,防未來有人把相機移進 setInterval。
 // 套在 recenterTo / hotCruise / hotspotTick / nextTourTrain 頂端;劇場自己的入場運鏡(flyToBounds 直呼 map)不經這幾個函數,天然豁免。
@@ -6528,6 +6541,35 @@ function followDexStamp(cat, id) {
   state._dexLast[key] = String(tr.train);
   followTrainNo(String(tr.train), { fromStart: true });
 }
+// 完乘記錄排序(issue#8,純顯示層):不碰資料/同步,只改 renderPassport 讀出後的呈現順序
+const RIDE_SORT_LABELS = { date: '日期', train: '車次', km: '距離', kind: '車種' };
+function rideTrainCompare(a, b) {
+  const na = Number(a), nb = Number(b), va = Number.isFinite(na), vb = Number.isFinite(nb);
+  if (va && vb) return na - nb;
+  if (va !== vb) return va ? -1 : 1; // 數字車次一律排非數字前面
+  return String(a ?? '').localeCompare(String(b ?? ''));
+}
+function rideDateDesc(a, b) {
+  return String(b.date || '').localeCompare(String(a.date || '')) || ((b.dep ?? 0) - (a.dep ?? 0));
+}
+function sortRides(arr, mode) {
+  const list = arr.slice();
+  if (mode === 'train') list.sort((a, b) => rideTrainCompare(a.train, b.train) || rideDateDesc(a, b));
+  else if (mode === 'km') list.sort((a, b) => ((b.km ?? 0) - (a.km ?? 0)) || rideDateDesc(a, b));
+  else if (mode === 'kind') list.sort((a, b) => String(a.kind || '').localeCompare(String(b.kind || ''), 'zh-Hant') || rideDateDesc(a, b));
+  else list.sort((a, b) => rideDateDesc(a, b) || rideTrainCompare(a.train, b.train));
+  return list;
+}
+function getRideSortMode() {
+  let m = 'date';
+  try { m = localStorage.getItem('trainmap-ride-sort') || 'date'; } catch (e) {}
+  return RIDE_SORT_LABELS[m] ? m : 'date';
+}
+function setRideSortMode(m) {
+  if (!RIDE_SORT_LABELS[m]) return;
+  try { localStorage.setItem('trainmap-ride-sort', m); } catch (e) {}
+  renderPassport();
+}
 function renderPassport() {
   const el = document.getElementById('passport');
   if (state.mode !== 'sched') { el.hidden = true; el.innerHTML = ''; return; }
@@ -6562,9 +6604,13 @@ function renderPassport() {
   stamps += `<div class="ph-sec">成就徽章<b>${ach.size}/${ACHIEVEMENTS.length}</b></div><div class="ph-stamps">` +
     ACHIEVEMENTS.map(a =>
       `<span class="seal${ach.has(a.id) ? ' gold' : ' na'}" title="${a.desc}"><b>${sealName(a.name)}</b><small>${a.icon}</small></span>`).join('') + '</div>';
-  const list = rides.slice().reverse().map(r =>
+  const rideSort = getRideSortMode();
+  const list = sortRides(rides, rideSort).map(r =>
     `<div class="ph-row"><span class="datestamp">${(r.date || '').slice(5).replace(/-/g, '.')}</span><b>${r.train}</b>` +
     `<span class="k">${r.kind}</span><span class="r">${r.from}→${r.to}</span><span class="km">${r.km} km</span></div>`).join('');
+  // 排序切換鈕:有記錄才顯示(空清單沒東西可排);選中狀態直接烤進 HTML,不用另外 sync
+  const sortSeg = list ? `<span class="seg ph-sort" id="phSortSeg">${Object.entries(RIDE_SORT_LABELS)
+    .map(([v, lbl]) => `<button data-v="${v}"${v === rideSort ? ' class="on"' : ''}>${lbl}</button>`).join('')}</span>` : '';
   // 收合狀態記 localStorage(預設收合,免得側欄一次攤開太多資訊);點標題列切換
   let open = false;
   try { open = localStorage.getItem('trainmap-passport-open') === '1'; } catch (e) {}
@@ -6575,7 +6621,7 @@ function renderPassport() {
     `<span class="ph-stats">完乘 <b>${rides.length}</b> 趟 · 總里程 <b>${totalKm.toLocaleString()}</b> km` +
     (longest ? ` · 最長一趟 <b>${longest.toLocaleString()}</b> km` : '') + `</span></div>` +
     `<div class="ph-body">` + stamps +
-    `<div class="ph-sec">完乘記錄</div>` +
+    `<div class="ph-sec ph-sec-rides">完乘記錄${sortSeg}</div>` +
     (list ? `<div class="ph-list">${list}</div>`
       : `<div class="ph-empty">還沒有完乘記錄——從地圖角落「探」挑一班有趣的車，陪它跑完全程吧。</div>`) + `</div>`;
   el.onclick = e => {
@@ -6586,6 +6632,8 @@ function renderPassport() {
       el.querySelector('.ph-tgl').textContent = nowOpen ? '收合 ▲' : '展開 ▼';
       return;
     }
+    const sortBtn = e.target.closest('#phSortSeg button');
+    if (sortBtn) { setRideSortMode(sortBtn.dataset.v); return; } // 完乘記錄排序切換(純顯示層,見 sortRides)
     const st = e.target.closest('.seal[data-cat]');
     // 明星/圖鑑/支線章:每次點挑一班不同的車從發車跟(完成的章也可點來再看);成就徽章無 data-cat,不觸發
     if (st) followDexStamp(st.dataset.cat, st.dataset.id);
@@ -7287,17 +7335,15 @@ function activeTz() {
   }
   return (sys && sys.tz) || 'Asia/Taipei';
 }
+// 預設(未設 tz)錨定 Asia/Taipei 而非裝置本地時鐘:台灣裝置兩者數值恆等(UTC+8)行為零變化;
+// 海外訪客的「現在」與「今天」則對上台灣營運日——時刻表推演、LIVE/看板校正、日型判斷才會正確
+// (裝置本地時鐘會讓海外把 simSec 對到當地時間,與台鐵誤點資料的時間軸整個錯開)。
 function nowSecOfDay(tz) {
-  if (!tz || tz === 'Asia/Taipei') { // 預設:原裝置本地時鐘,台灣行為零變化
-    const d = new Date();
-    return d.getHours() * 3600 + d.getMinutes() * 60 + d.getSeconds();
-  }
-  const localSec = Math.floor(Date.now() / 1000) + tzOffsetSec(tz);
+  const localSec = Math.floor(Date.now() / 1000) + tzOffsetSec(tz || 'Asia/Taipei');
   return ((localSec % 86400) + 86400) % 86400;
 }
 function todayStr(tz) {
-  if (!tz || tz === 'Asia/Taipei') return new Date().toLocaleDateString('sv'); // 預設:裝置本地日期
-  return new Date().toLocaleDateString('sv', { timeZone: tz });
+  return new Date().toLocaleDateString('sv', { timeZone: tz || 'Asia/Taipei' });
 }
 
 // ── 即時校正共用漸變層:偏移目標任何變化(門檻進出/每分鐘資料更新/開機首拉)都以真實時間
