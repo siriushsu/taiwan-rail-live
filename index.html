@@ -273,7 +273,9 @@
   /* 點時間讀數直接指定時刻:透明 time input 疊在讀數上,手機點開原生滾輪、桌面聚焦後現形可打字 */
   .tod-wrap { position: relative; display: inline-flex; }
   .tod-wrap input[type=time] {
-    position: absolute; inset: 0; width: 100%; height: 100%; box-sizing: border-box;
+    /* v0718i 觸控熱區:視覺仍 opacity:0 貼合 .tod-wrap,但實際命中框放大到 ≥44px(置中擴張,不影響任何可見樣式) */
+    position: absolute; left: 50%; top: 50%; width: 100%; height: max(100%, 44px);
+    transform: translate(-50%, -50%); box-sizing: border-box;
     opacity: 0; border: 0; padding: 0; margin: 0; cursor: pointer; font: inherit;
   }
   .tod-wrap:focus-within output { display: none; }
@@ -307,6 +309,11 @@
   .speedrail .post { position: absolute; top: 4px; height: 18px; border-left: 2px solid var(--line); z-index: 1; }
   .speedrail .post.end { border-color: var(--navy); }
   .speedrail .tick { position: absolute; top: 26px; font-size: 9px; color: var(--faint); transform: translateX(-50%); font-variant-numeric: tabular-nums; }
+  /* v0718i 觸控熱區:整條可拖曳帶(非拇指本身)命中框補到 ≥44px 高,置中擴張、z-index 墊底不擋 input/刻度 */
+  .speedrail::after {
+    content: ''; position: absolute; left: 50%; top: 50%;
+    width: 100%; height: max(100%, 44px); transform: translate(-50%, -50%); z-index: -1;
+  }
   button.pp {
     font: inherit; font-size: 14px; font-weight: 800; cursor: pointer;
     background: var(--paper); color: var(--navy);
@@ -323,6 +330,20 @@
     padding: 4px 12px; min-height: 32px;
   }
   button.pp.sub:hover { background: var(--bg-stage); }
+  /* v0718i 觸控熱區:#pp(播放/暫停)命中框補到 ≥44×44,收合膠囊態(padding 3px 6px)最需要;
+     置中擴張不改視覺 box。兩側緊鄰的是收合膠囊內 pointer-events:none 的時間/速度讀數,
+     橫向擴張不搶走獨立行為(那裡本就冒泡到膠囊觸發展開)。 */
+  #pp { position: relative; }
+  #pp::after {
+    content: ''; position: absolute; left: 50%; top: 50%;
+    width: max(100%, 44px); height: max(100%, 44px); transform: translate(-50%, -50%);
+    /* v0718i:z-index:-1(非 auto)——#pp 因 position:relative 被推到較晚的疊層(在非定位的 flex 手足如
+       #speedOut/#todOut 之上),沒有這個負值,擴大熱區會蓋過鄰居的「點膠囊展開」既有行為(已用 diag_c3.mjs
+       對照 HEAD 抓到:收合態點膠囊置中處原本命中 #speedOut 觸發展開,加了本批熱區後誤中 #pp 變成切播放,
+       是真的行為迴歸,非純視覺)。設 -1 讓真手足內容(non-positioned,較早疊層)仍蓋過它,只在真正空白處生效;
+       比 .controls::after 的 -2 高一階,不被那層蓋過。 */
+    z-index: -1;
+  }
   #musicCtl { gap: 4px; }
   #musicVol { width: 64px; }
   /* 音樂鈕:是否「真的在放」一眼可辨——播放中紅底＋跳動音量條;沒在放一律灰調 */
@@ -948,6 +969,11 @@
     background: var(--red); color: #fff8ec;
     border-color: var(--red-deep); box-shadow: var(--shadow-red);
   }
+  /* v0718i 觸控熱區:高度補到 ≥44(寬度已夠,不擴);已是 position:absolute 天然為定位錨點 */
+  #randBtn::after {
+    content: ''; position: absolute; left: 50%; top: 50%;
+    width: 100%; height: max(100%, 44px); transform: translate(-50%, -50%);
+  }
   body.fs.immersive:not(.ambient) #randBtn { display: none !important; }
 
   /* ── HUD 小牌 ── */
@@ -1110,6 +1136,10 @@
   #todayPanel .td-ev-d.late { color: var(--warn-ink); font-weight: 700; }
   #todayPanel .td-peak { flex: none; color: var(--red-deep); font-size: 10px; font-weight: 700; }
   #todayPanel .td-loading { color: var(--faint); font-size: 12px; padding: 6px 0 6px 8px; }
+  /* 失敗文字比共用 .board .empty(--faint)深一級,不動共用規則(v0718i);.td-detail 內縮排比照 .td-loading */
+  #todayPanel .td-fail { color: var(--muted); font-size: 13px; padding: 8px 0; }
+  #todayPanel .td-detail .td-fail { font-size: 12px; padding: 6px 0 6px 8px; }
+  #todayPanel .td-fail-meta { color: var(--faint); font-size: 10.5px; padding: 2px 0 6px; }
   #todayPanel .td-follow { margin: 5px 0 3px 8px; font-size: 11.5px; font-weight: 700; color: var(--navy); background: var(--bg-stage); border: 1px solid var(--line); border-radius: 6px; padding: 3px 10px; cursor: pointer; }
   #todayPanel .td-follow:hover { background: var(--paper); }
 
@@ -1359,6 +1389,11 @@
     display: flex; justify-content: space-between; align-items: center; gap: 10px;
     padding: 12px 14px; border-bottom: 1px dashed var(--line-faint);
     font-size: 13.5px; font-weight: 700; color: var(--ink); cursor: pointer; min-height: 48px;
+    /* v0718i:多數列已由 div 改真 <button>(鍵盤可達),此處補 UA 按鈕預設樣式歸零——
+       同選擇器同優先度疊在上面宣告,不會動到上面已設的 font-size/font-weight/color。
+       data-act=theme 列內含真按鈕(seg),不可巢狀 button,仍是 div,此規則對它無副作用。 */
+    appearance: none; -webkit-appearance: none; background: none; border: 0; margin: 0;
+    font-family: inherit; text-align: inherit; width: 100%;
   }
   .more-sheet .ms-row:last-child { border-bottom: 0; }
   .more-sheet .ms-row .chev { font-size: 12px; color: var(--faint); font-weight: 600; }
@@ -1521,6 +1556,13 @@
       padding: 6px 16px; border-radius: 999px; cursor: pointer;
       overflow: visible;
       transition: opacity .5s ease;
+    }
+    /* v0718i 觸控熱區:收合膠囊整體(實測約41高)命中框補到 ≥44,置中擴張;z-index:-2(比 #pp::after
+       的 -1 更低一階)墊在 #pp/#todOut/#speedOut 等真子元素、以及 #pp 自己的熱區之下,不搶走任何人的點擊,
+       只補滿膠囊邊緣的空白窄邊 */
+    body:not(.ambient):not(.live):not(.cexp) .controls::after {
+      content: ''; position: absolute; left: 50%; top: 50%;
+      width: 100%; height: max(100%, 44px); transform: translate(-50%, -50%); z-index: -2;
     }
     body.fs:not(.ambient):not(.live):not(.cexp) .controls { bottom: calc(68px + env(safe-area-inset-bottom, 0px)); }
     body:not(.ambient):not(.live):not(.cexp) .controls #ppTxt,
@@ -1804,8 +1846,8 @@
     </div>
     <!-- 首訪「怎麼玩」卡:僅首次(localStorage 記憶),setupHowto 決定顯示 -->
     <div class="howto-wrap" id="howtoWrap" hidden>
-      <div class="howto">
-        <div class="hw-head"><div class="lbl">歡迎搭乘</div><div class="ttl">軌島怎麼玩</div></div>
+      <div class="howto" role="dialog" aria-modal="true" aria-labelledby="howtoTitle">
+        <div class="hw-head"><div class="lbl">歡迎搭乘</div><div class="ttl" id="howtoTitle">軌島怎麼玩</div></div>
         <div class="hw-rows">
           <div class="hw-row"><span class="ic"><span class="hw-tag">431</span></span><span>點<b>列車</b>＝跟著它跑，陪到終點蓋完乘章</span></div>
           <div class="hw-row"><span class="ic"><span class="hw-stnbox"><i></i></span></span><span>點<b>車站</b>＝看接下來的班次看板</span></div>
@@ -1910,6 +1952,7 @@
     <details class="foot-box">
       <summary><span>🛠 更新紀錄</span><span class="foot-sub">最後更新：2026/7/18</span></summary>
       <ul class="foot-list">
+        <li><span class="d">7/18</span><span>手機操作更好按、更好用鍵盤／旁白操作了：播放鍵、隨機跟隨、收合速度膠囊、展開後的時刻與速度控制，可點擊範圍都放寬到更好按的大小（外觀完全不變）；「今日台鐵動態」讀不到資料時，畫面上會出現「重新整理」鈕可以直接重試，並標示上次成功更新的時間；手機「更多」選單現在支援鍵盤 Tab／Enter 切換與螢幕報讀，開關列會正確報讀目前狀態；另外拔掉「更多」選單裡一顆點了沒反應的「定位我」死列</span></li>
         <li><span class="d">7/18</span><span>放空模式的「都會呼吸」鏡頭不再對著空無一物的畫面：原本鏡頭錨在整個行政區的幾何中心，台中、高雄的中心其實落在山區，拉近時整片素色、什麼都沒有，看起來像壞掉。現在鏡頭改對準該都會軌道最密集處的車站，拉近到街廓時一定看得到路網、站名與列車進出；若海陸輪廓或軌道資料一時載不進來，該幕直接跳過改走一般巡航，不再硬上空鏡頭（謝謝回報）</span></li>
         <li><span class="d">7/18</span><span>列車不再「倒退嚕」：官方誤點數字往上跳的瞬間（例如 5 分變 6 分），列車以前會往回滑一小段——因為即時校正是「晚幾分就畫在晚幾分的位置」，數字一變大，估計位置就得往後修。現在改成原地稍停、等時刻表追上再繼續前進，就像真實列車臨時停車讓行一樣，畫面上永遠不會倒車；追回誤點時照樣順順地往前滑（謝謝回報）</span></li>
         <li><span class="d">7/18</span><span>跟隨資訊卡的紅字看得懂了：「下一站」旁的紅色「X 分」其實是抵達倒數、不是誤點，容易誤讀——現在改成一般深藍色；並且卡片會標示這班車現在真實誤點幾分（跟「今日」看板同一來源），就算把時間軸拉回過去看重播、動畫照表跑的時候，也知道它實際上晚了多少（謝謝回報）</span></li>
@@ -2073,22 +2116,23 @@
   <span class="grab"></span>
   <div class="ms-head"><h3>更多</h3><button class="ms-close" id="moreClose" title="關閉">✕</button></div>
   <div class="ms-body" id="moreBody">
+    <!-- data-act=theme 列內含真 <button>(seg 三顆),不可巢狀 button,維持 div;其餘列 v0718i 改真 button 供鍵盤 Tab/Enter 直達 -->
     <div class="ms-row" data-act="theme"><span>◐ 外觀</span><span class="seg" id="msThemeSeg"><button data-v="light">亮</button><button data-v="dark">暗</button><button data-v="auto">自動</button></span></div>
-    <div class="ms-row" data-proxy="satBtn"><span>衛 衛星影像</span><span class="toggle" data-tg="satBtn"></span></div>
-    <div class="ms-row" data-act="track"><span>軌 軌道與路線</span><span class="chev">›</span></div>
-    <div class="ms-row" data-proxy="todayBtn" data-close="1"><span>今 今日台鐵動態</span><span class="chev">›</span></div>
-    <div class="ms-row" data-proxy="xingBtn"><span>平 平交道記號</span><span class="toggle" data-tg="xingBtn"></span></div>
-    <div class="ms-row" data-proxy="introBtn"><span>介 特殊站介紹</span><span class="toggle" data-tg="introBtn"></span></div>
-    <div class="ms-row" data-proxy="pinBtn"><span>釘 附近火車</span><span class="toggle" data-tg="pinBtn"></span></div>
+    <button class="ms-row" data-proxy="satBtn"><span>衛 衛星影像</span><span class="toggle" data-tg="satBtn"></span></button>
+    <button class="ms-row" data-act="track"><span>軌 軌道與路線</span><span class="chev">›</span></button>
+    <button class="ms-row" data-proxy="todayBtn" data-close="1"><span>今 今日台鐵動態</span><span class="chev">›</span></button>
+    <button class="ms-row" data-proxy="xingBtn"><span>平 平交道記號</span><span class="toggle" data-tg="xingBtn"></span></button>
+    <button class="ms-row" data-proxy="introBtn"><span>介 特殊站介紹</span><span class="toggle" data-tg="introBtn"></span></button>
+    <button class="ms-row" data-proxy="pinBtn"><span>釘 附近火車</span><span class="toggle" data-tg="pinBtn"></span></button>
     <div class="ms-sec">動作</div>
-    <div class="ms-row warnrow" data-proxy="powerBtn"><span>省 省電模式（30fps）</span><span class="toggle" data-tg="powerBtn"></span></div>
-    <div class="ms-row" data-proxy="musicBtn"><span>♪ 背景音樂</span><span class="toggle" data-tg="musicBtn"></span></div>
-    <div class="ms-row" data-proxy="ambientBtn" data-close="1"><span>◌ 放空模式</span><span class="chev">›</span></div>
-    <div class="ms-row" data-proxy="recBtn" data-close="1"><span>⏺ 錄影 Beta</span><span class="chev">›</span></div>
-    <div class="ms-row" data-proxy="shareBtn" data-close="1"><span>↗ 分享畫面</span><span class="chev">›</span></div>
-    <div class="ms-row" data-proxy="importBtn" data-close="1"><span>匯 Google 清單匯入</span><span class="chev">›</span></div>
-    <div class="ms-row" data-proxy="accountBtn" data-close="1"><span>帳 帳號同步</span><span class="chev">›</span></div>
-    <div class="ms-row" data-proxy="locateBtn" data-close="1"><span>◎ 定位我</span><span class="chev">›</span></div>
+    <button class="ms-row warnrow" data-proxy="powerBtn"><span>省 省電模式（30fps）</span><span class="toggle" data-tg="powerBtn"></span></button>
+    <button class="ms-row" data-proxy="musicBtn"><span>♪ 背景音樂</span><span class="toggle" data-tg="musicBtn"></span></button>
+    <button class="ms-row" data-proxy="ambientBtn" data-close="1"><span>◌ 放空模式</span><span class="chev">›</span></button>
+    <button class="ms-row" data-proxy="recBtn" data-close="1"><span>⏺ 錄影 Beta</span><span class="chev">›</span></button>
+    <button class="ms-row" data-proxy="shareBtn" data-close="1"><span>↗ 分享畫面</span><span class="chev">›</span></button>
+    <button class="ms-row" data-proxy="importBtn" data-close="1"><span>匯 Google 清單匯入</span><span class="chev">›</span></button>
+    <button class="ms-row" data-proxy="accountBtn" data-close="1"><span>帳 帳號同步</span><span class="chev">›</span></button>
+    <button class="ms-row" data-proxy="locateBtn" data-close="1"><span>◎ 定位我</span><span class="chev">›</span></button>
   </div>
   <div class="ms-note">本站為個人愛好者專案，與台灣鐵路公司及各捷運公司皆無關。</div>
 </div>
@@ -2096,7 +2140,7 @@
 <script>
 // 版本戳記:每次改版 push 前手動遞增(字母序),畫面時鐘徽章與 console 都會顯示,
 // 供比對線上跑的是不是最新版(瀏覽器快取 max-age=600 常讓人看到舊版)
-const BUILD = 'v0718h';
+const BUILD = 'v0718i';
 const state = {
   systems: [], sysId: null, data: null, speed: 36, mode: 'freq',
   lines: [], visible: new Set(), trains: [], schedStations: [], types: [],
@@ -6852,7 +6896,7 @@ function fetchTodayBoard() { // 面板開啟時抓、開著每 120 秒重抓;失
   state._todayFetching = true;
   fetch(apiUrl('api/today-board'), { cache: 'no-store' })
     .then(r => r.ok ? r.json() : Promise.reject(r.status))
-    .then(j => { state.todayBoard = (j && j.trains) || []; })
+    .then(j => { state.todayBoard = (j && j.trains) || []; state._todayLastOkSec = nowSecOfDay(); }) // 記錄成功時刻,供失敗態顯示「上次成功更新」
     .catch(() => {}) // 靜默失敗:todayBoard 維持原樣(可能仍是上一批或 null),不噴 console
     .finally(() => { state._todayFetching = false; state._todayTried = true; renderTodayPanel(); });
 }
@@ -6881,7 +6925,7 @@ function todayRow(t) { // 徽章＝目前(最新觀測)誤點;今天峰值已追
 function renderTodayEvents(no) {
   const ev = (state.stationEvents || {})[no];
   if (ev == null || ev === 'loading') return `<div class="td-loading">載入逐站歷程…</div>`;
-  if (ev === 'error') return `<div class="td-loading">暫時讀不到，稍後再試。</div>`;
+  if (ev === 'error') return `<div class="td-fail">暫時讀不到，稍後再試。</div><button class="td-follow" data-events-retry="${no}">重新整理</button>`;
   if (!ev.length) return `<div class="td-loading">尚無逐站記錄。</div>`;
   const rows = ev.map(e => {
     const dl = e.delay || 0, dm = e.delayMax || 0;
@@ -6904,7 +6948,13 @@ function renderTodayPanel() {
   const rows = state.todayBoard;
   let body;
   if (!Array.isArray(rows)) {
-    body = state._todayTried ? `<div class="empty">暫時讀不到，稍後再試。</div>` : `<div class="empty">載入中…</div>`;
+    // 從未成功讀到資料:tried 且非重抓中才算「失敗態」,否則(從未試過/正重抓中)一律顯示載入中
+    if (state._todayTried && !state._todayFetching) {
+      const lastOk = state._todayLastOkSec != null ? `<div class="td-fail-meta">上次成功更新 ${fmtHM(state._todayLastOkSec)}</div>` : '';
+      body = `<div class="td-fail">暫時讀不到，稍後再試。</div>${lastOk}<button class="td-follow" data-today-retry="1">重新整理</button>`;
+    } else {
+      body = `<div class="empty">載入中…</div>`;
+    }
   } else if (!rows.length) {
     body = `<div class="empty">今日資料累積中，清晨發車後陸續出現。</div>`;
   } else {
@@ -6922,6 +6972,10 @@ function openTodayPanel() {
   el.hidden = false;
   el.onclick = e => {
     if (e.target.closest('#todayClose')) { closeTodayPanel(); return; }
+    const retryBoard = e.target.closest('[data-today-retry]');
+    if (retryBoard) { fetchTodayBoard(); renderTodayPanel(); return; } // 立即重抓;fetchTodayBoard 內已同步置 _todayFetching,補畫出讀取中文案
+    const retryEv = e.target.closest('[data-events-retry]');
+    if (retryEv) { ensureStationEvents(retryEv.dataset.eventsRetry); renderTodayPanel(); return; }
     const fb = e.target.closest('[data-follow]');
     if (fb) { closeTodayPanel(); followTrainNo(fb.dataset.follow); return; }
     const row = e.target.closest('.td-row[data-no]');
@@ -8535,7 +8589,11 @@ function setupMapTools() {
         row.style.display = (host.hidden || btn.style.display === 'none') ? 'none' : '';
       }
       const tg = row.querySelector('.toggle');
-      if (tg && MS_STATE[tg.dataset.tg]) tg.classList.toggle('on', MS_STATE[tg.dataset.tg]());
+      if (tg && MS_STATE[tg.dataset.tg]) {
+        const on = !!MS_STATE[tg.dataset.tg]();
+        tg.classList.toggle('on', on);
+        row.setAttribute('aria-pressed', String(on)); // v0718i:toggle 類列旁白可讀出目前開關狀態
+      }
     });
     document.querySelectorAll('#msThemeSeg button').forEach(b =>
       b.classList.toggle('on', b.dataset.v === (state.appearance || 'auto')));
@@ -8556,11 +8614,18 @@ function setupMapTools() {
     const wrap = document.getElementById('howtoWrap');
     let seen = null; try { seen = localStorage.getItem('trainmap-howto-seen'); } catch (e) {}
     if (!wrap || seen || state.liveMode || state.director) return;
-    const done = () => { wrap.hidden = true; try { localStorage.setItem('trainmap-howto-seen', '1'); } catch (e) {} };
+    const opener = document.activeElement; // v0718i:關閉時還原 focus 到開啟前的焦點(多半是 body,無害)
+    const done = () => {
+      wrap.hidden = true;
+      try { localStorage.setItem('trainmap-howto-seen', '1'); } catch (e) {}
+      if (opener && typeof opener.focus === 'function') opener.focus();
+    };
     wrap.hidden = false;
     document.getElementById('howtoGo').onclick = done;
     document.getElementById('howtoSkip').onclick = done;
     wrap.addEventListener('click', e => { if (e.target === wrap) done(); });
+    document.addEventListener('keydown', e => { if (e.key === 'Escape' && !wrap.hidden) done(); }); // v0718i:Esc 可關,比照 takeoutModal 家族
+    requestAnimationFrame(() => { const go = document.getElementById('howtoGo'); if (go) go.focus(); }); // v0718i:開啟時 focus 主要按鈕,不做完整 focus trap
   })();
   // 手機:跟隨小卡與跟隨鎖鈕依站台帶(速度膠囊)實際位置讓位——膠囊展開(cexp)變高時上移,收回還原。
   // 桌面帶常駐 stage 下緣、跟隨卡 CSS 固定 bottom 86px 在帶上方,不需 JS 重排。
@@ -8792,7 +8857,10 @@ function setupMapTools() {
 
   // ── 定位我:一次性瀏覽器定位 → 飛到所在地、標藍點、開附近平交道清單 ──
   const locateBtn = document.getElementById('locateBtn');
-  if (locateBtn) { if (LOCATE_ENABLED) { locateBtn.style.display = ''; locateBtn.onclick = locateMe; } else locateBtn.remove(); } // 暫緩:CSS display:flex 會蓋過 [hidden],故 inline none + 直接移除;改 LOCATE_ENABLED 復活
+  if (locateBtn) { // 暫緩:CSS display:flex 會蓋過 [hidden],故 inline none + 直接移除;改 LOCATE_ENABLED 復活
+    if (LOCATE_ENABLED) { locateBtn.style.display = ''; locateBtn.onclick = locateMe; }
+    else { locateBtn.remove(); const row = document.querySelector('.ms-row[data-proxy="locateBtn"]'); if (row) row.remove(); } // v0718i:比照 recBtn/accountBtn,鈕與抽屜列一併移除,否則列點了靜默無反應
+  }
   // 地圖縮小(z<12)時給地點釘加光環放大,避免與背景車站點混淆(使用者要求)
   function applyZfar() { const c = map.getContainer(); if (c) c.classList.toggle('zfar', map.getZoom() < 12); }
   map.on('zoomend', applyZfar); applyZfar();
@@ -9610,7 +9678,10 @@ document.getElementById('tcStops').onclick = e => {
 document.addEventListener('keydown', e => {
   const tg = e.target;
   if (tg && (tg.tagName === 'INPUT' || tg.tagName === 'TEXTAREA' || tg.isContentEditable)) return;
-  if (tg && tg.tagName === 'BUTTON') tg.blur(); // 避免空白鍵同時觸發聚焦中的按鈕
+  // v0718i:blur 範圍原本不分按鍵一律觸發,導致「更多」抽屜改真 button 後 Enter 鍵也被連帶 blur 掉、
+  // 按鈕來不及完成原生啟動——縮小成只在空白鍵才 blur(維持原意:避免空白鍵同時觸發聚焦中的按鈕),
+  // 其餘按鍵(含 Enter)不再打斷按鈕自己的鍵盤啟動行為。
+  if (tg && tg.tagName === 'BUTTON' && e.code === 'Space') tg.blur();
   if (e.code === 'Space') { e.preventDefault(); togglePlay(); }
   else if (e.key === 'f' || e.key === 'F') document.getElementById('fsFab').click();
   else if (e.key === 'ArrowLeft' && state.mode === 'sched') setSimSec(state.simSec - 600);
