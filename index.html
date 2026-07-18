@@ -1857,6 +1857,7 @@
     <details class="foot-box">
       <summary><span>🛠 更新紀錄</span><span class="foot-sub">最後更新：2026/7/18</span></summary>
       <ul class="foot-list">
+        <li><span class="d">7/18</span><span>公告視窗的說明文字不再自相矛盾：昨天上線的「台鐵大面積誤點」提醒寫「動畫如實反映延誤」，底下的來源說明卻寫「動畫仍照原時刻表推演、不會反映」——謝謝眼尖的回報，現在寫清楚了：誤點確實有逐車跟上（晚幾分就畫在晚幾分的位置）、部分捷運也有看板校正，但停駛、取消或加開的班次動畫不會反映，該班車仍會照表出現在畫面上，實際運行請以官方公告為準</span></li>
         <li><span class="d">7/18</span><span>新增「📊 今日台鐵動態」：全台鐵今天每班車的誤點排行一目了然，點任何一班可展開它今天的逐站歷程——幾點到哪站、當時誤點幾分、最慘誤點到幾分，全都記下來。工具列的「今日」按鈕（手機在「更多」裡）打開，資料每天清晨重新開始累積</span></li>
         <li><span class="d">7/18</span><span>放空模式新增「都會呼吸」運鏡：鏡頭偶爾會停在台北、台中、高雄上空，畫面化為乾淨的島嶼輪廓（劇場風格），列車與路網浮在其上，像深呼吸一樣緩緩拉近再緩緩拉遠，當作一個定場的療癒畫面；動一下地圖，就會回到平常的街道地圖、把控制權交還給你</span></li>
         <li><span class="d">7/18</span><span>平溪、深澳、集集、內灣（竹中以南）這幾條還沒電氣化的支線，車種說明原本誤標成「通勤電聯車」——其實這些山線跑的是 DR1000 型柴油客車（自帶柴油引擎、不靠電車線）。現在跟這些支線的車、或點開它的資訊卡，車種會正確顯示「DR1000 型柴油客車」（六家、沙崙線是電氣化的電聯車，維持不變）</span></li>
@@ -2033,7 +2034,7 @@
 <script>
 // 版本戳記:每次改版 push 前手動遞增(字母序),畫面時鐘徽章與 console 都會顯示,
 // 供比對線上跑的是不是最新版(瀏覽器快取 max-age=600 常讓人看到舊版)
-const BUILD = 'v0717y';
+const BUILD = 'v0717z';
 const state = {
   systems: [], sysId: null, data: null, speed: 36, mode: 'freq',
   lines: [], visible: new Set(), trains: [], schedStations: [], types: [],
@@ -7737,7 +7738,7 @@ function selfAnomalyEntries() {
     if (state.traAnomaly && liveActive()) {
       const a = state.traAnomaly;
       out.push({ self: true, title: '台鐵大面積誤點中：' + a.delayed + ' 班誤點（最高 ' + a.maxDelay + ' 分）',
-        desc: '列車位置已依台鐵官方即時誤點資料逐車校正，動畫如實反映延誤。此為本站自動觀測，非官方公告。' });
+        desc: '誤點的部分動畫有跟上：列車位置已依台鐵官方即時誤點資料逐車回撥，晚幾分就畫在晚幾分的位置。但若有停駛或取消的班次，畫面不會自動移除、該班車仍會照時刻表顯示行駛，請以官方公告為準。此為本站自動觀測，非官方公告。' });
     }
     if (state.deco && state.decoLines) for (const ln of state.decoLines) { const an = anomalyOf(ln); if (an) out.push(metroSelfEntry(ln, an)); }
   } else {
@@ -7784,7 +7785,7 @@ function renderAlertDetail() {
     (a.desc ? `<div>${escHtml(a.desc)}</div>` : '') +
     (a.lines && a.lines.length ? `<div class="ad-time">影響路線：${escHtml(a.lines.join('、'))}</div>` : '') +
     `</div>`).join('') +
-    `<div class="ad-src">來源：TDX 營運通阻／狀態公告（每 5 分鐘更新）· 列車動畫仍照原時刻表推演，停駛或班距調整不會反映在畫面上，實際運行以官方公告為準` +
+    `<div class="ad-src">來源：TDX 營運通阻／狀態公告（每 5 分鐘更新）· 動畫依當日時刻表推演，台鐵誤點已逐車套用、部分捷運營運時段依官方即時資訊校正；但停駛、取消或加開的班次與臨時班距調整不會反映——畫面上列車仍可能照表出現，實際運行以官方公告為準` +
     (state.mode !== 'sched' ? '　' + metroLinksHtml(state.freqSel || new Set()) : '') + `</div>`;
 }
 // 跟隨中的車行經公告影響路線 → 面板加警示列(虛構環島車不套用)
