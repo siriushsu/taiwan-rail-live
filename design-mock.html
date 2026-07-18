@@ -60,6 +60,7 @@
     font-family: var(--font);
     background: var(--bg-page);
     color: var(--ink);
+    touch-action: pan-x pan-y; /* 禁頁面級 pinch/double-tap 縮放(誤觸放大後地圖佔滿屏就捏不回來);地圖內縮放 Leaflet 自設 touch-action 不受繼承影響 */
   }
   a { color: var(--navy); }
   a:hover { color: var(--red); }
@@ -246,7 +247,9 @@
   /* 點時間讀數直接指定時刻:透明 time input 疊在讀數上,手機點開原生滾輪、桌面聚焦後現形可打字 */
   .tod-wrap { position: relative; display: inline-flex; }
   .tod-wrap input[type=time] {
-    position: absolute; inset: 0; width: 100%; height: 100%; box-sizing: border-box;
+    /* v0718i 觸控熱區:視覺仍 opacity:0 貼合 .tod-wrap,但實際命中框放大到 ≥44px(置中擴張,不影響任何可見樣式) */
+    position: absolute; left: 50%; top: 50%; width: 100%; height: max(100%, 44px);
+    transform: translate(-50%, -50%); box-sizing: border-box;
     opacity: 0; border: 0; padding: 0; margin: 0; cursor: pointer; font: inherit;
   }
   .tod-wrap:focus-within output { display: none; }
@@ -280,6 +283,11 @@
   .speedrail .post { position: absolute; top: 4px; height: 18px; border-left: 2px solid var(--line); z-index: 1; }
   .speedrail .post.end { border-color: var(--navy); }
   .speedrail .tick { position: absolute; top: 26px; font-size: 9px; color: var(--faint); transform: translateX(-50%); font-variant-numeric: tabular-nums; }
+  /* v0718i 觸控熱區:整條可拖曳帶(非拇指本身)命中框補到 ≥44px 高,置中擴張、z-index 墊底不擋 input/刻度 */
+  .speedrail::after {
+    content: ''; position: absolute; left: 50%; top: 50%;
+    width: 100%; height: max(100%, 44px); transform: translate(-50%, -50%); z-index: -1;
+  }
   button.pp {
     font: inherit; font-size: 14px; font-weight: 800; cursor: pointer;
     background: var(--paper); color: var(--navy);
@@ -296,6 +304,20 @@
     padding: 4px 12px; min-height: 32px;
   }
   button.pp.sub:hover { background: var(--bg-stage); }
+  /* v0718i 觸控熱區:#pp(播放/暫停)命中框補到 ≥44×44,收合膠囊態(padding 3px 6px)最需要;
+     置中擴張不改視覺 box。兩側緊鄰的是收合膠囊內 pointer-events:none 的時間/速度讀數,
+     橫向擴張不搶走獨立行為(那裡本就冒泡到膠囊觸發展開)。 */
+  #pp { position: relative; }
+  #pp::after {
+    content: ''; position: absolute; left: 50%; top: 50%;
+    width: max(100%, 44px); height: max(100%, 44px); transform: translate(-50%, -50%);
+    /* v0718i:z-index:-1(非 auto)——#pp 因 position:relative 被推到較晚的疊層(在非定位的 flex 手足如
+       #speedOut/#todOut 之上),沒有這個負值,擴大熱區會蓋過鄰居的「點膠囊展開」既有行為(已用 diag_c3.mjs
+       對照 HEAD 抓到:收合態點膠囊置中處原本命中 #speedOut 觸發展開,加了本批熱區後誤中 #pp 變成切播放,
+       是真的行為迴歸,非純視覺)。設 -1 讓真手足內容(non-positioned,較早疊層)仍蓋過它,只在真正空白處生效;
+       比 .controls::after 的 -2 高一階,不被那層蓋過。 */
+    z-index: -1;
+  }
   #musicCtl { gap: 4px; }
   #musicVol { width: 64px; }
   /* 音樂鈕:是否「真的在放」一眼可辨——播放中紅底＋跳動音量條;沒在放一律灰調 */
@@ -560,7 +582,7 @@
   .follow-panel .fp-next .lbl { font-size: 11px; color: var(--faint); font-weight: 800; letter-spacing: 2px; flex: none; }
   .follow-panel .fp-next .stn { font-size: 16px; font-weight: 900; color: var(--ink-strong); letter-spacing: 1px; white-space: nowrap; }
   .follow-panel .fp-next .eta { margin-left: auto; font-size: 13px; font-weight: 700; color: var(--navy); text-align: right; white-space: nowrap; }
-  .follow-panel .fp-next .eta b { color: var(--red); }
+  .follow-panel .fp-next .eta b { color: var(--navy); } /* 倒數分鐘是行程資訊不是警示,紅色會被誤讀成誤點(v0718f) */
   .follow-panel .fp-prog { display: flex; align-items: center; gap: 8px; margin-top: 8px; }
   .follow-panel .fp-prog .bar {
     flex: 1; height: 5px; background: var(--line-faint);
@@ -690,6 +712,8 @@
     margin: 13px 0 8px; padding-bottom: 3px; border-bottom: 1.5px dashed var(--line-dash);
   }
   .passport .ph-sec b { color: var(--navy); letter-spacing: 0; }
+  .passport .ph-sec.ph-sec-rides { flex-wrap: wrap; justify-content: space-between; } /* 排序控制擠不下就整組換行,不擠壓按鈕本身 */
+  .passport .ph-sec .seg { letter-spacing: normal; } /* .ph-sec 的 3px letter-spacing 不inherit 進排序鈕文字 */
   .passport .ph-stamps { display: flex; flex-wrap: wrap; gap: 10px 10px; align-items: flex-start; }
   /* 印章(.seal):圓章 52px、框 2.5、旋 -8°;得章=印泥紅、成就=金、未得=虛線灰不旋轉可點重播 */
   .seal {
@@ -753,6 +777,43 @@
     background: var(--warn-bg); border: 1.5px solid var(--warn-line); border-radius: 5px;
     color: var(--warn-ink); font-size: 12px; font-weight: 700; line-height: 1.45;
   }
+
+  /* ── 行程分享:跟隨面板發起入口(暗啟動,TRIP_SHARE_ENABLED 才顯示) ── */
+  .follow-panel .fp-tripshare {
+    margin-top: 8px; width: 100%; text-align: center;
+    background: var(--navy); color: var(--on-navy); border: 0; border-radius: var(--r-pill);
+    font-size: 12px; font-weight: 800; letter-spacing: 1px; padding: 6px 10px; cursor: pointer;
+  }
+  .follow-panel .fp-tripshare:hover { background: var(--red); }
+  .follow-panel.fp-min .fp-tripshare { display: none; }
+  /* 行程分享接收端橫幅:top-center 中帶,避開時鐘(左上)/公告條(右上)/跟隨面板(左下)/工具列(下) */
+  .trip-banner {
+    position: absolute; top: 56px; left: 50%; transform: translateX(-50%); z-index: 712;
+    width: min(420px, calc(100% - 24px));
+    background: var(--paper); border: 2px solid var(--navy); border-radius: 12px;
+    box-shadow: var(--shadow-navy); padding: 9px 14px 8px;
+    font-variant-numeric: tabular-nums;
+  }
+  .trip-banner .tb-close {
+    position: absolute; top: 3px; right: 6px; background: none; border: 0; cursor: pointer;
+    color: var(--faint); font-size: 16px; line-height: 1; padding: 2px 5px;
+  }
+  .trip-banner .tb-state {
+    display: inline-block; font-size: 10.5px; font-weight: 800; letter-spacing: 2px;
+    color: var(--on-navy); background: var(--navy); border-radius: var(--r-pill); padding: 1px 9px 2px;
+  }
+  .trip-banner .tb-state.arrived { background: var(--ok); }
+  .trip-banner .tb-state.ended { background: var(--muted); }
+  .trip-banner .tb-route { margin-top: 6px; font-size: 17px; font-weight: 900; color: var(--ink-strong); letter-spacing: .5px; }
+  .trip-banner .tb-route .kind { margin-left: 8px; font-size: 12px; font-weight: 700; color: var(--faint); letter-spacing: 0; white-space: nowrap; }
+  .trip-banner .tb-eta { margin-top: 3px; font-size: 13px; font-weight: 700; color: var(--navy); min-height: 1px; }
+  .trip-banner .tb-eta b { color: var(--navy); font-size: 15px; }
+  .trip-banner .tb-eta:empty { display: none; }
+  .trip-banner .tb-cta { margin-top: 6px; padding-top: 5px; border-top: 1.5px dashed var(--line-dash); font-size: 10.5px; color: var(--faint); font-weight: 600; }
+  /* 橫幅出現時,停靠站名牌讓位到下方(比照 .alert-banner ~ .dwell-plate 既有讓位慣例) */
+  .trip-banner:not([hidden]) ~ .dwell-plate { top: 160px; }
+  .trip-panel .row { cursor: pointer; }
+  .trip-panel .row:hover { background: var(--bg-stage); }
 
   /* ── 收集通知(toast):金框紙卡,自動消失 ── */
   .toasts {
@@ -882,6 +943,11 @@
     background: var(--red); color: #fff8ec;
     border-color: var(--red-deep); box-shadow: var(--shadow-red);
   }
+  /* v0718i 觸控熱區:高度補到 ≥44(寬度已夠,不擴);已是 position:absolute 天然為定位錨點 */
+  #randBtn::after {
+    content: ''; position: absolute; left: 50%; top: 50%;
+    width: 100%; height: max(100%, 44px); transform: translate(-50%, -50%);
+  }
   body.fs.immersive:not(.ambient) #randBtn { display: none !important; }
 
   /* ── HUD 小牌 ── */
@@ -999,6 +1065,11 @@
   #searchDrop .ldots .dot { width: 8px; height: 8px; border-radius: 50%; }
   #searchDrop .stn-count { color: var(--faint); font-size: 11px; padding: 8px 0 2px; }
   #searchDrop .empty { color: var(--faint); font-size: 13px; padding: 10px 2px; }
+  /* 觀光列車介紹卡(named-row 點開,無固定車次的山嵐/鳴日等在站上唯一的內容入口) */
+  #searchDrop .sd-named { padding: 8px 2px 6px; }
+  #searchDrop .sd-named .tn { color: var(--ink-strong); font-size: 14px; }
+  #searchDrop .sd-named p { margin: 7px 0 0; color: var(--muted); font-size: 12.5px; line-height: 1.75; }
+  #searchDrop .sd-named .sd-note { margin-top: 8px; color: var(--faint); font-size: 11px; }
   .board .empty { color: var(--faint); font-size: 13px; padding: 8px 0; }
   .board .stnMeta { margin: 1px 0 8px; padding-bottom: 8px; border-bottom: 1.5px dashed var(--line-dash); }
   .board .stnMeta .addr { font-size: 12px; color: var(--muted); line-height: 1.5; }
@@ -1023,6 +1094,33 @@
     font-size: 10.5px; font-weight: 700; color: var(--navy);
     background: var(--bg-stage); border: 1px solid var(--line); border-radius: 4px; padding: 1px 6px;
   }
+
+  /* ── 今日台鐵動態看板(全台鐵當日誤點排行＋逐站歷程;todayBtn 開啟) ── */
+  #todayPanel .sub .td-hint { color: var(--faint); font-size: 10.5px; }
+  #todayPanel .td-row { align-items: center; gap: 6px; }
+  #todayPanel .td-type { flex: none; font-size: 10.5px; font-weight: 700; color: var(--navy); background: var(--bg-stage); border: 1px solid var(--line-faint); border-radius: 4px; padding: 0 5px 1px; }
+  #todayPanel .td-last { flex: 1; min-width: 0; color: var(--muted); font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  #todayPanel .td-past { flex: none; color: var(--faint); font-size: 10px; white-space: nowrap; }
+  #todayPanel .td-badge { flex: none; font-size: 10.5px; font-weight: 800; border-radius: 3px; padding: 0 5px 1px; white-space: nowrap; }
+  #todayPanel .td-badge.hi { color: #fffdf6; background: var(--red); }
+  #todayPanel .td-badge.mid { color: var(--warn-ink); background: var(--warn-bg); border: 1px solid var(--warn-line); }
+  #todayPanel .td-badge.ok { color: var(--ok); background: var(--bg-stage); border: 1px solid var(--line-faint); }
+  #todayPanel .td-row.open { background: var(--bg-stage); }
+  #todayPanel .td-detail { padding: 1px 0 8px; margin-bottom: 2px; border-bottom: 1px dashed var(--line-dash); }
+  #todayPanel .td-ev { display: flex; align-items: baseline; gap: 7px; padding: 3px 0 3px 8px; font-size: 12px; }
+  #todayPanel .td-ev-t { flex: none; font-variant-numeric: tabular-nums; color: var(--ink-strong); font-weight: 700; }
+  #todayPanel .td-ev-st { flex: none; color: var(--ink); font-weight: 700; }
+  #todayPanel .td-ev-stat { flex: 1; min-width: 0; color: var(--faint); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  #todayPanel .td-ev-d { flex: none; color: var(--muted); }
+  #todayPanel .td-ev-d.late { color: var(--warn-ink); font-weight: 700; }
+  #todayPanel .td-peak { flex: none; color: var(--red-deep); font-size: 10px; font-weight: 700; }
+  #todayPanel .td-loading { color: var(--faint); font-size: 12px; padding: 6px 0 6px 8px; }
+  /* 失敗文字比共用 .board .empty(--faint)深一級,不動共用規則(v0718i);.td-detail 內縮排比照 .td-loading */
+  #todayPanel .td-fail { color: var(--muted); font-size: 13px; padding: 8px 0; }
+  #todayPanel .td-detail .td-fail { font-size: 12px; padding: 6px 0 6px 8px; }
+  #todayPanel .td-fail-meta { color: var(--faint); font-size: 10.5px; padding: 2px 0 6px; }
+  #todayPanel .td-follow { margin: 5px 0 3px 8px; font-size: 11.5px; font-weight: 700; color: var(--navy); background: var(--bg-stage); border: 1px solid var(--line); border-radius: 6px; padding: 3px 10px; cursor: pointer; }
+  #todayPanel .td-follow:hover { background: var(--paper); }
 
   /* ── 軌道與路線面板(「軌」告示卡:軌道顯示三段+車種/路線篩選——側欄取消後的新家) ── */
   .track-panel .seg-row {
@@ -1270,6 +1368,12 @@
     display: flex; justify-content: space-between; align-items: center; gap: 10px;
     padding: 12px 14px; border-bottom: 1px dashed var(--line-faint);
     font-size: 13.5px; font-weight: 700; color: var(--ink); cursor: pointer; min-height: 48px;
+    /* v0718i:多數列已由 div 改真 <button>(鍵盤可達),此處補 UA 按鈕預設樣式歸零——
+       同選擇器同優先度疊在上面宣告,不會動到上面已設的 font-size/font-weight/color。
+       data-act=theme 列內含真按鈕(seg),不可巢狀 button,仍是 div,此規則對它無副作用。 */
+    appearance: none; -webkit-appearance: none; background: none; margin: 0;
+    border: 0; border-bottom: 1px dashed var(--line-faint); /* v0718k:歸零不得吃掉上面的虛線分隔(border 簡寫晚宣告會蓋掉 border-bottom,驗收實抓) */
+    font-family: inherit; text-align: inherit; width: 100%;
   }
   .more-sheet .ms-row:last-child { border-bottom: 0; }
   .more-sheet .ms-row .chev { font-size: 12px; color: var(--faint); font-weight: 600; }
@@ -1433,6 +1537,13 @@
       overflow: visible;
       transition: opacity .5s ease;
     }
+    /* v0718i 觸控熱區:收合膠囊整體(實測約41高)命中框補到 ≥44,置中擴張;z-index:-2(比 #pp::after
+       的 -1 更低一階)墊在 #pp/#todOut/#speedOut 等真子元素、以及 #pp 自己的熱區之下,不搶走任何人的點擊,
+       只補滿膠囊邊緣的空白窄邊 */
+    body:not(.ambient):not(.live):not(.cexp) .controls::after {
+      content: ''; position: absolute; left: 50%; top: 50%;
+      width: 100%; height: max(100%, 44px); transform: translate(-50%, -50%); z-index: -2;
+    }
     body.fs:not(.ambient):not(.live):not(.cexp) .controls { bottom: calc(68px + env(safe-area-inset-bottom, 0px)); }
     body:not(.ambient):not(.live):not(.cexp) .controls #ppTxt,
     body:not(.ambient):not(.live):not(.cexp) .controls .speedrail,
@@ -1493,7 +1604,7 @@
 
 <nav class="mock-nav">
   <b>軌島 design-mock</b>
-  <a href="#s-tokens">Tokens</a><a href="#s-desktop">桌面</a><a href="#s-follow">跟隨</a><a href="#s-mobile">手機</a><a href="#s-panels">面板</a><a href="#s-passport">護照</a><a href="#s-new">新表面</a><a href="#s-ambient">放空/直播</a><a href="#s-specimen">Specimen</a><a href="#s-accept">驗收</a>
+  <a href="#s-tokens">Tokens</a><a href="#s-desktop">桌面</a><a href="#s-controls-overflow">議題1溢出</a><a href="#s-follow">跟隨</a><a href="#s-mobile">手機</a><a href="#s-panels">面板</a><a href="#s-passport">護照</a><a href="#s-new">新表面</a><a href="#s-ambient">放空/直播</a><a href="#s-specimen">Specimen</a><a href="#s-accept">驗收</a>
   <button id="mockTheme" onclick="var h=document.documentElement;h.dataset.theme=h.dataset.theme==='dark'?'light':'dark';this.textContent=h.dataset.theme==='dark'?'☀ 亮':'☾ 暗'">☾ 暗</button>
 </nav>
 
@@ -1576,7 +1687,7 @@
   <div class="mock-h"><span class="mock-no">02</span>桌面 1440 · 預設落地（header 300px→64px；側欄取消，工具全數上帶）</div>
   <div class="mock-frame" style="width:1440px">
     <div class="header-row">
-      <div class="plate"><h1>軌島</h1><div class="plate-sub">ALL LINES · TAIWAN</div><div class="plate-foot"><span class="stn">◂ 基隆</span><span style="font-size:9px;color:rgba(255,248,236,.7)">⟵ ● ⟶</span><span class="stn">高雄 ▸</span></div></div>
+      <div class="plate"><h1>軌島</h1><p class="plate-sub" id="plateSub">ALL LINES · TAIWAN</p><div class="plate-foot"><span class="stn">◂ 基隆</span><span style="font-size:9px;color:rgba(255,248,236,.7)">⟵ ● ⟶</span><span class="stn">高雄 ▸</span></div></div>
       <div style="display:flex;flex-direction:column;gap:8px">
         <div class="grouptabs" id="systems">
           <button class="gtab active">全台同框</button><button class="gtab">國家鐵路</button><button class="gtab">北北桃</button><button class="gtab">中南部</button>
@@ -1606,43 +1717,136 @@
       <button id="fsFab" title="全畫面">⛶</button>
       <button id="randBtn" class="btn"><span>⤮</span><span id="randLbl">隨機跟隨</span></button>
       <div class="leaflet-attr">Leaflet | © OpenStreetMap © CARTO · 資料: 交通部TDX</div>
-      <div class="platform-band">
-        <button id="pp"><span id="ppIcon">⏸</span></button>
-        <span class="speedrail" style="width:288px">
-          <input id="speed" type="range" min="1" max="60" value="12" aria-label="倍速">
-          <span class="post end" style="left:5px"></span><span class="post" style="left:calc(15.25% + 5px)"></span><span class="post" style="left:calc(49.15% + 8px)"></span><span class="post end" style="right:6px"></span>
-          <span class="tick" style="left:7px">1×</span><span class="tick" style="left:calc(15.25% + 6px)">10×</span><span class="tick" style="left:calc(49.15% + 9px)">30×</span><span class="tick" style="left:calc(100% - 8px)">60×</span>
-        </span>
-        <b id="spdOut" class="num">12×</b>
-        <span class="divider"></span>
-        <span id="todOut" class="num">🕐 13:24 ▾</span>
-        <button id="nowBtn">現在</button>
-        <span class="divider"></span>
-        <div class="stage-tools">
-          <button id="exploreBtn"><span class="ti">探</span><span class="tl">亮點</span></button>
-          <button id="favBtn" class="gold"><span class="ti">★</span><span class="tl">最愛</span></button>
-          <button id="rideBtn"><span class="ti">旅</span><span class="tl">護照</span></button>
-          <button id="introBtn"><span class="ti">介</span><span class="tl">站介紹</span></button>
-          <span class="divider"></span>
-          <button id="satBtn"><span class="ti">衛</span><span class="tl">衛星</span></button>
-          <button id="themeBtn"><span class="ti">◐</span><span class="tl">外觀</span></button>
-          <button id="trackBtn"><span class="ti">軌</span><span class="tl">軌道</span></button>
-          <button id="xingBtn"><span class="ti">平</span><span class="tl">平交道</span></button>
-          <button id="pinBtn"><span class="ti">釘</span><span class="tl">附近</span></button>
-          <button id="locateBtn"><span class="ti">◎</span><span class="tl">定位</span></button>
-          <span class="divider"></span>
-          <button id="powerBtn" class="active"><span class="ti">省</span><span class="tl">省電中</span></button>
-          <button id="recBtn" class="red"><span class="ti">⏺</span><span class="tl">錄影</span></button>
-          <button id="shareBtn"><span class="ti">↗</span><span class="tl">分享</span></button>
-          <button id="accountBtn"><span class="ti">帳</span><span class="tl">帳號</span></button>
+      <!-- 站台帶＝真實 .controls（id/class/按鈕順序與 index.html 逐一對應，含 style="display:none" 三顆——
+           locateBtn/recBtn/accountBtn 現由 LOCATE_ENABLED/RECORDING_ENABLED/ACCOUNT_ENABLED=false 旗標
+           於開機時整顆 .remove()（見 index.html 4306/8830/9011 行），production 穩態不會出現、也不佔帶內寬度，
+           這裡比照 index.html 原始碼保留 display:none 純為結構逐一對應，不影響溢出寬度計算。
+           #toolsFab 是另一種「死」:CSS 恆 display:none!important(已被手機 tab bar 取代)但仍保留於 DOM,故留著。 -->
+      <div class="controls">
+        <button class="pp" id="pp" title="暫停／播放（空白鍵）"><span id="ppIcon">❚❚</span><span id="ppTxt">暫停</span></button>
+        <div class="ctl">
+          <span class="speedrail">
+            <input type="range" id="speed" min="1" max="60" step="1" value="12" aria-label="倍速">
+            <span class="post end" style="left:5px"></span><span class="post" style="left:calc(15.25% + 5px)"></span><span class="post" style="left:calc(49.15% + 8px)"></span><span class="post end" style="right:6px"></span>
+            <span class="tick" style="left:7px">1×</span><span class="tick" style="left:calc(15.25% + 6px)">10×</span><span class="tick" style="left:calc(49.15% + 9px)">30×</span><span class="tick" style="left:calc(100% - 8px)">60×</span>
+          </span>
+          <output id="speedOut">12×</output>
         </div>
-        <span class="divider" style="margin-left:auto"></span>
-        <button id="ambientBtn" class="stage-tools" style="display:flex;flex-direction:column;align-items:center;gap:1px;background:none;border:0;cursor:pointer;min-width:44px"><span class="ti" style="font-size:15px;color:var(--navy)">◌</span><span class="tl" style="font-size:8.5px;color:var(--faint)">放空</span></button>
-        <button id="musicBtn" style="display:flex;flex-direction:column;align-items:center;gap:1px;background:none;border:0;cursor:pointer;min-width:44px"><span class="ti" style="font-size:15px;color:var(--navy)">♪</span><span class="tl" style="font-size:8.5px;color:var(--faint)">音樂</span></button>
+        <div class="band-div"></div>
+        <div class="ctl">
+          <input type="range" id="tod" min="5" max="24" step="1" value="13" hidden>
+          <span class="tod-wrap" title="點擊直接指定時刻"><output id="todOut">13:24</output><input type="time" id="todPick" aria-label="直接指定時刻"></span>
+        </div>
+        <button class="pp sub" id="nowBtn" title="跳到現在的真實時間">現在</button>
+        <div class="band-div"></div>
+        <div class="stage-tools">
+          <button id="toolsFab" title="地圖工具（已停用，手機殼由 tab bar「更多」取代）"><span class="ti">☰</span><span class="tl">工具</span></button>
+          <button id="exploreBtn" title="今日亮點——特別列車與今日之最"><span class="ti">探</span><span class="tl">亮點</span></button>
+          <button id="favBtn" title="我的最愛列車"><span class="ti">★</span><span class="tl">最愛</span></button>
+          <button id="rideBtn" title="旅程護照（完乘記錄與收集章）"><span class="ti">旅</span><span class="tl">護照</span></button>
+          <button id="todayBtn" title="今日台鐵動態"><span class="ti">今</span><span class="tl">今日</span></button>
+          <button id="introBtn" title="經過特殊車站時顯示介紹"><span class="ti">介</span><span class="tl">站介紹</span></button>
+          <button id="satBtn" title="切換衛星影像"><span class="ti">衛</span><span class="tl">衛星</span></button>
+          <button id="themeBtn" title="外觀切換：亮／暗／自動"><span class="ti">◐</span><span class="tl">外觀</span></button>
+          <button id="trackBtn" title="軌道與路線：顯示方式與車種/路線篩選"><span class="ti">軌</span><span class="tl">軌道:自動</span></button>
+          <button id="xingBtn" title="顯示平交道位置"><span class="ti">平</span><span class="tl">平交道</span></button>
+          <button id="pinBtn" title="落釘看附近經過的火車"><span class="ti">釘</span><span class="tl">附近</span></button>
+          <button id="locateBtn" style="display:none" title="定位我的位置"><span class="ti">◎</span><span class="tl">定位</span></button>
+          <button id="immBtn" title="極簡沉浸（只留地圖與列車）"><span class="ti">簡</span><span class="tl">極簡</span></button>
+          <button id="powerBtn" class="active" title="省電模式"><span class="ti">省</span><span class="tl">省電中</span></button>
+          <button id="recBtn" style="display:none" title="錄影 Beta"><span class="ti">⏺</span><span class="tl">錄影</span></button>
+          <button id="importBtn" style="display:none" title="匯入 Google Maps 已儲存清單（條件顯示）"><span class="ti">匯</span><span class="tl">匯入</span></button>
+          <button id="accountBtn" style="display:none" title="登入與跨裝置同步"><span class="ti">帳</span><span class="tl">帳號</span></button>
+          <button id="shareBtn" title="分享目前畫面"><span class="ti">↗</span><span class="tl">分享</span></button>
+        </div>
+        <div class="band-div"></div>
+        <button class="pp sub" id="ambientBtn" title="全畫面自動導演，掛著放空用">放空模式</button>
+        <button class="pp sub" id="ambientStyleBtn" title="切換放空視角">視角：群車</button>
+        <div class="ctl" id="musicCtl" title="背景音樂（進放空模式會自動開始）">
+          <button class="tmini" id="musicBtn" title="播放/停止背景音樂"><span class="ti">♪<span class="eq"><i></i><i></i><i></i></span></span><span class="tl">音樂</span></button>
+          <button class="tmini" id="musicNextBtn" title="換一首"><span class="ti">⏭</span><span class="tl">換首</span></button>
+          <input type="range" id="musicVol" min="0" max="100" step="1" value="50" aria-label="音量">
+        </div>
       </div>
     </div>
   </div>
-  <div class="mock-note">帶＝金色月台警戒線收邊；速度軌 300px（無預設鈕，1/10/30/60 磁吸——真的拉拉看）；「◐ 外觀」取代原「地圖明暗」；定位/帳號為 App 期新入口（現階段 display:none 同現行）。側欄取消：搜尋上移 header、車種/路線篩選移入「軌」告示卡、護照入口＝「旅」。#systems 頁籤與 #lead 仍靜態預置（CLS 約束）。</div>
+  <div class="mock-note">帶＝金色月台警戒線收邊；速度軌真實寬 <span class="mock-kbd">250px</span>（1/10/30/60 磁吸——真的拉拉看）；「◐ 外觀」取代原「地圖明暗」。側欄取消：搜尋上移 header、車種/路線篩選移入「軌」告示卡、護照入口＝「旅」。#systems 頁籤與 #lead 仍靜態預置（CLS 約束）。工具列現有 13 顆常駐鈕（含新增 <span class="mock-kbd">todayBtn</span> 今日台鐵動態）＋匯入鈕條件顯示；定位／錄影／帳號同步三顆旗標關閉時整顆從 DOM 移除（此處仍照 index.html 原始碼保留 display:none 版本，供結構對照，不佔帶內寬度）。</div>
+</section>
+
+<!-- ═══════ 02b · 議題1實況：.controls 在 768／1280 寬溢出（內容真實寬 ~1326px） ═══════ -->
+<section class="mock-sec" id="s-controls-overflow">
+  <div class="mock-h"><span class="mock-no">02b</span>議題 1 實況 · <span class="mock-kbd">.controls</span> 在 768px／1280px 溢出（本輪最大題，主案請以此出稿）</div>
+  <div class="mock-row">
+    <div>
+      <div class="mock-note" style="margin:0 0 8px">A · 容器 768px（iPad 直式扣頁面邊距後可用寬度；「站介紹」起七顆鈕在畫面外）</div>
+      <div class="mock-frame" style="width:768px">
+        <div style="position:relative;height:76px;background:var(--bg-page)">
+          <div class="controls">
+            <button class="pp" title="暫停／播放"><span>❚❚</span><span>暫停</span></button>
+            <div class="ctl"><span class="speedrail"><input type="range" min="1" max="60" value="12" aria-label="倍速"><span class="post end" style="left:5px"></span><span class="post" style="left:calc(15.25% + 5px)"></span><span class="post" style="left:calc(49.15% + 8px)"></span><span class="post end" style="right:6px"></span><span class="tick" style="left:7px">1×</span><span class="tick" style="left:calc(15.25% + 6px)">10×</span><span class="tick" style="left:calc(49.15% + 9px)">30×</span><span class="tick" style="left:calc(100% - 8px)">60×</span></span><output>12×</output></div>
+            <div class="band-div"></div>
+            <div class="ctl"><span class="tod-wrap"><output>13:24</output></span></div>
+            <button class="pp sub">現在</button>
+            <div class="band-div"></div>
+            <div class="stage-tools">
+              <button><span class="ti">探</span><span class="tl">亮點</span></button>
+              <button><span class="ti">★</span><span class="tl">最愛</span></button>
+              <button><span class="ti">旅</span><span class="tl">護照</span></button>
+              <button><span class="ti">今</span><span class="tl">今日</span></button>
+              <button><span class="ti">介</span><span class="tl">站介紹</span></button>
+              <button><span class="ti">衛</span><span class="tl">衛星</span></button>
+              <button><span class="ti">◐</span><span class="tl">外觀</span></button>
+              <button><span class="ti">軌</span><span class="tl">軌道:自動</span></button>
+              <button><span class="ti">平</span><span class="tl">平交道</span></button>
+              <button><span class="ti">釘</span><span class="tl">附近</span></button>
+              <button><span class="ti">簡</span><span class="tl">極簡</span></button>
+              <button class="active"><span class="ti">省</span><span class="tl">省電中</span></button>
+              <button><span class="ti">↗</span><span class="tl">分享</span></button>
+            </div>
+            <div class="band-div"></div>
+            <button class="pp sub">放空模式</button>
+            <button class="pp sub">視角：群車</button>
+            <div class="ctl"><button class="tmini"><span class="ti">♪<span class="eq"><i></i><i></i><i></i></span></span><span class="tl">音樂</span></button><button class="tmini"><span class="ti">⏭</span><span class="tl">換首</span></button><input type="range" min="0" max="100" value="50" aria-label="音量"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div>
+      <div class="mock-note" style="margin:0 0 8px">B · 容器 1280px（連桌面全螢幕都差 ~106px；音樂控制被裁到帶外）</div>
+      <div class="mock-frame" style="width:1280px">
+        <div style="position:relative;height:76px;background:var(--bg-page)">
+          <div class="controls">
+            <button class="pp" title="暫停／播放"><span>❚❚</span><span>暫停</span></button>
+            <div class="ctl"><span class="speedrail"><input type="range" min="1" max="60" value="12" aria-label="倍速"><span class="post end" style="left:5px"></span><span class="post" style="left:calc(15.25% + 5px)"></span><span class="post" style="left:calc(49.15% + 8px)"></span><span class="post end" style="right:6px"></span><span class="tick" style="left:7px">1×</span><span class="tick" style="left:calc(15.25% + 6px)">10×</span><span class="tick" style="left:calc(49.15% + 9px)">30×</span><span class="tick" style="left:calc(100% - 8px)">60×</span></span><output>12×</output></div>
+            <div class="band-div"></div>
+            <div class="ctl"><span class="tod-wrap"><output>13:24</output></span></div>
+            <button class="pp sub">現在</button>
+            <div class="band-div"></div>
+            <div class="stage-tools">
+              <button><span class="ti">探</span><span class="tl">亮點</span></button>
+              <button><span class="ti">★</span><span class="tl">最愛</span></button>
+              <button><span class="ti">旅</span><span class="tl">護照</span></button>
+              <button><span class="ti">今</span><span class="tl">今日</span></button>
+              <button><span class="ti">介</span><span class="tl">站介紹</span></button>
+              <button><span class="ti">衛</span><span class="tl">衛星</span></button>
+              <button><span class="ti">◐</span><span class="tl">外觀</span></button>
+              <button><span class="ti">軌</span><span class="tl">軌道:自動</span></button>
+              <button><span class="ti">平</span><span class="tl">平交道</span></button>
+              <button><span class="ti">釘</span><span class="tl">附近</span></button>
+              <button><span class="ti">簡</span><span class="tl">極簡</span></button>
+              <button class="active"><span class="ti">省</span><span class="tl">省電中</span></button>
+              <button><span class="ti">↗</span><span class="tl">分享</span></button>
+            </div>
+            <div class="band-div"></div>
+            <button class="pp sub">放空模式</button>
+            <button class="pp sub">視角：群車</button>
+            <div class="ctl"><button class="tmini"><span class="ti">♪<span class="eq"><i></i><i></i><i></i></span></span><span class="tl">音樂</span></button><button class="tmini"><span class="ti">⏭</span><span class="tl">換首</span></button><input type="range" min="0" max="100" value="50" aria-label="音量"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="mock-note">兩個容器都用真實 <span class="mock-kbd">.controls</span>／子元件 class（無額外縮放技巧），只是容器寬度改成 768／1280 觀察溢出——與正式版在該寬度下的实際渲染一致。現行右緣提示只有 6px 常駐細捲軸（<span class="mock-kbd">.controls::-webkit-scrollbar</span>），兩位獨立 reviewer 已判定不足。主案：手機殼上限 640→~900px（iPad 直式改拿 tabbar／更多抽屜），桌面帶只服務 &gt;900px 並把音樂控制收成圖示鈕＋彈出面板，帶內容壓進 ~1220px。改動斷點時記得檢查 641–900 區間的 <span class="mock-kbd">fs</span>（全畫面）×面板×tabbar 讓位組合（歷史盲區）。</div>
 </section>
 
 <!-- ═══════ 03 · 桌面 1440 · 跟隨中（停站） ═══════ -->
@@ -1693,8 +1897,8 @@
       <div class="follow-lock-ctl"><button id="followLockBtn" class="unlocked">◉ 回到列車</button></div>
       <button class="btn red" style="position:absolute;left:50%;bottom:86px;transform:translateX(-50%);z-index:620">⤮ 換一班</button>
       <div class="leaflet-attr" style="right:110px">Leaflet | © OpenStreetMap © CARTO · 資料: 交通部TDX</div>
-      <div class="platform-band" style="opacity:.94">
-        <button style="font-size:15px;font-weight:800;color:var(--navy);background:var(--paper);border:1.5px solid var(--navy);border-radius:8px;box-shadow:var(--shadow-navy);padding:5px 13px">⏸</button>
+      <div class="controls" style="opacity:.94">
+        <button class="pp" style="padding:5px 13px">⏸</button>
         <span style="font-size:11px;color:var(--faint)">（帶同 §02——此處僅示層疊：dwell 640 &lt; panel 650 &lt; band 700；帶永遠最上、跟隨卡/看板讓位帶上方 74px）</span>
       </div>
     </div>
@@ -1713,8 +1917,14 @@
         <div class="statusbar"><span class="num">13:24</span><span class="no"></span><span>▮▮▮ ⚡</span></div>
         <div style="display:flex;align-items:center;gap:8px;padding:4px 12px 8px">
           <div class="plate"><h1>軌島</h1><div class="plate-foot"><span class="stn" style="font-size:8px">◂ 基隆</span><span class="stn" style="font-size:8px">高雄 ▸</span></div></div>
-          <div style="display:flex;gap:6px;overflow:hidden;flex:1">
-            <button class="gtab active">全台同框</button><button class="gtab">國家鐵路</button><button class="gtab">北北桃</button>
+          <!-- 議題2實況：真實 .grouptabs（@media max-width:640px 才切 nowrap+橫捲+隱藏原生捲軸；
+               此手機殼固定 390px 但要看到真實裁切效果須把「瀏覽器視窗」實際縮到 ≤640px——
+               同 .tabbar 的既有慣例（本檔案是縮視窗看各斷點,非容器查詢）。內容 4 鈕+citysel 共 ~369px，
+               390 寬扣 .plate 後可視僅 ~195px：「北北桃」切一半、「中南部」與「縣市」完全在畫面外，
+               現行唯一提示是 scrollbar-width:none 藏起來的原生捲軸=等於沒有提示 -->
+          <div class="grouptabs" style="flex:1;min-width:0">
+            <button class="gtab active">全台同框</button><button class="gtab">國家鐵路</button><button class="gtab">北北桃</button><button class="gtab">中南部</button>
+            <select class="citysel"><option>縣市 ▾</option></select>
           </div>
         </div>
         <div style="position:absolute;inset:118px 0 78px 0;background:var(--map-bg);overflow:hidden">
@@ -1806,27 +2016,34 @@
           <div class="mapsim"></div>
           <div style="position:absolute;inset:0;background:rgba(30,44,64,.26)"></div>
         </div>
-        <div class="sheet" style="top:190px;z-index:710;overflow:auto">
+        <!-- 議題3實況：真實 #moreSheet／#moreBody（.more-sheet 平時 display:none，此處 inline 覆蓋成開啟態展示，
+             同 §05 面板家族拿掉 hidden 展示「開啟外觀」的既有慣例）。現況：前七列無標題、混雜，只有「動作」
+             一個既有段標題；recBtn／accountBtn／locateBtn 見下方註解，不畫入現行列表。 -->
+        <div class="more-sheet" id="moreSheet" style="display:flex;top:190px;bottom:0;overflow:hidden">
           <span class="grab"></span>
-          <div class="panel-head" style="display:flex;align-items:center;background:var(--navy);margin:0 12px;border-radius:8px 8px 0 0;padding:7px 14px"><h3 style="margin:0;font-size:13px;font-weight:900;letter-spacing:3px;color:var(--on-navy)">更多</h3><span class="panel-close" style="margin-left:auto;color:var(--on-navy)">✕</span></div>
-          <div style="margin:0 12px;border:1.5px solid var(--line);border-top:0;border-radius:0 0 8px 8px;overflow:hidden">
-            <div style="display:flex;justify-content:space-between;align-items:center;padding:12px 14px;border-bottom:1px dashed var(--line-faint)"><span style="font-size:13.5px;font-weight:700">◐ 外觀</span><span class="seg"><b>亮</b><span>暗</span><span>自動</span></span></div>
-            <div style="display:flex;justify-content:space-between;align-items:center;padding:12px 14px;border-bottom:1px dashed var(--line-faint)"><span style="font-size:13.5px;font-weight:700">衛 衛星影像</span><span class="toggle"></span></div>
-            <div style="display:flex;justify-content:space-between;align-items:center;padding:12px 14px;border-bottom:1px dashed var(--line-faint)"><span style="font-size:13.5px;font-weight:700">軌 軌道顯示</span><span class="seg"><b>自動</b><span>淡化</span><span>隱藏</span></span></div>
-            <div style="display:flex;justify-content:space-between;align-items:center;padding:12px 14px;border-bottom:1px dashed var(--line-faint)"><span style="font-size:13.5px;font-weight:700">平 平交道記號</span><span class="toggle"></span></div>
-            <div style="display:flex;justify-content:space-between;align-items:center;padding:12px 14px;border-bottom:1px dashed var(--line-faint)"><span style="font-size:13.5px;font-weight:700">介 特殊站介紹</span><span class="toggle on"></span></div>
-            <div style="display:flex;justify-content:space-between;align-items:center;padding:12px 14px;border-bottom:1px dashed var(--line-faint)"><span style="font-size:13.5px;font-weight:700">釘 附近火車</span><span class="toggle"></span></div>
-            <div class="sec" style="padding:9px 14px 3px;font-size:11px;font-weight:800;letter-spacing:3px;color:var(--faint)">動作</div>
-            <div style="display:flex;justify-content:space-between;align-items:center;padding:12px 14px;border-bottom:1px dashed var(--line-faint);background:var(--warn-bg)"><span style="font-size:13.5px;font-weight:800;color:var(--warn-ink)">省 省電模式（30fps）</span><span class="toggle on" style="background:var(--red);border-color:var(--red)"></span></div>
-            <div style="display:flex;justify-content:space-between;align-items:center;padding:12px 14px;border-bottom:1px dashed var(--line-faint)"><span style="font-size:13.5px;font-weight:700;color:var(--red)">⏺ 錄影 Beta</span><span style="font-size:11px;color:var(--faint)">›</span></div>
-            <div style="display:flex;justify-content:space-between;align-items:center;padding:12px 14px;border-bottom:1px dashed var(--line-faint)"><span style="font-size:13.5px;font-weight:700">↗ 分享畫面</span><span style="font-size:11px;color:var(--faint)">›</span></div>
-            <div style="display:flex;justify-content:space-between;align-items:center;padding:12px 14px;border-bottom:1px dashed var(--line-faint)"><span style="font-size:13.5px;font-weight:700">帳 帳號同步</span><span style="font-size:11px;color:var(--faint)">未登入 ›</span></div>
-            <div style="display:flex;justify-content:space-between;align-items:center;padding:12px 14px;border-bottom:1px dashed var(--line-faint)"><span style="font-size:13.5px;font-weight:700">匯 Google 清單匯入</span><span style="font-size:11px;color:var(--faint)">›</span></div>
-            <div style="display:flex;justify-content:space-between;align-items:center;padding:12px 14px"><span style="font-size:13.5px;font-weight:700">◎ 定位我</span><span style="font-size:11px;color:var(--faint)">App 限定 ›</span></div>
+          <div class="ms-head"><h3>更多</h3><button class="ms-close" id="moreClose" title="關閉">✕</button></div>
+          <div class="ms-body" id="moreBody" style="overflow:auto">
+            <div class="ms-row" data-act="theme"><span>◐ 外觀</span><span class="seg" id="msThemeSeg"><button data-v="light">亮</button><button data-v="dark">暗</button><button data-v="auto" class="on">自動</button></span></div>
+            <button class="ms-row" data-proxy="satBtn"><span>衛 衛星影像</span><span class="toggle" data-tg="satBtn"></span></button>
+            <button class="ms-row" data-act="track"><span>軌 軌道與路線</span><span class="chev">›</span></button>
+            <button class="ms-row" data-proxy="todayBtn" data-close="1"><span>今 今日台鐵動態</span><span class="chev">›</span></button>
+            <button class="ms-row" data-proxy="xingBtn"><span>平 平交道記號</span><span class="toggle" data-tg="xingBtn"></span></button>
+            <button class="ms-row" data-proxy="introBtn"><span>介 特殊站介紹</span><span class="toggle" data-tg="introBtn"></span></button>
+            <button class="ms-row" data-proxy="pinBtn"><span>釘 附近火車</span><span class="toggle" data-tg="pinBtn"></span></button>
+            <div class="ms-sec">動作</div>
+            <button class="ms-row warnrow" data-proxy="powerBtn"><span>省 省電模式（30fps）</span><span class="toggle on" data-tg="powerBtn"></span></button>
+            <button class="ms-row" data-proxy="musicBtn"><span>♪ 背景音樂</span><span class="toggle" data-tg="musicBtn"></span></button>
+            <button class="ms-row" data-proxy="ambientBtn" data-close="1"><span>◌ 放空模式</span><span class="chev">›</span></button>
+            <button class="ms-row" data-proxy="shareBtn" data-close="1"><span>↗ 分享畫面</span><span class="chev">›</span></button>
+            <button class="ms-row" data-proxy="importBtn" data-close="1"><span>匯 Google 清單匯入</span><span class="chev">›</span></button>
+            <!-- recBtn(⏺ 錄影 Beta)／accountBtn(帳 帳號同步) 現由 RECORDING_ENABLED／ACCOUNT_ENABLED=false
+                 旗標於開機時把鈕與此代理列一併 .remove()（index.html 9011／4306 行），production 不出現，
+                 故現行列表不畫；議題3提案的回歸位＝錄影歸「觀看模式」、帳號同步歸「分享與資料」。
+                 locateBtn(◎ 定位我) 已於 v0718i 徹底移除(非旗標,是死列,index.html 8830行)，不再畫。 -->
           </div>
-          <div style="margin:10px 14px 0;font-size:10.5px;color:var(--faint)">本站為個人愛好者專案，與台灣鐵路公司及各捷運公司皆無關。</div>
+          <div class="ms-note">本站為個人愛好者專案，與台灣鐵路公司及各捷運公司皆無關。</div>
         </div>
-        <div class="homebar" style="z-index:720"></div>
+        <div class="homebar" style="z-index:1120"></div>
       </div>
     </div>
 
@@ -2302,6 +2519,42 @@
       <div class="spm-row" style="margin-top:6px">*railCase＝實際底圖色；UI 暗主題連動 MAP_PAL.dark（「外觀：暗」＝兩者一起）。錄影浮水印墨色隨主題自動亮/暗＋4px halo。</div>
     </div>
 
+    <div class="spm" style="width:970px">
+      <h4>議題 4 · 「時刻表模擬／深夜重播」徽章脫紅（改這裡＝改規格，class＋色值請直接寫在本卡）</h4>
+      <div class="spm-row" style="margin-bottom:10px">
+        現況：<span class="peak" style="background:#d23c2a;color:#fff8ec">時刻表模擬</span>
+        <span class="peak" style="background:#d23c2a;color:#fff8ec">深夜重播 18:00</span>
+        （同一顆 <span class="val">#peak</span>／<span class="val">.peak</span> 徽章，回看過去時態 vs 深夜自動重播時態，文字互斥不同框顯示；
+        id 已標於 §02 首例，此處僅示 class）
+        —— 底色由 JS inline 寫死：<span class="val">refreshBadge()</span> 的 <span class="val">hot()</span>
+        設 <span class="val">background:#d23c2a; color:#fff8ec</span>（index.html 4750–4764 行），沒有專屬 CSS class 可改。
+      </div>
+      <div class="spm-board" style="height:70px;background:var(--bg-stage);display:flex;align-items:center;gap:22px;padding:0 18px">
+        <span class="peak" style="background:#d23c2a;color:#fff8ec">時刻表模擬</span>
+        <span style="font-size:11px;color:var(--faint)">同一 hot() 也用在捷運模式「尖峰」（非本輪範圍，不要動）→</span>
+        <span class="peak" style="background:#d23c2a;color:#fff8ec">尖峰</span>
+        <span class="peak" style="background:#2a4a73;color:#fffdf6">離峰</span>
+      </div>
+      <div class="spm-row" style="margin:10px 0">
+        為什麼要改：站內紅色 <span class="val">--red #D23C2A</span> 的語意是「真異常」——今日看板誤點≥5分徽章、平交道延誤都用它；
+        「模擬／重播」只是「這是純時刻表沒套即時校正」的中性狀態說明，撞色會讓人誤以為在報警。對照真異常／真提示的既有色語彙：
+      </div>
+      <div class="spm-board" style="height:56px;background:var(--bg-stage);display:flex;align-items:center;gap:16px;padding:0 18px">
+        <span style="font-size:10.5px;font-weight:800;border-radius:3px;padding:0 5px 1px;color:#fffdf6;background:var(--red)">誤點 13 分（真異常／今日看板 .td-badge.hi）</span>
+        <span style="font-size:10.5px;font-weight:800;border-radius:3px;padding:0 5px 1px;color:var(--warn-ink);background:var(--warn-bg);border:1px solid var(--warn-line)">誤點 6 分（提示／.td-badge.mid）</span>
+        <span style="font-size:11px;font-weight:800;color:var(--ok)">●LIVE（準點／真即時）</span>
+      </div>
+      <div class="spm-row" style="margin-top:10px">
+        要求：模擬／深夜重播改為<b>非警報處理</b>（方向：灰藍、藏青 outline、或低彩度底），仍一眼可辨「非即時資料」；
+        兩枚可同款或分款；<b>亮暗主題都要給值</b>（暗主題 --red 是 #F0564A、--navy 是 #7FA6E0，見 §01 token）。
+        <b>提案請直接改這張卡的 <span class="val">background</span>／<span class="val">color</span> 示例＋在下面留白處寫 class 名與色值</b>，
+        合併時我們照抄改 <span class="val">hot()</span> 函式（改成加 class 或改 inline 值皆可，请註明）。
+      </div>
+      <div class="spm-row" style="margin-top:6px;padding-top:10px;border-top:1.5px dashed var(--line-dash)">
+        <b style="color:var(--ink-strong)">提案規格（Claude Design 填寫）：</b>　亮主題 class/色值：＿＿＿＿＿＿　／　暗主題 class/色值：＿＿＿＿＿＿
+      </div>
+    </div>
+
   </div>
 </section>
 
@@ -2340,8 +2593,11 @@ html[data-theme=dark] .mock-nav{background:#060A14}
 .tokgrid{display:grid;grid-template-columns:repeat(3,auto);gap:7px 18px;margin-top:8px;font-size:11.5px;color:var(--muted)}
 .tokgrid span{display:flex;align-items:center;gap:6px;font-family:var(--mono);font-size:10.5px}
 .tokgrid i{width:20px;height:14px;border-radius:3px;border:1px solid rgba(0,0,0,.12);flex:none}
-.phone{width:390px;height:844px;background:var(--bg-page);border:3px solid #3A3226;border-radius:46px;overflow:hidden;position:relative;box-shadow:0 6px 0 rgba(58,50,38,.25);flex:none}
+.phone{width:390px;height:844px;background:var(--bg-page);border:3px solid #3A3226;border-radius:46px;overflow:hidden;position:relative;box-shadow:0 6px 0 rgba(58,50,38,.25);flex:none;transform:translateZ(0)}
 html[data-theme=dark] .phone{border-color:#2A3B5C}
+/* transform 建立 position:fixed 子代的包含區塊(既有 .tabbar/.more-sheet/.xing-card 等正式 class 皆 position:fixed，
+   沒有這行會逃出手機殼定位到真實瀏覽器視窗——本檔既有缺陷，議題3新增 #moreSheet demo 需要它才不飛出手機殼，
+   零視覺副作用(identity transform)，absolute 子代已由 .phone 的 position:relative 圈住不受影響) */
 .spm{background:var(--paper);border:1.5px solid var(--line);border-radius:12px;padding:16px 18px}
 .spm h4{margin:0 0 10px;font-size:13px;font-weight:900;letter-spacing:2px;color:var(--ink-strong)}
 .spm .val{font-family:var(--mono);font-size:10.5px;color:var(--red);background:var(--bg-stage);border-radius:4px;padding:0 5px}
