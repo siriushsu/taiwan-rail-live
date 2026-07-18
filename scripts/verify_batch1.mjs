@@ -326,7 +326,8 @@ async function partC(browser, engName) {
   }
 }
 
-// ══════════════════════ PART D:視覺零變化(HEAD vs 工作樹,375/768 關鍵狀態截圖+rect 比對)══════════════════════
+// ══════════════════════ PART D:視覺零變化(HEAD vs 工作樹,375/1024 關鍵狀態截圖+rect 比對)══════════════════════
+// v0718m 起手機殼上限 640→900:原 768 量測點已改屬手機殼,「桌面工具列」量測改在 1024(維持原測試精神:量桌面帶版面)
 async function partD(browser, engName) {
   if (!headAvailable) { ok(`${engName} D1 視覺零變化`, false, 'git show HEAD 失敗,略過'); return; }
 
@@ -363,18 +364,18 @@ async function partD(browser, engName) {
       await ctx.close();
     }
     {
-      const ctx = await browser.newContext({ viewport: { width: 768, height: 900 } });
+      const ctx = await browser.newContext({ viewport: { width: 1024, height: 900 } });
       await ctx.addInitScript(seedInit(), true);
       const page = await ctx.newPage();
       await page.goto(url, { waitUntil: 'domcontentloaded' });
       await waitReady(page);
       await page.waitForTimeout(200);
-      out.controls768 = await getRect(page, '.controls');
-      out.stageTools768 = await getRect(page, '.stage-tools');
-      out.toolsFab768 = await getRect(page, '#toolsFab');
-      out.themeBtn768 = await getRect(page, '#themeBtn');
-      out.pp768 = await getRect(page, '#pp');
-      await page.screenshot({ path: path.join(SHOT_DIR, `${tag}_768_toolbar.png`) });
+      out.controls1024 = await getRect(page, '.controls');
+      out.stageTools1024 = await getRect(page, '.stage-tools');
+      out.toolsFab1024 = await getRect(page, '#toolsFab');
+      out.themeBtn1024 = await getRect(page, '#themeBtn');
+      out.pp1024 = await getRect(page, '#pp');
+      await page.screenshot({ path: path.join(SHOT_DIR, `${tag}_1024_toolbar.png`) });
       await ctx.close();
     }
     return out;

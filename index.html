@@ -115,8 +115,9 @@
     font-size: 26px; font-weight: 900; letter-spacing: 8px; text-indent: 8px;
     color: var(--plate-ink); margin: 0; line-height: 1.2;
   }
+  /* 議題5:副標 8px→10px 可讀(動態文案機制不變;.plate grid 與 .plate-foot 鄰站帶不動) */
   .plate-sub {
-    margin: 0; font-size: 8px; letter-spacing: 3px; text-indent: 3px;
+    margin: 0; font-size: 10px; letter-spacing: 2.5px; text-indent: 2.5px;
     color: var(--plate-ink); font-weight: 800; opacity: .85;
   }
   /* 藏青反白鄰站帶:負邊距吃回 padding 貼齊牌內緣收底——真站名牌的雙色構造 */
@@ -345,6 +346,7 @@
     z-index: -1;
   }
   #musicCtl { gap: 4px; }
+  .music-pop { display: flex; align-items: center; gap: 6px; } /* 議題1:換首＋音量容器;桌面(≥901)再加絕對定位彈出,其餘視窗維持行內排列 */
   #musicVol { width: 64px; }
   /* 音樂鈕:是否「真的在放」一眼可辨——播放中紅底＋跳動音量條;沒在放一律灰調 */
   #musicBtn.playing { background: var(--red); }
@@ -987,6 +989,10 @@
   }
   .badge .clock { font-size: 20px; font-weight: 900; color: var(--ink-strong); }
   .badge .peak { font-size: 12px; font-weight: 800; padding: 2px 9px; border-radius: 3px; }
+  /* 議題4:「時刻表模擬／深夜重播」＝非即時但非警報。與捷運「尖峰」共用的 hot() 紅(--red=真異常)分流,
+     單獨掛 .sim＝灰藍低彩度描邊,一眼可辨「這不是即時資料」又不撞警報色;亮暗都給值。 */
+  .badge .peak.sim { background: #E4E9F2; color: #3A5680; border: 1px solid #B9C6DC; }
+  html[data-theme=dark] .badge .peak.sim { background: rgba(127,166,224,.16); color: #B9CEF0; border: 1px solid rgba(127,166,224,.42); }
   .badge .count { font-size: 13px; color: var(--faint); font-weight: 600; }
   .foot-links .ver { margin-left: auto; align-self: center; font-size: 11px; color: var(--faint); font-weight: 600; letter-spacing: .5px; }
   .badge .live { font-size: 11px; font-weight: 800; color: var(--ok); letter-spacing: .5px; cursor: help; }
@@ -1419,8 +1425,8 @@
     }
   }
 
-  /* ── 手機直立版 ── */
-  @media (max-width: 640px) {
+  /* ── 手機／平板直式殼(議題1主案:上限 640→900;iPad 直式 768 改拿 tab bar＋「更多」抽屜＋速度膠囊,不再吃桌面帶) ── */
+  @media (max-width: 900px) {
     .wrap { padding: 8px 10px calc(70px + env(safe-area-inset-bottom, 0px)); }
     /* 手機 header 收斂(mock §04-A):牌＋頁籤同列、導言藏、頁籤單列橫捲——省出地圖高度 */
     .header-row { gap: 8px; padding-bottom: 6px; }
@@ -1433,7 +1439,11 @@
     .plate-foot .stn { font-size: 8px; letter-spacing: 1px; text-indent: 1px; }
     .plate-foot .stn:first-child::before, .plate-foot .stn:last-child::after { font-size: 7px; }
     .plate-arrow { width: 34px; height: 7px; margin: 0 4px; }
-    .grouptabs { gap: 6px; margin-bottom: 6px; flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; }
+    /* 議題2:單列橫捲頁籤——右緣漸層淡出提示「還有更多」(半截籤自然暗示保留);
+       遮罩釘在可視右緣、隨捲不動。硬約束5:不加標準 scrollbar-width/color(此處既有的 none 是隱藏原生軸,非工具帶自訂軸)。 */
+    .grouptabs { gap: 6px; margin-bottom: 6px; flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none;
+      -webkit-mask-image: linear-gradient(90deg, #000 calc(100% - 30px), transparent);
+      mask-image: linear-gradient(90deg, #000 calc(100% - 30px), transparent); }
     .grouptabs::-webkit-scrollbar { display: none; }
     .grouptabs .gtab, .grouptabs .citysel { flex: none; white-space: nowrap; }
     .grouptabs .gtab { font-size: 12px; padding: 6px 13px; min-height: 36px; }
@@ -1552,7 +1562,7 @@
     body.fs .leaflet-bottom.leaflet-right { bottom: calc(64px + env(safe-area-inset-bottom, 0px)); }
     body.fs .follow-panel, body.fs .freq-card { width: 176px; }
 
-    /* ── 手機速度控制膠囊(≤640 一律;非放空非直播;桌面完全不變) ──
+    /* ── 手機速度控制膠囊(≤900 一律;非放空非直播;桌面完全不變) ──
        預設 slim:貼底置中細長膠囊,只露 ▶/⏸ + 倍速 + 模擬時刻。
        點膠囊本體 → body.cexp 展開成完整帶;5s 無互動自動收回;再閒置 5s → cfaint 半透明把手。 */
     body:not(.ambient):not(.live):not(.cexp) .controls {
@@ -1619,10 +1629,29 @@
     .howto-wrap { padding: 26px 14px 14px; }
   }
 
-  /* ── 桌面(≥641):tab bar/更多 sheet 不出現;右上角橫幅/詳情/平交道卡/看板讓開 #fsFab ── */
-  @media (min-width: 641px) {
+  /* ── 桌面(≥901):tab bar/更多 sheet 不出現;桌面帶把音樂控制收成 ♪ 圖示鈕＋彈出面板(議題1主案,省~110px→帶內容壓進~1220px,1280 不裁);右上角橫幅/詳情/平交道卡/看板讓開 #fsFab ── */
+  @media (min-width: 901px) {
     .tabbar, .more-sheet, .more-scrim { display: none !important; }
     .alert-banner, .alert-detail, .xing-card, .board { right: 64px; }
+    /* 音樂控制收合:帶內常駐只留 #musicBtn(♪ 音樂),#musicNextBtn＋#musicVol 移進 hover/focus 彈出面板 */
+    #musicCtl { position: relative; }
+    #musicCtl .music-pop {
+      position: absolute; right: 0; bottom: calc(100% + 8px); z-index: 5;
+      display: flex; align-items: center; gap: 6px;
+      background: var(--paper); border: 1.5px solid var(--line); border-radius: var(--r-m);
+      box-shadow: var(--shadow-1); padding: 6px 8px;
+      opacity: 0; transform: translateY(4px);
+      transition: opacity .15s ease, transform .15s ease;
+      pointer-events: none;
+    }
+    /* 不用 visibility:hidden——它會讓 pop 內的換首/音量無法被 Tab 聚焦(於是 :focus-within 永遠觸發不了);改以 opacity+pointer-events 隱藏,鍵盤仍可 Tab 進而展開 */
+    #musicCtl:hover .music-pop, #musicCtl:focus-within .music-pop {
+      opacity: 1; transform: none; pointer-events: auto;
+    }
+    /* 帶內容再壓到 <1224px@1280:桌面 gap 10→6、音樂鈕純圖示(♪)、視角:群車 僅放空模式中現身(它是放空子設定,非放空時無作用)。三者皆 CSS-only 可逆,不動 DOM/id/JS class */
+    .controls { gap: 6px; }
+    #musicBtn .tl { display: none; }
+    body:not(.ambient) #ambientStyleBtn { display: none; }
   }
 </style>
 <script>
@@ -1909,8 +1938,11 @@
       <button class="pp sub" id="ambientStyleBtn" title="切換放空視角：「跟車」跟著一班列車跑；「群車」不跟車，鏡頭停在當下列車最密的繁忙路段看群車交錯，並緩慢漂移縮放、定時換一段">視角：群車</button>
       <div class="ctl" id="musicCtl" title="背景音樂（進放空模式會自動開始）">
         <button class="tmini" id="musicBtn" title="播放/停止背景音樂"><span class="ti">♪<span class="eq"><i></i><i></i><i></i></span></span><span class="tl">音樂</span></button>
-        <button class="tmini" id="musicNextBtn" title="換一首"><span class="ti">⏭</span><span class="tl">換首</span></button>
-        <input type="range" id="musicVol" min="0" max="100" step="1" value="50" aria-label="音量" />
+        <!-- 議題1主案:換首＋音量收進彈出面板(桌面 hover/focus 現形);musicNextBtn/musicVol id 不變,只多一層 .music-pop 包裹 -->
+        <div class="music-pop">
+          <button class="tmini" id="musicNextBtn" title="換一首"><span class="ti">⏭</span><span class="tl">換首</span></button>
+          <input type="range" id="musicVol" min="0" max="100" step="1" value="50" aria-label="音量" />
+        </div>
       </div>
     </div>
   </div>
@@ -1958,6 +1990,7 @@
     <details class="foot-box">
       <summary><span>🛠 更新紀錄</span><span class="foot-sub">最後更新：2026/7/18</span></summary>
       <ul class="foot-list">
+        <li><span class="d">7/18</span><span>iPad 直式與中等寬度的視窗不再擠壞版面：這個寬度以前拿到的是桌面版工具列，按鈕多到裁出畫面外，現在改用手機版的底部工具列與「更多」選單，每顆按鈕都摸得到。桌面版工具列也瘦身了：音樂控制收成一顆 ♪ 小鈕，滑鼠移過去（或鍵盤 Tab 過去）會彈出換首與音量的小面板，1280 寬的螢幕從此一顆不裁；「更多」選單重新分成「地圖顯示／資訊／觀看模式／分享與資料」四組更好找；左上角「時刻表模擬／深夜重播」徽章改成灰藍色，不再跟紅色誤點警示同色好分辨；手機頁籤列右緣加了淡出提示還有更多可滑；站名牌下的英文副標也放大了一點更易讀</span></li>
         <li><span class="d">7/18</span><span>搜尋框現在打「列車名字」也找得到：輸入山嵐、鳴日、藍皮、海風…這些觀光列車的名字，有開行班次的（藍皮解憂號、海風號）直接列出車次點了就跟隨；沒有固定車次的（山嵐號、鳴日號、環島之星…）會顯示「觀光列車」，點開看它的介紹故事——這些名車以前在站上根本找不到入口，現在搜得到了</span></li>
         <li><span class="d">7/18</span><span>放空模式「都會呼吸」定場鏡頭現在有真正的底圖了：先前這幕整片素色、街道圖跟衛星圖都不會出現，看起來像壞掉。現在鏡頭固定在都會上空、慢慢放大再縮小的，是一張完整的真實地圖——你平常設定的是街道就顯示街道、設定衛星就顯示衛星影像，配上路網與進出的列車，一起隨著呼吸節奏放大縮小（謝謝回報）</span></li>
         <li><span class="d">7/18</span><span>手機操作更好按、更好用鍵盤／旁白操作了：播放鍵、隨機跟隨、收合速度膠囊、展開後的時刻與速度控制，可點擊範圍都放寬到更好按的大小（外觀完全不變）；「今日台鐵動態」讀不到資料時，畫面上會出現「重新整理」鈕可以直接重試，並標示上次成功更新的時間；手機「更多」選單現在支援鍵盤 Tab／Enter 切換與螢幕報讀，開關列會正確報讀目前狀態；另外拔掉「更多」選單裡一顆點了沒反應的「定位我」死列</span></li>
@@ -2125,22 +2158,26 @@
   <div class="ms-head"><h3>更多</h3><button class="ms-close" id="moreClose" title="關閉">✕</button></div>
   <div class="ms-body" id="moreBody">
     <!-- data-act=theme 列內含真 <button>(seg 三顆),不可巢狀 button,維持 div;其餘列 v0718i 改真 button 供鍵盤 Tab/Enter 直達 -->
+    <!-- 議題3:四段分組(地圖顯示/資訊/觀看模式/分享與資料);列本身原封只重排,被旗標隱藏的列(recBtn/accountBtn/locateBtn)按性質歸段 -->
+    <div class="ms-sec">地圖顯示</div>
     <div class="ms-row" data-act="theme"><span>◐ 外觀</span><span class="seg" id="msThemeSeg"><button data-v="light">亮</button><button data-v="dark">暗</button><button data-v="auto">自動</button></span></div>
     <button class="ms-row" data-proxy="satBtn"><span>衛 衛星影像</span><span class="toggle" data-tg="satBtn"></span></button>
     <button class="ms-row" data-act="track"><span>軌 軌道與路線</span><span class="chev">›</span></button>
-    <button class="ms-row" data-proxy="todayBtn" data-close="1"><span>今 今日台鐵動態</span><span class="chev">›</span></button>
     <button class="ms-row" data-proxy="xingBtn"><span>平 平交道記號</span><span class="toggle" data-tg="xingBtn"></span></button>
     <button class="ms-row" data-proxy="introBtn"><span>介 特殊站介紹</span><span class="toggle" data-tg="introBtn"></span></button>
     <button class="ms-row" data-proxy="pinBtn"><span>釘 附近火車</span><span class="toggle" data-tg="pinBtn"></span></button>
-    <div class="ms-sec">動作</div>
+    <button class="ms-row" data-proxy="locateBtn" data-close="1"><span>◎ 定位我</span><span class="chev">›</span></button>
+    <div class="ms-sec">資訊</div>
+    <button class="ms-row" data-proxy="todayBtn" data-close="1"><span>今 今日台鐵動態</span><span class="chev">›</span></button>
+    <div class="ms-sec">觀看模式</div>
     <button class="ms-row warnrow" data-proxy="powerBtn"><span>省 省電模式（30fps）</span><span class="toggle" data-tg="powerBtn"></span></button>
     <button class="ms-row" data-proxy="musicBtn"><span>♪ 背景音樂</span><span class="toggle" data-tg="musicBtn"></span></button>
     <button class="ms-row" data-proxy="ambientBtn" data-close="1"><span>◌ 放空模式</span><span class="chev">›</span></button>
     <button class="ms-row" data-proxy="recBtn" data-close="1"><span>⏺ 錄影 Beta</span><span class="chev">›</span></button>
+    <div class="ms-sec">分享與資料</div>
     <button class="ms-row" data-proxy="shareBtn" data-close="1"><span>↗ 分享畫面</span><span class="chev">›</span></button>
     <button class="ms-row" data-proxy="importBtn" data-close="1"><span>匯 Google 清單匯入</span><span class="chev">›</span></button>
     <button class="ms-row" data-proxy="accountBtn" data-close="1"><span>帳 帳號同步</span><span class="chev">›</span></button>
-    <button class="ms-row" data-proxy="locateBtn" data-close="1"><span>◎ 定位我</span><span class="chev">›</span></button>
   </div>
   <div class="ms-note">本站為個人愛好者專案，與台灣鐵路公司及各捷運公司皆無關。</div>
 </div>
@@ -2148,7 +2185,10 @@
 <script>
 // 版本戳記:每次改版 push 前手動遞增(字母序),畫面時鐘徽章與 console 都會顯示,
 // 供比對線上跑的是不是最新版(瀏覽器快取 max-age=600 常讓人看到舊版)
-const BUILD = 'v0718k';
+const BUILD = 'v0718m';
+// 手機/平板直式「殼」斷點(議題1:640→900,iPad 直式改拿 tabbar＋更多抽屜):與 CSS @media 同步,版面類判斷一律用此常數。
+// 注意:裝置等級判斷(keepBuffer/powerSave 預設)刻意不用此常數、維持 640——iPad 不該因為改拿 tabbar 就被當低階裝置。
+const MOBILE_MQ = '(max-width: 900px)';
 const state = {
   systems: [], sysId: null, data: null, speed: 36, mode: 'freq',
   lines: [], visible: new Set(), trains: [], schedStations: [], types: [],
@@ -4759,11 +4799,15 @@ function refreshBadge() {
   const cool = () => { p.style.background = '#2a4a73'; p.style.color = '#fffdf6'; };
   if (state.mode === 'sched') {
     clock.textContent = fmtHM(state.simSec);
-    p.textContent = state.nightReplay ? '深夜重播 18:00' : '時刻表模擬'; hot();
+    p.textContent = state.nightReplay ? '深夜重播 18:00' : '時刻表模擬';
+    // 議題4:「時刻表模擬/深夜重播」=非即時但非警報,脫離 hot() 紅、改掛 .sim(灰藍描邊,亮暗值在 .badge .peak.sim);
+    // inline 要清空,否則會蓋過 class 的值
+    p.classList.add('sim'); p.style.background = ''; p.style.color = '';
   } else {
     clock.textContent = fmtHM(state.simSec);
     const peak = isPeak(state.hour);
     p.textContent = peak ? '尖峰' : '離峰';
+    p.classList.remove('sim'); // 捷運「尖峰」維持 hot() 紅(真尖峰語意)、離峰藍,皆 inline
     peak ? hot() : cool();
   }
   updateLiveBadge(); // 模式切換即時同步 LIVE 徽章與標籤,不等 tick
@@ -6582,7 +6626,7 @@ function unlockedAchievements(rides) {
 // 全用即時 getBoundingClientRect,螢幕/卡片大小不同都自動避讓;桌機清掉 inline 覆寫,維持原本頂端置中。
 function placeMobileNotice(el) {
   if (!el) return;
-  const mob = window.matchMedia('(max-width: 640px)').matches;
+  const mob = window.matchMedia(MOBILE_MQ).matches;
   if (!mob || el.hidden) { el.style.top = ''; el.style.bottom = ''; el.style.maxHeight = ''; el.style.overflowY = ''; return; }
   const par = el.offsetParent; if (!par) return;
   const pr = par.getBoundingClientRect();
@@ -8241,7 +8285,7 @@ function gotoStn(e) {
 // 桌機寬螢幕各面板分居不同區、不擋彼此→此處早退,維持原本可並存的行為(下面各 open 內原有的部分互閉即桌機行為)。
 // 跟隨資訊卡(sched followTrain / 捷運 freqCard)是「正在跟的車」的常駐脈絡,不屬此組、不收。
 function soloPanel(keep) {
-  if (!window.matchMedia('(max-width: 640px)').matches) return;
+  if (!window.matchMedia(MOBILE_MQ).matches) return;
   if (keep !== 'board') closeBoard();
   if (keep !== 'crossing') closeCrossingCard();
   if (keep !== 'pin') closePinCard();
@@ -8643,7 +8687,7 @@ function setupMapTools() {
   // 手機:跟隨小卡與跟隨鎖鈕依站台帶(速度膠囊)實際位置讓位——膠囊展開(cexp)變高時上移,收回還原。
   // 桌面帶常駐 stage 下緣、跟隨卡 CSS 固定 bottom 86px 在帶上方,不需 JS 重排。
   function placeFsOverlays() {
-    const isMobile = window.matchMedia('(max-width: 640px)').matches;
+    const isMobile = window.matchMedia(MOBILE_MQ).matches;
     const fp = document.getElementById('followPanel');
     const lc = document.querySelector('.follow-lock-ctl');
     const followVisible = state.followTrain && !fp.hidden && !document.body.classList.contains('immersive');
@@ -8690,7 +8734,7 @@ function setupMapTools() {
     const pp = document.getElementById('pp');
     const body = document.body;
     let collapseT = null, faintT = null, sliderHold = false, wokeFromFaint = false;
-    const capsule = () => window.matchMedia('(max-width: 640px)').matches
+    const capsule = () => window.matchMedia(MOBILE_MQ).matches
       && !body.classList.contains('ambient') && !body.classList.contains('live');
     const clearTimers = () => { clearTimeout(collapseT); clearTimeout(faintT); collapseT = faintT = null; };
     const syncOverlays = () => placeFsOverlays(); // 膠囊高度變 → 跟隨卡/鈕依實高重新讓位
@@ -9131,7 +9175,7 @@ async function boot() {
     el.hidden = false;
     // 先顯示才量得到尺寸;貼點擊處下方、夾回 stage 內;手機全畫面讓開底部 tab bar(v0716c 教訓)
     const stage = document.querySelector('.stage');
-    const mob = window.matchMedia('(max-width: 640px)').matches;
+    const mob = window.matchMedia(MOBILE_MQ).matches;
     const botPad = document.body.classList.contains('fs') && mob ? 80 : 8;
     el.style.left = Math.max(8, Math.min(cp.x - el.offsetWidth / 2, stage.clientWidth - el.offsetWidth - 8)) + 'px';
     el.style.top = Math.max(8, Math.min(cp.y + 14, stage.clientHeight - el.offsetHeight - botPad)) + 'px';
@@ -9324,7 +9368,7 @@ async function boot() {
   // crossOrigin: 錄影功能要把圖磚畫進合成 canvas,沒有 CORS 標記畫布會被汙染(無法 captureStream)
   // keepBuffer:桌機加大到 4(視窗外多留兩排,快速平移較常命中已載入邊界圖磚,少一輪重抓);
   // 手機退回預設 2——多留的圖磚 DOM 會讓每幀 setView 的 reflow 更重、也多吃記憶體,小螢幕划不來
-  const kb = window.matchMedia('(max-width: 640px)').matches ? 2 : 4;
+  const kb = window.matchMedia('(max-width: 640px)').matches ? 2 : 4; // 裝置等級判斷,非殼斷點,維持 640(iPad 記憶體夠,不因改拿 tabbar 就縮圖磚緩衝)
   if (onlineBasemapsAvailable()) {
     baseLayers.light = L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
       subdomains: 'abcd', maxZoom: 20, crossOrigin: true, keepBuffer: kb, attribution: '&copy; OpenStreetMap &copy; CARTO',
@@ -9352,7 +9396,7 @@ async function boot() {
   // 省電模式預設:手機開、桌機關;使用者手動切過就記住(setupMapTools 內 setPowerSave 讀此值初始化按鈕)
   try {
     const ps = localStorage.getItem('trainmap-powersave');
-    state.powerSave = ps === null ? window.matchMedia('(max-width: 640px)').matches : ps === '1';
+    state.powerSave = ps === null ? window.matchMedia('(max-width: 640px)').matches : ps === '1'; // 裝置等級判斷,非殼斷點,維持 640(iPad 不該因為改拿 tabbar 就被預設開省電)
   } catch (e) { state.powerSave = false; }
   setBasemap();
   setupMapTools();

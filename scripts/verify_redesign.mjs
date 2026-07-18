@@ -19,6 +19,9 @@ async function bootPage(browser, { width, height, seedHowto = true, url = URL, t
     localStorage.setItem('trainmap-appearance', 'light');
   });
   const page = await ctx.newPage();
+  // D1 端點(delay-stats/today-board/station-events)本機 dev_server 無 D1 binding 天生 503,
+  // 比照 verify_batch1 的 route 攔截慣例 mock 成 200——A11/C10 要抓的是頁面 JS 錯誤,不是本機環境缺 D1
+  await page.route(/\/api\/(delay-stats|today-board|station-events)/, r => r.fulfill({ status: 200, contentType: 'application/json', body: '{}' }));
   const errors = [];
   page.on('pageerror', e => errors.push(String(e)));
   page.on('console', m => { if (m.type() === 'error') errors.push(m.text()); });
@@ -118,7 +121,8 @@ for (const [engName, engine] of [['chromium', chromium], ['webkit', webkit]]) {
   }
 
   // ── B. 多寬度掃描:無橫向捲動+關鍵控件兩兩不相交 ──
-  for (const w of [360, 375, 390, 414, 640, 768, 1024, 1280, 1440]) {
+  // 900=手機殼上限(v0718m 議題1:斷點 640→900,iPad 直式改拿 tabbar);901 起桌面帶
+  for (const w of [360, 375, 390, 414, 640, 768, 900, 1024, 1280, 1440]) {
     const { ctx, page } = await bootPage(browser, { width: w, height: 844 });
     await page.evaluate(() => document.getElementById('randBtn').click());
     await page.waitForTimeout(600);

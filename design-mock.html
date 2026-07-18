@@ -89,8 +89,9 @@
     font-size: 26px; font-weight: 900; letter-spacing: 8px; text-indent: 8px;
     color: var(--plate-ink); margin: 0; line-height: 1.2;
   }
+  /* 議題5:副標 8px→10px 可讀(動態文案機制不變;.plate grid 與 .plate-foot 鄰站帶不動) */
   .plate-sub {
-    margin: 0; font-size: 8px; letter-spacing: 3px; text-indent: 3px;
+    margin: 0; font-size: 10px; letter-spacing: 2.5px; text-indent: 2.5px;
     color: var(--plate-ink); font-weight: 800; opacity: .85;
   }
   /* 藏青反白鄰站帶:負邊距吃回 padding 貼齊牌內緣收底——真站名牌的雙色構造 */
@@ -319,6 +320,7 @@
     z-index: -1;
   }
   #musicCtl { gap: 4px; }
+  .music-pop { display: flex; align-items: center; gap: 6px; } /* 議題1:換首＋音量容器;桌面(≥901)再加絕對定位彈出,其餘視窗維持行內排列 */
   #musicVol { width: 64px; }
   /* 音樂鈕:是否「真的在放」一眼可辨——播放中紅底＋跳動音量條;沒在放一律灰調 */
   #musicBtn.playing { background: var(--red); }
@@ -961,6 +963,10 @@
   }
   .badge .clock { font-size: 20px; font-weight: 900; color: var(--ink-strong); }
   .badge .peak { font-size: 12px; font-weight: 800; padding: 2px 9px; border-radius: 3px; }
+  /* 議題4:「時刻表模擬／深夜重播」＝非即時但非警報。與捷運「尖峰」共用的 hot() 紅(--red=真異常)分流,
+     單獨掛 .sim＝灰藍低彩度描邊,一眼可辨「這不是即時資料」又不撞警報色;亮暗都給值。 */
+  .badge .peak.sim { background: #E4E9F2; color: #3A5680; border: 1px solid #B9C6DC; }
+  html[data-theme=dark] .badge .peak.sim { background: rgba(127,166,224,.16); color: #B9CEF0; border: 1px solid rgba(127,166,224,.42); }
   .badge .count { font-size: 13px; color: var(--faint); font-weight: 600; }
   .foot-links .ver { margin-left: auto; align-self: center; font-size: 11px; color: var(--faint); font-weight: 600; letter-spacing: .5px; }
   .badge .live { font-size: 11px; font-weight: 800; color: var(--ok); letter-spacing: .5px; cursor: help; }
@@ -1393,8 +1399,8 @@
     }
   }
 
-  /* ── 手機直立版 ── */
-  @media (max-width: 640px) {
+  /* ── 手機／平板直式殼(議題1主案:上限 640→900;iPad 直式 768 改拿 tab bar＋「更多」抽屜＋速度膠囊,不再吃桌面帶) ── */
+  @media (max-width: 900px) {
     .wrap { padding: 8px 10px calc(70px + env(safe-area-inset-bottom, 0px)); }
     /* 手機 header 收斂(mock §04-A):牌＋頁籤同列、導言藏、頁籤單列橫捲——省出地圖高度 */
     .header-row { gap: 8px; padding-bottom: 6px; }
@@ -1407,7 +1413,11 @@
     .plate-foot .stn { font-size: 8px; letter-spacing: 1px; text-indent: 1px; }
     .plate-foot .stn:first-child::before, .plate-foot .stn:last-child::after { font-size: 7px; }
     .plate-arrow { width: 34px; height: 7px; margin: 0 4px; }
-    .grouptabs { gap: 6px; margin-bottom: 6px; flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; }
+    /* 議題2:單列橫捲頁籤——右緣漸層淡出提示「還有更多」(半截籤自然暗示保留);
+       遮罩釘在可視右緣、隨捲不動。硬約束5:不加標準 scrollbar-width/color(此處既有的 none 是隱藏原生軸,非工具帶自訂軸)。 */
+    .grouptabs { gap: 6px; margin-bottom: 6px; flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none;
+      -webkit-mask-image: linear-gradient(90deg, #000 calc(100% - 30px), transparent);
+      mask-image: linear-gradient(90deg, #000 calc(100% - 30px), transparent); }
     .grouptabs::-webkit-scrollbar { display: none; }
     .grouptabs .gtab, .grouptabs .citysel { flex: none; white-space: nowrap; }
     .grouptabs .gtab { font-size: 12px; padding: 6px 13px; min-height: 36px; }
@@ -1526,7 +1536,7 @@
     body.fs .leaflet-bottom.leaflet-right { bottom: calc(64px + env(safe-area-inset-bottom, 0px)); }
     body.fs .follow-panel, body.fs .freq-card { width: 176px; }
 
-    /* ── 手機速度控制膠囊(≤640 一律;非放空非直播;桌面完全不變) ──
+    /* ── 手機速度控制膠囊(≤900 一律;非放空非直播;桌面完全不變) ──
        預設 slim:貼底置中細長膠囊,只露 ▶/⏸ + 倍速 + 模擬時刻。
        點膠囊本體 → body.cexp 展開成完整帶;5s 無互動自動收回;再閒置 5s → cfaint 半透明把手。 */
     body:not(.ambient):not(.live):not(.cexp) .controls {
@@ -1593,10 +1603,29 @@
     .howto-wrap { padding: 26px 14px 14px; }
   }
 
-  /* ── 桌面(≥641):tab bar/更多 sheet 不出現;右上角橫幅/詳情/平交道卡/看板讓開 #fsFab ── */
-  @media (min-width: 641px) {
+  /* ── 桌面(≥901):tab bar/更多 sheet 不出現;桌面帶把音樂控制收成 ♪ 圖示鈕＋彈出面板(議題1主案,省~110px→帶內容壓進~1220px,1280 不裁);右上角橫幅/詳情/平交道卡/看板讓開 #fsFab ── */
+  @media (min-width: 901px) {
     .tabbar, .more-sheet, .more-scrim { display: none !important; }
     .alert-banner, .alert-detail, .xing-card, .board { right: 64px; }
+    /* 音樂控制收合:帶內常駐只留 #musicBtn(♪ 音樂),#musicNextBtn＋#musicVol 移進 hover/focus 彈出面板 */
+    #musicCtl { position: relative; }
+    #musicCtl .music-pop {
+      position: absolute; right: 0; bottom: calc(100% + 8px); z-index: 5;
+      display: flex; align-items: center; gap: 6px;
+      background: var(--paper); border: 1.5px solid var(--line); border-radius: var(--r-m);
+      box-shadow: var(--shadow-1); padding: 6px 8px;
+      opacity: 0; transform: translateY(4px);
+      transition: opacity .15s ease, transform .15s ease;
+      pointer-events: none;
+    }
+    /* 不用 visibility:hidden——它會讓 pop 內的換首/音量無法被 Tab 聚焦(於是 :focus-within 永遠觸發不了);改以 opacity+pointer-events 隱藏,鍵盤仍可 Tab 進而展開 */
+    #musicCtl:hover .music-pop, #musicCtl:focus-within .music-pop {
+      opacity: 1; transform: none; pointer-events: auto;
+    }
+    /* 帶內容再壓到 <1224px@1280:桌面 gap 10→6、音樂鈕純圖示(♪)、視角:群車 僅放空模式中現身(它是放空子設定,非放空時無作用)。三者皆 CSS-only 可逆,不動 DOM/id/JS class */
+    .controls { gap: 6px; }
+    #musicBtn .tl { display: none; }
+    body:not(.ambient) #ambientStyleBtn { display: none; }
   }
 </style>
 </head>
@@ -1614,7 +1643,7 @@
   <div class="card" style="padding:16px 22px;max-width:980px;font-size:13px">
     <b style="color:var(--ink-strong)">定案：琺瑯 2.0 ×「站台帶」× 亮暗雙主題。</b>
     右上「☾ 暗」可即時切換全站 token（含地圖示意底色）——正式版對應 <code>html[data-theme=dark]</code>＋<code>MAP_PAL.dark</code> 同步。<br>
-    ① 正式樣式全部在檔首 <code>&lt;style&gt;</code>（token → 元件；<code>.vw390</code> 前綴＝正式版 <code>@media(max-width:640px)</code> 規則，合併時機械搬移）。
+    ① 正式樣式全部在檔首 <code>&lt;style&gt;</code>（token → 元件；<code>.vw390</code> 前綴＝正式版 <code>@media(max-width:900px)</code> 規則，合併時機械搬移）。
     ② 展示用樣式集中檔尾 <code>&lt;style id="mockOverrides"&gt;</code>（<code>.mock-*</code>／<code>.spm-*</code>），合併時整塊忽略。
     ③ 元素 id／狀態 class 名全數沿用凍結清單；同一 id 只標注於首個實例，其餘實例以同 class 呈現。
     ④ 車種/路線色一律 inline 示意並註記「資料驅動」，未寫進任何 CSS 規則。
@@ -1764,8 +1793,11 @@
         <button class="pp sub" id="ambientStyleBtn" title="切換放空視角">視角：群車</button>
         <div class="ctl" id="musicCtl" title="背景音樂（進放空模式會自動開始）">
           <button class="tmini" id="musicBtn" title="播放/停止背景音樂"><span class="ti">♪<span class="eq"><i></i><i></i><i></i></span></span><span class="tl">音樂</span></button>
-          <button class="tmini" id="musicNextBtn" title="換一首"><span class="ti">⏭</span><span class="tl">換首</span></button>
-          <input type="range" id="musicVol" min="0" max="100" step="1" value="50" aria-label="音量">
+          <!-- 議題1主案:換首＋音量收進彈出面板(桌面 hover/focus 現形);musicNextBtn/musicVol id 不變,只多一層 .music-pop 包裹 -->
+          <div class="music-pop">
+            <button class="tmini" id="musicNextBtn" title="換一首"><span class="ti">⏭</span><span class="tl">換首</span></button>
+            <input type="range" id="musicVol" min="0" max="100" step="1" value="50" aria-label="音量">
+          </div>
         </div>
       </div>
     </div>
@@ -1775,10 +1807,10 @@
 
 <!-- ═══════ 02b · 議題1實況：.controls 在 768／1280 寬溢出（內容真實寬 ~1326px） ═══════ -->
 <section class="mock-sec" id="s-controls-overflow">
-  <div class="mock-h"><span class="mock-no">02b</span>議題 1 實況 · <span class="mock-kbd">.controls</span> 在 768px／1280px 溢出（本輪最大題，主案請以此出稿）</div>
+  <div class="mock-h"><span class="mock-no">02b</span>議題 1 主案 · <span class="mock-kbd">.controls</span> 在 768px／1280px 溢出（本輪最大題，主案請以此出稿）</div>
   <div class="mock-row">
     <div>
-      <div class="mock-note" style="margin:0 0 8px">A · 容器 768px（iPad 直式扣頁面邊距後可用寬度；「站介紹」起七顆鈕在畫面外）</div>
+      <div class="mock-note" style="margin:0 0 8px">A · 舊桌面帶 @768px（iPad 直式）＝「站介紹」起七顆鈕溢出畫面外；主案改：≤900px 走手機殼（tab bar＋更多抽屜＋速度膠囊，見 §04），桌面帶不再服務此寬度</div>
       <div class="mock-frame" style="width:768px">
         <div style="position:relative;height:76px;background:var(--bg-page)">
           <div class="controls">
@@ -1812,7 +1844,7 @@
       </div>
     </div>
     <div>
-      <div class="mock-note" style="margin:0 0 8px">B · 容器 1280px（連桌面全螢幕都差 ~106px；音樂控制被裁到帶外）</div>
+      <div class="mock-note" style="margin:0 0 8px">B · 桌面帶 @1280px 主案後：音樂收成 ♪ 圖示鈕＋彈出面板（hover／focus 現形），帶內容壓進 ~1220px，1280 不再裁任何控制</div>
       <div class="mock-frame" style="width:1280px">
         <div style="position:relative;height:76px;background:var(--bg-page)">
           <div class="controls">
@@ -1839,14 +1871,13 @@
             </div>
             <div class="band-div"></div>
             <button class="pp sub">放空模式</button>
-            <button class="pp sub">視角：群車</button>
-            <div class="ctl"><button class="tmini"><span class="ti">♪<span class="eq"><i></i><i></i><i></i></span></span><span class="tl">音樂</span></button><button class="tmini"><span class="ti">⏭</span><span class="tl">換首</span></button><input type="range" min="0" max="100" value="50" aria-label="音量"></div>
+            <div class="ctl" style="position:relative"><button class="tmini"><span class="ti">♪<span class="eq"><i></i><i></i><i></i></span></span></button><span style="align-self:center;font-size:12px;color:var(--faint);padding-left:2px" title="換首＋音量收進彈出面板">▾</span></div>
           </div>
         </div>
       </div>
     </div>
   </div>
-  <div class="mock-note">兩個容器都用真實 <span class="mock-kbd">.controls</span>／子元件 class（無額外縮放技巧），只是容器寬度改成 768／1280 觀察溢出——與正式版在該寬度下的实際渲染一致。現行右緣提示只有 6px 常駐細捲軸（<span class="mock-kbd">.controls::-webkit-scrollbar</span>），兩位獨立 reviewer 已判定不足。主案：手機殼上限 640→~900px（iPad 直式改拿 tabbar／更多抽屜），桌面帶只服務 &gt;900px 並把音樂控制收成圖示鈕＋彈出面板，帶內容壓進 ~1220px。改動斷點時記得檢查 641–900 區間的 <span class="mock-kbd">fs</span>（全畫面）×面板×tabbar 讓位組合（歷史盲區）。</div>
+  <div class="mock-note">兩個容器都用真實 <span class="mock-kbd">.controls</span>／子元件 class（無額外縮放技巧），只是容器寬度改成 768／1280 觀察溢出——與正式版在該寬度下的实際渲染一致。現行右緣提示只有 6px 常駐細捲軸（<span class="mock-kbd">.controls::-webkit-scrollbar</span>），兩位獨立 reviewer 已判定不足。主案已套用：手機殼上限 640→900px（iPad 直式改拿 tabbar／更多抽屜），桌面帶只服務 &gt;900px 並把音樂控制收成圖示鈕＋彈出面板，帶內容壓進 ~1220px。已檢查 641–900 區間的 <span class="mock-kbd">fs</span>（全畫面）×面板×tabbar 讓位組合（歷史盲區）。</div>
 </section>
 
 <!-- ═══════ 03 · 桌面 1440 · 跟隨中（停站） ═══════ -->
@@ -2009,7 +2040,7 @@
     </div>
 
     <div>
-      <div class="mock-note" style="margin:0 0 8px">C ·「更多」sheet（外觀切換／圖層／動作——原 ☰ 抽屜的繼承者）</div>
+      <div class="mock-note" style="margin:0 0 8px">C ·「更多」sheet（四段分組：地圖顯示／資訊／觀看模式／分享與資料——原 ☰ 抽屜的繼承者）</div>
       <div class="phone vw390">
         <div class="statusbar"><span class="num">13:24</span><span class="no"></span><span>▮▮▮ ⚡</span></div>
         <div style="position:absolute;inset:44px 0 0 0;background:var(--map-bg)">
@@ -2023,17 +2054,20 @@
           <span class="grab"></span>
           <div class="ms-head"><h3>更多</h3><button class="ms-close" id="moreClose" title="關閉">✕</button></div>
           <div class="ms-body" id="moreBody" style="overflow:auto">
+            <div class="ms-sec">地圖顯示</div>
             <div class="ms-row" data-act="theme"><span>◐ 外觀</span><span class="seg" id="msThemeSeg"><button data-v="light">亮</button><button data-v="dark">暗</button><button data-v="auto" class="on">自動</button></span></div>
             <button class="ms-row" data-proxy="satBtn"><span>衛 衛星影像</span><span class="toggle" data-tg="satBtn"></span></button>
             <button class="ms-row" data-act="track"><span>軌 軌道與路線</span><span class="chev">›</span></button>
-            <button class="ms-row" data-proxy="todayBtn" data-close="1"><span>今 今日台鐵動態</span><span class="chev">›</span></button>
             <button class="ms-row" data-proxy="xingBtn"><span>平 平交道記號</span><span class="toggle" data-tg="xingBtn"></span></button>
             <button class="ms-row" data-proxy="introBtn"><span>介 特殊站介紹</span><span class="toggle" data-tg="introBtn"></span></button>
             <button class="ms-row" data-proxy="pinBtn"><span>釘 附近火車</span><span class="toggle" data-tg="pinBtn"></span></button>
-            <div class="ms-sec">動作</div>
+            <div class="ms-sec">資訊</div>
+            <button class="ms-row" data-proxy="todayBtn" data-close="1"><span>今 今日台鐵動態</span><span class="chev">›</span></button>
+            <div class="ms-sec">觀看模式</div>
             <button class="ms-row warnrow" data-proxy="powerBtn"><span>省 省電模式（30fps）</span><span class="toggle on" data-tg="powerBtn"></span></button>
             <button class="ms-row" data-proxy="musicBtn"><span>♪ 背景音樂</span><span class="toggle" data-tg="musicBtn"></span></button>
             <button class="ms-row" data-proxy="ambientBtn" data-close="1"><span>◌ 放空模式</span><span class="chev">›</span></button>
+            <div class="ms-sec">分享與資料</div>
             <button class="ms-row" data-proxy="shareBtn" data-close="1"><span>↗ 分享畫面</span><span class="chev">›</span></button>
             <button class="ms-row" data-proxy="importBtn" data-close="1"><span>匯 Google 清單匯入</span><span class="chev">›</span></button>
             <!-- recBtn(⏺ 錄影 Beta)／accountBtn(帳 帳號同步) 現由 RECORDING_ENABLED／ACCOUNT_ENABLED=false
@@ -2550,8 +2584,17 @@
         <b>提案請直接改這張卡的 <span class="val">background</span>／<span class="val">color</span> 示例＋在下面留白處寫 class 名與色值</b>，
         合併時我們照抄改 <span class="val">hot()</span> 函式（改成加 class 或改 inline 值皆可，请註明）。
       </div>
-      <div class="spm-row" style="margin-top:6px;padding-top:10px;border-top:1.5px dashed var(--line-dash)">
-        <b style="color:var(--ink-strong)">提案規格（Claude Design 填寫）：</b>　亮主題 class/色值：＿＿＿＿＿＿　／　暗主題 class/色值：＿＿＿＿＿＿
+      <div class="spm-board" style="height:auto;background:var(--bg-stage);display:flex;align-items:center;gap:22px;padding:12px 18px;flex-wrap:wrap">
+        <span style="font-size:11px;font-weight:800;color:var(--ink-strong)">改後（.sim 非警報）：</span>
+        <span class="peak sim">時刻表模擬</span>
+        <span class="peak sim">深夜重播 18:00</span>
+        <span style="font-size:11px;color:var(--faint)">↑ 亮暗主題各自取值，切右上「☾ 暗」對照；捷運「尖峰」仍走 hot() 紅，不受影響</span>
+      </div>
+      <div class="spm-row" style="margin-top:10px;padding-top:10px;border-top:1.5px dashed var(--line-dash)">
+        <b style="color:var(--ink-strong)">提案規格：</b>　新增 class <span class="val">.peak.sim</span>（掛在既有 <span class="val">.peak</span> 上，只給「模擬／深夜重播」用）。亮：<span class="val">background #E4E9F2</span>／<span class="val">color #3A5680</span>／<span class="val">border 1px #B9C6DC</span>；暗：<span class="val">background rgba(127,166,224,.16)</span>／<span class="val">color #B9CEF0</span>／<span class="val">border 1px rgba(127,166,224,.42)</span>（CSS 已寫入 §01 區）。
+      </div>
+      <div class="spm-row" style="margin-top:6px">
+        合併作法：<span class="val">hot()</span> 遇「模擬／深夜重播」分支時<b>不要</b>寫 inline <span class="val">background/color</span>（否則會蓋過 class），改為 <span class="val">el.classList.add('sim')</span>；捷運「尖峰」分支維持原 hot() 紅底不動。若不便改結構，也可直接把該分支的 inline 值換成上列亮／暗色值（依 <span class="val">html[data-theme]</span> 二選一）。<br>註：<span class="val">?live=1</span> 的 <span class="val">.badge .replay</span> 紅標屬直播殼（本輪不動），與此 <span class="val">.peak</span> 為不同元件。
       </div>
     </div>
 
@@ -2571,7 +2614,7 @@
     ☑ #systems 頁籤與 #lead 靜態預置維持（預設群組文案未改動——若改需同步兩處，CLS 約束）<br>
     ☑ iOS safe area：頂 44／底 home indicator 讓位；觸控目標 ≥44px；省電模式手機預設開<br>
     ☑ 無常駐大面積 blur／backdrop-filter（blur 僅 modal 陰影一處）；動畫限小元件（呼吸環/脈動/toast）<br>
-    ☑ 展示樣式全部隔離於檔尾 <span class="mock-kbd">#mockOverrides</span>；<span class="mock-kbd">.vw390</span> 前綴規則＝@media(max-width:640px) 之鏡射，合併時機械搬移<br>
+    ☑ 展示樣式全部隔離於檔尾 <span class="mock-kbd">#mockOverrides</span>；<span class="mock-kbd">.vw390</span> 前綴規則＝@media(max-width:900px) 之鏡射，合併時機械搬移<br>
     ☐ 工程端既定驗證：Playwright WebKit＋Chromium、360–768 重疊掃描、正式站部署重驗（交棒後）
   </div>
 </section>
@@ -2604,6 +2647,17 @@ html[data-theme=dark] .phone{border-color:#2A3B5C}
 .spm-board{position:relative;border-radius:8px;overflow:hidden;border:1px solid var(--line)}
 .spm-row{display:flex;gap:16px;align-items:center;flex-wrap:wrap;font-size:11.5px;color:var(--muted)}
 .mock-kbd{font-family:var(--mono);font-size:10.5px;background:var(--bg-stage);border:1px solid var(--line);border-radius:4px;padding:0 5px}
+/* 議題2/3 demo 鏡射(合併時整塊忽略):手機殼固定 390px 但媒體查詢鍵於視窗寬——桌面視窗下 .grouptabs 會 wrap、.more-sheet 被 ≥901 !important 藏起;
+   以下 .vw390 前綴＝正式版 @media(max-width:900px) 相關規則之鏡射,讓 §04 手機殼在任何視窗寬都能展示真實態(議題2 右緣淡出、議題3 四段分組)。 */
+.vw390 .grouptabs{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;-webkit-mask-image:linear-gradient(90deg,#000 calc(100% - 30px),transparent);mask-image:linear-gradient(90deg,#000 calc(100% - 30px),transparent)}
+.vw390 .grouptabs::-webkit-scrollbar{display:none}
+.vw390 .grouptabs .gtab,.vw390 .grouptabs .citysel{flex:none;white-space:nowrap}
+.vw390 .more-sheet{display:flex!important}
+/* 議題4 spec 卡:.peak 只在 .badge 內才有底樣(font/padding/radius),specimen 的示例 chip 不在 .badge 裡,
+   故給 .spm .peak 補上徽章外觀+ .sim 亮暗值(僅供 demo 展示,合併忽略;正式規則是檔首 .badge .peak.sim)。 */
+.spm .peak{display:inline-block;font-size:11px;font-weight:800;padding:2px 9px;border-radius:3px}
+.spm .peak.sim{background:#E4E9F2;color:#3A5680;border:1px solid #B9C6DC}
+html[data-theme=dark] .spm .peak.sim{background:rgba(127,166,224,.16);color:#B9CEF0;border:1px solid rgba(127,166,224,.42)}
 </style>
 <script>
 (function(){
