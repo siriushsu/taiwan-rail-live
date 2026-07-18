@@ -1091,6 +1091,11 @@
   #searchDrop .ldots .dot { width: 8px; height: 8px; border-radius: 50%; }
   #searchDrop .stn-count { color: var(--faint); font-size: 11px; padding: 8px 0 2px; }
   #searchDrop .empty { color: var(--faint); font-size: 13px; padding: 10px 2px; }
+  /* 觀光列車介紹卡(named-row 點開,無固定車次的山嵐/鳴日等在站上唯一的內容入口) */
+  #searchDrop .sd-named { padding: 8px 2px 6px; }
+  #searchDrop .sd-named .tn { color: var(--ink-strong); font-size: 14px; }
+  #searchDrop .sd-named p { margin: 7px 0 0; color: var(--muted); font-size: 12.5px; line-height: 1.75; }
+  #searchDrop .sd-named .sd-note { margin-top: 8px; color: var(--faint); font-size: 11px; }
   .board .empty { color: var(--faint); font-size: 13px; padding: 8px 0; }
   .board .stnMeta { margin: 1px 0 8px; padding-bottom: 8px; border-bottom: 1.5px dashed var(--line-dash); }
   .board .stnMeta .addr { font-size: 12px; color: var(--muted); line-height: 1.5; }
@@ -1712,7 +1717,7 @@
          .search-field 是下拉的相對錨(錨在輸入框正下方,不受 followbar 影響) -->
     <div class="search" id="searchRow">
       <div class="search-field">
-        <input type="text" id="trainSearch" placeholder="搜尋車站或車次（台北、123）" autocomplete="off" enterkeyhint="search" />
+        <input type="text" id="trainSearch" placeholder="搜尋車站、車次或列車名（台北、123、山嵐）" autocomplete="off" enterkeyhint="search" />
         <div class="search-drop" id="searchDrop" hidden></div>
       </div>
       <div class="followbar" id="followBar" hidden></div>
@@ -1953,6 +1958,7 @@
     <details class="foot-box">
       <summary><span>🛠 更新紀錄</span><span class="foot-sub">最後更新：2026/7/18</span></summary>
       <ul class="foot-list">
+        <li><span class="d">7/18</span><span>搜尋框現在打「列車名字」也找得到：輸入山嵐、鳴日、藍皮、海風…這些觀光列車的名字，有開行班次的（藍皮解憂號、海風號）直接列出車次點了就跟隨；沒有固定車次的（山嵐號、鳴日號、環島之星…）會顯示「觀光列車」，點開看它的介紹故事——這些名車以前在站上根本找不到入口，現在搜得到了</span></li>
         <li><span class="d">7/18</span><span>放空模式「都會呼吸」定場鏡頭現在有真正的底圖了：先前這幕整片素色、街道圖跟衛星圖都不會出現，看起來像壞掉。現在鏡頭固定在都會上空、慢慢放大再縮小的，是一張完整的真實地圖——你平常設定的是街道就顯示街道、設定衛星就顯示衛星影像，配上路網與進出的列車，一起隨著呼吸節奏放大縮小（謝謝回報）</span></li>
         <li><span class="d">7/18</span><span>手機操作更好按、更好用鍵盤／旁白操作了：播放鍵、隨機跟隨、收合速度膠囊、展開後的時刻與速度控制，可點擊範圍都放寬到更好按的大小（外觀完全不變）；「今日台鐵動態」讀不到資料時，畫面上會出現「重新整理」鈕可以直接重試，並標示上次成功更新的時間；手機「更多」選單現在支援鍵盤 Tab／Enter 切換與螢幕報讀，開關列會正確報讀目前狀態；另外拔掉「更多」選單裡一顆點了沒反應的「定位我」死列</span></li>
         <li><span class="d">7/18</span><span>放空模式的「都會呼吸」鏡頭不再對著空無一物的畫面：原本鏡頭錨在整個行政區的幾何中心，台中、高雄的中心其實落在山區，拉近時整片素色、什麼都沒有，看起來像壞掉。現在鏡頭改對準該都會軌道最密集處的車站，拉近到街廓時一定看得到路網、站名與列車進出；若海陸輪廓或軌道資料一時載不進來，該幕直接跳過改走一般巡航，不再硬上空鏡頭（謝謝回報）</span></li>
@@ -8133,18 +8139,57 @@ function searchTrainMatch(q) {
     || String(a.tr.train).localeCompare(String(b.tr.train), 'en', { numeric: true }));
   return out.slice(0, 8);
 }
+// 具名列車名稱比對(山嵐/鳴日/藍皮…):q 無數字、≥2 字才啟動。命中的 namedTrains 分兩型:
+// trainNos 在今日班表找得到 → 展開成可跟隨車次列(併入車次區,點擊沿用 followNo);
+// 無固定車次(山嵐/鳴日等 trainNos=[] 或今日未開行)→「觀光列車」介紹列,點了在下拉內看 story
+// (這批車探索面板/護照都不列——它們在站上唯一的入口就是這裡)。
+function searchNamedMatch(q) {
+  const nq = (q || '').replace(/臺/g, '台').replace(/\s+/g, '').toLowerCase();
+  const out = { trs: [], infos: [] };
+  if (!state.special || nq.length < 2 || /\d/.test(nq)) return out;
+  for (const n of state.special.namedTrains) {
+    if (n.name.replace(/臺/g, '台').toLowerCase().indexOf(nq) < 0) continue;
+    let found = false;
+    for (const no of n.trainNos) {
+      for (const sid of ['tra_sched', 'thsr_sched']) {
+        const sys = state.systems.find(s => s.id === sid);
+        const tr = sys && (sys.data.trains || []).find(t => String(t.train) === no);
+        if (tr) { out.trs.push({ tr, sys }); found = true; }
+      }
+    }
+    if (!found) out.infos.push(n);
+  }
+  return out;
+}
+function renderNamedIntro(n) {
+  const drop = document.getElementById('searchDrop');
+  if (!drop) return;
+  drop.innerHTML = `<div class="sd-named"><b class="tn">★ ${escHtml(n.name)}</b>` +
+    ((n.tags || []).length ? `<span class="sys-chip">${escHtml(n.tags[0])}</span>` : '') +
+    `<p>${escHtml(n.story || '')}</p>` +
+    `<div class="sd-note">觀光列車・無固定班次，開行日期與車次以台鐵公告為準</div></div>`;
+  openSearchDrop();
+}
 const SEARCH_STN_ROWS = 12;
-// 常駐搜尋框的下拉:車次區(含數字才出現,置頂)＋車站區。即時重繪、量小免 debounce。
+// 常駐搜尋框的下拉:列車名稱區＋車次區(含數字才出現,置頂)＋車站區。即時重繪、量小免 debounce。
 function renderSearchDrop() {
   const inp = document.getElementById('trainSearch'), drop = document.getElementById('searchDrop');
   if (!inp || !drop) return;
   const q = inp.value;
-  if (!q.trim()) { closeSearchDrop(); drop.innerHTML = ''; state._searchTrains = []; state._searchStns = []; return; }
-  const trs = searchTrainMatch(q);
+  if (!q.trim()) { closeSearchDrop(); drop.innerHTML = ''; state._searchTrains = []; state._searchStns = []; state._searchNamed = []; return; }
+  const named = searchNamedMatch(q);
+  const trs = named.trs.concat(searchTrainMatch(q)); // 名稱命中的具名班次排最前(名稱查詢意圖明確)
   const stns = stnSearchMatch(q);          // stnSearchMatch 內部自行正規化(臺→台、去空白)
   const stnShown = stns.slice(0, SEARCH_STN_ROWS);
-  state._searchTrains = trs; state._searchStns = stnShown;
+  state._searchTrains = trs; state._searchStns = stnShown; state._searchNamed = named.infos;
   let html = '';
+  if (named.infos.length) {
+    html += '<div class="sd-sec">觀光列車</div>';
+    html += named.infos.map((n, i) =>
+      `<div class="row named-row" data-ni="${i}"><span class="nm">★ ${escHtml(n.name)}</span>`
+      + `<span class="sys-chip">觀光列車</span>`
+      + `<span class="tr-meta">${escHtml((n.tags || [])[0] || '')}　點看介紹</span></div>`).join('');
+  }
   if (trs.length) {
     html += '<div class="sd-sec">車次</div>';
     html += trs.map((o, i) => {
@@ -8164,7 +8209,7 @@ function renderSearchDrop() {
     }).join('');
     html += `<div class="stn-count">共 ${stns.length} 站符合${stns.length > SEARCH_STN_ROWS ? `（顯示前 ${SEARCH_STN_ROWS}）` : ''}</div>`;
   }
-  if (!trs.length && !stnShown.length) html = '<div class="empty">查無車站或車次</div>';
+  if (!trs.length && !stnShown.length && !named.infos.length) html = '<div class="empty">查無車站、車次或列車</div>';
   drop.innerHTML = html;
   openSearchDrop();
 }
@@ -9694,18 +9739,22 @@ initMusic();
     if (e.key !== 'Enter') return;
     e.preventDefault();
     const q = ts.value.trim();
-    const trs = state._searchTrains || [], stns = state._searchStns || [];
+    const trs = state._searchTrains || [], stns = state._searchStns || [], nmd = state._searchNamed || [];
     const exact = /^\d+$/.test(q) && trs.some(o => String(o.tr.train) === q);
     closeSearchDrop();
     if (exact) followNo(q);                       // 全數字且車次精準命中→跟隨
+    else if (!/\d/.test(q) && trs.length) followNo(String(trs[0].tr.train)); // 名稱命中具名班次(藍皮…)→跟第一班
+    else if (!/\d/.test(q) && nmd.length) renderNamedIntro(nmd[0]); // 名稱命中無班次觀光列車(山嵐/鳴日)→介紹卡(內部重開下拉)
     else if (stns.length) gotoStn(stns[0]);       // 否則有車站→開第一站
     else if (q) followTrainNo(q);                 // 都沒有→舊行為(含查無提示)
     else clearFollow();
   });
   // 失焦:空值取消跟隨(保留既有行為)
   ts.addEventListener('change', () => { if (!ts.value.trim()) clearFollow(); });
-  // 下拉列點擊:車次列跟隨、車站列飛站開板
+  // 下拉列點擊:觀光列車列看介紹、車次列跟隨、車站列飛站開板
   drop.addEventListener('click', e => {
+    const nmRow = e.target.closest('.row.named-row');
+    if (nmRow) { const n = (state._searchNamed || [])[+nmRow.dataset.ni]; if (n) renderNamedIntro(n); return; }
     const trRow = e.target.closest('.row.tr-row');
     if (trRow) { const o = (state._searchTrains || [])[+trRow.dataset.ti]; if (o) { closeSearchDrop(); followNo(String(o.tr.train)); } return; }
     const stRow = e.target.closest('.row.stn-row');
