@@ -506,9 +506,16 @@ async function main() {
   const hms2sec = s => { const [h, m, sec] = s.split(':').map(Number); return h * 3600 + m * 60 + (sec || 0); };
 
   const trainsOut = [];
+  const sunriseExcluded = [];
   let fallbackSegments = 0, totalSegments = 0;
   for (const t of ttRaw.TrainTimetables) {
     const no = String(t.TrainInfo.TrainNo);
+    // 祝山線觀日列車:TDX 常態表給的是佔位時間(97=阿里山08:00發車),但 TrainInfo.Note 自己註明
+    // 「停靠時間根據日出時間而定」。官方林鐵支線頁(afrch.forest.gov.tw/0000300)明載祝山線沒有
+    // 固定時刻表,當日開車時間「乘車前1日下午4時30分」才於官網首頁公告——實測 2026-07-19 公告為
+    // 「04:20開車,回程末班車為06:10」,與 TDX 的 08:00 差近四小時;且公告只給首班發車與回程末班,
+    // 不足以還原各車次時刻。照 TDX 值動畫=每天早上八點跑一班不存在的日出列車(三鶯線幽靈車翻版)→排除。
+    if (/日出時間/.test(t.TrainInfo.Note || '')) { sunriseExcluded.push(no); continue; }
     const cls = TRAIN_TYPE[no];
     if (!cls) { warnings.push(`車次${no}不在已知的4類車種表中,略過`); continue; }
     const stops = t.StopTimes.slice().sort((a, b) => a.StopSequence - b.StopSequence);
@@ -555,19 +562,24 @@ async function main() {
     trainsOut.push({ train: no, typeName: cls.typeName, carName: cls.typeName, color: cls.color, stops: newStops });
   }
   console.log(`  車次densify完成:${trainsOut.length} 車次, fallback區段=${fallbackSegments}/${totalSegments}`);
+  if (sunriseExcluded.length) console.log(`  依日出調整而排除(不動畫):車次 ${sunriseExcluded.join(',')}`);
+  // 沒有車次的車種不留在 types(否則圖例會出現永遠空的一欄)
+  const usedTypes = new Set(trainsOut.map(t => t.typeName));
+  const typesOut = TYPES_OUT.filter(t => usedTypes.has(t.key));
   for (const t of trainsOut) console.log(`    車次${t.train}(${t.typeName}): 原始停靠→densify後 stops=${t.stops.length}`);
 
   const scheduleOut = {
     system: '阿里山林鐵時刻表',
     date: fetchDate,
-    source_notes: `時刻表來源:交通部 TDX v3/Rail/AFR/GeneralTrainTimetable(EffectiveDate=${ttRaw.EffectiveDate || '未提供'}),${fetchDate.slice(0,4)}-${fetchDate.slice(4,6)} 抓取,共10車次。`
+    source_notes: `時刻表來源:交通部 TDX v3/Rail/AFR/GeneralTrainTimetable(EffectiveDate=${ttRaw.EffectiveDate || '未提供'}),${fetchDate.slice(0,4)}-${fetchDate.slice(4,6)} 抓取,原始10車次、收錄${trainsOut.length}車次。`
+      + (sunriseExcluded.length ? ` 排除祝山線觀日列車(車次${sunriseExcluded.join(',')}):TDX 該兩班的 TrainInfo.Note 註明「停靠時間根據日出時間而定」,官方林鐵支線頁載明祝山線無固定時刻表、當日開車時間於乘車前1日16:30才公告(2026-07-19 官網公告04:20開車/回程末班06:10,TDX 常態表卻是08:00),且公告只含首班與回程末班,不足以還原各車次→不納入動畫,由前端文案導引查官網。` : '')
       + ' TDX 未提供車種欄位(TrainInfo.TrainTypeID/TrainTypeName 十個車次全部為 null;v3/Rail/AFR/TrainType 雖列7種官方車種但未與班次資料建立關聯),'
-      + '故車種依「起訖站所屬路線」歸類為4類:本線(嘉義↔十字路/阿里山)車次1,2,5,8→阿里山號;神木線車次120,121→神木線;沼平線車次53,54→沼平線;祝山線車次97,98→祝山線。'
+      + '故車種依「起訖站所屬路線」歸類:本線(嘉義↔十字路/阿里山)車次1,2,5,8→阿里山號;神木線車次120,121→神木線;沼平線車次53,54→沼平線(祝山線車次97,98 因上述日出因素排除,故 types 不含祝山線)。'
       + ' 加密方法同 scripts/densify_schedule.py 精神(節點=站名、邊=各線官方相鄰站、Dijkstra最短路徑插通過站、時刻依累積距離比例內插),'
       + '差異:二萬平不在任何官方 StationOfLine 站序中,但時刻表確有車次(5,8)實際停靠,已依其在本線 shape 上的投影位置插入本線拓樸(於最近的前後官方站之間建邊)。'
       + ` fallback區段(無法densify,保留原直線)=${fallbackSegments}/${totalSegments}。`
       + (warnings.length ? ' 警告:' + warnings.join('；') : ''),
-    types: TYPES_OUT,
+    types: typesOut,
     trains: trainsOut,
   };
   fs.writeFileSync(path.join(ROOT, 'data/afr_schedule_dense.json'), JSON.stringify(scheduleOut));
