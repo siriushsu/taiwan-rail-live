@@ -1392,7 +1392,8 @@
     /* v0718i:多數列已由 div 改真 <button>(鍵盤可達),此處補 UA 按鈕預設樣式歸零——
        同選擇器同優先度疊在上面宣告,不會動到上面已設的 font-size/font-weight/color。
        data-act=theme 列內含真按鈕(seg),不可巢狀 button,仍是 div,此規則對它無副作用。 */
-    appearance: none; -webkit-appearance: none; background: none; border: 0; margin: 0;
+    appearance: none; -webkit-appearance: none; background: none; margin: 0;
+    border: 0; border-bottom: 1px dashed var(--line-faint); /* v0718k:歸零不得吃掉上面的虛線分隔(border 簡寫晚宣告會蓋掉 border-bottom,驗收實抓) */
     font-family: inherit; text-align: inherit; width: 100%;
   }
   .more-sheet .ms-row:last-child { border-bottom: 0; }
@@ -2141,7 +2142,7 @@
 <script>
 // 版本戳記:每次改版 push 前手動遞增(字母序),畫面時鐘徽章與 console 都會顯示,
 // 供比對線上跑的是不是最新版(瀏覽器快取 max-age=600 常讓人看到舊版)
-const BUILD = 'v0718j';
+const BUILD = 'v0718k';
 const state = {
   systems: [], sysId: null, data: null, speed: 36, mode: 'freq',
   lines: [], visible: new Set(), trains: [], schedStations: [], types: [],
