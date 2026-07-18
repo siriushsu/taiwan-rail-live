@@ -1766,11 +1766,11 @@
       </select>
     </div>
     <div class="groupmembers">
-      <div class="allcap">台鐵 · 高鐵（真實時刻）｜ 捷運 · 輕軌（官方時刻表，主要路網看板校正）</div>
+      <div class="allcap">台鐵 · 高鐵 · 阿里山林鐵（真實時刻）｜ 捷運 · 輕軌（官方時刻表，主要路網看板校正）</div>
     </div>
     </div>
     <!-- 導言靜態預置預設群組(全台同框)文案:boot 會換字,長短不同會多折一行把版面下推(CLS);GROUPS.all.plate.lead 改時同步 -->
-    <p id="lead">全台鐵道一次看 — 台鐵、高鐵與各捷運／輕軌皆依當日時刻表同一時間軸運行（台鐵套即時誤點；主要捷運營運時段依官方到站看板校正）。</p>
+    <p id="lead">全台鐵道一次看 — 台鐵、高鐵、阿里山林鐵與各捷運／輕軌皆依當日時刻表同一時間軸運行（台鐵套即時誤點；主要捷運營運時段依官方到站看板校正）。</p>
     </div>
     <!-- 搜尋+跟隨票:側欄取消後上移 header 右側。搜尋框常駐(首繪即在=零 CLS),站名與車次共用一框
          (車次在捷運分頁也可搜,會自動切國家鐵路,故 placeholder 全模式同一句);
@@ -2027,8 +2027,9 @@
 
   <footer class="site-foot">
     <details class="foot-box">
-      <summary><span>🛠 更新紀錄</span><span class="foot-sub">最後更新：2026/7/18</span></summary>
+      <summary><span>🛠 更新紀錄</span><span class="foot-sub">最後更新：2026/7/19</span></summary>
       <ul class="foot-list">
+        <li><span class="d">7/19</span><span>阿里山森林鐵路上線了：從嘉義出發，跟著小火車一路盤旋上山——繞過獨立山的螺旋線、在第一分道之字形折返「碰壁」爬升，最後抵達阿里山。全線 21 個車站、四條路線（本線與神木、沼平、祝山三條支線）都畫出來了，在「國家鐵路」頁籤點「阿里山林鐵」即可，全台同框也看得到它。林鐵嘉義站就疊在台鐵嘉義站旁，地圖上會一起標出來。要說明的是：林鐵沒有官方即時位置與誤點資訊（不像台鐵有），畫面一律依官方公告時刻表推演；山區天候多變、停駛與加開都常見，實際開行與購票請以阿里山林業鐵路及文化資產管理處官網為準</span></li>
         <li><span class="d">7/18</span><span>下次打開就回到你上次看的地方了：地圖位置、縮放倍率，還有你選的路網頁籤與勾選的系統（例如「北北桃」裡只留台北捷運），通通會記住，不用每次重點一次。不需要註冊或登入，紀錄只留在你自己的裝置裡。從別人分享的連結進來時一律以連結指定的畫面為準、不會被蓋掉；跟隨列車與放空巡航時鏡頭是自己在跑的，不會被誤記成「你在看的位置」；時間軸則維持每次打開都回到「現在」（謝謝網友建議）</span></li>
         <li><span class="d">7/18</span><span>從 Threads、IG、LINE 這些 App 裡點連結進來的朋友，畫面下方會出現一張小卡，提醒你改用 Safari／Chrome 開啟——App 內建的瀏覽器沒辦法把軌島加入主畫面，看完常常就再也找不回來了。Android 點一下按鈕直接跳到瀏覽器；iPhone 一鍵複製網址、或照指引點角落「⋯」用外部瀏覽器開啟。在一般瀏覽器或主畫面 App 裡完全不會看到這張卡，按 × 關掉後也不會再出現</span></li>
         <li><span class="d">7/18</span><span>iPad 直式與中等寬度的視窗不再擠壞版面：這個寬度以前拿到的是桌面版工具列，按鈕多到裁出畫面外，現在改用手機版的底部工具列與「更多」選單，每顆按鈕都摸得到。桌面版工具列也瘦身了：音樂控制收成一顆 ♪ 小鈕，滑鼠移過去（或鍵盤 Tab 過去）會彈出換首與音量的小面板，1280 寬的螢幕從此一顆不裁；「更多」選單重新分成「地圖顯示／資訊／觀看模式／分享與資料」四組更好找；左上角「時刻表模擬／深夜重播」徽章改成灰藍色，不再跟紅色誤點警示同色好分辨；手機頁籤列右緣加了淡出提示還有更多可滑；站名牌下的英文副標也放大了一點更易讀</span></li>
@@ -2227,7 +2228,7 @@
 <script>
 // 版本戳記:每次改版 push 前手動遞增(字母序),畫面時鐘徽章與 console 都會顯示,
 // 供比對線上跑的是不是最新版(瀏覽器快取 max-age=600 常讓人看到舊版)
-const BUILD = 'v0718o';
+const BUILD = 'v0719a';
 // 手機/平板直式「殼」斷點(議題1:640→900,iPad 直式改拿 tabbar＋更多抽屜):與 CSS @media 同步,版面類判斷一律用此常數。
 // 注意:裝置等級判斷(keepBuffer/powerSave 預設)刻意不用此常數、維持 640——iPad 不該因為改拿 tabbar 就被當低階裝置。
 const MOBILE_MQ = '(max-width: 900px)';
@@ -2275,6 +2276,7 @@ const SYS_META = {
   tmrt:      { plateL: '北屯總站', plateR: '高鐵臺中站', sub: 'TAICHUNG METRO LIVE', lead: '綠線列車沿著文心路跑（無公開逐班時刻，班次依官方班距與首末班車推算）— 拖曳、縮放看看。' },
   tra_sched: { plateL: '基隆', plateR: '枋寮', sub: '台灣鐵道即時軌跡',  lead: '列車依當日時刻表運行，回到現在時刻（1×）會自動套用台鐵即時誤點修正 — 點列車跟隨、點車站看班次，或按地圖角落「探」看今日亮點列車。' },
   thsr_sched: { plateL: '南港', plateR: '左營', sub: '台灣鐵道即時軌跡', lead: '高鐵列車依當日真實時刻表沿西部走廊南北奔馳（南港－左營）— 點列車跟隨、點車站看班次。' },
+  afr_sched: { plateL: '嘉義', plateR: '阿里山', sub: 'ALISHAN FOREST RAILWAY', lead: '阿里山林業鐵路從嘉義平原一路盤旋上山，途中經過獨立山螺旋與第一分道的之字形折返——列車依官方公告時刻表運行（本線無即時資訊，且常因天候或維修停駛，實際開行請以林鐵官網為準）。' },
 };
 
 // 播放/速度/時間的統一入口(控制列、快捷鍵、全畫面控制共用)
@@ -2600,6 +2602,7 @@ function freqTrainInfoAt(ln, tr, t) {
 const PERF_DEFAULT = { a: 1.5, b: 2.5, v: 110 };
 const PERF_HSR = { a: 2.0, b: 2.7, v: 300 };
 const PERF_RULES = [ // carName 正整比對(鏡射 KIND_RULES 順序,先中先贏)
+  [/阿里山號|祝山線|神木線|沼平線/, { a: 0.7, b: 1.1, v: 45 }], // 阿里山林鐵 762mm 窄軌小火車(登山段極慢)
   [/普快車|普通車/, { a: 1.3, b: 2.4, v: 100 }],     // 藍皮普快/傳統客車
   [/\(太/,   { a: 1.88, b: 3.6, v: 135 }],           // 太魯閣 TEMU1000(傾斜式)
   [/\(普/,   { a: 1.84, b: 3.6, v: 135 }],           // 普悠瑪 TEMU2000(傾斜式)
@@ -4953,6 +4956,9 @@ const apiUrl = path => API_BASE ? new URL(path, API_BASE).href : path;
 const SYS_DEFS = [
   { id: 'tra_sched', label: '台鐵', url: './data/tra_schedule_dense.json', mode: 'sched', live: apiUrl('api/tra-live'), alert: apiUrl('api/tra-alert'), special: true, track: './data/tra.json' },
   { id: 'thsr_sched', label: '高鐵', url: './data/thsr_schedule_dense.json', mode: 'sched', alert: apiUrl('api/thsr-alert'), track: './data/thsr_track.json' },
+  // 阿里山林鐵:TDX 只有 v3/Rail/AFR(v2 全 404),且無 DailyTrainTimetable/TrainLiveBoard/Alert
+  // → 定期時刻表(每日相同)、無即時誤點、無官方公告介接,故不帶 live/alert/special
+  { id: 'afr_sched', label: '阿里山林鐵', url: './data/afr_schedule_dense.json', mode: 'sched', track: './data/afr.json' },
   { id: 'mrt', label: '台北捷運', url: './data/trtc.json', speed: 34, mode: 'freq', times: './data/trtc_times.json' },
   { id: 'tymc', label: '桃園機捷', url: './data/tymc.json', speed: 45, mode: 'freq', times: './data/tymc_times.json' },
   { id: 'ntdlrt', label: '淡海輕軌', url: './data/ntdlrt.json', speed: 25, mode: 'freq', times: './data/ntdlrt_times.json' },
@@ -4964,10 +4970,10 @@ const SYS_DEFS = [
 const GROUPS = [
   { id: 'all', label: '全台同框', mode: 'all', members: [],
     plate: { plateL: '基隆', plateR: '高雄', sub: 'ALL LINES · TAIWAN',
-      lead: '全台鐵道一次看 — 台鐵、高鐵與各捷運／輕軌皆依當日時刻表同一時間軸運行（台鐵套即時誤點；主要捷運營運時段依官方到站看板校正）。' } },
-  { id: 'nat', label: '國家鐵路', mode: 'sched', members: ['tra_sched', 'thsr_sched'],
+      lead: '全台鐵道一次看 — 台鐵、高鐵、阿里山林鐵與各捷運／輕軌皆依當日時刻表同一時間軸運行（台鐵套即時誤點；主要捷運營運時段依官方到站看板校正）。' } },
+  { id: 'nat', label: '國家鐵路', mode: 'sched', members: ['tra_sched', 'thsr_sched', 'afr_sched'],
     plate: { plateL: '基隆', plateR: '枋寮', sub: '台灣鐵道即時軌跡',
-      lead: '台鐵與高鐵同框運行，皆依當日真實時刻表（台鐵回到現在時刻自動套用即時誤點）— 點列車跟隨、點車站看班次，或按地圖角落「探」看今日亮點。' } },
+      lead: '台鐵、高鐵與阿里山林鐵皆依真實時刻表運行（台鐵回到現在時刻自動套用即時誤點；林鐵依官方公告時刻表，無即時資訊）— 點列車跟隨、點車站看班次，或按地圖角落「探」看今日亮點。' } },
   { id: 'north', label: '北北桃', mode: 'freq', members: ['mrt', 'tymc', 'ntdlrt', 'ntalrt', 'sanying'],
     plate: { plateL: '淡水', plateR: '桃園機場', sub: 'GREATER TAIPEI RAIL',
       lead: '台北捷運、新北捷運（環狀線・淡海・安坑・三鶯）與桃園機捷同框運行，北捷、新北捷與機捷營運時段依官方即時資訊校正（三鶯線、文湖線為班距推算）— 可在上方勾選要同時顯示的系統,拖曳、縮放地圖看看。' } },
@@ -5099,7 +5105,12 @@ function loadSystem(sys) {
     applySchedSystems([sys]);
     fitData(state.schedStations.map(s => [s.lat, s.lon]));
     reproject();
-    document.getElementById('note').textContent = sys.live
+    document.getElementById('note').textContent = sys.id === 'afr_sched'
+      // 林鐵走 TDX 定期時刻表(每日相同,非每日檔),且無即時介接→文案不可沿用台鐵/高鐵那兩支
+      ? ('資料來源：交通部TDX平臺 阿里山林業鐵路定期時刻表' + (sys.data.date ? '（' + sys.data.date + ' 擷取）' : '') +
+        '，共 ' + state.trains.length + ' 車次；林鐵未提供列車即時位置與誤點介接，畫面一律依官方公告時刻表推演。' +
+        '本線常因天候、維修而調整或停駛，實際開行與購票請以林業及自然保育署阿里山林業鐵路及文化資產管理處公告為準。點地圖上的車站可看即將停靠的班次。')
+      : sys.live
       ? ('資料來源：台鐵官方 OpenData（ods.railway.gov.tw）每日時刻表' + (sys.data.date ? '（' + sys.data.date + '）' : '') +
         '，共 ' + state.trains.length + ' 車次；即時誤點資料介接「交通部TDX平臺」（每分鐘更新，回到現在時刻自動套用）。' +
         '列車依真實時刻表運行，沿實際路線經過中途各站（少數支線區段為直線近似）。點地圖上的車站可看即將停靠的班次。')
@@ -5159,7 +5170,7 @@ function renderSystemsBar() {
   if (cur.mode === 'all') {
     const cap = document.createElement('div');
     cap.className = 'allcap';
-    cap.textContent = '台鐵 · 高鐵（真實時刻）｜ 捷運 · 輕軌（官方時刻表，主要路網看板校正）';
+    cap.textContent = '台鐵 · 高鐵 · 阿里山林鐵（真實時刻）｜ 捷運 · 輕軌（官方時刻表，主要路網看板校正）';
     mem.appendChild(cap);
   } else cur.members.forEach(id => {
     // 資料未載入時退回 SYS_DEFS 取標籤:讓首繪就能畫出等尺寸成員列(CLS 預留)
@@ -5308,7 +5319,7 @@ function buildDecoLines() {
 
 // 全台同框頁籤:台鐵+高鐵真實時刻 ＋ 全捷運/輕軌裝飾層,一張圖看完整個台灣鐵道
 function loadAllGroup(g) {
-  const scheds = ['tra_sched', 'thsr_sched'].filter(id => state.systems.some(s => s.id === id))
+  const scheds = ['tra_sched', 'thsr_sched', 'afr_sched'].filter(id => state.systems.some(s => s.id === id))
     .map(id => state.systems.find(s => s.id === id));
   if (!scheds.length) return; // 無 sched 系統(理論上不會發生),不切換
   if (state.autoTour) setAutoTour(false);
@@ -8212,13 +8223,13 @@ function stnSearchMatch(q) {
     || (STN_SYS_ORDER[a.e.sysId] - STN_SYS_ORDER[b.e.sysId]) || a.e.name.localeCompare(b.e.name));
   return out.map(o => o.e);
 }
-// 車次比對:掃兩個 sched 系統(台鐵/高鐵)的原始 data.trains,車次號前綴命中(取首個空白 token,免受寫回值干擾);
-// 精準命中(===)排前、再依號碼自然排序,最多 8 筆。撞號(台鐵/高鐵同號)兩系統各列一筆,以 sys-chip 區分。
+// 車次比對:掃三個 sched 系統(台鐵/高鐵/林鐵)的原始 data.trains,車次號前綴命中(取首個空白 token,免受寫回值干擾);
+// 精準命中(===)排前、再依號碼自然排序,最多 8 筆。撞號(林鐵車次 1/2/5/8 與台鐵大量重號)各系統各列一筆,以 sys-chip 區分。
 function searchTrainMatch(q) {
   const nq = (q || '').trim().split(/[\s　]/)[0];
   if (!nq || !/\d/.test(nq)) return []; // 需含數字才視為車次查詢
   const out = [];
-  for (const sid of ['tra_sched', 'thsr_sched']) {
+  for (const sid of ['tra_sched', 'thsr_sched', 'afr_sched']) {
     const sys = state.systems.find(s => s.id === sid);
     if (!sys) continue;
     for (const tr of (sys.data.trains || [])) if (String(tr.train).startsWith(nq)) out.push({ tr, sys });

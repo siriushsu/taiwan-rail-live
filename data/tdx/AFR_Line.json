@@ -1,0 +1,69 @@
+{
+ "UpdateTime": "2026-07-19T03:55:08+08:00",
+ "UpdateInterval": 14400,
+ "SrcUpdateTime": "2026-07-19T03:55:08+08:00",
+ "SrcUpdateInterval": 86400,
+ "AuthorityCode": "AFR",
+ "Lines": [
+  {
+   "LineNo": "M-1",
+   "LineID": "1",
+   "LineName": {
+    "Zh_tw": "本線(嘉義-阿里山)",
+    "En": "Main Line(Chiayi-Alishan)"
+   },
+   "LineSectionName": {
+    "Zh_tw": "嘉義-阿里山",
+    "En": "Chiayi-Alishan"
+   },
+   "IsBranch": false,
+   "LineGroup": "1",
+   "LineURL": "https://afrch.forest.gov.tw/0000115"
+  },
+  {
+   "LineNo": "B-2",
+   "LineID": "2",
+   "LineName": {
+    "Zh_tw": "祝山線",
+    "En": "Zhushan Line"
+   },
+   "LineSectionName": {
+    "Zh_tw": "阿里山-祝山",
+    "En": "Alishan-Zhushan"
+   },
+   "IsBranch": true,
+   "LineGroup": "1",
+   "LineURL": "https://afrch.forest.gov.tw/0000300"
+  },
+  {
+   "LineNo": "B-3",
+   "LineID": "3",
+   "LineName": {
+    "Zh_tw": "神木線",
+    "En": "Shenmu Line"
+   },
+   "LineSectionName": {
+    "Zh_tw": "神木-阿里山",
+    "En": "Shenmu-Alishan"
+   },
+   "IsBranch": true,
+   "LineGroup": "1",
+   "LineURL": "https://afrch.forest.gov.tw/0000300"
+  },
+  {
+   "LineNo": "B-4",
+   "LineID": "4",
+   "LineName": {
+    "Zh_tw": "沼平線",
+    "En": "Zhaoping Line"
+   },
+   "LineSectionName": {
+    "Zh_tw": "阿里山-沼平",
+    "En": "Alishan-Zhaoping"
+   },
+   "IsBranch": true,
+   "LineGroup": "1",
+   "LineURL": "https://afrch.forest.gov.tw/0000300"
+  }
+ ]
+}

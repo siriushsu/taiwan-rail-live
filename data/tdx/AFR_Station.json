@@ -1,0 +1,366 @@
+{
+ "UpdateTime": "2026-07-19T03:55:08+08:00",
+ "UpdateInterval": 14400,
+ "SrcUpdateTime": "2026-07-19T03:55:08+08:00",
+ "SrcUpdateInterval": 86400,
+ "AuthorityCode": "AFR",
+ "Stations": [
+  {
+   "StationClass": "X",
+   "StationUID": "AFR-360",
+   "StationID": "360",
+   "ReservationCode": "360",
+   "StationName": {
+    "Zh_tw": "嘉義",
+    "En": "Chiayi"
+   },
+   "StationPosition": {
+    "PositionLon": 120.4412,
+    "PositionLat": 23.479
+   },
+   "StationAddress": "600嘉義市西區中山路528號",
+   "StationPhone": "05-2256918",
+   "StationURL": "https://afrch.forest.gov.tw/0000081"
+  },
+  {
+   "StationClass": "1",
+   "StationUID": "AFR-361",
+   "StationID": "361",
+   "ReservationCode": "361",
+   "StationName": {
+    "Zh_tw": "北門",
+    "En": "Beimen"
+   },
+   "StationPosition": {
+    "PositionLon": 120.4542,
+    "PositionLat": 23.488
+   },
+   "StationAddress": "600嘉義市東區忠孝路306號",
+   "StationPhone": "05-2768094",
+   "StationURL": "https://afrch.forest.gov.tw/0000082"
+  },
+  {
+   "StationClass": "5",
+   "StationUID": "AFR-362",
+   "StationID": "362",
+   "ReservationCode": "362",
+   "StationName": {
+    "Zh_tw": "鹿麻產",
+    "En": "Lumachan"
+   },
+   "StationPosition": {
+    "PositionLon": 120.5315,
+    "PositionLat": 23.5042
+   },
+   "StationAddress": "604嘉義縣竹崎鄉鹿滿村下溪心61之3號",
+   "StationPhone": "00-00000000",
+   "StationURL": "https://afrch.forest.gov.tw/0000083"
+  },
+  {
+   "StationClass": "2",
+   "StationUID": "AFR-363",
+   "StationID": "363",
+   "ReservationCode": "363",
+   "StationName": {
+    "Zh_tw": "竹崎",
+    "En": "Zhuqi"
+   },
+   "StationPosition": {
+    "PositionLon": 120.5535,
+    "PositionLat": 23.5258
+   },
+   "StationAddress": "604嘉義縣竹崎鄉竹崎村舊車站11號",
+   "StationPhone": "05-2611275",
+   "StationURL": "https://afrch.forest.gov.tw/0000084"
+  },
+  {
+   "StationClass": "5",
+   "StationUID": "AFR-365",
+   "StationID": "365",
+   "ReservationCode": "365",
+   "StationName": {
+    "Zh_tw": "樟腦寮",
+    "En": "Zhangnaoliao"
+   },
+   "StationPosition": {
+    "PositionLon": 120.6025,
+    "PositionLat": 23.5329
+   },
+   "StationAddress": "604嘉義縣竹崎鄉緞繻村樟腦寮37-1號",
+   "StationPhone": "05-2630104",
+   "StationURL": "https://afrch.forest.gov.tw/0000086"
+  },
+  {
+   "StationClass": "5",
+   "StationUID": "AFR-366",
+   "StationID": "366",
+   "ReservationCode": "366",
+   "StationName": {
+    "Zh_tw": "獨立山",
+    "En": "Dulishan"
+   },
+   "StationPosition": {
+    "PositionLon": 120.6074,
+    "PositionLat": 23.5385
+   },
+   "StationAddress": "604嘉義縣竹崎鄉緞繻村",
+   "StationPhone": "00-00000000",
+   "StationURL": "https://afrch.forest.gov.tw/0000087"
+  },
+  {
+   "StationClass": "5",
+   "StationUID": "AFR-367",
+   "StationID": "367",
+   "ReservationCode": "367",
+   "StationName": {
+    "Zh_tw": "梨園寮",
+    "En": "Liyuanliao"
+   },
+   "StationPosition": {
+    "PositionLon": 120.62,
+    "PositionLat": 23.5423
+   },
+   "StationAddress": "603嘉義縣梅山鄉太興村",
+   "StationPhone": "00-00000000",
+   "StationURL": "https://afrch.forest.gov.tw/0000088"
+  },
+  {
+   "StationClass": "2",
+   "StationUID": "AFR-368",
+   "StationID": "368",
+   "ReservationCode": "368",
+   "StationName": {
+    "Zh_tw": "交力坪",
+    "En": "Jiaoliping"
+   },
+   "StationPosition": {
+    "PositionLon": 120.6438,
+    "PositionLat": 23.5314
+   },
+   "StationAddress": "603嘉義縣竹崎鄉仁壽村交力坪63號",
+   "StationPhone": "05-2501504",
+   "StationURL": "https://afrch.forest.gov.tw/0000089"
+  },
+  {
+   "StationClass": "5",
+   "StationUID": "AFR-369",
+   "StationID": "369",
+   "ReservationCode": "369",
+   "StationName": {
+    "Zh_tw": "水社寮",
+    "En": "Shuisheliao"
+   },
+   "StationPosition": {
+    "PositionLon": 120.6596,
+    "PositionLat": 23.5044
+   },
+   "StationAddress": "603嘉義縣竹崎鄉仁壽村水社寮",
+   "StationPhone": "00-00000000",
+   "StationURL": "https://afrch.forest.gov.tw/0000090"
+  },
+  {
+   "StationClass": "1",
+   "StationUID": "AFR-370",
+   "StationID": "370",
+   "ReservationCode": "370",
+   "StationName": {
+    "Zh_tw": "奮起湖",
+    "En": "Fenqihu"
+   },
+   "StationPosition": {
+    "PositionLon": 120.6951,
+    "PositionLat": 23.5053
+   },
+   "StationAddress": "嘉義縣竹崎鄉中和村奮起湖168號之1",
+   "StationPhone": "05-2561007",
+   "StationURL": "https://afrch.forest.gov.tw/0000091"
+  },
+  {
+   "StationClass": "5",
+   "StationUID": "AFR-371",
+   "StationID": "371",
+   "ReservationCode": "371",
+   "StationName": {
+    "Zh_tw": "多林",
+    "En": "Duolin"
+   },
+   "StationPosition": {
+    "PositionLon": 120.7305,
+    "PositionLat": 23.4987
+   },
+   "StationAddress": "605嘉義縣阿里山鄉十字村哆囉嘕106號",
+   "StationPhone": "00-00000000",
+   "StationURL": "https://afrch.forest.gov.tw/0000092"
+  },
+  {
+   "StationClass": "5",
+   "StationUID": "AFR-372",
+   "StationID": "372",
+   "ReservationCode": "372",
+   "StationName": {
+    "Zh_tw": "十字路",
+    "En": "Shizilu"
+   },
+   "StationPosition": {
+    "PositionLon": 120.7539,
+    "PositionLat": 23.4928
+   },
+   "StationAddress": "605嘉義縣阿里山鄉十字村十字路9號",
+   "StationPhone": "00-00000000",
+   "StationURL": "https://afrch.forest.gov.tw/0000093"
+  },
+  {
+   "StationClass": "X",
+   "StationUID": "AFR-373",
+   "StationID": "373",
+   "ReservationCode": "373",
+   "StationName": {
+    "Zh_tw": "屏遮那",
+    "En": "Pingzhena"
+   },
+   "StationPosition": {
+    "PositionLon": 120.7793,
+    "PositionLat": 23.5106
+   },
+   "StationAddress": "605嘉義縣阿里山鄉",
+   "StationPhone": "00-00000000",
+   "StationURL": "https://afrch.forest.gov.tw/0000094"
+  },
+  {
+   "StationClass": "X",
+   "StationUID": "AFR-374",
+   "StationID": "374",
+   "ReservationCode": "374",
+   "StationName": {
+    "Zh_tw": "第一分道",
+    "En": "1st-Switch"
+   },
+   "StationPosition": {
+    "PositionLon": 120.7943,
+    "PositionLat": 23.5207
+   },
+   "StationAddress": " ",
+   "StationPhone": "00-00000000",
+   "StationURL": " "
+  },
+  {
+   "StationClass": "X",
+   "StationUID": "AFR-375",
+   "StationID": "375",
+   "ReservationCode": "375",
+   "StationName": {
+    "Zh_tw": "第二分道",
+    "En": "2nd-Switch"
+   },
+   "StationPosition": {
+    "PositionLon": 120.7909,
+    "PositionLat": 23.514
+   },
+   "StationAddress": " ",
+   "StationPhone": "00-00000000",
+   "StationURL": " "
+  },
+  {
+   "StationClass": "5",
+   "StationUID": "AFR-376",
+   "StationID": "376",
+   "ReservationCode": "376",
+   "StationName": {
+    "Zh_tw": "二萬平",
+    "En": "Erwanping"
+   },
+   "StationPosition": {
+    "PositionLon": 120.7902,
+    "PositionLat": 23.5089
+   },
+   "StationAddress": "605嘉義縣阿里山鄉香林村二萬平106號旁",
+   "StationPhone": "00-00000000",
+   "StationURL": "https://afrch.forest.gov.tw/0000095"
+  },
+  {
+   "StationClass": "4",
+   "StationUID": "AFR-377",
+   "StationID": "377",
+   "ReservationCode": "377",
+   "StationName": {
+    "Zh_tw": "神木",
+    "En": "Shenmu"
+   },
+   "StationPosition": {
+    "PositionLon": 120.8064,
+    "PositionLat": 23.5191
+   },
+   "StationAddress": "605嘉義縣阿里山鄉香林村45號",
+   "StationPhone": "00-00000000",
+   "StationURL": "https://afrch.forest.gov.tw/0000096"
+  },
+  {
+   "StationClass": "1",
+   "StationUID": "AFR-378",
+   "StationID": "378",
+   "ReservationCode": "378",
+   "StationName": {
+    "Zh_tw": "阿里山",
+    "En": "Alishan"
+   },
+   "StationPosition": {
+    "PositionLon": 120.8042,
+    "PositionLat": 23.5099
+   },
+   "StationAddress": "605嘉義縣阿里山鄉中正村阿里山1號",
+   "StationPhone": "05-2679200",
+   "StationURL": "https://afrch.forest.gov.tw/0000097"
+  },
+  {
+   "StationClass": "1",
+   "StationUID": "AFR-379",
+   "StationID": "379",
+   "ReservationCode": "379",
+   "StationName": {
+    "Zh_tw": "沼平",
+    "En": "Zhaoping"
+   },
+   "StationPosition": {
+    "PositionLon": 120.8138,
+    "PositionLat": 23.5144
+   },
+   "StationAddress": "605嘉義縣阿里山鄉香林村17號",
+   "StationPhone": "05-2679086",
+   "StationURL": "https://afrch.forest.gov.tw/0000098"
+  },
+  {
+   "StationClass": "5",
+   "StationUID": "AFR-380",
+   "StationID": "380",
+   "ReservationCode": "380",
+   "StationName": {
+    "Zh_tw": "對高岳",
+    "En": "Duigaoyue"
+   },
+   "StationPosition": {
+    "PositionLon": 120.82,
+    "PositionLat": 23.5173
+   },
+   "StationAddress": "605南投縣信義鄉神木村神木巷47號",
+   "StationPhone": "00-00000000",
+   "StationURL": "https://afrch.forest.gov.tw/0000101"
+  },
+  {
+   "StationClass": "1",
+   "StationUID": "AFR-381",
+   "StationID": "381",
+   "ReservationCode": "381",
+   "StationName": {
+    "Zh_tw": "祝山",
+    "En": "Zhushan"
+   },
+   "StationPosition": {
+    "PositionLon": 120.8231,
+    "PositionLat": 23.5102
+   },
+   "StationAddress": "605嘉義縣阿里山鄉中正村阿里山99號",
+   "StationPhone": "05-2679685",
+   "StationURL": "https://afrch.forest.gov.tw/0000100"
+  }
+ ]
+}

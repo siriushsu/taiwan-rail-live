@@ -1,0 +1,249 @@
+{
+ "UpdateTime": "2026-07-19T03:55:08+08:00",
+ "UpdateInterval": 14400,
+ "SrcUpdateTime": "2026-07-19T03:55:08+08:00",
+ "SrcUpdateInterval": 86400,
+ "AuthorityCode": "AFR",
+ "StationOfLines": [
+  {
+   "LineNo": "M-1",
+   "LineID": "1",
+   "Stations": [
+    {
+     "Sequence": 1,
+     "StationID": "360",
+     "StationName": {
+      "Zh_tw": "嘉義",
+      "En": "Chiayi"
+     },
+     "CumulativeDistance": 0
+    },
+    {
+     "Sequence": 2,
+     "StationID": "361",
+     "StationName": {
+      "Zh_tw": "北門",
+      "En": "Beimen"
+     },
+     "CumulativeDistance": 1.6
+    },
+    {
+     "Sequence": 3,
+     "StationID": "362",
+     "StationName": {
+      "Zh_tw": "鹿麻產",
+      "En": "Lumachan"
+     },
+     "CumulativeDistance": 10.8
+    },
+    {
+     "Sequence": 4,
+     "StationID": "363",
+     "StationName": {
+      "Zh_tw": "竹崎",
+      "En": "Zhuqi"
+     },
+     "CumulativeDistance": 14.2
+    },
+    {
+     "Sequence": 5,
+     "StationID": "365",
+     "StationName": {
+      "Zh_tw": "樟腦寮",
+      "En": "Zhangnaoliao"
+     },
+     "CumulativeDistance": 23.3
+    },
+    {
+     "Sequence": 6,
+     "StationID": "366",
+     "StationName": {
+      "Zh_tw": "獨立山",
+      "En": "Dulishan"
+     },
+     "CumulativeDistance": 27.4
+    },
+    {
+     "Sequence": 7,
+     "StationID": "367",
+     "StationName": {
+      "Zh_tw": "梨園寮",
+      "En": "Liyuanliao"
+     },
+     "CumulativeDistance": 31.4
+    },
+    {
+     "Sequence": 8,
+     "StationID": "368",
+     "StationName": {
+      "Zh_tw": "交力坪",
+      "En": "Jiaoliping"
+     },
+     "CumulativeDistance": 34.9
+    },
+    {
+     "Sequence": 9,
+     "StationID": "369",
+     "StationName": {
+      "Zh_tw": "水社寮",
+      "En": "Shuisheliao"
+     },
+     "CumulativeDistance": 40.5
+    },
+    {
+     "Sequence": 10,
+     "StationID": "370",
+     "StationName": {
+      "Zh_tw": "奮起湖",
+      "En": "Fenqihu"
+     },
+     "CumulativeDistance": 45.5
+    },
+    {
+     "Sequence": 11,
+     "StationID": "371",
+     "StationName": {
+      "Zh_tw": "多林",
+      "En": "Duolin"
+     },
+     "CumulativeDistance": 50.7
+    },
+    {
+     "Sequence": 12,
+     "StationID": "372",
+     "StationName": {
+      "Zh_tw": "十字路",
+      "En": "Shizilu"
+     },
+     "CumulativeDistance": 55
+    },
+    {
+     "Sequence": 13,
+     "StationID": "373",
+     "StationName": {
+      "Zh_tw": "屏遮那",
+      "En": "Pingzhena"
+     },
+     "CumulativeDistance": 60.2
+    },
+    {
+     "Sequence": 14,
+     "StationID": "374",
+     "StationName": {
+      "Zh_tw": "第一分道",
+      "En": "1st-Switch"
+     },
+     "CumulativeDistance": 63.1
+    },
+    {
+     "Sequence": 15,
+     "StationID": "375",
+     "StationName": {
+      "Zh_tw": "第二分道",
+      "En": "2nd-Switch"
+     },
+     "CumulativeDistance": 64.4
+    },
+    {
+     "Sequence": 16,
+     "StationID": "376",
+     "StationName": {
+      "Zh_tw": "二萬平",
+      "En": "Erwanping"
+     },
+     "CumulativeDistance": 67.2
+    },
+    {
+     "Sequence": 17,
+     "StationID": "378",
+     "StationName": {
+      "Zh_tw": "阿里山",
+      "En": "Alishan"
+     },
+     "CumulativeDistance": 71.6
+    }
+   ]
+  },
+  {
+   "LineNo": "B-2",
+   "LineID": "2",
+   "Stations": [
+    {
+     "Sequence": 1,
+     "StationID": "378",
+     "StationName": {
+      "Zh_tw": "阿里山",
+      "En": "Alishan"
+     },
+     "CumulativeDistance": 0
+    },
+    {
+     "Sequence": 2,
+     "StationID": "380",
+     "StationName": {
+      "Zh_tw": "對高岳",
+      "En": "Duigaoyue"
+     },
+     "CumulativeDistance": 4.9
+    },
+    {
+     "Sequence": 3,
+     "StationID": "381",
+     "StationName": {
+      "Zh_tw": "祝山",
+      "En": "Zhushan"
+     },
+     "CumulativeDistance": 6.1
+    }
+   ]
+  },
+  {
+   "LineNo": "B-3",
+   "LineID": "3",
+   "Stations": [
+    {
+     "Sequence": 1,
+     "StationID": "377",
+     "StationName": {
+      "Zh_tw": "神木",
+      "En": "Shenmu"
+     },
+     "CumulativeDistance": 0
+    },
+    {
+     "Sequence": 2,
+     "StationID": "378",
+     "StationName": {
+      "Zh_tw": "阿里山",
+      "En": "Alishan"
+     },
+     "CumulativeDistance": 1.7
+    }
+   ]
+  },
+  {
+   "LineNo": "B-4",
+   "LineID": "4",
+   "Stations": [
+    {
+     "Sequence": 1,
+     "StationID": "378",
+     "StationName": {
+      "Zh_tw": "阿里山",
+      "En": "Alishan"
+     },
+     "CumulativeDistance": 0
+    },
+    {
+     "Sequence": 2,
+     "StationID": "379",
+     "StationName": {
+      "Zh_tw": "沼平",
+      "En": "Zhaoping"
+     },
+     "CumulativeDistance": 1.2
+    }
+   ]
+  }
+ ]
+}

@@ -1,0 +1,951 @@
+{
+ "UpdateTime": "2026-07-19T03:55:08+08:00",
+ "UpdateInterval": 14400,
+ "SrcUpdateTime": "2026-07-19T03:55:08+08:00",
+ "SrcUpdateInterval": 86400,
+ "EffectiveDate": "2024-02-15T00:00:00+08:00",
+ "SrcVersion": "10",
+ "TimetableName": "常態性時刻表",
+ "TrainTimetables": [
+  {
+   "TrainInfo": {
+    "TrainNo": "1",
+    "RouteID": "1",
+    "Direction": 0,
+    "TripHeadSign": "往十字路",
+    "StartingStationID": "360",
+    "StartingStationName": {
+     "Zh_tw": "嘉義",
+     "En": "Chiayi"
+    },
+    "EndingStationID": "372",
+    "EndingStationName": {
+     "Zh_tw": "十字路",
+     "En": "Shizilu"
+    },
+    "OverNightStationID": " ",
+    "TripLine": 1,
+    "WheelChairFlag": 1,
+    "PackageServiceFlag": 1,
+    "DiningFlag": 0,
+    "BreastFeedFlag": 1,
+    "BikeFlag": 1,
+    "CarFlag": 0,
+    "DailyFlag": 1,
+    "ExtraTrainFlag": 0,
+    "Note": " "
+   },
+   "StopTimes": [
+    {
+     "StopSequence": 1,
+     "StationID": "360",
+     "StationName": {
+      "Zh_tw": "嘉義",
+      "En": "Chiayi"
+     },
+     "ArrivalTime": "08:57",
+     "DepartureTime": "09:00"
+    },
+    {
+     "StopSequence": 2,
+     "StationID": "361",
+     "StationName": {
+      "Zh_tw": "北門",
+      "En": "Beimen"
+     },
+     "ArrivalTime": "09:06",
+     "DepartureTime": "09:10"
+    },
+    {
+     "StopSequence": 3,
+     "StationID": "362",
+     "StationName": {
+      "Zh_tw": "鹿麻產",
+      "En": "Lumachan"
+     },
+     "ArrivalTime": "09:32",
+     "DepartureTime": "09:33"
+    },
+    {
+     "StopSequence": 4,
+     "StationID": "363",
+     "StationName": {
+      "Zh_tw": "竹崎",
+      "En": "Zhuqi"
+     },
+     "ArrivalTime": "09:41",
+     "DepartureTime": "09:43"
+    },
+    {
+     "StopSequence": 5,
+     "StationID": "365",
+     "StationName": {
+      "Zh_tw": "樟腦寮",
+      "En": "Zhangnaoliao"
+     },
+     "ArrivalTime": "10:09",
+     "DepartureTime": "10:10"
+    },
+    {
+     "StopSequence": 6,
+     "StationID": "366",
+     "StationName": {
+      "Zh_tw": "獨立山",
+      "En": "Dulishan"
+     },
+     "ArrivalTime": "10:22",
+     "DepartureTime": "10:23"
+    },
+    {
+     "StopSequence": 7,
+     "StationID": "367",
+     "StationName": {
+      "Zh_tw": "梨園寮",
+      "En": "Liyuanliao"
+     },
+     "ArrivalTime": "10:35",
+     "DepartureTime": "10:36"
+    },
+    {
+     "StopSequence": 8,
+     "StationID": "368",
+     "StationName": {
+      "Zh_tw": "交力坪",
+      "En": "Jiaoliping"
+     },
+     "ArrivalTime": "10:46",
+     "DepartureTime": "10:48"
+    },
+    {
+     "StopSequence": 9,
+     "StationID": "369",
+     "StationName": {
+      "Zh_tw": "水社寮",
+      "En": "Shuisheliao"
+     },
+     "ArrivalTime": "11:04",
+     "DepartureTime": "11:05"
+    },
+    {
+     "StopSequence": 10,
+     "StationID": "370",
+     "StationName": {
+      "Zh_tw": "奮起湖",
+      "En": "Fenqihu"
+     },
+     "ArrivalTime": "11:21",
+     "DepartureTime": "11:30"
+    },
+    {
+     "StopSequence": 11,
+     "StationID": "371",
+     "StationName": {
+      "Zh_tw": "多林",
+      "En": "Duolin"
+     },
+     "ArrivalTime": "11:44",
+     "DepartureTime": "11:45"
+    },
+    {
+     "StopSequence": 12,
+     "StationID": "372",
+     "StationName": {
+      "Zh_tw": "十字路",
+      "En": "Shizilu"
+     },
+     "ArrivalTime": "12:00",
+     "DepartureTime": "12:03"
+    }
+   ],
+   "ServiceDay": {
+    "ServiceTag": "請參閱官網",
+    "Monday": 1,
+    "Tuesday": 1,
+    "Wednesday": 1,
+    "Thursday": 1,
+    "Friday": 1,
+    "Saturday": 1,
+    "Sunday": 1,
+    "NationalHolidays": 1,
+    "DayBeforeHoliday": 0,
+    "DayAfterHoliday": 0
+   }
+  },
+  {
+   "TrainInfo": {
+    "TrainNo": "120",
+    "RouteID": "3",
+    "Direction": 1,
+    "TripHeadSign": "往神木",
+    "StartingStationID": "378",
+    "StartingStationName": {
+     "Zh_tw": "阿里山",
+     "En": "Alishan"
+    },
+    "EndingStationID": "377",
+    "EndingStationName": {
+     "Zh_tw": "神木",
+     "En": "Shenmu"
+    },
+    "OverNightStationID": " ",
+    "TripLine": 1,
+    "WheelChairFlag": 1,
+    "PackageServiceFlag": 1,
+    "DiningFlag": 0,
+    "BreastFeedFlag": 1,
+    "BikeFlag": 1,
+    "CarFlag": 0,
+    "DailyFlag": 1,
+    "ExtraTrainFlag": 0,
+    "Note": " "
+   },
+   "StopTimes": [
+    {
+     "StopSequence": 1,
+     "StationID": "378",
+     "StationName": {
+      "Zh_tw": "阿里山",
+      "En": "Alishan"
+     },
+     "ArrivalTime": "15:47",
+     "DepartureTime": "15:50"
+    },
+    {
+     "StopSequence": 2,
+     "StationID": "377",
+     "StationName": {
+      "Zh_tw": "神木",
+      "En": "Shenmu"
+     },
+     "ArrivalTime": "15:57",
+     "DepartureTime": "16:10"
+    }
+   ],
+   "ServiceDay": {
+    "ServiceTag": "請參閱官網",
+    "Monday": 1,
+    "Tuesday": 1,
+    "Wednesday": 1,
+    "Thursday": 1,
+    "Friday": 1,
+    "Saturday": 1,
+    "Sunday": 1,
+    "NationalHolidays": 1,
+    "DayBeforeHoliday": 0,
+    "DayAfterHoliday": 0
+   }
+  },
+  {
+   "TrainInfo": {
+    "TrainNo": "121",
+    "RouteID": "3",
+    "Direction": 0,
+    "TripHeadSign": "往阿里山",
+    "StartingStationID": "377",
+    "StartingStationName": {
+     "Zh_tw": "神木",
+     "En": "Shenmu"
+    },
+    "EndingStationID": "378",
+    "EndingStationName": {
+     "Zh_tw": "阿里山",
+     "En": "Alishan"
+    },
+    "OverNightStationID": " ",
+    "TripLine": 1,
+    "WheelChairFlag": 1,
+    "PackageServiceFlag": 1,
+    "DiningFlag": 0,
+    "BreastFeedFlag": 1,
+    "BikeFlag": 1,
+    "CarFlag": 0,
+    "DailyFlag": 1,
+    "ExtraTrainFlag": 0,
+    "Note": " "
+   },
+   "StopTimes": [
+    {
+     "StopSequence": 1,
+     "StationID": "377",
+     "StationName": {
+      "Zh_tw": "神木",
+      "En": "Shenmu"
+     },
+     "ArrivalTime": "15:57",
+     "DepartureTime": "16:10"
+    },
+    {
+     "StopSequence": 2,
+     "StationID": "378",
+     "StationName": {
+      "Zh_tw": "阿里山",
+      "En": "Alishan"
+     },
+     "ArrivalTime": "16:17",
+     "DepartureTime": "16:20"
+    }
+   ],
+   "ServiceDay": {
+    "ServiceTag": "請參閱官網",
+    "Monday": 1,
+    "Tuesday": 1,
+    "Wednesday": 1,
+    "Thursday": 1,
+    "Friday": 1,
+    "Saturday": 1,
+    "Sunday": 1,
+    "NationalHolidays": 1,
+    "DayBeforeHoliday": 0,
+    "DayAfterHoliday": 0
+   }
+  },
+  {
+   "TrainInfo": {
+    "TrainNo": "2",
+    "RouteID": "1",
+    "Direction": 1,
+    "TripHeadSign": "往嘉義",
+    "StartingStationID": "372",
+    "StartingStationName": {
+     "Zh_tw": "十字路",
+     "En": "Shizilu"
+    },
+    "EndingStationID": "360",
+    "EndingStationName": {
+     "Zh_tw": "嘉義",
+     "En": "Chiayi"
+    },
+    "OverNightStationID": " ",
+    "TripLine": 1,
+    "WheelChairFlag": 1,
+    "PackageServiceFlag": 1,
+    "DiningFlag": 0,
+    "BreastFeedFlag": 1,
+    "BikeFlag": 1,
+    "CarFlag": 0,
+    "DailyFlag": 1,
+    "ExtraTrainFlag": 0,
+    "Note": " "
+   },
+   "StopTimes": [
+    {
+     "StopSequence": 1,
+     "StationID": "372",
+     "StationName": {
+      "Zh_tw": "十字路",
+      "En": "Shizilu"
+     },
+     "ArrivalTime": "13:18",
+     "DepartureTime": "13:21"
+    },
+    {
+     "StopSequence": 2,
+     "StationID": "371",
+     "StationName": {
+      "Zh_tw": "多林",
+      "En": "Duolin"
+     },
+     "ArrivalTime": "13:35",
+     "DepartureTime": "13:36"
+    },
+    {
+     "StopSequence": 3,
+     "StationID": "370",
+     "StationName": {
+      "Zh_tw": "奮起湖",
+      "En": "Fenqihu"
+     },
+     "ArrivalTime": "13:50",
+     "DepartureTime": "14:31"
+    },
+    {
+     "StopSequence": 4,
+     "StationID": "369",
+     "StationName": {
+      "Zh_tw": "水社寮",
+      "En": "Shuisheliao"
+     },
+     "ArrivalTime": "14:47",
+     "DepartureTime": "14:48"
+    },
+    {
+     "StopSequence": 5,
+     "StationID": "368",
+     "StationName": {
+      "Zh_tw": "交力坪",
+      "En": "Jiaoliping"
+     },
+     "ArrivalTime": "15:05",
+     "DepartureTime": "15:06"
+    },
+    {
+     "StopSequence": 6,
+     "StationID": "367",
+     "StationName": {
+      "Zh_tw": "梨園寮",
+      "En": "Liyuanliao"
+     },
+     "ArrivalTime": "15:17",
+     "DepartureTime": "15:18"
+    },
+    {
+     "StopSequence": 7,
+     "StationID": "366",
+     "StationName": {
+      "Zh_tw": "獨立山",
+      "En": "Dulishan"
+     },
+     "ArrivalTime": "15:30",
+     "DepartureTime": "15:31"
+    },
+    {
+     "StopSequence": 8,
+     "StationID": "365",
+     "StationName": {
+      "Zh_tw": "樟腦寮",
+      "En": "Zhangnaoliao"
+     },
+     "ArrivalTime": "15:43",
+     "DepartureTime": "15:44"
+    },
+    {
+     "StopSequence": 9,
+     "StationID": "363",
+     "StationName": {
+      "Zh_tw": "竹崎",
+      "En": "Zhuqi"
+     },
+     "ArrivalTime": "16:11",
+     "DepartureTime": "16:12"
+    },
+    {
+     "StopSequence": 10,
+     "StationID": "362",
+     "StationName": {
+      "Zh_tw": "鹿麻產",
+      "En": "Lumachan"
+     },
+     "ArrivalTime": "16:20",
+     "DepartureTime": "16:21"
+    },
+    {
+     "StopSequence": 11,
+     "StationID": "361",
+     "StationName": {
+      "Zh_tw": "北門",
+      "En": "Beimen"
+     },
+     "ArrivalTime": "16:43",
+     "DepartureTime": "16:45"
+    },
+    {
+     "StopSequence": 12,
+     "StationID": "360",
+     "StationName": {
+      "Zh_tw": "嘉義",
+      "En": "Chiayi"
+     },
+     "ArrivalTime": "16:51",
+     "DepartureTime": "16:54"
+    }
+   ],
+   "ServiceDay": {
+    "ServiceTag": "請參閱官網",
+    "Monday": 1,
+    "Tuesday": 1,
+    "Wednesday": 1,
+    "Thursday": 1,
+    "Friday": 1,
+    "Saturday": 1,
+    "Sunday": 1,
+    "NationalHolidays": 1,
+    "DayBeforeHoliday": 0,
+    "DayAfterHoliday": 0
+   }
+  },
+  {
+   "TrainInfo": {
+    "TrainNo": "5",
+    "RouteID": "1",
+    "Direction": 0,
+    "TripHeadSign": "往阿里山",
+    "StartingStationID": "360",
+    "StartingStationName": {
+     "Zh_tw": "嘉義",
+     "En": "Chiayi"
+    },
+    "EndingStationID": "378",
+    "EndingStationName": {
+     "Zh_tw": "阿里山",
+     "En": "Alishan"
+    },
+    "OverNightStationID": " ",
+    "TripLine": 1,
+    "WheelChairFlag": 1,
+    "PackageServiceFlag": 1,
+    "DiningFlag": 0,
+    "BreastFeedFlag": 1,
+    "BikeFlag": 1,
+    "CarFlag": 0,
+    "DailyFlag": 1,
+    "ExtraTrainFlag": 0,
+    "Note": " "
+   },
+   "StopTimes": [
+    {
+     "StopSequence": 1,
+     "StationID": "360",
+     "StationName": {
+      "Zh_tw": "嘉義",
+      "En": "Chiayi"
+     },
+     "ArrivalTime": "09:57",
+     "DepartureTime": "10:00"
+    },
+    {
+     "StopSequence": 2,
+     "StationID": "361",
+     "StationName": {
+      "Zh_tw": "北門",
+      "En": "Beimen"
+     },
+     "ArrivalTime": "10:06",
+     "DepartureTime": "10:08"
+    },
+    {
+     "StopSequence": 3,
+     "StationID": "363",
+     "StationName": {
+      "Zh_tw": "竹崎",
+      "En": "Zhuqi"
+     },
+     "ArrivalTime": "10:38",
+     "DepartureTime": "10:39"
+    },
+    {
+     "StopSequence": 4,
+     "StationID": "368",
+     "StationName": {
+      "Zh_tw": "交力坪",
+      "En": "Jiaoliping"
+     },
+     "ArrivalTime": "11:41",
+     "DepartureTime": "11:43"
+    },
+    {
+     "StopSequence": 5,
+     "StationID": "370",
+     "StationName": {
+      "Zh_tw": "奮起湖",
+      "En": "Fenqihu"
+     },
+     "ArrivalTime": "12:16",
+     "DepartureTime": "13:21"
+    },
+    {
+     "StopSequence": 6,
+     "StationID": "376",
+     "StationName": {
+      "Zh_tw": "二萬平",
+      "En": "Erwanping"
+     },
+     "ArrivalTime": "14:32",
+     "DepartureTime": "14:38"
+    },
+    {
+     "StopSequence": 7,
+     "StationID": "378",
+     "StationName": {
+      "Zh_tw": "阿里山",
+      "En": "Alishan"
+     },
+     "ArrivalTime": "14:56",
+     "DepartureTime": "14:59"
+    }
+   ],
+   "ServiceDay": {
+    "ServiceTag": "請參閱官網",
+    "Monday": 1,
+    "Tuesday": 1,
+    "Wednesday": 1,
+    "Thursday": 1,
+    "Friday": 1,
+    "Saturday": 1,
+    "Sunday": 1,
+    "NationalHolidays": 1,
+    "DayBeforeHoliday": 0,
+    "DayAfterHoliday": 0
+   }
+  },
+  {
+   "TrainInfo": {
+    "TrainNo": "53",
+    "RouteID": "4",
+    "Direction": 0,
+    "TripHeadSign": "往沼平",
+    "StartingStationID": "378",
+    "StartingStationName": {
+     "Zh_tw": "阿里山",
+     "En": "Alishan"
+    },
+    "EndingStationID": "379",
+    "EndingStationName": {
+     "Zh_tw": "沼平",
+     "En": "Zhaoping"
+    },
+    "OverNightStationID": " ",
+    "TripLine": 1,
+    "WheelChairFlag": 1,
+    "PackageServiceFlag": 1,
+    "DiningFlag": 0,
+    "BreastFeedFlag": 1,
+    "BikeFlag": 1,
+    "CarFlag": 0,
+    "DailyFlag": 1,
+    "ExtraTrainFlag": 0,
+    "Note": " "
+   },
+   "StopTimes": [
+    {
+     "StopSequence": 1,
+     "StationID": "378",
+     "StationName": {
+      "Zh_tw": "阿里山",
+      "En": "Alishan"
+     },
+     "ArrivalTime": "15:36",
+     "DepartureTime": "15:40"
+    },
+    {
+     "StopSequence": 2,
+     "StationID": "379",
+     "StationName": {
+      "Zh_tw": "沼平",
+      "En": "Zhaoping"
+     },
+     "ArrivalTime": "15:46",
+     "DepartureTime": "15:50"
+    }
+   ],
+   "ServiceDay": {
+    "ServiceTag": "請參閱官網",
+    "Monday": 1,
+    "Tuesday": 1,
+    "Wednesday": 1,
+    "Thursday": 1,
+    "Friday": 1,
+    "Saturday": 1,
+    "Sunday": 1,
+    "NationalHolidays": 1,
+    "DayBeforeHoliday": 0,
+    "DayAfterHoliday": 0
+   }
+  },
+  {
+   "TrainInfo": {
+    "TrainNo": "54",
+    "RouteID": "4",
+    "Direction": 1,
+    "TripHeadSign": "往阿里山",
+    "StartingStationID": "379",
+    "StartingStationName": {
+     "Zh_tw": "沼平",
+     "En": "Zhaoping"
+    },
+    "EndingStationID": "378",
+    "EndingStationName": {
+     "Zh_tw": "阿里山",
+     "En": "Alishan"
+    },
+    "OverNightStationID": " ",
+    "TripLine": 1,
+    "WheelChairFlag": 1,
+    "PackageServiceFlag": 1,
+    "DiningFlag": 0,
+    "BreastFeedFlag": 1,
+    "BikeFlag": 1,
+    "CarFlag": 0,
+    "DailyFlag": 1,
+    "ExtraTrainFlag": 0,
+    "Note": " "
+   },
+   "StopTimes": [
+    {
+     "StopSequence": 1,
+     "StationID": "379",
+     "StationName": {
+      "Zh_tw": "沼平",
+      "En": "Zhaoping"
+     },
+     "ArrivalTime": "15:46",
+     "DepartureTime": "16:00"
+    },
+    {
+     "StopSequence": 2,
+     "StationID": "378",
+     "StationName": {
+      "Zh_tw": "阿里山",
+      "En": "Alishan"
+     },
+     "ArrivalTime": "16:06",
+     "DepartureTime": "16:10"
+    }
+   ],
+   "ServiceDay": {
+    "ServiceTag": "請參閱官網",
+    "Monday": 1,
+    "Tuesday": 1,
+    "Wednesday": 1,
+    "Thursday": 1,
+    "Friday": 1,
+    "Saturday": 1,
+    "Sunday": 1,
+    "NationalHolidays": 1,
+    "DayBeforeHoliday": 0,
+    "DayAfterHoliday": 0
+   }
+  },
+  {
+   "TrainInfo": {
+    "TrainNo": "8",
+    "RouteID": "1",
+    "Direction": 1,
+    "TripHeadSign": "往嘉義",
+    "StartingStationID": "378",
+    "StartingStationName": {
+     "Zh_tw": "阿里山",
+     "En": "Alishan"
+    },
+    "EndingStationID": "360",
+    "EndingStationName": {
+     "Zh_tw": "嘉義",
+     "En": "Chiayi"
+    },
+    "OverNightStationID": " ",
+    "TripLine": 1,
+    "WheelChairFlag": 1,
+    "PackageServiceFlag": 1,
+    "DiningFlag": 0,
+    "BreastFeedFlag": 1,
+    "BikeFlag": 1,
+    "CarFlag": 0,
+    "DailyFlag": 1,
+    "ExtraTrainFlag": 0,
+    "Note": " "
+   },
+   "StopTimes": [
+    {
+     "StopSequence": 1,
+     "StationID": "378",
+     "StationName": {
+      "Zh_tw": "阿里山",
+      "En": "Alishan"
+     },
+     "ArrivalTime": "11:47",
+     "DepartureTime": "11:50"
+    },
+    {
+     "StopSequence": 2,
+     "StationID": "376",
+     "StationName": {
+      "Zh_tw": "二萬平",
+      "En": "Erwanping"
+     },
+     "ArrivalTime": "12:08",
+     "DepartureTime": "12:09"
+    },
+    {
+     "StopSequence": 3,
+     "StationID": "370",
+     "StationName": {
+      "Zh_tw": "奮起湖",
+      "En": "Fenqihu"
+     },
+     "ArrivalTime": "13:19",
+     "DepartureTime": "13:29"
+    },
+    {
+     "StopSequence": 4,
+     "StationID": "368",
+     "StationName": {
+      "Zh_tw": "交力坪",
+      "En": "Jiaoliping"
+     },
+     "ArrivalTime": "14:02",
+     "DepartureTime": "14:04"
+    },
+    {
+     "StopSequence": 5,
+     "StationID": "363",
+     "StationName": {
+      "Zh_tw": "竹崎",
+      "En": "Zhuqi"
+     },
+     "ArrivalTime": "15:06",
+     "DepartureTime": "15:07"
+    },
+    {
+     "StopSequence": 6,
+     "StationID": "361",
+     "StationName": {
+      "Zh_tw": "北門",
+      "En": "Beimen"
+     },
+     "ArrivalTime": "15:37",
+     "DepartureTime": "15:39"
+    },
+    {
+     "StopSequence": 7,
+     "StationID": "360",
+     "StationName": {
+      "Zh_tw": "嘉義",
+      "En": "Chiayi"
+     },
+     "ArrivalTime": "15:45",
+     "DepartureTime": "15:48"
+    }
+   ],
+   "ServiceDay": {
+    "ServiceTag": "請參閱官網",
+    "Monday": 1,
+    "Tuesday": 1,
+    "Wednesday": 1,
+    "Thursday": 1,
+    "Friday": 1,
+    "Saturday": 1,
+    "Sunday": 1,
+    "NationalHolidays": 1,
+    "DayBeforeHoliday": 0,
+    "DayAfterHoliday": 0
+   }
+  },
+  {
+   "TrainInfo": {
+    "TrainNo": "97",
+    "RouteID": "2",
+    "Direction": 0,
+    "TripHeadSign": "往祝山",
+    "StartingStationID": "378",
+    "StartingStationName": {
+     "Zh_tw": "阿里山",
+     "En": "Alishan"
+    },
+    "EndingStationID": "381",
+    "EndingStationName": {
+     "Zh_tw": "祝山",
+     "En": "Zhushan"
+    },
+    "OverNightStationID": " ",
+    "TripLine": 1,
+    "WheelChairFlag": 1,
+    "PackageServiceFlag": 1,
+    "DiningFlag": 0,
+    "BreastFeedFlag": 1,
+    "BikeFlag": 1,
+    "CarFlag": 0,
+    "DailyFlag": 1,
+    "ExtraTrainFlag": 0,
+    "Note": "停靠時間根據日出時間而定"
+   },
+   "StopTimes": [
+    {
+     "StopSequence": 1,
+     "StationID": "378",
+     "StationName": {
+      "Zh_tw": "阿里山",
+      "En": "Alishan"
+     },
+     "ArrivalTime": "07:57",
+     "DepartureTime": "08:00"
+    },
+    {
+     "StopSequence": 2,
+     "StationID": "381",
+     "StationName": {
+      "Zh_tw": "祝山",
+      "En": "Zhushan"
+     },
+     "ArrivalTime": "08:30",
+     "DepartureTime": "08:33"
+    }
+   ],
+   "ServiceDay": {
+    "ServiceTag": "請參閱官網",
+    "Monday": 1,
+    "Tuesday": 1,
+    "Wednesday": 1,
+    "Thursday": 1,
+    "Friday": 1,
+    "Saturday": 1,
+    "Sunday": 1,
+    "NationalHolidays": 1,
+    "DayBeforeHoliday": 0,
+    "DayAfterHoliday": 0
+   }
+  },
+  {
+   "TrainInfo": {
+    "TrainNo": "98",
+    "RouteID": "2",
+    "Direction": 1,
+    "TripHeadSign": "往阿里山",
+    "StartingStationID": "381",
+    "StartingStationName": {
+     "Zh_tw": "祝山",
+     "En": "Zhushan"
+    },
+    "EndingStationID": "378",
+    "EndingStationName": {
+     "Zh_tw": "阿里山",
+     "En": "Alishan"
+    },
+    "OverNightStationID": " ",
+    "TripLine": 1,
+    "WheelChairFlag": 1,
+    "PackageServiceFlag": 1,
+    "DiningFlag": 0,
+    "BreastFeedFlag": 1,
+    "BikeFlag": 1,
+    "CarFlag": 0,
+    "DailyFlag": 1,
+    "ExtraTrainFlag": 0,
+    "Note": "停靠時間根據日出時間而定"
+   },
+   "StopTimes": [
+    {
+     "StopSequence": 1,
+     "StationID": "381",
+     "StationName": {
+      "Zh_tw": "祝山",
+      "En": "Zhushan"
+     },
+     "ArrivalTime": "08:57",
+     "DepartureTime": "09:00"
+    },
+    {
+     "StopSequence": 2,
+     "StationID": "378",
+     "StationName": {
+      "Zh_tw": "阿里山",
+      "En": "Alishan"
+     },
+     "ArrivalTime": "09:30",
+     "DepartureTime": "09:33"
+    }
+   ],
+   "ServiceDay": {
+    "ServiceTag": "請參閱官網",
+    "Monday": 1,
+    "Tuesday": 1,
+    "Wednesday": 1,
+    "Thursday": 1,
+    "Friday": 1,
+    "Saturday": 1,
+    "Sunday": 1,
+    "NationalHolidays": 1,
+    "DayBeforeHoliday": 0,
+    "DayAfterHoliday": 0
+   }
+  }
+ ]
+}
