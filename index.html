@@ -587,7 +587,7 @@
   .follow-panel .fp-next .lbl { font-size: 11px; color: var(--faint); font-weight: 800; letter-spacing: 2px; flex: none; }
   .follow-panel .fp-next .stn { font-size: 16px; font-weight: 900; color: var(--ink-strong); letter-spacing: 1px; white-space: nowrap; }
   .follow-panel .fp-next .eta { margin-left: auto; font-size: 13px; font-weight: 700; color: var(--navy); text-align: right; white-space: nowrap; }
-  .follow-panel .fp-next .eta b { color: var(--red); }
+  .follow-panel .fp-next .eta b { color: var(--navy); } /* 倒數分鐘是行程資訊不是警示,紅色會被誤讀成誤點(v0718f) */
   .follow-panel .fp-prog { display: flex; align-items: center; gap: 8px; margin-top: 8px; }
   .follow-panel .fp-prog .bar {
     flex: 1; height: 5px; background: var(--line-faint);
@@ -1862,6 +1862,7 @@
     <details class="foot-box">
       <summary><span>🛠 更新紀錄</span><span class="foot-sub">最後更新：2026/7/18</span></summary>
       <ul class="foot-list">
+        <li><span class="d">7/18</span><span>跟隨資訊卡的紅字看得懂了：「下一站」旁的紅色「X 分」其實是抵達倒數、不是誤點，容易誤讀——現在改成一般深藍色；並且卡片會標示這班車現在真實誤點幾分（跟「今日」看板同一來源），就算把時間軸拉回過去看重播、動畫照表跑的時候，也知道它實際上晚了多少（謝謝回報）</span></li>
         <li><span class="d">7/18</span><span>「今日台鐵動態」看板改以「目前」為主：紅色誤點徽章現在顯示這班車當下誤點幾分，已經追回的班次直接顯示綠色「準點」，旁邊淡灰小字標「曾誤點 X 分」留下今天的紀錄——之前「目前準點」跟紅色「誤點 31 分」並排，看不出誰是誰（謝謝回報）。排行順序也改成現在誤點最重的排最前面</span></li>
         <li><span class="d">7/18</span><span>「旅程護照」的完乘記錄可以自選排序了：展開護照卡片，完乘記錄標題旁多了「日期／車次／距離／車種」四顆按鈕，想看最近搭的、找特定車次、比誰跑得遠、或依車種分組看，點一下就切換，選擇會記住。預設維持最新完乘在最上面（謝謝網友建議）</span></li>
         <li><span class="d">7/18</span><span>手機版不再會不小心把整個網頁放大：之前誤觸雙指縮放把頁面放大後，地圖佔滿畫面、想捏回來手勢卻被地圖吃掉，卡在放大狀態回不去。現在網頁本身固定不縮放，地圖內的雙指縮放完全不受影響</span></li>
@@ -2045,7 +2046,7 @@
 <script>
 // 版本戳記:每次改版 push 前手動遞增(字母序),畫面時鐘徽章與 console 都會顯示,
 // 供比對線上跑的是不是最新版(瀏覽器快取 max-age=600 常讓人看到舊版)
-const BUILD = 'v0718d';
+const BUILD = 'v0718f';
 const state = {
   systems: [], sysId: null, data: null, speed: 36, mode: 'freq',
   lines: [], visible: new Set(), trains: [], schedStations: [], types: [],
@@ -7046,13 +7047,18 @@ function updateFollowPanel(tr) {
   if (fp.hidden || !tr) return;
   const nx = document.getElementById('fpNext'), eta = document.getElementById('fpEta');
   const dlMin = Math.round(liveDelaySec(tr) / 60);
+  // 這班車「現在」真實誤點:即時名單 30 分內才可信;sys gate 防高鐵撞號(比照 renderDelayRow)。
+  // 回看過去時動畫不套校正(dlMin 歸零),但仍標示真實世界的目前誤點,與今日看板一致(使用者回報)。
+  const lv = state.live;
+  const realDl = (tr.sys === 'tra_sched' && lv && lv.map && Date.now() - lv.at < 1800e3) ? (lv.map.get(String(tr.train)) || 0) : 0;
   const info = nextStopInfo(tr, effT(tr));
   if (info) {
     nx.textContent = info.name;
     const mm = Math.round(info.min);
     // info.at 是表定時刻;有誤點時顯示估計實際時刻
     eta.innerHTML = (mm < 1 ? '即將進站' : `${fmtHM((info.at + dlMin * 60) % 86400)} · <b>${mm} 分</b>`) +
-      (dlMin > 0 ? ` <span class="lateTag">誤點 ${dlMin} 分</span>` : '');
+      (dlMin > 0 ? ` <span class="lateTag">誤點 ${dlMin} 分</span>`
+        : realDl > 0 ? ` <span class="lateTag">目前誤點 ${realDl} 分</span>` : '');
   } else {
     nx.textContent = '—'; eta.textContent = '已抵達終點';
   }
