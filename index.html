@@ -1048,6 +1048,29 @@
     background: var(--bg-stage); border: 1px solid var(--line); border-radius: 4px; padding: 1px 6px;
   }
 
+  /* ── 今日台鐵動態看板(全台鐵當日誤點排行＋逐站歷程;todayBtn 開啟) ── */
+  #todayPanel .sub .td-hint { color: var(--faint); font-size: 10.5px; }
+  #todayPanel .td-row { align-items: center; gap: 6px; }
+  #todayPanel .td-type { flex: none; font-size: 10.5px; font-weight: 700; color: var(--navy); background: var(--bg-stage); border: 1px solid var(--line-faint); border-radius: 4px; padding: 0 5px 1px; }
+  #todayPanel .td-last { flex: 1; min-width: 0; color: var(--muted); font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  #todayPanel .td-cur { flex: none; color: var(--faint); font-size: 10px; white-space: nowrap; }
+  #todayPanel .td-badge { flex: none; font-size: 10.5px; font-weight: 800; border-radius: 3px; padding: 0 5px 1px; white-space: nowrap; }
+  #todayPanel .td-badge.hi { color: #fffdf6; background: var(--red); }
+  #todayPanel .td-badge.mid { color: var(--warn-ink); background: var(--warn-bg); border: 1px solid var(--warn-line); }
+  #todayPanel .td-badge.ok { color: var(--ok); background: var(--bg-stage); border: 1px solid var(--line-faint); }
+  #todayPanel .td-row.open { background: var(--bg-stage); }
+  #todayPanel .td-detail { padding: 1px 0 8px; margin-bottom: 2px; border-bottom: 1px dashed var(--line-dash); }
+  #todayPanel .td-ev { display: flex; align-items: baseline; gap: 7px; padding: 3px 0 3px 8px; font-size: 12px; }
+  #todayPanel .td-ev-t { flex: none; font-variant-numeric: tabular-nums; color: var(--ink-strong); font-weight: 700; }
+  #todayPanel .td-ev-st { flex: none; color: var(--ink); font-weight: 700; }
+  #todayPanel .td-ev-stat { flex: 1; min-width: 0; color: var(--faint); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  #todayPanel .td-ev-d { flex: none; color: var(--muted); }
+  #todayPanel .td-ev-d.late { color: var(--warn-ink); font-weight: 700; }
+  #todayPanel .td-peak { flex: none; color: var(--red-deep); font-size: 10px; font-weight: 700; }
+  #todayPanel .td-loading { color: var(--faint); font-size: 12px; padding: 6px 0 6px 8px; }
+  #todayPanel .td-follow { margin: 5px 0 3px 8px; font-size: 11.5px; font-weight: 700; color: var(--navy); background: var(--bg-stage); border: 1px solid var(--line); border-radius: 6px; padding: 3px 10px; cursor: pointer; }
+  #todayPanel .td-follow:hover { background: var(--paper); }
+
   /* ── 軌道與路線面板(「軌」告示卡:軌道顯示三段+車種/路線篩選——側欄取消後的新家) ── */
   .track-panel .seg-row {
     display: flex; justify-content: space-between; align-items: center; gap: 10px;
@@ -1718,6 +1741,7 @@
     <div class="board" id="favPanel" hidden></div>
     <div class="board" id="ridePanel" hidden></div>
     <div class="board" id="explorePanel" hidden></div>
+    <div class="board" id="todayPanel" hidden></div>
     <!-- 軌道與路線告示卡(「軌」鈕開啟):軌道顯示三段＋車種/路線篩選票根(原側欄的新家) -->
     <div class="board track-panel" id="trackPanel" hidden>
       <!-- ×/☆ 一律放 sticky h3 內:面板本體是捲動容器,放外面會隨內容捲出裁切區消失(v0717p) -->
@@ -1761,6 +1785,7 @@
         <button id="exploreBtn" title="今日亮點——特別列車與今日之最"><span class="ti">探</span><span class="tl">亮點</span></button>
         <button id="favBtn" title="我的最愛列車"><span class="ti">★</span><span class="tl">最愛</span></button>
         <button id="rideBtn" title="旅程護照（完乘記錄與收集章）"><span class="ti">旅</span><span class="tl">護照</span></button>
+        <button id="todayBtn" title="今日台鐵動態——全台鐵今天每班車的誤點排行與逐站歷程"><span class="ti">📊</span><span class="tl">今日</span></button>
         <button id="introBtn" title="經過特殊車站時顯示介紹"><span class="ti">介</span><span class="tl">站介紹</span></button>
         <button id="satBtn" title="切換衛星影像"><span class="ti">衛</span><span class="tl">衛星</span></button>
         <button id="themeBtn" title="外觀切換：亮／暗／自動"><span class="ti">◐</span><span class="tl">外觀</span></button>
@@ -1832,6 +1857,7 @@
     <details class="foot-box">
       <summary><span>🛠 更新紀錄</span><span class="foot-sub">最後更新：2026/7/18</span></summary>
       <ul class="foot-list">
+        <li><span class="d">7/18</span><span>新增「📊 今日台鐵動態」：全台鐵今天每班車的誤點排行一目了然，點任何一班可展開它今天的逐站歷程——幾點到哪站、當時誤點幾分、最慘誤點到幾分，全都記下來。工具列的「今日」按鈕（手機在「更多」裡）打開，資料每天清晨重新開始累積</span></li>
         <li><span class="d">7/18</span><span>放空模式新增「都會呼吸」運鏡：鏡頭偶爾會停在台北、台中、高雄上空，畫面化為乾淨的島嶼輪廓（劇場風格），列車與路網浮在其上，像深呼吸一樣緩緩拉近再緩緩拉遠，當作一個定場的療癒畫面；動一下地圖，就會回到平常的街道地圖、把控制權交還給你</span></li>
         <li><span class="d">7/18</span><span>平溪、深澳、集集、內灣（竹中以南）這幾條還沒電氣化的支線，車種說明原本誤標成「通勤電聯車」——其實這些山線跑的是 DR1000 型柴油客車（自帶柴油引擎、不靠電車線）。現在跟這些支線的車、或點開它的資訊卡，車種會正確顯示「DR1000 型柴油客車」（六家、沙崙線是電氣化的電聯車，維持不變）</span></li>
         <li><span class="d">7/18</span><span>「山海平原」成就更好拿、也看得到進度了：以前要連續跟山海號或平原號整整一輪來回（等於盯著看 12 分鐘不能中斷）才蓋章，門檻太硬——現在改成跟到折返點枋寮（半圈）就達成；跟車面板的進度條也會即時顯示「環島完乘 XX%」，不再是跟半天不知道到底有沒有在算</span></li>
@@ -1987,6 +2013,7 @@
     <div class="ms-row" data-act="theme"><span>◐ 外觀</span><span class="seg" id="msThemeSeg"><button data-v="light">亮</button><button data-v="dark">暗</button><button data-v="auto">自動</button></span></div>
     <div class="ms-row" data-proxy="satBtn"><span>衛 衛星影像</span><span class="toggle" data-tg="satBtn"></span></div>
     <div class="ms-row" data-act="track"><span>軌 軌道與路線</span><span class="chev">›</span></div>
+    <div class="ms-row" data-proxy="todayBtn" data-close="1"><span>📊 今日台鐵動態</span><span class="chev">›</span></div>
     <div class="ms-row" data-proxy="xingBtn"><span>平 平交道記號</span><span class="toggle" data-tg="xingBtn"></span></div>
     <div class="ms-row" data-proxy="introBtn"><span>介 特殊站介紹</span><span class="toggle" data-tg="introBtn"></span></div>
     <div class="ms-row" data-proxy="pinBtn"><span>釘 附近火車</span><span class="toggle" data-tg="pinBtn"></span></div>
@@ -2006,7 +2033,7 @@
 <script>
 // 版本戳記:每次改版 push 前手動遞增(字母序),畫面時鐘徽章與 console 都會顯示,
 // 供比對線上跑的是不是最新版(瀏覽器快取 max-age=600 常讓人看到舊版)
-const BUILD = 'v0717x';
+const BUILD = 'v0717y';
 const state = {
   systems: [], sysId: null, data: null, speed: 36, mode: 'freq',
   lines: [], visible: new Set(), trains: [], schedStations: [], types: [],
@@ -6255,7 +6282,7 @@ function renderFavPanel() {
 }
 function openFavPanel() {
   soloPanel('fav');
-  closeBoard(); closeRidePanel(); closeExplorePanel(); closeTrackPanel();
+  closeBoard(); closeRidePanel(); closeExplorePanel(); closeTrackPanel(); closeTodayPanel();
   const el = document.getElementById('favPanel');
   el.hidden = false;
   updateSheetOpenClass();
@@ -6324,7 +6351,7 @@ function renderRidePanel() {
 }
 function openRidePanel() {
   soloPanel('ride');
-  closeBoard(); closeFavPanel(); closeExplorePanel(); closeTrackPanel();
+  closeBoard(); closeFavPanel(); closeExplorePanel(); closeTrackPanel(); closeTodayPanel();
   document.getElementById('ridePanel').hidden = false;
   updateSheetOpenClass();
   document.getElementById('rideBtn').classList.add('active');
@@ -6629,7 +6656,7 @@ function surpriseFollow() {
 }
 function openExplorePanel() {
   soloPanel('explore');
-  closeBoard(); closeFavPanel(); closeRidePanel(); closeTrackPanel();
+  closeBoard(); closeFavPanel(); closeRidePanel(); closeTrackPanel(); closeTodayPanel();
   document.getElementById('explorePanel').hidden = false;
   updateSheetOpenClass();
   document.getElementById('exploreBtn').classList.add('active');
@@ -6640,6 +6667,120 @@ function closeExplorePanel() {
   el.hidden = true; el.innerHTML = ''; el.onclick = null;
   updateSheetOpenClass();
   document.getElementById('exploreBtn').classList.remove('active');
+}
+
+// ── 今日台鐵動態:全台鐵當日誤點排行＋每班車逐站歷程(todayBtn 開啟) ──
+// 不綁定當前分頁:一律直查 tra_sched 系統資料(state.trains 只有作用中分頁),站名/車種都用全域反查
+const TODAY_STATUS_TXT = { 0: '進站中', 1: '在站上', 2: '已離站' };
+function traStatusTxt(s) { return TODAY_STATUS_TXT[s] != null ? TODAY_STATUS_TXT[s] : String(s); } // 只認 0/1/2,其他碼顯示原樣不猜
+function traStnName(sid) { return (state.stnIdToName && state.stnIdToName[sid]) || sid; } // StationID→中文站名;查無回原碼
+function traTrainType(no) { // 車種短標:不論目前哪個分頁都查台鐵時刻表系統;查不到留空不猜
+  const sys = state.systems.find(s => s.id === 'tra_sched');
+  const tr = sys && sys.data && (sys.data.trains || []).find(t => String(t.train) === String(no));
+  return tr ? (tr.typeName || '') : '';
+}
+function todayCmpNo(a, b) { // delayMax 同值時:能轉數字就數值升冪,否則字串升冪
+  const na = parseInt(a, 10), nb = parseInt(b, 10);
+  if (!isNaN(na) && !isNaN(nb) && na !== nb) return na - nb;
+  const sa = String(a), sb = String(b);
+  return sa < sb ? -1 : sa > sb ? 1 : 0;
+}
+function fetchTodayBoard() { // 面板開啟時抓、開著每 120 秒重抓;失敗保留上一批(僅從未載入成功才顯示錯誤)
+  if (state._todayFetching) return;
+  state._todayFetching = true;
+  fetch(apiUrl('api/today-board'), { cache: 'no-store' })
+    .then(r => r.ok ? r.json() : Promise.reject(r.status))
+    .then(j => { state.todayBoard = (j && j.trains) || []; })
+    .catch(() => {}) // 靜默失敗:todayBoard 維持原樣(可能仍是上一批或 null),不噴 console
+    .finally(() => { state._todayFetching = false; state._todayTried = true; renderTodayPanel(); });
+}
+function ensureStationEvents(no) { // 點列展開才按需抓該車逐站;快取一次(空陣列也快取),僅出錯允許重試
+  state.stationEvents = state.stationEvents || {};
+  const cur = state.stationEvents[no];
+  if (cur && cur !== 'error') return; // 已快取(含空陣列)或載入中→不重打;'error' 才放行重試
+  state.stationEvents[no] = 'loading';
+  fetch(apiUrl('api/station-events?train=' + encodeURIComponent(no)), { cache: 'no-store' })
+    .then(r => r.ok ? r.json() : Promise.reject(r.status))
+    .then(j => { state.stationEvents[no] = (j && j.events) || []; })
+    .catch(() => { state.stationEvents[no] = 'error'; })
+    .finally(() => { if (state._todayOpen === no) renderTodayPanel(); }); // 仍展開著同一列才補畫
+}
+function todayDelayBadge(dm) { return dm >= 5 ? `<span class="td-badge hi">誤點 ${dm} 分</span>` : dm >= 1 ? `<span class="td-badge mid">誤點 ${dm} 分</span>` : `<span class="td-badge ok">準點</span>`; }
+function todayRow(t) {
+  const no = String(t.no), open = state._todayOpen === no;
+  const type = traTrainType(no), dm = t.delayMax || 0, dl = t.delay || 0;
+  const last = `${traStnName(t.sta)}·${traStatusTxt(t.status)} ${String(t.at).slice(11, 16)}`;
+  const cur = dl !== dm ? `<span class="td-cur">目前${dl > 0 ? '+' + dl + '分' : '準點'}</span>` : '';
+  const head = `<div class="row td-row${open ? ' open' : ''}" data-no="${no}">` +
+    `<b>${no}</b>` + (type ? `<span class="td-type">${type}</span>` : '') +
+    `<span class="td-last">${last}</span>${cur}${todayDelayBadge(dm)}</div>`;
+  return head + (open ? `<div class="td-detail">${renderTodayEvents(no)}</div>` : '');
+}
+function renderTodayEvents(no) {
+  const ev = (state.stationEvents || {})[no];
+  if (ev == null || ev === 'loading') return `<div class="td-loading">載入逐站歷程…</div>`;
+  if (ev === 'error') return `<div class="td-loading">暫時讀不到，稍後再試。</div>`;
+  if (!ev.length) return `<div class="td-loading">尚無逐站記錄。</div>`;
+  const rows = ev.map(e => {
+    const dl = e.delay || 0, dm = e.delayMax || 0;
+    const dtxt = dl > 0 ? `誤點${dl}分` : '準點';
+    const peak = dm > dl ? `<span class="td-peak">峰值${dm}分</span>` : '';
+    return `<div class="td-ev"><span class="td-ev-t">${String(e.at).slice(11, 16)}</span>` +
+      `<span class="td-ev-st">${traStnName(e.sta)}</span>` +
+      `<span class="td-ev-stat">${traStatusTxt(e.status)}</span>` +
+      `<span class="td-ev-d${dl > 0 ? ' late' : ''}">${dtxt}</span>${peak}</div>`;
+  }).join('');
+  const live = liveActive() && state.live && state.live.map && state.live.map.has(no); // 只有即時名單裡的車才給跟車鈕
+  return rows + (live ? `<button class="td-follow" data-follow="${no}">跟這班車 →</button>` : '');
+}
+function renderTodayPanel() {
+  const el = document.getElementById('todayPanel');
+  if (el.hidden) return;
+  const rows = state.todayBoard;
+  let body;
+  if (!Array.isArray(rows)) {
+    body = state._todayTried ? `<div class="empty">暫時讀不到，稍後再試。</div>` : `<div class="empty">載入中…</div>`;
+  } else if (!rows.length) {
+    body = `<div class="empty">今日資料累積中，清晨發車後陸續出現。</div>`;
+  } else {
+    const n = rows.length, m = rows.filter(t => (t.delayMax || 0) >= 5).length;
+    const sorted = rows.slice().sort((a, b) => ((b.delayMax || 0) - (a.delayMax || 0)) || todayCmpNo(a.no, b.no));
+    body = `<div class="sub">今日已觀測 ${n} 班・誤點≥5分 ${m} 班<br><span class="td-hint">資料自今晨起累積，每天重新開始</span></div>` +
+      sorted.map(todayRow).join('');
+  }
+  el.innerHTML = `<h3>📊 今日台鐵動態<button class="close" id="todayClose">×</button></h3>` + body;
+}
+function openTodayPanel() {
+  soloPanel('today');
+  closeBoard(); closeFavPanel(); closeRidePanel(); closeExplorePanel(); closeTrackPanel();
+  const el = document.getElementById('todayPanel');
+  el.hidden = false;
+  el.onclick = e => {
+    if (e.target.closest('#todayClose')) { closeTodayPanel(); return; }
+    const fb = e.target.closest('[data-follow]');
+    if (fb) { closeTodayPanel(); followTrainNo(fb.dataset.follow); return; }
+    const row = e.target.closest('.td-row[data-no]');
+    if (row) {
+      const no = row.dataset.no;
+      state._todayOpen = state._todayOpen === no ? null : no; // 同時只展開一列:再點自己收合
+      if (state._todayOpen) ensureStationEvents(no);
+      renderTodayPanel();
+    }
+  };
+  updateSheetOpenClass();
+  document.getElementById('todayBtn').classList.add('active');
+  renderTodayPanel();                 // 先畫(有舊資料即顯示,否則載入中)
+  fetchTodayBoard();                  // 開啟即抓一次(finally 補畫)
+  clearInterval(state._todayTimer);
+  state._todayTimer = setInterval(() => { if (!document.hidden) fetchTodayBoard(); }, 120e3); // 開著每 120 秒刷新,背景分頁跳過
+}
+function closeTodayPanel() {
+  const el = document.getElementById('todayPanel');
+  el.hidden = true; el.innerHTML = ''; el.onclick = null;
+  state._todayOpen = null;
+  clearInterval(state._todayTimer); state._todayTimer = null;
+  updateSheetOpenClass();
+  document.getElementById('todayBtn').classList.remove('active');
 }
 
 // ── 跟隨動態事件(停靠/交會/待避) ──
@@ -7682,7 +7823,7 @@ function jumpToNow() {
 // 手機底部 sheet(看板/最愛/旅程/探索,四選一互斥)開啟時,跟隨小卡要讓道到上方,
 // 避免同在左下角互疊(見 CSS body.sheet-open .follow-panel,只在手機斷點生效)
 function updateSheetOpenClass() {
-  const open = ['board', 'favPanel', 'ridePanel', 'explorePanel', 'trackPanel'].some(id => !document.getElementById(id).hidden);
+  const open = ['board', 'favPanel', 'ridePanel', 'explorePanel', 'trackPanel', 'todayPanel'].some(id => !document.getElementById(id).hidden);
   document.body.classList.toggle('sheet-open', open);
   // 手機 tab bar 選中態跟著面板走:有開面板亮該 tab,全關回「地圖」
   const tabOf = { tabExplore: 'explorePanel', tabFav: 'favPanel', tabRide: 'ridePanel' };
@@ -7698,7 +7839,7 @@ function updateSheetOpenClass() {
 // ──「軌道與路線」告示卡:軌道顯示三段＋車種/路線篩選票根(「軌」鈕開關;與其他面板同槽互斥) ──
 function openTrackPanel() {
   soloPanel('track');
-  closeBoard(); closeFavPanel(); closeRidePanel(); closeExplorePanel();
+  closeBoard(); closeFavPanel(); closeRidePanel(); closeExplorePanel(); closeTodayPanel();
   document.getElementById('trackPanel').hidden = false;
   document.getElementById('trackBtn').classList.add('active');
   syncTrackSeg();
@@ -7852,8 +7993,9 @@ function soloPanel(keep) {
   if (keep !== 'ride') closeRidePanel();
   if (keep !== 'explore') closeExplorePanel();
   if (keep !== 'track') closeTrackPanel();
+  if (keep !== 'today') closeTodayPanel();
 }
-function openBoard(st) { soloPanel('board'); closeFavPanel(); closeRidePanel(); closeExplorePanel(); closeTrackPanel(); closePinCard(); closeNearbyXing(); state.boardStation = st; renderBoard(); }
+function openBoard(st) { soloPanel('board'); closeFavPanel(); closeRidePanel(); closeExplorePanel(); closeTrackPanel(); closeTodayPanel(); closePinCard(); closeNearbyXing(); state.boardStation = st; renderBoard(); }
 function closeBoard() {
   state.boardStation = null;
   const el = document.getElementById('board');
@@ -8954,6 +9096,9 @@ async function boot() {
   state.stnClassMap = await fetchJSON('./data/tra_station_class.json') || {};
   // 台鐵各站地址(TDX Rail/TRA/Station);key 為「台」正規化站名,feature 欄之後補
   state.stnInfoMap = await fetchJSON('./data/tra_station_info.json') || {};
+  // StationID → 站名反查表(stnInfoMap 是站名→資訊,方向相反):今日台鐵動態的 sta 欄位是 StationID,靠這張表轉中文站名
+  state.stnIdToName = {};
+  for (const s of Object.values(state.stnInfoMap)) if (s && s.id) state.stnIdToName[s.id] = s.name;
   // 特別列車故事檔案(車型/具名觀光列車/支線);缺檔時 specialOf 回 null,退回內建簡版介紹
   state.special = await fetchJSON('./data/tra_special_trains.json');
   if (state.special) state.special.branchLines.forEach(b => { b._set = new Set(b.matchStations); });
@@ -9074,6 +9219,9 @@ document.getElementById('favBtn').onclick = () => {
 };
 document.getElementById('exploreBtn').onclick = () => {
   document.getElementById('explorePanel').hidden ? openExplorePanel() : closeExplorePanel();
+};
+document.getElementById('todayBtn').onclick = () => {
+  document.getElementById('todayPanel').hidden ? openTodayPanel() : closeTodayPanel();
 };
 document.getElementById('favPanel').onclick = e => {
   const rm = e.target.closest('.rm');
