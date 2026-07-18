@@ -149,11 +149,16 @@ for (const [engName, engine] of [['chromium', chromium], ['webkit', webkit]]) {
     // C2 速度膠囊:窄膠囊置中貼底
     const cap = await rect(page, '.stage .controls');
     ok(`${engName} C2 速度膠囊窄形置中`, !!(cap && cap.vis && cap.w < 250 && Math.abs((cap.x + cap.w / 2) - 195) < 30), JSON.stringify(cap));
-    // C3 點膠囊展開 → cexp(閒置已淡成把手時,第一次點只喚醒,再點才展開=設計行為)
-    await page.tap('.stage .controls');
+    // C3 點膠囊展開 → cexp(閒置已淡成把手時,第一次點只喚醒,再點才展開=設計行為)。
+    // tap 座標取膠囊右端時刻區:WebKit 的 touch→合成 click 帶 ~2.5px 佈局位移,容器中心恰在 speedOut/#pp
+    // 邊界,漂移後 click 落在 ▶/⏸ 被「pp 不觸發展開」規格 guard 擋下(時刻文字寬度時變→時好時壞的 flake);
+    // 右端離邊界 30px+ 兩引擎皆穩定,測試意圖不變(點膠囊本體、非 ▶/⏸)。
+    const capBox = await page.evaluate(() => { const r = document.querySelector('.stage .controls').getBoundingClientRect(); return { w: r.width, h: r.height }; });
+    const capTap = { position: { x: capBox.w - 24, y: capBox.h / 2 } };
+    await page.tap('.stage .controls', capTap);
     if (!(await page.evaluate(() => document.body.classList.contains('cexp')))) {
       await page.waitForTimeout(150);
-      await page.tap('.stage .controls');
+      await page.tap('.stage .controls', capTap);
     }
     const cexp = await page.evaluate(() => document.body.classList.contains('cexp'));
     const capExp = await rect(page, '.stage .controls');

@@ -817,6 +817,32 @@
   .trip-panel .row { cursor: pointer; }
   .trip-panel .row:hover { background: var(--bg-stage); }
 
+  /* ── App 內建瀏覽器逃生提示:Threads/IG/LINE 等 in-app webview 沒有「加入主畫面」,
+       偵測到才顯示(一般瀏覽器/主畫面 App 永不出現);× 關閉後記 localStorage 不再打擾 ── */
+  .iab-hint {
+    position: absolute; left: 50%; transform: translateX(-50%); z-index: 713;
+    bottom: calc(env(safe-area-inset-bottom, 0px) + 74px);
+    width: min(400px, calc(100% - 20px));
+    background: var(--paper); border: 2px solid var(--navy); border-radius: 12px;
+    box-shadow: var(--shadow-navy); padding: 10px 40px 10px 13px;
+    font-size: 13px; color: var(--ink); line-height: 1.55;
+  }
+  .iab-hint .ih-close {
+    position: absolute; top: 0; right: 0; width: 44px; height: 44px;
+    background: none; border: 0; cursor: pointer;
+    color: var(--faint); font-size: 17px; line-height: 1; padding: 0;
+  }
+  .iab-hint .ih-title { font-weight: 800; color: var(--ink-strong); }
+  .iab-hint .ih-note { margin-top: 6px; font-size: 11.5px; color: var(--faint); overflow-wrap: anywhere; }
+  .iab-hint .ih-note:empty { display: none; }
+  .iab-hint .ih-btns { display: flex; gap: 8px; margin-top: 9px; }
+  .iab-hint .ih-btns button {
+    flex: 1; min-height: 44px; padding: 8px 10px; cursor: pointer;
+    border: 1.5px solid var(--navy); border-radius: 9px;
+    background: var(--navy); color: var(--on-navy); font-size: 13px; font-weight: 800;
+  }
+  .iab-hint .ih-btns button.ih-ghost { background: transparent; color: var(--navy); }
+
   /* ── 收集通知(toast):金框紙卡,自動消失 ── */
   .toasts {
     position: absolute; top: 12px; left: 50%; transform: translateX(-50%); z-index: 720;
@@ -1609,18 +1635,23 @@
     .alert-banner, .alert-detail, .xing-card, .board { right: 64px; }
     /* 音樂控制收合:帶內常駐只留 #musicBtn(♪ 音樂),#musicNextBtn＋#musicVol 移進 hover/focus 彈出面板 */
     #musicCtl { position: relative; }
+    /* v0718m 修:原設計「帶上方 8px」absolute 上彈被 .controls 的 overflow-y:hidden 滾動盒裁掉(結構性不可見,雙引擎皆然);
+       fixed 逃逸裁切也不行——.controls 自身 z-index:700 建立 stacking context,fixed 子孫對外仍以 700 參戰,
+       蓋不過 leaflet corner 控件(z1000,版權列恰橫過帶上方位置)。改帶內「向左彈出」:面板(高~40)在帶盒(高60)
+       垂直置中不觸 overflow-y,musicCtl 在帶內容最右端故左側必在可視捲動區內;同 context 內 z5 蓋過鄰近工具鈕,
+       hover 暫態覆蓋可接受。純 CSS 零 JS。 */
     #musicCtl .music-pop {
-      position: absolute; right: 0; bottom: calc(100% + 8px); z-index: 5;
+      position: absolute; right: calc(100% + 8px); top: 50%; z-index: 5;
       display: flex; align-items: center; gap: 6px;
       background: var(--paper); border: 1.5px solid var(--line); border-radius: var(--r-m);
       box-shadow: var(--shadow-1); padding: 6px 8px;
-      opacity: 0; transform: translateY(4px);
+      opacity: 0; transform: translateY(-50%) translateX(4px);
       transition: opacity .15s ease, transform .15s ease;
       pointer-events: none;
     }
     /* 不用 visibility:hidden——它會讓 pop 內的換首/音量無法被 Tab 聚焦(於是 :focus-within 永遠觸發不了);改以 opacity+pointer-events 隱藏,鍵盤仍可 Tab 進而展開 */
     #musicCtl:hover .music-pop, #musicCtl:focus-within .music-pop {
-      opacity: 1; transform: none; pointer-events: auto;
+      opacity: 1; transform: translateY(-50%); pointer-events: auto;
     }
     /* 帶內容再壓到 <1224px@1280:桌面 gap 10→6、音樂鈕純圖示(♪)、視角:群車 僅放空模式中現身(它是放空子設定,非放空時無作用)。三者皆 CSS-only 可逆,不動 DOM/id/JS class */
     .controls { gap: 6px; }
@@ -2658,6 +2689,10 @@ html[data-theme=dark] .phone{border-color:#2A3B5C}
 .spm .peak{display:inline-block;font-size:11px;font-weight:800;padding:2px 9px;border-radius:3px}
 .spm .peak.sim{background:#E4E9F2;color:#3A5680;border:1px solid #B9C6DC}
 html[data-theme=dark] .spm .peak.sim{background:rgba(127,166,224,.16);color:#B9CEF0;border:1px solid rgba(127,166,224,.42)}
+/* v0718m 合併端修正說明:正式版 .music-pop 由「帶上方 8px 上彈」改為「帶內向左彈出」(§01 主 style 已同步)——
+   原上彈被 .controls 的 overflow-y:hidden 滾動盒裁掉(結構性不可見,本 mock §02 示意帶同樣裁掉,故當初 mock 上也看不出);
+   fixed 逃逸亦不可行(.controls z-index:700 建立 stacking context,對外蓋不過 leaflet corner z1000)。
+   向左彈出為純 CSS 帶內方案,本 mock §02 hover 即原生展示,無需另補展示規則。 */
 </style>
 <script>
 (function(){

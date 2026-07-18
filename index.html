@@ -1661,18 +1661,23 @@
     .alert-banner, .alert-detail, .xing-card, .board { right: 64px; }
     /* 音樂控制收合:帶內常駐只留 #musicBtn(♪ 音樂),#musicNextBtn＋#musicVol 移進 hover/focus 彈出面板 */
     #musicCtl { position: relative; }
+    /* v0718m 修:原設計「帶上方 8px」absolute 上彈被 .controls 的 overflow-y:hidden 滾動盒裁掉(結構性不可見,雙引擎皆然);
+       fixed 逃逸裁切也不行——.controls 自身 z-index:700 建立 stacking context,fixed 子孫對外仍以 700 參戰,
+       蓋不過 leaflet corner 控件(z1000,版權列恰橫過帶上方位置)。改帶內「向左彈出」:面板(高~40)在帶盒(高60)
+       垂直置中不觸 overflow-y,musicCtl 在帶內容最右端故左側必在可視捲動區內;同 context 內 z5 蓋過鄰近工具鈕,
+       hover 暫態覆蓋可接受。純 CSS 零 JS。 */
     #musicCtl .music-pop {
-      position: absolute; right: 0; bottom: calc(100% + 8px); z-index: 5;
+      position: absolute; right: calc(100% + 8px); top: 50%; z-index: 5;
       display: flex; align-items: center; gap: 6px;
       background: var(--paper); border: 1.5px solid var(--line); border-radius: var(--r-m);
       box-shadow: var(--shadow-1); padding: 6px 8px;
-      opacity: 0; transform: translateY(4px);
+      opacity: 0; transform: translateY(-50%) translateX(4px);
       transition: opacity .15s ease, transform .15s ease;
       pointer-events: none;
     }
     /* 不用 visibility:hidden——它會讓 pop 內的換首/音量無法被 Tab 聚焦(於是 :focus-within 永遠觸發不了);改以 opacity+pointer-events 隱藏,鍵盤仍可 Tab 進而展開 */
     #musicCtl:hover .music-pop, #musicCtl:focus-within .music-pop {
-      opacity: 1; transform: none; pointer-events: auto;
+      opacity: 1; transform: translateY(-50%); pointer-events: auto;
     }
     /* 帶內容再壓到 <1224px@1280:桌面 gap 10→6、音樂鈕純圖示(♪)、視角:群車 僅放空模式中現身(它是放空子設定,非放空時無作用)。三者皆 CSS-only 可逆,不動 DOM/id/JS class */
     .controls { gap: 6px; }
