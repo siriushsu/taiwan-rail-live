@@ -229,6 +229,45 @@ async function crossLayerCore(engName, browser, opts, label) {
     await page.context().close();
   }
 
+  // ── T5 空鏡頭防護(v0718h):錨點=軌道質心最近車站、組不出內容就取消 ──
+  // 背景:CITY_BBOX 是整個行政區,台中/高雄幾何中心在山區(頭汴坑/旗美),拉近段視窗內零軌道=整片素色。
+  {
+    const { page } = await bootBreath(browser, { width: 1280, height: 800, bt: 37.5 });
+    const t5 = await page.evaluate(() => {
+      const out = { cities: {} };
+      for (const id of ['taipei', 'taichung', 'kaohsiung']) {
+        const a = breathAnchorFor(id);
+        const b = CITY_BBOX[id];
+        const c = L.latLngBounds([[b[0], b[1]], [b[2], b[3]]]).getCenter();
+        // z15 視窗(1280×800)半高約 0.9km → 量錨點 ±0.008° 內站點數(含錨點自身;≥1=拉近正對真站有內容)
+        let near = 0;
+        const scan = s => { if (s && Math.abs(s.lat - a.lat) < 0.008 && Math.abs(s.lon - a.lon) < 0.008) near++; };
+        (state.schedStations || []).forEach(scan);
+        (state.lines || []).forEach(ln => (ln.stations || []).forEach(scan));
+        (state.decoLines || []).forEach(ln => (ln.stations || []).forEach(scan));
+        const kmOff = Math.round(L.latLng(a.lat, a.lon).distanceTo(c) / 100) / 10;
+        out.cities[id] = { ok: !!a, near, kmOff };
+      }
+      const lg = state._landGeo; state._landGeo = null;
+      out.noLand = pickBreathScene();
+      state._landGeo = lg;
+      const ss = state.schedStations, li = state.lines, dl = state.decoLines;
+      state.schedStations = []; state.lines = []; state.decoLines = null;
+      out.noRail = pickBreathScene();
+      state.schedStations = ss; state.lines = li; state.decoLines = dl;
+      return out;
+    });
+    const cs = t5.cities;
+    ok('chromium T5a 三城錨點皆可得且正對車站(z15 視窗有內容)',
+      ['taipei', 'taichung', 'kaohsiung'].every(id => cs[id].ok && cs[id].near >= 1),
+      Object.entries(cs).map(([k, v]) => `${k}:near=${v.near},偏離bbox中心${v.kmOff}km`).join(' '));
+    ok('chromium T5b 台中/高雄錨點已離開山區 bbox 中心(位移>5km)',
+      cs.taichung.kmOff > 5 && cs.kaohsiung.kmOff > 5, `台中${cs.taichung.kmOff}km 高雄${cs.kaohsiung.kmOff}km`);
+    ok('chromium T5c 海陸輪廓缺失→呼吸取消(null,落回一般巡航)', t5.noLand === null, String(t5.noLand));
+    ok('chromium T5d 軌道資料不足→呼吸取消(null)', t5.noRail === null, String(t5.noRail));
+    await page.context().close();
+  }
+
   // 錯誤彙整
   ok('chromium 無 JS 例外', c.errors.length === 0, c.errors.slice(0, 2).join(' | '));
   await c.page.context().close();

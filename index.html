@@ -1910,6 +1910,7 @@
     <details class="foot-box">
       <summary><span>🛠 更新紀錄</span><span class="foot-sub">最後更新：2026/7/18</span></summary>
       <ul class="foot-list">
+        <li><span class="d">7/18</span><span>放空模式的「都會呼吸」鏡頭不再對著空無一物的畫面：原本鏡頭錨在整個行政區的幾何中心，台中、高雄的中心其實落在山區，拉近時整片素色、什麼都沒有，看起來像壞掉。現在鏡頭改對準該都會軌道最密集處的車站，拉近到街廓時一定看得到路網、站名與列車進出；若海陸輪廓或軌道資料一時載不進來，該幕直接跳過改走一般巡航，不再硬上空鏡頭（謝謝回報）</span></li>
         <li><span class="d">7/18</span><span>列車不再「倒退嚕」：官方誤點數字往上跳的瞬間（例如 5 分變 6 分），列車以前會往回滑一小段——因為即時校正是「晚幾分就畫在晚幾分的位置」，數字一變大，估計位置就得往後修。現在改成原地稍停、等時刻表追上再繼續前進，就像真實列車臨時停車讓行一樣，畫面上永遠不會倒車；追回誤點時照樣順順地往前滑（謝謝回報）</span></li>
         <li><span class="d">7/18</span><span>跟隨資訊卡的紅字看得懂了：「下一站」旁的紅色「X 分」其實是抵達倒數、不是誤點，容易誤讀——現在改成一般深藍色；並且卡片會標示這班車現在真實誤點幾分（跟「今日」看板同一來源），就算把時間軸拉回過去看重播、動畫照表跑的時候，也知道它實際上晚了多少（謝謝回報）</span></li>
         <li><span class="d">7/18</span><span>「今日台鐵動態」看板改以「目前」為主：紅色誤點徽章現在顯示這班車當下誤點幾分，已經追回的班次直接顯示綠色「準點」，旁邊淡灰小字標「曾誤點 X 分」留下今天的紀錄——之前「目前準點」跟紅色「誤點 31 分」並排，看不出誰是誰（謝謝回報）。排行順序也改成現在誤點最重的排最前面</span></li>
@@ -2095,7 +2096,7 @@
 <script>
 // 版本戳記:每次改版 push 前手動遞增(字母序),畫面時鐘徽章與 console 都會顯示,
 // 供比對線上跑的是不是最新版(瀏覽器快取 max-age=600 常讓人看到舊版)
-const BUILD = 'v0718g';
+const BUILD = 'v0718h';
 const state = {
   systems: [], sysId: null, data: null, speed: 36, mode: 'freq',
   lines: [], visible: new Set(), trains: [], schedStations: [], types: [],
@@ -5617,11 +5618,38 @@ function pickBreathCity() {
   hist.push(regionOf((b[0] + b[2]) / 2, (b[1] + b[3]) / 2)); if (hist.length > 6) hist.shift(); // 記入近幾幕歷史(同 pickHotspot 上限 6)
   return id;
 }
+// 呼吸錨點=該都會「軌道站點質心最近的車站」。CITY_BBOX 是整個直轄市行政區,幾何中心會落在山上
+// (台中中心在頭汴坑山區、高雄在旗美山區,離任何軌道都遠)——拉近段(z13+)視窗內零軌道,整片素色
+// 「什麼都沒有」(2026-07-18 使用者回報)。錨在真實車站:拉近到 z15 街廓時畫面必有站名+路網+列車進出。
+function breathAnchorFor(id) {
+  const b = CITY_BBOX[id], pts = [];
+  const inBox = s => s && s.lat >= b[0] && s.lat <= b[2] && s.lon >= b[1] && s.lon <= b[3];
+  for (const s of (state.schedStations || [])) if (inBox(s)) pts.push(s);
+  for (const ln of (state.lines || [])) for (const s of (ln.stations || [])) if (inBox(s)) pts.push(s);
+  for (const ln of (state.decoLines || [])) for (const s of (ln.stations || [])) if (inBox(s)) pts.push(s);
+  if (pts.length < 8) return null; // 該都會軌道資料不足(如單一小系統模式)——組不出有內容的畫面
+  let la = 0, lo = 0;
+  for (const p of pts) { la += p.lat; lo += p.lon; }
+  la /= pts.length; lo /= pts.length;
+  // 選「鄰域(±0.008°≈z15 半視窗)站點最密」的站當錨,平手取離質心近者:焦點對準都會樞紐(交會/共構站,
+  // 共構重複收錄反而強化正確答案),拉近段畫面內容最大化——純質心最近站在台中會選到單線中段,只有一條線太空
+  let best = null, bs = -1, bd = Infinity;
+  for (const p of pts) {
+    let n = 0;
+    for (const q of pts) if (Math.abs(q.lat - p.lat) < 0.008 && Math.abs(q.lon - p.lon) < 0.008) n++;
+    const d = (p.lat - la) ** 2 + (p.lon - lo) ** 2;
+    if (n > bs || (n === bs && d < bd)) { bs = n; bd = d; best = p; }
+  }
+  return { lat: best.lat, lon: best.lon };
+}
 function pickBreathScene() {
-  const id = pickBreathCity(), b = CITY_BBOX[id];
-  const c = L.latLngBounds([[b[0], b[1]], [b[2], b[3]]]).getCenter();
-  // 錨點固定城市中心、零漂移;z 初始落在 z0(整座都會),hotCruise 的 sc.breath 分支逐幀沿正弦推進
-  return { lat: c.lat, lon: c.lng, anchor: { lat: c.lat, lon: c.lng }, z: BREATH_Z[0], breath: true, z0: BREATH_Z[0], z1: BREATH_Z[1], bt: 0 };
+  // 組不出有內容的畫面就取消(回 null,caller 落回一般熱區幕):海陸輪廓沒載到(斷網/載入失敗)舞台整片
+  // 空白;錨點算不出=視窗內會沒有軌道。這比硬上一個空鏡頭好——空鏡頭看起來像壞掉(使用者原話「太醜了」)。
+  if (!state._landGeo) return null;
+  const id = pickBreathCity(), a = breathAnchorFor(id);
+  if (!a) return null;
+  // 錨點固定、零漂移;z 初始落在 z0(整座都會),hotCruise 的 sc.breath 分支逐幀沿正弦推進
+  return { lat: a.lat, lon: a.lon, anchor: { lat: a.lat, lon: a.lon }, z: BREATH_Z[0], breath: true, z0: BREATH_Z[0], z1: BREATH_Z[1], bt: 0 };
 }
 // 呼吸幕要分數 zoom(z11.0→15.0 平滑),故運行中把 Leaflet zoomSnap 設 0(每次 _limitZoom 動態讀)。離場——換幕、
 // 使用者互動、關放空、進劇場——必須還原原值(1)並把 zoom 收回整數,否則使用者拿到手的地圖會卡在分數 zoom、連滾輪級距都變了。
