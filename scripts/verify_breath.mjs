@@ -1,11 +1,9 @@
-// 都會呼吸幕(放空定場)抖動修復驗證 — Playwright 真引擎 + 本機靜態伺服器。
-// 背景:v0717x 呼吸幕逐幀分數 zoom 用 map.setView(animate:false)。Leaflet latLngToContainerPoint 對每點
-//   project 取整、又減取整後 pixelOrigin,分數 zoom 逐幀推進時整幅畫面(路網+海陸輪廓)±1~2.5px shimmer 抖動;
-//   海陸輪廓另走 Leaflet canvas 圖層(獨立取整投影)→ 與 overlay 路網跨層相對抖動(基線量到 1.4px)。
-// 修法(v0718c):呼吸中 latLngToContainerPoint 包成「相對中心浮點投影」(零取整)→ 全體平滑;
-//   海陸輪廓改由 overlay 同幀同投影自繪(drawBreathLand),隱藏 Leaflet 離線層 → 跨層恆對齊。
-// 基線(修前,本機 chromium@1280 實測存證):overlay-vs-float p2p 2.5px、overlay 2nd-diff rms 1.4px(max 2.8)、
-//   海陸 2nd-diff max 5px、全域 origin 取整 2nd-diff rms 1.16、每點 2nd-diff rms 0.91、跨層 Δrange 1.4px。
+// 都會呼吸幕(放空定場)重做驗證 — Playwright 真引擎 + 本機靜態伺服器。
+// 背景:v0717x 舊制逐幀分數 zoom(map.setView animate:false)。zoomAnimation:false(v0714a 殘影鐵則)下分數 zoom 圖磚
+//   物理上載不進來 → 呼吸幕整片素色「什麼都沒有」(使用者兩度回報,街道/衛星底圖都不出現)。
+// 新制(v0718i):地圖固定整數 z13(圖磚正常載入),放大縮小改由 CSS transform scale 對 #map+#overlay 兩個 .stage 平級兄弟
+//   同幀施加(.stage overflow:hidden 天然裁切)→ 真實底圖(街道或衛星,跟 basemap 設定走)全程在場、圖磚零重載。
+// 本腳本測項全部改為新制語意:圖磚在場/零重載、CSS scale 逐幀平滑且兩層同步、還原乾淨、不越界、錨點回歸、衛星、手機觸控。
 import { chromium, webkit } from 'playwright';
 import { createServer } from 'node:http';
 import { readFileSync, existsSync, statSync } from 'node:fs';
@@ -28,189 +26,142 @@ await new Promise(r => server.listen(PORT, r));
 
 const results = [];
 const ok = (name, pass, detail = '') => { results.push({ name, pass, detail }); console.log(`${pass ? 'PASS' : 'FAIL'} ${name}${detail ? ' — ' + detail : ''}`); };
-const r2 = x => Math.round(x * 100) / 100;
+const r3 = x => Math.round(x * 1000) / 1000;
+// 一維序列的二階差(平滑度):|a[i]-2a[i-1]+a[i-2]|
 const sd = a => { const v = []; for (let i = 2; i < a.length; i++) v.push(Math.abs(a[i] - 2 * a[i - 1] + a[i - 2])); return v; };
-const sd2 = a => { const v = []; for (let i = 2; i < a.length; i++) { const ddx = a[i].x - 2 * a[i - 1].x + a[i - 2].x, ddy = a[i].y - 2 * a[i - 1].y + a[i - 2].y; v.push(Math.hypot(ddx, ddy)); } return v; };
 const mx = a => a.length ? Math.max(...a) : 0;
-const rms = a => a.length ? Math.sqrt(a.reduce((s, v) => s + v * v, 0) / a.length) : 0;
 
-async function bootBreath(browser, { width = 1280, height = 800, touch = false, url = `http://localhost:${PORT}/?breath=1`, forceCity = null, bt = 37.5 } = {}) {
+// 進入呼吸幕:navigate ?breath=1 → 設 ambient/hotspot → pickBreathScene → 比照換幕邏輯 setView(anchor, z13) 一次 → 等旗標穩定。
+// 新制:hotCruise 的 breath 分支不再 setView,故此處自行做進場 setView(換幕邏輯本來就會做)。bt 設在正弦最陡點(π/2)方便量動畫。
+async function bootBreath(browser, { width = 1280, height = 800, touch = false, basemap = 'map', forceCity = null, bt = 37.5 } = {}) {
   const ctx = await browser.newContext({ viewport: { width, height }, deviceScaleFactor: 2, hasTouch: touch, isMobile: touch });
   await ctx.addInitScript(() => { localStorage.setItem('trainmap-howto-seen', '1'); localStorage.setItem('trainmap-appearance', 'light'); localStorage.setItem('trainmap-ambient-style', 'hotspot'); });
   const page = await ctx.newPage();
   const errors = [];
   page.on('pageerror', e => errors.push(String(e)));
   page.on('console', m => { if (m.type() === 'error') errors.push(m.text()); });
-  await page.goto(url, { waitUntil: 'domcontentloaded' });
-  await page.waitForFunction(() => { try { return typeof state !== 'undefined' && state.ready && map && state._landGeo; } catch (e) { return false; } }, null, { timeout: 30000 });
+  await page.goto(`http://localhost:${PORT}/?breath=1`, { waitUntil: 'domcontentloaded' });
+  await page.waitForFunction(() => { try { return typeof state !== 'undefined' && state.ready && map && state.mode === 'sched'; } catch (e) { return false; } }, null, { timeout: 30000 });
   await page.waitForTimeout(400);
-  await page.evaluate(({ forceCity, bt }) => {
+  await page.evaluate(({ forceCity, bt, basemap }) => {
     state.ambientStyle = 'hotspot'; state.ambient = true; state.playing = true;
     state.followTrain = null; state.freqFollow = null; state._theater = false; state._transition = false; state._hotYield = 0;
+    if (basemap === 'sat') { state.basemap = 'sat'; setBasemap(); }
     const sc = pickBreathScene();
     if (forceCity && typeof CITY_BBOX !== 'undefined' && CITY_BBOX[forceCity]) {
-      const b = CITY_BBOX[forceCity], c = L.latLngBounds([[b[0], b[1]], [b[2], b[3]]]).getCenter();
-      sc.lat = c.lat; sc.lon = c.lng; sc.anchor = { lat: c.lat, lon: c.lng };
+      const a = breathAnchorFor(forceCity); if (a) { sc.lat = a.lat; sc.lon = a.lon; sc.anchor = { lat: a.lat, lon: a.lon }; }
     }
-    sc.bt = bt; state._hotScene = sc; state._hotFresh = false; state._hotNext = performance.now() + 9e8;
-  }, { forceCity, bt });
-  await page.waitForFunction(() => { try { return state._breathStage && map.options.zoomSnap === 0 && map.getZoom() > 11.05; } catch (e) { return false; } }, null, { timeout: 15000 });
+    // 進場:比照 hotspotTick 換幕(設旗標→scale 歸 1→setView 一次到 z13 錨點),之後 app 的 tick 迴圈由 hotCruise 逐幀縮放
+    state._hotScene = sc; state._hotFresh = false; state._hotNext = performance.now() + 9e8;
+    state._hotCam = true; breathStage(); breathScale(1); map.setView([sc.lat, sc.lon], sc.z, { animate: false }); state._hotCam = false;
+    sc.bt = bt;
+  }, { forceCity, bt, basemap });
+  // 等進場穩定:_breathStage、固定整數 z13、CSS scale 已被 hotCruise 施加(computed transform 非 none)
+  await page.waitForFunction(() => {
+    try {
+      if (!(state._breathStage && map.getZoom() === 13)) return false;
+      const t = getComputedStyle(document.getElementById('map')).transform;
+      return t && t !== 'none';
+    } catch (e) { return false; }
+  }, null, { timeout: 15000 });
   await page.waitForTimeout(150);
   return { ctx, page, errors };
 }
 
-// 逐幀取樣:zoom + 測試經緯度的 overlay 螢幕座標與浮點真值(投影層級平滑度)
-async function sampleProjection(page, N = 80) {
+// 逐幀取樣:#map / #overlay 的 computed transform scale + map.getZoom() + 圖磚事件計數。
+async function sampleScales(page, N = 90) {
   return page.evaluate((N) => new Promise(resolve => {
-    const out = []; const size = map.getSize();
-    const mk = (dx, dy) => { const p = L.point(size.x / 2 + dx, size.y / 2 + dy); return map.containerPointToLatLng(p); };
-    const pts = [mk(0, 0), mk(180, 90), mk(-320, 160), mk(420, -220), mk(-460, -320)].map(ll => [ll.lat, ll.lng]);
-    // 跨層特徵:真實海陸 geojson 頂點 + 真實車站(兩者都經 latLngToContainerPoint→呼吸中浮點包裝);
-    // 量兩者螢幕相對位移的 2nd-diff → 海陸 vs 軌道相對運動是否平滑鎖定(心得16,非單層自洽)
-    let landVtx = null, stn = null;
-    try { const g = state._landGeo.geometry, poly = g.type === 'MultiPolygon' ? g.coordinates[0] : g.coordinates; const ring = poly[0]; landVtx = [ring[Math.floor(ring.length / 2)][1], ring[Math.floor(ring.length / 2)][0]]; } catch (e) {}
-    try { // 軌道網特徵:sched 站點(schedStations)優先,其次 trackLines 折線頂點
-      const src = (state.schedStations && state.schedStations.length) ? state.schedStations
-        : (state.trackLines || []).find(l => l.stations && l.stations.length)?.stations;
-      const s = src[Math.floor(src.length / 2)]; stn = [s.lat, s.lon];
-    } catch (e) {}
-    let n = 0;
+    const mEl = document.getElementById('map'), oEl = document.getElementById('overlay');
+    const parse = s => { if (!s || s === 'none') return 1; const m = s.match(/matrix\(([^,]+),/); return m ? parseFloat(m[1]) : 1; };
+    let moveEnds = 0, zoomEnds = 0;
+    const onMove = () => moveEnds++, onZoom = () => zoomEnds++;
+    map.on('moveend', onMove); map.on('zoomend', onZoom);
+    const out = []; let n = 0;
     (function tick() {
-      const z = map.getZoom(), c = map.getCenter(), s = map.getSize();
-      const rec = { t: performance.now(), z, pts: [] };
-      for (const p of pts) {
-        const ll = L.latLng(p[0], p[1]);
-        const over = map.latLngToContainerPoint(ll);
-        const P = map.project(ll, z), C = map.project(c, z);
-        const flo = { x: P.x - C.x + s.x / 2, y: P.y - C.y + s.y / 2 };
-        rec.pts.push({ over: { x: over.x, y: over.y }, flo, dc: Math.hypot(over.x - s.x / 2, over.y - s.y / 2) });
-      }
-      if (landVtx && stn) { const a = map.latLngToContainerPoint(landVtx), b = map.latLngToContainerPoint(stn); rec.rel = { x: a.x - b.x, y: a.y - b.y }; }
-      out.push(rec);
-      if (++n >= N) return resolve(out);
+      const ms = getComputedStyle(mEl).transform, os = getComputedStyle(oEl).transform;
+      out.push({ t: performance.now(), ms, os, m: parse(ms), o: parse(os), z: map.getZoom() });
+      if (++n >= N) { map.off('moveend', onMove); map.off('zoomend', onZoom); return resolve({ frames: out, moveEnds, zoomEnds }); }
       requestAnimationFrame(tick);
     })();
   }), N);
 }
 
-// 逐幀讀 overlay 真實像素:海陸(米色填色)質心-x 與 軌道(高彩度描線)質心-x(跨層像素級對齊,心得 16)
-async function samplePixels(page, N = 70) {
-  return page.evaluate((N) => new Promise(resolve => {
-    const cv = document.getElementById('overlay'); const g = cv.getContext('2d');
-    const dpr = cv.width / (parseFloat(cv.style.width) || cv.width / 2); // 裝置像素/CSS
-    const y0 = Math.round(cv.height * 0.30), y1 = Math.round(cv.height * 0.70); // 中央帶
-    let n = 0; const out = [];
-    (function tick() {
-      let img; try { img = g.getImageData(0, y0, cv.width, y1 - y0).data; } catch (e) { return resolve({ err: String(e) }); }
-      let lSx = 0, lN = 0, rSx = 0, rN = 0, lEdge = 0, lEdgeN = 0;
-      const W = cv.width;
-      for (let yy = 0; yy < (y1 - y0); yy++) {
-        let rowEdge = -1;
-        for (let xx = 0; xx < W; xx++) {
-          const i = (yy * W + xx) * 4, R = img[i], G = img[i + 1], B = img[i + 2], A = img[i + 3];
-          if (A < 120) continue;
-          const isLand = Math.abs(R - 234) < 30 && Math.abs(G - 223) < 30 && Math.abs(B - 196) < 34;
-          if (isLand) { lSx += xx; lN++; if (rowEdge < 0) { rowEdge = xx; } }
-          else { const chroma = Math.max(R, G, B) - Math.min(R, G, B); if (chroma > 50) { rSx += xx; rN++; } }
-        }
-        if (rowEdge >= 0) { lEdge += rowEdge; lEdgeN++; }
-      }
-      out.push({ t: performance.now(), landCx: lN ? lSx / lN / dpr : null, railCx: rN ? rSx / rN / dpr : null, landEdge: lEdgeN ? lEdge / lEdgeN / dpr : null, landN: lN, railN: rN });
-      if (++n >= N) return resolve(out);
-      requestAnimationFrame(tick);
-    })();
-  }), N);
-}
-
-async function crossLayerCore(engName, browser, opts, label) {
-  const { page, errors } = await bootBreath(browser, opts);
-  const proj = await sampleProjection(page, 80);
-  // 平滑度(投影層級):每點 on-screen 2nd-diff、overlay-vs-float 誤差 p2p
-  let maxSd = 0, maxErr = 0, edgePt = null;
-  for (let j = 0; j < proj[0].pts.length; j++) {
-    const over = proj.map(r => r.pts[j].over), flo = proj.map(r => r.pts[j].flo);
-    maxSd = Math.max(maxSd, mx(sd2(over)));
-    const ex = over.map((o, i) => o.x - flo[i].x), ey = over.map((o, i) => o.y - flo[i].y);
-    const p2p = Math.hypot(Math.max(...ex) - Math.min(...ex), Math.max(...ey) - Math.min(...ey));
-    maxErr = Math.max(maxErr, p2p);
-    if (proj[proj.length - 1].pts[j].dc > (edgePt ? edgePt.dc : 0)) edgePt = { dc: proj[proj.length - 1].pts[j].dc };
-  }
-  // rAF 幀時
-  const dts = []; for (let i = 1; i < proj.length; i++) dts.push(proj[i].t - proj[i - 1].t);
+function analyzeScales(res) {
+  const f = res.frames;
+  const mismatch = f.filter(r => r.ms !== r.os).length;      // 兩層 computed transform 字串每幀是否完全相等(跨層同步,確定性判準)
+  const mScale = f.map(r => r.m);
+  const scaleRange = mx(mScale) - Math.min(...mScale);        // 動畫是否真的在動(scale 有變化)
+  const smoothMax = mx(sd(mScale));                           // scale 序列二階差(平滑度)
+  const zAll13 = f.every(r => r.z === 13);                    // z 恆定 13
+  const dts = []; for (let i = 1; i < f.length; i++) dts.push(f[i].t - f[i - 1].t);
   const p95 = [...dts].sort((a, b) => a - b)[Math.floor(dts.length * 0.95)] || 0;
-  // zoom 單調
-  let nonMono = 0; for (let i = 1; i < proj.length; i++) if (proj[i].z < proj[i - 1].z - 1e-9) nonMono++;
-  // 跨層(海陸頂點 vs 車站)相對位移 2nd-diff
-  const rels = proj.map(r => r.rel).filter(Boolean);
-  const crossProjSd = rels.length > 3 ? mx(sd2(rels)) : null;
-  return { page, errors, maxSd, maxErr, p95, nonMono, zRange: [proj[0].z, proj[proj.length - 1].z], edgeDc: edgePt ? edgePt.dc : 0, crossProjSd };
+  return { mismatch, scaleRange, smoothMax, zAll13, p95, moveEnds: res.moveEnds, zoomEnds: res.zoomEnds, frames: f.length };
+}
+
+async function tileState(page) {
+  return page.evaluate(() => {
+    const tiles = [...document.querySelectorAll('#map .leaflet-tile')];
+    const srcs = tiles.map(t => t.src).filter(Boolean).sort();
+    const want = state.mapDark ? 'dark' : (state.basemap === 'sat' ? 'sat' : 'light');
+    return { count: tiles.length, srcs, satMounted: !!(baseLayers.sat && map.hasLayer(baseLayers.sat)), wantMounted: !!(baseLayers[want] && map.hasLayer(baseLayers[want])), z: map.getZoom() };
+  });
 }
 
 // ══════════════ Chromium 桌面全項 ══════════════
 {
   const browser = await chromium.launch();
   console.log('\n═══ chromium 1280×800 ═══');
+  const { page, errors } = await bootBreath(browser, { width: 1280, height: 800, forceCity: 'taipei', bt: 37.5 });
 
-  // T1 投影層級平滑 + 跨層(浮點投影,shimmer 應歸零)
-  const c = await crossLayerCore('chromium', browser, { width: 1280, height: 800, bt: 37.5 }, 'desktop');
-  ok('chromium T1a 呼吸平滑度 overlay 2nd-diff≤0.5px(基線2.8)', c.maxSd <= 0.5, `max=${r2(c.maxSd)}px @最遠點≈${Math.round(c.edgeDc)}px`);
-  ok('chromium T1b overlay-vs-浮點真值誤差≈0(基線2.5)', c.maxErr <= 0.3, `p2p=${r2(c.maxErr)}px`);
-  ok('chromium T1c 跨層相對運動平滑(海陸頂點vs車站 2nd-diff≤0.5px,基線1.4)', c.crossProjSd != null && c.crossProjSd <= 0.5, `crossSd=${r2(c.crossProjSd)}px`);
+  // ── T1 圖磚在場(新制核心):呼吸中真實圖磚在場、動畫 4s 中零重載、z 恆 13、moveend/zoomend 零觸發 ──
+  const t0 = await tileState(page);
+  ok('chromium T1a 呼吸中真實圖磚在場(.leaflet-tile>0)', t0.count > 0, `tiles=${t0.count}, z=${t0.z}, 掛層=${t0.wantMounted}`);
+  const anim = analyzeScales(await sampleScales(page, 240)); // ~4s
+  const t1 = await tileState(page);
+  const srcSame = t0.srcs.length > 0 && JSON.stringify(t0.srcs) === JSON.stringify(t1.srcs);
+  ok('chromium T1b 動畫 4s 圖磚 src 集合不變(零重載)', srcSame, `t0=${t0.srcs.length} 張, t1=${t1.srcs.length} 張, 相同=${srcSame}`);
+  ok('chromium T1c 動畫中 map.getZoom() 恆定 13', anim.zAll13, `frames=${anim.frames}, z恆13=${anim.zAll13}`);
+  ok('chromium T1d 動畫中 moveend/zoomend 零觸發', anim.moveEnds === 0 && anim.zoomEnds === 0, `moveend=${anim.moveEnds} zoomend=${anim.zoomEnds}`);
 
-  // T1d 跨層像素級:海陸確由 overlay 自繪、且渲染質心逐幀平滑(心得16,真實像素;修前海陸2nd-diff達5px)
-  await c.page.evaluate(() => { state._hotScene.bt = 25; }); // 拉到 z≈12 讓西岸海陸都在視野
-  await c.page.waitForTimeout(120);
-  const px = await samplePixels(c.page, 70);
-  if (px.err) { ok('chromium T1d 海陸像素平滑', false, 'getImageData 失敗:' + px.err); }
-  else {
-    const withLand = px.filter(p => p.landCx != null && p.landN > 500);
-    const landCx = withLand.map(p => p.landCx);
-    const landSd = mx(sd(landCx));
-    ok('chromium T1d 海陸確由 overlay 自繪(landN>500 幀數)', withLand.length >= px.length * 0.7, `${withLand.length}/${px.length} 幀`);
-    ok('chromium T1d 海陸渲染質心逐幀平滑 2nd-diff≤0.5px(基線5)', withLand.length >= 30 && landSd <= 0.5, `landSd=${r2(landSd)}px, n=${withLand.length}`);
-  }
+  // ── T2 縮放平滑 + 跨層同步:兩元素每幀 scale 字串完全相等 + scale 二階差≤0.01 + 確實在動 ──
+  ok('chromium T2a 兩元素每幀 CSS transform 完全相等(跨層同步,確定性)', anim.mismatch === 0, `不相等幀=${anim.mismatch}/${anim.frames}`);
+  ok('chromium T2b scale 逐幀平滑 二階差≤0.01', anim.smoothMax <= 0.01, `max 2nd-diff=${r3(anim.smoothMax)}`);
+  ok('chromium T2c 呼吸確實在縮放(scale 有變化)', anim.scaleRange > 0.004, `scale 變化幅度=${r3(anim.scaleRange)}`);
+  ok('chromium T2d rAF 幀時 p95≤25ms', anim.p95 <= 25, `p95=${r3(anim.p95)}ms`);
 
-  // T2 平滑度:rAF p95≤25ms、zoom 單調
-  ok('chromium T2a rAF 幀時 p95≤25ms', c.p95 <= 25, `p95=${r2(c.p95)}ms`);
-  ok('chromium T2b zoom 單調遞增(半週期)', c.nonMono === 0, `非單調=${c.nonMono}, z ${r2(c.zRange[0])}→${r2(c.zRange[1])}`);
-
-  // T3 狀態還原:drag → 圖磚回場、zoomSnap 還原
+  // ── T3 還原:drag 讓位 → 兩元素 transform 歸空、_breathStage=false、圖磚仍在;離開放空 → 同樣乾淨 ──
   {
-    const { page } = await bootBreath(browser, { width: 1280, height: 800, bt: 37.5 });
-    const before = await page.evaluate(() => ({ bs: state._breathStage, zs: map.options.zoomSnap }));
-    // 真實使用者拖曳
-    await page.mouse.move(640, 400); await page.mouse.down();
-    for (let i = 1; i <= 6; i++) { await page.mouse.move(640 - i * 12, 400 - i * 6); await page.waitForTimeout(16); }
-    await page.mouse.up();
-    await page.waitForTimeout(600);
-    const after = await page.evaluate(() => {
-      const want = state.mapDark ? 'dark' : (state.basemap === 'sat' ? 'sat' : 'light');
-      const fp = map.getPane('fallbackPane');
-      return { bs: state._breathStage, zs: map.options.zoomSnap, tileBack: !!(baseLayers[want] && map.hasLayer(baseLayers[want])), fpShown: fp ? fp.style.display !== 'none' : true };
+    const b = await bootBreath(browser, { width: 1280, height: 800, forceCity: 'taipei', bt: 37.5 });
+    const before = await b.page.evaluate(() => ({ bs: state._breathStage, mt: getComputedStyle(document.getElementById('map')).transform }));
+    await b.page.mouse.move(640, 400); await b.page.mouse.down();
+    for (let i = 1; i <= 6; i++) { await b.page.mouse.move(640 - i * 14, 400 - i * 7); await b.page.waitForTimeout(16); }
+    await b.page.mouse.up();
+    await b.page.waitForTimeout(500);
+    const after = await b.page.evaluate(() => {
+      const mt = getComputedStyle(document.getElementById('map')).transform, ot = getComputedStyle(document.getElementById('overlay')).transform;
+      return { bs: state._breathStage, mtNone: mt === 'none' || mt === '', otNone: ot === 'none' || ot === '', tiles: document.querySelectorAll('#map .leaflet-tile').length };
     });
     ok('chromium T3a drag→呼吸退場(_breathStage=false)', before.bs === true && after.bs === false, `before=${before.bs} after=${after.bs}`);
-    ok('chromium T3b drag→圖磚底圖回場(≤5s,立即)', after.tileBack === true, `tileBack=${after.tileBack}`);
-    ok('chromium T3c drag→zoomSnap 還原=1、離線層顯示', after.zs === 1 && after.fpShown, `zoomSnap=${after.zs} fpShown=${after.fpShown}`);
-    // 離開放空 → zoomSnap==1、zoom 整數、圖磚在場
-    await page.evaluate(() => { setAmbient(false); });
-    await page.waitForTimeout(300);
-    const off = await page.evaluate(() => {
-      const want = state.mapDark ? 'dark' : (state.basemap === 'sat' ? 'sat' : 'light');
-      const z = map.getZoom();
-      return { zs: map.options.zoomSnap, zInt: z === Math.round(z), z, bs: state._breathStage, tileBack: !!(baseLayers[want] && map.hasLayer(baseLayers[want])) };
+    ok('chromium T3b drag→兩元素 CSS scale 歸空', after.mtNone && after.otNone, `#map空=${after.mtNone} #overlay空=${after.otNone}`);
+    ok('chromium T3c drag→圖磚仍在場', after.tiles > 0, `tiles=${after.tiles}`);
+    await b.page.evaluate(() => setAmbient(false));
+    await b.page.waitForTimeout(400);
+    const off = await b.page.evaluate(() => {
+      const mt = getComputedStyle(document.getElementById('map')).transform, z = map.getZoom();
+      return { bs: state._breathStage, mtNone: mt === 'none' || mt === '', zInt: z === Math.round(z), tiles: document.querySelectorAll('#map .leaflet-tile').length };
     });
-    ok('chromium T3d 離開放空→zoomSnap=1 且 zoom 整數 且圖磚在場', off.zs === 1 && off.zInt && off.tileBack && off.bs === false, JSON.stringify(off));
-    await page.context().close();
+    ok('chromium T3d 離開放空→transform 歸空、z 整數、圖磚在場、_breathStage=false', off.bs === false && off.mtNone && off.zInt && off.tiles > 0, JSON.stringify(off));
+    await b.page.context().close();
   }
 
-  // T4 不越界:?live=1 抽不到呼吸;劇場模式呼吸讓位
+  // ── T4 不越界:?live=1 永不進呼吸;enterTheater 時呼吸讓位(transform 已清、_theater=true) ──
   {
-    const ctx = await browser.newContext({ viewport: { width: 1280, height: 800 }, deviceScaleFactor: 2 });
-    await ctx.addInitScript(() => { localStorage.setItem('trainmap-howto-seen', '1'); localStorage.setItem('trainmap-ambient-style', 'hotspot'); });
-    const page = await ctx.newPage();
-    await page.goto(`http://localhost:${PORT}/?live=1&breath=1`, { waitUntil: 'domcontentloaded' });
-    await page.waitForFunction(() => { try { return typeof state !== 'undefined' && state.ready && map; } catch (e) { return false; } }, null, { timeout: 30000 });
-    const liveRes = await page.evaluate(() => new Promise(resolve => {
+    const c2 = await browser.newContext({ viewport: { width: 1280, height: 800 }, deviceScaleFactor: 2 });
+    await c2.addInitScript(() => { localStorage.setItem('trainmap-howto-seen', '1'); localStorage.setItem('trainmap-ambient-style', 'hotspot'); });
+    const lp = await c2.newPage();
+    await lp.goto(`http://localhost:${PORT}/?live=1&breath=1`, { waitUntil: 'domcontentloaded' });
+    await lp.waitForFunction(() => { try { return typeof state !== 'undefined' && state.ready && map; } catch (e) { return false; } }, null, { timeout: 30000 });
+    const liveRes = await lp.evaluate(() => new Promise(resolve => {
       state.ambient = true; state.ambientStyle = 'hotspot'; state.playing = true; state.followTrain = null; state.freqFollow = null;
       state._hotFresh = true; state._hotScene = null; state._hotNext = 0;
       let bad = false, ticks = 0;
@@ -220,37 +171,37 @@ async function crossLayerCore(engName, browser, opts, label) {
       }, 100);
     }));
     ok('chromium T4a ?live=1 永不進呼吸幕', liveRes.live === true && liveRes.bad === false, JSON.stringify(liveRes));
-    await ctx.close();
+    await c2.close();
   }
   {
-    const { page } = await bootBreath(browser, { width: 1280, height: 800, bt: 37.5 });
-    const th = await page.evaluate(() => { enterTheater(); return { bs: state._breathStage, th: state._theater }; });
-    ok('chromium T4b 進劇場→呼吸讓位(_breathStage=false、_theater=true)', th.bs === false && th.th === true, JSON.stringify(th));
-    await page.context().close();
+    const b = await bootBreath(browser, { width: 1280, height: 800, forceCity: 'taipei', bt: 37.5 });
+    const th = await b.page.evaluate(() => {
+      enterTheater();
+      const mt = getComputedStyle(document.getElementById('map')).transform;
+      return { bs: state._breathStage, th: state._theater, mtNone: mt === 'none' || mt === '' };
+    });
+    ok('chromium T4b 進劇場→呼吸讓位(_breathStage=false、_theater=true、transform 清空)', th.bs === false && th.th === true && th.mtNone, JSON.stringify(th));
+    await b.page.context().close();
   }
 
-  // ── T5 空鏡頭防護(v0718h):錨點=軌道質心最近車站、組不出內容就取消 ──
-  // 背景:CITY_BBOX 是整個行政區,台中/高雄幾何中心在山區(頭汴坑/旗美),拉近段視窗內零軌道=整片素色。
+  // ── T5 錨點回歸(v0718h 核心,保留):錨點=軌道質心鄰域最密車站、站點<8 取消 ──
   {
-    const { page } = await bootBreath(browser, { width: 1280, height: 800, bt: 37.5 });
-    const t5 = await page.evaluate(() => {
+    const b = await bootBreath(browser, { width: 1280, height: 800, forceCity: 'taipei', bt: 37.5 });
+    const t5 = await b.page.evaluate(() => {
       const out = { cities: {} };
       for (const id of ['taipei', 'taichung', 'kaohsiung']) {
         const a = breathAnchorFor(id);
-        const b = CITY_BBOX[id];
-        const c = L.latLngBounds([[b[0], b[1]], [b[2], b[3]]]).getCenter();
-        // z15 視窗(1280×800)半高約 0.9km → 量錨點 ±0.008° 內站點數(含錨點自身;≥1=拉近正對真站有內容)
+        const bb = CITY_BBOX[id];
+        const c = L.latLngBounds([[bb[0], bb[1]], [bb[2], bb[3]]]).getCenter();
         let near = 0;
-        const scan = s => { if (s && Math.abs(s.lat - a.lat) < 0.008 && Math.abs(s.lon - a.lon) < 0.008) near++; };
+        const scan = s => { if (a && s && Math.abs(s.lat - a.lat) < 0.008 && Math.abs(s.lon - a.lon) < 0.008) near++; };
         (state.schedStations || []).forEach(scan);
         (state.lines || []).forEach(ln => (ln.stations || []).forEach(scan));
         (state.decoLines || []).forEach(ln => (ln.stations || []).forEach(scan));
-        const kmOff = Math.round(L.latLng(a.lat, a.lon).distanceTo(c) / 100) / 10;
+        const kmOff = a ? Math.round(L.latLng(a.lat, a.lon).distanceTo(c) / 100) / 10 : null;
         out.cities[id] = { ok: !!a, near, kmOff };
       }
-      const lg = state._landGeo; state._landGeo = null;
-      out.noLand = pickBreathScene();
-      state._landGeo = lg;
+      // 站點<8(單一小系統)→ 組不出內容 → pickBreathScene 取消(null)
       const ss = state.schedStations, li = state.lines, dl = state.decoLines;
       state.schedStations = []; state.lines = []; state.decoLines = null;
       out.noRail = pickBreathScene();
@@ -258,43 +209,55 @@ async function crossLayerCore(engName, browser, opts, label) {
       return out;
     });
     const cs = t5.cities;
-    ok('chromium T5a 三城錨點皆可得且正對車站(z15 視窗有內容)',
+    ok('chromium T5a 三城錨點皆可得且正對車站(z15 視窗有內容,near≥1)',
       ['taipei', 'taichung', 'kaohsiung'].every(id => cs[id].ok && cs[id].near >= 1),
       Object.entries(cs).map(([k, v]) => `${k}:near=${v.near},偏離bbox中心${v.kmOff}km`).join(' '));
     ok('chromium T5b 台中/高雄錨點已離開山區 bbox 中心(位移>5km)',
       cs.taichung.kmOff > 5 && cs.kaohsiung.kmOff > 5, `台中${cs.taichung.kmOff}km 高雄${cs.kaohsiung.kmOff}km`);
-    ok('chromium T5c 海陸輪廓缺失→呼吸取消(null,落回一般巡航)', t5.noLand === null, String(t5.noLand));
-    ok('chromium T5d 軌道資料不足→呼吸取消(null)', t5.noRail === null, String(t5.noRail));
-    await page.context().close();
+    ok('chromium T5c 軌道資料不足(站點<8)→呼吸取消(null,落回一般巡航)', t5.noRail === null, String(t5.noRail));
+    await b.page.context().close();
   }
 
-  // 錯誤彙整
-  ok('chromium 無 JS 例外', c.errors.length === 0, c.errors.slice(0, 2).join(' | '));
-  await c.page.context().close();
+  // ── T6 衛星模式:setBasemap('sat') 後進呼吸,圖磚在場且掛的是衛星圖層 ──
+  {
+    const b = await bootBreath(browser, { width: 1280, height: 800, forceCity: 'taipei', basemap: 'sat', bt: 37.5 });
+    const st = await tileState(b.page);
+    const satSrc = st.srcs.some(s => /arcgisonline|World_Imagery/i.test(s));
+    ok('chromium T6a 衛星模式呼吸中圖磚在場', st.count > 0, `tiles=${st.count}, z=${st.z}`);
+    ok('chromium T6b 掛的是衛星圖層(baseLayers.sat 現掛層 + tile src 為 Esri 影像)', st.satMounted && satSrc, `satMounted=${st.satMounted} 影像src=${satSrc}`);
+    // 衛星模式縮放同樣兩層同步
+    const anim2 = analyzeScales(await sampleScales(b.page, 90));
+    ok('chromium T6c 衛星模式兩層 scale 同步且平滑', anim2.mismatch === 0 && anim2.smoothMax <= 0.01 && anim2.zAll13, `不相等幀=${anim2.mismatch} 2nd-diff=${r3(anim2.smoothMax)}`);
+    await b.page.context().close();
+  }
+
+  ok('chromium 無 JS 例外', errors.length === 0, errors.slice(0, 3).join(' | '));
+  await page.context().close();
   await browser.close();
 }
 
-// ══════════════ WebKit 手機 390 抽測跨層 ══════════════
+// ══════════════ WebKit 手機 390×844 ══════════════
 try {
   const browser = await webkit.launch();
   console.log('\n═══ webkit 390×844(手機) ═══');
-  const c = await crossLayerCore('webkit', browser, { width: 390, height: 844, touch: true, bt: 37.5 }, 'mobile');
-  ok('webkit M1 手機呼吸平滑度 2nd-diff≤0.5px', c.maxSd <= 0.5, `max=${r2(c.maxSd)}px`);
-  ok('webkit M2 手機 overlay-vs-浮點誤差≈0', c.maxErr <= 0.3, `p2p=${r2(c.maxErr)}px`);
-  ok('webkit M3 手機跨層相對運動平滑(海陸頂點vs車站 2nd-diff≤0.5px)', c.crossProjSd != null && c.crossProjSd <= 0.5, `crossSd=${r2(c.crossProjSd)}px`);
-  await c.page.evaluate(() => { state._hotScene.bt = 25; });
-  await c.page.waitForTimeout(120);
-  const px = await samplePixels(c.page, 60);
-  if (px.err) ok('webkit M4 海陸像素平滑', false, px.err);
-  else {
-    const wl = px.filter(p => p.landCx != null && p.landN > 300);
-    const landCx = wl.map(p => p.landCx); const landSd = mx(sd(landCx));
-    ok('webkit M4 手機海陸渲染質心逐幀平滑 2nd-diff≤0.5px', wl.length >= 15 && landSd <= 0.5, `landSd=${r2(landSd)}px, n=${wl.length}`);
-  }
-  ok('webkit 無 JS 例外', c.errors.length === 0, c.errors.slice(0, 2).join(' | '));
-  await c.page.context().close();
+  const { page, errors } = await bootBreath(browser, { width: 390, height: 844, touch: true, forceCity: 'taipei', bt: 37.5 });
+  const t0 = await tileState(page);
+  ok('webkit M1 手機呼吸中真實圖磚在場、z 恆 13', t0.count > 0 && t0.z === 13, `tiles=${t0.count} z=${t0.z}`);
+  const anim = analyzeScales(await sampleScales(page, 120));
+  ok('webkit M2 手機兩層 scale 同步、平滑、確實在動', anim.mismatch === 0 && anim.smoothMax <= 0.01 && anim.scaleRange > 0.003, `不相等幀=${anim.mismatch} 2nd-diff=${r3(anim.smoothMax)} 幅度=${r3(anim.scaleRange)}`);
+  // 觸控第一擊(tap):transform 歸位、無例外
+  const beforeTap = await page.evaluate(() => { const t = getComputedStyle(document.getElementById('map')).transform; return t && t !== 'none'; });
+  await page.touchscreen.tap(195, 300);
+  await page.waitForTimeout(250);
+  const afterTap = await page.evaluate(() => {
+    const mt = getComputedStyle(document.getElementById('map')).transform, ot = getComputedStyle(document.getElementById('overlay')).transform;
+    return { mtNone: mt === 'none' || mt === '', otNone: ot === 'none' || ot === '' };
+  });
+  ok('webkit M3 觸控第一擊(tap)後 transform 歸位', beforeTap === true && afterTap.mtNone && afterTap.otNone, `tap前有scale=${beforeTap} tap後#map空=${afterTap.mtNone} #overlay空=${afterTap.otNone}`);
+  ok('webkit 無 JS 例外', errors.length === 0, errors.slice(0, 3).join(' | '));
+  await page.context().close();
   await browser.close();
-} catch (e) { ok('webkit 全項', false, 'webkit 啟動失敗:' + String(e).slice(0, 120)); }
+} catch (e) { ok('webkit 全項', false, 'webkit 啟動失敗:' + String(e).slice(0, 160)); }
 
 server.close();
 const fail = results.filter(r => !r.pass);

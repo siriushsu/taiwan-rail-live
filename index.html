@@ -1952,6 +1952,7 @@
     <details class="foot-box">
       <summary><span>🛠 更新紀錄</span><span class="foot-sub">最後更新：2026/7/18</span></summary>
       <ul class="foot-list">
+        <li><span class="d">7/18</span><span>放空模式「都會呼吸」定場鏡頭現在有真正的底圖了：先前這幕整片素色、街道圖跟衛星圖都不會出現，看起來像壞掉。現在鏡頭固定在都會上空、慢慢放大再縮小的，是一張完整的真實地圖——你平常設定的是街道就顯示街道、設定衛星就顯示衛星影像，配上路網與進出的列車，一起隨著呼吸節奏放大縮小（謝謝回報）</span></li>
         <li><span class="d">7/18</span><span>手機操作更好按、更好用鍵盤／旁白操作了：播放鍵、隨機跟隨、收合速度膠囊、展開後的時刻與速度控制，可點擊範圍都放寬到更好按的大小（外觀完全不變）；「今日台鐵動態」讀不到資料時，畫面上會出現「重新整理」鈕可以直接重試，並標示上次成功更新的時間；手機「更多」選單現在支援鍵盤 Tab／Enter 切換與螢幕報讀，開關列會正確報讀目前狀態；另外拔掉「更多」選單裡一顆點了沒反應的「定位我」死列</span></li>
         <li><span class="d">7/18</span><span>放空模式的「都會呼吸」鏡頭不再對著空無一物的畫面：原本鏡頭錨在整個行政區的幾何中心，台中、高雄的中心其實落在山區，拉近時整片素色、什麼都沒有，看起來像壞掉。現在鏡頭改對準該都會軌道最密集處的車站，拉近到街廓時一定看得到路網、站名與列車進出；若海陸輪廓或軌道資料一時載不進來，該幕直接跳過改走一般巡航，不再硬上空鏡頭（謝謝回報）</span></li>
         <li><span class="d">7/18</span><span>列車不再「倒退嚕」：官方誤點數字往上跳的瞬間（例如 5 分變 6 分），列車以前會往回滑一小段——因為即時校正是「晚幾分就畫在晚幾分的位置」，數字一變大，估計位置就得往後修。現在改成原地稍停、等時刻表追上再繼續前進，就像真實列車臨時停車讓行一樣，畫面上永遠不會倒車；追回誤點時照樣順順地往前滑（謝謝回報）</span></li>
@@ -2140,7 +2141,7 @@
 <script>
 // 版本戳記:每次改版 push 前手動遞增(字母序),畫面時鐘徽章與 console 都會顯示,
 // 供比對線上跑的是不是最新版(瀏覽器快取 max-age=600 常讓人看到舊版)
-const BUILD = 'v0718i';
+const BUILD = 'v0718j';
 const state = {
   systems: [], sysId: null, data: null, speed: 36, mode: 'freq',
   lines: [], visible: new Set(), trains: [], schedStations: [], types: [],
@@ -4618,25 +4619,6 @@ function freqTrainAt(cp) {
   return best ? { ln: best.ln, k: best.k, tr: best.tr, dist: bd } : null;
 }
 
-// 呼吸幕海陸輪廓:把離線 geojson(taiwan_land)每幀畫進 overlay,墊在路網之下。用 latLngToContainerPoint
-// (呼吸中已被包成浮點投影)→ 與列車路網同一畫布、同一幀、同一套投影 → 跨層相對抖動恆為 0、隨分數 zoom 平滑縮放。
-// 海是 #map 的 offline-land 背景色透上來,#skyTint(z550>overlay z500)照樣把日夜天色蓋上,視覺與原 Leaflet 層一致。
-function drawBreathLand() {
-  const geo = state._landGeo; if (!geo || !geo.geometry) return;
-  const g = geo.geometry, polys = g.type === 'MultiPolygon' ? g.coordinates : g.type === 'Polygon' ? [g.coordinates] : [];
-  if (!polys.length) return;
-  const st = offlineLandStyle();
-  ctx.save();
-  ctx.beginPath();
-  for (const poly of polys) for (const ring of poly) { // 單一路徑收全部環,evenodd 填色正確處理內湖洞
-    for (let i = 0; i < ring.length; i++) { const p = map.latLngToContainerPoint([ring[i][1], ring[i][0]]); if (i === 0) ctx.moveTo(p.x, p.y); else ctx.lineTo(p.x, p.y); }
-    ctx.closePath();
-  }
-  ctx.globalAlpha = st.fillOpacity != null ? st.fillOpacity : 1; ctx.fillStyle = st.fillColor; ctx.fill('evenodd');
-  ctx.globalAlpha = st.opacity != null ? st.opacity : 1; ctx.lineWidth = st.weight || 1; ctx.strokeStyle = st.color; ctx.stroke();
-  ctx.restore();
-}
-
 function draw() {
   if (!state.ready) return;
   state._drawCount = (state._drawCount || 0) + 1; // 省電節流的實測計數器(測試讀取繪製頻率用)
@@ -4647,7 +4629,6 @@ function draw() {
   state._crossHits = [];
   labelBoxes = [];
   ctx.lineCap = 'round'; ctx.lineJoin = 'round';
-  if (state._breathStage && state._landGeo) drawBreathLand(); // 呼吸幕:海陸輪廓墊底,與路網同幀同浮點投影(不 shimmer、不跨層抖)
   if (state.mode === 'sched') { if (state.deco) drawDeco(w, h); drawSched(w, h); if (state.deco) drawDecoLabels(); } else drawFreq(w, h);
   ctx.globalAlpha = 1; ctx.textAlign = 'start'; ctx.textBaseline = 'alphabetic';
 }
@@ -4682,7 +4663,7 @@ function tick(now) {
   }
   if (state.ambient && state.ambientStyle === 'hotspot' && !state.followTrain && !state.freqFollow &&
       state.mode === 'sched' && state.playing) { hotspotTick(now); hotCruise(dt, now); }
-  else if (map && (map.options.zoomSnap === 0 || state._breathStage)) { breathSnapRestore(true); breathStageRestore(); } // 離開群車放空時,呼吸幕殘留的分數 zoom/離線舞台兜底還原(安全網:漏掉任一離場點也不會把分數 zoom 或無街圖狀態交到使用者手上)
+  else if (map && state._breathStage) breathStageRestore(); // 離開群車放空時,呼吸幕殘留的 CSS scale/舞台旗標兜底還原(安全網:漏掉任一離場點也不會把縮放或旗標交到使用者手上)
   // 省電模式:把「相機每幀 setView 置中(觸發 reflow,手機跟隨時的主要卡點)＋繪製」統一節流到 ~30fps。
   // 放空/錄影不套(放空游標以 dt 積分,節流會變慢;錄影要滿幀);時間積分與各資訊卡時鐘照每幀跑,不受影響。
   const psActive = state.powerSave && !REC.on && !state.ambient;
@@ -5642,11 +5623,12 @@ function pickCityOverview() {
   const c = bounds.getCenter();
   return { lat: c.lat, lon: c.lng, z, dir: Math.random() * Math.PI * 2, anchor: { lat: c.lat, lon: c.lng }, slow: true };
 }
-// 都會呼吸(放空定場鏡頭):鏡頭停在三大都會上空「固定錨點」,z 沿正弦緩緩放大到頂再縮回,
-// 畫面採劇場美學上台(離線輪廓+列車路網浮其上,見 breathStage)——圖磚零載入(站長點名要的療癒定場)。
+// 都會呼吸(放空定場鏡頭):地圖固定整數 z13(圖磚正常載入),鏡頭停在三大都會「固定錨點」;
+// 放大縮小改由 CSS transform 對 #map+#overlay 同幀施加(見 breathStage/hotCruise)——真實底圖(街道或衛星,跟 basemap 設定走)全程在場、圖磚零重載。
 const BREATH_CHANCE = 0.5;      // 抽到城市幕後,一半機率改走呼吸(淨機率約 15% = CITY_OVERVIEW_CHANCE × 此值)
 const BREATH_PERIOD_SEC = 150;  // 一個完整呼吸(放大到頂再縮回)= 150 秒
-const BREATH_Z = [11, 15];      // 正弦在 z11(整座都會)⇄ z15(街廓)之間呼吸
+const BREATH_BASE_Z = 13;       // 地圖固定在整數 z13(圖磚正常載入、零重載);呼吸縮放改由 CSS transform 合成,不動 Leaflet zoom
+const BREATH_SCALE = 1.6;       // 呼吸放大頂點:對 #map+#overlay 同幀 CSS scale(1→1.6→1),底圖(街道或衛星,跟 basemap 設定走)全程在場
 const BREATH_SCENE_MIN = 150000, BREATH_SCENE_MAX = 300000; // 幕長 150–300 秒(1–2 個完整循環)
 function pickBreathCity() {
   // 城市選擇沿用 pickHotspot 的「近幾幕地區懲罰」(regionOf):近期停過的都會權重打低,三大都會輪替不連停同一座
@@ -5687,42 +5669,34 @@ function breathAnchorFor(id) {
   return { lat: best.lat, lon: best.lon };
 }
 function pickBreathScene() {
-  // 組不出有內容的畫面就取消(回 null,caller 落回一般熱區幕):海陸輪廓沒載到(斷網/載入失敗)舞台整片
-  // 空白;錨點算不出=視窗內會沒有軌道。這比硬上一個空鏡頭好——空鏡頭看起來像壞掉(使用者原話「太醜了」)。
-  if (!state._landGeo) return null;
+  // 組不出有內容的畫面就取消(回 null,caller 落回一般熱區幕):錨點算不出=視窗內會沒有軌道。
+  // 這比硬上一個空鏡頭好——空鏡頭看起來像壞掉(使用者原話「太醜了」)。底圖由真實圖磚提供,不再依賴海陸輪廓。
   const id = pickBreathCity(), a = breathAnchorFor(id);
   if (!a) return null;
-  // 錨點固定、零漂移;z 初始落在 z0(整座都會),hotCruise 的 sc.breath 分支逐幀沿正弦推進
-  return { lat: a.lat, lon: a.lon, anchor: { lat: a.lat, lon: a.lon }, z: BREATH_Z[0], breath: true, z0: BREATH_Z[0], z1: BREATH_Z[1], bt: 0 };
+  // 錨點固定、零漂移;地圖固定 z13,hotCruise 的 sc.breath 分支逐幀用 CSS scale 沿正弦放大縮小
+  return { lat: a.lat, lon: a.lon, anchor: { lat: a.lat, lon: a.lon }, z: BREATH_BASE_Z, breath: true, bt: 0 };
 }
-// 呼吸幕要分數 zoom(z11.0→15.0 平滑),故運行中把 Leaflet zoomSnap 設 0(每次 _limitZoom 動態讀)。離場——換幕、
-// 使用者互動、關放空、進劇場——必須還原原值(1)並把 zoom 收回整數,否則使用者拿到手的地圖會卡在分數 zoom、連滾輪級距都變了。
-// 呼叫點:hotspotTick 換幕、dragstart/zoomstart 使用者接管、enterTheater、主迴圈兜底;呼吸中的 zoomSnap=0 由 hotCruise 逐幀重設。
-function breathSnapRestore(round) {
-  if (!map) return;
-  map.options.zoomSnap = 1; // 還原 Leaflet 預設(本圖從沒設過別的值)
-  if (round) { const z = map.getZoom(); if (z !== Math.round(z)) { state._hotCam = true; map.setZoom(Math.round(z), { animate: false }); state._hotCam = false; } }
+// 呼吸幕合成器:地圖固定整數 z13(真實圖磚在場),放大縮小改由 CSS transform 對 #map+#overlay 兩個 .stage 平級兄弟
+// 同幀施加(.stage overflow:hidden 天然裁切)。zoomAnimation:false(v0714a 殘影鐵則)下分數 zoom 圖磚物理上載不進來,
+// 故改走合成器路徑——底圖(街道或衛星,跟 basemap 設定走)全程可見。breathStage 只設旗標+transformOrigin,不動底圖。
+function breathScale(s) { // 對 #map+#overlay 同幀施加等值 CSS scale(s=1 清為 identity);錨點固定,零平移
+  const m = document.getElementById('map'), o = document.getElementById('overlay');
+  const v = s === 1 ? '' : 'scale(' + s + ')';
+  m.style.transform = v; o.style.transform = v;
 }
-// 呼吸幕舞台(劇場美學):比照 enterTheater 的底圖處理——卸下線上圖磚、露出墊底的離線海陸輪廓(offlineLand,劇場同款)。
-// 為什麼:逐幀分數 zoom 的 setView 每幀走 Leaflet 硬重置路徑,圖磚清了又載永遠上不了畫面(zoomAnimation:false 是 v0714a
-// 殘影鐵則不可動)——街圖在呼吸幕物理上顯示不出來,索性作為刻意的定場畫面呈現,順帶圖磚零載入。不動劇場模式本身的行為。
 function breathStage() {
-  if (!map || state._theater) return; // 劇場擁有舞台時不搶(劇場自己已卸圖磚)
-  if (!state._breathStage) {
-    state._breathStage = true;
-    if (!state.offlineLand) setupOfflineLand();
-    else state.offlineLand.setStyle(offlineLandStyle()); // 跟隨當前亮暗/衛星主題配色(同 enterTheater)
+  if (!map || state._theater) return; // 劇場擁有舞台時不搶
+  const first = !state._breathStage;
+  state._breathStage = true; // 供互動第一擊座標歸位監聽 + latLngToContainerPoint 浮點包裝辨識
+  if (first) { // transformOrigin 進場設一次(兩元素同 box、inset:0)→ 繞 stage 中心等值縮放,跨層鎖定
+    const m = document.getElementById('map'), o = document.getElementById('overlay');
+    m.style.transformOrigin = o.style.transformOrigin = '50% 50%';
   }
-  // 每幀冪等掃(hasLayer 為 O(1)):呼吸中若有人 setBasemap(如換主題)把圖磚加回來,下一幀再卸掉,舞台自癒
-  for (const k in baseLayers) if (map.hasLayer(baseLayers[k])) map.removeLayer(baseLayers[k]);
-  // 海陸輪廓改由 overlay 同幀同投影自繪(drawBreathLand,浮點不 shimmer)→ 隱藏 Leaflet 離線層,
-  // 免其獨立取整投影造成雙重描繪與跨層相對抖動。geojson 尚未載入時先留 Leaflet 層,避免海陸空窗。
-  const fp = map.getPane('fallbackPane'); if (fp) fp.style.display = state._landGeo ? 'none' : '';
 }
 function breathStageRestore() {
-  if (!map || !state._breathStage) return; // 冪等:沒上過台就不動底圖
+  if (!map || !state._breathStage) return; // 冪等:沒上過台就不動
   state._breathStage = false;
-  const fp = map.getPane('fallbackPane'); if (fp) fp.style.display = ''; // 還原 Leaflet 離線層(劇場/離線備援共用)
+  breathScale(1); // 清 CSS scale,地圖回 z13 原尺寸
   state._bpZ = null; // 清投影中心快取,下次呼吸重算
   if (!state._theater) setBasemap(); // 劇場為真時不還原——劇場擁有舞台,exitTheater 自己會 setBasemap(含衛星偏好)
 }
@@ -5751,7 +5725,6 @@ function hotspotTick(now) {
     sc = { lat: h.lat, lon: h.lon, z: h.n >= 25 ? zTier[0] : zTier[1], dir: Math.random() * Math.PI * 2 };
   }
   state._hotScene = sc;
-  if (!sc.breath) breathSnapRestore(true); // 換到非呼吸幕:還原 zoomSnap 並收整 zoom(呼吸幕留待 hotCruise 首幀 zoomSnap=0 接手)
   // 城市俯瞰/呼吸是慢節奏定場,幕拉長:呼吸 150–300 秒、平移俯瞰 90–150 秒;一般熱區維持 60–90 秒
   state._hotNext = now + (sc.breath ? BREATH_SCENE_MIN + Math.random() * (BREATH_SCENE_MAX - BREATH_SCENE_MIN)
                           : sc.slow ? 90000 + Math.random() * 60000
@@ -5759,7 +5732,7 @@ function hotspotTick(now) {
   if (state._hotFresh) {
     state._hotFresh = false;
     state._hotCam = true; // 自家跳景的 zoomstart 不算使用者操作
-    if (sc.breath) breathStage(); else breathStageRestore(); // 瞬跳同時切舞台(進:卸圖磚露輪廓/出:還原底圖)
+    if (sc.breath) { breathStage(); breathScale(1); } else breathStageRestore(); // 進呼吸:設旗標+起始 scale 歸 1(bt=0);出呼吸:清 scale 還原底圖
     map.setView([sc.lat, sc.lon], sc.z, { animate: false });
     state._hotCam = false;
   } else hotFadeTo(sc);
@@ -5774,7 +5747,7 @@ function hotFadeTo(sc) {
     const alive = state.ambient && state.ambientStyle === 'hotspot' && !state.followTrain;
     if (!alive) { veil.style.opacity = 0; state._transition = false; return; }
     state._hotCam = true; // 自家跳景的 zoomstart 不算使用者操作
-    if (sc.breath) breathStage(); else breathStageRestore(); // 舞台切換藏在遮幕後(進呼吸:卸圖磚露輪廓/出呼吸:還原底圖),不露硬切
+    if (sc.breath) { breathStage(); breathScale(1); } else breathStageRestore(); // 進呼吸:設旗標+起始 scale 歸 1(bt=0,避免遮幕下殘留前一幕縮放);出呼吸:清 scale 還原底圖
     map.setView([sc.lat, sc.lon], sc.z, { animate: false });
     state._hotCam = false;
     veil.style.opacity = 0;
@@ -5791,16 +5764,12 @@ function hotCruise(dt, now) {
   if (now < (state._hotYield || 0)) { sc.px = null; return; } // 使用者操作中讓位,回來從現況接手
   dt = Math.min(dt, 0.1); // 分頁背景回前景的巨幅 dt 不能變成鏡頭瞬移
   if (sc.breath) {
-    // 都會呼吸:錨點固定城市中心、零漂移,z 沿正弦放大到頂再縮回(見 BREATH_*)。zoomSnap=0 才吃得到分數 zoom
-    // (每次 _limitZoom 動態讀,逐幀重設即自癒)。上方 camBlocked/讓位 guard 已提早 return→bt 不累積→呼吸凍結,回來接著呼吸。
-    breathStage(); // 冪等(見 _breathStage):讓位/劇場回場時重新上台,途中被 setBasemap 加回的圖磚也在此卸掉
-    map.options.zoomSnap = 0;
+    // 都會呼吸:地圖固定 z13(圖磚在場),放大縮小改由 CSS transform 合成(見 breathStage/breathScale)。setView 只在進場做一次
+    // (換幕邏輯),此處不碰 Leaflet zoom。上方 camBlocked/讓位 guard 已提早 return→bt 不累積→呼吸凍結,回來接著呼吸。
+    breathStage(); // 冪等:設 _breathStage(供互動歸位+浮點投影)+transformOrigin;讓位後回場在此重新上台
     sc.bt = (sc.bt || 0) + dt;
     const frac = (1 - Math.cos(2 * Math.PI * sc.bt / BREATH_PERIOD_SEC)) / 2; // 0→1→0 一個 T 完成放大再縮回
-    const z = sc.z0 + (sc.z1 - sc.z0) * frac;
-    state._hotCam = true; // 自家逐幀縮放:zoomstart 不算使用者操作(否則每幀誤觸讓位)
-    map.setView([sc.anchor.lat, sc.anchor.lon], z, { animate: false });
-    state._hotCam = false;
+    breathScale(1 + (BREATH_SCALE - 1) * frac); // 對 #map+#overlay 同幀等值縮放;錨點固定零平移
     return;
   }
   // 浮點像素游標:latLngToContainerPoint 會整數化,0.1px 級步進會被吃成不動點,
@@ -5917,8 +5886,7 @@ function camBlocked() { return !!state._theater || document.hidden; }
 function enterTheater() {
   if (!state.ambient || state._theater || state.liveMode || REC.on || !map) return; // OBS(?live)/錄影/非放空一律不進
   state._theater = true;
-  breathSnapRestore(true); // 進劇場:呼吸幕可能留 zoomSnap=0 與分數 zoom,還原原值並收整——下一行 flyToBounds 隨即改鏡,從整數起飛才落在整數 bounds zoom(與非呼吸進劇場一致)
-  breathStageRestore();    // 呼吸舞台交棒給劇場:只清旗標不動底圖(_theater 已真→內部跳過 setBasemap),圖磚本就已卸、劇場下面接手同一個離線輪廓
+  breathStageRestore();    // 呼吸舞台交棒給劇場:清 CSS scale + 旗標(_theater 已真→內部跳過 setBasemap);下一行 flyToBounds 從 z13 起飛,與非呼吸進劇場一致
   document.body.classList.add('theater');
   // 切離線海陸向量底層:移除所有線上圖磚圖層(亮/暗/衛星皆適用),露出墊在底下的 taiwan_land(斷線備援層,劇場主動啟用)
   if (!state.offlineLand) setupOfflineLand();
@@ -8520,7 +8488,6 @@ function offlineLandStyle() {
 }
 async function setupOfflineLand() {
   const land = await fetchJSON('./data/taiwan_land.json'); if (!land || !map) return;
-  state._landGeo = land; // 原始 geojson 留一份:呼吸幕由 overlay 同幀同投影自繪海陸輪廓(drawBreathLand)
   map.createPane('fallbackPane');
   const pane = map.getPane('fallbackPane'); pane.style.zIndex = '150'; pane.style.pointerEvents = 'none';
   const renderer = L.canvas({ pane: 'fallbackPane', padding: .35 });
@@ -9298,14 +9265,14 @@ async function boot() {
     if (state.ambient && state.ambientStyle === 'hotspot' && !state.followTrain) {
       state._hotNext = performance.now() + 45000; // 使用者動手看地圖:這一幕延長,巡航讓位幾秒再接手
       state._hotYield = performance.now() + 8000;
-      if (state._hotScene && state._hotScene.breath) { breathSnapRestore(true); breathStageRestore(); } // 呼吸幕被使用者拖曳接管:交還乾淨地圖(還原 zoomSnap+收整 zoom+街圖底圖回場)
+      if (state._hotScene && state._hotScene.breath) breathStageRestore(); // 呼吸幕被使用者拖曳接管:交還乾淨地圖(清 CSS scale + 底圖回場)
     }
   });
   // 群車巡航中使用者縮放(滾輪/捏合)同樣讓位;巡航會在新 zoom 重建游標接著巡
   map.on('zoomstart', () => {
     if (state.ambient && state.ambientStyle === 'hotspot' && !state.followTrain && !state._hotCam) {
       state._hotYield = performance.now() + 8000;
-      if (!state._theater && state._hotScene && state._hotScene.breath) { breathSnapRestore(true); breathStageRestore(); } // 使用者自己縮放才交還(含街圖回場);劇場入場的 flyToBounds(_theater 已真)不算
+      if (!state._theater && state._hotScene && state._hotScene.breath) breathStageRestore(); // 使用者自己縮放才交還(清 CSS scale + 底圖回場);劇場入場的 flyToBounds(_theater 已真)不算
     }
   });
   // crossOrigin: 錄影功能要把圖磚畫進合成 canvas,沒有 CORS 標記畫布會被汙染(無法 captureStream)
@@ -9351,13 +9318,22 @@ async function boot() {
   map.on('movestart move zoomstart zoom dragstart', markInteract);
   ['pointerdown', 'wheel', 'touchstart', 'touchmove'].forEach(ev =>
     document.addEventListener(ev, markInteract, { passive: true }));
-  // 呼吸幕被使用者縮放(滾輪/捏合/雙擊)接管:Leaflet 的 wheel 縮放即使 zoomSnap 已還原成 1 仍可能落在分數 zoom,
-  // 故在縮放收尾(zoomend)把它收回整數,交還乾淨地圖。自家逐幀呼吸的 setView 也發 zoomend,但都在 _hotCam=true 期間→排除;
-  // breathSnapRestore 內的 setZoom 也在 _hotCam 期間,不會遞迴。
+  // 呼吸幕被使用者縮放(滾輪/捏合/雙擊)接管的兜底:zoomstart 已交還,zoomend 再確保一次(冪等)。
+  // 自家逐幀呼吸只施加 CSS scale、不動 Leaflet zoom,故此 handler 不會被自家觸發(且有 _hotCam 保險)。
   map.on('zoomend', () => {
     if (state.ambient && state.ambientStyle === 'hotspot' && !state.followTrain && !state._hotCam &&
-        state._hotScene && state._hotScene.breath) { breathSnapRestore(true); breathStageRestore(); }
+        state._hotScene && state._hotScene.breath) breathStageRestore();
   });
+  // 互動第一擊座標歸位(呼吸幕 CSS scale 合成專用):scale 下 Leaflet 的拖曳位移不吃 transform、會 1.6× 滑走。
+  // 在 .stage capture 階段(搶在 Leaflet 之前)同步清 scale→地圖回 z13 原尺寸,之後 Leaflet 以 getBoundingClientRect
+  // 算座標即正確;同時設 _hotYield 讓 hotCruise 暫停重新縮放(觸即定,任使用者看/操作),既有 dragstart/zoomstart 讓位隨後完成完整退場。
+  {
+    const stage = document.querySelector('.stage');
+    const settleBreath = () => { if (!state._breathStage) return; breathScale(1); state._hotYield = performance.now() + 8000; };
+    stage.addEventListener('pointerdown', settleBreath, { capture: true });
+    stage.addEventListener('wheel', settleBreath, { capture: true, passive: true });
+    stage.addEventListener('touchstart', settleBreath, { capture: true, passive: true });
+  }
 
   for (const d of SYS_DEFS) {
     const data = await fetchJSON(d.url);
