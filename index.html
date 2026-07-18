@@ -1086,11 +1086,20 @@
   .board .row .t, .board .row .min { font-variant-numeric: tabular-nums; }
   .board .row .t { font-weight: 800; color: var(--ink-strong); }
   .board .row .min { color: var(--navy); font-weight: 700; min-width: 44px; text-align: right; }
-  .board .close { position: absolute; top: 8px; right: 9px; z-index: 2; background: none; border: 0; color: var(--on-navy); opacity: .8; font-size: 17px; cursor: pointer; line-height: 1; }
-  .board .close:hover { opacity: 1; }
-  /* 車站看板 ☆ 收藏鈕(挨著 × 左側,樣式比照) */
-  .board .board-star { position: absolute; top: 8px; right: 32px; z-index: 2; background: none; border: 0; color: var(--on-navy); opacity: .8; font-size: 15px; cursor: pointer; line-height: 1; padding: 1px 2px; }
-  .board .board-star:hover { opacity: 1; }
+  /* 車站看板右上角 ☆／× :兩顆吃同一組尺寸與置中,不靠字級與 UA padding 對齊。
+     舊寫法各自 top:8px 切「上緣」,但 .close 沒設 padding 而吃到瀏覽器 UA 預設按鈕 padding
+     (chromium 1px 6px、webkit 2px 6px 3px),加上字級 17 vs 15,兩顆實測高度 17/19/22px 各異
+     → 視覺中心 chromium 差 1.0px、webkit 差 2.5px;且手機 media query 當時只改了 .close 的 top。 */
+  .board .close, .board .board-star {
+    position: absolute; top: 8px; z-index: 2; width: 22px; height: 22px; padding: 0;
+    display: flex; align-items: center; justify-content: center;
+    background: none; border: 0; color: var(--on-navy); opacity: .8; cursor: pointer; line-height: 1;
+  }
+  /* × 這個字元在字型裡的墨跡偏下(相對 em 框重心 +1.6px,實測 canvas 量得),即使 flex 置中框也會看起來偏低
+     → 對字形本身補 -1.5px 讓兩字視覺重心對齊(只動 transform,不影響 22px 命中框) */
+  .board .close { right: 9px; font-size: 17px; transform: translateY(-1.5px); }
+  .board .board-star { right: 31px; font-size: 15px; }
+  .board .close:hover, .board .board-star:hover { opacity: 1; }
   .board .board-star.on { color: #ffd977; opacity: 1; }
   /* 最愛車站的地圖 ★ 記號(掛站點上方一點;點了直接開該站看板) */
   .favst-ico { font-size: 15px; line-height: 16px; text-align: center; color: #d9a62e; cursor: pointer;
