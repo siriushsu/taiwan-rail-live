@@ -1857,6 +1857,7 @@
     <details class="foot-box">
       <summary><span>🛠 更新紀錄</span><span class="foot-sub">最後更新：2026/7/18</span></summary>
       <ul class="foot-list">
+        <li><span class="d">7/18</span><span>「都會呼吸」定場畫面抖動修正：昨天上線的呼吸運鏡在緩緩拉近、拉遠時，整個畫面（島嶼輪廓與列車路網）會有一種細微的晃動、抖動感——原因是分數縮放逐幀重繪時的像素取整誤差。現在改用平滑的浮點重繪，海陸輪廓與路網每一幀都精準對齊、隨呼吸平順縮放，不再抖動</span></li>
         <li><span class="d">7/18</span><span>「今日台鐵動態」的「跟這班車」按鈕修正：之前只要切去過捷運路線、或把時間軸拉回過去看過，按鈕就會從此消失，看起來像只出現一次。現在只要那班車還在即時名單上（30 分鐘內有更新），按鈕就會一直在，點下去會自動幫你切回台鐵畫面開始跟車</span></li>
         <li><span class="d">7/18</span><span>公告視窗的說明文字不再自相矛盾：昨天上線的「台鐵大面積誤點」提醒寫「動畫如實反映延誤」，底下的來源說明卻寫「動畫仍照原時刻表推演、不會反映」——謝謝眼尖的回報，現在寫清楚了：誤點確實有逐車跟上（晚幾分就畫在晚幾分的位置）、部分捷運也有看板校正，但停駛、取消或加開的班次動畫不會反映，該班車仍會照表出現在畫面上，實際運行請以官方公告為準</span></li>
         <li><span class="d">7/18</span><span>新增「今日台鐵動態」：全台鐵今天每班車的誤點排行一目了然，點任何一班可展開它今天的逐站歷程——幾點到哪站、當時誤點幾分、最慘誤點到幾分，全都記下來。工具列的「今日」按鈕（手機在「更多」裡）打開，資料每天清晨重新開始累積</span></li>
@@ -2035,7 +2036,7 @@
 <script>
 // 版本戳記:每次改版 push 前手動遞增(字母序),畫面時鐘徽章與 console 都會顯示,
 // 供比對線上跑的是不是最新版(瀏覽器快取 max-age=600 常讓人看到舊版)
-const BUILD = 'v0718b';
+const BUILD = 'v0718c';
 const state = {
   systems: [], sysId: null, data: null, speed: 36, mode: 'freq',
   lines: [], visible: new Set(), trains: [], schedStations: [], types: [],
@@ -4510,6 +4511,25 @@ function freqTrainAt(cp) {
   return best ? { ln: best.ln, k: best.k, tr: best.tr, dist: bd } : null;
 }
 
+// 呼吸幕海陸輪廓:把離線 geojson(taiwan_land)每幀畫進 overlay,墊在路網之下。用 latLngToContainerPoint
+// (呼吸中已被包成浮點投影)→ 與列車路網同一畫布、同一幀、同一套投影 → 跨層相對抖動恆為 0、隨分數 zoom 平滑縮放。
+// 海是 #map 的 offline-land 背景色透上來,#skyTint(z550>overlay z500)照樣把日夜天色蓋上,視覺與原 Leaflet 層一致。
+function drawBreathLand() {
+  const geo = state._landGeo; if (!geo || !geo.geometry) return;
+  const g = geo.geometry, polys = g.type === 'MultiPolygon' ? g.coordinates : g.type === 'Polygon' ? [g.coordinates] : [];
+  if (!polys.length) return;
+  const st = offlineLandStyle();
+  ctx.save();
+  ctx.beginPath();
+  for (const poly of polys) for (const ring of poly) { // 單一路徑收全部環,evenodd 填色正確處理內湖洞
+    for (let i = 0; i < ring.length; i++) { const p = map.latLngToContainerPoint([ring[i][1], ring[i][0]]); if (i === 0) ctx.moveTo(p.x, p.y); else ctx.lineTo(p.x, p.y); }
+    ctx.closePath();
+  }
+  ctx.globalAlpha = st.fillOpacity != null ? st.fillOpacity : 1; ctx.fillStyle = st.fillColor; ctx.fill('evenodd');
+  ctx.globalAlpha = st.opacity != null ? st.opacity : 1; ctx.lineWidth = st.weight || 1; ctx.strokeStyle = st.color; ctx.stroke();
+  ctx.restore();
+}
+
 function draw() {
   if (!state.ready) return;
   state._drawCount = (state._drawCount || 0) + 1; // 省電節流的實測計數器(測試讀取繪製頻率用)
@@ -4520,6 +4540,7 @@ function draw() {
   state._crossHits = [];
   labelBoxes = [];
   ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+  if (state._breathStage && state._landGeo) drawBreathLand(); // 呼吸幕:海陸輪廓墊底,與路網同幀同浮點投影(不 shimmer、不跨層抖)
   if (state.mode === 'sched') { if (state.deco) drawDeco(w, h); drawSched(w, h); if (state.deco) drawDecoLabels(); } else drawFreq(w, h);
   ctx.globalAlpha = 1; ctx.textAlign = 'start'; ctx.textBaseline = 'alphabetic';
 }
@@ -5556,10 +5577,15 @@ function breathStage() {
   }
   // 每幀冪等掃(hasLayer 為 O(1)):呼吸中若有人 setBasemap(如換主題)把圖磚加回來,下一幀再卸掉,舞台自癒
   for (const k in baseLayers) if (map.hasLayer(baseLayers[k])) map.removeLayer(baseLayers[k]);
+  // 海陸輪廓改由 overlay 同幀同投影自繪(drawBreathLand,浮點不 shimmer)→ 隱藏 Leaflet 離線層,
+  // 免其獨立取整投影造成雙重描繪與跨層相對抖動。geojson 尚未載入時先留 Leaflet 層,避免海陸空窗。
+  const fp = map.getPane('fallbackPane'); if (fp) fp.style.display = state._landGeo ? 'none' : '';
 }
 function breathStageRestore() {
   if (!map || !state._breathStage) return; // 冪等:沒上過台就不動底圖
   state._breathStage = false;
+  const fp = map.getPane('fallbackPane'); if (fp) fp.style.display = ''; // 還原 Leaflet 離線層(劇場/離線備援共用)
+  state._bpZ = null; // 清投影中心快取,下次呼吸重算
   if (!state._theater) setBasemap(); // 劇場為真時不還原——劇場擁有舞台,exitTheater 自己會 setBasemap(含衛星偏好)
 }
 function hotspotTick(now) {
@@ -8282,6 +8308,7 @@ function offlineLandStyle() {
 }
 async function setupOfflineLand() {
   const land = await fetchJSON('./data/taiwan_land.json'); if (!land || !map) return;
+  state._landGeo = land; // 原始 geojson 留一份:呼吸幕由 overlay 同幀同投影自繪海陸輪廓(drawBreathLand)
   map.createPane('fallbackPane');
   const pane = map.getPane('fallbackPane'); pane.style.zIndex = '150'; pane.style.pointerEvents = 'none';
   const renderer = L.canvas({ pane: 'fallbackPane', padding: .35 });
@@ -8815,6 +8842,23 @@ async function boot() {
   // 讓圖磚與 overlay 同幀落定即根除。此設定只影響縮放補間,平移/跟車動畫不受影響。
   map = L.map('map', { zoomControl: true, attributionControl: true, preferCanvas: true, zoomAnimation: false })
     .setView([24.5, 121], 8);
+  // 都會呼吸幕(分數 zoom 定場)專用:Leaflet 的 latLngToContainerPoint 對每點 project 取整、又減
+  // 取整後的 pixelOrigin,分數 zoom 逐幀推進時整幅畫面(路網+海陸輪廓)會 ±1~2.5px shimmer 抖動。
+  // 呼吸中(_breathStage)改走「相對地圖中心的浮點投影」(零取整)→ 每幀平滑縮放;所有繪製消費者
+  // (reproject/列車/站名/海陸輪廓)都經此函數,一處包好全體受惠。平時原樣(呼叫原生實作),只動呼吸幕路徑。
+  const _origL2C = map.latLngToContainerPoint;
+  map.latLngToContainerPoint = function (latlng) {
+    if (state._breathStage) {
+      const ll = L.latLng(latlng), z = this._zoom, c = this.getCenter(), size = this.getSize();
+      if (state._bpZ !== z || state._bpCLat !== c.lat || state._bpCLng !== c.lng) { // 每幀中心/縮放固定,投影中心快取一次
+        state._bpZ = z; state._bpCLat = c.lat; state._bpCLng = c.lng;
+        const C = this.project(c, z); state._bpCx = C.x; state._bpCy = C.y; state._bpHx = size.x / 2; state._bpHy = size.y / 2;
+      }
+      const P = this.project(ll, z); // project 不取整(取整只在 latLngToLayerPoint 內),故此路徑全程浮點
+      return new L.Point(P.x - state._bpCx + state._bpHx, P.y - state._bpCy + state._bpHy);
+    }
+    return _origL2C.call(this, latlng);
+  };
   await setupOfflineLand();
   window.__map = map; // 驗證腳本用的把手(map 為閉包變數,外部拿不到)
   window.__state = state; // 同上:唯讀給驗證腳本讀命中快取/模擬時鐘(平交道等)
