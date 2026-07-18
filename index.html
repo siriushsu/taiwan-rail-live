@@ -1032,6 +1032,12 @@
   .badge .mlive.anom { color: var(--warn-ink); }
   .badge .mlive.anom::before { animation: none; opacity: 1; }
   @keyframes livePulse { 0%, 100% { opacity: 1; } 50% { opacity: .35; } }
+  /* 祝山線觀日列車「推算」小標:時刻是本站依官方日出表推算的,不是官方公告值 */
+  .estTag {
+    color: var(--ink-soft, #8a8577); font-weight: 700; font-size: 9.5px; margin-left: 4px;
+    border: 1px solid currentColor; border-radius: 3px; padding: 0 3px 1px;
+    white-space: nowrap; opacity: .85; vertical-align: 1px;
+  }
   .lateTag {
     color: var(--warn-ink); font-weight: 800; font-size: 10.5px; margin-left: 4px;
     background: var(--warn-bg); border: 1px solid var(--warn-line); border-radius: 3px;
@@ -2038,7 +2044,7 @@
     <details class="foot-box">
       <summary><span>🛠 更新紀錄</span><span class="foot-sub">最後更新：2026/7/19</span></summary>
       <ul class="foot-list">
-        <li><span class="d">7/19</span><span>阿里山森林鐵路上線了：從嘉義出發，跟著小火車一路盤旋上山——繞過獨立山的螺旋線、在第一分道之字形折返「碰壁」爬升，最後抵達阿里山。全線 21 個車站、四條路線（本線與神木、沼平、祝山三條支線）都畫出來了，在「國家鐵路」頁籤點「阿里山林鐵」即可，全台同框也看得到它。林鐵嘉義站就疊在台鐵嘉義站旁，地圖上會一起標出來。兩件要先說的事：一是林鐵沒有官方即時位置與誤點資訊（不像台鐵有），畫面一律依官方公告時刻表推演；二是<b>看日出的祝山線不會有車在跑</b>——它沒有固定時刻表，開車時間隨當日日出調整、要到前一天下午 4 點半才公告（今天是 04:20 發車，官方常態表上卻寫 08:00），與其畫一班對不上的車，不如老實不畫，要搭請以林鐵官網當日公告為準。山區天候多變、停駛與加開都常見，實際開行與購票同樣以阿里山林業鐵路及文化資產管理處官網為準</span></li>
+        <li><span class="d">7/19</span><span>阿里山森林鐵路上線了：從嘉義出發，跟著小火車一路盤旋上山——繞過獨立山的螺旋線、在第一分道之字形折返「碰壁」爬升，最後抵達阿里山。全線 21 個車站、四條路線（本線與神木、沼平、祝山三條支線）都畫出來了，在「國家鐵路」頁籤點「阿里山林鐵」即可，全台同框也看得到它。林鐵嘉義站就疊在台鐵嘉義站旁，地圖上會一起標出來。兩件要先說的事：一是林鐵沒有官方即時位置與誤點資訊（不像台鐵有），畫面一律依官方公告時刻表推演；二是<b>看日出的祝山線觀日列車，時刻是推算的</b>——它沒有固定時刻表，開車時間隨當天日出調整、要到前一天下午 4 點半才公告，所以我們把官方公告的全年日出時間表放了進來，每天推算出「日出前約 72 分鐘發車」的觀日列車（用今天官方公告的 04:20 校準過，剛好吻合），班次上會標「推算」二字，凌晨想搭車看日出請以林鐵前一日公告為準。山區天候多變、停駛與加開都常見，實際開行與購票同樣以阿里山林業鐵路及文化資產管理處官網為準。另外把車站看板右上角的 ☆ 與 × 對齊了</span></li>
         <li><span class="d">7/18</span><span>下次打開就回到你上次看的地方了：地圖位置、縮放倍率，還有你選的路網頁籤與勾選的系統（例如「北北桃」裡只留台北捷運），通通會記住，不用每次重點一次。不需要註冊或登入，紀錄只留在你自己的裝置裡。從別人分享的連結進來時一律以連結指定的畫面為準、不會被蓋掉；跟隨列車與放空巡航時鏡頭是自己在跑的，不會被誤記成「你在看的位置」；時間軸則維持每次打開都回到「現在」（謝謝網友建議）</span></li>
         <li><span class="d">7/18</span><span>從 Threads、IG、LINE 這些 App 裡點連結進來的朋友，畫面下方會出現一張小卡，提醒你改用 Safari／Chrome 開啟——App 內建的瀏覽器沒辦法把軌島加入主畫面，看完常常就再也找不回來了。Android 點一下按鈕直接跳到瀏覽器；iPhone 一鍵複製網址、或照指引點角落「⋯」用外部瀏覽器開啟。在一般瀏覽器或主畫面 App 裡完全不會看到這張卡，按 × 關掉後也不會再出現</span></li>
         <li><span class="d">7/18</span><span>iPad 直式與中等寬度的視窗不再擠壞版面：這個寬度以前拿到的是桌面版工具列，按鈕多到裁出畫面外，現在改用手機版的底部工具列與「更多」選單，每顆按鈕都摸得到。桌面版工具列也瘦身了：音樂控制收成一顆 ♪ 小鈕，滑鼠移過去（或鍵盤 Tab 過去）會彈出換首與音量的小面板，1280 寬的螢幕從此一顆不裁；「更多」選單重新分成「地圖顯示／資訊／觀看模式／分享與資料」四組更好找；左上角「時刻表模擬／深夜重播」徽章改成灰藍色，不再跟紅色誤點警示同色好分辨；手機頁籤列右緣加了淡出提示還有更多可滑；站名牌下的英文副標也放大了一點更易讀</span></li>
@@ -2237,7 +2243,7 @@
 <script>
 // 版本戳記:每次改版 push 前手動遞增(字母序),畫面時鐘徽章與 console 都會顯示,
 // 供比對線上跑的是不是最新版(瀏覽器快取 max-age=600 常讓人看到舊版)
-const BUILD = 'v0719b';
+const BUILD = 'v0719c';
 // 手機/平板直式「殼」斷點(議題1:640→900,iPad 直式改拿 tabbar＋更多抽屜):與 CSS @media 同步,版面類判斷一律用此常數。
 // 注意:裝置等級判斷(keepBuffer/powerSave 預設)刻意不用此常數、維持 640——iPad 不該因為改拿 tabbar 就被當低階裝置。
 const MOBILE_MQ = '(max-width: 900px)';
@@ -2285,7 +2291,7 @@ const SYS_META = {
   tmrt:      { plateL: '北屯總站', plateR: '高鐵臺中站', sub: 'TAICHUNG METRO LIVE', lead: '綠線列車沿著文心路跑（無公開逐班時刻，班次依官方班距與首末班車推算）— 拖曳、縮放看看。' },
   tra_sched: { plateL: '基隆', plateR: '枋寮', sub: '台灣鐵道即時軌跡',  lead: '列車依當日時刻表運行，回到現在時刻（1×）會自動套用台鐵即時誤點修正 — 點列車跟隨、點車站看班次，或按地圖角落「探」看今日亮點列車。' },
   thsr_sched: { plateL: '南港', plateR: '左營', sub: '台灣鐵道即時軌跡', lead: '高鐵列車依當日真實時刻表沿西部走廊南北奔馳（南港－左營）— 點列車跟隨、點車站看班次。' },
-  afr_sched: { plateL: '嘉義', plateR: '阿里山', sub: 'ALISHAN FOREST RAILWAY', lead: '阿里山林業鐵路從嘉義平原一路盤旋上山，途中經過獨立山螺旋與第一分道的之字形折返——列車依官方公告時刻表運行（本線無即時資訊，且常因天候或維修停駛）。祝山線觀日列車隨當日日出時間調整、前一日 16:30 才公告，這裡不做推演，請查林鐵官網。' },
+  afr_sched: { plateL: '嘉義', plateR: '阿里山', sub: 'ALISHAN FOREST RAILWAY', lead: '阿里山林業鐵路從嘉義平原一路盤旋上山，途中經過獨立山螺旋與第一分道的之字形折返——列車依官方公告時刻表運行（本線無即時資訊，且常因天候或維修停駛）。祝山線觀日列車每天隨日出調整、前一日 16:30 才公告，畫面依官方日出時間表推算並標示「推算」，實際請以林鐵官網為準。' },
 };
 
 // 播放/速度/時間的統一入口(控制列、快捷鍵、全畫面控制共用)
@@ -2611,7 +2617,7 @@ function freqTrainInfoAt(ln, tr, t) {
 const PERF_DEFAULT = { a: 1.5, b: 2.5, v: 110 };
 const PERF_HSR = { a: 2.0, b: 2.7, v: 300 };
 const PERF_RULES = [ // carName 正整比對(鏡射 KIND_RULES 順序,先中先贏)
-  [/阿里山號|祝山線|神木線|沼平線/, { a: 0.7, b: 1.1, v: 45 }], // 阿里山林鐵 762mm 窄軌小火車(登山段極慢)
+  [/阿里山號|祝山線|神木線|沼平線|觀日/, { a: 0.7, b: 1.1, v: 45 }], // 阿里山林鐵 762mm 窄軌小火車(登山段極慢;觀日=祝山觀日列車 carName)
   [/普快車|普通車/, { a: 1.3, b: 2.4, v: 100 }],     // 藍皮普快/傳統客車
   [/\(太/,   { a: 1.88, b: 3.6, v: 135 }],           // 太魯閣 TEMU1000(傾斜式)
   [/\(普/,   { a: 1.84, b: 3.6, v: 135 }],           // 普悠瑪 TEMU2000(傾斜式)
@@ -5118,8 +5124,8 @@ function loadSystem(sys) {
       // 林鐵走 TDX 定期時刻表(每日相同,非每日檔),且無即時介接→文案不可沿用台鐵/高鐵那兩支
       ? ('資料來源：交通部TDX平臺 阿里山林業鐵路定期時刻表' + (sys.data.date ? '（' + sys.data.date + ' 擷取）' : '') +
         '，共 ' + state.trains.length + ' 車次；林鐵未提供列車即時位置與誤點介接，畫面一律依官方公告時刻表推演。' +
-        // 祝山線觀日列車不動畫的理由要寫在使用者看得到的地方——只是默默不畫,使用者會以為是我們漏了
-        '祝山線觀日列車不在其中：它沒有固定時刻表，開車時間隨當日日出調整、於乘車前一日 16:30 才由林鐵公告，故本站不做推演（TDX 常態表對這兩班給的是佔位時間）。' +
+        // 祝山線時刻是推算的——要寫在使用者看得到的地方,不能讓推算值被當成官方公告
+        '祝山線觀日列車（車次 97/98）沒有固定時刻表，開車時間每天隨日出調整、於乘車前一日 16:30 才由林鐵公告；畫面依官方「祝山觀日平台日出時間概況表」推算（去程約日出前 72 分發車，以 2026/7/19 官方公告 04:20 校準），班次列標「推算」，實際發車以林鐵當日公告為準。' +
         '本線常因天候、維修而調整或停駛，實際開行與購票請以林業及自然保育署阿里山林業鐵路及文化資產管理處公告為準。點地圖上的車站可看即將停靠的班次。')
       : sys.live
       ? ('資料來源：台鐵官方 OpenData（ods.railway.gov.tw）每日時刻表' + (sys.data.date ? '（' + sys.data.date + '）' : '') +
@@ -6341,7 +6347,7 @@ function renderTrainCard(tr) {
   const first = tr.stops[0], last = tr.stops[tr.stops.length - 1];
   document.getElementById('tcDot').style.background = tr.color;
   document.getElementById('tcNo').textContent = tr.train;
-  document.getElementById('tcKind').textContent = tr.loop ? '觀光列車' : (it.kind || tr.typeName);
+  document.getElementById('tcKind').textContent = tr.loop ? '觀光列車' : tr.est ? `${tr.typeName}・時刻推算` : (it.kind || tr.typeName);
   document.getElementById('tcRoute').textContent =
     `${first.name} ${fmtHM(first.depSec % 86400)} → ${last.name} ${fmtHM(last.arrSec % 86400)}`;
   let html = '';
@@ -8476,8 +8482,10 @@ function renderBoard() {
     const min = r.dtm < 60 ? '即將' : Math.round(r.dtm / 60) + ' 分';
     const dest = r.tr.loop ? '往 ' + r.loopDest : (r.isLast ? '（終點到達）' : '往 ' + r.dest);
     return `<div class="row" data-no="${r.tr.train}" title="跟隨 ${r.tr.train} 次"><span class="dot" style="background:${r.tr.color}"></span>` +
+      // 「推算」標貼著時刻放(被推算的是時間不是路線),與 lateTag 同位、不會同時出現(est 車無誤點資料);
+      // 放 dest 欄會把「（終點到達）」擠成「(…」(280px 看板實測)。
       `<b>${r.tr.train}</b><span class="dest">${r.tr.loop ? r.tr.loopName : r.tr.typeName}　${dest}</span>` +
-      `<span class="t">${fmtHM(r.t % 86400)}${r.dl > 0 ? `<span class="lateTag">+${r.dl}</span>` : ''}</span><span class="min">${min}</span></div>`;
+      `<span class="t">${fmtHM(r.t % 86400)}${r.tr.est ? '<span class="estTag">推算</span>' : r.dl > 0 ? `<span class="lateTag">+${r.dl}</span>` : ''}</span><span class="min">${min}</span></div>`;
   }).join('');
   const fav = isFavStation(st);
   // 共構站(台北/板橋/南港…)台鐵/高鐵各自成板,標題標系統才分得清這張是誰的
@@ -8485,7 +8493,9 @@ function renderBoard() {
   el.innerHTML = `<h3>${st.name}${sysName ? `<span class="sys-chip">${sysName}</span>` : ''}` +
     `<button class="board-star${fav ? ' on' : ''}" id="boardStar" title="${fav ? '移除最愛車站' : '加入最愛車站'}">${fav ? '★' : '☆'}</button>` +
     `<button class="close" id="boardClose">×</button></h3>` + stnMetaHtml(st) +
-    `<div class="sub">接下來 3 小時會有誰來 · ${liveFresh() ? '已套用台鐵即時誤點' : liveActive() ? '已依即時誤點推估' : '依時刻表（無誤點資訊）'} · 點班次跟隨</div>` +
+    // 林鐵站不可沿用台鐵誤點文案:群組視圖 liveActive 為真(台鐵 live 在場)但林鐵根本無即時介接,
+    // 顯示「已依即時誤點推估」等於謊稱有校正(使用者截圖抓到);觀日列車另以列上「推算」標記標示。
+    `<div class="sub">接下來 3 小時會有誰來 · ${st.sys === 'afr_sched' ? '依林鐵官方時刻表（無即時資訊）' : liveFresh() ? '已套用台鐵即時誤點' : liveActive() ? '已依即時誤點推估' : '依時刻表（無誤點資訊）'} · 點班次跟隨</div>` +
     (list || '<div class="empty">此時段無停靠班次</div>');
   el.hidden = false;
   updateSheetOpenClass();
@@ -9491,12 +9501,52 @@ async function boot() {
     stage.addEventListener('touchstart', settleBreath, { capture: true, passive: true });
   }
 
+  // ── 祝山線觀日列車(97/98):每天依官方日出時間表推算合成 ──
+  // TDX 常態表對這兩班給的是佔位時間(build_afr.mjs 已排除),實際發車每天隨日出變動、前一日 16:30
+  // 才公告——但官方公告了全年「祝山觀日平台日出時間概況表」(afrch.forest.gov.tw/0000300,訂票系統同表),
+  // 且可由兩個實測點校準:2026-07-19 官方公告「04:20 開車/回程末班 06:10」,當旬日出 05:32
+  // → 去程=日出−72分、回程=日出+38分;訂票系統「夏季約凌晨4時、冬季約6時出發」兩季皆吻合此式。
+  // 故前端逐日推算,全程標示「推算」(est 旗標),實際以林鐵前一日公告為準。
+  // 列=1~5/6~10/11~15/16~20/21~25/26~31 日,欄=1~12 月(2026-07 自官方頁抄錄)。
+  const AFR_SUNRISE = [
+    ['07:05', '07:02', '06:40', '06:00', '05:29', '05:19', '05:25', '05:36', '05:48', '06:13', '06:32', '06:50'],
+    ['07:08', '07:01', '06:33', '05:50', '05:28', '05:21', '05:27', '05:40', '05:50', '06:18', '06:35', '06:54'],
+    ['07:06', '06:54', '06:28', '05:42', '05:25', '05:19', '05:30', '05:41', '05:56', '06:20', '06:37', '06:57'],
+    ['07:05', '06:52', '06:18', '05:39', '05:23', '05:20', '05:32', '05:45', '05:58', '06:21', '06:40', '06:59'],
+    ['07:05', '06:47', '06:13', '05:35', '05:21', '05:24', '05:33', '05:46', '06:01', '06:23', '06:43', '07:03'],
+    ['07:03', '06:45', '06:06', '05:30', '05:20', '05:25', '05:34', '05:47', '06:09', '06:30', '06:48', '07:04'],
+  ];
+  function addSunriseTrains() {
+    const sys = state.systems.find(s => s.id === 'afr_sched');
+    const zs = sys && sys._track && sys._track.lines.find(l => l.name === '祝山線');
+    if (!sys || !zs || sys.data.trains.some(t => String(t.train) === '97')) return; // 冪等
+    const [, m, d] = todayStr().split('-').map(Number); // 台北日(時區錨定契約),海外裝置勿用當地日期
+    const [hh, mm] = AFR_SUNRISE[Math.min(5, Math.floor((d - 1) / 5))][m - 1].split(':').map(Number);
+    const S = hh * 3600 + mm * 60;
+    const r5 = s => Math.round(s / 300) * 300; // 官方公告慣例 5 分粒度(05:32−72分=04:20 恰為整)
+    const at = n => zs.stations.find(x => x.name === n);
+    const [ali, dgy, zhu] = ['阿里山', '對高岳', '祝山'].map(at);
+    const RUN = 30 * 60, frac = dgy.d / zhu.d; // TDX 97/98 皆 30 分整程;對高岳通過時刻依里程比例內插
+    const mk = (no, a, b, dep) => ({
+      train: no, typeName: '祝山線', carName: '祝山觀日列車', color: '#E0A458', est: true,
+      stops: [
+        { name: a.name, lat: a.lat, lon: a.lon, order: 1, arrSec: dep - 180, depSec: dep, stop: true },
+        { name: dgy.name, lat: dgy.lat, lon: dgy.lon, order: 2, stop: false,
+          arrSec: dep + Math.round(RUN * (a.name === '阿里山' ? frac : 1 - frac)),
+          depSec: dep + Math.round(RUN * (a.name === '阿里山' ? frac : 1 - frac)) },
+        { name: b.name, lat: b.lat, lon: b.lon, order: 3, arrSec: dep + RUN, depSec: dep + RUN + 180, stop: true },
+      ],
+    });
+    sys.data.trains.push(mk('97', ali, zhu, r5(S - 72 * 60)), mk('98', zhu, ali, r5(S + 38 * 60)));
+  }
+
   for (const d of SYS_DEFS) {
     const data = await fetchJSON(d.url);
     if (data) state.systems.push({ ...d, data });
   }
   // 各 sched 系統的軌道底圖幾何(台鐵 tra.json / 高鐵 thsr_track.json)掛在該系統上,loadSystem 依系統取用
   for (const s of state.systems) if (s.track) s._track = await fetchJSON(s.track);
+  addSunriseTrains(); // 要在 _track 載完後(站座標取自軌道資料,與其餘班表同源)、任何 loadSystem 之前
   // 捷運/輕軌逐班時刻(*_times.json,build_metro_times.mjs 產);缺檔時該系統退回班距均勻撒車
   for (const s of state.systems) if (s.times) s._times = await fetchJSON(s.times);
   // 站等資料(特等/一等/…),缺檔就全走停靠班次數啟發式

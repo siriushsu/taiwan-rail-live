@@ -1,4 +1,4 @@
-// 阿里山林鐵(v0719b)獨立驗證——資料層斷言 + Playwright 真引擎(chromium+webkit)端到端 + 手機寬度。
+// 阿里山林鐵(v0719c)獨立驗證——資料層斷言 + Playwright 真引擎(chromium+webkit)端到端 + 手機寬度。
 // 本腳本不參與實作,判準來自 TDX 原始資料與地理事實,刻意不看 build_afr.mjs 怎麼做:
 //
 //   · TDX v3/Rail/AFR 才有資料(v2 全 404)。官方本線 StationOfLine 為 17 站,序尾是
@@ -107,8 +107,8 @@ const sch = JSON.parse(readFileSync('data/afr_schedule_dense.json', 'utf8'));
 // TDX 常態表共 10 車次,其中祝山線觀日列車 97/98 因「無固定時刻表、隨當日日出調整、前一日 16:30
 // 才公告」而不動畫(TDX 給的 08:00 是佔位值,實測官網 2026-07-19 公告為 04:20)→應收錄 8 車次。
 ok(sch.trains?.length === 8, `8 個車次（10 扣除祝山線 97/98；實得 ${sch.trains?.length}）`);
-ok(!sch.trains.some(t => ['97', '98'].includes(String(t.train))), '祝山線觀日列車未被動畫（幽靈車防線）');
-ok(!(sch.types || []).some(t => t.key === '祝山線'), 'types 不留沒有車次的「祝山線」（圖例不出空欄）');
+ok(!sch.trains.some(t => ['97', '98'].includes(String(t.train))), '靜態班表不含 97/98（佔位時間防線；觀日列車由前端逐日推算合成）');
+ok((sch.types || []).some(t => t.key === '祝山線'), 'types 保留「祝山線」（前端合成的觀日列車要掛這個 key）');
 { // 祝山線的軌道仍必須畫出來——排除的是班次,不是路線
   const zs = track.lines.find(l => (l.name || '').includes('祝山'));
   ok(!!zs && zs.shape.length > 20, `祝山線軌道仍在（shape ${zs?.shape?.length} 點）`);
@@ -141,6 +141,27 @@ const clash = sch.types.map(t => t.key).filter(k => traKeys.has(k));
 ok(clash.length === 0, `車種 key 不撞台鐵（${sch.types.map(t => t.key).join('/')}）`);
 ok(sch.trains.every(t => t.typeName && t.carName), '每個車次都有 typeName/carName（空值會讓列車畫不出來）');
 
+// 觀日列車獨立基準:日出表逐格抄自使用者提供的官方訂票系統截圖(afrts/afrch 同表),
+// 不是從 index.html 複製——實作內嵌表若轉錄有誤,期望值就對不上。
+// 校準點:2026-07-19 官方公告「04:20 開車/回程末班 06:10」,當旬(7月16~20)日出 05:32
+// → 去程=日出−72分、回程=日出+38分,四捨五入到 5 分(官方公告慣例粒度)。
+const SUNRISE_INDEP = [
+  ['07:05', '07:02', '06:40', '06:00', '05:29', '05:19', '05:25', '05:36', '05:48', '06:13', '06:32', '06:50'],
+  ['07:08', '07:01', '06:33', '05:50', '05:28', '05:21', '05:27', '05:40', '05:50', '06:18', '06:35', '06:54'],
+  ['07:06', '06:54', '06:28', '05:42', '05:25', '05:19', '05:30', '05:41', '05:56', '06:20', '06:37', '06:57'],
+  ['07:05', '06:52', '06:18', '05:39', '05:23', '05:20', '05:32', '05:45', '05:58', '06:21', '06:40', '06:59'],
+  ['07:05', '06:47', '06:13', '05:35', '05:21', '05:24', '05:33', '05:46', '06:01', '06:23', '06:43', '07:03'],
+  ['07:03', '06:45', '06:06', '05:30', '05:20', '05:25', '05:34', '05:47', '06:09', '06:30', '06:48', '07:04'],
+];
+const todayTW = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Taipei' }).format(new Date()); // YYYY-MM-DD
+{
+  const [, mTW, dTW] = todayTW.split('-').map(Number);
+  const [sh, sm] = SUNRISE_INDEP[Math.min(5, Math.floor((dTW - 1) / 5))][mTW - 1].split(':').map(Number);
+  var sunriseSec = sh * 3600 + sm * 60;
+}
+const r5i = s => Math.round(s / 300) * 300;
+const expDep = r5i(sunriseSec - 72 * 60), expRet = r5i(sunriseSec + 38 * 60);
+
 console.log('\n═══ E. 端到端（Playwright 真引擎）═══');
 for (const [engine, name] of [[chromium, 'chromium'], [webkit, 'webkit']]) {
   const b = await engine.launch();
@@ -168,10 +189,55 @@ for (const [engine, name] of [[chromium, 'chromium'], [webkit, 'webkit']]) {
       seg: state._segStats, types: state.types.map(t => t.key), running, offTrack };
   });
   ok(r.sysId === 'afr_sched' && r.group === 'nat', `[${name}] 林鐵掛在國家鐵路群組`);
-  ok(r.trains === 8, `[${name}] 8 車次載入`);
+  ok(r.trains === 10, `[${name}] 10 車次載入（靜態 8＋前端合成觀日 97/98）`);
   ok(r.seg.straight === 0 && r.seg.onShape > 0, `[${name}] 貼軌 ${r.seg.onShape} 段全部貼上軌道、0 段退回直線`);
   ok(r.running > 0, `[${name}] 11:00 有 ${r.running} 班在跑`);
   ok(r.offTrack.length === 0, `[${name}] 所有奔跑中列車都在軌道上（>50m 者：${r.offTrack.join(',') || '無'}）`);
+
+  // ── 祝山線觀日列車（前端依官方日出表推算合成）──
+  // 期望值由本腳本自帶的日出表獨立算出:表值抄自使用者提供的官方訂票系統截圖(與 afrch 0000300 同表),
+  // 是對實作內嵌表的獨立轉錄——兩邊若有一邊抄錯,此處對不上。
+  const zr = await p.evaluate(([expDep, expRet]) => {
+    const t97 = state.trains.find(t => String(t.train) === '97');
+    const t98 = state.trains.find(t => String(t.train) === '98');
+    if (!t97 || !t98) return { missing: true };
+    const zs = state.systems.find(s => s.id === 'afr_sched')._track.lines.find(l => l.name === '祝山線');
+    const sameSrc = [...t97.stops, ...t98.stops].every(s => {
+      const st = zs.stations.find(x => x.name === s.name);
+      return st && st.lat === s.lat && st.lon === s.lon;
+    });
+    // 動畫在軌:發車後 15 分應有位置,且貼祝山線
+    const H = (a, b) => { const R = 6371000, q = Math.PI / 180; return 2 * R * Math.asin(Math.sqrt(Math.sin((b[0] - a[0]) * q / 2) ** 2 + Math.cos(a[0] * q) * Math.cos(b[0] * q) * Math.sin((b[1] - a[1]) * q / 2) ** 2)); };
+    const pos = trainPos(t97, t97.stops[0].depSec + 900);
+    const onZs = pos ? Math.min(...zs.shape.map(q => H([pos.lat, pos.lon], q))) : Infinity;
+    // 站台看板:簡回發車前 10 分,阿里山站看板要列出 97+推算標,且 sub 不得謊稱誤點推估
+    state.simSec = t97.stops[0].depSec - 600;
+    const st = state.schedStations.find(s => s.name === '阿里山' && s.sys === 'afr_sched');
+    openBoard(st);
+    const bd = document.getElementById('board');
+    const row97 = [...bd.querySelectorAll('.row')].find(el => el.querySelector('b')?.textContent === '97');
+    const sub = bd.querySelector('.sub')?.textContent || '';
+    closeBoard();
+    return {
+      dep97: t97.stops[0].depSec, dep98: t98.stops[0].depSec,
+      est: !!(t97.est && t98.est), car: t97.carName, sys97: t97.sys, sameSrc,
+      pos: !!pos, onZs, hasRow: !!row97, rowEst: !!row97?.querySelector('.estTag'), sub,
+    };
+  }, [expDep, expRet]);
+  if (zr.missing) ok(false, `[${name}] 觀日列車 97/98 未被合成`);
+  else {
+    const hm = s => `${String(Math.floor(s / 3600)).padStart(2, '0')}:${String(Math.floor(s % 3600 / 60)).padStart(2, '0')}`;
+    ok(zr.dep97 === expDep, `[${name}] 97 發車 ${hm(zr.dep97)}＝日出−72分（獨立表期望 ${hm(expDep)}）`);
+    ok(zr.dep98 === expRet, `[${name}] 98 回程 ${hm(zr.dep98)}＝日出+38分（獨立表期望 ${hm(expRet)}）`);
+    if (todayTW === '2026-07-19') ok(zr.dep97 === 4 * 3600 + 20 * 60 && zr.dep98 === 6 * 3600 + 10 * 60,
+      `[${name}] 與今日官方公告完全吻合（04:20 開車／回程末班 06:10）`);
+    ok(zr.est && /觀日/.test(zr.car), `[${name}] 97/98 帶 est 旗標、carName=${zr.car}`);
+    ok(zr.sys97 === 'afr_sched', `[${name}] 97 蓋 afr_sched 章（liveDelaySec 的 sys gate 前提，防誤吃台鐵同號誤點）`);
+    ok(zr.sameSrc, `[${name}] 合成班次站座標與軌道同源`);
+    ok(zr.pos && zr.onZs < 50, `[${name}] 發車+15分 有位置且貼祝山線（離軌 ${zr.onZs.toFixed(0)}m）`);
+    ok(zr.hasRow && zr.rowEst, `[${name}] 阿里山站看板列出 97 且帶「推算」標`);
+    ok(/無即時資訊/.test(zr.sub) && !/誤點推估/.test(zr.sub), `[${name}] 林鐵看板 sub 不謊稱誤點推估（實際：${zr.sub.slice(0, 30)}…）`);
+  }
 
   // 手機寬度：國家鐵路三個成員鈕都要能被摸到（沿可捲祖先捲動後做命中測試，見全域規則心得19）
   for (const w of [360, 375, 414, 768]) {
