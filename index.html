@@ -1785,7 +1785,7 @@
         <button id="exploreBtn" title="今日亮點——特別列車與今日之最"><span class="ti">探</span><span class="tl">亮點</span></button>
         <button id="favBtn" title="我的最愛列車"><span class="ti">★</span><span class="tl">最愛</span></button>
         <button id="rideBtn" title="旅程護照（完乘記錄與收集章）"><span class="ti">旅</span><span class="tl">護照</span></button>
-        <button id="todayBtn" title="今日台鐵動態——全台鐵今天每班車的誤點排行與逐站歷程"><span class="ti">📊</span><span class="tl">今日</span></button>
+        <button id="todayBtn" title="今日台鐵動態——全台鐵今天每班車的誤點排行與逐站歷程"><span class="ti">今</span><span class="tl">今日</span></button>
         <button id="introBtn" title="經過特殊車站時顯示介紹"><span class="ti">介</span><span class="tl">站介紹</span></button>
         <button id="satBtn" title="切換衛星影像"><span class="ti">衛</span><span class="tl">衛星</span></button>
         <button id="themeBtn" title="外觀切換：亮／暗／自動"><span class="ti">◐</span><span class="tl">外觀</span></button>
@@ -1858,7 +1858,7 @@
       <summary><span>🛠 更新紀錄</span><span class="foot-sub">最後更新：2026/7/18</span></summary>
       <ul class="foot-list">
         <li><span class="d">7/18</span><span>公告視窗的說明文字不再自相矛盾：昨天上線的「台鐵大面積誤點」提醒寫「動畫如實反映延誤」，底下的來源說明卻寫「動畫仍照原時刻表推演、不會反映」——謝謝眼尖的回報，現在寫清楚了：誤點確實有逐車跟上（晚幾分就畫在晚幾分的位置）、部分捷運也有看板校正，但停駛、取消或加開的班次動畫不會反映，該班車仍會照表出現在畫面上，實際運行請以官方公告為準</span></li>
-        <li><span class="d">7/18</span><span>新增「📊 今日台鐵動態」：全台鐵今天每班車的誤點排行一目了然，點任何一班可展開它今天的逐站歷程——幾點到哪站、當時誤點幾分、最慘誤點到幾分，全都記下來。工具列的「今日」按鈕（手機在「更多」裡）打開，資料每天清晨重新開始累積</span></li>
+        <li><span class="d">7/18</span><span>新增「今日台鐵動態」：全台鐵今天每班車的誤點排行一目了然，點任何一班可展開它今天的逐站歷程——幾點到哪站、當時誤點幾分、最慘誤點到幾分，全都記下來。工具列的「今日」按鈕（手機在「更多」裡）打開，資料每天清晨重新開始累積</span></li>
         <li><span class="d">7/18</span><span>放空模式新增「都會呼吸」運鏡：鏡頭偶爾會停在台北、台中、高雄上空，畫面化為乾淨的島嶼輪廓（劇場風格），列車與路網浮在其上，像深呼吸一樣緩緩拉近再緩緩拉遠，當作一個定場的療癒畫面；動一下地圖，就會回到平常的街道地圖、把控制權交還給你</span></li>
         <li><span class="d">7/18</span><span>平溪、深澳、集集、內灣（竹中以南）這幾條還沒電氣化的支線，車種說明原本誤標成「通勤電聯車」——其實這些山線跑的是 DR1000 型柴油客車（自帶柴油引擎、不靠電車線）。現在跟這些支線的車、或點開它的資訊卡，車種會正確顯示「DR1000 型柴油客車」（六家、沙崙線是電氣化的電聯車，維持不變）</span></li>
         <li><span class="d">7/18</span><span>「山海平原」成就更好拿、也看得到進度了：以前要連續跟山海號或平原號整整一輪來回（等於盯著看 12 分鐘不能中斷）才蓋章，門檻太硬——現在改成跟到折返點枋寮（半圈）就達成；跟車面板的進度條也會即時顯示「環島完乘 XX%」，不再是跟半天不知道到底有沒有在算</span></li>
@@ -2014,7 +2014,7 @@
     <div class="ms-row" data-act="theme"><span>◐ 外觀</span><span class="seg" id="msThemeSeg"><button data-v="light">亮</button><button data-v="dark">暗</button><button data-v="auto">自動</button></span></div>
     <div class="ms-row" data-proxy="satBtn"><span>衛 衛星影像</span><span class="toggle" data-tg="satBtn"></span></div>
     <div class="ms-row" data-act="track"><span>軌 軌道與路線</span><span class="chev">›</span></div>
-    <div class="ms-row" data-proxy="todayBtn" data-close="1"><span>📊 今日台鐵動態</span><span class="chev">›</span></div>
+    <div class="ms-row" data-proxy="todayBtn" data-close="1"><span>今 今日台鐵動態</span><span class="chev">›</span></div>
     <div class="ms-row" data-proxy="xingBtn"><span>平 平交道記號</span><span class="toggle" data-tg="xingBtn"></span></div>
     <div class="ms-row" data-proxy="introBtn"><span>介 特殊站介紹</span><span class="toggle" data-tg="introBtn"></span></div>
     <div class="ms-row" data-proxy="pinBtn"><span>釘 附近火車</span><span class="toggle" data-tg="pinBtn"></span></div>
@@ -2034,7 +2034,7 @@
 <script>
 // 版本戳記:每次改版 push 前手動遞增(字母序),畫面時鐘徽章與 console 都會顯示,
 // 供比對線上跑的是不是最新版(瀏覽器快取 max-age=600 常讓人看到舊版)
-const BUILD = 'v0717z';
+const BUILD = 'v0718a';
 const state = {
   systems: [], sysId: null, data: null, speed: 36, mode: 'freq',
   lines: [], visible: new Set(), trains: [], schedStations: [], types: [],
@@ -6749,7 +6749,7 @@ function renderTodayPanel() {
     body = `<div class="sub">今日已觀測 ${n} 班・誤點≥5分 ${m} 班<br><span class="td-hint">資料自今晨起累積，每天重新開始</span></div>` +
       sorted.map(todayRow).join('');
   }
-  el.innerHTML = `<h3>📊 今日台鐵動態<button class="close" id="todayClose">×</button></h3>` + body;
+  el.innerHTML = `<h3>今日台鐵動態<button class="close" id="todayClose">×</button></h3>` + body;
 }
 function openTodayPanel() {
   soloPanel('today');
