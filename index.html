@@ -843,6 +843,32 @@
   .trip-panel .row { cursor: pointer; }
   .trip-panel .row:hover { background: var(--bg-stage); }
 
+  /* ── App 內建瀏覽器逃生提示:Threads/IG/LINE 等 in-app webview 沒有「加入主畫面」,
+       偵測到才顯示(一般瀏覽器/主畫面 App 永不出現);× 關閉後記 localStorage 不再打擾 ── */
+  .iab-hint {
+    position: absolute; left: 50%; transform: translateX(-50%); z-index: 713;
+    bottom: calc(env(safe-area-inset-bottom, 0px) + 74px);
+    width: min(400px, calc(100% - 20px));
+    background: var(--paper); border: 2px solid var(--navy); border-radius: 12px;
+    box-shadow: var(--shadow-navy); padding: 10px 40px 10px 13px;
+    font-size: 13px; color: var(--ink); line-height: 1.55;
+  }
+  .iab-hint .ih-close {
+    position: absolute; top: 0; right: 0; width: 44px; height: 44px;
+    background: none; border: 0; cursor: pointer;
+    color: var(--faint); font-size: 17px; line-height: 1; padding: 0;
+  }
+  .iab-hint .ih-title { font-weight: 800; color: var(--ink-strong); }
+  .iab-hint .ih-note { margin-top: 6px; font-size: 11.5px; color: var(--faint); overflow-wrap: anywhere; }
+  .iab-hint .ih-note:empty { display: none; }
+  .iab-hint .ih-btns { display: flex; gap: 8px; margin-top: 9px; }
+  .iab-hint .ih-btns button {
+    flex: 1; min-height: 44px; padding: 8px 10px; cursor: pointer;
+    border: 1.5px solid var(--navy); border-radius: 9px;
+    background: var(--navy); color: var(--on-navy); font-size: 13px; font-weight: 800;
+  }
+  .iab-hint .ih-btns button.ih-ghost { background: transparent; color: var(--navy); }
+
   /* ── 收集通知(toast):金框紙卡,自動消失 ── */
   .toasts {
     position: absolute; top: 12px; left: 50%; transform: translateX(-50%); z-index: 720;
@@ -1773,6 +1799,14 @@
       <div class="tb-eta" id="tripEta"></div>
       <div class="tb-cta">用軌島分享你的行程</div>
     </div>
+    <!-- App 內建瀏覽器逃生提示(Threads/IG/LINE 等 in-app webview 偵測到才顯示;偵測與按鈕組裝在檔尾 iab IIFE) -->
+    <div class="iab-hint" id="iabHint" role="region" aria-label="用瀏覽器開啟的建議" hidden>
+      <button class="ih-close" id="iabClose" aria-label="關閉，不再提醒">×</button>
+      <div class="ih-title">🧭 你在 App 內建瀏覽器裡</div>
+      <div>用 Safari／Chrome 開啟，才能把軌島加入主畫面，下次一點就回來</div>
+      <div class="ih-btns" id="iabBtns"></div>
+      <div class="ih-note" id="iabNote"></div>
+    </div>
     <div class="follow-panel" id="followPanel" hidden>
       <div class="fp-head">
         <span class="dot" id="fpDot"></span>
@@ -1990,6 +2024,7 @@
     <details class="foot-box">
       <summary><span>🛠 更新紀錄</span><span class="foot-sub">最後更新：2026/7/18</span></summary>
       <ul class="foot-list">
+        <li><span class="d">7/18</span><span>從 Threads、IG、LINE 這些 App 裡點連結進來的朋友，畫面下方會出現一張小卡，提醒你改用 Safari／Chrome 開啟——App 內建的瀏覽器沒辦法把軌島加入主畫面，看完常常就再也找不回來了。Android 點一下按鈕直接跳到瀏覽器；iPhone 一鍵複製網址、或照指引點角落「⋯」用外部瀏覽器開啟。在一般瀏覽器或主畫面 App 裡完全不會看到這張卡，按 × 關掉後也不會再出現</span></li>
         <li><span class="d">7/18</span><span>iPad 直式與中等寬度的視窗不再擠壞版面：這個寬度以前拿到的是桌面版工具列，按鈕多到裁出畫面外，現在改用手機版的底部工具列與「更多」選單，每顆按鈕都摸得到。桌面版工具列也瘦身了：音樂控制收成一顆 ♪ 小鈕，滑鼠移過去（或鍵盤 Tab 過去）會彈出換首與音量的小面板，1280 寬的螢幕從此一顆不裁；「更多」選單重新分成「地圖顯示／資訊／觀看模式／分享與資料」四組更好找；左上角「時刻表模擬／深夜重播」徽章改成灰藍色，不再跟紅色誤點警示同色好分辨；手機頁籤列右緣加了淡出提示還有更多可滑；站名牌下的英文副標也放大了一點更易讀</span></li>
         <li><span class="d">7/18</span><span>搜尋框現在打「列車名字」也找得到：輸入山嵐、鳴日、藍皮、海風…這些觀光列車的名字，有開行班次的（藍皮解憂號、海風號）直接列出車次點了就跟隨；沒有固定車次的（山嵐號、鳴日號、環島之星…）會顯示「觀光列車」，點開看它的介紹故事——這些名車以前在站上根本找不到入口，現在搜得到了</span></li>
         <li><span class="d">7/18</span><span>放空模式「都會呼吸」定場鏡頭現在有真正的底圖了：先前這幕整片素色、街道圖跟衛星圖都不會出現，看起來像壞掉。現在鏡頭固定在都會上空、慢慢放大再縮小的，是一張完整的真實地圖——你平常設定的是街道就顯示街道、設定衛星就顯示衛星影像，配上路網與進出的列車，一起隨著呼吸節奏放大縮小（謝謝回報）</span></li>
@@ -2186,7 +2221,7 @@
 <script>
 // 版本戳記:每次改版 push 前手動遞增(字母序),畫面時鐘徽章與 console 都會顯示,
 // 供比對線上跑的是不是最新版(瀏覽器快取 max-age=600 常讓人看到舊版)
-const BUILD = 'v0718m';
+const BUILD = 'v0718n';
 // 手機/平板直式「殼」斷點(議題1:640→900,iPad 直式改拿 tabbar＋更多抽屜):與 CSS @media 同步,版面類判斷一律用此常數。
 // 注意:裝置等級判斷(keepBuffer/powerSave 預設)刻意不用此常數、維持 640——iPad 不該因為改拿 tabbar 就被當低階裝置。
 const MOBILE_MQ = '(max-width: 900px)';
@@ -9811,6 +9846,55 @@ initMusic();
   });
 })();
 window.addEventListener('load', boot);
+
+// ── App 內建瀏覽器逃生提示(v0718n) ──
+// Threads/IG/FB/LINE 等 app 內建瀏覽器沒有「加入主畫面」,訪客看完就找不回來(07-18 Threads 瘋傳實測:
+// 近半數訪客困在 in-app webview)。偵測從嚴、寧漏勿誤:一般瀏覽器與主畫面 App(standalone)永不顯示。
+// 逃生路徑分平台:LINE 走官方 openExternalBrowser 參數、Android 用 intent: 跳預設瀏覽器、
+// iOS 無可靠的程式化跳出→複製網址+「⋯」選單指引。× 關閉記 localStorage 不再出現。
+(function () {
+  try {
+    const ua = navigator.userAgent || '';
+    if (navigator.standalone === true || (window.matchMedia && matchMedia('(display-mode: standalone)').matches)) return;
+    try { if (localStorage.getItem('iabHintDismiss')) return; } catch (e) {}
+    const isLine = /\bLine\//i.test(ua);          // LINE iOS/Android 都帶 Line/x.y.z 記號
+    const known = isLine || /\bBarcelona\b|Instagram|FBAN|FBAV|FB_IAB|MicroMessenger|musical_ly|Bytedance/i.test(ua); // Barcelona=Threads
+    const iOS = /iPhone|iPad|iPod/.test(ua);
+    const isAndroid = /Android/i.test(ua);
+    // iOS WKWebView 特徵:有 AppleWebKit 但 UA 尾巴沒有 Safari/ 記號(真 Safari/Chrome iOS/Firefox iOS 都有)
+    const iosWv = iOS && /AppleWebKit/i.test(ua) && !/\bSafari\//i.test(ua) && !/CriOS|FxiOS|EdgiOS/i.test(ua);
+    const andWv = isAndroid && /;\s?wv\)/.test(ua); // Android 系統 WebView 標記
+    if (!(known || iosWv || andWv)) return;
+    const box = document.getElementById('iabHint'), btns = document.getElementById('iabBtns'), note = document.getElementById('iabNote');
+    if (!box || !btns) return;
+    const mkBtn = (label, ghost, fn) => { const b = document.createElement('button'); if (ghost) b.className = 'ih-ghost'; b.textContent = label; b.onclick = fn; btns.appendChild(b); return b; };
+    const copyUrl = (b) => {
+      const url = location.href;
+      const ok = () => { b.textContent = '已複製 ✓'; if (note && !note.textContent) note.textContent = '貼到 Safari／Chrome 的網址列就能開'; };
+      const legacy = () => { try { const t = document.createElement('textarea'); t.value = url; t.setAttribute('readonly', ''); t.style.cssText = 'position:absolute;left:-9999px'; document.body.appendChild(t); t.select(); document.execCommand('copy'); t.remove(); ok(); } catch (e) { if (note) note.textContent = url; } };
+      if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(url).then(ok, legacy); else legacy();
+    };
+    if (isLine) {
+      mkBtn('用瀏覽器開啟', false, () => { const u = new URL(location.href); u.searchParams.set('openExternalBrowser', '1'); location.href = u.toString(); });
+      mkBtn('複製網址', true, function () { copyUrl(this); });
+    } else if (isAndroid) {
+      mkBtn('用瀏覽器開啟', false, () => { const u = new URL(location.href); location.href = 'intent://' + u.host + u.pathname + u.search + '#Intent;scheme=https;action=android.intent.action.VIEW;end'; });
+      mkBtn('複製網址', true, function () { copyUrl(this); });
+    } else {
+      mkBtn('複製網址', false, function () { copyUrl(this); });
+      if (note) note.textContent = '或點角落「⋯」選「以外部瀏覽器開啟」';
+    }
+    const x = document.getElementById('iabClose');
+    if (x) x.onclick = () => { box.hidden = true; try { localStorage.setItem('iabHintDismiss', '1'); } catch (e) {} };
+    // 讓地圖先畫完再浮出,不搶首屏;首訪教學卡(#howtoWrap,z 800)開著時先等它收掉,兩張卡不疊在一起搶第一眼
+    const tryShow = () => {
+      const howto = document.getElementById('howtoWrap');
+      if (document.readyState === 'complete' && (!howto || howto.hidden)) { box.hidden = false; return; }
+      setTimeout(tryShow, 600);
+    };
+    setTimeout(tryShow, 1400);
+  } catch (e) {}
+})();
 </script>
 </body>
 </html>
