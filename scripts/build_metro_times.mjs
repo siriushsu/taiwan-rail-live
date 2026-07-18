@@ -479,12 +479,19 @@ const SYSTEMS = [
       flFile: 'data/tdx/TMRT_FirstLastTimetable.json', terminals: ['G0', 'G17'] }],
     lines: {} },
   { file: 'data/sanying.json', out: 'data/sanying_times.json', estimated: true,
-    src: '三鶯線試營運,無公開逐班時刻表:以公告班距(尖峰約6分/離峰約8分)與推定營運時段(06:00-23:30)合成,非公告時刻',
+    src: '三鶯線免費試營運期(2026-06-30~08-31)無公開逐班時刻表:依新北捷運公司公告營運時段10:00-20:00與班距(尖峰17:30-19:30 6分/離峰及假日8分)合成,非公告時刻',
+    // ⏰ 會過期的值,到期必重查 https://www.ntmetro.com.tw/basic/?mode=detail&node=863
+    //   公告原文:「營運時間除通車日6/30外,其餘時間為10:00至20:00,將以尖峰(17:30~19:30) 6分鐘、
+    //   離峰及假日8分鐘的班距運行」。兩個已知的到期訊號:
+    //   (1) 2026-08-31 免費試營運結束,官方規劃正式營運改「6時至24時」全時段;
+    //   (2) 2026-07-17 新聞:捷運局評估提前延長晨間時段,最快 8 月實施。
+    //   在官方改點前寫成 06:00-23:30 正是 v0711j 的錯——把「正式營運後」的規劃當成現況,
+    //   每天生出 7.5 小時不存在的幽靈列車(使用者 2026-07-18 回報)。
     synth: [{ lineId: 'LB', cfg: (() => {
-      const mk = peak => [[toSec('06:00'), toSec('09:00'), peak ? 360 : 480], [toSec('09:00'), toSec('17:00'), 480],
-        [toSec('17:00'), toSec('20:00'), peak ? 360 : 480], [toSec('20:00'), toSec('24:00'), 480]];
-      return { services: { '平日': { first: toSec('06:00'), last: toSec('23:30'), bands: mk(true) },
-        '假日': { first: toSec('06:00'), last: toSec('23:30'), bands: mk(false) } },
+      const mk = peak => [[toSec('10:00'), toSec('17:30'), 480], [toSec('17:30'), toSec('19:30'), peak ? 360 : 480],
+        [toSec('19:30'), toSec('20:00'), 480]];
+      return { services: { '平日': { first: toSec('10:00'), last: toSec('20:00'), bands: mk(true) },
+        '假日': { first: toSec('10:00'), last: toSec('20:00'), bands: mk(false) } },
         dayMap: ['假日', '平日', '平日', '平日', '平日', '平日', '假日'] };
     })() }],
     lines: {} },
