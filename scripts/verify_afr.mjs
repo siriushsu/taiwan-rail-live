@@ -1,4 +1,5 @@
-// 阿里山林鐵(v0719e)獨立驗證——資料層斷言 + Playwright 真引擎(chromium+webkit)端到端 + 手機寬度。
+// 阿里山林鐵(v0719f)獨立驗證——資料層斷言 + Playwright 真引擎(chromium+webkit)端到端 + 手機寬度。
+// v0719f 增列:F 林鐵四種列車介紹卡有描述、G 台糖五分車景點標記(座標對獨立轉錄、記號畫素、點擊開卡)。
 // 本腳本不參與實作,判準來自 TDX 原始資料與地理事實,刻意不看 build_afr.mjs 怎麼做:
 //
 //   · TDX v3/Rail/AFR 才有資料(v2 全 404)。官方本線 StationOfLine 為 17 站,序尾是
@@ -191,6 +192,16 @@ const todayTW = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Taipei' }).fo
 const r5i = s => Math.round(s / 300) * 300;
 const expDep = r5i(sunriseSec - 72 * 60), expRet = r5i(sunriseSec + 38 * 60);
 
+// 台糖五園區座標——獨立第二次轉錄自 afr_sugar_research.md(維基 infobox 度分秒換算),
+// 刻意不從 index.html 複製;實作端抄錯或此處抄錯都會在 G 段現形。
+const SUGAR_INDEP = {
+  '溪湖糖廠': [23.9520, 120.4812],
+  '蒜頭糖廠': [23.4794, 120.2997],
+  '烏樹林': [23.3286, 120.3744],
+  '新營糖廠': [23.2997, 120.3169],
+  '橋頭糖廠': [22.7578, 120.3142],
+};
+
 console.log('\n═══ E. 端到端（Playwright 真引擎）═══');
 for (const [engine, name] of [[chromium, 'chromium'], [webkit, 'webkit']]) {
   const b = await engine.launch();
@@ -200,6 +211,10 @@ for (const [engine, name] of [[chromium, 'chromium'], [webkit, 'webkit']]) {
     && state.systems.some(s => s.id === 'afr_sched') && state.systems.find(s => s.id === 'afr_sched')._track, { timeout: 30000 });
   await p.waitForFunction(() => state.ready === true, { timeout: 30000 }).catch(() => {});
   await p.waitForTimeout(1200);
+  // 首訪教學卡(#howtoWrap,z800)蓋住地圖上所有卡片與 elementFromPoint——按「開始看車」收掉,
+  // 等同真實首訪者的第一個動作;不用 localStorage 預塞,讓教學卡照常出現過一次。
+  await p.evaluate(() => { const w = document.getElementById('howtoWrap'); if (w && !w.hidden) document.getElementById('howtoGo').click(); });
+  await p.waitForTimeout(200);
 
   const r = await p.evaluate(() => {
     loadSystem(state.systems.find(s => s.id === 'afr_sched'));
@@ -268,6 +283,63 @@ for (const [engine, name] of [[chromium, 'chromium'], [webkit, 'webkit']]) {
     ok(/無即時資訊/.test(zr.sub) && !/誤點推估/.test(zr.sub), `[${name}] 林鐵看板 sub 不謊稱誤點推估（實際：${zr.sub.slice(0, 30)}…）`);
   }
 
+  // ── F. 林鐵列車介紹卡（v0719f）：四種列車都要有描述且含各自的關鍵事實詞 ──
+  const fr = await p.evaluate(() => {
+    const out = {};
+    for (const [tn, kw] of [['阿里山號', /獨立山/], ['沼平線', /櫻花/], ['神木線', /巨木/], ['祝山線', /日出/]]) {
+      const tr = state.trains.find(t => t.typeName === tn);
+      const it = tr ? trainIntro(tr) : null;
+      out[tn] = { has: !!(it && it.desc), kw: !!(it && it.desc && kw.test(it.desc)) };
+    }
+    out.traOk = TYPE_DESC['區間車'] === '站站皆停的通勤電聯車。'; // 台鐵既有描述不受波及
+    return out;
+  });
+  for (const tn of ['阿里山號', '沼平線', '神木線', '祝山線'])
+    ok(fr[tn].has && fr[tn].kw, `[${name}] ${tn} 介紹卡有描述且含關鍵事實詞`);
+  ok(fr.traOk, `[${name}] 台鐵既有車種描述未被動到`);
+
+  // ── G. 台糖五分車景點標記（v0719f）──
+  // 座標基準=對研究報告(afr_sugar_research.md,維基 infobox 換算)的獨立第二次轉錄,
+  // 與 index.html 內嵌值分開手抄——任一邊抄錯此處對不上。
+  const gr = await p.evaluate((INDEP) => {
+    const H = (a, b) => { const R = 6371000, q = Math.PI / 180; return 2 * R * Math.asin(Math.sqrt(Math.sin((b[0] - a[0]) * q / 2) ** 2 + Math.cos(a[0] * q) * Math.cos(b[0] * q) * Math.sin((b[1] - a[1]) * q / 2) ** 2)); };
+    const out = { n: SUGAR_PARKS.length, fields: true, coordOk: [] };
+    for (const pk of SUGAR_PARKS) {
+      if (!(pk.name && pk.full && pk.town && pk.blurb && pk.hours)) out.fields = false;
+      const ref = INDEP[pk.name];
+      out.coordOk.push(ref ? H([pk.lat, pk.lon], ref) < 50 : false);
+    }
+    // 橋頭園區:飛到 z13、手動補一幀,驗記號畫素(非透明暖色)+命中表+點擊開卡(像素級雙證據,心得24)
+    const qt = SUGAR_PARKS.find(x => x.name === '橋頭糖廠');
+    map.setView([qt.lat, qt.lon], 13, { animate: false });
+    draw();
+    const h = (state._sugarHits || []).find(x => x.pk === qt);
+    let px = null, hitOk = false, cardShown = false, cardTitle = '', cardHitOk = false;
+    if (h) {
+      const d = ctx.getImageData(Math.round(h.x * state.dpr), Math.round(h.y * state.dpr), 1, 1).data;
+      px = [d[0], d[1], d[2], d[3]];
+      const hit = sugarAt({ x: h.x, y: h.y });
+      hitOk = !!hit;
+      if (hit) {
+        openSugarCard(hit.pk);
+        const el = document.getElementById('sugarCard');
+        const r = el.getBoundingClientRect();
+        cardShown = !el.hidden && r.width > 100;
+        cardTitle = el.querySelector('.xc-ttl b')?.textContent || '';
+        const at = document.elementFromPoint(r.left + r.width / 2, r.top + 30);
+        cardHitOk = !!at && el.contains(at);
+        closeSugarCard();
+      }
+    }
+    return { ...out, hasHit: !!h, px, hitOk, cardShown, cardTitle, cardHitOk };
+  }, SUGAR_INDEP);
+  ok(gr.n === 5 && gr.fields, `[${name}] 五個園區資料齊全（name/full/town/blurb/hours）`);
+  ok(gr.coordOk.every(Boolean) && gr.coordOk.length === 5, `[${name}] 五園區座標與獨立轉錄一致（<50m）`);
+  ok(gr.hasHit, `[${name}] z13 橋頭園區記號進入命中表`);
+  ok(!!gr.px && gr.px[3] > 0 && gr.px[0] > gr.px[2], `[${name}] 記號畫素為非透明暖色（rgba=${gr.px}）`);
+  ok(gr.hitOk && gr.cardShown && /橋頭/.test(gr.cardTitle), `[${name}] 點擊命中開卡（標題：${gr.cardTitle}）`);
+  ok(gr.cardHitOk, `[${name}] 卡片中心 elementFromPoint 命中（像素級證據）`);
+
   // 手機寬度：國家鐵路三個成員鈕都要能被摸到（沿可捲祖先捲動後做命中測試，見全域規則心得19）
   for (const w of [360, 375, 414, 768]) {
     await p.setViewportSize({ width: w, height: 780 });
@@ -290,6 +362,19 @@ for (const [engine, name] of [[chromium, 'chromium'], [webkit, 'webkit']]) {
     // 要驗的是「新增第三個成員沒有把成員列弄壞」——三顆高度一致即可。
     ok(new Set(m.map(x => Math.round(x.h))).size === 1,
       `[${name}] ${w}px：三個成員鈕高度一致（${m.map(x => x.h.toFixed(0)).join('/')}px）`);
+    // 台糖園區卡:每個寬度都要不出界、關閉鈕可實點(新功能必驗手機版)
+    const gm = await p.evaluate(() => {
+      openSugarCard(SUGAR_PARKS[0]);
+      const el = document.getElementById('sugarCard');
+      const r = el.getBoundingClientRect();
+      const btn = document.getElementById('sgClose');
+      const br = btn.getBoundingClientRect();
+      const at = document.elementFromPoint(br.left + br.width / 2, br.top + br.height / 2);
+      const fits = r.left >= 0 && r.right <= innerWidth + 0.5 && r.width > 100;
+      closeSugarCard();
+      return { fits, w: r.width, closeOk: !!at && (at === btn || btn.contains(at)) };
+    });
+    ok(gm.fits && gm.closeOk, `[${name}] ${w}px：台糖卡不出界（寬 ${gm.w.toFixed(0)}px）且關閉鈕可點`);
   }
   await b.close();
 }
