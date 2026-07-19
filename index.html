@@ -1101,9 +1101,15 @@
     display: flex; align-items: center; justify-content: center;
     background: none; border: 0; color: var(--on-navy); opacity: .8; cursor: pointer; line-height: 1;
   }
-  /* × 這個字元在字型裡的墨跡偏下(相對 em 框重心 +1.6px,實測 canvas 量得),即使 flex 置中框也會看起來偏低
-     → 對字形本身補 -1.5px 讓兩字視覺重心對齊(只動 transform,不影響 22px 命中框) */
-  .board .close { right: 9px; font-size: 17px; transform: translateY(-1.5px); }
+  /* ×(U+00D7)的字形只佔 em 框約一半:17px 字級墨跡僅 8.3px,挨著 ☆15px(墨跡 14.5px)顯得特別小
+     (使用者指正「關閉圖示本身就比星星小」)。兩鈕鎖同一字型棧再放大 × 到 28px:
+     - 不鎖字型時 chromium 的 × 走 SF(有此字元)、☆ fallback PingFang(SF 無 U+2606),
+       兩顆字型不同導致怎麼調都對不齊;鎖 PingFang 後兩引擎墨跡度量幾乎一致(實測 ☆ 皆 14.6×14.5)。
+     - ✕✖╳ 等替代字元在 WebKit 落到別的 fallback(墨跡崩到 7px),跨引擎不可靠,不用。
+     - ×28px 墨跡 13.8×13.8,與星量體比 0.95(實線筆畫視覺較重,略小剛好);字形在 em 框內偏下,
+       相對 ☆ 差 2.9px 以 translateY 校正。命中框仍 22px 不變。 */
+  .board .close, .board .board-star { font-family: "PingFang TC", "Noto Sans TC", sans-serif; }
+  .board .close { right: 9px; font-size: 28px; transform: translateY(-2.9px); }
   .board .board-star { right: 31px; font-size: 15px; }
   .board .close:hover, .board .board-star:hover { opacity: 1; }
   .board .board-star.on { color: #ffd977; opacity: 1; }
@@ -2243,7 +2249,7 @@
 <script>
 // 版本戳記:每次改版 push 前手動遞增(字母序),畫面時鐘徽章與 console 都會顯示,
 // 供比對線上跑的是不是最新版(瀏覽器快取 max-age=600 常讓人看到舊版)
-const BUILD = 'v0719c';
+const BUILD = 'v0719d';
 // 手機/平板直式「殼」斷點(議題1:640→900,iPad 直式改拿 tabbar＋更多抽屜):與 CSS @media 同步,版面類判斷一律用此常數。
 // 注意:裝置等級判斷(keepBuffer/powerSave 預設)刻意不用此常數、維持 640——iPad 不該因為改拿 tabbar 就被當低階裝置。
 const MOBILE_MQ = '(max-width: 900px)';
