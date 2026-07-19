@@ -1,4 +1,4 @@
-// 阿里山林鐵(v0719c)獨立驗證——資料層斷言 + Playwright 真引擎(chromium+webkit)端到端 + 手機寬度。
+// 阿里山林鐵(v0719e)獨立驗證——資料層斷言 + Playwright 真引擎(chromium+webkit)端到端 + 手機寬度。
 // 本腳本不參與實作,判準來自 TDX 原始資料與地理事實,刻意不看 build_afr.mjs 怎麼做:
 //
 //   · TDX v3/Rail/AFR 才有資料(v2 全 404)。官方本線 StationOfLine 為 17 站,序尾是
@@ -104,9 +104,38 @@ console.log('\n═══ C. 之字形折返（阿里山碰壁）═══');
 
 console.log('\n═══ D. 班表 data/afr_schedule_dense.json ═══');
 const sch = JSON.parse(readFileSync('data/afr_schedule_dense.json', 'utf8'));
-// TDX 常態表共 10 車次,其中祝山線觀日列車 97/98 因「無固定時刻表、隨當日日出調整、前一日 16:30
-// 才公告」而不動畫(TDX 給的 08:00 是佔位值,實測官網 2026-07-19 公告為 04:20)→應收錄 8 車次。
-ok(sch.trains?.length === 8, `8 個車次（10 扣除祝山線 97/98；實得 ${sch.trains?.length}）`);
+// 車次組成:TDX 常態表 10 班,扣除祝山線觀日列車 97/98(佔位時間,前端逐日推算合成),
+// 加官網補充的沼平/神木完整區間車 42 班(TDX 只收每線最後一往返)→ 靜態班表應為 50 班。
+ok(sch.trains?.length === 50, `50 個車次（TDX 10−祝山2＋官網補充42；實得 ${sch.trains?.length}）`);
+// ── 沼平/神木完整班表:獨立基準逐格轉錄自「車站張貼紙本時刻表」照片(網友 2026-07 回報,
+//    與 build 所用的官網 afrch 0000300 是兩個獨立來源——任一邊轉錄錯就對不上)──
+{
+  const PHOTO = { // 車次→發車時刻(左欄阿里山出發、右欄沼平/神木出發,照片兩欄合併)
+    '31': '09:00', '33': '09:30', '100': '09:40', '35': '10:00', '102': '10:10', '37': '10:30',
+    '104': '10:40', '39': '11:00', '106': '11:10', '41': '11:30', '108': '11:40', '43': '13:00',
+    '110': '13:10', '45': '13:30', '112': '13:40', '47': '14:00', '114': '14:10', '49': '14:30',
+    '116': '14:40', '51': '15:10', '118': '15:20', '53': '15:40', '120': '15:50',
+    '32': '09:20', '34': '09:50', '101': '10:00', '36': '10:20', '103': '10:30', '38': '10:50',
+    '105': '11:00', '40': '11:20', '107': '11:30', '42': '11:50', '109': '12:00', '44': '13:20',
+    '111': '13:30', '46': '13:50', '113': '14:00', '48': '14:20', '115': '14:30', '50': '15:00',
+    '117': '15:10', '52': '15:30', '119': '15:40', '54': '16:00', '121': '16:10',
+  };
+  const hm = s => `${String(Math.floor(s / 3600)).padStart(2, '0')}:${String(Math.floor(s % 3600 / 60)).padStart(2, '0')}`;
+  const bad = [];
+  for (const [no, dep] of Object.entries(PHOTO)) {
+    const t = sch.trains.find(x => String(x.train) === no);
+    if (!t) { bad.push(`${no}缺`); continue; }
+    if (hm(t.stops[0].depSec) !== dep) bad.push(`${no}:${hm(t.stops[0].depSec)}≠照片${dep}`);
+  }
+  ok(bad.length === 0, `沼平/神木全部 ${Object.keys(PHOTO).length} 班與紙本時刻表照片逐班一致${bad.length ? '：' + bad.slice(0, 5).join(',') : ''}`);
+  const zp = sch.trains.filter(t => t.typeName === '沼平線'), sm = sch.trains.filter(t => t.typeName === '神木線');
+  ok(zp.length === 24 && sm.length === 22, `沼平線 ${zp.length} 班(12往返)、神木線 ${sm.length} 班(11往返)`);
+  const runBad = [...zp, ...sm].filter(t => {
+    const run = (t.stops[t.stops.length - 1].arrSec - t.stops[0].depSec) / 60;
+    return run !== (t.typeName === '沼平線' ? 6 : 7);
+  });
+  ok(runBad.length === 0, `行駛時間全對（沼平 6 分/神木 7 分）${runBad.length ? '：' + runBad.map(t => t.train).join(',') : ''}`);
+}
 ok(!sch.trains.some(t => ['97', '98'].includes(String(t.train))), '靜態班表不含 97/98（佔位時間防線；觀日列車由前端逐日推算合成）');
 ok((sch.types || []).some(t => t.key === '祝山線'), 'types 保留「祝山線」（前端合成的觀日列車要掛這個 key）');
 { // 祝山線的軌道仍必須畫出來——排除的是班次,不是路線
@@ -127,7 +156,7 @@ for (const tr of sch.trains) for (let i = 0; i < tr.stops.length; i++) {
   if (tr.stops[i].arrSec > tr.stops[i].depSec) mono = false;
   if (i && tr.stops[i].arrSec < tr.stops[i - 1].depSec) mono = false;
 }
-ok(mono, '全部 8 車次時刻單調不遞減');
+ok(mono, '全部 50 車次時刻單調不遞減');
 const tp = new Map();
 for (const ln of track.lines) for (const s of ln.stations) tp.set(s.name, [s.lat, s.lon]);
 let bad = [];
@@ -189,7 +218,7 @@ for (const [engine, name] of [[chromium, 'chromium'], [webkit, 'webkit']]) {
       seg: state._segStats, types: state.types.map(t => t.key), running, offTrack };
   });
   ok(r.sysId === 'afr_sched' && r.group === 'nat', `[${name}] 林鐵掛在國家鐵路群組`);
-  ok(r.trains === 10, `[${name}] 10 車次載入（靜態 8＋前端合成觀日 97/98）`);
+  ok(r.trains === 52, `[${name}] 52 車次載入（靜態 50＋前端合成觀日 97/98）`);
   ok(r.seg.straight === 0 && r.seg.onShape > 0, `[${name}] 貼軌 ${r.seg.onShape} 段全部貼上軌道、0 段退回直線`);
   ok(r.running > 0, `[${name}] 11:00 有 ${r.running} 班在跑`);
   ok(r.offTrack.length === 0, `[${name}] 所有奔跑中列車都在軌道上（>50m 者：${r.offTrack.join(',') || '無'}）`);

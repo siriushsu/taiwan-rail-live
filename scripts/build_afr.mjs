@@ -429,6 +429,10 @@ async function main() {
     '53': { typeName: '沼平線', color: '#D98A5F' }, '54': { typeName: '沼平線', color: '#D98A5F' },
     '97': { typeName: '祝山線', color: '#E0A458' }, '98': { typeName: '祝山線', color: '#E0A458' },
   };
+  // 官網補充班次也要歸類:沼平線 31-54、神木線 100-121(車次段規則,與上表 TDX 已知號一致)
+  const classifyTrain = no => TRAIN_TYPE[no]
+    || (/^(3[1-9]|4\d|5[0-4])$/.test(no) ? { typeName: '沼平線', color: '#D98A5F' } : null)
+    || (/^1(0\d|1\d|2[01])$/.test(no) ? { typeName: '神木線', color: '#CB6A4A' } : null);
   const TYPES_OUT = [
     { key: '阿里山號', color: '#B03A2E' },
     { key: '神木線', color: '#CB6A4A' },
@@ -505,10 +509,46 @@ async function main() {
 
   const hms2sec = s => { const [h, m, sec] = s.split(':').map(Number); return h * 3600 + m * 60 + (sec || 0); };
 
+  // ── 官網補充班次:沼平線/神木線的完整區間車 ──
+  // TDX GeneralTrainTimetable 對這兩條支線只收「每線最後一往返」(53/54、120/121),但官方
+  // 林鐵支線頁(afrch.forest.gov.tw/0000300)公告完整班表——沼平線 12 往返、神木線 11 往返,
+  // 且與車站張貼的紙本時刻表(網友回報照片,2026-07 攝)逐班一致。TDX 缺的 42 班在此以官網為源補上,
+  // 否則地圖上白天整天沒車(網友實際回報的缺陷)。時刻為「發車時刻」,行駛時間依官網到達欄:
+  // 沼平線 6 分、神木線 7 分(與 TDX 已收 4 班的區間一致)。發車站到達=發車前 3 分(比照 TDX 慣例)。
+  const WEB_SUPPLEMENT = [
+    // [起站, 訖站, 行駛分, [[車次, 發車 HH:MM], ...]]
+    ['阿里山', '沼平', 6, [['31', '09:00'], ['33', '09:30'], ['35', '10:00'], ['37', '10:30'], ['39', '11:00'],
+      ['41', '11:30'], ['43', '13:00'], ['45', '13:30'], ['47', '14:00'], ['49', '14:30'], ['51', '15:10'], ['53', '15:40']]],
+    ['沼平', '阿里山', 6, [['32', '09:20'], ['34', '09:50'], ['36', '10:20'], ['38', '10:50'], ['40', '11:20'],
+      ['42', '11:50'], ['44', '13:20'], ['46', '13:50'], ['48', '14:20'], ['50', '15:00'], ['52', '15:30'], ['54', '16:00']]],
+    ['阿里山', '神木', 7, [['100', '09:40'], ['102', '10:10'], ['104', '10:40'], ['106', '11:10'], ['108', '11:40'],
+      ['110', '13:10'], ['112', '13:40'], ['114', '14:10'], ['116', '14:40'], ['118', '15:20'], ['120', '15:50']]],
+    ['神木', '阿里山', 7, [['101', '10:00'], ['103', '10:30'], ['105', '11:00'], ['107', '11:30'], ['109', '12:00'],
+      ['111', '13:30'], ['113', '14:00'], ['115', '14:30'], ['117', '15:10'], ['119', '15:40'], ['121', '16:10']]],
+  ];
+  const tdxNos = new Set(ttRaw.TrainTimetables.map(t => String(t.TrainInfo.TrainNo)));
+  const hm2 = s => { const [h, m] = s.split(':'); return { h, m }; };
+  let webAdded = 0;
+  const allTimetables = [...ttRaw.TrainTimetables];
+  for (const [from, to, runMin, deps] of WEB_SUPPLEMENT) {
+    for (const [no, dep] of deps) {
+      if (tdxNos.has(no)) continue; // TDX 已有的班次以 TDX 為準(時刻已驗證與官網一致)
+      const d0 = hms2sec(dep), fmt = s => `${String(Math.floor(s / 3600)).padStart(2, '0')}:${String(Math.floor(s % 3600 / 60)).padStart(2, '0')}`;
+      allTimetables.push({
+        TrainInfo: { TrainNo: no, Note: ' ' },
+        StopTimes: [
+          { StopSequence: 1, StationName: { Zh_tw: from }, ArrivalTime: fmt(d0 - 180), DepartureTime: dep },
+          { StopSequence: 2, StationName: { Zh_tw: to }, ArrivalTime: fmt(d0 + runMin * 60), DepartureTime: fmt(d0 + runMin * 60 + 180) },
+        ],
+      });
+      webAdded++;
+    }
+  }
+
   const trainsOut = [];
   const sunriseExcluded = [];
   let fallbackSegments = 0, totalSegments = 0;
-  for (const t of ttRaw.TrainTimetables) {
+  for (const t of allTimetables) {
     const no = String(t.TrainInfo.TrainNo);
     // 祝山線觀日列車:TDX 常態表給的是佔位時間(97=阿里山08:00發車),但 TrainInfo.Note 自己註明
     // 「停靠時間根據日出時間而定」。官方林鐵支線頁(afrch.forest.gov.tw/0000300)明載祝山線沒有
@@ -516,7 +556,7 @@ async function main() {
     // 「04:20開車,回程末班車為06:10」,與 TDX 的 08:00 差近四小時;且公告只給首班發車與回程末班,
     // 不足以還原各車次時刻。照 TDX 值動畫=每天早上八點跑一班不存在的日出列車(三鶯線幽靈車翻版)→排除。
     if (/日出時間/.test(t.TrainInfo.Note || '')) { sunriseExcluded.push(no); continue; }
-    const cls = TRAIN_TYPE[no];
+    const cls = classifyTrain(no);
     if (!cls) { warnings.push(`車次${no}不在已知的4類車種表中,略過`); continue; }
     const stops = t.StopTimes.slice().sort((a, b) => a.StopSequence - b.StopSequence);
     const newStops = [];
@@ -561,7 +601,7 @@ async function main() {
     }
     trainsOut.push({ train: no, typeName: cls.typeName, carName: cls.typeName, color: cls.color, stops: newStops });
   }
-  console.log(`  車次densify完成:${trainsOut.length} 車次, fallback區段=${fallbackSegments}/${totalSegments}`);
+  console.log(`  車次densify完成:${trainsOut.length} 車次(含官網補充 ${webAdded} 班), fallback區段=${fallbackSegments}/${totalSegments}`);
   if (sunriseExcluded.length) console.log(`  依日出調整而排除(靜態班表不收):車次 ${sunriseExcluded.join(',')}`);
   // types 保留全部 4 類(含祝山線):觀日列車由前端依官方日出時間表逐日推算合成(index.html
   // addSunriseTrains),圖例與繪製 gate 需要「祝山線」這個 key 存在。
@@ -572,6 +612,7 @@ async function main() {
     system: '阿里山林鐵時刻表',
     date: fetchDate,
     source_notes: `時刻表來源:交通部 TDX v3/Rail/AFR/GeneralTrainTimetable(EffectiveDate=${ttRaw.EffectiveDate || '未提供'}),${fetchDate.slice(0,4)}-${fetchDate.slice(4,6)} 抓取,原始10車次、收錄${trainsOut.length}車次。`
+      + ` 其中 ${webAdded} 班為官網補充:TDX 對沼平/神木兩支線只收每線最後一往返(53/54/120/121),完整班表(沼平12往返、神木11往返)依官方林鐵支線頁 afrch.forest.gov.tw/0000300 補齊,並與車站張貼紙本時刻表(2026-07 網友照片)逐班核對一致;TDX 已有班次以 TDX 為準。`
       + (sunriseExcluded.length ? ` 靜態班表不收祝山線觀日列車(車次${sunriseExcluded.join(',')}):TDX 該兩班的 TrainInfo.Note 註明「停靠時間根據日出時間而定」,官方林鐵支線頁載明祝山線無固定時刻表、當日開車時間於乘車前1日16:30才公告(2026-07-19 官網公告04:20開車/回程末班06:10,TDX 常態表卻是08:00)。觀日列車改由前端依官方「祝山觀日平台日出時間概況表」逐日推算合成並標示「推算」(index.html addSunriseTrains;types 仍保留祝山線供其使用)。` : '')
       + ' TDX 未提供車種欄位(TrainInfo.TrainTypeID/TrainTypeName 十個車次全部為 null;v3/Rail/AFR/TrainType 雖列7種官方車種但未與班次資料建立關聯),'
       + '故車種依「起訖站所屬路線」歸類:本線(嘉義↔十字路/阿里山)車次1,2,5,8→阿里山號;神木線車次120,121→神木線;沼平線車次53,54→沼平線(祝山線車次97,98 因上述日出因素排除,故 types 不含祝山線)。'
