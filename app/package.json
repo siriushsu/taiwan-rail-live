@@ -1,0 +1,31 @@
+{
+  "name": "railisland-app-shell",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "build": "node scripts/prepare-web.mjs",
+    "verify": "node scripts/verify-release.mjs",
+    "build:verify": "npm run build && npm run verify",
+    "sync": "npm run build && cap sync",
+    "open:ios": "cap open ios",
+    "open:android": "cap open android"
+  },
+  "dependencies": {
+    "@capacitor-firebase/authentication": "8.3.0",
+    "@capacitor/android": "8.4.2",
+    "@capacitor/core": "8.4.2",
+    "@capacitor/geolocation": "8.2.0",
+    "@capacitor/ios": "8.4.2",
+    "@capacitor/local-notifications": "8.2.1",
+    "@capacitor/share": "8.0.1",
+    "@revenuecat/purchases-capacitor": "13.2.2",
+    "fflate": "0.8.3",
+    "firebase": "12.16.0",
+    "leaflet": "1.9.4"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "8.4.2",
+    "esbuild": "0.28.1"
+  }
+}
