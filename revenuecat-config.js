@@ -8,4 +8,9 @@
 // { entitlement:'plus', offeringId:'plus', webApiKey:'...', iosApiKey:'...', androidApiKey:'...', musicRecordingLicensed:false }
 //   （offeringId 指向的 offering 需含月/年兩個 package;entitlement 檢查走 entitlements.active,訂閱與買斷同路。）
 // 未設定時不載入購買 SDK,Plus 入口也不公開。
-window.RAIL_REVENUECAT_CONFIG = window.RAIL_REVENUECAT_CONFIG || null;
+window.RAIL_REVENUECAT_CONFIG = window.RAIL_REVENUECAT_CONFIG || {
+  entitlement: 'plus',
+  offeringId: 'plus',
+  iosApiKey: 'appl_YEaudYjWyOOPGRoMORPzdDgggvQ',
+  musicRecordingLicensed: false
+};
