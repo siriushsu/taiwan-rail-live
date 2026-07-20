@@ -703,6 +703,8 @@
     background: none; border: 0; cursor: pointer;
     color: var(--gold); font-size: 20px; line-height: 1; padding: 0 2px; align-self: center;
   }
+  /* sheet 態關閉鈕:僅手機「列車」sheet 顯示(見 ≤900 區塊);桌面/桌面 fs 併卡皆不出現 */
+  .traincard .tc-x { display: none; }
   .traincard .tc-sparkwrap { margin-top: 9px; padding-top: 7px; border-top: 1.5px dashed var(--line-dash); }
   .traincard .tc-sparkwrap .lbl { font-size: 11px; font-weight: 800; letter-spacing: 3px; color: var(--faint); margin-bottom: 4px; }
   .traincard .tc-sparkwrap canvas { display: block; width: 100%; height: 46px; }
@@ -1739,7 +1741,40 @@
     .traincard .tc-body { grid-template-columns: 1fr; }
     .traincard .tc-events { margin-top: 4px; border-left: 0; padding-left: 0; }
     .kbd-hint { display: none; }
-    body.fs .traincard { display: none; }
+    /* 手機 fs:列車資訊卡平時不現(小卡代之);升為「列車」sheet(.tc-sheet)時才顯示 */
+    body.fs .traincard:not(.tc-sheet) { display: none; }
+    /* ── 「列車」sheet(手機 fs):#trainCard 就地升為底部 sheet,不搬 DOM;tc-head sticky 標題列(☆＋✕) ── */
+    .traincard.tc-sheet {
+      position: fixed; left: 8px; right: 8px; top: auto;
+      bottom: calc(66px + env(safe-area-inset-bottom, 0px));
+      width: auto; margin: 0; max-height: 46%;
+      overflow-y: auto; overscroll-behavior: contain; /* 契約④:內容捲動只在 sheet 內 */
+      border-radius: 14px 14px 10px 10px; padding: 0 14px 12px; z-index: 1105;
+      scrollbar-width: thin; scrollbar-color: var(--line) transparent;
+    }
+    .traincard.tc-sheet::before { content: ""; display: block; position: absolute; top: 5px; left: 50%; transform: translateX(-50%); width: 38px; height: 4px; border-radius: 3px; background: rgba(42,74,115,.28); z-index: 3; }
+    .traincard.tc-sheet .tc-head {
+      position: sticky; top: 0; z-index: 2; flex-wrap: wrap;
+      margin: 0 -14px 8px; padding: 14px 14px 8px;
+      background: var(--paper); border-bottom: 1.5px dashed var(--line-dash);
+    }
+    .traincard.tc-sheet .tc-tt { display: none; } /* 曲線/時刻表切換鈕:sheet 內兩段皆常駐展開,不需切換 */
+    .traincard.tc-sheet .tc-x {
+      display: flex; align-items: center; justify-content: center; align-self: center;
+      margin-left: 2px; width: 24px; height: 24px; padding: 0; flex: none;
+      background: none; border: 0; cursor: pointer; color: var(--faint);
+      font-family: "PingFang TC", "Noto Sans TC", sans-serif; font-size: 17px; line-height: 1;
+    }
+    .traincard.tc-sheet .tc-body { display: block; margin-top: 0; padding-top: 0; border-top: 0; }
+    .traincard.tc-sheet .tc-intro { margin: 4px 0 2px; }
+    .traincard.tc-sheet .tc-events { margin-top: 9px; border-left: 0; padding-left: 0; }
+    .traincard.tc-sheet .tc-events #tcEvents { flex: none; }
+    /* 雙段高:.board 家族與列車 sheet 展開態 46%→88%(更多 sheet 不含,見其獨立塊) */
+    .board.expand, .traincard.tc-sheet.expand { max-height: 88%; }
+    /* 「列車」sheet 開啟時跟隨小卡隱藏(資訊重複,見 mock D) */
+    body.train-open .follow-panel { display: none; }
+    /* 契約③:任一 sheet 展開到 88%(body.sheet-full)時,跟隨小卡與速度膠囊全部淡出(46% 讓位規則沿用既有 sheet-open) */
+    body.sheet-full .follow-panel, body.sheet-full .freq-card { opacity: 0; pointer-events: none; }
     /* 全畫面:tab bar 疊在地圖上,底欄元素上移讓開 */
     body.fs .leaflet-bottom.leaflet-right { bottom: calc(64px + env(safe-area-inset-bottom, 0px)); }
     body.fs .follow-panel, body.fs .freq-card { width: 176px; }
@@ -1779,8 +1814,10 @@
     /* 收合膠囊點到時間讀數要先「展開完整帶」,不能直接跳原生選時器——非展開態關掉透明 time input 的點擊,
        點擊落到膠囊本體走展開;展開(cexp)後規則失效,再點時間才開選時器 */
     body:not(.ambient):not(.live):not(.cexp) .controls .tod-wrap input[type=time] { pointer-events: none; }
-    /* 閒置淡成半透明把手:整條變淡,倍速數字仍讀得到 */
-    body:not(.ambient):not(.live):not(.cexp).cfaint .controls { opacity: .5; padding: 4px 13px; }
+    /* 閒置淡成半透明把手:整條變淡,倍速數字仍讀得到。
+       :not(.sheet-open) 護欄:sheet 開啟時膠囊本應 opacity:0 讓位,但 cfaint 這條(特異度較高)會把它拉回 .5 而「仍可見」
+       (Batch B 真機截圖病灶);排除 sheet-open 後,讓位規則 body.sheet-open .controls{opacity:0} 得以生效。 */
+    body:not(.ambient):not(.live):not(.cexp):not(.sheet-open).cfaint .controls { opacity: .5; padding: 4px 13px; }
     body:not(.ambient):not(.live):not(.cexp).cfaint .controls #pp,
     body:not(.ambient):not(.live):not(.cexp).cfaint .controls #todOut { display: none; }
     /* 展開態(cexp):完整帶貼底整寬,可換行 */
@@ -2179,6 +2216,7 @@ try { if (matchMedia('(max-width: 900px)').matches) document.body.classList.add(
       <button class="tc-tt" id="tcSC">曲線 ▴</button>
       <button class="tc-tt" id="tcTT">時刻表 ▾</button>
       <button class="tc-star" id="tcStar" title="加入最愛">☆</button>
+      <button class="tc-x" id="tcSheetClose" title="關閉列車卡（跟車不中斷）">✕</button>
     </div>
     <div class="tc-body">
       <div class="tc-intro" id="tcIntro"></div>
@@ -5734,7 +5772,8 @@ function placeControls(following) {}
 // 全畫面跟隨:資訊卡搬進左下跟隨面板合併成一張;退出全畫面/取消跟隨還原到地圖下方
 function placeTrainCard() {
   const tc = document.getElementById('trainCard');
-  if (document.body.classList.contains('fs') && state.followTrain) {
+  // 桌面全畫面:資訊卡併進左下跟隨面板。手機全畫面改走「列車」sheet(就地升格,不搬 DOM)——故手機不併卡,落到還原分支留在流內(平時 CSS 隱藏,開 sheet 才顯示)
+  if (document.body.classList.contains('fs') && state.followTrain && !window.matchMedia(MOBILE_MQ).matches) {
     document.getElementById('followPanel').appendChild(tc);
   } else if (tc.parentElement.classList.contains('follow-panel')) {
     document.querySelector('.stage').after(tc); // 還原到主欄地圖正下方(最愛列已移側欄,不能當錨點)
@@ -5801,6 +5840,7 @@ function clearFollow() {
   if (fb) { fb.hidden = true; fb.className = 'followbar'; fb.innerHTML = ''; }
   document.getElementById('followPanel').hidden = true;
   document.getElementById('trainCard').hidden = true;
+  closeTrainSheet(); // 手機「列車」sheet 也一併收(取消跟車=整組收掉)
   // 行程分享:取消跟隨即結束行程情境(收橫幅與選站面板);× 收橫幅走 closeTripBanner 不經這裡
   if (state._trip) { state._trip = null; renderTripBanner(); }
   closeTripSharePanel();
@@ -8671,10 +8711,25 @@ function jumpToNow() {
 
 // 手機底部 sheet(看板/最愛/旅程/探索,四選一互斥)開啟時,跟隨小卡要讓道到上方,
 // 避免同在左下角互疊(見 CSS body.sheet-open .follow-panel,只在手機斷點生效)
+// 手機底部 sheet 家族(看板/最愛/旅程/探索/軌道/今日/誤點履歷 + 「列車」sheet):互斥開啟。
+const SHEET_PANEL_IDS = ['board', 'favPanel', 'ridePanel', 'explorePanel', 'trackPanel', 'todayPanel', 'delayHistPanel'];
+// 目前開啟中的那張 sheet(至多一張;含「列車」sheet)——供雙段高 expand/收合定位
+function activeSheetEl() {
+  const tc = document.getElementById('trainCard');
+  if (tc && tc.classList.contains('tc-sheet')) return tc;
+  for (const id of SHEET_PANEL_IDS) { const el = document.getElementById(id); if (el && !el.hidden) return el; }
+  return null;
+}
 function updateSheetOpenClass() {
-  const open = ['board', 'favPanel', 'ridePanel', 'explorePanel', 'trackPanel', 'todayPanel', 'delayHistPanel'].some(id => !document.getElementById(id).hidden);
+  const tcSheet = document.getElementById('trainCard').classList.contains('tc-sheet');
+  const open = SHEET_PANEL_IDS.some(id => !document.getElementById(id).hidden) || tcSheet;
   document.body.classList.toggle('sheet-open', open);
-  // 手機 tab bar 選中態跟著面板走:有開面板亮該 tab,全關回「地圖」
+  // 契約③:開啟中的 sheet 處於 88% 展開態 → body.sheet-full(跟隨小卡＋速度膠囊全淡出)
+  const act = activeSheetEl();
+  // 收合的 sheet 一律清 expand(關閉時重置回 46%,下次開回 peek)
+  for (const id of SHEET_PANEL_IDS) { const el = document.getElementById(id); if (el && el !== act) el.classList.remove('expand'); }
+  document.body.classList.toggle('sheet-full', !!(act && act.classList.contains('expand')));
+  // 手機 tab bar 選中態跟著面板走:有開面板亮該 tab,全關(或「列車」sheet=地圖活動)回「地圖」
   const tabOf = { tabExplore: 'explorePanel', tabFav: 'favPanel', tabRide: 'ridePanel' };
   let any = false;
   for (const tid in tabOf) {
@@ -8683,6 +8738,53 @@ function updateSheetOpenClass() {
     if (on) any = true;
   }
   const tm = document.getElementById('tabMap'); if (tm) tm.classList.toggle('active', !any);
+}
+// ── 「列車」sheet(手機 fs):點跟隨小卡展開 #trainCard 內容(不搬 DOM) ──
+function openTrainSheet() {
+  if (!window.matchMedia(MOBILE_MQ).matches || !document.body.classList.contains('fs') || !state.followTrain) return;
+  if (document.body.classList.contains('live') || document.body.classList.contains('ambient')) return; // 直播/放空 HUD 不受影響(§04b)
+  soloPanel('train'); // 關掉其他 sheet(保留自己)
+  const tc = document.getElementById('trainCard');
+  document.getElementById('followPanel').classList.remove('fp-min'); // 收合小卡態也一致地開 sheet
+  tc.classList.add('tc-sheet');
+  document.body.classList.add('train-open');
+  setStopsOpen(true); // sheet 內「停靠時刻」常駐展開(桌面靠 tcTT 切換的兩鈕在 sheet 態隱藏)
+  updateSheetOpenClass();
+  requestAnimationFrame(() => { if (state.followTrain) drawSpark(state.followTrain, effT(state.followTrain)); }); // canvas 現在有寬度,立即補畫一次
+}
+function closeTrainSheet() {
+  const tc = document.getElementById('trainCard');
+  if (!tc.classList.contains('tc-sheet')) return;
+  tc.classList.remove('tc-sheet', 'expand');
+  document.body.classList.remove('train-open');
+  updateSheetOpenClass();
+}
+// 雙段高 46⇄88:點標題列 toggle、拖抓把 snap
+function setSheetExpand(el, on) { el.classList.toggle('expand', on); updateSheetOpenClass(); }
+function toggleSheetExpand(el) { setSheetExpand(el, !el.classList.contains('expand')); }
+// 抓把/標題列的點擊(toggle)與拖曳(dy 閾值 snap);只在標題列頂區觸發,不攔內容捲動與按鈕
+function initSheetHandle(el) {
+  let sy = null, dy = 0, active = false;
+  const EXC = 'button, a, input, select, textarea, .close, .board-star, .tc-star, .tc-x, .tc-tt, .fp-close, .fp-end, .fp-tripshare, .tc-dhlink, [role=button]';
+  const inHeader = (e) => {
+    if (e.target.closest(EXC)) return false;
+    const r = el.getBoundingClientRect();
+    return (e.clientY - r.top) <= 46 || !!e.target.closest('h3, .tc-head'); // 頂 46px(抓把+標題)或標題列本體
+  };
+  el.addEventListener('pointerdown', (e) => {
+    if (!window.matchMedia(MOBILE_MQ).matches || !inHeader(e)) { active = false; return; }
+    active = true; sy = e.clientY; dy = 0;
+    try { el.setPointerCapture(e.pointerId); } catch (err) {} // 上滑抓把常滑出 sheet 頂緣,不捕捉指標會斷收 move/up 使拖曳失效
+  });
+  el.addEventListener('pointermove', (e) => { if (active && sy != null) { dy = e.clientY - sy; if (Math.abs(dy) > 6) e.preventDefault(); } }, { passive: false });
+  const end = () => {
+    if (!active) return; active = false;
+    if (Math.abs(dy) < 8) toggleSheetExpand(el);      // 輕點標題列 → toggle
+    else if (dy < -40) setSheetExpand(el, true);       // 上滑 → 展開
+    else if (dy > 40) setSheetExpand(el, false);       // 下滑 → 收合
+  };
+  el.addEventListener('pointerup', end);
+  el.addEventListener('pointercancel', () => { active = false; });
 }
 
 // ──「軌道與路線」告示卡:軌道顯示三段＋車種/路線篩選票根(「軌」鈕開關;與其他面板同槽互斥) ──
@@ -8884,6 +8986,7 @@ function soloPanel(keep) {
   if (keep !== 'track') closeTrackPanel();
   if (keep !== 'today') closeTodayPanel();
   if (keep !== 'delayhist') closeDelayHist();
+  if (keep !== 'train') closeTrainSheet();
 }
 function openBoard(st) { soloPanel('board'); closeFavPanel(); closeRidePanel(); closeExplorePanel(); closeTrackPanel(); closeTodayPanel(); closeDelayHist(); closePinCard(); closeNearbyXing(); closeSugarCard(); state.boardStation = st; renderBoard(); }
 function closeBoard() {
@@ -9431,6 +9534,7 @@ function setupMapTools() {
     const mob = window.matchMedia(MOBILE_MQ).matches;
     if (mob) { if (!document.body.classList.contains('fs')) setFs(true); }
     else if (!state.liveMode && document.body.classList.contains('fs')) setFs(false);
+    if (!mob) closeTrainSheet(); // 「列車」sheet 是手機專屬構造:離開手機斷點即收(桌面走併卡);desktop 無 tc-sheet 時為 no-op
     placeFsOverlays(); if (state._fsCapsuleSync) state._fsCapsuleSync(false);
     // Batch B:跨界把搜尋列/頁尾盒搬回正確的家;離開手機時把走勢圖搬回原位、收起縣市 chip
     placeSearch(); placeFootBoxes();
@@ -10445,9 +10549,16 @@ document.getElementById('fcEnd').onclick = (e) => { e.stopPropagation(); clearFr
 document.getElementById('followPanel').addEventListener('click', (e) => {
   const fp = e.currentTarget;
   if (e.target.closest('.fp-dhlink')) { e.stopPropagation(); openDelayHist(state.followTrain); return; } // 準點列尾端「誤點履歷 ›」
+  // 手機全畫面:點跟隨小卡(非結束/收合/分享鈕)→ 展開「列車」sheet(桌面走原 fp-min 展開;直播/放空不攔,維持既有行為)
+  if (window.matchMedia(MOBILE_MQ).matches && document.body.classList.contains('fs') && state.followTrain
+      && !document.body.classList.contains('live') && !document.body.classList.contains('ambient')
+      && !e.target.closest('.fp-end, .fp-close, .fp-tripshare')) { openTrainSheet(); return; }
   if (fp.classList.contains('fp-min') && !e.target.closest('.fp-end')) fp.classList.remove('fp-min');
 });
-document.getElementById('tcStar').onclick = () => toggleFav(state.followTrain);
+document.getElementById('tcStar').onclick = (e) => { e.stopPropagation(); toggleFav(state.followTrain); }; // stopPropagation:sheet 態不觸發標題列 toggle
+document.getElementById('tcSheetClose').onclick = (e) => { e.stopPropagation(); closeTrainSheet(); }; // ✕ 收「列車」sheet(跟車不中斷,小卡回來)
+// 雙段高抓把:.board 家族 + 「列車」sheet(#trainCard)綁點擊 toggle / 拖曳 snap
+['board', 'favPanel', 'ridePanel', 'explorePanel', 'trackPanel', 'todayPanel', 'delayHistPanel', 'trainCard'].forEach(id => { const el = document.getElementById(id); if (el) initSheetHandle(el); });
 // 車次介紹卡的「誤點履歷 ›」次要入口(fs 模式卡會被搬進跟隨面板,stopPropagation 避免觸發膠囊展開)
 document.getElementById('tcDelayHist').onclick = (e) => { e.stopPropagation(); openDelayHist(state.followTrain); };
 // 每按一次跳一班隨機列車(已在隨機模式再按=立刻換車,不是關閉);結束靠小卡 ×/點跟隨中的列車/手動選車
