@@ -1662,6 +1662,8 @@
     body.sheet-open .follow-panel, body.sheet-open .freq-card { bottom: calc(46% + 16px) !important; max-height: calc(54% - 84px); }
     /* sheet 開啟時速度膠囊與版權條淡出讓位,不壓面板文字(見 updateSheetOpenClass) */
     body.sheet-open .controls, body.sheet-open .leaflet-control-attribution { opacity: 0; pointer-events: none; }
+    /* 誤點履歷高身 sheet 會頂進跟隨鎖(z800)的座位,開卡時鎖鈕同式讓位(dh-open 由 openDelayHist 掛) */
+    body.dh-open .follow-lock-ctl { opacity: 0; pointer-events: none; }
     /* 全畫面時 stage 佔滿視窗:底部 sheet(與其上讓位的跟隨小卡)要再讓開 fixed tab bar(58px+safe-area) */
     body.fs .board { bottom: calc(66px + env(safe-area-inset-bottom, 0px)); }
     body.fs.sheet-open .follow-panel, body.fs.sheet-open .freq-card { bottom: calc(46% + 82px + env(safe-area-inset-bottom, 0px)) !important; }
@@ -7578,6 +7580,7 @@ function openDelayHist(tr) {
     if (e.target.closest('[data-dh-retry]')) { fetchDelayHistory(no); return; }
     if (e.target.closest('[data-dh-cta]')) { plusGateOpen('delay-history', () => renderDelayHist()); return; }
   };
+  document.body.classList.add('dh-open'); // 手機:跟隨鎖讓位(見 CSS body.dh-open)
   updateSheetOpenClass();
   ensureDelayStats();       // 統計列聚合值(跟車時通常已載;保險再觸發一次,已載入會早退)
   fetchDelayHistory(no);    // 逐日資料
@@ -7588,6 +7591,7 @@ function closeDelayHist() {
   if (!el || el.hidden) return;
   el.hidden = true; el.innerHTML = ''; el.onclick = null;
   state._delayHistOpen = null;
+  document.body.classList.remove('dh-open');
   updateSheetOpenClass();
 }
 function showFollowPanel(tr) {

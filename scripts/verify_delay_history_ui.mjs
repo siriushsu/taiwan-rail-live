@@ -273,13 +273,25 @@ async function overlapAt(width, height, touch) {
     // 排除隱形/非互動控件:opacity≈0 或 pointer-events:none(如 sheet 開啟時淡出讓位的速度膠囊/版權條)——
     // 它們既看不見也點不到,不構成遮擋;只計真正可見可互動的控件是否被卡片壓到。
     const vis = s => { const e = document.querySelector(s); if (!e || e.hidden) return null; const cs = getComputedStyle(e); if (cs.visibility === 'hidden' || cs.display === 'none' || cs.pointerEvents === 'none' || parseFloat(cs.opacity) < 0.02) return null; const r = e.getBoundingClientRect(); return (r.width < 1 || r.height < 1) ? null : r; };
-    const sels = ['.follow-panel', '.freq-card', '.controls', '.badge', '#trainCard', '.leaflet-control-attribution'];
+    const sels = ['.follow-panel', '.freq-card', '.controls', '.badge', '#trainCard', '.leaflet-control-attribution', '#followLockBtn', '.follow-lock-ctl'];
     const hits = [];
     for (const s of sels) { const r = vis(s); if (r && overlap(card, r)) hits.push(s + `[${r.left | 0},${r.top | 0},${r.right | 0},${r.bottom | 0}]`); }
     const inViewport = card.left >= -0.5 && card.top >= -0.5 && card.right <= innerWidth + 0.5 && card.bottom <= innerHeight + 0.5;
-    return { card: [card.left | 0, card.top | 0, card.right | 0, card.bottom | 0], hits, inViewport };
+    // 跟隨鎖像素級真值(fresh 驗收 finding①):幾何相交時必須已讓位(dh-open)且 elementFromPoint 不命中鎖鈕
+    let lock = { present: false };
+    const lb = document.getElementById('followLockBtn');
+    if (lb) {
+      const cs = getComputedStyle(lb), r = lb.getBoundingClientRect();
+      const ov = overlap(card, r);
+      const yielded = cs.pointerEvents === 'none' || parseFloat(cs.opacity) < 0.02;
+      let efp = null;
+      if (ov) { const x = Math.min(r.right, card.right) - 2, y = Math.max(r.top, card.top) + 2; const hit = document.elementFromPoint(x, y); efp = hit && hit.closest('#followLockBtn') ? 'lock' : 'pass'; }
+      lock = { present: true, ov, yielded, efp };
+    }
+    return { card: [card.left | 0, card.top | 0, card.right | 0, card.bottom | 0], hits, inViewport, lock };
   });
   ok(`F${width} 卡片開啟與既有控件零相交`, res.hits.length === 0, `card=${res.card.join(',')} hits=${res.hits.join(' ')}`);
+  ok(`F${width} 跟隨鎖不遮卡(讓位或無相交)`, !res.lock.present || !res.lock.ov || (res.lock.yielded && res.lock.efp !== 'lock'), JSON.stringify(res.lock));
   ok(`F${width} 卡片在視窗內不溢出`, res.inViewport === true, `card=${res.card.join(',')}`);
   if (errs.length) ok(`F${width} Z 零 error`, false, errs.slice(0, 2).join(' | '));
   await ctx.close();
