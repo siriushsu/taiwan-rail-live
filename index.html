@@ -1204,6 +1204,51 @@
   #todayPanel .td-follow { margin: 5px 0 3px 8px; font-size: 11.5px; font-weight: 700; color: var(--navy); background: var(--bg-stage); border: 1px solid var(--line); border-radius: 6px; padding: 3px 10px; cursor: pointer; }
   #todayPanel .td-follow:hover { background: var(--paper); }
 
+  /* ── 誤點履歷卡(Plus 頭牌;delayHistPanel,沿用 .board 家族的浮動卡/手機 sheet) ── */
+  /* 入口小連結:跟隨面板準點列尾端 + 車次介紹卡;用 span 避開 button UA 度量,不動既有字級級聯 */
+  .fp-dhlink, .tc-dhlink {
+    cursor: pointer; color: var(--navy); font-weight: 700; white-space: nowrap;
+  }
+  .fp-dhlink { margin-left: 6px; }                 /* 承接 .fp-dest(11.5px)字級:inline span 不改父行高 */
+  .fp-dhlink:hover, .tc-dhlink:hover { text-decoration: underline; }
+  .tc-dhlink { display: inline-block; margin-top: 8px; font-size: 12px; }
+  .delayhist-panel .dh-stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin: 2px 0 10px; }
+  .delayhist-panel .dh-stat { text-align: center; background: var(--bg-stage); border: 1px solid var(--line-faint); border-radius: 7px; padding: 6px 2px 5px; }
+  .delayhist-panel .dh-stat b { display: block; font-size: 16px; font-weight: 900; color: var(--ink-strong); font-variant-numeric: tabular-nums; line-height: 1.1; }
+  .delayhist-panel .dh-stat span { display: block; font-size: 9.5px; color: var(--faint); margin-top: 2px; line-height: 1.25; }
+  .delayhist-panel .dh-sec { color: var(--faint); font-size: 11px; font-weight: 800; letter-spacing: 2px; margin: 8px 0 4px; }
+  .delayhist-panel .dh-bars { display: block; width: 100%; height: auto; }
+  .delayhist-panel .dh-bar.ok { fill: var(--ok); }
+  .delayhist-panel .dh-bar.hi { fill: var(--red); }
+  .delayhist-panel .dh-bar.none { fill: var(--line-faint); }
+  .delayhist-panel .dh-grid { stroke: var(--line-faint); stroke-width: .6; }
+  .delayhist-panel .dh-ref { stroke: var(--line); stroke-width: .6; stroke-dasharray: 2 2; opacity: .8; }
+  .delayhist-panel .dh-axis { fill: var(--faint); font-size: 7px; font-variant-numeric: tabular-nums; }
+  .delayhist-panel .dh-wd { display: flex; align-items: flex-end; gap: 4px; height: 72px; margin-bottom: 2px; }
+  .delayhist-panel .dh-wd-col { flex: 1; min-width: 0; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; height: 100%; }
+  .delayhist-panel .dh-wd-bar { width: 62%; min-height: 2px; border-radius: 2px 2px 0 0; background: var(--ok); }
+  .delayhist-panel .dh-wd-bar.hi { background: var(--red); }
+  .delayhist-panel .dh-wd-bar.none { background: var(--line-faint); }
+  .delayhist-panel .dh-wd-col span { font-size: 10px; color: var(--muted); margin-top: 3px; font-weight: 700; }
+  .delayhist-panel .dh-wd-col em { font-size: 8.5px; color: var(--faint); font-style: normal; font-variant-numeric: tabular-nums; }
+  .delayhist-panel .dh-src { margin-top: 9px; padding-top: 7px; border-top: 1px dashed var(--line-faint); font-size: 10px; color: var(--faint); line-height: 1.55; }
+  .delayhist-panel .dh-msg { color: var(--muted); font-size: 12.5px; padding: 10px 2px; line-height: 1.6; }
+  .delayhist-panel .dh-retry { margin: 0 0 6px; font-size: 12px; font-weight: 700; color: var(--navy); background: var(--bg-stage); border: 1px solid var(--line); border-radius: 6px; padding: 4px 12px; cursor: pointer; }
+  .delayhist-panel .dh-retry:hover { background: var(--paper); }
+  /* Plus 分層:未訂閱→圖表區模糊+置中 CTA;stats 列與資料標示仍可見當 teaser */
+  .delayhist-panel .dh-lock { position: relative; }
+  .delayhist-panel .dh-locked { filter: blur(5px); pointer-events: none; user-select: none; }
+  .delayhist-panel .dh-cta {
+    position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 8px; text-align: center; padding: 12px; background: var(--paper-tr); border-radius: 8px;
+  }
+  .delayhist-panel .dh-cta-txt { font-size: 11.5px; font-weight: 700; color: var(--muted); }
+  .delayhist-panel .dh-cta-btn {
+    font-size: 13px; font-weight: 800; color: var(--on-navy); background: var(--navy);
+    border: 0; border-radius: 8px; padding: 8px 16px; cursor: pointer; box-shadow: var(--shadow-navy);
+  }
+  .delayhist-panel .dh-cta-btn:hover { background: var(--red); }
+
   /* ── 軌道與路線面板(「軌」告示卡:軌道顯示三段+車種/路線篩選——側欄取消後的新家) ── */
   .track-panel .seg-row {
     display: flex; justify-content: space-between; align-items: center; gap: 10px;
@@ -1951,6 +1996,8 @@
     <div class="board" id="ridePanel" hidden></div>
     <div class="board" id="explorePanel" hidden></div>
     <div class="board" id="todayPanel" hidden></div>
+    <!-- 誤點履歷卡(Plus 頭牌;跟隨台鐵時由準點列/車次卡入口開啟);×/☆ 家族鐵則——close 鈕放 sticky h3 內(v0717p) -->
+    <div class="board delayhist-panel" id="delayHistPanel" hidden></div>
     <!-- 行程分享:選目的站(剩餘停站列表);×/☆ 家族鐵則——close 鈕放 sticky h3 內(v0717p) -->
     <div class="board trip-panel" id="tripPanel" hidden></div>
     <!-- 軌道與路線告示卡(「軌」鈕開啟):軌道顯示三段＋車種/路線篩選票根(原側欄的新家) -->
@@ -2045,6 +2092,8 @@
         <div id="tcEvents"></div>
       </div>
     </div>
+    <!-- 誤點履歷次要入口(Plus 頭牌;僅台鐵有樣本時由 renderDelayRow 取消 hidden) -->
+    <span class="tc-dhlink" id="tcDelayHist" hidden>誤點履歷 ›</span>
     <div class="tc-sparkwrap">
       <div class="lbl">全程速度曲線</div>
       <canvas id="tcSpark" height="46"></canvas>
@@ -3722,7 +3771,9 @@ function renderSugarCard() {
 const LOCATE_ENABLED = !!window.RAIL_NATIVE_GEOLOCATION;
 const RECORDING_ENABLED = false; // 2026-07-17 錄影暫時下架(整備中):所有入口隱藏、實作全保留;改 true 即復活(工具列鈕+更多抽屜列+Plus 文案)
 const ACCOUNT_ENABLED = false; // 2026-07-17 帳號同步轉收費前暫時下架:入口全藏、不載 Firebase SDK、實作全保留;僅 ?account=delete 深連結(account-deletion.html)留給既有帳號刪資料;改 true 即復活
-const PLUS_ENABLED = false; // Plus 功能總閘,上架批次改 true(此旗標先不接任何現有功能,見 plusGateOpen;訂閱入口另受 plusConfigured/plusProjectConfigured 與 RevenueCat 設定控制)
+// Plus 功能總閘(暗啟動):預設關,上架批次改為 true。?plus=1 當次點亮供測試(比照 TRIP_SHARE_ENABLED)。
+// 目前接「誤點履歷」頭牌卡的入口與卡片(見 openDelayHist/renderDelayHist);訂閱入口另受 plusConfigured 與 RevenueCat 設定控制。
+const PLUS_ENABLED = (() => { try { return new URLSearchParams(location.search).get('plus') === '1'; } catch (e) { return false; } })();
 // 放空閒置達此秒數→劇場模式:切離線海陸底層(零圖磚)、相機停在全群組視角,列車/音樂/完乘全照常,只是不再抓圖磚。
 // ?theater=N 覆寫門檻(秒,測試用,不限環境——只會讓使用者自己更早進入省磚畫面,無風險)。見 enterTheater/camBlocked。
 const THEATER_IDLE_SEC = (() => {
@@ -6695,7 +6746,7 @@ function renderFavPanel() {
 }
 function openFavPanel() {
   soloPanel('fav');
-  closeBoard(); closeRidePanel(); closeExplorePanel(); closeTrackPanel(); closeTodayPanel();
+  closeBoard(); closeRidePanel(); closeExplorePanel(); closeTrackPanel(); closeTodayPanel(); closeDelayHist();
   const el = document.getElementById('favPanel');
   el.hidden = false;
   updateSheetOpenClass();
@@ -6764,7 +6815,7 @@ function renderRidePanel() {
 }
 function openRidePanel() {
   soloPanel('ride');
-  closeBoard(); closeFavPanel(); closeExplorePanel(); closeTrackPanel(); closeTodayPanel();
+  closeBoard(); closeFavPanel(); closeExplorePanel(); closeTrackPanel(); closeTodayPanel(); closeDelayHist();
   document.getElementById('ridePanel').hidden = false;
   updateSheetOpenClass();
   document.getElementById('rideBtn').classList.add('active');
@@ -7104,7 +7155,7 @@ function surpriseFollow() {
 }
 function openExplorePanel() {
   soloPanel('explore');
-  closeBoard(); closeFavPanel(); closeRidePanel(); closeTrackPanel(); closeTodayPanel();
+  closeBoard(); closeFavPanel(); closeRidePanel(); closeTrackPanel(); closeTodayPanel(); closeDelayHist();
   document.getElementById('explorePanel').hidden = false;
   updateSheetOpenClass();
   document.getElementById('exploreBtn').classList.add('active');
@@ -7209,7 +7260,7 @@ function renderTodayPanel() {
 }
 function openTodayPanel() {
   soloPanel('today');
-  closeBoard(); closeFavPanel(); closeRidePanel(); closeExplorePanel(); closeTrackPanel();
+  closeBoard(); closeFavPanel(); closeRidePanel(); closeExplorePanel(); closeTrackPanel(); closeDelayHist();
   const el = document.getElementById('todayPanel');
   el.hidden = false;
   el.onclick = e => {
@@ -7399,11 +7450,145 @@ function renderDelayRow() {
   const el = document.getElementById('fpDelay'); if (!el) return;
   const tr = state.followTrain;
   const s = (tr && tr.sys === 'tra_sched' && state.delayStats) ? state.delayStats[String(tr.train)] : null;
-  if (!s || s.d < 5) { el.hidden = true; el.textContent = ''; el.removeAttribute('title'); return; }
+  const show = !!(s && s.d >= 5);
+  // 誤點履歷入口與此列同條件(台鐵+樣本足);次要入口在車次介紹卡,同一 gate 一起開合(見 tcDelayHist)
+  const tcDh = document.getElementById('tcDelayHist');
+  if (tcDh) tcDh.hidden = !(show && PLUS_ENABLED);
+  if (!show) { el.hidden = true; el.textContent = ''; el.removeAttribute('title'); return; }
   const a = Number.isInteger(s.a) ? String(s.a) : s.a.toFixed(1); // 2.0→「2」尾數 .0 去掉
-  el.textContent = `近30天平均誤點 ${a}分・準點 ${s.p}%（${s.d}天）`;
+  // 值皆為數字(a/p/d 來自 delayStats),innerHTML 內插安全;PLUS_ENABLED 才在尾端掛「誤點履歷 ›」小連結
+  el.innerHTML = `近30天平均誤點 ${a}分・準點 ${s.p}%（${s.d}天）` +
+    (PLUS_ENABLED ? `<span class="fp-dhlink">誤點履歷 ›</span>` : '');
   el.title = `單日最大誤點 ${s.m} 分`;
   el.hidden = false;
+}
+
+// ── 誤點履歷卡(Plus 頭牌;後端 /api/delay-history?train= 回 {train,days:[{d,fd,md}],_meta}) ──
+// 統計列複用跟隨面板的 30 天聚合值(state.delayStats);逐日長條圖+週幾分布來自 90 天 days。
+function fetchDelayHistory(no) {
+  no = String(no);
+  state.delayHist = state.delayHist || {};
+  const cur = state.delayHist[no];
+  if (cur && (cur.loading || cur.data)) return; // 載入中或已成功(含空)→不重打;僅錯誤態(下方)允許重試
+  state.delayHist[no] = { loading: true, error: false, status: 0, data: null };
+  if (state._delayHistOpen === no) renderDelayHist();
+  fetch(apiUrl('api/delay-history?train=' + encodeURIComponent(no)), { cache: 'no-store' })
+    .then(r => r.ok ? r.json() : Promise.reject(r.status))
+    .then(j => { state.delayHist[no] = { loading: false, error: false, status: 200, data: j || null }; })
+    .catch(err => { state.delayHist[no] = { loading: false, error: true, status: (typeof err === 'number' ? err : 0), data: null }; })
+    .finally(() => { if (state._delayHistOpen === no) renderDelayHist(); });
+}
+// 90 天逐日最終誤點長條圖(inline SVG,不引外部庫):fd≤5 綠(--ok)、>5 紅(--red);x 軸稀疏日期、y 軸分鐘。
+function dhBarChart(days) {
+  const N = days.length;
+  const VBW = 320, VBH = 128, padL = 22, padR = 6, padT = 8, padB = 20;
+  const plotW = VBW - padL - padR, plotH = VBH - padT - padB;
+  const maxFd = days.reduce((m, d) => Math.max(m, +d.fd || 0), 0);
+  const yMax = Math.max(10, Math.ceil(maxFd / 5) * 5);
+  const gap = N > 60 ? 0.6 : 1;
+  const bw = Math.max(1.2, (plotW - (N - 1) * gap) / N);
+  const yOf = v => padT + plotH - (Math.min(v, yMax) / yMax) * plotH;
+  let grid = '';
+  for (const tk of [0, yMax / 2, yMax]) {
+    const y = yOf(tk);
+    grid += `<line class="dh-grid" x1="${padL}" y1="${y.toFixed(1)}" x2="${VBW - padR}" y2="${y.toFixed(1)}"/>`;
+    grid += `<text class="dh-axis" x="${padL - 3}" y="${(y + 2.5).toFixed(1)}" text-anchor="end">${Number.isInteger(tk) ? tk : tk.toFixed(0)}</text>`;
+  }
+  const ref = yMax > 5 ? `<line class="dh-ref" x1="${padL}" y1="${yOf(5).toFixed(1)}" x2="${VBW - padR}" y2="${yOf(5).toFixed(1)}"/>` : '';
+  let bars = '';
+  days.forEach((d, i) => {
+    const fd = +d.fd || 0, x = padL + i * (bw + gap);
+    const h = Math.max(fd > 0 ? 1.4 : 1.0, (Math.min(fd, yMax) / yMax) * plotH);
+    bars += `<rect class="dh-bar ${fd > 5 ? 'hi' : 'ok'}" x="${x.toFixed(2)}" y="${(padT + plotH - h).toFixed(2)}" width="${bw.toFixed(2)}" height="${h.toFixed(2)}"><title>${d.d}｜誤點 ${fd} 分</title></rect>`;
+  });
+  let xlab = '';
+  const lab = i => days[i].d.slice(5).replace('-', '/');
+  for (let i = 0; i < N - 7; i += 14) xlab += `<text class="dh-axis" x="${(padL + i * (bw + gap) + bw / 2).toFixed(1)}" y="${VBH - 7}" text-anchor="middle">${lab(i)}</text>`;
+  xlab += `<text class="dh-axis" x="${(padL + (N - 1) * (bw + gap) + bw / 2).toFixed(1)}" y="${VBH - 7}" text-anchor="end">${lab(N - 1)}</text>`;
+  return `<svg class="dh-bars" viewBox="0 0 ${VBW} ${VBH}" role="img" aria-label="近90天逐日誤點長條圖">${grid}${ref}${bars}${xlab}</svg>`;
+}
+// 各週幾平均誤點(七柱);日期字串→週幾一律 getUTCDay,避免裝置時區位移。
+function dhWeekday(days) {
+  const sum = [0, 0, 0, 0, 0, 0, 0], cnt = [0, 0, 0, 0, 0, 0, 0];
+  for (const d of days) { const wd = new Date(d.d + 'T00:00:00Z').getUTCDay(); sum[wd] += (+d.fd || 0); cnt[wd]++; }
+  const avg = sum.map((v, i) => cnt[i] ? v / cnt[i] : null);
+  const maxA = Math.max(1, ...avg.map(a => a == null ? 0 : a));
+  const labels = ['日', '一', '二', '三', '四', '五', '六'];
+  const cols = avg.map((a, i) => {
+    if (a == null) return `<div class="dh-wd-col"><i class="dh-wd-bar none" style="height:2px"></i><span>${labels[i]}</span><em>–</em></div>`;
+    const h = Math.max(3, Math.round((a / maxA) * 100));
+    return `<div class="dh-wd-col" title="週${labels[i]}平均誤點 ${a.toFixed(1)} 分"><i class="dh-wd-bar ${a > 5 ? 'hi' : 'ok'}" style="height:${h}%"></i><span>${labels[i]}</span><em>${a < 10 ? a.toFixed(1) : a.toFixed(0)}</em></div>`;
+  }).join('');
+  return `<div class="dh-wd">${cols}</div>`;
+}
+function renderDelayHist() {
+  const el = document.getElementById('delayHistPanel');
+  if (!el || el.hidden) return;
+  const no = state._delayHistOpen, kind = state._delayHistKind || '';
+  const rec = (state.delayHist || {})[no] || null;
+  const head = `<h3>誤點履歷${kind ? '・' + escHtml(kind) : ''}${escHtml(no || '')}<button class="close" id="delayHistClose" aria-label="關閉">×</button></h3>`;
+  // 統計列:複用 30 天聚合(delayStats);缺值時省略(理論上入口已保證存在)
+  const s = (state.delayStats || {})[no] || null;
+  const statRow = s ? `<div class="dh-stats">` +
+    `<div class="dh-stat"><b>${Number.isInteger(s.a) ? s.a : s.a.toFixed(1)}</b><span>平均誤點<br>(分)</span></div>` +
+    `<div class="dh-stat"><b>${s.p}%</b><span>準點率</span></div>` +
+    `<div class="dh-stat"><b>${s.m}</b><span>最大誤點<br>(分)</span></div>` +
+    `<div class="dh-stat"><b>${s.d}</b><span>樣本天數</span></div></div>` : '';
+  let body;
+  if (!rec || rec.loading) {
+    body = statRow + `<div class="dh-msg">載入誤點履歷…</div>`;
+  } else if (rec.error) {
+    body = statRow + `<div class="dh-msg">暫時讀不到誤點履歷${rec.status ? '（' + rec.status + '）' : ''}，稍後再試。</div>` +
+      `<button class="dh-retry" data-dh-retry="1">重新整理</button>`;
+  } else {
+    const days = (rec.data && Array.isArray(rec.data.days)) ? rec.data.days : [];
+    const meta = (rec.data && rec.data._meta) || {};
+    if (days.length < 5) {
+      body = statRow + `<div class="dh-msg">誤點履歷資料累積中，天數足夠後會顯示完整圖表。</div>`;
+    } else {
+      const charts = `<div class="dh-sec">近 90 天逐日最終誤點</div>${dhBarChart(days)}` +
+        `<div class="dh-sec">各週幾平均誤點</div>${dhWeekday(days)}`;
+      const range = (meta.date_range && meta.date_range.length === 2) ? `${meta.date_range[0]} ～ ${meta.date_range[1]}` : '';
+      const src = `<div class="dh-src">資料：交通部TDX運輸資料流通服務平臺・軌島每日彙整${range ? '<br>統計區間 ' + range : ''}</div>`;
+      if (state.plus && state.plus.active) {
+        body = statRow + charts + src;
+      } else {
+        // 未訂閱:圖表區模糊+置中 CTA;統計列與資料標示仍可見當 teaser
+        body = statRow +
+          `<div class="dh-lock"><div class="dh-locked">${charts}</div>` +
+          `<div class="dh-cta"><div class="dh-cta-txt">解鎖 90 天逐日與週幾誤點統計</div>` +
+          `<button class="dh-cta-btn" data-dh-cta="1">訂閱 Plus 解鎖完整履歷</button></div></div>` + src;
+      }
+    }
+  }
+  el.innerHTML = head + body;
+}
+function openDelayHist(tr) {
+  if (!PLUS_ENABLED || !tr || tr.sys !== 'tra_sched') return;
+  const no = String(tr.train);
+  state._delayHistOpen = no;
+  state._delayHistKind = tr.loop ? tr.loopName : (tr.typeName || '');
+  soloPanel('delayhist'); // 手機:關掉其他 sheet(不含跟隨面板);桌機 soloPanel 早退,靠下面明列 close
+  closeBoard(); closeFavPanel(); closeRidePanel(); closeExplorePanel(); closeTrackPanel(); closeTodayPanel();
+  closePinCard(); closeNearbyXing(); closeSugarCard();
+  const el = document.getElementById('delayHistPanel');
+  el.hidden = false;
+  el.onclick = e => {
+    if (e.target.closest('#delayHistClose')) { closeDelayHist(); return; }
+    if (e.target.closest('[data-dh-retry]')) { fetchDelayHistory(no); return; }
+    if (e.target.closest('[data-dh-cta]')) { plusGateOpen('delay-history', () => renderDelayHist()); return; }
+  };
+  updateSheetOpenClass();
+  ensureDelayStats();       // 統計列聚合值(跟車時通常已載;保險再觸發一次,已載入會早退)
+  fetchDelayHistory(no);    // 逐日資料
+  renderDelayHist();        // 先畫(載入中/已有快取即顯示)
+}
+function closeDelayHist() {
+  const el = document.getElementById('delayHistPanel');
+  if (!el || el.hidden) return;
+  el.hidden = true; el.innerHTML = ''; el.onclick = null;
+  state._delayHistOpen = null;
+  updateSheetOpenClass();
 }
 function showFollowPanel(tr) {
   const fp = document.getElementById('followPanel');
@@ -8308,7 +8493,7 @@ function jumpToNow() {
 // 手機底部 sheet(看板/最愛/旅程/探索,四選一互斥)開啟時,跟隨小卡要讓道到上方,
 // 避免同在左下角互疊(見 CSS body.sheet-open .follow-panel,只在手機斷點生效)
 function updateSheetOpenClass() {
-  const open = ['board', 'favPanel', 'ridePanel', 'explorePanel', 'trackPanel', 'todayPanel'].some(id => !document.getElementById(id).hidden);
+  const open = ['board', 'favPanel', 'ridePanel', 'explorePanel', 'trackPanel', 'todayPanel', 'delayHistPanel'].some(id => !document.getElementById(id).hidden);
   document.body.classList.toggle('sheet-open', open);
   // 手機 tab bar 選中態跟著面板走:有開面板亮該 tab,全關回「地圖」
   const tabOf = { tabExplore: 'explorePanel', tabFav: 'favPanel', tabRide: 'ridePanel' };
@@ -8324,7 +8509,7 @@ function updateSheetOpenClass() {
 // ──「軌道與路線」告示卡:軌道顯示三段＋車種/路線篩選票根(「軌」鈕開關;與其他面板同槽互斥) ──
 function openTrackPanel() {
   soloPanel('track');
-  closeBoard(); closeFavPanel(); closeRidePanel(); closeExplorePanel(); closeTodayPanel();
+  closeBoard(); closeFavPanel(); closeRidePanel(); closeExplorePanel(); closeTodayPanel(); closeDelayHist();
   document.getElementById('trackPanel').hidden = false;
   document.getElementById('trackBtn').classList.add('active');
   syncTrackSeg();
@@ -8519,8 +8704,9 @@ function soloPanel(keep) {
   if (keep !== 'explore') closeExplorePanel();
   if (keep !== 'track') closeTrackPanel();
   if (keep !== 'today') closeTodayPanel();
+  if (keep !== 'delayhist') closeDelayHist();
 }
-function openBoard(st) { soloPanel('board'); closeFavPanel(); closeRidePanel(); closeExplorePanel(); closeTrackPanel(); closeTodayPanel(); closePinCard(); closeNearbyXing(); closeSugarCard(); state.boardStation = st; renderBoard(); }
+function openBoard(st) { soloPanel('board'); closeFavPanel(); closeRidePanel(); closeExplorePanel(); closeTrackPanel(); closeTodayPanel(); closeDelayHist(); closePinCard(); closeNearbyXing(); closeSugarCard(); state.boardStation = st; renderBoard(); }
 function closeBoard() {
   state.boardStation = null;
   const el = document.getElementById('board');
@@ -10010,9 +10196,12 @@ document.getElementById('fpEnd').onclick = (e) => { e.stopPropagation(); setAuto
 document.getElementById('fcEnd').onclick = (e) => { e.stopPropagation(); clearFreqFollow(); };
 document.getElementById('followPanel').addEventListener('click', (e) => {
   const fp = e.currentTarget;
+  if (e.target.closest('.fp-dhlink')) { e.stopPropagation(); openDelayHist(state.followTrain); return; } // 準點列尾端「誤點履歷 ›」
   if (fp.classList.contains('fp-min') && !e.target.closest('.fp-end')) fp.classList.remove('fp-min');
 });
 document.getElementById('tcStar').onclick = () => toggleFav(state.followTrain);
+// 車次介紹卡的「誤點履歷 ›」次要入口(fs 模式卡會被搬進跟隨面板,stopPropagation 避免觸發膠囊展開)
+document.getElementById('tcDelayHist').onclick = (e) => { e.stopPropagation(); openDelayHist(state.followTrain); };
 // 每按一次跳一班隨機列車(已在隨機模式再按=立刻換車,不是關閉);結束靠小卡 ×/點跟隨中的列車/手動選車
 document.getElementById('randBtn').onclick = () => state.autoTour ? nextTourTrain() : setAutoTour(true);
 document.getElementById('ambientStyleBtn').onclick = () =>
