@@ -1660,10 +1660,10 @@
     .follow-panel .fp-head .spd b { font-size: 16px; }
     /* sheet 開啟時跟隨小卡讓道到 sheet 上方(!important:fs 時 placeFsOverlays 會寫 inline bottom,必須蓋過) */
     body.sheet-open .follow-panel, body.sheet-open .freq-card { bottom: calc(46% + 16px) !important; max-height: calc(54% - 84px); }
-    /* sheet 開啟時速度膠囊與版權條淡出讓位,不壓面板文字(見 updateSheetOpenClass) */
-    body.sheet-open .controls, body.sheet-open .leaflet-control-attribution { opacity: 0; pointer-events: none; }
-    /* 誤點履歷高身 sheet 會頂進跟隨鎖(z800)的座位,開卡時鎖鈕同式讓位(dh-open 由 openDelayHist 掛) */
-    body.dh-open .follow-lock-ctl { opacity: 0; pointer-events: none; }
+    /* sheet 開啟時速度膠囊/版權條/跟隨鎖淡出讓位,不壓面板文字(見 updateSheetOpenClass)。
+       跟隨鎖(z800)併入通案:實測 .board 家族全部 sheet 手機寬都會頂進鎖鈕座位(鎖鈕離 sheet 下錨僅約 120px),
+       原 dh-open 個案已拆除。 */
+    body.sheet-open .controls, body.sheet-open .leaflet-control-attribution, body.sheet-open .follow-lock-ctl { opacity: 0; pointer-events: none; }
     /* 全畫面時 stage 佔滿視窗:底部 sheet(與其上讓位的跟隨小卡)要再讓開 fixed tab bar(58px+safe-area) */
     body.fs .board { bottom: calc(66px + env(safe-area-inset-bottom, 0px)); }
     body.fs.sheet-open .follow-panel, body.fs.sheet-open .freq-card { bottom: calc(46% + 82px + env(safe-area-inset-bottom, 0px)) !important; }
@@ -2123,6 +2123,7 @@
       <summary><span>🛠 更新紀錄</span><span class="foot-sub">最後更新：2026/7/20</span></summary>
       <ul class="foot-list">
         <li class="grp">最近更新</li>
+        <li><span class="d">7/20</span><span>手機跟車時打開底部面板，跟隨鎖按鈕自動讓位不再擋住面板內容</span></li>
         <li><span class="d">7/20</span><span>更新紀錄改版：改成依主題分類，同一個功能修過好幾次的併成一條，並整理出「曾經上線、後來拿掉」的功能</span></li>
         <li><span class="d">7/19</span><span>阿里山森林鐵路上線；沼平／神木線白天班次補齊；林鐵列車介紹卡與台糖五分車景點標記</span></li>
         <li><span class="d">7/18</span><span>記住上次看的位置與頁籤、搜尋支援列車名稱、「今日台鐵動態」看板、放空模式的都會呼吸鏡頭</span></li>
@@ -2183,6 +2184,7 @@
         <li><span class="d">7/11</span><span>今日之最的列車在地圖上加繪金色漣漪光環</span></li>
         <li><span class="d">7/9</span><span>旅程護照與 16 枚成就徽章、「探」今日亮點面板上線</span></li>
         <li class="grp">手機與操作</li>
+        <li><span class="d">7/20</span><span>手機跟車時打開任何底部面板（看板、收藏、旅程、探索、軌道、今日動態），跟隨鎖按鈕自動讓位，不再浮在面板上擋住內容</span></li>
         <li><span class="d">7/18</span><span>iPad 直式與中等寬度的視窗改用手機版底部工具列，桌面工具列同步瘦身，按鈕不再擠到畫面外</span></li>
         <li><span class="d">7/18</span><span>播放、隨機跟隨、速度控制等按鈕的可點範圍放寬（外觀不變），並支援鍵盤與旁白操作</span></li>
         <li><span class="d">7/18</span><span>修正手機雙指誤觸把整頁放大後捏不回來的問題</span></li>
@@ -7580,8 +7582,7 @@ function openDelayHist(tr) {
     if (e.target.closest('[data-dh-retry]')) { fetchDelayHistory(no); return; }
     if (e.target.closest('[data-dh-cta]')) { plusGateOpen('delay-history', () => renderDelayHist()); return; }
   };
-  document.body.classList.add('dh-open'); // 手機:跟隨鎖讓位(見 CSS body.dh-open)
-  updateSheetOpenClass();
+  updateSheetOpenClass(); // 手機:跟隨鎖隨 sheet-open 通案讓位(原 dh-open 個案已併入)
   ensureDelayStats();       // 統計列聚合值(跟車時通常已載;保險再觸發一次,已載入會早退)
   fetchDelayHistory(no);    // 逐日資料
   renderDelayHist();        // 先畫(載入中/已有快取即顯示)
@@ -7591,7 +7592,6 @@ function closeDelayHist() {
   if (!el || el.hidden) return;
   el.hidden = true; el.innerHTML = ''; el.onclick = null;
   state._delayHistOpen = null;
-  document.body.classList.remove('dh-open');
   updateSheetOpenClass();
 }
 function showFollowPanel(tr) {
