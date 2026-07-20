@@ -2283,23 +2283,23 @@
     <!-- 議題3:四段分組(地圖顯示/資訊/觀看模式/分享與資料);列本身原封只重排,被旗標隱藏的列(recBtn/accountBtn/locateBtn)按性質歸段 -->
     <div class="ms-sec">地圖顯示</div>
     <div class="ms-row" data-act="theme"><span>◐ 外觀</span><span class="seg" id="msThemeSeg"><button data-v="light">亮</button><button data-v="dark">暗</button><button data-v="auto">自動</button></span></div>
-    <button class="ms-row" data-proxy="satBtn"><span>衛 衛星影像</span><span class="toggle" data-tg="satBtn"></span></button>
-    <button class="ms-row" data-act="track"><span>軌 軌道與路線</span><span class="chev">›</span></button>
-    <button class="ms-row" data-proxy="xingBtn"><span>平 平交道記號</span><span class="toggle" data-tg="xingBtn"></span></button>
-    <button class="ms-row" data-proxy="introBtn"><span>介 特殊站介紹</span><span class="toggle" data-tg="introBtn"></span></button>
-    <button class="ms-row" data-proxy="pinBtn"><span>釘 附近火車</span><span class="toggle" data-tg="pinBtn"></span></button>
+    <button class="ms-row" data-proxy="satBtn"><span>衛星影像</span><span class="toggle" data-tg="satBtn"></span></button>
+    <button class="ms-row" data-act="track"><span>軌道與路線</span><span class="chev">›</span></button>
+    <button class="ms-row" data-proxy="xingBtn"><span>平交道記號</span><span class="toggle" data-tg="xingBtn"></span></button>
+    <button class="ms-row" data-proxy="introBtn"><span>特殊站介紹</span><span class="toggle" data-tg="introBtn"></span></button>
+    <button class="ms-row" data-proxy="pinBtn"><span>附近火車</span><span class="toggle" data-tg="pinBtn"></span></button>
     <button class="ms-row" data-proxy="locateBtn" data-close="1"><span>◎ 定位我</span><span class="chev">›</span></button>
     <div class="ms-sec">資訊</div>
-    <button class="ms-row" data-proxy="todayBtn" data-close="1"><span>今 今日台鐵動態</span><span class="chev">›</span></button>
+    <button class="ms-row" data-proxy="todayBtn" data-close="1"><span>今日台鐵動態</span><span class="chev">›</span></button>
     <div class="ms-sec">觀看模式</div>
-    <button class="ms-row warnrow" data-proxy="powerBtn"><span>省 省電模式（30fps）</span><span class="toggle" data-tg="powerBtn"></span></button>
+    <button class="ms-row warnrow" data-proxy="powerBtn"><span>省電模式（30fps）</span><span class="toggle" data-tg="powerBtn"></span></button>
     <button class="ms-row" data-proxy="musicBtn"><span>♪ 背景音樂</span><span class="toggle" data-tg="musicBtn"></span></button>
     <button class="ms-row" data-proxy="ambientBtn" data-close="1"><span>◌ 放空模式</span><span class="chev">›</span></button>
     <button class="ms-row" data-proxy="recBtn" data-close="1"><span>⏺ 錄影 Beta</span><span class="chev">›</span></button>
     <div class="ms-sec">分享與資料</div>
     <button class="ms-row" data-proxy="shareBtn" data-close="1"><span>↗ 分享畫面</span><span class="chev">›</span></button>
-    <button class="ms-row" data-proxy="importBtn" data-close="1"><span>匯 Google 清單匯入</span><span class="chev">›</span></button>
-    <button class="ms-row" data-proxy="accountBtn" data-close="1"><span>帳 帳號同步</span><span class="chev">›</span></button>
+    <button class="ms-row" data-proxy="importBtn" data-close="1"><span>Google 清單匯入</span><span class="chev">›</span></button>
+    <button class="ms-row" data-proxy="accountBtn" data-close="1"><span>帳號同步</span><span class="chev">›</span></button>
   </div>
   <div class="ms-note">本站為個人愛好者專案，與台灣鐵路公司及各捷運公司皆無關。</div>
 </div>
@@ -9053,7 +9053,7 @@ function setupMapTools() {
   document.getElementById('tabMore').onclick = () => setMore(!document.body.classList.contains('tools-open'));
   document.getElementById('moreClose').onclick = () => setMore(false);
   document.getElementById('moreScrim').onclick = () => setMore(false);
-  document.getElementById('tabMap').onclick = () => { setMore(false); soloPanel(''); };
+  document.getElementById('tabMap').onclick = () => { setMore(false); soloPanel(''); clearFollow(); }; // 真機QA:soloPanel 已關全部 sheet,但跟隨不清會覺得「點了沒清空」
   document.getElementById('tabExplore').onclick = () => { setMore(false); document.getElementById('exploreBtn').click(); };
   document.getElementById('tabFav').onclick = () => { setMore(false); document.getElementById('favBtn').click(); };
   document.getElementById('tabRide').onclick = () => { setMore(false); document.getElementById('rideBtn').click(); };
