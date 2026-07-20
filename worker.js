@@ -453,6 +453,77 @@ async function delayStats(request, env) {
   }
 }
 
+// 逐車次「近 90 天」誤點履歷(唯讀查 D1 tra_delay_daily 逐日原始列):供未來誤點履歷圖表 UI(Plus
+// 頭牌功能)用。跟 /api/delay-stats 的差異:delay-stats 吐每車 30 天聚合值(a/p/d/m),這裡吐逐日
+// 序列(d=service_date、fd=final_delay、md=max_delay)。train 白名單同 stationEvents(台鐵車次
+// 1~6 碼英數),一律 bind、禁止字串拼 SQL。
+const DELAY_HISTORY_WINDOW_DAYS = 90;
+
+// 視窗基準:「表內最大 service_date」(dbMaxDate,呼叫端先查 MAX(service_date) 拿到)回推
+// windowDays-1 天——語意同 buildBlob 的 30 天窗(見下方 BLOB_WINDOW_DAYS),不是這班車自己的
+// 最大日期,避免某車次近日剛好沒發車就被誤判成整段空窗。dbMaxDate 為 null(表空)回傳 null。
+function delayHistoryWindow(dbMaxDate, windowDays) {
+  if (!dbMaxDate) return null;
+  const maxDate = String(dbMaxDate);
+  return { startDate: addDays(maxDate, -(windowDays - 1)), maxDate };
+}
+
+// 台鐵車次格式白名單(同 stationEvents 的驗證慣例:1~6 碼英數,擋任意字串打 D1)。
+// 抽成獨立純函式只是為了讓這條驗證規則可離線單元測試,邏輯與既有 stationEvents 內的行內版本一致。
+function isValidTrainNo(train) { return /^[0-9A-Za-z]{1,6}$/.test(train); }
+
+// 把單一車次的 D1 列組成 /api/delay-history 回應 body(純函式,供離線測試,不碰網路/D1)。
+// rows 不假設已排序或已按窗過濾——本函式自己再篩再排一次,對齊 buildBlob「呼叫端篩過我還是
+// 自己再篩一次」的防禦風格。fd/md 用 toInt 轉整數,轉不出來的列(髒資料)整列丟棄,不讓 null
+// 混進圖表資料。win 為 null(表空)直接回空陣列、date_range 為 null。
+function buildDelayHistoryBody(train, rows, windowDays, win, generatedIso) {
+  let days = [];
+  if (win) {
+    days = (rows || [])
+      .map(r => ({ d: String(r.service_date), fd: toInt(r.final_delay), md: toInt(r.max_delay) }))
+      .filter(r => r.d >= win.startDate && r.d <= win.maxDate && r.fd !== null && r.md !== null)
+      .sort((a, b) => (a.d < b.d ? -1 : a.d > b.d ? 1 : 0));
+  }
+  return {
+    train,
+    days,
+    _meta: {
+      window_days: windowDays,
+      date_range: win ? [win.startDate, win.maxDate] : null,
+      n: days.length,
+      generated: generatedIso,
+    },
+  };
+}
+
+async function delayHistory(request, env) {
+  const train = new URL(request.url).searchParams.get('train') || '';
+  if (!isValidTrainNo(train)) return jsonRes({ error: 'bad train' }, 400, 'no-store');
+  // 快取鍵手動把 train 併進 URL 字串(同 stationEvents 慣例)——caches.default 精確比對傳入的
+  // Request URL,鍵若只用不帶 query 的路徑,不同車次會互相污染快取。train 已白名單化,免 encode。
+  const cacheKey = new Request(new URL('/api/delay-history?train=' + train, request.url), { method: 'GET' });
+  const edge = caches.default;
+  const hit = await edge.match(cacheKey);
+  if (hit) return hit;
+  try {
+    const dbMaxRow = await env.DELAY_DB.prepare('SELECT MAX(service_date) AS m FROM tra_delay_daily').first();
+    const win = delayHistoryWindow(dbMaxRow && dbMaxRow.m ? String(dbMaxRow.m) : null, DELAY_HISTORY_WINDOW_DAYS);
+    let rows = [];
+    if (win) {
+      const rs = await env.DELAY_DB.prepare(
+        'SELECT service_date, final_delay, max_delay FROM tra_delay_daily WHERE train_no=? AND service_date>=? AND service_date<=? ORDER BY service_date ASC'
+      ).bind(train, win.startDate, win.maxDate).all();
+      rows = rs.results || [];
+    }
+    const body = buildDelayHistoryBody(train, rows, DELAY_HISTORY_WINDOW_DAYS, win, utcStamp());
+    const res = jsonRes(body, 200, 'public, max-age=300, s-maxage=3600, stale-while-revalidate=86400');
+    await edge.put(cacheKey, res.clone());
+    return res;
+  } catch (e) {
+    return jsonRes({ error: 'not_ready' }, 503, 'public, s-maxage=60');
+  }
+}
+
 // 今日逐站歷程(唯讀查 D1 tra_station_events):給前端「這班車今天到過哪些站、各站誤點/最大誤點」。
 // train 白名單化(台鐵車次 1~6 碼英數),擋任意字串打 D1;只查台北今日、按觀測時間升冪。空/無列自然回空陣列。
 async function stationEvents(request, env) {
@@ -895,6 +966,7 @@ export default {
       res = NTM_LIVE_SYS.has(sys) ? await ntmetroLive(request, env, sys) : jsonRes({ error: 'bad sys' }, 400, 'no-store');
     }
     else if (url.pathname === '/api/delay-stats') res = await delayStats(request, env);
+    else if (url.pathname === '/api/delay-history') res = await delayHistory(request, env);
     else if (url.pathname === '/api/station-events') res = await stationEvents(request, env);
     else if (url.pathname === '/api/today-board') res = await todayBoard(request, env);
     else if (url.pathname === '/api/account-delete') res = await deletePaidProfile(request, env);
@@ -915,3 +987,5 @@ export const _metroAlert = {
 };
 // 純函式導出,供離線回歸測試 import:逐站事件 diff 與 mem.at→台北日換算。
 export const _stationEvents = { diffTrains, twDayFromMemAt };
+// 純函式導出,供離線回歸測試 import:誤點履歷視窗計算、車次驗證與回應組裝。
+export const _delayHistory = { delayHistoryWindow, buildDelayHistoryBody, isValidTrainNo };
