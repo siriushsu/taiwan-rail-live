@@ -4,7 +4,7 @@
 <meta charset="utf-8" />
 <!-- 鎖頁面級縮放:手機誤觸 pinch 把頁面放大後,地圖佔滿全屏就再也捏不回來(地圖自己吃掉觸控)。
      地圖內縮放由 Leaflet 自理不受影響。iOS Safari 會無視 user-scalable,另以 gesturestart 補擋(見檔尾) -->
-<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
 <title>軌島</title>
 <meta name="description" content="軌島 railisland.tw。看台鐵此刻準點嗎、捷運怎麼穿梭全台，一張會動的台灣鐵道地圖。" />
 <meta property="og:title" content="軌島" />
@@ -81,8 +81,12 @@
   }
   * { box-sizing: border-box; }
   [hidden] { display: none !important; } /* .search/.followbar 的 display:flex 會蓋掉 hidden,強制優先 */
+  html { overscroll-behavior: none; } /* Capacitor 殼:禁 WebView 橡皮筋回彈(滾到底整頁拉動/抖動);瀏覽器端同樣受益 */
   body {
     margin: 0;
+    /* viewport-fit=cover 後滿版到瀏海:流式佈局整體下移避讓動態島;無瀏海環境 env=0 零變化(底部 tabbar/sheet 各自帶 env 不經 body) */
+    padding-top: env(safe-area-inset-top, 0px);
+    overscroll-behavior: none;
     font-family: var(--font);
     background: var(--bg-page);
     color: var(--ink);
@@ -895,6 +899,8 @@
     height: 100vh; max-height: none; min-height: 0;
     border: 0; border-radius: 0;
   }
+  /* fs 的 stage 滿版蓋到瀏海(沉浸式刻意),但退出鈕要讓位動態島 */
+  body.fs #fsFab { top: calc(12px + env(safe-area-inset-top, 0px)); }
   /* 全畫面跟隨:資訊卡塞進左下跟隨面板,合併成一張可收放的卡(placeTrainCard 搬 DOM) */
   body.fs .follow-panel { width: 300px; max-height: calc(100vh - 160px); }
   body.fs .follow-panel.fp-min { width: auto; }
