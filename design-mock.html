@@ -1664,7 +1664,7 @@
 
 <nav class="mock-nav">
   <b>軌島 design-mock</b>
-  <a href="#s-tokens">Tokens</a><a href="#s-desktop">桌面</a><a href="#s-controls-overflow">議題1溢出</a><a href="#s-follow">跟隨</a><a href="#s-mobile">手機</a><a href="#s-panels">面板</a><a href="#s-passport">護照</a><a href="#s-new">新表面</a><a href="#s-ambient">放空/直播</a><a href="#s-specimen">Specimen</a><a href="#s-accept">驗收</a>
+  <a href="#s-tokens">Tokens</a><a href="#s-desktop">桌面</a><a href="#s-controls-overflow">議題1溢出</a><a href="#s-follow">跟隨</a><a href="#s-mobile">手機</a><a href="#s-mobile-fs">手機改版</a><a href="#s-panels">面板</a><a href="#s-passport">護照</a><a href="#s-new">新表面</a><a href="#s-ambient">放空/直播</a><a href="#s-specimen">Specimen</a><a href="#s-accept">驗收</a>
   <button id="mockTheme" onclick="var h=document.documentElement;h.dataset.theme=h.dataset.theme==='dark'?'light':'dark';this.textContent=h.dataset.theme==='dark'?'☀ 亮':'☾ 暗'">☾ 暗</button>
 </nav>
 
@@ -2145,6 +2145,211 @@
   <div class="mock-note">tab bar 78px（含 home indicator 安全距 <span class="mock-kbd">env(safe-area-inset-bottom)</span>）；狀態列 44px 頂替 <span class="mock-kbd">safe-area-inset-top</span>。sheet 開啟即 <span class="mock-kbd">body.sheet-open</span>（速度膠囊讓位、跟隨卡上移）；「更多」sheet 承接原 ☰ 抽屜全部條目＝<span class="mock-kbd">body.tools-open</span>。省電模式手機預設開（琥珀警示列）。無橫向捲動；觸控目標 ≥44px。</div>
 </section>
 
+<!-- ═══════ 04b · 手機改版：開啟即全螢幕地圖（0720 真機 QA 拍板） ═══════ -->
+<section class="mock-sec" id="s-mobile-fs">
+  <div class="mock-h"><span class="mock-no">04b</span>手機改版 · 開啟即全螢幕地圖（長頁捲動廢止，內容全改 sheet/tab 進出）</div>
+  <div class="mock-note" style="margin:0 0 14px">背景（07-20 真機 QA）：① 下滑手勢被地圖吃掉，列車介紹／護照等長頁內容區到不了；② 右上選單難發現。拍板：≤900（MOBILE_MQ）boot 即 <span class="mock-kbd">body.fs</span> 常駐——地圖就是 App 本體，其餘內容住進 sheet。桌面 ≥901 完全不動。</div>
+  <div class="mock-row">
+
+    <div>
+      <div class="mock-note" style="margin:0 0 8px">A · 開啟態（新預設）＝全圖。左上＝牌＋時鐘徽章（資訊），右上＝台／鐵／捷＋隨機跟隨（動作，與跟隨中「換一班」同席位；縣市遷入更多）；⛶ 廢止；頁面零捲動</div>
+      <div class="phone vw390 vwfs">
+        <div class="statusbar"><span class="num">13:24</span><span class="no"></span><span>▮▮▮ ⚡</span></div>
+        <div style="position:absolute;inset:44px 0 0 0;background:var(--map-bg);overflow:hidden">
+          <div class="mapsim"></div>
+          <svg width="390" height="800" viewBox="0 0 390 800" style="position:absolute;inset:0" aria-hidden="true">
+            <path d="M-10 690 C 110 560 165 430 190 320 S 255 80 400 15" fill="none" stroke="var(--map-bg)" stroke-width="5.6"></path>
+            <path d="M-10 690 C 110 560 165 430 190 320 S 255 80 400 15" fill="none" stroke="#5F6B7A" stroke-width="3"></path>
+          </svg>
+          <div style="position:absolute;left:172px;top:312px;width:9px;height:9px;background:var(--map-bg);border:1.7px solid #2A4A73;border-radius:50%"></div>
+          <div style="position:absolute;left:188px;top:308px;font-size:11px;font-weight:600;color:var(--ink);text-shadow:0 0 3px var(--paper)">屏東</div>
+          <div style="position:absolute;left:112px;top:472px;transform:rotate(-52deg);background:#C0392B;border:1.5px solid var(--paper);border-radius:7.5px;height:15px;display:flex;align-items:center;padding:0 5px;font-size:10px;font-weight:700;color:#fff">431</div>
+          <!-- 頂浮動列：左＝牌（資訊欄位），右＝台／鐵／捷短標（動作欄位）。3 短標不溢出：議題2 橫捲＋遮罩手機停用。#systems 靜態預置塊隨遷此處（cls-static-placeholder） -->
+          <div style="position:absolute;top:8px;left:10px;right:10px;display:flex;align-items:flex-start;justify-content:space-between;gap:8px;z-index:620">
+            <div class="plate" style="padding:3px 10px 0;border-width:2px;flex:none"><h1 style="font-size:14px;letter-spacing:4px;text-indent:4px">軌島</h1><div class="plate-foot" style="margin:2px -10px 0;padding:1px 7px 2px"><span class="stn" style="font-size:7px;letter-spacing:1px;text-indent:1px">◂ 基隆</span><span class="stn" style="font-size:7px;letter-spacing:1px;text-indent:1px">高雄 ▸</span></div></div>
+            <div class="grouptabs" style="margin:0;-webkit-mask-image:none;mask-image:none;overflow:visible">
+              <button class="gtab active" style="font-size:13px;padding:6px 14px;min-height:36px" title="全台同框">台</button>
+              <button class="gtab" style="font-size:13px;padding:6px 14px;min-height:36px" title="國家鐵路">鐵</button>
+              <button class="gtab" style="font-size:13px;padding:6px 14px;min-height:36px" title="捷運與輕軌">捷</button>
+            </div>
+          </div>
+          <div class="badge" style="top:58px;left:10px"><b class="num" style="font-size:17px;font-weight:900;color:var(--ink-strong)">13:24</b><span style="font-size:9px;font-weight:800;color:var(--ok)">●LIVE</span><span class="num" style="font-size:9.5px;color:var(--faint)">139 班</span></div>
+          <button class="btn sm" style="position:absolute;top:58px;right:10px">⤮ 隨機跟隨</button>
+          <div class="capsule" style="bottom:92px"><span style="font-size:13px;font-weight:800;color:var(--navy)">▶</span><b class="num" style="font-size:12px;color:var(--ink-strong)">1× · 13:24</b><span style="font-size:9px;color:var(--faint)">點擊展開</span></div>
+        </div>
+        <div class="tabbar">
+          <button class="active"><span class="ti">◉</span><span class="tl">地圖</span></button>
+          <button><span class="ti">探</span><span class="tl">亮點</span></button>
+          <button><span class="ti">★</span><span class="tl">最愛</span></button>
+          <button><span class="ti">旅</span><span class="tl">護照</span></button>
+          <button><span class="ti">⋯</span><span class="tl">更多</span></button>
+        </div>
+        <div class="homebar"></div>
+      </div>
+    </div>
+
+    <div>
+      <div class="mock-note" style="margin:0 0 8px">B ·「亮點」sheet 展開態（88%）＝原側欄搜尋＋#note 說明文的新家；拖抓把可回 46% peek</div>
+      <div class="phone vw390 vwfs">
+        <div class="statusbar"><span class="num">13:24</span><span class="no"></span><span>▮▮▮ ⚡</span></div>
+        <div style="position:absolute;inset:44px 0 0 0;background:var(--map-bg);overflow:hidden">
+          <div class="mapsim"></div>
+          <div class="badge" style="top:8px;left:10px"><b class="num" style="font-size:17px;font-weight:900;color:var(--ink-strong)">13:24</b><span style="font-size:9px;font-weight:800;color:var(--ok)">●LIVE</span></div>
+        </div>
+        <div class="sheet" style="top:13%;bottom:78px">
+          <span class="grab"></span>
+          <div class="sh-head"><h3>探　亮點</h3><span class="meta">明星列車與特色車站</span><span class="x">✕</span></div>
+          <div class="sh-body">
+            <div style="padding:10px 12px 4px"><input placeholder="搜尋車次／車站　例：431、潮州" style="width:100%;min-height:40px;font:inherit;font-size:16px;padding:7px 12px;border:1.5px solid var(--line);border-radius:8px;background:var(--bg-stage);color:var(--ink)"></div>
+            <div class="sh-sec">明星列車</div>
+            <div style="display:flex;align-items:center;gap:10px;padding:8px 14px;border-bottom:1px dashed var(--line-faint)"><span class="seal" style="width:34px;height:34px;flex:none"><b style="font-size:7.5px">藍皮</b></span><span style="min-width:0"><b style="font-size:13px">藍皮解憂號</b><br><span style="font-size:10.5px;color:var(--muted)">枋寮—台東 · 每日 2 班</span></span><button class="btn sm" style="margin-left:auto;flex:none">追</button></div>
+            <div style="display:flex;align-items:center;gap:10px;padding:8px 14px;border-bottom:1px dashed var(--line-faint)"><span class="seal na" style="width:34px;height:34px;flex:none"><b style="font-size:7.5px">鳴日</b></span><span style="min-width:0"><b style="font-size:13px">鳴日號</b><br><span style="font-size:10.5px;color:var(--muted)">樹林—台東 · 週末行駛</span></span><button class="btn sm" style="margin-left:auto;flex:none">追</button></div>
+            <div style="display:flex;align-items:center;gap:10px;padding:8px 14px;border-bottom:1px dashed var(--line-faint)"><span class="seal na" style="width:34px;height:34px;flex:none"><b style="font-size:7.5px">寶島</b></span><span style="min-width:0"><b style="font-size:13px">仲夏寶島號</b><br><span style="font-size:10.5px;color:var(--muted)">季節限定 · 蒸汽機車</span></span><button class="btn sm" style="margin-left:auto;flex:none">追</button></div>
+            <div class="sh-sec">特殊車站</div>
+            <div style="display:flex;align-items:center;gap:9px;padding:9px 14px;border-bottom:1px dashed var(--line-faint)"><b style="font-size:13px">多良</b><span style="font-size:11px;color:var(--muted)">全台最美海景車站</span><span style="margin-left:auto;color:var(--faint)">›</span></div>
+            <div style="display:flex;align-items:center;gap:9px;padding:9px 14px"><b style="font-size:13px">枋山</b><span style="font-size:11px;color:var(--muted)">最南端的秘境招呼站</span><span style="margin-left:auto;color:var(--faint)">›</span></div>
+            <div style="padding:10px 14px 12px;font-size:10.5px;color:var(--faint);line-height:1.7;border-top:1.5px dashed var(--line-dash)">全台同框：台鐵、高鐵與六都捷運輕軌同屏推演中，共 139 班。（原 <span class="mock-kbd">#note</span> 說明段遷入）</div>
+          </div>
+        </div>
+        <div class="tabbar">
+          <button><span class="ti">◉</span><span class="tl">地圖</span></button>
+          <button class="active"><span class="ti">探</span><span class="tl">亮點</span></button>
+          <button><span class="ti">★</span><span class="tl">最愛</span></button>
+          <button><span class="ti">旅</span><span class="tl">護照</span></button>
+          <button><span class="ti">⋯</span><span class="tl">更多</span></button>
+        </div>
+        <div class="homebar" style="z-index:1120"></div>
+      </div>
+    </div>
+
+    <div>
+      <div class="mock-note" style="margin:0 0 8px">C ·「護照」sheet＝側欄 #passport＋#ridePanel 合併（完乘列表單一事實來源）；✕ 在 sticky 標題列</div>
+      <div class="phone vw390 vwfs">
+        <div class="statusbar"><span class="num">13:24</span><span class="no"></span><span>▮▮▮ ⚡</span></div>
+        <div style="position:absolute;inset:44px 0 0 0;background:var(--map-bg);overflow:hidden">
+          <div class="mapsim"></div>
+          <div class="badge" style="top:8px;left:10px"><b class="num" style="font-size:17px;font-weight:900;color:var(--ink-strong)">13:24</b><span style="font-size:9px;font-weight:800;color:var(--ok)">●LIVE</span></div>
+        </div>
+        <div class="sheet" style="top:13%;bottom:78px">
+          <span class="grab"></span>
+          <div class="sh-head"><h3>旅　旅程護照</h3><span class="meta">章 2 · 成就 3 · 完乘 12</span><span class="x">✕</span></div>
+          <div class="sh-body">
+            <div class="sh-sec">收集章</div>
+            <div style="display:flex;gap:10px;flex-wrap:wrap;padding:4px 14px 10px">
+              <span class="seal"><b>完乘<br>之章</b><small>527 km</small></span>
+              <span class="seal"><b>藍皮<br>解憂</b><small>07.12</small></span>
+              <span class="seal gold"><b>鐵道魂</b><small>15 趟</small></span>
+              <span class="seal na"><b>鳴日</b><small>可重播</small></span>
+              <span class="seal na"><b>環島<br>之星</b><small>可重播</small></span>
+            </div>
+            <div class="sh-sec">成就</div>
+            <div style="display:flex;gap:6px;flex-wrap:wrap;padding:4px 14px 10px">
+              <span style="font-size:11px;font-weight:700;color:var(--warn-ink);background:var(--warn-bg);border:1px solid var(--warn-line);border-radius:999px;padding:3px 10px">初乘紀念</span>
+              <span style="font-size:11px;font-weight:700;color:var(--warn-ink);background:var(--warn-bg);border:1px solid var(--warn-line);border-radius:999px;padding:3px 10px">月台常客 · 5 趟</span>
+              <span style="font-size:11px;font-weight:700;color:var(--warn-ink);background:var(--warn-bg);border:1px solid var(--warn-line);border-radius:999px;padding:3px 10px">鐵道魂 · 15 趟</span>
+              <span style="font-size:11px;font-weight:700;color:var(--faint);border:1px dashed var(--line);border-radius:999px;padding:3px 10px">夜行者 · 未達成</span>
+            </div>
+            <div class="sh-sec">完乘記錄</div>
+            <div style="display:flex;align-items:center;gap:9px;padding:8px 14px;border-bottom:1px dashed var(--line-faint)"><span class="datestamp">07.15</span><b>431</b><span style="font-size:11.5px;color:var(--muted)">樹林→知本</span><span class="num" style="margin-left:auto;font-size:11.5px">527 km</span></div>
+            <div style="display:flex;align-items:center;gap:9px;padding:8px 14px;border-bottom:1px dashed var(--line-faint)"><span class="datestamp">07.12</span><b>4101</b><span style="font-size:11.5px;color:var(--muted)">枋寮→台東</span><span class="num" style="margin-left:auto;font-size:11.5px">98 km</span></div>
+            <div style="display:flex;align-items:center;gap:9px;padding:8px 14px"><span class="datestamp">07.08</span><b>0827</b><span style="font-size:11.5px;color:var(--muted)">南港→左營</span><span class="num" style="margin-left:auto;font-size:11.5px">349 km</span></div>
+          </div>
+        </div>
+        <div class="tabbar">
+          <button><span class="ti">◉</span><span class="tl">地圖</span></button>
+          <button><span class="ti">探</span><span class="tl">亮點</span></button>
+          <button><span class="ti">★</span><span class="tl">最愛</span></button>
+          <button class="active"><span class="ti">旅</span><span class="tl">護照</span></button>
+          <button><span class="ti">⋯</span><span class="tl">更多</span></button>
+        </div>
+        <div class="homebar" style="z-index:1120"></div>
+      </div>
+    </div>
+
+    <div>
+      <div class="mock-note" style="margin:0 0 8px">D · 跟隨中點跟隨小卡 →「列車」sheet（#trainCard 內容重宿；☆ 在 sticky 標題列）；小卡於 sheet 開啟時隱藏（資訊重複）</div>
+      <div class="phone vw390 vwfs">
+        <div class="statusbar"><span class="num">13:24</span><span class="no"></span><span>▮▮▮ ⚡</span></div>
+        <div style="position:absolute;inset:44px 0 0 0;background:var(--map-bg);overflow:hidden">
+          <div class="mapsim"></div>
+          <svg width="390" height="800" viewBox="0 0 390 800" style="position:absolute;inset:0" aria-hidden="true">
+            <path d="M-10 240 C 120 200 240 150 400 90" fill="none" stroke="var(--paper)" stroke-width="8.5"></path>
+            <path d="M-10 240 C 120 200 240 150 400 90" fill="none" stroke="#D65845" stroke-width="4.4"></path>
+          </svg>
+          <div style="position:absolute;left:176px;top:158px;transform:rotate(-18deg);background:#C0392B;border:1.5px solid var(--paper);border-radius:7.5px;height:15px;display:flex;align-items:center;padding:0 5px;font-size:10px;font-weight:700;color:#fff">431</div>
+          <div class="badge" style="top:8px;left:10px"><b class="num" style="font-size:17px;font-weight:900;color:var(--ink-strong)">13:24</b><span style="font-size:9px;font-weight:800;color:var(--ok)">●LIVE</span></div>
+          <button class="btn sm" style="position:absolute;top:8px;right:10px">⤮ 換一班</button>
+        </div>
+        <div class="sheet" style="top:24%;bottom:78px">
+          <span class="grab"></span>
+          <div class="sh-head"><span style="width:8px;height:8px;border-radius:50%;background:#C0392B;flex:none"></span><h3 style="letter-spacing:1px">431 自強號</h3><span class="meta">樹林 → 知本 · E500</span><span style="color:var(--gold);font-size:15px;cursor:pointer">☆</span><span class="x">✕</span></div>
+          <div class="sh-body">
+            <div style="padding:10px 14px 2px;font-size:12px;line-height:1.75;color:var(--ink);text-wrap:pretty">E500 新自強號，2026 年投入南迴線的最新推拉式編組；本班為樹林開往知本的長程車，沿途貼著中央山脈南段與太平洋跑完 527 公里。（原 <span class="mock-kbd">#tcIntro</span> 介紹文）</div>
+            <div class="sh-sec">旅程日誌</div>
+            <div style="display:flex;align-items:center;gap:9px;padding:6px 14px;border-bottom:1px dashed var(--line-faint)"><span class="num" style="font-size:11px;color:var(--muted)">13:41</span><b style="font-size:12.5px">潮州</b><span style="font-size:11px;color:var(--muted)">出發</span><span class="lateTag" style="margin-left:auto">+2</span></div>
+            <div style="display:flex;align-items:center;gap:9px;padding:6px 14px;border-bottom:1px dashed var(--line-faint)"><span class="num" style="font-size:11px;color:var(--muted)">13:29</span><b style="font-size:12.5px">屏東</b><span style="font-size:11px;color:var(--muted)">出發</span><span class="okTag" style="margin-left:auto">準點</span></div>
+            <div style="display:flex;align-items:center;gap:9px;padding:6px 14px"><span class="num" style="font-size:11px;color:var(--muted)">12:58</span><b style="font-size:12.5px">高雄</b><span style="font-size:11px;color:var(--muted)">出發</span><span class="okTag" style="margin-left:auto">準點</span></div>
+            <div class="sh-sec">全程速度曲線</div>
+            <div style="padding:2px 14px 6px"><svg width="100%" height="44" viewBox="0 0 330 44" preserveAspectRatio="none" aria-hidden="true"><polyline points="0,40 28,18 56,12 84,15 112,9 140,12 168,7 196,17 224,30 252,11 280,15 308,26 330,38" fill="none" stroke="var(--navy)" stroke-width="1.6"></polyline></svg><div style="font-size:9.5px;color:var(--faint)">（canvas 資料驅動，此為示意）</div></div>
+            <div class="sh-sec">停靠時刻</div>
+            <div style="display:flex;align-items:center;gap:9px;padding:6px 14px;border-bottom:1px dashed var(--line-faint)"><b style="font-size:12.5px;color:var(--faint)">潮州</b><span class="num" style="margin-left:auto;font-size:11.5px;color:var(--faint)">13:41 ✓</span></div>
+            <div style="display:flex;align-items:center;gap:9px;padding:6px 14px;border-bottom:1px dashed var(--line-faint)"><b style="font-size:12.5px">枋寮</b><span class="num" style="margin-left:auto;font-size:11.5px;font-weight:800;color:var(--ink-strong)">14:05</span></div>
+            <div style="display:flex;align-items:center;gap:9px;padding:6px 14px"><b style="font-size:12.5px">大武</b><span class="num" style="margin-left:auto;font-size:11.5px;font-weight:800;color:var(--ink-strong)">14:47</span></div>
+          </div>
+        </div>
+        <div class="tabbar">
+          <button class="active"><span class="ti">◉</span><span class="tl">地圖</span></button>
+          <button><span class="ti">探</span><span class="tl">亮點</span></button>
+          <button><span class="ti">★</span><span class="tl">最愛</span></button>
+          <button><span class="ti">旅</span><span class="tl">護照</span></button>
+          <button><span class="ti">⋯</span><span class="tl">更多</span></button>
+        </div>
+        <div class="homebar" style="z-index:1120"></div>
+      </div>
+    </div>
+
+    <div style="display:flex;flex-direction:column;gap:16px;max-width:430px">
+      <div class="spm">
+        <h4>長頁內容遷移表（舊 → 新家）</h4>
+        <div class="spm-row" style="display:block;line-height:2">
+          header 牌＋群組頁籤 → <b>地圖頂浮動列</b>（常時可見；手機短標 <b>台／鐵／捷</b>，長標留桌面）<br>
+          <span class="val">#citySel</span> 縣市下拉 → 更多 · 地圖顯示「縣 縣市快速移動 ›」（手機頂列拿掉）<br>
+          捷＝原北北桃／中南部兩捷運群手機合併（桌面群組不變；群內成員勾選列隨群載入）<br>
+          <span class="val">#randBtn</span> 手機 → 右上短標下（動作靠右，與跟隨中「換一班」同席位）；<span class="val">.grouptabs</span> 手機右對齊，議題2 橫捲＋遮罩停用<br>
+          側欄搜尋列 → <b>「亮點」sheet 頂</b>（16px 輸入防 iOS 自動縮放）<br>
+          <span class="val">#note</span> 說明段 → 「亮點」sheet 註腳<br>
+          <span class="val">.flow</span> 全日走勢圖 → 更多 · 資訊「全日班次走勢」<br>
+          <span class="val">.traincard</span> 列車介紹 → <b>「列車」sheet</b>（點跟隨小卡展開；<span class="val">#trainCard</span> 不搬 DOM，≤900 改掛 sheet 定位取代現行 <span class="val">display:none</span>）<br>
+          側欄 <span class="val">#passport</span>＋<span class="val">#ridePanel</span> → <b>「護照」sheet 合併</b><br>
+          footer <span class="val">site-foot</span>（更新紀錄／資料來源／贊助／合規連結）→ 更多 sheet 新段<b>「關於」</b><br>
+          <span class="val">#fsFab</span> ⛶ → 手機廢止（fs 常駐）；桌面照舊
+        </div>
+        <div class="spm-row" style="margin-top:10px;padding-top:10px;border-top:1.5px dashed var(--line-dash);display:block;line-height:1.9">
+          <b style="color:var(--ink-strong)">「更多」sheet 新增第五段（承接 site-foot）：</b><br>
+          <span style="display:block;font-size:10px;font-weight:900;letter-spacing:2px;color:var(--faint);padding:6px 0 2px">關於</span>
+          <span style="display:block;padding:3px 0">🛠 更新紀錄 <span style="float:right;color:var(--faint)">›</span></span>
+          <span style="display:block;padding:3px 0">📊 資料來源與授權 <span style="float:right;color:var(--faint)">›</span></span>
+          <span style="display:block;padding:3px 0">☕ 贊助 <span style="float:right;color:var(--faint)">›</span></span>
+          <span style="display:block;padding:3px 0">隱 隱私與帳號刪除 <span style="float:right;color:var(--faint)">›</span></span>
+        </div>
+      </div>
+      <div class="spm">
+        <h4>合併契約與鐵則自查</h4>
+        <div class="spm-row" style="display:block;line-height:1.95">
+          ① <b>觸發</b>：boot 於 ≤MOBILE_MQ(900) 加 <span class="val">body.fs</span>，resize 跨界同步；fs 不寫入 URL——boot／<span class="val">?live</span>／分享連結契約零改動（share-link-url-contract）。<br>
+          ② <b>隱藏機制</b>：長頁區塊沿用既有 <span class="val">body.fs</span> 的 display:none 規則＝新增規則趨零；<span class="val">.wrap</span> 手機停捲，捲動全部發生在 sheet 內。<br>
+          ③ <b>sheet 雙段高</b>：46% peek ⇄ 88% 展開（拖抓把／點標題列）；展開態加 <span class="val">body.sheet-full</span>，跟隨小卡＋膠囊 opacity 0（46% 讓位規則保留）。<span class="val">soloPanel()</span> 名單＋「列車」；<span class="val">updateSheetOpenClass()</span> 契約不變。<br>
+          ④ <b>手勢根治</b>：sheet 內容 <span class="val">overflow:auto</span>＋<span class="val">overscroll-behavior:contain</span>——內容捲動只在 sheet、地圖手勢只在 sheet 外，「下滑被地圖吃掉」不再發生。<br>
+          ⑤ <b>鐵則</b>：看板／列車／護照 ✕與☆ 皆在 sticky 標題列（metro-arrival-board）；mapPane transform 零觸碰（mobile-powersave-freeze）；<span class="val">#systems</span> 靜態預置塊隨遷頂浮動列、boot 前同位（cls-static-placeholder，CLS 重驗）；公告橫幅位移鏈（alert-banner→dwell-plate／xing-help／#randBtn）基準隨頂列下移重調；桌面 ≥901 與直播 <span class="val">?live</span> 全部不動。<br>
+          ⑥ <b>狀態列／動態島</b>：viewport-fit=cover 下地圖直抵螢幕頂，島旁顏色＝<span class="val">--map-bg</span> 隨亮暗主題連動——<span class="val">&lt;meta name="theme-color"&gt;</span> 由 JS 隨主題改寫（亮 <span class="val">#F2EDE2</span>／暗 <span class="val">#10141c</span>），iOS 殼 statusBarStyle 亮＝darkContent／暗＝lightContent，PWA standalone 同步。
+        </div>
+      </div>
+    </div>
+
+  </div>
+  <div class="mock-note">§04 四態（首訪卡／跟隨小卡／更多 sheet／車站看板）全部原樣沿用，本節只改「容器」：長頁 → 常駐全圖＋sheet 家族。放空模式（tab bar 收起、只留離開鈕）與直播 HUD 不受影響。</div>
+</section>
+
 <!-- ═══════ 05 · 面板家族（同一骨架） ═══════ -->
 <section class="mock-sec" id="s-panels">
   <div class="mock-h"><span class="mock-no">05</span>面板家族 · 一套骨架（藏青標題列＋meta＋✕／虛線列／米底註腳）</div>
@@ -2180,7 +2385,7 @@
       </div>
       <div class="note">完整收藏冊見「旅」護照（§06）。</div>
     </div>
-    <div class="panel xing-card" id="xingCard" style="width:280px">
+    <div class="panel xing-card" id="xingCard" style="width:280px;position:static">
       <div class="panel-head"><h3>平交道</h3><span class="meta">屏東線 · 潮州街</span><span class="panel-close">✕</span></div>
       <div style="display:flex;align-items:center;gap:10px;padding:10px 13px;border-bottom:1px dashed var(--line-faint)">
         <span style="position:relative;width:30px;height:30px;flex:none">
@@ -2646,6 +2851,7 @@
     ☑ iOS safe area：頂 44／底 home indicator 讓位；觸控目標 ≥44px；省電模式手機預設開<br>
     ☑ 無常駐大面積 blur／backdrop-filter（blur 僅 modal 陰影一處）；動畫限小元件（呼吸環/脈動/toast）<br>
     ☑ 展示樣式全部隔離於檔尾 <span class="mock-kbd">#mockOverrides</span>；<span class="mock-kbd">.vw390</span> 前綴規則＝@media(max-width:900px) 之鏡射，合併時機械搬移<br>
+    ☑ 04b 手機改版：390 殼四態（開啟即全圖／亮點／護照／列車 sheet）＋遷移表＋合併契約；sheet 雙段高 46⇄88；鐵則自查（✕☆ sticky 標題列／URL 契約／靜態預置／mapPane 零觸碰）<br>
     ☐ 工程端既定驗證：Playwright WebKit＋Chromium、360–768 重疊掃描、正式站部署重驗（交棒後）
   </div>
 </section>
@@ -2684,6 +2890,27 @@ html[data-theme=dark] .phone{border-color:#2A3B5C}
 .vw390 .grouptabs::-webkit-scrollbar{display:none}
 .vw390 .grouptabs .gtab,.vw390 .grouptabs .citysel{flex:none;white-space:nowrap}
 .vw390 .more-sheet{display:flex!important}
+.vw390 .tabbar{display:flex!important}
+/* 04b 專屬:viewport-fit=cover 下地圖直抵螢幕頂——動態島旁顏色=--map-bg 隨主題連動(合併對應 theme-color meta,見契約⑥) */
+.vwfs .statusbar{background:var(--map-bg)}
+/* 手機殼通用件(§04/§04b 共用;過去 statusbar/homebar/capsule/mapsim/sheet 無定義=素樸呈現,此處補齊。合併時整塊忽略——正式版各有對應真元件) */
+.phone .plate h1{margin:0;font-size:17px;font-weight:900;letter-spacing:5px;text-indent:5px;line-height:1.2;color:var(--plate-ink)}
+.statusbar{position:relative;z-index:1150;display:flex;align-items:center;height:44px;padding:10px 26px 0;font-size:13px;font-weight:700;color:var(--ink);white-space:nowrap}
+.statusbar>span{flex:none}
+.statusbar .no{flex:1;display:flex;justify-content:center}
+.statusbar .no::after{content:"";width:106px;height:24px;border-radius:14px;background:#10182A}
+.homebar{position:absolute;left:50%;bottom:7px;transform:translateX(-50%);width:128px;height:5px;border-radius:3px;background:var(--ink);opacity:.8;z-index:1150}
+.capsule{position:absolute;left:50%;transform:translateX(-50%);z-index:640;display:flex;align-items:center;gap:7px;white-space:nowrap;background:var(--paper-tr);border:1.5px solid var(--line);border-radius:999px;padding:6px 15px;box-shadow:var(--shadow-1)}
+.mapsim{position:absolute;inset:0;background:linear-gradient(var(--line-faint) 1px,transparent 1px) 0 0/100% 54px,linear-gradient(90deg,var(--line-faint) 1px,transparent 1px) 0 0/54px 100%;opacity:.45}
+.sheet{position:absolute;left:8px;right:8px;bottom:0;z-index:710;display:flex;flex-direction:column;background:var(--paper);border:1.5px solid var(--line);border-bottom:0;border-radius:14px 14px 0 0;box-shadow:0 -4px 14px rgba(58,50,38,.14)}
+html[data-theme=dark] .sheet{box-shadow:0 -4px 14px rgba(0,0,0,.5)}
+.sheet .grab{display:block;flex:none;width:38px;height:4px;border-radius:3px;background:var(--line);margin:7px auto 5px}
+.sheet .sh-head{flex:none;display:flex;align-items:center;gap:8px;background:var(--navy);color:var(--on-navy);margin:0 12px;border-radius:8px 8px 0 0;padding:8px 14px}
+.sheet .sh-head h3{margin:0;font-size:13px;font-weight:900;letter-spacing:3px;color:var(--on-navy)}
+.sheet .sh-head .meta{margin-left:auto;font-size:10px;color:var(--on-navy);opacity:.75;white-space:nowrap}
+.sheet .sh-head .x{font-size:14px;color:var(--on-navy);opacity:.9;cursor:pointer}
+.sheet .sh-body{flex:1;min-height:0;overflow:auto;margin:0 12px 10px;border:1.5px solid var(--line);border-top:0;border-radius:0 0 8px 8px;background:var(--paper)}
+.sheet .sh-sec{padding:9px 14px 4px;font-size:10px;font-weight:900;letter-spacing:2px;color:var(--faint)}
 /* 議題4 spec 卡:.peak 只在 .badge 內才有底樣(font/padding/radius),specimen 的示例 chip 不在 .badge 裡,
    故給 .spm .peak 補上徽章外觀+ .sim 亮暗值(僅供 demo 展示,合併忽略;正式規則是檔首 .badge .peak.sim)。 */
 .spm .peak{display:inline-block;font-size:11px;font-weight:800;padding:2px 9px;border-radius:3px}
