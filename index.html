@@ -3775,9 +3775,13 @@ function renderSugarCard() {
 const LOCATE_ENABLED = !!window.RAIL_NATIVE_GEOLOCATION;
 const RECORDING_ENABLED = false; // 2026-07-17 錄影暫時下架(整備中):所有入口隱藏、實作全保留;改 true 即復活(工具列鈕+更多抽屜列+Plus 文案)
 const ACCOUNT_ENABLED = false; // 2026-07-17 帳號同步轉收費前暫時下架:入口全藏、不載 Firebase SDK、實作全保留;僅 ?account=delete 深連結(account-deletion.html)留給既有帳號刪資料;改 true 即復活
-// Plus 功能總閘(暗啟動):預設關,上架批次改為 true。?plus=1 當次點亮供測試(比照 TRIP_SHARE_ENABLED)。
+// Plus 功能總閘(暗啟動):網站預設關、?plus=1 當次點亮供測試(比照 TRIP_SHARE_ENABLED)；上架公告批次改 true。
+// Capacitor 原生殼恆開(App 載入無 URL 參數,訂閱本來就是 App 功能;bridge 在頁面腳本前注入,判定可靠)。
 // 目前接「誤點履歷」頭牌卡的入口與卡片(見 openDelayHist/renderDelayHist);訂閱入口另受 plusConfigured 與 RevenueCat 設定控制。
-const PLUS_ENABLED = (() => { try { return new URLSearchParams(location.search).get('plus') === '1'; } catch (e) { return false; } })();
+const PLUS_ENABLED = (() => { try {
+  if (window.Capacitor && Capacitor.isNativePlatform && Capacitor.isNativePlatform()) return true;
+  return new URLSearchParams(location.search).get('plus') === '1';
+} catch (e) { return false; } })();
 // 放空閒置達此秒數→劇場模式:切離線海陸底層(零圖磚)、相機停在全群組視角,列車/音樂/完乘全照常,只是不再抓圖磚。
 // ?theater=N 覆寫門檻(秒,測試用,不限環境——只會讓使用者自己更早進入省磚畫面,無風險)。見 enterTheater/camBlocked。
 const THEATER_IDLE_SEC = (() => {
