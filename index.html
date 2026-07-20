@@ -1468,6 +1468,7 @@
   .notify-sys { padding: 2px 8px; border: 1px solid var(--line); border-radius: var(--r-pill); color: var(--navy); font-size: 11px; }
   .notify-field { display: grid; grid-template-columns: 112px minmax(0, 1fr); align-items: center; gap: 10px; }
   .notify-field > span:first-child { color: var(--muted); font-size: 12px; font-weight: 800; }
+  .notify-field .notify-mode { display: block; margin-top: 2px; color: var(--faint); font-size: 10px; }
   .notify-field select, .notify-field input[type=number] {
     width: 100%; min-height: 44px; padding: 7px 10px; border: 1.5px solid var(--line); border-radius: 8px;
     background: var(--paper); color: var(--ink); font: inherit; font-size: 16px;
@@ -2151,7 +2152,7 @@ try { if (matchMedia('(max-width: 900px)').matches) document.body.classList.add(
         <div class="takeout-body notify-body">
           <div class="notify-train"><span>車次</span><span class="notify-sys" id="notifySys"></span><span id="notifyTrain"></span></div>
           <label class="notify-field"><span>提醒站點</span><select id="notifyStation"></select></label>
-          <div class="notify-field"><span id="notifyModeLabel">開車前</span><div class="notify-offsets" id="notifyOffsets">
+          <div class="notify-field"><span><span>提前</span><small class="notify-mode" id="notifyModeLabel">開車前</small></span><div class="notify-offsets" id="notifyOffsets">
             <label><input type="radio" name="notifyOffset" value="5"><span>5</span></label>
             <label><input type="radio" name="notifyOffset" value="10" checked><span>10</span></label>
             <label><input type="radio" name="notifyOffset" value="15"><span>15</span></label>
@@ -2335,6 +2336,7 @@ try { if (matchMedia('(max-width: 900px)').matches) document.body.classList.add(
       <summary><span>🛠 更新紀錄</span><span class="foot-sub">最後更新：2026/7/21</span></summary>
       <ul class="foot-list">
         <li class="grp">最近更新</li>
+        <li><span class="d">7/21</span><span>App 新增「到站提醒」：收藏或跟隨的班車，開車前提前叫你，還能加上步行時間。</span></li>
         <li><span class="d">7/21</span><span>手機大改版：打開就是全螢幕地圖，亮點／護照／列車介紹都住進底部面板；新增「捷」分頁，北中高捷運一張圖同框。</span></li>
         <li><span class="d">7/20</span><span>手機跟車時打開底部面板，跟隨鎖按鈕自動讓位不再擋住面板內容</span></li>
         <li><span class="d">7/20</span><span>更新紀錄改版：改成依主題分類，同一個功能修過好幾次的併成一條，並整理出「曾經上線、後來拿掉」的功能</span></li>
@@ -2390,6 +2392,7 @@ try { if (matchMedia('(max-width: 900px)').matches) document.body.classList.add(
         <li><span class="d">7/13</span><span>平交道加碼：補上台中港線等貨運線 21 處、卡片連點可切下一個、圖示改用台灣鐵路交叉標的牌面</span></li>
         <li><span class="d">7/12</span><span>新增平交道功能：點一下查接下來會通過的列車</span></li>
         <li class="grp">收藏、護照與成就</li>
+        <li><span class="d">7/21</span><span>App 新增「到站提醒」：收藏或跟隨的班車，開車前提前叫你，還能加上步行時間。</span></li>
         <li><span class="d">7/18</span><span>完乘記錄可以自選排序：日期／車次／距離／車種</span></li>
         <li><span class="d">7/18</span><span>山海平原成就門檻降為半圈，跟車面板加上環島完乘進度 %</span></li>
         <li><span class="d">7/17</span><span>新功能「最愛車站」：☆ 一鍵收藏，收藏的站在地圖上亮金色 ★</span></li>
@@ -2538,7 +2541,7 @@ try { if (matchMedia('(max-width: 900px)').matches) document.body.classList.add(
 <script>
 // 版本戳記:每次改版 push 前手動遞增(字母序),畫面時鐘徽章與 console 都會顯示,
 // 供比對線上跑的是不是最新版(瀏覽器快取 max-age=600 常讓人看到舊版)
-const BUILD = 'v0721a';
+const BUILD = 'v0721b';
 // 手機/平板直式「殼」斷點(議題1:640→900,iPad 直式改拿 tabbar＋更多抽屜):與 CSS @media 同步,版面類判斷一律用此常數。
 // 注意:裝置等級判斷(keepBuffer/powerSave 預設)刻意不用此常數、維持 640——iPad 不該因為改拿 tabbar 就被當低階裝置。
 const MOBILE_MQ = '(max-width: 900px)';
