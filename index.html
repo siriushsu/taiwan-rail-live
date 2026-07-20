@@ -750,15 +750,17 @@
   .passport.closed .ph-sub, .passport.closed .ph-body { display: none; }
   .passport .ph-stats { flex: 1 1 100%; order: 2; font-size: 12.5px; color: var(--muted); font-variant-numeric: tabular-nums; }
   .passport .ph-stats b { color: var(--red); }
-  .passport .ph-sec {
+  /* .ph-* 家族(Batch B):新增 #ridePanel 一起匹配,護照 sheet 與桌面 #passport 共用同一套骨架;
+     .passport 分支不變=桌面零變化 */
+  .passport .ph-sec, #ridePanel .ph-sec {
     display: flex; align-items: baseline; gap: 6px;
     font-size: 11px; font-weight: 800; letter-spacing: 3px; color: var(--faint);
     margin: 13px 0 8px; padding-bottom: 3px; border-bottom: 1.5px dashed var(--line-dash);
   }
-  .passport .ph-sec b { color: var(--navy); letter-spacing: 0; }
+  .passport .ph-sec b, #ridePanel .ph-sec b { color: var(--navy); letter-spacing: 0; }
   .passport .ph-sec.ph-sec-rides { flex-wrap: wrap; justify-content: space-between; } /* 排序控制擠不下就整組換行,不擠壓按鈕本身 */
   .passport .ph-sec .seg { letter-spacing: normal; } /* .ph-sec 的 3px letter-spacing 不inherit 進排序鈕文字 */
-  .passport .ph-stamps { display: flex; flex-wrap: wrap; gap: 10px 10px; align-items: flex-start; }
+  .passport .ph-stamps, #ridePanel .ph-stamps { display: flex; flex-wrap: wrap; gap: 10px 10px; align-items: flex-start; }
   /* 印章(.seal):圓章 52px、框 2.5、旋 -8°;得章=印泥紅、成就=金、未得=虛線灰不旋轉可點重播 */
   .seal {
     width: 56px; height: 56px; border-radius: 50%; border: 2.5px solid var(--red); color: var(--red);
@@ -777,16 +779,20 @@
     color: var(--navy); border: 1.5px solid var(--navy); border-radius: 3px; padding: 0 5px;
     transform: rotate(-4deg); opacity: .85; font-variant-numeric: tabular-nums;
   }
-  .passport .ph-row {
+  .passport .ph-row, #ridePanel .ph-row {
     display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 8px; font-size: 12.5px; color: var(--muted);
     padding: 5px 2px; border-top: 1px dashed var(--line-faint); font-variant-numeric: tabular-nums;
   }
-  .passport .ph-row .d { color: var(--faint); flex: none; font-family: var(--mono); font-size: 11px; }
-  .passport .ph-row b { color: var(--ink-strong); flex: none; min-width: 44px; }
-  .passport .ph-row .k { flex: none; color: var(--navy); font-weight: 600; }
-  .passport .ph-row .r { flex: 1 1 6em; min-width: 6em; }
-  .passport .ph-row .km { flex: none; margin-left: auto; color: var(--faint); }
-  .passport .ph-empty { font-size: 12.5px; color: var(--faint); }
+  .passport .ph-row .d, #ridePanel .ph-row .d { color: var(--faint); flex: none; font-family: var(--mono); font-size: 11px; }
+  .passport .ph-row b, #ridePanel .ph-row b { color: var(--ink-strong); flex: none; min-width: 44px; }
+  .passport .ph-row .k, #ridePanel .ph-row .k { flex: none; color: var(--navy); font-weight: 600; }
+  .passport .ph-row .r, #ridePanel .ph-row .r { flex: 1 1 6em; min-width: 6em; }
+  .passport .ph-row .km, #ridePanel .ph-row .km { flex: none; margin-left: auto; color: var(--faint); }
+  .passport .ph-empty, #ridePanel .ph-empty { font-size: 12.5px; color: var(--faint); }
+  /* 成就 chips(Batch B,護照 sheet 專屬,mock C):桌面護照仍用 .seal 金章,故 chip 只在 #ridePanel */
+  #ridePanel .achv-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 2px; }
+  #ridePanel .achv-chip { font-size: 11px; font-weight: 700; color: var(--faint); border: 1px dashed var(--line); border-radius: 999px; padding: 3px 10px; }
+  #ridePanel .achv-chip.on { color: var(--warn-ink); background: var(--warn-bg); border-style: solid; border-color: var(--warn-line); }
 
   /* ── 營運通阻公告橫幅(TDX Alert):琥珀警示卡,點開看官方公告全文 ── */
   .alert-banner {
@@ -1084,7 +1090,7 @@
   /* ── 車站時刻板(及其他共用外觀的面板:最愛/旅程/探索/軌道與路線——面板家族統一骨架) ── */
   .board {
     position: absolute; top: 12px; right: 12px; z-index: 650;
-    width: 280px; max-height: calc(100% - 176px); overflow-y: auto;
+    width: 280px; max-height: calc(100% - 176px); overflow-y: auto; overscroll-behavior: contain; /* 契約④:面板內捲動不外溢到地圖 */
     background: var(--paper-tr); border: 2px solid var(--navy); border-radius: 10px;
     padding: 0 14px 12px;
     box-shadow: var(--shadow-navy);
@@ -1170,6 +1176,10 @@
   #searchDrop .sd-named .tn { color: var(--ink-strong); font-size: 14px; }
   #searchDrop .sd-named p { margin: 7px 0 0; color: var(--muted); font-size: 12.5px; line-height: 1.75; }
   #searchDrop .sd-named .sd-note { margin-top: 8px; color: var(--faint); font-size: 11px; }
+  /* 亮點 sheet 骨架(Batch B):#expSearch 桌面空(搜尋在 header)→ 收合不佔位;#note 遷入的註腳桌面不顯示(桌面另有頁尾 .note) */
+  #expSearch:empty { display: none; }
+  #explorePanel .exp-note { margin: 8px -14px 0; padding: 10px 14px 12px; border-top: 1.5px dashed var(--line-dash); font-size: 10.5px; line-height: 1.7; color: var(--faint); }
+  @media (min-width: 901px) { #explorePanel .exp-note { display: none; } }
   .board .empty { color: var(--faint); font-size: 13px; padding: 8px 0; }
   .board .stnMeta { margin: 1px 0 8px; padding-bottom: 8px; border-bottom: 1.5px dashed var(--line-dash); }
   .board .stnMeta .addr { font-size: 12px; color: var(--muted); line-height: 1.5; }
@@ -1366,6 +1376,9 @@
   .foot-links { display: flex; flex-wrap: wrap; gap: 8px 20px; padding: 0 2px; font-size: 13px; }
   .foot-links a { color: var(--navy); text-decoration: none; }
   .foot-links a:hover { color: var(--red); text-decoration: underline; }
+  /* 隱私盒的條款連結(Batch B):比照 foot-links 的樣式,僅此新盒有 foot-list 內連結 */
+  .foot-list a { color: var(--navy); text-decoration: none; font-weight: 600; }
+  .foot-list a:hover { color: var(--red); text-decoration: underline; }
   .donate-body { padding: 2px 14px 14px; display: grid; gap: 10px; justify-items: center; text-align: center; }
   .donate-thanks { margin: 0; font-size: 14px; font-weight: 700; color: var(--ink); }
   .donate-kofi {
@@ -1584,6 +1597,27 @@
        時刻輸入要連 :focus-within 態一起蓋——聚焦態規則特異性較高,只蓋常態蓋不住。 */
     .search input[type=text] { min-height: 40px; font-size: 16px; padding: 7px 12px; }
     .tod-wrap input[type=time], .tod-wrap:focus-within input[type=time] { font-size: 16px; }
+    /* ── Batch B:長頁內容遷入 sheet ── */
+    /* B1 搜尋遷入亮點 sheet:.search 被 placeSearch 搬進 #expSearch;整寬、16px 防 iOS 聚焦縮放 */
+    body.fs #explorePanel .search { display: block; padding: 10px 12px 4px; margin: 0; min-width: 0; }
+    body.fs #explorePanel #trainSearch { width: 100%; font-size: 16px; min-height: 40px; }
+    body.fs #explorePanel #followBar { display: none !important; }
+    #explorePanel #searchDrop { max-height: 40vh; } /* sheet 內限高,內部自捲不被面板底裁光 */
+    /* B4-1 縣市 chip grid(seg/gtab 家族外觀) */
+    .ms-cities { display: grid; grid-template-columns: repeat(auto-fill, minmax(66px, 1fr)); gap: 6px; padding: 8px 14px 10px; border-bottom: 1px dashed var(--line-faint); }
+    .ms-cities button { min-height: 36px; font-family: inherit; font-size: 12.5px; font-weight: 700; color: var(--navy); background: var(--bg-stage); border: 1.5px solid var(--line); border-radius: 8px; cursor: pointer; }
+    .ms-cities button:active { background: var(--paper); }
+    /* B4-2 全日走勢 slot:覆寫 body.fs .flow 的 display:none(#id 特異性壓過) */
+    #msFlowSlot { padding: 8px 14px 10px; border-bottom: 1px dashed var(--line-faint); }
+    #msFlowSlot .flow { display: block; margin: 0; }
+    /* B4-3 關於段:搬入的 foot-box 貼近 ms-row 外觀,長內容(更新紀錄)自捲 */
+    #msAbout { display: grid; gap: 8px; padding: 8px 14px 4px; }
+    #msAbout .foot-box { border-radius: 8px; }
+    #msAbout .foot-box summary { min-height: 48px; box-sizing: border-box; }
+    #msAbout .foot-list { max-height: 44vh; overflow-y: auto; overscroll-behavior: contain; }
+    .ms-about-links { display: flex; align-items: center; gap: 14px; padding: 8px 14px 4px; font-size: 13px; }
+    .ms-about-links a { color: var(--navy); text-decoration: none; }
+    .ms-about-links .ver { margin-left: auto; font-size: 11px; color: var(--faint); font-weight: 600; letter-spacing: .5px; }
     /* 跟隨票手機不出(地圖上的跟隨小卡已有同資訊):它多佔一行會把 stage 推破視窗底 */
     #followBar { display: none !important; }
     .stage { height: calc(100dvh - 252px); min-height: 380px; }
@@ -2049,7 +2083,13 @@ try { if (matchMedia('(max-width: 900px)').matches) document.body.classList.add(
     <div class="xing-help" id="xingHelp" hidden>顯示全台 415 處台鐵平交道（官方公開資料）。圖示比照官方交叉標誌：雙線以上於紅叉下加人字、閃電＝電化（拉近顯示）。點擊任一平交道，可查看接下來通過的列車與倒數；貨運／專用線上的道口僅標示位置。預測依時刻表與即時誤點推算，遮斷機通常提前 30–60 秒動作，請以現場號誌為準。平交道位置以台鐵官方資料為準，可能與現場實際略有落差，歡迎透過頁尾「回報問題或建議」提供修正。</div>
     <div class="board" id="favPanel" hidden></div>
     <div class="board" id="ridePanel" hidden></div>
-    <div class="board" id="explorePanel" hidden></div>
+    <!-- 亮點面板固定骨架(Batch B):h3 與 #expSearch 常駐,renderExplorePanel 只重建 #expBody;
+         手機 placeSearch() 把 header 的 .search 搬進 #expSearch(桌面搬回 header,#expSearch:empty 收合) -->
+    <div class="board" id="explorePanel" hidden>
+      <h3>今日亮點<button class="close" id="exploreClose">×</button></h3>
+      <div id="expSearch"></div>
+      <div id="expBody"></div>
+    </div>
     <div class="board" id="todayPanel" hidden></div>
     <!-- 誤點履歷卡(Plus 頭牌;跟隨台鐵時由準點列/車次卡入口開啟);×/☆ 家族鐵則——close 鈕放 sticky h3 內(v0717p) -->
     <div class="board delayhist-panel" id="delayHistPanel" hidden></div>
@@ -2310,6 +2350,15 @@ try { if (matchMedia('(max-width: 900px)').matches) document.body.classList.add(
         <p class="foot-note">本專案為開源免費工具，您的支持幫助我們維護伺服器與持續改善內容</p>
       </div>
     </details>
+    <!-- 隱私與服務條款(Batch B 新增第四盒):桌面 footer 多這一小盒(預期新增);手機隨 placeFootBoxes 進「關於」段 -->
+    <details class="foot-box">
+      <summary><span>🔒 隱私與服務條款</span></summary>
+      <ul class="foot-list">
+        <li><span class="d">隱私</span><a href="privacy.html">隱私權政策</a></li>
+        <li><span class="d">條款</span><a href="terms.html">服務條款</a></li>
+        <li><span class="d">帳號</span><a href="account-deletion.html">帳號與資料刪除</a></li>
+      </ul>
+    </details>
   </footer>
 </div>
 
@@ -2336,8 +2385,14 @@ try { if (matchMedia('(max-width: 900px)').matches) document.body.classList.add(
     <button class="ms-row" data-proxy="introBtn"><span>特殊站介紹</span><span class="toggle" data-tg="introBtn"></span></button>
     <button class="ms-row" data-proxy="pinBtn"><span>附近火車</span><span class="toggle" data-tg="pinBtn"></span></button>
     <button class="ms-row" data-proxy="locateBtn" data-close="1"><span>◎ 定位我</span><span class="chev">›</span></button>
+    <!-- 縣市快速移動(Batch B):#citySel 縣市下拉的手機新家;點列展開 17 縣市 chip,點 chip 飛過去並關 sheet -->
+    <button class="ms-row" data-act="cities"><span>縣 縣市快速移動</span><span class="chev">›</span></button>
+    <div class="ms-cities" id="msCities" hidden></div>
     <div class="ms-sec">資訊</div>
     <button class="ms-row" data-proxy="todayBtn" data-close="1"><span>今日台鐵動態</span><span class="chev">›</span></button>
+    <!-- 全日班次走勢(Batch B):.flow 全日走勢圖的手機新家;點列把 #flowWrap 搬進下方 slot 並重繪,收合搬回原位 -->
+    <button class="ms-row" data-act="flow"><span>全日班次走勢</span><span class="chev">›</span></button>
+    <div class="ms-flowslot" id="msFlowSlot" hidden></div>
     <div class="ms-sec">觀看模式</div>
     <button class="ms-row warnrow" data-proxy="powerBtn"><span>省電模式（30fps）</span><span class="toggle" data-tg="powerBtn"></span></button>
     <button class="ms-row" data-proxy="musicBtn"><span>♪ 背景音樂</span><span class="toggle" data-tg="musicBtn"></span></button>
@@ -2347,6 +2402,14 @@ try { if (matchMedia('(max-width: 900px)').matches) document.body.classList.add(
     <button class="ms-row" data-proxy="shareBtn" data-close="1"><span>↗ 分享畫面</span><span class="chev">›</span></button>
     <button class="ms-row" data-proxy="importBtn" data-close="1"><span>Google 清單匯入</span><span class="chev">›</span></button>
     <button class="ms-row" data-proxy="accountBtn" data-close="1"><span>帳號同步</span><span class="chev">›</span></button>
+    <!-- 關於(Batch B 第五段):placeFootBoxes() 把 site-foot 的四個 <details class="foot-box">
+         (更新紀錄/資料來源與授權/贊助/隱私與服務條款)搬進 #msAbout(桌面搬回 site-foot);末列複製回報問題＋版本 -->
+    <div class="ms-sec">關於</div>
+    <div class="ms-about" id="msAbout"></div>
+    <div class="ms-about-links">
+      <a href="https://github.com/siriushsu/taiwan-rail-live/issues/new" target="_blank" rel="noopener noreferrer">📍 回報問題或建議</a>
+      <span class="ver" id="msBuildVer"></span>
+    </div>
   </div>
   <div class="ms-note">本站為個人愛好者專案，與台灣鐵路公司及各捷運公司皆無關。</div>
 </div>
@@ -6886,22 +6949,31 @@ function recordRide(tr) {
   renderPassport();
   announceCollections(tr, rides, prevColl, prevAch);
 }
+// 護照 sheet(Batch B):與桌面 #passport 合併=同一份 builder;收集章→成就(chips)→完乘記錄(全量,最新在前)
 function renderRidePanel() {
   const el = document.getElementById('ridePanel');
   if (el.hidden) return;
   const rides = loadRides();
-  const totalKm = rides.reduce((a, r) => a + (r.km || 0), 0);
-  const kinds = [...new Set(rides.map(r => r.kind))];
-  el.innerHTML = `<h3>旅程收集<button class="close" id="rideClose">×</button></h3><div class="sub">從發車一路跟到終點，就蓋一枚完乘章（調速可以・跳時間不算）</div>` +
-    (rides.length
-      ? `<div class="ride-stats">完乘 <b>${rides.length}</b> 趟 · 總里程 <b>${totalKm.toLocaleString()}</b> km · 車種 <b>${kinds.length}</b> 種</div>` +
-        `<div class="ride-kinds">${kinds.map(k => `<span class="kindchip">${k}</span>`).join('')}</div>` +
-        rides.slice(-10).reverse().map(r =>
-          `<div class="row"><span class="dot" style="background:#2a4a73"></span>` +
-          `<b>${r.train}</b><span class="dest">${r.kind}　${r.from}→${r.to}</span>` +
-          `<span class="t">${r.km} km</span><span class="min">${r.date.slice(5)}</span></div>`).join('')
-      : '<div class="empty">還沒有完乘記錄——跟隨一班車看到抵達終點，就會自動蓋章！</div>');
+  const coll = collectionOf(rides);
+  const collGot = coll.named.size + coll.stock.size + coll.branch.size;
+  const achN = unlockedAchievements(rides).size;
+  const list = buildRideRows(rides, 'date'); // 手機不做排序鈕,固定日期最新在前
+  el.innerHTML =
+    `<h3>旅程護照<button class="close" id="rideClose">×</button></h3>` +
+    `<div class="ride-stats">章 <b>${collGot}</b> · 成就 <b>${achN}</b> · 完乘 <b>${rides.length}</b></div>` +
+    `<div class="sub">從發車一路跟到終點就蓋一枚完乘章（調速可以・跳時間不算）· 灰色的章點了帶你搭一趟</div>` +
+    buildStamps(rides) +
+    buildAchv(rides, 'chip') +
+    `<div class="ph-sec">完乘記錄</div>` +
+    (list ? `<div class="ph-list">${list}</div>`
+      : `<div class="ph-empty">還沒有完乘記錄——從地圖角落「探」挑一班有趣的車，陪它跑完全程吧。</div>`);
   el.querySelector('#rideClose').onclick = closeRidePanel;
+  // 灰章/金章點擊:與桌面一致觸發重播(followDexStamp);sheet 內先關面板再跟車(比照亮點列)
+  el.onclick = e => {
+    if (e.target.closest('.close')) return;
+    const st = e.target.closest('.seal[data-cat]');
+    if (st) { closeRidePanel(); followDexStamp(st.dataset.cat, st.dataset.id); }
+  };
 }
 function openRidePanel() {
   soloPanel('ride');
@@ -6913,7 +6985,7 @@ function openRidePanel() {
 }
 function closeRidePanel() {
   const el = document.getElementById('ridePanel');
-  el.hidden = true; el.innerHTML = '';
+  el.hidden = true; el.innerHTML = ''; el.onclick = null;
   updateSheetOpenClass();
   document.getElementById('rideBtn').classList.remove('active');
 }
@@ -7083,44 +7155,57 @@ function setRideSortMode(m) {
   try { localStorage.setItem('trainmap-ride-sort', m); } catch (e) {}
   renderPassport();
 }
+// ── 護照共用 builder(Batch B:桌面 #passport 與護照 sheet #ridePanel 單一事實來源) ──
+// 章名折行:4 字以上折兩行塞進圓章(仿 mock「藍皮/解憂號」)
+function sealName(n) { return n.length >= 4 ? n.slice(0, Math.floor(n.length / 2)) + '<br>' + n.slice(Math.floor(n.length / 2)) : n; }
+// 收集章(明星列車/車種圖鑑/支線行腳):完成與否皆掛點擊鉤子→got 章也可點重播;桌面與 sheet 逐字相同
+function buildStamps(rides) {
+  const sd = state.special;
+  if (!sd) return '';
+  const coll = collectionOf(rides);
+  const MISS_TIP = '還沒搭過——點我去搭一班';
+  const stampRow = (label, cat, items) => {
+    if (!items.length) return '';
+    const got = items.filter(i => i.got).length;
+    return `<div class="ph-sec">${label}<b>${got}/${items.length}</b></div><div class="ph-stamps">` +
+      items.map(i => `<span class="seal${i.got ? '' : ' na'}" data-cat="${cat}" data-id="${i.id}"` +
+        ` title="${i.tip || ''}"><b>${sealName(i.name)}</b><small>${i.got ? '已收藏' : '點我重播'}</small></span>`).join('') + `</div>`;
+  };
+  const named = sd.namedTrains.filter(n => n.trainNos.length).map(n => // 無固定車次的觀光列車搭不到,不列入收集
+    ({ name: n.name, got: coll.named.has(n.id), id: n.id, tip: coll.named.has(n.id) ? n.story : MISS_TIP }));
+  const stocks = sd.rollingStock.map(s =>
+    ({ name: s.name, got: coll.stock.has(s.id), id: s.id, tip: coll.stock.has(s.id) ? s.story : MISS_TIP }));
+  const branches = sd.branchLines.map(b =>
+    ({ name: b.name, got: coll.branch.has(b.id), id: b.id, tip: coll.branch.has(b.id) ? b.story : MISS_TIP }));
+  return stampRow('明星列車', 'named', named) + stampRow('車種圖鑑', 'stock', stocks) + stampRow('支線行腳', 'branch', branches);
+}
+// 成就:桌面用金/灰圓章(style='seal',與舊版逐字相同,護照零變化),護照 sheet 用 chips(style='chip',mock C)
+function buildAchv(rides, style) {
+  const ach = unlockedAchievements(rides);
+  if (style === 'chip') {
+    return `<div class="ph-sec">成就<b>${ach.size}/${ACHIEVEMENTS.length}</b></div><div class="achv-chips">` +
+      ACHIEVEMENTS.map(a => `<span class="achv-chip${ach.has(a.id) ? ' on' : ''}" title="${a.desc}">${a.icon} ${a.name}</span>`).join('') + `</div>`;
+  }
+  return `<div class="ph-sec">成就徽章<b>${ach.size}/${ACHIEVEMENTS.length}</b></div><div class="ph-stamps">` +
+    ACHIEVEMENTS.map(a =>
+      `<span class="seal${ach.has(a.id) ? ' gold' : ' na'}" title="${a.desc}"><b>${sealName(a.name)}</b><small>${a.icon}</small></span>`).join('') + '</div>';
+}
+// 完乘記錄列:桌面與 sheet 共用同一 markup,mode 決定排序(桌面隨排序鈕,sheet 固定 date 最新在前)
+function buildRideRows(rides, mode) {
+  return sortRides(rides, mode).map(r =>
+    `<div class="ph-row"><span class="datestamp">${(r.date || '').slice(5).replace(/-/g, '.')}</span><b>${r.train}</b>` +
+    `<span class="k">${r.kind}</span><span class="r">${r.from}→${r.to}</span><span class="km">${r.km} km</span></div>`).join('');
+}
 function renderPassport() {
   const el = document.getElementById('passport');
   if (state.mode !== 'sched') { el.hidden = true; el.innerHTML = ''; return; }
   const rides = loadRides();
   const totalKm = rides.reduce((a, r) => a + (r.km || 0), 0);
   const longest = rides.reduce((a, r) => Math.max(a, r.km || 0), 0);
-  // 章名折行:4 字以上折兩行塞進圓章(仿 mock「藍皮/解憂號」)
-  const sealName = n => n.length >= 4 ? n.slice(0, Math.floor(n.length / 2)) + '<br>' + n.slice(Math.floor(n.length / 2)) : n;
-  const stampRow = (label, cat, items) => {
-    if (!items.length) return '';
-    const got = items.filter(i => i.got).length;
-    return `<div class="ph-sec">${label}<b>${got}/${items.length}</b></div><div class="ph-stamps">` +
-      items.map(i => `<span class="seal${i.got ? '' : ' na'}" data-cat="${cat}" data-id="${i.id}"` + // 完成與否皆掛點擊鉤子→got 章也可點
-        ` title="${i.tip || ''}"><b>${sealName(i.name)}</b><small>${i.got ? '已收藏' : '點我重播'}</small></span>`).join('') + `</div>`;
-  };
-  let stamps = '';
-  const sd = state.special;
-  if (sd) {
-    const coll = collectionOf(rides);
-    const MISS_TIP = '還沒搭過——點我去搭一班';
-    // 收集章不再烤固定代表車;點擊時由 followDexStamp 當場挑一班(隨機不重複),故完成的章也能點來再看一班
-    const named = sd.namedTrains.filter(n => n.trainNos.length).map(n => // 無固定車次的觀光列車搭不到,不列入收集
-      ({ name: n.name, got: coll.named.has(n.id), id: n.id, tip: coll.named.has(n.id) ? n.story : MISS_TIP }));
-    const stocks = sd.rollingStock.map(s =>
-      ({ name: s.name, got: coll.stock.has(s.id), id: s.id, tip: coll.stock.has(s.id) ? s.story : MISS_TIP }));
-    const branches = sd.branchLines.map(b =>
-      ({ name: b.name, got: coll.branch.has(b.id), id: b.id, tip: coll.branch.has(b.id) ? b.story : MISS_TIP }));
-    stamps = stampRow('明星列車', 'named', named) + stampRow('車種圖鑑', 'stock', stocks) + stampRow('支線行腳', 'branch', branches);
-  }
-  // 成就徽章:全由完乘記錄推導,鎖住的滑過看解鎖條件
-  const ach = unlockedAchievements(rides);
-  stamps += `<div class="ph-sec">成就徽章<b>${ach.size}/${ACHIEVEMENTS.length}</b></div><div class="ph-stamps">` +
-    ACHIEVEMENTS.map(a =>
-      `<span class="seal${ach.has(a.id) ? ' gold' : ' na'}" title="${a.desc}"><b>${sealName(a.name)}</b><small>${a.icon}</small></span>`).join('') + '</div>';
+  // Batch B:收集章/成就/完乘列改走共用 builder(輸出與舊版逐字相同,桌面護照零變化)
   const rideSort = getRideSortMode();
-  const list = sortRides(rides, rideSort).map(r =>
-    `<div class="ph-row"><span class="datestamp">${(r.date || '').slice(5).replace(/-/g, '.')}</span><b>${r.train}</b>` +
-    `<span class="k">${r.kind}</span><span class="r">${r.from}→${r.to}</span><span class="km">${r.km} km</span></div>`).join('');
+  const stamps = buildStamps(rides) + buildAchv(rides, 'seal');
+  const list = buildRideRows(rides, rideSort);
   // 排序切換鈕:有記錄才顯示(空清單沒東西可排);選中狀態直接烤進 HTML,不用另外 sync
   const sortSeg = list ? `<span class="seg ph-sort" id="phSortSeg">${Object.entries(RIDE_SORT_LABELS)
     .map(([v, lbl]) => `<button data-v="${v}"${v === rideSort ? ' class="on"' : ''}>${lbl}</button>`).join('')}</span>` : '';
@@ -7222,12 +7307,15 @@ function renderExplorePanel() {
   const el = document.getElementById('explorePanel');
   if (el.hidden) return;
   const hl = computeHighlights();
-  el.innerHTML = `<h3>今日亮點<button class="close" id="exploreClose">×</button></h3><div class="sub">從 ${state.trains.length} 班車裡挑出來的 · 點一列跟隨</div>` +
+  const noteTxt = (document.getElementById('note') || {}).textContent || ''; // #note 遷入亮點 sheet 註腳(重開即新文案)
+  document.getElementById('expBody').innerHTML =
+    `<div class="sub">從 ${state.trains.length} 班車裡挑出來的 · 點一列跟隨</div>` +
     `<div class="row" data-rand="1" title="加權隨機挑一班(特別車機率較高)"><span class="dot" style="background:#d23c2a"></span>` +
     `<b>🎲 隨便帶我看一輛</b><span class="dest">交給命運</span></div>` +
     (hl.special.length ? `<div class="sec">特別列車出沒中</div>` + hl.special.map(hlRow).join('') : '') +
     (hl.best.length ? `<div class="sec">今日之最</div>` + hl.best.map(hlRow).join('') : '') +
-    (hl.branches.length ? `<div class="sec">支線小火車</div>` + hl.branches.map(hlRow).join('') : '');
+    (hl.branches.length ? `<div class="sec">支線小火車</div>` + hl.branches.map(hlRow).join('') : '') +
+    (noteTxt ? `<div class="exp-note">${escHtml(noteTxt)}</div>` : '');
   el.querySelector('#exploreClose').onclick = closeExplorePanel;
   el.onclick = e => {
     if (e.target.closest('.close')) return;
@@ -7253,7 +7341,8 @@ function openExplorePanel() {
 }
 function closeExplorePanel() {
   const el = document.getElementById('explorePanel');
-  el.hidden = true; el.innerHTML = ''; el.onclick = null;
+  // 只清 #expBody:保留固定骨架 h3 與 #expSearch(內含搬入的 .search),否則會摧毀搜尋 DOM
+  el.hidden = true; const eb = document.getElementById('expBody'); if (eb) eb.innerHTML = ''; el.onclick = null;
   updateSheetOpenClass();
   document.getElementById('exploreBtn').classList.remove('active');
 }
@@ -9114,6 +9203,57 @@ function setBasemap() {
     satBtn.title = sat ? '切回一般地圖' : '切換衛星影像';
   }
 }
+// ── Batch B:長頁內容遷入 sheet 的搬移/建置 helpers(單一 DOM 實例;跨 900 斷界由 resize 同步) ──
+// 搜尋列 .search 手機搬進亮點 sheet #expSearch,桌面搬回 header 原位(錨點註記記住老家)
+let _searchHomeAnchor = null;
+function placeSearch() {
+  const search = document.getElementById('searchRow');
+  const expSearch = document.getElementById('expSearch');
+  if (!search || !expSearch) return;
+  if (!_searchHomeAnchor) { _searchHomeAnchor = document.createComment('search-home'); search.parentNode.insertBefore(_searchHomeAnchor, search); }
+  if (window.matchMedia(MOBILE_MQ).matches) { if (search.parentNode !== expSearch) expSearch.appendChild(search); }
+  else if (search !== _searchHomeAnchor.nextSibling) _searchHomeAnchor.parentNode.insertBefore(search, _searchHomeAnchor.nextSibling);
+}
+// site-foot 四個 foot-box(更新紀錄/資料來源/贊助/隱私)手機搬進更多 sheet「關於」段,桌面搬回原位
+let _footHomes = null;
+function placeFootBoxes() {
+  const about = document.getElementById('msAbout');
+  if (!about) return;
+  if (!_footHomes) _footHomes = [...document.querySelectorAll('.site-foot .foot-box')].map(box => {
+    const a = document.createComment('foot-home'); box.parentNode.insertBefore(a, box); return { box, anchor: a };
+  });
+  if (window.matchMedia(MOBILE_MQ).matches) { for (const { box } of _footHomes) if (box.parentNode !== about) about.appendChild(box); }
+  else for (const { box, anchor } of _footHomes) if (box.parentNode !== anchor.parentNode || box.previousSibling !== anchor) anchor.parentNode.insertBefore(box, anchor.nextSibling);
+}
+// 縣市 chip grid:更多 sheet「縣市快速移動」的 17 縣市按鈕(CITY_LIST 動態建一次)
+function buildMsCities() {
+  const box = document.getElementById('msCities');
+  if (!box || box.dataset.built) return;
+  box.innerHTML = CITY_LIST.map(([id, label]) => `<button type="button" data-city="${id}">${label}</button>`).join('');
+  box.dataset.built = '1';
+}
+// 全日走勢圖:#flowWrap 搬進更多 sheet #msFlowSlot(展開)/搬回原位(收合);搬移後 clientWidth 變故重算重繪
+let _flowHomeAnchor = null;
+function collapseMsFlow() {
+  const flow = document.getElementById('flowWrap'), slot = document.getElementById('msFlowSlot');
+  if (flow && _flowHomeAnchor && flow.parentNode !== _flowHomeAnchor.parentNode) {
+    _flowHomeAnchor.parentNode.insertBefore(flow, _flowHomeAnchor.nextSibling);
+    flow.hidden = (state.mode !== 'sched'); // 還原 App 不變式:sched 顯示 freq 隱藏(手機另有 body.fs .flow 藏)
+  }
+  if (slot) slot.hidden = true;
+  const ch = document.querySelector('.ms-row[data-act="flow"] .chev'); if (ch) ch.textContent = '›';
+}
+function toggleMsFlow() {
+  const flow = document.getElementById('flowWrap'), slot = document.getElementById('msFlowSlot');
+  if (!flow || !slot) return;
+  const ch = document.querySelector('.ms-row[data-act="flow"] .chev');
+  if (slot.hidden) {
+    if (!_flowHomeAnchor) { _flowHomeAnchor = document.createComment('flow-home'); flow.parentNode.insertBefore(_flowHomeAnchor, flow); }
+    slot.appendChild(flow); flow.hidden = false; slot.hidden = false;
+    if (ch) ch.textContent = '⌄';
+    computeFlow(); drawFlow();
+  } else collapseMsFlow();
+}
 function setupMapTools() {
   const fsFab = document.getElementById('fsFab');
   const themeBtn = document.getElementById('themeBtn');
@@ -9125,6 +9265,7 @@ function setupMapTools() {
   const setMore = on => {
     document.body.classList.toggle('tools-open', on);
     if (on) syncMoreSheet();
+    else collapseMsFlow(); // 關 sheet:走勢圖搬回原位(不留在隱藏 sheet 裡)
   };
   document.getElementById('tabMore').onclick = () => setMore(!document.body.classList.contains('tools-open'));
   document.getElementById('moreClose').onclick = () => setMore(false);
@@ -9163,8 +9304,12 @@ function setupMapTools() {
   document.getElementById('moreBody').addEventListener('click', e => {
     const segBtn = e.target.closest('#msThemeSeg button');
     if (segBtn) { setAppearance(segBtn.dataset.v); syncMoreSheet(); return; }
+    const chip = e.target.closest('#msCities button[data-city]'); // 縣市 chip:飛過去並關 sheet
+    if (chip) { flyToCity(chip.dataset.city); setMore(false); return; }
     const row = e.target.closest('.ms-row'); if (!row) return;
     if (row.dataset.act === 'track') { setMore(false); openTrackPanel(); return; }
+    if (row.dataset.act === 'cities') { buildMsCities(); const g = document.getElementById('msCities'); const ch = row.querySelector('.chev'); g.hidden = !g.hidden; if (ch) ch.textContent = g.hidden ? '›' : '⌄'; return; }
+    if (row.dataset.act === 'flow') { toggleMsFlow(); return; }
     const btn = row.dataset.proxy && document.getElementById(row.dataset.proxy); if (!btn) return;
     if (row.dataset.close === '1') setMore(false);
     btn.click();
@@ -9287,7 +9432,12 @@ function setupMapTools() {
     if (mob) { if (!document.body.classList.contains('fs')) setFs(true); }
     else if (!state.liveMode && document.body.classList.contains('fs')) setFs(false);
     placeFsOverlays(); if (state._fsCapsuleSync) state._fsCapsuleSync(false);
+    // Batch B:跨界把搜尋列/頁尾盒搬回正確的家;離開手機時把走勢圖搬回原位、收起縣市 chip
+    placeSearch(); placeFootBoxes();
+    if (!mob) { collapseMsFlow(); const g = document.getElementById('msCities'); if (g) g.hidden = true; }
   });
+  // Batch B:開站即建縣市 chip、把搜尋列與頁尾盒放到當前斷點該在的家
+  buildMsCities(); placeSearch(); placeFootBoxes();
   // 真全螢幕被使用者(Esc/F11/系統手勢)退掉時,同步收掉 CSS 全畫面狀態並重排地圖
   document.addEventListener('fullscreenchange', () => {
     if (!document.fullscreenElement && document.body.classList.contains('fs')) setFs(false);
@@ -9619,6 +9769,7 @@ function setupRecorder() {
 
 async function boot() {
   document.getElementById('buildVer').textContent = BUILD;
+  { const mv = document.getElementById('msBuildVer'); if (mv) mv.textContent = BUILD; } // Batch B:關於段版本號同步
   console.log('台灣鐵道·列車流動 BUILD', BUILD);
   // 直播模式:開頭就掛 class,互動 UI 首繪即隱藏(資料載入要幾秒,不在 OBS 畫面閃 UI)
   // ?live=1 即時模式;?live=2&k=<密鑰> 導播模式(隱藏私用,密鑰對才開,否則當一般站台)
@@ -10376,7 +10527,9 @@ initMusic();
 (() => {
   const ts = document.getElementById('trainSearch'), drop = document.getElementById('searchDrop');
   // 跟車次:不在 sched 群組時先切「國家鐵路」(頁籤一致);followTrainNo 本身亦可跨系統
-  const followNo = no => { if (state.mode !== 'sched') selectGroup(GROUPS.find(g => g.id === 'nat')); followTrainNo(no); };
+  // Batch B:手機搜尋列住在亮點 sheet;跟車前先關該 sheet(比照亮點列點擊先關再跟),桌面搜尋在 header 不受影響
+  const closeExpHost = () => { if (window.matchMedia(MOBILE_MQ).matches && typeof closeExplorePanel === 'function') closeExplorePanel(); };
+  const followNo = no => { closeExpHost(); if (state.mode !== 'sched') selectGroup(GROUPS.find(g => g.id === 'nat')); followTrainNo(no); };
   ts.addEventListener('input', renderSearchDrop);
   ts.addEventListener('focus', () => { if (ts.value.trim()) renderSearchDrop(); });
   ts.addEventListener('keydown', e => {
@@ -10391,7 +10544,7 @@ initMusic();
     else if (!/\d/.test(q) && trs.length) followNo(String(trs[0].tr.train)); // 名稱命中具名班次(藍皮…)→跟第一班
     else if (!/\d/.test(q) && nmd.length) renderNamedIntro(nmd[0]); // 名稱命中無班次觀光列車(山嵐/鳴日)→介紹卡(內部重開下拉)
     else if (stns.length) gotoStn(stns[0]);       // 否則有車站→開第一站
-    else if (q) followTrainNo(q);                 // 都沒有→舊行為(含查無提示)
+    else if (q) { closeExpHost(); followTrainNo(q); } // 都沒有→舊行為(含查無提示)
     else clearFollow();
   });
   // 失焦:空值取消跟隨(保留既有行為)
