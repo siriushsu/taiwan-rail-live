@@ -21,7 +21,7 @@
 <link rel="icon" type="image/png" sizes="48x48" href="/favicon-48.png" />
 <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-180.png" />
 <link rel="manifest" href="/manifest.webmanifest" />
-<meta name="theme-color" content="#efe6d2" />
+<meta name="theme-color" content="#F2EDE2" />
 <meta name="mobile-web-app-capable" content="yes" />
 <meta name="apple-mobile-web-app-capable" content="yes" />
 <meta name="apple-mobile-web-app-status-bar-style" content="default" />
@@ -408,6 +408,15 @@
   #fsFab .fs-ic-close { display: none; }
   body.fs #fsFab .fs-ic-open { display: none; }
   body.fs #fsFab .fs-ic-close { display: block; }
+
+  /* ── 地圖頂浮動列(手機 fs 專屬):桌面隱藏;定位/顯示在 ≤900 媒體塊。迷你牌沿用 .plate 皮膚,只縮尺寸(照 mock §04b A 態) ── */
+  .topbar { display: none; }
+  .topbar .tb-plate { padding: 3px 10px 0; border-width: 2px; flex: none; align-self: flex-start; }
+  .topbar .tb-plate h1 { font-size: 14px; font-weight: 900; letter-spacing: 4px; text-indent: 4px; color: var(--plate-ink); margin: 0; line-height: 1.2; }
+  .topbar .tb-plate .plate-foot { margin: 2px -10px 0; padding: 1px 7px 2px; gap: 8px; }
+  .topbar .tb-plate .plate-foot .stn { font-size: 7px; letter-spacing: 1px; text-indent: 1px; }
+  .topbar .tb-plate .plate-foot .stn:first-child::before,
+  .topbar .tb-plate .plate-foot .stn:last-child::after { font-size: 6px; margin: 0 3px; }
 
   /* 錄影中浮條(地圖頂部置中):唯一的錄影狀態指示,點它停止並下載。 */
   .rec-pill {
@@ -894,6 +903,9 @@
 
   /* 全畫面模式 */
   body.fs { overflow: hidden; }
+  /* fs 時 header 整塊藏掉:桌面 fs 本來就被 fixed stage 蓋住看不見,手機 fs 殼牌/頁籤已遷地圖頂浮動列;
+     display:none 順便解決「可聚焦但不可見」的 a11y 問題(renderSystemsBar 對 display:none 容器 innerHTML 重建無副作用) */
+  body.fs header { display: none; }
   body.fs .stage {
     position: fixed; inset: 0; z-index: 1000;
     height: 100vh; max-height: none; min-height: 0;
@@ -1575,7 +1587,22 @@
     /* 跟隨票手機不出(地圖上的跟隨小卡已有同資訊):它多佔一行會把 stage 推破視窗底 */
     #followBar { display: none !important; }
     .stage { height: calc(100dvh - 252px); min-height: 380px; }
-    .badge { top: 8px; left: 8px; gap: 9px; padding: 5px 11px 6px; }
+    /* 手機開站即全螢幕殼:⛶ 全畫面切換鈕廢止(fs 常駐,無退出動作) */
+    #fsFab { display: none !important; }
+    /* 地圖頂浮動列:手機 fs 常駐——左=軌島迷你牌,右=台/鐵/捷短標;首繪即佔位(topTabs 靜態預置);直播/放空不顯示 */
+    body.fs .topbar {
+      position: absolute; top: calc(8px + env(safe-area-inset-top, 0px)); left: 10px; right: 10px;
+      display: flex; justify-content: space-between; align-items: flex-start; gap: 8px;
+      z-index: 620; pointer-events: none;
+    }
+    .topbar .tb-plate, .topbar .grouptabs { pointer-events: auto; }
+    /* 短標分頁不做橫捲與遮罩(mock 遷移表明定停用);.topbar .grouptabs 特異性壓過通案手機 .grouptabs 的 mask/overflow */
+    .topbar .grouptabs { margin: 0; flex-wrap: nowrap; overflow: visible; -webkit-mask-image: none; mask-image: none; }
+    .topbar .grouptabs .gtab { font-size: 13px; padding: 6px 14px; min-height: 36px; }
+    body.live .topbar { display: none !important; }
+    body.ambient .topbar { display: none; }
+    /* 時鐘徽章讓位頂列:移到頂列下方(safe-area 隨動態島下移,與頂列一致) */
+    .badge { top: calc(58px + env(safe-area-inset-top, 0px)); left: 10px; gap: 9px; padding: 5px 11px 6px; }
     .badge .clock { font-size: 17px; }
     .badge .count { font-size: 12px; }
     /* ≤400px 窄機:尖峰跟隨時 LIVE＋看板校正＋三位數班次會把徽章撐到壓住全畫面鈕——
@@ -1595,23 +1622,24 @@
     /* 手機改用雙指縮放,隱藏 Leaflet +/- 鈕 */
     .leaflet-control-zoom { display: none; }
     .leaflet-bottom.leaflet-right { bottom: 58px; }
-    /* 公告橫幅:手機改成時鐘徽章「下方」的整寬橫條 */
+    /* 公告橫幅:手機 fs 殼下移到頂列(8~48)＋徽章/randBtn(58~94)之下的整寬橫條;safe-area 隨頂列一致下移。
+       全鏈(alert-detail/dwell-plate/xing-help/xing-card)基準隨之下移,保留原相對間距不相撞(桌面鏈零變化)。 */
     .alert-banner {
-      top: 54px; left: 8px; right: 8px; max-width: none;
+      top: calc(100px + env(safe-area-inset-top, 0px)); left: 8px; right: 8px; max-width: none;
       font-size: 12px; padding: 5px 10px 6px;
     }
-    .alert-detail { top: 92px; right: 8px; width: calc(100% - 16px); }
+    .alert-detail { top: calc(138px + env(safe-area-inset-top, 0px)); right: 8px; width: calc(100% - 16px); }
     body.fs .alert-banner, body.fs .alert-detail, body.fs .board { right: 8px; }
-    .alert-banner:not([hidden]) ~ .dwell-plate { top: 96px; }
-    .xing-help { top: 108px; }
-    .alert-banner:not([hidden]) ~ .xing-help { top: 150px; }
-    /* 平交道通過預測卡(手機):小卡+下移到頂列之下,限高留出底部跟隨卡空間 */
+    .alert-banner:not([hidden]) ~ .dwell-plate { top: calc(142px + env(safe-area-inset-top, 0px)); }
+    .xing-help { top: calc(154px + env(safe-area-inset-top, 0px)); }
+    .alert-banner:not([hidden]) ~ .xing-help { top: calc(196px + env(safe-area-inset-top, 0px)); }
+    /* 平交道通過預測卡(手機):小卡+下移到徽章列之下,限高留出底部跟隨卡空間 */
     .xing-card {
-      top: 106px; right: 8px; left: auto;
+      top: calc(152px + env(safe-area-inset-top, 0px)); right: 8px; left: auto;
       width: 200px; max-width: calc(100% - 16px);
       max-height: calc(100% - 274px);
     }
-    .alert-banner:not([hidden]) ~ .xing-card { top: 144px; max-height: calc(100% - 312px); }
+    .alert-banner:not([hidden]) ~ .xing-card { top: calc(190px + env(safe-area-inset-top, 0px)); max-height: calc(100% - 312px); }
     .xing-card .xc-head { padding: 6px 8px 6px 10px; gap: 7px; }
     .xing-card .xc-ttl b { font-size: 14px; }
     .xing-card .xc-meta { font-size: 10px; }
@@ -1623,8 +1651,8 @@
     .xing-card .xc-cd { min-width: 40px; }
     .xing-card .xc-foot { padding: 6px 10px 8px; font-size: 10px; }
     .xing-card .xc-empty { padding: 12px 10px; font-size: 11.5px; }
-    /* 站名牌手機靠左橫條,右側讓出全畫面鈕欄位 */
-    .dwell-plate { top: 56px; left: 8px; right: 100px; min-width: 0; max-width: none; }
+    /* 站名牌手機靠左橫條:下移到徽章列之下(fs 殼 ⛶ 已廢止,右側不再需讓位,整寬顯示) */
+    .dwell-plate { top: calc(102px + env(safe-area-inset-top, 0px)); left: 8px; right: 8px; min-width: 0; max-width: none; }
     .dwell-plate .dp-intro { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
     /* 面板家族:手機一律變底部 sheet(圓上角+抓把) */
     .board {
@@ -1741,10 +1769,9 @@
     body.ambient .follow-panel .fp-head b { font-size: 13px; }
     body.ambient .follow-panel .fp-head .spd b { font-size: 15px; }
     body.ambient .follow-panel .fp-next .stn { font-size: 14px; white-space: nowrap; }
-    /* 隨機跟隨鈕(手機):移到左上時鐘徽章下方 */
-    #randBtn, body.fs #randBtn { left: 8px; top: 50px; bottom: auto; transform: none; font-size: 13px; padding: 6px 13px; }
+    /* 隨機跟隨鈕(手機 fs):動作靠右——與頂列同側、跟隨中「換一班」同席位;在徽章列(58)故公告橫幅(100)不再推它 */
+    #randBtn, body.fs #randBtn { left: auto; right: 10px; top: calc(58px + env(safe-area-inset-top, 0px)); bottom: auto; transform: none; font-size: 13px; padding: 6px 13px; }
     #randBtn:hover { transform: none; }
-    .alert-banner:not([hidden]) ~ #randBtn { top: 96px; }
     /* 首訪卡手機貼齊 mock */
     .howto-wrap { padding: 26px 14px 14px; }
   }
@@ -1786,11 +1813,15 @@
   if (ap !== 'light' && ap !== 'dark') ap = 'auto';
   var dark = ap === 'auto' ? matchMedia('(prefers-color-scheme: dark)').matches : ap === 'dark';
   document.documentElement.setAttribute('data-theme', dark ? 'dark' : 'light');
-  var mt = document.querySelector('meta[name=theme-color]'); if (mt) mt.content = dark ? '#0A0F1C' : '#EFE6D2';
+  var mt = document.querySelector('meta[name=theme-color]'); if (mt) mt.content = dark ? '#10141c' : '#F2EDE2';
 } catch (e) {} })();
 </script>
 </head>
 <body>
+<script>
+/* 手機開站即全螢幕殼(≤900,同 MOBILE_MQ):first paint 前就加 body.fs,避免長頁先閃現再切全圖的位移(CLS)。斷點字面值須與 MOBILE_MQ 同步。 */
+try { if (matchMedia('(max-width: 900px)').matches) document.body.classList.add('fs'); } catch (e) {}
+</script>
 <div class="wrap">
   <header class="header-row">
     <div class="plate">
@@ -1883,6 +1914,22 @@
     <canvas id="overlay"></canvas>
     <div id="skyTint"></div>
     <div id="veil"></div>
+    <!-- 地圖頂浮動列(手機 fs 專屬;桌面/直播/放空不顯示):左=軌島迷你牌(資訊),右=台/鐵/捷短標(動作)。
+         topTabs 三顆為 CLS 靜態預置佔位,boot 的 renderSystemsBar→renderTopTabs 以同幾何重建(cls-static-placeholder) -->
+    <div class="topbar" id="topbar">
+      <div class="plate tb-plate">
+        <h1>軌島</h1>
+        <div class="plate-foot">
+          <span class="stn" id="tbPlateL">基隆</span>
+          <span class="stn" id="tbPlateR">高雄</span>
+        </div>
+      </div>
+      <div class="grouptabs" id="topTabs">
+        <button class="gtab active" title="全台同框">台</button>
+        <button class="gtab" title="國家鐵路">鐵</button>
+        <button class="gtab" title="捷運與輕軌">捷</button>
+      </div>
+    </div>
     <!-- 劇場模式提示膠囊:放空久無互動進劇場時淡入,動一下即回(由 body.theater 驅動顯示,獨立 class 不動共用 token) -->
     <div class="theater-pill" id="theaterPill" aria-hidden="true"><span class="tp-emoji" aria-hidden="true">🎭</span>劇場模式・動一下回到地圖</div>
     <div class="toasts" id="toasts"></div>
@@ -5193,10 +5240,10 @@ const SYS_DEFS = [
   { id: 'tmrt', label: '台中捷運', url: './data/tmrt.json', speed: 32, mode: 'freq', times: './data/tmrt_times.json' },
 ];
 const GROUPS = [
-  { id: 'all', label: '全台同框', mode: 'all', members: [],
+  { id: 'all', label: '全台同框', short: '台', mode: 'all', members: [],
     plate: { plateL: '基隆', plateR: '高雄', sub: 'ALL LINES · TAIWAN',
       lead: '全台鐵道一次看 — 台鐵、高鐵、阿里山林鐵與各捷運／輕軌皆依當日時刻表同一時間軸運行（台鐵套即時誤點；主要捷運營運時段依官方到站看板校正）。' } },
-  { id: 'nat', label: '國家鐵路', mode: 'sched', members: ['tra_sched', 'thsr_sched', 'afr_sched'],
+  { id: 'nat', label: '國家鐵路', short: '鐵', mode: 'sched', members: ['tra_sched', 'thsr_sched', 'afr_sched'],
     plate: { plateL: '基隆', plateR: '枋寮', sub: '台灣鐵道即時軌跡',
       lead: '台鐵、高鐵與阿里山林鐵皆依真實時刻表運行（台鐵回到現在時刻自動套用即時誤點；林鐵依官方公告時刻表，無即時資訊）— 點列車跟隨、點車站看班次，或按地圖角落「探」看今日亮點。' } },
   { id: 'north', label: '北北桃', mode: 'freq', members: ['mrt', 'tymc', 'ntdlrt', 'ntalrt', 'sanying'],
@@ -5205,6 +5252,11 @@ const GROUPS = [
   { id: 'south', label: '中南部', mode: 'freq', members: ['tmrt', 'krtc'],
     plate: { plateL: '台中', plateR: '高雄', sub: 'CENTRAL & SOUTHERN METRO',
       lead: '台中捷運與高雄捷運同框，高捷與輕軌營運時段依官方到站看板校正（台中捷運為班距推算）— 可在上方勾選要同時顯示的系統。' } },
+  // 手機合併群組（北中高捷運一起的圖）：桌面 #systems 不顯示此籤（renderSystemsBar 排除），只在地圖頂浮動列「捷」出現。
+  // members = north ∪ south；置於陣列末位，讓 groupOf 對捷運系統仍首命中 north/south（桌面語意零變化）。
+  { id: 'metro', label: '捷運與輕軌', short: '捷', mode: 'freq', members: ['mrt', 'tymc', 'ntdlrt', 'ntalrt', 'sanying', 'tmrt', 'krtc'],
+    plate: { plateL: '台北', plateR: '高雄', sub: 'METRO & LRT · TAIWAN',
+      lead: '台北捷運、桃園機捷、新北捷運（環狀・淡海・安坑・三鶯）、台中捷運與高雄捷運（含輕軌）同框運行，營運時段依官方即時資訊校正（文湖線、三鶯線與台中捷運為班距推算）— 點上方分頁可切回單一地區。' } },
 ];
 const groupOf = id => GROUPS.find(g => g.members.includes(id)) || GROUPS[0];
 
@@ -5298,6 +5350,9 @@ function finishLoad(meta) {
     document.getElementById('plateR').textContent = meta.plateR;
     document.getElementById('plateSub').textContent = meta.sub;
     document.getElementById('lead').textContent = meta.lead;
+    // 地圖頂浮動列迷你牌兩端(手機)與 header 牌同步換站名
+    const tbL = document.getElementById('tbPlateL'); if (tbL) tbL.textContent = meta.plateL;
+    const tbR = document.getElementById('tbPlateR'); if (tbR) tbR.textContent = meta.plateR;
   }
 }
 
@@ -5384,6 +5439,7 @@ function renderSystemsBar() {
   const tabs = document.createElement('div');
   tabs.className = 'grouptabs';
   GROUPS.forEach(g => {
+    if (g.id === 'metro') return; // 桌面 header 永遠四籤(all/nat/north/south);metro 是手機合併群組,只出現在地圖頂浮動列
     const b = document.createElement('button');
     b.className = 'gtab' + (g.id === cur.id ? ' active' : '');
     b.textContent = g.label;
@@ -5392,6 +5448,7 @@ function renderSystemsBar() {
   });
   tabs.appendChild(buildCitySelect()); // 縣市視角書籤:群組頁籤列尾端;整塊重建即回「縣市」佔位
   box.appendChild(tabs);
+  renderTopTabs(cur); // 手機地圖頂浮動列的短標分頁(台/鐵/捷)同步重建——兩容器任何寬度都保持最新,resize 跨界零遷移
   const mem = document.createElement('div');
   mem.className = 'groupmembers';
   if (cur.mode === 'all') {
@@ -5419,6 +5476,25 @@ function renderSystemsBar() {
     mem.appendChild(b);
   });
   box.appendChild(mem);
+}
+
+// 地圖頂浮動列的短標分頁(手機 fs 專屬):固定序 台(all)／鐵(nat)／捷(metro);桌面 CSS 隱藏但仍與 #systems 同步重建。
+// active 對映:台←all、鐵←nat、捷←metro|north|south(手機若因舊記憶/深連結落在 north/south,「捷」仍亮)。
+function renderTopTabs(cur) {
+  const box = document.getElementById('topTabs');
+  if (!box) return;
+  box.innerHTML = '';
+  const g = cur.id;
+  const metroActive = g === 'metro' || g === 'north' || g === 'south';
+  [['all', g === 'all'], ['nat', g === 'nat'], ['metro', metroActive]].forEach(([id, on]) => {
+    const gp = GROUPS.find(x => x.id === id);
+    const b = document.createElement('button');
+    b.className = 'gtab' + (on ? ' active' : '');
+    b.textContent = gp.short || gp.label;
+    b.title = gp.label;
+    b.onclick = () => selectGroup(gp);
+    box.appendChild(b);
+  });
 }
 
 function selectGroup(g) {
@@ -9134,6 +9210,9 @@ function setupMapTools() {
   // 跟隨開始/結束時由 setFollow/clearFollow 經 state._placeFsOverlays 明確重排
   state._placeFsOverlays = placeFsOverlays;
   function setFs(on) {
+    // 手機殼(≤900)不可退出全螢幕:地圖就是 App 本體。以「當下寬度」判斷,離開視窄後(resize 到桌面)才放行 setFs(false)。
+    // Esc、放空退出連動的 setFs(false) 因此在手機自然無效;setFs(true) 不受限。
+    if (!on && window.matchMedia(MOBILE_MQ).matches) return;
     document.body.classList.toggle('fs', on);
     // #fsFab 是 SVG 圖示鈕(展開/收合箭頭由 body.fs CSS 切換),只更新無障礙標籤與提示
     fsFab.title = on ? '退出全畫面（Esc）' : '全畫面地圖（Esc 退出）';
@@ -9203,6 +9282,10 @@ function setupMapTools() {
     state._fsCapsuleSync(true); // 膠囊改為手機常駐:開站就初始化 slim 態
   })();
   window.addEventListener('resize', () => {
+    // 跨 900 斷界同步全螢幕殼:進 ≤900 強制 fs on;離開 ≤900 退出(直播/導播例外,setFs(false) 的手機 no-op 以當下寬度判斷故此處安全)
+    const mob = window.matchMedia(MOBILE_MQ).matches;
+    if (mob) { if (!document.body.classList.contains('fs')) setFs(true); }
+    else if (!state.liveMode && document.body.classList.contains('fs')) setFs(false);
     placeFsOverlays(); if (state._fsCapsuleSync) state._fsCapsuleSync(false);
   });
   // 真全螢幕被使用者(Esc/F11/系統手勢)退掉時,同步收掉 CSS 全畫面狀態並重排地圖
@@ -9262,7 +9345,7 @@ function setupMapTools() {
     const mode = state.appearance || 'auto';
     const dark = mode === 'auto' ? window.matchMedia('(prefers-color-scheme: dark)').matches : mode === 'dark';
     document.documentElement.setAttribute('data-theme', dark ? 'dark' : 'light');
-    const mt = document.querySelector('meta[name=theme-color]'); if (mt) mt.content = dark ? '#0A0F1C' : '#EFE6D2';
+    const mt = document.querySelector('meta[name=theme-color]'); if (mt) mt.content = dark ? '#10141c' : '#F2EDE2';
     state.mapDark = dark;
     themeBtn.querySelector('.tl').textContent = { light: '外觀:亮', dark: '外觀:暗', auto: '外觀:自動' }[mode];
     setBasemap();
