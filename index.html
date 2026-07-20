@@ -1403,6 +1403,18 @@
   .plus-buy:disabled { opacity: .5; cursor: default; }
   .plus-restore { display: block; margin: 9px auto 0; min-height: 44px; border: 0; background: transparent; color: var(--navy); font: inherit; font-size: 12px; font-weight: 800; cursor: pointer; text-decoration: underline; }
   .plus-owned { padding: 13px; border: 1.5px solid var(--ok); border-radius: 9px; color: var(--ok); text-align: center; font-weight: 800; }
+  .plus-plans { display: grid; gap: 10px; margin: 6px 0 12px; }
+  .plus-plan { position: relative; display: flex; align-items: center; justify-content: space-between; gap: 10px; width: 100%; min-height: 52px; padding: 13px 16px; border: 1.5px solid var(--line); border-radius: var(--r-l); background: var(--paper); color: var(--ink-strong); font: inherit; text-align: left; cursor: pointer; }
+  .plus-plan:disabled { opacity: .55; cursor: default; }
+  .plus-plan-primary { border-color: var(--red-deep); background: var(--red); color: #fffdf6; box-shadow: var(--shadow-red); }
+  .plus-plan-badge { position: absolute; top: -9px; left: 14px; padding: 2px 9px; border-radius: var(--r-pill); background: var(--gold); color: #2a2413; font-size: 10px; font-weight: 900; letter-spacing: 1px; }
+  .plus-plan-name { font-weight: 900; font-size: 14px; letter-spacing: 1px; }
+  .plus-plan-price { font-weight: 900; font-size: 15px; white-space: nowrap; }
+  .plus-trust { margin: 2px 0 0; padding: 9px 2px 0; color: var(--muted); font-size: 11px; line-height: 1.55; }
+  .plus-manage { display: block; margin: 10px auto 0; min-height: 44px; line-height: 44px; text-align: center; color: var(--navy); font-size: 12px; font-weight: 800; text-decoration: underline; }
+  .plus-legal { margin-top: 12px; padding-top: 10px; border-top: 1px dashed var(--line-faint); color: var(--faint); font-size: 11px; line-height: 1.6; }
+  .plus-legal p { margin: 0 0 6px; }
+  .plus-legal a { color: var(--navy); font-weight: 700; }
 
   /* ── 流量圖 ── */
   .flow { margin: 14px 2px 0; }
@@ -3729,6 +3741,7 @@ function renderSugarCard() {
 const LOCATE_ENABLED = !!window.RAIL_NATIVE_GEOLOCATION;
 const RECORDING_ENABLED = false; // 2026-07-17 錄影暫時下架(整備中):所有入口隱藏、實作全保留;改 true 即復活(工具列鈕+更多抽屜列+Plus 文案)
 const ACCOUNT_ENABLED = false; // 2026-07-17 帳號同步轉收費前暫時下架:入口全藏、不載 Firebase SDK、實作全保留;僅 ?account=delete 深連結(account-deletion.html)留給既有帳號刪資料;改 true 即復活
+const PLUS_ENABLED = false; // Plus 功能總閘,上架批次改 true(此旗標先不接任何現有功能,見 plusGateOpen;訂閱入口另受 plusConfigured/plusProjectConfigured 與 RevenueCat 設定控制)
 // 放空閒置達此秒數→劇場模式:切離線海陸底層(零圖磚)、相機停在全群組視角,列車/音樂/完乘全照常,只是不再抓圖磚。
 // ?theater=N 覆寫門檻(秒,測試用,不限環境——只會讓使用者自己更早進入省磚畫面,無風險)。見 enterTheater/camBlocked。
 const THEATER_IDLE_SEC = (() => {
@@ -4346,11 +4359,14 @@ function accountRender() {
     const u = a.user, photo = takeoutSafeHref(u.photoURL, '');
     const avatar = photo ? `<img src="${escHtml(photo)}" alt="">` : escHtml(accountDisplayName(u).slice(0, 1).toUpperCase());
     const sync = a.syncing ? '正在合併這台裝置與雲端資料…' : (a.lastSync ? `上次同步：${new Date(a.lastSync).toLocaleString('zh-TW')}` : '尚未完成第一次同步');
-    const plus = state.plus && state.plus.active ? '已永久解鎖' : '尚未解鎖';
+    const plus = state.plus && state.plus.active ? '訂閱中' : '未訂閱';
+    // Plus 狀態列與入口以 plusProjectConfigured()(整個 RevenueCat project 是否有 Plus)為準,而非
+    // plusConfigured()(此平台能否發起付款)——讓網站即使沒設 Web Billing key 也能查看訂閱狀態與
+    // 「請在 App 內訂閱」說明;真正發起付款仍受 plusConfigured() 控管(見 plusOpen 內的 plusRefresh 閘)。
     body.innerHTML = `<div class="account-profile"><span class="account-avatar">${avatar}</span><span><b>${escHtml(accountDisplayName(u))}</b><small>${escHtml(u.email || 'Apple 隱藏電子郵件')}</small></span></div>` +
       `<div class="account-syncbox"><b>跨裝置同步</b><span>${escHtml(sync)}</span></div>` +
-      (plusConfigured() ? `<div class="account-syncbox"><b>軌島 Plus</b><span>${plus}</span></div>` : '') +
-      `<div class="account-user-actions">${plusConfigured() ? '<button class="wide" type="button" data-action="plus">查看 Plus</button>' : ''}<button type="button" data-action="sync" ${a.syncing ? 'disabled' : ''}>立即同步</button><button type="button" data-action="logout">登出</button>` +
+      (plusProjectConfigured() ? `<div class="account-syncbox"><b>軌島 Plus</b><span>${plus}</span></div>` : '') +
+      `<div class="account-user-actions">${plusProjectConfigured() ? '<button class="wide" type="button" data-action="plus">查看 Plus</button>' : ''}<button type="button" data-action="sync" ${a.syncing ? 'disabled' : ''}>立即同步</button><button type="button" data-action="logout">登出</button>` +
       `<button class="wide danger" type="button" data-action="delete">刪除帳號與同步資料</button></div>` +
       (a.actionError ? `<div class="account-error">${escHtml(a.actionError)}</div>` : '') +
       `<div class="account-note">登出會先完成最後同步，再從這台裝置移除私人收藏，避免下一個登入者看到或合併你的資料。</div>`;
@@ -4438,7 +4454,7 @@ async function accountSignIn(providerName) {
 }
 function accountClearLocal() {
   const empty = userDataEmpty(); empty.revision = 0; empty.updatedAt = userDataNow(); userDataWrite(empty);
-  if (state.plus) { state.plus.active = false; state.plus.pkg = null; state.plus.adapter = null; state.plus.afterUnlock = null; }
+  if (state.plus) { state.plus.active = false; state.plus.pkgMonthly = null; state.plus.pkgAnnual = null; state.plus.mgmtUrl = ''; state.plus.adapter = null; state.plus.afterUnlock = null; }
   if (window.RAIL_NATIVE_PLUS_ADAPTER && window.RAIL_NATIVE_PLUS_ADAPTER.clearUser) window.RAIL_NATIVE_PLUS_ADAPTER.clearUser().catch(() => {});
   state.plusPending = null;
   try { localStorage.removeItem('trainmap-last-sync-uid'); } catch (e) {}
@@ -4537,7 +4553,7 @@ async function setupAccountUi() {
   document.addEventListener('visibilitychange', () => { if (!document.hidden && state.account && state.account.user) accountSyncNow('foreground'); });
 }
 
-// ── 一次購買 Plus（RevenueCat lifetime entitlement） ────────────────────────────
+// ── 訂閱制 Plus（RevenueCat 月/年訂閱 → plus entitlement） ────────────────────────
 const REVENUECAT_WEB_VERSION = '1.47.3';
 const REVENUECAT_WEB_URL = `https://cdn.jsdelivr.net/npm/@revenuecat/purchases-js@${REVENUECAT_WEB_VERSION}/dist/Purchases.umd.js`;
 const REVENUECAT_WEB_SRI = 'sha384-uxK23EQfDmI/oo6YmVrqk+9HhGysN0x/nGR3rCt/WWke/GFeWKQDTigtWvgCEZrF';
@@ -4576,6 +4592,14 @@ function plusPackagePrice(pkg) {
   const price = p.currentPrice || p.price || {};
   return price.formattedPrice || price.localizedString || p.priceString || p.localizedPriceString || '查看價格';
 }
+// 從一個 offering 的 availablePackages 中挑出月訂/年訂 package——先看 RevenueCat 標準 packageType
+// (MONTHLY/ANNUAL),再退回用 identifier(如 $rc_monthly/$rc_annual 或含 month/annual/year 的自訂 id)。
+function plusPickPackage(pkgs, kind) {
+  if (!Array.isArray(pkgs) || !pkgs.length) return null;
+  const wants = kind === 'annual' ? ['ANNUAL', 'YEAR'] : ['MONTH'];
+  const hit = key => pkgs.find(pk => { const v = String(pk && pk[key] || '').toUpperCase(); return wants.some(w => v.includes(w)); });
+  return hit('packageType') || hit('identifier') || null;
+}
 async function plusAdapterFor(uid) {
   if (window.RAIL_NATIVE_PLUS_ADAPTER) { await window.RAIL_NATIVE_PLUS_ADAPTER.setUser(uid); return window.RAIL_NATIVE_PLUS_ADAPTER; }
   if (window.RAIL_PLUS_TEST_ADAPTER) { await window.RAIL_PLUS_TEST_ADAPTER.setUser(uid); return window.RAIL_PLUS_TEST_ADAPTER; }
@@ -4592,7 +4616,7 @@ async function plusAdapterFor(uid) {
   };
 }
 function plusState() {
-  if (!state.plus) state.plus = { active: false, loading: false, error: '', pkg: null, adapter: null, afterUnlock: null };
+  if (!state.plus) state.plus = { active: false, loading: false, error: '', pkgMonthly: null, pkgAnnual: null, mgmtUrl: '', adapter: null, afterUnlock: null };
   return state.plus;
 }
 function plusOpen(source, onGranted) {
@@ -4600,74 +4624,118 @@ function plusOpen(source, onGranted) {
   if (typeof onGranted === 'function') p.afterUnlock = onGranted;
   if (!state.account || !state.account.user) {
     state.plusPending = { source: source || 'account', onGranted };
-    accountOpen(); showToast('請先登入軌島帳號，購買資格才能跨裝置恢復'); return;
+    accountOpen(); showToast('請先登入軌島帳號，訂閱資格才能跨裝置使用'); return;
   }
   const modal = document.getElementById('plusModal'); if (!modal) return;
   accountClose();
-  p.source = source || 'account'; modal.hidden = false; plusRender(); plusRefresh();
+  p.source = source || 'account'; modal.hidden = false; plusRender();
+  // 只有此平台真的有購買通道(原生/測試 adapter 或 Web Billing key)才初始化 billing SDK;
+  // 否則(如網站未設 webApiKey)停在「請在 App 內訂閱」畫面,不拿 undefined key 去 configure。
+  if (plusConfigured()) plusRefresh();
 }
 function plusClose() { const m = document.getElementById('plusModal'); if (m) m.hidden = true; }
 function plusFinishPending() {
   const p = state.plus;
   if (!p || !p.active || typeof p.afterUnlock !== 'function') return false;
   const next = p.afterUnlock; p.afterUnlock = null;
-  plusClose(); showToast('軌島 Plus 已永久解鎖');
+  plusClose(); showToast('軌島 Plus 已啟用');
   setTimeout(next, 0);
   return true;
 }
 function plusRender() {
   const body = document.getElementById('plusBody'), p = state.plus; if (!body || !p) return;
-  const hero = `<div class="plus-hero"><span class="plus-mark">＋</span><h3>一次購買，永久解鎖</h3><p>同一個軌島帳號可在網站與 App 恢復資格，不是訂閱。</p></div>`;
-  const musicFeature = (RECORDING_ENABLED && musicRecordingLicensed()) ? '<div class="plus-feature"><span>✓</span>錄影時保留軌島背景音樂</div>' : ''; // 錄影下架期間不列這條賣點
-  const features = `<div class="plus-features">${musicFeature}<div class="plus-feature"><span>✓</span>匯入 Google Maps 已儲存清單</div></div>`;
-  if (p.active) body.innerHTML = hero + features + '<div class="plus-owned">Plus 已永久解鎖</div><button class="plus-restore" type="button" data-plus="refresh">重新檢查購買資格</button>';
-  else if (p.loading) body.innerHTML = hero + features + '<p class="account-intro">正在讀取價格與購買資格…</p>';
-  else body.innerHTML = hero + features +
+  const hero = `<div class="plus-hero"><span class="plus-mark">＋</span><h3>軌島 Plus 訂閱</h3><p>以月訂或年訂支持軌島持續運作。同一個軌島帳號可在網站與 App 使用與恢復訂閱資格。</p></div>`;
+  // 定案 Plus 功能清單(此順序);① 誤點歷史圖表為頭牌放第一。價格一律取自商店回傳,此處不列任何價格。
+  const feats = [
+    '<b>每班車的誤點履歷與統計圖表</b>',
+    '收藏跨裝置雲端同步',
+    '衛星底圖',
+    'App 進階定位與 Live Activity',
+    '創始會員徽章',
+  ].map(t => `<div class="plus-feature"><span>✓</span>${t}</div>`).join('');
+  const features = `<div class="plus-features">${feats}</div>` +
+    '<p class="plus-trust">列車位置、誤點資訊與系統覆蓋永遠免費——Plus 不影響準確度。</p>';
+  // 訂閱法務列(Apple 3.1.2):自動續訂說明 + 隱私權政策/使用條款連結(兩檔都在站台根目錄)。
+  const legal = '<div class="plus-legal">' +
+    '<p>訂閱到期前會依商店規則自動續訂扣款；你可以隨時在 App Store／Google Play 或帳號的訂閱設定中取消，取消後於當期結束時停止續訂。</p>' +
+    '<p><a href="privacy.html" target="_blank" rel="noopener">隱私權政策</a> · <a href="terms.html" target="_blank" rel="noopener">使用條款</a></p></div>';
+  if (p.active) {
+    // 已訂閱:管理訂閱在原生殼走商店訂閱管理深連結(customerInfo.managementURL);web 無 portal 時給說明文字。
+    const manage = p.mgmtUrl
+      ? `<a class="plus-manage" href="${escHtml(p.mgmtUrl)}" target="_blank" rel="noopener">管理訂閱</a>`
+      : '<p class="account-note">訂閱管理請至 App Store／Google Play 的訂閱設定。</p>';
+    body.innerHTML = hero + features +
+      '<div class="plus-owned">Plus 已啟用</div>' + manage +
+      '<button class="plus-restore" type="button" data-plus="restore">恢復購買</button>' + legal;
+    return;
+  }
+  if (p.loading) { body.innerHTML = hero + features + '<p class="account-intro">正在讀取方案與訂閱資格…</p>'; return; }
+  if (!plusConfigured()) {
+    // 此平台沒有購買通道(如網站未設定 Web Billing key):請在 App 內訂閱,而非給死板的 disabled 鈕。
+    body.innerHTML = hero + features +
+      '<p class="account-note">目前請在軌島 App 內訂閱；訂閱後同一個軌島帳號在網站也會自動生效。</p>' + legal;
+    return;
+  }
+  const plan = (pkg, kind, primary) => pkg
+    ? `<button class="plus-plan${primary ? ' plus-plan-primary' : ''}" type="button" data-plus="buy" data-pkg="${kind}">` +
+      (primary ? '<span class="plus-plan-badge">最划算</span>' : '') +
+      `<span class="plus-plan-name">${kind === 'annual' ? '年訂閱' : '月訂閱'}</span>` +
+      `<span class="plus-plan-price">${escHtml(plusPackagePrice(pkg))}</span></button>`
+    : '';
+  const plans = plan(p.pkgAnnual, 'annual', true) + plan(p.pkgMonthly, 'month', false);
+  body.innerHTML = hero + features +
     (p.error ? `<div class="account-error">${escHtml(p.error)}</div>` : '') +
-    `<button class="plus-buy" type="button" data-plus="buy" ${p.pkg ? '' : 'disabled'}>${p.pkg ? `一次購買 · ${escHtml(plusPackagePrice(p.pkg))}` : '目前無法取得商品'}</button>` +
-    '<button class="plus-restore" type="button" data-plus="restore">已購買？恢復購買</button>' +
-    '<div class="account-note">實際價格與付款由目前平台顯示；App 內使用 App Store／Google Play，網站使用 RevenueCat Web Billing。</div>';
+    (plans ? `<div class="plus-plans">${plans}</div>` : '<p class="account-note">目前無法取得訂閱方案，請稍後再試。</p>') +
+    '<button class="plus-restore" type="button" data-plus="restore">已訂閱？恢復購買</button>' + legal;
 }
 async function plusRefresh() {
   const p = state.plus, user = state.account && state.account.user; if (!p || !user || p.loading) return false;
+  if (!plusConfigured()) { p.error = ''; plusRender(); return false; } // 此平台無購買通道:不初始化任何 billing SDK
   p.loading = true; p.error = ''; plusRender();
   try {
     p.adapter = await plusAdapterFor(user.uid);
     const [info, offerings] = await Promise.all([p.adapter.getCustomerInfo(), p.adapter.getOfferings()]);
     p.active = plusActiveFrom(info);
+    p.mgmtUrl = (info && info.managementURL) || '';
     const offering = plusConfig().offeringId && offerings.all ? offerings.all[plusConfig().offeringId] : offerings.current;
-    p.pkg = offering && offering.availablePackages && offering.availablePackages[0] || null;
+    const pkgs = offering && offering.availablePackages || [];
+    p.pkgAnnual = plusPickPackage(pkgs, 'annual');
+    p.pkgMonthly = plusPickPackage(pkgs, 'month');
     accountRender(); plusFinishPending(); return p.active;
   } catch (e) { p.error = '無法讀取 Plus：' + (e && e.message ? e.message : String(e)); return false; }
   finally { p.loading = false; plusRender(); }
 }
-async function plusPurchase() {
-  const p = state.plus, user = state.account && state.account.user; if (!p || !p.adapter || !p.pkg || !user || p.loading) return;
+async function plusPurchase(kind) {
+  const p = state.plus, user = state.account && state.account.user;
+  const pkg = p && (kind === 'month' ? p.pkgMonthly : p.pkgAnnual);
+  if (!p || !p.adapter || !pkg || !user || p.loading) return;
   p.loading = true; p.error = ''; plusRender();
   try {
-    const result = await p.adapter.purchase(p.pkg, user.email || '');
+    const result = await p.adapter.purchase(pkg, user.email || '');
     const info = result && (result.customerInfo || result);
     p.active = plusActiveFrom(info);
-    if (!p.active) throw new Error('付款完成但尚未取得解鎖資格，請按「重新檢查」');
+    p.mgmtUrl = (info && info.managementURL) || p.mgmtUrl || '';
+    if (!p.active) throw new Error('付款完成但尚未取得訂閱資格，請按「恢復購買」');
     accountRender();
-    if (!plusFinishPending()) { plusClose(); showToast('軌島 Plus 已永久解鎖'); }
+    if (!plusFinishPending()) { plusClose(); showToast('軌島 Plus 已啟用'); }
   } catch (e) {
     const cancelled = e && (e.userCancelled || e.errorCode === 'UserCancelledError');
-    if (!cancelled) p.error = '購買未完成：' + (e && e.message ? e.message : String(e));
+    if (!cancelled) p.error = '訂閱未完成：' + (e && e.message ? e.message : String(e));
   } finally { p.loading = false; plusRender(); }
 }
 async function plusRestore() {
   const p = plusState(), user = state.account && state.account.user; if (!user || p.loading) return;
+  if (!plusConfigured()) { p.error = ''; plusRender(); return; } // 此平台無購買通道:不初始化 billing SDK
   p.loading = true; p.error = ''; plusRender();
   try {
     p.adapter = p.adapter || await plusAdapterFor(user.uid);
     const result = await p.adapter.restore();
     const info = result && (result.customerInfo || result);
-    p.active = plusActiveFrom(info); accountRender();
+    p.active = plusActiveFrom(info); p.mgmtUrl = (info && info.managementURL) || p.mgmtUrl || ''; accountRender();
     if (p.active) {
-      if (!plusFinishPending()) { plusClose(); showToast('購買資格已恢復'); }
-    } else p.error = '這個帳號目前沒有可恢復的 Plus 購買資格。';
-  } catch (e) { p.error = '無法恢復購買：' + (e && e.message ? e.message : String(e)); }
+      if (!plusFinishPending()) { plusClose(); showToast('已恢復訂閱資格'); }
+    } else p.error = '這個帳號目前沒有可恢復的 Plus 訂閱資格。';
+  } catch (e) { p.error = '無法恢復訂閱：' + (e && e.message ? e.message : String(e)); }
   finally { p.loading = false; plusRender(); }
 }
 async function plusRequire(source, onGranted) {
@@ -4676,6 +4744,11 @@ async function plusRequire(source, onGranted) {
   plusOpen(source, onGranted);
   return false;
 }
+// Plus 功能總閘 helper(上架批次接功能用;目前刻意不接任何現有功能):已訂閱直接放行,否則開訂閱視窗。
+function plusGateOpen(source, onGranted) {
+  if (state.plus && state.plus.active) { if (typeof onGranted === 'function') onGranted(); return; }
+  plusOpen(source, onGranted);
+}
 function setupPlusUi() {
   const modal = document.getElementById('plusModal'); if (!modal) return;
   document.getElementById('plusX').onclick = plusClose;
@@ -4683,7 +4756,7 @@ function setupPlusUi() {
   document.addEventListener('keydown', e => { if (e.key === 'Escape' && !modal.hidden) plusClose(); });
   document.getElementById('plusBody').onclick = e => {
     const b = e.target.closest('[data-plus]'); if (!b) return;
-    if (b.dataset.plus === 'buy') plusPurchase();
+    if (b.dataset.plus === 'buy') plusPurchase(b.dataset.pkg || 'annual');
     else if (b.dataset.plus === 'restore') plusRestore();
     else plusRefresh();
   };
