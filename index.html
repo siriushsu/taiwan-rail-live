@@ -838,6 +838,13 @@
   }
   .follow-panel .fp-tripshare:hover { background: var(--red); }
   .follow-panel.fp-min .fp-tripshare { display: none; }
+  .follow-panel .fp-notify {
+    margin-top: 8px; width: 100%; min-height: 44px; text-align: center;
+    background: var(--paper); color: var(--navy); border: 1.5px solid var(--line); border-radius: var(--r-pill);
+    font: inherit; font-size: 12px; font-weight: 800; letter-spacing: 1px; cursor: pointer;
+  }
+  .follow-panel .fp-notify:hover { background: var(--bg-stage); }
+  .follow-panel.fp-min .fp-notify { display: none !important; }
   /* 行程分享接收端橫幅:top-center 中帶,避開時鐘(左上)/公告條(右上)/跟隨面板(左下)/工具列(下) */
   .trip-banner {
     position: absolute; top: 56px; left: 50%; transform: translateX(-50%); z-index: 712;
@@ -1453,6 +1460,49 @@
   .takeout-actions .cancel { border: 1px solid var(--line); background: var(--paper); color: var(--muted); }
   .takeout-actions .confirm { border: 1px solid var(--red-deep); background: var(--red); color: #fffdf6; }
   .takeout-actions .confirm:disabled { opacity: .45; cursor: default; }
+  /* 到站提醒：原生 App 專屬設定 sheet，沿用 modal 家族色票與陰影。 */
+  .notify-modal { z-index: 2250; }
+  .notify-dialog { width: min(520px, 100%); }
+  .notify-body { display: grid; gap: 13px; }
+  .notify-train { display: flex; align-items: center; gap: 9px; color: var(--ink-strong); font-weight: 900; }
+  .notify-sys { padding: 2px 8px; border: 1px solid var(--line); border-radius: var(--r-pill); color: var(--navy); font-size: 11px; }
+  .notify-field { display: grid; grid-template-columns: 112px minmax(0, 1fr); align-items: center; gap: 10px; }
+  .notify-field > span:first-child { color: var(--muted); font-size: 12px; font-weight: 800; }
+  .notify-field select, .notify-field input[type=number] {
+    width: 100%; min-height: 44px; padding: 7px 10px; border: 1.5px solid var(--line); border-radius: 8px;
+    background: var(--paper); color: var(--ink); font: inherit; font-size: 16px;
+  }
+  .notify-offsets { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 5px; }
+  .notify-offsets label { cursor: pointer; }
+  .notify-offsets input { position: absolute; opacity: 0; pointer-events: none; }
+  .notify-offsets span {
+    display: grid; place-items: center; min-height: 44px; border: 1.5px solid var(--line); border-radius: 8px;
+    color: var(--muted); font-size: 12px; font-weight: 800;
+  }
+  .notify-offsets input:checked + span { background: var(--navy); border-color: var(--navy); color: var(--on-navy); }
+  .notify-walk { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 7px; }
+  .notify-walk span { color: var(--muted); font-size: 12px; }
+  .notify-preview { padding: 10px 12px; border: 1.5px dashed var(--line-dash); border-radius: 8px; color: var(--navy); font-size: 13px; font-weight: 800; line-height: 1.55; }
+  .notify-permission { padding: 9px 11px; border: 1.5px solid var(--warn-line); border-radius: 8px; background: var(--warn-bg); color: var(--warn-ink); font-size: 12px; font-weight: 700; line-height: 1.5; }
+  .notify-permission button { display: block; min-height: 44px; margin-top: 6px; padding: 5px 11px; border: 1px solid var(--warn-line); border-radius: 7px; background: var(--paper); color: var(--warn-ink); font: inherit; font-weight: 800; cursor: pointer; }
+  .notify-primary { width: 100%; min-height: 48px; border: 1.5px solid var(--red-deep); border-radius: var(--r-pill); background: var(--red); color: #fffdf6; font: inherit; font-weight: 900; cursor: pointer; box-shadow: var(--shadow-red); }
+  .notify-list { padding-top: 3px; border-top: 1.5px dashed var(--line-dash); }
+  .notify-list > b { display: block; margin-bottom: 4px; color: var(--faint); font-size: 11px; letter-spacing: 2px; }
+  .notify-reminder-row { display: flex; align-items: center; gap: 7px; min-height: 44px; border-top: 1px dashed var(--line-faint); font-size: 12px; }
+  .notify-reminder-row:first-child { border-top: 0; }
+  .notify-reminder-row .notify-reminder-main { flex: 1; min-width: 0; color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .notify-reminder-row .notify-standby { flex: none; color: var(--warn-ink); font-size: 10.5px; font-weight: 800; }
+  .notify-reminder-row button { flex: none; width: 44px; height: 44px; border: 0; background: transparent; color: var(--faint); font-size: 18px; cursor: pointer; }
+  .notify-primer { position: absolute; inset: 0; z-index: 2; display: grid; place-items: center; padding: 18px; background: rgba(20,29,42,.66); }
+  .notify-primer-card { width: min(400px, 100%); padding: 18px; border: 2px solid var(--navy); border-radius: 14px; background: var(--paper); box-shadow: 0 12px 40px rgba(15,25,40,.32); }
+  .notify-primer-card h3 { margin: 0 0 8px; color: var(--ink-strong); font-size: 19px; letter-spacing: 2px; }
+  .notify-primer-card p { margin: 0; color: var(--muted); font-size: 13px; line-height: 1.75; }
+  .notify-primer-actions { display: flex; gap: 8px; margin-top: 15px; }
+  .notify-primer-actions button { flex: 1; min-height: 46px; border-radius: 8px; font: inherit; font-weight: 900; cursor: pointer; }
+  .notify-primer-actions .yes { border: 1.5px solid var(--red-deep); background: var(--red); color: #fffdf6; }
+  .notify-primer-actions .later { border: 1.5px solid var(--line); background: var(--paper); color: var(--muted); }
+  #favPanel .fv-notify { flex: none; width: 44px; height: 44px; margin: -6px 0; padding: 0; border: 0; border-radius: 8px; background: transparent; color: var(--navy); font-size: 16px; cursor: pointer; }
+  #favPanel .fv-notify:hover { background: var(--bg-stage); }
   .account-intro { margin: 0 0 14px; color: var(--muted); font-size: 13px; line-height: 1.65; }
   .account-intro b { color: var(--ink-strong); }
   .account-login { display: grid; gap: 9px; }
@@ -1707,6 +1757,9 @@
     .takeout-row { grid-template-columns: 28px minmax(0,1fr); }
     .takeout-row > a, .takeout-row > button { grid-column: 2; justify-self: start; }
     .takeout-actions button { flex: 1; }
+    .notify-modal { place-items: end center; padding: 8px 8px calc(66px + env(safe-area-inset-bottom, 0px)); }
+    .notify-dialog { width: 100%; max-height: calc(100dvh - 82px - env(safe-area-inset-bottom, 0px)); align-self: end; border-radius: 16px 16px 10px 10px; }
+    .notify-field { grid-template-columns: 96px minmax(0, 1fr); }
     /* 手機看板是底部 sheet:取消桌面版「讓到公告下方」的頂緣定位 */
     .alert-banner:not([hidden]) ~ .board { top: auto; max-height: 46%; }
     /* 手機資訊卡整體縮小:卡寬與字級圖示全面降一級;底部讓開速度膠囊 */
@@ -2045,6 +2098,7 @@ try { if (matchMedia('(max-width: 900px)').matches) document.body.classList.add(
       <div class="fp-alert" id="fpAlert" hidden></div>
       <div class="fp-dest" id="fpDest"></div>
       <div class="fp-dest" id="fpDelay" hidden></div>
+      <button class="fp-notify" id="fpNotify" style="display:none" type="button">⏰ 提醒</button>
       <button class="fp-tripshare" id="fpTripShare" hidden>↗ 行程分享</button>
     </div>
     <div class="freq-card" id="freqCard" hidden>
@@ -2090,6 +2144,33 @@ try { if (matchMedia('(max-width: 900px)').matches) document.body.classList.add(
         <div class="takeout-head"><h2 id="plusTitle">軌島 Plus</h2><button id="plusX" type="button" aria-label="關閉">×</button></div>
         <div class="takeout-body" id="plusBody"><p class="account-intro">正在讀取購買資格…</p></div>
       </section>
+    </div>
+    <div class="takeout-modal notify-modal" id="notifyModal" hidden>
+      <section class="takeout-dialog notify-dialog" role="dialog" aria-modal="true" aria-labelledby="notifyTitle">
+        <div class="takeout-head"><h2 id="notifyTitle">到站提醒</h2><button id="notifyClose" type="button">×</button></div>
+        <div class="takeout-body notify-body">
+          <div class="notify-train"><span>車次</span><span class="notify-sys" id="notifySys"></span><span id="notifyTrain"></span></div>
+          <label class="notify-field"><span>提醒站點</span><select id="notifyStation"></select></label>
+          <div class="notify-field"><span id="notifyModeLabel">開車前</span><div class="notify-offsets" id="notifyOffsets">
+            <label><input type="radio" name="notifyOffset" value="5"><span>5</span></label>
+            <label><input type="radio" name="notifyOffset" value="10" checked><span>10</span></label>
+            <label><input type="radio" name="notifyOffset" value="15"><span>15</span></label>
+            <label><input type="radio" name="notifyOffset" value="30"><span>30</span></label>
+          </div></div>
+          <label class="notify-field"><span>步行到車站</span><span class="notify-walk"><input id="notifyWalk" type="number" min="0" max="60" step="1" inputmode="numeric" value="0"><span>分鐘</span></span></label>
+          <div class="notify-preview" id="notifyPreview"></div>
+          <div class="notify-permission" id="notifyPermission" hidden><span>通知權限已關閉，請到 設定 &gt; 軌島 開啟</span><button id="notifySettings" type="button" hidden>開啟設定</button></div>
+          <button class="notify-primary" id="notifySave" type="button">設定提醒</button>
+          <div class="notify-list"><b>已排提醒</b><div id="notifyReminderList"></div></div>
+        </div>
+      </section>
+      <div class="notify-primer" id="notifyPrimer" hidden>
+        <section class="notify-primer-card" role="dialog" aria-modal="true" aria-labelledby="notifyPrimerTitle">
+          <h3 id="notifyPrimerTitle">開車前叫你</h3>
+          <p>快到你設定的時間時，軌島會發通知提醒你。通知只在你設定的班次前出現，不會有廣告或雜訊。</p>
+          <div class="notify-primer-actions"><button class="yes" id="notifyPrimerYes" type="button">好，提醒我</button><button class="later" id="notifyPrimerLater" type="button">先不要</button></div>
+        </section>
+      </div>
     </div>
     <div class="badge">
       <span class="clock" id="clock">08:00</span>
@@ -3928,7 +4009,57 @@ function renderSugarCard() {
 // 定位我暫緩(2026-07-14):iOS「加到主畫面」standalone PWA 無法取用定位(系統限制),而使用者主力情境正是主畫面 App;
 // 延到原生 App(Capacitor 原生定位)階段再啟用。以下程式(locateMe/onLocated/onLocateFail/renderNearbyXing…)全部保留,
 // 網站/PWA 仍關閉；Capacitor App 注入原生定位 bridge 後才自動復活。
+// 本地提醒驗收 mock：只在非原生網頁 + ?notifymock=1 注入，正式網頁/PWA 永遠沒有入口。
+try {
+  const notifyMockParams = new URLSearchParams(location.search);
+  if (!window.RAIL_APP && notifyMockParams.get('notifymock') === '1') {
+    window.__notifyMockLog = [];
+    window.__notifyMockPending = [];
+    window.__notifyMockPermission = notifyMockParams.get('notifyperm') || 'granted';
+    window.__notifyMockOptions = {
+      reset: notifyMockParams.get('notifyreset') === '1', seed: parseInt(notifyMockParams.get('notifyseed'), 10) || 0,
+      syncRuns: Math.max(1, parseInt(notifyMockParams.get('notifysync'), 10) || 1)
+    };
+    const mockDelay = Number(notifyMockParams.get('notifydelay'));
+    const mockNow = Number(notifyMockParams.get('notifynow'));
+    if (Number.isFinite(mockDelay)) window.__notifyMockDelaySec = mockDelay;
+    if (Number.isFinite(mockNow)) window.__notifyMockNowEpoch = mockNow;
+    const recordNotifyMock = entry => {
+      window.__notifyMockLog.push(entry);
+      document.documentElement.dataset.notifyMockLog = JSON.stringify(window.__notifyMockLog);
+      document.documentElement.dataset.notifyMockPending = JSON.stringify(window.__notifyMockPending);
+    };
+    recordNotifyMock({ op: 'ready' });
+    window.RAIL_NATIVE_LOCALNOTIFY = {
+      async requestPermissions() {
+        recordNotifyMock({ op: 'requestPermissions' });
+        const result = window.__notifyMockRequestResult || 'granted';
+        window.__notifyMockPermission = result;
+        return result;
+      },
+      async checkPermissions() { return window.__notifyMockPermission || 'granted'; },
+      async schedule(list) {
+        const pending = window.__notifyMockPending;
+        for (const item of list) {
+          const at = pending.findIndex(x => x.id === item.id);
+          if (at >= 0) pending[at] = item; else pending.push(item);
+        }
+        recordNotifyMock({ op: 'schedule', notifications: list });
+        return { success: true };
+      },
+      async cancel(ids) {
+        const drop = new Set(ids.map(Number));
+        window.__notifyMockPending = window.__notifyMockPending.filter(x => !drop.has(Number(x.id)));
+        recordNotifyMock({ op: 'cancel', ids: [...drop] });
+        return { success: true };
+      },
+      async getPending() { return window.__notifyMockPending.slice(); },
+      openSettings: null
+    };
+  }
+} catch (e) {}
 const LOCATE_ENABLED = !!window.RAIL_NATIVE_GEOLOCATION;
+const NOTIFY_LOCAL_ENABLED = !!window.RAIL_NATIVE_LOCALNOTIFY;
 const RECORDING_ENABLED = false; // 2026-07-17 錄影暫時下架(整備中):所有入口隱藏、實作全保留;改 true 即復活(工具列鈕+更多抽屜列+Plus 文案)
 const ACCOUNT_ENABLED = false; // 2026-07-17 帳號同步轉收費前暫時下架:入口全藏、不載 Firebase SDK、實作全保留;僅 ?account=delete 深連結(account-deletion.html)留給既有帳號刪資料;改 true 即復活
 // Plus 功能總閘(暗啟動):網站預設關、?plus=1 當次點亮供測試(比照 TRIP_SHARE_ENABLED)；上架公告批次改 true。
@@ -6933,7 +7064,9 @@ function renderFavPanel() {
     (favs.length
       ? (stns.length ? `<div class="sec">列車</div>` : '') + favs.map(f =>
           `<div class="row fv" data-no="${f.train}"><span class="dot" style="background:#d2a12a"></span>` +
-          `<b>${f.train}</b><span class="dest">${f.label}</span><span class="rm" data-no="${f.train}" title="移除">×</span></div>`).join('')
+          `<b>${f.train}</b><span class="dest">${f.label}</span>` +
+          (NOTIFY_LOCAL_ENABLED && findLocalReminderTrain(f.train) ? `<button class="fv-notify" type="button" data-notify-no="${f.train}">⏰</button>` : '') +
+          `<span class="rm" data-no="${f.train}" title="移除">×</span></div>`).join('')
       : '') +
     (!favs.length && !stns.length
       ? '<div class="empty">還沒有收藏——跟隨列車後點資訊卡的 ☆ 收藏列車；打開車站看板點 ☆ 收藏車站。</div>' : '');
@@ -7828,6 +7961,8 @@ function showFollowPanel(tr) {
   // 行程分享發起入口:暗啟動旗標開 + 台鐵/高鐵一般班次(捷運 v1 不做、環島觀光列車無固定目的站→不顯)
   const tsBtn = document.getElementById('fpTripShare');
   if (tsBtn) tsBtn.hidden = !(TRIP_SHARE_ENABLED && !tr.loop && !!tripSysCode(tr.sys));
+  const notifyBtn = document.getElementById('fpNotify');
+  if (notifyBtn) notifyBtn.style.display = NOTIFY_LOCAL_ENABLED && !!reminderSysOf(tr) ? '' : 'none';
   updateFollowAlert(); // 行經通阻公告路線的車,跟隨當下就掛警示
   updateFollowPanel(tr);
 }
@@ -8142,6 +8277,311 @@ function nowSecOfDay(tz) {
 }
 function todayStr(tz) {
   return new Date().toLocaleDateString('sv', { timeZone: tz || 'Asia/Taipei' });
+}
+
+// ═════════ 原生 App 本地到站提醒（P0）═════════
+// 提醒刻意不進 USER_DATA_COLLECTIONS：只住本機 localStorage，不參與 Firestore 同步。
+const LOCAL_REMINDER_KEY = 'trainmap-local-reminders-v1';
+const LOCAL_REMINDER_NEXT_ID_KEY = 'trainmap-local-reminders-next-id-v1';
+const LOCAL_REMINDER_WALK_KEY = 'trainmap-local-reminder-walk-v1';
+const LOCAL_REMINDER_LIMIT = 20;
+let localReminderDraft = null;
+
+function localNotifyNowEpoch() {
+  if (window.__notifyMockLog && Number.isFinite(window.__notifyMockNowEpoch)) return window.__notifyMockNowEpoch;
+  return Math.floor(Date.now() / 1000);
+}
+function loadLocalReminders() {
+  try {
+    const value = JSON.parse(localStorage.getItem(LOCAL_REMINDER_KEY) || '[]');
+    return Array.isArray(value) ? value.filter(x => x && Number.isInteger(x.id) && Number.isFinite(x.fireAt)) : [];
+  } catch (e) { return []; }
+}
+function saveLocalReminders(items) {
+  const value = Array.isArray(items) ? items : [];
+  try { localStorage.setItem(LOCAL_REMINDER_KEY, JSON.stringify(value)); } catch (e) {}
+  if (window.__notifyMockLog) document.documentElement.dataset.notifyMockItems = JSON.stringify(value);
+}
+function nextLocalReminderId() {
+  const used = new Set(loadLocalReminders().map(x => Number(x.id)));
+  let id = 1;
+  try { id = parseInt(localStorage.getItem(LOCAL_REMINDER_NEXT_ID_KEY), 10) || 1; } catch (e) {}
+  if (id < 1 || id > 2147483647) id = 1;
+  while (used.has(id) && id < 2147483647) id++;
+  if (used.has(id)) {
+    id = 1;
+    while (used.has(id) && id < 2147483647) id++;
+  }
+  try { localStorage.setItem(LOCAL_REMINDER_NEXT_ID_KEY, String(id >= 2147483647 ? 1 : id + 1)); } catch (e) {}
+  return id;
+}
+function loadLocalReminderWalk() {
+  try { return Math.max(0, Math.min(60, parseInt(localStorage.getItem(LOCAL_REMINDER_WALK_KEY), 10) || 0)); }
+  catch (e) { return 0; }
+}
+function reminderSysOf(tr) {
+  return tr && tr.sys === 'tra_sched' ? 'tra' : tr && tr.sys === 'thsr_sched' ? 'thsr' : null;
+}
+function reminderSysLabel(sys) { return sys === 'thsr' ? '高鐵' : '台鐵'; }
+function findLocalReminderTrain(no, preferredSys) {
+  const wanted = preferredSys === 'thsr' ? 'thsr_sched' : preferredSys === 'tra' ? 'tra_sched' : null;
+  if (wanted) {
+    const sys = state.systems.find(s => s.id === wanted);
+    const tr = sys && (sys.data.trains || []).find(t => String(t.train) === String(no));
+    if (tr) return tr;
+  }
+  const current = typeof findTrain === 'function' ? findTrain(no) : null;
+  if (reminderSysOf(current)) return current;
+  for (const id of ['tra_sched', 'thsr_sched']) {
+    const sys = state.systems.find(s => s.id === id);
+    const tr = sys && (sys.data.trains || []).find(t => String(t.train) === String(no));
+    if (tr) return tr;
+  }
+  return null;
+}
+function localReminderStops(tr) {
+  return (tr && tr.stops || []).map((s, i) => ({ s, i })).filter(x => x.s.stop !== false && Number.isFinite(x.s.arrSec) && Number.isFinite(x.s.depSec));
+}
+function localReminderDelaySnapshot(tr) {
+  if (window.__notifyMockLog && Number.isFinite(window.__notifyMockDelaySec)) return Math.round(window.__notifyMockDelaySec);
+  return reminderSysOf(tr) === 'tra' ? Math.round(liveDelaySec(tr)) : 0;
+}
+// todayStr 提供台北服務日；tzOffsetSec 提供同一套時區契約。秒數 >86400 自然落到隔日。
+function localReminderServiceEpoch(svcDate, serviceSec) {
+  const p = String(svcDate || '').split('-').map(Number);
+  if (p.length !== 3 || p.some(x => !Number.isFinite(x))) return NaN;
+  return Math.floor(Date.UTC(p[0], p[1] - 1, p[2]) / 1000) - tzOffsetSec('Asia/Taipei') + Number(serviceSec || 0);
+}
+function localReminderHHMM(epoch) {
+  return new Intl.DateTimeFormat('zh-TW', { timeZone: 'Asia/Taipei', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' })
+    .format(new Date(epoch * 1000));
+}
+function localReminderPermissionValue(value) {
+  return typeof value === 'string' ? value : value && value.display;
+}
+function localReminderMatchDraft(item, draft) {
+  if (!item || !draft) return false;
+  const stop = draft.stops.find(x => x.i === draft.stIndex);
+  return !!stop && item.sys === draft.sys && String(item.train) === String(draft.train) && item.stName === stop.s.name;
+}
+function localReminderRecompute(draft) {
+  if (!draft) return null;
+  const at = draft.stops.find(x => x.i === draft.stIndex) || draft.stops[0];
+  if (!at) return null;
+  const isLast = at.i === draft.tr.stops.length - 1;
+  draft.mode = isLast ? 'arr' : 'dep';
+  draft.baseSec = isLast ? at.s.arrSec : at.s.depSec;
+  draft.fireAt = localReminderServiceEpoch(draft.svcDate, draft.baseSec) + draft.snapshotDelaySec - (draft.offsetMin + draft.walkMin) * 60;
+  draft.stName = at.s.name;
+  return draft;
+}
+function localReminderPayload(item) {
+  const leadMin = Number(item.offsetMin || 0) + Number(item.walkMin || 0);
+  const baseEpoch = Number(item.fireAt) - Number(item.snapshotDelaySec || 0) + leadMin * 60;
+  const delayMin = Math.max(0, Math.round(Number(item.snapshotDelaySec || 0) / 60));
+  return {
+    id: Number(item.id),
+    title: `${item.train} 次 ${item.stName} ${item.mode === 'arr' ? '抵達前' : '出發前'} ${leadMin} 分鐘`,
+    body: `表定 ${localReminderHHMM(baseEpoch)}${delayMin > 0 ? `，排定時誤點 +${delayMin} 分` : ''}。開軌島看即時位置 →`,
+    schedule: { at: new Date(Number(item.fireAt) * 1000) }
+  };
+}
+async function syncLocalReminders() {
+  if (!NOTIFY_LOCAL_ENABLED) return [];
+  const bridge = window.RAIL_NATIVE_LOCALNOTIFY;
+  const now = localNotifyNowEpoch();
+  const items = loadLocalReminders().filter(x => Number(x.fireAt) > now).sort((a, b) => a.fireAt - b.fireAt || a.id - b.id);
+  const desired = items.slice(0, LOCAL_REMINDER_LIMIT);
+  const desiredIds = new Set(desired.map(x => Number(x.id)));
+  for (const item of items) item.state = desiredIds.has(Number(item.id)) ? 'scheduled' : 'standby';
+  saveLocalReminders(items);
+  try {
+    const raw = await bridge.getPending();
+    const pending = Array.isArray(raw) ? raw : (raw && raw.notifications) || [];
+    const pendingIds = new Set(pending.map(x => Number(x.id)).filter(Number.isFinite));
+    const extra = [...pendingIds].filter(id => !desiredIds.has(id));
+    if (extra.length) await bridge.cancel(extra);
+    const missing = desired.filter(x => !pendingIds.has(Number(x.id)));
+    if (missing.length) await bridge.schedule(missing.map(localReminderPayload));
+  } catch (e) { console.error('本地提醒同步失敗', e); }
+  renderLocalReminderList();
+  return items;
+}
+async function removeLocalReminder(id) {
+  saveLocalReminders(loadLocalReminders().filter(x => Number(x.id) !== Number(id)));
+  try { await window.RAIL_NATIVE_LOCALNOTIFY.cancel([Number(id)]); } catch (e) { console.error('本地提醒取消失敗', e); }
+  await syncLocalReminders();
+  renderLocalReminderDraft();
+}
+function renderLocalReminderList() {
+  const box = document.getElementById('notifyReminderList');
+  if (!box) return;
+  box.innerHTML = '';
+  for (const item of loadLocalReminders().sort((a, b) => a.fireAt - b.fireAt || a.id - b.id)) {
+    const row = document.createElement('div'); row.className = 'notify-reminder-row';
+    const main = document.createElement('span'); main.className = 'notify-reminder-main';
+    main.textContent = `${reminderSysLabel(item.sys)} ${item.train} 次・${item.stName}・${localReminderHHMM(item.fireAt)}`;
+    row.appendChild(main);
+    if (item.state === 'standby') { const tag = document.createElement('span'); tag.className = 'notify-standby'; tag.textContent = '候補中'; row.appendChild(tag); }
+    const del = document.createElement('button'); del.type = 'button'; del.textContent = '×'; del.dataset.notifyDelete = item.id;
+    del.onclick = () => removeLocalReminder(item.id);
+    row.appendChild(del); box.appendChild(row);
+  }
+}
+function renderLocalReminderDraft() {
+  const draft = localReminderRecompute(localReminderDraft);
+  if (!draft) return;
+  const modal = document.getElementById('notifyModal');
+  modal.dataset.notifyBaseSec = String(draft.baseSec);
+  modal.dataset.notifyServiceEpoch = String(localReminderServiceEpoch(draft.svcDate, 0));
+  modal.dataset.notifySnapshotDelaySec = String(draft.snapshotDelaySec);
+  modal.dataset.notifyOffsetMin = String(draft.offsetMin);
+  modal.dataset.notifyWalkMin = String(draft.walkMin);
+  modal.dataset.notifyFireAt = String(draft.fireAt);
+  document.getElementById('notifySys').textContent = reminderSysLabel(draft.sys);
+  document.getElementById('notifyTrain').textContent = `${draft.train} 次`;
+  const select = document.getElementById('notifyStation');
+  select.innerHTML = '';
+  for (const x of draft.stops) { const o = document.createElement('option'); o.value = x.i; o.textContent = x.s.name; select.appendChild(o); }
+  select.value = String(draft.stIndex);
+  document.querySelectorAll('input[name=notifyOffset]').forEach(r => { r.checked = Number(r.value) === draft.offsetMin; });
+  document.getElementById('notifyWalk').value = draft.walkMin;
+  document.getElementById('notifyModeLabel').textContent = draft.mode === 'arr' ? '到達前' : '開車前';
+  const delayMin = Math.max(0, Math.round(draft.snapshotDelaySec / 60));
+  document.getElementById('notifyPreview').textContent = delayMin > 0
+    ? `將於 ${localReminderHHMM(draft.fireAt)} 提醒你（以目前誤點 +${delayMin} 分計）`
+    : `將於 ${localReminderHHMM(draft.fireAt)} 提醒你（依表定時刻）`;
+  const exists = loadLocalReminders().some(x => localReminderMatchDraft(x, draft));
+  document.getElementById('notifySave').textContent = exists ? '更新提醒' : '設定提醒';
+  renderLocalReminderList();
+}
+function applyStoredLocalReminderSettings() {
+  const draft = localReminderDraft;
+  const item = loadLocalReminders().find(x => localReminderMatchDraft(x, draft));
+  if (!item) return;
+  draft.offsetMin = Number(item.offsetMin) || 10;
+  draft.walkMin = Math.max(0, Math.min(60, Number(item.walkMin) || 0));
+}
+async function refreshLocalReminderPermission(draft) {
+  try {
+    const stateValue = localReminderPermissionValue(await window.RAIL_NATIVE_LOCALNOTIFY.checkPermissions());
+    if (draft !== localReminderDraft) return stateValue;
+    const denied = stateValue === 'denied';
+    document.getElementById('notifyPermission').hidden = !denied;
+    const open = window.RAIL_NATIVE_LOCALNOTIFY.openSettings;
+    const btn = document.getElementById('notifySettings');
+    btn.hidden = !(denied && typeof open === 'function');
+    return stateValue;
+  } catch (e) { return null; }
+}
+async function openLocalReminderSheet(tr, source) {
+  if (!NOTIFY_LOCAL_ENABLED || !reminderSysOf(tr)) return;
+  const stops = localReminderStops(tr); if (!stops.length) return;
+  const snapshotDelaySec = localReminderDelaySnapshot(tr);
+  let chosen = stops[0];
+  if (source === 'follow') {
+    const schedNow = effT(tr) - snapshotDelaySec;
+    chosen = stops.find(x => x.s.arrSec > schedNow) || stops[stops.length - 1];
+  }
+  localReminderDraft = {
+    tr, stops, stIndex: chosen.i, sys: reminderSysOf(tr), train: String(tr.train), svcDate: todayStr('Asia/Taipei'),
+    offsetMin: 10, walkMin: loadLocalReminderWalk(), snapshotDelaySec
+  };
+  applyStoredLocalReminderSettings();
+  document.getElementById('notifyPermission').hidden = true;
+  document.getElementById('notifyPrimer').hidden = true;
+  document.getElementById('notifyModal').hidden = false;
+  renderLocalReminderDraft();
+  await refreshLocalReminderPermission(localReminderDraft);
+}
+function closeLocalReminderSheet() {
+  document.getElementById('notifyPrimer').hidden = true;
+  document.getElementById('notifyModal').hidden = true;
+  localReminderDraft = null;
+}
+async function commitLocalReminderDraft() {
+  const draft = localReminderRecompute(localReminderDraft); if (!draft) return;
+  let items = loadLocalReminders();
+  const at = items.findIndex(x => localReminderMatchDraft(x, draft));
+  const item = {
+    id: at >= 0 ? items[at].id : nextLocalReminderId(), sys: draft.sys, train: draft.train, stName: draft.stName, mode: draft.mode,
+    offsetMin: draft.offsetMin, walkMin: draft.walkMin, fireAt: Math.round(draft.fireAt), snapshotDelaySec: draft.snapshotDelaySec,
+    svcDate: draft.svcDate, state: 'scheduled'
+  };
+  if (at >= 0) items[at] = item; else items.push(item);
+  saveLocalReminders(items);
+  try { localStorage.setItem(LOCAL_REMINDER_WALK_KEY, String(draft.walkMin)); } catch (e) {}
+  if (at >= 0) {
+    try { await window.RAIL_NATIVE_LOCALNOTIFY.cancel([Number(item.id)]); }
+    catch (e) { console.error('本地提醒更新前取消失敗', e); }
+  }
+  await syncLocalReminders();
+  renderLocalReminderDraft();
+}
+async function requestLocalReminderSave() {
+  const draft = localReminderRecompute(localReminderDraft); if (!draft) return;
+  if (draft.fireAt <= localNotifyNowEpoch() + 60) { showToast('太接近發車時間，來不及提醒'); return; }
+  const permission = await refreshLocalReminderPermission(draft);
+  if (permission === 'denied') return;
+  if (permission === 'granted') { await commitLocalReminderDraft(); return; }
+  document.getElementById('notifyPrimer').hidden = false;
+}
+async function confirmLocalReminderPrimer() {
+  const draft = localReminderDraft; if (!draft) return;
+  let permission = null;
+  try { permission = localReminderPermissionValue(await window.RAIL_NATIVE_LOCALNOTIFY.requestPermissions()); } catch (e) {}
+  document.getElementById('notifyPrimer').hidden = true;
+  if (draft !== localReminderDraft) return;
+  if (permission === 'granted') await commitLocalReminderDraft();
+  else await refreshLocalReminderPermission(draft);
+}
+async function setupLocalNotifications() {
+  const fp = document.getElementById('fpNotify');
+  if (!NOTIFY_LOCAL_ENABLED) { if (fp) fp.remove(); return; }
+  fp.style.display = 'none';
+  fp.onclick = e => { e.stopPropagation(); openLocalReminderSheet(state.followTrain, 'follow'); };
+  document.getElementById('notifyClose').onclick = closeLocalReminderSheet;
+  document.getElementById('notifySave').onclick = requestLocalReminderSave;
+  document.getElementById('notifyPrimerYes').onclick = confirmLocalReminderPrimer;
+  document.getElementById('notifyPrimerLater').onclick = () => { document.getElementById('notifyPrimer').hidden = true; };
+  document.getElementById('notifyStation').onchange = e => {
+    if (!localReminderDraft) return;
+    localReminderDraft.stIndex = Number(e.target.value); applyStoredLocalReminderSettings(); renderLocalReminderDraft();
+  };
+  document.getElementById('notifyOffsets').onchange = e => {
+    if (!localReminderDraft || e.target.name !== 'notifyOffset') return;
+    localReminderDraft.offsetMin = Number(e.target.value); renderLocalReminderDraft();
+  };
+  document.getElementById('notifyWalk').oninput = e => {
+    if (!localReminderDraft) return;
+    localReminderDraft.walkMin = Math.max(0, Math.min(60, parseInt(e.target.value, 10) || 0)); renderLocalReminderDraft();
+  };
+  const open = window.RAIL_NATIVE_LOCALNOTIFY.openSettings;
+  if (typeof open === 'function') document.getElementById('notifySettings').onclick = () => open();
+  document.getElementById('notifyModal').addEventListener('click', e => { if (e.target.id === 'notifyModal') closeLocalReminderSheet(); });
+  if (window.__notifyMockLog) window.__localNotifyTest = {
+    sync: syncLocalReminders, load: loadLocalReminders, save: saveLocalReminders,
+    serviceEpoch: localReminderServiceEpoch, payload: localReminderPayload,
+    open: (no, sys, source) => openLocalReminderSheet(findLocalReminderTrain(no, sys), source || 'favorite')
+  };
+  const mockOpts = window.__notifyMockOptions;
+  if (mockOpts && mockOpts.reset) {
+    try {
+      localStorage.removeItem(LOCAL_REMINDER_KEY); localStorage.removeItem(LOCAL_REMINDER_NEXT_ID_KEY); localStorage.removeItem(LOCAL_REMINDER_WALK_KEY);
+    } catch (e) {}
+  }
+  if (mockOpts && mockOpts.seed > 0 && !loadLocalReminders().length) {
+    const seeded = [];
+    for (let i = 0; i < mockOpts.seed; i++) seeded.push({
+      id: i + 1, sys: i % 2 ? 'thsr' : 'tra', train: String(9000 + i), stName: '臺北', mode: 'dep',
+      offsetMin: 10, walkMin: 0, fireAt: localNotifyNowEpoch() + 3600 + i * 120, snapshotDelaySec: 0,
+      svcDate: todayStr('Asia/Taipei'), state: 'scheduled'
+    });
+    saveLocalReminders(seeded);
+    try { localStorage.setItem(LOCAL_REMINDER_NEXT_ID_KEY, String(mockOpts.seed + 1)); } catch (e) {}
+  }
+  const syncRuns = mockOpts ? mockOpts.syncRuns : 1;
+  for (let i = 0; i < syncRuns; i++) await syncLocalReminders();
 }
 
 // ── 即時校正共用漸變層:偏移目標任何變化(門檻進出/每分鐘資料更新/開機首拉)都平滑收斂,消除硬切跳位。
@@ -8767,7 +9207,7 @@ function toggleSheetExpand(el) { setSheetExpand(el, !el.classList.contains('expa
 // 抓把/標題列的點擊(toggle)與拖曳(dy 閾值 snap);只在標題列頂區觸發,不攔內容捲動與按鈕
 function initSheetHandle(el) {
   let sy = null, dy = 0, active = false;
-  const EXC = 'button, a, input, select, textarea, .close, .board-star, .tc-star, .tc-x, .tc-tt, .fp-close, .fp-end, .fp-tripshare, .tc-dhlink, [role=button]';
+  const EXC = 'button, a, input, select, textarea, .close, .board-star, .tc-star, .tc-x, .tc-tt, .fp-close, .fp-end, .fp-tripshare, .fp-notify, .tc-dhlink, [role=button]';
   const inHeader = (e) => {
     if (e.target.closest(EXC)) return false;
     const r = el.getBoundingClientRect();
@@ -10173,6 +10613,7 @@ async function boot() {
   setBasemap();
   setupMapTools();
   setupRecorder();
+  await setupLocalNotifications();
   map.on('move zoom resize zoomanim', reproject);
   // 省電:互動時標記時戳,tick 據此維持全速 1.5s(見 tick 節流)。map 'move'/'zoom' 覆蓋整段拖曳/縮放
   // (滑鼠拖曳中只有 pointermove 不重發,靠 map move 續命);pointerdown/wheel/touch 覆蓋點擊與觸控起手
@@ -10304,6 +10745,11 @@ async function boot() {
   }
   map.on('moveend', saveLastView); // 記住使用者最後看的畫面;守門條件都在 saveLastView 內(巡航/跟車/直播皆不寫)
   state.ready = true;
+  if (window.__notifyMockLog) {
+    const cross = state.systems.filter(s => s.id === 'tra_sched' || s.id === 'thsr_sched')
+      .flatMap(s => s.data.trains || []).find(tr => tr.stops && tr.stops.some(st => st.arrSec > 86400 || st.depSec > 86400));
+    if (cross) document.documentElement.dataset.notifyMockCrossDay = JSON.stringify({ train: String(cross.train), sys: reminderSysOf(cross) });
+  }
   requestAnimationFrame(tick);
   if (state.director) initDirector(); // 導播模式(?live=2):5× 循環,跟車 5–10 分輪替(z18)+偶爾群車俯瞰,資訊卡全開
   else if (state.liveMode) initLive(); // 即時模式(?live=1):資料就緒後貼真實時刻放空巡航+音樂
@@ -10554,7 +11000,7 @@ document.getElementById('followPanel').addEventListener('click', (e) => {
   // 手機全畫面:點跟隨小卡(非結束/收合/分享鈕)→ 展開「列車」sheet(桌面走原 fp-min 展開;直播/放空不攔,維持既有行為)
   if (window.matchMedia(MOBILE_MQ).matches && document.body.classList.contains('fs') && state.followTrain
       && !document.body.classList.contains('live') && !document.body.classList.contains('ambient')
-      && !e.target.closest('.fp-end, .fp-close, .fp-tripshare')) { openTrainSheet(); return; }
+      && !e.target.closest('.fp-end, .fp-close, .fp-tripshare, .fp-notify')) { openTrainSheet(); return; }
   if (fp.classList.contains('fp-min') && !e.target.closest('.fp-end')) fp.classList.remove('fp-min');
 });
 document.getElementById('tcStar').onclick = (e) => { e.stopPropagation(); toggleFav(state.followTrain); }; // stopPropagation:sheet 態不觸發標題列 toggle
@@ -10580,6 +11026,8 @@ document.getElementById('todayBtn').onclick = () => {
   document.getElementById('todayPanel').hidden ? openTodayPanel() : closeTodayPanel();
 };
 document.getElementById('favPanel').onclick = e => {
+  const nb = e.target.closest('.fv-notify');
+  if (nb) { e.stopPropagation(); openLocalReminderSheet(findLocalReminderTrain(nb.dataset.notifyNo), 'favorite'); return; }
   const rm = e.target.closest('.rm');
   if (rm) { rm.dataset.stkey ? removeFavStation(rm.dataset.stkey) : removeFav(rm.dataset.no); return; }
   const sr = e.target.closest('.row.fvst');
