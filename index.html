@@ -2365,6 +2365,7 @@ try { if (matchMedia('(max-width: 900px)').matches) document.body.classList.add(
       <summary><span>🛠 更新紀錄</span><span class="foot-sub">最後更新：2026/7/21</span></summary>
       <ul class="foot-list">
         <li class="grp">最近更新</li>
+        <li><span class="d">7/21</span><span>修正桌面全畫面與放空模式剛開啟就自動退出</span></li>
         <li><span class="d">7/21</span><span>App 新增「到站提醒」：收藏或跟隨的班車，開車前提前叫你，還能加上步行時間。</span></li>
         <li><span class="d">7/21</span><span>手機大改版：打開就是全螢幕地圖，亮點／護照／列車介紹都住進底部面板；新增「捷」分頁，北中高捷運一張圖同框；跟車後點資訊小卡展開完整介紹；底部工具列更貼合螢幕。</span></li>
         <li><span class="d">7/20</span><span>手機跟車時打開底部面板，跟隨鎖按鈕自動讓位不再擋住面板內容</span></li>
@@ -2409,6 +2410,7 @@ try { if (matchMedia('(max-width: 900px)').matches) document.body.classList.add(
         <li><span class="d">7/10</span><span>跟隨鎖：跟隨中直接拖曳地圖自由瀏覽，按「◉ 回到列車」恢復置中；資訊卡可收合成小膠囊</span></li>
         <li><span class="d">7/9</span><span>鐵道迷功能包：跟隨路線高亮、月台站名牌、日夜天色、全程速度曲線</span></li>
         <li class="grp">放空模式</li>
+        <li><span class="d">7/21</span><span>修正桌面全畫面與放空模式剛開啟就自動退出</span></li>
         <li><span class="d">7/18</span><span>新增「都會呼吸」定場運鏡（上線當天連修三輪：畫面細微抖動、鏡頭對到山區空地、缺底圖看起來像壞掉）</span></li>
         <li><span class="d">7/17</span><span>新增「劇場模式」自動觸發，預設視角改為群車</span></li>
         <li><span class="d">7/11</span><span>新增「群車」視角：不跟單一列車，看整片列車交錯</span></li>
@@ -2570,7 +2572,7 @@ try { if (matchMedia('(max-width: 900px)').matches) document.body.classList.add(
 <script>
 // 版本戳記:每次改版 push 前手動遞增(字母序),畫面時鐘徽章與 console 都會顯示,
 // 供比對線上跑的是不是最新版(瀏覽器快取 max-age=600 常讓人看到舊版)
-const BUILD = 'v0721f';
+const BUILD = 'v0721g';
 // 手機/平板直式「殼」斷點(議題1:640→900,iPad 直式改拿 tabbar＋更多抽屜):與 CSS @media 同步,版面類判斷一律用此常數。
 // 注意:裝置等級判斷(keepBuffer/powerSave 預設)刻意不用此常數、維持 640——iPad 不該因為改拿 tabbar 就被當低階裝置。
 const MOBILE_MQ = '(max-width: 900px)';
@@ -10039,12 +10041,17 @@ function setupMapTools() {
     };
     state._fsCapsuleSync(true); // 膠囊改為手機常駐:開站就初始化 slim 態
   })();
+  let wasMobileShell = window.matchMedia(MOBILE_MQ).matches;
   window.addEventListener('resize', () => {
-    // 跨 900 斷界同步全螢幕殼:進 ≤900 強制 fs on;離開 ≤900 退出(直播/導播例外,setFs(false) 的手機 no-op 以當下寬度判斷故此處安全)
+    // 只在真正跨越 900 斷界時同步全螢幕殼；Fullscreen API 本身造成的桌面 resize 不得退出。
     const mob = window.matchMedia(MOBILE_MQ).matches;
-    if (mob) { if (!document.body.classList.contains('fs')) setFs(true); }
-    else if (!state.liveMode && document.body.classList.contains('fs')) setFs(false);
-    if (!mob) closeTrainSheet(); // 「列車」sheet 是手機專屬構造:離開手機斷點即收(桌面走併卡);desktop 無 tc-sheet 時為 no-op
+    const crossedMobileShell = mob !== wasMobileShell;
+    wasMobileShell = mob;
+    if (crossedMobileShell) {
+      if (mob) { if (!document.body.classList.contains('fs')) setFs(true); }
+      else if (!state.liveMode && !document.fullscreenElement && document.body.classList.contains('fs')) setFs(false);
+      if (!mob) closeTrainSheet(); // 「列車」sheet 是手機專屬構造:離開手機斷點即收(桌面走併卡);desktop 無 tc-sheet 時為 no-op
+    }
     placeFsOverlays(); if (state._fsCapsuleSync) state._fsCapsuleSync(false);
     // Batch B:跨界把搜尋列/頁尾盒搬回正確的家;離開手機時把走勢圖搬回原位、收起縣市 chip
     placeSearch(); placeFootBoxes();
