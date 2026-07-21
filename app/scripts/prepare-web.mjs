@@ -121,6 +121,32 @@ html = html
       ? 'Stadia Maps（© Stadia Maps © OpenMapTiles © OpenStreetMap）與 Natural Earth（離線海陸輪廓）'
       : 'Natural Earth（離線海陸輪廓；線上底圖未納入此版本）'
   );
+if (includeLicensedBasemaps) {
+  const meteredAppRewrites = [
+    [
+      'map.setView([info.pos.lat, info.pos.lon], Math.max(map.getZoom(), 13), { animate: false });',
+      'map.setView([info.pos.lat, info.pos.lon], Math.min(Math.max(map.getZoom(), 13), 16), { animate: false });'
+    ],
+    [
+      'map.setView([info.lat, info.lon], Math.max(map.getZoom(), 13), { animate: false });',
+      'map.setView([info.lat, info.lon], Math.min(Math.max(map.getZoom(), 13), 16), { animate: false });'
+    ],
+    [
+      'map.setView([pos.lat, pos.lon], Math.max(map.getZoom(), 13), { animate: false });',
+      'map.setView([pos.lat, pos.lon], Math.min(Math.max(map.getZoom(), 13), 16), { animate: false });'
+    ],
+    [
+      'const DIRECTOR_FOLLOW_Z = 18;              // 跟車縮放(使用者要求「最大縮小兩級」≈z18)',
+      'const DIRECTOR_FOLLOW_Z = 16;              // App Stadia 止血：導播跟車最高 z16，降低移動時的唯一圖磚數'
+    ],
+    ['導播跟車放大到 z18(最大縮小兩級)', 'App 導播跟車限制在 z16'],
+    ['導播跟捷運也放大到 z18,跟台鐵/高鐵跟車一致', 'App 導播跟捷運同樣限制在 z16']
+  ];
+  for (const [target, replacement] of meteredAppRewrites) {
+    if (!html.includes(target)) throw new Error(`App metered basemap rewrite target not found: ${target}`);
+    html = html.replace(target, replacement);
+  }
+}
 if (!html.includes('vendor/leaflet/leaflet.js') || !html.includes('native-bridge.js')) throw new Error('App index vendor/native bridge injection failed');
 if (/ko-fi|PayPal|111010691056|web-only-donation-log|贊助方式更新/i.test(html) || html.includes('id="donateCopy"') || html.includes('class="foot-box foot-donate"')) throw new Error('External donation content leaked into native App');
 if (/cartocdn\.com|arcgisonline\.com/i.test(html)) throw new Error('App index still contains unlicensed CARTO/Esri tile URLs');

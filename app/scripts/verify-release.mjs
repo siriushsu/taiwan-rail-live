@@ -151,6 +151,15 @@ export async function verifyRelease({
     assert(/tiles\.stadiamaps\.com\/tiles\/alidade_smooth_dark\/\{z\}\/\{x\}\/\{y\}\.png\?api_key=[^'"\s]+/.test(html),
       '暗色底圖不是含 api_key 的 Stadia alidade_smooth_dark');
     assert(!html.includes('baseLayers.sat = L.tileLayer'), 'App v1 不可建立衛星圖層');
+    assert(html.includes('  prefetchFollowAhead(dt);'),
+      'Stadia App 必須保留既有高速跟車預抓；手機省電模式會自行停用，避免 iPad／關省電模式高速跟車露白');
+    assert(html.includes('const DIRECTOR_FOLLOW_Z = 16;'),
+      'Stadia App 導播跟車最高縮放必須限制在 z16');
+    for (const target of [
+      'map.setView([info.pos.lat, info.pos.lon], Math.min(Math.max(map.getZoom(), 13), 16), { animate: false });',
+      'map.setView([info.lat, info.lon], Math.min(Math.max(map.getZoom(), 13), 16), { animate: false });',
+      'map.setView([pos.lat, pos.lon], Math.min(Math.max(map.getZoom(), 13), 16), { animate: false });'
+    ]) assert(html.includes(target), 'Stadia App 的台鐵／高鐵／捷運跟車入口未完整限制在 z16');
     const stadiaAttribution = '&copy; <a href="https://stadiamaps.com/" target="_blank">Stadia Maps</a> &copy; <a href="https://openmaptiles.org/" target="_blank">OpenMapTiles</a> &copy; <a href="https://www.openstreetmap.org/copyright" target="_blank">OpenStreetMap</a>';
     assert(html.includes(`attribution: '${stadiaAttribution}'`),
       'Stadia 圖磚署名不是官方要求的三組連結逐字內容');
