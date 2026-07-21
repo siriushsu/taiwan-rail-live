@@ -983,7 +983,11 @@ export default {
       return new Response(null, { status: APP_ORIGINS.has(origin) ? 204 : 403, headers: h });
     }
     let res;
-    if (url.pathname === '/api/tra-live') res = await traLive(request, env, ctx);
+    if (isApi && url.pathname !== '/api/account-delete' && request.method !== 'GET' && request.method !== 'HEAD') {
+      res = jsonRes({ error: 'method not allowed' }, 405, 'no-store');
+      res.headers.set('Allow', 'GET, HEAD, OPTIONS');
+    }
+    else if (url.pathname === '/api/tra-live') res = await traLive(request, env, ctx);
     else if (url.pathname === '/api/tra-alert') res = await traAlert(request, env);
     else if (url.pathname === '/api/thsr-alert') res = await thsrAlert(request, env);
     else if (url.pathname === '/api/metro-alert') res = await metroAlert(request, env);

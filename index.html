@@ -2385,6 +2385,7 @@ try { if (matchMedia('(max-width: 900px)').matches) document.body.classList.add(
       <summary><span>🛠 更新紀錄</span><span class="foot-sub">最後更新：2026/7/21</span></summary>
       <ul class="foot-list">
         <li class="grp">最近更新</li>
+        <li><span class="d">7/21</span><span>例行安全性與穩定性強化（背景維護，操作與畫面無變化）</span></li>
         <li><span class="d">7/21</span><span>修正桌面全畫面與放空模式剛開啟就自動退出（Chrome 與 Safari 成因不同，一併治好）</span></li>
         <li><span class="d">7/21</span><span>「台鐵大面積誤點」示警改嚴：要夠多班次誤點滿 10 分鐘才會提示，不再因為一堆車晚個 1～2 分鐘就誤報</span></li>
         <li><span class="d">7/21</span><span>到站提醒進化：中途站也能改用『抵達前』提醒、車站看板可設末班車提醒、更多選單新增『已排提醒』總覽。</span></li>
@@ -7083,7 +7084,7 @@ function gotoFavStationKey(key) {
   else if (f.sys === 'metro') st = state.deco ? { name: f.name, lat: f.lat, lon: f.lon, sys: 'deco' } : null;
   else st = state.schedStations.find(s => s.name === f.name && s.sys === f.sys) || null; // 看板靠 name+sys 過濾班次,用活體站物件
   if (st) openBoard(st);
-  else showToast('目前的檢視沒有「' + f.name + '」，請切到含該站的分頁再點');
+  else showToast('目前的檢視沒有「' + escHtml(f.name) + '」，請切到含該站的分頁再點');
 }
 // 地圖上的最愛車站 ★ 記號:恆掛在收藏站點上(目前檢視載有該站才掛),點 ★ 直接開該站看板
 let favStMarks = [];
@@ -7122,7 +7123,7 @@ function renderFavs() {
   favs.forEach(f => {
     const el = document.createElement('div');
     el.className = 'favchip';
-    el.innerHTML = `<span class="star">★</span><b>${f.train}</b><span>${f.label}</span><span class="rm" title="移除">×</span>`;
+    el.innerHTML = `<span class="star">★</span><b>${escHtml(f.train)}</b><span>${escHtml(f.label)}</span><span class="rm" title="移除">×</span>`;
     el.onclick = e => {
       if (e.target.classList.contains('rm')) { removeFav(f.train); return; }
       followTrainNo(f.train);
@@ -7137,16 +7138,20 @@ function renderFavPanel() {
   const favs = loadFavs(), stns = loadFavStations();
   el.innerHTML = `<h3>我的最愛<button class="close" id="favClose">×</button></h3><div class="sub">點車站開看板 · 點列車跟隨 · × 移除收藏</div>` +
     (stns.length
-      ? `<div class="sec">車站</div>` + stns.map(f =>
-          `<div class="row fvst" data-stkey="${f.sys}|${f.name}"><span class="ico">🚉</span>` +
-          `<b>${f.name}</b><span class="dest">${f.label || ''}</span><span class="rm" data-stkey="${f.sys}|${f.name}" title="移除">×</span></div>`).join('')
+      ? `<div class="sec">車站</div>` + stns.map(f => {
+          const key = escHtml(f.sys + '|' + f.name);
+          return `<div class="row fvst" data-stkey="${key}"><span class="ico">🚉</span>` +
+            `<b>${escHtml(f.name)}</b><span class="dest">${escHtml(f.label)}</span><span class="rm" data-stkey="${key}" title="移除">×</span></div>`;
+        }).join('')
       : '') +
     (favs.length
-      ? (stns.length ? `<div class="sec">列車</div>` : '') + favs.map(f =>
-          `<div class="row fv" data-no="${f.train}"><span class="dot" style="background:#d2a12a"></span>` +
-          `<b>${f.train}</b><span class="dest">${f.label}</span>` +
-          (NOTIFY_LOCAL_ENABLED && findLocalReminderTrain(f.train) ? `<button class="fv-notify" type="button" data-notify-no="${f.train}">⏰</button>` : '') +
-          `<span class="rm" data-no="${f.train}" title="移除">×</span></div>`).join('')
+      ? (stns.length ? `<div class="sec">列車</div>` : '') + favs.map(f => {
+          const no = escHtml(f.train);
+          return `<div class="row fv" data-no="${no}"><span class="dot" style="background:#d2a12a"></span>` +
+            `<b>${no}</b><span class="dest">${escHtml(f.label)}</span>` +
+            (NOTIFY_LOCAL_ENABLED && findLocalReminderTrain(f.train) ? `<button class="fv-notify" type="button" data-notify-no="${no}">⏰</button>` : '') +
+            `<span class="rm" data-no="${no}" title="移除">×</span></div>`;
+        }).join('')
       : '') +
     (!favs.length && !stns.length
       ? '<div class="empty">還沒有收藏——跟隨列車後點資訊卡的 ☆ 收藏列車；打開車站看板點 ☆ 收藏車站。</div>' : '');
@@ -7348,15 +7353,15 @@ function showToast(msg) {
   setTimeout(() => { el.classList.remove('show'); setTimeout(() => el.remove(), 450); }, 5000);
 }
 function announceCollections(tr, rides, prevColl, prevAch) {
-  const msgs = [`🎫 完乘達成　<b>${tr.train} 次</b> 抵達終點`];
+  const msgs = [`🎫 完乘達成　<b>${escHtml(tr.train)} 次</b> 抵達終點`];
   const coll = collectionOf(rides), sd = state.special;
   if (sd) {
-    sd.namedTrains.forEach(n => { if (coll.named.has(n.id) && !prevColl.named.has(n.id)) msgs.push(`⭐ 明星列車　<b>${n.name}</b> 蓋章！`); });
-    sd.rollingStock.forEach(s => { if (coll.stock.has(s.id) && !prevColl.stock.has(s.id)) msgs.push(`🚆 車種圖鑑　<b>${s.name}</b> 蓋章！`); });
-    sd.branchLines.forEach(b => { if (coll.branch.has(b.id) && !prevColl.branch.has(b.id)) msgs.push(`🛤 支線行腳　<b>${b.name}</b> 蓋章！`); });
+    sd.namedTrains.forEach(n => { if (coll.named.has(n.id) && !prevColl.named.has(n.id)) msgs.push(`⭐ 明星列車　<b>${escHtml(n.name)}</b> 蓋章！`); });
+    sd.rollingStock.forEach(s => { if (coll.stock.has(s.id) && !prevColl.stock.has(s.id)) msgs.push(`🚆 車種圖鑑　<b>${escHtml(s.name)}</b> 蓋章！`); });
+    sd.branchLines.forEach(b => { if (coll.branch.has(b.id) && !prevColl.branch.has(b.id)) msgs.push(`🛤 支線行腳　<b>${escHtml(b.name)}</b> 蓋章！`); });
   }
   const ach = unlockedAchievements(rides);
-  ACHIEVEMENTS.forEach(a => { if (ach.has(a.id) && !prevAch.has(a.id)) msgs.push(`🏆 成就解鎖　<b>${a.icon} ${a.name}</b>`); });
+  ACHIEVEMENTS.forEach(a => { if (ach.has(a.id) && !prevAch.has(a.id)) msgs.push(`🏆 成就解鎖　<b>${escHtml(a.icon)} ${escHtml(a.name)}</b>`); });
   msgs.forEach((m, i) => setTimeout(() => showToast(m), i * 700));
 }
 // 收集章(明星/圖鑑/支線)的候選車:同類今日所有班次。點擊時當場算,才能每次挑不同的一班。
@@ -7412,7 +7417,10 @@ function setRideSortMode(m) {
 }
 // ── 護照共用 builder(Batch B:桌面 #passport 與護照 sheet #ridePanel 單一事實來源) ──
 // 章名折行:4 字以上折兩行塞進圓章(仿 mock「藍皮/解憂號」)
-function sealName(n) { return n.length >= 4 ? n.slice(0, Math.floor(n.length / 2)) + '<br>' + n.slice(Math.floor(n.length / 2)) : n; }
+function sealName(n) {
+  const s = String(n == null ? '' : n), mid = Math.floor(s.length / 2);
+  return s.length >= 4 ? escHtml(s.slice(0, mid)) + '<br>' + escHtml(s.slice(mid)) : escHtml(s);
+}
 // 收集章(明星列車/車種圖鑑/支線行腳):完成與否皆掛點擊鉤子→got 章也可點重播;桌面與 sheet 逐字相同
 function buildStamps(rides) {
   const sd = state.special;
@@ -7422,9 +7430,9 @@ function buildStamps(rides) {
   const stampRow = (label, cat, items) => {
     if (!items.length) return '';
     const got = items.filter(i => i.got).length;
-    return `<div class="ph-sec">${label}<b>${got}/${items.length}</b></div><div class="ph-stamps">` +
-      items.map(i => `<span class="seal${i.got ? '' : ' na'}" data-cat="${cat}" data-id="${i.id}"` +
-        ` title="${i.tip || ''}"><b>${sealName(i.name)}</b><small>${i.got ? '已收藏' : '點我重播'}</small></span>`).join('') + `</div>`;
+    return `<div class="ph-sec">${escHtml(label)}<b>${got}/${items.length}</b></div><div class="ph-stamps">` +
+      items.map(i => `<span class="seal${i.got ? '' : ' na'}" data-cat="${escHtml(cat)}" data-id="${escHtml(i.id)}"` +
+        ` title="${escHtml(i.tip)}"><b>${sealName(i.name)}</b><small>${i.got ? '已收藏' : '點我重播'}</small></span>`).join('') + `</div>`;
   };
   const named = sd.namedTrains.filter(n => n.trainNos.length).map(n => // 無固定車次的觀光列車搭不到,不列入收集
     ({ name: n.name, got: coll.named.has(n.id), id: n.id, tip: coll.named.has(n.id) ? n.story : MISS_TIP }));
@@ -7439,24 +7447,24 @@ function buildAchv(rides, style) {
   const ach = unlockedAchievements(rides);
   if (style === 'chip') {
     return `<div class="ph-sec">成就<b>${ach.size}/${ACHIEVEMENTS.length}</b></div><div class="achv-chips">` +
-      ACHIEVEMENTS.map(a => `<span class="achv-chip${ach.has(a.id) ? ' on' : ''}" title="${a.desc}">${a.icon} ${a.name}</span>`).join('') + `</div>`;
+      ACHIEVEMENTS.map(a => `<span class="achv-chip${ach.has(a.id) ? ' on' : ''}" title="${escHtml(a.desc)}">${escHtml(a.icon)} ${escHtml(a.name)}</span>`).join('') + `</div>`;
   }
   return `<div class="ph-sec">成就徽章<b>${ach.size}/${ACHIEVEMENTS.length}</b></div><div class="ph-stamps">` +
     ACHIEVEMENTS.map(a =>
-      `<span class="seal${ach.has(a.id) ? ' gold' : ' na'}" title="${a.desc}"><b>${sealName(a.name)}</b><small>${a.icon}</small></span>`).join('') + '</div>';
+      `<span class="seal${ach.has(a.id) ? ' gold' : ' na'}" title="${escHtml(a.desc)}"><b>${sealName(a.name)}</b><small>${escHtml(a.icon)}</small></span>`).join('') + '</div>';
 }
 // 完乘記錄列:桌面與 sheet 共用同一 markup,mode 決定排序(桌面隨排序鈕,sheet 固定 date 最新在前)
 function buildRideRows(rides, mode) {
   return sortRides(rides, mode).map(r =>
-    `<div class="ph-row"><span class="datestamp">${(r.date || '').slice(5).replace(/-/g, '.')}</span><b>${r.train}</b>` +
-    `<span class="k">${r.kind}</span><span class="r">${r.from}→${r.to}</span><span class="km">${r.km} km</span></div>`).join('');
+    `<div class="ph-row"><span class="datestamp">${escHtml((r.date || '').slice(5).replace(/-/g, '.'))}</span><b>${escHtml(r.train)}</b>` +
+    `<span class="k">${escHtml(r.kind)}</span><span class="r">${escHtml(r.from)}→${escHtml(r.to)}</span><span class="km">${escHtml(r.km)} km</span></div>`).join('');
 }
 function renderPassport() {
   const el = document.getElementById('passport');
   if (state.mode !== 'sched') { el.hidden = true; el.innerHTML = ''; return; }
   const rides = loadRides();
-  const totalKm = rides.reduce((a, r) => a + (r.km || 0), 0);
-  const longest = rides.reduce((a, r) => Math.max(a, r.km || 0), 0);
+  const totalKm = rides.reduce((a, r) => a + (Number(r.km) || 0), 0);
+  const longest = rides.reduce((a, r) => Math.max(a, Number(r.km) || 0), 0);
   // Batch B:收集章/成就/完乘列改走共用 builder(輸出與舊版逐字相同,桌面護照零變化)
   const rideSort = getRideSortMode();
   const stamps = buildStamps(rides) + buildAchv(rides, 'seal');
@@ -9856,7 +9864,7 @@ function renderBoard() {
   // 末班車提醒入口:台鐵/高鐵站限定(afr/捷運不顯示)、原生 App 才有;鈕必放 sticky h3 內(v0717p 鐵則)
   const showNotify = NOTIFY_LOCAL_ENABLED && (st.sys === 'tra_sched' || st.sys === 'thsr_sched');
   el.classList.toggle('has-notify', showNotify);
-  el.innerHTML = `<h3>${st.name}${sysName ? `<span class="sys-chip">${sysName}</span>` : ''}` +
+  el.innerHTML = `<h3>${escHtml(st.name)}${sysName ? `<span class="sys-chip">${sysName}</span>` : ''}` +
     (showNotify ? `<button class="board-notify" id="boardNotify" type="button" title="設定末班車提醒">🔔</button>` : '') +
     `<button class="board-star${fav ? ' on' : ''}" id="boardStar" title="${fav ? '移除最愛車站' : '加入最愛車站'}">${fav ? '★' : '☆'}</button>` +
     `<button class="close" id="boardClose">×</button></h3>` + stnMetaHtml(st) +
@@ -9934,7 +9942,7 @@ function renderFreqBoard(el, st, lines, isDeco) {
     if ((!isDeco && !state.visible.has(ln.id)) || !ln.stations || !ln._sysLabel || sysNames.includes(ln._sysLabel)) return;
     if (ln.stations.some(s => s.name.replace(/臺/g, '台') === key)) sysNames.push(ln._sysLabel);
   });
-  el.innerHTML = `<h3>${st.name}${sysNames.map(n => `<span class="sys-chip">${n}</span>`).join('')}` +
+  el.innerHTML = `<h3>${escHtml(st.name)}${sysNames.map(n => `<span class="sys-chip">${n}</span>`).join('')}` +
     `<button class="board-star${fav ? ' on' : ''}" id="boardStar" title="${fav ? '移除最愛車站' : '加入最愛車站'}">${fav ? '★' : '☆'}</button>` +
     `<button class="close" id="boardClose">×</button></h3>` + stnMetaHtml(st) +
     `<div class="sub">接下來的班車 · ${hasLive ? (allFresh ? '已依官方即時資訊校正' : '依稍早官方資料推估') : '依官方當日時刻表'} · 點班次跟隨${hasEstimated ? '（部分路線為班距推算）' : ''}</div>` +

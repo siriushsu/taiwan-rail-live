@@ -25,14 +25,37 @@ const MIME = { '.html': 'text/html', '.js': 'text/javascript', '.mjs': 'text/jav
 createServer(async (req, res) => {
   const url = new URL(req.url, 'http://x');
   if (url.pathname.startsWith('/api/')) {
-    const resp = await worker.fetch(new Request('https://localhost' + req.url), process.env); // https:worker 對 http 一律 301,本機直連要繞過
+    const method = req.method || 'GET';
+    const body = method === 'GET' || method === 'HEAD' ? undefined : await new Promise((resolve, reject) => {
+      const chunks = [];
+      req.on('data', chunk => chunks.push(chunk));
+      req.on('end', () => resolve(Buffer.concat(chunks)));
+      req.on('error', reject);
+    });
+    const resp = await worker.fetch(new Request('https://localhost' + req.url, { method, headers: req.headers, body }), process.env); // https:worker 對 http 一律 301,本機直連要繞過
     res.statusCode = resp.status;
     resp.headers.forEach((v, k) => res.setHeader(k, v));
     return res.end(Buffer.from(await resp.arrayBuffer()));
   }
-  let fp = path.join(ROOT, decodeURIComponent(url.pathname));
-  if (existsSync(fp) && statSync(fp).isDirectory()) fp = path.join(fp, 'index.html');
-  if (!path.resolve(fp).startsWith(ROOT) || !existsSync(fp)) { res.statusCode = 404; return res.end('not found'); }
-  res.setHeader('content-type', MIME[path.extname(fp)] || 'application/octet-stream');
+  let pathname;
+  try { pathname = decodeURIComponent(url.pathname); }
+  catch (e) { res.statusCode = 404; return res.end('not found'); }
+  const segments = pathname.split('/').filter(Boolean);
+  if (segments.some(seg => seg.startsWith('.'))) { res.statusCode = 404; return res.end('not found'); }
+
+  let fp = path.resolve(path.join(ROOT, pathname));
+  let rel = path.relative(ROOT, fp);
+  const outsideRoot = () => rel.startsWith('..') || path.isAbsolute(rel);
+  const firstSegment = () => rel.split(path.sep)[0];
+  if (outsideRoot() || firstSegment() === 'app' || firstSegment() === 'node_modules') {
+    res.statusCode = 404; return res.end('not found');
+  }
+  if (existsSync(fp) && statSync(fp).isDirectory()) {
+    fp = path.join(fp, 'index.html');
+    rel = path.relative(ROOT, fp);
+  }
+  const type = MIME[path.extname(fp)];
+  if (outsideRoot() || !type || !existsSync(fp)) { res.statusCode = 404; return res.end('not found'); }
+  res.setHeader('content-type', type);
   res.end(readFileSync(fp));
-}).listen(PORT, () => console.log(`dev server http://localhost:${PORT}`));
+}).listen(PORT, '127.0.0.1', () => console.log(`dev server http://127.0.0.1:${PORT}`));
