@@ -1138,7 +1138,7 @@
      舊寫法各自 top:8px 切「上緣」,但 .close 沒設 padding 而吃到瀏覽器 UA 預設按鈕 padding
      (chromium 1px 6px、webkit 2px 6px 3px),加上字級 17 vs 15,兩顆實測高度 17/19/22px 各異
      → 視覺中心 chromium 差 1.0px、webkit 差 2.5px;且手機 media query 當時只改了 .close 的 top。 */
-  .board .close, .board .board-star {
+  .board .close, .board .board-star, .board .board-notify {
     position: absolute; top: 8px; z-index: 2; width: 22px; height: 22px; padding: 0;
     display: flex; align-items: center; justify-content: center;
     background: none; border: 0; color: var(--on-navy); opacity: .8; cursor: pointer; line-height: 1;
@@ -1153,7 +1153,9 @@
   .board .close, .board .board-star { font-family: "PingFang TC", "Noto Sans TC", sans-serif; }
   .board .close { right: 9px; font-size: 28px; transform: translateY(-2.9px); }
   .board .board-star { right: 31px; font-size: 15px; }
-  .board .close:hover, .board .board-star:hover { opacity: 1; }
+  .board .board-notify { right: 53px; font-size: 15px; } /* 末班車提醒鈴鐺:排在 ☆ 左側 */
+  .board.has-notify h3 { padding-right: 78px; } /* 三顆鈕(×/☆/🔔)時多留右側空間,避免長站名壓到鈴鐺 */
+  .board .close:hover, .board .board-star:hover, .board .board-notify:hover { opacity: 1; }
   .board .board-star.on { color: #ffd977; opacity: 1; }
   /* 最愛車站的地圖 ★ 記號(掛站點上方一點;點了直接開該站看板) */
   .favst-ico { font-size: 15px; line-height: 16px; text-align: center; color: #d9a62e; cursor: pointer;
@@ -1487,6 +1489,22 @@
     color: var(--muted); font-size: 12px; font-weight: 800;
   }
   .notify-offsets input:checked + span { background: var(--navy); border-color: var(--navy); color: var(--on-navy); }
+  /* 開車前｜到達前 分段切換(每鈕 ≥44px);沿用 offset seg 的 navy 高亮 */
+  .notify-basis { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; }
+  .notify-basis button { min-height: 44px; border: 1.5px solid var(--line); border-radius: 8px; background: var(--paper); color: var(--muted); font: inherit; font-size: 12px; font-weight: 800; cursor: pointer; }
+  .notify-basis button.on { background: var(--navy); border-color: var(--navy); color: var(--on-navy); }
+  .notify-basis button:disabled { opacity: .4; cursor: not-allowed; }
+  /* 三檢視共用同一 modal:總覽模式只留清單、藏草稿表單;末班車模式藏基準切換 */
+  .notify-empty { display: none; padding: 12px 2px; color: var(--faint); font-size: 12.5px; }
+  .notify-modal[data-notify-view="overview"] .notify-train,
+  .notify-modal[data-notify-view="overview"] .notify-field,
+  .notify-modal[data-notify-view="overview"] .notify-preview,
+  .notify-modal[data-notify-view="overview"] .notify-permission,
+  .notify-modal[data-notify-view="overview"] .notify-primary { display: none; }
+  .notify-modal[data-notify-view="overview"] .notify-empty { display: block; }
+  .notify-modal[data-notify-view="overview"] .notify-list { border-top: 0; padding-top: 0; }
+  .notify-modal[data-notify-view="overview"] .notify-list > b { display: none; }
+  .notify-modal[data-notify-view="lasttrain"] #notifyBasisField { display: none; }
   .notify-walk { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 7px; }
   .notify-walk span { color: var(--muted); font-size: 12px; }
   .notify-preview { padding: 10px 12px; border: 1.5px dashed var(--line-dash); border-radius: 8px; color: var(--navy); font-size: 13px; font-weight: 800; line-height: 1.55; }
@@ -1760,6 +1778,7 @@
     .board h3 { border-radius: 13px 13px 0 0; padding-top: 12px; }
     .board .close { top: 11px; }
     .board .board-star { top: 11px; }
+    .board .board-notify { top: 11px; }
     .takeout-modal { padding: 8px; place-items: stretch; }
     .takeout-dialog { width: 100%; max-height: calc(100dvh - 16px); align-self: center; }
     .takeout-head { padding: 8px 10px 8px 14px; }
@@ -2172,8 +2191,9 @@ try { if (matchMedia('(max-width: 900px)').matches) document.body.classList.add(
       <section class="takeout-dialog notify-dialog" role="dialog" aria-modal="true" aria-labelledby="notifyTitle">
         <div class="takeout-head"><h2 id="notifyTitle">到站提醒</h2><button id="notifyClose" type="button">×</button></div>
         <div class="takeout-body notify-body">
-          <div class="notify-train"><span>車次</span><span class="notify-sys" id="notifySys"></span><span id="notifyTrain"></span></div>
-          <label class="notify-field"><span>提醒站點</span><select id="notifyStation"></select></label>
+          <div class="notify-train"><span id="notifyTrainLabel">車次</span><span class="notify-sys" id="notifySys"></span><span id="notifyTrain"></span></div>
+          <label class="notify-field"><span id="notifyStationLabel">提醒站點</span><select id="notifyStation"></select></label>
+          <div class="notify-field notify-basis-field" id="notifyBasisField"><span>提醒基準</span><div class="notify-basis" id="notifyBasis" role="group" aria-label="提醒基準"><button type="button" data-basis="dep">開車前</button><button type="button" data-basis="arr">到達前</button></div></div>
           <div class="notify-field"><span><span>提前</span><small class="notify-mode" id="notifyModeLabel">開車前</small></span><div class="notify-offsets" id="notifyOffsets">
             <label><input type="radio" name="notifyOffset" value="5"><span>5</span></label>
             <label><input type="radio" name="notifyOffset" value="10" checked><span>10</span></label>
@@ -2364,6 +2384,7 @@ try { if (matchMedia('(max-width: 900px)').matches) document.body.classList.add(
       <summary><span>🛠 更新紀錄</span><span class="foot-sub">最後更新：2026/7/21</span></summary>
       <ul class="foot-list">
         <li class="grp">最近更新</li>
+        <li><span class="d">7/21</span><span>到站提醒進化：中途站也能改用『抵達前』提醒、車站看板可設末班車提醒、更多選單新增『已排提醒』總覽。</span></li>
         <li><span class="d">7/21</span><span>App 新增「到站提醒」：收藏或跟隨的班車，開車前提前叫你，還能加上步行時間。</span></li>
         <li><span class="d">7/21</span><span>手機大改版：打開就是全螢幕地圖，亮點／護照／列車介紹都住進底部面板；新增「捷」分頁，北中高捷運一張圖同框；跟車後點資訊小卡展開完整介紹。</span></li>
         <li><span class="d">7/20</span><span>手機跟車時打開底部面板，跟隨鎖按鈕自動讓位不再擋住面板內容</span></li>
@@ -2420,6 +2441,7 @@ try { if (matchMedia('(max-width: 900px)').matches) document.body.classList.add(
         <li><span class="d">7/13</span><span>平交道加碼：補上台中港線等貨運線 21 處、卡片連點可切下一個、圖示改用台灣鐵路交叉標的牌面</span></li>
         <li><span class="d">7/12</span><span>新增平交道功能：點一下查接下來會通過的列車</span></li>
         <li class="grp">收藏、護照與成就</li>
+        <li><span class="d">7/21</span><span>到站提醒進化：中途站也能改用『抵達前』提醒、車站看板可設末班車提醒、更多選單新增『已排提醒』總覽。</span></li>
         <li><span class="d">7/21</span><span>App 新增「到站提醒」：收藏或跟隨的班車，開車前提前叫你，還能加上步行時間。</span></li>
         <li><span class="d">7/18</span><span>完乘記錄可以自選排序：日期／車次／距離／車種</span></li>
         <li><span class="d">7/18</span><span>山海平原成就門檻降為半圈，跟車面板加上環島完乘進度 %</span></li>
@@ -2541,6 +2563,8 @@ try { if (matchMedia('(max-width: 900px)').matches) document.body.classList.add(
     <button class="ms-row" data-act="cities"><span>縣 縣市快速移動</span><span class="chev">›</span></button>
     <div class="ms-cities" id="msCities" hidden></div>
     <div class="ms-sec">資訊</div>
+    <!-- 已排提醒總覽:NOTIFY_LOCAL_ENABLED 才留(旗標關時 setupLocalNotifications 移除,比照 locateBtn) -->
+    <button class="ms-row" data-act="notify" data-close="1"><span>🔔 已排提醒</span><span class="chev">›</span></button>
     <button class="ms-row" data-proxy="todayBtn" data-close="1"><span>今日台鐵動態</span><span class="chev">›</span></button>
     <!-- 全日班次走勢(Batch B):.flow 全日走勢圖的手機新家;點列把 #flowWrap 搬進下方 slot 並重繪,收合搬回原位 -->
     <button class="ms-row" data-act="flow"><span>全日班次走勢</span><span class="chev">›</span></button>
@@ -2569,7 +2593,7 @@ try { if (matchMedia('(max-width: 900px)').matches) document.body.classList.add(
 <script>
 // 版本戳記:每次改版 push 前手動遞增(字母序),畫面時鐘徽章與 console 都會顯示,
 // 供比對線上跑的是不是最新版(瀏覽器快取 max-age=600 常讓人看到舊版)
-const BUILD = 'v0721e';
+const BUILD = 'v0721f';
 // 手機/平板直式「殼」斷點(議題1:640→900,iPad 直式改拿 tabbar＋更多抽屜):與 CSS @media 同步,版面類判斷一律用此常數。
 // 注意:裝置等級判斷(keepBuffer/powerSave 預設)刻意不用此常數、維持 640——iPad 不該因為改拿 tabbar 就被當低階裝置。
 const MOBILE_MQ = '(max-width: 900px)';
@@ -8341,7 +8365,12 @@ function localNotifyNowEpoch() {
 function loadLocalReminders() {
   try {
     const value = JSON.parse(localStorage.getItem(LOCAL_REMINDER_KEY) || '[]');
-    return Array.isArray(value) ? value.filter(x => x && Number.isInteger(x.id) && Number.isFinite(x.fireAt)) : [];
+    if (!Array.isArray(value)) return [];
+    return value.filter(x => x && Number.isInteger(x.id) && Number.isFinite(x.fireAt)).map(x => {
+      // schema migration:舊項目無 basis 欄位→由既有 mode 推得(終點站 arr、其餘 dep),fireAt 完全不動(零位移)。
+      if (x.basis !== 'arr' && x.basis !== 'dep') x.basis = x.mode === 'arr' ? 'arr' : 'dep';
+      return x;
+    });
   } catch (e) { return []; }
 }
 function saveLocalReminders(items) {
@@ -8408,11 +8437,15 @@ function localReminderPermissionValue(value) {
 }
 function localReminderMatchDraft(item, draft) {
   if (!item || !draft) return false;
-  const stop = draft.stops.find(x => x.i === draft.stIndex);
-  return !!stop && item.sys === draft.sys && String(item.train) === String(draft.train) && item.stName === stop.s.name;
+  let stName;
+  if (draft.view === 'lasttrain') stName = draft.stName;
+  else { const stop = draft.stops.find(x => x.i === draft.stIndex); stName = stop && stop.s.name; }
+  return !!stName && item.sys === draft.sys && String(item.train) === String(draft.train) && item.stName === stName;
 }
 function localReminderBaseSecFor(draft, x) {
-  return x.i === draft.tr.stops.length - 1 ? x.s.arrSec : x.s.depSec;
+  // 終點站鎖「到達前」(arrSec);中途站依 draft.basis(預設 dep=開車前,可切 arr=到達前)。
+  const basis = x.i === draft.tr.stops.length - 1 ? 'arr' : (draft.basis === 'arr' ? 'arr' : 'dep');
+  return basis === 'arr' ? x.s.arrSec : x.s.depSec;
 }
 function localReminderFireAtFor(draft, x) {
   return localReminderServiceEpoch(draft.svcDate, localReminderBaseSecFor(draft, x))
@@ -8423,7 +8456,8 @@ function localReminderRecompute(draft) {
   const at = draft.stops.find(x => x.i === draft.stIndex) || draft.stops[0];
   if (!at) return null;
   const isLast = at.i === draft.tr.stops.length - 1;
-  draft.mode = isLast ? 'arr' : 'dep';
+  // 終點鎖 arr;中途站沿用使用者選的 basis(預設 dep)。mode=生效基準,payload 標題與 UI 皆讀它。
+  draft.mode = isLast ? 'arr' : (draft.basis === 'arr' ? 'arr' : 'dep');
   draft.baseSec = localReminderBaseSecFor(draft, at);
   draft.fireAt = localReminderFireAtFor(draft, at);
   draft.stName = at.s.name;
@@ -8435,7 +8469,7 @@ function localReminderPayload(item) {
   const delayMin = Math.max(0, Math.round(Number(item.snapshotDelaySec || 0) / 60));
   return {
     id: Number(item.id),
-    title: `${item.train} 次 ${item.stName} ${item.mode === 'arr' ? '抵達前' : '出發前'} ${leadMin} 分鐘`,
+    title: `${item.train} 次 ${item.stName} ${item.mode === 'arr' ? '抵達前' : '開車前'} ${leadMin} 分鐘`,
     body: `表定 ${localReminderHHMM(baseEpoch)}${delayMin > 0 ? `，排定時誤點 +${delayMin} 分` : ''}。開軌島看即時位置 →`,
     schedule: { at: new Date(Number(item.fireAt) * 1000) }
   };
@@ -8471,7 +8505,12 @@ function renderLocalReminderList() {
   const box = document.getElementById('notifyReminderList');
   if (!box) return;
   box.innerHTML = '';
-  for (const item of loadLocalReminders().sort((a, b) => a.fireAt - b.fireAt || a.id - b.id)) {
+  const all = loadLocalReminders().sort((a, b) => a.fireAt - b.fireAt || a.id - b.id);
+  if (!all.length) {
+    const empty = document.createElement('div'); empty.className = 'notify-empty'; empty.textContent = '還沒有排任何提醒';
+    box.appendChild(empty); return; // 空狀態:CSS 只在總覽模式顯示,一般模式沿用「無條目=空白」
+  }
+  for (const item of all) {
     const row = document.createElement('div'); row.className = 'notify-reminder-row';
     const main = document.createElement('span'); main.className = 'notify-reminder-main';
     main.textContent = `${reminderSysLabel(item.sys)} ${item.train} 次・${item.stName}・${localReminderHHMM(item.fireAt)}`;
@@ -8483,6 +8522,7 @@ function renderLocalReminderList() {
   }
 }
 function renderLocalReminderDraft() {
+  if (localReminderDraft && localReminderDraft.view === 'lasttrain') return renderLastTrainDraft();
   let draft = localReminderRecompute(localReminderDraft);
   if (!draft) return;
   // 來不及提醒的站淺色不可選（門檻與儲存時的攔截一致）；目前選擇來不及→跳到第一個來得及的站
@@ -8513,6 +8553,7 @@ function renderLocalReminderDraft() {
   document.querySelectorAll('input[name=notifyOffset]').forEach(r => { r.checked = Number(r.value) === draft.offsetMin; });
   document.getElementById('notifyWalk').value = draft.walkMin;
   document.getElementById('notifyModeLabel').textContent = draft.mode === 'arr' ? '到達前' : '開車前';
+  renderNotifyBasisToggle(draft); // 開車前｜到達前 分段切換:終點站鎖 arr(開車前 disabled)
   const delayMin = Math.max(0, Math.round(draft.snapshotDelaySec / 60));
   document.getElementById('notifyPreview').textContent = draft.stops.every(isLate)
     ? '這班車剩下的停靠站都來不及提醒了'
@@ -8523,12 +8564,108 @@ function renderLocalReminderDraft() {
   document.getElementById('notifySave').textContent = exists ? '更新提醒' : '設定提醒';
   renderLocalReminderList();
 }
+// 開車前｜到達前 分段切換的視覺狀態:終點站「開車前」不可選(鎖到達前),高亮=目前生效基準(draft.mode)。
+function renderNotifyBasisToggle(draft) {
+  const box = document.getElementById('notifyBasis');
+  if (!box || !draft) return;
+  const at = draft.stops && (draft.stops.find(x => x.i === draft.stIndex) || draft.stops[0]);
+  const isLast = !!at && draft.tr && at.i === draft.tr.stops.length - 1;
+  box.querySelectorAll('button').forEach(b => {
+    b.disabled = isLast && b.dataset.basis === 'dep'; // 終點站沒有「開車前」語意
+    b.classList.toggle('on', b.dataset.basis === draft.mode);
+  });
+}
+// ── 末班車模式:站名固定、下拉改列該站今日最後 5 班停靠班次(晚→早);選定後即一般提醒(basis=dep)。 ──
+function lastTrainCandidates(st) {
+  const sysId = st && st.sys; // 'tra_sched' | 'thsr_sched'
+  const system = state.systems.find(s => s.id === sysId);
+  if (!system) return [];
+  const key = String(st.name).replace(/臺/g, '台');
+  const out = [];
+  for (const tr of (system.data.trains || [])) {
+    const stops = tr.stops || [];
+    for (let i = 0; i < stops.length; i++) {
+      const s = stops[i];
+      if (!s || s.stop === false) continue;
+      if (String(s.name).replace(/臺/g, '台') !== key) continue;
+      if (!Number.isFinite(s.arrSec) || !Number.isFinite(s.depSec)) break; // 該站無有效時刻
+      if (i === stops.length - 1) break; // 終點站(到站不發車),末班「開車」語意不適用(比照看板 9664)
+      out.push({ tr, i, s, depSec: s.depSec, dest: stops[stops.length - 1].name });
+      break; // 一般車一站停一次,取第一次停靠
+    }
+  }
+  out.sort((a, b) => b.depSec - a.depSec); // 時間晚→早(跨日 depSec>86400 自然排在最前)
+  return out.slice(0, 5);
+}
+function lastTrainCandFireAt(draft, c) {
+  return localReminderServiceEpoch(draft.svcDate, c.s.depSec) + c.delay - (draft.offsetMin + draft.walkMin) * 60;
+}
+function lastTrainRecompute(draft) {
+  if (!draft) return null;
+  const c = draft.cands[draft.candIndex] || draft.cands[0];
+  if (!c) return null;
+  draft.tr = c.tr; draft.train = String(c.tr.train);
+  draft.mode = 'dep'; draft.basis = 'dep'; draft.baseSec = c.s.depSec; draft.snapshotDelaySec = c.delay;
+  draft.fireAt = lastTrainCandFireAt(draft, c);
+  return draft;
+}
+function renderLastTrainDraft() {
+  const draft = lastTrainRecompute(localReminderDraft);
+  if (!draft) return;
+  const nowE = localNotifyNowEpoch();
+  const isLate = c => lastTrainCandFireAt(draft, c) <= nowE + 60;
+  const cur = draft.cands[draft.candIndex];
+  if (!cur || isLate(cur)) { // 目前選擇來不及→跳到第一個來得及(比照 v0721e)
+    const okIdx = draft.cands.findIndex(c => !isLate(c));
+    if (okIdx >= 0 && okIdx !== draft.candIndex) { draft.candIndex = okIdx; lastTrainRecompute(draft); }
+  }
+  const modal = document.getElementById('notifyModal');
+  modal.dataset.notifyBaseSec = String(draft.baseSec);
+  modal.dataset.notifyServiceEpoch = String(localReminderServiceEpoch(draft.svcDate, 0));
+  modal.dataset.notifySnapshotDelaySec = String(draft.snapshotDelaySec);
+  modal.dataset.notifyOffsetMin = String(draft.offsetMin);
+  modal.dataset.notifyWalkMin = String(draft.walkMin);
+  modal.dataset.notifyFireAt = String(draft.fireAt);
+  document.getElementById('notifyTrainLabel').textContent = '車站';
+  document.getElementById('notifySys').textContent = reminderSysLabel(draft.sys);
+  document.getElementById('notifyTrain').textContent = draft.stName;
+  document.getElementById('notifyStationLabel').textContent = '末班車次';
+  const select = document.getElementById('notifyStation');
+  select.innerHTML = '';
+  draft.cands.forEach((c, idx) => {
+    const o = document.createElement('option');
+    o.value = idx;
+    o.textContent = `${c.tr.train} 往${c.dest} ${localReminderHHMM(localReminderServiceEpoch(draft.svcDate, c.s.depSec))}`;
+    o.disabled = isLate(c);
+    select.appendChild(o);
+  });
+  select.value = String(draft.candIndex);
+  document.querySelectorAll('input[name=notifyOffset]').forEach(r => { r.checked = Number(r.value) === draft.offsetMin; });
+  document.getElementById('notifyWalk').value = draft.walkMin;
+  document.getElementById('notifyModeLabel').textContent = '開車前';
+  const delayMin = Math.max(0, Math.round(draft.snapshotDelaySec / 60));
+  document.getElementById('notifyPreview').textContent = draft.cands.every(isLate)
+    ? '今天的末班車已經開走了'
+    : delayMin > 0
+      ? `將於 ${localReminderHHMM(draft.fireAt)} 提醒你（以目前誤點 +${delayMin} 分計）`
+      : `將於 ${localReminderHHMM(draft.fireAt)} 提醒你（依表定時刻）`;
+  const exists = loadLocalReminders().some(x => localReminderMatchDraft(x, draft));
+  document.getElementById('notifySave').textContent = exists ? '更新提醒' : '設定提醒';
+  if (window.__notifyMockLog) modal.dataset.notifyLastTrain = JSON.stringify( // 測試用:曝露候選時刻供腳本控時鐘
+    draft.cands.map((c, idx) => ({ idx, train: String(c.tr.train), depEpoch: localReminderServiceEpoch(draft.svcDate, c.s.depSec), fireAt: lastTrainCandFireAt(draft, c), disabled: isLate(c) })));
+  renderLocalReminderList();
+}
+function localReminderRecomputeAny(draft) {
+  if (!draft) return null;
+  return draft.view === 'lasttrain' ? lastTrainRecompute(draft) : localReminderRecompute(draft);
+}
 function applyStoredLocalReminderSettings() {
   const draft = localReminderDraft;
   const item = loadLocalReminders().find(x => localReminderMatchDraft(x, draft));
   if (!item) return;
   draft.offsetMin = Number(item.offsetMin) || 10;
   draft.walkMin = Math.max(0, Math.min(60, Number(item.walkMin) || 0));
+  if ((item.basis === 'arr' || item.basis === 'dep') && draft.view !== 'lasttrain') draft.basis = item.basis;
 }
 async function refreshLocalReminderPermission(draft) {
   try {
@@ -8551,15 +8688,55 @@ async function openLocalReminderSheet(tr, source) {
   if (!stops.length) { showToast('這班車今天已經跑完了'); return; }
   const chosen = stops[0];
   localReminderDraft = {
-    tr, stops, stIndex: chosen.i, sys: reminderSysOf(tr), train: String(tr.train), svcDate: todayStr('Asia/Taipei'),
-    offsetMin: 10, walkMin: loadLocalReminderWalk(), snapshotDelaySec
+    view: 'normal', tr, stops, stIndex: chosen.i, sys: reminderSysOf(tr), train: String(tr.train), svcDate: todayStr('Asia/Taipei'),
+    offsetMin: 10, walkMin: loadLocalReminderWalk(), snapshotDelaySec, basis: 'dep'
   };
   applyStoredLocalReminderSettings();
+  setNotifyView('normal');
   document.getElementById('notifyPermission').hidden = true;
   document.getElementById('notifyPrimer').hidden = true;
   document.getElementById('notifyModal').hidden = false;
   renderLocalReminderDraft();
   await refreshLocalReminderPermission(localReminderDraft);
+}
+// 三種檢視共用同一個 modal:normal(跟車/收藏)、lasttrain(車站看板末班車)、overview(更多抽屜總覽)。
+function setNotifyView(view) {
+  const modal = document.getElementById('notifyModal');
+  modal.dataset.notifyView = view;
+  document.getElementById('notifyTitle').textContent = view === 'overview' ? '已排提醒' : view === 'lasttrain' ? '末班車提醒' : '到站提醒';
+  const trainLabel = document.getElementById('notifyTrainLabel'), stLabel = document.getElementById('notifyStationLabel');
+  if (view === 'normal') { if (trainLabel) trainLabel.textContent = '車次'; if (stLabel) stLabel.textContent = '提醒站點'; }
+}
+async function openLastTrainReminderSheet(st) {
+  if (!NOTIFY_LOCAL_ENABLED) return;
+  const sys = st && st.sys === 'thsr_sched' ? 'thsr' : st && st.sys === 'tra_sched' ? 'tra' : null;
+  if (!sys) return; // 台鐵／高鐵站限定,捷運／輕軌不進此路徑
+  const cands = lastTrainCandidates(st);
+  if (!cands.length) { showToast('今天的末班車已經開走了'); return; }
+  for (const c of cands) c.delay = localReminderDelaySnapshot(c.tr); // 各班誤點快照,設定當下凍結
+  localReminderDraft = {
+    view: 'lasttrain', cands, candIndex: 0, sys, stName: st.name,
+    offsetMin: 10, walkMin: loadLocalReminderWalk(), snapshotDelaySec: cands[0].delay,
+    svcDate: todayStr('Asia/Taipei'), basis: 'dep'
+  };
+  const nowE = localNotifyNowEpoch();
+  const okIdx = cands.findIndex(c => lastTrainCandFireAt(localReminderDraft, c) > nowE + 60);
+  if (okIdx < 0) showToast('今天的末班車已經開走了'); else localReminderDraft.candIndex = okIdx;
+  setNotifyView('lasttrain');
+  document.getElementById('notifyPermission').hidden = true;
+  document.getElementById('notifyPrimer').hidden = true;
+  document.getElementById('notifyModal').hidden = false;
+  renderLastTrainDraft();
+  await refreshLocalReminderPermission(localReminderDraft);
+}
+function openLocalReminderOverview() {
+  if (!NOTIFY_LOCAL_ENABLED) return;
+  localReminderDraft = null; // 總覽只讀清單,不帶草稿
+  setNotifyView('overview');
+  document.getElementById('notifyPermission').hidden = true;
+  document.getElementById('notifyPrimer').hidden = true;
+  document.getElementById('notifyModal').hidden = false;
+  renderLocalReminderList();
 }
 function closeLocalReminderSheet() {
   document.getElementById('notifyPrimer').hidden = true;
@@ -8567,11 +8744,11 @@ function closeLocalReminderSheet() {
   localReminderDraft = null;
 }
 async function commitLocalReminderDraft() {
-  const draft = localReminderRecompute(localReminderDraft); if (!draft) return;
+  const draft = localReminderRecomputeAny(localReminderDraft); if (!draft) return;
   let items = loadLocalReminders();
   const at = items.findIndex(x => localReminderMatchDraft(x, draft));
   const item = {
-    id: at >= 0 ? items[at].id : nextLocalReminderId(), sys: draft.sys, train: draft.train, stName: draft.stName, mode: draft.mode,
+    id: at >= 0 ? items[at].id : nextLocalReminderId(), sys: draft.sys, train: draft.train, stName: draft.stName, mode: draft.mode, basis: draft.mode,
     offsetMin: draft.offsetMin, walkMin: draft.walkMin, fireAt: Math.round(draft.fireAt), snapshotDelaySec: draft.snapshotDelaySec,
     svcDate: draft.svcDate, state: 'scheduled'
   };
@@ -8586,7 +8763,7 @@ async function commitLocalReminderDraft() {
   renderLocalReminderDraft();
 }
 async function requestLocalReminderSave() {
-  const draft = localReminderRecompute(localReminderDraft); if (!draft) return;
+  const draft = localReminderRecomputeAny(localReminderDraft); if (!draft) return;
   if (draft.fireAt <= localNotifyNowEpoch() + 60) { showToast('太接近發車時間，來不及提醒'); return; }
   const permission = await refreshLocalReminderPermission(draft);
   if (permission === 'denied') return;
@@ -8604,7 +8781,11 @@ async function confirmLocalReminderPrimer() {
 }
 async function setupLocalNotifications() {
   const fp = document.getElementById('fpNotify');
-  if (!NOTIFY_LOCAL_ENABLED) { if (fp) fp.remove(); return; }
+  if (!NOTIFY_LOCAL_ENABLED) {
+    if (fp) fp.remove();
+    const row = document.querySelector('.ms-row[data-act="notify"]'); if (row) row.remove(); // 旗標關:更多抽屜「已排提醒」列一併移除(比照 locateBtn)
+    return;
+  }
   fp.style.display = 'none';
   fp.onclick = e => { e.stopPropagation(); openLocalReminderSheet(state.followTrain, 'follow'); };
   document.getElementById('notifyClose').onclick = closeLocalReminderSheet;
@@ -8613,7 +8794,16 @@ async function setupLocalNotifications() {
   document.getElementById('notifyPrimerLater').onclick = () => { document.getElementById('notifyPrimer').hidden = true; };
   document.getElementById('notifyStation').onchange = e => {
     if (!localReminderDraft) return;
+    if (localReminderDraft.view === 'lasttrain') { // 末班車模式:下拉是班次,不是站點
+      localReminderDraft.candIndex = Number(e.target.value); lastTrainRecompute(localReminderDraft); applyStoredLocalReminderSettings(); renderLastTrainDraft(); return;
+    }
     localReminderDraft.stIndex = Number(e.target.value); applyStoredLocalReminderSettings(); renderLocalReminderDraft();
+  };
+  document.getElementById('notifyBasis').onclick = e => { // 開車前｜到達前 分段切換(僅一般模式)
+    const btn = e.target.closest('button[data-basis]');
+    if (!btn || btn.disabled || !localReminderDraft || localReminderDraft.view === 'lasttrain') return;
+    localReminderDraft.basis = btn.dataset.basis === 'arr' ? 'arr' : 'dep';
+    renderLocalReminderDraft(); // 重算 disabled 集合;若當前站在新基準下變 disabled 會自動跳到第一個合法站
   };
   document.getElementById('notifyOffsets').onchange = e => {
     if (!localReminderDraft || e.target.name !== 'notifyOffset') return;
@@ -8629,7 +8819,10 @@ async function setupLocalNotifications() {
   if (window.__notifyMockLog) window.__localNotifyTest = {
     sync: syncLocalReminders, load: loadLocalReminders, save: saveLocalReminders,
     serviceEpoch: localReminderServiceEpoch, payload: localReminderPayload,
-    open: (no, sys, source) => openLocalReminderSheet(findLocalReminderTrain(no, sys), source || 'favorite')
+    open: (no, sys, source) => openLocalReminderSheet(findLocalReminderTrain(no, sys), source || 'favorite'),
+    lastTrain: (name, sys) => openLastTrainReminderSheet({ name, sys }),
+    overview: () => openLocalReminderOverview(),
+    lastTrainCands: (name, sys) => lastTrainCandidates({ name, sys }).map(c => ({ train: String(c.tr.train), depSec: c.s.depSec, dest: c.dest }))
   };
   const mockOpts = window.__notifyMockOptions;
   if (mockOpts && mockOpts.reset) {
@@ -9619,7 +9812,11 @@ function renderBoard() {
   const fav = isFavStation(st);
   // 共構站(台北/板橋/南港…)台鐵/高鐵各自成板,標題標系統才分得清這張是誰的
   const sysName = (state.systems.find(x => x.id === st.sys) || {}).label || '';
+  // 末班車提醒入口:台鐵/高鐵站限定(afr/捷運不顯示)、原生 App 才有;鈕必放 sticky h3 內(v0717p 鐵則)
+  const showNotify = NOTIFY_LOCAL_ENABLED && (st.sys === 'tra_sched' || st.sys === 'thsr_sched');
+  el.classList.toggle('has-notify', showNotify);
   el.innerHTML = `<h3>${st.name}${sysName ? `<span class="sys-chip">${sysName}</span>` : ''}` +
+    (showNotify ? `<button class="board-notify" id="boardNotify" type="button" title="設定末班車提醒">🔔</button>` : '') +
     `<button class="board-star${fav ? ' on' : ''}" id="boardStar" title="${fav ? '移除最愛車站' : '加入最愛車站'}">${fav ? '★' : '☆'}</button>` +
     `<button class="close" id="boardClose">×</button></h3>` + stnMetaHtml(st) +
     // 林鐵站不可沿用台鐵誤點文案:群組視圖 liveActive 為真(台鐵 live 在場)但林鐵根本無即時介接,
@@ -9630,6 +9827,7 @@ function renderBoard() {
   updateSheetOpenClass();
   el.querySelector('#boardClose').onclick = closeBoard;
   el.querySelector('#boardStar').onclick = () => toggleFavStation(st);
+  if (showNotify) { const nb = el.querySelector('#boardNotify'); if (nb) nb.onclick = e => { e.stopPropagation(); openLastTrainReminderSheet(st); }; }
   // 點任一班次列 → 關看板、跟隨該車。
   // 看板每 20 模擬秒重繪(高倍速=不到半秒),按下到放開之間列可能被換掉、click 目標變成容器,
   // 所以 pointerdown 先把車次記在持久的 el 上,click 撈不到列時用記下的補。
@@ -9920,6 +10118,8 @@ function setupMapTools() {
     if (chip) { flyToCity(chip.dataset.city); setMore(false); return; }
     const row = e.target.closest('.ms-row'); if (!row) return;
     if (row.dataset.act === 'track') { setMore(false); openTrackPanel(); return; }
+    if (row.dataset.act === 'notify') { setMore(false); openLocalReminderOverview(); return; } // 已排提醒總覽
+
     if (row.dataset.act === 'cities') { buildMsCities(); const g = document.getElementById('msCities'); const ch = row.querySelector('.chev'); g.hidden = !g.hidden; if (ch) ch.textContent = g.hidden ? '›' : '⌄'; return; }
     if (row.dataset.act === 'flow') { toggleMsFlow(); return; }
     const btn = row.dataset.proxy && document.getElementById(row.dataset.proxy); if (!btn) return;
