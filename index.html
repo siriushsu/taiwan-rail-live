@@ -923,13 +923,13 @@
   body.fs header { display: none; }
   body.fs .stage {
     position: fixed; inset: 0; z-index: 1000;
-    height: 100vh; max-height: none; min-height: 0;
+    height: 100vh; height: 100dvh; max-height: none; min-height: 0; /* iOS Safari 有網址列時 100vh>可視視口→貼底 absolute 面板沉到 tab bar 後;dvh 追視覺視口(舊瀏覽器退回 100vh) */
     border: 0; border-radius: 0;
   }
   /* fs 的 stage 滿版蓋到瀏海(沉浸式刻意),但退出鈕要讓位動態島 */
   body.fs #fsFab { top: calc(12px + env(safe-area-inset-top, 0px)); }
   /* 全畫面跟隨:資訊卡塞進左下跟隨面板,合併成一張可收放的卡(placeTrainCard 搬 DOM) */
-  body.fs .follow-panel { width: 300px; max-height: calc(100vh - 160px); }
+  body.fs .follow-panel { width: 300px; max-height: calc(100vh - 160px); max-height: calc(100dvh - 160px); }
   body.fs .follow-panel.fp-min { width: auto; }
   body.fs .follow-panel .traincard {
     position: static; width: auto; margin: 9px -13px -11px; padding: 9px 13px 10px;
@@ -1078,6 +1078,12 @@
     color: var(--warn-ink); font-weight: 800; font-size: 10.5px; margin-left: 4px;
     background: var(--warn-bg); border: 1px solid var(--warn-line); border-radius: 3px;
     padding: 0 4px 1px; white-space: nowrap;
+  }
+  /* 準點標(lateTag 的 ok 版:同結構、綠框透明底,亮暗雙主題安全) */
+  .okTag {
+    color: var(--ok); font-weight: 800; font-size: 10.5px; margin-left: 4px;
+    background: none; border: 1px solid var(--ok); border-radius: 3px;
+    padding: 0 4px 1px; white-space: nowrap; opacity: .9;
   }
 
   /* ── 點擊歧義小選單(tap-pick):列車停靠中壓住車站時,貼點擊處彈兩列讓使用者選車或站 ── */
@@ -1623,6 +1629,9 @@
 
   /* ── 手機／平板直式殼(議題1主案:上限 640→900;iPad 直式 768 改拿 tab bar＋「更多」抽屜＋速度膠囊,不再吃桌面帶) ── */
   @media (max-width: 900px) {
+    /* 底錨面板統一避讓基準:fixed tab bar 實高(58px)＋iOS 安全區(有瀏海才 >0);所有貼底表面以此為基準讓位,
+       改一處全體同步。原本各自寫死的 66/64/68px 就是 58+讓位間距,改成 var+間距後計算值不變(桌面 var 未定義故不影響)。 */
+    :root { --tabbar-clear: calc(58px + env(safe-area-inset-bottom, 0px)); }
     .wrap { padding: 8px 10px calc(70px + env(safe-area-inset-bottom, 0px)); }
     /* 手機 header 收斂(mock §04-A):牌＋頁籤同列、導言藏、頁籤單列橫捲——省出地圖高度 */
     .header-row { gap: 8px; padding-bottom: 6px; }
@@ -1764,8 +1773,10 @@
     /* 手機看板是底部 sheet:取消桌面版「讓到公告下方」的頂緣定位 */
     .alert-banner:not([hidden]) ~ .board { top: auto; max-height: 46%; }
     /* 手機資訊卡整體縮小:卡寬與字級圖示全面降一級;底部讓開速度膠囊 */
-    .follow-panel { left: 8px; bottom: 60px; width: 176px; padding: 8px 10px 9px; }
-    .freq-card { left: 8px; bottom: 60px; width: 176px; padding: 8px 10px 9px; }
+    /* 貼底小卡讓開 tab bar:原 60px 無 env,瀏海機(env≈34)tab bar 高 92px 會蓋住小卡下緣(真機回報病灶)。
+       改 var+2px:非瀏海機 env=0 仍為 60px(零變化),瀏海機 60+env 抬到 tab bar 上緣。 */
+    .follow-panel { left: 8px; bottom: calc(var(--tabbar-clear) + 2px); width: 176px; padding: 8px 10px 9px; }
+    .freq-card { left: 8px; bottom: calc(var(--tabbar-clear) + 2px); width: 176px; padding: 8px 10px 9px; }
     .follow-panel .fp-head { gap: 6px; }
     .follow-panel .fp-head .dot { width: 7px; height: 7px; }
     .follow-panel .fp-head b { font-size: 13px; }
@@ -1789,8 +1800,8 @@
        原 dh-open 個案已拆除。 */
     body.sheet-open .controls, body.sheet-open .leaflet-control-attribution, body.sheet-open .follow-lock-ctl { opacity: 0; pointer-events: none; }
     /* 全畫面時 stage 佔滿視窗:底部 sheet(與其上讓位的跟隨小卡)要再讓開 fixed tab bar(58px+safe-area) */
-    body.fs .board { bottom: calc(66px + env(safe-area-inset-bottom, 0px)); }
-    body.fs.sheet-open .follow-panel, body.fs.sheet-open .freq-card { bottom: calc(46% + 82px + env(safe-area-inset-bottom, 0px)) !important; }
+    body.fs .board { bottom: calc(var(--tabbar-clear) + 8px); } /* =58+8+env=原 66+env */
+    body.fs.sheet-open .follow-panel, body.fs.sheet-open .freq-card { bottom: calc(46% + var(--tabbar-clear) + 24px) !important; } /* =46%+58+24+env=原 46%+82+env(板讓位 66+小卡間距 16) */
     .traincard { padding: 11px 13px 12px; }
     .traincard .tc-body { grid-template-columns: 1fr; }
     .traincard .tc-events { margin-top: 4px; border-left: 0; padding-left: 0; }
@@ -1800,7 +1811,7 @@
     /* ── 「列車」sheet(手機 fs):#trainCard 就地升為底部 sheet,不搬 DOM;tc-head sticky 標題列(☆＋✕) ── */
     .traincard.tc-sheet {
       position: fixed; left: 8px; right: 8px; top: auto;
-      bottom: calc(66px + env(safe-area-inset-bottom, 0px));
+      bottom: calc(var(--tabbar-clear) + 8px); /* =原 66+env */
       width: auto; margin: 0; max-height: 46%;
       overflow-y: auto; overscroll-behavior: contain; /* 契約④:內容捲動只在 sheet 內 */
       border-radius: 14px 14px 10px 10px; padding: 0 14px 12px; z-index: 1105;
@@ -1812,6 +1823,17 @@
       margin: 0 -14px 8px; padding: 14px 14px 8px;
       background: var(--paper); border-bottom: 1.5px dashed var(--line-dash);
     }
+    /* sheet 態 tc-head 內第二列:即時遙測(時速·下一站+倒數·誤點/準點),隨 sticky 標題常駐;
+       flex:0 0 100% 在 flex-wrap 的 tc-head 內自成一列。[hidden] 是 display:none !important(第 83 行 reset),
+       故此處 display 也要 !important 才蓋得過——同為 important 時較高特異性(0,4,0>0,1,0)勝出;
+       非 sheet 的桌面併卡不套此選擇器→維持 [hidden] 隱藏。 */
+    .traincard.tc-sheet .tc-head .tc-live {
+      display: flex !important; flex: 0 0 100%; align-items: center; flex-wrap: wrap; gap: 3px 10px;
+      margin-top: 7px; padding-top: 7px; border-top: 1px dashed var(--line-faint);
+      font-size: 12px; color: var(--faint);
+    }
+    .traincard.tc-sheet .tc-head .tl-spd b { font-size: 15px; font-weight: 900; color: var(--ink-strong); }
+    .traincard.tc-sheet .tc-head .tl-next { font-weight: 800; color: var(--navy); }
     .traincard.tc-sheet .tc-tt { display: none; } /* 曲線/時刻表切換鈕:sheet 內兩段皆常駐展開,不需切換 */
     .traincard.tc-sheet .tc-x {
       display: flex; align-items: center; justify-content: center; align-self: center;
@@ -1830,7 +1852,7 @@
     /* 契約③:任一 sheet 展開到 88%(body.sheet-full)時,跟隨小卡與速度膠囊全部淡出(46% 讓位規則沿用既有 sheet-open) */
     body.sheet-full .follow-panel, body.sheet-full .freq-card { opacity: 0; pointer-events: none; }
     /* 全畫面:tab bar 疊在地圖上,底欄元素上移讓開 */
-    body.fs .leaflet-bottom.leaflet-right { bottom: calc(64px + env(safe-area-inset-bottom, 0px)); }
+    body.fs .leaflet-bottom.leaflet-right { bottom: calc(var(--tabbar-clear) + 6px); } /* =原 64+env */
     body.fs .follow-panel, body.fs .freq-card { width: 176px; }
 
     /* ── 手機速度控制膠囊(≤900 一律;非放空非直播;桌面完全不變) ──
@@ -1851,7 +1873,7 @@
       content: ''; position: absolute; left: 50%; top: 50%;
       width: 100%; height: max(100%, 44px); transform: translate(-50%, -50%); z-index: -2;
     }
-    body.fs:not(.ambient):not(.live):not(.cexp) .controls { bottom: calc(68px + env(safe-area-inset-bottom, 0px)); }
+    body.fs:not(.ambient):not(.live):not(.cexp) .controls { bottom: calc(var(--tabbar-clear) + 10px); } /* =原 68+env */
     body:not(.ambient):not(.live):not(.cexp) .controls #ppTxt,
     body:not(.ambient):not(.live):not(.cexp) .controls .speedrail,
     body:not(.ambient):not(.live):not(.cexp) .controls .band-div,
@@ -1879,7 +1901,7 @@
       left: 8px; right: 8px; bottom: 8px; transform: none;
       flex-wrap: wrap; overflow: visible; padding: 8px 12px;
     }
-    body.fs.cexp .controls { bottom: calc(66px + env(safe-area-inset-bottom, 0px)); }
+    body.fs.cexp .controls { bottom: calc(var(--tabbar-clear) + 8px); } /* =原 66+env */
     body.cexp .controls .stage-tools { display: none; } /* 工具住「更多」sheet,展開帶只留播放/速度/時間 */
     body.cexp .controls .speedrail { width: min(250px, calc(100vw - 150px)); }
     /* 放空模式(手機):看戲不操作——控制列只留「離開放空」一顆,tab bar 也收 */
@@ -2299,6 +2321,12 @@ try { if (matchMedia('(max-width: 900px)').matches) document.body.classList.add(
       <button class="tc-tt" id="tcTT">時刻表 ▾</button>
       <button class="tc-star" id="tcStar" title="加入最愛">☆</button>
       <button class="tc-x" id="tcSheetClose" title="關閉列車卡（跟車不中斷）">✕</button>
+      <!-- 「列車」sheet 專屬即時遙測列(鏡射跟隨小卡的時速/下一站/誤點;小卡此時隱藏故資訊不損失)。sheet 態才由 CSS 顯示、train-open 時才寫入 -->
+      <div class="tc-live" id="tcLive" hidden>
+        <span class="num tl-spd" id="tcLiveSpd"></span>
+        <span class="tl-next" id="tcLiveNext"></span>
+        <span class="tl-delay" id="tcLiveDelay"></span>
+      </div>
     </div>
     <div class="tc-body">
       <div class="tc-intro" id="tcIntro"></div>
@@ -2337,7 +2365,7 @@ try { if (matchMedia('(max-width: 900px)').matches) document.body.classList.add(
       <ul class="foot-list">
         <li class="grp">最近更新</li>
         <li><span class="d">7/21</span><span>App 新增「到站提醒」：收藏或跟隨的班車，開車前提前叫你，還能加上步行時間。</span></li>
-        <li><span class="d">7/21</span><span>手機大改版：打開就是全螢幕地圖，亮點／護照／列車介紹都住進底部面板；新增「捷」分頁，北中高捷運一張圖同框。</span></li>
+        <li><span class="d">7/21</span><span>手機大改版：打開就是全螢幕地圖，亮點／護照／列車介紹都住進底部面板；新增「捷」分頁，北中高捷運一張圖同框；跟車後點資訊小卡展開完整介紹。</span></li>
         <li><span class="d">7/20</span><span>手機跟車時打開底部面板，跟隨鎖按鈕自動讓位不再擋住面板內容</span></li>
         <li><span class="d">7/20</span><span>更新紀錄改版：改成依主題分類，同一個功能修過好幾次的併成一條，並整理出「曾經上線、後來拿掉」的功能</span></li>
         <li><span class="d">7/19</span><span>阿里山森林鐵路上線；沼平／神木線白天班次補齊；林鐵列車介紹卡與台糖五分車景點標記</span></li>
@@ -2400,7 +2428,7 @@ try { if (matchMedia('(max-width: 900px)').matches) document.body.classList.add(
         <li><span class="d">7/11</span><span>今日之最的列車在地圖上加繪金色漣漪光環</span></li>
         <li><span class="d">7/9</span><span>旅程護照與 16 枚成就徽章、「探」今日亮點面板上線</span></li>
         <li class="grp">手機與操作</li>
-        <li><span class="d">7/21</span><span>手機大改版：打開就是全螢幕地圖，亮點／護照／列車介紹都住進底部面板；新增「捷」分頁，北中高捷運一張圖同框。</span></li>
+        <li><span class="d">7/21</span><span>手機大改版：打開就是全螢幕地圖，亮點／護照／列車介紹都住進底部面板；新增「捷」分頁，北中高捷運一張圖同框；跟車後點資訊小卡展開完整介紹。</span></li>
         <li><span class="d">7/20</span><span>手機跟車時打開任何底部面板（看板、收藏、旅程、探索、軌道、今日動態），跟隨鎖按鈕自動讓位，不再浮在面板上擋住內容</span></li>
         <li><span class="d">7/18</span><span>iPad 直式與中等寬度的視窗改用手機版底部工具列，桌面工具列同步瘦身，按鈕不再擠到畫面外</span></li>
         <li><span class="d">7/18</span><span>播放、隨機跟隨、速度控制等按鈕的可點範圍放寬（外觀不變），並支援鍵盤與旁白操作</span></li>
@@ -2541,7 +2569,7 @@ try { if (matchMedia('(max-width: 900px)').matches) document.body.classList.add(
 <script>
 // 版本戳記:每次改版 push 前手動遞增(字母序),畫面時鐘徽章與 console 都會顯示,
 // 供比對線上跑的是不是最新版(瀏覽器快取 max-age=600 常讓人看到舊版)
-const BUILD = 'v0721b';
+const BUILD = 'v0721e';
 // 手機/平板直式「殼」斷點(議題1:640→900,iPad 直式改拿 tabbar＋更多抽屜):與 CSS @media 同步,版面類判斷一律用此常數。
 // 注意:裝置等級判斷(keepBuffer/powerSave 預設)刻意不用此常數、維持 640——iPad 不該因為改拿 tabbar 就被當低階裝置。
 const MOBILE_MQ = '(max-width: 900px)';
@@ -5957,6 +5985,7 @@ function setFollow(tr, isAuto, noJump, opts) {
   placeControls(true);
   (state._placeFsOverlays || (() => {}))(document.body.classList.contains('fs'));
   updateCount();
+  // 列車 sheet 不自動彈出(2026-07-21 使用者裁決:預設收小卡、想看再點開)——展開入口只有點跟隨小卡(手機 fs)。
 }
 // fromStart 重播强制拉高的速度只還原一次;抵達或取消跟隨時呼叫
 function restoreFollowSpeed() {
@@ -8044,6 +8073,21 @@ function updateFollowPanel(tr) {
       (pr.total > 0 ? Math.min(100, pr.done / pr.total * 100) : 0).toFixed(1) + '%';
     document.getElementById('fpProgTxt').textContent =
       Math.round(pr.done) + ' / ' + Math.round(pr.total) + ' km';
+  }
+  // 「列車」sheet 遙測列:鏡射上面小卡的時速/下一站/誤點,同一 tick 順手寫入(sheet 開啟才寫、省成本;
+  // 開 sheet 時小卡隱藏,這列讓資訊不損失)。標籤邏輯與小卡 eta 一致(7850),另補「準點」態。
+  if (document.body.classList.contains('train-open')) {
+    const ls = document.getElementById('tcLiveSpd');
+    if (ls) {
+      ls.innerHTML = '<b>' + Math.round(kmh) + '</b> km/h';
+      const ln = document.getElementById('tcLiveNext');
+      const mmL = info ? Math.round(info.min) : 0;
+      ln.textContent = info ? (mmL < 1 ? '即將進站 · ' + info.name : info.name + ' · ' + mmL + ' 分') : '已抵達終點';
+      const ld = document.getElementById('tcLiveDelay');
+      if (realDl > 0) { ld.textContent = (liveActive() ? '誤點' : '目前誤點') + ' ' + realDl + ' 分'; ld.className = 'tl-delay lateTag'; }
+      else if (dlMin > 0) { ld.textContent = '誤點 ' + dlMin + ' 分'; ld.className = 'tl-delay lateTag'; }
+      else { ld.textContent = '準點'; ld.className = 'tl-delay okTag'; }
+    }
   }
   // 速度曲線游標每秒重畫一次就夠
   const nw = performance.now();
