@@ -8367,14 +8367,21 @@ function localReminderMatchDraft(item, draft) {
   const stop = draft.stops.find(x => x.i === draft.stIndex);
   return !!stop && item.sys === draft.sys && String(item.train) === String(draft.train) && item.stName === stop.s.name;
 }
+function localReminderBaseSecFor(draft, x) {
+  return x.i === draft.tr.stops.length - 1 ? x.s.arrSec : x.s.depSec;
+}
+function localReminderFireAtFor(draft, x) {
+  return localReminderServiceEpoch(draft.svcDate, localReminderBaseSecFor(draft, x))
+    + draft.snapshotDelaySec - (draft.offsetMin + draft.walkMin) * 60;
+}
 function localReminderRecompute(draft) {
   if (!draft) return null;
   const at = draft.stops.find(x => x.i === draft.stIndex) || draft.stops[0];
   if (!at) return null;
   const isLast = at.i === draft.tr.stops.length - 1;
   draft.mode = isLast ? 'arr' : 'dep';
-  draft.baseSec = isLast ? at.s.arrSec : at.s.depSec;
-  draft.fireAt = localReminderServiceEpoch(draft.svcDate, draft.baseSec) + draft.snapshotDelaySec - (draft.offsetMin + draft.walkMin) * 60;
+  draft.baseSec = localReminderBaseSecFor(draft, at);
+  draft.fireAt = localReminderFireAtFor(draft, at);
   draft.stName = at.s.name;
   return draft;
 }
@@ -8432,8 +8439,16 @@ function renderLocalReminderList() {
   }
 }
 function renderLocalReminderDraft() {
-  const draft = localReminderRecompute(localReminderDraft);
+  let draft = localReminderRecompute(localReminderDraft);
   if (!draft) return;
+  // 來不及提醒的站淺色不可選（門檻與儲存時的攔截一致）；目前選擇來不及→跳到第一個來得及的站
+  const lateNowE = localNotifyNowEpoch();
+  const isLate = x => localReminderFireAtFor(draft, x) <= lateNowE + 60;
+  const curStop = draft.stops.find(x => x.i === draft.stIndex);
+  if ((!curStop || isLate(curStop))) {
+    const firstOk = draft.stops.find(x => !isLate(x));
+    if (firstOk && firstOk.i !== draft.stIndex) { draft.stIndex = firstOk.i; draft = localReminderRecompute(draft); }
+  }
   const modal = document.getElementById('notifyModal');
   modal.dataset.notifyBaseSec = String(draft.baseSec);
   modal.dataset.notifyServiceEpoch = String(localReminderServiceEpoch(draft.svcDate, 0));
@@ -8445,15 +8460,21 @@ function renderLocalReminderDraft() {
   document.getElementById('notifyTrain').textContent = `${draft.train} 次`;
   const select = document.getElementById('notifyStation');
   select.innerHTML = '';
-  for (const x of draft.stops) { const o = document.createElement('option'); o.value = x.i; o.textContent = x.s.name; select.appendChild(o); }
+  for (const x of draft.stops) {
+    const o = document.createElement('option');
+    o.value = x.i; o.textContent = x.s.name; o.disabled = isLate(x);
+    select.appendChild(o);
+  }
   select.value = String(draft.stIndex);
   document.querySelectorAll('input[name=notifyOffset]').forEach(r => { r.checked = Number(r.value) === draft.offsetMin; });
   document.getElementById('notifyWalk').value = draft.walkMin;
   document.getElementById('notifyModeLabel').textContent = draft.mode === 'arr' ? '到達前' : '開車前';
   const delayMin = Math.max(0, Math.round(draft.snapshotDelaySec / 60));
-  document.getElementById('notifyPreview').textContent = delayMin > 0
-    ? `將於 ${localReminderHHMM(draft.fireAt)} 提醒你（以目前誤點 +${delayMin} 分計）`
-    : `將於 ${localReminderHHMM(draft.fireAt)} 提醒你（依表定時刻）`;
+  document.getElementById('notifyPreview').textContent = draft.stops.every(isLate)
+    ? '這班車剩下的停靠站都來不及提醒了'
+    : delayMin > 0
+      ? `將於 ${localReminderHHMM(draft.fireAt)} 提醒你（以目前誤點 +${delayMin} 分計）`
+      : `將於 ${localReminderHHMM(draft.fireAt)} 提醒你（依表定時刻）`;
   const exists = loadLocalReminders().some(x => localReminderMatchDraft(x, draft));
   document.getElementById('notifySave').textContent = exists ? '更新提醒' : '設定提醒';
   renderLocalReminderList();
@@ -8479,13 +8500,12 @@ async function refreshLocalReminderPermission(draft) {
 }
 async function openLocalReminderSheet(tr, source) {
   if (!NOTIFY_LOCAL_ENABLED || !reminderSysOf(tr)) return;
-  const stops = localReminderStops(tr); if (!stops.length) return;
   const snapshotDelaySec = localReminderDelaySnapshot(tr);
-  let chosen = stops[0];
-  if (source === 'follow') {
-    const schedNow = effT(tr) - snapshotDelaySec;
-    chosen = stops.find(x => x.s.arrSec > schedNow) || stops[stops.length - 1];
-  }
+  // 排程軸上的「現在」（跨日/環島圈由 effT 映射）；已到過的站不列入下拉
+  const schedNow = effT(tr) - snapshotDelaySec;
+  const stops = localReminderStops(tr).filter(x => x.s.arrSec > schedNow);
+  if (!stops.length) { showToast('這班車今天已經跑完了'); return; }
+  const chosen = stops[0];
   localReminderDraft = {
     tr, stops, stIndex: chosen.i, sys: reminderSysOf(tr), train: String(tr.train), svcDate: todayStr('Asia/Taipei'),
     offsetMin: 10, walkMin: loadLocalReminderWalk(), snapshotDelaySec
