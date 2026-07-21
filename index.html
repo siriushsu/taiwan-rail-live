@@ -2596,7 +2596,7 @@ try { if (matchMedia('(max-width: 900px)').matches) document.body.classList.add(
 <script>
 // 版本戳記:每次改版 push 前手動遞增(字母序),畫面時鐘徽章與 console 都會顯示,
 // 供比對線上跑的是不是最新版(瀏覽器快取 max-age=600 常讓人看到舊版)
-const BUILD = 'v0721g';
+const BUILD = 'v0721h';
 // 手機/平板直式「殼」斷點(議題1:640→900,iPad 直式改拿 tabbar＋更多抽屜):與 CSS @media 同步,版面類判斷一律用此常數。
 // 注意:裝置等級判斷(keepBuffer/powerSave 預設)刻意不用此常數、維持 640——iPad 不該因為改拿 tabbar 就被當低階裝置。
 const MOBILE_MQ = '(max-width: 900px)';
@@ -4895,47 +4895,63 @@ async function accountDelete() {
     await a.fb.deleteUser(u); accountClearLocal(); accountClose(); showToast('軌島帳號與同步資料已刪除');
   } catch (e) { a.actionError = '刪除失敗：' + (e && e.message ? e.message : String(e)); accountRender(); }
 }
+// 帳號系統延遲初始化:免費層匿名(不載 Firebase、不建 state.account),只有需要登入時(購買 Plus,或
+// ?account=delete 深連結,或帳號全面啟用 ACCOUNT_ENABLED)才呼叫。冪等——以 accountEnsureInit._p 為旗標,
+// 重複呼叫回同一個 promise,最多初始化一次(載 SDK/initializeApp/onAuthStateChanged/UI 綁定都只跑一遍)。
+function accountEnsureInit() {
+  if (accountEnsureInit._p) return accountEnsureInit._p;
+  accountEnsureInit._p = (async () => {
+    const btn = document.getElementById('accountBtn'), modal = document.getElementById('accountModal');
+    let accountIntent = new URLSearchParams(location.search).get('account');
+    if (btn) { btn.style.display = ''; btn.onclick = accountOpen; } // 免費層延遲初始化時鈕已被 setupAccountUi 移除→null,跳過
+    const accountX = document.getElementById('accountX'); if (accountX) accountX.onclick = accountClose;
+    if (modal) {
+      modal.addEventListener('click', e => { if (e.target === modal) accountClose(); });
+      document.addEventListener('keydown', e => { if (e.key === 'Escape' && !modal.hidden) accountClose(); });
+    }
+    const accountBody = document.getElementById('accountBody');
+    if (accountBody) accountBody.onclick = e => {
+      const login = e.target.closest('[data-login]'), action = e.target.closest('[data-action]');
+      if (login) accountSignIn(login.dataset.login);
+      else if (action && action.dataset.action === 'sync') accountSyncNow('manual');
+      else if (action && action.dataset.action === 'plus') plusOpen('account');
+      else if (action && action.dataset.action === 'logout') accountSignOut();
+      else if (action && action.dataset.action === 'delete') accountDelete();
+    };
+    state.account = { ready: false, user: null, syncing: false, lastSync: 0, actionError: '', error: '', syncTimer: 0 };
+    accountRender();
+    try {
+      const fb = await accountLoadModules(), app = fb.initializeApp(window.RAIL_FIREBASE_CONFIG);
+      // 原生 App（capacitor:// scheme）不能用 getAuth()：預設的 popup/redirect resolver 在 WKWebView
+      // 永遠初始化不完，onAuthStateChanged 不會觸發；改 initializeAuth 免 resolver（App 登入走原生 plugin 換 credential，用不到 popup）。
+      const auth = window.RAIL_APP && fb.initializeAuth && fb.indexedDBLocalPersistence
+        ? fb.initializeAuth(app, { persistence: fb.indexedDBLocalPersistence })
+        : fb.getAuth(app);
+      Object.assign(state.account, { fb, app, auth, db: fb.getFirestore(app) });
+      fb.onAuthStateChanged(state.account.auth, async user => {
+        state.account.user = user; state.account.ready = true; state.account.actionError = ''; accountRender();
+        if (accountIntent === 'delete') { accountIntent = ''; accountOpen(); }
+        if (user) {
+          await accountSyncNow('login');
+          const pending = state.plusPending;
+          if (pending) { state.plusPending = null; plusOpen(pending.source, pending.onGranted); }
+        }
+      });
+    } catch (e) { state.account.ready = true; state.account.error = e && e.message ? e.message : String(e); accountRender(); }
+    window.addEventListener('rail-user-data-changed', e => { if (!e.detail || e.detail.source === 'local') accountScheduleSync(); });
+    document.addEventListener('visibilitychange', () => { if (!document.hidden && state.account && state.account.user) accountSyncNow('foreground'); });
+  })();
+  return accountEnsureInit._p;
+}
 async function setupAccountUi() {
   const btn = document.getElementById('accountBtn'), modal = document.getElementById('accountModal');
   if (!btn || !modal || !accountConfigured()) return;
-  let accountIntent = new URLSearchParams(location.search).get('account');
-  if (!ACCOUNT_ENABLED && accountIntent !== 'delete') { // 下架:鈕與抽屜列一併移除、不載 SDK;刪帳號深連結照常走完整流程
-    btn.remove(); const row = document.querySelector('.ms-row[data-proxy="accountBtn"]'); if (row) row.remove(); return;
+  const accountIntent = new URLSearchParams(location.search).get('account');
+  if (ACCOUNT_ENABLED || accountIntent === 'delete') { // 帳號全面啟用 或 刪帳號深連結:照舊 eager 初始化(顯示入口鈕、載 Firebase、監聽登入)
+    await accountEnsureInit(); return;
   }
-  btn.style.display = ''; btn.onclick = accountOpen;
-  document.getElementById('accountX').onclick = accountClose;
-  modal.addEventListener('click', e => { if (e.target === modal) accountClose(); });
-  document.addEventListener('keydown', e => { if (e.key === 'Escape' && !modal.hidden) accountClose(); });
-  document.getElementById('accountBody').onclick = e => {
-    const login = e.target.closest('[data-login]'), action = e.target.closest('[data-action]');
-    if (login) accountSignIn(login.dataset.login);
-    else if (action && action.dataset.action === 'sync') accountSyncNow('manual');
-    else if (action && action.dataset.action === 'plus') plusOpen('account');
-    else if (action && action.dataset.action === 'logout') accountSignOut();
-    else if (action && action.dataset.action === 'delete') accountDelete();
-  };
-  state.account = { ready: false, user: null, syncing: false, lastSync: 0, actionError: '', error: '', syncTimer: 0 };
-  accountRender();
-  try {
-    const fb = await accountLoadModules(), app = fb.initializeApp(window.RAIL_FIREBASE_CONFIG);
-    // 原生 App（capacitor:// scheme）不能用 getAuth()：預設的 popup/redirect resolver 在 WKWebView
-    // 永遠初始化不完，onAuthStateChanged 不會觸發；改 initializeAuth 免 resolver（App 登入走原生 plugin 換 credential，用不到 popup）。
-    const auth = window.RAIL_APP && fb.initializeAuth && fb.indexedDBLocalPersistence
-      ? fb.initializeAuth(app, { persistence: fb.indexedDBLocalPersistence })
-      : fb.getAuth(app);
-    Object.assign(state.account, { fb, app, auth, db: fb.getFirestore(app) });
-    fb.onAuthStateChanged(state.account.auth, async user => {
-      state.account.user = user; state.account.ready = true; state.account.actionError = ''; accountRender();
-      if (accountIntent === 'delete') { accountIntent = ''; accountOpen(); }
-      if (user) {
-        await accountSyncNow('login');
-        const pending = state.plusPending;
-        if (pending) { state.plusPending = null; plusOpen(pending.source, pending.onGranted); }
-      }
-    });
-  } catch (e) { state.account.ready = true; state.account.error = e && e.message ? e.message : String(e); accountRender(); }
-  window.addEventListener('rail-user-data-changed', e => { if (!e.detail || e.detail.source === 'local') accountScheduleSync(); });
-  document.addEventListener('visibilitychange', () => { if (!document.hidden && state.account && state.account.user) accountSyncNow('foreground'); });
+  // 免費層匿名:移除帳號入口鈕與抽屜列,不載 Firebase、不建 state.account;購買 Plus 時才由 plusOpen→accountEnsureInit 延遲初始化
+  btn.remove(); const row = document.querySelector('.ms-row[data-proxy="accountBtn"]'); if (row) row.remove();
 }
 
 // ── 訂閱制 Plus（RevenueCat 月/年訂閱 → plus entitlement） ────────────────────────
@@ -5004,11 +5020,12 @@ function plusState() {
   if (!state.plus) state.plus = { active: false, loading: false, error: '', pkgMonthly: null, pkgAnnual: null, mgmtUrl: '', adapter: null, afterUnlock: null };
   return state.plus;
 }
-function plusOpen(source, onGranted) {
+async function plusOpen(source, onGranted) {
   const p = plusState();
   if (typeof onGranted === 'function') p.afterUnlock = onGranted;
   if (!state.account || !state.account.user) {
     state.plusPending = { source: source || 'account', onGranted };
+    await accountEnsureInit(); // 免費層匿名→購買才延遲載入帳號系統(Firebase);登入後 onAuthStateChanged 讀 plusPending 回接本函式
     accountOpen(); showToast('請先登入軌島帳號，訂閱資格才能跨裝置使用'); return;
   }
   const modal = document.getElementById('plusModal'); if (!modal) return;
@@ -7878,14 +7895,22 @@ function renderDelayRow() {
 
 // ── 誤點履歷卡(Plus 頭牌;後端 /api/delay-history?train= 回 {train,days:[{d,fd,md}],_meta}) ──
 // 統計列複用跟隨面板的 30 天聚合值(state.delayStats);逐日長條圖+週幾分布來自 90 天 days。
-function fetchDelayHistory(no) {
+async function fetchDelayHistory(no) {
   no = String(no);
   state.delayHist = state.delayHist || {};
   const cur = state.delayHist[no];
   if (cur && (cur.loading || cur.data)) return; // 載入中或已成功(含空)→不重打;僅錯誤態(下方)允許重試
   state.delayHist[no] = { loading: true, error: false, status: 0, data: null };
-  if (state._delayHistOpen === no) renderDelayHist();
-  fetch(apiUrl('api/delay-history?train=' + encodeURIComponent(no)), { cache: 'no-store' })
+  if (state._delayHistOpen === no) renderDelayHist(); // 先畫「載入中」再取 token(不因取 token 的 await 延後回饋)
+  // Plus 付費牆:後端要 Firebase ID token 驗 entitlement。已登入才帶 token;未登入(含免費層匿名 state.account
+  // 未建)照常送→後端回 401,由 renderDelayHist 顯示登入並訂閱 CTA。取 token 手法同 accountDeletePaidProfile。
+  let headers;
+  try {
+    const a = state.account, user = a && a.user;
+    const token = user ? (a.fb && a.fb.getIdToken ? await a.fb.getIdToken(user) : await user.getIdToken()) : null;
+    if (token) headers = { Authorization: 'Bearer ' + token };
+  } catch (e) { /* 取 token 失敗:當未登入照常送 */ }
+  fetch(apiUrl('api/delay-history?train=' + encodeURIComponent(no)), headers ? { cache: 'no-store', headers } : { cache: 'no-store' })
     .then(r => r.ok ? r.json() : Promise.reject(r.status))
     .then(j => { state.delayHist[no] = { loading: false, error: false, status: 200, data: j || null }; })
     .catch(err => { state.delayHist[no] = { loading: false, error: true, status: (typeof err === 'number' ? err : 0), data: null }; })
@@ -7950,8 +7975,14 @@ function renderDelayHist() {
   let body;
   if (!rec || rec.loading) {
     body = statRow + `<div class="dh-msg">載入誤點履歷…</div>`;
+  } else if (rec.error && (rec.status === 401 || rec.status === 403)) {
+    // 付費牆:未登入(401)或無訂閱資格(403)——引導登入並訂閱 Plus。data-dh-cta 沿用既有 plusGateOpen 回路;
+    // 用 dh-msg + dh-cta-btn(皆非絕對定位),不套 .dh-cta(inset:0 絕對定位需 .dh-lock 相對容器,無圖表可鎖)。
+    body = statRow +
+      `<div class="dh-msg">登入並訂閱 Plus 後，可看每班車近 90 天逐日與週幾誤點履歷。</div>` +
+      `<button class="dh-cta-btn" data-dh-cta="1">訂閱 Plus 解鎖完整履歷</button>`;
   } else if (rec.error) {
-    body = statRow + `<div class="dh-msg">暫時讀不到誤點履歷${rec.status ? '（' + rec.status + '）' : ''}，稍後再試。</div>` +
+    body = statRow + `<div class="dh-msg">暫時無法載入誤點履歷${rec.status ? '（' + rec.status + '）' : ''}，稍後再試。</div>` +
       `<button class="dh-retry" data-dh-retry="1">重新整理</button>`;
   } else {
     const days = (rec.data && Array.isArray(rec.data.days)) ? rec.data.days : [];
@@ -7989,7 +8020,7 @@ function openDelayHist(tr) {
   el.onclick = e => {
     if (e.target.closest('#delayHistClose')) { closeDelayHist(); return; }
     if (e.target.closest('[data-dh-retry]')) { fetchDelayHistory(no); return; }
-    if (e.target.closest('[data-dh-cta]')) { plusGateOpen('delay-history', () => renderDelayHist()); return; }
+    if (e.target.closest('[data-dh-cta]')) { plusGateOpen('delay-history', () => { fetchDelayHistory(no); renderDelayHist(); }); return; } // 解鎖後:401/403 無資料時 fetch 會重打(guard 見 data===null);已有資料(teaser 模糊)則 renderDelayHist 去模糊
   };
   updateSheetOpenClass(); // 手機:跟隨鎖隨 sheet-open 通案讓位(原 dh-open 個案已併入)
   ensureDelayStats();       // 統計列聚合值(跟車時通常已載;保險再觸發一次,已載入會早退)

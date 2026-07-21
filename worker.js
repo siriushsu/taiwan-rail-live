@@ -499,6 +499,37 @@ function buildDelayHistoryBody(train, rows, windowDays, win, generatedIso) {
 async function delayHistory(request, env) {
   const train = new URL(request.url).searchParams.get('train') || '';
   if (!isValidTrainNo(train)) return jsonRes({ error: 'bad train' }, 400, 'no-store');
+  // ── Plus 付費牆:誤點履歷是 Plus 頭牌功能,先驗 Firebase ID token + RevenueCat entitlement ──
+  // 此閘一定要在下方 edge.match 之前:授權後的 200 資料會寫進 train-keyed 共享邊緣快取;閘若放在
+  // match 之後,無 token 的人也能從共享快取讀到,付費牆漏底。401/403/503 一律 no-store,不入共享快取。
+  // 驗證範式抄自 deletePaidProfile(同一組 env secret)。secret 未設定→fail-closed 503(不放行任何人)。
+  if (!env.FIREBASE_WEB_API_KEY || !env.REVENUECAT_PROJECT_ID || !env.REVENUECAT_V2_SECRET_KEY)
+    return jsonRes({ error: 'entitlement_unavailable' }, 503, 'no-store');
+  const authHeader = request.headers.get('Authorization') || '';
+  const authMatch = authHeader.match(/^Bearer\s+(.+)$/i), idToken = authMatch && authMatch[1];
+  if (!idToken || idToken.length > 4096) return jsonRes({ error: 'unauthorized' }, 401, 'no-store');
+  try {
+    const lookup = await fetch(`https://identitytoolkit.googleapis.com/v1/accounts:lookup?key=${encodeURIComponent(env.FIREBASE_WEB_API_KEY)}`, {
+      method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ idToken }),
+    });
+    if (!lookup.ok) return jsonRes({ error: 'unauthorized' }, 401, 'no-store');
+    const identity = await lookup.json(), uid = identity && identity.users && identity.users[0] && identity.users[0].localId;
+    if (!uid || typeof uid !== 'string') return jsonRes({ error: 'unauthorized' }, 401, 'no-store');
+    // 軌島 Plus 是單一 entitlement 產品,故「有任何 active entitlement=有 Plus」。若日後新增第二種
+    // entitlement tier,這裡要改成比對特定 entitlement——注意 RevenueCat v2 的
+    // active_entitlements.items[].entitlement_id 是內部不透明 id(entl...),不是 dashboard 設的
+    // lookup_key(plus);屆時需先用 GET /v2/projects/{pid}/entitlements 把 lookup_key 解析成內部 id 再比對。
+    const rc = await fetch(`https://api.revenuecat.com/v2/projects/${encodeURIComponent(env.REVENUECAT_PROJECT_ID)}/customers/${encodeURIComponent(uid)}/active_entitlements`, {
+      headers: { Authorization: `Bearer ${env.REVENUECAT_V2_SECRET_KEY}`, Accept: 'application/json' },
+    });
+    if (rc.status === 404) return jsonRes({ error: 'not_entitled' }, 403, 'no-store');       // 此 uid 從未在 RevenueCat 出現=沒買過
+    if (!rc.ok) return jsonRes({ error: 'entitlement_unavailable' }, 503, 'no-store');        // 上游暫時性錯誤:不當有資格、也不永久拒絕,讓前端可重試
+    const ent = await rc.json();
+    const entitled = Array.isArray(ent.items) && ent.items.length > 0;
+    if (!entitled) return jsonRes({ error: 'not_entitled' }, 403, 'no-store');
+  } catch (e) {
+    return jsonRes({ error: 'entitlement_unavailable' }, 503, 'no-store');                    // 網路/解析暫時性錯誤:可重試
+  }
   // 快取鍵手動把 train 併進 URL 字串(同 stationEvents 慣例)——caches.default 精確比對傳入的
   // Request URL,鍵若只用不帶 query 的路徑,不同車次會互相污染快取。train 已白名單化,免 encode。
   const cacheKey = new Request(new URL('/api/delay-history?train=' + train, request.url), { method: 'GET' });
