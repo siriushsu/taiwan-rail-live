@@ -62,10 +62,10 @@ function makeDirFns(ctx, loop, asc) {
 // 不信 Sequence:TDX 偶見亂序(淡海假日把 00:0x 擺在清晨段中間)與整段重複(環狀線幸福站假日)。
 // 04:00–05:29 與 25h 後物理上無班(台灣捷運首班≥05:30、末班≤01:00)→ 髒值剔除;
 // 髒值 ≥3 筆代表整筆記錄損壞(如環狀線頭前庄假日),回傳 null 整筆跳過。
-function depsOf(rec) {
+function depsOf(timetables) {
   const set = new Set();
   let junk = 0;
-  for (const t of rec.Timetables) {
+  for (const t of timetables) {
     let s = toSec(t.DepartureTime ?? t.ArrivalTime);
     if (s < 4 * 3600) s += 86400;
     if ((s >= 4 * 3600 && s < 5.5 * 3600) || s > 25 * 3600) { junk++; continue; }
@@ -162,21 +162,34 @@ function buildLineTimes(line, routeSpecs, sttCache, stnNameCache, notes, allStop
         notes.push(`${line.id} ${rec.StationID}/dir${rec.Direction}/${rec.ServiceDay.ServiceTag}: 已知損壞記錄,整筆排除`);
         continue;
       }
-      const deps = depsOf(rec);
-      if (!deps) {
-        notes.push(`${line.id} ${rec.StationID}/dir${rec.Direction}/${rec.ServiceDay.ServiceTag}: 髒值過多(時間亂碼),整筆排除`);
-        continue;
+      // 依 StoppingPatternID 分流成組:同一(RouteID/方向/終點)裡混著直達與普通車時,
+      // chainRoute 的最近時間配對會在直達車超車路段(機捷南下 長庚→台北)把兩種車的到站時刻串錯
+      // (issue #9:普通車過長庚只停新北產業、直達車過長庚卻站站停)。同一停靠模式內無超車、
+      // FIFO,分開串接才精確。只有機捷(TYMC)帶此欄位;其餘各線 Timetables 無 StoppingPatternID
+      // → 全落單一 '' 桶,分組與行為與先前完全一致(no-op)。
+      const patBuckets = new Map();
+      for (const t of rec.Timetables) {
+        const pat = t.StoppingPatternID ?? '';
+        if (!patBuckets.has(pat)) patBuckets.set(pat, []);
+        patBuckets.get(pat).push(t);
       }
-      const gname = spec.as || routeId;
-      const key = [gname, spec.as ? '' : rec.Direction, dest, days, nh ? 'H' : ''].join('|');
-      if (!groups.has(key)) groups.set(key, { routeId: gname, dir: rec.Direction ?? 0, dest, days, nh, tag: rec.ServiceDay.ServiceTag, spec, stns: new Map(),
-        reqFirstIdx: spec.requireFirst ? ctx.idxOf.get(stnName.get(spec.requireFirst)) : null });
-      const g = groups.get(key);
-      const idx = ctx.idxOf.get(name);
-      if (g.stns.has(idx)) { // 同組同站多筆記錄(虛擬路線合併時)→ 取聯集
-        const merged = new Set([...g.stns.get(idx).deps, ...deps]);
-        g.stns.set(idx, { idx, deps: [...merged].sort((a, b) => a - b) });
-      } else g.stns.set(idx, { idx, deps });
+      for (const [pat, tts] of patBuckets) {
+        const deps = depsOf(tts);
+        if (!deps) {
+          notes.push(`${line.id} ${rec.StationID}/dir${rec.Direction}/${rec.ServiceDay.ServiceTag}${pat ? '/' + pat : ''}: 髒值過多(時間亂碼),整筆排除`);
+          continue;
+        }
+        const gname = spec.as || routeId;
+        const key = [gname, spec.as ? '' : rec.Direction, dest, days, nh ? 'H' : '', pat].join('|');
+        if (!groups.has(key)) groups.set(key, { routeId: gname, dir: rec.Direction ?? 0, dest, days, nh, tag: rec.ServiceDay.ServiceTag, spec, stns: new Map(),
+          reqFirstIdx: spec.requireFirst ? ctx.idxOf.get(stnName.get(spec.requireFirst)) : null });
+        const g = groups.get(key);
+        const idx = ctx.idxOf.get(name);
+        if (g.stns.has(idx)) { // 同組同站多筆記錄(虛擬路線合併時)→ 取聯集
+          const merged = new Set([...g.stns.get(idx).deps, ...deps]);
+          g.stns.set(idx, { idx, deps: [...merged].sort((a, b) => a - b) });
+        } else g.stns.set(idx, { idx, deps });
+      }
     }
   }
   // 異常偵測(只警告不動手):某站班距中位數孤立地低於同組其他站 → 疑似重複互疊的髒記錄
