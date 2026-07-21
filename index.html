@@ -1583,8 +1583,9 @@
   .tabbar {
     position: fixed; left: 0; right: 0; bottom: 0; z-index: 1100;
     display: none; align-items: flex-start;
-    height: calc(58px + env(safe-area-inset-bottom, 0px));
-    padding: 6px 4px calc(2px + env(safe-area-inset-bottom, 0px));
+    /* v0721f 使用者回饋:下方留白收斂——內容區 58→52(鈕44+上4+下2+框1.5),safe-area 折讓 6px(max 保護無瀏海=0);--tabbar-clear 必須同式 */
+    height: calc(52px + max(env(safe-area-inset-bottom, 0px) - 6px, 0px));
+    padding: 4px 4px calc(2px + max(env(safe-area-inset-bottom, 0px) - 6px, 0px));
     background: var(--paper); border-top: 1.5px solid var(--line);
     box-shadow: inset 0 3px 0 var(--gold);
   }
@@ -1649,7 +1650,7 @@
   @media (max-width: 900px) {
     /* 底錨面板統一避讓基準:fixed tab bar 實高(58px)＋iOS 安全區(有瀏海才 >0);所有貼底表面以此為基準讓位,
        改一處全體同步。原本各自寫死的 66/64/68px 就是 58+讓位間距,改成 var+間距後計算值不變(桌面 var 未定義故不影響)。 */
-    :root { --tabbar-clear: calc(58px + env(safe-area-inset-bottom, 0px)); }
+    :root { --tabbar-clear: calc(52px + max(env(safe-area-inset-bottom, 0px) - 6px, 0px)); } /* 與 .tabbar height 同式(v0721f 收斂) */
     .wrap { padding: 8px 10px calc(70px + env(safe-area-inset-bottom, 0px)); }
     /* 手機 header 收斂(mock §04-A):牌＋頁籤同列、導言藏、頁籤單列橫捲——省出地圖高度 */
     .header-row { gap: 8px; padding-bottom: 6px; }
@@ -2384,11 +2385,12 @@ try { if (matchMedia('(max-width: 900px)').matches) document.body.classList.add(
       <summary><span>🛠 更新紀錄</span><span class="foot-sub">最後更新：2026/7/21</span></summary>
       <ul class="foot-list">
         <li class="grp">最近更新</li>
+        <li><span class="d">7/21</span><span>修正桌面全畫面與放空模式剛開啟就自動退出（Chrome 與 Safari 成因不同，一併治好）</span></li>
         <li><span class="d">7/21</span><span>「台鐵大面積誤點」示警改嚴：要夠多班次誤點滿 10 分鐘才會提示，不再因為一堆車晚個 1～2 分鐘就誤報</span></li>
         <li><span class="d">7/21</span><span>到站提醒進化：中途站也能改用『抵達前』提醒、車站看板可設末班車提醒、更多選單新增『已排提醒』總覽。</span></li>
         <li><span class="d">7/21</span><span>修正桃園機捷南下（往台北）停靠站：普通車過長庚站站停、直達車過長庚只停新北產業，不再對調</span></li>
         <li><span class="d">7/21</span><span>App 新增「到站提醒」：收藏或跟隨的班車，開車前提前叫你，還能加上步行時間。</span></li>
-        <li><span class="d">7/21</span><span>手機大改版：打開就是全螢幕地圖，亮點／護照／列車介紹都住進底部面板；新增「捷」分頁，北中高捷運一張圖同框；跟車後點資訊小卡展開完整介紹。</span></li>
+        <li><span class="d">7/21</span><span>手機大改版：打開就是全螢幕地圖，亮點／護照／列車介紹都住進底部面板；新增「捷」分頁，北中高捷運一張圖同框；跟車後點資訊小卡展開完整介紹；底部工具列更貼合螢幕。</span></li>
         <li><span class="d">7/20</span><span>手機跟車時打開底部面板，跟隨鎖按鈕自動讓位不再擋住面板內容</span></li>
         <li><span class="d">7/20</span><span>更新紀錄改版：改成依主題分類，同一個功能修過好幾次的併成一條，並整理出「曾經上線、後來拿掉」的功能</span></li>
         <li><span class="d">7/19</span><span>阿里山森林鐵路上線；沼平／神木線白天班次補齊；林鐵列車介紹卡與台糖五分車景點標記</span></li>
@@ -2432,6 +2434,7 @@ try { if (matchMedia('(max-width: 900px)').matches) document.body.classList.add(
         <li><span class="d">7/10</span><span>跟隨鎖：跟隨中直接拖曳地圖自由瀏覽，按「◉ 回到列車」恢復置中；資訊卡可收合成小膠囊</span></li>
         <li><span class="d">7/9</span><span>鐵道迷功能包：跟隨路線高亮、月台站名牌、日夜天色、全程速度曲線</span></li>
         <li class="grp">放空模式</li>
+        <li><span class="d">7/21</span><span>修正桌面全畫面與放空模式剛開啟就自動退出（Chrome 與 Safari 成因不同，一併治好）</span></li>
         <li><span class="d">7/18</span><span>新增「都會呼吸」定場運鏡（上線當天連修三輪：畫面細微抖動、鏡頭對到山區空地、缺底圖看起來像壞掉）</span></li>
         <li><span class="d">7/17</span><span>新增「劇場模式」自動觸發，預設視角改為群車</span></li>
         <li><span class="d">7/11</span><span>新增「群車」視角：不跟單一列車，看整片列車交錯</span></li>
@@ -2453,7 +2456,7 @@ try { if (matchMedia('(max-width: 900px)').matches) document.body.classList.add(
         <li><span class="d">7/11</span><span>今日之最的列車在地圖上加繪金色漣漪光環</span></li>
         <li><span class="d">7/9</span><span>旅程護照與 16 枚成就徽章、「探」今日亮點面板上線</span></li>
         <li class="grp">手機與操作</li>
-        <li><span class="d">7/21</span><span>手機大改版：打開就是全螢幕地圖，亮點／護照／列車介紹都住進底部面板；新增「捷」分頁，北中高捷運一張圖同框；跟車後點資訊小卡展開完整介紹。</span></li>
+        <li><span class="d">7/21</span><span>手機大改版：打開就是全螢幕地圖，亮點／護照／列車介紹都住進底部面板；新增「捷」分頁，北中高捷運一張圖同框；跟車後點資訊小卡展開完整介紹；底部工具列更貼合螢幕。</span></li>
         <li><span class="d">7/20</span><span>手機跟車時打開任何底部面板（看板、收藏、旅程、探索、軌道、今日動態），跟隨鎖按鈕自動讓位，不再浮在面板上擋住內容</span></li>
         <li><span class="d">7/18</span><span>iPad 直式與中等寬度的視窗改用手機版底部工具列，桌面工具列同步瘦身，按鈕不再擠到畫面外</span></li>
         <li><span class="d">7/18</span><span>播放、隨機跟隨、速度控制等按鈕的可點範圍放寬（外觀不變），並支援鍵盤與旁白操作</span></li>
@@ -2596,7 +2599,7 @@ try { if (matchMedia('(max-width: 900px)').matches) document.body.classList.add(
 <script>
 // 版本戳記:每次改版 push 前手動遞增(字母序),畫面時鐘徽章與 console 都會顯示,
 // 供比對線上跑的是不是最新版(瀏覽器快取 max-age=600 常讓人看到舊版)
-const BUILD = 'v0721h';
+const BUILD = 'v0721i';
 // 手機/平板直式「殼」斷點(議題1:640→900,iPad 直式改拿 tabbar＋更多抽屜):與 CSS @media 同步,版面類判斷一律用此常數。
 // 注意:裝置等級判斷(keepBuffer/powerSave 預設)刻意不用此常數、維持 640——iPad 不該因為改拿 tabbar 就被當低階裝置。
 const MOBILE_MQ = '(max-width: 900px)';
@@ -5998,7 +6001,8 @@ function setFollow(tr, isAuto, noJump, opts) {
   closeBoard(); // 不管從哪裡選到車(看板列/地圖點車/搜尋/最愛),車站看板一律收掉
   state.followTrain = tr; state.followId = tr.train;
   // 深連結帶模擬時間:對方打開時車在同一位置
-  try { history.replaceState(null, '', '?train=' + encodeURIComponent(tr.train) + '&t=' + fmtHM(state.simSec)); } catch (e) {}
+  // 真全螢幕中不寫網址列:Safari 對 fullscreen 中的 replaceState 會踢出全螢幕,且全螢幕本來就看不到網址列
+  try { if (!document.fullscreenElement) history.replaceState(null, '', '?train=' + encodeURIComponent(tr.train) + '&t=' + fmtHM(state.simSec)); } catch (e) {}
   const first = tr.stops[0], last = tr.stops[tr.stops.length - 1];
   if (opts.fromStart) {
     // 護照灰章重播:強制從發車前 20 秒開始、固定倍速看完全程才算完乘(防秒蓋章)
@@ -6044,7 +6048,7 @@ function clearFollow() {
   state._plateStop = null;
   updateFollowLockUI(); // 沒在跟隨就收起跟隨鎖鈕
   const dp = document.getElementById('dwellPlate'); if (dp) dp.classList.remove('show');
-  try { history.replaceState(null, '', location.pathname); } catch (e) {}
+  try { if (!document.fullscreenElement) history.replaceState(null, '', location.pathname); } catch (e) {}
   const fb = document.getElementById('followBar');
   if (fb) { fb.hidden = true; fb.className = 'followbar'; fb.innerHTML = ''; }
   document.getElementById('followPanel').hidden = true;
@@ -10214,9 +10218,11 @@ function setupMapTools() {
     // 瀏覽器真全螢幕(Fullscreen API):吃掉網址列/分頁列;需在使用者手勢內呼叫,失敗就退回 CSS 版全畫面
     try {
       if (on && !document.fullscreenElement) {
+        state._fsReqT = Date.now(); // 進場時刻:供 fullscreenchange 判別「瀏覽器自行踢出」(Safari)
         const p = document.documentElement.requestFullscreen && document.documentElement.requestFullscreen();
         if (p && p.catch) p.catch(() => {});
       } else if (!on && document.fullscreenElement) {
+        state._fsOwnExit = true; // 我方主動退出:fullscreenchange 收到時放行連動收版面
         const p = document.exitFullscreen && document.exitFullscreen();
         if (p && p.catch) p.catch(() => {});
       }
@@ -10275,12 +10281,17 @@ function setupMapTools() {
     };
     state._fsCapsuleSync(true); // 膠囊改為手機常駐:開站就初始化 slim 態
   })();
+  let wasMobileShell = window.matchMedia(MOBILE_MQ).matches;
   window.addEventListener('resize', () => {
-    // 跨 900 斷界同步全螢幕殼:進 ≤900 強制 fs on;離開 ≤900 退出(直播/導播例外,setFs(false) 的手機 no-op 以當下寬度判斷故此處安全)
+    // 只在真正跨越 900 斷界時同步全螢幕殼；Fullscreen API 本身造成的桌面 resize 不得退出。
     const mob = window.matchMedia(MOBILE_MQ).matches;
-    if (mob) { if (!document.body.classList.contains('fs')) setFs(true); }
-    else if (!state.liveMode && document.body.classList.contains('fs')) setFs(false);
-    if (!mob) closeTrainSheet(); // 「列車」sheet 是手機專屬構造:離開手機斷點即收(桌面走併卡);desktop 無 tc-sheet 時為 no-op
+    const crossedMobileShell = mob !== wasMobileShell;
+    wasMobileShell = mob;
+    if (crossedMobileShell) {
+      if (mob) { if (!document.body.classList.contains('fs')) setFs(true); }
+      else if (!state.liveMode && !document.fullscreenElement && document.body.classList.contains('fs')) setFs(false);
+      if (!mob) closeTrainSheet(); // 「列車」sheet 是手機專屬構造:離開手機斷點即收(桌面走併卡);desktop 無 tc-sheet 時為 no-op
+    }
     placeFsOverlays(); if (state._fsCapsuleSync) state._fsCapsuleSync(false);
     // Batch B:跨界把搜尋列/頁尾盒搬回正確的家;離開手機時把走勢圖搬回原位、收起縣市 chip
     placeSearch(); placeFootBoxes();
@@ -10288,9 +10299,14 @@ function setupMapTools() {
   });
   // Batch B:開站即建縣市 chip、把搜尋列與頁尾盒放到當前斷點該在的家
   buildMsCities(); placeSearch(); placeFootBoxes();
-  // 真全螢幕被使用者(Esc/F11/系統手勢)退掉時,同步收掉 CSS 全畫面狀態並重排地圖
+  // 真全螢幕被使用者(Esc/F11/系統手勢)退掉時,同步收掉 CSS 全畫面狀態並重排地圖。
+  // Safari 例外:真機探針實錄(2026-07-21)進場成功後 ~2.4s fullscreenElement 無故變 null(全程無按鍵、無我方呼叫)——
+  // 非我方主動退出且距進場<5s 視為瀏覽器抽風,保留 CSS 版全畫面(=requestFullscreen 失敗的既有退路),不連動退出。
   document.addEventListener('fullscreenchange', () => {
-    if (!document.fullscreenElement && document.body.classList.contains('fs')) setFs(false);
+    if (!document.fullscreenElement && document.body.classList.contains('fs')) {
+      if (state._fsOwnExit || Date.now() - (state._fsReqT || 0) >= 5000) setFs(false);
+    }
+    if (!document.fullscreenElement) state._fsOwnExit = false;
     requestAnimationFrame(() => { map.invalidateSize(); reproject(); });
   });
   fsFab.onclick = () => setFs(!document.body.classList.contains('fs'));
