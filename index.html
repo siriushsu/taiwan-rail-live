@@ -2385,6 +2385,7 @@ try { if (matchMedia('(max-width: 900px)').matches) document.body.classList.add(
       <summary><span>🛠 更新紀錄</span><span class="foot-sub">最後更新：2026/7/21</span></summary>
       <ul class="foot-list">
         <li class="grp">最近更新</li>
+        <li><span class="d">7/21</span><span>捷運車站看板每個方向精簡為兩班（原本三班），畫面更清爽</span></li>
         <li><span class="d">7/21</span><span>修正「全台同框」點捷運車站時，看板班次整份重複顯示兩遍的問題</span></li>
         <li><span class="d">7/21</span><span>例行安全性與穩定性強化（背景維護，操作與畫面無變化）</span></li>
         <li><span class="d">7/21</span><span>修正桌面全畫面與放空模式剛開啟就自動退出（Chrome 與 Safari 成因不同，一併治好）</span></li>
@@ -2598,7 +2599,7 @@ try { if (matchMedia('(max-width: 900px)').matches) document.body.classList.add(
 <script>
 // 版本戳記:每次改版 push 前手動遞增(字母序),畫面時鐘徽章與 console 都會顯示,
 // 供比對線上跑的是不是最新版(瀏覽器快取 max-age=600 常讓人看到舊版)
-const BUILD = 'v0721k';
+const BUILD = 'v0721l';
 // 手機/平板直式「殼」斷點(議題1:640→900,iPad 直式改拿 tabbar＋更多抽屜):與 CSS @media 同步,版面類判斷一律用此常數。
 // 注意:裝置等級判斷(keepBuffer/powerSave 預設)刻意不用此常數、維持 640——iPad 不該因為改拿 tabbar 就被當低階裝置。
 const MOBILE_MQ = '(max-width: 900px)';
@@ -9893,7 +9894,7 @@ function renderBoard() {
 }
 
 // 捷運/輕軌看板:掃經過本站的每條線當日時刻表(ln._tt),抓最近幾班到離站倒數(-30秒~未來2小時內)。
-// 轉乘站(多條線經過本站)每條線各自成組(依 lines 順序排列)、線內再依方向(該班最後停靠站名)分組,各取最近 3 班。
+// 轉乘站(多條線經過本站)每條線各自成組(依 lines 順序排列)、線內再依方向(該班最後停靠站名)分組,各取最近 2 班。
 // 捷運沒有車次號,跟隨走 setFreqFollow({ln,tr}) (tr=ln._tt 裡的那班陣列本身,不是台鐵的 followTrainNo)。
 // lines:資料來源陣列——各捷運分頁傳 state.lines,全台同框裝飾層傳 state.decoLines。
 // isDeco:裝飾層沒有 state.visible 個別開關(全開),跳過該項篩選;分頁模式仍照使用者勾選的系統過濾。
@@ -9919,7 +9920,7 @@ function renderFreqBoard(el, st, lines, isDeco) {
     });
     byDir.forEach((rows, destName) => {
       rows.sort((a, b) => a.dtm - b.dtm);
-      groups.push({ ln, li, destName, rows: rows.slice(0, 3) });
+      groups.push({ ln, li, destName, rows: rows.slice(0, 2) });
     });
   });
   groups.sort((a, b) => a.li - b.li || a.rows[0].dtm - b.rows[0].dtm);
