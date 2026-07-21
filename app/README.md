@@ -12,7 +12,7 @@
 - 登入後可同步最愛地點、最愛列車與完乘紀錄；Plus 訂閱後可用每班車誤點歷史統計、衛星底圖、進階定位與 Google Takeout 匯入等功能。
 - Plus 訂閱、取消續訂、恢復購買、登入後續接原操作皆已有瀏覽器測試；錄影目前整體下架中（`RECORDING_ENABLED=false`），復開時另受逐首商用授權閘門保護。
 
-`ios/` 與 `android/` 尚未生成。候選 Bundle ID 是 `tw.railisland.app`，在使用者確認最終識別碼以前，不要執行 `cap add ios` 或 `cap add android`。
+`ios/` 已生成：完整的 Capacitor iOS Xcode workspace、CocoaPods 與同步後的 `App/App/public` 資產都在 repo 現場，Bundle ID 已定案為 `tw.railisland.app`。`android/` 尚未生成；在使用者確認前，不要執行 `cap add android`。每次改動根目錄網站後，都要 `npm run sync`（build + cap sync）讓 `app/www` 與 iOS `public` 一起更新到最新版號，否則發行包會落後。
 
 ## 仍需使用者決定或申請
 
