@@ -2384,6 +2384,7 @@ try { if (matchMedia('(max-width: 900px)').matches) document.body.classList.add(
       <summary><span>🛠 更新紀錄</span><span class="foot-sub">最後更新：2026/7/21</span></summary>
       <ul class="foot-list">
         <li class="grp">最近更新</li>
+        <li><span class="d">7/21</span><span>「台鐵大面積誤點」示警改嚴：要夠多班次誤點滿 10 分鐘才會提示，不再因為一堆車晚個 1～2 分鐘就誤報</span></li>
         <li><span class="d">7/21</span><span>到站提醒進化：中途站也能改用『抵達前』提醒、車站看板可設末班車提醒、更多選單新增『已排提醒』總覽。</span></li>
         <li><span class="d">7/21</span><span>修正桃園機捷南下（往台北）停靠站：普通車過長庚站站停、直達車過長庚只停新北產業，不再對調</span></li>
         <li><span class="d">7/21</span><span>App 新增「到站提醒」：收藏或跟隨的班車，開車前提前叫你，還能加上步行時間。</span></li>
@@ -2409,7 +2410,7 @@ try { if (matchMedia('(max-width: 900px)').matches) document.body.classList.add(
         <li><span class="d">7/18</span><span>人在國外，畫面上的「現在」也錨定台灣時間</span></li>
         <li><span class="d">7/17</span><span>即時校正的三個毛病陸續修好：列車瞬間跳位改成三秒平滑滑行、快轉離開現在超過兩分鐘時 LIVE 徽章轉灰標「推估」、官方誤點數字往上跳時列車不再倒退嚕（末項 7/18）</span></li>
         <li><span class="d">7/17</span><span>跟隨卡新增「近 30 天平均誤點・準點率」</span></li>
-        <li><span class="d">7/17</span><span>自動偵測誤點型營運異常並在畫面標示，全台同框視圖也看得到</span></li>
+        <li><span class="d">7/17</span><span>自動偵測誤點型營運異常並在畫面標示，全台同框視圖也看得到（7/21 判定改嚴：要夠多班次誤點滿 10 分鐘才示警，小幅誤點不再誤報）</span></li>
         <li><span class="d">7/16</span><span>捷運準確度四階段升級：北捷／高捷／機捷／高雄輕軌依官方到站看板即時校正 → 國定假日自動改跑假日班表 → 全台同框同步套用 → 新北捷運環狀線、淡海、安坑加入（7/17）</span></li>
         <li><span class="d">7/14</span><span>修正台鐵與高鐵共構路段被誤判成交會／待避</span></li>
         <li><span class="d">7/11</span><span>開站就是真實時刻，不再用 50× 示意快轉</span></li>
@@ -2595,7 +2596,7 @@ try { if (matchMedia('(max-width: 900px)').matches) document.body.classList.add(
 <script>
 // 版本戳記:每次改版 push 前手動遞增(字母序),畫面時鐘徽章與 console 都會顯示,
 // 供比對線上跑的是不是最新版(瀏覽器快取 max-age=600 常讓人看到舊版)
-const BUILD = 'v0721f';
+const BUILD = 'v0721g';
 // 手機/平板直式「殼」斷點(議題1:640→900,iPad 直式改拿 tabbar＋更多抽屜):與 CSS @media 同步,版面類判斷一律用此常數。
 // 注意:裝置等級判斷(keepBuffer/powerSave 預設)刻意不用此常數、維持 640——iPad 不該因為改拿 tabbar 就被當低階裝置。
 const MOBILE_MQ = '(max-width: 900px)';
@@ -2611,7 +2612,7 @@ const state = {
   mapDark: false, basemap: 'map', trackData: null, offlineLand: null,
   trackStyle: 'auto', // 軌道顯示:auto(亮色原色/夜間衛星自動淡化)、faint(一律更淡)、hidden(只留列車與車站)
   live: null, // 台鐵即時誤點 {map: 車次→誤點分, at: 抓取時刻, delayed, srcAt}
-  traAnomaly: null, // 台鐵系統級大面積誤點的自家觀測 {delayed, maxDelay, since} 或 null(非官方公告)
+  traAnomaly: null, // 台鐵系統級大面積誤點的自家觀測 {d10, maxDelay, since} 或 null(非官方公告;d10=誤點≥10 分的班數)
   liveMode: false, director: false, liveReplay: false, // 直播模式(?live=1 即時 / ?live=2 導播)與其深夜重播段(00:45–05:15 重播 08:00 起)
   stnIntro: false, immersive: false, // 特殊站介紹開關(放空自動開)、極簡沉浸(全畫面隱藏左側卡)
   xingOn: false, // 台鐵平交道顯示開關(預設關;開了才畫記號、建命中、攔點擊)
@@ -8914,9 +8915,12 @@ function evalLineAnomaly(ln, acc, rej, st2) {
 }
 // 台鐵系統級大面積誤點:同樣 2 進 2 出遲滯,寫 state.traAnomaly。
 let _traStrike = 0, _traClear = 0;
-function evalTraAnomaly(total, delayed, d10, maxDelay) {
-  const hit = total > 0 && ((delayed >= 20 && delayed / total >= 0.25) || d10 >= 8);
-  if (hit) { _traStrike++; _traClear = 0; if (_traStrike >= 2) state.traAnomaly = { delayed, maxDelay, since: (state.traAnomaly && state.traAnomaly.since) || Date.now() }; }
+// 判定一律以「誤點≥10 分」的班數(d10)為準——尖峰時段幾十班晚個 1~4 分是常態(專案自己的準點率
+// 也把 final_delay≤5 分算準點),拿「任何誤點」的比例去算會把正常營運誤判成大面積誤點。雙門檻:
+// 比例(≥6 班且佔在跑班次≥15%,抓離峰區域性大延誤)或 規模(≥8 班,抓尖峰大事故)。
+function evalTraAnomaly(total, d10, maxDelay) {
+  const hit = total > 0 && ((d10 >= 6 && d10 / total >= 0.15) || d10 >= 8);
+  if (hit) { _traStrike++; _traClear = 0; if (_traStrike >= 2) state.traAnomaly = { d10, maxDelay, since: (state.traAnomaly && state.traAnomaly.since) || Date.now() }; }
   else { _traClear++; _traStrike = 0; if (_traClear >= 2) state.traAnomaly = null; }
 }
 
@@ -8956,7 +8960,7 @@ async function pollLive() {
     const m = new Map(); let delayed = 0, d10 = 0, maxDelay = 0;
     for (const t of d.trains) { const dl = t.delay || 0; m.set(String(t.no), dl); if (dl > 0) delayed++; if (dl >= 10) d10++; if (dl > maxDelay) maxDelay = dl; }
     state.live = { map: m, at: Date.now(), delayed, srcAt: d.at };
-    evalTraAnomaly(d.trains.length, delayed, d10, maxDelay); // 大面積誤點自家觀測(2 進 2 出遲滯)
+    evalTraAnomaly(d.trains.length, d10, maxDelay); // 大面積誤點自家觀測(2 進 2 出遲滯;判定只看誤點≥10 分的 d10,delayed 仍供 badge 用)
   } catch (e) { /* 失敗保留舊資料;超過 30 分鐘未更新由 liveActive 自動停用 */ }
   updateLiveBadge();
   renderAlertBanner(); // 異常狀態變更即時反映到橫幅(每分鐘一次;非 sched 時 pollLive 已提早 return)
@@ -9329,7 +9333,7 @@ function selfAnomalyEntries() {
   if (state.mode === 'sched') {
     if (state.traAnomaly && liveActive()) {
       const a = state.traAnomaly;
-      out.push({ self: true, title: '台鐵大面積誤點中：' + a.delayed + ' 班誤點（最高 ' + a.maxDelay + ' 分）',
+      out.push({ self: true, title: '台鐵大面積誤點中：' + a.d10 + ' 班誤點滿 10 分（最高 ' + a.maxDelay + ' 分）',
         desc: '誤點的部分動畫有跟上：列車位置已依台鐵官方即時誤點資料逐車回撥，晚幾分就畫在晚幾分的位置。但若有停駛或取消的班次，畫面不會自動移除、該班車仍會照時刻表顯示行駛，請以官方公告為準。此為本站自動觀測，非官方公告。' });
     }
     if (state.deco && state.decoLines) for (const ln of state.decoLines) { const an = anomalyOf(ln); if (an) out.push(metroSelfEntry(ln, an)); }

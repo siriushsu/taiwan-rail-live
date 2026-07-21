@@ -115,7 +115,7 @@ const OVER = [900, 900, 900, 900, 900, 900];                   // 全部 +15 分
   ok('S4 進異常→正常連 2 次:清除、徽章復原', !!(r.entered && r.entered.kind === 'spread') && r.cleared === null && !r.badgeAnom, JSON.stringify({ e: r.entered, c: r.cleared }));
 }
 
-// 情境 5:台鐵系統級 —— 80 車 30 誤點(含 12 車 ≥10 分)最高 25 → 連 2 次進;恢復 80 車 3 誤點 → 連 2 次清除
+// 情境 5:台鐵系統級 —— 80 車、12 車誤點≥10 分、最高 25 → 規模門檻(d10≥8)連 2 次進;恢復 d10=0 → 連 2 次清除
 {
   const r = await page.evaluate(() => {
     state.mode = 'sched'; state.deco = false; state.decoLines = null;
@@ -123,18 +123,34 @@ const OVER = [900, 900, 900, 900, 900, 900];                   // 全部 +15 分
     state.simSec = nowSecOfDay(); state.speedMult = 1;
     state.live = { map: new Map(), at: Date.now(), delayed: 30, srcAt: '2026-07-17T20:00' };
     state.alert = { list: [] }; state.metroAlert = null; state.traAnomaly = null;
-    evalTraAnomaly(80, 30, 12, 25); const after1 = state.traAnomaly ? { ...state.traAnomaly } : null; // strike=1 不觸發
-    evalTraAnomaly(80, 30, 12, 25); const after2 = state.traAnomaly ? { ...state.traAnomaly } : null; // strike=2 進
+    evalTraAnomaly(80, 12, 25); const after1 = state.traAnomaly ? { ...state.traAnomaly } : null; // strike=1 不觸發
+    evalTraAnomaly(80, 12, 25); const after2 = state.traAnomaly ? { ...state.traAnomaly } : null; // strike=2 進
     renderAlertBanner();
     const ban = document.getElementById('alertBanner');
     const enteredBanner = { hidden: ban.hidden, html: ban.innerHTML };
-    evalTraAnomaly(80, 3, 0, 3); evalTraAnomaly(80, 3, 0, 3); // 連 2 次 clear
+    evalTraAnomaly(80, 0, 3); evalTraAnomaly(80, 0, 3); // 連 2 次 clear(d10=0)
     renderAlertBanner();
     return { after1, after2, enteredBanner, cleared: state.traAnomaly, clearedHidden: ban.hidden };
   });
-  ok('S5 台鐵:單次不觸發、連 2 次進', r.after1 === null && !!(r.after2 && r.after2.delayed === 30 && r.after2.maxDelay === 25), JSON.stringify({ a1: r.after1, a2: r.after2 }));
-  ok('S5 橫幅顯示「台鐵大面積誤點」', !r.enteredBanner.hidden && /台鐵大面積誤點/.test(r.enteredBanner.html), r.enteredBanner.html.slice(0, 90));
+  ok('S5 台鐵:單次不觸發、連 2 次進', r.after1 === null && !!(r.after2 && r.after2.d10 === 12 && r.after2.maxDelay === 25), JSON.stringify({ a1: r.after1, a2: r.after2 }));
+  ok('S5 橫幅顯示「台鐵大面積誤點…滿 10 分」', !r.enteredBanner.hidden && /台鐵大面積誤點.*滿 10 分/.test(r.enteredBanner.html), r.enteredBanner.html.slice(0, 90));
   ok('S5 恢復連 2 次:清除、橫幅收起', r.cleared === null && r.clearedHidden, JSON.stringify({ c: r.cleared, h: r.clearedHidden }));
+}
+
+// 情境 5b:回歸——判定只看誤點≥10 分。今早實測 151 車、0 車≥10 分、最高 9 分(舊「任何誤點≥20 班且≥25%」會誤報)→ 不觸發;
+// 離峰 45 車、8 車≥10 分(18%)→ 比例門檻(≥6 車且≥15%)觸發。
+{
+  const r = await page.evaluate(() => {
+    state.traAnomaly = null;
+    evalTraAnomaly(151, 0, 9); evalTraAnomaly(151, 0, 9); // 大量 1~4 分輕微誤點、0 車滿 10 分 → 連 2 次仍不觸發
+    const trivial = state.traAnomaly;
+    evalTraAnomaly(45, 8, 18); evalTraAnomaly(45, 8, 18); // 8/45=18% ≥15% 且 8≥6 → 比例門檻連 2 次進
+    const ratio = state.traAnomaly ? { ...state.traAnomaly } : null;
+    state.traAnomaly = null;
+    return { trivial, ratio };
+  });
+  ok('S5b 大量輕微誤點不觸發(只認≥10 分)', r.trivial === null, JSON.stringify(r.trivial));
+  ok('S5b 離峰比例門檻(8 車≥10 分/45=18%)觸發', !!(r.ratio && r.ratio.d10 === 8), JSON.stringify(r.ratio));
 }
 
 // 情境 6:單次異常樣本(strike=1)不觸發(防抖)
