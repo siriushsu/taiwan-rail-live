@@ -229,6 +229,7 @@ function assemble({ id, name, color, ids, stations, parts, maps, freq, loop, est
   const chainCums = chains.map(cumOf);
   const n = sts.length;
   const shape = []; const d = [0]; const segs = [];
+  let assembledLen = 0;
   const pairs = [];
   for (let i = 0; i < n - 1; i++) pairs.push([i, i + 1]);
   if (loop) pairs.push([n - 1, 0]);
@@ -276,8 +277,14 @@ function assemble({ id, name, color, ids, stations, parts, maps, freq, loop, est
     for (let j = 1; j < seg.length; j++) len += distKm(seg[j - 1], seg[j]);
     const straight = havKm(A, B);
     if (len > straight * 3 + 0.5) console.warn(`  ⚠ ${id} ${A.name}→${B.name}: 沿線 ${len.toFixed(2)}km vs 直線 ${straight.toFixed(2)}km(選段可疑)`);
-    for (let j = shape.length ? 1 : 0; j < seg.length; j++) shape.push(seg[j]);
-    d.push(d[d.length - 1] + len);
+    // 相鄰站段不一定投影到同一條 TDX 碎片。淡海藍海線在分岔處實測有約132m接縫；
+    // 舊版 d 只加各 seg 自身長度，卻漏掉最終 shape 實際畫出的段間接線，後三站因而停錯。
+    // 里程改以「實際追加到 shape 的每一段」累積，幾何與動畫使用同一把尺。
+    for (let j = shape.length ? 1 : 0; j < seg.length; j++) {
+      if (shape.length) assembledLen += distKm(shape[shape.length - 1], seg[j]);
+      shape.push(seg[j]);
+    }
+    d.push(assembledLen);
     segs.push({ run: runOf(maps, A.id, B.id) });
   }
   const noRun = segs.filter(s => !s.run).length;

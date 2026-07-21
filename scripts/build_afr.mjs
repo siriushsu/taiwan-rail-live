@@ -10,10 +10,12 @@ import { fileURLToPath } from 'node:url';
 
 const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
 const TDX_DIR = path.join(ROOT, 'data/tdx');
+const osmGapData = JSON.parse(fs.readFileSync(path.join(ROOT, 'data/afr_osm_gap_fills.json'), 'utf8'));
 
 // ─────────────── TDX fetch(auth + retry + 本地快取) ───────────────
+const envFile = path.join(ROOT, '.env');
 const env = Object.fromEntries(
-  fs.readFileSync(path.join(ROOT, '.env'), 'utf8')
+  (fs.existsSync(envFile) ? fs.readFileSync(envFile, 'utf8') : '')
     .split('\n').filter(l => l.includes('=') && !l.trim().startsWith('#'))
     .map(l => { const i = l.indexOf('='); return [l.slice(0, i).trim(), l.slice(i + 1).trim()]; })
 );
@@ -21,6 +23,8 @@ const AUTH_URL = 'https://tdx.transportdata.tw/auth/realms/TDXConnect/protocol/o
 const API_BASE = 'https://tdx.transportdata.tw/api/basic/';
 
 async function getToken() {
+  if (!env.TDX_CLIENT_ID || !env.TDX_CLIENT_SECRET)
+    throw new Error('缺少 .env 的 TDX_CLIENT_ID／TDX_CLIENT_SECRET，無法刷新 AFR 原始資料');
   const r = await fetch(AUTH_URL, {
     method: 'POST',
     headers: { 'content-type': 'application/x-www-form-urlencoded' },
@@ -286,12 +290,40 @@ function stitchGeneral(parts, label, warnings) {
   return chains[0];
 }
 
+// TDX 的 MULTILINESTRING 在本線與祝山線有5處跨分量缺口。以前 stitchGeneral 只能用直線橋接；
+// 現在以 OSM active narrow_gauge 路徑補進現有兩端，不改動 TDX 已提供的其餘軌跡。
+function applyOsmGapFills(shape, lineId) {
+  const fills = osmGapData.fills.filter(x => x.lineId === lineId);
+  let inserted = 0, addedKm = 0;
+  for (const fill of fills) {
+    let hit = null;
+    for (let i = 0; i < shape.length - 1; i++) {
+      if (distKm(shape[i], fill.from) < 0.03 && distKm(shape[i + 1], fill.to) < 0.03) { hit = { i, rev: false }; break; }
+      if (distKm(shape[i], fill.to) < 0.03 && distKm(shape[i + 1], fill.from) < 0.03) { hit = { i, rev: true }; break; }
+    }
+    if (!hit) throw new Error(`${lineId}: 找不到 OSM gap fill 的相鄰 TDX 端點 ${fill.from.join(',')}→${fill.to.join(',')}`);
+    const direct = distKm(shape[hit.i], shape[hit.i + 1]);
+    if (direct < 0.08) throw new Error(`${lineId}: 目標段只剩 ${(direct * 1000).toFixed(0)}m，拒絕重複補線`);
+    const route = (hit.rev ? fill.path.slice().reverse() : fill.path).filter((p, i, arr) =>
+      (i || distKm(shape[hit.i], p) >= 0.002) && (i < arr.length - 1 || distKm(p, shape[hit.i + 1]) >= 0.002));
+    const joined = [shape[hit.i], ...route, shape[hit.i + 1]];
+    const routeKm = lenOf(joined);
+    if (!(routeKm > direct && routeKm < 2)) throw new Error(`${lineId}: OSM 補線 ${routeKm.toFixed(3)}km 未通過長度 gate`);
+    shape.splice(hit.i + 1, 0, ...route);
+    inserted += route.length; addedKm += routeKm - direct;
+    console.log(`    [OSM補線] ${lineId}: ${direct.toFixed(3)}→${routeKm.toFixed(3)}km，插入${route.length}點（ways ${fill.wayIds.join(',')}）`);
+  }
+  return { count: fills.length, inserted, addedKm };
+}
+
 // ─────────────── main ───────────────
 async function main() {
   fs.mkdirSync(TDX_DIR, { recursive: true });
   console.log('== AFR 阿里山林業鐵路');
-  const tok = await getToken();
-  console.log('  got TDX token');
+  const cacheNames = ['Station', 'Line', 'StationOfLine', 'Shape', 'GeneralTrainTimetable'];
+  const cacheReady = cacheNames.every(name => fs.existsSync(path.join(TDX_DIR, `AFR_${name}.json`)));
+  const tok = (!cacheReady || process.env.AFR_REFRESH) ? await getToken() : null;
+  console.log(tok ? '  got TDX token' : '  全部 TDX 原始檔使用本機快取（不需連線授權）');
 
   const stationRaw = await fetchAFR('Station', 'v3/Rail/AFR/Station', tok);
   const lineRaw = await fetchAFR('Line', 'v3/Rail/AFR/Line', tok);
@@ -326,8 +358,9 @@ async function main() {
     { id: 'AFR_ZHAOPING', tdxId: '4', name: '沼平線', color: '#D98A5F' },
   ];
 
-  const warnings = [];
+  let warnings = [];
   const lines = [];
+  const osmFilled = [];
   const lineShapeById = {}; // tdxId -> {shape, cum} 供後面densify 站點插補用(尤其二萬平)
   for (const def of LINE_DEFS) {
     let stIds = solByLine.get(def.tdxId);
@@ -340,6 +373,14 @@ async function main() {
     const parts = shapeByLine.get(def.tdxId);
     const rawTotal = parts.reduce((s, p) => s + lenOf(p), 0);
     let shape = stitchGeneral(parts, def.name, warnings);
+    const filled = applyOsmGapFills(shape, def.id);
+    if (filled.count) {
+      const expected = osmGapData.fills.filter(x => x.lineId === def.id).length;
+      if (filled.count !== expected) throw new Error(`${def.id}: OSM 補線數 ${filled.count}/${expected}`);
+      osmFilled.push({ lineId: def.id, ...filled });
+      // stitchGeneral 的跨分量警告已由上述 OSM 路徑解決，不應再寫成「直線橋接」。
+      warnings = warnings.filter(w => !w.startsWith(`${def.name}: 跨分量橋接 `));
+    }
     // 刻意不跑 despike():實測會把第一分道/第二分道之字形折返(真實存在的 ~180° 轉向,
     // 阿里山林鐵著名的 switchback 爬升)誤判成拼接殘留的尖刺去掉(第一分道離軌距離從 8.6m
     // 惡化到 244m)。despike() 是為捷運系統的模糊容差拼接殘留設計,AFR 這裡用的是精確座標
@@ -373,11 +414,13 @@ async function main() {
       stationsOut.push({ name: st.name, lat: st.lat, lon: st.lon, d: +d.toFixed(4), _projDistM: +(pr.dist * 1000).toFixed(1) });
     }
     lineShapeById[def.tdxId] = { shape, cum, stationsOut };
+    const outputShape = shape.map(p => [+p[0].toFixed(6), +p[1].toFixed(6)]);
     lines.push({
       id: def.id, name: def.name, color: def.color,
       stations: stationsOut.map(({ _projDistM, ...rest }) => rest),
-      shape: shape.map(p => [+p[0].toFixed(6), +p[1].toFixed(6)]),
-      shapeLen: +totalLen.toFixed(4),
+      shape: outputShape,
+      // 成品座標壓到6位小數後，數千段的捨入差可累積到數公尺；shapeLen 必須與實際發布折線同尺。
+      shapeLen: +lenOf(outputShape).toFixed(4),
       _stationDist: stationsOut, // 內部用,寫檔前會濾掉
     });
   }
@@ -409,8 +452,9 @@ async function main() {
       + '無法用簡單首尾配對拼接;改用連通分量+Eulerian 最大覆蓋路徑,並以「接縫處方向連續」為擇優準則'
       + '(真實軌道是平滑曲線,錯接必然出現銳角;單看端點距離無法分辨圈次)。'
       + '驗證:螺旋區累積轉向 2.02 圈、銳角接縫 0 處(未套用此準則時為 0.02 圈、4 處銳角)。'
-      + ' 祝山線(LineID=2)的 5 個碎片之間有 TDX 資料本身的真實缺口(端點最近距離 104–527m,無更近的接法),'
-      + '4 處橋接共約 1.23km 以直線連接,故其 shapeLen 4.99km 高於碎片內總長 3.76km。'
+      + ` TDX shape 的本線1處與祝山線4處跨分量缺口，改以 © OpenStreetMap 貢獻者（ODbL）active narrow_gauge 軌道補齊`
+      + `（${osmGapData.fetched}擷取；共${osmFilled.reduce((n, x) => n + x.count, 0)}段、ways `
+      + `${[...new Set(osmGapData.fills.flatMap(x => x.wayIds))].join(',')}），不再以直線穿越山谷。`
       + (warnings.length ? ' 拼接過程警告:' + warnings.join('；') : '')
       + (overThreshold.length ? ' 離軌超過150m的站點:' + overThreshold.join('；') : ' 全部站點離軌距離均在150m內。'),
     lines: lines,

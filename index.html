@@ -2382,9 +2382,10 @@ try { if (matchMedia('(max-width: 900px)').matches) document.body.classList.add(
 
   <footer class="site-foot">
     <details class="foot-box">
-      <summary><span>🛠 更新紀錄</span><span class="foot-sub">最後更新：2026/7/21</span></summary>
+      <summary><span>🛠 更新紀錄</span><span class="foot-sub">最後更新：2026/7/22</span></summary>
       <ul class="foot-list">
         <li class="grp">最近更新</li>
+        <li><span class="d">7/22</span><span>軌道全面健檢：修掉四處短暫折返、淡海藍海線末三站停靠偏移與直通列車跨線跳動；阿里山資料缺口改沿山中實際軌跡補齊</span></li>
         <li><span class="d">7/21</span><span>捷運車站看板每個方向精簡為兩班（原本三班），畫面更清爽</span></li>
         <li><span class="d">7/21</span><span>修正「全台同框」點捷運車站時，看板班次整份重複顯示兩遍的問題</span></li>
         <li><span class="d">7/21</span><span>例行安全性與穩定性強化（背景維護，操作與畫面無變化）</span></li>
@@ -2504,7 +2505,7 @@ try { if (matchMedia('(max-width: 900px)').matches) document.body.classList.add(
         <li><span class="d">台鐵</span><span>台鐵官方 OpenData（ods.railway.gov.tw）——每日時刻表、車站基本資料、車種代碼表，依「政府資料開放授權條款」使用</span></li>
         <li><span class="d">捷運</span><span>交通部 TDX 運輸資料流通服務——北捷／機捷／新北捷（淡海・安坑・三鶯）／中捷／高捷（含輕軌）的路線幾何、站序、逐班時刻表與班距資料</span></li>
         <li><span class="d">即時</span><span>台鐵即時誤點與車站地址介接交通部 TDX 平臺（TrainLiveBoard／Station，每分鐘更新）</span></li>
-        <li><span class="d">軌道</span><span>台鐵軌道幾何取自 © OpenStreetMap 貢獻者（ODbL），經 Overpass API</span></li>
+        <li><span class="d">軌道</span><span>台鐵軌道及阿里山林鐵的 TDX 缺口補線取自 © OpenStreetMap 貢獻者（ODbL），經 Overpass／OSM API</span></li>
         <li><span class="d">底圖</span><span>CARTO basemaps（© OpenStreetMap）、Esri World Imagery（衛星影像）與 Natural Earth（離線海陸輪廓）</span></li>
       </ul>
       <p class="foot-note">本站為個人愛好者專案，與台灣鐵路公司及各捷運公司皆無關。台鐵套用官方即時誤點；北捷、高捷、桃園機捷與高雄輕軌營運時段依官方到站看板即時校正；新北捷運（環狀線、淡海輕軌、安坑輕軌）營運時段依官方列車動態即時校正；其餘捷運／輕軌依當日官方時刻表推演（部分路線無公開逐班時刻，為班距推算）。實際到離站時刻請以各營運機構官方資訊為準。</p>
@@ -2599,7 +2600,8 @@ try { if (matchMedia('(max-width: 900px)').matches) document.body.classList.add(
 <script>
 // 版本戳記:每次改版 push 前手動遞增(字母序),畫面時鐘徽章與 console 都會顯示,
 // 供比對線上跑的是不是最新版(瀏覽器快取 max-age=600 常讓人看到舊版)
-const BUILD = 'v0721l';
+const BUILD = 'v0722a';
+const TRACK_AUDIT = new URLSearchParams(location.search).get('audit') === 'tracks';
 // 手機/平板直式「殼」斷點(議題1:640→900,iPad 直式改拿 tabbar＋更多抽屜):與 CSS @media 同步,版面類判斷一律用此常數。
 // 注意:裝置等級判斷(keepBuffer/powerSave 預設)刻意不用此常數、維持 640——iPad 不該因為改拿 tabbar 就被當低階裝置。
 const MOBILE_MQ = '(max-width: 900px)';
@@ -2786,8 +2788,10 @@ function buildFollowRoute(tr) {
   let pts = [];
   for (let i = 0; i < tr.stops.length - 1; i++) {
     const s = tr.stops[i], nx = tr.stops[i + 1];
-    pts = pts.concat(s.segLn ? shapeSlice(s.segLn, s.dA, s.dB)
-      : [{ lat: s.lat, lon: s.lon }, { lat: nx.lat, lon: nx.lon }]);
+    const segPts = s.segLn ? shapeSlice(s.segLn, s.dA, s.dB)
+      : [{ lat: s.lat, lon: s.lon }, { lat: nx.lat, lon: nx.lon }];
+    if (s.bridgeTo) segPts.push(s.bridgeTo);
+    pts = pts.concat(segPts);
   }
   // 長途車折線可達數千點,均勻抽稀省每幀投影。CAP 太低會切彎角:433km 車 1200 點=點距360m,
   // z14 就看得出高亮偏離軌道;4800 點=點距90m,弓高<3m 在任何 zoom 都貼軌
@@ -3042,13 +3046,59 @@ function trainPos(tr, t) {
       let f = span > 0 ? (t - s[i].depSec) / span : 0;
       if (s[i].prof) f = profTimeToProg(s[i].prof, t - s[i].depSec); // 車種加減速:等速→梯形曲線(緩起/巡航/緩停)
       if (s[i].segLn) {
-        const d = s[i].dA + (s[i].dB - s[i].dA) * f;
-        return posAlongShape(s[i].segLn, d);
+        return schedSegmentPos(s[i], f);
       }
       return { lat: s[i].lat + (s[i + 1].lat - s[i].lat) * f, lon: s[i].lon + (s[i + 1].lon - s[i].lon) * f };
     }
   }
   return null;
+}
+
+// 跨線直通車的兩條來源 shape 在共站可能落於不同股道（八堵／成功／彰化實測約20m）。
+// 把這段真實空間差納入前一站間的末端接續，列車沿短連接線抵達下一線，而非到站瞬移。
+function schedSegmentKm(seg) {
+  return Math.abs(seg.dB - seg.dA) + (seg.bridgeKm || 0);
+}
+function schedSegmentPos(seg, f) {
+  const lineKm = Math.abs(seg.dB - seg.dA), bridgeKm = seg.bridgeKm || 0;
+  if (!bridgeKm || f * (lineKm + bridgeKm) <= lineKm) {
+    const along = Math.min(lineKm, f * (lineKm + bridgeKm));
+    return posAlongShape(seg.segLn, seg.dA + Math.sign(seg.dB - seg.dA) * along);
+  }
+  const from = posAlongShape(seg.segLn, seg.dB);
+  const bf = Math.min(1, (f * (lineKm + bridgeKm) - lineKm) / bridgeKm);
+  return { lat: from.lat + (seg.bridgeTo.lat - from.lat) * bf,
+    lon: from.lon + (seg.bridgeTo.lon - from.lon) * bf };
+}
+
+// ?audit=tracks：只在驗收網址輸出跨線接續的數值結果，讓隔離執行環境也能從 DOM 讀取。
+// 平常不掃描、不改畫面；保留作為日後軌道資料更新後的瀏覽器回歸把手。
+function publishTrackContinuityAudit() {
+  if (!TRACK_AUDIT) return;
+  const cases = [];
+  for (const tr of state.trains || []) {
+    const s = tr.stops || [];
+    for (let i = 1; i < s.length - 1; i++) {
+      const incoming = s[i - 1], outgoing = s[i];
+      if (!incoming.bridgeKm || !outgoing.segLn) continue;
+      const before = schedSegmentPos(incoming, 1);
+      const after = posAlongShape(outgoing.segLn, outgoing.dA);
+      cases.push({
+        train: String(tr.train),
+        route: `${s[i - 1].name}→${s[i].name}→${s[i + 1].name}`,
+        sourceGapM: +(incoming.bridgeKm * 1000).toFixed(3),
+        boundaryGapM: +(haversineKm(before, after) * 1000).toFixed(6),
+      });
+    }
+  }
+  const routes = [...new Set(cases.map(x => x.route))];
+  document.documentElement.dataset.trackContinuityAudit = JSON.stringify({
+    cases: cases.length,
+    routes: routes.length,
+    maxSourceGapM: cases.length ? Math.max(...cases.map(x => x.sourceGapM)) : 0,
+    maxBoundaryGapM: cases.length ? Math.max(...cases.map(x => x.boundaryGapM)) : 0,
+    samples: routes.slice(0, 20),
+  });
 }
 
 // 點到折線最近投影:回傳沿線里程 d 與垂距(km);缺站補登用
@@ -3098,6 +3148,7 @@ function assignSchedShapePathsFor(trains, lines) {
   }
   for (const tr of trains) {
     const s = tr.stops, perf = resolvePerf(tr); // 車種加減速參數(HSR/carName/typeName 解析)
+    for (const st of s) { delete st.bridgeTo; delete st.bridgeKm; }
     for (let i = 0; i < s.length - 1; i++) {
       const A = byName.get(s[i].name), B = byName.get(s[i + 1].name);
       let best = null;
@@ -3113,6 +3164,20 @@ function assignSchedShapePathsFor(trains, lines) {
         state._segStats.straight++;
         s[i].prof = buildProfile(haversineKm(s[i], s[i + 1]), T, perf.a, perf.b, perf.v);
       }
+    }
+    // 不修改任何軌道的真實位置，只在「同一班直通車跨 line」時補上兩條 shape 之間的短接續。
+    // 100m gate 防止資料錯配時畫出不合理捷徑；目前所有有效接續均小於24m。
+    for (let i = 1; i < s.length - 1; i++) {
+      const incoming = s[i - 1], outgoing = s[i];
+      if (!incoming.segLn || !outgoing.segLn || incoming.segLn === outgoing.segLn) continue;
+      const from = posAlongShape(incoming.segLn, incoming.dB);
+      const to = posAlongShape(outgoing.segLn, outgoing.dA);
+      const gap = haversineKm(from, to);
+      if (!(gap > 0.001 && gap <= 0.1)) continue;
+      incoming.bridgeTo = to; incoming.bridgeKm = gap;
+      const T = s[i].arrSec - incoming.depSec;
+      incoming.prof = buildProfile(schedSegmentKm(incoming), T, perf.a, perf.b, perf.v);
+      state._segStats.bridged++;
     }
   }
 }
@@ -3176,7 +3241,7 @@ function applySchedSystems(sysList) {
   state.visible = new Set(state.types.map(t => t.key));
   state.simSec = nowSecOfDay(sysList[0] && sysList[0].tz); // 海外群組:以該群當地時間為「現在」
   // 逐系統貼軌:只在同系統軌道上找,避免跨系統誤貼
-  state._segStats = { onShape: 0, straight: 0 };
+  state._segStats = { onShape: 0, straight: 0, bridged: 0 };
   for (const sys of sysList) {
     const trs = state.trains.filter(t => t.sys === sys.id);
     const lns = state.trackLines.filter(l => l.sys === sys.id);
@@ -3935,7 +4000,7 @@ function crossingPasses(cr) {
       if (!denom) continue;
       const lo = Math.min(sg.dA, sg.dB), hi = Math.max(sg.dA, sg.dB);
       if (cr.d < lo || cr.d > hi) continue;
-      const f = (cr.d - sg.dA) / denom;                    // 沿線里程比例
+      const f = Math.abs(cr.d - sg.dA) / schedSegmentKm(sg); // 含跨線末端短接續的全段里程比例
       const tSched = sg.prof ? sg.depSec + profProgToTime(sg.prof, f)
         : sg.depSec + f * (s[i + 1].arrSec - sg.depSec);   // 加減速反解通過時刻;無 prof 退等速
       const dlSec = liveDelaySec(tr);                       // 台鐵即時誤點(貼近現在時刻才作用)
@@ -5512,7 +5577,7 @@ function retimeLoopTrains() {
     const s = tr.stops, segKm = [];
     let total = 0;
     for (let i = 0; i < s.length - 1; i++) {
-      const km = s[i].segLn ? Math.abs(s[i].dB - s[i].dA) : haversineKm(s[i], s[i + 1]);
+      const km = s[i].segLn ? schedSegmentKm(s[i]) : haversineKm(s[i], s[i + 1]);
       segKm.push(km); total += km;
     }
     const dwells = s.filter((x, i) => i > 0 && i < s.length - 1 && x.stop !== false).length * LOOP_DWELL + LOOP_DWELL;
@@ -7847,7 +7912,7 @@ function journeyProgress(tr, t) {
   if (!tr._segKm) {
     tr._segKm = []; tr._totalKm = 0;
     for (let i = 0; i < s.length - 1; i++) {
-      const km = s[i].segLn ? Math.abs(s[i].dB - s[i].dA) : haversineKm(s[i], s[i + 1]);
+      const km = s[i].segLn ? schedSegmentKm(s[i]) : haversineKm(s[i], s[i + 1]);
       tr._segKm.push(km); tr._totalKm += km;
     }
   }
@@ -11074,6 +11139,7 @@ async function boot() {
   }
   map.on('moveend', saveLastView); // 記住使用者最後看的畫面;守門條件都在 saveLastView 內(巡航/跟車/直播皆不寫)
   state.ready = true;
+  publishTrackContinuityAudit();
   if (window.__notifyMockLog) {
     const cross = state.systems.filter(s => s.id === 'tra_sched' || s.id === 'thsr_sched')
       .flatMap(s => s.data.trains || []).find(tr => tr.stops && tr.stops.some(st => st.arrSec > 86400 || st.depSec > 86400));

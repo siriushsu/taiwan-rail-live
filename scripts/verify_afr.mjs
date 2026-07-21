@@ -7,9 +7,8 @@
 //     實際路線是 二萬平→神木→阿里山(最後 1.3km 由神木線提供)。故車次5/8(嘉義↔阿里山)densify
 //     後必為 18 站,若出現 17 站即代表最短路徑抄了「二萬平→阿里山」的捷徑、跳過神木。
 //   · 站碼 360-381 連號(缺 364,已廢站),本線實體站序即 MAIN_ORDER 那 17 站。
-//   · 線形長度必須「分碎片累加」:MULTILINESTRING 的碎片接縫不是軌道(本線 22 碎片虛胖 19.49km、
-//     祝山線 5 碎片虛胖 3.39km)。祝山線例外:碎片間有 TDX 真實缺口(端點最近距 104–527m),
-//     4 處直線橋接約 1.23km,故拼接後 4.99km > 碎片內 3.76km。
+//   · TDX MULTILINESTRING 有本線1處、祝山線4處跨分量缺口；不能畫直線穿越山谷，現以 OSM
+//     active narrow_gauge ways 補齊。祝山線 104m 弦對應的真實繞行甚至達約675m，是必要驗收點。
 //   · 獨立山螺旋是繞山盤旋上升,拼接錯誤(在 2D 自我交叉的分岔節點選錯圈次)會讓累積轉向互相
 //     抵消並在接縫留下銳角。用「路徑自身累積轉向角」量,不可用「相對重心方位角」(偏心螺旋會失真)。
 //   · TDX 班次的 TrainTypeID/TrainTypeName 十班全 null,車種是本專案依起訖路線歸類的四類;
@@ -28,8 +27,7 @@ const hav = (a, b) => {
 };
 const brg = (a, b) => Math.atan2((b[1] - a[1]) * Math.cos(a[0] * Math.PI / 180), b[0] - a[0]) * 180 / Math.PI;
 // 點到 polyline 的距離必須量「到線段」而非「到頂點」:軌道是連續的線,頂點只是取樣。
-// 本線有一段 1170m 的 TDX 資料缺口以直線橋接,屏遮那站正落在該段上——量到頂點會得到 425m
-// 的假性偏離,量到線段則是實際的 88m。
+// 站點離軌需量到線段而非頂點；頂點只是折線取樣，不能拿點距代替線距。
 function distToSeg(p, a, b) {
   const k = Math.cos(p[0] * Math.PI / 180), R = 111320;
   const px = (p[1] - a[1]) * k * R, py = (p[0] - a[0]) * R;
@@ -48,7 +46,7 @@ const MAIN_ORDER = ['嘉義', '北門', '鹿麻產', '竹崎', '樟腦寮', '獨
   '水社寮', '奮起湖', '多林', '十字路', '屏遮那', '第一分道', '第二分道', '二萬平', '神木'];
 const T5_EXPECT = [...MAIN_ORDER, '阿里山'];
 const T5_SCHEDULED = ['嘉義', '北門', '竹崎', '交力坪', '奮起湖', '二萬平', '阿里山'];
-const SHAPE_KM = { '本線': 68.16, '祝山線': 4.99, '神木線': 1.29, '沼平線': 1.07 };
+const SHAPE_KM = { '本線': 69.47, '祝山線': 5.81, '神木線': 1.29, '沼平線': 1.07 };
 
 console.log('\n═══ A. 軌道路網 data/afr.json ═══');
 const track = JSON.parse(readFileSync('data/afr.json', 'utf8'));
@@ -72,6 +70,15 @@ for (const ln of track.lines) {
 }
 ok(track.lines.find(l => l.name.includes('本線')).stations.map(s => s.name).join() === MAIN_ORDER.join(),
   '本線站序＝嘉義…二萬平→神木（末站依幾何現實為神木，非官方的阿里山）');
+{
+  const fills = JSON.parse(readFileSync('data/afr_osm_gap_fills.json', 'utf8'));
+  ok(fills.fills?.length === 5 && /OpenStreetMap/.test(fills.source), '5處 TDX 缺口均有 OSM ODbL 補線來源');
+  for (const fill of fills.fills) {
+    const ln = track.lines.find(l => l.id === fill.lineId);
+    const worst = Math.max(...fill.path.map(p => distToLine(p, ln.shape)));
+    ok(worst < 5, `${fill.lineId} OSM way ${fill.wayIds.join('/')} 已進成品線形（最大偏離 ${worst.toFixed(1)}m）`);
+  }
+}
 
 console.log('\n═══ B. 獨立山螺旋（錯接會被拉直／出現銳角）═══');
 {

@@ -2,7 +2,7 @@
 // 除毛刺:清掉軌道 shape 裡「出去又折回」的 OSM 尋路 artifacts(站場側線/橫渡線繞行),
 // 再把各站重新投影回清乾淨的折線、重算里程 d。
 // 症狀:列車經過特定站會倒退一小段再前進(2026-07-08 實測 61 個毛刺、773/905 班受影響)。
-// 用法:node scripts/despike_shapes.mjs   (就地改寫 data/tra.json 與 data/mrt.json;git 即備份)
+// 用法:node scripts/despike_shapes.mjs   (就地改寫現行台鐵 data/tra.json;捷運由 build_tdx.mjs 自行除刺)
 
 import { readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
@@ -85,13 +85,15 @@ function reprojectStations(ln) {
       prevD = Math.max(prevD, bestD);
     }
   }
+  // shape 被裁短後必須同步刷新總長；舊版只改 stations[].d，會留下過期的 shapeLen。
+  ln.shapeLen = +cum[cum.length - 1].toFixed(4);
   return changes;
 }
 
-for (const file of ['data/tra.json', 'data/mrt.json']) {
+for (const file of ['data/tra.json']) {
   const fp = path.join(ROOT, file);
   const data = JSON.parse(readFileSync(fp, 'utf8'));
-  let totalRemoved = 0;
+  let totalRemoved = 0, totalLenFixed = 0;
   for (const ln of data.lines) {
     if (!ln.shape || ln.shape.length < 3) continue;
     const removed = despike(ln.shape);
@@ -101,7 +103,13 @@ for (const file of ['data/tra.json', 'data/mrt.json']) {
       console.log(`${file} ${ln.id}: 移除 ${removed} 個折返頂點;站里程更動 ${changes.length} 站`
         + (changes.length ? ` — ${changes.slice(0, 4).join('、')}${changes.length > 4 ? '…' : ''}` : ''));
     }
+    const actualLen = +cumOf(ln.shape).at(-1).toFixed(4);
+    if (Object.hasOwn(ln, 'shapeLen') && ln.shapeLen !== actualLen) {
+      console.log(`${file} ${ln.id}: shapeLen ${ln.shapeLen}→${actualLen}km`);
+      ln.shapeLen = actualLen; totalLenFixed++;
+    }
   }
-  if (totalRemoved) writeFileSync(fp, JSON.stringify(data));
-  console.log(`${file}: 共移除 ${totalRemoved} 個頂點${totalRemoved ? '(已寫回)' : '(無毛刺,未動)'}`);
+  if (totalRemoved || totalLenFixed) writeFileSync(fp, JSON.stringify(data));
+  console.log(`${file}: 共移除 ${totalRemoved} 個頂點、刷新 ${totalLenFixed} 條 shapeLen`
+    + (totalRemoved || totalLenFixed ? '(已寫回)' : '(無需改寫)'));
 }
