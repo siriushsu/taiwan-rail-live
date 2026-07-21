@@ -11,6 +11,19 @@ const out = join(appRoot, 'www');
 const includeLicensedMusic = process.env.RAIL_INCLUDE_LICENSED_MUSIC === '1';
 const includeLicensedBasemaps = process.env.RAIL_INCLUDE_LICENSED_BASEMAPS === '1';
 
+async function readRequiredEnv(name) {
+  let source;
+  try { source = await readFile(join(repoRoot, '.env'), 'utf8'); }
+  catch { throw new Error(`建立含授權底圖的 App 前，repo 根目錄 .env 必須設定 ${name}`); }
+  const line = source.split(/\r?\n/).find(candidate => new RegExp(`^\\s*(?:export\\s+)?${name}\\s*=`).test(candidate));
+  if (!line) throw new Error(`建立含授權底圖的 App 前，repo 根目錄 .env 必須設定 ${name}`);
+  let value = line.slice(line.indexOf('=') + 1).trim();
+  if ((value.startsWith('"') && value.endsWith('"')) || (value.startsWith("'") && value.endsWith("'"))) value = value.slice(1, -1);
+  if (!value) throw new Error(`repo 根目錄 .env 的 ${name} 不可為空`);
+  return value;
+}
+
+const stadiaApiKey = includeLicensedBasemaps ? encodeURIComponent(await readRequiredEnv('STADIA_API_KEY')) : null;
 await assertLicensedBuildAllowed({ includeLicensedMusic, includeLicensedBasemaps });
 
 await rm(out, { recursive: true, force: true });
@@ -72,6 +85,23 @@ await build({
 
 const indexPath = join(out, 'index.html');
 let html = await readFile(indexPath, 'utf8');
+const legacyBasemapBlock = /  if \(onlineBasemapsAvailable\(\)\) \{\n    baseLayers\.light = L\.tileLayer\('https:\/\/\{s\}\.basemaps\.cartocdn\.com[\s\S]*?\n  \}\n  \/\/ 外觀三段/;
+const stadiaAttribution = '&copy; <a href="https://stadiamaps.com/" target="_blank">Stadia Maps</a> &copy; <a href="https://openmaptiles.org/" target="_blank">OpenMapTiles</a> &copy; <a href="https://www.openstreetmap.org/copyright" target="_blank">OpenStreetMap</a>';
+const appBasemapBlock = includeLicensedBasemaps
+  ? `  if (onlineBasemapsAvailable()) {
+    baseLayers.light = L.tileLayer('https://tiles.stadiamaps.com/tiles/alidade_smooth/{z}/{x}/{y}.png?api_key=${stadiaApiKey}', {
+      maxZoom: 20, crossOrigin: true, keepBuffer: kb, attribution: '${stadiaAttribution}',
+    });
+    baseLayers.dark = L.tileLayer('https://tiles.stadiamaps.com/tiles/alidade_smooth_dark/{z}/{x}/{y}.png?api_key=${stadiaApiKey}', {
+      maxZoom: 20, crossOrigin: true, keepBuffer: kb, attribution: '${stadiaAttribution}',
+    });
+  }
+  // 外觀三段`
+  : `  if (onlineBasemapsAvailable()) {
+    // App 安全 build：發行政策未核准線上底圖，不建立任何線上 tile layer。
+  }
+  // 外觀三段`;
+if (!legacyBasemapBlock.test(html)) throw new Error('App index basemap rewrite target not found');
 html = html
   .replace(/<link rel="stylesheet" href="https:\/\/cdnjs\.cloudflare\.com\/ajax\/libs\/leaflet\/1\.9\.4\/leaflet\.min\.css"[^>]*>/, '<link rel="stylesheet" href="vendor/leaflet/leaflet.css">')
   .replace(/<script src="https:\/\/cdnjs\.cloudflare\.com\/ajax\/libs\/leaflet\/1\.9\.4\/leaflet\.min\.js"[^>]*><\/script>/, '<script src="vendor/leaflet/leaflet.js"></script>')
@@ -80,10 +110,20 @@ html = html
   .replace(/\s*<li class="web-only-donation-log">[\s\S]*?<\/li>/, '')
   .replace(/\/\/ APP_STRIP_START donation-handler[\s\S]*?\/\/ APP_STRIP_END donation-handler/, '')
   .replace('<span class="ver" id="buildVer"></span>', '<a href="third-party-notices.txt" target="_blank" rel="noopener" style="min-height:44px;display:inline-flex;align-items:center;padding:0 4px">第三方軟體授權</a>\n      <span class="ver" id="buildVer"></span>')
-  .replace('<script src="revenuecat-config.js"></script>', `<script src="revenuecat-config.js"></script>\n<script>window.RAIL_MUSIC_AVAILABLE=${includeLicensedMusic};window.RAIL_ONLINE_BASEMAPS_AVAILABLE=${includeLicensedBasemaps}</script>\n<script src="native-bridge.js"></script>`);
-if (!includeLicensedBasemaps) html = html.replace('id="satBtn" title="切換衛星影像"', 'id="satBtn" style="display:none" title="切換衛星影像"');
+  .replace('<script src="revenuecat-config.js"></script>', `<script src="revenuecat-config.js"></script>\n<script>window.RAIL_MUSIC_AVAILABLE=${includeLicensedMusic};window.RAIL_ONLINE_BASEMAPS_AVAILABLE=${includeLicensedBasemaps}</script>\n<script src="native-bridge.js"></script>`)
+  .replace(legacyBasemapBlock, appBasemapBlock)
+  .replace("const sat = online && state.basemap === 'sat';", "const sat = false; // App v1 暫不提供衛星底圖")
+  .replace('id="satBtn" title="切換衛星影像"', 'id="satBtn" style="display:none" title="切換衛星影像"')
+  .replace('class="ms-row" data-proxy="satBtn"', 'class="ms-row" data-proxy="satBtn" style="display:none"')
+  .replace(
+    'CARTO basemaps（© OpenStreetMap）、Esri World Imagery（衛星影像）與 Natural Earth（離線海陸輪廓）',
+    includeLicensedBasemaps
+      ? 'Stadia Maps（© Stadia Maps © OpenMapTiles © OpenStreetMap）與 Natural Earth（離線海陸輪廓）'
+      : 'Natural Earth（離線海陸輪廓；線上底圖未納入此版本）'
+  );
 if (!html.includes('vendor/leaflet/leaflet.js') || !html.includes('native-bridge.js')) throw new Error('App index vendor/native bridge injection failed');
 if (/ko-fi|PayPal|111010691056|web-only-donation-log|贊助方式更新/i.test(html) || html.includes('id="donateCopy"') || html.includes('class="foot-box foot-donate"')) throw new Error('External donation content leaked into native App');
+if (/cartocdn\.com|arcgisonline\.com/i.test(html)) throw new Error('App index still contains unlicensed CARTO/Esri tile URLs');
 await writeFile(indexPath, html);
 
 await verifyRelease({

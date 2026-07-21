@@ -14,3 +14,6 @@ hand off/
 scripts/.crossings_cache/
 node_modules/
 ntmetro_fixtures/
+
+# App 發行授權閘門——evidence 內含授權證據，比照 .env 留本機、公開 repo 不收
+app/release-policy.json

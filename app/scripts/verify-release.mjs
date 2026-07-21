@@ -124,6 +124,12 @@ export async function verifyRelease({
     'App 仍含網站外部贊助內容');
   assert(!html.includes('class="foot-box foot-donate"') && !html.includes('id="donateCopy"'),
     'App 仍含外部贊助操作元件');
+  assert(!/cartocdn\.com|arcgisonline\.com/i.test(html),
+    'App 不可含 CARTO／Esri legacy 圖磚網址');
+  assert(/id="satBtn" style="display:none"/.test(html),
+    'App v1 必須預先隱藏衛星按鈕');
+  assert(/data-proxy="satBtn" style="display:none"/.test(html),
+    'App v1 的手機「衛星影像」入口必須預先隱藏');
   assert(/href="third-party-notices\.txt"[^>]*min-height:44px/.test(html),
     'App 頁尾缺少 44px 觸控高度的第三方軟體授權入口');
   const notices = await readFile(join(output, 'third-party-notices.txt'), 'utf8');
@@ -139,9 +145,20 @@ export async function verifyRelease({
     assert(html.includes('window.RAIL_MUSIC_AVAILABLE=false'), '安全 build 必須明確關閉音樂');
   }
 
-  if (!basemapsEnabled) {
+  if (basemapsEnabled) {
+    assert(/tiles\.stadiamaps\.com\/tiles\/alidade_smooth\/\{z\}\/\{x\}\/\{y\}\.png\?api_key=[^'"\s]+/.test(html),
+      '亮色底圖不是含 api_key 的 Stadia alidade_smooth');
+    assert(/tiles\.stadiamaps\.com\/tiles\/alidade_smooth_dark\/\{z\}\/\{x\}\/\{y\}\.png\?api_key=[^'"\s]+/.test(html),
+      '暗色底圖不是含 api_key 的 Stadia alidade_smooth_dark');
+    assert(!html.includes('baseLayers.sat = L.tileLayer'), 'App v1 不可建立衛星圖層');
+    const stadiaAttribution = '&copy; <a href="https://stadiamaps.com/" target="_blank">Stadia Maps</a> &copy; <a href="https://openmaptiles.org/" target="_blank">OpenMapTiles</a> &copy; <a href="https://www.openstreetmap.org/copyright" target="_blank">OpenStreetMap</a>';
+    assert(html.includes(`attribution: '${stadiaAttribution}'`),
+      'Stadia 圖磚署名不是官方要求的三組連結逐字內容');
+    assert(html.includes('Stadia Maps（© Stadia Maps © OpenMapTiles © OpenStreetMap）與 Natural Earth（離線海陸輪廓）'),
+      'App 頁尾底圖來源未改為 Stadia／OpenMapTiles／OpenStreetMap／Natural Earth');
+  } else {
     assert(html.includes('window.RAIL_ONLINE_BASEMAPS_AVAILABLE=false'), '安全 build 必須明確關閉線上底圖');
-    assert(/id="satBtn" style="display:none"/.test(html), '安全 build 必須預先隱藏衛星按鈕');
+    assert(!html.includes('tiles.stadiamaps.com'), '安全 build 不可含 Stadia 圖磚網址或 API key');
   }
 
   // Stored XSS 迴歸（QA 2026-07-21）：「我的最愛」的列車／站名是使用者資料,可能來自被污染的
