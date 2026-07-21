@@ -2385,6 +2385,7 @@ try { if (matchMedia('(max-width: 900px)').matches) document.body.classList.add(
       <summary><span>🛠 更新紀錄</span><span class="foot-sub">最後更新：2026/7/21</span></summary>
       <ul class="foot-list">
         <li class="grp">最近更新</li>
+        <li><span class="d">7/21</span><span>修正「全台同框」點捷運車站時，看板班次整份重複顯示兩遍的問題</span></li>
         <li><span class="d">7/21</span><span>例行安全性與穩定性強化（背景維護，操作與畫面無變化）</span></li>
         <li><span class="d">7/21</span><span>修正桌面全畫面與放空模式剛開啟就自動退出（Chrome 與 Safari 成因不同，一併治好）</span></li>
         <li><span class="d">7/21</span><span>「台鐵大面積誤點」示警改嚴：要夠多班次誤點滿 10 分鐘才會提示，不再因為一堆車晚個 1～2 分鐘就誤報</span></li>
@@ -2421,6 +2422,7 @@ try { if (matchMedia('(max-width: 900px)').matches) document.body.classList.add(
         <li><span class="d">7/11</span><span>捷運與輕軌改依當日實際時刻表逐班推演</span></li>
         <li><span class="d">7/9</span><span>台鐵即時誤點上線——介接交通部 TDX 平臺，每分鐘更新</span></li>
         <li class="grp">跟車、搜尋與車站看板</li>
+        <li><span class="d">7/21</span><span>修正「全台同框」視圖點捷運車站時，來車看板把同一批班次重複列了兩遍</span></li>
         <li><span class="d">7/18</span><span>搜尋框可以直接打列車名字：山嵐、鳴日、藍皮、海風…有開行班次的直接列車次，沒有固定車次的給你介紹卡</span></li>
         <li><span class="d">7/17</span><span>搜尋合而為一：車站名與車次打同一個框（原本的「找站」鈕退役），提示文字改清楚，也修好跟車時搜尋結果蓋住「取消跟隨」鈕</span></li>
         <li><span class="d">7/17</span><span>車站看板的 ☆ 收藏／× 關閉鈕釘在標題列，不再隨列表捲動消失；7/19 再校正這兩顆圖示的大小與對齊</span></li>
@@ -2600,7 +2602,7 @@ try { if (matchMedia('(max-width: 900px)').matches) document.body.classList.add(
 <script>
 // 版本戳記:每次改版 push 前手動遞增(字母序),畫面時鐘徽章與 console 都會顯示,
 // 供比對線上跑的是不是最新版(瀏覽器快取 max-age=600 常讓人看到舊版)
-const BUILD = 'v0721i';
+const BUILD = 'v0721j';
 // 手機/平板直式「殼」斷點(議題1:640→900,iPad 直式改拿 tabbar＋更多抽屜):與 CSS @media 同步,版面類判斷一律用此常數。
 // 注意:裝置等級判斷(keepBuffer/powerSave 預設)刻意不用此常數、維持 640——iPad 不該因為改拿 tabbar 就被當低階裝置。
 const MOBILE_MQ = '(max-width: 900px)';
@@ -5917,7 +5919,9 @@ function toggleSchedMember(id) {
 
 // 全台同框:把所有 freq 系統(捷運/輕軌)的線建成裝飾層,示意動畫獨立於真實時鐘
 function buildDecoLines() {
-  const freqIds = GROUPS.filter(g => g.mode === 'freq').flatMap(g => g.members);
+  // 去重:手機合併群組「捷」的 members = north ∪ south,與 north/south 各群成員重疊,
+  // 不去重會讓每個捷運系統的線在裝飾層出現兩次(全台同框點站看板每班次重複、路線重疊繪製)。
+  const freqIds = [...new Set(GROUPS.filter(g => g.mode === 'freq').flatMap(g => g.members))];
   const lines = [];
   for (const id of freqIds) {
     const sys = state.systems.find(s => s.id === id);
