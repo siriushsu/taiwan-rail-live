@@ -24,6 +24,7 @@ async function readRequiredEnv(name) {
 }
 
 const stadiaApiKey = includeLicensedBasemaps ? encodeURIComponent(await readRequiredEnv('STADIA_API_KEY')) : null;
+const esriApiKey = includeLicensedBasemaps ? encodeURIComponent(await readRequiredEnv('ESRI_API_KEY')) : null;
 await assertLicensedBuildAllowed({ includeLicensedMusic, includeLicensedBasemaps });
 
 await rm(out, { recursive: true, force: true });
@@ -95,6 +96,9 @@ const appBasemapBlock = includeLicensedBasemaps
     baseLayers.dark = L.tileLayer('https://tiles.stadiamaps.com/tiles/alidade_smooth_dark/{z}/{x}/{y}.png?api_key=${stadiaApiKey}', {
       maxZoom: 20, crossOrigin: true, keepBuffer: kb, attribution: '${stadiaAttribution}',
     });
+    baseLayers.sat = L.tileLayer('https://ibasemaps-api.arcgis.com/arcgis/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}?token=${esriApiKey}', {
+      maxZoom: 19, crossOrigin: true, keepBuffer: kb, attribution: 'Tiles &copy; Esri — Source: Esri, Maxar, Earthstar Geographics',
+    });
   }
   // 外觀三段`
   : `  if (onlineBasemapsAvailable()) {
@@ -112,16 +116,40 @@ html = html
   .replace('<span class="ver" id="buildVer"></span>', '<a href="third-party-notices.txt" target="_blank" rel="noopener" style="min-height:44px;display:inline-flex;align-items:center;padding:0 4px">第三方軟體授權</a>\n      <span class="ver" id="buildVer"></span>')
   .replace('<script src="revenuecat-config.js"></script>', `<script src="revenuecat-config.js"></script>\n<script>window.RAIL_MUSIC_AVAILABLE=${includeLicensedMusic};window.RAIL_ONLINE_BASEMAPS_AVAILABLE=${includeLicensedBasemaps}</script>\n<script src="native-bridge.js"></script>`)
   .replace(legacyBasemapBlock, appBasemapBlock)
-  .replace("const sat = online && state.basemap === 'sat';", "const sat = false; // App v1 暫不提供衛星底圖")
-  .replace('id="satBtn" title="切換衛星影像"', 'id="satBtn" style="display:none" title="切換衛星影像"')
-  .replace('class="ms-row" data-proxy="satBtn"', 'class="ms-row" data-proxy="satBtn" style="display:none"')
+  .replace(
+    "const sat = online && state.basemap === 'sat';",
+    "const sat = online && state.basemap === 'sat' && !!(state.plus && state.plus.active); // App：衛星影像為 Plus 付費功能"
+  )
   .replace(
     'CARTO basemaps（© OpenStreetMap）、Esri World Imagery（衛星影像）與 Natural Earth（離線海陸輪廓）',
     includeLicensedBasemaps
-      ? 'Stadia Maps（© Stadia Maps © OpenMapTiles © OpenStreetMap）與 Natural Earth（離線海陸輪廓）'
+      ? 'Stadia Maps（© Stadia Maps © OpenMapTiles © OpenStreetMap）、Esri World Imagery（衛星影像）與 Natural Earth（離線海陸輪廓）'
       : 'Natural Earth（離線海陸輪廓；線上底圖未納入此版本）'
   );
 if (includeLicensedBasemaps) {
+  const paidAppRewrites = [
+    [
+      '    satBtn.onclick = () => {\n' +
+      "      state.basemap = state.basemap === 'sat' ? 'map' : 'sat';\n" +
+      "      try { localStorage.setItem('trainmap-basemap', state.basemap); } catch (e) {}\n" +
+      '      setBasemap();\n' +
+      '    };',
+      '    satBtn.onclick = () => {\n' +
+      "      const toSat = state.basemap !== 'sat';\n" +
+      '      const applyBasemap = () => {\n' +
+      "        state.basemap = state.basemap === 'sat' ? 'map' : 'sat';\n" +
+      "        try { localStorage.setItem('trainmap-basemap', state.basemap); } catch (e) {}\n" +
+      '        setBasemap();\n' +
+      '      };\n' +
+      "      if (toSat && !(state.plus && state.plus.active)) { plusGateOpen('satellite', applyBasemap); return; }\n" +
+      '      applyBasemap();\n' +
+      '    };'
+    ]
+  ];
+  for (const [target, replacement] of paidAppRewrites) {
+    if (!html.includes(target)) throw new Error(`App paid feature rewrite target not found: ${target}`);
+    html = html.replace(target, replacement);
+  }
   const meteredAppRewrites = [
     [
       'map.setView([info.pos.lat, info.pos.lon], Math.max(map.getZoom(), 13), { animate: false });',

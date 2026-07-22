@@ -126,10 +126,6 @@ export async function verifyRelease({
     'App 仍含外部贊助操作元件');
   assert(!/cartocdn\.com|arcgisonline\.com/i.test(html),
     'App 不可含 CARTO／Esri legacy 圖磚網址');
-  assert(/id="satBtn" style="display:none"/.test(html),
-    'App v1 必須預先隱藏衛星按鈕');
-  assert(/data-proxy="satBtn" style="display:none"/.test(html),
-    'App v1 的手機「衛星影像」入口必須預先隱藏');
   assert(/href="third-party-notices\.txt"[^>]*min-height:44px/.test(html),
     'App 頁尾缺少 44px 觸控高度的第三方軟體授權入口');
   const notices = await readFile(join(output, 'third-party-notices.txt'), 'utf8');
@@ -150,7 +146,12 @@ export async function verifyRelease({
       '亮色底圖不是含 api_key 的 Stadia alidade_smooth');
     assert(/tiles\.stadiamaps\.com\/tiles\/alidade_smooth_dark\/\{z\}\/\{x\}\/\{y\}\.png\?api_key=[^'"\s]+/.test(html),
       '暗色底圖不是含 api_key 的 Stadia alidade_smooth_dark');
-    assert(!html.includes('baseLayers.sat = L.tileLayer'), 'App v1 不可建立衛星圖層');
+    assert(html.includes('baseLayers.sat = L.tileLayer'), 'App 必須建立衛星圖層');
+    assert(/ibasemaps-api\.arcgis\.com\/arcgis\/rest\/services\/World_Imagery\/MapServer\/tile\/\{z\}\/\{y\}\/\{x\}\?token=[^'"\s]+/.test(html),
+      '衛星底圖必須是含 token 的授權 Esri ibasemaps');
+    assert(html.includes("plusGateOpen('satellite'"), 'App 衛星切換必須經 Plus 付費閘');
+    assert(/const sat = online && state\.basemap === 'sat' && !!\(state\.plus && state\.plus\.active\)/.test(html),
+      'App 衛星顯示必須實際檢查 Plus 生效（單一防線）');
     assert(html.includes('  prefetchFollowAhead(dt);'),
       'Stadia App 必須保留既有高速跟車預抓；手機省電模式會自行停用，避免 iPad／關省電模式高速跟車露白');
     assert(html.includes('const DIRECTOR_FOLLOW_Z = 16;'),
@@ -163,8 +164,8 @@ export async function verifyRelease({
     const stadiaAttribution = '&copy; <a href="https://stadiamaps.com/" target="_blank">Stadia Maps</a> &copy; <a href="https://openmaptiles.org/" target="_blank">OpenMapTiles</a> &copy; <a href="https://www.openstreetmap.org/copyright" target="_blank">OpenStreetMap</a>';
     assert(html.includes(`attribution: '${stadiaAttribution}'`),
       'Stadia 圖磚署名不是官方要求的三組連結逐字內容');
-    assert(html.includes('Stadia Maps（© Stadia Maps © OpenMapTiles © OpenStreetMap）與 Natural Earth（離線海陸輪廓）'),
-      'App 頁尾底圖來源未改為 Stadia／OpenMapTiles／OpenStreetMap／Natural Earth');
+    assert(html.includes('Stadia Maps（© Stadia Maps © OpenMapTiles © OpenStreetMap）、Esri World Imagery（衛星影像）與 Natural Earth（離線海陸輪廓）'),
+      'App 頁尾底圖來源未包含 Esri 衛星');
   } else {
     assert(html.includes('window.RAIL_ONLINE_BASEMAPS_AVAILABLE=false'), '安全 build 必須明確關閉線上底圖');
     assert(!html.includes('tiles.stadiamaps.com'), '安全 build 不可含 Stadia 圖磚網址或 API key');
