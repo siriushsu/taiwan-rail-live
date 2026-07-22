@@ -2385,6 +2385,7 @@ try { if (matchMedia('(max-width: 900px)').matches) document.body.classList.add(
       <summary><span>🛠 更新紀錄</span><span class="foot-sub">最後更新：2026/7/22</span></summary>
       <ul class="foot-list">
         <li class="grp">最近更新</li>
+        <li><span class="d">7/22</span><span>手機底部「地圖」鈕修正：在隨機跟隨中點它會停下、回到地圖，不再繼續自動跳下一班車；「探」面板移除「隨便帶我看一輛」，今日之最改為純文字標題</span></li>
         <li><span class="d">7/22</span><span>手機／App 地圖可以自由平移、也能再縮小看台灣周邊了，修好之前一移動或縮小就卡住的問題</span></li>
         <li><span class="d">7/22</span><span>手機與 App 打開時，全台地圖上下左右各留一個台灣的空間、不再頂到螢幕邊緣，看起來更透氣</span></li>
         <li><span class="d">7/22</span><span>跟隨列車時地圖範圍一樣鎖定台灣周遭，仍可縮到最小綜覽整個台灣、拖曳也不會跑到國外</span></li>
@@ -2464,6 +2465,7 @@ try { if (matchMedia('(max-width: 900px)').matches) document.body.classList.add(
         <li><span class="d">7/11</span><span>今日之最的列車在地圖上加繪金色漣漪光環</span></li>
         <li><span class="d">7/9</span><span>旅程護照與 16 枚成就徽章、「探」今日亮點面板上線</span></li>
         <li class="grp">手機與操作</li>
+        <li><span class="d">7/22</span><span>手機底部「地圖」鈕：在隨機跟隨中點它會停下回到地圖，不再繼續自動跳下一班車</span></li>
         <li><span class="d">7/22</span><span>手機／App 地圖可以自由平移、也能再縮小看台灣周邊了，修好之前一移動或縮小就卡住的問題</span></li>
         <li><span class="d">7/22</span><span>手機與 App 打開時，全台地圖上下左右各留一個台灣的空間、不再頂到螢幕邊緣，看起來更透氣</span></li>
         <li><span class="d">7/22</span><span>跟隨列車時地圖範圍一樣鎖定台灣周遭，仍可縮到最小綜覽整個台灣、拖曳也不會跑到國外</span></li>
@@ -2612,7 +2614,7 @@ try { if (matchMedia('(max-width: 900px)').matches) document.body.classList.add(
 <script>
 // 版本戳記:每次改版 push 前手動遞增(字母序),畫面時鐘徽章與 console 都會顯示,
 // 供比對線上跑的是不是最新版(瀏覽器快取 max-age=600 常讓人看到舊版)
-const BUILD = 'v0722a';
+const BUILD = 'v0722b';
 const TRACK_AUDIT = new URLSearchParams(location.search).get('audit') === 'tracks';
 // 手機/平板直式「殼」斷點(議題1:640→900,iPad 直式改拿 tabbar＋更多抽屜):與 CSS @media 同步,版面類判斷一律用此常數。
 // 注意:裝置等級判斷(keepBuffer/powerSave 預設)刻意不用此常數、維持 640——iPad 不該因為改拿 tabbar 就被當低階裝置。
@@ -7675,10 +7677,10 @@ function computeHighlights() {
     used.add(h.tr);
     out.best.push({ tr: h.tr, title, sub: sub(h.v) });
   };
-  add(far, '🏁 今日最長征', v => Math.round(v) + ' km');
-  add(long, '⏳ 開最久', v => Math.floor(v / 3600) + ' 小時 ' + Math.round(v % 3600 / 60) + ' 分');
-  add(most, '🛑 停最多站', v => v + ' 站');
-  add(fast, '⚡ 平均最快', v => '約 ' + Math.round(v) + ' km/h');
+  add(far, '今日最長征', v => Math.round(v) + ' km');
+  add(long, '開最久', v => Math.floor(v / 3600) + ' 小時 ' + Math.round(v % 3600 / 60) + ' 分');
+  add(most, '停最多站', v => v + ' 站');
+  add(fast, '平均最快', v => '約 ' + Math.round(v) + ' km/h');
   const sd = state.special;
   if (sd) {
     for (const nt of sd.namedTrains) for (const no of nt.trainNos) {
@@ -7724,8 +7726,6 @@ function renderExplorePanel() {
   const noteTxt = (document.getElementById('note') || {}).textContent || ''; // #note 遷入亮點 sheet 註腳(重開即新文案)
   document.getElementById('expBody').innerHTML =
     `<div class="sub">從 ${state.trains.length} 班車裡挑出來的 · 點一列跟隨</div>` +
-    `<div class="row" data-rand="1" title="加權隨機挑一班(特別車機率較高)"><span class="dot" style="background:#d23c2a"></span>` +
-    `<b>🎲 隨便帶我看一輛</b><span class="dest">交給命運</span></div>` +
     (hl.special.length ? `<div class="sec">特別列車出沒中</div>` + hl.special.map(hlRow).join('') : '') +
     (hl.best.length ? `<div class="sec">今日之最</div>` + hl.best.map(hlRow).join('') : '') +
     (hl.branches.length ? `<div class="sec">支線小火車</div>` + hl.branches.map(hlRow).join('') : '') +
@@ -7733,17 +7733,9 @@ function renderExplorePanel() {
   el.querySelector('#exploreClose').onclick = closeExplorePanel;
   el.onclick = e => {
     if (e.target.closest('.close')) return;
-    if (e.target.closest('.row[data-rand]')) { closeExplorePanel(); surpriseFollow(); return; }
     const row = e.target.closest('.row[data-no]');
     if (row) { closeExplorePanel(); followTrainNo(row.dataset.no); }
   };
-}
-// 一次性隨機跟隨(非放空的持續換車):沿用導覽加權;深夜沒車在跑就抽一班重播
-function surpriseFollow() {
-  const tr = pickTourTrain() || state.trains[Math.floor(Math.random() * state.trains.length)];
-  if (!tr) return;
-  const ts = document.getElementById('trainSearch'); if (ts) ts.value = tr.train;
-  setFollow(tr);
 }
 function openExplorePanel() {
   soloPanel('explore');
@@ -10282,7 +10274,7 @@ function setupMapTools() {
   document.getElementById('tabMore').onclick = () => setMore(!document.body.classList.contains('tools-open'));
   document.getElementById('moreClose').onclick = () => setMore(false);
   document.getElementById('moreScrim').onclick = () => setMore(false);
-  document.getElementById('tabMap').onclick = () => { setMore(false); soloPanel(''); clearFollow(); }; // 真機QA:soloPanel 已關全部 sheet,但跟隨不清會覺得「點了沒清空」
+  document.getElementById('tabMap').onclick = () => { setMore(false); soloPanel(''); setAutoTour(false); clearFollow(); }; // 真機QA:soloPanel 已關全部 sheet,但跟隨不清會覺得「點了沒清空」;autoTour 也要一併退出,否則隨機巡航中點地圖只清跟隨、tick 又立刻抽下一班隨機車
   document.getElementById('tabExplore').onclick = () => { setMore(false); document.getElementById('exploreBtn').click(); };
   document.getElementById('tabFav').onclick = () => { setMore(false); document.getElementById('favBtn').click(); };
   document.getElementById('tabRide').onclick = () => { setMore(false); document.getElementById('rideBtn').click(); };
