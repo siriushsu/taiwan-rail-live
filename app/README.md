@@ -12,7 +12,7 @@
 - 登入後可同步最愛地點、最愛列車與完乘紀錄；Plus 訂閱後可用每班車誤點歷史統計、衛星底圖、進階定位與 Google Takeout 匯入等功能。
 - Plus 訂閱、取消續訂、恢復購買、登入後續接原操作皆已有瀏覽器測試；錄影目前整體下架中（`RECORDING_ENABLED=false`），復開時另受逐首商用授權閘門保護。
 
-`ios/` 已生成：完整的 Capacitor iOS Xcode workspace、CocoaPods 與同步後的 `App/App/public` 資產都在 repo 現場，Bundle ID 已定案為 `tw.railisland.app`。`android/` 尚未生成；在使用者確認前，不要執行 `cap add android`。每次改動根目錄網站後，都要 `npm run sync`（build + cap sync）讓 `app/www` 與 iOS `public` 一起更新到最新版號，否則發行包會落後。
+`ios/` 已生成：完整的 Capacitor iOS Xcode workspace、CocoaPods 與同步後的 `App/App/public` 資產都在 repo 現場，Bundle ID 已定案為 `tw.railisland.app`。`android/` 尚未生成；在使用者確認前，不要執行 `cap add android`。每次改動根目錄網站後，都要 `npm run sync:release`（build + cap sync）讓 `app/www` 與 iOS `public` 一起更新到最新版號，否則發行包會落後。
 
 ## 仍需使用者決定或申請
 
@@ -55,14 +55,14 @@ cd app
 npm install
 npx cap add ios --packagemanager CocoaPods
 npx cap add android
-npm run sync
+npm run sync:release
 ```
 
 每次根目錄網站程式或資料更新後，重新執行：
 
 ```sh
 cd app
-npm run sync
+npm run sync:release
 ```
 
 `npm run build` 只重建 `app/www/`，不動原生專案。打包腳本採明確 allowlist，不會帶入 `TODO.md`、`火車頭/`、AGENTS.md、內部授權筆記或安全審查檔。
@@ -82,6 +82,8 @@ RAIL_INCLUDE_LICENSED_MUSIC=1 npm run build
 ```sh
 RAIL_INCLUDE_LICENSED_BASEMAPS=1 npm run build
 ```
+
+底圖授權完成後（`release-policy.json` 的 `onlineBasemaps` 已全部核准），正式版就該帶授權底圖出貨。日常請直接用 `npm run build:release` / `npm run sync:release`（等同自動帶上 `RAIL_INCLUDE_LICENSED_BASEMAPS=1`），不必每次手打旗標。為避免忘記旗標而**靜默降級**成無線上底圖的安全版、再 `cap sync` 進 App 或送審，發行檢查會在「政策已核准底圖、卻建成安全版」時直接失敗，而且這道檢查擋在 `prepare-web` 清空 `app/www` **之前**，保住既有授權版 `www`。若確實要建安全版（例如無金鑰環境、或刻意的無線上底圖版本），設 `RAIL_ALLOW_SAFE_BUILD=1` 明確放行。
 
 若音樂與底圖都已完成授權，可同時設定兩個環境變數；這些開關只控制 App build，網站版不受影響。大量預下載或內建圖磚仍需另外取得明確離線授權，不能因線上底圖開關已啟用就推定允許。
 

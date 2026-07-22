@@ -43,14 +43,22 @@ export async function assertLicensedBuildAllowed({ includeLicensedMusic, include
     assert(/musicRecordingLicensed\s*:\s*true/.test(config),
       'revenuecat-config.js 尚未明確啟用 musicRecordingLicensed:true');
   }
+  const basemapRights = [
+    ['paidAppUseVerified', '付費 App 商用'],
+    ['leafletAndCapacitorUseVerified', 'Leaflet／Capacitor'],
+    ['recordedVideoOutputVerified', '錄影輸出'],
+    ['attributionRequirementsVerified', '署名要求']
+  ];
+  const rights = policy.onlineBasemaps || {};
   if (includeLicensedBasemaps) {
-    const rights = policy.onlineBasemaps || {};
-    for (const [key, label] of [
-      ['paidAppUseVerified', '付費 App 商用'],
-      ['leafletAndCapacitorUseVerified', 'Leaflet／Capacitor'],
-      ['recordedVideoOutputVerified', '錄影輸出'],
-      ['attributionRequirementsVerified', '署名要求']
-    ]) assert(rights[key] === true, `線上底圖的「${label}」授權尚未核准`);
+    for (const [key, label] of basemapRights) assert(rights[key] === true, `線上底圖的「${label}」授權尚未核准`);
+  } else if (basemapRights.every(([key]) => rights[key] === true) && process.env.RAIL_ALLOW_SAFE_BUILD !== '1') {
+    // 防呆（靜默降級）：release-policy 已核准線上底圖，卻要建「安全 build」（不含 Stadia／Esri 衛星）＝
+    // 多半是忘了帶 RAIL_INCLUDE_LICENSED_BASEMAPS=1。此檢查在 prepare-web 清空 www 之前就擋下，保住既有
+    // 授權版 www、避免把降級版本 cap sync 進原生或送審。刻意要出安全 build 就設 RAIL_ALLOW_SAFE_BUILD=1。
+    fail('release-policy 已核准線上底圖，但目前要建的是「安全 build」（不含 Stadia／Esri 衛星）——多半是忘了帶授權旗標。'
+      + '請改用 npm run build:release／npm run sync:release（或 RAIL_INCLUDE_LICENSED_BASEMAPS=1 npm run build）。'
+      + '若確實要建安全 build，設 RAIL_ALLOW_SAFE_BUILD=1 再跑。');
   }
 }
 

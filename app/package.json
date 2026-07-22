@@ -8,6 +8,8 @@
     "verify": "node scripts/verify-release.mjs",
     "build:verify": "npm run build && npm run verify",
     "sync": "npm run build && cap sync",
+    "build:release": "RAIL_INCLUDE_LICENSED_BASEMAPS=1 npm run build",
+    "sync:release": "RAIL_INCLUDE_LICENSED_BASEMAPS=1 npm run sync",
     "open:ios": "cap open ios",
     "open:android": "cap open android"
   },
