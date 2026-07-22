@@ -2385,6 +2385,7 @@ try { if (matchMedia('(max-width: 900px)').matches) document.body.classList.add(
       <summary><span>🛠 更新紀錄</span><span class="foot-sub">最後更新：2026/7/22</span></summary>
       <ul class="foot-list">
         <li class="grp">最近更新</li>
+        <li><span class="d">7/22</span><span>台鐵列車通過不停靠的車站時，不再減速到近乎停車再加速——整段跑到下一個停靠站才緩緩減速，過站維持巡航（只是稍微放慢）</span></li>
         <li><span class="d">7/22</span><span>地圖可視範圍鎖定台灣周遭：不再能拖到國外、也縮不到看整個世界，畫面更聚焦</span></li>
         <li><span class="d">7/22</span><span>軌道全面健檢：修掉四處短暫折返、淡海藍海線末三站停靠偏移與直通列車跨線跳動；阿里山資料缺口改沿山中實際軌跡補齊</span></li>
         <li><span class="d">7/21</span><span>捷運車站看板每個方向精簡為兩班（原本三班），畫面更清爽</span></li>
@@ -2423,6 +2424,7 @@ try { if (matchMedia('(max-width: 900px)').matches) document.body.classList.add(
         <li><span class="d">7/11</span><span>捷運與輕軌改依當日實際時刻表逐班推演</span></li>
         <li><span class="d">7/9</span><span>台鐵即時誤點上線——介接交通部 TDX 平臺，每分鐘更新</span></li>
         <li class="grp">跟車、搜尋與車站看板</li>
+        <li><span class="d">7/22</span><span>台鐵列車通過不停靠的車站時不再假性減速到近停車；整個跑段共用一條加減速曲線，只在真正停靠站緩起緩停</span></li>
         <li><span class="d">7/21</span><span>修正「全台同框」視圖點捷運車站時，來車看板把同一批班次重複列了兩遍</span></li>
         <li><span class="d">7/18</span><span>搜尋框可以直接打列車名字：山嵐、鳴日、藍皮、海風…有開行班次的直接列車次，沒有固定車次的給你介紹卡</span></li>
         <li><span class="d">7/17</span><span>搜尋合而為一：車站名與車次打同一個框（原本的「找站」鈕退役），提示文字改清楚，也修好跟車時搜尋結果蓋住「取消跟隨」鈕</span></li>
@@ -3029,6 +3031,44 @@ function profProgToTime(p, f) { // 距離進度(0..1) → 段內時間(秒);prof
   return p.tAcc + p.tCru + (disc > 0 ? (p.vc - Math.sqrt(disc)) / p.b : p.tDec);
 }
 
+// ── 跑段(run)級加減速:相鄰兩「實際停靠站」之間可含多個通過站(stop:false)。
+// 舊法每小段各建 0→巡航→0 梯形,害列車在通過站也減速到近零(issue #10)。改為整個跑段共用
+// 一條梯形,速度只在真停靠站歸零、通過站維持巡航。每小段記 rp(跑段曲線)、rpDep(跑段發車秒)、
+// rpOff(本段起點距跑段起點的公尺數),由 assignRunProfiles 指派,通過站到離站時刻亦依曲線回填。
+function segProg(seg, tau) {                // 段內時間(秒,= t - seg.depSec) → 段內距離進度 0..1
+  if (!seg.rp) return null;                 // 無跑段曲線 → 呼叫端退回等速
+  const runT = (seg.depSec - seg.rpDep) + tau;
+  const distRun = profTimeToProg(seg.rp, runT) * seg.rp.L;      // 距跑段起點公尺
+  const segLen = seg.rpSegKm * 1000;
+  return segLen > 0 ? Math.min(1, Math.max(0, (distRun - seg.rpOff) / segLen)) : 0;
+}
+function segProgToTime(seg, f) {            // 段內距離進度 0..1 → 絕對模擬秒(平交道反解通過時刻)
+  const distRun = seg.rpOff + f * seg.rpSegKm * 1000;
+  return seg.rpDep + profProgToTime(seg.rp, distRun / seg.rp.L);
+}
+function schedSegKmOf(s, i) { return s[i].segLn ? schedSegmentKm(s[i]) : haversineKm(s[i], s[i + 1]); }
+// 沿 stops 掃出各跑段(以實際停靠站/端點為界),整段建一條梯形曲線並回填通過站時刻。
+function assignRunProfiles(s, perf) {
+  let k0 = 0;
+  for (let k1 = 1; k1 < s.length; k1++) {
+    if (s[k1].stop === false && k1 < s.length - 1) continue; // 通過站併入本跑段;末節點強制收尾
+    const segKm = []; let runKm = 0;
+    for (let i = k0; i < k1; i++) { const km = schedSegKmOf(s, i); segKm.push(km); runKm += km; }
+    const runDep = s[k0].depSec, runT = s[k1].arrSec - runDep;
+    const rp = buildProfile(runKm, runT, perf.a, perf.b, perf.v);
+    if (rp && runKm > 0) {
+      let cum = 0;
+      for (let i = k0; i < k1; i++) {
+        s[i].rp = rp; s[i].rpDep = runDep; s[i].rpOff = cum * 1000; s[i].rpSegKm = segKm[i - k0];
+        cum += segKm[i - k0];
+        if (i + 1 < k1 && s[i + 1].stop === false)             // 通過站到離時刻依曲線回填,對齊按時選段
+          s[i + 1].arrSec = s[i + 1].depSec = Math.round(runDep + profProgToTime(rp, cum / runKm));
+      }
+    }
+    k0 = k1;
+  }
+}
+
 function trainPos(tr, t) {
   t -= liveDelaySec(tr);
   if (tr.loop) t = tr.stops[0].arrSec + ((t - tr.stops[0].arrSec) % tr.loopSec + tr.loopSec) % tr.loopSec; // 環島車:任何時刻都映回本圈
@@ -3046,7 +3086,8 @@ function trainPos(tr, t) {
     if (i < n - 1 && t > s[i].depSec && t < s[i + 1].arrSec) {
       const span = s[i + 1].arrSec - s[i].depSec;
       let f = span > 0 ? (t - s[i].depSec) / span : 0;
-      if (s[i].prof) f = profTimeToProg(s[i].prof, t - s[i].depSec); // 車種加減速:等速→梯形曲線(緩起/巡航/緩停)
+      const sp = segProg(s[i], t - s[i].depSec); // 跑段梯形曲線:通過站不歸零,只在真停靠站緩起緩停
+      if (sp != null) f = sp;
       if (s[i].segLn) {
         return schedSegmentPos(s[i], f);
       }
@@ -3150,7 +3191,7 @@ function assignSchedShapePathsFor(trains, lines) {
   }
   for (const tr of trains) {
     const s = tr.stops, perf = resolvePerf(tr); // 車種加減速參數(HSR/carName/typeName 解析)
-    for (const st of s) { delete st.bridgeTo; delete st.bridgeKm; }
+    for (const st of s) { delete st.bridgeTo; delete st.bridgeKm; delete st.rp; delete st.rpDep; delete st.rpOff; delete st.rpSegKm; }
     for (let i = 0; i < s.length - 1; i++) {
       const A = byName.get(s[i].name), B = byName.get(s[i + 1].name);
       let best = null;
@@ -3158,14 +3199,8 @@ function assignSchedShapePathsFor(trains, lines) {
         const gap = Math.abs(b.d - a.d);
         if (!best || gap < best.gap) best = { ln: a.ln, dA: a.d, dB: b.d, gap };
       }
-      const T = s[i + 1].arrSec - s[i].depSec; // 段時間(發車→下一站到站):梯形曲線積分守恆邊界
-      if (best) {
-        s[i].segLn = best.ln; s[i].dA = best.dA; s[i].dB = best.dB; state._segStats.onShape++;
-        s[i].prof = buildProfile(Math.abs(best.dB - best.dA), T, perf.a, perf.b, perf.v);
-      } else {
-        state._segStats.straight++;
-        s[i].prof = buildProfile(haversineKm(s[i], s[i + 1]), T, perf.a, perf.b, perf.v);
-      }
+      if (best) { s[i].segLn = best.ln; s[i].dA = best.dA; s[i].dB = best.dB; state._segStats.onShape++; }
+      else state._segStats.straight++;
     }
     // 不修改任何軌道的真實位置，只在「同一班直通車跨 line」時補上兩條 shape 之間的短接續。
     // 100m gate 防止資料錯配時畫出不合理捷徑；目前所有有效接續均小於24m。
@@ -3177,10 +3212,10 @@ function assignSchedShapePathsFor(trains, lines) {
       const gap = haversineKm(from, to);
       if (!(gap > 0.001 && gap <= 0.1)) continue;
       incoming.bridgeTo = to; incoming.bridgeKm = gap;
-      const T = s[i].arrSec - incoming.depSec;
-      incoming.prof = buildProfile(schedSegmentKm(incoming), T, perf.a, perf.b, perf.v);
       state._segStats.bridged++;
     }
+    // 跑段級加減速曲線(需在 segLn/bridge 齊備後,里程才含跨線接續)。通過站時刻在此回填。
+    assignRunProfiles(s, perf);
   }
 }
 
@@ -4003,8 +4038,8 @@ function crossingPasses(cr) {
       const lo = Math.min(sg.dA, sg.dB), hi = Math.max(sg.dA, sg.dB);
       if (cr.d < lo || cr.d > hi) continue;
       const f = Math.abs(cr.d - sg.dA) / schedSegmentKm(sg); // 含跨線末端短接續的全段里程比例
-      const tSched = sg.prof ? sg.depSec + profProgToTime(sg.prof, f)
-        : sg.depSec + f * (s[i + 1].arrSec - sg.depSec);   // 加減速反解通過時刻;無 prof 退等速
+      const tSched = sg.rp ? segProgToTime(sg, f)
+        : sg.depSec + f * (s[i + 1].arrSec - sg.depSec);   // 加減速反解通過時刻;無跑段曲線退等速
       const dlSec = liveDelaySec(tr);                       // 台鐵即時誤點(貼近現在時刻才作用)
       const pass = tSched + dlSec;
       const delta = ((pass - now) % 86400 + 86400) % 86400; // 跨午夜循環時刻
@@ -7923,8 +7958,8 @@ function journeyProgress(tr, t) {
     if (t >= s[i + 1].arrSec) { done += tr._segKm[i]; continue; }
     if (t > s[i].depSec) {
       const span = s[i + 1].arrSec - s[i].depSec;
-      const f = s[i].prof ? profTimeToProg(s[i].prof, t - s[i].depSec) // 車種加減速:已行駛里程與動畫位置一致
-        : (span > 0 ? (t - s[i].depSec) / span : 0);
+      const sp = segProg(s[i], t - s[i].depSec); // 跑段梯形曲線:已行駛里程與動畫位置一致
+      const f = sp != null ? sp : (span > 0 ? (t - s[i].depSec) / span : 0);
       done += f * tr._segKm[i];
     }
 
