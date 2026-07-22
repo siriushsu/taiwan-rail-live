@@ -2385,6 +2385,7 @@ try { if (matchMedia('(max-width: 900px)').matches) document.body.classList.add(
       <summary><span>🛠 更新紀錄</span><span class="foot-sub">最後更新：2026/7/22</span></summary>
       <ul class="foot-list">
         <li class="grp">最近更新</li>
+        <li><span class="d">7/22</span><span>地圖可視範圍鎖定台灣周遭：不再能拖到國外、也縮不到看整個世界，畫面更聚焦</span></li>
         <li><span class="d">7/22</span><span>軌道全面健檢：修掉四處短暫折返、淡海藍海線末三站停靠偏移與直通列車跨線跳動；阿里山資料缺口改沿山中實際軌跡補齊</span></li>
         <li><span class="d">7/21</span><span>捷運車站看板每個方向精簡為兩班（原本三班），畫面更清爽</span></li>
         <li><span class="d">7/21</span><span>修正「全台同框」點捷運車站時，看板班次整份重複顯示兩遍的問題</span></li>
@@ -2457,6 +2458,7 @@ try { if (matchMedia('(max-width: 900px)').matches) document.body.classList.add(
         <li><span class="d">7/11</span><span>今日之最的列車在地圖上加繪金色漣漪光環</span></li>
         <li><span class="d">7/9</span><span>旅程護照與 16 枚成就徽章、「探」今日亮點面板上線</span></li>
         <li class="grp">手機與操作</li>
+        <li><span class="d">7/22</span><span>地圖可視範圍鎖定台灣周遭：不再能拖到國外、也縮不到看整個世界，畫面更聚焦</span></li>
         <li><span class="d">7/21</span><span>手機大改版：打開就是全螢幕地圖，亮點／護照／列車介紹都住進底部面板；新增「捷」分頁，北中高捷運一張圖同框；跟車後點資訊小卡展開完整介紹；底部工具列更貼合螢幕。</span></li>
         <li><span class="d">7/20</span><span>手機跟車時打開任何底部面板（看板、收藏、旅程、探索、軌道、今日動態），跟隨鎖按鈕自動讓位，不再浮在面板上擋住內容</span></li>
         <li><span class="d">7/18</span><span>iPad 直式與中等寬度的視窗改用手機版底部工具列，桌面工具列同步瘦身，按鈕不再擠到畫面外</span></li>
@@ -10748,9 +10750,13 @@ async function boot() {
   window.__map = map; // 驗證腳本用的把手(map 為閉包變數,外部拿不到)
   window.__state = state; // 同上:唯讀給驗證腳本讀命中快取/模擬時鐘(平交道等)
   map.zoomControl.setPosition('bottomright'); // 右上讓給車站時刻板
-  // 這是台灣鐵道圖:最小縮放地板=「整個台灣剛好塞滿畫面」,不讓人縮到看見全世界。
-  // 地板依視窗尺寸動態算(手機直式與桌機寬螢幕塞下台灣的 zoom 不同),Leaflet 預設 trackResize
-  // 會在視窗變動時 invalidateSize 並觸發 'resize',於此重算。全台同框視圖本就等於此地板,不受影響。
+  // 這是台灣鐵道圖:把可視範圍鎖在台灣周遭,不讓人縮到看見全世界、也不讓人平移把台灣拖出畫面去看
+  // 日本/中國/菲律賓——避免無謂載入海外圖磚浪費用量。兩道防線共用同一個「台灣框」TW_BOUNDS:
+  //  (1) 縮放地板:縮到「整個台灣剛好塞滿畫面」就停。地板依視窗尺寸動態算(手機直式與桌機寬螢幕塞下
+  //      台灣的 zoom 不同),Leaflet 預設 trackResize 會在視窗變動時 invalidateSize 並觸發 'resize',
+  //      於此重算;全台同框視圖本就等於此地板,不受影響。
+  //  (2) 平移硬牆:視野被鉗在台灣框(外擴一圈海域當邊距)內,拖到邊界即停。viscosity 1.0=硬牆,拖不
+  //      出去、邊界外圖磚完全不載入;setView 也會被 Leaflet 一併鉗回(異常深連結亦擋)。
   const TW_BOUNDS = L.latLngBounds([21.88, 119.9], [25.35, 122.05]); // 台灣本島外接框(離島無鐵路不納)
   function applyTaiwanFloor() {
     const z = map.getBoundsZoom(TW_BOUNDS, false); // 整個框剛好可見的最大 zoom
@@ -10758,6 +10764,8 @@ async function boot() {
   }
   applyTaiwanFloor();
   map.on('resize', applyTaiwanFloor);
+  map.options.maxBoundsViscosity = 1.0;  // 硬牆:拖不出邊界,牆外圖磚零載入
+  map.setMaxBounds(TW_BOUNDS.pad(0.1));  // 台灣框外擴 ~0.2~0.35° 海域當邊距,本島有一圈海不貼牆;離島(澎湖/金馬)仍在框外
   // ── 點擊歧義小選單:列車停靠中壓住車站時,點下去彈兩列(跟隨列車/車站看板)讓使用者選。
   // 只在「車與站到點擊處的距離差 <TAP_AMBIG_PX」的分不出來場景出現;點得明顯偏向一方維持直接執行,平常手感不變。
   const TAP_AMBIG_PX = 8;
