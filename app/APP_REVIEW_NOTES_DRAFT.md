@@ -1,5 +1,7 @@
 # App Review／Play Review 審查備註草稿
 
+> ⚠️ 2026-07-22 分版：第一版走「純免費先上」，實際要送審的備註在 `APP_REVIEW_NOTES_v1_FREE.md`。本檔保留為**含 Plus 完整版底稿**，日後開 Plus（1.1）時取用。
+
 > 英文內容供 App Store Connect／Play Console。所有 `[PLACEHOLDER]` 必須在送出前替換；只保留該 build 實際可操作的段落。
 
 ## Apple App Review Notes
