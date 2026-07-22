@@ -91,13 +91,13 @@ const stadiaAttribution = '&copy; <a href="https://stadiamaps.com/" target="_bla
 const appBasemapBlock = includeLicensedBasemaps
   ? `  if (onlineBasemapsAvailable()) {
     baseLayers.light = L.tileLayer('https://tiles.stadiamaps.com/tiles/alidade_smooth/{z}/{x}/{y}.png?api_key=${stadiaApiKey}', {
-      maxZoom: 20, crossOrigin: true, keepBuffer: kb, bounds: TW_TILE_BOUNDS, attribution: '${stadiaAttribution}',
+      maxZoom: 20, crossOrigin: true, keepBuffer: kb, attribution: '${stadiaAttribution}',
     });
     baseLayers.dark = L.tileLayer('https://tiles.stadiamaps.com/tiles/alidade_smooth_dark/{z}/{x}/{y}.png?api_key=${stadiaApiKey}', {
-      maxZoom: 20, crossOrigin: true, keepBuffer: kb, bounds: TW_TILE_BOUNDS, attribution: '${stadiaAttribution}',
+      maxZoom: 20, crossOrigin: true, keepBuffer: kb, attribution: '${stadiaAttribution}',
     });
     baseLayers.sat = L.tileLayer('https://ibasemaps-api.arcgis.com/arcgis/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}?token=${esriApiKey}', {
-      maxZoom: 19, crossOrigin: true, keepBuffer: kb, bounds: TW_TILE_BOUNDS, attribution: 'Tiles &copy; Esri — Source: Esri, Maxar, Earthstar Geographics',
+      maxZoom: 19, crossOrigin: true, keepBuffer: kb, attribution: 'Tiles &copy; Esri — Source: Esri, Maxar, Earthstar Geographics',
     });
   }
   // 外觀三段`

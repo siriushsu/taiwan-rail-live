@@ -2385,10 +2385,10 @@ try { if (matchMedia('(max-width: 900px)').matches) document.body.classList.add(
       <summary><span>🛠 更新紀錄</span><span class="foot-sub">最後更新：2026/7/22</span></summary>
       <ul class="foot-list">
         <li class="grp">最近更新</li>
-        <li><span class="d">7/22</span><span>跟隨列車時仍可縮到最小、綜覽整個台灣；地圖範圍一律鎖台灣，跟車時拖曳地圖也不會跑到國外變成一片空白</span></li>
+        <li><span class="d">7/22</span><span>跟隨列車時地圖範圍一樣鎖定台灣周遭，仍可縮到最小綜覽整個台灣、拖曳也不會跑到國外</span></li>
         <li><span class="d">7/22</span><span>快速縮放地圖時，圖磚還沒載入前墊底的台灣輪廓圖配色貼齊底圖（陸地、海面亮暗都對齊），不再有刺眼的色差閃動</span></li>
         <li><span class="d">7/22</span><span>台鐵列車通過不停靠的車站時，不再減速到近乎停車再加速——整段跑到下一個停靠站才緩緩減速，過站維持巡航（只是稍微放慢）</span></li>
-        <li><span class="d">7/22</span><span>地圖可視範圍鎖定台灣周遭：不能拖到國外；縮到最小時也只顯示台灣與周邊海域，不再載入中國大陸與遠洋的圖磚，畫面更聚焦、也更省流量</span></li>
+        <li><span class="d">7/22</span><span>地圖可視範圍鎖定台灣周遭：不能無限拖到國外、也不能縮到看整個世界，但保留台灣四周合理的範圍，不會把畫面切得死緊</span></li>
         <li><span class="d">7/22</span><span>軌道全面健檢：修掉四處短暫折返、淡海藍海線末三站停靠偏移與直通列車跨線跳動；阿里山資料缺口改沿山中實際軌跡補齊</span></li>
         <li><span class="d">7/21</span><span>捷運車站看板每個方向精簡為兩班（原本三班），畫面更清爽</span></li>
         <li><span class="d">7/21</span><span>修正「全台同框」點捷運車站時，看板班次整份重複顯示兩遍的問題</span></li>
@@ -2462,8 +2462,8 @@ try { if (matchMedia('(max-width: 900px)').matches) document.body.classList.add(
         <li><span class="d">7/11</span><span>今日之最的列車在地圖上加繪金色漣漪光環</span></li>
         <li><span class="d">7/9</span><span>旅程護照與 16 枚成就徽章、「探」今日亮點面板上線</span></li>
         <li class="grp">手機與操作</li>
-        <li><span class="d">7/22</span><span>跟隨列車時仍可縮到最小、綜覽整個台灣；地圖範圍一律鎖台灣，跟車時拖曳地圖也不會跑到國外變成一片空白</span></li>
-        <li><span class="d">7/22</span><span>地圖可視範圍鎖定台灣周遭：不能拖到國外；縮到最小時也只顯示台灣與周邊海域，不再載入中國大陸與遠洋的圖磚，畫面更聚焦、也更省流量</span></li>
+        <li><span class="d">7/22</span><span>跟隨列車時地圖範圍一樣鎖定台灣周遭，仍可縮到最小綜覽整個台灣、拖曳也不會跑到國外</span></li>
+        <li><span class="d">7/22</span><span>地圖可視範圍鎖定台灣周遭：不能無限拖到國外、也不能縮到看整個世界，但保留台灣四周合理的範圍，不會把畫面切得死緊</span></li>
         <li><span class="d">7/21</span><span>手機大改版：打開就是全螢幕地圖，亮點／護照／列車介紹都住進底部面板；新增「捷」分頁，北中高捷運一張圖同框；跟車後點資訊小卡展開完整介紹；底部工具列更貼合螢幕。</span></li>
         <li><span class="d">7/20</span><span>手機跟車時打開任何底部面板（看板、收藏、旅程、探索、軌道、今日動態），跟隨鎖按鈕自動讓位，不再浮在面板上擋住內容</span></li>
         <li><span class="d">7/18</span><span>iPad 直式與中等寬度的視窗改用手機版底部工具列，桌面工具列同步瘦身，按鈕不再擠到畫面外</span></li>
@@ -10815,11 +10815,9 @@ async function boot() {
   //  (2) 平移硬牆:視野被鉗在台灣框(外擴一圈海域當邊距)內,拖到邊界即停。viscosity 1.0=硬牆,拖不
   //      出去、邊界外圖磚完全不載入;setView 也會被 Leaflet 一併鉗回(異常深連結亦擋)。
   const TW_BOUNDS = L.latLngBounds([21.88, 119.9], [25.35, 122.05]); // 台灣本島外接框(離島無鐵路不納)
-  // 圖磚只載入台灣周遭:比平移硬牆(pad 0.1)再寬一點留一圈海當邊距,但仍排除中國大陸沿岸(福州/廈門)與遠洋。
-  // 為何需要:全台同框把台灣南北塞進矮寬的地圖容器→最小 zoom 被逼到 z7,z7 的寬度會吃進 ~13.7° 經度
-  // (廣東到沖繩),中心雖被硬牆鎖住、卻擋不了「看見」框外(Leaflet 在視野比框大時只能置中)。給圖磚層
-  // 掛 bounds 後,框外(中國/日本/遠洋)的圖磚完全不請求、留白,直接消滅這段浪費;全台同框/跟車/平移不受影響。
-  const TW_TILE_BOUNDS = TW_BOUNDS.pad(0.2); // 約 119.5~122.6°E、21.2~26.0°N:台灣＋一圈海,不含大陸與金馬
+  // 註:曾經給圖磚層掛 bounds 只載入台灣周遭(省框外圖磚),但把畫面切得太緊、四周留白像壞掉(使用者回報),
+  // 已移除。改由 minZoom 地板(最小 zoom 也才約 6 個台灣寬,不會縮到看全世界)＋平移硬牆共同界定合理範圍,
+  // 圖磚在此範圍內自然填滿、不留白。要重新省框外圖磚,得另想不切出留白的做法(例如提高地板但那會犧牲全台同框)。
   function applyTaiwanFloor() {
     const z = map.getBoundsZoom(TW_BOUNDS, false); // 整個框剛好可見的最大 zoom
     if (Number.isFinite(z)) map.setMinZoom(z);
@@ -11049,13 +11047,13 @@ async function boot() {
   const kb = window.matchMedia('(max-width: 640px)').matches ? 2 : 4; // 裝置等級判斷,非殼斷點,維持 640(iPad 記憶體夠,不因改拿 tabbar 就縮圖磚緩衝)
   if (onlineBasemapsAvailable()) {
     baseLayers.light = L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
-      subdomains: 'abcd', maxZoom: 20, crossOrigin: true, keepBuffer: kb, bounds: TW_TILE_BOUNDS, attribution: '&copy; OpenStreetMap &copy; CARTO',
+      subdomains: 'abcd', maxZoom: 20, crossOrigin: true, keepBuffer: kb, attribution: '&copy; OpenStreetMap &copy; CARTO',
     });
     baseLayers.dark = L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
-      subdomains: 'abcd', maxZoom: 20, crossOrigin: true, keepBuffer: kb, bounds: TW_TILE_BOUNDS, attribution: '&copy; OpenStreetMap &copy; CARTO',
+      subdomains: 'abcd', maxZoom: 20, crossOrigin: true, keepBuffer: kb, attribution: '&copy; OpenStreetMap &copy; CARTO',
     });
     baseLayers.sat = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
-      maxZoom: 19, crossOrigin: true, keepBuffer: kb, bounds: TW_TILE_BOUNDS, attribution: 'Tiles &copy; Esri — Source: Esri, Maxar, Earthstar Geographics',
+      maxZoom: 19, crossOrigin: true, keepBuffer: kb, attribution: 'Tiles &copy; Esri — Source: Esri, Maxar, Earthstar Geographics',
     });
   }
   // 外觀三段(亮/暗/自動;自動=跟隨系統)。舊鍵 trainmap-theme(light/dark)沿用為固定亮/暗
