@@ -10,6 +10,9 @@ const defaultOut = join(appRoot, 'www');
 const fail = message => { throw new Error(`App 發行檢查失敗：${message}`); };
 const assert = (condition, message) => { if (!condition) fail(message); };
 
+// Stadia 官方要求的逐字署名(prepare-web 注入、本檔驗證,單一事實來源)
+export const STADIA_ATTRIBUTION = '&copy; <a href="https://stadiamaps.com/" target="_blank">Stadia Maps</a> &copy; <a href="https://openmaptiles.org/" target="_blank">OpenMapTiles</a> &copy; <a href="https://www.openstreetmap.org/copyright" target="_blank">OpenStreetMap</a>';
+
 async function walk(root) {
   const files = [];
   const visit = async directory => {
@@ -150,33 +153,35 @@ export async function verifyRelease({
   }
 
   if (basemapsEnabled) {
+    // 授權底圖走「注入 window.RAIL_APP_CONFIG＋index.html 讀設定」機制(2026-07-22 起),
+    // 驗證對象=(1)注入的設定內容 (2)index.html 端的消費機制還活著。不再比對被改寫的程式碼字串。
+    assert(html.includes('window.RAIL_APP_CONFIG='), 'App 缺少 RAIL_APP_CONFIG 設定注入');
+    assert(html.includes('APP_CFG.tiles'), 'index.html 的 APP_CFG.tiles 圖磚設定機制消失——注入的授權底圖不會被使用');
     assert(/tiles\.stadiamaps\.com\/tiles\/alidade_smooth\/\{z\}\/\{x\}\/\{y\}\.png\?api_key=[^'"\s]+/.test(html),
       '亮色底圖不是含 api_key 的 Stadia alidade_smooth');
     assert(/tiles\.stadiamaps\.com\/tiles\/alidade_smooth_dark\/\{z\}\/\{x\}\/\{y\}\.png\?api_key=[^'"\s]+/.test(html),
       '暗色底圖不是含 api_key 的 Stadia alidade_smooth_dark');
-    assert(html.includes('baseLayers.sat = L.tileLayer'), 'App 必須建立衛星圖層');
     assert(/ibasemaps-api\.arcgis\.com\/arcgis\/rest\/services\/World_Imagery\/MapServer\/tile\/\{z\}\/\{y\}\/\{x\}\?token=[^'"\s]+/.test(html),
       '衛星底圖必須是含 token 的授權 Esri ibasemaps');
-    assert(html.includes("plusGateOpen('satellite'"), 'App 衛星切換必須經 Plus 付費閘');
-    assert(/const sat = online && state\.basemap === 'sat' && !!\(state\.plus && state\.plus\.active\)/.test(html),
-      'App 衛星顯示必須實際檢查 Plus 生效（單一防線）');
+    assert(!html.includes("plusGateOpen('satellite'"), 'App 第一版衛星免費，不可殘留 Plus 付費閘');
+    assert(/const sat = online && state\.basemap === 'sat';/.test(html),
+      'App 第一版衛星顯示必須免費開放（不綁 Plus）');
     assert(html.includes('  prefetchFollowAhead(dt);'),
       'Stadia App 必須保留既有高速跟車預抓；手機省電模式會自行停用，避免 iPad／關省電模式高速跟車露白');
-    assert(html.includes('const DIRECTOR_FOLLOW_Z = 16;'),
-      'Stadia App 導播跟車最高縮放必須限制在 z16');
-    for (const target of [
-      'map.setView([info.pos.lat, info.pos.lon], Math.min(Math.max(map.getZoom(), 13), 16), { animate: false });',
-      'map.setView([info.lat, info.lon], Math.min(Math.max(map.getZoom(), 13), 16), { animate: false });',
-      'map.setView([pos.lat, pos.lon], Math.min(Math.max(map.getZoom(), 13), 16), { animate: false });'
-    ]) assert(html.includes(target), 'Stadia App 的台鐵／高鐵／捷運跟車入口未完整限制在 z16');
-    const stadiaAttribution = '&copy; <a href="https://stadiamaps.com/" target="_blank">Stadia Maps</a> &copy; <a href="https://openmaptiles.org/" target="_blank">OpenMapTiles</a> &copy; <a href="https://www.openstreetmap.org/copyright" target="_blank">OpenStreetMap</a>';
-    assert(html.includes(`attribution: '${stadiaAttribution}'`),
+    // 跟車 zoom 上限:設定要載明 16,且 index.html 的消費機制(FOLLOW_ZOOM_CAP/followEntryZoom)未被移除
+    assert(html.includes('"followZoomCap":16'), 'RAIL_APP_CONFIG 未載明 followZoomCap:16(計量底圖跟車上限)');
+    assert(html.includes('Math.min(18, FOLLOW_ZOOM_CAP)'),
+      'DIRECTOR_FOLLOW_Z 未由 FOLLOW_ZOOM_CAP 收斂——App 導播跟車 z16 上限失效');
+    assert((html.match(/followEntryZoom\(\), \{ animate: false \}/g) || []).length >= 3,
+      '跟車進場 followEntryZoom 呼叫點少於 3 處——台鐵／高鐵／捷運跟車 zoom 上限未完整覆蓋');
+    assert(html.includes(JSON.stringify(STADIA_ATTRIBUTION)),
       'Stadia 圖磚署名不是官方要求的三組連結逐字內容');
     assert(html.includes('Stadia Maps（© Stadia Maps © OpenMapTiles © OpenStreetMap）、Esri World Imagery（衛星影像）與 Natural Earth（離線海陸輪廓）'),
       'App 頁尾底圖來源未包含 Esri 衛星');
   } else {
     assert(html.includes('window.RAIL_ONLINE_BASEMAPS_AVAILABLE=false'), '安全 build 必須明確關閉線上底圖');
     assert(!html.includes('tiles.stadiamaps.com'), '安全 build 不可含 Stadia 圖磚網址或 API key');
+    assert(!html.includes('window.RAIL_APP_CONFIG='), '安全 build 不應注入 RAIL_APP_CONFIG(授權圖磚設定)');
   }
 
   // Stored XSS 迴歸（QA 2026-07-21）：「我的最愛」的列車／站名是使用者資料,可能來自被污染的

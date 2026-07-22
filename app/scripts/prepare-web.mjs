@@ -2,7 +2,7 @@ import { cp, mkdir, readFile, readdir, rm, stat, writeFile } from 'node:fs/promi
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { build } from 'esbuild';
-import { assertLicensedBuildAllowed, verifyRelease } from './verify-release.mjs';
+import { assertLicensedBuildAllowed, verifyRelease, STADIA_ATTRIBUTION } from './verify-release.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const appRoot = resolve(here, '..');
@@ -84,97 +84,53 @@ await build({
   outfile: join(vendor, 'firebase.mjs'), bundle: true, format: 'esm', platform: 'browser', target: ['ios15', 'chrome100'], minify: true
 });
 
+// ── index.html 轉換 ──────────────────────────────────────────────────────────
+// 鐵則(2026-07-22 起):App/網站的「行為差異」一律由 index.html 讀 window.RAIL_APP_CONFIG 決定,
+// 本檔只做三種機械動作:(1)拔 APP_STRIP 錨點區塊 (2)換 APP_REPLACE 錨點區塊 (3)注入旗標與設定。
+// 禁止新增「精確比對網站程式碼字串再改寫」的手術——那讓網站日常改動動輒弄壞 App build(舊病根)。
+// 仍依賴的兩個既有穩定錨點:<span id="buildVer">(授權入口注入點)與 revenuecat-config.js script(設定注入點)。
 const indexPath = join(out, 'index.html');
 let html = await readFile(indexPath, 'utf8');
-const legacyBasemapBlock = /  if \(onlineBasemapsAvailable\(\)\) \{\n    baseLayers\.light = L\.tileLayer\('https:\/\/\{s\}\.basemaps\.cartocdn\.com[\s\S]*?\n  \}\n  \/\/ 外觀三段/;
-const stadiaAttribution = '&copy; <a href="https://stadiamaps.com/" target="_blank">Stadia Maps</a> &copy; <a href="https://openmaptiles.org/" target="_blank">OpenMapTiles</a> &copy; <a href="https://www.openstreetmap.org/copyright" target="_blank">OpenStreetMap</a>';
-const appBasemapBlock = includeLicensedBasemaps
-  ? `  if (onlineBasemapsAvailable()) {
-    baseLayers.light = L.tileLayer('https://tiles.stadiamaps.com/tiles/alidade_smooth/{z}/{x}/{y}.png?api_key=${stadiaApiKey}', {
-      maxZoom: 20, crossOrigin: true, keepBuffer: kb, attribution: '${stadiaAttribution}',
-    });
-    baseLayers.dark = L.tileLayer('https://tiles.stadiamaps.com/tiles/alidade_smooth_dark/{z}/{x}/{y}.png?api_key=${stadiaApiKey}', {
-      maxZoom: 20, crossOrigin: true, keepBuffer: kb, attribution: '${stadiaAttribution}',
-    });
-    baseLayers.sat = L.tileLayer('https://ibasemaps-api.arcgis.com/arcgis/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}?token=${esriApiKey}', {
-      maxZoom: 19, crossOrigin: true, keepBuffer: kb, attribution: 'Tiles &copy; Esri — Source: Esri, Maxar, Earthstar Geographics',
-    });
+
+// 錨點區塊工具:自起標記頭到迄標記尾整段換成 replacement(strip=換成空字串)。
+// 找不到錨點=網站端把標記移掉了,錯誤訊息直接點名要恢復哪個錨點。
+const cutRegion = (source, name, startMarker, endMarker, replacement = '') => {
+  const s = source.indexOf(startMarker);
+  if (s < 0) throw new Error(`index.html 找不到錨點「${name}」的起標記(${startMarker})——請在網站端恢復該錨點,勿改回字串手術`);
+  const e = source.indexOf(endMarker, s + startMarker.length);
+  if (e < 0) throw new Error(`index.html 找不到錨點「${name}」的迄標記(${endMarker})`);
+  return source.slice(0, s) + replacement + source.slice(e + endMarker.length);
+};
+const stripHtmlRegion = (source, name) => cutRegion(source, name, `<!-- APP_STRIP_START ${name}`, `<!-- APP_STRIP_END ${name} -->`);
+const stripJsRegion = (source, name) => cutRegion(source, name, `// APP_STRIP_START ${name}`, `// APP_STRIP_END ${name}`);
+const replaceHtmlRegion = (source, name, replacement) => cutRegion(source, name, `<!-- APP_REPLACE_START ${name}`, `<!-- APP_REPLACE_END ${name} -->`, replacement);
+
+// (1) Leaflet:CDN 版換打包版(整個錨點區塊替換,不管網站用哪個 Leaflet 版本/SRI)
+html = replaceHtmlRegion(html, 'leaflet-cdn',
+  '<link rel="stylesheet" href="vendor/leaflet/leaflet.css">\n<script src="vendor/leaflet/leaflet.js"></script>');
+// (2) 原生 App 的數位功能只走 StoreKit／Google Play Billing;網站的 Ko-fi／銀行贊助區不帶進 App
+html = stripHtmlRegion(html, 'donate-box');
+html = stripHtmlRegion(html, 'donation-log');
+html = stripJsRegion(html, 'donation-handler');
+// (3) 網站免費層底圖預設(CARTO/舊 Esri)整段拔除——App 包內不得殘留其網址(CARTO 條款不允許包進上架 App)
+html = stripJsRegion(html, 'web-tiles');
+// (4) 頁尾底圖來源文字換成本 build 的實況
+html = replaceHtmlRegion(html, 'basemap-credit',
+  includeLicensedBasemaps
+    ? 'Stadia Maps（© Stadia Maps © OpenMapTiles © OpenStreetMap）、Esri World Imagery（衛星影像）與 Natural Earth（離線海陸輪廓）'
+    : 'Natural Earth（離線海陸輪廓；線上底圖未納入此版本）');
+// (5) 注入:第三方授權入口＋功能旗標＋RAIL_APP_CONFIG(授權圖磚與計量底圖的跟車 zoom 上限)
+const appConfig = includeLicensedBasemaps ? {
+  followZoomCap: 16, // 計量底圖止血:跟車進場/導播 zoom 上限(index.html 的 FOLLOW_ZOOM_CAP/DIRECTOR_FOLLOW_Z 消費)
+  tiles: {
+    light: { url: `https://tiles.stadiamaps.com/tiles/alidade_smooth/{z}/{x}/{y}.png?api_key=${stadiaApiKey}`, maxZoom: 20, attribution: STADIA_ATTRIBUTION },
+    dark: { url: `https://tiles.stadiamaps.com/tiles/alidade_smooth_dark/{z}/{x}/{y}.png?api_key=${stadiaApiKey}`, maxZoom: 20, attribution: STADIA_ATTRIBUTION },
+    sat: { url: `https://ibasemaps-api.arcgis.com/arcgis/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}?token=${esriApiKey}`, maxZoom: 19, attribution: 'Tiles &copy; Esri — Source: Esri, Maxar, Earthstar Geographics' }
   }
-  // 外觀三段`
-  : `  if (onlineBasemapsAvailable()) {
-    // App 安全 build：發行政策未核准線上底圖，不建立任何線上 tile layer。
-  }
-  // 外觀三段`;
-if (!legacyBasemapBlock.test(html)) throw new Error('App index basemap rewrite target not found');
+} : null;
 html = html
-  .replace(/<link rel="stylesheet" href="https:\/\/cdnjs\.cloudflare\.com\/ajax\/libs\/leaflet\/1\.9\.4\/leaflet\.min\.css"[^>]*>/, '<link rel="stylesheet" href="vendor/leaflet/leaflet.css">')
-  .replace(/<script src="https:\/\/cdnjs\.cloudflare\.com\/ajax\/libs\/leaflet\/1\.9\.4\/leaflet\.min\.js"[^>]*><\/script>/, '<script src="vendor/leaflet/leaflet.js"></script>')
-  // 原生 App 的數位功能只走 StoreKit／Google Play Billing；網站既有的 Ko-fi／銀行贊助區不帶進 App。
-  .replace(/\s*<details class="foot-box foot-donate">[\s\S]*?<\/details>/, '')
-  .replace(/\s*<li class="web-only-donation-log">[\s\S]*?<\/li>/, '')
-  .replace(/\/\/ APP_STRIP_START donation-handler[\s\S]*?\/\/ APP_STRIP_END donation-handler/, '')
   .replace('<span class="ver" id="buildVer"></span>', '<a href="third-party-notices.txt" target="_blank" rel="noopener" style="min-height:44px;display:inline-flex;align-items:center;padding:0 4px">第三方軟體授權</a>\n      <span class="ver" id="buildVer"></span>')
-  .replace('<script src="revenuecat-config.js"></script>', `<script src="revenuecat-config.js"></script>\n<script>window.RAIL_MUSIC_AVAILABLE=${includeLicensedMusic};window.RAIL_ONLINE_BASEMAPS_AVAILABLE=${includeLicensedBasemaps}</script>\n<script src="native-bridge.js"></script>`)
-  .replace(legacyBasemapBlock, appBasemapBlock)
-  .replace(
-    "const sat = online && state.basemap === 'sat';",
-    "const sat = online && state.basemap === 'sat' && !!(state.plus && state.plus.active); // App：衛星影像為 Plus 付費功能"
-  )
-  .replace(
-    'CARTO basemaps（© OpenStreetMap）、Esri World Imagery（衛星影像）與 Natural Earth（離線海陸輪廓）',
-    includeLicensedBasemaps
-      ? 'Stadia Maps（© Stadia Maps © OpenMapTiles © OpenStreetMap）、Esri World Imagery（衛星影像）與 Natural Earth（離線海陸輪廓）'
-      : 'Natural Earth（離線海陸輪廓；線上底圖未納入此版本）'
-  );
-if (includeLicensedBasemaps) {
-  const paidAppRewrites = [
-    [
-      '    satBtn.onclick = () => {\n' +
-      "      state.basemap = state.basemap === 'sat' ? 'map' : 'sat';\n" +
-      "      try { localStorage.setItem('trainmap-basemap', state.basemap); } catch (e) {}\n" +
-      '      setBasemap();\n' +
-      '    };',
-      '    satBtn.onclick = () => {\n' +
-      "      const toSat = state.basemap !== 'sat';\n" +
-      '      const applyBasemap = () => {\n' +
-      "        state.basemap = state.basemap === 'sat' ? 'map' : 'sat';\n" +
-      "        try { localStorage.setItem('trainmap-basemap', state.basemap); } catch (e) {}\n" +
-      '        setBasemap();\n' +
-      '      };\n' +
-      "      if (toSat && !(state.plus && state.plus.active)) { plusGateOpen('satellite', applyBasemap); return; }\n" +
-      '      applyBasemap();\n' +
-      '    };'
-    ]
-  ];
-  for (const [target, replacement] of paidAppRewrites) {
-    if (!html.includes(target)) throw new Error(`App paid feature rewrite target not found: ${target}`);
-    html = html.replace(target, replacement);
-  }
-  const meteredAppRewrites = [
-    [
-      'map.setView([info.pos.lat, info.pos.lon], Math.max(map.getZoom(), 13), { animate: false });',
-      'map.setView([info.pos.lat, info.pos.lon], Math.min(Math.max(map.getZoom(), 13), 16), { animate: false });'
-    ],
-    [
-      'map.setView([info.lat, info.lon], Math.max(map.getZoom(), 13), { animate: false });',
-      'map.setView([info.lat, info.lon], Math.min(Math.max(map.getZoom(), 13), 16), { animate: false });'
-    ],
-    [
-      'map.setView([pos.lat, pos.lon], Math.max(map.getZoom(), 13), { animate: false });',
-      'map.setView([pos.lat, pos.lon], Math.min(Math.max(map.getZoom(), 13), 16), { animate: false });'
-    ],
-    [
-      'const DIRECTOR_FOLLOW_Z = 18;              // 跟車縮放(使用者要求「最大縮小兩級」≈z18)',
-      'const DIRECTOR_FOLLOW_Z = 16;              // App Stadia 止血：導播跟車最高 z16，降低移動時的唯一圖磚數'
-    ],
-    ['導播跟車放大到 z18(最大縮小兩級)', 'App 導播跟車限制在 z16'],
-    ['導播跟捷運也放大到 z18,跟台鐵/高鐵跟車一致', 'App 導播跟捷運同樣限制在 z16']
-  ];
-  for (const [target, replacement] of meteredAppRewrites) {
-    if (!html.includes(target)) throw new Error(`App metered basemap rewrite target not found: ${target}`);
-    html = html.replace(target, replacement);
-  }
-}
+  .replace('<script src="revenuecat-config.js"></script>', `<script src="revenuecat-config.js"></script>\n<script>window.RAIL_MUSIC_AVAILABLE=${includeLicensedMusic};window.RAIL_ONLINE_BASEMAPS_AVAILABLE=${includeLicensedBasemaps}${appConfig ? `;window.RAIL_APP_CONFIG=${JSON.stringify(appConfig)}` : ''}</script>\n<script src="native-bridge.js"></script>`);
 if (!html.includes('vendor/leaflet/leaflet.js') || !html.includes('native-bridge.js')) throw new Error('App index vendor/native bridge injection failed');
 if (/ko-fi|PayPal|111010691056|web-only-donation-log|贊助方式更新/i.test(html) || html.includes('id="donateCopy"') || html.includes('class="foot-box foot-donate"')) throw new Error('External donation content leaked into native App');
 if (/cartocdn\.com|arcgisonline\.com/i.test(html)) throw new Error('App index still contains unlicensed CARTO/Esri tile URLs');
