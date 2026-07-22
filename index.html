@@ -2385,6 +2385,7 @@ try { if (matchMedia('(max-width: 900px)').matches) document.body.classList.add(
       <summary><span>🛠 更新紀錄</span><span class="foot-sub">最後更新：2026/7/22</span></summary>
       <ul class="foot-list">
         <li class="grp">最近更新</li>
+        <li><span class="d">7/22</span><span>跟隨列車時放寬地圖範圍：可縮到最小、靠邊角的列車（墾丁、花蓮等）也能置中（自由拖曳仍鎖台灣）</span></li>
         <li><span class="d">7/22</span><span>快速縮放地圖時，圖磚還沒載入前墊底的台灣輪廓圖配色貼齊底圖（陸地、海面亮暗都對齊），不再有刺眼的色差閃動</span></li>
         <li><span class="d">7/22</span><span>台鐵列車通過不停靠的車站時，不再減速到近乎停車再加速——整段跑到下一個停靠站才緩緩減速，過站維持巡航（只是稍微放慢）</span></li>
         <li><span class="d">7/22</span><span>地圖可視範圍鎖定台灣周遭：不再能拖到國外、也縮不到看整個世界，畫面更聚焦</span></li>
@@ -2461,6 +2462,7 @@ try { if (matchMedia('(max-width: 900px)').matches) document.body.classList.add(
         <li><span class="d">7/11</span><span>今日之最的列車在地圖上加繪金色漣漪光環</span></li>
         <li><span class="d">7/9</span><span>旅程護照與 16 枚成就徽章、「探」今日亮點面板上線</span></li>
         <li class="grp">手機與操作</li>
+        <li><span class="d">7/22</span><span>跟隨列車時放寬地圖範圍：可縮到最小、靠邊角的列車（墾丁、花蓮等）也能置中（自由拖曳仍鎖台灣）</span></li>
         <li><span class="d">7/22</span><span>地圖可視範圍鎖定台灣周遭：不再能拖到國外、也縮不到看整個世界，畫面更聚焦</span></li>
         <li><span class="d">7/21</span><span>手機大改版：打開就是全螢幕地圖，亮點／護照／列車介紹都住進底部面板；新增「捷」分頁，北中高捷運一張圖同框；跟車後點資訊小卡展開完整介紹；底部工具列更貼合螢幕。</span></li>
         <li><span class="d">7/20</span><span>手機跟車時打開任何底部面板（看板、收藏、旅程、探索、軌道、今日動態），跟隨鎖按鈕自動讓位，不再浮在面板上擋住內容</span></li>
@@ -3437,11 +3439,22 @@ function freqTrainInfo(ln, t) {
   const termName = loop ? null : ln.stations[outbound ? F - 1 : 0].name;
   return { lat, lon, outbound, loop, nextName, termName };
 }
+// 跟隨列車時解除台灣平移硬牆:讓邊緣列車(墾丁/花蓮/北端…)也能置中、縮到最小。跟隨中鏡頭由程式
+// (recenterTo / updateFreqFollowCamera)控制、列車本就在台灣,硬牆只會把視野中心往內鉗、害邊緣車置不了中,
+// 卻無防浪費之效;不跟隨(自由探索)時才鎖回台灣框擋亂拉。setMaxBounds(null) 一併移除 moveend 回鉗;
+// setMaxBounds(框) 會立即把視野拉回框內(停跟隨時邊緣視野即歸位)。台鐵/高鐵/捷運三種跟隨共用。
+function syncPanFence() {
+  const on = !(state.followTrain || state.freqFollow); // 有在跟隨就解牆,否則鎖台灣
+  if (state._fenceOn === on) return;                    // 狀態沒變就不重掛 moveend handler
+  state._fenceOn = on;
+  map.setMaxBounds(on ? state._panFence : null);
+}
 function applyFreqFollow(hit) { // hit = {ln, tr} 或 {ln, k};不動 autoTour/hotspot 狀態,供導播內部輪車重用(見 nextTourTrain)
   if (state.followTrain) clearFollow(); // 全台同框:與台鐵/高鐵跟隨互斥(此刻 freqFollow 尚未設,級聯清不到自己)
   closeBoard();
   state.freqFollow = hit.tr ? { ln: hit.ln, tr: hit.tr } : { ln: hit.ln, k: hit.k };
   state.followLock = true;
+  syncPanFence(); // 捷運起跟:解除平移硬牆(邊緣車也能置中),須在下方 updateFreqFollowCamera 置中前
   document.getElementById('freqCard').hidden = false;
   updateFreqFollowCamera(true); // 立即置中並填卡
   updateFollowLockUI();
@@ -3454,6 +3467,7 @@ function setFreqFollow(hit) { // hit = {ln, tr}(實際時刻班次) 或 {ln, k}(
 function clearFreqFollow() {
   if (!state.freqFollow) return;
   state.freqFollow = null;
+  syncPanFence(); // 捷運停跟:恢復台灣平移硬牆(若非台鐵/高鐵跟隨中)
   const c = document.getElementById('freqCard'); if (c) c.hidden = true;
   const cnt = map && map.getContainer(); if (cnt && cnt.style.cursor) cnt.style.cursor = '';
   updateFollowLockUI();
@@ -6106,6 +6120,7 @@ function setFollow(tr, isAuto, noJump, opts) {
   if (state.ambient && state.ambientStyle === 'hotspot') hotspotStop(); // 群車放空中點車=接手跟隨,導演讓位(取消跟隨即恢復)
   closeBoard(); // 不管從哪裡選到車(看板列/地圖點車/搜尋/最愛),車站看板一律收掉
   state.followTrain = tr; state.followId = tr.train;
+  syncPanFence(); // 台鐵/高鐵起跟:解除平移硬牆,須在下方初始跳車(setView)前,邊緣列車初始就能置中
   // 深連結帶模擬時間:對方打開時車在同一位置
   // 真全螢幕中不寫網址列:Safari 對 fullscreen 中的 replaceState 會踢出全螢幕,且全螢幕本來就看不到網址列
   try { if (!document.fullscreenElement) history.replaceState(null, '', '?train=' + encodeURIComponent(tr.train) + '&t=' + fmtHM(state.simSec)); } catch (e) {}
@@ -6150,6 +6165,7 @@ function clearFollow() {
   clearFreqFollow(); // 換系統/群組/進放空都經過這裡 → 一併清掉捷運幽靈車跟隨
   restoreFollowSpeed(); // 中途取消跟隨也要還原 fromStart 重播強制的速度
   state.followTrain = null; state.followId = null; state.followStatus = null;
+  syncPanFence(); // 台鐵/高鐵停跟:恢復台灣平移硬牆(setMaxBounds 會即刻把邊緣視野拉回框內)
   state._routePts = null;
   state._plateStop = null;
   updateFollowLockUI(); // 沒在跟隨就收起跟隨鎖鈕
@@ -10804,7 +10820,9 @@ async function boot() {
   applyTaiwanFloor();
   map.on('resize', applyTaiwanFloor);
   map.options.maxBoundsViscosity = 1.0;  // 硬牆:拖不出邊界,牆外圖磚零載入
-  map.setMaxBounds(TW_BOUNDS.pad(0.1));  // 台灣框外擴 ~0.2~0.35° 海域當邊距,本島有一圈海不貼牆;離島(澎湖/金馬)仍在框外
+  state._panFence = TW_BOUNDS.pad(0.1);  // 平移硬牆範圍(台灣框外擴 ~0.2~0.35° 海域;離島澎湖/金馬仍在框外)
+  state._fenceOn = true;
+  map.setMaxBounds(state._panFence);     // 自由平移鎖台灣;跟隨列車時由 syncPanFence 暫解,讓邊緣車也能置中/縮到最小
   // ── 點擊歧義小選單:列車停靠中壓住車站時,點下去彈兩列(跟隨列車/車站看板)讓使用者選。
   // 只在「車與站到點擊處的距離差 <TAP_AMBIG_PX」的分不出來場景出現;點得明顯偏向一方維持直接執行,平常手感不變。
   const TAP_AMBIG_PX = 8;
