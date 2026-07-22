@@ -1214,6 +1214,9 @@
   }
   #favPanel .row.fv { cursor: pointer; }
   #favPanel .row.fv:hover { background: var(--bg-stage); }
+  #favPanel .row.fvpin { cursor: pointer; }
+  #favPanel .row.fvpin:hover { background: var(--bg-stage); }
+  #favPanel .row.fvpin .ico { flex: none; font-size: 13px; line-height: 1; }
   #favPanel .row .rm { margin-left: auto; color: var(--faint); font-weight: 700; padding: 0 4px; }
   #favPanel .row .rm:hover { color: var(--red); }
   .board .ride-stats { font-size: 12.5px; color: var(--muted); margin: 2px 0 6px; }
@@ -1438,6 +1441,8 @@
   .takeout-head button { border: 0; background: transparent; color: var(--on-navy); font-size: 24px; line-height: 1; cursor: pointer; min-width: 44px; min-height: 44px; }
   .takeout-body { padding: 14px 16px; overflow-y: auto; overscroll-behavior: contain; }
   .takeout-help { margin: 0 0 10px; color: var(--muted); font-size: 12px; line-height: 1.6; }
+  .pinname-input { width: 100%; box-sizing: border-box; padding: 10px 12px; border: 1px solid var(--line); border-radius: 8px; font: inherit; font-size: 15px; color: var(--ink-strong); background: var(--paper); }
+  .pinname-input:focus { outline: none; border-color: var(--navy); }
   .takeout-file {
     display: block; width: 100%; box-sizing: border-box; margin-bottom: 12px; padding: 16px 10px;
     border: 2px dashed var(--line); border-radius: 10px; background: var(--bg-stage); color: var(--ink);
@@ -2218,6 +2223,16 @@ try { if (matchMedia('(max-width: 900px)').matches) document.body.classList.add(
         </section>
       </div>
     </div>
+    <div class="takeout-modal pinname-modal" id="pinNameModal" hidden>
+      <section class="takeout-dialog pinname-dialog" role="dialog" aria-modal="true" aria-labelledby="pinNameTitle">
+        <div class="takeout-head"><h2 id="pinNameTitle">命名地點</h2><button id="pinNameX" type="button" aria-label="關閉">×</button></div>
+        <div class="takeout-body">
+          <p class="takeout-help">給這個位置取個名字，方便日後在「我的最愛」裡找到。不填也可以，之後仍可從最愛移除。</p>
+          <input class="pinname-input" id="pinNameInput" type="text" maxlength="40" placeholder="例如：家、公司、常去的車站" autocomplete="off">
+        </div>
+        <div class="takeout-actions"><button class="cancel" id="pinNameCancel" type="button">取消</button><button class="confirm" id="pinNameSave" type="button">儲存地點</button></div>
+      </section>
+    </div>
     <div class="badge">
       <span class="clock" id="clock">08:00</span>
       <span class="live" id="liveBadge" hidden>LIVE</span>
@@ -2308,7 +2323,7 @@ try { if (matchMedia('(max-width: 900px)').matches) document.body.classList.add(
         <button id="themeBtn" title="外觀切換：亮／暗／自動"><span class="ti">◐</span><span class="tl">外觀</span></button>
         <button id="trackBtn" title="軌道與路線：顯示方式與車種/路線篩選"><span class="ti">軌</span><span class="tl">軌道:自動</span></button>
         <button id="xingBtn" title="顯示平交道位置"><span class="ti">平</span><span class="tl">平交道</span></button>
-        <button id="pinBtn" title="落釘看附近經過的火車"><span class="ti">釘</span><span class="tl">附近</span></button>
+        <button id="pinBtn" title="儲存地點，看附近經過的火車"><span class="ti">釘</span><span class="tl">儲存</span></button>
         <!-- 定位我暫緩:iOS「加到主畫面」standalone PWA 無法取用定位,延到原生 App 再啟用;見 LOCATE_ENABLED。按鈕先 hidden、程式全保留 -->
         <button id="locateBtn" style="display:none" title="定位我的位置，看附近有哪些平交道、火車是否快通過"><span class="ti">◎</span><span class="tl">定位</span></button>
         <button id="immBtn" title="極簡沉浸（只留地圖與列車）"><span class="ti">簡</span><span class="tl">極簡</span></button>
@@ -2387,6 +2402,7 @@ try { if (matchMedia('(max-width: 900px)').matches) document.body.classList.add(
       <summary><span>🛠 更新紀錄</span><span class="foot-sub">最後更新：2026/7/22</span></summary>
       <ul class="foot-list">
         <li class="grp">最近更新</li>
+        <li><span class="d">7/22</span><span>原「附近火車」更名為「儲存地點」，儲存時可幫地點命名（家、公司…）；存過的地點會列進「我的最愛」的「地點」區，點一下就飛過去看它附近的車</span></li>
         <li><span class="d">7/22</span><span>手機底部「地圖」鈕修正：在隨機跟隨中點它會停下、回到地圖，不再繼續自動跳下一班車；「探」面板移除「隨便帶我看一輛」，今日之最改為純文字標題</span></li>
         <li><span class="d">7/22</span><span>手機／App 地圖可以自由平移、也能再縮小看台灣周邊了，修好之前一移動或縮小就卡住的問題</span></li>
         <li><span class="d">7/22</span><span>手機與 App 打開時，全台地圖上下左右各留一個台灣的空間、不再頂到螢幕邊緣，看起來更透氣</span></li>
@@ -2453,7 +2469,8 @@ try { if (matchMedia('(max-width: 900px)').matches) document.body.classList.add(
         <li><span class="d">7/11</span><span>新增「群車」視角：不跟單一列車，看整片列車交錯</span></li>
         <li><span class="d">7/11</span><span>群車改連續慢速巡航永不停頓；換車轉場改單次淡出淡入；隨機跟隨升格為常駐膠囊鈕，不會再消失</span></li>
         <li><span class="d">7/9</span><span>沉浸放空升級：真・全螢幕、「簡」極簡沉浸、經過特殊車站自動跳站介紹</span></li>
-        <li class="grp">平交道與附近火車</li>
+        <li class="grp">平交道與儲存地點</li>
+        <li><span class="d">7/22</span><span>「附近火車」更名為「儲存地點」：儲存時可命名（家、公司…），存過的地點會進「我的最愛」的「地點」清單，點一下飛過去看附近的車</span></li>
         <li><span class="d">7/14</span><span>「附近火車」改成開關式，可以連續多點收藏；地點釘換成 Google 地圖風格的圓點</span></li>
         <li><span class="d">7/14</span><span>平交道位置依官方資料，可能與現場實際位置略有落差</span></li>
         <li><span class="d">7/13</span><span>新功能「附近火車」：地圖上落一根釘，查周邊 60 分鐘內會通過的車次</span></li>
@@ -2584,7 +2601,7 @@ try { if (matchMedia('(max-width: 900px)').matches) document.body.classList.add(
     <button class="ms-row" data-act="track"><span>軌道與路線</span><span class="chev">›</span></button>
     <button class="ms-row" data-proxy="xingBtn"><span>平交道記號</span><span class="toggle" data-tg="xingBtn"></span></button>
     <button class="ms-row" data-proxy="introBtn"><span>特殊站介紹</span><span class="toggle" data-tg="introBtn"></span></button>
-    <button class="ms-row" data-proxy="pinBtn"><span>附近火車</span><span class="toggle" data-tg="pinBtn"></span></button>
+    <button class="ms-row" data-proxy="pinBtn"><span>儲存地點</span><span class="toggle" data-tg="pinBtn"></span></button>
     <button class="ms-row" data-proxy="locateBtn" data-close="1"><span>◎ 定位我</span><span class="chev">›</span></button>
     <!-- 縣市快速移動(Batch B):#citySel 縣市下拉的手機新家;點列展開 17 縣市 chip,點 chip 飛過去並關 sheet -->
     <button class="ms-row" data-act="cities"><span>縣 縣市快速移動</span><span class="chev">›</span></button>
@@ -5135,6 +5152,9 @@ function plusProjectConfigured() {
   return !!(window.RAIL_NATIVE_PLUS_ADAPTER || window.RAIL_PLUS_TEST_ADAPTER || (c.entitlement && (c.webApiKey || c.iosApiKey || c.androidApiKey)));
 }
 function plusConfigured() {
+  // 第一版純免費先上：PLUS_ENABLED 關閉時，整個 Plus 觸發面（含 Google 清單匯入入口 setupTakeoutUi）一律視為未設定，
+  // 避免原生殼載入 RevenueCat adapter 後 plusConfigured() 恆真、匯入冒出來還跳登入。1.1 恢復 PLUS_ENABLED 原生恆開即復活。
+  if (!PLUS_ENABLED) return false;
   const c = plusConfig();
   // 原生橋接只會在目前平台有對應 public key 時建立；純網站則必須真的有 Web Billing key，
   // 不能因設定檔內只有 iOS/Android key 就誤開入口，否則購買時會拿 undefined 初始化 Web SDK。
@@ -5385,14 +5405,16 @@ function renderPinCard() {
   const ico = '<svg class="xc-ico" width="18" height="18" viewBox="0 0 18 18" aria-hidden="true">' +
     '<path d="M9 1.6c-2.9 0-5.2 2.3-5.2 5.2 0 3.7 5.2 9.4 5.2 9.4s5.2-5.7 5.2-9.4c0-2.9-2.3-5.2-5.2-5.2z" fill="none" stroke="currentColor" stroke-width="1.5"/>' +
     '<circle cx="9" cy="6.8" r="1.9" fill="currentColor"/></svg>';
-  const saved = pinSavedIdx(pinDraft.lat, pinDraft.lon) >= 0;
+  const savedIdx = pinSavedIdx(pinDraft.lat, pinDraft.lon);
+  const saved = savedIdx >= 0;
+  const savedLabel = saved ? String((loadPins()[savedIdx] || {}).label || '') : ''; // 已命名地點:卡片標題顯示地點名
   let title, meta, body, foot = '';
   if (!within.length) {
-    title = '附近沒有鐵路';
+    title = savedLabel || '附近沒有鐵路';
     meta = near.length ? '最近軌道約 ' + pinFmtKm(near[0].perpKm) + ' 外' : '找不到軌道';
     body = '<div class="xc-empty">這個位置 ' + PIN_MAX_KM + ' 公里內沒有鐵路，無法預測經過的火車。拖曳釘子靠近鐵路再試。</div>';
   } else {
-    title = '附近火車';
+    title = savedLabel || '附近火車';
     meta = within.length > 1 ? PIN_MAX_KM + ' 公里內有 ' + within.length + ' 條路線'
       : '最近軌道：' + pinLnName(within[0].ln) + ' · 約 ' + pinFmtKm(within[0].perpKm);
     const perLine = within.length > 1 ? 3 : 5; // 多線並列每線取前 3 班,單線照舊 5 班
@@ -5416,7 +5438,7 @@ function renderPinCard() {
     }).join('');
     foot = '<div class="xc-foot">吸附軌道依時刻表推算，僅供參考；拖曳釘子可微調位置。</div>';
   }
-  el.innerHTML = '<div class="xc-head">' + ico + '<div class="xc-ttl"><b>' + title + '</b>' +
+  el.innerHTML = '<div class="xc-head">' + ico + '<div class="xc-ttl"><b>' + escHtml(title) + '</b>' +
     '<span class="xc-meta">' + meta + '</span></div>' +
     '<button class="xc-save" id="pinSave" type="button">' + (saved ? '★ 已存' : '☆ 存') + '</button>' +
     '<button class="xc-close" id="pinClose" type="button" aria-label="關閉">✕</button></div>' +
@@ -5438,16 +5460,54 @@ function renderPinCard() {
 }
 function togglePinSave() {
   if (!pinDraft) return;
-  const pins = loadPins(), at = pinSavedIdx(pinDraft.lat, pinDraft.lon);
-  if (at >= 0) { pins.splice(at, 1); showToast('已移除最愛地點'); }
-  else { pins.push({ lat: pinDraft.lat, lon: pinDraft.lon }); showToast('已存為最愛地點'); }
-  savePins(pins); renderSavedPins(); renderPinCard();
+  const at = pinSavedIdx(pinDraft.lat, pinDraft.lon);
+  if (at >= 0) { // 已存 → 直接移除(不需命名)
+    const pins = loadPins(); pins.splice(at, 1); savePins(pins);
+    showToast('已移除地點'); renderSavedPins(); renderPinCard(); renderFavPanel();
+  } else { // 未存 → 先命名再存(命名對話框獨立於每秒重繪的釘卡)
+    openPinNameDialog(pinDraft.lat, pinDraft.lon);
+  }
+}
+// 命名地點對話框:釘卡每模擬秒重繪會清掉內嵌輸入框,故命名走獨立 modal(比照 takeout-modal 家族)
+function openPinNameDialog(lat, lon) {
+  const modal = document.getElementById('pinNameModal'); if (!modal) return;
+  state._pinNameTarget = { lat, lon };
+  const input = document.getElementById('pinNameInput'); if (input) input.value = '';
+  modal.hidden = false;
+  setTimeout(() => { try { input.focus(); } catch (e) {} }, 30);
+}
+function closePinNameDialog() {
+  const modal = document.getElementById('pinNameModal'); if (modal) modal.hidden = true;
+  state._pinNameTarget = null;
+}
+function confirmPinName() {
+  const t = state._pinNameTarget; if (!t) return closePinNameDialog();
+  const input = document.getElementById('pinNameInput');
+  const label = ((input && input.value) || '').trim().slice(0, 40);
+  const pins = loadPins();
+  if (pinSavedIdx(t.lat, t.lon) < 0) pins.push({ lat: t.lat, lon: t.lon, label }); // label 由同步層 userDataCleanValue('pins') 保存
+  savePins(pins);
+  closePinNameDialog();
+  showToast(label ? ('已儲存地點「' + label + '」') : '已儲存地點');
+  renderSavedPins(); renderPinCard(); renderFavPanel();
+}
+function removePinByKey(key) { // key = lat,lon(各 6 位小數),同 userDataItemId('pins')
+  savePins(loadPins().filter(p => (Number(p.lat).toFixed(6) + ',' + Number(p.lon).toFixed(6)) !== key));
+  renderSavedPins(); renderFavPanel(); if (pinDraft) renderPinCard();
+  showToast('已移除地點');
+}
+function gotoSavedPin(key) {
+  const p = loadPins().find(p => (Number(p.lat).toFixed(6) + ',' + Number(p.lon).toFixed(6)) === key);
+  if (!p) return;
+  map.setView([p.lat, p.lon], Math.max(map.getZoom(), 14));
+  openPinAt(p.lat, p.lon);
 }
 function renderSavedPins() { // 已存地點:恆掛地圖的釘,點了重開卡;預測只在 sched,捷運頁不掛
   pinSaved.forEach(m => map.removeLayer(m)); pinSaved = [];
   if (state.mode !== 'sched') return;
   for (const p of loadPins()) {
     const mk = L.marker([p.lat, p.lon], { icon: pinIcon(true), zIndexOffset: 900 }).addTo(map);
+    if (p.label) mk.bindTooltip(escHtml(String(p.label)), { direction: 'top', offset: [0, -12] });
     mk.on('click', () => { map.panTo([p.lat, p.lon]); openPinAt(p.lat, p.lon); });
     pinSaved.push(mk);
   }
@@ -7311,8 +7371,8 @@ function renderFavs() {
 function renderFavPanel() {
   const el = document.getElementById('favPanel');
   if (el.hidden) return;
-  const favs = loadFavs(), stns = loadFavStations();
-  el.innerHTML = `<h3>我的最愛<button class="close" id="favClose">×</button></h3><div class="sub">點車站開看板 · 點列車跟隨 · × 移除收藏</div>` +
+  const favs = loadFavs(), stns = loadFavStations(), pins = loadPins();
+  el.innerHTML = `<h3>我的最愛<button class="close" id="favClose">×</button></h3><div class="sub">點車站開看板 · 點列車跟隨 · 點地點看附近火車 · × 移除</div>` +
     (stns.length
       ? `<div class="sec">車站</div>` + stns.map(f => {
           const key = escHtml(f.sys + '|' + f.name);
@@ -7329,8 +7389,15 @@ function renderFavPanel() {
             `<span class="rm" data-no="${no}" title="移除">×</span></div>`;
         }).join('')
       : '') +
-    (!favs.length && !stns.length
-      ? '<div class="empty">還沒有收藏——跟隨列車後點資訊卡的 ☆ 收藏列車；打開車站看板點 ☆ 收藏車站。</div>' : '');
+    (pins.length
+      ? `<div class="sec">地點</div>` + pins.map(p => {
+          const key = Number(p.lat).toFixed(6) + ',' + Number(p.lon).toFixed(6);
+          return `<div class="row fvpin" data-pin="${key}"><span class="ico">📍</span>` +
+            `<b>${escHtml(p.label || '未命名地點')}</b><span class="rm" data-pin="${key}" title="移除">×</span></div>`;
+        }).join('')
+      : '') +
+    (!favs.length && !stns.length && !pins.length
+      ? '<div class="empty">還沒有收藏——跟隨列車後點資訊卡的 ☆ 收藏列車；打開車站看板點 ☆ 收藏車站；用工具列「儲存」在地圖上存地點。</div>' : '');
   el.querySelector('#favClose').onclick = closeFavPanel;
 }
 function openFavPanel() {
@@ -10607,10 +10674,10 @@ function setupMapTools() {
   function setDropMode(on, silent) {
     state.dropMode = on;
     pinBtn.classList.toggle('active', on);
-    pinBtn.querySelector('.tl').textContent = on ? '點地圖落釘' : '附近';
-    pinBtn.title = on ? '落釘模式中：點地圖可連續落釘、存點（再按一次關閉）' : '落釘看附近經過的火車';
+    pinBtn.querySelector('.tl').textContent = on ? '點地圖存點' : '儲存';
+    pinBtn.title = on ? '儲存地點模式：點地圖標記位置、看附近火車（再按一次關閉）' : '儲存地點，看附近經過的火車';
     const cnt = map.getContainer(); if (cnt) cnt.style.cursor = on ? 'crosshair' : '';
-    if (on && !silent) showToast('落釘模式：點地圖可連續落釘看附近火車、按「存」收藏；再按一次「釘」關閉');
+    if (on && !silent) showToast('儲存地點：點地圖標記你要記住的位置、看附近火車，按「存」收藏；再按一次關閉');
   }
   pinBtn.onclick = () => setDropMode(!state.dropMode);
   state._setDropMode = setDropMode; // 供 boot 內地圖點擊處理器跨作用域呼叫(比照 state._setFs)
@@ -11557,12 +11624,27 @@ document.getElementById('favPanel').onclick = e => {
   const nb = e.target.closest('.fv-notify');
   if (nb) { e.stopPropagation(); openLocalReminderSheet(findLocalReminderTrain(nb.dataset.notifyNo), 'favorite'); return; }
   const rm = e.target.closest('.rm');
-  if (rm) { rm.dataset.stkey ? removeFavStation(rm.dataset.stkey) : removeFav(rm.dataset.no); return; }
+  if (rm) { rm.dataset.pin ? removePinByKey(rm.dataset.pin) : (rm.dataset.stkey ? removeFavStation(rm.dataset.stkey) : removeFav(rm.dataset.no)); return; }
+  const pr = e.target.closest('.row.fvpin');
+  if (pr) { closeFavPanel(); gotoSavedPin(pr.dataset.pin); return; }
   const sr = e.target.closest('.row.fvst');
   if (sr) { gotoFavStationKey(sr.dataset.stkey); return; }
   const row = e.target.closest('.row.fv');
   if (row) { closeFavPanel(); followTrainNo(row.dataset.no); }
 };
+// 命名地點對話框接線(儲存/取消/關閉/Enter 存/Esc 關/點背景關)
+document.getElementById('pinNameSave').onclick = confirmPinName;
+document.getElementById('pinNameCancel').onclick = closePinNameDialog;
+document.getElementById('pinNameX').onclick = closePinNameDialog;
+(function () {
+  const modal = document.getElementById('pinNameModal'), input = document.getElementById('pinNameInput');
+  if (!modal || !input) return;
+  input.addEventListener('keydown', e => {
+    if (e.key === 'Enter') { e.preventDefault(); confirmPinName(); }
+    else if (e.key === 'Escape') { e.preventDefault(); closePinNameDialog(); }
+  });
+  modal.addEventListener('click', e => { if (e.target === modal) closePinNameDialog(); });
+})();
 // 資訊卡兩個可收放區:停靠時刻表與全程速度曲線
 function setStopsOpen(open) {
   document.getElementById('tcStops').hidden = !open;
