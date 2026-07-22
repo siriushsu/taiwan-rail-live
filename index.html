@@ -4095,7 +4095,7 @@ function crossingPasses(cr) {
 }
 function openCrossingCard(cr) {
   soloPanel('crossing');
-  closeBoard(); closePinCard(); closeNearbyXing(); closeSugarCard(); // 站牌看板/落釘卡/平交道卡/附近卡/台糖卡同用右上欄,擇一顯示
+  closeBoard(); closePinCard(); closeNearbyStations(); closeSugarCard(); // 站牌看板/落釘卡/平交道卡/附近卡/台糖卡同用右上欄,擇一顯示
   // 使用說明卡是暫態吐司——點到平交道即代表已看懂用法,一律收掉(768 中間寬度兩者會相疊)
   {
     const hp = document.getElementById('xingHelp');
@@ -4183,7 +4183,7 @@ function sugarAt(cp) {
 }
 function openSugarCard(pk) {
   soloPanel('sugar');
-  closeBoard(); closeCrossingCard(); closePinCard(); closeNearbyXing(); // 右上欄諸卡擇一顯示
+  closeBoard(); closeCrossingCard(); closePinCard(); closeNearbyStations(); // 右上欄諸卡擇一顯示
   state.sugarSel = pk;
   renderSugarCard();
 }
@@ -4208,11 +4208,12 @@ function renderSugarCard() {
   document.getElementById('sugarCard').hidden = false;
   document.getElementById('sgClose').onclick = closeSugarCard;
 }
-// ── 定位我 → 看附近平交道有沒有火車快通過 ─────────────────────────────────────
-// 一次性 geolocation(getCurrentPosition,不持續追蹤、座標純留本機不上傳)。成功後飛到所在地、
-// 標藍點+精度圈、打開平交道圖層,並列出最近幾處平交道與各自下一班通過列車(複用 crossingPasses)。
+// ── 定位我 → 立刻移到我的位置,列出附近的車站/捷運站 ─────────────────────────────
+// 一次性 geolocation(getCurrentPosition,不持續追蹤、座標純留本機不上傳)。成功後:先停掉所有會搶
+// 相機的模式(跟車/捷運跟車/隨機巡航/放空),再飛到所在地、標藍點+精度圈,並列出最近幾座車站/捷運站
+// (依距離排序;點站→開該站看板)。不再找平交道——平交道仍是獨立的「平」圖層功能,與定位無關。
 // 定位我暫緩(2026-07-14):iOS「加到主畫面」standalone PWA 無法取用定位(系統限制),而使用者主力情境正是主畫面 App;
-// 延到原生 App(Capacitor 原生定位)階段再啟用。以下程式(locateMe/onLocated/onLocateFail/renderNearbyXing…)全部保留,
+// 延到原生 App(Capacitor 原生定位)階段再啟用。以下程式(locateMe/onLocated/onLocateFail/renderNearbyStations…)全部保留,
 // 網站/PWA 仍關閉；Capacitor App 注入原生定位 bridge 後才自動復活。
 // 本地提醒驗收 mock：只在非原生網頁 + ?notifymock=1 注入，正式網頁/PWA 永遠沒有入口。
 try {
@@ -4286,8 +4287,8 @@ const FORCE_BREATH = (() => { try { return new URLSearchParams(location.search).
 // 接收端 ?trip= 解碼永遠作用(payload 本來就公開,不鎖)。?tripshare=1 當次開發起端測試(比照 ?breath=1,僅該次頁面生效)。
 const TRIP_SHARE_ENABLED = (() => { try { return new URLSearchParams(location.search).get('tripshare') === '1'; } catch (e) { return false; } })();
 let meMarker = null, meCircle = null;
-const NEAR_XING_KM = 5;  // 「附近平交道」搜尋半徑(公里,可調)
-const NEAR_XING_N = 8;   // 清單最多列幾處
+const NEAR_ST_KM = 5;  // 「附近車站」搜尋半徑(公里,可調)
+const NEAR_ST_N = 8;   // 清單最多列幾站
 function meIcon() {
   return L.divIcon({ className: 'geo-ico', iconSize: [22, 22], iconAnchor: [11, 11],
     html: '<span class="geo-pulse"></span><svg viewBox="0 0 22 22" width="22" height="22" aria-hidden="true">' +
@@ -4295,7 +4296,6 @@ function meIcon() {
 }
 async function locateMe() {
   showToast('正在定位你的位置…');
-  ensureCrossings(); // 與定位並行,先開始抓平交道資料
   if (window.RAIL_NATIVE_GEOLOCATION) {
     try {
       const pos = await window.RAIL_NATIVE_GEOLOCATION.getCurrentPosition({ enableHighAccuracy: true, timeout: 12000, maximumAge: 60000 });
@@ -4326,80 +4326,91 @@ function onLocateFail(err) {
   showToast('無法自動定位，已改用「釘」：在地圖上點你的位置就能看附近火車。（' + note + '）');
 }
 async function onLocated(lat, lon, accM) {
+  // 立刻停掉所有會搶相機的模式(跟車/捷運跟車/隨機巡航/放空),否則 flyTo 會被下一幀的鏡頭拉回。
+  // 使用者要的是「不管是否正在跟隨車輛,都立刻移到我的位置」。clearFollow 內部已一併清捷運跟車。
+  setAmbient(false); setAutoTour(false); clearFollow();
   if (meMarker) { map.removeLayer(meMarker); meMarker = null; }
   if (meCircle) { map.removeLayer(meCircle); meCircle = null; }
   meCircle = L.circle([lat, lon], { radius: Math.max(20, Math.min(accM || 60, 500)),
     color: '#2b8fff', weight: 1, opacity: .5, fillColor: '#2b8fff', fillOpacity: .1, interactive: false }).addTo(map);
   meMarker = L.marker([lat, lon], { icon: meIcon(), interactive: false, keyboard: false, zIndexOffset: 1300 }).addTo(map);
-  map.flyTo([lat, lon], 15, { duration: .8 });
-  if (state._setXing) state._setXing(true); // 打開平交道圖層(記號在 z≥12 顯示;setXing 為 setupMapTools 區域函式)
-  await ensureCrossings();
-  openNearbyXing(lat, lon);
+  openNearbyStations(lat, lon); // 先出資訊卡,不讓相機動畫的任何意外吞掉清單
+  try { map.flyTo([lat, lon], 15, { duration: .8 }); } catch (e) { map.setView([lat, lon], 15); }
 }
-function openNearbyXing(lat, lon) {
+function openNearbyStations(lat, lon) {
   soloPanel('near');
   closeBoard(); closeCrossingCard(); closePinCard(); closeSugarCard();
   state.meLoc = { lat, lon };
-  state._nearRenderedAt = -1e9;
-  renderNearbyXing();
+  renderNearbyStations();
 }
-function closeNearbyXing() {
+function closeNearbyStations() {
   if (!state.meLoc && document.getElementById('nearCard').hidden) return;
   state.meLoc = null;
   const el = document.getElementById('nearCard'); if (el) { el.hidden = true; el.innerHTML = ''; }
 }
-function renderNearbyXing() {
+// 目前檢視能看到的所有車站:sched(台鐵/高鐵/林鐵)取 schedStations,全台同框再併裝飾層捷運/輕軌站;
+// 單捷運分頁(freq)取 state.lines 的站。以 (系統|站名) 去重(共構站台鐵/捷運各留一筆,開各自看板)。
+function nearbyStationCandidates() {
+  const out = [], seen = new Set();
+  const push = (name, lat, lon, sys, label) => {
+    if (lat == null || lon == null || !name) return;
+    const k = sys + '|' + name;
+    if (seen.has(k)) return; seen.add(k);
+    out.push({ st: { name, lat, lon, sys }, label });
+  };
+  if (state.mode === 'sched') {
+    for (const s of (state.schedStations || []))
+      push(s.name, s.lat, s.lon, s.sys, (state.systems.find(x => x.id === s.sys) || {}).label || '');
+    if (state.deco && state.decoLines) for (const ln of state.decoLines)
+      for (const st of (ln.stations || [])) push(st.name, st.lat, st.lon, 'deco', ln._sysLabel || '捷運');
+  } else {
+    const sysLabel = (state.sys && state.sys.label) || '';
+    for (const ln of (state.lines || []))
+      for (const st of (ln.stations || [])) push(st.name, st.lat, st.lon, 'freq', ln._sysLabel || sysLabel || ln.name || '');
+  }
+  return out;
+}
+function renderNearbyStations() {
   const el = document.getElementById('nearCard'), loc = state.meLoc;
   if (!el || !loc) return;
-  state._nearRenderedAt = state.simSec;
   const ico = '<svg class="xc-ico" width="18" height="18" viewBox="0 0 18 18" aria-hidden="true">' +
     '<circle cx="9" cy="9" r="7.2" fill="none" stroke="currentColor" stroke-width="1.6"/>' +
-    '<path d="M4.5 4.5 L13.5 13.5 M4.5 13.5 L13.5 4.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>';
-  const all = state.crossings || [];
-  const scored = all.map(cr => ({ cr, km: haversineKm(loc, { lat: cr.lat, lon: cr.lon }) }))
+    '<circle cx="9" cy="9" r="2.6" fill="currentColor"/></svg>';
+  const scored = nearbyStationCandidates()
+    .map(c => ({ st: c.st, label: c.label, km: haversineKm(loc, { lat: c.st.lat, lon: c.st.lon }) }))
     .sort((a, b) => a.km - b.km);
-  const within = scored.filter(s => s.km <= NEAR_XING_KM).slice(0, NEAR_XING_N);
-  const listS = within.length ? within : scored.slice(0, 3); // 半徑內無 → 退列最近 3 處
-  state._nearList = listS.map(s => s.cr);
+  const within = scored.filter(s => s.km <= NEAR_ST_KM).slice(0, NEAR_ST_N);
+  const listS = within.length ? within : scored.slice(0, 3); // 半徑內無 → 退列最近 3 站
+  state._nearList = listS.map(s => s.st);
   let body, meta;
-  if (!all.length) {
-    meta = '載入平交道資料中…'; body = '<div class="xc-empty">平交道資料載入中,稍候片刻…</div>';
+  if (!scored.length) {
+    meta = '這個檢視沒有車站'; body = '<div class="xc-empty">切換到含車站的檢視再定位</div>';
   } else if (!listS.length) {
-    meta = '附近找不到平交道'; body = '<div class="xc-empty">你附近沒有本圖收錄的台鐵平交道</div>';
+    meta = '附近找不到車站'; body = '<div class="xc-empty">你附近沒有本圖收錄的車站</div>';
   } else {
-    meta = within.length ? '最近 ' + listS.length + ' 處 · ' + NEAR_XING_KM + ' 公里內'
-      : '半徑內無,顯示最近 ' + listS.length + ' 處';
+    meta = within.length ? '最近 ' + listS.length + ' 站 · ' + NEAR_ST_KM + ' 公里內'
+      : '半徑內無,顯示最近 ' + listS.length + ' 站';
     body = listS.map((s, i) => {
-      const cr = s.cr, km = pinFmtKm(s.km);
-      let sub;
-      if (cr.noSched) sub = '<span class="nx-none">貨運／專用線,無列車預測</span>';
-      else {
-        const ps = crossingPasses(cr);
-        if (ps.length) {
-          const p = ps[0], mm = Math.floor(p.delta / 60), ss = Math.floor(p.delta % 60);
-          const cd = String(mm).padStart(2, '0') + ':' + String(ss).padStart(2, '0');
-          const dl = p.delayMin > 0 ? '<span class="xc-dl">+' + p.delayMin + '分</span>' : '';
-          sub = '下一班 <b>' + p.tr.train + '</b> 往' + p.dir + dl + '<span class="nx-cd">' + cd + '</span>';
-        } else sub = '<span class="nx-none">未來 60 分鐘無列車</span>';
-      }
+      const km = pinFmtKm(s.km);
+      const lbl = s.label ? '<b>' + escHtml(s.label) + '</b>' : '';
       return '<div class="nx-row" data-i="' + i + '"><div class="nx-top">' +
-        '<span class="nx-name">' + cr.name + '</span><span class="nx-km">' + km + '</span></div>' +
-        '<div class="nx-sub">' + sub + '</div></div>';
+        '<span class="nx-name">' + escHtml(s.st.name) + '</span><span class="nx-km">' + km + '</span></div>' +
+        '<div class="nx-sub">' + lbl + '<span>點站看接下來的班次</span></div></div>';
     }).join('');
   }
-  el.innerHTML = '<div class="xc-head">' + ico + '<div class="xc-ttl"><b>你附近的平交道</b>' +
+  el.innerHTML = '<div class="xc-head">' + ico + '<div class="xc-ttl"><b>你附近的車站</b>' +
     '<span class="xc-meta">' + meta + '</span></div>' +
     '<button class="xc-close" id="nearClose" type="button" aria-label="關閉">✕</button></div>' +
     '<div class="xc-list">' + body + '</div>' +
-    '<div class="xc-foot">依時刻表推算僅供參考,遮斷機通常提前 30–60 秒動作,請以現場號誌為準。你的位置僅用於本機顯示、不會上傳。</div>';
+    '<div class="xc-foot">你的位置僅用於本機顯示、不會上傳。點任一站可查看該站接下來的班次。</div>';
   el.hidden = false;
   if (!el._wired) {
     el._wired = true;
     el.onclick = e => {
-      if (e.target.closest('#nearClose')) return closeNearbyXing();
+      if (e.target.closest('#nearClose')) return closeNearbyStations();
       const row = e.target.closest('.nx-row'); if (!row) return;
-      const cr = state._nearList && state._nearList[+row.dataset.i];
-      if (cr) { map.panTo([cr.lat, cr.lon]); openCrossingCard(cr); }
+      const st = state._nearList && state._nearList[+row.dataset.i];
+      if (st) { map.panTo([st.lat, st.lon]); openBoard(st); }
     };
   }
 }
@@ -5342,7 +5353,7 @@ function savePins(a) { return userDataSaveCollection('pins', a); }
 function pinSavedIdx(lat, lon) { return loadPins().findIndex(p => Math.abs(p.lat - lat) < 1e-6 && Math.abs(p.lon - lon) < 1e-6); }
 function openPinAt(lat, lon) { // 落/移釘 → 開卡(右上欄諸卡擇一)
   soloPanel('pin');
-  closeBoard(); closeCrossingCard(); closeNearbyXing(); closeSugarCard();
+  closeBoard(); closeCrossingCard(); closeNearbyStations(); closeSugarCard();
   if (pinDraft && pinDraft.marker) map.removeLayer(pinDraft.marker);
   const mk = L.marker([lat, lon], { icon: pinIcon(false), draggable: true, zIndexOffset: 1000 }).addTo(map);
   pinDraft = { lat, lon, marker: mk };
@@ -5500,7 +5511,6 @@ function tick(now) {
     if (state.boardStation && Math.abs(state.simSec - (state.boardRenderedAt || 0)) >= 20) renderBoard();
     if (state.crossingSel && Math.abs(state.simSec - (state._xingRenderedAt || 0)) >= 1) renderCrossingCard(); // 倒數每秒刷新+已通過班次退出
     if (pinDraft && Math.abs(state.simSec - (state._pinRenderedAt || 0)) >= 1) renderPinCard(); // 釘卡倒數同樣每秒刷新(已通過班次自動退出)
-    if (state.meLoc && Math.abs(state.simSec - (state._nearRenderedAt || 0)) >= 1) renderNearbyXing(); // 附近平交道卡:下一班倒數每秒刷新
     if (state._trip && !state._tripClosed) { state._tripClock = (state._tripClock || 0) + dt; if (state._tripClock >= 1) { state._tripClock = 0; renderTripBanner(); } } // 行程分享橫幅:ETA/倒數每秒刷新
     drawFlow();
   }
@@ -5780,7 +5790,7 @@ function updateSchedTools() {
   const rb = document.getElementById('randBtn');
   if (rb) rb.hidden = !show;
   if (typeof closePinCard === 'function') closePinCard(); // 換系統:收掉舊系統的落釘卡(預測隨系統作廢)
-  if (typeof closeNearbyXing === 'function') closeNearbyXing(); // 換系統:收掉附近平交道卡(預測隨系統作廢)
+  if (typeof closeNearbyStations === 'function') closeNearbyStations(); // 換系統:收掉附近車站卡(站清單隨系統作廢)
   if (typeof renderSavedPins === 'function') renderSavedPins(); // 已存最愛地點:換系統時重掛(非 sched 自動清)
   if (typeof renderFavStationMarkers === 'function') renderFavStationMarkers(); // 最愛車站 ★:換系統時依目前檢視重掛
 }
@@ -8169,7 +8179,7 @@ function openDelayHist(tr) {
   state._delayHistKind = tr.loop ? tr.loopName : (tr.typeName || '');
   soloPanel('delayhist'); // 手機:關掉其他 sheet(不含跟隨面板);桌機 soloPanel 早退,靠下面明列 close
   closeBoard(); closeFavPanel(); closeRidePanel(); closeExplorePanel(); closeTrackPanel(); closeTodayPanel();
-  closePinCard(); closeNearbyXing(); closeSugarCard();
+  closePinCard(); closeNearbyStations(); closeSugarCard();
   const el = document.getElementById('delayHistPanel');
   el.hidden = false;
   el.onclick = e => {
@@ -9873,7 +9883,7 @@ function soloPanel(keep) {
   if (keep !== 'crossing') closeCrossingCard();
   if (keep !== 'sugar') closeSugarCard();
   if (keep !== 'pin') closePinCard();
-  if (keep !== 'near') closeNearbyXing();
+  if (keep !== 'near') closeNearbyStations();
   if (keep !== 'fav') closeFavPanel();
   if (keep !== 'ride') closeRidePanel();
   if (keep !== 'explore') closeExplorePanel();
@@ -9882,7 +9892,7 @@ function soloPanel(keep) {
   if (keep !== 'delayhist') closeDelayHist();
   if (keep !== 'train') closeTrainSheet();
 }
-function openBoard(st) { soloPanel('board'); closeFavPanel(); closeRidePanel(); closeExplorePanel(); closeTrackPanel(); closeTodayPanel(); closeDelayHist(); closePinCard(); closeNearbyXing(); closeSugarCard(); state.boardStation = st; renderBoard(); }
+function openBoard(st) { soloPanel('board'); closeFavPanel(); closeRidePanel(); closeExplorePanel(); closeTrackPanel(); closeTodayPanel(); closeDelayHist(); closePinCard(); closeNearbyStations(); closeSugarCard(); state.boardStation = st; renderBoard(); }
 function closeBoard() {
   state.boardStation = null;
   const el = document.getElementById('board');
@@ -10572,7 +10582,7 @@ function setupMapTools() {
     xingBtn.querySelector('.tl').textContent = on ? '平交道：開' : '平交道';
     xingBtn.title = on ? '平交道顯示中（點擊關閉）' : '顯示平交道位置';
     try { localStorage.setItem('trainmap-xing', on ? '1' : '0'); } catch (e) {}
-    if (!on) { closeCrossingCard(); closeNearbyXing(); } // 關掉時一併收起通過預測卡與附近平交道卡
+    if (!on) closeCrossingCard(); // 關掉平交道圖層時收起通過預測卡(附近車站卡與此圖層無關,不連帶關)
     if (on && showHelp) showXingHelp();
   }
   xingBtn.onclick = () => setXing(!state.xingOn, true);
