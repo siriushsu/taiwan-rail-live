@@ -31,6 +31,9 @@ _專案資訊.html
 授權查證*
 安全審查*.md
 ntmetro_fixtures
+# 暫存驗證腳本(Playwright 等):慣例放 repo 根目錄好解析 node_modules,一律 ephemeral、禁上正式站。
+# index.html 是純單檔 app、不載任何 .mjs 模組;正式 build 腳本都在已排除的 scripts/。
+*.mjs
 
 # 內部設計／QA／文案文件(未追蹤,禁上正式站;2026-07-22 補齊)
 QA測試報告*
