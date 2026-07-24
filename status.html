@@ -67,6 +67,34 @@
   .refresh-btn:hover{border-color:var(--navy); color:var(--navy)}
   .refresh-btn:disabled{opacity:.55; cursor:default}
 
+  .accuracy{
+    background:var(--paper); border:1px solid var(--line); border-radius:var(--r-l);
+    padding:16px 18px; margin-bottom:16px;
+  }
+  .accuracy-title{margin:0 0 10px; font-size:15px; font-weight:900; letter-spacing:.02em}
+  .accuracy-verdict{display:flex; align-items:center; gap:8px; margin:0 0 14px; font-size:14.5px; font-weight:800}
+  .accuracy-verdict[data-status="green"] .verdict-text{color:var(--ok)}
+  .accuracy-verdict[data-status="red"] .verdict-text{color:var(--red)}
+  .accuracy-verdict[data-status="yellow"] .verdict-text{color:var(--gold)}
+  .accuracy-verdict[data-status="pending"] .verdict-text{color:var(--faint)}
+  .accuracy-anomaly{
+    display:none; margin:0 0 14px; padding:12px 14px; border-radius:var(--r-m);
+    background:color-mix(in srgb, var(--red) 12%, var(--paper));
+    border:1px solid color-mix(in srgb, var(--red) 45%, var(--line));
+  }
+  .accuracy-anomaly.show{display:block}
+  .accuracy-anomaly-head{margin:0 0 8px; font-size:13.5px; font-weight:800; color:var(--red)}
+  .accuracy-anomaly-list{list-style:none; margin:0 0 8px; padding:0; display:grid; gap:6px}
+  .accuracy-anomaly-list li{font-size:12.5px; color:var(--ink); line-height:1.55}
+  .accuracy-anomaly-list b{color:var(--red); font-weight:700}
+  .accuracy-anomaly-list li.more{color:var(--faint); font-weight:700}
+  .accuracy-anomaly-note{margin:0; font-size:12px; color:var(--muted)}
+  .accuracy-list{list-style:none; margin:0; padding:0; display:grid; gap:9px}
+  .accuracy-item{display:flex; align-items:flex-start; gap:8px; font-size:13px; color:var(--muted); line-height:1.55}
+  .accuracy-item .dot{margin-top:5px}
+  .accuracy-item b{color:var(--ink); font-weight:700}
+  .accuracy-foot{margin:14px 0 0; padding-top:10px; border-top:1px solid var(--line-faint); font-size:12px; color:var(--faint)}
+
   .lead{color:var(--muted); font-size:14px; margin:0 0 22px}
   .lead strong{color:var(--ink)}
 
@@ -132,6 +160,21 @@
     <a class="brand" href="/">← 軌島 · RAIL ISLAND</a>
     <h1>資料來源狀態</h1>
   </header>
+
+  <section class="accuracy" id="accuracy" aria-labelledby="accuracyTitle">
+    <h2 class="accuracy-title" id="accuracyTitle">地圖現在準嗎？</h2>
+    <p class="accuracy-verdict" id="accuracyVerdict" data-status="pending">
+      <span class="dot pending" id="accuracyVerdictDot" aria-hidden="true"></span>
+      <span class="verdict-text" id="accuracyVerdictText">檢查中…</span>
+    </p>
+    <div class="accuracy-anomaly" id="accuracyAnomaly" aria-live="polite">
+      <p class="accuracy-anomaly-head">⚠ 營運異常公告</p>
+      <ul class="accuracy-anomaly-list" id="accuracyAnomalyList"></ul>
+      <p class="accuracy-anomaly-note">異常期間，相關路線在地圖上的位置與時刻可能與現場有較大落差。</p>
+    </div>
+    <ul class="accuracy-list" id="accuracyList" aria-live="polite"></ul>
+    <p class="accuracy-foot">實際到離站時刻請以各營運機構官方資訊為準。</p>
+  </section>
 
   <div class="overall" id="overall" data-status="pending">
     <span class="dot pending" id="overallDot" aria-hidden="true"></span>
@@ -228,6 +271,47 @@
   var GROUP_ORDER = ['即時動態', '營運公告', '統計資料'];
   var STATUS_RANK = { red:3, yellow:2, green:1, grey:0 };
 
+  // 白話「地圖現在準嗎？」摘要：純翻譯既有卡片狀態，不發新的 API 請求
+  var ACCURACY_ITEMS = [
+    { id:'tra-live', label:'台鐵',
+      okText:'套用官方即時誤點校正，位置與時刻通常與現場相差 1 分鐘內。',
+      downText:'即時校正暫時中斷，目前以官方時刻表推算，誤點列車的位置可能有偏差。' },
+    { id:'metro-mrt', label:'台北捷運',
+      okText:'營運時段依官方到站看板即時校正。',
+      downText:'即時校正暫時中斷，目前以官方時刻表推算，位置可能有偏差。' },
+    { id:'metro-krtc', label:'高雄捷運／輕軌',
+      okText:'營運時段依官方到站看板即時校正。',
+      downText:'即時校正暫時中斷，目前以官方時刻表推算，位置可能有偏差。' },
+    { id:'metro-tymc', label:'桃園機捷',
+      okText:'營運時段依官方到站看板即時校正。',
+      downText:'即時校正暫時中斷，目前以官方時刻表推算，位置可能有偏差。' },
+    { id:'ntm-circular', label:'新北捷運環狀線',
+      okText:'營運時段依官方列車動態即時校正。',
+      downText:'即時校正暫時中斷，目前以官方時刻表推算，位置可能有偏差。' },
+    { id:'ntm-danhai', label:'淡海輕軌',
+      okText:'營運時段依官方列車動態即時校正。',
+      downText:'即時校正暫時中斷，目前以官方時刻表推算，位置可能有偏差。' },
+    { id:'ntm-ankeng', label:'安坑輕軌',
+      okText:'營運時段依官方列車動態即時校正。',
+      downText:'即時校正暫時中斷，目前以官方時刻表推算，位置可能有偏差。' },
+    { id:'tmrt', label:'台中捷運',
+      fixed:'官方未提供公開介接，依官方時刻表推演。' },
+    { id:'sanying', label:'三鶯線',
+      fixed:'官方未提供公開介接，依官方時刻表推演。' },
+    { id:'thsr', label:'高鐵',
+      fixed:'無逐車誤點介接，依當日時刻表推演，重大異常見營運公告。' },
+  ];
+
+  // 營運異常公告偵測：復用既有三個公告端點（同源相對路徑），status!==1 的條目＝異常
+  var ALERT_ENDPOINTS = [
+    { endpoint:'/api/tra-alert', sysLabel:'台鐵' },
+    { endpoint:'/api/thsr-alert', sysLabel:'高鐵' },
+    { endpoint:'/api/metro-alert', sysLabel:'捷運' }, // 個別條目多半自帶更細的 sysLabel（台北捷運/高雄捷運…）
+  ];
+  var MAX_ANOMALY_ITEMS = 5;
+  var alertsState = 'pending'; // 'pending' | 'ok' | 'unavailable'
+  var alertAnomalies = [];
+
   var cardState = {}; // id -> { status, label, atMs, fetchedAtMs }
 
   function fmtAge(ms){
@@ -323,6 +407,82 @@
     });
   }
 
+  function buildAccuracyDom(){
+    var list = document.getElementById('accuracyList');
+    ACCURACY_ITEMS.forEach(function(item){
+      var li = document.createElement('li');
+      li.className = 'accuracy-item';
+      li.id = 'acc-' + item.id;
+      var initStatus = item.fixed ? 'grey' : 'pending';
+      li.setAttribute('data-status', initStatus);
+
+      var dot = document.createElement('span');
+      dot.className = 'dot ' + initStatus;
+      dot.setAttribute('aria-hidden', 'true');
+      li.appendChild(dot);
+
+      var textWrap = document.createElement('span');
+      var b = document.createElement('b');
+      b.textContent = item.label + '：';
+      var textSpan = document.createElement('span');
+      textSpan.className = 'acc-text';
+      textSpan.textContent = item.fixed || '檢查中…';
+      textWrap.appendChild(b);
+      textWrap.appendChild(textSpan);
+      li.appendChild(textWrap);
+
+      list.appendChild(li);
+    });
+  }
+
+  function updateAccuracy(){
+    var allChecked = true;
+    var allGreen = true;
+    ACCURACY_ITEMS.forEach(function(item){
+      if (item.fixed) return; // 固定文案,不隨卡片狀態變動
+      var st = cardState[item.id];
+      var li = document.getElementById('acc-' + item.id);
+      if (!li) return;
+      var dot = li.querySelector('.dot');
+      var text = li.querySelector('.acc-text');
+      if (!st) {
+        allChecked = false;
+        li.setAttribute('data-status', 'pending');
+        dot.className = 'dot pending';
+        text.textContent = '檢查中…';
+        return;
+      }
+      var ok = st.status === 'green';
+      if (!ok) allGreen = false;
+      li.setAttribute('data-status', st.status);
+      dot.className = 'dot ' + st.status;
+      text.textContent = ok ? item.okText : item.downText;
+    });
+
+    renderAlertAnomaly();
+
+    var verdictEl = document.getElementById('accuracyVerdict');
+    var verdictDot = document.getElementById('accuracyVerdictDot');
+    var verdictText = document.getElementById('accuracyVerdictText');
+    var status, text;
+    if (!allChecked) {
+      status = 'pending'; text = '檢查中…';
+    } else if (alertAnomalies.length) {
+      // 有營運異常公告時優先顯示，即使即時位置校正全綠也不得宣稱「全部運作中」
+      status = 'red'; text = '有營運異常公告，相關路線可能大幅失準';
+    } else if (!allGreen) {
+      status = 'red'; text = '部分即時校正中斷，詳見下方';
+    } else if (alertsState === 'unavailable') {
+      // 三個公告端點全失敗：無從確認有無異常，不可顯示為綠字「全部運作中」
+      status = 'yellow'; text = '即時校正運作中，惟營運異常公告暫時無法取得';
+    } else {
+      status = 'green'; text = '即時校正全部運作中';
+    }
+    verdictEl.setAttribute('data-status', status);
+    verdictDot.className = 'dot ' + status;
+    verdictText.textContent = text;
+  }
+
   function setCardStatus(id, status, label, atMs){
     cardState[id] = { status: status, label: label, atMs: atMs, fetchedAtMs: Date.now() };
     var card = document.getElementById('card-' + id);
@@ -390,6 +550,58 @@
       });
   }
 
+  // 單一公告端點：抓 {alerts:[],at} 並濾出 status!==1 的異常條目；本輪失敗回 null（與「查過但無異常」區分)
+  function fetchAlertEndpoint(cfg){
+    return fetchWithTimeout(cfg.endpoint, FETCH_TIMEOUT_MS)
+      .then(function(res){
+        if (!res.ok) throw new Error('http ' + res.status);
+        return res.json();
+      })
+      .then(function(d){
+        if (!d || !Array.isArray(d.alerts)) throw new Error('bad payload');
+        return d.alerts
+          .filter(function(a){ return a && a.status !== 1; })
+          .map(function(a){ return { sysLabel: (a && a.sysLabel) || cfg.sysLabel, title: (a && a.title) || '（無標題）' }; });
+      })
+      .catch(function(){ return null; });
+  }
+
+  // 三個公告端點併發輪詢；至少一個成功即視為「有查」，全失敗才算「暫時無法取得」
+  function pollAlerts(){
+    return Promise.all(ALERT_ENDPOINTS.map(fetchAlertEndpoint)).then(function(results){
+      var ok = results.filter(function(r){ return r !== null; });
+      if (!ok.length) {
+        alertsState = 'unavailable';
+        alertAnomalies = [];
+      } else {
+        alertsState = 'ok';
+        alertAnomalies = ok.reduce(function(acc, list){ return acc.concat(list); }, []);
+      }
+    });
+  }
+
+  function renderAlertAnomaly(){
+    var box = document.getElementById('accuracyAnomaly');
+    var list = document.getElementById('accuracyAnomalyList');
+    list.innerHTML = '';
+    if (!alertAnomalies.length) { box.classList.remove('show'); return; }
+    box.classList.add('show');
+    alertAnomalies.slice(0, MAX_ANOMALY_ITEMS).forEach(function(a){
+      var li = document.createElement('li');
+      var b = document.createElement('b');
+      b.textContent = a.sysLabel + '：';
+      li.appendChild(b);
+      li.appendChild(document.createTextNode(a.title));
+      list.appendChild(li);
+    });
+    if (alertAnomalies.length > MAX_ANOMALY_ITEMS) {
+      var more = document.createElement('li');
+      more.className = 'more';
+      more.textContent = '…等 ' + (alertAnomalies.length - MAX_ANOMALY_ITEMS) + ' 則';
+      list.appendChild(more);
+    }
+  }
+
   function updateOverall(){
     var worst = null;
     SOURCES.forEach(function(s){
@@ -416,17 +628,22 @@
     var btn = document.getElementById('refreshBtn');
     btn.disabled = true;
     var live = SOURCES.filter(function(s){ return s.kind !== 'na'; });
-    Promise.all(live.map(function(s){
+    var livePromise = Promise.all(live.map(function(s){
       return checkSource(s).then(function(r){ setCardStatus(s.id, r.status, r.label, r.atMs); });
-    })).then(function(){
+    }));
+    var alertsPromise = pollAlerts();
+    Promise.all([livePromise, alertsPromise]).then(function(){
       updateOverall();
+      updateAccuracy();
       document.getElementById('lastChecked').textContent = '最後檢查：' + fmtAbs(Date.now());
       btn.disabled = false;
     });
   }
 
   buildDom();
+  buildAccuracyDom();
   updateOverall();
+  updateAccuracy();
   runAll();
   setInterval(runAll, POLL_INTERVAL_MS);
   setInterval(tickAllAges, 1000);
