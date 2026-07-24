@@ -2402,6 +2402,7 @@ try { if (matchMedia('(max-width: 900px)').matches) document.body.classList.add(
       <summary><span>🛠 更新紀錄</span><span class="foot-sub">最後更新：2026/7/22</span></summary>
       <ul class="foot-list">
         <li class="grp">最近更新</li>
+        <li><span class="d">7/24</span><span>衛星模式在手機等高解析度螢幕上畫質更清晰銳利，修正原本偏糊的顯示</span></li>
         <li><span class="d">7/22</span><span>原「附近火車」更名為「儲存地點」，儲存時可幫地點命名（家、公司…）；存過的地點會列進「我的最愛」的「地點」區，點一下就飛過去看它附近的車</span></li>
         <li><span class="d">7/22</span><span>手機底部「地圖」鈕修正：在隨機跟隨中點它會停下、回到地圖，不再繼續自動跳下一班車；「探」面板移除「隨便帶我看一輛」，今日之最改為純文字標題</span></li>
         <li><span class="d">7/22</span><span>手機／App 地圖可以自由平移、也能再縮小看台灣周邊了，修好之前一移動或縮小就卡住的問題</span></li>
@@ -2500,6 +2501,7 @@ try { if (matchMedia('(max-width: 900px)').matches) document.body.classList.add(
         <li><span class="d">7/13</span><span>新增「省電」模式（手機預設開啟）：降到 30fps、關閉高速預抓</span></li>
         <li><span class="d">7/12</span><span>待機自動降頻、切到背景分頁停止繪製</span></li>
         <li class="grp">外觀與品牌</li>
+        <li><span class="d">7/24</span><span>衛星模式在手機等高解析度螢幕上畫質更清晰銳利，修正原本偏糊的顯示</span></li>
         <li><span class="d">7/22</span><span>縮放時墊底的離線輪廓圖配色貼齊 CARTO 底圖（陸地／海面、亮色暗色分別對齊），消除快速縮放的色差閃爍</span></li>
         <li><span class="d">7/16</span><span>整站外觀大改版「琺瑯 2.0」，並支援亮／暗自動切換</span></li>
         <li><span class="d">7/11</span><span>開站版面不再位移跳動，分享連結統一網域</span></li>
@@ -11184,6 +11186,9 @@ async function boot() {
     const t = TILES[k]; if (!t || !t.url) continue;
     const opt = { maxZoom: t.maxZoom, crossOrigin: true, keepBuffer: kb, attribution: t.attribution };
     if (t.subdomains) opt.subdomains = t.subdomains;
+    // 衛星圖沒有 @2x 選項,detectRetina 改抓高一階 zoom 的圖磚合成顯示,治 Retina 螢幕拉伸糊化;
+    // 只開 sat——light/dark(Stadia,付費)刻意不開,同 @2x 全流量曝險教訓(見 monetization-cost-decisions)
+    if (k === 'sat') opt.detectRetina = true;
     baseLayers[k] = L.tileLayer(t.url, opt);
   }
   // 外觀三段(亮/暗/自動;自動=跟隨系統)。舊鍵 trainmap-theme(light/dark)沿用為固定亮/暗
