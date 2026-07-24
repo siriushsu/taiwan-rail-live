@@ -10,7 +10,9 @@ import { chromium, webkit } from './node_modules/playwright/index.mjs';
 
 const BASE = process.env.BASE || 'http://127.0.0.1:8791';
 const results = [];
+const naResults = []; // 「驗不了」(harness/引擎限制)：如實記錄+附原因，不計入 pass/fail，也不靜默跳過
 const pass = (id, ok, msg) => { results.push({ id, ok, msg }); console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${id}: ${msg}`); };
+const na = (id, msg) => { naResults.push({ id, msg }); console.log(`  [N/A ] ${id}: ${msg}`); };
 
 async function loadApp(pg, file = 'index.html') {
   await pg.addInitScript(() => { try { localStorage.setItem('trainmap-howto-seen', '1'); } catch (e) {} });
@@ -198,6 +200,185 @@ async function zoomAlignProfile(ctx, file, { center, fromZ, toZ, panBy, rapid })
   return r;
 }
 
+// ── V5 家族：真捏合手勢(genuine 2-finger touch)期間 overlay 與圖磚「整張 raster 同步縮放」的跨層驗證 ──
+// 為何不用 CDP synthesizePinchGesture：實測它不會驅動 Leaflet 的 TouchZoom（map.touchZoom._zooming 恆 false），
+// 而是被當成 wheel 式離散 animated zoom（走 onZoomAnim 路徑、zoom 一路跳到 maxZoom）→ 完全繞過本次要驗的
+// 捏合 zoom handler（其閘門 = map.touchZoom._zooming）。正確原語是 CDP Input.dispatchTouchEvent（真多點觸控事件，
+// touches.length===2 → Leaflet _onTouchStart 引擎級觸發 TouchZoom，逐幀 _move 發 zoom → 捏合 handler 生效）。
+// 量測：頁內 rAF 取樣器逐幀記 overlay 的 computed transform scale、getZoom()、跨層對齊誤差(圖磚 rect vs overlay
+// transform 對映同一凍結 container 座標 q，同 V2 家族真值對齊法)、_zooming/_zoomAnim 相位；手勢結束後才斷言。
+async function pinchProfile(ctx, file, { center, fromZ, panBy, dir }) {
+  const p = await ctx.newPage();
+  await p.addInitScript(() => { try { localStorage.setItem('trainmap-howto-seen', '1'); } catch (e) {} });
+  await p.goto(`${BASE}/${file}`, { waitUntil: 'load', timeout: 40000 });
+  await p.waitForFunction(() => window.__map && window.__state && window.__state.ready, { timeout: 40000 });
+  await p.evaluate(() => { const s = window.__state; s.ambient = false; s._hotNext = 1e18; const w = document.getElementById('howtoWrap'); if (w) w.hidden = true; });
+  const cdp = await ctx.newCDPSession(p);
+  // 設視圖(可選平移)→ 凍結起始幀圖磚取樣(中央帶,同 zoomAlignProfile)→ 掛 rAF 取樣器
+  await p.evaluate(async ({ center, fromZ, panBy }) => {
+    const map = window.__map;
+    map.setView(center, fromZ, { animate: false });
+    await new Promise(r => setTimeout(r, 800));
+    if (panBy) { map.panBy(panBy, { animate: false }); await new Promise(r => setTimeout(r, 400)); } // 非零 panePos＝互動累積狀態
+    const pp0 = map._getMapPanePos(); window.__pp0 = { x: +pp0.x.toFixed(1), y: +pp0.y.toFixed(1) };
+    const R = document.getElementById('map').getBoundingClientRect();
+    const cand = [...document.querySelectorAll('img.leaflet-tile')]
+      .filter(t => t.complete && t.naturalWidth > 0 && getComputedStyle(t).opacity !== '0')
+      .map(t => { const b = t.getBoundingClientRect(); return { el: t, q: [b.left - R.left, b.top - R.top], mx: b.left + b.width / 2 - R.left, my: b.top + b.height / 2 - R.top }; })
+      .filter(s => s.mx > R.width * 0.22 && s.mx < R.width * 0.78 && s.my > R.height * 0.18 && s.my < R.height * 0.82);
+    cand.sort((a, b) => a.mx - b.mx);
+    const picks = []; const step = Math.max(1, Math.floor(cand.length / 8));
+    for (let i = 0; i < cand.length && picks.length < 8; i += step) picks.push(cand[i]);
+    window.__picks = picks; window.__pstart = map.getZoom();
+    const ov = document.getElementById('overlay');
+    const applyM = (mstr, q) => { const m = new DOMMatrix(mstr === 'none' ? undefined : mstr); return { x: m.a * q[0] + m.c * q[1] + m.e, y: m.b * q[0] + m.d * q[1] + m.f }; };
+    window.__ps = []; window.__psRec = true;
+    const rec = () => {
+      if (!window.__psRec) return;
+      const so = getComputedStyle(ov), t = so.transform, active = t !== 'none';
+      const sc = active ? new DOMMatrix(t).a : 1, z = map.getZoom();
+      const zooming = !!(map.touchZoom && map.touchZoom._zooming), animZoom = !!map._animatingZoom;
+      let maxd = 0, cnt = 0;
+      if (active) {
+        const Rc = document.getElementById('map').getBoundingClientRect();
+        for (const s of window.__picks) { if (!s.el.isConnected) continue; const rb = s.el.getBoundingClientRect(); if (!rb.width) continue;
+          const tileNow = { x: rb.left - Rc.left, y: rb.top - Rc.top }, ovNow = applyM(t, s.q);
+          maxd = Math.max(maxd, Math.hypot(tileNow.x - ovNow.x, tileNow.y - ovNow.y)); cnt++; }
+      }
+      window.__ps.push({ z, active, ovScale: sc, expScale: map.getZoomScale(z, window.__pstart), zooming, animZoom, maxd, cnt, origin0: /^0px 0px/.test(so.transformOrigin) });
+      requestAnimationFrame(rec);
+    };
+    requestAnimationFrame(rec);
+  }, { center, fromZ, panBy });
+  // 用 CDP 派真多點觸控事件驅動 TouchZoom（dir:'in' 兩指張開＝放大／'out' 兩指併攏＝縮小）
+  const box = await p.$eval('#map', el => { const r = el.getBoundingClientRect(); return { x: r.x, y: r.y, w: r.width, h: r.height }; });
+  const cx = Math.round(box.x + box.w / 2), cy = Math.round(box.y + box.h / 2);
+  const dStart = dir === 'out' ? 150 : 26, dEnd = dir === 'out' ? 26 : 150, steps = 18;
+  const tp = (d) => [{ x: cx - d, y: cy, id: 0 }, { x: cx + d, y: cy, id: 1 }];
+  await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: tp(dStart) });
+  await p.waitForTimeout(20);
+  const zStart = await p.evaluate(() => !!(window.__map.touchZoom && window.__map.touchZoom._zooming));
+  for (let i = 1; i <= steps; i++) { const d = Math.round(dStart + (dEnd - dStart) * i / steps); await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: tp(d) }); await new Promise(r => setTimeout(r, 18)); }
+  await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+  await p.waitForTimeout(950); // 含 touchend 收斂動畫(走 onZoomAnim)＋解凍
+  const r = await p.evaluate(() => {
+    window.__psRec = false; const s = window.__ps;
+    const engaged = s.filter(x => x.zooming);
+    const pinch = s.filter(x => x.active && x.zooming && x.cnt > 0);        // 跟手捏合幀
+    const converge = s.filter(x => x.active && !x.zooming && x.animZoom && x.cnt > 0); // touchend 收斂動畫幀
+    // (a) scale 同步：跟手幀中「有明顯縮放」者，overlay 實際 scale 對 getZoomScale(當幀,起始) 的相對誤差
+    const scaleFrames = pinch.filter(x => Math.abs(x.ovScale - 1) > 0.04);
+    const scaleErrs = scaleFrames.map(x => Math.abs(x.ovScale / x.expScale - 1));
+    const maxScaleErr = scaleErrs.length ? Math.max(...scaleErrs) : 999;
+    // (b) 跨層對齊：跟手幀；robustMax 丟單幀取樣毛刺(同 zoomAlignProfile)
+    const dPinch = pinch.map(x => x.maxd).sort((a, b) => b - a);
+    const pinchMax = dPinch.length ? dPinch[0] : 999, pinchRobust = dPinch.length >= 2 ? dPinch[1] : (dPinch[0] ?? 999);
+    const pinchOver2 = pinch.filter(x => x.maxd > 2).length;
+    // (c) 收斂→靜止：收斂動畫幀對齊 + 最終 overlay 清空
+    const dConv = converge.map(x => x.maxd).sort((a, b) => b - a);
+    const convRobust = dConv.length >= 2 ? dConv[1] : (dConv[0] ?? 0);
+    const zoomVals = engaged.map(x => x.z);
+    return {
+      pp0: window.__pp0, nPicks: window.__picks.length, startZoom: +window.__pstart.toFixed(3),
+      pinchFrames: pinch.length, scaleFrames: scaleFrames.length, convFrames: converge.length,
+      maxScaleErr: +maxScaleErr.toFixed(4), pinchMax: +pinchMax.toFixed(2), pinchRobust: +pinchRobust.toFixed(2), pinchOver2,
+      convRobust: +convRobust.toFixed(2), origin0: pinch.length > 0 && pinch.every(x => x.origin0),
+      zoomSpan: zoomVals.length ? +(Math.max(...zoomVals) - Math.min(...zoomVals)).toFixed(3) : 0,
+      after: { ov: getComputedStyle(document.getElementById('overlay')).transform, flag: !!window.__state._zoomAnim, z: +window.__map.getZoom().toFixed(3) },
+    };
+  });
+  // 手勢結束後：確認內容已按新 zoom 重繪(靜置圖磚鋪滿＝reproject/draw 有跑)
+  const restCov = await p.evaluate(() => {
+    const R = document.getElementById('map').getBoundingClientRect(), grid = [];
+    for (let iy = 0; iy < 12; iy++) for (let ix = 0; ix < 18; ix++) grid.push([R.left + (ix + 0.5) * R.width / 18, R.top + (iy + 0.5) * R.height / 12]);
+    const rects = [...document.querySelectorAll('img.leaflet-tile')].filter(t => t.complete && t.naturalWidth > 0).map(t => t.getBoundingClientRect());
+    let c = 0; for (const [x, y] of grid) { for (const rr of rects) { if (x >= rr.left && x < rr.right && y >= rr.top && y < rr.bottom) { c++; break; } } }
+    return +(c / grid.length).toFixed(3);
+  });
+  r.zStartFlag = zStart; r.restCov = restCov;
+  await p.close();
+  return r;
+}
+
+// 捏合系列（僅 Chromium：CDP dispatchTouchEvent 才驅動得了 TouchZoom）
+async function runPinch(browserType, label) {
+  console.log(`\n===== ${label} =====`);
+  const browser = await browserType.launch();
+  const ctx = await browser.newContext({ viewport: { width: 375, height: 812 }, deviceScaleFactor: 2, hasTouch: true, isMobile: true });
+  const TAIPEI = [25.047, 121.517];
+
+  // V5：捏合放大（乾淨載入）
+  try {
+    const a = await pinchProfile(ctx, 'index.html', { center: TAIPEI, fromZ: 12, dir: 'in' });
+    const ok = a.zStartFlag && a.pinchFrames >= 5 && a.scaleFrames >= 3 && a.maxScaleErr <= 0.05
+      && a.pinchRobust <= 2 && a.origin0 && a.after.ov === 'none' && !a.after.flag && a.restCov >= 0.9;
+    pass(`${label}/V5`, ok, `pinch-IN engaged=${a.zStartFlag} zoomSpan=${a.zoomSpan} pinchFrames=${a.pinchFrames}(scale${a.scaleFrames}) | scaleSyncErr max=${(a.maxScaleErr * 100).toFixed(2)}%(≤5%) | crossLayer robust=${a.pinchRobust}px(max${a.pinchMax},over2=${a.pinchOver2}) origin0=${a.origin0} | converge robust=${a.convRobust}px | after ov=${a.after.ov} flag=${a.after.flag} z=${a.after.z} restCov=${a.restCov}`);
+  } catch (e) { pass(`${label}/V5`, false, 'error ' + e.message); }
+
+  // V5b：先平移再捏合放大（互動累積狀態，上次漏測路徑）
+  try {
+    const b = await pinchProfile(ctx, 'index.html', { center: TAIPEI, fromZ: 12, dir: 'in', panBy: [220, 140] });
+    const panned = Math.hypot(b.pp0.x, b.pp0.y) >= 150;
+    const ok = panned && b.zStartFlag && b.pinchFrames >= 5 && b.scaleFrames >= 3 && b.maxScaleErr <= 0.05
+      && b.pinchRobust <= 2 && b.after.ov === 'none' && !b.after.flag && b.restCov >= 0.9;
+    pass(`${label}/V5b`, ok, `panned panePos=(${b.pp0.x},${b.pp0.y}) |${Math.hypot(b.pp0.x, b.pp0.y).toFixed(0)}px| → pinch-IN scaleSyncErr max=${(b.maxScaleErr * 100).toFixed(2)}% | crossLayer robust=${b.pinchRobust}px(max${b.pinchMax},over2=${b.pinchOver2}) pinchFrames=${b.pinchFrames}(scale${b.scaleFrames}) | converge robust=${b.convRobust}px | after ov=${b.after.ov} flag=${b.after.flag} restCov=${b.restCov}`);
+  } catch (e) { pass(`${label}/V5b`, false, 'error ' + e.message); }
+
+  // V5c：捏合縮小（反方向；雙方向各一例）
+  try {
+    const c = await pinchProfile(ctx, 'index.html', { center: TAIPEI, fromZ: 14, dir: 'out' });
+    const ok = c.zStartFlag && c.pinchFrames >= 5 && c.scaleFrames >= 3 && c.maxScaleErr <= 0.05
+      && c.pinchRobust <= 2 && c.origin0 && c.after.ov === 'none' && !c.after.flag && c.restCov >= 0.9;
+    pass(`${label}/V5c`, ok, `pinch-OUT engaged=${c.zStartFlag} zoomSpan=${c.zoomSpan} pinchFrames=${c.pinchFrames}(scale${c.scaleFrames}) | scaleSyncErr max=${(c.maxScaleErr * 100).toFixed(2)}%(≤5%) | crossLayer robust=${c.pinchRobust}px(max${c.pinchMax},over2=${c.pinchOver2}) | converge robust=${c.convRobust}px | after ov=${c.after.ov} flag=${c.after.flag} z=${c.after.z} restCov=${c.restCov}`);
+  } catch (e) { pass(`${label}/V5c`, false, 'error ' + e.message); }
+
+  await browser.close();
+}
+
+// WebKit 捏合：如實探測「合成 TouchEvent 能否驅動 Leaflet TouchZoom」。Playwright WebKit 若構不出帶 2 touches
+// 的事件（new Touch/new TouchEvent(touches)/initTouchEvent 皆不可用），則 _onTouchStart(要求 touches.length===2)
+// 永不觸發 → 本條「驗不了」，記為 NA 並附「當下量到的確切原因」，不硬湊（禁止直呼內部 _onTouchStart 假裝驅動）。
+async function runPinchWebkit(browserType, label) {
+  console.log(`\n===== ${label} =====`);
+  const browser = await browserType.launch();
+  const ctx = await browser.newContext({ viewport: { width: 375, height: 812 }, deviceScaleFactor: 2, hasTouch: true, isMobile: true });
+  const p = await ctx.newPage();
+  await p.addInitScript(() => { try { localStorage.setItem('trainmap-howto-seen', '1'); } catch (e) {} });
+  await p.goto(`${BASE}/index.html`, { waitUntil: 'load', timeout: 40000 });
+  await p.waitForFunction(() => window.__map && window.__state && window.__state.ready, { timeout: 40000 });
+  await p.evaluate(() => { const w = document.getElementById('howtoWrap'); if (w) w.hidden = true; window.__map.setView([25.047, 121.517], 12, { animate: false }); });
+  await p.waitForTimeout(500);
+  const diag = await p.evaluate(async () => {
+    const map = window.__map, el = map.getContainer(), cx = 187, cy = 406;
+    const d = { hasTouchCtor: typeof Touch === 'function', hasTouchEventCtor: typeof TouchEvent === 'function', hasCreateTouch: typeof document.createTouch === 'function' };
+    // 逐一嘗試三種構造帶 2 touches 的 TouchEvent 途徑，記下各自失敗原因
+    try { new Touch({ identifier: 0, target: el, clientX: cx, clientY: cy }); d.newTouch = 'ok'; } catch (e) { d.newTouch = e.name + ':' + e.message; }
+    let touches = null;
+    try { touches = [document.createTouch(window, el, 0, cx - 30, cy), document.createTouch(window, el, 1, cx + 30, cy)]; d.createTouch = 'ok'; } catch (e) { d.createTouch = e.name + ':' + e.message; }
+    try { const ev = new TouchEvent('touchstart', { bubbles: true, cancelable: true, touches, targetTouches: touches, changedTouches: touches }); d.newTouchEventWithTouches = 'ok len=' + ev.touches.length; } catch (e) { d.newTouchEventWithTouches = e.name + ':' + e.message; }
+    try { const ev = document.createEvent('TouchEvent'); d.initTouchEvent = typeof ev.initTouchEvent; } catch (e) { d.initTouchEvent = 'createEvent-throw:' + e.message; }
+    // 盡力一擊：用能構出的最完整事件實際 dispatch，看 TouchZoom 是否引擎級觸發
+    let engaged = false;
+    try {
+      const t = touches || [];
+      let ev; try { ev = new TouchEvent('touchstart', { bubbles: true, cancelable: true, touches: t, targetTouches: t, changedTouches: t }); } catch (e) { ev = new TouchEvent('touchstart', { bubbles: true, cancelable: true }); }
+      el.dispatchEvent(ev);
+      await new Promise(r => setTimeout(r, 30));
+      engaged = !!(map.touchZoom && map.touchZoom._zooming);
+    } catch (e) { d.dispatchErr = e.message; }
+    d.touchZoomEngaged = engaged;
+    d.dispatchedTouchesLen = (() => { try { const t = touches || []; const ev = new TouchEvent('touchstart', { touches: t }); return ev.touches.length; } catch (e) { return 'ctor-throws'; } })();
+    return d;
+  });
+  await browser.close();
+  if (diag.touchZoomEngaged) {
+    // 若某天 Playwright WebKit 支援了，就走真驗（此路目前不會進來）
+    na(`${label}/V5`, `WebKit 合成 TouchEvent 竟能驅動 TouchZoom（環境已升級）— 需補真捏合斷言。diag=${JSON.stringify(diag)}`);
+  } else {
+    na(`${label}/V5+V5b+V5c`, `驗不了：Playwright WebKit 構不出帶 2 touches 的 TouchEvent（new Touch→[${diag.newTouch}]；new TouchEvent({touches})→[${diag.newTouchEventWithTouches}]；createEvent('TouchEvent').initTouchEvent=${diag.initTouchEvent}）→ 派發的 touchstart touches.length=${diag.dispatchedTouchesLen}，Leaflet _onTouchStart(要求 touches.length===2) 未觸發、touchZoom._zooming=${diag.touchZoomEngaged}。非程式缺陷＝harness/引擎限制；捏合 handler 為引擎無關的純 JS 數學(getZoomScale/project)，其共用的凍結+CSS transform 已由 WebKit 上的 V2/V2b/V2c(zoomanim 路徑)跨層驗過。不硬湊直呼內部 handler。`);
+  }
+}
+
 async function run(browserType, label, { mobile, cdp } = {}) {
   console.log(`\n===== ${label} =====`);
   const browser = await browserType.launch();
@@ -377,9 +558,12 @@ async function run(browserType, label, { mobile, cdp } = {}) {
 await run(chromium, 'chromium-desktop', { cdp: true });
 await run(chromium, 'chromium-mobile', { mobile: true, cdp: true });
 await run(webkit, 'webkit-desktop', {}); // 心得10/27：釋出版 Safari 主力引擎，至少跑 V1+V3（本 harness 為 trunk WebKit，作參考）；CDP 專案(V4e)Chromium 才有
+await runPinch(chromium, 'chromium-pinch');       // V5/V5b/V5c：真捏合手勢(CDP dispatchTouchEvent 驅動 TouchZoom)
+await runPinchWebkit(webkit, 'webkit-pinch');      // 如實探測：WebKit 合成 TouchEvent 能否驅動 TouchZoom
 
 console.log('\n================ SUMMARY ================');
 const fails = results.filter(r => !r.ok);
 for (const r of results) console.log(`${r.ok ? 'PASS' : 'FAIL'}  ${r.id}  ${r.msg}`);
-console.log(`\n${results.length - fails.length}/${results.length} checks passed.`);
+for (const r of naResults) console.log(`N/A   ${r.id}  ${r.msg}`);
+console.log(`\n${results.length - fails.length}/${results.length} checks passed; ${naResults.length} N/A (見上，附原因).`);
 process.exit(fails.length ? 1 : 0);

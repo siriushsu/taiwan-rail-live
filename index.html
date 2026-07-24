@@ -11297,7 +11297,7 @@ async function boot() {
   setupMapTools();
   setupRecorder();
   await setupLocalNotifications();
-  map.on('move zoom resize', reproject); // 縮放「動畫」不在此重投影(會造成 issue #4 殘影);改由下方 onZoomAnim 專責同步
+  map.on('move zoom resize', reproject); // 縮放「動畫」與捏合手勢(_zoomAnim 凍結中)不在此重投影(會造成 issue #4 殘影);改由下方 onZoomAnim/捏合 zoom handler 專責同步
   // ── 縮放動畫(zoomAnimation:true)期間:讓 #overlay 畫布跟圖磚同步做 CSS transform ──────────────
   // #overlay 不在 Leaflet pane 內、以「container 座標」每幀重投影(container = layer + mapPanePos);Leaflet 對圖磚
   // 施加 250ms CSS transform 平滑縮放,overlay 若立刻按目標 zoom 重畫就與圖磚錯位(issue #4)。對策:凍結 overlay
@@ -11319,9 +11319,11 @@ async function boot() {
       state._zaOx = po.x - pp.x; state._zaOy = po.y - pp.y; // 起始「container 原點」= pixelOrigin − panePos(存數值,不留參照)
       const c = map.getSize().divideBy(2); state._zaCx = c.x; state._zaCy = c.y; // 動畫收斂中心(縮放不改 size)
       cv.style.transformOrigin = '0 0';
-      cv.style.transition = 'transform ' + ZOOM_ANIM_MS + 'ms ' + ZOOM_ANIM_EASE;
-      clearTimeout(state._zaTimer); state._zaTimer = setTimeout(endZoomAnim, ZOOM_ANIM_MS + 90); // zoomend 萬一沒送達的保險(冪等)
     }
+    // transition/保險 timer 放分支外每幀重掛:連續縮放冪等且逐次延展 deadline(舊版只掛第一幀,retarget 後
+    // 保險可能在動畫中途誤觸發);捏合收斂時也靠這裡從「跟手模式(無 transition)」接手成緩動
+    cv.style.transition = 'transform ' + ZOOM_ANIM_MS + 'ms ' + ZOOM_ANIM_EASE;
+    clearTimeout(state._zaTimer); state._zaTimer = setTimeout(endZoomAnim, ZOOM_ANIM_MS + 90); // zoomend 萬一沒送達的保險(冪等)
     // 連續縮放(捏合/連續滾輪)每幀重發 zoomanim:全部相對「起始視圖」換算(canvas 凍結於起始 zoom),故用起始基準+project
     const s = map.getZoomScale(e.zoom, state._zaFromZoom);
     const P = map.project(e.center, state._zaFromZoom);      // 目標中心在「起始 zoom」下的世界像素(與當前 view 無關)
@@ -11336,9 +11338,39 @@ async function boot() {
     // 清 transform 與「按新 zoom 重投影重繪」放在同一個同步 turn:瀏覽器只合成一次,不會出現「舊 zoom 畫面貼回 identity」的中間閃跳
     cv.style.transition = ''; cv.style.transform = ''; cv.style.transformOrigin = '';
     reproject(); if (state.ready) draw();
+    const po = map.getPixelOrigin(), pp = map._getMapPanePos(); // 剛重繪的視圖=新的待用基準:保險解凍發生在捏合中途時,下一捏合幀能以它正確再凍結
+    state._zaPend = { z: map.getZoom(), ox: po.x - pp.x, oy: po.y - pp.y };
   }
   map.on('zoomanim', onZoomAnim);
   map.on('zoomend', endZoomAnim);
+  // ── 捏合縮放(touch pinch)期間:同一套凍結+CSS transform 同步 ──────────────
+  // 捏合不發 zoomanim(Leaflet 逐幀 _move 發 zoom 事件),舊行為=overlay 逐幀重投影重畫:線寬/字級
+  // 是固定像素,圖磚卻整張 raster 縮放 → 「地圖變大、軌道沒同時變粗、字沒同時放大」(使用者回報)。
+  // 改為:zoomstart 先記待用基準(此刻 map 尚未動、canvas 內容=此視圖);第一個捏合 zoom 幀凍結 overlay,
+  // 之後每幀按活視圖(getCenter/getZoom)對基準算同一條 transform 公式、無 transition 跟手;
+  // touchend 的收斂動畫發 zoomanim 走上方路徑(基準沿用、transition 接手),zoomend 統一由 endZoomAnim 收尾。
+  // flyTo 也逐幀發 zoom 但無手指,靠 touchZoom._zooming 排除(維持原逐幀重投影,不受此機制影響)。
+  map.on('zoomstart', () => {
+    if (state._zoomAnim) return;
+    const po = map.getPixelOrigin(), pp = map._getMapPanePos();
+    state._zaPend = { z: map.getZoom(), ox: po.x - pp.x, oy: po.y - pp.y };
+  });
+  map.on('zoom', () => {
+    if (!cv || map._animatingZoom || !(map.touchZoom && map.touchZoom._zooming)) return;
+    if (!state._zoomAnim) {
+      const b = state._zaPend; if (!b) return;
+      state._zoomAnim = true;
+      state._zaFromZoom = b.z; state._zaOx = b.ox; state._zaOy = b.oy;
+      const c = map.getSize().divideBy(2); state._zaCx = c.x; state._zaCy = c.y;
+      cv.style.transformOrigin = '0 0';
+    }
+    cv.style.transition = ''; // 跟手:捏合逐幀直設不緩動(收斂動畫由 onZoomAnim 重掛 transition)
+    const s = map.getZoomScale(map.getZoom(), state._zaFromZoom);
+    const P = map.project(map.getCenter(), state._zaFromZoom);
+    const tx = state._zaCx - s * (P.x - state._zaOx), ty = state._zaCy - s * (P.y - state._zaOy);
+    cv.style.transform = 'translate(' + tx + 'px,' + ty + 'px) scale(' + s + ')';
+    clearTimeout(state._zaTimer); state._zaTimer = setTimeout(endZoomAnim, 1200); // 手勢異常中斷未送 zoomend 的解凍保險,每幀延展
+  });
   // 省電:互動時標記時戳,tick 據此維持全速 1.5s(見 tick 節流)。map 'move'/'zoom' 覆蓋整段拖曳/縮放
   // (滑鼠拖曳中只有 pointermove 不重發,靠 map move 續命);pointerdown/wheel/touch 覆蓋點擊與觸控起手
   const markInteract = () => { state._interactAt = performance.now(); };
