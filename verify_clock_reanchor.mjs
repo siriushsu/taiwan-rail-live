@@ -72,16 +72,19 @@ const browser = await chromium.launch();
     // 這是 hide 那一刻 _wasLiveOnHide 判斷的前提，不是重錨邏輯本身。
     await page.evaluate(() => { window.__state.simSec = window.nowSecOfDay(window.activeTz()); });
     await page.evaluate(() => window.__setHidden(true));
-    // 「改 simSec」必須在 hidden 期間做，順序才對得上真實的「背景凍結、rAF 不動」情境
+    // 「改 simSec＋凍結 t0＋翻回前景」必須在同一個同步區塊完成：mock 環境的 rAF 並不真凍結，
+    // 若分開執行，下一幀 tick 會先用巨大 dt 把 simSec 追回去，測不到「重錨後 dt 又疊加一次」的
+    // 雙重計算 bug（2026-07-24 模擬器 E2E 抓到的真 bug：重錨沒歸零 t0，回前景時鐘反而衝到未來）。
     await page.evaluate(() => {
       const now = window.nowSecOfDay(window.activeTz());
       window.__state.simSec = ((now - 300) % 86400 + 86400) % 86400;
+      window.__state.t0 = performance.now() - 300000; // 模擬 rAF 時戳基準也停在背景前那一刻
+      window.__setHidden(false);
     });
-    await page.evaluate(() => window.__setHidden(false));
     await page.waitForTimeout(300); // 重錨賦值在監聽器內同步發生，300ms 遠在題目允許的 2s 內
     const after1 = await page.evaluate(() => ({ simSec: window.__state.simSec, now: window.nowSecOfDay(window.activeTz()) }));
     const d1 = circDist(after1.simSec, after1.now);
-    record('1. 漂移重錨', d1 <= 5, `simSec=${after1.simSec.toFixed(1)} now=${after1.now.toFixed(1)} diff=${d1.toFixed(2)}s（期望 ≤5s）`);
+    record('1. 漂移重錨（含 t0 凍結，防雙重計算）', d1 <= 5, `simSec=${after1.simSec.toFixed(1)} now=${after1.now.toFixed(1)} diff=${d1.toFixed(2)}s（期望 ≤5s；若=+300s 即 t0 雙重計算復發）`);
 
     // 情境 5：gate 有 1 秒記憶化，等它翻新後呼叫
     await page.waitForTimeout(1500);

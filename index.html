@@ -6854,6 +6854,11 @@ document.addEventListener('visibilitychange', () => {
   // 不動使用者手動拖到過去/未來的時間軸(scrub)或快轉/重播/直播中的時鐘。
   if (state._wasLiveOnHide && state.playing && state.speedMult === 1 && !state.liveMode && !state.director) {
     state.simSec = nowSecOfDay(activeTz());
+    // 同時歸零 tick 的 dt 基準:t0 在 rAF 凍結期間停在背景前那一刻,不歸零的話下一幀的
+    // dt=整段背景時長,會把剛錨對的時鐘再往未來推一遍(桌面分頁原本就是靠這個巨大 dt 追齊,
+    // 重錨後它變成重複計算;iOS 裝置休眠時 performance.now 不計時,單靠 dt 又追不齊——
+    // 所以「重錨+歸零」缺一不可)。
+    state.t0 = performance.now();
   }
   // 省電:隱藏期間停繪,回前景立即補一幀(否則畫面停在切走前的舊格,等下一次節流才更新)
   if (state.ready) { state._drawAt = performance.now(); draw(); }
