@@ -215,13 +215,13 @@
     {
       "id": "star",
       "name": "環島之星 萌旅號",
-      "trainNos": [],
+      "trainNos": ["1", "2"],
       "carNames": [],
-      "route": "環島（東西雙向各一班，停靠 22 站）",
+      "route": "環島（車次 1 西部先行／車次 2 東部先行，每日各一班）",
       "operator": "台鐵委外，易遊網經營",
       "tags": ["觀光列車", "親子", "環島"],
       "story": "全台唯一環島觀光列車，13 小時繞台灣一圈。車廂主題隨年代改朝換代：初代 Hello Kitty、迪士尼「夢想號」，到現行三麗鷗「萌旅號」——布丁狗、酷洛米、美樂蒂彩繪滿車，車上還有卡拉 OK 與吧檯。",
-      "status2026": "營運中，現行為三麗鷗萌旅號（Hello Kitty 版已於 2022 年退役，勿再使用舊名）。無公開固定車次號。",
+      "status2026": "營運中，現行為三麗鷗萌旅號（Hello Kitty 版已於 2022 年退役，勿再使用舊名）。正式車次號 1（西部先行）／2（東部先行），列於台鐵每日時刻表，需搭配易遊網套裝行程、不單售車票。",
       "confidence": "high",
       "sources": [
         "https://www.railway.gov.tw/tra-tip-web/tip/tip00N/tipN01/around/index?lang=zh_TW",
