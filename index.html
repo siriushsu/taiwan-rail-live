@@ -2399,9 +2399,10 @@ try { if (matchMedia('(max-width: 900px)').matches) document.body.classList.add(
 
   <footer class="site-foot">
     <details class="foot-box">
-      <summary><span>🛠 更新紀錄</span><span class="foot-sub">最後更新：2026/7/22</span></summary>
+      <summary><span>🛠 更新紀錄</span><span class="foot-sub">最後更新：2026/7/24</span></summary>
       <ul class="foot-list">
         <li class="grp">最近更新</li>
+        <li><span class="d">7/24</span><span>修正 App 或分頁在背景放一段時間後，畫面時鐘停在切走前的時刻、車輛位置與現實對不上的問題；回到前景會自動追回「現在」</span></li>
         <li><span class="d">7/24</span><span>衛星模式在手機等高解析度螢幕上畫質更清晰銳利；跟車移動中改用較省流量的畫質，避免圖磚載入變慢</span></li>
         <li><span class="d">7/22</span><span>原「附近火車」更名為「儲存地點」，儲存時可幫地點命名（家、公司…）；存過的地點會列進「我的最愛」的「地點」區，點一下就飛過去看它附近的車</span></li>
         <li><span class="d">7/22</span><span>手機底部「地圖」鈕修正：在隨機跟隨中點它會停下、回到地圖，不再繼續自動跳下一班車；「探」面板移除「隨便帶我看一輛」，今日之最改為純文字標題</span></li>
@@ -2435,6 +2436,7 @@ try { if (matchMedia('(max-width: 900px)').matches) document.body.classList.add(
         <li><span class="d">7/10</span><span>高鐵、桃園機捷、淡海輕軌、安坑輕軌加入路網</span></li>
         <li><span class="d">7/10</span><span>環島觀光列車一分為二：往東「山海號」、往西「平原號」</span></li>
         <li class="grp">即時動態與誤點</li>
+        <li><span class="d">7/24</span><span>修正 App 或分頁在背景放一段時間後，畫面時鐘停在切走前的時刻、車輛位置與現實對不上的問題；回到前景會自動追回「現在」</span></li>
         <li><span class="d">7/18</span><span>「今日台鐵動態」看板：當日誤點排行與逐站歷程，顯示以「目前」誤點為主，已追回的直接標綠色準點（上線當天另修好「跟這班車」鈕會消失、讀取失敗沒有重試鈕兩處）</span></li>
         <li><span class="d">7/18</span><span>跟隨卡「下一站」旁的紅色「X 分」改回深藍——那是到站倒數不是誤點，容易誤讀；並另外標出這班車真實誤點幾分</span></li>
         <li><span class="d">7/18</span><span>人在國外，畫面上的「現在」也錨定台灣時間</span></li>
@@ -6839,9 +6841,22 @@ function releaseWakeLock() {
   state._wakeLock = null;
 }
 document.addEventListener('visibilitychange', () => {
-  if (state.ambient && document.visibilityState === 'visible') acquireWakeLock();
+  if (document.hidden) {
+    // 進背景前記下「當下是否正貼著真實時刻」,回前景才知道該不該重錨(見下)
+    state._wasLiveOnHide = state.playing && state.speedMult === 1 && !state.liveMode && !state.director &&
+      Math.abs(state.simSec - nowSecOfDay(activeTz())) <= 120;
+    return;
+  }
+  if (state.ambient) acquireWakeLock();
+  // 回前景重新錨定模擬時鐘到真實時刻:背景期間 rAF 完全凍結(省電/成本防線刻意如此,見下方相機守衛註解),
+  // 純靠 dt 累加追不回背景這段真實經過時間,simSec 會停在背景前那刻——手機背景遠比桌機分頁頻繁,
+  // 長時間掛著會讓 App 與網頁的「現在」對不上(車次跑在不同位置)。只在背景前本就貼著真實時刻才重錨,
+  // 不動使用者手動拖到過去/未來的時間軸(scrub)或快轉/重播/直播中的時鐘。
+  if (state._wasLiveOnHide && state.playing && state.speedMult === 1 && !state.liveMode && !state.director) {
+    state.simSec = nowSecOfDay(activeTz());
+  }
   // 省電:隱藏期間停繪,回前景立即補一幀(否則畫面停在切走前的舊格,等下一次節流才更新)
-  if (!document.hidden && state.ready) { state._drawAt = performance.now(); draw(); }
+  if (state.ready) { state._drawAt = performance.now(); draw(); }
 });
 
 // 鎖頁面級縮放的 iOS 補擋:Safari 無視 viewport 的 user-scalable=no,要 preventDefault 它專有的
