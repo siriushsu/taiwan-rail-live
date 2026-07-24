@@ -11453,7 +11453,7 @@ async function boot() {
   if (!TILES) TILES = {
     light: { url: 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', subdomains: 'abcd', maxZoom: 20, attribution: '&copy; OpenStreetMap &copy; CARTO' },
     dark: { url: 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', subdomains: 'abcd', maxZoom: 20, attribution: '&copy; OpenStreetMap &copy; CARTO' },
-    sat: { url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', maxZoom: 19, attribution: 'Tiles &copy; Esri — Source: Esri, Maxar, Earthstar Geographics' }
+    sat: { url: 'https://ibasemaps-api.arcgis.com/arcgis/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}?token=AAPTa2rC_hYi6rt_T5uidVPTslg..ZrcFv6NFHaVoEz9jUtpDnrdauG_BMbQ2WstK_tGa_ILj6Leg62fZ30hvjYMgs0ZC24zY241S3DhDYDJeteNQ6akGN7jpJTHr9gLHk1FilgQu8tuB2QMk0-MxdkBBnV43EJIawg1u1WxDac0Oi0K1u5dTK8f9snuKwBpVIrK_3HHhl-kQM3l-FJnDrKvhlP8OFlPuHneMxlzG2u0V75GBJEXTnXTcCEOFBnODSPuN-6qkQ9SoXBKO-gY_fg..AT1_K900LxEz', maxZoom: 19, attribution: 'Tiles &copy; Esri — Source: Esri, Maxar, Earthstar Geographics' }
   };
   // APP_STRIP_END web-tiles
   if (onlineBasemapsAvailable() && TILES) for (const k of ['light', 'dark', 'sat']) {
