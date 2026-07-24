@@ -2106,7 +2106,7 @@ try { if (matchMedia('(max-width: 900px)').matches) document.body.classList.add(
          .search-field 是下拉的相對錨(錨在輸入框正下方,不受 followbar 影響) -->
     <div class="search" id="searchRow">
       <div class="search-field">
-        <input type="text" id="trainSearch" placeholder="搜尋車站、車次或列車名（台北、123、山嵐）" autocomplete="off" enterkeyhint="search" />
+        <input type="text" id="trainSearch" placeholder="搜尋車站/車次/列車名" autocomplete="off" enterkeyhint="search" />
         <div class="search-drop" id="searchDrop" hidden></div>
       </div>
       <div class="followbar" id="followBar" hidden></div>
@@ -2437,7 +2437,7 @@ try { if (matchMedia('(max-width: 900px)').matches) document.body.classList.add(
         <li class="grp">最近更新</li>
         <li><span class="d">7/24</span><span>列車現在帶行進方向小箭頭（可在「更多」關閉）；時間軸新增 ±5 分鐘鈕，快速預覽幾分鐘前後的班況</span></li>
         <li><span class="d">7/24</span><span>可把常看的地點設為預設啟動視野（我的最愛→地點→設為預設）；探索面板新增「觀光列車圖鑑」，山嵐號、鳴日號等無固定車次的觀光列車一次看</span></li>
-        <li><span class="d">7/24</span><span>手機版面整理：面板全開時頂部時鐘、台鐵捷頁籤等自動讓位不再互相壓疊；多處過小的標籤文字加大更易讀</span></li>
+        <li><span class="d">7/24</span><span>手機版面整理：面板全開時頂部時鐘、台鐵捷頁籤等自動讓位不再互相壓疊；多處過小的標籤文字加大更易讀；搜尋框提示文字改短、不再超出框外</span></li>
         <li><span class="d">7/24</span><span>新增「資料源連線狀態頁」（頁尾資料來源區可進入），各即時資料源的連線與新鮮度一目了然</span></li>
         <li><span class="d">7/24</span><span>台鐵列車站間位置改用官方里程推算，快車行駛中的位置更貼近實際（山線／海線長度也一併校正）</span></li>
         <li><span class="d">7/24</span><span>地圖縮放恢復平滑過渡動畫，不再瞬間跳格或短暫空白；縮放過程軌道與列車全程貼合底圖同步縮放，站名與車牌維持固定大小不跳動</span></li>
@@ -2529,7 +2529,7 @@ try { if (matchMedia('(max-width: 900px)').matches) document.body.classList.add(
         <li><span class="d">7/11</span><span>今日之最的列車在地圖上加繪金色漣漪光環</span></li>
         <li><span class="d">7/9</span><span>旅程護照與 16 枚成就徽章、「探」今日亮點面板上線</span></li>
         <li class="grp">手機與操作</li>
-        <li><span class="d">7/24</span><span>手機版面整理：面板全開時頂部時鐘、台鐵捷頁籤等自動讓位不再互相壓疊；多處過小的標籤文字加大更易讀</span></li>
+        <li><span class="d">7/24</span><span>手機版面整理：面板全開時頂部時鐘、台鐵捷頁籤等自動讓位不再互相壓疊；多處過小的標籤文字加大更易讀；搜尋框提示文字改短、不再超出框外</span></li>
         <li><span class="d">7/24</span><span>列車現在帶行進方向小箭頭（可在「更多」關閉）；時間軸新增 ±5 分鐘鈕，快速預覽幾分鐘前後的班況</span></li>
         <li><span class="d">7/24</span><span>地圖縮放恢復平滑過渡動畫，不再瞬間跳格或短暫空白；縮放過程軌道與列車全程貼合底圖同步縮放，站名與車牌維持固定大小不跳動</span></li>
         <li><span class="d">7/24</span><span>修正拖動地圖時軌道稍微跟不上底圖的延遲感（省電模式在互動時自動全速，放開後恢復省電）</span></li>
@@ -4067,13 +4067,28 @@ function drawDot(p, color) {
 // 每幀熱路徑:不配置暫存物件(只多一次 trainPos+latLngToContainerPoint,與既有拖尾/命中同量級)。
 const DIR_DT_SEC = 8; // 回看秒數:取切線用,夠穩又不至於在轉彎處失真
 function drawDirArrow(cp, tr, color) {
+  // 方向逐幀重算會抖:latLngToContainerPoint 取整 ±0.5px 的雜訊在 8 秒位移量小(慢車/低 zoom)時
+  // 放大成好幾度,折線過頂點也離散跳動 → 每列車角度 EMA 平滑(最短弧插值);停站/幾乎不動時
+  // 沿用最後方向續畫(方向本來就沒變),不再閃現閃滅。>~120° 的角度差=真折返/重新定位,直接跳轉不平滑。
   const pB = trainPos(tr, state.simSec - DIR_DT_SEC);
-  if (!pB) return;                                    // 早於發車/端點:沒有更早的點,方向不明→不畫
-  const cpB = map.latLngToContainerPoint([pB.lat, pB.lon]);
-  const dx = cp.x - cpB.x, dy = cp.y - cpB.y;
-  const L = Math.hypot(dx, dy);
-  if (L < 1.6) return;                                // 停站/幾乎不動:方向不明→不畫(同拖尾的重合跳過)
-  const ux = dx / L, uy = dy / L;                     // 前進單位向量
+  let ang = tr._dirAng;
+  if (pB) {
+    const cpB = map.latLngToContainerPoint([pB.lat, pB.lon]);
+    const dx = cp.x - cpB.x, dy = cp.y - cpB.y;
+    if (Math.hypot(dx, dy) >= 1.6) {
+      const raw = Math.atan2(dy, dx);
+      if (ang === undefined) { ang = raw; }
+      else {
+        let d = raw - ang;
+        while (d > Math.PI) d -= 2 * Math.PI;
+        while (d < -Math.PI) d += 2 * Math.PI;
+        ang = Math.abs(d) > 2.1 ? raw : ang + d * 0.08;
+      }
+      tr._dirAng = ang;
+    }
+  }
+  if (ang === undefined) return;                      // 從未取得有效方向(發車前/端點):不畫
+  const ux = Math.cos(ang), uy = Math.sin(ang);       // 前進單位向量(平滑後)
   const hw = 6 + String(tr.train).length * 3, hh = 8; // 牌半寬(依字數近似)/半高;箭頭放牌前緣外
   const ax = Math.abs(ux), ay = Math.abs(uy);
   const t = Math.min(ax > 1e-3 ? (hw + 3) / ax : 1e9, ay > 1e-3 ? (hh + 3) / ay : 1e9); // 沿方向射線到牌框外緣
