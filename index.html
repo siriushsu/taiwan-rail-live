@@ -2402,7 +2402,7 @@ try { if (matchMedia('(max-width: 900px)').matches) document.body.classList.add(
       <summary><span>🛠 更新紀錄</span><span class="foot-sub">最後更新：2026/7/22</span></summary>
       <ul class="foot-list">
         <li class="grp">最近更新</li>
-        <li><span class="d">7/24</span><span>衛星模式在手機等高解析度螢幕上畫質更清晰銳利，修正原本偏糊的顯示</span></li>
+        <li><span class="d">7/24</span><span>衛星模式在手機等高解析度螢幕上畫質更清晰銳利；跟車移動中改用較省流量的畫質，避免圖磚載入變慢</span></li>
         <li><span class="d">7/22</span><span>原「附近火車」更名為「儲存地點」，儲存時可幫地點命名（家、公司…）；存過的地點會列進「我的最愛」的「地點」區，點一下就飛過去看它附近的車</span></li>
         <li><span class="d">7/22</span><span>手機底部「地圖」鈕修正：在隨機跟隨中點它會停下、回到地圖，不再繼續自動跳下一班車；「探」面板移除「隨便帶我看一輛」，今日之最改為純文字標題</span></li>
         <li><span class="d">7/22</span><span>手機／App 地圖可以自由平移、也能再縮小看台灣周邊了，修好之前一移動或縮小就卡住的問題</span></li>
@@ -2501,7 +2501,7 @@ try { if (matchMedia('(max-width: 900px)').matches) document.body.classList.add(
         <li><span class="d">7/13</span><span>新增「省電」模式（手機預設開啟）：降到 30fps、關閉高速預抓</span></li>
         <li><span class="d">7/12</span><span>待機自動降頻、切到背景分頁停止繪製</span></li>
         <li class="grp">外觀與品牌</li>
-        <li><span class="d">7/24</span><span>衛星模式在手機等高解析度螢幕上畫質更清晰銳利，修正原本偏糊的顯示</span></li>
+        <li><span class="d">7/24</span><span>衛星模式在手機等高解析度螢幕上畫質更清晰銳利；跟車移動中改用較省流量的畫質，避免圖磚載入變慢</span></li>
         <li><span class="d">7/22</span><span>縮放時墊底的離線輪廓圖配色貼齊 CARTO 底圖（陸地／海面、亮色暗色分別對齊），消除快速縮放的色差閃爍</span></li>
         <li><span class="d">7/16</span><span>整站外觀大改版「琺瑯 2.0」，並支援亮／暗自動切換</span></li>
         <li><span class="d">7/11</span><span>開站版面不再位移跳動，分享連結統一網域</span></li>
@@ -6237,6 +6237,7 @@ function setFollow(tr, isAuto, noJump, opts) {
   if (state.ambient && state.ambientStyle === 'hotspot') hotspotStop(); // 群車放空中點車=接手跟隨,導演讓位(取消跟隨即恢復)
   closeBoard(); // 不管從哪裡選到車(看板列/地圖點車/搜尋/最愛),車站看板一律收掉
   state.followTrain = tr; state.followId = tr.train;
+  setBasemap(); // 衛星模式下跟車鏡頭連續平移改用低解析度圖磚(見 setBasemap 內 satLQ 註解)
   syncPanFence(); // 台鐵/高鐵起跟:確保平移硬牆維持開啟(跟車不再解牆,見 syncPanFence 註解;冪等)
   // 深連結帶模擬時間:對方打開時車在同一位置
   // 真全螢幕中不寫網址列:Safari 對 fullscreen 中的 replaceState 會踢出全螢幕,且全螢幕本來就看不到網址列
@@ -6282,6 +6283,7 @@ function clearFollow() {
   clearFreqFollow(); // 換系統/群組/進放空都經過這裡 → 一併清掉捷運幽靈車跟隨
   restoreFollowSpeed(); // 中途取消跟隨也要還原 fromStart 重播強制的速度
   state.followTrain = null; state.followId = null; state.followStatus = null;
+  setBasemap(); // 停跟:衛星模式換回高解析度圖磚
   syncPanFence(); // 台鐵/高鐵停跟:恢復台灣平移硬牆(setMaxBounds 會即刻把邊緣視野拉回框內)
   state._routePts = null;
   state._plateStop = null;
@@ -10285,7 +10287,8 @@ function setBasemap() {
   const sat = online && state.basemap === 'sat';
   stage.classList.toggle('sat', sat);
   stage.classList.toggle('dark', state.mapDark && !sat);
-  const want = sat ? 'sat' : (state.mapDark ? 'dark' : 'light');
+  // 跟車中鏡頭連續平移,detectRetina 版衛星圖磚量 4 倍會讓載入變慢,改用無 detectRetina 的 satLQ
+  const want = sat ? (state.followTrain && baseLayers.satLQ ? 'satLQ' : 'sat') : (state.mapDark ? 'dark' : 'light');
   for (const k in baseLayers) {
     if (k === want) { if (!map.hasLayer(baseLayers[k])) baseLayers[k].addTo(map); }
     else if (map.hasLayer(baseLayers[k])) map.removeLayer(baseLayers[k]);
@@ -11190,6 +11193,9 @@ async function boot() {
     // 只開 sat——light/dark(Stadia,付費)刻意不開,同 @2x 全流量曝險教訓(見 monetization-cost-decisions)
     if (k === 'sat') opt.detectRetina = true;
     baseLayers[k] = L.tileLayer(t.url, opt);
+    // 跟車鏡頭連續平移時 detectRetina 的 4 倍圖磚量會讓載入明顯變慢,跟車中改用這份無 detectRetina 版本
+    // (setBasemap 依 state.followTrain 二選一;detectRetina 是 Leaflet 建構時就烘進 zoomOffset,無法動態切換單一圖層,故養兩份)
+    if (k === 'sat') baseLayers.satLQ = L.tileLayer(t.url, opt.detectRetina ? { ...opt, detectRetina: false } : opt);
   }
   // 外觀三段(亮/暗/自動;自動=跟隨系統)。舊鍵 trainmap-theme(light/dark)沿用為固定亮/暗
   try {
