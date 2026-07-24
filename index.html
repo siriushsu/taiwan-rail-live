@@ -2436,7 +2436,7 @@ try { if (matchMedia('(max-width: 900px)').matches) document.body.classList.add(
       <ul class="foot-list">
         <li class="grp">最近更新</li>
         <li><span class="d">7/25</span><span>環島之星觀光列車上地圖了：搜尋「環島之星」或車次 1／2，就能跟著萌旅號 13 小時繞台灣一圈；介紹卡與列車收集同步收錄</span></li>
-        <li><span class="d">7/24</span><span>列車現在帶行進方向小箭頭（可在「更多」關閉）；時間軸新增 ±5 分鐘鈕，快速預覽幾分鐘前後的班況</span></li>
+        <li><span class="d">7/24</span><span>台鐵、高鐵與捷運列車現在都帶行進方向小箭頭（可在「更多」關閉）；時間軸新增 ±5 分鐘鈕，快速預覽幾分鐘前後的班況</span></li>
         <li><span class="d">7/24</span><span>可把常看的地點設為預設啟動視野（我的最愛→地點→設為預設）；探索面板新增「觀光列車圖鑑」，山嵐號、鳴日號等無固定車次的觀光列車一次看</span></li>
         <li><span class="d">7/24</span><span>手機版面整理：面板全開時頂部時鐘、台鐵捷頁籤等自動讓位不再互相壓疊；多處過小的標籤文字加大更易讀；搜尋框提示文字改短、不再超出框外</span></li>
         <li><span class="d">7/24</span><span>新增「資料源連線狀態頁」（頁尾資料來源區可進入）：各即時資料源連線狀況一目了然，並白話總結「地圖現在準嗎」；遇大規模誤點等營運異常或資料斷線會特別註明</span></li>
@@ -2532,7 +2532,7 @@ try { if (matchMedia('(max-width: 900px)').matches) document.body.classList.add(
         <li><span class="d">7/9</span><span>旅程護照與 16 枚成就徽章、「探」今日亮點面板上線</span></li>
         <li class="grp">手機與操作</li>
         <li><span class="d">7/24</span><span>手機版面整理：面板全開時頂部時鐘、台鐵捷頁籤等自動讓位不再互相壓疊；多處過小的標籤文字加大更易讀；搜尋框提示文字改短、不再超出框外</span></li>
-        <li><span class="d">7/24</span><span>列車現在帶行進方向小箭頭（可在「更多」關閉）；時間軸新增 ±5 分鐘鈕，快速預覽幾分鐘前後的班況</span></li>
+        <li><span class="d">7/24</span><span>台鐵、高鐵與捷運列車現在都帶行進方向小箭頭（可在「更多」關閉）；時間軸新增 ±5 分鐘鈕，快速預覽幾分鐘前後的班況</span></li>
         <li><span class="d">7/24</span><span>地圖縮放恢復平滑過渡動畫，不再瞬間跳格或短暫空白；縮放過程軌道與列車全程貼合底圖同步縮放，站名與車牌維持固定大小不跳動</span></li>
         <li><span class="d">7/24</span><span>修正拖動地圖時軌道稍微跟不上底圖的延遲感（省電模式在互動時自動全速，放開後恢復省電）</span></li>
         <li><span class="d">7/22</span><span>手機底部「地圖」鈕：在隨機跟隨中點它會停下回到地圖，不再繼續自動跳下一班車</span></li>
@@ -2694,7 +2694,7 @@ try { if (matchMedia('(max-width: 900px)').matches) document.body.classList.add(
 <script>
 // 版本戳記:每次改版 push 前手動遞增(字母序),畫面時鐘徽章與 console 都會顯示,
 // 供比對線上跑的是不是最新版(瀏覽器快取 max-age=600 常讓人看到舊版)
-const BUILD = 'v0725a';
+const BUILD = 'v0725b';
 const TRACK_AUDIT = new URLSearchParams(location.search).get('audit') === 'tracks';
 // 手機/平板直式「殼」斷點(議題1:640→900,iPad 直式改拿 tabbar＋更多抽屜):與 CSS @media 同步,版面類判斷一律用此常數。
 // 注意:裝置等級判斷(keepBuffer/powerSave 預設)刻意不用此常數、維持 640——iPad 不該因為改拿 tabbar 就被當低階裝置。
@@ -3514,8 +3514,10 @@ function drawFreq(w, h) {
         if (!pos) continue; // 未發車/已到終點
         const cp = map.latLngToContainerPoint([pos.lat, pos.lon]);
         if (ff && ff.ln === ln && ff.tr === tr) drawFreqRing(cp, ln.color);
-        if (showTrain && inView(cp)) drawTag(cp, ln.abbr, ln.color, tc);
-        else drawDot(cp, ln.color);
+        if (showTrain && inView(cp)) {
+          drawTag(cp, ln.abbr, ln.color, tc);
+          if (state.dirArrow) drawFreqDirArrow(cp, ln, tr, freqTrainPosAt(ln, tr, state.simSec - DIR_DT_SEC));
+        } else drawDot(cp, ln.color);
         if (inView(cp)) state._freqHits.push({ x: cp.x, y: cp.y, ln, tr });
       }
       return;
@@ -3525,8 +3527,13 @@ function drawFreq(w, h) {
       const pos = posPeriodic(ln, tau + k * ln.period / ln.n);
       const cp = map.latLngToContainerPoint([pos.lat, pos.lon]);
       if (ff && ff.ln === ln && ff.k === k) drawFreqRing(cp, ln.color); // 跟隨中的幽靈車:高亮環(畫在牌下)
-      if (showTrain && inView(cp)) drawTag(cp, ln.abbr, ln.color, tc);
-      else drawDot(cp, ln.color);
+      if (showTrain && inView(cp)) {
+        drawTag(cp, ln.abbr, ln.color, tc);
+        if (state.dirArrow) { // 幽靈車無穩定物件,角度狀態落在 per-line per-k 槽
+          const sl = (ln._dirSlots || (ln._dirSlots = {}))[k] || (ln._dirSlots[k] = {});
+          drawFreqDirArrow(cp, ln, sl, posPeriodic(ln, tau - DIR_DT_SEC + k * ln.period / ln.n));
+        }
+      } else drawDot(cp, ln.color);
       if (inView(cp)) state._freqHits.push({ x: cp.x, y: cp.y, ln, k }); // 點擊/hover 命中測試(每幀重建;裝飾層不參加)
     }
   });
@@ -3710,9 +3717,11 @@ function drawDeco(w, h) {
         const cp = map.latLngToContainerPoint([pos.lat, pos.lon]);
         if (!inView(cp)) continue;
         if (ff && ff.ln === ln && ff.tr === tr) drawFreqRing(cp, ln.color);
-        if (showTrain) drawTag(cp, ln.abbr, ln.color, tc);
-        else drawDot(cp, ln.color);
-        if (showTrain) state._freqHits.push({ x: cp.x, y: cp.y, ln, tr });
+        if (showTrain) {
+          drawTag(cp, ln.abbr, ln.color, tc);
+          if (state.dirArrow) drawFreqDirArrow(cp, ln, tr, freqTrainPosAt(ln, tr, state.simSec - DIR_DT_SEC));
+          state._freqHits.push({ x: cp.x, y: cp.y, ln, tr });
+        } else drawDot(cp, ln.color);
       }
       continue;
     }
@@ -3722,10 +3731,15 @@ function drawDeco(w, h) {
       const cp = map.latLngToContainerPoint([pos.lat, pos.lon]);
       if (!inView(cp)) continue;
       if (ff && ff.ln === ln && ff.k === k) drawFreqRing(cp, ln.color); // 跟隨中的示意車:高亮環(畫在牌下)
-      if (showTrain) drawTag(cp, ln.abbr, ln.color, tc);
-      else drawDot(cp, ln.color);
-      // 全台同框的捷運也可點擊跟隨;只在畫車號牌的縮放才收命中(遠景是密集小點,誤點率太高)
-      if (showTrain) state._freqHits.push({ x: cp.x, y: cp.y, ln, k });
+      if (showTrain) {
+        drawTag(cp, ln.abbr, ln.color, tc);
+        if (state.dirArrow) {
+          const sl = (ln._dirSlots || (ln._dirSlots = {}))[k] || (ln._dirSlots[k] = {});
+          drawFreqDirArrow(cp, ln, sl, posPeriodic(ln, tau - DIR_DT_SEC + k * ln.period / ln.n));
+        }
+        // 全台同框的捷運也可點擊跟隨;只在畫車號牌的縮放才收命中(遠景是密集小點,誤點率太高)
+        state._freqHits.push({ x: cp.x, y: cp.y, ln, k });
+      } else drawDot(cp, ln.color);
     }
   }
   ctx.globalAlpha = 1;
@@ -4068,14 +4082,13 @@ function drawDot(p, color) {
 // 牌永遠畫真實位置,箭頭只是加繪、不位移牌(專案鐵律)。填色=車色、外描=pal().tagOutline,亮暗/衛星皆清楚(同車號牌處理)。
 // 每幀熱路徑:不配置暫存物件(只多一次 trainPos+latLngToContainerPoint,與既有拖尾/命中同量級)。
 const DIR_DT_SEC = 8; // 回看秒數:取切線用,夠穩又不至於在轉彎處失真
-function drawDirArrow(cp, tr, color) {
-  // 方向逐幀重算會抖:latLngToContainerPoint 取整 ±0.5px 的雜訊在 8 秒位移量小(慢車/低 zoom)時
-  // 放大成好幾度,折線過頂點也離散跳動 → 每列車角度 EMA 平滑(最短弧插值);停站/幾乎不動時
-  // 沿用最後方向續畫(方向本來就沒變),不再閃現閃滅。>~120° 的角度差=真折返/重新定位,直接跳轉不平滑。
-  const pB = trainPos(tr, state.simSec - DIR_DT_SEC);
-  let ang = tr._dirAng;
-  if (pB) {
-    const cpB = map.latLngToContainerPoint([pB.lat, pB.lon]);
+// 方向逐幀重算會抖:latLngToContainerPoint 取整 ±0.5px 的雜訊在 8 秒位移量小(慢車/低 zoom)時
+// 放大成好幾度,折線過頂點也離散跳動 → 每列車角度 EMA 平滑(最短弧插值);停站/幾乎不動時
+// 沿用最後方向續畫(方向本來就沒變),不再閃現閃滅。>~120° 的角度差=真折返/重新定位,直接跳轉不平滑。
+// carrier=角度狀態的落腳物件(sched 車/freq _tt 車/幽靈車的 per-k 槽),cpB=回看點的容器座標(可 null)。
+function dirAngOf(carrier, cp, cpB) {
+  let ang = carrier._dirAng;
+  if (cpB) {
     const dx = cp.x - cpB.x, dy = cp.y - cpB.y;
     if (Math.hypot(dx, dy) >= 1.6) {
       const raw = Math.atan2(dy, dx);
@@ -4086,12 +4099,13 @@ function drawDirArrow(cp, tr, color) {
         while (d < -Math.PI) d += 2 * Math.PI;
         ang = Math.abs(d) > 2.1 ? raw : ang + d * 0.08;
       }
-      tr._dirAng = ang;
+      carrier._dirAng = ang;
     }
   }
-  if (ang === undefined) return;                      // 從未取得有效方向(發車前/端點):不畫
+  return ang; // undefined=從未取得有效方向(發車前/端點):呼叫端不畫
+}
+function drawArrowAt(cp, ang, color, hw, hh) {
   const ux = Math.cos(ang), uy = Math.sin(ang);       // 前進單位向量(平滑後)
-  const hw = 6 + String(tr.train).length * 3, hh = 8; // 牌半寬(依字數近似)/半高;箭頭放牌前緣外
   const ax = Math.abs(ux), ay = Math.abs(uy);
   const t = Math.min(ax > 1e-3 ? (hw + 3) / ax : 1e9, ay > 1e-3 ? (hh + 3) / ay : 1e9); // 沿方向射線到牌框外緣
   const tx = cp.x + ux * t, ty = cp.y + uy * t;       // 箭頭中心(牌外 3px)
@@ -4103,6 +4117,17 @@ function drawDirArrow(cp, tr, color) {
   ctx.closePath();
   ctx.globalAlpha = 1; ctx.fillStyle = color; ctx.fill();
   ctx.lineWidth = 1.4; ctx.strokeStyle = pal().tagOutline; ctx.stroke();
+}
+function drawDirArrow(cp, tr, color) { // 台鐵/高鐵:牌=車次號(數字窄字),半寬 6+3/字
+  const pB = trainPos(tr, state.simSec - DIR_DT_SEC);
+  const ang = dirAngOf(tr, cp, pB ? map.latLngToContainerPoint([pB.lat, pB.lon]) : null);
+  if (ang === undefined) return;
+  drawArrowAt(cp, ang, color, 6 + String(tr.train).length * 3, 8);
+}
+function drawFreqDirArrow(cp, ln, carrier, pB) { // 捷運/輕軌:牌=線路縮寫(CJK 全形 10px/字),半寬 5/字+6
+  const ang = dirAngOf(carrier, cp, pB ? map.latLngToContainerPoint([pB.lat, pB.lon]) : null);
+  if (ang === undefined) return;
+  drawArrowAt(cp, ang, ln.color, String(ln.abbr).length * 5 + 6, 8);
 }
 
 // 主題感霓虹光暈:暗色/衛星底圖下,主角列車(台鐵/高鐵)點下墊一層發光光暈,
