@@ -1,0 +1,437 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#0A0F1C" media="(prefers-color-scheme: dark)">
+<meta name="theme-color" content="#EFE6D2" media="(prefers-color-scheme: light)">
+<meta name="description" content="軌島 Rail Island 資料來源狀態頁：即時檢查台鐵／捷運各系統資料鏈路是否正常運作。">
+<meta name="robots" content="index,follow">
+<title>資料來源狀態｜軌島 Rail Island</title>
+<link rel="icon" href="/favicon-32.png" sizes="32x32">
+<link rel="icon" href="/favicon-192.png" sizes="192x192">
+<link rel="apple-touch-icon" href="/apple-touch-180.png">
+<style>
+  :root{
+    color-scheme:dark;
+    --bg-page:#0A0F1C; --paper:#141D31; --paper-2:#0E1526;
+    --line:#2A3B5C; --line-faint:#22304C;
+    --ink:#ECF0F8; --muted:#93A3C0; --faint:#7286A8;
+    --navy:#7FA6E0; --red:#F0564A; --gold:#E8B84B; --ok:#3DBF77; --grey:#5B6B8C;
+    --font:-apple-system,BlinkMacSystemFont,"PingFang TC","Noto Sans TC",sans-serif;
+    --mono:ui-monospace,"SF Mono",Menlo,monospace;
+    --r-l:14px; --r-m:8px; --r-pill:999px;
+  }
+  @media (prefers-color-scheme: light){
+    :root{
+      color-scheme:light;
+      --bg-page:#EFE6D2; --paper:#FFFDF6; --paper-2:#F7F0DD;
+      --line:#D8CBA9; --line-faint:#ECE2C8;
+      --ink:#3A3226; --muted:#6B5F4A; --faint:#8A7C62;
+      --navy:#2A4A73; --red:#B43B31; --gold:#9C7A1E; --ok:#1B8F4D; --grey:#8A93A6;
+    }
+  }
+  *{box-sizing:border-box}
+  html{-webkit-text-size-adjust:100%}
+  body{
+    margin:0; background:var(--bg-page); color:var(--ink); font-family:var(--font);
+    line-height:1.6; -webkit-font-smoothing:antialiased;
+  }
+  a{color:var(--navy)}
+  a:hover{color:var(--red)}
+  :focus-visible{outline:2px solid var(--red); outline-offset:2px}
+  .wrap{max-width:960px; margin:0 auto; padding:28px 16px 56px}
+  .tabular{font-variant-numeric:tabular-nums; font-family:var(--mono)}
+
+  header{margin-bottom:6px}
+  .brand{
+    display:inline-flex; align-items:center; gap:6px; font-size:12px; font-weight:800;
+    letter-spacing:.14em; color:var(--faint); text-decoration:none; margin-bottom:10px;
+  }
+  .brand:hover{color:var(--red)}
+  h1{margin:0 0 12px; font-size:clamp(22px,5vw,30px); font-weight:900; letter-spacing:.04em}
+
+  .overall{
+    display:flex; align-items:center; gap:10px; flex-wrap:wrap;
+    background:var(--paper); border:1px solid var(--line); border-radius:var(--r-l);
+    padding:14px 16px; margin-bottom:14px;
+  }
+  .overall .dot{width:14px; height:14px}
+  .overall-text{font-weight:800; font-size:16px}
+  .overall-sub{color:var(--muted); font-size:13px; margin-left:auto; display:flex; align-items:center; gap:10px; flex-wrap:wrap}
+  .refresh-btn{
+    appearance:none; border:1px solid var(--line); background:var(--paper-2); color:var(--ink);
+    font:inherit; font-size:13px; font-weight:700; padding:7px 12px; border-radius:var(--r-pill);
+    cursor:pointer; min-height:32px;
+  }
+  .refresh-btn:hover{border-color:var(--navy); color:var(--navy)}
+  .refresh-btn:disabled{opacity:.55; cursor:default}
+
+  .lead{color:var(--muted); font-size:14px; margin:0 0 22px}
+  .lead strong{color:var(--ink)}
+
+  .legend{display:flex; flex-wrap:wrap; gap:14px; margin:0 0 26px; font-size:12.5px; color:var(--muted)}
+  .legend span{display:inline-flex; align-items:center; gap:6px}
+
+  .dot{
+    display:inline-block; width:11px; height:11px; border-radius:50%; flex:none;
+    box-shadow:0 0 0 3px transparent;
+  }
+  .dot.green{background:var(--ok); box-shadow:0 0 0 3px color-mix(in srgb, var(--ok) 22%, transparent)}
+  .dot.yellow{background:var(--gold); box-shadow:0 0 0 3px color-mix(in srgb, var(--gold) 22%, transparent)}
+  .dot.red{background:var(--red); box-shadow:0 0 0 3px color-mix(in srgb, var(--red) 22%, transparent)}
+  .dot.grey{background:var(--grey)}
+  .dot.pending{background:var(--faint); animation:pulse 1.4s ease-in-out infinite}
+  @keyframes pulse{0%,100%{opacity:.4}50%{opacity:1}}
+
+  .group{margin-bottom:30px}
+  .group h2{
+    font-size:13px; font-weight:800; letter-spacing:.12em; color:var(--faint);
+    text-transform:uppercase; margin:0 0 10px; padding-left:2px;
+  }
+  .grid{
+    display:grid; grid-template-columns:repeat(auto-fill, minmax(260px, 1fr)); gap:12px;
+  }
+  .card{
+    background:var(--paper); border:1px solid var(--line); border-radius:var(--r-l);
+    padding:14px 16px; display:flex; flex-direction:column; gap:8px;
+  }
+  .card[data-status="red"]{border-color:color-mix(in srgb, var(--red) 45%, var(--line))}
+  .card-head{display:flex; align-items:center; gap:9px}
+  .card-head h3{margin:0; font-size:14.5px; font-weight:800; line-height:1.3}
+  .card .desc{margin:0; font-size:12.5px; color:var(--muted); line-height:1.55}
+  .card .status-text{font-size:13px; font-weight:700}
+  .card[data-status="green"] .status-text{color:var(--ok)}
+  .card[data-status="yellow"] .status-text{color:var(--gold)}
+  .card[data-status="red"] .status-text{color:var(--red)}
+  .card[data-status="grey"] .status-text,
+  .card[data-status="pending"] .status-text{color:var(--faint)}
+  .meta{
+    margin:2px 0 0; display:grid; grid-template-columns:auto 1fr; gap:3px 10px;
+    font-size:12px; color:var(--muted); border-top:1px solid var(--line-faint); padding-top:8px;
+  }
+  .meta dt{color:var(--faint)}
+  .meta dd{margin:0; text-align:right; color:var(--ink)}
+
+  footer{
+    margin-top:26px; padding-top:18px; border-top:1px solid var(--line);
+    color:var(--faint); font-size:12.5px; line-height:1.7;
+  }
+  footer a{font-weight:700}
+
+  @media (max-width:520px){
+    .wrap{padding:20px 14px 44px}
+    .overall{flex-direction:column; align-items:flex-start}
+    .overall-sub{margin-left:0; width:100%; justify-content:space-between}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <a class="brand" href="/">← 軌島 · RAIL ISLAND</a>
+    <h1>資料來源狀態</h1>
+  </header>
+
+  <div class="overall" id="overall" data-status="pending">
+    <span class="dot pending" id="overallDot" aria-hidden="true"></span>
+    <span class="overall-text" id="overallText">檢查中…</span>
+    <span class="overall-sub">
+      <span id="lastChecked">尚未檢查</span>
+      <button class="refresh-btn" id="refreshBtn" type="button">立即重新整理</button>
+    </span>
+  </div>
+
+  <p class="lead">
+    這頁即時檢查<strong>軌島網站自身</strong>串接各官方資料源的鏈路是否正常，<strong>不是</strong>台鐵／捷運營運系統本身的狀態。
+    每 60 秒自動重新檢查一次；「即時動態」類資料以官方最後更新時間新鮮度判斷，「營運公告」類資料只要能連線取得即視為正常
+    （官方公告本就只在有異動時才更新，長時間沒有新公告是正常現象、不代表異常）。
+  </p>
+
+  <div class="legend">
+    <span><span class="dot green"></span>正常</span>
+    <span><span class="dot yellow"></span>資料偏舊</span>
+    <span><span class="dot red"></span>無法取得</span>
+    <span><span class="dot grey"></span>官方未提供公開介接</span>
+  </div>
+
+  <div id="groups"></div>
+
+  <footer>
+    <p>非官方監控，僅反映本站資料鏈路狀態，不代表台鐵、捷運各營運機構之官方系統狀態；如需官方資訊請以各機構公告為準。</p>
+    <p><a href="/">回軌島首頁 →</a></p>
+  </footer>
+</div>
+
+<script>
+(function(){
+  'use strict';
+
+  var LIVE_GREEN_MS  = 5  * 60 * 1000;
+  var LIVE_YELLOW_MS = 30 * 60 * 1000;
+  var DAILY_GREEN_MS  = 36 * 3600 * 1000;
+  var DAILY_YELLOW_MS = 72 * 3600 * 1000;
+  var FETCH_TIMEOUT_MS = 8000;
+  var POLL_INTERVAL_MS = 60000;
+
+  function ntmValidate(data){
+    if (data && data.src != null) return { ok: true };
+    return { ok: false, label: '上游（新北捷運官網）暫時無法取得資料' };
+  }
+  function dailyAtPath(data){ return data && data._meta ? data._meta.generated : null; }
+  function liveAtPath(data){ return data && data.at; }
+
+  var SOURCES = [
+    { id:'tra-live', group:'即時動態', label:'台鐵列車動態',
+      desc:'全台在途列車即時位置與誤點分鐘數（來源：TDX）',
+      endpoint:'/api/tra-live', kind:'live', thresholds:[LIVE_GREEN_MS, LIVE_YELLOW_MS], atPath:liveAtPath },
+    { id:'metro-mrt', group:'即時動態', label:'台北捷運到站看板',
+      desc:'各站到站倒數（來源：TDX）',
+      endpoint:'/api/metro-live?sys=mrt', kind:'live', thresholds:[LIVE_GREEN_MS, LIVE_YELLOW_MS], atPath:liveAtPath },
+    { id:'metro-krtc', group:'即時動態', label:'高雄捷運／輕軌到站看板',
+      desc:'紅線、橘線與環狀輕軌到站倒數（來源：TDX）',
+      endpoint:'/api/metro-live?sys=krtc', kind:'live', thresholds:[LIVE_GREEN_MS, LIVE_YELLOW_MS], atPath:liveAtPath },
+    { id:'metro-tymc', group:'即時動態', label:'桃園機捷到站看板',
+      desc:'普通車／直達車到站倒數（來源：TDX）',
+      endpoint:'/api/metro-live?sys=tymc', kind:'live', thresholds:[LIVE_GREEN_MS, LIVE_YELLOW_MS], atPath:liveAtPath },
+    { id:'ntm-circular', group:'即時動態', label:'新北捷運環狀線動態',
+      desc:'逐車軌道區間位置（來源：新北捷運官網，非官方公開 API）',
+      endpoint:'/api/ntmetro-live?sys=circular', kind:'live', thresholds:[LIVE_GREEN_MS, LIVE_YELLOW_MS], atPath:liveAtPath, validate:ntmValidate },
+    { id:'ntm-danhai', group:'即時動態', label:'淡海輕軌到站倒數',
+      desc:'綠山線／藍海線到站倒數（來源：新北捷運官網，非官方公開 API）',
+      endpoint:'/api/ntmetro-live?sys=danhai', kind:'live', thresholds:[LIVE_GREEN_MS, LIVE_YELLOW_MS], atPath:liveAtPath, validate:ntmValidate },
+    { id:'ntm-ankeng', group:'即時動態', label:'安坑輕軌到站倒數',
+      desc:'到站倒數（來源：新北捷運官網，非官方公開 API）',
+      endpoint:'/api/ntmetro-live?sys=ankeng', kind:'live', thresholds:[LIVE_GREEN_MS, LIVE_YELLOW_MS], atPath:liveAtPath, validate:ntmValidate },
+    { id:'tmrt', group:'即時動態', label:'台中捷運',
+      desc:'官方未提供列車即時位置公開介接，站內僅顯示時刻表推算位置；營運公告仍有聚合（見下方）。',
+      kind:'na' },
+    { id:'sanying', group:'即時動態', label:'三鶯線',
+      desc:'官方未提供公開介接，站內以時刻表推算顯示，非即時 GPS 位置。',
+      kind:'na' },
+
+    { id:'tra-alert', group:'營運公告', label:'台鐵營運公告',
+      desc:'誤點、事故、搶修等官方公告（來源：TDX）',
+      endpoint:'/api/tra-alert', kind:'notice' },
+    { id:'thsr-alert', group:'營運公告', label:'高鐵營運公告',
+      desc:'颱風停駛等營運狀態公告（來源：TDX）',
+      endpoint:'/api/thsr-alert', kind:'live', thresholds:[LIVE_GREEN_MS, LIVE_YELLOW_MS], atPath:liveAtPath },
+    { id:'metro-alert', group:'營運公告', label:'捷運營運公告聚合',
+      desc:'台北／高雄／高雄輕軌／機捷／台中捷運 五家聚合（來源：TDX）',
+      endpoint:'/api/metro-alert', kind:'notice' },
+
+    { id:'delay-stats', group:'統計資料', label:'台鐵準點率統計',
+      desc:'近 30 日逐車準點率／平均誤點，每日更新一次',
+      endpoint:'/api/delay-stats', kind:'daily', thresholds:[DAILY_GREEN_MS, DAILY_YELLOW_MS], atPath:dailyAtPath },
+  ];
+
+  var GROUP_ORDER = ['即時動態', '營運公告', '統計資料'];
+  var STATUS_RANK = { red:3, yellow:2, green:1, grey:0 };
+
+  var cardState = {}; // id -> { status, label, atMs, fetchedAtMs }
+
+  function fmtAge(ms){
+    if (ms == null || isNaN(ms)) return '—';
+    if (ms < 0) ms = 0;
+    var s = Math.floor(ms / 1000);
+    if (s < 5) return '剛剛';
+    if (s < 60) return s + ' 秒前';
+    var m = Math.floor(s / 60);
+    if (m < 60) return m + ' 分鐘前';
+    var h = Math.floor(m / 60);
+    if (h < 48) return h + ' 小時前';
+    var d = Math.floor(h / 24);
+    return d + ' 天前';
+  }
+
+  var dtf;
+  try {
+    dtf = new Intl.DateTimeFormat('zh-Hant-TW', {
+      timeZone:'Asia/Taipei', month:'2-digit', day:'2-digit',
+      hour:'2-digit', minute:'2-digit', second:'2-digit', hour12:false,
+    });
+  } catch (e) { dtf = null; }
+  function fmtAbs(ms){
+    if (ms == null || isNaN(ms)) return '—';
+    if (dtf) return dtf.format(new Date(ms));
+    return new Date(ms).toLocaleString();
+  }
+
+  function buildDom(){
+    var groupsEl = document.getElementById('groups');
+    var byGroup = {};
+    SOURCES.forEach(function(s){
+      (byGroup[s.group] = byGroup[s.group] || []).push(s);
+    });
+    GROUP_ORDER.forEach(function(g){
+      var list = byGroup[g];
+      if (!list || !list.length) return;
+      var section = document.createElement('section');
+      section.className = 'group';
+      var h2 = document.createElement('h2');
+      h2.textContent = g;
+      section.appendChild(h2);
+      var grid = document.createElement('div');
+      grid.className = 'grid';
+      grid.setAttribute('aria-live', 'polite');
+      list.forEach(function(s){
+        var card = document.createElement('article');
+        card.className = 'card';
+        card.id = 'card-' + s.id;
+        card.setAttribute('data-status', 'pending');
+
+        var head = document.createElement('div');
+        head.className = 'card-head';
+        var dot = document.createElement('span');
+        dot.className = 'dot pending';
+        dot.id = 'dot-' + s.id;
+        dot.setAttribute('aria-hidden', 'true');
+        var h3 = document.createElement('h3');
+        h3.textContent = s.label;
+        head.appendChild(dot);
+        head.appendChild(h3);
+        card.appendChild(head);
+
+        var desc = document.createElement('p');
+        desc.className = 'desc';
+        desc.textContent = s.desc;
+        card.appendChild(desc);
+
+        var statusText = document.createElement('p');
+        statusText.className = 'status-text';
+        statusText.id = 'status-' + s.id;
+        statusText.textContent = s.kind === 'na' ? '官方未提供公開介接' : '檢查中…';
+        card.appendChild(statusText);
+
+        if (s.kind !== 'na') {
+          var meta = document.createElement('dl');
+          meta.className = 'meta';
+          meta.innerHTML =
+            '<dt>資料時間</dt><dd class="tabular" id="at-' + s.id + '">—</dd>' +
+            '<dt>資料齡</dt><dd class="tabular" id="age-' + s.id + '">—</dd>';
+          card.appendChild(meta);
+        }
+
+        grid.appendChild(card);
+      });
+      section.appendChild(grid);
+      groupsEl.appendChild(section);
+    });
+    // 官方未提供介接的卡片一開始就是最終狀態,不必等輪詢
+    SOURCES.forEach(function(s){
+      if (s.kind === 'na') setCardStatus(s.id, 'grey', s.desc, null);
+    });
+  }
+
+  function setCardStatus(id, status, label, atMs){
+    cardState[id] = { status: status, label: label, atMs: atMs, fetchedAtMs: Date.now() };
+    var card = document.getElementById('card-' + id);
+    var dot = document.getElementById('dot-' + id);
+    var statusText = document.getElementById('status-' + id);
+    if (!card) return;
+    card.setAttribute('data-status', status);
+    dot.className = 'dot ' + status;
+    if (statusText) statusText.textContent = label;
+    var atEl = document.getElementById('at-' + id);
+    if (atEl) atEl.textContent = atMs != null ? fmtAbs(atMs) : '—';
+    tickAge(id);
+  }
+
+  function tickAge(id){
+    var st = cardState[id];
+    var ageEl = document.getElementById('age-' + id);
+    if (!ageEl || !st) return;
+    if (st.atMs == null) { ageEl.textContent = '—'; return; }
+    var ageMs = (Date.now() - st.fetchedAtMs) + (st.fetchedAtMs - st.atMs);
+    ageEl.textContent = fmtAge(ageMs);
+  }
+
+  function tickAllAges(){
+    Object.keys(cardState).forEach(tickAge);
+  }
+
+  function fetchWithTimeout(url, ms){
+    var controller = ('AbortController' in window) ? new AbortController() : null;
+    var timer = controller ? setTimeout(function(){ controller.abort(); }, ms) : null;
+    return fetch(url, { cache:'no-store', signal: controller ? controller.signal : undefined })
+      .then(function(res){ if (timer) clearTimeout(timer); return res; })
+      .catch(function(err){ if (timer) clearTimeout(timer); throw err; });
+  }
+
+  function checkSource(src){
+    return fetchWithTimeout(src.endpoint, FETCH_TIMEOUT_MS)
+      .then(function(res){
+        if (!res.ok) return { status:'red', label:'連線異常（HTTP ' + res.status + '）', atMs:null };
+        return res.json().catch(function(){ return null; }).then(function(data){
+          if (data == null) return { status:'red', label:'回應格式錯誤', atMs:null };
+          if (data.error) return { status:'red', label:'資料源回報錯誤', atMs:null };
+          if (src.validate) {
+            var v = src.validate(data);
+            if (!v.ok) return { status:'red', label:v.label, atMs: null };
+          }
+          if (src.kind === 'notice') {
+            var noticeAt = liveAtPath(data);
+            var noticeAtMs = noticeAt ? Date.parse(noticeAt) : NaN;
+            return { status:'green', label:'可連線', atMs: isNaN(noticeAtMs) ? null : noticeAtMs };
+          }
+          var atRaw = src.atPath(data);
+          if (!atRaw) return { status:'yellow', label:'資料時間欄位缺漏', atMs:null };
+          var atMs = Date.parse(atRaw);
+          if (isNaN(atMs)) return { status:'yellow', label:'資料時間格式異常', atMs:null };
+          var ageMs = Date.now() - atMs;
+          var status = ageMs <= src.thresholds[0] ? 'green' : ageMs <= src.thresholds[1] ? 'yellow' : 'red';
+          var label = status === 'green' ? '資料新鮮' : status === 'yellow' ? '資料偏舊' : '資料過舊，超過 ' + Math.round(src.thresholds[1]/60000) + ' 分鐘未更新';
+          return { status: status, label: label, atMs: atMs };
+        });
+      })
+      .catch(function(err){
+        var label = (err && err.name === 'AbortError') ? '連線逾時' : '無法連線';
+        return { status:'red', label:label, atMs:null };
+      });
+  }
+
+  function updateOverall(){
+    var worst = null;
+    SOURCES.forEach(function(s){
+      if (s.kind === 'na') return;
+      var st = cardState[s.id];
+      if (!st) return;
+      if (worst == null || STATUS_RANK[st.status] > STATUS_RANK[worst]) worst = st.status;
+    });
+    var dot = document.getElementById('overallDot');
+    var text = document.getElementById('overallText');
+    var overall = document.getElementById('overall');
+    var map = {
+      green:  '所有資料源正常運作',
+      yellow: '部分資料源資料偏舊',
+      red:    '偵測到資料源中斷',
+    };
+    var status = worst || 'pending';
+    overall.setAttribute('data-status', status);
+    dot.className = 'dot ' + status;
+    text.textContent = map[status] || '檢查中…';
+  }
+
+  function runAll(){
+    var btn = document.getElementById('refreshBtn');
+    btn.disabled = true;
+    var live = SOURCES.filter(function(s){ return s.kind !== 'na'; });
+    Promise.all(live.map(function(s){
+      return checkSource(s).then(function(r){ setCardStatus(s.id, r.status, r.label, r.atMs); });
+    })).then(function(){
+      updateOverall();
+      document.getElementById('lastChecked').textContent = '最後檢查：' + fmtAbs(Date.now());
+      btn.disabled = false;
+    });
+  }
+
+  buildDom();
+  updateOverall();
+  runAll();
+  setInterval(runAll, POLL_INTERVAL_MS);
+  setInterval(tickAllAges, 1000);
+  document.getElementById('refreshBtn').addEventListener('click', runAll);
+})();
+</script>
+</body>
+</html>

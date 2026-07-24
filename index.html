@@ -388,7 +388,7 @@
     display: flex; align-items: center; justify-content: center; gap: 3px;
     font-size: 15px; font-weight: 700; line-height: 1.1; color: var(--navy);
   }
-  .stage-tools button .tl, button.tmini .tl { font-size: 8.5px; color: var(--faint); white-space: nowrap; font-weight: 600; letter-spacing: .3px; }
+  .stage-tools button .tl, button.tmini .tl { font-size: 11px; color: var(--faint); white-space: nowrap; font-weight: 600; letter-spacing: .3px; }
   #ppTxt { display: none; } /* 帶上播放鍵只出圖示(mock §02);字留在 DOM 給 JS 更新與無障礙 */
   #favRow { display: none !important; } /* 側欄最愛常駐列已取消(統一住 ★ 面板);renderFavs 仍寫這個 stub */
   #favBtn .ti { color: var(--gold); }
@@ -416,7 +416,7 @@
   .topbar .tb-plate { padding: 3px 10px 0; border-width: 2px; flex: none; align-self: flex-start; }
   .topbar .tb-plate h1 { font-size: 14px; font-weight: 900; letter-spacing: 4px; text-indent: 4px; color: var(--plate-ink); margin: 0; line-height: 1.2; }
   .topbar .tb-plate .plate-foot { margin: 2px -10px 0; padding: 1px 7px 2px; gap: 8px; }
-  .topbar .tb-plate .plate-foot .stn { font-size: 7px; letter-spacing: 1px; text-indent: 1px; }
+  .topbar .tb-plate .plate-foot .stn { font-size: 9.5px; letter-spacing: 1px; text-indent: 1px; }
   .topbar .tb-plate .plate-foot .stn:first-child::before,
   .topbar .tb-plate .plate-foot .stn:last-child::after { font-size: 6px; margin: 0 3px; }
 
@@ -779,7 +779,7 @@
   .seal.na { border-color: var(--line); color: var(--faint); border-style: dashed; transform: rotate(0); }
   .seal.na small { opacity: .7; }
   .datestamp {
-    display: inline-block; font-family: var(--mono); font-size: 9px; font-weight: 700;
+    display: inline-block; font-family: var(--mono); font-size: 11px; font-weight: 700;
     color: var(--navy); border: 1.5px solid var(--navy); border-radius: 3px; padding: 0 5px;
     transform: rotate(-4deg); opacity: .85; font-variant-numeric: tabular-nums;
   }
@@ -1128,8 +1128,11 @@
   .board .sub { color: var(--faint); font-size: 11px; margin-bottom: 7px; }
   .board .row { display: flex; align-items: baseline; gap: 8px; padding: 6px 0; border-top: 1px dashed var(--line-faint); font-size: 13px; }
   .board .row:first-of-type { border-top: 0; }
-  .board .row[data-no], .board .row[data-rand], .board .row[data-li] { cursor: pointer; }
-  .board .row[data-no]:hover, .board .row[data-rand]:hover, .board .row[data-li]:hover { background: var(--bg-stage); }
+  .board .row[data-no], .board .row[data-rand], .board .row[data-li], .board .row[data-guide] { cursor: pointer; }
+  .board .row[data-no]:hover, .board .row[data-rand]:hover, .board .row[data-li]:hover, .board .row[data-guide]:hover { background: var(--bg-stage); }
+  /* 觀光列車圖鑑列(無固定車次的山嵐/鳴日/環島之星…):純介紹入口,右側標「圖鑑」淺底徽章 */
+  #explorePanel .row[data-guide] .gchip { flex: none; margin-left: auto; padding: 0 7px 1px; font-size: 10.5px; font-weight: 700;
+    letter-spacing: 1px; line-height: 1.5; color: var(--navy); border: 1px solid var(--line); border-radius: 999px; white-space: nowrap; }
   .board .row b { color: var(--ink-strong); }
   .board .row .dot { width: 8px; height: 8px; border-radius: 50%; flex: none; align-self: center; }
   .board .row .dest { flex: 1; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -1273,7 +1276,7 @@
   .delayhist-panel .dh-bar.none { fill: var(--line-faint); }
   .delayhist-panel .dh-grid { stroke: var(--line-faint); stroke-width: .6; }
   .delayhist-panel .dh-ref { stroke: var(--line); stroke-width: .6; stroke-dasharray: 2 2; opacity: .8; }
-  .delayhist-panel .dh-axis { fill: var(--faint); font-size: 7px; font-variant-numeric: tabular-nums; }
+  .delayhist-panel .dh-axis { fill: var(--faint); font-size: 9px; font-variant-numeric: tabular-nums; }
   .delayhist-panel .dh-wd { display: flex; align-items: flex-end; gap: 4px; height: 72px; margin-bottom: 2px; }
   .delayhist-panel .dh-wd-col { flex: 1; min-width: 0; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; height: 100%; }
   .delayhist-panel .dh-wd-bar { width: 62%; min-height: 2px; border-radius: 2px 2px 0 0; background: var(--ok); }
@@ -1535,6 +1538,11 @@
   .notify-primer-actions .later { border: 1.5px solid var(--line); background: var(--paper); color: var(--muted); }
   #favPanel .fv-notify { flex: none; width: 44px; height: 44px; margin: -6px 0; padding: 0; border: 0; border-radius: 8px; background: transparent; color: var(--navy); font-size: 16px; cursor: pointer; }
   #favPanel .fv-notify:hover { background: var(--bg-stage); }
+  /* 地點列的「設為預設」啟動地點鈕:平時淺底膠囊,已設為預設時深底標記 */
+  #favPanel .fv-default { flex: none; margin-left: auto; padding: 3px 9px; font: 700 11px var(--font); white-space: nowrap;
+    background: transparent; color: var(--muted); border: 1.5px solid var(--line); border-radius: 999px; cursor: pointer; }
+  #favPanel .fv-default:hover { background: var(--bg-stage); }
+  #favPanel .fv-default.on { background: var(--navy); color: var(--on-navy); border-color: var(--navy); }
   .account-intro { margin: 0 0 14px; color: var(--muted); font-size: 13px; line-height: 1.65; }
   .account-intro b { color: var(--ink-strong); }
   .account-login { display: grid; gap: 9px; }
@@ -1602,7 +1610,7 @@
     font-family: inherit;
   }
   .tabbar .ti { font-size: 17px; font-weight: 700; color: var(--faint); line-height: 1.1; }
-  .tabbar .tl { font-size: 9.5px; color: var(--faint); }
+  .tabbar .tl { font-size: 11px; color: var(--faint); }
   .tabbar button.active .ti, .tabbar button.active .tl { color: var(--navy); font-weight: 800; }
   /* 「更多」sheet:承接原 ☰ 抽屜全部條目(外觀/圖層/動作) */
   .more-sheet {
@@ -1876,11 +1884,29 @@
     .board.expand, .traincard.tc-sheet.expand { max-height: 88%; }
     /* 「列車」sheet 開啟時跟隨小卡隱藏(資訊重複,見 mock D) */
     body.train-open .follow-panel { display: none; }
-    /* 契約③:任一 sheet 展開到 88%(body.sheet-full)時,跟隨小卡與速度膠囊全部淡出(46% 讓位規則沿用既有 sheet-open) */
-    body.sheet-full .follow-panel, body.sheet-full .freq-card { opacity: 0; pointer-events: none; }
+    /* 契約③:任一 sheet 展開到 88%(body.sheet-full)時,跟隨小卡與速度膠囊全部淡出(46% 讓位規則沿用既有 sheet-open)。
+       頂部常駐 chip(時鐘徽章/隨機跟隨鈕/台鐵捷短標列)與停靠站名牌同步讓位:88% sheet 頂緣會伸到螢幕頂端整片蓋住它們
+       (實測 randBtn/gtab 完全點不到、badge/dwellPlate 被遮),比照淡出契約一併退場;收回 46% 或關閉時 body.sheet-full 移除、
+       規則自動失效還原(這些 chip 無其他狀態改 opacity,不殘留)。topbar 內 gtab/plate 另關 pointer-events(它們有
+       pointer-events:auto,雖已被 sheet 蓋住仍防萬一穿透點擊)。 */
+    body.sheet-full .follow-panel, body.sheet-full .freq-card,
+    body.sheet-full .badge, body.sheet-full #randBtn,
+    body.sheet-full .topbar, body.sheet-full .dwell-plate { opacity: 0; pointer-events: none; }
+    body.sheet-full .topbar .tb-plate, body.sheet-full .topbar .grouptabs { pointer-events: none; }
+    /* 跟車中 dwellPlate(停靠站名牌)＝當下最重要資訊,固定釘在畫面上方;另一張 sheet(護照/看板)只展開到 46% peek 時,
+       既有 body.sheet-open 讓位規則會把跟隨小卡往上推,恰好撞進 dwellPlate 的地盤(實測局部互疊)。資訊優先序:dwellPlate
+       優先可見,小卡讓位淡出(停站時小卡的下一站/時速與 dwellPlate 重複度高)。dwell-show 旗標由 JS 隨 dwellPlate.show 同步
+       切換,停站結束或取消跟隨即還原小卡。 */
+    body.dwell-show.sheet-open .follow-panel { opacity: 0; pointer-events: none; }
     /* 全畫面:tab bar 疊在地圖上,底欄元素上移讓開 */
     body.fs .leaflet-bottom.leaflet-right { bottom: calc(var(--tabbar-clear) + 6px); } /* =原 64+env */
     body.fs .follow-panel, body.fs .freq-card { width: 176px; }
+    /* 版權字抬到速度膠囊「上方」留 ≥8px:膠囊置中、版權右對齊,窄寬(≤414)兩者水平重疊,故用垂直分離一次治好所有寬度。
+       膠囊 slim 底=tabbar-clear+10、高約41→頂約 tabbar-clear+51;版權底放 tabbar-clear+62(高14)→間距約 11px(留緩衝防跨引擎字高差)。
+       只在互動態(非放空/直播)套用;放空/直播另有 attribution 規則(bottom:0 等)。 */
+    body.fs:not(.ambient):not(.live) .leaflet-bottom.leaflet-right { bottom: calc(var(--tabbar-clear) + 62px); }
+    /* 展開態(cexp):完整帶佔滿下緣會壓住版權角→比照 sheet-open 淡出版權(短暫互動態,收合即回,不影響授權常態顯示) */
+    body.cexp .leaflet-control-attribution { opacity: 0; pointer-events: none; }
 
     /* ── 手機速度控制膠囊(≤900 一律;非放空非直播;桌面完全不變) ──
        預設 slim:貼底置中細長膠囊,只露 ▶/⏸ + 倍速 + 模擬時刻。
@@ -1906,6 +1932,7 @@
     body:not(.ambient):not(.live):not(.cexp) .controls .band-div,
     body:not(.ambient):not(.live):not(.cexp) .controls .stage-tools,
     body:not(.ambient):not(.live):not(.cexp) .controls #nowBtn,
+    body:not(.ambient):not(.live):not(.cexp) .controls .timestep,
     body:not(.ambient):not(.live):not(.cexp) .controls #ambientBtn,
     body:not(.ambient):not(.live):not(.cexp) .controls #ambientStyleBtn,
     body:not(.ambient):not(.live):not(.cexp) .controls #musicCtl { display: none; }
@@ -1974,6 +2001,9 @@
     #musicCtl:hover .music-pop, #musicCtl:focus-within .music-pop {
       opacity: 1; transform: translateY(-50%); pointer-events: auto;
     }
+    /* 桌面帶下移到 stage 底 6px(原 12):WebKit 把帶算高 60(Blink 54),帶頂↔版權底只剩 6px < 8;
+       下移帶頂讓出 ≥8px,不動版權/縮放鈕位置故 縮放↔版權 10px 不變(符合「不得讓其他控件更近」)。 */
+    .controls { bottom: 6px; }
     /* 帶內容再壓到 <1224px@1280:桌面 gap 10→6、音樂鈕純圖示(♪)、視角:群車 僅放空模式中現身(它是放空子設定,非放空時無作用)。三者皆 CSS-only 可逆,不動 DOM/id/JS class */
     .controls { gap: 6px; }
     #musicBtn .tl { display: none; }
@@ -2310,6 +2340,8 @@ try { if (matchMedia('(max-width: 900px)').matches) document.body.classList.add(
         <input type="range" id="tod" min="5" max="24" step="1" value="8" hidden />
         <span class="tod-wrap" title="點擊直接指定時刻"><output id="todOut">08:00</output><input type="time" id="todPick" aria-label="直接指定時刻"></span>
       </div>
+      <button class="pp sub timestep" id="minus5Btn" title="時間往前 5 分鐘（快速預覽）">−5分</button>
+      <button class="pp sub timestep" id="plus5Btn" title="時間往後 5 分鐘（快速預覽）">＋5分</button>
       <button class="pp sub" id="nowBtn" title="跳到現在的真實時間">現在</button>
       <div class="band-div"></div>
       <div class="stage-tools">
@@ -2319,6 +2351,7 @@ try { if (matchMedia('(max-width: 900px)').matches) document.body.classList.add(
         <button id="rideBtn" title="旅程護照（完乘記錄與收集章）"><span class="ti">旅</span><span class="tl">護照</span></button>
         <button id="todayBtn" title="今日台鐵動態——全台鐵今天每班車的誤點排行與逐站歷程"><span class="ti">今</span><span class="tl">今日</span></button>
         <button id="introBtn" title="經過特殊車站時顯示介紹"><span class="ti">介</span><span class="tl">站介紹</span></button>
+        <button id="dirBtn" title="列車行進方向箭頭"><span class="ti">→</span><span class="tl">方向</span></button>
         <button id="satBtn" title="切換衛星影像"><span class="ti">衛</span><span class="tl">衛星</span></button>
         <button id="themeBtn" title="外觀切換：亮／暗／自動"><span class="ti">◐</span><span class="tl">外觀</span></button>
         <button id="trackBtn" title="軌道與路線：顯示方式與車種/路線篩選"><span class="ti">軌</span><span class="tl">軌道:自動</span></button>
@@ -2402,6 +2435,11 @@ try { if (matchMedia('(max-width: 900px)').matches) document.body.classList.add(
       <summary><span>🛠 更新紀錄</span><span class="foot-sub">最後更新：2026/7/24</span></summary>
       <ul class="foot-list">
         <li class="grp">最近更新</li>
+        <li><span class="d">7/24</span><span>列車現在帶行進方向小箭頭（可在「更多」關閉）；時間軸新增 ±5 分鐘鈕，快速預覽幾分鐘前後的班況</span></li>
+        <li><span class="d">7/24</span><span>可把常看的地點設為預設啟動視野（我的最愛→地點→設為預設）；探索面板新增「觀光列車圖鑑」，山嵐號、鳴日號等無固定車次的觀光列車一次看</span></li>
+        <li><span class="d">7/24</span><span>手機版面整理：面板全開時頂部時鐘、台鐵捷頁籤等自動讓位不再互相壓疊；多處過小的標籤文字加大更易讀</span></li>
+        <li><span class="d">7/24</span><span>新增「資料源連線狀態頁」（頁尾資料來源區可進入），各即時資料源的連線與新鮮度一目了然</span></li>
+        <li><span class="d">7/24</span><span>台鐵列車站間位置改用官方里程推算，快車行駛中的位置更貼近實際（山線／海線長度也一併校正）</span></li>
         <li><span class="d">7/24</span><span>地圖縮放恢復平滑過渡動畫，不再瞬間跳格或短暫空白；縮放過程軌道與列車全程貼合底圖同步縮放，站名與車牌維持固定大小不跳動</span></li>
         <li><span class="d">7/24</span><span>修正拖動地圖時軌道稍微跟不上底圖的延遲感（省電模式在互動時自動全速，放開後恢復省電）</span></li>
         <li><span class="d">7/24</span><span>台鐵班表改為每天使用當日官方時刻：週五～週日才開的加班車（如 21、213 次）現在會在正確的日子出現，連假與國定假日的特別班表也會自動反映，不再整週重播同一天</span></li>
@@ -2439,6 +2477,7 @@ try { if (matchMedia('(max-width: 900px)').matches) document.body.classList.add(
         <li><span class="d">7/10</span><span>高鐵、桃園機捷、淡海輕軌、安坑輕軌加入路網</span></li>
         <li><span class="d">7/10</span><span>環島觀光列車一分為二：往東「山海號」、往西「平原號」</span></li>
         <li class="grp">即時動態與誤點</li>
+        <li><span class="d">7/24</span><span>新增「資料源連線狀態頁」（頁尾資料來源區可進入），各即時資料源的連線與新鮮度一目了然</span></li>
         <li><span class="d">7/24</span><span>修正 App 或分頁在背景放一段時間後，畫面時鐘停在切走前的時刻、車輛位置與現實對不上的問題；回到前景會自動追回「現在」</span></li>
         <li><span class="d">7/18</span><span>「今日台鐵動態」看板：當日誤點排行與逐站歷程，顯示以「目前」誤點為主，已追回的直接標綠色準點（上線當天另修好「跟這班車」鈕會消失、讀取失敗沒有重試鈕兩處）</span></li>
         <li><span class="d">7/18</span><span>跟隨卡「下一站」旁的紅色「X 分」改回深藍——那是到站倒數不是誤點，容易誤讀；並另外標出這班車真實誤點幾分</span></li>
@@ -2490,6 +2529,8 @@ try { if (matchMedia('(max-width: 900px)').matches) document.body.classList.add(
         <li><span class="d">7/11</span><span>今日之最的列車在地圖上加繪金色漣漪光環</span></li>
         <li><span class="d">7/9</span><span>旅程護照與 16 枚成就徽章、「探」今日亮點面板上線</span></li>
         <li class="grp">手機與操作</li>
+        <li><span class="d">7/24</span><span>手機版面整理：面板全開時頂部時鐘、台鐵捷頁籤等自動讓位不再互相壓疊；多處過小的標籤文字加大更易讀</span></li>
+        <li><span class="d">7/24</span><span>列車現在帶行進方向小箭頭（可在「更多」關閉）；時間軸新增 ±5 分鐘鈕，快速預覽幾分鐘前後的班況</span></li>
         <li><span class="d">7/24</span><span>地圖縮放恢復平滑過渡動畫，不再瞬間跳格或短暫空白；縮放過程軌道與列車全程貼合底圖同步縮放，站名與車牌維持固定大小不跳動</span></li>
         <li><span class="d">7/24</span><span>修正拖動地圖時軌道稍微跟不上底圖的延遲感（省電模式在互動時自動全速，放開後恢復省電）</span></li>
         <li><span class="d">7/22</span><span>手機底部「地圖」鈕：在隨機跟隨中點它會停下回到地圖，不再繼續自動跳下一班車</span></li>
@@ -2518,6 +2559,7 @@ try { if (matchMedia('(max-width: 900px)').matches) document.body.classList.add(
         <li><span class="d">7/9</span><span>網站更名「列車有時」，標頭改為早期台鐵琺瑯站名牌樣式</span></li>
         <li><span class="d">7/9</span><span>雙欄版面：搜尋／最愛／旅程收集／路線篩選移到右側欄</span></li>
         <li class="grp">分享與個人化</li>
+        <li><span class="d">7/24</span><span>可把常看的地點設為預設啟動視野（我的最愛→地點→設為預設），優先於「上次看的地方」；探索面板新增「觀光列車圖鑑」</span></li>
         <li><span class="d">7/18</span><span>下次打開就回到你上次看的地方：地圖位置、縮放倍率與路網頁籤都會記住，不需要註冊或登入</span></li>
         <li><span class="d">7/18</span><span>從 Threads、IG、LINE 這些 App 裡點連結進來時，提醒改用 Safari／Chrome 開啟</span></li>
         <li><span class="d">7/13</span><span>新增「分享畫面」：把地圖位置、時間與路網打包成一條連結</span></li>
@@ -2526,6 +2568,7 @@ try { if (matchMedia('(max-width: 900px)').matches) document.body.classList.add(
         <li class="web-only-donation-log"><span class="d">7/13</span><span>贊助方式更新：「請開發者喝咖啡」的銀行轉帳帳戶改用 LINE Bank（連線商業銀行 824）——謝謝每一位抖內支持軌島的朋友 🙏</span></li>
         <!-- APP_STRIP_END donation-log -->
         <li class="grp">資料校正</li>
+        <li><span class="d">7/24</span><span>台鐵列車站間位置改用官方里程推算，快車行駛中的位置更貼近實際（山線／海線長度也一併校正）</span></li>
         <li><span class="d">7/24</span><span>台鐵班表改為每天使用當日官方時刻：週五～週日才開的加班車（如 21、213 次）現在會在正確的日子出現，連假與國定假日的特別班表也會自動反映，不再整週重播同一天</span></li>
         <li><span class="d">7/18</span><span>三鶯線改依實際試營運時段（每天 10:00–20:00），清晨與入夜後不再跑現實中不存在的「幽靈列車」</span></li>
         <li><span class="d">7/18</span><span>平溪、深澳、集集、內灣線的車種改為 DR1000 柴油客車（這幾段沒有電化，原本標成電聯車）</span></li>
@@ -2552,6 +2595,7 @@ try { if (matchMedia('(max-width: 900px)').matches) document.body.classList.add(
         <li><span class="d">即時</span><span>台鐵即時誤點與車站地址介接交通部 TDX 平臺（TrainLiveBoard／Station，每分鐘更新）</span></li>
         <li><span class="d">軌道</span><span>台鐵軌道及阿里山林鐵的 TDX 缺口補線取自 © OpenStreetMap 貢獻者（ODbL），經 Overpass／OSM API</span></li>
         <li><span class="d">底圖</span><span><!-- APP_REPLACE_START basemap-credit（App 換 Stadia/Esri 授權版文字，prepare-web.mjs 替換） -->CARTO basemaps（© OpenStreetMap）、Esri World Imagery（衛星影像）與 Natural Earth（離線海陸輪廓）<!-- APP_REPLACE_END basemap-credit --></span></li>
+        <li><span class="d">狀態</span><a href="status.html">資料源連線狀態頁</a></li>
       </ul>
       <p class="foot-note">本站為個人愛好者專案，與台灣鐵路公司及各捷運公司皆無關。台鐵套用官方即時誤點；北捷、高捷、桃園機捷與高雄輕軌營運時段依官方到站看板即時校正；新北捷運（環狀線、淡海輕軌、安坑輕軌）營運時段依官方列車動態即時校正；其餘捷運／輕軌依當日官方時刻表推演（部分路線無公開逐班時刻，為班距推算）。實際到離站時刻請以各營運機構官方資訊為準。</p>
     </details>
@@ -2611,6 +2655,7 @@ try { if (matchMedia('(max-width: 900px)').matches) document.body.classList.add(
     <button class="ms-row" data-act="track"><span>軌道與路線</span><span class="chev">›</span></button>
     <button class="ms-row" data-proxy="xingBtn"><span>平交道記號</span><span class="toggle" data-tg="xingBtn"></span></button>
     <button class="ms-row" data-proxy="introBtn"><span>特殊站介紹</span><span class="toggle" data-tg="introBtn"></span></button>
+    <button class="ms-row" data-proxy="dirBtn"><span>列車方向箭頭</span><span class="toggle" data-tg="dirBtn"></span></button>
     <button class="ms-row" data-proxy="pinBtn"><span>儲存地點</span><span class="toggle" data-tg="pinBtn"></span></button>
     <button class="ms-row" data-proxy="locateBtn" data-close="1"><span>◎ 定位我</span><span class="chev">›</span></button>
     <!-- 縣市快速移動(Batch B):#citySel 縣市下拉的手機新家;點列展開 17 縣市 chip,點 chip 飛過去並關 sheet -->
@@ -2686,6 +2731,7 @@ const state = {
   liveMode: false, director: false, liveReplay: false, // 直播模式(?live=1 即時 / ?live=2 導播)與其深夜重播段(00:45–05:15 重播 08:00 起)
   stnIntro: false, immersive: false, // 特殊站介紹開關(放空自動開)、極簡沉浸(全畫面隱藏左側卡)
   xingOn: false, // 台鐵平交道顯示開關(預設關;開了才畫記號、建命中、攔點擊)
+  dirArrow: true, // 列車行進方向箭頭開關(預設開;台鐵/高鐵車號牌前緣加小箭頭,由前後點位推方向)
   ambientStyle: 'hotspot', // 放空視角:follow=跟著一班車跑 / hotspot=群車(鏡頭掛在最繁忙路段看群車交錯);預設群車(v0717v)
 };
 let map, cv, ctx;
@@ -3795,6 +3841,7 @@ function drawSched(w, h) {
     glowUnder(cp, glowC, showTrain ? 10 : 3.5); // 車號牌模式:光暈放大到繞出牌緣,近看也發亮
     if (showTrain) isHSR(tr) ? drawHSRTag(cp, tr.train) : drawTag(cp, tr.train, tr.color, textColorFor(tr.color));
     else isHSR(tr) ? drawHSRDot(cp) : drawDot(cp, tr.color);
+    if (state.dirArrow && showTrain) drawDirArrow(cp, tr, glowC); // 車號牌前緣加行進方向箭頭(遠景圓點不畫,避免密集小點雜亂)
   }
   // 站名標籤:大站先取位、字級隨站等、蓋在列車上層;錨點放軌道側邊(法線方向)——
   // 列車沿軌道跑就壓不到字,標籤與車號牌位置都固定不動(對列車做避讓會讓牌亂跳,已撤)
@@ -3848,6 +3895,7 @@ function drawFollowMarker(p, tr) {
   ctx.strokeStyle = tr.color; ctx.globalAlpha = 0.9; ctx.lineWidth = 2.5; ctx.stroke();
   ctx.globalAlpha = 1;
   isHSR(tr) ? drawHSRTag(p, tr.train) : drawTag(p, tr.train, tr.color, textColorFor(tr.color));
+  if (state.dirArrow && map.getZoom() >= 11) drawDirArrow(p, tr, glowC); // 跟隨主角同樣加方向箭頭(牌模式才畫)
 }
 
 let labelBoxes = [];
@@ -4001,6 +4049,33 @@ function drawDot(p, color) {
   ctx.fillStyle = '#ffffff'; ctx.globalAlpha = 0.95; ctx.fill();
   ctx.beginPath(); ctx.arc(p.x, p.y, 2, 0, 7);
   ctx.fillStyle = color; ctx.globalAlpha = 1; ctx.fill();
+}
+
+// 列車行進方向箭頭(state.dirArrow;車號牌前緣的小三角):方向由「回看 DIR_DT 秒的位置」→「現在位置」推得,
+// 與拖尾同一套「位置是模擬時間純函式」的作法,里程遞增/遞減方向都自然正確(不看排序索引)。
+// 牌永遠畫真實位置,箭頭只是加繪、不位移牌(專案鐵律)。填色=車色、外描=pal().tagOutline,亮暗/衛星皆清楚(同車號牌處理)。
+// 每幀熱路徑:不配置暫存物件(只多一次 trainPos+latLngToContainerPoint,與既有拖尾/命中同量級)。
+const DIR_DT_SEC = 8; // 回看秒數:取切線用,夠穩又不至於在轉彎處失真
+function drawDirArrow(cp, tr, color) {
+  const pB = trainPos(tr, state.simSec - DIR_DT_SEC);
+  if (!pB) return;                                    // 早於發車/端點:沒有更早的點,方向不明→不畫
+  const cpB = map.latLngToContainerPoint([pB.lat, pB.lon]);
+  const dx = cp.x - cpB.x, dy = cp.y - cpB.y;
+  const L = Math.hypot(dx, dy);
+  if (L < 1.6) return;                                // 停站/幾乎不動:方向不明→不畫(同拖尾的重合跳過)
+  const ux = dx / L, uy = dy / L;                     // 前進單位向量
+  const hw = 6 + String(tr.train).length * 3, hh = 8; // 牌半寬(依字數近似)/半高;箭頭放牌前緣外
+  const ax = Math.abs(ux), ay = Math.abs(uy);
+  const t = Math.min(ax > 1e-3 ? (hw + 3) / ax : 1e9, ay > 1e-3 ? (hh + 3) / ay : 1e9); // 沿方向射線到牌框外緣
+  const tx = cp.x + ux * t, ty = cp.y + uy * t;       // 箭頭中心(牌外 3px)
+  const s = 4.6, px = -uy, py = ux;                   // 箭頭大小與法向
+  ctx.beginPath();
+  ctx.moveTo(tx + ux * s, ty + uy * s);                                 // 尖端
+  ctx.lineTo(tx - ux * s * 0.55 + px * s * 0.95, ty - uy * s * 0.55 + py * s * 0.95);
+  ctx.lineTo(tx - ux * s * 0.55 - px * s * 0.95, ty - uy * s * 0.55 - py * s * 0.95);
+  ctx.closePath();
+  ctx.globalAlpha = 1; ctx.fillStyle = color; ctx.fill();
+  ctx.lineWidth = 1.4; ctx.strokeStyle = pal().tagOutline; ctx.stroke();
 }
 
 // 主題感霓虹光暈:暗色/衛星底圖下,主角列車(台鐵/高鐵)點下墊一層發光光暈,
@@ -5496,6 +5571,8 @@ function togglePinSave() {
   const at = pinSavedIdx(pinDraft.lat, pinDraft.lon);
   if (at >= 0) { // 已存 → 直接移除(不需命名)
     const pins = loadPins(); pins.splice(at, 1); savePins(pins);
+    const rmKey = Number(pinDraft.lat).toFixed(6) + ',' + Number(pinDraft.lon).toFixed(6);
+    if (defaultPlaceKey() === rmKey) clearDefaultPlace(); // 移除的地點正是預設啟動地點:一併清掉
     showToast('已移除地點'); renderSavedPins(); renderPinCard(); renderFavPanel();
   } else { // 未存 → 先命名再存(命名對話框獨立於每秒重繪的釘卡)
     openPinNameDialog(pinDraft.lat, pinDraft.lon);
@@ -5526,6 +5603,7 @@ function confirmPinName() {
 }
 function removePinByKey(key) { // key = lat,lon(各 6 位小數),同 userDataItemId('pins')
   savePins(loadPins().filter(p => (Number(p.lat).toFixed(6) + ',' + Number(p.lon).toFixed(6)) !== key));
+  if (defaultPlaceKey() === key) clearDefaultPlace(); // 移除的地點正是預設啟動地點:一併清掉
   renderSavedPins(); renderFavPanel(); if (pinDraft) renderPinCard();
   showToast('已移除地點');
 }
@@ -5895,7 +5973,7 @@ function buildCitySelect() {
 // 捷運/輕軌(freq)沒有車次、完乘、特別列車這些概念,隱藏這些鈕。用 inline display 蓋過 .stage-tools 的 flex。
 function updateSchedTools() {
   const show = state.mode === 'sched';
-  for (const id of ['exploreBtn', 'favBtn', 'rideBtn', 'introBtn', 'xingBtn', 'pinBtn', 'locateBtn']) {
+  for (const id of ['exploreBtn', 'favBtn', 'rideBtn', 'introBtn', 'dirBtn', 'xingBtn', 'pinBtn', 'locateBtn']) {
     const b = document.getElementById(id);
     if (b) b.style.display = show ? '' : 'none';
   }
@@ -6327,6 +6405,7 @@ function clearFollow() {
   state._plateStop = null;
   updateFollowLockUI(); // 沒在跟隨就收起跟隨鎖鈕
   const dp = document.getElementById('dwellPlate'); if (dp) dp.classList.remove('show');
+  document.body.classList.remove('dwell-show'); // 取消跟隨:清掉停靠讓位旗標,避免小卡在下次開 sheet 時仍被誤淡出
   try { if (!document.fullscreenElement) history.replaceState(null, '', location.pathname); } catch (e) {}
   const fb = document.getElementById('followBar');
   if (fb) { fb.hidden = true; fb.className = 'followbar'; fb.innerHTML = ''; }
@@ -7452,11 +7531,16 @@ function renderFavPanel() {
         }).join('')
       : '') +
     (pins.length
-      ? `<div class="sec">地點</div>` + pins.map(p => {
-          const key = Number(p.lat).toFixed(6) + ',' + Number(p.lon).toFixed(6);
-          return `<div class="row fvpin" data-pin="${key}"><span class="ico">📍</span>` +
-            `<b>${escHtml(p.label || '未命名地點')}</b><span class="rm" data-pin="${key}" title="移除">×</span></div>`;
-        }).join('')
+      ? (() => { const defKey = defaultPlaceKey();
+          return `<div class="sec">地點</div>` + pins.map(p => {
+            const key = Number(p.lat).toFixed(6) + ',' + Number(p.lon).toFixed(6);
+            const isDef = defKey === key;
+            return `<div class="row fvpin" data-pin="${key}"><span class="ico">📍</span>` +
+              `<b>${escHtml(p.label || '未命名地點')}</b>` +
+              `<button class="fv-default${isDef ? ' on' : ''}" type="button" data-defpin="${key}" title="${isDef ? '取消預設啟動地點' : '設為預設啟動地點（開啟時直接來這裡）'}">${isDef ? '⭐ 預設' : '設為預設'}</button>` +
+              `<span class="rm" data-pin="${key}" title="移除">×</span></div>`;
+          }).join('');
+        })()
       : '') +
     (!favs.length && !stns.length && !pins.length
       ? '<div class="empty">還沒有收藏——跟隨列車後點資訊卡的 ☆ 收藏列車；打開車站看板點 ☆ 收藏車站；用工具列「儲存」在地圖上存地點。</div>' : '');
@@ -7871,20 +7955,35 @@ function hlRow(h) {
     `<b>${h.title}</b><span class="dest">${tr.train}次 ${tr.stops[0].name}→${last.name}${h.sub ? ' · ' + h.sub : ''}</span>` +
     `<span class="min">${status}</span></div>`;
 }
+// 觀光列車圖鑑(無固定車次:trainNos 為空的山嵐/鳴日/環島之星…):不進成就/護照(index 既有設計),
+// 在探索面板列成純圖鑑條目,點了開既有 renderNamedIntro 介紹卡。
+function exploreGuideTrains() {
+  const sd = state.special;
+  return sd ? sd.namedTrains.filter(n => !n.trainNos || n.trainNos.length === 0) : [];
+}
+function guideRow(n, i) {
+  return `<div class="row" data-guide="${i}" title="看 ${escHtml(n.name)} 介紹"><span class="dot" style="background:#d2a12a"></span>` +
+    `<b>★ ${escHtml(n.name)}</b><span class="dest">無固定車次 · ${escHtml((n.tags || [])[0] || '觀光列車')}</span>` +
+    `<span class="gchip">圖鑑</span></div>`;
+}
 function renderExplorePanel() {
   const el = document.getElementById('explorePanel');
   if (el.hidden) return;
   const hl = computeHighlights();
+  const guides = exploreGuideTrains();
   const noteTxt = (document.getElementById('note') || {}).textContent || ''; // #note 遷入亮點 sheet 註腳(重開即新文案)
   document.getElementById('expBody').innerHTML =
     `<div class="sub">從 ${state.trains.length} 班車裡挑出來的 · 點一列跟隨</div>` +
     (hl.special.length ? `<div class="sec">特別列車出沒中</div>` + hl.special.map(hlRow).join('') : '') +
     (hl.best.length ? `<div class="sec">今日之最</div>` + hl.best.map(hlRow).join('') : '') +
     (hl.branches.length ? `<div class="sec">支線小火車</div>` + hl.branches.map(hlRow).join('') : '') +
+    (guides.length ? `<div class="sec">觀光列車圖鑑（無固定車次）</div>` + guides.map(guideRow).join('') : '') +
     (noteTxt ? `<div class="exp-note">${escHtml(noteTxt)}</div>` : '');
   el.querySelector('#exploreClose').onclick = closeExplorePanel;
   el.onclick = e => {
     if (e.target.closest('.close')) return;
+    const gr = e.target.closest('.row[data-guide]');
+    if (gr) { const n = exploreGuideTrains()[+gr.dataset.guide]; if (n) renderNamedIntro(n); return; } // 圖鑑列:開介紹卡(不跟隨、不收藏)
     const row = e.target.closest('.row[data-no]');
     if (row) { closeExplorePanel(); followTrainNo(row.dataset.no); }
   };
@@ -8422,7 +8521,8 @@ function updateFollowPanel(tr) {
       else { di.innerHTML = ''; di.style.display = 'none'; }
     }
     plate.classList.add('show');
-  } else { plate.classList.remove('show'); state._plateStop = null; }
+    document.body.classList.add('dwell-show'); // 停靠站名牌顯示中:他 sheet 展開(sheet-open)時讓跟車小卡淡出讓位(見 CSS body.dwell-show.sheet-open)
+  } else { plate.classList.remove('show'); document.body.classList.remove('dwell-show'); state._plateStop = null; }
   // 即時時速(取前後 20 秒位移換算);大數字讀數,看著有速度感
   const pa = trainPos(tr, state.simSec), pb = trainPos(tr, state.simSec + 20);
   const kmh = (pa && pb) ? haversineKm(pa, pb) / 20 * 3600 : 0;
@@ -10476,6 +10576,7 @@ function setupMapTools() {
     satBtn: () => state.basemap === 'sat',
     xingBtn: () => !!state.xingOn,
     introBtn: () => !!state.stnIntro,
+    dirBtn: () => !!state.dirArrow,
     pinBtn: () => !!state.dropMode,
     powerBtn: () => !!state.powerSave,
     musicBtn: () => !!(state.music && state.music.enabled && state.music.audio && !state.music.audio.paused),
@@ -10771,6 +10872,17 @@ function setupMapTools() {
   xingBtn.onclick = () => setXing(!state.xingOn, true);
   setXing(state.xingOn, false); // 初始化按鈕態(還原 localStorage,不彈說明)
   state._setXing = setXing; // 供「定位我」(全域 onLocated)跨作用域打開平交道圖層
+
+  // ── 列車行進方向箭頭開關(預設開;台鐵/高鐵車號牌前緣加小箭頭) ──
+  const dirBtn = document.getElementById('dirBtn');
+  function setDir(on) {
+    state.dirArrow = on;
+    dirBtn.classList.toggle('active', on);
+    dirBtn.title = on ? '列車行進方向箭頭（顯示中，點擊關閉）' : '顯示列車行進方向箭頭';
+    try { localStorage.setItem('trainmap-diron', on ? '1' : '0'); } catch (e) {}
+  }
+  dirBtn.onclick = () => setDir(!state.dirArrow);
+  setDir(state.dirArrow); // 初始化按鈕態(state.dirArrow 已於 boot 還原 localStorage)
 
   // ── 落釘看附近火車:開關(落釘模式下點地圖任一處落釘) ──
   const pinBtn = document.getElementById('pinBtn');
@@ -11314,6 +11426,7 @@ async function boot() {
   try { state.basemap = onlineBasemapsAvailable() && localStorage.getItem('trainmap-basemap') === 'sat' ? 'sat' : 'map'; } catch (e) {}
   try { state.immersive = localStorage.getItem('trainmap-immersive') === '1'; } catch (e) {}
   try { state.xingOn = localStorage.getItem('trainmap-xing') === '1'; } catch (e) {}
+  try { state.dirArrow = localStorage.getItem('trainmap-diron') !== '0'; } catch (e) {} // 列車方向箭頭:預設開(沒存過即開),使用者關過才記 '0'
   try { setAmbientStyle(localStorage.getItem('trainmap-ambient-style') === 'follow' ? 'follow' : 'hotspot'); } catch (e) {} // 預設群車(v0717v);使用者切過跟車才存 'follow'
   // 省電模式預設:手機開、桌機關;使用者手動切過就記住(setupMapTools 內 setPowerSave 讀此值初始化按鈕)
   try {
@@ -11456,10 +11569,11 @@ async function boot() {
     if (!isNaN(mz)) deepZ = Math.min(18, Math.max(7, mz));
     deepTrip = parseTripParam(qs.get('trip'));
   } catch (e) {}
-  // 上次視野:沒帶任何深連結、也不是直播/導播時,回到使用者上次離開的路網與位置(回訪不必每次重點一次)。
-  // 優先序 深連結 > 上次視野 > 首屏全台同框——分享連結進來的訪客絕不能被自己本機的記憶蓋掉。
-  const lastView = (deepG || deepAt || deepTrain || deepTrip || state.liveMode) ? null : loadLastView();
-  // 開場群組:分享連結帶 g 就開該群組,其次上次待的群組,否則首屏全台同框
+  // 開站落點優先序：深連結 > 預設啟動地點(儲存地點設的) > 上次視野 > 首屏全台同框。
+  // 分享連結進來的訪客絕不能被本機記憶/預設蓋掉；設了預設地點就蓋過「上次視野」。預設地點一律開在全台同框並置中。
+  const defPlace = (deepG || deepAt || deepTrain || deepTrip || state.liveMode) ? null : loadDefaultPlace();
+  const lastView = (deepG || deepAt || deepTrain || deepTrip || state.liveMode || defPlace) ? null : loadLastView();
+  // 開場群組:分享連結帶 g 就開該群組;預設地點沿用全台同框(all,已是預設值);其次上次待的群組
   let bootGroup = GROUPS.find(g => g.id === 'all');
   if (deepG) { const gg = GROUPS.find(g => g.id === deepG); if (gg) bootGroup = gg; }
   else if (lastView) { const gg = GROUPS.find(g => g.id === lastView.g); if (gg) bootGroup = gg; }
@@ -11479,6 +11593,8 @@ async function boot() {
       if (tr0) { document.getElementById('trainSearch').value = tr0.train; setFollow(tr0); }
     } else if (deepAt) {
       map.setView(deepAt, deepZ != null ? deepZ : map.getZoom(), { animate: false });
+    } else if (defPlace) {
+      map.setView([defPlace.lat, defPlace.lon], defPlace.z, { animate: false }); // 預設啟動地點:置中到儲存地點(全台同框群組已載入)
     } else if (lastView) {
       map.setView([lastView.lat, lastView.lon], lastView.z, { animate: false }); // 回到上次離開的位置(群組已於上面一併還原)
     }
@@ -11529,6 +11645,30 @@ function loadLastView() {
       sel: sel.length ? new Set(sel) : null,
     };
   } catch (e) { return null; }
+}
+
+// ══════════ 預設啟動地點：從「儲存地點」挑一個當開站落點（優先於上次視野） ══════════
+// 只存座標(來自某個儲存地點),開站落在全台同框並置中到它;連結分享與跟車不受影響。裝置偏好,不隨帳號同步。
+const DEFAULT_PLACE_KEY = 'trainmap-default-place';
+function loadDefaultPlace() {
+  try {
+    const v = JSON.parse(localStorage.getItem(DEFAULT_PLACE_KEY) || 'null');
+    if (!v || !isFinite(v.lat) || !isFinite(v.lon)) return null;
+    return { lat: +v.lat, lon: +v.lon, z: Math.min(18, Math.max(7, Math.round(+v.z) || 14)), key: v.key || null, label: v.label || '' };
+  } catch (e) { return null; }
+}
+function defaultPlaceKey() { const d = loadDefaultPlace(); return d ? d.key : null; }
+function clearDefaultPlace() { try { localStorage.removeItem(DEFAULT_PLACE_KEY); } catch (e) {} }
+// 以某個儲存地點(fav 面板列的 key=lat,lon 六位小數)為預設；再點同一列即取消。回饋走 showToast＋重繪面板。
+function toggleDefaultPlace(key) {
+  if (defaultPlaceKey() === key) { clearDefaultPlace(); showToast('已取消預設啟動地點'); }
+  else {
+    const p = loadPins().find(p => (Number(p.lat).toFixed(6) + ',' + Number(p.lon).toFixed(6)) === key);
+    if (!p) return;
+    try { localStorage.setItem(DEFAULT_PLACE_KEY, JSON.stringify({ key, lat: p.lat, lon: p.lon, z: 14, label: p.label || '' })); } catch (e) {}
+    showToast(p.label ? ('已設「' + p.label + '」為預設啟動地點') : '已設為預設啟動地點');
+  }
+  renderFavPanel();
 }
 
 // 分享目前畫面:正在跟車→沿用 ?train= 深連結;否則打包 地點+縮放+路網+時間。手機叫原生分享面板,桌面複製連結。
@@ -11719,6 +11859,9 @@ todPick.addEventListener('change', () => {
 });
 todPick.addEventListener('keydown', e => { if (e.key === 'Enter') todPick.blur(); });
 document.getElementById('nowBtn').onclick = jumpToNow;
+// ±5 分鐘快速預覽鍵:步進 simSec ±300(沿用 setSimSec,徽章>120 秒轉「推估」是既有語意,「現在」鈕可回錨)
+document.getElementById('minus5Btn').onclick = () => setSimSec(state.simSec - 300);
+document.getElementById('plus5Btn').onclick = () => setSimSec(state.simSec + 300);
 // APP_STRIP_START donation-handler
 const donateCopyBtn = document.getElementById('donateCopy');
 if (donateCopyBtn) donateCopyBtn.onclick = () =>
@@ -11771,6 +11914,8 @@ document.getElementById('favPanel').onclick = e => {
   if (nb) { e.stopPropagation(); openLocalReminderSheet(findLocalReminderTrain(nb.dataset.notifyNo), 'favorite'); return; }
   const rm = e.target.closest('.rm');
   if (rm) { rm.dataset.pin ? removePinByKey(rm.dataset.pin) : (rm.dataset.stkey ? removeFavStation(rm.dataset.stkey) : removeFav(rm.dataset.no)); return; }
+  const db = e.target.closest('.fv-default');
+  if (db) { e.stopPropagation(); toggleDefaultPlace(db.dataset.defpin); return; } // 設為/取消預設啟動地點(不觸發整列的「飛過去」)
   const pr = e.target.closest('.row.fvpin');
   if (pr) { closeFavPanel(); gotoSavedPin(pr.dataset.pin); return; }
   const sr = e.target.closest('.row.fvst');
