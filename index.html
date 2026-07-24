@@ -2892,14 +2892,24 @@ function zaParseMat(el) { // computed transform → {k(等比縮放),ux,uy(平�
   return t.startsWith('matrix3d') ? { k: v[0], ux: v[12], uy: v[13] } : { k: v[0], ux: v[4], uy: v[5] };
 }
 function zoomAnimFrame() {
-  if (!state._zaEl) return;
-  // 圖磚 layer 座標 l → k_rel·(l−u₀)/…推導:鎖基準時圖磚與投影對齊 ⇒ q=(l−u₀)/k₀(panePos 互銷),
-  // 當幀渲染位置 X = k_rel·x + pp_t·(1−k_rel)+u_t−k_rel·u₀,k_rel=k_t/k₀。
-  // ⚠ panePos 必須取「當幀」值,不能鎖起始值:縮放動畫中 pane 仍可能被並行平移(maxBounds 邊界回彈、
-  //   跟車鏡頭…),pane 位移同時等量影響圖磚與原生投影,live 取值即自動抵銷、對並行平移天然穩健。
-  const m = zaParseMat(state._zaEl), m0 = state._zaM0, k = m.k / m0.k;
-  const pp = map._getMapPanePos();
-  state._zaAff = { k, tx: pp.x * (1 - k) + m.ux - k * m0.ux, ty: pp.y * (1 - k) + m.uy - k * m0.uy };
+  const Z = state._zaCal;
+  if (!Z) return;
+  if (!Z.el.isConnected) { if (state.ready) draw(); return; } // 容器被剪:凍住上一幀仿射繼續畫,不准跳回 identity 造成超衝
+  // 自校準:每幀對兩個探針世界點解「當前投影空間 → 當前圖磚真實位置」的相似變換。
+  // 為什麼不能用固定公式:Leaflet 動畫期間的內部投影基準「有條件地」切到目標視圖(新頁首縮=起始基準、
+  // 累積多次縮放後=目標基準,實測 4× 超衝抓到),且 retarget/並行平移都會改基準——逐幀從量測解變換,
+  // 對任何基準時序都正確。dst=圖磚容器當下矩陣算出的探針渲染位置(q 在 zoomstart 對齊時刻標定),
+  // src=當下原生投影(暫時關掉仿射讀 raw),s/t 兩點即解(等比無旋轉)。
+  const m = zaParseMat(Z.el), pp = map._getMapPanePos();
+  const d1x = m.k * Z.q1x + m.ux + pp.x, d1y = m.k * Z.q1y + m.uy + pp.y;
+  const d2x = m.k * Z.q2x + m.ux + pp.x, d2y = m.k * Z.q2y + m.uy + pp.y;
+  const A0 = state._zaAff; state._zaAff = null; // 讀 raw 投影(wrapper 依 _zaAff 疊仿射,取樣時要關)
+  const s1 = map.latLngToContainerPoint(Z.w1), s2 = map.latLngToContainerPoint(Z.w2);
+  state._zaAff = A0;
+  const den = Math.hypot(s2.x - s1.x, s2.y - s1.y);
+  if (den < 1) { if (state.ready) draw(); return; } // 探針退化(不會發生的防禦):凍住上一幀
+  const k = Math.hypot(d2x - d1x, d2y - d1y) / den;
+  state._zaAff = { k, tx: d1x - k * s1.x, ty: d1y - k * s1.y };
   state._zaDrive = true; reproject(); state._zaDrive = false;
   if (state.ready) draw();
 }
@@ -11443,19 +11453,37 @@ async function boot() {
   // (實測 getZoom() 會提前回報目標值,但 latLngToContainerPoint 回傳的是「起始基準+當下 panePos」座標),
   // overlay 按投影重畫=整段幾乎靜止、結束瞬間跳到位(issue #4 殘影)。曾試「凍結重繪+整張畫布 CSS scale」:
   // 幾何同步了,但文字/線寬也被 raster 放大、結束重繪縮回標準大小=跳動感(使用者退回該版)。
-  // 現制=向量地圖標準行為:onZoomAnim 鎖動畫基準(圖磚容器起始矩陣+panePos),tick 每幀改呼叫 zoomAnimFrame
-  // (定義在 reproject 下方)讀圖磚 computed transform 更新仿射→重投影+重繪;「座標」經仿射與圖磚同縮,
+  // 現制=向量地圖標準行為:zoomstart(對齊時刻)標定兩探針點,tick 每幀改呼叫 zoomAnimFrame(定義在
+  // reproject 下方)由圖磚 computed transform 逐幀「解」仿射→重投影+重繪;「座標」經仿射與圖磚同縮,
   // 「尺寸」(字級/線寬/車牌)照常固定,結束幀=最終視圖重繪,零跳動。
   // 捏合(pinch)不發 zoomanim:Leaflet 逐幀 _move、map 狀態每幀真實更新,overlay 原本的逐幀重投影天然同步
   // (位置正確+字級線寬固定),不套此機制;捏合放手的收斂動畫發 zoomanim,由本機制接手。
   const ZOOM_ANIM_MS = 250; // 對齊 Leaflet .leaflet-zoom-anim 圖磚過渡時長(保險 timer 基準)
+  // zoomstart=「投影與圖磚仍然對齊」的最後時刻(所有縮放路徑都在狀態移動前發),在此標定兩個探針世界點的
+  // 圖磚容器局部座標;之後 zoomAnimFrame 每幀用它們解仿射(見 reproject 下方,為何非自校準不可也寫在那)。
+  // ⚠ 容器必須挑「有圖磚的」層,不能拿第一個:多次縮放後 tilePane 累積多個舊 zoom 層,DOM 最前常是
+  //   空的舊層,Leaflet 動畫中會剪掉空層,脫離 DOM 後 computed transform 全失真。
+  map.on('zoomstart', () => {
+    if (state._zoomAnim) return; // 連續縮放 retarget:沿用原標定(q 是容器局部常數,仍有效)
+    if (state._breathStage) { state._zaCalPend = null; return; } // 呼吸幕投影非 raw 不可標定(正常已被更早的 zoomstart listener 交還,此為防禦)
+    let el = null, best = -1;
+    for (const c of map.getPane('tilePane').querySelectorAll('.leaflet-tile-container')) {
+      if (c.childElementCount > best) { best = c.childElementCount; el = c; }
+    }
+    if (!el || !best) { state._zaCalPend = null; return; } // 無圖磚:本輪放棄同步(overlay 靜止 ~250ms,zoomend 重繪仍對齊)
+    const size = map.getSize(), m = zaParseMat(el), pp = map._getMapPanePos();
+    const w1 = map.containerPointToLatLng([size.x * 0.25, size.y * 0.25]);
+    const w2 = map.containerPointToLatLng([size.x * 0.75, size.y * 0.75]);
+    const p1 = map.latLngToContainerPoint(w1), p2 = map.latLngToContainerPoint(w2); // 此刻 _zaAff=null,讀到的就是 raw
+    state._zaCalPend = { el, w1, w2,
+      q1x: (p1.x - pp.x - m.ux) / m.k, q1y: (p1.y - pp.y - m.uy) / m.k,
+      q2x: (p2.x - pp.x - m.ux) / m.k, q2y: (p2.y - pp.y - m.uy) / m.k };
+  });
   function onZoomAnim() {
     if (!cv) return;
-    if (!state._zoomAnim) { // 動畫第一幀:map 仍是起始視圖(捏合收斂時=最後的分數 zoom 視圖),鎖基準
-      const el = map.getPane('tilePane').querySelector('.leaflet-tile-container');
-      if (!el) return; // 防禦:無圖磚容器就放棄同步(overlay 靜止 ~250ms,zoomend 重繪仍會對齊)
-      state._zoomAnim = true;
-      state._zaEl = el; state._zaM0 = zaParseMat(el); // 只鎖容器起始矩陣;panePos 由 zoomAnimFrame 每幀 live 取
+    if (!state._zoomAnim) {
+      if (!state._zaCalPend) return; // zoomstart 標定不到(無圖磚):放棄同步
+      state._zoomAnim = true; state._zaCal = state._zaCalPend;
     }
     // 保險 timer 每次 zoomanim 重掛:連續縮放 retarget 逐次延展 deadline(zoomend 萬一沒送達時解凍,冪等)
     clearTimeout(state._zaTimer); state._zaTimer = setTimeout(endZoomAnim, ZOOM_ANIM_MS + 90);
@@ -11463,8 +11491,8 @@ async function boot() {
   function endZoomAnim() {
     if (!state._zoomAnim) return; // 冪等:zoomend 與保險 timer 都可能觸發
     clearTimeout(state._zaTimer);
-    state._zoomAnim = false; state._zaAff = null; state._zaEl = null;
-    reproject(); if (state.ready) draw(); // 落定視圖重繪;最後一動畫幀 k 已達目標,與此幀重合=零跳動
+    state._zoomAnim = false; state._zaAff = null; state._zaCal = null; state._zaCalPend = null;
+    reproject(); if (state.ready) draw(); // 落定視圖重繪;最後一動畫幀仿射已收斂到 identity,與此幀重合=零跳動
   }
   map.on('zoomanim', onZoomAnim);
   map.on('zoomend', endZoomAnim);
