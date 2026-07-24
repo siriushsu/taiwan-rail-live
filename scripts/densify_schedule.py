@@ -14,6 +14,10 @@
 輸出：data/tra_schedule_dense.json，結構同輸入，stops 多了 stop 欄位；
 matched 的 stop 座標改用 tra.json 節點座標（讓插入的通過站與排定站座標同源、
 前端沿線內插才會貼著鐵軌）；fallback 的 stop 保留原始座標。
+
+多日格式（fetch_tra_schedule.py 產出 dates:{日期→[trains 索引]} 的聯集檔）：
+本腳本逐一 densify sch["trains"]（聯集後的唯一定義），輸出順序與輸入完全一致，
+因此 dates 的索引維持有效，原樣 passthrough 到輸出。只 densify 一次（非每日一次）。
 """
 import json
 import math
@@ -231,6 +235,11 @@ def main():
         "types": sch.get("types"),
         "trains": out_trains,
     }
+    # 多日格式:dates/dateRange 原樣帶過(out_trains 與 sch["trains"] 順序一致,索引維持有效)
+    if "dates" in sch:
+        out["dates"] = sch["dates"]
+    if "dateRange" in sch:
+        out["dateRange"] = sch["dateRange"]
 
     with open(OUT_PATH, "w", encoding="utf-8") as f:
         json.dump(out, f, ensure_ascii=False, indent=1)

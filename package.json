@@ -1,4 +1,8 @@
 {
+  "scripts": {
+    "fetch-schedule": "python3 scripts/fetch_tra_schedule.py && python3 scripts/densify_schedule.py",
+    "check-schedule": "python3 scripts/check_schedule.py"
+  },
   "dependencies": {
     "playwright": "^1.61.1",
     "wrangler": "^4.111.0"

@@ -2402,6 +2402,7 @@ try { if (matchMedia('(max-width: 900px)').matches) document.body.classList.add(
       <summary><span>🛠 更新紀錄</span><span class="foot-sub">最後更新：2026/7/24</span></summary>
       <ul class="foot-list">
         <li class="grp">最近更新</li>
+        <li><span class="d">7/24</span><span>台鐵班表改為每天使用當日官方時刻：週五～週日才開的加班車（如 21、213 次）現在會在正確的日子出現，連假與國定假日的特別班表也會自動反映，不再整週重播同一天</span></li>
         <li><span class="d">7/24</span><span>修正 App 或分頁在背景放一段時間後，畫面時鐘停在切走前的時刻、車輛位置與現實對不上的問題；回到前景會自動追回「現在」</span></li>
         <li><span class="d">7/24</span><span>衛星模式在手機等高解析度螢幕上畫質更清晰銳利；跟車移動中改用較省流量的畫質，避免圖磚載入變慢</span></li>
         <li><span class="d">7/22</span><span>原「附近火車」更名為「儲存地點」，儲存時可幫地點命名（家、公司…）；存過的地點會列進「我的最愛」的「地點」區，點一下就飛過去看它附近的車</span></li>
@@ -2521,6 +2522,7 @@ try { if (matchMedia('(max-width: 900px)').matches) document.body.classList.add(
         <li class="web-only-donation-log"><span class="d">7/13</span><span>贊助方式更新：「請開發者喝咖啡」的銀行轉帳帳戶改用 LINE Bank（連線商業銀行 824）——謝謝每一位抖內支持軌島的朋友 🙏</span></li>
         <!-- APP_STRIP_END donation-log -->
         <li class="grp">資料校正</li>
+        <li><span class="d">7/24</span><span>台鐵班表改為每天使用當日官方時刻：週五～週日才開的加班車（如 21、213 次）現在會在正確的日子出現，連假與國定假日的特別班表也會自動反映，不再整週重播同一天</span></li>
         <li><span class="d">7/18</span><span>三鶯線改依實際試營運時段（每天 10:00–20:00），清晨與入夜後不再跑現實中不存在的「幽靈列車」</span></li>
         <li><span class="d">7/18</span><span>平溪、深澳、集集、內灣線的車種改為 DR1000 柴油客車（這幾段沒有電化，原本標成電聯車）</span></li>
         <li><span class="d">7/17</span><span>安坑輕軌「台北小城」站位修正，不再與鄰站重疊</span></li>
@@ -10278,6 +10280,45 @@ async function fetchJSON(url) {
   catch (e) { return null; }
 }
 
+// 多日班表(fetch_tra_schedule.py 產出 dates:{日期→[trains 索引]} 聯集檔):boot 時依台北營運日
+// 挑當日 train 清單,回傳 {...data, trains:當日子集},讓下游(applySchedSystems/繪製…)只看到單日 trains,消費端零改動。
+// 舊單日格式(無 dates)或其他系統(高鐵/林鐵/捷運)原樣通過。過期/舊 bundle(今日不在 dates)→ 退回同週幾最近日並 console.warn。
+function schedWeekday(dateStr) {
+  // dateStr='YYYY-MM-DD' 已是台北營運日;以 UTC 午夜取週幾(與 line 2956 同一契約,海外裝置勿用當地週幾)
+  return new Date(dateStr + 'T00:00:00Z').getUTCDay();
+}
+function nearestSameWeekday(target, keys) {
+  const wd = schedWeekday(target), tt = Date.parse(target + 'T00:00:00Z');
+  let best = null, bestDelta = Infinity;
+  for (const k of keys) {                       // 先找同週幾中日期最接近者
+    if (schedWeekday(k) !== wd) continue;
+    const delta = Math.abs(Date.parse(k + 'T00:00:00Z') - tt);
+    if (delta < bestDelta) { best = k; bestDelta = delta; }
+  }
+  if (best) return best;
+  for (const k of keys) {                        // 無同週幾:退回最接近的任一天
+    const delta = Math.abs(Date.parse(k + 'T00:00:00Z') - tt);
+    if (delta < bestDelta) { best = k; bestDelta = delta; }
+  }
+  return best;
+}
+function resolveScheduleDay(data) {
+  if (!data || !data.dates || !Array.isArray(data.trains)) return data; // 舊格式/其他系統原樣通過
+  const keys = Object.keys(data.dates);
+  if (!keys.length) return data;
+  const today = todayStr('Asia/Taipei');
+  let key = today, stale = false;
+  if (!data.dates[key]) {
+    key = nearestSameWeekday(today, keys);
+    stale = true;
+    console.warn('[schedule] 今日 ' + today + ' 不在班表涵蓋範圍（' + keys[0] + '…' + keys[keys.length - 1] +
+      '），退回同週幾最近日 ' + key + '（資料過期或 App bundle 太舊，請重跑 npm run fetch-schedule）');
+  }
+  const idxs = data.dates[key] || [];
+  const trains = idxs.map(i => data.trains[i]).filter(Boolean);
+  return { ...data, trains, date: key, _schedDay: key, _schedStale: stale };
+}
+
 // 圖磚未載入或 App 離線時的海陸底層。台灣輪廓來自 Natural Earth 5.1.2（Public Domain），
 // 用獨立 pane 壓在 tilePane 下方：正常時被圖磚完整蓋住，斷網／圖磚缺口才露出，不影響列車 overlay。
 function offlineLandStyle() {
@@ -11304,7 +11345,7 @@ async function boot() {
 
   for (const d of SYS_DEFS) {
     const data = await fetchJSON(d.url);
-    if (data) state.systems.push({ ...d, data });
+    if (data) state.systems.push({ ...d, data: resolveScheduleDay(data) }); // 多日班表→挑台北營運日當日子集;舊格式原樣通過
   }
   // 各 sched 系統的軌道底圖幾何(台鐵 tra.json / 高鐵 thsr_track.json)掛在該系統上,loadSystem 依系統取用
   for (const s of state.systems) if (s.track) s._track = await fetchJSON(s.track);
