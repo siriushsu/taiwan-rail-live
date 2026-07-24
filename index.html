@@ -2436,6 +2436,7 @@ try { if (matchMedia('(max-width: 900px)').matches) document.body.classList.add(
       <ul class="foot-list">
         <li class="grp">最近更新</li>
         <li><span class="d">7/25</span><span>環島之星觀光列車上地圖了：搜尋「環島之星」或車次 1／2，就能跟著萌旅號 13 小時繞台灣一圈；介紹卡與列車收集同步收錄</span></li>
+        <li><span class="d">7/25</span><span>衛星底圖改接 Esri 官方授權服務端點，授權來源更明確；畫面與操作不變</span></li>
         <li><span class="d">7/24</span><span>台鐵、高鐵與捷運列車現在都帶行進方向小箭頭（可在「更多」關閉）；時間軸新增 ±5 分鐘鈕，快速預覽幾分鐘前後的班況</span></li>
         <li><span class="d">7/24</span><span>可把常看的地點設為預設啟動視野（我的最愛→地點→設為預設）；探索面板新增「觀光列車圖鑑」，山嵐號、鳴日號等無固定車次的觀光列車一次看</span></li>
         <li><span class="d">7/24</span><span>手機版面整理：面板全開時頂部時鐘、台鐵捷頁籤等自動讓位不再互相壓疊；多處過小的標籤文字加大更易讀；搜尋框提示文字改短、不再超出框外</span></li>
@@ -2551,6 +2552,7 @@ try { if (matchMedia('(max-width: 900px)').matches) document.body.classList.add(
         <li><span class="d">7/13</span><span>新增「省電」模式（手機預設開啟）：降到 30fps、關閉高速預抓</span></li>
         <li><span class="d">7/12</span><span>待機自動降頻、切到背景分頁停止繪製</span></li>
         <li class="grp">外觀與品牌</li>
+        <li><span class="d">7/25</span><span>衛星底圖改接 Esri 官方授權服務端點，授權來源更明確；畫面與操作不變</span></li>
         <li><span class="d">7/24</span><span>衛星模式在手機等高解析度螢幕上畫質更清晰銳利；跟車移動中改用較省流量的畫質，避免圖磚載入變慢</span></li>
         <li><span class="d">7/22</span><span>縮放時墊底的離線輪廓圖配色貼齊 CARTO 底圖（陸地／海面、亮色暗色分別對齊），消除快速縮放的色差閃爍</span></li>
         <li><span class="d">7/16</span><span>整站外觀大改版「琺瑯 2.0」，並支援亮／暗自動切換</span></li>
@@ -2696,7 +2698,7 @@ try { if (matchMedia('(max-width: 900px)').matches) document.body.classList.add(
 <script>
 // 版本戳記:每次改版 push 前手動遞增(字母序),畫面時鐘徽章與 console 都會顯示,
 // 供比對線上跑的是不是最新版(瀏覽器快取 max-age=600 常讓人看到舊版)
-const BUILD = 'v0725b';
+const BUILD = 'v0725c';
 const TRACK_AUDIT = new URLSearchParams(location.search).get('audit') === 'tracks';
 // 手機/平板直式「殼」斷點(議題1:640→900,iPad 直式改拿 tabbar＋更多抽屜):與 CSS @media 同步,版面類判斷一律用此常數。
 // 注意:裝置等級判斷(keepBuffer/powerSave 預設)刻意不用此常數、維持 640——iPad 不該因為改拿 tabbar 就被當低階裝置。
