@@ -2597,7 +2597,9 @@ try { if (matchMedia('(max-width: 900px)').matches) document.body.classList.add(
         <li><span class="d">即時</span><span>台鐵即時誤點與車站地址介接交通部 TDX 平臺（TrainLiveBoard／Station，每分鐘更新）</span></li>
         <li><span class="d">軌道</span><span>台鐵軌道及阿里山林鐵的 TDX 缺口補線取自 © OpenStreetMap 貢獻者（ODbL），經 Overpass／OSM API</span></li>
         <li><span class="d">底圖</span><span><!-- APP_REPLACE_START basemap-credit（App 換 Stadia/Esri 授權版文字，prepare-web.mjs 替換） -->CARTO basemaps（© OpenStreetMap）、Esri World Imagery（衛星影像）與 Natural Earth（離線海陸輪廓）<!-- APP_REPLACE_END basemap-credit --></span></li>
+        <!-- APP_REPLACE_START status-link:App 包內沒有 status.html 且其相對 API 呼叫在本機來源不通,App build 換成正式站絕對網址外開 -->
         <li><span class="d">狀態</span><a href="status.html">資料源連線狀態頁</a></li>
+        <!-- APP_REPLACE_END status-link -->
       </ul>
       <p class="foot-note">本站為個人愛好者專案，與台灣鐵路公司及各捷運公司皆無關。台鐵套用官方即時誤點；北捷、高捷、桃園機捷與高雄輕軌營運時段依官方到站看板即時校正；新北捷運（環狀線、淡海輕軌、安坑輕軌）營運時段依官方列車動態即時校正；其餘捷運／輕軌依當日官方時刻表推演（部分路線無公開逐班時刻，為班距推算）。實際到離站時刻請以各營運機構官方資訊為準。</p>
     </details>
