@@ -170,6 +170,9 @@ export async function verifyRelease({
       'Stadia App 必須保留既有高速跟車預抓；手機省電模式會自行停用，避免 iPad／關省電模式高速跟車露白');
     // 跟車 zoom 上限:設定要載明 16,且 index.html 的消費機制(FOLLOW_ZOOM_CAP/followEntryZoom)未被移除
     assert(html.includes('"followZoomCap":16'), 'RAIL_APP_CONFIG 未載明 followZoomCap:16(計量底圖跟車上限)');
+    // 衛星 Retina 止血開關:只驗機制還活著(值可為 true/false,由 Esri 額度狀況決定)
+    assert(/"satRetina":(true|false)/.test(html), 'RAIL_APP_CONFIG 未載明 satRetina(衛星高解析止血開關)');
+    assert(html.includes('APP_CFG.satRetina'), 'index.html 的 SAT_RETINA 消費機制消失——App 端衛星解析度開關失效');
     assert(html.includes('Math.min(18, FOLLOW_ZOOM_CAP)'),
       'DIRECTOR_FOLLOW_Z 未由 FOLLOW_ZOOM_CAP 收斂——App 導播跟車 z16 上限失效');
     assert((html.match(/followEntryZoom\(\), \{ animate: false \}/g) || []).length >= 3,

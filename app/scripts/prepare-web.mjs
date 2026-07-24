@@ -125,6 +125,7 @@ html = replaceHtmlRegion(html, 'status-link',
 // (5) 注入:第三方授權入口＋功能旗標＋RAIL_APP_CONFIG(授權圖磚與計量底圖的跟車 zoom 上限)
 const appConfig = includeLicensedBasemaps ? {
   followZoomCap: 16, // 計量底圖止血:跟車進場/導播 zoom 上限(index.html 的 FOLLOW_ZOOM_CAP/DIRECTOR_FOLLOW_Z 消費)
+  satRetina: true, // 衛星 Retina 高解析(index.html 的 SAT_RETINA 消費)。改 false → App 衛星圖磚量降到約 1/3,畫面略糊;Esri 額度吃緊時的止血開關
   tiles: {
     light: { url: `https://tiles.stadiamaps.com/tiles/alidade_smooth/{z}/{x}/{y}.png?api_key=${stadiaApiKey}`, maxZoom: 20, attribution: STADIA_ATTRIBUTION },
     dark: { url: `https://tiles.stadiamaps.com/tiles/alidade_smooth_dark/{z}/{x}/{y}.png?api_key=${stadiaApiKey}`, maxZoom: 20, attribution: STADIA_ATTRIBUTION },

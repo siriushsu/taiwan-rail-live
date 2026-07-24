@@ -4457,6 +4457,10 @@ try {
 // (舊法「精確字串手術」讓網站日常改動動輒弄壞 App build,2026-07-22 改為本設定機制)。
 const APP_CFG = window.RAIL_APP_CONFIG || {};
 const FOLLOW_ZOOM_CAP = APP_CFG.followZoomCap || Infinity; // App 計量底圖(Stadia/Esri)跟車 zoom 上限(App=16);網站不設限
+// 衛星 Retina 高解析:開=Retina 螢幕清晰,但圖磚量約 2.9 倍(桌面 z13 實測 72 vs 25 張)。網站與 App 共用同一個 Esri 2M/月額度,
+// 額度吃緊時的止血開關——網站改下面這行 true→false,App 改 prepare-web.mjs 的 satRetina。
+const SAT_RETINA_DEFAULT = true;
+const SAT_RETINA = APP_CFG.satRetina ?? SAT_RETINA_DEFAULT;
 function followEntryZoom() { return Math.min(Math.max(map.getZoom(), 13), FOLLOW_ZOOM_CAP); } // 跟車進場:至少拉近到 13,App 再套上限
 const LOCATE_ENABLED = !!window.RAIL_NATIVE_GEOLOCATION;
 const NOTIFY_LOCAL_ENABLED = !!window.RAIL_NATIVE_LOCALNOTIFY;
@@ -11464,11 +11468,12 @@ async function boot() {
     if (t.subdomains) opt.subdomains = t.subdomains;
     // 衛星圖沒有 @2x 選項,detectRetina 改抓高一階 zoom 的圖磚合成顯示,治 Retina 螢幕拉伸糊化;
     // 只開 sat——light/dark(Stadia,付費)刻意不開,同 @2x 全流量曝險教訓(見 monetization-cost-decisions)
-    if (k === 'sat') opt.detectRetina = true;
+    if (k === 'sat') opt.detectRetina = SAT_RETINA;
     baseLayers[k] = L.tileLayer(t.url, opt);
     // 跟車鏡頭連續平移時 detectRetina 的 4 倍圖磚量會讓載入明顯變慢,跟車中改用這份無 detectRetina 版本
     // (setBasemap 依 state.followTrain 二選一;detectRetina 是 Leaflet 建構時就烘進 zoomOffset,無法動態切換單一圖層,故養兩份)
-    if (k === 'sat') baseLayers.satLQ = L.tileLayer(t.url, opt.detectRetina ? { ...opt, detectRetina: false } : opt);
+    // SAT_RETINA 關閉時 sat 本身就是低解析度,不再養第二份(setBasemap 的 want 有 baseLayers.satLQ 存在性守門)
+    if (k === 'sat' && SAT_RETINA) baseLayers.satLQ = L.tileLayer(t.url, { ...opt, detectRetina: false });
   }
   // 外觀三段(亮/暗/自動;自動=跟隨系統)。舊鍵 trainmap-theme(light/dark)沿用為固定亮/暗
   try {
