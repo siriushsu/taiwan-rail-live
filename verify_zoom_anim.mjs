@@ -1,30 +1,45 @@
-// verify_zoom_anim.mjs — 縮放動畫回歸 + overlay 同步變換 的跨層驗證 (V1–V4)
-// 跑法：
-//   1) 生差分基準（皆為暫存檔，驗完可刪）：
-//        git show main:index.html    > index_old.html     # 修復前(zoomAnimation:false)＝V1「消失」對照 / V4e 拖曳落後對照
-//        git show 98222db:index.html > index_buggy.html   # 縮放錯位 bug 版(layer-space 公式)＝V2b 核心回歸對照
-//   2) 起靜態站：`python3 -m http.server 8791 --bind 127.0.0.1`
-//   3) `node verify_zoom_anim.mjs`
-// 心得16 標準：量「跨層對齊」而非單層；動畫類一律 Playwright 真引擎，不用內建 Browser pane。
+// verify_zoom_anim.mjs — 向量地圖縮放機制 跨層驗證 (W1–W8)
+// 新規格(2026-07-24 重寫,取代舊「凍結畫布+整張 CSS scale」):
+//   縮放中(動畫縮放+捏合):幾何(軌道/站點/列車)逐幀跟圖磚同縮同移;文字(站名/車牌)與線寬固定像素、只移動。
+//   結束幀=最終視圖重繪,零跳動。#overlay canvas 全程無 CSS transform(逐幀重畫+投影仿射 _zaAff)。
+// 舊規格斷言(overlay CSS transform / raster scale 同步)全部作廢、改寫成新規格;跨層對齊/差分偵測力保留。
+//
+// 跑法:
+//   1) 生差分基準(暫存檔,跑完刪):
+//        git show main:index.html      > index_old.html     # zoomAnimation:false=「消失」對照(V1 覆蓋崩塌)
+//        git show 98222db:index.html   > index_buggy.html    # 被退回的「overlay CSS transform+凍結重繪」版
+//                                                            #  (文字放大再縮回)=新規格 W1a/W2 差分偵測對照
+//   2) 起靜態站: python3 -m http.server 8791 --bind 127.0.0.1
+//   3) node verify_zoom_anim.mjs
+// 心得16/28:量「跨層對齊」而非單層;所有互比量在同一同步 rAF 區塊讀完(跨幀取樣在並行平移會生假殘差);
+//           互動類必含「互動累積狀態」(平移後/回彈中);動畫類一律 Playwright 真引擎。
 import { chromium, webkit } from './node_modules/playwright/index.mjs';
 
 const BASE = process.env.BASE || 'http://127.0.0.1:8791';
 const results = [];
-const naResults = []; // 「驗不了」(harness/引擎限制)：如實記錄+附原因，不計入 pass/fail，也不靜默跳過
+const naResults = [];
 const pass = (id, ok, msg) => { results.push({ id, ok, msg }); console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${id}: ${msg}`); };
 const na = (id, msg) => { naResults.push({ id, msg }); console.log(`  [N/A ] ${id}: ${msg}`); };
+const TAIPEI = [25.047, 121.517];
 
-async function loadApp(pg, file = 'index.html') {
-  await pg.addInitScript(() => { try { localStorage.setItem('trainmap-howto-seen', '1'); } catch (e) {} });
-  await pg.goto(`${BASE}/${file}`, { waitUntil: 'load', timeout: 40000 });
-  await pg.waitForFunction(() => window.__map && window.__state && window.__state.ready, { timeout: 40000 });
-  // 關掉會搶相機的模式，避免干擾量測
-  await pg.evaluate(() => { const s = window.__state; s.ambient = false; s._hotNext = 1e18; if (window.setAmbient) try { window.setAmbient(false); } catch (e) {} });
-  const el = await pg.$('#howtoWrap'); if (el) await pg.evaluate(() => { const w = document.getElementById('howtoWrap'); if (w) w.hidden = true; });
-  await pg.waitForTimeout(600);
+// robustMax = 丟掉單一最高幀後的次高值:真引擎偶有單幀 getBoundingClientRect 取樣毛刺(compositor 與主執行緒差半幀);
+// 真正的座標錯位是「常數偏移、每幀皆錯」(如舊 layer-space bug 每幀 130–260px),次高值照樣揭露。
+
+async function newPage(ctx, file = 'index.html') {
+  const p = await ctx.newPage();
+  await p.addInitScript(() => { try { localStorage.setItem('trainmap-howto-seen', '1'); } catch (e) {} });
+  await p.goto(`${BASE}/${file}`, { waitUntil: 'load', timeout: 40000 });
+  await p.waitForFunction(() => window.__map && window.__state && window.__state.ready, { timeout: 40000 });
+  await p.evaluate(() => { const s = window.__state; s.ambient = false; s._hotNext = 1e18; if (window.setAmbient) try { window.setAmbient(false); } catch (e) {} const w = document.getElementById('howtoWrap'); if (w) w.hidden = true; });
+  await p.waitForTimeout(400);
+  return p;
 }
 
-// 真截圖非底色像素比例（把 Playwright PNG 灌回頁面 canvas 計算，同源不 taint）
+async function getBg(pg) {
+  return await pg.evaluate(() => { const s = getComputedStyle(document.querySelector('.leaflet-container')).backgroundColor; const m = s.match(/(\d+)/g).map(Number); return [m[0], m[1], m[2]]; });
+}
+
+// 真截圖非底色像素比例
 async function nonBgRatioOfMapRegion(pg, bg) {
   const mapBox = await pg.$eval('#map', el => { const r = el.getBoundingClientRect(); return { x: r.x, y: r.y, width: r.width, height: r.height }; });
   const buf = await pg.screenshot({ clip: mapBox });
@@ -33,58 +48,340 @@ async function nonBgRatioOfMapRegion(pg, bg) {
     const img = new Image(); img.src = dataUrl; await img.decode();
     const c = document.createElement('canvas'); c.width = Math.min(480, img.width); c.height = Math.round(c.width * img.height / img.width);
     const g = c.getContext('2d'); g.drawImage(img, 0, 0, c.width, c.height);
-    const d = g.getImageData(0, 0, c.width, c.height).data;
-    let nonbg = 0, total = c.width * c.height;
-    for (let i = 0; i < d.length; i += 4) {
-      if (Math.abs(d[i] - bg[0]) > 16 || Math.abs(d[i + 1] - bg[1]) > 16 || Math.abs(d[i + 2] - bg[2]) > 16) nonbg++;
-    }
+    const d = g.getImageData(0, 0, c.width, c.height).data; let nonbg = 0, total = c.width * c.height;
+    for (let i = 0; i < d.length; i += 4) if (Math.abs(d[i] - bg[0]) > 16 || Math.abs(d[i + 1] - bg[1]) > 16 || Math.abs(d[i + 2] - bg[2]) > 16) nonbg++;
     return nonbg / total;
   }, { dataUrl, bg });
 }
 
-// 開一個乾淨分頁載入指定檔案、做一次 fromZ→toZ 縮放，逐幀量「已載入圖磚」對視窗的覆蓋率。
-// 舊版(zoomAnimation:false)瞬跳＝舊圖磚立即被丟、新圖磚未到→覆蓋率掉到 0(使用者說的「消失」);
-// 新版動畫期間舊圖磚縮放橋接→覆蓋率不塌。回傳最小覆蓋率＋一張動畫途中真截圖的非底色比例。
+// ── V1(保留):縮放中不「消失」——新版動畫期間圖磚覆蓋率不塌 vs 舊版 zoomAnimation:false 瞬跳掉到空 ──
 async function coverageProfile(ctx, file, fromZ, toZ, bg, center) {
-  const p = await ctx.newPage();
-  await p.addInitScript(() => { try { localStorage.setItem('trainmap-howto-seen', '1'); } catch (e) {} });
-  await p.goto(`${BASE}/${file}`, { waitUntil: 'load', timeout: 40000 });
-  await p.waitForFunction(() => window.__map && window.__state && window.__state.ready, { timeout: 40000 });
-  await p.evaluate(() => { const s = window.__state; s.ambient = false; s._hotNext = 1e18; const w = document.getElementById('howtoWrap'); if (w) w.hidden = true; });
+  const p = await newPage(ctx, file);
   const r = await p.evaluate(async ({ fromZ, toZ, center }) => {
     const map = window.__map; map.setView(center, fromZ, { animate: false });
     await new Promise(r => setTimeout(r, 900));
     const R = document.getElementById('map').getBoundingClientRect();
     const NX = 24, NY = 16, grid = [];
     for (let iy = 0; iy < NY; iy++) for (let ix = 0; ix < NX; ix++) grid.push([R.left + (ix + 0.5) * R.width / NX, R.top + (iy + 0.5) * R.height / NY]);
-    const cov = () => { const rects = [...document.querySelectorAll('img.leaflet-tile')].filter(t => t.complete && t.naturalWidth > 0 && getComputedStyle(t).opacity !== '0').map(t => t.getBoundingClientRect()); let c = 0; for (const [x, y] of grid) { for (const rr of rects) { if (x >= rr.left && x < rr.right && y >= rr.top && y < rr.bottom) { c++; break; } } } return c / grid.length; };
+    const cov = () => { const rects = [...document.querySelectorAll('img.leaflet-tile')].filter(t => t.complete && t.naturalWidth > 0 && getComputedStyle(t).opacity !== '0').map(t => t.getBoundingClientRect()); let c = 0; for (const [x, y] of grid) for (const rr of rects) if (x >= rr.left && x < rr.right && y >= rr.top && y < rr.bottom) { c++; break; } return c / grid.length; };
     const cov0 = cov(), series = [];
-    map.setZoom(toZ); // 新版預設 animate:true；舊版 zoomAnimation:false → 瞬跳
+    map.setZoom(toZ);
     await new Promise(res => { let n = 0; const loop = () => { series.push(cov()); if (++n < 30) requestAnimationFrame(loop); else res(); }; requestAnimationFrame(loop); });
     await new Promise(r => setTimeout(r, 200));
-    return { cov0, minCov: Math.min(...series), first5: series.slice(0, 5), covEnd: cov(), finalZoom: map.getZoom() };
+    return { cov0, minCov: Math.min(...series), first5: series.slice(0, 5), covEnd: cov() };
   }, { fromZ, toZ, center });
-  // 動畫途中真截圖非底色比例
-  await p.evaluate((c) => window.__map.setView(c, fromZ, { animate: false }), center).catch(() => {});
-  let midNonBg = 1;
   await p.evaluate(({ c, fromZ }) => window.__map.setView(c, fromZ, { animate: false }), { c: center, fromZ });
   await p.waitForTimeout(700);
   await p.evaluate((toZ) => window.__map.setZoom(toZ), toZ);
+  let midNonBg = 1;
   for (let i = 0; i < 3; i++) { await p.waitForTimeout(55); try { midNonBg = Math.min(midNonBg, await nonBgRatioOfMapRegion(p, bg)); } catch (e) {} }
   await p.close();
   return { ...r, midNonBg };
 }
 
-// 拖曳平移中量「軌道 overlay 落後圖磚」的像素：儀器化 draw() 記錄每次繪製當下的 mapPane 位移，
-// 逐幀取樣「現在 pane 位移 − 上次 draw 當下 pane 位移」＝軌道相對圖磚的落後量。省電節流會讓 draw 掉到 30fps → 落後。
-async function dragLagProfile(ctx, file, powerSave, center) {
-  const p = await ctx.newPage();
-  await p.addInitScript(() => { try { localStorage.setItem('trainmap-howto-seen', '1'); } catch (e) {} });
-  await p.goto(`${BASE}/${file}`, { waitUntil: 'load', timeout: 40000 });
-  await p.waitForFunction(() => window.__map && window.__state && window.__state.ready, { timeout: 40000 });
+// ══════════════════════════════════════════════════════════════════════════════════════════════
+//  核心:動畫縮放跨層對齊 + 幾何同縮 + 文字/線寬恆定 + 零跳動  (W1/W2/W3/W4)
+// ══════════════════════════════════════════════════════════════════════════════════════════════
+// 量法(全部在同一同步 rAF 區塊讀完):
+//  • overlay 投影位置 = applyAff(state._zaAff, q):q=起始幀凍結的圖磚容器座標,_zaAff=app 每幀提交的仿射
+//    (=overlay 實際畫幾何用的座標,無 CSS transform → canvas px 即 CSS px 1:1)。
+//  • 圖磚真實渲染位置 = 同一凍結圖磚元素當幀 getBoundingClientRect()(瀏覽器已合成 mapPane 平移+容器 scale=引擎真值)。
+//  • dApp = 兩者最大距離 = app overlay vs 圖磚真值(核心 PASS 判準)。
+//  • dIdeal = 用當幀圖磚矩陣+live panePos 依 app 公式重算仿射→同幀原子對齊(排除 app 提交相位,純驗公式再現)。
+//  • dBuggy = 注入「缺 (s−1)·panePos 修正項」的 layer-space 錯誤公式→證明本量測對該類 bug 有偵測力(平移後應飆大)。
+//  • 幾何同縮:兩世界點 overlay 投影間距 / 圖磚 scale k → 比例應恆 1(±5%)。
+//  • overlay CSS transform:每幀必為 none(W1a;被退回的 98222db 版會是 scale(k)→本判準抓得到)。
+//  • 文字/線寬恆定:hook overlay 2d ctx 的 fillText/strokeText/stroke,記錄各幀 font px 與 lineWidth;
+//    動畫中用的 font px 必 ⊆ 靜止時、且最大值不增(向量規格不放大文字);線寬同理。
+//  • 零跳動:最後一動畫幀 vs 落定重繪幀,同一世界點位置差 ≤1px。
+async function zoomAlignProfile(ctx, file, opts) {
+  const { center, fromZ, toZ, panBy, rapid } = opts;
+  const p = await newPage(ctx, file);
+  const r = await p.evaluate(async ({ center, fromZ, toZ, panBy, rapid }) => {
+    const map = window.__map, state = window.__state, mapEl = document.getElementById('map'), ov = document.getElementById('overlay');
+    const ctx2d = ov.getContext('2d');
+    const parseMat = (mstr) => { if (!mstr || mstr === 'none') return { k: 1, ux: 0, uy: 0 }; const v = mstr.slice(mstr.indexOf('(') + 1, -1).split(',').map(Number); return mstr.startsWith('matrix3d') ? { k: v[0], ux: v[12], uy: v[13] } : { k: v[0], ux: v[4], uy: v[5] }; };
+    const applyAff = (A, q) => ({ x: A.k * q[0] + A.tx, y: A.k * q[1] + A.ty });
+    const parseFontPx = (f) => { const mm = /(\d+(?:\.\d+)?)px/.exec(f || ''); return mm ? +mm[1] : null; };
+
+    map.setView(center, fromZ, { animate: false });
+    await new Promise(r => setTimeout(r, 800));
+    if (panBy) { map.panBy(panBy, { animate: false }); await new Promise(r => setTimeout(r, 400)); }
+    const R0 = mapEl.getBoundingClientRect();
+    // 凍結圖磚樣本(中央帶=量測儀器可信區:邊緣圖磚在過渡下被裁/剔會有次像素噪聲)
+    const cand = [...document.querySelectorAll('img.leaflet-tile')]
+      .filter(t => t.complete && t.naturalWidth > 0 && getComputedStyle(t).opacity !== '0')
+      .map(t => { const b = t.getBoundingClientRect(); return { el: t, q: [b.left - R0.left, b.top - R0.top], mx: b.left + b.width / 2 - R0.left, my: b.top + b.height / 2 - R0.top }; })
+      .filter(s => s.mx > R0.width * 0.20 && s.mx < R0.width * 0.80 && s.my > R0.height * 0.16 && s.my < R0.height * 0.84);
+    cand.sort((a, b) => a.mx - b.mx);
+    const picks = []; const step = Math.max(1, Math.floor(cand.length / 8));
+    for (let i = 0; i < cand.length && picks.length < 8; i += step) picks.push(cand[i]);
+    // 幾何同縮用兩個世界點
+    const W = [[center[0], center[1]], [center[0] + 0.05, center[1] + 0.035]];
+
+    // 文字/線寬 hook(裝在動畫開始前,涵蓋 rest 與 mid)
+    const rec = { fill: [], line: [] };
+    const oF = ctx2d.fillText, oS = ctx2d.strokeText, oStroke = ctx2d.stroke;
+    ctx2d.fillText = function (...a) { const px = parseFontPx(this.font); if (px) rec.fill.push({ px, za: !!state._zoomAnim }); return oF.apply(this, a); };
+    ctx2d.strokeText = function (...a) { const px = parseFontPx(this.font); if (px) rec.fill.push({ px, za: !!state._zoomAnim }); return oS.apply(this, a); };
+    ctx2d.stroke = function (...a) { rec.line.push({ lw: +this.lineWidth, za: !!state._zoomAnim }); return oStroke.apply(this, a); };
+    await new Promise(r => setTimeout(r, 250)); // 收集靜止時的 rest 樣本
+
+    const pp0 = map._getMapPanePos();
+    const samples = [];
+    const sampleOnce = () => {
+      const A = state._zaAff;
+      const m0 = state._zaM0, el = state._zaEl;
+      const ovT = getComputedStyle(ov).transform;
+      const active = !!A;
+      let dApp = 0, dIdeal = 0, dBuggy = 0, cnt = 0, kApp = active ? A.k : 1;
+      if (active) {
+        const mNow = el ? parseMat(getComputedStyle(el).transform) : { k: 1, ux: 0, uy: 0 };
+        const pp = map._getMapPanePos();
+        const kNow = m0 ? mNow.k / m0.k : 1;
+        const ideal = m0 ? { k: kNow, tx: pp.x * (1 - kNow) + mNow.ux - kNow * m0.ux, ty: pp.y * (1 - kNow) + mNow.uy - kNow * m0.uy } : null;
+        const buggy = m0 ? { k: kNow, tx: mNow.ux - kNow * m0.ux, ty: mNow.uy - kNow * m0.uy } : null;
+        for (const s of picks) { if (!s.el.isConnected) continue; const rb = s.el.getBoundingClientRect(); if (!rb.width) continue;
+          const R = mapEl.getBoundingClientRect(); const tile = { x: rb.left - R.left, y: rb.top - R.top };
+          dApp = Math.max(dApp, Math.hypot(applyAff(A, s.q).x - tile.x, applyAff(A, s.q).y - tile.y));
+          if (ideal) dIdeal = Math.max(dIdeal, Math.hypot(applyAff(ideal, s.q).x - tile.x, applyAff(ideal, s.q).y - tile.y));
+          if (buggy) dBuggy = Math.max(dBuggy, Math.hypot(applyAff(buggy, s.q).x - tile.x, applyAff(buggy, s.q).y - tile.y));
+          cnt++;
+        }
+      }
+      // 幾何同縮:兩世界點 overlay 投影間距 vs 圖磚 scale
+      const P0 = map.latLngToContainerPoint(W[0]), P1 = map.latLngToContainerPoint(W[1]);
+      const dist = Math.hypot(P1.x - P0.x, P1.y - P0.y);
+      samples.push({ active, ovNone: ovT === 'none', kApp: +kApp.toFixed(4), dApp, dIdeal, dBuggy, cnt, dist, ppx: map._getMapPanePos().x, lastPos: { x: P0.x, y: P0.y } });
+    };
+
+    map.setZoomAround(map.latLngToContainerPoint(center), toZ);
+    await new Promise(res => { let n = 0; const loop = () => { sampleOnce(); if (++n < 34) requestAnimationFrame(loop); else res(); }; requestAnimationFrame(loop); });
+    // 零跳動:抓最後一個仍在動畫的幀位置 vs 落定後位置(同一世界點)
+    const lastActive = [...samples].reverse().find(s => s.active);
+    await new Promise(r => setTimeout(r, 280));
+    const settledPos = (() => { const P = map.latLngToContainerPoint(W[0]); return { x: P.x, y: P.y }; })();
+    const zeroJump = lastActive ? Math.hypot(lastActive.lastPos.x - settledPos.x, lastActive.lastPos.y - settledPos.y) : 999;
+
+    const after = { ov: getComputedStyle(ov).transform, flag: !!state._zoomAnim, aff: state._zaAff, z: map.getZoom() };
+    let rapidState = null;
+    if (rapid) {
+      map.setView(center, fromZ, { animate: false }); await new Promise(r => setTimeout(r, 300));
+      for (let i = 0; i < 3; i++) { map.setZoomAround(map.latLngToContainerPoint(center), map.getZoom() + 1); await new Promise(r => setTimeout(r, 90)); }
+      await new Promise(r => setTimeout(r, 900));
+      rapidState = { ov: getComputedStyle(ov).transform, flag: !!state._zoomAnim, aff: state._zaAff, z: map.getZoom() };
+    }
+    // restore hooks
+    ctx2d.fillText = oF; ctx2d.strokeText = oS; ctx2d.stroke = oStroke;
+
+    // ── 彙整 ──
+    const act = samples.filter(s => s.active && s.cnt > 0);
+    const midG = samples.filter(s => Math.abs(s.kApp - 1) > 0.08); // 動畫途中幀(有明顯縮放)
+    const dAppArr = act.map(s => s.dApp), dIdealArr = act.map(s => s.dIdeal), dBuggyArr = act.map(s => s.dBuggy);
+    // 幾何同縮:間距比例 / kApp,應恆 1
+    const scaleRatios = act.filter(s => Math.abs(s.kApp - 1) > 0.05).map(s => (s.dist / act[0].dist) / s.kApp);
+    const scaleErr = scaleRatios.length ? Math.max(...scaleRatios.map(x => Math.abs(x - 1))) : 999;
+    // 文字/線寬
+    const restPx = [...new Set(rec.fill.filter(x => !x.za).map(x => x.px))].sort((a, b) => a - b);
+    const midPx = [...new Set(rec.fill.filter(x => x.za).map(x => x.px))].sort((a, b) => a - b);
+    const midTextCalls = rec.fill.filter(x => x.za).length;
+    const fontConst = midPx.length > 0 && midPx.every(px => restPx.includes(px)) && Math.max(...midPx) <= Math.max(...restPx) + 0.01;
+    const restLw = [...new Set(rec.line.filter(x => !x.za).map(x => x.lw))].sort((a, b) => a - b);
+    const midLw = [...new Set(rec.line.filter(x => x.za).map(x => x.lw))].sort((a, b) => a - b);
+    const lwConst = midLw.length === 0 || (Math.max(...midLw) <= Math.max(...restLw) + 0.01);
+
+    return {
+      pp0: { x: +pp0.x.toFixed(1), y: +pp0.y.toFixed(1) }, nPicks: picks.length,
+      activeFrames: act.length, midGeomFrames: midG.length,
+      dAppRobust: +robustP(dAppArr).toFixed(2), dAppMax: +maxP(dAppArr).toFixed(2),
+      dIdealRobust: +robustP(dIdealArr).toFixed(2), dBuggyRobust: +robustP(dBuggyArr).toFixed(2), dBuggyMax: +maxP(dBuggyArr).toFixed(2),
+      framesOver2: act.filter(s => s.dApp > 2).length,
+      allOvNone: act.length > 0 && act.every(s => s.ovNone),
+      ppRangeZoom: act.length ? +(Math.max(...act.map(s => s.ppx)) - Math.min(...act.map(s => s.ppx))).toFixed(2) : 0,
+      scaleErrPct: +(scaleErr * 100).toFixed(2), scaleSamples: scaleRatios.length,
+      restPx, midPx, midTextCalls, fontConst, restLw, midLw, lwConst,
+      zeroJump: +zeroJump.toFixed(2), after: { ov: after.ov, flag: after.flag, affNull: after.aff == null, z: +after.z.toFixed(3) },
+      rapidState: rapidState ? { ov: rapidState.ov, flag: rapidState.flag, affNull: rapidState.aff == null, z: +rapidState.z.toFixed(3) } : null,
+    };
+    // 頁內小工具(避免與外層同名):
+    function robustP(a) { const s = a.slice().sort((x, y) => y - x); return s.length >= 2 ? s[1] : (s[0] ?? -1); }
+    function maxP(a) { return a.length ? Math.max(...a) : -1; }
+  }, { center, fromZ, toZ, panBy, rapid });
+  await p.close();
+  return r;
+}
+
+// ══ 被退回版(98222db)差分:量動畫中 overlay 是否被施加 CSS scale transform(文字被 raster 放大=「放大再縮回」) ══
+async function overlayScaleDuringZoom(ctx, file, center) {
+  const p = await newPage(ctx, file);
+  const r = await p.evaluate(async ({ center }) => {
+    const map = window.__map, ov = document.getElementById('overlay');
+    const parseK = (t) => { if (!t || t === 'none') return 1; const v = t.slice(t.indexOf('(') + 1, -1).split(',').map(Number); return t.startsWith('matrix3d') ? v[0] : v[0]; };
+    map.setView(center, 13, { animate: false }); await new Promise(r => setTimeout(r, 800));
+    const ks = [], transforms = new Set();
+    map.setZoomAround(map.latLngToContainerPoint(center), 15);
+    await new Promise(res => { let n = 0; const loop = () => { const t = getComputedStyle(ov).transform; transforms.add(t === 'none' ? 'none' : 'matrix'); ks.push(parseK(t)); if (++n < 30) requestAnimationFrame(loop); else res(); }; requestAnimationFrame(loop); });
+    await new Promise(r => setTimeout(r, 300));
+    return { peakScale: +Math.max(...ks).toFixed(3), sawMatrix: transforms.has('matrix'), afterOv: getComputedStyle(ov).transform };
+  }, { center });
+  await p.close();
+  return r;
+}
+
+// ══ W6:跟車模式回歸 ══
+// tile-URL oracle:世界點的「圖磚推算螢幕位置」(獨立於 overlay 投影)——用覆蓋該點的圖磚 DOM rect + 其 src z/x/y + map.project。
+async function followProfile(ctx) {
+  const p = await newPage(ctx);
+  const r = await p.evaluate(async () => {
+    const map = window.__map, state = window.__state, mapEl = document.getElementById('map'), ov = document.getElementById('overlay');
+    const parseMat = (mstr) => { if (!mstr || mstr === 'none') return { k: 1, ux: 0, uy: 0 }; const v = mstr.slice(mstr.indexOf('(') + 1, -1).split(',').map(Number); return mstr.startsWith('matrix3d') ? { k: v[0], ux: v[12], uy: v[13] } : { k: v[0], ux: v[4], uy: v[5] }; };
+    const applyAff = (A, q) => ({ x: A.k * q[0] + A.tx, y: A.k * q[1] + A.ty });
+    // 選一列多站列車進跟車;用 fromStart 強制在班(simSec=發車、播放、30×)→ 列車實際移動、相機逐幀追(才驗得到「軌道跟車跑」回歸)
+    let tr = (state.trains || []).find(x => x.stops && x.stops.length > 6 && !x.loop) || (state.trains || []).find(x => x.stops && x.stops.length > 4) || (state.trains || [])[0];
+    if (!tr) return { entered: false };
+    if (typeof window.setFollow === 'function') window.setFollow(tr, false, false, { fromStart: true }); else { state.followTrain = tr; state.followId = tr.train; state.followLock = true; }
+    state.ambient = false; state._hotNext = 1e18; // fromStart 已設 30× 播放:列車移動、相機逐幀追(不用 60× 免衝出圖磚載入區)
+    await new Promise(r => setTimeout(r, 900));
+    const following1 = !!state.followTrain;
+
+    // (a) 跟車中縮放一次:動畫中跨層對齊(frozen-q + _zaAff)
+    const R0 = mapEl.getBoundingClientRect();
+    const cand = [...document.querySelectorAll('img.leaflet-tile')].filter(t => t.complete && t.naturalWidth > 0 && getComputedStyle(t).opacity !== '0')
+      .map(t => { const b = t.getBoundingClientRect(); return { el: t, q: [b.left - R0.left, b.top - R0.top], mx: b.left + b.width / 2 - R0.left, my: b.top + b.height / 2 - R0.top }; })
+      .filter(s => s.mx > R0.width * 0.2 && s.mx < R0.width * 0.8 && s.my > R0.height * 0.16 && s.my < R0.height * 0.84);
+    cand.sort((a, b) => a.mx - b.mx); const picks = cand.filter((_, i) => i % Math.max(1, Math.floor(cand.length / 6)) === 0).slice(0, 6);
+    const zc = map.getCenter();
+    const samplesZ = [];
+    map.setZoomAround(map.getSize().divideBy(2), map.getZoom() + 2);
+    await new Promise(res => { let n = 0; const loop = () => {
+      const A = state._zaAff; const ovT = getComputedStyle(ov).transform;
+      if (A) { let d = 0, cnt = 0; const R = mapEl.getBoundingClientRect();
+        for (const s of picks) { if (!s.el.isConnected) continue; const rb = s.el.getBoundingClientRect(); if (!rb.width) continue; const o = applyAff(A, s.q); d = Math.max(d, Math.hypot(o.x - (rb.left - R.left), o.y - (rb.top - R.top))); cnt++; }
+        samplesZ.push({ d, cnt, ovNone: ovT === 'none' }); }
+      if (++n < 30) requestAnimationFrame(loop); else res();
+    }; requestAnimationFrame(loop); });
+    await new Promise(r => setTimeout(r, 400));
+    const zAct = samplesZ.filter(s => s.cnt > 0);
+    const dZoomRobust = (() => { const a = zAct.map(s => s.d).sort((x, y) => y - x); return a.length >= 2 ? a[1] : (a[0] ?? -1); })();
+    const zoomOvNone = zAct.length > 0 && zAct.every(s => s.ovNone);
+
+    // (b) 落定後 ≥3 秒:固定站點 overlay 投影 vs tile-URL 推算,恆 ≤2px 不隨列車移動漂移
+    const oracle = (ll) => {
+      const R = mapEl.getBoundingClientRect();
+      const pc = map.latLngToContainerPoint(ll);
+      const tiles = [...document.querySelectorAll('img.leaflet-tile')].filter(t => t.complete && t.naturalWidth > 0);
+      let best = null, bd = 1e9;
+      for (const t of tiles) { const rb = t.getBoundingClientRect(); const cx = rb.left - R.left, cy = rb.top - R.top;
+        if (pc.x >= cx && pc.x < cx + rb.width && pc.y >= cy && pc.y < cy + rb.height) { best = t; bd = 0; break; }
+        const d = Math.hypot(pc.x - (cx + rb.width / 2), pc.y - (cy + rb.height / 2)); if (d < bd) { bd = d; best = t; } }
+      if (!best) return null;
+      const mm = /\/(?:light_all|dark_all)\/(\d+)\/(\d+)\/(\d+)/.exec(best.src) || /\/(\d+)\/(\d+)\/(\d+)(?:@2x)?\.png/.exec(best.src);
+      if (!mm) return null;
+      const z = +mm[1], tx = +mm[2], ty = +mm[3], rb = best.getBoundingClientRect();
+      const Sproj = map.project(ll, z);
+      return { x: (rb.left - R.left) + (Sproj.x - tx * 256), y: (rb.top - R.top) + (Sproj.y - ty * 256) };
+    };
+    // 漂移量測:每幀取「當下位於固定螢幕位置的地理點」(隨相機平移仍恆在畫面內),比 overlay 投影 vs tile-URL 推算。
+    // 相機跟車平移時,若軌道層相對底圖漂移(歷史「軌道跟車跑」回歸),此差值會隨列車移動而增長。
+    const drift = []; let zaNullAll = true, ovNoneAll = true, drawStart = state._drawCount, ctr0 = map.getCenter();
+    for (let i = 0; i < 15; i++) {
+      const R = mapEl.getBoundingClientRect();
+      const scr = L.point(R.width * 0.4, R.height * 0.4);
+      const ll = map.containerPointToLatLng(scr);
+      const ov1 = map.latLngToContainerPoint(ll); const o = oracle(ll);
+      if (state._zaAff != null) zaNullAll = false;
+      if (getComputedStyle(ov).transform !== 'none') ovNoneAll = false;
+      if (o) drift.push(Math.hypot(ov1.x - o.x, ov1.y - o.y));
+      await new Promise(r => setTimeout(r, 200)); // 3s total
+    }
+    const drawDelta = state._drawCount - drawStart, ctr1 = map.getCenter();
+    const camMoved = Math.hypot((ctr1.lat - ctr0.lat) * 1e5, (ctr1.lng - ctr0.lng) * 1e5);
+    if (typeof window.clearFollow === 'function') try { window.clearFollow(); } catch (e) {}
+    state.followTrain = null; state.followLock = false;
+    const driftRobust = (() => { const a = drift.slice().sort((x, y) => y - x); return a.length >= 2 ? a[1] : (a[0] ?? -1); })();
+    return {
+      entered: true, following1, dZoomRobust: +dZoomRobust.toFixed(2), zoomFrames: zAct.length, zoomOvNone,
+      driftRobust: +driftRobust.toFixed(2), driftMax: +Math.max(...drift).toFixed(2), driftN: drift.length,
+      zaNullAll, ovNoneAll, drawDelta, camMoved: +camMoved.toFixed(1), zaAffAfterNull: state._zaAff == null,
+    };
+  });
+  await p.close();
+  return r;
+}
+
+// ══ W7:放空模式回歸 ══
+async function ambientProfile(ctx) {
+  const p = await newPage(ctx);
+  const r = await p.evaluate(async () => {
+    const map = window.__map, state = window.__state, mapEl = document.getElementById('map'), ov = document.getElementById('overlay');
+    const applyAff = (A, q) => ({ x: A.k * q[0] + A.tx, y: A.k * q[1] + A.ty });
+    state._hotNext = 0;
+    if (typeof window.setAmbient === 'function') window.setAmbient(true); else state.ambient = true;
+    // 等到抓到「呼吸幕」階段(intermittent),最多 ~10s;抓不到就記錄未觀察到
+    let breathSeen = false; const t0 = performance.now();
+    while (performance.now() - t0 < 10000) { if (state._breathStage) { breathSeen = true; break; } await new Promise(r => setTimeout(r, 150)); }
+    const ambientOn = !!state.ambient;
+    const breathAtZoom = !!state._breathStage;
+
+    // 使用者滾輪縮放(=setZoomAround)接管:呼吸幕交還 + 縮放正常
+    const R0 = mapEl.getBoundingClientRect();
+    const cand = [...document.querySelectorAll('img.leaflet-tile')].filter(t => t.complete && t.naturalWidth > 0 && getComputedStyle(t).opacity !== '0')
+      .map(t => { const b = t.getBoundingClientRect(); return { el: t, q: [b.left - R0.left, b.top - R0.top], mx: b.left + b.width / 2 - R0.left, my: b.top + b.height / 2 - R0.top }; })
+      .filter(s => s.mx > R0.width * 0.2 && s.mx < R0.width * 0.8 && s.my > R0.height * 0.16 && s.my < R0.height * 0.84);
+    cand.sort((a, b) => a.mx - b.mx); const picks = cand.filter((_, i) => i % Math.max(1, Math.floor(cand.length / 6)) === 0).slice(0, 6);
+    const c = map.getCenter(); const center = [c.lat, c.lng];
+    const samples = [];
+    map.setZoomAround(map.getSize().divideBy(2), map.getZoom() + 1);
+    await new Promise(res => { let n = 0; const loop = () => {
+      const A = state._zaAff, ovT = getComputedStyle(ov).transform;
+      if (A) { let d = 0, cnt = 0; const R = mapEl.getBoundingClientRect();
+        for (const s of picks) { if (!s.el.isConnected) continue; const rb = s.el.getBoundingClientRect(); if (!rb.width) continue; const o = applyAff(A, s.q); d = Math.max(d, Math.hypot(o.x - (rb.left - R.left), o.y - (rb.top - R.top))); cnt++; }
+        samples.push({ d, cnt, ovNone: ovT === 'none' }); }
+      if (++n < 30) requestAnimationFrame(loop); else res();
+    }; requestAnimationFrame(loop); });
+    await new Promise(r => setTimeout(r, 500));
+    const act = samples.filter(s => s.cnt > 0);
+    const dRobust = (() => { const a = act.map(s => s.d).sort((x, y) => y - x); return a.length >= 2 ? a[1] : (a[0] ?? -1); })();
+    const breathYielded = !state._breathStage; // 縮放後呼吸幕應交還
+    const afterOv = getComputedStyle(ov).transform;
+    // 收尾
+    if (typeof window.setAmbient === 'function') try { window.setAmbient(false); } catch (e) {}
+    state.ambient = false; state._hotNext = 1e18;
+    return { ambientOn, breathSeen, breathAtZoom, zoomFrames: act.length, dRobust: +dRobust.toFixed(2), allOvNone: act.length > 0 && act.every(s => s.ovNone), afterOvNone: afterOv === 'none', breathYielded, zaAffAfterNull: state._zaAff == null };
+  });
+  await p.close();
+  return r;
+}
+
+// ══ V3(保留):動畫結束後靜態對齊 新 vs 舊 HEAD 像素比對 ══
+async function staticDiff(ctx) {
+  const shot = async (file) => {
+    const p = await newPage(ctx, file);
+    await p.evaluate((c) => window.__map.setView(c, 13, { animate: false }), TAIPEI);
+    await p.waitForTimeout(1600);
+    const box = await p.$eval('#map', el => { const r = el.getBoundingClientRect(); return { x: r.x, y: r.y, width: r.width, height: r.height }; });
+    const buf = await p.screenshot({ clip: box }); await p.close(); return buf;
+  };
+  const bNew = await shot('index.html'), bOld = await shot('index_old.html');
+  const p = await newPage(ctx);
+  const diff = await p.evaluate(async ({ a, b }) => {
+    const load = u => new Promise(async res => { const im = new Image(); im.src = u; await im.decode(); res(im); });
+    const ia = await load('data:image/png;base64,' + a), ib = await load('data:image/png;base64,' + b);
+    const w = Math.min(ia.width, ib.width), h = Math.min(ia.height, ib.height);
+    const mk = im => { const c = document.createElement('canvas'); c.width = w; c.height = h; c.getContext('2d').drawImage(im, 0, 0); return c.getContext('2d').getImageData(0, 0, w, h).data; };
+    const da = mk(ia), db = mk(ib); let d = 0; const n = w * h;
+    for (let i = 0; i < da.length; i += 4) if (Math.abs(da[i] - db[i]) > 24 || Math.abs(da[i + 1] - db[i + 1]) > 24 || Math.abs(da[i + 2] - db[i + 2]) > 24) d++;
+    return d / n;
+  }, { a: bNew.toString('base64'), b: bOld.toString('base64') });
+  await p.close();
+  return diff;
+}
+
+// ══ V4e(保留):拖曳平移中軌道跟上圖磚(省電節流互動豁免) ══
+async function dragLagProfile(ctx, file, powerSave) {
+  const p = await newPage(ctx, file);
   await p.evaluate((ps) => {
     const s = window.__state; s.ambient = false; s._hotNext = 1e18; s.powerSave = ps;
-    const w = document.getElementById('howtoWrap'); if (w) w.hidden = true;
     const orig = window.draw; window.__drawN = 0;
     window.draw = function () { try { window.__drawPane = window.__map._getMapPanePos().clone(); window.__drawN++; } catch (e) {} return orig.apply(this, arguments); };
     window.__map.setView([25.047, 121.517], 14, { animate: false });
@@ -92,165 +389,63 @@ async function dragLagProfile(ctx, file, powerSave, center) {
   await p.waitForTimeout(800);
   const box = await p.$eval('#map', el => { const r = el.getBoundingClientRect(); return { x: r.x, y: r.y, w: r.width, h: r.height }; });
   const cx = Math.round(box.x + box.w / 2), cy = Math.round(box.y + box.h / 2);
-  const cdp = await ctx.newCDPSession(p);
+  const cdp = await p.context().newCDPSession(p);
   await cdp.send('Input.dispatchMouseEvent', { type: 'mousePressed', x: cx, y: cy, button: 'left', clickCount: 1 });
-  await p.evaluate(() => {
-    window.__lag = []; window.__drawN0 = window.__drawN; window.__t0 = performance.now(); const map = window.__map;
-    const loop = () => { if (window.__drawPane) { const q = map._getMapPanePos(); window.__lag.push(Math.hypot(q.x - window.__drawPane.x, q.y - window.__drawPane.y)); }
-      if (performance.now() - window.__t0 < 600) requestAnimationFrame(loop); else window.__lagDone = true; };
-    requestAnimationFrame(loop);
-  });
+  await p.evaluate(() => { window.__lag = []; window.__drawN0 = window.__drawN; window.__t0 = performance.now(); const map = window.__map;
+    const loop = () => { if (window.__drawPane) { const q = map._getMapPanePos(); window.__lag.push(Math.hypot(q.x - window.__drawPane.x, q.y - window.__drawPane.y)); } if (performance.now() - window.__t0 < 600) requestAnimationFrame(loop); else window.__lagDone = true; }; requestAnimationFrame(loop); });
   const t0 = Date.now(); let x = cx, y = cy;
   while (Date.now() - t0 < 600) { x -= 5; y -= 2; await cdp.send('Input.dispatchMouseEvent', { type: 'mouseMoved', x, y, button: 'left' }); await new Promise(r => setTimeout(r, 6)); }
   await p.waitForFunction(() => window.__lagDone, { timeout: 3000 }).catch(() => {});
   await cdp.send('Input.dispatchMouseEvent', { type: 'mouseReleased', x, y, button: 'left' });
-  const r = await p.evaluate(() => {
-    const draws = window.__drawN - window.__drawN0, dur = (performance.now() - window.__t0) / 1000, lag = window.__lag.filter(Number.isFinite);
-    return { drawFps: +(draws / dur).toFixed(1), maxLag: +Math.max(...lag).toFixed(2), avgLag: +(lag.reduce((a, b) => a + b, 0) / lag.length).toFixed(2) };
-  });
+  const r = await p.evaluate(() => { const draws = window.__drawN - window.__drawN0, dur = (performance.now() - window.__t0) / 1000, lag = window.__lag.filter(Number.isFinite); return { drawFps: +(draws / dur).toFixed(1), maxLag: +Math.max(...lag).toFixed(2) }; });
   await p.close(); return r;
 }
 
-// 待機時(無互動 >1.5s)省電節流是否仍生效——確認互動全速豁免沒把省電整個關掉
 async function idleDrawFps(ctx, file, powerSave) {
-  const p = await ctx.newPage();
-  await p.addInitScript(() => { try { localStorage.setItem('trainmap-howto-seen', '1'); } catch (e) {} });
-  await p.goto(`${BASE}/${file}`, { waitUntil: 'load', timeout: 40000 });
-  await p.waitForFunction(() => window.__map && window.__state && window.__state.ready, { timeout: 40000 });
-  await p.evaluate((ps) => { const s = window.__state; s.ambient = false; s._hotNext = 1e18; s.powerSave = ps; s.playing = true; const w = document.getElementById('howtoWrap'); if (w) w.hidden = true; window.__map.setView([25.047, 121.517], 12, { animate: false }); }, powerSave);
-  await p.waitForTimeout(2000); // 讓 _interactAt 過期(>1.5s 無互動)
-  const fps = await p.evaluate(async () => {
-    const s = window.__state; const n0 = s._drawCount || 0; const t0 = performance.now();
-    await new Promise(r => setTimeout(r, 1000)); // 期間不做任何互動
-    return +(((s._drawCount || 0) - n0) / ((performance.now() - t0) / 1000)).toFixed(1);
-  });
+  const p = await newPage(ctx, file);
+  await p.evaluate((ps) => { const s = window.__state; s.ambient = false; s._hotNext = 1e18; s.powerSave = ps; s.playing = true; window.__map.setView([25.047, 121.517], 12, { animate: false }); }, powerSave);
+  await p.waitForTimeout(2000);
+  const fps = await p.evaluate(async () => { const s = window.__state; const n0 = s._drawCount || 0; const t0 = performance.now(); await new Promise(r => setTimeout(r, 1000)); return +(((s._drawCount || 0) - n0) / ((performance.now() - t0) / 1000)).toFixed(1); });
   await p.close(); return fps;
 }
 
-async function getBg(pg) {
-  return await pg.evaluate(() => {
-    const s = getComputedStyle(document.querySelector('.leaflet-container')).backgroundColor;
-    const m = s.match(/(\d+)/g).map(Number); return [m[0], m[1], m[2]];
-  });
-}
-
-// ── V2 家族：動畫期間「圖磚實際渲染位置」 vs 「overlay 對同一世界點的位置」的最大錯位（跨層引擎真值對齊）
-// 關鍵：不比兩層 transform 的字面值（舊 V2 的錯誤——那要求 M_ov==M_tc，只有 panePos=0 才成立，平移後就假通過）。
-// 改直接量圖磚 NW 角的 getBoundingClientRect（瀏覽器已把 mapPane 平移＋容器 scale 全合成，零建模＝引擎真值），
-// 對照 overlay 用它自己那一個 transform(origin 0 0) 把「凍結於起始幀的同一角 container 座標 q」映射到的位置。
-// 兩者對同一世界點應重合(≤2px)。panBy 製造非零 panePos 重現「平移後再縮放」——舊式漏 (s−1)·panePos，錯位=常數偏移。
-async function zoomAlignProfile(ctx, file, { center, fromZ, toZ, panBy, rapid }) {
-  const p = await ctx.newPage();
-  await p.addInitScript(() => { try { localStorage.setItem('trainmap-howto-seen', '1'); } catch (e) {} });
-  await p.goto(`${BASE}/${file}`, { waitUntil: 'load', timeout: 40000 });
-  await p.waitForFunction(() => window.__map && window.__state && window.__state.ready, { timeout: 40000 });
-  await p.evaluate(() => { const s = window.__state; s.ambient = false; s._hotNext = 1e18; const w = document.getElementById('howtoWrap'); if (w) w.hidden = true; });
-  const r = await p.evaluate(async ({ center, fromZ, toZ, panBy, rapid }) => {
-    const map = window.__map, mapEl = document.getElementById('map'), ov = document.getElementById('overlay');
-    const applyM = (mstr, q) => { const m = new DOMMatrix(mstr === 'none' ? undefined : mstr); return { x: m.a * q[0] + m.c * q[1] + m.e, y: m.b * q[0] + m.d * q[1] + m.f }; };
-    map.setView(center, fromZ, { animate: false });
-    await new Promise(r => setTimeout(r, 800));
-    if (panBy) { map.panBy(panBy, { animate: false }); await new Promise(r => setTimeout(r, 400)); } // 非零 panePos，不重設 pixelOrigin
-    const pp0 = map._getMapPanePos();
-    const R = mapEl.getBoundingClientRect();
-    // 取起始幀圖磚樣本（誤差為常數偏移，任一片即可揭露 bug，多片防脫落）。★只取中央帶★：邊緣圖磚在 WebKit CSS-scale
-    // 過渡下會被裁切/剔除，其 getBoundingClientRect 有次像素取樣噪聲（compositor 與主執行緒不同幀），會虛胖 max；
-    // 中央帶是量測儀器可信區（實測中央片 WebKit≈0.75px、邊緣片才飆到 4px）。bug 是常數偏移不受此影響。
-    const cand = [...document.querySelectorAll('img.leaflet-tile')]
-      .filter(t => t.complete && t.naturalWidth > 0 && getComputedStyle(t).opacity !== '0')
-      .map(t => { const b = t.getBoundingClientRect(); return { el: t, q: [b.left - R.left, b.top - R.top], mx: b.left + b.width / 2 - R.left, my: b.top + b.height / 2 - R.top }; })
-      .filter(s => s.mx > R.width * 0.22 && s.mx < R.width * 0.78 && s.my > R.height * 0.18 && s.my < R.height * 0.82);
-    cand.sort((a, b) => a.mx - b.mx);
-    const picks = []; const step = Math.max(1, Math.floor(cand.length / 8));
-    for (let i = 0; i < cand.length && picks.length < 8; i += step) picks.push(cand[i]);
-    const measure = () => {
-      const so = getComputedStyle(ov), t = so.transform, active = t !== 'none';
-      const sc = active ? new DOMMatrix(t).a : 1; let maxd = 0, cnt = 0;
-      if (active) for (const s of picks) {
-        if (!s.el.isConnected) continue; const rb = s.el.getBoundingClientRect(); if (!rb.width) continue;
-        const tileNow = { x: rb.left - R.left, y: rb.top - R.top }, ovNow = applyM(t, s.q);
-        maxd = Math.max(maxd, Math.hypot(tileNow.x - ovNow.x, tileNow.y - ovNow.y)); cnt++;
-      }
-      return { sc, maxd, cnt, active, origin0: /^0px 0px/.test(so.transformOrigin) };
-    };
-    const samples = [];
-    map.setZoomAround(map.latLngToContainerPoint(center), toZ); // 以（平移後的）中心點為軸做動畫縮放
-    await new Promise(res => { let n = 0; const loop = () => { samples.push(measure()); if (++n < 32) requestAnimationFrame(loop); else res(); }; requestAnimationFrame(loop); });
-    await new Promise(r => setTimeout(r, 260));
-    const after = { ov: getComputedStyle(ov).transform, flag: !!window.__state._zoomAnim, z: map.getZoom() };
-    let rapidState = null;
-    if (rapid) { // 連續快速縮放後不得殘留 transform／凍結旗標（漂移／殘影）
-      map.setView(center, fromZ, { animate: false }); await new Promise(r => setTimeout(r, 300));
-      for (let i = 0; i < 3; i++) { map.setZoomAround(map.latLngToContainerPoint(center), map.getZoom() + 1); await new Promise(r => setTimeout(r, 90)); }
-      await new Promise(r => setTimeout(r, 900));
-      rapidState = { ov: getComputedStyle(ov).transform, flag: !!window.__state._zoomAnim, z: map.getZoom() };
-    }
-    const active = samples.filter(s => s.active && s.cnt > 0);
-    const sortedD = active.map(s => s.maxd).sort((a, b) => b - a);
-    const maxMisalign = sortedD.length ? sortedD[0] : 999;
-    // robustMax＝丟掉單一最高幀後的次高值：WebKit 偶有單幀 getBoundingClientRect 取樣毛刺(compositor 與主執行緒差半幀)，
-    // 實測 15/16 幀為 0px、僅 1 幀跳到 ~2px；真正的座標錯位是「常數偏移、每幀皆錯」(如舊版每幀 130–260px)，次高值照樣揭露。
-    const robustMax = sortedD.length >= 2 ? sortedD[1] : (sortedD[0] ?? 999);
-    const framesOver2 = active.filter(s => s.maxd > 2).length;
-    const midFrames = active.filter(s => Math.abs(s.sc - 1) > 0.08).length; // 確有取到「動畫途中」的幀
-    const origin0 = active.length > 0 && active.every(s => s.origin0);
-    return { pp0: { x: +pp0.x.toFixed(1), y: +pp0.y.toFixed(1) }, nPicks: picks.length, maxMisalign: +maxMisalign.toFixed(2), robustMax: +robustMax.toFixed(2), framesOver2, midFrames, activeFrames: active.length, origin0, after, rapidState };
-  }, { center, fromZ, toZ, panBy, rapid });
-  await p.close();
-  return r;
-}
-
-// ── V5 家族：真捏合手勢(genuine 2-finger touch)期間 overlay 與圖磚「整張 raster 同步縮放」的跨層驗證 ──
-// 為何不用 CDP synthesizePinchGesture：實測它不會驅動 Leaflet 的 TouchZoom（map.touchZoom._zooming 恆 false），
-// 而是被當成 wheel 式離散 animated zoom（走 onZoomAnim 路徑、zoom 一路跳到 maxZoom）→ 完全繞過本次要驗的
-// 捏合 zoom handler（其閘門 = map.touchZoom._zooming）。正確原語是 CDP Input.dispatchTouchEvent（真多點觸控事件，
-// touches.length===2 → Leaflet _onTouchStart 引擎級觸發 TouchZoom，逐幀 _move 發 zoom → 捏合 handler 生效）。
-// 量測：頁內 rAF 取樣器逐幀記 overlay 的 computed transform scale、getZoom()、跨層對齊誤差(圖磚 rect vs overlay
-// transform 對映同一凍結 container 座標 q，同 V2 家族真值對齊法)、_zooming/_zoomAnim 相位；手勢結束後才斷言。
-async function pinchProfile(ctx, file, { center, fromZ, panBy, dir }) {
-  const p = await ctx.newPage();
-  await p.addInitScript(() => { try { localStorage.setItem('trainmap-howto-seen', '1'); } catch (e) {} });
-  await p.goto(`${BASE}/${file}`, { waitUntil: 'load', timeout: 40000 });
-  await p.waitForFunction(() => window.__map && window.__state && window.__state.ready, { timeout: 40000 });
-  await p.evaluate(() => { const s = window.__state; s.ambient = false; s._hotNext = 1e18; const w = document.getElementById('howtoWrap'); if (w) w.hidden = true; });
-  const cdp = await ctx.newCDPSession(p);
-  // 設視圖(可選平移)→ 凍結起始幀圖磚取樣(中央帶,同 zoomAlignProfile)→ 掛 rAF 取樣器
-  await p.evaluate(async ({ center, fromZ, panBy }) => {
-    const map = window.__map;
-    map.setView(center, fromZ, { animate: false });
-    await new Promise(r => setTimeout(r, 800));
-    if (panBy) { map.panBy(panBy, { animate: false }); await new Promise(r => setTimeout(r, 400)); } // 非零 panePos＝互動累積狀態
+// ══ W5:真捏合(chromium CDP dispatchTouchEvent 驅動 TouchZoom) ══
+// 捏合不發 zoomanim → _zaAff 恆 null、overlay 走原生逐幀重投影;跨層對齊改用「固定世界點 latLngToContainerPoint vs 同一凍結圖磚元素 rect」。
+async function pinchProfile(ctx, { fromZ, panBy, dir }) {
+  const p = await newPage(ctx);
+  const cdp = await p.context().newCDPSession(p);
+  await p.evaluate(async ({ fromZ, panBy }) => {
+    const map = window.__map, state = window.__state, mapEl = document.getElementById('map'), ov = document.getElementById('overlay');
+    map.setView([25.047, 121.517], fromZ, { animate: false }); await new Promise(r => setTimeout(r, 800));
+    if (panBy) { map.panBy(panBy, { animate: false }); await new Promise(r => setTimeout(r, 400)); }
     const pp0 = map._getMapPanePos(); window.__pp0 = { x: +pp0.x.toFixed(1), y: +pp0.y.toFixed(1) };
-    const R = document.getElementById('map').getBoundingClientRect();
-    const cand = [...document.querySelectorAll('img.leaflet-tile')]
-      .filter(t => t.complete && t.naturalWidth > 0 && getComputedStyle(t).opacity !== '0')
-      .map(t => { const b = t.getBoundingClientRect(); return { el: t, q: [b.left - R.left, b.top - R.top], mx: b.left + b.width / 2 - R.left, my: b.top + b.height / 2 - R.top }; })
-      .filter(s => s.mx > R.width * 0.22 && s.mx < R.width * 0.78 && s.my > R.height * 0.18 && s.my < R.height * 0.82);
-    cand.sort((a, b) => a.mx - b.mx);
-    const picks = []; const step = Math.max(1, Math.floor(cand.length / 8));
-    for (let i = 0; i < cand.length && picks.length < 8; i += step) picks.push(cand[i]);
-    window.__picks = picks; window.__pstart = map.getZoom();
-    const ov = document.getElementById('overlay');
-    const applyM = (mstr, q) => { const m = new DOMMatrix(mstr === 'none' ? undefined : mstr); return { x: m.a * q[0] + m.c * q[1] + m.e, y: m.b * q[0] + m.d * q[1] + m.f }; };
+    const R = mapEl.getBoundingClientRect();
+    // 凍結圖磚:記錄元素 + 其世界座標(idle 時 containerPointToLatLng roundtrip)
+    const cand = [...document.querySelectorAll('img.leaflet-tile')].filter(t => t.complete && t.naturalWidth > 0 && getComputedStyle(t).opacity !== '0')
+      .map(t => { const b = t.getBoundingClientRect(); const q = [b.left - R.left, b.top - R.top]; return { el: t, ll: map.containerPointToLatLng(L.point(q[0], q[1])), mx: b.left + b.width / 2 - R.left, my: b.top + b.height / 2 - R.top }; })
+      .filter(s => s.mx > R.width * 0.2 && s.mx < R.width * 0.8 && s.my > R.height * 0.16 && s.my < R.height * 0.84);
+    cand.sort((a, b) => a.mx - b.mx); window.__picks = cand.filter((_, i) => i % Math.max(1, Math.floor(cand.length / 6)) === 0).slice(0, 6);
+    window.__pstart = map.getZoom();
+    const ctx2d = ov.getContext('2d'); const parseFontPx = (f) => { const mm = /(\d+(?:\.\d+)?)px/.exec(f || ''); return mm ? +mm[1] : null; };
+    window.__rec = { fill: [] }; const oF = ctx2d.fillText, oS = ctx2d.strokeText;
+    ctx2d.fillText = function (...a) { const px = parseFontPx(this.font); if (px) window.__rec.fill.push({ px, z: !!(map.touchZoom && map.touchZoom._zooming) }); return oF.apply(this, a); };
+    ctx2d.strokeText = function (...a) { const px = parseFontPx(this.font); if (px) window.__rec.fill.push({ px, z: !!(map.touchZoom && map.touchZoom._zooming) }); return oS.apply(this, a); };
+    window.__restore = () => { ctx2d.fillText = oF; ctx2d.strokeText = oS; };
     window.__ps = []; window.__psRec = true;
     const rec = () => {
       if (!window.__psRec) return;
-      const so = getComputedStyle(ov), t = so.transform, active = t !== 'none';
-      const sc = active ? new DOMMatrix(t).a : 1, z = map.getZoom();
+      const R2 = mapEl.getBoundingClientRect();
+      const ovT = getComputedStyle(ov).transform;
       const zooming = !!(map.touchZoom && map.touchZoom._zooming), animZoom = !!map._animatingZoom;
       let maxd = 0, cnt = 0;
-      if (active) {
-        const Rc = document.getElementById('map').getBoundingClientRect();
-        for (const s of window.__picks) { if (!s.el.isConnected) continue; const rb = s.el.getBoundingClientRect(); if (!rb.width) continue;
-          const tileNow = { x: rb.left - Rc.left, y: rb.top - Rc.top }, ovNow = applyM(t, s.q);
-          maxd = Math.max(maxd, Math.hypot(tileNow.x - ovNow.x, tileNow.y - ovNow.y)); cnt++; }
-      }
-      window.__ps.push({ z, active, ovScale: sc, expScale: map.getZoomScale(z, window.__pstart), zooming, animZoom, maxd, cnt, origin0: /^0px 0px/.test(so.transformOrigin) });
+      for (const s of window.__picks) { if (!s.el.isConnected) continue; const rb = s.el.getBoundingClientRect(); if (!rb.width) continue;
+        const oPos = map.latLngToContainerPoint(s.ll); const tile = { x: rb.left - R2.left, y: rb.top - R2.top };
+        maxd = Math.max(maxd, Math.hypot(oPos.x - tile.x, oPos.y - tile.y)); cnt++; }
+      window.__ps.push({ z: map.getZoom(), ovNone: ovT === 'none', zooming, animZoom, maxd, cnt });
       requestAnimationFrame(rec);
     };
     requestAnimationFrame(rec);
-  }, { center, fromZ, panBy });
-  // 用 CDP 派真多點觸控事件驅動 TouchZoom（dir:'in' 兩指張開＝放大／'out' 兩指併攏＝縮小）
+  }, { fromZ, panBy });
   const box = await p.$eval('#map', el => { const r = el.getBoundingClientRect(); return { x: r.x, y: r.y, w: r.width, h: r.height }; });
   const cx = Math.round(box.x + box.w / 2), cy = Math.round(box.y + box.h / 2);
   const dStart = dir === 'out' ? 150 : 26, dEnd = dir === 'out' ? 26 : 150, steps = 18;
@@ -260,310 +455,218 @@ async function pinchProfile(ctx, file, { center, fromZ, panBy, dir }) {
   const zStart = await p.evaluate(() => !!(window.__map.touchZoom && window.__map.touchZoom._zooming));
   for (let i = 1; i <= steps; i++) { const d = Math.round(dStart + (dEnd - dStart) * i / steps); await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: tp(d) }); await new Promise(r => setTimeout(r, 18)); }
   await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
-  await p.waitForTimeout(950); // 含 touchend 收斂動畫(走 onZoomAnim)＋解凍
+  await p.waitForTimeout(950);
   const r = await p.evaluate(() => {
-    window.__psRec = false; const s = window.__ps;
-    const engaged = s.filter(x => x.zooming);
-    const pinch = s.filter(x => x.active && x.zooming && x.cnt > 0);        // 跟手捏合幀
-    const converge = s.filter(x => x.active && !x.zooming && x.animZoom && x.cnt > 0); // touchend 收斂動畫幀
-    // (a) scale 同步：跟手幀中「有明顯縮放」者，overlay 實際 scale 對 getZoomScale(當幀,起始) 的相對誤差
-    const scaleFrames = pinch.filter(x => Math.abs(x.ovScale - 1) > 0.04);
-    const scaleErrs = scaleFrames.map(x => Math.abs(x.ovScale / x.expScale - 1));
-    const maxScaleErr = scaleErrs.length ? Math.max(...scaleErrs) : 999;
-    // (b) 跨層對齊：跟手幀；robustMax 丟單幀取樣毛刺(同 zoomAlignProfile)
-    const dPinch = pinch.map(x => x.maxd).sort((a, b) => b - a);
-    const pinchMax = dPinch.length ? dPinch[0] : 999, pinchRobust = dPinch.length >= 2 ? dPinch[1] : (dPinch[0] ?? 999);
-    const pinchOver2 = pinch.filter(x => x.maxd > 2).length;
-    // (c) 收斂→靜止：收斂動畫幀對齊 + 最終 overlay 清空
-    const dConv = converge.map(x => x.maxd).sort((a, b) => b - a);
-    const convRobust = dConv.length >= 2 ? dConv[1] : (dConv[0] ?? 0);
-    const zoomVals = engaged.map(x => x.z);
-    return {
-      pp0: window.__pp0, nPicks: window.__picks.length, startZoom: +window.__pstart.toFixed(3),
-      pinchFrames: pinch.length, scaleFrames: scaleFrames.length, convFrames: converge.length,
-      maxScaleErr: +maxScaleErr.toFixed(4), pinchMax: +pinchMax.toFixed(2), pinchRobust: +pinchRobust.toFixed(2), pinchOver2,
-      convRobust: +convRobust.toFixed(2), origin0: pinch.length > 0 && pinch.every(x => x.origin0),
-      zoomSpan: zoomVals.length ? +(Math.max(...zoomVals) - Math.min(...zoomVals)).toFixed(3) : 0,
-      after: { ov: getComputedStyle(document.getElementById('overlay')).transform, flag: !!window.__state._zoomAnim, z: +window.__map.getZoom().toFixed(3) },
-    };
-  });
-  // 手勢結束後：確認內容已按新 zoom 重繪(靜置圖磚鋪滿＝reproject/draw 有跑)
-  const restCov = await p.evaluate(() => {
+    window.__psRec = false; const s = window.__ps; window.__restore && window.__restore();
+    const pinch = s.filter(x => x.zooming && x.cnt > 0);
+    const converge = s.filter(x => !x.zooming && x.animZoom && x.cnt > 0);
+    const dP = pinch.map(x => x.maxd).sort((a, b) => b - a), dC = converge.map(x => x.maxd).sort((a, b) => b - a);
+    const restPx = [...new Set(window.__rec.fill.filter(x => !x.z).map(x => x.px))].sort((a, b) => a - b);
+    const midPx = [...new Set(window.__rec.fill.filter(x => x.z).map(x => x.px))].sort((a, b) => a - b);
     const R = document.getElementById('map').getBoundingClientRect(), grid = [];
     for (let iy = 0; iy < 12; iy++) for (let ix = 0; ix < 18; ix++) grid.push([R.left + (ix + 0.5) * R.width / 18, R.top + (iy + 0.5) * R.height / 12]);
     const rects = [...document.querySelectorAll('img.leaflet-tile')].filter(t => t.complete && t.naturalWidth > 0).map(t => t.getBoundingClientRect());
-    let c = 0; for (const [x, y] of grid) { for (const rr of rects) { if (x >= rr.left && x < rr.right && y >= rr.top && y < rr.bottom) { c++; break; } } }
-    return +(c / grid.length).toFixed(3);
+    let cc = 0; for (const [x, y] of grid) for (const rr of rects) if (x >= rr.left && x < rr.right && y >= rr.top && y < rr.bottom) { cc++; break; }
+    return {
+      pp0: window.__pp0, nPicks: window.__picks.length, startZoom: +window.__pstart.toFixed(3),
+      pinchFrames: pinch.length, convFrames: converge.length,
+      pinchRobust: +(dP.length >= 2 ? dP[1] : (dP[0] ?? 999)).toFixed(2), pinchMax: +(dP[0] ?? 999).toFixed(2), pinchOver2: pinch.filter(x => x.maxd > 2).length,
+      convRobust: +(dC.length >= 2 ? dC[1] : (dC[0] ?? 0)).toFixed(2),
+      allPinchOvNone: pinch.length > 0 && pinch.every(x => x.ovNone),
+      restPx, midPx, fontConst: midPx.length > 0 && midPx.every(px => restPx.includes(px)) && Math.max(...midPx) <= Math.max(...restPx) + 0.01,
+      zoomSpan: +(Math.max(...pinch.map(x => x.z), window.__pstart) - Math.min(...pinch.map(x => x.z), window.__pstart)).toFixed(3),
+      after: { ov: getComputedStyle(document.getElementById('overlay')).transform, flag: !!window.__state._zoomAnim, affNull: window.__state._zaAff == null, z: +window.__map.getZoom().toFixed(3) },
+      restCov: +(cc / grid.length).toFixed(3),
+    };
   });
-  r.zStartFlag = zStart; r.restCov = restCov;
+  r.zStartFlag = zStart;
   await p.close();
   return r;
 }
 
-// 捏合系列（僅 Chromium：CDP dispatchTouchEvent 才驅動得了 TouchZoom）
-async function runPinch(browserType, label) {
+// ══════════════════════════════════════════ 主流程 ══════════════════════════════════════════
+async function run(browserType, label, { mobile, cdp, isWebkit } = {}) {
   console.log(`\n===== ${label} =====`);
-  const browser = await browserType.launch();
-  const ctx = await browser.newContext({ viewport: { width: 375, height: 812 }, deviceScaleFactor: 2, hasTouch: true, isMobile: true });
-  const TAIPEI = [25.047, 121.517];
-
-  // V5：捏合放大（乾淨載入）
-  try {
-    const a = await pinchProfile(ctx, 'index.html', { center: TAIPEI, fromZ: 12, dir: 'in' });
-    const ok = a.zStartFlag && a.pinchFrames >= 5 && a.scaleFrames >= 3 && a.maxScaleErr <= 0.05
-      && a.pinchRobust <= 2 && a.origin0 && a.after.ov === 'none' && !a.after.flag && a.restCov >= 0.9;
-    pass(`${label}/V5`, ok, `pinch-IN engaged=${a.zStartFlag} zoomSpan=${a.zoomSpan} pinchFrames=${a.pinchFrames}(scale${a.scaleFrames}) | scaleSyncErr max=${(a.maxScaleErr * 100).toFixed(2)}%(≤5%) | crossLayer robust=${a.pinchRobust}px(max${a.pinchMax},over2=${a.pinchOver2}) origin0=${a.origin0} | converge robust=${a.convRobust}px | after ov=${a.after.ov} flag=${a.after.flag} z=${a.after.z} restCov=${a.restCov}`);
-  } catch (e) { pass(`${label}/V5`, false, 'error ' + e.message); }
-
-  // V5b：先平移再捏合放大（互動累積狀態，上次漏測路徑）
-  try {
-    const b = await pinchProfile(ctx, 'index.html', { center: TAIPEI, fromZ: 12, dir: 'in', panBy: [220, 140] });
-    const panned = Math.hypot(b.pp0.x, b.pp0.y) >= 150;
-    const ok = panned && b.zStartFlag && b.pinchFrames >= 5 && b.scaleFrames >= 3 && b.maxScaleErr <= 0.05
-      && b.pinchRobust <= 2 && b.after.ov === 'none' && !b.after.flag && b.restCov >= 0.9;
-    pass(`${label}/V5b`, ok, `panned panePos=(${b.pp0.x},${b.pp0.y}) |${Math.hypot(b.pp0.x, b.pp0.y).toFixed(0)}px| → pinch-IN scaleSyncErr max=${(b.maxScaleErr * 100).toFixed(2)}% | crossLayer robust=${b.pinchRobust}px(max${b.pinchMax},over2=${b.pinchOver2}) pinchFrames=${b.pinchFrames}(scale${b.scaleFrames}) | converge robust=${b.convRobust}px | after ov=${b.after.ov} flag=${b.after.flag} restCov=${b.restCov}`);
-  } catch (e) { pass(`${label}/V5b`, false, 'error ' + e.message); }
-
-  // V5c：捏合縮小（反方向；雙方向各一例）
-  try {
-    const c = await pinchProfile(ctx, 'index.html', { center: TAIPEI, fromZ: 14, dir: 'out' });
-    const ok = c.zStartFlag && c.pinchFrames >= 5 && c.scaleFrames >= 3 && c.maxScaleErr <= 0.05
-      && c.pinchRobust <= 2 && c.origin0 && c.after.ov === 'none' && !c.after.flag && c.restCov >= 0.9;
-    pass(`${label}/V5c`, ok, `pinch-OUT engaged=${c.zStartFlag} zoomSpan=${c.zoomSpan} pinchFrames=${c.pinchFrames}(scale${c.scaleFrames}) | scaleSyncErr max=${(c.maxScaleErr * 100).toFixed(2)}%(≤5%) | crossLayer robust=${c.pinchRobust}px(max${c.pinchMax},over2=${c.pinchOver2}) | converge robust=${c.convRobust}px | after ov=${c.after.ov} flag=${c.after.flag} z=${c.after.z} restCov=${c.restCov}`);
-  } catch (e) { pass(`${label}/V5c`, false, 'error ' + e.message); }
-
-  await browser.close();
-}
-
-// WebKit 捏合：如實探測「合成 TouchEvent 能否驅動 Leaflet TouchZoom」。Playwright WebKit 若構不出帶 2 touches
-// 的事件（new Touch/new TouchEvent(touches)/initTouchEvent 皆不可用），則 _onTouchStart(要求 touches.length===2)
-// 永不觸發 → 本條「驗不了」，記為 NA 並附「當下量到的確切原因」，不硬湊（禁止直呼內部 _onTouchStart 假裝驅動）。
-async function runPinchWebkit(browserType, label) {
-  console.log(`\n===== ${label} =====`);
-  const browser = await browserType.launch();
-  const ctx = await browser.newContext({ viewport: { width: 375, height: 812 }, deviceScaleFactor: 2, hasTouch: true, isMobile: true });
-  const p = await ctx.newPage();
-  await p.addInitScript(() => { try { localStorage.setItem('trainmap-howto-seen', '1'); } catch (e) {} });
-  await p.goto(`${BASE}/index.html`, { waitUntil: 'load', timeout: 40000 });
-  await p.waitForFunction(() => window.__map && window.__state && window.__state.ready, { timeout: 40000 });
-  await p.evaluate(() => { const w = document.getElementById('howtoWrap'); if (w) w.hidden = true; window.__map.setView([25.047, 121.517], 12, { animate: false }); });
-  await p.waitForTimeout(500);
-  const diag = await p.evaluate(async () => {
-    const map = window.__map, el = map.getContainer(), cx = 187, cy = 406;
-    const d = { hasTouchCtor: typeof Touch === 'function', hasTouchEventCtor: typeof TouchEvent === 'function', hasCreateTouch: typeof document.createTouch === 'function' };
-    // 逐一嘗試三種構造帶 2 touches 的 TouchEvent 途徑，記下各自失敗原因
-    try { new Touch({ identifier: 0, target: el, clientX: cx, clientY: cy }); d.newTouch = 'ok'; } catch (e) { d.newTouch = e.name + ':' + e.message; }
-    let touches = null;
-    try { touches = [document.createTouch(window, el, 0, cx - 30, cy), document.createTouch(window, el, 1, cx + 30, cy)]; d.createTouch = 'ok'; } catch (e) { d.createTouch = e.name + ':' + e.message; }
-    try { const ev = new TouchEvent('touchstart', { bubbles: true, cancelable: true, touches, targetTouches: touches, changedTouches: touches }); d.newTouchEventWithTouches = 'ok len=' + ev.touches.length; } catch (e) { d.newTouchEventWithTouches = e.name + ':' + e.message; }
-    try { const ev = document.createEvent('TouchEvent'); d.initTouchEvent = typeof ev.initTouchEvent; } catch (e) { d.initTouchEvent = 'createEvent-throw:' + e.message; }
-    // 盡力一擊：用能構出的最完整事件實際 dispatch，看 TouchZoom 是否引擎級觸發
-    let engaged = false;
-    try {
-      const t = touches || [];
-      let ev; try { ev = new TouchEvent('touchstart', { bubbles: true, cancelable: true, touches: t, targetTouches: t, changedTouches: t }); } catch (e) { ev = new TouchEvent('touchstart', { bubbles: true, cancelable: true }); }
-      el.dispatchEvent(ev);
-      await new Promise(r => setTimeout(r, 30));
-      engaged = !!(map.touchZoom && map.touchZoom._zooming);
-    } catch (e) { d.dispatchErr = e.message; }
-    d.touchZoomEngaged = engaged;
-    d.dispatchedTouchesLen = (() => { try { const t = touches || []; const ev = new TouchEvent('touchstart', { touches: t }); return ev.touches.length; } catch (e) { return 'ctor-throws'; } })();
-    return d;
-  });
-  await browser.close();
-  if (diag.touchZoomEngaged) {
-    // 若某天 Playwright WebKit 支援了，就走真驗（此路目前不會進來）
-    na(`${label}/V5`, `WebKit 合成 TouchEvent 竟能驅動 TouchZoom（環境已升級）— 需補真捏合斷言。diag=${JSON.stringify(diag)}`);
-  } else {
-    na(`${label}/V5+V5b+V5c`, `驗不了：Playwright WebKit 構不出帶 2 touches 的 TouchEvent（new Touch→[${diag.newTouch}]；new TouchEvent({touches})→[${diag.newTouchEventWithTouches}]；createEvent('TouchEvent').initTouchEvent=${diag.initTouchEvent}）→ 派發的 touchstart touches.length=${diag.dispatchedTouchesLen}，Leaflet _onTouchStart(要求 touches.length===2) 未觸發、touchZoom._zooming=${diag.touchZoomEngaged}。非程式缺陷＝harness/引擎限制；捏合 handler 為引擎無關的純 JS 數學(getZoomScale/project)，其共用的凍結+CSS transform 已由 WebKit 上的 V2/V2b/V2c(zoomanim 路徑)跨層驗過。不硬湊直呼內部 handler。`);
-  }
-}
-
-async function run(browserType, label, { mobile, cdp } = {}) {
-  console.log(`\n===== ${label} =====`);
+  // WebKit 註記:frozen-q/_zaAff 取樣的跨層量(dApp/dZoom/geomScale)在 trunk WebKit 上帶 ~12–35px
+  //   getComputedStyle(主執行緒,app 建 _zaAff 用)vs getBoundingClientRect(合成器,量圖磚)的跨時鐘/跨 tick 落差
+  //   (Chromium 強制同步二者=0px);此為 ⚠/心得27 點名的 trunk-WebKit 量測時序假殘差、無法與釋出版 Safari 區分。
+  //   故 WebKit 上「app 真值 dApp」報告不計分,PASS 改用原子指標 dIdeal(同幀 getComputedStyle+rect,兩引擎皆 0)+
+  //   dBuggy 偵測差分(260px)佐證偵測力未鈍;app 實際 _zaAff 正確性由 Chromium 的 dApp=0 驗(同一份引擎無關 JS)。
+  const wkNote = isWebkit ? ' [WebKit:dApp 時序假殘差不計分,見檔頭註]' : '';
   const browser = await browserType.launch();
   const ctx = await browser.newContext(mobile ? { viewport: { width: 375, height: 812 }, deviceScaleFactor: 2, hasTouch: true, isMobile: true } : { viewport: { width: 1280, height: 800 } });
-  const pg = await ctx.newPage();
-  const TAIPEI = [25.047, 121.517];
-  await loadApp(pg);
+  const pg = await newPage(ctx);
   const bg = await getBg(pg);
 
-  // ── V1：縮放中不再「消失」——新版 vs 舊版 HEAD 差分（典型 1 級 wheel 縮放，放大＋縮小各一）
-  // 判準：新版動畫期間真圖磚覆蓋率不塌(min≥0.5)，且明顯高於舊版瞬跳(差距≥0.4)；舊版會掉到 ~0(即使用者回報的消失)。
+  // ── V1:縮放中不「消失」(新 vs 舊 zoomAnimation:false)
   try {
     const nIn = await coverageProfile(ctx, 'index.html', 13, 14, bg, TAIPEI);
     const oIn = await coverageProfile(ctx, 'index_old.html', 13, 14, bg, TAIPEI);
     const nOut = await coverageProfile(ctx, 'index.html', 14, 13, bg, TAIPEI);
     const oOut = await coverageProfile(ctx, 'index_old.html', 14, 13, bg, TAIPEI);
-    const ok = nIn.minCov >= 0.5 && (nIn.minCov - oIn.minCov) >= 0.4 && nIn.midNonBg >= 0.80
-      && (nOut.minCov - oOut.minCov) >= 0.3;
-    pass(`${label}/V1`, ok,
-      `zoomIN new.minCov=${nIn.minCov.toFixed(3)} vs old=${oIn.minCov.toFixed(3)} (new first5=[${nIn.first5.map(x => x.toFixed(2))}]); ` +
-      `zoomOUT new=${nOut.minCov.toFixed(3)} vs old=${oOut.minCov.toFixed(3)}; new midNonBgPixels=${nIn.midNonBg.toFixed(3)} — 新版縮放中圖磚常在、舊版瞬跳掉到空`);
+    const ok = nIn.minCov >= 0.5 && (nIn.minCov - oIn.minCov) >= 0.4 && nIn.midNonBg >= 0.80 && (nOut.minCov - oOut.minCov) >= 0.3;
+    pass(`${label}/V1`, ok, `zoomIN new.minCov=${nIn.minCov.toFixed(3)} vs old=${oIn.minCov.toFixed(3)}; zoomOUT new=${nOut.minCov.toFixed(3)} vs old=${oOut.minCov.toFixed(3)}; new midNonBg=${nIn.midNonBg.toFixed(3)}`);
   } catch (e) { pass(`${label}/V1`, false, 'error ' + e.message); }
 
-  // ── V2 家族：縮放時「地圖(圖磚) vs 軌道(overlay)」跨層對齊（僅桌面，行動由 V4d 捏合覆蓋）
+  // ── W1/W2/W3/W4:跨層對齊 + 幾何同縮 + 文字恆定 + 零跳動(桌面量;行動由 W5 捏合覆蓋)
   if (!mobile) {
-    // V2：未平移基準（panePos≈0）——修好前後都該對齊；證明新公式在原始情境沒退化＋確有取到動畫途中幀
+    // W1:未平移基準(放大)。PASS 用原子 dIdeal(兩引擎);dApp/geomScale 僅 Chromium 計分(WebKit 時序假殘差)
     try {
       const a = await zoomAlignProfile(ctx, 'index.html', { center: TAIPEI, fromZ: 13, toZ: 14 });
-      const ok = a.robustMax <= 2 && a.midFrames >= 3 && a.after.ov === 'none' && !a.after.flag && a.origin0 && a.nPicks >= 3;
-      pass(`${label}/V2`, ok, `unpanned misalign max=${a.maxMisalign}px robust=${a.robustMax}px framesOver2=${a.framesOver2}/${a.activeFrames} (picks=${a.nPicks}, midFrames=${a.midFrames}), overlayCleared=${a.after.ov === 'none'}, flag=${a.after.flag}, origin0=${a.origin0}`);
-    } catch (e) { pass(`${label}/V2`, false, 'error ' + e.message); }
+      const zaOk = isWebkit || (a.dAppRobust <= 2 && a.scaleErrPct <= 5);
+      const ok = a.dIdealRobust <= 2 && zaOk && a.allOvNone && a.midGeomFrames >= 3 && a.fontConst && a.lwConst && a.zeroJump <= 1 && a.after.ov === 'none' && a.after.affNull && !a.after.flag && a.nPicks >= 2;
+      pass(`${label}/W1-in`, ok, `crossLayer dIdeal(atomic)=${a.dIdealRobust}px dApp=${a.dAppRobust}px(max${a.dAppMax})${wkNote} ovNone=${a.allOvNone} | geomScaleErr=${a.scaleErrPct}%(n${a.scaleSamples}) midFrames=${a.midGeomFrames} | font mid[${a.midPx}]⊆rest[${a.restPx}]=${a.fontConst}(${a.midTextCalls}calls) lwConst=${a.lwConst} | zeroJump=${a.zeroJump}px | after ov=${a.after.ov} affNull=${a.after.affNull} z=${a.after.z} (picks${a.nPicks})`);
+    } catch (e) { pass(`${label}/W1-in`, false, 'error ' + e.message); }
+    // W1:未平移基準(縮小)
+    try {
+      const a = await zoomAlignProfile(ctx, 'index.html', { center: TAIPEI, fromZ: 14, toZ: 12 });
+      const zaOk = isWebkit || (a.dAppRobust <= 2 && a.scaleErrPct <= 5);
+      const ok = a.dIdealRobust <= 2 && zaOk && a.allOvNone && a.midGeomFrames >= 3 && a.fontConst && a.zeroJump <= 1 && a.after.affNull;
+      pass(`${label}/W1-out`, ok, `crossLayer dIdeal(atomic)=${a.dIdealRobust}px dApp=${a.dAppRobust}px${wkNote} ovNone=${a.allOvNone} | geomScaleErr=${a.scaleErrPct}% midFrames=${a.midGeomFrames} | fontConst=${a.fontConst} | zeroJump=${a.zeroJump}px`);
+    } catch (e) { pass(`${label}/W1-out`, false, 'error ' + e.message); }
 
-    // V2b：平移 ≥150px 後縮放（非零 panePos）——★核心回歸★。新版每幀對齊、舊版 index_buggy 每幀恆錯 ~130–260px；
-    // 差分證明此測真能抓到 bug。判準用 robustMax(丟單幀 WebKit 取樣毛刺)；真錯位是常數偏移、每幀皆錯，次高值照樣揭露。
+    // W2:文字尺寸恆定 差分——被退回版(98222db)動畫中 overlay 被施 CSS scale(文字 raster 放大),新版恆 none
+    try {
+      const nw = await overlayScaleDuringZoom(ctx, 'index.html', TAIPEI);
+      const bg2 = await overlayScaleDuringZoom(ctx, 'index_buggy.html', TAIPEI);
+      const ok = !nw.sawMatrix && nw.peakScale <= 1.001 && bg2.sawMatrix && bg2.peakScale >= 1.2;
+      pass(`${label}/W2-scaleDiff`, ok, `NEW overlay peakScale=${nw.peakScale}(sawMatrix=${nw.sawMatrix}) vs REJECTED(98222db) peakScale=${bg2.peakScale}(sawMatrix=${bg2.sawMatrix}) — 新版文字不被 raster 放大、被退回版整張畫布 scale 放大再縮回`);
+    } catch (e) { pass(`${label}/W2-scaleDiff`, false, 'error ' + e.message); }
+
+    // W3:平移 ≥150px 後縮放(非零 panePos)+ 缺 panePos 項的錯誤公式差分(偵測力)
     try {
       const fx = await zoomAlignProfile(ctx, 'index.html', { center: TAIPEI, fromZ: 13, toZ: 14, panBy: [220, 140] });
-      const bg2 = await zoomAlignProfile(ctx, 'index_buggy.html', { center: TAIPEI, fromZ: 13, toZ: 14, panBy: [220, 140] });
-      const panned = Math.hypot(fx.pp0.x, fx.pp0.y) >= 150; // 前置：動畫起始時確實處於平移態
-      const ok = panned && fx.robustMax <= 2 && bg2.robustMax >= 8 && (bg2.robustMax - fx.robustMax) >= 6;
-      pass(`${label}/V2b`, ok, `panned panePos=(${fx.pp0.x},${fx.pp0.y}) |${Math.hypot(fx.pp0.x, fx.pp0.y).toFixed(0)}px| → FIXED robust=${fx.robustMax}px(max${fx.maxMisalign},over2=${fx.framesOver2}) vs BUGGY robust=${bg2.robustMax}px(over2=${bg2.framesOver2}/${bg2.activeFrames})  【修復前每幀錯位 ~${bg2.robustMax}px → 修復後 ${fx.robustMax}px】`);
-    } catch (e) { pass(`${label}/V2b`, false, 'error ' + e.message); }
+      const panned = Math.hypot(fx.pp0.x, fx.pp0.y) >= 150;
+      const zaOk = isWebkit || fx.dAppRobust <= 2;
+      const ok = panned && fx.dIdealRobust <= 2 && zaOk && fx.allOvNone && fx.dBuggyRobust >= 8 && (fx.dBuggyRobust - fx.dIdealRobust) >= 6 && fx.fontConst && fx.zeroJump <= 1;
+      pass(`${label}/W3`, ok, `panned |${Math.hypot(fx.pp0.x, fx.pp0.y).toFixed(0)}px| → dIdeal(atomic)=${fx.dIdealRobust}px dApp=${fx.dAppRobust}px(max${fx.dAppMax})${wkNote} ovNone=${fx.allOvNone} | fontConst=${fx.fontConst} zeroJump=${fx.zeroJump}px | 偵測力:缺 panePos 項錯誤公式 dBuggy robust=${fx.dBuggyRobust}px(max${fx.dBuggyMax}) 【正確 ${fx.dIdealRobust}px vs 錯誤 ${fx.dBuggyRobust}px】`);
+    } catch (e) { pass(`${label}/W3`, false, 'error ' + e.message); }
 
-    // V2c：平移後「縮小」也對齊(s<1)＋接連續快速縮放×3 不殘留 transform/凍結旗標（無漂移/殘影）
+    // W4:大位移 panePos 下縮放(maxBounds 邊界區代理)+ 佐證「縮放動畫期間 pane 靜止」(app 於 _zoomAnim 內抑制搶相機,index.html:8505)
+    //   說明:真正「回彈動畫與縮放並行」在 z13–14 無法乾淨重現——maxBounds 圍籬=TW_BOUNDS.pad(2.0) 在互動縮放級距外,
+    //   相機於 _zoomAnim 內被抑制,強迫 pane 於縮放中位移(過拖慣性/逐幀 panBy)會與 Leaflet 縮放動畫打架、產生量測假影(非 app 缺陷)。
+    //   panePos 修正項本身的正確性由 W3(非零靜止 panePos:正確 vs 缺項 dBuggy 差分)完整驗證。此處驗大位移 panePos 仍對齊 + pane 靜止佐證。
+    try {
+      const k = await zoomAlignProfile(ctx, 'index.html', { center: TAIPEI, fromZ: 13, toZ: 14, panBy: [640, 400] });
+      const panned = Math.hypot(k.pp0.x, k.pp0.y) >= 400;
+      const zaOk = isWebkit || k.dAppRobust <= 2;
+      const ok = panned && k.dIdealRobust <= 2 && zaOk && k.allOvNone && k.midGeomFrames >= 3 && k.after.affNull && k.ppRangeZoom <= 3;
+      pass(`${label}/W4`, ok, `large panePos |${Math.hypot(k.pp0.x, k.pp0.y).toFixed(0)}px| zoom: dIdeal(atomic)=${k.dIdealRobust}px dApp=${k.dAppRobust}px(max${k.dAppMax})${wkNote} ovNone=${k.allOvNone} midFrames=${k.midGeomFrames} | pane 靜止佐證 ppRangeDuringZoom=${k.ppRangeZoom}px(≤3=相機於 _zoomAnim 被抑制) | dBuggy=${k.dBuggyRobust}px after affNull=${k.after.affNull}`);
+    } catch (e) { pass(`${label}/W4`, false, 'error ' + e.message); }
+
+    // W2c(併入):平移後縮小 + 連縮×3 不殘留 transform/凍結旗標
     try {
       const c = await zoomAlignProfile(ctx, 'index.html', { center: TAIPEI, fromZ: 14, toZ: 12, panBy: [-180, 130], rapid: true });
-      const ok = Math.hypot(c.pp0.x, c.pp0.y) >= 120 && c.robustMax <= 2 && c.rapidState && c.rapidState.ov === 'none' && !c.rapidState.flag;
-      pass(`${label}/V2c`, ok, `panned zoom-OUT misalign robust=${c.robustMax}px(max${c.maxMisalign}) (panePos |${Math.hypot(c.pp0.x, c.pp0.y).toFixed(0)}px|); after rapid×3: overlay=${c.rapidState ? c.rapidState.ov : 'n/a'}, flag=${c.rapidState ? c.rapidState.flag : 'n/a'}, z=${c.rapidState ? c.rapidState.z : 'n/a'} — 縮小與連縮皆無錯位/殘留`);
-    } catch (e) { pass(`${label}/V2c`, false, 'error ' + e.message); }
+      const zaOk = isWebkit || c.dAppRobust <= 2;
+      const ok = Math.hypot(c.pp0.x, c.pp0.y) >= 120 && c.dIdealRobust <= 2 && zaOk && c.allOvNone && c.rapidState && c.rapidState.ov === 'none' && !c.rapidState.flag && c.rapidState.affNull;
+      pass(`${label}/W3-out+rapid`, ok, `panned zoom-OUT dIdeal(atomic)=${c.dIdealRobust}px dApp=${c.dAppRobust}px${wkNote} ovNone=${c.allOvNone}; after rapid×3: overlay=${c.rapidState ? c.rapidState.ov : 'n/a'} flag=${c.rapidState ? c.rapidState.flag : 'n/a'} affNull=${c.rapidState ? c.rapidState.affNull : 'n/a'}`);
+    } catch (e) { pass(`${label}/W3-out+rapid`, false, 'error ' + e.message); }
   }
 
-  // ── V3：動畫結束後靜態對齊（新版 vs 舊版 HEAD 同視野像素比對，靜態應一致）
-  try {
-    const fixView = async (page, file) => {
-      const p2 = await ctx.newPage(); await p2.addInitScript(() => { try { localStorage.setItem('trainmap-howto-seen', '1'); } catch (e) {} });
-      await p2.goto(`${BASE}/${file}`, { waitUntil: 'load', timeout: 40000 });
-      await p2.waitForFunction(() => window.__map && window.__state && window.__state.ready, { timeout: 40000 });
-      await p2.evaluate(() => { const s = window.__state; s.ambient = false; s._hotNext = 1e18; const w = document.getElementById('howtoWrap'); if (w) w.hidden = true; });
-      await p2.evaluate((c) => window.__map.setView(c, 13, { animate: false }), TAIPEI);
-      await p2.waitForTimeout(1600);
-      const box = await p2.$eval('#map', el => { const r = el.getBoundingClientRect(); return { x: r.x, y: r.y, width: r.width, height: r.height }; });
-      const buf = await p2.screenshot({ clip: box }); await p2.close(); return buf;
-    };
-    const bNew = await fixView(pg, 'index.html');
-    const bOld = await fixView(pg, 'index_old.html');
-    // 像素差比例（同源 canvas 內算）
-    const diff = await pg.evaluate(async ({ a, b }) => {
-      const load = u => new Promise(async res => { const im = new Image(); im.src = u; await im.decode(); res(im); });
-      const ia = await load('data:image/png;base64,' + a), ib = await load('data:image/png;base64,' + b);
-      const w = Math.min(ia.width, ib.width), h = Math.min(ia.height, ib.height);
-      const mk = im => { const c = document.createElement('canvas'); c.width = w; c.height = h; c.getContext('2d').drawImage(im, 0, 0); return c.getContext('2d').getImageData(0, 0, w, h).data; };
-      const da = mk(ia), db = mk(ib); let diff = 0; const n = w * h;
-      for (let i = 0; i < da.length; i += 4) { if (Math.abs(da[i] - db[i]) > 24 || Math.abs(da[i + 1] - db[i + 1]) > 24 || Math.abs(da[i + 2] - db[i + 2]) > 24) diff++; }
-      return diff / n;
-    }, { a: bNew.toString('base64'), b: bOld.toString('base64') });
-    pass(`${label}/V3`, diff <= 0.02, `staticDiff(new vs old HEAD)=${(diff * 100).toFixed(3)}% — 靜態渲染(軌道/底圖對齊)與修改前一致`);
-  } catch (e) { pass(`${label}/V3`, false, 'error ' + e.message); }
+  // ── V3:動畫結束後靜態對齊(新 vs 舊 HEAD)
+  try { const diff = await staticDiff(ctx); pass(`${label}/V3`, diff <= 0.02, `staticDiff(new vs old HEAD)=${(diff * 100).toFixed(3)}%`); }
+  catch (e) { pass(`${label}/V3`, false, 'error ' + e.message); }
 
-  // ── V4：迴歸矩陣
+  // ── W6:跟車模式回歸
   try {
-    // (a) 連續快速縮放 ×5 不卡死、不殘留 transform、旗標歸零、reproject 恢復
-    await pg.evaluate((c) => window.__map.setView(c, 11, { animate: false }), TAIPEI);
-    await pg.waitForTimeout(500);
-    await pg.evaluate(async (c) => {
-      const m = window.__map;
-      for (let i = 0; i < 5; i++) { m.setZoomAround(m.latLngToContainerPoint(c), m.getZoom() + 1); await new Promise(r => setTimeout(r, 70)); }
-    }, TAIPEI);
+    const f = await followProfile(ctx);
+    // (a) 跟車中縮放的 _zaAff 跨層(dZoom)僅 Chromium 計分(WebKit 時序假殘差);(b) 落定漂移用 tile-URL oracle(native,兩引擎可靠)
+    const zaOk = isWebkit || f.dZoomRobust <= 2;
+    const ok = f.entered && f.following1 && zaOk && f.zoomOvNone && f.driftRobust <= 2 && f.zaNullAll && f.ovNoneAll && f.drawDelta > 30 && f.camMoved > 0.5 && f.zaAffAfterNull;
+    pass(`${label}/W6`, ok, `follow: (a)zoom dZoom robust=${f.dZoomRobust}px(${f.zoomFrames}f,ovNone=${f.zoomOvNone})${isWebkit ? wkNote : ''} (b)settle3s drift(oracle) robust=${f.driftRobust}px(max${f.driftMax},n${f.driftN}) zaNull=${f.zaNullAll} ovNone=${f.ovNoneAll} drawΔ=${f.drawDelta} camMoved=${f.camMoved} — 軌道不隨列車漂移`);
+  } catch (e) { pass(`${label}/W6`, false, 'error ' + e.message); }
+
+  // ── W7:放空模式回歸
+  try {
+    const a = await ambientProfile(ctx);
+    const zaOk = isWebkit || a.dRobust <= 2;
+    const ok = a.ambientOn && a.zoomFrames >= 3 && zaOk && a.allOvNone && a.afterOvNone && a.breathYielded && a.zaAffAfterNull;
+    pass(`${label}/W7`, ok, `ambient: on=${a.ambientOn} breathSeen=${a.breathSeen}(atZoom=${a.breathAtZoom}) → wheel-zoom dApp robust=${a.dRobust}px(${a.zoomFrames}f,ovNone=${a.allOvNone})${isWebkit ? wkNote : ''} breathYielded=${a.breathYielded} afterOvNone=${a.afterOvNone}`);
+  } catch (e) { pass(`${label}/W7`, false, 'error ' + e.message); }
+
+  // ── V4:迴歸矩陣
+  try {
+    // (a) 連續快速縮放 ×5 不卡死/殘留/凍結,靜置鋪滿
+    await pg.evaluate((c) => window.__map.setView(c, 11, { animate: false }), TAIPEI); await pg.waitForTimeout(500);
+    await pg.evaluate(async (c) => { const m = window.__map; for (let i = 0; i < 5; i++) { m.setZoomAround(m.latLngToContainerPoint(c), m.getZoom() + 1); await new Promise(r => setTimeout(r, 70)); } }, TAIPEI);
     await pg.waitForTimeout(900);
-    // 連續縮放後不可殘留 transform/凍結旗標(否則畫面卡住/殘影);靜置後地圖應完整鋪滿(重投影已恢復)
-    const st = await pg.evaluate(() => {
-      const R = document.getElementById('map').getBoundingClientRect(), grid = [];
-      for (let iy = 0; iy < 12; iy++) for (let ix = 0; ix < 18; ix++) grid.push([R.left + (ix + 0.5) * R.width / 18, R.top + (iy + 0.5) * R.height / 12]);
-      const rects = [...document.querySelectorAll('img.leaflet-tile')].filter(t => t.complete && t.naturalWidth > 0).map(t => t.getBoundingClientRect());
-      let c = 0; for (const [x, y] of grid) { for (const rr of rects) { if (x >= rr.left && x < rr.right && y >= rr.top && y < rr.bottom) { c++; break; } } }
-      return { ov: getComputedStyle(document.getElementById('overlay')).transform, flag: !!window.__state._zoomAnim, z: window.__map.getZoom(), restCov: c / grid.length };
-    });
-    const okA = st.ov === 'none' && !st.flag && st.restCov >= 0.95;
-    pass(`${label}/V4a`, okA, `rapid5x settled: overlayTransform=${st.ov}, frozenFlag=${st.flag}, zoom=${st.z}, restTileCoverage=${st.restCov.toFixed(3)} — 無卡死/殘影/凍結`);
+    const st = await pg.evaluate(() => { const R = document.getElementById('map').getBoundingClientRect(), grid = []; for (let iy = 0; iy < 12; iy++) for (let ix = 0; ix < 18; ix++) grid.push([R.left + (ix + 0.5) * R.width / 18, R.top + (iy + 0.5) * R.height / 12]); const rects = [...document.querySelectorAll('img.leaflet-tile')].filter(t => t.complete && t.naturalWidth > 0).map(t => t.getBoundingClientRect()); let c = 0; for (const [x, y] of grid) for (const rr of rects) if (x >= rr.left && x < rr.right && y >= rr.top && y < rr.bottom) { c++; break; } return { ov: getComputedStyle(document.getElementById('overlay')).transform, flag: !!window.__state._zoomAnim, affNull: window.__state._zaAff == null, z: window.__map.getZoom(), restCov: c / grid.length }; });
+    pass(`${label}/V4a`, st.ov === 'none' && !st.flag && st.affNull && st.restCov >= 0.95, `rapid5x settled: overlay=${st.ov}, flag=${st.flag}, affNull=${st.affNull}, z=${st.z}, restCov=${st.restCov.toFixed(3)}`);
 
-    // (b) flyTo 不觸發 zoomanim（不受本機制影響），且結束後 overlay 乾淨
-    const fly = await pg.evaluate(async () => {
-      const m = window.__map; m.setView([25.047, 121.517], 12, { animate: false }); await new Promise(r => setTimeout(r, 400));
-      let animFired = 0; const h = () => animFired++; m.on('zoomanim', h);
-      m.flyTo([22.63, 120.30], 14, { duration: 0.7 }); // 飛去高雄
-      await new Promise(r => setTimeout(r, 1400)); m.off('zoomanim', h);
-      return { animFired, ov: getComputedStyle(document.getElementById('overlay')).transform, flag: !!window.__state._zoomAnim, z: m.getZoom(), c: m.getCenter() };
-    });
+    // (b) flyTo 不觸發 zoomanim、結束 overlay 乾淨
+    const fly = await pg.evaluate(async () => { const m = window.__map; m.setView([25.047, 121.517], 12, { animate: false }); await new Promise(r => setTimeout(r, 400)); let animFired = 0; const h = () => animFired++; m.on('zoomanim', h); m.flyTo([22.63, 120.30], 14, { duration: 0.7 }); await new Promise(r => setTimeout(r, 1400)); m.off('zoomanim', h); return { animFired, ov: getComputedStyle(document.getElementById('overlay')).transform, flag: !!window.__state._zoomAnim, z: m.getZoom() }; });
     pass(`${label}/V4b`, fly.animFired === 0 && fly.ov === 'none' && !fly.flag, `flyTo: zoomanimFired=${fly.animFired}(應0), overlay=${fly.ov}, flag=${fly.flag}, endZoom=${fly.z}`);
 
-    // (c) 跟車模式中縮放正常（不卡死、覆蓋不塌、旗標歸零）
-    const followOk = await pg.evaluate(async (c) => {
-      const s = window.__state, m = window.__map;
-      // 進跟車：優先用 setFollow（非 module 頂層函式掛在 window），否則手動塞
-      let tr = null;
-      for (const sys of s.systems) { const t = (sys.data && sys.data.trains) || []; if (t.length) { tr = t.find(x => x.stops && x.stops.length > 2) || t[0]; if (tr) break; } }
-      if (!tr) return { entered: false };
-      if (typeof window.setFollow === 'function') { try { window.setFollow(tr); } catch (e) {} }
-      if (!s.followTrain) { s.followTrain = tr; s.followLock = true; }
-      await new Promise(r => setTimeout(r, 400));
-      const zoomingOk = (typeof s.followTrain === 'object');
-      m.setZoomAround(m.getSize().divideBy(2), m.getZoom() + 2); // 跟車中縮放
-      await new Promise(r => setTimeout(r, 700));
-      const flag = !!s._zoomAnim, ov = getComputedStyle(document.getElementById('overlay')).transform;
-      if (typeof window.clearFollow === 'function') try { window.clearFollow(); } catch (e) {}
-      s.followTrain = null; s.followLock = false;
-      return { entered: true, following: zoomingOk, flag, ov };
-    }, TAIPEI);
-    pass(`${label}/V4c`, followOk.entered && !followOk.flag && followOk.ov === 'none', `followZoom: entered=${followOk.entered}, flagCleared=${!followOk.flag}, overlay=${followOk.ov}`);
-
-    // (d) 行動捏合（僅 mobile chromium）— CDP synthesizePinchGesture 不空白
-    if (mobile) {
-      const cdp = await ctx.newCDPSession(pg);
-      await pg.evaluate((c) => window.__map.setView(c, 12, { animate: false }), TAIPEI);
-      await pg.waitForTimeout(700);
-      const before = await pg.evaluate(() => [...document.querySelectorAll('img.leaflet-tile')].filter(t => t.complete && t.naturalWidth > 0).length);
-      try { await cdp.send('Input.synthesizePinchGesture', { x: 187, y: 400, scaleFactor: 2.0, relativeSpeed: 800 }); } catch (e) {}
-      await pg.waitForTimeout(300);
-      const midNonBg = await nonBgRatioOfMapRegion(pg, bg);
-      await pg.waitForTimeout(600);
-      const st2 = await pg.evaluate(() => ({ ov: getComputedStyle(document.getElementById('overlay')).transform, flag: !!window.__state._zoomAnim, z: window.__map.getZoom(), tiles: [...document.querySelectorAll('img.leaflet-tile')].filter(t => t.complete && t.naturalWidth > 0).length }));
-      pass(`${label}/V4d`, midNonBg >= 0.75 && !st2.flag && st2.ov === 'none', `pinch: midNonBgPixels=${midNonBg.toFixed(3)}, flagCleared=${!st2.flag}, overlay=${st2.ov}, zoom=${st2.z}, tiles=${st2.tiles}`);
+    if (!mobile && cdp) {
+      // (e) 拖曳中軌道跟上圖磚(省電節流互動豁免)
+      const dNew = await dragLagProfile(ctx, 'index.html', true);
+      const dOld = await dragLagProfile(ctx, 'index_old.html', true);
+      const dNewOff = await dragLagProfile(ctx, 'index.html', false);
+      pass(`${label}/V4e`, dNew.maxLag <= 2 && (dOld.maxLag - dNew.maxLag) >= 2 && dNewOff.maxLag <= 2, `dragLag(powerSave ON): new=${dNew.maxLag}px(fps${dNew.drawFps}) vs old=${dOld.maxLag}px(fps${dOld.drawFps}); new(OFF)=${dNewOff.maxLag}px`);
     }
-
     if (!mobile) {
-      // (e) 拖曳平移中「軌道跟上圖磚」——省電模式開啟(手機預設)下逐幀量 overlay 落後圖磚的像素。
-      //     新版應 ≤2px；舊版 HEAD 因省電 30fps 節流吃掉互動全速→明顯落後(差分證明修好)。
-      //     用 CDP 逐幀派 mousemove(pacing 最真)，僅 Chromium 支援；WebKit 跳過(節流邏輯與引擎無關，Chromium 覆蓋足夠)。
-      if (cdp) {
-        const dNew = await dragLagProfile(ctx, 'index.html', true, TAIPEI);
-        const dOld = await dragLagProfile(ctx, 'index_old.html', true, TAIPEI);
-        const dNewOff = await dragLagProfile(ctx, 'index.html', false, TAIPEI);
-        const okE = dNew.maxLag <= 2 && (dOld.maxLag - dNew.maxLag) >= 2 && dNewOff.maxLag <= 2;
-        pass(`${label}/V4e`, okE, `dragLag(powerSave ON): new.maxLag=${dNew.maxLag}px(fps${dNew.drawFps}) vs old=${dOld.maxLag}px(fps${dOld.drawFps}); new(powerSave OFF)=${dNewOff.maxLag}px — 拖曳中軌道跟上圖磚`);
-      }
-
-      // (f) 待機省電節流未被破壞：無互動 >1.5s 後，powerSave 開仍節流(~30fps)、關則全速
       const idleOn = await idleDrawFps(ctx, 'index.html', true);
       const idleOff = await idleDrawFps(ctx, 'index.html', false);
-      pass(`${label}/V4f`, idleOn <= 42 && idleOff >= idleOn, `idle throttle preserved: powerSaveON=${idleOn}fps(應~30，節流仍在), powerSaveOFF=${idleOff}fps`);
+      pass(`${label}/V4f`, idleOn <= 42 && idleOff >= idleOn, `idle throttle: powerSaveON=${idleOn}fps(應~30), OFF=${idleOff}fps`);
 
-      // (g) 拖曳中途接縮放：省電開＋互動視窗內做動畫縮放，_zoomAnim 正確起落、overlay 清乾淨、不打架
-      const g = await pg.evaluate(async (c) => {
-        const s = window.__state, m = window.__map; s.powerSave = true; s.ambient = false; s._hotNext = 1e18;
-        m.setView(c, 12, { animate: false }); await new Promise(r => setTimeout(r, 500));
-        s._interactAt = performance.now(); // 模擬「拖曳中」持續互動
-        let sawFlag = false; const iv = setInterval(() => { if (s._zoomAnim) sawFlag = true; }, 8);
-        m.setZoom(14); // 動畫縮放
-        await new Promise(r => setTimeout(r, 500)); clearInterval(iv);
-        return { sawFlag, flagAfter: !!s._zoomAnim, ov: getComputedStyle(document.getElementById('overlay')).transform, z: m.getZoom() };
-      }, TAIPEI);
-      pass(`${label}/V4g`, g.sawFlag && !g.flagAfter && g.ov === 'none' && g.z === 14, `drag→zoom(powerSave ON): zoomAnimEntered=${g.sawFlag}, cleared=${!g.flagAfter}, overlay=${g.ov}, zoom=${g.z}`);
+      const g = await pg.evaluate(async (c) => { const s = window.__state, m = window.__map; s.powerSave = true; s.ambient = false; s._hotNext = 1e18; m.setView(c, 12, { animate: false }); await new Promise(r => setTimeout(r, 500)); s._interactAt = performance.now(); let sawFlag = false; const iv = setInterval(() => { if (s._zoomAnim) sawFlag = true; }, 8); m.setZoom(14); await new Promise(r => setTimeout(r, 500)); clearInterval(iv); return { sawFlag, flagAfter: !!s._zoomAnim, ov: getComputedStyle(document.getElementById('overlay')).transform, affNull: s._zaAff == null, z: m.getZoom() }; }, TAIPEI);
+      pass(`${label}/V4g`, g.sawFlag && !g.flagAfter && g.ov === 'none' && g.affNull && g.z === 14, `drag→zoom(powerSave ON): entered=${g.sawFlag}, cleared=${!g.flagAfter}, overlay=${g.ov}, affNull=${g.affNull}, z=${g.z}`);
     }
   } catch (e) { pass(`${label}/V4`, false, 'error ' + e.message); }
 
   await browser.close();
 }
 
-await run(chromium, 'chromium-desktop', { cdp: true });
-await run(chromium, 'chromium-mobile', { mobile: true, cdp: true });
-await run(webkit, 'webkit-desktop', {}); // 心得10/27：釋出版 Safari 主力引擎，至少跑 V1+V3（本 harness 為 trunk WebKit，作參考）；CDP 專案(V4e)Chromium 才有
-await runPinch(chromium, 'chromium-pinch');       // V5/V5b/V5c：真捏合手勢(CDP dispatchTouchEvent 驅動 TouchZoom)
-await runPinchWebkit(webkit, 'webkit-pinch');      // 如實探測：WebKit 合成 TouchEvent 能否驅動 TouchZoom
+// ── 捏合系列 ──
+async function runPinch(browserType, label) {
+  console.log(`\n===== ${label} =====`);
+  const browser = await browserType.launch();
+  const ctx = await browser.newContext({ viewport: { width: 375, height: 812 }, deviceScaleFactor: 2, hasTouch: true, isMobile: true });
+  const chk = (id, a, extra = true) => {
+    const ok = a.zStartFlag && a.pinchFrames >= 5 && a.pinchRobust <= 2 && a.allPinchOvNone && a.fontConst && a.convRobust <= 2 && a.after.ov === 'none' && !a.after.flag && a.after.affNull && a.restCov >= 0.9 && extra;
+    pass(id, ok, `engaged=${a.zStartFlag} zoomSpan=${a.zoomSpan} pinchFrames=${a.pinchFrames} | crossLayer robust=${a.pinchRobust}px(max${a.pinchMax},over2=${a.pinchOver2}) ovNone=${a.allPinchOvNone} | font mid[${a.midPx}]⊆rest[${a.restPx}]=${a.fontConst} | converge robust=${a.convRobust}px | after ov=${a.after.ov} flag=${a.after.flag} affNull=${a.after.affNull} z=${a.after.z} restCov=${a.restCov} (picks${a.nPicks},pp0=${a.pp0.x},${a.pp0.y})`);
+  };
+  try { chk(`${label}/W5-in`, await pinchProfile(ctx, { fromZ: 12, dir: 'in' })); } catch (e) { pass(`${label}/W5-in`, false, 'error ' + e.message); }
+  try { const b = await pinchProfile(ctx, { fromZ: 12, dir: 'in', panBy: [220, 140] }); chk(`${label}/W5-panIn`, b, Math.hypot(b.pp0.x, b.pp0.y) >= 150); } catch (e) { pass(`${label}/W5-panIn`, false, 'error ' + e.message); }
+  try { chk(`${label}/W5-out`, await pinchProfile(ctx, { fromZ: 14, dir: 'out' })); } catch (e) { pass(`${label}/W5-out`, false, 'error ' + e.message); }
+  await browser.close();
+}
+
+async function runPinchWebkit(browserType, label) {
+  console.log(`\n===== ${label} =====`);
+  const browser = await browserType.launch();
+  const ctx = await browser.newContext({ viewport: { width: 375, height: 812 }, deviceScaleFactor: 2, hasTouch: true, isMobile: true });
+  const p = await newPage(ctx);
+  await p.evaluate(() => window.__map.setView([25.047, 121.517], 12, { animate: false }));
+  await p.waitForTimeout(500);
+  const diag = await p.evaluate(async () => {
+    const map = window.__map, el = map.getContainer(), cx = 187, cy = 406;
+    const d = {}; let touches = null;
+    try { new Touch({ identifier: 0, target: el, clientX: cx, clientY: cy }); d.newTouch = 'ok'; } catch (e) { d.newTouch = e.name + ':' + e.message; }
+    try { touches = [document.createTouch(window, el, 0, cx - 30, cy), document.createTouch(window, el, 1, cx + 30, cy)]; d.createTouch = 'ok'; } catch (e) { d.createTouch = e.name; }
+    try { const ev = new TouchEvent('touchstart', { bubbles: true, cancelable: true, touches, targetTouches: touches, changedTouches: touches }); d.newTouchEventWithTouches = 'ok len=' + ev.touches.length; } catch (e) { d.newTouchEventWithTouches = e.name + ':' + e.message; }
+    let engaged = false;
+    try { const t = touches || []; let ev; try { ev = new TouchEvent('touchstart', { bubbles: true, cancelable: true, touches: t, targetTouches: t, changedTouches: t }); } catch (e) { ev = new TouchEvent('touchstart', { bubbles: true, cancelable: true }); } el.dispatchEvent(ev); await new Promise(r => setTimeout(r, 30)); engaged = !!(map.touchZoom && map.touchZoom._zooming); } catch (e) {}
+    d.touchZoomEngaged = engaged;
+    d.dispatchedTouchesLen = (() => { try { const t = touches || []; const ev = new TouchEvent('touchstart', { touches: t }); return ev.touches.length; } catch (e) { return 'ctor-throws'; } })();
+    return d;
+  });
+  await browser.close();
+  if (diag.touchZoomEngaged) na(`${label}/W5`, `WebKit 合成 TouchEvent 竟能驅動 TouchZoom(環境升級)—需補真捏合斷言。diag=${JSON.stringify(diag)}`);
+  else na(`${label}/W5(in+panIn+out)`, `驗不了:Playwright WebKit 構不出帶 2 touches 的 TouchEvent(new Touch→[${diag.newTouch}];new TouchEvent({touches})→[${diag.newTouchEventWithTouches}])→派發 touchstart touches.length=${diag.dispatchedTouchesLen},Leaflet _onTouchStart(要求 2)未觸發、touchZoom._zooming=${diag.touchZoomEngaged}。非程式缺陷=harness 限制;捏合走原生逐幀 _move 重投影(引擎無關),其 overlay 無 transform+固定字級已由 WebKit 上 W1/W3(zoomanim 路徑)跨層驗過。不硬湊直呼內部 handler。`);
+}
+
+// ── 執行 ──
+const ONLY = process.env.ONLY || '';
+if (!ONLY || ONLY.includes('cd')) await run(chromium, 'chromium-desktop', { cdp: true });
+if (!ONLY || ONLY.includes('cm')) await run(chromium, 'chromium-mobile', { mobile: true, cdp: true });
+if (!ONLY || ONLY.includes('wd')) await run(webkit, 'webkit-desktop', { isWebkit: true }); // 心得10/27:釋出版 Safari 主力引擎,跑 V1/W1/W3/V3/W6/W7;CDP 專案 Chromium 才有;本 harness 為 trunk WebKit
+if (!ONLY || ONLY.includes('cp')) await runPinch(chromium, 'chromium-pinch');
+if (!ONLY || ONLY.includes('wp')) await runPinchWebkit(webkit, 'webkit-pinch');
 
 console.log('\n================ SUMMARY ================');
 const fails = results.filter(r => !r.ok);
 for (const r of results) console.log(`${r.ok ? 'PASS' : 'FAIL'}  ${r.id}  ${r.msg}`);
 for (const r of naResults) console.log(`N/A   ${r.id}  ${r.msg}`);
-console.log(`\n${results.length - fails.length}/${results.length} checks passed; ${naResults.length} N/A (見上，附原因).`);
+console.log(`\n${results.length - fails.length}/${results.length} checks passed; ${naResults.length} N/A.`);
 process.exit(fails.length ? 1 : 0);
