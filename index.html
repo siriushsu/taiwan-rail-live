@@ -2402,6 +2402,8 @@ try { if (matchMedia('(max-width: 900px)').matches) document.body.classList.add(
       <summary><span>🛠 更新紀錄</span><span class="foot-sub">最後更新：2026/7/24</span></summary>
       <ul class="foot-list">
         <li class="grp">最近更新</li>
+        <li><span class="d">7/24</span><span>地圖縮放恢復平滑過渡動畫，不再瞬間跳格或短暫空白；軌道與列車在縮放過程全程貼合底圖</span></li>
+        <li><span class="d">7/24</span><span>修正拖動地圖時軌道稍微跟不上底圖的延遲感（省電模式在互動時自動全速，放開後恢復省電）</span></li>
         <li><span class="d">7/24</span><span>台鐵班表改為每天使用當日官方時刻：週五～週日才開的加班車（如 21、213 次）現在會在正確的日子出現，連假與國定假日的特別班表也會自動反映，不再整週重播同一天</span></li>
         <li><span class="d">7/24</span><span>修正 App 或分頁在背景放一段時間後，畫面時鐘停在切走前的時刻、車輛位置與現實對不上的問題；回到前景會自動追回「現在」</span></li>
         <li><span class="d">7/24</span><span>衛星模式在手機等高解析度螢幕上畫質更清晰銳利；跟車移動中改用較省流量的畫質，避免圖磚載入變慢</span></li>
@@ -2488,6 +2490,8 @@ try { if (matchMedia('(max-width: 900px)').matches) document.body.classList.add(
         <li><span class="d">7/11</span><span>今日之最的列車在地圖上加繪金色漣漪光環</span></li>
         <li><span class="d">7/9</span><span>旅程護照與 16 枚成就徽章、「探」今日亮點面板上線</span></li>
         <li class="grp">手機與操作</li>
+        <li><span class="d">7/24</span><span>地圖縮放恢復平滑過渡動畫，不再瞬間跳格或短暫空白；軌道與列車在縮放過程全程貼合底圖</span></li>
+        <li><span class="d">7/24</span><span>修正拖動地圖時軌道稍微跟不上底圖的延遲感（省電模式在互動時自動全速，放開後恢復省電）</span></li>
         <li><span class="d">7/22</span><span>手機底部「地圖」鈕：在隨機跟隨中點它會停下回到地圖，不再繼續自動跳下一班車</span></li>
         <li><span class="d">7/22</span><span>手機／App 地圖可以自由平移、也能再縮小看台灣周邊了，修好之前一移動或縮小就卡住的問題</span></li>
         <li><span class="d">7/22</span><span>手機與 App 打開時，全台地圖上下左右各留一個台灣的空間、不再頂到螢幕邊緣，看起來更透氣</span></li>
@@ -2794,6 +2798,7 @@ function textColorFor(hex) {
 
 function reproject() {
   if (!map || !state.data) return;
+  if (state._zoomAnim) return; // 縮放動畫進行中:overlay 交給 CSS transform 跟圖磚同步(見 onZoomAnim),此時重投影會與 transform 疊加錯位;endZoomAnim 於動畫結束後補一次
   const size = map.getSize();
   state.dpr = Math.min(window.devicePixelRatio || 1, 2); // 主畫布 dpr 上限 2x
   // 尺寸沒變不重設緩衝區:設 cv.width 會清空 canvas,若發生在本幀 draw 之後(如 panTo/flyTo
@@ -5578,7 +5583,11 @@ function tick(now) {
   // 放空/錄影不套(放空游標以 dt 積分,節流會變慢;錄影要滿幀);時間積分與各資訊卡時鐘照每幀跑,不受影響。
   const psActive = state.powerSave && !REC.on && !state.ambient;
   let renderNow = true;
-  if (psActive) { renderNow = now - (state._psAt || 0) >= 33; if (renderNow) state._psAt = now; }
+  // 省電節流「只管待機」:剛互動(1.5s 內——拖曳/縮放/捏合會持續刷新 _interactAt)一律維持顯示器全速。
+  // 否則拖曳平移時 Leaflet 圖磚 pane 每幀跟手指(60–120Hz)、軌道 canvas 卻只 30fps 重畫→軌道落後圖磚(實測落後 ~5–11px)。
+  // renderNow 同時閘住相機置中(updateFollowCamera/updateFreqFollowCamera)與 draw,故全速豁免會一起放行兩者,
+  // 維持「相機與繪製同閘、列車不與底圖錯位」的既有約束(見下方 draw 節流)。與非省電路徑 fullRate 的 1.5s 窗一致。
+  if (psActive) { renderNow = (now - (state._interactAt || 0) < 1500) || (now - (state._psAt || 0) >= 33); if (renderNow) state._psAt = now; }
   if (state.mode === 'sched' && state.followTrain) {
     if (renderNow) updateFollowCamera(); // 省電時降 30fps 置中(讀絕對位置,不積分,半速置中仍平順)
     state._evClock = (state._evClock || 0) + dt;
@@ -5600,7 +5609,9 @@ function tick(now) {
   // 省電三板斧(繪製節流,不動上面的時間積分):
   // (1) 分頁隱藏停繪——時間照積分,只是不畫;錄影中例外(recCompose 每幀從主畫布拷貝,停繪會凍結成靜止幀)
   // (2) 待機時 draw 節流到 ~30fps;跟隨/幽靈車跟隨/放空/錄影/剛互動(1.5s 內)維持顯示器全速,體驗優先
-  if (!document.hidden || REC.on) {
+  // (3) 縮放動畫期間(_zoomAnim)完全凍結重繪:overlay 由 CSS transform 跟圖磚同步(見 onZoomAnim),此時再 draw
+  //     會在已按目標 zoom 算出的座標上又疊 CSS scale→雙重變換錯位;endZoomAnim 於動畫結束後立即重繪一次
+  if ((!document.hidden || REC.on) && !state._zoomAnim) {
     if (psActive) {
       if (renderNow) { state._drawAt = now; draw(); } // 省電:跟隨也降到 ~30fps;相機與繪製同一個 renderNow 閘,列車不會與底圖錯位
     } else {
@@ -6653,8 +6664,10 @@ function pickBreathScene() {
   return { lat: a.lat, lon: a.lon, anchor: { lat: a.lat, lon: a.lon }, z: BREATH_BASE_Z, breath: true, bt: 0 };
 }
 // 呼吸幕合成器:地圖固定整數 z13(真實圖磚在場),放大縮小改由 CSS transform 對 #map+#overlay 兩個 .stage 平級兄弟
-// 同幀施加(.stage overflow:hidden 天然裁切)。zoomAnimation:false(v0714a 殘影鐵則)下分數 zoom 圖磚物理上載不進來,
-// 故改走合成器路徑——底圖(街道或衛星,跟 basemap 設定走)全程可見。breathStage 只設旗標+transformOrigin,不動底圖。
+// 同幀施加(.stage overflow:hidden 天然裁切)。分數 zoom 圖磚物理上載不進來(Leaflet 只載整數 zoom 圖磚,與縮放動畫
+// 開關無關),故呼吸走合成器路徑——底圖(街道或衛星,跟 basemap 設定走)全程可見。breathStage 只設旗標+transformOrigin,不動底圖。
+// 註:此 CSS-scale 合成與縮放動畫(zoomAnimation:true)的 overlay 同步(onZoomAnim)是兩套獨立路徑——使用者一縮放即
+// 觸發 zoomstart→breathStageRestore 交還舞台(清 scale),兩者時間上互斥,不會同時對 #overlay 施加 transform。
 function breathScale(s) { // 對 #map+#overlay 同幀施加等值 CSS scale(s=1 清為 identity);錨點固定,零平移
   const m = document.getElementById('map'), o = document.getElementById('overlay');
   const v = s === 1 ? '' : 'scale(' + s + ')';
@@ -8466,6 +8479,7 @@ function showSearchMiss(q) {
 
 function recenterTo(lat, lon) {
   if (camBlocked()) return; // 劇場/背景分頁:跟隨鏡頭不置中(成本防線,勿移除)
+  if (state._zoomAnim) return; // 縮放動畫視窗內不搶相機:setView(animate:false) 會中斷 Leaflet 的縮放補間;動畫一結束(≤250ms)下一幀自然補回置中
   // 每幀把列車釘在畫面中心。曾用「次像素平移」(移動 mapPane 消階梯鋸齒),但 mapPane(圖磚)與獨立的
   // 列車/軌道 canvas 圖層在真機幀率下會脫鉤→整條路線跟著車移動/抖動(v0713r 引入),已移除,回歸穩定整數像素置中。
   const c = map.getCenter();
@@ -10957,10 +10971,13 @@ async function boot() {
   if (state.liveMode) document.body.classList.add('live');
   if (state.director) document.body.classList.add('director');
   cv = document.getElementById('overlay'); ctx = cv.getContext('2d');
-  // zoomAnimation:false —— 縮放時圖磚不做 250ms CSS 補間、直接跳到新倍率。overlay 畫布是每幀
-  // 重投影的離散圖層(縮放瞬間就跳到新位置),圖磚若補間會落後它 ~250ms→路線與街道錯位「殘影」(issue #4)。
-  // 讓圖磚與 overlay 同幀落定即根除。此設定只影響縮放補間,平移/跟車動畫不受影響。
-  map = L.map('map', { zoomControl: true, attributionControl: true, preferCanvas: true, zoomAnimation: false })
+  // zoomAnimation:true —— 縮放走 Leaflet 250ms CSS 平滑補間(舊圖磚縮放到位、新圖磚淡入),不再「瞬間跳格→
+  // 舊圖磚被丟、新圖磚還沒到→畫面消失一下下」(TestFlight 回報)。overlay 畫布在 Leaflet pane 體系外、以
+  // container 座標每幀重投影,若補間期間立刻按目標 zoom 重畫會與圖磚錯位「殘影」(issue #4,首幀曾錯 186px)——
+  // 舊版 v0714a 靠關掉動畫規避,代價即上述「消失」。現改為:縮放動畫期間凍結 overlay 的 JS 重投影/重繪,
+  // 改對 overlay 施加與圖磚同一條曲線的 CSS transform 同步縮放(見下方 onZoomAnim/endZoomAnim),兩者同幀落定,
+  // 既根除殘影、又不再有消失感。平移/flyTo/跟車(setView animate:false)不發 zoomanim,一律不受此機制影響。
+  map = L.map('map', { zoomControl: true, attributionControl: true, preferCanvas: true, zoomAnimation: true })
     .setView([24.5, 121], 8);
   // 都會呼吸幕(分數 zoom 定場)專用:Leaflet 的 latLngToContainerPoint 對每點 project 取整、又減
   // 取整後的 pixelOrigin,分數 zoom 逐幀推進時整幅畫面(路網+海陸輪廓)會 ±1~2.5px shimmer 抖動。
@@ -11280,7 +11297,40 @@ async function boot() {
   setupMapTools();
   setupRecorder();
   await setupLocalNotifications();
-  map.on('move zoom resize zoomanim', reproject);
+  map.on('move zoom resize', reproject); // 縮放「動畫」不在此重投影(會造成 issue #4 殘影);改由下方 onZoomAnim 專責同步
+  // ── 縮放動畫(zoomAnimation:true)期間:讓 #overlay 畫布跟圖磚同步做 CSS transform ──────────────
+  // #overlay 不在 Leaflet pane 內、以 container 座標每幀重投影;Leaflet 對圖磚施加 250ms CSS transform 平滑
+  // 縮放,overlay 若立刻按目標 zoom 重畫就與圖磚錯位(issue #4)。對策:凍結 overlay 的 JS 重繪(見 tick/reproject),
+  // 改對它施加與圖磚等效、同曲線同時長的 CSS transform。公式(container 座標系,推導見下):
+  //   scale = getZoomScale(目標z, 起始z);  平移 t = 起始pixelOrigin·scale − 目標pixelOrigin
+  //   ∵ containerPoint(ll) = project(ll,z) − pixelOrigin,且 project 隨 2^z 線性 ⇒ C_new = scale·C_old + t
+  const ZOOM_ANIM_MS = 250, ZOOM_ANIM_EASE = 'cubic-bezier(0,0,0.25,1)'; // 對齊 Leaflet .leaflet-zoom-anim 圖磚過渡
+  function onZoomAnim(e) {
+    if (!cv) return;
+    if (!state._zoomAnim) { // 動畫第一幀:此刻 Leaflet 尚未 _move 到目標,map 的 zoom/pixelOrigin 仍是「起始」值,鎖為基準
+      state._zoomAnim = true;
+      state._zaFromZoom = map.getZoom();
+      const po = map.getPixelOrigin(); state._zaFromOx = po.x; state._zaFromOy = po.y; // 存數值,不留 Leaflet 會改寫的物件參照
+      cv.style.transformOrigin = '0 0';
+      cv.style.transition = 'transform ' + ZOOM_ANIM_MS + 'ms ' + ZOOM_ANIM_EASE;
+      clearTimeout(state._zaTimer); state._zaTimer = setTimeout(endZoomAnim, ZOOM_ANIM_MS + 90); // zoomend 萬一沒送達的保險(冪等)
+    }
+    // 連續縮放(捏合/連續滾輪)每幀重發 zoomanim:基準固定在起始幀(canvas 凍結於起始 zoom),故永遠相對起始換算
+    const s = map.getZoomScale(e.zoom, state._zaFromZoom);
+    const no = map._getNewPixelOrigin(e.center, e.zoom); // 目標狀態的世界像素原點
+    const tx = state._zaFromOx * s - no.x, ty = state._zaFromOy * s - no.y;
+    cv.style.transform = 'translate(' + tx + 'px,' + ty + 'px) scale(' + s + ')';
+  }
+  function endZoomAnim() {
+    if (!state._zoomAnim) return; // 冪等:zoomend 與保險 timer 都可能觸發
+    clearTimeout(state._zaTimer);
+    state._zoomAnim = false;
+    // 清 transform 與「按新 zoom 重投影重繪」放在同一個同步 turn:瀏覽器只合成一次,不會出現「舊 zoom 畫面貼回 identity」的中間閃跳
+    cv.style.transition = ''; cv.style.transform = ''; cv.style.transformOrigin = '';
+    reproject(); if (state.ready) draw();
+  }
+  map.on('zoomanim', onZoomAnim);
+  map.on('zoomend', endZoomAnim);
   // 省電:互動時標記時戳,tick 據此維持全速 1.5s(見 tick 節流)。map 'move'/'zoom' 覆蓋整段拖曳/縮放
   // (滑鼠拖曳中只有 pointermove 不重發,靠 map move 續命);pointerdown/wheel/touch 覆蓋點擊與觸控起手
   const markInteract = () => { state._interactAt = performance.now(); };
