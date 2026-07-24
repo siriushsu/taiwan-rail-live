@@ -1,5 +1,10 @@
 // verify_zoom_anim.mjs — 縮放動畫回歸 + overlay 同步變換 的跨層驗證 (V1–V4)
-// 跑法：先在本資料夾起 `python3 -m http.server 8791 --bind 127.0.0.1`，再 `node verify_zoom_anim.mjs`
+// 跑法：
+//   1) 生差分基準（皆為暫存檔，驗完可刪）：
+//        git show main:index.html    > index_old.html     # 修復前(zoomAnimation:false)＝V1「消失」對照 / V4e 拖曳落後對照
+//        git show 98222db:index.html > index_buggy.html   # 縮放錯位 bug 版(layer-space 公式)＝V2b 核心回歸對照
+//   2) 起靜態站：`python3 -m http.server 8791 --bind 127.0.0.1`
+//   3) `node verify_zoom_anim.mjs`
 // 心得16 標準：量「跨層對齊」而非單層；動畫類一律 Playwright 真引擎，不用內建 Browser pane。
 import { chromium, webkit } from './node_modules/playwright/index.mjs';
 
@@ -127,39 +132,70 @@ async function getBg(pg) {
   });
 }
 
-// ── V2：動畫期間逐幀比對 #overlay 與 .leaflet-tile-container 的 transform（換算到同座標系的最大位移誤差）
-async function v2CrossLayer(pg, center) {
-  const out = await pg.evaluate(async ({ center }) => {
-    const map = window.__map;
-    map.setView(center, 12, { animate: false });
-    await new Promise(r => setTimeout(r, 700));
-    const ov = document.getElementById('overlay');
-    const tc = document.querySelector('.leaflet-tile-container.leaflet-zoom-animated') || document.querySelector('.leaflet-tile-container');
-    const R = document.getElementById('map').getBoundingClientRect();
-    // 參考點：四角＋中心（container 座標，origin 0,0）
-    const refs = [[0, 0], [R.width, 0], [0, R.height], [R.width, R.height], [R.width / 2, R.height / 2]];
-    const mapPt = (mstr, p) => { const m = new DOMMatrix(mstr); return { x: m.a * p[0] + m.c * p[1] + m.e, y: m.b * p[0] + m.d * p[1] + m.f }; };
-    const samples = [];
-    map.setZoomAround(map.latLngToContainerPoint(center), 14);
-    await new Promise(res => { let n = 0; const loop = () => {
-      const so = getComputedStyle(ov), st = getComputedStyle(tc);
-      let maxd = 0;
-      if (so.transform !== 'none' && st.transform !== 'none') {
-        for (const p of refs) { const a = mapPt(so.transform, p), b = mapPt(st.transform, p); maxd = Math.max(maxd, Math.hypot(a.x - b.x, a.y - b.y)); }
+// ── V2 家族：動畫期間「圖磚實際渲染位置」 vs 「overlay 對同一世界點的位置」的最大錯位（跨層引擎真值對齊）
+// 關鍵：不比兩層 transform 的字面值（舊 V2 的錯誤——那要求 M_ov==M_tc，只有 panePos=0 才成立，平移後就假通過）。
+// 改直接量圖磚 NW 角的 getBoundingClientRect（瀏覽器已把 mapPane 平移＋容器 scale 全合成，零建模＝引擎真值），
+// 對照 overlay 用它自己那一個 transform(origin 0 0) 把「凍結於起始幀的同一角 container 座標 q」映射到的位置。
+// 兩者對同一世界點應重合(≤2px)。panBy 製造非零 panePos 重現「平移後再縮放」——舊式漏 (s−1)·panePos，錯位=常數偏移。
+async function zoomAlignProfile(ctx, file, { center, fromZ, toZ, panBy, rapid }) {
+  const p = await ctx.newPage();
+  await p.addInitScript(() => { try { localStorage.setItem('trainmap-howto-seen', '1'); } catch (e) {} });
+  await p.goto(`${BASE}/${file}`, { waitUntil: 'load', timeout: 40000 });
+  await p.waitForFunction(() => window.__map && window.__state && window.__state.ready, { timeout: 40000 });
+  await p.evaluate(() => { const s = window.__state; s.ambient = false; s._hotNext = 1e18; const w = document.getElementById('howtoWrap'); if (w) w.hidden = true; });
+  const r = await p.evaluate(async ({ center, fromZ, toZ, panBy, rapid }) => {
+    const map = window.__map, mapEl = document.getElementById('map'), ov = document.getElementById('overlay');
+    const applyM = (mstr, q) => { const m = new DOMMatrix(mstr === 'none' ? undefined : mstr); return { x: m.a * q[0] + m.c * q[1] + m.e, y: m.b * q[0] + m.d * q[1] + m.f }; };
+    map.setView(center, fromZ, { animate: false });
+    await new Promise(r => setTimeout(r, 800));
+    if (panBy) { map.panBy(panBy, { animate: false }); await new Promise(r => setTimeout(r, 400)); } // 非零 panePos，不重設 pixelOrigin
+    const pp0 = map._getMapPanePos();
+    const R = mapEl.getBoundingClientRect();
+    // 取起始幀圖磚樣本（誤差為常數偏移，任一片即可揭露 bug，多片防脫落）。★只取中央帶★：邊緣圖磚在 WebKit CSS-scale
+    // 過渡下會被裁切/剔除，其 getBoundingClientRect 有次像素取樣噪聲（compositor 與主執行緒不同幀），會虛胖 max；
+    // 中央帶是量測儀器可信區（實測中央片 WebKit≈0.75px、邊緣片才飆到 4px）。bug 是常數偏移不受此影響。
+    const cand = [...document.querySelectorAll('img.leaflet-tile')]
+      .filter(t => t.complete && t.naturalWidth > 0 && getComputedStyle(t).opacity !== '0')
+      .map(t => { const b = t.getBoundingClientRect(); return { el: t, q: [b.left - R.left, b.top - R.top], mx: b.left + b.width / 2 - R.left, my: b.top + b.height / 2 - R.top }; })
+      .filter(s => s.mx > R.width * 0.22 && s.mx < R.width * 0.78 && s.my > R.height * 0.18 && s.my < R.height * 0.82);
+    cand.sort((a, b) => a.mx - b.mx);
+    const picks = []; const step = Math.max(1, Math.floor(cand.length / 8));
+    for (let i = 0; i < cand.length && picks.length < 8; i += step) picks.push(cand[i]);
+    const measure = () => {
+      const so = getComputedStyle(ov), t = so.transform, active = t !== 'none';
+      const sc = active ? new DOMMatrix(t).a : 1; let maxd = 0, cnt = 0;
+      if (active) for (const s of picks) {
+        if (!s.el.isConnected) continue; const rb = s.el.getBoundingClientRect(); if (!rb.width) continue;
+        const tileNow = { x: rb.left - R.left, y: rb.top - R.top }, ovNow = applyM(t, s.q);
+        maxd = Math.max(maxd, Math.hypot(tileNow.x - ovNow.x, tileNow.y - ovNow.y)); cnt++;
       }
-      const sc = so.transform === 'none' ? 1 : new DOMMatrix(so.transform).a;
-      samples.push({ ovT: so.transform, tcT: st.transform, ovOrigin: so.transformOrigin, maxd, sc });
-      if (++n < 26) requestAnimationFrame(loop); else res();
-    }; requestAnimationFrame(loop); });
-    await new Promise(r => setTimeout(r, 180));
-    return { samples, ovAfter: getComputedStyle(ov).transform, zoomAnimFlag: !!window.__state._zoomAnim };
-  }, { center });
-  // 分析：只看兩層都有 transform 的幀
-  const active = out.samples.filter(s => s.ovT !== 'none' && s.tcT !== 'none');
-  const maxErr = active.length ? Math.max(...active.map(s => s.maxd)) : 999;
-  const midFrames = active.filter(s => s.sc > 1.1 && s.sc < 3.6).length; // 證明確有取到「動畫途中」的幀
-  const origin0 = active.every(s => /^0px 0px|^0% 0%|^0px 0px 0px/.test(s.ovOrigin));
-  return { maxErr, midFrames, activeFrames: active.length, ovAfter: out.ovAfter, zoomAnimFlag: out.zoomAnimFlag, origin0 };
+      return { sc, maxd, cnt, active, origin0: /^0px 0px/.test(so.transformOrigin) };
+    };
+    const samples = [];
+    map.setZoomAround(map.latLngToContainerPoint(center), toZ); // 以（平移後的）中心點為軸做動畫縮放
+    await new Promise(res => { let n = 0; const loop = () => { samples.push(measure()); if (++n < 32) requestAnimationFrame(loop); else res(); }; requestAnimationFrame(loop); });
+    await new Promise(r => setTimeout(r, 260));
+    const after = { ov: getComputedStyle(ov).transform, flag: !!window.__state._zoomAnim, z: map.getZoom() };
+    let rapidState = null;
+    if (rapid) { // 連續快速縮放後不得殘留 transform／凍結旗標（漂移／殘影）
+      map.setView(center, fromZ, { animate: false }); await new Promise(r => setTimeout(r, 300));
+      for (let i = 0; i < 3; i++) { map.setZoomAround(map.latLngToContainerPoint(center), map.getZoom() + 1); await new Promise(r => setTimeout(r, 90)); }
+      await new Promise(r => setTimeout(r, 900));
+      rapidState = { ov: getComputedStyle(ov).transform, flag: !!window.__state._zoomAnim, z: map.getZoom() };
+    }
+    const active = samples.filter(s => s.active && s.cnt > 0);
+    const sortedD = active.map(s => s.maxd).sort((a, b) => b - a);
+    const maxMisalign = sortedD.length ? sortedD[0] : 999;
+    // robustMax＝丟掉單一最高幀後的次高值：WebKit 偶有單幀 getBoundingClientRect 取樣毛刺(compositor 與主執行緒差半幀)，
+    // 實測 15/16 幀為 0px、僅 1 幀跳到 ~2px；真正的座標錯位是「常數偏移、每幀皆錯」(如舊版每幀 130–260px)，次高值照樣揭露。
+    const robustMax = sortedD.length >= 2 ? sortedD[1] : (sortedD[0] ?? 999);
+    const framesOver2 = active.filter(s => s.maxd > 2).length;
+    const midFrames = active.filter(s => Math.abs(s.sc - 1) > 0.08).length; // 確有取到「動畫途中」的幀
+    const origin0 = active.length > 0 && active.every(s => s.origin0);
+    return { pp0: { x: +pp0.x.toFixed(1), y: +pp0.y.toFixed(1) }, nPicks: picks.length, maxMisalign: +maxMisalign.toFixed(2), robustMax: +robustMax.toFixed(2), framesOver2, midFrames, activeFrames: active.length, origin0, after, rapidState };
+  }, { center, fromZ, toZ, panBy, rapid });
+  await p.close();
+  return r;
 }
 
 async function run(browserType, label, { mobile, cdp } = {}) {
@@ -185,12 +221,32 @@ async function run(browserType, label, { mobile, cdp } = {}) {
       `zoomOUT new=${nOut.minCov.toFixed(3)} vs old=${oOut.minCov.toFixed(3)}; new midNonBgPixels=${nIn.midNonBg.toFixed(3)} — 新版縮放中圖磚常在、舊版瞬跳掉到空`);
   } catch (e) { pass(`${label}/V1`, false, 'error ' + e.message); }
 
-  // ── V2：跨層同步（僅桌面，行動不重複）
-  if (!mobile) try {
-    const v2 = await v2CrossLayer(pg, TAIPEI);
-    const ok = v2.maxErr <= 2 && v2.midFrames >= 3 && v2.ovAfter === 'none' && !v2.zoomAnimFlag && v2.origin0;
-    pass(`${label}/V2`, ok, `maxCrossLayerErr=${v2.maxErr.toFixed(3)}px, midAnimFrames=${v2.midFrames}/${v2.activeFrames}, overlayCleared=${v2.ovAfter === 'none'}, flagCleared=${!v2.zoomAnimFlag}, origin0=${v2.origin0}`);
-  } catch (e) { pass(`${label}/V2`, false, 'error ' + e.message); }
+  // ── V2 家族：縮放時「地圖(圖磚) vs 軌道(overlay)」跨層對齊（僅桌面，行動由 V4d 捏合覆蓋）
+  if (!mobile) {
+    // V2：未平移基準（panePos≈0）——修好前後都該對齊；證明新公式在原始情境沒退化＋確有取到動畫途中幀
+    try {
+      const a = await zoomAlignProfile(ctx, 'index.html', { center: TAIPEI, fromZ: 13, toZ: 14 });
+      const ok = a.robustMax <= 2 && a.midFrames >= 3 && a.after.ov === 'none' && !a.after.flag && a.origin0 && a.nPicks >= 3;
+      pass(`${label}/V2`, ok, `unpanned misalign max=${a.maxMisalign}px robust=${a.robustMax}px framesOver2=${a.framesOver2}/${a.activeFrames} (picks=${a.nPicks}, midFrames=${a.midFrames}), overlayCleared=${a.after.ov === 'none'}, flag=${a.after.flag}, origin0=${a.origin0}`);
+    } catch (e) { pass(`${label}/V2`, false, 'error ' + e.message); }
+
+    // V2b：平移 ≥150px 後縮放（非零 panePos）——★核心回歸★。新版每幀對齊、舊版 index_buggy 每幀恆錯 ~130–260px；
+    // 差分證明此測真能抓到 bug。判準用 robustMax(丟單幀 WebKit 取樣毛刺)；真錯位是常數偏移、每幀皆錯，次高值照樣揭露。
+    try {
+      const fx = await zoomAlignProfile(ctx, 'index.html', { center: TAIPEI, fromZ: 13, toZ: 14, panBy: [220, 140] });
+      const bg2 = await zoomAlignProfile(ctx, 'index_buggy.html', { center: TAIPEI, fromZ: 13, toZ: 14, panBy: [220, 140] });
+      const panned = Math.hypot(fx.pp0.x, fx.pp0.y) >= 150; // 前置：動畫起始時確實處於平移態
+      const ok = panned && fx.robustMax <= 2 && bg2.robustMax >= 8 && (bg2.robustMax - fx.robustMax) >= 6;
+      pass(`${label}/V2b`, ok, `panned panePos=(${fx.pp0.x},${fx.pp0.y}) |${Math.hypot(fx.pp0.x, fx.pp0.y).toFixed(0)}px| → FIXED robust=${fx.robustMax}px(max${fx.maxMisalign},over2=${fx.framesOver2}) vs BUGGY robust=${bg2.robustMax}px(over2=${bg2.framesOver2}/${bg2.activeFrames})  【修復前每幀錯位 ~${bg2.robustMax}px → 修復後 ${fx.robustMax}px】`);
+    } catch (e) { pass(`${label}/V2b`, false, 'error ' + e.message); }
+
+    // V2c：平移後「縮小」也對齊(s<1)＋接連續快速縮放×3 不殘留 transform/凍結旗標（無漂移/殘影）
+    try {
+      const c = await zoomAlignProfile(ctx, 'index.html', { center: TAIPEI, fromZ: 14, toZ: 12, panBy: [-180, 130], rapid: true });
+      const ok = Math.hypot(c.pp0.x, c.pp0.y) >= 120 && c.robustMax <= 2 && c.rapidState && c.rapidState.ov === 'none' && !c.rapidState.flag;
+      pass(`${label}/V2c`, ok, `panned zoom-OUT misalign robust=${c.robustMax}px(max${c.maxMisalign}) (panePos |${Math.hypot(c.pp0.x, c.pp0.y).toFixed(0)}px|); after rapid×3: overlay=${c.rapidState ? c.rapidState.ov : 'n/a'}, flag=${c.rapidState ? c.rapidState.flag : 'n/a'}, z=${c.rapidState ? c.rapidState.z : 'n/a'} — 縮小與連縮皆無錯位/殘留`);
+    } catch (e) { pass(`${label}/V2c`, false, 'error ' + e.message); }
+  }
 
   // ── V3：動畫結束後靜態對齊（新版 vs 舊版 HEAD 同視野像素比對，靜態應一致）
   try {

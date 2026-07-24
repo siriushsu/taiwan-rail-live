@@ -11299,26 +11299,34 @@ async function boot() {
   await setupLocalNotifications();
   map.on('move zoom resize', reproject); // 縮放「動畫」不在此重投影(會造成 issue #4 殘影);改由下方 onZoomAnim 專責同步
   // ── 縮放動畫(zoomAnimation:true)期間:讓 #overlay 畫布跟圖磚同步做 CSS transform ──────────────
-  // #overlay 不在 Leaflet pane 內、以 container 座標每幀重投影;Leaflet 對圖磚施加 250ms CSS transform 平滑
-  // 縮放,overlay 若立刻按目標 zoom 重畫就與圖磚錯位(issue #4)。對策:凍結 overlay 的 JS 重繪(見 tick/reproject),
-  // 改對它施加與圖磚等效、同曲線同時長的 CSS transform。公式(container 座標系,推導見下):
-  //   scale = getZoomScale(目標z, 起始z);  平移 t = 起始pixelOrigin·scale − 目標pixelOrigin
-  //   ∵ containerPoint(ll) = project(ll,z) − pixelOrigin,且 project 隨 2^z 線性 ⇒ C_new = scale·C_old + t
+  // #overlay 不在 Leaflet pane 內、以「container 座標」每幀重投影(container = layer + mapPanePos);Leaflet 對圖磚
+  // 施加 250ms CSS transform 平滑縮放,overlay 若立刻按目標 zoom 重畫就與圖磚錯位(issue #4)。對策:凍結 overlay
+  // 的 JS 重繪(見 tick/reproject),改對它施加「把起始畫面縮放到目標畫面」的 CSS transform。
+  // ⚠ 公式必須在 container 座標系推導,不能照抄圖磚的 layer-space 值 ── 圖磚的 tile-container 在 mapPane 內、會吃
+  //   mapPanePos(平移量);#overlay 在 mapPane 外。兩者只有在 panePos=0(未平移)才等價,平移過就差 scale·panePos,
+  //   縮放時整條軌道與圖磚分離錯位(舊式 t = 起始pixelOrigin·scale − 目標pixelOrigin 漏掉 −scale·panePos 項)。
+  // 正解:動畫結束時 e.center 落在 container 正中 c = size/2;起始畫面中 e.center 的 container 座標記為 p,
+  //   則內容變換 x → scale·x + (c − scale·p),即 transform = translate(c−scale·p) scale(scale)、origin 0 0。
+  //   p = C0(e.center) = project(e.center,起始z) − (起始pixelOrigin − 起始panePos),與 latLngToContainerPoint
+  //   等價,但改用「起始基準+view-independent 的 project」,對連續縮放(每幀 map 已飄移)仍穩定。
   const ZOOM_ANIM_MS = 250, ZOOM_ANIM_EASE = 'cubic-bezier(0,0,0.25,1)'; // 對齊 Leaflet .leaflet-zoom-anim 圖磚過渡
   function onZoomAnim(e) {
     if (!cv) return;
-    if (!state._zoomAnim) { // 動畫第一幀:此刻 Leaflet 尚未 _move 到目標,map 的 zoom/pixelOrigin 仍是「起始」值,鎖為基準
+    if (!state._zoomAnim) { // 動畫第一幀:此刻 Leaflet 尚未 _move 到目標,map 仍是「起始」視圖,鎖為基準(含平移量 panePos)
       state._zoomAnim = true;
       state._zaFromZoom = map.getZoom();
-      const po = map.getPixelOrigin(); state._zaFromOx = po.x; state._zaFromOy = po.y; // 存數值,不留 Leaflet 會改寫的物件參照
+      const po = map.getPixelOrigin(), pp = map._getMapPanePos();
+      state._zaOx = po.x - pp.x; state._zaOy = po.y - pp.y; // 起始「container 原點」= pixelOrigin − panePos(存數值,不留參照)
+      const c = map.getSize().divideBy(2); state._zaCx = c.x; state._zaCy = c.y; // 動畫收斂中心(縮放不改 size)
       cv.style.transformOrigin = '0 0';
       cv.style.transition = 'transform ' + ZOOM_ANIM_MS + 'ms ' + ZOOM_ANIM_EASE;
       clearTimeout(state._zaTimer); state._zaTimer = setTimeout(endZoomAnim, ZOOM_ANIM_MS + 90); // zoomend 萬一沒送達的保險(冪等)
     }
-    // 連續縮放(捏合/連續滾輪)每幀重發 zoomanim:基準固定在起始幀(canvas 凍結於起始 zoom),故永遠相對起始換算
+    // 連續縮放(捏合/連續滾輪)每幀重發 zoomanim:全部相對「起始視圖」換算(canvas 凍結於起始 zoom),故用起始基準+project
     const s = map.getZoomScale(e.zoom, state._zaFromZoom);
-    const no = map._getNewPixelOrigin(e.center, e.zoom); // 目標狀態的世界像素原點
-    const tx = state._zaFromOx * s - no.x, ty = state._zaFromOy * s - no.y;
+    const P = map.project(e.center, state._zaFromZoom);      // 目標中心在「起始 zoom」下的世界像素(與當前 view 無關)
+    const px = P.x - state._zaOx, py = P.y - state._zaOy;    // = 起始畫面中 e.center 的 container 座標(已含平移量)
+    const tx = state._zaCx - s * px, ty = state._zaCy - s * py;
     cv.style.transform = 'translate(' + tx + 'px,' + ty + 'px) scale(' + s + ')';
   }
   function endZoomAnim() {
