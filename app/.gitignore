@@ -1,0 +1,15 @@
+node_modules/
+www/
+android/
+.DS_Store
+
+# iOS 原生專案本體進版控——Xcode Cloud 從 git clone 建置，缺了就跑不起來。
+# 以下是建置產物與機密：產物由 CI 現場產生，機密由 Xcode Cloud 加密環境變數注入
+# （見 ios/App/ci_scripts/ci_post_clone.sh）。
+ios/App/Pods/
+ios/App/App/public/
+ios/App/App/GoogleService-Info.plist
+ios/App/build/
+ios/DerivedData/
+**/xcuserdata/
+*.xcuserstate

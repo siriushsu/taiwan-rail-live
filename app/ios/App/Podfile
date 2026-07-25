@@ -1,0 +1,31 @@
+require_relative '../../node_modules/@capacitor/ios/scripts/pods_helpers'
+
+platform :ios, '15.0'
+use_frameworks!
+
+# workaround to avoid Xcode caching of Pods that requires
+# Product -> Clean Build Folder after new Cordova plugins installed
+# Requires CocoaPods 1.6 or newer
+install! 'cocoapods', :disable_input_output_paths => true
+
+def capacitor_pods
+  pod 'Capacitor', :path => '../../node_modules/@capacitor/ios'
+  pod 'CapacitorCordova', :path => '../../node_modules/@capacitor/ios'
+  pod 'CapacitorFirebaseAuthentication', :path => '../../node_modules/@capacitor-firebase/authentication'
+  pod 'CapacitorGeolocation', :path => '../../node_modules/@capacitor/geolocation'
+  pod 'CapacitorLocalNotifications', :path => '../../node_modules/@capacitor/local-notifications'
+  pod 'CapacitorShare', :path => '../../node_modules/@capacitor/share'
+  pod 'RevenuecatPurchasesCapacitor', :path => '../../node_modules/@revenuecat/purchases-capacitor'
+end
+
+target 'App' do
+  capacitor_pods
+  # Add your Pods here
+  # Google 登入只掛 /Google subspec——走 SwiftPM 或裝完整 pod 會連 Facebook SDK 一起拉進來
+  # (見 hand off/CODEX_APP_HANDOFF_2026-07-15.md §3.3),providers 只有 Google/Apple 用不到它。
+  pod 'CapacitorFirebaseAuthentication/Google', :path => '../../node_modules/@capacitor-firebase/authentication'
+end
+
+post_install do |installer|
+  assertDeploymentTarget(installer)
+end

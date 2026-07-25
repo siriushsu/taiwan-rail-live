@@ -1,0 +1,175 @@
+PODS:
+  - AppAuth (2.1.0):
+    - AppAuth/Core (= 2.1.0)
+    - AppAuth/ExternalUserAgent (= 2.1.0)
+  - AppAuth/Core (2.1.0)
+  - AppAuth/ExternalUserAgent (2.1.0):
+    - AppAuth/Core
+  - AppCheckCore (11.3.1):
+    - GoogleUtilities/Environment (~> 8.0)
+    - GoogleUtilities/UserDefaults (~> 8.0)
+    - PromisesObjC (~> 2.4)
+    - PromisesSwift (~> 2.4)
+    - RecaptchaInterop (~> 101.0)
+  - Capacitor (8.4.2):
+    - CapacitorCordova
+  - CapacitorCordova (8.4.2)
+  - CapacitorFirebaseAuthentication (8.3.0):
+    - Capacitor
+    - CapacitorFirebaseAuthentication/Lite (= 8.3.0)
+    - FirebaseAuth (~> 12.7.0)
+  - CapacitorFirebaseAuthentication/Google (8.3.0):
+    - Capacitor
+    - FirebaseAuth (~> 12.7.0)
+    - GoogleSignIn (= 9.0.0)
+  - CapacitorFirebaseAuthentication/Lite (8.3.0):
+    - Capacitor
+    - FirebaseAuth (~> 12.7.0)
+  - CapacitorGeolocation (8.2.0):
+    - Capacitor
+    - IONGeolocationLib (= 2.1.0)
+  - CapacitorLocalNotifications (8.2.1):
+    - Capacitor
+  - CapacitorShare (8.0.1):
+    - Capacitor
+  - FirebaseAppCheckInterop (12.7.0)
+  - FirebaseAuth (12.7.0):
+    - FirebaseAppCheckInterop (~> 12.7.0)
+    - FirebaseAuthInterop (~> 12.7.0)
+    - FirebaseCore (~> 12.7.0)
+    - FirebaseCoreExtension (~> 12.7.0)
+    - GoogleUtilities/AppDelegateSwizzler (~> 8.1)
+    - GoogleUtilities/Environment (~> 8.1)
+    - GTMSessionFetcher/Core (< 6.0, >= 3.4)
+    - RecaptchaInterop (~> 101.0)
+  - FirebaseAuthInterop (12.7.0)
+  - FirebaseCore (12.7.0):
+    - FirebaseCoreInternal (~> 12.7.0)
+    - GoogleUtilities/Environment (~> 8.1)
+    - GoogleUtilities/Logger (~> 8.1)
+  - FirebaseCoreExtension (12.7.0):
+    - FirebaseCore (~> 12.7.0)
+  - FirebaseCoreInternal (12.7.0):
+    - "GoogleUtilities/NSData+zlib (~> 8.1)"
+  - GoogleSignIn (9.0.0):
+    - AppAuth (~> 2.0)
+    - AppCheckCore (~> 11.0)
+    - GTMAppAuth (~> 5.0)
+    - GTMSessionFetcher/Core (~> 3.3)
+  - GoogleUtilities/AppDelegateSwizzler (8.1.2):
+    - GoogleUtilities/Environment
+    - GoogleUtilities/Logger
+    - GoogleUtilities/Network
+    - GoogleUtilities/Privacy
+  - GoogleUtilities/Environment (8.1.2):
+    - GoogleUtilities/Privacy
+  - GoogleUtilities/Logger (8.1.2):
+    - GoogleUtilities/Environment
+    - GoogleUtilities/Privacy
+  - GoogleUtilities/Network (8.1.2):
+    - GoogleUtilities/Logger
+    - "GoogleUtilities/NSData+zlib"
+    - GoogleUtilities/Privacy
+    - GoogleUtilities/Reachability
+  - "GoogleUtilities/NSData+zlib (8.1.2)":
+    - GoogleUtilities/Privacy
+  - GoogleUtilities/Privacy (8.1.2)
+  - GoogleUtilities/Reachability (8.1.2):
+    - GoogleUtilities/Logger
+    - GoogleUtilities/Privacy
+  - GoogleUtilities/UserDefaults (8.1.2):
+    - GoogleUtilities/Logger
+    - GoogleUtilities/Privacy
+  - GTMAppAuth (5.0.0):
+    - AppAuth/Core (~> 2.0)
+    - GTMSessionFetcher/Core (< 4.0, >= 3.3)
+  - GTMSessionFetcher/Core (3.5.0)
+  - IONGeolocationLib (2.1.0)
+  - PromisesObjC (2.4.1)
+  - PromisesSwift (2.4.1):
+    - PromisesObjC (= 2.4.1)
+  - PurchasesHybridCommon (18.19.0):
+    - RevenueCat (= 5.80.2)
+  - RecaptchaInterop (101.0.0)
+  - RevenueCat (5.80.2)
+  - RevenuecatPurchasesCapacitor (13.2.2):
+    - Capacitor
+    - PurchasesHybridCommon (= 18.19.0)
+
+DEPENDENCIES:
+  - "Capacitor (from `../../node_modules/@capacitor/ios`)"
+  - "CapacitorCordova (from `../../node_modules/@capacitor/ios`)"
+  - "CapacitorFirebaseAuthentication (from `../../node_modules/@capacitor-firebase/authentication`)"
+  - "CapacitorFirebaseAuthentication/Google (from `../../node_modules/@capacitor-firebase/authentication`)"
+  - "CapacitorGeolocation (from `../../node_modules/@capacitor/geolocation`)"
+  - "CapacitorLocalNotifications (from `../../node_modules/@capacitor/local-notifications`)"
+  - "CapacitorShare (from `../../node_modules/@capacitor/share`)"
+  - "RevenuecatPurchasesCapacitor (from `../../node_modules/@revenuecat/purchases-capacitor`)"
+
+SPEC REPOS:
+  trunk:
+    - AppAuth
+    - AppCheckCore
+    - FirebaseAppCheckInterop
+    - FirebaseAuth
+    - FirebaseAuthInterop
+    - FirebaseCore
+    - FirebaseCoreExtension
+    - FirebaseCoreInternal
+    - GoogleSignIn
+    - GoogleUtilities
+    - GTMAppAuth
+    - GTMSessionFetcher
+    - IONGeolocationLib
+    - PromisesObjC
+    - PromisesSwift
+    - PurchasesHybridCommon
+    - RecaptchaInterop
+    - RevenueCat
+
+EXTERNAL SOURCES:
+  Capacitor:
+    :path: "../../node_modules/@capacitor/ios"
+  CapacitorCordova:
+    :path: "../../node_modules/@capacitor/ios"
+  CapacitorFirebaseAuthentication:
+    :path: "../../node_modules/@capacitor-firebase/authentication"
+  CapacitorGeolocation:
+    :path: "../../node_modules/@capacitor/geolocation"
+  CapacitorLocalNotifications:
+    :path: "../../node_modules/@capacitor/local-notifications"
+  CapacitorShare:
+    :path: "../../node_modules/@capacitor/share"
+  RevenuecatPurchasesCapacitor:
+    :path: "../../node_modules/@revenuecat/purchases-capacitor"
+
+SPEC CHECKSUMS:
+  AppAuth: ef4da5a3fc2e10b90c09a0a94a9baeaedc0341d5
+  AppCheckCore: e215d35177a9cf469927863e69c13e220df32a8b
+  Capacitor: 52f999235b8bd6a7d01694753f4f4d54d182e3a3
+  CapacitorCordova: 345eacdc4c8282415446aea4acd8c77d82480bd4
+  CapacitorFirebaseAuthentication: d1f4c78c96f2669351781692071260ac79573876
+  CapacitorGeolocation: b36f6287bfc9f2eefa04dc900496f2c8ae666136
+  CapacitorLocalNotifications: 908a69a3cf7ae345426de3223d4980befb0103c6
+  CapacitorShare: 0c58305114538568059bfc07111f22dcb9cb2a82
+  FirebaseAppCheckInterop: d58366471f1dadf2ed998b15f85c658458a10142
+  FirebaseAuth: 88beaef7c688a2950541552b6dd195d22137c41a
+  FirebaseAuthInterop: deb2638881b5d98c88c4371dd0de65b6110f217b
+  FirebaseCore: c7b57863ce0859281a66d16ca36d665c45d332b5
+  FirebaseCoreExtension: 731a5744970bcd73ad95ab2a2b8a1f46353e86dd
+  FirebaseCoreInternal: 571a2dd8c975410966199623351db3a3265c874d
+  GoogleSignIn: c7f09cfbc85a1abf69187be091997c317cc33b77
+  GoogleUtilities: 766ace00c6b10d8148408f329d10c4f051931850
+  GTMAppAuth: 217a876b249c3c585a54fd6f73e6b58c4f5c4238
+  GTMSessionFetcher: 5aea5ba6bd522a239e236100971f10cb71b96ab6
+  IONGeolocationLib: 6a7b6f76063fb1b01cfb14fae7d0f526e3c9b271
+  PromisesObjC: 752c3227f599e3467650e47ea36f433eeb10c273
+  PromisesSwift: 217dea0fd5d2ad65222a109c48698add13cc1c5b
+  PurchasesHybridCommon: 1eb67a6c8997233b35ed9b4eee8205dd8dd92890
+  RecaptchaInterop: 11e0b637842dfb48308d242afc3f448062325aba
+  RevenueCat: b772273e51fa103a2ecc644439dd54a5dec199f3
+  RevenuecatPurchasesCapacitor: 91f6664742973bcf31d1abe1806beae12224ea3b
+
+PODFILE CHECKSUM: fb3ae5b93a735be8571f3a245b22d138b75cf1fb
+
+COCOAPODS: 1.17.0
