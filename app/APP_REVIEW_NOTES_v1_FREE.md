@@ -23,9 +23,9 @@ The website remains available, but these native, offline, location, and notifica
 
 ### Suggested review steps
 
-1. Launch the app. The Taiwan-wide railway animation loads automatically. No sign-in is required or offered.
+1. Launch the app. iOS requests location permission at launch, because the app centers the map on the user's current location so they immediately see the trains and stations around them. Whatever you answer, the app continues: allowing it centers the map on your location; denying it silently falls back to the Taiwan-wide view with every feature still available. No sign-in is required or offered.
 2. Tap a train to follow it, or tap a station to open the upcoming-train board.
-3. Open the tools drawer and try Nearby Trains. iOS will request location only after this user action. Denying permission does not block the app; manual map pinning remains available.
+3. Tap the Nearby Stations button on the map (top right, below Random Follow) to list the closest stations. Manual map pinning remains available if location was denied.
 4. While following a train, open its detail sheet and set an arrival or departure reminder; iOS will request notification permission only after this user action.
 5. Enter full screen / ambient mode to verify the animated map and the offline Taiwan fallback.
 
@@ -39,7 +39,7 @@ This version does not offer account creation or third-party sign-in. No Rail Isl
 
 ### Location and privacy
 
-Location is requested only after the user taps Nearby Trains. It is processed on-device to find nearby railway tracks and trains and is not sent to any Rail Island server or account. The app contains no advertising SDK and no behavioral analytics SDK.
+Location is requested once at launch (low accuracy, `getCurrentPosition` only — there is no `watchPosition`, no background location mode and no Always authorization) so the map can open at the user's location. A second, high-accuracy one-shot request happens only when the user taps Nearby Stations, where precision actually matters. Coordinates are processed entirely on-device to find nearby railway tracks and trains, and are never sent to any Rail Island server or account. The last coordinate is cached in local device storage for 30 days purely so the next launch does not have to wait for a fix; that cache never leaves the device and is not part of any sharing or sync feature. Denying permission is fully silent and blocks nothing. The app contains no advertising SDK and no behavioral analytics SDK.
 
 Privacy Policy: https://railisland.tw/privacy.html  
 Support: https://railisland.tw/app-support.html

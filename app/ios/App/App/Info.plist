@@ -38,10 +38,10 @@
 		</dict>
 	</array>
 	<key>NSLocationWhenInUseUsageDescription</key>
-	<string>軌島會在你按下「定位我」後，使用目前位置顯示附近鐵道與列車；位置不會保存到軌島帳號。</string>
+	<string>軌島開啟時會使用你的目前位置，把地圖直接停在你所在的地方，並顯示附近的車站與正在行駛的列車。位置只在裝置上使用，不會上傳、也不會保存到軌島帳號。</string>
 	<!-- @capacitor/geolocation 8.2.0 依賴的 iOS library 要求此 key;軌島不請求 Always 權限、不開背景定位 capability -->
 	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
-	<string>軌島會在你按下「定位我」後，使用目前位置顯示附近鐵道與列車；位置不會保存到軌島帳號。</string>
+	<string>軌島開啟時會使用你的目前位置，把地圖直接停在你所在的地方，並顯示附近的車站與正在行駛的列車。位置只在裝置上使用，不會上傳、也不會保存到軌島帳號。</string>
 	<key>UILaunchStoryboardName</key>
 	<string>LaunchScreen</string>
 	<key>UIMainStoryboardFile</key>

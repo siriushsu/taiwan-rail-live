@@ -546,11 +546,8 @@
   #map.zfar .pin-ico svg { transform: scale(1.32); }
   #map.zfar .pin-ico .ph { opacity: .22; }
   /* GPS「我的位置」藍點+外擴脈動 */
-  .geo-ico { background: none; border: 0; }
-  .geo-ico svg { display: block; position: relative; z-index: 2; filter: drop-shadow(0 1px 2px rgba(0,0,0,.32)); }
-  .geo-pulse { position: absolute; left: 50%; top: 50%; width: 22px; height: 22px; margin: -11px 0 0 -11px; border-radius: 50%; background: var(--gps); opacity: .4; animation: geoPulse 2.1s ease-out infinite; }
-  @keyframes geoPulse { 0% { transform: scale(.55); opacity: .5; } 100% { transform: scale(2.7); opacity: 0; } }
-  @media (prefers-reduced-motion: reduce) { .geo-pulse { animation: none; opacity: .25; } }
+  /* 「我的位置」藍點已改由列車 overlay 畫布繪製(見 drawMe):Leaflet pane 被 map-pane 的堆疊脈絡封頂,
+     畫布恆蓋在其上,藍點會被軌道與列車整片蓋掉。原本的 .geo-ico/.geo-pulse 規則隨之退場。 */
   /* 附近平交道清單卡的列(名稱+距離+下一班通過列車) */
   .xing-card .nx-row { display: block; padding: 7px 12px; border-top: 1px dashed var(--line-faint); cursor: pointer; }
   .xing-card .nx-row:first-child { border-top: 0; }
@@ -947,8 +944,8 @@
   body.fs .follow-panel .tc-events #tcEvents { flex: none; height: 88px; overflow-y: auto; overflow-x: hidden; }
   body.fs .kbd-hint, body.fs .flow, body.fs .search, body.fs .note, body.fs .passport, body.fs .site-foot { display: none; }
   /* 放空模式:閒置 5 秒淡出控制,滑鼠動了淡回(時鐘與跟隨面板留著) */
-  .controls, .leaflet-control-container, #randBtn, #fsFab, .tabbar { transition: opacity .7s; }
-  body.idle .controls, body.idle .leaflet-control-container, body.idle #randBtn, body.idle #fsFab, body.idle .tabbar { opacity: 0; pointer-events: none; }
+  .controls, .leaflet-control-container, #randBtn, #nearBtn, #fsFab, .tabbar { transition: opacity .7s; }
+  body.idle .controls, body.idle .leaflet-control-container, body.idle #randBtn, body.idle #nearBtn, body.idle #fsFab, body.idle .tabbar { opacity: 0; pointer-events: none; }
   body.idle .stage, body.idle * { cursor: none; }
   #overlay { position: absolute; inset: 0; pointer-events: none; z-index: 500; }
   /* 放空模式的日夜天色(依模擬時刻連續變化,墊在轉場遮罩下) */
@@ -969,7 +966,7 @@
   body.ambient #ambientStyleBtn { display: inline-flex; }
 
   /* ── 直播模式(?live=1,OBS 訊號源):隱藏一切互動 UI,留時鐘徽章/attribution/浮水印 ── */
-  body.live .controls, body.live #randBtn,
+  body.live .controls, body.live #randBtn, body.live #nearBtn,
   body.live .rec-pill, body.live .rec-toast, body.live .leaflet-control-zoom,
   body.live .follow-lock-ctl, body.live .citysel, body.live #fsFab, body.live .tabbar { display: none !important; }
   body.live .leaflet-control-container { opacity: 1 !important; }
@@ -1041,6 +1038,27 @@
     width: 100%; height: max(100%, 44px); transform: translate(-50%, -50%);
   }
   body.fs.immersive:not(.ambient) #randBtn { display: none !important; }
+
+  /* 附近車站:與隨機跟隨同款地圖膠囊鈕。刻意不共用 #randBtn 的選擇器——那條規則含 translateX(-50%) 置中位移,
+     混用會讓兩顆鈕的定位互相牽制(且 tag/選擇器共用出過樣式滲漏的虧),寧可重述視覺值換取彼此獨立。 */
+  #nearBtn {
+    position: absolute; right: 14px; bottom: 86px; z-index: 620;
+    font: inherit; font-size: 14.5px; font-weight: 700; cursor: pointer;
+    background: var(--paper); color: var(--navy);
+    border: 1.5px solid var(--line); border-radius: var(--r-pill);
+    box-shadow: var(--shadow-1); padding: 8px 18px;
+    display: inline-flex; align-items: center; gap: 6px;
+    transition: opacity .7s, transform .15s;
+  }
+  #nearBtn[hidden] { display: none; }
+  #nearBtn:hover { transform: translateY(-1px); }
+  #nearBtn .nb-ico { font-size: 15px; color: var(--gps); } /* ◎ 與地圖上的藍點同色,讀得出「這是我的位置」 */
+  /* v0718i 觸控熱區:高度補到 ≥44(寬度已夠,不擴) */
+  #nearBtn::after {
+    content: ''; position: absolute; left: 50%; top: 50%;
+    width: 100%; height: max(100%, 44px); transform: translate(-50%, -50%);
+  }
+  body.fs.immersive:not(.ambient) #nearBtn { display: none !important; }
 
   /* ── HUD 小牌 ── */
   .badge {
@@ -1890,7 +1908,7 @@
        規則自動失效還原(這些 chip 無其他狀態改 opacity,不殘留)。topbar 內 gtab/plate 另關 pointer-events(它們有
        pointer-events:auto,雖已被 sheet 蓋住仍防萬一穿透點擊)。 */
     body.sheet-full .follow-panel, body.sheet-full .freq-card,
-    body.sheet-full .badge, body.sheet-full #randBtn,
+    body.sheet-full .badge, body.sheet-full #randBtn, body.sheet-full #nearBtn,
     body.sheet-full .topbar, body.sheet-full .dwell-plate { opacity: 0; pointer-events: none; }
     body.sheet-full .topbar .tb-plate, body.sheet-full .topbar .grouptabs { pointer-events: none; }
     /* 跟車中 dwellPlate(停靠站名牌)＝當下最重要資訊,固定釘在畫面上方;另一張 sheet(護照/看板)只展開到 46% peek 時,
@@ -1973,6 +1991,13 @@
     /* 隨機跟隨鈕(手機 fs):動作靠右——與頂列同側、跟隨中「換一班」同席位;在徽章列(58)故公告橫幅(100)不再推它 */
     #randBtn, body.fs #randBtn { left: auto; right: 10px; top: calc(58px + env(safe-area-inset-top, 0px)); bottom: auto; transform: none; font-size: 13px; padding: 6px 13px; }
     #randBtn:hover { transform: none; }
+    /* 附近車站(手機 fs):接在隨機跟隨(58~92)正下方的右欄,與頂列同側形成一條動作欄。
+       公告橫幅佔的正是 top:100 那條整寬橫條,故沿用全鏈既有讓位法一起下移;橫幅點開的詳情面板是整寬覆蓋,
+       此時直接讓鈕退場(比照 sheet-full 的淡出契約,不是硬 display:none,免得回來時閃動)。 */
+    #nearBtn, body.fs #nearBtn { right: 10px; top: calc(100px + env(safe-area-inset-top, 0px)); bottom: auto; font-size: 13px; padding: 6px 13px; }
+    #nearBtn:hover { transform: none; }
+    .alert-banner:not([hidden]) ~ #nearBtn { top: calc(138px + env(safe-area-inset-top, 0px)); }
+    .alert-detail:not([hidden]) ~ #nearBtn { opacity: 0; pointer-events: none; }
     /* 首訪卡手機貼齊 mock */
     .howto-wrap { padding: 26px 14px 14px; }
   }
@@ -2141,6 +2166,11 @@ try { if (matchMedia('(max-width: 900px)').matches) document.body.classList.add(
     <!-- randBtn 放在 alertBanner 之後:手機版靠 .alert-banner ~ #randBtn 兄弟選擇器讓位(橫幅出現時下移) -->
     <button id="randBtn" title="隨機跟隨列車——再按一次換一班（小卡 × 結束）" hidden><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="16 3 21 3 21 8"/><line x1="4" y1="20" x2="21" y2="3"/><polyline points="21 16 21 21 16 21"/><line x1="15" y1="15" x2="21" y2="21"/><line x1="4" y1="4" x2="9" y2="9"/></svg><span id="randLbl">隨機跟隨</span></button>
     <div class="alert-detail" id="alertDetail" hidden></div>
+    <!-- 附近車站(只有原生 App 有定位能力,見 LOCATE_ENABLED;網站/PWA 一律不出現)。
+         定位改為開機自動完成後,這顆鈕獨立負責「我附近有哪些車站」——原本藏在「定位我」背後,手機上還只活在
+         「更多」抽屜裡(工具帶在 ≤900 整個隱藏),不直覺。位置比照 randBtn 放右欄;**必須排在 alertBanner 與
+         alertDetail 之後**,手機版靠 .alert-banner ~ #nearBtn / .alert-detail ~ #nearBtn 兄弟選擇器讓位。 -->
+    <button id="nearBtn" title="附近車站——我附近有哪些車站，最近的車什麼時候到" hidden><span class="nb-ico" aria-hidden="true">◎</span>附近車站</button>
     <!-- 行程分享接收端橫幅(?trip= 解碼成功後顯示;三態:追蹤中/已到達/行程已結束) -->
     <div class="trip-banner" id="tripBanner" hidden>
       <button class="tb-close" id="tripClose" title="關閉橫幅（不中斷跟車）">×</button>
@@ -2435,6 +2465,7 @@ try { if (matchMedia('(max-width: 900px)').matches) document.body.classList.add(
       <summary><span>🛠 更新紀錄</span><span class="foot-sub">最後更新：2026/7/25</span></summary>
       <ul class="foot-list">
         <li class="grp">最近更新</li>
+        <li><span class="d">7/25</span><span>App 打開就直接停在你所在的地方，不必再等定位、也不必自己找；地圖上多了「附近車站」鈕，一按就列出你附近最近的幾座車站</span></li>
         <li><span class="d">7/25</span><span>環島之星觀光列車上地圖了：搜尋「環島之星」或車次 1／2，就能跟著萌旅號 13 小時繞台灣一圈；介紹卡與列車收集同步收錄</span></li>
         <li><span class="d">7/25</span><span>衛星底圖改接 Esri 官方授權服務端點，授權來源更明確；畫面與操作不變</span></li>
         <li><span class="d">7/24</span><span>台鐵、高鐵與捷運列車現在都帶行進方向小箭頭（可在「更多」關閉）；時間軸新增 ±5 分鐘鈕，快速預覽幾分鐘前後的班況</span></li>
@@ -2532,6 +2563,7 @@ try { if (matchMedia('(max-width: 900px)').matches) document.body.classList.add(
         <li><span class="d">7/11</span><span>今日之最的列車在地圖上加繪金色漣漪光環</span></li>
         <li><span class="d">7/9</span><span>旅程護照與 16 枚成就徽章、「探」今日亮點面板上線</span></li>
         <li class="grp">手機與操作</li>
+        <li><span class="d">7/25</span><span>App 打開就直接停在你所在的地方，不必再等定位、也不必自己找；地圖上多了「附近車站」鈕，一按就列出你附近最近的幾座車站</span></li>
         <li><span class="d">7/24</span><span>手機版面整理：面板全開時頂部時鐘、台鐵捷頁籤等自動讓位不再互相壓疊；多處過小的標籤文字加大更易讀；搜尋框提示文字改短、不再超出框外</span></li>
         <li><span class="d">7/24</span><span>台鐵、高鐵與捷運列車現在都帶行進方向小箭頭（可在「更多」關閉）；時間軸新增 ±5 分鐘鈕，快速預覽幾分鐘前後的班況</span></li>
         <li><span class="d">7/24</span><span>地圖縮放恢復平滑過渡動畫，不再瞬間跳格或短暫空白；縮放過程軌道與列車全程貼合底圖同步縮放，站名與車牌維持固定大小不跳動</span></li>
@@ -2663,7 +2695,7 @@ try { if (matchMedia('(max-width: 900px)').matches) document.body.classList.add(
     <button class="ms-row" data-proxy="introBtn"><span>特殊站介紹</span><span class="toggle" data-tg="introBtn"></span></button>
     <button class="ms-row" data-proxy="dirBtn"><span>列車方向箭頭</span><span class="toggle" data-tg="dirBtn"></span></button>
     <button class="ms-row" data-proxy="pinBtn"><span>儲存地點</span><span class="toggle" data-tg="pinBtn"></span></button>
-    <button class="ms-row" data-proxy="locateBtn" data-close="1"><span>◎ 定位我</span><span class="chev">›</span></button>
+    <button class="ms-row" data-proxy="nearBtn" data-close="1"><span>◎ 附近車站</span><span class="chev">›</span></button>
     <!-- 縣市快速移動(Batch B):#citySel 縣市下拉的手機新家;點列展開 17 縣市 chip,點 chip 飛過去並關 sheet -->
     <button class="ms-row" data-act="cities"><span>縣 縣市快速移動</span><span class="chev">›</span></button>
     <div class="ms-cities" id="msCities" hidden></div>
@@ -2698,7 +2730,7 @@ try { if (matchMedia('(max-width: 900px)').matches) document.body.classList.add(
 <script>
 // 版本戳記:每次改版 push 前手動遞增(字母序),畫面時鐘徽章與 console 都會顯示,
 // 供比對線上跑的是不是最新版(瀏覽器快取 max-age=600 常讓人看到舊版)
-const BUILD = 'v0725d';
+const BUILD = 'v0725e';
 const TRACK_AUDIT = new URLSearchParams(location.search).get('audit') === 'tracks';
 // 手機/平板直式「殼」斷點(議題1:640→900,iPad 直式改拿 tabbar＋更多抽屜):與 CSS @media 同步,版面類判斷一律用此常數。
 // 注意:裝置等級判斷(keepBuffer/powerSave 預設)刻意不用此常數、維持 640——iPad 不該因為改拿 tabbar 就被當低階裝置。
@@ -4451,6 +4483,23 @@ try {
     };
   }
 } catch (e) {}
+// 開機自動定位的驗收 mock:只在「非原生網頁 + 明確帶參數」時注入(比照上面的 notifymock)。正式網頁/PWA 不帶參數
+// 就不注入,LOCATE_ENABLED 維持 false、行為零變化;原生 App 有真 bridge,這段被 !window.RAIL_APP 擋掉。
+// ?geomock=<lat>,<lon> 假裝定位到該座標;&geodelay=<ms> 模擬 GPS 慢;&geofail=1 模擬拒絕權限。
+try {
+  const gp = new URLSearchParams(location.search);
+  const gm = /^(-?\d+(?:\.\d+)?),(-?\d+(?:\.\d+)?)$/.exec(gp.get('geomock') || '');
+  if (!window.RAIL_APP && (gm || gp.get('geofail') === '1')) {
+    const gDelay = Math.max(0, parseInt(gp.get('geodelay'), 10) || 0);
+    const gAcc = Math.max(1, parseInt(gp.get('geoacc'), 10) || 65);
+    window.RAIL_NATIVE_GEOLOCATION = {
+      getCurrentPosition: () => new Promise((res, rej) => setTimeout(() => {
+        if (!gm) rej({ code: 1, message: 'mock：使用者拒絕定位' });
+        else res({ coords: { latitude: parseFloat(gm[1]), longitude: parseFloat(gm[2]), accuracy: gAcc } });
+      }, gDelay)),
+    };
+  }
+} catch (e) {}
 // App 殼建置期注入的設定(app/scripts/prepare-web.mjs 在頁面腳本前寫入 window.RAIL_APP_CONFIG:
 // 授權圖磚 tiles 與計量底圖的跟車 zoom 上限 followZoomCap)。網站沒有這個物件→全部走預設,行為零變化。
 // 這是網站/App 分流的唯一正道:行為差異一律讀這裡,不准讓 build 腳本用字串比對改寫本檔程式碼
@@ -4484,27 +4533,138 @@ const FORCE_BREATH = (() => { try { return new URLSearchParams(location.search).
 // 行程分享(暗啟動):v1 建置完成、旗標關閉出貨,訂閱上線才開(比照 RECORDING_ENABLED 模式)。只鎖「發起端」入口;
 // 接收端 ?trip= 解碼永遠作用(payload 本來就公開,不鎖)。?tripshare=1 當次開發起端測試(比照 ?breath=1,僅該次頁面生效)。
 const TRIP_SHARE_ENABLED = (() => { try { return new URLSearchParams(location.search).get('tripshare') === '1'; } catch (e) { return false; } })();
-let meMarker = null, meCircle = null;
+// 「我的位置」藍點:畫在列車 overlay 畫布上,不用 Leaflet marker。
+// 原本用 L.marker/L.circle,但它們住在 Leaflet 的 pane 裡,而 pane 全被 .leaflet-map-pane(z-index:400)
+// 圈成一個堆疊脈絡;列車畫布 #overlay(z-index:500)是 #stage 層級的兄弟節點,恆蓋在整張地圖之上——
+// 於是藍點在軌道密集處(例如台北車站)會被畫布整片蓋掉。實測:藏起 #overlay 後藍色像素 17→506。
+// pane 內再怎麼調 z-index 都逃不出封頂,所以改畫在畫布本身,天然在最上層。見 drawMe()。
+let mePos = null; // { lat, lon, acc } 或 null
 const NEAR_ST_KM = 5;  // 「附近車站」搜尋半徑(公里,可調)
 const NEAR_ST_N = 8;   // 清單最多列幾站
-function meIcon() {
-  return L.divIcon({ className: 'geo-ico', iconSize: [22, 22], iconAnchor: [11, 11],
-    html: '<span class="geo-pulse"></span><svg viewBox="0 0 22 22" width="22" height="22" aria-hidden="true">' +
-      '<circle cx="11" cy="11" r="8" fill="#fff"/><circle cx="11" cy="11" r="5.6" fill="#2b8fff"/></svg>' });
+// 台灣本島外接框(離島無鐵路不納)。boot 內的 TW_BOUNDS(縮放地板/平移硬牆)由它產生,定位守門也用它——
+// 同一個框只寫一次,免得兩處各自漂移。
+const TW_BOX = [[21.88, 119.9], [25.35, 122.05]];
+function inTaiwan(lat, lon) {
+  return isFinite(lat) && isFinite(lon) &&
+    lat >= TW_BOX[0][0] && lat <= TW_BOX[1][0] && lon >= TW_BOX[0][1] && lon <= TW_BOX[1][1];
+}
+// ── 定位快取:開機自動定位的「0 秒落點」來源 ────────────────────────────────────────
+// 為什麼要自己快取:iOS 的 Capacitor Geolocation **不支援 maximumAge**(讀過 plugin iOS 原始碼,
+// 整個 Swift 實作沒有讀這個參數,只有 enableHighAccuracy 與 timeout 生效),所以每次都是從零等一次新的 fix,
+// 拿不到系統的快取位置。要讓「打開 App 地圖就在我這裡」不必等,只能自己把上次的座標記在本機。
+// 座標純留本機(localStorage),不上傳、不進帳號同步;超過保鮮期就不用(可能已經搬家或出國)。
+const GEO_CACHE_KEY = 'trainmap-last-geo';
+const GEO_CACHE_MAX_MS = 30 * 24 * 3600 * 1000;
+const GEO_BOOT_ZOOM = 14; // 開機定位落點縮放:比手動「定位」的 15 略遠一點,一眼看得到附近幾條路線與跑動的車
+function loadGeoCache() {
+  try {
+    const v = JSON.parse(localStorage.getItem(GEO_CACHE_KEY) || 'null');
+    if (!v || !inTaiwan(v.lat, v.lon)) return null;
+    if (!(v.t > 0) || Date.now() - v.t > GEO_CACHE_MAX_MS) return null;
+    return { lat: +v.lat, lon: +v.lon, acc: +v.acc || 0, t: +v.t };
+  } catch (e) { return null; }
+}
+function saveGeoCache(lat, lon, acc) {
+  if (!inTaiwan(lat, lon)) return; // 海外座標不留(下次開 App 也不該把鏡頭丟到國外,地圖本來就鎖台灣)
+  try { localStorage.setItem(GEO_CACHE_KEY, JSON.stringify({ lat: +lat, lon: +lon, acc: +acc || 0, t: Date.now() })); } catch (e) {}
+}
+// 定位統一入口:原生 App 走 Capacitor bridge,其餘走瀏覽器 API,呼叫端只看到同一個 Promise<coords>。
+// 注意 maximumAge 只對瀏覽器有效(iOS 原生忽略),故快取的責任在 loadGeoCache/saveGeoCache,不是這裡。
+function requestGeo(opts) {
+  const o = { enableHighAccuracy: true, timeout: 12000, maximumAge: 60000, ...opts };
+  if (window.RAIL_NATIVE_GEOLOCATION) return window.RAIL_NATIVE_GEOLOCATION.getCurrentPosition(o).then(p => p.coords);
+  if (!('geolocation' in navigator)) return Promise.reject({ code: 2, message: '這個裝置或瀏覽器不支援定位' });
+  return new Promise((res, rej) => navigator.geolocation.getCurrentPosition(p => res(p.coords), rej, o));
+}
+function showMeMarker(lat, lon, accM) { mePos = { lat, lon, acc: Math.max(20, Math.min(accM || 60, 500)) }; }
+// 藍點色仍以 CSS 的 --gps 為單一來源(畫布讀不到 CSS 變數,開機時取一次)
+const GPS_BLUE = (() => {
+  try { return getComputedStyle(document.documentElement).getPropertyValue('--gps').trim() || '#2b8fff'; }
+  catch (e) { return '#2b8fff'; }
+})();
+const GPS_RGB = (() => { // 精度圈要半透明,把 hex 拆成 r,g,b 備用
+  const m = /^#?([\da-f]{2})([\da-f]{2})([\da-f]{2})$/i.exec(GPS_BLUE);
+  return m ? `${parseInt(m[1], 16)},${parseInt(m[2], 16)},${parseInt(m[3], 16)}` : '43,143,255';
+})();
+// 藍點與精度圈:每幀畫在 overlay 畫布最上層。脈動沿用原本 CSS @keyframes geoPulse 的參數
+// (2.1 秒一輪、scale .55→2.7、opacity .5→0),換成畫布後外觀一致。
+function drawMe() {
+  if (!mePos) return;
+  const p = map.latLngToContainerPoint([mePos.lat, mePos.lon]);
+  const mPerPx = 40075016.686 * Math.cos(mePos.lat * Math.PI / 180) / (256 * Math.pow(2, map.getZoom()));
+  const rPx = mePos.acc / mPerPx; // 精度圈用真實公尺換算,跟著縮放變大變小(與原本 L.circle 語意相同)
+  ctx.save();
+  if (rPx > 12) { // 精度圈比藍點還小就不必畫,只會糊成一團
+    ctx.beginPath(); ctx.arc(p.x, p.y, rPx, 0, Math.PI * 2);
+    ctx.fillStyle = `rgba(${GPS_RGB},.10)`; ctx.fill();
+    ctx.strokeStyle = `rgba(${GPS_RGB},.5)`; ctx.lineWidth = 1; ctx.stroke();
+  }
+  const t = (performance.now() % 2100) / 2100; // 脈動環
+  ctx.globalAlpha = .5 * (1 - t);
+  ctx.beginPath(); ctx.arc(p.x, p.y, 11 * (.55 + 2.15 * t), 0, Math.PI * 2);
+  ctx.fillStyle = GPS_BLUE; ctx.fill();
+  ctx.globalAlpha = 1;
+  ctx.beginPath(); ctx.arc(p.x, p.y, 8, 0, Math.PI * 2);   // 白色外環(在深色底圖上也看得見)
+  ctx.fillStyle = '#fff'; ctx.shadowColor = 'rgba(0,0,0,.32)'; ctx.shadowBlur = 2; ctx.shadowOffsetY = 1; ctx.fill();
+  ctx.shadowColor = 'transparent'; ctx.shadowBlur = 0; ctx.shadowOffsetY = 0;
+  ctx.beginPath(); ctx.arc(p.x, p.y, 5.6, 0, Math.PI * 2); // 藍點本體
+  ctx.fillStyle = GPS_BLUE; ctx.fill();
+  ctx.restore();
+}
+// ── 開機自動定位(原生 App):越早發起越好,與資料載入並行,使用者感覺不到等待 ──────────────
+// 兩段式:(1) 低精度(wifi/基地台)換速度——開機只要知道「你在台灣哪一帶」,不必等 GPS 收斂到公尺級;
+//        (2) 使用者主動開「附近車站」時才用高精度,那時精度才真的重要。
+// 落點優先序 深連結 > 預設啟動地點 > 定位 > 上次視野(見 boot);故這裡先擋掉前兩者——
+// 分享連結進來的訪客不定位也不彈權限詢問,設了預設啟動地點的人同理。
+function startBootGeo() {
+  if (!LOCATE_ENABLED) return;
+  try {
+    const qs = new URLSearchParams(location.search);
+    if (qs.get('train') || qs.get('at') || qs.get('g') || qs.get('trip') || qs.get('live')) return;
+  } catch (e) {}
+  if (loadDefaultPlace()) return;
+  state._bootGeo = requestGeo({ enableHighAccuracy: false, timeout: 8000 })
+    .then(c => { saveGeoCache(c.latitude, c.longitude, c.accuracy); return c; })
+    .catch(() => null); // 拒絕權限/逾時都不吵使用者:開機自動定位是加分項,失敗就安靜退回原本的落點
+}
+// 定位回來時才決定要不要動鏡頭:使用者已經自己在操作(拖地圖/跟車/放空)就不搶,寧可不動也不要把畫面拉走。
+function applyBootGeo(c) {
+  if (!c || !inTaiwan(c.latitude, c.longitude)) return; // 海外:維持原落點(地圖本來就鎖台灣,飛過去只會撞硬牆)
+  if (state._userMoved || state.followTrain || state.freqFollow || state.autoTour || state.liveMode) return;
+  showMeMarker(c.latitude, c.longitude, c.accuracy);
+  // 已經用快取落過點:同一帶的微調,靜靜換位置不做動畫(動畫會讓人以為地圖自己亂跑);
+  // 沒落過點(首開):從全台同框飛過去,讓使用者看得出「地圖正在移到我這裡」。
+  if (state._geoLanded) map.setView([c.latitude, c.longitude], GEO_BOOT_ZOOM, { animate: false });
+  else map.flyTo([c.latitude, c.longitude], GEO_BOOT_ZOOM, { duration: .8 });
+  state._geoLanded = true;
 }
 async function locateMe() {
   showToast('正在定位你的位置…');
-  if (window.RAIL_NATIVE_GEOLOCATION) {
-    try {
-      const pos = await window.RAIL_NATIVE_GEOLOCATION.getCurrentPosition({ enableHighAccuracy: true, timeout: 12000, maximumAge: 60000 });
-      await onLocated(pos.coords.latitude, pos.coords.longitude, pos.coords.accuracy); return;
-    } catch (e) { onLocateFail(e); return; }
-  }
-  if (!('geolocation' in navigator)) { showToast('這個裝置或瀏覽器不支援定位'); return; }
-  navigator.geolocation.getCurrentPosition(
-    pos => onLocated(pos.coords.latitude, pos.coords.longitude, pos.coords.accuracy),
-    onLocateFail,
-    { enableHighAccuracy: true, timeout: 12000, maximumAge: 60000 });
+  try {
+    const c = await requestGeo({ enableHighAccuracy: true });
+    saveGeoCache(c.latitude, c.longitude, c.accuracy);
+    await onLocated(c.latitude, c.longitude, c.accuracy);
+  } catch (e) { onLocateFail(e); }
+}
+// 「附近車站」鈕:定位已改成開機自動做掉,所以這顆鈕的職責只剩「我附近有哪些車站」——
+// 手上已經有位置(開機定位或上次定位)就直接開清單,不再讓使用者為了看清單再等一次定位。
+async function showNearby() {
+  const loc = state.meLoc || loadGeoCache();
+  if (!loc) { locateMe(); return; } // 完全沒有位置(權限沒給/首開還沒定到):走完整流程,含權限詢問與失敗退路
+  const fresh = !!state.meLoc;
+  openNearbyStations(loc.lat, loc.lon);
+  showMeMarker(loc.lat, loc.lon, loc.acc || 0);
+  map.flyTo([loc.lat, loc.lon], Math.max(map.getZoom(), GEO_BOOT_ZOOM), { duration: .6 });
+  if (fresh) return;
+  // 位置來自快取(可能是上次開 App 記下的):背景抓一次高精度定位,到了就把藍點與清單換成真的。
+  try {
+    const c = await requestGeo({ enableHighAccuracy: true });
+    saveGeoCache(c.latitude, c.longitude, c.accuracy);
+    if (!document.getElementById('nearCard').hidden) {
+      showMeMarker(c.latitude, c.longitude, c.accuracy);
+      openNearbyStations(c.latitude, c.longitude);
+    }
+  } catch (e) {} // 背景校正失敗不吵使用者:清單已經用快取位置出來了,還可用
 }
 // 定位失敗不留死路:給對平台正確的說明(手機沒有「網址列鎖頭」),並自動切到『釘』——免任何權限,
 // 直接在地圖上點自己的位置就能看附近火車。iPhone「加到主畫面」的 App 常常根本不跳權限詢問就被拒
@@ -4527,11 +4687,7 @@ async function onLocated(lat, lon, accM) {
   // 立刻停掉所有會搶相機的模式(跟車/捷運跟車/隨機巡航/放空),否則 flyTo 會被下一幀的鏡頭拉回。
   // 使用者要的是「不管是否正在跟隨車輛,都立刻移到我的位置」。clearFollow 內部已一併清捷運跟車。
   setAmbient(false); setAutoTour(false); clearFollow();
-  if (meMarker) { map.removeLayer(meMarker); meMarker = null; }
-  if (meCircle) { map.removeLayer(meCircle); meCircle = null; }
-  meCircle = L.circle([lat, lon], { radius: Math.max(20, Math.min(accM || 60, 500)),
-    color: '#2b8fff', weight: 1, opacity: .5, fillColor: '#2b8fff', fillOpacity: .1, interactive: false }).addTo(map);
-  meMarker = L.marker([lat, lon], { icon: meIcon(), interactive: false, keyboard: false, zIndexOffset: 1300 }).addTo(map);
+  showMeMarker(lat, lon, accM);
   openNearbyStations(lat, lon); // 先出資訊卡,不讓相機動畫的任何意外吞掉清單
   try { map.flyTo([lat, lon], 15, { duration: .8 }); } catch (e) { map.setView([lat, lon], 15); }
 }
@@ -5705,6 +5861,7 @@ function draw() {
   labelBoxes = [];
   ctx.lineCap = 'round'; ctx.lineJoin = 'round';
   if (state.mode === 'sched') { if (state.deco) drawDeco(w, h); drawSched(w, h); if (state.deco) drawDecoLabels(); } else drawFreq(w, h);
+  drawMe(); // 「我的位置」畫最後=在所有軌道與列車之上,不會被蓋掉
   ctx.globalAlpha = 1; ctx.textAlign = 'start'; ctx.textBaseline = 'alphabetic';
 }
 
@@ -10961,7 +11118,15 @@ function setupMapTools() {
   const locateBtn = document.getElementById('locateBtn');
   if (locateBtn) { // 暫緩:CSS display:flex 會蓋過 [hidden],故 inline none + 直接移除;改 LOCATE_ENABLED 復活
     if (LOCATE_ENABLED) { locateBtn.style.display = ''; locateBtn.onclick = locateMe; }
-    else { locateBtn.remove(); const row = document.querySelector('.ms-row[data-proxy="locateBtn"]'); if (row) row.remove(); } // v0718i:比照 recBtn/accountBtn,鈕與抽屜列一併移除,否則列點了靜默無反應
+    else locateBtn.remove();
+  }
+  // ── 附近車站:地圖上的常駐入口(手機工具帶整個隱藏,原本只能從「更多」抽屜進,不直覺) ──
+  // 「更多」抽屜那列 data-proxy 指向這顆(不是 locateBtn),兩個入口才會是同一個行為:有位置就直接開清單。
+  const nearBtn = document.getElementById('nearBtn');
+  if (nearBtn) {
+    if (LOCATE_ENABLED) { nearBtn.hidden = false; nearBtn.onclick = showNearby; }
+    // 網站/PWA 沒有定位能力,鈕與抽屜列一併移除,否則列點了靜默無反應(v0718i 對 recBtn/accountBtn 的同一教訓)
+    else { nearBtn.remove(); const row = document.querySelector('.ms-row[data-proxy="nearBtn"]'); if (row) row.remove(); }
   }
   // 地圖縮小(z<12)時給地點釘加光環放大,避免與背景車站點混淆(使用者要求)
   function applyZfar() { const c = map.getContainer(); if (c) c.classList.toggle('zfar', map.getZoom() < 12); }
@@ -11165,6 +11330,9 @@ async function boot() {
   } catch (e) {}
   if (state.liveMode) document.body.classList.add('live');
   if (state.director) document.body.classList.add('director');
+  // 開機自動定位(原生 App)要盡早發起,才能與底下整串資料載入並行、把等待藏起來。
+  // 不 await:定位回不回得來、幾秒回來都不該卡住開機;結果晚點在落點決定處接。
+  startBootGeo();
   cv = document.getElementById('overlay'); ctx = cv.getContext('2d');
   // zoomAnimation:true —— 縮放走 Leaflet 250ms CSS 平滑補間(舊圖磚縮放到位、新圖磚淡入),不再「瞬間跳格→
   // 舊圖磚被丟、新圖磚還沒到→畫面消失一下下」(TestFlight 回報)。overlay 畫布在 Leaflet pane 體系外、以
@@ -11206,7 +11374,7 @@ async function boot() {
   //      於此重算;全台同框開場視野等於「地板+N 級」,不受影響。
   //  (2) 平移硬牆:視野被鉗在「活動範圍」(台灣框外擴 ROAM_PAD,一圈海域當邊距)內,拖到邊界即停。
   //      viscosity 1.0=硬牆拖不出去;setView 也會被 Leaflet 一併鉗回(異常深連結亦擋)。
-  const TW_BOUNDS = L.latLngBounds([21.88, 119.9], [25.35, 122.05]); // 台灣本島外接框(離島無鐵路不納)
+  const TW_BOUNDS = L.latLngBounds(TW_BOX[0], TW_BOX[1]); // 台灣本島外接框(離島無鐵路不納);定位守門 inTaiwan 共用同一個框
   // 註:曾經給圖磚層掛 bounds 只載入台灣周遭(省框外圖磚),但把畫面切得太緊、四周留白像壞掉(使用者回報),
   // 已移除。改由 minZoom 地板(開場再往外縮 N 級為限,不會縮到看全世界)＋平移硬牆(活動範圍)共同界定合理範圍,
   // 圖磚在此範圍內自然填滿、不留白。要重新省框外圖磚,得另想不切出留白的做法(例如提高地板那會犧牲全台同框)。
@@ -11651,7 +11819,12 @@ async function boot() {
   // 開站落點優先序：深連結 > 預設啟動地點(儲存地點設的) > 上次視野 > 首屏全台同框。
   // 分享連結進來的訪客絕不能被本機記憶/預設蓋掉；設了預設地點就蓋過「上次視野」。預設地點一律開在全台同框並置中。
   const defPlace = (deepG || deepAt || deepTrain || deepTrip || state.liveMode) ? null : loadDefaultPlace();
-  const lastView = (deepG || deepAt || deepTrain || deepTrip || state.liveMode || defPlace) ? null : loadLastView();
+  // 開機自動定位(App):geoBoot 由 startBootGeo 自己的守門決定(深連結/預設地點/非原生一律不發起),這裡直接沿用,
+  // 不重寫一份條件免得兩處漂移。定位有兩個時態——快取座標 0 秒可用,先落點蓋過「上次視野」;
+  // 真定位晚幾秒到再校正(applyBootGeo)。首開沒有快取時不空等,照舊落上次視野/全台同框,定位到了再飛過去。
+  const geoBoot = !!state._bootGeo;
+  const geoCache = geoBoot ? loadGeoCache() : null;
+  const lastView = (deepG || deepAt || deepTrain || deepTrip || state.liveMode || defPlace || geoCache) ? null : loadLastView();
   // 開場群組:分享連結帶 g 就開該群組;預設地點沿用全台同框(all,已是預設值);其次上次待的群組
   let bootGroup = GROUPS.find(g => g.id === 'all');
   if (deepG) { const gg = GROUPS.find(g => g.id === deepG); if (gg) bootGroup = gg; }
@@ -11674,11 +11847,17 @@ async function boot() {
       map.setView(deepAt, deepZ != null ? deepZ : map.getZoom(), { animate: false });
     } else if (defPlace) {
       map.setView([defPlace.lat, defPlace.lon], defPlace.z, { animate: false }); // 預設啟動地點:置中到儲存地點(全台同框群組已載入)
+    } else if (geoCache) {
+      map.setView([geoCache.lat, geoCache.lon], GEO_BOOT_ZOOM, { animate: false }); // 上次定位到的地方:0 秒落點,真定位回來再校正
+      state._geoLanded = true;
     } else if (lastView) {
       map.setView([lastView.lat, lastView.lon], lastView.z, { animate: false }); // 回到上次離開的位置(群組已於上面一併還原)
     }
   }
   map.on('moveend', saveLastView); // 記住使用者最後看的畫面;守門條件都在 saveLastView 內(巡航/跟車/直播皆不寫)
+  // 使用者一開始自己拖地圖,開機定位就別再搶鏡頭(dragstart 只有真的手動拖曳才發,程式化的 setView/flyTo 不會)
+  map.on('dragstart', () => { state._userMoved = true; });
+  if (geoBoot) state._bootGeo.then(applyBootGeo);
   state.ready = true;
   publishTrackContinuityAudit();
   if (window.__notifyMockLog) {
