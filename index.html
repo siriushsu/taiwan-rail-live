@@ -321,6 +321,44 @@
     content: ''; position: absolute; left: 50%; top: 50%;
     width: 100%; height: max(100%, 44px); transform: translate(-50%, -50%); z-index: -1;
   }
+  /* ── 時刻尺(桌面;≤900 只留讀數):中央指針固定,刻度尺隨時間左右捲——5 分細線/15 分中線/整點金線。
+     左右拖尺=調時刻(1px=1 分鐘),拖曳中時間積分暫停、列車即時跟著移動;點中央讀數仍走原生時刻選擇器。
+     刻度用三層漸層鋪磚(每層磚寬=各自週期,故任何寬度都接得起來),JS 每幀只改 background-position-x、不動 DOM ── */
+  .timerail {
+    position: relative; width: 120px; height: 40px; flex: none;
+    display: flex; flex-direction: column; align-items: center; justify-content: space-between;
+    touch-action: none; user-select: none; -webkit-user-select: none;
+  }
+  /* 讀數必須與指針同軸,所以拖曳中才出現的位移量標籤不能參與置中:用 1fr auto 1fr 三格,
+     讀數固定佔正中那格,標籤住右格(放不下就裁掉,也不准把讀數推歪) */
+  .timerail .tr-head { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; width: 100%; }
+  .timerail .tod-wrap { grid-column: 2; }
+  .tr-delta {
+    grid-column: 3; justify-self: start; padding-left: 3px; overflow: hidden; white-space: nowrap;
+    font-size: 10px; font-weight: 800; color: var(--red); font-variant-numeric: tabular-nums;
+  }
+  /* 讀數的透明時刻輸入:桌面收成讀數本身大小——原本 ≥44px 的觸控熱區會蓋住下方刻度尺讓它拖不動;手機在 ≤900 區塊還原 */
+  .timerail .tod-wrap input[type=time] { left: 0; top: 0; width: 100%; height: 100%; transform: none; }
+  .tr-tape {
+    width: 100%; height: 13px; cursor: ew-resize; border-bottom: 2px solid var(--faint);
+    background-image:
+      linear-gradient(90deg, var(--gold) 0 2px, transparent 2px),
+      linear-gradient(90deg, var(--line) 0 1.5px, transparent 1.5px),
+      linear-gradient(90deg, var(--line-dash) 0 1px, transparent 1px);
+    background-size: 60px 13px, 15px 9px, 5px 5px;
+    background-position: 0 bottom, 0 bottom, 0 bottom;
+    background-repeat: repeat-x;
+  }
+  .timerail.scrubbing .tr-tape { cursor: grabbing; }
+  /* 指針:固定在尺中央(倒三角+紅豎線),指的就是讀數上的時刻 */
+  .tr-needle {
+    position: absolute; left: 50%; bottom: 0; width: 2px; height: 17px;
+    background: var(--red); transform: translateX(-1px); pointer-events: none;
+  }
+  .tr-needle::before {
+    content: ''; position: absolute; left: -3px; top: -4px;
+    border: 4px solid transparent; border-bottom: 0; border-top-color: var(--red);
+  }
   button.pp {
     font: inherit; font-size: 14px; font-weight: 800; cursor: pointer;
     background: var(--paper); color: var(--navy);
@@ -1950,7 +1988,6 @@
     body:not(.ambient):not(.live):not(.cexp) .controls .band-div,
     body:not(.ambient):not(.live):not(.cexp) .controls .stage-tools,
     body:not(.ambient):not(.live):not(.cexp) .controls #nowBtn,
-    body:not(.ambient):not(.live):not(.cexp) .controls .timestep,
     body:not(.ambient):not(.live):not(.cexp) .controls #ambientBtn,
     body:not(.ambient):not(.live):not(.cexp) .controls #ambientStyleBtn,
     body:not(.ambient):not(.live):not(.cexp) .controls #musicCtl { display: none; }
@@ -1976,6 +2013,12 @@
     body.fs.cexp .controls { bottom: calc(var(--tabbar-clear) + 8px); } /* =原 66+env */
     body.cexp .controls .stage-tools { display: none; } /* 工具住「更多」sheet,展開帶只留播放/速度/時間 */
     body.cexp .controls .speedrail { width: min(250px, calc(100vw - 150px)); }
+    /* 時刻尺:手機/App 先不動(2026-07-25 使用者裁決)——只留時刻讀數,刻度尺與指針收起,收合膠囊與展開帶都維持原樣貌。
+       要在手機也啟用刻度尺,刪掉這兩條即可(讀數熱區那條要留,見下) */
+    .timerail { width: auto; height: auto; }
+    .timerail .tr-tape, .timerail .tr-needle, .tr-delta { display: none; }
+    /* 讀數的觸控熱區還原成 ≥44px(v0718i):桌面為了讓刻度尺可拖而收成讀數本身大小,手機沒有尺、熱區照舊放大 */
+    .timerail .tod-wrap input[type=time] { left: 50%; top: 50%; height: max(100%, 44px); transform: translate(-50%, -50%); }
     /* 放空模式(手機):看戲不操作——控制列只留「離開放空」一顆,tab bar 也收 */
     body.ambient .controls > :not(#ambientBtn):not(#ambientStyleBtn) { display: none; }
     body.ambient .tabbar, body.ambient .more-sheet, body.ambient .more-scrim { display: none; }
@@ -2368,10 +2411,15 @@ try { if (matchMedia('(max-width: 900px)').matches) document.body.classList.add(
       <div class="band-div"></div>
       <div class="ctl">
         <input type="range" id="tod" min="5" max="24" step="1" value="8" hidden />
-        <span class="tod-wrap" title="點擊直接指定時刻"><output id="todOut">08:00</output><input type="time" id="todPick" aria-label="直接指定時刻"></span>
+        <!-- 時刻尺:左右拖尺調時刻(1px=1 分鐘),拖曳中列車即時跟著移動;讀數本身仍可點開原生時刻選擇器直接跳時刻 -->
+        <span class="timerail" id="timeRail" tabindex="0"
+              aria-label="模擬時刻：左右拖曳調整，方向鍵每次 1 分鐘"
+              title="左右拖曳調整時刻（1 像素＝1 分鐘），方向鍵每次 1 分鐘；點時間數字可直接指定時刻">
+          <span class="tr-head"><span class="tod-wrap" title="點擊直接指定時刻"><output id="todOut">08:00</output><input type="time" id="todPick" aria-label="直接指定時刻"></span><span class="tr-delta" id="todDelta"></span></span>
+          <span class="tr-tape" id="todTape"></span>
+          <span class="tr-needle"></span>
+        </span>
       </div>
-      <button class="pp sub timestep" id="minus5Btn" title="時間往前 5 分鐘（快速預覽）">−5分</button>
-      <button class="pp sub timestep" id="plus5Btn" title="時間往後 5 分鐘（快速預覽）">＋5分</button>
       <button class="pp sub" id="nowBtn" title="跳到現在的真實時間">現在</button>
       <div class="band-div"></div>
       <div class="stage-tools">
@@ -2465,10 +2513,11 @@ try { if (matchMedia('(max-width: 900px)').matches) document.body.classList.add(
       <summary><span>🛠 更新紀錄</span><span class="foot-sub">最後更新：2026/7/25</span></summary>
       <ul class="foot-list">
         <li class="grp">最近更新</li>
+        <li><span class="d">7/25</span><span>電腦版時間調整改成可拖曳的「時刻尺」：按住左右拖，列車就跟著時間前後跑，一小格 5 分鐘；±5 分鐘鈕退場，下方工具帶也不用再橫捲才找到音樂鈕</span></li>
         <li><span class="d">7/25</span><span>App 打開就直接停在你所在的地方，不必再等定位、也不必自己找；地圖上多了「附近車站」鈕，一按就列出你附近最近的幾座車站</span></li>
         <li><span class="d">7/25</span><span>環島之星觀光列車上地圖了：搜尋「環島之星」或車次 1／2，就能跟著萌旅號 13 小時繞台灣一圈；介紹卡與列車收集同步收錄</span></li>
         <li><span class="d">7/25</span><span>衛星底圖改接 Esri 官方授權服務端點，授權來源更明確；畫面與操作不變</span></li>
-        <li><span class="d">7/24</span><span>台鐵、高鐵與捷運列車現在都帶行進方向小箭頭（可在「更多」關閉）；時間軸新增 ±5 分鐘鈕，快速預覽幾分鐘前後的班況</span></li>
+        <li><span class="d">7/24</span><span>台鐵、高鐵與捷運列車現在都帶行進方向小箭頭（可在「更多」關閉）</span></li>
         <li><span class="d">7/24</span><span>可把常看的地點設為預設啟動視野（我的最愛→地點→設為預設）；探索面板新增「觀光列車圖鑑」，山嵐號、鳴日號等無固定車次的觀光列車一次看</span></li>
         <li><span class="d">7/24</span><span>手機版面整理：面板全開時頂部時鐘、台鐵捷頁籤等自動讓位不再互相壓疊；多處過小的標籤文字加大更易讀；搜尋框提示文字改短、不再超出框外</span></li>
         <li><span class="d">7/24</span><span>新增「資料源連線狀態頁」（頁尾資料來源區可進入）：各即時資料源連線狀況一目了然，並白話總結「地圖現在準嗎」；遇大規模誤點等營運異常或資料斷線會特別註明</span></li>
@@ -2563,9 +2612,10 @@ try { if (matchMedia('(max-width: 900px)').matches) document.body.classList.add(
         <li><span class="d">7/11</span><span>今日之最的列車在地圖上加繪金色漣漪光環</span></li>
         <li><span class="d">7/9</span><span>旅程護照與 16 枚成就徽章、「探」今日亮點面板上線</span></li>
         <li class="grp">手機與操作</li>
+        <li><span class="d">7/25</span><span>電腦版時間調整改成可拖曳的「時刻尺」：按住左右拖，列車就跟著時間前後跑，一小格 5 分鐘；±5 分鐘鈕退場，下方工具帶也不用再橫捲才找到音樂鈕</span></li>
         <li><span class="d">7/25</span><span>App 打開就直接停在你所在的地方，不必再等定位、也不必自己找；地圖上多了「附近車站」鈕，一按就列出你附近最近的幾座車站</span></li>
         <li><span class="d">7/24</span><span>手機版面整理：面板全開時頂部時鐘、台鐵捷頁籤等自動讓位不再互相壓疊；多處過小的標籤文字加大更易讀；搜尋框提示文字改短、不再超出框外</span></li>
-        <li><span class="d">7/24</span><span>台鐵、高鐵與捷運列車現在都帶行進方向小箭頭（可在「更多」關閉）；時間軸新增 ±5 分鐘鈕，快速預覽幾分鐘前後的班況</span></li>
+        <li><span class="d">7/24</span><span>台鐵、高鐵與捷運列車現在都帶行進方向小箭頭（可在「更多」關閉）</span></li>
         <li><span class="d">7/24</span><span>地圖縮放恢復平滑過渡動畫，不再瞬間跳格或短暫空白；縮放過程軌道與列車全程貼合底圖同步縮放，站名與車牌維持固定大小不跳動</span></li>
         <li><span class="d">7/24</span><span>修正拖動地圖時軌道稍微跟不上底圖的延遲感（省電模式在互動時自動全速，放開後恢復省電）</span></li>
         <li><span class="d">7/22</span><span>手機底部「地圖」鈕：在隨機跟隨中點它會停下回到地圖，不再繼續自動跳下一班車</span></li>
@@ -2730,7 +2780,7 @@ try { if (matchMedia('(max-width: 900px)').matches) document.body.classList.add(
 <script>
 // 版本戳記:每次改版 push 前手動遞增(字母序),畫面時鐘徽章與 console 都會顯示,
 // 供比對線上跑的是不是最新版(瀏覽器快取 max-age=600 常讓人看到舊版)
-const BUILD = 'v0725e';
+const BUILD = 'v0725f';
 const TRACK_AUDIT = new URLSearchParams(location.search).get('audit') === 'tracks';
 // 手機/平板直式「殼」斷點(議題1:640→900,iPad 直式改拿 tabbar＋更多抽屜):與 CSS @media 同步,版面類判斷一律用此常數。
 // 注意:裝置等級判斷(keepBuffer/powerSave 預設)刻意不用此常數、維持 640——iPad 不該因為改拿 tabbar 就被當低階裝置。
@@ -2839,6 +2889,19 @@ function syncTimeUI() {
   document.getElementById('tod').value = Math.floor(state.simSec / 60);
   document.getElementById('todOut').textContent = fmtHM(state.simSec);
   document.getElementById('clock').textContent = fmtHM(state.simSec);
+  paintTimeRail();
+}
+// 時刻尺捲動:尺中央=當下時刻,1px=1 分鐘。三層刻度的磚寬(60/15/5)都整除 60,
+// 故位移取 mod 60 即可讓整點金線永遠落在「分鐘 ≡ 0」的位置(小數保留=平滑捲動)。
+// 每幀只寫一個 background-position-x,不動 DOM。
+let _todTape = null;
+function paintTimeRail() {
+  if (!_todTape) _todTape = document.getElementById('todTape');
+  if (!_todTape) return;
+  const w = _todTape.clientWidth;
+  if (!w) return; // 手機把尺收起(display:none)時寬度為 0,直接跳過
+  const x = (((w / 2 - state.simSec / 60) % 60) + 60) % 60;
+  _todTape.style.backgroundPositionX = x.toFixed(2) + 'px';
 }
 function setSimSec(sec) {
   state.simSec = ((sec % 86400) + 86400) % 86400;
@@ -5868,20 +5931,17 @@ function draw() {
 function tick(now) {
   if (!state.t0) state.t0 = now;
   const dt = (now - state.t0) / 1000; state.t0 = now;
-  if (state.playing) {
+  // _scrubTime=正在拖時刻尺:暫停時間積分,免得拖曳與播放互相拉扯(放手即自動續播,state.playing 不動)
+  if (state.playing && !state._scrubTime) {
     if (state.mode === 'sched') {
       state.simSec = (state.simSec + dt * state.speedMult * SCHED_K) % 86400;
-      document.getElementById('tod').value = Math.floor(state.simSec / 60);
-      document.getElementById('todOut').textContent = fmtHM(state.simSec);
-      document.getElementById('clock').textContent = fmtHM(state.simSec);
+      syncTimeUI(); // 時刻滑桿值/帶上讀數/頂部時鐘/時刻尺捲動(內容與原本逐行寫入相同)
       if (state.deco) state.decoElapsed = (state.decoElapsed || 0) + dt; // 全台同框:裝飾捷運層獨立推進(無時刻檔的線用)
     } else {
       state.elapsed += dt; // 無時刻檔路線(班距合成)沿用示意動畫時鐘
       // 捷運改實際時刻後與 sched 共用 simSec 時鐘
       state.simSec = (state.simSec + dt * state.speedMult * SCHED_K) % 86400;
-      document.getElementById('tod').value = Math.floor(state.simSec / 60);
-      document.getElementById('todOut').textContent = fmtHM(state.simSec);
-      document.getElementById('clock').textContent = fmtHM(state.simSec);
+      syncTimeUI();
       const h = Math.floor(state.simSec / 3600);
       if (h !== state.hour) { state.hour = h; recomputeTrains(); refreshBadge(); } // 換小時:尖離峰班距(僅班距合成線)+徽章+車數
     }
@@ -12117,9 +12177,43 @@ todPick.addEventListener('change', () => {
 });
 todPick.addEventListener('keydown', e => { if (e.key === 'Enter') todPick.blur(); });
 document.getElementById('nowBtn').onclick = jumpToNow;
-// ±5 分鐘快速預覽鍵:步進 simSec ±300(沿用 setSimSec,徽章>120 秒轉「推估」是既有語意,「現在」鈕可回錨)
-document.getElementById('minus5Btn').onclick = () => setSimSec(state.simSec - 300);
-document.getElementById('plus5Btn').onclick = () => setSimSec(state.simSec + 300);
+// 時刻尺拖曳(取代舊 ±5 分鈕):左右拖 1px=1 分鐘,列車即時跟著移動(畫面每幀從 simSec 重畫,不必另外驅動)。
+// 拖曳中暫停時間積分(tick 的 _scrubTime 閘),放手即續播;徽章 >120 秒轉「推估」與完乘作廢都是 setSimSec 的既有語意。
+(() => {
+  const rail = document.getElementById('timeRail'), delta = document.getElementById('todDelta');
+  let dragging = false, startX = 0, startSec = 0;
+  rail.addEventListener('pointerdown', e => {
+    if (e.target.closest('.tod-wrap')) return; // 讀數留給原生時刻選擇器(直接跳時刻)
+    dragging = true; startX = e.clientX; startSec = state.simSec;
+    state._scrubTime = true;
+    rail.classList.add('scrubbing');
+    rail.setPointerCapture(e.pointerId); // 拖出尺外仍持續(帶是橫捲容器,不放捕獲會被搶走)
+    e.preventDefault();
+  });
+  rail.addEventListener('pointermove', e => {
+    if (!dragging) return;
+    const dMin = Math.round(e.clientX - startX);
+    state._interactAt = performance.now(); // 省電模式:拖曳期間維持全速重繪
+    setSimSec(startSec + dMin * 60);
+    delta.textContent = dMin ? (dMin > 0 ? '＋' : '−') + Math.abs(dMin) + '分' : '';
+  });
+  const endDrag = e => {
+    if (!dragging) return;
+    dragging = false; state._scrubTime = false;
+    rail.classList.remove('scrubbing');
+    delta.textContent = '';
+    if (e.pointerId != null && rail.hasPointerCapture(e.pointerId)) rail.releasePointerCapture(e.pointerId);
+  };
+  rail.addEventListener('pointerup', endDrag);
+  rail.addEventListener('pointercancel', endDrag);
+  // 鍵盤:尺聚焦後 ←/→ 每次 1 分鐘(比舊 ±5 分鈕細)。stopPropagation 蓋掉全域 ←/→ 的 ±10 分,不重複套用
+  rail.addEventListener('keydown', e => {
+    const d = e.key === 'ArrowLeft' ? -60 : e.key === 'ArrowRight' ? 60 : 0;
+    if (!d) return;
+    e.preventDefault(); e.stopPropagation();
+    setSimSec(state.simSec + d);
+  });
+})();
 // APP_STRIP_START donation-handler
 const donateCopyBtn = document.getElementById('donateCopy');
 if (donateCopyBtn) donateCopyBtn.onclick = () =>
