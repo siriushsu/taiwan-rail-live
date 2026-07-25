@@ -9,6 +9,11 @@
 *.bak-*
 .wrangler
 .DS_Store
+# TDX 歷史原始資料快取(建校正模型用,60 天約 50MB)。**實測從工作樹上傳時它會變成公開路徑**
+# (2026-07-26 在預覽站抓到 .cache/tra_hist/2026-07-20.jsonl.gz 回 200/849KB)——原始資料不對外散布。
+.cache
+# 逐節點診斷檔(內部除錯用,前端不讀)
+data/*_diag.json
 wrangler.jsonc
 worker.js
 node_modules
