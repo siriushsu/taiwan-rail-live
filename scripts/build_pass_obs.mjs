@@ -561,8 +561,12 @@ async function main() {
       .map(([w, n]) => `${w === '9999' ? '全部' : w + '天'} ${n}`).join('、'));
   }
   console.log(`  第二層(路段速度表) ${Object.keys(segs).length} 鍵`);
-  console.log(`  合成結果：A 錨點 ${srcCount.a}、B 填補 ${srcCount.b}、兩層皆無 ${srcCount.none}`
-    + `　→ 覆蓋 ${srcCount.a + srcCount.b}／${stat.slots}（${(100 * (srcCount.a + srcCount.b) / stat.slots).toFixed(1)}%）`);
+  // 覆蓋率一律數最終產物：srcCount 是清洗前的計數，最終速度清洗會再刪掉節點（實測差 1.3 個百分點）
+  let fa = 0, fb = 0;
+  for (const tn in finalF) for (const st in finalF[tn]) (trains[tn]?.[st] != null ? fa++ : fb++);
+  console.log(`  合成結果（清洗後實際寫入）：A 錨點 ${fa}、B 填補 ${fb}、無 ${stat.slots - fa - fb}`
+    + `　→ 覆蓋 ${fa + fb}／${stat.slots}（${(100 * (fa + fb) / stat.slots).toFixed(1)}%）`
+    + `；清洗前 A ${srcCount.a}／B ${srcCount.b}`);
   console.log(`  → ${dst}（${(statSync(dst).size / 1024).toFixed(0)} KB，前端載入）`);
   console.log(`  → ${dstM}（${(statSync(dstM).size / 1024).toFixed(0)} KB，稽核用）`);
 }
