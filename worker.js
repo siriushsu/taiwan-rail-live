@@ -939,11 +939,18 @@ async function ingestDelayHistory(env) {
   return { written, dbMax };
 }
 
-// 逐站事件保留期 30 天:刪掉台北今日往前 30 天以外的舊列(重用 addDays/twToday)。獨立於 delay ingest——
-// 放進 scheduled 的 finally,ingest 成功或失敗(rethrow)都會執行;本函式失敗只由呼叫端 console.error、
-// 不 rethrow,不動既有「ingest 失敗要 rethrow」的語意。
+// 逐站事件保留期:刪掉台北今日往前 STATION_EVENT_KEEP_DAYS 天以外的舊列(重用 addDays/twToday)。
+// 獨立於 delay ingest——放進 scheduled 的 finally,ingest 成功或失敗(rethrow)都會執行;本函式失敗
+// 只由呼叫端 console.error、不 rethrow,不動既有「ingest 失敗要 rethrow」的語意。
+//
+// 2026-07-25 由 30 天延長為 365 天:這批逐站觀測是「當日真實位置回放」唯一的資料來源,而過去的
+// 觀測一旦刪掉就永遠補不回來(TDX 只給即時,沒有歷史位置)。負擔實測:寫入量不變(每天約 2 萬列,
+// 搭 /api/tra-live 刷新的順風車,零新增 TDX 呼叫)、查詢速度不變(PK 以 service_date 起頭且
+// WITHOUT ROWID=按日期叢集,查某一天是連續範圍掃描,與總天數無關)、儲存約 2MB/天 → 一年約
+// 730MB(D1 單庫上限 10GB)。要收回來只改這個常數,下一次 cron 就會把超期的刪掉。
+const STATION_EVENT_KEEP_DAYS = 365;
 async function pruneStationEvents(env) {
-  const cutoff = addDays(twToday(), -30);
+  const cutoff = addDays(twToday(), -STATION_EVENT_KEEP_DAYS);
   const r = await env.DELAY_DB.prepare('DELETE FROM tra_station_events WHERE service_date < ?').bind(cutoff).run();
   console.log(`[cron station-events] 清理 < ${cutoff}: ${(r.meta && r.meta.changes) || 0} 列`);
 }
