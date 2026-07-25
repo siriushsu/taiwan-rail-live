@@ -1,6 +1,6 @@
 {
  "source": "TDX api/historical/v2 Historical/Rail/TRA/LiveTrainDelay",
- "built_at": "2026-07-25T17:06:05.963Z",
+ "built_at": "2026-07-25T17:22:08.876Z",
  "dates": [
   "2026-07-01",
   "2026-07-02",
@@ -162,6 +162,7 @@
    "suspect": 3
   }
  ],
+ "dly_probe": [],
  "outlier_delay": {
   "被剔樣本": {
    "n": 6767,

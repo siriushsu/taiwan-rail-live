@@ -219,17 +219,19 @@ async function main() {
 
   // 日期→距最新觀測日幾天（分層窗用）。基準取最新觀測日而非今天,重跑舊快取結果才可重現；
   // 用實際日期差而非序號,快取有缺日時才不會把窗算寬。
-  // 改點前的觀測不採（見 SHIFT_DATE）。留一道防呆：改點後天數太少就整批不濾，
-  // 否則改點當週重建會直接把產物清空（寧可暫時帶點舊資料，也不要突然失去校正）。
+  // 改點前的觀測一律不採（見 SHIFT_DATE）——即使改點後只有幾天。
+  // 為什麼不留「天數太少就保留舊資料」的退路：改點的失效機制是「整車時刻平移」，
+  // 兩端時刻用表定＋DelayTime（相對舊班表算，多半≈0）而通過站 first 是真時間戳，
+  // 於是全部 f 一起平移 δ/dur，而逐段速度、單調、歷時、端點誤點漂移閘門**全部照不到**
+  // （實測車次 107 南港 07:10→06:44，山佳 Δ=1803s≒50km，跨日 MAD 只有 22s＝高度一致的錯值）。
+  // 保留舊資料＝保留這種無聲錯值；樣本不足時該節點自然過不了 minDays → 退梯形，那才是安全側。
   const since = cliArg('since') ?? SHIFT_DATE;
   const postShift = have.filter(d => d >= since);
-  if (postShift.length >= 10) {
-    if (postShift.length < have.length)
-      console.log(`══ 改點過濾 ══ ${since} 之後 ${postShift.length} 天（丟棄改點前 ${have.length - postShift.length} 天）`);
+  if (postShift.length < have.length) {
+    console.log(`══ 改點過濾 ══ ${since} 之後 ${postShift.length} 天（丟棄改點前 ${have.length - postShift.length} 天）`);
+    if (postShift.length < 7) console.log(`⚠️ 改點後只有 ${postShift.length} 天，第一層覆蓋會明顯偏低；`
+      + `不足 ${GATE.minDays} 天觀測的通過站會退回梯形（這是刻意的安全側）`);
     have.length = 0; have.push(...postShift);
-  } else if (postShift.length < have.length) {
-    console.log(`⚠️ ${since} 之後只有 ${postShift.length} 天（<10），暫不過濾改點前資料——` +
-      `這批產物混有改點前的觀測，等累積滿 10 天後重建`);
   }
   const latestDay = have[have.length - 1], dayAge = {};
   for (const d of have) dayAge[d] = Math.round((Date.parse(latestDay) - Date.parse(d)) / 86400000);
