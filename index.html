@@ -2211,8 +2211,8 @@ try { if (matchMedia('(max-width: 900px)').matches) document.body.classList.add(
     <canvas id="overlay"></canvas>
     <div id="skyTint"></div>
     <div id="veil"></div>
-    <!-- 地圖頂浮動列(手機 fs 專屬;桌面/直播/放空不顯示):左=軌島迷你牌(資訊),右=台/鐵/捷短標(動作)。
-         topTabs 三顆為 CLS 靜態預置佔位,boot 的 renderSystemsBar→renderTopTabs 以同幾何重建(cls-static-placeholder) -->
+    <!-- 地圖頂浮動列(手機 fs 專屬;桌面/直播/放空不顯示):左=軌島迷你牌(資訊),右=台/鐵/高/捷短標(動作)。
+         topTabs 四顆為 CLS 靜態預置佔位,boot 的 renderSystemsBar→renderTopTabs 以同幾何重建(cls-static-placeholder) -->
     <div class="topbar" id="topbar">
       <div class="plate tb-plate">
         <h1>軌島</h1>
@@ -2224,6 +2224,7 @@ try { if (matchMedia('(max-width: 900px)').matches) document.body.classList.add(
       <div class="grouptabs" id="topTabs">
         <button class="gtab active" title="全台同框">台</button>
         <button class="gtab" title="國家鐵路">鐵</button>
+        <button class="gtab" title="高鐵">高</button>
         <button class="gtab" title="捷運與輕軌">捷</button>
       </div>
     </div>
@@ -2539,6 +2540,7 @@ try { if (matchMedia('(max-width: 900px)').matches) document.body.classList.add(
       <summary><span>🛠 更新紀錄</span><span class="foot-sub">最後更新：2026/7/25</span></summary>
       <ul class="foot-list">
         <li class="grp">最近更新</li>
+        <li><span class="d">7/25</span><span>手機／App 地圖右上的分頁多了「高」：一按只看高鐵（原本要看高鐵得從「鐵」裡找）；「鐵」維持台鐵、高鐵、林鐵同框不變</span></li>
         <li><span class="d">7/25</span><span>電腦版下方工具帶瘦身：外觀、軌道與路線、平交道、站介紹、方向箭頭、省電這六項設定收進新的「☰ 更多」面板（手機一直都在「更多」裡），工具帶不用再左右捲才找得到音樂與分享</span></li>
         <li><span class="d">7/25</span><span>電腦版時間調整改成可拖曳的「時刻尺」：按住左右拖，列車就跟著時間前後跑，一小格 5 分鐘；±5 分鐘鈕退場，下方工具帶也不用再橫捲才找到音樂鈕</span></li>
         <li><span class="d">7/25</span><span>App 打開就直接停在你所在的地方，不必再等定位、也不必自己找；地圖上多了「附近車站」鈕，一按就列出你附近最近的幾座車站</span></li>
@@ -2639,6 +2641,7 @@ try { if (matchMedia('(max-width: 900px)').matches) document.body.classList.add(
         <li><span class="d">7/11</span><span>今日之最的列車在地圖上加繪金色漣漪光環</span></li>
         <li><span class="d">7/9</span><span>旅程護照與 16 枚成就徽章、「探」今日亮點面板上線</span></li>
         <li class="grp">手機與操作</li>
+        <li><span class="d">7/25</span><span>手機／App 地圖右上的分頁多了「高」：一按只看高鐵（原本要看高鐵得從「鐵」裡找）；「鐵」維持台鐵、高鐵、林鐵同框不變</span></li>
         <li><span class="d">7/25</span><span>電腦版下方工具帶瘦身：外觀、軌道與路線、平交道、站介紹、方向箭頭、省電這六項設定收進新的「☰ 更多」面板（手機一直都在「更多」裡），工具帶不用再左右捲才找得到音樂與分享</span></li>
         <li><span class="d">7/25</span><span>電腦版時間調整改成可拖曳的「時刻尺」：按住左右拖，列車就跟著時間前後跑，一小格 5 分鐘；±5 分鐘鈕退場，下方工具帶也不用再橫捲才找到音樂鈕</span></li>
         <li><span class="d">7/25</span><span>App 打開就直接停在你所在的地方，不必再等定位、也不必自己找；地圖上多了「附近車站」鈕，一按就列出你附近最近的幾座車站</span></li>
@@ -2808,7 +2811,7 @@ try { if (matchMedia('(max-width: 900px)').matches) document.body.classList.add(
 <script>
 // 版本戳記:每次改版 push 前手動遞增(字母序),畫面時鐘徽章與 console 都會顯示,
 // 供比對線上跑的是不是最新版(瀏覽器快取 max-age=600 常讓人看到舊版)
-const BUILD = 'v0725g';
+const BUILD = 'v0725h';
 const TRACK_AUDIT = new URLSearchParams(location.search).get('audit') === 'tracks';
 // 手機/平板直式「殼」斷點(議題1:640→900,iPad 直式改拿 tabbar＋更多抽屜):與 CSS @media 同步,版面類判斷一律用此常數。
 // 注意:裝置等級判斷(keepBuffer/powerSave 預設)刻意不用此常數、維持 640——iPad 不該因為改拿 tabbar 就被當低階裝置。
@@ -6221,6 +6224,12 @@ const GROUPS = [
   { id: 'metro', label: '捷運與輕軌', short: '捷', mode: 'freq', members: ['mrt', 'tymc', 'ntdlrt', 'ntalrt', 'sanying', 'tmrt', 'krtc'],
     plate: { plateL: '台北', plateR: '高雄', sub: 'METRO & LRT · TAIWAN',
       lead: '台北捷運、桃園機捷、新北捷運（環狀・淡海・安坑・三鶯）、台中捷運與高雄捷運（含輕軌）同框運行，營運時段依官方即時資訊校正（文湖線、三鶯線與台中捷運為班距推算）— 點上方分頁可切回單一地區。' } },
+  // 手機專屬「高」籤（2026-07-25 使用者要求：頂列從 台/鐵/捷 三顆改 台/鐵/高/捷 四顆）：
+  // 只看高鐵。桌面 #systems 不顯示此籤（renderSystemsBar 排除），桌面要單看高鐵仍走「國家鐵路」的成員勾選
+  // ——手機 fs 沒有成員勾選 UI，所以才需要這個入口。
+  // 同 metro 的手法置於陣列末位：groupOf('thsr_sched') 仍首命中 nat，桌面與既有深連結語意零變化。
+  // 刻意不給 plate：loadSchedGroup 單一成員時走 SYS_META[thsr_sched]（高鐵自己的「南港－左營」牌面與導言），g.plate 永不會被讀到。
+  { id: 'hsr', label: '高鐵', short: '高', mode: 'sched', members: ['thsr_sched'] },
 ];
 const groupOf = id => GROUPS.find(g => g.members.includes(id)) || GROUPS[0];
 
@@ -6403,7 +6412,7 @@ function renderSystemsBar() {
   const tabs = document.createElement('div');
   tabs.className = 'grouptabs';
   GROUPS.forEach(g => {
-    if (g.id === 'metro') return; // 桌面 header 永遠四籤(all/nat/north/south);metro 是手機合併群組,只出現在地圖頂浮動列
+    if (g.id === 'metro' || g.id === 'hsr') return; // 桌面 header 永遠四籤(all/nat/north/south);metro 與 hsr 是手機專屬籤,只出現在地圖頂浮動列
     const b = document.createElement('button');
     b.className = 'gtab' + (g.id === cur.id ? ' active' : '');
     b.textContent = g.label;
@@ -6442,15 +6451,16 @@ function renderSystemsBar() {
   box.appendChild(mem);
 }
 
-// 地圖頂浮動列的短標分頁(手機 fs 專屬):固定序 台(all)／鐵(nat)／捷(metro);桌面 CSS 隱藏但仍與 #systems 同步重建。
-// active 對映:台←all、鐵←nat、捷←metro|north|south(手機若因舊記憶/深連結落在 north/south,「捷」仍亮)。
+// 地圖頂浮動列的短標分頁(手機 fs 專屬):固定序 台(all)／鐵(nat)／高(hsr)／捷(metro);桌面 CSS 隱藏但仍與 #systems 同步重建。
+// active 對映:台←all、鐵←nat、高←hsr、捷←metro|north|south(手機若因舊記憶/深連結落在 north/south,「捷」仍亮)。
+// 「鐵」仍是台鐵＋高鐵＋林鐵同框(nat 未動),「高」是只看高鐵的捷徑——兩籤刻意重疊,與「台」含全部同一個巢狀邏輯。
 function renderTopTabs(cur) {
   const box = document.getElementById('topTabs');
   if (!box) return;
   box.innerHTML = '';
   const g = cur.id;
   const metroActive = g === 'metro' || g === 'north' || g === 'south';
-  [['all', g === 'all'], ['nat', g === 'nat'], ['metro', metroActive]].forEach(([id, on]) => {
+  [['all', g === 'all'], ['nat', g === 'nat'], ['hsr', g === 'hsr'], ['metro', metroActive]].forEach(([id, on]) => {
     const gp = GROUPS.find(x => x.id === id);
     const b = document.createElement('button');
     b.className = 'gtab' + (on ? ' active' : '');
