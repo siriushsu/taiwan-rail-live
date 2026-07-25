@@ -211,8 +211,12 @@ const openDrawer = async page => {
     await s.ctx.close();
   }
 
-  // T10 手機零回歸：對改動前 HEAD 版本逐像素比對
-  writeFileSync(BASELINE, execSync('git show HEAD:index.html', { maxBuffer: 64 * 1024 * 1024 }));
+  // T10 手機零回歸：基準釘在改動前的 commit（不可用 HEAD——HEAD 一前進就變成自己比自己）
+  // 基準頁只能由本機 server 供應,所以對正式站跑時這兩項跳過（不帶參數跑＝本機驗）
+  const BASE_REF = '20cd7ec'; // 桌面抽屜上線前一顆(時刻尺)
+  if (!/127\.0\.0\.1|localhost/.test(BASE)) info('T10/T10b 手機零回歸對照', `略過：基準頁需本機 server（現在的 base 是 ${BASE}）`);
+  else {
+  writeFileSync(BASELINE, execSync(`git show ${BASE_REF}:index.html`, { maxBuffer: 64 * 1024 * 1024 }));
   try {
     for (const width of [375, 768]) {
       const nw = await open(browser, { width, height: 812 });
@@ -245,6 +249,7 @@ const openDrawer = async page => {
       await nw.ctx.close(); await bl.ctx.close();
     }
   } finally { try { unlinkSync(BASELINE); } catch (e) {} }
+  }
 
   await browser.close();
 }

@@ -228,8 +228,12 @@ async function drag(page, dx, { hold = 0 } = {}) {
     await s.ctx.close();
   }
 
-  // ── G15/G16 手機沒被改壞：基準取改動前的 HEAD 版本 ──
-  writeFileSync(BASELINE, execSync('git show HEAD:index.html', { maxBuffer: 64 * 1024 * 1024 }));
+  // ── G15/G16 手機沒被改壞：基準釘在改動前的 commit（不可用 HEAD——HEAD 一前進就變成自己比自己）──
+  // 基準頁只能由本機 server 供應,所以對正式站跑時這兩項跳過（改成 node verify_timerail.mjs 不帶參數即可驗）
+  const BASE_REF = '9b6f6af'; // 時刻尺上線前一顆(開機自動定位)
+  if (!/127\.0\.0\.1|localhost/.test(BASE)) info('G15/G16 手機零變化對照', `略過：基準頁需本機 server（現在的 base 是 ${BASE}）`);
+  else {
+  writeFileSync(BASELINE, execSync(`git show ${BASE_REF}:index.html`, { maxBuffer: 64 * 1024 * 1024 }));
   try {
     for (const w of [375, 768]) {
       const nw = await open(browser, { width: w, height: 812 });
@@ -252,6 +256,7 @@ async function drag(page, dx, { hold = 0 } = {}) {
       await nw.ctx.close(); await bl.ctx.close();
     }
   } finally { try { unlinkSync(BASELINE); } catch (e) {} }
+  }
 
   await browser.close();
 }
