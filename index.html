@@ -2047,7 +2047,32 @@
 
   /* ── 桌面(≥901):tab bar/更多 sheet 不出現;桌面帶把音樂控制收成 ♪ 圖示鈕＋彈出面板(議題1主案,省~110px→帶內容壓進~1220px,1280 不裁);右上角橫幅/詳情/平交道卡/看板讓開 #fsFab ── */
   @media (min-width: 901px) {
-    .tabbar, .more-sheet, .more-scrim { display: none !important; }
+    .tabbar, .more-scrim { display: none !important; }
+    /* ── 「更多」抽屜桌面版(v0725g):同一份 sheet、同一套代理邏輯,只換形狀——手機是全寬底部抽屜,
+       桌面改成錨在帶上 ☰ 鈕正上方的 340px 面板(實際 left/bottom 由 positionMoreSheet 貼齊鈕)。
+       抽屜是 body 層 fixed(z1110)、不在 .controls 內,所以不吃帶的 overflow 裁切,也不受帶 z700 的
+       stacking context 封頂(音樂彈出面板 v0718m 踩過的那兩個坑)。display 交給 body.tools-open 規則。 ── */
+    .more-sheet {
+      left: auto; right: 12px; bottom: 80px; width: 340px;
+      max-height: min(78vh, 700px); /* 12 列＋4 段標題約 640px:一般桌面(≥900 高)一眼看完不必捲 */
+      border: 1.5px solid var(--navy); border-radius: 12px;
+      box-shadow: var(--shadow-1), 0 10px 28px rgba(20, 30, 50, .18);
+      padding-bottom: 8px;
+    }
+    .more-sheet .grab { display: none; } /* 拖曳把手是觸控隱喻,桌面不需要 */
+    /* 列高:手機 48px 是觸控目標下限,桌面滑鼠不需要那麼高——收緊讓整份設定一屏看完 */
+    .more-sheet .ms-row { min-height: 40px; padding: 8px 14px; font-size: 13px; }
+    .more-sheet .ms-sec { padding: 7px 14px 2px; }
+    #toolsFab { display: inline-flex !important; } /* 桌面重新啟用抽屜開關(手機仍由 tab bar「更多」負責) */
+    /* 偏好類設定收進抽屜(2026-07-25 使用者拍板):站介紹/方向/平交道/省電/外觀/軌道 帶上不再常駐。
+       元素留在 DOM,抽屜列照樣靠 btn.click() 代理它們。
+       刻意用 CSS 而非 inline display——syncMoreSheet 以 btn.style.display==='none' 判斷
+       「功能未開放就連抽屜列一起藏」,改 inline 會把抽屜裡的列也藏掉。 */
+    #introBtn, #dirBtn, #xingBtn, #powerBtn, #themeBtn, #trackBtn { display: none !important; }
+    /* 桌面已有本體的列不重複也不搶:全日走勢(點列會把 #flowWrap 搬進抽屜、頁面上那張就不見了)、
+       縣市下拉(header 常駐)、關於段(placeFootBoxes 桌面把四個盒子搬回頁尾,這裡是空的) */
+    .ms-row[data-act="flow"], .ms-row[data-act="cities"], #msCities,
+    #msAboutSec, #msAbout, .ms-about-links { display: none !important; }
     .alert-banner, .alert-detail, .xing-card, .board { right: 64px; }
     /* 音樂控制收合:帶內常駐只留 #musicBtn(♪ 音樂),#musicNextBtn＋#musicVol 移進 hover/focus 彈出面板 */
     #musicCtl { position: relative; }
@@ -2423,7 +2448,8 @@ try { if (matchMedia('(max-width: 900px)').matches) document.body.classList.add(
       <button class="pp sub" id="nowBtn" title="跳到現在的真實時間">現在</button>
       <div class="band-div"></div>
       <div class="stage-tools">
-        <button id="toolsFab" title="地圖工具"><span class="ti">☰</span><span class="tl">工具</span></button>
+        <!-- ☰ 更多:偏好類設定(外觀/軌道/平交道/站介紹/方向/省電)的入口,與手機 tab bar「更多」同一份抽屜 -->
+        <button id="toolsFab" title="更多設定：外觀、軌道與路線、平交道、站介紹、方向箭頭、省電模式" aria-expanded="false"><span class="ti">☰</span><span class="tl">更多</span></button>
         <button id="exploreBtn" title="今日亮點——特別列車與今日之最"><span class="ti">探</span><span class="tl">亮點</span></button>
         <button id="favBtn" title="我的最愛列車"><span class="ti">★</span><span class="tl">最愛</span></button>
         <button id="rideBtn" title="旅程護照（完乘記錄與收集章）"><span class="ti">旅</span><span class="tl">護照</span></button>
@@ -2513,6 +2539,7 @@ try { if (matchMedia('(max-width: 900px)').matches) document.body.classList.add(
       <summary><span>🛠 更新紀錄</span><span class="foot-sub">最後更新：2026/7/25</span></summary>
       <ul class="foot-list">
         <li class="grp">最近更新</li>
+        <li><span class="d">7/25</span><span>電腦版下方工具帶瘦身：外觀、軌道與路線、平交道、站介紹、方向箭頭、省電這六項設定收進新的「☰ 更多」面板（手機一直都在「更多」裡），工具帶不用再左右捲才找得到音樂與分享</span></li>
         <li><span class="d">7/25</span><span>電腦版時間調整改成可拖曳的「時刻尺」：按住左右拖，列車就跟著時間前後跑，一小格 5 分鐘；±5 分鐘鈕退場，下方工具帶也不用再橫捲才找到音樂鈕</span></li>
         <li><span class="d">7/25</span><span>App 打開就直接停在你所在的地方，不必再等定位、也不必自己找；地圖上多了「附近車站」鈕，一按就列出你附近最近的幾座車站</span></li>
         <li><span class="d">7/25</span><span>環島之星觀光列車上地圖了：搜尋「環島之星」或車次 1／2，就能跟著萌旅號 13 小時繞台灣一圈；介紹卡與列車收集同步收錄</span></li>
@@ -2612,6 +2639,7 @@ try { if (matchMedia('(max-width: 900px)').matches) document.body.classList.add(
         <li><span class="d">7/11</span><span>今日之最的列車在地圖上加繪金色漣漪光環</span></li>
         <li><span class="d">7/9</span><span>旅程護照與 16 枚成就徽章、「探」今日亮點面板上線</span></li>
         <li class="grp">手機與操作</li>
+        <li><span class="d">7/25</span><span>電腦版下方工具帶瘦身：外觀、軌道與路線、平交道、站介紹、方向箭頭、省電這六項設定收進新的「☰ 更多」面板（手機一直都在「更多」裡），工具帶不用再左右捲才找得到音樂與分享</span></li>
         <li><span class="d">7/25</span><span>電腦版時間調整改成可拖曳的「時刻尺」：按住左右拖，列車就跟著時間前後跑，一小格 5 分鐘；±5 分鐘鈕退場，下方工具帶也不用再橫捲才找到音樂鈕</span></li>
         <li><span class="d">7/25</span><span>App 打開就直接停在你所在的地方，不必再等定位、也不必自己找；地圖上多了「附近車站」鈕，一按就列出你附近最近的幾座車站</span></li>
         <li><span class="d">7/24</span><span>手機版面整理：面板全開時頂部時鐘、台鐵捷頁籤等自動讓位不再互相壓疊；多處過小的標籤文字加大更易讀；搜尋框提示文字改短、不再超出框外</span></li>
@@ -2767,7 +2795,7 @@ try { if (matchMedia('(max-width: 900px)').matches) document.body.classList.add(
     <button class="ms-row" data-proxy="accountBtn" data-close="1"><span>帳號同步</span><span class="chev">›</span></button>
     <!-- 關於(Batch B 第五段):placeFootBoxes() 把 site-foot 的四個 <details class="foot-box">
          (更新紀錄/資料來源與授權/贊助/隱私與服務條款)搬進 #msAbout(桌面搬回 site-foot);末列複製回報問題＋版本 -->
-    <div class="ms-sec">關於</div>
+    <div class="ms-sec" id="msAboutSec">關於</div>
     <div class="ms-about" id="msAbout"></div>
     <div class="ms-about-links">
       <a href="https://github.com/siriushsu/taiwan-rail-live/issues/new" target="_blank" rel="noopener noreferrer">📍 回報問題或建議</a>
@@ -2780,7 +2808,7 @@ try { if (matchMedia('(max-width: 900px)').matches) document.body.classList.add(
 <script>
 // 版本戳記:每次改版 push 前手動遞增(字母序),畫面時鐘徽章與 console 都會顯示,
 // 供比對線上跑的是不是最新版(瀏覽器快取 max-age=600 常讓人看到舊版)
-const BUILD = 'v0725f';
+const BUILD = 'v0725g';
 const TRACK_AUDIT = new URLSearchParams(location.search).get('audit') === 'tracks';
 // 手機/平板直式「殼」斷點(議題1:640→900,iPad 直式改拿 tabbar＋更多抽屜):與 CSS @media 同步,版面類判斷一律用此常數。
 // 注意:裝置等級判斷(keepBuffer/powerSave 預設)刻意不用此常數、維持 640——iPad 不該因為改拿 tabbar 就被當低階裝置。
@@ -10836,12 +10864,40 @@ function setupMapTools() {
   setupAccountUi();
   setupPlusUi();
   // 手機 tab bar＋「更多」sheet(原 ☰ 抽屜的繼承者;桌面 CSS 直接藏。#toolsFab 已停用,保留在 DOM)
+  // 桌面(v0725g)也用這份抽屜收偏好類設定,開關是帶上的 ☰ 鈕;面板貼在鈕正上方,手機維持全寬底部抽屜。
+  function positionMoreSheet() {
+    const sheet = document.getElementById('moreSheet'), fab = document.getElementById('toolsFab');
+    if (!sheet || !fab) return;
+    if (window.matchMedia(MOBILE_MQ).matches) { // 回到手機:清掉桌面留下的 inline 定位,免得污染底部抽屜
+      sheet.style.left = sheet.style.right = sheet.style.bottom = '';
+      return;
+    }
+    const r = fab.getBoundingClientRect();
+    if (!r.width) return; // 鈕被藏(放空/直播)時不動,維持 CSS 的右下角落點
+    const W = 340;
+    sheet.style.left = Math.max(12, Math.min(r.left, window.innerWidth - W - 12)) + 'px';
+    sheet.style.right = 'auto';
+    sheet.style.bottom = Math.round(window.innerHeight - r.top + 8) + 'px'; // 鈕正上方 8px
+  }
   const setMore = on => {
     document.body.classList.toggle('tools-open', on);
-    if (on) syncMoreSheet();
+    const fab = document.getElementById('toolsFab');
+    if (fab) fab.setAttribute('aria-expanded', String(on));
+    if (on) { syncMoreSheet(); positionMoreSheet(); }
     else collapseMsFlow(); // 關 sheet:走勢圖搬回原位(不留在隱藏 sheet 裡)
   };
   document.getElementById('tabMore').onclick = () => setMore(!document.body.classList.contains('tools-open'));
+  document.getElementById('toolsFab').onclick = () => setMore(!document.body.classList.contains('tools-open'));
+  document.addEventListener('keydown', e => { if (e.key === 'Escape' && document.body.classList.contains('tools-open')) setMore(false); });
+  // 桌面沒有遮罩(scrim 只在手機),點面板外面即關。用 pointerdown 比 click 穩(面板內容會被重排/移除,click 常打不到);
+  // ☰ 鈕本身要排除,否則 pointerdown 先關、緊接的 click 又開,變成點不開
+  document.addEventListener('pointerdown', e => {
+    if (!document.body.classList.contains('tools-open')) return;
+    if (window.matchMedia(MOBILE_MQ).matches) return; // 手機交給 scrim
+    if (e.target.closest('#moreSheet') || e.target.closest('#toolsFab')) return;
+    setMore(false);
+  });
+  window.addEventListener('resize', () => { if (document.body.classList.contains('tools-open')) positionMoreSheet(); });
   document.getElementById('moreClose').onclick = () => setMore(false);
   document.getElementById('moreScrim').onclick = () => setMore(false);
   document.getElementById('tabMap').onclick = () => { setMore(false); soloPanel(''); setAutoTour(false); clearFollow(); }; // 真機QA:soloPanel 已關全部 sheet,但跟隨不清會覺得「點了沒清空」;autoTour 也要一併退出,否則隨機巡航中點地圖只清跟隨、tick 又立刻抽下一班隨機車
