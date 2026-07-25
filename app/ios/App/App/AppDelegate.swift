@@ -14,13 +14,15 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
             #if DEBUG
             // Debug/模擬器：缺正式 plist 時用占位 options 先 configure，讓 App 殼可本機開發/模擬器測試（占位值無法真登入）。
             let placeholder = FirebaseOptions(googleAppID: "1:000000000000:ios:0000000000000000", gcmSenderID: "000000000000")
-            placeholder.apiKey = "AIzaSyPlaceholder-NotARealKey-000000000"
+            // 刻意不用 Google 金鑰的 AIza 前綴：這只是占位字串，用了前綴會被 GitHub secret scanning 誤報。
+            placeholder.apiKey = "placeholder-not-a-real-api-key-000000000"
             placeholder.projectID = "railisland-placeholder"
             placeholder.bundleID = Bundle.main.bundleIdentifier ?? "tw.railisland.app"
             FirebaseApp.configure(options: placeholder)
             #else
             // Release：缺正式 plist 直接崩，不靜默用占位設定出貨一個登入全壞的 App。
-            // ios/ 為 gitignored，乾淨 checkout 容易漏帶 plist——這道防呆讓漏帶在測試階段就爆，不會溜到送審。
+            // GoogleService-Info.plist 為 gitignored（Xcode Cloud 由 GOOGLE_SERVICE_INFO_PLIST_B64 還原），
+            // 乾淨 checkout 容易漏帶——這道防呆讓漏帶在測試階段就爆，不會溜到送審。
             fatalError("GoogleService-Info.plist 缺失：release build 必須帶入 Firebase Console 下載的正式 plist（見 app/STORE_SUBMISSION_CHECKLIST.md）")
             #endif
         }
