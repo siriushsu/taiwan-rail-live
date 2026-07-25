@@ -2078,9 +2078,14 @@
     }
     .alert-banner:not([hidden]) ~ .map-actions { top: calc(138px + env(safe-area-inset-top, 0px)); }
     .alert-detail:not([hidden]) ~ .map-actions { opacity: 0; pointer-events: none; }
-    /* 兩顆鈕交回一般流排版(桌面的絕對定位值全部歸零),外觀值不動 */
+    /* 兩顆鈕交回一般流排版(桌面的絕對定位值全部歸零),外觀值不動。
+       ⚠️ position 用 relative 不用 static:兩顆鈕的 ::after 觸控熱區是 absolute + width:100%,
+       static 會讓熱區的 containing block 變成 .map-actions(它是 absolute),於是兩顆的熱區都撐成
+       整條列 210px、DOM 較後的 nearBtn 整個蓋掉 randBtn ——「隨機跟隨」怎麼點都開成「附近車站」
+       (2026-07-26 上線後驗收在 App 與 ?geomock 實測到,網站因為 nearBtn 被 remove 而倖免)。
+       relative 沒有位移(四個方位仍 auto)、排版逐像素不變,只是把熱區的錨點還給按鈕自己。 */
     #randBtn, body.fs #randBtn, #nearBtn, body.fs #nearBtn {
-      position: static; left: auto; right: auto; top: auto; bottom: auto; transform: none;
+      position: relative; left: auto; right: auto; top: auto; bottom: auto; transform: none;
       font-size: 13px; padding: 6px 13px;
     }
     #randBtn:hover, #nearBtn:hover { transform: none; }
@@ -2588,7 +2593,7 @@ try { if (matchMedia('(max-width: 900px)').matches) document.body.classList.add(
         <li><span class="d">7/25</span><span>台鐵自強、莒光等快車經過不停靠的小站時，位置改用最近一次改點後的實際到站紀錄推算：以前是用固定的加速減速曲線硬算，現在會反映這班車在這段路真正跑多快，全網近九成的跳站路段都有實測撐著</span></li>
         <li><span class="d">7/25</span><span>手機／App 的「隨機跟隨」與「附近車站」並排成一列移到時鐘下方，不再壓住左上角的時鐘</span></li>
         <li><span class="d">7/25</span><span>手機列車控制帶點一下就展開（原本要點兩下），展開後多了跟電腦版一樣的時刻尺：拖著就能把時間往前往後帶；「放空模式」收進「更多」</span></li>
-        <li><span class="d">7/25</span><span>手機打開附近車站、列車介紹等大塊面板時，地圖會自動往上讓位，中間仍看得到列車與定位藍點；附近車站也改成可上滑放大的底部面板</span></li>
+        <li><span class="d">7/25</span><span>手機打開附近車站、亮點、最愛、列車介紹等大塊面板時，地圖會自動往上讓位，中間仍看得到列車與定位藍點；附近車站也改成可上滑放大的底部面板</span></li>
         <li><span class="d">7/25</span><span>手機／App 地圖右上的分頁多了「高」：一按只看高鐵（原本要看高鐵得從「鐵」裡找）；「鐵」維持台鐵、高鐵、林鐵同框不變</span></li>
         <li><span class="d">7/25</span><span>電腦版下方工具帶瘦身：外觀、軌道與路線、平交道、站介紹、方向箭頭、省電這六項設定收進新的「☰ 更多」面板（手機一直都在「更多」裡），工具帶不用再左右捲才找得到音樂與分享</span></li>
         <li><span class="d">7/25</span><span>電腦版時間調整改成可拖曳的「時刻尺」：按住左右拖，列車就跟著時間前後跑，一小格 5 分鐘；±5 分鐘鈕退場，下方工具帶也不用再橫捲才找到音樂鈕</span></li>
@@ -2692,7 +2697,7 @@ try { if (matchMedia('(max-width: 900px)').matches) document.body.classList.add(
         <li class="grp">手機與操作</li>
         <li><span class="d">7/25</span><span>手機／App 的「隨機跟隨」與「附近車站」並排成一列移到時鐘下方，不再壓住左上角的時鐘</span></li>
         <li><span class="d">7/25</span><span>手機列車控制帶點一下就展開（原本要點兩下），展開後多了跟電腦版一樣的時刻尺：拖著就能把時間往前往後帶；「放空模式」收進「更多」</span></li>
-        <li><span class="d">7/25</span><span>手機打開附近車站、列車介紹等大塊面板時，地圖會自動往上讓位，中間仍看得到列車與定位藍點；附近車站也改成可上滑放大的底部面板</span></li>
+        <li><span class="d">7/25</span><span>手機打開附近車站、亮點、最愛、列車介紹等大塊面板時，地圖會自動往上讓位，中間仍看得到列車與定位藍點；附近車站也改成可上滑放大的底部面板</span></li>
         <li><span class="d">7/25</span><span>手機／App 地圖右上的分頁多了「高」：一按只看高鐵（原本要看高鐵得從「鐵」裡找）；「鐵」維持台鐵、高鐵、林鐵同框不變</span></li>
         <li><span class="d">7/25</span><span>電腦版下方工具帶瘦身：外觀、軌道與路線、平交道、站介紹、方向箭頭、省電這六項設定收進新的「☰ 更多」面板（手機一直都在「更多」裡），工具帶不用再左右捲才找得到音樂與分享</span></li>
         <li><span class="d">7/25</span><span>電腦版時間調整改成可拖曳的「時刻尺」：按住左右拖，列車就跟著時間前後跑，一小格 5 分鐘；±5 分鐘鈕退場，下方工具帶也不用再橫捲才找到音樂鈕</span></li>
@@ -2864,7 +2869,7 @@ try { if (matchMedia('(max-width: 900px)').matches) document.body.classList.add(
 <script>
 // 版本戳記:每次改版 push 前手動遞增(字母序),畫面時鐘徽章與 console 都會顯示,
 // 供比對線上跑的是不是最新版(瀏覽器快取 max-age=600 常讓人看到舊版)
-const BUILD = 'v0725k';
+const BUILD = 'v0725l';
 const TRACK_AUDIT = new URLSearchParams(location.search).get('audit') === 'tracks';
 // 手機/平板直式「殼」斷點(議題1:640→900,iPad 直式改拿 tabbar＋更多抽屜):與 CSS @media 同步,版面類判斷一律用此常數。
 // 注意:裝置等級判斷(keepBuffer/powerSave 預設)刻意不用此常數、維持 640——iPad 不該因為改拿 tabbar 就被當低階裝置。
@@ -8021,6 +8026,7 @@ function openFavPanel() {
   updateSheetOpenClass();
   document.getElementById('favBtn').classList.add('active');
   renderFavPanel();
+  reframeFocus();     // 內容 render 後再量一次:updateSheetOpenClass 那次是在面板還空著時量高度(只讓了該讓的 1/3)
 }
 function closeFavPanel() {
   const el = document.getElementById('favPanel');
@@ -8098,6 +8104,7 @@ function openRidePanel() {
   updateSheetOpenClass();
   document.getElementById('rideBtn').classList.add('active');
   renderRidePanel();
+  reframeFocus();     // 內容 render 後再量一次:updateSheetOpenClass 那次是在面板還空著時量高度(只讓了該讓的 1/3)
 }
 function closeRidePanel() {
   const el = document.getElementById('ridePanel');
@@ -8462,6 +8469,7 @@ function openExplorePanel() {
   updateSheetOpenClass();
   document.getElementById('exploreBtn').classList.add('active');
   renderExplorePanel();
+  reframeFocus();     // 內容 render 後再量一次:updateSheetOpenClass 那次是在面板還空著時量高度(只讓了該讓的 1/3)
 }
 function closeExplorePanel() {
   const el = document.getElementById('explorePanel');
@@ -8560,6 +8568,7 @@ function renderTodayPanel() {
       sorted.map(todayRow).join('');
   }
   el.innerHTML = `<h3>今日台鐵動態<button class="close" id="todayClose">×</button></h3>` + body;
+  reframeFocus();     // 掛在 render 尾端而非開啟點:這面板是非同步載入,載完重畫會改高度,要跟著重新讓位
 }
 function openTodayPanel() {
   soloPanel('today');
@@ -8879,6 +8888,7 @@ function renderDelayHist() {
     }
   }
   el.innerHTML = head + body;
+  reframeFocus();     // 同上:誤點履歷是非同步載入,載完重畫會改高度
 }
 function openDelayHist(tr) {
   if (!PLUS_ENABLED || !tr || tr.sys !== 'tra_sched') return;
@@ -10404,6 +10414,10 @@ function updateSheetOpenClass() {
   const tm = document.getElementById('tabMap'); if (tm) tm.classList.toggle('active', !any);
   // 可視地圖窗:面板開/關/換段高都改變了「看得到的地圖」,把正在看的主體重新框回露出來那塊的中央。
   // 這是唯一的掛點——所有 sheet 的開關都會經過這裡,新增面板自動享有(見 focusCenter 那段契約)。
+  // ⚠️ 但它量的是「當下的面板高度」:若呼叫者是先 hidden=false 再 render 內容(fav/ride/explore/today/
+  //    delayHist 都是),這裡量到的是空面板 → 讓位量會少算(2026-07-26 實測只讓了該讓的 1/3)。
+  //    那些呼叫者在 render 之後各自再叫一次 reframeFocus();reframeFocus 是 want−have 的差量記帳、
+  //    重複呼叫安全(內容本來就在的 nearCard/board 那次是 no-op)。新增面板請照 nearCard:先 render 再開。
   reframeFocus();
 }
 // ── 「列車」sheet(手機 fs):點跟隨小卡展開 #trainCard 內容(不搬 DOM) ──
