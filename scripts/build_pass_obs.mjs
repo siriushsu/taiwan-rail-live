@@ -32,6 +32,12 @@ const CACHE = join(ROOT, '.cache', 'tra_hist');
 const AUTH = 'https://tdx.transportdata.tw/auth/realms/TDXConnect/protocol/openid-connect/token';
 const API = 'https://tdx.transportdata.tw/api/historical/v2/Historical/Rail/TRA/LiveTrainDelay';
 
+// ⏰ 最近一次台鐵改點。2026-07-01 的公告明文含「部分直達車調整停靠站」——
+//    改點會改跑段邊界與歷時，改點前的觀測對現行班表的 f 就是污染源。
+//    **台鐵慣例 4／7／10 月改點，改點後必須更新這個日期**，否則舊資料會無聲混進來。
+//    快取不必刪（保留可回溯），這裡只是不採用它。
+const SHIFT_DATE = '2026-07-01';
+
 // ── 模型常數（改這裡要同步更新 研究_快車跳站校正 文件的驗證數字）
 const GATE = {
   madSec: 90,        // 跨日 f 的中位絕對離差上限（秒）；閘門收太緊會把「實測大贏梯形」的難點丟回梯形
@@ -46,6 +52,11 @@ const GATE = {
   nMax: 5,           // 通過站板面筆數上限：≥5 多為隱藏停站或起站長掛
   dlyDrift: 2,       // 跑段兩端誤點差上限（分）
   segMinN: 2,        // 路段速度表每個鍵至少樣本數
+  hampel: 3,         // 離群日剔除倍數：|f−中位| > k×MAD 的那天不採（0＝關閉，--hampel=0 可關）。
+                     // 為什麼剔「f 的離群」而不是「誤點大的日子」：f 是跑段內的時間比例，
+                     // 整車誤點 20 分但段內正常跑時 f 完全正確，剔大誤點日會丟掉有效樣本。
+                     // 有害的是「段內跑法異常」——那正是這道與 dlyDrift 在擋的。
+  hampelMinN: 5,     // 樣本少於這個數就不剔（MAD 本身不可靠）
 };
 
 const norm = s => (s || '').replace(/台/g, '臺').trim();
@@ -190,6 +201,8 @@ async function main() {
   const MASK = new Set((cliArg('mask') || '').split(',').filter(Boolean).map(norm));
   const PLACEBO = +(cliArg('placebo') || 0);
   if (cliArg('mad')) GATE.madSec = +cliArg('mad');       // 閘門掃描用
+  if (cliArg('hampel')) GATE.hampel = +cliArg('hampel');
+  if (cliArg('drift')) GATE.dlyDrift = +cliArg('drift');   // 量「端點誤點漂移閘門擋掉多少事故日」用
   const placeboOff = (a, b) => {
     let h = 2166136261; const str = a + '|' + b;
     for (let i = 0; i < str.length; i++) { h ^= str.charCodeAt(i); h = Math.imul(h, 16777619); }
@@ -205,6 +218,18 @@ async function main() {
 
   // 日期→距最新觀測日幾天（分層窗用）。基準取最新觀測日而非今天,重跑舊快取結果才可重現；
   // 用實際日期差而非序號,快取有缺日時才不會把窗算寬。
+  // 改點前的觀測不採（見 SHIFT_DATE）。留一道防呆：改點後天數太少就整批不濾，
+  // 否則改點當週重建會直接把產物清空（寧可暫時帶點舊資料，也不要突然失去校正）。
+  const since = cliArg('since') ?? SHIFT_DATE;
+  const postShift = have.filter(d => d >= since);
+  if (postShift.length >= 10) {
+    if (postShift.length < have.length)
+      console.log(`══ 改點過濾 ══ ${since} 之後 ${postShift.length} 天（丟棄改點前 ${have.length - postShift.length} 天）`);
+    have.length = 0; have.push(...postShift);
+  } else if (postShift.length < have.length) {
+    console.log(`⚠️ ${since} 之後只有 ${postShift.length} 天（<10），暫不過濾改點前資料——` +
+      `這批產物混有改點前的觀測，等累積滿 10 天後重建`);
+  }
   const latestDay = have[have.length - 1], dayAge = {};
   for (const d of have) dayAge[d] = Math.round((Date.parse(latestDay) - Date.parse(d)) / 86400000);
   const sched = JSON.parse(readFileSync(join(ROOT, 'data/tra_schedule_dense.json'), 'utf8'));
@@ -270,6 +295,9 @@ async function main() {
 
   // ── 主掃描：每車次的 τ（各站實測時刻）、路段速度樣本、跑段內 f
   const trains = {}, segRaw = new Map(), diag = {};
+  const outDays = [], inDays = [], dlyOut = [], dlyIn = [];   // 被 Hampel 剔掉的日期 / 進入檢驗的日期。
+  // 判準必須是「該日被剔的比例」＝ out/in：絕對數會被分層窗的結構帶著走
+  // （91.8% 的節點只用最近 14 天樣本，被剔的當然幾乎全落在那 14 天，與事故無關）。
   // 同一份班表內有多筆同車次號（加停變體，實測 434/270/281/324/4041）：觀測按車次號 join 會把
   // 兩種停站型態混在一起，且 trains[t.train] 後者覆蓋前者。實測這 5 個號的各變體站清單完全相同、
   // 只差 1–2 站的停靠標記 → 取第一筆處理、把分歧站當通過站（first＝到站時刻，停或不停語意相同），
@@ -285,7 +313,7 @@ async function main() {
       varDis.set(k, dis);
     }
   }
-  const stat = { trains: 0, runs: 0, slots: 0, taken: 0, skipDup: 0, skipDupNo: 0, skipVar: 0, rejEnds: 0, rejDur: 0, rejMono: 0, rejRange: 0, rejMad: 0, rejV: 0, rejDayV: 0, rejWin: 0, rejDrift: 0, segFillVbar: 0, segFillTrap: 0, segFillLin: 0, rejHole: 0 };
+  const stat = { trains: 0, runs: 0, slots: 0, taken: 0, skipDup: 0, skipDupNo: 0, skipVar: 0, rejEnds: 0, rejDur: 0, rejMono: 0, rejRange: 0, rejMad: 0, rejV: 0, rejDayV: 0, rejWin: 0, rejDrift: 0, segFillVbar: 0, segFillTrap: 0, segFillLin: 0, rejHole: 0, rejOutlier: 0 };
   for (const t of sched.trains) {
     const s = t.stops;
     if (!s.some(x => x.stop === false)) continue;
@@ -343,7 +371,9 @@ async function main() {
       let runKm = 0; for (let i = k0; i < k1; i++) runKm += segKm[i];
       const knots = []; let cum = 0;
       for (let i = k0; i < k1 - 1; i++) { cum += segKm[i]; knots.push({ i: i + 1, name: names[i + 1], km: cum }); }
-      const vals = {}, durs = [];   // vals[站]=[{d,f}]、durs=[{d,dur}]：分層選窗要按日期篩
+      const vals = {}, durs = [];   // vals[站]=[{d,f,dly}]、durs=[{d,dur}]：分層選窗要按日期篩
+      // dly＝該日該車次在跑段起點的誤點（分）。留著是為了用「獨立判準」檢驗 Hampel 剔的是什麼：
+      // 誤點來自官方 DelayTime、f 來自 first 的相對比例，兩者不同源 → 可用來驗「極端值是否真的是異常運轉日」。
       for (const d of have) {
         const m = tau[d]; if (!m || !m[k0] || !m[k1]) { stat.rejEnds++; continue; }
         if (Math.abs((m[k1].dA ?? 0) - (m[k0].dL ?? 0)) >= GATE.dlyDrift) { stat.rejDrift++; continue; }
@@ -362,7 +392,7 @@ async function main() {
         if (bad) { stat.rejMono++; continue; }
         if (!Object.keys(day).length) continue;
         durs.push({ d, dur });
-        for (const k in day) (vals[k] || (vals[k] = [])).push({ d, f: day[k] });
+        for (const k in day) (vals[k] || (vals[k] = [])).push({ d, f: day[k], dly: m[k0].dL ?? 0 });
       }
       const rpT = buildProfile(runKm, runT, perf.a, perf.b, perf.v);   // 同跑段的梯形,用來量「實測 vs 梯形」的系統偏差
       let prevF = 0, prevKm = 0;
@@ -370,12 +400,29 @@ async function main() {
         const raw = vals[kn.name];
         if (!raw || raw.length < GATE.minDays) continue;
         // 分層選窗：由近而遠,第一個湊到 minDays 的窗就用它（不繼續往外擴,避免混入過時型態）
-        let a = null, usedWin = 0;
+        let sel = null, usedWin = 0;
         for (const w of GATE.windows) {
-          const sel = raw.filter(x => dayAge[x.d] < w);
-          if (sel.length >= GATE.minDays) { a = sel.map(x => x.f); usedWin = w; break; }
+          const s2 = raw.filter(x => dayAge[x.d] < w);
+          if (s2.length >= GATE.minDays) { sel = s2; usedWin = w; break; }
         }
-        if (!a) continue;
+        if (!sel) continue;
+        // 離群日剔除（Hampel）：事故、號誌故障、天災會讓那天的跑段內部結構整個變形。
+        // 中位本身抗離群，但樣本只有 3–5 天時（天數 p10＝4）一天的極端值就足以把中位拉走。
+        // 判準用同批樣本自己的 MAD 而非絕對門檻——各節點的正常變異量差異很大。
+        // 剔到不足 minDays 就整批不剔（寧可保留全部樣本，也不要用 2 天的樣本下結論）。
+        if (GATE.hampel && sel.length >= GATE.hampelMinN) {
+          for (const x of sel) { inDays.push(x.d); dlyIn.push(Math.abs(x.dly ?? 0)); }
+          const m0 = med(sel.map(x => x.f)), d0 = med(sel.map(x => Math.abs(x.f - m0)));
+          if (d0 > 0) {
+            const keep = sel.filter(x => Math.abs(x.f - m0) <= GATE.hampel * d0);
+            if (keep.length >= GATE.minDays && keep.length < sel.length) {
+              for (const x of sel) if (!keep.includes(x)) { outDays.push(x.d); dlyOut.push(Math.abs(x.dly ?? 0)); }
+              stat.rejOutlier += sel.length - keep.length;
+              sel = keep;
+            }
+          }
+        }
+        const a = sel.map(x => x.f);
         const dSel = new Set(raw.filter(x => dayAge[x.d] < usedWin).map(x => x.d));
         const durMed = med(durs.filter(x => dSel.has(x.d)).map(x => x.dur));
         if (!(durMed > 0)) continue;
@@ -541,6 +588,18 @@ async function main() {
   writeFileSync(dstM, JSON.stringify({
     ...metaCommon, calib: CAL, calib_station: calSt, gates: GATE, bt_fix: BT_FIX,
     holes: holeStat.filter(h => h.holes > 0),
+    // 獨立判準：被剔樣本的當日誤點分布 vs 全部進檢驗樣本。若被剔者誤點明顯較大 → 剔的是異常運轉日；
+    // 若兩者一樣 → 剔的只是正常變異的尾巴（誤點與 f 不同源，這個對照才有資訊）。
+    outlier_delay: (() => {
+      const q = (a, pp) => { const b = [...a].sort((x, y) => x - y); return b.length ? b[Math.floor(pp * b.length)] : null; };
+      const st = a => ({ n: a.length, p50: q(a, .5), p90: q(a, .9), p99: q(a, .99),
+                         mean: a.length ? +(a.reduce((x, y) => x + y, 0) / a.length).toFixed(2) : null,
+                         ge10: a.length ? +(100 * a.filter(v => v >= 10).length / a.length).toFixed(1) : null });
+      return { 被剔樣本: st(dlyOut), 全部進檢驗: st(dlyIn) }; })(),
+    outlier_days: (() => {          // 逐日：被剔數／進入檢驗數／比例（比例才是判準，見 inDays 註解）
+      const o={}, i={}; for(const d of outDays) o[d]=(o[d]||0)+1; for(const d of inDays) i[d]=(i[d]||0)+1;
+      return Object.keys(i).sort().map(d => [d, o[d]||0, i[d], +((o[d]||0)/i[d]).toFixed(4)])
+        .sort((x,y)=>y[3]-x[3]); })(),
     stats: { ...stat, srcCount, trainsWithA: Object.keys(trains).length, trainsFinal: Object.keys(finalF).length },
     trains_layerA: sortObj(Object.fromEntries(Object.entries(trains).map(([k, v]) => [k, sortObj(v)]))),
     segs: sortObj(segs),
@@ -553,7 +612,7 @@ async function main() {
   console.log(`  含通過站車次 ${stat.trains}（站名重複跳過 ${stat.skipDup}）；跑段 ${stat.runs}；通過站槽位 ${stat.slots}`);
   console.log(`  第一層(該車次實測) 採用 ${stat.taken}（${(100 * stat.taken / stat.slots).toFixed(1)}%）／車次 ${Object.keys(trains).length}`);
   console.log(`  剔除：兩端缺 ${stat.rejEnds}、歷時異常 ${stat.rejDur}、非單調 ${stat.rejMono}、越界 ${stat.rejRange}、離散過大 ${stat.rejMad}、逐日不合物理 ${stat.rejDayV}、中位不合物理 ${stat.rejV}`
-    + `、板窗不合 ${stat.rejWin}、斷抓可疑 ${stat.rejHole}、端點誤點漂移 ${stat.rejDrift}、同號變體車次 ${stat.skipDupNo}（站清單相同而合併處理 ${stat.skipVar}）`);
+    + `、板窗不合 ${stat.rejWin}、斷抓可疑 ${stat.rejHole}、端點誤點漂移 ${stat.rejDrift}、離群日 ${stat.rejOutlier}、同號變體車次 ${stat.skipDupNo}（站清單相同而合併處理 ${stat.skipVar}）`);
   {
     const wc = {};
     for (const t in diag) for (const st in diag[t]) { const w = diag[t][st][3]; wc[w] = (wc[w] || 0) + 1; }

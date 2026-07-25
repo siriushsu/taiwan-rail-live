@@ -7,8 +7,14 @@
 import { chromium, webkit } from 'playwright';
 import { readFileSync, existsSync } from 'fs';
 import { spawn, execSync } from 'child_process';
+import { createHash } from 'crypto';
+import { join } from 'path';
 
-const NEW_DIR = process.argv[2] || '/private/tmp/claude-501/-Users-xuxiang-Code------/9806cec5-61fe-410f-b75a-9046662eec7b/verify';
+const REPO = '/Users/xuxiang/Code/捷運小動畫';
+// 新版目錄預設＝repo 本身。**曾經預設一個釘死的 worktree，害連兩輪 21/21 都在驗幾個 commit 前的
+// 舊檔案**（唯一線索是 G8 的統計數字「一字不差」）。所以 (a) 預設驗 repo 現況，
+// (b) 下面加 G0 自檢逐 byte 比對，傳錯目錄就直接 FAIL。
+const NEW_DIR = process.argv[2] || REPO;
 const BASE_DIR = process.argv[3] || '/private/tmp/claude-501/-Users-xuxiang-Code------/9806cec5-61fe-410f-b75a-9046662eec7b/verify_base';
 const P_NEW = 8792, P_BASE = 8791;
 let pass = 0, fail = 0; const fails = [];
@@ -81,8 +87,23 @@ const PROBE = () => {
 
 async function main() {
   if (!existsSync(BASE_DIR)) {
-    execSync(`git worktree add --detach ${BASE_DIR} HEAD`, { cwd: '/Users/xuxiang/Code/捷運小動畫', stdio: 'ignore' });
+    execSync(`git worktree add --detach ${BASE_DIR} HEAD`, { cwd: REPO, stdio: 'ignore' });
   }
+  // ── G0 自檢：先確認「我在驗什麼」。驗錯目標是最壞的失敗模式——全綠而且毫無異狀。
+  const md5 = f => existsSync(f) ? createHash('md5').update(readFileSync(f)).digest('hex') : null;
+  const buildOf = d => { try { return (readFileSync(join(d, 'index.html'), 'utf8')
+    .match(/const BUILD = '([^']+)'/) || [])[1] || '?'; } catch { return '(讀不到)'; } };
+  console.log('\n═══ 驗收對象 ═══');
+  for (const [lab, d] of [['新版', NEW_DIR], ['基準', BASE_DIR]])
+    console.log(`  ${lab} ${d}\n       BUILD=${buildOf(d)} index=${(md5(join(d, 'index.html')) || '缺').slice(0, 8)}` +
+      ` obs=${(md5(join(d, 'data/tra_pass_obs.json')) || '(無此檔)').slice(0, 8)}`);
+  ok('G0 驗的是 repo 現況（不是舊 worktree）',
+    md5(join(NEW_DIR, 'index.html')) === md5(join(REPO, 'index.html')) &&
+    md5(join(NEW_DIR, 'data/tra_pass_obs.json')) === md5(join(REPO, 'data/tra_pass_obs.json')),
+    NEW_DIR === REPO ? '新版目錄＝repo' : '新版目錄與 repo 逐 byte 相同');
+  ok('G0b 基準是「沒有實測資料」的版本（＝純梯形對照）',
+    !existsSync(join(BASE_DIR, 'data/tra_pass_obs.json')),
+    `基準 ${execSync(`git -C ${BASE_DIR} log --oneline -1`).toString().trim().slice(0, 40)}`);
   const s1 = serve(NEW_DIR, P_NEW), s2 = serve(BASE_DIR, P_BASE);
   await new Promise(r => setTimeout(r, 1200));
   const art = JSON.parse(readFileSync(`${NEW_DIR}/data/tra_pass_obs.json`, 'utf8'));
