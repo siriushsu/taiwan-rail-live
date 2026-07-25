@@ -34,12 +34,15 @@ const API = 'https://tdx.transportdata.tw/api/historical/v2/Historical/Rail/TRA/
 
 // ── 模型常數（改這裡要同步更新 研究_快車跳站校正 文件的驗證數字）
 const GATE = {
-  madSec: 45,        // 跨日 f 的中位絕對離差上限（秒）；掃描 30/45/60/90 後取轉折點
-  minDays: 2,        // 至少幾天觀測才採用該通過站
+  madSec: 90,        // 跨日 f 的中位絕對離差上限（秒）；閘門收太緊會把「實測大贏梯形」的難點丟回梯形
+  minDays: 3,        // 至少幾天觀測才採用該通過站（2 天的 MAD＝半個差值,幾乎必然過關）
   durLo: 0.45,       // 當日跑段實際歷時 / 表定跑段時間 的下限
   durHi: 2.2,        // 同上上限
   vLo: 8, vHi: 165,  // 相鄰 knot 間平均速度合理區間（km/h）：寬鬆，用來剔逐日離群點
   vFinalHi: 135,     // 產物最終序列的節點間速度上限（台鐵路線最高速限 130，留量測餘裕）
+  winMax: 240,       // 通過站板窗（last−first）上限秒：超過＝非瞬時通過
+  nMax: 5,           // 通過站板面筆數上限：≥5 多為隱藏停站或起站長掛
+  dlyDrift: 2,       // 跑段兩端誤點差上限（分）
   segMinN: 2,        // 路段速度表每個鍵至少樣本數
 };
 
@@ -157,10 +160,25 @@ function loadObs(dates) {
   return ob;
 }
 
+const argv = process.argv.slice(2);
+const cliArg = k => { const a = argv.find(x => x.startsWith(`--${k}=`)); return a ? a.slice(k.length + 3) : null; };
+
 async function main() {
-  const days = +(process.argv[2] || 7);
+  const days = +(argv.find(x => /^\d+$/.test(x)) || 7);
+  const ONLY = cliArg('only'), OUTDIR = cliArg('out');   // LOO 交叉驗證用：只採這些日期／產物寫到別處
+  // 以下兩者只供獨立判準驗收：--mask 把真停靠站遮蔽成偽通過站（於是它的「表定＋官方誤點」可當獨立真值）；
+  // --placebo 對通過站觀測注入每(車次,站)固定的憑空偏差,用來檢查驗收指標會不會跟著變差（判準有牙）。
+  const MASK = new Set((cliArg('mask') || '').split(',').filter(Boolean).map(norm));
+  const PLACEBO = +(cliArg('placebo') || 0);
+  if (cliArg('mad')) GATE.madSec = +cliArg('mad');       // 閘門掃描用
+  const placeboOff = (a, b) => {
+    let h = 2166136261; const str = a + '|' + b;
+    for (let i = 0; i < str.length; i++) { h ^= str.charCodeAt(i); h = Math.imul(h, 16777619); }
+    return ((h >>> 0) % 2 ? 1 : -1) * PLACEBO;
+  };
+  if (argv.includes('--quiet')) console.log = () => {};
   console.log(`══ 抓取最近 ${days} 天 ══`);
-  const dates = await fetchDays(days);
+  const dates = ONLY ? ONLY.split(',') : await fetchDays(days);
   const ob = loadObs(dates);
   const have = dates.filter(d => ob[d]);
   console.log(`══ 讀入 ${have.length} 天觀測 ══`);
@@ -180,7 +198,7 @@ async function main() {
   const segDist = (a, b) => pairKm.get(`${norm(a.name)}|${norm(b.name)}`) ?? hav(a, b);
 
   // ── 偏移校準（真停靠站：first vs 表定到站、last vs 表定離站、中點 vs 表定中點）
-  const bF = [], bL = [], bM = [];
+  const bF = [], bL = [], bM = [], bySt = {};
   for (const t of sched.trains) for (const d of have) {
     const T = ob[d][t.train]; if (!T) continue;
     const any = Object.values(T)[0]; if (!any) continue;
@@ -190,25 +208,43 @@ async function main() {
       const e = T[norm(s.name)]; if (!e) continue;
       const dly = med(e.dly) * 60, sa = day0 + s.arrSec + dly, sd = day0 + s.depSec + dly;
       if (Math.abs(e.first - sa) > 3 * 3600) continue;
-      bF.push(e.first - sa); bL.push(e.last - sd);
+      // 校準樣本要與使用情境同一道守門：不守門的話 first 偏差是 -15s、守門後是 -8s，
+      // 這 7s 會整體平移所有通過站的推估時刻。
+      if (!(e.last - e.first > GATE.winMax || e.n >= GATE.nMax)) {
+        bF.push(e.first - sa);
+        (bySt[norm(s.name)] || (bySt[norm(s.name)] = [])).push(e.first - sa);
+      }
+      bL.push(e.last - sd);
       if (s.depSec - s.arrSec <= 60) bM.push((e.first + e.last) / 2 - (sa + sd) / 2);
     }
   }
   const CAL = { first: Math.round(med(bF)), last: Math.round(med(bL)), mid: Math.round(med(bM)), n: bF.length };
+  // 逐站校準：全網站級偏差很小（p90 2s）,但少數站的板面更新時機明顯偏（談文 -67s、知本 -33s…）。
+  // 樣本夠多才逐站,否則用全網值——樣本少時逐站中位本身的雜訊比要修的偏差還大。
+  const calSt = {};
+  for (const k in bySt) if (bySt[k].length >= 100) { const v = Math.round(med(bySt[k])); if (Math.abs(v - CAL.first) >= 10) calSt[k] = v; }
+  console.log(`══ 逐站校準 ══ ${Object.keys(calSt).length} 站另用自己的偏移（其餘用全網 ${CAL.first}s）`);
   console.log(`══ 偏移校準 ══ first−到站 ${CAL.first}s／last−離站 ${CAL.last}s／中點 ${CAL.mid}s（n=${CAL.n}）`);
 
   // ── 主掃描：每車次的 τ（各站實測時刻）、路段速度樣本、跑段內 f
-  const trains = {}, segRaw = new Map();
-  const stat = { trains: 0, runs: 0, slots: 0, taken: 0, skipDup: 0, rejEnds: 0, rejDur: 0, rejMono: 0, rejRange: 0, rejMad: 0, rejV: 0, rejDayV: 0 };
+  const trains = {}, segRaw = new Map(), diag = {};
+  // 同一份班表內有多筆同車次號（加停變體，實測 434/270/281/324/4041）：
+  // 觀測按車次號 join 會把兩種停站型態混在一起，且 trains[t.train] 後者覆蓋前者 → 整批排除。
+  const dupNo = new Set(); {
+    const c = {}; for (const t of sched.trains) c[t.train] = (c[t.train] || 0) + 1;
+    for (const k in c) if (c[k] > 1) dupNo.add(k);
+  }
+  const stat = { trains: 0, runs: 0, slots: 0, taken: 0, skipDup: 0, skipDupNo: 0, rejEnds: 0, rejDur: 0, rejMono: 0, rejRange: 0, rejMad: 0, rejV: 0, rejDayV: 0, rejWin: 0, rejDrift: 0 };
   for (const t of sched.trains) {
     const s = t.stops;
     if (!s.some(x => x.stop === false)) continue;
     const names = s.map(x => norm(x.name));
     if (new Set(names).size !== names.length) { stat.skipDup++; continue; }   // 折返/環島：站名重複無法用名稱 join
+    if (dupNo.has(t.train)) { stat.skipDupNo++; continue; }
     stat.trains++;
     const perf = resolvePerf(t), cls = perf.k;
     const segKm = []; for (let i = 0; i < s.length - 1; i++) segKm.push(segDist(s[i], s[i + 1]));
-    const stopArr = s.map((x, i) => i === 0 || i === s.length - 1 || x.stop !== false);
+    const stopArr = s.map((x, i) => i === 0 || i === s.length - 1 || (x.stop !== false && !MASK.has(names[i])));
     // 逐日各站實測時刻
     const tau = {};
     for (const d of have) {
@@ -217,9 +253,17 @@ async function main() {
       const day0 = Math.floor((Object.values(T)[0].first + 8 * 3600) / 86400) * 86400 - 8 * 3600;
       for (let i = 0; i < s.length; i++) {
         const e = T[names[i]]; if (!e) continue;
-        m[i] = stopArr[i]
-          ? { arr: day0 + s[i].arrSec + e.dlyFirst * 60, dep: day0 + s[i].depSec + e.dlyLast * 60 }
-          : { arr: (e.first + e.last) / 2 - CAL.mid, dep: (e.first + e.last) / 2 - CAL.mid };
+        if (stopArr[i]) {                       // 真停靠站：表定＋該站實測誤點（比時間戳可靠，看板尾巴 p90 +391s）
+          m[i] = { arr: day0 + s[i].arrSec + e.dlyFirst * 60, dep: day0 + s[i].depSec + e.dlyLast * 60,
+                   dA: e.dlyFirst, dL: e.dlyLast };
+          continue;
+        }
+        // 通過站：用 first 不用中點。中點的偏移隨板窗筆數劇烈漂移（n=1 −38s／n=4 +112s，極差 150s，
+        // 而通過站有 49% 是 n=1），first 只有 15s 極差。板窗過寬或筆數多＝不是瞬間通過（隱藏停站、
+        // 起站長掛上板），單一常數校不了 → 直接不當觀測點。
+        if (e.last - e.first > GATE.winMax || e.n >= GATE.nMax) { stat.rejWin++; continue; }
+        const tp = e.first - (calSt[names[i]] ?? CAL.first) + (PLACEBO ? placeboOff(t.train, names[i]) : 0);
+        m[i] = { arr: tp, dep: tp };
       }
       tau[d] = m;
       // 路段速度樣本
@@ -247,6 +291,7 @@ async function main() {
       const vals = {}, durs = [];
       for (const d of have) {
         const m = tau[d]; if (!m || !m[k0] || !m[k1]) { stat.rejEnds++; continue; }
+        if (Math.abs((m[k1].dA ?? 0) - (m[k0].dL ?? 0)) >= GATE.dlyDrift) { stat.rejDrift++; continue; }
         const tDep = m[k0].dep, dur = m[k1].arr - tDep;
         if (!(dur > 45) || dur < GATE.durLo * runT || dur > GATE.durHi * runT) { stat.rejDur++; continue; }
         const day = {}; let prev = 0, bad = false, prevKm = 0;
@@ -265,6 +310,7 @@ async function main() {
         for (const k in day) (vals[k] || (vals[k] = [])).push(day[k]);
       }
       const durMed = med(durs);
+      const rpT = buildProfile(runKm, runT, perf.a, perf.b, perf.v);   // 同跑段的梯形,用來量「實測 vs 梯形」的系統偏差
       let prevF = 0, prevKm = 0;
       for (const kn of knots) {
         const a = vals[kn.name];
@@ -277,6 +323,10 @@ async function main() {
         if (!(v > GATE.vLo && v < GATE.vHi)) { stat.rejV++; continue; }
         prevF = f; prevKm = kn.km;
         rec[kn.name] = Math.round(f * 1000);
+        // 訊號／噪音診斷：mad＝同站跨日重現的離散（噪音）；dev＝實測中位與梯形的差（訊號,正=比梯形晚到）
+        const fT = rpT ? profProgToTime(rpT, kn.km / runKm) / runT : kn.km / runKm;
+        (diag[t.train] || (diag[t.train] = {}))[kn.name] =
+          [Math.round(mad), a.length, Math.round((f - fT) * durMed)];
         stat.taken++;
       }
     }
@@ -306,11 +356,12 @@ async function main() {
   for (const t of sched.trains) {
     const s = t.stops;
     if (!s.some(x => x.stop === false)) continue;
+    if (dupNo.has(t.train)) continue;
     const names = s.map(x => norm(x.name));
     if (new Set(names).size !== names.length) continue;
     const cls = resolvePerf(t).k;
     const segKm = []; for (let i = 0; i < s.length - 1; i++) segKm.push(segDist(s[i], s[i + 1]));
-    const stopArr = s.map((x, i) => i === 0 || i === s.length - 1 || x.stop !== false);
+    const stopArr = s.map((x, i) => i === 0 || i === s.length - 1 || (x.stop !== false && !MASK.has(names[i])));
     const A = trains[t.train] || {};
     const bounds = []; for (let i = 0; i < s.length; i++) if (stopArr[i]) bounds.push(i);
     const rec = {};
@@ -396,7 +447,7 @@ async function main() {
     dates: have, sched_date_range: sched.dateRange,
   };
   // 前端要用的：每個通過站在跑段內的實測時間比例（千分比）
-  const dst = join(ROOT, 'data/tra_pass_obs.json');
+  const dst = join(OUTDIR || join(ROOT, 'data'), 'tra_pass_obs.json');
   writeFileSync(dst, JSON.stringify({
     ...metaCommon,
     notes: '通過站在跑段內的實測時間比例(千分比,0~1000)。前端據此把梯形曲線換成通過實測點的曲線；'
@@ -405,21 +456,28 @@ async function main() {
     trains: sortObj(Object.fromEntries(Object.entries(finalF).map(([k, v]) => [k, sortObj(v)]))),
   }));
   // 稽核用（前端不載入）：路段速度表、閘門、剔除統計
-  const dstM = join(ROOT, 'data/tra_pass_obs_model.json');
+  const dstM = join(OUTDIR || join(ROOT, 'data'), 'tra_pass_obs_model.json');
   writeFileSync(dstM, JSON.stringify({
-    ...metaCommon, calib: CAL, gates: GATE, bt_fix: BT_FIX,
+    ...metaCommon, calib: CAL, calib_station: calSt, gates: GATE, bt_fix: BT_FIX,
     stats: { ...stat, srcCount, trainsWithA: Object.keys(trains).length, trainsFinal: Object.keys(finalF).length },
     trains_layerA: sortObj(Object.fromEntries(Object.entries(trains).map(([k, v]) => [k, sortObj(v)]))),
     segs: sortObj(segs),
   }, null, 1));
+  writeFileSync(join(OUTDIR || join(ROOT, 'data'), 'tra_pass_obs_diag.json'), JSON.stringify({
+    note: '第一層逐節點診斷：[跨日離散 mad 秒, 觀測天數, 實測中位−梯形 秒]。分析中間產物,不進版控、前端不讀。',
+    trains: sortObj(Object.fromEntries(Object.entries(diag).map(([k, v]) => [k, sortObj(v)]))),
+  }, null, 1));
   console.log(`\n══ 統計 ══`);
   console.log(`  含通過站車次 ${stat.trains}（站名重複跳過 ${stat.skipDup}）；跑段 ${stat.runs}；通過站槽位 ${stat.slots}`);
   console.log(`  第一層(該車次實測) 採用 ${stat.taken}（${(100 * stat.taken / stat.slots).toFixed(1)}%）／車次 ${Object.keys(trains).length}`);
-  console.log(`  剔除：兩端缺 ${stat.rejEnds}、歷時異常 ${stat.rejDur}、非單調 ${stat.rejMono}、越界 ${stat.rejRange}、離散過大 ${stat.rejMad}、逐日不合物理 ${stat.rejDayV}、中位不合物理 ${stat.rejV}`);
+  console.log(`  剔除：兩端缺 ${stat.rejEnds}、歷時異常 ${stat.rejDur}、非單調 ${stat.rejMono}、越界 ${stat.rejRange}、離散過大 ${stat.rejMad}、逐日不合物理 ${stat.rejDayV}、中位不合物理 ${stat.rejV}`
+    + `、板窗不合 ${stat.rejWin}、端點誤點漂移 ${stat.rejDrift}、同號變體車次 ${stat.skipDupNo}`);
   console.log(`  第二層(路段速度表) ${Object.keys(segs).length} 鍵`);
   console.log(`  合成結果：A 錨點 ${srcCount.a}、B 填補 ${srcCount.b}、兩層皆無 ${srcCount.none}`
     + `　→ 覆蓋 ${srcCount.a + srcCount.b}／${stat.slots}（${(100 * (srcCount.a + srcCount.b) / stat.slots).toFixed(1)}%）`);
   console.log(`  → ${dst}（${(statSync(dst).size / 1024).toFixed(0)} KB，前端載入）`);
   console.log(`  → ${dstM}（${(statSync(dstM).size / 1024).toFixed(0)} KB，稽核用）`);
 }
-main().catch(e => { console.error('失敗：', e.message); process.exit(1); });
+export { buildProfile, profProgToTime, resolvePerf, norm, med, loadObs, CACHE };
+if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1])
+  main().catch(e => { console.error('失敗：', e.message); process.exit(1); });

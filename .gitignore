@@ -7,6 +7,8 @@ _專案資訊.html
 授權查證*
 安全審查*.md
 通知功能設計*
+音樂功能設計*
+打卡收集系統設計*
 Plus訂閱重整*
 商店文案與截圖需求*
 hand off/
@@ -20,3 +22,5 @@ app/release-policy.json
 
 # TDX 歷史原始快取（可重抓，不進版控）
 .cache/
+# 跳站校正的逐節點診斷（由 build_pass_obs.mjs 重生，稽核用）
+data/tra_pass_obs_diag.json
