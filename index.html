@@ -2585,7 +2585,7 @@ try { if (matchMedia('(max-width: 900px)').matches) document.body.classList.add(
       <summary><span>🛠 更新紀錄</span><span class="foot-sub">最後更新：2026/7/25</span></summary>
       <ul class="foot-list">
         <li class="grp">最近更新</li>
-        <li><span class="d">7/25</span><span>台鐵自強、莒光等快車經過不停靠的小站時，位置改用最近七天的實際到站紀錄推算：以前是用固定的加速減速曲線硬算，現在會反映這班車在這段路真正跑多快，跳站時的位置準了不少</span></li>
+        <li><span class="d">7/25</span><span>台鐵自強、莒光等快車經過不停靠的小站時，位置改用過去兩個月的實際到站紀錄推算：以前是用固定的加速減速曲線硬算，現在會反映這班車在這段路真正跑多快，全網九成的跳站路段都有實測撐著</span></li>
         <li><span class="d">7/25</span><span>手機／App 的「隨機跟隨」與「附近車站」並排成一列移到時鐘下方，不再壓住左上角的時鐘</span></li>
         <li><span class="d">7/25</span><span>手機列車控制帶點一下就展開（原本要點兩下），展開後多了跟電腦版一樣的時刻尺：拖著就能把時間往前往後帶；「放空模式」收進「更多」</span></li>
         <li><span class="d">7/25</span><span>手機打開附近車站、列車介紹等大塊面板時，地圖會自動往上讓位，中間仍看得到列車與定位藍點；附近車站也改成可上滑放大的底部面板</span></li>
@@ -2737,7 +2737,7 @@ try { if (matchMedia('(max-width: 900px)').matches) document.body.classList.add(
         <li class="web-only-donation-log"><span class="d">7/13</span><span>贊助方式更新：「請開發者喝咖啡」的銀行轉帳帳戶改用 LINE Bank（連線商業銀行 824）——謝謝每一位抖內支持軌島的朋友 🙏</span></li>
         <!-- APP_STRIP_END donation-log -->
         <li class="grp">資料校正</li>
-        <li><span class="d">7/25</span><span>台鐵快車經過不停靠小站時的位置改用最近七天的實際到站紀錄校正，不再只靠固定的加速減速曲線；沒有觀測資料的班次維持原本算法</span></li>
+        <li><span class="d">7/25</span><span>台鐵快車經過不停靠小站時的位置改用過去兩個月的實際到站紀錄校正，不再只靠固定的加速減速曲線；官方資料沒有回報的小站維持原本算法</span></li>
         <li><span class="d">7/24</span><span>台鐵列車站間位置改用官方里程推算，快車行駛中的位置更貼近實際（山線／海線長度也一併校正）</span></li>
         <li><span class="d">7/24</span><span>台鐵班表改為每天使用當日官方時刻：週五～週日才開的加班車（如 21、213 次）現在會在正確的日子出現，連假與國定假日的特別班表也會自動反映，不再整週重播同一天</span></li>
         <li><span class="d">7/18</span><span>三鶯線改依實際試營運時段（每天 10:00–20:00），清晨與入夜後不再跑現實中不存在的「幽靈列車」</span></li>
@@ -2864,7 +2864,7 @@ try { if (matchMedia('(max-width: 900px)').matches) document.body.classList.add(
 <script>
 // 版本戳記:每次改版 push 前手動遞增(字母序),畫面時鐘徽章與 console 都會顯示,
 // 供比對線上跑的是不是最新版(瀏覽器快取 max-age=600 常讓人看到舊版)
-const BUILD = 'v0725i';
+const BUILD = 'v0725j';
 const TRACK_AUDIT = new URLSearchParams(location.search).get('audit') === 'tracks';
 // 手機/平板直式「殼」斷點(議題1:640→900,iPad 直式改拿 tabbar＋更多抽屜):與 CSS @media 同步,版面類判斷一律用此常數。
 // 注意:裝置等級判斷(keepBuffer/powerSave 預設)刻意不用此常數、維持 640——iPad 不該因為改拿 tabbar 就被當低階裝置。
