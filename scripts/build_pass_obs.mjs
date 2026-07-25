@@ -203,6 +203,7 @@ async function main() {
   if (cliArg('mad')) GATE.madSec = +cliArg('mad');       // 閘門掃描用
   if (cliArg('hampel')) GATE.hampel = +cliArg('hampel');
   if (cliArg('drift')) GATE.dlyDrift = +cliArg('drift');   // 量「端點誤點漂移閘門擋掉多少事故日」用
+  if (cliArg('dlyprobe')) GATE.dlyProbe = +cliArg('dlyprobe');   // 探測：誤點 ≥N 分時跑法是否不同
   const placeboOff = (a, b) => {
     let h = 2166136261; const str = a + '|' + b;
     for (let i = 0; i < str.length; i++) { h ^= str.charCodeAt(i); h = Math.imul(h, 16777619); }
@@ -295,6 +296,7 @@ async function main() {
 
   // ── 主掃描：每車次的 τ（各站實測時刻）、路段速度樣本、跑段內 f
   const trains = {}, segRaw = new Map(), diag = {};
+  const dlyProbe = [];   // 誤點分層探測：同一節點在「準點日」與「誤點日」的 f 差異
   const outDays = [], inDays = [], dlyOut = [], dlyIn = [];   // 被 Hampel 剔掉的日期 / 進入檢驗的日期。
   // 判準必須是「該日被剔的比例」＝ out/in：絕對數會被分層窗的結構帶著走
   // （91.8% 的節點只用最近 14 天樣本，被剔的當然幾乎全落在那 14 天，與事故無關）。
@@ -410,6 +412,19 @@ async function main() {
         // 中位本身抗離群，但樣本只有 3–5 天時（天數 p10＝4）一天的極端值就足以把中位拉走。
         // 判準用同批樣本自己的 MAD 而非絕對門檻——各節點的正常變異量差異很大。
         // 剔到不足 minDays 就整批不剔（寧可保留全部樣本，也不要用 2 天的樣本下結論）。
+        // ── 誤點分層探測（--dlyprobe=N）：把同一節點的樣本按「當日誤點」分兩組各取 f 中位。
+        //    要放在 Hampel 之前——誤點日的 f 本來就可能偏，被 Hampel 剔掉就探不到了。
+        if (GATE.dlyProbe) {
+          const th = GATE.dlyProbe;
+          const lo = sel.filter(x => Math.abs(x.dly ?? 0) < th), hi = sel.filter(x => Math.abs(x.dly ?? 0) >= th);
+          if (lo.length >= 3 && hi.length >= 3) {
+            const fl = med(lo.map(x => x.f)), fh = med(hi.map(x => x.f));
+            const mAll = med(sel.map(x => x.f));
+            dlyProbe.push([+((fh - fl) * runT).toFixed(1),                    // 誤點日−準點日（秒，正＝誤點時較晚通過）
+                           +(med(sel.map(x => Math.abs(x.f - mAll))) * runT).toFixed(1),   // 該節點的噪音（MAD 秒）
+                           lo.length, hi.length, kn.km, +(runT / 60).toFixed(1)]);
+          }
+        }
         if (GATE.hampel && sel.length >= GATE.hampelMinN) {
           for (const x of sel) { inDays.push(x.d); dlyIn.push(Math.abs(x.dly ?? 0)); }
           const m0 = med(sel.map(x => x.f)), d0 = med(sel.map(x => Math.abs(x.f - m0)));
@@ -590,6 +605,7 @@ async function main() {
     holes: holeStat.filter(h => h.holes > 0),
     // 獨立判準：被剔樣本的當日誤點分布 vs 全部進檢驗樣本。若被剔者誤點明顯較大 → 剔的是異常運轉日；
     // 若兩者一樣 → 剔的只是正常變異的尾巴（誤點與 f 不同源，這個對照才有資訊）。
+    dly_probe: dlyProbe,   // [誤點日−準點日 秒, 該節點噪音 秒, 準點樣本數, 誤點樣本數, 節點里程 km, 跑段分鐘]
     outlier_delay: (() => {
       const q = (a, pp) => { const b = [...a].sort((x, y) => x - y); return b.length ? b[Math.floor(pp * b.length)] : null; };
       const st = a => ({ n: a.length, p50: q(a, .5), p90: q(a, .9), p99: q(a, .99),
