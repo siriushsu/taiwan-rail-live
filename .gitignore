@@ -17,3 +17,6 @@ ntmetro_fixtures/
 
 # App 發行授權閘門——evidence 內含授權證據，比照 .env 留本機、公開 repo 不收
 app/release-policy.json
+
+# TDX 歷史原始快取（可重抓，不進版控）
+.cache/

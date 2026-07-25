@@ -1,6 +1,6 @@
 {
   "scripts": {
-    "fetch-schedule": "python3 scripts/fetch_tra_schedule.py && python3 scripts/densify_schedule.py",
+    "fetch-schedule": "python3 scripts/fetch_tra_schedule.py && python3 scripts/densify_schedule.py && node scripts/build_pass_obs.mjs",
     "check-schedule": "python3 scripts/check_schedule.py"
   },
   "dependencies": {

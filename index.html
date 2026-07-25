@@ -2585,6 +2585,7 @@ try { if (matchMedia('(max-width: 900px)').matches) document.body.classList.add(
       <summary><span>🛠 更新紀錄</span><span class="foot-sub">最後更新：2026/7/25</span></summary>
       <ul class="foot-list">
         <li class="grp">最近更新</li>
+        <li><span class="d">7/25</span><span>台鐵自強、莒光等快車經過不停靠的小站時，位置改用最近七天的實際到站紀錄推算：以前是用固定的加速減速曲線硬算，現在會反映這班車在這段路真正跑多快，跳站時的位置準了不少</span></li>
         <li><span class="d">7/25</span><span>手機／App 的「隨機跟隨」與「附近車站」並排成一列移到時鐘下方，不再壓住左上角的時鐘</span></li>
         <li><span class="d">7/25</span><span>手機列車控制帶點一下就展開（原本要點兩下），展開後多了跟電腦版一樣的時刻尺：拖著就能把時間往前往後帶；「放空模式」收進「更多」</span></li>
         <li><span class="d">7/25</span><span>手機打開附近車站、列車介紹等大塊面板時，地圖會自動往上讓位，中間仍看得到列車與定位藍點；附近車站也改成可上滑放大的底部面板</span></li>
@@ -2736,6 +2737,7 @@ try { if (matchMedia('(max-width: 900px)').matches) document.body.classList.add(
         <li class="web-only-donation-log"><span class="d">7/13</span><span>贊助方式更新：「請開發者喝咖啡」的銀行轉帳帳戶改用 LINE Bank（連線商業銀行 824）——謝謝每一位抖內支持軌島的朋友 🙏</span></li>
         <!-- APP_STRIP_END donation-log -->
         <li class="grp">資料校正</li>
+        <li><span class="d">7/25</span><span>台鐵快車經過不停靠小站時的位置改用最近七天的實際到站紀錄校正，不再只靠固定的加速減速曲線；沒有觀測資料的班次維持原本算法</span></li>
         <li><span class="d">7/24</span><span>台鐵列車站間位置改用官方里程推算，快車行駛中的位置更貼近實際（山線／海線長度也一併校正）</span></li>
         <li><span class="d">7/24</span><span>台鐵班表改為每天使用當日官方時刻：週五～週日才開的加班車（如 21、213 次）現在會在正確的日子出現，連假與國定假日的特別班表也會自動反映，不再整週重播同一天</span></li>
         <li><span class="d">7/18</span><span>三鶯線改依實際試營運時段（每天 10:00–20:00），清晨與入夜後不再跑現實中不存在的「幽靈列車」</span></li>
@@ -2862,7 +2864,7 @@ try { if (matchMedia('(max-width: 900px)').matches) document.body.classList.add(
 <script>
 // 版本戳記:每次改版 push 前手動遞增(字母序),畫面時鐘徽章與 console 都會顯示,
 // 供比對線上跑的是不是最新版(瀏覽器快取 max-age=600 常讓人看到舊版)
-const BUILD = 'v0725h';
+const BUILD = 'v0725i';
 const TRACK_AUDIT = new URLSearchParams(location.search).get('audit') === 'tracks';
 // 手機/平板直式「殼」斷點(議題1:640→900,iPad 直式改拿 tabbar＋更多抽屜):與 CSS @media 同步,版面類判斷一律用此常數。
 // 注意:裝置等級判斷(keepBuffer/powerSave 預設)刻意不用此常數、維持 640——iPad 不該因為改拿 tabbar 就被當低階裝置。
@@ -3337,8 +3339,82 @@ function buildProfile(Lkm, T, aK, bK, vK) {
   const tAcc = vc / a, tDec = vc / b, tCru = Math.sqrt(disc); // tCru = T - tAcc - tDec
   return { T, L, a, b, vc, tAcc, tCru, tDec, dAcc: vc * vc / (2 * a), dCru: vc * tCru, dDec: vc * vc / (2 * b) };
 }
+// 實測剖面(台鐵限定):跑段內以「通過站的實測通過時刻」為折點,做單調三次插值(Fritsch–Carlson)。
+// 為什麼不是梯形:梯形假設「加速到某個巡航速度後一路維持」,但快車跳站段實際受速限/彎道/待避影響,
+// 實測平均僅約 91 km/h(自強),與梯形解出的巡航速度有落差 → 通過站時刻誤差中位 51 秒、p90 192 秒。
+// 折點來自 data/tra_pass_obs.json(7 天 TDX 官方歷史逐站觀測煉出的跑段內時間比例)。
+// 端點斜率設 0 → 在真停靠站仍平滑起停;中間速度連續 → 通過站不會瞬間變速;加權調和平均保證單調不過衝。
+// 產生方式、閘門與留一日交叉驗證數字見 scripts/build_pass_obs.mjs 與 研究_快車跳站校正 文件。
+function buildObsProfile(Lkm, T, pts) {   // pts:[{t:段內秒, d:距跑段起點公尺}] 依序
+  const L = Lkm * 1000;
+  if (!(L > 0) || !(T > 0) || !pts || !pts.length) return null;
+  const xs = [0], ys = [0];
+  for (const p of pts) {                  // 過濾:必須嚴格遞增且不貼死端點(h→0 會炸出巨大斜率)
+    const t = Math.round(p.t);
+    if (!(t > xs[xs.length - 1] + 4) || !(p.d > ys[ys.length - 1] + 1)) continue;
+    if (t > T - 5 || p.d > L - 1) continue;
+    xs.push(t); ys.push(p.d);
+  }
+  if (xs.length < 2) return null;         // 一個有效折點都沒有 → 交回梯形
+  xs.push(T); ys.push(L);
+  // 節點對軌道幾何複驗:build 端的閘門用官方里程,這裡的距離來自軌道投影,兩者不同源(刻意的兩道獨立防線)。
+  // 與真停靠站相鄰的區間含起停,平均速度上限更嚴;超速代表該節點與本線幾何不相容 → 丟節點不丟整段。
+  const VS_END = 115 / 3.6, VS_MID = 135 / 3.6;
+  for (let guard = xs.length; guard > 0; guard--) {   // 上限先求值:xs 會邊刪邊縮,寫成 guard<xs.length 會提早收工
+    let bad = -1;
+    for (let i = 0; i < xs.length - 1; i++) {
+      const v = (ys[i + 1] - ys[i]) / (xs[i + 1] - xs[i]);
+      if (v > (i === 0 || i === xs.length - 2 ? VS_END : VS_MID)) { bad = i; break; }
+    }
+    if (bad < 0) break;
+    const j = bad === xs.length - 2 ? bad : bad + 1;   // 丟該區間較內側的節點
+    if (j <= 0 || j >= xs.length - 1) break;
+    xs.splice(j, 1); ys.splice(j, 1);
+  }
+  if (xs.length < 3) return null;         // 清到只剩兩端 → 沒有實測資訊,交回梯形
+  const n = xs.length, h = [], del = [];
+  for (let i = 0; i < n - 1; i++) { h.push(xs[i + 1] - xs[i]); del.push((ys[i + 1] - ys[i]) / h[i]); }
+  const m = new Array(n).fill(0);         // m[0]=m[n-1]=0:端點速度零
+  for (let i = 1; i < n - 1; i++) {
+    if (del[i - 1] > 0 && del[i] > 0) {
+      const w1 = 2 * h[i] + h[i - 1], w2 = h[i] + 2 * h[i - 1];
+      m[i] = (w1 + w2) / (w1 / del[i - 1] + w2 / del[i]);
+    }
+  }
+  // 導數尖峰夾限:Fritsch–Carlson 只保證單調,m 上界是 3×min(相鄰割線),
+  // 快慢段交界會讓區間內瞬時速度衝到割線的兩倍以上(實測 228→266 km/h)。
+  // 區間導數是二次式,取端點與駐點的極大值,超標就等比縮小兩端 m(縮到 0 時上界必為 1.5×割線,故一定收斂)。
+  // 台鐵路線最高速限 130 km/h;VCAP 取 150 留餘裕,並對割線本身就快的段放寬到 1.55×,避免與物理必然性打架。
+  const VCAP = 150 / 3.6;
+  for (let i = 0; i < n - 1; i++) {
+    const cap = Math.max(VCAP, 1.55 * del[i]);
+    const dMax = (a, b) => {              // d(s)=A s²+B s+a, s∈[0,1]
+      const A = 3 * a + 3 * b - 6 * del[i], B = -4 * a - 2 * b + 6 * del[i];
+      let v = Math.max(a, b);
+      if (A < 0) { const s = -B / (2 * A); if (s > 0 && s < 1) v = Math.max(v, A * s * s + B * s + a); }
+      return v;
+    };
+    if (dMax(m[i], m[i + 1]) <= cap) continue;
+    let lo = 0, hi = 1;
+    for (let it = 0; it < 12; it++) {      // 二分找最大可用縮放比
+      const mid = (lo + hi) / 2;
+      if (dMax(m[i] * mid, m[i + 1] * mid) <= cap) lo = mid; else hi = mid;
+    }
+    m[i] *= lo; m[i + 1] *= lo;
+  }
+  return { T, L, obs: true, xs, ys, h, m };
+}
 function profTimeToProg(p, t) { // 段內時間(0..T秒) → 歸一化距離進度(0..1)
   if (t <= 0) return 0; if (t >= p.T) return 1;
+  if (p.obs) {                            // 實測剖面:二分找區間 + 三次 Hermite
+    const xs = p.xs, ys = p.ys;
+    let i = 0, lo = 0, hi = xs.length - 2;
+    while (lo <= hi) { const mid = (lo + hi) >> 1; if (t < xs[mid]) hi = mid - 1; else { i = mid; lo = mid + 1; } }
+    const hh = p.h[i], u = (t - xs[i]) / hh, u2 = u * u, u3 = u2 * u;
+    const d = (2 * u3 - 3 * u2 + 1) * ys[i] + (u3 - 2 * u2 + u) * hh * p.m[i]
+      + (-2 * u3 + 3 * u2) * ys[i + 1] + (u3 - u2) * hh * p.m[i + 1];
+    return Math.min(1, Math.max(0, d / p.L));
+  }
   let d;
   if (t < p.tAcc) d = 0.5 * p.a * t * t;
   else if (t < p.tAcc + p.tCru) d = p.dAcc + p.vc * (t - p.tAcc);
@@ -3347,6 +3423,11 @@ function profTimeToProg(p, t) { // 段內時間(0..T秒) → 歸一化距離進�
 }
 function profProgToTime(p, f) { // 距離進度(0..1) → 段內時間(秒);profTimeToProg 的逆(平交道反解)
   if (f <= 0) return 0; if (f >= 1) return p.T;
+  if (p.obs) {                            // 實測剖面單調遞增 → 二分反解(24 次≈0.0002 秒精度)
+    let lo = 0, hi = p.T;
+    for (let k = 0; k < 24; k++) { const mid = (lo + hi) / 2; if (profTimeToProg(p, mid) < f) lo = mid; else hi = mid; }
+    return (lo + hi) / 2;
+  }
   const d = f * p.L;
   if (d < p.dAcc) return Math.sqrt(2 * d / p.a);
   if (d < p.dAcc + p.dCru) return p.tAcc + (d - p.dAcc) / p.vc;
@@ -3371,14 +3452,25 @@ function segProgToTime(seg, f) {            // 段內距離進度 0..1 → 絕�
 }
 function schedSegKmOf(s, i) { return s[i].segLn ? schedSegmentKm(s[i]) : haversineKm(s[i], s[i + 1]); }
 // 沿 stops 掃出各跑段(以實際停靠站/端點為界),整段建一條梯形曲線並回填通過站時刻。
-function assignRunProfiles(s, perf) {
+function assignRunProfiles(s, perf, obs) {
   let k0 = 0;
   for (let k1 = 1; k1 < s.length; k1++) {
     if (s[k1].stop === false && k1 < s.length - 1) continue; // 通過站併入本跑段;末節點強制收尾
     const segKm = []; let runKm = 0;
     for (let i = k0; i < k1; i++) { const km = schedSegKmOf(s, i); segKm.push(km); runKm += km; }
     const runDep = s[k0].depSec, runT = s[k1].arrSec - runDep;
-    const rp = buildProfile(runKm, runT, perf.a, perf.b, perf.v);
+    // 有實測折點就用實測剖面(僅台鐵且該跑段有通過站),否則照舊梯形。任一步不成立都安全退回。
+    let rp = null;
+    if (obs && k1 - k0 >= 2) {
+      const pts = []; let cum = 0;
+      for (let i = k0; i < k1 - 1; i++) {
+        cum += segKm[i - k0];
+        const nm = s[i + 1].name, f = obs[nm] ?? obs[nm.replace(/台/g, '臺')];
+        if (f != null) pts.push({ t: f / 1000 * runT, d: cum * 1000 });
+      }
+      if (pts.length) rp = buildObsProfile(runKm, runT, pts);
+    }
+    if (!rp) rp = buildProfile(runKm, runT, perf.a, perf.b, perf.v);
     if (rp && runKm > 0) {
       let cum = 0;
       for (let i = k0; i < k1; i++) {
@@ -3538,7 +3630,9 @@ function assignSchedShapePathsFor(trains, lines) {
       state._segStats.bridged++;
     }
     // 跑段級加減速曲線(需在 segLn/bridge 齊備後,里程才含跨線接續)。通過站時刻在此回填。
-    assignRunProfiles(s, perf);
+    // 台鐵有實測通過時刻(data/tra_pass_obs.json)時改用實測剖面;其餘系統與缺資料者維持梯形。
+    // 車次號在系統間會撞號(高鐵/林鐵也有 0801 這種號),故必須以 tr.sys 把查表限定在台鐵。
+    assignRunProfiles(s, perf, tr.sys === 'tra_sched' && state.passObs ? state.passObs[tr.train] : null);
   }
 }
 
@@ -12031,6 +12125,10 @@ async function boot() {
   // StationID → 站名反查表(stnInfoMap 是站名→資訊,方向相反):今日台鐵動態的 sta 欄位是 StationID,靠這張表轉中文站名
   state.stnIdToName = {};
   for (const s of Object.values(state.stnInfoMap)) if (s && s.id) state.stnIdToName[s.id] = s.name;
+  // 台鐵通過站實測時刻(scripts/build_pass_obs.mjs 由 TDX 7 天歷史逐站觀測產;車次→通過站→跑段內時間比例‰)。
+  // 必須在任何 loadSystem/loadSchedGroup 之前載好——assignRunProfiles 在貼軌時就要讀它建曲線。
+  // 缺檔或載入失敗 → state.passObs 為 null,全部跑段自動退回梯形(功能不受影響,只是位置回到估算值)。
+  state.passObs = (await fetchJSON('./data/tra_pass_obs.json'))?.trains || null;
   // 特別列車故事檔案(車型/具名觀光列車/支線);缺檔時 specialOf 回 null,退回內建簡版介紹
   state.special = await fetchJSON('./data/tra_special_trains.json');
   if (state.special) state.special.branchLines.forEach(b => { b._set = new Set(b.matchStations); });
