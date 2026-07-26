@@ -9,6 +9,7 @@
 import { chromium } from 'playwright';
 import { execSync } from 'node:child_process';
 import { readFileSync, writeFileSync, unlinkSync } from 'node:fs';
+import { createHash } from 'node:crypto';
 
 const BASE = process.argv[2] || 'http://127.0.0.1:5178';
 const BASELINE = '_baseline_checkin.html';
@@ -76,6 +77,27 @@ const legacyCounts = page => page.evaluate(() => ({
   na: document.querySelectorAll('#passport .seal.na').length,
   rows: document.querySelectorAll('#passport .ph-row').length,
 }));
+
+// ── G0 自檢：先確認「我到底在驗哪一份檔案」──────────────────────────────
+// rules 心得 32：驗收腳本吃「驗哪個目錄」的參數時，第一道 gate 就要印出目標並斷言它
+// 等於腳本自己所在的那棵樹，否則全綠可能是驗了別人的樹。2026-07-26 另一 session 實際
+// 踩到：在主 repo 跑本腳本，但 :5178 上的 server 服務的是這個 worktree，A/B/C 全 ok
+// 卻驗的是別人的 index.html。斷言逐 byte 相同，不符直接中止——不要讓它「大致上對」就過。
+{
+  const diskMd5 = createHash('md5').update(readFileSync('index.html')).digest('hex');
+  let servedMd5 = '(抓不到)';
+  try {
+    const buf = Buffer.from(await (await fetch(BASE + '/index.html')).arrayBuffer());
+    servedMd5 = createHash('md5').update(buf).digest('hex');
+  } catch (e) { servedMd5 = '(fetch 失敗: ' + e.message + ')'; }
+  const same = diskMd5 === servedMd5;
+  ok('G0 驗的是本腳本所在的那棵樹（server 回的 index.html 與磁碟逐 byte 相同）', same,
+    `BASE=${BASE}　cwd=${process.cwd()}　磁碟 ${diskMd5.slice(0, 8)}　server ${servedMd5.slice(0, 8)}`);
+  if (!same) {
+    console.log('\n中止：server 服務的不是這份 index.html。帶對 port 再跑，例如 node verify_checkin.mjs http://127.0.0.1:<你的port>');
+    process.exit(1);
+  }
+}
 
 const browser = await chromium.launch();
 try {
