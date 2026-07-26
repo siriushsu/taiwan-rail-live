@@ -19,6 +19,10 @@ ntmetro_fixtures/
 
 # App 發行授權閘門——evidence 內含授權證據，比照 .env 留本機、公開 repo 不收
 app/release-policy.json
+# 上一行政策檔指名的 evidence 本體（逐首 Suno 生成日期／當時方案／訂閱帳單紀錄）。
+# 父政策檔不收、子證據檔卻進版控會架構自相矛盾，故一併留本機；
+# CI 走 ci_post_clone.sh 的 RAIL_MUSIC_CHECKLIST_B64 還原。
+app/MUSIC_LICENSE_CHECKLIST.md
 
 # TDX 歷史原始快取（可重抓，不進版控）
 .cache/

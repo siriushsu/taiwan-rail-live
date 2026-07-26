@@ -1,3 +1,4 @@
+import { execFile } from 'node:child_process';
 import { cp, mkdir, readFile, readdir, rm, stat, writeFile } from 'node:fs/promises';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -34,13 +35,28 @@ const copyFile = async relative => {
   const target = join(out, relative); await mkdir(dirname(target), { recursive: true });
   await cp(join(repoRoot, relative), target);
 };
+// 目錄整棵複製時，只收「git 已追蹤」的檔案。
+// 為什麼不是逐個檔名排除：磁碟上的未追蹤檔會被無聲打進 App bundle——歷史上發生過兩次
+// （9.4MB 的 app icon 概念圖、330KB 的 tra_pass_obs_diag.json 逐節點稽核產物），
+// 每次都是事後補一條檔名規則，下一個未追蹤檔再重演。.assetsignore 只管 wrangler 出貨，
+// 管不到這條路徑，兩邊要各擋各的。改用「版控說了算」就一次治掉整類。
+const trackedFiles = new Set(
+  (await new Promise((resolve, reject) => {
+    execFile('git', ['ls-files', '-z'], { cwd: repoRoot, maxBuffer: 64 * 1024 * 1024 },
+      (err, stdout) => err ? reject(err) : resolve(stdout));
+  })).split('\0').filter(Boolean)
+);
+if (trackedFiles.size === 0) throw new Error('git ls-files 回空——無法判斷哪些檔已追蹤，拒絕建置（避免把未追蹤檔打進發行包）');
+
 const copyTree = async relative => {
   const source = join(repoRoot, relative), target = join(out, relative);
   await mkdir(target, { recursive: true });
   for (const entry of await readdir(source)) {
     if (entry === '.DS_Store' || entry.includes('.bak-')) continue;
     const child = join(relative, entry), info = await stat(join(repoRoot, child));
-    if (info.isDirectory()) await copyTree(child); else await copyFile(child);
+    if (info.isDirectory()) { await copyTree(child); continue; }
+    if (!trackedFiles.has(child.replaceAll('\\', '/'))) continue;
+    await copyFile(child);
   }
 };
 

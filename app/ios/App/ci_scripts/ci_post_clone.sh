@@ -5,10 +5,11 @@
 # 為什麼需要它：軌島的 iOS 殼是 Capacitor 專案，git 裡只有原生殼本體，
 # 網頁素材（App/public）、CocoaPods（Pods/）與機密檔都不進版控，必須在 CI 現場產生。
 #
-# 需要在 Xcode Cloud 工作流程的「環境變數」設定以下四個，全部勾「密碼」：
+# 需要在 Xcode Cloud 工作流程的「環境變數」設定以下五個，全部勾「密碼」：
 #   STADIA_API_KEY                  repo 根 .env 的同名值
 #   ESRI_API_KEY                    repo 根 .env 的同名值
 #   RAIL_RELEASE_POLICY_B64         base64 -i app/release-policy.json
+#   RAIL_MUSIC_CHECKLIST_B64        base64 -i app/MUSIC_LICENSE_CHECKLIST.md
 #   GOOGLE_SERVICE_INFO_PLIST_B64   base64 -i app/ios/App/App/GoogleService-Info.plist
 #
 set -eu
@@ -19,6 +20,9 @@ APP="$REPO/app"
 echo "==> 還原機密檔"
 printf 'STADIA_API_KEY=%s\nESRI_API_KEY=%s\n' "$STADIA_API_KEY" "$ESRI_API_KEY" > "$REPO/.env"
 printf '%s' "$RAIL_RELEASE_POLICY_B64" | base64 --decode > "$APP/release-policy.json"
+# 音樂授權核對表：build:release 自 2026-07-26 起含 RAIL_INCLUDE_LICENSED_MUSIC=1，
+# 發行閘門會讀這份核對 29 首曲目，沒還原就會 ENOENT 中斷。
+printf '%s' "$RAIL_MUSIC_CHECKLIST_B64" | base64 --decode > "$APP/MUSIC_LICENSE_CHECKLIST.md"
 printf '%s' "$GOOGLE_SERVICE_INFO_PLIST_B64" | base64 --decode > "$APP/ios/App/App/GoogleService-Info.plist"
 
 echo "==> 安裝工具鏈"
