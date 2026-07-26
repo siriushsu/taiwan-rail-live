@@ -59,7 +59,7 @@ console.log(`  版號 ${before.m} (${before.b}) → ${cfg.marketing} (${cfg.buil
 console.log(`  音樂 ${cfg.music ? '開啟（154MB 級）' : '關閉（與線上 build 8 一致）'}\n`);
 
 // 線上底圖兩個模式都要開——那是 App 的基本功能，不是新增項目。
-const env = { ...process.env, LANG: 'en_US.UTF-8', RAIL_INCLUDE_LICENSED_BASEMAPS: '1' };
+const env = { ...process.env, LANG: 'en_US.UTF-8', RAIL_INCLUDE_LICENSED_BASEMAPS: '1', RAIL_REQUIRE_NATIVE: '1' };
 if (cfg.music) env.RAIL_INCLUDE_LICENSED_MUSIC = '1';
 else delete env.RAIL_INCLUDE_LICENSED_MUSIC;
 
