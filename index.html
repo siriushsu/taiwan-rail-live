@@ -598,6 +598,16 @@
   .xing-card .nx-sub b { color: var(--ink-strong); font-weight: 800; }
   .xing-card .nx-cd { margin-left: auto; font-weight: 800; color: var(--warn-ink); }
   .xing-card .nx-none { color: var(--faint); }
+  /* 單站打卡鈕:靠右、不吃整列點擊(整列=開看板)。走不到的站淡化但仍可按,按了只回報距離 */
+  .xing-card .nx-ck {
+    margin-left: auto; align-self: center; flex: none; cursor: pointer;
+    padding: 5px 10px; min-height: 30px; border-radius: 999px;
+    border: 1.5px solid var(--red); background: transparent; color: var(--red);
+    font: 800 11.5px/1 inherit; font-family: inherit; letter-spacing: .3px; white-space: nowrap;
+  }
+  .xing-card .nx-ck:hover { background: color-mix(in srgb, var(--red) 10%, transparent); }
+  .xing-card .nx-ck.far { border-color: var(--line); color: var(--faint); border-style: dashed; }
+  .xing-card .nx-ck.done { border-color: var(--line); color: var(--muted); background: var(--bg-stage); cursor: default; }
   /* 釘卡 meta(線名+距離)較長,允許換行不截尾——平交道卡不受影響 */
   .xing-card.pin-card .xc-meta { white-space: normal; overflow: visible; text-overflow: clip; line-height: 1.3; }
   /* 釘卡多線分組:範圍內並行線各成一組(線色點+線名+距離),組間虛線分隔 */
@@ -2643,7 +2653,7 @@ try { if (matchMedia('(max-width: 900px)').matches) document.body.classList.add(
       <summary><span>🛠 更新紀錄</span><span class="foot-sub">最後更新：2026/7/26</span></summary>
       <ul class="foot-list">
         <li class="grp">最近更新</li>
-        <li><span class="d">7/26</span><span>旅程護照多了「車站收集」：你完乘過的起訖站會蓋成一枚車站印章，同一座站去過越多次，章上的數字越大</span></li>
+        <li><span class="d">7/26</span><span>旅程護照多了「車站收集」：完乘過的起訖站自動成章，人到月台再按「附近車站」裡的蓋章鈕，就升級成到訪章；同一座站去過越多次，章上的數字越大</span></li>
         <li><span class="d">7/26</span><span>跟隨資訊卡的「×」和地圖上的跟隨鎖鈕變好按了：以前 × 只有一丁點大，手指常常戳不到</span></li>
         <li><span class="d">7/26</span><span>手機／App 底部的「地圖」鈕換成「🔍 搜尋」：以前搜尋藏在「探」面板裡，第一次用很難發現；現在一按就能查站名、車次或列車名稱</span></li>
         <li><span class="d">7/25</span><span>台鐵自強、莒光等快車經過不停靠的小站時，位置改用最近一次改點後的實際到站紀錄推算：以前是用固定的加速減速曲線硬算，現在會反映這班車在這段路真正跑多快，全網近九成的跳站路段都有實測撐著</span></li>
@@ -2745,7 +2755,7 @@ try { if (matchMedia('(max-width: 900px)').matches) document.body.classList.add(
         <li><span class="d">7/13</span><span>平交道加碼：補上台中港線等貨運線 21 處、卡片連點可切下一個、圖示改用台灣鐵路交叉標的牌面</span></li>
         <li><span class="d">7/12</span><span>新增平交道功能：點一下查接下來會通過的列車</span></li>
         <li class="grp">收藏、護照與成就</li>
-        <li><span class="d">7/26</span><span>旅程護照多了「車站收集」：你完乘過的起訖站會蓋成一枚車站印章，同一座站去過越多次，章上的數字越大</span></li>
+        <li><span class="d">7/26</span><span>旅程護照多了「車站收集」：完乘過的起訖站自動成章，人到月台再按「附近車站」裡的蓋章鈕，就升級成到訪章；同一座站去過越多次，章上的數字越大</span></li>
         <li><span class="d">7/18</span><span>完乘記錄可以自選排序：日期／車次／距離／車種</span></li>
         <li><span class="d">7/18</span><span>山海平原成就門檻降為半圈，跟車面板加上環島完乘進度 %</span></li>
         <li><span class="d">7/17</span><span>新功能「最愛車站」：☆ 一鍵收藏，收藏的站在地圖上亮金色 ★</span></li>
@@ -4970,7 +4980,7 @@ async function showNearby() {
   const loc = state.meLoc || loadGeoCache();
   if (!loc) { locateMe(); return; } // 完全沒有位置(權限沒給/首開還沒定到):走完整流程,含權限詢問與失敗退路
   const fresh = !!state.meLoc;
-  openNearbyStations(loc.lat, loc.lon);
+  openNearbyStations(loc.lat, loc.lon, loc.acc);
   showMeMarker(loc.lat, loc.lon, loc.acc || 0);
   // 先開卡再算鏡頭:卡開了才知道地圖被遮掉多少,藍點才落在「露出來的那塊」中央而不是被卡片吃掉
   const nz = Math.max(map.getZoom(), GEO_BOOT_ZOOM);
@@ -4982,7 +4992,7 @@ async function showNearby() {
     saveGeoCache(c.latitude, c.longitude, c.accuracy);
     if (!document.getElementById('nearCard').hidden) {
       showMeMarker(c.latitude, c.longitude, c.accuracy);
-      openNearbyStations(c.latitude, c.longitude);
+      openNearbyStations(c.latitude, c.longitude, c.accuracy);
     }
   } catch (e) {} // 背景校正失敗不吵使用者:清單已經用快取位置出來了,還可用
 }
@@ -5008,14 +5018,15 @@ async function onLocated(lat, lon, accM) {
   // 使用者要的是「不管是否正在跟隨車輛,都立刻移到我的位置」。clearFollow 內部已一併清捷運跟車。
   setAmbient(false); setAutoTour(false); clearFollow();
   showMeMarker(lat, lon, accM);
-  openNearbyStations(lat, lon); // 先出資訊卡,不讓相機動畫的任何意外吞掉清單
+  openNearbyStations(lat, lon, accM); // 先出資訊卡,不讓相機動畫的任何意外吞掉清單
   const t = focusCenter(lat, lon, 15); // 卡片遮掉的地圖不算:藍點落在露出來那塊的中央
   try { map.flyTo(t, 15, { duration: .8 }); } catch (e) { map.setView(t, 15); }
 }
-function openNearbyStations(lat, lon) {
+function openNearbyStations(lat, lon, acc) {
   soloPanel('near');
   closeBoard(); closeCrossingCard(); closePinCard(); closeSugarCard();
-  state.meLoc = { lat, lon };
+  // acc(公尺)給單站打卡判定用:地下站精度動輒數百公尺,沒有它就沒辦法決定要不要放行(見 checkinJudge)
+  state.meLoc = { lat, lon, acc: Math.max(0, +acc || 0) };
   renderNearbyStations();
   updateSheetOpenClass(); // 手機已是 sheet 家族一員(見 SHEET_PANEL_IDS):讓位/雙段高/重新取景都靠這支
 }
@@ -5067,24 +5078,38 @@ function renderNearbyStations() {
   } else {
     meta = within.length ? '最近 ' + listS.length + ' 站 · ' + NEAR_ST_KM + ' 公里內'
       : '半徑內無,顯示最近 ' + listS.length + ' 站';
+    const today = todayStr(activeTz());
     body = listS.map((s, i) => {
       const km = pinFmtKm(s.km);
       const lbl = s.label ? '<b>' + escHtml(s.label) + '</b>' : '';
+      // 打卡鈕:走得到就亮、走不到就淡(仍可按,按了只告訴你還差幾公尺,不封鎖——設計書§5「判不過不警告不封鎖」)
+      const e = checkinEntry(s.st), done = !!e && e.d === today;
+      const near = checkinJudge(s.st).ok;
+      const ckTxt = done ? '今天已蓋 ✓' : (e && e.n ? '蓋章 · 第 ' + (e.n + 1) + ' 次' : '蓋章');
+      const ck = '<button class="nx-ck' + (done ? ' done' : near ? '' : ' far') + '" type="button" data-i="' + i + '"' +
+        (done ? ' disabled' : '') + '>' + ckTxt + '</button>';
       return '<div class="nx-row" data-i="' + i + '"><div class="nx-top">' +
         '<span class="nx-name">' + escHtml(s.st.name) + '</span><span class="nx-km">' + km + '</span></div>' +
-        '<div class="nx-sub">' + lbl + '<span>點站看接下來的班次</span></div></div>';
+        '<div class="nx-sub">' + lbl + '<span>點站看接下來的班次</span>' + ck + '</div></div>';
     }).join('');
   }
   el.innerHTML = '<div class="xc-head">' + ico + '<div class="xc-ttl"><b>你附近的車站</b>' +
     '<span class="xc-meta">' + meta + '</span></div>' +
     '<button class="xc-close" id="nearClose" type="button" aria-label="關閉">✕</button></div>' +
     '<div class="xc-list">' + body + '</div>' +
-    '<div class="xc-foot">你的位置僅用於本機顯示、不會上傳。點任一站可查看該站接下來的班次。</div>';
+    '<div class="xc-foot">你的位置僅用於本機顯示與蓋章判定、不會上傳。點站看班次,按「蓋章」把這座站收進旅程護照。</div>';
   el.hidden = false;
   if (!el._wired) {
     el._wired = true;
     el.onclick = e => {
       if (e.target.closest('#nearClose')) return closeNearbyStations();
+      // 打卡鈕要在整列判定之前攔下:同一列點鈕是蓋章、點別處才是開看板
+      const ckBtn = e.target.closest('.nx-ck');
+      if (ckBtn) {
+        const cst = state._nearList && state._nearList[+ckBtn.dataset.i];
+        if (cst) doCheckin(cst);
+        return;
+      }
       const row = e.target.closest('.nx-row'); if (!row) return;
       const st = state._nearList && state._nearList[+row.dataset.i];
       // 先開看板再算鏡頭:sheet 開了才知道地圖被遮多少,這一站才落在露出來那塊(見 focusCenter)
@@ -8376,13 +8401,77 @@ function loadCheckins() {
   } catch (e) { return { v: 1, st: {} }; }
 }
 function saveCheckins(c) { try { localStorage.setItem(CHECKIN_KEY, JSON.stringify(c)); } catch (e) {} }
+// 同一座實體站在班表資料裡可能掛兩個名字(環島線分支、官方全稱),座標完全重合——實測 3 對:
+// 臺北/臺北-環島、左營/左營(舊城)、新城/新城 (太魯閣)(新左營在 1.5 公里外,是真的另一座站不會被併)。
+// 收集算的是「去過幾座站」,別名不併等於站在原地就多收一座。用「座標完全相同」分群自動併,
+// 不寫死名單(TDX 換版也不腐爛);取站等較高(tier 較小)者當正名,同級取較長的官方全稱。
+// ⚠只在收集層正規化,不動 schedStations 本身——那會連帶影響班表、看板與收藏車站。
+function checkinAliasMap() {
+  const g = new Map(), m = new Map();
+  for (const s of (state.schedStations || [])) {
+    const k = s.sys + '|' + s.lat + ',' + s.lon;
+    if (!g.has(k)) g.set(k, []);
+    g.get(k).push(s);
+  }
+  for (const arr of g.values()) {
+    if (arr.length < 2) continue;
+    const best = arr.slice().sort((a, b) => (a.tier == null ? 4 : a.tier) - (b.tier == null ? 4 : b.tier) || b.name.length - a.name.length)[0];
+    for (const s of arr) if (s.name !== best.name) m.set(s.sys + '|' + s.name, best.name);
+  }
+  return m;
+}
+// 打卡/收集用的正名站名;鍵一律走 favStationKey(捷運不分 freq/deco 視角,同站只有一枚章)
+function checkinName(sys, name, alias) { return (alias || checkinAliasMap()).get(sys + '|' + name) || name; }
+function checkinKey(st, alias) { return favStationKey({ sys: st.sys, name: checkinName(st.sys, st.name, alias) }); }
+// ── 單站打卡:判定與寫入(設計書 §3 B 路徑、§5 判定容忍值) ────────────────────
+// 半徑依站等給:特等站站體橫跨數百公尺,招呼站只有一座月台。
+// ⚠這五個數值是保守初值,設計書明列「待真機在地下/高架/平面站各取樣後才准定案」——別當定論。
+const CHECKIN_RADIUS_M = [400, 320, 260, 220, 180]; // index = tier(0 特等 … 4 其他/未知)
+// 精度補償:地下站 accuracy 動輒數百公尺,不補就永遠打不到卡;但不能無限放行,故封頂。
+const CHECKIN_ACC_SLACK_M = 300;
+const CHECKIN_LOW_ACC_M = 100; // 超過此值的定位標記低信心(章照給,但批次 C 的眾包校正要排除)
+// 打卡鍵沿用 favStationKey:捷運不分 freq/deco 視角一律 'metro',同一站只會有一枚章
+function checkinRadiusFor(st) {
+  const t = stationTierMap().get(favStationKey(st));
+  return CHECKIN_RADIUS_M[t == null ? 4 : t] || CHECKIN_RADIUS_M[4];
+}
+// 判定寬鬆(章是給自己的);判不過只講距離,不警告不封鎖(設計書§5)
+function checkinJudge(st) {
+  const loc = state.meLoc;
+  if (!loc) return { ok: false, why: 'noloc' };
+  const distM = haversineKm(loc, { lat: st.lat, lon: st.lon }) * 1000;
+  const acc = Math.max(0, loc.acc || 0);
+  const r = checkinRadiusFor(st);
+  return { ok: distM <= r + Math.min(acc, CHECKIN_ACC_SLACK_M), why: '', distM, r, low: acc > CHECKIN_LOW_ACC_M };
+}
+function checkinEntry(st) { return loadCheckins().st[checkinKey(st)] || null; }
+// 每站每日一次:防站在月台狂按刷數字(比照 recordRide 同日同車次只記一次)
+function doCheckin(st) {
+  const j = checkinJudge(st);
+  if (!j.ok) {
+    showToast(j.why === 'noloc' ? '還沒有你的位置,先按一次「附近車站」定位'
+      : `離「${st.name}」還有 ${Math.round(j.distM)} 公尺,走近一點再蓋(這站的範圍 ${j.r} 公尺)`);
+    return false;
+  }
+  const c = loadCheckins(), k = checkinKey(st), today = todayStr(activeTz());
+  const e = c.st[k] || { name: k.slice(k.indexOf('|') + 1), sys: k.slice(0, k.indexOf('|')), s: 'follow', n: 0, d: '' };
+  if (e.d === today) { showToast(`「${st.name}」今天已經蓋過章了`); return false; }
+  if (STN_STATUS_RANK.visit > STN_STATUS_RANK[e.s]) e.s = 'visit';
+  e.n = (Number(e.n) || 0) + 1; e.d = today;
+  if (j.low) e.lo = 1; else delete e.lo;
+  c.st[k] = e; saveCheckins(c);
+  showToast(`蓋章成功 · ${st.name}${e.n > 1 ? `(第 ${e.n} 次)` : ''}`);
+  renderNearbyStations(); renderRidePanel(); renderPassport();
+  return true;
+}
 // 站的收集總表:rides 推導的「跟完」疊上 checkins 的真實打卡,鍵=sys|name(與 schedStations 同一套去重規則)
 function stationCollection(rides) {
-  const m = new Map();
-  const at = (sys, name) => {
-    const k = (sys || 'tra_sched') + '|' + name;
+  const m = new Map(), alias = checkinAliasMap();
+  const at = (sys0, name0) => {
+    const sys = sys0 || 'tra_sched', name = checkinName(sys, name0, alias);
+    const k = sys + '|' + name;
     let cur = m.get(k);
-    if (!cur) { cur = { name, sys: sys || 'tra_sched', s: 'follow', n: 0, d: '' }; m.set(k, cur); }
+    if (!cur) { cur = { name, sys, s: 'follow', n: 0, d: '' }; m.set(k, cur); }
     return cur;
   };
   for (const r of (rides || [])) {
