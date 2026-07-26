@@ -65,6 +65,67 @@ export async function assertLicensedBuildAllowed({ includeLicensedMusic, include
   }
 }
 
+// ── showToast 注入面的審查帳本 ──────────────────────────────────────────────
+// 指紋＝呼叫參數拿掉「所有字串literal內容」與空白之後剩下的程式結構。
+// 這樣改文案不會動到指紋（不會為了改一句話就紅燈），改結構才會。
+const TOAST_REVIEWED = new Map([
+  [`info.done?'':''`, '兩個寫死字串二選一,無插入'],
+  [`on?'':''`, '兩個寫死字串二選一,無插入'],
+  [`''+note+''`, 'onLocateFail:note 只可能是四個寫死常數之一,無使用者資料'],
+  [`m`, 'announceCollections:msgs 每個插值都已 escHtml;此處刻意傳 <b> 做粗體'],
+  ['`${escHtml(item.title)}`', '眾包校正提示,已逸出'],
+  ["`${out.added}${out.updated?`${out.updated}`:''}${out.skipped?`${out.skipped}`:''}`", '匯入結果的三個筆數,皆為數字'],
+  [`label?(''+escHtml(label)+''):''`, '儲存地點:地點名可由 Takeout 匯入/帳號同步汙染,已逸出'],
+  [`p.label?(''+escHtml(p.label)+''):''`, '設預設啟動地點:同上,已逸出'],
+]);
+
+// 掃出每一個 showToast( 呼叫的完整參數（括號配對，不是 regex 抓一行）。
+export function showToastCalls(src) {
+  const out = [];
+  let i = 0;
+  while ((i = src.indexOf('showToast(', i)) !== -1) {
+    if (/[\w$.]/.test(src[i - 1] || '')) { i += 10; continue; }   // 別把 xxxShowToast( 當成它
+    const isDecl = /function\s+showToast\s*\($/.test(src.slice(Math.max(0, i - 12), i + 10));
+    let j = i + 10, depth = 1;
+    const start = j;
+    while (j < src.length && depth > 0) {
+      const c = src[j];
+      if (c === '(') depth++; else if (c === ')') depth--;
+      j++;
+    }
+    if (!isDecl) out.push(src.slice(start, j - 1));
+    i = j;
+  }
+  return out;
+}
+
+const blankLiterals = s => s.replace(/'[^']*'/g, "''").replace(/"[^"]*"/g, '""');
+export const toastFingerprint = raw => blankLiterals(raw).replace(/[^\x20-\x7E]/g, '').replace(/\s+/g, '');
+
+// 有沒有東西被插進去：拿掉 escHtml(...) 與字串內容後還剩識別字 ⇒ 有。
+export function toastHasInjection(raw) {
+  const rest = blankLiterals(raw.replace(/escHtml\([^()]*\)/g, '')).replace(/[^\x20-\x7E]/g, '');
+  return (rest.match(/[A-Za-z_$][\w$]*(?:\.[A-Za-z_$][\w$]*)*/g) || [])
+    .some(id => !['true', 'false', 'null', 'undefined'].includes(id));
+}
+
+export function assertToastSinksReviewed(html) {
+  // 自檢：壞掉的偵測器不會報錯，它會安靜地讓每一樣東西通過——那比沒有閘門更糟，因為看起來是綠的。
+  // 所以每次建置都先拿一個合成的惡意呼叫試它一次，認不出來就當場失敗。
+  const canary = showToastCalls(`showToast('嗨' + attackerControlledName + '你好')`);
+  assert(canary.length === 1 && toastHasInjection(canary[0]),
+    'showToast 注入偵測器失效——連合成的未逸出拼接都認不出來,這道閘門已經沒有牙,不可發行');
+  assert(!TOAST_REVIEWED.has(toastFingerprint(canary[0])), '合成樣本不該出現在審查帳本裡');
+
+  const calls = showToastCalls(html);
+  assert(calls.length >= 25, `showToast 呼叫點只掃到 ${calls.length} 個——掃描器壞了,不可當作通過`);
+  const unreviewed = calls.filter(toastHasInjection).map(toastFingerprint).filter(fp => !TOAST_REVIEWED.has(fp));
+  assert(unreviewed.length === 0,
+    `showToast 有未經審查的動態插入（會直接進 innerHTML）,不可發行。\n` +
+    unreviewed.map(fp => `      ${fp}`).join('\n') +
+    `\n    請確認插入的值是否含使用者資料:含就包 escHtml(),確定安全就把上面的指紋登記進 verify-release.mjs 的 TOAST_REVIEWED 並寫明理由。`);
+}
+
 export async function verifyRelease({
   out = defaultOut,
   expectLicensedMusic,
@@ -198,15 +259,15 @@ export async function verifyRelease({
   assert(!/<b>\$\{f\.train\}<\/b>/.test(html),
     '「我的最愛」仍把未逸出的 ${f.train} 直接插入 innerHTML——stored XSS 迴歸,不可發行');
 
-  // Stored XSS 迴歸（稽核 2026-07-26）：showToast 的參數直接進 innerHTML（announceCollections 等
-  // 呼叫端刻意傳 <b>），所以「逸出」的責任在呼叫端。地點名(pins 的 label)可由 Takeout 匯入或帳號
-  // 同步帶進來,是最容易被污染的一條;上面那條規則只看「我的最愛」面板,抓不到 toast 這條路。
-  assert(/showToast\(label \? \('已儲存地點「' \+ escHtml\(label\)/.test(html),
-    '儲存地點的 toast 未以 escHtml 逸出地點名——stored XSS 迴歸,不可發行');
-  assert(/showToast\(p\.label \? \('已設「' \+ escHtml\(p\.label\)/.test(html),
-    '設為預設啟動地點的 toast 未以 escHtml 逸出地點名——stored XSS 迴歸,不可發行');
-  assert(!/showToast\([^\n]*?[^l](label|\bp\.label)\s*\+/.test(html.replace(/escHtml\((label|p\.label)\)/g, 'SAFE')),
-    'showToast 仍有未逸出的地點名字串拼接——stored XSS 迴歸,不可發行');
+  // Stored XSS：showToast 的參數直接進 innerHTML（announceCollections 等呼叫端刻意傳 <b>），
+  // 所以「逸出」的責任在呼叫端。
+  //
+  // 這裡刻意**不是**逐一比對已知的幾個呼叫點。2026-07-26 上架版的 XSS 之所以能溜到 App Store，
+  // 就是因為發行閘門只驗打包正確性、沒有任何安全斷言；而事後補的三條逐字規則同樣只認得那三個
+  // 點——新寫的第四個動態 toast 一樣會直接過關。改成結構性規則：**掃描每一個 showToast 呼叫，
+  // 凡是有東西被插進字串的，都必須在下面的審查帳本裡**。新增動態 toast ⇒ 閘門紅燈 ⇒ 有人得
+  // 真的看過它插的是什麼、決定要不要 escHtml，才能登記放行。預設是擋，不是放。
+  assertToastSinksReviewed(html);
 
   // 版本一致性（QA 2026-07-21）：確保發行包確實含最新網站修正,而不是舊產物綠燈通過。
   const extractBuild = source => source.match(/const BUILD\s*=\s*'([^']+)'/)?.[1] ?? null;
