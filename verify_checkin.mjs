@@ -36,8 +36,8 @@ function expectedCounts(rides) {
   return m;
 }
 
-async function open(browser, { width = 1440, height = 900, path = '/index.html' } = {}) {
-  const ctx = await browser.newContext({ viewport: { width, height } });
+async function open(browser, { width = 1440, height = 900, path = '/index.html', touch = false } = {}) {
+  const ctx = await browser.newContext({ viewport: { width, height }, hasTouch: touch });
   const page = await ctx.newPage();
   await page.goto(BASE + path, { waitUntil: 'load' });
   await page.waitForFunction(() => typeof state !== 'undefined' && state.trains && state.trains.length > 0, { timeout: 40000 });
@@ -751,10 +751,152 @@ try {
     return Object.keys(c.sg || {}).length;
   });
   ok('I12 完乘（跟完動畫）不會產生路段——虛實雙軌的分界', virt === 0, `路段 ${virt} 段`);
+
+  // ── J 收集地圖（獨立檢視：全路網轉灰，只有搭過的區間亮起）──
+  // 判準刻意不同源（心得 29）：不讀 COLLECT_GREY／trackLineColor／state.collectMap 當「有沒有變灰」的證據，
+  // 一律從 #overlay 畫布實際像素量「彩度（chroma = (max−min)/255）」——彩度是外部性質，
+  // 實作算錯顏色它就會跟著錯，不會像同源判準那樣一起錯成綠燈。
+  // 取樣：以區間中點為心的小窗（心得 25：窗開太大會把鄰近高對比物當成自己的墨跡）。
+  const cmSetup = await hp.evaluate(() => {
+    localStorage.removeItem('trainmap-riding-v1');
+    userDataSaveCollection('rides', []);
+    // 挑一條有線形、區間夠多的線，前 4 段標成「搭過」，其餘留白當對照組
+    const net = lineNetwork();
+    const rec = [...net.values()].find(r => r.ln.shape && r.segs.length >= 10);
+    if (!rec) return { missing: true };
+    const rid = rec.segs.slice(0, 4), un = rec.segs.slice(5);
+    const sg = {};
+    for (const s of rid) sg[s.key] = 1;
+    localStorage.setItem('trainmap-checkins-v1', JSON.stringify({ v: 1, st: {}, sg }));
+    // 把視野對到這幾段上，取樣點才在畫面內
+    const mid = posAlongShape(rec.ln, (rid[0].dA + rid[rid.length - 1].dB) / 2);
+    map.setView([mid.lat, mid.lon], 12, { animate: false });
+    renderPassport();
+    return {
+      lnId: rec.id, color: rec.color, nRid: rid.length,
+      ridMids: rid.map(s => posAlongShape(rec.ln, (s.dA + s.dB) / 2)),
+      unMids: un.map(s => posAlongShape(rec.ln, (s.dA + s.dB) / 2)),
+    };
+  });
+  info('J 基準', cmSetup.missing ? '找不到可用線' : `${cmSetup.lnId}　線色 ${cmSetup.color}　搭過 ${cmSetup.nRid} 段`);
+
+  // 入口鈕：存在、可見、真的點得到（心得 33：驗按鈕要驗「點它會發生什麼」）
+  const cmEntry = await hp.evaluate(() => {
+    const b = document.querySelector('#passport [data-act="collectmap"]');
+    if (!b) return { missing: true };
+    b.scrollIntoView({ block: 'center' });
+    const r = b.getBoundingClientRect();
+    const hit = document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2);
+    return { txt: b.textContent.trim(), w: Math.round(r.width), h: Math.round(r.height),
+      hitSelf: !!(hit && b.contains(hit)), hitTag: hit ? (hit.id || hit.className || hit.tagName) : 'null' };
+  });
+  ok('J1 護照裡有收集地圖入口，且中心真的點得到',
+    !cmEntry.missing && cmEntry.hitSelf && cmEntry.h >= 28,
+    cmEntry.missing ? '找不到入口鈕' : `「${cmEntry.txt}」${cmEntry.w}×${cmEntry.h}　命中 ${cmEntry.hitSelf ? '自己' : cmEntry.hitTag}`);
+
+  // 取樣器：回傳窗內「最大彩度」與該像素的 rgb
+  const sampleChroma = async (pts) => hp.evaluate((pts) => {
+    const cv = document.getElementById('overlay');
+    const g = cv.getContext('2d', { willReadFrequently: true });
+    // RAD=3:軌道線寬 3px(灰)/3.8px(亮起),±3px 的窗剛好蓋住線本身而不碰到鄰居。
+    // 實測半徑掃描 1→10:未搭段彩度在 1–5 平在 0.07,到 7 才跳 0.286(窗角吃進旁邊的東西);
+    // 真的沒轉灰的話 RAD=1 就會高。開大窗＝心得 25 的假墨跡,別再調回去。
+    const dpr = state.dpr || 1, RAD = 3;
+    return pts.map(ll => {
+      const p = map.latLngToContainerPoint([ll.lat, ll.lon]);
+      const cx = Math.round(p.x * dpr), cy = Math.round(p.y * dpr), s = RAD * dpr;
+      if (cx - s < 0 || cy - s < 0 || cx + s >= cv.width || cy + s >= cv.height) return null; // 出畫面不採計
+      const d = g.getImageData(cx - s, cy - s, s * 2 + 1, s * 2 + 1).data;
+      let best = -1, rgb = null;
+      for (let i = 0; i < d.length; i += 4) {
+        if (d[i + 3] < 200) continue; // 半透明邊緣不算
+        const mx = Math.max(d[i], d[i + 1], d[i + 2]), mn = Math.min(d[i], d[i + 1], d[i + 2]);
+        const ch = (mx - mn) / 255;
+        if (ch > best) { best = ch; rgb = [d[i], d[i + 1], d[i + 2]]; }
+      }
+      return best < 0 ? null : { ch: +best.toFixed(3), rgb };
+    }).filter(Boolean);
+  }, pts);
+
+  // 進入收集地圖：走真的點擊，不直接呼叫 setCollectMap
+  const cmOn = await hp.evaluate(() => {
+    const b = document.querySelector('#passport [data-act="collectmap"]');
+    const r = b.getBoundingClientRect();
+    b.click();
+    const bar = document.getElementById('collectBar');
+    return {
+      on: state.collectMap, barShown: !bar.hidden,
+      barTxt: bar.innerText.replace(/\s+/g, ' ').trim(),
+      ctlHidden: getComputedStyle(document.querySelector('.controls')).display === 'none',
+      // 不畫車的模式下這兩個都會誤導:徽章恆「0 班奔跑中」、隨機跟隨沒車可跟
+      badgeHidden: getComputedStyle(document.querySelector('.badge')).display === 'none',
+      actHidden: getComputedStyle(document.querySelector('.map-actions')).display === 'none',
+      trains: state._trainHits.length, freq: state._freqHits.length,
+    };
+  });
+  await hp.waitForTimeout(400);
+  ok('J2 點入口就進收集地圖：狀態列出現，播放控制列／時鐘徽章／隨機跟隨都收起',
+    cmOn.on === true && cmOn.barShown && cmOn.ctlHidden && cmOn.badgeHidden && cmOn.actHidden,
+    `collectMap=${cmOn.on}　狀態列「${cmOn.barTxt}」　控制列/徽章/隨機跟隨收起=${cmOn.ctlHidden}/${cmOn.badgeHidden}/${cmOn.actHidden}`);
+
+  const ridPx = await sampleChroma(cmSetup.ridMids);
+  const unPx = await sampleChroma(cmSetup.unMids);
+  const maxRid = ridPx.length ? Math.max(...ridPx.map(x => x.ch)) : -1;
+  const maxUn = unPx.length ? Math.max(...unPx.map(x => x.ch)) : -1;
+  // 線色本身的彩度＝這條線「亮起來」該有的樣子（來自資料檔 ln.color，不是我的繪製程式）
+  const hex = (cmSetup.color || '#000000').replace('#', '');
+  const lc = [0, 2, 4].map(i => parseInt(hex.slice(i, i + 2), 16));
+  const lineCh = (Math.max(...lc) - Math.min(...lc)) / 255;
+  ok('J3 搭過的區間亮起：實測彩度接近線色本身（不是灰的）',
+    maxRid >= lineCh * 0.5 && maxRid > 0.2,
+    `搭過段最大彩度 ${maxRid}　線色 ${cmSetup.color} 彩度 ${lineCh.toFixed(3)}（門檻 ${(lineCh * 0.5).toFixed(3)}）`);
+  ok('J4 沒搭過的區間是灰的：彩度遠低於搭過的段',
+    maxUn >= 0 && maxUn < 0.12 && maxUn < maxRid * 0.3,
+    `未搭段最大彩度 ${maxUn}　vs 搭過段 ${maxRid}　取樣 ${unPx.length} 點`);
+  ok('J5 收集地圖不畫跑動的列車（畫面只剩你走過的路）',
+    cmOn.trains === 0 && cmOn.freq === 0,
+    `台鐵/高鐵車 ${cmOn.trains} 台　捷運車 ${cmOn.freq} 台`);
+
+  // 離開：畫面要真的還原（同一批取樣點的彩度回到「兩邊都有顏色」）
+  const cmOff = await hp.evaluate(() => {
+    document.getElementById('collectExit').click();
+    return { on: state.collectMap, barShown: !document.getElementById('collectBar').hidden,
+      ctlShown: getComputedStyle(document.querySelector('.controls')).display !== 'none',
+      badgeShown: getComputedStyle(document.querySelector('.badge')).display !== 'none',
+      actShown: getComputedStyle(document.querySelector('.map-actions')).display !== 'none' };
+  });
+  await hp.waitForTimeout(400);
+  // J7 問的是「軌道層」有沒有復原,所以量之前先把列車層關掉(走既有的車種篩選,不是改繪製程式)——
+  // 否則窗內量到的最高彩度可能是剛回來的車號牌(實測 0.859,比線色 0.510 還高),
+  // 那樣即使軌道沒復原也會綠燈=判準量錯對象。
+  await hp.evaluate(() => { window.__vis = new Set(state.visible); state.visible.clear(); draw(); });
+  const unPxOff = await sampleChroma(cmSetup.unMids);
+  await hp.evaluate(() => { state.visible = window.__vis; draw(); });
+  const maxUnOff = unPxOff.length ? Math.max(...unPxOff.map(x => x.ch)) : -1;
+  const minUnOff = unPxOff.length ? Math.min(...unPxOff.map(x => x.ch)) : -1;
+  ok('J6 「離開」回到即時地圖：狀態列收起，控制列／徽章／隨機跟隨都回來',
+    cmOff.on === false && !cmOff.barShown && cmOff.ctlShown && cmOff.badgeShown && cmOff.actShown,
+    `collectMap=${cmOff.on}　狀態列隱藏=${!cmOff.barShown}　控制列/徽章/隨機跟隨回來=${cmOff.ctlShown}/${cmOff.badgeShown}/${cmOff.actShown}`);
+  // 逐點都要脫離灰帶(不是只看最大值,否則一點復原就能蓋過其他點沒復原)。
+  // 註:南港/臺北/萬華一帶高鐵與縱貫線重疊,那幾點量到的是後畫的高鐵橘 #E85D0D(彩度 0.859)——
+  // 「回到某條線的原色」即為所求,不必等於縱貫線自己的藍。
+  ok('J7 離開後路線恢復原色（灰化只是檢視，不是永久改掉線色）',
+    minUnOff > 0.12 && minUnOff > maxUn,
+    `同一批「沒搭過」的取樣點：收集地圖內最高彩度 ${maxUn}（灰）→ 離開後最低 ${minUnOff}／最高 ${maxUnOff}`);
+
+  // 沒有任何路段時不該露出入口（點進去是一張全灰的地圖，等於死路）
+  const noSeg = await hp.evaluate(() => {
+    localStorage.setItem('trainmap-checkins-v1', JSON.stringify({ v: 1, st: {}, sg: {} }));
+    renderPassport();
+    return { btn: !!document.querySelector('#passport [data-act="collectmap"]'),
+      sec: [...document.querySelectorAll('#passport .ph-sec')].some(s => /路線完乘/.test(s.textContent)) };
+  });
+  ok('J8 還沒搭過任何路段時不露出入口（避免點進去是一張全灰地圖）',
+    noSeg.btn === false && noSeg.sec === false, `入口鈕存在=${noSeg.btn}　路線完乘區存在=${noSeg.sec}`);
   await hctx.close();
 
   // 手機：上車流程的下車站選單與按鈕觸控尺寸
-  const { ctx: hmctx, page: hmp } = await open(browser, { width: 375, height: 780 });
+  const { ctx: hmctx, page: hmp } = await open(browser, { width: 375, height: 780, touch: true }); // K 組要真的 tap
   const hmob = await hmp.evaluate(([train, sys]) => {
     const tr = state.trains.find(x => String(x.train) === train && x.sys === sys);
     if (!tr) return { missing: true };
@@ -797,6 +939,63 @@ try {
   ok('H17 挑站中途取消跟隨，站台帶會回來（不殘留 ride-picking）',
     leak.on === true && leak.after === false && leak.opacity !== '0',
     `挑站時 ${leak.on} → 取消跟隨後 ${leak.after}，站台帶 opacity=${leak.opacity}`);
+
+  // ── K 收集地圖・手機 375（狀態列的「離開」是這個模式唯一的出口，點不到＝把人關在裡面）──
+  const cmMob = await hmp.evaluate(() => {
+    clearFollow();
+    const net = lineNetwork();
+    const rec = [...net.values()].find(r => r.ln.shape && r.segs.length >= 10);
+    const sg = {}; for (const s of rec.segs.slice(0, 4)) sg[s.key] = 1;
+    localStorage.setItem('trainmap-checkins-v1', JSON.stringify({ v: 1, st: {}, sg }));
+    openRidePanel();
+    const b = document.querySelector('#ridePanel [data-act="collectmap"]');
+    if (!b) return { missing: true };
+    b.scrollIntoView({ block: 'center' });
+    const r = b.getBoundingClientRect();
+    const hit = document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2);
+    return { w: Math.round(r.width), h: Math.round(r.height),
+      inView: r.x >= 0 && r.right <= innerWidth,
+      hitSelf: !!(hit && b.contains(hit)), hitTag: hit ? (hit.id || hit.className || hit.tagName) : 'null' };
+  });
+  ok('K1 手機 375：護照 sheet 裡的收集地圖入口沒被切掉、點得到',
+    !cmMob.missing && cmMob.inView && cmMob.hitSelf && cmMob.h >= 28,
+    cmMob.missing ? '找不到入口鈕' : `${cmMob.w}×${cmMob.h}　視窗內=${cmMob.inView}　命中 ${cmMob.hitSelf ? '自己' : cmMob.hitTag}`);
+
+  // 真的點下去（不是呼叫 setCollectMap），再驗出口
+  const cmMobOn = await hmp.evaluate(() => {
+    document.querySelector('#ridePanel [data-act="collectmap"]').click();
+    const bar = document.getElementById('collectBar'), ex = document.getElementById('collectExit');
+    const br = bar.getBoundingClientRect(), er = ex.getBoundingClientRect();
+    const hit = document.elementFromPoint(er.x + er.width / 2, er.y + er.height / 2);
+    const tb = document.querySelector('.tabbar');
+    return {
+      on: state.collectMap,
+      barIn: br.x >= 0 && br.right <= innerWidth && br.y >= 0 && br.bottom <= innerHeight,
+      exW: Math.round(er.width), exH: Math.round(er.height),
+      exHit: !!(hit && ex.contains(hit)), exTag: hit ? (hit.id || hit.className || hit.tagName) : 'null',
+      tabHidden: !tb || getComputedStyle(tb).display === 'none',
+      sheetGone: document.getElementById('ridePanel').hidden,
+    };
+  });
+  ok('K2 手機 375：狀態列整條在視窗內，護照 sheet 自動收起',
+    cmMobOn.on === true && cmMobOn.barIn && cmMobOn.sheetGone,
+    `狀態列在視窗內=${cmMobOn.barIn}　sheet 收起=${cmMobOn.sheetGone}　tabbar 隱藏=${cmMobOn.tabHidden}`);
+  ok('K3 手機 375：唯一出口「離開」觸控尺寸足夠且中心真的點得到',
+    cmMobOn.exHit && cmMobOn.exH >= 28 && cmMobOn.exW >= 44,
+    `${cmMobOn.exW}×${cmMobOn.exH}　命中 ${cmMobOn.exHit ? '自己' : cmMobOn.exTag}`);
+
+  // 端到端：真的用觸控點下去，要回得到即時地圖（心得 33：驗按鈕要驗「點它會發生什麼」）
+  await hmp.tap('#collectExit');
+  await hmp.waitForTimeout(400);
+  const cmMobOff = await hmp.evaluate(() => ({
+    on: state.collectMap,
+    barHidden: document.getElementById('collectBar').hidden,
+    tabBack: getComputedStyle(document.querySelector('.tabbar')).display !== 'none',
+  }));
+  ok('K4 手機 375：真的觸控「離開」就回到即時地圖（tab bar 也回來）',
+    cmMobOff.on === false && cmMobOff.barHidden && cmMobOff.tabBack,
+    `collectMap=${cmMobOff.on}　狀態列隱藏=${cmMobOff.barHidden}　tabbar 回來=${cmMobOff.tabBack}`);
+
   await hmp.evaluate(([train, sys]) => { // 截圖前把畫面還原成挑站中
     const tr = state.trains.find(x => String(x.train) === train && x.sys === sys);
     state.followTrain = tr; state.mode = 'sched';
