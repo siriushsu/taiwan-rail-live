@@ -1,7 +1,10 @@
 // 把 iOS 專案切到某一種發行模式，然後一路建置到發行閘門通過。
 //
-//   node app/scripts/set-release-mode.mjs hotfix    → 1.0.1 (build 11)，無音樂
-//   node app/scripts/set-release-mode.mjs feature   → 1.0.2 (build 12)，含音樂
+//   node app/scripts/set-release-mode.mjs hotfix    → 1.0.1 (build 12)，無音樂
+//   node app/scripts/set-release-mode.mjs feature   → 1.0.2 (build 13)，含音樂
+//
+// build 號為什麼從 11 跳到 12：11 已經被一顆「忘了跑 patch-archive-os、帶著 beta macOS
+// 標記」的 archive 上傳掉了。build 號在同一個版本內不可重複，所以往前跳一號。
 //
 // 為什麼要有這支：兩個模式的差別是「版號」＋「音樂旗標」兩件事，而它們分在兩個地方
 // （project.pbxproj 與環境變數）。手動做最容易發生的失誤是版號改了、旗標忘了改——
@@ -24,11 +27,11 @@ const pbxproj = join(appRoot, 'ios/App/App.xcodeproj/project.pbxproj');
 // 只是改挑新的 build，不發行含 XSS 的 build 9），「後續功能版」＝ 1.0.2。
 const MODES = {
   hotfix: {
-    marketing: '1.0.1', build: '11', music: false,
+    marketing: '1.0.1', build: '12', music: false,
     why: '隱私＋安全修正版：與線上 build 8 相同的功能範圍（本來就沒有音樂），只多修正。差異最小＝審查風險最小。',
   },
   feature: {
-    marketing: '1.0.2', build: '12', music: true,
+    marketing: '1.0.2', build: '13', music: true,
     why: 'TestFlight／後續送審版：含音樂與開機定位等新功能。',
   },
 };
