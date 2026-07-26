@@ -851,6 +851,14 @@
      免得金色壓過「有沒有去過」這個更重要的狀態區分（金＝獎勵,不是分類標籤）。 */
   .stn-seal.t0:not(.follow) { border-color: var(--gold); color: var(--gold); }
   .stn-seal .cnt { font-size: 8px; font-weight: 900; opacity: .95; }
+  /* 各線完乘率:線名 + 進度條 + 百分比,一行一條線 */
+  .ph-lines { display: flex; flex-direction: column; gap: 4px; margin: 2px 0 4px; }
+  .ph-line { display: flex; align-items: center; gap: 8px; font-size: 11.5px; }
+  .ph-line .pl-name { flex: none; width: 92px; font-weight: 800; color: var(--ink-strong); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .ph-line .pl-bar { flex: 1; min-width: 0; height: 6px; border-radius: 3px; background: var(--line-faint); overflow: hidden; }
+  .ph-line .pl-bar i { display: block; height: 100%; border-radius: 3px; }
+  .ph-line .pl-pct { flex: none; width: 34px; text-align: right; font-weight: 800; color: var(--muted); font-variant-numeric: tabular-nums; }
+  .ph-line .pl-pct.done { color: var(--gold); }
   .datestamp {
     display: inline-block; font-family: var(--mono); font-size: 11px; font-weight: 700;
     color: var(--navy); border: 1.5px solid var(--navy); border-radius: 3px; padding: 0 5px;
@@ -2686,7 +2694,7 @@ try { if (matchMedia('(max-width: 900px)').matches) document.body.classList.add(
         <li class="grp">最近更新</li>
         <li><span class="d">7/26</span><span>旅程護照多了「車站收集」：完乘過的起訖站自動成章，人到月台再按「附近車站」裡的蓋章鈕，就升級成到訪章；同一座站去過越多次，章上的數字越大</span></li>
         <li><span class="d">7/26</span><span>跟著車按「我上車了」並選好在哪站下車，沿路每過一站就自動蓋一枚章，下車那站也會補上——全程只在上下車兩點用到定位，不會一直背景追蹤你</span></li>
-        <li><span class="d">7/26</span><span>搭過的路段會一起收集，護照顯示「最常搭的一段」；新增四枚成就：車站巡禮、百站達成，以及同一段路來回搭滿 100／500 次的通勤成就</span></li>
+        <li><span class="d">7/26</span><span>搭過的路段會一起收集，護照顯示「最常搭的一段」與每條路線各自的完乘率；新增四枚成就：車站巡禮、百站達成，以及同一段路來回搭滿 100／500 次的通勤成就</span></li>
         <li><span class="d">7/26</span><span>跟隨資訊卡的「×」和地圖上的跟隨鎖鈕變好按了：以前 × 只有一丁點大，手指常常戳不到</span></li>
         <li><span class="d">7/26</span><span>手機／App 底部的「地圖」鈕換成「🔍 搜尋」：以前搜尋藏在「探」面板裡，第一次用很難發現；現在一按就能查站名、車次或列車名稱</span></li>
         <li><span class="d">7/25</span><span>台鐵自強、莒光等快車經過不停靠的小站時，位置改用最近一次改點後的實際到站紀錄推算：以前是用固定的加速減速曲線硬算，現在會反映這班車在這段路真正跑多快，全網近九成的跳站路段都有實測撐著</span></li>
@@ -2790,7 +2798,7 @@ try { if (matchMedia('(max-width: 900px)').matches) document.body.classList.add(
         <li class="grp">收藏、護照與成就</li>
         <li><span class="d">7/26</span><span>旅程護照多了「車站收集」：完乘過的起訖站自動成章，人到月台再按「附近車站」裡的蓋章鈕，就升級成到訪章；同一座站去過越多次，章上的數字越大</span></li>
         <li><span class="d">7/26</span><span>跟著車按「我上車了」並選好在哪站下車，沿路每過一站就自動蓋一枚章，下車那站也會補上——全程只在上下車兩點用到定位，不會一直背景追蹤你</span></li>
-        <li><span class="d">7/26</span><span>搭過的路段會一起收集，護照顯示「最常搭的一段」；新增四枚成就：車站巡禮、百站達成，以及同一段路來回搭滿 100／500 次的通勤成就</span></li>
+        <li><span class="d">7/26</span><span>搭過的路段會一起收集，護照顯示「最常搭的一段」與每條路線各自的完乘率；新增四枚成就：車站巡禮、百站達成，以及同一段路來回搭滿 100／500 次的通勤成就</span></li>
         <li><span class="d">7/18</span><span>完乘記錄可以自選排序：日期／車次／距離／車種</span></li>
         <li><span class="d">7/18</span><span>山海平原成就門檻降為半圈，跟車面板加上環島完乘進度 %</span></li>
         <li><span class="d">7/17</span><span>新功能「最愛車站」：☆ 一鍵收藏，收藏的站在地圖上亮金色 ★</span></li>
@@ -8526,25 +8534,57 @@ function doCheckin(st) {
   renderNearbyStations(); renderRidePanel(); renderPassport();
   return true;
 }
-// ── 路段收集(設計書 §2 三軸的「線」) ────────────────────────────────────────
-// 相鄰兩停靠站之間算一段,不分方向——通勤來回走的是同一段路,分方向會讓「常搭」的次數腰斬。
+// ── 路段收集與完乘率(設計書 §2 三軸的「線」) ────────────────────────────────
+// 分母=每條線各自算(2026-07-26 使用者拍板)。一條線的「最細區間」=它自己的站列依沿線
+// 里程 d 排序後的相鄰兩站——不是列車的停靠區間,那會隨車種變動(自強跳站的「臺北–板橋」
+// 不是一個實體區間)。
+// 記錄時把一段停靠區間 [dA,dB] 攤成所有中點落在其中的最細區間,一次解掉兩件事:
+//   (a) 搭自強被跳過的站照樣算走過(人確實通過了那段軌道)
+//   (b) 分子與分母同一個鍵空間 → 100% 真的到得了(用停靠區間當分子永遠湊不滿)
+// 不分方向(鍵取字典序小的在前):通勤來回走的是同一段路,分方向會讓「常搭」次數腰斬。
 // 只有搭乘模式會寫:「跟完」是在 App 裡跟動畫,不該染到實體路網上(虛實雙軌的分界)。
-function segKey(sys, a, b, alias) {
-  const A = checkinName(sys, a, alias), B = checkinName(sys, b, alias);
-  const s = (sys === 'freq' || sys === 'deco') ? 'metro' : sys; // 與 favStationKey 同一套系統正規化
-  return s + '|' + (A < B ? A + '|' + B : B + '|' + A);
-}
+function segKey(sys, lnId, a, b) { return sys + '|' + lnId + '|' + (a < b ? a + '|' + b : b + '|' + a); }
 function segmentCollection() { return loadCheckins().sg || {}; }
+function lineNetwork() {
+  const m = new Map();
+  for (const ln of (state.trackLines || [])) {
+    const sts = (ln.stations || []).filter(s => s.d != null && s.name).slice().sort((a, b) => a.d - b.d);
+    const segs = [];
+    for (let i = 1; i < sts.length; i++) {
+      const a = sts[i - 1], b = sts[i], km = Math.abs(b.d - a.d);
+      if (a.name === b.name || km < 0.05) continue; // 同名/幾乎重合(同站不同月台之類)不成一段
+      segs.push({ a: a.name, b: b.name, km, mid: (a.d + b.d) / 2, key: segKey(ln.sys, ln.id, a.name, b.name) });
+    }
+    if (segs.length) m.set(ln.sys + '|' + ln.id,
+      { id: ln.id, name: ln.name, sys: ln.sys, color: ln.color, segs, km: segs.reduce((s, x) => s + x.km, 0) });
+  }
+  return m;
+}
 function writeSegments(tr, fromIdx, toIdx) {
   if (toIdx <= fromIdx) return;
-  const c = loadCheckins(), alias = checkinAliasMap();
+  const net = lineNetwork(), c = loadCheckins();
   c.sg = c.sg || {};
-  for (let i = fromIdx + 1; i <= toIdx; i++) {
-    const k = segKey(tr.sys, tr.stops[i - 1].name, tr.stops[i].name, alias);
-    if (k.split('|')[1] === k.split('|')[2]) continue; // 別名併站後頭尾同名(如臺北/臺北-環島):不成一段
-    c.sg[k] = (Number(c.sg[k]) || 0) + 1;
+  // stops[i] 描述的是「第 i 站到第 i+1 站」那一段,所以走到 toIdx 要迭代到 toIdx-1
+  for (let i = fromIdx; i < toIdx; i++) {
+    const seg = tr.stops[i];
+    if (!seg.segLn) continue; // 沒貼上軌道(退化成直線)的段:算不出走過哪些最細區間,寧可不記
+    const rec = net.get(seg.segLn.sys + '|' + seg.segLn.id);
+    if (!rec) continue;
+    const lo = Math.min(seg.dA, seg.dB), hi = Math.max(seg.dA, seg.dB);
+    for (const s of rec.segs) if (s.mid >= lo && s.mid <= hi) c.sg[s.key] = (Number(c.sg[s.key]) || 0) + 1;
   }
   saveCheckins(c);
+}
+// 各線完乘率:只列走過至少一段的線(全 0 的線列出來只是噪音)
+function lineCompletion() {
+  const sg = segmentCollection(), out = [];
+  for (const rec of lineNetwork().values()) {
+    let ridKm = 0, ridN = 0;
+    for (const s of rec.segs) if (sg[s.key]) { ridKm += s.km; ridN++; }
+    if (ridN) out.push({ id: rec.id, name: rec.name, sys: rec.sys, color: rec.color,
+      ridKm, ridN, nSeg: rec.segs.length, km: rec.km, pct: rec.km > 0 ? ridKm / rec.km : 0 });
+  }
+  return out.sort((a, b) => b.pct - a.pct || b.ridKm - a.ridKm);
 }
 // ── 搭乘模式(兩點法,設計書 §3 A 路徑) ──────────────────────────────────────
 // 只驗上車、下車兩個時空點,中間的沿途站由既有列車模型補完 → 零背景定位、零耗電、
@@ -8710,13 +8750,14 @@ function buildStationStamps(rides) {
   const tierM = stationTierMap();
   const items = [...coll.values()].sort((a, b) => b.n - a.n || a.name.localeCompare(b.name, 'zh-Hant'));
   const visited = items.filter(i => i.s === 'visit').length;
-  // 路段:搭乘模式走過的相鄰站區間。最常搭的那一段就是通勤族的日常,直接標出來當深度指標
+  // 路段:搭乘模式走過的最細區間。最常搭的那一段就是通勤族的日常,直接標出來當深度指標
   const sg = segmentCollection(), sgN = Object.keys(sg).length;
   const top = Object.entries(sg).sort((a, b) => b[1] - a[1])[0];
   const sub = [
     visited ? `到訪 ${visited}` : '',
     sgN ? `路段 ${sgN}` : '',
-    top && top[1] >= 5 ? `最常搭 ${top[0].split('|').slice(1).join('–')} ${top[1]} 次` : '',
+    // 鍵是 sys|線id|A|B,取後兩段才是站名(前面兩段是系統與線)
+    top && top[1] >= 5 ? `最常搭 ${top[0].split('|').slice(2).join('–')} ${top[1]} 次` : '',
   ].filter(Boolean).join('　');
   return `<div class="ph-sec">車站收集<b>${coll.size}</b>` +
     (sub ? `<span style="letter-spacing:0;font-weight:600">${escHtml(sub)}</span>` : '') + `</div><div class="ph-stamps">` +
@@ -8725,6 +8766,21 @@ function buildStationStamps(rides) {
       const tip = i.name + '・' + STN_STATUS_LABEL[i.s] + (i.n > 1 ? '　' + i.n + ' 次' : '') + (i.d ? '　最近 ' + i.d : '');
       return `<span class="${cls}" title="${escHtml(tip)}"><b>${sealName(i.name)}</b>` +
         (i.n > 1 ? `<small class="cnt">×${i.n}</small>` : `<small>${STN_STATUS_LABEL[i.s]}</small>`) + `</span>`;
+    }).join('') + `</div>` + buildLineBars();
+}
+// 各線完乘率(分母每條線各自算)。只列走過的線,由高到低;沒搭過任何一段就整區不出現
+function buildLineBars() {
+  const lines = lineCompletion();
+  if (!lines.length) return '';
+  const full = lines.filter(l => l.pct >= 0.999).length;
+  return `<div class="ph-sec">路線完乘<b>${lines.length}</b>` +
+    (full ? `<span style="letter-spacing:0;font-weight:600">全線走完 ${full}</span>` : '') + `</div><div class="ph-lines">` +
+    lines.map(l => {
+      const pct = Math.round(l.pct * 100);
+      return `<div class="ph-line" title="${escHtml(`${l.name}　${l.ridN}/${l.nSeg} 段　${l.ridKm.toFixed(1)}/${l.km.toFixed(1)} km`)}">` +
+        `<span class="pl-name">${escHtml(l.name.replace(/（.*$/, ''))}</span>` +
+        `<span class="pl-bar"><i style="width:${pct}%;background:${escHtml(l.color || 'var(--red)')}"></i></span>` +
+        `<span class="pl-pct${pct >= 100 ? ' done' : ''}">${pct}%</span></div>`;
     }).join('') + `</div>`;
 }
 // 收集章(明星列車/車種圖鑑/支線行腳):完成與否皆掛點擊鉤子→got 章也可點重播;桌面與 sheet 逐字相同

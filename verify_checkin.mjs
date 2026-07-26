@@ -630,53 +630,102 @@ try {
     const c = JSON.parse(localStorage.getItem('trainmap-checkins-v1'));
     return { sg: c.sg || {}, stN: Object.keys(c.st).length };
   }, [trip.train, trip.sys, expectTo, trip.stops[trip.stops.length - 1].arrSec - trip.now + 600]);
-  const wantSegs = [];
-  for (let i = expectFrom + 1; i <= expectTo; i++) {
-    const a = trip.stops[i - 1].name, b = trip.stops[i].name;
-    if (a !== b) wantSegs.push(trip.sys + '|' + (a < b ? a + '|' + b : b + '|' + a));
-  }
+  // 獨立算應該記到哪些最細區間：直接讀該線自己的站列（ln.stations，依 d 排序的相鄰兩站），
+  // 取「中點落在本趟停靠區間 [dA,dB] 內」者——與實作同一份原始資料，但這裡是自己重算一遍，
+  // 不呼叫 lineNetwork()/writeSegments()。
+  const wantSeg = await hp.evaluate(([train, sys, fromIdx, toIdx]) => {
+    const tr = state.trains.find(x => String(x.train) === train && x.sys === sys);
+    const out = [];
+    for (let i = fromIdx; i < toIdx; i++) {
+      const sg = tr.stops[i];
+      if (!sg.segLn) continue;
+      const sts = (sg.segLn.stations || []).filter(s => s.d != null && s.name).slice().sort((a, b) => a.d - b.d);
+      const lo = Math.min(sg.dA, sg.dB), hi = Math.max(sg.dA, sg.dB);
+      for (let j = 1; j < sts.length; j++) {
+        const a = sts[j - 1], b = sts[j], km = Math.abs(b.d - a.d);
+        if (a.name === b.name || km < 0.05) continue;
+        const mid = (a.d + b.d) / 2;
+        if (mid >= lo && mid <= hi) out.push(sg.segLn.sys + '|' + sg.segLn.id + '|' + (a.name < b.name ? a.name + '|' + b.name : b.name + '|' + a.name));
+      }
+    }
+    return out;
+  }, [trip.train, trip.sys, expectFrom, expectTo]);
   const gotSegs = Object.keys(segRes.sg).sort();
-  ok('I1 搭一趟就記下沿途每一段路（段數與鍵值＝獨立算出的）',
-    JSON.stringify(gotSegs) === JSON.stringify([...new Set(wantSegs)].sort()),
-    `記到 ${gotSegs.length} 段　應為 ${new Set(wantSegs).size} 段`);
-  ok('I2 每段各記一次', Object.values(segRes.sg).every(n => n === 1), JSON.stringify(segRes.sg).slice(0, 90));
+  ok('I1 搭一趟就記下沿途每一段路（區間清單＝獨立重算出的）',
+    JSON.stringify(gotSegs) === JSON.stringify([...new Set(wantSeg)].sort()) && gotSegs.length > 0,
+    `記到 ${gotSegs.length} 段　獨立算 ${new Set(wantSeg).size} 段`);
+  ok('I2 每段各記一次', Object.values(segRes.sg).every(n => n === 1), JSON.stringify(segRes.sg).slice(0, 100));
+  // 快車跳過的站也要算走過：記到的區間數應 ≥ 停靠區間數（一段停靠可跨好幾個實體區間）
+  ok('I3 快車跳站的區間照樣算走過（記到的實體區間數 ≥ 停靠區間數）',
+    gotSegs.length >= (expectTo - expectFrom),
+    `實體區間 ${gotSegs.length} 段　停靠區間 ${expectTo - expectFrom} 段`);
 
   // 來回同一段路要累加到同一個鍵（不分方向）——通勤族的次數不能被方向腰斬
-  const bidir = await hp.evaluate(() => {
+  const bidir = await hp.evaluate(([train, sys, fromIdx, toIdx]) => {
     const c = JSON.parse(localStorage.getItem('trainmap-checkins-v1'));
     const before = Object.keys(c.sg).length;
-    const k = Object.keys(c.sg)[0].split('|');
-    const fake = { sys: k[0], stops: [{ name: k[2] }, { name: k[1] }] }; // 反方向的同一段
-    writeSegments(fake, 0, 1);
+    const k0 = Object.keys(c.sg)[0];
+    const tr = state.trains.find(x => String(x.train) === train && x.sys === sys);
+    // 造一班「同樣的段但方向相反」的假車：把 dA/dB 對調
+    const rev = { sys, stops: [] };
+    for (let i = fromIdx; i < toIdx; i++) {
+      const s = tr.stops[i];
+      rev.stops.push(s.segLn ? { name: s.name, segLn: s.segLn, dA: s.dB, dB: s.dA } : { name: s.name });
+    }
+    rev.stops.push({ name: 'END' });
+    writeSegments(rev, 0, rev.stops.length - 1);
     const c2 = JSON.parse(localStorage.getItem('trainmap-checkins-v1'));
-    return { before, after: Object.keys(c2.sg).length, n: c2.sg[Object.keys(c.sg)[0]] };
-  });
-  ok('I3 反方向搭同一段路併入同一筆（不分方向）',
+    return { before, after: Object.keys(c2.sg).length, n: c2.sg[k0] };
+  }, [trip.train, trip.sys, expectFrom, expectTo]);
+  ok('I4 反方向搭同一段路併入同一筆（不分方向）',
     bidir.after === bidir.before && bidir.n === 2, `段數 ${bidir.before}→${bidir.after}，該段次數 ${bidir.n}`);
+
+  // 完乘率：分母＝每條線自己的最細區間數（使用者 07-26 拍板「每條線分開算」）
+  const comp = await hp.evaluate(() => {
+    const lines = lineCompletion();
+    const net = lineNetwork();
+    return {
+      lines: lines.map(l => ({ id: l.id, ridN: l.ridN, nSeg: l.nSeg, pct: +(l.pct * 100).toFixed(1) })),
+      // 隨便挑一條線塞滿它全部區間，驗 100% 到得了
+      fullTest: (() => {
+        const rec = [...net.values()][0];
+        const sg = {};
+        for (const s of rec.segs) sg[s.key] = 1;
+        localStorage.setItem('trainmap-checkins-v1', JSON.stringify({ v: 1, st: {}, sg }));
+        const got = lineCompletion().find(l => l.id === rec.id);
+        return { id: rec.id, pct: got ? +(got.pct * 100).toFixed(2) : -1, ridN: got ? got.ridN : -1, nSeg: rec.segs.length };
+      })(),
+    };
+  });
+  ok('I5 完乘率每條線各自算，且只列走過的線', comp.lines.length > 0 && comp.lines.every(l => l.ridN <= l.nSeg && l.pct > 0),
+    comp.lines.map(l => `${l.id} ${l.ridN}/${l.nSeg}=${l.pct}%`).join('、').slice(0, 130));
+  ok('I6 把一條線的區間全數走完＝100%（分子分母同一鍵空間，湊得滿）',
+    comp.fullTest.pct === 100 && comp.fullTest.ridN === comp.fullTest.nSeg,
+    `${comp.fullTest.id} ${comp.fullTest.ridN}/${comp.fullTest.nSeg}=${comp.fullTest.pct}%`);
 
   // 成就門檻：以獨立塞入的計數驗，不看實作怎麼算
   const achRes = await hp.evaluate(() => {
     const mk = (stnN, segN) => {
       const st = {}, sg = {};
       for (let i = 0; i < stnN; i++) st['tra_sched|測試站' + i] = { name: '測試站' + i, sys: 'tra_sched', s: 'pass', n: 1, d: '2026-07-26' };
-      if (segN) sg['tra_sched|甲|乙'] = segN;
+      if (segN) sg['tra_sched|縱貫線北段|甲|乙'] = segN; // 4 段式鍵：sys|線id|站A|站B
       localStorage.setItem('trainmap-checkins-v1', JSON.stringify({ v: 1, st, sg }));
       return [...unlockedAchievements([])];
     };
     return { none: mk(24, 99), stn25: mk(25, 99), stn100: mk(100, 99), c100: mk(0, 100), c500: mk(0, 500) };
   });
-  ok('I4 24 座站／99 次都還沒解鎖（門檻不會提前給）',
+  ok('I7 24 座站／99 次都還沒解鎖（門檻不會提前給）',
     !achRes.none.includes('stn25') && !achRes.none.includes('stn100') && !achRes.none.includes('commute100'),
     `[${achRes.none.join(',')}]`);
-  ok('I5 25 座站解鎖「車站巡禮」、100 座解鎖「百站達成」',
+  ok('I8 25 座站解鎖「車站巡禮」、100 座解鎖「百站達成」',
     achRes.stn25.includes('stn25') && !achRes.stn25.includes('stn100') && achRes.stn100.includes('stn100'),
     `25座→[${achRes.stn25.join(',')}]　100座→[${achRes.stn100.join(',')}]`);
-  ok('I6 同一段路 100／500 次解鎖通勤成就（使用者指名的門檻）',
+  ok('I9 同一段路 100／500 次解鎖通勤成就（使用者指名的門檻）',
     achRes.c100.includes('commute100') && !achRes.c100.includes('commute500') && achRes.c500.includes('commute500'),
     `100次→[${achRes.c100.filter(x => /commute/.test(x)).join(',')}]　500次→[${achRes.c500.filter(x => /commute/.test(x)).join(',')}]`);
   // 章面只印縮寫名，所以比對 title（完整說明）而不是可見文字；重點是「真的渲染成金章了」
   const achUi = await hp.evaluate(() => {
-    const st = {}, sg = { 'tra_sched|甲|乙': 500 };
+    const st = {}, sg = { 'tra_sched|縱貫線北段|甲|乙': 500 };
     for (let i = 0; i < 100; i++) st['tra_sched|測試站' + i] = { name: '測試站' + i, sys: 'tra_sched', s: 'pass', n: 1, d: '2026-07-26' };
     localStorage.setItem('trainmap-checkins-v1', JSON.stringify({ v: 1, st, sg }));
     localStorage.setItem('trainmap-passport-open', '1');
@@ -688,9 +737,9 @@ try {
   });
   const wantDesc = ['車站收集達 25 座', '車站收集達 100 座', '同一段路來回搭滿 100 次', '同一段路來回搭滿 500 次'];
   const missing = wantDesc.filter(d => !achUi.gold.some(t => t === d));
-  ok('I7 四枚新成就都真的渲染成金章（不是只存在資料裡）', missing.length === 0,
+  ok('I10 四枚新成就都真的渲染成金章（不是只存在資料裡）', missing.length === 0,
     missing.length ? `沒渲染：${missing.join('、')}` : `金章 ${achUi.gold.length} 枚`);
-  ok('I8 護照標題列有露出路段數與「最常搭」', /路段\s*1/.test(achUi.secTxt) && /最常搭.*500\s*次/.test(achUi.secTxt),
+  ok('I11 護照標題列有露出路段數與「最常搭」', /路段\s*1/.test(achUi.secTxt) && /最常搭.*500\s*次/.test(achUi.secTxt),
     achUi.secTxt.replace(/\s+/g, ' ').slice(0, 130)); // 壓成單行：內嵌換行會讓終端輸出看起來像缺漏
 
   // 「跟完」不該染實體路網：只有搭乘模式會寫路段
@@ -701,7 +750,7 @@ try {
     const c = JSON.parse(localStorage.getItem('trainmap-checkins-v1') || '{"sg":{}}');
     return Object.keys(c.sg || {}).length;
   });
-  ok('I9 完乘（跟完動畫）不會產生路段——虛實雙軌的分界', virt === 0, `路段 ${virt} 段`);
+  ok('I12 完乘（跟完動畫）不會產生路段——虛實雙軌的分界', virt === 0, `路段 ${virt} 段`);
   await hctx.close();
 
   // 手機：上車流程的下車站選單與按鈕觸控尺寸
