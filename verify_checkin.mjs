@@ -758,6 +758,10 @@ try {
   // 實作算錯顏色它就會跟著錯，不會像同源判準那樣一起錯成綠燈。
   // 取樣：以區間中點為心的小窗（心得 25：窗開太大會把鄰近高對比物當成自己的墨跡）。
   const cmSetup = await hp.evaluate(() => {
+    // 先停跟車再設視野:H 組留下的跟隨會讓相機每幀把畫面拉回那班車身上,
+    // setView 設好的取樣位置下一幀就被拉走(實測 18:00 那班車在彰化,取樣點全數出畫面)。
+    // 這條測試曾經「會過」純粹是因為當時那班車剛好在取樣點附近——與時間有關,不是與正確性有關。
+    clearFollow();
     localStorage.removeItem('trainmap-riding-v1');
     userDataSaveCollection('rides', []);
     // 挑一條有線形、區間夠多的線，前 4 段標成「搭過」，其餘留白當對照組
@@ -805,7 +809,7 @@ try {
     return pts.map(ll => {
       const p = map.latLngToContainerPoint([ll.lat, ll.lon]);
       const cx = Math.round(p.x * dpr), cy = Math.round(p.y * dpr), s = RAD * dpr;
-      if (cx - s < 0 || cy - s < 0 || cx + s >= cv.width || cy + s >= cv.height) return null; // 出畫面不採計
+      if (cx - s < 0 || cy - s < 0 || cx + s >= cv.width || cy + s >= cv.height) return { oob: true }; // 出畫面
       const d = g.getImageData(cx - s, cy - s, s * 2 + 1, s * 2 + 1).data;
       let best = -1, rgb = null;
       for (let i = 0; i < d.length; i += 4) {
@@ -814,8 +818,8 @@ try {
         const ch = (mx - mn) / 255;
         if (ch > best) { best = ch; rgb = [d[i], d[i + 1], d[i + 2]]; }
       }
-      return best < 0 ? null : { ch: +best.toFixed(3), rgb };
-    }).filter(Boolean);
+      return best < 0 ? { blank: true } : { ch: +best.toFixed(3), rgb };
+    });
   }, pts);
 
   // 進入收集地圖：走真的點擊，不直接呼叫 setCollectMap
@@ -839,10 +843,19 @@ try {
     cmOn.on === true && cmOn.barShown && cmOn.ctlHidden && cmOn.badgeHidden && cmOn.actHidden,
     `collectMap=${cmOn.on}　狀態列「${cmOn.barTxt}」　控制列/徽章/隨機跟隨收起=${cmOn.ctlHidden}/${cmOn.badgeHidden}/${cmOn.actHidden}`);
 
+  const chOf = a => { const v = a.filter(x => x.ch != null).map(x => x.ch); return v.length ? Math.max(...v) : -1; };
+  const whyOf = a => `${a.filter(x => x.oob).length} 出畫面／${a.filter(x => x.blank).length} 該處空白／${a.filter(x => x.ch != null).length} 量到`;
   const ridPx = await sampleChroma(cmSetup.ridMids);
   const unPx = await sampleChroma(cmSetup.unMids);
-  const maxRid = ridPx.length ? Math.max(...ridPx.map(x => x.ch)) : -1;
-  const maxUn = unPx.length ? Math.max(...unPx.map(x => x.ch)) : -1;
+  const maxRid = chOf(ridPx), maxUn = chOf(unPx);
+  const diag = await hp.evaluate(([lnId]) => ({
+    center: map.getCenter(), zoom: map.getZoom(),
+    trackVisibleHas: !state.trackVisible || state.trackVisible.has(lnId),
+    trackStyle: state.trackStyle, nTrackLines: (state.trackLines || []).length,
+  }), [cmSetup.lnId]);
+  if (maxRid < 0 || maxUn < 0) info('J 取樣診斷',
+    `搭過[${whyOf(ridPx)}]　未搭[${whyOf(unPx)}]　zoom=${diag.zoom} 中心=${diag.center.lat.toFixed(3)},${diag.center.lng.toFixed(3)}　` +
+    `該線在 trackVisible=${diag.trackVisibleHas}　軌道顯示=${diag.trackStyle}　線數=${diag.nTrackLines}`);
   // 線色本身的彩度＝這條線「亮起來」該有的樣子（來自資料檔 ln.color，不是我的繪製程式）
   const hex = (cmSetup.color || '#000000').replace('#', '');
   const lc = [0, 2, 4].map(i => parseInt(hex.slice(i, i + 2), 16));
@@ -852,7 +865,7 @@ try {
     `搭過段最大彩度 ${maxRid}　線色 ${cmSetup.color} 彩度 ${lineCh.toFixed(3)}（門檻 ${(lineCh * 0.5).toFixed(3)}）`);
   ok('J4 沒搭過的區間是灰的：彩度遠低於搭過的段',
     maxUn >= 0 && maxUn < 0.12 && maxUn < maxRid * 0.3,
-    `未搭段最大彩度 ${maxUn}　vs 搭過段 ${maxRid}　取樣 ${unPx.length} 點`);
+    `未搭段最大彩度 ${maxUn}　vs 搭過段 ${maxRid}　${whyOf(unPx)}`);
   ok('J5 收集地圖不畫跑動的列車（畫面只剩你走過的路）',
     cmOn.trains === 0 && cmOn.freq === 0,
     `台鐵/高鐵車 ${cmOn.trains} 台　捷運車 ${cmOn.freq} 台`);
@@ -872,8 +885,9 @@ try {
   await hp.evaluate(() => { window.__vis = new Set(state.visible); state.visible.clear(); draw(); });
   const unPxOff = await sampleChroma(cmSetup.unMids);
   await hp.evaluate(() => { state.visible = window.__vis; draw(); });
-  const maxUnOff = unPxOff.length ? Math.max(...unPxOff.map(x => x.ch)) : -1;
-  const minUnOff = unPxOff.length ? Math.min(...unPxOff.map(x => x.ch)) : -1;
+  const offCh = unPxOff.filter(x => x.ch != null).map(x => x.ch);
+  const maxUnOff = offCh.length ? Math.max(...offCh) : -1;
+  const minUnOff = offCh.length ? Math.min(...offCh) : -1;
   ok('J6 「離開」回到即時地圖：狀態列收起，控制列／徽章／隨機跟隨都回來',
     cmOff.on === false && !cmOff.barShown && cmOff.ctlShown && cmOff.badgeShown && cmOff.actShown,
     `collectMap=${cmOff.on}　狀態列隱藏=${!cmOff.barShown}　控制列/徽章/隨機跟隨回來=${cmOff.ctlShown}/${cmOff.badgeShown}/${cmOff.actShown}`);

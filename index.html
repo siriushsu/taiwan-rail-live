@@ -8952,6 +8952,58 @@ function renderCollectStat() {
     ? `${lines.length} 條線・${km.toFixed(0)} km` + (full ? `・全線走完 ${full}` : '')
     : '還沒有搭乘記錄——用跟車面板的「🎫 我上車了」開始收集';
 }
+// ── ?demo=collect：備援站確認設計用的示範收集資料 ────────────────────────────
+// 為什麼需要：收集地圖與完乘率要有資料才看得出設計，而路段只能靠搭乘模式在「真實時鐘」下
+// 累積（拖時刻尺與快轉都不算，見 ridingNowSched）——等於要真的搭十幾分鐘的車才湊得出兩三段。
+// 純檢視用途：一鍵載入、一鍵清除（?demo=off），且**只在完全沒有收集資料時才寫入**，
+// 絕不覆蓋任何真實收集。
+function seedCollectDemo() {
+  const cur = loadCheckins();
+  if (Object.keys(cur.st || {}).length || Object.keys(cur.sg || {}).length) {
+    showToast('你已經有收集資料了——示範模式不覆蓋。要看示範請先用 ?demo=off 清除');
+    return;
+  }
+  // 挑區間數最多的幾條線（＝主要幹線，畫面上看得出來），各給不同完成度讓長條圖有層次
+  const recs = [...lineNetwork().values()].sort((a, b) => b.segs.length - a.segs.length).slice(0, 6);
+  if (!recs.length) { showToast('資料還沒載完，等一下再試一次'); return; }
+  const RATIO = [1, 0.55, 1, 0.3, 0.75, 0.2];
+  const st = {}, sg = {}, today = todayStr(activeTz());
+  recs.forEach((rec, i) => {
+    const segs = rec.segs.slice(0, Math.max(1, Math.round(rec.segs.length * RATIO[i])));
+    segs.forEach((s, j) => {
+      sg[s.key] = 1 + (i === 0 ? (j % 7 === 0 ? 120 : j % 3 === 0 ? 12 : 2) : 0); // 第一條線做出「常搭那一段」的落差
+      // 走過的區間兩端＝去過的站：多數「搭過」，每四座給一座「到訪」，做出三態對照
+      [[s.a, s.pA], [s.b, s.pB]].forEach(([nm], k) => {
+        const key = favStationKey({ sys: rec.sys, name: nm });
+        const e = st[key] || { name: nm, sys: rec.sys, s: 'pass', n: 0, d: today };
+        if ((j + k) % 4 === 0) e.s = 'visit';
+        e.n += 1;
+        st[key] = e;
+      });
+    });
+  });
+  saveCheckins({ v: 1, st, sg });
+  renderPassport(); if (typeof renderRidePanel === 'function') renderRidePanel();
+  showToast('已載入示範收集資料（僅供確認設計）——清除請在網址加 ?demo=off');
+}
+function setupCollectDemo() {
+  let mode = ''; try { mode = new URLSearchParams(location.search).get('demo') || ''; } catch (e) { return; }
+  if (mode !== 'collect' && mode !== 'off') return;
+  if (mode === 'off') {
+    try { localStorage.removeItem(CHECKIN_KEY); localStorage.removeItem(RIDING_KEY); } catch (e) {}
+    renderPassport();
+    showToast('示範收集資料已清除');
+    return;
+  }
+  // 比照 ?help=1：lineNetwork 讀 state.trackLines，boot 中段還沒建好，等時鐘徽章的班次數出現才算資料就位
+  let n = 0;
+  const tick = () => {
+    const c = document.getElementById('count');
+    if ((c && c.textContent.trim()) || ++n > 40) seedCollectDemo();
+    else setTimeout(tick, 100);
+  };
+  tick();
+}
 // 各線完乘率(分母每條線各自算)。只列走過的線,由高到低;沒搭過任何一段就整區不出現
 function buildLineBars() {
   const lines = lineCompletion();
@@ -12176,6 +12228,7 @@ function setupMapTools() {
     document.addEventListener('keydown', e => { if (e.key === 'Escape' && !wrap.hidden) done(); }); // v0718i:Esc 可關,比照 takeoutModal 家族
     requestAnimationFrame(() => { const go = document.getElementById('howtoGo'); if (go) go.focus(); }); // v0718i:開啟時 focus 主要按鈕,不做完整 focus trap
   })();
+  setupCollectDemo(); // ?demo=collect／off:備援站確認設計用的示範收集資料(只在沒有真實資料時寫入)
   setupHelp(); // 使用說明中心的四個入口與 ?help=1(要排在 setupHowto 之後:兩張卡不疊,help 開了就收首訪卡)
   // 手機:跟隨小卡與跟隨鎖鈕依站台帶(速度膠囊)實際位置讓位——膠囊展開(cexp)變高時上移,收回還原。
   // 桌面帶常駐 stage 下緣、跟隨卡 CSS 固定 bottom 86px 在帶上方,不需 JS 重排。
