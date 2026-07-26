@@ -823,6 +823,24 @@
   html[data-theme=dark] .seal.gold { color: var(--gold); }
   .seal.na { border-color: var(--line); color: var(--faint); border-style: dashed; transform: rotate(0); }
   .seal.na small { opacity: .7; }
+  /* ── 車站章(.stn-seal):打卡收集用,比 .seal 小一號因為量大(全網約 600 座) ──
+     三態(設計書第 2 節):跟完=灰藍虛線不旋轉 / 搭過=實線單圈不旋轉 / 到訪=雙圈+歪斜(手蓋的章一定是歪的)。
+     站等升級走 .t0(特等站,金);次數直接標數字不做疊印濃度(使用者 07-25 明示)。 */
+  .stn-seal {
+    width: 50px; height: 50px; border-radius: 50%; border: 2px solid var(--red); color: var(--red);
+    display: inline-flex; flex-direction: column; align-items: center; justify-content: center;
+    background: transparent; flex: none; text-align: center; overflow: hidden; padding: 2px;
+    font-variant-numeric: tabular-nums; cursor: default;
+  }
+  .stn-seal b { font-size: 11px; font-weight: 900; letter-spacing: .2px; line-height: 1.1; }
+  .stn-seal small { font-size: 7.5px; font-weight: 700; opacity: .85; letter-spacing: .2px; }
+  /* 雙圈用 inset shadow 疊,不動 border 寬度(免得 50px 盒被 border-box 吃掉內容空間) */
+  .stn-seal.visit { transform: rotate(-7deg); box-shadow: inset 0 0 0 1.5px var(--paper), inset 0 0 0 3px currentColor; }
+  .stn-seal.follow { border-color: var(--line); color: var(--faint); border-style: dashed; }
+  /* 站等升級只在「真的去過」時才亮金：沒去過的特等站仍是灰虛線,
+     免得金色壓過「有沒有去過」這個更重要的狀態區分（金＝獎勵,不是分類標籤）。 */
+  .stn-seal.t0:not(.follow) { border-color: var(--gold); color: var(--gold); }
+  .stn-seal .cnt { font-size: 8px; font-weight: 900; opacity: .95; }
   .datestamp {
     display: inline-block; font-family: var(--mono); font-size: 11px; font-weight: 700;
     color: var(--navy); border: 1.5px solid var(--navy); border-radius: 3px; padding: 0 5px;
@@ -2625,6 +2643,7 @@ try { if (matchMedia('(max-width: 900px)').matches) document.body.classList.add(
       <summary><span>🛠 更新紀錄</span><span class="foot-sub">最後更新：2026/7/26</span></summary>
       <ul class="foot-list">
         <li class="grp">最近更新</li>
+        <li><span class="d">7/26</span><span>旅程護照多了「車站收集」：你完乘過的起訖站會蓋成一枚車站印章，同一座站去過越多次，章上的數字越大</span></li>
         <li><span class="d">7/26</span><span>跟隨資訊卡的「×」和地圖上的跟隨鎖鈕變好按了：以前 × 只有一丁點大，手指常常戳不到</span></li>
         <li><span class="d">7/26</span><span>手機／App 底部的「地圖」鈕換成「🔍 搜尋」：以前搜尋藏在「探」面板裡，第一次用很難發現；現在一按就能查站名、車次或列車名稱</span></li>
         <li><span class="d">7/25</span><span>台鐵自強、莒光等快車經過不停靠的小站時，位置改用最近一次改點後的實際到站紀錄推算：以前是用固定的加速減速曲線硬算，現在會反映這班車在這段路真正跑多快，全網近九成的跳站路段都有實測撐著</span></li>
@@ -2726,6 +2745,7 @@ try { if (matchMedia('(max-width: 900px)').matches) document.body.classList.add(
         <li><span class="d">7/13</span><span>平交道加碼：補上台中港線等貨運線 21 處、卡片連點可切下一個、圖示改用台灣鐵路交叉標的牌面</span></li>
         <li><span class="d">7/12</span><span>新增平交道功能：點一下查接下來會通過的列車</span></li>
         <li class="grp">收藏、護照與成就</li>
+        <li><span class="d">7/26</span><span>旅程護照多了「車站收集」：你完乘過的起訖站會蓋成一枚車站印章，同一座站去過越多次，章上的數字越大</span></li>
         <li><span class="d">7/18</span><span>完乘記錄可以自選排序：日期／車次／距離／車種</span></li>
         <li><span class="d">7/18</span><span>山海平原成就門檻降為半圈，跟車面板加上環島完乘進度 %</span></li>
         <li><span class="d">7/17</span><span>新功能「最愛車站」：☆ 一鍵收藏，收藏的站在地圖上亮金色 ★</span></li>
@@ -8138,9 +8158,10 @@ function renderRidePanel() {
   const list = buildRideRows(rides, 'date'); // 手機不做排序鈕,固定日期最新在前
   el.innerHTML =
     `<h3>旅程護照<button class="close" id="rideClose">×</button></h3>` +
-    `<div class="ride-stats">章 <b>${collGot}</b> · 成就 <b>${achN}</b> · 完乘 <b>${rides.length}</b></div>` +
+    `<div class="ride-stats">章 <b>${collGot}</b> · 站 <b>${stationCollection(rides).size}</b> · 成就 <b>${achN}</b> · 完乘 <b>${rides.length}</b></div>` +
     `<div class="sub">從發車一路跟到終點就蓋一枚完乘章（調速可以・跳時間不算）· 灰色的章點了帶你搭一趟</div>` +
     buildStamps(rides) +
+    buildStationStamps(rides) +
     buildAchv(rides, 'chip') +
     `<div class="ph-sec">完乘記錄</div>` +
     (list ? `<div class="ph-list">${list}</div>`
@@ -8340,6 +8361,72 @@ function sealName(n) {
   const s = String(n == null ? '' : n), mid = Math.floor(s.length / 2);
   return s.length >= 4 ? escHtml(s.slice(0, mid)) + '<br>' + escHtml(s.slice(mid)) : escHtml(s);
 }
+// ── 車站打卡收集(設計書 `打卡收集系統設計_2026-07-25.html` 第 2、6 節) ──
+// storage 獨立於 userData 四 kind(比照 P0 提醒的 trainmap-local-reminders-v1):不動 Firestore rules、
+// 不碰目前關閉的帳號系統。三態=跟完(App 裡跟完動畫)→搭過(搭車經過)→到訪(人真的踏上月台),同站取最高階。
+// ⚠既有 rides 只存起訖站(from/to),沒存沿途站清單,所以完乘記錄只能推起訖兩站;
+//   沿途站要等批次 B 的搭乘模式才有真資料——不硬猜。
+const CHECKIN_KEY = 'trainmap-checkins-v1';
+const STN_STATUS_RANK = { follow: 0, pass: 1, visit: 2 };
+const STN_STATUS_LABEL = { follow: '跟完', pass: '搭過', visit: '到訪' };
+function loadCheckins() {
+  try {
+    const o = JSON.parse(localStorage.getItem(CHECKIN_KEY) || 'null');
+    return (o && typeof o === 'object' && o.st && typeof o.st === 'object') ? o : { v: 1, st: {} };
+  } catch (e) { return { v: 1, st: {} }; }
+}
+function saveCheckins(c) { try { localStorage.setItem(CHECKIN_KEY, JSON.stringify(c)); } catch (e) {} }
+// 站的收集總表:rides 推導的「跟完」疊上 checkins 的真實打卡,鍵=sys|name(與 schedStations 同一套去重規則)
+function stationCollection(rides) {
+  const m = new Map();
+  const at = (sys, name) => {
+    const k = (sys || 'tra_sched') + '|' + name;
+    let cur = m.get(k);
+    if (!cur) { cur = { name, sys: sys || 'tra_sched', s: 'follow', n: 0, d: '' }; m.set(k, cur); }
+    return cur;
+  };
+  for (const r of (rides || [])) {
+    for (const nm of [r.from, r.to]) {
+      if (!nm) continue;
+      const cur = at(r.sys, nm);
+      cur.n++;
+      if (r.date && r.date > cur.d) cur.d = r.date;
+    }
+  }
+  const ck = loadCheckins().st;
+  for (const k in ck) {
+    const e = ck[k];
+    if (!e || !e.name) continue;
+    const cur = at(e.sys, e.name), s = STN_STATUS_RANK[e.s] != null ? e.s : 'visit';
+    if (STN_STATUS_RANK[s] > STN_STATUS_RANK[cur.s]) cur.s = s;
+    cur.n += Math.max(1, Number(e.n) || 1);
+    if (e.d && e.d > cur.d) cur.d = e.d;
+  }
+  return m;
+}
+// 站等 → 章面升級(設計書第 4 節 L2:不手工挑特別站,讓既有資料自己說話)。
+// state.schedStations.tier 是現成的(台鐵吃站等表、其他系統用停靠班次啟發式,見 loadAllGroup);
+// 查不到的(捷運各線未載入時)一律當一般站,不影響收集本身。
+function stationTierMap() {
+  const m = new Map();
+  for (const s of (state.schedStations || [])) m.set(s.sys + '|' + s.name, s.tier);
+  return m;
+}
+function buildStationStamps(rides) {
+  const coll = stationCollection(rides);
+  if (!coll.size) return '';
+  const tierM = stationTierMap();
+  const items = [...coll.values()].sort((a, b) => b.n - a.n || a.name.localeCompare(b.name, 'zh-Hant'));
+  const visited = items.filter(i => i.s === 'visit').length;
+  return `<div class="ph-sec">車站收集<b>${coll.size}</b>` +
+    (visited ? `<span style="letter-spacing:0;font-weight:600">到訪 ${visited}</span>` : '') + `</div><div class="ph-stamps">` +
+    items.map(i => {
+      const cls = 'stn-seal ' + i.s + (tierM.get(i.sys + '|' + i.name) === 0 ? ' t0' : '');
+      const tip = i.name + '・' + STN_STATUS_LABEL[i.s] + (i.n > 1 ? '　' + i.n + ' 次' : '') + (i.d ? '　最近 ' + i.d : '');
+      return `<span class="${cls}" title="${escHtml(tip)}"><b>${sealName(i.name)}</b>` +
+        (i.n > 1 ? `<small class="cnt">×${i.n}</small>` : `<small>${STN_STATUS_LABEL[i.s]}</small>`) + `</span>`;
+    }).join('') + `</div>`;
+}
 // 收集章(明星列車/車種圖鑑/支線行腳):完成與否皆掛點擊鉤子→got 章也可點重播;桌面與 sheet 逐字相同
 function buildStamps(rides) {
   const sd = state.special;
@@ -8386,7 +8473,8 @@ function renderPassport() {
   const longest = rides.reduce((a, r) => Math.max(a, Number(r.km) || 0), 0);
   // Batch B:收集章/成就/完乘列改走共用 builder(輸出與舊版逐字相同,桌面護照零變化)
   const rideSort = getRideSortMode();
-  const stamps = buildStamps(rides) + buildAchv(rides, 'seal');
+  const stamps = buildStamps(rides) + buildStationStamps(rides) + buildAchv(rides, 'seal');
+  const stnCount = stationCollection(rides).size;
   const list = buildRideRows(rides, rideSort);
   // 排序切換鈕:有記錄才顯示(空清單沒東西可排);選中狀態直接烤進 HTML,不用另外 sync
   const sortSeg = list ? `<span class="seg ph-sort" id="phSortSeg">${Object.entries(RIDE_SORT_LABELS)
@@ -8399,7 +8487,9 @@ function renderPassport() {
     `<div class="ph-head"><b>旅程護照</b><span class="ph-tgl">${open ? '收合 ▲' : '展開 ▼'}</span>` +
     `<span class="ph-sub">從發車一路跟到終點就蓋一枚完乘章（調速可以・跳時間不算）· 灰色的章點了帶你從發車搭一趟</span>` +
     `<span class="ph-stats">完乘 <b>${rides.length}</b> 趟 · 總里程 <b>${totalKm.toLocaleString()}</b> km` +
-    (longest ? ` · 最長一趟 <b>${longest.toLocaleString()}</b> km` : '') + `</span></div>` +
+    (longest ? ` · 最長一趟 <b>${longest.toLocaleString()}</b> km` : '') +
+    // 護照預設收合,收合時只看得到這行——車站收集要在這裡露出,否則使用者不會知道它存在
+    (stnCount ? ` · 車站 <b>${stnCount}</b> 座` : '') + `</span></div>` +
     `<div class="ph-body">` + stamps +
     `<div class="ph-sec ph-sec-rides">完乘記錄${sortSeg}</div>` +
     (list ? `<div class="ph-list">${list}</div>`
