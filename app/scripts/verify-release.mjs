@@ -194,6 +194,16 @@ export async function verifyRelease({
   assert(!/<b>\$\{f\.train\}<\/b>/.test(html),
     '「我的最愛」仍把未逸出的 ${f.train} 直接插入 innerHTML——stored XSS 迴歸,不可發行');
 
+  // Stored XSS 迴歸（稽核 2026-07-26）：showToast 的參數直接進 innerHTML（announceCollections 等
+  // 呼叫端刻意傳 <b>），所以「逸出」的責任在呼叫端。地點名(pins 的 label)可由 Takeout 匯入或帳號
+  // 同步帶進來,是最容易被污染的一條;上面那條規則只看「我的最愛」面板,抓不到 toast 這條路。
+  assert(/showToast\(label \? \('已儲存地點「' \+ escHtml\(label\)/.test(html),
+    '儲存地點的 toast 未以 escHtml 逸出地點名——stored XSS 迴歸,不可發行');
+  assert(/showToast\(p\.label \? \('已設「' \+ escHtml\(p\.label\)/.test(html),
+    '設為預設啟動地點的 toast 未以 escHtml 逸出地點名——stored XSS 迴歸,不可發行');
+  assert(!/showToast\([^\n]*?[^l](label|\bp\.label)\s*\+/.test(html.replace(/escHtml\((label|p\.label)\)/g, 'SAFE')),
+    'showToast 仍有未逸出的地點名字串拼接——stored XSS 迴歸,不可發行');
+
   // 版本一致性（QA 2026-07-21）：確保發行包確實含最新網站修正,而不是舊產物綠燈通過。
   const extractBuild = source => source.match(/const BUILD\s*=\s*'([^']+)'/)?.[1] ?? null;
   const wwwBuild = extractBuild(html);
