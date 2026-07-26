@@ -1032,6 +1032,195 @@ try {
     cmMobOff.on === false && cmMobOff.barHidden && cmMobOff.tabBack,
     `collectMap=${cmMobOff.on}　狀態列隱藏=${cmMobOff.barHidden}　tabbar 回來=${cmMobOff.tabBack}`);
 
+  // ── L 護照分節收合（使用者 2026-07-26：「旅程護照現在佔太大塊了」）──
+  // 判準刻意不同源（心得 29）：不讀 ppSecOpen()／localStorage 當「有沒有收起來」的證據
+  //（那是實作自己的狀態，實作判斷錯就會一起錯成綠燈），一律量**實際渲染高度**與
+  //  真的用滑鼠／手指點下去之後畫面變成怎樣——高度與命中都是外部性質。
+  const lSeed = await page.evaluate(() => {
+    localStorage.removeItem('trainmap-passport-secs');   // 從乾淨預設起手，測的是「預設值」
+    localStorage.setItem('trainmap-passport-open', '1');
+    // 用多條線湊出**真實規模**的車站牆：只取一條線只有 31 座，那個量級根本踩不到
+    // 「車站牆太高」這個功能存在的理由，測出來的節省幅度會失真。
+    const recs = [...lineNetwork().values()].sort((a, b) => b.segs.length - a.segs.length).slice(0, 6);
+    if (!recs.length) return { missing: true };
+    const st = {}, sg = {};
+    recs.forEach(rec => rec.segs.forEach((sgm, i) => {
+      sg[sgm.key] = 1;
+      for (const nm of [sgm.a, sgm.b])
+        st[favStationKey({ sys: rec.sys, name: nm })] = { name: nm, sys: rec.sys, s: 'pass', n: 1 + (i % 3), d: '2026-07-20' };
+    }));
+    const rec = recs[0];
+    localStorage.setItem('trainmap-checkins-v1', JSON.stringify({ v: 1, st, sg }));
+    userDataSaveCollection('rides', [
+      { train: 'R1', sys: rec.sys, kind: '區間', from: rec.segs[0].a, to: rec.segs[0].b, km: 10, date: '2026-07-20', dep: 30000, stops: 3 },
+      { train: 'R2', sys: rec.sys, kind: '自強', from: rec.segs[1].a, to: rec.segs[1].b, km: 20, date: '2026-07-21', dep: 30000, stops: 4 },
+    ]);
+    renderPassport();
+    return { nStn: Object.keys(st).length, nSeg: Object.keys(sg).length };
+  });
+  info('L 基準', lSeed.missing ? '找不到夠長的線' : `造 ${lSeed.nStn} 座站／${lSeed.nSeg} 段（車站牆上限 24）`);
+
+  // 各節標題與其內容區的實際高度（內容區＝標題的下一個兄弟）
+  const secState = () => page.evaluate(() => {
+    const out = {};
+    for (const h of document.querySelectorAll('#passport .ph-sec[data-sec]')) {
+      const body = h.nextElementSibling;
+      out[h.dataset.sec] = {
+        closed: h.classList.contains('closed'),
+        bodyH: body ? Math.round(body.getBoundingClientRect().height) : -1,
+        caret: !!h.querySelector('.ph-caret'),
+        n: Number(h.dataset.n) || 0,
+      };
+    }
+    out._total = Math.round(document.getElementById('passport').getBoundingClientRect().height);
+    return out;
+  });
+  const s0 = await secState();
+  const secKeys = Object.keys(s0).filter(k => k[0] !== '_');
+  ok('L1 每一節都長出收合把手（箭頭），且節數如預期',
+    secKeys.length >= 6 && secKeys.every(k => s0[k].caret),
+    `${secKeys.length} 節：${secKeys.join('／')}`);
+
+  // 站數 60 > 上限 24 → 車站收集該「預設就收起」；封頂的圖鑑三節該預設展開
+  ok('L2 沒上限的車站收集預設收起，封頂的圖鑑／成就預設展開（不是一律收起）',
+    s0.stn && s0.stn.closed && s0.stn.bodyH === 0 &&
+    ['named', 'stock', 'branch'].every(k => s0[k] && !s0[k].closed && s0[k].bodyH > 0),
+    `車站收集 closed=${s0.stn && s0.stn.closed}(${s0.stn && s0.stn.n} 座)　` +
+    `明星/車種/支線 bodyH=${['named','stock','branch'].map(k => s0[k] ? s0[k].bodyH : '-').join('/')}`);
+
+  // 真的用滑鼠點標題列（不是呼叫函式）
+  await page.click('#passport .ph-sec[data-sec="named"]');
+  const s1 = await secState();
+  ok('L3 點標題列真的收起來：內容區渲染高度歸零，整卡跟著變矮',
+    s1.named.closed && s1.named.bodyH === 0 && s1._total < s0._total,
+    `明星列車 bodyH ${s0.named.bodyH}→${s1.named.bodyH}　整卡 ${s0._total}→${s1._total}px`);
+  await page.click('#passport .ph-sec[data-sec="stn"]');
+  const s2 = await secState();
+  ok('L4 再點收起的那節會展開（雙向都通）',
+    !s2.stn.closed && s2.stn.bodyH > 0,
+    `車站收集 bodyH ${s0.stn.bodyH}→${s2.stn.bodyH}`);
+
+  // 車站牆收斂：預設只露 24 座 ＋「還有 N 座」；點了露出全部
+  const wall0 = await page.evaluate(() => ({
+    seals: document.querySelectorAll('#passport .stn-seal').length,
+    more: (document.querySelector('#passport .stn-more') || {}).textContent || '',
+  }));
+  await page.click('#passport .stn-more');
+  const wall1 = await page.evaluate(() => ({
+    seals: document.querySelectorAll('#passport .stn-seal').length,
+    more: (document.querySelector('#passport .stn-more') || {}).textContent || '',
+  }));
+  ok('L5 車站牆預設只露上限那批，「還有 N 座」點了真的全部展開',
+    wall0.seals === 24 && /還有 \d+ 座/.test(wall0.more) && wall1.seals === lSeed.nStn && /收起/.test(wall1.more),
+    `${wall0.seals} 座「${wall0.more.trim()}」→ 點擊後 ${wall1.seals} 座「${wall1.more.trim()}」（實際共 ${lSeed.nStn} 座）`);
+
+  // 節內按鈕不可以被收合把手吃掉（收集地圖鈕、完乘記錄排序鈕都長在標題列上）
+  await page.click('#passport [data-act="collectmap"]');
+  const mapOn = await page.evaluate(() => ({ on: state.collectMap, linesClosed: !!document.querySelector('#passport .ph-sec[data-sec="lines"].closed') }));
+  await page.evaluate(() => setCollectMap(false));
+  ok('L6 標題列上的「🗺 收集地圖」鈕點了是進收集地圖，不是把那一節收起來',
+    mapOn.on === true && mapOn.linesClosed === false,
+    `collectMap=${mapOn.on}　路線完乘那節被誤收=${mapOn.linesClosed}`);
+
+  const sortBefore = await page.evaluate(() => (document.querySelector('#phSortSeg button.on') || {}).dataset?.v || '');
+  const sortOther = await page.evaluate(() => {
+    const b = [...document.querySelectorAll('#phSortSeg button')].find(x => !x.classList.contains('on'));
+    return b ? b.dataset.v : '';
+  });
+  if (sortOther) await page.click(`#phSortSeg button[data-v="${sortOther}"]`);
+  const sortAfter = await page.evaluate(() => ({
+    v: (document.querySelector('#phSortSeg button.on') || {}).dataset?.v || '',
+    ridesClosed: !!document.querySelector('#passport .ph-sec[data-sec="rides"].closed'),
+  }));
+  ok('L7 完乘記錄的排序鈕點了是換排序，不是把那一節收起來',
+    !!sortOther && sortAfter.v === sortOther && sortAfter.ridesClosed === false,
+    `排序 ${sortBefore}→${sortAfter.v}　完乘記錄那節被誤收=${sortAfter.ridesClosed}`);
+
+  // 標題列排版：加了前置箭頭之後，「完乘記錄」不可以被 space-between 推到中間
+  const headLayout = await page.evaluate(() => {
+    const h = document.querySelector('#passport .ph-sec-rides');
+    if (!h) return { missing: true };
+    const caret = h.querySelector('.ph-caret');
+    const tn = [...h.childNodes].find(n => n.nodeType === 3 && n.textContent.trim());
+    if (!caret || !tn) return { missing: true };
+    const r = document.createRange(); r.selectNodeContents(tn);
+    return { gap: Math.round(r.getBoundingClientRect().left - caret.getBoundingClientRect().right) };
+  });
+  ok('L8 「完乘記錄」標題緊跟在箭頭後面（沒被排版推開）',
+    !headLayout.missing && headLayout.gap >= 0 && headLayout.gap < 24,
+    headLayout.missing ? '找不到標題列' : `箭頭與文字間距 ${headLayout.gap}px（門檻 <24）`);
+
+  // 收合狀態要記得住：重開一頁看同一節還是不是收著的
+  await page.click('#passport .ph-sec[data-sec="achv"]');
+  // 必須 reload 同一個 context——browser.newContext() 的 localStorage 是隔離的，
+  // 開新 context 去驗「有沒有記住」永遠會 FAIL，而且是測試自己的錯不是產品的錯。
+  await page.reload({ waitUntil: 'load' });
+  await page.waitForFunction(() => typeof state !== 'undefined' && state.trains && state.trains.length > 0, { timeout: 40000 });
+  await page.waitForTimeout(600);
+  const persisted = await page.evaluate(() => {
+    document.getElementById('howtoWrap')?.remove();
+    localStorage.setItem('trainmap-passport-open', '1'); renderPassport();
+    const h = document.querySelector('#passport .ph-sec[data-sec="achv"]');
+    return { closed: h ? h.classList.contains('closed') : null,
+      bodyH: h && h.nextElementSibling ? Math.round(h.nextElementSibling.getBoundingClientRect().height) : -1 };
+  });
+  ok('L9 收合狀態跨頁面記得住（重開一頁，剛收起的那節還是收著）',
+    persisted.closed === true && persisted.bodyH === 0,
+    `成就徽章 closed=${persisted.closed}　bodyH=${persisted.bodyH}`);
+
+  // 整體效果：與「全部展開＋車站牆不收斂」相比要明顯變矮
+  const heights = await page.evaluate(() => {
+    const pp = document.getElementById('passport');
+    const prefs = { named: 1, stock: 1, branch: 1, stn: 1, lines: 1, achv: 1, rides: 1, stnAll: 1 };
+    localStorage.setItem('trainmap-passport-secs', JSON.stringify(prefs));
+    renderPassport();
+    const all = Math.round(pp.getBoundingClientRect().height);
+    localStorage.removeItem('trainmap-passport-secs');
+    renderPassport();
+    return { all, def: Math.round(pp.getBoundingClientRect().height), vh: innerHeight };
+  });
+  ok('L10 預設狀態比「全部攤開」省下可觀高度，且收得進一個視窗',
+    heights.all - heights.def >= 200 && heights.def <= heights.vh,
+    `全部攤開 ${heights.all}px → 預設 ${heights.def}px（省 ${heights.all - heights.def}px，門檻 ≥200）　` +
+    `${(heights.def / heights.vh).toFixed(2)} 個視窗（門檻 ≤1.0）`);
+
+  // 手機 sheet：真觸控收合（手機的護照長在 #ridePanel，走的是另一條 render 路徑）
+  const { page: lmp, ctx: lmctx } = await open(browser, { width: 390, height: 844, touch: true });
+  await lmp.waitForTimeout(800);
+  const mobSec = await lmp.evaluate(() => {
+    localStorage.removeItem('trainmap-passport-secs');
+    const rec = [...lineNetwork().values()].find(r => r.segs.length >= 30);
+    const st = {}, sg = {};
+    rec.segs.slice(0, 30).forEach((sgm, i) => {
+      sg[sgm.key] = 1;
+      for (const nm of [sgm.a, sgm.b]) st[favStationKey({ sys: rec.sys, name: nm })] = { name: nm, sys: rec.sys, s: 'pass', n: 1, d: '2026-07-20' };
+    });
+    localStorage.setItem('trainmap-checkins-v1', JSON.stringify({ v: 1, st, sg }));
+    document.getElementById('howtoWrap')?.remove();
+    openRidePanel();
+    const h = document.querySelector('#ridePanel .ph-sec[data-sec="named"]');
+    if (h) h.scrollIntoView({ block: 'center' });
+    return { has: !!h };
+  });
+  await lmp.waitForTimeout(500);
+  const mob0 = await lmp.evaluate(() => {
+    const h = document.querySelector('#ridePanel .ph-sec[data-sec="named"]');
+    const r = h.getBoundingClientRect();
+    const hit = document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2);
+    return { bodyH: Math.round(h.nextElementSibling.getBoundingClientRect().height),
+      hitSelf: !!(hit && (h.contains(hit) || hit === h)), hitTag: hit ? (hit.id || hit.className || hit.tagName) : 'null',
+      x: r.x + r.width / 2, y: r.y + r.height / 2 };
+  });
+  if (mob0.hitSelf) await lmp.touchscreen.tap(mob0.x, mob0.y);
+  const mob1 = await lmp.evaluate(() => {
+    const h = document.querySelector('#ridePanel .ph-sec[data-sec="named"]');
+    return { closed: h.classList.contains('closed'), bodyH: Math.round(h.nextElementSibling.getBoundingClientRect().height) };
+  });
+  await lmctx.close();
+  ok('L11 手機 390：護照 sheet 內的節標題真的觸控得到，點下去就收起',
+    mobSec.has && mob0.hitSelf && mob1.closed && mob1.bodyH === 0,
+    `命中 ${mob0.hitSelf ? '自己' : mob0.hitTag}　bodyH ${mob0.bodyH}→${mob1.bodyH}`);
+
   await hmp.evaluate(([train, sys]) => { // 截圖前把畫面還原成挑站中
     const tr = state.trains.find(x => String(x.train) === train && x.sys === sys);
     state.followTrain = tr; state.mode = 'sched';
