@@ -1610,6 +1610,55 @@
   }
   .takeout-status { min-height: 20px; color: var(--muted); font-size: 12px; }
   .takeout-status.err { color: var(--red); font-weight: 700; }
+
+  /* ── 使用說明中心(Modal 家族;入口=更多 sheet 首列/首訪卡/頁尾/?help=1) ──
+     刻意不進 .board 家族:.board 要加進 soloPanel 的互斥鏈＋每個 opener 補一行 close(10+ 處),
+     而說明中心不需要跟地圖同時操作(每節的「試一次」就是代你操作),modal 天然置頂、零級聯改動。
+     示意圖示與開關沿用既有 .hw-tag/.hw-stnbox/.seal/.toggle/.seg,亮暗主題自動跟著走。 */
+  .help-body { padding-bottom: calc(16px + env(safe-area-inset-bottom, 0px)); }
+  .help-quick { border: 1.5px solid var(--gold); border-radius: 11px; padding: 10px 12px; margin-bottom: 12px; background: var(--bg-stage); }
+  .help-qh { font-size: 13px; font-weight: 900; letter-spacing: 1px; color: var(--plate-ink); margin-bottom: 6px; }
+  .help-qstep { display: flex; gap: 9px; align-items: center; font-size: 12.5px; margin: 7px 0; }
+  .help-qstep .no {
+    flex: none; width: 19px; height: 19px; border-radius: 50%; background: var(--navy); color: var(--on-navy);
+    font-size: 11px; font-weight: 900; display: grid; place-items: center;
+  }
+  .help-qstep .tx { flex: 1; }
+  .help-grp { border: 1px solid var(--line); border-radius: 11px; margin-bottom: 9px; overflow: hidden; }
+  .help-grph {
+    width: 100%; display: flex; align-items: center; gap: 8px; padding: 10px 12px; min-height: 44px;
+    background: var(--bg-stage); border: 0; font: inherit; color: var(--ink); text-align: left; cursor: pointer;
+  }
+  .help-grph b { flex: 1; font-size: 13.5px; letter-spacing: 1.5px; }
+  .help-grph .cnt { font-size: 11px; color: var(--faint); font-weight: 700; }
+  .help-grph .chev { font-size: 13px; color: var(--faint); transition: transform .16s; }
+  .help-grp.open .help-grph .chev { transform: rotate(90deg); }
+  .help-grpb { display: none; padding: 2px 11px 8px; }
+  .help-grp.open .help-grpb { display: block; }
+  .help-sec { border-bottom: 1px dashed var(--line-dash); padding: 11px 1px 12px; }
+  .help-sec:last-child { border-bottom: 0; }
+  .help-sech { display: flex; align-items: center; gap: 8px; margin-bottom: 5px; }
+  .help-ic { flex: none; width: 30px; display: flex; justify-content: center; font-size: 14px; font-weight: 900; color: var(--navy); }
+  .help-nm { flex: 1; font-size: 13px; font-weight: 900; letter-spacing: .8px; color: var(--ink-strong, var(--ink)); }
+  .help-badge {
+    font-size: 10px; font-weight: 800; letter-spacing: .5px; padding: 1px 6px; border-radius: var(--r-pill);
+    background: var(--paper); color: var(--navy); border: 1px solid var(--line);
+  }
+  .help-sec .one { font-size: 12.5px; margin: 0 0 6px; line-height: 1.7; }
+  .help-sec ol { margin: 0 0 7px; padding-left: 19px; font-size: 12px; color: var(--muted); line-height: 1.75; }
+  .help-sec .tip { font-size: 11.5px; color: var(--faint); margin: 0 0 7px; line-height: 1.7; }
+  .help-sec .tip b, .help-tail b { color: var(--muted); }
+  .help-foot { display: flex; align-items: center; gap: 8px; }
+  .help-foot .sp { flex: 1; }
+  .help-try {
+    font: inherit; font-size: 11.5px; font-weight: 800; letter-spacing: .5px; cursor: pointer; min-height: 32px;
+    background: var(--paper); color: var(--plate-ink); border: 1.5px solid var(--navy);
+    border-radius: var(--r-pill); padding: 4px 12px;
+  }
+  .help-try:hover { background: var(--navy); color: var(--on-navy); }
+  .help-tail { padding: 11px 1px 2px; }
+  .help-tail .one { font-size: 12.5px; margin: 0 0 6px; }
+  .help-tail a { color: var(--navy); font-weight: 700; }
   .takeout-summary { display: flex; flex-wrap: wrap; gap: 6px; margin: 10px 0; }
   .takeout-summary span { padding: 3px 8px; border: 1px solid var(--line); border-radius: var(--r-pill); background: var(--bg-stage); font-size: 11px; }
   .takeout-summary .ok { color: var(--ok); border-color: var(--ok); background: transparent; }
@@ -2485,68 +2534,6 @@ try { if (matchMedia('(max-width: 900px)').matches) document.body.classList.add(
     </button>
     <div class="rec-pill" id="recPill" hidden title="停止錄影並下載影片"><span class="rd"></span>REC <span id="recTime">0:00</span><span class="rstop">停止</span></div>
     <div class="rec-toast" id="recToast" hidden><span id="recToastTxt"></span><button id="recRedl">再下載一次</button><button class="x" id="recToastX" title="關閉">×</button></div>
-    <div class="takeout-modal" id="takeoutModal" hidden>
-      <section class="takeout-dialog" role="dialog" aria-modal="true" aria-labelledby="takeoutTitle">
-        <div class="takeout-head"><h2 id="takeoutTitle">匯入 Google 已儲存清單</h2><button id="takeoutX" type="button" aria-label="關閉">×</button></div>
-        <div class="takeout-body">
-          <p class="takeout-help">從 Google Takeout 選擇「Saved」匯出後，可直接選 ZIP；也支援解壓後的 CSV、JSON 或 GeoJSON。檔案只在這台裝置內解析，不會上傳。</p>
-          <input class="takeout-file" id="takeoutFile" type="file" accept=".zip,.csv,.json,.geojson,application/zip,text/csv,application/json">
-          <div class="takeout-status" id="takeoutStatus">選擇檔案後會先預覽，不會立刻寫入收藏。</div>
-          <div id="takeoutPreview"></div>
-        </div>
-        <div class="takeout-actions"><button class="cancel" id="takeoutCancel" type="button">取消</button><button class="confirm" id="takeoutConfirm" type="button" disabled>匯入已勾選地點</button></div>
-      </section>
-    </div>
-    <div class="takeout-modal account-modal" id="accountModal" hidden>
-      <section class="takeout-dialog account-dialog" role="dialog" aria-modal="true" aria-labelledby="accountTitle">
-        <div class="takeout-head"><h2 id="accountTitle">軌島帳號</h2><button id="accountX" type="button" aria-label="關閉">×</button></div>
-        <div class="takeout-body" id="accountBody"><p class="account-intro">正在讀取登入狀態…</p></div>
-      </section>
-    </div>
-    <div class="takeout-modal plus-modal" id="plusModal" hidden>
-      <section class="takeout-dialog plus-dialog" role="dialog" aria-modal="true" aria-labelledby="plusTitle">
-        <div class="takeout-head"><h2 id="plusTitle">軌島 Plus</h2><button id="plusX" type="button" aria-label="關閉">×</button></div>
-        <div class="takeout-body" id="plusBody"><p class="account-intro">正在讀取購買資格…</p></div>
-      </section>
-    </div>
-    <div class="takeout-modal notify-modal" id="notifyModal" hidden>
-      <section class="takeout-dialog notify-dialog" role="dialog" aria-modal="true" aria-labelledby="notifyTitle">
-        <div class="takeout-head"><h2 id="notifyTitle">到站提醒</h2><button id="notifyClose" type="button">×</button></div>
-        <div class="takeout-body notify-body">
-          <div class="notify-train"><span id="notifyTrainLabel">車次</span><span class="notify-sys" id="notifySys"></span><span id="notifyTrain"></span></div>
-          <label class="notify-field"><span id="notifyStationLabel">提醒站點</span><select id="notifyStation"></select></label>
-          <div class="notify-field notify-basis-field" id="notifyBasisField"><span>提醒基準</span><div class="notify-basis" id="notifyBasis" role="group" aria-label="提醒基準"><button type="button" data-basis="dep">開車前</button><button type="button" data-basis="arr">到達前</button></div></div>
-          <div class="notify-field"><span><span>提前</span><small class="notify-mode" id="notifyModeLabel">開車前</small></span><div class="notify-offsets" id="notifyOffsets">
-            <label><input type="radio" name="notifyOffset" value="5"><span>5</span></label>
-            <label><input type="radio" name="notifyOffset" value="10" checked><span>10</span></label>
-            <label><input type="radio" name="notifyOffset" value="15"><span>15</span></label>
-            <label><input type="radio" name="notifyOffset" value="30"><span>30</span></label>
-          </div></div>
-          <label class="notify-field"><span>步行到車站</span><span class="notify-walk"><input id="notifyWalk" type="number" min="0" max="60" step="1" inputmode="numeric" value="0"><span>分鐘</span></span></label>
-          <div class="notify-preview" id="notifyPreview"></div>
-          <div class="notify-permission" id="notifyPermission" hidden><span>通知權限已關閉，請到 設定 &gt; 軌島 開啟</span><button id="notifySettings" type="button" hidden>開啟設定</button></div>
-          <button class="notify-primary" id="notifySave" type="button">設定提醒</button>
-          <div class="notify-list"><b>已排提醒</b><div id="notifyReminderList"></div></div>
-        </div>
-      </section>
-      <div class="notify-primer" id="notifyPrimer" hidden>
-        <section class="notify-primer-card" role="dialog" aria-modal="true" aria-labelledby="notifyPrimerTitle">
-          <h3 id="notifyPrimerTitle">開車前叫你</h3>
-          <p>快到你設定的時間時，軌島會發通知提醒你。通知只在你設定的班次前出現，不會有廣告或雜訊。</p>
-          <div class="notify-primer-actions"><button class="yes" id="notifyPrimerYes" type="button">好，提醒我</button><button class="later" id="notifyPrimerLater" type="button">先不要</button></div>
-        </section>
-      </div>
-    </div>
-    <div class="takeout-modal pinname-modal" id="pinNameModal" hidden>
-      <section class="takeout-dialog pinname-dialog" role="dialog" aria-modal="true" aria-labelledby="pinNameTitle">
-        <div class="takeout-head"><h2 id="pinNameTitle">命名地點</h2><button id="pinNameX" type="button" aria-label="關閉">×</button></div>
-        <div class="takeout-body">
-          <p class="takeout-help">給這個位置取個名字，方便日後在「我的最愛」裡找到。不填也可以，之後仍可從最愛移除。</p>
-          <input class="pinname-input" id="pinNameInput" type="text" maxlength="40" placeholder="例如：家、公司、常去的車站" autocomplete="off">
-        </div>
-        <div class="takeout-actions"><button class="cancel" id="pinNameCancel" type="button">取消</button><button class="confirm" id="pinNameSave" type="button">儲存地點</button></div>
-      </section>
-    </div>
     <div class="badge">
       <span class="clock" id="clock">08:00</span>
       <span class="live" id="liveBadge" hidden>LIVE</span>
@@ -2604,13 +2591,14 @@ try { if (matchMedia('(max-width: 900px)').matches) document.body.classList.add(
     <div class="howto-wrap" id="howtoWrap" hidden>
       <div class="howto" role="dialog" aria-modal="true" aria-labelledby="howtoTitle">
         <div class="hw-head"><div class="lbl">歡迎搭乘</div><div class="ttl" id="howtoTitle">軌島怎麼玩</div></div>
+        <!-- 三行＝「三步上手」;文案與 HELP_QUICK 的 short 同一句,改一邊要同步另一邊
+             (刻意留靜態 HTML:首訪第一眼不等 JS,比照 #lead／#systems 的靜態佔位慣例) -->
         <div class="hw-rows">
-          <div class="hw-row"><span class="ic"><span class="hw-tag">431</span></span><span>點<b>列車</b>＝跟著它跑，陪到終點蓋完乘章</span></div>
-          <div class="hw-row"><span class="ic"><span class="hw-stnbox"><i></i></span></span><span>點<b>車站</b>＝看接下來的班次看板</span></div>
-          <div class="hw-row"><span class="ic"><span class="seal na" style="width:30px;height:30px;padding:0"><b style="font-size:7px">章</b></span></span><span><b>灰章可點</b>＝隨機挑一班該類列車重播</span></div>
-          <div class="hw-row"><span class="ic" style="font-size:15px;color:var(--navy)">⤮</span><span>不知看哪班？<b>隨機跟隨</b>幫你挑</span></div>
+          <div class="hw-row"><span class="ic" style="font-size:12px;font-weight:900;color:var(--navy)">台鐵</span><span>上面<b>台／鐵／高／捷</b>選要看哪個系統</span></div>
+          <div class="hw-row"><span class="ic"><span class="hw-tag">431</span></span><span>點<b>列車</b>＝鏡頭跟著它跑，陪到終點蓋完乘章</span></div>
+          <div class="hw-row"><span class="ic"><span class="hw-stnbox"><i></i></span></span><span>點<b>車站</b>＝看接下來的班次與倒數</span></div>
         </div>
-        <div class="hw-foot"><button class="hw-go" id="howtoGo">開始看車</button><button class="hw-skip" id="howtoSkip">不再顯示</button></div>
+        <div class="hw-foot"><button class="hw-go" id="howtoGo">開始看車</button><button class="hw-skip" id="howtoMore">看完整說明</button><button class="hw-skip" id="howtoSkip">不再顯示</button></div>
       </div>
     </div>
     <!-- 站台帶:播放/速度/時間＋地圖工具合體,貼 stage 下緣(金色月台警戒線收邊) -->
@@ -2734,6 +2722,8 @@ try { if (matchMedia('(max-width: 900px)').matches) document.body.classList.add(
         <li><span class="d">7/26</span><span>跟著車按「我上車了」並選好在哪站下車，沿路每過一站就自動蓋一枚章，下車那站也會補上——全程只在上下車兩點用到定位，不會一直背景追蹤你</span></li>
         <li><span class="d">7/26</span><span>搭過的路段會一起收集，護照顯示「最常搭的一段」與每條路線各自的完乘率；新增四枚成就：車站巡禮、百站達成，以及同一段路來回搭滿 100／500 次的通勤成就</span></li>
         <li><span class="d">7/26</span><span>護照裡多了「🗺 收集地圖」：點進去全台路網轉灰，只有你搭過的區間會亮起來，一眼看得出哪裡還沒去過</span></li>
+        <li><span class="d">7/26</span><span>新增「📖 使用說明」：從「更多」第一列打開，搜尋、跟車、車站看板、儲存地點、放空模式等功能都有圖文步驟，每節按「試一次」還會直接幫你操作一遍；首訪卡也多了「看完整說明」入口</span></li>
+        <li><span class="d">7/26</span><span>手機／App 的匯入清單、Plus、到站提醒、命名地點對話框修好了：底部頁籤不再蓋住下緣按鈕，也不會被誤按到</span></li>
         <li><span class="d">7/26</span><span>跟隨資訊卡的「×」和地圖上的跟隨鎖鈕變好按了：以前 × 只有一丁點大，手指常常戳不到</span></li>
         <li><span class="d">7/26</span><span>手機／App 底部的「地圖」鈕換成「🔍 搜尋」：以前搜尋藏在「探」面板裡，第一次用很難發現；現在一按就能查站名、車次或列車名稱</span></li>
         <li><span class="d">7/25</span><span>台鐵自強、莒光等快車經過不停靠的小站時，位置改用最近一次改點後的實際到站紀錄推算：以前是用固定的加速減速曲線硬算，現在會反映這班車在這段路真正跑多快，全網近九成的跳站路段都有實測撐著</span></li>
@@ -2846,6 +2836,8 @@ try { if (matchMedia('(max-width: 900px)').matches) document.body.classList.add(
         <li><span class="d">7/11</span><span>今日之最的列車在地圖上加繪金色漣漪光環</span></li>
         <li><span class="d">7/9</span><span>旅程護照與 16 枚成就徽章、「探」今日亮點面板上線</span></li>
         <li class="grp">手機與操作</li>
+        <li><span class="d">7/26</span><span>新增「📖 使用說明」：從「更多」第一列打開，搜尋、跟車、車站看板、儲存地點、放空模式等功能都有圖文步驟，每節按「試一次」還會直接幫你操作一遍；首訪卡也多了「看完整說明」入口</span></li>
+        <li><span class="d">7/26</span><span>手機／App 的匯入清單、Plus、到站提醒、命名地點對話框修好了：底部頁籤不再蓋住下緣按鈕，也不會被誤按到</span></li>
         <li><span class="d">7/26</span><span>手機／App 底部的「地圖」鈕換成「🔍 搜尋」：以前搜尋藏在「探」面板裡，第一次用很難發現；現在一按就能查站名、車次或列車名稱</span></li>
         <li><span class="d">7/25</span><span>手機／App 的「隨機跟隨」與「附近車站」並排成一列移到時鐘下方，不再壓住左上角的時鐘</span></li>
         <li><span class="d">7/25</span><span>手機列車控制帶點一下就展開（原本要點兩下），展開後多了跟電腦版一樣的時刻尺：拖著就能把時間往前往後帶；「放空模式」收進「更多」</span></li>
@@ -2929,6 +2921,7 @@ try { if (matchMedia('(max-width: 900px)').matches) document.body.classList.add(
       <p class="foot-note">本站為個人愛好者專案，與台灣鐵路公司及各捷運公司皆無關。台鐵套用官方即時誤點；北捷、高捷、桃園機捷與高雄輕軌營運時段依官方到站看板即時校正；新北捷運（環狀線、淡海輕軌、安坑輕軌）營運時段依官方列車動態即時校正；其餘捷運／輕軌依當日官方時刻表推演（部分路線無公開逐班時刻，為班距推算）。實際到離站時刻請以各營運機構官方資訊為準。</p>
     </details>
     <div class="foot-links">
+      <a class="help-open" href="#" role="button">📖 使用說明</a>
       <a href="https://github.com/siriushsu/taiwan-rail-live/issues/new" target="_blank" rel="noopener noreferrer">📍 回報問題或建議</a>
       <a href="https://github.com/siriushsu/taiwan-rail-live" target="_blank" rel="noopener noreferrer">⭐ 開源專案，歡迎貢獻</a>
       <span class="ver" id="buildVer"></span>
@@ -2963,6 +2956,84 @@ try { if (matchMedia('(max-width: 900px)').matches) document.body.classList.add(
   </footer>
 </div>
 
+<!-- 使用說明中心:內容由 renderHelp() 依 HELP_GROUPS 生成(每節的代點目標不存在就不長出那顆「試一次」)。
+     **刻意放 body 層、不放 .stage 裡**:手機版 .stage 是 position:fixed + z-index:1000,自成堆疊脈絡,
+     放進去的話 z-index:2200 會被封頂成 1000,底部就被 tabbar(body 層 z1100)蓋住,最後一節點不到
+     (2026-07-26 用 elementFromPoint 量到底緣命中 tabbar 的 .tl 才發現)。 -->
+<div class="takeout-modal" id="helpModal" hidden>
+  <section class="takeout-dialog help-dialog" role="dialog" aria-modal="true" aria-labelledby="helpTitle">
+    <div class="takeout-head"><h2 id="helpTitle">使用說明</h2><button id="helpX" type="button" aria-label="關閉">×</button></div>
+    <div class="takeout-body help-body" id="helpBody"></div>
+  </section>
+</div>
+<!-- Takeout 匯入／帳號／Plus／到站提醒／命名地點 五顆對話框:**刻意放 body 層、不放 .stage 裡**。
+     手機版 .stage 是 position:fixed + z-index:1000,自成堆疊脈絡,放進去的話這裡的 z-index:2200 會被
+     封頂成 1000,而 tabbar 是 body 層 z-index:1100 → tabbar 反而畫在對話框之上:遮住視窗較短機身的
+     dialog 底部(實測 375x667 的 Plus 對話框底緣被蓋 34px),且五顆 tab 在對話框開著時仍可點,scrim 形同虛設。
+     (2026-07-26 對五顆逐一用 elementFromPoint 量出;日後新增任何 .takeout-modal 一律加在這裡) -->
+<div class="takeout-modal" id="takeoutModal" hidden>
+  <section class="takeout-dialog" role="dialog" aria-modal="true" aria-labelledby="takeoutTitle">
+    <div class="takeout-head"><h2 id="takeoutTitle">匯入 Google 已儲存清單</h2><button id="takeoutX" type="button" aria-label="關閉">×</button></div>
+    <div class="takeout-body">
+      <p class="takeout-help">從 Google Takeout 選擇「Saved」匯出後，可直接選 ZIP；也支援解壓後的 CSV、JSON 或 GeoJSON。檔案只在這台裝置內解析，不會上傳。</p>
+      <input class="takeout-file" id="takeoutFile" type="file" accept=".zip,.csv,.json,.geojson,application/zip,text/csv,application/json">
+      <div class="takeout-status" id="takeoutStatus">選擇檔案後會先預覽，不會立刻寫入收藏。</div>
+      <div id="takeoutPreview"></div>
+    </div>
+    <div class="takeout-actions"><button class="cancel" id="takeoutCancel" type="button">取消</button><button class="confirm" id="takeoutConfirm" type="button" disabled>匯入已勾選地點</button></div>
+  </section>
+</div>
+<div class="takeout-modal account-modal" id="accountModal" hidden>
+  <section class="takeout-dialog account-dialog" role="dialog" aria-modal="true" aria-labelledby="accountTitle">
+    <div class="takeout-head"><h2 id="accountTitle">軌島帳號</h2><button id="accountX" type="button" aria-label="關閉">×</button></div>
+    <div class="takeout-body" id="accountBody"><p class="account-intro">正在讀取登入狀態…</p></div>
+  </section>
+</div>
+<div class="takeout-modal plus-modal" id="plusModal" hidden>
+  <section class="takeout-dialog plus-dialog" role="dialog" aria-modal="true" aria-labelledby="plusTitle">
+    <div class="takeout-head"><h2 id="plusTitle">軌島 Plus</h2><button id="plusX" type="button" aria-label="關閉">×</button></div>
+    <div class="takeout-body" id="plusBody"><p class="account-intro">正在讀取購買資格…</p></div>
+  </section>
+</div>
+<div class="takeout-modal notify-modal" id="notifyModal" hidden>
+  <section class="takeout-dialog notify-dialog" role="dialog" aria-modal="true" aria-labelledby="notifyTitle">
+    <div class="takeout-head"><h2 id="notifyTitle">到站提醒</h2><button id="notifyClose" type="button">×</button></div>
+    <div class="takeout-body notify-body">
+      <div class="notify-train"><span id="notifyTrainLabel">車次</span><span class="notify-sys" id="notifySys"></span><span id="notifyTrain"></span></div>
+      <label class="notify-field"><span id="notifyStationLabel">提醒站點</span><select id="notifyStation"></select></label>
+      <div class="notify-field notify-basis-field" id="notifyBasisField"><span>提醒基準</span><div class="notify-basis" id="notifyBasis" role="group" aria-label="提醒基準"><button type="button" data-basis="dep">開車前</button><button type="button" data-basis="arr">到達前</button></div></div>
+      <div class="notify-field"><span><span>提前</span><small class="notify-mode" id="notifyModeLabel">開車前</small></span><div class="notify-offsets" id="notifyOffsets">
+        <label><input type="radio" name="notifyOffset" value="5"><span>5</span></label>
+        <label><input type="radio" name="notifyOffset" value="10" checked><span>10</span></label>
+        <label><input type="radio" name="notifyOffset" value="15"><span>15</span></label>
+        <label><input type="radio" name="notifyOffset" value="30"><span>30</span></label>
+      </div></div>
+      <label class="notify-field"><span>步行到車站</span><span class="notify-walk"><input id="notifyWalk" type="number" min="0" max="60" step="1" inputmode="numeric" value="0"><span>分鐘</span></span></label>
+      <div class="notify-preview" id="notifyPreview"></div>
+      <div class="notify-permission" id="notifyPermission" hidden><span>通知權限已關閉，請到 設定 &gt; 軌島 開啟</span><button id="notifySettings" type="button" hidden>開啟設定</button></div>
+      <button class="notify-primary" id="notifySave" type="button">設定提醒</button>
+      <div class="notify-list"><b>已排提醒</b><div id="notifyReminderList"></div></div>
+    </div>
+  </section>
+  <div class="notify-primer" id="notifyPrimer" hidden>
+    <section class="notify-primer-card" role="dialog" aria-modal="true" aria-labelledby="notifyPrimerTitle">
+      <h3 id="notifyPrimerTitle">開車前叫你</h3>
+      <p>快到你設定的時間時，軌島會發通知提醒你。通知只在你設定的班次前出現，不會有廣告或雜訊。</p>
+      <div class="notify-primer-actions"><button class="yes" id="notifyPrimerYes" type="button">好，提醒我</button><button class="later" id="notifyPrimerLater" type="button">先不要</button></div>
+    </section>
+  </div>
+</div>
+<div class="takeout-modal pinname-modal" id="pinNameModal" hidden>
+  <section class="takeout-dialog pinname-dialog" role="dialog" aria-modal="true" aria-labelledby="pinNameTitle">
+    <div class="takeout-head"><h2 id="pinNameTitle">命名地點</h2><button id="pinNameX" type="button" aria-label="關閉">×</button></div>
+    <div class="takeout-body">
+      <p class="takeout-help">給這個位置取個名字，方便日後在「我的最愛」裡找到。不填也可以，之後仍可從最愛移除。</p>
+      <input class="pinname-input" id="pinNameInput" type="text" maxlength="40" placeholder="例如：家、公司、常去的車站" autocomplete="off">
+    </div>
+    <div class="takeout-actions"><button class="cancel" id="pinNameCancel" type="button">取消</button><button class="confirm" id="pinNameSave" type="button">儲存地點</button></div>
+  </section>
+</div>
+
 <!-- 手機 App 殼(≤640 顯示;桌面 CSS 藏):底部 tab bar＋「更多」sheet(原 ☰ 抽屜的繼承者) -->
 <nav class="tabbar" id="tabbar" aria-label="主要導覽">
   <!-- 搜尋(v0726a 取代原「◉ 地圖」):搜尋原本藏在亮點 sheet 裡,第一次用的人發現不了,升為一級入口 -->
@@ -2979,6 +3050,8 @@ try { if (matchMedia('(max-width: 900px)').matches) document.body.classList.add(
   <div class="ms-body" id="moreBody">
     <!-- data-act=theme 列內含真 <button>(seg 三顆),不可巢狀 button,維持 div;其餘列 v0718i 改真 button 供鍵盤 Tab/Enter 直達 -->
     <!-- 議題3:四段分組(地圖顯示/資訊/觀看模式/分享與資料);列本身原封只重排,被旗標隱藏的列(recBtn/accountBtn/locateBtn)按性質歸段 -->
+    <!-- 使用說明:刻意排在所有分組之前(第一次找不到功能的人第一眼就看到);桌面走同一個 sheet(#toolsFab) -->
+    <button class="ms-row" data-act="help" data-close="1"><span>📖 使用說明</span><span class="chev">›</span></button>
     <div class="ms-sec">地圖顯示</div>
     <div class="ms-row" data-act="theme"><span>◐ 外觀</span><span class="seg" id="msThemeSeg"><button data-v="light">亮</button><button data-v="dark">暗</button><button data-v="auto">自動</button></span></div>
     <button class="ms-row" data-proxy="satBtn"><span>衛星影像</span><span class="toggle" data-tg="satBtn"></span></button>
@@ -3021,6 +3094,7 @@ try { if (matchMedia('(max-width: 900px)').matches) document.body.classList.add(
     <div class="ms-sec" id="msAboutSec">關於</div>
     <div class="ms-about" id="msAbout"></div>
     <div class="ms-about-links">
+      <a class="help-open" href="#" role="button">📖 使用說明</a>
       <a href="https://github.com/siriushsu/taiwan-rail-live/issues/new" target="_blank" rel="noopener noreferrer">📍 回報問題或建議</a>
       <span class="ver" id="msBuildVer"></span>
     </div>
@@ -3031,7 +3105,7 @@ try { if (matchMedia('(max-width: 900px)').matches) document.body.classList.add(
 <script>
 // 版本戳記:每次改版 push 前手動遞增(字母序),畫面時鐘徽章與 console 都會顯示,
 // 供比對線上跑的是不是最新版(瀏覽器快取 max-age=600 常讓人看到舊版)
-const BUILD = 'v0726a';
+const BUILD = 'v0726c';
 const TRACK_AUDIT = new URLSearchParams(location.search).get('audit') === 'tracks';
 // 手機/平板直式「殼」斷點(議題1:640→900,iPad 直式改拿 tabbar＋更多抽屜):與 CSS @media 同步,版面類判斷一律用此常數。
 // 注意:裝置等級判斷(keepBuffer/powerSave 預設)刻意不用此常數、維持 640——iPad 不該因為改拿 tabbar 就被當低階裝置。
@@ -11723,6 +11797,271 @@ function toggleMsFlow() {
     computeFlow(); drawFlow();
   } else collapseMsFlow();
 }
+// ── 使用說明中心 ─────────────────────────────────────────────────────────────
+// 殼用 modal 家族(理由見 CSS 區塊):不進 soloPanel 互斥鏈、零級聯改動。
+// 這張資料表就是說明的唯一來源,每節 { key, ic, nm, badge, one, steps, tip, tipDesktop, tg, avail, try }：
+//   avail 決定「這一節要不要存在」(平台/旗標)。不成立整節不渲染——不教一個按不到的功能。
+//   needs 同上的簡寫:值＝那顆真鈕的 id,鈕不在(下架/授權沒過/衛星 token 失敗被 remove)整節不渲染。
+//   try   是「試一次」的鍵。鍵的代點目標不在(功能下架、或當前檢視沒有那顆鈕)就只是不長那顆鈕,本節照樣在。
+//   tg    要顯示目前開關狀態的節,值＝那顆真鈕的 id,狀態一律讀 state._msState(與「更多」sheet 同一個來源)。
+const HELP_QUICK = [
+  { ic: '<span style="font-size:12px;font-weight:900;color:var(--navy)">台鐵</span>',
+    tx: '上面「台／鐵／高／捷」四顆選你想看的：<b>台</b>＝全台一次看、<b>鐵</b>＝台鐵與林鐵、<b>高</b>＝高鐵、<b>捷</b>＝各家捷運與輕軌' },
+  { ic: '<span class="hw-tag">431</span>', tx: '點畫面上任一<b>車號牌</b>，鏡頭就跟著那班車跑', try: 'follow' },
+  { ic: '<span class="hw-stnbox"><i></i></span>', tx: '點任一<b>車站</b>，看接下來有哪些車要進站、還有幾分鐘', try: 'board' },
+];
+const HELP_GROUPS = [
+  { key: 'a', name: '看車', open: true, secs: [
+    { key: 'search', ic: '⌕', nm: '搜尋車站、車次、列車名',
+      one: '一個框三種用法：站名、車次號碼、觀光列車名稱都查得到。',
+      steps: ['手機按底部「🔍 搜尋」、桌面點右上的搜尋框', '輸入「台北」找車站、輸入「431」找那班車、輸入「鳴日」找列車介紹', '從下拉選一項——選車次會直接開始跟車'],
+      tip: '同名站或共構站（例如板橋的台鐵與捷運）會先讓你選是哪一個。', try: 'search' },
+    { key: 'follow', ic: '<span class="hw-tag">431</span>', nm: '點列車＝跟著它跑',
+      one: '車號牌是可以點的。點了鏡頭就跟著那班車，左下角出現它的下一站與誤點。',
+      steps: ['點任一車號牌', '看下一站、誤點、全程速度曲線', '想停就按卡片的 ×，或點地圖空白處'],
+      tip: '跟到終點會蓋一枚完乘章（收在「護照」）。加速播放沒問題，但中途跳時間就不算。', try: 'follow' },
+    { key: 'board', ic: '<span class="hw-stnbox"><i></i></span>', nm: '點車站＝接下來的班次看板',
+      one: '看板由近到遠列出接下來要進站的車，還有幾分鐘到。',
+      steps: ['點地圖上任一車站', '看板列出接下來的班次與倒數', '點其中一班可以直接跟車；標題右邊 ☆ 把這站加進最愛'],
+      tip: '台鐵套用官方即時誤點；北捷、高捷、機捷、高雄輕軌在營運時段依官方到站看板校正。', try: 'board' },
+    { key: 'rand', ic: '⤮', nm: '隨機跟隨', one: '不知道要看哪班，交給它挑一班。',
+      steps: ['按地圖上的「隨機跟隨」', '不喜歡再按一次換一班', '小卡的 × 結束'], try: 'follow' },
+    { key: 'time', ic: '❚❚', nm: '時間軸：暫停、快轉、回看',
+      one: '畫面跑的是「今天的時刻表」，時間可以停、可以快、可以往回看。',
+      steps: ['最左邊那顆是暫停／播放', '拖倍速滑桿，1× 到 60×', '手機拖時刻尺、桌面按 ← → 各移動 10 分鐘', '想回到真實時間按「現在」'],
+      tipDesktop: '快捷鍵：<b>空白鍵</b>暫停　<b>1</b>–<b>4</b>倍速　<b>←</b><b>→</b> ±10 分　<b>F</b>全畫面', try: 'pause' },
+    { key: 'explore', ic: '探', nm: '今日亮點', one: '今天有哪些特別列車（觀光列車、加班車）與今日之最。',
+      steps: ['底部「亮點」或工具列的「探」', '點任一列車看介紹卡', '有班次的可以直接跟車'], try: 'explore' },
+    { key: 'today', ic: '今', nm: '今日台鐵動態與誤點履歷',
+      one: '今天全台鐵每班車誤點多少、每一站怎麼延誤，一次看完。',
+      steps: ['「更多」→ 今日台鐵動態', '點任一班次看逐站歷程', '跟台鐵車時，卡片上的「誤點履歷 ›」可看這班車過去 90 天的準點率'],
+      tip: '誤點資料每分鐘更新，來源是交通部 TDX。', try: 'today' },
+  ]},
+  { key: 'b', name: '我的', open: false, secs: [
+    { key: 'locate', ic: '<span style="color:var(--gps)">◎</span>', nm: '定位與附近車站', badge: 'App', avail: () => LOCATE_ENABLED,
+      one: '開 App 就落在你附近；「附近車站」告訴你最近的車站與下一班車還有幾分鐘。',
+      steps: ['首次會問一次定位權限', '按地圖上的「附近車站」', '點清單裡的站直接開看板'],
+      tip: '你的位置只在這台裝置上用來顯示，不會上傳、也不會在背景取用。不給權限也能用，改用下面的「儲存地點」。', try: 'near' },
+    { key: 'pin', ic: '釘', nm: '儲存地點', tg: 'pinBtn',
+      one: '把家、公司、拍車點存下來，看有哪些火車會經過那裡。',
+      steps: ['「更多」→ 打開「儲存地點」', '點地圖上任一位置', '取個名字存起來', '之後點那個釘，看接下來經過的列車與倒數'],
+      tip: '也可以從 Google Maps 的「已儲存」清單匯入；檔案只在這台裝置解析，不會上傳。', try: 'pin' },
+    { key: 'fav', ic: '★', nm: '最愛', one: '常看的車次與車站收起來，下次直接從「最愛」進去。',
+      steps: ['跟車卡或看板標題的 ★／☆ 點一下收藏', '從底部「最愛」看全部', '再點一次取消收藏'], try: 'fav' },
+    { key: 'ride', ic: '<span class="seal na" style="width:26px;height:26px;padding:0"><b style="font-size:7px">章</b></span>', nm: '旅程護照與完乘章',
+      one: '跟完一整趟就蓋一枚章，收集起來變成你的旅程紀錄。',
+      steps: ['從發車跟到終點', '章會出現在「護照」', '灰色的章可以點——它隨機挑一班該類列車，從發車前 20 秒開始重播給你跟'],
+      tip: '加速播放沒問題，中途跳時間就不算。', try: 'ride' },
+    { key: 'stncollect', ic: '<span class="stn-seal visit" style="width:26px;height:26px;padding:0"><b style="font-size:7px">站</b></span>', nm: '車站收集章',
+      one: '去過的車站會變成一枚章，收在護照裡；同一座站去越多次，章上的數字越大。',
+      steps: ['章有三種：跟完（在 App 裡跟完動畫）、搭過（搭車經過）、到訪（人真的踏上月台）', '跟完一趟車，起訖站自動成章', '人在車站時，從「附近車站」按該站的蓋章鈕，就升級成到訪章'],
+      tip: '蓋章只在你按下去的當下讀一次位置，不會在背景一直追蹤你。每站每天算一次。', try: 'ride' },
+    { key: 'riding', ic: '🎫', nm: '搭乘模式：我上車了',
+      one: '真的在車上時按一下，沿路每過一站就自動幫你蓋一枚章。',
+      steps: ['先跟著你要搭的那班車', '按卡片上的「🎫 我上車了」，並選好在哪一站下車', '之後不用管它——車每過一站就蓋一枚，到站自動結束'],
+      tip: '只在上車、下車兩個點用到你的位置，中間由列車自己的時刻推算，所以進隧道、關螢幕都不影響。上車時就要選下車站，否則忘了按下車會一路蓋到終點。', try: 'follow' },
+    { key: 'collectmap', ic: '🗺', nm: '收集地圖',
+      one: '一張只屬於你的地圖：全台路網轉灰，只有你搭過的區間亮起來。',
+      steps: ['打開「護照」', '在「路線完乘」那一列按「🗺 收集地圖」', '看哪裡還是灰的，就是還沒去過的地方', '按上方的「離開」回到即時地圖'],
+      tip: '搭快車被跳過的小站也算走過——你確實通過了那段軌道。每條路線的完乘率分開算。', try: 'collectmap' },
+    { key: 'notify', ic: '🔔', nm: '到站提醒', badge: 'App', avail: () => NOTIFY_LOCAL_ENABLED,
+      one: '跟著車的時候可以排提醒，快到站前手機會響。',
+      steps: ['先跟一班車', '卡片上的 🔔 選要提醒的站', '「更多」→「已排提醒」可以查看與取消'],
+      tip: '提醒依時刻表與即時誤點推算，實際到站請以現場為準。', try: 'notify' },
+    { key: 'xing', ic: '平', nm: '平交道', tg: 'xingBtn',
+      one: '全台 415 處台鐵平交道，看接下來哪班車會通過。',
+      steps: ['「更多」→ 打開「平交道記號」', '把地圖拉近就看得到記號', '點任一平交道，看接下來通過的列車與倒數'],
+      tip: '遮斷機通常提前 30–60 秒動作，請以現場號誌為準。', try: 'xing' },
+  ]},
+  { key: 'c', name: '模式與外觀', open: false, secs: [
+    { key: 'ambient', ic: '◌', nm: '放空模式', one: '全畫面自動導演，不用操作，掛著看就好。',
+      steps: ['按「放空模式」', '用「視角」切換：跟車＝跟著一班車跑；群車＝鏡頭停在當下最忙的路段看列車交錯', '動一下畫面就回到手動'],
+      tip: '久沒動會進「劇場模式」把介面淡掉，動一下就回來。', try: 'ambient' },
+    { key: 'music', ic: '♪', nm: '背景音樂', tg: 'musicBtn', needs: 'musicBtn', one: '掛著看車時的背景音樂，可以換首。',
+      steps: ['「更多」→ 背景音樂', '「換首」跳下一首'], try: 'music' },
+    { key: 'sat', ic: '衛', nm: '衛星影像', tg: 'satBtn', needs: 'satBtn', one: '把底圖換成衛星照片，看得到實際的軌道與站場。',
+      steps: ['「更多」→ 衛星影像'], tip: '拉太近時衛星影像可能還沒有那麼清晰的圖資。', try: 'sat' },
+    { key: 'theme', ic: '◐', nm: '外觀：亮／暗／自動', one: '自動＝跟著系統的深色模式走。', seg: true },
+    { key: 'track', ic: '軌', nm: '軌道與路線', one: '軌道要不要畫、要看哪些車種與路線，都在這裡。',
+      steps: ['「更多」→ 軌道與路線', '軌道顯示：自動／淡化／隱藏', '用票根勾選要看的車種與路線'], try: 'track' },
+    { key: 'extras', ic: '簡', nm: '看得更清楚',
+      one: '極簡沉浸只留地圖與列車；省電模式降到約 30fps，手機掛著看更省電；還可以開列車方向箭頭、特殊站介紹、縣市快速移動。',
+      steps: ['以上全在「更多」裡逐項開關'], tip: '手機長時間掛著看，建議打開省電模式。' },
+    { key: 'share', ic: '↗', nm: '分享', one: '把現在的畫面（地點＋時間）或正在跟的車分享給別人，對方打開就是同一個畫面。',
+      steps: ['按「分享」', '選分享畫面或分享正在跟的車', '複製連結傳出去'],
+      tip: '分享行程只給班次與到站時間，不會分享你的位置。', try: 'share' },
+    { key: 'fs', ic: '⛶', nm: '全畫面', one: '把介面收掉，只留地圖。',
+      steps: ['按地圖右上的四角鈕', '桌面也可以按 F', '再按一次或 Esc 退出'] },
+  ]},
+];
+// 「試一次」：{ id 代點目標(也是可用性判準), run 自訂動作, ok 額外可用性, toast 執行後提示 }
+// 手勢型功能(點列車、點車站)沒有鈕可代,改代「等價動作」——跟車＝隨機跟一班、看板＝開離畫面中心最近的站。
+const HELP_TRY = {
+  search: { id: 'trainSearch', toast: '搜尋框已填「台北」，從下拉挑一項',
+    run: () => { const i = document.getElementById('trainSearch'); if (!i) return; i.focus(); i.value = '台北'; i.dispatchEvent(new Event('input', { bubbles: true })); } },
+  follow: { id: 'randBtn', toast: '正在跟一班車——小卡的 × 可以結束' },
+  board: { ok: () => !!helpNearestStation(),
+    run: () => { const st = helpNearestStation(); if (!st) return showToast('這個檢視附近沒有車站，換個系統頁籤再試'); openBoard(st); map.panTo(focusCenter(st.lat, st.lon)); } },
+  pause: { id: 'pp', toast: '已暫停——按站台帶最左邊那顆就繼續' },
+  explore: { id: 'exploreBtn' },
+  today: { id: 'todayBtn' },
+  fav: { id: 'favBtn' },
+  ride: { id: 'rideBtn' },
+  near: { id: 'nearBtn' },
+  pin: { id: 'pinBtn', toast: '落釘模式已開——點地圖任一處，看有哪些火車經過那裡' },
+  notify: { ok: () => NOTIFY_LOCAL_ENABLED, run: () => openLocalReminderOverview() },
+  xing: { id: 'xingBtn', toast: '平交道記號已開——拉近地圖後點任一處，看接下來通過的車' },
+  ambient: { id: 'ambientBtn', toast: '已進放空模式——動一下畫面就回到手動' },
+  music: { id: 'musicBtn' },
+  sat: { id: 'satBtn', toast: '已切成衛星影像——從「更多」再按一次可切回地圖' },
+  track: { id: 'trackBtn' },
+  collectmap: { ok: () => Object.keys(segmentCollection() || {}).length > 0,
+    run: () => setCollectMap(true), toast: '這是你的收集地圖——按上方「離開」回到即時地圖' },
+  share: { id: 'shareBtn' },
+};
+// 離畫面中心最近的車站(「試一次」開看板用):複用附近車站那套候選(當前檢視看得到的站,共構站各留一筆)
+function helpNearestStation() {
+  if (typeof nearbyStationCandidates !== 'function' || typeof map === 'undefined' || !map) return null;
+  const cs = nearbyStationCandidates(); if (!cs.length) return null;
+  const c = map.getCenter(), me = { lat: c.lat, lon: c.lng };
+  return cs.map(o => ({ st: o.st, km: haversineKm(me, { lat: o.st.lat, lon: o.st.lon }) }))
+    .sort((a, b) => a.km - b.km)[0].st;
+}
+// 某顆真鈕現在到底能不能用:不存在(下架/授權沒過被 remove)、被藏、display:none 都算不能用。
+// 音樂鈕的可用性掛在 #musicCtl(比照 syncMoreSheet);needs 與 try 共用這把尺,不讓兩處漂移。
+function helpElUsable(id) {
+  const el = document.getElementById(id); if (!el) return false;
+  const host = el.closest('#musicCtl') || el;
+  return !host.hidden && el.style.display !== 'none';
+}
+function helpSecOk(s) {
+  if (s.avail && !s.avail()) return false;
+  if (s.needs && !helpElUsable(s.needs)) return false;
+  return true;
+}
+function helpTryOk(key) {
+  const t = HELP_TRY[key]; if (!t) return false;
+  if (t.ok && !t.ok()) return false;
+  if (t.id && !helpElUsable(t.id)) return false;
+  return true;
+}
+function helpTryBtn(key, label) {
+  if (!key || !helpTryOk(key)) return '';
+  return '<button class="help-try" type="button" data-try="' + key + '">' + (label || '試一次') + ' ›</button>';
+}
+function helpSecHtml(s, mob) {
+  const tgOn = s.tg && state._msState && state._msState[s.tg] ? state._msState[s.tg]() : null;
+  let h = '<div class="help-sec" data-sec="' + s.key + '"><div class="help-sech">'
+    + '<span class="help-ic">' + s.ic + '</span><span class="help-nm">' + s.nm + '</span>'
+    + (s.badge ? '<span class="help-badge">' + s.badge + '</span>' : '')
+    + (tgOn === null ? '' : '<span class="toggle' + (tgOn ? ' on' : '') + '" aria-hidden="true"></span>')
+    + '</div><p class="one">' + s.one + '</p>';
+  if (s.steps && s.steps.length) h += '<ol>' + s.steps.map(t => '<li>' + t + '</li>').join('') + '</ol>';
+  if (s.tip) h += '<p class="tip">' + s.tip + '</p>';
+  if (s.tipDesktop && !mob) h += '<p class="tip help-kbd">' + s.tipDesktop + '</p>'; // 手機沒有實體鍵盤,整段不出現
+  const seg = s.seg ? '<span class="seg" id="helpThemeSeg">'
+    + ['light', 'dark', 'auto'].map((v, i) => '<button type="button" data-v="' + v + '"'
+      + (v === (state.appearance || 'auto') ? ' class="on"' : '') + '>' + ['亮', '暗', '自動'][i] + '</button>').join('')
+    + '</span>' : '';
+  const tryBtn = helpTryBtn(s.try);
+  if (seg || tryBtn) h += '<div class="help-foot"><span class="sp"></span>' + seg + tryBtn + '</div>';
+  return h + '</div>';
+}
+function renderHelp() {
+  const body = document.getElementById('helpBody'); if (!body) return;
+  const mob = window.matchMedia(MOBILE_MQ).matches;
+  let h = '<div class="help-quick"><div class="help-qh">第一次來？三步上手</div>'
+    + HELP_QUICK.map((q, i) => '<div class="help-qstep"><span class="no">' + (i + 1) + '</span>'
+      + '<span class="tx">' + q.tx + '</span>' + helpTryBtn(q.try, '試試') + '</div>').join('')
+    + '</div>';
+  HELP_GROUPS.forEach(g => {
+    const secs = g.secs.filter(helpSecOk);
+    if (!secs.length) return;
+    h += '<div class="help-grp' + (g.open ? ' open' : '') + '" data-grp="' + g.key + '">'
+      + '<button class="help-grph" type="button" aria-expanded="' + (g.open ? 'true' : 'false') + '">'
+      + '<span class="chev" aria-hidden="true">›</span><b>' + g.name + '</b><span class="cnt">' + secs.length + ' 項</span></button>'
+      + '<div class="help-grpb">' + secs.map(s => helpSecHtml(s, mob)).join('') + '</div></div>';
+  });
+  h += '<div class="help-tail"><p class="one"><b>還是卡住？</b>用頁尾的「回報問題或建議」告訴我，'
+    + '<a href="https://github.com/siriushsu/taiwan-rail-live/issues/new" target="_blank" rel="noopener noreferrer">開一則 issue</a> 也可以。</p>'
+    + '<p class="tip">畫面上的列車位置是依<b>當日時刻表推演</b>並套用<b>即時誤點</b>校正，不是列車的實際 GPS 位置；'
+    + '實際到離站時刻請以各營運機構官方資訊為準。</p></div>';
+  body.innerHTML = h;
+}
+function openHelp() {
+  const m = document.getElementById('helpModal'); if (!m) return;
+  const hw = document.getElementById('howtoWrap'); // 兩張卡不疊:首訪卡開著就收掉並記已看過(否則關掉說明又跳回首訪卡)
+  if (hw && !hw.hidden) { hw.hidden = true; try { localStorage.setItem('trainmap-howto-seen', '1'); } catch (e) {} }
+  state._helpOpener = document.activeElement;
+  renderHelp();
+  m.hidden = false;
+  const body = document.getElementById('helpBody'); if (body) body.scrollTop = 0;
+  requestAnimationFrame(() => { const x = document.getElementById('helpX'); if (x) x.focus(); });
+}
+function closeHelp() {
+  const m = document.getElementById('helpModal'); if (!m || m.hidden) return;
+  m.hidden = true;
+  const o = state._helpOpener; state._helpOpener = null;
+  if (o && typeof o.focus === 'function' && document.contains(o)) o.focus();
+}
+// 「試一次」＝先關說明再執行(代點目標不能被 scrim 蓋著),開關型補一句吐司說明怎麼關回去
+function helpRun(key) {
+  const t = HELP_TRY[key]; if (!t) return;
+  closeHelp();
+  setTimeout(() => {
+    try { if (t.run) t.run(); else { const el = document.getElementById(t.id); if (el) el.click(); } } catch (e) {}
+    if (t.toast) showToast(t.toast);
+    if (state._syncMoreSheet) state._syncMoreSheet(); // 開關型:「更多」sheet 的開關同步跟上
+  }, 60);
+}
+// 驗收用(verify_help.mjs):確認每顆渲染出來的「試一次」都有活著的代點目標
+function helpAudit() {
+  return {
+    tryKeys: Object.keys(HELP_TRY),
+    rendered: [...document.querySelectorAll('#helpBody .help-try')].map(b => b.dataset.try),
+    dead: [...document.querySelectorAll('#helpBody .help-try')].map(b => b.dataset.try).filter(k => !helpTryOk(k)),
+    secs: [...document.querySelectorAll('#helpBody .help-sec')].map(s => s.dataset.sec),
+  };
+}
+function setupHelp() {
+  const m = document.getElementById('helpModal'); if (!m) return;
+  document.getElementById('helpX').onclick = closeHelp;
+  m.addEventListener('click', e => { if (e.target === m) closeHelp(); });
+  document.addEventListener('keydown', e => { if (e.key === 'Escape' && !m.hidden) { e.stopPropagation(); closeHelp(); } });
+  document.getElementById('helpBody').addEventListener('click', e => {
+    const gh = e.target.closest('.help-grph');
+    if (gh) { const on = gh.parentElement.classList.toggle('open'); gh.setAttribute('aria-expanded', String(on)); return; }
+    const seg = e.target.closest('#helpThemeSeg button');
+    // setAppearance 是 setupTheme 內的局部函式,跨作用域一律走既有的 state._setAppearance(比照 _setXing/_setDropMode)
+    if (seg) {
+      if (state._setAppearance) state._setAppearance(seg.dataset.v);
+      seg.parentElement.querySelectorAll('button').forEach(b => b.classList.toggle('on', b === seg));
+      return;
+    }
+    const t = e.target.closest('.help-try');
+    if (t) helpRun(t.dataset.try);
+  });
+  document.querySelectorAll('.help-open').forEach(a => a.addEventListener('click', e => {
+    e.preventDefault(); if (typeof setMore === 'function') setMore(false); openHelp();
+  }));
+  const more = document.getElementById('howtoMore');
+  if (more) more.onclick = () => openHelp(); // openHelp 自己會收首訪卡並寫入 seen
+  // ?help=1:客服頁/商店文案/回信可以直接連進來(不必另外維護一份說明頁)。直播/導播模式不彈。
+  let want = false; try { want = new URLSearchParams(location.search).get('help') === '1'; } catch (e) {}
+  if (want && !state.liveMode && !state.director) {
+    // 不能立刻開:setupHelp 跑在 boot 中段,此時班表還沒算完、衛星 token 還沒回、隨機跟隨還沒露出,
+    // 渲染出來的節會是過期的(缺「試一次」或列出其實不存在的功能)。等時鐘徽章的班次數出現(=資料就位)再開,
+    // 最多等 4 秒就照現況開,不讓深連結永遠開不出來。
+    let n = 0;
+    const tick = () => {
+      const c = document.getElementById('count');
+      if ((c && c.textContent.trim()) || ++n > 40) requestAnimationFrame(openHelp);
+      else setTimeout(tick, 100);
+    };
+    setTimeout(tick, 100);
+  }
+}
+
 function setupMapTools() {
   const fsFab = document.getElementById('fsFab');
   const themeBtn = document.getElementById('themeBtn');
@@ -11801,12 +12140,14 @@ function setupMapTools() {
       b.classList.toggle('on', b.dataset.v === (state.appearance || 'auto')));
   }
   state._syncMoreSheet = syncMoreSheet;
+  state._msState = MS_STATE; // 使用說明中心的開關狀態也讀這份,避免「這功能開著沒」有兩套判斷
   document.getElementById('moreBody').addEventListener('click', e => {
     const segBtn = e.target.closest('#msThemeSeg button');
     if (segBtn) { setAppearance(segBtn.dataset.v); syncMoreSheet(); return; }
     const chip = e.target.closest('#msCities button[data-city]'); // 縣市 chip:飛過去並關 sheet
     if (chip) { flyToCity(chip.dataset.city); setMore(false); return; }
     const row = e.target.closest('.ms-row'); if (!row) return;
+    if (row.dataset.act === 'help') { setMore(false); openHelp(); return; }
     if (row.dataset.act === 'track') { setMore(false); openTrackPanel(); return; }
     if (row.dataset.act === 'notify') { setMore(false); openLocalReminderOverview(); return; } // 已排提醒總覽
 
@@ -11835,6 +12176,7 @@ function setupMapTools() {
     document.addEventListener('keydown', e => { if (e.key === 'Escape' && !wrap.hidden) done(); }); // v0718i:Esc 可關,比照 takeoutModal 家族
     requestAnimationFrame(() => { const go = document.getElementById('howtoGo'); if (go) go.focus(); }); // v0718i:開啟時 focus 主要按鈕,不做完整 focus trap
   })();
+  setupHelp(); // 使用說明中心的四個入口與 ?help=1(要排在 setupHowto 之後:兩張卡不疊,help 開了就收首訪卡)
   // 手機:跟隨小卡與跟隨鎖鈕依站台帶(速度膠囊)實際位置讓位——膠囊展開(cexp)變高時上移,收回還原。
   // 桌面帶常駐 stage 下緣、跟隨卡 CSS 固定 bottom 86px 在帶上方,不需 JS 重排。
   function placeFsOverlays() {
