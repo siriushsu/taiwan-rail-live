@@ -2962,6 +2962,10 @@ const state = {
 };
 let map, cv, ctx;
 let baseLayers = {}; // light / dark / sat Leaflet 圖層
+// 網站版衛星圖磚的 Esri token 改由 Worker 的 /api/basemap-token 下發(不寫進這個公開 repo,見 boot 內註解)。
+// 'ready'=可切衛星(App 殼與離線版恆 ready,金鑰由 build 直接注入);'pending'=還在要 token,先不切過去
+// 免得送出無 token 的圖磚請求吃 401;'failed'=要不到,衛星鈕整顆藏掉。
+let satTokenState = 'ready';
 const PEAK = [[7, 9], [17, 19.5]];
 const SCHED_K = 1; // 1x speed = real time (1 sim-second per real-second)
 const FONT = '-apple-system, "PingFang TC", "Noto Sans TC", sans-serif';
@@ -11086,7 +11090,7 @@ function setBasemap() {
   const stage = document.querySelector('.stage');
   const online = onlineBasemapsAvailable();
   if (!online) state.basemap = 'map';
-  const sat = online && state.basemap === 'sat';
+  const sat = online && state.basemap === 'sat' && satTokenState === 'ready'; // token 未到位前先維持一般地圖,不送無 token 的圖磚請求
   stage.classList.toggle('sat', sat);
   stage.classList.toggle('dark', state.mapDark && !sat);
   // 跟車中鏡頭連續平移,detectRetina 版衛星圖磚量 4 倍會讓載入變慢,改用無 detectRetina 的 satLQ
@@ -12050,7 +12054,9 @@ async function boot() {
   if (!TILES) TILES = {
     light: { url: 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', subdomains: 'abcd', maxZoom: 20, attribution: '&copy; OpenStreetMap &copy; CARTO' },
     dark: { url: 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', subdomains: 'abcd', maxZoom: 20, attribution: '&copy; OpenStreetMap &copy; CARTO' },
-    sat: { url: 'https://ibasemaps-api.arcgis.com/arcgis/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}?token=AAPTa2rC_hYi6rt_T5uidVPTslg..ZrcFv6NFHaVoEz9jUtpDnrdauG_BMbQ2WstK_tGa_ILj6Leg62fZ30hvjYMgs0ZC24zY241S3DhDYDJeteNQ6akGN7jpJTHr9gLHk1FilgQu8tuB2QMk0-MxdkBBnV43EJIawg1u1WxDac0Oi0K1u5dTK8f9snuKwBpVIrK_3HHhl-kQM3l-FJnDrKvhlP8OFlPuHneMxlzG2u0V75GBJEXTnXTcCEOFBnODSPuN-6qkQ9SoXBKO-gY_fg..AT1_K900LxEz', maxZoom: 19, attribution: 'Tiles &copy; Esri — Source: Esri, Maxar, Earthstar Geographics' }
+    // 衛星的 Esri token 刻意不寫在這裡:repo 是公開的,寫死等於連 git 歷史一起推上 GitHub
+    // (2026-07-25 就這樣外流過一把,32 小時後才發現)。改由 Worker 的 /api/basemap-token 下發,見下方。
+    sat: { url: 'https://ibasemaps-api.arcgis.com/arcgis/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', needsToken: 'esri', maxZoom: 19, attribution: 'Tiles &copy; Esri — Source: Esri, Maxar, Earthstar Geographics' }
   };
   // APP_STRIP_END web-tiles
   if (onlineBasemapsAvailable() && TILES) for (const k of ['light', 'dark', 'sat']) {
@@ -12065,6 +12071,28 @@ async function boot() {
     // (setBasemap 依 state.followTrain 二選一;detectRetina 是 Leaflet 建構時就烘進 zoomOffset,無法動態切換單一圖層,故養兩份)
     // SAT_RETINA 關閉時 sat 本身就是低解析度,不再養第二份(setBasemap 的 want 有 baseLayers.satLQ 存在性守門)
     if (k === 'sat' && SAT_RETINA) baseLayers.satLQ = L.tileLayer(t.url, { ...opt, detectRetina: false });
+  }
+  // 網站版:向 Worker 要 Esri token 再補進圖層網址(App 殼的 APP_CFG.tiles 已自帶金鑰,不走這條)。
+  // token 拿到前 satTokenState='pending',setBasemap 會暫時維持一般地圖——不是為了畫面好看,
+  // 是不讓沒有 token 的圖磚請求送出去(那會是一整片 401)。要不到就把「衛星」鈕整顆藏掉。
+  if (TILES && TILES.sat && TILES.sat.needsToken === 'esri' && baseLayers.sat) {
+    satTokenState = 'pending';
+    fetch('/api/basemap-token', { cache: 'no-store' })
+      .then(r => r.ok ? r.json() : null)
+      .then(d => {
+        if (!d || !d.esri) throw new Error('no token');
+        const url = TILES.sat.url + '?token=' + encodeURIComponent(d.esri);
+        baseLayers.sat.setUrl(url);
+        if (baseLayers.satLQ) baseLayers.satLQ.setUrl(url);
+        satTokenState = 'ready';
+      })
+      .catch(() => {
+        satTokenState = 'failed';
+        const b = document.getElementById('satBtn'); if (b) b.remove();
+        const row = document.querySelector('.ms-row[data-proxy="satBtn"]'); if (row) row.remove(); // 抽屜那列的 display:flex 蓋得過 [hidden],得移除
+        if (state.basemap === 'sat') { state.basemap = 'map'; try { localStorage.setItem('trainmap-basemap', 'map'); } catch (e) {} }
+      })
+      .then(() => { if (map) setBasemap(); }); // 成功/失敗都要重跑一次:成功=把衛星切回來,失敗=確保停在一般地圖
   }
   // 外觀三段(亮/暗/自動;自動=跟隨系統)。舊鍵 trainmap-theme(light/dark)沿用為固定亮/暗
   try {

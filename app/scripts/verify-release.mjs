@@ -164,8 +164,12 @@ export async function verifyRelease({
     assert(/ibasemaps-api\.arcgis\.com\/arcgis\/rest\/services\/World_Imagery\/MapServer\/tile\/\{z\}\/\{y\}\/\{x\}\?token=[^'"\s]+/.test(html),
       '衛星底圖必須是含 token 的授權 Esri ibasemaps');
     assert(!html.includes("plusGateOpen('satellite'"), 'App 第一版衛星免費，不可殘留 Plus 付費閘');
-    assert(/const sat = online && state\.basemap === 'sat';/.test(html),
-      'App 第一版衛星顯示必須免費開放（不綁 Plus）');
+    // 原本是逐字比對整行 `const sat = online && state.basemap === 'sat';`，但那樣任何無關的條件
+    // （2026-07-26 加的 token 就緒判斷）也會誤擋。改成檢查意圖：判斷式裡不得出現付費條件。
+    const satLine = (html.match(/const sat = online && state\.basemap === 'sat'[^;\n]*;/) || [])[0];
+    assert(satLine, 'index.html 找不到衛星顯示判斷（const sat = …）——「衛星免費開放」這條檢查已失效');
+    assert(!/plus|entitle|paid|subscri|premium/i.test(satLine),
+      `App 第一版衛星顯示必須免費開放（不綁 Plus），但判斷式含付費條件：${satLine}`);
     assert(html.includes('  prefetchFollowAhead(dt);'),
       'Stadia App 必須保留既有高速跟車預抓；手機省電模式會自行停用，避免 iPad／關省電模式高速跟車露白');
     // 跟車 zoom 上限:設定要載明 16,且 index.html 的消費機制(FOLLOW_ZOOM_CAP/followEntryZoom)未被移除
@@ -208,8 +212,19 @@ export async function verifyRelease({
   const extractBuild = source => source.match(/const BUILD\s*=\s*'([^']+)'/)?.[1] ?? null;
   const wwwBuild = extractBuild(html);
   assert(wwwBuild, 'app/www/index.html 找不到 BUILD 版本戳記');
-  const repoBuild = extractBuild(await readFile(join(repoRoot, 'index.html'), 'utf8'));
+  const repoIndex = await readFile(join(repoRoot, 'index.html'), 'utf8');
+  const repoBuild = extractBuild(repoIndex);
   assert(repoBuild, '根目錄 index.html 找不到 BUILD 版本戳記');
+
+  // 金鑰不得寫死進公開 repo（稽核 2026-07-26）：2026-07-25 的 commit 5aab5c4 把網站用的 Esri
+  // token 直接寫進 index.html，於是隨 public repo 推上 GitHub、也印在 railisland.tw 的網頁原始碼裡。
+  // 實測那把 token 無任何 referrer 限制（偽造來源照樣回 200 真圖磚），而 PAYG 是開著的＝被盜用時
+  // 帳單沒有天花板。網站金鑰一律改由 Worker 的 /api/basemap-token 下發；App 金鑰由 prepare-web
+  // 注入 www（build 產物、不進版控），所以這裡只檢查 repo 根的**原始檔**，不檢查 www。
+  assert(!/ibasemaps-api\.arcgis\.com[^'"`\s]*[?&]token=[A-Za-z0-9]/.test(repoIndex),
+    'repo 根 index.html 寫死了 Esri token——這個 repo 是公開的,金鑰必須改由 Worker /api/basemap-token 下發');
+  assert(!/tiles\.stadiamaps\.com[^'"`\s]*[?&]api_key=[A-Za-z0-9]/.test(repoIndex),
+    'repo 根 index.html 寫死了 Stadia api_key——這個 repo 是公開的,App 金鑰只能由 prepare-web 注入 www');
   assert(wwwBuild === repoBuild,
     `App 產物版本落後：app/www 為 ${wwwBuild},但根目錄網站已是 ${repoBuild};請執行 npm run sync 重建並同步後再送審`);
 

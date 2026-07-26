@@ -604,6 +604,20 @@ async function todayBoard(request, env) {
   }
 }
 
+// ── 網站衛星底圖的 Esri token 下發 ────────────────────────────────────────────
+// 為什麼要有這條：token 一定得送到瀏覽器才用得了，所以這裡**不是在保密**。它解決的是另外兩件事：
+//   (1) 不寫進 index.html——這個 repo 是公開的，寫死等於連同 git 歷史一起推上 GitHub 給爬蟲撿
+//       （2026-07-25 commit 5aab5c4 就是這樣外流了一把，32 小時後才發現）；
+//   (2) 換 key 只要 `wrangler secret put ESRI_WEB_TOKEN`，不必重新部署整站。
+// 真正的濫用防線是 Esri 後台的 referrer 白名單（瀏覽器抓圖磚會帶 Referer，擋得住盜用；
+// 原生 App 不送 Referer，所以 App 那把是另一把 key、另外管控）。
+// 未設 secret → 404，前端據此把「衛星」鈕整顆藏掉，不讓使用者點到一片白圖。
+function basemapToken(request, env) {
+  if (!env.ESRI_WEB_TOKEN) return jsonRes({ error: 'not_configured' }, 404, 'no-store');
+  // 全站同一個值，放邊緣快取省 Worker 呼叫；max-age 壓在 5 分鐘讓輪替後很快生效。
+  return jsonRes({ esri: env.ESRI_WEB_TOKEN }, 200, 'public, max-age=300, s-maxage=300');
+}
+
 // 刪除帳號前清除 RevenueCat customer。Secret API key 只能存在 Worker runtime；
 // 先以 Firebase Auth REST lookup 驗證呼叫者的 ID token，再只刪除該 token 自己的 uid，
 // 不接受前端傳 customer id，避免知道別人 uid 就能刪除對方購買資料。
@@ -1011,6 +1025,7 @@ export default {
     else if (url.pathname === '/api/delay-history') res = await delayHistory(request, env);
     else if (url.pathname === '/api/station-events') res = await stationEvents(request, env);
     else if (url.pathname === '/api/today-board') res = await todayBoard(request, env);
+    else if (url.pathname === '/api/basemap-token') res = basemapToken(request, env);
     else if (url.pathname === '/api/account-delete') res = await deletePaidProfile(request, env);
     else res = await env.ASSETS.fetch(request);
     const h = new Headers(res.headers);
