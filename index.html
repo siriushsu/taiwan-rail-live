@@ -4991,6 +4991,10 @@ const FORCE_BREATH = (() => { try { return new URLSearchParams(location.search).
 // 行程分享(暗啟動):v1 建置完成、旗標關閉出貨,訂閱上線才開(比照 RECORDING_ENABLED 模式)。只鎖「發起端」入口;
 // 接收端 ?trip= 解碼永遠作用(payload 本來就公開,不鎖)。?tripshare=1 當次開發起端測試(比照 ?breath=1,僅該次頁面生效)。
 const TRIP_SHARE_ENABLED = (() => { try { return new URLSearchParams(location.search).get('tripshare') === '1'; } catch (e) { return false; } })();
+// ?demo=collect／off:備援站確認設計用的示範收集資料開關。**必須在這裡就讀進來**——
+// boot 途中 clearFollow() 會 `history.replaceState(null,'',location.pathname)` 把 query string 抹掉,
+// 等到 setupCollectDemo 才讀就已經是空的(實測線上站正是如此,本機因載入快剛好躲過)。
+const DEMO_MODE = (() => { try { return new URLSearchParams(location.search).get('demo') || ''; } catch (e) { return ''; } })();
 // 「我的位置」藍點:畫在列車 overlay 畫布上,不用 Leaflet marker。
 // 原本用 L.marker/L.circle,但它們住在 Leaflet 的 pane 裡,而 pane 全被 .leaflet-map-pane(z-index:400)
 // 圈成一個堆疊脈絡;列車畫布 #overlay(z-index:500)是 #stage 層級的兄弟節點,恆蓋在整張地圖之上——
@@ -8921,7 +8925,7 @@ function seedCollectDemo() {
   showToast('已載入示範收集資料（僅供確認設計）——清除請在網址加 ?demo=off');
 }
 function setupCollectDemo() {
-  let mode = ''; try { mode = new URLSearchParams(location.search).get('demo') || ''; } catch (e) { return; }
+  const mode = DEMO_MODE;
   if (mode !== 'collect' && mode !== 'off') return;
   if (mode === 'off') {
     try { localStorage.removeItem(CHECKIN_KEY); localStorage.removeItem(RIDING_KEY); } catch (e) {}
