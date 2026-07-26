@@ -1534,15 +1534,17 @@
     border-top: 2px dashed var(--line); padding-top: 20px;
   }
   .foot-box { background: var(--paper); border: 1.5px solid var(--line); border-radius: 10px; }
-  .foot-box summary {
+  /* 一律用直接子選擇器:更新紀錄盒內有巢狀 details(.foot-more),
+     後代選擇器會讓「盒子開著」的 ▴ 蓋掉巢狀那顆自己的收合箭頭。 */
+  .foot-box > summary {
     cursor: pointer; user-select: none; list-style: none;
     display: flex; align-items: center; gap: 10px;
     padding: 11px 14px; font-size: 14px; font-weight: 700; color: var(--muted);
   }
-  .foot-box summary::-webkit-details-marker { display: none; }
-  .foot-box summary::after { content: '▾'; margin-left: auto; color: var(--faint); font-weight: 400; }
-  .foot-box[open] summary::after { content: '▴'; }
-  .foot-box summary:hover { color: var(--ink); }
+  .foot-box > summary::-webkit-details-marker { display: none; }
+  .foot-box > summary::after { content: '▾'; margin-left: auto; color: var(--faint); font-weight: 400; }
+  .foot-box[open] > summary::after { content: '▴'; }
+  .foot-box > summary:hover { color: var(--ink); }
   .foot-sub { font-size: 12px; font-weight: 400; color: var(--faint); }
   .foot-list {
     margin: 0; padding: 0 14px 12px; list-style: none;
@@ -1555,6 +1557,19 @@
     font-weight: 700; color: var(--ink); letter-spacing: .02em;
   }
   .foot-list li.grp:first-child { margin-top: 0; padding-top: 0; border-top: 0; }
+  /* 更新紀錄第二層「完整更新歷史」。刻意不掛 .foot-box 類名——placeFootBoxes() 是用
+     `.site-foot .foot-box` 搬移四個面板,巢狀同名會被當成第五個盒子一起搬走。 */
+  .foot-more { margin: 2px 14px 12px; border: 1px solid var(--line); border-radius: 8px; }
+  .foot-more > summary {
+    cursor: pointer; user-select: none; list-style: none;
+    display: flex; align-items: center; gap: 8px;
+    padding: 8px 12px; font-size: 12.5px; font-weight: 700; color: var(--faint);
+  }
+  .foot-more > summary::-webkit-details-marker { display: none; }
+  .foot-more > summary::after { content: '▾'; margin-left: auto; font-weight: 400; }
+  .foot-more[open] > summary::after { content: '▴'; }
+  .foot-more > summary:hover { color: var(--ink); }
+  .foot-more .foot-list { padding: 0 12px 10px; }
   .foot-note { margin: 0; padding: 0 14px 12px; font-size: 12px; color: var(--faint); line-height: 1.6; }
   .foot-links { display: flex; flex-wrap: wrap; gap: 8px 20px; padding: 0 2px; font-size: 13px; }
   .foot-links a { color: var(--navy); text-decoration: none; }
@@ -1920,6 +1935,9 @@
     #msAbout .foot-box { border-radius: 8px; }
     #msAbout .foot-box summary { min-height: 48px; box-sizing: border-box; }
     #msAbout .foot-list { max-height: 44vh; overflow-y: auto; overscroll-behavior: contain; }
+    /* 更新紀錄第一層只有八條,不該再套 44vh 內捲(那上限是給舊版 166 條清單的);
+       長清單已經住進 .foot-more,那層仍受上面的 44vh 節制。 */
+    #msAbout .foot-recent { max-height: none; overflow: visible; }
     .ms-about-links { display: flex; align-items: center; gap: 14px; padding: 8px 14px 4px; font-size: 13px; }
     .ms-about-links a { color: var(--navy); text-decoration: none; }
     .ms-about-links .ver { margin-left: auto; font-size: 11px; color: var(--faint); font-weight: 600; letter-spacing: .5px; }
@@ -2716,114 +2734,58 @@ try { if (matchMedia('(max-width: 900px)').matches) document.body.classList.add(
   <footer class="site-foot">
     <details class="foot-box">
       <summary><span>🛠 更新紀錄</span><span class="foot-sub">最後更新：2026/7/26</span></summary>
-      <ul class="foot-list">
+      <ul class="foot-list foot-recent">
         <li class="grp">最近更新</li>
-        <li><span class="d">7/26</span><span>旅程護照多了「車站收集」：完乘過的起訖站自動成章，人到月台再按「附近車站」裡的蓋章鈕，就升級成到訪章；同一座站去過越多次，章上的數字越大</span></li>
-        <li><span class="d">7/26</span><span>跟著車按「我上車了」並選好在哪站下車，沿路每過一站就自動蓋一枚章，下車那站也會補上——全程只在上下車兩點用到定位，不會一直背景追蹤你</span></li>
-        <li><span class="d">7/26</span><span>搭過的路段會一起收集，護照顯示「最常搭的一段」與每條路線各自的完乘率；新增四枚成就：車站巡禮、百站達成，以及同一段路來回搭滿 100／500 次的通勤成就</span></li>
-        <li><span class="d">7/26</span><span>護照裡多了「🗺 收集地圖」：點進去全台路網轉灰，只有你搭過的區間會亮起來，一眼看得出哪裡還沒去過</span></li>
-        <li><span class="d">7/26</span><span>新增「📖 使用說明」：從「更多」第一列打開，搜尋、跟車、車站看板、儲存地點、放空模式等功能都有圖文步驟，每節按「試一次」還會直接幫你操作一遍；首訪卡也多了「看完整說明」入口</span></li>
-        <li><span class="d">7/26</span><span>手機／App 的匯入清單、Plus、到站提醒、命名地點對話框修好了：底部頁籤不再蓋住下緣按鈕，也不會被誤按到</span></li>
-        <li><span class="d">7/26</span><span>跟隨資訊卡的「×」和地圖上的跟隨鎖鈕變好按了：以前 × 只有一丁點大，手指常常戳不到</span></li>
-        <li><span class="d">7/26</span><span>手機／App 底部的「地圖」鈕換成「🔍 搜尋」：以前搜尋藏在「探」面板裡，第一次用很難發現；現在一按就能查站名、車次或列車名稱</span></li>
-        <li><span class="d">7/25</span><span>台鐵自強、莒光等快車經過不停靠的小站時，位置改用最近一次改點後的實際到站紀錄推算：以前是用固定的加速減速曲線硬算，現在會反映這班車在這段路真正跑多快，全網近九成的跳站路段都有實測撐著</span></li>
-        <li><span class="d">7/25</span><span>手機／App 的「隨機跟隨」與「附近車站」並排成一列移到時鐘下方，不再壓住左上角的時鐘</span></li>
-        <li><span class="d">7/25</span><span>手機列車控制帶點一下就展開（原本要點兩下），展開後多了跟電腦版一樣的時刻尺：拖著就能把時間往前往後帶；「放空模式」收進「更多」</span></li>
-        <li><span class="d">7/25</span><span>手機打開附近車站、亮點、最愛、列車介紹等大塊面板時，地圖會自動往上讓位，中間仍看得到列車與定位藍點；附近車站也改成可上滑放大的底部面板</span></li>
-        <li><span class="d">7/25</span><span>手機／App 地圖右上的分頁多了「高」：一按只看高鐵（原本要看高鐵得從「鐵」裡找）；「鐵」維持台鐵、高鐵、林鐵同框不變</span></li>
-        <li><span class="d">7/25</span><span>電腦版下方工具帶瘦身：外觀、軌道與路線、平交道、站介紹、方向箭頭、省電這六項設定收進新的「☰ 更多」面板（手機一直都在「更多」裡），工具帶不用再左右捲才找得到音樂與分享</span></li>
-        <li><span class="d">7/25</span><span>電腦版時間調整改成可拖曳的「時刻尺」：按住左右拖，列車就跟著時間前後跑，一小格 5 分鐘；±5 分鐘鈕退場，下方工具帶也不用再橫捲才找到音樂鈕</span></li>
-        <li><span class="d">7/25</span><span>App 打開就直接停在你所在的地方，不必再等定位、也不必自己找；地圖上多了「附近車站」鈕，一按就列出你附近最近的幾座車站</span></li>
-        <li><span class="d">7/25</span><span>環島之星觀光列車上地圖了：搜尋「環島之星」或車次 1／2，就能跟著萌旅號 13 小時繞台灣一圈；介紹卡與列車收集同步收錄</span></li>
-        <li><span class="d">7/25</span><span>衛星底圖改接 Esri 官方授權服務端點，授權來源更明確；畫面與操作不變</span></li>
-        <li><span class="d">7/24</span><span>台鐵、高鐵與捷運列車現在都帶行進方向小箭頭（可在「更多」關閉）</span></li>
-        <li><span class="d">7/24</span><span>可把常看的地點設為預設啟動視野（我的最愛→地點→設為預設）；探索面板新增「觀光列車圖鑑」，山嵐號、鳴日號等無固定車次的觀光列車一次看</span></li>
-        <li><span class="d">7/24</span><span>手機版面整理：面板全開時頂部時鐘、台鐵捷頁籤等自動讓位不再互相壓疊；多處過小的標籤文字加大更易讀；搜尋框提示文字改短、不再超出框外</span></li>
-        <li><span class="d">7/24</span><span>新增「資料源連線狀態頁」（頁尾資料來源區可進入）：各即時資料源連線狀況一目了然，並白話總結「地圖現在準嗎」；遇大規模誤點等營運異常或資料斷線會特別註明</span></li>
-        <li><span class="d">7/24</span><span>台鐵列車站間位置改用官方里程推算，快車行駛中的位置更貼近實際（山線／海線長度也一併校正）</span></li>
-        <li><span class="d">7/24</span><span>地圖縮放恢復平滑過渡動畫，不再瞬間跳格或短暫空白；縮放過程軌道與列車全程貼合底圖同步縮放，站名與車牌維持固定大小不跳動</span></li>
-        <li><span class="d">7/24</span><span>修正拖動地圖時軌道稍微跟不上底圖的延遲感（省電模式在互動時自動全速，放開後恢復省電）</span></li>
-        <li><span class="d">7/24</span><span>台鐵班表改為每天使用當日官方時刻：週五～週日才開的加班車（如 21、213 次）現在會在正確的日子出現，連假與國定假日的特別班表也會自動反映，不再整週重播同一天</span></li>
-        <li><span class="d">7/24</span><span>修正 App 或分頁在背景放一段時間後，畫面時鐘停在切走前的時刻、車輛位置與現實對不上的問題；回到前景會自動追回「現在」</span></li>
-        <li><span class="d">7/24</span><span>衛星模式在手機等高解析度螢幕上畫質更清晰銳利；跟車移動中改用較省流量的畫質，避免圖磚載入變慢</span></li>
-        <li><span class="d">7/22</span><span>原「附近火車」更名為「儲存地點」，儲存時可幫地點命名（家、公司…）；存過的地點會列進「我的最愛」的「地點」區，點一下就飛過去看它附近的車</span></li>
-        <li><span class="d">7/22</span><span>手機底部「地圖」鈕修正：在隨機跟隨中點它會停下、回到地圖，不再繼續自動跳下一班車；「探」面板移除「隨便帶我看一輛」，今日之最改為純文字標題</span></li>
-        <li><span class="d">7/22</span><span>手機／App 地圖可以自由平移、也能再縮小看台灣周邊了，修好之前一移動或縮小就卡住的問題</span></li>
-        <li><span class="d">7/22</span><span>手機與 App 打開時，全台地圖上下左右各留一個台灣的空間、不再頂到螢幕邊緣，看起來更透氣</span></li>
-        <li><span class="d">7/22</span><span>跟隨列車時地圖範圍一樣鎖定台灣周遭，仍可縮到最小綜覽整個台灣、拖曳也不會跑到國外</span></li>
-        <li><span class="d">7/22</span><span>快速縮放地圖時，圖磚還沒載入前墊底的台灣輪廓圖配色貼齊底圖（陸地、海面亮暗都對齊），不再有刺眼的色差閃動</span></li>
-        <li><span class="d">7/22</span><span>台鐵列車通過不停靠的車站時，不再減速到近乎停車再加速——整段跑到下一個停靠站才緩緩減速，過站維持巡航（只是稍微放慢）</span></li>
-        <li><span class="d">7/22</span><span>地圖可視範圍鎖定台灣周遭：不能無限拖到國外、也不能縮到看整個世界，但保留台灣四周合理的範圍，不會把畫面切得死緊</span></li>
-        <li><span class="d">7/22</span><span>軌道全面健檢：修掉四處短暫折返、淡海藍海線末三站停靠偏移與直通列車跨線跳動；阿里山資料缺口改沿山中實際軌跡補齊</span></li>
-        <li><span class="d">7/21</span><span>捷運車站看板每個方向精簡為兩班（原本三班），畫面更清爽</span></li>
-        <li><span class="d">7/21</span><span>修正「全台同框」點捷運車站時，看板班次整份重複顯示兩遍的問題</span></li>
-        <li><span class="d">7/21</span><span>例行安全性與穩定性強化（背景維護，操作與畫面無變化）</span></li>
-        <li><span class="d">7/21</span><span>修正桌面全畫面與放空模式剛開啟就自動退出（Chrome 與 Safari 成因不同，一併治好）</span></li>
-        <li><span class="d">7/21</span><span>「台鐵大面積誤點」示警改嚴：要夠多班次誤點滿 10 分鐘才會提示，不再因為一堆車晚個 1～2 分鐘就誤報</span></li>
-        <li><span class="d">7/21</span><span>修正桃園機捷南下（往台北）停靠站：普通車過長庚站站停、直達車過長庚只停新北產業，不再對調</span></li>
-        <li><span class="d">7/21</span><span>手機大改版：打開就是全螢幕地圖，亮點／護照／列車介紹都住進底部面板；新增「捷」分頁，北中高捷運一張圖同框；跟車後點資訊小卡展開完整介紹；底部工具列更貼合螢幕。</span></li>
-        <li><span class="d">7/20</span><span>手機跟車時打開底部面板，跟隨鎖按鈕自動讓位不再擋住面板內容</span></li>
-        <li><span class="d">7/20</span><span>更新紀錄改版：改成依主題分類，同一個功能修過好幾次的併成一條，並整理出「曾經上線、後來拿掉」的功能</span></li>
-        <li><span class="d">7/19</span><span>阿里山森林鐵路上線；沼平／神木線白天班次補齊；林鐵列車介紹卡與台糖五分車景點標記</span></li>
-        <li><span class="d">7/18</span><span>記住上次看的位置與頁籤、搜尋支援列車名稱、「今日台鐵動態」看板、放空模式的都會呼吸鏡頭</span></li>
+        <li><span class="d">7/26</span><span>旅程護照新增「車站收集」：完乘的起訖站自動成章，到月台按蓋章鈕升級成到訪章</span></li>
+        <li><span class="d">7/26</span><span>按「我上車了」並選好下車站，沿路每過一站就自動蓋一枚章</span></li>
+        <li><span class="d">7/26</span><span>搭過的路段也會收集，護照顯示每條線各自的完乘率，並新增四枚成就</span></li>
+        <li><span class="d">7/26</span><span>護照新增「🗺 收集地圖」：全台路網轉灰，只有你搭過的區間會亮起來</span></li>
+        <li><span class="d">7/26</span><span>更新紀錄瘦身：預設只列最近八條，其餘收進下方「完整更新歷史」依主題分類</span></li>
+        <li><span class="d">7/26</span><span>新增「📖 使用說明」：各功能都有圖文步驟，按「試一次」還會直接幫你操作一遍</span></li>
+        <li><span class="d">7/26</span><span>手機／App 底部的「地圖」鈕換成「🔍 搜尋」，站名、車次、列車名稱一按就查</span></li>
+        <li><span class="d">7/26</span><span>手機對話框不再被底部頁籤蓋住；跟隨卡的「×」與跟隨鎖鈕也加大好按了</span></li>
+      </ul>
+      <!-- 第二層:完整歷史。刻意不掛 .foot-box 類名——placeFootBoxes() 用
+           `.site-foot .foot-box` 搬移面板,巢狀同名會被當成另一個盒子一起搬走。 -->
+      <details class="foot-more">
+        <summary>完整更新歷史（依主題分類）</summary>
+        <ul class="foot-list">
         <li class="grp">路網與車站</li>
-        <li><span class="d">7/21</span><span>修正桃園機捷南下（往台北）停靠站對調：普通車過長庚後改為站站停、直達車過長庚只停新北產業（北上原本正常）</span></li>
-        <li><span class="d">7/19</span><span>阿里山林鐵上線：21 站、四條路線，繞獨立山螺旋、第一分道之字形折返；祝山觀日列車無固定時刻，依當天日出推算並標「推算」</span></li>
-        <li><span class="d">7/19</span><span>阿里山沼平線、神木線的白天班次補齊，共 46 班（逐班對照林鐵官網完整班表）</span></li>
-        <li><span class="d">7/19</span><span>台糖五分車改用景點標記：五處觀光園區標上地圖，點了有介紹——糖鐵沒有公開班表，不模擬行駛</span></li>
+        <li><span class="d">7/19</span><span>阿里山林鐵上線：21 站、四條路線，繞獨立山螺旋、第一分道之字形折返；祝山觀日列車依當天日出推算</span></li>
+        <li><span class="d">7/19</span><span>台糖五分車改用景點標記：五處觀光園區標上地圖——糖鐵沒有公開班表，不模擬行駛</span></li>
         <li><span class="d">7/13</span><span>預設視圖改為「全台同框」</span></li>
         <li><span class="d">7/12</span><span>系統頁籤新增「縣市」選單，一鍵飛到指定縣市</span></li>
-        <li><span class="d">7/11</span><span>三鶯線加入北北桃視圖</span></li>
-        <li><span class="d">7/11</span><span>淡海輕軌拆成綠山線與藍海線，Y 字路網回歸</span></li>
+        <li><span class="d">7/11</span><span>三鶯線加入北北桃視圖；淡海輕軌拆成綠山線與藍海線，Y 字路網回歸</span></li>
         <li><span class="d">7/10</span><span>高鐵、桃園機捷、淡海輕軌、安坑輕軌加入路網</span></li>
         <li><span class="d">7/10</span><span>環島觀光列車一分為二：往東「山海號」、往西「平原號」</span></li>
         <li class="grp">即時動態與誤點</li>
-        <li><span class="d">7/24</span><span>新增「資料源連線狀態頁」（頁尾資料來源區可進入）：各即時資料源連線狀況一目了然，並白話總結「地圖現在準嗎」；遇大規模誤點等營運異常或資料斷線會特別註明</span></li>
-        <li><span class="d">7/24</span><span>修正 App 或分頁在背景放一段時間後，畫面時鐘停在切走前的時刻、車輛位置與現實對不上的問題；回到前景會自動追回「現在」</span></li>
-        <li><span class="d">7/18</span><span>「今日台鐵動態」看板：當日誤點排行與逐站歷程，顯示以「目前」誤點為主，已追回的直接標綠色準點（上線當天另修好「跟這班車」鈕會消失、讀取失敗沒有重試鈕兩處）</span></li>
-        <li><span class="d">7/18</span><span>跟隨卡「下一站」旁的紅色「X 分」改回深藍——那是到站倒數不是誤點，容易誤讀；並另外標出這班車真實誤點幾分</span></li>
+        <li><span class="d">7/24</span><span>新增「資料源連線狀態頁」：各即時資料源連線狀況一目了然，並白話總結「地圖現在準嗎」</span></li>
+        <li><span class="d">7/24</span><span>修正 App 在背景放久後時鐘停住、車輛位置對不上；回前景會自動追回「現在」</span></li>
+        <li><span class="d">7/18</span><span>「今日台鐵動態」看板：當日誤點排行與逐站歷程，已追回的直接標綠色準點</span></li>
         <li><span class="d">7/18</span><span>人在國外，畫面上的「現在」也錨定台灣時間</span></li>
-        <li><span class="d">7/17</span><span>即時校正的三個毛病陸續修好：列車瞬間跳位改成三秒平滑滑行、快轉離開現在超過兩分鐘時 LIVE 徽章轉灰標「推估」、官方誤點數字往上跳時列車不再倒退嚕（末項 7/18）</span></li>
-        <li><span class="d">7/17</span><span>跟隨卡新增「近 30 天平均誤點・準點率」</span></li>
-        <li><span class="d">7/17</span><span>自動偵測誤點型營運異常並在畫面標示，全台同框視圖也看得到（7/21 判定改嚴：要夠多班次誤點滿 10 分鐘才示警，小幅誤點不再誤報）</span></li>
-        <li><span class="d">7/16</span><span>捷運準確度四階段升級：北捷／高捷／機捷／高雄輕軌依官方到站看板即時校正 → 國定假日自動改跑假日班表 → 全台同框同步套用 → 新北捷運環狀線、淡海、安坑加入（7/17）</span></li>
-        <li><span class="d">7/14</span><span>修正台鐵與高鐵共構路段被誤判成交會／待避</span></li>
-        <li><span class="d">7/11</span><span>開站就是真實時刻，不再用 50× 示意快轉</span></li>
-        <li><span class="d">7/11</span><span>新增捷運營運狀態告警橫幅</span></li>
-        <li><span class="d">7/11</span><span>捷運與輕軌改依當日實際時刻表逐班推演</span></li>
-        <li><span class="d">7/9</span><span>台鐵即時誤點上線——介接交通部 TDX 平臺，每分鐘更新</span></li>
+        <li><span class="d">7/17</span><span>即時校正三修：跳位改三秒平滑滑行、快轉超過兩分鐘標「推估」、誤點上跳時列車不倒退</span></li>
+        <li><span class="d">7/17</span><span>跟隨卡新增「近 30 天平均誤點・準點率」；自動偵測大面積誤點並標示（7/21 改嚴為滿 10 分鐘）</span></li>
+        <li><span class="d">7/16</span><span>捷運準確度升級：六家捷運依官方到站看板即時校正，國定假日自動改跑假日班表</span></li>
+        <li><span class="d">7/9</span><span>台鐵即時誤點上線——介接交通部 TDX 平臺每分鐘更新；7/11 起開站即真實時刻、捷運改逐班推演</span></li>
         <li class="grp">跟車、搜尋與車站看板</li>
-        <li><span class="d">7/26</span><span>跟隨資訊卡的「×」和跟隨鎖鈕加大可按範圍，手機上不用再瞄準</span></li>
-        <li><span class="d">7/25</span><span>環島之星觀光列車上地圖了：搜尋「環島之星」或車次 1／2，就能跟著萌旅號 13 小時繞台灣一圈；介紹卡與列車收集同步收錄</span></li>
-        <li><span class="d">7/22</span><span>台鐵列車通過不停靠的車站時不再假性減速到近停車；整個跑段共用一條加減速曲線，只在真正停靠站緩起緩停</span></li>
-        <li><span class="d">7/21</span><span>修正「全台同框」視圖點捷運車站時，來車看板把同一批班次重複列了兩遍</span></li>
-        <li><span class="d">7/18</span><span>搜尋框可以直接打列車名字：山嵐、鳴日、藍皮、海風…有開行班次的直接列車次，沒有固定車次的給你介紹卡</span></li>
-        <li><span class="d">7/17</span><span>搜尋合而為一：車站名與車次打同一個框（原本的「找站」鈕退役），提示文字改清楚，也修好跟車時搜尋結果蓋住「取消跟隨」鈕</span></li>
-        <li><span class="d">7/17</span><span>車站看板的 ☆ 收藏／× 關閉鈕釘在標題列，不再隨列表捲動消失；7/19 再校正這兩顆圖示的大小與對齊</span></li>
-        <li><span class="d">7/17</span><span>共構車站：地圖標籤成組顯示「站名・系統」，點下去跳選單讓你選台鐵或高鐵的看板</span></li>
-        <li><span class="d">7/17</span><span>列車停站時車站也點得到；車站與列車疊在一起時跳選單讓你選，選單不再秒退</span></li>
-        <li><span class="d">7/17</span><span>跨日列車（過午夜才到站）現在也能蓋完乘章</span></li>
-        <li><span class="d">7/14</span><span>捷運與輕軌車站新增「來車看板」</span></li>
-        <li><span class="d">7/14</span><span>修正縮放瞬間路線與底圖對不齊的殘影</span></li>
-        <li><span class="d">7/13</span><span>跟車時路線不再抖動偏移；高速跟車自動收斂縮放不再全黑，並沿行進方向預先載入底圖</span></li>
+        <li><span class="d">7/25</span><span>環島之星觀光列車上地圖了：搜尋車名或車次 1／2，跟著萌旅號 13 小時繞台灣一圈</span></li>
+        <li><span class="d">7/22</span><span>台鐵列車通過不停靠的車站時不再假性減速，只在真正停靠站緩起緩停</span></li>
+        <li><span class="d">7/18</span><span>搜尋框可以直接打列車名字：山嵐、鳴日、藍皮、海風…沒有固定車次的給你介紹卡</span></li>
+        <li><span class="d">7/17</span><span>搜尋合而為一：車站名與車次打同一個框（原本的「找站」鈕退役）</span></li>
+        <li><span class="d">7/17</span><span>共構車站標籤成組顯示，點下去跳選單選台鐵或高鐵的看板；列車停站時車站也點得到</span></li>
+        <li><span class="d">7/14</span><span>捷運與輕軌車站新增「來車看板」（7/21 起每個方向精簡為兩班）</span></li>
         <li><span class="d">7/13</span><span>列車位置改用車種加減速模型：起步緩加速、進站緩減速，不再全程等速</span></li>
-        <li><span class="d">7/11</span><span>捷運與輕軌可以點車跟隨（示意班次，不計完乘）；全台同框裡的捷運也點得到</span></li>
-        <li><span class="d">7/10</span><span>跟隨鎖：跟隨中直接拖曳地圖自由瀏覽，按「◉ 回到列車」恢復置中；資訊卡可收合成小膠囊</span></li>
-        <li><span class="d">7/9</span><span>鐵道迷功能包：跟隨路線高亮、月台站名牌、日夜天色、全程速度曲線</span></li>
+        <li><span class="d">7/10</span><span>跟隨鎖：跟隨中可自由拖曳地圖，按「◉ 回到列車」恢復置中；7/9 鐵道迷功能包（路線高亮、月台站名牌、日夜天色、速度曲線）</span></li>
         <li class="grp">放空模式</li>
-        <li><span class="d">7/21</span><span>修正桌面全畫面與放空模式剛開啟就自動退出（Chrome 與 Safari 成因不同，一併治好）</span></li>
-        <li><span class="d">7/18</span><span>新增「都會呼吸」定場運鏡（上線當天連修三輪：畫面細微抖動、鏡頭對到山區空地、缺底圖看起來像壞掉）</span></li>
+        <li><span class="d">7/18</span><span>新增「都會呼吸」定場運鏡</span></li>
         <li><span class="d">7/17</span><span>新增「劇場模式」自動觸發，預設視角改為群車</span></li>
-        <li><span class="d">7/11</span><span>新增「群車」視角：不跟單一列車，看整片列車交錯</span></li>
-        <li><span class="d">7/11</span><span>群車改連續慢速巡航永不停頓；換車轉場改單次淡出淡入；隨機跟隨升格為常駐膠囊鈕，不會再消失</span></li>
+        <li><span class="d">7/11</span><span>新增「群車」視角：不跟單一列車，看整片列車交錯；改連續慢速巡航永不停頓</span></li>
         <li><span class="d">7/9</span><span>沉浸放空升級：真・全螢幕、「簡」極簡沉浸、經過特殊車站自動跳站介紹</span></li>
         <li class="grp">平交道與儲存地點</li>
-        <li><span class="d">7/22</span><span>「附近火車」更名為「儲存地點」：儲存時可命名（家、公司…），存過的地點會進「我的最愛」的「地點」清單，點一下飛過去看附近的車</span></li>
-        <li><span class="d">7/14</span><span>「附近火車」改成開關式，可以連續多點收藏；地點釘換成 Google 地圖風格的圓點</span></li>
+        <li><span class="d">7/22</span><span>「附近火車」更名為「儲存地點」：可以命名（家、公司…），存過的會進「我的最愛」</span></li>
         <li><span class="d">7/14</span><span>平交道位置依官方資料，可能與現場實際位置略有落差</span></li>
-        <li><span class="d">7/13</span><span>新功能「附近火車」：地圖上落一根釘，查周邊 60 分鐘內會通過的車次</span></li>
-        <li><span class="d">7/13</span><span>平交道加碼：補上台中港線等貨運線 21 處、卡片連點可切下一個、圖示改用台灣鐵路交叉標的牌面</span></li>
-        <li><span class="d">7/12</span><span>新增平交道功能：點一下查接下來會通過的列車</span></li>
+        <li><span class="d">7/13</span><span>新增「附近火車」：地圖上落一根釘，查周邊 60 分鐘內會通過的車次</span></li>
+        <li><span class="d">7/12</span><span>新增平交道功能：點一下查接下來會通過的列車（7/13 補上貨運線 21 處）</span></li>
         <li class="grp">收藏、護照與成就</li>
         <li><span class="d">7/26</span><span>旅程護照多了「車站收集」：完乘過的起訖站自動成章，人到月台再按「附近車站」裡的蓋章鈕，就升級成到訪章；同一座站去過越多次，章上的數字越大</span></li>
         <li><span class="d">7/26</span><span>跟著車按「我上車了」並選好在哪站下車，沿路每過一站就自動蓋一枚章，下車那站也會補上——全程只在上下車兩點用到定位，不會一直背景追蹤你</span></li>
@@ -2833,78 +2795,50 @@ try { if (matchMedia('(max-width: 900px)').matches) document.body.classList.add(
         <li><span class="d">7/18</span><span>山海平原成就門檻降為半圈，跟車面板加上環島完乘進度 %</span></li>
         <li><span class="d">7/17</span><span>新功能「最愛車站」：☆ 一鍵收藏，收藏的站在地圖上亮金色 ★</span></li>
         <li><span class="d">7/13</span><span>收集章可以重複點，換搭不同班次回味</span></li>
-        <li><span class="d">7/11</span><span>今日之最的列車在地圖上加繪金色漣漪光環</span></li>
         <li><span class="d">7/9</span><span>旅程護照與 16 枚成就徽章、「探」今日亮點面板上線</span></li>
         <li class="grp">手機與操作</li>
-        <li><span class="d">7/26</span><span>新增「📖 使用說明」：從「更多」第一列打開，搜尋、跟車、車站看板、儲存地點、放空模式等功能都有圖文步驟，每節按「試一次」還會直接幫你操作一遍；首訪卡也多了「看完整說明」入口</span></li>
-        <li><span class="d">7/26</span><span>手機／App 的匯入清單、Plus、到站提醒、命名地點對話框修好了：底部頁籤不再蓋住下緣按鈕，也不會被誤按到</span></li>
-        <li><span class="d">7/26</span><span>手機／App 底部的「地圖」鈕換成「🔍 搜尋」：以前搜尋藏在「探」面板裡，第一次用很難發現；現在一按就能查站名、車次或列車名稱</span></li>
-        <li><span class="d">7/25</span><span>手機／App 的「隨機跟隨」與「附近車站」並排成一列移到時鐘下方，不再壓住左上角的時鐘</span></li>
-        <li><span class="d">7/25</span><span>手機列車控制帶點一下就展開（原本要點兩下），展開後多了跟電腦版一樣的時刻尺：拖著就能把時間往前往後帶；「放空模式」收進「更多」</span></li>
-        <li><span class="d">7/25</span><span>手機打開附近車站、亮點、最愛、列車介紹等大塊面板時，地圖會自動往上讓位，中間仍看得到列車與定位藍點；附近車站也改成可上滑放大的底部面板</span></li>
-        <li><span class="d">7/25</span><span>手機／App 地圖右上的分頁多了「高」：一按只看高鐵（原本要看高鐵得從「鐵」裡找）；「鐵」維持台鐵、高鐵、林鐵同框不變</span></li>
-        <li><span class="d">7/25</span><span>電腦版下方工具帶瘦身：外觀、軌道與路線、平交道、站介紹、方向箭頭、省電這六項設定收進新的「☰ 更多」面板（手機一直都在「更多」裡），工具帶不用再左右捲才找得到音樂與分享</span></li>
-        <li><span class="d">7/25</span><span>電腦版時間調整改成可拖曳的「時刻尺」：按住左右拖，列車就跟著時間前後跑，一小格 5 分鐘；±5 分鐘鈕退場，下方工具帶也不用再橫捲才找到音樂鈕</span></li>
-        <li><span class="d">7/25</span><span>App 打開就直接停在你所在的地方，不必再等定位、也不必自己找；地圖上多了「附近車站」鈕，一按就列出你附近最近的幾座車站</span></li>
-        <li><span class="d">7/24</span><span>手機版面整理：面板全開時頂部時鐘、台鐵捷頁籤等自動讓位不再互相壓疊；多處過小的標籤文字加大更易讀；搜尋框提示文字改短、不再超出框外</span></li>
-        <li><span class="d">7/24</span><span>台鐵、高鐵與捷運列車現在都帶行進方向小箭頭（可在「更多」關閉）</span></li>
-        <li><span class="d">7/24</span><span>地圖縮放恢復平滑過渡動畫，不再瞬間跳格或短暫空白；縮放過程軌道與列車全程貼合底圖同步縮放，站名與車牌維持固定大小不跳動</span></li>
-        <li><span class="d">7/24</span><span>修正拖動地圖時軌道稍微跟不上底圖的延遲感（省電模式在互動時自動全速，放開後恢復省電）</span></li>
-        <li><span class="d">7/22</span><span>手機底部「地圖」鈕：在隨機跟隨中點它會停下回到地圖，不再繼續自動跳下一班車</span></li>
-        <li><span class="d">7/22</span><span>手機／App 地圖可以自由平移、也能再縮小看台灣周邊了，修好之前一移動或縮小就卡住的問題</span></li>
-        <li><span class="d">7/22</span><span>手機與 App 打開時，全台地圖上下左右各留一個台灣的空間、不再頂到螢幕邊緣，看起來更透氣</span></li>
-        <li><span class="d">7/22</span><span>跟隨列車時地圖範圍一樣鎖定台灣周遭，仍可縮到最小綜覽整個台灣、拖曳也不會跑到國外</span></li>
-        <li><span class="d">7/22</span><span>地圖可視範圍鎖定台灣周遭：不能無限拖到國外、也不能縮到看整個世界，但保留台灣四周合理的範圍，不會把畫面切得死緊</span></li>
-        <li><span class="d">7/21</span><span>手機大改版：打開就是全螢幕地圖，亮點／護照／列車介紹都住進底部面板；新增「捷」分頁，北中高捷運一張圖同框；跟車後點資訊小卡展開完整介紹；底部工具列更貼合螢幕。</span></li>
-        <li><span class="d">7/20</span><span>手機跟車時打開任何底部面板（看板、收藏、旅程、探索、軌道、今日動態），跟隨鎖按鈕自動讓位，不再浮在面板上擋住內容</span></li>
-        <li><span class="d">7/18</span><span>iPad 直式與中等寬度的視窗改用手機版底部工具列，桌面工具列同步瘦身，按鈕不再擠到畫面外</span></li>
-        <li><span class="d">7/18</span><span>播放、隨機跟隨、速度控制等按鈕的可點範圍放寬（外觀不變），並支援鍵盤與旁白操作</span></li>
-        <li><span class="d">7/18</span><span>修正手機雙指誤觸把整頁放大後捏不回來的問題</span></li>
-        <li><span class="d">7/17</span><span>小螢幕的時鐘徽章、速度膠囊、搜尋輸入框等擠壓與誤觸問題一併修正</span></li>
-        <li><span class="d">7/16</span><span>全畫面與底部分頁的面板不再被自家介面蓋住</span></li>
-        <li><span class="d">7/13</span><span>手機一次只開一個面板；「工具」鈕上移、全畫面改獨立按鈕；隨機跟隨鈕移到時鐘卡下方</span></li>
-        <li><span class="d">7/13</span><span>新增「省電」模式（手機預設開啟）：降到 30fps、關閉高速預抓</span></li>
-        <li><span class="d">7/12</span><span>待機自動降頻、切到背景分頁停止繪製</span></li>
+        <li><span class="d">7/26</span><span>新增「📖 使用說明」：各功能圖文步驟＋「試一次」直接示範，首訪卡也有入口</span></li>
+        <li><span class="d">7/25</span><span>App 打開就直接停在你所在的地方，並新增「附近車站」鈕</span></li>
+        <li><span class="d">7/26</span><span>底部「地圖」鈕換成「🔍 搜尋」；對話框不再被底部頁籤蓋住</span></li>
+        <li><span class="d">7/25</span><span>電腦版與手機都換上可拖曳的「時刻尺」；電腦版工具帶六項設定收進「☰ 更多」</span></li>
+        <li><span class="d">7/25</span><span>打開大面板時地圖自動往上讓位；「隨機跟隨」與「附近車站」移到時鐘下方</span></li>
+        <li><span class="d">7/25</span><span>地圖右上的分頁多了「高」：一按只看高鐵</span></li>
+        <li><span class="d">7/24</span><span>版面整理：頂部時鐘與頁籤自動讓位不再互相壓疊；多處過小的標籤文字加大</span></li>
+        <li><span class="d">7/22</span><span>地圖可以自由平移、也能縮小看台灣周邊，四周各留一個台灣的空間更透氣</span></li>
+        <li><span class="d">7/21</span><span>手機大改版：打開就是全螢幕地圖，面板都住進底部；新增「捷」分頁，北中高捷運一張圖同框</span></li>
+        <li><span class="d">7/13</span><span>新增「省電」模式（手機預設開啟）：降到 30fps；手機一次只開一個面板</span></li>
         <li class="grp">外觀與品牌</li>
-        <li><span class="d">7/25</span><span>衛星底圖改接 Esri 官方授權服務端點，授權來源更明確；畫面與操作不變</span></li>
-        <li><span class="d">7/24</span><span>衛星模式在手機等高解析度螢幕上畫質更清晰銳利；跟車移動中改用較省流量的畫質，避免圖磚載入變慢</span></li>
-        <li><span class="d">7/22</span><span>縮放時墊底的離線輪廓圖配色貼齊 CARTO 底圖（陸地／海面、亮色暗色分別對齊），消除快速縮放的色差閃爍</span></li>
+        <li><span class="d">7/25</span><span>衛星底圖改接 Esri 官方授權服務端點；7/24 起在高解析度螢幕上更清晰銳利</span></li>
+        <li><span class="d">7/22</span><span>縮放時墊底的離線輪廓圖配色貼齊底圖，消除快速縮放的色差閃爍</span></li>
         <li><span class="d">7/16</span><span>整站外觀大改版「琺瑯 2.0」，並支援亮／暗自動切換</span></li>
-        <li><span class="d">7/11</span><span>開站版面不再位移跳動，分享連結統一網域</span></li>
         <li><span class="d">7/10</span><span>網站更名「軌島」，正式網址 railisland.tw 上線；品牌定裝：懸掛式站名牌 header 與新版標誌</span></li>
         <li><span class="d">7/10</span><span>夜間與衛星模式視覺升級；「軌」軌道顯示三段切換：自動／淡化／隱藏</span></li>
-        <li><span class="d">7/10</span><span>站名移到軌道側邊不再互相壓住；全台同框的捷運輕軌比照正式樣式，不再淡化</span></li>
-        <li><span class="d">7/9</span><span>網站更名「列車有時」，標頭改為早期台鐵琺瑯站名牌樣式</span></li>
-        <li><span class="d">7/9</span><span>雙欄版面：搜尋／最愛／旅程收集／路線篩選移到右側欄</span></li>
+        <li><span class="d">7/9</span><span>站名移到軌道側邊不再互相壓住；雙欄版面：搜尋／最愛／旅程收集移到右側欄</span></li>
         <li class="grp">分享與個人化</li>
-        <li><span class="d">7/24</span><span>可把常看的地點設為預設啟動視野（我的最愛→地點→設為預設），優先於「上次看的地方」；探索面板新增「觀光列車圖鑑」</span></li>
-        <li><span class="d">7/18</span><span>下次打開就回到你上次看的地方：地圖位置、縮放倍率與路網頁籤都會記住，不需要註冊或登入</span></li>
-        <li><span class="d">7/18</span><span>從 Threads、IG、LINE 這些 App 裡點連結進來時，提醒改用 Safari／Chrome 開啟</span></li>
+        <li><span class="d">7/24</span><span>可把常看的地點設為預設啟動視野；探索面板新增「觀光列車圖鑑」</span></li>
+        <li><span class="d">7/18</span><span>下次打開就回到上次看的地方：位置、縮放與路網頁籤都會記住，不需註冊登入</span></li>
         <li><span class="d">7/13</span><span>新增「分享畫面」：把地圖位置、時間與路網打包成一條連結</span></li>
         <li><span class="d">7/11</span><span>可以安裝到主畫面（PWA），像 App 一樣全螢幕開啟</span></li>
         <!-- APP_STRIP_START donation-log（App Store 禁外部贊助內容，prepare-web.mjs 整段移除） -->
         <li class="web-only-donation-log"><span class="d">7/13</span><span>贊助方式更新：「請開發者喝咖啡」的銀行轉帳帳戶改用 LINE Bank（連線商業銀行 824）——謝謝每一位抖內支持軌島的朋友 🙏</span></li>
         <!-- APP_STRIP_END donation-log -->
         <li class="grp">資料校正</li>
-        <li><span class="d">7/25</span><span>台鐵快車經過不停靠小站時的位置改用改點後的實際到站紀錄校正，不再只靠固定的加速減速曲線；官方資料沒有回報的小站維持原本算法</span></li>
-        <li><span class="d">7/24</span><span>台鐵列車站間位置改用官方里程推算，快車行駛中的位置更貼近實際（山線／海線長度也一併校正）</span></li>
-        <li><span class="d">7/24</span><span>台鐵班表改為每天使用當日官方時刻：週五～週日才開的加班車（如 21、213 次）現在會在正確的日子出現，連假與國定假日的特別班表也會自動反映，不再整週重播同一天</span></li>
-        <li><span class="d">7/18</span><span>三鶯線改依實際試營運時段（每天 10:00–20:00），清晨與入夜後不再跑現實中不存在的「幽靈列車」</span></li>
-        <li><span class="d">7/18</span><span>平溪、深澳、集集、內灣線的車種改為 DR1000 柴油客車（這幾段沒有電化，原本標成電聯車）</span></li>
-        <li><span class="d">7/17</span><span>安坑輕軌「台北小城」站位修正，不再與鄰站重疊</span></li>
-        <li><span class="d">7/17</span><span>144、146 次的車種更正為 EMU3000，已蓋的完乘章一併歸戶</span></li>
-        <li><span class="d">7/15</span><span>修正高鐵軌道彎道處的不自然直角折點</span></li>
-        <li><span class="d">7/13</span><span>移除舊山線、貨運線等沒有畫軌道路段上的錯誤道口記號</span></li>
-        <li><span class="d">7/12</span><span>導言註明環狀線由新北捷運營運（不是台北捷運）；捷運資料來源說明補上機捷與新北捷</span></li>
-        <li><span class="d">7/11</span><span>成追線列車經成功站不再繞行迂迴瞬移</span></li>
-        <li><span class="d">7/11</span><span>山線改走現行路線，不再誤用 1998 年的舊山線線形</span></li>
+        <li><span class="d">7/25</span><span>台鐵快車經過不停靠小站時的位置改用改點後的實際到站紀錄校正</span></li>
+        <li><span class="d">7/24</span><span>台鐵列車站間位置改用官方里程推算（山線／海線長度也一併校正）</span></li>
+        <li><span class="d">7/24</span><span>台鐵班表改為每天使用當日官方時刻，週末限定的加班車會在正確的日子出現</span></li>
+        <li><span class="d">7/21</span><span>修正桃園機捷南下停靠站對調：普通車過長庚站站停、直達車只停新北產業</span></li>
+        <li><span class="d">7/18</span><span>三鶯線改依實際試營運時段（每天 10:00–20:00），不再跑幽靈列車</span></li>
+        <li><span class="d">7/18</span><span>平溪、深澳、集集、內灣線車種改為 DR1000 柴油客車（這幾段沒有電化）</span></li>
+        <li><span class="d">7/17</span><span>安坑輕軌「台北小城」站位修正；144、146 次車種更正為 EMU3000</span></li>
+        <li><span class="d">7/11</span><span>山線改走現行路線，不再誤用 1998 年的舊山線線形；成追線經成功站不再繞行</span></li>
         <li class="grp">曾經上線、後來拿掉</li>
         <li><span class="d"></span><span><b>站內錄影（Beta）</b>：7/10 上線、7/17 因地圖圖資的版權條款下架——想錄畫面請改用手機或電腦內建的螢幕錄影功能</span></li>
         <li><span class="d"></span><span><b>軌島帳號（跨裝置同步）</b>：7/16 上線、7/17 暫時收起整備。你在這台裝置上的收藏與完乘紀錄、以及先前已同步到雲端的資料都保留；已建立帳號的人仍可從「刪除軌島帳號」頁面自助刪除</span></li>
         <li><span class="d"></span><span><b>定位我</b>：定位功能目前停用中，7/18 把手機「更多」選單裡點了沒反應的入口一併拔掉</span></li>
         <li class="grp">起點</li>
         <li><span class="d">7/8</span><span>初版上線：台鐵全日時刻表動畫＋北捷／高捷（含輕軌）／中捷班距模擬</span></li>
-      </ul>
+        </ul>
+      </details>
     </details>
     <details class="foot-box">
       <summary><span>📊 資料來源與授權</span></summary>
@@ -3105,7 +3039,7 @@ try { if (matchMedia('(max-width: 900px)').matches) document.body.classList.add(
 <script>
 // 版本戳記:每次改版 push 前手動遞增(字母序),畫面時鐘徽章與 console 都會顯示,
 // 供比對線上跑的是不是最新版(瀏覽器快取 max-age=600 常讓人看到舊版)
-const BUILD = 'v0726c';
+const BUILD = 'v0726e';
 const TRACK_AUDIT = new URLSearchParams(location.search).get('audit') === 'tracks';
 // 手機/平板直式「殼」斷點(議題1:640→900,iPad 直式改拿 tabbar＋更多抽屜):與 CSS @media 同步,版面類判斷一律用此常數。
 // 注意:裝置等級判斷(keepBuffer/powerSave 預設)刻意不用此常數、維持 640——iPad 不該因為改拿 tabbar 就被當低階裝置。
