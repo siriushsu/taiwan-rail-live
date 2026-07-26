@@ -1,7 +1,21 @@
 # 靜態資產的安全標頭(Workers Static Assets 原生支援,同 Pages 格式)。
 # 資產不再經過 Worker(見 wrangler.jsonc 鐵則),所以標頭在這裡補;/api/* 的標頭仍由 worker.js 出口設定。
+#
+# CSP 的兩件事先講清楚，免得日後看到 'unsafe-inline' 以為是漏補：
+# 1. 全站是單檔 inline <script>／<style>，所以 script-src 一定要 'unsafe-inline'；
+#    也因此 CSP 擋不住 inline 事件處理器型的 XSS——那條防線是「資料進 innerHTML 前一律 escHtml」，
+#    發行閘門 app/scripts/verify-release.mjs 有對應斷言。CSP 在這裡的作用是第二層：
+#    擋掉「從別的網域載腳本」與「把偷到的資料送去別的網域」。
+# 2. 允許清單是實測出來的（對正式站錄網路請求）：cdnjs=Leaflet、cartocdn/arcgis=圖磚、
+#    static.cloudflareinsights.com=Cloudflare 自動注入的 Web Analytics beacon。
+#    gstatic(Firebase SDK)與 jsdelivr(RevenueCat)目前因帳號／Plus 關閉而不會載入，
+#    先放行以免日後打開旗標時被 CSP 悄悄擋掉；**改動登入或訂閱管線時要回頭重測這條**。
+# 圖磚供應商會換（Stadia／Esri／CARTO），img-src 用 https: 放寬——圖片不執行程式碼，風險低。
+#
 /*
   Strict-Transport-Security: max-age=31536000; includeSubDomains
   X-Content-Type-Options: nosniff
   X-Frame-Options: DENY
   Referrer-Policy: strict-origin-when-cross-origin
+  Permissions-Policy: accelerometer=(), autoplay=(self), camera=(), display-capture=(), encrypted-media=(), fullscreen=(self), geolocation=(self), gyroscope=(), magnetometer=(), microphone=(), midi=(), payment=(self), publickey-credentials-get=(), screen-wake-lock=(self), usb=(), xr-spatial-tracking=(), browsing-topics=()
+  Content-Security-Policy: default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'none'; form-action 'self'; script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://static.cloudflareinsights.com https://www.gstatic.com https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com; img-src 'self' data: blob: https:; media-src 'self' data: blob:; font-src 'self' data:; worker-src 'self' blob:; manifest-src 'self'; connect-src 'self' https://cloudflareinsights.com https://*.googleapis.com https://api.revenuecat.com

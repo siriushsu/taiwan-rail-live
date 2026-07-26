@@ -1,0 +1,13 @@
+{
+  "appId": "tw.railisland.app",
+  "appName": "軌島",
+  "webDir": "www",
+  "backgroundColor": "#f4edda",
+  "loggingBehavior": "production",
+  "plugins": {
+    "FirebaseAuthentication": {
+      "skipNativeAuth": true,
+      "providers": ["google.com", "apple.com"]
+    }
+  }
+}

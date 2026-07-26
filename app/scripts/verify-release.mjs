@@ -223,7 +223,14 @@ export async function verifyRelease({
     for (const [label, nativeIndex] of nativeIndexes) {
       let nativeHtml;
       try { nativeHtml = await readFile(nativeIndex, 'utf8'); }
-      catch { continue; } // 原生專案尚未生成則略過
+      catch {
+        // 原生專案尚未生成則略過。但在 CI（cap sync 之後）這個「略過」等於整條檢查從沒跑過——
+        // 乾淨 clone 沒有 App/public,發行閘門會在完全沒比對內嵌資產的情況下亮綠燈。
+        // 故 ci_post_clone 的同步後複驗帶 RAIL_REQUIRE_NATIVE=1,把略過改成失敗。
+        assert(!process.env.RAIL_REQUIRE_NATIVE,
+          `${label} 內嵌資產不存在（${relative(repoRoot, nativeIndex)}）——cap sync 未產生打包用網頁,不可發行`);
+        continue;
+      }
       const nativeBuild = extractBuild(nativeHtml);
       assert(nativeBuild === wwwBuild,
         `${label} 內嵌資產版本不一致：${relative(repoRoot, nativeIndex)} 為 ${nativeBuild},app/www 為 ${wwwBuild};請執行 npm run sync（build + cap sync）`);
