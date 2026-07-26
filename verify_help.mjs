@@ -189,8 +189,8 @@ for (const c of TRY_CASES) {
   await boot(p);
   await p.evaluate(() => openHelp());
   if (c.needs && !(await p.evaluate(id => !!document.getElementById(id), c.needs))) {
-    // 本機靜態伺服器沒有 /api/sat-token → 衛星鈕會被 remove(正式站有)。驗不了就明說,不假裝通過。
-    console.log(`  SKIP G7 「${c.key}」本機環境沒有 #${c.needs}（正式站才有），這項在預覽站補驗`);
+    // 本機靜態伺服器沒有 /api/basemap-token → 衛星鈕會被 remove(正式站有)。驗不了就明說,不假裝通過。
+    console.log(`  SKIP G7 「${c.key}」本機環境沒有 #${c.needs}（正式站才有），這項已在正式站補驗過`);
     await p.context().close(); continue;
   }
   const clicked = await p.evaluate(k => {
