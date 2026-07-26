@@ -2429,68 +2429,6 @@ try { if (matchMedia('(max-width: 900px)').matches) document.body.classList.add(
     </button>
     <div class="rec-pill" id="recPill" hidden title="停止錄影並下載影片"><span class="rd"></span>REC <span id="recTime">0:00</span><span class="rstop">停止</span></div>
     <div class="rec-toast" id="recToast" hidden><span id="recToastTxt"></span><button id="recRedl">再下載一次</button><button class="x" id="recToastX" title="關閉">×</button></div>
-    <div class="takeout-modal" id="takeoutModal" hidden>
-      <section class="takeout-dialog" role="dialog" aria-modal="true" aria-labelledby="takeoutTitle">
-        <div class="takeout-head"><h2 id="takeoutTitle">匯入 Google 已儲存清單</h2><button id="takeoutX" type="button" aria-label="關閉">×</button></div>
-        <div class="takeout-body">
-          <p class="takeout-help">從 Google Takeout 選擇「Saved」匯出後，可直接選 ZIP；也支援解壓後的 CSV、JSON 或 GeoJSON。檔案只在這台裝置內解析，不會上傳。</p>
-          <input class="takeout-file" id="takeoutFile" type="file" accept=".zip,.csv,.json,.geojson,application/zip,text/csv,application/json">
-          <div class="takeout-status" id="takeoutStatus">選擇檔案後會先預覽，不會立刻寫入收藏。</div>
-          <div id="takeoutPreview"></div>
-        </div>
-        <div class="takeout-actions"><button class="cancel" id="takeoutCancel" type="button">取消</button><button class="confirm" id="takeoutConfirm" type="button" disabled>匯入已勾選地點</button></div>
-      </section>
-    </div>
-    <div class="takeout-modal account-modal" id="accountModal" hidden>
-      <section class="takeout-dialog account-dialog" role="dialog" aria-modal="true" aria-labelledby="accountTitle">
-        <div class="takeout-head"><h2 id="accountTitle">軌島帳號</h2><button id="accountX" type="button" aria-label="關閉">×</button></div>
-        <div class="takeout-body" id="accountBody"><p class="account-intro">正在讀取登入狀態…</p></div>
-      </section>
-    </div>
-    <div class="takeout-modal plus-modal" id="plusModal" hidden>
-      <section class="takeout-dialog plus-dialog" role="dialog" aria-modal="true" aria-labelledby="plusTitle">
-        <div class="takeout-head"><h2 id="plusTitle">軌島 Plus</h2><button id="plusX" type="button" aria-label="關閉">×</button></div>
-        <div class="takeout-body" id="plusBody"><p class="account-intro">正在讀取購買資格…</p></div>
-      </section>
-    </div>
-    <div class="takeout-modal notify-modal" id="notifyModal" hidden>
-      <section class="takeout-dialog notify-dialog" role="dialog" aria-modal="true" aria-labelledby="notifyTitle">
-        <div class="takeout-head"><h2 id="notifyTitle">到站提醒</h2><button id="notifyClose" type="button">×</button></div>
-        <div class="takeout-body notify-body">
-          <div class="notify-train"><span id="notifyTrainLabel">車次</span><span class="notify-sys" id="notifySys"></span><span id="notifyTrain"></span></div>
-          <label class="notify-field"><span id="notifyStationLabel">提醒站點</span><select id="notifyStation"></select></label>
-          <div class="notify-field notify-basis-field" id="notifyBasisField"><span>提醒基準</span><div class="notify-basis" id="notifyBasis" role="group" aria-label="提醒基準"><button type="button" data-basis="dep">開車前</button><button type="button" data-basis="arr">到達前</button></div></div>
-          <div class="notify-field"><span><span>提前</span><small class="notify-mode" id="notifyModeLabel">開車前</small></span><div class="notify-offsets" id="notifyOffsets">
-            <label><input type="radio" name="notifyOffset" value="5"><span>5</span></label>
-            <label><input type="radio" name="notifyOffset" value="10" checked><span>10</span></label>
-            <label><input type="radio" name="notifyOffset" value="15"><span>15</span></label>
-            <label><input type="radio" name="notifyOffset" value="30"><span>30</span></label>
-          </div></div>
-          <label class="notify-field"><span>步行到車站</span><span class="notify-walk"><input id="notifyWalk" type="number" min="0" max="60" step="1" inputmode="numeric" value="0"><span>分鐘</span></span></label>
-          <div class="notify-preview" id="notifyPreview"></div>
-          <div class="notify-permission" id="notifyPermission" hidden><span>通知權限已關閉，請到 設定 &gt; 軌島 開啟</span><button id="notifySettings" type="button" hidden>開啟設定</button></div>
-          <button class="notify-primary" id="notifySave" type="button">設定提醒</button>
-          <div class="notify-list"><b>已排提醒</b><div id="notifyReminderList"></div></div>
-        </div>
-      </section>
-      <div class="notify-primer" id="notifyPrimer" hidden>
-        <section class="notify-primer-card" role="dialog" aria-modal="true" aria-labelledby="notifyPrimerTitle">
-          <h3 id="notifyPrimerTitle">開車前叫你</h3>
-          <p>快到你設定的時間時，軌島會發通知提醒你。通知只在你設定的班次前出現，不會有廣告或雜訊。</p>
-          <div class="notify-primer-actions"><button class="yes" id="notifyPrimerYes" type="button">好，提醒我</button><button class="later" id="notifyPrimerLater" type="button">先不要</button></div>
-        </section>
-      </div>
-    </div>
-    <div class="takeout-modal pinname-modal" id="pinNameModal" hidden>
-      <section class="takeout-dialog pinname-dialog" role="dialog" aria-modal="true" aria-labelledby="pinNameTitle">
-        <div class="takeout-head"><h2 id="pinNameTitle">命名地點</h2><button id="pinNameX" type="button" aria-label="關閉">×</button></div>
-        <div class="takeout-body">
-          <p class="takeout-help">給這個位置取個名字，方便日後在「我的最愛」裡找到。不填也可以，之後仍可從最愛移除。</p>
-          <input class="pinname-input" id="pinNameInput" type="text" maxlength="40" placeholder="例如：家、公司、常去的車站" autocomplete="off">
-        </div>
-        <div class="takeout-actions"><button class="cancel" id="pinNameCancel" type="button">取消</button><button class="confirm" id="pinNameSave" type="button">儲存地點</button></div>
-      </section>
-    </div>
     <div class="badge">
       <span class="clock" id="clock">08:00</span>
       <span class="live" id="liveBadge" hidden>LIVE</span>
@@ -2676,6 +2614,7 @@ try { if (matchMedia('(max-width: 900px)').matches) document.body.classList.add(
       <ul class="foot-list">
         <li class="grp">最近更新</li>
         <li><span class="d">7/26</span><span>新增「📖 使用說明」：從「更多」第一列打開，搜尋、跟車、車站看板、儲存地點、放空模式等功能都有圖文步驟，每節按「試一次」還會直接幫你操作一遍；首訪卡也多了「看完整說明」入口</span></li>
+        <li><span class="d">7/26</span><span>手機／App 的匯入清單、Plus、到站提醒、命名地點對話框修好了：底部頁籤不再蓋住下緣按鈕，也不會被誤按到</span></li>
         <li><span class="d">7/26</span><span>跟隨資訊卡的「×」和地圖上的跟隨鎖鈕變好按了：以前 × 只有一丁點大，手指常常戳不到</span></li>
         <li><span class="d">7/26</span><span>手機／App 底部的「地圖」鈕換成「🔍 搜尋」：以前搜尋藏在「探」面板裡，第一次用很難發現；現在一按就能查站名、車次或列車名稱</span></li>
         <li><span class="d">7/25</span><span>台鐵自強、莒光等快車經過不停靠的小站時，位置改用最近一次改點後的實際到站紀錄推算：以前是用固定的加速減速曲線硬算，現在會反映這班車在這段路真正跑多快，全網近九成的跳站路段都有實測撐著</span></li>
@@ -2785,6 +2724,7 @@ try { if (matchMedia('(max-width: 900px)').matches) document.body.classList.add(
         <li><span class="d">7/9</span><span>旅程護照與 16 枚成就徽章、「探」今日亮點面板上線</span></li>
         <li class="grp">手機與操作</li>
         <li><span class="d">7/26</span><span>新增「📖 使用說明」：從「更多」第一列打開，搜尋、跟車、車站看板、儲存地點、放空模式等功能都有圖文步驟，每節按「試一次」還會直接幫你操作一遍；首訪卡也多了「看完整說明」入口</span></li>
+        <li><span class="d">7/26</span><span>手機／App 的匯入清單、Plus、到站提醒、命名地點對話框修好了：底部頁籤不再蓋住下緣按鈕，也不會被誤按到</span></li>
         <li><span class="d">7/26</span><span>手機／App 底部的「地圖」鈕換成「🔍 搜尋」：以前搜尋藏在「探」面板裡，第一次用很難發現；現在一按就能查站名、車次或列車名稱</span></li>
         <li><span class="d">7/25</span><span>手機／App 的「隨機跟隨」與「附近車站」並排成一列移到時鐘下方，不再壓住左上角的時鐘</span></li>
         <li><span class="d">7/25</span><span>手機列車控制帶點一下就展開（原本要點兩下），展開後多了跟電腦版一樣的時刻尺：拖著就能把時間往前往後帶；「放空模式」收進「更多」</span></li>
@@ -2913,6 +2853,74 @@ try { if (matchMedia('(max-width: 900px)').matches) document.body.classList.add(
     <div class="takeout-body help-body" id="helpBody"></div>
   </section>
 </div>
+<!-- Takeout 匯入／帳號／Plus／到站提醒／命名地點 五顆對話框:**刻意放 body 層、不放 .stage 裡**。
+     手機版 .stage 是 position:fixed + z-index:1000,自成堆疊脈絡,放進去的話這裡的 z-index:2200 會被
+     封頂成 1000,而 tabbar 是 body 層 z-index:1100 → tabbar 反而畫在對話框之上:遮住視窗較短機身的
+     dialog 底部(實測 375x667 的 Plus 對話框底緣被蓋 34px),且五顆 tab 在對話框開著時仍可點,scrim 形同虛設。
+     (2026-07-26 對五顆逐一用 elementFromPoint 量出;日後新增任何 .takeout-modal 一律加在這裡) -->
+<div class="takeout-modal" id="takeoutModal" hidden>
+  <section class="takeout-dialog" role="dialog" aria-modal="true" aria-labelledby="takeoutTitle">
+    <div class="takeout-head"><h2 id="takeoutTitle">匯入 Google 已儲存清單</h2><button id="takeoutX" type="button" aria-label="關閉">×</button></div>
+    <div class="takeout-body">
+      <p class="takeout-help">從 Google Takeout 選擇「Saved」匯出後，可直接選 ZIP；也支援解壓後的 CSV、JSON 或 GeoJSON。檔案只在這台裝置內解析，不會上傳。</p>
+      <input class="takeout-file" id="takeoutFile" type="file" accept=".zip,.csv,.json,.geojson,application/zip,text/csv,application/json">
+      <div class="takeout-status" id="takeoutStatus">選擇檔案後會先預覽，不會立刻寫入收藏。</div>
+      <div id="takeoutPreview"></div>
+    </div>
+    <div class="takeout-actions"><button class="cancel" id="takeoutCancel" type="button">取消</button><button class="confirm" id="takeoutConfirm" type="button" disabled>匯入已勾選地點</button></div>
+  </section>
+</div>
+<div class="takeout-modal account-modal" id="accountModal" hidden>
+  <section class="takeout-dialog account-dialog" role="dialog" aria-modal="true" aria-labelledby="accountTitle">
+    <div class="takeout-head"><h2 id="accountTitle">軌島帳號</h2><button id="accountX" type="button" aria-label="關閉">×</button></div>
+    <div class="takeout-body" id="accountBody"><p class="account-intro">正在讀取登入狀態…</p></div>
+  </section>
+</div>
+<div class="takeout-modal plus-modal" id="plusModal" hidden>
+  <section class="takeout-dialog plus-dialog" role="dialog" aria-modal="true" aria-labelledby="plusTitle">
+    <div class="takeout-head"><h2 id="plusTitle">軌島 Plus</h2><button id="plusX" type="button" aria-label="關閉">×</button></div>
+    <div class="takeout-body" id="plusBody"><p class="account-intro">正在讀取購買資格…</p></div>
+  </section>
+</div>
+<div class="takeout-modal notify-modal" id="notifyModal" hidden>
+  <section class="takeout-dialog notify-dialog" role="dialog" aria-modal="true" aria-labelledby="notifyTitle">
+    <div class="takeout-head"><h2 id="notifyTitle">到站提醒</h2><button id="notifyClose" type="button">×</button></div>
+    <div class="takeout-body notify-body">
+      <div class="notify-train"><span id="notifyTrainLabel">車次</span><span class="notify-sys" id="notifySys"></span><span id="notifyTrain"></span></div>
+      <label class="notify-field"><span id="notifyStationLabel">提醒站點</span><select id="notifyStation"></select></label>
+      <div class="notify-field notify-basis-field" id="notifyBasisField"><span>提醒基準</span><div class="notify-basis" id="notifyBasis" role="group" aria-label="提醒基準"><button type="button" data-basis="dep">開車前</button><button type="button" data-basis="arr">到達前</button></div></div>
+      <div class="notify-field"><span><span>提前</span><small class="notify-mode" id="notifyModeLabel">開車前</small></span><div class="notify-offsets" id="notifyOffsets">
+        <label><input type="radio" name="notifyOffset" value="5"><span>5</span></label>
+        <label><input type="radio" name="notifyOffset" value="10" checked><span>10</span></label>
+        <label><input type="radio" name="notifyOffset" value="15"><span>15</span></label>
+        <label><input type="radio" name="notifyOffset" value="30"><span>30</span></label>
+      </div></div>
+      <label class="notify-field"><span>步行到車站</span><span class="notify-walk"><input id="notifyWalk" type="number" min="0" max="60" step="1" inputmode="numeric" value="0"><span>分鐘</span></span></label>
+      <div class="notify-preview" id="notifyPreview"></div>
+      <div class="notify-permission" id="notifyPermission" hidden><span>通知權限已關閉，請到 設定 &gt; 軌島 開啟</span><button id="notifySettings" type="button" hidden>開啟設定</button></div>
+      <button class="notify-primary" id="notifySave" type="button">設定提醒</button>
+      <div class="notify-list"><b>已排提醒</b><div id="notifyReminderList"></div></div>
+    </div>
+  </section>
+  <div class="notify-primer" id="notifyPrimer" hidden>
+    <section class="notify-primer-card" role="dialog" aria-modal="true" aria-labelledby="notifyPrimerTitle">
+      <h3 id="notifyPrimerTitle">開車前叫你</h3>
+      <p>快到你設定的時間時，軌島會發通知提醒你。通知只在你設定的班次前出現，不會有廣告或雜訊。</p>
+      <div class="notify-primer-actions"><button class="yes" id="notifyPrimerYes" type="button">好，提醒我</button><button class="later" id="notifyPrimerLater" type="button">先不要</button></div>
+    </section>
+  </div>
+</div>
+<div class="takeout-modal pinname-modal" id="pinNameModal" hidden>
+  <section class="takeout-dialog pinname-dialog" role="dialog" aria-modal="true" aria-labelledby="pinNameTitle">
+    <div class="takeout-head"><h2 id="pinNameTitle">命名地點</h2><button id="pinNameX" type="button" aria-label="關閉">×</button></div>
+    <div class="takeout-body">
+      <p class="takeout-help">給這個位置取個名字，方便日後在「我的最愛」裡找到。不填也可以，之後仍可從最愛移除。</p>
+      <input class="pinname-input" id="pinNameInput" type="text" maxlength="40" placeholder="例如：家、公司、常去的車站" autocomplete="off">
+    </div>
+    <div class="takeout-actions"><button class="cancel" id="pinNameCancel" type="button">取消</button><button class="confirm" id="pinNameSave" type="button">儲存地點</button></div>
+  </section>
+</div>
+
 <!-- 手機 App 殼(≤640 顯示;桌面 CSS 藏):底部 tab bar＋「更多」sheet(原 ☰ 抽屜的繼承者) -->
 <nav class="tabbar" id="tabbar" aria-label="主要導覽">
   <!-- 搜尋(v0726a 取代原「◉ 地圖」):搜尋原本藏在亮點 sheet 裡,第一次用的人發現不了,升為一級入口 -->
@@ -2984,7 +2992,7 @@ try { if (matchMedia('(max-width: 900px)').matches) document.body.classList.add(
 <script>
 // 版本戳記:每次改版 push 前手動遞增(字母序),畫面時鐘徽章與 console 都會顯示,
 // 供比對線上跑的是不是最新版(瀏覽器快取 max-age=600 常讓人看到舊版)
-const BUILD = 'v0726b';
+const BUILD = 'v0726c';
 const TRACK_AUDIT = new URLSearchParams(location.search).get('audit') === 'tracks';
 // 手機/平板直式「殼」斷點(議題1:640→900,iPad 直式改拿 tabbar＋更多抽屜):與 CSS @media 同步,版面類判斷一律用此常數。
 // 注意:裝置等級判斷(keepBuffer/powerSave 預設)刻意不用此常數、維持 640——iPad 不該因為改拿 tabbar 就被當低階裝置。
