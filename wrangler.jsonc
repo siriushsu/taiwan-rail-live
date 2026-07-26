@@ -27,6 +27,17 @@
   "triggers": {
     "crons": ["15 1 * * *", "15 4 * * *"]
   },
+  // 速率限制(2026-07-26 稽核):/api/delay-history 與 /api/account-delete 在驗證階段就會對
+  // Firebase identitytoolkit 與 RevenueCat 各發一次 outbound fetch——而那發生在「token 有沒有效」
+  // 判斷出來之前,所以隨便一串垃圾 Bearer 就能逼我們打上游一次,是不需要任何憑證的放大攻擊。
+  // 這裡按來源 IP 節流,擋在外部呼叫前面。period 只接受 10 或 60。
+  // namespace_id 在同一個 Worker 內唯一即可,數字本身沒有意義。
+  "unsafe": {
+    "bindings": [
+      { "name": "AUTH_LIMITER", "type": "ratelimit", "namespace_id": "1001", "simple": { "limit": 20, "period": 60 } },
+      { "name": "DELETE_LIMITER", "type": "ratelimit", "namespace_id": "1002", "simple": { "limit": 5, "period": 60 } }
+    ]
+  },
   "assets": {
     "directory": ".",
     "binding": "ASSETS"

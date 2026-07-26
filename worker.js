@@ -496,9 +496,22 @@ function buildDelayHistoryBody(train, rows, windowDays, win, generatedIso) {
   };
 }
 
+// 按來源 IP 節流。回 true 代表「這一發要擋掉」。
+// 刻意 fail-open:binding 不存在(舊版本、本機 dev)或限流服務自己出錯時放行——
+// 限流是防濫用不是防功能,寧可漏擋也不要讓付費使用者整批 429。
+async function rateLimited(limiter, request) {
+  if (!limiter || typeof limiter.limit !== 'function') return false;
+  const ip = request.headers.get('cf-connecting-ip') || '0.0.0.0';
+  try { const { success } = await limiter.limit({ key: ip }); return !success; }
+  catch (e) { return false; }
+}
+
 async function delayHistory(request, env) {
   const train = new URL(request.url).searchParams.get('train') || '';
   if (!isValidTrainNo(train)) return jsonRes({ error: 'bad train' }, 400, 'no-store');
+  // 節流要在下面的 Firebase／RevenueCat 呼叫之前:那兩發 fetch 在「token 有沒有效」判斷出來
+  // 之前就送出去了,擋在後面等於沒擋。20 次/分鐘對真人查誤點履歷綽綽有餘。
+  if (await rateLimited(env.AUTH_LIMITER, request)) return jsonRes({ error: 'rate_limited' }, 429, 'no-store');
   // ── Plus 付費牆:誤點履歷是 Plus 頭牌功能,先驗 Firebase ID token + RevenueCat entitlement ──
   // 此閘一定要在下方 edge.match 之前:授權後的 200 資料會寫進 train-keyed 共享邊緣快取;閘若放在
   // match 之後,無 token 的人也能從共享快取讀到,付費牆漏底。401/403/503 一律 no-store,不入共享快取。
@@ -623,6 +636,8 @@ function basemapToken(request, env) {
 // 不接受前端傳 customer id，避免知道別人 uid 就能刪除對方購買資料。
 async function deletePaidProfile(request, env) {
   if (request.method !== 'POST') return jsonRes({ error: 'method not allowed' }, 405, 'no-store');
+  // 同 delayHistory:擋在 Firebase／RevenueCat 呼叫前面。刪帳號是一次性動作,5 次/分鐘已經很寬。
+  if (await rateLimited(env.DELETE_LIMITER, request)) return jsonRes({ error: 'rate_limited' }, 429, 'no-store');
   if (!env.FIREBASE_WEB_API_KEY || !env.REVENUECAT_PROJECT_ID || !env.REVENUECAT_V2_SECRET_KEY)
     return jsonRes({ error: 'account deletion service is not configured' }, 503, 'no-store');
   const auth = request.headers.get('Authorization') || '';
@@ -1046,3 +1061,6 @@ export const _metroAlert = {
 export const _stationEvents = { diffTrains, twDayFromMemAt };
 // 純函式導出,供離線回歸測試 import:誤點履歷視窗計算、車次驗證與回應組裝。
 export const _delayHistory = { delayHistoryWindow, buildDelayHistoryBody, isValidTrainNo };
+// 供離線回歸測試 import:驗「節流擋在 outbound fetch 之前」。這兩個不是純函式,測試得自備
+// env 替身與 fetch 替身;導出的目的就是讓測試能數「被擋掉時到底有沒有打上游」。
+export const _rateLimit = { rateLimited, delayHistory, deletePaidProfile };
