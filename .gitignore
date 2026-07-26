@@ -9,7 +9,7 @@ _專案資訊.html
 通知功能設計*
 音樂功能設計*
 打卡收集系統設計*
-Plus訂閱重整*
+Plus訂閱*
 商店文案與截圖需求*
 hand off/
 .dev.vars*
@@ -30,3 +30,6 @@ app/MUSIC_LICENSE_CHECKLIST.md
 data/tra_pass_obs_diag.json
 研究_跳站校正覆蓋明細_*.html
 使用說明中心設計*
+
+# TestFlight 測試說明底稿（不進公開 repo）
+TestFlight測試說明_*.md
