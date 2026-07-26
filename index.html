@@ -249,7 +249,8 @@
   .follow-lock-ctl button {
     display: block; cursor: pointer; font: 700 13px/1.2 var(--font);
     background: var(--paper); color: var(--navy); border: 1.5px solid var(--line); border-radius: 8px;
-    box-shadow: var(--shadow-1); padding: 8px 9px; min-width: 34px; white-space: nowrap;
+    box-shadow: var(--shadow-1); padding: 8px 9px; white-space: nowrap;
+    min-width: 44px; min-height: 44px; /* 觸控目標下限;解鎖後的「回到列車」膠囊本來就更寬,不受影響 */
   }
   .follow-lock-ctl button.unlocked { background: var(--red); color: #fff8ec; border-color: var(--red-deep); box-shadow: var(--shadow-red); border-radius: var(--r-pill); }
   .leaflet-control-attribution { background: rgba(247,240,221,.9); color: var(--faint); }
@@ -655,6 +656,15 @@
   .follow-panel .fp-head .fp-close {
     margin-left: 4px; background: none; border: 0; cursor: pointer;
     color: var(--faint); font-size: 15px; line-height: 1; padding: 0 2px;
+    position: relative; /* ::after 熱區的錨點——必須是 relative,見下 */
+  }
+  /* 觸控目標:× 的視覺盒只有約 12×13px。不靠加 padding 放大(會撐高整條標題列,而標題列高度
+     由 24px 的時速數字決定,一動就整張卡變形),改疊一塊透明熱區。
+     button 一定要 position:relative:static 是唯一會把錨點交出去的值,交出去後熱區的
+     containing block 會跳到 .follow-panel 並撐成整張卡,把下面每一行都變成「關閉」。
+     熱區刻意只往上與往左長,不往下侵入「下一站／ETA」那行(那行點下去是開列車詳情)。 */
+  .follow-panel .fp-head .fp-close::after {
+    content: ''; position: absolute; right: -6px; top: -12px; width: 44px; height: 38px;
   }
   .follow-panel .fp-next {
     display: flex; align-items: baseline; gap: 7px; flex-wrap: wrap; row-gap: 3px;
@@ -2862,7 +2872,10 @@ try { if (matchMedia('(max-width: 900px)').matches) document.body.classList.add(
     <button class="ms-row" data-proxy="introBtn"><span>特殊站介紹</span><span class="toggle" data-tg="introBtn"></span></button>
     <button class="ms-row" data-proxy="dirBtn"><span>列車方向箭頭</span><span class="toggle" data-tg="dirBtn"></span></button>
     <button class="ms-row" data-proxy="pinBtn"><span>儲存地點</span><span class="toggle" data-tg="pinBtn"></span></button>
-    <button class="ms-row" data-proxy="nearBtn" data-close="1"><span>◎ 附近車站</span><span class="chev">›</span></button>
+    <!-- 定位是原生 App 限定(LOCATE_ENABLED),網站/PWA 沒有:比照 #nearBtn 的 hidden 先 inline 藏,
+         不靠 setupMapTools 才移除——它前段一拋(2026-07-26 實測過),這列就會留成「點了沒反應」的死列。
+         App 的還原點在 setupMapTools 的 LOCATE_ENABLED 分支 -->
+    <button class="ms-row" data-proxy="nearBtn" data-close="1" style="display:none"><span>◎ 附近車站</span><span class="chev">›</span></button>
     <!-- 縣市快速移動(Batch B):#citySel 縣市下拉的手機新家;點列展開 17 縣市 chip,點 chip 飛過去並關 sheet -->
     <button class="ms-row" data-act="cities"><span>縣 縣市快速移動</span><span class="chev">›</span></button>
     <div class="ms-cities" id="msCities" hidden></div>
@@ -2884,7 +2897,10 @@ try { if (matchMedia('(max-width: 900px)').matches) document.body.classList.add(
     <div class="ms-sec">分享與資料</div>
     <button class="ms-row" data-proxy="shareBtn" data-close="1"><span>↗ 分享畫面</span><span class="chev">›</span></button>
     <button class="ms-row" data-proxy="importBtn" data-close="1"><span>Google 清單匯入</span><span class="chev">›</span></button>
-    <button class="ms-row" data-proxy="accountBtn" data-close="1"><span>帳號同步</span><span class="chev">›</span></button>
+    <!-- 帳號同步下架(ACCOUNT_ENABLED=false):比照 #accountBtn 先 inline 藏,不靠 setupAccountUi 才移除。
+         它有兩條走不到移除的路——setupMapTools 前段一拋(2026-07-26 實測過),以及 accountConfigured()
+         為假時的提前 return;兩條都會留成「點了靜默無反應」的死列。還原點在 accountEnsureInit -->
+    <button class="ms-row" data-proxy="accountBtn" data-close="1" style="display:none"><span>帳號同步</span><span class="chev">›</span></button>
     <!-- 關於(Batch B 第五段):placeFootBoxes() 把 site-foot 的四個 <details class="foot-box">
          (更新紀錄/資料來源與授權/贊助/隱私與服務條款)搬進 #msAbout(桌面搬回 site-foot);末列複製回報問題＋版本 -->
     <div class="ms-sec" id="msAboutSec">關於</div>
@@ -5697,7 +5713,10 @@ function accountEnsureInit() {
   accountEnsureInit._p = (async () => {
     const btn = document.getElementById('accountBtn'), modal = document.getElementById('accountModal');
     let accountIntent = new URLSearchParams(location.search).get('account');
-    if (btn) { btn.style.display = ''; btn.onclick = accountOpen; } // 免費層延遲初始化時鈕已被 setupAccountUi 移除→null,跳過
+    if (btn) { // 免費層延遲初始化時鈕已被 setupAccountUi 移除→null,跳過
+      btn.style.display = ''; btn.onclick = accountOpen;
+      const row = document.querySelector('.ms-row[data-proxy="accountBtn"]'); if (row) row.style.display = ''; // 抽屜列 HTML 預設 inline none,這裡是唯一的露出點(eager 與 Plus 延遲初始化都走這)
+    }
     const accountX = document.getElementById('accountX'); if (accountX) accountX.onclick = accountClose;
     if (modal) {
       modal.addEventListener('click', e => { if (e.target === modal) accountClose(); });
@@ -11524,7 +11543,7 @@ function setupMapTools() {
   // 「更多」抽屜那列 data-proxy 指向這顆(不是 locateBtn),兩個入口才會是同一個行為:有位置就直接開清單。
   const nearBtn = document.getElementById('nearBtn');
   if (nearBtn) {
-    if (LOCATE_ENABLED) { nearBtn.hidden = false; nearBtn.onclick = showNearby; }
+    if (LOCATE_ENABLED) { nearBtn.hidden = false; nearBtn.onclick = showNearby; const row = document.querySelector('.ms-row[data-proxy="nearBtn"]'); if (row) row.style.display = ''; } // 抽屜列 HTML 預設 inline none,原生 App 才在這裡露出
     // 網站/PWA 沒有定位能力,鈕與抽屜列一併移除,否則列點了靜默無反應(v0718i 對 recBtn/accountBtn 的同一教訓)
     else { nearBtn.remove(); const row = document.querySelector('.ms-row[data-proxy="nearBtn"]'); if (row) row.remove(); }
   }
