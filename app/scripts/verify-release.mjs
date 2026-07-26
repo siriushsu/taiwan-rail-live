@@ -139,6 +139,56 @@ export function assertToastSinksReviewed(html) {
     `\n    請確認插入的值是否含使用者資料:含就包 escHtml(),確定安全就把上面的指紋登記進 verify-release.mjs 的 TOAST_REVIEWED 並寫明理由。`);
 }
 
+// ── Esri 金鑰活體檢查 ───────────────────────────────────────────────────────
+// 為什麼需要它:2026-07-26 稽核發現網站那把 Esri token 早就失效,卻九天沒人察覺——因為判斷
+// 「金鑰還活著嗎」用的證據是「衛星圖出得來」,而那個證據是假的:Esri 的**圖磚**端點只檢查
+// token 參數在不在、不看值(實測撒哈拉 z17 冷門座標,真 token／`token=x`／亂打字串三者都回
+// HTTP 200 且同樣 6416 bytes,完全不帶 token= 才回 499)。所以:
+//   (1) 一律改打會真的驗證的 basemapstyles v2,不准用圖磚端點驗任何金鑰;
+//   (2) 一定要**同時**打一串亂打的假金鑰當對照組。少了對照組,這道閘門哪天被換到另一個
+//       不驗證的端點上,它會安靜地一直亮綠燈——那比沒有閘門更糟。
+// 回應形狀(2026-07-26 實測):有效金鑰=HTTP 200 樣式 JSON;無效金鑰=HTTP 401 且 body 為
+// {"error":{"code":498,...}};不帶 token=則是 499。故以「HTTP 狀態/錯誤碼」的組合當判準。
+const ESRI_STYLE_PROBE = 'https://basemapstyles-api.arcgis.com/arcgis/rest/services/styles/v2/styles/arcgis/imagery';
+
+export async function probeEsriKey(token, fetchImpl = fetch) {
+  const res = await fetchImpl(`${ESRI_STYLE_PROBE}?token=${encodeURIComponent(token)}`,
+    { signal: AbortSignal.timeout(20000) });
+  const body = await res.text();
+  let errorCode = null;
+  try { errorCode = JSON.parse(body)?.error?.code ?? null; } catch { /* 非 JSON 或無 error 欄=正常樣式回應 */ }
+  return { status: res.status, errorCode, verdict: `HTTP ${res.status}/${errorCode ?? 'ok'}`, alive: res.ok && errorCode === null };
+}
+
+export async function assertEsriKeyAlive(token, fetchImpl = fetch) {
+  assert(token, 'App 包裡找不到 Esri token,無法檢查金鑰死活');
+  // 對照組刻意做成與真金鑰同長度,免得失敗被歸因成「格式不對才被擋」而不是「值無效」。
+  const decoy = 'AAPT' + 'x'.repeat(Math.max(60, token.length - 4));
+  let live, dead;
+  try {
+    [live, dead] = await Promise.all([probeEsriKey(token, fetchImpl), probeEsriKey(decoy, fetchImpl)]);
+  } catch (e) {
+    fail(`連不上 ArcGIS,無法確認 Esri 金鑰死活（${e.message}）——這道閘門根本沒跑過,不可當作通過。`
+      + '請確認網路後重跑;確實要在離線環境建置,設 RAIL_SKIP_KEY_LIVENESS=1 自行負責。');
+  }
+  // (1) 對照組先判:假金鑰擋不掉 ⇒ 這個端點不驗證 token 的值。
+  assert(dead.errorCode === 498,
+    `Esri 金鑰活體檢查沒有鑑別力:一串亂打的假金鑰竟拿到 ${dead.verdict}（預期 HTTP 401/498 Token Invalid）——`
+    + '驗到的是一個不驗證的端點,等於沒驗。這正是 2026-07-26 那把死了九天的網站金鑰能一直「看起來正常」的原因。'
+    + `請確認 ${ESRI_STYLE_PROBE} 仍是會驗證 API key 的端點,修好探針再發行——不要放寬判準讓它過。`);
+  // (2) 正負對照:走到這裡代表假金鑰已被擋下,所以「兩邊一樣」只可能是真金鑰也被擋=它死了。
+  assert(live.verdict !== dead.verdict,
+    `Esri 金鑰已失效:打包進 App 的金鑰與對照用的假金鑰拿到完全相同的結果（${live.verdict}）,`
+    + 'ArcGIS 對兩者一視同仁 ⇒ 這把金鑰的值沒有任何效力。'
+    + '請到 https://location.arcgis.com/ 開一張新憑證（先設權限、最後才 Generate;只勾 Basemaps）,'
+    + '更新 repo 根 .env 的 ESRI_API_KEY 後重建。切勿用「衛星圖還出得來」當作金鑰有效的證據。');
+  // (3) 真金鑰必須真的通過,而不只是「跟假的不一樣」。
+  assert(live.alive,
+    `打包進 App 的 Esri 金鑰未通過 ArcGIS 驗證（${live.verdict}）,不可發行。`
+    + '請確認 repo 根 .env 的 ESRI_API_KEY 是有效且權限含 Basemaps 的憑證。');
+  return { live, dead };
+}
+
 export async function verifyRelease({
   out = defaultOut,
   expectLicensedMusic,
@@ -238,8 +288,8 @@ export async function verifyRelease({
       '亮色底圖不是含 api_key 的 Stadia alidade_smooth');
     assert(/tiles\.stadiamaps\.com\/tiles\/alidade_smooth_dark\/\{z\}\/\{x\}\/\{y\}\.png\?api_key=[^'"\s]+/.test(html),
       '暗色底圖不是含 api_key 的 Stadia alidade_smooth_dark');
-    assert(/ibasemaps-api\.arcgis\.com\/arcgis\/rest\/services\/World_Imagery\/MapServer\/tile\/\{z\}\/\{y\}\/\{x\}\?token=[^'"\s]+/.test(html),
-      '衛星底圖必須是含 token 的授權 Esri ibasemaps');
+    const satTokenMatch = html.match(/ibasemaps-api\.arcgis\.com\/arcgis\/rest\/services\/World_Imagery\/MapServer\/tile\/\{z\}\/\{y\}\/\{x\}\?token=([^'"\s]+)/);
+    assert(satTokenMatch, '衛星底圖必須是含 token 的授權 Esri ibasemaps');
     assert(!html.includes("plusGateOpen('satellite'"), 'App 第一版衛星免費，不可殘留 Plus 付費閘');
     // 原本是逐字比對整行 `const sat = online && state.basemap === 'sat';`，但那樣任何無關的條件
     // （2026-07-26 加的 token 就緒判斷）也會誤擋。改成檢查意圖：判斷式裡不得出現付費條件。
@@ -262,6 +312,14 @@ export async function verifyRelease({
       'Stadia 圖磚署名不是官方要求的三組連結逐字內容');
     assert(html.includes('Stadia Maps（© Stadia Maps © OpenMapTiles © OpenStreetMap）、Esri World Imagery（衛星影像）與內政部「直轄市、縣市界線」（離線海陸輪廓，政府資料開放授權條款第1版）'),
       'App 頁尾底圖來源未包含 Esri 衛星或離線輪廓的內政部署名');
+    // 放在本區塊最後:上面全是免費的本機檢查,先讓它們失敗;這一項要連外,擺最後才不會為了
+    // 一個過期產物白等網路。驗的是**實際打包進這個 build 的那把金鑰**(不是 .env 當下的值——
+    // 兩者可能已經分岔),所以送審包裡的金鑰死活,這裡是最後一道、也是唯一一道會發現的閘門。
+    if (process.env.RAIL_SKIP_KEY_LIVENESS === '1') {
+      console.warn('⚠️  已跳過 Esri 金鑰活體檢查（RAIL_SKIP_KEY_LIVENESS=1）——這個 build 沒有任何人確認過金鑰還活著。');
+    } else {
+      await assertEsriKeyAlive(decodeURIComponent(satTokenMatch[1]));
+    }
   } else {
     assert(html.includes('window.RAIL_ONLINE_BASEMAPS_AVAILABLE=false'), '安全 build 必須明確關閉線上底圖');
     assert(!html.includes('tiles.stadiamaps.com'), '安全 build 不可含 Stadia 圖磚網址或 API key');
