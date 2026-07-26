@@ -920,6 +920,27 @@
   }
   .follow-panel .fp-notify:hover { background: var(--bg-stage); }
   .follow-panel.fp-min .fp-notify { display: none !important; }
+  /* 搭乘模式:未上車=空心票券鈕;搭乘中=實心紅,一眼看得出「正在收集」 */
+  .follow-panel .fp-ride {
+    margin-top: 8px; width: 100%; min-height: 44px; text-align: center;
+    background: var(--paper); color: var(--red); border: 1.5px solid var(--red); border-radius: var(--r-pill);
+    font: inherit; font-size: 12px; font-weight: 800; letter-spacing: 1px; cursor: pointer;
+  }
+  .follow-panel .fp-ride.on { background: var(--red); color: var(--paper); border-color: var(--red); }
+  .follow-panel .fp-ride.busy { background: var(--bg-stage); color: var(--faint); border-color: var(--line); border-style: dashed; }
+  .follow-panel.fp-min .fp-ride, .follow-panel.fp-min .fp-ridebox { display: none !important; }
+  .follow-panel .fp-ridebox { margin-top: 8px; display: flex; flex-direction: column; gap: 6px; }
+  .follow-panel .fp-ridebox-r { display: flex; align-items: center; gap: 6px; }
+  .follow-panel .fp-ridebox-r > span { flex: none; font-size: 11.5px; font-weight: 800; color: var(--muted); }
+  .follow-panel .fp-ridebox select {
+    flex: 1; min-width: 0; min-height: 40px; font: inherit; font-size: 12px; font-weight: 700;
+    color: var(--ink-strong); background: var(--paper); border: 1.5px solid var(--line); border-radius: var(--r-pill); padding: 4px 8px;
+  }
+  .follow-panel .fp-ridebox button {
+    flex: 1; min-height: 40px; font: inherit; font-size: 12px; font-weight: 800; letter-spacing: 1px;
+    border-radius: var(--r-pill); cursor: pointer; border: 1.5px solid var(--red); background: var(--red); color: var(--paper);
+  }
+  .follow-panel .fp-ridebox button#fpRideCancel { background: var(--paper); color: var(--muted); border-color: var(--line); }
   /* 行程分享接收端橫幅:top-center 中帶,避開時鐘(左上)/公告條(右上)/跟隨面板(左下)/工具列(下) */
   .trip-banner {
     position: absolute; top: 56px; left: 50%; transform: translateX(-50%); z-index: 712;
@@ -1967,6 +1988,9 @@
        跟隨鎖(z800)併入通案:實測 .board 家族全部 sheet 手機寬都會頂進鎖鈕座位(鎖鈕離 sheet 下錨僅約 120px),
        原 dh-open 個案已拆除。 */
     body.sheet-open .controls, body.sheet-open .leaflet-control-attribution, body.sheet-open .follow-lock-ctl { opacity: 0; pointer-events: none; }
+    /* 選下車站時同樣讓站台帶退場:跟隨小卡是 z650、站台帶 z700,不讓開的話「取消」鈕會被播放鈕
+       蓋住點不到(實測 elementFromPoint 命中 #pp)。挑站當下也用不到時刻尺,讓位無損。 */
+    body.ride-picking .controls { opacity: 0; pointer-events: none; }
     /* 全畫面時 stage 佔滿視窗:底部 sheet(與其上讓位的跟隨小卡)要再讓開 fixed tab bar(58px+safe-area) */
     body.fs .board { bottom: calc(var(--tabbar-clear) + 8px); } /* =58+8+env=原 66+env */
     body.fs.sheet-open .follow-panel, body.fs.sheet-open .freq-card { bottom: calc(46% + var(--tabbar-clear) + 24px) !important; } /* =46%+58+24+env=原 46%+82+env(板讓位 66+小卡間距 16) */
@@ -2386,6 +2410,13 @@ try { if (matchMedia('(max-width: 900px)').matches) document.body.classList.add(
       <div class="fp-dest" id="fpDest"></div>
       <div class="fp-dest" id="fpDelay" hidden></div>
       <button class="fp-notify" id="fpNotify" style="display:none" type="button">⏰ 提醒</button>
+      <!-- 搭乘模式(兩點法):上車時就選好在哪站下車,系統才知道要蓋到哪一站為止——
+           不選的話使用者忘了按下車,會一路蓋到終點,把沒搭的區間也算進收集 -->
+      <button class="fp-ride" id="fpRide" hidden type="button">🎫 我上車了</button>
+      <div class="fp-ridebox" id="fpRideBox" hidden>
+        <div class="fp-ridebox-r"><span>到</span><select id="fpRideTo" aria-label="下車站"></select></div>
+        <div class="fp-ridebox-r"><button id="fpRideGo" type="button">開始收集</button><button id="fpRideCancel" type="button">取消</button></div>
+      </div>
       <button class="fp-tripshare" id="fpTripShare" hidden>↗ 行程分享</button>
     </div>
     <div class="freq-card" id="freqCard" hidden>
@@ -2654,6 +2685,7 @@ try { if (matchMedia('(max-width: 900px)').matches) document.body.classList.add(
       <ul class="foot-list">
         <li class="grp">最近更新</li>
         <li><span class="d">7/26</span><span>旅程護照多了「車站收集」：完乘過的起訖站自動成章，人到月台再按「附近車站」裡的蓋章鈕，就升級成到訪章；同一座站去過越多次，章上的數字越大</span></li>
+        <li><span class="d">7/26</span><span>跟著車按「我上車了」並選好在哪站下車，沿路每過一站就自動蓋一枚章，下車那站也會補上——全程只在上下車兩點用到定位，不會一直背景追蹤你</span></li>
         <li><span class="d">7/26</span><span>跟隨資訊卡的「×」和地圖上的跟隨鎖鈕變好按了：以前 × 只有一丁點大，手指常常戳不到</span></li>
         <li><span class="d">7/26</span><span>手機／App 底部的「地圖」鈕換成「🔍 搜尋」：以前搜尋藏在「探」面板裡，第一次用很難發現；現在一按就能查站名、車次或列車名稱</span></li>
         <li><span class="d">7/25</span><span>台鐵自強、莒光等快車經過不停靠的小站時，位置改用最近一次改點後的實際到站紀錄推算：以前是用固定的加速減速曲線硬算，現在會反映這班車在這段路真正跑多快，全網近九成的跳站路段都有實測撐著</span></li>
@@ -2756,6 +2788,7 @@ try { if (matchMedia('(max-width: 900px)').matches) document.body.classList.add(
         <li><span class="d">7/12</span><span>新增平交道功能：點一下查接下來會通過的列車</span></li>
         <li class="grp">收藏、護照與成就</li>
         <li><span class="d">7/26</span><span>旅程護照多了「車站收集」：完乘過的起訖站自動成章，人到月台再按「附近車站」裡的蓋章鈕，就升級成到訪章；同一座站去過越多次，章上的數字越大</span></li>
+        <li><span class="d">7/26</span><span>跟著車按「我上車了」並選好在哪站下車，沿路每過一站就自動蓋一枚章，下車那站也會補上——全程只在上下車兩點用到定位，不會一直背景追蹤你</span></li>
         <li><span class="d">7/18</span><span>完乘記錄可以自選排序：日期／車次／距離／車種</span></li>
         <li><span class="d">7/18</span><span>山海平原成就門檻降為半圈，跟車面板加上環島完乘進度 %</span></li>
         <li><span class="d">7/17</span><span>新功能「最愛車站」：☆ 一鍵收藏，收藏的站在地圖上亮金色 ★</span></li>
@@ -6270,6 +6303,9 @@ function tick(now) {
   }
   state._skyClock = (state._skyClock || 0) + dt;
   if (state._skyClock >= 0.5) { state._skyClock = 0; updateSkyTint(); }
+  // 搭乘模式:每 2 秒對真實時鐘檢查一次有沒有又過站(讀真實時鐘,故不受時刻尺/快轉影響)
+  state._rideClock = (state._rideClock || 0) + dt;
+  if (state._rideClock >= 2) { state._rideClock = 0; ridingTick(); }
   state._liveClock = (state._liveClock || 0) + dt;
   if (state._liveClock >= 1) { state._liveClock = 0; updateLiveBadge(); updateMetroBadge(); if (state.liveMode && !state.director) liveClockTick(); else if (state.director) directorClockTick(); } // 導播現在也是 1× 貼真實時刻,只是用不含深夜重播替代的簡化版;兩徽章同秒刷,快轉跨門檻時同步轉推估
   // 省電三板斧(繪製節流,不動上面的時間積分):
@@ -6982,6 +7018,7 @@ function clearFollow() {
   try { if (!document.fullscreenElement) history.replaceState(null, '', location.pathname); } catch (e) {}
   const fb = document.getElementById('followBar');
   if (fb) { fb.hidden = true; fb.className = 'followbar'; fb.innerHTML = ''; }
+  closeRideBox(); // 挑下車站挑到一半就取消跟隨:要收掉 body.ride-picking,否則站台帶會一直隱形
   document.getElementById('followPanel').hidden = true;
   document.getElementById('trainCard').hidden = true;
   closeTrainSheet(); // 手機「列車」sheet 也一併收(取消跟車=整組收掉)
@@ -8445,7 +8482,21 @@ function checkinJudge(st) {
   return { ok: distM <= r + Math.min(acc, CHECKIN_ACC_SLACK_M), why: '', distM, r, low: acc > CHECKIN_LOW_ACC_M };
 }
 function checkinEntry(st) { return loadCheckins().st[checkinKey(st)] || null; }
-// 每站每日一次:防站在月台狂按刷數字(比照 recordRide 同日同車次只記一次)
+// 寫一筆站章(手動打卡與搭乘模式共用)。status: visit(人到月台)/pass(搭車經過),只升不降。
+// opts.dayOnce 同日只記一次——手動打卡要(防站在月台連按刷數字),搭乘模式不要
+//   (通勤一天來回兩趟本來就是兩次,那正是使用者要的「次數」)。
+// opts.count=false 只升級狀態不加次數:下車站在沿途已被記過一次,驗到本人在場時只該升級不該再計一次。
+function writeCheckin(st, status, opts) {
+  const o = opts || {}, c = loadCheckins(), k = checkinKey(st), today = todayStr(activeTz());
+  const e = c.st[k] || { name: k.slice(k.indexOf('|') + 1), sys: k.slice(0, k.indexOf('|')), s: 'follow', n: 0, d: '' };
+  if (o.dayOnce && e.d === today) return false;
+  if (STN_STATUS_RANK[status] > STN_STATUS_RANK[e.s]) e.s = status;
+  if (o.count !== false) e.n = (Number(e.n) || 0) + 1;
+  e.d = today;
+  if (status === 'visit') { if (o.low) e.lo = 1; else delete e.lo; } // 低信心只對「人在現場」的宣稱有意義
+  c.st[k] = e; saveCheckins(c);
+  return true;
+}
 function doCheckin(st) {
   const j = checkinJudge(st);
   if (!j.ok) {
@@ -8453,16 +8504,133 @@ function doCheckin(st) {
       : `離「${st.name}」還有 ${Math.round(j.distM)} 公尺,走近一點再蓋(這站的範圍 ${j.r} 公尺)`);
     return false;
   }
-  const c = loadCheckins(), k = checkinKey(st), today = todayStr(activeTz());
-  const e = c.st[k] || { name: k.slice(k.indexOf('|') + 1), sys: k.slice(0, k.indexOf('|')), s: 'follow', n: 0, d: '' };
-  if (e.d === today) { showToast(`「${st.name}」今天已經蓋過章了`); return false; }
-  if (STN_STATUS_RANK.visit > STN_STATUS_RANK[e.s]) e.s = 'visit';
-  e.n = (Number(e.n) || 0) + 1; e.d = today;
-  if (j.low) e.lo = 1; else delete e.lo;
-  c.st[k] = e; saveCheckins(c);
-  showToast(`蓋章成功 · ${st.name}${e.n > 1 ? `(第 ${e.n} 次)` : ''}`);
+  if (!writeCheckin(st, 'visit', { dayOnce: true, low: j.low })) {
+    showToast(`「${st.name}」今天已經蓋過章了`); return false;
+  }
+  const e = checkinEntry(st);
+  showToast(`蓋章成功 · ${st.name}${e && e.n > 1 ? `(第 ${e.n} 次)` : ''}`);
   renderNearbyStations(); renderRidePanel(); renderPassport();
   return true;
+}
+// ── 搭乘模式(兩點法,設計書 §3 A 路徑) ──────────────────────────────────────
+// 只驗上車、下車兩個時空點,中間的沿途站由既有列車模型補完 → 零背景定位、零耗電、
+// 不需要 iOS Always 權限、地下段收不到訊號也無所謂。
+// 上車時就把下車站選好:系統才知道蓋到哪一站為止,也順手解掉「使用者忘記按下車」
+// (不選的話會一路蓋到終點,把根本沒搭的區間也算進收集)。
+const RIDING_KEY = 'trainmap-riding-v1';
+function loadRiding() {
+  try {
+    const o = JSON.parse(localStorage.getItem(RIDING_KEY) || 'null');
+    return (o && o.train && o.sys && o.toIdx != null) ? o : null;
+  } catch (e) { return null; }
+}
+function saveRiding(r) {
+  try { r ? localStorage.setItem(RIDING_KEY, JSON.stringify(r)) : localStorage.removeItem(RIDING_KEY); } catch (e) {}
+}
+function ridingTrainOf(r) {
+  return r ? ((state.trains || []).find(t => String(t.train) === r.train && t.sys === r.sys) || null) : null;
+}
+// 搭乘模式一律讀真實時鐘:時刻尺可以拖、動畫可以快轉,但你人在的時間不會跟著跑。
+// 跨午夜映射比照 effT;誤點則把真實時間換算回表定時間軸(車誤點 10 分 → 現在等於表定的 10 分前)。
+function ridingNowSched(tr) {
+  const s = tr.stops, real = nowSecOfDay(activeTz());
+  const t = (real < s[0].arrSec && real + 86400 <= s[s.length - 1].depSec + 3600) ? real + 86400 : real;
+  return t - Math.round(liveDelaySec(tr));
+}
+function ridingArrivedIdx(tr, schedNow) { // 表定已抵達的最後一站;還沒發車回 -1
+  const s = tr.stops; let idx = -1;
+  for (let i = 0; i < s.length; i++) if (s[i].arrSec <= schedNow) idx = i;
+  return idx;
+}
+const ridingStObj = (tr, i) => ({ name: tr.stops[i].name, lat: tr.stops[i].lat, lon: tr.stops[i].lon, sys: tr.sys });
+function ridingBoardIdx(tr) { return Math.max(0, ridingArrivedIdx(tr, ridingNowSched(tr))); }
+function startRiding(tr, toIdx) {
+  if (!tr || tr.loop) return false;
+  if (loadRiding()) { showToast('你已經在搭乘中了,先下車再上車'); return false; }
+  const i0 = ridingBoardIdx(tr);
+  if (!(toIdx > i0 && toIdx < tr.stops.length)) { showToast('下車站要在上車站後面'); return false; }
+  // 上車站能定位就驗一下,驗過算「到訪」;沒定位或不在附近仍照收成「搭過」——
+  // 判定寬鬆是刻意的(章是給自己的),嚴格的是要影響別人的眾包校正(批次 C)。
+  const st = ridingStObj(tr, i0), j = checkinJudge(st);
+  writeCheckin(st, j.ok ? 'visit' : 'pass', { low: j.low });
+  saveRiding({
+    sys: tr.sys, train: String(tr.train), date: todayStr(activeTz()),
+    fromIdx: i0, fromName: st.name, toIdx, toName: tr.stops[toIdx].name,
+    atIdx: i0, bv: j.ok ? 1 : 0, startedAt: Date.now(),
+  });
+  showToast(`開始收集 · ${st.name} → ${tr.stops[toIdx].name}` + (j.ok ? '' : '(沒定到位置,上車站先算搭過)'));
+  renderPassport(); renderRidePanel(); updateRideBtn(state.followTrain);
+  return true;
+}
+// 每秒檢查:車(依真實時鐘)又過了幾站,就把那幾站蓋進護照。即時蓋章本身就是設計書要的
+// 「前景視線鉤子」,也讓收集在旅途中就看得到進度,不必等下車才一次補。
+function ridingTick() {
+  const r = loadRiding(); if (!r) return;
+  if (r.date !== todayStr(activeTz())) { saveRiding(null); updateRideBtn(state.followTrain); return; } // 跨日殘留不續蓋:車次號隔天會重用
+  const tr = ridingTrainOf(r); if (!tr) return; // 切到別的群組看不到這班車:先留著,回來再續
+  const cur = Math.min(ridingArrivedIdx(tr, ridingNowSched(tr)), r.toIdx);
+  if (cur <= r.atIdx) return;
+  const names = [];
+  for (let i = r.atIdx + 1; i <= cur; i++) { writeCheckin(ridingStObj(tr, i), 'pass', {}); names.push(tr.stops[i].name); }
+  r.atIdx = cur; saveRiding(r);
+  if (cur >= r.toIdx) { finishRiding(tr, r); return; }
+  pushFollowEvent('ride:st:' + names[names.length - 1], `🎫 ${names.join('、')} 收進護照`, true);
+  renderPassport(); renderRidePanel();
+}
+function finishRiding(tr, r) {
+  const st = ridingStObj(tr, r.toIdx), j = checkinJudge(st);
+  // 下車站在沿途已經記過一次,這裡驗到本人在場只升級狀態、不再加一次次數
+  if (j.ok) writeCheckin(st, 'visit', { low: j.low, count: false });
+  saveRiding(null);
+  const n = r.toIdx - r.fromIdx + 1;
+  pushFollowEvent('ride:done:' + r.train, `🎫 ${r.fromName} → ${st.name} 收集完成,${n} 座站進護照`, true);
+  showToast(`收集完成 · ${r.fromName} → ${st.name} 共 ${n} 座站`);
+  renderPassport(); renderRidePanel(); updateRideBtn(state.followTrain);
+}
+// 票券鈕三態:未上車(空心)/搭這班車中(實心紅,按了下車)/搭別班車中(灰虛線,擋住重複上車)
+function updateRideBtn(tr) {
+  const btn = document.getElementById('fpRide'), box = document.getElementById('fpRideBox');
+  if (!btn || !box) return;
+  const r = loadRiding();
+  if (!tr || tr.loop || state.mode !== 'sched') { btn.hidden = true; box.hidden = true; return; }
+  if (box.dataset.open === '1') { btn.hidden = true; box.hidden = false; return; }
+  box.hidden = true; btn.hidden = false;
+  if (r && r.train === String(tr.train) && r.sys === tr.sys) {
+    btn.textContent = `🎫 我下車了 · 訂到 ${r.toName}`; btn.className = 'fp-ride on';
+  } else if (r) {
+    btn.textContent = `🎫 搭乘中 · ${r.train} 次`; btn.className = 'fp-ride busy';
+  } else {
+    btn.textContent = '🎫 我上車了'; btn.className = 'fp-ride';
+  }
+}
+// 選下車站:只列上車站之後、今天還沒過的停靠站
+function openRideBox(tr) {
+  const box = document.getElementById('fpRideBox'), sel = document.getElementById('fpRideTo');
+  if (!box || !sel || !tr) return;
+  const i0 = ridingBoardIdx(tr);
+  const opts = [];
+  for (let i = i0 + 1; i < tr.stops.length; i++) opts.push(`<option value="${i}">${escHtml(tr.stops[i].name)}</option>`);
+  if (!opts.length) { showToast('這班車已經到終點了'); return; }
+  sel.innerHTML = opts.join('');
+  sel.value = String(tr.stops.length - 1); // 預設終點:最常見的情境,想早下車再自己改
+  box.dataset.open = '1';
+  document.body.classList.add('ride-picking'); // 手機讓站台帶退場,見 .ride-picking 註解
+  updateRideBtn(tr);
+}
+function closeRideBox() {
+  const box = document.getElementById('fpRideBox');
+  if (box) box.dataset.open = '';
+  document.body.classList.remove('ride-picking');
+  updateRideBtn(state.followTrain);
+}
+// 提前下車:先把已經過的站補完,再以「現在這站」當終點結束
+function endRidingNow() {
+  const r0 = loadRiding(); if (!r0) return;
+  const tr = ridingTrainOf(r0);
+  if (!tr) { saveRiding(null); updateRideBtn(state.followTrain); return; }
+  ridingTick();
+  const r = loadRiding(); if (!r) return; // tick 剛好蓋到下車站已自動結束
+  finishRiding(tr, Object.assign({}, r, { toIdx: r.atIdx }));
 }
 // 站的收集總表:rides 推導的「跟完」疊上 checkins 的真實打卡,鍵=sys|name(與 schedStations 同一套去重規則)
 function stationCollection(rides) {
@@ -9154,7 +9322,7 @@ function closeDelayHist() {
 }
 function showFollowPanel(tr) {
   const fp = document.getElementById('followPanel');
-  if (state.mode !== 'sched' || !tr) { fp.hidden = true; return; }
+  if (state.mode !== 'sched' || !tr) { fp.hidden = true; closeRideBox(); return; }
   document.getElementById('fpDot').style.background = tr.color;
   document.getElementById('fpTrain').textContent = tr.train;
   const it = renderTrainCard(tr);
@@ -9171,6 +9339,8 @@ function showFollowPanel(tr) {
   if (tsBtn) tsBtn.hidden = !(TRIP_SHARE_ENABLED && !tr.loop && !!tripSysCode(tr.sys));
   const notifyBtn = document.getElementById('fpNotify');
   if (notifyBtn) notifyBtn.style.display = NOTIFY_LOCAL_ENABLED && !!reminderSysOf(tr) ? '' : 'none';
+  if (state._followTrainPrev !== tr) { state._followTrainPrev = tr; closeRideBox(); } // 換一班車就收起選單,不要沿用上一班的站
+  updateRideBtn(tr);
   updateFollowAlert(); // 行經通阻公告路線的車,跟隨當下就掛警示
   updateFollowPanel(tr);
 }
@@ -12724,6 +12894,22 @@ function renderTripBanner() {
 }
 function closeTripBanner() { state._tripClosed = true; document.getElementById('tripBanner').hidden = true; } // 關橫幅不退跟車
 document.getElementById('fpTripShare').onclick = (e) => { e.stopPropagation(); openTripSharePanel(); };
+document.getElementById('fpRide').onclick = (e) => {
+  e.stopPropagation();
+  const tr = state.followTrain; if (!tr) return;
+  const r = loadRiding();
+  if (r && r.train === String(tr.train) && r.sys === tr.sys) return endRidingNow();
+  if (r) return showToast(`你正在搭 ${r.train} 次,先下車再上車`);
+  openRideBox(tr);
+};
+document.getElementById('fpRideBox').onclick = (e) => {
+  e.stopPropagation();
+  if (e.target.closest('#fpRideCancel')) return closeRideBox();
+  if (!e.target.closest('#fpRideGo')) return;
+  const tr = state.followTrain, idx = parseInt(document.getElementById('fpRideTo').value, 10);
+  closeRideBox();
+  if (tr && idx >= 0) startRiding(tr, idx);
+};
 document.getElementById('tripClose').onclick = closeTripBanner;
 document.getElementById('tripPanel').onclick = (e) => {
   if (e.target.closest('#tripPanelClose')) { closeTripSharePanel(); return; }

@@ -451,6 +451,219 @@ try {
   }) });
   await gmctx.close();
 
+  // ── H 搭乘模式（批次 B・兩點法）──
+  // 搭乘模式刻意讀真實時鐘，測試無法等時間流逝，故用「把誤點值設成負數」把表定時間軸往前推
+  // （那是 ridingNowSched 的輸入，不是被測邏輯本身）。哪幾站該被蓋，一律由本腳本從 stops 的
+  // 到站秒數自己算，不呼叫 ridingArrivedIdx —— 判準與實作不同源（心得 29）。
+  const { ctx: hctx, page: hp } = await open(browser);
+  const trip = await hp.evaluate(() => {
+    window.liveDelaySec = () => 0; // 誤點歸零，讓表定時間軸＝真實時鐘，測試好算
+    const now = nowSecOfDay(activeTz());
+    const t = (state.trains || []).find(x => !x.loop && x.stops && x.stops.length >= 6 &&
+      x.stops[0].arrSec <= now - 120 && x.stops[x.stops.length - 1].arrSec >= now + 600);
+    if (!t) return null;
+    return { train: String(t.train), sys: t.sys, now,
+      stops: t.stops.map(s => ({ name: s.name, arrSec: s.arrSec, depSec: s.depSec })) };
+  });
+  if (!trip) { console.log('FAIL  現在沒有正在行駛的班次可供 H 組測試（清晨/深夜跑會這樣）'); process.exit(1); }
+  // 獨立算：上車站＝表定已抵達的最後一站
+  const arrivedIdxAt = t => { let k = -1; trip.stops.forEach((s, i) => { if (s.arrSec <= t) k = i; }); return k; };
+  const expectFrom = Math.max(0, arrivedIdxAt(trip.now));
+  const expectTo = Math.min(expectFrom + 3, trip.stops.length - 1);
+  info('H 基準', `${trip.train} 次（${trip.sys}）現在在第 ${expectFrom} 站「${trip.stops[expectFrom].name}」；` +
+    `本測試搭到第 ${expectTo} 站「${trip.stops[expectTo].name}」`);
+
+  const started = await hp.evaluate(([train, sys, toIdx]) => {
+    localStorage.removeItem('trainmap-checkins-v1');
+    localStorage.removeItem('trainmap-riding-v1');
+    userDataSaveCollection('rides', []);
+    const tr = state.trains.find(x => String(x.train) === train && x.sys === sys);
+    state.followTrain = tr;
+    const st = tr.stops[0];
+    state.meLoc = null; // 先測「沒定位也能上車」
+    const okStart = startRiding(tr, toIdx);
+    const r = JSON.parse(localStorage.getItem('trainmap-riding-v1') || 'null');
+    const ck = JSON.parse(localStorage.getItem('trainmap-checkins-v1') || '{"st":{}}').st;
+    return { okStart, r, ckKeys: Object.keys(ck), ck };
+  }, [trip.train, trip.sys, expectTo]);
+  ok('H1 上車成功並存下搭乘狀態', started.okStart === true && !!started.r && started.r.train === trip.train,
+    JSON.stringify(started.r));
+  ok('H2 上車站＝獨立算出的「表定已抵達的最後一站」', !!started.r && started.r.fromIdx === expectFrom && started.r.fromName === trip.stops[expectFrom].name,
+    `程式 ${started.r ? started.r.fromIdx + '/' + started.r.fromName : '—'}　獨立算 ${expectFrom}/${trip.stops[expectFrom].name}`);
+  ok('H3 沒定位也能上車，上車站先記「搭過」不是「到訪」',
+    started.ckKeys.length === 1 && started.ck[started.ckKeys[0]].s === 'pass',
+    `${started.ckKeys[0]}＝${JSON.stringify(started.ck[started.ckKeys[0]])}`);
+
+  // 拖時刻尺／快轉都不該影響搭乘收集（那是動畫的時間，不是你人在的時間）
+  const scrub = await hp.evaluate(() => {
+    const before = Object.keys(JSON.parse(localStorage.getItem('trainmap-checkins-v1')).st).length;
+    setSimSec((nowSecOfDay(activeTz()) + 7200) % 86400); // 把動畫時鐘往前拖 2 小時
+    ridingTick(); ridingTick();
+    return { before, after: Object.keys(JSON.parse(localStorage.getItem('trainmap-checkins-v1')).st).length };
+  });
+  ok('H4 拖時刻尺／快轉不會多蓋章（搭乘模式只認真實時鐘）', scrub.before === scrub.after,
+    `拖動前 ${scrub.before} 枚 → 拖動後 ${scrub.after} 枚`);
+
+  // 把表定時間軸推進到「剛好過了下一站」——只該多蓋一站
+  const oneMore = expectFrom + 1;
+  const jump1 = trip.stops[oneMore].arrSec - trip.now + 5;
+  const step1 = await hp.evaluate(j => {
+    window.liveDelaySec = () => -j; // schedNow = 真實時鐘 + j
+    ridingTick();
+    const ck = JSON.parse(localStorage.getItem('trainmap-checkins-v1')).st;
+    const r = JSON.parse(localStorage.getItem('trainmap-riding-v1') || 'null');
+    return { names: Object.values(ck).map(e => e.name), atIdx: r && r.atIdx, passes: Object.values(ck).filter(e => e.s === 'pass').length };
+  }, jump1);
+  ok('H5 車過一站就即時蓋一站（不必等下車）',
+    step1.names.length === 2 && step1.names.includes(trip.stops[oneMore].name) && step1.atIdx === oneMore,
+    `已蓋 [${step1.names.join('、')}] atIdx=${step1.atIdx} / 期望多出「${trip.stops[oneMore].name}」`);
+
+  // 一路推到終點之後：只能蓋到選定的下車站，不准超收
+  const jump2 = trip.stops[trip.stops.length - 1].arrSec - trip.now + 600;
+  const step2 = await hp.evaluate(j => {
+    window.liveDelaySec = () => -j;
+    ridingTick();
+    const ck = JSON.parse(localStorage.getItem('trainmap-checkins-v1')).st;
+    return { names: Object.values(ck).map(e => e.name), riding: localStorage.getItem('trainmap-riding-v1'),
+      counts: Object.values(ck).map(e => e.name + '×' + e.n) };
+  }, jump2);
+  const wantNames = trip.stops.slice(expectFrom, expectTo + 1).map(s => s.name);
+  const gotSorted = [...step2.names].sort(), wantSorted = [...new Set(wantNames)].sort();
+  ok('H6 只蓋到選定的下車站為止，沒有一路超收到終點',
+    JSON.stringify(gotSorted) === JSON.stringify(wantSorted),
+    `蓋了 [${step2.names.join('、')}]　應為 [${wantNames.join('、')}]`);
+  ok('H7 抵達下車站後自動結束搭乘', step2.riding === null, `riding=${step2.riding}`);
+  ok('H8 每站各記一次，下車站沒被重複計數', step2.counts.every(c => /×1$/.test(c)), step2.counts.join('、'));
+
+  // 提前下車：只收到當下這站，後面的站不算
+  const early = await hp.evaluate(([train, sys, toIdx, j1]) => {
+    localStorage.removeItem('trainmap-checkins-v1');
+    localStorage.removeItem('trainmap-riding-v1');
+    window.liveDelaySec = () => 0;
+    const tr = state.trains.find(x => String(x.train) === train && x.sys === sys);
+    state.followTrain = tr;
+    startRiding(tr, toIdx);
+    window.liveDelaySec = () => -j1; // 只前進到下一站
+    endRidingNow();
+    const ck = JSON.parse(localStorage.getItem('trainmap-checkins-v1')).st;
+    return { names: Object.values(ck).map(e => e.name), riding: localStorage.getItem('trainmap-riding-v1') };
+  }, [trip.train, trip.sys, expectTo, jump1]);
+  ok('H9 提前下車只收到當下這站，後面的站不算',
+    early.names.length === 2 && early.riding === null,
+    `蓋了 [${early.names.join('、')}]（訂到第 ${expectTo} 站但在第 ${oneMore} 站就下車）`);
+
+  // 不得同時搭兩班車；跨日殘留要清掉
+  const guard = await hp.evaluate(([train, sys, toIdx]) => {
+    localStorage.removeItem('trainmap-checkins-v1');
+    localStorage.removeItem('trainmap-riding-v1');
+    window.liveDelaySec = () => 0;
+    const tr = state.trains.find(x => String(x.train) === train && x.sys === sys);
+    startRiding(tr, toIdx);
+    const second = startRiding(tr, toIdx); // 已在搭乘中，應被擋
+    const r = JSON.parse(localStorage.getItem('trainmap-riding-v1'));
+    r.date = '2000-01-01'; localStorage.setItem('trainmap-riding-v1', JSON.stringify(r)); // 假裝是昨天忘了下車
+    ridingTick();
+    return { second, afterStale: localStorage.getItem('trainmap-riding-v1') };
+  }, [trip.train, trip.sys, expectTo]);
+  ok('H10 搭乘中不能再上另一班車', guard.second === false, `第二次上車回傳 ${guard.second}`);
+  ok('H11 跨日殘留的搭乘紀錄會被清掉（不會隔天繼續亂蓋）', guard.afterStale === null, `殘留=${guard.afterStale}`);
+
+  // GPS 在上車站 → 升級成「到訪」
+  const withGps = await hp.evaluate(([train, sys, toIdx, fromIdx]) => {
+    localStorage.removeItem('trainmap-checkins-v1');
+    localStorage.removeItem('trainmap-riding-v1');
+    window.liveDelaySec = () => 0;
+    const tr = state.trains.find(x => String(x.train) === train && x.sys === sys);
+    const s = tr.stops[fromIdx];
+    state.meLoc = { lat: s.lat, lon: s.lon, acc: 25 };
+    startRiding(tr, toIdx);
+    const ck = JSON.parse(localStorage.getItem('trainmap-checkins-v1')).st;
+    return Object.values(ck).map(e => e.name + ':' + e.s);
+  }, [trip.train, trip.sys, expectTo, expectFrom]);
+  ok('H12 人真的在上車站（GPS 驗到）→ 上車站記「到訪」', withGps.length === 1 && /:visit$/.test(withGps[0]), withGps.join('、'));
+
+  // 票券鈕三態
+  const btn = await hp.evaluate(([train, sys]) => {
+    const tr = state.trains.find(x => String(x.train) === train && x.sys === sys);
+    state.followTrain = tr; state.mode = 'sched';
+    updateRideBtn(tr);
+    const b = document.getElementById('fpRide');
+    const riding = { txt: b.textContent, cls: b.className, hidden: b.hidden };
+    localStorage.removeItem('trainmap-riding-v1');
+    updateRideBtn(tr);
+    const idle = { txt: b.textContent, cls: b.className, hidden: b.hidden };
+    localStorage.setItem('trainmap-riding-v1', JSON.stringify({ sys, train: '9999', date: todayStr(activeTz()), fromIdx: 0, toIdx: 1, atIdx: 0, toName: 'X' }));
+    updateRideBtn(tr);
+    const other = { txt: b.textContent, cls: b.className };
+    localStorage.removeItem('trainmap-riding-v1');
+    return { riding, idle, other };
+  }, [trip.train, trip.sys]);
+  ok('H13 票券鈕三態正確（未上車／搭這班／搭別班）',
+    /我下車了/.test(btn.riding.txt) && /\bon\b/.test(btn.riding.cls) &&
+    /我上車了/.test(btn.idle.txt) && !/\bon\b|\bbusy\b/.test(btn.idle.cls) &&
+    /搭乘中/.test(btn.other.txt) && /\bbusy\b/.test(btn.other.cls),
+    `搭這班「${btn.riding.txt}」／未上車「${btn.idle.txt}」／搭別班「${btn.other.txt}」`);
+  await hctx.close();
+
+  // 手機：上車流程的下車站選單與按鈕觸控尺寸
+  const { ctx: hmctx, page: hmp } = await open(browser, { width: 375, height: 780 });
+  const hmob = await hmp.evaluate(([train, sys]) => {
+    const tr = state.trains.find(x => String(x.train) === train && x.sys === sys);
+    if (!tr) return { missing: true };
+    state.followTrain = tr; state.mode = 'sched';
+    document.getElementById('followPanel').hidden = false;
+    document.getElementById('followPanel').classList.remove('fp-min');
+    localStorage.removeItem('trainmap-riding-v1');
+    openRideBox(tr);
+    const box = document.getElementById('fpRideBox');
+    const els = [document.getElementById('fpRideTo'), document.getElementById('fpRideGo'), document.getElementById('fpRideCancel')];
+    const pr = document.getElementById('followPanel').getBoundingClientRect();
+    // 命中測試三點（中心＋左右內緣）：只驗中心會漏掉「被別的浮層蓋住一半」的情況
+    const m = els.map(e => {
+      const r = e.getBoundingClientRect();
+      const at = (x, y) => { const h = document.elementFromPoint(x, y); return h && h.closest('#' + e.id) ? '' : (h ? (h.id || h.tagName) : 'null'); };
+      const blocked = [at(r.x + r.width / 2, r.y + r.height / 2), at(r.x + 8, r.y + r.height / 2), at(r.right - 8, r.y + r.height / 2)].filter(Boolean);
+      return { id: e.id, w: Math.round(r.width), h: Math.round(r.height), right: Math.round(r.right),
+        inCard: r.right <= pr.right + 0.5 && r.left >= pr.left - 0.5, blocked };
+    });
+    return { missing: false, boxHidden: box.hidden, opts: document.getElementById('fpRideTo').options.length, m, vw: innerWidth };
+  }, [trip.train, trip.sys]);
+  ok('H14 手機 375：下車站選單開得出來且有選項', !hmob.missing && hmob.boxHidden === false && hmob.opts > 0,
+    `選項 ${hmob.opts} 個`);
+  ok('H15 手機 375：選單與按鈕觸控高度足夠、且都在卡片框內',
+    !hmob.missing && hmob.m.every(x => x.h >= 36 && x.right <= hmob.vw + 0.5 && x.inCard),
+    hmob.m.map(x => `${x.id} ${x.w}×${x.h}${x.inCard ? '' : '(出框)'}`).join('、'));
+  // 跟隨小卡在站台帶下方（z650 vs z700），選單這一列剛好落在站台帶的座位上——
+  // 只量 rect 看不出來，一定要真的做命中測試（心得 24）
+  ok('H16 手機 375：選單與兩顆鈕都沒被站台帶蓋住（三點命中測試）',
+    !hmob.missing && hmob.m.every(x => x.blocked.length === 0),
+    hmob.m.map(x => `${x.id}${x.blocked.length ? ' 被 ' + x.blocked.join('/') + ' 蓋住' : ' ✓'}`).join('、'));
+  // 挑站挑到一半取消跟隨：body.ride-picking 一定要收掉，否則站台帶會永遠隱形
+  const leak = await hmp.evaluate(() => {
+    const on = document.body.classList.contains('ride-picking');
+    clearFollow();
+    const after = document.body.classList.contains('ride-picking');
+    const ctrl = document.querySelector('.controls');
+    return { on, after, opacity: ctrl ? getComputedStyle(ctrl).opacity : '—' };
+  });
+  ok('H17 挑站中途取消跟隨，站台帶會回來（不殘留 ride-picking）',
+    leak.on === true && leak.after === false && leak.opacity !== '0',
+    `挑站時 ${leak.on} → 取消跟隨後 ${leak.after}，站台帶 opacity=${leak.opacity}`);
+  await hmp.evaluate(([train, sys]) => { // 截圖前把畫面還原成挑站中
+    const tr = state.trains.find(x => String(x.train) === train && x.sys === sys);
+    state.followTrain = tr; state.mode = 'sched';
+    const fp = document.getElementById('followPanel');
+    fp.hidden = false; fp.classList.remove('fp-min');
+    openRideBox(tr);
+  }, [trip.train, trip.sys]);
+  await hmp.waitForTimeout(700); // 站台帶淡出是 0.5s transition，等它落定再截，否則會拍到半透明的誤導畫面
+  await hmp.screenshot({ path: '_shot_ride_mobile.png', clip: await hmp.evaluate(() => {
+    const r = document.getElementById('followPanel').getBoundingClientRect();
+    // 往右多留 200px：跟隨小卡右側就是站台帶的座位，截圖要照得到「有沒有壓在一起」
+    return { x: Math.max(0, r.x - 4), y: Math.max(0, r.y - 4), width: Math.min(r.width + 208, 375), height: Math.min(r.height + 16, innerHeight - Math.max(0, r.y - 4)) };
+  }) });
+  await hmctx.close();
+
   await page.screenshot({ path: '_shot_checkin_desktop.png', clip: await page.evaluate(() => {
     const r = document.getElementById('passport').getBoundingClientRect();
     return { x: Math.max(0, r.x), y: Math.max(0, r.y), width: Math.min(r.width, 900), height: Math.min(r.height, 900) };
