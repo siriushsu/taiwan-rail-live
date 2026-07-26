@@ -16,8 +16,11 @@
 //    上傳會因簽章不符被擋。
 import { execFileSync } from 'node:child_process';
 import { existsSync, readdirSync, statSync } from 'node:fs';
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { homedir } from 'node:os';
+
+const appRoot = dirname(dirname(fileURLToPath(import.meta.url)));   // …/app
 
 // 已證實可通過二進位審查的正式版 macOS build（build 9 用的就是這個值）。
 // 之後若換機器或 Apple 收緊檢查，改這裡一處即可。
@@ -57,8 +60,47 @@ console.log(`\narchive : ${archive}`);
 console.log(`app     : ${app}`);
 console.log(`版本    : ${plist('Print :CFBundleShortVersionString', infoPlist)} (build ${plist('Print :CFBundleVersion', infoPlist)})`);
 
+// ── 上傳前的硬閘門：這兩件事改 plist 救不了，只能重新 Archive ──────────────────
+// 2026-07-26 實際踩到：機器上同時有 /Applications/Xcode.app（26.6 正式版）與
+// ~/Downloads/Xcode-beta.app（27.0 beta）。`xcodebuild -version` 回報的是命令列選到的 26.6，
+// 但 GUI 開的是 beta，於是 archive 用 iOS 27.0 beta SDK 建成——而且因為 App target 的
+// IPHONEOS_DEPLOYMENT_TARGET 綁在 $(RECOMMENDED_...)，最低支援版本被無聲從 15.0 拉到 17.0，
+// 等於把 iOS 15／16 的既有使用者擋在更新之外。兩件事都是 Info.plist 上看不出「壞掉」的樣子。
+const blockers = [];
+
+for (const key of ['DTXcodeBuild', 'DTSDKBuild', 'DTPlatformBuild']) {
+  let value = '';
+  try { value = plist(`Print :${key}`, infoPlist); } catch {}
+  if (BETA_RE.test(value)) blockers.push(`${key} = ${value} 是 beta 版建置工具鏈`);
+}
+
+// 最低支援 iOS。商店頁與 build 8 都是 15.0，變動一定要是刻意的。
+const EXPECTED_MIN_OS = process.env.RAIL_EXPECTED_MIN_OS || '15.0';
+let minOS = '';
+try { minOS = plist('Print :MinimumOSVersion', infoPlist); } catch {}
+if (minOS !== EXPECTED_MIN_OS) {
+  blockers.push(`MinimumOSVersion = ${minOS}，預期 ${EXPECTED_MIN_OS}——最低支援版本被改動了`);
+}
+
+if (blockers.length) {
+  console.error('\n🔴 這顆 archive 不可上傳：\n');
+  for (const b of blockers) console.error(`   ・${b}`);
+  console.error(`
+   Apple 不收 beta SDK 建置的 App Store 版本，而改 Info.plist 救不了——二進位本身
+   就是連結那套 SDK 的。最低支援版本同理，它由建置時的設定決定。
+
+   怎麼修：
+   1. 完全結束 Xcode（含 ~/Downloads/Xcode-beta.app），用 /Applications/Xcode.app 重開
+      open -a /Applications/Xcode.app "${join(appRoot, 'ios/App/App.xcworkspace')}"
+   2. 確認 Xcode ▸ About Xcode 顯示的是正式版（不是 beta）
+   3. 重新 Product ▸ Archive，再跑一次這支腳本
+`);
+  process.exit(1);
+}
+
 const current = plist('Print :BuildMachineOSBuild', infoPlist);
-console.log(`\nBuildMachineOSBuild 現值：${current}`);
+console.log(`\n工具鏈檢查通過：SDK ${(() => { try { return plist('Print :DTSDKName', infoPlist); } catch { return '?'; } })()}，最低 iOS ${minOS}`);
+console.log(`BuildMachineOSBuild 現值：${current}`);
 
 if (current === RELEASE_OS_BUILD) {
   console.log('已經是正式版值，不用改。');
