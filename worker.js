@@ -669,6 +669,12 @@ const SEC_HEADERS = {
   'Referrer-Policy': 'strict-origin-when-cross-origin',
 };
 const APP_ORIGINS = new Set(['capacitor://localhost', 'https://localhost']);
+// /api 端點白名單——只給流量埋點的 blob 用(不是路由閘門,路由在 fetch 裡)。不在名單內一律記成
+// 'other',否則隨便打 /api/<亂數> 就能把 blob 基數炸開。新增端點時要一起加進來。
+const API_ENDPOINTS = new Set([
+  'tra-live', 'tra-alert', 'thsr-alert', 'metro-alert', 'metro-live', 'ntmetro-live',
+  'delay-stats', 'delay-history', 'station-events', 'today-board', 'basemap-token', 'account-delete',
+]);
 
 function addAppCors(headers, origin) {
   if (!APP_ORIGINS.has(origin)) return;
@@ -1008,6 +1014,19 @@ export default {
     }
     const isApi = url.pathname.startsWith('/api/');
     const origin = request.headers.get('Origin') || '';
+    // 流量來源埋點:App 殼與網頁打的是同一顆 Worker,CF 的請求計數把兩邊混成一個數字,這裡按 Origin 拆開。
+    // App 殼是跨來源請求(capacitor://localhost),瀏覽器必帶 Origin;網頁同源 GET 不帶 Origin → 落 'web'。
+    // 只記 /api/*:靜態資產直出不喚醒 Worker(見本檔頂註與 wrangler.jsonc 的 run_worker_first 鐵則),
+    // 也就是說計費的 Worker 請求全在這裡,拆到這層就是完整的;資產請求則結構上 100% 來自網頁。
+    // blob1=來源(app|web) blob2=端點 blob3=裝置(m|d),index=來源。觀測絕不可影響服務,例外整段吞掉。
+    if (isApi && env.TRAFFIC) {
+      try {
+        const seg = url.pathname.slice(5);
+        const plat = APP_ORIGINS.has(origin) ? 'app' : 'web';
+        const dev = /Mobile/.test(request.headers.get('user-agent') || '') ? 'm' : 'd';
+        env.TRAFFIC.writeDataPoint({ blobs: [plat, API_ENDPOINTS.has(seg) ? seg : 'other', dev], indexes: [plat] });
+      } catch (e) {}
+    }
     if (isApi && request.method === 'OPTIONS') {
       const h = new Headers(SEC_HEADERS);
       if (APP_ORIGINS.has(origin)) {
