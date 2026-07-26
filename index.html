@@ -2877,7 +2877,10 @@ try { if (matchMedia('(max-width: 900px)').matches) document.body.classList.add(
     <button class="ms-row warnrow" data-proxy="powerBtn"><span>省電模式（30fps）</span><span class="toggle" data-tg="powerBtn"></span></button>
     <button class="ms-row" data-proxy="musicBtn"><span>♪ 背景音樂</span><span class="toggle" data-tg="musicBtn"></span></button>
     <button class="ms-row" data-proxy="ambientBtn" data-close="1"><span>◌ 放空模式</span><span class="chev">›</span></button>
-    <button class="ms-row" data-proxy="recBtn" data-close="1"><span>⏺ 錄影 Beta</span><span class="chev">›</span></button>
+    <!-- 錄影下架(v0717j,Stadia 條款):比照 #recBtn 先 inline 藏,不靠 setupRecorder 才移除——
+         2026-07-26 實測 boot 前段一拋(setupMapTools 抓 null),setupRecorder 就永遠跑不到,這列會整個復活且可點。
+         .ms-row 的 display:flex 蓋得過 [hidden],故只能用 inline style;旗標復活時由 setupRecorder 還原 -->
+    <button class="ms-row" data-proxy="recBtn" data-close="1" style="display:none"><span>⏺ 錄影 Beta</span><span class="chev">›</span></button>
     <div class="ms-sec">分享與資料</div>
     <button class="ms-row" data-proxy="shareBtn" data-close="1"><span>↗ 分享畫面</span><span class="chev">›</span></button>
     <button class="ms-row" data-proxy="importBtn" data-close="1"><span>Google 清單匯入</span><span class="chev">›</span></button>
@@ -6093,7 +6096,7 @@ function confirmPinName() {
   if (pinSavedIdx(t.lat, t.lon) < 0) pins.push({ lat: t.lat, lon: t.lon, label }); // label 由同步層 userDataCleanValue('pins') 保存
   savePins(pins);
   closePinNameDialog();
-  showToast(label ? ('已儲存地點「' + label + '」') : '已儲存地點');
+  showToast(label ? ('已儲存地點「' + escHtml(label) + '」') : '已儲存地點'); // showToast 走 innerHTML,地點名是使用者資料必逸出
   renderSavedPins(); renderPinCard(); renderFavPanel();
 }
 function removePinByKey(key) { // key = lat,lon(各 6 位小數),同 userDataItemId('pins')
@@ -11703,10 +11706,12 @@ function recDownload() {
 }
 
 function setupRecorder() {
-  const btn = document.getElementById('recBtn');
-  if (!RECORDING_ENABLED) { btn.remove(); const row = document.querySelector('.ms-row[data-proxy="recBtn"]'); if (row) row.remove(); return; } // 下架:鈕與抽屜列一併移除(CSS display:flex 會蓋過 [hidden];syncMoreSheet 不會藏無目標的列)
+  const btn = document.getElementById('recBtn'), row = document.querySelector('.ms-row[data-proxy="recBtn"]');
+  if (!RECORDING_ENABLED) { if (btn) btn.remove(); if (row) row.remove(); return; } // 下架:鈕與抽屜列一併移除。兩者 HTML 已 inline 藏,這裡是加強(移掉就連 syncMoreSheet 都不必判);btn 取 null 也不准拋,否則連累 boot 後面的步驟
+  if (!btn) return;
   if (!window.MediaRecorder || !window.HTMLCanvasElement.prototype.captureStream) { btn.style.display = 'none'; return; } // 老瀏覽器藏鈕,不擋其他功能
   btn.style.display = ''; // 旗標開啟且瀏覽器支援,才還原 HTML 預設的 display:none
+  if (row) row.style.display = ''; // 同上:抽屜列也還原(HTML 預設 inline none)
   btn.onclick = () => REC.on ? recStop() : recStart();
   document.getElementById('recPill').onclick = recStop;
   document.getElementById('recRedl').onclick = recDownload;
@@ -12325,7 +12330,7 @@ function toggleDefaultPlace(key) {
     const p = loadPins().find(p => (Number(p.lat).toFixed(6) + ',' + Number(p.lon).toFixed(6)) === key);
     if (!p) return;
     try { localStorage.setItem(DEFAULT_PLACE_KEY, JSON.stringify({ key, lat: p.lat, lon: p.lon, z: 14, label: p.label || '' })); } catch (e) {}
-    showToast(p.label ? ('已設「' + p.label + '」為預設啟動地點') : '已設為預設啟動地點');
+    showToast(p.label ? ('已設「' + escHtml(p.label) + '」為預設啟動地點') : '已設為預設啟動地點'); // 同上:匯入/同步來的地點名可能帶標籤
   }
   renderFavPanel();
 }
