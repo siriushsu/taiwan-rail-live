@@ -2686,6 +2686,7 @@ try { if (matchMedia('(max-width: 900px)').matches) document.body.classList.add(
         <li class="grp">最近更新</li>
         <li><span class="d">7/26</span><span>旅程護照多了「車站收集」：完乘過的起訖站自動成章，人到月台再按「附近車站」裡的蓋章鈕，就升級成到訪章；同一座站去過越多次，章上的數字越大</span></li>
         <li><span class="d">7/26</span><span>跟著車按「我上車了」並選好在哪站下車，沿路每過一站就自動蓋一枚章，下車那站也會補上——全程只在上下車兩點用到定位，不會一直背景追蹤你</span></li>
+        <li><span class="d">7/26</span><span>搭過的路段會一起收集，護照顯示「最常搭的一段」；新增四枚成就：車站巡禮、百站達成，以及同一段路來回搭滿 100／500 次的通勤成就</span></li>
         <li><span class="d">7/26</span><span>跟隨資訊卡的「×」和地圖上的跟隨鎖鈕變好按了：以前 × 只有一丁點大，手指常常戳不到</span></li>
         <li><span class="d">7/26</span><span>手機／App 底部的「地圖」鈕換成「🔍 搜尋」：以前搜尋藏在「探」面板裡，第一次用很難發現；現在一按就能查站名、車次或列車名稱</span></li>
         <li><span class="d">7/25</span><span>台鐵自強、莒光等快車經過不停靠的小站時，位置改用最近一次改點後的實際到站紀錄推算：以前是用固定的加速減速曲線硬算，現在會反映這班車在這段路真正跑多快，全網近九成的跳站路段都有實測撐著</span></li>
@@ -2789,6 +2790,7 @@ try { if (matchMedia('(max-width: 900px)').matches) document.body.classList.add(
         <li class="grp">收藏、護照與成就</li>
         <li><span class="d">7/26</span><span>旅程護照多了「車站收集」：完乘過的起訖站自動成章，人到月台再按「附近車站」裡的蓋章鈕，就升級成到訪章；同一座站去過越多次，章上的數字越大</span></li>
         <li><span class="d">7/26</span><span>跟著車按「我上車了」並選好在哪站下車，沿路每過一站就自動蓋一枚章，下車那站也會補上——全程只在上下車兩點用到定位，不會一直背景追蹤你</span></li>
+        <li><span class="d">7/26</span><span>搭過的路段會一起收集，護照顯示「最常搭的一段」；新增四枚成就：車站巡禮、百站達成，以及同一段路來回搭滿 100／500 次的通勤成就</span></li>
         <li><span class="d">7/18</span><span>完乘記錄可以自選排序：日期／車次／距離／車種</span></li>
         <li><span class="d">7/18</span><span>山海平原成就門檻降為半圈，跟車面板加上環島完乘進度 %</span></li>
         <li><span class="d">7/17</span><span>新功能「最愛車站」：☆ 一鍵收藏，收藏的站在地圖上亮金色 ★</span></li>
@@ -8293,6 +8295,11 @@ const ACHIEVEMENTS = [
   { id: 'namedAll', icon: '🌟', name: '明星集郵冊',     desc: '收集所有明星列車章' },
   { id: 'stockAll', icon: '📖', name: '車種全圖鑑',     desc: '收集全部車種章' },
   { id: 'branchAll', icon: '🌿', name: '支線制霸',      desc: '六條支線全數完乘' },
+  // 打卡收集(2026-07-26):站數看廣度、同段次數看深度——通勤族每天來回,深度才是他們的成就
+  { id: 'stn25',    icon: '🎪', name: '車站巡禮',       desc: '車站收集達 25 座' },
+  { id: 'stn100',   icon: '🏯', name: '百站達成',       desc: '車站收集達 100 座' },
+  { id: 'commute100', icon: '🔁', name: '通勤的證明',   desc: '同一段路來回搭滿 100 次' },
+  { id: 'commute500', icon: '🎖', name: '老通勤族',     desc: '同一段路來回搭滿 500 次' },
 ];
 const ACH_TESTS = {
   first:  r => r.length >= 1,
@@ -8312,11 +8319,18 @@ const ACH_TESTS = {
   namedAll: (r, c) => { const n = state.special ? state.special.namedTrains.filter(x => x.trainNos.length).length : 0; return n > 0 && c.named.size >= n; },
   stockAll: (r, c) => state.special && c.stock.size >= state.special.rollingStock.length,
   branchAll: (r, c) => state.special && c.branch.size >= state.special.branchLines.length,
+  stn25:  (r, c, km, x) => x.stnN >= 25,
+  stn100: (r, c, km, x) => x.stnN >= 100,
+  commute100: (r, c, km, x) => x.maxSeg >= 100,
+  commute500: (r, c, km, x) => x.maxSeg >= 500,
 };
 function unlockedAchievements(rides) {
   const coll = collectionOf(rides);
   const km = rides.reduce((a, r) => a + (r.km || 0), 0);
-  return new Set(ACHIEVEMENTS.filter(a => ACH_TESTS[a.id](rides, coll, km)).map(a => a.id));
+  // 打卡收集的兩個維度:站數(廣度)與「最常搭的那一段」的次數(深度)
+  const sg = segmentCollection();
+  const x = { stnN: stationCollection(rides).size, maxSeg: Object.values(sg).reduce((a, n) => Math.max(a, Number(n) || 0), 0) };
+  return new Set(ACHIEVEMENTS.filter(a => ACH_TESTS[a.id](rides, coll, km, x)).map(a => a.id));
 }
 // 收集通知:完乘的當下彈出「完乘達成→新蓋的章→解鎖的成就」,間隔 700ms 依序出現
 // 手機:把暫態通知(收集/工具吐司、平交道說明)塞進「頂列控件之下、跟隨資訊卡之上」的空檔,
@@ -8512,6 +8526,26 @@ function doCheckin(st) {
   renderNearbyStations(); renderRidePanel(); renderPassport();
   return true;
 }
+// ── 路段收集(設計書 §2 三軸的「線」) ────────────────────────────────────────
+// 相鄰兩停靠站之間算一段,不分方向——通勤來回走的是同一段路,分方向會讓「常搭」的次數腰斬。
+// 只有搭乘模式會寫:「跟完」是在 App 裡跟動畫,不該染到實體路網上(虛實雙軌的分界)。
+function segKey(sys, a, b, alias) {
+  const A = checkinName(sys, a, alias), B = checkinName(sys, b, alias);
+  const s = (sys === 'freq' || sys === 'deco') ? 'metro' : sys; // 與 favStationKey 同一套系統正規化
+  return s + '|' + (A < B ? A + '|' + B : B + '|' + A);
+}
+function segmentCollection() { return loadCheckins().sg || {}; }
+function writeSegments(tr, fromIdx, toIdx) {
+  if (toIdx <= fromIdx) return;
+  const c = loadCheckins(), alias = checkinAliasMap();
+  c.sg = c.sg || {};
+  for (let i = fromIdx + 1; i <= toIdx; i++) {
+    const k = segKey(tr.sys, tr.stops[i - 1].name, tr.stops[i].name, alias);
+    if (k.split('|')[1] === k.split('|')[2]) continue; // 別名併站後頭尾同名(如臺北/臺北-環島):不成一段
+    c.sg[k] = (Number(c.sg[k]) || 0) + 1;
+  }
+  saveCheckins(c);
+}
 // ── 搭乘模式(兩點法,設計書 §3 A 路徑) ──────────────────────────────────────
 // 只驗上車、下車兩個時空點,中間的沿途站由既有列車模型補完 → 零背景定位、零耗電、
 // 不需要 iOS Always 權限、地下段收不到訊號也無所謂。
@@ -8572,6 +8606,7 @@ function ridingTick() {
   if (cur <= r.atIdx) return;
   const names = [];
   for (let i = r.atIdx + 1; i <= cur; i++) { writeCheckin(ridingStObj(tr, i), 'pass', {}); names.push(tr.stops[i].name); }
+  writeSegments(tr, r.atIdx, cur); // 站與站之間的那幾段路,同一趟一起記
   r.atIdx = cur; saveRiding(r);
   if (cur >= r.toIdx) { finishRiding(tr, r); return; }
   pushFollowEvent('ride:st:' + names[names.length - 1], `🎫 ${names.join('、')} 收進護照`, true);
@@ -8675,8 +8710,16 @@ function buildStationStamps(rides) {
   const tierM = stationTierMap();
   const items = [...coll.values()].sort((a, b) => b.n - a.n || a.name.localeCompare(b.name, 'zh-Hant'));
   const visited = items.filter(i => i.s === 'visit').length;
+  // 路段:搭乘模式走過的相鄰站區間。最常搭的那一段就是通勤族的日常,直接標出來當深度指標
+  const sg = segmentCollection(), sgN = Object.keys(sg).length;
+  const top = Object.entries(sg).sort((a, b) => b[1] - a[1])[0];
+  const sub = [
+    visited ? `到訪 ${visited}` : '',
+    sgN ? `路段 ${sgN}` : '',
+    top && top[1] >= 5 ? `最常搭 ${top[0].split('|').slice(1).join('–')} ${top[1]} 次` : '',
+  ].filter(Boolean).join('　');
   return `<div class="ph-sec">車站收集<b>${coll.size}</b>` +
-    (visited ? `<span style="letter-spacing:0;font-weight:600">到訪 ${visited}</span>` : '') + `</div><div class="ph-stamps">` +
+    (sub ? `<span style="letter-spacing:0;font-weight:600">${escHtml(sub)}</span>` : '') + `</div><div class="ph-stamps">` +
     items.map(i => {
       const cls = 'stn-seal ' + i.s + (tierM.get(i.sys + '|' + i.name) === 0 ? ' t0' : '');
       const tip = i.name + '・' + STN_STATUS_LABEL[i.s] + (i.n > 1 ? '　' + i.n + ' 次' : '') + (i.d ? '　最近 ' + i.d : '');
