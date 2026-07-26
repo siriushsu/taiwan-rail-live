@@ -155,8 +155,16 @@ try {
   }, NORMAL_STATIONS.slice(0, 50));
   info('C 參考', `三等站在 schedStations 命中 ${normalHit} 座（僅供對照，不作判準）`);
 
-  // ── D 既有護照沒被弄壞（基準＝改動前的 HEAD）──
-  execSync(`git show HEAD:index.html > ${BASELINE}`, { stdio: 'pipe' });
+  // ── D 既有護照沒被弄壞（基準＝本功能開工前那一版）──
+  // ⚠基準絕不能用 HEAD：每 commit 一次 HEAD 就前進，基準會把自己的改動一起吃進去，
+  // 隔一個 commit 再跑就變成「40 vs 40、差 0」的假通過／假失敗。釘在分支點（本功能的第一個
+  // commit 的父）才穩定；merge-base 取不到（基底分支被刪）就退回當時記下的 SHA。
+  const BASE_FALLBACK = '1bfac956021006760f78234c0468138d30b2debe'; // = 45a5bd7^，打卡功能的第一個 commit 之前
+  let baseRef = BASE_FALLBACK;
+  try { baseRef = execSync('git merge-base HEAD feat/boot-geolocation', { encoding: 'utf8' }).trim() || BASE_FALLBACK; }
+  catch (e) { baseRef = BASE_FALLBACK; }
+  info('D 基準', `${baseRef.slice(0, 7)}（打卡功能開工前）`);
+  execSync(`git show ${baseRef}:index.html > ${BASELINE}`, { stdio: 'pipe' });
   const { ctx: bctx, page: bpage } = await open(browser, { path: '/' + BASELINE });
   await seed(bpage, rides);
   const before = await legacyCounts(bpage);
