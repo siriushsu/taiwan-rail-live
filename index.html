@@ -8933,12 +8933,14 @@ function setupCollectDemo() {
     showToast('示範收集資料已清除');
     return;
   }
-  // 比照 ?help=1：lineNetwork 讀 state.trackLines，boot 中段還沒建好，等時鐘徽章的班次數出現才算資料就位
+  // 閘門要押在**真正的前置條件**(線網建好)上,不能用代理指標。原本等 #count 有字就放行,
+  // 備援站實測班次數 6.6 秒就出現、那時 lineNetwork() 還是空的 → seedCollectDemo 撲空吐
+  // 「資料還沒載完」就再也不重試,示範模式等於沒作用。線網是 boot 後段才建的,窗要開夠大。
   let n = 0;
   const tick = () => {
-    const c = document.getElementById('count');
-    if ((c && c.textContent.trim()) || ++n > 40) seedCollectDemo();
-    else setTimeout(tick, 100);
+    if (lineNetwork().size) { seedCollectDemo(); return; }
+    if (++n > 150) { showToast('示範資料等太久沒載完——重新整理再試一次'); return; } // 150×200ms = 30 秒
+    setTimeout(tick, 200);
   };
   tick();
 }
