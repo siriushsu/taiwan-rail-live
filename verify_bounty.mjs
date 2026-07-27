@@ -719,6 +719,67 @@ const browser = await chromium.launch();
   await nctx.close();
 }
 
+// ── H 組：懸賞地圖層 ─────────────────────────────────────────────────────
+// 🔴 brief 草稿的 `await fetchBountyMe()` 與 `over:{me:ME}` 拿掉：fetchBountyMe()/bountyMeMem
+// 是 Task 6（護照校正貢獻節）的產出，而 progress.md 的排程刻意把 Task 7 排在 Task 6 之前
+// （「順序：1(修復) → 2 → 3 → 7 → 6」），這份 index.html 裡目前沒有 fetchBountyMe 這個函式——
+// 呼叫它會在 page.evaluate 裡丟 ReferenceError，讓整支腳本中止在這裡而不是乾淨 FAIL。
+// 且下面 H1–H5 的斷言本來就不需要它：bountyCorrectedSegs() 只讀本機 loadBounty()（見它自己的
+// 註解「不必等後端回；後端回的 segs 只是跨裝置時的補充來源」），這裡直接塞本機記錄即可。
+// 🔴 `rec.sys === 'TRA'` 改成 `'tra_sched'`：lineNetwork() 的 sys 桶代碼是 SYS_DEFS id 本身
+// （'tra_sched'/'thsr_sched'/'afr_sched'，沒有 metro），'TRA' 那套已被 Task 1 審查裁定廢止
+// （本檔 A3/C1b/D3 等既有斷言都已經改用 'tra_sched'，這裡跟著同一套鍵空間）。
+{
+  const { ctx, page } = await open(browser, { app: true });
+  const h = await page.evaluate(async () => {
+    const rec = [...lineNetwork().values()].find(r => r.sys === 'tra_sched');
+    const keys = rec.segs.slice(0, 3).map(s => s.key);
+    // 直接塞本機的校正記錄（不依賴後端把 segs 回來）
+    const b = loadBounty();
+    b.trips['x'] = { lnId: rec.id, sys: rec.sys, trainNo: '1', dir: 0, tripDate: '2026-07-28',
+      verdict: 'ok', segs: keys, u: Date.now() };
+    saveBounty(b);
+    setCollectMap(true);
+    // 開場鏡頭是「全台同框」遠景(整條台灣塞進一個畫面),3 段區間在那個尺度下投影出來的像素
+    // 可能整段落在螢幕外或細到反鋸齒後量不到——飛到第一段所在位置,H4 才量得到東西。
+    map.setView([rec.segs[0].pA.lat, rec.segs[0].pA.lon], 13, { animate: false });
+    return { corrected: [...bountyCorrectedSegs()].length, bar: document.getElementById('collectBar').innerText,
+      toggle: !!document.getElementById('collectBountyBtn') };
+  });
+  ok('H1 本機的校正段撿得出來', h.corrected === 3, JSON.stringify(h));
+  ok('H2 收集地圖列上有懸賞層的切換', h.toggle === true, h.bar.replace(/\n/g, ' / '));
+
+  const h3 = await page.evaluate(() => {
+    document.getElementById('collectBountyBtn').click();
+    return { on: state.collectBounty };
+  });
+  ok('H3 切得開', h3.on === true, JSON.stringify(h3));
+
+  // 🔴 H4 判準改寫：brief 草稿只數「整張 canvas 上有幾種相異顏色」——實測發現這個判準太鈍,
+  // 車站圖示/站名文字反鋸齒本身就能在整張 1440×900 canvas 上湊出破千種顏色,即使把懸賞層的
+  // 描線整段停用（突變測試：if(corr&&corr.size) 改成 if(false&&corr&&corr.size)),colors 依然
+  // 是 1194、64/64 全綠——判準對真正的缺陷完全無感。改成直接數「畫面上有幾個像素落在懸賞金色
+  // #ffd60a 附近(容差 24,吃反鋸齒與外描混色)」,同一個突變下這裡會確實掉到 0。
+  const h4 = await page.evaluate(() => {
+    const c = document.getElementById('overlay');
+    const g = c.getContext('2d');
+    const px = g.getImageData(0, 0, c.width, c.height).data;
+    let gold = 0;
+    for (let i = 0; i < px.length; i += 4) {
+      if (px[i + 3] < 200) continue;
+      if (Math.abs(px[i] - 0xff) <= 24 && Math.abs(px[i + 1] - 0xd6) <= 24 && Math.abs(px[i + 2] - 0x0a) <= 24) gold++;
+    }
+    return { gold };
+  });
+  ok('H4 開了懸賞層之後畫面上真的有懸賞金色(#ffd60a)像素，不是只有灰底／走過色', h4.gold >= 20, JSON.stringify(h4));
+
+  const h5 = await page.evaluate(() => { setCollectMap(false); return { bounty: state.collectBounty, cm: state.collectMap }; });
+  // 🔴 brief 草稿把 bounty 收進回傳物件卻沒放進判準——只驗 cm===false 測不到「懸賞層一起關」本身
+  // （setCollectMap(false) 本來就會把 cm 關掉,跟這裡的新行為無關）,補上 h5.bounty===false 才是這條真正要守的東西。
+  ok('H5 離開收集地圖時懸賞層一起關（不留一個看不到的開關）', h5.cm === false && h5.bounty === false, JSON.stringify(h5));
+  await ctx.close();
+}
+
 const pass = R.filter(r => r.p).length;
 console.log(`\n${pass}/${R.length} 通過`);
 await browser.close();

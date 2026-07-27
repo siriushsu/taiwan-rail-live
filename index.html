@@ -507,6 +507,16 @@
     font-size: 12px; font-weight: 800; cursor: pointer; font-family: inherit;
   }
   .collect-bar .cb-exit:hover { opacity: .86; }
+  /* 懸賞層切換:平時是描邊淡出的次要鈕,開啟時填地圖上同一顆懸賞色(#ffd60a)呼應——
+     按鈕本身就是圖例,不必另外畫一顆色塊說明。 */
+  .collect-bar .cb-tgl {
+    flex: none; background: transparent; color: var(--on-navy); border: 1.5px solid var(--on-navy);
+    border-radius: var(--r-pill); opacity: .8;
+    padding: 4px 12px; min-height: 30px; min-width: 44px;
+    font-size: 12px; font-weight: 800; cursor: pointer; font-family: inherit;
+  }
+  .collect-bar .cb-tgl:hover { opacity: 1; }
+  .collect-bar .cb-tgl.on { background: #ffd60a; border-color: #ffd60a; color: #1a1400; opacity: 1; }
   /* 收集地圖是靜態檢視:播放/倍速/時刻尺對一張「你走過哪裡」毫無意義,留著只會讓人以為壞了。
      .stage-tools 在 .controls 內、跟著一起收;手機的 tabbar 同理(唯一出口是狀態列的「離開」)。
      .badge 的「N 班奔跑中」在不畫車的模式下恆為 0、看起來像壞掉;
@@ -2602,6 +2612,7 @@ try { if (matchMedia('(max-width: 900px)').matches) document.body.classList.add(
     <div class="collect-bar" id="collectBar" hidden>
       <span class="cb-ttl">🗺 收集地圖</span>
       <span class="cb-stat" id="collectStat"></span>
+      <button class="cb-tgl" id="collectBountyBtn" type="button" title="標出我校正過的路段">📍 校正過的</button>
       <button class="cb-exit" id="collectExit" title="離開收集地圖，回到即時地圖">離開</button>
     </div>
     <div class="toasts" id="toasts"></div>
@@ -3251,6 +3262,7 @@ const state = {
   dirArrow: true, // 列車行進方向箭頭開關(預設開;台鐵/高鐵車號牌前緣加小箭頭,由前後點位推方向)
   ambientStyle: 'hotspot', // 放空視角:follow=跟著一班車跑 / hotspot=群車(鏡頭掛在最繁忙路段看群車交錯);預設群車(v0717v)
   collectMap: false, // 收集地圖:全路網轉灰、只有搭過的區間亮起(純檢視,不動任何收集資料),見 setCollectMap
+  collectBounty: false, // 收集地圖的懸賞層:我校正過的段用特殊色(規格 §8「換一層資料即可」)
   recording: null,   // 錄製中的校正旅程;非 null 代表正在錄,見 startBountyRecording
 };
 let map, cv, ctx;
@@ -4414,12 +4426,33 @@ function trackLineColor(color) {
 function metroLineColor(color) {
   return (state.trackStyle === 'auto' && !state.collectMap) ? color : trackLineColor(color);
 }
+// 收集地圖描一段的共用 helper——「走過」與懸賞校正層(見 drawCollectSegs 尾端)共用同一份描線邏輯,
+// 兩份實作才不會日後分岔。沒線形的線(shape 缺)退化成站到站直線,總比整段不畫好;整段離屏時
+// 路徑已建但不描,省下兩次 stroke。lineWidth 是「顏色線」寬度,外描(knockout case)固定比它寬 2.6px
+// ——原本「走過」寫死 6.4/3.8,兩者差正好 2.6,沿用同一個比例關係。
+function drawSegOnShape(ln, s, color, lineWidth, w, h) {
+  const inPad = p => p.x >= -60 && p.x <= w + 60 && p.y >= -60 && p.y <= h + 60;
+  const pts = ln.shape ? shapeSlice(ln, s.dA, s.dB) : [s.pA, s.pB];
+  if (pts.length < 2) return;
+  let any = false;
+  ctx.beginPath();
+  for (let i = 0; i < pts.length; i++) {
+    const p = map.latLngToContainerPoint([pts[i].lat, pts[i].lon]);
+    if (inPad(p)) any = true;
+    i ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y);
+  }
+  if (!any) return; // 整段離屏:路徑已建但不描,省下兩次 stroke
+  ctx.strokeStyle = pal().railCase; ctx.lineWidth = lineWidth + 2.6; ctx.stroke();
+  ctx.strokeStyle = color; ctx.lineWidth = lineWidth; ctx.stroke();
+}
 // 收集地圖:把搭過的最細區間描回原色。疊在灰底線之上、車站之下。
 // 用 shapeSlice 沿線形切出實際那一截軌道(不是站到站的直線弦),彎道才貼得住。
 function drawCollectSegs(w, h) {
   const sg = segmentCollection();
-  if (!Object.keys(sg).length) return;
-  const inPad = p => p.x >= -60 && p.x <= w + 60 && p.y >= -60 && p.y <= h + 60;
+  // 懸賞層(我校正過的段)獨立於「走過」——兩層資料來源不同(sg 來自搭乘模式的 checkins,
+  // 校正段來自懸賞的本機 trips 記錄),不能假設有校正記錄就一定有走過記錄,兩者都空才整個跳過。
+  const corr = state.collectBounty ? bountyCorrectedSegs() : null;
+  if (!Object.keys(sg).length && !(corr && corr.size)) return;
   ctx.lineCap = 'round'; ctx.lineJoin = 'round';
   for (const rec of lineNetwork().values()) {
     if (state.trackVisible && !state.trackVisible.has(rec.id)) continue;
@@ -4427,20 +4460,17 @@ function drawCollectSegs(w, h) {
     if (ln._bbox && (ln._bbox[2] < -40 || ln._bbox[0] > w + 40 || ln._bbox[3] < -40 || ln._bbox[1] > h + 40)) continue;
     const color = railDimColor(rec.color || '#c8102e');
     for (const s of rec.segs) {
-      if (!sg[s.key]) continue;
-      // 沒線形的線(shape 缺)退化成站到站直線,總比整段不畫好
-      const pts = ln.shape ? shapeSlice(ln, s.dA, s.dB) : [s.pA, s.pB];
-      if (pts.length < 2) continue;
-      let any = false;
-      ctx.beginPath();
-      for (let i = 0; i < pts.length; i++) {
-        const p = map.latLngToContainerPoint([pts[i].lat, pts[i].lon]);
-        if (inPad(p)) any = true;
-        i ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y);
+      if (sg[s.key]) drawSegOnShape(ln, s, color, 3.8, w, h);
+    }
+  }
+  // 懸賞層:我校正過的段。刻意疊在「走過」之上——校正過的必然也走過,先畫「走過」再蓋上去
+  // 才不會被壓掉。描線一樣走 shapeSlice 沿線形(不是站到站直線弦,彎道才貼得住),與「走過」
+  // 共用 drawSegOnShape。
+  if (corr && corr.size) {
+    for (const rec of lineNetwork().values()) {
+      for (const s of rec.segs) {
+        if (corr.has(s.key)) drawSegOnShape(rec.ln, s, '#ffd60a', 3.5, w, h);
       }
-      if (!any) continue; // 整段離屏:路徑已建但不描,省下兩次 stroke
-      ctx.strokeStyle = pal().railCase; ctx.lineWidth = 6.4; ctx.stroke();
-      ctx.strokeStyle = color; ctx.lineWidth = 3.8; ctx.stroke();
     }
   }
 }
@@ -9197,6 +9227,16 @@ function loadBounty() {
   return { v: 1, claims: {}, trips: {} };
 }
 function saveBounty(b) { try { localStorage.setItem(BOUNTY_KEY, JSON.stringify(b)); } catch (e) {} }
+// 我校正過的段（本機記錄，不必等後端回；後端回的 segs 只是跨裝置時的補充來源）。
+// suspect 不算——那一筆的章本來就沒給。收集地圖的懸賞層(見 drawCollectSegs)吃這個。
+function bountyCorrectedSegs() {
+  const out = new Set();
+  for (const t of Object.values(loadBounty().trips || {})) {
+    if (t.verdict === 'suspect') continue;
+    for (const k of (t.segs || [])) out.add(k);
+  }
+  return out;
+}
 // 與計畫 A 的 checkinsToCollections 同構：接同步那天上傳端呼叫它就好，不必動任何存量資料。
 // 合併語意一樣是逐筆 LWW（沿用 userDataNormalizeCollection 的 at >= old.updatedAt，不另寫合併碼）。
 function bountyToCollections(b) {
@@ -9600,6 +9640,10 @@ function setCollectMap(on) {
     clearFollow();       // 車都不畫了,鏡頭還在追一班看不見的車只會讓人以為地圖卡住
     closeRidePanel(); closeBoard(); closeNearbyStations(); closeExplorePanel(); closeFavPanel();
     renderCollectStat();
+  }
+  if (!to) {
+    state.collectBounty = false;   // 離開時一起關,不留一個看不到的開關
+    document.getElementById('collectBountyBtn').classList.remove('on'); // 按鈕視覺跟著歸零,下次進來不會看起來還開著
   }
   if (state.ready) draw();
 }
@@ -14211,6 +14255,11 @@ document.getElementById('fpRideBox').onclick = (e) => {
   if (tr && idx >= 0) startRiding(tr, idx);
 };
 document.getElementById('collectExit').onclick = () => setCollectMap(false);
+document.getElementById('collectBountyBtn').onclick = () => {
+  state.collectBounty = !state.collectBounty;
+  document.getElementById('collectBountyBtn').classList.toggle('on', state.collectBounty);
+  draw();
+};
 document.getElementById('tripClose').onclick = closeTripBanner;
 document.getElementById('tripPanel').onclick = (e) => {
   if (e.target.closest('#tripPanelClose')) { closeTripSharePanel(); return; }
