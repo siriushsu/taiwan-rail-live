@@ -244,6 +244,39 @@ function mergeMetroAlertParts(parts, newsAlerts) {
   return { alerts, degraded };
 }
 
+// 單一營運者(op)的抓取+解析+失敗回退,從 metroAlert() 內聯 try/catch 抽出來的可測版本
+// (2026-07-27 修復輪 2 M10:C 段原本只測 mergeMetroAlertParts 這個吃手工 parts 的純函式,
+// 沒有任何測試證明「生產路徑真的會在 catch 裡標 degraded:true」——這支才是真正跑在
+// production 的那段邏輯,mergeMetroAlertParts 只是它的下游聚合。fetchImpl 用參數注入,
+// 離線測試不需要真的 TDX token/網路,production 呼叫時原樣傳全域 fetch,行為不變。
+async function fetchMetroAlertOp({ op, sys, label }, token, fetchImpl) {
+  try {
+    const r = await fetchImpl(`https://tdx.transportdata.tw/api/basic/v2/Rail/Metro/Alert/${op}?%24format=JSON`,
+      { headers: { authorization: 'Bearer ' + token } });
+    if (r.status === 401) { tok = null; throw new Error('tdx 401'); }
+    if (!r.ok) throw new Error('tdx api ' + r.status);
+    const d = await r.json();
+    const list = (d.Alerts || []).map(a => {
+      const normal = /正常營運|營運正常|正常行駛/.test(a.Title || '');
+      return {
+        title: a.Title, status: normal ? 1 : 0, desc: a.Description || '',
+        reason: a.Reason, effect: a.Effect,
+        start: (a.StartTime && !String(a.StartTime).startsWith('0001')) ? a.StartTime : '',
+        end: (a.EndTime && !String(a.EndTime).startsWith('0001')) ? a.EndTime : '',
+        lines: ((a.Scope && a.Scope.Lines) || []).map(l => (l.LineName && (l.LineName.Zh_tw || l.LineName)) || l.LineID).filter(Boolean),
+        sys, sysLabel: label,
+      };
+    });
+    metroAlertOpMem.set(op, { list, at: Date.now() });
+    return { list, sys };
+  } catch (e) {
+    // 單一營運者失敗不再靜默回空:沿用該營運者 ≤30 分鐘內的上次成功結果(見上方 metroAlertOpFallback)。
+    // degraded:true 是 2026-07-27 審查 Critical 1 的修法——這個 sys 這次不是真的刷新,標出來讓
+    // 外層(cron 的 ingestAlertLog)知道不能拿它判解除,單一營運者的抖動不該變成假的「已恢復」。
+    return { list: metroAlertOpFallback(metroAlertOpMem.get(op), Date.now()), sys, degraded: true };
+  }
+}
+
 // 桃園機捷新聞稿(TDX v2 Rail/Metro/News/TYMC):Alert 端點對「設備異常」等事後才澄清的事故
 // 常常全程回「正常營運」,News 事後新聞稿是唯一機器可讀痕跡(2026-07-17 A6 站設備異常案實測:
 // Alert 全程正常,News 延遲約 2 小時補發新聞稿)。只接 TYMC,其他家 News 全是行銷內容不接。
@@ -321,33 +354,7 @@ async function metroAlert(request, env) {
     if (!metroAlertMem || Date.now() - metroAlertMemAt > 110e3) {
       const token = await getToken(env);
       const [parts, newsAlerts] = await Promise.all([
-        Promise.all(METRO_ALERT_OPS.map(async ({ op, sys, label }) => {
-          try {
-            const r = await fetch(`https://tdx.transportdata.tw/api/basic/v2/Rail/Metro/Alert/${op}?%24format=JSON`,
-              { headers: { authorization: 'Bearer ' + token } });
-            if (r.status === 401) { tok = null; throw new Error('tdx 401'); }
-            if (!r.ok) throw new Error('tdx api ' + r.status);
-            const d = await r.json();
-            const list = (d.Alerts || []).map(a => {
-              const normal = /正常營運|營運正常|正常行駛/.test(a.Title || '');
-              return {
-                title: a.Title, status: normal ? 1 : 0, desc: a.Description || '',
-                reason: a.Reason, effect: a.Effect,
-                start: (a.StartTime && !String(a.StartTime).startsWith('0001')) ? a.StartTime : '',
-                end: (a.EndTime && !String(a.EndTime).startsWith('0001')) ? a.EndTime : '',
-                lines: ((a.Scope && a.Scope.Lines) || []).map(l => (l.LineName && (l.LineName.Zh_tw || l.LineName)) || l.LineID).filter(Boolean),
-                sys, sysLabel: label,
-              };
-            });
-            metroAlertOpMem.set(op, { list, at: Date.now() });
-            return { list, sys };
-          } catch (e) {
-            // 單一營運者失敗不再靜默回空:沿用該營運者 ≤30 分鐘內的上次成功結果(見上方 metroAlertOpFallback)。
-            // degraded:true 是 2026-07-27 審查 Critical 1 的修法——這個 sys 這次不是真的刷新,標出來讓
-            // 外層(cron 的 ingestAlertLog)知道不能拿它判解除,單一營運者的抖動不該變成假的「已恢復」。
-            return { list: metroAlertOpFallback(metroAlertOpMem.get(op), Date.now()), sys, degraded: true };
-          }
-        })),
+        Promise.all(METRO_ALERT_OPS.map(o => fetchMetroAlertOp(o, token, fetch))),
         fetchTymcNewsAlerts(token),
       ]);
       // alerts/at 兩個既有欄位內容與之前逐 byte 相同(mergeMetroAlertParts 只是把 parts.flat() 換成對映
@@ -1061,8 +1068,9 @@ function normalizeAlertPayload(payload, sysOf) {
 // 狀態機核心:上一輪「還沒解除」的列 × 本輪看到的公告 → 要寫什麼、要標什麼解除。
 // 純函式:不碰 D1、不讀系統時鐘(nowIso 由呼叫端給),所以整台狀態機可離線重放測試。
 //
-// liveSys = 本輪真的取得成功的系統集合。不在集合裡的一律跳過解除判定——這是 B5 回歸案,
-// 上游抖動不可以變成一則假的「已恢復」。
+// liveSys = 本輪「可信、能拿來判解除」的系統集合——不等於單純「fetch 有沒有成功」,metro-alert
+// 整包 200 仍可能有個別營運者退化(見 fetchAlertLogSources 的 payload.degraded)。不在集合裡的
+// 一律跳過解除判定——這是 B5 回歸案,上游抖動不可以變成一則假的「已恢復」。
 // updated 的判準看內文(descr)或預計恢復時間(end_at)——見下方比較那行的行內註解;
 // 標題與起始時間已經進了 akey,它們變了就是另一則公告。
 function diffAlertState(prevRows, current, liveSys, nowIso) {
@@ -1116,17 +1124,22 @@ const ALERT_LOG_CLEAR = 'UPDATE alert_log SET cleared_at=? WHERE sys=? AND akey=
 // cron 自己打 /api/*-alert 的請求帶這個 UA——(a) 讓來源端能辨識是誰打的;(b) 流量埋點靠它排除
 // 這批自打流量,不然會被誤記成「網頁」訪客(2026-07-27 審查 Important 5,見 fetch() 的 TRAFFIC 埋點)。
 const ALERT_LOG_CRON_UA = 'railisland.tw alert-log cron (+https://railisland.tw)';
-// 「整包 200 不代表涵蓋的每個系統都說得準」的第二道安全網(2026-07-27 審查 Critical 1):
-// metro-alert 用 payload.degraded 明確標出哪些 sys 這輪是 fallback(見 metroAlert/mergeMetroAlertParts);
-// 三個來源共通的另一種退化是「外層 catch 沿用舊 mem」(traAlert/thsrAlert/metroAlert 都有這條路徑)——
-// 此時來源不會標 degraded,但 payload.at 會是舊的。門檻抓正常 110 秒刷新週期 + 緩衝,超過就整批視為退化。
-const ALERT_STALE_GUARD_MS = 130e3;
+// 「整包 200 不代表涵蓋的每個系統都說得準」的判準(2026-07-27 審查 Critical 1):
+// metro-alert 用 payload.degraded 明確標出哪些 sys 這輪是 fallback(見 metroAlert/mergeMetroAlertParts)。
+//
+// 2026-07-27 修復輪 2:這裡原本還有第二道「payload.at 太舊就整批視為退化」的安全網,拿掉了——
+// 三個來源的 at 語意不一致:thsr/metro 的 at 是「我方抓取時刻」,但 tra-alert 的 at
+// (見 traAlert)是 TDX 自己回的 UpdateTime(上游資料何時變動),數小時沒動是台鐵端正常狀態,
+// 不是抓取失敗;拿抓取時刻的門檻去卡一個語意是「上游資料時間」的欄位,等於把台鐵永久標成
+// 退化,台鐵的解除事件因此幾乎從不寫入(正式站實測 2026-07-27 23:00,tra-alert 的 at 已
+// 10,414 秒沒動,遠超原本 130 秒的門檻)。外層 catch 沿用舊 mem 這條路徑本身不需要這道安全網:
+// 那條路徑回傳的是「上一輪已經成功、且已經跟 D1 同步過」的完整物件,內容原封不動重複送出,
+// diffAlertState 拿它跟 D1 比對不會有任何差異可比,結構上算不出假解除——安全網防的是一個
+// 不會發生的情境,代價卻是靜默打斷最大來源(台鐵)的解除路徑。
 function alertSourceDegradedSys(src, payload) {
   const explicit = new Set(Array.isArray(payload && payload.degraded) ? payload.degraded : []);
-  const atMs = payload && payload.at ? Date.parse(payload.at) : NaN;
-  const stale = Number.isFinite(atMs) && (Date.now() - atMs > ALERT_STALE_GUARD_MS);
   const degraded = new Set();
-  for (const s of src.covers) if (stale || explicit.has(s)) degraded.add(s);
+  for (const s of src.covers) if (explicit.has(s)) degraded.add(s);
   return degraded;
 }
 
@@ -1162,7 +1175,11 @@ async function ingestAlertLog(env) {
     for (const rec of part.recs) current.push(rec);
   });
   if (!liveSys.size) {
-    console.error('[cron alert-log] 三個來源全部失敗,本輪整個略過(不寫入、不判解除)');
+    // 措辭刻意不寫「三個來源全部失敗」:liveSys 空集合現在也可能是「來源都 200,但涵蓋的
+    // sys 全被 payload.degraded 標退化」(拿掉安全網後,metro-alert 仍可能整包退化;tra/thsr
+    // 沒有 per-op 子結構,對它們來說唯一會落到這裡的路徑仍是 fetch 真的失敗)——訊息只斷言
+    // 「沒有可信資料」這個觀察到的結果,不斷言背後成因是失敗還是退化。
+    console.error('[cron alert-log] 本輪沒有任何系統的資料可信(來源失敗或整包退化),整輪略過(不寫入、不判解除)');
     return { added: 0, updated: 0, cleared: 0, live: [], skipped: true };
   }
   const db = env.DELAY_DB;
@@ -1287,7 +1304,7 @@ export default {
 export const _ingest = { parseDayEvents, buildDayRows, buildBlob, roundHalfUpStr, addDays, twParts };
 // 純函式導出,供離線回歸測試 import:metroAlert 的 per-op last-known-good + News/TYMC 過濾轉換。
 export const _metroAlert = {
-  metroAlertOpFallback, mergeMetroAlertParts, isRecentNews, isIncidentNewsTitle,
+  metroAlertOpFallback, mergeMetroAlertParts, fetchMetroAlertOp, isRecentNews, isIncidentNewsTitle,
   stripHtmlAndTruncate, formatNewsTitle, mapNewsToAlert, filterAndMapNews,
 };
 // 純函式導出,供離線回歸測試 import:逐站事件 diff 與 mem.at→台北日換算。

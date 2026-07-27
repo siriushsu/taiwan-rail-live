@@ -12,7 +12,7 @@
 //
 // 用法：node scripts/verify_usage_split.mjs
 import { readFileSync } from 'node:fs';
-import worker from '../worker.js';
+import worker, { _alertLog } from '../worker.js';
 
 let fails = 0;
 const check = (ok, msg) => { if (!ok) fails++; console.log(`  ${ok ? 'PASS' : '❌FAIL'}  ${msg}`); };
@@ -107,6 +107,16 @@ r = await hit('/api/tra-alert', { ua: MAC_UA, env: ENV({ TRAFFIC: { writeDataPoi
 check(r.status === good.status, `writeDataPoint 丟例外 → 回應照常（${r.status} vs 正常 ${good.status}）`);
 r = await hit('/api/tra-alert', { ua: MAC_UA, env: ENV({ TRAFFIC: undefined }) });
 check(r.status === good.status && r.count === 0, `binding 不存在（本機 dev_server）→ 回應照常、不炸（${r.status}）`);
+
+// ── 6. cron 自身流量不誤記(2026-07-27 審查 Important 5 / 修復輪 2 M11 補牙)───────────
+// verify_alert_log.mjs 的 G 段只測 trafficTag() 這個純函式本身回傳 null——那條測不到
+// fetch() 是否真的把回傳值接上了 TRAFFIC 埋點的 if(tag) 守門。拿掉那行 if 判斷,G 段
+// 依然全綠,只有這裡（真的呼叫 worker.fetch()）會炸,這正是這一輪要補的牙。
+console.log('\n===== cron 自身流量不誤記 =====');
+r = await hit('/api/tra-alert', { ua: _alertLog.ALERT_LOG_CRON_UA });
+check(r.count === 0, `cron 專屬 UA 打 /api/* 一筆都不記（實際 ${r.count}）——不然埋點的 if(tag) 守門就是裝飾`);
+r = await hit('/api/tra-alert', { ua: MAC_UA });
+check(r.count === 1, `對照組:一般 UA 正常記 1 筆（實際 ${r.count}）`);
 
 console.log(`\n${fails ? `❌ ${fails} 項未過` : '✅ 全部通過'}\n`);
 process.exit(fails ? 1 : 0);

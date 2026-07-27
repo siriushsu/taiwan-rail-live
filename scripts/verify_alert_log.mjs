@@ -160,6 +160,30 @@ const { mergeMetroAlertParts } = _metroAlert;
   check(m4.alerts.length === 1 && eq(m4.degraded, []), 'C4 news 陣列併入 alerts，不影響 degraded');
 }
 
+console.log('C5. fetchMetroAlertOp（metroAlert 內部單一營運者抓取，生產路徑第一道防線，2026-07-27 修復輪 2 M10 補牙）');
+// 為什麼 C1-C4 不夠:那四條只測 mergeMetroAlertParts 這個吃手工 parts 的純函式,parts 裡的
+// { list, sys, degraded:true } 是測試自己手寫的,沒有任何斷言證明 metroAlert() 真正的
+// per-op try/catch 區塊會產出這個形狀。拿掉 worker.js 那段 catch 裡的 degraded:true,C1-C4
+// 全過——這裡改測 fetchMetroAlertOp,那是從同一段 try/catch 原樣抽出來的函式,不是重寫。
+const { fetchMetroAlertOp } = _metroAlert;
+{
+  const okFetch = async () => new Response(JSON.stringify({ Alerts: [{ Title: '測試公告', Description: 'x' }] }), { status: 200 });
+  const r1 = await fetchMetroAlertOp({ op: '__TEST_OK__', sys: 'mrt', label: 'x' }, 'tok', okFetch);
+  check(!r1.degraded, 'C5a 成功時沒有 degraded 旗標');
+  check(r1.list.length === 1 && r1.list[0].title === '測試公告', 'C5a 成功時 list 帶出真的解析結果');
+}
+{
+  const failFetch = async () => new Response('err', { status: 500 });
+  const r2 = await fetchMetroAlertOp({ op: '__TEST_FAIL__', sys: 'mrt', label: 'x' }, 'tok', failFetch);
+  check(r2.degraded === true, 'C5b HTTP 失敗時標 degraded:true（M10:生產路徑本尊，不是聚合函式）');
+  check(eq(r2.list, []), 'C5b 無快取時 fallback 回空陣列');
+}
+{
+  const throwFetch = async () => { throw new Error('network down'); };
+  const r3 = await fetchMetroAlertOp({ op: '__TEST_THROW__', sys: 'krtc', label: 'x' }, 'tok', throwFetch);
+  check(r3.degraded === true, 'C5c fetch 直接拋網路例外時也標 degraded:true');
+}
+
 console.log('E. ingestAlertLog（fetch 與 D1 替身）');
 const { ingestAlertLog } = _alertLog;
 const realFetch = globalThis.fetch;
@@ -192,14 +216,28 @@ function fakeDb(prevRows) {
   };
   return { db: { prepare: sql => mk(sql), batch: async st => { calls.batch.push(st.length); return []; } }, calls };
 }
-// fetch 替身:okPaths 內的路徑回 200＋指定 payload,其餘回 500。
+// fetch 替身:okPaths 內的路徑回 200＋指定 payload,其餘回 500。fakeFetchCalls 記下每次呼叫的
+// pathname 與 headers——2026-07-27 修復輪 2 M12 補牙要驗 cron 自己的 outbound fetch 真的帶了
+// 專屬 UA(worker.js fetchAlertLogSources 的 headers:{'user-agent':ALERT_LOG_CRON_UA}),
+// 只驗字串常數存在(G 段)不夠,要驗真的塞進了送出去的 headers。
+let fakeFetchCalls = [];
 function fakeFetch(map) {
-  globalThis.fetch = async (url) => {
+  fakeFetchCalls = [];
+  globalThis.fetch = async (url, init) => {
     const p = new URL(String(url)).pathname;
+    fakeFetchCalls.push({ pathname: p, headers: (init && init.headers) || {} });
     if (!(p in map)) return new Response('nope', { status: 500 });
     return new Response(JSON.stringify(map[p]), { status: 200, headers: { 'content-type': 'application/json' } });
   };
 }
+// 2026-07-27 修復輪 2:E 段所有 tra/thsr/metro payload 都要帶 at,且台鐵要用真實形狀——
+// 台鐵的 at 是 TDX 的 UpdateTime(上游資料何時變動),不是抓取時刻,數小時沒動是常態
+// (正式站實測 2026-07-27 23:00 台北,tra-alert 的 at 已 10,414 秒沒動)。這裡固定給 3 小時前,
+// 相對「現在」算不寫死日期,測試在任何一天跑都一樣舊。用意:若安全網哪天被誰加回來,
+// E3/E4/E5/E6/E7 這些「不是專門測這件事」的既有斷言也會連帶炸開,不必等到 E9 才抓到——
+// 這正是這一輪要補的東西(舊版 E 段全部 tra payload 都沒有 at,78 條全綠照不到生產行為)。
+const STALE_TRA_AT = () => new Date(Date.now() - 3 * 3600e3).toISOString();
+const FRESH_AT = () => new Date(Date.now() - 5e3).toISOString();
 
 { // E1 全部來源掛掉→整輪略過,零 D1 寫入
   fakeFetch({});
@@ -210,8 +248,8 @@ function fakeFetch(map) {
 }
 { // E2 台鐵那發掛掉,台鐵既有公告不准被解除(端到端版的 B5)
   fakeFetch({
-    '/api/metro-alert': { alerts: [{ title: '正常營運', status: 1, sys: 'mrt' }] },
-    '/api/thsr-alert': { alerts: [{ title: '全線營運正常(Normal)', status: 1 }] },
+    '/api/metro-alert': { at: FRESH_AT(), alerts: [{ title: '正常營運', status: 1, sys: 'mrt' }] },
+    '/api/thsr-alert': { at: FRESH_AT(), alerts: [{ title: '全線營運正常(Normal)', status: 1 }] },
   });
   const { db, calls } = fakeDb([{ sys: 'tra', akey: '|東部幹線延誤|', title: '東部幹線延誤', descr: '', end_at: '' }]);
   const r = await ingestAlertLog({ DELAY_DB: db });
@@ -220,9 +258,9 @@ function fakeFetch(map) {
 }
 { // E3 正常路徑:新公告寫進去
   fakeFetch({
-    '/api/metro-alert': { alerts: [{ title: '地震恢復營運', status: 0, desc: '已巡視', sys: 'krtc', lines: [] }] },
-    '/api/tra-alert': { alerts: [{ title: '全線營運正常', status: 1 }] },
-    '/api/thsr-alert': { alerts: [{ title: '全線營運正常(Normal)', status: 1 }] },
+    '/api/metro-alert': { at: FRESH_AT(), alerts: [{ title: '地震恢復營運', status: 0, desc: '已巡視', sys: 'krtc', lines: [] }] },
+    '/api/tra-alert': { at: STALE_TRA_AT(), alerts: [{ title: '全線營運正常', status: 1 }] },
+    '/api/thsr-alert': { at: FRESH_AT(), alerts: [{ title: '全線營運正常(Normal)', status: 1 }] },
   });
   const { db, calls } = fakeDb([]);
   const r = await ingestAlertLog({ DELAY_DB: db });
@@ -236,9 +274,9 @@ function fakeFetch(map) {
 }
 { // E4 SELECT 必須撈 end_at,否則「預計恢復時間改了」永遠算不出 updated
   fakeFetch({
-    '/api/metro-alert': { alerts: [{ title: '正常營運', status: 1, sys: 'mrt' }] },
-    '/api/tra-alert': { alerts: [{ title: '全線營運正常', status: 1 }] },
-    '/api/thsr-alert': { alerts: [{ title: '全線營運正常(Normal)', status: 1 }] },
+    '/api/metro-alert': { at: FRESH_AT(), alerts: [{ title: '正常營運', status: 1, sys: 'mrt' }] },
+    '/api/tra-alert': { at: STALE_TRA_AT(), alerts: [{ title: '全線營運正常', status: 1 }] },
+    '/api/thsr-alert': { at: FRESH_AT(), alerts: [{ title: '全線營運正常(Normal)', status: 1 }] },
   });
   const { db, calls } = fakeDb([]);
   await ingestAlertLog({ DELAY_DB: db });
@@ -251,9 +289,9 @@ function fakeFetch(map) {
   // 的 descr 與 akey 有沒有真的撈到(2026-07-27 審查 Important 2:拿掉 descr 或 akey 都能讓
   // 52 條舊斷言全過)。
   fakeFetch({
-    '/api/metro-alert': { alerts: [{ title: '地震恢復營運', status: 0, desc: '已巡視', sys: 'krtc', lines: [] }] },
-    '/api/tra-alert': { alerts: [{ title: '全線營運正常', status: 1 }] },
-    '/api/thsr-alert': { alerts: [{ title: '全線營運正常(Normal)', status: 1 }] },
+    '/api/metro-alert': { at: FRESH_AT(), alerts: [{ title: '地震恢復營運', status: 0, desc: '已巡視', sys: 'krtc', lines: [] }] },
+    '/api/tra-alert': { at: STALE_TRA_AT(), alerts: [{ title: '全線營運正常', status: 1 }] },
+    '/api/thsr-alert': { at: FRESH_AT(), alerts: [{ title: '全線營運正常(Normal)', status: 1 }] },
   });
   const { db, calls } = fakeDb([{ sys: 'krtc', akey: '|地震恢復營運|', title: '地震恢復營運', descr: '已巡視', end_at: '', first_seen: 'F', last_seen: 'L' }]);
   const r = await ingestAlertLog({ DELAY_DB: db });
@@ -263,9 +301,9 @@ function fakeFetch(map) {
   // 是 (now, sys, akey)。E3 對 upsert 有三層參數斷言,clear 這條對稱的檢查原本一條都沒有
   // (2026-07-27 審查 Important 3:參數順序打亂,52 條舊斷言全過)。
   fakeFetch({
-    '/api/metro-alert': { alerts: [{ title: '正常營運', status: 1, sys: 'mrt' }] },
-    '/api/tra-alert': { alerts: [{ title: '全線營運正常', status: 1 }] },
-    '/api/thsr-alert': { alerts: [{ title: '全線營運正常(Normal)', status: 1 }] },
+    '/api/metro-alert': { at: FRESH_AT(), alerts: [{ title: '正常營運', status: 1, sys: 'mrt' }] },
+    '/api/tra-alert': { at: STALE_TRA_AT(), alerts: [{ title: '全線營運正常', status: 1 }] },
+    '/api/thsr-alert': { at: FRESH_AT(), alerts: [{ title: '全線營運正常(Normal)', status: 1 }] },
   });
   const { db, calls } = fakeDb([{ sys: 'tra', akey: '|東部幹線延誤|', title: '東部幹線延誤', descr: '', end_at: '' }]);
   const r = await ingestAlertLog({ DELAY_DB: db });
@@ -280,9 +318,9 @@ function fakeFetch(map) {
 { // E7 metro-alert 整包 200,但 payload.degraded 標出 mrt 這個營運者本輪是 fallback
   // (2026-07-27 審查 Critical 1)→ mrt 既有公告不准被解除,未退化的 krtc 正常判。
   fakeFetch({
-    '/api/metro-alert': { at: new Date().toISOString(), alerts: [{ title: '地震恢復營運', status: 0, desc: '已巡視', sys: 'krtc', lines: [] }], degraded: ['mrt'] },
-    '/api/tra-alert': { alerts: [{ title: '全線營運正常', status: 1 }] },
-    '/api/thsr-alert': { alerts: [{ title: '全線營運正常(Normal)', status: 1 }] },
+    '/api/metro-alert': { at: FRESH_AT(), alerts: [{ title: '地震恢復營運', status: 0, desc: '已巡視', sys: 'krtc', lines: [] }], degraded: ['mrt'] },
+    '/api/tra-alert': { at: STALE_TRA_AT(), alerts: [{ title: '全線營運正常', status: 1 }] },
+    '/api/thsr-alert': { at: FRESH_AT(), alerts: [{ title: '全線營運正常(Normal)', status: 1 }] },
   });
   const { db, calls } = fakeDb([{ sys: 'mrt', akey: '|台北車站信號異常|', title: '台北車站信號異常', descr: '', end_at: '' }]);
   const r = await ingestAlertLog({ DELAY_DB: db });
@@ -290,31 +328,48 @@ function fakeFetch(map) {
   check(r.live.includes('krtc') && !r.live.includes('mrt'), 'E7 live 含未退化的 krtc,不含退化的 mrt');
   check(r.added === 1, 'E7 未退化的 krtc 新公告正常記成 added');
 }
-{ // E8 metro-alert 的 at 過期(模擬 metroAlert() 外層 catch 沿用舊 mem 的情境)→即使
-  // payload.degraded 是空陣列,整包涵蓋的 sys 全部視為退化(第二道安全網,見
-  // alertSourceDegradedSys)。
-  const stale = new Date(Date.now() - 200e3).toISOString(); // 200 秒前,超過 130 秒安全網門檻
+{ // E8（2026-07-27 修復輪 2 重寫,原本測「at 過期→整批退化」的安全網已拿掉,原斷言的期望值
+  // 現在是錯的)metro-alert 的 at 是 3 小時前的舊值,但沒有明確標 degraded → 不因為 at 舊就
+  // 排除,既有公告正常解除。這條反過來驗證「安全網移除後確實不再誤傷」——哪天有人把
+  // alertSourceDegradedSys 的 stale 判斷加回去,這裡會先炸。
   fakeFetch({
-    '/api/metro-alert': { at: stale, alerts: [], degraded: [] },
-    '/api/tra-alert': { alerts: [{ title: '全線營運正常', status: 1 }] },
-    '/api/thsr-alert': { alerts: [{ title: '全線營運正常(Normal)', status: 1 }] },
+    '/api/metro-alert': { at: STALE_TRA_AT(), alerts: [], degraded: [] },
+    '/api/tra-alert': { at: STALE_TRA_AT(), alerts: [{ title: '全線營運正常', status: 1 }] },
+    '/api/thsr-alert': { at: FRESH_AT(), alerts: [{ title: '全線營運正常(Normal)', status: 1 }] },
   });
   const { db, calls } = fakeDb([{ sys: 'tmrt', akey: '|台中捷運信號異常|', title: '台中捷運信號異常', descr: '', end_at: '' }]);
   const r = await ingestAlertLog({ DELAY_DB: db });
-  check(r.cleared === 0, 'E8 metro-alert 的 at 過期時,即使 degraded 是空陣列,既有公告仍不被解除');
-  check(!r.live.includes('mrt') && !r.live.includes('tmrt') && !r.live.includes('krtc') && !r.live.includes('tymc'), 'E8 過期時 metro 涵蓋的四個 sys 全部不進 liveSys');
-  check(r.live.includes('tra') && r.live.includes('thsr'), 'E8 其他正常來源不受影響');
+  check(r.cleared === 1, 'E8 metro-alert 的 at 是 3 小時前但沒有明確標 degraded 時,不因為 at 舊就排除,既有公告正常解除');
+  check(r.live.includes('mrt') && r.live.includes('tmrt') && r.live.includes('krtc') && r.live.includes('tymc'), 'E8 metro 涵蓋的四個 sys 正常進 liveSys（at 舊不再是排除理由）');
 }
-{ // E9 對照組:at 是新鮮的(遠低於門檻)→不誤觸過期安全網,degraded 為空時涵蓋的 sys 正常判活。
-  const fresh = new Date(Date.now() - 5e3).toISOString(); // 5 秒前
+{ // E9（2026-07-27 審查:本輪最重要的回歸案)台鐵的 at 是數小時前的 UpdateTime——這是正式站的
+  // 真實形狀,不是抓取失敗,即使 at 很舊,台鐵仍要正常進 liveSys,既有公告該解除的要解除。
+  // 上一輪的 130 秒安全網會把「台鐵 at 是 UpdateTime、天生就舊」誤判成「台鐵退化」,導致台鐵
+  // 的解除事件幾乎永遠寫不進 D1,且舊版零測試失敗——因為當時 E 段所有 tra payload 都沒帶 at。
+  // 防再犯核心:安全網若被加回來,r.live 不再含 'tra'、r.cleared 會變 0,這條斷言會直接翻紅。
   fakeFetch({
-    '/api/metro-alert': { at: fresh, alerts: [{ title: '正常營運', status: 1, sys: 'mrt' }], degraded: [] },
-    '/api/tra-alert': { alerts: [{ title: '全線營運正常', status: 1 }] },
-    '/api/thsr-alert': { alerts: [{ title: '全線營運正常(Normal)', status: 1 }] },
+    '/api/metro-alert': { at: FRESH_AT(), alerts: [{ title: '正常營運', status: 1, sys: 'mrt' }] },
+    '/api/tra-alert': { at: STALE_TRA_AT(), alerts: [{ title: '全線營運正常', status: 1 }] },
+    '/api/thsr-alert': { at: FRESH_AT(), alerts: [{ title: '全線營運正常(Normal)', status: 1 }] },
   });
-  const { db, calls } = fakeDb([]);
+  const { db, calls } = fakeDb([{ sys: 'tra', akey: '|東部幹線延誤|', title: '東部幹線延誤', descr: '', end_at: '' }]);
   const r = await ingestAlertLog({ DELAY_DB: db });
-  check(r.live.includes('mrt') && r.live.includes('krtc') && r.live.includes('tymc') && r.live.includes('tmrt'), 'E9 at 新鮮且 degraded 為空時,metro 涵蓋的 sys 正常進 liveSys（不誤觸過期安全網）');
+  check(r.live.includes('tra'), 'E9 台鐵 at 是數小時前的 UpdateTime,仍要進 liveSys（防再犯核心斷言之一）');
+  check(r.cleared === 1, 'E9 台鐵既有公告在 at 舊的情況下仍正常解除（防再犯核心斷言之二）');
+}
+{ // E10（2026-07-27 修復輪 2 M12 補牙)cron 自己打 /api/*-alert 時真的帶了專屬 UA。G 段只驗
+  // ALERT_LOG_CRON_UA 這個字串常數存在,不驗 fetchAlertLogSources 真的把它塞進 outbound
+  // headers——少了這個標頭,fetch() 的 TRAFFIC 埋點就認不出這是 cron 自己打的,會被誤記成
+  // 一筆假的網頁流量(2026-07-27 審查 Important 5)。
+  fakeFetch({
+    '/api/metro-alert': { at: FRESH_AT(), alerts: [{ title: '正常營運', status: 1, sys: 'mrt' }] },
+    '/api/tra-alert': { at: STALE_TRA_AT(), alerts: [{ title: '全線營運正常', status: 1 }] },
+    '/api/thsr-alert': { at: FRESH_AT(), alerts: [{ title: '全線營運正常(Normal)', status: 1 }] },
+  });
+  const { db } = fakeDb([]);
+  await ingestAlertLog({ DELAY_DB: db });
+  check(fakeFetchCalls.length === 3, `E10 cron 打了 3 個來源(實得 ${fakeFetchCalls.length})`);
+  check(fakeFetchCalls.every(c => c.headers['user-agent'] === _alertLog.ALERT_LOG_CRON_UA), 'E10 cron 的每一發 outbound fetch 都帶了專屬 UA（M12 補牙）');
 }
 globalThis.fetch = realFetch;
 
