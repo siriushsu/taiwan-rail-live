@@ -814,20 +814,34 @@ const browser = await chromium.launch();
   const h = await page.evaluate(async () => {
     const rec = [...lineNetwork().values()].find(r => r.sys === 'tra_sched');
     const keys = rec.segs.slice(0, 3).map(s => s.key);
+    // 🔴 T7-4（審查 Important）：suspect 過濾（規格 §8 防偽閘）零覆蓋——brief 原 fixture 只有
+    // 一筆 verdict:'ok' 的 trip，從來沒有 suspect 記錄，index.html:9235 那行 `if (verdict===
+    // 'suspect') continue;` 整行刪掉照樣 64/64 全綠。這裡補一筆 segs 完全不同的 suspect trip，
+    // 才驗得到「該排除時真的排除了」這個方向。
+    const suspectKeys = rec.segs.slice(3, 6).map(s => s.key);
     // 直接塞本機的校正記錄（不依賴後端把 segs 回來）
     const b = loadBounty();
     b.trips['x'] = { lnId: rec.id, sys: rec.sys, trainNo: '1', dir: 0, tripDate: '2026-07-28',
       verdict: 'ok', segs: keys, u: Date.now() };
+    b.trips['y'] = { lnId: rec.id, sys: rec.sys, trainNo: '2', dir: 0, tripDate: '2026-07-28',
+      verdict: 'suspect', segs: suspectKeys, u: Date.now() };
     saveBounty(b);
     setCollectMap(true);
     // 開場鏡頭是「全台同框」遠景(整條台灣塞進一個畫面),3 段區間在那個尺度下投影出來的像素
     // 可能整段落在螢幕外或細到反鋸齒後量不到——飛到第一段所在位置,H4 才量得到東西。
     map.setView([rec.segs[0].pA.lat, rec.segs[0].pA.lon], 13, { animate: false });
-    return { corrected: [...bountyCorrectedSegs()].length, bar: document.getElementById('collectBar').innerText,
-      toggle: !!document.getElementById('collectBountyBtn') };
+    const corr = bountyCorrectedSegs();
+    // 🔴 T7-3（審查 Important）：舊判準只驗鈕存在於 document 任一角落——把鈕搬出 #collectBar、
+    // 塞進 display:none 的容器，元素仍「存在」，H2 照樣過。補 DOM 容器歸屬檢查。
+    const btn = document.getElementById('collectBountyBtn'), bar = document.getElementById('collectBar');
+    return { corrected: corr.size, suspectLeaked: suspectKeys.filter(k => corr.has(k)),
+      bar: bar.innerText, toggle: !!btn, toggleInBar: !!(btn && bar && bar.contains(btn)), id: rec.id };
   });
-  ok('H1 本機的校正段撿得出來', h.corrected === 3, JSON.stringify(h));
-  ok('H2 收集地圖列上有懸賞層的切換', h.toggle === true, h.bar.replace(/\n/g, ' / '));
+  ok('H1 本機的校正段撿得出來（suspect 那筆不算，corrected 仍是 3——見 T7-4）',
+    h.corrected === 3 && h.suspectLeaked.length === 0,
+    JSON.stringify({ corrected: h.corrected, suspectLeaked: h.suspectLeaked }));
+  ok('H2 收集地圖列上有懸賞層的切換，且真的掛在 #collectBar 底下（不是被搬走藏起來——見 T7-3）',
+    h.toggle === true && h.toggleInBar === true, h.bar.replace(/\n/g, ' / '));
 
   const h3 = await page.evaluate(() => {
     document.getElementById('collectBountyBtn').click();
@@ -853,10 +867,130 @@ const browser = await chromium.launch();
   });
   ok('H4 開了懸賞層之後畫面上真的有懸賞金色(#ffd60a)像素，不是只有灰底／走過色', h4.gold >= 20, JSON.stringify(h4));
 
+  // 🔴 T7-1（審查 Important）：懸賞層原本另開一個 lineNetwork() 迴圈，沒有繼承「走過」層的
+  // state.trackVisible 守門——關掉某條線的軌道顯示後，該線的金色校正段仍會畫出來，變成一條
+  // 沒有軌道的懸空金線（t7_trackvis_hidden_line.png）。production 端已修（併進同一個迴圈共用
+  // 守門，見 drawCollectSegs）。這裡驗：關掉 h.id 那條線的 trackVisible 後，金色像素要歸零
+  // （H1–H4 的 3 段校正記錄全部屬於同一條線 h.id，理論上關掉就是全部歸零，不是「顯著下降」）。
+  const h6 = await page.evaluate((rid) => {
+    state.trackVisible.delete(rid);
+    draw();
+    const c = document.getElementById('overlay');
+    const g = c.getContext('2d');
+    const px = g.getImageData(0, 0, c.width, c.height).data;
+    let gold = 0;
+    for (let i = 0; i < px.length; i += 4) {
+      if (px[i + 3] < 200) continue;
+      if (Math.abs(px[i] - 0xff) <= 24 && Math.abs(px[i + 1] - 0xd6) <= 24 && Math.abs(px[i + 2] - 0x0a) <= 24) gold++;
+    }
+    state.trackVisible.add(rid); // 立刻還原,不留副作用給後面的斷言
+    draw();
+    return { gold };
+  }, h.id);
+  ok('H6（T7-1）關掉該線的軌道顯示(trackVisible)後，懸賞金色像素歸零（原本懸賞層沒繼承 trackVisible 守門，會畫出懸空金線）',
+    h6.gold === 0, JSON.stringify(h6));
+
+  // 🔴 T7-2（審查 Important）：H4 只驗「有沒有金色像素」，量不到「沿線形描，不是站到站直線弦」
+  // 這個規格 §8 的唯一賣點——日後有人把 drawSegOnShape 改成畫直線弦（或效能考量），H1–H6 不會
+  // 有任何反應。判準刻意不呼叫 drawSegOnShape/shapeSlice/bountyCorrectedSegs，只用 Leaflet 中性
+  // 的 latLngToContainerPoint 把 s.pA/s.pB 換算成螢幕座標自己算弦，量畫面像素驗兩件事：
+  // (a) 弦中點附近（半徑 4px——量測時發現反鋸齒會讓精確中心那顆像素的色差以極小誤差跨過容差，
+  //     單一整數像素量測會 false negative，見探針實測：中點像素 b=37 vs 容差上限 34）沒有金色；
+  // (b) 金色像素裡有真的離「弦線段」（用夾在 [0,1] 的投影參數 t，不是弦的無限延長線）超過 6px。
+  // fixture 選 南迴線 大武–枋野（審查員建議的彎道段）：探針腳本實測 z12 下真實描線離弦最遠
+  // 107px、弦中點附近最近的金色像素在 97.9px 外；模擬「懸賞層改畫直線弦」的突變後，同樣位置
+  // 的金色像素只在 0.7px 內——兩個數字差兩個量級，不是雜訊（探針腳本未進 repo，數字取自實跑）。
+  const h7 = await page.evaluate(() => {
+    const rec = [...lineNetwork().values()].find(r => r.id === '南迴線' && r.sys === 'tra_sched');
+    const seg = rec.segs.find(s => s.key === 'tra_sched|南迴線|大武|枋野');
+    const b = loadBounty();
+    b.trips = { t72: { lnId: rec.id, sys: rec.sys, trainNo: '9', dir: 0, tripDate: '2026-07-28',
+      verdict: 'ok', segs: [seg.key], u: Date.now() } };
+    saveBounty(b);
+    map.setView([(seg.pA.lat + seg.pB.lat) / 2, (seg.pA.lon + seg.pB.lon) / 2], 12, { animate: false });
+    draw();
+    const pA = map.latLngToContainerPoint([seg.pA.lat, seg.pA.lon]);
+    const pB = map.latLngToContainerPoint([seg.pB.lat, seg.pB.lon]);
+    const c = document.getElementById('overlay');
+    const g = c.getContext('2d');
+    const px = g.getImageData(0, 0, c.width, c.height).data;
+    const isGold = (x, y) => {
+      if (x < 0 || y < 0 || x >= c.width || y >= c.height) return false;
+      const i = (y * c.width + x) * 4;
+      return px[i + 3] > 200 && Math.abs(px[i] - 0xff) <= 24 && Math.abs(px[i + 1] - 0xd6) <= 24 && Math.abs(px[i + 2] - 0x0a) <= 24;
+    };
+    const midX = (pA.x + pB.x) / 2, midY = (pA.y + pB.y) / 2;
+    let midAreaGold = false;
+    for (let dy = -4; dy <= 4 && !midAreaGold; dy++)
+      for (let dx = -4; dx <= 4 && !midAreaGold; dx++)
+        if (isGold(Math.round(midX + dx), Math.round(midY + dy))) midAreaGold = true;
+    const dx = pB.x - pA.x, dy = pB.y - pA.y, len2 = dx * dx + dy * dy || 1;
+    let maxDist = 0, over6 = 0, goldCount = 0;
+    for (let i = 0; i < px.length; i += 4) {
+      if (px[i + 3] < 200) continue;
+      if (!(Math.abs(px[i] - 0xff) <= 24 && Math.abs(px[i + 1] - 0xd6) <= 24 && Math.abs(px[i + 2] - 0x0a) <= 24)) continue;
+      goldCount++;
+      const idx = i / 4, x = idx % c.width, y = Math.floor(idx / c.width);
+      const t = Math.max(0, Math.min(1, ((x - pA.x) * dx + (y - pA.y) * dy) / len2));
+      const dist = Math.hypot(x - (pA.x + t * dx), y - (pA.y + t * dy));
+      if (dist > maxDist) maxDist = dist;
+      if (dist > 6) over6++;
+    }
+    return { midAreaGold, maxDist: +maxDist.toFixed(1), over6, goldCount };
+  });
+  ok('H7（T7-2）懸賞層沿線形描，不是站到站直線弦——南迴線 大武–枋野彎道：弦中點附近沒有金色 且 '
+    + '有金色像素離弦(線段)>6px（判準只用 latLngToContainerPoint 換算 s.pA/s.pB 自己算，不呼叫 drawSegOnShape）',
+    h7.midAreaGold === false && h7.maxDist > 6 && h7.over6 > 0 && h7.goldCount > 0, JSON.stringify(h7));
+
   const h5 = await page.evaluate(() => { setCollectMap(false); return { bounty: state.collectBounty, cm: state.collectMap }; });
   // 🔴 brief 草稿把 bounty 收進回傳物件卻沒放進判準——只驗 cm===false 測不到「懸賞層一起關」本身
   // （setCollectMap(false) 本來就會把 cm 關掉,跟這裡的新行為無關）,補上 h5.bounty===false 才是這條真正要守的東西。
   ok('H5 離開收集地圖時懸賞層一起關（不留一個看不到的開關）', h5.cm === false && h5.bounty === false, JSON.stringify(h5));
+  await ctx.close();
+}
+
+// 🔴 T7-3（審查 Important）：H2 的「按不按得到」缺口——這顆鈕在整份腳本裡原本沒有任何
+// elementFromPoint 或真觸控斷言，本檔開頭第 6 行自己寫著「按鈕可不可按 → elementFromPoint
+// 命中，不是量 rect（心得 33）」，D5/A12b 對另外兩顆鈕都確實這樣做了，這裡補上同款
+// 375/390 雙寬度常設斷言（elementFromPoint 命中 ＋ page.touchscreen.tap 真觸控＋驗證點擊生效）。
+{
+  const { ctx, page } = await open(browser, { app: true, width: 375, height: 812, touch: true });
+  const hit375 = await page.evaluate(() => {
+    setCollectMap(true);
+    const btn = document.getElementById('collectBountyBtn');
+    const r = btn.getBoundingClientRect();
+    const el = document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2);
+    return { w: Math.round(r.width), h: Math.round(r.height),
+      hitSelf: !!(el && el.closest('#collectBountyBtn')), x: r.x + r.width / 2, y: r.y + r.height / 2 };
+  });
+  ok('H8（T7-3）手機 375：「📍 校正過的」鈕尺寸夠且中心真的點得到自己（elementFromPoint 命中，不是只量 rect）',
+    hit375.hitSelf === true && hit375.w >= 44 && hit375.h >= 28, JSON.stringify(hit375));
+  const before375 = await page.evaluate(() => state.collectBounty);
+  await page.touchscreen.tap(hit375.x, hit375.y);
+  await page.waitForTimeout(150);
+  const after375 = await page.evaluate(() => state.collectBounty);
+  ok('H9（T7-3）手機 375：真觸控點下去 state.collectBounty 真的翻轉（不只是點得到，點下去要有效）',
+    before375 === false && after375 === true, JSON.stringify({ before: before375, after: after375 }));
+  await ctx.close();
+}
+{
+  const { ctx, page } = await open(browser, { app: true, width: 390, height: 844, touch: true });
+  const hit390 = await page.evaluate(() => {
+    setCollectMap(true);
+    const btn = document.getElementById('collectBountyBtn');
+    const r = btn.getBoundingClientRect();
+    const el = document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2);
+    return { w: Math.round(r.width), h: Math.round(r.height),
+      hitSelf: !!(el && el.closest('#collectBountyBtn')), x: r.x + r.width / 2, y: r.y + r.height / 2 };
+  });
+  ok('H10（T7-3）手機 390：「📍 校正過的」鈕尺寸夠且中心真的點得到自己（elementFromPoint 命中，不是只量 rect）',
+    hit390.hitSelf === true && hit390.w >= 44 && hit390.h >= 28, JSON.stringify(hit390));
+  const before390 = await page.evaluate(() => state.collectBounty);
+  await page.touchscreen.tap(hit390.x, hit390.y);
+  await page.waitForTimeout(150);
+  const after390 = await page.evaluate(() => state.collectBounty);
+  ok('H11（T7-3）手機 390：真觸控點下去 state.collectBounty 真的翻轉（不只是點得到，點下去要有效）',
+    before390 === false && after390 === true, JSON.stringify({ before: before390, after: after390 }));
   await ctx.close();
 }
 

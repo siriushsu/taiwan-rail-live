@@ -4463,16 +4463,11 @@ function drawCollectSegs(w, h) {
     const color = railDimColor(rec.color || '#c8102e');
     for (const s of rec.segs) {
       if (sg[s.key]) drawSegOnShape(ln, s, color, 3.8, w, h);
-    }
-  }
-  // 懸賞層:我校正過的段。刻意疊在「走過」之上——校正過的必然也走過,先畫「走過」再蓋上去
-  // 才不會被壓掉。描線一樣走 shapeSlice 沿線形(不是站到站直線弦,彎道才貼得住),與「走過」
-  // 共用 drawSegOnShape。
-  if (corr && corr.size) {
-    for (const rec of lineNetwork().values()) {
-      for (const s of rec.segs) {
-        if (corr.has(s.key)) drawSegOnShape(rec.ln, s, '#ffd60a', 3.5, w, h);
-      }
+      // 懸賞層:我校正過的段,疊在「走過」之上(校正過的必然也走過,同一段先畫走過色再蓋金色
+      // 才不會被壓掉)。併進同一個迴圈、共用 trackVisible/_bbox 兩道守門——原本另開一輪
+      // lineNetwork() 迴圈,沒繼承這兩道守門,關掉某條線的軌道顯示後金色校正段仍會畫出來,
+      // 變成一條沒有軌道的懸空金線(審查 T7-1)。
+      if (corr && corr.has(s.key)) drawSegOnShape(ln, s, '#ffd60a', 3.5, w, h);
     }
   }
 }
