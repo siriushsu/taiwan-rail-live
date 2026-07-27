@@ -1456,7 +1456,7 @@ export const _metroAlert = {
   metroAlertOpFallback, mergeMetroAlertParts, fetchMetroAlertOp, isRecentNews, isIncidentNewsTitle,
   stripHtmlAndTruncate, formatNewsTitle, mapNewsToAlert, filterAndMapNews,
   fetchTymcNewsAlerts, _resetTymcNewsMemForTest, METRO_NEWS_TTL_MS,
-  metroAlert, _resetMetroAlertMemForTest,
+  metroAlert, _resetMetroAlertMemForTest, METRO_ALERT_OPS,
 };
 // 純函式導出,供離線回歸測試 import:逐站事件 diff 與 mem.at→台北日換算。
 export const _stationEvents = { diffTrains, twDayFromMemAt };
@@ -1471,5 +1471,5 @@ export const _rateLimit = { rateLimited, delayHistory, deletePaidProfile };
 export const _alertLog = {
   alertKey, normalizeAlertPayload, diffAlertState, ingestAlertLog, ALERT_LOG_SOURCES,
   ALERT_LOG_CRON, ALERT_LOG_CRON_UA, trafficTag, buildAlertLogBody, alertLog,
-  pruneAlertLog, ALERT_LOG_KEEP_DAYS, ALERT_LOG_MAX_DAYS,
+  pruneAlertLog, ALERT_LOG_KEEP_DAYS, ALERT_LOG_MAX_DAYS, ALERT_LOG_UPSERT, ALERT_LOG_CLEAR,
 };

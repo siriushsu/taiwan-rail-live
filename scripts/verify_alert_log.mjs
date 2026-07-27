@@ -9,7 +9,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { _alertLog, _metroAlert } from '../worker.js';
+import worker, { _alertLog, _metroAlert } from '../worker.js';
 
 const { alertKey, normalizeAlertPayload } = _alertLog;
 let fails = 0;
@@ -512,6 +512,23 @@ const FRESH_AT = () => new Date(Date.now() - 5e3).toISOString();
   const r = await ingestAlertLog({ DELAY_DB: db });
   check(r.cleared === 0, 'E12 News 退化時,D1 裡「這個 isolate 從未看過」的那則(不只是這輪消失的那則)也不准被解除（對應複審反例：跨 isolate 聯集缺口）');
 }
+{ // E13(2026-07-28 最終硬化 1,比照 I7c／J1 補逐字護欄)ALERT_LOG_UPSERT 原本沒有任何斷言
+  // 逐字比對,實測三種改法全部零 FAIL(記錄見 final-hardening.md):加
+  // `first_seen=excluded.first_seen` 會讓 first_seen 變成每輪更新——alertLog() 的查詢窗
+  // 掛 last_seen 不掛 first_seen(見 I7c 旁註)、pruneAlertLog 用 cleared_at 不用 first_seen
+  // 的理由都建立在「first_seen 只在首次 INSERT 寫入」這件事上,這條 SQL 一旦被改就整組失效;
+  // `ON CONFLICT(sys,akey)`→`(sys)` 上線即每分鐘 D1 報錯(沒有 (sys) 的唯一索引)。三個時間
+  // 欄位(first_seen/last_seen/cleared_at)的語意就定義在這條 UPSERT 裡,讀取側(I7c)、
+  // 清理側(J1)都有逐字護欄,寫入側原本是唯一沒人守的一條。
+  const expectUpsert = 'INSERT INTO alert_log (sys,akey,title,descr,lines,start_at,end_at,news,first_seen,last_seen,cleared_at) VALUES (?,?,?,?,?,?,?,?,?,?,NULL) ON CONFLICT(sys,akey) DO UPDATE SET title=excluded.title, descr=excluded.descr, lines=excluded.lines, start_at=excluded.start_at, end_at=excluded.end_at, news=excluded.news, last_seen=excluded.last_seen, cleared_at=NULL';
+  check(_alertLog.ALERT_LOG_UPSERT === expectUpsert, `E13 ALERT_LOG_UPSERT 與期望值逐字相符\n    期望:${expectUpsert}\n    實得:${_alertLog.ALERT_LOG_UPSERT}`);
+}
+{ // E14 ALERT_LOG_CLEAR 逐字相符,同一輪補的護欄——拿掉 `AND cleared_at IS NULL` 會讓已解除
+  // 的列每輪被重新蓋上新的 cleared_at,J 段的 90 天保留期(只刪 cleared_at IS NOT NULL 的舊列)
+  // 永遠等不到那個條件成立,清理形同失效,而且不會有任何紅字。
+  const expectClear = 'UPDATE alert_log SET cleared_at=? WHERE sys=? AND akey=? AND cleared_at IS NULL';
+  check(_alertLog.ALERT_LOG_CLEAR === expectClear, `E14 ALERT_LOG_CLEAR 與期望值逐字相符\n    期望:${expectClear}\n    實得:${_alertLog.ALERT_LOG_CLEAR}`);
+}
 globalThis.fetch = realFetch;
 
 // ── Task 4(2026-07-28):/api/alert-log 唯讀查詢端點 ──────────────────────────
@@ -797,17 +814,29 @@ console.log('F. cron 設定跨檔一致性');
   check(crons.length > 0, 'F1 wrangler.jsonc 讀到 crons 陣列（正規式抓到東西）');
   check(crons.includes(ALERT_LOG_CRON), `F2 wrangler.jsonc 的 crons 含有與 worker.js ALERT_LOG_CRON 逐字相同的項目（ALERT_LOG_CRON=${JSON.stringify(ALERT_LOG_CRON)}，crons=${JSON.stringify(crons)}）`);
 }
-{
-  // F3(2026-07-28):pruneAlertLog 真的有被 scheduled 的日排程呼叫。這條看起來多餘——函式本身
-  // 已經有 J1/J2/J3 三條在守——但實測把 scheduled 裡那三行接線整段拿掉,148 條斷言零 FAIL。
-  // 「函式寫對了、但沒有人呼叫」是這一層唯一測不到的失效方式,而後果(表無限成長)要好幾個月
-  // 才看得出來。用讀原始碼的方式驗接線,跟 F1/F2 讀 wrangler.jsonc 是同一種手法:離線測不到
-  // 真的 cron 觸發,只能驗「該有的接線在不在」。
-  const workerPath = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'worker.js');
-  const wtext = fs.readFileSync(workerPath, 'utf8');
-  const afterDefault = wtext.slice(wtext.indexOf('export default {'));
-  check(/await pruneAlertLog\(env\)/.test(afterDefault),
-    'F3 pruneAlertLog 有被 scheduled 的日排程呼叫（不是只定義了、沒接上線）');
+{ // F3(2026-07-28 改寫):原本用讀原始碼＋正規式驗接線,實測兩種繞法都騙得過它——
+  // 把 try/catch 兩行都註解掉、把呼叫搬進每分鐘分支,兩者都是 149 條零 FAIL(記錄見
+  // final-hardening.md)。正規式照樣比對得到註解裡的文字,也分不出它在哪個分支,假保障
+  // 比沒有保障更糟。改成真的呼叫 scheduled 看行為:日排程分支的 ingestDelayHistory 會失敗
+  // 並 rethrow,但 finally 在 rethrow 之前就跑完,兩個 prune 都會執行並被 fakeDb 記下來
+  // ——即使 ingestDelayHistory 意外沒失敗,finally 本來就一定會跑,結論不變。
+  // fetch 先換成立刻拋錯的替身,免得 ingestDelayHistory 真的打外部 API。
+  const { ALERT_LOG_CRON } = _alertLog;
+  const realFetch = globalThis.fetch;
+  globalThis.fetch = async () => { throw new Error('測試不打外部'); };
+  try {
+    const { db, calls } = fakeDb([]);
+    await worker.scheduled({ cron: '15 1 * * *' }, { DELAY_DB: db }).catch(() => {});
+    check(calls.sql.some(c => /DELETE FROM alert_log/.test(c.sql)),
+      'F3a 日排程真的會執行公告紀錄清理（不是只在原始碼裡寫著）');
+
+    // 反向:每分鐘那個分支「不」該做清理。全表 DELETE 每分鐘跑一次是資源災難,
+    // 而且它跟 F3a 一樣能讓「有呼叫到」成立,只有反向斷言分得出來。
+    const b = fakeDb([]);
+    await worker.scheduled({ cron: ALERT_LOG_CRON }, { DELAY_DB: b.db }).catch(() => {});
+    check(!b.calls.sql.some(c => /DELETE FROM alert_log/.test(c.sql)),
+      'F3b 每分鐘那發不做清理（清理只屬於日排程）');
+  } finally { globalThis.fetch = realFetch; }
 }
 
 console.log('G. trafficTag（cron 自身流量不誤記,2026-07-27 審查 Important 5）');
@@ -851,6 +880,22 @@ const { pruneAlertLog, ALERT_LOG_KEEP_DAYS, ALERT_LOG_MAX_DAYS } = _alertLog;
   // 30 天以下,端點就會查詢一段自己已經刪掉的區間,而且不會有任何其他測試發現。
   check(ALERT_LOG_KEEP_DAYS > ALERT_LOG_MAX_DAYS,
     `J3 保留期(${ALERT_LOG_KEEP_DAYS} 天)必須大於查詢窗上限(${ALERT_LOG_MAX_DAYS} 天)`);
+}
+
+// ── K 段:來源涵蓋一致性(2026-07-28 最終硬化 3)──────────────────────────────
+console.log('K. 來源涵蓋一致性(METRO_ALERT_OPS 產出的 sys 對 ALERT_LOG_SOURCES 的 covers)');
+{
+  // 「來源吐得出來的 sys」與「來源宣告 covers 的 sys」必須完全相等。今天兩者恰好相等,但沒有
+  // 任何斷言在守——失效情境:日後加一家捷運(例如新北捷 ntmc)到 METRO_ALERT_OPS,忘了同步
+  // covers。少了 ⇒ 那家的公告會被 upsert 進去,但因為 sys 不在 liveSys 裡,diffAlertState
+  // 永遠不會判它解除 ⇒ cleared_at 永遠是 NULL ⇒ 保留期清理(只刪 cleared_at IS NOT NULL)
+  // 永遠不會刪它 ⇒ /api/alert-log 永遠宣稱那則公告還在發生。三重永久卡死,而且不會有任何
+  // 紅字。多了 ⇒ covers 裡掛著一個沒人生產的 sys。雙向比對,不要只驗單邊。
+  const metroSrc = _alertLog.ALERT_LOG_SOURCES.find(s => s.path === '/api/metro-alert');
+  const produced = [...new Set(_metroAlert.METRO_ALERT_OPS.map(o => o.sys))].sort();
+  const covered = [...metroSrc.covers].sort();
+  check(eq(produced, covered),
+    `K1 METRO_ALERT_OPS 產出的 sys 與 metro 來源的 covers 完全相等（產出 ${JSON.stringify(produced)}／宣告 ${JSON.stringify(covered)}）`);
 }
 
 console.log(fails ? `\n❌ ${fails} 項未過` : '\n✅ 全部通過');
