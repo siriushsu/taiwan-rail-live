@@ -17,9 +17,14 @@
   "d1_databases": [
     { "binding": "DELAY_DB", "database_name": "railisland-delay-history", "database_id": "33a943cc-50af-4ee3-905c-534db842a48b" }
   ],
-  // Analytics Engine 綁定:/api/tra-live 每筆請求埋點(cam/z/裝置),用來回答放空/跟車/靜止各佔多少前景分鐘
+  // Analytics Engine 綁定:
+  // USAGE  :/api/tra-live 每筆請求埋點(cam/z/裝置),用來回答放空/跟車/靜止各佔多少前景分鐘
+  // TRAFFIC:每筆 /api/* 按來源分流(App 殼 vs 網頁),用來回答「Worker 請求數裡 App 佔多少」——
+  //         兩邊打的是同一顆 Worker 同一個網域,CF 自己的請求計數把它們混成一個數字。
+  //         查法:node scripts/usage_split.mjs
   "analytics_engine_datasets": [
-    { "binding": "USAGE", "dataset": "railisland_usage" }
+    { "binding": "USAGE", "dataset": "railisland_usage" },
+    { "binding": "TRAFFIC", "dataset": "railisland_traffic" }
   ],
   // Cron 觸發(UTC;15 1=台北 09:15、15 4=台北 12:15):scheduled handler 跑台鐵準點統計
   // 每日增量(抓 TDX 歷史前一日→寫 D1→重建 blob)。TDX 每日台北 08:00 更新前一日資料,
