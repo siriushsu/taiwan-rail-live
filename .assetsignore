@@ -12,6 +12,13 @@
 # TDX 歷史原始資料快取(建校正模型用,60 天約 50MB)。**實測從工作樹上傳時它會變成公開路徑**
 # (2026-07-26 在預覽站抓到 .cache/tra_hist/2026-07-20.jsonl.gz 回 200/849KB)——原始資料不對外散布。
 .cache
+# SDD 開發帳本與審查產物(2026-07-28 補)。596K／25 檔,含 progress.md 這種逐 Task 的內部帳本
+# (未修缺陷清單、正式站 ref 名稱)與十幾份完整 review diff——全部不對外。
+# 它是 gitignored,所以 `git status --short` 看不到它(要 --ignored),部署前的「工作樹乾淨嗎」
+# 閘門會回空、給人一切正常的錯覺;而 wrangler 上傳的是**磁碟上的檔案**,gitignore 完全管不到。
+# 與上面 .cache 同一個機制,同一個家族的第二例。
+.superpowers
+
 # 逐節點診斷檔(內部除錯用,前端不讀)
 data/*_diag.json
 wrangler.jsonc
