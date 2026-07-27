@@ -198,8 +198,20 @@ const { fetchMetroAlertOp } = _metroAlert;
   const r3 = await fetchMetroAlertOp({ op: '__TEST_THROW__', sys: 'krtc', label: 'x' }, 'tok', throwFetch);
   check(r3.degraded === true, 'C5c fetch 直接拋網路例外時也標 degraded:true');
 }
+{
+  // C5d(2026-07-28 修復輪 4)有暖快取時仍要標退化——這正是修復輪 1 Critical 1 真正在守的
+  // 那一半。C5b/C5c 用的 op 都沒有快取(fallback 回空陣列),測不到「有舊值可沿用時仍要標
+  // 退化」;複審實測把這裡改成「有暖快取就不標退化」(往錯方向統一政策,呼應下面 C8c 曾經
+  // 犯過的同一種錯)→ 98 條全過、0 FAIL,證明這一半原本沒有牙。
+  const okFetch = async () => new Response(JSON.stringify({ Alerts: [{ Title: '舊公告', Description: 'x' }] }), { status: 200 });
+  await fetchMetroAlertOp({ op: '__TEST_WARM__', sys: 'mrt', label: 'x' }, 'tok', okFetch); // 先成功一次,暖 metroAlertOpMem
+  const failFetch = async () => new Response('err', { status: 500 });
+  const r4 = await fetchMetroAlertOp({ op: '__TEST_WARM__', sys: 'mrt', label: 'x' }, 'tok', failFetch);
+  check(r4.list.length === 1 && r4.list[0].title === '舊公告', 'C5d 有暖快取時 fallback 真的帶出舊內容（不是空殼，證明真的是暖快取情境）');
+  check(r4.degraded === true, 'C5d 有暖快取仍標 degraded:true（修復輪 1 Critical 1 真正在守的那一半）');
+}
 
-console.log('C8. fetchTymcNewsAlerts（News 子來源，2026-07-27 修復輪 3：獨立 catch，跟 Alert op 不是同一件事）');
+console.log('C8. fetchTymcNewsAlerts（News 子來源，2026-07-27 修復輪 3 起：獨立 catch，2026-07-28 修復輪 4 起政策與 Alert op 完全對齊）');
 // 為什麼 C6/C7 不夠(同一款 M10 教訓):那兩條餵的是手工構造的 { list, degraded },沒有斷言
 // 證明 fetchTymcNewsAlerts 這支真的會在生產路徑上產出這個形狀。這裡直接打生產函式本尊,
 // 用 _resetTymcNewsMemForTest 控制 module-level 的 tymcNewsMem/tymcNewsMemAt——這是單一
@@ -228,15 +240,26 @@ const { fetchTymcNewsAlerts, _resetTymcNewsMemForTest, METRO_NEWS_TTL_MS } = _me
   check(r.list.length === 1 && r.list[0].title.includes('【官方新聞稿】'), 'C8b 成功時真的跑過 filterAndMapNews 解析（不是空殼）');
 }
 {
-  // C8c(sub-path A:有舊值,這輪刷新失敗)已過 TTL 但曾經成功過:沿用舊值,不標退化——
-  // 這則新聞稿上一輪已經跟 D1 同步過,這輪原樣重複送出,diffAlertState 比對不出差異,
-  // 跟 traAlert/thsrAlert/metroAlert 外層 catch 沿用完整 mem 是同一個安全論證(見修復輪 2)。
+  // C8c(sub-path A:有舊值,這輪刷新失敗)——2026-07-28 修復輪 4 政策推翻:已過 TTL 但曾經
+  // 成功過,現在**仍然標退化**,不再是「沿用舊值就不標」。
+  //
+  // 修復輪 3 的舊論證是「這則新聞稿上一輪已經跟 D1 同步過,這輪原樣重複送出,diffAlertState
+  // 比對不出差異」——複審端到端重現證明這不成立:tymcNewsMem 是 **per-isolate** 的模組層
+  // 變數,但 D1 的狀態是**所有 isolate 歷來看過的聯集**。「回傳值＝本 isolate 上次成功抓到的
+  // 集合」不蘊含「回傳值 ⊇ D1 中該 sys 所有 open 紀錄」——isolate A 只看過公告 A,D1 卻可能
+  // 已經有 isolate B 寫入的公告 A+B(B 是別的 isolate 成功抓到、寫進 D1,A 從未看過)。這輪
+  // isolate A 的 News 失敗、沿用只有 A 的 tymcNewsMem,公告 B 從 payload 消失,被誤判成解除。
+  // 這正是 traAlert/thsrAlert/metroAlert 外層 catch 沿用「完整」mem 安全、但這裡不安全的
+  // 關鍵差異:那三支的 mem 就是要送給前端的完整回應本身(單一 isolate 內自洽),這裡的
+  // tymcNewsMem 只是「這個 isolate 恰好看過的子集」，不是「D1 需要的全集」。
+  //
+  // 新政策跟 fetchMetroAlertOp(C5d)完全對齊:只要進了 catch 就標退化,不管有沒有舊值可沿用。
   const prior = [{ title: '【官方新聞稿】舊案', status: 0, desc: 'x', sys: 'tymc' }];
   _resetTymcNewsMemForTest(prior, Date.now() - (METRO_NEWS_TTL_MS + 60e3));
   const failFetch = async () => new Response('err', { status: 500 });
   const r = await fetchTymcNewsAlerts('tok', failFetch);
-  check(r.list === prior, 'C8c 有舊值時原樣沿用（同一個參照,不是重新複製）');
-  check(r.degraded === false, 'C8c 有舊值可沿用時不標退化（sub-path A,與冷 isolate 的 C8a 風險不同）');
+  check(r.list === prior, 'C8c 有舊值時仍原樣沿用內容給 alerts 顯示（同一個參照,不是重新複製——這半沒變)');
+  check(r.degraded === true, 'C8c 有舊值可沿用時現在也標 degraded:true（2026-07-28 修復輪 4 推翻舊政策,與 fetchMetroAlertOp 對齊）');
 }
 {
   // C8d TTL 命中的 fast path:連 try 都不進,不是失敗,是設計本身(News 更新慢,10 分鐘才問一次)。
@@ -457,7 +480,64 @@ const FRESH_AT = () => new Date(Date.now() - 5e3).toISOString();
   check(r.cleared === 0, 'E11 News 子來源退化時,既有新聞稿公告不被解除（直接對應複審生產重現案例）');
   check(!r.live.includes('tymc'), 'E11 live 不含退化的 tymc');
 }
+{ // E12(2026-07-28 修復輪 4,直接對應複審這輪的反例重現)D1 有兩則 tymc 新聞稿公告(A、B,
+  // 分屬不同 isolate 各自成功抓到、各自寫入 D1),這輪 payload 只反映 A(News 這輪在只看過 A
+  // 的 isolate 上失敗,degraded 標出 tymc)→ A、B 都不准被解除,不是只保護「這輪剛好消失的
+  // 那則」。這條測的是 sub-path A 推翻前會漏掉的正是這個:per-isolate 記憶體只蓋得到 A,
+  // D1 的聯集還有 B,degraded 是 sys 粒度的保護,不是逐則記錄粒度,兩者都要保住。
+  fakeFetch({
+    '/api/metro-alert': { at: FRESH_AT(), alerts: [{ title: '正常營運', status: 1, sys: 'mrt' }], degraded: ['tymc'] },
+    '/api/tra-alert': { at: STALE_TRA_AT(), alerts: [{ title: '全線營運正常', status: 1 }] },
+    '/api/thsr-alert': { at: FRESH_AT(), alerts: [{ title: '全線營運正常(Normal)', status: 1 }] },
+  });
+  const { db, calls } = fakeDb([
+    { sys: 'tymc', akey: '|【官方新聞稿】A12站電扶梯故障|', title: '【官方新聞稿】A12站電扶梯故障', descr: '', end_at: '' },
+    { sys: 'tymc', akey: '|【官方新聞稿】另一則故障|', title: '【官方新聞稿】另一則故障', descr: '', end_at: '' },
+  ]);
+  const r = await ingestAlertLog({ DELAY_DB: db });
+  check(r.cleared === 0, 'E12 News 退化時,D1 裡「這個 isolate 從未看過」的那則(不只是這輪消失的那則)也不准被解除（對應複審反例：跨 isolate 聯集缺口）');
+}
 globalThis.fetch = realFetch;
+
+console.log('C9. metroAlert() 接線注入（2026-07-28 修復輪 4，M13/M14：同款 2026-07-27 修復輪 2 M11「接線沒測」教訓）');
+// 為什麼 C5/C8 不夠:那兩段測的是被抽出來的函式本身(fetchMetroAlertOp/fetchTymcNewsAlerts)
+// 給對的 fetchImpl 會怎樣,測不到 metroAlert() 這個唯一的呼叫端有沒有真的把 fetch 傳過去。
+// 複審實測:拿掉 worker.js 裡 `fetchMetroAlertOp(o, token, fetch)` 或
+// `fetchTymcNewsAlerts(token, fetch)` 的 fetch 參數 → 98 條全過。後果是靜默的:fetchImpl
+// 變成 undefined,呼叫時 TypeError,直接落進各自的 catch——但那個 catch 本來就是「正常失敗
+// 路徑」,不會噴任何獨特的錯誤,結果看起來就是「這輪剛好退化」,沒有任何斷言會注意到。
+//
+// 做法:真的呼叫 metroAlert() 本尊(新增導出),用 globalThis.fetch 依 URL 形狀回傳「有獨特
+// 標記內容」的假資料(op 端點回 WIRING-OK-OP、News 端點回 WIRING-OK-NEWS異常、auth 端點回
+// 假 token),caches.default 強制 miss。接線對時,兩邊的獨特內容都要出現在最終 alerts 裡、
+// degraded 是空陣列;任一邊接線斷掉,那一側的內容會消失、degraded 會多出對應的 sys——
+// 兩個斷言互相獨立,個別突變只會讓對應那一側變紅,不會兩邊一起倒(見下方突變測試)。
+{
+  const { metroAlert: realMetroAlert, _resetMetroAlertMemForTest } = _metroAlert;
+  const savedCaches = globalThis.caches;
+  const savedFetch = globalThis.fetch;
+  globalThis.caches = { default: { match: async () => undefined, put: async () => {} } };
+  globalThis.fetch = async (url) => {
+    const u = String(url);
+    if (u.includes('/openid-connect/token')) return new Response(JSON.stringify({ access_token: 'tok', expires_in: 86400 }), { status: 200 });
+    if (u.includes('/Rail/Metro/Alert/')) return new Response(JSON.stringify({ Alerts: [{ Title: 'WIRING-OK-OP', Description: 'x' }] }), { status: 200 });
+    if (u.includes('/Rail/Metro/News/TYMC')) {
+      const recentIso = new Date(Date.now() - 3600e3).toISOString();
+      return new Response(JSON.stringify({ Newses: [{ Title: 'WIRING-OK-NEWS異常', Description: 'y', UpdateTime: recentIso }] }), { status: 200 });
+    }
+    return new Response('nope', { status: 500 });
+  };
+  _resetMetroAlertMemForTest();
+  const res = await realMetroAlert(new Request('https://railisland.tw/api/metro-alert'), { TDX_CLIENT_ID: 'x', TDX_CLIENT_SECRET: 'y' });
+  const body = await res.json();
+  globalThis.caches = savedCaches;
+  globalThis.fetch = savedFetch;
+  const opsOk = body.alerts.some(a => a.title === 'WIRING-OK-OP');
+  const newsOk = body.alerts.some(a => a.title.includes('WIRING-OK-NEWS異常'));
+  check(opsOk, 'M14 metroAlert() 真的把 fetch 傳給 fetchMetroAlertOp——op 端點的獨特內容有出現在最終 alerts');
+  check(newsOk, 'M13 metroAlert() 真的把 fetch 傳給 fetchTymcNewsAlerts——News 的獨特內容有出現在最終 alerts');
+  check(eq(body.degraded, []), 'C9 兩邊接線都對時 degraded 是空陣列（任一邊斷線都會讓對應 sys 進 degraded，見上方突變測試）');
+}
 
 console.log('D. alertKey');
 check(alertKey({ title: 'A', start: 'S', label: '' }) === '|A|S', 'label+標題+起始時間組合成鍵');

@@ -341,19 +341,27 @@ let tymcNewsMem = null, tymcNewsMemAt = 0;
 // globalThis.fetch 這種全域替身(2026-07-27 修復輪 3 M10 同款教訓:防再犯斷言要打在真的會跑在
 // production 的函式上,不能只測 mergeMetroAlertParts 這種吃手工輸入的下游聚合)。
 //
-// 2026-07-27 修復輪 3:catch 裡原本 `return tymcNewsMem || []` 把兩種完全不同風險的情境
-// 用同一個表達式蓋過去,回傳形狀改成 { list, degraded } 把兩者分開:
-//   (a) tymcNewsMem 有值(這個 isolate 之前成功過,只是這次刷新失敗):沿用舊值。這則新聞稿
-//       在上一輪已經同步進 D1,這輪原樣重複送出,diffAlertState 拿它跟 D1 比對不會有任何差異
-//       可比——跟 traAlert/thsrAlert/metroAlert 外層 catch 沿用完整 mem 是同一個安全論證
-//       (見修復輪 2),不標退化。
-//   (b) tymcNewsMem 仍是 null(冷 isolate,一次都沒成功過):沒有舊值可沿用,回空陣列——但這個
-//       空陣列的語意是「不知道」不是「確認沒有新聞稿」。若已有新聞稿來源的公告在 D1 裡開著,
-//       它會從這輪 payload 消失,被 diffAlertState 誤判成解除(這正是這輪要修的生產實測案例)。
-//       必須標退化。
-// 上面那條 TTL 命中的 fast path(第一行)完全不算退化:它連 try 都沒進,不是失敗,是設計本身
-// (News 更新慢,故意 10 分鐘才問一次上游,詳見上方常數註解)——標成退化會讓 tymc 在 10 分鐘
-// 窗口內幾乎永遠無法解除,比這輪要修的 bug 更糟。
+// 2026-07-27 修復輪 3 曾把 catch 拆成「有舊值沿用(不標退化)」vs「無舊值(標退化)」兩條路,
+// 論證是「有舊值時這則新聞稿上一輪已經同步進 D1,這輪原樣重複送出,diffAlertState 比對不出
+// 差異」——2026-07-28 修復輪 4 複審端到端重現證明這個論證不成立,已推翻:
+// tymcNewsMem 是 **per-isolate** 的模組層變數,但 D1 的狀態是**所有 isolate 歷來看過的聯集**。
+// 「回傳值＝本 isolate 上次成功抓到的集合」跟「回傳值 ⊇ D1 中該 sys 所有 open 紀錄」是兩件事,
+// 前者不蘊含後者——複審的重現:isolate A 只看過公告 A,D1 裡卻已經有 isolate B 寫入的公告
+// A+B(不同 isolate 各自成功過、各自 set 過 D1);這輪 isolate A 的 News 失敗、沿用只有 A 的
+// tymcNewsMem,B 從這輪 payload 消失,被判成解除——payload.degraded=[]、cleared=1,B 被假解除。
+//
+// 現在的政策:catch 只要進來就標 degraded:true,不管有沒有舊值可沿用——跟 fetchMetroAlertOp
+// (見上方,同一種失敗形狀:fetch 失敗、沿用 ≤30 分鐘舊快取)完全對齊,不再是同一個檔案裡
+// 對同一種失敗形狀給兩套相反政策。代價有界且方向安全:News 故障期間,機捷新聞稿類公告的
+// 解除會延後,但「公告留久一點」遠好過「假裝恢復」——這是本功能唯一的鐵則。
+//
+// TTL 命中的 fast path(下一行)仍然不算退化:它連 try 都沒進,不是失敗,是設計本身(News
+// 更新慢,故意 10 分鐘才問一次上游)。複審算過實際代價:約 82% 的 payload 世代會帶這個標記,
+// 效果是解除延遲從 ≤1 分鐘變成最多約 10 分鐘,不是停擺——結論(不標)仍然正確,但代價要
+// 講準,不要說成「幾乎永遠無法解除」。
+//
+// fetchImpl 用參數注入(同修復輪 2 的 fetchMetroAlertOp),production 呼叫時原樣傳全域 fetch,
+// 行為不變;離線測試才能直接控制這支 production 函式本身的成功/失敗。
 async function fetchTymcNewsAlerts(token, fetchImpl) {
   if (tymcNewsMem && Date.now() - tymcNewsMemAt <= METRO_NEWS_TTL_MS) return { list: tymcNewsMem, degraded: false };
   try {
@@ -366,7 +374,7 @@ async function fetchTymcNewsAlerts(token, fetchImpl) {
     tymcNewsMemAt = Date.now();
     return { list: tymcNewsMem, degraded: false };
   } catch (e) {
-    return { list: tymcNewsMem || [], degraded: !tymcNewsMem };
+    return { list: tymcNewsMem || [], degraded: true };
   }
 }
 // 測試專用:直接控制 News 記憶體的內容與新舊。module-level 的 let 綁定無法從外部注入,要離線
@@ -402,6 +410,11 @@ async function metroAlert(request, env) {
     return jsonRes({ error: String(e.message || e) }, 502, 'no-store');
   }
 }
+// 測試專用:重置 metroAlert() 自己的 110 秒記憶體快取,離線測試才能強迫它每次都真的重新
+// 呼叫 fetchMetroAlertOp/fetchTymcNewsAlerts(2026-07-28 修復輪 4:驗證 metroAlert() 呼叫端
+// 有沒有把 fetch 參數傳對——見 _metroAlert.metroAlert 的接線測試)。沒有任何 production
+// 呼叫路徑會用到這支。
+function _resetMetroAlertMemForTest() { metroAlertMem = null; metroAlertMemAt = 0; }
 
 // 捷運到站看板(TDX Metro LiveBoard,上游 30-60 秒更新):前端把動畫錨定到官方看板倒數用。
 // op 依前端系統 id 聚合:mrt=TRTC、krtc=KRTC+KLRT、tymc=TYMC(新北捷/中捷無此 API)。
@@ -1338,6 +1351,7 @@ export const _metroAlert = {
   metroAlertOpFallback, mergeMetroAlertParts, fetchMetroAlertOp, isRecentNews, isIncidentNewsTitle,
   stripHtmlAndTruncate, formatNewsTitle, mapNewsToAlert, filterAndMapNews,
   fetchTymcNewsAlerts, _resetTymcNewsMemForTest, METRO_NEWS_TTL_MS,
+  metroAlert, _resetMetroAlertMemForTest,
 };
 // 純函式導出,供離線回歸測試 import:逐站事件 diff 與 mem.at→台北日換算。
 export const _stationEvents = { diffTrains, twDayFromMemAt };
