@@ -1040,6 +1040,50 @@ function normalizeAlertPayload(payload, sysOf) {
   return out;
 }
 
+// 狀態機核心:上一輪「還沒解除」的列 × 本輪看到的公告 → 要寫什麼、要標什麼解除。
+// 純函式:不碰 D1、不讀系統時鐘(nowIso 由呼叫端給),所以整台狀態機可離線重放測試。
+//
+// liveSys = 本輪真的取得成功的系統集合。不在集合裡的一律跳過解除判定——這是 B5 回歸案,
+// 上游抖動不可以變成一則假的「已恢復」。
+// updated 的判準只看內文(descr):標題與起始時間已經進了 akey,它們變了就是另一則公告。
+function diffAlertState(prevRows, current, liveSys, nowIso) {
+  const prev = new Map();
+  for (const r of Array.isArray(prevRows) ? prevRows : []) {
+    prev.set(String(r.sys) + '|' + String(r.akey), r);
+  }
+  const seen = new Set();
+  const upserts = [], added = [], updated = [];
+  for (const rec of Array.isArray(current) ? current : []) {
+    const akey = alertKey(rec);
+    const id = String(rec.sys) + '|' + akey;
+    if (seen.has(id)) continue; // 同輪重複(例如高捷與高雄輕軌同 sys 發同一則)只算一則
+    seen.add(id);
+    const r = {
+      sys: String(rec.sys),
+      akey,
+      title: String(rec.title || ''),
+      descr: String(rec.desc || ''),
+      lines: JSON.stringify(Array.isArray(rec.lines) ? rec.lines : []),
+      start_at: String(rec.start || ''),
+      end_at: String(rec.end || ''),
+      news: rec.news ? 1 : 0,
+      at: nowIso,
+    };
+    upserts.push(r);
+    const p = prev.get(id);
+    if (!p) added.push(r);
+    else if (String(p.descr || '') !== r.descr) updated.push(r);
+  }
+  const clears = [], cleared = [];
+  for (const [id, p] of prev) {
+    if (seen.has(id)) continue;
+    if (!(liveSys instanceof Set) || !liveSys.has(String(p.sys))) continue; // 來源失敗→不判解除
+    clears.push({ sys: String(p.sys), akey: String(p.akey) });
+    cleared.push(p);
+  }
+  return { upserts, clears, added, updated, cleared };
+}
+
 export default {
   // 每天台北 09:15 / 12:15 觸發(wrangler.jsonc triggers.crons)。錯誤 console.error 後
   // rethrow,讓 Cloudflare 把該次 cron 標記為失敗(observability 可查)。
@@ -1134,4 +1178,4 @@ export const _delayHistory = { delayHistoryWindow, buildDelayHistoryBody, isVali
 // env 替身與 fetch 替身;導出的目的就是讓測試能數「被擋掉時到底有沒有打上游」。
 export const _rateLimit = { rateLimited, delayHistory, deletePaidProfile };
 // 純函式導出,供離線回歸測試 import:公告狀態機的正規化、指紋。
-export const _alertLog = { alertKey, normalizeAlertPayload, ALERT_LOG_SOURCES };
+export const _alertLog = { alertKey, normalizeAlertPayload, diffAlertState, ALERT_LOG_SOURCES };

@@ -41,6 +41,48 @@ console.log('A. normalizeAlertPayload');
 check(eq(normalizeAlertPayload(null, () => 'tra'), []), 'payload=null 回空陣列不炸');
 check(eq(normalizeAlertPayload({ alerts: 'x' }, () => 'tra'), []), 'alerts 非陣列回空陣列不炸');
 
+console.log('B. diffAlertState');
+const { diffAlertState } = _alertLog;
+const NOW = '2026-07-27T12:00:00.000Z';
+const rec = (sys, title, desc = '', start = '') => ({ sys, title, desc, lines: [], start, end: '', news: false });
+const row = (sys, title, descr = '', start = '') => ({ sys, akey: title + '|' + start, title, descr, first_seen: '2026-07-27T11:00:00.000Z', last_seen: '2026-07-27T11:59:00.000Z' });
+const ALL = new Set(['mrt', 'krtc', 'tymc', 'tmrt', 'tra', 'thsr']);
+
+{ // B1 全新
+  const d = diffAlertState([], [rec('krtc', '地震恢復營運')], ALL, NOW);
+  check(d.added.length === 1 && d.cleared.length === 0, 'B1 第一次看到＝added，無 cleared');
+  check(d.upserts.length === 1 && d.upserts[0].akey === '地震恢復營運|', 'B1 upsert 帶正確 akey');
+  check(d.upserts[0].at === NOW, 'B1 時間戳來自參數不是系統時鐘');
+}
+{ // B2 續存
+  const d = diffAlertState([row('krtc', '地震恢復營運')], [rec('krtc', '地震恢復營運')], ALL, NOW);
+  check(d.added.length === 0 && d.updated.length === 0 && d.cleared.length === 0, 'B2 第二輪同一則＝零事件');
+  check(d.upserts.length === 1, 'B2 仍要 upsert（更新 last_seen）');
+}
+{ // B3 內容變了
+  const d = diffAlertState([row('krtc', '地震', '停駛檢查中')], [rec('krtc', '地震', '已恢復行駛')], ALL, NOW);
+  check(d.updated.length === 1 && d.added.length === 0, 'B3 標題同、內文變＝updated');
+  check(d.updated[0].descr === '已恢復行駛', 'B3 updated 帶新內文');
+}
+{ // B4 消失
+  const d = diffAlertState([row('krtc', '地震恢復營運')], [], ALL, NOW);
+  check(d.cleared.length === 1 && d.clears.length === 1, 'B4 這輪沒看到＝cleared');
+  check(d.clears[0].sys === 'krtc' && d.clears[0].akey === '地震恢復營運|', 'B4 clear 帶 sys+akey');
+}
+{ // B5 來源失敗（關鍵回歸）
+  const live = new Set(['mrt', 'krtc', 'tymc', 'tmrt']); // metro 成功、台鐵那發掛了
+  const d = diffAlertState([row('tra', '東部幹線延誤')], [], live, NOW);
+  check(d.cleared.length === 0 && d.clears.length === 0, 'B5 來源失敗的系統不准被判成解除');
+}
+{ // B6 同輪重複
+  const d = diffAlertState([], [rec('krtc', '地震'), rec('krtc', '地震')], ALL, NOW);
+  check(d.added.length === 1 && d.upserts.length === 1, 'B6 同輪同鍵只算一則');
+}
+{ // B7 空輸入
+  const d = diffAlertState(null, null, ALL, NOW);
+  check(d.upserts.length === 0 && d.clears.length === 0, 'B7 兩邊皆 null 不炸');
+}
+
 console.log('D. alertKey');
 check(alertKey({ title: 'A', start: 'S' }) === 'A|S', '標題與起始時間組合成鍵');
 check(alertKey({ title: 'A' }) === 'A|', 'start 缺值不炸、以空字串入鍵');
