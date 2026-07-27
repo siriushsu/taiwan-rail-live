@@ -19,6 +19,8 @@ CREATE TABLE IF NOT EXISTS bounty_board (
   l1                 REAL    NOT NULL DEFAULT 1,   -- 班次密度乘數 1–3
   l2                 REAL    NOT NULL DEFAULT 1,   -- 時間乘數 1–5
   points             INTEGER NOT NULL DEFAULT 1,   -- round(1 × l1 × l2)
+  -- per_day：規格 §6 的欄位表沒有這欄，是本計畫的刻意偏離。加的理由：估值 cron 只要讀這一列就能
+  -- 重算 L1，不必把 data/bounty_units.json 一起拉進判準——判準與資料來源分開，同源判準會一起失明。
   per_day            REAL    NOT NULL DEFAULT 0,   -- 該單位的日班次數＝L1 的分母，來自 data/bounty_units.json
   first_listed_at    INTEGER NOT NULL,             -- 上架時間；只供稽核，不參與計價
   -- 🔴 L2 從 first_claimable_at 起算，不是 first_listed_at。理由（規格 §4 鐵則）：L2 量的是「真實招募難度」，
@@ -40,7 +42,9 @@ CREATE INDEX IF NOT EXISTS idx_board_open ON bounty_board (kind, covered_at, sys
 -- 規格 §3 刻意偏離上游 §11 的字面：第二個人照樣接得到、照樣計點。捷運段的採用門檻本來就需要
 -- 多趟一致（N≥3），做成獨佔會直接擋掉自己需要的樣本。使用者只看到「已有 N 人接了這段」＝資訊不是禁令。
 CREATE TABLE IF NOT EXISTS bounty_claims (
-  id            TEXT    PRIMARY KEY,   -- claimId|序號：同一次認領的多個單位共用前綴，才查得回「這次接了什麼」
+  -- id 顯式 NOT NULL：rowid 表的 TEXT PRIMARY KEY 不隱含 NOT NULL（只有 WITHOUT ROWID 表才隱含），
+  -- 這張表不是 WITHOUT ROWID，沒寫死會讓多筆 id=NULL 的列同時存在，之後全部無法用 id 定址。
+  id            TEXT    PRIMARY KEY NOT NULL,   -- claimId|序號：同一次認領的多個單位共用前綴，才查得回「這次接了什麼」
   actor         TEXT    NOT NULL,
   seg_key       TEXT    NOT NULL,
   train_kind    TEXT    NOT NULL,
@@ -54,12 +58,16 @@ CREATE TABLE IF NOT EXISTS bounty_claims (
 );
 CREATE INDEX IF NOT EXISTS idx_claims_unit  ON bounty_claims (seg_key, train_kind, dir, kind, slot, status, expires_at);
 CREATE INDEX IF NOT EXISTS idx_claims_actor ON bounty_claims (actor, status);
+-- 24 小時過期回收掃描 WHERE status='open' AND expires_at<?：上面兩個索引一個押 seg_key 起頭、
+-- 一個押 actor 起頭，都服務不了這個查詢，沒有這條會全表掃。
+CREATE INDEX IF NOT EXISTS idx_claims_expiry ON bounty_claims (status, expires_at);
 
 -- ── 樣本：沿途每 60 秒一批，一批一列 ────────────────────────────────────────
 -- 分批存不合併的理由：每批獨立可驗，斷線／沒電時已經傳出去的不會丟——這是「部分覆蓋也計點」的前提。
 -- 驗證時再依 (actor, trip_date, train_no) 併回同一趟。
 CREATE TABLE IF NOT EXISTS bounty_samples (
-  id           TEXT    PRIMARY KEY,
+  -- id 顯式 NOT NULL：理由同 bounty_claims.id（rowid 表的 TEXT PRIMARY KEY 不隱含 NOT NULL）。
+  id           TEXT    PRIMARY KEY NOT NULL,
   actor        TEXT    NOT NULL,
   sys          TEXT    NOT NULL,
   ln_id        TEXT    NOT NULL,
@@ -67,6 +75,8 @@ CREATE TABLE IF NOT EXISTS bounty_samples (
   dir          INTEGER NOT NULL,
   trip_date    TEXT    NOT NULL,       -- 台北日 YYYY-MM-DD
   payload      TEXT    NOT NULL,       -- 里程序列 JSON：[{d,t,v,acc},…] 全程無經緯度
+  -- segs：規格 §6 的欄位表沒有這欄，是本計畫的刻意偏離。加的理由：驗證 cron 判定當下就把覆蓋結果
+  -- 存下來，不然 /api/bounty-me 每次查榮譽都要重跑一次投影——把最貴的計算擺在最熱的路徑上。
   segs         TEXT,                   -- 判定當下算出的覆蓋結果 JSON：[{key,kind,slot,cov}]；pending 時為 NULL
   submitted_at INTEGER NOT NULL,
   verdict      TEXT    NOT NULL DEFAULT 'pending',  -- 'pending'|'ok'|'unusable'|'suspect'

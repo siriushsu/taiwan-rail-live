@@ -15,10 +15,19 @@ import { fileURLToPath } from 'node:url';
 const HERE = dirname(fileURLToPath(import.meta.url));       // CJS/tsx 環境不用 import.meta.dirname
 const SCHEMA_DIR = join(HERE, '..', 'schema');
 
-// D1 只吃 SQLite 原生型別。boolean 與 undefined 傳進 node:sqlite 會丟例外，
-// 而真 D1 是靜默轉成 0/1 與 NULL——不在這裡對齊，測試就會在轉接器上炸而不是在被測程式上。
+// D1 只吃固定的型別對照表：null／Number／String／Boolean／ArrayBuffer，undefined 不在其中。
+// boolean→0/1 是 D1 文件明列的既定行為，這裡照做，node:sqlite 收到 boolean 會直接丟例外所以必須轉。
+// undefined 則刻意比照 D1 的嚴格：拋錯，不要靜默轉成 null——「忘記給值」這種呼叫端 bug 若被吞成
+// null，會在本機全綠、只在正式站才炸（真 D1 對 undefined 丟 D1_TYPE_ERROR）。
+// 誠實揭露：這台機器的 wrangler/workerd 壞掉（見檔頭），「D1 真的對 undefined 丟 D1_TYPE_ERROR」
+// 這件事本身沒有在本機被獨立驗證過，是採信 Cloudflare D1 型別對照表文件的推論，不是實測結果；
+// 選擇拋錯而不是靜默轉換，是因為兩種可能後果不對稱——比真 D1 嚴格的代價是本機提早報錯，
+// 比真 D1 寬鬆的代價是本機全綠、正式站才炸，前者便宜很多。
 function coerce(v) {
-  if (v === undefined || v === null) return null;
+  if (v === undefined) {
+    throw new TypeError('d1_local: bind() 收到 undefined——D1 沒有這個型別，呼叫端請顯式傳 null');
+  }
+  if (v === null) return null;
   if (typeof v === 'boolean') return v ? 1 : 0;
   return v;
 }
