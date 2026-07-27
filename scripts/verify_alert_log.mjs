@@ -6,7 +6,10 @@
 // 所以 diff 一律只對「本輪真的取得成功」的系統做 clear（B5 案）。
 //
 // 用法：node scripts/verify_alert_log.mjs
-import { _alertLog } from '../worker.js';
+import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { _alertLog, _metroAlert } from '../worker.js';
 
 const { alertKey, normalizeAlertPayload } = _alertLog;
 let fails = 0;
@@ -120,10 +123,60 @@ const ALL = new Set(['mrt', 'krtc', 'tymc', 'tmrt', 'tra', 'thsr']);
   check(diffAlertState([prevRow], [later], ALL, NOW).updated.length === 1, 'B12 只有 end 改了也算 updated');
 }
 
+console.log('C. mergeMetroAlertParts（metroAlert 內部聚合，Critical 1 第一層防線）');
+const { mergeMetroAlertParts } = _metroAlert;
+{
+  // C1 全部營運者都成功:degraded 是空陣列,alerts 正常合併
+  const ok1 = { list: [{ title: 'X', sys: 'mrt' }], sys: 'mrt' };
+  const ok2 = { list: [{ title: 'Y', sys: 'tmrt' }], sys: 'tmrt' };
+  const m1 = mergeMetroAlertParts([ok1, ok2], []);
+  check(eq(m1.degraded, []), 'C1 全部成功時 degraded 是空陣列');
+  check(m1.alerts.length === 2, 'C1 alerts 正常合併（未受影響）');
+}
+{
+  // C2 單一營運者(TRTC/mrt)fetch 失敗、走 fallback:那個 sys 要標進 degraded
+  const fail = { list: [], sys: 'mrt', degraded: true };
+  const ok = { list: [{ title: 'Y', sys: 'tmrt' }], sys: 'tmrt' };
+  const m2 = mergeMetroAlertParts([fail, ok], []);
+  check(eq(m2.degraded, ['mrt']), 'C2 單一營運者失敗時只有那個 sys 進 degraded');
+}
+{
+  // C3a KRTC 與 KLRT 共用 sys='krtc':兩個 op 都退化時,合併後 krtc 只列一次(不是兩次)
+  const bothFail = mergeMetroAlertParts([
+    { list: [], sys: 'krtc', degraded: true },
+    { list: [], sys: 'krtc', degraded: true },
+  ], []);
+  check(eq(bothFail.degraded, ['krtc']), 'C3a KRTC 與 KLRT 都退化時，krtc 只列一次（不是兩次)');
+  // C3b 只有其中一個 op(KRTC)退化、另一個(KLRT)成功:krtc 整體仍要算退化(任一退化就夠)
+  const oneFail = mergeMetroAlertParts([
+    { list: [], sys: 'krtc', degraded: true },
+    { list: [{ title: 'Z', sys: 'krtc' }], sys: 'krtc' },
+  ], []);
+  check(eq(oneFail.degraded, ['krtc']), 'C3b KRTC 退化、KLRT 成功時，krtc 仍整體算退化（任一退化就夠,不需要兩個都失敗）');
+}
+{
+  // C4 news 陣列照樣併入 alerts,不影響 degraded 判斷
+  const m4 = mergeMetroAlertParts([], [{ title: 'News', sys: 'tymc' }]);
+  check(m4.alerts.length === 1 && eq(m4.degraded, []), 'C4 news 陣列併入 alerts，不影響 degraded');
+}
+
 console.log('E. ingestAlertLog（fetch 與 D1 替身）');
 const { ingestAlertLog } = _alertLog;
 const realFetch = globalThis.fetch;
 
+// SELECT 的欄位清單 → 把一列 row 投影成「只留真的被 SELECT 到的欄位」。模擬真實 D1 的行為:
+// 真的資料庫少 SELECT 一欄,回傳列就是沒有那個屬性(undefined),不是「反正物件裡還在」。
+// 沒有這層投影,fakeDb.all() 會不管 SQL 寫了什麼、原樣回傳測試建構的 prevRows,SELECT 少列
+// 一欄的 bug 永遠測不出來(2026-07-27 審查 Important 2:拿掉 descr 或 akey,52 條斷言原本全過,
+// 根因就是這裡沒投影)。非 SELECT 語句(INSERT/UPDATE)原樣跳過,不影響 bind() 路徑。
+function projectColumns(sql, row) {
+  const m = /^SELECT\s+([^]+?)\s+FROM\b/i.exec(String(sql || ''));
+  if (!m) return row;
+  const cols = m[1].split(',').map(c => c.trim());
+  const out = {};
+  for (const c of cols) out[c] = row[c];
+  return out;
+}
 // D1 替身:prepared 記下所有進到 prepare() 的語句(E4 要用來檢查 SELECT 撈了哪些欄位,
 // 那發 SELECT 不帶參數、走不到 bind);sql 記下 bind 過的語句與參數。
 function fakeDb(prevRows) {
@@ -132,7 +185,7 @@ function fakeDb(prevRows) {
     calls.prepared.push(sql);
     return {
       bind: (...args) => { calls.sql.push({ sql, args }); return { sql, args }; },
-      all: async () => ({ results: prevRows }),
+      all: async () => ({ results: prevRows.map(r => projectColumns(sql, r)) }),
       run: async () => ({ meta: { changes: 0 } }),
       first: async () => null,
     };
@@ -193,6 +246,76 @@ function fakeFetch(map) {
   check(!!sel, 'E4 有下 SELECT');
   check(!!sel && /\bend_at\b/.test(sel), 'E4 SELECT 有撈 end_at');
 }
+{ // E5 續存案:已存在且完全沒變的公告,一輪 SELECT→diff→upsert 不該產生任何事件。
+  // E3/E4 的既有列全是空的,測不到「prev 真的有一列走進比對」這件事——這條同時守 SELECT
+  // 的 descr 與 akey 有沒有真的撈到(2026-07-27 審查 Important 2:拿掉 descr 或 akey 都能讓
+  // 52 條舊斷言全過)。
+  fakeFetch({
+    '/api/metro-alert': { alerts: [{ title: '地震恢復營運', status: 0, desc: '已巡視', sys: 'krtc', lines: [] }] },
+    '/api/tra-alert': { alerts: [{ title: '全線營運正常', status: 1 }] },
+    '/api/thsr-alert': { alerts: [{ title: '全線營運正常(Normal)', status: 1 }] },
+  });
+  const { db, calls } = fakeDb([{ sys: 'krtc', akey: '|地震恢復營運|', title: '地震恢復營運', descr: '已巡視', end_at: '', first_seen: 'F', last_seen: 'L' }]);
+  const r = await ingestAlertLog({ DELAY_DB: db });
+  check(r.added === 0 && r.updated === 0 && r.cleared === 0, 'E5 續存且未變＝零事件（SELECT 的 descr/akey 都要對得上才能算出這個結果）');
+}
+{ // E6 有公告解除時,UPDATE 語句綁的三個參數順序要對:cleared_at=? WHERE sys=? AND akey=?
+  // 是 (now, sys, akey)。E3 對 upsert 有三層參數斷言,clear 這條對稱的檢查原本一條都沒有
+  // (2026-07-27 審查 Important 3:參數順序打亂,52 條舊斷言全過)。
+  fakeFetch({
+    '/api/metro-alert': { alerts: [{ title: '正常營運', status: 1, sys: 'mrt' }] },
+    '/api/tra-alert': { alerts: [{ title: '全線營運正常', status: 1 }] },
+    '/api/thsr-alert': { alerts: [{ title: '全線營運正常(Normal)', status: 1 }] },
+  });
+  const { db, calls } = fakeDb([{ sys: 'tra', akey: '|東部幹線延誤|', title: '東部幹線延誤', descr: '', end_at: '' }]);
+  const r = await ingestAlertLog({ DELAY_DB: db });
+  check(r.cleared === 1, 'E6 公告消失且來源正常＝cleared');
+  const cl = calls.sql.find(c => c.sql.includes('UPDATE alert_log SET cleared_at'));
+  check(!!cl, 'E6 有下 clear UPDATE');
+  const ca = (cl && cl.args) || [];
+  check(ca.length === 3, `E6 clear 綁 3 個參數（實得 ${ca.length}）`);
+  check(!!ca[0] && /^\d{4}-\d{2}-\d{2}T/.test(String(ca[0])), 'E6 clear 第 1 個參數是時間戳（對應 cleared_at=?）');
+  check(ca[1] === 'tra' && ca[2] === '|東部幹線延誤|', 'E6 clear 第 2/3 個參數依序是 sys、akey（不是反過來）');
+}
+{ // E7 metro-alert 整包 200,但 payload.degraded 標出 mrt 這個營運者本輪是 fallback
+  // (2026-07-27 審查 Critical 1)→ mrt 既有公告不准被解除,未退化的 krtc 正常判。
+  fakeFetch({
+    '/api/metro-alert': { at: new Date().toISOString(), alerts: [{ title: '地震恢復營運', status: 0, desc: '已巡視', sys: 'krtc', lines: [] }], degraded: ['mrt'] },
+    '/api/tra-alert': { alerts: [{ title: '全線營運正常', status: 1 }] },
+    '/api/thsr-alert': { alerts: [{ title: '全線營運正常(Normal)', status: 1 }] },
+  });
+  const { db, calls } = fakeDb([{ sys: 'mrt', akey: '|台北車站信號異常|', title: '台北車站信號異常', descr: '', end_at: '' }]);
+  const r = await ingestAlertLog({ DELAY_DB: db });
+  check(r.cleared === 0, 'E7 payload.degraded 標出 mrt 時,mrt 既有公告不被解除（單一營運者退化≠整個來源失敗）');
+  check(r.live.includes('krtc') && !r.live.includes('mrt'), 'E7 live 含未退化的 krtc,不含退化的 mrt');
+  check(r.added === 1, 'E7 未退化的 krtc 新公告正常記成 added');
+}
+{ // E8 metro-alert 的 at 過期(模擬 metroAlert() 外層 catch 沿用舊 mem 的情境)→即使
+  // payload.degraded 是空陣列,整包涵蓋的 sys 全部視為退化(第二道安全網,見
+  // alertSourceDegradedSys)。
+  const stale = new Date(Date.now() - 200e3).toISOString(); // 200 秒前,超過 130 秒安全網門檻
+  fakeFetch({
+    '/api/metro-alert': { at: stale, alerts: [], degraded: [] },
+    '/api/tra-alert': { alerts: [{ title: '全線營運正常', status: 1 }] },
+    '/api/thsr-alert': { alerts: [{ title: '全線營運正常(Normal)', status: 1 }] },
+  });
+  const { db, calls } = fakeDb([{ sys: 'tmrt', akey: '|台中捷運信號異常|', title: '台中捷運信號異常', descr: '', end_at: '' }]);
+  const r = await ingestAlertLog({ DELAY_DB: db });
+  check(r.cleared === 0, 'E8 metro-alert 的 at 過期時,即使 degraded 是空陣列,既有公告仍不被解除');
+  check(!r.live.includes('mrt') && !r.live.includes('tmrt') && !r.live.includes('krtc') && !r.live.includes('tymc'), 'E8 過期時 metro 涵蓋的四個 sys 全部不進 liveSys');
+  check(r.live.includes('tra') && r.live.includes('thsr'), 'E8 其他正常來源不受影響');
+}
+{ // E9 對照組:at 是新鮮的(遠低於門檻)→不誤觸過期安全網,degraded 為空時涵蓋的 sys 正常判活。
+  const fresh = new Date(Date.now() - 5e3).toISOString(); // 5 秒前
+  fakeFetch({
+    '/api/metro-alert': { at: fresh, alerts: [{ title: '正常營運', status: 1, sys: 'mrt' }], degraded: [] },
+    '/api/tra-alert': { alerts: [{ title: '全線營運正常', status: 1 }] },
+    '/api/thsr-alert': { alerts: [{ title: '全線營運正常(Normal)', status: 1 }] },
+  });
+  const { db, calls } = fakeDb([]);
+  const r = await ingestAlertLog({ DELAY_DB: db });
+  check(r.live.includes('mrt') && r.live.includes('krtc') && r.live.includes('tymc') && r.live.includes('tmrt'), 'E9 at 新鮮且 degraded 為空時,metro 涵蓋的 sys 正常進 liveSys（不誤觸過期安全網）');
+}
 globalThis.fetch = realFetch;
 
 console.log('D. alertKey');
@@ -201,6 +324,34 @@ check(alertKey({ title: 'A', label: '' }) === '|A|', 'start 缺值不炸、以�
 check(alertKey({ title: ' A ', start: ' S ', label: '' }) === '|A|S', '前後空白去掉（官方公告常帶尾空白）');
 check(alertKey({ title: 'A', start: 'S', label: '高雄捷運' }) === '高雄捷運|A|S', 'label 有值時帶進去');
 check(alertKey({ title: 'A|B', start: 'C', label: '' }) === '|A｜B|C', '標題含直線換全形直線');
+
+console.log('F. cron 設定跨檔一致性');
+{
+  // worker.js 的 ALERT_LOG_CRON 與 wrangler.jsonc 的 triggers.crons 必須逐字相同,分派才會對
+  // (2026-07-27 審查 Important 4:兩處各自寫死,合併其他 cron 陣列時可能被改寫成等價字串如
+  // '*/1 * * * *',event.cron===ALERT_LOG_CRON 就不成立,整條公告狀態機悄悄停跑、零紅字)。
+  // 直接讀 worker.js 目前的常數值(不寫死字面值),兩邊分別改動任一側都測得到。
+  const { ALERT_LOG_CRON } = _alertLog;
+  const wranglerPath = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'wrangler.jsonc');
+  const text = fs.readFileSync(wranglerPath, 'utf8');
+  const m = text.match(/"crons"\s*:\s*(\[[^\]]*\])/);
+  const crons = m ? JSON.parse(m[1]) : [];
+  check(crons.length > 0, 'F1 wrangler.jsonc 讀到 crons 陣列（正規式抓到東西）');
+  check(crons.includes(ALERT_LOG_CRON), `F2 wrangler.jsonc 的 crons 含有與 worker.js ALERT_LOG_CRON 逐字相同的項目（ALERT_LOG_CRON=${JSON.stringify(ALERT_LOG_CRON)}，crons=${JSON.stringify(crons)}）`);
+}
+
+console.log('G. trafficTag（cron 自身流量不誤記,2026-07-27 審查 Important 5）');
+{
+  const { trafficTag, ALERT_LOG_CRON_UA } = _alertLog;
+  check(trafficTag('', ALERT_LOG_CRON_UA) === null, 'G1 cron 專屬 UA 一律不記（不分 origin）');
+  check(trafficTag('capacitor://localhost', ALERT_LOG_CRON_UA) === null, 'G2 cron UA 即使 origin 像 App 殼也不記（UA 判斷優先）');
+  const web = trafficTag('', 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15) AppleWebKit/605.1.15');
+  check(!!web && web.plat === 'web' && web.dev === 'd', 'G3 一般網頁桌機請求照舊記成 web/d');
+  const app = trafficTag('capacitor://localhost', 'RailIsland/1.0');
+  check(!!app && app.plat === 'app' && app.dev === 'd', 'G4 App 殼 origin 照舊記成 app');
+  const mobile = trafficTag('', 'Mozilla/5.0 (iPhone; CPU iPhone OS) AppleWebKit Mobile/15E148');
+  check(!!mobile && mobile.dev === 'm', 'G5 UA 含 Mobile 記成 m（不受 cron 判斷影響）');
+}
 
 console.log(fails ? `\n❌ ${fails} 項未過` : '\n✅ 全部通過');
 process.exit(fails ? 1 : 0);

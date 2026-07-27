@@ -234,6 +234,16 @@ function metroAlertOpFallback(prev, nowMs) {
   return [];
 }
 
+// 各營運者(op)的抓取結果 → 合併後的 alerts 陣列與退化 sys 清單。純函式:不碰 fetch/cache,
+// 供離線測試(2026-07-27 審查 Critical 1:整包 200 不代表涵蓋的每個系統都說得準——單一營運者
+// fetch 失敗會走 metroAlertOpFallback,但外層仍回 200,呼叫端(cron)原本沒有分辨的辦法)。
+// KRTC/KLRT 共用 sys='krtc':任一個退化就整個 krtc 算退化,用 Set 去重避免列兩次。
+function mergeMetroAlertParts(parts, newsAlerts) {
+  const degraded = [...new Set((Array.isArray(parts) ? parts : []).filter(p => p && p.degraded).map(p => p.sys))];
+  const alerts = (Array.isArray(parts) ? parts : []).flatMap(p => (p && p.list) || []).concat(Array.isArray(newsAlerts) ? newsAlerts : []);
+  return { alerts, degraded };
+}
+
 // 桃園機捷新聞稿(TDX v2 Rail/Metro/News/TYMC):Alert 端點對「設備異常」等事後才澄清的事故
 // 常常全程回「正常營運」,News 事後新聞稿是唯一機器可讀痕跡(2026-07-17 A6 站設備異常案實測:
 // Alert 全程正常,News 延遲約 2 小時補發新聞稿)。只接 TYMC,其他家 News 全是行銷內容不接。
@@ -330,15 +340,20 @@ async function metroAlert(request, env) {
               };
             });
             metroAlertOpMem.set(op, { list, at: Date.now() });
-            return list;
+            return { list, sys };
           } catch (e) {
-            // 單一營運者失敗不再靜默回空:沿用該營運者 ≤30 分鐘內的上次成功結果(見上方 metroAlertOpFallback)
-            return metroAlertOpFallback(metroAlertOpMem.get(op), Date.now());
+            // 單一營運者失敗不再靜默回空:沿用該營運者 ≤30 分鐘內的上次成功結果(見上方 metroAlertOpFallback)。
+            // degraded:true 是 2026-07-27 審查 Critical 1 的修法——這個 sys 這次不是真的刷新,標出來讓
+            // 外層(cron 的 ingestAlertLog)知道不能拿它判解除,單一營運者的抖動不該變成假的「已恢復」。
+            return { list: metroAlertOpFallback(metroAlertOpMem.get(op), Date.now()), sys, degraded: true };
           }
         })),
         fetchTymcNewsAlerts(token),
       ]);
-      metroAlertMem = { at: new Date().toISOString(), alerts: parts.flat().concat(newsAlerts) };
+      // alerts/at 兩個既有欄位內容與之前逐 byte 相同(mergeMetroAlertParts 只是把 parts.flat() 換成對映
+      // 到 sys 才能算 degraded 的等價寫法);degraded 是純追加欄位,前端不讀,零視覺/行為影響。
+      const merged = mergeMetroAlertParts(parts, newsAlerts);
+      metroAlertMem = { at: new Date().toISOString(), alerts: merged.alerts, degraded: merged.degraded };
       metroAlertMemAt = Date.now();
     }
     const res = jsonRes(metroAlertMem, 200, 'public, s-maxage=110, stale-while-revalidate=600');
@@ -1048,7 +1063,8 @@ function normalizeAlertPayload(payload, sysOf) {
 //
 // liveSys = 本輪真的取得成功的系統集合。不在集合裡的一律跳過解除判定——這是 B5 回歸案,
 // 上游抖動不可以變成一則假的「已恢復」。
-// updated 的判準只看內文(descr):標題與起始時間已經進了 akey,它們變了就是另一則公告。
+// updated 的判準看內文(descr)或預計恢復時間(end_at)——見下方比較那行的行內註解;
+// 標題與起始時間已經進了 akey,它們變了就是另一則公告。
 function diffAlertState(prevRows, current, liveSys, nowIso) {
   const prev = new Map();
   for (const r of Array.isArray(prevRows) ? prevRows : []) {
@@ -1097,18 +1113,37 @@ const ALERT_LOG_CRON = '* * * * *';
 const ALERT_LOG_ORIGIN = 'https://railisland.tw';
 const ALERT_LOG_UPSERT = 'INSERT INTO alert_log (sys,akey,title,descr,lines,start_at,end_at,news,first_seen,last_seen,cleared_at) VALUES (?,?,?,?,?,?,?,?,?,?,NULL) ON CONFLICT(sys,akey) DO UPDATE SET title=excluded.title, descr=excluded.descr, lines=excluded.lines, start_at=excluded.start_at, end_at=excluded.end_at, news=excluded.news, last_seen=excluded.last_seen, cleared_at=NULL';
 const ALERT_LOG_CLEAR = 'UPDATE alert_log SET cleared_at=? WHERE sys=? AND akey=? AND cleared_at IS NULL';
+// cron 自己打 /api/*-alert 的請求帶這個 UA——(a) 讓來源端能辨識是誰打的;(b) 流量埋點靠它排除
+// 這批自打流量,不然會被誤記成「網頁」訪客(2026-07-27 審查 Important 5,見 fetch() 的 TRAFFIC 埋點)。
+const ALERT_LOG_CRON_UA = 'railisland.tw alert-log cron (+https://railisland.tw)';
+// 「整包 200 不代表涵蓋的每個系統都說得準」的第二道安全網(2026-07-27 審查 Critical 1):
+// metro-alert 用 payload.degraded 明確標出哪些 sys 這輪是 fallback(見 metroAlert/mergeMetroAlertParts);
+// 三個來源共通的另一種退化是「外層 catch 沿用舊 mem」(traAlert/thsrAlert/metroAlert 都有這條路徑)——
+// 此時來源不會標 degraded,但 payload.at 會是舊的。門檻抓正常 110 秒刷新週期 + 緩衝,超過就整批視為退化。
+const ALERT_STALE_GUARD_MS = 130e3;
+function alertSourceDegradedSys(src, payload) {
+  const explicit = new Set(Array.isArray(payload && payload.degraded) ? payload.degraded : []);
+  const atMs = payload && payload.at ? Date.parse(payload.at) : NaN;
+  const stale = Number.isFinite(atMs) && (Date.now() - atMs > ALERT_STALE_GUARD_MS);
+  const degraded = new Set();
+  for (const s of src.covers) if (stale || explicit.has(s)) degraded.add(s);
+  return degraded;
+}
 
-// 三個來源並行抓。單一來源失敗回 null(不是空陣列)——空陣列的語意是「這個系統目前沒有
+// 三個來源並行抓。單一來源整包失敗回 null(不是空陣列)——空陣列的語意是「這個系統目前沒有
 // 公告」,會觸發解除判定;null 的語意是「不知道」,呼叫端據此把該來源涵蓋的系統排除在
 // 解除判定之外。這個區別就是 B5/E2 兩個回歸案在守的東西。
+// 整包成功(HTTP 200)不等於涵蓋的每個系統都說得準——見 alertSourceDegradedSys;回傳形狀因此是
+// { recs, degraded } 而不是單純的 recs 陣列,degraded 是這批 recs 裡不可信的 sys 子集(Set)。
 async function fetchAlertLogSources() {
   return Promise.all(ALERT_LOG_SOURCES.map(async src => {
     try {
       const r = await fetch(ALERT_LOG_ORIGIN + src.path, {
-        headers: { 'user-agent': 'railisland.tw alert-log cron (+https://railisland.tw)' },
+        headers: { 'user-agent': ALERT_LOG_CRON_UA },
       });
       if (!r.ok) throw new Error('http ' + r.status);
-      return normalizeAlertPayload(await r.json(), src.sysOf);
+      const payload = await r.json();
+      return { recs: normalizeAlertPayload(payload, src.sysOf), degraded: alertSourceDegradedSys(src, payload) };
     } catch (e) {
       console.error(`[cron alert-log] 來源失敗 ${src.path}: ${String((e && e.message) || e)}`);
       return null;
@@ -1121,10 +1156,10 @@ async function fetchAlertLogSources() {
 async function ingestAlertLog(env) {
   const parts = await fetchAlertLogSources();
   const current = [], liveSys = new Set();
-  parts.forEach((recs, i) => {
-    if (recs == null) return;
-    for (const s of ALERT_LOG_SOURCES[i].covers) liveSys.add(s);
-    for (const rec of recs) current.push(rec);
+  parts.forEach((part, i) => {
+    if (part == null) return;
+    for (const s of ALERT_LOG_SOURCES[i].covers) if (!part.degraded.has(s)) liveSys.add(s);
+    for (const rec of part.recs) current.push(rec);
   });
   if (!liveSys.size) {
     console.error('[cron alert-log] 三個來源全部失敗,本輪整個略過(不寫入、不判解除)');
@@ -1147,6 +1182,17 @@ async function ingestAlertLog(env) {
   for (const r of d.updated) console.log(`[cron alert-log] 更新 ${r.sys} ${r.title}`);
   for (const r of d.cleared) console.log(`[cron alert-log] 解除 ${r.sys} ${r.title}`);
   return { added: d.added.length, updated: d.updated.length, cleared: d.cleared.length, live: [...liveSys] };
+}
+
+// 判斷一發 /api/* 請求要不要記進 TRAFFIC、記成什麼 plat/dev。純函式:不碰 env,方便測試。
+// cron 自己打自家 /api/*-alert 的請求(帶 ALERT_LOG_CRON_UA)不算「使用者流量」,原本會因為
+// 不帶 Origin 被誤記成'web'——每天 3×1440 筆假資料點,把 App/網頁佔比洗掉(2026-07-27 審查
+// Important 5)。回傳 null 代表這發不記。
+function trafficTag(origin, userAgent) {
+  if (userAgent === ALERT_LOG_CRON_UA) return null;
+  const plat = APP_ORIGINS.has(origin) ? 'app' : 'web';
+  const dev = /Mobile/.test(userAgent || '') ? 'm' : 'd';
+  return { plat, dev };
 }
 
 export default {
@@ -1191,9 +1237,8 @@ export default {
     if (isApi && env.TRAFFIC) {
       try {
         const seg = url.pathname.slice(5);
-        const plat = APP_ORIGINS.has(origin) ? 'app' : 'web';
-        const dev = /Mobile/.test(request.headers.get('user-agent') || '') ? 'm' : 'd';
-        env.TRAFFIC.writeDataPoint({ blobs: [plat, API_ENDPOINTS.has(seg) ? seg : 'other', dev], indexes: [plat] });
+        const tag = trafficTag(origin, request.headers.get('user-agent') || '');
+        if (tag) env.TRAFFIC.writeDataPoint({ blobs: [tag.plat, API_ENDPOINTS.has(seg) ? seg : 'other', tag.dev], indexes: [tag.plat] });
       } catch (e) {}
     }
     if (isApi && request.method === 'OPTIONS') {
@@ -1242,7 +1287,7 @@ export default {
 export const _ingest = { parseDayEvents, buildDayRows, buildBlob, roundHalfUpStr, addDays, twParts };
 // 純函式導出,供離線回歸測試 import:metroAlert 的 per-op last-known-good + News/TYMC 過濾轉換。
 export const _metroAlert = {
-  metroAlertOpFallback, isRecentNews, isIncidentNewsTitle,
+  metroAlertOpFallback, mergeMetroAlertParts, isRecentNews, isIncidentNewsTitle,
   stripHtmlAndTruncate, formatNewsTitle, mapNewsToAlert, filterAndMapNews,
 };
 // 純函式導出,供離線回歸測試 import:逐站事件 diff 與 mem.at→台北日換算。
@@ -1253,4 +1298,7 @@ export const _delayHistory = { delayHistoryWindow, buildDelayHistoryBody, isVali
 // env 替身與 fetch 替身;導出的目的就是讓測試能數「被擋掉時到底有沒有打上游」。
 export const _rateLimit = { rateLimited, delayHistory, deletePaidProfile };
 // 純函式導出,供離線回歸測試 import:公告狀態機的正規化、指紋。
-export const _alertLog = { alertKey, normalizeAlertPayload, diffAlertState, ingestAlertLog, ALERT_LOG_SOURCES };
+export const _alertLog = {
+  alertKey, normalizeAlertPayload, diffAlertState, ingestAlertLog, ALERT_LOG_SOURCES,
+  ALERT_LOG_CRON, ALERT_LOG_CRON_UA, trafficTag,
+};
