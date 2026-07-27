@@ -37,8 +37,10 @@ function expectedCounts(rides) {
   return m;
 }
 
-async function open(browser, { width = 1440, height = 900, path = '/index.html', touch = false } = {}) {
+async function open(browser, { width = 1440, height = 900, path = '/index.html', touch = false, app = false } = {}) {
   const ctx = await browser.newContext({ viewport: { width, height }, hasTouch: touch });
+  // app:true 模擬原生殼——必須在頁面腳本執行前注入 RAIL_APP_CONFIG,IS_NATIVE_APP 讀的就是這個(N 組)。
+  if (app) await ctx.addInitScript(() => { window.RAIL_APP_CONFIG = { platform: 'ios', build: 'test' }; });
   const page = await ctx.newPage();
   await page.goto(BASE + path, { waitUntil: 'load' });
   await page.waitForFunction(() => typeof state !== 'undefined' && state.trains && state.trains.length > 0, { timeout: 40000 });
@@ -259,6 +261,8 @@ try {
   // ── G 單站打卡動作（批次 A2）──
   // 判準與實作不同源：距離由本腳本自己的 haversine 算；通過／退回的案例刻意挑「任何合理半徑下
   // 結論都一樣」的距離（0 公尺必過、5 公里必退），因此不必複製實作的半徑表，也就不會跟著它一起錯。
+  // ⚠ G/H 組全部改走 app context（規格 §9 平台分層）：打卡鈕／票券鈕現在只在 RAIL_APP_CONFIG
+  // 存在時才渲染，這兩組驗的正是那些鈕本身，留在網頁 context 只會驗到「鈕不存在」。
   const hav = (a, b) => { // 自寫一份，不呼叫頁面的 haversineKm
     const R = 6371008.8, rad = d => d * Math.PI / 180;
     const dLat = rad(b.lat - a.lat), dLon = rad(b.lon - a.lon);
@@ -273,7 +277,8 @@ try {
   if (!target) { console.log('FAIL  取不到目標站座標，G 組無法進行'); process.exit(1); }
 
   const gq = `/index.html?geomock=${target.lat},${target.lon}&geoacc=40`;
-  const { ctx: gctx, page: gp } = await open(browser, { path: gq });
+  // 實體收集(規格 §9)限 App:蓋章鈕現在只在 RAIL_APP_CONFIG 存在時渲染,G 組要驗的正是這顆鈕本身。
+  const { ctx: gctx, page: gp } = await open(browser, { path: gq, app: true });
   await gp.evaluate(() => { localStorage.removeItem('trainmap-checkins-v1'); });
   await gp.evaluate(() => showNearby());
   await gp.waitForSelector('#nearCard .nx-row', { timeout: 15000 });
@@ -450,7 +455,7 @@ try {
   await gctx.close();
 
   // 手機（專案鐵則：新功能必驗手機）——打卡鈕的觸控大小與不溢出
-  const { ctx: gmctx, page: gmp } = await open(browser, { width: 375, height: 780, path: gq });
+  const { ctx: gmctx, page: gmp } = await open(browser, { width: 375, height: 780, path: gq, app: true });
   await gmp.evaluate(() => { localStorage.removeItem('trainmap-checkins-v1'); showNearby(); });
   await gmp.waitForSelector('#nearCard .nx-ck', { timeout: 15000 });
   await gmp.waitForTimeout(400);
@@ -489,7 +494,7 @@ try {
   // 搭乘模式刻意讀真實時鐘，測試無法等時間流逝，故用「把誤點值設成負數」把表定時間軸往前推
   // （那是 ridingNowSched 的輸入，不是被測邏輯本身）。哪幾站該被蓋，一律由本腳本從 stops 的
   // 到站秒數自己算，不呼叫 ridingArrivedIdx —— 判準與實作不同源（心得 29）。
-  const { ctx: hctx, page: hp } = await open(browser);
+  const { ctx: hctx, page: hp } = await open(browser, { app: true });
   const trip = await hp.evaluate(() => {
     window.liveDelaySec = () => 0; // 誤點歸零，讓表定時間軸＝真實時鐘，測試好算
     const now = nowSecOfDay(activeTz());
@@ -935,8 +940,8 @@ try {
     noSeg.btn === false && noSeg.sec === false, `入口鈕存在=${noSeg.btn}　路線完乘區存在=${noSeg.sec}`);
   await hctx.close();
 
-  // 手機：上車流程的下車站選單與按鈕觸控尺寸
-  const { ctx: hmctx, page: hmp } = await open(browser, { width: 375, height: 780, touch: true }); // K 組要真的 tap
+  // 手機：上車流程的下車站選單與按鈕觸控尺寸（H14-17／K 組共用，同樣要 app context 才看得到票券鈕）
+  const { ctx: hmctx, page: hmp } = await open(browser, { width: 375, height: 780, touch: true, app: true }); // K 組要真的 tap
   const hmob = await hmp.evaluate(([train, sys]) => {
     const tr = state.trains.find(x => String(x.train) === train && x.sys === sys);
     if (!tr) return { missing: true };
@@ -1481,6 +1486,84 @@ try {
       m17.stU >= m17.before && m17.sgU >= m17.before, JSON.stringify(m17));
 
     await ctx.close();
+  }
+
+  // ── N 組：平台分層（規格 §9）─────────────────────────────
+  // 判準用「實際可點性」不是幾何:並排／偽元素熱區的控件,rect 不相交只證明看起來沒疊,
+  // 證明不了點得到正確的那一顆(見 judgment 心得 33)。
+  {
+    // N1–N3：網頁（沒有 RAIL_APP_CONFIG）
+    // ⚠ brief 原文寫 `const web = await open(browser, {})` 再直接 `web.evaluate(...)`，
+    // 但這支腳本的 open() 回傳的是 { ctx, page }（見全檔其他呼叫點），不是 page 本身——
+    // 逐字照抄會是 `web.evaluate is not a function`。這裡照現況解構，行為不變。
+    const { ctx: webCtx, page: web } = await open(browser, {});
+    const n1 = await web.evaluate(() => ({
+      flagApp: typeof IS_NATIVE_APP !== 'undefined' ? IS_NATIVE_APP : null,
+      flagPhys: typeof PHYSICAL_COLLECT_ENABLED !== 'undefined' ? PHYSICAL_COLLECT_ENABLED : null,
+    }));
+    ok('N1 網頁端旗標為 false', n1.flagApp === false && n1.flagPhys === false, JSON.stringify(n1));
+
+    // ⚠ 只查剛載入頁面的預設狀態測不出真正的移除行為——#fpRide 的初始 HTML 本來就帶
+    // hidden 屬性,沒人呼叫過 updateRideBtn 之前本來就是 computed display:none,這種查法
+    // 就算沒實作平台分界也會「巧合」通過。要先真的餵一班有效的車去觸發 updateRideBtn
+    // (它是 showFollowPanel/startRiding 等真實路徑都會呼叫的函式),在「換成正常邏輯會把
+    // 鈕點亮」的情境下,才測得出網頁端是不是真的把它整顆 remove() 掉。
+    const n2 = await web.evaluate(() => {
+      const tr = (state.trains || []).find(t => !t.loop);
+      if (!tr) return { missing: true };
+      state.followTrain = tr; state.mode = 'sched';
+      updateRideBtn(tr);
+      return { missing: false, gone: !document.getElementById('fpRide') };
+    });
+    ok('N2 網頁端沒有「我上車了」鈕（觸發 updateRideBtn 後真的被移除，不是巧合躺在預設 hidden）',
+      n2.missing === false && n2.gone === true, JSON.stringify(n2));
+
+    // N3 必須真的把「附近車站」面板打開才算數——面板沒渲染時查到 0 顆蓋章鈕是假通過。
+    // ⚠ brief 原文用 Playwright 的 permissions/geolocation context 選項模擬真瀏覽器定位權限，
+    // 實測會 15s waitForFunction timeout：#nearBtn 這顆鈕本身被既有的 LOCATE_ENABLED
+    // (=!!window.RAIL_NATIVE_GEOLOCATION，index.html:4991)擋在網頁端整顆 remove() 掉
+    // (index.html:12627-12631，註解明寫「網站因為 nearBtn 被 remove 而倖免」)——這是本任務
+    // 之前就存在、與 PHYSICAL_COLLECT_ENABLED 無關的另一道閘。requestGeo() 雖然有真
+    // navigator.geolocation 的後備分支，但網頁端根本沒有入口鈕能觸發它。改用 G 組已經證實
+    // 可行的 ?geomock= 測試橋接(index.html:4963-4979，只設 RAIL_NATIVE_GEOLOCATION、
+    // 不設 RAIL_APP_CONFIG)——讓 LOCATE_ENABLED=true(鈕才會在)同時 PHYSICAL_COLLECT_ENABLED
+    // 仍是 false(這裡要驗的正是這個組合)。座標用臺北車站,那一帶必有站可列。
+    const n3q = '/index.html?geomock=25.0478,121.5170&geoacc=40';
+    const { ctx: n3ctx, page: n3page } = await open(browser, { width: 390, height: 844, touch: true, path: n3q });
+    await n3page.evaluate(() => showNearby());
+    await n3page.waitForSelector('#nearCard .nx-row', { timeout: 15000 });
+    const n3 = await n3page.evaluate(() => ({
+      btns: document.querySelectorAll('.nx-ck').length,
+      rows: document.querySelectorAll('.nx-row').length,
+      foot: (document.querySelector('.xc-foot') || {}).textContent || '',
+    }));
+    ok('N3 網頁端有站列但零顆蓋章鈕', n3.rows > 0 && n3.btns === 0, JSON.stringify(n3));
+    ok('N3b 網頁端頁尾不再提「蓋章」', !n3.foot.includes('蓋章'), n3.foot);
+    await n3ctx.close();
+
+    // N4–N5：App（注入 RAIL_APP_CONFIG，必須在頁面腳本執行前）
+    const appCtx = await browser.newContext({ viewport: { width: 390, height: 844 }, hasTouch: true });
+    await appCtx.addInitScript(() => { window.RAIL_APP_CONFIG = { platform: 'ios', build: 'test' }; });
+    const app = await appCtx.newPage();
+    await app.goto(BASE + '/index.html', { waitUntil: 'load' });
+    await app.waitForFunction(() => typeof state !== 'undefined' && state.trains && state.trains.length > 0, { timeout: 40000 });
+    await app.evaluate(() => { const h = document.getElementById('howtoWrap'); if (h) h.remove(); });
+
+    const n4 = await app.evaluate(() => ({
+      flagApp: IS_NATIVE_APP, flagPhys: PHYSICAL_COLLECT_ENABLED,
+    }));
+    ok('N4 App 端旗標為 true', n4.flagApp === true && n4.flagPhys === true, JSON.stringify(n4));
+
+    // N5 虛擬收集（護照、收集地圖入口）兩邊都要在——觀看面不因平台消失。
+    // ⚠ brief 原文寫 #pp，但那是暫停／播放鈕（index.html:2643），與護照無關，兩平台恆存在、
+    // 測不出任何回歸；改用 #rideBtn（title="旅程護照（完乘記錄與收集章）"，index.html:2671）
+    // 才是護照真正的入口——若日後有人誤把它也塞進 PHYSICAL_COLLECT_ENABLED 分支，這裡才會抓到。
+    const n5web = await web.evaluate(() => !!document.getElementById('rideBtn'));
+    const n5app = await app.evaluate(() => !!document.getElementById('rideBtn'));
+    ok('N5 護照入口兩個平台都在', n5web === true && n5app === true, `web=${n5web} app=${n5app}`);
+
+    await appCtx.close();
+    await webCtx.close();
   }
 } finally {
   try { unlinkSync(BASELINE); } catch (e) {}

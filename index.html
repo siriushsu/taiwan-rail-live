@@ -2544,7 +2544,7 @@ try { if (matchMedia('(max-width: 900px)').matches) document.body.classList.add(
       <button class="fp-notify" id="fpNotify" style="display:none" type="button">⏰ 提醒</button>
       <!-- 搭乘模式(兩點法):上車時就選好在哪站下車,系統才知道要蓋到哪一站為止——
            不選的話使用者忘了按下車,會一路蓋到終點,把沒搭的區間也算進收集 -->
-      <button class="fp-ride" id="fpRide" hidden type="button">🎫 我上車了</button>
+      <button class="fp-ride" id="fpRide" hidden type="button" style="display:none">🎫 我上車了</button>
       <div class="fp-ridebox" id="fpRideBox" hidden>
         <div class="fp-ridebox-r"><span>到</span><select id="fpRideTo" aria-label="下車站"></select></div>
         <div class="fp-ridebox-r"><button id="fpRideGo" type="button">開始收集</button><button id="fpRideCancel" type="button">取消</button></div>
@@ -4990,6 +4990,13 @@ const SAT_RETINA = APP_CFG.satRetina ?? SAT_RETINA_DEFAULT;
 function followEntryZoom() { return Math.min(Math.max(map.getZoom(), 13), FOLLOW_ZOOM_CAP); } // 跟車進場:至少拉近到 13,App 再套上限
 const LOCATE_ENABLED = !!window.RAIL_NATIVE_GEOLOCATION;
 const NOTIFY_LOCAL_ENABLED = !!window.RAIL_NATIVE_LOCALNOTIFY;
+// 實體收集(單站打卡、搭乘模式、GPS 校正旅程)限原生 App——這是既有「虛實雙軌」延伸成平台分界:
+// 「跟完」是虛的、跟動畫就算,所以跨平台;「搭過/到訪」是實的、要人真的在場,所以只在 App 開。
+// 網頁仍看得到護照、收集地圖與懸賞板(觀看面兩邊都有),點懸賞會提示要用 App。
+// 判斷用 RAIL_APP_CONFIG 而不是 RAIL_NATIVE_GEOLOCATION:後者是「有沒有原生定位橋接」,
+// 語意上是能力不是平台,拿來當平台旗標會在日後加別的橋接時默默改變行為。
+const IS_NATIVE_APP = !!window.RAIL_APP_CONFIG;
+const PHYSICAL_COLLECT_ENABLED = IS_NATIVE_APP;
 const RECORDING_ENABLED = false; // 2026-07-17 錄影暫時下架(整備中):所有入口隱藏、實作全保留;改 true 即復活(工具列鈕+更多抽屜列+Plus 文案)
 const ACCOUNT_ENABLED = false; // 2026-07-17 帳號同步轉收費前暫時下架:入口全藏、不載 Firebase SDK、實作全保留;僅 ?account=delete 深連結(account-deletion.html)留給既有帳號刪資料;改 true 即復活
 // Plus 功能總閘(暗啟動):網站預設關、?plus=1 當次點亮供測試(比照 TRIP_SHARE_ENABLED)；上架公告批次改 true。
@@ -5240,8 +5247,11 @@ function renderNearbyStations() {
       const e = checkinEntry(s.st), done = !!e && e.d === today;
       const near = checkinJudge(s.st).ok;
       const ckTxt = done ? '今天已蓋 ✓' : (e && e.n ? '蓋章 · 第 ' + (e.n + 1) + ' 次' : '蓋章');
-      const ck = '<button class="nx-ck' + (done ? ' done' : near ? '' : ' far') + '" type="button" data-i="' + i + '"' +
-        (done ? ' disabled' : '') + '>' + ckTxt + '</button>';
+      // 實體收集限 App(規格 §9):網頁端連字串都不產生——產生後再隱藏會留下可被 CSS 復活的殘骸。
+      const ck = PHYSICAL_COLLECT_ENABLED
+        ? '<button class="nx-ck' + (done ? ' done' : near ? '' : ' far') + '" type="button" data-i="' + i + '"' +
+          (done ? ' disabled' : '') + '>' + ckTxt + '</button>'
+        : '';
       return '<div class="nx-row" data-i="' + i + '"><div class="nx-top">' +
         '<span class="nx-name">' + escHtml(s.st.name) + '</span><span class="nx-km">' + km + '</span></div>' +
         '<div class="nx-sub">' + lbl + '<span>點站看接下來的班次</span>' + ck + '</div></div>';
@@ -5251,7 +5261,9 @@ function renderNearbyStations() {
     '<span class="xc-meta">' + meta + '</span></div>' +
     '<button class="xc-close" id="nearClose" type="button" aria-label="關閉">✕</button></div>' +
     '<div class="xc-list">' + body + '</div>' +
-    '<div class="xc-foot">你的位置僅用於本機顯示與蓋章判定、不會上傳。點站看班次,按「蓋章」把這座站收進旅程護照。</div>';
+    '<div class="xc-foot">' + (PHYSICAL_COLLECT_ENABLED
+      ? '你的位置僅用於本機顯示與蓋章判定、不會上傳。點站看班次,按「蓋章」把這座站收進旅程護照。'
+      : '你的位置僅用於本機顯示、不會上傳。點站看接下來的班次。') + '</div>';
   el.hidden = false;
   if (!el._wired) {
     el._wired = true;
@@ -8883,6 +8895,10 @@ function finishRiding(tr, r) {
 function updateRideBtn(tr) {
   const btn = document.getElementById('fpRide'), box = document.getElementById('fpRideBox');
   if (!btn || !box) return;
+  // 網頁端整顆不存在:只加 [hidden] 會被 .fp-ride 這類 display 規則蓋過去(pwa-app-roadmap 記過的坑),
+  // 所以直接把節點移除,不留任何可被 CSS 復活的殘骸。
+  if (!PHYSICAL_COLLECT_ENABLED) { btn.remove(); return; }
+  btn.style.removeProperty('display');
   const r = loadRiding();
   if (!tr || tr.loop || state.mode !== 'sched') { btn.hidden = true; box.hidden = true; return; }
   if (box.dataset.open === '1') { btn.hidden = true; box.hidden = false; return; }
