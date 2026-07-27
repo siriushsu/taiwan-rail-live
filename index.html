@@ -13622,7 +13622,12 @@ function renderTripBanner() {
 }
 function closeTripBanner() { state._tripClosed = true; document.getElementById('tripBanner').hidden = true; } // 關橫幅不退跟車
 document.getElementById('fpTripShare').onclick = (e) => { e.stopPropagation(); openTripSharePanel(); };
-document.getElementById('fpRide').onclick = (e) => {
+// #fpRide 網頁端開機會被 updateRideBtn 整顆 remove()(平台分界,見該函式開頭的
+// PHYSICAL_COLLECT_ENABLED 分支);這裡是 top-level 綁定,若執行當下它已經不在,原本會直接
+// 拋錯讓這行之後所有 top-level 綁定全滅。目前所有 updateRideBtn 呼叫點都在非同步路徑,不會
+// 搶在這行前面執行,但那只是沒寫下來的順序巧合——之後把跟車還原提早到同步開機段就會踩到。
+const fpRideEl = document.getElementById('fpRide');
+if (fpRideEl) fpRideEl.onclick = (e) => {
   e.stopPropagation();
   const tr = state.followTrain; if (!tr) return;
   const r = loadRiding();

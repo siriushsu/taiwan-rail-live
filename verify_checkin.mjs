@@ -1496,7 +1496,9 @@ try {
     // ⚠ brief 原文寫 `const web = await open(browser, {})` 再直接 `web.evaluate(...)`，
     // 但這支腳本的 open() 回傳的是 { ctx, page }（見全檔其他呼叫點），不是 page 本身——
     // 逐字照抄會是 `web.evaluate is not a function`。這裡照現況解構，行為不變。
-    const { ctx: webCtx, page: web } = await open(browser, {});
+    // 視窗開成跟下面 app 頁一樣的 390×844(手機):N5/N5b 這類雙平台比對時,兩邊只有
+    // RAIL_APP_CONFIG 這一個變因不同,不會把「平台差異」跟「桌面/手機寬度差異」混在同一個斷言裡。
+    const { ctx: webCtx, page: web } = await open(browser, { width: 390, height: 844, touch: true });
     const n1 = await web.evaluate(() => ({
       flagApp: typeof IS_NATIVE_APP !== 'undefined' ? IS_NATIVE_APP : null,
       flagPhys: typeof PHYSICAL_COLLECT_ENABLED !== 'undefined' ? PHYSICAL_COLLECT_ENABLED : null,
@@ -1554,6 +1556,29 @@ try {
     }));
     ok('N4 App 端旗標為 true', n4.flagApp === true && n4.flagPhys === true, JSON.stringify(n4));
 
+    // N4b App 端「我上車了」鈕像素級可見可點（review Important 1）：119 項裡原本零斷言碰過
+    // #fpRide 的 display/rect——H13 讀了 b.hidden 卻沒放進判準，只驗 textContent/className。
+    // 審查者實測證實：把 index.html:8901 的 removeProperty('display') 拿掉，computed display
+    // 仍是 none、rect 是 0×0，但 H13 兩個判準照樣全過。這裡改走 showFollowPanel（setFollow 真實
+    // 會呼叫的同一條路徑，不只是 updateRideBtn）讓外層 #followPanel 的 hidden 屬性也真的被清掉，
+    // 再量三層獨立證據：computed display、rect 寬高、elementFromPoint 命中——只讀 hidden 屬性
+    // 照不到 inline style（心得 23/24 那類 UA/inline 滲漏，正是這個洞的成因）。
+    const n4b = await app.evaluate(() => {
+      const tr = (state.trains || []).find(t => !t.loop);
+      if (!tr) return { missing: true };
+      state.mode = 'sched'; state.followTrain = tr;
+      showFollowPanel(tr);
+      const b = document.getElementById('fpRide');
+      if (!b) return { missing: true, gone: true };
+      const cs = getComputedStyle(b), r = b.getBoundingClientRect();
+      const hit = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
+      return { missing: false, display: cs.display, w: r.width, h: r.height,
+        hitSelf: !!hit && (hit === b || b.contains(hit)) };
+    });
+    ok('N4b App 端「我上車了」鈕像素級可見可點（display/rect/elementFromPoint 都要過，不只讀 hidden 屬性）',
+      n4b.missing === false && n4b.display !== 'none' && n4b.w > 0 && n4b.h > 0 && n4b.hitSelf === true,
+      JSON.stringify(n4b));
+
     // N5 虛擬收集（護照、收集地圖入口）兩邊都要在——觀看面不因平台消失。
     // ⚠ brief 原文寫 #pp，但那是暫停／播放鈕（index.html:2643），與護照無關，兩平台恆存在、
     // 測不出任何回歸；改用 #rideBtn（title="旅程護照（完乘記錄與收集章）"，index.html:2671）
@@ -1562,8 +1587,59 @@ try {
     const n5app = await app.evaluate(() => !!document.getElementById('rideBtn'));
     ok('N5 護照入口兩個平台都在', n5web === true && n5app === true, `web=${n5web} app=${n5app}`);
 
+    // N5b 網頁端收集地圖入口（review Important 2）：N5 的註解宣稱涵蓋收集地圖，斷言卻只驗了
+    // 護照鈕；I/J/K 組搬去 app context 後，收集地圖入口（#passport [data-act="collectmap"]，
+    // index.html:9134）在網頁端的覆蓋歸零——若日後有人把它也塞進 PHYSICAL_COLLECT_ENABLED
+    // 分支，119 項不會有一項變紅。做法比照 J 組的 cmSetup：seed 一段「搭過」紀錄再
+    // renderPassport()，斷言入口存在。buildLineBars() 只在 lineCompletion() 非空時才輸出這顆
+    // 鈕（index.html:9128-9130），不靠平台旗標，所以網頁端也要能種出資料讓它出現。
+    const n5bWeb = await web.evaluate(() => {
+      state.mode = 'sched';
+      const net = lineNetwork();
+      const rec = [...net.values()].find(r => r.segs.length >= 1);
+      if (!rec) return { missing: true };
+      const sg = {}; sg[rec.segs[0].key] = 1;
+      localStorage.setItem('trainmap-checkins-v1', JSON.stringify({ v: 1, st: {}, sg }));
+      renderPassport();
+      return { missing: false, btn: !!document.querySelector('#passport [data-act="collectmap"]') };
+    });
+    ok('N5b 網頁端收集地圖入口在（先前 N5 只驗護照鈕，這顆入口曾經零覆蓋）',
+      n5bWeb.missing === false && n5bWeb.btn === true, JSON.stringify(n5bWeb));
+
     await appCtx.close();
     await webCtx.close();
+  }
+
+  // N6 #fpRide 查無時 13625 的 onclick 綁定不拋錯（review Important 3）：模擬「未來有人把跟車
+  // 還原提早到同步開機段、在這行執行前就呼叫過 updateRideBtn 並把它 remove() 掉」的情境——
+  // 這個情境目前不會在現有程式碼路徑發生（?train= 深連結的 setFollow 還原在多個
+  // await fetchJSON(...) 之後，必定晚於 13625 這行同步執行完），但 13625 本身原本沒有寫下
+  // 保證這個順序的機制，直接模擬「查詢當下已經不存在」比等一個目前不存在的觸發路徑更能驗到
+  // 防護本身。做法：攔截 document.getElementById，讓「第一次」查 'fpRide' 回傳 null（也就是
+  // 13625 那次查詢），之後正常放行——不真的動 DOM，不影響其他元素或其他測試。
+  {
+    const guardCtx = await browser.newContext({ viewport: { width: 390, height: 844 } });
+    const pageErrors = [];
+    const guardPage = await guardCtx.newPage();
+    guardPage.on('pageerror', e => pageErrors.push(String(e)));
+    await guardCtx.addInitScript(() => {
+      const orig = document.getElementById.bind(document);
+      let hit = false;
+      document.getElementById = function (id) {
+        if (id === 'fpRide' && !hit) { hit = true; return null; }
+        return orig(id);
+      };
+    });
+    await guardPage.goto(BASE + '/index.html', { waitUntil: 'load' });
+    await guardPage.waitForFunction(() => typeof state !== 'undefined' && state.trains && state.trains.length > 0, { timeout: 40000 });
+    const guardOk = await guardPage.evaluate(() => {
+      const b = document.getElementById('fpRideBox');
+      return !!b && typeof b.onclick === 'function';
+    });
+    ok('N6 #fpRide 查無時 13625 的 onclick 綁定不拋錯、後續 top-level 綁定不受影響',
+      pageErrors.length === 0 && guardOk === true,
+      pageErrors.length ? pageErrors.join(' | ') : `guardOk=${guardOk}`);
+    await guardCtx.close();
   }
 } finally {
   try { unlinkSync(BASELINE); } catch (e) {}
