@@ -1,0 +1,434 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no" />
+<title>文湖線 3D 原型 · 軌島</title>
+<link rel="stylesheet" href="https://unpkg.com/maplibre-gl@5.9.0/dist/maplibre-gl.css" />
+<script src="https://unpkg.com/maplibre-gl@5.9.0/dist/maplibre-gl.js"></script>
+<style>
+  html,body{margin:0;height:100%;background:#0b0d10;color:#e8eaed;
+    font:14px/1.5 -apple-system,"PingFang TC","Noto Sans TC",sans-serif;overflow:hidden}
+  #map{position:absolute;inset:0}
+  .panel{position:absolute;z-index:10;background:rgba(16,19,24,.88);backdrop-filter:blur(8px);
+    border:1px solid rgba(255,255,255,.12);border-radius:12px;padding:10px 12px}
+  #hud{top:12px;left:12px;min-width:186px}
+  #hud h1{margin:0 0 6px;font-size:15px;font-weight:600;letter-spacing:.02em}
+  #hud h1 i{display:inline-block;width:10px;height:10px;border-radius:50%;
+    background:#C48C31;margin-right:6px;font-style:normal}
+  #hud .row{display:flex;justify-content:space-between;gap:10px;font-size:12px;
+    color:#9aa3ad;padding:1px 0}
+  #hud .row b{color:#e8eaed;font-weight:500;font-variant-numeric:tabular-nums}
+  #ctl{bottom:12px;left:12px;display:flex;flex-direction:column;gap:8px}
+  #ctl .line{display:flex;align-items:center;gap:8px;font-size:12px;color:#9aa3ad}
+  #ctl label{min-width:44px}
+  #ctl input[type=range]{width:130px;accent-color:#C48C31}
+  #ctl .btns{display:flex;gap:6px;flex-wrap:wrap}
+  button{background:rgba(255,255,255,.08);color:#e8eaed;border:1px solid rgba(255,255,255,.14);
+    border-radius:8px;padding:6px 10px;font-size:12px;cursor:pointer;font-family:inherit}
+  button:hover{background:rgba(255,255,255,.16)}
+  button.on{background:#C48C31;border-color:#C48C31;color:#141414;font-weight:600}
+  #tip{position:absolute;left:50%;transform:translateX(-50%);bottom:14px;z-index:10;
+    font-size:12px;color:#7d858e;pointer-events:none;text-align:center}
+  #note{top:12px;right:12px;max-width:230px;font-size:11px;line-height:1.6;color:#8b939c}
+  #note b{color:#c9d1d9;font-weight:600}
+  #loading{position:absolute;inset:0;display:grid;place-items:center;z-index:20;
+    background:#0b0d10;font-size:13px;color:#9aa3ad}
+  @media(max-width:640px){#note{display:none}#ctl input[type=range]{width:96px}}
+</style>
+</head>
+<body>
+<div id="map"></div>
+<div id="loading">載入文湖線資料…</div>
+
+<div class="panel" id="hud">
+  <h1><i></i>文湖線 3D</h1>
+  <div class="row"><span>模擬時刻</span><b id="clk">--:--:--</b></div>
+  <div class="row"><span>線上列車</span><b id="cnt">0</b></div>
+  <div class="row"><span>跟隨</span><b id="foll">—</b></div>
+</div>
+
+<div class="panel" id="note">
+  <b>這是可行性原型。</b><br>
+  底圖 OpenFreeMap（免金鑰、無額度上限），3D 建物來自 OSM 標註，
+  台北核心約 44% 建物有高度、其餘平貼地面。<br>
+  軌道高度為示意值（+10m），非實測工程資料。
+</div>
+
+<div class="panel" id="ctl">
+  <div class="line"><label>速度</label>
+    <input type="range" id="spd" min="1" max="60" step="1" value="10">
+    <b id="spdv" style="color:#e8eaed;font-variant-numeric:tabular-nums">10×</b></div>
+  <div class="line"><label>俯角</label>
+    <input type="range" id="pit" min="0" max="80" step="1" value="62">
+    <b id="pitv" style="color:#e8eaed;font-variant-numeric:tabular-nums">62°</b></div>
+  <div class="btns">
+    <button id="bBld" class="on">3D 建物</button>
+    <button id="bPil" class="on">高架橋墩</button>
+    <button id="bFol">隨機跟車</button>
+    <button id="bAll">看全線</button>
+  </div>
+</div>
+
+<div id="tip">拖曳平移 · 右鍵／雙指拖曳旋轉視角 · 點列車跟隨</div>
+
+<script>
+/* ────────────────────────────────────────────────────────────────────────────
+   文湖線 3D 可行性原型
+   - 資料：../data/trtc.json（軌島既有的北捷路線資料，未做任何修改）
+   - 位置引擎：與主站同款的「梯形速度曲線」（加速→巡航→減速），端點釘死時刻表
+   - 3D：MapLibre GL JS fill-extrusion。軌道帶、橋墩、車廂都是擠出的多邊形
+   - 高度：文湖線全線高架，此處統一用 +10m 示意；真實分層資料 OSM 有 layer 標籤
+   ──────────────────────────────────────────────────────────────────────────── */
+
+const LINE_ID   = 'BR';
+const COLOR     = '#C48C31';
+const DECK_H    = 10.0;   // 高架橋面高度（公尺，示意值）
+const DECK_TH   = 1.2;    // 橋面板厚
+const TRACK_W   = 8.0;    // 橋面寬
+const CAR_L     = 24;     // 一節車廂長（文湖線 4 節編組約 96m）
+const CAR_N     = 4;
+const CAR_W     = 2.6;
+const CAR_H     = 3.4;
+const PIER_GAP  = 55;     // 橋墩間距（公尺）
+const PIER_W    = 2.2;
+const PERF      = { a: 3.2, b: 3.4, v: 80 };  // km/h/s, km/h — 中運量膠輪估值
+
+/* ── 幾何工具（等距圓柱近似，台北緯度下誤差可忽略） ────────────────────── */
+const R = 6378137, D2R = Math.PI / 180;
+const latRef = 25.05, mPerLat = 111320, mPerLon = 111320 * Math.cos(latRef * D2R);
+const toXY = ([lat, lon]) => [lon * mPerLon, lat * mPerLat];
+const toLL = ([x, y]) => [x / mPerLon, y / mPerLat];   // → [lon, lat]（GeoJSON 序）
+
+function dist(a, b) { const dx = a[0] - b[0], dy = a[1] - b[1]; return Math.hypot(dx, dy); }
+
+/* 沿 polyline 走 s 公尺 → { xy, bearingRad } */
+function walk(pts, cum, s) {
+  s = Math.max(0, Math.min(cum[cum.length - 1], s));
+  let lo = 0, hi = cum.length - 2, i = 0;
+  while (lo <= hi) { const m = (lo + hi) >> 1; if (s < cum[m]) hi = m - 1; else { i = m; lo = m + 1; } }
+  const seg = cum[i + 1] - cum[i], t = seg > 0 ? (s - cum[i]) / seg : 0;
+  const a = pts[i], b = pts[i + 1];
+  return { xy: [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t],
+           br: Math.atan2(b[0] - a[0], b[1] - a[1]) };
+}
+
+/* 點投影到 polyline → 沿線距離（公尺）。用來把「站的座標」對到軌道上 */
+function projectS(pts, cum, p) {
+  let best = Infinity, bestS = 0;
+  for (let i = 0; i < pts.length - 1; i++) {
+    const a = pts[i], b = pts[i + 1];
+    const vx = b[0] - a[0], vy = b[1] - a[1], L2 = vx * vx + vy * vy;
+    if (!L2) continue;
+    let t = ((p[0] - a[0]) * vx + (p[1] - a[1]) * vy) / L2;
+    t = Math.max(0, Math.min(1, t));
+    const qx = a[0] + vx * t, qy = a[1] + vy * t;
+    const d = Math.hypot(p[0] - qx, p[1] - qy);
+    if (d < best) { best = d; bestS = cum[i] + Math.sqrt(L2) * t; }
+  }
+  return bestS;
+}
+
+/* 把 polyline 加寬成帶狀多邊形（左右各偏移 w/2，不做斜接處理——彎道緩，肉眼看不出） */
+function ribbon(pts, w) {
+  const h = w / 2, L = [], Rr = [];
+  for (let i = 0; i < pts.length; i++) {
+    const a = pts[Math.max(0, i - 1)], b = pts[Math.min(pts.length - 1, i + 1)];
+    let nx = -(b[1] - a[1]), ny = (b[0] - a[0]);
+    const n = Math.hypot(nx, ny) || 1; nx /= n; ny /= n;
+    L.push([pts[i][0] + nx * h, pts[i][1] + ny * h]);
+    Rr.push([pts[i][0] - nx * h, pts[i][1] - ny * h]);
+  }
+  return L.concat(Rr.reverse());
+}
+
+/* 中心點 + 朝向 → 矩形多邊形（車廂、橋墩、月台都用它） */
+function box(cx, cy, br, len, wid) {
+  const s = Math.sin(br), c = Math.cos(br), hl = len / 2, hw = wid / 2;
+  return [[hl, hw], [hl, -hw], [-hl, -hw], [-hl, hw]]
+    .map(([u, v]) => toLL([cx + u * s + v * c, cy + u * c - v * s]));
+}
+
+/* ── 梯形速度曲線（與主站 buildProfile / profTimeToProg 同一套數學） ────── */
+function buildProfile(Lm, T, aK, bK, vK) {
+  const a = aK / 3.6, b = bK / 3.6, vmax = vK / 3.6;
+  if (!(Lm > 0) || !(T > 0)) return null;
+  const k = 1 / a + 1 / b, disc = T * T - 2 * k * Lm;
+  if (disc < 0) return null;
+  const vc = (T - Math.sqrt(disc)) / k;
+  if (vc > vmax) return null;
+  const tAcc = vc / a, tDec = vc / b, tCru = Math.sqrt(disc);
+  return { T, L: Lm, a, b, vc, tAcc, tCru, tDec,
+           dAcc: vc * vc / (2 * a), dCru: vc * tCru };
+}
+function profProg(p, t) {
+  if (t <= 0) return 0; if (t >= p.T) return 1;
+  let d;
+  if (t < p.tAcc) d = 0.5 * p.a * t * t;
+  else if (t < p.tAcc + p.tCru) d = p.dAcc + p.vc * (t - p.tAcc);
+  else { const td = t - p.tAcc - p.tCru; d = p.dAcc + p.dCru + p.vc * td - 0.5 * p.b * td * td; }
+  return d / p.L;
+}
+
+/* ── 主程式 ──────────────────────────────────────────────────────────────── */
+let map, LINE, PTS, CUM, STA_S, SEGS, CYCLE, TOTAL_RUN;
+let follow = null, simT = 0, speed = 10, lastFrame = 0;
+
+fetch('../data/trtc.json').then(r => r.json()).then(json => {
+  LINE = json.lines.find(l => l.id === LINE_ID);
+  if (!LINE) throw new Error('找不到 ' + LINE_ID);
+
+  PTS = LINE.shape.map(toXY);
+  CUM = [0];
+  for (let i = 1; i < PTS.length; i++) CUM.push(CUM[i - 1] + dist(PTS[i - 1], PTS[i]));
+
+  // 站點投影到軌道，取沿線距離；強制單調（資料若有重疊站會亂序）
+  STA_S = LINE.stations.map(s => projectS(PTS, CUM, toXY([s.lat, s.lon])));
+  for (let i = 1; i < STA_S.length; i++) if (STA_S[i] <= STA_S[i - 1]) STA_S[i] = STA_S[i - 1] + 1;
+
+  // 每段的速度剖面；沒有可行解就退回等速（端點時刻恆正確）
+  SEGS = LINE.segs.map((sg, i) => {
+    const L = STA_S[i + 1] - STA_S[i], T = sg.run;
+    return { s0: STA_S[i], L, T, dwell: LINE.stations[i + 1].dwell || 20,
+             prof: buildProfile(L, T, PERF.a, PERF.b, PERF.v) };
+  });
+  TOTAL_RUN = SEGS.reduce((t, s) => t + s.T + s.dwell, 0);
+  CYCLE = LINE.offpeakHeadwaySec;
+
+  initMap();
+});
+
+function initMap() {
+  map = new maplibregl.Map({
+    container: 'map',
+    // 用 dark 而不是 liberty：liberty 是亮底圖，深色軌道與列車在上面完全跳不出來。
+    // 代價是 dark 沒有內建 3D 建物層（只有平面 building fill），下面自己加一層擠出。
+    style: 'https://tiles.openfreemap.org/styles/dark',
+    center: [121.5545, 25.0330], zoom: 13.4, pitch: 62, bearing: -22,
+    maxPitch: 80, antialias: true, attributionControl: { compact: true }
+  });
+  map.addControl(new maplibregl.NavigationControl({ visualizePitch: true }), 'top-right');
+
+  map.on('load', () => {
+    document.getElementById('loading').remove();
+
+    // 標籤中文優先（底圖預設是「英文\n中文」兩行，畫面很擠）
+    for (const l of map.getStyle().layers) {
+      if (l.type !== 'symbol' || !l.layout || !l.layout['text-field']) continue;
+      map.setLayoutProperty(l.id, 'text-field',
+        ['coalesce', ['get', 'name:zh-Hant'], ['get', 'name:zh'], ['get', 'name']]);
+    }
+
+    // 3D 建物：dark 樣式只有平面 building fill，這裡另加擠出層。
+    // render_height 來自 OpenMapTiles，其值源頭是 OSM 的 height / building:levels，
+    // 台北核心實測約 44% 建物有這個標註，沒有的會平貼地面（原型的已知限制）。
+    map.addLayer({
+      id: 'building-3d', type: 'fill-extrusion', source: 'openmaptiles',
+      'source-layer': 'building', minzoom: 13.5,
+      paint: {
+        'fill-extrusion-color': ['interpolate', ['linear'], ['coalesce', ['get', 'render_height'], 0],
+          0, '#1c2027', 20, '#242a33', 60, '#2e3641', 150, '#3a4450'],
+        'fill-extrusion-height': ['coalesce', ['get', 'render_height'], 0],
+        'fill-extrusion-base': ['coalesce', ['get', 'render_min_height'], 0],
+        // 半透明：軌道在 10m 高，會被 20-60m 的建物擋住；讓建物透一點才看得到列車穿行
+        'fill-extrusion-opacity': 0.78
+      }
+    });
+
+    // 低縮放的路線：一條普通的 line。
+    // 為什麼需要它：25km×8m 的帶狀多邊形在 z11 會被圖磚座標量化成寬度 0，
+    // 三角化退化後填出一大塊扇形（第一版就是這樣壞的）。3D 結構一律 minzoom 13.5。
+    map.addSource('route', { type: 'geojson', data: {
+      type: 'Feature', properties: {},
+      geometry: { type: 'LineString', coordinates: PTS.map(toLL) } } });
+    map.addLayer({ id: 'routeLine', type: 'line', source: 'route',
+      layout: { 'line-cap': 'round', 'line-join': 'round' },
+      paint: { 'line-color': COLOR, 'line-opacity': ['interpolate', ['linear'], ['zoom'], 13, 1, 14.5, 0],
+               'line-width': ['interpolate', ['linear'], ['zoom'], 8, 2, 13, 5] } });
+
+    // 高架橋面
+    map.addSource('deck', { type: 'geojson', data: {
+      type: 'Feature', properties: {},
+      geometry: { type: 'Polygon', coordinates: [ribbon(PTS, TRACK_W).map(toLL)] } } });
+    map.addLayer({ id: 'deck', type: 'fill-extrusion', source: 'deck', minzoom: 13.5, paint: {
+      'fill-extrusion-color': '#454b55',
+      'fill-extrusion-base': DECK_H, 'fill-extrusion-height': DECK_H + DECK_TH,
+      'fill-extrusion-opacity': 1 } });
+
+    // 橋面上的識別色帶（軌道）
+    map.addSource('rail', { type: 'geojson', data: {
+      type: 'Feature', properties: {},
+      geometry: { type: 'Polygon', coordinates: [ribbon(PTS, 3.2).map(toLL)] } } });
+    map.addLayer({ id: 'rail', type: 'fill-extrusion', source: 'rail', minzoom: 13.5, paint: {
+      'fill-extrusion-color': COLOR,
+      'fill-extrusion-base': DECK_H + DECK_TH, 'fill-extrusion-height': DECK_H + DECK_TH + 0.35,
+      'fill-extrusion-opacity': 1 } });
+
+    // 橋墩
+    const piers = [];
+    for (let s = PIER_GAP / 2; s < CUM[CUM.length - 1]; s += PIER_GAP) {
+      const w = walk(PTS, CUM, s);
+      piers.push({ type: 'Feature', properties: {},
+        geometry: { type: 'Polygon', coordinates: [box(w.xy[0], w.xy[1], w.br, PIER_W, PIER_W)] } });
+    }
+    map.addSource('pier', { type: 'geojson', data: { type: 'FeatureCollection', features: piers } });
+    map.addLayer({ id: 'pier', type: 'fill-extrusion', source: 'pier', minzoom: 13.5, paint: {
+      'fill-extrusion-color': '#363c45',
+      'fill-extrusion-base': 0, 'fill-extrusion-height': DECK_H, 'fill-extrusion-opacity': 1 } });
+
+    // 車站月台
+    const plats = LINE.stations.map((st, i) => {
+      const w = walk(PTS, CUM, STA_S[i]);
+      return { type: 'Feature', properties: { name: st.name },
+        geometry: { type: 'Polygon', coordinates: [box(w.xy[0], w.xy[1], w.br, 110, 22)] } };
+    });
+    map.addSource('plat', { type: 'geojson', data: { type: 'FeatureCollection', features: plats } });
+    map.addLayer({ id: 'plat', type: 'fill-extrusion', source: 'plat', minzoom: 13.5, paint: {
+      'fill-extrusion-color': '#8ea3bd',
+      'fill-extrusion-base': DECK_H - 1.6, 'fill-extrusion-height': DECK_H + 5.6,
+      'fill-extrusion-opacity': .42 } });
+
+    // 站名
+    map.addSource('staPt', { type: 'geojson', data: { type: 'FeatureCollection',
+      features: LINE.stations.map((st, i) => {
+        const w = walk(PTS, CUM, STA_S[i]);
+        return { type: 'Feature', properties: { name: st.name },
+          geometry: { type: 'Point', coordinates: toLL(w.xy) } };
+      }) } });
+    map.addLayer({ id: 'staTxt', type: 'symbol', source: 'staPt', layout: {
+      'text-field': ['get', 'name'], 'text-size': 12, 'text-offset': [0, -1.6],
+      'text-font': ['Noto Sans Regular'], 'text-allow-overlap': false },
+      paint: { 'text-color': '#f2f4f7', 'text-halo-color': '#0b0d10', 'text-halo-width': 1.6 } });
+
+    // 列車車廂（每幀更新）
+    map.addSource('train', { type: 'geojson', data: { type: 'FeatureCollection', features: [] } });
+    map.addLayer({ id: 'train', type: 'fill-extrusion', source: 'train', minzoom: 13.5, paint: {
+      'fill-extrusion-color': ['case', ['get', 'sel'], '#ffffff', '#ffd166'],
+      'fill-extrusion-base': DECK_H + DECK_TH + 0.35,
+      'fill-extrusion-height': DECK_H + DECK_TH + 0.35 + CAR_H,
+      'fill-extrusion-opacity': 1 } });
+
+    // 低縮放的列車：車廂在 z<13.5 只有幾分之一像素，改用光點表示（全線視角才看得到車在跑）
+    map.addSource('trainPt', { type: 'geojson', data: { type: 'FeatureCollection', features: [] } });
+    map.addLayer({ id: 'trainDot', type: 'circle', source: 'trainPt', paint: {
+      'circle-color': ['case', ['get', 'sel'], '#ffffff', '#ffd166'],
+      'circle-radius': ['interpolate', ['linear'], ['zoom'], 9, 3, 13, 6],
+      'circle-opacity': ['interpolate', ['linear'], ['zoom'], 13, 1, 14.5, 0],
+      'circle-stroke-width': 1.5, 'circle-stroke-color': 'rgba(0,0,0,.55)',
+      'circle-stroke-opacity': ['interpolate', ['linear'], ['zoom'], 13, 1, 14.5, 0] } });
+
+    map.on('click', 'train', e => {
+      const id = e.features[0].properties.tid;
+      follow = (follow === id) ? null : id;
+    });
+    map.on('mouseenter', 'train', () => map.getCanvas().style.cursor = 'pointer');
+    map.on('mouseleave', 'train', () => map.getCanvas().style.cursor = '');
+
+    const now = new Date();
+    simT = now.getHours() * 3600 + now.getMinutes() * 60 + now.getSeconds();
+    lastFrame = performance.now();
+    requestAnimationFrame(tick);
+    wireUI();
+    // 驗收訊號：不要用 map.loaded()——列車 source 每幀 setData，它永遠回 false。
+    window.__ready = true;
+  });
+}
+
+/* 依模擬時刻算出所有在線列車。每個方向以 CYCLE 秒發一班，跑完就下線。 */
+function trainsAt(t) {
+  const out = [];
+  for (const dir of [1, -1]) {
+    const n = Math.ceil(TOTAL_RUN / CYCLE) + 1;
+    const latest = Math.floor(t / CYCLE) * CYCLE;  // 最近一班的發車時刻
+    for (let k = 0; k < n; k++) {
+      const depart = latest - k * CYCLE;            // 往前數第 k 班（每班相差一個班距）
+      const el = t - depart;                       // 發車後經過秒數
+      if (el < 0 || el > TOTAL_RUN) continue;
+      let acc = 0, s = null, moving = true, segIdx = 0;
+      for (let i = 0; i < SEGS.length; i++) {
+        const sg = SEGS[i];
+        if (el < acc + sg.T) {
+          const tt = el - acc, f = sg.prof ? profProg(sg.prof, tt) : tt / sg.T;
+          s = sg.s0 + sg.L * f; segIdx = i; break;
+        }
+        acc += sg.T;
+        if (el < acc + sg.dwell) { s = sg.s0 + sg.L; moving = false; segIdx = i; break; }
+        acc += sg.dwell;
+      }
+      if (s === null) continue;
+      const S = dir === 1 ? s : CUM[CUM.length - 1] - s;
+      out.push({ id: dir + ':' + depart, s: S, dir, moving, segIdx });
+    }
+  }
+  return out;
+}
+
+function tick(now) {
+  const dt = Math.min(0.25, (now - lastFrame) / 1000);
+  lastFrame = now;
+  simT = (simT + dt * speed) % 86400;
+
+  const list = trainsAt(simT), feats = [], dots = [];
+  let followW = null;
+  for (const tr of list) {
+    const w = walk(PTS, CUM, tr.s);
+    const br = tr.dir === 1 ? w.br : w.br + Math.PI;
+    const sel = tr.id === follow;
+    for (let c = 0; c < CAR_N; c++) {
+      const off = (c - (CAR_N - 1) / 2) * (CAR_L + 1.2);
+      const cx = w.xy[0] + Math.sin(br) * off, cy = w.xy[1] + Math.cos(br) * off;
+      feats.push({ type: 'Feature', properties: { tid: tr.id, sel },
+        geometry: { type: 'Polygon', coordinates: [box(cx, cy, br, CAR_L, CAR_W)] } });
+    }
+    dots.push({ type: 'Feature', properties: { tid: tr.id, sel },
+      geometry: { type: 'Point', coordinates: toLL(w.xy) } });
+    if (sel) followW = { w, br };
+  }
+  map.getSource('train').setData({ type: 'FeatureCollection', features: feats });
+  map.getSource('trainPt').setData({ type: 'FeatureCollection', features: dots });
+
+  if (followW) {
+    const ll = toLL(followW.w.xy);
+    // jumpTo 而非 easeTo：每幀都給新位置，補間只會讓相機落後車尾
+    map.jumpTo({ center: ll, bearing: followW.br * 180 / Math.PI, zoom: Math.max(map.getZoom(), 17.2) });
+  } else if (follow) { follow = null; }
+
+  const hh = Math.floor(simT / 3600), mm = Math.floor(simT % 3600 / 60), ss = Math.floor(simT % 60);
+  document.getElementById('clk').textContent =
+    [hh, mm, ss].map(v => String(v).padStart(2, '0')).join(':');
+  document.getElementById('cnt').textContent = list.length;
+  document.getElementById('foll').textContent = follow
+    ? (follow.startsWith('1:') ? '往南港展覽館' : '往動物園') : '—';
+  document.getElementById('bFol').classList.toggle('on', !!follow);
+
+  requestAnimationFrame(tick);
+}
+
+function wireUI() {
+  const $ = id => document.getElementById(id);
+  $('spd').oninput = e => { speed = +e.target.value; $('spdv').textContent = speed + '×'; };
+  $('pit').oninput = e => { map.setPitch(+e.target.value); $('pitv').textContent = e.target.value + '°'; };
+  map.on('pitch', () => { const p = Math.round(map.getPitch()); $('pit').value = p; $('pitv').textContent = p + '°'; });
+
+  $('bBld').onclick = e => {
+    const on = e.target.classList.toggle('on');
+    map.setLayoutProperty('building-3d', 'visibility', on ? 'visible' : 'none');
+  };
+  $('bPil').onclick = e => {
+    const on = e.target.classList.toggle('on');
+    map.setLayoutProperty('pier', 'visibility', on ? 'visible' : 'none');
+  };
+  $('bFol').onclick = () => {
+    const list = trainsAt(simT);
+    follow = list.length ? list[Math.floor(Math.random() * list.length)].id : null;
+  };
+  $('bAll').onclick = () => {
+    follow = null;
+    const lons = PTS.map(p => toLL(p)[0]), lats = PTS.map(p => toLL(p)[1]);
+    map.fitBounds([[Math.min(...lons), Math.min(...lats)], [Math.max(...lons), Math.max(...lats)]],
+      { padding: 60, pitch: 55, bearing: -22, duration: 900 });
+  };
+}
+</script>
+</body>
+</html>
