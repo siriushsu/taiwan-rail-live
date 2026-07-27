@@ -67,12 +67,12 @@ const ALL = new Set(['mrt', 'krtc', 'tymc', 'tmrt', 'tra', 'thsr']);
 { // B3 內容變了
   const d = diffAlertState([row('krtc', '地震', '停駛檢查中')], [rec('krtc', '地震', '已恢復行駛')], ALL, NOW);
   check(d.updated.length === 1 && d.added.length === 0, 'B3 標題同、內文變＝updated');
-  check(d.updated[0].descr === '已恢復行駛', 'B3 updated 帶新內文');
+  check(d.updated.length > 0 && d.updated[0].descr === '已恢復行駛', 'B3 updated 帶新內文');
 }
 { // B4 消失
   const d = diffAlertState([row('krtc', '地震恢復營運')], [], ALL, NOW);
   check(d.cleared.length === 1 && d.clears.length === 1, 'B4 這輪沒看到＝cleared');
-  check(d.clears[0].sys === 'krtc' && d.clears[0].akey === '|地震恢復營運|', 'B4 clear 帶 sys+akey');
+  check(d.clears.length > 0 && d.clears[0].sys === 'krtc' && d.clears[0].akey === '|地震恢復營運|', 'B4 clear 帶 sys+akey');
 }
 { // B5 來源失敗（關鍵回歸）
   const live = new Set(['mrt', 'krtc', 'tymc', 'tmrt']); // metro 成功、台鐵那發掛了
@@ -89,11 +89,11 @@ const ALL = new Set(['mrt', 'krtc', 'tymc', 'tmrt', 'tra', 'thsr']);
 }
 { // B8 upsert 的欄位形狀(六個欄位一次驗完)
   const d = diffAlertState([], [{ sys: 'tra', title: '東部幹線延誤', desc: '搶修中', lines: ['宜蘭線', '北迴線'], start: 'S1', end: 'E1', news: true, label: '' }], ALL, NOW);
-  const u = d.upserts[0];
-  check(u.sys === 'tra' && u.title === '東部幹線延誤', 'B8 sys 與 title 帶出');
-  check(u.lines === '["宜蘭線","北迴線"]', 'B8 lines 存成 JSON 字串不是陣列');
-  check(u.news === 1, 'B8 news 存成 1/0 不是 boolean');
-  check(u.start_at === 'S1' && u.end_at === 'E1', 'B8 start_at 與 end_at 沒有寫反');
+  const u = d.upserts.length > 0 ? d.upserts[0] : null;
+  check(u && u.sys === 'tra' && u.title === '東部幹線延誤', 'B8 sys 與 title 帶出');
+  check(u && u.lines === '["宜蘭線","北迴線"]', 'B8 lines 存成 JSON 字串不是陣列');
+  check(u && u.news === 1, 'B8 news 存成 1/0 不是 boolean');
+  check(u && u.start_at === 'S1' && u.end_at === 'E1', 'B8 start_at 與 end_at 沒有寫反');
 }
 { // B9 liveSys 不是 Set 時一律不解除(防禦分支)
   const d = diffAlertState([row('tra', '東部幹線延誤')], [], undefined, NOW);
@@ -104,7 +104,7 @@ const ALL = new Set(['mrt', 'krtc', 'tymc', 'tmrt', 'tra', 'thsr']);
   const b = { sys: 'krtc', title: '地震恢復營運', desc: 'C14-C21 暫停', lines: [], start: '', end: '', news: false, label: '高雄輕軌', sysLabel: '高雄輕軌' };
   const d = diffAlertState([], [a, b], ALL, NOW);
   check(d.upserts.length === 2 && d.added.length === 2, 'B10 同 sys 同標題但不同營運者的兩則都保留');
-  check(d.upserts[0].akey !== d.upserts[1].akey, 'B10 兩則的 akey 不同');
+  check(d.upserts.length >= 2 && d.upserts[0].akey !== d.upserts[1].akey, 'B10 兩則的 akey 不同');
 }
 { // B11 標題含字面直線不得與另一組 (標題,起始) 撞鍵
   const x = { sys: 'tra', title: 'A|B', desc: 'x', lines: [], start: 'C', end: '', news: false, label: '' };
