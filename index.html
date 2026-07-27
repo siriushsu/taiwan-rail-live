@@ -3094,7 +3094,9 @@ try { if (matchMedia('(max-width: 900px)').matches) document.body.classList.add(
     </div>
   </div>
 </div>
-<!-- 極簡錄製畫面（規格 §5 之一）。黑底大字、不畫地圖動畫：①省電（OLED 黑底再省一層）
+<!-- 極簡錄製畫面（規格 §5 之一）。黑底大字、不畫地圖動畫：①省電（OLED 黑底再省一層。
+     🔴 2026-07-28 審查糾正 B3：這裡目前只停畫面不停模擬——黑幕底下整套 rAF/clearRect/列車推算
+     照常在跑，真正的省電(暫停模擬本身)留給接上取樣時處理，不要在這條註解宣稱一個還沒兌現的好處）
      ②使用者本來也不會盯著看 ③視覺上明確標示正在錄製，符合隱私透明 ④讓懸賞長得像行程記錄器
      而不是另一種打卡。掛 body 層與其他浮層同理（.stage 會封頂 z-index）。
      🔴 刻意不給 Esc／點背景關閉：這是要開一小時的實體錄製模式，不是可以誤觸關掉的小提示——
@@ -7380,7 +7382,15 @@ function clearFollow() {
   updateFollowLockUI(); // 沒在跟隨就收起跟隨鎖鈕
   const dp = document.getElementById('dwellPlate'); if (dp) dp.classList.remove('show');
   document.body.classList.remove('dwell-show'); // 取消跟隨:清掉停靠讓位旗標,避免小卡在下次開 sheet 時仍被誤淡出
-  try { if (!document.fullscreenElement) history.replaceState(null, '', location.pathname); } catch (e) {}
+  // 🔴 2026-07-28 審查 B4：這行 replaceState 對 location.pathname 是全站唯一會把整條 query
+  // string 一併抹掉的地方，而 boot() 的 loadAllGroup() 一開機就會呼叫一次 clearFollow()（實測
+  // 呼叫堆疊：loadAllGroup→clearFollow→這行；跟使用者有沒有點過任何東西無關，比審查原本抓到的
+  // 「按下開始錄製那一刻」還早）。demo 模式(?demo=bounty)沒有其他地方記著它——網址列一旦丟了,
+  // 使用者中途重新整理就會讀到空 query string、PHYSICAL_COLLECT_ENABLED 現場重新求值變 false,
+  // 掉回一般網頁(明天備援站實測正是這條路)。這裡是所有 clearFollow() 呼叫的共同出口，修在這裡
+  // 才能連開機那一次也護到，不是只護住錄製流程那一條呼叫路徑。其餘 query 參數
+  // (?theater=/?breath=/?tripshare=/?plus=)都只是一次性測試開關，消失不影響功能，不需要一起保留。
+  try { if (!document.fullscreenElement) history.replaceState(null, '', location.pathname + (DEMO_AS_APP ? '?demo=bounty' : '')); } catch (e) {}
   const fb = document.getElementById('followBar');
   if (fb) { fb.hidden = true; fb.className = 'followbar'; fb.innerHTML = ''; }
   closeRideBox(); // 挑下車站挑到一半就取消跟隨:要收掉 body.ride-picking,否則站台帶會一直隱形
@@ -7941,7 +7951,7 @@ document.addEventListener('visibilitychange', () => {
   }
   // 錄製模式也要重取:iOS 切走再切回來 wakeLock 會被釋放且**不會自動恢復**,
   // 漏掉的話一小時的錄製會在使用者接一通電話之後螢幕就開始自己暗掉(規格 §10)。
-  if (state.ambient || state.recording) { acquireWakeLock(); state._wakeLockRequested = true; }
+  if (state.ambient || state.recording) acquireWakeLock();
   // 回前景重新錨定模擬時鐘到真實時刻:背景期間 rAF 完全凍結(省電/成本防線刻意如此,見下方相機守衛註解),
   // 純靠 dt 累加追不回背景這段真實經過時間,simSec 會停在背景前那刻——手機背景遠比桌機分頁頻繁,
   // 長時間掛著會讓 App 與網頁的「現在」對不上(車次跑在不同位置)。只在背景前本就貼著真實時刻才重錨,
@@ -9410,10 +9420,9 @@ function startBountyRecording(card) {
   };
   document.body.classList.add('recording');
   document.getElementById('recordScreen').hidden = false;
-  clearFollow();          // 車都不畫了,鏡頭還在追一班看不見的車只會白耗電
+  clearFollow();          // 車都不畫了,鏡頭還在追一班看不見的車只會白耗電（demo 參數撐不撐得住見 clearFollow() 內部註解）
   closeBountyBoard();
   acquireWakeLock();      // 既有函式（7684）,不要另寫一套
-  state._wakeLockRequested = true;
   renderRecordScreen();
 }
 function stopBountyRecording() {

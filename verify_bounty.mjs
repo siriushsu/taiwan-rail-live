@@ -445,6 +445,22 @@ const browser = await chromium.launch();
 // ── C 組：極簡錄製畫面 ＋ Wake Lock ────────────────────────────────────────
 {
   const { ctx, page } = await open(browser, { app: true, width: 390, height: 844, touch: true });
+
+  // 🔴 2026-07-28 審查 B1 糾正：C7/C8 原本讀 state._wakeLockRequested——那是實作專門為了
+  // 讓這兩條斷言過而寫的旗標（正式碼裡只寫不讀），判準與實作同源等於沒有守門員（心得 29；
+  // 突變測試 M1 把 acquireWakeLock() 呼叫拿掉、只留旗標賦值，57/57 全綠證實了這件事）。
+  // 改成直接覆寫真正的 navigator.wakeLock.request，用測試自己種的計數器記呼叫次數——
+  // headless 拿不拿得到真 sentinel 不重要，我們驗的是「有沒有去要」。必須在 startBountyRecording()
+  // 之前就設好，才能算到它內部第一次 acquireWakeLock() 的呼叫（C7 要驗的那一次）。
+  await page.evaluate(() => {
+    window.__wlCalls = 0;
+    navigator.wakeLock.request = (type) => {
+      window.__wlCalls++;
+      return Promise.resolve({ type, released: false, release: () => Promise.resolve(),
+        addEventListener() {}, removeEventListener() {} });
+    };
+  });
+
   await page.evaluate(async () => {
     await openBountyBoard();
     startBountyRecording(bountyBoardMem.cards[0]);
@@ -473,6 +489,36 @@ const browser = await chromium.launch();
   ok('C3 顯示里程／段數／點數／錄製中', /公里|km/.test(c3) && /段/.test(c3) && /點/.test(c3) && /錄製中/.test(c3),
     c3.replace(/\n/g, ' / '));
 
+  // 🔴 C3b/C3c（審查 B2）：「誠實佔位」目前零測試覆蓋——renderRecordScreen() 現在確實只讀
+  // state.recording，但沒有任何斷言擋著；Task 4 接上真資料後很容易在這裡開始造假（審查突變測試
+  // M2：把顯示值全部印成捏造的 12.7 公里／5 段／143 點／42%，57/57 依然全綠，C3 的鬆散正則
+  // 甚至把假數字印進自己的 pass 訊息）。期望值直接手算，不呼叫 bountyCardName() 或任何本檔
+  // 實作函式生成（心得 29）。
+  const c3b = await page.evaluate(() => {
+    Object.assign(state.recording, { dNow: 12700, segs: { a: 0.9, b: 0.7 }, points: 7 });
+    renderRecordScreen();
+    return {
+      km: document.getElementById('recKm').textContent,
+      segs: document.getElementById('recSegs').textContent,
+      pts: document.getElementById('recPts').textContent,
+    };
+  });
+  ok('C3b 顯示值真的綁回 state.recording，不是憑空數字（12700mm→12.7km／2段命中≥0.6門檻／7點）',
+    c3b.km === '12.7' && c3b.segs === '2' && c3b.pts === '7', JSON.stringify(c3b));
+
+  const c3c = await page.evaluate(() => {
+    Object.assign(state.recording, { dNow: 0, segs: {}, points: 0 });
+    renderRecordScreen();
+    return {
+      km: document.getElementById('recKm').textContent,
+      segs: document.getElementById('recSegs').textContent,
+      pts: document.getElementById('recPts').textContent,
+      bar: document.getElementById('recBar').style.width,
+    };
+  });
+  ok('C3c 開錄當下的真實狀態（全零）必須顯示 0，不殘留上一輪也不假裝已有進度',
+    c3c.km === '0.0' && c3c.segs === '0' && c3c.pts === '0' && c3c.bar === '0%', JSON.stringify(c3c));
+
   // C4 黑底（省電＋視覺上明確標示正在錄製，規格 §5 之一的理由①③）
   const c4 = await page.evaluate(() => getComputedStyle(document.getElementById('recordScreen')).backgroundColor);
   ok('C4 錄製畫面是黑底', /rgba?\(\s*(0|1[0-9]?|2[0-9])\s*,\s*(0|1[0-9]?|2[0-9])\s*,/.test(c4), c4);
@@ -488,18 +534,19 @@ const browser = await chromium.launch();
   ok('C6 停止鈕夠大（手機上要一小時後迷迷糊糊也按得到；44pt 是 Apple 的最小可觸控尺寸）',
     c5.h >= 44 && c5.w >= 44, JSON.stringify(c5));
 
-  // C7 Wake Lock：既有的 acquireWakeLock 有被呼叫到
-  const c7 = await page.evaluate(() => !!state._wakeLockRequested);
-  ok('C7 進錄製模式會去要 Wake Lock', c7 === true, String(c7));
+  // C7 Wake Lock：既有的 acquireWakeLock 有被呼叫到（判準＝測試自己種的計數器，見上方 stub）
+  const c7 = await page.evaluate(() => window.__wlCalls);
+  ok('C7 進錄製模式會去要 Wake Lock', c7 >= 1, String(c7));
 
-  // 🔴 C8 切走再切回來要重新取得（iOS 不會自動恢復）——判準是既有 handler 的條件有沒有涵蓋錄製
+  // 🔴 C8 切走再切回來要重新取得（iOS 不會自動恢復）——判準是既有 handler 的條件有沒有涵蓋錄製；
+  // 計數器歸零後重新分派 visibilitychange，確認又新增一次真的呼叫（不是讀 state._wakeLockRequested）
   const c8 = await page.evaluate(() => {
-    state._wakeLockRequested = false;
+    window.__wlCalls = 0;
     Object.defineProperty(document, 'visibilityState', { value: 'visible', configurable: true });
     document.dispatchEvent(new Event('visibilitychange'));
-    return state._wakeLockRequested;
+    return window.__wlCalls;
   });
-  ok('C8 回前景會重新取得 Wake Lock', c8 === true, String(c8));
+  ok('C8 回前景會重新取得 Wake Lock', c8 >= 1, String(c8));
 
   // C9 停止之後全部還原
   const c9 = await page.evaluate(() => {
@@ -709,7 +756,40 @@ const browser = await chromium.launch();
   }));
   ok('D6b ?demo=bounty 下「開始錄製」真的進到錄製畫面（不停在網路錯誤）',
     d6b.recording === true && d6b.screenHidden === false && d6b.bodyCls === true, JSON.stringify(d6b));
+
+  // 🔴 D6c（審查 B4）：明天使用者在備援站實際會走的路徑——開板→接一段→開始錄製之後很可能
+  // 重新整理或分享網址。clearFollow() 的 replaceState 是全站唯一的抹除點，修法補在 clearFollow()
+  // 內部本身（見 index.html 該函式內的完整註解），不是只補在 startBountyRecording 收尾——
+  // 這樣不論從哪個呼叫路徑觸發都護得到（下面獨立的 D1b 驗的正是另一條路徑：boot 本身那次呼叫）。
+  // 此刻 dp 已經走完 D2(開板)→D5/D6(接一段)→D6b(開始錄製)，直接重新整理：PHYSICAL_COLLECT_ENABLED
+  // 是重新執行一次 script 讀到的新值，不是同一份記憶體裡的舊 const——網址列上留不住 demo 參數就會變 false。
+  const preReloadSearch = await dp.evaluate(() => location.search);
+  await dp.reload({ waitUntil: 'load' });
+  const d6c = await dp.evaluate(() => ({ search: location.search, phys: PHYSICAL_COLLECT_ENABLED }));
+  ok('D6c 走完開板→接一段→開始錄製之後重新整理，?demo=bounty 撐得住、PHYSICAL_COLLECT_ENABLED 仍是 true',
+    d6c.search.includes('demo=bounty') && d6c.phys === true,
+    `重載前 search=${preReloadSearch}　重載後 ${JSON.stringify(d6c)}`);
   await dctx.close();
+
+  // 🔴 D1b（審查 B4 查證後追加，獨立 context）：demo 模式在使用者做任何事之前就可能已經死了——
+  // 實測用 history.replaceState 打樁抓呼叫堆疊，boot() 的 loadAllGroup() 一開機就無條件呼叫一次
+  // clearFollow()（loadAllGroup→clearFollow→history.replaceState(pathname)），跟「開始錄製」
+  // 完全無關，比審查原本抓到的那個時間點還早：什麼都還沒點，trains 一就緒 location.search 就已經
+  // 是空字串。這裡驗最壞情況——開站後立刻重新整理，不經過開板/接一段/開始錄製任何一步。
+  // 刻意用獨立 context（不是接在上面 dp 那條流程中間）：這條斷言如果失敗，demo 模式在這個
+  // page 上就整個死掉，若跟 D2–D6c 共用同一個 page，會連鎖拖垮後面一整串不相干的斷言，
+  // 讓「乾淨單項 FAIL」變成「整份腳本中止」（突變測試親自撞過這個坑，見 task-3-report.md）。
+  {
+    const { ctx: d1bctx, page: d1bp } = await mk('?demo=bounty');
+    const d1PreSearch = await d1bp.evaluate(() => location.search);
+    await d1bp.reload({ waitUntil: 'load' });
+    await d1bp.waitForFunction(() => typeof state !== 'undefined' && state.trains && state.trains.length > 0, null, { timeout: 40000 });
+    const d1c = await d1bp.evaluate(() => ({ search: location.search, phys: PHYSICAL_COLLECT_ENABLED }));
+    ok('D1b 什麼都還沒點、開站後就重新整理，?demo=bounty 也要撐得住（boot 本身的 clearFollow 呼叫比開始錄製那步更早發生）',
+      d1c.search.includes('demo=bounty') && d1c.phys === true,
+      `開站當下(尚未任何互動) search=${d1PreSearch}　重載後 ${JSON.stringify(d1c)}`);
+    await d1bctx.close();
+  }
 
   // 反向：沒帶參數的網頁必須維持網頁的樣子，示範開關不能外洩
   const { ctx: nctx, page: np } = await mk('');
