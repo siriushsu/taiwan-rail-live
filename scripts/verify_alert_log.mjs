@@ -27,8 +27,11 @@ console.log('A. normalizeAlertPayload');
   check(out.length === 2, `濾掉 status=1 與空標題後剩 2 筆（實得 ${out.length}）`);
   check(out[0].sys === 'krtc' && out[0].title.includes('地震'), '第一筆是高捷地震公告');
   check(out[0].start === '2026-07-27T00:00:00+08:00', 'start 原樣帶出');
+  check(out[0].end === '2026-07-27T23:59:00+08:00', 'end 原樣帶出');
+  check(out[0].desc === '已完成巡視作業。', 'desc 原樣帶出');
   check(out[1].news === true, '新聞稿旗標帶出');
-  check(eq(out[0].lines, []), 'lines 缺值時是空陣列');
+  check(eq(out[0].lines, []), 'lines 顯式空陣列原樣帶出');
+  check(eq(out[1].lines, []), 'lines 缺值時回退成空陣列');
 }
 {
   const out = normalizeAlertPayload({ alerts: [{ title: '東部幹線延誤', status: 0, lines: ['宜蘭線', '北迴線'] }] }, () => 'tra');
