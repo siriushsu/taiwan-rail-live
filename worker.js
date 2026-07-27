@@ -1274,24 +1274,24 @@ const ALERT_LOG_DEFAULT_DAYS = 7;
 //
 // 語意提醒(讀這支之前務必看):alert_log 的 upsert 是 ON CONFLICT(sys,akey) DO UPDATE,同一把
 // akey 全程只留一列——一則解除後又復發的公告,cleared_at 會被下一輪抹回 NULL、但 first_seen
-// 仍停在最初那次。也就是說這裡吐出的 from/cleared 是「這把鍵目前這個生命週期」,不是這把鍵
+// 仍停在最初那次。也就是說這裡吐出的 first/cleared 是「這把鍵目前這個生命週期」,不是這把鍵
 // 有史以來完整的出沒紀錄;同一把鍵過去解除過幾次、每次隔多久,這支端點看不見,也刻意不假裝
-// 看得見(要補這個能力得另開一張事件表,不是這次的範圍)。消費端不能把 from→cleared 當成一段
+// 看得見(要補這個能力得另開一張事件表,不是這次的範圍)。消費端不能把 first→cleared 當成一段
 // 連續無縫的區間。
 function buildAlertLogBody(rows) {
   return (Array.isArray(rows) ? rows : []).map(r => {
     let lines = [];
     try { const p = JSON.parse(r.lines); if (Array.isArray(p)) lines = p.map(String); } catch (e) {}
     return {
-      sys: String(r.sys),
-      title: String(r.title),
+      sys: String(r.sys || ''),
+      title: String(r.title || ''),
       desc: String(r.descr || ''),
       lines,
       start: String(r.start_at || ''),
       end: String(r.end_at || ''),
       news: !!r.news,
-      from: String(r.first_seen),
-      seen: String(r.last_seen),
+      first: String(r.first_seen || ''),
+      seen: String(r.last_seen || ''),
       cleared: r.cleared_at ? String(r.cleared_at) : '',
     };
   });
@@ -1309,8 +1309,17 @@ async function alertLog(request, env) {
   if (hit) return hit;
   try {
     const since = new Date(Date.now() - days * 86400e3).toISOString();
+    // 時間窗掛 last_seen 不掛 first_seen,兩個理由:
+    // (a) first_seen 在 upsert 的 DO UPDATE SET 裡不更新(見 ALERT_LOG_UPSERT),掛它會讓
+    //     「掛了很久、剛剛才解除」的公告當場整列消失——首見 60 天、今天解除的颱風停駛,
+    //     days=7 查不到,而那正是推播消費端最需要收到的那一則「解除」事件。
+    //     (2026-07-27 用真 SQLite 引擎跑本計畫這份 DDL 重現過;測試替身 fakeDb 不解析 SQL、
+    //     餵什麼列就回什麼列,結構上驗不到 WHERE 的語意——所以下面那條 SQL 的護欄只能是
+    //     字串等值比對,見 verify_alert_log.mjs 的 I7 系列。)
+    // (b) ORDER BY 同理:復發的公告 first_seen 停在最初那次,用它排序會沉到清單最底,
+    //     逼近 LIMIT 500 時最先被砍掉的反而是剛剛才復發的那則。
     const rowsRes = await env.DELAY_DB.prepare(
-      'SELECT sys,title,descr,lines,start_at,end_at,news,first_seen,last_seen,cleared_at FROM alert_log WHERE first_seen >= ? OR cleared_at IS NULL ORDER BY first_seen DESC LIMIT 500'
+      'SELECT sys,title,descr,lines,start_at,end_at,news,first_seen,last_seen,cleared_at FROM alert_log WHERE last_seen >= ? OR cleared_at IS NULL ORDER BY last_seen DESC LIMIT 500'
     ).bind(since).all();
     const res = jsonRes(
       { at: new Date().toISOString(), days, items: buildAlertLogBody((rowsRes && rowsRes.results) || []) },
@@ -1438,7 +1447,9 @@ export const _delayHistory = { delayHistoryWindow, buildDelayHistoryBody, isVali
 // 供離線回歸測試 import:驗「節流擋在 outbound fetch 之前」。這兩個不是純函式,測試得自備
 // env 替身與 fetch 替身;導出的目的就是讓測試能數「被擋掉時到底有沒有打上游」。
 export const _rateLimit = { rateLimited, delayHistory, deletePaidProfile };
-// 純函式導出,供離線回歸測試 import:公告狀態機的正規化、指紋。
+// 供離線回歸測試 import:公告狀態機的正規化、指紋,以及讀/寫兩側的接線本身。`ingestAlertLog`
+// (寫,打外部 fetch＋D1)與 `alertLog`(讀,打 D1＋邊緣快取)都不是純函式,測試得自備 fetch／
+// D1／caches 替身;`ALERT_LOG_SOURCES`／`ALERT_LOG_CRON`／`ALERT_LOG_CRON_UA` 是常數不是函式。
 export const _alertLog = {
   alertKey, normalizeAlertPayload, diffAlertState, ingestAlertLog, ALERT_LOG_SOURCES,
   ALERT_LOG_CRON, ALERT_LOG_CRON_UA, trafficTag, buildAlertLogBody, alertLog,

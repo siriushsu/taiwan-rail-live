@@ -298,13 +298,14 @@ function projectColumns(sql, row) {
 // D1 替身:prepared 記下所有進到 prepare() 的語句(E4 要用來檢查 SELECT 撈了哪些欄位,
 // 那發 SELECT 不帶參數、走不到 bind);sql 記下 bind 過的語句與參數。
 //
-// bind() 的回傳值也要能再鏈 .all()/.first()(Task 4 alertLog 補的用法:SELECT 帶 since 參數,
-// 走 prepare().bind(since).all() 三段連鎖)——ingestAlertLog 之前只有兩種用法:SELECT 不帶
+// bind() 的回傳值也要能再鏈 .all()(Task 4 alertLog 補的用法:SELECT 帶 since 參數,走
+// prepare().bind(since).all() 三段連鎖)——ingestAlertLog 之前只有兩種用法:SELECT 不帶
 // 參數(prepare().all() 直接呼叫,走不到這裡)、UPSERT/CLEAR 的 bind() 結果只會被塞進 batch()
 // 的陣列(batch() 只在意 st.length,從不對元素呼叫 .all()),所以舊版 bind() 回傳陽春的
-// {sql,args} 就夠用,不會被任何人真的呼叫 .all()。這裡加回 all/run/first 是既有能力的擴充,
-// 不是換一顆更寬鬆的替身:投影邏輯(projectColumns)原封不動套用,只是讓 bind 過的查詢也能
-// 拿到跟不 bind 時一樣、有經過欄位投影的結果。
+// {sql,args} 就夠用,不會被任何人真的呼叫 .all()。這裡加回 .all() 是既有能力的擴充,不是換
+// 一顆更寬鬆的替身:投影邏輯(projectColumns)原封不動套用,只是讓 bind 過的查詢也能拿到跟不
+// bind 時一樣、有經過欄位投影的結果。run/first 沒有任何呼叫者用到(alertLog 只用 .all()、
+// ingestAlertLog 的 bind 結果只進 batch()),2026-07-28 修復輪 1 findings#7 拿掉,YAGNI。
 function fakeDb(prevRows) {
   const calls = { batch: [], sql: [], prepared: [] };
   const mk = sql => {
@@ -313,7 +314,7 @@ function fakeDb(prevRows) {
     return {
       bind: (...args) => {
         calls.sql.push({ sql, args });
-        return { all: async () => project(), run: async () => ({ meta: { changes: 0 } }), first: async () => (project().results[0] || null) };
+        return { all: async () => project() };
       },
       all: async () => project(),
       run: async () => ({ meta: { changes: 0 } }),
@@ -529,7 +530,7 @@ const { buildAlertLogBody } = _alertLog;
   check(eq(out[0].lines, ['宜蘭線', '北迴線']), 'H3 lines 從 JSON 字串還原成陣列');
   check(out[0].news === false, 'H4 news 0/1 轉 boolean');
   check(out[0].cleared === '', 'H5 未解除時 cleared 是空字串不是 null');
-  check(out[0].desc === '搶修中' && out[0].from === '2026-07-26T12:36:10.000Z', 'H6 欄位改名 descr→desc、first_seen→from');
+  check(out[0].desc === '搶修中' && out[0].first === '2026-07-26T12:36:10.000Z', 'H6 欄位改名 descr→desc、first_seen→first');
   check(out[0].start === '2026-07-26T20:36:00+08:00' && out[0].end === '', 'H7 start_at→start、end_at→end 沒有寫反');
   check(out[0].seen === '2026-07-26T14:02:00.000Z', 'H8 last_seen→seen 帶出');
 }
@@ -621,29 +622,37 @@ const alertLogReq = (qs = '') => new Request('https://railisland.tw/api/alert-lo
   const colsMatch = sel && /^SELECT\s+([^]+?)\s+FROM\b/i.exec(sel);
   const cols = colsMatch ? colsMatch[1].split(',').map(c => c.trim()) : [];
   check(eq(cols, ['sys', 'title', 'descr', 'lines', 'start_at', 'end_at', 'news', 'first_seen', 'last_seen', 'cleared_at']), `I7b SELECT 十個欄位逐一相符、順序也照抄（實得 ${JSON.stringify(cols)}）`);
-  check(!!sel && sel.includes('WHERE first_seen >= ? OR cleared_at IS NULL'), 'I7c WHERE 是「近期新增 OR 仍未解除」——只看 first_seen 會讓久遠但還開著的公告從清單消失');
-  check(!!sel && sel.includes('ORDER BY first_seen DESC'), 'I7d 依 first_seen 新到舊排序');
-  // 這裡不能用 sel.includes('LIMIT 500')——'LIMIT 5000' 字面上就包含 'LIMIT 500' 這個子字串,
-  // 亂改成 5000 這種放寬上限的 bug 反而測不出來(突變測試時真的踩到,已就地修正)。用 \b 收尾
-  // 邊界確保後面不接著別的數字。
-  check(!!sel && /\bLIMIT 500\b/.test(sel), 'I7e LIMIT 500 防呆存在（真實量級一天個位數則,爆量代表上游或狀態機出事）');
+  // I7c(2026-07-28 修復輪 1 findings#4):WHERE/ORDER BY/LIMIT 原本各自用 sel.includes() 片段
+  // 比對——對「追加條件」無感(WHERE ... OR cleared_at IS NULL OR 1=1 這種永遠為真的追加,
+  // 142 條原本零 FAIL),對「放寬數字」也無感('LIMIT 5000' 字面上就包含 'LIMIT 500' 這個子
+  // 字串)。三條弱斷言合併成一條整串逐字相等,失敗時把期望與實得都印出來。時間窗掛 last_seen
+  // 不掛 first_seen 的理由見 alertLog 實作內的註解(first_seen 在 upsert 的 DO UPDATE SET 裡
+  // 不更新,掛超過 days 天、剛解除的公告會整列從端點消失)。
+  const expectSel = 'SELECT sys,title,descr,lines,start_at,end_at,news,first_seen,last_seen,cleared_at FROM alert_log WHERE last_seen >= ? OR cleared_at IS NULL ORDER BY last_seen DESC LIMIT 500';
+  check(sel === expectSel, `I7c SQL 與期望值逐字相符\n    期望:${expectSel}\n    實得:${sel}`);
 }
-{ // I8 bind 的 since 參數真的是「現在往前推 days 天」,不是隨便一個字串或天數算錯方向
+{ // I8 bind 的 since 參數真的用「夾取後」的 days 往前推,不是未夾取的 raw——用 ?days=999
+  // 驗證(2026-07-28 修復輪 1 findings#3:原本用 ?days=3 這種本來就落在合法區間內的值,
+  // raw === days,測不出夾取有沒有真的餵進查詢。回應裡回聲的 days 欄位不算數,I1–I5 已經
+  // 驗過那個;這裡要驗的是 30 天上限這道資源閘門對「實際查詢窗」是否真的有效)
   globalThis.caches = fakeEdgeCache();
   const { db, calls } = fakeDb([]);
   const before = Date.now();
-  await alertLog(alertLogReq('?days=3'), { DELAY_DB: db });
+  await alertLog(alertLogReq('?days=999'), { DELAY_DB: db });
   const bound = calls.sql.find(c => /FROM alert_log/.test(c.sql));
   check(!!bound && bound.args.length === 1, 'I8a since 只綁一個參數');
   const sinceMs = bound ? Date.parse(bound.args[0]) : NaN;
-  const expectMs = before - 3 * 86400e3;
-  check(Number.isFinite(sinceMs) && Math.abs(sinceMs - expectMs) < 5000, `I8b since 約為 3 天前（誤差 ${Math.round(Math.abs(sinceMs - expectMs))}ms）`);
+  const expectMs = before - 30 * 86400e3;
+  check(Number.isFinite(sinceMs) && Math.abs(sinceMs - expectMs) < 5000, `I8b days=999 夾到 30 後,since 約為 30 天前而非未夾取的 raw（誤差 ${Math.round(Math.abs(sinceMs - expectMs))}ms）`);
 }
-{ // I9 成功時的快取標頭逐字照抄 brief(60/300/1800 三個數字各自有意義,改錯任一個都測得到)
+{ // I9 成功時的狀態碼與快取標頭都要對(2026-07-28 修復輪 1 findings#5:狀態碼原本沒有任何
+  // 斷言在守,把 200 改成 500 是 142 條零 FAIL——而且那顆 500 還會被 edge.put 寫進快取,
+  // 送給後續打進來的所有人)
   globalThis.caches = fakeEdgeCache();
   const { db } = fakeDb([]);
   const res = await alertLog(alertLogReq(), { DELAY_DB: db });
-  check(res.headers.get('cache-control') === 'public, max-age=60, s-maxage=300, stale-while-revalidate=1800', `I9 成功回應的 cache-control 逐字相符（實得 ${res.headers.get('cache-control')}）`);
+  check(res.status === 200, `I9a 成功回應狀態碼是 200（實得 ${res.status}）`);
+  check(res.headers.get('cache-control') === 'public, max-age=60, s-maxage=300, stale-while-revalidate=1800', `I9b 成功回應的 cache-control 逐字相符（實得 ${res.headers.get('cache-control')}）`);
 }
 { // I10 D1 掛掉時回 503+not_ready,不是讓例外一路炸穿到路由器(對照 rateLimit/delayHistory
   // 既有端點的 fail-closed 慣例)
@@ -678,6 +687,21 @@ const alertLogReq = (qs = '') => new Request('https://railisland.tw/api/alert-lo
   const body2 = await (await alertLog(alertLogReq('?days=30'), { DELAY_DB: db })).json();
   check(calls.prepared.length === preparedAfterFirst, 'I12a ?days=999 與 ?days=30 正規化後同為 30,共用同一格快取(第二次沒有再打 D1)');
   check(body2.days === 30, 'I12b 快取命中的內容 days 仍是正規化後的值');
+}
+{ // I12c/d(2026-07-28 修復輪 1 findings#2)反向案例:正規化後「不同」的 days(3 與 10,兩者
+  // 都在合法區間內、不會被夾到同一個值)必須各自佔一格快取,不能撞同一鍵——I11 只驗過「同一個
+  // days 兩次」要命中快取,I12a/b 只驗過「正規化後相同」要撞鍵,兩者都是「應該撞鍵」的方向,
+  // 沒有一條驗「正規化後不同必須不撞」。複驗過:把快取鍵拿掉 ?days= 正規化(改用
+  // new URL('/api/alert-log', request.url)),142 條原本零 FAIL——先打 days=1 再打 days=30,
+  // 第二發會吃到第一發的快取,回傳 1 天的資料集而且 days 欄位自稱是 1。
+  const edge = fakeEdgeCache();
+  globalThis.caches = edge;
+  const { db, calls } = fakeDb([alertLogRow()]);
+  await alertLog(alertLogReq('?days=3'), { DELAY_DB: db });
+  const preparedAfterFirst = calls.prepared.length;
+  const body2 = await (await alertLog(alertLogReq('?days=10'), { DELAY_DB: db })).json();
+  check(calls.prepared.length > preparedAfterFirst, 'I12c 正規化後不同的 days(3/10)必須各自佔一格快取,第二發仍要打 D1');
+  check(body2.days === 10, 'I12d 第二發回應的 days 是自己的 10,沒有吃到第一發(3)的快取內容');
 }
 { // I13 失敗回應不進快取——否則一次 D1 抖動會讓 503 被快取 60 秒,期間所有人都看不到資料
   const edge = fakeEdgeCache();
