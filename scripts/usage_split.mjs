@@ -18,31 +18,42 @@ const args = process.argv.slice(2);
 const hours = Math.max(1, Math.min(24 * 31, parseInt((args.find(a => a.startsWith('--hours=')) || '').split('=')[1], 10) || 24));
 const showSql = args.includes('--sql');
 
-function wranglerToken() {
+// wrangler 的憑證位置換過（4.111 用 ~/.wrangler，更早是 ~/Library/Preferences/.wrangler），
+// 舊路徑那份會留在原地慢慢過期 → 全部撈出來、依到期時間新到舊排，逐把試。
+function wranglerTokens() {
   const files = [
+    path.join(os.homedir(), '.wrangler/config/default.toml'),
     path.join(os.homedir(), 'Library/Preferences/.wrangler/config/default.toml'),
     path.join(os.homedir(), '.config/.wrangler/config/default.toml'),
   ];
+  const found = [];
   for (const f of files) {
     try {
-      const m = readFileSync(f, 'utf8').match(/^oauth_token\s*=\s*"([^"]+)"/m);
-      if (m) return m[1];
+      const t = readFileSync(f, 'utf8');
+      const tok = (t.match(/^oauth_token\s*=\s*"([^"]+)"/m) || [])[1];
+      if (tok) found.push({ tok, exp: Date.parse((t.match(/^expiration_time\s*=\s*"([^"]+)"/m) || [])[1] || '') || 0 });
     } catch (e) { /* 換下一個候選路徑 */ }
   }
-  return null;
+  return found.sort((a, b) => b.exp - a.exp).map(x => x.tok);
 }
 
-const token = process.env.CLOUDFLARE_API_TOKEN || wranglerToken();
-if (!token) {
+const tokens = process.env.CLOUDFLARE_API_TOKEN ? [process.env.CLOUDFLARE_API_TOKEN] : wranglerTokens();
+if (!tokens.length) {
   console.error('找不到憑證：設 CLOUDFLARE_API_TOKEN，或先 `npx wrangler login`。');
   process.exit(1);
 }
 
 async function cf(url, init) {
-  const r = await fetch(url, { ...init, headers: { authorization: 'Bearer ' + token, ...(init && init.headers) } });
-  const text = await r.text();
-  if (!r.ok) throw new Error(`${init && init.method === 'POST' ? 'AE SQL' : 'API'} ${r.status}: ${text.slice(0, 300)}`);
-  return text;
+  const what = init && init.method === 'POST' ? 'AE SQL' : 'API';
+  for (let i = 0; i < tokens.length; i++) {
+    const r = await fetch(url, { ...init, headers: { authorization: 'Bearer ' + tokens[i], ...(init && init.headers) } });
+    const text = await r.text();
+    if (r.ok) return text;
+    // 401/403＝這把過期或沒權限，還有別把就換下一把試
+    if ((r.status === 401 || r.status === 403) && i < tokens.length - 1) continue;
+    const hint = r.status === 401 || r.status === 403 ? '\n（token 過期了？跑一次 `npx wrangler whoami` 讓 wrangler 自動換新再重跑）' : '';
+    throw new Error(`${what} ${r.status}: ${text.slice(0, 300)}${hint}`);
+  }
 }
 
 async function accountId() {
