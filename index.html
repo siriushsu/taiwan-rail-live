@@ -9182,9 +9182,14 @@ function loadBounty() {
     // saveBounty() 寫回磁碟——舊資料只是缺 claims(例如懸賞功能上線前就存在的 trips 紀錄),
     // 一開就把使用者的 trips 永久清空。正解是缺哪個欄位補哪個欄位的預設值,其餘既有欄位一律
     // 原樣保留,任何情況下都不因單一欄位驗證失敗而牽連丟棄使用者已經存在的資料。
-    if (o && typeof o === 'object') {
-      if (!o.trips || typeof o.trips !== 'object') o.trips = {};
-      if (!o.claims || typeof o.claims !== 'object') o.claims = {};
+    // 陣列也要擋(2026-07-28 複審第三輪):`typeof [] === 'object'`,所以陣列會被上面那道
+    // 型別檢查當成合法物件放行——然後 JSON.stringify 對陣列**只序列化索引元素**,之後往
+    // b.claims['x'] 寫的東西一律在落盤時無聲蒸發(UI 顯示成功、磁碟上什麼都沒有)。
+    // 那正是 F4 要根除的傷害形狀,只是換了一個入口,所以一併用 isObj 收掉。
+    const isObj = x => !!x && typeof x === 'object' && !Array.isArray(x);
+    if (isObj(o)) {
+      if (!isObj(o.trips)) o.trips = {};
+      if (!isObj(o.claims)) o.claims = {};
       if (!o.v) o.v = 1;
       return o;
     }

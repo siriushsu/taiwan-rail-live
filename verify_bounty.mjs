@@ -345,6 +345,21 @@ const browser = await chromium.launch();
   ok('A12 手機護照 sheet(#ridePanel) 也有「校正貢獻」節', m.has === true, JSON.stringify(m));
   ok('A12b 手機上懸賞板入口鈕真的點得到（elementFromPoint 命中，真觸控 context 375 寬）',
     hit.found && hit.hit === true, JSON.stringify(hit));
+  // A12d：分隔線的守門員（2026-07-28 複審第三輪發現的覆蓋缺口）。
+  // 舊版把分隔線掛在收合時 display:none 的內容 div 上，預設狀態根本不生效，修好後卻**沒有
+  // 任何斷言在保護它**——拿掉那條 border-bottom 全套 57 項照樣全綠。護照高度預算(L10)只量
+  // 總高度，量不到「這一條線在不在」（可以拿掉線再用等量 padding 補回高度，L10 一樣綠）。
+  // 判準：跟同一份護照裡其他節的標題列比，不寫死 1px（心得 29：不與實作共用假設，
+  // 用「它必須跟兄弟節長得一樣」這個外部關係當判準）。
+  const sep = await page.evaluate(() => {
+    const heads = [...document.querySelectorAll('#ridePanel .ph-sec')];
+    const cs = e => getComputedStyle(e).borderBottomWidth;
+    const mine = heads.find(h => h.dataset.sec === 'correct');
+    const others = heads.filter(h => h.dataset.sec !== 'correct');
+    return { mine: mine ? cs(mine) : null, others: [...new Set(others.map(cs))], n: heads.length };
+  });
+  ok('A12d 「校正貢獻」節的分隔線與其他節一致（不是唯一沒有線的那一節）',
+    !!sep.mine && parseFloat(sep.mine) > 0 && sep.others.includes(sep.mine), JSON.stringify(sep));
   if (hit.found && hit.hit) {
     await page.evaluate(() => document.querySelector('#ridePanel [data-act="bountyboard"]').scrollIntoView({ block: 'center' }));
     const btnBox = await page.evaluate(() => {
@@ -529,6 +544,31 @@ const browser = await chromium.launch();
   ok('F4 loadBounty() 缺 claims 時補洞而非整包丟棄——舊資料的 3 筆 trips 在記憶體與磁碟上都還在',
     f4.tripsKeptInMemory === 3 && f4.claimsIsObj === true && f4.onDiskTrips === 3 && f4.onDiskHasNewClaim === true,
     JSON.stringify(f4));
+
+  // F4b：陣列形狀。`typeof [] === 'object'` ⇒ 只檢查 typeof 會把陣列當合法物件放行，
+  // 而 JSON.stringify 對陣列**只序列化索引元素**，之後寫進去的具名鍵會在落盤時無聲蒸發
+  // （UI 顯示成功、磁碟上什麼都沒有）——與 F4 同一種傷害，只是換了入口。
+  // 判準刻意只看「寫進去的東西在不在磁碟上」，不看實作怎麼判型別（心得 29）。
+  const f4b = await page.evaluate(() => {
+    const KEY = 'trainmap-bounty-v1';
+    const run = raw => {
+      localStorage.setItem(KEY, raw);
+      const b = loadBounty();
+      b.claims['probe'] = { cardId: 'probe', points: 7 };
+      b.trips['t-probe'] = { lnId: 'p', sys: 'tra_sched' };
+      saveBounty(b);
+      const d = JSON.parse(localStorage.getItem(KEY) || 'null');
+      return !!(d && d.claims && d.claims.probe && d.trips && d.trips['t-probe']);
+    };
+    return {
+      claimsIsArray: run(JSON.stringify({ v: 1, trips: {}, claims: [1, 2, 3] })),
+      tripsIsArray: run(JSON.stringify({ v: 1, trips: [1, 2], claims: {} })),
+      wholeIsArray: run(JSON.stringify([1, 2, 3])),
+    };
+  });
+  ok('F4b 畸形的「陣列形狀」也要被補成物件，否則之後寫進去的東西會在落盤時無聲蒸發',
+    f4b.claimsIsArray === true && f4b.tripsIsArray === true && f4b.wholeIsArray === true,
+    JSON.stringify(f4b));
   await ctx.close();
 }
 
