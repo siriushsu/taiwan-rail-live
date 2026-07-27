@@ -1305,6 +1305,43 @@ try {
     ok('M5 writeSegments 的 verified 只加 nv、n 兩次都加（n=2 但只一次驗過故 nv=1）',
       m5 && m5.n === 2 && m5.nv === 1, JSON.stringify(m5));
 
+    // M6 index.html:8804 的呼叫點 `writeSegments(tr, r.atIdx, cur, r.bv === 1)` 目前沒有任何測試
+    // 真的經過它——M5 直接呼叫 writeSegments 繞過這一行，I2 刻意不斷言 nv 的值，I4 呼叫
+    // writeSegments 時 verified 本來就是 undefined。若這行被改成 `r.bv === true`（bv 存的是
+    // 整數 1/0，跟 true 比較恆假），生產路徑寫出的 nv 會永遠是 0、segmentCollectionVerified()
+    // 永久回空，但前面所有測試照樣全綠。這裡走真實路徑（比照 H12 手法）：meLoc 精準命中上車站
+    // 座標讓 checkinJudge 判過 → startRiding() 記下 bv=1 → ridingTick() 真的執行到
+    // index.html:8804 → 讀原始 storage 斷言 nv>0。
+    const m6 = await page.evaluate(() => {
+      localStorage.removeItem('trainmap-checkins-v1');
+      localStorage.removeItem('trainmap-riding-v1');
+      window.liveDelaySec = () => 0; // 誤點歸零，表定時間軸＝真實時鐘（比照 H 組手法）
+      const now = nowSecOfDay(activeTz());
+      const t = (state.trains || []).find(x => !x.loop && x.stops && x.stops.length >= 3 &&
+        x.stops[0].arrSec <= now - 120 && x.stops[x.stops.length - 1].arrSec >= now + 600);
+      if (!t) return { missing: true };
+      // 獨立算上車站索引（比照 H 組 arrivedIdxAt，不呼叫 ridingBoardIdx——判準不與實作同源）
+      let i0 = -1;
+      t.stops.forEach((s, i) => { if (s.arrSec <= now) i0 = i; });
+      i0 = Math.max(0, i0);
+      const toIdx = Math.min(i0 + 2, t.stops.length - 1);
+      if (toIdx <= i0) return { missing: true };
+      const s0 = t.stops[i0];
+      state.meLoc = { lat: s0.lat, lon: s0.lon, acc: 25 }; // 精準命中上車站座標 → checkinJudge 判過
+      state.followTrain = t;
+      const okStart = startRiding(t, toIdx);
+      const rv = JSON.parse(localStorage.getItem('trainmap-riding-v1') || 'null');
+      const jump = t.stops[i0 + 1].arrSec - now + 5;
+      window.liveDelaySec = () => -jump;
+      ridingTick(); // 真的執行到 index.html:8804
+      const c = JSON.parse(localStorage.getItem('trainmap-checkins-v1'));
+      const nvSum = Object.values(c.sg || {}).reduce((a, v) => a + ((v && v.nv) || 0), 0);
+      return { missing: false, okStart, bv: rv && rv.bv, nvSum, sgN: Object.keys(c.sg || {}).length };
+    });
+    ok('M6 真實路徑（startRiding+ridingTick）驗到 GPS 時，index.html:8804 要把 verified 帶進 nv',
+      !m6.missing && m6.okStart === true && m6.bv === 1 && m6.nvSum > 0,
+      m6.missing ? '找不到可測試的行駛中班次（清晨/深夜跑會這樣，比照 H 組限制）' : JSON.stringify(m6));
+
     await ctx.close();
   }
 } finally {
