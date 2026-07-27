@@ -8570,8 +8570,22 @@ const STN_STATUS_LABEL = { follow: '跟完', pass: '搭過', visit: '到訪' };
 function loadCheckins() {
   try {
     const o = JSON.parse(localStorage.getItem(CHECKIN_KEY) || 'null');
-    return (o && typeof o === 'object' && o.st && typeof o.st === 'object') ? o : { v: 1, st: {} };
-  } catch (e) { return { v: 1, st: {} }; }
+    return (o && typeof o === 'object' && o.st && typeof o.st === 'object') ? migrateCheckins(o) : { v: 2, st: {}, sg: {} };
+  } catch (e) { return { v: 2, st: {}, sg: {} }; }
+}
+// v1 的 sg 值是單一數字(只有總次數);v2 拆成 {n 總次數, nv 其中驗過定位的次數}——
+// 懸賞的分母只認 nv(規格 §6:章是給自己的所以寬鬆,會影響別人的資料才嚴格)。
+// 舊資料一律 nv:0:沒有在場證據就不該進分母,寧可低估也不要污染別人的模型。
+// 升級必須冪等——loadCheckins 每次讀都會跑它,不冪等會讓已升級的資料再被處理一次。
+function migrateCheckins(o) {
+  if (Number(o.v) >= 2) return o;
+  const sg = {};
+  for (const [k, v] of Object.entries(o.sg || {})) {
+    sg[k] = (v && typeof v === 'object')
+      ? { n: Number(v.n) || 0, nv: Number(v.nv) || 0 }
+      : { n: Number(v) || 0, nv: 0 };
+  }
+  return Object.assign({}, o, { v: 2, sg });
 }
 function saveCheckins(c) { try { localStorage.setItem(CHECKIN_KEY, JSON.stringify(c)); } catch (e) {} }
 // 同一座實體站在班表資料裡可能掛兩個名字(環島線分支、官方全稱),座標完全重合——實測 3 對:
@@ -8658,7 +8672,24 @@ function doCheckin(st) {
 // 不分方向(鍵取字典序小的在前):通勤來回走的是同一段路,分方向會讓「常搭」次數腰斬。
 // 只有搭乘模式會寫:「跟完」是在 App 裡跟動畫,不該染到實體路網上(虛實雙軌的分界)。
 function segKey(sys, lnId, a, b) { return sys + '|' + lnId + '|' + (a < b ? a + '|' + b : b + '|' + a); }
-function segmentCollection() { return loadCheckins().sg || {}; }
+// {段鍵→總次數}(含沒驗到定位的)——護照、逐線完乘率、收集地圖都吃這個。
+// 回傳型別刻意維持 number:六個既有消費者(drawCollectSegs／renderRidePanel／lineCompletion／
+// buildStationStamps／說明中心可用性判斷)都當數字用,改型別等於一次弄壞五個地方。
+function segmentCollection() {
+  const out = {};
+  for (const [k, v] of Object.entries(loadCheckins().sg || {})) out[k] = Number(v && v.n) || 0;
+  return out;
+}
+// {段鍵→驗過定位的次數}——只有懸賞的分母吃這個。0 次的鍵直接不列,
+// 讓「有幾段有在場證據」可以用 Object.keys().length 直接數。
+function segmentCollectionVerified() {
+  const out = {};
+  for (const [k, v] of Object.entries(loadCheckins().sg || {})) {
+    const nv = Number(v && v.nv) || 0;
+    if (nv > 0) out[k] = nv;
+  }
+  return out;
+}
 function lineNetwork() {
   const m = new Map();
   for (const ln of (state.trackLines || [])) {
@@ -8678,7 +8709,9 @@ function lineNetwork() {
   }
   return m;
 }
-function writeSegments(tr, fromIdx, toIdx) {
+// verified:上車那一刻定位有沒有驗過(來自搭乘記錄的 r.bv)。沒驗過仍照收進 n,
+// 只是不進 nv——使用者的護照不因為地下站定不到位就少一段。
+function writeSegments(tr, fromIdx, toIdx, verified) {
   if (toIdx <= fromIdx) return;
   const net = lineNetwork(), c = loadCheckins();
   c.sg = c.sg || {};
@@ -8689,7 +8722,12 @@ function writeSegments(tr, fromIdx, toIdx) {
     const rec = net.get(seg.segLn.sys + '|' + seg.segLn.id);
     if (!rec) continue;
     const lo = Math.min(seg.dA, seg.dB), hi = Math.max(seg.dA, seg.dB);
-    for (const s of rec.segs) if (s.mid >= lo && s.mid <= hi) c.sg[s.key] = (Number(c.sg[s.key]) || 0) + 1;
+    for (const s of rec.segs) if (s.mid >= lo && s.mid <= hi) {
+      const cur = c.sg[s.key] || { n: 0, nv: 0 };
+      cur.n += 1;
+      if (verified) cur.nv += 1;   // 上車站定位驗過才算「有在場證據」
+      c.sg[s.key] = cur;
+    }
   }
   saveCheckins(c);
 }
@@ -8764,7 +8802,7 @@ function ridingTick() {
   if (cur <= r.atIdx) return;
   const names = [];
   for (let i = r.atIdx + 1; i <= cur; i++) { writeCheckin(ridingStObj(tr, i), 'pass', {}); names.push(tr.stops[i].name); }
-  writeSegments(tr, r.atIdx, cur); // 站與站之間的那幾段路,同一趟一起記
+  writeSegments(tr, r.atIdx, cur, r.bv === 1); // 站與站之間的那幾段路,同一趟一起記;bv=上車時定位驗過
   r.atIdx = cur; saveRiding(r);
   if (cur >= r.toIdx) { finishRiding(tr, r); return; }
   pushFollowEvent('ride:st:' + names[names.length - 1], `🎫 ${names.join('、')} 收進護照`, true);

@@ -676,7 +676,9 @@ try {
   ok('I1 搭一趟就記下沿途每一段路（區間清單＝獨立重算出的）',
     JSON.stringify(gotSegs) === JSON.stringify([...new Set(wantSeg)].sort()) && gotSegs.length > 0,
     `記到 ${gotSegs.length} 段　獨立算 ${new Set(wantSeg).size} 段`);
-  ok('I2 每段各記一次', Object.values(segRes.sg).every(n => n === 1), JSON.stringify(segRes.sg).slice(0, 100));
+  // sg 值形狀是 {n,nv}（Task 1，規格 §6）：這裡讀的是 writeSegments 寫入的原始 storage，
+  // 不是 segmentCollection()，所以要自己拆 .n；不拆＝拿物件跟數字比一定 false。
+  ok('I2 每段各記一次', Object.values(segRes.sg).every(v => (v && typeof v === 'object' ? v.n : v) === 1), JSON.stringify(segRes.sg).slice(0, 100));
   // 快車跳過的站也要算走過：記到的區間數應 ≥ 停靠區間數（一段停靠可跨好幾個實體區間）
   ok('I3 快車跳站的區間照樣算走過（記到的實體區間數 ≥ 停靠區間數）',
     gotSegs.length >= (expectTo - expectFrom),
@@ -697,7 +699,8 @@ try {
     rev.stops.push({ name: 'END' });
     writeSegments(rev, 0, rev.stops.length - 1);
     const c2 = JSON.parse(localStorage.getItem('trainmap-checkins-v1'));
-    return { before, after: Object.keys(c2.sg).length, n: c2.sg[k0] };
+    const v = c2.sg[k0]; // 同上：原始 storage 是 {n,nv}，拆 .n 才是次數
+    return { before, after: Object.keys(c2.sg).length, n: (v && typeof v === 'object') ? v.n : v };
   }, [trip.train, trip.sys, expectFrom, expectTo]);
   ok('I4 反方向搭同一段路併入同一筆（不分方向）',
     bidir.after === bidir.before && bidir.n === 2, `段數 ${bidir.before}→${bidir.after}，該段次數 ${bidir.n}`);
@@ -1240,6 +1243,52 @@ try {
     const r = document.getElementById('passport').getBoundingClientRect();
     return { x: Math.max(0, r.x), y: Math.max(0, r.y), width: Math.min(r.width, 900), height: Math.min(r.height, 900) };
   }) });
+
+  // ── M 組：sg 的值形狀（規格 §6）─────────────────────────────
+  // 判準不與實作同源：測試自己塞 localStorage 的原始 JSON、自己算期望值，
+  // 不呼叫 segmentCollection()／writeSegments()。
+  {
+    const { page, ctx } = await open(browser, {});
+
+    // M1 舊資料（v1，值是純數字）讀進來要自動升成 {n, nv:0}
+    const m1 = await page.evaluate(() => {
+      localStorage.setItem('trainmap-checkins-v1', JSON.stringify({
+        v: 1, st: {}, sg: { 'TRA|WL|A|B': 3, 'TRA|WL|B|C': 1 },
+      }));
+      const c = loadCheckins();
+      return { a: c.sg['TRA|WL|A|B'], b: c.sg['TRA|WL|B|C'], v: c.v };
+    });
+    ok('M1 v1 的數字值升成 {n,nv:0}',
+      m1.v === 2 && m1.a && m1.a.n === 3 && m1.a.nv === 0 && m1.b.n === 1 && m1.b.nv === 0,
+      JSON.stringify(m1));
+
+    // M2 沒有在場證據的舊資料一律 nv=0——寧可低估，不可讓沒驗過的進懸賞分母
+    const m2 = await page.evaluate(() => {
+      const sgAll = segmentCollection(), sgV = segmentCollectionVerified();
+      return { all: sgAll['TRA|WL|A|B'], ver: sgV['TRA|WL|A|B'], verKeys: Object.keys(sgV).length };
+    });
+    ok('M2 segmentCollection 仍回總次數、Verified 回 0 筆', m2.all === 3 && m2.ver === undefined && m2.verKeys === 0,
+      JSON.stringify(m2));
+
+    // M3 v2 資料直接讀，不被再升一次（升級要冪等）
+    const m3 = await page.evaluate(() => {
+      localStorage.setItem('trainmap-checkins-v1', JSON.stringify({
+        v: 2, st: {}, sg: { 'TRA|WL|A|B': { n: 5, nv: 2 } },
+      }));
+      const c = loadCheckins();
+      return c.sg['TRA|WL|A|B'];
+    });
+    ok('M3 v2 讀進來不變形', m3 && m3.n === 5 && m3.nv === 2, JSON.stringify(m3));
+
+    // M4 segmentCollection 的六個消費者拿到的仍是數字（型別不可改，否則完乘率與收集地圖會壞）
+    const m4 = await page.evaluate(() => {
+      const sg = segmentCollection();
+      return Object.values(sg).every(v => typeof v === 'number');
+    });
+    ok('M4 segmentCollection 的值仍是 number', m4 === true, String(m4));
+
+    await ctx.close();
+  }
 } finally {
   try { unlinkSync(BASELINE); } catch (e) {}
   await browser.close();
