@@ -14,7 +14,10 @@ Plus訂閱*
 hand off/
 .dev.vars*
 scripts/.crossings_cache/
-node_modules/
+# 不寫 node_modules/ ——尾斜線只比對「目錄」,而 worktree 常把 node_modules 做成指向主樹的
+# symlink(對 git 不是目錄),於是被漏收進版控:2026-07-28 就這樣把一條寫死本機絕對路徑的
+# symlink commit 進來過(公開 repo,幸好還沒 push)。不帶斜線兩種都擋。
+node_modules
 ntmetro_fixtures/
 
 # App 發行授權閘門——evidence 內含授權證據，比照 .env 留本機、公開 repo 不收
