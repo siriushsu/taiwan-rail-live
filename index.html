@@ -5113,7 +5113,13 @@ const IS_NATIVE_APP = (() => {
   try { if (window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform()) return true; } catch (e) {}
   return false;
 })();
-const PHYSICAL_COLLECT_ENABLED = IS_NATIVE_APP;
+// ?demo=bounty 讓網頁也走一遍「只有 App 才有」的 GPS 收集流程。為什麼要有這個開關:備援站
+// (GitHub Pages)是靜態站、沒有 /api/*,懸賞板一定抓不到資料;而懸賞板→出發前說明卡→錄製畫面
+// 整條流程又全被 PHYSICAL_COLLECT_ENABLED 擋在 App 內 ⇒ 不開這個旗標就沒有任何辦法確認設計。
+// 比照既有 ?demo=collect 的用途(灌假資料看版面),只在備援站確認設計用,不影響正式站與 App。
+// 這裡不用下面的 DEMO_MODE 是因為它定義在第 5140 行、此處讀不到;語意刻意保持一致。
+const DEMO_AS_APP = (() => { try { return new URLSearchParams(location.search).get('demo') === 'bounty'; } catch (e) { return false; } })();
+const PHYSICAL_COLLECT_ENABLED = IS_NATIVE_APP || DEMO_AS_APP;
 const RECORDING_ENABLED = false; // 2026-07-17 錄影暫時下架(整備中):所有入口隱藏、實作全保留;改 true 即復活(工具列鈕+更多抽屜列+Plus 文案)
 const ACCOUNT_ENABLED = false; // 2026-07-17 帳號同步轉收費前暫時下架:入口全藏、不載 Firebase SDK、實作全保留;僅 ?account=delete 深連結(account-deletion.html)留給既有帳號刪資料;改 true 即復活
 // Plus 功能總閘(暗啟動):網站預設關、?plus=1 當次點亮供測試(比照 TRIP_SHARE_ENABLED)；上架公告批次改 true。
@@ -9142,7 +9148,27 @@ function bountyToCollections(b) {
   })).sort((x, y) => x.id.localeCompare(y.id));
   return { corrections: { items, tombstones: [] } };
 }
+// ?demo=bounty 的合成懸賞板:備援站沒有 /api/*,不給假資料就只看得到「懸賞板暫時讀不到」。
+// 卡片形狀完全照後端契約(sys=SYS_DEFS id、lnId=中文線名、unitKeys=segKey() 產出的完整區間鍵),
+// 所以這份假資料同時也是「前端吃不吃得下真契約」的活體檢查——形狀寫錯這裡就會顯示成內部代碼。
+// 各卡刻意給不同的段數/點數/已接人數/已有趟數,讓卡面的資訊層次看得出來。
+function bountyDemoBoard() {
+  const KINDS = ['自強', '區間', '莒光', '自強', '區間'];
+  const CLAIMERS = [0, 2, 0, 1, 0], SAMPLES = [0, 1, 0, 0, 2];
+  const cards = [];
+  for (const [mapKey, rec] of lineNetwork()) {
+    if (cards.length >= 5 || !rec.segs || rec.segs.length < 6) continue;
+    const i = cards.length, p = mapKey.split('|');
+    const take = rec.segs.slice(i, i + 3 + (i % 3)); // 各卡段數不同
+    cards.push({ id: `${mapKey}|${i % 2}|${KINDS[i]}|track|`, sys: p[0], lnId: p[1],
+      trainKind: KINDS[i], dir: i % 2, kind: 'track', slot: '',
+      unitKeys: take.map(s => s.key), units: take.length, points: take.length * 3,
+      claimers: CLAIMERS[i], samples: SAMPLES[i], coverN: 1 });
+  }
+  return { at: Date.now(), coverN: { TRA: 1, THSR: 1, metro: 3 }, cards, demo: true };
+}
 async function fetchBountyBoard() {
+  if (DEMO_MODE === 'bounty') return bountyDemoBoard();
   const r = await fetch(apiUrl('api/bounty-board'), { cache: 'no-store' });
   if (!r.ok) throw new Error('board ' + r.status);
   return r.json();
@@ -9188,9 +9214,10 @@ function closeBountyBoard() { document.getElementById('bountyModal').hidden = tr
 function renderBountyBoard() {
   const b = bountyBoardMem || { cards: [] };
   const el = document.getElementById('bountyList');
-  document.getElementById('bountySub').textContent = PHYSICAL_COLLECT_ENABLED
-    ? '接一段、搭那班車時開錄，把這段的速度剖面測出來。全部免費，獎勵是榮譽。'
-    : '這些路段還沒有實測資料。用 App 才能接下來錄——網頁可以先看看有哪些。';
+  document.getElementById('bountySub').textContent = (b.demo ? '⚠ 示範資料，僅供確認設計：這裡的路段與點數都是假的，接下來也不會真的錄。' : '')
+    + (PHYSICAL_COLLECT_ENABLED
+      ? '接一段、搭那班車時開錄，把這段的速度剖面測出來。全部免費，獎勵是榮譽。'
+      : '這些路段還沒有實測資料。用 App 才能接下來錄——網頁可以先看看有哪些。');
   if (!b.cards.length) { el.innerHTML = '<div class="bt-empty">目前沒有待校正的路段——全部收滿了。</div>'; return; }
   el.innerHTML = b.cards.map(c => {
     const nm = bountyCardName(c);
@@ -9223,6 +9250,20 @@ function setupBounty() {
 }
 // 接下一段，成功之後接上出發前說明卡（showBountyBrief，規格 §5 之四）
 async function bountyClaim(cardId) {
+  // ?demo=bounty:備援站沒有 /api/*,不接住這裡的話一按就是「網路不通」,出發前說明卡永遠出不來,
+  // 整條流程在備援站就斷在第一步。只寫本機、不打網路,語意與成功路徑一致(含 24 小時期限)。
+  if (DEMO_MODE === 'bounty') {
+    const c = ((bountyBoardMem && bountyBoardMem.cards) || []).find(x => x.id === cardId);
+    if (!c) { showToast('（示範）找不到這張卡'); return; }
+    const exp = Date.now() + 86400000;
+    const b = loadBounty();
+    b.claims[cardId] = { cardId, units: c.units, points: c.points, expiresAt: exp, u: userDataNow() };
+    saveBounty(b);
+    showToast(`（示範）接下了・${c.points} 點・24 小時內有效`);
+    showBountyBrief(c, { points: c.points, expiresAt: exp });
+    renderPassport(); renderRidePanel();
+    return;
+  }
   try {
     const r = await fetch(apiUrl('api/bounty-claim'), {
       method: 'POST', headers: { 'content-type': 'application/json' },

@@ -410,6 +410,72 @@ const browser = await chromium.launch();
   await ctx.close();
 }
 
+// ── D 組：?demo=bounty（備援站確認設計用）────────────────────────────────
+// 為什麼要有這一組：備援站是靜態站、**沒有 /api/***，而懸賞板→說明卡整條流程又被
+// PHYSICAL_COLLECT_ENABLED 擋在 App 內 ⇒ 沒有這個開關就沒有任何辦法在備援站確認設計。
+// 這一組刻意讓**所有** /api/* 回 404（GitHub Pages 的實況），不是用假後端。
+{
+  const mk = async (qs, w = 390) => {
+    const ctx = await browser.newContext({ viewport: { width: w, height: 844 }, hasTouch: true });
+    await ctx.route('**/api/**', r => r.fulfill({ status: 404, body: 'Not Found' })); // 備援站實況
+    const page = await ctx.newPage();
+    await page.goto(BASE + '/index.html' + qs, { waitUntil: 'load' });
+    await page.waitForFunction(() => typeof state !== 'undefined' && state.trains && state.trains.length > 0, null, { timeout: 40000 });
+    await page.evaluate(() => { const h = document.getElementById('howtoWrap'); if (h) h.remove(); });
+    return { ctx, page };
+  };
+
+  const { ctx: dctx, page: dp } = await mk('?demo=bounty');
+  const d0 = await dp.evaluate(() => ({ app: IS_NATIVE_APP, phys: PHYSICAL_COLLECT_ENABLED }));
+  ok('D1 ?demo=bounty 讓網頁也走得完 App 才有的收集流程（但它不是真的 App 殼）',
+    d0.app === false && d0.phys === true, JSON.stringify(d0));
+
+  await dp.evaluate(() => openBountyBoard());
+  await dp.waitForTimeout(700);
+  const d2 = await dp.evaluate(() => {
+    const cards = [...document.querySelectorAll('#bountyList .bt-card')].map(c => ({
+      r: c.querySelector('.bt-r').textContent, meta: c.querySelector('.bt-meta').textContent }));
+    return { sub: document.getElementById('bountySub').textContent, cards };
+  });
+  ok('D2 零 /api/* 時懸賞板仍出得來（備援站的唯一目的）', d2.cards.length >= 3, `${d2.cards.length} 張卡`);
+  // 判準刻意只用「契約」不用實作：掉進 fallback 時 bountyCardName 回的是
+  // { from: card.lnId, to: '' } ⇒ 只要「to 非空且 from 不等於線名」就能區分成功與 fallback。
+  // 這條同時是鍵空間契約（tra_sched|南迴線|A|B）的活體檢查——形狀錯了這裡必紅。
+  const bad = d2.cards.filter(c => {
+    const m = /^(.*?)\s*→\s*(.*)$/.exec(c.r) || [];
+    const lineName = (c.meta.split('・')[0] || '').trim();
+    return !m[1] || !m[2] || m[1] === m[2] || m[1] === lineName || c.r.includes('|');
+  });
+  ok('D3 卡面是真站名不是內部代碼（掉進 fallback 會顯示線名且終點空白）', bad.length === 0,
+    bad.length ? JSON.stringify(bad) : d2.cards.map(c => c.r).join('、'));
+  ok('D4 示範資料必須自己講明是假的（不能讓人以為那是真的懸賞）', /示範資料/.test(d2.sub), d2.sub.slice(0, 40));
+
+  const d5 = await dp.evaluate(() => {
+    const btn = document.querySelector('#bountyList .bt-card .bt-take'); if (!btn) return { missing: true };
+    const r = btn.getBoundingClientRect();
+    const hit = document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2);
+    return { missing: false, w: Math.round(r.width), h: Math.round(r.height), hitSelf: !!(hit && hit.closest('.bt-take')) };
+  });
+  ok('D5 手機 390：「接下這段」尺寸夠且中心真的點得到自己',
+    !d5.missing && d5.hitSelf === true && d5.h >= 28 && d5.w >= 44, JSON.stringify(d5));
+  await dp.tap('#bountyList .bt-card .bt-take');
+  await dp.waitForTimeout(700);
+  const d6 = await dp.evaluate(() => {
+    const m = document.getElementById('bountyBriefModal');
+    return { exists: !!m, hidden: m ? m.hidden : null, len: m ? (m.innerText || '').length : 0 };
+  });
+  ok('D6 零 /api/* 時「接下這段」仍走得到出發前說明卡（不接住就會停在「網路不通」）',
+    d6.exists === true && d6.hidden === false && d6.len > 80, JSON.stringify(d6));
+  await dctx.close();
+
+  // 反向：沒帶參數的網頁必須維持網頁的樣子，示範開關不能外洩
+  const { ctx: nctx, page: np } = await mk('');
+  const d7 = await np.evaluate(() => ({ app: IS_NATIVE_APP, phys: PHYSICAL_COLLECT_ENABLED }));
+  ok('D7 沒帶 ?demo=bounty 的網頁不受影響（示範開關不外洩）',
+    d7.app === false && d7.phys === false, JSON.stringify(d7));
+  await nctx.close();
+}
+
 const pass = R.filter(r => r.p).length;
 console.log(`\n${pass}/${R.length} 通過`);
 await browser.close();
