@@ -125,11 +125,14 @@ const ALL = new Set(['mrt', 'krtc', 'tymc', 'tmrt', 'tra', 'thsr']);
 
 console.log('C. mergeMetroAlertParts（metroAlert 內部聚合，Critical 1 第一層防線）');
 const { mergeMetroAlertParts } = _metroAlert;
+// news 參數自 2026-07-27 修復輪 3 起是 { list, degraded } 形狀(原本是原始陣列)——見 worker.js
+// fetchTymcNewsAlerts 的回傳形狀變更。這裡 C1-C4 沿用既有語意但改傳新形狀,C6/C7 補這輪新增的
+// news 退化折疊判斷。
 {
   // C1 全部營運者都成功:degraded 是空陣列,alerts 正常合併
   const ok1 = { list: [{ title: 'X', sys: 'mrt' }], sys: 'mrt' };
   const ok2 = { list: [{ title: 'Y', sys: 'tmrt' }], sys: 'tmrt' };
-  const m1 = mergeMetroAlertParts([ok1, ok2], []);
+  const m1 = mergeMetroAlertParts([ok1, ok2], { list: [], degraded: false });
   check(eq(m1.degraded, []), 'C1 全部成功時 degraded 是空陣列');
   check(m1.alerts.length === 2, 'C1 alerts 正常合併（未受影響）');
 }
@@ -137,7 +140,7 @@ const { mergeMetroAlertParts } = _metroAlert;
   // C2 單一營運者(TRTC/mrt)fetch 失敗、走 fallback:那個 sys 要標進 degraded
   const fail = { list: [], sys: 'mrt', degraded: true };
   const ok = { list: [{ title: 'Y', sys: 'tmrt' }], sys: 'tmrt' };
-  const m2 = mergeMetroAlertParts([fail, ok], []);
+  const m2 = mergeMetroAlertParts([fail, ok], { list: [], degraded: false });
   check(eq(m2.degraded, ['mrt']), 'C2 單一營運者失敗時只有那個 sys 進 degraded');
 }
 {
@@ -145,19 +148,31 @@ const { mergeMetroAlertParts } = _metroAlert;
   const bothFail = mergeMetroAlertParts([
     { list: [], sys: 'krtc', degraded: true },
     { list: [], sys: 'krtc', degraded: true },
-  ], []);
+  ], { list: [], degraded: false });
   check(eq(bothFail.degraded, ['krtc']), 'C3a KRTC 與 KLRT 都退化時，krtc 只列一次（不是兩次)');
   // C3b 只有其中一個 op(KRTC)退化、另一個(KLRT)成功:krtc 整體仍要算退化(任一退化就夠)
   const oneFail = mergeMetroAlertParts([
     { list: [], sys: 'krtc', degraded: true },
     { list: [{ title: 'Z', sys: 'krtc' }], sys: 'krtc' },
-  ], []);
+  ], { list: [], degraded: false });
   check(eq(oneFail.degraded, ['krtc']), 'C3b KRTC 退化、KLRT 成功時，krtc 仍整體算退化（任一退化就夠,不需要兩個都失敗）');
 }
 {
-  // C4 news 陣列照樣併入 alerts,不影響 degraded 判斷
-  const m4 = mergeMetroAlertParts([], [{ title: 'News', sys: 'tymc' }]);
-  check(m4.alerts.length === 1 && eq(m4.degraded, []), 'C4 news 陣列併入 alerts，不影響 degraded');
+  // C4 news list 照樣併入 alerts,degraded:false 時不影響 degraded 判斷
+  const m4 = mergeMetroAlertParts([], { list: [{ title: 'News', sys: 'tymc' }], degraded: false });
+  check(m4.alerts.length === 1 && eq(m4.degraded, []), 'C4 news list 併入 alerts，degraded:false 時不影響 degraded');
+}
+{
+  // C6(2026-07-27 修復輪 3)News 子來源退化時,tymc 要進 degraded——News 與 TYMC 的 Alert op
+  // 共用 sys='tymc',任一邊退化就整個 tymc 算退化,policy 與 C3 的 KRTC/KLRT 一致。
+  const m6 = mergeMetroAlertParts([{ list: [], sys: 'tymc' }], { list: [], degraded: true });
+  check(eq(m6.degraded, ['tymc']), 'C6 News 子來源退化時,tymc 進 degraded（即使 TYMC 的 Alert op 本身成功）');
+  check(eq(m6.alerts, []), 'C6 News 退化時 list 是空陣列,不會假造內容湊數');
+}
+{
+  // C7 TYMC 的 Alert op 與 News 子來源都退化:tymc 仍只列一次(不是兩次),用 Set 去重與 C3 同一條防線
+  const m7 = mergeMetroAlertParts([{ list: [], sys: 'tymc', degraded: true }], { list: [], degraded: true });
+  check(eq(m7.degraded, ['tymc']), 'C7 Alert op 與 News 都退化時,tymc 只列一次（Set 去重）');
 }
 
 console.log('C5. fetchMetroAlertOp（metroAlert 內部單一營運者抓取，生產路徑第一道防線，2026-07-27 修復輪 2 M10 補牙）');
@@ -183,6 +198,62 @@ const { fetchMetroAlertOp } = _metroAlert;
   const r3 = await fetchMetroAlertOp({ op: '__TEST_THROW__', sys: 'krtc', label: 'x' }, 'tok', throwFetch);
   check(r3.degraded === true, 'C5c fetch 直接拋網路例外時也標 degraded:true');
 }
+
+console.log('C8. fetchTymcNewsAlerts（News 子來源，2026-07-27 修復輪 3：獨立 catch，跟 Alert op 不是同一件事）');
+// 為什麼 C6/C7 不夠(同一款 M10 教訓):那兩條餵的是手工構造的 { list, degraded },沒有斷言
+// 證明 fetchTymcNewsAlerts 這支真的會在生產路徑上產出這個形狀。這裡直接打生產函式本尊,
+// 用 _resetTymcNewsMemForTest 控制 module-level 的 tymcNewsMem/tymcNewsMemAt——這是單一
+// 純量狀態,不像 metroAlertOpMem 有 op 可以用「各測試各用不同 key」避開重置。
+const { fetchTymcNewsAlerts, _resetTymcNewsMemForTest, METRO_NEWS_TTL_MS } = _metroAlert;
+{
+  // C8a(本輪要修的生產實測案例本身)冷 isolate:tymcNewsMem 從沒成功過,這次 fetch 又失敗
+  // → 沒有舊值可沿用,必須標 degraded:true。這是本輪防再犯的核心斷言:少了 worker.js 那行
+  // `degraded: !tymcNewsMem`,這裡會先變紅。
+  _resetTymcNewsMemForTest(null, 0);
+  const failFetch = async () => new Response('err', { status: 500 });
+  const r = await fetchTymcNewsAlerts('tok', failFetch);
+  check(eq(r.list, []), 'C8a 冷 isolate 且 fetch 失敗時 list 是空陣列（沒有舊值可沿用）');
+  check(r.degraded === true, 'C8a 冷 isolate 且 fetch 失敗時標 degraded:true（本輪核心防再犯斷言）');
+}
+{
+  // C8b 冷 isolate 但這次 fetch 成功:正常解析、不標退化,且真的跑過 filterAndMapNews
+  // (24 小時內＋事故關鍵字)這條既有邏輯,不是只回一個空殼。
+  _resetTymcNewsMemForTest(null, 0);
+  const recentIso = new Date(Date.now() - 3600e3).toISOString();
+  const okFetch = async () => new Response(JSON.stringify({
+    Newses: [{ Title: 'A6站設備異常疏運', Description: '<p>已排除,恢復正常</p>', UpdateTime: recentIso }],
+  }), { status: 200 });
+  const r = await fetchTymcNewsAlerts('tok', okFetch);
+  check(r.degraded === false, 'C8b 冷 isolate 但 fetch 成功時不標退化');
+  check(r.list.length === 1 && r.list[0].title.includes('【官方新聞稿】'), 'C8b 成功時真的跑過 filterAndMapNews 解析（不是空殼）');
+}
+{
+  // C8c(sub-path A:有舊值,這輪刷新失敗)已過 TTL 但曾經成功過:沿用舊值,不標退化——
+  // 這則新聞稿上一輪已經跟 D1 同步過,這輪原樣重複送出,diffAlertState 比對不出差異,
+  // 跟 traAlert/thsrAlert/metroAlert 外層 catch 沿用完整 mem 是同一個安全論證(見修復輪 2)。
+  const prior = [{ title: '【官方新聞稿】舊案', status: 0, desc: 'x', sys: 'tymc' }];
+  _resetTymcNewsMemForTest(prior, Date.now() - (METRO_NEWS_TTL_MS + 60e3));
+  const failFetch = async () => new Response('err', { status: 500 });
+  const r = await fetchTymcNewsAlerts('tok', failFetch);
+  check(r.list === prior, 'C8c 有舊值時原樣沿用（同一個參照,不是重新複製）');
+  check(r.degraded === false, 'C8c 有舊值可沿用時不標退化（sub-path A,與冷 isolate 的 C8a 風險不同）');
+}
+{
+  // C8d TTL 命中的 fast path:連 try 都不進,不是失敗,是設計本身(News 更新慢,10 分鐘才問一次)。
+  // 陷阱(突變測試時自己踩到、就地修正):原本用「一被呼叫就拋例外」的 fetchImpl 期待例外
+  // 傳出來當作沒走 fast path 的證據——結果拿掉 fast path 讓它真的掉進 try/catch 後,catch 對
+  // 「有舊值」那個分支(sub-path A)剛好也回傳一模一樣的 { list: prior, degraded:false },
+  // 例外被吞掉、輸出跟正確版無法區分,突變測試殺不掉。改用呼叫計數器直接斷言 fetchImpl
+  // 呼叫次數為 0,不依賴例外傳出來。
+  const prior = [{ title: '【官方新聞稿】新案', status: 0, desc: 'y', sys: 'tymc' }];
+  _resetTymcNewsMemForTest(prior, Date.now());
+  let fetchCalls = 0;
+  const countingFetch = async () => { fetchCalls++; return new Response('err', { status: 500 }); };
+  const r = await fetchTymcNewsAlerts('tok', countingFetch);
+  check(fetchCalls === 0, 'C8d TTL 命中時完全不打 fetch（不是剛好取得一樣的值——這條斷言本身被突變測試抓到一次沒牙,已修正）');
+  check(r.list === prior && r.degraded === false, 'C8d TTL 命中時回傳舊值且不標退化（正常運作,不是失敗）');
+}
+_resetTymcNewsMemForTest(null, 0); // 清乾淨,不留給後面的區段
 
 console.log('E. ingestAlertLog（fetch 與 D1 替身）');
 const { ingestAlertLog } = _alertLog;
@@ -370,6 +441,21 @@ const FRESH_AT = () => new Date(Date.now() - 5e3).toISOString();
   await ingestAlertLog({ DELAY_DB: db });
   check(fakeFetchCalls.length === 3, `E10 cron 打了 3 個來源(實得 ${fakeFetchCalls.length})`);
   check(fakeFetchCalls.every(c => c.headers['user-agent'] === _alertLog.ALERT_LOG_CRON_UA), 'E10 cron 的每一發 outbound fetch 都帶了專屬 UA（M12 補牙）');
+}
+{ // E11(2026-07-27 修復輪 3,直接對應複審自己重現的生產案例)metro-alert 整包 200、TYMC 的
+  // Alert op 本身成功,但 payload.degraded 標出 tymc(News 子來源這輪冷 isolate 失敗,見
+  // C8a/C6)→ 既有的新聞稿來源公告不准被解除。跟 E7 是同一條機制(任何 sys 進 payload.degraded
+  // 都會被排除,ingestAlertLog 不特判字串內容),這裡刻意用複審重現案例的確切標題,讓覆蓋對得上
+  // 事故本身、不只是抽象機制。
+  fakeFetch({
+    '/api/metro-alert': { at: FRESH_AT(), alerts: [{ title: '正常營運', status: 1, sys: 'mrt' }], degraded: ['tymc'] },
+    '/api/tra-alert': { at: STALE_TRA_AT(), alerts: [{ title: '全線營運正常', status: 1 }] },
+    '/api/thsr-alert': { at: FRESH_AT(), alerts: [{ title: '全線營運正常(Normal)', status: 1 }] },
+  });
+  const { db, calls } = fakeDb([{ sys: 'tymc', akey: '|【官方新聞稿】A6站設備異常疏運|', title: '【官方新聞稿】A6站設備異常疏運', descr: '', end_at: '' }]);
+  const r = await ingestAlertLog({ DELAY_DB: db });
+  check(r.cleared === 0, 'E11 News 子來源退化時,既有新聞稿公告不被解除（直接對應複審生產重現案例）');
+  check(!r.live.includes('tymc'), 'E11 live 不含退化的 tymc');
 }
 globalThis.fetch = realFetch;
 

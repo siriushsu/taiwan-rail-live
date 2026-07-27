@@ -238,9 +238,17 @@ function metroAlertOpFallback(prev, nowMs) {
 // 供離線測試(2026-07-27 審查 Critical 1:整包 200 不代表涵蓋的每個系統都說得準——單一營運者
 // fetch 失敗會走 metroAlertOpFallback,但外層仍回 200,呼叫端(cron)原本沒有分辨的辦法)。
 // KRTC/KLRT 共用 sys='krtc':任一個退化就整個 krtc 算退化,用 Set 去重避免列兩次。
-function mergeMetroAlertParts(parts, newsAlerts) {
-  const degraded = [...new Set((Array.isArray(parts) ? parts : []).filter(p => p && p.degraded).map(p => p.sys))];
-  const alerts = (Array.isArray(parts) ? parts : []).flatMap(p => (p && p.list) || []).concat(Array.isArray(newsAlerts) ? newsAlerts : []);
+//
+// news 參數(2026-07-27 修復輪 3 前是原始陣列,現在是 fetchTymcNewsAlerts 回傳的
+// { list, degraded } ):TYMC News 是獨立子來源,有自己的 catch,不是 Alert op 那五個之一,
+// 但它退化時一樣要讓 tymc 進 degraded——News 與 TYMC 的 Alert op 共用同一個 sys='tymc',
+// 任一邊退化就整個 tymc 算退化,policy 與 KRTC/KLRT 共用 sys 時完全一致(見上一段),不是新規則。
+function mergeMetroAlertParts(parts, news) {
+  const opDegraded = (Array.isArray(parts) ? parts : []).filter(p => p && p.degraded).map(p => p.sys);
+  const newsDegraded = (news && news.degraded) ? ['tymc'] : [];
+  const degraded = [...new Set([...opDegraded, ...newsDegraded])];
+  const newsList = (news && Array.isArray(news.list)) ? news.list : [];
+  const alerts = (Array.isArray(parts) ? parts : []).flatMap(p => (p && p.list) || []).concat(newsList);
   return { alerts, degraded };
 }
 
@@ -328,21 +336,44 @@ function filterAndMapNews(items, nowMs) {
 }
 
 let tymcNewsMem = null, tymcNewsMemAt = 0;
-async function fetchTymcNewsAlerts(token) {
-  if (tymcNewsMem && Date.now() - tymcNewsMemAt <= METRO_NEWS_TTL_MS) return tymcNewsMem;
+// fetchImpl 用參數注入(同 2026-07-27 修復輪 2 的 fetchMetroAlertOp),production 呼叫時原樣傳
+// 全域 fetch,行為不變;離線測試才能直接控制這支 production 函式本身的成功/失敗,不必經過
+// globalThis.fetch 這種全域替身(2026-07-27 修復輪 3 M10 同款教訓:防再犯斷言要打在真的會跑在
+// production 的函式上,不能只測 mergeMetroAlertParts 這種吃手工輸入的下游聚合)。
+//
+// 2026-07-27 修復輪 3:catch 裡原本 `return tymcNewsMem || []` 把兩種完全不同風險的情境
+// 用同一個表達式蓋過去,回傳形狀改成 { list, degraded } 把兩者分開:
+//   (a) tymcNewsMem 有值(這個 isolate 之前成功過,只是這次刷新失敗):沿用舊值。這則新聞稿
+//       在上一輪已經同步進 D1,這輪原樣重複送出,diffAlertState 拿它跟 D1 比對不會有任何差異
+//       可比——跟 traAlert/thsrAlert/metroAlert 外層 catch 沿用完整 mem 是同一個安全論證
+//       (見修復輪 2),不標退化。
+//   (b) tymcNewsMem 仍是 null(冷 isolate,一次都沒成功過):沒有舊值可沿用,回空陣列——但這個
+//       空陣列的語意是「不知道」不是「確認沒有新聞稿」。若已有新聞稿來源的公告在 D1 裡開著,
+//       它會從這輪 payload 消失,被 diffAlertState 誤判成解除(這正是這輪要修的生產實測案例)。
+//       必須標退化。
+// 上面那條 TTL 命中的 fast path(第一行)完全不算退化:它連 try 都沒進,不是失敗,是設計本身
+// (News 更新慢,故意 10 分鐘才問一次上游,詳見上方常數註解)——標成退化會讓 tymc 在 10 分鐘
+// 窗口內幾乎永遠無法解除,比這輪要修的 bug 更糟。
+async function fetchTymcNewsAlerts(token, fetchImpl) {
+  if (tymcNewsMem && Date.now() - tymcNewsMemAt <= METRO_NEWS_TTL_MS) return { list: tymcNewsMem, degraded: false };
   try {
-    const r = await fetch(TYMC_NEWS_URL, { headers: { authorization: 'Bearer ' + token } });
+    const r = await fetchImpl(TYMC_NEWS_URL, { headers: { authorization: 'Bearer ' + token } });
     if (r.status === 401) { tok = null; throw new Error('tdx 401'); }
     if (!r.ok) throw new Error('tdx api ' + r.status);
     const d = await r.json();
     const list = Array.isArray(d) ? d : (d.Newses || d.News || d.NewsList || []);
     tymcNewsMem = filterAndMapNews(list, Date.now());
     tymcNewsMemAt = Date.now();
-    return tymcNewsMem;
+    return { list: tymcNewsMem, degraded: false };
   } catch (e) {
-    return tymcNewsMem || []; // 失敗沿用舊值;無舊值就略過,不影響 Alert 聚合
+    return { list: tymcNewsMem || [], degraded: !tymcNewsMem };
   }
 }
+// 測試專用:直接控制 News 記憶體的內容與新舊。module-level 的 let 綁定無法從外部注入,要離線
+// 重現「冷 isolate」(tymcNewsMem=null)與「有舊值但已過 TTL」兩種情境都需要直接設值——
+// tymcNewsMem 是單一來源的純量狀態,不像 metroAlertOpMem 有 op 當 key 可以用「各測試各用
+// 不同 key」避開重置。沒有任何 production 呼叫路徑會用到這支。
+function _resetTymcNewsMemForTest(val, atMs) { tymcNewsMem = val; tymcNewsMemAt = atMs; }
 
 let metroAlertMem = null, metroAlertMemAt = 0;
 async function metroAlert(request, env) {
@@ -353,13 +384,13 @@ async function metroAlert(request, env) {
   try {
     if (!metroAlertMem || Date.now() - metroAlertMemAt > 110e3) {
       const token = await getToken(env);
-      const [parts, newsAlerts] = await Promise.all([
+      const [parts, news] = await Promise.all([
         Promise.all(METRO_ALERT_OPS.map(o => fetchMetroAlertOp(o, token, fetch))),
-        fetchTymcNewsAlerts(token),
+        fetchTymcNewsAlerts(token, fetch),
       ]);
       // alerts/at 兩個既有欄位內容與之前逐 byte 相同(mergeMetroAlertParts 只是把 parts.flat() 換成對映
       // 到 sys 才能算 degraded 的等價寫法);degraded 是純追加欄位,前端不讀,零視覺/行為影響。
-      const merged = mergeMetroAlertParts(parts, newsAlerts);
+      const merged = mergeMetroAlertParts(parts, news);
       metroAlertMem = { at: new Date().toISOString(), alerts: merged.alerts, degraded: merged.degraded };
       metroAlertMemAt = Date.now();
     }
@@ -1306,6 +1337,7 @@ export const _ingest = { parseDayEvents, buildDayRows, buildBlob, roundHalfUpStr
 export const _metroAlert = {
   metroAlertOpFallback, mergeMetroAlertParts, fetchMetroAlertOp, isRecentNews, isIncidentNewsTitle,
   stripHtmlAndTruncate, formatNewsTitle, mapNewsToAlert, filterAndMapNews,
+  fetchTymcNewsAlerts, _resetTymcNewsMemForTest, METRO_NEWS_TTL_MS,
 };
 // 純函式導出,供離線回歸測試 import:逐站事件 diff 與 mem.at→台北日換算。
 export const _stationEvents = { diffTrains, twDayFromMemAt };
