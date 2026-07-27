@@ -115,6 +115,12 @@
     text-align: center;
   }
   html[data-theme=dark] .plate { box-shadow: 0 0 0 1.5px var(--plate-frame), 0 5px 14px rgba(0,0,0,.5); }
+  /* 切分頁時牌子不可變寬變窄(v0727c 使用者回報「切到捷運牌子變大」)。牌寬吃內容最寬者,
+     而最寬的通常是 .plate-sub:四顆分頁 199~225px、群內只勾林鐵時的 ALISHAN FOREST RAILWAY
+     到 249.9px(WebKit 最寬,比 Chromium 多約 7px),故取 252 一次蓋住全部。
+     ⚠️ 只套 header 的牌:手機頂列迷你牌 .tb-plate 也帶 .plate,套下去會把短標籤擠出畫面。
+     ⚠️ 新增或改寫任何 plate.sub / SYS_META[].sub 文案要回頭量兩個引擎,超過就調這個值。 */
+  header .plate { min-width: 252px; }
   .plate-isle { display: none; } /* 橫島路網 logo:header 已不用(og/favicon/浮水印保留);恢復=display:block */
   /* letter-spacing 會在末字後多一格,置中會偏左;text-indent 同值補償 */
   header h1 {
@@ -142,7 +148,10 @@
   }
   .plate-arrow { width: 52px; height: 9px; display: block; margin: 0 6px; color: #fff8ec; }
   .header-mid { display: flex; flex-direction: column; gap: 8px; flex: 1 1 420px; min-width: 0; }
-  header #lead { margin: 0; color: var(--faint); font-size: 12px; line-height: 1.55; max-width: 640px; text-wrap: pretty; }
+  /* min-height:導言長短不一會多折一行、把整張地圖上下推(v0727c 使用者回報「按鈕下方文字行數不同也會跳」)。
+     四顆分頁的導言在 901–1680px 之間最多折三行(12px × 1.55 × 3 ≈ 56px),一律先留滿三行的位子。
+     同一個值也吃掉首屏 CLS 的殘量(#lead 靜態預置文案與 boot 換上的文案長短不同)。 */
+  header #lead { margin: 0; color: var(--faint); font-size: 12px; line-height: 1.55; min-height: 56px; max-width: 640px; text-wrap: pretty; }
 
   /* ── 系統切換:群組頁籤(互斥)+縣市+群內成員——pill 家族 ── */
   .systems { margin: 0; }
@@ -170,7 +179,18 @@
     background-repeat: no-repeat; background-position: right 13px center;
   }
   .grouptabs .citysel:focus-visible { outline: 2px solid var(--navy); outline-offset: 1px; }
-  .groupmembers { display: flex; flex-wrap: wrap; gap: 8px; }
+  /* 單列橫捲不換行(v0727c):成員數各群不同(全=1 行說明、台=2 顆、高=1 顆、捷=7 顆),
+     換行會讓 header 高度隨群組變動、切分頁時地圖整個上下跳。改成一列捲動 → 高度恆定。
+     .mem 必須 flex:none,否則 nowrap 下會被壓縮、標籤字自己折行,高度照樣變。
+     右緣淡出＝「還有更多」的提示(與手機 .grouptabs 同一個手法)。 */
+  .groupmembers {
+    display: flex; flex-wrap: nowrap; gap: 8px; min-height: 29px;
+    overflow-x: auto; overflow-y: hidden;
+    -webkit-mask-image: linear-gradient(90deg, #000 calc(100% - 30px), transparent);
+    mask-image: linear-gradient(90deg, #000 calc(100% - 30px), transparent);
+  }
+  .groupmembers::-webkit-scrollbar { display: none; }
+  .groupmembers .mem, .groupmembers .allcap { flex: none; white-space: nowrap; }
   .groupmembers .mem {
     font: inherit; font-size: 12.5px; font-weight: 700; cursor: pointer;
     background: var(--paper); color: var(--muted);
@@ -2306,10 +2326,10 @@ try { if (matchMedia('(max-width: 900px)').matches) document.body.classList.add(
        boot 的 renderSystemsBar 會整塊重建,此處類名/文字必須與其輸出一致(GROUPS/成員變動時同步改) -->
     <div class="systems" id="systems">
     <div class="grouptabs">
-      <button class="gtab active">全台同框</button>
-      <button class="gtab">國家鐵路</button>
-      <button class="gtab">北北桃</button>
-      <button class="gtab">中南部</button>
+      <button class="gtab active" title="全台同框">全</button>
+      <button class="gtab" title="台鐵">台</button>
+      <button class="gtab" title="高鐵">高</button>
+      <button class="gtab" title="捷運與輕軌">捷</button>
       <!-- 縣市視角書籤(靜態預置佔位):boot 的 renderSystemsBar 會整塊重建,options 由 CITY_LIST 生成,此處須與其結構一致(CLS 預留) -->
       <select class="citysel" id="citySel" aria-label="移動到縣市">
         <option value="">縣市</option>
@@ -2631,7 +2651,7 @@ try { if (matchMedia('(max-width: 900px)').matches) document.body.classList.add(
       <summary><span>🛠 更新紀錄</span><span class="foot-sub">最後更新：2026/7/27</span></summary>
       <ul class="foot-list foot-recent">
         <li class="grp">最近更新</li>
-        <li><span class="d">7/27</span><span>地圖右上分頁改成「全／台／高／捷」，切換時畫面不再跳動</span></li>
+        <li><span class="d">7/27</span><span>分頁改成「全／台／高／捷」，電腦版與 App 統一，切換時畫面不再跳動</span></li>
         <li><span class="d">7/26</span><span>更新紀錄瘦身：預設只列最近八條，其餘收進下方「完整更新歷史」依主題分類</span></li>
         <li><span class="d">7/26</span><span>新增「📖 使用說明」：各功能都有圖文步驟，按「試一次」還會直接幫你操作一遍</span></li>
         <li><span class="d">7/26</span><span>手機／App 底部的「地圖」鈕換成「🔍 搜尋」，站名、車次、列車名稱一按就查</span></li>
@@ -2691,7 +2711,7 @@ try { if (matchMedia('(max-width: 900px)').matches) document.body.classList.add(
         <li><span class="d">7/26</span><span>底部「地圖」鈕換成「🔍 搜尋」；對話框不再被底部頁籤蓋住</span></li>
         <li><span class="d">7/25</span><span>電腦版與手機都換上可拖曳的「時刻尺」；電腦版工具帶六項設定收進「☰ 更多」</span></li>
         <li><span class="d">7/25</span><span>打開大面板時地圖自動往上讓位；「隨機跟隨」與「附近車站」移到時鐘下方</span></li>
-        <li><span class="d">7/27</span><span>地圖右上分頁改成「全／台／高／捷」：全＝全台一次看、台＝台鐵與林鐵、高＝高鐵、捷＝各家捷運；切換時畫面停在原地不再跳動（7/25 先加了「高」）</span></li>
+        <li><span class="d">7/27</span><span>分頁改成「全／台／高／捷」，電腦版與 App 統一：全＝全台一次看、台＝台鐵與林鐵、高＝高鐵、捷＝各家捷運；切換時地圖與版面都不再跳動（7/25 先加了「高」）</span></li>
         <li><span class="d">7/24</span><span>版面整理：頂部時鐘與頁籤自動讓位不再互相壓疊；多處過小的標籤文字加大</span></li>
         <li><span class="d">7/22</span><span>地圖可以自由平移、也能縮小看台灣周邊，四周各留一個台灣的空間更透氣</span></li>
         <li><span class="d">7/21</span><span>手機大改版：打開就是全螢幕地圖，面板都住進底部；新增「捷」分頁，北中高捷運一張圖同框</span></li>
@@ -2928,7 +2948,7 @@ try { if (matchMedia('(max-width: 900px)').matches) document.body.classList.add(
 <script>
 // 版本戳記:每次改版 push 前手動遞增(字母序),畫面時鐘徽章與 console 都會顯示,
 // 供比對線上跑的是不是最新版(瀏覽器快取 max-age=600 常讓人看到舊版)
-const BUILD = 'v0727a';
+const BUILD = 'v0727c';
 const TRACK_AUDIT = new URLSearchParams(location.search).get('audit') === 'tracks';
 // 手機/平板直式「殼」斷點(議題1:640→900,iPad 直式改拿 tabbar＋更多抽屜):與 CSS @media 同步,版面類判斷一律用此常數。
 // 注意:裝置等級判斷(keepBuffer/powerSave 預設)刻意不用此常數、維持 640——iPad 不該因為改拿 tabbar 就被當低階裝置。
@@ -6431,11 +6451,28 @@ const SYS_DEFS = [
   { id: 'krtc', label: '高雄捷運', url: './data/krtc.json', speed: 36, mode: 'freq', times: './data/krtc_times.json' },
   { id: 'tmrt', label: '台中捷運', url: './data/tmrt.json', speed: 32, mode: 'freq', times: './data/tmrt_times.json' },
 ];
+// 2026-07-27 v0727c：桌面與 App 分頁統一成四顆「全／台／高／捷」（使用者定案）。
+// 舊制「台＝全台同框、鐵＝國家鐵路」與並列的「高」層級不對等（台被讀成台鐵、鐵又疑似涵蓋高），
+// 現制＝「全」含全部，底下 台（台鐵系）／高（高鐵）／捷（捷運輕軌）三個互斥子集，一層巢狀關係。
+// tab:true 的四個就是兩處頁籤列（桌面 #systems、手機地圖頂列 #topTabs）渲染的群組，順序即畫面順序。
+// nat/north/south 保留但不再渲染：舊分享連結 ?g=、last-view 記憶、既有收藏資料都還指得到它們，
+// 刪掉會讓那些連結開不起來；亮哪一顆由 tabActiveId() 對映（nat→台、north/south→捷）。
+// **順序有意義**：groupOf() 取首命中，四顆 tab 群組必須排在相容群組之前，
+// 才會解析成「台鐵→台、高鐵→高、捷運→捷」而不是舊的 nat/north/south。
 const GROUPS = [
-  { id: 'all', label: '全台同框', short: '全', mode: 'all', members: [],
+  { id: 'all', label: '全台同框', short: '全', tab: true, mode: 'all', members: [],
     plate: { plateL: '基隆', plateR: '高雄', sub: 'ALL LINES · TAIWAN',
       lead: '全台鐵道一次看 — 台鐵、高鐵、阿里山林鐵與各捷運／輕軌皆依當日時刻表同一時間軸運行（台鐵套即時誤點；主要捷運營運時段依官方到站看板校正）。' } },
-  // nat 不再有 short：v0727a 起頂列不渲染它（「鐵」這顆已由「全」與「台」取代），只剩桌面 header 用 label
+  // 「台」＝台鐵系：各支線本來就在 tra_sched 裡，阿里山林鐵同屬台鐵系故一起收（使用者明示）
+  { id: 'tra', label: '台鐵', short: '台', tab: true, mode: 'sched', members: ['tra_sched', 'afr_sched'],
+    plate: { plateL: '基隆', plateR: '枋寮', sub: 'TAIWAN RAILWAY · TRA',
+      lead: '台鐵環島幹線與各支線依當日真實時刻表運行（回到現在時刻自動套用即時誤點），阿里山林鐵同框（依官方公告時刻表，無即時資訊）— 點列車跟隨、點車站看班次。' } },
+  // 刻意不給 plate：loadSchedGroup 單一成員時走 SYS_META[thsr_sched]（高鐵自己的「南港－左營」牌面與導言），g.plate 永不會被讀到
+  { id: 'hsr', label: '高鐵', short: '高', tab: true, mode: 'sched', members: ['thsr_sched'] },
+  { id: 'metro', label: '捷運與輕軌', short: '捷', tab: true, mode: 'freq', members: ['mrt', 'tymc', 'ntdlrt', 'ntalrt', 'sanying', 'tmrt', 'krtc'],
+    plate: { plateL: '台北', plateR: '高雄', sub: 'METRO & LRT · TAIWAN',
+      lead: '台北捷運、桃園機捷、新北捷運（環狀・淡海・安坑・三鶯）、台中捷運與高雄捷運（含輕軌）同框運行，營運時段依官方即時資訊校正（文湖線、三鶯線與台中捷運為班距推算）— 可在上方勾選要同時顯示的系統。' } },
+  // ↓ 以下三個只為相容既有連結與記憶而留，不再出現在任何頁籤列（見上方註解）
   { id: 'nat', label: '國家鐵路', mode: 'sched', members: ['tra_sched', 'thsr_sched', 'afr_sched'],
     plate: { plateL: '基隆', plateR: '枋寮', sub: '台灣鐵道即時軌跡',
       lead: '台鐵、高鐵與阿里山林鐵皆依真實時刻表運行（台鐵回到現在時刻自動套用即時誤點；林鐵依官方公告時刻表，無即時資訊）— 點列車跟隨、點車站看班次，或按地圖角落「探」看今日亮點。' } },
@@ -6445,27 +6482,11 @@ const GROUPS = [
   { id: 'south', label: '中南部', mode: 'freq', members: ['tmrt', 'krtc'],
     plate: { plateL: '台中', plateR: '高雄', sub: 'CENTRAL & SOUTHERN METRO',
       lead: '台中捷運與高雄捷運同框，高捷與輕軌營運時段依官方到站看板校正（台中捷運為班距推算）— 可在上方勾選要同時顯示的系統。' } },
-  // 手機合併群組（北中高捷運一起的圖）：桌面 #systems 不顯示此籤（renderSystemsBar 排除），只在地圖頂浮動列「捷」出現。
-  // members = north ∪ south；置於陣列末位，讓 groupOf 對捷運系統仍首命中 north/south（桌面語意零變化）。
-  { id: 'metro', label: '捷運與輕軌', short: '捷', mode: 'freq', members: ['mrt', 'tymc', 'ntdlrt', 'ntalrt', 'sanying', 'tmrt', 'krtc'],
-    plate: { plateL: '台北', plateR: '高雄', sub: 'METRO & LRT · TAIWAN',
-      lead: '台北捷運、桃園機捷、新北捷運（環狀・淡海・安坑・三鶯）、台中捷運與高雄捷運（含輕軌）同框運行，營運時段依官方即時資訊校正（文湖線、三鶯線與台中捷運為班距推算）— 點上方分頁可切回單一地區。' } },
-  // 手機專屬「高」籤（2026-07-25 使用者要求：頂列從 台/鐵/捷 三顆改 台/鐵/高/捷 四顆）：
-  // 只看高鐵。桌面 #systems 不顯示此籤（renderSystemsBar 排除），桌面要單看高鐵仍走「國家鐵路」的成員勾選
-  // ——手機 fs 沒有成員勾選 UI，所以才需要這個入口。
-  // 同 metro 的手法置於陣列末位：groupOf('thsr_sched') 仍首命中 nat，桌面與既有深連結語意零變化。
-  // 刻意不給 plate：loadSchedGroup 單一成員時走 SYS_META[thsr_sched]（高鐵自己的「南港－左營」牌面與導言），g.plate 永不會被讀到。
-  { id: 'hsr', label: '高鐵', short: '高', mode: 'sched', members: ['thsr_sched'] },
-  // 手機專屬「台」籤（2026-07-27 使用者要求：頂列從 台/鐵/高/捷 改 全/台/高/捷）：
-  // 原本「台」＝全台同框、「鐵」＝國家鐵路，與並列的「高」一比，「台」會被讀成台鐵、「鐵」又疑似涵蓋「高」，層級不對等。
-  // 改成 全（全部）＋台（台鐵）／高（高鐵）／捷（捷運）三個並列子集，一層巢狀關係就清楚了。
-  // 台鐵各支線本來就在 tra_sched 裡；阿里山林鐵同屬「台鐵系」故一起收進來（使用者明示）。
-  // 同 metro/hsr 置於陣列末位：groupOf('tra_sched') 仍首命中 nat，桌面與既有深連結語意零變化。
-  { id: 'tra', label: '台鐵', short: '台', mode: 'sched', members: ['tra_sched', 'afr_sched'],
-    plate: { plateL: '基隆', plateR: '枋寮', sub: 'TAIWAN RAILWAY · TRA',
-      lead: '台鐵環島幹線與各支線依當日真實時刻表運行（回到現在時刻自動套用即時誤點），阿里山林鐵同框（依官方公告時刻表，無即時資訊）— 點列車跟隨、點車站看班次。' } },
 ];
 const groupOf = id => GROUPS.find(g => g.members.includes(id)) || GROUPS[0];
+// 頁籤列要渲染哪幾顆、以及某個 state.group 該亮哪一顆（桌面與手機共用同一份，兩處永遠一致）
+const TAB_GROUPS = GROUPS.filter(g => g.tab);
+const tabActiveId = gid => gid === 'nat' ? 'tra' : (gid === 'north' || gid === 'south') ? 'metro' : gid;
 
 // 縣市視角書籤:純 viewport 書籤——選一縣市即 flyToBounds 到該縣市軌道範圍,不過濾列車、不改系統載入。
 // bbox = [南緯, 西經, 北緯, 東經](涵蓋該縣市軌道的合理行政區範圍即可,不必精確到界)。新竹/嘉義縣市合一。
@@ -6645,12 +6666,14 @@ function renderSystemsBar() {
   const cur = GROUPS.find(g => g.id === state.group) || GROUPS[0];
   const tabs = document.createElement('div');
   tabs.className = 'grouptabs';
-  GROUPS.forEach(g => {
-    if (g.id === 'metro' || g.id === 'hsr' || g.id === 'tra') return; // 桌面 header 永遠四籤(all/nat/north/south);metro/hsr/tra 是手機專屬籤,只出現在地圖頂浮動列
+  // v0727c:桌面與 App 同一組短標(全/台/高/捷)、同一個 active 對映、同樣切換不重新框景——兩處完全統一
+  const act = tabActiveId(cur.id);
+  TAB_GROUPS.forEach(g => {
     const b = document.createElement('button');
-    b.className = 'gtab' + (g.id === cur.id ? ' active' : '');
-    b.textContent = g.label;
-    b.onclick = () => selectGroup(g);
+    b.className = 'gtab' + (g.id === act ? ' active' : '');
+    b.textContent = g.short;
+    b.title = g.label; // 桌面滑過看得到全名(全台同框/台鐵/高鐵/捷運與輕軌)
+    b.onclick = () => selectGroup(g, true);
     tabs.appendChild(b);
   });
   tabs.appendChild(buildCitySelect()); // 縣市視角書籤:群組頁籤列尾端;整塊重建即回「縣市」佔位
@@ -6685,24 +6708,20 @@ function renderSystemsBar() {
   box.appendChild(mem);
 }
 
-// 地圖頂浮動列的短標分頁(手機 fs 專屬):固定序 全(all)／台(tra)／高(hsr)／捷(metro);桌面 CSS 隱藏但仍與 #systems 同步重建。
-// active 對映:全←all、台←tra|nat、高←hsr、捷←metro|north|south
-// (手機若因舊記憶/深連結落在 nat 就亮「台」、落在 north/south 就亮「捷」——桌面才有的群組在手機取最接近的那顆)。
-// 四籤都是「全台範圍的圖層切換」而非地區書籤,故一律 keepView:切換不重新框景(見 selectGroup)。
+// 地圖頂浮動列的短標分頁(手機 fs 專屬):與桌面 #systems 同一份 TAB_GROUPS、同一個 active 對映,
+// 桌面 CSS 隱藏但仍同步重建(resize 跨界零遷移)。四籤都是「全台範圍的圖層切換」而非地區書籤,
+// 故一律 keepView:切換不重新框景(見 selectGroup)。
 function renderTopTabs(cur) {
   const box = document.getElementById('topTabs');
   if (!box) return;
   box.innerHTML = '';
-  const g = cur.id;
-  const traActive = g === 'tra' || g === 'nat';
-  const metroActive = g === 'metro' || g === 'north' || g === 'south';
-  [['all', g === 'all'], ['tra', traActive], ['hsr', g === 'hsr'], ['metro', metroActive]].forEach(([id, on]) => {
-    const gp = GROUPS.find(x => x.id === id);
+  const act = tabActiveId(cur.id);
+  TAB_GROUPS.forEach(g => {
     const b = document.createElement('button');
-    b.className = 'gtab' + (on ? ' active' : '');
-    b.textContent = gp.short || gp.label;
-    b.title = gp.label;
-    b.onclick = () => selectGroup(gp, true);
+    b.className = 'gtab' + (g.id === act ? ' active' : '');
+    b.textContent = g.short;
+    b.title = g.label;
+    b.onclick = () => selectGroup(g, true);
     box.appendChild(b);
   });
 }
@@ -6729,8 +6748,9 @@ function groupInView(g) {
   return pts === 0;
 }
 
-// keepView:切換群組時保留現有視野(地圖頂列四籤傳 true——它們是圖層切換不是地區書籤,重新框景會讓畫面整個跳一下)。
-// 桌面 #systems 的頁籤不傳:北北桃/中南部本來就是地區書籤,「選了就飛過去」才是它們的語意。
+// keepView:切換群組時保留現有視野。桌面與手機的四顆頁籤都傳 true——四顆都是全台範圍的圖層切換,
+// 重新框景會讓畫面整個跳一下（要跳到某地請用旁邊的「縣市」選單,那才是地區書籤）。
+// 收藏/搜尋導航等非頁籤的呼叫不傳,維持原本「切過去並框景」的語意。
 // 保留視野的前提是新群組在目前視窗裡真的看得到東西,否則(例:人在花蓮按「高」)照樣框景,免得切到空白地圖。
 function selectGroup(g, keepView) {
   if (!state.systems.length) return; // 預渲染期(資料未載入)頁籤先不動作,boot 完成後恢復
@@ -10761,7 +10781,8 @@ function closeSearchPanel() {
 function stnNavResolve(e) {
   if (e.kind === 'sched') {
     const here = state.mode === 'sched' && (state.schedSystems || []).some(s => s.id === e.sysId);
-    return { group: here ? null : GROUPS.find(g => g.id === 'nat'), st: { name: e.name, lat: e.lat, lon: e.lon, sys: e.sysId } };
+    // v0727c:改切到該系統自己的分頁(台鐵/林鐵→台、高鐵→高),不再切到已無頁籤的 nat——否則四顆籤沒一顆亮
+    return { group: here ? null : groupOf(e.sysId), st: { name: e.name, lat: e.lat, lon: e.lon, sys: e.sysId } };
   }
   if (state.group === 'all') return { group: null, st: { name: e.name, lat: e.lat, lon: e.lon, sys: 'deco' } };
   const here = state.mode === 'freq' && (state.lines || []).some(l => l._sys === e.sysId);
@@ -13046,7 +13067,8 @@ initMusic();
   // 跟車次:不在 sched 群組時先切「國家鐵路」(頁籤一致);followTrainNo 本身亦可跨系統
   // 手機搜尋列住在「搜尋」sheet;跟車前先關該 sheet(比照亮點列點擊先關再跟),桌面搜尋在 header 不受影響
   const closeSearchHost = () => { if (window.matchMedia(MOBILE_MQ).matches && typeof closeSearchPanel === 'function') closeSearchPanel(); };
-  const followNo = no => { closeSearchHost(); if (state.mode !== 'sched') selectGroup(GROUPS.find(g => g.id === 'nat')); followTrainNo(no); };
+  // 只有車次號、不知道是台鐵還高鐵 → 切「全」(兩家真實時刻都在,findTrain 一定找得到);v0727c 前是已無頁籤的 nat
+  const followNo = no => { closeSearchHost(); if (state.mode !== 'sched') selectGroup(GROUPS.find(g => g.id === 'all')); followTrainNo(no); };
   ts.addEventListener('input', renderSearchDrop);
   ts.addEventListener('focus', () => { if (ts.value.trim()) renderSearchDrop(); });
   ts.addEventListener('keydown', e => {
