@@ -1007,13 +1007,15 @@ const ALERT_LOG_SOURCES = [
   { path: '/api/thsr-alert', covers: ['thsr'], sysOf: () => 'thsr' },
 ];
 
-// 公告識別鍵:標題＋起始時間。刻意不做 hash——鍵本身可讀,D1 裡直接看得懂是哪一則,
-// 除錯與離線測試都不必反查。標題含日期(「115年7月27日地震恢復營運訊息」)已足以區分
-// 同型公告的不同次發布;start 是為了少數標題固定、逐次重發的公告(颱風類)再加一道。
+// 公告識別鍵:營運者標籤＋標題＋起始時間。刻意不做 hash——鍵本身可讀,D1 裡直接看得懂是
+// 哪一則,除錯與離線測試都不必反查。
+// 為什麼要有 label:METRO_ALERT_OPS 把 KRTC(高雄捷運)與 KLRT(高雄輕軌)兩個獨立營運者
+// 對映到同一個 sys='krtc',只用 (sys,title,start) 當鍵會讓兩家同標題不同內容的公告
+// 互相蓋掉——那是真的丟資料,而這一層存在的目的正是公告歷史。台鐵/高鐵無此欄,label=''。
+// 各段先把半形直線換成全形再接:否則標題裡出現字面直線就能與另一組 (標題,起始) 撞鍵。
 function alertKey(rec) {
-  const t = String(rec && rec.title != null ? rec.title : '').trim().slice(0, 200);
-  const s = String(rec && rec.start != null ? rec.start : '').trim().slice(0, 40);
-  return t + '|' + s;
+  const seg = (v, max) => String(v == null ? '' : v).trim().slice(0, max).replace(/\|/g, '｜');
+  return seg(rec && rec.label, 40) + '|' + seg(rec && rec.title, 200) + '|' + seg(rec && rec.start, 40);
 }
 
 // 單一來源的回應 → 統一形狀的異常公告陣列。純函式:不碰 D1、不碰時間。
@@ -1035,6 +1037,7 @@ function normalizeAlertPayload(payload, sysOf) {
       start: String(a.start == null ? '' : a.start).trim(),
       end: String(a.end == null ? '' : a.end).trim(),
       news: !!a.news,
+      label: String(a.sysLabel == null ? '' : a.sysLabel).trim(),
     });
   }
   return out;
