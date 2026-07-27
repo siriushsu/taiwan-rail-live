@@ -6435,7 +6435,8 @@ const GROUPS = [
   { id: 'all', label: '全台同框', short: '全', mode: 'all', members: [],
     plate: { plateL: '基隆', plateR: '高雄', sub: 'ALL LINES · TAIWAN',
       lead: '全台鐵道一次看 — 台鐵、高鐵、阿里山林鐵與各捷運／輕軌皆依當日時刻表同一時間軸運行（台鐵套即時誤點；主要捷運營運時段依官方到站看板校正）。' } },
-  { id: 'nat', label: '國家鐵路', short: '鐵', mode: 'sched', members: ['tra_sched', 'thsr_sched', 'afr_sched'],
+  // nat 不再有 short：v0727a 起頂列不渲染它（「鐵」這顆已由「全」與「台」取代），只剩桌面 header 用 label
+  { id: 'nat', label: '國家鐵路', mode: 'sched', members: ['tra_sched', 'thsr_sched', 'afr_sched'],
     plate: { plateL: '基隆', plateR: '枋寮', sub: '台灣鐵道即時軌跡',
       lead: '台鐵、高鐵與阿里山林鐵皆依真實時刻表運行（台鐵回到現在時刻自動套用即時誤點；林鐵依官方公告時刻表，無即時資訊）— 點列車跟隨、點車站看班次，或按地圖角落「探」看今日亮點。' } },
   { id: 'north', label: '北北桃', mode: 'freq', members: ['mrt', 'tymc', 'ntdlrt', 'ntalrt', 'sanying'],
