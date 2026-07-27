@@ -4993,9 +4993,22 @@ const NOTIFY_LOCAL_ENABLED = !!window.RAIL_NATIVE_LOCALNOTIFY;
 // 實體收集(單站打卡、搭乘模式、GPS 校正旅程)限原生 App——這是既有「虛實雙軌」延伸成平台分界:
 // 「跟完」是虛的、跟動畫就算,所以跨平台;「搭過/到訪」是實的、要人真的在場,所以只在 App 開。
 // 網頁仍看得到護照、收集地圖與懸賞板(觀看面兩邊都有),點懸賞會提示要用 App。
-// 判斷用 RAIL_APP_CONFIG 而不是 RAIL_NATIVE_GEOLOCATION:後者是「有沒有原生定位橋接」,
-// 語意上是能力不是平台,拿來當平台旗標會在日後加別的橋接時默默改變行為。
-const IS_NATIVE_APP = !!window.RAIL_APP_CONFIG;
+// 平台訊號取兩個真訊號的聯集。**不可**改回 RAIL_APP_CONFIG(曾經是這樣寫的,是個意外的耦合):
+// 那個物件只在「授權底圖 build」才注入(prepare-web.mjs 的 includeLicensedBasemaps 三元),而不帶
+// RAIL_INCLUDE_LICENSED_BASEMAPS 的安全 build 是受支援的產出模式——verify-release.mjs 還特地
+// 斷言安全 build 裡不存在 RAIL_APP_CONFIG。拿它當平台旗標,`npm run sync`(沒設環境變數)產出的
+// 原生 App 會整個關掉實體收集:蓋章鈕不長、#fpRide 被 remove、搭乘模式消失,而底圖授權跟實體
+// 收集在功能上毫無關係。
+//   ・RAIL_ONLINE_BASEMAPS_AVAILABLE:prepare-web.mjs **無條件**注入(值可 true/false,key 必在),
+//     網站版從來沒有這個 key ⇒ 只看 key 在不在,就等於問「這份頁面是不是 App 殼打包出來的」。
+//   ・Capacitor.isNativePlatform():bridge 在頁面腳本前注入,判定可靠(比照 PLUS_ENABLED 的既有註解)。
+// 也不可改用 RAIL_NATIVE_GEOLOCATION:那是「有沒有原生定位橋接」,語意上是能力不是平台,
+// 拿來當平台旗標會在日後加別的橋接時默默改變行為。
+const IS_NATIVE_APP = (() => {
+  if (typeof window.RAIL_ONLINE_BASEMAPS_AVAILABLE !== 'undefined') return true;
+  try { if (window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform()) return true; } catch (e) {}
+  return false;
+})();
 const PHYSICAL_COLLECT_ENABLED = IS_NATIVE_APP;
 const RECORDING_ENABLED = false; // 2026-07-17 錄影暫時下架(整備中):所有入口隱藏、實作全保留;改 true 即復活(工具列鈕+更多抽屜列+Plus 文案)
 const ACCOUNT_ENABLED = false; // 2026-07-17 帳號同步轉收費前暫時下架:入口全藏、不載 Firebase SDK、實作全保留;僅 ?account=delete 深連結(account-deletion.html)留給既有帳號刪資料;改 true 即復活
@@ -5347,6 +5360,32 @@ function userDataCleanValue(kind, value) {
     v.sys = String(v.sys || 'tra_sched');
     v.date = String(v.date || '');
     if (!v.train || !/^\d{4}-\d{2}-\d{2}$/.test(v.date)) return null;
+  } else if (kind === 'checkins' || kind === 'segments') {
+    // 沒有這兩條分支的話它們會落到最後的 `return v`(未知 kind＝JSON clone 原樣放行,零驗證),
+    // 於是打卡/路段是全系統唯一沒有欄位白名單與長度上限的 kind;更糟的是缺 k 的遠端畸形資料
+    // 會一路走到 userDataItemId 變成字串 'undefined' ——「同 kind 全部塌陷成同一個 id」這個剛在
+    // userDataItemId 修好的失效模式,從遠端資料這一頭整個復發。k 就是本機儲存鍵(站鍵 sys|name
+    // 或段鍵 sys|線id|A|B),缺了它這筆就沒有身分,直接丟掉。
+    const clampN = x => Math.max(0, Math.min(Math.floor(Number(x) || 0), 999999));
+    const k = String(v.k == null ? '' : v.k).trim().slice(0, 200);
+    if (!k) return null;
+    if (kind === 'segments') {
+      const n = clampN(v.n);
+      // nv 是 n 的子集(驗過定位的那幾次),遠端把它灌大會直接污染懸賞的分母,故夾在 n 以內
+      v = { k, n, nv: Math.min(clampN(v.nv), n) };
+    } else {
+      // 欄位與順序對齊 checkinsToCollections 產出的 value:k,name,sys,s,n,d,lo
+      const out = {
+        k,
+        name: String(v.name == null ? '' : v.name).slice(0, 80),
+        sys: String(v.sys == null ? '' : v.sys).slice(0, 40) || 'tra_sched',
+        s: Object.prototype.hasOwnProperty.call(STN_STATUS_RANK, v.s) ? v.s : 'follow',
+        n: clampN(v.n),
+        d: /^\d{4}-\d{2}-\d{2}$/.test(String(v.d == null ? '' : v.d)) ? String(v.d) : '',
+      };
+      if (v.lo) out.lo = 1;
+      v = out;
+    }
   }
   return v;
 }
@@ -8596,19 +8635,41 @@ function loadCheckins() {
 // 升級必須冪等——loadCheckins 每次讀都會跑它,不冪等會讓已升級的資料再被處理一次。
 // ⚠形狀驅動,故意不做版本早退(不可加 if(o.v>=2) return o):版本閘只看 o.v 不看值的形狀,
 //   會讓「v:2 但值仍是裸數字」的髒資料永久逃過正規化,把 nv/u 靜默留空。
+// ⚠回填的 u **必須跨裝置一致或已經落盤**,否則 LWW 的時間戳退化成「本機讀取時刻」:回填只活在
+//   記憶體的話,每次 loadCheckins() 都給 now ⇒ checkinsToCollections(loadCheckins()) 每次上傳都把
+//   全部舊筆蓋成當下 ⇒ userDataNormalizeCollection 的 at >= old.updatedAt 恆真 ⇒ 另一台裝置的新
+//   編輯永遠被壓掉。而且第一次 writeCheckin 會把整包已回填的物件 saveCheckins,連帶把所有舊筆的
+//   u 一起釘在同一刻(寫入放大):蓋一次章,整本護照就贏過另一台裝置之前所有的真實編輯。
+//   兩條路各治一半:
+//   ・站章走決定性回填——d 是最後一次蓋章的日期(YYYY-MM-DD),Date.parse 對這個純日期形式一律以
+//     UTC 午夜解讀,所以同一筆舊記錄在任何裝置、任何時區都算出同一個 u(這裡要的是決定性與可比
+//     大小,不是牆鐘正確,故不走 activeTz()),LWW 不會因為「誰比較晚升級」而選錯邊;而且「誰的紀錄
+//     比較新」正好就是這個功能想要的比法。
+//   ・路段沒有任何日期欄位可推,只能補 now,再靠下面的落盤把它凍住(至少不會每次讀都變成最新)。
+//   補 0 兩邊都不行——0 在 LWW 裡永遠輸,等於使用者一接上帳號就默默丟掉舊護照。
+//   dirty 只在「這次真的補了東西」時為 true,所以落盤一輩子只發生一次:loadCheckins 在收集地圖
+//   模式是每幀呼叫的(drawCollectSegs → segmentCollection → loadCheckins),無條件寫會變成每幀一次
+//   localStorage.setItem。也因此本函式必須冪等——落盤後再讀,dirty 為 false,不再寫。
 function migrateCheckins(o) {
   const now = userDataNow();
+  let dirty = Number(o.v) !== 2;
   const sg = {};
   for (const [k, v] of Object.entries(o.sg || {})) {
-    sg[k] = (v && typeof v === 'object')
+    const obj = v && typeof v === 'object';
+    if (!obj || !(Number(v.u) > 0)) dirty = true;
+    sg[k] = obj
       ? { n: Number(v.n) || 0, nv: Number(v.nv) || 0, u: Number(v.u) || now }
       : { n: Number(v) || 0, nv: 0, u: now };
   }
-  // 舊資料沒有逐筆時間戳,一律補「升級的當下」。補 0 會讓這些筆在多裝置合併時永遠輸,
-  // 等於使用者一接上帳號就默默丟掉舊護照——那是收集類功能最傷的失敗模式。
   const st = {};
-  for (const [k, v] of Object.entries(o.st || {})) st[k] = Object.assign({}, v, { u: Number(v.u) || now });
-  return Object.assign({}, o, { v: 2, st, sg });
+  for (const [k, v] of Object.entries(o.st || {})) {
+    const u0 = Number(v && v.u) || 0;
+    if (!u0) dirty = true;
+    st[k] = Object.assign({}, v, { u: u0 || Date.parse(String((v && v.d) || '')) || now });
+  }
+  const out = Object.assign({}, o, { v: 2, st, sg });
+  if (dirty) saveCheckins(out); // 回填落盤一次:不寫的話時間戳只是「本機讀取時刻」,見上方
+  return out;
 }
 function saveCheckins(c) { try { localStorage.setItem(CHECKIN_KEY, JSON.stringify(c)); } catch (e) {} }
 // 同一座實體站在班表資料裡可能掛兩個名字(環島線分支、官方全稱),座標完全重合——實測 3 對:
@@ -12025,11 +12086,15 @@ const HELP_GROUPS = [
       one: '跟完一整趟就蓋一枚章，收集起來變成你的旅程紀錄。',
       steps: ['從發車跟到終點', '章會出現在「護照」', '灰色的章可以點——它隨機挑一班該類列車，從發車前 20 秒開始重播給你跟'],
       tip: '加速播放沒問題，中途跳時間就不算。', try: 'ride' },
-    { key: 'stncollect', ic: '<span class="stn-seal visit" style="width:26px;height:26px;padding:0"><b style="font-size:7px">站</b></span>', nm: '車站收集章',
+    // 這兩節教的都是實體收集(蓋章鈕、「我上車了」),那兩顆鈕在網頁端根本不存在——說明中心是說明的
+    // 唯一來源,節要跟著旗標消失,不然就是叫使用者去找一顆找不到的鈕(try 也會把他送去撲空)。
+    // ⚠riding 不可加 needs:'fpRide':#fpRide 初始就帶 hidden 屬性,helpElUsable 會判不可用,
+    //   等於 App 上沒在跟車時整節消失——而這節正是在教怎麼開始。
+    { key: 'stncollect', badge: 'App', avail: () => PHYSICAL_COLLECT_ENABLED, ic: '<span class="stn-seal visit" style="width:26px;height:26px;padding:0"><b style="font-size:7px">站</b></span>', nm: '車站收集章',
       one: '去過的車站會變成一枚章，收在護照裡；同一座站去越多次，章上的數字越大。',
       steps: ['章有三種：跟完（在 App 裡跟完動畫）、搭過（搭車經過）、到訪（人真的踏上月台）', '跟完一趟車，起訖站自動成章', '人在車站時，從「附近車站」按該站的蓋章鈕，就升級成到訪章'],
       tip: '蓋章只在你按下去的當下讀一次位置，不會在背景一直追蹤你。每站每天算一次。', try: 'ride' },
-    { key: 'riding', ic: '🎫', nm: '搭乘模式：我上車了',
+    { key: 'riding', badge: 'App', avail: () => PHYSICAL_COLLECT_ENABLED, ic: '🎫', nm: '搭乘模式：我上車了',
       one: '真的在車上時按一下，沿路每過一站就自動幫你蓋一枚章。',
       steps: ['先跟著你要搭的那班車', '按卡片上的「🎫 我上車了」，並選好在哪一站下車', '之後不用管它——車每過一站就蓋一枚，到站自動結束'],
       tip: '只在上車、下車兩個點用到你的位置，中間由列車自己的時刻推算，所以進隧道、關螢幕都不影響。上車時就要選下車站，否則忘了按下車會一路蓋到終點。', try: 'follow' },

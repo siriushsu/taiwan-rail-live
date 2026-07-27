@@ -37,10 +37,28 @@ function expectedCounts(rides) {
   return m;
 }
 
+// ── App 殼 build 真正注入的 global（app/scripts/prepare-web.mjs 的鏡射）─────────────
+// fixture 的形狀必須源自 build 腳本的實況，不是源自「我希望旗標怎麼運作」（心得 29 的反面應用）。
+// 舊 fixture 注入的 { platform:'ios', build:'test' } 真實 build 從來不會產生——prepare-web 產的是
+// { followZoomCap, satRetina, tiles }，而且兩個布林 global 一定會注入。用假形狀的代價不只是失真：
+// 那時 app 情境的 FOLLOW_ZOOM_CAP 是 Infinity（＝網站行為），等於 App 測試根本沒在測 App 設定。
+// 兩種受支援的產出模式都要能模擬：
+//   licensed = npm run sync:release（RAIL_INCLUDE_LICENSED_*=1）→ 三個 global 都在
+//   safe     = npm run sync（沒帶環境變數）→ 只有兩個布林，**沒有** RAIL_APP_CONFIG
+//              （verify-release.mjs 對安全 build 的硬斷言就是「不應注入 RAIL_APP_CONFIG」）
+// tiles 刻意不進 fixture：這支 harness 服務的是網站版 index.html（WEB_TILES 後備區塊還在，真 App
+// build 會整段拔除），塞授權網址等於讓每次驗收去打 Stadia／Esri 的計費端點。平台旗標不讀 tiles，
+// index.html 會消費的是 followZoomCap 與 satRetina 這兩個值。
+const APP_BUILD_GLOBALS = {
+  licensed: { RAIL_MUSIC_AVAILABLE: true, RAIL_ONLINE_BASEMAPS_AVAILABLE: true,
+    RAIL_APP_CONFIG: { followZoomCap: 16, satRetina: true } },
+  safe: { RAIL_MUSIC_AVAILABLE: false, RAIL_ONLINE_BASEMAPS_AVAILABLE: false },
+};
+
 async function open(browser, { width = 1440, height = 900, path = '/index.html', touch = false, app = false } = {}) {
   const ctx = await browser.newContext({ viewport: { width, height }, hasTouch: touch });
-  // app:true 模擬原生殼——必須在頁面腳本執行前注入 RAIL_APP_CONFIG,IS_NATIVE_APP 讀的就是這個(N 組)。
-  if (app) await ctx.addInitScript(() => { window.RAIL_APP_CONFIG = { platform: 'ios', build: 'test' }; });
+  // app:true（或 'safe'）模擬原生殼——必須在頁面腳本執行前注入，IS_NATIVE_APP 讀的就是這些(N 組)。
+  if (app) await ctx.addInitScript(g => { Object.assign(window, g); }, APP_BUILD_GLOBALS[app === true ? 'licensed' : app]);
   const page = await ctx.newPage();
   await page.goto(BASE + path, { waitUntil: 'load' });
   await page.waitForFunction(() => typeof state !== 'undefined' && state.trains && state.trains.length > 0, { timeout: 40000 });
@@ -1485,6 +1503,116 @@ try {
     ok('M17 collectionsToCheckins 對 updatedAt=0 退回 now 而非 0(與 migrateCheckins 語意一致)',
       m17.stU >= m17.before && m17.sgU >= m17.before, JSON.stringify(m17));
 
+    // M18 LWW 真的會挑時間戳新的那一份（review Important 1）：M11–M17 全在驗「u 有沒有值／會不會
+    // 更新」，沒有任何一項驗過「合併時誰贏」——而那才是 u 存在的理由。造兩台裝置對同一個 key 的
+    // 兩份紀錄（內容不同、updatedAt 不同），跑真正接同步時會用的 userDataNormalizeCollection，
+    // 斷言新的那份勝出。刻意把「新的」放在陣列前面，讓「後者覆蓋前者」這種假實作照樣會紅。
+    const m18 = await page.evaluate(() => {
+      const mk = (n, at) => ({ id: 'TRA|WL|A|B', value: { k: 'TRA|WL|A|B', n, nv: 0 }, updatedAt: at });
+      const newerFirst = userDataNormalizeCollection('segments', { items: [mk(9, 1700000900000), mk(4, 1700000100000)], tombstones: [] });
+      const olderFirst = userDataNormalizeCollection('segments', { items: [mk(4, 1700000100000), mk(9, 1700000900000)], tombstones: [] });
+      const mkSt = (n, at) => ({ id: 'TRA|臺北', value: { k: 'TRA|臺北', name: '臺北', sys: 'TRA', s: 'visit', n, d: '2026-07-20' }, updatedAt: at });
+      const st = userDataNormalizeCollection('checkins', { items: [mkSt(7, 1700000900000), mkSt(2, 1700000100000)], tombstones: [] });
+      return {
+        newerFirst: newerFirst.items.length === 1 ? newerFirst.items[0].value.n : -1,
+        olderFirst: olderFirst.items.length === 1 ? olderFirst.items[0].value.n : -1,
+        stN: st.items.length === 1 ? st.items[0].value.n : -1,
+      };
+    });
+    ok('M18 合併同一個 key 時，updatedAt 較新的那一份勝出（兩種陣列順序都要贏）',
+      m18.newerFirst === 9 && m18.olderFirst === 9 && m18.stN === 7, JSON.stringify(m18));
+
+    // M19 舊資料的 u 回填必須落盤，而且跨次讀取要凍住（review Important 1 的核心）：回填只活在
+    // 記憶體時，每次 loadCheckins() 都給 Date.now()，接上同步後每次上傳都把整本護照蓋成「現在」，
+    // at >= old.updatedAt 恆真 ⇒ 另一台裝置的新編輯永遠被壓掉。判準取兩個獨立面向：
+    //   (a) 磁碟上真的有 u（直接讀 localStorage 原始字串，不看回傳值）
+    //   (b) 隔一段真實時間再讀，u 一模一樣（凍住），且不等於第二次讀取當下的時刻
+    const m19 = await page.evaluate(async () => {
+      localStorage.setItem('trainmap-checkins-v1', JSON.stringify({
+        v: 1, st: { 'TRA|臺北': { name: '臺北', sys: 'TRA', s: 'visit', n: 3, d: '2026-07-20' } },
+        sg: { 'TRA|WL|A|B': 3 },
+      }));
+      const c1 = loadCheckins();
+      const raw = JSON.parse(localStorage.getItem('trainmap-checkins-v1'));
+      await new Promise(r => setTimeout(r, 30));
+      const t2 = Date.now();
+      const c2 = loadCheckins();
+      const raw2 = localStorage.getItem('trainmap-checkins-v1');
+      return {
+        diskStU: raw.st['TRA|臺北'].u, diskSgU: raw.sg['TRA|WL|A|B'].u, diskV: raw.v,
+        stSame: c1.st['TRA|臺北'].u === c2.st['TRA|臺北'].u,
+        sgSame: c1.sg['TRA|WL|A|B'].u === c2.sg['TRA|WL|A|B'].u,
+        sgNotNow: c2.sg['TRA|WL|A|B'].u < t2,
+        stable: raw2 === JSON.stringify(c2), // 第二次讀不再改寫磁碟（冪等）
+      };
+    });
+    ok('M19 舊資料的 u 落盤且跨次讀取凍住（不會每次 loadCheckins 都變成「現在」）',
+      m19.diskV === 2 && typeof m19.diskStU === 'number' && m19.diskStU > 0
+      && typeof m19.diskSgU === 'number' && m19.diskSgU > 0
+      && m19.stSame === true && m19.sgSame === true && m19.sgNotNow === true && m19.stable === true,
+      JSON.stringify(m19));
+
+    // M20 站章的 u 是決定性回填（review Important 1）：同一筆舊記錄在任何裝置上都要算出同一個 u，
+    // 否則「誰比較晚升級」就決定誰贏。真值取自資料本身（d 欄位）而不是實作——腳本自己用
+    // Date.parse 算一次期望值，並斷言它嚴格早於本次讀取時刻（＝這筆不會因為被讀取而變成全域最新）。
+    const m20 = await page.evaluate(() => {
+      localStorage.removeItem('trainmap-checkins-v1');
+      const before = Date.now();
+      localStorage.setItem('trainmap-checkins-v1', JSON.stringify({
+        v: 1,
+        st: {
+          'TRA|臺北': { name: '臺北', sys: 'TRA', s: 'visit', n: 3, d: '2026-07-20' },
+          'TRA|瑞芳': { name: '瑞芳', sys: 'TRA', s: 'pass', n: 1, d: '' }, // d 缺 → 只能退回 now
+        },
+        sg: {},
+      }));
+      const c = loadCheckins();
+      return { taipei: c.st['TRA|臺北'].u, ruifang: c.st['TRA|瑞芳'].u, before };
+    });
+    ok('M20 站章的 u 由 d 決定性回填（跨裝置同值、且早於讀取時刻），d 缺才退回 now',
+      m20.taipei === Date.parse('2026-07-20') && m20.taipei < m20.before && m20.ruifang >= m20.before,
+      JSON.stringify(Object.assign({ want: Date.parse('2026-07-20') }, m20)));
+
+    // M21 遠端畸形資料要被 clean 掉或擋掉，不能塌陷成同一個 id（review Important 3）：checkins／
+    // segments 曾經沒有 userDataCleanValue 分支，未知 kind 一律 `return v` 原樣放行 ⇒ 缺 k 的筆
+    // 走到 userDataItemId 變成字串 'undefined'，同 kind 全部擠成一筆。M14 之所以綠燈，正是因為
+    // cleanValue 對未知 kind 是 no-op，測不出這個洞。這裡一次餵三種畸形：缺 k、型別錯、超長字串。
+    const m21 = await page.evaluate(() => {
+      const long = 'x'.repeat(5000);
+      const norm = userDataNormalizeCollection('checkins', {
+        items: [
+          { id: 'a', value: { name: '無鍵一', sys: 'TRA', s: 'visit', n: 1, d: '2026-07-20' }, updatedAt: 3 }, // 缺 k
+          { id: 'b', value: { name: '無鍵二', sys: 'TRA', s: 'visit', n: 2, d: '2026-07-21' }, updatedAt: 4 }, // 缺 k
+          { id: 'c', value: { k: 'TRA|壞型別', name: 123, sys: 'TRA', s: '亂寫', n: '9', d: '不是日期' }, updatedAt: 5 },
+          { id: 'd', value: { k: 'TRA|超長', name: long, sys: long, s: 'visit', n: -5, d: '2026-07-22' }, updatedAt: 6 },
+        ],
+        tombstones: [],
+      });
+      const segs = userDataNormalizeCollection('segments', {
+        items: [
+          { id: 'e', value: { n: 3, nv: 1 }, updatedAt: 7 },                            // 缺 k
+          { id: 'f', value: { k: 'TRA|WL|A|B', n: 2, nv: 99 }, updatedAt: 8 },           // nv > n
+        ],
+        tombstones: [],
+      });
+      const bad = norm.items.find(it => it.id === 'TRA|壞型別');
+      const big = norm.items.find(it => it.id === 'TRA|超長');
+      return {
+        ids: norm.items.map(it => it.id).sort(),
+        hasUndefinedId: norm.items.some(it => it.id === 'undefined'),
+        badS: bad && bad.value.s, badN: bad && bad.value.n, badD: bad && bad.value.d, badName: bad && bad.value.name,
+        bigNameLen: big && big.value.name.length, bigSysLen: big && big.value.sys.length, bigN: big && big.value.n,
+        segIds: segs.items.map(it => it.id), segNv: segs.items[0] && segs.items[0].value.nv,
+      };
+    });
+    ok('M21 畸形遠端資料：缺 k 直接丟棄（不塌陷成 id "undefined"），型別/長度/範圍都被夾住',
+      JSON.stringify(m21.ids) === JSON.stringify(['TRA|壞型別', 'TRA|超長'])
+      && m21.hasUndefinedId === false
+      && m21.badS === 'follow' && m21.badN === 9 && m21.badD === '' && m21.badName === '123'
+      && m21.bigNameLen === 80 && m21.bigSysLen === 40 && m21.bigN === 0
+      && JSON.stringify(m21.segIds) === JSON.stringify(['TRA|WL|A|B']) && m21.segNv === 2,
+      JSON.stringify(m21));
+
     await ctx.close();
   }
 
@@ -1543,9 +1671,9 @@ try {
     ok('N3b 網頁端頁尾不再提「蓋章」', !n3.foot.includes('蓋章'), n3.foot);
     await n3ctx.close();
 
-    // N4–N5：App（注入 RAIL_APP_CONFIG，必須在頁面腳本執行前）
+    // N4–N5：App（注入授權 build 的 global，必須在頁面腳本執行前；形狀見 APP_BUILD_GLOBALS）
     const appCtx = await browser.newContext({ viewport: { width: 390, height: 844 }, hasTouch: true });
-    await appCtx.addInitScript(() => { window.RAIL_APP_CONFIG = { platform: 'ios', build: 'test' }; });
+    await appCtx.addInitScript(g => { Object.assign(window, g); }, APP_BUILD_GLOBALS.licensed);
     const app = await appCtx.newPage();
     await app.goto(BASE + '/index.html', { waitUntil: 'load' });
     await app.waitForFunction(() => typeof state !== 'undefined' && state.trains && state.trains.length > 0, { timeout: 40000 });
@@ -1606,8 +1734,65 @@ try {
     ok('N5b 網頁端收集地圖入口在（先前 N5 只驗護照鈕，這顆入口曾經零覆蓋）',
       n5bWeb.missing === false && n5bWeb.btn === true, JSON.stringify(n5bWeb));
 
+    // N8 說明中心的兩節實體收集說明要跟著平台走（review Important 2）：`stncollect` 第三步叫使用者
+    // 「從『附近車站』按該站的蓋章鈕」、`riding` 叫使用者「按卡片上的『🎫 我上車了』」——網頁端這
+    // 兩顆鈕都被 PHYSICAL_COLLECT_ENABLED 擋掉了（N2/N3 已證實），說明卻照樣教。判準用 helpSecOk
+    // ＋真的 renderHelp() 後查 DOM 兩層：只問 helpSecOk 測不到「有沒有真的接進渲染」。
+    const helpSecs = ['stncollect', 'riding'];
+    const helpProbe = p => p.evaluate(keys => {
+      openHelp();
+      document.querySelectorAll('#helpBody .help-grp').forEach(g => g.classList.add('open'));
+      const rendered = [...document.querySelectorAll('#helpBody .help-sec')].map(s => s.dataset.sec);
+      const out = { total: rendered.length };
+      for (const k of keys) {
+        const s = HELP_GROUPS.flatMap(g => g.secs).find(x => x.key === k);
+        out[k] = { known: !!s, ok: s ? helpSecOk(s) : null, inDom: rendered.includes(k) };
+      }
+      closeHelp();
+      return out;
+    }, helpSecs);
+    const n8web = await helpProbe(web);
+    const n8app = await helpProbe(app);
+    ok('N8 網頁端不渲染「車站收集章」「搭乘模式」兩節（那兩顆鈕在網頁不存在）',
+      helpSecs.every(k => n8web[k].known === true && n8web[k].ok === false && n8web[k].inDom === false)
+      && n8web.total > 0,
+      JSON.stringify(n8web));
+    ok('N8b App 端這兩節照常出現（avail 只擋網頁，不是把說明整個刪掉）',
+      helpSecs.every(k => n8app[k].ok === true && n8app[k].inDom === true),
+      JSON.stringify(n8app));
+
     await appCtx.close();
     await webCtx.close();
+  }
+
+  // N7 安全 build（npm run sync，沒帶 RAIL_INCLUDE_LICENSED_BASEMAPS）也必須是原生 App
+  // （review Critical 1 的回歸鎖）：IS_NATIVE_APP 曾經是 !!window.RAIL_APP_CONFIG，而那個物件只在
+  // 授權底圖 build 才注入——安全 build 的原生 App 於是 PHYSICAL_COLLECT_ENABLED=false，蓋章鈕不長、
+  // #fpRide 被 remove、搭乘模式整個消失。這個情境 verify-release.mjs 驗不到（它只看 HTML 字串），
+  // 舊 fixture 也驗不到（它注入的是真實 build 從不產生的 { platform, build } 形狀）。
+  // 這裡完全照 prepare-web.mjs 安全 build 的實況：只有兩個布林、**沒有** RAIL_APP_CONFIG。
+  {
+    const { ctx: safeCtx, page: safePage } = await open(browser, { width: 390, height: 844, touch: true, app: 'safe' });
+    const n7 = await safePage.evaluate(() => {
+      const flags = { flagApp: IS_NATIVE_APP, flagPhys: PHYSICAL_COLLECT_ENABLED,
+        hasCfg: typeof window.RAIL_APP_CONFIG !== 'undefined', basemaps: window.RAIL_ONLINE_BASEMAPS_AVAILABLE };
+      const tr = (state.trains || []).find(t => !t.loop);
+      if (!tr) return Object.assign(flags, { missing: true });
+      state.mode = 'sched'; state.followTrain = tr;
+      showFollowPanel(tr);
+      const b = document.getElementById('fpRide');
+      if (!b) return Object.assign(flags, { missing: false, gone: true });
+      const cs = getComputedStyle(b), r = b.getBoundingClientRect();
+      const hit = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
+      return Object.assign(flags, { missing: false, gone: false, display: cs.display, w: r.width, h: r.height,
+        hitSelf: !!hit && (hit === b || b.contains(hit)) });
+    });
+    ok('N7 安全 build（無 RAIL_APP_CONFIG）仍判定為原生 App，「我上車了」鈕可見可點',
+      n7.hasCfg === false && n7.basemaps === false && n7.flagApp === true && n7.flagPhys === true
+      && n7.missing === false && n7.gone === false && n7.display !== 'none' && n7.w > 0 && n7.h > 0
+      && n7.hitSelf === true,
+      JSON.stringify(n7));
+    await safeCtx.close();
   }
 
   // N6 #fpRide 查無時 13625 的 onclick 綁定不拋錯（review Important 3）：模擬「未來有人把跟車
