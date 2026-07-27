@@ -8577,14 +8577,21 @@ function loadCheckins() {
 // 懸賞的分母只認 nv(規格 §6:章是給自己的所以寬鬆,會影響別人的資料才嚴格)。
 // 舊資料一律 nv:0:沒有在場證據就不該進分母,寧可低估也不要污染別人的模型。
 // 升級必須冪等——loadCheckins 每次讀都會跑它,不冪等會讓已升級的資料再被處理一次。
+// ⚠形狀驅動,故意不做版本早退(不可加 if(o.v>=2) return o):版本閘只看 o.v 不看值的形狀,
+//   會讓「v:2 但值仍是裸數字」的髒資料永久逃過正規化,把 nv/u 靜默留空。
 function migrateCheckins(o) {
+  const now = userDataNow();
   const sg = {};
   for (const [k, v] of Object.entries(o.sg || {})) {
     sg[k] = (v && typeof v === 'object')
-      ? { n: Number(v.n) || 0, nv: Number(v.nv) || 0 }
-      : { n: Number(v) || 0, nv: 0 };
+      ? { n: Number(v.n) || 0, nv: Number(v.nv) || 0, u: Number(v.u) || now }
+      : { n: Number(v) || 0, nv: 0, u: now };
   }
-  return Object.assign({}, o, { v: 2, sg });
+  // 舊資料沒有逐筆時間戳,一律補「升級的當下」。補 0 會讓這些筆在多裝置合併時永遠輸,
+  // 等於使用者一接上帳號就默默丟掉舊護照——那是收集類功能最傷的失敗模式。
+  const st = {};
+  for (const [k, v] of Object.entries(o.st || {})) st[k] = Object.assign({}, v, { u: Number(v.u) || now });
+  return Object.assign({}, o, { v: 2, st, sg });
 }
 function saveCheckins(c) { try { localStorage.setItem(CHECKIN_KEY, JSON.stringify(c)); } catch (e) {} }
 // 同一座實體站在班表資料裡可能掛兩個名字(環島線分支、官方全稱),座標完全重合——實測 3 對:
@@ -8643,6 +8650,7 @@ function writeCheckin(st, status, opts) {
   if (o.count !== false) e.n = (Number(e.n) || 0) + 1;
   e.d = today;
   if (status === 'visit') { if (o.low) e.lo = 1; else delete e.lo; } // 低信心只對「人在現場」的宣稱有意義
+  e.u = userDataNow();   // 逐筆時間戳:多裝置合併時比這個決定誰贏(LWW)
   c.st[k] = e; saveCheckins(c);
   return true;
 }
@@ -8689,6 +8697,40 @@ function segmentCollectionVerified() {
   }
   return out;
 }
+// ── 本機資料 ↔ userData collection 形狀 ──────────────────────────────
+// 現在還沒接帳號同步(ACCOUNT_ENABLED=false),但形狀現在就要定死:上線之後再改就得寫資料遷移,
+// 而收集類功能最傷的失敗模式就是「使用者重裝 App 整本護照歸零」。
+// 接同步的那一天,上傳端只要呼叫 checkinsToCollections(loadCheckins()) 就好,不必動任何存量資料。
+//
+// 合併語意:逐筆 LWW,直接沿用 userDataNormalizeCollection 既有的 at >= old.updatedAt,不另寫合併碼。
+// 已知限制(選過的,不是漏的):兩台裝置各搭同一段 50 次,合併後是 50 不是 100。
+// 做成相加要 CRDT 計數器,對 v1 是過度設計;而且相加在「同一台裝置重複同步」時會膨脹,那個失敗模式更糟。
+function checkinsToCollections(c) {
+  const byId = (a, b) => a.id.localeCompare(b.id);
+  const checkins = Object.entries(c.st || {}).map(([k, v]) => ({
+    id: k,
+    value: { k, name: v.name, sys: v.sys, s: v.s, n: Number(v.n) || 0, d: v.d },
+    updatedAt: Number(v.u) || 0,
+  })).sort(byId);
+  const segments = Object.entries(c.sg || {}).map(([k, v]) => ({
+    id: k,
+    value: { k, n: Number(v.n) || 0, nv: Number(v.nv) || 0 },
+    updatedAt: Number(v.u) || 0,
+  })).sort(byId);
+  return { checkins: { items: checkins, tombstones: [] }, segments: { items: segments, tombstones: [] } };
+}
+function collectionsToCheckins(cols) {
+  const st = {}, sg = {};
+  for (const it of ((cols && cols.checkins && cols.checkins.items) || [])) {
+    const v = it.value || {};
+    st[it.id] = { name: v.name, sys: v.sys, s: v.s, n: Number(v.n) || 0, d: v.d, u: Number(it.updatedAt) || 0 };
+  }
+  for (const it of ((cols && cols.segments && cols.segments.items) || [])) {
+    const v = it.value || {};
+    sg[it.id] = { n: Number(v.n) || 0, nv: Number(v.nv) || 0, u: Number(it.updatedAt) || 0 };
+  }
+  return { v: 2, st, sg };
+}
 function lineNetwork() {
   const m = new Map();
   for (const ln of (state.trackLines || [])) {
@@ -8724,6 +8766,7 @@ function writeSegments(tr, fromIdx, toIdx, verified) {
     for (const s of rec.segs) if (s.mid >= lo && s.mid <= hi) {
       const cur = c.sg[s.key] || { n: 0, nv: 0 };
       cur.n += 1;
+      cur.u = userDataNow();   // 逐筆時間戳:多裝置合併時比這個決定誰贏(LWW)
       if (verified) cur.nv += 1;   // 上車站定位驗過才算「有在場證據」
       c.sg[s.key] = cur;
     }

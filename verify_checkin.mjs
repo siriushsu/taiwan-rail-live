@@ -1342,6 +1342,70 @@ try {
       !m6.missing && m6.okStart === true && m6.bv === 1 && m6.nvSum > 0,
       m6.missing ? '找不到可測試的行駛中班次（清晨/深夜跑會這樣，比照 H 組限制）' : JSON.stringify(m6));
 
+    // M7–M10：形狀一次到位（規格 §6）。判準：round-trip 無損，且 id 排序穩定。
+    // 直接餵已是 v2 形狀的物件給轉換函式，不經 loadCheckins/migrateCheckins——
+    // 這兩個函式測的是「形狀對不對」，不是「升級對不對」（升級由 M11 負責）。
+    const m7 = await page.evaluate(() => {
+      const c = {
+        v: 2,
+        st: { '臺北': { name: '臺北', sys: 'TRA', s: 'visit', n: 3, d: '2026-07-20', u: 1700000000000 } },
+        sg: { 'TRA|WL|A|B': { n: 5, nv: 2, u: 1700000001000 } },
+      };
+      const cols = checkinsToCollections(c);
+      const back = collectionsToCheckins(cols);
+      return {
+        kinds: Object.keys(cols).sort(),
+        stItem: cols.checkins.items[0],
+        sgItem: cols.segments.items[0],
+        roundTrip: JSON.stringify(back) === JSON.stringify(c),
+        backStr: JSON.stringify(back),
+      };
+    });
+    ok('M7 轉出兩個 kind', JSON.stringify(m7.kinds) === '["checkins","segments"]', JSON.stringify(m7.kinds));
+    ok('M8 item 形狀是 {id,value,updatedAt}',
+      m7.stItem && m7.stItem.id === '臺北' && m7.stItem.updatedAt === 1700000000000 && m7.stItem.value.s === 'visit',
+      JSON.stringify(m7.stItem));
+    ok('M9 路段 item 帶 n 與 nv',
+      m7.sgItem && m7.sgItem.id === 'TRA|WL|A|B' && m7.sgItem.value.n === 5 && m7.sgItem.value.nv === 2,
+      JSON.stringify(m7.sgItem));
+    ok('M10 round-trip 無損', m7.roundTrip === true, m7.backStr);
+
+    // M11 舊資料（沒有 u）升級後每筆都要有 u，否則合併時會被當成 0 永遠輸
+    const m11 = await page.evaluate(() => {
+      localStorage.setItem('trainmap-checkins-v1', JSON.stringify({
+        v: 1, st: { '花蓮': { name: '花蓮', sys: 'TRA', s: 'pass', n: 1, d: '2026-01-01' } }, sg: { 'TRA|WL|X|Y': 2 },
+      }));
+      const c = loadCheckins();
+      return { stU: c.st['花蓮'].u, sgU: c.sg['TRA|WL|X|Y'].u };
+    });
+    ok('M11 舊資料升級後每筆都有 u', typeof m11.stU === 'number' && m11.stU > 0 && typeof m11.sgU === 'number' && m11.sgU > 0,
+      JSON.stringify(m11));
+
+    // M12/M13：M7–M11 只測轉換函式與 migrateCheckins 的回填,沒有任何一項真的呼叫
+    // writeCheckin／writeSegments 斷言寫入路徑本身有記 u——實測拿掉那兩行 e.u=/cur.u=
+    // userDataNow() 後全數 107 項照樣通過,是真的測不到的洞,故補上。
+    const m12 = await page.evaluate(() => {
+      localStorage.removeItem('trainmap-checkins-v1');
+      const before = Date.now();
+      writeCheckin({ name: 'M12測試站', sys: 'TRA' }, 'visit', {});
+      const c = JSON.parse(localStorage.getItem('trainmap-checkins-v1'));
+      const e = c.st[Object.keys(c.st)[0]];
+      return { u: e && e.u, before };
+    });
+    ok('M12 writeCheckin 寫入時記下 u', typeof m12.u === 'number' && m12.u >= m12.before, JSON.stringify(m12));
+
+    const m13 = await page.evaluate(() => {
+      localStorage.removeItem('trainmap-checkins-v1');
+      const before = Date.now();
+      const rec = [...lineNetwork().values()][0];
+      const s0 = rec.segs[0];
+      const rev = { sys: rec.sys, stops: [{ name: s0.a, segLn: rec.ln, dA: s0.dA, dB: s0.dB }, { name: s0.b }] };
+      writeSegments(rev, 0, 1, true);
+      const c = JSON.parse(localStorage.getItem('trainmap-checkins-v1'));
+      return { u: c.sg[s0.key] && c.sg[s0.key].u, before };
+    });
+    ok('M13 writeSegments 寫入時記下 u', typeof m13.u === 'number' && m13.u >= m13.before, JSON.stringify(m13));
+
     await ctx.close();
   }
 } finally {
