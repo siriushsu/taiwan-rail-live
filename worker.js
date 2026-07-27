@@ -1263,6 +1263,21 @@ async function ingestAlertLog(env) {
   return { added: d.added.length, updated: d.updated.length, cleared: d.cleared.length, live: [...liveSys] };
 }
 
+// 公告紀錄保留期。只刪「解除超過 90 天」的列——還沒解除的一律留著,不管多舊
+// (颱風長期停駛類公告可以掛好幾週)。
+// 判準用 cleared_at 不用 first_seen:颱風公告可能首見 100 天前、昨天才解除,拿首見時間去比
+// 會把它當成過期資料刪掉,但 /api/alert-log 的 30 天窗(掛 last_seen)這時還查得到它
+// ⇒ 端點會眼睜睜看著自己該回傳的列被清理刪走。清理的判準必須比查詢窗更寬,不能互相打架。
+// cleared_at IS NOT NULL 在 SQL 三值邏輯下其實是多餘的(NULL < ? 不成立),留著是為了讓
+// 「只刪已解除的」這個意圖對讀的人是明寫的,不必自己推。
+// 掛在既有日排程的 finally,不另開 cron;失敗只 console.error 不 rethrow,比照 pruneStationEvents。
+const ALERT_LOG_KEEP_DAYS = 90;
+async function pruneAlertLog(env) {
+  const cutoff = new Date(Date.now() - ALERT_LOG_KEEP_DAYS * 86400e3).toISOString();
+  const r = await env.DELAY_DB.prepare('DELETE FROM alert_log WHERE cleared_at IS NOT NULL AND cleared_at < ?').bind(cutoff).run();
+  console.log(`[cron alert-log] 清理 < ${cutoff}: ${(r.meta && r.meta.changes) || 0} 列`);
+}
+
 // 公告紀錄唯讀查詢(/api/alert-log)。天數上限刻意設 30(不是 D1 保留期的 90):這是給人看的
 // 近況,不是資料匯出;LIMIT 500 是防呆——真實量級一天個位數則,一次爆到 500 就是上游或狀態機
 // 出事了。
@@ -1366,6 +1381,9 @@ export default {
       // 逐站事件保留期清理:獨立 try/catch,不影響上面 ingest 的成功/失敗(rethrow)語意;finally 確保 ingest 失敗也會跑
       try { await pruneStationEvents(env); }
       catch (e) { console.error('[cron station-events] 清理失敗:', (e && e.stack) || String(e)); }
+      // 公告紀錄保留期清理:同樣獨立 try/catch,一個清理失敗不影響另一個
+      try { await pruneAlertLog(env); }
+      catch (e) { console.error('[cron alert-log] 清理失敗:', (e && e.stack) || String(e)); }
     }
   },
   async fetch(request, env, ctx) {
@@ -1453,4 +1471,5 @@ export const _rateLimit = { rateLimited, delayHistory, deletePaidProfile };
 export const _alertLog = {
   alertKey, normalizeAlertPayload, diffAlertState, ingestAlertLog, ALERT_LOG_SOURCES,
   ALERT_LOG_CRON, ALERT_LOG_CRON_UA, trafficTag, buildAlertLogBody, alertLog,
+  pruneAlertLog, ALERT_LOG_KEEP_DAYS, ALERT_LOG_MAX_DAYS,
 };

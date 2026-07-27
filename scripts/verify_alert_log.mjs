@@ -314,7 +314,9 @@ function fakeDb(prevRows) {
     return {
       bind: (...args) => {
         calls.sql.push({ sql, args });
-        return { all: async () => project() };
+        // run 補回(Task 5):pruneAlertLog 走 prepare(sql).bind(cutoff).run(),是這裡第一個
+        // 真正的呼叫者(上面段落說的「沒有任何呼叫者用到」是 findings#7 當時的事實,不是永遠)。
+        return { all: async () => project(), run: async () => ({ meta: { changes: 0 } }) };
       },
       all: async () => project(),
       run: async () => ({ meta: { changes: 0 } }),
@@ -552,6 +554,14 @@ const { buildAlertLogBody } = _alertLog;
   check(eq(out[0].lines, ['1', '2', '3']), 'H12 lines 陣列內的非字串元素會被轉成字串');
 }
 check(eq(buildAlertLogBody(null), []), 'H13 null 進來回空陣列');
+{ // H14 全空物件進來時,每個欄位都要是字串,而且不能是 'undefined'/'null' 這種字面值——
+  // buildAlertLogBody 自陳「不讓一筆髒資料打掉整個回應」,那個承諾要對每個欄位成立,
+  // 不是只對當初想到的那三個。日後加欄位忘了兜底,這條會紅。
+  const [o] = buildAlertLogBody([{}]);
+  const bad = Object.entries(o).filter(([k, v]) =>
+    k !== 'lines' && k !== 'news' && (typeof v !== 'string' || v === 'undefined' || v === 'null'));
+  check(bad.length === 0, `H14 空物件的每個字串欄位都有兜底（實得問題欄位 ${JSON.stringify(bad)}）`);
+}
 
 console.log('I. alertLog（/api/alert-log 端點本身:days 參數/SQL/快取/錯誤回退，Task 4）');
 const { alertLog } = _alertLog;
@@ -644,6 +654,20 @@ const alertLogReq = (qs = '') => new Request('https://railisland.tw/api/alert-lo
   const sinceMs = bound ? Date.parse(bound.args[0]) : NaN;
   const expectMs = before - 30 * 86400e3;
   check(Number.isFinite(sinceMs) && Math.abs(sinceMs - expectMs) < 5000, `I8b days=999 夾到 30 後,since 約為 30 天前而非未夾取的 raw（誤差 ${Math.round(Math.abs(sinceMs - expectMs))}ms）`);
+}
+{ // I8c(2026-07-28 複審):I8b 的 fixture 從 ?days=3「換成」?days=999,而不是「再加一個」,
+  // 結果 since 只剩下夾取後的邊界值(30)被驗到,普通值那條路沒有任何斷言。
+  // 複審實測:把 since 改成「只有 days===30 時正確、其餘一律多算一天」,143 條零 FAIL。
+  // 邊界與普通值是兩條不同的路,兩條都要有樣本。
+  globalThis.caches = fakeEdgeCache();
+  const { db, calls } = fakeDb([]);
+  const before = Date.now();
+  await alertLog(alertLogReq('?days=5'), { DELAY_DB: db });
+  const bound = calls.sql.find(c => /FROM alert_log/.test(c.sql));
+  const sinceMs = bound ? Date.parse(bound.args[0]) : NaN;
+  const expectMs = before - 5 * 86400e3;
+  check(Number.isFinite(sinceMs) && Math.abs(sinceMs - expectMs) < 5000,
+    `I8c 沒觸及夾取的普通值(days=5)也要正確往前推（誤差 ${Math.round(Math.abs(sinceMs - expectMs))}ms）`);
 }
 { // I9 成功時的狀態碼與快取標頭都要對(2026-07-28 修復輪 1 findings#5:狀態碼原本沒有任何
   // 斷言在守,把 200 改成 500 是 142 條零 FAIL——而且那顆 500 還會被 edge.put 寫進快取,
@@ -785,6 +809,36 @@ console.log('G. trafficTag（cron 自身流量不誤記,2026-07-27 審查 Import
   check(!!app && app.plat === 'app' && app.dev === 'd', 'G4 App 殼 origin 照舊記成 app');
   const mobile = trafficTag('', 'Mozilla/5.0 (iPhone; CPU iPhone OS) AppleWebKit Mobile/15E148');
   check(!!mobile && mobile.dev === 'm', 'G5 UA 含 Mobile 記成 m（不受 cron 判斷影響）');
+}
+
+// ── J 段:保留期清理(Task 5)──────────────────────────────────────────────
+console.log('J. pruneAlertLog（公告紀錄 90 天保留期清理，Task 5）');
+const { pruneAlertLog, ALERT_LOG_KEEP_DAYS, ALERT_LOG_MAX_DAYS } = _alertLog;
+
+{ // J1 DELETE 的 SQL 逐字相符,判準用 cleared_at 兩處——不是 first_seen 也不是 last_seen。
+  // 這條看起來像在重抄實作,但它守的是一個跨 Task 的不變量:清理若改以 first_seen 為準,
+  // 「首見 100 天前、昨天才解除」的列會被刪掉,而 /api/alert-log 的 30 天窗(掛 last_seen)
+  // 這時還查得到它 ⇒ 端點會回不出自己該回的列。未來任何一次「順手把欄位統一掉」都在這裡變紅。
+  const { db, calls } = fakeDb([]);
+  await pruneAlertLog({ DELAY_DB: db });
+  const del = calls.sql.find(c => /DELETE FROM alert_log/.test(c.sql)) || {};
+  const expectDel = 'DELETE FROM alert_log WHERE cleared_at IS NOT NULL AND cleared_at < ?';
+  check(del.sql === expectDel, `J1 清理 SQL 與期望值逐字相符\n    期望:${expectDel}\n    實得:${del.sql}`);
+}
+{ // J2 cutoff 是「現在往前推 90 天」,方向沒寫反(推到未來會把整張表清空)
+  const before = Date.now();
+  const { db, calls } = fakeDb([]);
+  await pruneAlertLog({ DELAY_DB: db });
+  const del = calls.sql.find(c => /DELETE FROM alert_log/.test(c.sql));
+  const cutoffMs = del ? Date.parse(del.args[0]) : NaN;
+  const expectMs = before - 90 * 86400e3;
+  check(Number.isFinite(cutoffMs) && Math.abs(cutoffMs - expectMs) < 5000,
+    `J2 cutoff 約為 90 天前（誤差 ${Math.round(Math.abs(cutoffMs - expectMs))}ms）`);
+}
+{ // J3 保留期必須嚴格大於查詢窗上限——J1 註解那個不變量的機器版。只要有人把保留期調到
+  // 30 天以下,端點就會查詢一段自己已經刪掉的區間,而且不會有任何其他測試發現。
+  check(ALERT_LOG_KEEP_DAYS > ALERT_LOG_MAX_DAYS,
+    `J3 保留期(${ALERT_LOG_KEEP_DAYS} 天)必須大於查詢窗上限(${ALERT_LOG_MAX_DAYS} 天)`);
 }
 
 console.log(fails ? `\n❌ ${fails} 項未過` : '\n✅ 全部通過');
