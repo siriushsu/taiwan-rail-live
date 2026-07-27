@@ -910,6 +910,24 @@
     cursor: pointer; white-space: nowrap;
   }
   .ph-sec .pl-map:hover { opacity: .86; }
+  /* 「校正貢獻」節專屬收窄(只動這個新節,不動 .ph-sec 共用規則,其餘七節間距不受影響):
+     這節永遠渲染(不像其他節資料是空的就整段不長出來),在車站牆龐大的重度使用者身上會把護照
+     預設高度推過 verify_checkin.mjs L10「收得進一個視窗」的門檻——相鄰 margin 本來就會 collapse
+     取大值,拿掉這節自己的 margin-top 只是不再讓它去跟前一節比大小,視覺間距仍由前一節的
+     margin-bottom 或本節自己的 padding-bottom/border-bottom 撐住,不會整個貼死。 */
+  .passport [data-sec="correct"], #ridePanel [data-sec="correct"] {
+    margin: 0; padding-bottom: 0; border-bottom-width: 0; align-items: center;
+  }
+  /* 收合時(預設狀態)沒有下邊界線會讓這節看起來懸空,用內容 div 自己的上邊界補回視覺分隔——
+     展開時(Task 6 填了真內容後)兩層都在,分隔線改由內容區負責,標題列不需要重複畫一條。 */
+  .passport [data-sec="correct"] + .ph-correct, #ridePanel [data-sec="correct"] + .ph-correct {
+    border-top: 1.5px dashed var(--line-dash); padding-top: 8px; margin-top: 2px;
+  }
+  /* 桌面版鈕收窄到 24px(只桌面、不動 #ridePanel):上面幾項都收完,桌面 176 站重度使用者情境下
+     還差臨門 1px 卡在門檻上——太貼著門檻邊緣不安全(字型渲染/未來內容微幅差異都可能讓它再紅一次)。
+     觸控精度需求只在手機,桌面滑鼠對 24px 高的鈕完全夠點,而 #ridePanel 完全不觸碰、
+     手機仍是完整 28px(A12b 用真觸控在 375 寬驗過命中)。 */
+  .passport [data-sec="correct"] .pl-map { min-height: 24px; padding-top: 3px; padding-bottom: 3px; }
   .datestamp {
     display: inline-block; font-family: var(--mono); font-size: 11px; font-weight: 700;
     color: var(--navy); border: 1.5px solid var(--navy); border-radius: 3px; padding: 0 5px;
@@ -1623,6 +1641,34 @@
     padding: 18px; background: rgba(20,29,42,.58);
   }
   .takeout-modal[hidden] { display: none; }
+  /* 懸賞板的殼(.tk-box/.tk-head/.tk-sub/.tk-body/.tk-x):brief 給的 HTML 用了這組新 class 名,
+     但没有對應 CSS——實測截圖直接證實 fallback 到瀏覽器預設樣式,卡面浮在地圖正中央毫無容器感,
+     手機上更直接與底下的護照 sheet 疊字(見驗收記錄)。這裡逐值照抄 .takeout-dialog／
+     .takeout-head／.takeout-body 這組六顆既有 modal 共用、已經驗證好看的樣式,唯一新增的是
+     .tk-sub(既有模式沒有副標題這個位置)。 */
+  .bounty-modal .tk-box {
+    width: min(620px, 100%); max-height: min(760px, calc(100dvh - 36px)); overflow: hidden;
+    display: flex; flex-direction: column; background: var(--paper); color: var(--ink);
+    border: 2px solid var(--navy); border-radius: 14px; box-shadow: 0 12px 40px rgba(15,25,40,.32);
+  }
+  .bounty-modal .tk-head {
+    display: flex; align-items: center; gap: 10px; padding: 11px 14px;
+    background: var(--navy); color: var(--on-navy); flex: none;
+  }
+  .bounty-modal .tk-head b { flex: 1; font-size: 16px; font-weight: 900; letter-spacing: 3px; }
+  .bounty-modal .tk-x {
+    border: 0; background: transparent; color: var(--on-navy); font-size: 24px; line-height: 1;
+    cursor: pointer; min-width: 44px; min-height: 44px;
+  }
+  .bounty-modal .tk-sub { padding: 12px 16px 0; font-size: 12px; color: var(--muted); line-height: 1.6; flex: none; }
+  .bounty-modal .tk-body { padding: 6px 16px 14px; overflow-y: auto; overscroll-behavior: contain; }
+  .bounty-modal .bt-card { display: grid; grid-template-columns: 1fr auto; gap: 4px 10px;
+    align-items: center; padding: 10px 12px; border-bottom: 1px dashed var(--line); }
+  .bounty-modal .bt-r { grid-column: 1; font-weight: 700; }
+  .bounty-modal .bt-meta { grid-column: 1; font-size: 12px; opacity: .75; }
+  .bounty-modal .bt-pt { grid-column: 2; grid-row: 1 / span 2; font-size: 20px; font-weight: 800; }
+  .bounty-modal .bt-take { grid-column: 2; grid-row: 3; }
+  .bounty-modal .bt-empty { padding: 24px 12px; text-align: center; opacity: .7; }
   .takeout-dialog {
     width: min(620px, 100%); max-height: min(760px, calc(100dvh - 36px)); overflow: hidden;
     display: flex; flex-direction: column; background: var(--paper); color: var(--ink);
@@ -2947,6 +2993,15 @@ try { if (matchMedia('(max-width: 900px)').matches) document.body.classList.add(
     <div class="takeout-head"><h2 id="plusTitle">軌島 Plus</h2><button id="plusX" type="button" aria-label="關閉">×</button></div>
     <div class="takeout-body" id="plusBody"><p class="account-intro">正在讀取購買資格…</p></div>
   </section>
+</div>
+<!-- 懸賞板：與其他六顆浮層同一層級。.stage 會把 z2200 封頂成 1000（見上方註解），
+     所以新增的浮層一律加在這裡，不要圖方便塞進地圖那棵子樹 -->
+<div class="takeout-modal bounty-modal" id="bountyModal" hidden>
+  <div class="tk-box">
+    <div class="tk-head"><b>📍 校正懸賞</b><button class="tk-x" id="bountyClose" type="button">×</button></div>
+    <div class="tk-sub" id="bountySub"></div>
+    <div class="tk-body" id="bountyList"></div>
+  </div>
 </div>
 <div class="takeout-modal notify-modal" id="notifyModal" hidden>
   <section class="takeout-dialog notify-dialog" role="dialog" aria-modal="true" aria-labelledby="notifyTitle">
@@ -8402,6 +8457,7 @@ function renderRidePanel() {
     buildStamps(rides) +
     buildStationStamps(rides) +
     buildLineBars() +
+    buildCorrectSection() +
     buildAchv(rides, 'chip') +
     phSec('rides', rides.length, 12, '完乘記錄') +
     (list ? `<div class="ph-list">${list}</div>`
@@ -8412,6 +8468,7 @@ function renderRidePanel() {
     if (e.target.closest('.close')) return;
     if (ppSecClick(e)) { renderRidePanel(); return; }
     if (e.target.closest('[data-act="collectmap"]')) { setCollectMap(true); return; } // setCollectMap 自己會收面板
+    if (e.target.closest('[data-act="bountyboard"]')) { openBountyBoard(); return; }
     const st = e.target.closest('.seal[data-cat]');
     if (st) { closeRidePanel(); followDexStamp(st.dataset.cat, st.dataset.id); }
   };
@@ -9001,6 +9058,126 @@ function endRidingNow() {
   const r = loadRiding(); if (!r) return; // tick 剛好蓋到下車站已自動結束
   finishRiding(tr, Object.assign({}, r, { toIdx: r.atIdx }));
 }
+// ══ GPS 路段收集懸賞 ═══════════════════════════════════════════════════════
+// 規格：打卡收集系統設計_GPS懸賞_2026-07-27.html。後端契約見計畫 B。
+// 分成三層：資料層（本檔這一段）、懸賞板 UI、錄製模式。座標從頭到尾不離開裝置——
+// 每一次定位回呼當下就用 projectOntoShape() 換成沿線里程，經緯度不進任何陣列、不進 localStorage、
+// 不進上傳 payload。這句話會寫進隱私政策與 App 送審說明，所以它必須是程式結構保證的，不是慣例。
+const BOUNTY_KEY = 'trainmap-bounty-v1';
+// actor 直接用既有的 userDataDeviceId()：它已經在做規格 §6 要的事（首次使用產生隨機 id、
+// 存 trainmap-device-id）。再造一個只會讓「這個裝置是誰」有兩個答案。
+function bountyActor() { return userDataDeviceId(); }
+// 形狀第一版就是最終的 userData collection 形狀（規格 §6 硬條件）：Plus 上線接同步時是純上傳、
+// 零遷移。逐筆 u 是 LWW 的比較鍵，與 checkinsToCollections 同一套規則。
+function loadBounty() {
+  try {
+    const o = JSON.parse(localStorage.getItem(BOUNTY_KEY) || 'null');
+    if (o && typeof o === 'object' && o.trips && typeof o.trips === 'object') return o;
+  } catch (e) {}
+  return { v: 1, claims: {}, trips: {} };
+}
+function saveBounty(b) { try { localStorage.setItem(BOUNTY_KEY, JSON.stringify(b)); } catch (e) {} }
+// 與計畫 A 的 checkinsToCollections 同構：接同步那天上傳端呼叫它就好，不必動任何存量資料。
+// 合併語意一樣是逐筆 LWW（沿用 userDataNormalizeCollection 的 at >= old.updatedAt，不另寫合併碼）。
+function bountyToCollections(b) {
+  const items = Object.entries(b.trips || {}).map(([k, v]) => ({
+    id: k,
+    value: { k, lnId: v.lnId, sys: v.sys, trainNo: v.trainNo, dir: v.dir, tripDate: v.tripDate,
+      cardId: v.cardId || '', points: Number(v.points) || 0, verdict: v.verdict || 'pending',
+      qualityCode: v.qualityCode || '', segs: v.segs || [] },
+    updatedAt: Number(v.u) || 0,
+  })).sort((x, y) => x.id.localeCompare(y.id));
+  return { corrections: { items, tombstones: [] } };
+}
+async function fetchBountyBoard() {
+  const r = await fetch(apiUrl('api/bounty-board'), { cache: 'no-store' });
+  if (!r.ok) throw new Error('board ' + r.status);
+  return r.json();
+}
+// 旅程卡的名字：伺服器只給計價單位，端點名在這裡算。
+// 🔴 為什麼不讓伺服器算：把 seg_key 排成一條路需要里程順序，而里程順序住在 lineNetwork()
+// （ln.stations 依 d 排序）。把線網拓樸複製一份進 worker 等於製造第二個真相源，改點時兩邊會不同步。
+// 伺服器管帳（哪些單位開著、各值多少），這裡管敘事（這張卡叫什麼名字）。
+// 🔴 card.sys 是計畫 B 契約／data/bounty_rules.json 的 bucket 代碼(TRA/THSR/metro)，跟
+// lineNetwork() 內部 sys id(tra_sched/thsr_sched/…)是兩套命名——實測驗證過兩者不映射的話
+// bountyCardName 會整條掉進下面的 fallback,卡面顯示「NH → 」這種內部代碼而不是站名,直接違反
+// 這支函式存在的目的。只映射確定有把 track 幾何餵進 lineNetwork() 的系統(SYS_DEFS 裡帶
+// track 欄位的只有 tra_sched/thsr_sched/afr_sched);metro 系列的捷運/輕軌從未把 track 幾何載進
+// state.trackLines(SYS_DEFS 沒有任何 freq 系統帶 track 欄位),映射了也查不到站名,維持原樣走
+// fallback——這是目前 lineNetwork() 資料涵蓋範圍的既有限制,不是本 task 要解的問題。
+const BOUNTY_SYS_MAP = { TRA: 'tra_sched', THSR: 'thsr_sched' };
+function bountyCardName(card) {
+  const rec = lineNetwork().get((BOUNTY_SYS_MAP[card.sys] || card.sys) + '|' + card.lnId);
+  if (!rec) return { from: card.lnId, to: '', lineName: card.lnId, segs: card.units };
+  const want = new Set(card.unitKeys || []);
+  const names = new Set();
+  for (const s of rec.segs) if (!want.size || want.has(s.key)) { names.add(s.a); names.add(s.b); }
+  const sts = (rec.ln.stations || []).filter(s => names.has(s.name) && s.d != null)
+    .slice().sort((a, b) => a.d - b.d);
+  return { from: sts.length ? sts[0].name : rec.name, to: sts.length ? sts[sts.length - 1].name : '',
+    lineName: rec.name, segs: card.units };
+}
+let bountyBoardMem = null;
+async function openBountyBoard() {
+  const m = document.getElementById('bountyModal');
+  m.hidden = false;
+  document.getElementById('bountyList').innerHTML = '<div class="bt-empty">載入中…</div>';
+  try { bountyBoardMem = await fetchBountyBoard(); }
+  catch (e) {
+    document.getElementById('bountyList').innerHTML = '<div class="bt-empty">懸賞板暫時讀不到，等一下再試一次</div>';
+    return;
+  }
+  renderBountyBoard();
+}
+function closeBountyBoard() { document.getElementById('bountyModal').hidden = true; }
+function renderBountyBoard() {
+  const b = bountyBoardMem || { cards: [] };
+  const el = document.getElementById('bountyList');
+  document.getElementById('bountySub').textContent = PHYSICAL_COLLECT_ENABLED
+    ? '接一段、搭那班車時開錄，把這段的速度剖面測出來。全部免費，獎勵是榮譽。'
+    : '這些路段還沒有實測資料。用 App 才能接下來錄——網頁可以先看看有哪些。';
+  if (!b.cards.length) { el.innerHTML = '<div class="bt-empty">目前沒有待校正的路段——全部收滿了。</div>'; return; }
+  el.innerHTML = b.cards.map(c => {
+    const nm = bountyCardName(c);
+    // 「已有 N 人接了這段」是資訊不是禁令（鎖價不獨佔，規格 §3）。0 人不是資訊，不顯示。
+    const meta = [nm.lineName, c.trainKind, `${c.units} 段`,
+      c.claimers > 0 ? `已有 ${c.claimers} 人接了這段` : '',
+      c.coverN > 1 ? `已有 ${c.samples}/${c.coverN} 趟` : ''].filter(Boolean).join('・');
+    return `<div class="bt-card" data-card="${escHtml(c.id)}">` +
+      `<div class="bt-r">${escHtml(nm.from)} → ${escHtml(nm.to)}</div>` +
+      `<div class="bt-meta">${escHtml(meta)}</div>` +
+      `<div class="bt-pt">${c.points} 點</div>` +
+      `<button class="bt-take" type="button">${PHYSICAL_COLLECT_ENABLED ? '接下這段' : '要用 App 才能接'}</button>` +
+      `</div>`;
+  }).join('');
+}
+function setupBounty() {
+  document.getElementById('bountyClose').onclick = closeBountyBoard;
+  document.getElementById('bountyList').onclick = e => {
+    const btn = e.target.closest('.bt-take');
+    if (!btn) return;
+    const id = btn.closest('.bt-card').dataset.card;
+    // 網頁端點下去只給一句話，不寫任何本機資料——這是自然的下載誘因（規格 §9）
+    if (!PHYSICAL_COLLECT_ENABLED) { showToast('GPS 校正旅程需要用 App。網頁可以看懸賞板與自己的成果'); return; }
+    bountyClaim(id);
+  };
+}
+// 接下一段(Task 2 會在成功之後接上出發前說明卡)
+async function bountyClaim(cardId) {
+  try {
+    const r = await fetch(apiUrl('api/bounty-claim'), {
+      method: 'POST', headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ actor: bountyActor(), cardId }),
+    });
+    const j = await r.json();
+    if (!r.ok || !j.ok) { showToast('接不下來——' + (j.error === 'no_open_units' ? '這段剛剛被收滿了' : '等一下再試一次')); return; }
+    const b = loadBounty();
+    b.claims[cardId] = { cardId, units: j.units, points: j.pointsLocked, expiresAt: j.expiresAt, u: userDataNow() };
+    saveBounty(b);
+    showToast(`接下了・${j.pointsLocked} 點・24 小時內有效`);
+    renderPassport(); renderRidePanel();
+  } catch (e) { showToast('接不下來——網路不通，等一下再試一次'); }
+}
 // 站的收集總表:rides 推導的「跟完」疊上 checkins 的真實打卡,鍵=sys|name(與 schedStations 同一套去重規則)
 function stationCollection(rides) {
   const m = new Map(), alias = checkinAliasMap();
@@ -9202,6 +9379,24 @@ function buildLineBars() {
         `<span class="pl-pct${pct >= 100 ? ' done' : ''}">${pct}%</span></div>`;
     }).join('') + `</div>`;
 }
+// 護照的「校正貢獻」節。本 task 只放標題與入口;內容(校正 N 段其中 M 段已採用、
+// 校正者印章、品質說明)在 Task 6 填。分兩次做是刻意的:入口要先存在,
+// 使用者才有辦法在完全沒有貢獻的時候找到懸賞板——「還沒有貢獻」正是最需要那個入口的時刻。
+function buildCorrectSection() {
+  // 沿用 .ph-sec .pl-map 既有樣式(靠右擠在標題列、觸控高度給滿):實測發現這顆鈕原本
+  // 沒有任何 CSS 落在它身上(class 名稱是新造的),吃瀏覽器預設 button 樣式,高度比同排的
+  // pl-map 鈕高出約 12px,把護照預設高度推過 verify_checkin.mjs L10 的「收得進一個視窗」門檻。
+  const inner = '校正貢獻<button class="pl-map" data-act="bountyboard" type="button">📍 懸賞板</button>';
+  // 節的形狀固定是「標題＋緊接一個內容 div」,收合靠 .ph-sec.closed + div{display:none}。
+  // 新增節不維持這個形狀就收不掉(打卡那批踩過)。
+  // autoCloseOver 用 -1(不是 null):入口鈕在 .ph-sec 標題列本體裡,不在會被收合藏起來的內容
+  // div——所以「入口要先存在」在標題列本身就已經滿足,跟內容區開合與否無關。默認展開(null)會讓
+  // 這節在車站牆龐大的重度使用者身上把護照總高度推過一個視窗高(verify_checkin.mjs L10 的既有
+  // 門檻,批次無關不可調),故改預設收合;n 永遠是 0(真正的計數留給 Task 6 接),
+  // -1 是刻意選的哨兵值,讓 0 <= autoCloseOver 恆不成立、預設收合,使用者手動展開過仍會被記住。
+  return phSec('correct', 0, -1, inner) +
+    `<div class="ph-correct"><div class="ph-empty">還沒有校正記錄——去懸賞板看看有哪些路段缺資料。</div></div>`;
+}
 // 收集章(明星列車/車種圖鑑/支線行腳):完成與否皆掛點擊鉤子→got 章也可點重播;桌面與 sheet 逐字相同
 function buildStamps(rides) {
   const sd = state.special;
@@ -9248,7 +9443,7 @@ function renderPassport() {
   const longest = rides.reduce((a, r) => Math.max(a, Number(r.km) || 0), 0);
   // Batch B:收集章/成就/完乘列改走共用 builder(輸出與舊版逐字相同,桌面護照零變化)
   const rideSort = getRideSortMode();
-  const stamps = buildStamps(rides) + buildStationStamps(rides) + buildLineBars() + buildAchv(rides, 'seal');
+  const stamps = buildStamps(rides) + buildStationStamps(rides) + buildLineBars() + buildCorrectSection() + buildAchv(rides, 'seal');
   const stnCount = stationCollection(rides).size;
   const list = buildRideRows(rides, rideSort);
   // 排序切換鈕:有記錄才顯示(空清單沒東西可排);選中狀態直接烤進 HTML,不用另外 sync
@@ -9281,6 +9476,7 @@ function renderPassport() {
     const sortBtn = e.target.closest('#phSortSeg button');
     if (sortBtn) { setRideSortMode(sortBtn.dataset.v); return; } // 完乘記錄排序切換(純顯示層,見 sortRides)
     if (e.target.closest('[data-act="collectmap"]')) { setCollectMap(true); return; }
+    if (e.target.closest('[data-act="bountyboard"]')) { openBountyBoard(); return; }
     const st = e.target.closest('.seal[data-cat]');
     // 明星/圖鑑/支線章:每次點挑一班不同的車從發車跟(完成的章也可點來再看);成就徽章無 data-cat,不觸發
     if (st) followDexStamp(st.dataset.cat, st.dataset.id);
@@ -12415,6 +12611,7 @@ function setupMapTools() {
     requestAnimationFrame(() => { const go = document.getElementById('howtoGo'); if (go) go.focus(); }); // v0718i:開啟時 focus 主要按鈕,不做完整 focus trap
   })();
   setupCollectDemo(); // ?demo=collect／off:備援站確認設計用的示範收集資料(只在沒有真實資料時寫入)
+  setupBounty(); // GPS 路段收集懸賞板:關閉鈕與卡片點擊(接下這段／要用 App 才能接)
   setupHelp(); // 使用說明中心的四個入口與 ?help=1(要排在 setupHowto 之後:兩張卡不疊,help 開了就收首訪卡)
   // 手機:跟隨小卡與跟隨鎖鈕依站台帶(速度膠囊)實際位置讓位——膠囊展開(cexp)變高時上移,收回還原。
   // 桌面帶常駐 stage 下緣、跟隨卡 CSS 固定 bottom 86px 在帶上方,不需 JS 重排。
