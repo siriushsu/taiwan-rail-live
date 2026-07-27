@@ -1345,10 +1345,12 @@ try {
     // M7–M10：形狀一次到位（規格 §6）。判準：round-trip 無損，且 id 排序穩定。
     // 直接餵已是 v2 形狀的物件給轉換函式，不經 loadCheckins/migrateCheckins——
     // 這兩個函式測的是「形狀對不對」，不是「升級對不對」（升級由 M11 負責）。
+    // 臺北那筆刻意帶 lo:1（低信心到訪標記，G10 守著它的語意）——round-trip 判準是
+    // JSON.stringify 字串相等，轉換器只要哪一邊漏搬 lo，M10 就會不等（M8 另外直接斷言）。
     const m7 = await page.evaluate(() => {
       const c = {
         v: 2,
-        st: { '臺北': { name: '臺北', sys: 'TRA', s: 'visit', n: 3, d: '2026-07-20', u: 1700000000000 } },
+        st: { '臺北': { name: '臺北', sys: 'TRA', s: 'visit', n: 3, d: '2026-07-20', lo: 1, u: 1700000000000 } },
         sg: { 'TRA|WL|A|B': { n: 5, nv: 2, u: 1700000001000 } },
       };
       const cols = checkinsToCollections(c);
@@ -1362,13 +1364,14 @@ try {
       };
     });
     ok('M7 轉出兩個 kind', JSON.stringify(m7.kinds) === '["checkins","segments"]', JSON.stringify(m7.kinds));
-    ok('M8 item 形狀是 {id,value,updatedAt}',
-      m7.stItem && m7.stItem.id === '臺北' && m7.stItem.updatedAt === 1700000000000 && m7.stItem.value.s === 'visit',
+    ok('M8 item 形狀是 {id,value,updatedAt}，且 lo 有跟著走',
+      m7.stItem && m7.stItem.id === '臺北' && m7.stItem.updatedAt === 1700000000000 && m7.stItem.value.s === 'visit'
+        && m7.stItem.value.lo === 1,
       JSON.stringify(m7.stItem));
     ok('M9 路段 item 帶 n 與 nv',
       m7.sgItem && m7.sgItem.id === 'TRA|WL|A|B' && m7.sgItem.value.n === 5 && m7.sgItem.value.nv === 2,
       JSON.stringify(m7.sgItem));
-    ok('M10 round-trip 無損', m7.roundTrip === true, m7.backStr);
+    ok('M10 round-trip 無損（含 lo 雙向不丟）', m7.roundTrip === true, m7.backStr);
 
     // M11 舊資料（沒有 u）升級後每筆都要有 u，否則合併時會被當成 0 永遠輸
     const m11 = await page.evaluate(() => {
@@ -1405,6 +1408,77 @@ try {
       return { u: c.sg[s0.key] && c.sg[s0.key].u, before };
     });
     ok('M13 writeSegments 寫入時記下 u', typeof m13.u === 'number' && m13.u >= m13.before, JSON.stringify(m13));
+
+    // M14：真正呼叫消費者 userDataNormalizeCollection——M7–M10 只讓 checkinsToCollections／
+    // collectionsToCheckins 兩個新函式互相對照，兩者同時錯（例如 id 塌陷）永遠測不出來。
+    // 這裡改用 segments 的既有共用正規化路徑當獨立真值：塞兩個不同路段鍵，斷言不塌陷成一筆，
+    // 且每筆真正生效的 id（userDataNormalizeCollection 自己重算的，不是 item.id）等於它的 k。
+    const m14 = await page.evaluate(() => {
+      const c = {
+        v: 2, st: {},
+        sg: {
+          'TRA|WL|A|B': { n: 5, nv: 2, u: 1700000001000 },
+          'TRA|WL|B|C': { n: 3, nv: 1, u: 1700000002000 },
+        },
+      };
+      const cols = checkinsToCollections(c);
+      const norm = userDataNormalizeCollection('segments', cols.segments);
+      return {
+        n: norm.items.length,
+        idsMatchK: norm.items.every(it => it.id === it.value.k),
+        ids: norm.items.map(it => it.id).sort(),
+      };
+    });
+    ok('M14 userDataNormalizeCollection(segments) 不塌陷、id 等於 k',
+      m14.n === 2 && m14.idsMatchK === true && JSON.stringify(m14.ids) === JSON.stringify(['TRA|WL|A|B', 'TRA|WL|B|C']),
+      JSON.stringify(m14));
+
+    // M15/M16：同一筆寫兩次，第二次的 u 要跟著往前走，不能凍結在第一次建立的當下——
+    // 這是 LWW 最致命的回歸型態(本機新資料的時間戳被凍住，永遠打不贏遠端)，M12/M13
+    // 只驗「有沒有 u」，驗不到「u 會不會更新」。中間插 5ms 真實延遲，確保第二次呼叫前的
+    // 時刻嚴格晚於第一次寫入的時刻(同一毫秒內兩次呼叫會讓這個判準失去意義)。
+    const m15 = await page.evaluate(async () => {
+      localStorage.removeItem('trainmap-checkins-v1');
+      const st = { name: 'M15測試站', sys: 'TRA' };
+      writeCheckin(st, 'visit', {});
+      await new Promise(r => setTimeout(r, 5));
+      const before2 = Date.now();
+      writeCheckin(st, 'visit', {});
+      const c = JSON.parse(localStorage.getItem('trainmap-checkins-v1'));
+      return { u2: c.st[checkinKey(st)] && c.st[checkinKey(st)].u, before2 };
+    });
+    ok('M15 writeCheckin 第二次寫入,u 要跟著往前走(不凍在第一次)',
+      typeof m15.u2 === 'number' && m15.u2 >= m15.before2, JSON.stringify(m15));
+
+    const m16 = await page.evaluate(async () => {
+      localStorage.removeItem('trainmap-checkins-v1');
+      const rec = [...lineNetwork().values()][0];
+      const s0 = rec.segs[0];
+      const rev = { sys: rec.sys, stops: [{ name: s0.a, segLn: rec.ln, dA: s0.dA, dB: s0.dB }, { name: s0.b }] };
+      writeSegments(rev, 0, 1, true);
+      await new Promise(r => setTimeout(r, 5));
+      const before2 = Date.now();
+      writeSegments(rev, 0, 1, true);
+      const c = JSON.parse(localStorage.getItem('trainmap-checkins-v1'));
+      return { u2: c.sg[s0.key] && c.sg[s0.key].u, before2 };
+    });
+    ok('M16 writeSegments 第二次寫入,u 要跟著往前走(不凍在第一次)',
+      typeof m16.u2 === 'number' && m16.u2 >= m16.before2, JSON.stringify(m16));
+
+    // M17：collectionsToCheckins 對缺值/為 0 的 updatedAt 要退回「現在」而不是 0——
+    // 語意要跟 migrateCheckins(index.html:8586 附近,「補 0 會讓這些筆在多裝置合併時永遠輸」)
+    // 一致，否則有一條真路徑：遠端某筆 updatedAt=0 → 這裡寫成 u:0 → 下次 loadCheckins() 被
+    // migrateCheckins 補成 now → 該筆變成全域最新，下一次上傳反而蓋掉真正最新的遠端版本。
+    const m17 = await page.evaluate(() => {
+      const before = Date.now();
+      const back = collectionsToCheckins({
+        checkins: { items: [{ id: 'X', value: { name: 'X', sys: 'TRA', s: 'visit', n: 1, d: '' }, updatedAt: 0 }], tombstones: [] },
+        segments: { items: [{ id: 'Y|Z', value: { n: 1, nv: 0 }, updatedAt: 0 }], tombstones: [] },
+      });
+      return { stU: back.st['X'].u, sgU: back.sg['Y|Z'].u, before };
+    });
+    ok('M17 collectionsToCheckins 對 updatedAt=0 退回 now 而非 0(與 migrateCheckins 語意一致)',
+      m17.stU >= m17.before && m17.sgU >= m17.before, JSON.stringify(m17));
 
     await ctx.close();
   }

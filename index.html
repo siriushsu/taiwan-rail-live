@@ -5342,6 +5342,11 @@ function userDataItemId(kind, v) {
   if (kind === 'pins') return Number(v.lat).toFixed(6) + ',' + Number(v.lon).toFixed(6);
   if (kind === 'favs') return String(v.train);
   if (kind === 'stations') return String(v.sys) + '|' + String(v.name); // 同站從分頁或同框收藏都算同一筆(捷運 sys 一律 'metro')
+  // checkins/segments:value 裡的 k 就是本機儲存鍵(站名或路段鍵),直接拿來當 id——
+  // 沒有這條分支,兩個 kind 都會落到下面的 rides fallback,v.train/v.date 恆為 undefined,
+  // 造成同 kind 全部筆記塌陷成同一個 id(userDataNormalizeCollection 只認這裡算出來的 id,
+  // 不採用呼叫端自己帶的 item.id)。
+  if (kind === 'checkins' || kind === 'segments') return String(v.k);
   return String(v.sys || 'tra_sched') + '|' + String(v.train) + '|' + String(v.date);
 }
 function userDataNormalizeCollection(kind, src) {
@@ -8700,34 +8705,48 @@ function segmentCollectionVerified() {
 // ── 本機資料 ↔ userData collection 形狀 ──────────────────────────────
 // 現在還沒接帳號同步(ACCOUNT_ENABLED=false),但形狀現在就要定死:上線之後再改就得寫資料遷移,
 // 而收集類功能最傷的失敗模式就是「使用者重裝 App 整本護照歸零」。
-// 接同步的那一天,上傳端只要呼叫 checkinsToCollections(loadCheckins()) 就好,不必動任何存量資料。
 //
-// 合併語意:逐筆 LWW,直接沿用 userDataNormalizeCollection 既有的 at >= old.updatedAt,不另寫合併碼。
+// 合併語意:逐筆 LWW,沿用 userDataNormalizeCollection 既有的 at >= old.updatedAt,不另寫合併碼——
+// id 由 userDataItemId('checkins'/'segments', v) 讀 v.k 給(該分支已補上,見 userDataItemId)。
+// userDataNormalizeCollection 一律從 value 重新算 id,不採用這裡每個 item 自帶的 id 欄位;
+// 那個 id 欄位只用來給下面的 .sort(byId) 排序與 M 組測試讀,不是接上同步後實際生效的鍵。
 // 已知限制(選過的,不是漏的):兩台裝置各搭同一段 50 次,合併後是 50 不是 100。
 // 做成相加要 CRDT 計數器,對 v1 是過度設計;而且相加在「同一台裝置重複同步」時會膨脹,那個失敗模式更糟。
+//
+// ⚠還沒真的接上同步——這裡只把「形狀」與「userDataItemId 認得這兩個 kind」做對,離真正上線還缺兩步,
+//   兩步都刻意不在這條分支動:
+//   1. 把 'checkins'、'segments' 加進 USER_DATA_COLLECTIONS(index.html:5284)——會啟動 envelope
+//      正規化路徑,影響範圍超出本 task。
+//   2. Firestore rules 白名單補這兩個 kind——要手動部署到 Firebase Console,這條分支做不到,
+//      而且 ACCOUNT_ENABLED=false(index.html:4994)現在也沒有生產消費者會去讀寫。
 function checkinsToCollections(c) {
   const byId = (a, b) => a.id.localeCompare(b.id);
+  const now = userDataNow();
   const checkins = Object.entries(c.st || {}).map(([k, v]) => ({
     id: k,
-    value: { k, name: v.name, sys: v.sys, s: v.s, n: Number(v.n) || 0, d: v.d },
-    updatedAt: Number(v.u) || 0,
+    // lo(低信心到訪標記,index.html:8652 起)一定要跟著走:G10 有回歸測試守著這個欄位的語意
+    // (低精度定位仍蓋章,但要標記低信心),轉換器把它丟了,經一次上傳/下載就會被讀成一般信心。
+    value: { k, name: v.name, sys: v.sys, s: v.s, n: Number(v.n) || 0, d: v.d, ...(v.lo ? { lo: 1 } : {}) },
+    updatedAt: Number(v.u) || now, // 缺值比照 migrateCheckins 的語意退回「現在」,不退回 0(0 在 LWW 裡永遠輸)
   })).sort(byId);
   const segments = Object.entries(c.sg || {}).map(([k, v]) => ({
     id: k,
     value: { k, n: Number(v.n) || 0, nv: Number(v.nv) || 0 },
-    updatedAt: Number(v.u) || 0,
+    updatedAt: Number(v.u) || now,
   })).sort(byId);
   return { checkins: { items: checkins, tombstones: [] }, segments: { items: segments, tombstones: [] } };
 }
 function collectionsToCheckins(cols) {
-  const st = {}, sg = {};
+  const st = {}, sg = {}, now = userDataNow();
   for (const it of ((cols && cols.checkins && cols.checkins.items) || [])) {
     const v = it.value || {};
-    st[it.id] = { name: v.name, sys: v.sys, s: v.s, n: Number(v.n) || 0, d: v.d, u: Number(it.updatedAt) || 0 };
+    // lo 插在 u 之前:對齊 writeCheckin 實際寫出來的 key 順序(name,sys,s,n,d,lo,u)——
+    // M10 的 round-trip 判準是 JSON.stringify 字串相等,順序不對位就會被誤判「壞掉」。
+    st[it.id] = { name: v.name, sys: v.sys, s: v.s, n: Number(v.n) || 0, d: v.d, ...(v.lo ? { lo: 1 } : {}), u: Number(it.updatedAt) || now };
   }
   for (const it of ((cols && cols.segments && cols.segments.items) || [])) {
     const v = it.value || {};
-    sg[it.id] = { n: Number(v.n) || 0, nv: Number(v.nv) || 0, u: Number(it.updatedAt) || 0 };
+    sg[it.id] = { n: Number(v.n) || 0, nv: Number(v.nv) || 0, u: Number(it.updatedAt) || now };
   }
   return { v: 2, st, sg };
 }
