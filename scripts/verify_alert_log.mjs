@@ -112,6 +112,88 @@ const ALL = new Set(['mrt', 'krtc', 'tymc', 'tmrt', 'tra', 'thsr']);
   const d = diffAlertState([], [x, y], ALL, NOW);
   check(d.upserts.length === 2, 'B11 標題含直線不與另一組撞鍵');
 }
+{ // B12 只有預計恢復時間改了(內文一字沒動)也要算一次 updated
+  const base = { ...rec('tra', '東部幹線延誤', '搶修中', 'S'), end: 'E1' };
+  const prevRow = { ...row('tra', '東部幹線延誤', '搶修中', 'S'), end_at: 'E1' };
+  check(diffAlertState([prevRow], [base], ALL, NOW).updated.length === 0, 'B12 什麼都沒變時不算 updated');
+  const later = { ...base, end: 'E2' };
+  check(diffAlertState([prevRow], [later], ALL, NOW).updated.length === 1, 'B12 只有 end 改了也算 updated');
+}
+
+console.log('E. ingestAlertLog（fetch 與 D1 替身）');
+const { ingestAlertLog } = _alertLog;
+const realFetch = globalThis.fetch;
+
+// D1 替身:prepared 記下所有進到 prepare() 的語句(E4 要用來檢查 SELECT 撈了哪些欄位,
+// 那發 SELECT 不帶參數、走不到 bind);sql 記下 bind 過的語句與參數。
+function fakeDb(prevRows) {
+  const calls = { batch: [], sql: [], prepared: [] };
+  const mk = sql => {
+    calls.prepared.push(sql);
+    return {
+      bind: (...args) => { calls.sql.push({ sql, args }); return { sql, args }; },
+      all: async () => ({ results: prevRows }),
+      run: async () => ({ meta: { changes: 0 } }),
+      first: async () => null,
+    };
+  };
+  return { db: { prepare: sql => mk(sql), batch: async st => { calls.batch.push(st.length); return []; } }, calls };
+}
+// fetch 替身:okPaths 內的路徑回 200＋指定 payload,其餘回 500。
+function fakeFetch(map) {
+  globalThis.fetch = async (url) => {
+    const p = new URL(String(url)).pathname;
+    if (!(p in map)) return new Response('nope', { status: 500 });
+    return new Response(JSON.stringify(map[p]), { status: 200, headers: { 'content-type': 'application/json' } });
+  };
+}
+
+{ // E1 全部來源掛掉→整輪略過,零 D1 寫入
+  fakeFetch({});
+  const { db, calls } = fakeDb([]);
+  const r = await ingestAlertLog({ DELAY_DB: db });
+  check(r.skipped === true, 'E1 全來源失敗回 skipped');
+  check(calls.batch.length === 0, 'E1 全來源失敗零 D1 batch 寫入');
+}
+{ // E2 台鐵那發掛掉,台鐵既有公告不准被解除(端到端版的 B5)
+  fakeFetch({
+    '/api/metro-alert': { alerts: [{ title: '正常營運', status: 1, sys: 'mrt' }] },
+    '/api/thsr-alert': { alerts: [{ title: '全線營運正常(Normal)', status: 1 }] },
+  });
+  const { db, calls } = fakeDb([{ sys: 'tra', akey: '|東部幹線延誤|', title: '東部幹線延誤', descr: '', end_at: '' }]);
+  const r = await ingestAlertLog({ DELAY_DB: db });
+  check(r.cleared === 0, 'E2 台鐵來源失敗時,台鐵公告不被標解除');
+  check(r.live.includes('mrt') && !r.live.includes('tra'), 'E2 live 只含成功的來源');
+}
+{ // E3 正常路徑:新公告寫進去
+  fakeFetch({
+    '/api/metro-alert': { alerts: [{ title: '地震恢復營運', status: 0, desc: '已巡視', sys: 'krtc', lines: [] }] },
+    '/api/tra-alert': { alerts: [{ title: '全線營運正常', status: 1 }] },
+    '/api/thsr-alert': { alerts: [{ title: '全線營運正常(Normal)', status: 1 }] },
+  });
+  const { db, calls } = fakeDb([]);
+  const r = await ingestAlertLog({ DELAY_DB: db });
+  check(r.added === 1 && r.cleared === 0, 'E3 新公告記成 added');
+  const up = calls.sql.find(c => c.sql.includes('INSERT INTO alert_log'));
+  check(!!up, 'E3 有下 upsert');
+  const a = (up && up.args) || [];
+  check(a.length === 10, `E3 upsert 綁 10 個參數(實得 ${a.length})`);
+  check(a[0] === 'krtc' && a[1] === '|地震恢復營運|', 'E3 前兩個參數是 sys 與 akey');
+  check(a[8] === a[9] && !!a[8], 'E3 first_seen 與 last_seen 初值相同且非空');
+}
+{ // E4 SELECT 必須撈 end_at,否則「預計恢復時間改了」永遠算不出 updated
+  fakeFetch({
+    '/api/metro-alert': { alerts: [{ title: '正常營運', status: 1, sys: 'mrt' }] },
+    '/api/tra-alert': { alerts: [{ title: '全線營運正常', status: 1 }] },
+    '/api/thsr-alert': { alerts: [{ title: '全線營運正常(Normal)', status: 1 }] },
+  });
+  const { db, calls } = fakeDb([]);
+  await ingestAlertLog({ DELAY_DB: db });
+  const sel = calls.prepared.find(s => /^SELECT/.test(s) && /FROM alert_log/.test(s));
+  check(!!sel, 'E4 有下 SELECT');
+  check(!!sel && /\bend_at\b/.test(sel), 'E4 SELECT 有撈 end_at');
+}
+globalThis.fetch = realFetch;
 
 console.log('D. alertKey');
 check(alertKey({ title: 'A', start: 'S', label: '' }) === '|A|S', 'label+標題+起始時間組合成鍵');

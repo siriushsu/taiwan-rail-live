@@ -29,8 +29,10 @@
   // Cron 觸發(UTC;15 1=台北 09:15、15 4=台北 12:15):scheduled handler 跑台鐵準點統計
   // 每日增量(抓 TDX 歷史前一日→寫 D1→重建 blob)。TDX 每日台北 08:00 更新前一日資料,
   // 第一發 09:15 抓;第二發 12:15 是自癒備援,補上第一發若尚未更新或失敗的缺口(冪等,重跑無害)。
+  // '* * * * *' 是公告狀態機:每分鐘快照三個 alert 端點寫進 D1 alert_log。打的是自家
+  // 端點(吃邊緣快取),不新增 TDX 呼叫;handler 內以 event.cron 分派。
   "triggers": {
-    "crons": ["15 1 * * *", "15 4 * * *"]
+    "crons": ["15 1 * * *", "15 4 * * *", "* * * * *"]
   },
   // 速率限制(2026-07-26 稽核):/api/delay-history 與 /api/account-delete 在驗證階段就會對
   // Firebase identitytoolkit 與 RevenueCat 各發一次 outbound fetch——而那發生在「token 有沒有效」

@@ -1075,7 +1075,9 @@ function diffAlertState(prevRows, current, liveSys, nowIso) {
     upserts.push(r);
     const p = prev.get(id);
     if (!p) added.push(r);
-    else if (String(p.descr || '') !== r.descr) updated.push(r);
+    // 內文或預計恢復時間任一改變都算一次更新。標題改變不在這裡——標題進 akey,
+    // 改標題會變成另一把鍵(舊的解除、新的新增),那是刻意的。
+    else if (String(p.descr || '') !== r.descr || String(p.end_at || '') !== r.end_at) updated.push(r);
   }
   const clears = [], cleared = [];
   for (const [id, p] of prev) {
@@ -1087,10 +1089,80 @@ function diffAlertState(prevRows, current, liveSys, nowIso) {
   return { upserts, clears, added, updated, cleared };
 }
 
+// 每分鐘一發。Cloudflare cron 最小粒度就是 1 分鐘;公告本身上游約 2 分鐘更新一次,
+// 每分鐘查是為了讓「新增」事件的延遲上界壓在一分鐘內(日後接推播時這就是通知延遲)。
+const ALERT_LOG_CRON = '* * * * *';
+// cron 內打自家端點的來源站。刻意寫死正式站網域而不是從 request 推——scheduled 事件
+// 沒有 request 可推,而且要的就是「打有邊緣快取的那個站」。
+const ALERT_LOG_ORIGIN = 'https://railisland.tw';
+const ALERT_LOG_UPSERT = 'INSERT INTO alert_log (sys,akey,title,descr,lines,start_at,end_at,news,first_seen,last_seen,cleared_at) VALUES (?,?,?,?,?,?,?,?,?,?,NULL) ON CONFLICT(sys,akey) DO UPDATE SET title=excluded.title, descr=excluded.descr, lines=excluded.lines, start_at=excluded.start_at, end_at=excluded.end_at, news=excluded.news, last_seen=excluded.last_seen, cleared_at=NULL';
+const ALERT_LOG_CLEAR = 'UPDATE alert_log SET cleared_at=? WHERE sys=? AND akey=? AND cleared_at IS NULL';
+
+// 三個來源並行抓。單一來源失敗回 null(不是空陣列)——空陣列的語意是「這個系統目前沒有
+// 公告」,會觸發解除判定;null 的語意是「不知道」,呼叫端據此把該來源涵蓋的系統排除在
+// 解除判定之外。這個區別就是 B5/E2 兩個回歸案在守的東西。
+async function fetchAlertLogSources() {
+  return Promise.all(ALERT_LOG_SOURCES.map(async src => {
+    try {
+      const r = await fetch(ALERT_LOG_ORIGIN + src.path, {
+        headers: { 'user-agent': 'railisland.tw alert-log cron (+https://railisland.tw)' },
+      });
+      if (!r.ok) throw new Error('http ' + r.status);
+      return normalizeAlertPayload(await r.json(), src.sysOf);
+    } catch (e) {
+      console.error(`[cron alert-log] 來源失敗 ${src.path}: ${String((e && e.message) || e)}`);
+      return null;
+    }
+  }));
+}
+
+// 一輪完整的快照→比對→寫入。回傳三種事件的筆數供 scheduled 記 log;
+// 日後接推播時,added/updated/cleared 三個陣列就是要推的內容,這裡先只寫 log。
+async function ingestAlertLog(env) {
+  const parts = await fetchAlertLogSources();
+  const current = [], liveSys = new Set();
+  parts.forEach((recs, i) => {
+    if (recs == null) return;
+    for (const s of ALERT_LOG_SOURCES[i].covers) liveSys.add(s);
+    for (const rec of recs) current.push(rec);
+  });
+  if (!liveSys.size) {
+    console.error('[cron alert-log] 三個來源全部失敗,本輪整個略過(不寫入、不判解除)');
+    return { added: 0, updated: 0, cleared: 0, live: [], skipped: true };
+  }
+  const db = env.DELAY_DB;
+  // end_at 一定要撈:diffAlertState 判 updated 會比它,沒撈的話「預計恢復時間延後兩小時」
+  // 這種只改時間不改內文的更新永遠算不出來(值仍會被 upsert 寫進 D1,但不會產生事件)。
+  const prevRes = await db.prepare('SELECT sys,akey,title,descr,end_at,first_seen,last_seen FROM alert_log WHERE cleared_at IS NULL').all();
+  const now = new Date().toISOString();
+  const d = diffAlertState((prevRes && prevRes.results) || [], current, liveSys, now);
+  const stmts = [];
+  const up = db.prepare(ALERT_LOG_UPSERT);
+  for (const r of d.upserts) stmts.push(up.bind(r.sys, r.akey, r.title, r.descr, r.lines, r.start_at, r.end_at, r.news, r.at, r.at));
+  const cl = db.prepare(ALERT_LOG_CLEAR);
+  for (const c of d.clears) stmts.push(cl.bind(now, c.sys, c.akey));
+  if (stmts.length) await db.batch(stmts);
+  // 只有事件才記 log:每分鐘一發,無事件時保持安靜,免得把 observability 洗滿
+  for (const r of d.added) console.log(`[cron alert-log] 新增 ${r.sys} ${r.title}`);
+  for (const r of d.updated) console.log(`[cron alert-log] 更新 ${r.sys} ${r.title}`);
+  for (const r of d.cleared) console.log(`[cron alert-log] 解除 ${r.sys} ${r.title}`);
+  return { added: d.added.length, updated: d.updated.length, cleared: d.cleared.length, live: [...liveSys] };
+}
+
 export default {
-  // 每天台北 09:15 / 12:15 觸發(wrangler.jsonc triggers.crons)。錯誤 console.error 後
-  // rethrow,讓 Cloudflare 把該次 cron 標記為失敗(observability 可查)。
+  // 多個 cron 共用同一個 handler,靠 event.cron 分派:
+  // '* * * * *' = 公告狀態機(每分鐘);'15 1'/'15 4' = 台鐵準點統計每日增量(台北 09:15/12:15)。
   async scheduled(event, env) {
+    if (event && event.cron === ALERT_LOG_CRON) {
+      try {
+        const r = await ingestAlertLog(env);
+        if (r.added || r.updated || r.cleared) console.log(`[cron alert-log] 完成: +${r.added} ~${r.updated} -${r.cleared}`);
+      } catch (e) {
+        console.error('[cron alert-log] 失敗:', (e && e.stack) || String(e));
+        throw e;
+      }
+      return;
+    }
     try {
       const r = await ingestDelayHistory(env);
       console.log(`[cron delay] 完成: 寫入日 ${JSON.stringify(r.written)}, D1 迄日 ${r.dbMax}`);
@@ -1181,4 +1253,4 @@ export const _delayHistory = { delayHistoryWindow, buildDelayHistoryBody, isVali
 // env 替身與 fetch 替身;導出的目的就是讓測試能數「被擋掉時到底有沒有打上游」。
 export const _rateLimit = { rateLimited, delayHistory, deletePaidProfile };
 // 純函式導出,供離線回歸測試 import:公告狀態機的正規化、指紋。
-export const _alertLog = { alertKey, normalizeAlertPayload, diffAlertState, ALERT_LOG_SOURCES };
+export const _alertLog = { alertKey, normalizeAlertPayload, diffAlertState, ingestAlertLog, ALERT_LOG_SOURCES };
