@@ -916,12 +916,16 @@
      取大值,拿掉這節自己的 margin-top 只是不再讓它去跟前一節比大小,視覺間距仍由前一節的
      margin-bottom 或本節自己的 padding-bottom/border-bottom 撐住,不會整個貼死。 */
   .passport [data-sec="correct"], #ridePanel [data-sec="correct"] {
-    margin: 0; padding-bottom: 0; border-bottom-width: 0; align-items: center;
+    margin: 0; padding-bottom: 0; border-bottom: 1px dashed var(--line-dash); align-items: center;
   }
-  /* 收合時(預設狀態)沒有下邊界線會讓這節看起來懸空,用內容 div 自己的上邊界補回視覺分隔——
-     展開時(Task 6 填了真內容後)兩層都在,分隔線改由內容區負責,標題列不需要重複畫一條。 */
+  /* 審查 M5 糾正：這裡曾經 border-bottom-width:0，靠下面 .ph-correct 的 border-top「補回」分隔線——
+     但 .ph-correct 收合時(預設狀態)是 display:none(見 .ph-sec.closed + div 規則)，那條線壓根不會畫出來，
+     等於預設狀態下這節是全護照唯一沒有分隔線的節,舊註解說「用內容 div 補回」跟事實相反。
+     改回標題列自己扛 1px 分隔線(比其他七節的 1.5px 薄 0.5px,省下的高度就是全部代價——
+     護照高度預算只剩 3px,見 verify_checkin.mjs L10)——標題列永遠渲染,不管收合與否都畫得出來。
+     內容區(下面那條規則)不用再重複畫一次,只留展開時的呼吸間距。 */
   .passport [data-sec="correct"] + .ph-correct, #ridePanel [data-sec="correct"] + .ph-correct {
-    border-top: 1.5px dashed var(--line-dash); padding-top: 8px; margin-top: 2px;
+    padding-top: 8px;
   }
   /* 桌面版鈕收窄到 24px(只桌面、不動 #ridePanel):上面幾項都收完,桌面 176 站重度使用者情境下
      還差臨門 1px 卡在門檻上——太貼著門檻邊緣不安全(字型渲染/未來內容微幅差異都可能讓它再紅一次)。
@@ -1667,7 +1671,17 @@
   .bounty-modal .bt-r { grid-column: 1; font-weight: 700; }
   .bounty-modal .bt-meta { grid-column: 1; font-size: 12px; opacity: .75; }
   .bounty-modal .bt-pt { grid-column: 2; grid-row: 1 / span 2; font-size: 20px; font-weight: 800; }
-  .bounty-modal .bt-take { grid-column: 2; grid-row: 3; }
+  /* 審查 M7：這顆先前零外觀樣式，吃瀏覽器預設 button，手機實測只有 69.3×25px，
+     低於專案 ≥28 高×44 寬的觸控門檻（.ph-sec .pl-map 那條註解訂的同一個門檻）。
+     沿用同一個 .bounty-modal 家族裡 #bountyBriefGo 的既定值，不自創一套視覺語言。 */
+  /* 審查 M7：這顆先前零外觀樣式，吃瀏覽器預設 button，手機實測只有 69.3×25px，
+     低於專案 ≥28 高×44 寬的觸控門檻（.ph-sec .pl-map 那條註解訂的同一個門檻）。
+     沿用同一個 .bounty-modal 家族裡 #bountyBriefGo 的既定值，不自創一套視覺語言。 */
+  .bounty-modal .bt-take {
+    grid-column: 2; grid-row: 3; min-height: 44px; padding: 7px 15px; border-radius: 7px;
+    font-weight: 800; cursor: pointer; font-family: inherit;
+    border: 1px solid var(--red-deep); background: var(--red); color: #fffdf6;
+  }
   .bounty-modal .bt-empty { padding: 24px 12px; text-align: center; opacity: .7; }
   /* 出發前說明卡(#bountyBriefModal):brief 的 HTML 用了 .bb-sec/.bb-how/.tk-foot 這幾個新 class 名,
      同樣沒有對應 CSS——比照上面 .tk-box 家族的既有教訓(見那段註解),逐值照抄 .takeout-actions
@@ -3018,8 +3032,8 @@ try { if (matchMedia('(max-width: 900px)').matches) document.body.classList.add(
 <!-- 懸賞板：與其他六顆浮層同一層級。.stage 會把 z2200 封頂成 1000（見上方註解），
      所以新增的浮層一律加在這裡，不要圖方便塞進地圖那棵子樹 -->
 <div class="takeout-modal bounty-modal" id="bountyModal" hidden>
-  <div class="tk-box">
-    <div class="tk-head"><b>📍 校正懸賞</b><button class="tk-x" id="bountyClose" type="button">×</button></div>
+  <div class="tk-box" role="dialog" aria-modal="true" aria-labelledby="bountyTitle">
+    <div class="tk-head"><b id="bountyTitle">📍 校正懸賞</b><button class="tk-x" id="bountyClose" type="button" aria-label="關閉">×</button></div>
     <div class="tk-sub" id="bountySub"></div>
     <div class="tk-body" id="bountyList"></div>
   </div>
@@ -3027,7 +3041,7 @@ try { if (matchMedia('(max-width: 900px)').matches) document.body.classList.add(
 <!-- 出發前說明卡：接下懸賞之後、開始錄製之前。三段式（規格 §5 之四）——
      先講清楚失敗會怎樣，失敗時就不會覺得被騙。
      role=dialog/aria-modal/aria-labelledby/aria-label="關閉"：比照其餘六顆既有 modal 的無障礙寫法
-     （#bountyModal 本身漏了這組屬性，另案補；新浮層不重蹈，一開始就寫對）。 -->
+     （#bountyModal 先前漏了這組屬性；審查 I3 已補齊，見 setupBounty()）。 -->
 <div class="takeout-modal bounty-modal" id="bountyBriefModal" hidden>
   <div class="tk-box" role="dialog" aria-modal="true" aria-labelledby="bountyBriefTitle">
     <div class="tk-head"><b id="bountyBriefTitle">出發前</b><button class="tk-x" id="bountyBriefX" type="button" aria-label="關閉">×</button></div>
@@ -9137,16 +9151,18 @@ async function fetchBountyBoard() {
 // 🔴 為什麼不讓伺服器算：把 seg_key 排成一條路需要里程順序，而里程順序住在 lineNetwork()
 // （ln.stations 依 d 排序）。把線網拓樸複製一份進 worker 等於製造第二個真相源，改點時兩邊會不同步。
 // 伺服器管帳（哪些單位開著、各值多少），這裡管敘事（這張卡叫什麼名字）。
-// 🔴 card.sys 是計畫 B 契約／data/bounty_rules.json 的 bucket 代碼(TRA/THSR/metro)，跟
-// lineNetwork() 內部 sys id(tra_sched/thsr_sched/…)是兩套命名——實測驗證過兩者不映射的話
-// bountyCardName 會整條掉進下面的 fallback,卡面顯示「NH → 」這種內部代碼而不是站名,直接違反
-// 這支函式存在的目的。只映射確定有把 track 幾何餵進 lineNetwork() 的系統(SYS_DEFS 裡帶
-// track 欄位的只有 tra_sched/thsr_sched/afr_sched);metro 系列的捷運/輕軌從未把 track 幾何載進
-// state.trackLines(SYS_DEFS 沒有任何 freq 系統帶 track 欄位),映射了也查不到站名,維持原樣走
-// fallback——這是目前 lineNetwork() 資料涵蓋範圍的既有限制,不是本 task 要解的問題。
-const BOUNTY_SYS_MAP = { TRA: 'tra_sched', THSR: 'thsr_sched' };
+// 🔴🔴 2026-07-28 Task 1 審查糾正（協調者拍板，鍵空間裁定）：card.sys 不是計畫 B 的桶代碼
+// (TRA/THSR/metro)，是 lineNetwork() 內部 sys id 本身——實測證據：segKey(sys,lnId,a,b)
+// （index.html:8816 附近）產出的區間鍵長這樣 'tra_sched|南迴線|加祿|枋寮'，逐字元對上
+// lineNetwork() 的鍵。懸賞卡的鍵空間＝前端收集系統既有的鍵空間，伺服器從來不會傳
+// 'TRA' 這種兩三碼縮寫，原本這裡的 BOUNTY_SYS_MAP 是憑空想像出來的翻譯層，已刪除；
+// 留著（即使有 || card.sys 退路）只會誘導未來有人以為後端可以送 'TRA'。
+// metro 系列仍然查不到：lineNetwork() 的 sys 全集只有 tra_sched/thsr_sched/afr_sched
+// （SYS_DEFS 裡只有這三個系統帶 track 幾何欄位），metro 從未把 track 幾何載進
+// state.trackLines，所以 metro 卡會走下面的 fallback——這是 lineNetwork() 資料涵蓋範圍的
+// 既有限制，v1 不在範圍，不寫任何特例。
 function bountyCardName(card) {
-  const rec = lineNetwork().get((BOUNTY_SYS_MAP[card.sys] || card.sys) + '|' + card.lnId);
+  const rec = lineNetwork().get(card.sys + '|' + card.lnId);
   if (!rec) return { from: card.lnId, to: '', lineName: card.lnId, segs: card.units };
   const want = new Set(card.unitKeys || []);
   const names = new Set();
@@ -9191,6 +9207,7 @@ function renderBountyBoard() {
   }).join('');
 }
 function setupBounty() {
+  const modal = document.getElementById('bountyModal');
   document.getElementById('bountyClose').onclick = closeBountyBoard;
   document.getElementById('bountyList').onclick = e => {
     const btn = e.target.closest('.bt-take');
@@ -9200,6 +9217,9 @@ function setupBounty() {
     if (!PHYSICAL_COLLECT_ENABLED) { showToast('GPS 校正旅程需要用 App。網頁可以看懸賞板與自己的成果'); return; }
     bountyClaim(id);
   };
+  // Esc 關閉＋點背景關閉：比照 setupTakeoutUi 等既有六顆 modal 的寫法（審查 I3：這顆先前只有 × 有效）
+  modal.addEventListener('click', e => { if (e.target === modal) closeBountyBoard(); });
+  document.addEventListener('keydown', e => { if (e.key === 'Escape' && !modal.hidden) closeBountyBoard(); });
 }
 // 接下一段，成功之後接上出發前說明卡（showBountyBrief，規格 §5 之四）
 async function bountyClaim(cardId) {
@@ -9267,7 +9287,7 @@ function setupBountyBrief() {
   document.getElementById('bountyBriefX').onclick = hide;
   document.getElementById('bountyBriefLater').onclick = hide;
   document.getElementById('bountyBriefGo').onclick = () => { hide(); startBountyRecording(bountyBriefCard); };
-  // Esc 關閉＋點背景關閉:比照 setupTakeoutUi 等既有六顆 modal 的寫法(#bountyModal 本身漏了這組,另案補)
+  // Esc 關閉＋點背景關閉:比照 setupTakeoutUi 等既有六顆 modal 的寫法(#bountyModal 同款見 setupBounty())
   modal.addEventListener('click', e => { if (e.target === modal) hide(); });
   document.addEventListener('keydown', e => { if (e.key === 'Escape' && !modal.hidden) hide(); });
 }

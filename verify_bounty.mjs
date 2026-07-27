@@ -163,6 +163,27 @@ const browser = await chromium.launch();
   ok('A3 旅程卡端點＝該批段的里程極值兩站（餵伺服器實際傳的 sys 值 tra_sched；期望值測試自己算）',
     a3.skip || (a3.got.from === a3.wantFrom && a3.got.to === a3.wantTo), JSON.stringify(a3));
 
+  // C1b（審查 C1 糾正的補充斷言）：餵一張逐值等同 BOARD.cards[0] 契約形狀的卡直接測 bountyCardName()——
+  // 不透過 DOM 渲染（那是 A4b 在測的路徑），直接測函式本身在真實契約輸入下不會掉進 fallback。
+  // 期望值不是抄 bountyCardName 怎麼算，是從 lineNetwork() 用 unitKeys 集合獨立反推「這批鍵覆蓋的
+  // 站當中里程最小/最大是誰」——跟 A3 同一套邏輯，但這次餵的是完整契約形狀的真實 unitKeys（11 段整批），
+  // 不是隨手切的前 5 段，且直接斷言等於具體站名（枋寮/臺東），不只是「非空」。
+  // 突變測試：把 bountyCardName() 裡的 card.sys + '|' + card.lnId 改回 card.lnId（拿掉 sys 前綴），
+  // 這條必須 FAIL（掉進 fallback，from 變回線名「南迴線」、to 變空字串）。
+  const c1b = await page.evaluate((card) => {
+    const got = bountyCardName(card);
+    const rec = [...lineNetwork().values()].find(r => r.sys === card.sys && r.id === card.lnId);
+    if (!rec) return { skip: true, got };
+    const want = new Set(card.unitKeys);
+    const names = new Set();
+    for (const s of rec.segs) if (want.has(s.key)) { names.add(s.a); names.add(s.b); }
+    const sts = rec.ln.stations.filter(s => names.has(s.name)).slice().sort((x, y) => x.d - y.d);
+    return { got, wantFrom: sts[0].name, wantTo: sts[sts.length - 1].name };
+  }, BOARD.cards[0]);
+  ok('C1b 完整契約形狀的卡直接測 bountyCardName()，不掉進 fallback（枋寮 → 臺東，不是內部代碼或線名）',
+    c1b.skip || (c1b.got.from === c1b.wantFrom && c1b.got.to === c1b.wantTo &&
+      c1b.got.from === '枋寮' && c1b.got.to === '臺東'), JSON.stringify(c1b));
+
   // A4 卡面要看得到點數與「已有 N 人接了這段」（那是資訊不是禁令）
   const a4r = await page.evaluate(() => document.querySelector('.bt-card .bt-r').textContent);
   const a4 = await page.evaluate(() => document.querySelector('.bt-card').innerText);
@@ -186,6 +207,41 @@ const browser = await chromium.launch();
     return { hit: hit === btn || btn.contains(hit), tag: hit && hit.className };
   });
   ok('A7 App 端「接下這段」點得到（elementFromPoint 命中）', a7.hit === true, JSON.stringify(a7));
+
+  // I3（審查）：#bountyModal 是六顆既有 modal 家族裡唯一沒有 Esc／背景關閉／ARIA 屬性的一顆——
+  // 實測 afterEsc=false、afterBackdrop=false，只有 × 有效。比照 setupTakeoutUi 等既有六顆
+  // modal 的寫法補齊，這裡各補一條斷言。放在 A7 之後、ctx.close() 之前，因為 I3b/I3c 會把
+  // modal 關掉，要留到不再需要「modal 保持開著」的斷言（A3–A7）都跑完才做。
+  const i3a = await page.evaluate(() => {
+    const box = document.querySelector('#bountyModal .tk-box');
+    const titleId = box && box.getAttribute('aria-labelledby');
+    const titleEl = titleId && document.getElementById(titleId);
+    const x = document.getElementById('bountyClose');
+    return {
+      role: box && box.getAttribute('role'), ariaModal: box && box.getAttribute('aria-modal'),
+      hasTitle: !!(titleEl && titleEl.textContent.trim()), xAriaLabel: x && x.getAttribute('aria-label'),
+    };
+  });
+  ok('I3a #bountyModal 有 role=dialog/aria-modal/aria-labelledby（指向真實標題），關閉鈕有 aria-label="關閉"',
+    i3a.role === 'dialog' && i3a.ariaModal === 'true' && i3a.hasTitle === true && i3a.xAriaLabel === '關閉',
+    JSON.stringify(i3a));
+
+  const i3b = await page.evaluate(() => {
+    const m = document.getElementById('bountyModal');
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
+    return { hidden: m.hidden };
+  });
+  ok('I3b 按 Esc 可以關閉 #bountyModal', i3b.hidden === true, JSON.stringify(i3b));
+
+  // 上一條已經把 modal 關掉了，重開一次才能驗背景點擊
+  await page.evaluate(() => openBountyBoard());
+  const i3c = await page.evaluate(() => {
+    const m = document.getElementById('bountyModal');
+    m.dispatchEvent(new MouseEvent('click', { bubbles: true })); // 直接 dispatch 在 m 本身＝target 就是背景
+    return { hidden: m.hidden };
+  });
+  ok('I3c 點背景可以關閉 #bountyModal', i3c.hidden === true, JSON.stringify(i3c));
+
   await ctx.close();
 }
 
@@ -200,13 +256,23 @@ const browser = await chromium.launch();
   ok('A8 網頁端一樣看得到懸賞板與卡', a8.cards === 2, JSON.stringify(a8));
   ok('A9 網頁端的鈕改成「要用 App」不是「接下這段」', /App/.test(a8.btnText), a8.btnText);
   // 🔴 bountyClaim() 是 async（內部 await fetch），onclick handler 又不 await 它——
-  // 若只在 click() 後同一個 evaluate() 裡「同步」讀 loadBounty()，測到的永遠是「還沒寫入」，
-  // 跟 guard 在不在無關（突變測試親自證實：把 guard 拆掉，這樣寫法仍然 19/19 全過，A10 沒抓到）。
+  // 若只在 click() 後同一個 evaluate() 裡「同步」讀 state，測到的永遠是「還沒寫入」，跟 guard
+  // 在不在無關（突變測試親自證實：把 guard 拆掉，這樣寫法仍然 19/19 全過，A10 沒抓到）。
   // 必須等非同步鏈真正有機會落地，才能驗證「即使等了也還是零寫入」。
+  // 🔴🔴 審查 M10 糾正：原本用實作自己的 loadBounty() 判「零寫入」——判準與實作同源（心得 29），
+  // 若哪天寫錯 key（例如打錯字寫進 'trainmap-bounty-v2' 而不是 loadBounty() 真正讀的 key），
+  // loadBounty() 讀到的仍是空的，這條測試照樣綠燈。改成不透過實作、直接對整包 localStorage
+  // 前後快照逐 key 比對——任何一個 key 的值有變、或多出新 key，都會被抓到。
+  const snapLS = () => page.evaluate(() => {
+    const o = {}; for (let i = 0; i < localStorage.length; i++) { const k = localStorage.key(i); o[k] = localStorage.getItem(k); }
+    return o;
+  });
+  const lsBefore = await snapLS();
   await page.evaluate(() => { document.querySelector('.bt-card .bt-take').click(); });
   await page.waitForTimeout(500);
-  const a10 = await page.evaluate(() => ({ claimed: !!(loadBounty().claims && Object.keys(loadBounty().claims).length) }));
-  ok('A10 網頁端點下去不會真的接下（等非同步落地後仍是本機零寫入）', a10.claimed === false, JSON.stringify(a10));
+  const lsAfter = await snapLS();
+  ok('A10 網頁端點下去不會真的接下（整包 localStorage 前後快照比對，判準不靠 loadBounty() 自己解讀）',
+    JSON.stringify(lsBefore) === JSON.stringify(lsAfter), JSON.stringify({ before: lsBefore, after: lsAfter }));
   await ctx.close();
 }
 
@@ -222,6 +288,34 @@ const browser = await chromium.launch();
     ok(`A11${app ? 'a' : 'b'} 護照有「校正貢獻」節（${app ? 'App' : '網頁'}）`, has === true);
     await ctx.close();
   }
+}
+
+// I2（審查）：桌面「📍 懸賞板」入口鈕的點擊接線——A11a/A11b 只驗「節存在」，沒驗「鈕點得下去」。
+// 實測：把 renderPassport() onclick 裡 [data-act="bountyboard"] 那行整行刪掉，全部斷言依然全綠，
+// 桌面入口變死鈕而測試無感。這裡補：真的用 elementFromPoint 命中後再 click，確認懸賞板真的開起來
+// （跟 A12/A12b/A12c 的手機版是同一件事的桌面版）。
+{
+  const { ctx, page } = await open(browser, { app: true });
+  const hit = await page.evaluate(() => {
+    localStorage.setItem('trainmap-passport-open', '1');
+    renderPassport();
+    const btn = document.querySelector('#passport [data-act="bountyboard"]');
+    if (!btn) return { found: false };
+    btn.scrollIntoView({ block: 'center' });
+    const r = btn.getBoundingClientRect();
+    const el = document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2);
+    return { found: true, hit: el === btn || btn.contains(el), x: r.x + r.width / 2, y: r.y + r.height / 2 };
+  });
+  ok('I2a 桌面「📍 懸賞板」入口鈕點得到（elementFromPoint 命中）', hit.found && hit.hit === true, JSON.stringify(hit));
+  if (hit.found && hit.hit) {
+    await page.mouse.click(hit.x, hit.y);
+    await page.waitForTimeout(200);
+    const opened = await page.evaluate(() => !document.getElementById('bountyModal').hidden);
+    ok('I2b 點下去桌面懸賞板真的開起來', opened === true);
+  } else {
+    ok('I2b 點下去桌面懸賞板真的開起來', false, '上一步未命中，略過但記為 FAIL');
+  }
+  await ctx.close();
 }
 
 // A12：手機護照 sheet（#ridePanel，#tabRide 實際走的路徑）也要有入口——既有契約：手機用
@@ -261,8 +355,18 @@ const browser = await chromium.launch();
     await page.waitForTimeout(300);
     const opened = await page.evaluate(() => !document.getElementById('bountyModal').hidden);
     ok('A12c 真觸控點下去懸賞板真的開起來', opened === true);
+    // M7（審查）：.bt-take 先前零外觀樣式，手機實測只有 69.3×25px，低於專案 ≥28 高×44 寬
+    // 的觸控門檻（.ph-sec .pl-map 那條註解訂的同一個門檻）。這裡在剛開起來的懸賞板量真實 rect。
+    const m7 = await page.evaluate(() => {
+      const btn = document.querySelector('#bountyModal .bt-card .bt-take');
+      if (!btn) return { found: false };
+      const r = btn.getBoundingClientRect();
+      return { found: true, w: r.width, h: r.height };
+    });
+    ok('M7 「接下這段」觸控尺寸達標（≥28 高×44 寬）', m7.found && m7.h >= 28 && m7.w >= 44, JSON.stringify(m7));
   } else {
     ok('A12c 真觸控點下去懸賞板真的開起來', false, '上一步未命中，略過但記為 FAIL');
+    ok('M7 「接下這段」觸控尺寸達標（≥28 高×44 寬）', false, '上一步未命中，略過但記為 FAIL');
   }
   await ctx.close();
 }
