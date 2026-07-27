@@ -492,8 +492,8 @@
   /* ── 收集地圖狀態列(置頂置中;是這個模式唯一的出口,z 要高過看板家族 660) ── */
   .collect-bar {
     position: absolute; top: 12px; left: 50%; transform: translateX(-50%); z-index: 680;
-    display: flex; align-items: center; gap: 10px;
-    max-width: calc(100% - 24px); box-sizing: border-box;
+    display: flex; align-items: center; gap: 10px; flex-wrap: wrap; justify-content: center;
+    width: max-content; max-width: calc(100% - 24px); box-sizing: border-box;
     background: var(--navy); color: var(--on-navy);
     border: 2px solid var(--navy); border-radius: var(--r-pill);
     box-shadow: var(--shadow-navy); padding: 6px 8px 6px 14px;
@@ -964,6 +964,13 @@
      觸控精度需求只在手機,桌面滑鼠對 24px 高的鈕完全夠點,而 #ridePanel 完全不觸碰、
      手機仍是完整 28px(A12b 用真觸控在 375 寬驗過命中)。 */
   .passport [data-sec="correct"] .pl-map { min-height: 24px; padding-top: 3px; padding-bottom: 3px; }
+  /* 最終審查 A-1:這節現在掛兩顆 .pl-map(懸賞板＋收集地圖)。共用規則 938 行給每顆
+     margin-left:auto,兩顆同時 auto 會被 flexbox 拆成兩份自由空間各自往左推、把兩顆鈕
+     隔出一大截空白(實測量過:桌面裂開 1087px)。只留第一顆(懸賞板)的 auto margin
+     把兩顆一起推到最右,後一顆(收集地圖)歸零、靠 .ph-sec 既有的 gap:6px 跟前一顆貼在一起。 */
+  .passport [data-sec="correct"] [data-act="collectmap"], #ridePanel [data-sec="correct"] [data-act="collectmap"] {
+    margin-left: 0;
+  }
   .datestamp {
     display: inline-block; font-family: var(--mono); font-size: 11px; font-weight: 700;
     color: var(--navy); border: 1.5px solid var(--navy); border-radius: 3px; padding: 0 5px;
@@ -1703,9 +1710,6 @@
   .bounty-modal .bt-r { grid-column: 1; font-weight: 700; }
   .bounty-modal .bt-meta { grid-column: 1; font-size: 12px; opacity: .75; }
   .bounty-modal .bt-pt { grid-column: 2; grid-row: 1 / span 2; font-size: 20px; font-weight: 800; }
-  /* 審查 M7：這顆先前零外觀樣式，吃瀏覽器預設 button，手機實測只有 69.3×25px，
-     低於專案 ≥28 高×44 寬的觸控門檻（.ph-sec .pl-map 那條註解訂的同一個門檻）。
-     沿用同一個 .bounty-modal 家族裡 #bountyBriefGo 的既定值，不自創一套視覺語言。 */
   /* 審查 M7：這顆先前零外觀樣式，吃瀏覽器預設 button，手機實測只有 69.3×25px，
      低於專案 ≥28 高×44 寬的觸控門檻（.ph-sec .pl-map 那條註解訂的同一個門檻）。
      沿用同一個 .bounty-modal 家族裡 #bountyBriefGo 的既定值，不自創一套視覺語言。 */
@@ -9242,6 +9246,43 @@ function bountyCorrectedSegs() {
   }
   return out;
 }
+// ── 最終審查 A-2:?demo=bounty 的合成「已校正旅程」──────────────────────────
+// 取樣與上傳是 Task 4,還沒做,trips 現在永遠是空殼——備援站走完 開板→接一段→開始錄製→停止,
+// bountyCorrectedSegs() 還是空集合,Task 7 剛做出來的懸賞地圖層一個像素都看不到。種一筆假的
+// 已校正旅程撐住這個畫面,讓 ?demo=bounty 也能看到金色線,語意等同「這個示範帳號早就有人幫忙
+// 校正過一趟了」。key 用固定字串(不是隨機 id),?demo=off 才知道該刪哪一筆而不動到其他資料。
+const BOUNTY_DEMO_TRIP_KEY = 'demo-南迴線-枋寮-臺東';
+function seedBountyDemo() {
+  const b = loadBounty();
+  if (Object.keys(b.trips || {}).length) return; // 已有(校正)資料就不覆蓋,比照 seedCollectDemo() 的守門
+  // 刻意挑南迴線:H7(index.html 懸賞地圖層測試)量過大武–枋野一帶弦離線形最遠 107px,示範資料
+  // 也用同一條彎道線,「沿線形描不是直線弦」這件事在畫面上一眼看得出來,不必另外找彎道。
+  const rec = [...lineNetwork().values()].find(r => r.id === '南迴線' && r.sys === 'tra_sched');
+  if (!rec || !rec.segs.length) return; // 線網還沒建好;setupBountyDemo() 的 tick 會重試
+  b.trips[BOUNTY_DEMO_TRIP_KEY] = {
+    lnId: rec.id, sys: rec.sys, trainNo: '', dir: 0, tripDate: todayStr(activeTz()),
+    cardId: '', points: 0, verdict: 'ok', qualityCode: 'demo', segs: rec.segs.map(s => s.key), u: userDataNow(),
+  };
+  saveBounty(b);
+}
+function setupBountyDemo() {
+  const mode = DEMO_MODE;
+  if (mode !== 'bounty' && mode !== 'off') return;
+  if (mode === 'off') {
+    // 只刪自己種的那一筆(用固定 key 精準命中),不動其他 trips/claims——?demo=off 也可能是
+    // 從 ?demo=collect 切過來清收集示範資料,不該連帶清掉懸賞這邊可能存在的其他資料。
+    const b = loadBounty();
+    if (b.trips && b.trips[BOUNTY_DEMO_TRIP_KEY]) { delete b.trips[BOUNTY_DEMO_TRIP_KEY]; saveBounty(b); }
+    return;
+  }
+  let n = 0;
+  const tick = () => {
+    if (lineNetwork().size) { seedBountyDemo(); return; }
+    if (++n > 150) return; // 撐畫面用的裝飾資料,靜默放棄不值得跳錯誤 toast 打斷使用者
+    setTimeout(tick, 200);
+  };
+  tick();
+}
 // 與計畫 A 的 checkinsToCollections 同構：接同步那天上傳端呼叫它就好，不必動任何存量資料。
 // 合併語意一樣是逐筆 LWW（沿用 userDataNormalizeCollection 的 at >= old.updatedAt，不另寫合併碼）。
 function bountyToCollections(b) {
@@ -9434,7 +9475,7 @@ function renderRecordScreen() {
   const nm = r.card ? bountyCardName(r.card) : null;
   document.getElementById('recRoute').textContent = nm ? `${nm.from} → ${nm.to}` : '';
   document.getElementById('recKm').textContent = (r.dNow == null ? 0 : r.dNow / 1000).toFixed(1);
-  const done = Object.values(r.segs).filter(c => c >= 0.6).length;      // 門檻與品質閘的 segCoverageMin 同源（Task 5 接上 rules）
+  const done = Object.values(r.segs).filter(c => c >= 0.6).length;      // 最終審查 E-2：data/bounty_rules.json 本批次零 runtime 消費者，這是手動同步的硬編碼副本，不是真的同源——Task 5 接上 rules 之前先硬編碼
   document.getElementById('recSegs').textContent = String(done);
   document.getElementById('recPts').textContent = String(r.points);
   const total = (r.card && r.card.units) || Object.keys(r.segs).length || 1;
@@ -9498,7 +9539,11 @@ function showBountyBrief(card, claim) {
   document.getElementById('bountyBriefBody').innerHTML =
     `<div class="bb-sec"><b>這趟要做什麼</b><p>錄 ${escHtml(nm.from)} → ${escHtml(nm.to)}` +
       `（${escHtml(nm.lineName)}，${escHtml(card.units)} 段${durTxt}），值 <b>${escHtml(claim.points)} 點</b>。` +
-      `搭上那班車之後開始錄，到站就結束。</p></div>` +
+      // 最終審查 C:期限原本只在接下當下的 toast 一閃即逝(showBountyBrief 這張常駐卡完全沒提)，
+      // 使用者接了段之後回頭想確認期限就找不到。與 bountyClaim() 兩條路徑(demo/真實)的 toast
+      // 用同一句「24 小時內有效」，不用 claim.expiresAt 另外算文字——避免兩個地方各自描述
+      // 同一件事卻可能用不同措辭。
+      `搭上那班車之後開始錄，到站就結束。這個鎖價 <b>24 小時內有效</b>。</p></div>` +
     `<div class="bb-sec"><b>三件事先做好</b><ol>` +
       `<li>打開<b>精確位置</b>` + (canOpen
         ? `<button id="bountyOpenSettings" type="button">開啟設定</button>`
@@ -9737,7 +9782,15 @@ function buildCorrectSection() {
   // 沿用 .ph-sec .pl-map 既有樣式(靠右擠在標題列、觸控高度給滿):實測發現這顆鈕原本
   // 沒有任何 CSS 落在它身上(class 名稱是新造的),吃瀏覽器預設 button 樣式,高度比同排的
   // pl-map 鈕高出約 12px,把護照預設高度推過 verify_checkin.mjs L10 的「收得進一個視窗」門檻。
-  const inner = '校正貢獻<button class="pl-map" data-act="bountyboard" type="button">📍 懸賞板</button>';
+  // 最終審查 A-1:這節是唯一保證「零搭乘記錄也會渲染」的節(見下方 phSec 呼叫),
+  // 而收集地圖原本只掛在 buildLineBars()(零完乘記錄時整個 return ''、鈕跟著消失)。
+  // 校正記錄(懸賞接段)不等於完乘記錄 ⇒ 只校正過、沒完乘過的人原本無路可去看收集地圖。
+  // 這裡補第二個入口,但要跟 verify_checkin.mjs J8「零路段時不露出入口(避免點進去是
+  // 一張全灰地圖)」的既有防線並存:只在 buildLineBars() 自己不會出現(沒有完乘路段)
+  // 且真的有校正段時才補,兩者都有資料時交給 buildLineBars() 那顆就好,不重複掛。
+  const showCorrectMapBtn = lineCompletion().length === 0 && bountyCorrectedSegs().size > 0;
+  const inner = '校正貢獻<button class="pl-map" data-act="bountyboard" type="button">📍 懸賞板</button>' +
+    (showCorrectMapBtn ? '<button class="pl-map" data-act="collectmap" type="button">🗺 收集地圖</button>' : '');
   // 節的形狀固定是「標題＋緊接一個內容 div」,收合靠 .ph-sec.closed + div{display:none}。
   // 新增節不維持這個形狀就收不掉(打卡那批踩過)。
   // autoCloseOver 用 -1(不是 null):入口鈕在 .ph-sec 標題列本體裡,不在會被收合藏起來的內容
@@ -12962,6 +13015,7 @@ function setupMapTools() {
     requestAnimationFrame(() => { const go = document.getElementById('howtoGo'); if (go) go.focus(); }); // v0718i:開啟時 focus 主要按鈕,不做完整 focus trap
   })();
   setupCollectDemo(); // ?demo=collect／off:備援站確認設計用的示範收集資料(只在沒有真實資料時寫入)
+  setupBountyDemo(); // ?demo=bounty／off:合成一筆已校正旅程,撐住懸賞地圖層的金色線(A-2)
   setupBounty(); // GPS 路段收集懸賞板:關閉鈕與卡片點擊(接下這段／要用 App 才能接)
   setupBountyBrief(); // 出發前說明卡:關閉/等一下再說/開始錄製 三顆鈕(規格 §5 之四)
   setupRecordScreen(); // 極簡錄製畫面:停止錄製鈕(規格 §5 之一)

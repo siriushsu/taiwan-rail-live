@@ -5,7 +5,8 @@
 //   ・旅程卡的端點與段數 → 測試自己從塞進去的假 board 回應算，不呼叫 bountyCardName()
 //   ・上傳 payload 不含經緯度 → 正向掃 key，不是抽查特定欄位
 //   ・按鈕可不可按 → elementFromPoint 命中，不是量 rect（心得 33）
-//   ・門檻一致性 → 用同一批座標序列，比對客端訊號燈與 data/bounty_rules.json 的門檻
+//   ・門檻一致性 → Task 5（即時品質提示／「客端訊號燈」）之後才會有：現在客端根本沒有這個
+//     UI 可比對，RULES 先留著只是佔位（見下面 RULES 宣告旁的註記）
 import { chromium, webkit, devices } from 'playwright';
 import { readFileSync } from 'node:fs';
 import { createHash } from 'node:crypto';
@@ -13,6 +14,9 @@ import { createHash } from 'node:crypto';
 const BASE = process.argv[2] || 'http://127.0.0.1:5178';
 const R = [];
 const ok = (n, p, msg = '') => { R.push({ n, p }); console.log(`${p ? '  ok ' : 'FAIL '} ${n}${msg ? ' — ' + msg : ''}`); };
+// 最終審查 E-4：載入後目前沒有任何斷言使用它——Task 4/5(取樣上傳／即時品質提示)還沒做，
+// 客端根本沒有可比對的「訊號燈」。不要因為現在沒消費者就刪掉：Task 5 一旦把即時提示接上，
+// 這裡就是拿門檻值來比對的既有掛勾，先留著、只是暫時不用。
 const RULES = JSON.parse(readFileSync('data/bounty_rules.json', 'utf8'));
 
 // ── G0 自檢：先確認「我到底在驗哪一份檔案」──────────────────────────────
@@ -160,8 +164,10 @@ const browser = await chromium.launch();
     const sts = rec.ln.stations.filter(s => names.has(s.name)).slice().sort((x, y) => x.d - y.d);
     return { got, wantFrom: sts[0].name, wantTo: sts[sts.length - 1].name, lineName: rec.name };
   });
+  // 最終審查 D:改成 !a3.skip &&(…)——原本 a3.skip ||(…)在 fixture 線 id 解析不到時整條自動
+  // true,這條正是守 Task 1 鍵空間裁定的斷言,不該在解析失敗時悄悄放行。
   ok('A3 旅程卡端點＝該批段的里程極值兩站（餵伺服器實際傳的 sys 值 tra_sched；期望值測試自己算）',
-    a3.skip || (a3.got.from === a3.wantFrom && a3.got.to === a3.wantTo), JSON.stringify(a3));
+    !a3.skip && (a3.got.from === a3.wantFrom && a3.got.to === a3.wantTo), JSON.stringify(a3));
 
   // C1b（審查 C1 糾正的補充斷言）：餵一張逐值等同 BOARD.cards[0] 契約形狀的卡直接測 bountyCardName()——
   // 不透過 DOM 渲染（那是 A4b 在測的路徑），直接測函式本身在真實契約輸入下不會掉進 fallback。
@@ -180,15 +186,19 @@ const browser = await chromium.launch();
     const sts = rec.ln.stations.filter(s => names.has(s.name)).slice().sort((x, y) => x.d - y.d);
     return { got, wantFrom: sts[0].name, wantTo: sts[sts.length - 1].name };
   }, BOARD.cards[0]);
+  // 最終審查 D:同上,改成 !c1b.skip &&(…)——這條守的是 Task 1 鍵空間裁定本身,解析不到 rec
+  // 時不該悄悄放行,必須明確判 FAIL。
   ok('C1b 完整契約形狀的卡直接測 bountyCardName()，不掉進 fallback（枋寮 → 臺東，不是內部代碼或線名）',
-    c1b.skip || (c1b.got.from === c1b.wantFrom && c1b.got.to === c1b.wantTo &&
+    !c1b.skip && (c1b.got.from === c1b.wantFrom && c1b.got.to === c1b.wantTo &&
       c1b.got.from === '枋寮' && c1b.got.to === '臺東'), JSON.stringify(c1b));
 
   // A4 卡面要看得到點數與「已有 N 人接了這段」（那是資訊不是禁令）
   const a4r = await page.evaluate(() => document.querySelector('.bt-card .bt-r').textContent);
   const a4 = await page.evaluate(() => document.querySelector('.bt-card').innerText);
   ok('A4 卡面有點數', /39\s*點/.test(a4), a4.replace(/\n/g, ' / '));
-  // A4b 卡面端點是真的站名，不是掉進 fallback 印出內部代碼：stub 卡是 { sys:'TRA', lnId:'南迴線' }，
+  // 最終審查 E-3：stub 卡的 sys 早已改成鍵空間裁定後的 'tra_sched'（見上面 BOARD 定義），
+  // 這裡原本仍寫著改前的 'TRA'——斷言本身沒錯，只是註解沒跟著更新。
+  // A4b 卡面端點是真的站名，不是掉進 fallback 印出內部代碼：stub 卡是 { sys:'tra_sched', lnId:'南迴線' }，
   // 若映射或線 id 對不上，renderBountyBoard 會落回 bountyCardName 的 fallback、直接把 lnId 整條
   // 線名印上卡面且 to 端留空（"南迴線 → "）。獨立判準：from/to 兩端都要非空，且卡面要出現
   // 「枋寮」或「臺東」（南迴線兩端真實站名，brief 自己舉的例子）而不是線名本身。
@@ -405,6 +415,10 @@ const browser = await chromium.launch();
     /枋寮/.test(b1.txt) && /臺東/.test(b1.txt) && /南迴線/.test(b1.txt) && /39\s*點/.test(b1.txt)
       && /(約\s*\d+\s*分鐘|大概多久算不出來)/.test(b1.txt),
     b1.txt.slice(0, 200).replace(/\n/g, ' / '));
+  // 🔴 B2b（最終審查 C）：24 小時鎖價期限原本只在接下當下的 toast 一閃即逝，這張常駐的說明卡
+  // 完全沒提；使用者接了段之後回頭想確認期限就找不到，直接造成客訴。
+  ok('B2b 第一段：24 小時鎖價期限有寫在說明卡上（不是只在接下當下一閃即逝的 toast）',
+    /24\s*小時/.test(b1.txt), b1.txt.slice(0, 200).replace(/\n/g, ' / '));
   ok('B3 第二段：三件事都在（精確位置／低耗電／靠窗）',
     /精確位置/.test(b1.txt) && /低耗電/.test(b1.txt) && /靠窗/.test(b1.txt), b1.txt.replace(/\n/g, ' / ').slice(0, 300));
   // 🔴 B4 是這一節存在的理由：三態判定的承諾必須寫在 UI 上
@@ -769,6 +783,51 @@ const browser = await chromium.launch();
   ok('D6c 走完開板→接一段→開始錄製之後重新整理，?demo=bounty 撐得住、PHYSICAL_COLLECT_ENABLED 仍是 true',
     d6c.search.includes('demo=bounty') && d6c.phys === true,
     `重載前 search=${preReloadSearch}　重載後 ${JSON.stringify(d6c)}`);
+
+  // 🔴 D8（最終審查 A-1+A-2）：Task 7 做的懸賞地圖層要看得到金色線，前提是①有進得去的入口
+  // （零完乘記錄時「校正貢獻」節也要露出收集地圖鈕）②?demo=bounty 種得出校正記錄，否則
+  // bountyCorrectedSegs() 是空集合、地圖層一個像素都畫不出來。此刻 dp 剛做完 D6c 的重新整理
+  // （使用者明早很可能做的事：開了板、接了段、開始錄，中途重新整理），驗完 reload 之後這條路
+  // 還走得通。走真實 UI 路徑（護照→「校正貢獻」節的收集地圖鈕→開懸賞層開關），不直接呼叫
+  // setCollectMap()／state.collectBounty=true 這些內部函式——這樣同一條斷言同時覆蓋 A-1
+  // （入口存在且點得到）與 A-2（畫得出金色），不是各驗一半。
+  // 🔴 D6c 自己的斷言只讀 location.search／PHYSICAL_COLLECT_ENABLED（兩者在 reload 後立刻可讀，
+  // 不必等 boot 跑完），所以原本沒有補 waitForFunction；但 D8a/D8b 要讀 state.mode／render 出來
+  // 的內容，這裡比照 D1b 自己 reload 後的既有寫法，補上等 boot 真的跑到 state.trains 就緒。
+  await dp.waitForFunction(() => typeof state !== 'undefined' && state.trains && state.trains.length > 0, null, { timeout: 40000 });
+  await dp.waitForTimeout(700); // 比照 D2 等 lineNetwork() 建好的窗:bountyCorrectedSegs() 雖只讀 localStorage 不靠它，但 buildCorrectSection() 同時呼叫 lineCompletion() 一起判斷
+  // dp 是 390 寬(mk() 預設)，落在 MOBILE_MQ(max-width:900px)內：桌面 #passport 這裡是
+  // display:none(探針量過，rect 全 0)，護照真正的家是 #ridePanel，要先 openRidePanel() 才會
+  // hidden=false 並觸發 renderRidePanel()——直接對 #passport 找按鈕會「存在但點不到」。
+  const d8a = await dp.evaluate(() => {
+    document.getElementById('howtoWrap')?.remove(); // reload 後首訪卡會重新出現，比照 mk() 的既有清理
+    openRidePanel();
+    return { btn: !!document.querySelector('#ridePanel [data-sec="correct"] [data-act="collectmap"]') };
+  });
+  ok('D8a ?demo=bounty 重新整理後，手機護照 sheet「校正貢獻」節仍看得到收集地圖入口（A-1：零完乘記錄不能沒有路可去）',
+    d8a.btn === true, JSON.stringify(d8a));
+
+  // D8b 不用 if(d8a.btn) 把整條 ok() 包起來跳過——比照本檔 D5 的既有寫法(斷言本身把
+  // 「入口存不存在」納入判準),入口不存在時 D8b 也要明確變紅,不能讓它從報告裡悄悄消失。
+  const d8b = d8a.btn ? await (async () => {
+    await dp.click('#ridePanel [data-sec="correct"] [data-act="collectmap"]');
+    await dp.waitForTimeout(200);
+    await dp.evaluate(() => document.getElementById('collectBountyBtn').click());
+    await dp.waitForTimeout(200);
+    return dp.evaluate(() => {
+      const c = document.getElementById('overlay');
+      const g = c.getContext('2d');
+      const px = g.getImageData(0, 0, c.width, c.height).data;
+      let gold = 0;
+      for (let i = 0; i < px.length; i += 4) {
+        if (px[i + 3] < 200) continue;
+        if (Math.abs(px[i] - 0xff) <= 24 && Math.abs(px[i + 1] - 0xd6) <= 24 && Math.abs(px[i + 2] - 0x0a) <= 24) gold++;
+      }
+      return { collectMap: state.collectMap, collectBounty: state.collectBounty, gold };
+    });
+  })() : { collectMap: false, collectBounty: false, gold: -1, skippedNoEntryBtn: true };
+  ok('D8b ?demo=bounty 收集地圖上真的有懸賞金色像素，不是只有「函式有回東西」（A-2）',
+    d8b.collectMap === true && d8b.collectBounty === true && d8b.gold > 0, JSON.stringify(d8b));
   await dctx.close();
 
   // 🔴 D1b（審查 B4 查證後追加，獨立 context）：demo 模式在使用者做任何事之前就可能已經死了——
@@ -991,6 +1050,104 @@ const browser = await chromium.launch();
   const after390 = await page.evaluate(() => state.collectBounty);
   ok('H11（T7-3）手機 390：真觸控點下去 state.collectBounty 真的翻轉（不只是點得到，點下去要有效）',
     before390 === false && after390 === true, JSON.stringify({ before: before390, after: after390 }));
+  await ctx.close();
+}
+
+// 🔴 H12（最終審查 B）：新增的 #collectBountyBtn(93px)把 #collectStat 的可用寬從 155px
+// 壓到 68px(375)／53px(360)／83px(390)，「6 條線・500 km・全線走完 2」被截成「6 條線・5…」。
+// 審查員做過控制組(同一份 build 把按鈕 display:none，clientW 立刻回到 155、不截斷)確認是這顆
+// 新按鈕造成的。768 以上不受影響，這裡不測。用真的有完乘資料的場景（比照 seedCollectDemo() 的
+// 做法）——零搭乘記錄時的文案本身更長，那是另一個獨立於本次改動、早就存在的截斷（關掉
+// #collectBountyBtn 量過，截斷依舊在），不在這次 findings 範圍內，這裡刻意種資料只驗新按鈕
+// 造成的回歸，不去解一個 findings 沒點名的舊問題。
+for (const w of [360, 375, 390]) {
+  const { ctx, page } = await open(browser, { app: true, width: w, height: 812, touch: true });
+  const r = await page.evaluate(() => {
+    const recs = [...lineNetwork().values()].sort((a, b) => b.segs.length - a.segs.length).slice(0, 6);
+    const sg = {};
+    recs.forEach((rec, i) => { rec.segs.slice(0, Math.max(1, Math.round(rec.segs.length * [1, 0.55, 1, 0.3, 0.75, 0.2][i])))
+      .forEach(s => sg[s.key] = 1); });
+    localStorage.setItem('trainmap-checkins-v1', JSON.stringify({ v: 1, st: {}, sg }));
+    setCollectMap(true);
+    const el = document.getElementById('collectStat');
+    return { text: el.textContent, scrollWidth: el.scrollWidth, clientWidth: el.clientWidth };
+  });
+  ok(`H12（最終審查 B）手機 ${w}：#collectStat 沒有被新按鈕擠到截斷（scrollWidth<=clientWidth）`,
+    r.scrollWidth <= r.clientWidth, JSON.stringify(r));
+  await ctx.close();
+}
+
+// 🔴 H13（最終審查 A，本專案手機鐵則）：A 組的端到端不能只驗「函式有沒有回東西」，375／390
+// 兩個寬度都要用 elementFromPoint 命中＋真觸控 page.touchscreen.tap()，不是 .click()／直呼
+// 內部函式。走 ?demo=bounty 真實開機路徑（不手動塞 state），到 #ridePanel（這兩個寬度落在
+// MOBILE_MQ 內，桌面 #passport 是 display:none，見上面 D8a 的既有教訓）找 A-1 新入口，
+// 真的點兩下（先進收集地圖，再開懸賞層），最後數金色像素收尾，同一條路徑上把 A-1 與 A-2
+// 一起走完，不是各自孤立測。
+for (const w of [375, 390]) {
+  const ctx = await browser.newContext({ viewport: { width: w, height: 812 }, hasTouch: true });
+  const page = await ctx.newPage();
+  await page.goto(BASE + '/index.html?demo=bounty', { waitUntil: 'load' });
+  await page.waitForFunction(() => typeof state !== 'undefined' && state.trains && state.trains.length > 0, { timeout: 40000 });
+  await page.waitForTimeout(700); // 等 setupBountyDemo() 的 tick 追上 lineNetwork() 就緒（比照 D8a）
+  await page.evaluate(() => {
+    document.getElementById('howtoWrap')?.remove();
+    openRidePanel();
+    const btn = document.querySelector('#ridePanel [data-sec="correct"] [data-act="collectmap"]');
+    btn?.scrollIntoView({ block: 'center' }); // sheet 內容可捲動，rect 沒捲到位會落在視窗外(見 H13a 首輪 cy=918 教訓)
+  });
+  await page.waitForTimeout(150); // 等捲動落定再量 rect，避免量到過渡中的座標
+  const h13a = await page.evaluate(() => {
+    const btn = document.querySelector('#ridePanel [data-sec="correct"] [data-act="collectmap"]');
+    if (!btn) return { missing: true };
+    const r = btn.getBoundingClientRect();
+    const cx = r.x + r.width / 2, cy = r.y + r.height / 2;
+    const hit = document.elementFromPoint(cx, cy);
+    return { missing: false, w: Math.round(r.width), h: Math.round(r.height),
+      hitSelf: !!(hit && hit.closest('[data-act="collectmap"]')), cx, cy };
+  });
+  ok(`H13a（最終審查 A）手機 ${w}：護照「校正貢獻」節的收集地圖入口尺寸夠且中心真的點得到自己（elementFromPoint 命中）`,
+    !h13a.missing && h13a.hitSelf === true && h13a.w >= 44 && h13a.h >= 28, JSON.stringify(h13a));
+
+  // H13b/H13c 不用 if(!h13a.missing) 把整條 ok() 包起來跳過——比照本檔 D8b 的既有寫法
+  // （斷言本身把「入口存不存在」納入判準），入口不存在時這兩條也要明確變紅，不能讓它們
+  // 從報告裡悄悄消失、也不能讓總數在不同執行之間浮動。
+  const h13b = !h13a.missing ? await (async () => {
+    await page.touchscreen.tap(h13a.cx, h13a.cy); // 真觸控，不是 .click()
+    await page.waitForTimeout(200);
+    return page.evaluate(() => ({ collectMap: state.collectMap }));
+  })() : { collectMap: false, skippedNoEntryBtn: true };
+  ok(`H13b（最終審查 A）手機 ${w}：真觸控點下收集地圖入口後 state.collectMap 真的翻轉`,
+    !h13a.missing && h13b.collectMap === true, JSON.stringify(h13b));
+
+  const h13c = h13b.collectMap ? await (async () => {
+    const tgl = await page.evaluate(() => {
+      const btn = document.getElementById('collectBountyBtn');
+      const r = btn.getBoundingClientRect();
+      const cx = r.x + r.width / 2, cy = r.y + r.height / 2;
+      const hit = document.elementFromPoint(cx, cy);
+      return { hitSelf: !!(hit && hit.closest('#collectBountyBtn')), cx, cy };
+    });
+    await page.touchscreen.tap(tgl.cx, tgl.cy); // 真觸控開懸賞層
+    await page.waitForTimeout(300);
+    // 注意：page.evaluate() 的 callback 在瀏覽器內執行，讀不到外層 Node 變數 tgl——
+    // tglHitSelf 從 Node 端併回結果物件，不能寫進 evaluate() 內部（首輪在此炸過
+    // ReferenceError: tgl is not defined）。
+    const raw = await page.evaluate(() => {
+      const c = document.getElementById('overlay');
+      const g = c.getContext('2d');
+      const px = g.getImageData(0, 0, c.width, c.height).data;
+      let gold = 0;
+      for (let i = 0; i < px.length; i += 4) {
+        if (px[i + 3] < 200) continue;
+        if (Math.abs(px[i] - 0xff) <= 24 && Math.abs(px[i + 1] - 0xd6) <= 24 && Math.abs(px[i + 2] - 0x0a) <= 24) gold++;
+      }
+      return { collectBounty: state.collectBounty, gold };
+    });
+    return { ...raw, tglHitSelf: tgl.hitSelf };
+  })() : { collectBounty: false, gold: -1, tglHitSelf: false, skippedNoCollectMap: true };
+  ok(`H13c（最終審查 A）手機 ${w}：真觸控開懸賞層開關後 state.collectBounty 翻轉且畫面上有金色像素`,
+    h13b.collectMap === true && h13c.tglHitSelf === true && h13c.collectBounty === true && h13c.gold > 0, JSON.stringify(h13c));
+
   await ctx.close();
 }
 
