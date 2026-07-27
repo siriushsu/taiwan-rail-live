@@ -797,6 +797,18 @@ console.log('F. cron 設定跨檔一致性');
   check(crons.length > 0, 'F1 wrangler.jsonc 讀到 crons 陣列（正規式抓到東西）');
   check(crons.includes(ALERT_LOG_CRON), `F2 wrangler.jsonc 的 crons 含有與 worker.js ALERT_LOG_CRON 逐字相同的項目（ALERT_LOG_CRON=${JSON.stringify(ALERT_LOG_CRON)}，crons=${JSON.stringify(crons)}）`);
 }
+{
+  // F3(2026-07-28):pruneAlertLog 真的有被 scheduled 的日排程呼叫。這條看起來多餘——函式本身
+  // 已經有 J1/J2/J3 三條在守——但實測把 scheduled 裡那三行接線整段拿掉,148 條斷言零 FAIL。
+  // 「函式寫對了、但沒有人呼叫」是這一層唯一測不到的失效方式,而後果(表無限成長)要好幾個月
+  // 才看得出來。用讀原始碼的方式驗接線,跟 F1/F2 讀 wrangler.jsonc 是同一種手法:離線測不到
+  // 真的 cron 觸發,只能驗「該有的接線在不在」。
+  const workerPath = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'worker.js');
+  const wtext = fs.readFileSync(workerPath, 'utf8');
+  const afterDefault = wtext.slice(wtext.indexOf('export default {'));
+  check(/await pruneAlertLog\(env\)/.test(afterDefault),
+    'F3 pruneAlertLog 有被 scheduled 的日排程呼叫（不是只定義了、沒接上線）');
+}
 
 console.log('G. trafficTag（cron 自身流量不誤記,2026-07-27 審查 Important 5）');
 {
