@@ -757,6 +757,7 @@ const APP_ORIGINS = new Set(['capacitor://localhost', 'https://localhost']);
 const API_ENDPOINTS = new Set([
   'tra-live', 'tra-alert', 'thsr-alert', 'metro-alert', 'metro-live', 'ntmetro-live',
   'delay-stats', 'delay-history', 'station-events', 'today-board', 'basemap-token', 'account-delete',
+  'alert-log',
 ]);
 
 function addAppCors(headers, origin) {
@@ -1262,6 +1263,65 @@ async function ingestAlertLog(env) {
   return { added: d.added.length, updated: d.updated.length, cleared: d.cleared.length, live: [...liveSys] };
 }
 
+// 公告紀錄唯讀查詢(/api/alert-log)。天數上限刻意設 30(不是 D1 保留期的 90):這是給人看的
+// 近況,不是資料匯出;LIMIT 500 是防呆——真實量級一天個位數則,一次爆到 500 就是上游或狀態機
+// 出事了。
+const ALERT_LOG_MAX_DAYS = 30;
+const ALERT_LOG_DEFAULT_DAYS = 7;
+
+// D1 列 → 對外 JSON。純函式:lines 從 JSON 字串還原(壞掉就回空陣列,不讓一筆髒資料打掉整個
+// 回應)、news 轉 boolean、cleared_at 的 null 轉空字串(前端少一種型別要判)。
+//
+// 語意提醒(讀這支之前務必看):alert_log 的 upsert 是 ON CONFLICT(sys,akey) DO UPDATE,同一把
+// akey 全程只留一列——一則解除後又復發的公告,cleared_at 會被下一輪抹回 NULL、但 first_seen
+// 仍停在最初那次。也就是說這裡吐出的 from/cleared 是「這把鍵目前這個生命週期」,不是這把鍵
+// 有史以來完整的出沒紀錄;同一把鍵過去解除過幾次、每次隔多久,這支端點看不見,也刻意不假裝
+// 看得見(要補這個能力得另開一張事件表,不是這次的範圍)。消費端不能把 from→cleared 當成一段
+// 連續無縫的區間。
+function buildAlertLogBody(rows) {
+  return (Array.isArray(rows) ? rows : []).map(r => {
+    let lines = [];
+    try { const p = JSON.parse(r.lines); if (Array.isArray(p)) lines = p.map(String); } catch (e) {}
+    return {
+      sys: String(r.sys),
+      title: String(r.title),
+      desc: String(r.descr || ''),
+      lines,
+      start: String(r.start_at || ''),
+      end: String(r.end_at || ''),
+      news: !!r.news,
+      from: String(r.first_seen),
+      seen: String(r.last_seen),
+      cleared: r.cleared_at ? String(r.cleared_at) : '',
+    };
+  });
+}
+
+async function alertLog(request, env) {
+  const url = new URL(request.url);
+  const raw = parseInt(url.searchParams.get('days'), 10);
+  const days = Number.isFinite(raw) ? Math.min(Math.max(raw, 1), ALERT_LOG_MAX_DAYS) : ALERT_LOG_DEFAULT_DAYS;
+  // 快取鍵用正規化後的 days,不是原始 query string——不然 ?days=999 跟 ?days=30 這種夾住後
+  // 其實等價的請求,會各自佔一格邊緣快取,浪費之餘還讓其中一格永遠拿不到理論上該共用的命中。
+  const cacheKey = new Request(new URL('/api/alert-log?days=' + days, request.url), { method: 'GET' });
+  const edge = caches.default;
+  const hit = await edge.match(cacheKey);
+  if (hit) return hit;
+  try {
+    const since = new Date(Date.now() - days * 86400e3).toISOString();
+    const rowsRes = await env.DELAY_DB.prepare(
+      'SELECT sys,title,descr,lines,start_at,end_at,news,first_seen,last_seen,cleared_at FROM alert_log WHERE first_seen >= ? OR cleared_at IS NULL ORDER BY first_seen DESC LIMIT 500'
+    ).bind(since).all();
+    const res = jsonRes(
+      { at: new Date().toISOString(), days, items: buildAlertLogBody((rowsRes && rowsRes.results) || []) },
+      200, 'public, max-age=60, s-maxage=300, stale-while-revalidate=1800');
+    await edge.put(cacheKey, res.clone());
+    return res;
+  } catch (e) {
+    return jsonRes({ error: 'not_ready' }, 503, 'public, s-maxage=60');
+  }
+}
+
 // 判斷一發 /api/* 請求要不要記進 TRAFFIC、記成什麼 plat/dev。純函式:不碰 env,方便測試。
 // cron 自己打自家 /api/*-alert 的請求(帶 ALERT_LOG_CRON_UA)不算「使用者流量」,原本會因為
 // 不帶 Origin 被誤記成'web'——每天 3×1440 筆假資料點,把 App/網頁佔比洗掉(2026-07-27 審查
@@ -1353,6 +1413,7 @@ export default {
     else if (url.pathname === '/api/today-board') res = await todayBoard(request, env);
     else if (url.pathname === '/api/basemap-token') res = basemapToken(request, env);
     else if (url.pathname === '/api/account-delete') res = await deletePaidProfile(request, env);
+    else if (url.pathname === '/api/alert-log') res = await alertLog(request, env);
     else res = await env.ASSETS.fetch(request);
     const h = new Headers(res.headers);
     for (const [k, v] of Object.entries(SEC_HEADERS)) h.set(k, v);
@@ -1380,5 +1441,5 @@ export const _rateLimit = { rateLimited, delayHistory, deletePaidProfile };
 // 純函式導出,供離線回歸測試 import:公告狀態機的正規化、指紋。
 export const _alertLog = {
   alertKey, normalizeAlertPayload, diffAlertState, ingestAlertLog, ALERT_LOG_SOURCES,
-  ALERT_LOG_CRON, ALERT_LOG_CRON_UA, trafficTag,
+  ALERT_LOG_CRON, ALERT_LOG_CRON_UA, trafficTag, buildAlertLogBody, alertLog,
 };
