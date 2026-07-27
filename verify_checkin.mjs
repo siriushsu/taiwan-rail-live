@@ -677,8 +677,10 @@ try {
     JSON.stringify(gotSegs) === JSON.stringify([...new Set(wantSeg)].sort()) && gotSegs.length > 0,
     `記到 ${gotSegs.length} 段　獨立算 ${new Set(wantSeg).size} 段`);
   // sg 值形狀是 {n,nv}（Task 1，規格 §6）：這裡讀的是 writeSegments 寫入的原始 storage，
-  // 不是 segmentCollection()，所以要自己拆 .n；不拆＝拿物件跟數字比一定 false。
-  ok('I2 每段各記一次', Object.values(segRes.sg).every(v => (v && typeof v === 'object' ? v.n : v) === 1), JSON.stringify(segRes.sg).slice(0, 100));
+  // 不是 segmentCollection()，所以要直接斷言新形狀——不留「可能還是裸數字」的退路，否則
+  // writeSegments 哪天退回寫裸數字，這裡照樣綠燈。不斷言 nv 的具體值：這趟上車站有沒有驗過
+  // 定位跟著 harness 的 GPS/計時狀態走，不該讓這裡依賴那個易變的前置條件（nv 的行為由 M5 直測）。
+  ok('I2 每段各記一次', Object.values(segRes.sg).every(v => v && v.n === 1 && typeof v.nv === 'number'), JSON.stringify(segRes.sg).slice(0, 100));
   // 快車跳過的站也要算走過：記到的區間數應 ≥ 停靠區間數（一段停靠可跨好幾個實體區間）
   ok('I3 快車跳站的區間照樣算走過（記到的實體區間數 ≥ 停靠區間數）',
     gotSegs.length >= (expectTo - expectFrom),
@@ -699,8 +701,7 @@ try {
     rev.stops.push({ name: 'END' });
     writeSegments(rev, 0, rev.stops.length - 1);
     const c2 = JSON.parse(localStorage.getItem('trainmap-checkins-v1'));
-    const v = c2.sg[k0]; // 同上：原始 storage 是 {n,nv}，拆 .n 才是次數
-    return { before, after: Object.keys(c2.sg).length, n: (v && typeof v === 'object') ? v.n : v };
+    return { before, after: Object.keys(c2.sg).length, n: c2.sg[k0].n }; // 同上：直接讀 .n，不留裸數字的退路
   }, [trip.train, trip.sys, expectFrom, expectTo]);
   ok('I4 反方向搭同一段路併入同一筆（不分方向）',
     bidir.after === bidir.before && bidir.n === 2, `段數 ${bidir.before}→${bidir.after}，該段次數 ${bidir.n}`);
@@ -1280,12 +1281,29 @@ try {
     });
     ok('M3 v2 讀進來不變形', m3 && m3.n === 5 && m3.nv === 2, JSON.stringify(m3));
 
-    // M4 segmentCollection 的六個消費者拿到的仍是數字（型別不可改，否則完乘率與收集地圖會壞）
+    // M4 segmentCollection 的五個消費者拿到的仍是數字（型別不可改，否則完乘率與收集地圖會壞）
     const m4 = await page.evaluate(() => {
       const sg = segmentCollection();
       return Object.values(sg).every(v => typeof v === 'number');
     });
     ok('M4 segmentCollection 的值仍是 number', m4 === true, String(m4));
+
+    // M5 writeSegments 的 verified 參數要正確地只影響 nv、不影響 n——這是本 task 唯一的行為
+    // 分岔點（Step 5）。I2/I4 讀的是搭乘模式跑出來的既有資料，verified 值跟著 harness 的定位
+    // 狀態走，測不出「錯字」等級的回歸（例如 if(verified) cur.nv+=1 誤植成 cur.n+=1）。這裡直接
+    // 呼叫 writeSegments 兩次、自己指定 verified，不靠瀏覽器定位或搭乘模式，判準也是自己算的。
+    const m5 = await page.evaluate(() => {
+      localStorage.removeItem('trainmap-checkins-v1');
+      const rec = [...lineNetwork().values()][0];
+      const s0 = rec.segs[0];
+      const rev = { sys: rec.sys, stops: [{ name: s0.a, segLn: rec.ln, dA: s0.dA, dB: s0.dB }, { name: s0.b }] };
+      writeSegments(rev, 0, 1, true);   // 這趟定位驗過
+      writeSegments(rev, 0, 1, false);  // 這趟沒驗過
+      const c = JSON.parse(localStorage.getItem('trainmap-checkins-v1'));
+      return c.sg[s0.key];
+    });
+    ok('M5 writeSegments 的 verified 只加 nv、n 兩次都加（n=2 但只一次驗過故 nv=1）',
+      m5 && m5.n === 2 && m5.nv === 1, JSON.stringify(m5));
 
     await ctx.close();
   }

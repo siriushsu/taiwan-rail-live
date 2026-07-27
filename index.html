@@ -8578,7 +8578,6 @@ function loadCheckins() {
 // 舊資料一律 nv:0:沒有在場證據就不該進分母,寧可低估也不要污染別人的模型。
 // 升級必須冪等——loadCheckins 每次讀都會跑它,不冪等會讓已升級的資料再被處理一次。
 function migrateCheckins(o) {
-  if (Number(o.v) >= 2) return o;
   const sg = {};
   for (const [k, v] of Object.entries(o.sg || {})) {
     sg[k] = (v && typeof v === 'object')
@@ -8673,7 +8672,7 @@ function doCheckin(st) {
 // 只有搭乘模式會寫:「跟完」是在 App 裡跟動畫,不該染到實體路網上(虛實雙軌的分界)。
 function segKey(sys, lnId, a, b) { return sys + '|' + lnId + '|' + (a < b ? a + '|' + b : b + '|' + a); }
 // {段鍵→總次數}(含沒驗到定位的)——護照、逐線完乘率、收集地圖都吃這個。
-// 回傳型別刻意維持 number:六個既有消費者(drawCollectSegs／renderRidePanel／lineCompletion／
+// 回傳型別刻意維持 number:五個既有消費者(drawCollectSegs／unlockedAchievements／lineCompletion／
 // buildStationStamps／說明中心可用性判斷)都當數字用,改型別等於一次弄壞五個地方。
 function segmentCollection() {
   const out = {};
