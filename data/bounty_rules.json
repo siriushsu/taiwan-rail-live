@@ -1,0 +1,30 @@
+{
+  "v": 1,
+  "note": "門檻與文案的唯一定義。客端（錄製中的即時提示）與伺服器端（隔日驗證）共讀這一份——規格 §5：兩邊用不同門檻才是 bug。改任何數字都同時改變兩邊行為，這是刻意的。",
+  "coverN": { "TRA": 1, "THSR": 1, "metro": 3 },
+  "quality": {
+    "accMedianPreciseOffM": 200,
+    "accMedianBlockedM": 80,
+    "sampleGapMedianSec": 5,
+    "segCoverageMin": 0.6,
+    "noFixGapSec": 90,
+    "liveWindowSec": 60
+  },
+  "integrity": {
+    "tripDateMaxAgeDays": 7,
+    "maxAccelMps2": 1.3,
+    "speedCapMps": { "default": 36.2, "THSR": 83.4, "metro": 22.3 },
+    "dopplerCorrMax": 0.995,
+    "delayMatchToleranceSec": 300
+  },
+  "dailyPointsCap": 200,
+  "qualityText": {
+    "precise_off": { "title": "「精確位置」是關的", "how": "設定 → 隱私權與安全性 → 定位服務 → 軌島 → 打開「精確位置」" },
+    "acc_blocked": { "title": "訊號被遮蔽了", "how": "手機放在包包裡或車廂中央會擋住訊號，靠窗會好很多" },
+    "underground": { "title": "這段在地下，GPS 收不到", "how": "這不是你的問題，我們也還沒有辦法解" },
+    "too_short": { "title": "這段只錄到一部分", "how": "下次從該段起點再錄一次就能補齊" },
+    "too_sparse": { "title": "取樣太稀疏", "how": "低耗電模式會降低定位頻率，錄製期間建議先關掉" },
+    "no_dwell": { "title": "這班車沒有在該站停靠", "how": "所以停站時間沒收到；軌道段仍然有效" },
+    "unknown_train": { "title": "認不出這是哪一班車", "how": "可能是中途換車，或班表當天有調整" }
+  }
+}

@@ -514,21 +514,30 @@ try {
   // 到站秒數自己算，不呼叫 ridingArrivedIdx —— 判準與實作不同源（心得 29）。
   const { ctx: hctx, page: hp } = await open(browser, { app: true });
   const trip = await hp.evaluate(() => {
-    window.liveDelaySec = () => 0; // 誤點歸零，讓表定時間軸＝真實時鐘，測試好算
     const now = nowSecOfDay(activeTz());
-    const t = (state.trains || []).find(x => !x.loop && x.stops && x.stops.length >= 6 &&
-      x.stops[0].arrSec <= now - 120 && x.stops[x.stops.length - 1].arrSec >= now + 600);
+    // 凌晨 0–5 點沒有任何行駛中的班次，H/I/J 三組（本頁共用）會整組跑不了。
+    // 解法沿用本組既有的槓桿：liveDelaySec 負值＝把表定時間軸往前推（schedNow = 真實時鐘 + j）。
+    // 先試真實時鐘；找不到才掃虛擬時刻挑一個「那時候有車在跑」的 vnow，之後整組以 schedNow=vnow 為基準。
+    // 被測邏輯一行都沒改，只是換了時間座標；下面每個 jump 都是「相對真實時鐘的位移」故不受影響。
+    const runningAt = t0 => (state.trains || []).find(x => !x.loop && x.stops && x.stops.length >= 6 &&
+      x.stops[0].arrSec <= t0 - 120 && x.stops[x.stops.length - 1].arrSec >= t0 + 600);
+    let vnow = now, t = runningAt(now);
+    for (let h = 6; h <= 22 && !t; h++) { const c = h * 3600 + 1800; const f = runningAt(c); if (f) { t = f; vnow = c; } }
     if (!t) return null;
-    return { train: String(t.train), sys: t.sys, now,
+    window.__SHIFT = vnow - now;                 // 整組共用的時間座標位移
+    window.liveDelaySec = () => -window.__SHIFT; // 誤點歸零＋推到 vnow，測試好算
+    return { train: String(t.train), sys: t.sys, now, vnow, shift: vnow - now,
       stops: t.stops.map(s => ({ name: s.name, arrSec: s.arrSec, depSec: s.depSec })) };
   });
-  if (!trip) { console.log('FAIL  現在沒有正在行駛的班次可供 H 組測試（清晨/深夜跑會這樣）'); process.exit(1); }
+  if (!trip) { console.log('FAIL  整份班表都找不到可測的班次，H 組無法進行'); process.exit(1); }
   // 獨立算：上車站＝表定已抵達的最後一站
   const arrivedIdxAt = t => { let k = -1; trip.stops.forEach((s, i) => { if (s.arrSec <= t) k = i; }); return k; };
-  const expectFrom = Math.max(0, arrivedIdxAt(trip.now));
+  const expectFrom = Math.max(0, arrivedIdxAt(trip.vnow));
   const expectTo = Math.min(expectFrom + 3, trip.stops.length - 1);
-  info('H 基準', `${trip.train} 次（${trip.sys}）現在在第 ${expectFrom} 站「${trip.stops[expectFrom].name}」；` +
-    `本測試搭到第 ${expectTo} 站「${trip.stops[expectTo].name}」`);
+  const hhmm = s => String(Math.floor(s / 3600) % 24).padStart(2, '0') + ':' + String(Math.floor(s / 60) % 60).padStart(2, '0');
+  info('H 基準', `${trip.train} 次（${trip.sys}）在第 ${expectFrom} 站「${trip.stops[expectFrom].name}」；` +
+    `本測試搭到第 ${expectTo} 站「${trip.stops[expectTo].name}」` +
+    (trip.shift ? `／⚠ 現在(${hhmm(trip.now)})無車在跑，整組改以虛擬時刻 ${hhmm(trip.vnow)} 為基準` : ''));
 
   const started = await hp.evaluate(([train, sys, toIdx]) => {
     localStorage.removeItem('trainmap-checkins-v1');
@@ -596,7 +605,7 @@ try {
   const early = await hp.evaluate(([train, sys, toIdx, j1]) => {
     localStorage.removeItem('trainmap-checkins-v1');
     localStorage.removeItem('trainmap-riding-v1');
-    window.liveDelaySec = () => 0;
+    window.liveDelaySec = () => -window.__SHIFT; // 回到本組的時間基準 vnow（不是真實時鐘）
     const tr = state.trains.find(x => String(x.train) === train && x.sys === sys);
     state.followTrain = tr;
     startRiding(tr, toIdx);
@@ -613,7 +622,7 @@ try {
   const guard = await hp.evaluate(([train, sys, toIdx]) => {
     localStorage.removeItem('trainmap-checkins-v1');
     localStorage.removeItem('trainmap-riding-v1');
-    window.liveDelaySec = () => 0;
+    window.liveDelaySec = () => -window.__SHIFT; // 回到本組的時間基準 vnow（不是真實時鐘）
     const tr = state.trains.find(x => String(x.train) === train && x.sys === sys);
     startRiding(tr, toIdx);
     const second = startRiding(tr, toIdx); // 已在搭乘中，應被擋
@@ -629,7 +638,7 @@ try {
   const withGps = await hp.evaluate(([train, sys, toIdx, fromIdx]) => {
     localStorage.removeItem('trainmap-checkins-v1');
     localStorage.removeItem('trainmap-riding-v1');
-    window.liveDelaySec = () => 0;
+    window.liveDelaySec = () => -window.__SHIFT; // 回到本組的時間基準 vnow（不是真實時鐘）
     const tr = state.trains.find(x => String(x.train) === train && x.sys === sys);
     const s = tr.stops[fromIdx];
     state.meLoc = { lat: s.lat, lon: s.lon, acc: 25 };
@@ -667,7 +676,7 @@ try {
     localStorage.removeItem('trainmap-checkins-v1');
     localStorage.removeItem('trainmap-riding-v1');
     userDataSaveCollection('rides', []);
-    window.liveDelaySec = () => 0;
+    window.liveDelaySec = () => -window.__SHIFT; // 回到本組的時間基準 vnow（不是真實時鐘）
     const tr = state.trains.find(x => String(x.train) === train && x.sys === sys);
     startRiding(tr, toIdx);
     window.liveDelaySec = () => -jumpAll;
@@ -960,7 +969,9 @@ try {
 
   // 手機：上車流程的下車站選單與按鈕觸控尺寸（H14-17／K 組共用，同樣要 app context 才看得到票券鈕）
   const { ctx: hmctx, page: hmp } = await open(browser, { width: 375, height: 780, touch: true, app: true }); // K 組要真的 tap
-  const hmob = await hmp.evaluate(([train, sys]) => {
+  const hmob = await hmp.evaluate(([train, sys, shift]) => {
+    window.__SHIFT = shift;                      // 新分頁沒有 H 組設過的位移，要重新帶進來
+    window.liveDelaySec = () => -window.__SHIFT;
     const tr = state.trains.find(x => String(x.train) === train && x.sys === sys);
     if (!tr) return { missing: true };
     state.followTrain = tr; state.mode = 'sched';
@@ -980,7 +991,7 @@ try {
         inCard: r.right <= pr.right + 0.5 && r.left >= pr.left - 0.5, blocked };
     });
     return { missing: false, boxHidden: box.hidden, opts: document.getElementById('fpRideTo').options.length, m, vw: innerWidth };
-  }, [trip.train, trip.sys]);
+  }, [trip.train, trip.sys, trip.shift]);
   ok('H14 手機 375：下車站選單開得出來且有選項', !hmob.missing && hmob.boxHidden === false && hmob.opts > 0,
     `選項 ${hmob.opts} 個`);
   ok('H15 手機 375：選單與按鈕觸控高度足夠、且都在卡片框內',
@@ -1338,14 +1349,17 @@ try {
     const m6 = await page.evaluate(() => {
       localStorage.removeItem('trainmap-checkins-v1');
       localStorage.removeItem('trainmap-riding-v1');
-      window.liveDelaySec = () => 0; // 誤點歸零，表定時間軸＝真實時鐘（比照 H 組手法）
       const now = nowSecOfDay(activeTz());
-      const t = (state.trains || []).find(x => !x.loop && x.stops && x.stops.length >= 3 &&
-        x.stops[0].arrSec <= now - 120 && x.stops[x.stops.length - 1].arrSec >= now + 600);
+      // 深夜沒有行駛中的班次時改用虛擬時刻（比照 H 組手法，見 H 組選車註解）
+      const runningAt = t0 => (state.trains || []).find(x => !x.loop && x.stops && x.stops.length >= 3 &&
+        x.stops[0].arrSec <= t0 - 120 && x.stops[x.stops.length - 1].arrSec >= t0 + 600);
+      let vnow = now, t = runningAt(now);
+      for (let h = 6; h <= 22 && !t; h++) { const c0 = h * 3600 + 1800; const f = runningAt(c0); if (f) { t = f; vnow = c0; } }
       if (!t) return { missing: true };
+      window.liveDelaySec = () => -(vnow - now); // 誤點歸零＋表定時間軸推到 vnow
       // 獨立算上車站索引（比照 H 組 arrivedIdxAt，不呼叫 ridingBoardIdx——判準不與實作同源）
       let i0 = -1;
-      t.stops.forEach((s, i) => { if (s.arrSec <= now) i0 = i; });
+      t.stops.forEach((s, i) => { if (s.arrSec <= vnow) i0 = i; });
       i0 = Math.max(0, i0);
       const toIdx = Math.min(i0 + 2, t.stops.length - 1);
       if (toIdx <= i0) return { missing: true };
