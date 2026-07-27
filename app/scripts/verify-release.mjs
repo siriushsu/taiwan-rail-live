@@ -77,6 +77,10 @@ const TOAST_REVIEWED = new Map([
   ["`${out.added}${out.updated?`${out.updated}`:''}${out.skipped?`${out.skipped}`:''}`", '匯入結果的三個筆數,皆為數字'],
   [`label?(''+escHtml(label)+''):''`, '儲存地點:地點名可由 Takeout 匯入/帳號同步汙染,已逸出'],
   [`p.label?(''+escHtml(p.label)+''):''`, '設預設啟動地點:同上,已逸出'],
+  // 2026-07-27 登記:使用說明中心「試一次」。helpRun() 只做 `const t = HELP_TRY[key]; if (!t) return;`,
+  // 所以 t 必為 HELP_TRY 的成員;該表每個 toast 都是寫死的字面字串(實測:非字面值的 `toast:` grep 回 0,
+  // 全檔無 `.toast =` 賦值),零插值、零使用者資料。新增 HELP_TRY 條目時若 toast 改成樣板字串要重審。
+  [`t.toast`, '使用說明「試一次」:t 必為 HELP_TRY 成員,其 toast 全是寫死字面字串,無插入'],
 ]);
 
 // 掃出每一個 showToast( 呼叫的完整參數（括號配對，不是 regex 抓一行）。
