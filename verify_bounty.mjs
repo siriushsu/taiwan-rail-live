@@ -427,6 +427,75 @@ const browser = await chromium.launch();
   await ctx.close();
 }
 
+// ── C 組：極簡錄製畫面 ＋ Wake Lock ────────────────────────────────────────
+{
+  const { ctx, page } = await open(browser, { app: true, width: 390, height: 844, touch: true });
+  await page.evaluate(async () => {
+    await openBountyBoard();
+    startBountyRecording(bountyBoardMem.cards[0]);
+  });
+  await page.waitForTimeout(300);
+
+  const c1 = await page.evaluate(() => ({
+    on: !!state.recording,
+    bodyCls: document.body.classList.contains('recording'),
+    screen: !document.getElementById('recordScreen').hidden,
+    parent: document.getElementById('recordScreen').parentElement.tagName,
+  }));
+  ok('C1 錄製模式開起來、body 有 recording class、畫面在 body 層',
+    c1.on && c1.bodyCls && c1.screen && c1.parent === 'BODY', JSON.stringify(c1));
+
+  // 🔴 C2 會說謊的 UI 要真的不在（量實際渲染，不是查 class）
+  const c2 = await page.evaluate(() => {
+    const q = s => { const el = document.querySelector(s); return el ? getComputedStyle(el).display : '(不存在)'; };
+    return { badge: q('.badge'), actions: q('.map-actions'), controls: q('.controls'), tabbar: q('.tabbar') };
+  });
+  ok('C2 時鐘徽章／地圖動作列／播放控制／頁籤列全部收起',
+    Object.values(c2).every(v => v === 'none' || v === '(不存在)'), JSON.stringify(c2));
+
+  // C3 四個必要資訊都在（規格 §5 之一）
+  const c3 = await page.evaluate(() => document.getElementById('recordScreen').innerText);
+  ok('C3 顯示里程／段數／點數／錄製中', /公里|km/.test(c3) && /段/.test(c3) && /點/.test(c3) && /錄製中/.test(c3),
+    c3.replace(/\n/g, ' / '));
+
+  // C4 黑底（省電＋視覺上明確標示正在錄製，規格 §5 之一的理由①③）
+  const c4 = await page.evaluate(() => getComputedStyle(document.getElementById('recordScreen')).backgroundColor);
+  ok('C4 錄製畫面是黑底', /rgba?\(\s*(0|1[0-9]?|2[0-9])\s*,\s*(0|1[0-9]?|2[0-9])\s*,/.test(c4), c4);
+
+  // 🔴 C5 判準是「點它會發生什麼」（心得 33）
+  const c5 = await page.evaluate(() => {
+    const btn = document.getElementById('recStop');
+    const r = btn.getBoundingClientRect();
+    const hit = document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2);
+    return { hit: hit === btn || btn.contains(hit), w: Math.round(r.width), h: Math.round(r.height) };
+  });
+  ok('C5 停止鈕點得到', c5.hit === true, JSON.stringify(c5));
+  ok('C6 停止鈕夠大（手機上要一小時後迷迷糊糊也按得到；44pt 是 Apple 的最小可觸控尺寸）',
+    c5.h >= 44 && c5.w >= 44, JSON.stringify(c5));
+
+  // C7 Wake Lock：既有的 acquireWakeLock 有被呼叫到
+  const c7 = await page.evaluate(() => !!state._wakeLockRequested);
+  ok('C7 進錄製模式會去要 Wake Lock', c7 === true, String(c7));
+
+  // 🔴 C8 切走再切回來要重新取得（iOS 不會自動恢復）——判準是既有 handler 的條件有沒有涵蓋錄製
+  const c8 = await page.evaluate(() => {
+    state._wakeLockRequested = false;
+    Object.defineProperty(document, 'visibilityState', { value: 'visible', configurable: true });
+    document.dispatchEvent(new Event('visibilitychange'));
+    return state._wakeLockRequested;
+  });
+  ok('C8 回前景會重新取得 Wake Lock', c8 === true, String(c8));
+
+  // C9 停止之後全部還原
+  const c9 = await page.evaluate(() => {
+    stopBountyRecording();
+    return { on: !!state.recording, cls: document.body.classList.contains('recording'),
+      badge: getComputedStyle(document.querySelector('.badge')).display };
+  });
+  ok('C9 停止後模式關閉、會說謊的 UI 回來', !c9.on && !c9.cls && c9.badge !== 'none', JSON.stringify(c9));
+  await ctx.close();
+}
+
 // ── F4 組：loadBounty() 缺 claims 時補洞、不整包丟（2026-07-28 審查糾正第二輪，Critical）───
 // 舊版驗證邏輯是「trips 與 claims 兩個欄位都要型別正確才放行，一個沒過就整包回傳空殼」——
 // 空殼再被 saveBounty() 寫回磁碟，等於把使用者已經存在的 trips 永久清空。這裡直接重現審查
@@ -588,6 +657,18 @@ const browser = await chromium.launch();
   });
   ok('D6 零 /api/* 時「接下這段」仍走得到出發前說明卡（不接住就會停在「網路不通」）',
     d6.exists === true && d6.hidden === false && d6.len > 80, JSON.stringify(d6));
+
+  // 🔴 D6b（Task 3）：明天使用者在備援站實際會走的路徑——零 /api/* 時「開始錄製」也要真的
+  // 走得到錄製畫面，不能停在網路錯誤。startBountyRecording 本身不打網路，但這條斷言守住
+  // 「以後不會有人不小心把網路請求埋進這條路徑」。
+  await dp.evaluate(() => document.getElementById('bountyBriefGo').click());
+  await dp.waitForTimeout(300);
+  const d6b = await dp.evaluate(() => ({
+    recording: !!state.recording, screenHidden: document.getElementById('recordScreen').hidden,
+    bodyCls: document.body.classList.contains('recording'),
+  }));
+  ok('D6b ?demo=bounty 下「開始錄製」真的進到錄製畫面（不停在網路錯誤）',
+    d6b.recording === true && d6b.screenHidden === false && d6b.bodyCls === true, JSON.stringify(d6b));
   await dctx.close();
 
   // 反向：沒帶參數的網頁必須維持網頁的樣子，示範開關不能外洩

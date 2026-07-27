@@ -513,6 +513,28 @@
      .map-actions 的隨機跟隨也沒車可跟——兩個都收掉。 */
   body.collect-map .controls, body.collect-map .tabbar,
   body.collect-map .badge, body.collect-map .map-actions { display: none; }
+  /* 錄製模式：比照 body.collect-map 收掉會說謊的 UI。錄製畫面不畫車、不吃時刻尺，
+     那幾顆留著只會讓人以為畫面壞了（收集地圖那批是靠看截圖才發現漏掉兩顆的） */
+  body.recording .controls, body.recording .tabbar,
+  body.recording .badge, body.recording .map-actions { display: none; }
+  .record-screen { position: fixed; inset: 0; z-index: 2400; background: #000; color: #fff;
+    display: flex; flex-direction: column; align-items: center; justify-content: space-between;
+    padding: 28px 20px calc(28px + env(safe-area-inset-bottom)); }
+  .record-screen[hidden] { display: none; }
+  .rc-top { display: flex; align-items: center; gap: 8px; font-size: 15px; letter-spacing: .05em; }
+  .rc-dot { width: 10px; height: 10px; border-radius: 50%; background: #ff3b30; animation: rcblink 1.6s infinite; }
+  @keyframes rcblink { 0%, 100% { opacity: 1 } 50% { opacity: .25 } }
+  .rc-route { opacity: .7; }
+  .rc-main { text-align: center; }
+  .rc-big { font-size: 64px; font-weight: 800; font-variant-numeric: tabular-nums; line-height: 1.05; }
+  .rc-big small { font-size: 20px; font-weight: 500; opacity: .6; margin-left: 6px; }
+  .rc-row { margin-top: 10px; font-size: 17px; opacity: .85; }
+  .rc-bar { margin-top: 18px; width: min(320px, 76vw); height: 8px; border-radius: 4px; background: #222; overflow: hidden; }
+  .rc-bar i { display: block; height: 100%; width: 0; background: #34c759; transition: width .4s; }
+  .rc-hint { margin-top: 18px; font-size: 15px; line-height: 1.5; max-width: 320px; opacity: .9; }
+  /* 一小時後迷迷糊糊也要按得到：44pt 是 Apple 的最小可觸控尺寸，這裡刻意給更大 */
+  .rc-stop { min-width: 200px; min-height: 56px; font-size: 18px; border-radius: 28px;
+    background: #fff; color: #000; border: 0; font-weight: 700; }
   /* 錄影結束吐司:下載後留 60 秒的「再下載」保險 */
   .rec-toast {
     position: absolute; top: 56px; left: 50%; transform: translateX(-50%); z-index: 1200;
@@ -3061,6 +3083,22 @@ try { if (matchMedia('(max-width: 900px)').matches) document.body.classList.add(
     </div>
   </div>
 </div>
+<!-- 極簡錄製畫面（規格 §5 之一）。黑底大字、不畫地圖動畫：①省電（OLED 黑底再省一層）
+     ②使用者本來也不會盯著看 ③視覺上明確標示正在錄製，符合隱私透明 ④讓懸賞長得像行程記錄器
+     而不是另一種打卡。掛 body 層與其他浮層同理（.stage 會封頂 z-index）。
+     🔴 刻意不給 Esc／點背景關閉：這是要開一小時的實體錄製模式，不是可以誤觸關掉的小提示——
+     「錄到一半被誤觸中斷」比「找不到怎麼關」傷害更大，且畫面本身就是全螢幕，沒有「背景」可點。
+     結束入口只有一顆隨時可見、夠大的「停止錄製」（比照 body.collect-map 的 cb-exit 先例）。 -->
+<div class="record-screen" id="recordScreen" hidden>
+  <div class="rc-top"><span class="rc-dot"></span>錄製中<span class="rc-route" id="recRoute"></span></div>
+  <div class="rc-main">
+    <div class="rc-big"><span id="recKm">0.0</span><small>公里</small></div>
+    <div class="rc-row"><span id="recSegs">0</span> 段已覆蓋・<span id="recPts">0</span> 點已鎖定</div>
+    <div class="rc-bar"><i id="recBar"></i></div>
+    <div class="rc-hint" id="recHint" hidden></div>
+  </div>
+  <button class="rc-stop" id="recStop" type="button">停止錄製</button>
+</div>
 <div class="takeout-modal notify-modal" id="notifyModal" hidden>
   <section class="takeout-dialog notify-dialog" role="dialog" aria-modal="true" aria-labelledby="notifyTitle">
     <div class="takeout-head"><h2 id="notifyTitle">到站提醒</h2><button id="notifyClose" type="button">×</button></div>
@@ -3213,6 +3251,7 @@ const state = {
   dirArrow: true, // 列車行進方向箭頭開關(預設開;台鐵/高鐵車號牌前緣加小箭頭,由前後點位推方向)
   ambientStyle: 'hotspot', // 放空視角:follow=跟著一班車跑 / hotspot=群車(鏡頭掛在最繁忙路段看群車交錯);預設群車(v0717v)
   collectMap: false, // 收集地圖:全路網轉灰、只有搭過的區間亮起(純檢視,不動任何收集資料),見 setCollectMap
+  recording: null,   // 錄製中的校正旅程;非 null 代表正在錄,見 startBountyRecording
 };
 let map, cv, ctx;
 let baseLayers = {}; // light / dark / sat Leaflet 圖層
@@ -7870,7 +7909,9 @@ document.addEventListener('visibilitychange', () => {
       Math.abs(state.simSec - nowSecOfDay(activeTz())) <= 120;
     return;
   }
-  if (state.ambient) acquireWakeLock();
+  // 錄製模式也要重取:iOS 切走再切回來 wakeLock 會被釋放且**不會自動恢復**,
+  // 漏掉的話一小時的錄製會在使用者接一通電話之後螢幕就開始自己暗掉(規格 §10)。
+  if (state.ambient || state.recording) { acquireWakeLock(); state._wakeLockRequested = true; }
   // 回前景重新錨定模擬時鐘到真實時刻:背景期間 rAF 完全凍結(省電/成本防線刻意如此,見下方相機守衛註解),
   // 純靠 dt 累加追不回背景這段真實經過時間,simSec 會停在背景前那刻——手機背景遠比桌機分頁頻繁,
   // 長時間掛著會讓 App 與網頁的「現在」對不上(車次跑在不同位置)。只在背景前本就貼著真實時刻才重錨,
@@ -9302,9 +9343,57 @@ async function bountyClaim(cardId) {
     { points: j.pointsLocked, expiresAt: j.expiresAt });
   renderPassport(); renderRidePanel();
 }
-// Task 3 會把它換成真的錄製模式。先留一個明確的佔位，讓說明卡的流程現在就走得完——
-// 空函式會讓「按了沒反應」看起來像 bug，一句 toast 讓它看起來像「還沒做完」。
-function startBountyRecording(card) { showToast('錄製畫面還沒接上（Task 3）'); }
+// ── 錄製模式（規格 §5）─────────────────────────────────────────────────────
+// 一個獨立的全螢幕模式，比照收集地圖（setCollectMap，8937）：body class 收掉會說謊的 UI、
+// 專用畫面、一顆離開鈕。差別是這個模式要開一小時，所以每一個細節都要為「久」而設計。
+// 🔴 誠實佔位：這個 task 只做畫面與 Wake Lock，不做真正的 GPS 取樣／裝置端投影／60 秒批次
+// 上傳——那些是 Task 4。state.recording 的 dNow/segs/points 這裡永遠留零，renderRecordScreen()
+// 不會假裝在收集資料；沒有任何程式碼在背景偷偷寫入這幾個欄位。
+function startBountyRecording(card) {
+  if (!PHYSICAL_COLLECT_ENABLED) { showToast('GPS 校正旅程需要用 App'); return; }
+  if (state.recording) { showToast('已經在錄了'); return; }
+  const tr = state.followTrain;
+  state.recording = {
+    card: card || null,
+    sys: (card && card.sys) || (tr && tr.sys) || '',
+    lnId: (card && card.lnId) || '',
+    trainNo: tr ? String(tr.train) : '',
+    dir: (card && card.dir) || 0,
+    tripDate: todayStr(activeTz()),      // 讀真實時鐘,不吃 state.simSec——時刻尺可以拖,但人在的時間不會跟著跑
+    startedAt: Date.now(),
+    dNow: null, segs: {}, points: 0, quality: 'good',
+  };
+  document.body.classList.add('recording');
+  document.getElementById('recordScreen').hidden = false;
+  clearFollow();          // 車都不畫了,鏡頭還在追一班看不見的車只會白耗電
+  closeBountyBoard();
+  acquireWakeLock();      // 既有函式（7684）,不要另寫一套
+  state._wakeLockRequested = true;
+  renderRecordScreen();
+}
+function stopBountyRecording() {
+  if (!state.recording) return;
+  state.recording = null;
+  document.body.classList.remove('recording');
+  document.getElementById('recordScreen').hidden = true;
+  releaseWakeLock();
+  renderPassport();
+}
+function renderRecordScreen() {
+  const r = state.recording;
+  if (!r) return;
+  const nm = r.card ? bountyCardName(r.card) : null;
+  document.getElementById('recRoute').textContent = nm ? `${nm.from} → ${nm.to}` : '';
+  document.getElementById('recKm').textContent = (r.dNow == null ? 0 : r.dNow / 1000).toFixed(1);
+  const done = Object.values(r.segs).filter(c => c >= 0.6).length;      // 門檻與品質閘的 segCoverageMin 同源（Task 5 接上 rules）
+  document.getElementById('recSegs').textContent = String(done);
+  document.getElementById('recPts').textContent = String(r.points);
+  const total = (r.card && r.card.units) || Object.keys(r.segs).length || 1;
+  document.getElementById('recBar').style.width = Math.min(100, done / total * 100) + '%';
+}
+function setupRecordScreen() {
+  document.getElementById('recStop').onclick = () => stopBountyRecording();
+}
 // 出發前說明卡（規格 §5 之四）。使用者 2026-07-27 指定：「在使用者開始驗證旅程的時候就要先有
 // 告知如何設定，以及有可能不過這件事情。」
 // 這張卡是第 7 節「把檢查往前移」的一半——七種品質失敗有五種可以在動手前或當下就講，
@@ -12822,6 +12911,7 @@ function setupMapTools() {
   setupCollectDemo(); // ?demo=collect／off:備援站確認設計用的示範收集資料(只在沒有真實資料時寫入)
   setupBounty(); // GPS 路段收集懸賞板:關閉鈕與卡片點擊(接下這段／要用 App 才能接)
   setupBountyBrief(); // 出發前說明卡:關閉/等一下再說/開始錄製 三顆鈕(規格 §5 之四)
+  setupRecordScreen(); // 極簡錄製畫面:停止錄製鈕(規格 §5 之一)
   setupHelp(); // 使用說明中心的四個入口與 ?help=1(要排在 setupHowto 之後:兩張卡不疊,help 開了就收首訪卡)
   // 手機:跟隨小卡與跟隨鎖鈕依站台帶(速度膠囊)實際位置讓位——膠囊展開(cexp)變高時上移,收回還原。
   // 桌面帶常駐 stage 下緣、跟隨卡 CSS 固定 bottom 86px 在帶上方,不需 JS 重排。
