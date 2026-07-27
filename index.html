@@ -1704,6 +1704,15 @@
     margin-left: 8px; min-height: 32px; padding: 3px 10px; border: 1px solid var(--line); border-radius: 6px;
     background: var(--paper); color: var(--navy); font: inherit; font-weight: 700; cursor: pointer;
   }
+  /* 審查 F7(2026-07-28 第二輪):手機寬度下卡片底部空 251px——根因是手機版 .takeout-modal 把
+     place-items 改成 stretch(見下方手機 media query),.tk-box 沒設 align-self 就被拉滿整個
+     max-height(760px)，內容(頭+身+尾約 507px)撐不滿,多出來的高度變成看得見的空白。桌面版
+     place-items:center 不受影響,故只在手機出現。
+     刻意只加這條 id 選擇器、不改上面 .bounty-modal .tk-box 那條共用規則——那條同時管
+     #bountyModal(懸賞板列表)，列表內容本來就常常撐滿高度，動它會牽動另一顆 modal 的版面，
+     這裡只需要說明卡這一顆縮回內容高度即可。id 選擇器優先級天然贏過 class 選擇器，不需要
+     !important，也不影響 #bountyModal 的既有(stretch)行為。 */
+  #bountyBriefModal .tk-box { align-self: center; }
   .takeout-dialog {
     width: min(620px, 100%); max-height: min(760px, calc(100dvh - 36px)); overflow: hidden;
     display: flex; flex-direction: column; background: var(--paper); color: var(--ink);
@@ -9127,11 +9136,17 @@ function bountyActor() { return userDataDeviceId(); }
 function loadBounty() {
   try {
     const o = JSON.parse(localStorage.getItem(BOUNTY_KEY) || 'null');
-    // 兩個欄位都要驗(2026-07-28 審查糾正):只驗 trips、不驗 claims 的話,claims 缺失或型別不對時
-    // 這裡仍會放行,bountyClaim() 寫入 b.claims[cardId] 就會丟例外——被外層 catch 吞掉,
-    // 使用者看到的卻是「網路不通」這種誤導訊息,而伺服器端其實已經接受了這次認領。
-    if (o && typeof o === 'object' && o.trips && typeof o.trips === 'object'
-      && o.claims && typeof o.claims === 'object') return o;
+    // 補洞、不整包丟(2026-07-28 審查糾正第二輪,F4/Critical):上一版驗 trips 與 claims 兩個
+    // 欄位都要型別正確才放行,一個沒過就連對方欄位的既有資料也一起丟掉、回傳空殼,空殼再被
+    // saveBounty() 寫回磁碟——舊資料只是缺 claims(例如懸賞功能上線前就存在的 trips 紀錄),
+    // 一開就把使用者的 trips 永久清空。正解是缺哪個欄位補哪個欄位的預設值,其餘既有欄位一律
+    // 原樣保留,任何情況下都不因單一欄位驗證失敗而牽連丟棄使用者已經存在的資料。
+    if (o && typeof o === 'object') {
+      if (!o.trips || typeof o.trips !== 'object') o.trips = {};
+      if (!o.claims || typeof o.claims !== 'object') o.claims = {};
+      if (!o.v) o.v = 1;
+      return o;
+    }
   } catch (e) {}
   return { v: 1, claims: {}, trips: {} };
 }
@@ -9264,21 +9279,28 @@ async function bountyClaim(cardId) {
     renderPassport(); renderRidePanel();
     return;
   }
+  // 網路請求本體，只到「伺服器接受了嗎」為止(2026-07-28 審查糾正第二輪,F3/Important):原本
+  // showBountyBrief／renderPassport／renderRidePanel 都包在這個 try 裡,渲染那段只要丟例外就被
+  // 這個 catch 接住,使用者會同時看到「接下了・39 點」與「接不下來——網路不通」兩句矛盾的
+  // toast——但伺服器與本機其實都已經接受了這次認領,是「網路不通」在說謊,且 renderPassport()
+  // 永遠不會執行到。網路成功與失敗只由這段判定;請求成功之後的本機寫入與畫面更新就算出例外,
+  // 也不該被回頭誤判成網路失敗。
+  let j;
   try {
     const r = await fetch(apiUrl('api/bounty-claim'), {
       method: 'POST', headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ actor: bountyActor(), cardId }),
     });
-    const j = await r.json();
+    j = await r.json();
     if (!r.ok || !j.ok) { showToast('接不下來——' + (j.error === 'no_open_units' ? '這段剛剛被收滿了' : '等一下再試一次')); return; }
-    const b = loadBounty();
-    b.claims[cardId] = { cardId, units: j.units, points: j.pointsLocked, expiresAt: j.expiresAt, u: userDataNow() };
-    saveBounty(b);
-    showToast(`接下了・${j.pointsLocked} 點・24 小時內有效`);
-    showBountyBrief(bountyBoardMem.cards.find(c => c.id === cardId) || { units: j.units, sys: '', lnId: '' },
-      { points: j.pointsLocked, expiresAt: j.expiresAt });
-    renderPassport(); renderRidePanel();
-  } catch (e) { showToast('接不下來——網路不通，等一下再試一次'); }
+  } catch (e) { showToast('接不下來——網路不通，等一下再試一次'); return; }
+  const b = loadBounty();
+  b.claims[cardId] = { cardId, units: j.units, points: j.pointsLocked, expiresAt: j.expiresAt, u: userDataNow() };
+  saveBounty(b);
+  showToast(`接下了・${j.pointsLocked} 點・24 小時內有效`);
+  showBountyBrief(bountyBoardMem.cards.find(c => c.id === cardId) || { units: j.units, sys: '', lnId: '' },
+    { points: j.pointsLocked, expiresAt: j.expiresAt });
+  renderPassport(); renderRidePanel();
 }
 // Task 3 會把它換成真的錄製模式。先留一個明確的佔位，讓說明卡的流程現在就走得完——
 // 空函式會讓「按了沒反應」看起來像 bug，一句 toast 讓它看起來像「還沒做完」。
@@ -9294,17 +9316,50 @@ function bountyUndergroundHint(card) {
   const n = Number(card && card.undergroundSegs) || 0;   // 後端還沒有這個欄位 ⇒ 恆 0 ⇒ 不顯示
   return n > 0 ? `這條線有 ${n} 段在地下，那幾段收不到是正常的。` : '';
 }
+// 預計多久(2026-07-28 審查糾正第二輪,規格缺口):第一段規格要求三件事——哪一段、多少點、
+// 大概多久——這裡原本只做到兩件。資料來源是該批段真正的表定時間差,不是憑印象的均速推算:
+// state.systems[].data.trains 是開機就載好的逐系統完整班表(與目前顯示中的分頁無關),每站有
+// TDX 原始 arrSec/depSec;但其中 stop:false 的站是密化腳本為了畫圖內插出來的假站(見
+// scripts/densify_schedule.py),時間不是真時刻,兩端只要有一端落在 stop:false 就不可信。
+// 找不到任一班「兩端都是真站」的車貫穿這批段時,誠實回傳 null,呼叫端要顯示「算不出來」,
+// 不准端一個掰出來的數字給使用者。
+function bountySpanMinutes(sys, fromName, toName, trainKindHint) {
+  const sysObj = (state.systems || []).find(s => s.id === sys);
+  const trains = sysObj && sysObj.data && sysObj.data.trains;
+  if (!trains || !trains.length || !fromName || !toName) return null;
+  const norm = n => [n, n.replace(/台/g, '臺'), n.replace(/臺/g, '台')];
+  const wantFrom = norm(fromName), wantTo = norm(toName);
+  const cands = [];
+  for (const tr of trains) {
+    const s = tr.stops || [];
+    const i = s.findIndex(st => wantFrom.includes(st.name));
+    if (i < 0) continue;
+    const j = s.findIndex((st, idx) => idx > i && wantTo.includes(st.name));
+    if (j < 0 || !s[i].stop || !s[j].stop) continue; // 任一端是內插假站就不採信
+    const mins = (s[j].arrSec - s[i].depSec) / 60;
+    if (mins > 0) cands.push({ tr, mins });
+  }
+  if (!cands.length) return null;
+  const pool = trainKindHint
+    ? cands.filter(c => (c.tr.typeName || '').includes(trainKindHint) || (c.tr.carName || '').includes(trainKindHint))
+    : [];
+  const use = pool.length ? pool : cands;
+  use.sort((a, b) => a.mins - b.mins);
+  return Math.round(use[Math.floor(use.length / 2)].mins); // 取中位數車次,不被單一極端車次代表
+}
 let bountyBriefCard = null;
 function showBountyBrief(card, claim) {
   bountyBriefCard = card;
   const nm = bountyCardName(card);
   const ug = bountyUndergroundHint(card);
+  const mins = bountySpanMinutes(card.sys, nm.from, nm.to, card.trainKind);
+  const durTxt = mins != null ? `，約 ${escHtml(mins)} 分鐘` : '，大概多久算不出來';
   // 原生設定頁的橋接：Capacitor Geolocation 沒有這個 API。比照 RAIL_NATIVE_LOCALNOTIFY.openSettings
   // 的既有做法——見 null 就改顯示純文字引導，不留一顆點了沒反應的鈕。
   const canOpen = !!(window.RAIL_NATIVE_GEOLOCATION && window.RAIL_NATIVE_GEOLOCATION.openSettings);
   document.getElementById('bountyBriefBody').innerHTML =
     `<div class="bb-sec"><b>這趟要做什麼</b><p>錄 ${escHtml(nm.from)} → ${escHtml(nm.to)}` +
-      `（${escHtml(nm.lineName)}，${escHtml(card.units)} 段），值 <b>${escHtml(claim.points)} 點</b>。` +
+      `（${escHtml(nm.lineName)}，${escHtml(card.units)} 段${durTxt}），值 <b>${escHtml(claim.points)} 點</b>。` +
       `搭上那班車之後開始錄，到站就結束。</p></div>` +
     `<div class="bb-sec"><b>三件事先做好</b><ol>` +
       `<li>打開<b>精確位置</b>` + (canOpen

@@ -382,7 +382,14 @@ const browser = await chromium.launch();
     return { hidden: m.hidden, parent: m.parentElement.tagName, txt: m.innerText };
   });
   ok('B1 接下之後跳出說明卡（掛在 body 層）', b1.hidden === false && b1.parent === 'BODY', JSON.stringify({ h: b1.hidden, p: b1.parent }));
-  ok('B2 第一段：錄哪一段、值多少點', /39\s*點/.test(b1.txt), b1.txt.slice(0, 200).replace(/\n/g, ' / '));
+  // 審查 M1 糾正：原本只驗「39 點」，把整句「錄 枋寮 → 臺東（南迴線，11 段）」換成空泛的
+  // 「錄這一段」照樣過——沒驗到「哪一段」這件事本身。規格第一段明講三件事：哪一段／多少點／
+  // 大概多久，缺一項都算沒做到，這裡一次補齊三項；起訖站與路線名判準取自 BOARD stub 自己塞的
+  // 資料（枋寮/臺東/南迴線），不呼叫 bountyCardName()，同源判準見檔頭注記。
+  ok('B2 第一段：哪一段(起訖站/路線名)、多少點、大概多久都在（不能被「錄這一段」這種空泛敘述取代）',
+    /枋寮/.test(b1.txt) && /臺東/.test(b1.txt) && /南迴線/.test(b1.txt) && /39\s*點/.test(b1.txt)
+      && /(約\s*\d+\s*分鐘|大概多久算不出來)/.test(b1.txt),
+    b1.txt.slice(0, 200).replace(/\n/g, ' / '));
   ok('B3 第二段：三件事都在（精確位置／低耗電／靠窗）',
     /精確位置/.test(b1.txt) && /低耗電/.test(b1.txt) && /靠窗/.test(b1.txt), b1.txt.replace(/\n/g, ' / ').slice(0, 300));
   // 🔴 B4 是這一節存在的理由：三態判定的承諾必須寫在 UI 上
@@ -395,9 +402,19 @@ const browser = await chromium.launch();
   // B7 沒有原生 openSettings 時要退回純文字引導，不留一顆點了沒反應的鈕（比照 LOCALNOTIFY 的既有做法）
   const b7 = await page.evaluate(() => {
     const btn = document.getElementById('bountyOpenSettings');
-    return { exists: !!btn, display: btn ? getComputedStyle(btn).display : '(不存在)' };
+    const how = document.querySelector('#bountyBriefModal .bb-how');
+    return { exists: !!btn, display: btn ? getComputedStyle(btn).display : '(不存在)', howText: how ? how.textContent : '(不存在)' };
   });
   ok('B7 沒有原生設定橋接時，那顆鈕整顆不在', b7.exists === false || b7.display === 'none', JSON.stringify(b7));
+  // 審查 M2 糾正：B7 先前只驗「鈕不在」，沒驗「純文字引導真的有內容」。之前用 /精確位置/ 當判準
+  // 的舊 B3 測不到這個坑，因為 <b>精確位置</b> 這個靜態標籤本身就會讓正則過，跟 .bb-how 那段
+  // 動態引導文字是否真的渲染出來無關。app/src/native-bridge.mjs 把 openSettings 寫死 null，
+  // 正式 App 恆走這條純文字路徑——這段若被換成空字串，使用者看到的只有「打開精確位置」五個字、
+  // 沒有任何可執行步驟，且舊測試全綠、完全抓不到。這裡直接讀 .bb-how 元素自己的 textContent，
+  // 不透過 innerText 整坨字串，天生免疫「標籤字樣剛好也含精確位置」這個假陽性來源。
+  ok('B7b 沒有原生設定橋接時，純文字引導的實際內容要在（不是只驗鈕不在——見上方註記）',
+    /隱私權與安全性/.test(b7.howText) && /定位服務/.test(b7.howText) && /軌島/.test(b7.howText),
+    JSON.stringify(b7));
 
   // B8 開始錄製鈕點得到（elementFromPoint，不是量 rect）
   const b8 = await page.evaluate(() => {
@@ -407,6 +424,111 @@ const browser = await chromium.launch();
     return { hit: hit === btn || btn.contains(hit), cls: hit && hit.className };
   });
   ok('B8 「開始錄製」點得到', b8.hit === true, JSON.stringify(b8));
+  await ctx.close();
+}
+
+// ── F4 組：loadBounty() 缺 claims 時補洞、不整包丟（2026-07-28 審查糾正第二輪，Critical）───
+// 舊版驗證邏輯是「trips 與 claims 兩個欄位都要型別正確才放行，一個沒過就整包回傳空殼」——
+// 空殼再被 saveBounty() 寫回磁碟，等於把使用者已經存在的 trips 永久清空。這裡直接重現審查
+// 給的 repro：舊資料缺 claims、但 trips 有 3 筆真實紀錄。判準不透過 loadBounty() 自己讀回值
+// 再驗（同源）——直接 JSON.parse 原始 localStorage 字串，與 A10「整包快照比對」同一個原則
+// （判準不與實作同源，心得 29）。
+{
+  const { ctx, page } = await open(browser, {});
+  const f4 = await page.evaluate(() => {
+    const KEY = 'trainmap-bounty-v1';
+    const legacy = { v: 1, trips: { // 懸賞功能上線前就存在的 3 筆 trips，缺 claims 欄位
+      'trip-a': { lnId: 'x', sys: 'tra_sched' },
+      'trip-b': { lnId: 'y', sys: 'tra_sched' },
+      'trip-c': { lnId: 'z', sys: 'tra_sched' },
+    } };
+    localStorage.setItem(KEY, JSON.stringify(legacy));
+    const b = loadBounty();
+    const tripsKeptInMemory = Object.keys(b.trips || {}).length;
+    const claimsIsObj = !!(b.claims && typeof b.claims === 'object');
+    // 模擬一次真正的寫入路徑（比照 bountyClaim() 的用法）：loadBounty() 之後加一筆 claims 再
+    // 存檔，確認補洞後的物件寫回磁碟時，trips 沒有被牽連著一起消失。
+    b.claims['new-claim'] = { cardId: 'new-claim', points: 1 };
+    saveBounty(b);
+    const onDisk = JSON.parse(localStorage.getItem(KEY));
+    return {
+      tripsKeptInMemory, claimsIsObj,
+      onDiskTrips: Object.keys((onDisk && onDisk.trips) || {}).length,
+      onDiskHasNewClaim: !!(onDisk && onDisk.claims && onDisk.claims['new-claim']),
+    };
+  });
+  ok('F4 loadBounty() 缺 claims 時補洞而非整包丟棄——舊資料的 3 筆 trips 在記憶體與磁碟上都還在',
+    f4.tripsKeptInMemory === 3 && f4.claimsIsObj === true && f4.onDiskTrips === 3 && f4.onDiskHasNewClaim === true,
+    JSON.stringify(f4));
+  await ctx.close();
+}
+
+// ── F3 組：bountyClaim() 渲染例外不該被誤判成網路失敗（2026-07-28 審查糾正第二輪，Important）──
+// 故意讓 showBountyBrief() 爆炸，驗證：(a) 不出現「網路不通」這句誤導 toast，(b) 成功 toast
+// 仍然出現(因為伺服器與本機其實都已經接受了這次認領，只是渲染那步另外壞掉)，(c) claim 真的
+// 寫進 localStorage（判準直接讀原始 localStorage，不透過 loadBounty()，同源顧慮同上）。
+// ?demo=bounty 分支不受影響——這裡走的是預設的真後端 stub 路徑，不是 DEMO_MODE 分支。
+{
+  const { ctx, page } = await open(browser, { app: true });
+  const f3 = await page.evaluate(async () => {
+    await openBountyBoard();
+    window.showBountyBrief = () => { throw new Error('F3 故意讓渲染爆炸'); };
+    document.querySelector('.bt-card .bt-take').click();
+    await new Promise(r => setTimeout(r, 400));
+    const toasts = [...document.querySelectorAll('.toast')].map(e => e.textContent || '');
+    const raw = JSON.parse(localStorage.getItem('trainmap-bounty-v1') || 'null');
+    return { toasts, claimed: !!(raw && raw.claims && Object.keys(raw.claims).length > 0) };
+  });
+  ok('F3 showBountyBrief() 拋例外不會被誤判成網路失敗（不出現「網路不通」、成功 toast 仍在、claim 已寫入本機）',
+    !f3.toasts.some(t => /網路不通/.test(t)) && f3.toasts.some(t => /接下了/.test(t)) && f3.claimed === true,
+    JSON.stringify(f3));
+  await ctx.close();
+}
+
+// ── F7 組：出發前說明卡手機版下方空白 251px（2026-07-28 審查糾正第二輪，Minor 但很顯眼）─────
+// 根因與修法見 index.html #bountyBriefModal .tk-box 那條 CSS 旁的完整註解：手機版
+// .takeout-modal 的 place-items:stretch 把 .tk-box 拉滿 max-height，內容撐不滿，剩下的高度
+// 變成看得見的空白；桌面版 place-items:center 不受影響。判準：卡片底部到視窗底部的差距不能
+// 再是「一大截空白」的量級（修前實測 251px），且底部按鈕在新版面下用真觸控（page.touchscreen）
+// 仍點得到——修過頭把鈕擠出視窗、或把卡片整個推出視窗，同樣算沒修好。
+{
+  const { ctx, page } = await open(browser, { app: true, width: 375, height: 812, touch: true });
+  await page.evaluate(async () => { await openBountyBoard(); });
+  const takeBox = await page.evaluate(() => {
+    const b = document.querySelector('.bt-card .bt-take').getBoundingClientRect();
+    return { x: b.x + b.width / 2, y: b.y + b.height / 2 };
+  });
+  await page.touchscreen.tap(takeBox.x, takeBox.y);
+  await page.waitForTimeout(300);
+  const f7 = await page.evaluate(() => {
+    const modal = document.getElementById('bountyBriefModal');
+    const box = modal.querySelector('.tk-box');
+    const foot = modal.querySelector('.tk-foot');
+    const bx = box.getBoundingClientRect();
+    return {
+      hidden: modal.hidden,
+      gapBelowFoot: Math.round(bx.bottom - foot.getBoundingClientRect().bottom),
+      withinViewport: bx.top >= 0 && bx.bottom <= window.innerHeight,
+    };
+  });
+  ok('F7 手機版說明卡底部不再空一大截（≤20px，修前實測 251px）且卡片仍完整在視窗內',
+    f7.hidden === false && f7.gapBelowFoot <= 20 && f7.withinViewport === true, JSON.stringify(f7));
+  const laterBox = await page.evaluate(() => {
+    const b = document.getElementById('bountyBriefLater').getBoundingClientRect();
+    return { x: b.x + b.width / 2, y: b.y + b.height / 2 };
+  });
+  await page.touchscreen.tap(laterBox.x, laterBox.y);
+  await page.waitForTimeout(150);
+  const closed = await page.evaluate(() => document.getElementById('bountyBriefModal').hidden === true);
+  ok('F7b 新版面下「等一下再說」用真觸控仍點得到（不是只驗鈕在不在，而是點下去真的關掉）', closed === true);
+  // 對照：#bountyModal（懸賞板列表）沒有被 F7 的修法牽動——CSS 選擇器是 #bountyBriefModal
+  // 限定，列表本來的 stretch 行為要維持原樣（見 index.html CSS 旁的完整註解）。
+  const boardAlign = await page.evaluate(async () => {
+    await openBountyBoard();
+    const box = document.getElementById('bountyModal').querySelector('.tk-box');
+    return getComputedStyle(box).alignSelf;
+  });
+  ok('F7c #bountyModal（懸賞板列表）的 align-self 沒被牽動，仍是 auto（未特別覆寫）', boardAlign === 'auto', boardAlign);
   await ctx.close();
 }
 
