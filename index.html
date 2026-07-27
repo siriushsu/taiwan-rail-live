@@ -1669,6 +1669,27 @@
   .bounty-modal .bt-pt { grid-column: 2; grid-row: 1 / span 2; font-size: 20px; font-weight: 800; }
   .bounty-modal .bt-take { grid-column: 2; grid-row: 3; }
   .bounty-modal .bt-empty { padding: 24px 12px; text-align: center; opacity: .7; }
+  /* 出發前說明卡(#bountyBriefModal):brief 的 HTML 用了 .bb-sec/.bb-how/.tk-foot 這幾個新 class 名,
+     同樣沒有對應 CSS——比照上面 .tk-box 家族的既有教訓(見那段註解),逐值照抄 .takeout-actions
+     當 tk-foot 的殼、.bt-card 的虛線分隔當 bb-sec 的殼,不另創一套視覺語言。 */
+  .bounty-modal .tk-foot {
+    display: flex; justify-content: flex-end; gap: 8px; padding: 10px 14px;
+    border-top: 1px solid var(--line-dash); background: var(--bg-stage); flex: none;
+  }
+  .bounty-modal .tk-foot button { min-height: 44px; padding: 7px 15px; border-radius: 7px; font-weight: 800; cursor: pointer; font-family: inherit; }
+  .bounty-modal #bountyBriefLater { border: 1px solid var(--line); background: var(--paper); color: var(--muted); }
+  .bounty-modal #bountyBriefGo { border: 1px solid var(--red-deep); background: var(--red); color: #fffdf6; }
+  .bounty-modal .bb-sec { padding: 8px 16px; border-bottom: 1px dashed var(--line); }
+  .bounty-modal .bb-sec:last-child { border-bottom: 0; }
+  .bounty-modal .bb-sec > b { display: block; font-size: 13px; color: var(--navy); margin-bottom: 4px; }
+  .bounty-modal .bb-sec p { margin: 0; font-size: 13px; line-height: 1.7; }
+  .bounty-modal .bb-sec ol, .bounty-modal .bb-sec ul { margin: 0; padding-left: 1.3em; font-size: 13px; line-height: 1.7; }
+  .bounty-modal .bb-sec li { margin-bottom: 4px; }
+  .bounty-modal .bb-how { display: inline-block; margin-top: 2px; font-size: 12px; color: var(--muted); }
+  .bounty-modal #bountyOpenSettings {
+    margin-left: 8px; min-height: 32px; padding: 3px 10px; border: 1px solid var(--line); border-radius: 6px;
+    background: var(--paper); color: var(--navy); font: inherit; font-weight: 700; cursor: pointer;
+  }
   .takeout-dialog {
     width: min(620px, 100%); max-height: min(760px, calc(100dvh - 36px)); overflow: hidden;
     display: flex; flex-direction: column; background: var(--paper); color: var(--ink);
@@ -3001,6 +3022,20 @@ try { if (matchMedia('(max-width: 900px)').matches) document.body.classList.add(
     <div class="tk-head"><b>📍 校正懸賞</b><button class="tk-x" id="bountyClose" type="button">×</button></div>
     <div class="tk-sub" id="bountySub"></div>
     <div class="tk-body" id="bountyList"></div>
+  </div>
+</div>
+<!-- 出發前說明卡：接下懸賞之後、開始錄製之前。三段式（規格 §5 之四）——
+     先講清楚失敗會怎樣，失敗時就不會覺得被騙。
+     role=dialog/aria-modal/aria-labelledby/aria-label="關閉"：比照其餘六顆既有 modal 的無障礙寫法
+     （#bountyModal 本身漏了這組屬性，另案補；新浮層不重蹈，一開始就寫對）。 -->
+<div class="takeout-modal bounty-modal" id="bountyBriefModal" hidden>
+  <div class="tk-box" role="dialog" aria-modal="true" aria-labelledby="bountyBriefTitle">
+    <div class="tk-head"><b id="bountyBriefTitle">出發前</b><button class="tk-x" id="bountyBriefX" type="button" aria-label="關閉">×</button></div>
+    <div class="tk-body" id="bountyBriefBody"></div>
+    <div class="tk-foot">
+      <button id="bountyBriefGo" type="button">開始錄製</button>
+      <button id="bountyBriefLater" type="button">等一下再說</button>
+    </div>
   </div>
 </div>
 <div class="takeout-modal notify-modal" id="notifyModal" hidden>
@@ -9072,7 +9107,11 @@ function bountyActor() { return userDataDeviceId(); }
 function loadBounty() {
   try {
     const o = JSON.parse(localStorage.getItem(BOUNTY_KEY) || 'null');
-    if (o && typeof o === 'object' && o.trips && typeof o.trips === 'object') return o;
+    // 兩個欄位都要驗(2026-07-28 審查糾正):只驗 trips、不驗 claims 的話,claims 缺失或型別不對時
+    // 這裡仍會放行,bountyClaim() 寫入 b.claims[cardId] 就會丟例外——被外層 catch 吞掉,
+    // 使用者看到的卻是「網路不通」這種誤導訊息,而伺服器端其實已經接受了這次認領。
+    if (o && typeof o === 'object' && o.trips && typeof o.trips === 'object'
+      && o.claims && typeof o.claims === 'object') return o;
   } catch (e) {}
   return { v: 1, claims: {}, trips: {} };
 }
@@ -9162,7 +9201,7 @@ function setupBounty() {
     bountyClaim(id);
   };
 }
-// 接下一段(Task 2 會在成功之後接上出發前說明卡)
+// 接下一段，成功之後接上出發前說明卡（showBountyBrief，規格 §5 之四）
 async function bountyClaim(cardId) {
   try {
     const r = await fetch(apiUrl('api/bounty-claim'), {
@@ -9175,8 +9214,62 @@ async function bountyClaim(cardId) {
     b.claims[cardId] = { cardId, units: j.units, points: j.pointsLocked, expiresAt: j.expiresAt, u: userDataNow() };
     saveBounty(b);
     showToast(`接下了・${j.pointsLocked} 點・24 小時內有效`);
+    showBountyBrief(bountyBoardMem.cards.find(c => c.id === cardId) || { units: j.units, sys: '', lnId: '' },
+      { points: j.pointsLocked, expiresAt: j.expiresAt });
     renderPassport(); renderRidePanel();
   } catch (e) { showToast('接不下來——網路不通，等一下再試一次'); }
+}
+// Task 3 會把它換成真的錄製模式。先留一個明確的佔位，讓說明卡的流程現在就走得完——
+// 空函式會讓「按了沒反應」看起來像 bug，一句 toast 讓它看起來像「還沒做完」。
+function startBountyRecording(card) { showToast('錄製畫面還沒接上（Task 3）'); }
+// 出發前說明卡（規格 §5 之四）。使用者 2026-07-27 指定：「在使用者開始驗證旅程的時候就要先有
+// 告知如何設定，以及有可能不過這件事情。」
+// 這張卡是第 7 節「把檢查往前移」的一半——七種品質失敗有五種可以在動手前或當下就講，
+// 判準一項都不用放寬，只是把說出口的時機從隔天提早到還能補救的時候。
+// 🔴 地下段那一句要用真資料。規格 §13 的既有判斷是「不預先查證哪些段收得到，讓實測缺口自己
+// 標出來」——所以資料還不夠時就不顯示這一句，不要憑印象寫一個名單（那會變成下一個
+// sanying-trial-hours-expiry：寫死的營運時段過期之後生出幽靈列車）。
+function bountyUndergroundHint(card) {
+  const n = Number(card && card.undergroundSegs) || 0;   // 後端還沒有這個欄位 ⇒ 恆 0 ⇒ 不顯示
+  return n > 0 ? `這條線有 ${n} 段在地下，那幾段收不到是正常的。` : '';
+}
+let bountyBriefCard = null;
+function showBountyBrief(card, claim) {
+  bountyBriefCard = card;
+  const nm = bountyCardName(card);
+  const ug = bountyUndergroundHint(card);
+  // 原生設定頁的橋接：Capacitor Geolocation 沒有這個 API。比照 RAIL_NATIVE_LOCALNOTIFY.openSettings
+  // 的既有做法——見 null 就改顯示純文字引導，不留一顆點了沒反應的鈕。
+  const canOpen = !!(window.RAIL_NATIVE_GEOLOCATION && window.RAIL_NATIVE_GEOLOCATION.openSettings);
+  document.getElementById('bountyBriefBody').innerHTML =
+    `<div class="bb-sec"><b>這趟要做什麼</b><p>錄 ${escHtml(nm.from)} → ${escHtml(nm.to)}` +
+      `（${escHtml(nm.lineName)}，${escHtml(card.units)} 段），值 <b>${escHtml(claim.points)} 點</b>。` +
+      `搭上那班車之後開始錄，到站就結束。</p></div>` +
+    `<div class="bb-sec"><b>三件事先做好</b><ol>` +
+      `<li>打開<b>精確位置</b>` + (canOpen
+        ? `<button id="bountyOpenSettings" type="button">開啟設定</button>`
+        : `<br><span class="bb-how">設定 → 隱私權與安全性 → 定位服務 → 軌島 → 打開「精確位置」</span>`) + `</li>` +
+      `<li>關掉<b>低耗電模式</b>（它會降低定位頻率）</li>` +
+      `<li>手機<b>靠窗</b>，別放在包包裡或車廂中央</li></ol></div>` +
+    `<div class="bb-sec"><b>先講清楚</b><ul>` +
+      (ug ? `<li>${escHtml(ug)}</li>` : '') +
+      `<li>錄到一半中斷沒關係，<b>錄到的部分照樣算</b>。</li>` +
+      // 🔴 這一句是三態判定的直接承諾（規格 §7、§8），不可以只寫在規格裡不寫在 UI 上
+      `<li><b>即使這次的資料不能用，校正者章與點數還是你的。</b>我們會告訴你是什麼原因、下次怎麼改善。</li>` +
+      `</ul></div>`;
+  const st = document.getElementById('bountyOpenSettings');
+  if (st) st.onclick = () => { try { window.RAIL_NATIVE_GEOLOCATION.openSettings(); } catch (e) {} };
+  document.getElementById('bountyBriefModal').hidden = false;
+}
+function setupBountyBrief() {
+  const modal = document.getElementById('bountyBriefModal');
+  const hide = () => { modal.hidden = true; };
+  document.getElementById('bountyBriefX').onclick = hide;
+  document.getElementById('bountyBriefLater').onclick = hide;
+  document.getElementById('bountyBriefGo').onclick = () => { hide(); startBountyRecording(bountyBriefCard); };
+  // Esc 關閉＋點背景關閉:比照 setupTakeoutUi 等既有六顆 modal 的寫法(#bountyModal 本身漏了這組,另案補)
+  modal.addEventListener('click', e => { if (e.target === modal) hide(); });
+  document.addEventListener('keydown', e => { if (e.key === 'Escape' && !modal.hidden) hide(); });
 }
 // 站的收集總表:rides 推導的「跟完」疊上 checkins 的真實打卡,鍵=sys|name(與 schedStations 同一套去重規則)
 function stationCollection(rides) {
@@ -12612,6 +12705,7 @@ function setupMapTools() {
   })();
   setupCollectDemo(); // ?demo=collect／off:備援站確認設計用的示範收集資料(只在沒有真實資料時寫入)
   setupBounty(); // GPS 路段收集懸賞板:關閉鈕與卡片點擊(接下這段／要用 App 才能接)
+  setupBountyBrief(); // 出發前說明卡:關閉/等一下再說/開始錄製 三顆鈕(規格 §5 之四)
   setupHelp(); // 使用說明中心的四個入口與 ?help=1(要排在 setupHowto 之後:兩張卡不疊,help 開了就收首訪卡)
   // 手機:跟隨小卡與跟隨鎖鈕依站台帶(速度膠囊)實際位置讓位——膠囊展開(cexp)變高時上移,收回還原。
   // 桌面帶常駐 stage 下緣、跟隨卡 CSS 固定 bottom 86px 在帶上方,不需 JS 重排。

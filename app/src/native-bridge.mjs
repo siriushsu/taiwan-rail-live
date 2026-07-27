@@ -29,7 +29,10 @@ if (native) {
   };
 
   window.RAIL_NATIVE_GEOLOCATION = {
-    getCurrentPosition: options => Geolocation.getCurrentPosition(options)
+    getCurrentPosition: options => Geolocation.getCurrentPosition(options),
+    // Capacitor Geolocation 沒有開啟系統設定頁的 API；前端見 null 時改顯示純文字引導
+    // （與同檔 RAIL_NATIVE_LOCALNOTIFY.openSettings 的既有做法一致）。
+    openSettings: null
   };
 
   window.RAIL_NATIVE_LOCALNOTIFY = {

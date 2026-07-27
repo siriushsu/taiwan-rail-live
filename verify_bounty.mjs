@@ -44,21 +44,46 @@ const RULES = JSON.parse(readFileSync('data/bounty_rules.json', 'utf8'));
 // key 字串（index.html:8777），所以真實後端傳回的 lnId 極可能就是這個中文 id 本身。
 // '南迴線'／39 點與 brief 自己舉的例子「枋寮→台東 南迴線 39 點」完全對上，
 // 這組數字很可能就是brief 作者當初想表達的那張卡，只是 lnId 縮寫沒對到真實資料。
+// 🔴🔴 2026-07-28 Task 1 審查糾正（協調者拍板）：上面那次修正只對了一半。card.sys 仍錯——
+// 懸賞卡的鍵空間＝前端收集系統既有的鍵空間，segKey(sys,lnId,a,b) 產出的區間鍵長這樣
+// 'tra_sched|南迴線|加祿|枋寮'（實測 lineNetwork() 對 tra_sched|南迴線 印出的第一把 key 逐字元
+// 相同）——sys 桶代碼從來就是 SYS_DEFS id 本身（'tra_sched'/'thsr_sched'/'afr_sched'，沒有
+// metro），不是 'TRA' 這種兩三碼縮寫。Task 1 實作者的 BOUNTY_SYS_MAP（'TRA'→'tra_sched'）是
+// 自己想像出來的映射層，即將被刪掉；這裡不跟著它錯，sys 與 unitKeys 一律用實測值。
+// unitKeys 也不能留空——空陣列讓 bountyCardName 掉進「沒有 want 集合＝全線」的分支，會巧合算對
+// 但測不到 unitKeys 真的被拿去過濾這件事。以下兩條線的 key 都是實測 lineNetwork() 吐出來的
+// 全線 segs（南迴線 11 段、宜蘭線 26 段），units 改成真實總段數（原本 13／40 超過真實線長，
+// 不可能存在）。
 const BOARD = {
   at: 1700000000000,
   coverN: { TRA: 1, THSR: 1, metro: 3 },
   cards: [
-    { id: 'TRA|南迴線|0|自強|track|', sys: 'TRA', lnId: '南迴線', dir: 0, trainKind: '自強', kind: 'track', slot: '',
-      unitKeys: [], units: 13, points: 39, claimers: 2, samples: 0, coverN: 1 },
-    { id: 'TRA|宜蘭線|0|區間|track|', sys: 'TRA', lnId: '宜蘭線', dir: 0, trainKind: '區間', kind: 'track', slot: '',
-      unitKeys: [], units: 40, points: 40, claimers: 0, samples: 0, coverN: 1 },
+    { id: 'tra_sched|南迴線|0|自強|track|', sys: 'tra_sched', lnId: '南迴線', dir: 0, trainKind: '自強', kind: 'track', slot: '',
+      unitKeys: [
+        'tra_sched|南迴線|加祿|枋寮', 'tra_sched|南迴線|內獅|加祿', 'tra_sched|南迴線|內獅|枋山',
+        'tra_sched|南迴線|枋山|枋野', 'tra_sched|南迴線|大武|枋野', 'tra_sched|南迴線|大武|瀧溪',
+        'tra_sched|南迴線|瀧溪|金崙', 'tra_sched|南迴線|太麻里|金崙', 'tra_sched|南迴線|太麻里|知本',
+        'tra_sched|南迴線|康樂|知本', 'tra_sched|南迴線|康樂|臺東',
+      ], units: 11, points: 39, claimers: 2, samples: 0, coverN: 1 },
+    { id: 'tra_sched|宜蘭線|0|區間|track|', sys: 'tra_sched', lnId: '宜蘭線', dir: 0, trainKind: '區間', kind: 'track', slot: '',
+      unitKeys: [
+        'tra_sched|宜蘭線|蘇澳|蘇澳新', 'tra_sched|宜蘭線|新馬|蘇澳新', 'tra_sched|宜蘭線|冬山|新馬',
+        'tra_sched|宜蘭線|冬山|羅東', 'tra_sched|宜蘭線|中里|羅東', 'tra_sched|宜蘭線|中里|二結',
+        'tra_sched|宜蘭線|二結|宜蘭', 'tra_sched|宜蘭線|四城|宜蘭', 'tra_sched|宜蘭線|四城|礁溪',
+        'tra_sched|宜蘭線|礁溪|頂埔', 'tra_sched|宜蘭線|頂埔|頭城', 'tra_sched|宜蘭線|外澳|頭城',
+        'tra_sched|宜蘭線|外澳|龜山', 'tra_sched|宜蘭線|大溪|龜山', 'tra_sched|宜蘭線|大溪|大里',
+        'tra_sched|宜蘭線|大里|石城', 'tra_sched|宜蘭線|石城|福隆', 'tra_sched|宜蘭線|福隆|貢寮',
+        'tra_sched|宜蘭線|貢寮|雙溪', 'tra_sched|宜蘭線|牡丹|雙溪', 'tra_sched|宜蘭線|三貂嶺|牡丹',
+        'tra_sched|宜蘭線|三貂嶺|猴硐', 'tra_sched|宜蘭線|猴硐|瑞芳', 'tra_sched|宜蘭線|四腳亭|瑞芳',
+        'tra_sched|宜蘭線|四腳亭|暖暖', 'tra_sched|宜蘭線|八堵|暖暖',
+      ], units: 26, points: 40, claimers: 0, samples: 0, coverN: 1 },
   ],
 };
 async function stubApi(ctx, over = {}) {
   await ctx.route('**/api/bounty-board*', r => r.fulfill({ status: 200, contentType: 'application/json',
     body: JSON.stringify(over.board || BOARD) }));
   await ctx.route('**/api/bounty-claim', r => r.fulfill({ status: 200, contentType: 'application/json',
-    body: JSON.stringify(over.claim || { ok: true, claimId: 'cl-1', units: 13, pointsLocked: 39,
+    body: JSON.stringify(over.claim || { ok: true, claimId: 'cl-1', units: 11, pointsLocked: 39,
       expiresAt: Date.now() + 86400000, claimers: 3 }) }));
   await ctx.route('**/api/bounty-submit', r => r.fulfill({ status: 200, contentType: 'application/json',
     body: JSON.stringify({ ok: true, id: 'bs-1', verdict: 'pending', accepted: 60 }) }));
@@ -117,23 +142,25 @@ const browser = await chromium.launch();
     '不是只影響一個獨立變數）', /接下這段/.test(a1.takeBtnText), a1.takeBtnText);
 
   // A3 端點名由前端從 lineNetwork() 算——判準：測試自己拿該線的站列取里程極值
-  // 🔴 這裡刻意餵 sys:'TRA'（bounty_rules.json／stub 用的計畫 B bucket 代碼），不是
-  // rec.sys（lineNetwork() 內部 id 'tra_sched'）——原 brief 草稿餵的是 rec.sys，等於拿
-  // bountyCardName 自己吃得下的值去測自己，恆真通過，測不到「伺服器代碼→前端代碼」這段映射。
-  // 實測踩到的真 bug：不映射的話卡面會顯示「NH → 」這種內部代碼而不是站名（見下方 A4b）。
-  // 期望值仍然是測試自己從 lineNetwork() 獨立算的，不呼叫 bountyCardName 內部邏輯。
+  // 🔴🔴 2026-07-28 更正（Task 1 審查／協調者拍板）：此處原本刻意餵 sys:'TRA'，理由寫著
+  // 「測伺服器→前端映射」——這個理由本身是錯的。實測 lineNetwork() 對 tra_sched|南迴線 吐出的
+  // 第一把 key 逐字元等於 'tra_sched|南迴線|加祿|枋寮'：懸賞卡的鍵空間就是前端收集系統既有的
+  // 鍵空間，伺服器從來不會傳 'TRA' 這種桶代碼給 card.sys，BOUNTY_SYS_MAP 是憑空想像出來的映射層
+  // （即將被刪除）。這裡改回餵 rec.sys（真實值 'tra_sched'），不是「拿 bountyCardName 吃得下的值
+  // 測自己」的恆真寫法——是餵「伺服器實際會傳的值」。期望值仍然是測試自己從 lineNetwork() 獨立算的，
+  // 不呼叫 bountyCardName 內部邏輯。
   const a3 = await page.evaluate(() => {
     const rec = [...lineNetwork().values()].find(r => r.sys === 'tra_sched');
     if (!rec) return { skip: true };
     const keys = rec.segs.slice(0, 5).map(s => s.key);
-    const got = bountyCardName({ sys: 'TRA', lnId: rec.id, unitKeys: keys, units: keys.length });
+    const got = bountyCardName({ sys: rec.sys, lnId: rec.id, unitKeys: keys, units: keys.length });
     // 期望：這 5 段的所有端點站裡，里程最小與最大的那兩座
     const names = new Set();
     for (const s of rec.segs.slice(0, 5)) { names.add(s.a); names.add(s.b); }
     const sts = rec.ln.stations.filter(s => names.has(s.name)).slice().sort((x, y) => x.d - y.d);
     return { got, wantFrom: sts[0].name, wantTo: sts[sts.length - 1].name, lineName: rec.name };
   });
-  ok('A3 旅程卡端點＝該批段的里程極值兩站（餵伺服器 sys 代碼 TRA，測伺服器→前端映射；期望值測試自己算）',
+  ok('A3 旅程卡端點＝該批段的里程極值兩站（餵伺服器實際傳的 sys 值 tra_sched；期望值測試自己算）',
     a3.skip || (a3.got.from === a3.wantFrom && a3.got.to === a3.wantTo), JSON.stringify(a3));
 
   // A4 卡面要看得到點數與「已有 N 人接了這段」（那是資訊不是禁令）
@@ -237,6 +264,45 @@ const browser = await chromium.launch();
   } else {
     ok('A12c 真觸控點下去懸賞板真的開起來', false, '上一步未命中，略過但記為 FAIL');
   }
+  await ctx.close();
+}
+
+// ── B 組：出發前說明卡 ───────────────────────────────────────────────────
+{
+  const { ctx, page } = await open(browser, { app: true });
+  const b1 = await page.evaluate(async () => {
+    await openBountyBoard();
+    document.querySelector('.bt-card .bt-take').click();
+    await new Promise(r => setTimeout(r, 300));
+    const m = document.getElementById('bountyBriefModal');
+    return { hidden: m.hidden, parent: m.parentElement.tagName, txt: m.innerText };
+  });
+  ok('B1 接下之後跳出說明卡（掛在 body 層）', b1.hidden === false && b1.parent === 'BODY', JSON.stringify({ h: b1.hidden, p: b1.parent }));
+  ok('B2 第一段：錄哪一段、值多少點', /39\s*點/.test(b1.txt), b1.txt.slice(0, 200).replace(/\n/g, ' / '));
+  ok('B3 第二段：三件事都在（精確位置／低耗電／靠窗）',
+    /精確位置/.test(b1.txt) && /低耗電/.test(b1.txt) && /靠窗/.test(b1.txt), b1.txt.replace(/\n/g, ' / ').slice(0, 300));
+  // 🔴 B4 是這一節存在的理由：三態判定的承諾必須寫在 UI 上
+  ok('B4 第三段：明講「即使資料不能用，章與點數還是你的」',
+    /即使/.test(b1.txt) && /(還是你的|照樣是你的)/.test(b1.txt), b1.txt.replace(/\n/g, ' / ').slice(-260));
+  ok('B5 第三段：明講「錄到一半中斷沒關係」', /中斷/.test(b1.txt) && /(照樣算|也算)/.test(b1.txt));
+  // 🔴 B6 沒有實測資料時不准憑印象寫地下段名單（規格 §13）
+  ok('B6 沒有實測缺口資料時不顯示地下段那一句', !/在地下/.test(b1.txt), b1.txt.replace(/\n/g, ' / '));
+
+  // B7 沒有原生 openSettings 時要退回純文字引導，不留一顆點了沒反應的鈕（比照 LOCALNOTIFY 的既有做法）
+  const b7 = await page.evaluate(() => {
+    const btn = document.getElementById('bountyOpenSettings');
+    return { exists: !!btn, display: btn ? getComputedStyle(btn).display : '(不存在)' };
+  });
+  ok('B7 沒有原生設定橋接時，那顆鈕整顆不在', b7.exists === false || b7.display === 'none', JSON.stringify(b7));
+
+  // B8 開始錄製鈕點得到（elementFromPoint，不是量 rect）
+  const b8 = await page.evaluate(() => {
+    const btn = document.getElementById('bountyBriefGo');
+    const r = btn.getBoundingClientRect();
+    const hit = document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2);
+    return { hit: hit === btn || btn.contains(hit), cls: hit && hit.className };
+  });
+  ok('B8 「開始錄製」點得到', b8.hit === true, JSON.stringify(b8));
   await ctx.close();
 }
 
