@@ -990,6 +990,56 @@ async function pruneStationEvents(env) {
   console.log(`[cron station-events] 清理 < ${cutoff}: ${(r.meta && r.meta.changes) || 0} 列`);
 }
 
+// ── 公告狀態機:把「現在有哪些通阻公告」變成伺服器端有狀態的東西 ────────────────
+// 動機:公告只存在於 TDX 的當下回應,一旦官方撤下就永遠查不回來(2026-07-26 晚間的地震
+// 公告隔天就調不出原文)。這一層每分鐘快照一次寫進 D1,同時算出「新增/內容更新/解除」
+// 三種事件——先是公告歷史,日後接推播時就是推什麼的判斷依據。
+//
+// 鐵則:不新增 TDX 呼叫。cron 打的是自家已上線的 /api/*-alert,吃既有邊緣快取
+// (s-maxage=110),上游用量與現在同一個量級,不隨這條 cron 增加。
+//
+// covers = 這個來源「說得準」的系統清單:某來源 fetch 失敗時,該清單內的系統本輪一律
+// 不做解除判定(見 diffAlertState 的 liveSys)。上游抖一下就報「營運已恢復」是最糟的
+// 失敗模式,寧可晚一分鐘記錄解除。
+const ALERT_LOG_SOURCES = [
+  { path: '/api/metro-alert', covers: ['mrt', 'krtc', 'tymc', 'tmrt'], sysOf: a => a.sys },
+  { path: '/api/tra-alert', covers: ['tra'], sysOf: () => 'tra' },
+  { path: '/api/thsr-alert', covers: ['thsr'], sysOf: () => 'thsr' },
+];
+
+// 公告識別鍵:標題＋起始時間。刻意不做 hash——鍵本身可讀,D1 裡直接看得懂是哪一則,
+// 除錯與離線測試都不必反查。標題含日期(「115年7月27日地震恢復營運訊息」)已足以區分
+// 同型公告的不同次發布;start 是為了少數標題固定、逐次重發的公告(颱風類)再加一道。
+function alertKey(rec) {
+  const t = String(rec && rec.title != null ? rec.title : '').trim().slice(0, 200);
+  const s = String(rec && rec.start != null ? rec.start : '').trim().slice(0, 40);
+  return t + '|' + s;
+}
+
+// 單一來源的回應 → 統一形狀的異常公告陣列。純函式:不碰 D1、不碰時間。
+// status===1 是各 alert 端點已標好的「正常營運」,不記;無標題的無法辨識也不記。
+function normalizeAlertPayload(payload, sysOf) {
+  const list = payload && Array.isArray(payload.alerts) ? payload.alerts : [];
+  const out = [];
+  for (const a of list) {
+    if (!a || a.status === 1) continue;
+    const title = String(a.title == null ? '' : a.title).trim();
+    if (!title) continue;
+    const sys = sysOf(a);
+    if (!sys) continue;
+    out.push({
+      sys: String(sys),
+      title,
+      desc: String(a.desc == null ? '' : a.desc).trim(),
+      lines: Array.isArray(a.lines) ? a.lines.map(String) : [],
+      start: String(a.start == null ? '' : a.start).trim(),
+      end: String(a.end == null ? '' : a.end).trim(),
+      news: !!a.news,
+    });
+  }
+  return out;
+}
+
 export default {
   // 每天台北 09:15 / 12:15 觸發(wrangler.jsonc triggers.crons)。錯誤 console.error 後
   // rethrow,讓 Cloudflare 把該次 cron 標記為失敗(observability 可查)。
@@ -1083,3 +1133,5 @@ export const _delayHistory = { delayHistoryWindow, buildDelayHistoryBody, isVali
 // 供離線回歸測試 import:驗「節流擋在 outbound fetch 之前」。這兩個不是純函式,測試得自備
 // env 替身與 fetch 替身;導出的目的就是讓測試能數「被擋掉時到底有沒有打上游」。
 export const _rateLimit = { rateLimited, delayHistory, deletePaidProfile };
+// 純函式導出,供離線回歸測試 import:公告狀態機的正規化、指紋。
+export const _alertLog = { alertKey, normalizeAlertPayload, ALERT_LOG_SOURCES };
