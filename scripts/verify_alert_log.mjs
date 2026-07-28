@@ -137,6 +137,16 @@ const ALL = new Set(['mrt', 'krtc', 'tymc', 'tmrt', 'tra', 'thsr']);
   const d = diffAlertState([], [a, b], ALL, NOW);
   check(d.upserts.length === 1 && d.added.length === 1, 'B14 descr 與 end 都相同的兩則仍然只算一則(真重複去重維持原樣)');
 }
+{ // B14b 判別條件的另一半:descr 相同但 end(預計恢復時間)不同,仍是兩則不同公告。
+  // 補這條的原因:突變測試發現把判別從「descr && end_at 都相同」放寬成「只比 descr」時,
+  // B13/B14/B15 全數照樣綠——那個放寬會讓「同一則標題、同一份說明、但恢復時間不同」的兩則
+  // 被誤當重複丟掉一則,是靜默丟資料。B14 守的是「該去重的有去重」,這條守的是反方向。
+  const a = { ...rec('tra', '路線異常', '同一份文字'), end: '2026-07-28T10:00:00+08:00' };
+  const b = { ...rec('tra', '路線異常', '同一份文字'), end: '2026-07-28T12:00:00+08:00' };
+  const d = diffAlertState([], [a, b], ALL, NOW);
+  check(d.upserts.length === 2 && d.added.length === 2, `B14b descr 相同但 end 不同的兩則都保留成兩列（實得 ${d.upserts.length} 列）`);
+  check(d.upserts.length >= 2 && d.upserts[1].akey === d.upserts[0].akey + '|#2', `B14b 第二則拿到 |#2 後綴（實得 ${d.upserts.length >= 2 ? d.upserts[1].akey : ''}）`);
+}
 { // B15 三則以上撞同一把 base id:後綴依序 |#2、|#3。
   const a = rec('tra', '路線異常', '內容一');
   const b = rec('tra', '路線異常', '內容二');
