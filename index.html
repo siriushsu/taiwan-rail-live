@@ -9443,6 +9443,17 @@ async function fetchBountyBoard() {
 // （SYS_DEFS 裡只有這三個系統帶 track 幾何欄位），metro 從未把 track 幾何載進
 // state.trackLines，所以 metro 卡會走下面的 fallback——這是 lineNetwork() 資料涵蓋範圍的
 // 既有限制，v1 不在範圍，不寫任何特例。
+// 🔴 方向（2026-07-28 Codex 審查 F-07）：懸賞的計價單位是 (段, 車種, **方向**)（規格 §5 之二），
+// 但這裡原本只依里程排序取兩端，card.dir 從頭到尾沒被讀過——實測 dir:0 與 dir:1 兩張卡的說明卡
+// 都印「枋寮 → 臺東」、預估時間都是 77 分鐘，而反方向真實班次是 79 分鐘。使用者出發前看到反的
+// 方向，會搭錯車或用錯誤的時間評估任務。
+// 契約：**dir 0 ＝ 里程遞增、dir 1 ＝ 里程遞減**。理由：段鍵 segKey() 本身是無方向的
+// （站名字典序，見 8960），線上唯一的有序量就是 ln.stations 的里程 d；而台鐵 TDX 的
+// 順行(0)/逆行(1) 在各線也正好對應里程遞增/遞減（南迴線 枋寮 d=0 → 臺東 d=98 即順行）。
+// 班表資料本身沒有 dir 欄位（實測 state.systems[].data.trains 全部 dir=undefined，
+// 43 個南迴線車次里程遞增 21／遞減 22），所以方向只能靠「端點順序」表達——把端點擺對，
+// bountySpanMinutes() 的「from 要出現在 to 之前」自然就只採同方向的車次。
+// 計畫 B（後端）尚未實作，發卡時 dir 要照這個定義填。
 function bountyCardName(card) {
   const rec = lineNetwork().get(card.sys + '|' + card.lnId);
   if (!rec) return { from: card.lnId, to: '', lineName: card.lnId, segs: card.units };
@@ -9451,8 +9462,9 @@ function bountyCardName(card) {
   for (const s of rec.segs) if (!want.size || want.has(s.key)) { names.add(s.a); names.add(s.b); }
   const sts = (rec.ln.stations || []).filter(s => names.has(s.name) && s.d != null)
     .slice().sort((a, b) => a.d - b.d);
-  return { from: sts.length ? sts[0].name : rec.name, to: sts.length ? sts[sts.length - 1].name : '',
-    lineName: rec.name, segs: card.units };
+  if (!sts.length) return { from: rec.name, to: '', lineName: rec.name, segs: card.units }; // 一個端點都解不出來時不談方向
+  const lo = sts[0].name, hi = sts[sts.length - 1].name, down = Number(card.dir) === 1;
+  return { from: down ? hi : lo, to: down ? lo : hi, lineName: rec.name, segs: card.units };
 }
 let bountyBoardMem = null;
 async function openBountyBoard() {
@@ -9488,8 +9500,7 @@ function renderBountyBoard() {
     // 使用者在說明卡按了「等一下再說」之後回到板上，既看不出自己接過、也沒有任何路徑回到那張
     // 說明卡；再點一次還會**再送一次 POST**（實測兩次點擊＝兩個 claim 請求），而後端可能把
     // 重複認領當成新鎖價或衝突。鎖價 24 小時到期後才恢復成可接（判準用 claim 自己的 expiresAt）。
-    const cl = claims[c.id];
-    const live = !!cl && (!cl.expiresAt || bountyNum(cl.expiresAt, 4e12) > Date.now());
+    const live = !!bountyLiveClaim(c.id, claims);
     const label = !PHYSICAL_COLLECT_ENABLED ? '要用 App 才能接' : live ? '已接下・看說明' : '接下這段';
     return `<div class="bt-card" data-card="${escHtml(c.id)}">` +
       `<div class="bt-r">${escHtml(nm.from)} → ${escHtml(nm.to)}</div>` +
@@ -9508,21 +9519,35 @@ function setupBounty() {
     const id = btn.closest('.bt-card').dataset.card;
     // 網頁端點下去只給一句話，不寫任何本機資料——這是自然的下載誘因（規格 §9）
     if (!PHYSICAL_COLLECT_ENABLED) { showToast('GPS 校正旅程需要用 App。網頁可以看懸賞板與自己的成果'); return; }
-    // 已經接下且鎖價還沒過期：回到那張說明卡，不重送 POST（F-05）
-    if (btn.dataset.claimed) {
-      const cl = (loadBounty().claims || {})[id];
-      const card = ((bountyBoardMem && bountyBoardMem.cards) || []).find(x => x.id === id);
-      if (card && cl) showBountyBrief(card, { points: cl.points, expiresAt: cl.expiresAt });
-      return;
-    }
-    bountyClaim(id);
+    bountyClaim(id); // 已接下的卡由 bountyClaim() 自己擋（F-05），這裡不重複判斷
   };
   // Esc 關閉＋點背景關閉：比照 setupTakeoutUi 等既有六顆 modal 的寫法（審查 I3：這顆先前只有 × 有效）
   modal.addEventListener('click', e => { if (e.target === modal) closeBountyBoard(); });
   document.addEventListener('keydown', e => { if (e.key === 'Escape' && !modal.hidden) closeBountyBoard(); });
 }
+// 這張卡現在有沒有「還沒過期的認領」（2026-07-28 Codex 審查 F-05）。判準用 claim 自己的
+// expiresAt（伺服器發的鎖價期限），不是另外算 24 小時——期限是伺服器的帳，本機只是複述。
+function bountyLiveClaim(cardId, claims) {
+  const cl = (claims || loadBounty().claims || {})[cardId];
+  if (!cl) return null;
+  return (!cl.expiresAt || bountyNum(cl.expiresAt, 4e12) > Date.now()) ? cl : null;
+}
 // 接下一段，成功之後接上出發前說明卡（showBountyBrief，規格 §5 之四）
 async function bountyClaim(cardId) {
+  // 🔴 已接下就不再送第二次 POST（F-05）：舊版每按一次就 POST 一次並覆寫本機那筆（實測點兩下
+  // ＝兩個請求），後端可能把重複認領當成新鎖價、衝突或耗掉 quota，而前端連 claimId 都沒存、
+  // 對不起帳。守在 bountyClaim() 這個唯一入口，不守在按鈕的 click handler——直接呼叫
+  // bountyClaim() 的路徑（測試、未來的深連結、跟隨卡次要入口）才不會繞過去。
+  // 語意不是「不能再接」而是「你已經接了，這是那張說明卡」——鎖價 24 小時到期後自動恢復可接。
+  {
+    const cl = bountyLiveClaim(cardId);
+    if (cl) {
+      const card = ((bountyBoardMem && bountyBoardMem.cards) || []).find(x => x.id === cardId);
+      if (card) showBountyBrief(card, { points: cl.points, expiresAt: cl.expiresAt });
+      else showToast('這段你已經接下了，鎖價還在');
+      return;
+    }
+  }
   // ?demo=bounty:備援站沒有 /api/*,不接住這裡的話一按就是「網路不通」,出發前說明卡永遠出不來,
   // 整條流程在備援站就斷在第一步。只寫本機、不打網路,語意與成功路徑一致(含 24 小時期限)。
   if (DEMO_MODE === 'bounty') {
@@ -9642,6 +9667,10 @@ function bountyUndergroundHint(card) {
 // scripts/densify_schedule.py),時間不是真時刻,兩端只要有一端落在 stop:false 就不可信。
 // 找不到任一班「兩端都是真站」的車貫穿這批段時,誠實回傳 null,呼叫端要顯示「算不出來」,
 // 不准端一個掰出來的數字給使用者。
+// 🔴 方向靠參數順序表達(2026-07-28 Codex 審查 F-07):下面的搜尋要求 fromName 出現在 toName
+// **之前**,所以只要呼叫端把端點依 card.dir 擺對(見 bountyCardName),這裡自然只採同方向的車次。
+// 班表資料本身沒有 dir 欄位,這是唯一能表達方向的辦法——顛倒端點會得到反方向的真實時間
+// (實測南迴線 枋寮→臺東 77 分、臺東→枋寮 79 分)。
 function bountySpanMinutes(sys, fromName, toName, trainKindHint) {
   const sysObj = (state.systems || []).find(s => s.id === sys);
   const trains = sysObj && sysObj.data && sysObj.data.trains;

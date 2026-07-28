@@ -14,6 +14,17 @@ import { createHash } from 'node:crypto';
 const BASE = process.argv[2] || 'http://127.0.0.1:5178';
 const R = [];
 const ok = (n, p, msg = '') => { R.push({ n, p }); console.log(`${p ? '  ok ' : 'FAIL '} ${n}${msg ? ' — ' + msg : ''}`); };
+// 中止時也要留下 N/M（2026-07-28 Codex 審查 F-11）：把 index.html 的必要 DOM id 改壞（例如
+// recStop）會讓 top-level 綁定在開機就丟例外 ⇒ 開機等待逾時 ⇒ 整份腳本中止，既沒有斷言名、
+// 也沒有總計行，看的人分不出「哪一條行為壞了」還是「腳本自己爆了」。這個 exit hook 讓任何
+// 中止路徑至少都印得出當下的 N/M，open() 那邊則把 pageerror 原文帶進錯誤訊息裡指出真因。
+let summaryPrinted = false;
+const printSummary = () => {
+  if (summaryPrinted) return;
+  summaryPrinted = true;
+  console.log(`\n${R.filter(r => r.p).length}/${R.length} 通過`);
+};
+process.on('exit', printSummary);
 // 最終審查 E-4：載入後目前沒有任何斷言使用它——Task 4/5(取樣上傳／即時品質提示)還沒做，
 // 客端根本沒有可比對的「訊號燈」。不要因為現在沒消費者就刪掉：Task 5 一旦把即時提示接上，
 // 這裡就是拿門檻值來比對的既有掛勾，先留著、只是暫時不用。
@@ -116,8 +127,17 @@ async function open(browser, { app = false, width = 1440, height = 900, touch = 
   });
   await stubApi(ctx, over);
   const page = await ctx.newPage();
+  const perr = [];
+  page.on('pageerror', e => perr.push(String((e && e.message) || e)));
   await page.goto(BASE + '/index.html', { waitUntil: 'load' });
-  await page.waitForFunction(() => typeof state !== 'undefined' && state.trains && state.trains.length > 0, { timeout: 40000 });
+  // 開機沒完成時把 pageerror 原文帶出來（F-11）：光看「waitForFunction timeout」分不出
+  // 是資料載入慢還是 index.html 在 top-level 就丟例外（必要 DOM id 被改名就是這一種）。
+  try {
+    await page.waitForFunction(() => typeof state !== 'undefined' && state.trains && state.trains.length > 0, { timeout: 40000 });
+  } catch (e) {
+    throw new Error('開機沒完成（40s 內 state.trains 仍為空）'
+      + (perr.length ? `；頁面丟出例外：${perr.slice(0, 2).join(' ｜ ')}` : '；期間沒有 pageerror'));
+  }
   await page.evaluate(() => { const h = document.getElementById('howtoWrap'); if (h) h.remove(); });
   return { ctx, page };
 }
@@ -415,6 +435,35 @@ const browser = await chromium.launch();
     /枋寮/.test(b1.txt) && /臺東/.test(b1.txt) && /南迴線/.test(b1.txt) && /39\s*點/.test(b1.txt)
       && /(約\s*\d+\s*分鐘|大概多久算不出來)/.test(b1.txt),
     b1.txt.slice(0, 200).replace(/\n/g, ' / '));
+  // 🔴 B2c（2026-07-28 Codex 審查 F-11）：B2 只驗「有一個數字」——實測突變（bountySpanMinutes()
+  // 直接 return 1）依然 86/86 全綠，那個「約 1 分鐘」是可證明的假綠。這裡補兩道**不與實作同源**
+  // 的判準：
+  //   ① 物理下界：枋寮→臺東的里程差由測試自己從 lineNetwork() 的站里程取（不呼叫任何懸賞函式），
+  //      台鐵最高營運速度 130km/h ⇒ 全程不可能少於 km/130*60 分鐘。這是外部常數，不是抄實作。
+  //   ② 真實班次區間：測試自己掃一遍 state.systems 的班表（規則刻意與實作不同——實作取「同車種
+  //      中位數」，這裡取「所有兩端都是真站的車次」的 min/max 全距），顯示值必須落在裡面。
+  const b2c = await page.evaluate(() => {
+    const rec = [...lineNetwork().values()].find(r => r.sys === 'tra_sched' && r.id === '南迴線');
+    const dOf = {}; for (const s of (rec ? rec.ln.stations : [])) if (s.d != null) dOf[s.name] = s.d;
+    const km = Math.abs(dOf['臺東'] - dOf['枋寮']);
+    const trains = ((state.systems || []).find(s => s.id === 'tra_sched') || {}).data;
+    const mins = [];
+    for (const tr of ((trains && trains.trains) || [])) {
+      const st = tr.stops || [];
+      const i = st.findIndex(s => s.name === '枋寮'), j = st.findIndex((s, k) => k > i && s.name === '臺東');
+      if (i < 0 || j < 0 || !st[i].stop || !st[j].stop) continue;
+      const m = (st[j].arrSec - st[i].depSec) / 60;
+      if (m > 0) mins.push(m);
+    }
+    const shown = (document.getElementById('bountyBriefBody').innerText.match(/約\s*(\d+)\s*分鐘/) || [])[1];
+    return { km, shown: shown == null ? null : Number(shown), n: mins.length,
+      lo: mins.length ? Math.min(...mins) : null, hi: mins.length ? Math.max(...mins) : null };
+  });
+  const b2cFloor = b2c.km / 130 * 60; // 台鐵最高營運速度 130km/h：不可能比這更快
+  ok('B2c 「約 N 分鐘」不是隨便一個數字：要過物理下界（里程/130km/h），也要落在真實班次的時間全距內',
+    b2c.shown != null && b2c.n > 0 && b2c.shown >= b2cFloor
+      && b2c.shown >= Math.floor(b2c.lo) && b2c.shown <= Math.ceil(b2c.hi),
+    JSON.stringify({ ...b2c, 物理下界: Math.round(b2cFloor) }));
   // 🔴 B2b（最終審查 C）：24 小時鎖價期限原本只在接下當下的 toast 一閃即逝，這張常駐的說明卡
   // 完全沒提；使用者接了段之後回頭想確認期限就找不到，直接造成客訴。
   ok('B2b 第一段：24 小時鎖價期限有寫在說明卡上（不是只在接下當下一閃即逝的 toast）',
@@ -468,10 +517,15 @@ const browser = await chromium.launch();
   // 之前就設好，才能算到它內部第一次 acquireWakeLock() 的呼叫（C7 要驗的那一次）。
   await page.evaluate(() => {
     window.__wlCalls = 0;
+    // sentinel 的 release() 也要記帳（2026-07-28 Codex 審查 F-11）：C9 原本只驗「模式關了、
+    // 會說謊的 UI 回來」，實測突變（把 stopBountyRecording() 裡的 releaseWakeLock() 刪掉）
+    // 依然 86/86 全綠——螢幕會一直不睡，而這正是「一小時錄製」最貴的資源。
+    window.__wlReleases = 0;
     navigator.wakeLock.request = (type) => {
       window.__wlCalls++;
-      return Promise.resolve({ type, released: false, release: () => Promise.resolve(),
-        addEventListener() {}, removeEventListener() {} });
+      const s = { type, released: false, addEventListener() {}, removeEventListener() {} };
+      s.release = () => { window.__wlReleases++; s.released = true; return Promise.resolve(); };
+      return Promise.resolve(s);
     };
   });
 
@@ -563,12 +617,21 @@ const browser = await chromium.launch();
   ok('C8 回前景會重新取得 Wake Lock', c8 >= 1, String(c8));
 
   // C9 停止之後全部還原
+  await page.waitForTimeout(150); // C8 那次 acquire 是 async，等 state._wakeLock 真的被指派
   const c9 = await page.evaluate(() => {
+    const held = !!state._wakeLock;
+    window.__wlReleases = 0; // 只算「停止」這一下釋放了幾次
     stopBountyRecording();
-    return { on: !!state.recording, cls: document.body.classList.contains('recording'),
+    return { heldBefore: held, releases: window.__wlReleases, stillHeld: !!state._wakeLock,
+      on: !!state.recording, cls: document.body.classList.contains('recording'),
       badge: getComputedStyle(document.querySelector('.badge')).display };
   });
   ok('C9 停止後模式關閉、會說謊的 UI 回來', !c9.on && !c9.cls && c9.badge !== 'none', JSON.stringify(c9));
+  // 🔴 C9b（Codex 審查 F-11）：Wake Lock 是這個模式最貴的資源，「停止」必須真的把它還回去。
+  // 判準是 sentinel 自己的 release() 被呼叫（測試種的計數器）＋ state._wakeLock 歸零，
+  // 不是讀任何實作專門為測試而寫的旗標。
+  ok('C9b 停止後 Wake Lock 真的被釋放（sentinel.release() 有被呼叫且不再持有）',
+    c9.heldBefore === true && c9.releases === 1 && c9.stillHeld === false, JSON.stringify(c9));
   await ctx.close();
 }
 
@@ -1151,7 +1214,286 @@ for (const w of [375, 390]) {
   await ctx.close();
 }
 
+// ── X 組：Codex 獨立審查（2026-07-28）的修復守門員 ─────────────────────────
+// 每一條都對應一個**已實測重現過**的失效情境，不是照著建議清單補的形式主義斷言。
+// 判準一律不與實作同源：XSS 看 DOM 有沒有真的長出 <img>／marker 有沒有被設，
+// 資料層看 localStorage 原始字串，方向看端點站名本身。
+{
+  // X1/X2：惡意 API 回應（F-01）。伺服器回的 points／pointsLocked 走 innerHTML ⇒
+  // 實測 '<img src=x onerror=…>' 真的被執行、document.documentElement.dataset 被設起來。
+  const EVIL = '<img src=x onerror="document.documentElement.dataset.xssMark=1">';
+  const evilCard = { id: 'x-evil', sys: 'tra_sched', lnId: '南迴線', dir: 0, trainKind: '自強',
+    kind: 'track', slot: '', unitKeys: ['tra_sched|南迴線|加祿|枋寮'], units: 1,
+    points: EVIL, claimers: EVIL, samples: EVIL, coverN: EVIL };
+  {
+    const { ctx, page } = await open(browser, { app: true, over: { board: { at: 1, coverN: {}, cards: [evilCard] } } });
+    await page.evaluate(() => openBountyBoard());
+    await page.waitForTimeout(400);
+    const x1 = await page.evaluate(() => ({
+      mark: document.documentElement.dataset.xssMark || null,
+      imgs: document.querySelectorAll('#bountyList img').length,
+      handlers: [...document.querySelectorAll('#bountyList *')].filter(el => el.hasAttribute('onerror') || el.hasAttribute('onload')).length,
+      pt: (document.querySelector('#bountyList .bt-pt') || {}).textContent || '',
+    }));
+    ok('X1 懸賞板：伺服器回的 points 是惡意 HTML 時不會被當程式碼執行（零 <img>、零事件屬性、marker 沒被設）',
+      x1.mark === null && x1.imgs === 0 && x1.handlers === 0, JSON.stringify(x1));
+    await ctx.close();
+  }
+  {
+    const { ctx, page } = await open(browser, { app: true, over: {
+      board: { at: 1, coverN: {}, cards: [{ ...evilCard, points: 3, claimers: 0, samples: 0, coverN: 1 }] },
+      claim: { ok: true, claimId: 'cl-1', units: 1, pointsLocked: EVIL, expiresAt: Date.now() + 86400000 } } });
+    await page.evaluate(() => openBountyBoard());
+    await page.waitForTimeout(300);
+    await page.evaluate(() => bountyClaim('x-evil'));
+    await page.waitForTimeout(700);
+    const x2 = await page.evaluate(() => ({
+      mark: document.documentElement.dataset.xssMark || null,
+      imgs: document.querySelectorAll('#toasts img').length,
+      toast: [...document.querySelectorAll('#toasts .toast')].map(t => t.textContent).join(' / '),
+      storedPts: (((JSON.parse(localStorage.getItem('trainmap-bounty-v1') || '{}').claims) || {})['x-evil'] || {}).points,
+    }));
+    ok('X2 接下成功的 toast：伺服器回的 pointsLocked 是惡意 HTML 時不會被執行，落盤的也是數字不是字串',
+      x2.mark === null && x2.imgs === 0 && typeof x2.storedPts === 'number', JSON.stringify(x2));
+    await ctx.close();
+  }
+  // X3：落盤失敗不准報成功（F-02）。實測 QuotaExceededError 時舊版照樣說「接下了・39 點」，
+  // 磁碟卻是 null——伺服器已經接下、本機什麼都沒有，重新整理就失聯。
+  {
+    const { ctx, page } = await open(browser, { app: true });
+    await page.evaluate(() => openBountyBoard());
+    await page.waitForTimeout(300);
+    await page.evaluate(() => {
+      const orig = Storage.prototype.setItem;
+      Storage.prototype.setItem = function (k, v) {
+        if (k === 'trainmap-bounty-v1') { const e = new Error('quota'); e.name = 'QuotaExceededError'; throw e; }
+        return orig.call(this, k, v);
+      };
+    });
+    await page.evaluate(() => bountyClaim('tra_sched|南迴線|0|自強|track|'));
+    await page.waitForTimeout(700);
+    const x3 = await page.evaluate(() => ({
+      toast: [...document.querySelectorAll('#toasts .toast')].map(t => t.textContent).join(' / '),
+      onDisk: localStorage.getItem('trainmap-bounty-v1'),
+    }));
+    // 判準兩面：不可以出現無條件的成功句，而且要明講「這台裝置沒存下來」——只做前者，
+    // 一句話都不說也會過，那對使用者一樣是靜默失敗。
+    ok('X3 localStorage 寫不進去時：不顯示一般成功訊息，且明講這台裝置沒保存住',
+      x3.onDisk === null && !/^接下了/.test(x3.toast) && /存不下來|無法保存|沒保存/.test(x3.toast), JSON.stringify(x3));
+    await ctx.close();
+  }
+  // X4：示範資料不得跨出示範（F-04）。舊版把合成旅程與示範認領寫進正式 BOUNTY_KEY，
+  // 回到一般網址後金線照畫、bountyToCollections() 照樣把它當真的校正紀錄匯出。
+  {
+    const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, hasTouch: true });
+    await ctx.route('**/api/**', r => r.fulfill({ status: 404, body: 'Not Found' })); // 備援站實況
+    const page = await ctx.newPage();
+    await page.goto(BASE + '/index.html?demo=bounty', { waitUntil: 'load' });
+    await page.waitForFunction(() => typeof state !== 'undefined' && state.trains && state.trains.length > 0, { timeout: 40000 });
+    await page.waitForTimeout(1200); // seedBountyDemo() 的 tick 要等線網建好
+    await page.evaluate(() => openBountyBoard());
+    await page.waitForTimeout(600);
+    await page.evaluate(() => { const c = document.querySelector('.bt-card'); if (c) bountyClaim(c.dataset.card); });
+    await page.waitForTimeout(600);
+    // X4b 先驗「隔離沒有把示範功能弄壞」——demo 模式自己還是要看得到金線，
+    // 否則這條隔離就是拿使用者明天要看的東西去換乾淨。
+    // X4b 只問「功能還在不在」，不問「資料放哪」——放哪是 X4 的事。兩件事分開問，
+    // 隔離壞掉時才會是 X4 單獨紅，而不是兩條一起紅、分不出是漏了還是壞了。
+    const x4b = await page.evaluate(() => ({
+      corrected: bountyCorrectedSegs().size,
+      claims: Object.keys(loadBounty().claims || {}).length,
+    }));
+    ok('X4b ?demo=bounty 自己仍然完整：示範旅程有校正段、示範認領存得住（隔離沒有把示範弄壞）',
+      x4b.corrected > 0 && x4b.claims === 1, JSON.stringify(x4b));
+    // 回到一般網址（同一個 context ⇒ 同一份 localStorage）
+    await page.goto(BASE + '/index.html', { waitUntil: 'load' });
+    await page.waitForFunction(() => typeof state !== 'undefined' && state.trains && state.trains.length > 0, { timeout: 40000 });
+    const x4 = await page.evaluate(() => {
+      const raw = localStorage.getItem('trainmap-bounty-v1');
+      const b = loadBounty();
+      return { rawRealKey: raw, demoKeyUsed: !!localStorage.getItem('trainmap-bounty-demo-v1'),
+        trips: Object.keys(b.trips || {}), claims: Object.keys(b.claims || {}),
+        corrected: bountyCorrectedSegs().size,
+        exported: bountyToCollections(b).corrections.items.map(i => i.id) };
+    });
+    ok('X4 離開 ?demo=bounty 之後正式資料乾乾淨淨：正式 key 一個字都沒被寫、金色層 0 段、匯出 0 筆',
+      x4.rawRealKey === null && x4.demoKeyUsed === true
+      && x4.trips.length === 0 && x4.claims.length === 0 && x4.corrected === 0 && x4.exported.length === 0,
+      JSON.stringify(x4));
+    // 🔴 X4c 存量清理：07-28 06:35 之前的版本已經在使用者裝置上把示範旅程寫進**正式** key
+    //（備援站今早就是那一版）。命名空間隔離只保護未來，那一筆得靠 ?demo=off 清掉——而且只能
+    // 清掉它自己，同一包裡使用者真正的校正旅程一筆都不能少。
+    await page.evaluate(() => {
+      localStorage.setItem('trainmap-bounty-v1', JSON.stringify({ v: 1, claims: { 'real-card': { cardId: 'real-card', points: 9 } },
+        trips: { 'demo-南迴線-枋寮-臺東': { lnId: '南迴線', sys: 'tra_sched', verdict: 'ok', segs: ['tra_sched|南迴線|加祿|枋寮'], u: 1 },
+          'real-trip': { lnId: '宜蘭線', sys: 'tra_sched', verdict: 'ok', segs: ['tra_sched|宜蘭線|蘇澳|蘇澳新'], u: 2 } } }));
+    });
+    await page.goto(BASE + '/index.html?demo=off', { waitUntil: 'load' });
+    await page.waitForFunction(() => typeof state !== 'undefined' && state.trains && state.trains.length > 0, { timeout: 40000 });
+    await page.waitForTimeout(800);
+    const x4c = await page.evaluate(() => {
+      const b = JSON.parse(localStorage.getItem('trainmap-bounty-v1') || 'null') || {};
+      return { trips: Object.keys(b.trips || {}), claims: Object.keys(b.claims || {}),
+        demoKeyLeft: localStorage.getItem('trainmap-bounty-demo-v1') };
+    });
+    ok('X4c ?demo=off 清得掉舊版寫進正式 key 的那筆示範旅程，且使用者真正的資料一筆沒少',
+      x4c.trips.length === 1 && x4c.trips[0] === 'real-trip'
+      && x4c.claims.length === 1 && x4c.demoKeyLeft === null, JSON.stringify(x4c));
+    await ctx.close();
+  }
+  // X5：認領狀態（F-05）。舊版按幾次就 POST 幾次、按鈕永遠是「接下這段」，
+  // 使用者在說明卡按「等一下再說」之後既看不出自己接過，也回不到那張卡。
+  {
+    let posts = 0;
+    const ctx = await browser.newContext({ viewport: { width: 1440, height: 900 } });
+    await ctx.addInitScript(() => { Object.assign(window, { RAIL_MUSIC_AVAILABLE: true,
+      RAIL_ONLINE_BASEMAPS_AVAILABLE: true, RAIL_APP_CONFIG: { platform: 'ios', build: 'test' } }); });
+    await ctx.route('**/api/bounty-board*', r => r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(BOARD) }));
+    await ctx.route('**/api/bounty-claim', r => { posts++; r.fulfill({ status: 200, contentType: 'application/json',
+      body: JSON.stringify({ ok: true, claimId: 'cl-' + posts, units: 11, pointsLocked: 39, expiresAt: Date.now() + 86400000 }) }); });
+    await ctx.route('**/api/bounty-me*', r => r.fulfill({ status: 200, contentType: 'application/json',
+      body: JSON.stringify({ actor: 'x', points: 0, corrected: { segs: 0, adopted: 0 }, lines: [], firsts: [], trips: [] }) }));
+    const page = await ctx.newPage();
+    await page.goto(BASE + '/index.html', { waitUntil: 'load' });
+    await page.waitForFunction(() => typeof state !== 'undefined' && state.trains && state.trains.length > 0, { timeout: 40000 });
+    await page.evaluate(() => { const h = document.getElementById('howtoWrap'); if (h) h.remove(); });
+    const CID = BOARD.cards[0].id;
+    await page.evaluate(() => openBountyBoard());
+    await page.waitForTimeout(400);
+    await page.evaluate(id => bountyClaim(id), CID);
+    await page.waitForTimeout(700);
+    const x5 = await page.evaluate(() => {
+      const btn = document.querySelector('#bountyList .bt-take');
+      const cl = Object.values(loadBounty().claims || {})[0] || {};
+      return { label: btn ? btn.textContent : '(無)', claimed: btn ? btn.dataset.claimed : null,
+        hasClaimId: typeof cl.claimId === 'string' && cl.claimId.length > 0 };
+    });
+    // 第二次點下去（真的走按鈕的路徑）：不可以再送一次 POST，且要把說明卡叫回來
+    await page.evaluate(() => { document.getElementById('bountyBriefModal').hidden = true; });
+    await page.locator('#bountyList .bt-take').first().click();
+    await page.waitForTimeout(700);
+    const x5b = await page.evaluate(() => ({ briefBack: !document.getElementById('bountyBriefModal').hidden }));
+    ok('X5 接下之後卡片看得出已接下（按鈕改字），且 claimId 有存下來',
+      /已接下/.test(x5.label) && x5.claimed === '1' && x5.hasClaimId === true, JSON.stringify(x5));
+    ok('X5b 再點同一張卡不會重送認領，而是把說明卡叫回來（POST 恰好 1 次）',
+      posts === 1 && x5b.briefBack === true, JSON.stringify({ posts, ...x5b }));
+    // X5c 鎖價過期後要恢復成可接——否則 24 小時之後這張卡就永遠按不了
+    const x5c = await page.evaluate(() => {
+      const b = loadBounty();
+      for (const k of Object.keys(b.claims)) b.claims[k].expiresAt = Date.now() - 1000;
+      saveBounty(b);
+      renderBountyBoard();
+      const btn = document.querySelector('#bountyList .bt-take');
+      return { label: btn ? btn.textContent : '(無)', claimed: btn ? btn.dataset.claimed : null };
+    });
+    ok('X5c 鎖價過期之後卡片恢復成「接下這段」（不是永久鎖死）',
+      /接下這段/.test(x5c.label) && !x5c.claimed, JSON.stringify(x5c));
+    await ctx.close();
+  }
+  // X6：一筆壞資料不得拖垮整包（F-06）。實測 trips.bad=null 讓收集地圖與匯出雙雙丟 TypeError；
+  // trips.bad.segs='BAD' 更糟——字串是 iterable，金色集合被污染成 'B'/'A'/'D' 三個偽段鍵。
+  {
+    const { ctx, page } = await open(browser, { app: true });
+    const x6 = await page.evaluate(() => {
+      const K = 'trainmap-bounty-v1', GOOD = 'tra_sched|南迴線|加祿|枋寮';
+      const good = { lnId: '南迴線', sys: 'tra_sched', segs: [GOOD], verdict: 'ok', u: 1 };
+      const cases = {
+        nullLeaf: { good, bad: null },
+        arrayLeaf: { good, bad: [1, 2, 3] },
+        strSegs: { good, bad: { lnId: 'X', sys: 'y', segs: 'BAD', verdict: 'ok', u: 1 } },
+        objSegs: { good, bad: { lnId: 'X', sys: 'y', segs: { x: 1 }, verdict: 'ok', u: 1 } },
+      };
+      const res = {};
+      for (const [name, trips] of Object.entries(cases)) {
+        localStorage.setItem(K, JSON.stringify({ v: 1, claims: {}, trips }));
+        const r = { threw: null, segs: null, exported: null };
+        try {
+          r.segs = [...bountyCorrectedSegs()];
+          r.exported = bountyToCollections(loadBounty()).corrections.items.map(i => i.id);
+        } catch (e) { r.threw = String(e).slice(0, 60); }
+        res[name] = r;
+      }
+      localStorage.removeItem(K);
+      return { res, GOOD };
+    });
+    const x6ok = Object.values(x6.res).every(r => r.threw === null
+      && Array.isArray(r.segs) && r.segs.length === 1 && r.segs[0] === x6.GOOD   // 合法的那筆還在，且沒有偽段鍵
+      && Array.isArray(r.exported) && r.exported.includes('good'));              // 合法的那筆照樣匯得出來
+    ok('X6 同包裡有壞掉的一筆時：不丟例外、合法那筆原樣保留、金色集合零偽段鍵（null／陣列／字串 segs／物件 segs 四種）',
+      x6ok, JSON.stringify(x6.res));
+    await ctx.close();
+  }
+  // X7：方向（F-07）。舊版 card.dir 從沒被讀過 ⇒ dir:0 與 dir:1 兩張卡的說明卡都印
+  // 「枋寮 → 臺東」、預估時間都是同一個數字，使用者出發前看到的是反的方向。
+  {
+    const { ctx, page } = await open(browser, { app: true });
+    const x7 = await page.evaluate(() => {
+      const mk = dir => ({ id: 'x', sys: 'tra_sched', lnId: '南迴線', dir, trainKind: '自強', units: 11,
+        unitKeys: ['tra_sched|南迴線|加祿|枋寮', 'tra_sched|南迴線|康樂|臺東'] });
+      const n0 = bountyCardName(mk(0)), n1 = bountyCardName(mk(1));
+      // 期望值：測試自己掃班表算出「該方向自強車次的中位數分鐘」，不呼叫 bountySpanMinutes()。
+      // 🔴 第一版寫成「落在該方向的時間全距內」——實測突變（拿掉方向）**照樣全綠**，因為兩個
+      // 方向的全距重疊得很厲害（up 71–187、down 70–202），77 分鐘同時落在兩邊。全距太寬＝沒有牙。
+      // 改成算具體期望值：方向被忽略時 span1 會拿到 up 的中位數而不是 down 的，兩者今日 77 vs 79。
+      const medianOf = (a, b) => {
+        const out = [];
+        for (const tr of ((((state.systems || []).find(s => s.id === 'tra_sched') || {}).data || {}).trains || [])) {
+          const st = tr.stops || [];
+          const i = st.findIndex(s => s.name === a), j = st.findIndex((s, k) => k > i && s.name === b);
+          if (i < 0 || j < 0 || !st[i].stop || !st[j].stop) continue;
+          const m = (st[j].arrSec - st[i].depSec) / 60;
+          if (m > 0 && ((tr.typeName || '') + (tr.carName || '')).includes('自強')) out.push(m);
+        }
+        out.sort((x, y) => x - y);
+        return out.length ? Math.round(out[Math.floor(out.length / 2)]) : null;
+      };
+      return { dir0: [n0.from, n0.to], dir1: [n1.from, n1.to],
+        span0: bountySpanMinutes('tra_sched', n0.from, n0.to, '自強'),
+        span1: bountySpanMinutes('tra_sched', n1.from, n1.to, '自強'),
+        wantUp: medianOf('枋寮', '臺東'), wantDown: medianOf('臺東', '枋寮') };
+    });
+    ok('X7 dir:1 的卡端點是反的（臺東 → 枋寮），dir:0 才是 枋寮 → 臺東',
+      x7.dir0[0] === '枋寮' && x7.dir0[1] === '臺東' && x7.dir1[0] === '臺東' && x7.dir1[1] === '枋寮',
+      JSON.stringify({ dir0: x7.dir0, dir1: x7.dir1 }));
+    ok('X7b 預估時間跟著方向走：各自等於該方向自強車次的中位數（期望值由測試自己掃班表算出來）',
+      x7.wantUp != null && x7.wantDown != null && x7.span0 === x7.wantUp && x7.span1 === x7.wantDown,
+      JSON.stringify({ span0: x7.span0, wantUp: x7.wantUp, span1: x7.span1, wantDown: x7.wantDown }));
+    // X7c 端到端：不是只有函式回對，說明卡上真的印出反方向
+    const x7c = await page.evaluate(async () => {
+      const card = { id: 'x1', sys: 'tra_sched', lnId: '南迴線', dir: 1, trainKind: '自強', units: 11,
+        unitKeys: ['tra_sched|南迴線|加祿|枋寮', 'tra_sched|南迴線|康樂|臺東'] };
+      showBountyBrief(card, { points: 39, expiresAt: Date.now() + 86400000 });
+      await new Promise(r => setTimeout(r, 200));
+      return document.getElementById('bountyBriefBody').innerText.replace(/\n/g, ' ');
+    });
+    ok('X7c 說明卡上真的印出反方向（臺東 → 枋寮），不是只有函式回傳值對',
+      /臺東\s*→\s*枋寮/.test(x7c), x7c.slice(0, 120));
+    await ctx.close();
+  }
+  // X8：verdict 白名單（F-09）。規格 §7 的三態表只有 ok／unusable 給章；pending 是「還沒判」，
+  // 舊版只排除 suspect ⇒ pending、缺 verdict、未來新增的任何值都自動當成已通過防偽上金色。
+  {
+    const { ctx, page } = await open(browser, { app: true });
+    const x8 = await page.evaluate(() => {
+      const K = 'trainmap-bounty-v1';
+      const res = {};
+      for (const v of ['ok', 'unusable', 'suspect', 'pending', '(缺 verdict)', 'brand_new_value']) {
+        const t = { lnId: '南迴線', sys: 'tra_sched', segs: ['tra_sched|南迴線|加祿|枋寮'], u: 1 };
+        if (v !== '(缺 verdict)') t.verdict = v;
+        localStorage.setItem(K, JSON.stringify({ v: 1, claims: {}, trips: { t } }));
+        res[v] = bountyCorrectedSegs().size;
+      }
+      localStorage.removeItem(K);
+      return res;
+    });
+    ok('X8 只有 ok／unusable 上金色：suspect、pending、缺 verdict、未知值一律 fail-closed',
+      x8.ok === 1 && x8.unusable === 1 && x8.suspect === 0 && x8.pending === 0
+      && x8['(缺 verdict)'] === 0 && x8.brand_new_value === 0, JSON.stringify(x8));
+    await ctx.close();
+  }
+}
+
 const pass = R.filter(r => r.p).length;
-console.log(`\n${pass}/${R.length} 通過`);
+printSummary();
 await browser.close();
 process.exit(pass === R.length ? 0 : 1);
