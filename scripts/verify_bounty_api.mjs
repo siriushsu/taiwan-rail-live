@@ -299,6 +299,76 @@ INSERT INTO bounty_claims (id,actor,seg_key,train_kind,dir,kind,slot,points_lock
   }
 }
 
+// ── I 組：GET /api/bounty-me ──────────────────────────────────────────────
+// 🔴 actor 字面值已從 brief 原文的 'dev-x'（5 碼）訂正為 'device-x'（8 碼）：與 Task 3／Task 4
+// 同一類、第三次獨立踩到的矛盾——isActorId 的長度下限是 {8,64}，brief 原文的短助記字串短於
+// 下限。已實測 RED 證據（訂正前）：I1 回 400 bad_actor（不是 200），I2 因此崩潰——
+// `TypeError: Cannot read properties of undefined (reading 'filter')`（b.trips 不存在，因為
+// bountyMe 在 isActorId 這關就短路回傳 {error:'bad_actor'}）。修法比照 Task 3/4：只動字面值
+// 長度，不動任何斷言邏輯或 isActorId 本身。I8 的 '../x' 維持不變——那是測字元集合不合法，
+// 不論長度門檻在哪都預期 400。
+{
+  const { bountyMe } = _bounty;
+  const { DELAY_DB } = openTestDb(`
+    INSERT INTO bounty_points (actor,uid,points,merged_into,updated_at) VALUES ('device-x',NULL,42,NULL,1700000000000);
+    INSERT INTO bounty_samples (id,actor,sys,ln_id,train_no,dir,trip_date,payload,segs,submitted_at,verdict,verdict_at,quality_code,reject_code) VALUES
+     ('m1','device-x','tra_sched','南迴線','312',0,'2026-07-28','[]','[{"key":"tra_sched|南迴線|A|B","cov":1},{"key":"tra_sched|南迴線|B|C","cov":1}]',1,'ok',2,NULL,NULL),
+     ('m2','device-x','tra_sched','南迴線','313',0,'2026-07-27','[]','[{"key":"tra_sched|南迴線|C|D","cov":0.9}]',1,'unusable',2,'acc_blocked',NULL),
+     ('m3','device-x','tra_sched','縱貫線北段','101',0,'2026-07-26','[]','[]',1,'suspect',2,NULL,'doppler_too_clean');`);
+
+  const r = await bountyMe(req('/api/bounty-me?actor=device-x'), ENV(DELAY_DB));
+  const b = await body(r);
+  ok('I1 回 200 與點數', r.status === 200 && b.points === 42, JSON.stringify({ s: r.status, p: b.points }));
+  // 護照那句「校正 12 段（其中 9 段已採用）」：分子分母是**段**不是**趟**
+  ok('I2 corrected 數的是段：3 段校正（ok 2 + unusable 1）、2 段已採用',
+    b.corrected && b.corrected.segs === 3 && b.corrected.adopted === 2, JSON.stringify(b.corrected));
+  ok('I3 suspect 不計入付出（那一筆沒排除作弊，章本來就沒給）',
+    b.trips.filter(t => t.verdict === 'suspect').length === 1 && b.corrected.segs === 3, JSON.stringify(b.corrected));
+  ok('I4 unusable 那筆帶得出「原因＋怎麼改善」的文案',
+    (b.trips.find(t => t.id === 'm2') || {}).quality &&
+    b.trips.find(t => t.id === 'm2').quality.title && b.trips.find(t => t.id === 'm2').quality.how,
+    JSON.stringify((b.trips.find(t => t.id === 'm2') || {}).quality));
+  ok('I5 逐線統計（校正者印章是路線專屬的）',
+    Array.isArray(b.lines) && b.lines.some(l => l.lnId === '南迴線' && l.segs === 3), JSON.stringify(b.lines));
+
+  // 🔴 I6 正向掃整包回應的所有字串，不是抽查特定欄位（規格 §11）
+  {
+    const raw = JSON.stringify(b);
+    const leaked = ['doppler_too_clean', 'impossible_physics', 'delay_mismatch', 'future_date', 'stale_date']
+      .filter(code => raw.includes(code));
+    ok('I6 整包回應不含任何 reject_code 的值', leaked.length === 0, leaked.join(','));
+    ok('I7 也不含 reject_code 這個欄位名（免得日後有人手滑把整列 SELECT * 丟出去）',
+      !raw.includes('reject'), raw.slice(0, 120));
+  }
+  ok('I8 髒 actor 回 400', (await bountyMe(req('/api/bounty-me?actor=../x'), ENV(DELAY_DB))).status === 400);
+
+  // I9 掃描器自檢（比照 Task 4 的 C8b，驗收條件 4 硬要求）：I6/I7 用的是「整包 JSON.stringify
+  // 後字串搜尋」這個機制本身——不是一個獨立函式，所以自檢直接對「刻意構造的洩漏樣本」跑同一套
+  // 掃法，證明零命中不是因為掃描器是瞎的。兩種藏法都要驗：(a) 特徵值被塞進深層巢狀欄位或跟其他
+  // 文字拼接（I6 那種「掃值」的自檢）；(b) 藏著 reject 這個字樣本身，包含被塞進一個看起來無害的
+  // 欄位名或訊息字串（I7 那種「掃欄位名／字樣」的自檢）。
+  {
+    const leakyValue = { ok: true, nested: { deeper: [{ note: 'debug hint: doppler_too_clean happened here' }] } };
+    const rawLeakyValue = JSON.stringify(leakyValue);
+    const leakedValue = ['doppler_too_clean', 'impossible_physics', 'delay_mismatch', 'future_date', 'stale_date']
+      .filter(code => rawLeakyValue.includes(code));
+    ok('I9a 自檢（對應 I6）：刻意藏進巢狀欄位＋拼接文字裡的 reject_code 特徵值，同一套掃法真的抓得到',
+      leakedValue.length === 1 && leakedValue[0] === 'doppler_too_clean', JSON.stringify(leakedValue));
+
+    const leakyKey = { ok: true, debugInfo: { rejectCodeHint: 'x' } };
+    const rawLeakyKey = JSON.stringify(leakyKey);
+    ok('I9b 自檢（對應 I7）：刻意藏進看似無害的巢狀欄位名（rejectCodeHint）裡的 "reject" 字樣，同一套掃法真的抓得到',
+      rawLeakyKey.includes('reject'), rawLeakyKey);
+
+    // 反向對照：確認這套掃法對「真的乾淨」的樣本不會誤報（不是掃太寬、隨便什麼都算命中）
+    const cleanSample = JSON.stringify({ ok: true, quality: { code: 'acc_blocked', title: '訊號被遮蔽了' } });
+    const cleanLeaked = ['doppler_too_clean', 'impossible_physics', 'delay_mismatch', 'future_date', 'stale_date']
+      .filter(code => cleanSample.includes(code));
+    ok('I9c 反向對照：不含任何 reject_code 特徵值／reject 字樣的乾淨樣本，掃描結果真的是零命中（不是誤報帶來的假陽性）',
+      cleanLeaked.length === 0 && !cleanSample.includes('reject'), cleanSample);
+  }
+}
+
 const pass = R.filter(r => r.p).length;
 console.log(`\n${pass}/${R.length} 通過`);
 process.exit(pass === R.length ? 0 : 1);

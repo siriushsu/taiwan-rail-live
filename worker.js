@@ -677,7 +677,7 @@ const API_POST_ALLOWED = new Set(['/api/account-delete', '/api/bounty-claim', '/
 const API_ENDPOINTS = new Set([
   'tra-live', 'tra-alert', 'thsr-alert', 'metro-alert', 'metro-live', 'ntmetro-live',
   'delay-stats', 'delay-history', 'station-events', 'today-board', 'basemap-token', 'account-delete',
-  'bounty-board', 'bounty-claim', 'bounty-submit',
+  'bounty-board', 'bounty-claim', 'bounty-submit', 'bounty-me',
 ]);
 
 function addAppCors(headers, origin) {
@@ -728,6 +728,22 @@ async function bountyRules(env) {
 // actor 白名單:crypto.randomUUID() 的形狀，或 Firebase uid（英數 28 碼上下）。
 // 不白名單化就等於讓任意字串進 D1 的主鍵欄位——那是 delayHistory 對車次號做過的同一件事。
 function isActorId(s) { return typeof s === 'string' && /^[A-Za-z0-9_-]{8,64}$/.test(s); }
+
+// Firebase ID token → uid。管線與 delayHistory（付費牆）／deletePaidProfile（刪帳號）完全相同，
+// 抽成函式只是為了不再抄第三遍。驗不過一律回 null，呼叫端自己決定要回 401 還是降級。
+async function firebaseUid(env, idToken) {
+  if (!env.FIREBASE_WEB_API_KEY) return null;
+  if (!idToken || idToken.length > 4096) return null;
+  try {
+    const lookup = await fetch(`https://identitytoolkit.googleapis.com/v1/accounts:lookup?key=${encodeURIComponent(env.FIREBASE_WEB_API_KEY)}`, {
+      method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ idToken }),
+    });
+    if (!lookup.ok) return null;
+    const identity = await lookup.json();
+    const uid = identity && identity.users && identity.users[0] && identity.users[0].localId;
+    return (uid && typeof uid === 'string') ? uid : null;
+  } catch (e) { return null; }
+}
 
 // 合併過的 device token，後續寫入一律轉向 uid（規格 §6「身分與合併」）。
 // 只跟一跳:合併端點保證 merged_into 一定指向一個沒有 merged_into 的列(uid 列)，
@@ -902,6 +918,68 @@ async function bountySubmit(request, env) {
     return jsonRes({ ok: true, id, verdict: 'pending', accepted: samples.length, dropped }, 200, 'no-store');
   } catch (e) {
     return jsonRes({ error: 'submit_failed' }, 503, 'no-store');
+  }
+}
+
+// GET /api/bounty-me：護照「校正貢獻」那一節的資料來源。
+// 🔴 護照顯示兩個數字不是一個（規格 §8）：「校正 12 段（其中 9 段已採用）」。
+// 只顯示前者會讓使用者不知道自己的資料其實常常不能用、失去改善機會；只顯示後者則是把 unusable 的
+// 付出當成沒發生。兩個並列時，差距本身就是一個不帶懲罰的改善提示。
+// 🔴 這個端點永遠不回 reject_code。整包回應裡連那個字都不該出現——不是靠「記得別選它」，
+// 是靠下面的 SELECT 只列白名單欄位。
+async function bountyMe(request, env) {
+  const url = new URL(request.url);
+  let who = url.searchParams.get('actor') || '';
+  const auth = (request.headers.get('Authorization') || '').match(/^Bearer\s+(.+)$/i);
+  if (auth) {
+    if (await rateLimited(env.AUTH_LIMITER, request)) return jsonRes({ error: 'rate_limited' }, 429, 'no-store');
+    const uid = await firebaseUid(env, auth[1]);
+    if (!uid) return jsonRes({ error: 'unauthorized' }, 401, 'no-store');
+    who = uid;
+  }
+  if (!isActorId(who)) return jsonRes({ error: 'bad_actor' }, 400, 'no-store');
+  try {
+    const rules = await bountyRules(env);
+    const actor = await resolveActor(env, who);
+    const p = await env.DELAY_DB.prepare('SELECT points FROM bounty_points WHERE actor=?').bind(actor).first();
+    // 白名單欄位：reject_code 連 SELECT 都不選進來，才不會有人日後手滑把整列丟出去
+    const rs = await env.DELAY_DB.prepare(
+      'SELECT id, ln_id, sys, train_no, trip_date, verdict, quality_code, segs FROM bounty_samples' +
+      ' WHERE actor=? ORDER BY trip_date DESC, id DESC LIMIT 60').bind(actor).all();
+    const rows = rs.results || [];
+    const segSeen = new Set(), segOk = new Set(), byLine = new Map(), firsts = [];
+    for (const r of rows) {
+      let cov = [];
+      try { cov = JSON.parse(r.segs || '[]'); } catch (e) {}
+      if (r.verdict === 'suspect') continue;               // 沒排除作弊的那筆，章本來就沒給
+      const lk = `${r.sys}|${r.ln_id}`;
+      const L = byLine.get(lk) || { sys: r.sys, lnId: r.ln_id, segs: 0, adopted: 0 };
+      for (const c of cov) {
+        if (!segSeen.has(c.key)) { segSeen.add(c.key); L.segs++; }
+        if (r.verdict === 'ok' && !segOk.has(c.key)) { segOk.add(c.key); L.adopted++; }
+      }
+      byLine.set(lk, L);
+    }
+    // 首位校正者：只給 ok（規格 §8 的例外——那是對資料署名，不是對付出表揚）。
+    // 只顯示給自己，不顯示別人的暱稱：顯示他人自填暱稱＝UGC，會觸發 Apple Guideline 1.2。
+    for (const key of segOk) {
+      const f = await env.DELAY_DB.prepare(
+        "SELECT actor FROM bounty_samples WHERE verdict='ok' AND segs LIKE ? ORDER BY verdict_at ASC LIMIT 1"
+      ).bind('%' + key + '%').first();
+      if (f && f.actor === actor) firsts.push(key);
+    }
+    const trips = rows.map(r => ({
+      id: r.id, tripDate: r.trip_date, trainNo: r.train_no, sys: r.sys, lnId: r.ln_id, verdict: r.verdict,
+      quality: r.quality_code ? Object.assign({ code: r.quality_code }, rules.qualityText[r.quality_code] || {}) : null,
+    }));
+    return jsonRes({
+      actor, points: Number(p && p.points) || 0,
+      corrected: { segs: segSeen.size, adopted: segOk.size },
+      lines: [...byLine.values()].sort((a, b) => b.segs - a.segs),
+      firsts, trips,
+    }, 200, 'no-store');
+  } catch (e) {
+    return jsonRes({ error: 'not_ready' }, 503, 'no-store');
   }
 }
 
@@ -1285,6 +1363,7 @@ export default {
     else if (url.pathname === '/api/bounty-board') res = await bountyBoard(request, env);
     else if (url.pathname === '/api/bounty-claim') res = await bountyClaim(request, env);
     else if (url.pathname === '/api/bounty-submit') res = await bountySubmit(request, env);
+    else if (url.pathname === '/api/bounty-me') res = await bountyMe(request, env);
     else res = await env.ASSETS.fetch(request);
     const h = new Headers(res.headers);
     for (const [k, v] of Object.entries(SEC_HEADERS)) h.set(k, v);
@@ -1311,4 +1390,4 @@ export const _rateLimit = { rateLimited, delayHistory, deletePaidProfile };
 // 端點也導出的理由同 _rateLimit：這些不是純函式，測試要自備 env 替身才驗得到「節流有沒有擋在
 // D1 寫入之前」「回應裡有沒有夾帶 reject_code」這類只在編排層才成立的性質。
 export const _bounty = { bountyCardId, bountySegLine, groupBoardRows, bountyBoard, isActorId, resolveActor,
-  bountyClaim, hasGeoKeys, sanitizeSamples, bountySubmit };
+  bountyClaim, hasGeoKeys, sanitizeSamples, bountySubmit, firebaseUid, bountyMe };
