@@ -2648,9 +2648,10 @@ try { if (matchMedia('(max-width: 900px)').matches) document.body.classList.add(
 
   <footer class="site-foot">
     <details class="foot-box">
-      <summary><span>🛠 更新紀錄</span><span class="foot-sub">最後更新：2026/7/27</span></summary>
+      <summary><span>🛠 更新紀錄</span><span class="foot-sub">最後更新：2026/7/28</span></summary>
       <ul class="foot-list foot-recent">
         <li class="grp">最近更新</li>
+        <li><span class="d">7/28</span><span>誤點的車過了表定到站時間後，點下去不會再從頭重播了（謝謝網友回報）</span></li>
         <li><span class="d">7/27</span><span>切到「高」時，左邊牌子下面改寫「台灣高鐵即時軌跡」，不再沿用台鐵的字</span></li>
         <li><span class="d">7/27</span><span>分頁改成「全／台／高／捷」，電腦版與 App 統一，切換時畫面不再跳動</span></li>
         <li><span class="d">7/26</span><span>更新紀錄瘦身：預設只列最近八條，其餘收進下方「完整更新歷史」依主題分類</span></li>
@@ -2674,6 +2675,7 @@ try { if (matchMedia('(max-width: 900px)').matches) document.body.classList.add(
         <li><span class="d">7/10</span><span>高鐵、桃園機捷、淡海輕軌、安坑輕軌加入路網</span></li>
         <li><span class="d">7/10</span><span>環島觀光列車一分為二：往東「山海號」、往西「平原號」</span></li>
         <li class="grp">即時動態與誤點</li>
+        <li><span class="d">7/28</span><span>誤點的車過了表定到站時間後被當成已跑完：點下去會從頭重播、跟隨面板也提早說抵達。改用校正後的時間判斷，下一站與進度條一併同步（謝謝網友回報）</span></li>
         <li><span class="d">7/24</span><span>新增「資料源連線狀態頁」：各即時資料源連線狀況一目了然，並白話總結「地圖現在準嗎」</span></li>
         <li><span class="d">7/24</span><span>修正 App 在背景放久後時鐘停住、車輛位置對不上；回前景會自動追回「現在」</span></li>
         <li><span class="d">7/18</span><span>「今日台鐵動態」看板：當日誤點排行與逐站歷程，已追回的直接標綠色準點</span></li>
@@ -2948,7 +2950,7 @@ try { if (matchMedia('(max-width: 900px)').matches) document.body.classList.add(
 <script>
 // 版本戳記:每次改版 push 前手動遞增(字母序),畫面時鐘徽章與 console 都會顯示,
 // 供比對線上跑的是不是最新版(瀏覽器快取 max-age=600 常讓人看到舊版)
-const BUILD = 'v0727d';
+const BUILD = 'v0728e'; // 正式站線獨立編號:origin/main(staging) 已用到 v0728b,跳開避免撞號
 const TRACK_AUDIT = new URLSearchParams(location.search).get('audit') === 'tracks';
 // 手機/平板直式「殼」斷點(議題1:640→900,iPad 直式改拿 tabbar＋更多抽屜):與 CSS @media 同步,版面類判斷一律用此常數。
 // 注意:裝置等級判斷(keepBuffer/powerSave 預設)刻意不用此常數、維持 640——iPad 不該因為改拿 tabbar 就被當低階裝置。
@@ -4274,7 +4276,7 @@ function drawFollowMarker(p, tr) {
   const glowC = isHSR(tr) ? HSR_ORANGE : tr.color;
   drawTrail(dt => trainPos(tr, state.simSec - dt), p, glowC);
   glowUnder(p, glowC, 7); // 跟隨主角:光暈最強
-  const dw = dwellInfoOf(tr, effT(tr));
+  const dw = dwellInfoOf(tr, effTLive(tr));
   if (dw && dw.st.stop !== false) { // 停站脈動:外圈呼吸擴散
     const ph = (performance.now() % 1600) / 1600;
     ctx.beginPath(); ctx.arc(p.x, p.y, 17 + ph * 11, 0, 7);
@@ -6226,7 +6228,7 @@ function tick(now) {
   if (state.autoTour && state.mode === 'sched' && state.playing) {
     const ftr = state.followTrain;
     // 捷運幽靈車跟隨中(freqFollow 有值、無 followTrain)不算「沒目標」,否則每幀都會誤判成該換車
-    if ((!ftr && !state.freqFollow) || (ftr && effT(ftr) > ftr.stops[ftr.stops.length - 1].arrSec) || now >= (state._tourNext || 0))
+    if ((!ftr && !state.freqFollow) || (ftr && effTLive(ftr) > ftr.stops[ftr.stops.length - 1].arrSec) || now >= (state._tourNext || 0))
       nextTourTrain(now);
   }
   if (state.ambient && state.ambientStyle === 'hotspot' && !state.followTrain && !state.freqFollow &&
@@ -6933,6 +6935,17 @@ function effT(tr) {
   return (state.simSec < s[0].arrSec && state.simSec + 86400 <= s[s.length - 1].depSec + 3600)
     ? state.simSec + 86400 : state.simSec;
 }
+// 套過即時校正的有效時間:與 trainPos 走同一條時間軸(先扣誤點、再做跨午夜接續,順序與 trainPos 一致)。
+// 凡「這班車現在跑到班表的哪一秒」——行程邊界(發車前/抵達後)、下一站、停靠倒數、進度、速度曲線游標
+// ——一律走這裡。effT 是純表定軸:誤點 D 分的車一到表定終點時間就被判定跑完(點一下從頭回放)、
+// 面板也提早宣告已過終點,但畫面上的車還要 D 分鐘才到(issue #14)。
+// 已自行扣過誤點的呼叫點(本地提醒 openLocalReminderSheet、行程分享 tripSchedNow/行程橫幅)維持用
+// effT,改用這個會變成雙重扣減。高鐵等非 live 系統 liveDelaySec 恆 0,零誤套。
+function effTLive(tr) {
+  const s = tr.stops, t = state.simSec - liveDelaySec(tr);
+  if (tr.loop) return s[0].arrSec + ((t - s[0].arrSec) % tr.loopSec + tr.loopSec) % tr.loopSec;
+  return (t < s[0].arrSec && t + 86400 <= s[s.length - 1].depSec + 3600) ? t + 86400 : t;
+}
 
 // 站台帶(琺瑯 2.0)常駐 stage 下緣,不再隨跟隨搬移 DOM;保留空殼給 setFollow/clearFollow 既有呼叫點
 function placeControls(following) {}
@@ -6970,7 +6983,7 @@ function setFollow(tr, isAuto, noJump, opts) {
     if (!state._followSpeedSaved) { state._preFollowSpd = state.speedMult; state._followSpeedSaved = true; }
     setSpeed(30);
     if (!state.playing) togglePlay();
-  } else if (!tr.loop && (effT(tr) < first.depSec - 60 || effT(tr) > last.arrSec)) {
+  } else if (!tr.loop && (effTLive(tr) < first.depSec - 60 || effTLive(tr) > last.arrSec)) {
     // 環島車永遠在跑,不需要把時間拉回發車
     state.simSec = Math.max(0, first.depSec - 20) % 86400;
     syncTimeUI();
@@ -6982,7 +6995,7 @@ function setFollow(tr, isAuto, noJump, opts) {
   state.followStatus = null; renderFollowBar();
   state.followEvents = []; state._evSeen = {};
   // 完乘資格快照:記錄跟隨起點時間,中途接手或跳時間作弊的都不蓋章(見 updateFollowCamera)
-  state.followStartEff = effT(tr);
+  state.followStartEff = effTLive(tr); // 與抵達判定同軸:用表定軸的話,誤點 D 分的車剛發車時快照已是 depSec+D,資格判定直接判不合格
   state.followTimeJumped = false;
   state._lapPrev = null; state._lapAcc = 0; // 山海/平原號完乘=連續跟滿一輪來回,換車歸零重計
   state._routePts = buildFollowRoute(tr);
@@ -7958,7 +7971,7 @@ function renderTrainCard(tr) {
   updateStar();
   renderFollowEvents();
   document.getElementById('trainCard').hidden = false;
-  setTimeout(() => drawSpark(tr, effT(tr)), 0); // 等 layout 有寬度再畫速度曲線
+  setTimeout(() => drawSpark(tr, effTLive(tr)), 0); // 等 layout 有寬度再畫速度曲線
   return it;
 }
 
@@ -8773,7 +8786,7 @@ function scanFollowEvents() {
   if (!tr || state.mode !== 'sched') return;
   const t = state.simSec;
   const myP = trainPos(tr, t); if (!myP) return;
-  const dw = dwellInfoOf(tr, effT(tr));
+  const dw = dwellInfoOf(tr, effTLive(tr));
   if (dw && dw.st.stop !== false && dw.total >= 20) {
     pushFollowEvent('dwell:' + dw.i,
       dw.total >= 180 ? `停靠 ${dw.st.name}（長時間停車——待避或調度）` : `停靠 ${dw.st.name}`, true);
@@ -9080,7 +9093,7 @@ function updateFollowPanel(tr) {
   // 回看過去時動畫不套校正(dlMin 歸零),但仍標示真實世界的目前誤點,與今日看板一致(使用者回報)。
   const lv = state.live;
   const realDl = (tr.sys === 'tra_sched' && lv && lv.map && Date.now() - lv.at < 1800e3) ? (lv.map.get(String(tr.train)) || 0) : 0;
-  const info = nextStopInfo(tr, effT(tr));
+  const info = nextStopInfo(tr, effTLive(tr));
   if (info) {
     nx.textContent = info.name;
     const mm = Math.round(info.min);
@@ -9095,7 +9108,7 @@ function updateFollowPanel(tr) {
   }
   // 停靠倒數(通過不停的站不顯示)
   const stEl = document.getElementById('fpStatus');
-  const dw = dwellInfoOf(tr, effT(tr));
+  const dw = dwellInfoOf(tr, effTLive(tr));
   const dwelling = dw && dw.st.stop !== false && dw.remain > 3 && dw.total >= 20;
   // 狀態列常駐(行進中↔停靠倒數),跟隨面板高度不因停站跳動
   if (dwelling) {
@@ -9142,7 +9155,7 @@ function updateFollowPanel(tr) {
     document.getElementById('fpProgFill').style.width = pct.toFixed(1) + '%';
     document.getElementById('fpProgTxt').textContent = '環島完乘 ' + Math.floor(pct) + '%';
   } else {
-    const pr = journeyProgress(tr, effT(tr));
+    const pr = journeyProgress(tr, effTLive(tr));
     document.getElementById('fpProgFill').style.width =
       (pr.total > 0 ? Math.min(100, pr.done / pr.total * 100) : 0).toFixed(1) + '%';
     document.getElementById('fpProgTxt').textContent =
@@ -9165,11 +9178,11 @@ function updateFollowPanel(tr) {
   }
   // 速度曲線游標每秒重畫一次就夠
   const nw = performance.now();
-  if (!state._sparkAt || nw - state._sparkAt > 1000) { state._sparkAt = nw; drawSpark(tr, effT(tr)); }
+  if (!state._sparkAt || nw - state._sparkAt > 1000) { state._sparkAt = nw; drawSpark(tr, effTLive(tr)); }
   // 時刻表高亮:過站變淡、下一停靠站標紅
   const tt = document.getElementById('tcStops');
   if (!tt.hidden) {
-    const t2 = effT(tr);
+    const t2 = effTLive(tr);
     let cur = null;
     for (let i = 0; i < tr.stops.length; i++) {
       const s = tr.stops[i];
@@ -9351,7 +9364,7 @@ function updateFollowCamera() {
     }
     state._lapPrev = t;
     if ((state._lapAcc || 0) >= LOOP_ACH_SEC) { state._lapAcc = 0; recordRide(tr); }
-  } else if (effT(tr) > last.arrSec + 2) {
+  } else if (effTLive(tr) > last.arrSec + 2) {
     if (state.followStatus !== 'done') {
       // 完乘資格:從發車附近(±60秒容差)開始跟、且跟隨中沒跳過模擬時間,才蓋章;中途接手或作弊只顯示抵達
       const qualified = state.followStartEff <= first.depSec + 60 && !state.followTimeJumped;
@@ -10560,7 +10573,7 @@ function openTrainSheet() {
   document.body.classList.add('train-open');
   setStopsOpen(true); // sheet 內「停靠時刻」常駐展開(桌面靠 tcTT 切換的兩鈕在 sheet 態隱藏)
   updateSheetOpenClass();
-  requestAnimationFrame(() => { if (state.followTrain) drawSpark(state.followTrain, effT(state.followTrain)); }); // canvas 現在有寬度,立即補畫一次
+  requestAnimationFrame(() => { if (state.followTrain) drawSpark(state.followTrain, effTLive(state.followTrain)); }); // canvas 現在有寬度,立即補畫一次
 }
 function closeTrainSheet() {
   const tc = document.getElementById('trainCard');
