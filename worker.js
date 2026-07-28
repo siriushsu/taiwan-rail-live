@@ -256,8 +256,13 @@ function mergeMetroAlertParts(parts, news) {
 // (2026-07-27 修復輪 2 M10:C 段原本只測 mergeMetroAlertParts 這個吃手工 parts 的純函式,
 // 沒有任何測試證明「生產路徑真的會在 catch 裡標 degraded:true」——這支才是真正跑在
 // production 的那段邏輯,mergeMetroAlertParts 只是它的下游聚合。fetchImpl 用參數注入,
-// 離線測試不需要真的 TDX token/網路,production 呼叫時原樣傳全域 fetch,行為不變。
-async function fetchMetroAlertOp({ op, sys, label }, token, fetchImpl) {
+// 離線測試不需要真的 TDX token/網路,production 呼叫時不帶這個引數,退回下面的預設值。
+//
+// fetchImpl 只為了測試注入替身。預設值刻意包一層 (...a) => fetch(...a) 而不是直接寫 fetch:
+// 正式路徑不帶這個引數 ⇒ 實際發出的是裸 fetch(...) 呼叫,與 prod-v0727d 語意逐字相同,
+// 不必依賴「把全域 fetch 當函式物件傳遞」在 workerd 成不成立(本機 Miniflare 壞掉、
+// 離線證不了,2026-07-28 Codex 審查 Important 3)。
+async function fetchMetroAlertOp({ op, sys, label }, token, fetchImpl = (...a) => fetch(...a)) {
   try {
     const r = await fetchImpl(`https://tdx.transportdata.tw/api/basic/v2/Rail/Metro/Alert/${op}?%24format=JSON`,
       { headers: { authorization: 'Bearer ' + token } });
@@ -336,8 +341,8 @@ function filterAndMapNews(items, nowMs) {
 }
 
 let tymcNewsMem = null, tymcNewsMemAt = 0;
-// fetchImpl 用參數注入(同 2026-07-27 修復輪 2 的 fetchMetroAlertOp),production 呼叫時原樣傳
-// 全域 fetch,行為不變;離線測試才能直接控制這支 production 函式本身的成功/失敗,不必經過
+// fetchImpl 用參數注入(同 2026-07-27 修復輪 2 的 fetchMetroAlertOp),production 呼叫時不帶這個
+// 引數,退回下面的預設值;離線測試才能直接控制這支 production 函式本身的成功/失敗,不必經過
 // globalThis.fetch 這種全域替身(2026-07-27 修復輪 3 M10 同款教訓:防再犯斷言要打在真的會跑在
 // production 的函式上,不能只測 mergeMetroAlertParts 這種吃手工輸入的下游聚合)。
 //
@@ -377,9 +382,12 @@ let tymcNewsMem = null, tymcNewsMemAt = 0;
 // 六個系統全有,只是窗口大小不同(110 vs 600 秒)。正確修法在 ingest 層不在來源層
 // (要跨世代佐證才准解除),會動到 diffAlertState 與 schema ⇒ 獨立 task,**且是開推播前的阻擋項**。
 //
-// fetchImpl 用參數注入(同修復輪 2 的 fetchMetroAlertOp),production 呼叫時原樣傳全域 fetch,
-// 行為不變;離線測試才能直接控制這支 production 函式本身的成功/失敗。
-async function fetchTymcNewsAlerts(token, fetchImpl) {
+// fetchImpl 用參數注入(同修復輪 2 的 fetchMetroAlertOp),production 呼叫時不帶這個引數,
+// 退回下面的預設值;離線測試才能直接控制這支 production 函式本身的成功/失敗。預設值刻意包
+// 一層 (...a) => fetch(...a) 而不是直接寫 fetch,理由同 fetchMetroAlertOp 上方的說明:
+// 正式路徑不帶引數 ⇒ 實際發出的是裸 fetch(...) 呼叫,不必依賴「把全域 fetch 當函式物件
+// 傳遞」在 workerd 成不成立(本機 Miniflare 壞掉、離線證不了,2026-07-28 Codex 審查 Important 3)。
+async function fetchTymcNewsAlerts(token, fetchImpl = (...a) => fetch(...a)) {
   if (tymcNewsMem && Date.now() - tymcNewsMemAt <= METRO_NEWS_TTL_MS) return { list: tymcNewsMem, degraded: false };
   try {
     const r = await fetchImpl(TYMC_NEWS_URL, { headers: { authorization: 'Bearer ' + token } });
@@ -410,8 +418,8 @@ async function metroAlert(request, env) {
     if (!metroAlertMem || Date.now() - metroAlertMemAt > 110e3) {
       const token = await getToken(env);
       const [parts, news] = await Promise.all([
-        Promise.all(METRO_ALERT_OPS.map(o => fetchMetroAlertOp(o, token, fetch))),
-        fetchTymcNewsAlerts(token, fetch),
+        Promise.all(METRO_ALERT_OPS.map(o => fetchMetroAlertOp(o, token))),
+        fetchTymcNewsAlerts(token),
       ]);
       // alerts/at 兩個既有欄位內容與之前逐 byte 相同(mergeMetroAlertParts 只是把 parts.flat() 換成對映
       // 到 sys 才能算 degraded 的等價寫法);degraded 是純追加欄位,前端不讀,零視覺/行為影響。
@@ -780,6 +788,12 @@ const BLOB_WINDOW_DAYS = 30;   // 統計 blob 的日曆窗
 const SCAN_WINDOW_DAYS = 35;   // 缺日偵測觀察窗
 const MAX_DATES_PER_RUN = 3;   // 單次 cron 最多補幾天(避免單發吃太多 CPU/流量)
 const D1_BATCH_SIZE = 80;      // 每個 batch() 最多幾句 prepared statement
+// 台鐵準點統計日排程(UTC;15 1=台北 09:15、15 4=台北 12:15)。與 wrangler.jsonc 的
+// triggers.crons 兩處各自寫死,verify 的 F 系列斷言守一致性。scheduled 用它做顯式分派——
+// 不在這個清單、也不等於 ALERT_LOG_CRON 的 cron 一律不執行任何工作(2026-07-28 Codex 審查
+// Important:原本是「不是公告狀態機就當日排程」,任何拼錯的、或別條並行線加進 triggers.crons
+// 的 cron 都會誤觸發台鐵每日 ingest)。
+const DELAY_HISTORY_CRONS = ['15 1 * * *', '15 4 * * *'];
 
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 
@@ -1140,21 +1154,45 @@ function diffAlertState(prevRows, current, liveSys, nowIso) {
   for (const r of Array.isArray(prevRows) ? prevRows : []) {
     prev.set(String(r.sys) + '|' + String(r.akey), r);
   }
-  const seen = new Set();
+  // seen:base id(sys|未加後綴的 akey)→已接受的 [{descr,end_at}] 陣列,用來分辨撞鍵是「真重複」
+  // 還是「同 label/title/start 但內容不同的另一則公告」(2026-07-28 Codex 審查 Important 2:
+  // 例如同一 sys 同時發「板南線東行」與「板南線西行」兩則,原本的 Set 版只會留下一則)。
+  // 判準精確:descr 與 end_at 都相同 ⇒ 真重複,維持原本的 continue 去重;任一不同 ⇒ 是不同公告,
+  // 用 '|#n' 後綴(n 從 2 起算)給它自己的 akey,不能丟掉。後綴用 '|#' 而不是 '#':alertKey 的
+  // 三個 segment 都已經把半形 | 換成全形｜,所以 '|#' 這個序列不可能自然出現在任何 segment 裡,
+  // 不會與真實內容撞上。刻意不把 descr 放進 alertKey 本身:diffAlertState 把 descr 變動判成
+  // 「內容變更」,descr 進鍵會讓上游改個錯字變成「舊的解除＋新的新增」,比撞鍵更糟。
+  // 已知限制:後綴的穩定性依賴上游陣列順序。若上游把兩則對調,兩列的 descr 會互換 ⇒ 產生兩個
+  // 「內容變更」事件——可接受的雜訊(不丟資料)。真正的解法是把上游 AlertID 當指紋,那要動
+  // 已上線端點的回應形狀,留給接推播那一輪。
+  const seenBase = new Map(); // base id(未加後綴)→已接受的 [{descr,end_at}] 陣列,撞鍵判斷用
+  const usedIds = new Set();  // 本輪最終真的用掉的 id(可能含 |#n 後綴)——下面 clears 判定要用
+  // 這個,不是 seenBase 的 key(那是 base id,suffix 過的 id 查不到會被誤判成「這輪沒看到」)。
   const upserts = [], added = [], updated = [];
   for (const rec of Array.isArray(current) ? current : []) {
-    const akey = alertKey(rec);
-    const id = String(rec.sys) + '|' + akey;
-    if (seen.has(id)) continue; // 同輪重複(例如高捷與高雄輕軌同 sys 發同一則)只算一則
-    seen.add(id);
+    const baseAkey = alertKey(rec);
+    const baseId = String(rec.sys) + '|' + baseAkey;
+    const descr = String(rec.desc || '');
+    const endAt = String(rec.end || '');
+    let akey = baseAkey, id = baseId;
+    const variants = seenBase.get(baseId);
+    if (variants) {
+      if (variants.some(v => v.descr === descr && v.end_at === endAt)) continue; // 真重複:去重
+      akey = baseAkey + '|#' + (variants.length + 1);
+      id = String(rec.sys) + '|' + akey;
+      variants.push({ descr, end_at: endAt });
+    } else {
+      seenBase.set(baseId, [{ descr, end_at: endAt }]);
+    }
+    usedIds.add(id);
     const r = {
       sys: String(rec.sys),
       akey,
       title: String(rec.title || ''),
-      descr: String(rec.desc || ''),
+      descr,
       lines: JSON.stringify(Array.isArray(rec.lines) ? rec.lines : []),
       start_at: String(rec.start || ''),
-      end_at: String(rec.end || ''),
+      end_at: endAt,
       news: rec.news ? 1 : 0,
       at: nowIso,
     };
@@ -1167,7 +1205,7 @@ function diffAlertState(prevRows, current, liveSys, nowIso) {
   }
   const clears = [], cleared = [];
   for (const [id, p] of prev) {
-    if (seen.has(id)) continue;
+    if (usedIds.has(id)) continue;
     if (!(liveSys instanceof Set) || !liveSys.has(String(p.sys))) continue; // 來源失敗→不判解除
     clears.push({ sys: String(p.sys), akey: String(p.akey) });
     cleared.push(p);
@@ -1189,6 +1227,12 @@ const ALERT_LOG_CRON = '*/5 * * * *';
 const ALERT_LOG_ORIGIN = 'https://railisland.tw';
 const ALERT_LOG_UPSERT = 'INSERT INTO alert_log (sys,akey,title,descr,lines,start_at,end_at,news,first_seen,last_seen,cleared_at) VALUES (?,?,?,?,?,?,?,?,?,?,NULL) ON CONFLICT(sys,akey) DO UPDATE SET title=excluded.title, descr=excluded.descr, lines=excluded.lines, start_at=excluded.start_at, end_at=excluded.end_at, news=excluded.news, last_seen=excluded.last_seen, cleared_at=NULL';
 const ALERT_LOG_CLEAR = 'UPDATE alert_log SET cleared_at=? WHERE sys=? AND akey=? AND cleared_at IS NULL';
+// 只撈還沒解除的列。加了這個 WHERE 才會讓「已解除的公告」在下一輪被當成新公告重新 added
+// (而不是被當成 prev 而錯過 added 事件)。測試替身不解析 SQL,結構上驗不到 WHERE 的語意,
+// 所以靠 verify 的逐字等值斷言守(2026-07-28 Codex 審查 Important:拿掉 WHERE 是 153 全綠)。
+// end_at 一定要撈:diffAlertState 判 updated 會比它,沒撈的話「預計恢復時間延後兩小時」
+// 這種只改時間不改內文的更新永遠算不出來(值仍會被 upsert 寫進 D1,但不會產生事件)。
+const ALERT_LOG_PREV_SELECT = 'SELECT sys,akey,title,descr,end_at,first_seen,last_seen FROM alert_log WHERE cleared_at IS NULL';
 // cron 自己打 /api/*-alert 的請求帶這個 UA——(a) 讓來源端能辨識是誰打的;(b) 流量埋點靠它排除
 // 這批自打流量,不然會被誤記成「網頁」訪客(2026-07-27 審查 Important 5,見 fetch() 的 TRAFFIC 埋點)。
 const ALERT_LOG_CRON_UA = 'railisland.tw alert-log cron (+https://railisland.tw)';
@@ -1224,6 +1268,14 @@ async function fetchAlertLogSources() {
       });
       if (!r.ok) throw new Error('http ' + r.status);
       const payload = await r.json();
+      // 200 不等於內容可信:上游若回 {} 或 {error:...},normalizeAlertPayload 會安靜地
+      // 得到空陣列 ⇒ 語意從「不知道」被降級成「這個系統目前沒有公告」⇒ 該 sys 的所有
+      // 未解除公告被判解除(2026-07-28 Codex 審查 Important 1,已複驗:{} 與 {error} 都
+      // 造成 cleared=1,對照組 cleared=0)。三支來源端點成功時一律回 { at, alerts:[...] },
+      // 所以缺了 alerts 陣列就是形狀不對,一律當整包失敗處理(回 null ⇒ 排除在解除判定外)。
+      if (!payload || typeof payload !== 'object' || !Array.isArray(payload.alerts)) {
+        throw new Error('payload 形狀不對(缺 alerts 陣列)');
+      }
       return { recs: normalizeAlertPayload(payload, src.sysOf), degraded: alertSourceDegradedSys(src, payload) };
     } catch (e) {
       console.error(`[cron alert-log] 來源失敗 ${src.path}: ${String((e && e.message) || e)}`);
@@ -1251,9 +1303,7 @@ async function ingestAlertLog(env) {
     return { added: 0, updated: 0, cleared: 0, live: [], skipped: true };
   }
   const db = env.DELAY_DB;
-  // end_at 一定要撈:diffAlertState 判 updated 會比它,沒撈的話「預計恢復時間延後兩小時」
-  // 這種只改時間不改內文的更新永遠算不出來(值仍會被 upsert 寫進 D1,但不會產生事件)。
-  const prevRes = await db.prepare('SELECT sys,akey,title,descr,end_at,first_seen,last_seen FROM alert_log WHERE cleared_at IS NULL').all();
+  const prevRes = await db.prepare(ALERT_LOG_PREV_SELECT).all();
   const now = new Date().toISOString();
   const d = diffAlertState((prevRes && prevRes.results) || [], current, liveSys, now);
   const stmts = [];
@@ -1364,10 +1414,12 @@ function trafficTag(origin, userAgent) {
 }
 
 export default {
-  // 多個 cron 共用同一個 handler,靠 event.cron 分派:
+  // 多個 cron 共用同一個 handler,靠 event.cron 顯式分派:
   // '*/5 * * * *' = 公告狀態機(每五分鐘);'15 1'/'15 4' = 台鐵準點統計每日增量(台北 09:15/12:15)。
+  // 不屬於這兩類的 cron 一律不執行任何工作,不落進任一分支的預設行為。
   async scheduled(event, env) {
-    if (event && event.cron === ALERT_LOG_CRON) {
+    const cron = (event && event.cron) || '';
+    if (cron === ALERT_LOG_CRON) {
       try {
         const r = await ingestAlertLog(env);
         if (r.added || r.updated || r.cleared) console.log(`[cron alert-log] 完成: +${r.added} ~${r.updated} -${r.cleared}`);
@@ -1375,6 +1427,13 @@ export default {
         console.error('[cron alert-log] 失敗:', (e && e.stack) || String(e));
         throw e;
       }
+      return;
+    }
+    // 顯式分派:未知 cron 一律不做事。原本這裡是「不是公告狀態機就往下跑台鐵日排程」,
+    // 任何拼錯的、或別條並行線往 triggers.crons 新加的 cron 都會誤觸發台鐵每日 ingest
+    // (打 TDX 歷史、寫 D1、重建 blob)——2026-07-28 Codex 審查 Important。
+    if (!DELAY_HISTORY_CRONS.includes(cron)) {
+      console.error(`[cron] 未知的 cron 觸發,不執行任何工作: ${JSON.stringify(cron)}`);
       return;
     }
     try {
@@ -1456,7 +1515,7 @@ export default {
 };
 
 // 純函式導出,供離線回歸測試 import(不影響 fetch/scheduled 執行路徑)。
-export const _ingest = { parseDayEvents, buildDayRows, buildBlob, roundHalfUpStr, addDays, twParts };
+export const _ingest = { parseDayEvents, buildDayRows, buildBlob, roundHalfUpStr, addDays, twParts, DELAY_HISTORY_CRONS };
 // 純函式導出,供離線回歸測試 import:metroAlert 的 per-op last-known-good + News/TYMC 過濾轉換。
 export const _metroAlert = {
   metroAlertOpFallback, mergeMetroAlertParts, fetchMetroAlertOp, isRecentNews, isIncidentNewsTitle,
@@ -1477,5 +1536,5 @@ export const _rateLimit = { rateLimited, delayHistory, deletePaidProfile };
 export const _alertLog = {
   alertKey, normalizeAlertPayload, diffAlertState, ingestAlertLog, ALERT_LOG_SOURCES,
   ALERT_LOG_CRON, ALERT_LOG_CRON_UA, trafficTag, buildAlertLogBody, alertLog,
-  pruneAlertLog, ALERT_LOG_KEEP_DAYS, ALERT_LOG_MAX_DAYS, ALERT_LOG_UPSERT, ALERT_LOG_CLEAR,
+  pruneAlertLog, ALERT_LOG_KEEP_DAYS, ALERT_LOG_MAX_DAYS, ALERT_LOG_UPSERT, ALERT_LOG_CLEAR, ALERT_LOG_PREV_SELECT,
 };

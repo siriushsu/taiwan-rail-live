@@ -9,7 +9,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import worker, { _alertLog, _metroAlert } from '../worker.js';
+import worker, { _alertLog, _metroAlert, _ingest } from '../worker.js';
 
 const { alertKey, normalizeAlertPayload } = _alertLog;
 let fails = 0;
@@ -121,6 +121,46 @@ const ALL = new Set(['mrt', 'krtc', 'tymc', 'tmrt', 'tra', 'thsr']);
   check(diffAlertState([prevRow], [base], ALL, NOW).updated.length === 0, 'B12 什麼都沒變時不算 updated');
   const later = { ...base, end: 'E2' };
   check(diffAlertState([prevRow], [later], ALL, NOW).updated.length === 1, 'B12 只有 end 改了也算 updated');
+}
+{ // B13(2026-07-28 Codex 審查 Important 2)同 label/title/start 但 descr 不同的兩則要當成
+  // 不同公告,不能被舊版的 Set 去重吞掉一則(例如板南線東行/西行兩則各自獨立的事故)。
+  const a = rec('tra', '路線異常', '板南線東行受阻');
+  const b = rec('tra', '路線異常', '板南線西行受阻');
+  const d = diffAlertState([], [a, b], ALL, NOW);
+  check(d.upserts.length === 2 && d.added.length === 2, 'B13 同 label/title/start 但 descr 不同的兩則都保留成兩列 upsert');
+  check(d.upserts.length >= 2 && d.upserts[0].akey !== d.upserts[1].akey, 'B13 兩則的 akey 不同');
+  check(d.upserts.length >= 2 && d.upserts[1].akey === d.upserts[0].akey + '|#2', `B13 後綴逐字是 base akey + "|#2"（實得 ${d.upserts.length >= 2 ? d.upserts[1].akey : ''}）`);
+}
+{ // B14 同 label/title/start 且 descr、end 都相同的兩則,仍然只產生一列(B13 的修法沒有把既有去重改壞)。
+  const a = rec('tra', '路線異常', '同一份文字');
+  const b = rec('tra', '路線異常', '同一份文字');
+  const d = diffAlertState([], [a, b], ALL, NOW);
+  check(d.upserts.length === 1 && d.added.length === 1, 'B14 descr 與 end 都相同的兩則仍然只算一則(真重複去重維持原樣)');
+}
+{ // B15 三則以上撞同一把 base id:後綴依序 |#2、|#3。
+  const a = rec('tra', '路線異常', '內容一');
+  const b = rec('tra', '路線異常', '內容二');
+  const c = rec('tra', '路線異常', '內容三');
+  const d = diffAlertState([], [a, b, c], ALL, NOW);
+  check(d.upserts.length === 3, `B15 三則互不相同的內容都保留（實得 ${d.upserts.length} 列）`);
+  const keys = d.upserts.map(u => u.akey);
+  check(keys.length === 3 && keys[1] === keys[0] + '|#2' && keys[2] === keys[0] + '|#3', `B15 後綴依序 |#2、|#3（實得 ${JSON.stringify(keys)}）`);
+}
+{ // B16(撞鍵穩定性)同樣輸入、同樣順序跑第二輪——把第一輪的 upsert 結果轉成第二輪的
+  // prevRows(比照 D1 upsert 後再讀回的形狀),撞鍵產生的第二把 akey(帶 |#2 後綴)必須能對上
+  // prevRows 裡對應的列,不會每輪都被當成新公告。這是撞鍵後綴設計的核心不變量——brief 明列
+  // 的已知限制(上游陣列順序若對調,兩列 descr 會互換)不在這裡測,那是接受的雜訊。
+  // 用僅本區塊獨有的標題(不與 B13/B15 撞內容),避免「seenBase 意外變成模組層狀態」這類跨呼叫
+  // 汙染的突變,在 round1 就先被別的區塊留下的殘留值悄悄吃掉、讓 round1 本身先壞掉,而
+  // round1/round2 又剛好壞得一樣(兩邊都被吞成 0 筆)導致下面的差量比較誤判為「穩定」。
+  const a = rec('tra', 'B16路線異常', '板南線東行受阻');
+  const b = rec('tra', 'B16路線異常', '板南線西行受阻');
+  const round1 = diffAlertState([], [a, b], ALL, NOW);
+  check(round1.upserts.length === 2, `B16 前置條件:round1 本身要正確產生兩列(不是被跨呼叫污染吞成 0 筆，實得 ${round1.upserts.length}）`);
+  const prevRows2 = round1.upserts.map(u => ({ sys: u.sys, akey: u.akey, title: u.title, descr: u.descr, end_at: u.end_at, first_seen: u.at, last_seen: u.at }));
+  const round2 = diffAlertState(prevRows2, [a, b], ALL, NOW);
+  check(round2.upserts.length === 2, `B16 round2 同樣要有兩列(不是被 round1 的殘留狀態吞掉，實得 ${round2.upserts.length}）`);
+  check(round2.added.length === 0 && round2.updated.length === 0 && round2.cleared.length === 0, 'B16 同樣輸入、同樣順序的第二輪,撞鍵產生的 akey 穩定對得上 prevRows,零事件(不會每輪都變成新公告)');
 }
 
 console.log('C. mergeMetroAlertParts（metroAlert 內部聚合，Critical 1 第一層防線）');
@@ -529,6 +569,73 @@ const FRESH_AT = () => new Date(Date.now() - 5e3).toISOString();
   const expectClear = 'UPDATE alert_log SET cleared_at=? WHERE sys=? AND akey=? AND cleared_at IS NULL';
   check(_alertLog.ALERT_LOG_CLEAR === expectClear, `E14 ALERT_LOG_CLEAR 與期望值逐字相符\n    期望:${expectClear}\n    實得:${_alertLog.ALERT_LOG_CLEAR}`);
 }
+{ // E15(2026-07-28 Codex 審查 Important 1)上游回 200 但 body 是 {}(缺 alerts 陣列)——語意
+  // 應視同整包失敗(fetchAlertLogSources 回 null),不是「這個系統目前沒有公告」。沒有形狀
+  // 驗證的話,normalizeAlertPayload 會安靜地把 {} 解成空陣列,連帶讓台鐵既有公告被判解除。
+  fakeFetch({
+    '/api/metro-alert': { at: FRESH_AT(), alerts: [{ title: '正常營運', status: 1, sys: 'mrt' }] },
+    '/api/tra-alert': {}, // 形狀不對:缺 alerts 陣列
+    '/api/thsr-alert': { at: FRESH_AT(), alerts: [{ title: '全線營運正常(Normal)', status: 1 }] },
+  });
+  const { db, calls } = fakeDb([{ sys: 'tra', akey: '|東部幹線延誤|', title: '東部幹線延誤', descr: '', end_at: '' }]);
+  const r = await ingestAlertLog({ DELAY_DB: db });
+  check(!r.live.includes('tra'), 'E15a 上游回 200+{}(缺 alerts)時,tra 不進 liveSys');
+  check(r.cleared === 0, 'E15b 上游回 200+{}(缺 alerts)時,台鐵既有公告不被判解除');
+}
+{ // E16 同 E15,但上游回 200+{error:'...'}——同樣是「形狀不對」,不是「陣列剛好是空的」。
+  fakeFetch({
+    '/api/metro-alert': { at: FRESH_AT(), alerts: [{ title: '正常營運', status: 1, sys: 'mrt' }] },
+    '/api/tra-alert': { error: 'upstream timeout' },
+    '/api/thsr-alert': { at: FRESH_AT(), alerts: [{ title: '全線營運正常(Normal)', status: 1 }] },
+  });
+  const { db, calls } = fakeDb([{ sys: 'tra', akey: '|東部幹線延誤|', title: '東部幹線延誤', descr: '', end_at: '' }]);
+  const r = await ingestAlertLog({ DELAY_DB: db });
+  check(!r.live.includes('tra'), 'E16a 上游回 200+{error:...}時,tra 不進 liveSys');
+  check(r.cleared === 0, 'E16b 上游回 200+{error:...}時,台鐵既有公告不被判解除');
+}
+{ // E17(反向斷言,防止 E15/E16 的形狀驗證寫太嚴)上游回 200+{at,alerts:[]}——這是「真的沒有
+  // 公告」的正常形狀,alerts 陣列存在只是剛好是空的,不該被形狀驗證誤擋,仍然要正常判解除。
+  fakeFetch({
+    '/api/metro-alert': { at: FRESH_AT(), alerts: [{ title: '正常營運', status: 1, sys: 'mrt' }] },
+    '/api/tra-alert': { at: FRESH_AT(), alerts: [] },
+    '/api/thsr-alert': { at: FRESH_AT(), alerts: [{ title: '全線營運正常(Normal)', status: 1 }] },
+  });
+  const { db, calls } = fakeDb([{ sys: 'tra', akey: '|東部幹線延誤|', title: '東部幹線延誤', descr: '', end_at: '' }]);
+  const r = await ingestAlertLog({ DELAY_DB: db });
+  check(r.live.includes('tra'), 'E17a 上游回 200+{at,alerts:[]}(真的沒有公告)時,tra 仍進 liveSys');
+  check(r.cleared === 1, 'E17b 上游回 200+{at,alerts:[]}時,台鐵既有公告正常判解除(形狀驗證沒有誤擋正常的空陣列)');
+}
+{ // E18(對照組)上游正常回傳、公告本體仍在(descr 與 prev 一致)——證明 E15/E16 的 cleared===0
+  // 不是巧合,是真的「因為公告還在」而不解除,不是形狀驗證意外導致的副作用。
+  fakeFetch({
+    '/api/metro-alert': { at: FRESH_AT(), alerts: [{ title: '正常營運', status: 1, sys: 'mrt' }] },
+    '/api/tra-alert': { at: FRESH_AT(), alerts: [{ title: '東部幹線延誤', status: 0, desc: '搶修中' }] },
+    '/api/thsr-alert': { at: FRESH_AT(), alerts: [{ title: '全線營運正常(Normal)', status: 1 }] },
+  });
+  const { db, calls } = fakeDb([{ sys: 'tra', akey: '|東部幹線延誤|', title: '東部幹線延誤', descr: '搶修中', end_at: '' }]);
+  const r = await ingestAlertLog({ DELAY_DB: db });
+  check(r.live.includes('tra'), 'E18a 對照組:上游正常回傳時 tra 進 liveSys');
+  check(r.added === 0 && r.updated === 0, 'E18b 對照組:內容與 prev 完全一致,零事件(純粹的「還在」,不是巧合算出 cleared=0)');
+  check(r.cleared === 0, 'E18c 對照組:公告本體仍在時不解除');
+}
+{ // E19(2026-07-28 Codex 審查 Important 4)ALERT_LOG_PREV_SELECT 抽成常數後,行為式驗證
+  // ingestAlertLog 實際 prepare 的那個 SELECT 逐字等於常數——只驗「end_at 有沒有出現在字串裡」
+  // (既有 E4)不夠,拿掉 `WHERE cleared_at IS NULL` 這種子句刪減不會讓 end_at 消失,E4 照樣綠。
+  fakeFetch({
+    '/api/metro-alert': { at: FRESH_AT(), alerts: [{ title: '正常營運', status: 1, sys: 'mrt' }] },
+    '/api/tra-alert': { at: STALE_TRA_AT(), alerts: [{ title: '全線營運正常', status: 1 }] },
+    '/api/thsr-alert': { at: FRESH_AT(), alerts: [{ title: '全線營運正常(Normal)', status: 1 }] },
+  });
+  const { db, calls } = fakeDb([]);
+  await ingestAlertLog({ DELAY_DB: db });
+  const sel = calls.prepared.find(s => /^SELECT/.test(s) && /FROM alert_log/.test(s));
+  check(sel === _alertLog.ALERT_LOG_PREV_SELECT, `E19 ingestAlertLog 實際 prepare 的 SELECT 逐字等於 ALERT_LOG_PREV_SELECT\n    期望:${_alertLog.ALERT_LOG_PREV_SELECT}\n    實得:${sel}`);
+}
+{ // E20 ALERT_LOG_PREV_SELECT 常數本身逐字相符(比照 E13/E14 的寫法)——只有 E19 的行為式檢查
+  // 不夠:有人把呼叫點改回寫死字串(不再用這個常數)一樣能讓 E19 綠,常數本身的字面值沒人守。
+  const expectSel = 'SELECT sys,akey,title,descr,end_at,first_seen,last_seen FROM alert_log WHERE cleared_at IS NULL';
+  check(_alertLog.ALERT_LOG_PREV_SELECT === expectSel, `E20 ALERT_LOG_PREV_SELECT 與期望值逐字相符\n    期望:${expectSel}\n    實得:${_alertLog.ALERT_LOG_PREV_SELECT}`);
+}
 globalThis.fetch = realFetch;
 
 // ── Task 4(2026-07-28):/api/alert-log 唯讀查詢端點 ──────────────────────────
@@ -793,6 +900,49 @@ console.log('C9. metroAlert() 接線注入（2026-07-28 修復輪 4，M13/M14：
   check(eq(body.degraded, []), 'C9 兩邊接線都對時 degraded 是空陣列（任一邊斷線都會讓對應 sys 進 degraded，見上方突變測試）');
 }
 
+console.log('C10. fetchImpl 預設參數（2026-07-28 Codex 審查 Important 3：workerd 離線證不了「把 fetch 當函式物件傳遞」是否成立，改用預設參數包一層，正式路徑不帶引數）');
+{
+  // C10a 不帶 fetchImpl 呼叫 fetchMetroAlertOp 時,預設值要真的透過全域 fetch 發出請求——
+  // 不是 fetchImpl===undefined 直接炸掉、也不是默默不打任何請求。
+  const realFetch = globalThis.fetch;
+  let calledWith = null;
+  globalThis.fetch = async (url) => { calledWith = String(url); return new Response(JSON.stringify({ Alerts: [{ Title: 'C10-OP', Description: 'x' }] }), { status: 200 }); };
+  try {
+    const r = await fetchMetroAlertOp({ op: '__TEST_DEFAULT__', sys: 'mrt', label: 'x' }, 'tok');
+    check(!!calledWith && calledWith.includes('/Rail/Metro/Alert/__TEST_DEFAULT__'), 'C10a fetchMetroAlertOp 不帶 fetchImpl 時,預設參數真的透過全域 fetch 發出請求');
+    check(r.list.length === 1 && r.list[0].title === 'C10-OP', 'C10a 預設參數路徑解析結果正確(不是空殼)');
+  } finally { globalThis.fetch = realFetch; }
+}
+{
+  // C10b 不帶 fetchImpl 呼叫 fetchTymcNewsAlerts 時同理。先清空 tymcNewsMem 避免撞到 TTL fast path。
+  _resetTymcNewsMemForTest(null, 0);
+  const realFetch = globalThis.fetch;
+  let calledWith = null;
+  const recentIso = new Date(Date.now() - 3600e3).toISOString();
+  globalThis.fetch = async (url) => { calledWith = String(url); return new Response(JSON.stringify({ Newses: [{ Title: 'C10設備異常', Description: 'y', UpdateTime: recentIso }] }), { status: 200 }); };
+  try {
+    const r = await fetchTymcNewsAlerts('tok');
+    check(!!calledWith && calledWith.includes('/Rail/Metro/News/TYMC'), 'C10b fetchTymcNewsAlerts 不帶 fetchImpl 時,預設參數真的透過全域 fetch 發出請求');
+    check(r.list.length === 1 && r.list[0].title.includes('C10設備異常'), 'C10b 預設參數路徑解析結果正確(不是空殼)');
+  } finally { globalThis.fetch = realFetch; _resetTymcNewsMemForTest(null, 0); }
+}
+{
+  // C10c 帶 fetchImpl 時仍然走注入的替身——確認加預設值沒有連帶改壞既有的注入路徑
+  // (既有 C5a/C8b 已經涵蓋,這裡另外用獨立標記內容再驗一次,避免只是巧合過)。
+  const injected = async () => new Response(JSON.stringify({ Alerts: [{ Title: 'C10-INJECTED', Description: 'z' }] }), { status: 200 });
+  const r = await fetchMetroAlertOp({ op: '__TEST_INJECTED__', sys: 'mrt', label: 'x' }, 'tok', injected);
+  check(r.list.length === 1 && r.list[0].title === 'C10-INJECTED', 'C10c 帶 fetchImpl 時仍然走注入的替身,不會被預設參數蓋過');
+}
+{
+  // C10d 原始碼層級護欄:兩個呼叫點不准把 fetch 當第三/第二個引數傳——這件事無法用行為測試
+  // 證明(不管呼叫點傳不傳 fetch,fetchImpl(...)/fetch(...) 執行到的都是當下的 globalThis.fetch,
+  // 兩者在 Node 環境完全等價,測不出差異;差異只存在於 workerd 能不能接受「把 fetch 當函式物件
+  // 傳遞」這件事,離線證不了)。唯一守得住的方式是直接讀原始碼。
+  const src = fs.readFileSync(path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'worker.js'), 'utf8');
+  check(!/fetchMetroAlertOp\(\s*o\s*,\s*token\s*,\s*fetch\s*\)/.test(src), 'C10d 原始碼裡 fetchMetroAlertOp 的呼叫點不再把 fetch 當第三個引數傳');
+  check(!/fetchTymcNewsAlerts\(\s*token\s*,\s*fetch\s*\)/.test(src), 'C10d 原始碼裡 fetchTymcNewsAlerts 的呼叫點不再把 fetch 當第二個引數傳');
+}
+
 console.log('D. alertKey');
 check(alertKey({ title: 'A', start: 'S', label: '' }) === '|A|S', 'label+標題+起始時間組合成鍵');
 check(alertKey({ title: 'A', label: '' }) === '|A|', 'start 缺值不炸、以空字串入鍵');
@@ -813,6 +963,10 @@ console.log('F. cron 設定跨檔一致性');
   const crons = m ? JSON.parse(m[1]) : [];
   check(crons.length > 0, 'F1 wrangler.jsonc 讀到 crons 陣列（正規式抓到東西）');
   check(crons.includes(ALERT_LOG_CRON), `F2 wrangler.jsonc 的 crons 含有與 worker.js ALERT_LOG_CRON 逐字相同的項目（ALERT_LOG_CRON=${JSON.stringify(ALERT_LOG_CRON)}，crons=${JSON.stringify(crons)}）`);
+  // F2b(2026-07-28 Codex 審查 Important:cron 值可以漂掉而全綠)F2 只驗「wrangler.jsonc 含有
+  // 與 worker.js ALERT_LOG_CRON 逐字相同的項目」——兩邊一起改成 '0 * * * *'(每小時)一樣全綠,
+  // 因為兩邊還是彼此相等。這裡把值本身寫死,日後真的要調頻率,改這條斷言是刻意動作,不是意外。
+  check(ALERT_LOG_CRON === '*/5 * * * *', `F2b ALERT_LOG_CRON 逐字等於 '*/5 * * * *'（實際=${JSON.stringify(ALERT_LOG_CRON)}）`);
 }
 { // F3(2026-07-28 改寫):原本用讀原始碼＋正規式驗接線,實測兩種繞法都騙得過它——
   // 把 try/catch 兩行都註解掉、把呼叫搬進每分鐘分支,兩者都是 149 條零 FAIL(記錄見
@@ -837,6 +991,64 @@ console.log('F. cron 設定跨檔一致性');
     check(!b.calls.sql.some(c => /DELETE FROM alert_log/.test(c.sql)),
       'F3b 每分鐘那發不做清理（清理只屬於日排程）');
   } finally { globalThis.fetch = realFetch; }
+}
+{ // F4(2026-07-28 Codex 審查 Important 5)scheduled 對未知 cron 必須顯式什麼都不做,不能落入
+  // 「不是公告狀態機就當作日排程」的預設分支——否則任何拼字錯誤、或別條並行線加進
+  // triggers.crons 的 cron 都會誤觸發台鐵每日 ingest(打 TDX 歷史、寫 D1、重建 blob)。
+  const { DELAY_HISTORY_CRONS } = _ingest;
+  const { ALERT_LOG_CRON } = _alertLog;
+  const realFetch = globalThis.fetch;
+  globalThis.fetch = async () => { throw new Error('測試不打外部'); };
+  try {
+    // F4a/F4b:兩個已知的日排程 cron 值都要真的進日排程分支——沿用 F3a 同款的代理信號
+    // (finally 裡的 pruneAlertLog 有沒有跑),那個 DELETE 只會在日排程分支的 finally 裡出現。
+    {
+      const { db, calls } = fakeDb([]);
+      await worker.scheduled({ cron: '15 1 * * *' }, { DELAY_DB: db }).catch(() => {});
+      check(calls.sql.some(s => /DELETE FROM alert_log/.test(s.sql)), 'F4a cron=15 1 * * *(第一發日排程)有進日排程分支(finally 清理有跑)');
+    }
+    {
+      const { db, calls } = fakeDb([]);
+      await worker.scheduled({ cron: '15 4 * * *' }, { DELAY_DB: db }).catch(() => {});
+      check(calls.sql.some(s => /DELETE FROM alert_log/.test(s.sql)), 'F4b cron=15 4 * * *(第二發日排程)有進日排程分支(finally 清理有跑)');
+    }
+    // F4c/F4d:未知 cron 完全不做事——零 D1 呼叫(公告 ingest 與日排程都沒跑)、零 fetch 呼叫。
+    {
+      const { db, calls } = fakeDb([]);
+      let fetchCalls = 0;
+      globalThis.fetch = async () => { fetchCalls++; throw new Error('不該被呼叫'); };
+      await worker.scheduled({ cron: '0 0 * * *' }, { DELAY_DB: db }).catch(() => {});
+      check(calls.prepared.length === 0 && calls.sql.length === 0 && calls.batch.length === 0, 'F4c 未知 cron(0 0 * * *)完全沒有碰 D1(公告 ingest 與日排程都沒跑)');
+      check(fetchCalls === 0, 'F4d 未知 cron 完全沒有打 fetch');
+      globalThis.fetch = async () => { throw new Error('測試不打外部'); };
+    }
+    // F4e/F4f:event.cron 缺漏、或 event 本身是 undefined,都當「未知」處理,不 throw、不碰 D1。
+    {
+      const { db, calls } = fakeDb([]);
+      let threw = false;
+      try { await worker.scheduled({}, { DELAY_DB: db }); } catch (e) { threw = true; }
+      check(!threw && calls.prepared.length === 0, 'F4e event.cron 缺漏時當未知處理、不 throw、不碰 D1');
+    }
+    {
+      const { db, calls } = fakeDb([]);
+      let threw = false;
+      try { await worker.scheduled(undefined, { DELAY_DB: db }); } catch (e) { threw = true; }
+      check(!threw && calls.prepared.length === 0, 'F4f event 本身 undefined 時當未知處理、不 throw、不碰 D1');
+    }
+  } finally { globalThis.fetch = realFetch; }
+  // F4g/F4h:DELAY_HISTORY_CRONS 與 wrangler.jsonc 的 triggers.crons 雙向一致,比照既有 F1/F2
+  // 的讀檔方式——正向(DELAY_HISTORY_CRONS 的每一項都在 wrangler.jsonc 裡)防止常數漏寫,
+  // 反向(wrangler.jsonc 裡的每一項都被某個 handler 認得)防止陌生 cron 混進 triggers.crons
+  // 卻沒有任何程式碼知道要拿它做什麼(F4c/F4d 剛驗完那正是「什麼都不做」的後果)。
+  {
+    const wranglerPath = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'wrangler.jsonc');
+    const text = fs.readFileSync(wranglerPath, 'utf8');
+    const m = text.match(/"crons"\s*:\s*(\[[^\]]*\])/);
+    const crons = m ? JSON.parse(m[1]) : [];
+    check(DELAY_HISTORY_CRONS.every(c => crons.includes(c)), `F4g DELAY_HISTORY_CRONS 的每一項都出現在 wrangler.jsonc 的 triggers.crons（DELAY_HISTORY_CRONS=${JSON.stringify(DELAY_HISTORY_CRONS)}，crons=${JSON.stringify(crons)}）`);
+    const unknown = crons.filter(c => c !== ALERT_LOG_CRON && !DELAY_HISTORY_CRONS.includes(c));
+    check(unknown.length === 0, `F4h wrangler.jsonc 的 triggers.crons 裡每一項都能被 ALERT_LOG_CRON 或 DELAY_HISTORY_CRONS 認得（陌生項=${JSON.stringify(unknown)}）`);
+  }
 }
 
 console.log('G. trafficTag（cron 自身流量不誤記,2026-07-27 審查 Important 5）');
