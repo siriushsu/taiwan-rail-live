@@ -538,20 +538,75 @@
   }
   .collect-bar .cb-tgl:hover { opacity: 1; }
   .collect-bar .cb-tgl.on { background: #ffd60a; border-color: #ffd60a; color: #1a1400; opacity: 1; }
+  /* ── 錄製中常駐狀態列(2026-07-28 規格覆審,推翻原本「黑幕接管」設計的理由見 #recordScreen
+     旁的完整註解)：比照 .collect-bar 的位置與結構(同樣的置頂置中、同樣的出場方式)，只換色——
+     沿用懸賞既有的紅(#bountyBriefGo/.bt-take 那組 --red/--red-deep)，不自創一套視覺語言。
+     地圖預設維持可見可操作，這顆是這個模式在地圖上的唯一常駐標示；想看大字/進度條/完整品質
+     說明才點「詳細」另開 #recordScreen。 ── */
+  .record-bar {
+    /* z820（不是照抄 .collect-bar 的 680）：錄製中「停止」必須隨時可觸及是這次的硬性驗收
+       條件，而 #howtoWrap(首訪教學卡)是 z800——第一次使用、還沒關過教學卡的人若這時開始
+       錄製，680 會被教學卡整片蓋住連停止鈕都點不到（測試在重新整理後首訪卡重新出現時
+       實測抓到）。錄製是使用者主動、有安全疑慮(要能隨時停)的前景狀態，優先權必須贏過
+       被動的入門提示。 */
+    position: absolute; top: 12px; left: 50%; transform: translateX(-50%); z-index: 820;
+    display: flex; align-items: center; gap: 8px; flex-wrap: wrap; justify-content: center;
+    width: max-content; max-width: calc(100% - 24px); box-sizing: border-box;
+    background: var(--red); color: #fffdf6;
+    border: 2px solid var(--red-deep); border-radius: var(--r-pill);
+    box-shadow: var(--shadow-red); padding: 6px 8px 6px 14px;
+    font-variant-numeric: tabular-nums; white-space: nowrap;
+  }
+  .record-bar[hidden] { display: none; }
+  /* 寬版 pill 模式:兩個分組 div 對版面「隱形」,子元素直接參與 .record-bar 自己的 flex 排列
+     (與現況逐像素相同);手機緊湊模式(見 ≤900 媒體查詢內的覆寫)才讓它們變回真正的兩行。 */
+  .record-bar .rb-row1, .record-bar .rb-row2 { display: contents; }
+  .record-bar .rb-dot { flex: none; width: 9px; height: 9px; border-radius: 50%; background: #fffdf6; animation: rcblink 1.6s infinite; }
+  .record-bar .rb-ttl { font-size: 13px; font-weight: 900; letter-spacing: 1px; }
+  .record-bar .rb-stat { font-size: 11.5px; font-weight: 700; opacity: .92; }
+  /* 訊號燈色階跟 .rc-quality::before(詳細面板裡的那顆)同一套映射，不重造一份判準 */
+  .record-bar .rb-sig { flex: none; width: 9px; height: 9px; border-radius: 50%; background: #ff3b30; border: 1.5px solid rgba(255,255,255,.55); }
+  .record-bar .rb-sig[data-q="good"] { background: #34c759; }
+  .record-bar .rb-sig[data-q="weak"] { background: #ff9f0a; }
+  .record-bar .rb-sig[data-q="none"], .record-bar .rb-sig[data-q="precise_off"] { background: #ff3b30; }
+  .record-bar .rb-detail {
+    flex: none; background: transparent; color: #fffdf6; border: 1.5px solid rgba(255,253,246,.75);
+    border-radius: var(--r-pill); padding: 4px 12px; min-height: 30px; min-width: 44px;
+    font-size: 12px; font-weight: 800; cursor: pointer; font-family: inherit;
+  }
+  .record-bar .rb-detail:hover { opacity: .86; }
+  .record-bar .rb-stop {
+    flex: none; background: #fffdf6; color: var(--red-deep); border: 0; border-radius: var(--r-pill);
+    padding: 4px 14px; min-height: 30px; min-width: 56px; /* 隨時可及的出口,觸控尺寸不能省(比照 .cb-exit) */
+    font-size: 12px; font-weight: 800; cursor: pointer; font-family: inherit;
+  }
+  .record-bar .rb-stop:hover { opacity: .86; }
   /* 收集地圖是靜態檢視:播放/倍速/時刻尺對一張「你走過哪裡」毫無意義,留著只會讓人以為壞了。
      .stage-tools 在 .controls 內、跟著一起收;手機的 tabbar 同理(唯一出口是狀態列的「離開」)。
      .badge 的「N 班奔跑中」在不畫車的模式下恆為 0、看起來像壞掉;
      .map-actions 的隨機跟隨也沒車可跟——兩個都收掉。 */
   body.collect-map .controls, body.collect-map .tabbar,
   body.collect-map .badge, body.collect-map .map-actions { display: none; }
-  /* 錄製模式：比照 body.collect-map 收掉會說謊的 UI。錄製畫面不畫車、不吃時刻尺，
-     那幾顆留著只會讓人以為畫面壞了（收集地圖那批是靠看截圖才發現漏掉兩顆的） */
-  body.recording .controls, body.recording .tabbar,
-  body.recording .badge, body.recording .map-actions { display: none; }
+  /* 錄製「詳細面板」全螢幕接管時比照 body.collect-map 收掉會說謊的 UI(理由同上)。
+     🔴 2026-07-28 規格覆審：這條原本綁的是 body.recording(整段錄製期間)，使用者回饋
+     「應該也要能讓使用者繼續使用裝置」之後，錄製期預設是地圖可見可操作(見 #recordBar)，
+     這條規則收窄成只在「詳細面板」真的整片接管畫面時才生效——面板的黑幕本來就物理蓋住
+     這些控件，這裡純粹是不讓它們留在可 focus/可被螢幕報讀器唸到的地方(不說謊)。
+     .record-bar 同理收掉：黑幕蓋住它是物理事實，這裡只是讓它別留在 DOM 焦點順序裡。 */
+  body.rec-panel .controls, body.rec-panel .tabbar, body.rec-panel .record-bar,
+  body.rec-panel .badge, body.rec-panel .map-actions { display: none; }
   .record-screen { position: fixed; inset: 0; z-index: 2400; background: #000; color: #fff;
     display: flex; flex-direction: column; align-items: center; justify-content: space-between;
     padding: 28px 20px calc(28px + env(safe-area-inset-bottom)); }
   .record-screen[hidden] { display: none; }
+  /* 「回地圖」≠「停止錄製」，兩者刻意隔到最遠(左上角 vs 下方置中大白鈕)、樣式也刻意平淡(細描邊
+     幽靈鈕 vs 純白實心大鈕)，避免使用者摸黑誤觸——見 #recordScreen 旁完整註解。 */
+  .rc-back {
+    position: absolute; top: 16px; left: 16px; z-index: 1;
+    background: transparent; border: 1px solid #444; color: #999; border-radius: 999px;
+    padding: 6px 14px; min-height: 30px; font-size: 13px; font-weight: 700; cursor: pointer; font-family: inherit;
+  }
+  .rc-back:hover { background: rgba(255,255,255,.08); color: #fff; }
   .rc-top { display: flex; align-items: center; gap: 8px; font-size: 15px; letter-spacing: .05em; }
   .rc-dot { width: 10px; height: 10px; border-radius: 50%; background: #ff3b30; animation: rcblink 1.6s infinite; }
   @keyframes rcblink { 0%, 100% { opacity: 1 } 50% { opacity: .25 } }
@@ -569,10 +624,17 @@
   .rc-row { margin-top: 10px; font-size: 17px; opacity: .85; }
   .rc-bar { margin-top: 18px; width: min(320px, 76vw); height: 8px; border-radius: 4px; background: #222; overflow: hidden; }
   .rc-bar i { display: block; height: 100%; width: 0; background: #34c759; transition: width .4s; }
-  /* 錄製中的錯誤／狀態訊息不能走 .stage 內的全站 toast（會被本黑幕蓋住）；
-     固定用紙色金框在黑底上保持可讀，位置也不會影響錄製畫面的唯一停止鈕。 */
+  /* 🔴 2026-07-28 規格覆審：#recHint 原本是 #recordScreen 的子元素、靠 flex 排版置中——那是
+     黑幕全螢幕接管年代的設計。黑幕沒了之後 #recordScreen 預設是隱藏的，這則提示(尤其
+     precise_off，唯一不修就整趟白錄的失敗)必須在地圖可見的狀態下也看得到，所以搬成 body 層
+     fixed 定位、z-index 高過 #recordScreen(2400)本身——不管黑幕開不開都蓋得到。位置貼著
+     #recordBar 下緣，由 positionRecHint() 依常駐列實際渲染的 rect 動態算(比照 placeMobileNotice
+     的既有精神，不寫死像素——常駐列內容長度會變，寫死值遲早跟 collect-bar 家族一樣撞到
+     「內容變寬就重疊」)；top 這裡先給一個合理預設，實際顯示前一律被 JS 覆寫。
+     維持紙色金框（不透明實色卡片，疊在地圖或黑幕上都讀得出來，不必分兩套視覺）。 */
   .rc-hint {
-    margin: 18px auto 0; width: min(320px, calc(100vw - 40px)); box-sizing: border-box;
+    position: fixed; left: 50%; transform: translateX(-50%); z-index: 2450; top: 64px;
+    width: min(320px, calc(100vw - 40px)); box-sizing: border-box;
     background: #fffdf6; color: #3a3226; border: 1.5px solid #d2a12a; border-radius: 10px;
     box-shadow: 0 3px 0 rgba(163,100,26,.3); padding: 9px 18px;
     font-size: 15px; font-weight: 700; line-height: 1.5; white-space: normal;
@@ -992,6 +1054,10 @@
     cursor: pointer; white-space: nowrap;
   }
   .ph-sec .pl-map:hover { opacity: .86; }
+  /* 懸賞板入口改成懸賞既有的紅(#bountyBriefGo/.bt-take 那組 --red/--red-deep,不自創新色)：
+     使用者實測回饋「太不起眼,連自己都差點沒找到」。只疊色彩與字重,幾何(min-height/padding)
+     完全沿用上面 .pl-map 共用規則不重複定義——不能動 verify_checkin.mjs L10 的護照高度預算。 */
+  .ph-sec .pl-map.pl-bounty { background: var(--red); border: 1px solid var(--red-deep); color: #fffdf6; font-weight: 900; }
   /* 「校正貢獻」節專屬收窄(只動這個新節,不動 .ph-sec 共用規則,其餘七節間距不受影響):
      這節永遠渲染(不像其他節資料是空的就整段不長出來),在車站牆龐大的重度使用者身上會把護照
      預設高度推過 verify_checkin.mjs L10「收得進一個視窗」的門檻——相鄰 margin 本來就會 collapse
@@ -2177,6 +2243,42 @@
     .topbar .grouptabs .gtab { font-size: 13px; padding: 6px 14px; min-height: 36px; }
     body.live .topbar { display: none !important; }
     body.ambient .topbar { display: none; }
+    /* GPS 錄製常駐列 × 頂列頁籤衝突修復(2026-07-28 迴歸修復,獨立驗收抓到):#recordBar 原本
+       用 z-index(820>620)贏過 .topbar、浮在其上,寬度覆蓋到 .topbar 左半——360/390/414px 時
+       精確蓋住 #topTabs 的「台/鐵/高」三顆(只有排最後的「捷」倖免)。這是「贏過別人」的閃避式
+       修法,寬度一變就會再撞、這次的迴歸正是證據。
+       改採「佔自己的位置」:錄製中借用軌島牌(.tb-plate)本來就沒人跟頁籤搶的地盤(l10~186,
+       頁籤從 l190 才開始)——牌與列互斥顯示,列收窄到頁籤地盤之外,兩者從結構上不可能再重疊,
+       不必再繫在 z-index 數字或座標的貓抓老鼠遊戲上。
+       另一方案是把整條 .topbar 往下推、讓出一條橫幅專屬列高,但那會牽動「可視地圖窗」契約
+       (mapInsets/focusCenter/reframeFocus,見該函式群註解)——那組契約目前只認 bottom 遮蔽,
+       沒有 top 這個維度,要新增維度並重新稽核跟隨/放空鏡頭在新維度下是否置中正確,異動面遠
+       大於這裡,且這個專案在相機置中這塊有多次踩坑紀錄(v0713r 抖動/v0713u 脫鉤)。借牌位
+       這個方案零觸碰相機契約、診斷面小很多,故採用它。停止鈕維持專案觸控尺寸下限(≥28px
+       高、min-width 44px),是這個模式唯一的緊急出口,寬度固定(flex:none)不參與收縮。
+       🔴 .tb-plate 用 visibility:hidden 不用 display:none:.topbar 是 justify-content:
+       space-between 的兩子項(tb-plate/topTabs)——display:none 會把 tb-plate 整個抽出排版,
+       topTabs 變成唯一子項後被 space-between 推去起點(左邊),直接撞上 #recordBar(實測抓到:
+       topTabs 從 l190 掉到 l10)。visibility:hidden 保留版位不佔視覺,topTabs 才會留在右側原地。 */
+    body.fs.recording:not(.rec-panel):not(.live):not(.ambient) .topbar .tb-plate { visibility: hidden; }
+    body.fs.recording:not(.rec-panel):not(.live):not(.ambient) .record-bar {
+      position: absolute; top: calc(8px + env(safe-area-inset-top, 0px)); left: 10px;
+      transform: none; width: max-content; max-width: 150px;
+      flex-direction: column; align-items: stretch; justify-content: flex-start;
+      gap: 2px; padding: 2px 7px 3px 9px; line-height: 1.15;
+    }
+    body.fs.recording:not(.rec-panel):not(.live):not(.ambient) .record-bar .rb-row1,
+    body.fs.recording:not(.rec-panel):not(.live):not(.ambient) .record-bar .rb-row2 {
+      display: flex; align-items: center; gap: 5px;
+    }
+    body.fs.recording:not(.rec-panel):not(.live):not(.ambient) .record-bar .rb-ttl { font-size: 11px; }
+    body.fs.recording:not(.rec-panel):not(.live):not(.ambient) .record-bar .rb-detail { display: none; }
+    body.fs.recording:not(.rec-panel):not(.live):not(.ambient) .record-bar .rb-stat {
+      flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis;
+    }
+    body.fs.recording:not(.rec-panel):not(.live):not(.ambient) .record-bar .rb-stop {
+      flex: none; min-height: 28px; padding-top: 2px; padding-bottom: 2px;
+    }
     /* 時鐘徽章讓位頂列:移到頂列下方(safe-area 隨動態島下移,與頂列一致) */
     .badge { top: calc(58px + env(safe-area-inset-top, 0px)); left: 10px; gap: 9px; padding: 5px 11px 6px; }
     .badge .clock { font-size: 17px; }
@@ -2725,6 +2827,25 @@ try { if (matchMedia('(max-width: 900px)').matches) document.body.classList.add(
       <button class="cb-tgl" id="collectBountyBtn" type="button" title="標出我校正過的路段">校正過的</button>
       <button class="cb-exit" id="collectExit" title="離開收集地圖，回到即時地圖">離開</button>
     </div>
+    <!-- GPS 校正旅程錄製中的常駐狀態列(2026-07-28 規格覆審,取代原本的全螢幕黑幕接管——
+         理由與取捨寫在 #recordScreen 旁)：比照上面 .collect-bar 同一個先例,地圖維持可見可操作,
+         這裡是這個模式在地圖上的唯一常駐標示。里程/訊號燈由 renderRecordScreen()／
+         bountyTickQuality() 同步更新(與詳細面板共用同一份 state.recording,單一事實來源)。 -->
+    <!-- rb-row1/rb-row2 是 2026-07-28 迴歸修復加的分組(手機緊湊模式要兩行擺、寬版 pill 用
+         display:contents 讓分組在版面上「消失」,兩種模式共用同一份 DOM,見下方 CSS 與
+         「錄製常駐列 × 頂列頁籤衝突修復」註解)。 -->
+    <div class="record-bar" id="recordBar" hidden>
+      <div class="rb-row1" id="recordBarRow1" title="打開大字/進度條/完整品質說明">
+        <span class="rb-dot"></span>
+        <span class="rb-ttl">錄製中</span>
+        <span class="rb-sig" id="recordBarSig" data-q="none" title="訊號品質"></span>
+      </div>
+      <div class="rb-row2">
+        <span class="rb-stat" id="recordBarStat">0.0 公里</span>
+        <button class="rb-detail" id="recordBarDetail" type="button" title="打開大字/進度條/完整品質說明">詳細</button>
+        <button class="rb-stop" id="recordBarStop" type="button" title="停止並保存這趟 GPS 校正旅程">停止</button>
+      </div>
+    </div>
     <div class="toasts" id="toasts"></div>
     <div class="alert-banner" id="alertBanner" hidden></div>
     <div class="alert-detail" id="alertDetail" hidden></div>
@@ -3206,15 +3327,29 @@ try { if (matchMedia('(max-width: 900px)').matches) document.body.classList.add(
     </div>
   </div>
 </div>
-<!-- 極簡錄製畫面（規格 §5 之一）。黑底大字、不畫地圖動畫：①省電（OLED 黑底再省一層。
-     🔴 2026-07-28 審查糾正 B3：這裡目前只停畫面不停模擬——黑幕底下整套 rAF/clearRect/列車推算
-     照常在跑，真正的省電(暫停模擬本身)留給接上取樣時處理，不要在這條註解宣稱一個還沒兌現的好處）
-     ②使用者本來也不會盯著看 ③視覺上明確標示正在錄製，符合隱私透明 ④讓懸賞長得像行程記錄器
-     而不是另一種打卡。掛 body 層與其他浮層同理（.stage 會封頂 z-index）。
-     🔴 刻意不給 Esc／點背景關閉：這是要開一小時的實體錄製模式，不是可以誤觸關掉的小提示——
-     「錄到一半被誤觸中斷」比「找不到怎麼關」傷害更大，且畫面本身就是全螢幕，沒有「背景」可點。
-     結束入口只有一顆隨時可見、夠大的「停止錄製」（比照 body.collect-map 的 cb-exit 先例）。 -->
+<!-- 🔴🔴 2026-07-28 規格覆審：推翻規格 §5 之一「錄製模式是專用的極簡畫面，不是一邊看動畫一邊錄」。
+     原始規格給了四個理由：①省電（OLED 黑底再省一層——但 2026-07-28 審查糾正 B3 已經指出這裡
+     從來只停畫面不停模擬，黑幕底下整套 rAF/clearRect/列車推算照常在跑，這個好處現況根本沒兌現，
+     等於黑幕付了電費卻什麼都沒買到）②使用者本來也不會盯著看（實測推翻：真人回饋「錄製途中可以
+     顯示地圖與列車嗎？不要都是黑畫面。應該也要能讓使用者繼續使用裝置才對」——理由②本身就是被
+     推翻的那一條）③視覺上明確標示正在錄製，符合隱私透明 ④讓懸賞長得像行程記錄器而不是另一種
+     打卡。②被使用者實測推翻、①現況沒兌現，只剩③④——這兩個用「常駐紅色狀態列」（#recordBar，
+     比照 body.collect-map 的 #collectBar 先例）一樣達成，不需要犧牲「地圖仍可見可操作」。
+     改法：預設狀態變成「地圖照跑＋常駐狀態列」，這片黑底大字畫面降級成使用者主動點「詳細」才
+     開的**選用面板**（看大字/進度條/完整品質說明時才需要），不再是錄製一開始就接管的畫面。
+     🔴 定位不變的部分：使用者已明確把這次的範圍限定在「App 內能離開錄製畫面（回地圖、開看板、
+     跟別的車、看護照），不是切到別的 App／鎖螢幕還要錄」——錄製全程仍要求 App 前景＋螢幕亮著
+     （Wake Lock 邏輯完全不動），定位權限仍是 When-in-use，不引入任何背景／鎖屏取樣，隱私架構
+     與已送審的資料揭露一個字都不用改。
+     掛 body 層與其他浮層同理（.stage 會封頂 z-index，全螢幕接管必須跳出去才蓋得住 tabbar）。
+     🔴 刻意不給 Esc／點背景關閉「這個面板」：這片面板開著時仍是全螢幕、沒有「背景」可點；
+     但「關掉這片面板」現在只是回到地圖，錄製本身完全不受影響——所以新增了 #recPanelBack
+     「回地圖」這個安全的離開動作。這條規則真正要守的是「離開 ≠ 停止」：#recPanelBack（左上角、
+     細描邊幽靈鈕）刻意跟 #recStop（下方置中、純白實心大鈕）隔到最遠、樣式也刻意天差地遠，
+     避免摸黑誤觸把「回地圖」看成「停止錄製」。真正結束錄製的入口有兩個——這片面板裡的
+     #recStop，以及 #recordBar 常駐列上的 #recordBarStop——兩個按下去都是同一個 stopBountyRecording()。 -->
 <div class="record-screen" id="recordScreen" hidden>
+  <button class="rc-back" id="recPanelBack" type="button" title="回地圖(錄製會繼續進行，不會停止)">‹ 回地圖</button>
   <div class="rc-top"><span class="rc-dot"></span>錄製中<span class="rc-route" id="recRoute"></span></div>
   <div class="rc-main">
     <div class="rc-quality" id="recQuality" data-q="none" role="status" aria-live="polite">
@@ -3223,10 +3358,14 @@ try { if (matchMedia('(max-width: 900px)').matches) document.body.classList.add(
     <div class="rc-big"><span id="recKm">0.0</span><small>公里</small></div>
     <div class="rc-row"><span id="recSegs">0</span> 段已覆蓋・<span id="recPts">0</span> 點已鎖定</div>
     <div class="rc-bar"><i id="recBar"></i></div>
-    <div class="rc-hint" id="recHint" role="status" aria-live="polite" hidden></div>
   </div>
   <button class="rc-stop" id="recStop" type="button">停止錄製</button>
 </div>
+<!-- #recHint 搬出黑幕，獨立成 body 層浮條(見上面 #recordScreen 旁的完整註解)：precise_off 那則
+     提示不修就整趟白錄，必須在「地圖可見、詳細面板沒開」的預設狀態下也看得到——固定貼在
+     #recordBar 常駐列下方，z-index(2450)高過 #recordScreen(2400)，兩種畫面都蓋得到它。
+     位置由 positionRecHint() 依 #recordBar 實際渲染的 rect 動態算，不寫死像素。 -->
+<div class="rc-hint" id="recHint" role="status" aria-live="polite" hidden></div>
 <div class="takeout-modal notify-modal" id="notifyModal" hidden>
   <section class="takeout-dialog notify-dialog" role="dialog" aria-modal="true" aria-labelledby="notifyTitle">
     <div class="takeout-head"><h2 id="notifyTitle">到站提醒</h2><button id="notifyClose" type="button">×</button></div>
@@ -8857,12 +8996,19 @@ function placeMobileNotice(el) {
   if (!el) return;
   const mob = window.matchMedia(MOBILE_MQ).matches;
   const collect = document.body.classList.contains('collect-map');
-  if ((!mob && !collect) || el.hidden) { el.style.top = ''; el.style.bottom = ''; el.style.maxHeight = ''; el.style.overflowY = ''; return; }
+  // 🔴 規格覆審 2026-07-28：錄製中(地圖可見、常駐列在)一樣要避開常駐列，比照 collect 的既有
+  // 寫法——否則手機上吐司會壓在 #recordBar 常駐錄製列上(它佔掉的正是吐司原本置頂置中的位置)。
+  const recording = document.body.classList.contains('recording');
+  if ((!mob && !collect && !recording) || el.hidden) { el.style.top = ''; el.style.bottom = ''; el.style.maxHeight = ''; el.style.overflowY = ''; return; }
   const par = el.offsetParent; if (!par) return;
   const pr = par.getBoundingClientRect();
   let topV = pr.top + 12; // 上界:頂列控件(左上時鐘/換一班、右上工具/全畫面)最低的底 + 8px
   if (collect) {
     const bar = document.getElementById('collectBar');
+    if (bar && !bar.hidden && bar.offsetParent) { const r = bar.getBoundingClientRect(); if (r.height) topV = Math.max(topV, r.bottom + 8); }
+  }
+  if (recording) {
+    const bar = document.getElementById('recordBar');
     if (bar && !bar.hidden && bar.offsetParent) { const r = bar.getBoundingClientRect(); if (r.height) topV = Math.max(topV, r.bottom + 8); }
   }
   for (const sel of ['#clock', '#mapActions', '#toolsFab', '#fsFab']) { // #mapActions=隨機跟隨＋附近車站並排列(桌面 display:contents 無盒 → 下面 r.height 為 0 自動跳過)
@@ -8880,10 +9026,12 @@ function placeMobileNotice(el) {
   el.style.overflowY = 'auto';
 }
 function showToast(msg) {
-  // #recordScreen 在 body 層(z2400)，全站 toast 卻在 .stage(z1000)的堆疊脈絡內；
-  // 錄製中若仍塞進 #toasts，computed style 看似正常但每一個像素都會被黑幕蓋住。
-  // #recHint 是錄製畫面自己的 live region，只在這個模式接手，不改全站 toast 的層級與定位。
-  if (state.recording) {
+  // #recordScreen(詳細面板)在 body 層(z2400)，全站 toast 卻在 .stage(z1000)的堆疊脈絡內——
+  // 只有面板真的整片接管畫面時才會蓋住 #toasts，這時才需要繞道 #recHint(z2450,蓋得過黑幕)。
+  // 🔴 規格覆審 2026-07-28：條件從單純的 state.recording 收窄成「還要面板真的開著」——錄製期
+  // 預設是地圖可見(見 #recordBar)，這時 #toasts 沒被任何東西蓋住，走一般路徑即可，
+  // 由 placeMobileNotice() 負責避開常駐列，不必特殊處理。
+  if (state.recording && !document.getElementById('recordScreen').hidden) {
     const hint = document.getElementById('recHint');
     if (hint) {
       // toast 是「路過的」，bountyRecordNotice() 設的才是常駐訊息（GPS 權限沒開、上傳失敗…）。
@@ -8891,6 +9039,7 @@ function showToast(msg) {
       hint.innerHTML = msg;
       hint.classList.remove('err');
       hint.hidden = false;
+      positionRecHint();
       clearTimeout(state._recHintTimer);
       state._recHintTimer = setTimeout(() => {
         const r = state.recording;
@@ -8906,7 +9055,7 @@ function showToast(msg) {
   el.className = 'toast'; el.innerHTML = msg;
   box.appendChild(el);
   while (box.children.length > 3) box.firstChild.remove(); // 疊太多先擠掉最舊
-  placeMobileNotice(box); // 手機:避開時鐘/列車資訊卡
+  placeMobileNotice(box); // 手機:避開時鐘/列車資訊卡/常駐錄製列
   requestAnimationFrame(() => el.classList.add('show'));
   setTimeout(() => { el.classList.remove('show'); setTimeout(() => el.remove(), 450); }, 5000);
 }
@@ -9744,8 +9893,9 @@ function startBountyRecording(card) {
     _weakSince: 0, _nagOff: false,   // 即時品質提示(規格 §5 之五)的軟提示計時與「同一趟不重複跳」旗標
   };
   document.body.classList.add('recording');
-  document.getElementById('recordScreen').hidden = false;
-  clearFollow();          // 車都不畫了,鏡頭還在追一班看不見的車只會白耗電（demo 參數撐不撐得住見 clearFollow() 內部註解）
+  document.getElementById('recordBar').hidden = false;   // 常駐狀態列(規格覆審 2026-07-28):預設回地圖,不再自動開黑幕/詳細面板——見 #recordScreen 旁完整註解
+  clearFollow();           // 進新模式先歸零跟隨狀態(比照 setCollectMap 同一步驟)——錄的是這台裝置的實體 GPS 軌跡,
+                            // 跟地圖上正在跑的模擬列車是兩件事,不必也不該綁在一起(demo 参数撐不撐得住見 clearFollow() 內部註解)
   closeBountyBoard();
   acquireWakeLock();      // 既有函式（7684）,不要另寫一套
   bountyPersistRecording();
@@ -9766,12 +9916,17 @@ function stopBountyRecording() {
     bountyFinishStop(r);
     return Promise.resolve(true);
   }
-  const btn = document.getElementById('recStop');
-  btn.disabled = true; btn.textContent = '正在保存…';
+  // 兩顆停止鈕(詳細面板 #recStop／常駐列 #recordBarStop)是同一個動作的兩個入口(規格覆審
+  // 2026-07-28)，「保存中」要兩邊都反映——使用者按下的那顆不一定是目前顯示的那顆(比如在地圖
+  // 上按了常駐列，詳細面板此刻是 display:none，但狀態仍要同步，不然之後點「詳細」會看到
+  // 過期的按鈕文字)。
+  const panelBtn = document.getElementById('recStop'), barBtn = document.getElementById('recordBarStop');
+  panelBtn.disabled = true; panelBtn.textContent = '正在保存…';
+  barBtn.disabled = true; barBtn.textContent = '保存中';
   r._stopPromise = bountyFlush(true, r).then(ok => {
     if (ok) { bountyFinishStop(r); return true; }
     bountyRecordNotice('上傳暫時失敗；里程已保存在這台裝置，之後會自動重傳。', 'error');
-    btn.textContent = '已保存在裝置';
+    panelBtn.textContent = '已保存在裝置'; barBtn.textContent = '已保存';
     return new Promise(resolve => setTimeout(() => { bountyFinishStop(r); resolve(false); }, 1400));
   });
   return r._stopPromise;
@@ -9781,10 +9936,12 @@ function bountyFinishStop(r) {
   bountyStopSampling(r);
   state.recording = null;
   bountyClearPersistedRecording();
-  document.body.classList.remove('recording');
+  document.body.classList.remove('recording', 'rec-panel');
   document.getElementById('recordScreen').hidden = true;
-  const btn = document.getElementById('recStop');
-  btn.disabled = false; btn.textContent = '停止錄製';
+  document.getElementById('recordBar').hidden = true;
+  const panelBtn = document.getElementById('recStop'), barBtn = document.getElementById('recordBarStop');
+  panelBtn.disabled = false; panelBtn.textContent = '停止錄製';
+  barBtn.disabled = false; barBtn.textContent = '停止';
   const hint = document.getElementById('recHint');
   hint.hidden = true; hint.textContent = ''; hint.classList.remove('err');
   releaseWakeLock();
@@ -9795,17 +9952,38 @@ function renderRecordScreen() {
   if (!r) return;
   bountyPersistRecording(r);
   const nm = r.card ? bountyCardName(r.card) : null;
+  const km = (r.dNow == null ? 0 : r.dNow / 1000).toFixed(1);
   document.getElementById('recRoute').textContent = nm ? `${nm.from} → ${nm.to}` : '';
-  document.getElementById('recKm').textContent = (r.dNow == null ? 0 : r.dNow / 1000).toFixed(1);
+  document.getElementById('recKm').textContent = km;
   const cov = r._cov || {};
   const done = Object.values(cov).filter(c => c >= 0.6).length;
   document.getElementById('recSegs').textContent = String(done);
   document.getElementById('recPts').textContent = String(r.points);
   const total = (r.card && r.card.units) || Object.keys(cov).length || 1;
   document.getElementById('recBar').style.width = Math.min(100, done / total * 100) + '%';
+  // 常駐列(規格覆審 2026-07-28):地圖預設可見,里程要不開詳細面板也看得到——單一事實來源
+  // (state.recording)同時餵兩個畫面,不是各自另外維護一份。
+  document.getElementById('recordBarStat').textContent = km + ' 公里';
 }
 function setupRecordScreen() {
   document.getElementById('recStop').onclick = () => stopBountyRecording();
+  document.getElementById('recordBarStop').onclick = () => stopBountyRecording();
+  document.getElementById('recordBarDetail').onclick = () => setRecordPanel(true);
+  // 手機緊湊模式把 .rb-detail 收起來讓位給停止鈕(見 CSS「錄製常駐列 × 頂列頁籤衝突修復」),
+  // 改成點 row1(圓點/標題/訊號燈)開詳細面板——同一顆 setRecordPanel(true);寬版 pill 也一併
+  // 多一個可點區,不影響原本 .rb-detail 按鈕行為,純增益不是取代。
+  document.getElementById('recordBarRow1').onclick = () => setRecordPanel(true);
+  document.getElementById('recPanelBack').onclick = () => setRecordPanel(false);
+}
+// 開／關「詳細面板」(規格覆審 2026-07-28)：純粹是地圖視圖 ↔ 大字/進度條視圖的切換,錄製本身
+// (state.recording/取樣/Wake Lock)完全不受影響——這是與 stopBountyRecording() 徹底獨立的動作,
+// 呼叫端絕不可混用(見 #recordScreen 旁「離開 ≠ 停止」的完整註解)。
+function setRecordPanel(on) {
+  if (!state.recording) return; // 沒在錄就沒有面板可開,常駐列本來就是 hidden
+  const to = !!on;
+  document.body.classList.toggle('rec-panel', to);
+  document.getElementById('recordScreen').hidden = !to;
+  if (to) renderRecordScreen();
 }
 
 // ── 取樣、裝置端投影與持久批次 ─────────────────────────────────────────────
@@ -9900,13 +10078,23 @@ function bountyRestoreRecording() {
   if (!r) return false;
   state.recording = r;
   document.body.classList.add('recording');
-  document.getElementById('recordScreen').hidden = false;
+  document.getElementById('recordBar').hidden = false; // 規格覆審 2026-07-28:重開頁面恢復成新狀態——常駐列在、詳細面板不自己跳出來
   acquireWakeLock();
   bountyRules();
   bountyStartSampling();
   renderRecordScreen();
   if (!r.demo) bountyRecordNotice(`已接回重新整理前保存在裝置上的 ${r._buf.length} 個里程點。`, 'restore');
   return true;
+}
+// #recHint 是 body 層獨立浮條(見 index.html #recordScreen 旁的完整註解),貼著 #recordBar 常駐列
+// 下緣——比照 placeMobileNotice() 的既有精神,不寫死像素:常駐列內容長度會變(里程數字長度
+// 不定),寫死值遲早跟 collect-bar 家族一樣撞到「內容變寬就重疊」那類坑。
+function positionRecHint() {
+  const hint = document.getElementById('recHint');
+  if (!hint) return;
+  const bar = document.getElementById('recordBar');
+  const r = (bar && !bar.hidden) ? bar.getBoundingClientRect() : null;
+  hint.style.top = (r && r.height ? Math.round(r.bottom) + 8 : 64) + 'px';
 }
 function bountyRecordNotice(msg, kind) {
   const r = state.recording;
@@ -9916,6 +10104,7 @@ function bountyRecordNotice(msg, kind) {
   h.textContent = String(msg || '');
   h.classList.toggle('err', kind === 'error');
   h.hidden = !msg;
+  if (msg) positionRecHint();
 }
 function bountySamplingFail(err) {
   const note = err && err.code === 1 ? '定位權限沒有開啟；請到系統設定允許軌島使用精確位置。'
@@ -10181,6 +10370,9 @@ async function bountyTickQuality() {
     const lamp = document.getElementById('recQuality');
     lamp.dataset.q = r.quality;
     document.getElementById('recQualityText').textContent = labels[r.quality] || labels.none;
+    // 常駐列燈號跟詳細面板同步(規格覆審 2026-07-28)：單一事實來源(r.quality)同時餵兩個畫面。
+    const barSig = document.getElementById('recordBarSig');
+    barSig.dataset.q = r.quality; barSig.title = '訊號：' + (labels[r.quality] || labels.none);
     bountyTickQualityHint(r, rules.qualityText);
     bountyPersistRecording(r);
   } catch (e) {
@@ -10199,6 +10391,7 @@ function bountyTickQualityHint(r, T) {
     hint.innerHTML = `<b>${escHtml(T.precise_off.title)}</b><br>${escHtml(T.precise_off.how)}`;
     hint.classList.remove('err');
     hint.hidden = false;
+    positionRecHint(); // 貼著常駐列下緣(規格覆審 2026-07-28)——precise_off 不修就整趟白錄,兩種畫面都要看得到
     return;
   }
   if (r.quality === 'weak') {
@@ -10208,6 +10401,7 @@ function bountyTickQualityHint(r, T) {
         `<button class="rc-x" type="button">知道了</button>`;
       hint.classList.remove('err');
       hint.hidden = false;
+      positionRecHint();
       hint.querySelector('.rc-x').onclick = () => { r._nagOff = true; hint.hidden = true; };
     }
     return;
@@ -10417,6 +10611,9 @@ function buildStationStamps(rides) {
 function setCollectMap(on) {
   const to = !!on;
   if (state.collectMap === to) return;
+  // 🔴 規格覆審 2026-07-28：錄製改成地圖預設可見可操作之後，護照(內含收集地圖入口)在錄製中
+  // 也點得到——兩個模式都要接管地圖的視覺(靜態收集圖 vs 即時列車+常駐錄製列)，不能同時開。
+  if (to && state.recording) { showToast('錄製中無法開啟收集地圖'); return; }
   state.collectMap = to;
   document.body.classList.toggle('collect-map', to);
   document.getElementById('collectBar').hidden = !to;
@@ -10527,7 +10724,7 @@ function buildCorrectSection() {
   // 一張全灰地圖)」的既有防線並存:只在 buildLineBars() 自己不會出現(沒有完乘路段)
   // 且真的有校正段時才補,兩者都有資料時交給 buildLineBars() 那顆就好,不重複掛。
   const showCorrectMapBtn = lineCompletion().length === 0 && bountyCorrectedSegs().size > 0;
-  const inner = '校正貢獻<button class="pl-map" data-act="bountyboard" type="button">懸賞板</button>' +
+  const inner = '校正貢獻<button class="pl-map pl-bounty" data-act="bountyboard" type="button">懸賞板</button>' +
     (showCorrectMapBtn ? '<button class="pl-map" data-act="collectmap" type="button">收集地圖</button>' : '');
   const me = bountyMeMem;
   const corrected = (me && me.corrected) || {}; // 防禦 API 形狀:me 有回應但 corrected 缺欄位時不炸開

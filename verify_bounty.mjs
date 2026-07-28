@@ -551,22 +551,29 @@ const browser = await chromium.launch();
   });
   await page.waitForTimeout(300);
 
+  // 🔴 規格覆審 2026-07-28：使用者實測回饋「應該也要能讓使用者繼續使用裝置」，推翻規格 §5 之一
+  // 的黑幕全接管設計（完整取捨判斷寫在 index.html #recordScreen 旁的註解）。預設不再自動開
+  // 黑幕/詳細面板——按「開始錄製」後回到地圖，常駐列(#recordBar)顯示。#recordScreen 仍在
+  // body 層(全螢幕接管時要跳出 .stage 的 z-index 封頂)，只是預設保持隱藏。
   const c1 = await page.evaluate(() => ({
     on: !!state.recording,
     bodyCls: document.body.classList.contains('recording'),
-    screen: !document.getElementById('recordScreen').hidden,
-    parent: document.getElementById('recordScreen').parentElement.tagName,
+    screenHidden: document.getElementById('recordScreen').hidden,
+    screenParent: document.getElementById('recordScreen').parentElement.tagName,
+    barHidden: document.getElementById('recordBar').hidden,
   }));
-  ok('C1 錄製模式開起來、body 有 recording class、畫面在 body 層',
-    c1.on && c1.bodyCls && c1.screen && c1.parent === 'BODY', JSON.stringify(c1));
+  ok('C1 錄製模式開起來、body 有 recording class，預設回地圖(常駐列在、詳細面板保持隱藏，且仍在 body 層)',
+    c1.on && c1.bodyCls && c1.screenHidden === true && c1.screenParent === 'BODY' && c1.barHidden === false,
+    JSON.stringify(c1));
 
-  // 🔴 C2 會說謊的 UI 要真的不在（量實際渲染，不是查 class）
+  // 🔴 C2 規格覆審 2026-07-28：判準徹底反過來——地圖預設可見可操作是這次的核心訴求，
+  // 時鐘徽章／地圖動作列／播放控制／頁籤列都不該被連坐隱藏(量實際渲染，不是查 class)。
   const c2 = await page.evaluate(() => {
     const q = s => { const el = document.querySelector(s); return el ? getComputedStyle(el).display : '(不存在)'; };
     return { badge: q('.badge'), actions: q('.map-actions'), controls: q('.controls'), tabbar: q('.tabbar') };
   });
-  ok('C2 時鐘徽章／地圖動作列／播放控制／頁籤列全部收起',
-    Object.values(c2).every(v => v === 'none' || v === '(不存在)'), JSON.stringify(c2));
+  ok('C2 錄製中(地圖預設可見)時鐘徽章／地圖動作列／播放控制／頁籤列維持可見，不再被黑幕邏輯連坐隱藏',
+    Object.values(c2).every(v => v !== 'none' && v !== '(不存在)'), JSON.stringify(c2));
 
   // C3 四個必要資訊都在（規格 §5 之一）
   const c3 = await page.evaluate(() => document.getElementById('recordScreen').innerText);
@@ -607,32 +614,120 @@ const browser = await chromium.launch();
   const c4 = await page.evaluate(() => getComputedStyle(document.getElementById('recordScreen')).backgroundColor);
   ok('C4 錄製畫面是黑底', /rgba?\(\s*(0|1[0-9]?|2[0-9])\s*,\s*(0|1[0-9]?|2[0-9])\s*,/.test(c4), c4);
 
-  // Task 4 前置：computed style 驗不出堆疊脈絡遮蔽（舊版 opacity/display/visibility 全正常，
-  // 但實際裁圖只有黑色）。固定裁錄製畫面中央的訊息帶，不取實作元素 rect 來生成判準；
-  // 紙色／金框 RGB 是視覺規格外部常數，直接解 screenshot 像素計數。
+  // 🔴 C4b 規格覆審 2026-07-28：地圖預設可見時(詳細面板沒開)，#toasts 沒有被任何東西蓋住，
+  // showToast() 不再需要繞道 #recHint——直接走一般路徑，只要 placeMobileNotice() 有把它擠到
+  // #recordBar 下面即可(不重疊)。此刻 #recHint 可能已經在顯示定位權限提示（這組 fixture context
+  // 沒有真的授權 geolocation，屬正常狀態，不是這條測試的目標）——判準改成「showToast() 前後
+  // #recHint 內容與顯示狀態完全不變」，不假設它原本是隱藏的（那個假設本身就錯，見前一輪失敗）。
+  const c4bBefore = await page.evaluate(() => {
+    const h = document.getElementById('recHint');
+    return { hidden: h.hidden, html: h.innerHTML };
+  });
   await page.evaluate(() => showToast('GPS 收不到，請移到窗邊再試一次'));
   await page.waitForTimeout(100);
-  const c4bPng = await page.screenshot({ clip: { x: 20, y: 250, width: 350, height: 360 } });
-  const c4bRaw = await sharp(c4bPng).raw().toBuffer({ resolveWithObject: true });
-  let c4bPaper = 0, c4bGold = 0;
-  for (let i = 0; i < c4bRaw.data.length; i += c4bRaw.info.channels) {
-    const r = c4bRaw.data[i], g = c4bRaw.data[i + 1], b = c4bRaw.data[i + 2];
-    if (Math.abs(r - 255) <= 1 && Math.abs(g - 253) <= 1 && Math.abs(b - 246) <= 1) c4bPaper++;
-    if (Math.abs(r - 210) <= 2 && Math.abs(g - 161) <= 2 && Math.abs(b - 42) <= 2) c4bGold++;
-  }
-  ok('C4b 錄製中 showToast() 的紙色訊息與金框真的出現在黑幕上（固定矩形 screenshot 像素證據）',
-    c4bPaper > 300 && c4bGold > 20, JSON.stringify({ paper: c4bPaper, gold: c4bGold }));
+  const c4b = await page.evaluate(() => {
+    const t = document.querySelector('#toasts .toast');
+    const bar = document.getElementById('recordBar');
+    const h = document.getElementById('recHint');
+    if (!t || !bar) return { missing: true };
+    const tr = t.getBoundingClientRect(), br = bar.getBoundingClientRect();
+    return { missing: false, inToasts: true, toastMsg: t.innerHTML,
+      overlapsBar: !(tr.bottom <= br.top || tr.top >= br.bottom),
+      hintHidden: h.hidden, hintHtml: h.innerHTML };
+  });
+  ok('C4b 錄製中(地圖可見、面板沒開)showToast() 走一般 #toasts 路徑，不動 #recHint(不管它原本顯示什麼)，且不壓在常駐列上',
+    !c4b.missing && c4b.inToasts && c4b.toastMsg.includes('GPS 收不到') && !c4b.overlapsBar &&
+      c4b.hintHidden === c4bBefore.hidden && c4b.hintHtml === c4bBefore.html,
+    JSON.stringify({ before: c4bBefore, after: c4b }));
 
-  // 🔴 C5 判準是「點它會發生什麼」（心得 33）
+  // 🔴 C4c：打開詳細面板(全螢幕接管)之後，#toasts 又被蓋住了(z1000 vs 面板 z2400)，這時
+  // showToast() 才需要繞道 #recHint——判準沿用原本的「像素證據」精神(computed style 驗不出
+  // 堆疊脈絡遮蔽)，但裁圖範圍改成從 #recHint 實際渲染的 rect 動態算，不寫死座標(#recHint
+  // 現在貼著 #recordBar，位置跟原本黑幕置中設計不同)。紙色／金框 RGB 是視覺規格外部常數。
+  await page.evaluate(() => setRecordPanel(true));
+  await page.waitForTimeout(100);
+  await page.evaluate(() => showToast('GPS 收不到，請移到窗邊再試一次'));
+  await page.waitForTimeout(100);
+  const hintRect = await page.evaluate(() => {
+    const h = document.getElementById('recHint'); const r = h.getBoundingClientRect();
+    return { x: Math.round(r.x), y: Math.round(r.y), width: Math.round(r.width), height: Math.round(r.height), hidden: h.hidden };
+  });
+  let c4cPaper = 0, c4cGold = 0;
+  if (!hintRect.hidden && hintRect.width > 0 && hintRect.height > 0) {
+    const c4cPng = await page.screenshot({ clip: hintRect });
+    const c4cRaw = await sharp(c4cPng).raw().toBuffer({ resolveWithObject: true });
+    for (let i = 0; i < c4cRaw.data.length; i += c4cRaw.info.channels) {
+      const r = c4cRaw.data[i], g = c4cRaw.data[i + 1], b = c4cRaw.data[i + 2];
+      if (Math.abs(r - 255) <= 1 && Math.abs(g - 253) <= 1 && Math.abs(b - 246) <= 1) c4cPaper++;
+      if (Math.abs(r - 210) <= 2 && Math.abs(g - 161) <= 2 && Math.abs(b - 42) <= 2) c4cGold++;
+    }
+  }
+  ok('C4c 詳細面板開著時 showToast() 的紙色訊息與金框真的出現在黑幕上(裁圖範圍取 #recHint 實際 rect，不寫死座標)',
+    !hintRect.hidden && c4cPaper > 300 && c4cGold > 20,
+    JSON.stringify({ hintRect, paper: c4cPaper, gold: c4cGold }));
+  await page.evaluate(() => setRecordPanel(false));
+  await page.waitForTimeout(100);
+
+  // 🔴 C5 判準是「點它會發生什麼」（心得 33）。規格覆審 2026-07-28：預設狀態(地圖可見)下
+  // 真正隨時可及的是常駐列的 #recordBarStop，門檻沿用專案既有的 28 高×44 寬（心得 33／
+  // .collect-bar 同一組先例，不是每處都硬套 44×44）。
   const c5 = await page.evaluate(() => {
+    const btn = document.getElementById('recordBarStop');
+    const r = btn.getBoundingClientRect();
+    const hit = document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2);
+    return { hit: hit === btn || btn.contains(hit), w: Math.round(r.width), h: Math.round(r.height) };
+  });
+  ok('C5 地圖預設狀態下常駐列的停止鈕點得到', c5.hit === true, JSON.stringify(c5));
+  ok('C6 常駐列停止鈕觸控尺寸達標（≥28 高×44 寬，比照 .collect-bar 同一組門檻）',
+    c5.h >= 28 && c5.w >= 44, JSON.stringify(c5));
+
+  // 🔴 C6b：詳細面板打開之後，面板裡的大顆 #recStop 也要點得到、也要夠大——這是「一小時後
+  // 迷迷糊糊也要按得到」的原始情境(規格 §5 之一)，44pt 門檻是這顆大按鈕自己刻意給的，沒被
+  // 規格覆審動到。
+  await page.evaluate(() => setRecordPanel(true));
+  await page.waitForTimeout(100);
+  const c6b = await page.evaluate(() => {
     const btn = document.getElementById('recStop');
     const r = btn.getBoundingClientRect();
     const hit = document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2);
     return { hit: hit === btn || btn.contains(hit), w: Math.round(r.width), h: Math.round(r.height) };
   });
-  ok('C5 停止鈕點得到', c5.hit === true, JSON.stringify(c5));
-  ok('C6 停止鈕夠大（手機上要一小時後迷迷糊糊也按得到；44pt 是 Apple 的最小可觸控尺寸）',
-    c5.h >= 44 && c5.w >= 44, JSON.stringify(c5));
+  ok('C6b 詳細面板打開後，面板裡的停止鈕點得到且夠大（≥44×44）',
+    c6b.hit === true && c6b.h >= 44 && c6b.w >= 44, JSON.stringify(c6b));
+
+  // 🔴 C6c「離開 ≠ 停止」核心契約(這次規格覆審最容易踩錯的地方)：「回地圖」鈕要點得到、
+  // 與「停止錄製」不重疊、視覺上離得夠遠、文字不同——四個獨立軸線都要量，不能只驗其中一個
+  // 就當作「夠不像」。
+  const c6c = await page.evaluate(() => {
+    const btn = document.getElementById('recPanelBack');
+    const r = btn.getBoundingClientRect();
+    const hit = document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2);
+    const stopBtn = document.getElementById('recStop'), sr = stopBtn.getBoundingClientRect();
+    const dx = (r.x + r.width / 2) - (sr.x + sr.width / 2), dy = (r.y + r.height / 2) - (sr.y + sr.height / 2);
+    return {
+      hit: hit === btn || btn.contains(hit),
+      overlapsStop: !(r.bottom <= sr.top || r.top >= sr.bottom || r.right <= sr.left || r.left >= sr.right),
+      centerDist: Math.round(Math.hypot(dx, dy)),
+      labelDiffers: btn.textContent.trim() !== stopBtn.textContent.trim(),
+    };
+  });
+  ok('C6c 「回地圖」鈕點得到、與「停止錄製」不重疊、視覺上距離夠遠(中心距≥150px)、文字不同',
+    c6c.hit === true && !c6c.overlapsStop && c6c.centerDist >= 150 && c6c.labelDiffers,
+    JSON.stringify(c6c));
+
+  // 🔴 C6d 離開 ≠ 停止的行為證據：點「回地圖」只關詳細面板、回到常駐列，state.recording
+  // (含底層取樣)完全不受影響——這是任務要求的核心新驗收點。
+  const beforeBack = await page.evaluate(() => !!state.recording);
+  await page.evaluate(() => document.getElementById('recPanelBack').click());
+  await page.waitForTimeout(100);
+  const afterBack = await page.evaluate(() => ({
+    recording: !!state.recording, screenHidden: document.getElementById('recordScreen').hidden,
+    barHidden: document.getElementById('recordBar').hidden, panelCls: document.body.classList.contains('rec-panel'),
+  }));
+  ok('C6d 點「回地圖」只關詳細面板、回到常駐列，state.recording 完全不受影響(離開 ≠ 停止)',
+    beforeBack === true && afterBack.recording === true &&
+      afterBack.screenHidden === true && afterBack.barHidden === false && afterBack.panelCls === false,
+    JSON.stringify({ beforeBack, afterBack }));
 
   // C7 Wake Lock：既有的 acquireWakeLock 有被呼叫到（判準＝測試自己種的計數器，見上方 stub）
   const c7 = await page.evaluate(() => window.__wlCalls);
@@ -665,6 +760,275 @@ const browser = await chromium.launch();
   ok('C9b 停止後 Wake Lock 真的被釋放（sentinel.release() 有被呼叫且不再持有）',
     c9.heldBefore === true && c9.releases === 1 && c9.stillHeld === false, JSON.stringify(c9));
   await ctx.close();
+}
+
+// ── R 組：錄製＝地圖常駐狀態（2026-07-28 規格覆審）───────────────────────
+// 使用者實測回饋原文：「懸賞板太不起眼...請做成相對應的紅色按鈕。錄製途中可以顯示地圖與
+// 列車嗎？不要都是黑畫面。應該也要能讓使用者繼續使用裝置才對。」這組專驗這三件事裡「地圖
+// 常駐＋可操作」的核心承諾——C 組驗的是「畫面切換對不對」，這組驗的是「地圖本身是活的」。
+{
+  const { ctx, page } = await open(browser, {
+    app: true, width: 390, height: 844, touch: true, mobile: true, geo: T4_FIXES[0],
+  });
+  await page.evaluate(c => startBountyRecording(c),
+    { id: 'r-fixture', sys: 'tra_sched', lnId: '縱貫線北段', dir: 1, trainKind: '區間', units: 6, points: 18, unitKeys: [] });
+  await page.waitForTimeout(300);
+
+  // 🔴 R1：canvas 內容隨時間變化的像素證據，不是查 display/opacity（這個專案反覆被「computed
+  // style 正常但視覺上被蓋住/凍結」燒過）。抽樣像素(質數步幅，不用整張比對)算一個輕量簽章，
+  // 兩次取樣間隔 1.2 秒——簽章不同才證明真的在動態重繪，不是凍結的一張圖(規格覆審推翻的
+  // 理由①省電②反正不會看，這條直接驗證黑幕拿掉後地圖真的活著、沒有被靜音地凍結)。
+  // 同時查 Leaflet 圖磚真的載入(不是空白容器)、地圖容器沒被任何東西蓋住。
+  const sampleSig = () => page.evaluate(() => {
+    const c = document.getElementById('overlay'), g = c.getContext('2d');
+    const px = g.getImageData(0, 0, c.width, c.height).data;
+    let sig = 0, ink = 0;
+    for (let i = 0; i < px.length; i += 4 * 97) { // 質數步幅抽樣，避免週期性走樣
+      sig = (sig * 31 + px[i] + px[i + 1] * 7 + px[i + 2] * 13 + i) >>> 0;
+      if (px[i + 3] > 10) ink++;
+    }
+    return { sig, ink };
+  });
+  // 🔴 先把時間倍率推高再取樣。原本用 1× 實測會間歇性紅（三輪紅兩輪）：全台視野下列車 1.2 秒
+  // 移動不到一個像素，而簽章每 97 個像素才抽一次，抽樣點常常一個都沒變 ⇒ 判準實際在測「畫面
+  // 內容有沒有變」而不是「地圖有沒有在重繪」，兩者在這個視野下不等價。推高倍率讓列車真的跑得
+  // 動，像素證據才站得住（像素證據本身要留著——這個專案被「computed style 正常但視覺凍結」
+  // 燒過太多次，不能改用 rAF 計數之類的間接指標把它換掉）。
+  await page.evaluate(() => setSpeed(120));
+  await page.waitForTimeout(200);
+  const r1a = await sampleSig();
+  await page.waitForTimeout(1200);
+  const r1b = await sampleSig();
+  const r1tiles = await page.evaluate(() => document.querySelectorAll('.leaflet-tile-loaded').length);
+  const r1center = await page.evaluate(() => {
+    const m = document.getElementById('map'), r = m.getBoundingClientRect();
+    const el = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
+    return { hit: !!(el && m.contains(el)), screenHidden: document.getElementById('recordScreen').hidden };
+  });
+  ok('R1 錄製中地圖真的在動態重繪(取樣簽章隨時間改變，不是凍結畫面)、底圖圖磚真的載入、地圖容器沒被蓋住',
+    r1a.ink > 0 && r1b.sig !== r1a.sig && r1tiles > 0 && r1center.hit === true && r1center.screenHidden === true,
+    JSON.stringify({ r1a, r1b, r1tiles, r1center }));
+
+  // 🔴 R2：地圖在錄製中真的能操作——不是查「座標沒重疊」，是真點一輛列車、驗證地圖自己的
+  // 點擊命中判定(trainAt→setFollow)真的被觸發，不是直接呼叫 setFollow() 抄捷徑。挑一個不在
+  // 常駐列底下的目標，避免常駐列本身(合理地)擋住最上方一小條窄帶算成「點不到」。
+  // 🔴 先暫停模擬再取座標：state._trainHits 是上一幀的快照，讀完到 page.mouse.click 落地之間
+  // 列車已經又移動了，點下去會擦身而過 ⇒ 這條測項本來會間歇性紅（實測三輪紅一輪）。
+  // 會偶爾叫的判準比沒有判準更糟——之後真的壞掉時沒人會信它。暫停本身也是「錄製中地圖仍可
+  // 操作」的一種，不削弱這條要證明的事；而且 togglePlay() 只動 state.playing，
+  // 錄製的 tripDate/取樣讀的是真實時鐘（見 startBountyRecording 的註解），不受影響。
+  await page.evaluate(() => { if (state.playing) togglePlay(); });
+  await page.waitForTimeout(120);
+  const r2 = await page.evaluate(() => {
+    const barRect = document.getElementById('recordBar').getBoundingClientRect();
+    const hits = state._trainHits || [];
+    const cand = hits.find(h => h.y > barRect.bottom + 20) || hits[0];
+    if (!cand) return { noTrain: true };
+    const mapRect = document.getElementById('map').getBoundingClientRect();
+    return { noTrain: false, x: mapRect.left + cand.x, y: mapRect.top + cand.y, trainId: cand.tr && cand.tr.train };
+  });
+  // 🔴 用真滑鼠事件不用 touchscreen.tap()：Leaflet 對 leaflet-touch 容器走自己的觸控/拖曳
+  // 判定層(leaflet-touch-drag)，touchscreen.tap() 送出的合成事件不保證换算成它認的那種
+  // 「點擊」。滑鼠 click 是無歧義的原生事件，Leaflet 的 map.on('click',...) 保證聽得到。
+  if (!r2.noTrain) { await page.mouse.click(r2.x, r2.y); await page.waitForTimeout(150); }
+  // 🔴 真點擊落地後有兩種合法結果，都要接住才算「真的操作過」：車離最近站太近時地圖自己的
+  // 既有邏輯(index.html:14641 附近，TAP_AMBIG_PX)判定歧義，改彈 #tapPick 選單而非直接
+  // setFollow()——這是地圖原本就有的正確行為，不是缺陷（第一輪撞見：候選車 2551 停靠站附近，
+  // 選單第一項正是「跟隨 2551 次」）。選單開著就點第一項(車輛選項固定排最前，見 index.html
+  // openTapPick 呼叫端的陣列組法 [tapPickSchedTrain(hit), ...stAmb()])替使用者完成消歧，
+  // 兩種路徑最終都要讓 state.followTrain 對上原本點的那輛車。
+  const r2pick = await page.evaluate(() => {
+    const el = document.getElementById('tapPick');
+    if (!el || el.hidden) return { picked: false };
+    const row = el.querySelector('.tp-row[data-i="0"]');
+    return { picked: !!row };
+  });
+  if (r2pick.picked) { await page.click('#tapPick .tp-row[data-i="0"]'); await page.waitForTimeout(150); }
+  const r2after = await page.evaluate(() => ({ followTrain: state.followTrain && state.followTrain.train }));
+  ok('R2 錄製中地圖真的能操作：真滑鼠點一輛列車(真事件走完整條點擊判定，不是直接呼叫 setFollow())，直接命中或經由地圖自己的消歧選單，最終都讓 state.followTrain 對上那輛車',
+    !r2.noTrain && r2after.followTrain === r2.trainId, JSON.stringify({ r2, r2pick, r2after }));
+
+  await ctx.close();
+}
+
+// ── R3 組：手機 360／375／414／768 常駐列控件互撞掃描 ＋ toast 不壓常駐列 ──
+{
+  const mob = [];
+  for (const width of [360, 375, 414, 768]) {
+    const { ctx, page } = await open(browser, {
+      app: true, width, height: 844, touch: true, mobile: width < 768, geo: T4_FIXES[0],
+    });
+    await page.evaluate(c => startBountyRecording(c),
+      { id: 'r3', sys: 'tra_sched', lnId: '縱貫線北段', dir: 1, trainKind: '區間', units: 6, points: 18, unitKeys: [] });
+    await page.waitForTimeout(200);
+    await page.evaluate(() => showToast('GPS 收不到，請移到窗邊再試一次'));
+    await page.waitForTimeout(100);
+    const info = await page.evaluate(() => {
+      const bar = document.getElementById('recordBar'), br = bar.getBoundingClientRect();
+      const kids = ['recordBarStat', 'recordBarSig', 'recordBarDetail', 'recordBarStop'].map(id => {
+        const el = document.getElementById(id), r = el.getBoundingClientRect();
+        return { id, x: r.x, y: r.y, w: r.width, h: r.height };
+      });
+      let overlap = false;
+      for (let i = 0; i < kids.length; i++) for (let j = i + 1; j < kids.length; j++) {
+        const a = kids[i], b = kids[j];
+        if (!(a.x + a.w <= b.x || b.x + b.w <= a.x || a.y + a.h <= b.y || b.y + b.h <= a.y)) overlap = true;
+      }
+      const t = document.querySelector('#toasts .toast');
+      let toastOverlapsBar = false;
+      if (t) {
+        const tr = t.getBoundingClientRect();
+        toastOverlapsBar = !(tr.bottom <= br.top || tr.top >= br.bottom || tr.right <= br.left || tr.left >= br.right);
+      }
+      return {
+        barInView: br.left >= 0 && br.right <= innerWidth,
+        overflow: document.documentElement.scrollWidth > innerWidth,
+        overlap, toastFound: !!t, toastOverlapsBar,
+      };
+    });
+    mob.push({ width, ...info });
+    await ctx.close();
+  }
+  ok('R3 手機 360／375／414／768：常駐列無橫向溢出、子元素(里程/訊號燈/詳細/停止)彼此不重疊、都在視窗內，且系統 toast 不會壓在常駐列上',
+    mob.every(x => x.barInView && !x.overflow && !x.overlap && x.toastFound && !x.toastOverlapsBar),
+    JSON.stringify(mob));
+
+  // 🔴 R4：至少一次 WebKit（macOS 使用者預設 Safari，Chromium 過了不代表 WebKit 過——
+  // 這個專案反覆踩過這個坑）。常駐列可見、停止鈕真觸控可以真的停止錄製。
+  const wkBrowser = await webkit.launch();
+  const { ctx: wkCtx, page: wkPage } = await open(wkBrowser, {
+    app: true, width: 375, height: 812, touch: true, mobile: true, geo: T4_FIXES[0],
+  });
+  await wkPage.evaluate(c => startBountyRecording(c),
+    { id: 'r4-wk', sys: 'tra_sched', lnId: '縱貫線北段', dir: 1, trainKind: '區間', units: 6, points: 18, unitKeys: [] });
+  await wkPage.waitForTimeout(300);
+  const r4 = await wkPage.evaluate(() => {
+    const bar = document.getElementById('recordBar'), br = bar.getBoundingClientRect();
+    const btn = document.getElementById('recordBarStop'), r = btn.getBoundingClientRect();
+    const hit = document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2);
+    return {
+      barHidden: bar.hidden, barInView: br.left >= 0 && br.right <= innerWidth,
+      x: r.x + r.width / 2, y: r.y + r.height / 2, hit: hit === btn || btn.contains(hit),
+    };
+  });
+  if (r4.hit) await wkPage.touchscreen.tap(r4.x, r4.y);
+  await wkPage.waitForTimeout(200);
+  const r4after = await wkPage.evaluate(() => !state.recording);
+  await wkCtx.close(); await wkBrowser.close();
+  ok('R4 WebKit 375：常駐列可見不溢出，真觸控點停止鈕真的能停止錄製',
+    r4.barHidden === false && r4.barInView && r4.hit === true && r4after === true, JSON.stringify({ r4, r4after }));
+}
+
+// ── R5 組：錄製中「常駐列有沒有蓋到*別的*控件」(2026-07-28 迴歸修復的永久回歸測項)─────
+// 獨立驗收抓到的迴歸：#recordBar 原本用 z-index(820>620)贏過 .topbar、浮在其上，360/390/414px
+// 時精確蓋住 #topTabs 的台/鐵/高三顆(只有排最後的捷倖免)。R1–R4 都只驗過「常駐列自己的子
+// 元素彼此不重疊」與「WebKit 也能點停止」，沒有一條驗過「常駐列有沒有蓋到*別的*控件」——
+// 這正是這次迴歸能溜過三套驗收的洞。這條測項專補這個洞：真的 elementFromPoint 命中 + 真的
+// 點下去看行為改不改，不是只驗幾何不相交(心得 33：並排/重疊控件只驗幾何是這個專案反覆踩過
+// 的坑)。同時驗 #clock 與 #mapActions 兩顆(隨機跟隨/附近車站)——錄製中全部要可及。
+// nearBtn 在網站 build 會被整顆 remove()(見 index.html LOCATE_ENABLED 旁註解)，要它存在
+// 必須在頁面腳本執行前就把 window.RAIL_NATIVE_GEOLOCATION 準備好，故不能沿用共用的 open()，
+// 這裡另外組一個含相同 app 旗標 + geolocation 橋接的 context。randBtn 只在 state.mode==='sched'
+// 才顯示，開錄製前先真的呼叫 selectGroup() 切到「鐵」——走真實程式路徑，不直接戳 state。
+async function openRecCompact(browser, width, height) {
+  const ctx = await browser.newContext({
+    viewport: { width, height }, hasTouch: true, isMobile: true,
+    permissions: ['geolocation'], geolocation: T4_FIXES[0],
+  });
+  // 🔴 addInitScript(fn, arg) 的 arg 會被序列化跨界——含函式的物件不能用第二參數傳（實測撞
+  // 「getCurrentPosition is not a function」）；比照上面 open() 的既有寫法，整包字面值寫在
+  // callback 裡面，不從 Node 端傳參數。
+  await ctx.addInitScript(() => {
+    Object.assign(window, {
+      RAIL_MUSIC_AVAILABLE: true, RAIL_ONLINE_BASEMAPS_AVAILABLE: true,
+      RAIL_APP_CONFIG: { platform: 'ios', build: 'test' },
+      RAIL_NATIVE_GEOLOCATION: { getCurrentPosition: () => Promise.resolve(
+        { coords: { latitude: 25.0478, longitude: 121.5170, accuracy: 20 } }) },
+    });
+  });
+  await stubApi(ctx);
+  const page = await ctx.newPage();
+  const perr = [];
+  page.on('pageerror', e => perr.push(String((e && e.message) || e)));
+  await page.goto(BASE + '/index.html', { waitUntil: 'load' });
+  try {
+    await page.waitForFunction(() => typeof state !== 'undefined' && state.trains && state.trains.length > 0, { timeout: 40000 });
+  } catch (e) {
+    throw new Error('R5 開機沒完成（40s 內 state.trains 仍為空）'
+      + (perr.length ? `；頁面丟出例外：${perr.slice(0, 2).join(' ｜ ')}` : '；期間沒有 pageerror'));
+  }
+  await page.evaluate(() => { const h = document.getElementById('howtoWrap'); if (h) h.remove(); });
+  await page.evaluate(() => selectGroup(GROUPS.find(g => g.id === 'nat'))); // 進 sched 模式,randBtn 才有機會顯示
+  await page.evaluate(c => startBountyRecording(c),
+    { id: 'r5', sys: 'tra_sched', lnId: '縱貫線北段', dir: 1, trainKind: '區間', units: 6, points: 18, unitKeys: [] });
+  await page.waitForTimeout(300);
+  return { ctx, page };
+}
+// 量四顆頁籤 + #clock + #mapActions 兩顆是否 elementFromPoint 命中自己，並真點最後一顆頁籤
+// (捷)確認 state.group 真的變成 'metro'——不是只驗幾何不相交。
+// 🔴 #clock 例外：.badge 整條是 pointer-events:none(index.html:1426，早於這次修復就存在、與
+// #recordBar 無關)，時鐘徽章本來就設計成「看得到但點下去穿透到地圖」，elementFromPoint 在它
+// 中心點本來就該回傳地圖不是它自己——這不是缺陷。它的「可及」意思是「看得到、沒被蓋住」，
+// 不是「點得到」，故改驗可見＋與 #recordBar 幾何不相交(對這一顆而言幾何檢查才是對的判準，
+// 不是偷懶——真正互動的頁籤/按鈕仍然一律用 elementFromPoint 命中自己，不降級)。
+async function measureRecCompact(page) {
+  const before = await page.evaluate(() => state.group);
+  const geo = await page.evaluate(() => {
+    const hitSelf = el => {
+      if (!el || el.hidden || el.offsetParent === null) return { exists: !!el, visible: false, hit: false };
+      const r = el.getBoundingClientRect();
+      const at = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
+      return { exists: true, visible: true, hit: at === el || el.contains(at) };
+    };
+    const clockReachable = () => {
+      const el = document.getElementById('clock'), bar = document.getElementById('recordBar');
+      if (!el || el.hidden || el.offsetParent === null) return { exists: !!el, visible: false, overlapsBar: null };
+      const r = el.getBoundingClientRect(), br = bar.getBoundingClientRect();
+      const overlapsBar = !(r.right <= br.left || r.left >= br.right || r.bottom <= br.top || r.top >= br.bottom);
+      return { exists: true, visible: true, overlapsBar };
+    };
+    const tabs = Array.from(document.querySelectorAll('#topTabs .gtab')).map(b => ({
+      label: b.textContent, ...hitSelf(b),
+    }));
+    return {
+      tabs, clock: clockReachable(),
+      rand: hitSelf(document.getElementById('randBtn')), near: hitSelf(document.getElementById('nearBtn')),
+    };
+  });
+  const btns = await page.$$('#topTabs .gtab');
+  const lastBox = await btns[btns.length - 1].boundingBox();
+  await page.mouse.click(lastBox.x + lastBox.width / 2, lastBox.y + lastBox.height / 2);
+  await page.waitForTimeout(150);
+  const after = await page.evaluate(() => state.group);
+  return { geo, before, after };
+}
+{
+  const chromRes = [];
+  for (const width of [360, 375, 390, 414]) {
+    const { ctx, page } = await openRecCompact(browser, width, 844);
+    chromRes.push({ width, ...(await measureRecCompact(page)) });
+    await ctx.close();
+  }
+  ok('R5 錄製中(緊湊常駐列)：#topTabs 四顆頁籤、#mapActions 兩顆(隨機跟隨/附近車站)在' +
+    ' 360/375/390/414px 全部 elementFromPoint 命中自己，#clock 可見且不與 #recordBar 重疊',
+    chromRes.every(r => r.geo.tabs.every(t => t.hit) && r.geo.clock.visible && !r.geo.clock.overlapsBar
+      && r.geo.rand.hit && r.geo.near.hit),
+    JSON.stringify(chromRes.map(r => ({ width: r.width, tabs: r.geo.tabs.map(t => `${t.label}:${t.hit}`),
+      clock: r.geo.clock, rand: r.geo.rand.hit, near: r.geo.near.hit }))));
+  ok('R5b 真點最後一顆頁籤(捷)後 state.group 真的從別的值變成 metro(不是只驗幾何不相交)',
+    chromRes.every(r => r.before !== 'metro' && r.after === 'metro'),
+    JSON.stringify(chromRes.map(r => ({ width: r.width, before: r.before, after: r.after }))));
+
+  // 🔴 WebKit 375(心得 8/12/20/21/22/27 家族：macOS 使用者預設 Safari，Chromium 過不代表 WebKit 過)
+  const wkBrowser2 = await webkit.launch();
+  const { ctx: wkCtx2, page: wkPage2 } = await openRecCompact(wkBrowser2, 375, 812);
+  const wk = await measureRecCompact(wkPage2);
+  await wkCtx2.close(); await wkBrowser2.close();
+  ok('R5c WebKit 375：同上——四顆頁籤/#mapActions 兩顆命中自己，#clock 可見不重疊，真點最後一顆頁籤 state.group 變成 metro',
+    wk.geo.tabs.every(t => t.hit) && wk.geo.clock.visible && !wk.geo.clock.overlapsBar &&
+    wk.geo.rand.hit && wk.geo.near.hit && wk.before !== 'metro' && wk.after === 'metro',
+    JSON.stringify({ tabs: wk.geo.tabs.map(t => `${t.label}:${t.hit}`), clock: wk.geo.clock,
+      rand: wk.geo.rand.hit, near: wk.geo.near.hit, before: wk.before, after: wk.after }));
 }
 
 // ── T4 組：取樣、裝置端投影、60 秒批次、持久化與品質燈 ───────────────────
@@ -790,11 +1154,14 @@ const browser = await chromium.launch();
   const restored = await page.evaluate(() => ({
     startedAt: state.recording && state.recording.startedAt,
     samples: state.recording ? (state.recording._buf || []).length : 0,
-    screen: !document.getElementById('recordScreen').hidden,
+    screenHidden: document.getElementById('recordScreen').hidden,
+    barHidden: document.getElementById('recordBar').hidden,
   }));
-  ok('T4-6 錄製中重新整理會從裝置端接回同一趟投影後里程，不把樣本或畫面歸零',
+  // 🔴 規格覆審 2026-07-28：重新整理後要恢復成「新的預設狀態」——常駐列在、詳細面板不自己
+  // 跳出來(bountyRestoreRecording() 不能延續使用者離開前面板剛好開著的巧合狀態，一律回地圖)。
+  ok('T4-6 錄製中重新整理會從裝置端接回同一趟投影後里程，不把樣本歸零；畫面恢復成常駐列在、面板保持隱藏',
     persistedBefore.samples > 0 && restored.startedAt === persistedBefore.startedAt &&
-      restored.samples >= persistedBefore.samples && restored.screen === true,
+      restored.samples >= persistedBefore.samples && restored.screenHidden === true && restored.barHidden === false,
     JSON.stringify({ persistedBefore, restored }));
   await page.evaluate(async () => { await stopBountyRecording(); });
   await ctx.close();
@@ -864,7 +1231,7 @@ const browser = await chromium.launch();
       trainKind: '區間', units: 2, points: 6, unitKeys: [],
     }));
     const probe = await page.evaluate(() => {
-      const b = document.getElementById('recStop'), r = b.getBoundingClientRect();
+      const b = document.getElementById('recordBarStop'), r = b.getBoundingClientRect();
       const hit = document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2);
       return { x: r.x + r.width / 2, y: r.y + r.height / 2,
         hit: hit === b || b.contains(hit), inView: r.left >= 0 && r.right <= innerWidth && r.bottom <= innerHeight,
@@ -875,7 +1242,7 @@ const browser = await chromium.launch();
     mobile.push({ width, ...probe, stopped: await page.evaluate(() => !state.recording) });
     await ctx.close();
   }
-  ok('T4-9 手機 360／375／390：停止鈕 elementFromPoint 命中、無橫向溢出，且真觸控 tap 都能停止',
+  ok('T4-9 手機 360／375／390：常駐列停止鈕(#recordBarStop) elementFromPoint 命中、無橫向溢出，且真觸控 tap 都能停止',
     mobile.every(x => x.hit && x.inView && !x.overflow && x.stopped), JSON.stringify(mobile));
 }
 
@@ -1007,7 +1374,9 @@ async function checkQualityHintMobile(browserInst, width, height) {
     if (!btn) return { noBtn: true };
     const hr = h.getBoundingClientRect(), br = btn.getBoundingClientRect();
     const hitBtn = document.elementFromPoint(br.x + br.width / 2, br.y + br.height / 2);
-    const stop = document.getElementById('recStop'), sr = stop.getBoundingClientRect();
+    // 🔴 規格覆審 2026-07-28：這條測試從沒開詳細面板(預設地圖可見狀態)，此刻真正顯示、真正
+    // 隨時可及的停止鈕是常駐列的 #recordBarStop，不是躺在 display:none 面板裡的 #recStop。
+    const stop = document.getElementById('recordBarStop'), sr = stop.getBoundingClientRect();
     const hitStop = document.elementFromPoint(sr.x + sr.width / 2, sr.y + sr.height / 2);
     return {
       hintVisible: !h.hidden && hr.width > 0 && hr.height > 0,
@@ -1245,10 +1614,14 @@ async function checkQualityHintMobile(browserInst, width, height) {
   await dp.waitForTimeout(300);
   const d6b = await dp.evaluate(() => ({
     recording: !!state.recording, screenHidden: document.getElementById('recordScreen').hidden,
+    barHidden: document.getElementById('recordBar').hidden,
     bodyCls: document.body.classList.contains('recording'),
   }));
-  ok('D6b ?demo=bounty 下「開始錄製」真的進到錄製畫面（不停在網路錯誤）',
-    d6b.recording === true && d6b.screenHidden === false && d6b.bodyCls === true, JSON.stringify(d6b));
+  // 🔴 規格覆審 2026-07-28：screenHidden 期望值反過來——「開始錄製」現在預設回地圖(常駐列
+  // 顯示、詳細黑幕面板保持隱藏)，不再自動走進黑幕。
+  ok('D6b ?demo=bounty 下「開始錄製」真的進到錄製狀態、預設回地圖(不是黑幕，也不停在網路錯誤)',
+    d6b.recording === true && d6b.screenHidden === true && d6b.barHidden === false && d6b.bodyCls === true,
+    JSON.stringify(d6b));
   await dp.waitForTimeout(1300);
   const d6d = await dp.evaluate(() => ({
     km: Number(document.getElementById('recKm').textContent),
@@ -1273,8 +1646,10 @@ async function checkQualityHintMobile(browserInst, width, height) {
   ok('D6c 走完開板→接一段→開始錄製之後重新整理，?demo=bounty 撐得住、PHYSICAL_COLLECT_ENABLED 仍是 true',
     d6c.search.includes('demo=bounty') && d6c.phys === true && d6c.recording && d6c.samples > 0,
     `重載前 search=${preReloadSearch}　重載後 ${JSON.stringify(d6c)}`);
+  // 🔴 規格覆審 2026-07-28：重新整理後恢復成「地圖可見、常駐列在」的新狀態(不是接回面板開著
+  // 的巧合狀態)，此刻真正顯示、按得到的停止鈕是 #recordBarStop，不是 #recStop。
   if (d6c.recording) {
-    await dp.click('#recStop');
+    await dp.click('#recordBarStop');
     await dp.waitForFunction(() => !state.recording, null, { timeout: 5000 });
   }
 
@@ -1282,7 +1657,7 @@ async function checkQualityHintMobile(browserInst, width, height) {
   // 找不到／未命中時不直接 tap 讓 Playwright 整份中止，真正的還原缺陷由上面的 C10 單項斷言變紅。
   await dp.waitForFunction(() => typeof state !== 'undefined' && !!state.recording, null, { timeout: 5000 }).catch(() => {});
   const d6Stop = await dp.evaluate(() => {
-    const btn = document.getElementById('recStop'), r = btn.getBoundingClientRect();
+    const btn = document.getElementById('recordBarStop'), r = btn.getBoundingClientRect();
     const x = r.x + r.width / 2, y = r.y + r.height / 2, hit = document.elementFromPoint(x, y);
     return { hit: hit === btn || btn.contains(hit), x, y };
   });
@@ -2024,6 +2399,48 @@ for (const w of [375, 390]) {
     return { sec: !!sec, btn: !!document.querySelector('#passport [data-act="bountyboard"]') };
   });
   ok('P9 零貢獻的新使用者也看得到懸賞板入口', p9.sec && p9.btn, JSON.stringify(p9));
+  await ctx.close();
+}
+
+// 🔴 P10（使用者實測回饋 2026-07-28）：「懸賞板太不起眼，連我自己都差點沒找到，請做成
+// 相對應的紅色按鈕。」判準不是「是某個顏色」（色票改名字就假過），是①真的紅——比對
+// CSS 變數 --red 的瀏覽器實際解析值，不是自己複誦一個 RGB 字面量；②與旁邊「收集地圖」鈕
+// 的顏色真的不同（同一顆 .pl-map 基底，只有 .pl-bounty 覆寫，兩者不同色才證明覆寫生效）。
+// 🔴 showCorrectMapBtn（buildCorrectSection() 裡「校正貢獻」節自己的收集地圖鈕）要
+// lineCompletion().length===0 且 bountyCorrectedSegs().size>0 才會出現——第一輪誤用
+// fetchBountyMe()/over:{me:ME} 去餵它，撞了 hasCmap:false：bountyCorrectedSegs() 只讀本機
+// loadBounty()，跟後端 bounty-me 是兩條互不相干的資料（H1 測試自己的既有註解就寫明這件事，
+// 「這裡直接塞本機記錄即可」）。改用 H1 已驗證的同一套本機塞值手法（loadBounty→塞
+// trips→saveBounty），app:true 預設 lineCompletion() 本來就是零，兩條件同時成立。
+{
+  const { ctx, page } = await open(browser, { app: true });
+  const p10 = await page.evaluate(() => {
+    localStorage.setItem('trainmap-passport-open', '1');
+    const rec = [...lineNetwork().values()].find(r => r.sys === 'tra_sched');
+    const b = loadBounty();
+    b.trips['p10'] = { lnId: rec.id, sys: rec.sys, trainNo: '1', dir: 0, tripDate: '2026-07-28',
+      verdict: 'ok', segs: rec.segs.slice(0, 2).map(s => s.key), u: Date.now() };
+    saveBounty(b);
+    renderPassport();
+    const bounty = document.querySelector('#passport [data-act="bountyboard"]');
+    const cmap = document.querySelector('#passport [data-act="collectmap"]');
+    if (!bounty) return { missing: true };
+    const probe = document.createElement('div');
+    probe.style.cssText = 'position:absolute;visibility:hidden;background:var(--red)';
+    document.body.appendChild(probe);
+    const wantRed = getComputedStyle(probe).backgroundColor;
+    probe.remove();
+    return {
+      missing: false, hasCmap: !!cmap, lineCompletionZero: lineCompletion().length === 0,
+      correctedSegsN: bountyCorrectedSegs().size,
+      bountyBg: getComputedStyle(bounty).backgroundColor,
+      cmapBg: cmap ? getComputedStyle(cmap).backgroundColor : null,
+      wantRed,
+    };
+  });
+  ok('P10 護照「懸賞板」入口是紅色（比對 CSS 變數 --red 的實際解析值），且與「收集地圖」鈕的顏色不同（同色系覆寫確實生效）',
+    !p10.missing && p10.bountyBg === p10.wantRed && p10.hasCmap === true && p10.bountyBg !== p10.cmapBg,
+    JSON.stringify(p10));
   await ctx.close();
 }
 
