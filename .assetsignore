@@ -35,6 +35,9 @@ design-mock.html
 _專案資訊.html
 授權查證*
 安全審查*.md
+# 對外洽談用的內部小抄／紀錄(含談判策略,禁上正式站)
+*通話小抄*
+國土測繪中心_*
 ntmetro_fixtures
 # 暫存驗證腳本(Playwright 等):慣例放 repo 根目錄好解析 node_modules,一律 ephemeral、禁上正式站。
 # index.html 是純單檔 app、不載任何 .mjs 模組;正式 build 腳本都在已排除的 scripts/。
@@ -61,3 +64,9 @@ Plus訂閱*
 # App icon 概念稿(未追蹤,零引用,9.4MB)。2026-07-26 實測在預覽站全部回 200。
 # 已追蹤的 icon 都不叫 app-icon-*,加這條不誤殺。
 assets/app-icon-*
+# 技術原型(3D 文湖線等):只在本機跑,不是產品的一部分,禁上正式站。
+prototypes
+# 各 session 的暫存工作區:中間產物、驗證輸出、交接草稿,內容不受控且多是未定案判斷。
+# .gitignore 管不到 wrangler(它上傳的是磁碟檔案),這裡要另外列一次——2026-07-26 的 .cache
+# 就是只進 .gitignore 沒進這裡,結果 TDX 原始快取在預覽站可下載。
+scratchpad
