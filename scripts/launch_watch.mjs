@@ -1,24 +1,25 @@
 #!/usr/bin/env node
-// 上線期觀測：把「App Store 名次」與「用量／燒圖速度」記成同一條時間序列。
+// 上線期觀測：把「App Store 名次」與「圖磚燒錄」記成同一條時間序列。
 //
 // 用法：
-//   node scripts/launch_watch.mjs                  記一筆（名次 + AE 用量 + 估算 Stadia credits）
-//   node scripts/launch_watch.mjs --credits=500000 同上，但用 Stadia 後台實讀值校準比例
-//   node scripts/launch_watch.mjs --log            看時間序列
+//   node scripts/launch_watch.mjs                記一筆（名次 + AE 用量 + Stadia 實數）
+//   node scripts/launch_watch.mjs --esri=250000  同上，並帶入 Esri 後台當日張數（Esri 無 API，只能手動）
+//   node scripts/launch_watch.mjs --log          看時間序列
 //
-// 三個資料源：
-//   名次   Apple 官方 iTunes RSS（公開免金鑰，實測隨時更新）
-//   用量   我方 Analytics Engine（即時，延遲 3–5 分鐘）——App 殼與網頁的 /api/* 請求數
-//   credits Stadia 後台手動讀入；記過實讀值之後，未來各筆用「credits/App 請求」比例估算
+// 資料源：
+//   名次    Apple 官方 iTunes RSS（公開免金鑰）
+//   AE 用量 我方 Analytics Engine（即時，延遲 3–5 分鐘）——App 殼 vs 網頁的 /api/* 請求數
+//   Stadia  管理 API 實數（GET /api/v1/properties/<id>/stats/，需 .env 的 STADIA_MGMT_KEY）
+//   Esri    手動帶入（ArcGIS 無對應的免申請 API）
 //
-// ⚠ 名次不是下載數：Apple 榜單看的是近期下載「速度」且經過平滑，換算不出絕對值，
-//   只能看趨勢。真實下載數要等 ASC 銷售與趨勢（隔日）。
-// ⚠ credits 估算值僅供盯盤：比例會隨「使用者都在做什麼」漂移（放空掛機的人多，比例就高）。
-//   要決定方案級距時以 Stadia 後台實數為準。
+// ⚠ 兩種「今天」不一樣，不要混算：
+//   AE 用的是**台北日**（00:00–24:00 +08）；Stadia 管理 API 的日期鍵是 **UTC 日**
+//   （UTC 00:00 = 台北 08:00）。所以 Stadia 的「今日」其實是「今天早上 8 點到明天早上 8 點」，
+//   它會把整個白天尖峰收在同一格、而不被凌晨的離峰稀釋。兩者的每日數字本來就不該相等。
+// ⚠ 名次不是下載數：Apple 榜單看的是近期下載「速度」且經過平滑，換算不出絕對值。
+//   真實下載數要等 ASC 銷售與趨勢（隔日）。
 //
-// TODO：Stadia 管理 API（GET https://client.stadiamaps.com/api/v1/<property_id>/stats/，
-//   標頭 `Authorization: Token <key>`，property 94732）可讓 credits 也自動化，
-//   但需先寫信 support@stadiamaps.com 申請開通 Management API access。
+// 🔒 STADIA_MGMT_KEY 只從 .env 讀，永遠不印出、不寫進記錄檔。
 import fs from 'fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -26,33 +27,33 @@ import { fileURLToPath } from 'node:url';
 
 const APP_ID = '6792673516';
 const DATASET = 'railisland_traffic';
+const PROPERTY = 94732;
 // 專案路徑含中文，用 fileURLToPath 而非 new URL().pathname（後者會 percent-encode）
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const LOG = path.join(ROOT, '.cache', 'launch_watch.tsv');  // .cache/ 已在 .gitignore，不進版控也不上傳
+const LOG = path.join(ROOT, '.cache', 'launch_watch.tsv');  // .cache/ 已在 .gitignore 與 .assetsignore
 const args = process.argv.slice(2);
-const creditsArg = (args.find(a => a.startsWith('--credits=')) || '').split('=')[1];
 const esriArg = (args.find(a => a.startsWith('--esri=')) || '').split('=')[1];
 
-// esri 是後來才加的欄位，故擺在最後——舊列少一格讀回來是 undefined，當 '-' 處理即可
-const COLS = ['時間', '旅遊', '導航', '總榜', 'App請求', '網頁請求', 'credits', '來源', 'Esri圖磚'];
+// Stadia 方案（官方定價表）：含額度與超額單價（每千 credits）
+const PLANS = [
+  { name: 'Starter', base: 20, incl: 1e6, over: 0.03 },
+  { name: 'Standard', base: 80, incl: 7.5e6, over: 0.02 },
+  { name: 'Professional', base: 250, incl: 25e6, over: 0.015 },
+];
+const planCost = (p, credits) => p.base + Math.max(0, credits - p.incl) / 1000 * p.over;
+const bestPlan = credits => PLANS.map(p => ({ p, c: planCost(p, credits) })).sort((a, b) => a.c - b.c)[0];
+const n = v => Math.round(v).toLocaleString();
 
 if (args.includes('--log')) {
   if (!fs.existsSync(LOG)) { console.log('尚無記錄，先跑一次 node scripts/launch_watch.mjs'); process.exit(0); }
   const rows = fs.readFileSync(LOG, 'utf8').trim().split('\n').map(l => l.split('\t'));
-  console.log(COLS[0].padEnd(18) + COLS.slice(1, 4).map(c => c.padStart(6)).join('') +
-    COLS.slice(4, 7).map(c => c.padStart(11)).join('') + COLS[8].padStart(11) + '  ' + COLS[7]);
-  let prevC = null, prevT = null;
-  for (const r of rows) {
-    const [t, tr, nv, ov, app, web, cr, src, esri] = r;
-    let rate = '';
-    if (prevC && cr !== '-' && prevC !== '-') {
-      const dh = (new Date(t.replace(' ', 'T') + ':00') - new Date(prevT.replace(' ', 'T') + ':00')) / 3.6e6;
-      if (dh > 0.05) rate = `　${Math.round((cr - prevC) / dh / 1000)}k/時`;
-    }
-    console.log(t.padEnd(18) + [tr, nv, ov].map(v => String(v).padStart(6)).join('') +
-      [app, web, cr, esri || '-'].map(v => String(v).padStart(11)).join('') + '  ' + (src || '') + rate);
-    if (cr !== '-') { prevC = cr; prevT = t; }
-  }
+  console.log('時間'.padEnd(18) + ['旅遊', '導航', '總榜'].map(c => c.padStart(6)).join('') +
+    ['App請求', '網頁請求', 'Stadia日', '期間累計', 'Esri'].map(c => c.padStart(11)).join(''));
+  const num = v => (v !== undefined && /^\d+$/.test(v) ? (+v).toLocaleString() : '-');
+  for (const [t, tr, nv, ov, app, web, day, cum, esri] of rows)
+    console.log(t.padEnd(18) + [tr, nv, ov].map(v => String(v ?? '-').padStart(6)).join('') +
+      [app, web, day, cum, esri].map(v => num(v).padStart(12)).join(''));
+  console.log('\n註：Stadia 欄是 UTC 日、AE 請求欄是台北日，兩者的「今天」範圍不同（見檔頭）。');
   process.exit(0);
 }
 
@@ -69,6 +70,32 @@ async function ranks() {
     } catch { out[key] = null; }
   }
   return out;
+}
+
+// ── Stadia 管理 API ───────────────────────────────────
+function readEnv() {
+  try {
+    return Object.fromEntries(fs.readFileSync(path.join(ROOT, '.env'), 'utf8')
+      .split('\n').filter(l => l.includes('=') && !l.trim().startsWith('#'))
+      .map(l => [l.slice(0, l.indexOf('=')).trim(), l.slice(l.indexOf('=') + 1).trim()]));
+  } catch { return {}; }
+}
+
+async function stadia() {
+  const key = readEnv().STADIA_MGMT_KEY;
+  if (!key) return { err: '.env 沒有 STADIA_MGMT_KEY' };
+  try {
+    const r = await fetch(`https://client.stadiamaps.com/api/v1/properties/${PROPERTY}/stats/`,
+      { headers: { Authorization: 'Token ' + key, accept: 'application/json' } });
+    if (!r.ok) return { err: `HTTP ${r.status}` };          // 不回顯 body：避免任何形式的憑證回音
+    const j = await r.json();
+    // data.maps 是「每日」用量（UTC 日），data.cumulative 是累計且鍵往後偏一天
+    // （實測 cumulative[d] === Σ maps[<d]）。用 maps 當日序列才是誠實的。
+    const daily = Object.entries(j.data.maps || {})
+      .map(([d, v]) => [d.slice(0, 10), Math.round(v)])
+      .filter(([, v]) => v > 0);
+    return { start: j.start_date.slice(0, 10), end: j.end_date.slice(0, 10), total: j.total_usage, daily };
+  } catch (e) { return { err: e.message.slice(0, 50) }; }
 }
 
 // ── AE 用量（今日台北日累計）────────────────────────────
@@ -113,80 +140,68 @@ async function usage() {
 
 // ── 主流程 ────────────────────────────────────────────
 const now = new Date().toLocaleString('sv-SE', { timeZone: 'Asia/Taipei' }).slice(0, 16);
-const [r, u] = await Promise.all([ranks(), usage()]);
-
-// credits：有實讀值就用它並更新比例；否則用歷史最近一次實讀的比例估算。
-// Esri 沒有代理可估，只能沿用當日最後一次手動讀數——連同它的時點一起記住，
-// 否則拿 18:00 的讀數除以 22 小時外推會嚴重低估。
-const hrsOf = t => +t.slice(11, 13) + +t.slice(14, 16) / 60;
-let credits = creditsArg ? Math.round(+creditsArg) : null;
-let src = credits !== null ? '實讀' : '-';
-let ratio = null;
-let esri = esriArg ? Math.round(+esriArg) : null;
-let esriHrs = esriArg ? hrsOf(now) : null;
-if (fs.existsSync(LOG)) {
-  const rows = fs.readFileSync(LOG, 'utf8').trim().split('\n').map(l => l.split('\t'));
-  for (let i = rows.length - 1; i >= 0; i--) {
-    const [t, , , , app, , cr, s, es] = rows[i];
-    if (t.slice(0, 10) !== now.slice(0, 10)) continue;             // 只認同一天
-    if (ratio === null && s === '實讀' && cr !== '-' && app !== '-' && +app > 0) ratio = +cr / +app;
-    if (esri === null && es && es !== '-') { esri = +es; esriHrs = hrsOf(t); }
-    if (ratio !== null && esri !== null) break;
-  }
-}
-if (credits === null && ratio && u.app) { credits = Math.round(u.app * ratio); src = `估算(×${ratio.toFixed(2)})`; }
-if (credits !== null && creditsArg && u.app) ratio = credits / u.app;
+const utcNow = new Date().toISOString();
+const [r, u, s] = await Promise.all([ranks(), usage(), stadia()]);
 
 console.log(`軌島上線觀測　${now}（台北）\n`);
 console.log('  App Store 台灣免費榜');
 for (const k of ['旅遊', '導航', '總榜']) console.log(`    ${k}　${r[k] ? '第 ' + r[k] + ' 名' : '未進前 100'}`);
-console.log('\n  今日累計 /api/* 請求（我方埋點，即時）');
-console.log(`    App 殼　${u.app ?? '查詢失敗' + (u.err ? '：' + u.err : '')}`);
-console.log(`    網頁　　${u.web ?? '-'}`);
-if (credits !== null) {
-  console.log(`\n  Stadia credits　${credits.toLocaleString()}　(${src})`);
-  if (ratio) console.log(`    比例 ${ratio.toFixed(2)} credits / App 請求`);
-  // 方案交叉線：Standard $80 含 7.5M、超額 $0.02/千；Professional $250 含 25M。
-  // 80 + (X-7.5M)/1000*0.02 = 250 → X = 16.0M/月。超過就該升 Professional。
-  const CROSS = 16e6;
-  const hrs = +now.slice(11, 13) + +now.slice(14, 16) / 60;
-  if (hrs > 3) {
-    const perDay = credits / hrs * 24, perMonth = perDay * 30;
-    console.log(`    以今日速率推估　${Math.round(perDay / 1000)}k/日　${(perMonth / 1e6).toFixed(1)}M/月`);
-    console.log(`    Professional 交叉線 16.0M/月（≈533k/日）→ ` +
-      (perMonth > CROSS ? `⚠ 超出 ${((perMonth / CROSS - 1) * 100).toFixed(0)}%，維持數日就該升級`
-                        : `尚在線下 ${((1 - perMonth / CROSS) * 100).toFixed(0)}%，Standard 划算`));
 
-    // Esri（衛星）：2M 免費、超額 $0.15/千張。若併到 Stadia 的 Alidade Satellite：
-    // 4 張 Esri 256 圖磚 ＝ 1 張 Stadia 512 圖磚 ＝ 4 credits ⇒ 張數換 credits 是 1:1。
-    if (esri !== null && esriHrs > 3) {
-      const eDay = esri / esriHrs * 24, eMonth = eDay * 30;
-      const eCost = Math.max(0, eMonth - 2e6) / 1000 * 0.15;
-      const std = m => 80 + Math.max(0, m - 7.5e6) / 1000 * 0.02;
-      const pro = m => 250 + Math.max(0, m - 25e6) / 1000 * 0.015;
-      const merged = perMonth + eMonth;
-      const now2 = Math.min(std(perMonth), pro(perMonth)) + eCost;
-      const after = Math.min(std(merged), pro(merged));
-      console.log(`\n  Esri 衛星圖磚　${esri.toLocaleString()}` +
-        (esriArg ? '　(實讀)' : `　(沿用 ${String(Math.floor(esriHrs)).padStart(2, '0')}:` +
-          `${String(Math.round(esriHrs % 1 * 60)).padStart(2, '0')} 的讀數)`));
-      console.log(`    以今日速率推估　${Math.round(eDay / 1000)}k/日　${(eMonth / 1e6).toFixed(1)}M/月` +
-        `（免費 2M，超額 $0.15/千）→ US$${eCost.toFixed(0)}/月`);
-      console.log(`\n  月費試算（今日速率外推，非帳單）`);
-      console.log(`    現況分開兩家　Stadia US$${Math.min(std(perMonth), pro(perMonth)).toFixed(0)}` +
-        ` ＋ Esri US$${eCost.toFixed(0)}　＝ US$${now2.toFixed(0)}`);
-      console.log(`    衛星併到 Stadia　${(merged / 1e6).toFixed(1)}M credits/月　` +
-        `＝ US$${after.toFixed(0)}（${pro(merged) < std(merged) ? 'Professional' : 'Standard'}）`);
-      console.log(`    差額　US$${(now2 - after).toFixed(0)}/月` +
-        (after < now2 ? `　省 ${((1 - after / now2) * 100).toFixed(0)}%` : ''));
-    }
-  }
+console.log('\n  今日 /api/* 請求（我方埋點，台北日，即時）');
+console.log(`    App 殼　${u.app !== null ? n(u.app) : '查詢失敗' + (u.err ? '：' + u.err : '')}`);
+console.log(`    網頁　　${u.web !== null ? n(u.web) : '-'}`);
+
+let sDay = '-', sCum = '-';
+if (s.err) {
+  console.log(`\n  Stadia　查詢失敗：${s.err}`);
+  console.log('    需 .env 的 STADIA_MGMT_KEY（管理 API 須向 support@stadiamaps.com 申請開通）');
 } else {
-  console.log('\n  Stadia credits　尚無基準——先讀一次後台數字並帶入：');
-  console.log('    node scripts/launch_watch.mjs --credits=<後台的今日 credits>');
+  const days = s.daily;
+  const today = days[days.length - 1];               // UTC 日尚未結束的那一格
+  sDay = today[1]; sCum = s.total;
+  const periodDays = Math.round((Date.parse(s.end) - Date.parse(s.start)) / 864e5);
+  const elapsed = Math.round((Date.parse(utcNow.slice(0, 10)) - Date.parse(s.start)) / 864e5) + 1;
+  const utcHrs = new Date(utcNow).getUTCHours() + new Date(utcNow).getUTCMinutes() / 60;
+
+  console.log(`\n  Stadia credits（管理 API 實數，UTC 日）`);
+  console.log(`    計費期　${s.start} → ${s.end}　第 ${elapsed}/${periodDays} 日`);
+  console.log(`    期間累計　${n(s.total)} / ${n(7.5e6)}　(${(s.total / 7.5e6 * 100).toFixed(1)}% of Standard)`);
+  console.log(`    近日　　${days.slice(-6).map(([d, v]) => `${d.slice(5)} ${n(v)}`).join('　')}`);
+  console.log(`    ⚠ 今日（UTC ${today[0]}）尚未結束，已過 ${utcHrs.toFixed(1)}/24 小時`);
+
+  // 期末推估：給區間而不是單一數字——尖峰日不能當常態，但也不能假裝沒發生
+  const prior = days.slice(0, -1).slice(-3);         // 今日以外的近 3 日
+  const lo = prior.reduce((a, [, v]) => a + v, 0) / (prior.length || 1);
+  const hi = today[1];                                // 今日（保守：不外推補完整日）
+  const left = periodDays - elapsed;
+  console.log(`\n    期末推估（剩 ${left} 日）`);
+  for (const [tag, rate] of [['若回落到前 3 日均值', lo], ['若維持今日水準', hi]]) {
+    const end = s.total + left * rate;
+    const b = bestPlan(end);
+    console.log(`      ${tag.padEnd(11)}　${n(rate)}/日 → 期末 ${(end / 1e6).toFixed(1)}M　最省方案 ${b.p.name} US$${b.c.toFixed(0)}`);
+  }
 }
-if (esri === null) console.log('\n  Esri 衛星圖磚　未帶入（加 --esri=<今日張數> 才會試算兩家合併）');
+
+// ── Esri（無 API，手動帶入；沿用當日最後一次讀數）────────
+let esri = esriArg ? Math.round(+esriArg) : null;
+if (esri === null && fs.existsSync(LOG)) {
+  const rows = fs.readFileSync(LOG, 'utf8').trim().split('\n').map(l => l.split('\t'));
+  for (let i = rows.length - 1; i >= 0; i--) {
+    const [t, , , , , , , , es] = rows[i];
+    if (t.slice(0, 10) === now.slice(0, 10) && es && es !== '-') { esri = +es; break; }
+  }
+}
+if (esri !== null) {
+  // Esri：2M 免費/計費期，超額 $0.15/千張。計費期與 Stadia 不同（07-16–08-15），須另外看後台。
+  console.log(`\n  Esri 衛星圖磚　${n(esri)}　(${esriArg ? '實讀' : '沿用當日前一筆'})`);
+  const eMonth = esri * 30;
+  console.log(`    若每日維持此量　${(eMonth / 1e6).toFixed(1)}M/月（免費 2M，超額 $0.15/千）` +
+    ` → US$${(Math.max(0, eMonth - 2e6) / 1000 * 0.15).toFixed(0)}/月`);
+  console.log(`    ⚠ Esri 計費期與 Stadia 不同，期間累計要自己看後台（無 API 可查）`);
+} else {
+  console.log('\n  Esri 衛星圖磚　未帶入（加 --esri=<後台今日張數>）');
+}
 
 fs.appendFileSync(LOG, [now, r.旅遊 ?? '-', r.導航 ?? '-', r.總榜 ?? '-',
-  u.app ?? '-', u.web ?? '-', credits ?? '-', src, esri ?? '-'].join('\t') + '\n');
+  u.app ?? '-', u.web ?? '-', sDay, sCum, esri ?? '-'].join('\t') + '\n');
 console.log(`\n已記錄。看趨勢：node scripts/launch_watch.mjs --log`);
