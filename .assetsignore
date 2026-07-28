@@ -35,6 +35,9 @@ design-mock.html
 _專案資訊.html
 授權查證*
 安全審查*.md
+# 對外洽談用的內部小抄／紀錄(含談判策略,禁上正式站)
+*通話小抄*
+國土測繪中心_*
 ntmetro_fixtures
 # 暫存驗證腳本(Playwright 等):慣例放 repo 根目錄好解析 node_modules,一律 ephemeral、禁上正式站。
 # index.html 是純單檔 app、不載任何 .mjs 模組;正式 build 腳本都在已排除的 scripts/。
