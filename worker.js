@@ -1119,6 +1119,209 @@ async function bountyValuationCron(env) {
   return { inserted, updated, capped, unlocked };
 }
 
+// ── 判定：兩組閘門、三種結果（規格 §7）─────────────────────────────────────
+// 沿途每 60 秒一批、一批一列，判定時依 (actor, trip_date, train_no) 併回同一趟。
+function assembleTrip(rows) {
+  const first = rows[0];
+  const pts = [];
+  for (const r of rows) { try { pts.push(...JSON.parse(r.payload)); } catch (e) {} }
+  pts.sort((a, b) => a.t - b.t);
+  return { actor: first.actor, tripDate: first.trip_date, trainNo: first.train_no, sys: first.sys,
+    lnId: first.ln_id, dir: Number(first.dir), sampleIds: rows.map(r => r.id), pts };
+}
+const median = a => { const s = a.slice().sort((x, y) => x - y); const m = s.length >> 1;
+  return !s.length ? 0 : (s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2); };
+// 每個正規區間錄到多少:把樣本點的里程投在區間 [dA,dB] 上,看有多少「秒」落在裡面對應到的距離比例。
+// 用距離比例不用點數比例:取樣稀疏的那一段不該因為點少就被判成沒錄到,錄到的距離才是真的。
+function coverageOf(trip, line, rules) {
+  const sts = (line.stations || []).slice().sort((a, b) => a.d - b.d);
+  const out = [];
+  const ds = trip.pts.map(p => p.d / 1000);          // 上傳是公尺，站里程是公里
+  if (!ds.length) return out;
+  for (let i = 1; i < sts.length; i++) {
+    const a = sts[i - 1], b = sts[i], lo = Math.min(a.d, b.d), hi = Math.max(a.d, b.d);
+    if (a.name === b.name || hi - lo < 0.05) continue;
+    let lo2 = Infinity, hi2 = -Infinity, n = 0;
+    for (const d of ds) if (d >= lo && d <= hi) { lo2 = Math.min(lo2, d); hi2 = Math.max(hi2, d); n++; }
+    if (n < 2) continue;
+    out.push({ key: `${line.sys}|${line.lnId}|${a.name < b.name ? a.name + '|' + b.name : b.name + '|' + a.name}`,
+      cov: Math.min(1, (hi2 - lo2) / (hi - lo)) });
+  }
+  return out;
+}
+// 防偽閘：四重，全部不告知細節（給細節等於教人怎麼繞過）。
+// ⚠️ 這一組只回答「這是不是偽造的」，不回答「資料能不能用」。判錯的代價是懲罰誠實的使用者，
+// 所以每一重都刻意寫得保守：模稜兩可一律放行，交給品質閘去降級成 unusable。
+function integrityGate(trip, ctx, rules) {
+  const R = rules.integrity, now = Number(ctx.now) || Date.now();
+  // 第一重：對得上表定。⚠️ 只有「日期在未來」或「日期超出上傳窗」才算防偽失敗——
+  // 車次存在但軌跡對不上是「選錯車次」，那是自動修正的機會不是作弊（規格 §7）。
+  const tripMs = Date.parse(trip.tripDate + 'T00:00:00Z');
+  if (!Number.isFinite(tripMs)) return { pass: false, code: 'future_date' };
+  if (tripMs > now + 86400000) return { pass: false, code: 'future_date' };
+  if (now - tripMs > R.tripDateMaxAgeDays * 86400000) return { pass: false, code: 'stale_date' };
+  const pts = trip.pts;
+  if (pts.length < 2) return { pass: true, code: null };        // 太短交給品質閘判 too_short
+  // 第三重：物理可能——里程單調（同方向）、加速度上限、速度上限依系統
+  // 查表鍵是系統家族（TRA/THSR/metro），trip.sys 是 SYS_DEFS 的 id（tra_sched/…），要先過桶對照。
+  // 直接拿 trip.sys 查會恆常 undefined 落到 default(36.2m/s=130km/h)，高鐵 300km/h 每趟都被判
+  // impossible_physics；台鐵剛好卡在 130 邊界，GPS 抖動就誤判。
+  const cap = R.speedCapMps[BOUNTY_SYS_BUCKET[trip.sys]] || R.speedCapMps.default;
+  for (let i = 1; i < pts.length; i++) {
+    const dt = pts[i].t - pts[i - 1].t, dd = pts[i].d - pts[i - 1].d;
+    if (dt <= 0) continue;
+    if (dd < -50) return { pass: false, code: 'impossible_physics' };            // 50m 容差吸收 GPS 抖動
+    const v = dd / dt;
+    if (v > cap * 1.15) return { pass: false, code: 'impossible_physics' };      // 15% 容差吸收投影誤差
+    const dv = (Number(pts[i].v) || v) - (Number(pts[i - 1].v) || v);
+    if (Math.abs(dv / dt) > R.maxAccelMps2 * 3) return { pass: false, code: 'impossible_physics' };
+  }
+  // 第四重：都卜勒一致性。coords.speed 是都卜勒量測不是位置微分，真實資料兩者會有適度差異；
+  // spoof 工具產出的兩者過度一致。相關係數高到接近 1 才判——這一重刻意只抓最粗糙的偽造。
+  const a = [], b = [];
+  for (let i = 1; i < pts.length; i++) {
+    const dt = pts[i].t - pts[i - 1].t;
+    if (dt <= 0 || !Number.isFinite(pts[i].v)) continue;
+    a.push(pts[i].v); b.push((pts[i].d - pts[i - 1].d) / dt);
+  }
+  if (a.length >= 30) {
+    const mA = a.reduce((s, x) => s + x, 0) / a.length, mB = b.reduce((s, x) => s + x, 0) / b.length;
+    let sab = 0, sa = 0, sb = 0;
+    for (let i = 0; i < a.length; i++) { const x = a[i] - mA, y = b[i] - mB; sab += x * y; sa += x * x; sb += y * y; }
+    const corr = (sa > 0 && sb > 0) ? sab / Math.sqrt(sa * sb) : 0;
+    if (corr > R.dopplerCorrMax) return { pass: false, code: 'doppler_too_clean' };
+  }
+  // 第二重：對得上當時的獨立誤點回報。這是最難繞的一重——偽造者得同時猜中我們幾小時前存下來的值。
+  // 🔴 沒有獨立紀錄時直接跳過，不判失敗：捷運沒有車次級誤點源（規格 §7 那個不對稱），
+  // 在那裡判失敗等於把整個捷運的樣本全部殺掉，而捷運正是最需要收的地方。
+  const events = (ctx.events || []).filter(e => Number.isFinite(Number(e.schedSec)));
+  if (events.length && ctx.line) {
+    const sts = (ctx.line.stations || []);
+    let worst = 0;
+    for (const e of events) {
+      const st = sts.find(s => s.name === e.sta);
+      if (!st) continue;
+      // 樣本推得的通過時刻：里程最接近該站的那個點
+      let best = null;
+      for (const p of pts) { const gap = Math.abs(p.d / 1000 - st.d); if (!best || gap < best.gap) best = { gap, t: p.t }; }
+      if (!best || best.gap > 0.5) continue;                                   // 沒經過那一站就不比
+      worst = Math.max(worst, Math.abs(best.t - (Number(e.schedSec) + Number(e.delay || 0) * 60)));
+    }
+    if (worst > R.delayMatchToleranceSec) return { pass: false, code: 'delay_mismatch' };
+  }
+  return { pass: true, code: null };
+}
+// 品質閘：決定資料採不採用，不決定給不給章。每一項都有可以告知的原因與可以行動的建議
+// （文案在 data/bounty_rules.json 的 qualityText，前端錄製當下用的是同一份）。
+// 順序照規格 §7 那張表：先講使用者控制得了的（精確位置、遮蔽、取樣頻率），再講環境的。
+function qualityGate(trip, ctx, rules) {
+  const Q = rules.quality, pts = trip.pts;
+  if (!trip.trainNo) return { pass: false, code: 'unknown_train' };
+  if (pts.length < 10) return { pass: false, code: 'too_short' };
+  const accs = pts.map(p => Number(p.acc)).filter(Number.isFinite);
+  const accMed = median(accs);
+  // 精確位置被關：誤差不只大，而且「平坦」——真實的遮蔽會忽好忽壞，關掉精確位置是恆定的粗略值
+  if (accMed > Q.accMedianPreciseOffM) {
+    const spread = accs.length ? (Math.max(...accs) - Math.min(...accs)) : 0;
+    if (spread < accMed * 0.25) return { pass: false, code: 'precise_off' };
+    return { pass: false, code: 'acc_blocked' };
+  }
+  if (accMed > Q.accMedianBlockedM) return { pass: false, code: 'acc_blocked' };
+  const gaps = [];
+  for (let i = 1; i < pts.length; i++) gaps.push(pts[i].t - pts[i - 1].t);
+  if (median(gaps) > Q.sampleGapMedianSec) return { pass: false, code: 'too_sparse' };
+  if (gaps.some(g => g > Q.noFixGapSec)) return { pass: false, code: 'underground' };
+  const cov = ctx.line ? coverageOf(trip, ctx.line, rules) : [];
+  if (!cov.length || !cov.some(c => c.cov >= Q.segCoverageMin)) return { pass: false, code: 'too_short' };
+  return { pass: true, code: null };
+}
+// 三態。🔴 順序固定：先防偽、後品質。防偽決定「給不給章」，品質決定「資料採不採用」。
+// unusable 那一支的每一件事都要與 ok 相同，只有計不計入下架門檻不同——規格 §11 明說這是最容易寫錯的地方。
+function verdictOf(ig, qg) {
+  if (!ig.pass) return { verdict: 'suspect', qualityCode: null, rejectCode: ig.code };
+  if (!qg.pass) return { verdict: 'unusable', qualityCode: qg.code, rejectCode: null };
+  return { verdict: 'ok', qualityCode: null, rejectCode: null };
+}
+
+// 測試專用重置:bountyRulesMem／bountyUnitsMem 是模組層級快取(各自宣告處已有註解),同一個
+// process 內對同一份 env 內容只讀一次。正式環境每次 cron 呼叫都是全新 isolate,快取不會跨呼叫
+// 殘留,沒有這個問題;但同一支測試檔案若想在不同情境間換 ASSETS 內容重跑 bountyVerifyCron,
+// 第二個情境會讀到第一個情境快取住的舊值(Task 2 report 風險 #4、Task 5 report 風險 #1 都提過
+// 這個設計)。供測試在切換情境前呼叫清空,不供正式流程使用,production 路徑不 import 這個函式。
+function bountyResetMemCaches() { bountyRulesMem = null; bountyUnitsMem = null; }
+
+// 隔日判定。BOUNTY_NOW 只給測試用（cron 沒辦法等時間流過，而三態的判定與時間有關）。
+async function bountyVerifyCron(env) {
+  const rules = await bountyRules(env);
+  const M = await bountyUnits(env);
+  const now = Number(env.BOUNTY_NOW) || Date.now();
+  const rs = await env.DELAY_DB.prepare(
+    "SELECT * FROM bounty_samples WHERE verdict='pending' ORDER BY actor, trip_date, train_no, submitted_at").all();
+  const groups = new Map();
+  for (const r of (rs.results || [])) {
+    const k = `${r.actor}|${r.trip_date}|${r.train_no}`;
+    (groups.get(k) || groups.set(k, []).get(k)).push(r);
+  }
+  const stat = { trips: 0, ok: 0, unusable: 0, suspect: 0 };
+  for (const rows of groups.values()) {
+    stat.trips++;
+    const trip = assembleTrip(rows);
+    const line = M.lines[`${trip.sys}|${trip.lnId}`] || null;
+    // 第二重要用的獨立真相源：我們自己幾小時前存下的逐站觀測（台鐵才有）
+    let events = [];
+    try {
+      const ev = await env.DELAY_DB.prepare(
+        'SELECT sta, delay, obs_at FROM tra_station_events WHERE service_date=? AND train_no=?'
+      ).bind(trip.tripDate, trip.trainNo).all();
+      events = ev.results || [];
+    } catch (e) {}
+    const ctx = { line, events, now };
+    const v = verdictOf(integrityGate(trip, ctx, rules), qualityGate(trip, ctx, rules));
+    stat[v.verdict]++;
+    const cov = (v.verdict === 'suspect' || !line) ? [] : coverageOf(trip, line, rules)
+      .filter(c => c.cov >= rules.quality.segCoverageMin);
+    const segsJson = JSON.stringify(cov);
+    const upd = env.DELAY_DB.prepare(
+      'UPDATE bounty_samples SET verdict=?, verdict_at=?, quality_code=?, reject_code=?, segs=? WHERE id=?');
+    await env.DELAY_DB.batch(trip.sampleIds.map(id =>
+      upd.bind(v.verdict, now, v.qualityCode, v.rejectCode, segsJson, id)));
+    if (v.verdict === 'suspect') continue;                    // 不給章、不計點、不計入門檻
+    // 🔴 unusable 與 ok 在點數上完全一樣：排除作弊就照給（規格 §1 拍板 3、§8）
+    let earned = 0;
+    for (const c of cov) {
+      const lock = await env.DELAY_DB.prepare(
+        "SELECT points_locked FROM bounty_claims WHERE actor=? AND seg_key=? AND status='open' AND expires_at>=?"
+      ).bind(trip.actor, c.key, Date.parse(trip.tripDate + 'T00:00:00Z')).first();
+      if (lock) { earned += Number(lock.points_locked) || 0; continue; }
+      // 沒接懸賞就直接錄（跟車面板的第二個入口）：用當下的板價，不是 0
+      const row = await env.DELAY_DB.prepare(
+        "SELECT points FROM bounty_board WHERE seg_key=? AND kind='track' AND dir=?").bind(c.key, trip.dir).first();
+      earned += Number(row && row.points) || 0;
+    }
+    earned = Math.min(earned, rules.dailyPointsCap);          // 每人每日計點上限（規格 §7 其他防線）
+    await env.DELAY_DB.prepare(
+      'INSERT INTO bounty_points (actor,uid,points,merged_into,updated_at) VALUES (?,NULL,?,NULL,?)' +
+      ' ON CONFLICT(actor) DO UPDATE SET points = points + excluded.points, updated_at = excluded.updated_at'
+    ).bind(trip.actor, earned, now).run();
+    if (v.verdict !== 'ok') continue;                         // ⬅ unusable 到此為止：不計入下架門檻
+    // 只有 ok 才推進 sample_count，收滿才下架（coverN 分系統：捷運要 N≥3 趟一致）
+    // 同 integrityGate 的 speedCapMps：coverN 的鍵是系統家族，要過桶對照才查得到。
+    // 直接查 trip.sys 會恆常落到 coverN.metro(3)，與 groupBoardRows 給前端看的 coverN.TRA(1)
+    // 不一致——使用者跑完一趟看到「1/1 收滿」，段卻永遠不下架。
+    const need = rules.coverN[BOUNTY_SYS_BUCKET[trip.sys]] || rules.coverN.metro;
+    for (const c of cov) {
+      await env.DELAY_DB.prepare(
+        'UPDATE bounty_board SET sample_count = sample_count + 1,' +
+        " covered_at = CASE WHEN kind='track' AND sample_count + 1 >= ? THEN ? ELSE covered_at END" +
+        " WHERE seg_key=? AND dir=? AND kind='track'").bind(need, now, c.key, trip.dir).run();
+    }
+    await env.DELAY_DB.prepare(
+      "UPDATE bounty_claims SET status='fulfilled' WHERE actor=? AND status='open' AND seg_key IN (" +
+      cov.map(() => '?').join(',') + ')').bind(trip.actor, ...cov.map(c => c.key)).run();
+  }
+  return stat;
+}
+
 // ── 台鐵準點統計「每日增量」cron(scheduled handler) ────────────────────────
 // 把本機 python 腳本 scripts/ingest_tra_delay.py 的邏輯搬進 worker:每天自動抓 TDX
 // 歷史 API 前一日資料 → 寫 D1 tra_delay_daily → 重建 kv_blobs 統計 blob(供 /api/
@@ -1447,6 +1650,12 @@ export default {
           const v = await bountyValuationCron(env);
           console.log(`[cron bounty 估值] 新上架 ${v.inserted}, 重算 ${v.updated}, 首次到頂 ${v.capped}, 自動開關 ${v.unlocked}`);
         } catch (e) { console.error('[cron bounty 估值] 失敗:', (e && e.stack) || String(e)); }
+        // 順序是先估值後驗證:驗證要用到板上的當下點數(沒接懸賞直接錄的那條路徑),先估值才是當天的價。
+        // 獨立 try/catch,不影響上面估值的 catch 語意,也不影響上層 ingest 的 rethrow 語意。
+        try {
+          const q = await bountyVerifyCron(env);
+          console.log(`[cron bounty 驗證] ${q.trips} 趟 → 採用 ${q.ok}／可惜 ${q.unusable}／可疑 ${q.suspect}`);
+        } catch (e) { console.error('[cron bounty 驗證] 失敗:', (e && e.stack) || String(e)); }
       }
     }
   },
@@ -1537,4 +1746,5 @@ export const _rateLimit = { rateLimited, delayHistory, deletePaidProfile };
 // D1 寫入之前」「回應裡有沒有夾帶 reject_code」這類只在編排層才成立的性質。
 export const _bounty = { bountyCardId, bountySegLine, groupBoardRows, bountyBoard, isActorId, resolveActor,
   bountyClaim, hasGeoKeys, sanitizeSamples, bountySubmit, firebaseUid, bountyMe, bountyMerge,
-  bountyMedian, bountyL1, bountyL2, bountyPointsOf, bountyUnlocked, bountyValuationCron };
+  bountyMedian, bountyL1, bountyL2, bountyPointsOf, bountyUnlocked, bountyValuationCron,
+  assembleTrip, integrityGate, qualityGate, verdictOf, coverageOf, bountyVerifyCron, bountyResetMemCaches };
