@@ -87,8 +87,9 @@ async function injectPlus(page, { mode = 'buy', subscribed = false } = {}) {
     let sub = !!subscribed;
     const info = () => ({ entitlements: { active: sub ? { plus: { identifier: 'plus' } } : {} }, managementURL: sub ? 'https://apps.apple.com/account/subscriptions' : '' });
     const offering = { availablePackages: [
-      { identifier: '$rc_monthly', packageType: 'MONTHLY', webBillingProduct: { currentPrice: { formattedPrice: 'NT$90' } } },
-      { identifier: '$rc_annual', packageType: 'ANNUAL', webBillingProduct: { currentPrice: { formattedPrice: 'NT$390' } } },
+      // 佔位值,非真實定價(本 repo 公開);此處價格不參與斷言,僅供 UI 顯示。
+      { identifier: '$rc_monthly', packageType: 'MONTHLY', webBillingProduct: { currentPrice: { formattedPrice: 'NT$MONTH-STUB' } } },
+      { identifier: '$rc_annual', packageType: 'ANNUAL', webBillingProduct: { currentPrice: { formattedPrice: 'NT$YEAR-STUB' } } },
     ] };
     window.RAIL_PLUS_TEST_ADAPTER = {
       setUser: async () => {}, getCustomerInfo: async () => info(),
