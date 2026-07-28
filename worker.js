@@ -1076,7 +1076,7 @@ async function pruneStationEvents(env) {
 
 // ── 公告狀態機:把「現在有哪些通阻公告」變成伺服器端有狀態的東西 ────────────────
 // 動機:公告只存在於 TDX 的當下回應,一旦官方撤下就永遠查不回來(2026-07-26 晚間的地震
-// 公告隔天就調不出原文)。這一層每分鐘快照一次寫進 D1,同時算出「新增/內容更新/解除」
+// 公告隔天就調不出原文)。這一層每五分鐘快照一次寫進 D1,同時算出「新增/內容更新/解除」
 // 三種事件——先是公告歷史,日後接推播時就是推什麼的判斷依據。
 //
 // 鐵則:不新增 TDX 呼叫。cron 打的是自家已上線的 /api/*-alert,吃既有邊緣快取
@@ -1175,9 +1175,15 @@ function diffAlertState(prevRows, current, liveSys, nowIso) {
   return { upserts, clears, added, updated, cleared };
 }
 
-// 每分鐘一發。Cloudflare cron 最小粒度就是 1 分鐘;公告本身上游約 2 分鐘更新一次,
-// 每分鐘查是為了讓「新增」事件的延遲上界壓在一分鐘內(日後接推播時這就是通知延遲)。
-const ALERT_LOG_CRON = '* * * * *';
+// 五分鐘一發。原本設每分鐘(想把「新增」事件的偵測延遲上界壓在一分鐘內,日後接推播時
+// 那就是通知延遲),2026-07-28 部署前改成五分鐘,兩個理由:
+// (a) 這支端點自己的邊緣快取是 s-maxage=300 ⇒ 消費端結構上就看不到比五分鐘更新的資料,
+//     每分鐘抓等於買了一個沒有人收得到的東西;
+// (b) 每分鐘的 TDX 呼叫上界約 13,000 次/日(cron 若輪替機房,三個來源的 110 秒記憶體與
+//     邊緣快取會全 miss),五分鐘約 2,600。目前零消費者,沒有人在等那個延遲。
+// 要調快的時機:推播真的接上、而且量測過確認延遲是實際瓶頸。調的時候 wrangler.jsonc 的
+// triggers.crons 要同步改——兩處各自寫死,F2 那條斷言就是在守這個。
+const ALERT_LOG_CRON = '*/5 * * * *';
 // cron 內打自家端點的來源站。刻意寫死正式站網域而不是從 request 推——scheduled 事件
 // 沒有 request 可推,而且要的就是「打有邊緣快取的那個站」。
 const ALERT_LOG_ORIGIN = 'https://railisland.tw';
@@ -1256,7 +1262,7 @@ async function ingestAlertLog(env) {
   const cl = db.prepare(ALERT_LOG_CLEAR);
   for (const c of d.clears) stmts.push(cl.bind(now, c.sys, c.akey));
   if (stmts.length) await db.batch(stmts);
-  // 只有事件才記 log:每分鐘一發,無事件時保持安靜,免得把 observability 洗滿
+  // 只有事件才記 log:每五分鐘一發,無事件時保持安靜,免得把 observability 洗滿
   for (const r of d.added) console.log(`[cron alert-log] 新增 ${r.sys} ${r.title}`);
   for (const r of d.updated) console.log(`[cron alert-log] 更新 ${r.sys} ${r.title}`);
   for (const r of d.cleared) console.log(`[cron alert-log] 解除 ${r.sys} ${r.title}`);
@@ -1359,7 +1365,7 @@ function trafficTag(origin, userAgent) {
 
 export default {
   // 多個 cron 共用同一個 handler,靠 event.cron 分派:
-  // '* * * * *' = 公告狀態機(每分鐘);'15 1'/'15 4' = 台鐵準點統計每日增量(台北 09:15/12:15)。
+  // '*/5 * * * *' = 公告狀態機(每五分鐘);'15 1'/'15 4' = 台鐵準點統計每日增量(台北 09:15/12:15)。
   async scheduled(event, env) {
     if (event && event.cron === ALERT_LOG_CRON) {
       try {
