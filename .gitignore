@@ -6,6 +6,9 @@ scripts/.overpass_cache/
 _專案資訊.html
 授權查證*
 安全審查*.md
+# 對外洽談用的內部小抄／紀錄(含談判策略與底價思路,repo 公開,不可入版控)
+*通話小抄*
+國土測繪中心_*
 通知功能設計*
 音樂功能設計*
 打卡收集系統設計*
@@ -33,3 +36,27 @@ data/tra_pass_obs_diag.json
 
 # TestFlight 測試說明底稿（不進公開 repo）
 TestFlight測試說明_*.md
+
+# 內部工程文件：研究／稽核／分析／量測／參考／交付／外部審查報告。
+# 這個 repo 是 public，而這些檔講的是還沒定案的判斷、缺陷細節與防偽機制。
+# 逐「類別_」列而不是逐檔列——命名慣例是「類別_主題_日期」，逐類才耐得住之後新增的檔。
+# （2026-07-28 補：此前這批一直是未追蹤狀態，沒外洩，但任何一次 git add -A 就會進公開歷史
+#  而 push 後不可改寫；同批的 codex_審查_懸賞前端 含懸賞防偽的逐項缺陷細節。）
+研究_*
+稽核_*
+分析_*
+參考_*
+交付_*
+量測_*
+codex_審查*
+QA測試報告*
+地圖旋轉功能設計*
+AGENTS.md
+TODO.md
+
+# App 上架文件底稿：隱私政策草稿、商店文案、資料揭露、原生權限說明。
+# 定稿會送 ASC，草稿階段不進公開 repo（避免外界拿未定稿版本當正式聲明）。
+app/PRIVACY_POLICY_DRAFT.md
+app/STORE_LISTING_v1_FREE.md
+app/STORE_DATA_DISCLOSURES.md
+app/NATIVE_PRIVACY_AND_PERMISSIONS.md
