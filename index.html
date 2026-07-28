@@ -2651,6 +2651,7 @@ try { if (matchMedia('(max-width: 900px)').matches) document.body.classList.add(
       <summary><span>🛠 更新紀錄</span><span class="foot-sub">最後更新：2026/7/28</span></summary>
       <ul class="foot-list foot-recent">
         <li class="grp">最近更新</li>
+        <li><span class="d">7/28</span><span>「隨機跟隨」挑到的車會一路跟到終點，不再中途自己換車</span></li>
         <li><span class="d">7/28</span><span>放空模式換景放慢、閒置久了改停全島畫面，列車照常跑</span></li>
         <li><span class="d">7/28</span><span>誤點的車過了表定到站時間後，點下去不會再從頭重播了（謝謝網友回報）</span></li>
         <li><span class="d">7/27</span><span>切到「高」時，左邊牌子下面改寫「台灣高鐵即時軌跡」，不再沿用台鐵的字</span></li>
@@ -2658,7 +2659,6 @@ try { if (matchMedia('(max-width: 900px)').matches) document.body.classList.add(
         <li><span class="d">7/26</span><span>更新紀錄瘦身：預設只列最近八條，其餘收進下方「完整更新歷史」依主題分類</span></li>
         <li><span class="d">7/26</span><span>新增「📖 使用說明」：各功能都有圖文步驟，按「試一次」還會直接幫你操作一遍</span></li>
         <li><span class="d">7/26</span><span>手機／App 底部的「地圖」鈕換成「🔍 搜尋」，站名、車次、列車名稱一按就查</span></li>
-        <li><span class="d">7/26</span><span>手機對話框不再被底部頁籤蓋住；跟隨卡的「×」與跟隨鎖鈕也加大好按了</span></li>
       </ul>
       <!-- 第二層:完整歷史。刻意不掛 .foot-box 類名——placeFootBoxes() 用
            `.site-foot .foot-box` 搬移面板,巢狀同名會被當成另一個盒子一起搬走。 -->
@@ -2684,6 +2684,7 @@ try { if (matchMedia('(max-width: 900px)').matches) document.body.classList.add(
         <li><span class="d">7/16</span><span>捷運準確度升級：六家捷運依官方到站看板即時校正，國定假日自動改跑假日班表</span></li>
         <li><span class="d">7/9</span><span>台鐵即時誤點上線——介接交通部 TDX 平臺每分鐘更新；7/11 起開站即真實時刻、捷運改逐班推演</span></li>
         <li class="grp">跟車、搜尋與車站看板</li>
+        <li><span class="d">7/28</span><span>「隨機跟隨」改成挑一班就陪你跟到終點，不再過一兩分鐘自己跳去別班車；想換車按「換一班」，結束按小卡的 ×</span></li>
         <li><span class="d">7/25</span><span>環島之星觀光列車上地圖了：搜尋車名或車次 1／2，跟著萌旅號 13 小時繞台灣一圈</span></li>
         <li><span class="d">7/22</span><span>台鐵列車通過不停靠的車站時不再假性減速，只在真正停靠站緩起緩停</span></li>
         <li><span class="d">7/18</span><span>搜尋框可以直接打列車名字：山嵐、鳴日、藍皮、海風…沒有固定車次的給你介紹卡</span></li>
@@ -2950,7 +2951,7 @@ try { if (matchMedia('(max-width: 900px)').matches) document.body.classList.add(
 <script>
 // 版本戳記:每次改版 push 前手動遞增(字母序),畫面時鐘徽章與 console 都會顯示,
 // 供比對線上跑的是不是最新版(瀏覽器快取 max-age=600 常讓人看到舊版)
-const BUILD = 'v0728e'; // 正式站線獨立編號:origin/main(staging) 已用到 v0728b,跳開避免撞號
+const BUILD = 'v0728f'; // 正式站線獨立編號:origin/main(staging) 已用到 v0728b,跳開避免撞號
 const TRACK_AUDIT = new URLSearchParams(location.search).get('audit') === 'tracks';
 // 手機/平板直式「殼」斷點(議題1:640→900,iPad 直式改拿 tabbar＋更多抽屜):與 CSS @media 同步,版面類判斷一律用此常數。
 // 注意:裝置等級判斷(keepBuffer/powerSave 預設)刻意不用此常數、維持 640——iPad 不該因為改拿 tabbar 就被當低階裝置。
@@ -6229,8 +6230,13 @@ function tick(now) {
   if (state.director && state.playing) directorTick(now); // 導播相位機:跟車段↔群車段循環(先於 autoTour,可能切換 autoTour 開關)
   if (state.autoTour && state.mode === 'sched' && state.playing) {
     const ftr = state.followTrain;
+    // 自動輪車(計時到就換、到終點就接下一班)只屬於放空/導播——那是螢幕保護與 OBS 訊號源,本來就要一直有新畫面。
+    // 使用者自己按「隨機跟隨」是「幫我挑一班」,挑到就陪他跑完:中途不換車、到終點也不接下一班
+    // (2026-07-28 使用者要求)。要換車按「換一班」,結束按小卡 ×。
+    const rotate = state.ambient || state.director;
     // 捷運幽靈車跟隨中(freqFollow 有值、無 followTrain)不算「沒目標」,否則每幀都會誤判成該換車
-    if ((!ftr && !state.freqFollow) || (ftr && effTLive(ftr) > ftr.stops[ftr.stops.length - 1].arrSec) || now >= (state._tourNext || 0))
+    if ((!ftr && !state.freqFollow) ||
+        (rotate && ((ftr && effTLive(ftr) > ftr.stops[ftr.stops.length - 1].arrSec) || now >= (state._tourNext || 0))))
       nextTourTrain(now);
   }
   if (state.ambient && state.ambientStyle === 'hotspot' && !state.followTrain && !state.freqFollow &&
@@ -7120,7 +7126,8 @@ function trainIntro(tr) {
     : Math.round(durSec / 60) + ' 分';
   return { special: sp || null, kind, desc: sp ? sp.desc : desc, amens, nStops: stops.length, dur, fact, branch };
 }
-// ── 隨機跟隨(螢幕保護模式):加權挑一班正在跑的車,跟 1–2 分鐘換下一班 ──
+// ── 隨機挑車:加權挑一班正在跑的車。放空/導播會定時回來換下一班(1–2 分鐘 / 5–10 分鐘),
+//    使用者手按「隨機跟隨」則只挑這一次,跟到終點為止(換車由使用者按「換一班」,見 tick 的 rotate 閘) ──
 const TOUR_W = { '其他': 24, '莒光/復興': 10, '自強': 5, '區間快': 2, '區間車': 1 };
 function pickTourTrain() {
   const cands = state.trains.filter(t =>
