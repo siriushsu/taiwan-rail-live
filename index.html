@@ -2397,8 +2397,19 @@
     #searchPanel .sp-hint { margin: 0; padding: 2px 14px 12px; font-size: 11.5px; line-height: 1.7; color: var(--faint); }
     /* 有結果就收起提示(提示是空狀態的引導,不該墊在結果下面);:has 不支援的舊瀏覽器只是提示留著,無害 */
     #searchSlot:has(#searchDrop:not([hidden])) + .sp-hint { display: none; }
-    .takeout-modal { padding: 8px; place-items: stretch; }
-    .takeout-dialog { width: 100%; max-height: calc(100dvh - 16px); align-self: center; }
+    /* 🔴 padding 要讓開安全區(2026-07-28 首次 App build 實機看到):place-items 在手機是 stretch,
+       .takeout-dialog 靠 align-self:center 躲過去,但 #bountyModal 的 .tk-box 刻意不置中(列表本來
+       就常撐滿),於是它一路貼到 padding 上緣 8px——動態島機型的狀態列約 59pt,標題與 × 直接被
+       時鐘和電池壓字。網頁量不到:桌面瀏覽器的 env() 全是 0,要 App 裡才看得見。
+       修在容器 padding 而不是逐顆補 align-self:未來任何一顆內容長到吃滿 max-height 都會走上
+       同一條路,擋在這裡就一次擋完。下面兩條 max-height 同步扣掉 inset,否則 padding 變厚會讓
+       盒子超出可用高度。 */
+    .takeout-modal {
+      --sa-t: env(safe-area-inset-top, 0px); --sa-b: env(safe-area-inset-bottom, 0px);
+      padding: calc(8px + var(--sa-t)) 8px calc(8px + var(--sa-b)); place-items: stretch;
+    }
+    .takeout-dialog { width: 100%; max-height: calc(100dvh - 16px - var(--sa-t) - var(--sa-b)); align-self: center; }
+    .bounty-modal .tk-box { max-height: min(760px, calc(100dvh - 16px - var(--sa-t) - var(--sa-b))); }
     .takeout-head { padding: 8px 10px 8px 14px; }
     .takeout-body { padding: 12px; }
     .takeout-row { grid-template-columns: 28px minmax(0,1fr); }
