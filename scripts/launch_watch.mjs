@@ -31,24 +31,26 @@ const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const LOG = path.join(ROOT, '.cache', 'launch_watch.tsv');  // .cache/ 已在 .gitignore，不進版控也不上傳
 const args = process.argv.slice(2);
 const creditsArg = (args.find(a => a.startsWith('--credits=')) || '').split('=')[1];
+const esriArg = (args.find(a => a.startsWith('--esri=')) || '').split('=')[1];
 
-const COLS = ['時間', '旅遊', '導航', '總榜', 'App請求', '網頁請求', 'credits', '來源'];
+// esri 是後來才加的欄位，故擺在最後——舊列少一格讀回來是 undefined，當 '-' 處理即可
+const COLS = ['時間', '旅遊', '導航', '總榜', 'App請求', '網頁請求', 'credits', '來源', 'Esri圖磚'];
 
 if (args.includes('--log')) {
   if (!fs.existsSync(LOG)) { console.log('尚無記錄，先跑一次 node scripts/launch_watch.mjs'); process.exit(0); }
   const rows = fs.readFileSync(LOG, 'utf8').trim().split('\n').map(l => l.split('\t'));
   console.log(COLS[0].padEnd(18) + COLS.slice(1, 4).map(c => c.padStart(6)).join('') +
-    COLS.slice(4, 7).map(c => c.padStart(11)).join('') + '  ' + COLS[7]);
+    COLS.slice(4, 7).map(c => c.padStart(11)).join('') + COLS[8].padStart(11) + '  ' + COLS[7]);
   let prevC = null, prevT = null;
   for (const r of rows) {
-    const [t, tr, nv, ov, app, web, cr, src] = r;
+    const [t, tr, nv, ov, app, web, cr, src, esri] = r;
     let rate = '';
     if (prevC && cr !== '-' && prevC !== '-') {
       const dh = (new Date(t.replace(' ', 'T') + ':00') - new Date(prevT.replace(' ', 'T') + ':00')) / 3.6e6;
       if (dh > 0.05) rate = `　${Math.round((cr - prevC) / dh / 1000)}k/時`;
     }
     console.log(t.padEnd(18) + [tr, nv, ov].map(v => String(v).padStart(6)).join('') +
-      [app, web, cr].map(v => String(v).padStart(11)).join('') + '  ' + (src || '') + rate);
+      [app, web, cr, esri || '-'].map(v => String(v).padStart(11)).join('') + '  ' + (src || '') + rate);
     if (cr !== '-') { prevC = cr; prevT = t; }
   }
   process.exit(0);
@@ -113,17 +115,23 @@ async function usage() {
 const now = new Date().toLocaleString('sv-SE', { timeZone: 'Asia/Taipei' }).slice(0, 16);
 const [r, u] = await Promise.all([ranks(), usage()]);
 
-// credits：有實讀值就用它並更新比例；否則用歷史最近一次實讀的比例估算
+// credits：有實讀值就用它並更新比例；否則用歷史最近一次實讀的比例估算。
+// Esri 沒有代理可估，只能沿用當日最後一次手動讀數——連同它的時點一起記住，
+// 否則拿 18:00 的讀數除以 22 小時外推會嚴重低估。
+const hrsOf = t => +t.slice(11, 13) + +t.slice(14, 16) / 60;
 let credits = creditsArg ? Math.round(+creditsArg) : null;
 let src = credits !== null ? '實讀' : '-';
 let ratio = null;
+let esri = esriArg ? Math.round(+esriArg) : null;
+let esriHrs = esriArg ? hrsOf(now) : null;
 if (fs.existsSync(LOG)) {
   const rows = fs.readFileSync(LOG, 'utf8').trim().split('\n').map(l => l.split('\t'));
   for (let i = rows.length - 1; i >= 0; i--) {
-    const [t, , , , app, , cr, s] = rows[i];
-    if (s === '實讀' && cr !== '-' && app !== '-' && +app > 0 && t.slice(0, 10) === now.slice(0, 10)) {
-      ratio = +cr / +app; break;                                   // 只用同一天的實讀值校準
-    }
+    const [t, , , , app, , cr, s, es] = rows[i];
+    if (t.slice(0, 10) !== now.slice(0, 10)) continue;             // 只認同一天
+    if (ratio === null && s === '實讀' && cr !== '-' && app !== '-' && +app > 0) ratio = +cr / +app;
+    if (esri === null && es && es !== '-') { esri = +es; esriHrs = hrsOf(t); }
+    if (ratio !== null && esri !== null) break;
   }
 }
 if (credits === null && ratio && u.app) { credits = Math.round(u.app * ratio); src = `估算(×${ratio.toFixed(2)})`; }
@@ -148,12 +156,37 @@ if (credits !== null) {
     console.log(`    Professional 交叉線 16.0M/月（≈533k/日）→ ` +
       (perMonth > CROSS ? `⚠ 超出 ${((perMonth / CROSS - 1) * 100).toFixed(0)}%，維持數日就該升級`
                         : `尚在線下 ${((1 - perMonth / CROSS) * 100).toFixed(0)}%，Standard 划算`));
+
+    // Esri（衛星）：2M 免費、超額 $0.15/千張。若併到 Stadia 的 Alidade Satellite：
+    // 4 張 Esri 256 圖磚 ＝ 1 張 Stadia 512 圖磚 ＝ 4 credits ⇒ 張數換 credits 是 1:1。
+    if (esri !== null && esriHrs > 3) {
+      const eDay = esri / esriHrs * 24, eMonth = eDay * 30;
+      const eCost = Math.max(0, eMonth - 2e6) / 1000 * 0.15;
+      const std = m => 80 + Math.max(0, m - 7.5e6) / 1000 * 0.02;
+      const pro = m => 250 + Math.max(0, m - 25e6) / 1000 * 0.015;
+      const merged = perMonth + eMonth;
+      const now2 = Math.min(std(perMonth), pro(perMonth)) + eCost;
+      const after = Math.min(std(merged), pro(merged));
+      console.log(`\n  Esri 衛星圖磚　${esri.toLocaleString()}` +
+        (esriArg ? '　(實讀)' : `　(沿用 ${String(Math.floor(esriHrs)).padStart(2, '0')}:` +
+          `${String(Math.round(esriHrs % 1 * 60)).padStart(2, '0')} 的讀數)`));
+      console.log(`    以今日速率推估　${Math.round(eDay / 1000)}k/日　${(eMonth / 1e6).toFixed(1)}M/月` +
+        `（免費 2M，超額 $0.15/千）→ US$${eCost.toFixed(0)}/月`);
+      console.log(`\n  月費試算（今日速率外推，非帳單）`);
+      console.log(`    現況分開兩家　Stadia US$${Math.min(std(perMonth), pro(perMonth)).toFixed(0)}` +
+        ` ＋ Esri US$${eCost.toFixed(0)}　＝ US$${now2.toFixed(0)}`);
+      console.log(`    衛星併到 Stadia　${(merged / 1e6).toFixed(1)}M credits/月　` +
+        `＝ US$${after.toFixed(0)}（${pro(merged) < std(merged) ? 'Professional' : 'Standard'}）`);
+      console.log(`    差額　US$${(now2 - after).toFixed(0)}/月` +
+        (after < now2 ? `　省 ${((1 - after / now2) * 100).toFixed(0)}%` : ''));
+    }
   }
 } else {
   console.log('\n  Stadia credits　尚無基準——先讀一次後台數字並帶入：');
   console.log('    node scripts/launch_watch.mjs --credits=<後台的今日 credits>');
 }
+if (esri === null) console.log('\n  Esri 衛星圖磚　未帶入（加 --esri=<今日張數> 才會試算兩家合併）');
 
 fs.appendFileSync(LOG, [now, r.旅遊 ?? '-', r.導航 ?? '-', r.總榜 ?? '-',
-  u.app ?? '-', u.web ?? '-', credits ?? '-', src].join('\t') + '\n');
+  u.app ?? '-', u.web ?? '-', credits ?? '-', src, esri ?? '-'].join('\t') + '\n');
 console.log(`\n已記錄。看趨勢：node scripts/launch_watch.mjs --log`);
