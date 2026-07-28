@@ -879,6 +879,178 @@ const browser = await chromium.launch();
     mobile.every(x => x.hit && x.inView && !x.overflow && x.stopped), JSON.stringify(mobile));
 }
 
+// ── E 組：即時品質提示（Task 5，規格 §5 之五、§7「把檢查往前移」）──────────
+// 解開「嚴格 vs 熱情」矛盾的地方：判準一項都不放寬，只是把說出口的時機從隔天提早到
+// 錄製當下、使用者還能補救的時候。
+{
+  const { ctx, page } = await open(browser, { app: true, width: 390, height: 844, touch: true,
+    geo: { latitude: 25.0478, longitude: 121.5170 } });
+  const Q = RULES.quality;
+  const mkQ = (acc, gap = 1) => Array.from({ length: 90 }, (_, i) => ({ d: i * 25, t: 30000 + i * gap, v: 25, acc }));
+
+  // E1–E4：bountyLiveQuality() 是純函式，直接餵資料，不依賴任何 recording 狀態
+  const pure = await page.evaluate(async ([good, blocked, off, sparse]) => {
+    const rules = await bountyRules();
+    return {
+      good: bountyLiveQuality(good, rules), blocked: bountyLiveQuality(blocked, rules),
+      off: bountyLiveQuality(off, rules), sparse: bountyLiveQuality(sparse, rules),
+      thresholds: rules.quality,
+    };
+  }, [mkQ(8), mkQ(Q.accMedianBlockedM + 20), mkQ(Q.accMedianPreciseOffM + 100), mkQ(8, Q.sampleGapMedianSec + 3)]);
+  ok('E1 乾淨資料＝良好', pure.good === 'good', pure.good);
+  ok('E2 acc 中位數超過遮蔽門檻＝訊號弱', pure.blocked === 'weak', pure.blocked);
+  ok('E3 acc 恆定且超過精確位置門檻＝precise_off（平坦是關掉精確位置的特徵）', pure.off === 'precise_off', pure.off);
+  ok('E4 取樣太稀也算弱（低耗電模式的訊號）', pure.sparse === 'weak', pure.sparse);
+
+  // 🔴 E5 是這個 task 的核心：門檻只能有一份定義。bountyRules() 讀的是伺服器實際 served 的
+  // data/bounty_rules.json；Q 是這支測試腳本自己直接讀磁碟同一份檔——兩條獨立路徑讀到的值
+  // 逐一比對，不是「看起來差不多」。若客端另寫一份門檻常數，這裡會紅。
+  ok('E5 客端 bountyRules() 讀回的門檻與 data/bounty_rules.json 逐一相同（不是各寫一份）',
+    JSON.stringify(pure.thresholds) === JSON.stringify(Q), JSON.stringify({ client: pure.thresholds, file: Q }));
+
+  // 🔴 E5b：E5 其實測不到「有沒有硬編」——它比的是同一個檔案的兩條讀取路徑（瀏覽器 fetch
+  // vs 本腳本讀磁碟），兩邊必然相等。突變實測證明過：把 bountyTickQuality() 裡的
+  // rules.quality.noFixGapSec 換成硬編 999，E5 照樣過、127 項全綠。
+  // 有牙的判準只能問「跑著的程式碼有沒有真的去查那個鍵」：取瀏覽器裡函式的實際原始碼
+  // （Function.prototype.toString，不是讀磁碟也不是讀 server），要求 bounty_rules.json 的
+  // quality 每個鍵都被具名引用。鍵清單取自 json 本身（規格），不是抄實作——日後往 json 加
+  // 新門檻而客端硬編，這裡一樣會紅。
+  const SERVER_ONLY = new Set(['segCoverageMin']);   // 事後品質閘在 worker 端跑，客端本來就用不到
+  const srcQ = await page.evaluate(() => [bountyLiveQuality, bountyTickQuality].map(f => f.toString()).join('\n'));
+  const unref = Object.keys(Q).filter(k => !SERVER_ONLY.has(k) && !srcQ.includes(k));
+  ok('E5b 客端跑著的品質函式，對 bounty_rules.json 的每個門檻都是具名查表（硬編就會紅）',
+    unref.length === 0, unref.length ? `沒被具名引用：${unref.join('、')}` : `${Object.keys(Q).length - SERVER_ONLY.size} 個鍵全部具名引用`);
+
+  // 🔴 E6/E7 沒有照 brief 草稿操作 state.recording._buf——RED/GREEN 實測證明 bountyTickQuality()
+  // 讀的是 r._recent（取樣迴圈維護的「最近 180 筆」品質視窗），_buf 是待上傳批次緩衝、每次
+  // bountyFlush() 就清空；brief 寫的年代還沒有 _recent 這個欄位。實測：塞 _buf、清空 _recent，
+  // quality 停在 'none'；反過來塞 _recent 才會變成 'precise_off'（task-5-report.md 有完整紀錄）。
+  await page.evaluate(() => startBountyRecording({ id: 'e6', sys: '', lnId: '', dir: 0, units: 5, points: 5, unitKeys: [] }));
+  const e6 = await page.evaluate(async off => {
+    state.recording._recent = off; state.recording._lastFix = Date.now();
+    await bountyTickQuality();
+    const h = document.getElementById('recHint');
+    return { hidden: h.hidden, txt: h.innerText, q: state.recording.quality, lamp: document.getElementById('recQuality').dataset.q };
+  }, mkQ(Q.accMedianPreciseOffM + 100));
+  ok('E6 精確位置被關 → 當下就跳，且文案含可行動的引導（不等 60 秒）',
+    e6.hidden === false && e6.q === 'precise_off' && e6.lamp === 'precise_off' && /精確位置/.test(e6.txt), JSON.stringify(e6));
+
+  // E7：訊號弱不要一出現就跳，持續超過 60 秒才浮。重開一趟，避免沿用 E6 的 precise_off 狀態。
+  await page.evaluate(() => stopBountyRecording());
+  await page.evaluate(() => startBountyRecording({ id: 'e7', sys: '', lnId: '', dir: 0, units: 5, points: 5, unitKeys: [] }));
+  const e7 = await page.evaluate(async blocked => {
+    state.recording._recent = blocked; state.recording._lastFix = Date.now();
+    state.recording._weakSince = Date.now();          // 剛剛才開始弱
+    await bountyTickQuality();
+    const first = document.getElementById('recHint').hidden;
+    state.recording._weakSince = Date.now() - 61000;  // 已經弱了 61 秒
+    await bountyTickQuality();
+    const h = document.getElementById('recHint');
+    return { first, later: h.hidden, txt: h.innerText, q: state.recording.quality };
+  }, mkQ(Q.accMedianBlockedM + 20));
+  ok('E7 訊號弱要持續超過 60 秒才浮提示（未滿 60 秒時 hidden 要維持 true，證明是錄製過程中即時變化，不是只在結束時總結）',
+    e7.first === true && e7.later === false && e7.q === 'weak', JSON.stringify(e7));
+  ok('E8 訊號弱的文案是可行動的建議（靠窗）', /靠窗/.test(e7.txt), e7.txt);
+
+  // E9：關掉之後同一趟不重複跳
+  const e9 = await page.evaluate(async () => {
+    const btn = document.querySelector('#recHint .rc-x');
+    if (btn) btn.click();
+    await bountyTickQuality();   // 品質仍是 weak；若沒有 _nagOff 守門，這裡會重新浮出來
+    return { hidden: document.getElementById('recHint').hidden, nagOff: state.recording._nagOff };
+  });
+  ok('E9 關掉之後同一趟不重複跳（_nagOff 守住，不會重新浮出來）',
+    e9.hidden === true && e9.nagOff === true, JSON.stringify(e9));
+
+  // E10：逐段覆蓋率看得到（才有機會決定要不要坐過一站補齊）
+  const e10 = await page.evaluate(() => {
+    state.recording._cov = { a: 0.4, b: 1 };
+    renderRecordScreen();
+    return document.getElementById('recordScreen').innerText;
+  });
+  ok('E10 畫面顯示已覆蓋段數（_cov ≥ 0.6 才算數）', /1\s*段/.test(e10), e10.replace(/\n/g, ' / '));
+
+  await page.evaluate(() => stopBountyRecording());
+  await ctx.close();
+}
+
+// E11：靜態原始碼檢查——錄製中的品質提示不准借用 showToast()（z-index 720 在 .stage 內被
+// .record-screen 的黑幕〔body 層 z2400〕蓋住，那是靜音故障）。判準不與實作同源：直接切出
+// bountyTickQualityHint() 的函式本體逐字掃，不呼叫任何頁面函式。
+{
+  const src = readFileSync('index.html', 'utf8');
+  const start = src.indexOf('function bountyTickQualityHint(');
+  const nextFn = start >= 0 ? src.indexOf('\nfunction ', start + 1) : -1;
+  const body = start >= 0 ? src.slice(start, nextFn > 0 ? nextFn : start + 2000) : '';
+  ok('E11 錄製中的品質提示不透過 showToast()（那是靜音故障，見 #recHint 的既有註解）',
+    body.length > 0 && !/showToast\s*\(/.test(body),
+    body ? `(函式長度 ${body.length}，未呼叫 showToast)` : '(找不到 bountyTickQualityHint，比對失敗)');
+}
+
+// E12–E14：手機 360／375／414／768（使用者明定鐵則）＋至少一次 WebKit。
+// 「驗按鈕不是驗它在哪，是驗點它會發生什麼」（心得 33）：不只 elementFromPoint 命中，
+// 還要真觸控 tap 之後讀狀態確認 _nagOff 真的被設起來，並確認沒有蓋住既有的停止鈕。
+async function checkQualityHintMobile(browserInst, width, height) {
+  const { ctx, page } = await open(browserInst, {
+    app: true, width, height, touch: true, mobile: width < 768,
+    geo: { latitude: 25.0478, longitude: 121.5170 },
+  });
+  const Q = RULES.quality;
+  const blocked = Array.from({ length: 90 }, (_, i) => ({ d: i * 25, t: 30000 + i, v: 25, acc: Q.accMedianBlockedM + 20 }));
+  const info = await page.evaluate(async buf => {
+    startBountyRecording({ id: 'e12', sys: '', lnId: '', dir: 0, units: 5, points: 5, unitKeys: [] });
+    state.recording._recent = buf;
+    state.recording._lastFix = Date.now();
+    state.recording._weakSince = Date.now() - 61000;
+    await bountyTickQuality();
+    const h = document.getElementById('recHint'), btn = h.querySelector('.rc-x');
+    if (!btn) return { noBtn: true };
+    const hr = h.getBoundingClientRect(), br = btn.getBoundingClientRect();
+    const hitBtn = document.elementFromPoint(br.x + br.width / 2, br.y + br.height / 2);
+    const stop = document.getElementById('recStop'), sr = stop.getBoundingClientRect();
+    const hitStop = document.elementFromPoint(sr.x + sr.width / 2, sr.y + sr.height / 2);
+    return {
+      hintVisible: !h.hidden && hr.width > 0 && hr.height > 0,
+      hintInView: hr.left >= 0 && hr.right <= innerWidth,
+      overflow: document.documentElement.scrollWidth > innerWidth,
+      btnHitOk: hitBtn === btn || btn.contains(hitBtn),
+      btnXY: { x: br.x + br.width / 2, y: br.y + br.height / 2 },
+      stopHitOk: hitStop === stop || stop.contains(hitStop),
+      overlap: !(hr.bottom <= sr.top || hr.top >= sr.bottom),
+    };
+  }, blocked);
+  if (info.noBtn) { await ctx.close(); return { width, noBtn: true }; }
+  await page.touchscreen.tap(info.btnXY.x, info.btnXY.y);
+  await page.waitForTimeout(200);
+  const after = await page.evaluate(() => ({
+    nagOff: state.recording && state.recording._nagOff, hidden: document.getElementById('recHint').hidden,
+  }));
+  await page.evaluate(() => { if (state.recording) stopBountyRecording(); });
+  await ctx.close();
+  return { width, ...info, ...after };
+}
+{
+  const mobileResults = [];
+  for (const width of [360, 375, 414, 768]) {
+    mobileResults.push(await checkQualityHintMobile(browser, width, width >= 768 ? 1024 : 812));
+  }
+  ok('E12 手機 360／375／414／768：訊號弱提示可見、無橫向溢出，「知道了」elementFromPoint 命中自己',
+    mobileResults.every(r => !r.noBtn && r.hintVisible && r.hintInView && !r.overflow && r.btnHitOk),
+    JSON.stringify(mobileResults.map(r => ({ w: r.width, v: r.hintVisible, ov: r.overflow, hit: r.btnHitOk }))));
+  ok('E13 手機 360／375／414／768：真觸控點「知道了」真的關掉提示（不只是點得到），且沒蓋住停止鈕',
+    mobileResults.every(r => r.nagOff === true && r.hidden === true && r.stopHitOk && !r.overlap),
+    JSON.stringify(mobileResults.map(r => ({ w: r.width, nagOff: r.nagOff, hidden: r.hidden, stopOk: r.stopHitOk, overlap: r.overlap }))));
+
+  // 至少一次 WebKit：macOS 使用者預設 Safari，Chromium 過了不代表 WebKit 過。
+  const wkBrowser = await webkit.launch();
+  const wk = await checkQualityHintMobile(wkBrowser, 375, 812);
+  await wkBrowser.close();
+  ok('E14 WebKit 375：訊號弱提示可見、「知道了」真觸控可關、沒蓋住停止鈕（Chromium 過不代表 WebKit 過）',
+    !wk.noBtn && wk.hintVisible && wk.hintInView && !wk.overflow && wk.btnHitOk &&
+      wk.nagOff === true && wk.hidden === true && wk.stopHitOk && !wk.overlap,
+    JSON.stringify(wk));
+}
+
 // ── F4 組：loadBounty() 缺 claims 時補洞、不整包丟（2026-07-28 審查糾正第二輪，Critical）───
 // 舊版驗證邏輯是「trips 與 claims 兩個欄位都要型別正確才放行，一個沒過就整包回傳空殼」——
 // 空殼再被 saveBounty() 寫回磁碟，等於把使用者已經存在的 trips 永久清空。這裡直接重現審查

@@ -580,6 +580,11 @@
   /* 錯誤態改紅框紅字：紙色底上 #ffd1cf 那種淺色在這裡讀不出來，要對比不是要柔和。 */
   .rc-hint.err { background: #fff4f2; color: #8d2418; border-color: #c0432f; box-shadow: 0 3px 0 rgba(140,40,25,.25); }
   .rc-hint[hidden] { display: none; }
+  /* 訊號弱軟提示的「知道了」:44px 是這個畫面自己訂的觸控下限(見 .rc-stop 的註解),
+     不是 brief 草稿裡的 36px——那份草稿寫在 .rc-hint 還是深底白字設計的時候,顏色也要跟著改深字。 */
+  .rc-hint .rc-x { display: block; margin: 10px auto 0; min-width: 88px; min-height: 44px; padding: 0 16px;
+    border-radius: 22px; border: 1px solid #d2a12a; background: transparent; color: #3a3226;
+    font: inherit; font-size: 14px; font-weight: 700; }
   /* 一小時後迷迷糊糊也要按得到：44pt 是 Apple 的最小可觸控尺寸，這裡刻意給更大 */
   .rc-stop { min-width: 200px; min-height: 56px; font-size: 18px; border-radius: 28px;
     background: #fff; color: #000; border: 0; font-weight: 700; }
@@ -9703,6 +9708,7 @@ function startBountyRecording(card) {
     dNow: null, segs: {}, _cov: {}, points: Number(card && card.points) || 0, quality: 'none',
     _buf: [], _candidateBuf: {}, _perp: {}, _recent: [], _lastFix: 0,
     _lastFlush: Date.now(), _batch: 0, demo: DEMO_MODE === 'bounty',
+    _weakSince: 0, _nagOff: false,   // 即時品質提示(規格 §5 之五)的軟提示計時與「同一趟不重複跳」旗標
   };
   document.body.classList.add('recording');
   document.getElementById('recordScreen').hidden = false;
@@ -10129,6 +10135,8 @@ function bountyLiveQuality(buf, rules) {
   }
   return bountyMedian(gaps) > Q.sampleGapMedianSec ? 'weak' : 'good';
 }
+// 持續弱超過這個時間才浮軟提示(規格 §5 之五):一出現就跳只會讓人把通知整個關掉。
+const BOUNTY_WEAK_NAG_MS = 60000;
 async function bountyTickQuality() {
   const r = state.recording;
   if (!r) return;
@@ -10140,10 +10148,39 @@ async function bountyTickQuality() {
     const lamp = document.getElementById('recQuality');
     lamp.dataset.q = r.quality;
     document.getElementById('recQualityText').textContent = labels[r.quality] || labels.none;
+    bountyTickQualityHint(r, rules.qualityText);
     bountyPersistRecording(r);
   } catch (e) {
     bountyRecordNotice('品質規則暫時讀不到；里程仍會保存在裝置端。', 'error');
   }
+}
+// 規格 §5 之五、§7「把檢查往前移」:七種品質失敗有五種在錄製當下就看得出來,那時候使用者
+// 還能補救——判準一項都不放寬,只是把說出口的時機從隔天提早到現在。三種分工：
+// precise_off「當下就跳」不受 60 秒與「關掉就不再跳」約束(唯一不修就整趟白錄的失敗);
+// weak 持續 60 秒才浮、可關掉、同一趟不重複跳(_nagOff 一旦設定,本函式不會再自己清掉);
+// none(收不到)只轉紅燈不跳字——地下段不是使用者的問題,一直跳只會煩。
+function bountyTickQualityHint(r, T) {
+  const hint = document.getElementById('recHint');
+  if (!hint || !T) return;
+  if (r.quality === 'precise_off') {
+    hint.innerHTML = `<b>${escHtml(T.precise_off.title)}</b><br>${escHtml(T.precise_off.how)}`;
+    hint.classList.remove('err');
+    hint.hidden = false;
+    return;
+  }
+  if (r.quality === 'weak') {
+    r._weakSince = r._weakSince || Date.now();
+    if (!r._nagOff && Date.now() - r._weakSince >= BOUNTY_WEAK_NAG_MS) {
+      hint.innerHTML = `<b>${escHtml(T.acc_blocked.title)}</b><br>${escHtml(T.acc_blocked.how)}` +
+        `<button class="rc-x" type="button">知道了</button>`;
+      hint.classList.remove('err');
+      hint.hidden = false;
+      hint.querySelector('.rc-x').onclick = () => { r._nagOff = true; hint.hidden = true; };
+    }
+    return;
+  }
+  r._weakSince = 0;
+  if (r.quality !== 'none') hint.hidden = true;
 }
 // 出發前說明卡（規格 §5 之四）。使用者 2026-07-27 指定：「在使用者開始驗證旅程的時候就要先有
 // 告知如何設定，以及有可能不過這件事情。」
