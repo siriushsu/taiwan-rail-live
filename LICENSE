@@ -31,8 +31,9 @@ Copyright (c) 2025-2026 Hsu Hsiang. 保留所有未明示授予的權利。
 
 三、本授權不涵蓋的部分
   1. `data/` 目錄下的資料檔多半衍生自第三方來源（交通部 TDX 運輸資料流通服務、
-     OpenStreetMap、台鐵官方公開資料、Natural Earth 等），各自適用其原始授權條款，
-     不受本授權涵蓋，也不因本授權而取得任何權利。
+     OpenStreetMap、台鐵官方公開資料、內政部「直轄市、縣市界線」等），
+     各自適用其原始授權條款，不受本授權涵蓋，也不因本授權而取得任何權利。
+     其中內政部界線資料適用「政府資料開放授權條款第1版」，標示資料提供機關為生效要件。
      各檔的實際來源記於該檔的 `source_notes` 欄位。
      特別注意：OpenStreetMap 衍生內容適用 ODbL，除標示義務外，
      衍生資料庫另有同等分享義務——這是作者無權以本授權免除的。
@@ -95,9 +96,10 @@ Contributions merged into this project are licensed to the project under these
 same terms, and may be relicensed by the copyright holder, including commercially.
 
 Files under `data/` derive from third parties (MOTC TDX, OpenStreetMap, official
-Taiwan Railway open data, Natural Earth and others) and remain subject to their
-own terms; OpenStreetMap-derived content is under ODbL, whose share-alike
-obligation the author cannot waive. Audio under `suno musics/` is licensed to the
+Taiwan Railway open data, MOI administrative boundary data and others) and remain
+subject to their own terms; OpenStreetMap-derived content is under ODbL, whose
+share-alike obligation the author cannot waive, and the MOI boundary data is under
+Taiwan's Open Government Data License v1.0, which requires attribution. Audio under `suno musics/` is licensed to the
 author only, conditional on generation during the author's paid Suno
 subscription, and is NOT sublicensed to anyone — the absence of a per-file
 license notice does not imply free use. Third-party services called at runtime

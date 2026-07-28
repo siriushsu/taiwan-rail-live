@@ -118,7 +118,7 @@ python3 -m http.server 5178      # 或用 .claude/launch.json 的 "static" 設�
 軌島怎麼處理位置資料、以及地圖上的班表與軌道是怎麼算出來的，但**未授權再散布、
 製作衍生作品或另行發布**。完整條款見 [LICENSE](LICENSE)。
 
-`data/` 的資料衍生自 OpenStreetMap（ODbL）、TDX 與台鐵官方公開資料，
+`data/` 的資料衍生自 OpenStreetMap（ODbL）、TDX、台鐵官方公開資料與內政部界線資料，
 `suno musics/` 的音樂僅授權予作者本人——**這兩者作者都無權轉授權**，取用前請看 LICENSE 第三節。
 
 歡迎回報問題與指正資料，這是目前最有價值的貢獻；想寫程式、做 Android 版或移植到其他平台，
