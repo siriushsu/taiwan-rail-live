@@ -82,12 +82,24 @@
     --shadow-red:0 2px 0 rgba(0,0,0,.5);
   }
   * { box-sizing: border-box; }
+  /* 成就徽章與車廂標記的圖示＝Noto Emoji 單色版（SIL OFL，可商用；授權全文在
+     assets/fonts/NotoEmoji-OFL.txt）。它就是「原本那些 emoji 的單色平面版」——形狀與使用者
+     本來認得的一致，但沒有彩色與立體感，且本來就是當字形設計的，小尺寸讀得出來。
+     刻意不用系統 emoji 壓平：那是 Apple 的著作權美術，打包進公開站等於散布衍生物。
+     只裁這 26 個字形，13KB。 */
+  @font-face {
+    font-family: 'RailEmoji';
+    src: url('assets/fonts/rail-emoji.woff2') format('woff2');
+    font-display: swap;
+  }
   /* 自製單色圖示:所有路徑吃 currentColor，亮／暗與狀態色完全由既有元件決定。 */
   .ri-sprite { position: absolute; width: 0; height: 0; overflow: hidden; }
   .ri-icon {
     display: inline-block; width: 1em; height: 1em; flex: none; vertical-align: -.125em;
     fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round;
   }
+  /* 字形版圖示走 <text> 填色,不走描邊——它在 24 的 viewBox 內,既有的 width/height 規則照舊生效。 */
+  .ri-icon--glyph { fill: currentColor; stroke: none; }
   .ri-icon--fill { fill: currentColor; }
   .ri-icon use { pointer-events: none; }
   [hidden] { display: none !important; } /* .search/.followbar 的 display:flex 會蓋掉 hidden,強制優先 */
@@ -935,7 +947,8 @@
   }
   .seal b { font-size: 10px; font-weight: 900; letter-spacing: .5px; line-height: 1.2; }
   .seal small { font-size: 7.5px; font-weight: 700; letter-spacing: .3px; opacity: .85; font-variant-numeric: tabular-nums; line-height: 1; }
-  .seal small .ri-icon { width: 11px; height: 11px; display: block; }
+  /* 原本 11px:實測(Noto 單色字形與線稿都比過)在 11px 已經糊到 21 枚難以分辨,14px 才讀得出來。 */
+  .seal small .ri-icon { width: 14px; height: 14px; display: block; }
   .seal.gold { border-color: var(--gold); color: var(--warn-ink); }
   html[data-theme=dark] .seal.gold { color: var(--gold); }
   .seal.na { border-color: var(--line); color: var(--faint); border-style: dashed; transform: rotate(0); }
@@ -1022,7 +1035,7 @@
   #ridePanel .achv-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 2px; }
   #ridePanel .achv-chip { display: inline-flex; align-items: center; gap: 3px; font-size: 11px; font-weight: 700; color: var(--faint); border: 1px dashed var(--line); border-radius: 999px; padding: 3px 10px; }
   #ridePanel .achv-chip.on { color: var(--warn-ink); background: var(--warn-bg); border-style: solid; border-color: var(--warn-line); }
-  #ridePanel .achv-chip .ri-icon { width: 12px; height: 12px; vertical-align: 0; }
+  #ridePanel .achv-chip .ri-icon { width: 14px; height: 14px; vertical-align: 0; }
 
   /* ── 營運通阻公告橫幅(TDX Alert):琥珀警示卡,點開看官方公告全文 ── */
   .alert-banner {
@@ -2536,32 +2549,32 @@
 <body>
 <!-- 自製圖示母片:只存路徑、不存顏色；各處以 <use> 繼承 currentColor。 -->
 <svg class="ri-sprite" aria-hidden="true" focusable="false">
-  <symbol id="ri-ach-first" viewBox="0 0 24 24"><path d="M4 6h16v4a2 2 0 0 0 0 4v4H4v-4a2 2 0 0 0 0-4z"/><circle cx="12" cy="12" r="1.2"/><path d="M7 9h2M15 15h2"/></symbol>
-  <symbol id="ri-ach-rider5" viewBox="0 0 24 24"><path d="M3 10h18M5 10V7h14v3M7 16h10M9 10v4M15 10v4"/><circle cx="8" cy="6" r="1"/><path d="M7 7v2M5 19h2M9 19h2M13 19h2M17 19h2"/></symbol>
-  <symbol id="ri-ach-rider15" viewBox="0 0 24 24"><path d="M6 4h12l2 5v9H4V9zM4 12h16M8 8h3M13 8h3"/><circle cx="8" cy="16" r="1"/><circle cx="16" cy="16" r="1"/><path d="M8 21h8M6 23h12"/></symbol>
-  <symbol id="ri-ach-km100" viewBox="0 0 24 24"><path d="M4 19 10 5M9 20l6-14M5 16h8M7 11h8"/><path d="M17 7v10M15 9h4M15 15h4"/></symbol>
-  <symbol id="ri-ach-km500" viewBox="0 0 24 24"><path d="M12 3c3 2 4 4 3 6l2 3-2 3 1 5-3 1-2-4-2-3 1-3-1-3z"/><path d="m3 17 7-3 8 2M4 20l7-3 8 2"/><path d="M5 15v2M19 16v2"/></symbol>
-  <symbol id="ri-ach-km1000" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 5c2 2 2 4 1 5l2 3-2 3 1 4-2 1-2-4-2-3 1-3-1-3z"/><path d="M3 12h2M19 12h2M12 3v2"/></symbol>
-  <symbol id="ri-ach-km5000" viewBox="0 0 24 24"><circle cx="12" cy="12" r="7"/><circle cx="12" cy="12" r="10"/><path d="M12 7c1.5 1.6 1.8 3.1.8 4.6l1.8 2.1-1.6 2.1.7 2.3-1.7.6-1.5-2.7-1.5-2.3.7-2.1-.8-2.4z"/><path d="M12 1v2M21 8l-2 1M19 19l-2-1M5 19l2-1M3 8l2 1"/></symbol>
-  <symbol id="ri-ach-long300" viewBox="0 0 24 24"><path d="M4 21 10 3M10 21l4-18M6 16h8M8 10h7M10 6h5"/><path d="M15 3h2M16 6h2"/></symbol>
-  <symbol id="ri-ach-stops50" viewBox="0 0 24 24"><path d="M4 18c4-8 7 3 11-6 1-2 3-4 5-5"/><circle cx="5" cy="17" r=".9"/><circle cx="8" cy="13" r=".9"/><circle cx="11" cy="14" r=".9"/><circle cx="14" cy="11" r=".9"/><circle cx="17" cy="8" r=".9"/><circle cx="20" cy="6" r=".9"/></symbol>
-  <symbol id="ri-ach-early" viewBox="0 0 24 24"><path d="M3 17h18M7 17a5 5 0 0 1 10 0M12 5v3M6 8l2 2M18 8l-2 2"/><circle cx="17.5" cy="6.5" r="2.5"/><path d="M17.5 5v1.7l1 1"/></symbol>
-  <symbol id="ri-ach-night" viewBox="0 0 24 24"><path d="M4 19 10 9l5 10M7 16h10"/><path d="M17 4a5 5 0 1 0 3 8 5.5 5.5 0 0 1-3-8z"/></symbol>
-  <symbol id="ri-ach-loop" viewBox="0 0 24 24"><path d="M4 12c2-5 5-5 8 0s6 5 8 0-2-5-5-2-6 7-9 2"/><path d="m6 10 2-3 2 3M12 15q2-3 4 0M16 15h3"/></symbol>
-  <symbol id="ri-ach-day3" viewBox="0 0 24 24"><rect x="4" y="5" width="16" height="15" rx="2"/><path d="M4 10h16M8 3v4M16 3v4"/><circle cx="8" cy="14" r="1"/><circle cx="12" cy="14" r="1"/><circle cx="16" cy="14" r="1"/></symbol>
-  <symbol id="ri-ach-tilting" viewBox="0 0 24 24"><path d="m5 17 2-9h5l-1 9zM19 17l-2-9h-5l1 9zM12 5v14"/><path d="M8 11h2M14 11h2"/></symbol>
-  <symbol id="ri-ach-namedAll" viewBox="0 0 24 24"><path d="M5 4h10a4 4 0 0 1 4 4v12H9a4 4 0 0 0-4 0zM9 4v16"/><path d="m14 8 .9 1.9 2.1.3-1.5 1.5.4 2.1-1.9-1-1.9 1 .4-2.1-1.5-1.5 2.1-.3z"/></symbol>
-  <symbol id="ri-ach-stockAll" viewBox="0 0 24 24"><path d="M3 5c4-1 7 0 9 3 2-3 5-4 9-3v14c-4-1-7 0-9 3-2-3-5-4-9-3zM12 8v14"/><path d="M15 11h4v5h-4zM16 16v2M18 16v2"/></symbol>
-  <symbol id="ri-ach-branchAll" viewBox="0 0 24 24"><path d="M4 20 12 12 20 4M12 12V4M12 12h8v8"/><circle cx="4" cy="20" r="1"/><circle cx="12" cy="4" r="1"/><circle cx="20" cy="4" r="1"/><circle cx="20" cy="20" r="1"/></symbol>
-  <symbol id="ri-ach-stn25" viewBox="0 0 24 24"><path d="M4 11h16M6 11V7l6-3 6 3v4M8 11v6M16 11v6M5 20h14"/><circle cx="7" cy="19" r=".8"/><circle cx="12" cy="19" r=".8"/><circle cx="17" cy="19" r=".8"/></symbol>
-  <symbol id="ri-ach-stn100" viewBox="0 0 24 24"><path d="M5 11h14M7 11V7l5-3 5 3v4M9 11v4M15 11v4"/><circle cx="7" cy="17" r=".8"/><circle cx="12" cy="17" r=".8"/><circle cx="17" cy="17" r=".8"/><circle cx="7" cy="21" r=".8"/><circle cx="12" cy="21" r=".8"/><circle cx="17" cy="21" r=".8"/></symbol>
-  <symbol id="ri-ach-commute100" viewBox="0 0 24 24"><path d="M5 16h14M8 20h8"/><path d="m7 11-3 3 3 3M17 17l3-3-3-3"/><path d="M4 14h16"/><path d="M8 6a7 7 0 0 1 9 1"/></symbol>
-  <symbol id="ri-ach-commute500" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="6"/><path d="M6 13h12M9 17h6"/><path d="m8 9-3 3 3 3M16 15l3-3-3-3"/><path d="M12 1v2M21 12h-2M12 23v-2M3 12h2M18.4 5.6 17 7"/></symbol>
-  <symbol id="ri-amen-accessible" viewBox="0 0 24 24"><circle cx="9" cy="5" r="2"/><path d="M10 9h4l2 5h-5l2 5M10 9l-2 6h5"/><circle cx="9" cy="16" r="5"/></symbol>
-  <symbol id="ri-amen-bike" viewBox="0 0 24 24"><circle cx="6" cy="17" r="3"/><circle cx="18" cy="17" r="3"/><path d="m6 17 4-8 4 8H6l5-4h5M10 9h3M9 6h3"/></symbol>
-  <symbol id="ri-amen-family" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="9" cy="10" r="2"/><circle cx="15" cy="11" r="1.4"/><path d="M6 16c.5-3 5.5-3 6 0M13 16c.4-2 3.6-2 4 0"/></symbol>
-  <symbol id="ri-amen-group" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="8" cy="11" r="1.5"/><circle cx="12" cy="11" r="1.5"/><circle cx="16" cy="11" r="1.5"/><path d="M6 16c.4-2.5 3.6-2.5 4 0M10 16c.4-2.5 3.6-2.5 4 0M14 16c.4-2.5 3.6-2.5 4 0"/></symbol>
-  <symbol id="ri-amen-mail" viewBox="0 0 24 24"><rect x="4" y="6" width="16" height="11" rx="1.5"/><path d="m5 8 7 5 7-5M8 20h8M10 17v3M14 17v3"/></symbol>
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
   <symbol id="ri-ui-favorite" viewBox="0 0 24 24"><path d="m12 3 2.7 5.5 6.1.9-4.4 4.3 1 6.1-5.4-2.8-5.4 2.8 1-6.1L3.2 9.4l6.1-.9z"/></symbol>
   <symbol id="ri-ui-notify" viewBox="0 0 24 24"><path d="M6 17h12l-1.5-2.5V10a4.5 4.5 0 0 0-9 0v4.5zM10 20h4"/><path d="M12 3v2"/></symbol>
   <symbol id="ri-ui-follow-lock" viewBox="0 0 24 24"><rect x="5" y="10" width="14" height="10" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/><circle cx="12" cy="15" r="1"/></symbol>
@@ -3302,9 +3315,30 @@ try { if (matchMedia('(max-width: 900px)').matches) document.body.classList.add(
 // 供比對線上跑的是不是最新版(瀏覽器快取 max-age=600 常讓人看到舊版)
 // v0728a 被兩條並行分支同時用過（Task 4 與換圖各一份），照心得 16 往前推一號避免撞號。
 const BUILD = 'v0728b';
+// 成就徽章與車廂標記＝原本那些 emoji 的單色平面版（RailEmoji＝裁切過的 Noto Emoji 單色）。
+// 刻意保留 railIcon(name) 這個唯一入口:呼叫端一行都不用改,只有這裡決定畫法。
+// 🔴 ⚖ 與 ♾ 一律寫**不帶 VS16(U+FE0F)** 的碼位——帶了就強制彩色呈現,會蓋過 font-family
+//    落回系統彩色 emoji(實測:帶 VS16 時 798 個彩色像素,拿掉即 0)。
+const RAIL_EMOJI = {
+  'ach-first': '🎫', 'ach-rider5': '🚉', 'ach-rider15': '🚂', 'ach-km100': '🛤', 'ach-km500': '🗺',
+  'ach-km1000': '🌏', 'ach-km5000': '🏅', 'ach-long300': '🌅', 'ach-stops50': '🐌', 'ach-early': '🌄',
+  'ach-night': '🌙', 'ach-loop': '♾', 'ach-day3': '📅', 'ach-tilting': '⚖',
+  // 🔴 這三個是 camelCase（ACHIEVEMENTS 裡就寫成 namedAll/stockAll/branchAll）,
+  //    寫成小寫會靜默落回 sprite 線稿、只有這三枚長得不一樣。
+  'ach-namedAll': '🌟', 'ach-stockAll': '📖', 'ach-branchAll': '🌿',
+  'ach-stn25': '🎪', 'ach-stn100': '🏯',
+  'ach-commute100': '🔁', 'ach-commute500': '🎖',
+  'amen-accessible': '♿', 'amen-bike': '🚲', 'amen-family': '👶', 'amen-group': '🎫', 'amen-mail': '📦',
+};
 function railIcon(name, className) {
-  return '<svg class="ri-icon' + (className ? ' ' + className : '') +
-    '" aria-hidden="true" focusable="false"><use href="#ri-' + name + '"></use></svg>';
+  const cls = 'ri-icon' + (className ? ' ' + className : '');
+  const glyph = RAIL_EMOJI[name];
+  // 字形版:放進 24 的 viewBox 讓既有的 width/height 規則原封不動繼續生效。
+  if (glyph) return '<svg class="' + cls + ' ri-icon--glyph" viewBox="0 0 24 24" aria-hidden="true" focusable="false">' +
+    '<text x="12" y="12" font-size="21" text-anchor="middle" dominant-baseline="central" ' +
+    'font-family="RailEmoji">' + glyph + '</text></svg>';
+  // 其餘(UI 用的線稿圖示)維持 sprite
+  return '<svg class="' + cls + '" aria-hidden="true" focusable="false"><use href="#ri-' + name + '"></use></svg>';
 }
 const TRACK_AUDIT = new URLSearchParams(location.search).get('audit') === 'tracks';
 // 手機/平板直式「殼」斷點(議題1:640→900,iPad 直式改拿 tabbar＋更多抽屜):與 CSS @media 同步,版面類判斷一律用此常數。
