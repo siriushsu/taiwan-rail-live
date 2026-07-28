@@ -557,8 +557,17 @@
   .rc-row { margin-top: 10px; font-size: 17px; opacity: .85; }
   .rc-bar { margin-top: 18px; width: min(320px, 76vw); height: 8px; border-radius: 4px; background: #222; overflow: hidden; }
   .rc-bar i { display: block; height: 100%; width: 0; background: #34c759; transition: width .4s; }
-  .rc-hint { margin-top: 18px; font-size: 15px; line-height: 1.5; max-width: 320px; opacity: .9; }
-  .rc-hint.err { color: #ffd1cf; }
+  /* 錄製中的錯誤／狀態訊息不能走 .stage 內的全站 toast（會被本黑幕蓋住）；
+     固定用紙色金框在黑底上保持可讀，位置也不會影響錄製畫面的唯一停止鈕。 */
+  .rc-hint {
+    margin: 18px auto 0; width: min(320px, calc(100vw - 40px)); box-sizing: border-box;
+    background: #fffdf6; color: #3a3226; border: 1.5px solid #d2a12a; border-radius: 10px;
+    box-shadow: 0 3px 0 rgba(163,100,26,.3); padding: 9px 18px;
+    font-size: 15px; font-weight: 700; line-height: 1.5; white-space: normal;
+  }
+  /* 錯誤態改紅框紅字：紙色底上 #ffd1cf 那種淺色在這裡讀不出來，要對比不是要柔和。 */
+  .rc-hint.err { background: #fff4f2; color: #8d2418; border-color: #c0432f; box-shadow: 0 3px 0 rgba(140,40,25,.25); }
+  .rc-hint[hidden] { display: none; }
   /* 一小時後迷迷糊糊也要按得到：44pt 是 Apple 的最小可觸控尺寸，這裡刻意給更大 */
   .rc-stop { min-width: 200px; min-height: 56px; font-size: 18px; border-radius: 28px;
     background: #fff; color: #000; border: 0; font-weight: 700; }
@@ -2941,7 +2950,7 @@ try { if (matchMedia('(max-width: 900px)').matches) document.body.classList.add(
     <details class="foot-box">
       <summary><span>更新紀錄</span><span class="foot-sub">最後更新：2026/7/28</span></summary>
       <ul class="foot-list foot-recent">
-        <li class="grp">最近更新</li><li><span class="d">7/28</span><span>GPS 校正旅程會沿途保存里程、每 60 秒送一批；斷線或重新整理也不會丟，座標不會離開手機</span></li>
+        <li class="grp">最近更新</li><li><span class="d">7/28</span><span>GPS 校正旅程會沿途保存里程、每 60 秒送一批；重新整理或 App 被系統回收都接得回同一趟，出錯時黑幕上也看得到提示，座標不會離開手機</span></li>
         <li><span class="d">7/28</span><span>全站圖示換成軌島自製單色線稿，亮暗主題下都更一致清楚</span></li>
         <li><span class="d">7/26</span><span>旅程護照的每一節都能各自收合了；車站收集超過 24 座時預設只露最常去的那批</span></li>
         <li><span class="d">7/26</span><span>旅程護照新增「車站收集」：完乘的起訖站自動成章，到月台按蓋章鈕升級成到訪章</span></li>
@@ -3177,7 +3186,7 @@ try { if (matchMedia('(max-width: 900px)').matches) document.body.classList.add(
     <div class="rc-big"><span id="recKm">0.0</span><small>公里</small></div>
     <div class="rc-row"><span id="recSegs">0</span> 段已覆蓋・<span id="recPts">0</span> 點已鎖定</div>
     <div class="rc-bar"><i id="recBar"></i></div>
-    <div class="rc-hint" id="recHint" hidden></div>
+    <div class="rc-hint" id="recHint" role="status" aria-live="polite" hidden></div>
   </div>
   <button class="rc-stop" id="recStop" type="button">停止錄製</button>
 </div>
@@ -8789,10 +8798,15 @@ function unlockedAchievements(rides) {
 function placeMobileNotice(el) {
   if (!el) return;
   const mob = window.matchMedia(MOBILE_MQ).matches;
-  if (!mob || el.hidden) { el.style.top = ''; el.style.bottom = ''; el.style.maxHeight = ''; el.style.overflowY = ''; return; }
+  const collect = document.body.classList.contains('collect-map');
+  if ((!mob && !collect) || el.hidden) { el.style.top = ''; el.style.bottom = ''; el.style.maxHeight = ''; el.style.overflowY = ''; return; }
   const par = el.offsetParent; if (!par) return;
   const pr = par.getBoundingClientRect();
   let topV = pr.top + 12; // 上界:頂列控件(左上時鐘/換一班、右上工具/全畫面)最低的底 + 8px
+  if (collect) {
+    const bar = document.getElementById('collectBar');
+    if (bar && !bar.hidden && bar.offsetParent) { const r = bar.getBoundingClientRect(); if (r.height) topV = Math.max(topV, r.bottom + 8); }
+  }
   for (const sel of ['#clock', '#mapActions', '#toolsFab', '#fsFab']) { // #mapActions=隨機跟隨＋附近車站並排列(桌面 display:contents 無盒 → 下面 r.height 為 0 自動跳過)
     const c = document.querySelector(sel);
     if (c && c.offsetParent) { const r = c.getBoundingClientRect(); if (r.height && r.bottom > pr.top) topV = Math.max(topV, r.bottom + 8); }
@@ -8808,6 +8822,26 @@ function placeMobileNotice(el) {
   el.style.overflowY = 'auto';
 }
 function showToast(msg) {
+  // #recordScreen 在 body 層(z2400)，全站 toast 卻在 .stage(z1000)的堆疊脈絡內；
+  // 錄製中若仍塞進 #toasts，computed style 看似正常但每一個像素都會被黑幕蓋住。
+  // #recHint 是錄製畫面自己的 live region，只在這個模式接手，不改全站 toast 的層級與定位。
+  if (state.recording) {
+    const hint = document.getElementById('recHint');
+    if (hint) {
+      // toast 是「路過的」，bountyRecordNotice() 設的才是常駐訊息（GPS 權限沒開、上傳失敗…）。
+      // 5 秒到期時要把常駐訊息放回去，否則一個路過的 toast 會把使用者非看到不可的錯誤靜默清掉。
+      hint.innerHTML = msg;
+      hint.classList.remove('err');
+      hint.hidden = false;
+      clearTimeout(state._recHintTimer);
+      state._recHintTimer = setTimeout(() => {
+        const r = state.recording;
+        if (r && r._notice) bountyRecordNotice(r._notice, r._noticeKind);
+        else { hint.hidden = true; hint.innerHTML = ''; }
+      }, 5000);
+      return;
+    }
+  }
   const box = document.getElementById('toasts');
   if (!box) return;
   const el = document.createElement('div');
@@ -9686,6 +9720,7 @@ function bountyFinishStop(r) {
 function renderRecordScreen() {
   const r = state.recording;
   if (!r) return;
+  bountyPersistRecording(r);
   const nm = r.card ? bountyCardName(r.card) : null;
   document.getElementById('recRoute').textContent = nm ? `${nm.from} → ${nm.to}` : '';
   document.getElementById('recKm').textContent = (r.dNow == null ? 0 : r.dNow / 1000).toFixed(1);
@@ -14458,6 +14493,8 @@ async function boot() {
   } catch (e) { state.powerSave = false; }
   setBasemap();
   setupMapTools();
+  // 錄製還原刻意不放這裡：Task 4 的還原會一併啟動取樣，而取樣要投影到線形，
+  // 必須等線網載完才有意義。實際呼叫點在下方 boot 尾段（線網就緒後）。
   setupRecorder();
   await setupLocalNotifications();
   map.on('move zoom resize', reproject); // 縮放「動畫」與捏合手勢(_zoomAnim 凍結中)不在此重投影(會造成 issue #4 殘影);改由下方 onZoomAnim/捏合 zoom handler 專責同步
