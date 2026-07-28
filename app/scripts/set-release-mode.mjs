@@ -30,9 +30,12 @@ const MODES = {
     marketing: '1.0.1', build: '12', music: false,
     why: '隱私＋安全修正版：與線上 build 8 相同的功能範圍（本來就沒有音樂），只多修正。差異最小＝審查風險最小。',
   },
+  // 2026-07-29 更新：1.0.2 (13) 已經上架，使用者確認 build 14 還沒被 ASC 吃掉，
+  // 所以這一輪 TestFlight 走 1.0.3 (14)。下次要再改這張表之前，先去 ASC 確認號碼還空著——
+  // 下面那道單調遞增閘門只擋「往回推」，擋不住「撞到已用過的號」。
   feature: {
-    marketing: '1.0.2', build: '13', music: true,
-    why: 'TestFlight／後續送審版：含音樂與開機定位等新功能。',
+    marketing: '1.0.3', build: '14', music: true,
+    why: 'TestFlight／後續送審版：含音樂、開機定位、打卡收集與 GPS 校正旅程。',
   },
 };
 
