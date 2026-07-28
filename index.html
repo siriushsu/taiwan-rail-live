@@ -1021,6 +1021,25 @@
   .passport [data-sec="correct"] [data-act="collectmap"], #ridePanel [data-sec="correct"] [data-act="collectmap"] {
     margin-left: 0;
   }
+  /* 校正貢獻節內容(Task 6,規格 §8):兩個數字並列＋逐線印章＋unusable 原因與改善方式。
+     色系沿用既有 token,不新造顏色──corr-pt 用 --gold 呼應「點數是榮譽的量化形式」這個定位。 */
+  .ph-correct .corr-nums { font-size: 15px; margin: 2px 0 10px; }
+  .ph-correct .corr-sub { opacity: .75; margin-left: 4px; font-size: 13px; }
+  .ph-correct .corr-pt { float: right; font-weight: 800; color: var(--gold); }
+  .ph-correct .seal-wall { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 4px; }
+  /* .corr-line 是可換行的長條 chip,不是 .stn-seal 圓章──圓章是為 2–4 字站名設計的定寬版面,
+     線名含括號里程可以到 10 字以上,塞進圓章會裁到看不出是哪條線(見 buildCorrectSection() 的
+     同一則註解)。沿用 .pl-map 同一組 navy/pill 語彙但反轉成淺底:這裡是唯讀資訊,不是可點的鈕。 */
+  .ph-correct .corr-line {
+    display: inline-flex; align-items: baseline; gap: 5px; font-size: 12px; font-weight: 800;
+    color: var(--navy); background: var(--line-faint); border-radius: var(--r-pill); padding: 5px 11px;
+  }
+  .ph-correct .corr-line small { font-weight: 600; opacity: .8; }
+  .ph-correct .corr-why {
+    margin-top: 8px; font-size: 12px; line-height: 1.5; opacity: .85;
+    padding-left: 8px; border-left: 2px solid var(--line);
+  }
+  .ph-correct .corr-first { margin-top: 6px; font-size: 12px; color: var(--muted); }
   .datestamp {
     display: inline-block; font-family: var(--mono); font-size: 11px; font-weight: 700;
     color: var(--navy); border: 1.5px solid var(--navy); border-radius: 3px; padding: 0 5px;
@@ -9519,6 +9538,20 @@ async function fetchBountyBoard() {
   if (!r.ok) throw new Error('board ' + r.status);
   return r.json();
 }
+let bountyMeMem = null;
+// 護照「校正貢獻」節(規格 §8)要顯示的個人彙總。兩個數字(已校正段數／已採用段數)是伺服器
+// 算好才回,前端不逐筆 trips 反推——contract 見計畫 B Task 7。
+// 失敗行為明確但不外洩:讀不到或非 2xx 時 bountyMeMem 維持原值(通常是 null),不拋例外。
+// buildCorrectSection() 對 !me 有專門的空狀態分支,呼叫端可以放心 .then() 接著重繪,
+// 不會因為這支函式失敗而把 renderPassport() 一起打斷(比照 bountySaveUploadQueue() 的反面教材:
+// 那支吞例外吞到呼叫端連「存失敗了」都不知道;這支吞例外但留下明確、可預期的降級狀態)。
+async function fetchBountyMe() {
+  try {
+    const r = await fetch(apiUrl('api/bounty-me?actor=' + encodeURIComponent(bountyActor())), { cache: 'no-store' });
+    if (r.ok) bountyMeMem = await r.json();
+  } catch (e) {}
+  return bountyMeMem;
+}
 // 旅程卡的名字：伺服器只給計價單位，端點名在這裡算。
 // 🔴 為什麼不讓伺服器算：把 seg_key 排成一條路需要里程順序，而里程順序住在 lineNetwork()
 // （ln.stations 依 d 排序）。把線網拓樸複製一份進 worker 等於製造第二個真相源，改點時兩邊會不同步。
@@ -10477,9 +10510,12 @@ function buildLineBars() {
         `<span class="pl-pct${pct >= 100 ? ' done' : ''}">${pct}%</span></div>`;
     }).join('') + `</div>`;
 }
-// 護照的「校正貢獻」節。本 task 只放標題與入口;內容(校正 N 段其中 M 段已採用、
-// 校正者印章、品質說明)在 Task 6 填。分兩次做是刻意的:入口要先存在,
-// 使用者才有辦法在完全沒有貢獻的時候找到懸賞板——「還沒有貢獻」正是最需要那個入口的時刻。
+// 護照的「校正貢獻」節(規格 §8)。
+// 🔴 顯示兩個數字不是一個:「校正 12 段（其中 9 段已採用）」。只顯示前者會讓使用者不知道自己
+// 的資料其實常常不能用、失去改善機會;只顯示後者則是把 unusable 的付出當成沒發生,正好違反拍板。
+// 兩個並列時,差距本身就是一個不帶懲罰的改善提示。
+// 🔴 首位校正者只顯示給自己,不顯示別人的暱稱:顯示他人自填暱稱＝UGC,會觸發 Apple Guideline 1.2
+// (比照事故回報「只給結構化選項、絕不開自由文字」的既有決策)。
 function buildCorrectSection() {
   // 沿用 .ph-sec .pl-map 既有樣式(靠右擠在標題列、觸控高度給滿):實測發現這顆鈕原本
   // 沒有任何 CSS 落在它身上(class 名稱是新造的),吃瀏覽器預設 button 樣式,高度比同排的
@@ -10493,15 +10529,46 @@ function buildCorrectSection() {
   const showCorrectMapBtn = lineCompletion().length === 0 && bountyCorrectedSegs().size > 0;
   const inner = '校正貢獻<button class="pl-map" data-act="bountyboard" type="button">懸賞板</button>' +
     (showCorrectMapBtn ? '<button class="pl-map" data-act="collectmap" type="button">收集地圖</button>' : '');
+  const me = bountyMeMem;
+  const corrected = (me && me.corrected) || {}; // 防禦 API 形狀:me 有回應但 corrected 缺欄位時不炸開
+  const n = me ? bountyNum(corrected.segs) : 0;
+  let body;
+  if (!me || !n) {
+    body = '<div class="ph-empty">還沒有校正記錄——去懸賞板看看有哪些路段缺資料。'
+      + '錄一趟就有校正者章，<b>即使資料不能用，章與點數還是你的</b>。</div>';
+  } else {
+    // 逐線印章不沿用 .stn-seal(50px 圓章,為 2–4 字站名設計):線名連括號里程可以到 10 字以上
+    // (「南迴線（枋寮–臺東）」),塞進圓章會裁到看不出是哪條線。這裡刻意印出 rec.name 全名
+    // (含括號里程)而不是簡稱——查表失敗時 fallback 只會印 l.lnId 這個沒有括號的裸線名,
+    // 兩者要看得出差別,不能為了好看而先把括號砍掉(那樣真查到跟 fallback 就長一樣了)。
+    const lines = (me.lines || []).map(l => {
+      const rec = lineNetwork().get(l.sys + '|' + l.lnId);
+      return `<span class="corr-line"><b>${escHtml(rec ? rec.name : l.lnId)}</b><small>${bountyNum(l.segs)} 段</small></span>`;
+    }).join('');
+    // unusable 的說明:每一筆都給「原因＋怎麼改善」,這是規格 §7 三態判定對使用者的承諾。
+    // 只挑 verdict==='unusable' 且真的帶 quality 的筆——ok/suspect/pending/未知值一律不給細節,
+    // 沿用既有 verdict 白名單(BOUNTY_HONORED_VERDICTS)fail-closed 的態度。
+    const bad = (me.trips || []).filter(t => t.verdict === 'unusable' && t.quality).slice(0, 3).map(t =>
+      `<div class="corr-why"><b>${escHtml(t.tripDate)} ${escHtml(t.trainNo)} 次・${escHtml(t.quality.title)}</b>` +
+      `<br>${escHtml(t.quality.how)}</div>`).join('');
+    // 首位校正者只寫「你」,不印任何他人暱稱——顯示他人自填暱稱＝UGC,見上方函式註解。
+    const first = (me.firsts || []).length
+      ? `<div class="corr-first">首位校正者：<b>你</b>（${(me.firsts || []).length} 段）</div>` : '';
+    body =
+      `<div class="corr-nums">校正 <b>${n}</b> 段<span class="corr-sub">（其中 <b>${bountyNum(corrected.adopted)}</b> 段已採用）</span>` +
+      `<span class="corr-pt">${bountyNum(me.points)} 點</span></div>` +
+      `<div class="seal-wall">${lines}</div>` + first + bad;
+    // 兌換入口在沒有任何段開放時整個隱藏——不做「敬請期待」那種空頭 UI(規格 §8)。
+    // v1 的點數是榮譽的量化形式:累積、顯示,但沒有兌換入口。
+  }
   // 節的形狀固定是「標題＋緊接一個內容 div」,收合靠 .ph-sec.closed + div{display:none}。
   // 新增節不維持這個形狀就收不掉(打卡那批踩過)。
-  // autoCloseOver 用 -1(不是 null):入口鈕在 .ph-sec 標題列本體裡,不在會被收合藏起來的內容
-  // div——所以「入口要先存在」在標題列本身就已經滿足,跟內容區開合與否無關。默認展開(null)會讓
-  // 這節在車站牆龐大的重度使用者身上把護照總高度推過一個視窗高(verify_checkin.mjs L10 的既有
-  // 門檻,批次無關不可調),故改預設收合;n 永遠是 0(真正的計數留給 Task 6 接),
-  // -1 是刻意選的哨兵值,讓 0 <= autoCloseOver 恆不成立、預設收合,使用者手動展開過仍會被記住。
-  return phSec('correct', 0, -1, inner) +
-    `<div class="ph-correct"><div class="ph-empty">還沒有校正記錄——去懸賞板看看有哪些路段缺資料。</div></div>`;
+  // autoCloseOver 仍用 -1(不是 spec 草稿的 null):入口鈕在 .ph-sec 標題列本體裡,不在會被收合
+  // 藏起來的內容 div——「入口要先存在」在標題列本身就已經滿足,跟內容區開合與否無關。改回 null
+  // 會讓「有校正記錄」的人這節自動展開,在車站牆龐大的重度使用者身上把護照總高度推過一個視窗高
+  // (verify_checkin.mjs L10 的既有門檻,批次無關不可調);-1 是刻意選的哨兵值,讓 n <= autoCloseOver
+  // 對任何非負 n 恆不成立、預設收合,使用者手動展開過仍會被記住。
+  return phSec('correct', n, -1, inner) + `<div class="ph-correct">${body}</div>`;
 }
 // 收集章(明星列車/車種圖鑑/支線行腳):完成與否皆掛點擊鉤子→got 章也可點重播;桌面與 sheet 逐字相同
 function buildStamps(rides) {
@@ -14768,6 +14835,10 @@ async function boot() {
   // 錄製中的投影里程先於重新整理落在裝置端；線網就緒後接回同一趟並恢復前景取樣。
   // 沒有進行中的旅程也會順手重試先前斷線留下的批次，兩條路都只處理里程、不碰座標。
   if (!bountyRestoreRecording()) void bountyRetryPending();
+  // 護照「校正貢獻」節(Task 6):開機當下渲染的第一次一定是空狀態(fetch 還沒回來),
+  // 資料到了才重繪。renderRidePanel() 自己有 el.hidden 早退,手機沒開護照 sheet 時是免費的
+  // no-op——併發呼叫兩邊比只呼叫 renderPassport() 更保險,不用賭使用者開 sheet 時 fetch 一定已經回來。
+  fetchBountyMe().then(() => { renderPassport(); renderRidePanel(); });
   publishTrackContinuityAudit();
   if (window.__notifyMockLog) {
     const cross = state.systems.filter(s => s.id === 'tra_sched' || s.id === 'thsr_sched')

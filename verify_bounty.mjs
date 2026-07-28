@@ -1934,6 +1934,99 @@ for (const w of [375, 390]) {
   }
 }
 
+// ── P 組：護照校正貢獻節（Task 6，規格 §8）──────────────────────────────
+// 命名刻意避開既有 F3/F4/F7──那三組是 Task 1/2 審查糾正時留下的獨立議題（loadBounty 補洞、
+// bountyClaim 例外誤判、說明卡手機版空白），跟本任務規格草稿講的「F 組（F1–F9）」語意完全
+// 不同，若沿用 F1/F2/F5/F6/F8/F9 會跟 F3/F4/F7 混在同一個字母底下互相打架，改用未用過的 P。
+//
+// 🔴 fixture 鍵空間按 Task 1 審查裁定改正（brief 草稿三處已知錯誤之一）：sys 用 'tra_sched'
+// （不是草稿的 'TRA'），lnId 用真實中文線 id '南迴線'／'宜蘭線'（不是 'NH'／'WL'）。
+// lineNetwork() 的鍵是 ln.sys + '|' + ln.id（index.html:9185 附近，m.set(ln.sys+'|'+ln.id,…)），
+// 且 ln.sys 在載入時直接賦值成 SYS_DEFS 的 id 本身（index.html:4143 `ln.sys = sys.id`）——
+// 台鐵是 'tra_sched'，不是兩三碼縮寫。實測 data/tra.json：南迴線 name='南迴線（枋寮–臺東）'，
+// 宜蘭線 name='宜蘭線（蘇澳–八堵）'。
+// firsts 也從草稿的 'TRA|NH|大武|太麻里' 改成真正相鄰的 'tra_sched|南迴線|大武|瀧溪'——南迴線
+// 站序是…枋野→大武→瀧溪→金崙…，大武與太麻里之間隔著瀧溪、金崙兩站，不是相鄰段（segKey() 的
+// 字典序驗證 '大武'<'瀧溪' 為真，這把鍵在既有 BOARD fixture 的 unitKeys 裡也真的出現過）。
+{
+  const ME = {
+    actor: 'dev-x', points: 128,
+    corrected: { segs: 12, adopted: 9 },
+    lines: [{ sys: 'tra_sched', lnId: '南迴線', segs: 8, adopted: 6 }, { sys: 'tra_sched', lnId: '宜蘭線', segs: 4, adopted: 3 }],
+    firsts: ['tra_sched|南迴線|大武|瀧溪'],
+    trips: [
+      { id: 't1', tripDate: '2026-07-28', trainNo: '312', sys: 'tra_sched', lnId: '南迴線', verdict: 'ok', quality: null },
+      { id: 't2', tripDate: '2026-07-27', trainNo: '313', sys: 'tra_sched', lnId: '南迴線', verdict: 'unusable',
+        quality: { code: 'acc_blocked', title: '訊號被遮蔽了', how: '手機放在包包裡或車廂中央會擋住訊號，靠窗會好很多' } },
+      { id: 't3', tripDate: '2026-07-26', trainNo: '101', sys: 'tra_sched', lnId: '宜蘭線', verdict: 'suspect', quality: null },
+      // 🔴 t4 是「suspect 但帶著 quality」——伺服器現在不會這樣回（bountyMe 的 quality 來自
+      // quality_code，而防偽閘擋下的那些筆 quality_code 是 NULL），但客端的 fail-closed 不能
+      // 靠伺服器守。沒有這一筆，t3 的 quality 本來就是 null ⇒ 把白名單 verdict==='unusable'
+      // 放寬成 verdict!=='ok' 也不會有任何測試叫（突變實測過：137/137 全綠）。
+      // title/how 刻意塞可疑字眼，讓「洩漏了」與「沒洩漏」在 P6 的正則上直接分得開。
+      { id: 't4', tripDate: '2026-07-25', trainNo: '102', sys: 'tra_sched', lnId: '宜蘭線', verdict: 'suspect',
+        quality: { code: 'impossible_physics', title: '速度不合物理', how: '偽造軌跡不會被採用' } },
+    ],
+  };
+  const { ctx, page } = await open(browser, { app: true, over: { me: ME } });
+  const f = await page.evaluate(async () => {
+    localStorage.setItem('trainmap-passport-open', '1');
+    await fetchBountyMe();
+    renderPassport();
+    return { txt: document.querySelector('#passport .ph-correct').innerText,
+      html: document.querySelector('#passport .ph-correct').innerHTML };
+  });
+
+  // 🔴 P1 是這一節的核心：兩個數字並列
+  ok('P1 顯示「校正 12 段（其中 9 段已採用）」兩個數字',
+    /12\s*段/.test(f.txt) && /9\s*段/.test(f.txt), f.txt.replace(/\n/g, ' / '));
+  // 🔴🔴 P2 與規格草稿不同（brief 草稿三處已知錯誤之二）：草稿判準是 /NH|南迴/，但
+  // buildCorrectSection() 查不到 lineNetwork() 記錄時會退回顯示 l.lnId 本身——l.lnId 就是
+  // '南迴線'，所以 /南迴/ 這種判準在查表整個壞掉、退回 fallback 時照樣通過，測不到查表有沒有
+  // 真的成功。改成只有查表成功才會出現的字串：rec.name 全名含括號里程（「南迴線（枋寮–臺東）」），
+  // fallback 印出的是沒有括號的裸線名，兩者能區分（見下面 P2 mut 突變測試的實測證明）。
+  ok('P2 逐線的校正者印章（路線專屬，查表成功才有括號里程，不是 fallback 裸線名）',
+    /南迴線（枋寮–臺東）/.test(f.txt), f.txt.replace(/\n/g, ' / '));
+  ok('P3 點數看得到', /128\s*點/.test(f.txt), f.txt.replace(/\n/g, ' / '));
+  ok('P4 unusable 那筆的原因與改善方式看得到',
+    /訊號被遮蔽/.test(f.txt) && /靠窗/.test(f.txt), f.txt.replace(/\n/g, ' / '));
+  // 🔴 P5 UGC 紅線：不顯示別人的暱稱（Apple Guideline 1.2）
+  ok('P5 首位校正者只寫「你」，畫面上沒有任何他人暱稱欄位',
+    !/nickname|暱稱|使用者名稱/.test(f.html), f.html.slice(0, 200));
+  // P6 suspect 那筆不給細節。判準有兩層，缺一都會變成沒有牙的測試：
+  // (a) .corr-why 恰好 1 則（對應 t2）——不是 0 則（漏印該顯示的 t2）也不是多則；
+  // (b) 畫面上沒有 t4 的可疑字眼。t4 是刻意造的「suspect 但帶 quality」，因為只靠 (a) 搭配
+  //     原本的三筆 fixture 仍測不到白名單被放寬：t1/t3 的 quality 都是 null，把
+  //     verdict==='unusable' 改成 verdict!=='ok' 一樣只印出 t2，137/137 全綠（突變實測）。
+  const p6n = await page.evaluate(() => document.querySelectorAll('#passport .ph-correct .corr-why').length);
+  ok('P6 只有 unusable 那一筆給細節：suspect 即使帶著 quality 也一個字都不印',
+    !/doppler|物理|偽造|作弊/.test(f.txt) && p6n === 1, `corr-why 數量=${p6n}　` + f.txt.replace(/\n/g, ' / '));
+  // P7 兌換入口在沒有段開放時整個隱藏——不做「敬請期待」那種空頭 UI（規格 §8）
+  ok('P7 沒有任何段開放兌換時，兌換入口整個不存在',
+    !/兌換|敬請期待/.test(f.txt), f.txt.replace(/\n/g, ' / '));
+  // P8 節的形狀：標題＋緊接一個內容 div，否則收合會失效
+  const p8 = await page.evaluate(() => {
+    const sec = document.querySelector('#passport .ph-sec[data-sec="correct"]');
+    return { next: sec.nextElementSibling && sec.nextElementSibling.className };
+  });
+  ok('P8 維持「標題＋緊接一個內容 div」的形狀（否則收不掉）', /ph-correct/.test(p8.next || ''), JSON.stringify(p8));
+  await ctx.close();
+}
+
+// P9：完全沒有貢獻時，入口還是要在（那是最需要它的時刻）
+{
+  const { ctx, page } = await open(browser, { app: true });
+  const p9 = await page.evaluate(() => {
+    localStorage.setItem('trainmap-passport-open', '1');
+    localStorage.removeItem('trainmap-checkins-v1');
+    renderPassport();
+    const sec = document.querySelector('#passport [data-sec="correct"]');
+    return { sec: !!sec, btn: !!document.querySelector('#passport [data-act="bountyboard"]') };
+  });
+  ok('P9 零貢獻的新使用者也看得到懸賞板入口', p9.sec && p9.btn, JSON.stringify(p9));
+  await ctx.close();
+}
+
 const pass = R.filter(r => r.p).length;
 printSummary();
 await browser.close();
