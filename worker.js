@@ -674,6 +674,7 @@ const APP_ORIGINS = new Set(['capacitor://localhost', 'https://localhost']);
 const API_ENDPOINTS = new Set([
   'tra-live', 'tra-alert', 'thsr-alert', 'metro-alert', 'metro-live', 'ntmetro-live',
   'delay-stats', 'delay-history', 'station-events', 'today-board', 'basemap-token', 'account-delete',
+  'bounty-board',
 ]);
 
 function addAppCors(headers, origin) {
@@ -682,6 +683,100 @@ function addAppCors(headers, origin) {
   const vary = (headers.get('Vary') || '').split(',').map(v => v.trim()).filter(Boolean);
   if (!vary.some(v => v.toLowerCase() === 'origin')) vary.push('Origin');
   headers.set('Vary', vary.join(', '));
+}
+
+// ══ GPS 路段收集懸賞 ═══════════════════════════════════════════════════════
+// 規格：打卡收集系統設計_GPS懸賞_2026-07-27.html。D1 四張表在 schema/0002_bounty.sql。
+// 分層刻意做得很硬：估值與判定全是純函式（下面的 _bounty 導出），端點與 cron 只做 IO 與組裝。
+// 理由是這兩組邏輯的正確性只能靠離線測試證明——它們依賴「時間流過」與「有人真的去搭車」，
+// 線上根本沒辦法造測試情境。
+
+// 計價單位的對外身分：sys|lnId|dir|trainKind|kind|slot（六段，末段可空）。
+// 刻意與 seg_key（四段 sys|lnId|A|B）不同長度，混用時一眼看得出來。
+function bountyCardId(r) {
+  const p = String(r.seg_key).split('|');
+  return `${p[0]}|${p[1]}|${r.dir}|${r.train_kind}|${r.kind}|${r.slot || ''}`;
+}
+// dwell 列的 seg_key 是 sys|lnId|站名|站名（A==B）。真實軌道區間的兩端必為相異站，
+// 所以 A==B 唯一代表「這是一座站」，不必另發明標記字元。
+// sys 桶對照：coverN 的鍵是「系統家族」，seg_key 的 sys 是 SYS_DEFS 的 id，兩者不同層次。
+// 實測 lineNetwork() 的 sys 全集＝tra_sched／thsr_sched／afr_sched，沒有 metro，
+// 所以懸賞 v1 不出 metro 卡（出了前端也畫不出來——沒有 metro 幾何）。
+const BOUNTY_SYS_BUCKET = { tra_sched: 'TRA', thsr_sched: 'THSR', afr_sched: 'TRA' };
+
+function bountySegLine(segKey) {
+  const p = String(segKey).split('|');
+  return { sys: p[0], lnId: p[1], a: p[2], b: p[3], isDwell: p[2] === p[3] };
+}
+// 門檻與文案讀 data/bounty_rules.json（ASSETS 綁定，與前端讀的是同一份檔）。
+// 🔴 規格 §5：即時提示與事後判定刻意同源——即時提示的意義就是「預告事後會怎麼判」，
+// 兩邊用不同門檻才是 bug（使用者一路看到綠燈、隔天卻收到不合格）。所以門檻只能有一份定義。
+// 刻意不寫任何 fallback 常數：有 fallback 就有分歧的可能，而分歧正是這裡唯一要防的東西。
+// 讀不到就讓呼叫端失敗（board 回 503、cron 直接中止讓樣本留在 pending，隔天再判）。
+let bountyRulesMem = null;
+async function bountyRules(env) {
+  if (bountyRulesMem) return bountyRulesMem;
+  const r = await env.ASSETS.fetch(new Request('https://railisland.tw/data/bounty_rules.json'));
+  if (!r.ok) throw new Error('bounty_rules unavailable: ' + r.status);
+  bountyRulesMem = await r.json();
+  return bountyRulesMem;
+}
+// 把內部的計價單位聚合成對外的旅程卡。使用者看到的是「枋寮→台東 南迴線 39 點」，
+// 不是六千筆 (段,車種,方向) 的內部帳。
+// 端點名（枋寮／台東）刻意不在這裡算——排出一條路需要里程順序，那住在前端的 lineNetwork()。
+// 把線網拓樸複製進 worker 等於製造第二個真相源，改點時兩邊會不同步。
+// claimCounts 由呼叫端查好傳進來（純函式不碰 DB，才測得動）。
+function groupBoardRows(rows, claimCounts, coverN) {
+  const m = new Map();
+  for (const r of rows) {
+    const id = bountyCardId(r), ln = bountySegLine(r.seg_key);
+    let c = m.get(id);
+    if (!c) {
+      c = { id, sys: ln.sys, lnId: ln.lnId, dir: Number(r.dir), trainKind: r.train_kind,
+        kind: r.kind, slot: r.slot || '', unitKeys: [], units: 0, points: 0, samples: 0,
+        claimers: 0, coverN: (coverN && coverN[BOUNTY_SYS_BUCKET[ln.sys]]) || 1 };
+      m.set(id, c);
+    }
+    c.unitKeys.push(r.seg_key);
+    c.units += 1;
+    c.points += Number(r.points) || 0;
+    c.samples += Number(r.sample_count) || 0;
+    const k = `${r.seg_key}|${r.train_kind}|${r.dir}|${r.kind}|${r.slot || ''}`;
+    c.claimers = Math.max(c.claimers, (claimCounts && claimCounts.get(k)) || 0);
+  }
+  // 點數高的排前面：那正是「還沒人跑、值得跑」的訊號，不必另外做推薦
+  return [...m.values()].sort((a, b) => b.points - a.points || a.id.localeCompare(b.id));
+}
+
+// GET /api/bounty-board：公開、免驗證。網頁也讀得到（規格 §9：看得到、接不了）。
+async function bountyBoard(request, env) {
+  const cacheKey = new Request(new URL('/api/bounty-board', request.url), { method: 'GET' });
+  const edge = caches.default;
+  const hit = await edge.match(cacheKey);
+  if (hit) return hit;
+  try {
+    const rules = await bountyRules(env);
+    const now = Date.now();
+    // track 收滿就下架；dwell 收滿仍留在架上（規格 §4：停站點獎勵衰減但不歸零，
+    // 因為任何軌跡經過車站都自帶樣本，邊際成本近零）
+    const rs = await env.DELAY_DB.prepare(
+      "SELECT seg_key, sys, train_kind, dir, kind, slot, points, sample_count FROM bounty_board" +
+      " WHERE kind='dwell' OR covered_at IS NULL"
+    ).all();
+    const cs = await env.DELAY_DB.prepare(
+      "SELECT seg_key, train_kind, dir, kind, slot, COUNT(DISTINCT actor) AS n FROM bounty_claims" +
+      " WHERE status='open' AND expires_at > ? GROUP BY seg_key, train_kind, dir, kind, slot"
+    ).bind(now).all();
+    const counts = new Map((cs.results || []).map(r =>
+      [`${r.seg_key}|${r.train_kind}|${r.dir}|${r.kind}|${r.slot || ''}`, Number(r.n) || 0]));
+    const cards = groupBoardRows(rs.results || [], counts, rules.coverN);
+    // 板一天只重算一次，但 claimers 會隨時變——5 分鐘是「認領人數夠新」與「別把 D1 打爆」的折衷
+    const res = jsonRes({ at: now, coverN: rules.coverN, cards }, 200, 'public, s-maxage=300, stale-while-revalidate=900');
+    await edge.put(cacheKey, res.clone());
+    return res;
+  } catch (e) {
+    return jsonRes({ error: 'not_ready' }, 503, 'public, s-maxage=60');
+  }
 }
 
 // ── 台鐵準點統計「每日增量」cron(scheduled handler) ────────────────────────
@@ -1061,6 +1156,7 @@ export default {
     else if (url.pathname === '/api/today-board') res = await todayBoard(request, env);
     else if (url.pathname === '/api/basemap-token') res = basemapToken(request, env);
     else if (url.pathname === '/api/account-delete') res = await deletePaidProfile(request, env);
+    else if (url.pathname === '/api/bounty-board') res = await bountyBoard(request, env);
     else res = await env.ASSETS.fetch(request);
     const h = new Headers(res.headers);
     for (const [k, v] of Object.entries(SEC_HEADERS)) h.set(k, v);
@@ -1083,3 +1179,7 @@ export const _delayHistory = { delayHistoryWindow, buildDelayHistoryBody, isVali
 // 供離線回歸測試 import:驗「節流擋在 outbound fetch 之前」。這兩個不是純函式,測試得自備
 // env 替身與 fetch 替身;導出的目的就是讓測試能數「被擋掉時到底有沒有打上游」。
 export const _rateLimit = { rateLimited, delayHistory, deletePaidProfile };
+// 純函式與端點處理器導出，供離線回歸測試 import（scripts/verify_bounty_*.mjs）。
+// 端點也導出的理由同 _rateLimit：這些不是純函式，測試要自備 env 替身才驗得到「節流有沒有擋在
+// D1 寫入之前」「回應裡有沒有夾帶 reject_code」這類只在編排層才成立的性質。
+export const _bounty = { bountyCardId, bountySegLine, groupBoardRows, bountyBoard };
