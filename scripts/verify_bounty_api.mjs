@@ -369,6 +369,129 @@ INSERT INTO bounty_claims (id,actor,seg_key,train_kind,dir,kind,slot,points_lock
   }
 }
 
+// ── J 組：POST /api/bounty-merge ──────────────────────────────────────────
+{
+  const { bountyMerge } = _bounty;
+  // Firebase 替身：lookup 回一個固定 uid。🔴 驗收條件 5：全程零真實網路——worker.js 沒有任何
+  // import，所有 fetch(...) 呼叫點都是解析到 globalThis.fetch 的裸識別字（比照
+  // scripts/verify_rate_limit.mjs 已驗證過的同一套技巧），這裡額外記錄每次呼叫的網址與次數，
+  // 不只是覆寫掉而已——次數與網址都要能斷言，零命中或命中到非預期網址都要能被抓到。
+  const realFetch = globalThis.fetch;
+  const fetchCalls = [];
+  globalThis.fetch = async (url) => {
+    fetchCalls.push(String(url));
+    return new Response(JSON.stringify({ users: [{ localId: 'uid-777' }] }), { status: 200 });
+  };
+  const post = (b, tok) => req('/api/bounty-merge', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', 'cf-connecting-ip': '203.0.113.9', ...(tok ? { Authorization: 'Bearer ' + tok } : {}) },
+    body: JSON.stringify(b),
+  });
+  const FB = { FIREBASE_WEB_API_KEY: 'k', AUTH_LIMITER: limiter(false) };
+
+  const { db, DELAY_DB } = openTestDb(`
+    INSERT INTO bounty_points (actor,uid,points,merged_into,updated_at) VALUES ('dev-mine',NULL,30,NULL,1);
+    INSERT INTO bounty_points (actor,uid,points,merged_into,updated_at) VALUES ('uid-777','uid-777',5,NULL,1);`);
+
+  ok('J1 沒帶 token 回 401', (await bountyMerge(post({ actor: 'dev-mine' }), ENV(DELAY_DB, FB))).status === 401);
+  ok('J1b 沒帶 token 時 firebaseUid 完全沒被呼叫（isActorId 通過但 auth 沒有 Bearer，短路在打 Firebase 之前）',
+    fetchCalls.length === 0, JSON.stringify(fetchCalls));
+  ok('J2 髒 actor 回 400', (await bountyMerge(post({ actor: '../x' }, 'tok'), ENV(DELAY_DB, FB))).status === 400);
+  ok('J2b 髒 actor 短路在 isActorId，同樣沒有打到 Firebase（即使帶了 token）',
+    fetchCalls.length === 0, JSON.stringify(fetchCalls));
+
+  const r3 = await bountyMerge(post({ actor: 'dev-mine' }, 'tok'), ENV(DELAY_DB, FB));
+  const b3 = await body(r3);
+  const uidRow = () => db.prepare("SELECT * FROM bounty_points WHERE actor='uid-777'").get();
+  const devRow = () => db.prepare("SELECT * FROM bounty_points WHERE actor='dev-mine'").get();
+  ok('J3 合併後 uid 拿到 35 點（5+30，測試自己加）',
+    r3.status === 200 && b3.points === 35 && uidRow().points === 35, JSON.stringify({ s: r3.status, b3, u: uidRow() }));
+  ok('J4 來源列歸零並標上 merged_into',
+    devRow().points === 0 && devRow().merged_into === 'uid-777', JSON.stringify(devRow()));
+
+  const r5 = await bountyMerge(post({ actor: 'dev-mine' }, 'tok'), ENV(DELAY_DB, FB));
+  const b5 = await body(r5);
+  ok('J5 重複合併不重複計點（冪等）', r5.status === 200 && uidRow().points === 35 && b5.merged === false,
+    JSON.stringify({ u: uidRow(), b5 }));
+
+  ok('J6 沒有點數的裝置也能合併（第一次登入的正常情況）',
+    (await bountyMerge(post({ actor: 'dev-fresh' }, 'tok'), ENV(DELAY_DB, FB))).status === 200);
+  ok('J7 合併後 resolveActor 會把該 token 的寫入轉向 uid',
+    (await _bounty.resolveActor(ENV(DELAY_DB, FB), 'dev-mine')) === 'uid-777');
+
+  // J8（我方補寫，對應驗收條件 4「router entry 真的接上」）：brief 給的 J1–J7 全部透過
+  // _bounty.bountyMerge() 直接呼叫，從未走過 worker.fetch() 的路由分派，測不到 router 那行
+  // else-if 有沒有真的接上（比照 Task 4 的 C0／Task 7 的 I9 慣例，補一個獨立案例）。這裡故意
+  // 送一個必然在 bountyMerge() 內部驗證第一關（isActorId）就失敗的 body（actor 空字串），
+  // env 刻意不給 ASSETS：若 router 那行沒接上，會落到 `else res = await env.ASSETS.fetch(request)`
+  // ——對 undefined 呼叫 .fetch 會直接拋例外讓整支測試崩潰，不會拿到一個乾淨的 400 JSON。
+  // 「沒有拋例外、且錯誤碼精確等於 bad_actor（不是隨便一個 4xx，例如 404 或 405）」兩者合起來
+  // 才是真正命中 bountyMerge() 的證據。
+  {
+    const r = await worker.fetch(req('/api/bounty-merge', {
+      method: 'POST', headers: { 'content-type': 'application/json', 'cf-connecting-ip': '203.0.113.9' },
+      body: JSON.stringify({ actor: '' }),
+    }), {});
+    const b = await body(r);
+    ok('J8 router entry 真的接上：完整 worker.fetch() 路由分派命中 bountyMerge()，不是掉到 404 或資產層 fallback',
+      r.status === 400 && b.error === 'bad_actor', JSON.stringify({ status: r.status, body: b }));
+  }
+
+  // J9（我方補寫，對應驗收條件 3「冪等性要用連續呼叫兩次的實測證明」硬要求的完整範圍）：
+  // brief 給的 J3–J5 只驗證了 bounty_points 的點數冪等；驗收條件 3 明文還要求
+  // 「bounty_samples 筆數、bounty_claims 筆數在第二次呼叫前後完全相同」——這兩張表 J1–J7 完全
+  // 沒碰。用獨立種子資料（新開一個 DELAY_DB，不與 J1–J7 共用，避免互相污染）直接驗證：
+  // 種子先塞兩筆 bounty_samples／一筆 bounty_claims（actor='dev-mine2'），呼叫兩次
+  // bountyMerge，比較兩次呼叫「後」的快照（點數總和／樣本列數／認領列數）是否完全相同。
+  {
+    const { db: db9, DELAY_DB: DB9 } = openTestDb(`
+      INSERT INTO bounty_points (actor,uid,points,merged_into,updated_at) VALUES ('dev-mine2',NULL,10,NULL,1);
+      INSERT INTO bounty_samples (id,actor,sys,ln_id,train_no,dir,trip_date,payload,submitted_at,verdict) VALUES
+        ('js1','dev-mine2','tra_sched','南迴線','312',0,'2026-07-28','[]',1,'pending'),
+        ('js2','dev-mine2','tra_sched','南迴線','313',0,'2026-07-27','[]',1,'pending');
+      INSERT INTO bounty_claims (id,actor,seg_key,train_kind,dir,kind,slot,points_locked,claimed_at,expires_at,status) VALUES
+        ('jc1|0','dev-mine2','tra_sched|南迴線|大武|太麻里','自強',0,'track','',3,1,1799999999999,'open');`);
+    const snapshot = () => ({
+      pointsSum: db9.prepare('SELECT COALESCE(SUM(points),0) s FROM bounty_points').get().s,
+      samples: db9.prepare('SELECT COUNT(*) c FROM bounty_samples').get().c,
+      claims: db9.prepare('SELECT COUNT(*) c FROM bounty_claims').get().c,
+    });
+
+    const r1 = await bountyMerge(post({ actor: 'dev-mine2' }, 'tok'), ENV(DB9, FB));
+    const b1 = await body(r1);
+    const snap1 = snapshot();
+    ok('J9a 第一次呼叫成功搬動 bounty_samples／bounty_claims 的 actor（前提：搬動真的發生了，不是原本就沒東西可搬）',
+      r1.status === 200 && b1.merged === true &&
+      db9.prepare("SELECT COUNT(*) c FROM bounty_samples WHERE actor='uid-777'").get().c === 2 &&
+      db9.prepare("SELECT COUNT(*) c FROM bounty_claims WHERE actor='uid-777'").get().c === 1,
+      JSON.stringify({ b1, snap1 }));
+
+    const r2 = await bountyMerge(post({ actor: 'dev-mine2' }, 'tok'), ENV(DB9, FB));
+    const b2 = await body(r2);
+    const snap2 = snapshot();
+    ok('J9b 連續呼叫第二次：狀態 200、merged=false，且點數總和／bounty_samples 筆數／bounty_claims 筆數三者與第一次呼叫後完全相同（驗收條件 3 硬要求）',
+      r2.status === 200 && b2.merged === false &&
+      snap2.pointsSum === snap1.pointsSum && snap2.samples === snap1.samples && snap2.claims === snap1.claims,
+      JSON.stringify({ snap1, snap2, b2 }));
+  }
+
+  // J10（驗收條件 5：全程零真實網路的最終斷言）：整個 J 區塊結束前，累計的 fetchCalls 應該
+  // 恰好等於「有帶 token 且 actor 通過 isActorId」的呼叫次數（J3/J5/J6/J9a/J9b 共 5 次；
+  // J1/J2/J8 因短路不打 Firebase，已各自在上方即時斷言為 0），且每一次都命中預期的
+  // identitytoolkit 端點——不是 0（證明 mock 真的被跑到，不是死程式碼）、也沒有命中任何其他
+  // 網址（證明沒有意外打到真實端點或其他上游）。這支腳本從頭到尾只有這裡改寫過
+  // globalThis.fetch，離開這個區塊前才復原，架構上 realFetch 在此之前不可能被任何程式碼路徑
+  // 呼叫到——這裡的斷言是「反面驗證」：如果真的不慎打到真網路，網址不會是 identitytoolkit
+  // 假網址返回的固定字串，命中數與網址其中一項就會不符而崩潰測試。
+  ok('J10 全程零真實網路：5 次 Firebase 查 uid 呼叫全部命中假的 globalThis.fetch（identitytoolkit 端點），次數精確吻合「有 token 且 actor 合法」的呼叫次數',
+    fetchCalls.length === 5 && fetchCalls.every(u => u.includes('identitytoolkit.googleapis.com')),
+    JSON.stringify(fetchCalls));
+
+  globalThis.fetch = realFetch;
+  ok('J11 離開區塊後 globalThis.fetch 已還原成真正的 fetch（後續測試／腳本收尾不會繼續被假掉）',
+    globalThis.fetch === realFetch, String(globalThis.fetch === realFetch));
+}
+
 const pass = R.filter(r => r.p).length;
 console.log(`\n${pass}/${R.length} 通過`);
 process.exit(pass === R.length ? 0 : 1);

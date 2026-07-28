@@ -677,7 +677,7 @@ const API_POST_ALLOWED = new Set(['/api/account-delete', '/api/bounty-claim', '/
 const API_ENDPOINTS = new Set([
   'tra-live', 'tra-alert', 'thsr-alert', 'metro-alert', 'metro-live', 'ntmetro-live',
   'delay-stats', 'delay-history', 'station-events', 'today-board', 'basemap-token', 'account-delete',
-  'bounty-board', 'bounty-claim', 'bounty-submit', 'bounty-me',
+  'bounty-board', 'bounty-claim', 'bounty-submit', 'bounty-me', 'bounty-merge',
 ]);
 
 function addAppCors(headers, origin) {
@@ -980,6 +980,49 @@ async function bountyMe(request, env) {
     }, 200, 'no-store');
   } catch (e) {
     return jsonRes({ error: 'not_ready' }, 503, 'no-store');
+  }
+}
+
+// POST /api/bounty-merge：登入時把匿名 device token 的點數併進 Firebase uid（規格 §6）。
+// 🔴 必須冪等：網路重試、使用者連點兩下、多裝置同時登入都會重複呼叫。做法是「只有 merged_into
+// 還是 NULL 的來源列才搬」，搬完立刻標記並歸零——所以第二次呼叫看到的是一個已標記的列，直接跳過。
+async function bountyMerge(request, env) {
+  if (await rateLimited(env.AUTH_LIMITER, request)) return jsonRes({ error: 'rate_limited' }, 429, 'no-store');
+  let b;
+  try { b = await request.json(); } catch (e) { return jsonRes({ error: 'bad_json' }, 400, 'no-store'); }
+  if (!b || !isActorId(b.actor)) return jsonRes({ error: 'bad_actor' }, 400, 'no-store');
+  const auth = (request.headers.get('Authorization') || '').match(/^Bearer\s+(.+)$/i);
+  const uid = auth ? await firebaseUid(env, auth[1]) : null;
+  if (!uid) return jsonRes({ error: 'unauthorized' }, 401, 'no-store');
+  if (b.actor === uid) return jsonRes({ ok: true, uid, points: 0, merged: false }, 200, 'no-store');
+  try {
+    const now = Date.now();
+    // 目的列先確保存在（第一次登入時還沒有）
+    await env.DELAY_DB.prepare(
+      'INSERT INTO bounty_points (actor,uid,points,merged_into,updated_at) VALUES (?,?,0,NULL,?)' +
+      ' ON CONFLICT(actor) DO UPDATE SET uid = excluded.uid, updated_at = excluded.updated_at'
+    ).bind(uid, uid, now).run();
+    const src = await env.DELAY_DB.prepare(
+      'SELECT points, merged_into FROM bounty_points WHERE actor=?').bind(b.actor).first();
+    let merged = false;
+    if (src && !src.merged_into) {
+      const carry = Number(src.points) || 0;
+      // 先標記來源再加目的：反過來的話，加完之後標記失敗會讓重試再加一次（重複計點比漏點嚴重，
+      // 因為它是「憑空生出點數」）。標記成功但加失敗只會漏一次，且看得出來（來源歸零、目的沒動）。
+      await env.DELAY_DB.prepare(
+        'UPDATE bounty_points SET points=0, merged_into=?, updated_at=? WHERE actor=? AND merged_into IS NULL'
+      ).bind(uid, now, b.actor).run();
+      await env.DELAY_DB.prepare(
+        'UPDATE bounty_points SET points = points + ?, updated_at=? WHERE actor=?').bind(carry, now, uid).run();
+      merged = carry > 0;
+    }
+    // 樣本與認領也一起改名，否則 /api/bounty-me 查 uid 會看不到登入前的貢獻
+    await env.DELAY_DB.prepare('UPDATE bounty_samples SET actor=? WHERE actor=?').bind(uid, b.actor).run();
+    await env.DELAY_DB.prepare('UPDATE bounty_claims  SET actor=? WHERE actor=?').bind(uid, b.actor).run();
+    const p = await env.DELAY_DB.prepare('SELECT points FROM bounty_points WHERE actor=?').bind(uid).first();
+    return jsonRes({ ok: true, uid, points: Number(p && p.points) || 0, merged }, 200, 'no-store');
+  } catch (e) {
+    return jsonRes({ error: 'merge_failed' }, 503, 'no-store');
   }
 }
 
@@ -1364,6 +1407,7 @@ export default {
     else if (url.pathname === '/api/bounty-claim') res = await bountyClaim(request, env);
     else if (url.pathname === '/api/bounty-submit') res = await bountySubmit(request, env);
     else if (url.pathname === '/api/bounty-me') res = await bountyMe(request, env);
+    else if (url.pathname === '/api/bounty-merge') res = await bountyMerge(request, env);
     else res = await env.ASSETS.fetch(request);
     const h = new Headers(res.headers);
     for (const [k, v] of Object.entries(SEC_HEADERS)) h.set(k, v);
@@ -1390,4 +1434,4 @@ export const _rateLimit = { rateLimited, delayHistory, deletePaidProfile };
 // 端點也導出的理由同 _rateLimit：這些不是純函式，測試要自備 env 替身才驗得到「節流有沒有擋在
 // D1 寫入之前」「回應裡有沒有夾帶 reject_code」這類只在編排層才成立的性質。
 export const _bounty = { bountyCardId, bountySegLine, groupBoardRows, bountyBoard, isActorId, resolveActor,
-  bountyClaim, hasGeoKeys, sanitizeSamples, bountySubmit, firebaseUid, bountyMe };
+  bountyClaim, hasGeoKeys, sanitizeSamples, bountySubmit, firebaseUid, bountyMe, bountyMerge };
