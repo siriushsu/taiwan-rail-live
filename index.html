@@ -9360,7 +9360,7 @@ function doCheckin(st) {
     showToast(`「${st.name}」今天已經蓋過章了`); return false;
   }
   const e = checkinEntry(st);
-  showToast(`蓋章成功 · ${st.name}${e && e.n > 1 ? `(第 ${e.n} 次)` : ''}`);
+  showToast(`蓋章成功 · ${st.name}${e && e.n > 1 ? `(第 ${escHtml(e.n)} 次)` : ''}`);
   renderNearbyStations(); renderRidePanel(); renderPassport();
   return true;
 }
@@ -9566,7 +9566,7 @@ function finishRiding(tr, r) {
   saveRiding(null);
   const n = r.toIdx - r.fromIdx + 1;
   pushFollowEvent('ride:done:' + r.train, `${r.fromName} → ${st.name} 收集完成,${n} 座站進護照`, true);
-  showToast(`收集完成 · ${r.fromName} → ${st.name} 共 ${n} 座站`);
+  showToast(`收集完成 · ${escHtml(r.fromName)} → ${st.name} 共 ${n} 座站`);
   renderPassport(); renderRidePanel(); updateRideBtn(state.followTrain);
 }
 // 票券鈕三態:未上車(空心)/搭這班車中(實心紅,按了下車)/搭別班車中(灰虛線,擋住重複上車)
@@ -11222,9 +11222,13 @@ function pushFollowEvent(key, msg, once) {
 function renderFollowEvents() {
   const el = document.getElementById('tcEvents');
   const evs = state.followEvents || [];
+  // 🔴 msg 一律 escHtml：這是 showToast 之外的第二個 innerHTML sink，而且吃得到同一批
+  // localStorage 值——'ride:done:' 那條插的 r.fromName 由 loadRiding() 從 localStorage 還原
+  // (未驗證)。發行閘門的 assertToastSinksReviewed 只掃 showToast，這裡再怎麼髒它都是綠的。
+  // 逸出放在 sink 不放呼叫端：六個呼叫點沒有一個刻意傳標記，擋在這裡第七個就不必再審一次。
   el.innerHTML = evs.length
     ? evs.slice(-6).map(e =>
-        `<div class="tc-ev"><span class="tt">${e.tm}</span><span>${e.msg}</span></div>`).join('')
+        `<div class="tc-ev"><span class="tt">${escHtml(e.tm)}</span><span>${escHtml(e.msg)}</span></div>`).join('')
     : '<div class="tc-empty">列車跑起來就會記錄——停靠、交會、待避……</div>';
   el.scrollTop = el.scrollHeight; // 固定高度容器,永遠捲到最新一條
 }
@@ -15404,7 +15408,7 @@ if (fpRideEl) fpRideEl.onclick = (e) => {
   const tr = state.followTrain; if (!tr) return;
   const r = loadRiding();
   if (r && r.train === String(tr.train) && r.sys === tr.sys) return endRidingNow();
-  if (r) return showToast(`你正在搭 ${r.train} 次,先下車再上車`);
+  if (r) return showToast(`你正在搭 ${escHtml(r.train)} 次,先下車再上車`);
   openRideBox(tr);
 };
 document.getElementById('fpRideBox').onclick = (e) => {

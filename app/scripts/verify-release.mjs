@@ -81,6 +81,15 @@ const TOAST_REVIEWED = new Map([
   // 所以 t 必為 HELP_TRY 的成員;該表每個 toast 都是寫死的字面字串(實測:非字面值的 `toast:` grep 回 0,
   // 全檔無 `.toast =` 賦值),零插值、零使用者資料。新增 HELP_TRY 條目時若 toast 改成樣板字串要重審。
   [`t.toast`, '使用說明「試一次」:t 必為 HELP_TRY 成員,其 toast 全是寫死字面字串,無插入'],
+  ["j.why===''?'':`${st.name}${Math.round(j.distM)},(${j.r})`", '單站打卡:st.name 來自內建班表/路線資料;distM 是 haversineKm 計算值,r 是 CHECKIN_RADIUS_M 數字常數'],
+  ['`${st.name}`', '單站打卡:st 只由 nearbyStationCandidates 的內建班表/路線車站產生,站名不可由使用者編輯'],
+  ['`${st.name}${e&&e.n>1?`(${escHtml(e.n)})`:\'\'}`', '單站打卡成功:站名來自內建資料;e.n 從 localStorage 重讀且寫入失敗時可能保留髒值,故已逸出'],
+  ['`${st.name}${tr.stops[toIdx].name}`+(j.ok?\'\':\'\')', '開始搭乘:兩個站名都來自 state.trains 的內建班表停靠站;j.ok 只選擇兩個寫死字串'],
+  ['`${escHtml(r.fromName)}${st.name}${n}`', '完成搭乘:r.fromName 從 localStorage 還原故已逸出;st.name 由內建班表重建,n 是索引相減後的數字'],
+  ['`${pts}24`', '懸賞認領成功:示範卡與 API 點數都先經 bountyNum 收斂為有限非負整數'],
+  [`''+(j.error===''?'':'')`, '懸賞 API 的 error 只用來選擇兩個寫死字串,API 回傳內容本身沒有插入'],
+  ['`${pts}`', '懸賞認領落盤失敗提示:pts 已先經 bountyNum 收斂為有限非負整數'],
+  ['`${escHtml(r.train)},`', '搭乘衝突提示:r.train 從 localStorage 還原,已在進入 innerHTML 前逸出'],
 ]);
 
 // 掃出每一個 showToast( 呼叫的完整參數（括號配對，不是 regex 抓一行）。
