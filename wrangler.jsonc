@@ -39,11 +39,15 @@
   // namespace_id 在同一個 Worker 內唯一即可,數字本身沒有意義。
   // BOUNTY_LIMITER:懸賞的三個 POST(認領/上傳/合併)共用。30 次/分鐘的來源:上傳是沿途每 60 秒一批,
   // 正常使用者每分鐘 1 發;30 已經寬到不會誤擋多開分頁的人,又擋得住灌樣本。擋在任何 D1 寫入之前。
+  // BASEMAP_LIMITER 的理由不同:/api/basemap-token 無從要求憑證(token 本來就得送到瀏覽器才用得了),
+  // 節流是要擋「拿它當公用 token 水龍頭迴圈抽取」——抽走的每一把都會去打我們計費的 Esri 額度。
+  // 60 次/分鐘對真人綽綽有餘(前端整個 session 只取一次,失敗才重試)。
   "unsafe": {
     "bindings": [
       { "name": "AUTH_LIMITER", "type": "ratelimit", "namespace_id": "1001", "simple": { "limit": 20, "period": 60 } },
       { "name": "DELETE_LIMITER", "type": "ratelimit", "namespace_id": "1002", "simple": { "limit": 5, "period": 60 } },
-      { "name": "BOUNTY_LIMITER", "type": "ratelimit", "namespace_id": "1003", "simple": { "limit": 30, "period": 60 } }
+      { "name": "BOUNTY_LIMITER", "type": "ratelimit", "namespace_id": "1003", "simple": { "limit": 30, "period": 60 } },
+      { "name": "BASEMAP_LIMITER", "type": "ratelimit", "namespace_id": "1004", "simple": { "limit": 60, "period": 60 } }
     ]
   },
   "assets": {

@@ -625,8 +625,14 @@ async function todayBoard(request, env) {
 // 真正的濫用防線是 Esri 後台的 referrer 白名單（瀏覽器抓圖磚會帶 Referer，擋得住盜用；
 // 原生 App 不送 Referer，所以 App 那把是另一把 key、另外管控）。
 // 未設 secret → 404，前端據此把「衛星」鈕整顆藏掉，不讓使用者點到一片白圖。
-function basemapToken(request, env) {
+async function basemapToken(request, env) {
   if (!env.ESRI_WEB_TOKEN) return jsonRes({ error: 'not_configured' }, 404, 'no-store');
+  // 這條無從要求憑證（token 本來就得送到瀏覽器才用得了），所以只剩按來源 IP 節流可做：擋掉
+  // 「拿它當公用 token 水龍頭迴圈抽取」——抽走的每一把都會去打我們計費的 Esri 額度。
+  // 60 次/分鐘對真人綽綽有餘：前端整個 session 只取一次，取不到才重試。
+  // 注意這是縱深防禦不是閘門：一個人只要成功拿到一次就夠了，真正的濫用防線仍是 Esri 後台的
+  // referrer 白名單（原生 App 不送 Referer，故 App 另用一把 key）。
+  if (await rateLimited(env.BASEMAP_LIMITER, request)) return jsonRes({ error: 'rate_limited' }, 429, 'no-store');
   // 全站同一個值，放邊緣快取省 Worker 呼叫；max-age 壓在 5 分鐘讓輪替後很快生效。
   return jsonRes({ esri: env.ESRI_WEB_TOKEN }, 200, 'public, max-age=300, s-maxage=300');
 }
@@ -1721,7 +1727,7 @@ export default {
     else if (url.pathname === '/api/delay-history') res = await delayHistory(request, env);
     else if (url.pathname === '/api/station-events') res = await stationEvents(request, env);
     else if (url.pathname === '/api/today-board') res = await todayBoard(request, env);
-    else if (url.pathname === '/api/basemap-token') res = basemapToken(request, env);
+    else if (url.pathname === '/api/basemap-token') res = await basemapToken(request, env);
     else if (url.pathname === '/api/account-delete') res = await deletePaidProfile(request, env);
     else if (url.pathname === '/api/bounty-board') res = await bountyBoard(request, env);
     else if (url.pathname === '/api/bounty-claim') res = await bountyClaim(request, env);
