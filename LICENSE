@@ -1,0 +1,110 @@
+軌島 Rail Island — 原始碼可見授權（Source-Available License）
+Copyright (c) 2025-2026 siriushsu. 保留所有未明示授予的權利。
+
+本專案的原始碼公開可見，目的是讓任何人能夠檢視、學習，並且——特別是——
+自行查證本服務對使用者資料的處理方式是否與說明一致。
+公開可見不等於可自由取用；請依下列條款使用。
+
+一、你可以（免費、不需另行取得同意）
+  1. 閱讀、下載、研究本專案的原始碼。
+  2. 為個人學習、研究、教學目的修改與在本機執行，
+     包含查證定位與資料處理等隱私相關行為。
+  3. 提交 issue、pull request、缺陷回報與改進建議。
+  4. 在標示出處的前提下，於文章、簡報、教學中引用程式碼片段。
+
+二、你不可以（需事先取得書面同意）
+  1. 以本專案的全部或實質部分，部署、營運或散布任何對外提供服務的網站、
+     應用程式或衍生產品——不論是否收費。這包含但不限於：移植到其他平台
+     （Android、桌面或其他行動平台）並上架至任何應用程式商店或網站。
+  2. 將本專案的全部或實質部分用於商業用途，包含但不限於銷售、訂閱、
+     廣告營利、或作為商業產品的組成部分。
+  3. 使用「軌島」、「Rail Island」名稱、標誌、圖示或其他足以使人混淆的識別，
+     指稱非本專案的服務。商標權不隨本授權授予。
+
+  這幾條不是為了阻止別人學習。軌島的完整功能綁著一組只有作者持有、
+  且不可轉授權的第三方授權與金鑰（見第三節）。未經協調就發布的衍生版本，
+  實際結果會是：功能殘缺、資料很快過期、授權責任落在發布者身上，
+  而使用者會把問題算到軌島頭上。
+
+  想做上述任何一件事，請開 issue 討論或來信 support@railisland.tw。
+  歡迎談——直接動手才是問題。
+
+三、本授權不涵蓋的部分
+  1. `data/` 目錄下的資料檔多半衍生自第三方來源（交通部 TDX 運輸資料流通服務、
+     OpenStreetMap、台鐵官方公開資料、Natural Earth 等），各自適用其原始授權條款，
+     不受本授權涵蓋，也不因本授權而取得任何權利。
+     各檔的實際來源記於該檔的 `source_notes` 欄位。
+     特別注意：OpenStreetMap 衍生內容適用 ODbL，除標示義務外，
+     衍生資料庫另有同等分享義務——這是作者無權以本授權免除的。
+  2. 本專案執行時所呼叫的第三方服務（底圖、地理編碼、即時資料等）
+     各有其服務條款與金鑰授權，使用者須自行取得合法憑證。
+     本專案原始碼中不含、也不會提供任何可用的第三方憑證。
+     這些服務的條款對快取、代理、離線打包與影片散布另有限制，
+     且比一般開源授權嚴格得多。
+  3. `suno musics/` 目錄下的音樂由作者以 Suno 付費方案生成，其商用權以
+     「由作者本人於訂閱有效期間生成」為條件，**不隨本授權授予任何第三方**。
+     任何形式的再散布、打包進其他應用程式或用於影片，皆無授權。
+     這些檔案沒有隨附授權標示，不代表可自由使用。
+  4. 其他圖片、字體等素材若另有授權標示，以該標示為準。
+     前端函式庫與原生框架依其各自的開源授權，逐項清單見
+     `app/THIRD_PARTY_NOTICES.md`。
+
+四、免責聲明
+  本專案依「現狀」提供，不附任何明示或默示的擔保，包括但不限於適售性、
+  特定目的適用性與不侵權之擔保。作者不對任何因使用本專案而生的
+  直接、間接、附帶或衍生損害負責。
+
+  本專案顯示的列車位置為依時刻表與有限即時資料所做的推估，
+  不是官方營運資訊，不得作為搭乘、轉乘或任何有時間風險之決策的唯一依據。
+  本專案不是導航、行車安全或乘車保證工具。平交道通過時刻同為推算值，
+  現場請以號誌為準。
+
+五、其他
+  1. 本授權自加入本檔案之日起生效。在此之前本專案未附授權條款，
+     依著作權法本即為「保留所有權利」；本授權相較之下僅擴大而未限縮任何人的既有權利。
+  2. 你提交並被合併進本專案的貢獻（pull request、修補等），視為以本授權條款
+     授權予本專案，並同意著作權人得以其他條款（包含商業授權）再授權該貢獻。
+     不接受此條件者請勿提交貢獻。
+     這一條寫得直白，是因為軌島規劃中有付費功能——與其日後才來確認每位貢獻者的
+     意願，不如一開始就講明白，讓你在送出前就能決定要不要。
+  3. 你並保證所提交的貢獻是你自己的原創，或你有權以上述方式提供，
+     且未夾帶你無權提供的第三方內容。
+  4. 商業授權、資料授權與任何例外授權洽詢：請開 GitHub issue，
+     或來信 support@railisland.tw。書面同意才生效。
+  5. 參與方式與實務規則見 `CONTRIBUTING.md`。
+  6. 本授權以繁體中文版本為準。
+
+---
+
+Rail Island — Source-Available License (English summary, non-authoritative)
+
+The source is published so that anyone may inspect it and independently verify
+how this service handles user data. Public visibility does not grant free reuse.
+
+You MAY read, study, modify and run the code locally for personal, research or
+educational purposes, and contribute issues and pull requests.
+
+You MAY NOT deploy, operate or distribute any public-facing service, application
+or derivative product based on all or a substantial part of this project
+(whether or not for a fee) — including ports to other platforms such as Android
+or desktop, and submissions to any app store — nor use it for any commercial
+purpose, without prior written permission. The names and logos "軌島" /
+"Rail Island" are not licensed.
+
+Contributions merged into this project are licensed to the project under these
+same terms, and may be relicensed by the copyright holder, including commercially.
+
+Files under `data/` derive from third parties (MOTC TDX, OpenStreetMap, official
+Taiwan Railway open data, Natural Earth and others) and remain subject to their
+own terms; OpenStreetMap-derived content is under ODbL, whose share-alike
+obligation the author cannot waive. Audio under `suno musics/` is licensed to the
+author only, conditional on generation during the author's paid Suno
+subscription, and is NOT sublicensed to anyone — the absence of a per-file
+license notice does not imply free use. Third-party services called at runtime
+require your own valid credentials; none are included.
+
+Provided "as is", without warranty of any kind. Train positions shown are
+estimates, not official operational information. Not a navigation or safety tool.
+
+Exceptions are negotiable — open an issue or email support@railisland.tw.
+The Traditional Chinese text above is the authoritative version.

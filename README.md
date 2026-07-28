@@ -112,6 +112,18 @@ python3 -m http.server 5178      # 或用 .claude/launch.json 的 "static" 設�
 - 內灣線「千甲」與「北新竹」在資料源共用同一座標。
 - 平交道位置依台鐵官方資料標示，可能與現場實際有落差；歡迎於 GitHub 提出修改建議。
 
+## 授權與參與
+
+軌島是**原始碼公開（source-available）**，不是開源軟體——公開是為了讓任何人都能查證
+軌島怎麼處理位置資料、以及地圖上的班表與軌道是怎麼算出來的，但**未授權再散布、
+製作衍生作品或另行發布**。完整條款見 [LICENSE](LICENSE)。
+
+`data/` 的資料衍生自 OpenStreetMap（ODbL）、TDX 與台鐵官方公開資料，
+`suno musics/` 的音樂僅授權予作者本人——**這兩者作者都無權轉授權**，取用前請看 LICENSE 第三節。
+
+歡迎回報問題與指正資料，這是目前最有價值的貢獻；想寫程式、做 Android 版或移植到其他平台，
+請先開 Issue 談（有幾個從 repo 看不出來的障礙）。作法見 [CONTRIBUTING.md](CONTRIBUTING.md)。
+
 ## 部署
 
 - 前端為純靜態單頁（`index.html`，無 build step）。
