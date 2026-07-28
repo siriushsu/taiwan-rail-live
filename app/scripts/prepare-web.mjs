@@ -76,9 +76,14 @@ const noticeEntries = [
   ['Firebase JavaScript SDK 12.16.0（Apache License 2.0）', 'node_modules/@capacitor-firebase/authentication/LICENSE'],
   ['RevenueCat Purchases Capacitor 13.2.2', 'node_modules/@revenuecat/purchases-capacitor/LICENSE'],
   ['Leaflet 1.9.4', 'node_modules/leaflet/LICENSE'],
-  ['fflate 0.8.3', 'node_modules/fflate/LICENSE']
+  ['fflate 0.8.3', 'node_modules/fflate/LICENSE'],
+  // 唯一不是 npm 依賴的一條,所以路徑指回 repo 根的 assets/。2026-07-28 的換圖批次把成就徽章與
+  // 車廂標記換成 Noto Emoji 單色版的 26 字形子集(assets/fonts/rail-emoji.woff2),字型檔隨 assets/
+  // 整包進 www ⇒ App 有散布這份字型,OFL 要求隨附授權全文。子集已改名 RailEmoji(Noto 的著作權行
+  // 沒有宣告 Reserved Font Name,改名只是更保險)。
+  ['Noto Emoji（SIL Open Font License 1.1）——本 App 內嵌的 assets/fonts/rail-emoji.woff2 為其 26 字形子集', '../assets/fonts/NotoEmoji-OFL.txt']
 ];
-const notices = ['軌島原生 App 第三方軟體授權聲明', '產生自 app/package-lock.json 的直接發行依賴。原生 archive 的 transitive dependency acknowledgements 另於送審前核對。'];
+const notices = ['軌島原生 App 第三方軟體授權聲明', '產生自 app/package-lock.json 的直接發行依賴，另含隨 App 散布的內嵌字型。原生 archive 的 transitive dependency acknowledgements 另於送審前核對。'];
 for (const [label, licensePath] of noticeEntries) {
   notices.push(`\n${'='.repeat(72)}\n${label}\n${'='.repeat(72)}\n`, await readFile(join(appRoot, licensePath), 'utf8'));
 }
