@@ -27,6 +27,20 @@ app/release-policy.json
 # CI 走 ci_post_clone.sh 的 RAIL_MUSIC_CHECKLIST_B64 還原。
 app/MUSIC_LICENSE_CHECKLIST.md
 
+# 送審草稿——含 Plus 付費功能清單、訂閱條款與 RevenueCat 設定步驟。repo 公開，
+# 這些等於把還沒上線、價格也還沒拍板的收費規劃攤在外面，故比照上面留本機。
+# 註：_config.yml 的 exclude: [app] 只擋「備援站把它們當靜態檔發布」，
+#     完全不擋 GitHub 檔案瀏覽器上被讀——那道防線對這件事無效。
+# 本機若被 merge 清掉，用 git show 從歷史取回（檔案仍在歷史裡，例如：
+#   git show 7fabf6d:app/STORE_LISTING_DRAFT.md > app/STORE_LISTING_DRAFT.md）
+app/README.md
+app/STORE_LISTING_DRAFT.md
+app/STORE_SUBMISSION_CHECKLIST.md
+app/TERMS_DRAFT.md
+app/APP_REVIEW_NOTES_DRAFT.md
+app/APP_REVIEW_NOTES_v1_FREE.md
+app/ASC_送審填寫清單_v1_FREE.md
+
 # TDX 歷史原始快取（可重抓，不進版控）
 .cache/
 # 跳站校正的逐節點診斷（由 build_pass_obs.mjs 重生，稽核用）

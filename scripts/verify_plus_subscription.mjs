@@ -42,8 +42,10 @@ const server = createServer((req, res) => {
 await new Promise(r => server.listen(PORT, r));
 const BASE = `http://localhost:${PORT}/`;
 
-const M_PRICE = 'NT$90';   // stub「月訂」價(模擬商店回傳;index.html 不得硬編此值)
-const A_PRICE = 'NT$390';  // stub「年訂」價
+// 刻意用非真實佔位值:本 repo 公開,實際定價未拍板,不放進版控。
+// 判準只比「商店回傳什麼、UI 就顯示什麼」,不解析數值,故任何相異字串皆可。
+const M_PRICE = 'NT$MONTH-STUB';  // stub「月訂」價(模擬商店回傳;index.html 不得硬編此值)
+const A_PRICE = 'NT$YEAR-STUB';   // stub「年訂」價
 
 const results = [];
 const skips = [];
