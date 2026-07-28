@@ -1026,6 +1026,99 @@ async function bountyMerge(request, env) {
   }
 }
 
+// ── 估值:兩層乘數,兩層都從既有資料自動算,沒有任何一段的價格是人設的(規格 §4)──────────
+// 核心主張:不要手調每一段的價格。猜不對就會一直錯,而且錯了沒有回饋機制。
+function bountyMedian(nums) {
+  const a = nums.filter(n => Number.isFinite(n)).sort((x, y) => x - y);
+  if (!a.length) return 0;
+  const m = a.length >> 1;
+  return a.length % 2 ? a[m] : (a[m - 1] + a[m]) / 2;
+}
+// L1 班次密度＝我們「推測」的招募難度。冷啟動時 L2 全是 1×,沒有 L1 的話南迴要等好幾週才漲得動。
+// 分母粒度必須等於計價單位(含車種),否則普快車會被自強平均掉。
+function bountyL1(perDay, medianPerDay) {
+  const n = Number(perDay);
+  if (!(n > 0)) return 3;                      // 沒有班次資料的單位視同最難招募,不是視同最容易
+  return Math.min(3, Math.max(1, Number(medianPerDay) / n));
+}
+// L2 時間乘數＝「真實」的招募難度。市場自己發現——沒人跑就一直漲,跟我們想不想得到無關。
+// 🔴 起算點是 first_claimable_at(真的有人「能」去跑的那一刻),不是上架時間。NULL＝還沒有人能接 → 恆 1。
+// 規格 §4 鐵則:只要有任何期間板上得去但接得了的人是零,L2 照漲就會把整張板系統性高估,
+// 而 ×5 的上限會讓它自己觸發自動開關＝用一個假訊號打開真金流。
+function bountyL2(nowMs, firstClaimableAt) {
+  const from = Number(firstClaimableAt);
+  if (!from) return 1;
+  const days = Math.floor((Number(nowMs) - from) / 86400000);
+  if (!(days > 0)) return 1;
+  return Math.min(5, Math.pow(1.2, Math.floor(days / 7)));
+}
+function bountyPointsOf(l1, l2) { return Math.max(1, Math.round(1 * Number(l1) * Number(l2))); }
+// 自動開關(規格 §1 拍板 1、§8):三個條件同時成立才置 1。讓「沒人領」自己說話,
+// 不用主觀決定哪一段該給錢。
+function bountyUnlocked(row, nowMs) {
+  const capped = Number(row.l2_capped_at);
+  return (Number(row.l2) >= 5 && Number(row.sample_count) === 0 && capped > 0 &&
+    (Number(nowMs) - capped) >= 30 * 86400000) ? 1 : 0;
+}
+// 計價單位清單(建置期產生,見 scripts/build_bounty_units.mjs)。與 bountyRules 同樣不設 fallback:
+// 讀不到就讓 cron 中止,而不是拿一份猜的清單去改寫整張懸賞板。
+let bountyUnitsMem = null;
+async function bountyUnits(env) {
+  if (bountyUnitsMem) return bountyUnitsMem;
+  const r = await env.ASSETS.fetch(new Request('https://railisland.tw/data/bounty_units.json'));
+  if (!r.ok) throw new Error('bounty_units unavailable: ' + r.status);
+  bountyUnitsMem = await r.json();
+  return bountyUnitsMem;
+}
+
+// 每日估值:把清單裡的新單位補上架,並重算所有還開著的單位的 l1／l2／points。
+// 冪等:重跑只會得到同一個結果(insert 用 OR IGNORE、update 全欄位重算),cron 補跑無害。
+async function bountyValuationCron(env) {
+  const M = await bountyUnits(env);
+  const now = Date.now();
+  // 起算點是一個要有人明確按下去的動作(Worker secret),不是一個會自己發生的副作用。
+  // 未設定 → first_claimable_at 留 NULL → L2 恆 1。見 bountyL2 的註解。
+  const claimableFrom = Number(env.BOUNTY_CLAIMABLE_FROM) || 0;
+  const med = bountyMedian(M.units.map(u => Number(u.perDay)));
+  const ins = env.DELAY_DB.prepare(
+    'INSERT OR IGNORE INTO bounty_board (seg_key,sys,train_kind,dir,kind,slot,l1,l2,points,per_day,first_listed_at,first_claimable_at)' +
+    ' VALUES (?,?,?,?,?,?,?,?,?,?,?,?)');
+  let inserted = 0;
+  for (let i = 0; i < M.units.length; i += 80) {          // 比照既有 D1_BATCH_SIZE:一批 80 句
+    const chunk = M.units.slice(i, i + 80);
+    const res = await env.DELAY_DB.batch(chunk.map(u => {
+      const l1 = bountyL1(u.perDay, med), l2 = bountyL2(now, claimableFrom);
+      return ins.bind(u.segKey, u.sys, u.trainKind, u.dir, u.kind, u.slot || '', l1, l2,
+        bountyPointsOf(l1, l2), Number(u.perDay) || 0, now, claimableFrom || null);
+    }));
+    inserted += res.reduce((a, r) => a + ((r.meta && r.meta.changes) || 0), 0);
+  }
+  // 重算:只動還開著的(track 未收滿、dwell 恆算)。已下架的段留著歷史值,不必每天重寫。
+  const rs = await env.DELAY_DB.prepare(
+    "SELECT seg_key,train_kind,dir,kind,slot,per_day,l2_capped_at,sample_count,first_claimable_at" +
+    " FROM bounty_board WHERE kind='dwell' OR covered_at IS NULL").all();
+  const upd = env.DELAY_DB.prepare(
+    'UPDATE bounty_board SET l1=?, l2=?, points=?, first_claimable_at=?, l2_capped_at=?, unlocked_offer=?' +
+    ' WHERE seg_key=? AND train_kind=? AND dir=? AND kind=? AND slot=?');
+  let updated = 0, capped = 0, unlocked = 0;
+  const rows = rs.results || [];
+  for (let i = 0; i < rows.length; i += 80) {
+    await env.DELAY_DB.batch(rows.slice(i, i + 80).map(r => {
+      const from = Number(r.first_claimable_at) || claimableFrom || 0;
+      const l1 = bountyL1(r.per_day, med), l2 = bountyL2(now, from);
+      // l2_capped_at 只記第一次到頂:自動開關的 30 天要從「到頂那一刻」起算,重寫等於永遠不會滿 30 天
+      const cap = Number(r.l2_capped_at) || (l2 >= 5 ? now : 0);
+      if (!Number(r.l2_capped_at) && cap) capped++;
+      const un = bountyUnlocked({ l2, sample_count: r.sample_count, l2_capped_at: cap }, now);
+      if (un) unlocked++;
+      updated++;
+      return upd.bind(l1, l2, bountyPointsOf(l1, l2), from || null, cap || null, un,
+        r.seg_key, r.train_kind, r.dir, r.kind, r.slot);
+    }));
+  }
+  return { inserted, updated, capped, unlocked };
+}
+
 // ── 台鐵準點統計「每日增量」cron(scheduled handler) ────────────────────────
 // 把本機 python 腳本 scripts/ingest_tra_delay.py 的邏輯搬進 worker:每天自動抓 TDX
 // 歷史 API 前一日資料 → 寫 D1 tra_delay_daily → 重建 kv_blobs 統計 blob(供 /api/
@@ -1346,6 +1439,15 @@ export default {
       // 逐站事件保留期清理:獨立 try/catch,不影響上面 ingest 的成功/失敗(rethrow)語意;finally 確保 ingest 失敗也會跑
       try { await pruneStationEvents(env); }
       catch (e) { console.error('[cron station-events] 清理失敗:', (e && e.stack) || String(e)); }
+      // 懸賞估值只掛第二班(台北 12:15)。掛兩班等於每天重算兩次估值,而 L2 是以「天」為單位的,
+      // 多跑一次只是多花 D1 寫入。挑第二班是因為第一班要先讓 ingestDelayHistory 把前一日的
+      // 誤點資料寫進來——驗證閘的第二重要對那份資料。獨立 try/catch,不影響上面 ingest 的 rethrow 語意。
+      if (event && event.cron === '15 4 * * *') {
+        try {
+          const v = await bountyValuationCron(env);
+          console.log(`[cron bounty 估值] 新上架 ${v.inserted}, 重算 ${v.updated}, 首次到頂 ${v.capped}, 自動開關 ${v.unlocked}`);
+        } catch (e) { console.error('[cron bounty 估值] 失敗:', (e && e.stack) || String(e)); }
+      }
     }
   },
   async fetch(request, env, ctx) {
@@ -1434,4 +1536,5 @@ export const _rateLimit = { rateLimited, delayHistory, deletePaidProfile };
 // 端點也導出的理由同 _rateLimit：這些不是純函式，測試要自備 env 替身才驗得到「節流有沒有擋在
 // D1 寫入之前」「回應裡有沒有夾帶 reject_code」這類只在編排層才成立的性質。
 export const _bounty = { bountyCardId, bountySegLine, groupBoardRows, bountyBoard, isActorId, resolveActor,
-  bountyClaim, hasGeoKeys, sanitizeSamples, bountySubmit, firebaseUid, bountyMe, bountyMerge };
+  bountyClaim, hasGeoKeys, sanitizeSamples, bountySubmit, firebaseUid, bountyMe, bountyMerge,
+  bountyMedian, bountyL1, bountyL2, bountyPointsOf, bountyUnlocked, bountyValuationCron };
