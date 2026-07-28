@@ -1,11 +1,18 @@
 // 使用說明中心 驗收（設計：使用說明中心設計_2026-07-26.html）
-// 跑法：cd /Users/xuxiang/Code/軌島-說明中心 && python3 -m http.server 8899 &  然後 node verify_help.mjs
+// 跑法：先在本 repo 起 server，然後 HELP_BASE=http://127.0.0.1:<port> node verify_help.mjs
 // G0 自檢在最前：確認「受測的就是這個工作區的 index.html」（心得 32：曾連兩輪驗到釘死的舊 worktree）
 import { chromium } from 'playwright';
 import { readFileSync } from 'fs';
 import { createHash } from 'crypto';
+import { dirname } from 'path';
+import { fileURLToPath } from 'url';
 
-const ROOT = '/Users/xuxiang/Code/軌島-說明中心';
+// 🔴 ROOT 原本硬編成 /Users/xuxiang/Code/軌島-說明中心（這支腳本誕生的那個 worktree）。
+// 這支腳本已經隨 index.html 進版控、會被 checkout 到任何 worktree，硬編等於「不管在哪棵樹跑，
+// 都拿另一棵樹的檔案當基準」——正是 G0 要防的那件事，而 G0 自己的基準卻踩在上面。
+// 改成預設「這支腳本所在的目錄」＝當前工作區（心得 32：預設值一律指向當前工作區，
+// 不是任何暫存副本）。真要跨樹比對再用 HELP_ROOT 顯式指定。
+const ROOT = process.env.HELP_ROOT || dirname(fileURLToPath(import.meta.url));
 const BASE = process.env.HELP_BASE || 'http://127.0.0.1:8899';
 const SHOT = process.env.HELP_SHOT || '/private/tmp/claude-501/-Users-xuxiang-Code------/1fa26f79-4188-4f31-9a37-d1e14ee5756c/scratchpad/';
 const md5 = s => createHash('md5').update(s).digest('hex');
