@@ -30,6 +30,11 @@ if (native) {
 
   window.RAIL_NATIVE_GEOLOCATION = {
     getCurrentPosition: options => Geolocation.getCurrentPosition(options),
+    // 校正旅程只在前景連續取樣，走 When-in-use；鎖屏／退到背景才需要的 Always 權限不在本功能範圍。
+    // 錯誤也回給前端，否則錄製黑幕上只會永遠停在「等待定位」，使用者無從補救。
+    watchPosition: (options, cb) =>
+      Geolocation.watchPosition(options, (pos, err) => cb(pos || null, err || null)),
+    clearWatch: id => Geolocation.clearWatch({ id }),
     // Capacitor Geolocation 沒有開啟系統設定頁的 API；前端見 null 時改顯示純文字引導
     // （與同檔 RAIL_NATIVE_LOCALNOTIFY.openSettings 的既有做法一致）。
     openSettings: null

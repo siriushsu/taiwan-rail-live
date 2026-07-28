@@ -536,15 +536,24 @@
   @keyframes rcblink { 0%, 100% { opacity: 1 } 50% { opacity: .25 } }
   .rc-route { opacity: .7; }
   .rc-main { text-align: center; }
+  .rc-quality { display: inline-flex; align-items: center; gap: 7px; margin-bottom: 16px;
+    padding: 5px 11px; border: 1px solid #444; border-radius: 999px; color: #ddd;
+    font-size: 13px; font-weight: 700; }
+  .rc-quality::before { content: ""; width: 9px; height: 9px; border-radius: 50%; background: #ff3b30; }
+  .rc-quality[data-q="good"]::before { background: #34c759; }
+  .rc-quality[data-q="weak"]::before { background: #ff9f0a; }
+  .rc-quality[data-q="none"]::before, .rc-quality[data-q="precise_off"]::before { background: #ff3b30; }
   .rc-big { font-size: 64px; font-weight: 800; font-variant-numeric: tabular-nums; line-height: 1.05; }
   .rc-big small { font-size: 20px; font-weight: 500; opacity: .6; margin-left: 6px; }
   .rc-row { margin-top: 10px; font-size: 17px; opacity: .85; }
   .rc-bar { margin-top: 18px; width: min(320px, 76vw); height: 8px; border-radius: 4px; background: #222; overflow: hidden; }
   .rc-bar i { display: block; height: 100%; width: 0; background: #34c759; transition: width .4s; }
   .rc-hint { margin-top: 18px; font-size: 15px; line-height: 1.5; max-width: 320px; opacity: .9; }
+  .rc-hint.err { color: #ffd1cf; }
   /* 一小時後迷迷糊糊也要按得到：44pt 是 Apple 的最小可觸控尺寸，這裡刻意給更大 */
   .rc-stop { min-width: 200px; min-height: 56px; font-size: 18px; border-radius: 28px;
     background: #fff; color: #000; border: 0; font-weight: 700; }
+  .rc-stop:disabled { opacity: .55; }
   /* 錄影結束吐司:下載後留 60 秒的「再下載」保險 */
   .rec-toast {
     position: absolute; top: 56px; left: 50%; transform: translateX(-50%); z-index: 1200;
@@ -2879,16 +2888,16 @@ try { if (matchMedia('(max-width: 900px)').matches) document.body.classList.add(
 
   <footer class="site-foot">
     <details class="foot-box">
-      <summary><span>🛠 更新紀錄</span><span class="foot-sub">最後更新：2026/7/26</span></summary>
+      <summary><span>🛠 更新紀錄</span><span class="foot-sub">最後更新：2026/7/28</span></summary>
       <ul class="foot-list foot-recent">
-        <li class="grp">最近更新</li><li><span class="d">7/26</span><span>旅程護照的每一節都能各自收合了；車站收集超過 24 座時預設只露最常去的那批</span></li>
+        <li class="grp">最近更新</li><li><span class="d">7/28</span><span>GPS 校正旅程會沿途保存里程、每 60 秒送一批；斷線或重新整理也不會丟，座標不會離開手機</span></li>
+        <li><span class="d">7/26</span><span>旅程護照的每一節都能各自收合了；車站收集超過 24 座時預設只露最常去的那批</span></li>
         <li><span class="d">7/26</span><span>旅程護照新增「車站收集」：完乘的起訖站自動成章，到月台按蓋章鈕升級成到訪章</span></li>
         <li><span class="d">7/26</span><span>按「我上車了」並選好下車站，沿路每過一站就自動蓋一枚章</span></li>
         <li><span class="d">7/26</span><span>搭過的路段也會收集，護照顯示每條線各自的完乘率，並新增四枚成就</span></li>
         <li><span class="d">7/26</span><span>護照新增「🗺 收集地圖」：全台路網轉灰，只有你搭過的區間會亮起來</span></li>
         <li><span class="d">7/26</span><span>更新紀錄瘦身：預設只列最近八條，其餘收進下方「完整更新歷史」依主題分類</span></li>
         <li><span class="d">7/26</span><span>新增「📖 使用說明」：各功能都有圖文步驟，按「試一次」還會直接幫你操作一遍</span></li>
-        <li><span class="d">7/26</span><span>手機／App 底部的「地圖」鈕換成「🔍 搜尋」，站名、車次、列車名稱一按就查</span></li>
         
       </ul>
       <!-- 第二層:完整歷史。刻意不掛 .foot-box 類名——placeFootBoxes() 用
@@ -3109,6 +3118,9 @@ try { if (matchMedia('(max-width: 900px)').matches) document.body.classList.add(
 <div class="record-screen" id="recordScreen" hidden>
   <div class="rc-top"><span class="rc-dot"></span>錄製中<span class="rc-route" id="recRoute"></span></div>
   <div class="rc-main">
+    <div class="rc-quality" id="recQuality" data-q="none" role="status" aria-live="polite">
+      <span id="recQualityText">等待定位</span>
+    </div>
     <div class="rc-big"><span id="recKm">0.0</span><small>公里</small></div>
     <div class="rc-row"><span id="recSegs">0</span> 段已覆蓋・<span id="recPts">0</span> 點已鎖定</div>
     <div class="rc-bar"><i id="recBar"></i></div>
@@ -3226,7 +3238,7 @@ try { if (matchMedia('(max-width: 900px)').matches) document.body.classList.add(
 <script>
 // 版本戳記:每次改版 push 前手動遞增(字母序),畫面時鐘徽章與 console 都會顯示,
 // 供比對線上跑的是不是最新版(瀏覽器快取 max-age=600 常讓人看到舊版)
-const BUILD = 'v0726f';
+const BUILD = 'v0728a';
 const TRACK_AUDIT = new URLSearchParams(location.search).get('audit') === 'tracks';
 // 手機/平板直式「殼」斷點(議題1:640→900,iPad 直式改拿 tabbar＋更多抽屜):與 CSS @media 同步,版面類判斷一律用此常數。
 // 注意:裝置等級判斷(keepBuffer/powerSave 預設)刻意不用此常數、維持 640——iPad 不該因為改拿 tabbar 就被當低階裝置。
@@ -9273,6 +9285,8 @@ function setupBountyDemo() {
     // 從 ?demo=collect 切過來清收集示範資料,不該連帶清掉懸賞這邊可能存在的其他資料。
     const b = loadBounty();
     if (b.trips && b.trips[BOUNTY_DEMO_TRIP_KEY]) { delete b.trips[BOUNTY_DEMO_TRIP_KEY]; saveBounty(b); }
+    const active = bountyLoadPersistedRecording();
+    if (active && active.demo) bountyClearPersistedRecording();
     return;
   }
   let n = 0;
@@ -9437,35 +9451,67 @@ async function bountyClaim(cardId) {
 // ── 錄製模式（規格 §5）─────────────────────────────────────────────────────
 // 一個獨立的全螢幕模式，比照收集地圖（setCollectMap，8937）：body class 收掉會說謊的 UI、
 // 專用畫面、一顆離開鈕。差別是這個模式要開一小時，所以每一個細節都要為「久」而設計。
-// 🔴 誠實佔位：這個 task 只做畫面與 Wake Lock，不做真正的 GPS 取樣／裝置端投影／60 秒批次
-// 上傳——那些是 Task 4。state.recording 的 dNow/segs/points 這裡永遠留零，renderRecordScreen()
-// 不會假裝在收集資料；沒有任何程式碼在背景偷偷寫入這幾個欄位。
+// 取樣層只把投影後的里程交給畫面；經緯度不進 state、localStorage 或上傳 payload。
 function startBountyRecording(card) {
   if (!PHYSICAL_COLLECT_ENABLED) { showToast('GPS 校正旅程需要用 App'); return; }
   if (state.recording) { showToast('已經在錄了'); return; }
   const tr = state.followTrain;
   state.recording = {
-    card: card || null,
+    card: bountyCleanCard(card),
     sys: (card && card.sys) || (tr && tr.sys) || '',
     lnId: (card && card.lnId) || '',
     trainNo: tr ? String(tr.train) : '',
     dir: (card && card.dir) || 0,
     tripDate: todayStr(activeTz()),      // 讀真實時鐘,不吃 state.simSec——時刻尺可以拖,但人在的時間不會跟著跑
     startedAt: Date.now(),
-    dNow: null, segs: {}, points: 0, quality: 'good',
+    dNow: null, segs: {}, _cov: {}, points: Number(card && card.points) || 0, quality: 'none',
+    _buf: [], _candidateBuf: {}, _perp: {}, _recent: [], _lastFix: 0,
+    _lastFlush: Date.now(), _batch: 0, demo: DEMO_MODE === 'bounty',
   };
   document.body.classList.add('recording');
   document.getElementById('recordScreen').hidden = false;
   clearFollow();          // 車都不畫了,鏡頭還在追一班看不見的車只會白耗電（demo 參數撐不撐得住見 clearFollow() 內部註解）
   closeBountyBoard();
   acquireWakeLock();      // 既有函式（7684）,不要另寫一套
+  bountyPersistRecording();
+  bountyRules();          // 先暖品質規則快取；定位回呼不用等第二次網路往返
+  bountyStartSampling();
   renderRecordScreen();
 }
 function stopBountyRecording() {
-  if (!state.recording) return;
+  const r = state.recording;
+  if (!r) return Promise.resolve(true);
+  if (r._stopPromise) return r._stopPromise;
+  r._stopping = true; // clearWatch 是非同步的；停止後晚到的定位回呼不可再塞進已 force-flush 的旅程
+  bountyStopSampling(r);
+  const hasLocal = (r._buf && r._buf.length) ||
+    Object.values(r._candidateBuf || {}).some(a => a && a.length);
+  const hasQueued = bountyLoadUploadQueue().length > 0;
+  if (!hasLocal && !hasQueued) {
+    bountyFinishStop(r);
+    return Promise.resolve(true);
+  }
+  const btn = document.getElementById('recStop');
+  btn.disabled = true; btn.textContent = '正在保存…';
+  r._stopPromise = bountyFlush(true, r).then(ok => {
+    if (ok) { bountyFinishStop(r); return true; }
+    bountyRecordNotice('上傳暫時失敗；里程已保存在這台裝置，之後會自動重傳。', 'error');
+    btn.textContent = '已保存在裝置';
+    return new Promise(resolve => setTimeout(() => { bountyFinishStop(r); resolve(false); }, 1400));
+  });
+  return r._stopPromise;
+}
+function bountyFinishStop(r) {
+  if (state.recording !== r) return;
+  bountyStopSampling(r);
   state.recording = null;
+  bountyClearPersistedRecording();
   document.body.classList.remove('recording');
   document.getElementById('recordScreen').hidden = true;
+  const btn = document.getElementById('recStop');
+  btn.disabled = false; btn.textContent = '停止錄製';
+  const hint = document.getElementById('recHint');
+  hint.hidden = true; hint.textContent = ''; hint.classList.remove('err');
   releaseWakeLock();
   renderPassport();
 }
@@ -9475,14 +9521,392 @@ function renderRecordScreen() {
   const nm = r.card ? bountyCardName(r.card) : null;
   document.getElementById('recRoute').textContent = nm ? `${nm.from} → ${nm.to}` : '';
   document.getElementById('recKm').textContent = (r.dNow == null ? 0 : r.dNow / 1000).toFixed(1);
-  const done = Object.values(r.segs).filter(c => c >= 0.6).length;      // 最終審查 E-2：data/bounty_rules.json 本批次零 runtime 消費者，這是手動同步的硬編碼副本，不是真的同源——Task 5 接上 rules 之前先硬編碼
+  const cov = r._cov || {};
+  const done = Object.values(cov).filter(c => c >= 0.6).length;
   document.getElementById('recSegs').textContent = String(done);
   document.getElementById('recPts').textContent = String(r.points);
-  const total = (r.card && r.card.units) || Object.keys(r.segs).length || 1;
+  const total = (r.card && r.card.units) || Object.keys(cov).length || 1;
   document.getElementById('recBar').style.width = Math.min(100, done / total * 100) + '%';
 }
 function setupRecordScreen() {
   document.getElementById('recStop').onclick = () => stopBountyRecording();
+}
+
+// ── 取樣、裝置端投影與持久批次 ─────────────────────────────────────────────
+// 🔴 隱私邊界：bountyOnFix() 收到的經緯度只在該次呼叫投影用完；所有能活過這一行的
+// state／localStorage／request body 都只能持有 {d,t,v,acc}。payload 還有一層正向白名單守門，
+// 未列在契約裡的任何 key 一律拒送，不靠「欄位名稱像不像 lat」的黑名單猜。
+const BOUNTY_BATCH_MS = 60000;
+const BOUNTY_MIN_GAP_MS = 900;
+const BOUNTY_RECORDING_KEY = 'trainmap-bounty-recording-v1';
+const BOUNTY_UPLOAD_KEY = 'trainmap-bounty-upload-v1';
+let bountyRulesMem = null, bountyUploadPromise = null;
+function bountyCleanSample(x) {
+  if (!x || !Number.isFinite(Number(x.d)) || !Number.isFinite(Number(x.t))) return null;
+  return { d: Number(x.d), t: Number(x.t),
+    v: Number.isFinite(Number(x.v)) ? Number(x.v) : null,
+    acc: Number.isFinite(Number(x.acc)) ? Number(x.acc) : null };
+}
+function bountyCleanSamples(a, max = 1200) {
+  return (Array.isArray(a) ? a : []).map(bountyCleanSample).filter(Boolean).slice(-max);
+}
+function bountyCleanCard(card) {
+  if (!card || typeof card !== 'object') return null;
+  return {
+    id: String(card.id || ''), sys: String(card.sys || ''), lnId: String(card.lnId || ''),
+    dir: Number(card.dir) || 0, trainKind: String(card.trainKind || ''), kind: String(card.kind || ''),
+    slot: String(card.slot || ''), units: Math.max(0, Number(card.units) || 0),
+    points: Math.max(0, Number(card.points) || 0),
+    unitKeys: (Array.isArray(card.unitKeys) ? card.unitKeys : []).map(String).slice(0, 500),
+  };
+}
+function bountyPersistedSnapshot(r) {
+  const candidateBuf = {};
+  for (const [k, a] of Object.entries(r._candidateBuf || {})) candidateBuf[k] = bountyCleanSamples(a);
+  const perp = {};
+  for (const [k, v] of Object.entries(r._perp || {})) {
+    const sum = Number(v && v.sum), n = Number(v && v.n);
+    if (Number.isFinite(sum) && n > 0) perp[k] = { sum, n };
+  }
+  const segs = {}, cov = {};
+  for (const [k, v] of Object.entries(r.segs || {})) {
+    if (v && Number.isFinite(Number(v.lo)) && Number.isFinite(Number(v.hi)))
+      segs[k] = { lo: Number(v.lo), hi: Number(v.hi) };
+  }
+  for (const [k, v] of Object.entries(r._cov || {})) if (Number.isFinite(Number(v))) cov[k] = Number(v);
+  return {
+    v: 1, card: bountyCleanCard(r.card), sys: String(r.sys || ''), lnId: String(r.lnId || ''),
+    trainNo: String(r.trainNo || ''), dir: Number(r.dir) || 0, tripDate: String(r.tripDate || ''),
+    startedAt: Number(r.startedAt) || Date.now(), dNow: Number.isFinite(Number(r.dNow)) ? Number(r.dNow) : null,
+    segs, cov, points: Math.max(0, Number(r.points) || 0), quality: String(r.quality || 'none'),
+    buf: bountyCleanSamples(r._buf), candidateBuf, perp, recent: bountyCleanSamples(r._recent, 180),
+    lastFix: Number(r._lastFix) || 0, lastFlush: Number(r._lastFlush) || Number(r.startedAt) || Date.now(),
+    batch: Math.max(0, Number(r._batch) || 0), demo: !!r.demo,
+  };
+}
+function bountyPersistRecording(r = state.recording) {
+  if (!r) return;
+  try { localStorage.setItem(BOUNTY_RECORDING_KEY, JSON.stringify(bountyPersistedSnapshot(r))); } catch (e) {}
+}
+function bountyClearPersistedRecording() {
+  try { localStorage.removeItem(BOUNTY_RECORDING_KEY); } catch (e) {}
+}
+function bountyLoadPersistedRecording() {
+  try {
+    const o = JSON.parse(localStorage.getItem(BOUNTY_RECORDING_KEY) || 'null');
+    if (!o || typeof o !== 'object' || Array.isArray(o) || !o.startedAt) return null;
+    const candidateBuf = {};
+    if (o.candidateBuf && typeof o.candidateBuf === 'object' && !Array.isArray(o.candidateBuf))
+      for (const [k, a] of Object.entries(o.candidateBuf)) candidateBuf[k] = bountyCleanSamples(a);
+    const perp = {};
+    if (o.perp && typeof o.perp === 'object' && !Array.isArray(o.perp))
+      for (const [k, v] of Object.entries(o.perp)) {
+        const sum = Number(v && v.sum), n = Number(v && v.n);
+        if (Number.isFinite(sum) && n > 0) perp[k] = { sum, n };
+      }
+    return {
+      card: bountyCleanCard(o.card), sys: String(o.sys || ''), lnId: String(o.lnId || ''),
+      trainNo: String(o.trainNo || ''), dir: Number(o.dir) || 0, tripDate: String(o.tripDate || ''),
+      startedAt: Number(o.startedAt), dNow: Number.isFinite(Number(o.dNow)) ? Number(o.dNow) : null,
+      segs: o.segs && typeof o.segs === 'object' && !Array.isArray(o.segs) ? o.segs : {},
+      _cov: o.cov && typeof o.cov === 'object' && !Array.isArray(o.cov) ? o.cov : {},
+      points: Math.max(0, Number(o.points) || 0), quality: String(o.quality || 'none'),
+      _buf: bountyCleanSamples(o.buf), _candidateBuf: candidateBuf, _perp: perp,
+      _recent: bountyCleanSamples(o.recent, 180), _lastFix: Number(o.lastFix) || 0,
+      _lastFlush: Number(o.lastFlush) || Number(o.startedAt), _batch: Math.max(0, Number(o.batch) || 0),
+      demo: !!o.demo,
+    };
+  } catch (e) { return null; }
+}
+function bountyRestoreRecording() {
+  if (!PHYSICAL_COLLECT_ENABLED || state.recording) return false;
+  const r = bountyLoadPersistedRecording();
+  if (!r) return false;
+  state.recording = r;
+  document.body.classList.add('recording');
+  document.getElementById('recordScreen').hidden = false;
+  acquireWakeLock();
+  bountyRules();
+  bountyStartSampling();
+  renderRecordScreen();
+  if (!r.demo) bountyRecordNotice(`已接回重新整理前保存在裝置上的 ${r._buf.length} 個里程點。`, 'restore');
+  return true;
+}
+function bountyRecordNotice(msg, kind) {
+  const r = state.recording;
+  if (r) { r._notice = String(msg || ''); r._noticeKind = String(kind || ''); }
+  const h = document.getElementById('recHint');
+  if (!h) return;
+  h.textContent = String(msg || '');
+  h.classList.toggle('err', kind === 'error');
+  h.hidden = !msg;
+}
+function bountySamplingFail(err) {
+  const note = err && err.code === 1 ? '定位權限沒有開啟；請到系統設定允許軌島使用精確位置。'
+    : '暫時收不到定位；請讓 App 留在前景並把手機靠窗。';
+  bountyRecordNotice(note, 'error');
+}
+function bountyBestLine(r) {
+  let best = null;
+  for (const [k, v] of Object.entries(r._perp || {})) {
+    const avg = v && v.n ? v.sum / v.n : Infinity;
+    if (!best || avg < best.avg) best = { k, avg };
+  }
+  return best ? best.k : '';
+}
+function bountyUpdateSegs(r, lineKey, dKm) {
+  const rec = lineNetwork().get(lineKey);
+  if (!rec) return;
+  const wanted = new Set(r.card && r.card.unitKeys || []);
+  for (const s of rec.segs) {
+    if (wanted.size && !wanted.has(s.key)) continue;
+    const lo = Math.min(s.dA, s.dB), hi = Math.max(s.dA, s.dB);
+    if (dKm < lo || dKm > hi || hi - lo < 0.05) continue;
+    const cur = r.segs[s.key] || { lo: dKm, hi: dKm };
+    cur.lo = Math.min(cur.lo, dKm); cur.hi = Math.max(cur.hi, dKm);
+    r.segs[s.key] = cur;
+    r._cov[s.key] = Math.min(1, (cur.hi - cur.lo) / (hi - lo));
+  }
+}
+function bountyOnFix(coords) {
+  const r = state.recording;
+  if (!r || r._stopping || !coords) return;
+  const now = Date.now();
+  if (r._lastFix && now - r._lastFix < BOUNTY_MIN_GAP_MS) return;
+  const lat = Number(coords.latitude), lon = Number(coords.longitude);
+  if (!Number.isFinite(lat) || !Number.isFinite(lon)) return;
+  const speed = Number.isFinite(Number(coords.speed)) && Number(coords.speed) >= 0
+    ? Math.round(Number(coords.speed) * 100) / 100 : null;
+  const acc = Number.isFinite(Number(coords.accuracy)) ? Math.round(Number(coords.accuracy)) : null;
+  const t = nowSecOfDay(activeTz());
+  r._lastFix = now;
+  const fixedRec = r.lnId ? lineNetwork().get(r.sys + '|' + r.lnId) : null;
+  const cands = fixedRec ? (() => {
+    const pr = projectOntoShape(fixedRec.ln, lat, lon);
+    return pr && pr.d != null ? [{ ln: fixedRec.ln, d: pr.d, perpKm: pr.perpKm }] : [];
+  })() : railsNear(lat, lon).slice(0, 4);
+  for (const c of cands) {
+    if (!c.ln || c.d == null) continue;
+    const k = c.ln.sys + '|' + c.ln.id;
+    const sample = { d: Math.round(c.d * 10000) / 10, t, v: speed, acc };
+    if (r.lnId) {
+      r._buf.push(sample);
+      bountyUpdateSegs(r, k, c.d);
+    } else {
+      (r._candidateBuf[k] ||= []).push(sample);
+      const p = r._perp[k] || { sum: 0, n: 0 };
+      p.sum += Number(c.perpKm) || 0; p.n += 1; r._perp[k] = p;
+    }
+  }
+  const previewKey = r.lnId ? r.sys + '|' + r.lnId : bountyBestLine(r);
+  const previewBuf = r._candidateBuf[previewKey] || [];
+  const preview = r.lnId ? r._buf[r._buf.length - 1] : previewBuf[previewBuf.length - 1];
+  if (!preview) return;
+  r.dNow = preview.d;
+  r._recent.push(preview);
+  if (r._recent.length > 180) r._recent.splice(0, r._recent.length - 180);
+  bountyPersistRecording(r);
+  renderRecordScreen();
+  bountyTickQuality();
+  if (now - (r._lastFlush || r.startedAt) >= BOUNTY_BATCH_MS) void bountyFlush(false, r);
+}
+function bountyLockLine(r) {
+  if (r.lnId) return r.sys + '|' + r.lnId;
+  const key = bountyBestLine(r);
+  if (!key) return '';
+  const at = key.indexOf('|');
+  r.sys = key.slice(0, at); r.lnId = key.slice(at + 1);
+  r._buf = bountyCleanSamples(r._candidateBuf[key]);
+  for (const p of r._buf) bountyUpdateSegs(r, key, p.d / 1000);
+  r._candidateBuf = {}; r._perp = {};
+  return key;
+}
+function bountyPayloadSafe(p) {
+  const ROOT = new Set(['actor', 'sys', 'lnId', 'trainNo', 'dir', 'tripDate', 'batch', 'samples']);
+  const SAMPLE = new Set(['d', 't', 'v', 'acc']);
+  if (!p || typeof p !== 'object' || Array.isArray(p)) return false;
+  const keys = Object.keys(p);
+  if (keys.length !== ROOT.size || !keys.every(k => ROOT.has(k)) || !Array.isArray(p.samples)) return false;
+  return p.samples.every(s => s && typeof s === 'object' && !Array.isArray(s) &&
+    Object.keys(s).length === SAMPLE.size && Object.keys(s).every(k => SAMPLE.has(k)) &&
+    Number.isFinite(s.d) && Number.isFinite(s.t));
+}
+function bountyLoadUploadQueue() {
+  try {
+    const a = JSON.parse(localStorage.getItem(BOUNTY_UPLOAD_KEY) || '[]');
+    return (Array.isArray(a) ? a : []).filter(x => x && typeof x.id === 'string' &&
+      bountyPayloadSafe(x.payload) && x.meta && typeof x.meta === 'object');
+  } catch (e) { return []; }
+}
+function bountySaveUploadQueue(a) {
+  try { localStorage.setItem(BOUNTY_UPLOAD_KEY, JSON.stringify(a)); } catch (e) {}
+}
+function bountyBatchMeta(r) {
+  return {
+    tripId: `${r.tripDate}|${r.trainNo || r.lnId}|${r.startedAt}`,
+    lnId: r.lnId, sys: r.sys, trainNo: r.trainNo, dir: r.dir, tripDate: r.tripDate,
+    cardId: r.card && r.card.id || '', points: r.card && r.card.points || r.points || 0,
+    segs: Object.keys(r._cov || {}), u: userDataNow(),
+  };
+}
+function bountyMarkSubmitted(meta, verdict = 'pending') {
+  const b = loadBounty(), old = b.trips[meta.tripId] || {};
+  b.trips[meta.tripId] = Object.assign(old, {
+    lnId: meta.lnId, sys: meta.sys, trainNo: meta.trainNo, dir: meta.dir, tripDate: meta.tripDate,
+    cardId: meta.cardId, points: meta.points, verdict, qualityCode: '',
+    segs: [...new Set([...(old.segs || []), ...(meta.segs || [])])], u: meta.u || userDataNow(),
+  });
+  saveBounty(b);
+}
+async function bountyRetryPending() {
+  if (bountyUploadPromise) return bountyUploadPromise;
+  bountyUploadPromise = (async () => {
+    let q = bountyLoadUploadQueue();
+    for (const item of q.slice()) {
+      try {
+        const res = await fetch(apiUrl('api/bounty-submit'), {
+          method: 'POST', headers: { 'content-type': 'application/json' },
+          body: JSON.stringify(item.payload),
+        });
+        if (!res.ok) throw new Error('submit ' + res.status);
+        bountyMarkSubmitted(item.meta);
+        q = q.filter(x => x.id !== item.id);
+        bountySaveUploadQueue(q);
+      } catch (e) { return false; }
+    }
+    return true;
+  })();
+  try { return await bountyUploadPromise; } finally { bountyUploadPromise = null; }
+}
+async function bountyFlush(force, r = state.recording) {
+  if (!r) return bountyRetryPending();
+  if (r._flushPromise) {
+    await r._flushPromise;
+    return force ? bountyFlush(true, r) : true;
+  }
+  r._flushPromise = (async () => {
+    if (!force && Date.now() - (r._lastFlush || r.startedAt) < BOUNTY_BATCH_MS) return true;
+    if (!bountyLockLine(r)) return true;
+    const batch = bountyCleanSamples(r._buf);
+    if (!batch.length) return bountyRetryPending();
+    const batchNo = (r._batch || 0) + 1;
+    const payload = {
+      actor: bountyActor(), sys: r.sys, lnId: r.lnId, trainNo: r.trainNo,
+      dir: r.dir, tripDate: r.tripDate, batch: batchNo, samples: batch,
+    };
+    if (!bountyPayloadSafe(payload)) {
+      bountyRecordNotice('里程批次格式不安全，已留在裝置端，沒有送出。', 'error');
+      return false;
+    }
+    r._buf = []; r._batch = batchNo; r._lastFlush = Date.now();
+    const meta = bountyBatchMeta(r);
+    if (r.demo) {
+      bountyMarkSubmitted(meta, 'demo');
+      bountyPersistRecording(r);
+      return true;
+    }
+    const q = bountyLoadUploadQueue();
+    q.push({ id: `${meta.tripId}|${batchNo}`, payload, meta });
+    bountySaveUploadQueue(q);
+    bountyPersistRecording(r);
+    const ok = await bountyRetryPending();
+    if (!ok) bountyRecordNotice('上傳暫時失敗；里程已保存在這台裝置，稍後會自動重傳。', 'error');
+    return ok;
+  })();
+  try { return await r._flushPromise; } finally { r._flushPromise = null; }
+}
+function bountyDemoFix(r) {
+  const rec = lineNetwork().get(r.sys + '|' + r.lnId);
+  if (!rec || !rec.segs.length) return;
+  const wanted = new Set(r.card && r.card.unitKeys || []);
+  const segs = wanted.size ? rec.segs.filter(s => wanted.has(s.key)) : rec.segs.slice(0, 4);
+  if (!segs.length) return;
+  const n = r._demoStep || 0, seg = segs[Math.floor(n / 2) % segs.length];
+  const f = n % 2 ? 0.85 : 0.15;
+  const p = posAlongShape(rec.ln, seg.dA + (seg.dB - seg.dA) * f);
+  r._demoStep = n + 1;
+  bountyOnFix({ latitude: p.lat, longitude: p.lon, accuracy: 8, speed: 22 });
+}
+function bountyStartSampling() {
+  const r = state.recording;
+  if (!r || r._watch) return;
+  r._qualityTimer = setInterval(() => bountyTickQuality(), 5000);
+  void bountyRetryPending();
+  if (r.demo) {
+    bountyRecordNotice('示範模式正用假路徑演示投影與進度；不會上傳你的定位。', 'demo');
+    bountyDemoFix(r);
+    r._watch = { demo: setInterval(() => bountyDemoFix(r), 1000) };
+    return;
+  }
+  const opts = { enableHighAccuracy: true, timeout: 20000, maximumAge: 0 };
+  const geo = window.RAIL_NATIVE_GEOLOCATION;
+  if (geo && geo.watchPosition) {
+    Promise.resolve(geo.watchPosition(opts, (p, err) => {
+      if (err || !p) bountySamplingFail(err); else bountyOnFix(p.coords);
+    })).then(id => {
+      if (state.recording === r) r._watch = { native: id };
+      else if (geo.clearWatch) geo.clearWatch(id);
+    }).catch(bountySamplingFail);
+  } else if (navigator.geolocation) {
+    r._watch = { web: navigator.geolocation.watchPosition(
+      p => bountyOnFix(p.coords), bountySamplingFail, opts) };
+  } else bountySamplingFail({ code: 0 });
+}
+function bountyStopSampling(r = state.recording) {
+  if (!r) return;
+  const w = r._watch;
+  try {
+    if (w && w.demo != null) clearInterval(w.demo);
+    if (w && w.native != null && window.RAIL_NATIVE_GEOLOCATION)
+      window.RAIL_NATIVE_GEOLOCATION.clearWatch(w.native);
+    if (w && w.web != null && navigator.geolocation) navigator.geolocation.clearWatch(w.web);
+  } catch (e) {}
+  clearInterval(r._qualityTimer);
+  r._watch = null; r._qualityTimer = null;
+}
+async function bountyRules() {
+  if (bountyRulesMem) return bountyRulesMem;
+  const res = await fetch('./data/bounty_rules.json', { cache: 'force-cache' });
+  if (!res.ok) throw new Error('bounty rules ' + res.status);
+  bountyRulesMem = await res.json();
+  return bountyRulesMem;
+}
+function bountyMedian(a) {
+  const s = a.filter(Number.isFinite).slice().sort((x, y) => x - y), m = s.length >> 1;
+  return !s.length ? 0 : (s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2);
+}
+function bountyLiveQuality(buf, rules) {
+  const Q = rules.quality, win = bountyCleanSamples(buf, Math.max(5, Number(Q.liveWindowSec) || 60));
+  if (win.length < 5) return 'none';
+  const accs = win.map(p => p.acc).filter(Number.isFinite), accMed = bountyMedian(accs);
+  if (accMed > Q.accMedianPreciseOffM) {
+    const spread = accs.length ? Math.max(...accs) - Math.min(...accs) : 0;
+    return spread < accMed * 0.25 ? 'precise_off' : 'weak';
+  }
+  if (accMed > Q.accMedianBlockedM) return 'weak';
+  const gaps = [];
+  for (let i = 1; i < win.length; i++) {
+    let gap = win[i].t - win[i - 1].t;
+    if (gap < 0) gap += 86400;
+    gaps.push(gap);
+  }
+  return bountyMedian(gaps) > Q.sampleGapMedianSec ? 'weak' : 'good';
+}
+async function bountyTickQuality() {
+  const r = state.recording;
+  if (!r) return;
+  try {
+    const rules = await bountyRules();
+    const stale = !r._lastFix || Date.now() - r._lastFix > rules.quality.noFixGapSec * 1000;
+    r.quality = stale ? 'none' : bountyLiveQuality(r._recent || [], rules);
+    const labels = { good: '訊號良好', weak: '訊號弱', none: '等待定位', precise_off: '精確位置未開' };
+    const lamp = document.getElementById('recQuality');
+    lamp.dataset.q = r.quality;
+    document.getElementById('recQualityText').textContent = labels[r.quality] || labels.none;
+    bountyPersistRecording(r);
+  } catch (e) {
+    bountyRecordNotice('品質規則暫時讀不到；里程仍會保存在裝置端。', 'error');
+  }
 }
 // 出發前說明卡（規格 §5 之四）。使用者 2026-07-27 指定：「在使用者開始驗證旅程的時候就要先有
 // 告知如何設定，以及有可能不過這件事情。」
@@ -14060,6 +14484,9 @@ async function boot() {
   map.on('dragstart', () => { state._userMoved = true; });
   if (geoBoot) state._bootGeo.then(applyBootGeo);
   state.ready = true;
+  // 錄製中的投影里程先於重新整理落在裝置端；線網就緒後接回同一趟並恢復前景取樣。
+  // 沒有進行中的旅程也會順手重試先前斷線留下的批次，兩條路都只處理里程、不碰座標。
+  if (!bountyRestoreRecording()) void bountyRetryPending();
   publishTrackContinuityAudit();
   if (window.__notifyMockLog) {
     const cross = state.systems.filter(s => s.id === 'tra_sched' || s.id === 'thsr_sched')

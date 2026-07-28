@@ -18,6 +18,20 @@ const ok = (n, p, msg = '') => { R.push({ n, p }); console.log(`${p ? '  ok ' : 
 // 客端根本沒有可比對的「訊號燈」。不要因為現在沒消費者就刪掉：Task 5 一旦把即時提示接上，
 // 這裡就是拿門檻值來比對的既有掛勾，先留著、只是暫時不用。
 const RULES = JSON.parse(readFileSync('data/bounty_rules.json', 'utf8'));
+const T4_TRACK = JSON.parse(readFileSync('data/tra.json', 'utf8'));
+const T4_LINE = T4_TRACK.lines.find(ln => ln.id === '縱貫線北段');
+const independentDistanceM = (a, b) => {
+  const R = 6371000, rad = n => n * Math.PI / 180;
+  const dLat = rad(b[0] - a[0]), dLon = rad(b[1] - a[1]);
+  const x = Math.sin(dLat / 2) ** 2 +
+    Math.cos(rad(a[0])) * Math.cos(rad(b[0])) * Math.sin(dLon / 2) ** 2;
+  return 2 * R * Math.asin(Math.sqrt(x));
+};
+let t4CumM = 0;
+const T4_FIXES = T4_LINE.shape.map((p, i, a) => {
+  if (i) t4CumM += independentDistanceM(a[i - 1], p);
+  return { latitude: p[0], longitude: p[1], accuracy: 8, expectedD: t4CumM };
+}).filter((_, i) => [120, 130, 140, 150, 160, 170].includes(i));
 
 // ── G0 自檢：先確認「我到底在驗哪一份檔案」──────────────────────────────
 // 心得 32：驗收腳本吃「驗哪個目錄」的參數時，第一道 gate 就要印出目標並斷言它等於腳本自己
@@ -89,8 +103,9 @@ async function stubApi(ctx, over = {}) {
   await ctx.route('**/api/bounty-claim', r => r.fulfill({ status: 200, contentType: 'application/json',
     body: JSON.stringify(over.claim || { ok: true, claimId: 'cl-1', units: 11, pointsLocked: 39,
       expiresAt: Date.now() + 86400000, claimers: 3 }) }));
-  await ctx.route('**/api/bounty-submit', r => r.fulfill({ status: 200, contentType: 'application/json',
-    body: JSON.stringify({ ok: true, id: 'bs-1', verdict: 'pending', accepted: 60 }) }));
+  await ctx.route('**/api/bounty-submit', r => typeof over.submit === 'function' ? over.submit(r) :
+    r.fulfill({ status: 200, contentType: 'application/json',
+      body: JSON.stringify({ ok: true, id: 'bs-1', verdict: 'pending', accepted: 60 }) }));
   await ctx.route('**/api/bounty-me*', r => r.fulfill({ status: 200, contentType: 'application/json',
     body: JSON.stringify(over.me || { actor: 'dev-x', points: 0, corrected: { segs: 0, adopted: 0 },
       lines: [], firsts: [], trips: [] }) }));
@@ -105,9 +120,9 @@ async function stubApi(ctx, over = {}) {
 // APP_BUILD_GLOBALS 上方的註解：「IS_NATIVE_APP 曾經是 !!window.RAIL_APP_CONFIG…
 // 舊 fixture 注入的是假形狀」）。沿用該檔案已驗證正確的 licensed 組合，
 // 並保留 platform/build 兩個欄位（沒有壞處，以防日後有程式碼讀它們）。
-async function open(browser, { app = false, width = 1440, height = 900, touch = false, geo = null, over = {} } = {}) {
+async function open(browser, { app = false, width = 1440, height = 900, touch = false, mobile = false, geo = null, over = {} } = {}) {
   const ctx = await browser.newContext({
-    viewport: { width, height }, hasTouch: touch,
+    viewport: { width, height }, hasTouch: touch, isMobile: mobile,
     ...(geo ? { permissions: ['geolocation'], geolocation: geo } : {}),
   });
   if (app) await ctx.addInitScript(() => {
@@ -509,7 +524,7 @@ const browser = await chromium.launch();
   // 甚至把假數字印進自己的 pass 訊息）。期望值直接手算，不呼叫 bountyCardName() 或任何本檔
   // 實作函式生成（心得 29）。
   const c3b = await page.evaluate(() => {
-    Object.assign(state.recording, { dNow: 12700, segs: { a: 0.9, b: 0.7 }, points: 7 });
+    Object.assign(state.recording, { dNow: 12700, _cov: { a: 0.9, b: 0.7 }, points: 7 });
     renderRecordScreen();
     return {
       km: document.getElementById('recKm').textContent,
@@ -521,7 +536,7 @@ const browser = await chromium.launch();
     c3b.km === '12.7' && c3b.segs === '2' && c3b.pts === '7', JSON.stringify(c3b));
 
   const c3c = await page.evaluate(() => {
-    Object.assign(state.recording, { dNow: 0, segs: {}, points: 0 });
+    Object.assign(state.recording, { dNow: 0, segs: {}, _cov: {}, points: 0 });
     renderRecordScreen();
     return {
       km: document.getElementById('recKm').textContent,
@@ -570,6 +585,218 @@ const browser = await chromium.launch();
   });
   ok('C9 停止後模式關閉、會說謊的 UI 回來', !c9.on && !c9.cls && c9.badge !== 'none', JSON.stringify(c9));
   await ctx.close();
+}
+
+// ── T4 組：取樣、裝置端投影、60 秒批次、持久化與品質燈 ───────────────────
+{
+  const posts = [];
+  const submit = async r => {
+    posts.push(JSON.parse(r.request().postData() || '{}'));
+    await r.fulfill({ status: 200, contentType: 'application/json',
+      body: JSON.stringify({ ok: true, id: 'bs-' + posts.length, verdict: 'pending', accepted: 60 }) });
+  };
+  const { ctx, page } = await open(browser, {
+    app: true, width: 390, height: 844, touch: true, mobile: true, geo: T4_FIXES[0], over: { submit },
+  });
+  const card = {
+    id: 't4-fixture', sys: 'tra_sched', lnId: '縱貫線北段', dir: 1,
+    trainKind: '區間', units: 6, points: 18, unitKeys: [],
+  };
+  await page.evaluate(c => startBountyRecording(c), card);
+  await page.waitForFunction(() => state.recording &&
+    ((state.recording._buf || []).length +
+      Object.values(state.recording._candidateBuf || {}).reduce((n, a) => n + a.length, 0)) > 0,
+  null, { timeout: 5000 });
+
+  // 判準自己用 WGS84 haversine 把 data/tra.json 的 shape 從起點累加到指定 vertex；
+  // 不呼叫 projectOntoShape／ensureCum／ln.cum，也不讀實作算出的站里程。
+  await page.evaluate(() => { state.recording._lastFlush = Date.now() - 58000; });
+  await ctx.setGeolocation(T4_FIXES[1]);
+  await page.waitForTimeout(1050);
+  const earlyPosts = posts.length;
+  await page.evaluate(() => { state.recording._lastFlush = Date.now() - 60050; });
+  await ctx.setGeolocation({ ...T4_FIXES[2], accuracy: 120 }); // acc>50 只標記品質，規格明訂不可在裝置端丟掉
+  await page.waitForTimeout(1200);
+
+  const firstSamples = posts[0] && posts[0].samples || [];
+  const projectionError = firstSamples.length
+    ? Math.min(...firstSamples.map(s => Math.abs(Number(s.d) - T4_FIXES[2].expectedD)))
+    : Infinity;
+  ok('T4-1 真 geolocation 序列在裝置端投影成獨立累算的沿線里程（誤差 < 15m）',
+    projectionError < 15, `error=${projectionError.toFixed(2)}m samples=${firstSamples.length}`);
+  ok('T4-2 未滿 60 秒不送、跨過才送第一批；acc>50 的樣本也照送，不在裝置端不可逆丟棄',
+    earlyPosts === 0 && posts.length === 1 && firstSamples.some(s => s.acc === 120),
+    JSON.stringify({ earlyPosts, after60s: posts.length }));
+
+  // 🔴 隱私鐵則：正向白名單掃過 payload 的每一個 key。這裡刻意完全不問 key 名有沒有
+  // lat/lon 字樣；只要不是 API 契約允許的根欄位，或不是里程樣本允許的四欄，一律失敗。
+  const payloadWhitelistViolations = payload => {
+    const ROOT = new Set(['actor', 'sys', 'lnId', 'trainNo', 'dir', 'tripDate', 'batch', 'samples']);
+    const SAMPLE = new Set(['d', 't', 'v', 'acc']);
+    const bad = [];
+    const walk = (v, path) => {
+      if (Array.isArray(v)) {
+        if (path.join('.') !== 'samples') bad.push(path.join('.') + '（非白名單陣列）');
+        v.forEach((x, i) => walk(x, path.concat(String(i))));
+        return;
+      }
+      if (!v || typeof v !== 'object') return;
+      const allowed = path.length === 0 ? ROOT :
+        (path.length === 2 && path[0] === 'samples' ? SAMPLE : null);
+      for (const k of Object.keys(v)) {
+        if (!allowed || !allowed.has(k)) bad.push(path.concat(k).join('.'));
+        walk(v[k], path.concat(k));
+      }
+    };
+    walk(payload, []);
+    return bad;
+  };
+  const privacyBad = posts.length ? payloadWhitelistViolations(posts[0]) : ['（沒有上傳）'];
+  ok('T4-3 隱私鐵則：上傳 payload 所有 key 都在正向白名單，根層只允許行程欄位、samples 只允許 acc/d/t/v',
+    posts.length === 1 && privacyBad.length === 0,
+    privacyBad.length ? privacyBad.join(',') : JSON.stringify(Object.keys(posts[0])));
+
+  for (const f of T4_FIXES.slice(3)) {
+    await ctx.setGeolocation(f);
+    await page.waitForTimeout(950);
+  }
+  const Q = RULES.quality;
+  const mkQuality = (acc, gap = 1) =>
+    Array.from({ length: 8 }, (_, i) => ({ d: i * 25, t: 30000 + i * gap, v: 25, acc }));
+  const qCases = {
+    good: mkQuality(8),
+    weak: mkQuality(Q.accMedianBlockedM + 20),
+    precise: mkQuality(Q.accMedianPreciseOffM + 100),
+    sparse: mkQuality(8, Q.sampleGapMedianSec + 2),
+    none: [],
+  };
+  const quality = await page.evaluate(async cases => {
+    const rules = await bountyRules();
+    await bountyTickQuality();
+    const lamp = document.getElementById('recQuality');
+    return {
+      cases: Object.fromEntries(Object.entries(cases).map(([k, v]) => [k, bountyLiveQuality(v, rules)])),
+      lamp: lamp ? lamp.dataset.q : '(missing)',
+      text: document.getElementById('recQualityText')?.textContent || '',
+    };
+  }, qCases);
+  ok('T4-4 品質訊號燈使用外部規則真值：良好／訊號弱／精確位置關閉／取樣稀／等待定位五態都對',
+    quality.cases.good === 'good' && quality.cases.weak === 'weak' &&
+      quality.cases.precise === 'precise_off' && quality.cases.sparse === 'weak' &&
+      quality.cases.none === 'none' && quality.lamp === 'good' && /良好/.test(quality.text),
+    JSON.stringify(quality));
+
+  const postsBeforeStop = posts.length;
+  const stopped = await page.evaluate(async () => {
+    await stopBountyRecording();
+    const raw = JSON.parse(localStorage.getItem('trainmap-bounty-v1') || 'null');
+    return { recording: !!state.recording, trips: Object.keys(raw && raw.trips || {}).length };
+  });
+  ok('T4-5 中途停止會 force flush，已送批次留下待驗證旅程（部分覆蓋不會被撤回）',
+    stopped.recording === false && stopped.trips >= 1 && posts.length > postsBeforeStop,
+    JSON.stringify({ ...stopped, postsBeforeStop, postsAfterStop: posts.length }));
+
+  // 重新整理前只把「投影後的里程樣本」存進裝置端；reload 後必須接回同一趟，
+  // 否則 state.recording 只在記憶體的舊缺陷會讓這一批里程無聲消失。
+  await page.evaluate(c => startBountyRecording(c), card);
+  await page.waitForFunction(() => state.recording && (state.recording._buf || []).length > 0, null, { timeout: 5000 });
+  const persistedBefore = await page.evaluate(() => {
+    const raw = JSON.parse(localStorage.getItem('trainmap-bounty-recording-v1') || 'null');
+    return { startedAt: raw && raw.startedAt, samples: raw && raw.buf && raw.buf.length };
+  });
+  await page.reload({ waitUntil: 'load' });
+  await page.waitForFunction(() => state.ready, null, { timeout: 40000 });
+  await page.waitForTimeout(300);
+  const restored = await page.evaluate(() => ({
+    startedAt: state.recording && state.recording.startedAt,
+    samples: state.recording ? (state.recording._buf || []).length : 0,
+    screen: !document.getElementById('recordScreen').hidden,
+  }));
+  ok('T4-6 錄製中重新整理會從裝置端接回同一趟投影後里程，不把樣本或畫面歸零',
+    persistedBefore.samples > 0 && restored.startedAt === persistedBefore.startedAt &&
+      restored.samples >= persistedBefore.samples && restored.screen === true,
+    JSON.stringify({ persistedBefore, restored }));
+  await page.evaluate(async () => { await stopBountyRecording(); });
+  await ctx.close();
+}
+
+{
+  const { ctx, page } = await open(browser, {
+    app: true, width: 390, height: 844, touch: true, mobile: true, geo: T4_FIXES[0],
+    over: { submit: r => r.fulfill({ status: 503, contentType: 'application/json', body: '{"ok":false}' }) },
+  });
+  await page.evaluate(() => startBountyRecording({
+    id: 't4-offline', sys: 'tra_sched', lnId: '縱貫線北段', dir: 0,
+    trainKind: '區間', units: 2, points: 6, unitKeys: [],
+  }));
+  await page.waitForFunction(() => state.recording && (state.recording._buf || []).length > 0, null, { timeout: 5000 });
+  await page.waitForTimeout(950); // 下一個真 geolocation 回呼要跨過 1 Hz 節流窗
+  await page.evaluate(() => { state.recording._lastFlush = Date.now() - 61000; });
+  await ctx.setGeolocation(T4_FIXES[1]);
+  await page.waitForTimeout(1000);
+  const failVisible = await page.evaluate(() => {
+    const h = document.getElementById('recHint'), r = h.getBoundingClientRect();
+    const hit = document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2);
+    const q = JSON.parse(localStorage.getItem('trainmap-bounty-upload-v1') || '[]');
+    return { text: h.textContent, shown: !h.hidden && r.width > 0 && r.height > 0,
+      hit: hit === h || h.contains(hit), queued: q.length };
+  });
+  ok('T4-7 上傳失敗訊息在黑色錄製畫面上真的看得到，且里程批次留在裝置端等待重傳',
+    failVisible.shown && failVisible.hit && /保存在這台裝置|稍後重傳/.test(failVisible.text) &&
+      failVisible.queued >= 1, JSON.stringify(failVisible));
+  await ctx.close();
+}
+
+{
+  const { ctx, page } = await open(browser, { app: true });
+  const pinned = await page.evaluate(async fixes => {
+    startBountyRecording({ id: 't4-auto-line', sys: '', lnId: '', dir: 0,
+      trainKind: '區間', units: 2, points: 6, unitKeys: [] });
+    bountyStopSampling();
+    for (const f of fixes) {
+      state.recording._lastFix = 0;
+      bountyOnFix(f);
+    }
+    await bountyFlush(true);
+    const first = `${state.recording.sys}|${state.recording.lnId}`;
+    const other = [...lineNetwork().values()].find(r => r.sys === 'thsr_sched');
+    const st = other && other.ln.stations.find(s => s.d != null);
+    state.recording._lastFix = 0;
+    if (st) bountyOnFix({ latitude: st.lat, longitude: st.lon, accuracy: 8, speed: 20 });
+    const after = `${state.recording.sys}|${state.recording.lnId}`;
+    await stopBountyRecording();
+    return { first, after, hasOther: !!st };
+  }, T4_FIXES);
+  ok('T4-8 未知路線用整段累積垂距在第一次上傳時只決定一次，之後即使靠近別線也不逐點跳線',
+    pinned.first === 'tra_sched|縱貫線北段' && pinned.after === pinned.first && pinned.hasOther,
+    JSON.stringify(pinned));
+  await ctx.close();
+}
+
+{
+  const mobile = [];
+  for (const width of [360, 375, 390]) {
+    const { ctx, page } = await open(browser, {
+      app: true, width, height: 812, touch: true, mobile: true, geo: T4_FIXES[0],
+    });
+    await page.evaluate(() => startBountyRecording({
+      id: 't4-mobile', sys: 'tra_sched', lnId: '縱貫線北段', dir: 0,
+      trainKind: '區間', units: 2, points: 6, unitKeys: [],
+    }));
+    const probe = await page.evaluate(() => {
+      const b = document.getElementById('recStop'), r = b.getBoundingClientRect();
+      const hit = document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2);
+      return { x: r.x + r.width / 2, y: r.y + r.height / 2,
+        hit: hit === b || b.contains(hit), inView: r.left >= 0 && r.right <= innerWidth && r.bottom <= innerHeight,
+        overflow: document.documentElement.scrollWidth > innerWidth };
+    });
+    await page.touchscreen.tap(probe.x, probe.y);
+    await page.waitForTimeout(500);
+    mobile.push({ width, ...probe, stopped: await page.evaluate(() => !state.recording) });
+    await ctx.close();
+  }
+  ok('T4-9 手機 360／375／390：停止鈕 elementFromPoint 命中、無橫向溢出，且真觸控 tap 都能停止',
+    mobile.every(x => x.hit && x.inView && !x.overflow && x.stopped), JSON.stringify(mobile));
 }
 
 // ── F4 組：loadBounty() 缺 claims 時補洞、不整包丟（2026-07-28 審查糾正第二輪，Critical）───
@@ -770,6 +997,14 @@ const browser = await chromium.launch();
   }));
   ok('D6b ?demo=bounty 下「開始錄製」真的進到錄製畫面（不停在網路錯誤）',
     d6b.recording === true && d6b.screenHidden === false && d6b.bodyCls === true, JSON.stringify(d6b));
+  await dp.waitForTimeout(1300);
+  const d6d = await dp.evaluate(() => ({
+    km: Number(document.getElementById('recKm').textContent),
+    segs: Number(document.getElementById('recSegs').textContent),
+    hint: document.getElementById('recHint').textContent,
+  }));
+  ok('T4-10 ?demo=bounty 看得到 Task 4：假路徑會真的跑過裝置端投影，里程與逐段進度不再全是 0',
+    d6d.km > 0 && d6d.segs >= 1 && /假路徑/.test(d6d.hint), JSON.stringify(d6d));
 
   // 🔴 D6c（審查 B4）：明天使用者在備援站實際會走的路徑——開板→接一段→開始錄製之後很可能
   // 重新整理或分享網址。clearFollow() 的 replaceState 是全站唯一的抹除點，修法補在 clearFollow()
@@ -779,10 +1014,17 @@ const browser = await chromium.launch();
   // 是重新執行一次 script 讀到的新值，不是同一份記憶體裡的舊 const——網址列上留不住 demo 參數就會變 false。
   const preReloadSearch = await dp.evaluate(() => location.search);
   await dp.reload({ waitUntil: 'load' });
-  const d6c = await dp.evaluate(() => ({ search: location.search, phys: PHYSICAL_COLLECT_ENABLED }));
+  await dp.waitForFunction(() => state.ready, null, { timeout: 40000 });
+  await dp.waitForTimeout(300);
+  const d6c = await dp.evaluate(() => ({ search: location.search, phys: PHYSICAL_COLLECT_ENABLED,
+    recording: !!state.recording, samples: state.recording ? (state.recording._buf || []).length : 0 }));
   ok('D6c 走完開板→接一段→開始錄製之後重新整理，?demo=bounty 撐得住、PHYSICAL_COLLECT_ENABLED 仍是 true',
-    d6c.search.includes('demo=bounty') && d6c.phys === true,
+    d6c.search.includes('demo=bounty') && d6c.phys === true && d6c.recording && d6c.samples > 0,
     `重載前 search=${preReloadSearch}　重載後 ${JSON.stringify(d6c)}`);
+  if (d6c.recording) {
+    await dp.click('#recStop');
+    await dp.waitForFunction(() => !state.recording, null, { timeout: 5000 });
+  }
 
   // 🔴 D8（最終審查 A-1+A-2）：Task 7 做的懸賞地圖層要看得到金色線，前提是①有進得去的入口
   // （零完乘記錄時「校正貢獻」節也要露出收集地圖鈕）②?demo=bounty 種得出校正記錄，否則
