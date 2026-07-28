@@ -67,6 +67,74 @@ INSERT INTO bounty_claims (id,actor,seg_key,train_kind,dir,kind,slot,points_lock
   ok('A11 回應帶 coverN 供前端顯示「已有 1/3 趟」', b.coverN && b.coverN.metro === 3, JSON.stringify(b.coverN));
 }
 
+// ── B 組：POST /api/bounty-claim ──────────────────────────────────────────
+// 🔴 actor 字面值已從 brief 原文的 'dev-x'/'dev-y'/'dev-old'（5/5/7 碼）訂正為
+// 'device-x'/'device-y'/'device-old'（8/8/10 碼）：Step 4 的 isActorId 正規表示式下限是
+// {8,64}，brief 原文的短助記字串短於下限，逐字照抄會讓 B2/B4/B6/B7/B9 全部卡在 400 bad_actor，
+// 測不到真正要驗的情境（B1 因節流檢查在 isActorId 之前短路不受影響；B8 的四個髒輸入案例無論
+// actor 長度為何都預期 400，不受影響，但放著不修會讓 B8 變成掩蓋 B2 等真實失敗的巧合通過）。
+// 8/8/10 碼與正式環境實測的 actor 長度吻合（index.html:5616 userDataDeviceId()：
+// crypto.randomUUID() 36 碼／回退格式 20+ 碼／保底 'ephemeral' 9 碼，三條路徑全部 ≥9 碼）。
+// SEED 常數裡的 'dev-a'／'dev-b'（Task 2 既有、直接寫入 D1 的認領列）不受影響——那兩個從未經過
+// isActorId（不是任何 B 組測試呼叫 bountyClaim() 時傳入的 b.actor）。B9 的 'uid-1' 也不變——
+// 它是 resolveActor 查表後的內部值，同樣從未經過 isActorId。
+{
+  const { bountyClaim } = _bounty;
+  const post = (b, over) => req('/api/bounty-claim', {
+    method: 'POST', headers: { 'content-type': 'application/json', 'cf-connecting-ip': '203.0.113.9', ...(over || {}) },
+    body: JSON.stringify(b),
+  });
+
+  // B1 節流擋在任何 D1 寫入之前（判準是「有沒有寫進去」，不是「回不回 429」）
+  {
+    const { db, DELAY_DB } = openTestDb(SEED);
+    const r = await bountyClaim(post({ actor: 'device-x', cardId: 'tra_sched|南迴線|0|自強|track|' }),
+      ENV(DELAY_DB, { BOUNTY_LIMITER: limiter(true) }));
+    const n = db.prepare('SELECT COUNT(*) c FROM bounty_claims').get().c;
+    ok('B1 被節流時回 429 且一列都沒寫進 D1', r.status === 429 && n === 2, `status=${r.status} rows=${n}`);
+  }
+
+  // B2 正常認領：把卡展開成單位、鎖當時的點數
+  const { db, DELAY_DB } = openTestDb(SEED);
+  const r2 = await bountyClaim(post({ actor: 'device-x', cardId: 'tra_sched|南迴線|0|自強|track|' }), ENV(DELAY_DB));
+  const b2 = await body(r2);
+  ok('B2 回 200、2 個單位、鎖 6 點（測試自己加：3+3）',
+    r2.status === 200 && b2.units === 2 && b2.pointsLocked === 6, JSON.stringify(b2));
+  ok('B3 24 小時後過期', Math.abs((b2.expiresAt - Date.now()) - 86400000) < 5000, String(b2.expiresAt));
+
+  // B4 鎖價不獨佔：第二個人接同一張卡照樣成功
+  const r4 = await bountyClaim(post({ actor: 'device-y', cardId: 'tra_sched|南迴線|0|自強|track|' }), ENV(DELAY_DB));
+  const b4 = await body(r4);
+  ok('B4 第二人接同一張卡照樣成功（鎖價不鎖獨佔）', r4.status === 200 && b4.units === 2, JSON.stringify(b4));
+  ok('B5 回傳「已有 N 人接了這段」', b4.claimers >= 2, String(b4.claimers));
+
+  // B6 鎖價真的鎖住：板上漲價之後，先接的那筆 points_locked 不動
+  db.exec("UPDATE bounty_board SET points=99 WHERE seg_key='tra_sched|南迴線|大武|太麻里'");
+  const locked = db.prepare("SELECT points_locked FROM bounty_claims WHERE actor='device-x' AND seg_key='tra_sched|南迴線|大武|太麻里'").get();
+  ok('B6 事後漲價不影響已鎖的價', locked && locked.points_locked === 3, JSON.stringify(locked));
+
+  // B7 已收滿的 track 單位不可認領
+  const r7 = await bountyClaim(post({ actor: 'device-x', cardId: 'tra_sched|縱貫線北段|0|區間|track|' }), ENV(DELAY_DB));
+  ok('B7 已收滿的卡回 404', r7.status === 404, String(r7.status));
+
+  // B8 髒輸入不打 D1
+  for (const bad of [{ actor: 'device-x' }, { cardId: 'tra_sched|南迴線|0|自強|track|' }, { actor: '../../etc', cardId: 'tra_sched|南迴線|0|自強|track|' },
+    { actor: 'device-x', cardId: 'not-a-card' }]) {
+    const rr = await bountyClaim(post(bad), ENV(DELAY_DB));
+    ok('B8 髒輸入回 400 — ' + JSON.stringify(bad), rr.status === 400, String(rr.status));
+  }
+
+  // B9 resolveActor：合併過的 device token 寫入要轉向 uid
+  {
+    const { DELAY_DB: DB2, db: db2 } = openTestDb(SEED + `
+      INSERT INTO bounty_points (actor,uid,points,merged_into,updated_at) VALUES ('device-old',NULL,0,'uid-1',1700000000000);
+      INSERT INTO bounty_points (actor,uid,points,merged_into,updated_at) VALUES ('uid-1','uid-1',5,NULL,1700000000000);`);
+    await bountyClaim(post({ actor: 'device-old', cardId: 'tra_sched|南迴線|0|自強|track|' }), ENV(DB2));
+    const who = db2.prepare("SELECT DISTINCT actor FROM bounty_claims WHERE seg_key='tra_sched|南迴線|大武|枋寮'").all().map(x => x.actor);
+    ok('B9 合併過的 token 認領記在 uid 名下', who.includes('uid-1') && !who.includes('device-old'), who.join(','));
+  }
+}
+
 const pass = R.filter(r => r.p).length;
 console.log(`\n${pass}/${R.length} 通過`);
 process.exit(pass === R.length ? 0 : 1);

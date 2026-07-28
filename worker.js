@@ -669,12 +669,15 @@ const SEC_HEADERS = {
   'Referrer-Policy': 'strict-origin-when-cross-origin',
 };
 const APP_ORIGINS = new Set(['capacitor://localhost', 'https://localhost']);
+// 非 GET 的白名單。🔴 這道門是刻意關死的:預設所有 /api/* 只收 GET/HEAD,要開洞就逐條加進來,
+// 不可以改成「全部放行」——擋掉的是「隨手對唯讀端點打 POST」這類探測,而那正是最便宜的防線。
+const API_POST_ALLOWED = new Set(['/api/account-delete', '/api/bounty-claim', '/api/bounty-submit', '/api/bounty-merge']);
 // /api 端點白名單——只給流量埋點的 blob 用(不是路由閘門,路由在 fetch 裡)。不在名單內一律記成
 // 'other',否則隨便打 /api/<亂數> 就能把 blob 基數炸開。新增端點時要一起加進來。
 const API_ENDPOINTS = new Set([
   'tra-live', 'tra-alert', 'thsr-alert', 'metro-alert', 'metro-live', 'ntmetro-live',
   'delay-stats', 'delay-history', 'station-events', 'today-board', 'basemap-token', 'account-delete',
-  'bounty-board',
+  'bounty-board', 'bounty-claim',
 ]);
 
 function addAppCors(headers, origin) {
@@ -721,6 +724,19 @@ async function bountyRules(env) {
   bountyRulesMem = await r.json();
   return bountyRulesMem;
 }
+
+// actor 白名單:crypto.randomUUID() 的形狀，或 Firebase uid（英數 28 碼上下）。
+// 不白名單化就等於讓任意字串進 D1 的主鍵欄位——那是 delayHistory 對車次號做過的同一件事。
+function isActorId(s) { return typeof s === 'string' && /^[A-Za-z0-9_-]{8,64}$/.test(s); }
+
+// 合併過的 device token，後續寫入一律轉向 uid（規格 §6「身分與合併」）。
+// 只跟一跳:合併端點保證 merged_into 一定指向一個沒有 merged_into 的列(uid 列)，
+// 跟多跳等於默許鏈狀合併，而那會在合併失敗重試時繞成環。
+async function resolveActor(env, actor) {
+  const row = await env.DELAY_DB.prepare('SELECT merged_into FROM bounty_points WHERE actor=?').bind(actor).first();
+  return (row && row.merged_into) ? String(row.merged_into) : actor;
+}
+
 // 把內部的計價單位聚合成對外的旅程卡。使用者看到的是「枋寮→台東 南迴線 39 點」，
 // 不是六千筆 (段,車種,方向) 的內部帳。
 // 端點名（枋寮／台東）刻意不在這裡算——排出一條路需要里程順序，那住在前端的 lineNetwork()。
@@ -776,6 +792,51 @@ async function bountyBoard(request, env) {
     return res;
   } catch (e) {
     return jsonRes({ error: 'not_ready' }, 503, 'public, s-maxage=60');
+  }
+}
+
+// POST /api/bounty-claim：接下一張旅程卡。
+// 🔴 鎖的是價格，不是獨佔權（規格 §3）。第二個人照樣接得到、照樣計點——捷運段的採用門檻本來
+// 就需要多趟一致（N≥3），做成獨佔會直接擋掉自己需要的樣本。使用者只看到「已有 N 人接了這段」。
+async function bountyClaim(request, env) {
+  // 節流擋在任何 D1 寫入之前（比照 delayHistory:被擋掉的請求若已經花掉錢，擋在後面等於沒擋）
+  if (await rateLimited(env.BOUNTY_LIMITER, request)) return jsonRes({ error: 'rate_limited' }, 429, 'no-store');
+  let b;
+  try { b = await request.json(); } catch (e) { return jsonRes({ error: 'bad_json' }, 400, 'no-store'); }
+  if (!b || !isActorId(b.actor)) return jsonRes({ error: 'bad_actor' }, 400, 'no-store');
+  const parts = String(b.cardId || '').split('|');
+  if (parts.length !== 6 || !parts[0] || !parts[1] || !parts[3] || (parts[4] !== 'track' && parts[4] !== 'dwell'))
+    return jsonRes({ error: 'bad_card' }, 400, 'no-store');
+  const [sys, lnId, dirStr, trainKind, kind, slot] = parts;
+  const dir = Number(dirStr);
+  if (!(dir === 0 || dir === 1)) return jsonRes({ error: 'bad_card' }, 400, 'no-store');
+  try {
+    const actor = await resolveActor(env, b.actor);
+    const now = Date.now(), expires = now + 86400000;
+    // 只認領還開著的單位。track 收滿就下架；dwell 收滿仍可接（獎勵衰減但不歸零）
+    const rs = await env.DELAY_DB.prepare(
+      "SELECT seg_key, points FROM bounty_board WHERE sys=? AND train_kind=? AND dir=? AND kind=? AND slot=?" +
+      " AND seg_key LIKE ? AND (kind='dwell' OR covered_at IS NULL)"
+    ).bind(sys, trainKind, dir, kind, slot, sys + '|' + lnId + '|%').all();
+    const units = rs.results || [];
+    if (!units.length) return jsonRes({ error: 'no_open_units' }, 404, 'no-store');
+    const claimId = 'cl-' + now.toString(36) + '-' + Math.random().toString(36).slice(2, 10);
+    const stmt = env.DELAY_DB.prepare(
+      'INSERT INTO bounty_claims (id,actor,seg_key,train_kind,dir,kind,slot,points_locked,claimed_at,expires_at,status)' +
+      " VALUES (?,?,?,?,?,?,?,?,?,?,'open')");
+    await env.DELAY_DB.batch(units.map((u, i) =>
+      stmt.bind(`${claimId}|${i}`, actor, u.seg_key, trainKind, dir, kind, slot, Number(u.points) || 0, now, expires)));
+    const cnt = await env.DELAY_DB.prepare(
+      "SELECT COUNT(DISTINCT actor) AS n FROM bounty_claims WHERE seg_key=? AND train_kind=? AND dir=? AND kind=? AND slot=?" +
+      " AND status='open' AND expires_at > ?"
+    ).bind(units[0].seg_key, trainKind, dir, kind, slot, now).first();
+    return jsonRes({
+      ok: true, claimId, units: units.length,
+      pointsLocked: units.reduce((a, u) => a + (Number(u.points) || 0), 0),
+      expiresAt: expires, claimers: Number(cnt && cnt.n) || 1,
+    }, 200, 'no-store');
+  } catch (e) {
+    return jsonRes({ error: 'claim_failed' }, 503, 'no-store');
   }
 }
 
@@ -1133,7 +1194,7 @@ export default {
       return new Response(null, { status: APP_ORIGINS.has(origin) ? 204 : 403, headers: h });
     }
     let res;
-    if (isApi && url.pathname !== '/api/account-delete' && request.method !== 'GET' && request.method !== 'HEAD') {
+    if (isApi && !API_POST_ALLOWED.has(url.pathname) && request.method !== 'GET' && request.method !== 'HEAD') {
       res = jsonRes({ error: 'method not allowed' }, 405, 'no-store');
       res.headers.set('Allow', 'GET, HEAD, OPTIONS');
     }
@@ -1157,6 +1218,7 @@ export default {
     else if (url.pathname === '/api/basemap-token') res = basemapToken(request, env);
     else if (url.pathname === '/api/account-delete') res = await deletePaidProfile(request, env);
     else if (url.pathname === '/api/bounty-board') res = await bountyBoard(request, env);
+    else if (url.pathname === '/api/bounty-claim') res = await bountyClaim(request, env);
     else res = await env.ASSETS.fetch(request);
     const h = new Headers(res.headers);
     for (const [k, v] of Object.entries(SEC_HEADERS)) h.set(k, v);
@@ -1182,4 +1244,4 @@ export const _rateLimit = { rateLimited, delayHistory, deletePaidProfile };
 // 純函式與端點處理器導出，供離線回歸測試 import（scripts/verify_bounty_*.mjs）。
 // 端點也導出的理由同 _rateLimit：這些不是純函式，測試要自備 env 替身才驗得到「節流有沒有擋在
 // D1 寫入之前」「回應裡有沒有夾帶 reject_code」這類只在編排層才成立的性質。
-export const _bounty = { bountyCardId, bountySegLine, groupBoardRows, bountyBoard };
+export const _bounty = { bountyCardId, bountySegLine, groupBoardRows, bountyBoard, isActorId, resolveActor, bountyClaim };
