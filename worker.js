@@ -677,7 +677,7 @@ const API_POST_ALLOWED = new Set(['/api/account-delete', '/api/bounty-claim', '/
 const API_ENDPOINTS = new Set([
   'tra-live', 'tra-alert', 'thsr-alert', 'metro-alert', 'metro-live', 'ntmetro-live',
   'delay-stats', 'delay-history', 'station-events', 'today-board', 'basemap-token', 'account-delete',
-  'bounty-board', 'bounty-claim',
+  'bounty-board', 'bounty-claim', 'bounty-submit',
 ]);
 
 function addAppCors(headers, origin) {
@@ -735,6 +735,36 @@ function isActorId(s) { return typeof s === 'string' && /^[A-Za-z0-9_-]{8,64}$/.
 async function resolveActor(env, actor) {
   const row = await env.DELAY_DB.prepare('SELECT merged_into FROM bounty_points WHERE actor=?').bind(actor).first();
   return (row && row.merged_into) ? String(row.merged_into) : actor;
+}
+
+// 🔴 正向掃描整包 payload 有沒有任何經緯度欄位（規格 §11：正向掃 key，不是抽查特定欄位）。
+// 為什麼伺服器端也要擋:「上傳的是沿線里程不是座標」這句話會寫進隱私政策與 App 送審說明。
+// 只靠客戶端不送的話，那句話就是一個沒有強制力的承諾——客戶端改版／debug 旗標任何一個手滑
+// 都能讓座標流進 D1，而且不會有任何測試失敗。這裡直接 400，那句話才是真的。
+const GEO_KEY_RE = /^(lat|lon|lng|latitude|longitude|coords?|position|geo)$/i;
+function hasGeoKeys(v, depth) {
+  if (v == null || typeof v !== 'object') return false;
+  if ((depth || 0) > 8) return true;                 // 深到這種程度的結構本來就不該出現，保守判有
+  if (Array.isArray(v)) return v.some(x => hasGeoKeys(x, (depth || 0) + 1));
+  for (const k of Object.keys(v)) {
+    if (GEO_KEY_RE.test(k)) return true;
+    if (hasGeoKeys(v[k], (depth || 0) + 1)) return true;
+  }
+  return false;
+}
+// 只留 d(公尺) t(台北當日秒) v(m/s) acc(公尺) 四個數值欄位。多的欄位直接丟不報錯:
+// 前端日後多帶一個 debug 欄位不該讓整趟上傳失敗，但那個欄位也絕不該進 D1。
+// (夾帶座標是另一回事——那個要 400，見 hasGeoKeys。)
+function sanitizeSamples(arr, max) {
+  const out = []; let dropped = 0;
+  for (const s of arr) {
+    const d = Number(s && s.d), t = Number(s && s.t), v = Number(s && s.v), acc = Number(s && s.acc);
+    if (!Number.isFinite(d) || !Number.isFinite(t)) { dropped++; continue; }
+    out.push({ d: Math.round(d * 10) / 10, t: Math.round(t), v: Number.isFinite(v) ? Math.round(v * 100) / 100 : null,
+      acc: Number.isFinite(acc) ? Math.round(acc) : null });
+    if (out.length >= max) break;
+  }
+  return { samples: out, dropped };
 }
 
 // 把內部的計價單位聚合成對外的旅程卡。使用者看到的是「枋寮→台東 南迴線 39 點」，
@@ -837,6 +867,41 @@ async function bountyClaim(request, env) {
     }, 200, 'no-store');
   } catch (e) {
     return jsonRes({ error: 'claim_failed' }, 503, 'no-store');
+  }
+}
+
+const BOUNTY_MAX_SAMPLES_PER_BATCH = 600;   // 60 秒批次 @1Hz ＝ 60 筆；600 給重試合併留十倍餘裕
+// POST /api/bounty-submit：沿途每 60 秒一批。一批一列、不在寫入時合併——
+// 每批獨立可驗，斷線／沒電時已經傳出去的不會丟，這是「部分覆蓋也計點」的前提（規格 §5）。
+async function bountySubmit(request, env) {
+  if (await rateLimited(env.BOUNTY_LIMITER, request)) return jsonRes({ error: 'rate_limited' }, 429, 'no-store');
+  let b;
+  try { b = await request.json(); } catch (e) { return jsonRes({ error: 'bad_json' }, 400, 'no-store'); }
+  if (!b || !isActorId(b.actor)) return jsonRes({ error: 'bad_actor' }, 400, 'no-store');
+  if (!/^[A-Za-z0-9_-]{1,16}$/.test(String(b.sys || '')) || !/^[A-Za-z0-9_-]{1,32}$/.test(String(b.lnId || '')))
+    return jsonRes({ error: 'bad_line' }, 400, 'no-store');
+  if (!/^[0-9A-Za-z]{1,8}$/.test(String(b.trainNo || ''))) return jsonRes({ error: 'bad_train' }, 400, 'no-store');
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(String(b.tripDate || ''))) return jsonRes({ error: 'bad_date' }, 400, 'no-store');
+  const dir = Number(b.dir);
+  if (!(dir === 0 || dir === 1)) return jsonRes({ error: 'bad_dir' }, 400, 'no-store');
+  if (!Array.isArray(b.samples) || !b.samples.length || b.samples.length > BOUNTY_MAX_SAMPLES_PER_BATCH)
+    return jsonRes({ error: 'bad_samples' }, 400, 'no-store');
+  if (hasGeoKeys(b)) return jsonRes({ error: 'coordinates_not_accepted' }, 400, 'no-store');
+  const { samples, dropped } = sanitizeSamples(b.samples, BOUNTY_MAX_SAMPLES_PER_BATCH);
+  if (!samples.length) return jsonRes({ error: 'bad_samples' }, 400, 'no-store');
+  try {
+    const actor = await resolveActor(env, b.actor);
+    const now = Date.now();
+    const id = 'bs-' + now.toString(36) + '-' + Math.random().toString(36).slice(2, 10);
+    await env.DELAY_DB.prepare(
+      'INSERT INTO bounty_samples (id,actor,sys,ln_id,train_no,dir,trip_date,payload,segs,submitted_at,verdict)' +
+      " VALUES (?,?,?,?,?,?,?,?,NULL,?,'pending')"
+    ).bind(id, actor, String(b.sys), String(b.lnId), String(b.trainNo), dir, String(b.tripDate),
+      JSON.stringify(samples), now).run();
+    // 立刻回，前端當下蓋灰章（規格 §3：事後真相驗證 ＋ 即時灰章）
+    return jsonRes({ ok: true, id, verdict: 'pending', accepted: samples.length, dropped }, 200, 'no-store');
+  } catch (e) {
+    return jsonRes({ error: 'submit_failed' }, 503, 'no-store');
   }
 }
 
@@ -1219,6 +1284,7 @@ export default {
     else if (url.pathname === '/api/account-delete') res = await deletePaidProfile(request, env);
     else if (url.pathname === '/api/bounty-board') res = await bountyBoard(request, env);
     else if (url.pathname === '/api/bounty-claim') res = await bountyClaim(request, env);
+    else if (url.pathname === '/api/bounty-submit') res = await bountySubmit(request, env);
     else res = await env.ASSETS.fetch(request);
     const h = new Headers(res.headers);
     for (const [k, v] of Object.entries(SEC_HEADERS)) h.set(k, v);
@@ -1244,4 +1310,5 @@ export const _rateLimit = { rateLimited, delayHistory, deletePaidProfile };
 // 純函式與端點處理器導出，供離線回歸測試 import（scripts/verify_bounty_*.mjs）。
 // 端點也導出的理由同 _rateLimit：這些不是純函式，測試要自備 env 替身才驗得到「節流有沒有擋在
 // D1 寫入之前」「回應裡有沒有夾帶 reject_code」這類只在編排層才成立的性質。
-export const _bounty = { bountyCardId, bountySegLine, groupBoardRows, bountyBoard, isActorId, resolveActor, bountyClaim };
+export const _bounty = { bountyCardId, bountySegLine, groupBoardRows, bountyBoard, isActorId, resolveActor,
+  bountyClaim, hasGeoKeys, sanitizeSamples, bountySubmit };

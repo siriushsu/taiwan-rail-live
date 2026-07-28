@@ -2,7 +2,7 @@
 // D1 用 scripts/d1_local.mjs 的真 SQLite 替身（模式抄 scripts/verify_rate_limit.mjs）。
 // 跑法：node scripts/verify_bounty_api.mjs
 import { readFileSync } from 'node:fs';
-import { _bounty } from '../worker.js';
+import worker, { _bounty } from '../worker.js';
 import { openTestDb } from './d1_local.mjs';
 
 // Node 沒有全域 caches（Workers Cache API），worker.js 多個端點含 bountyBoard 都用
@@ -132,6 +132,170 @@ INSERT INTO bounty_claims (id,actor,seg_key,train_kind,dir,kind,slot,points_lock
     await bountyClaim(post({ actor: 'device-old', cardId: 'tra_sched|南迴線|0|自強|track|' }), ENV(DB2));
     const who = db2.prepare("SELECT DISTINCT actor FROM bounty_claims WHERE seg_key='tra_sched|南迴線|大武|枋寮'").all().map(x => x.actor);
     ok('B9 合併過的 token 認領記在 uid 名下', who.includes('uid-1') && !who.includes('device-old'), who.join(','));
+  }
+}
+
+// ── C 組：POST /api/bounty-submit ─────────────────────────────────────────
+{
+  const { bountySubmit, hasGeoKeys, sanitizeSamples } = _bounty;
+  const post = b => req('/api/bounty-submit', {
+    method: 'POST', headers: { 'content-type': 'application/json', 'cf-connecting-ip': '203.0.113.9' },
+    body: JSON.stringify(b),
+  });
+  // 🔴 actor 字面值已從 brief 原文的 'dev-x'（5 碼）訂正為 'device-x'（8 碼）：isActorId 的長度
+  // 下限是 {8,64}（Task 3 建立），brief 原文的短助記字串短於下限，逐字照抄會讓 C4/C5/C7 卡在
+  // 400 bad_actor（已實測確認，見 task-4-report.md）。與 Task 3 的 B 組是同一類、不同處的矛盾，
+  // 同一種修法：只動字面值長度，不動任何斷言邏輯或 isActorId 本身。
+  const OKBODY = {
+    actor: 'device-x', sys: 'TRA', lnId: 'NH', trainNo: '312', dir: 0, tripDate: '2026-07-28', batch: 1,
+    samples: [{ d: 1000, t: 30000, v: 25, acc: 8 }, { d: 1025, t: 30001, v: 25.1, acc: 9 }],
+  };
+
+  // C1 經緯度掃描是正向掃 key，不是抽查特定欄位（規格 §11）
+  ok('C1 hasGeoKeys 抓得到各種寫法', [
+    { lat: 25 }, { lon: 121 }, { latitude: 25 }, { longitude: 121 }, { coords: { latitude: 25 } },
+    [{ a: 1 }, { LAT: 25 }], { deep: { deeper: [{ lng: 121 }] } },
+  ].every(hasGeoKeys) && !hasGeoKeys({ d: 1, t: 2, v: 3, acc: 4 }));
+
+  // C2 sanitizeSamples 只留四個欄位，多的直接丟（不是保留、不是報錯）
+  {
+    const r = sanitizeSamples([{ d: 1, t: 2, v: 3, acc: 4, lat: 25, note: 'x' }, { d: 'bad' }, { d: 5, t: 6, v: 7, acc: 8 }], 100);
+    ok('C2 只留 d/t/v/acc 且丟掉壞列',
+      r.samples.length === 2 && JSON.stringify(Object.keys(r.samples[0]).sort()) === '["acc","d","t","v"]' && r.dropped === 1,
+      JSON.stringify(r));
+  }
+
+  const { db, DELAY_DB } = openTestDb(SEED);
+
+  // C0 router entry 真的接上（驗收條件 3）：不透過 _bounty.bountySubmit() 直接呼叫，改走完整
+  // worker.fetch() 的路由分派——這裡故意送一個必然在 bountySubmit() 內部驗證第一關就失敗的
+  // body（actor 空字串），斷言回應是 bountySubmit() 自己的 JSON 錯誤碼 bad_actor。
+  // 為什麼這樣就能證明「真的接上」：405 白名單（API_POST_ALLOWED）Task 3 已經放行這個路徑，
+  // 不會卡在那關；若 router 那行 else-if 沒接上，會落到 `else res = await env.ASSETS.fetch(request)`
+  // ——這裡的 env 沒有提供 ASSETS，對 undefined 呼叫 .fetch 會直接拋例外，測試會整個崩潰而不是
+  // 拿到一個乾淨的 400 JSON。「沒有拋例外、且錯誤碼精確等於 bad_actor（不是隨便一個 4xx）」
+  // 兩者合起來才是真正命中 bountySubmit() 的證據。
+  {
+    const r = await worker.fetch(req('/api/bounty-submit', {
+      method: 'POST', headers: { 'content-type': 'application/json', 'cf-connecting-ip': '203.0.113.9' },
+      body: JSON.stringify({ ...OKBODY, actor: '' }),
+    }), {});
+    const b = await body(r);
+    ok('C0 router entry 真的接上：完整 worker.fetch() 路由分派命中 bountySubmit()，不是掉到 405 或資產層 fallback',
+      r.status === 400 && b.error === 'bad_actor', JSON.stringify({ status: r.status, body: b }));
+  }
+
+  // C3 節流擋在 D1 寫入之前
+  {
+    const r = await bountySubmit(post(OKBODY), ENV(DELAY_DB, { BOUNTY_LIMITER: limiter(true) }));
+    const n = db.prepare('SELECT COUNT(*) c FROM bounty_samples').get().c;
+    ok('C3 被節流時回 429 且零寫入', r.status === 429 && n === 0, `status=${r.status} rows=${n}`);
+  }
+
+  // C4 正常上傳
+  {
+    const r = await bountySubmit(post(OKBODY), ENV(DELAY_DB));
+    const b = await body(r);
+    const row = db.prepare('SELECT * FROM bounty_samples').get();
+    ok('C4 回 200、verdict=pending、寫進一列',
+      r.status === 200 && b.verdict === 'pending' && b.accepted === 2 && row && row.verdict === 'pending',
+      JSON.stringify({ s: r.status, b, row: row && row.id }));
+    ok('C5 payload 裡沒有任何經緯度欄位（正向掃存進 D1 的那份字串）',
+      row && !hasGeoKeys(JSON.parse(row.payload)) && !/lat|lon|lng/i.test(row.payload), String(row && row.payload).slice(0, 80));
+  }
+
+  // C6 夾帶座標一律 400，且不寫任何一列
+  {
+    const before = db.prepare('SELECT COUNT(*) c FROM bounty_samples').get().c;
+    const r = await bountySubmit(post({ ...OKBODY, samples: [{ d: 1, t: 2, v: 3, acc: 4, latitude: 25.04 }] }), ENV(DELAY_DB));
+    const after = db.prepare('SELECT COUNT(*) c FROM bounty_samples').get().c;
+    ok('C6 夾帶座標回 400 且零寫入', r.status === 400 && before === after, `status=${r.status}`);
+  }
+
+  // C7 同一趟的第二批獨立成列（斷線時已傳出去的不會丟＝部分覆蓋也計點的前提）
+  {
+    await bountySubmit(post({ ...OKBODY, batch: 2, samples: [{ d: 2000, t: 30060, v: 26, acc: 7 }] }), ENV(DELAY_DB));
+    const rows = db.prepare("SELECT id FROM bounty_samples WHERE actor='device-x' AND trip_date='2026-07-28' AND train_no='312'").all();
+    ok('C7 兩批各一列，靠 (actor,trip_date,train_no) 併回同一趟', rows.length === 2, String(rows.length));
+  }
+
+  // C8 髒輸入與超量
+  for (const [name, b] of [
+    ['沒有 actor', { ...OKBODY, actor: '' }],
+    ['車次號有奇怪字元', { ...OKBODY, trainNo: '../x' }],
+    ['日期格式不對', { ...OKBODY, tripDate: '2026/07/28' }],
+    ['samples 不是陣列', { ...OKBODY, samples: 'x' }],
+    ['samples 空陣列', { ...OKBODY, samples: [] }],
+    ['一批塞五千筆', { ...OKBODY, samples: Array.from({ length: 5000 }, (_, i) => ({ d: i, t: i, v: 1, acc: 1 })) }],
+  ]) {
+    const r = await bountySubmit(post(b), ENV(DELAY_DB));
+    ok('C8 ' + name + ' → 400', r.status === 400, String(r.status));
+  }
+
+  // ── 驗收條件 4（硬要求）：值形狀判準，不是 key 名稱判準 ────────────────────
+  // hasGeoKeys 是「已知 key 名」的黑名單（C1/C5/C6 驗的是這一層）。C9/C10 要證明的是另一層、
+  // 不依賴 key 名稱的防線：即使座標換了個 hasGeoKeys 認不出來的 key 名字（甚至塞進陣列），
+  // 真正落進 D1 的資料裡仍然找不到「看起來像座標」的數值形狀。
+  //
+  // 判準只看「同一個物件或同一個陣列裡，有沒有一個數字落在台灣緯度(21.5–25.5)、同時有另一個
+  // 數字落在台灣經度(119.5–122.5)」——用「一緯一經同時出現」當條件，不是「單一數字落在任一
+  // 區間」。理由：後者會對合法資料假陽性——OKBODY 自己的 v:25／v:25.1（正常車速 90/90.4km/h）
+  // 就剛好落在緯度區間，d/v/acc 的合法值域本來就會自然跟座標區間重疊(25m/s 是正常速度、
+  // 22 公尺是正常精度或短區間距離)。「一緯一經同時出現」才是「這是座標」唯一站得住腳的證據，
+  // 也正是規格 §11 舉的 {a:24.1, b:121.5} 範例的形狀。
+  const TW_LAT = v => typeof v === 'number' && Number.isFinite(v) && v >= 21.5 && v <= 25.5;
+  const TW_LON = v => typeof v === 'number' && Number.isFinite(v) && v >= 119.5 && v <= 122.5;
+  function scanCoordPairs(node) {
+    const hits = [];
+    const walk = (v, p) => {
+      if (v == null || typeof v !== 'object') return;
+      const entries = Array.isArray(v) ? v.map((x, i) => [String(i), x]) : Object.entries(v);
+      const nums = entries.filter(([, val]) => typeof val === 'number');
+      if (nums.some(([, val]) => TW_LAT(val)) && nums.some(([, val]) => TW_LON(val)))
+        hits.push({ path: p.join('.') || '(root)', nums: nums.map(([k, val]) => `${k}=${val}`) });
+      for (const [k, val] of entries) walk(val, p.concat(k));
+    };
+    walk(node, []);
+    return hits;
+  }
+  // C8b 掃描器自檢：先證明它不會對合法資料假陽性、也真的抓得到規格舉例的攻擊形狀——
+  // 否則下面 C9b/C10b 的「零命中」證明不了任何事（可能只是掃描器本身是瞎的）。
+  ok('C8b 值形狀掃描器自檢：合法 OKBODY.samples 零命中（v:25/25.1 不該被單獨當座標），規格範例攻擊形狀抓得到',
+    scanCoordPairs(OKBODY.samples).length === 0 && scanCoordPairs({ a: 24.1, b: 121.5 }).length === 1,
+    JSON.stringify({ legit: scanCoordPairs(OKBODY.samples), attack: scanCoordPairs({ a: 24.1, b: 121.5 }) }));
+
+  // C9 座標對藏在 hasGeoKeys 認不出來的 key 名底下（a/b，不是 lat/lon 系列字樣），且藏在
+  // samples[i] 物件裡，與合法的 d/t/v/acc 同一層。
+  {
+    const c9Body = { ...OKBODY, batch: 10, samples: [{ d: 500, t: 100, v: 10, acc: 5, a: 24.1, b: 121.5 }] };
+    ok('C9 前提：偽裝過的座標對真的騙得過 hasGeoKeys（證明「只擋已知 key 名」這層不夠，見上方理由）',
+      hasGeoKeys(c9Body) === false, String(hasGeoKeys(c9Body)));
+    const r = await bountySubmit(post(c9Body), ENV(DELAY_DB));
+    const b = await body(r);
+    ok('C9a 因此這包被接受（200），不是被 hasGeoKeys 擋下——後面才驗證真正的防線在哪',
+      r.status === 200, JSON.stringify(b));
+    const row = b.id && db.prepare('SELECT payload FROM bounty_samples WHERE id=?').get(b.id);
+    const hits = row ? scanCoordPairs(JSON.parse(row.payload)) : [{ path: '(查無此列，異常)' }];
+    ok('C9b 值形狀掃描：即使騙過 hasGeoKeys，真正寫進 D1 的 payload 裡仍找不到座標對' +
+      '（靠 sanitizeSamples 的正向白名單擋下——a/b 不在 d/t/v/acc 之列，進不了 D1）',
+      hits.length === 0, JSON.stringify(hits));
+  }
+
+  // C10 座標對塞在陣列裡、藏在一個不像座標的根層欄位名（extra）底下（規格 §11 原話
+  // 「塞在陣列裡就漏了」）：hasGeoKeys 對陣列只遞迴陣列「元素」，元素若本身就是原始數字
+  // （不是物件），迴圈一進去就因 typeof !== 'object' 直接返回 false，等於沒掃到。
+  {
+    const c10Body = { ...OKBODY, batch: 11, extra: [24.1, 121.5] };
+    ok('C10 前提：陣列包原始數字的座標對，一樣騙得過 hasGeoKeys',
+      hasGeoKeys(c10Body) === false, String(hasGeoKeys(c10Body)));
+    const r = await bountySubmit(post(c10Body), ENV(DELAY_DB));
+    const b = await body(r);
+    ok('C10a 因此這包被接受（200）', r.status === 200, JSON.stringify(b));
+    const row = b.id && db.prepare('SELECT payload FROM bounty_samples WHERE id=?').get(b.id);
+    const hits = row ? scanCoordPairs(JSON.parse(row.payload)) : [{ path: '(查無此列，異常)' }];
+    ok('C10b 值形狀掃描：extra 欄位整個沒有被讀取／寫入（bountySubmit 的 INSERT 語句只認得白名單' +
+      '欄位，extra 從未被引用），D1 裡零座標對',
+      hits.length === 0, JSON.stringify(hits));
   }
 }
 
