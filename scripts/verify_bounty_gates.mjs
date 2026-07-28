@@ -266,6 +266,47 @@ ok('H4 防偽不過時不看品質閘的結論（順序固定：先防偽後品�
     b3.coverN.TRA === 777, JSON.stringify(b3.coverN));
 }
 
+// ── L 組：驗證 cron 的單次處理上限（2026-07-29 稽核：SELECT * 沒有 LIMIT）────────────
+// 寫入端點是免登入的，所以「有多少 pending」是外部可控的數字。上限本身好加，難的是**切在哪裡**：
+// 從中間切開會讓那一趟被當成半趟送進品質閘 → 判 too_short。那是把資料判錯，不是延後一天。
+// 判準因此不是「有沒有截斷」，而是「有沒有任何一趟被切成一半」——這條在沒有邊界處理時必紅。
+{
+  const M = { generatedAt: 1, schedDate: '2026-07-28', lines: { 'tra_sched|南迴線': LINE }, units: [] };
+  const ASSETS = { fetch: async r => new Response(String(r.url).includes('bounty_units')
+    ? JSON.stringify(M) : readFileSync('data/bounty_rules.json', 'utf8'), { status: 200 }) };
+  // 4001 列 > BOUNTY_VERIFY_MAX_ROWS(4000)，分成 1000 趟、每趟 4 批，最後一趟只給 1 批，
+  // 讓「上限」正好落在某一趟的中間（4000 = 999 趟×4 + 第 1000 趟的第 1 批）。
+  const pts = JSON.stringify(cleanTrip().pts);
+  const vals = [];
+  for (let t = 0; t < 1000; t++) {
+    const n = t === 999 ? 5 : 4;
+    for (let i = 0; i < n; i++) {
+      vals.push(`('s${t}-${i}','dev-${String(t).padStart(4, '0')}','tra_sched','南迴線','312',0,'2026-07-28','${pts}',NULL,${i},'pending')`);
+    }
+  }
+  const { db, DELAY_DB } = openTestDb(
+    `INSERT INTO bounty_samples (id,actor,sys,ln_id,train_no,dir,trip_date,payload,segs,submitted_at,verdict) VALUES ${vals.join(',')};`);
+  _bounty.bountyResetMemCaches();
+  const stat = await bountyVerifyCron({ DELAY_DB, ASSETS, BOUNTY_NOW: String(Date.parse('2026-07-29T02:00:00Z')) });
+  const total = db.prepare('SELECT COUNT(*) c FROM bounty_samples').get().c;
+  const done = db.prepare("SELECT COUNT(*) c FROM bounty_samples WHERE verdict<>'pending'").get().c;
+  // 核心判準：逐趟檢查「全判完」或「全還沒判」，不存在中間狀態
+  const split = db.prepare(
+    "SELECT actor, SUM(CASE WHEN verdict='pending' THEN 1 ELSE 0 END) p, COUNT(*) n" +
+    ' FROM bounty_samples GROUP BY actor, trip_date, train_no HAVING p > 0 AND p < n').all();
+  ok('L1 單次 cron 不會把所有 pending 一次讀進來（有上限，最壞情況是常數不是外部可控）',
+    done > 0 && done < total, `${done}/${total} 已判定`);
+  ok('L2 stat 誠實回報這次被截斷了（沒有這面旗，運維只會看到「今天判得比較少」）',
+    stat.truncated === true, JSON.stringify({ truncated: stat.truncated, trips: stat.trips }));
+  ok('L3 沒有任何一趟被切成一半（截斷切在趟的邊界上，不是切在列中間）',
+    split.length === 0, split.length ? JSON.stringify(split.slice(0, 3)) : '零趟處於半判定狀態');
+  // 反向對照：剩下的下一次跑得完，不是永久卡住
+  const stat2 = await bountyVerifyCron({ DELAY_DB, ASSETS, BOUNTY_NOW: String(Date.parse('2026-07-30T02:00:00Z')) });
+  const left = db.prepare("SELECT COUNT(*) c FROM bounty_samples WHERE verdict='pending'").get().c;
+  ok('L4 沒判到的下一發補完（截斷是延後，不是遺失）',
+    left === 0 && stat2.truncated === false, JSON.stringify({ left, truncated2: stat2.truncated }));
+}
+
 const pass = R.filter(r => r.p).length;
 console.log(`\n${pass}/${R.length} 通過`);
 process.exit(pass === R.length ? 0 : 1);

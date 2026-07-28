@@ -9,7 +9,7 @@
 // 用法：node scripts/verify_rate_limit.mjs
 import { _rateLimit } from '../worker.js';
 
-const { rateLimited, delayHistory, deletePaidProfile } = _rateLimit;
+const { rateLimited, delayHistory, deleteAccountData } = _rateLimit;
 let fails = 0;
 const check = (ok, msg) => { if (!ok) fails++; console.log(`  ${ok ? 'PASS' : '❌FAIL'}  ${msg}`); };
 
@@ -36,6 +36,13 @@ check(await rateLimited({}, req('/')) === false, 'binding 形狀不對 → 放�
 check(await rateLimited({ limit: async () => { throw new Error('down'); } }, req('/')) === false, '限流服務丟例外 → 放行');
 check(await rateLimited(limiter(true), req('/')) === true, '額度用完 → 擋');
 check(await rateLimited(limiter(false), req('/')) === false, '額度還有 → 放行');
+// 2026-07-29 稽核：唯讀端點 fail-open、寫入端點 fail-closed，兩種相反的預設放在一起看才不會被
+// 後人「統一一下」改掉。理由的不對稱在於後果：唯讀端點誤擋真人 vs 寫入端點在限流器故障期間
+// 完全沒有上限。實際用 failClosed=true 的是 bountyClaim／bountySubmit（見 verify_bounty_api L6）。
+const boom = { limit: async () => { throw new Error('down'); } };
+check(await rateLimited(boom, req('/'), true) === true, '限流服務丟例外 ＋ failClosed → 擋（寫入端點的預設，與上一條刻意相反）');
+check(await rateLimited(undefined, req('/'), true) === false, 'binding 不存在 ＋ failClosed → 仍放行（沒綁 binding 是設定狀態，不是故障）');
+check(await rateLimited(limiter(false), req('/'), true) === false, '額度還有 ＋ failClosed → 放行（failClosed 不會變成一律擋）');
 
 // ── 2. /api/delay-history ───────────────────────────────────────────────────
 console.log('\n===== /api/delay-history =====');
@@ -57,17 +64,17 @@ check(r.status === 400 && upstream.length === 0, '車次格式不合先擋掉，
 // ── 3. /api/account-delete ──────────────────────────────────────────────────
 console.log('\n===== /api/account-delete =====');
 upstream = [];
-r = await deletePaidProfile(req('/api/account-delete', 'POST'), ENV({ DELETE_LIMITER: limiter(true) }));
+r = await deleteAccountData(req('/api/account-delete', 'POST'), ENV({ DELETE_LIMITER: limiter(true) }));
 check(r.status === 429, `被擋時回 429（實際 ${r.status}）`);
 check(upstream.length === 0, `被擋時一發上游都沒打（實際 ${upstream.length} 發）`);
 
 upstream = [];
-r = await deletePaidProfile(req('/api/account-delete', 'POST'), ENV({ DELETE_LIMITER: limiter(false) }));
+r = await deleteAccountData(req('/api/account-delete', 'POST'), ENV({ DELETE_LIMITER: limiter(false) }));
 check(upstream.length === 1 && upstream[0].includes('identitytoolkit'),
   `放行時才會走到 Firebase 驗證（實際 ${upstream.length} 發）`);
 
 upstream = [];
-r = await deletePaidProfile(req('/api/account-delete', 'GET'), ENV({ DELETE_LIMITER: limiter(false) }));
+r = await deleteAccountData(req('/api/account-delete', 'GET'), ENV({ DELETE_LIMITER: limiter(false) }));
 check(r.status === 405 && upstream.length === 0, 'GET 先擋在 405，不打上游');
 
 globalThis.fetch = realFetch;

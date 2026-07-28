@@ -499,11 +499,16 @@ function buildDelayHistoryBody(train, rows, windowDays, win, generatedIso) {
 // 按來源 IP 節流。回 true 代表「這一發要擋掉」。
 // 刻意 fail-open:binding 不存在(舊版本、本機 dev)或限流服務自己出錯時放行——
 // 限流是防濫用不是防功能,寧可漏擋也不要讓付費使用者整批 429。
-async function rateLimited(limiter, request) {
+// failClosed 只給「會寫進 D1」的端點用（2026-07-29 稽核：limiter 是 fail-open 的）。
+// 唯讀端點維持放行——限流器掛掉時誤擋真人的代價，大於多打幾次上游的代價；寫入端點反過來，
+// 放行等於整條寫入路徑在限流器故障期間完全沒有上限。
+// 只有「limit() 真的拋例外」才 fail closed；binding 沒設定（本機、測試）仍然放行——那是設定
+// 狀態不是故障，一律 503 會讓沒綁 binding 的環境整批寫不進去。
+async function rateLimited(limiter, request, failClosed) {
   if (!limiter || typeof limiter.limit !== 'function') return false;
   const ip = request.headers.get('cf-connecting-ip') || '0.0.0.0';
   try { const { success } = await limiter.limit({ key: ip }); return !success; }
-  catch (e) { return false; }
+  catch (e) { return !!failClosed; }
 }
 
 async function delayHistory(request, env) {
@@ -515,7 +520,7 @@ async function delayHistory(request, env) {
   // ── Plus 付費牆:誤點履歷是 Plus 頭牌功能,先驗 Firebase ID token + RevenueCat entitlement ──
   // 此閘一定要在下方 edge.match 之前:授權後的 200 資料會寫進 train-keyed 共享邊緣快取;閘若放在
   // match 之後,無 token 的人也能從共享快取讀到,付費牆漏底。401/403/503 一律 no-store,不入共享快取。
-  // 驗證範式抄自 deletePaidProfile(同一組 env secret)。secret 未設定→fail-closed 503(不放行任何人)。
+  // 驗證範式抄自 deleteAccountData(同一組 env secret)。secret 未設定→fail-closed 503(不放行任何人)。
   if (!env.FIREBASE_WEB_API_KEY || !env.REVENUECAT_PROJECT_ID || !env.REVENUECAT_V2_SECRET_KEY)
     return jsonRes({ error: 'entitlement_unavailable' }, 503, 'no-store');
   const authHeader = request.headers.get('Authorization') || '';
@@ -637,18 +642,30 @@ async function basemapToken(request, env) {
   return jsonRes({ esri: env.ESRI_WEB_TOKEN }, 200, 'public, max-age=300, s-maxage=300');
 }
 
-// 刪除帳號前清除 RevenueCat customer。Secret API key 只能存在 Worker runtime；
-// 先以 Firebase Auth REST lookup 驗證呼叫者的 ID token，再只刪除該 token 自己的 uid，
-// 不接受前端傳 customer id，避免知道別人 uid 就能刪除對方購買資料。
-async function deletePaidProfile(request, env) {
+// 刪除帳號時清除「我們這邊」的伺服器資料：RevenueCat customer ＋ D1 的懸賞校正旅程資料。
+// Secret API key 只能存在 Worker runtime；先以 Firebase Auth REST lookup 驗證呼叫者的 ID token，
+// 再只刪除該 token 自己的 uid，不接受前端傳 customer id／actor，避免知道別人 uid 就能刪除對方資料。
+//
+// 🔴 2026-07-29 稽核抓到的洞：舊版只刪 RevenueCat，D1 的 bounty_samples／bounty_claims／
+// bounty_points 完全沒碰——那裡面是路線、乘車日期、車次與沿線時間／速度，而且匿名 actor 在登入時
+// 會被 bountyMerge 改名成 Firebase uid，所以刪帳號之後那些列還原封不動掛在同一個 uid 底下。
+// 「刪除帳號會刪掉什麼」是寫在隱私政策與 App 送審說明裡的承諾，實際行為對不上就是三者不一致。
+//
+// 🔴 順序與閘門也一起改了：舊版在 RevenueCat 未設定時直接 503，於是「沒設 RevenueCat 的環境」
+// 連帶把校正資料也刪不掉。現在必要條件只有 FIREBASE_WEB_API_KEY（沒有它就無法確認你是誰，
+// 不可能安全地刪任何東西）；RevenueCat 未設定＝沒有購買資料可刪，不是錯誤。
+async function deleteAccountData(request, env) {
   if (request.method !== 'POST') return jsonRes({ error: 'method not allowed' }, 405, 'no-store');
   // 同 delayHistory:擋在 Firebase／RevenueCat 呼叫前面。刪帳號是一次性動作,5 次/分鐘已經很寬。
   if (await rateLimited(env.DELETE_LIMITER, request)) return jsonRes({ error: 'rate_limited' }, 429, 'no-store');
-  if (!env.FIREBASE_WEB_API_KEY || !env.REVENUECAT_PROJECT_ID || !env.REVENUECAT_V2_SECRET_KEY)
+  if (!env.FIREBASE_WEB_API_KEY)
     return jsonRes({ error: 'account deletion service is not configured' }, 503, 'no-store');
   const auth = request.headers.get('Authorization') || '';
   const match = auth.match(/^Bearer\s+(.+)$/i), idToken = match && match[1];
   if (!idToken || idToken.length > 4096) return jsonRes({ error: 'unauthorized' }, 401, 'no-store');
+  // body 是選配的：舊版前端不送 body，解析失敗就當沒帶（見 bountyPurgeUid 對 deviceActor 的說明）。
+  let deviceActor = null;
+  try { const j = await request.json(); if (j && isActorId(j.actor)) deviceActor = String(j.actor); } catch (e) {}
   try {
     const lookup = await fetch(`https://identitytoolkit.googleapis.com/v1/accounts:lookup?key=${encodeURIComponent(env.FIREBASE_WEB_API_KEY)}`, {
       method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ idToken }),
@@ -656,12 +673,20 @@ async function deletePaidProfile(request, env) {
     if (!lookup.ok) return jsonRes({ error: 'unauthorized' }, 401, 'no-store');
     const identity = await lookup.json(), uid = identity && identity.users && identity.users[0] && identity.users[0].localId;
     if (!uid || typeof uid !== 'string') return jsonRes({ error: 'unauthorized' }, 401, 'no-store');
-    const rc = await fetch(`https://api.revenuecat.com/v2/projects/${encodeURIComponent(env.REVENUECAT_PROJECT_ID)}/customers/${encodeURIComponent(uid)}`, {
-      method: 'DELETE', headers: { Authorization: `Bearer ${env.REVENUECAT_V2_SECRET_KEY}`, Accept: 'application/json' },
-    });
-    // 從未開過購買頁的帳號可能沒有 RevenueCat customer；404 代表已達成「沒有資料可刪」。
-    if (!(rc.ok || rc.status === 404)) return jsonRes({ error: 'purchase profile deletion failed' }, 502, 'no-store');
-    return jsonRes({ ok: true }, 200, 'no-store');
+    // 校正資料先刪：它是這支端點唯一「就在我們自己資料庫裡」的個資，不該被第三方服務有沒有設定
+    // 綁架。失敗就整支回錯，讓前端保留帳號不刪——寧可使用者再按一次，也不要回報「已刪除」
+    // 卻留著資料（那正是這次稽核抓到的那種不一致）。
+    let purged;
+    try { purged = await bountyPurgeUid(env, uid, deviceActor); }
+    catch (e) { return jsonRes({ error: 'calibration data deletion failed' }, 502, 'no-store'); }
+    if (env.REVENUECAT_PROJECT_ID && env.REVENUECAT_V2_SECRET_KEY) {
+      const rc = await fetch(`https://api.revenuecat.com/v2/projects/${encodeURIComponent(env.REVENUECAT_PROJECT_ID)}/customers/${encodeURIComponent(uid)}`, {
+        method: 'DELETE', headers: { Authorization: `Bearer ${env.REVENUECAT_V2_SECRET_KEY}`, Accept: 'application/json' },
+      });
+      // 從未開過購買頁的帳號可能沒有 RevenueCat customer；404 代表已達成「沒有資料可刪」。
+      if (!(rc.ok || rc.status === 404)) return jsonRes({ error: 'purchase profile deletion failed' }, 502, 'no-store');
+    }
+    return jsonRes({ ok: true, deleted: purged }, 200, 'no-store');
   } catch (e) {
     return jsonRes({ error: 'account deletion service unavailable' }, 502, 'no-store');
   }
@@ -735,7 +760,7 @@ async function bountyRules(env) {
 // 不白名單化就等於讓任意字串進 D1 的主鍵欄位——那是 delayHistory 對車次號做過的同一件事。
 function isActorId(s) { return typeof s === 'string' && /^[A-Za-z0-9_-]{8,64}$/.test(s); }
 
-// Firebase ID token → uid。管線與 delayHistory（付費牆）／deletePaidProfile（刪帳號）完全相同，
+// Firebase ID token → uid。管線與 delayHistory（付費牆）／deleteAccountData（刪帳號）完全相同，
 // 抽成函式只是為了不再抄第三遍。驗不過一律回 null，呼叫端自己決定要回 401 還是降級。
 async function firebaseUid(env, idToken) {
   if (!env.FIREBASE_WEB_API_KEY) return null;
@@ -852,7 +877,8 @@ async function bountyBoard(request, env) {
 // 就需要多趟一致（N≥3），做成獨佔會直接擋掉自己需要的樣本。使用者只看到「已有 N 人接了這段」。
 async function bountyClaim(request, env) {
   // 節流擋在任何 D1 寫入之前（比照 delayHistory:被擋掉的請求若已經花掉錢，擋在後面等於沒擋）
-  if (await rateLimited(env.BOUNTY_LIMITER, request)) return jsonRes({ error: 'rate_limited' }, 429, 'no-store');
+  if (await rateLimited(env.BOUNTY_LIMITER, request, true)) return jsonRes({ error: 'rate_limited' }, 429, 'no-store');
+  if (bountyWritesOff(env)) return jsonRes({ error: 'bounty_paused' }, 503, 'no-store');
   let b;
   try { b = await request.json(); } catch (e) { return jsonRes({ error: 'bad_json' }, 400, 'no-store'); }
   if (!b || !isActorId(b.actor)) return jsonRes({ error: 'bad_actor' }, 400, 'no-store');
@@ -892,7 +918,23 @@ async function bountyClaim(request, env) {
   }
 }
 
+// 伺服器端寫入總閘（2026-07-29 稽核：「沒有伺服器功能總閘」）。出事時把 BOUNTY_WRITES 設成
+// 'off' 就能立刻停掉所有懸賞寫入，不必改前端、不必等 App 送審——前端把批次留在上傳佇列，
+// 恢復後照樣傳得上來。預設開著：沒設這個變數的環境行為完全不變。
+// 刻意不擋 /api/bounty-merge：那支要帶 Firebase token、只搬既有的列、不長資料，關掉它只會讓
+// 停機期間登入的人看不到自己登入前的貢獻。
+function bountyWritesOff(env) { return String(env.BOUNTY_WRITES || '').toLowerCase() === 'off'; }
+
 const BOUNTY_MAX_SAMPLES_PER_BATCH = 600;   // 60 秒批次 @1Hz ＝ 60 筆；600 給重試合併留十倍餘裕
+// 每人每日批次上限（2026-07-29 稽核：「沒有每 actor／每日總量」）。一批＝60 秒錄製，
+// 720 批＝12 小時，比任何一天真實的乘車紀錄都寬，但把「單一 actor 無限灌」壓成一個有界的數字。
+// 🔴 誠實揭露這道防線的極限：actor 是客戶端產生的，換一個 actor 就換到一份新額度。它擋得住的是
+// 失控重試與單機灌資料；有決心的分散式灌注要靠另外三件事合起來擋——BOUNTY_LIMITER（每 IP 每分鐘）、
+// 下面的路線白名單（unknown_line：形狀對但不存在的線一律不收），以及 BOUNTY_WRITES=off 總閘。
+const BOUNTY_MAX_BATCHES_PER_DAY = 720;
+// 乘車日只收「最近 7 天到明天」。往前：更舊的批次補傳沒有意義（驗證 cron 隔日就跑完了）；
+// 往後：未來日期是純粹的偽造訊號。順帶讓上面的每日額度真的有界——不然換一個假日期就換到新額度。
+const BOUNTY_TRIP_DATE_BACK_DAYS = 7;
 // 🔴 lnId 不可以用 ASCII 白名單擋（2026-07-29 修）：台鐵 16 條線的 id 本身就是中文
 // （data/tra.json 的 lines[].id ＝「南迴線」「山線」「海線」…），舊的
 // /^[A-Za-z0-9_-]{1,32}$/ 會讓每一批台鐵上傳吃 400 bad_line ——而懸賞刻意只收台鐵、
@@ -905,7 +947,8 @@ const BOUNTY_LINE_ID_RE = /^[^|\u0000-\u001f\u007f]{1,32}$/u;
 // POST /api/bounty-submit：沿途每 60 秒一批。一批一列、不在寫入時合併——
 // 每批獨立可驗，斷線／沒電時已經傳出去的不會丟，這是「部分覆蓋也計點」的前提（規格 §5）。
 async function bountySubmit(request, env) {
-  if (await rateLimited(env.BOUNTY_LIMITER, request)) return jsonRes({ error: 'rate_limited' }, 429, 'no-store');
+  if (await rateLimited(env.BOUNTY_LIMITER, request, true)) return jsonRes({ error: 'rate_limited' }, 429, 'no-store');
+  if (bountyWritesOff(env)) return jsonRes({ error: 'bounty_paused' }, 503, 'no-store');
   let b;
   try { b = await request.json(); } catch (e) { return jsonRes({ error: 'bad_json' }, 400, 'no-store'); }
   if (!b || !isActorId(b.actor)) return jsonRes({ error: 'bad_actor' }, 400, 'no-store');
@@ -913,6 +956,11 @@ async function bountySubmit(request, env) {
     return jsonRes({ error: 'bad_line' }, 400, 'no-store');
   if (!/^[0-9A-Za-z]{1,8}$/.test(String(b.trainNo || ''))) return jsonRes({ error: 'bad_train' }, 400, 'no-store');
   if (!/^\d{4}-\d{2}-\d{2}$/.test(String(b.tripDate || ''))) return jsonRes({ error: 'bad_date' }, 400, 'no-store');
+  // BOUNTY_NOW 是既有的測試鉤（驗證 cron 也用同一個）：日期窗若綁死真實時鐘，測試會在今天全綠、
+  // 下週自己變紅，那種紅燈最難辨認。台北無日光節約，固定 +8 讀 UTC 欄位即得台北日。
+  const twToday = isoFromDate(new Date((Number(env.BOUNTY_NOW) || Date.now()) + 8 * 3600 * 1000));
+  if (String(b.tripDate) < addDays(twToday, -BOUNTY_TRIP_DATE_BACK_DAYS) || String(b.tripDate) > addDays(twToday, 1))
+    return jsonRes({ error: 'bad_date' }, 400, 'no-store');
   const dir = Number(b.dir);
   if (!(dir === 0 || dir === 1)) return jsonRes({ error: 'bad_dir' }, 400, 'no-store');
   if (!Array.isArray(b.samples) || !b.samples.length || b.samples.length > BOUNTY_MAX_SAMPLES_PER_BATCH)
@@ -921,7 +969,24 @@ async function bountySubmit(request, env) {
   const { samples, dropped } = sanitizeSamples(b.samples, BOUNTY_MAX_SAMPLES_PER_BATCH);
   if (!samples.length) return jsonRes({ error: 'bad_samples' }, 400, 'no-store');
   try {
+    // 路線白名單（2026-07-29 稽核：「sys／lnId 只驗字串形狀，不驗是否為真實路線」）。
+    // 判準用 data/bounty_units.json——就是驗證 cron 自己用的那一份，所以「過得了這關」等於
+    // 「這批資料日後判得出結果」。形狀對但不存在的線（亂打、舊鍵空間、捷運）以前照收，
+    // 只會在 D1 裡變成永遠 pending 的垃圾列，每天被 cron 重讀一次。
+    // fail-closed：資產讀不到就 503，讓客戶端把批次留在上傳佇列重試，不要收無法驗證的資料。
+    let units;
+    try { units = await bountyUnits(env); }
+    catch (e) { return jsonRes({ error: 'not_ready' }, 503, 'no-store'); }
+    if (!units || !units.lines || !units.lines[`${b.sys}|${b.lnId}`])
+      return jsonRes({ error: 'unknown_line' }, 400, 'no-store');
     const actor = await resolveActor(env, b.actor);
+    // 每人每日批次上限。idx_samples_trip (actor, trip_date, train_no) 正好服務這個 COUNT，
+    // 而且擋在 INSERT 之前——擋在後面等於已經寫進去了才說不行。
+    const used = await env.DELAY_DB.prepare(
+      'SELECT COUNT(*) AS n FROM bounty_samples WHERE actor=? AND trip_date=?'
+    ).bind(actor, String(b.tripDate)).first();
+    if ((Number(used && used.n) || 0) >= BOUNTY_MAX_BATCHES_PER_DAY)
+      return jsonRes({ error: 'daily_quota' }, 429, 'no-store');
     const now = Date.now();
     const id = 'bs-' + now.toString(36) + '-' + Math.random().toString(36).slice(2, 10);
     await env.DELAY_DB.prepare(
@@ -1001,6 +1066,15 @@ async function bountyMe(request, env) {
 // POST /api/bounty-merge：登入時把匿名 device token 的點數併進 Firebase uid（規格 §6）。
 // 🔴 必須冪等：網路重試、使用者連點兩下、多裝置同時登入都會重複呼叫。做法是「只有 merged_into
 // 還是 NULL 的來源列才搬」，搬完立刻標記並歸零——所以第二次呼叫看到的是一個已標記的列，直接跳過。
+// 🔴 但「冪等」不等於「併發安全」（2026-07-29 稽核抓到）：舊版是三個獨立的 D1 round-trip
+// ——先讀來源點數、再標記來源、最後把讀到的值加進 uid。兩個同時抵達的請求會雙雙讀到「尚未合併」，
+// 標記只有一個會成功（WHERE merged_into IS NULL 擋住另一個），但兩個都會拿著同一份 carry 去加
+// ——重複計點，而那是憑空生出點數。連續呼叫兩次的測試照不到這件事，因為它們之間沒有交錯。
+// 現在整段搬移改成一次 db.batch()：D1 的 batch 是單一交易，所以 (a) 加點的來源值是在交易內
+// 用子查詢當場讀的，不是上一個 round-trip 的舊值；(b)「merged_into IS NULL」的守衛與加點落在
+// 同一個寫鎖內，第二個併發請求進來時看到的必然是已標記的列，子查詢回 NULL → 加 0。
+// 順帶解掉稽核的第二半：樣本與認領改名以前在交易外，中途失敗會留下「點數搬走了、樣本還掛在
+// 舊 actor」的半套狀態；現在同批同交易，要嘛全成、要嘛全退。
 async function bountyMerge(request, env) {
   if (await rateLimited(env.AUTH_LIMITER, request)) return jsonRes({ error: 'rate_limited' }, 429, 'no-store');
   let b;
@@ -1011,34 +1085,78 @@ async function bountyMerge(request, env) {
   if (!uid) return jsonRes({ error: 'unauthorized' }, 401, 'no-store');
   if (b.actor === uid) return jsonRes({ ok: true, uid, points: 0, merged: false }, 200, 'no-store');
   try {
-    const now = Date.now();
-    // 目的列先確保存在（第一次登入時還沒有）
-    await env.DELAY_DB.prepare(
-      'INSERT INTO bounty_points (actor,uid,points,merged_into,updated_at) VALUES (?,?,0,NULL,?)' +
-      ' ON CONFLICT(actor) DO UPDATE SET uid = excluded.uid, updated_at = excluded.updated_at'
-    ).bind(uid, uid, now).run();
-    const src = await env.DELAY_DB.prepare(
-      'SELECT points, merged_into FROM bounty_points WHERE actor=?').bind(b.actor).first();
-    let merged = false;
-    if (src && !src.merged_into) {
-      const carry = Number(src.points) || 0;
-      // 先標記來源再加目的：反過來的話，加完之後標記失敗會讓重試再加一次（重複計點比漏點嚴重，
-      // 因為它是「憑空生出點數」）。標記成功但加失敗只會漏一次，且看得出來（來源歸零、目的沒動）。
-      await env.DELAY_DB.prepare(
+    const now = Date.now(), db = env.DELAY_DB;
+    // 語句順序有意義：② 必須排在 ③ 之前，否則來源已經被 ③ 歸零，② 讀到的永遠是 0。
+    const res = await db.batch([
+      // ① 目的列先確保存在（第一次登入時還沒有）
+      db.prepare(
+        'INSERT INTO bounty_points (actor,uid,points,merged_into,updated_at) VALUES (?,?,0,NULL,?)' +
+        ' ON CONFLICT(actor) DO UPDATE SET uid = excluded.uid, updated_at = excluded.updated_at'
+      ).bind(uid, uid, now),
+      // ② 加點：來源值在交易內當場讀，且同押 merged_into IS NULL——已被別人合併過的來源加 0
+      db.prepare(
+        'UPDATE bounty_points SET points = points + COALESCE(' +
+        '(SELECT points FROM bounty_points WHERE actor=? AND merged_into IS NULL), 0),' +
+        ' updated_at=? WHERE actor=?'
+      ).bind(b.actor, now, uid),
+      // ③ 標記來源並歸零。changes=0 ⇔ ② 也必然加了 0（同一個守衛、同一筆交易），兩者不可能不一致
+      db.prepare(
         'UPDATE bounty_points SET points=0, merged_into=?, updated_at=? WHERE actor=? AND merged_into IS NULL'
-      ).bind(uid, now, b.actor).run();
-      await env.DELAY_DB.prepare(
-        'UPDATE bounty_points SET points = points + ?, updated_at=? WHERE actor=?').bind(carry, now, uid).run();
-      merged = carry > 0;
-    }
-    // 樣本與認領也一起改名，否則 /api/bounty-me 查 uid 會看不到登入前的貢獻
-    await env.DELAY_DB.prepare('UPDATE bounty_samples SET actor=? WHERE actor=?').bind(uid, b.actor).run();
-    await env.DELAY_DB.prepare('UPDATE bounty_claims  SET actor=? WHERE actor=?').bind(uid, b.actor).run();
-    const p = await env.DELAY_DB.prepare('SELECT points FROM bounty_points WHERE actor=?').bind(uid).first();
+      ).bind(uid, now, b.actor),
+      // ④⑤ 樣本與認領也一起改名，否則 /api/bounty-me 查 uid 會看不到登入前的貢獻
+      db.prepare('UPDATE bounty_samples SET actor=? WHERE actor=?').bind(uid, b.actor),
+      db.prepare('UPDATE bounty_claims  SET actor=? WHERE actor=?').bind(uid, b.actor),
+    ]);
+    // merged ＝「這一次呼叫真的消化掉了來源列」，直接讀 ③ 改了幾列，不再靠事前讀到的 carry 推論。
+    const merged = Number(res[2] && res[2].meta && res[2].meta.changes) > 0;
+    const p = await db.prepare('SELECT points FROM bounty_points WHERE actor=?').bind(uid).first();
     return jsonRes({ ok: true, uid, points: Number(p && p.points) || 0, merged }, 200, 'no-store');
   } catch (e) {
     return jsonRes({ error: 'merge_failed' }, 503, 'no-store');
   }
+}
+
+// 刪除某個 Firebase uid 在懸賞後端的全部個人資料——bountyMerge 的反向動作，由 /api/account-delete
+// 呼叫（2026-07-29 稽核：刪帳號沒有刪 D1 的校正旅程資料）。
+// 🔴 範圍必須含「曾經併進這個 uid 的匿名 device token」：合併時樣本與認領已改名成 uid，但 token
+// 自己那一列還留在 bounty_points（merged_into=uid）當作防重複合併的墓碑；只刪 actor=uid 會把
+// 那些墓碑連同它們可能殘留的樣本一起留下。
+// 🔴 順序固定：兩張明細表都要用 bounty_points 的 merged_into 反查 token，所以 bounty_points 最後刪。
+// 一次 batch＝單一交易，不會出現「點數刪了、樣本還在」的半套狀態。
+//
+// 🔴 deviceActor 這個參數不是可有可無的（否則這支函式今天一列都刪不到）：前端的 bountyActor()
+// 目前送的是匿名裝置 UUID，/api/bounty-merge 還沒接進登入流程，所以 D1 裡現存的每一列 actor
+// 都是裝置 token、沒有一列等於 Firebase uid。只刪 uid＝形式上有刪、實際上零效果。
+// 安全性：呼叫端要帶通過驗證的 Firebase ID token、限流 5 次/分鐘，而 device actor 是裝置上
+// crypto.randomUUID() 產生、從不對外顯示的值。要濫用得先知道別人的 device id，而且能做的只有
+// 「刪掉對方的校正紀錄」（讀不到任何東西）——與「真正的擁有者刪不掉自己的資料」相比，這個取捨划算。
+// 唯一守衛：已經併進「別的 uid」的 token 不刪，那是別人帳號底下的資料。
+async function bountyPurgeUid(env, uid, deviceActor) {
+  const db = env.DELAY_DB;
+  if (!db) return { samples: 0, claims: 0, points: 0 };
+  const dev = (deviceActor && deviceActor !== uid) ? String(deviceActor) : null;
+  const sub = 'SELECT actor FROM bounty_points WHERE merged_into=?';
+  // 「這個 token 沒有被併進別的 uid」。注意它讀的是 bounty_points，所以刪 bounty_points 的那句
+  // 必須排在最後——提前刪掉就等於把自己的守衛拆了。
+  const notElsewhere = ' AND NOT EXISTS (SELECT 1 FROM bounty_points' +
+    ' WHERE actor=? AND merged_into IS NOT NULL AND merged_into<>?)';
+  const stmts = [
+    db.prepare(`DELETE FROM bounty_samples WHERE actor=? OR actor IN (${sub})`).bind(uid, uid),
+    db.prepare(`DELETE FROM bounty_claims  WHERE actor=? OR actor IN (${sub})`).bind(uid, uid),
+  ];
+  if (dev) stmts.push(
+    db.prepare(`DELETE FROM bounty_samples WHERE actor=?${notElsewhere}`).bind(dev, dev, uid),
+    db.prepare(`DELETE FROM bounty_claims  WHERE actor=?${notElsewhere}`).bind(dev, dev, uid),
+  );
+  stmts.push(dev
+    ? db.prepare('DELETE FROM bounty_points WHERE actor=? OR merged_into=?' +
+        ' OR (actor=? AND (merged_into IS NULL OR merged_into=?))').bind(uid, uid, dev, uid)
+    : db.prepare('DELETE FROM bounty_points WHERE actor=? OR merged_into=?').bind(uid, uid));
+  const res = await db.batch(stmts);
+  const n = i => Number(res[i] && res[i].meta && res[i].meta.changes) || 0;
+  return dev
+    ? { samples: n(0) + n(2), claims: n(1) + n(3), points: n(4) }
+    : { samples: n(0), claims: n(1), points: n(2) };
 }
 
 // ── 估值:兩層乘數,兩層都從既有資料自動算,沒有任何一段的價格是人設的(規格 §4)──────────
@@ -1265,19 +1383,42 @@ function verdictOf(ig, qg) {
 // 這個設計)。供測試在切換情境前呼叫清空,不供正式流程使用,production 路徑不 import 這個函式。
 function bountyResetMemCaches() { bountyRulesMem = null; bountyUnitsMem = null; }
 
+// 單次 cron 最多處理幾列 pending 樣本。4000 列 ≒ 66 小時的 1Hz 錄製，遠大於任何一天的真實
+// 上傳量，但把最壞情況變成一個常數。超出的部分留到明天那一發（它們還是 pending）。
+const BOUNTY_VERIFY_MAX_ROWS = 4000;
 // 隔日判定。BOUNTY_NOW 只給測試用（cron 沒辦法等時間流過，而三態的判定與時間有關）。
 async function bountyVerifyCron(env) {
   const rules = await bountyRules(env);
   const M = await bountyUnits(env);
   const now = Number(env.BOUNTY_NOW) || Date.now();
+  // 🔴 一定要有 LIMIT（2026-07-29 稽核）：這支 cron 每天跑一次，舊版一句 SELECT * 就把所有
+  // pending 列連 payload（每列一整批里程序列）全讀進記憶體。寫入端點是免登入的，所以「有多少
+  // pending」是外部可控的數字——沒有上限就等於把 cron 的記憶體與 CPU 交給任何人決定。
+  // 多出來的下次再跑（它們仍是 pending），代價是延後一天，不是遺失。
   const rs = await env.DELAY_DB.prepare(
-    "SELECT * FROM bounty_samples WHERE verdict='pending' ORDER BY actor, trip_date, train_no, submitted_at").all();
+    "SELECT * FROM bounty_samples WHERE verdict='pending' ORDER BY actor, trip_date, train_no, submitted_at LIMIT ?"
+  ).bind(BOUNTY_VERIFY_MAX_ROWS + 1).all();
+  const fetched = rs.results || [];
+  // 🔴 截斷必須切在「趟」的邊界上。ORDER BY 讓同一趟 (actor,trip_date,train_no) 的列相鄰，
+  // 從中間切開會讓那一趟被當成半趟送去判定＝品質閘判 too_short，那是把資料判錯，不是延後。
+  const tripKey = r => `${r.actor}|${r.trip_date}|${r.train_no}`;
+  const rows = fetched.slice(0, BOUNTY_VERIFY_MAX_ROWS);
+  let truncated = false;
+  if (fetched.length > BOUNTY_VERIFY_MAX_ROWS) {
+    truncated = true;
+    const lastKey = tripKey(rows[rows.length - 1]);
+    // 只在還剩得下東西時才砍尾——單一趟就超過上限（不可能發生：一天 1Hz 最多 1440 批）時
+    // 全砍會讓 cron 每天原地空轉，永遠處理不完。那種情況寧可整趟照跑。
+    let cut = rows.length;
+    while (cut > 0 && tripKey(rows[cut - 1]) === lastKey) cut--;
+    if (cut > 0) rows.length = cut;
+  }
   const groups = new Map();
-  for (const r of (rs.results || [])) {
-    const k = `${r.actor}|${r.trip_date}|${r.train_no}`;
+  for (const r of rows) {
+    const k = tripKey(r);
     (groups.get(k) || groups.set(k, []).get(k)).push(r);
   }
-  const stat = { trips: 0, ok: 0, unusable: 0, suspect: 0 };
+  const stat = { trips: 0, ok: 0, unusable: 0, suspect: 0, truncated };
   for (const rows of groups.values()) {
     stat.trips++;
     const trip = assembleTrip(rows);
@@ -1728,7 +1869,7 @@ export default {
     else if (url.pathname === '/api/station-events') res = await stationEvents(request, env);
     else if (url.pathname === '/api/today-board') res = await todayBoard(request, env);
     else if (url.pathname === '/api/basemap-token') res = await basemapToken(request, env);
-    else if (url.pathname === '/api/account-delete') res = await deletePaidProfile(request, env);
+    else if (url.pathname === '/api/account-delete') res = await deleteAccountData(request, env);
     else if (url.pathname === '/api/bounty-board') res = await bountyBoard(request, env);
     else if (url.pathname === '/api/bounty-claim') res = await bountyClaim(request, env);
     else if (url.pathname === '/api/bounty-submit') res = await bountySubmit(request, env);
@@ -1755,11 +1896,11 @@ export const _stationEvents = { diffTrains, twDayFromMemAt };
 export const _delayHistory = { delayHistoryWindow, buildDelayHistoryBody, isValidTrainNo };
 // 供離線回歸測試 import:驗「節流擋在 outbound fetch 之前」。這兩個不是純函式,測試得自備
 // env 替身與 fetch 替身;導出的目的就是讓測試能數「被擋掉時到底有沒有打上游」。
-export const _rateLimit = { rateLimited, delayHistory, deletePaidProfile };
+export const _rateLimit = { rateLimited, delayHistory, deleteAccountData };
 // 純函式與端點處理器導出，供離線回歸測試 import（scripts/verify_bounty_*.mjs）。
 // 端點也導出的理由同 _rateLimit：這些不是純函式，測試要自備 env 替身才驗得到「節流有沒有擋在
 // D1 寫入之前」「回應裡有沒有夾帶 reject_code」這類只在編排層才成立的性質。
 export const _bounty = { bountyCardId, bountySegLine, groupBoardRows, bountyBoard, isActorId, resolveActor,
-  bountyClaim, hasGeoKeys, sanitizeSamples, bountySubmit, firebaseUid, bountyMe, bountyMerge,
+  bountyClaim, hasGeoKeys, sanitizeSamples, bountySubmit, firebaseUid, bountyMe, bountyMerge, bountyPurgeUid,
   bountyMedian, bountyL1, bountyL2, bountyPointsOf, bountyUnlocked, bountyValuationCron,
   assembleTrip, integrityGate, qualityGate, verdictOf, coverageOf, bountyVerifyCron, bountyResetMemCaches };

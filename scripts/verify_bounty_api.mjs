@@ -16,9 +16,18 @@ const body = async res => JSON.parse(await res.text());
 
 // 節流替身：limit() 回 success:false 代表額度用完
 const limiter = blocked => ({ limit: async () => ({ success: !blocked }) });
-// ASSETS 替身：bountyRules() 讀 data/bounty_rules.json——與前端讀的是同一份實體檔。
-const ASSETS = { fetch: async () => new Response(readFileSync('data/bounty_rules.json', 'utf8'), { status: 200 }) };
-const ENV = (DELAY_DB, over = {}) => ({ DELAY_DB, BOUNTY_LIMITER: limiter(false), ASSETS, ...over });
+// ASSETS 替身：bountyRules() 讀 data/bounty_rules.json、bountyUnits() 讀 data/bounty_units.json
+// ——兩份都與前端／正式 cron 讀的是同一份實體檔。
+// 🔴 2026-07-29：舊版無論網址是什麼都回 bounty_rules.json。bountySubmit 加上路線白名單之後，
+// 那種「一律回同一份」的替身會讓 units.lines 恆為 undefined、每一批都被判 unknown_line——
+// 替身與真實環境形狀不符時，測試量到的是替身的行為，不是實作的行為。
+const ASSETS = { fetch: async r => new Response(
+  readFileSync(String(r.url).includes('bounty_units') ? 'data/bounty_units.json' : 'data/bounty_rules.json', 'utf8'),
+  { status: 200 }) };
+// BOUNTY_NOW 釘死：bountySubmit 的乘車日窗（最近 7 天到明天）若跟著真實時鐘跑，這支測試會在
+// 今天全綠、下週自己變紅。台北時間 2026-07-29 10:00，窗＝[2026-07-22, 2026-07-30]。
+const NOW_MS = Date.parse('2026-07-29T02:00:00Z');
+const ENV = (DELAY_DB, over = {}) => ({ DELAY_DB, BOUNTY_LIMITER: limiter(false), ASSETS, BOUNTY_NOW: String(NOW_MS), ...over });
 
 // 種子：兩條線、track 與 dwell 都有、一筆已收滿
 const SEED = `
@@ -146,8 +155,11 @@ INSERT INTO bounty_claims (id,actor,seg_key,train_kind,dir,kind,slot,points_lock
   // 下限是 {8,64}（Task 3 建立），brief 原文的短助記字串短於下限，逐字照抄會讓 C4/C5/C7 卡在
   // 400 bad_actor（已實測確認，見 task-4-report.md）。與 Task 3 的 B 組是同一類、不同處的矛盾，
   // 同一種修法：只動字面值長度，不動任何斷言邏輯或 isActorId 本身。
+  // 🔴 sys/lnId 從 'TRA'/'NH' 訂正為真實鍵空間（2026-07-29 稽核）：那組值是早就作廢的鍵空間，
+  // data/bounty_units.json 裡根本沒有這條線。bountySubmit 加上路線白名單之後，整個 C 組會全部
+  // 吃 400 unknown_line——同一個 fixture 缺口，這次是被新的檢查照出來的（上一次是 C5b 的中文線名）。
   const OKBODY = {
-    actor: 'device-x', sys: 'TRA', lnId: 'NH', trainNo: '312', dir: 0, tripDate: '2026-07-28', batch: 1,
+    actor: 'device-x', sys: 'tra_sched', lnId: '南迴線', trainNo: '312', dir: 0, tripDate: '2026-07-28', batch: 1,
     samples: [{ d: 1000, t: 30000, v: 25, acc: 8 }, { d: 1025, t: 30001, v: 25.1, acc: 9 }],
   };
 
@@ -515,6 +527,223 @@ INSERT INTO bounty_claims (id,actor,seg_key,train_kind,dir,kind,slot,points_lock
   globalThis.fetch = realFetch;
   ok('J11 離開區塊後 globalThis.fetch 已還原成真正的 fetch（後續測試／腳本收尾不會繼續被假掉）',
     globalThis.fetch === realFetch, String(globalThis.fetch === realFetch));
+}
+
+// ── L 組：2026-07-29 Codex 稽核三項高風險修復的迴歸 ────────────────────────
+// 每一條的寫法都先回答「哪一筆輸入能讓它變紅」——答不出來的判準等於沒有判準（見既有 C5b 的教訓）。
+{
+  const { bountySubmit, bountyClaim, bountyMerge, bountyPurgeUid } = _bounty;
+  const realFetch = globalThis.fetch;
+  globalThis.fetch = async () => new Response(JSON.stringify({ users: [{ localId: 'uid-777' }] }), { status: 200 });
+  const FB = { FIREBASE_WEB_API_KEY: 'k', AUTH_LIMITER: limiter(false), DELETE_LIMITER: limiter(false) };
+  const postTo = (path, b, hdr = {}) => req(path, {
+    method: 'POST', headers: { 'content-type': 'application/json', 'cf-connecting-ip': '203.0.113.9', ...hdr },
+    body: JSON.stringify(b),
+  });
+  const OK = {
+    actor: 'device-L', sys: 'tra_sched', lnId: '南迴線', trainNo: '312', dir: 0, tripDate: '2026-07-28',
+    samples: [{ d: 1000, t: 30000, v: 25, acc: 8 }],
+  };
+
+  // L1 併發合併不重複計點（高風險 1）。舊版是「讀點數 → 標記來源 → 把讀到的值加進 uid」三個獨立
+  // round-trip，兩個交錯的請求會雙雙讀到 30 再各加一次＝65。這裡不 await 第一個就發第二個，讓它們
+  // 真的在 await 點交錯（d1_local 的 batch 佇列模擬真 SQLite 的單寫者排隊）。
+  // 能讓它變紅的輸入就是這一筆：把實作改回「先 SELECT 再算 carry」，總分立刻變 65。
+  {
+    const { db, DELAY_DB } = openTestDb(`
+      INSERT INTO bounty_points (actor,uid,points,merged_into,updated_at) VALUES ('device-race',NULL,30,NULL,1);
+      INSERT INTO bounty_points (actor,uid,points,merged_into,updated_at) VALUES ('uid-777','uid-777',5,NULL,1);`);
+    const both = await Promise.all([
+      bountyMerge(postTo('/api/bounty-merge', { actor: 'device-race' }, { Authorization: 'Bearer t' }), ENV(DELAY_DB, FB)),
+      bountyMerge(postTo('/api/bounty-merge', { actor: 'device-race' }, { Authorization: 'Bearer t' }), ENV(DELAY_DB, FB)),
+    ]);
+    const uidPts = db.prepare("SELECT points FROM bounty_points WHERE actor='uid-777'").get().points;
+    const src = db.prepare("SELECT points, merged_into FROM bounty_points WHERE actor='device-race'").get();
+    const bodies = await Promise.all(both.map(body));
+    ok('L1 兩個併發合併：uid 只拿到 35 點（5+30），不是 65——來源值在交易內讀，重複計點的窗被關掉',
+      uidPts === 35 && src.points === 0 && src.merged_into === 'uid-777',
+      JSON.stringify({ uidPts, src, statuses: both.map(r => r.status) }));
+    ok('L1b 而且只有其中一個回報 merged=true（另一個看到的是已標記的來源列）',
+      bodies.filter(b => b.merged === true).length === 1, JSON.stringify(bodies));
+  }
+
+  // L1c 結構性判準（與 L1 不同源）：合併期間所有寫入都必須走同一個 batch()。舊版是 4 個獨立
+  // .run()、零個 batch()，所以這條精確的計數對舊版是紅的。
+  {
+    const { DELAY_DB } = openTestDb(
+      `INSERT INTO bounty_points (actor,uid,points,merged_into,updated_at) VALUES ('device-cnt',NULL,7,NULL,1);`);
+    // inBatch 旗標是必要的：batch() 內部本來就是逐句 run()，不分辨的話那 5 句會被算成獨立寫入
+    // （第一版就是這樣量出 standaloneWrites=5 的假紅燈）。同一時間只有一次合併在跑，旗標夠用。
+    let batches = 0, standaloneWrites = 0, inBatch = false;
+    const spy = {
+      prepare: sql => {
+        const s = DELAY_DB.prepare(sql);
+        const isWrite = /^\s*(INSERT|UPDATE|DELETE)/i.test(sql);
+        return { bind: (...p) => { const b = s.bind(...p); return {
+          all: () => b.all(), first: c => b.first(c),
+          run: () => { if (isWrite && !inBatch) standaloneWrites++; return b.run(); },
+        }; } };
+      },
+      batch: st => { batches++; inBatch = true; return DELAY_DB.batch(st).finally(() => { inBatch = false; }); },
+    };
+    await bountyMerge(postTo('/api/bounty-merge', { actor: 'device-cnt' }, { Authorization: 'Bearer t' }), ENV(spy, FB));
+    ok('L1c 合併的寫入全部在單一 batch()（1 個 batch、0 個獨立寫入語句）——交易邊界是結構保證，不是註解',
+      batches === 1 && standaloneWrites === 0, JSON.stringify({ batches, standaloneWrites }));
+  }
+
+  // L2 路線白名單（高風險 2 的一部分）：形狀合法但不存在於 data/bounty_units.json 的線一律不收。
+  // 正對照是 C4／C5b（真線收得下），這裡是負對照。
+  {
+    const { db, DELAY_DB } = openTestDb();
+    const before = db.prepare('SELECT COUNT(*) c FROM bounty_samples').get().c;
+    const r = await bountySubmit(postTo('/api/bounty-submit', { ...OK, sys: 'metro_tpe', lnId: '文湖線' }), ENV(DELAY_DB));
+    const b = await body(r);
+    const after = db.prepare('SELECT COUNT(*) c FROM bounty_samples').get().c;
+    ok('L2 形狀合法但不存在的線 → 400 unknown_line 且零寫入（捷運不進懸賞，卻擋不掉就會變成永遠 pending 的垃圾列）',
+      r.status === 400 && b.error === 'unknown_line' && after === before, JSON.stringify({ s: r.status, b }));
+  }
+
+  // L3 每人每日批次上限：擋在 INSERT 之前。上限 720，所以 719 → 收，720 → 429。
+  // 兩個方向都驗，否則「一律 429」也會過。
+  {
+    const rows = Array.from({ length: 719 }, (_, i) =>
+      `('q${i}','device-q','tra_sched','南迴線','312',0,'2026-07-28','[]',1,'pending')`).join(',');
+    const { db, DELAY_DB } = openTestDb(
+      `INSERT INTO bounty_samples (id,actor,sys,ln_id,train_no,dir,trip_date,payload,submitted_at,verdict) VALUES ${rows};`);
+    const r719 = await bountySubmit(postTo('/api/bounty-submit', { ...OK, actor: 'device-q' }), ENV(DELAY_DB));
+    const n720 = db.prepare("SELECT COUNT(*) c FROM bounty_samples WHERE actor='device-q'").get().c;
+    const r720 = await bountySubmit(postTo('/api/bounty-submit', { ...OK, actor: 'device-q' }), ENV(DELAY_DB));
+    const b720 = await body(r720);
+    const after = db.prepare("SELECT COUNT(*) c FROM bounty_samples WHERE actor='device-q'").get().c;
+    ok('L3 第 720 批仍收（額度未滿就不擋）', r719.status === 200 && n720 === 720, JSON.stringify({ s: r719.status, n720 }));
+    ok('L3b 第 721 批 → 429 daily_quota 且零寫入（擋在 INSERT 之前，不是寫完才說不行）',
+      r720.status === 429 && b720.error === 'daily_quota' && after === 720, JSON.stringify({ s: r720.status, b720, after }));
+    // 同一天額度用完，換一天照樣收——證明上限押的是 (actor, trip_date) 不是 actor
+    const rNext = await bountySubmit(postTo('/api/bounty-submit', { ...OK, actor: 'device-q', tripDate: '2026-07-29' }), ENV(DELAY_DB));
+    ok('L3c 換一天照樣收（上限押的是 actor+trip_date）', rNext.status === 200, String(rNext.status));
+  }
+
+  // L4 乘車日窗（讓 L3 的每日額度真的有界——否則換一個假日期就換到一份新額度）。
+  // BOUNTY_NOW 釘在台北 2026-07-29，窗＝[2026-07-22, 2026-07-30]。四個邊界各驗一點。
+  {
+    const { db, DELAY_DB } = openTestDb();
+    const cases = [
+      ['2026-07-22', 200, '窗內最舊的一天'], ['2026-07-21', 400, '再舊一天'],
+      ['2026-07-30', 200, '明天（跨日錄製）'], ['2026-07-31', 400, '後天＝偽造'],
+      ['1999-01-01', 400, '遠古'], ['2099-01-01', 400, '遠未來'],
+    ];
+    let allRight = true; const detail = [];
+    for (const [d, want, why] of cases) {
+      const r = await bountySubmit(postTo('/api/bounty-submit', { ...OK, actor: 'device-d', tripDate: d }), ENV(DELAY_DB));
+      if (r.status !== want) allRight = false;
+      detail.push(`${d}(${why})→${r.status} 期望${want}`);
+    }
+    const rows = db.prepare("SELECT COUNT(*) c FROM bounty_samples WHERE actor='device-d'").get().c;
+    ok('L4 乘車日窗四個邊界都對，且被擋的都零寫入（收下 2 筆＝兩個 200）', allRight && rows === 2, detail.join('; '));
+  }
+
+  // L5 伺服器端寫入總閘：出事時不必改前端、不必等 App 送審就能停掉懸賞寫入。
+  // 反向對照（沒設旗標時照常運作）就是上面整個 C 組，這裡只驗「設了就真的關」。
+  {
+    const { db, DELAY_DB } = openTestDb(SEED);
+    const OFF = { BOUNTY_WRITES: 'off' };
+    const rs = await bountySubmit(postTo('/api/bounty-submit', OK), ENV(DELAY_DB, OFF));
+    const rc = await bountyClaim(postTo('/api/bounty-claim',
+      { actor: 'device-L', cardId: 'tra_sched|南迴線|0|自強|track|' }), ENV(DELAY_DB, OFF));
+    const bs = await body(rs), bc = await body(rc);
+    const samples = db.prepare('SELECT COUNT(*) c FROM bounty_samples').get().c;
+    const claims = db.prepare("SELECT COUNT(*) c FROM bounty_claims WHERE actor='device-L'").get().c;
+    ok('L5 BOUNTY_WRITES=off → 上傳與認領都 503 bounty_paused 且零寫入',
+      rs.status === 503 && bs.error === 'bounty_paused' && rc.status === 503 && bc.error === 'bounty_paused' &&
+      samples === 0 && claims === 0, JSON.stringify({ rs: rs.status, rc: rc.status, samples, claims }));
+  }
+
+  // L6 限流器故障時，寫入端點 fail-closed（唯讀端點維持 fail-open，見 verify_rate_limit.mjs）。
+  {
+    const { db, DELAY_DB } = openTestDb(SEED);
+    const boom = { limit: async () => { throw new Error('limiter down'); } };
+    const r = await bountySubmit(postTo('/api/bounty-submit', OK), ENV(DELAY_DB, { BOUNTY_LIMITER: boom }));
+    const n = db.prepare('SELECT COUNT(*) c FROM bounty_samples').get().c;
+    ok('L6 限流服務丟例外時上傳回 429 且零寫入（fail-closed：限流器掛掉不等於寫入無上限）',
+      r.status === 429 && n === 0, JSON.stringify({ s: r.status, n }));
+  }
+
+  // L7 刪帳號真的清掉 D1 的校正旅程資料（高風險 3）。三種列各驗一次，尤其是「不該被刪的那一筆」
+  // ——只驗「有刪到」的測試，換成 DELETE 全表也會過。
+  {
+    const { db, DELAY_DB } = openTestDb(`
+      INSERT INTO bounty_points (actor,uid,points,merged_into,updated_at) VALUES
+        ('uid-777','uid-777',40,NULL,1),          -- 本人
+        ('dev-merged',NULL,0,'uid-777',1),        -- 曾併進本人的匿名 token
+        ('dev-self',NULL,9,NULL,1),               -- 本機當下的 device actor（還沒併過）
+        ('dev-other',NULL,3,'uid-999',1),         -- 併進「別人」的 token：一根寒毛都不能動
+        ('uid-999','uid-999',50,NULL,1);
+      INSERT INTO bounty_samples (id,actor,sys,ln_id,train_no,dir,trip_date,payload,submitted_at,verdict) VALUES
+        ('s1','uid-777','tra_sched','南迴線','312',0,'2026-07-28','[]',1,'ok'),
+        ('s2','dev-merged','tra_sched','南迴線','313',0,'2026-07-28','[]',1,'ok'),
+        ('s3','dev-self','tra_sched','南迴線','314',0,'2026-07-28','[]',1,'ok'),
+        ('s4','dev-other','tra_sched','南迴線','315',0,'2026-07-28','[]',1,'ok'),
+        ('s5','uid-999','tra_sched','南迴線','316',0,'2026-07-28','[]',1,'ok');
+      INSERT INTO bounty_claims (id,actor,seg_key,train_kind,dir,kind,slot,points_locked,claimed_at,expires_at,status) VALUES
+        ('k1|0','uid-777','tra_sched|南迴線|大武|太麻里','自強',0,'track','',3,1,1799999999999,'open'),
+        ('k2|0','dev-self','tra_sched|南迴線|大武|太麻里','自強',0,'track','',3,1,1799999999999,'open'),
+        ('k3|0','dev-other','tra_sched|南迴線|大武|太麻里','自強',0,'track','',3,1,1799999999999,'open');`);
+    const left = t => db.prepare(`SELECT actor FROM ${t} ORDER BY actor`).all().map(r => r.actor);
+    const res = await worker.fetch(postTo('/api/account-delete',
+      { actor: 'dev-self' }, { Authorization: 'Bearer t' }), ENV(DELAY_DB, FB));
+    const b = await body(res);
+    const s = left('bounty_samples'), c = left('bounty_claims'), p = left('bounty_points');
+    ok('L7 刪帳號清掉本人＋已併入本人的 token＋本機 device actor 的三張表',
+      res.status === 200 &&
+      JSON.stringify(s) === JSON.stringify(['dev-other', 'uid-999']) &&
+      JSON.stringify(c) === JSON.stringify(['dev-other']) &&
+      JSON.stringify(p) === JSON.stringify(['dev-other', 'uid-999']),
+      JSON.stringify({ status: res.status, b, s, c, p }));
+    ok('L7b 併進「別人 uid」的 token 一列都沒被碰（不是 DELETE 全表也會過的那種測試）',
+      s.includes('dev-other') && c.includes('dev-other') && p.includes('dev-other'), JSON.stringify({ s, c, p }));
+    ok('L7c 回應如實回報刪了幾列（前端與稽核都看得到，不是靜默成功）',
+      b.deleted && b.deleted.samples === 3 && b.deleted.claims === 2 && b.deleted.points === 3, JSON.stringify(b.deleted));
+  }
+
+  // L8 沒設 RevenueCat 的環境也要刪得掉校正資料——舊版在這種環境直接 503，等於資料永遠留著。
+  {
+    const { db, DELAY_DB } = openTestDb(`
+      INSERT INTO bounty_samples (id,actor,sys,ln_id,train_no,dir,trip_date,payload,submitted_at,verdict) VALUES
+        ('s9','uid-777','tra_sched','南迴線','312',0,'2026-07-28','[]',1,'ok');`);
+    const res = await worker.fetch(postTo('/api/account-delete', {}, { Authorization: 'Bearer t' }), ENV(DELAY_DB, FB));
+    const n = db.prepare('SELECT COUNT(*) c FROM bounty_samples').get().c;
+    ok('L8 未設定 RevenueCat 時仍回 200 並刪掉校正資料（購買服務的設定狀態不該綁架個資刪除）',
+      res.status === 200 && n === 0, JSON.stringify({ s: res.status, n }));
+  }
+
+  // L9 未帶／帶錯 token 時什麼都不刪——刪除是不可逆動作，授權判準要有負對照。
+  {
+    const { db, DELAY_DB } = openTestDb(`
+      INSERT INTO bounty_samples (id,actor,sys,ln_id,train_no,dir,trip_date,payload,submitted_at,verdict) VALUES
+        ('sA','uid-777','tra_sched','南迴線','312',0,'2026-07-28','[]',1,'ok');`);
+    const noTok = await worker.fetch(postTo('/api/account-delete', { actor: 'uid-777' }), ENV(DELAY_DB, FB));
+    const saved = globalThis.fetch;
+    globalThis.fetch = async () => new Response('{}', { status: 400 });     // Firebase 說這個 token 無效
+    const badTok = await worker.fetch(postTo('/api/account-delete', { actor: 'uid-777' }, { Authorization: 'Bearer bad' }), ENV(DELAY_DB, FB));
+    globalThis.fetch = saved;
+    const n = db.prepare('SELECT COUNT(*) c FROM bounty_samples').get().c;
+    ok('L9 沒帶 token／token 無效都回 401 且一列都沒刪',
+      noTok.status === 401 && badTok.status === 401 && n === 1, JSON.stringify({ noTok: noTok.status, badTok: badTok.status, n }));
+  }
+
+  // L10 bountyPurgeUid 不帶 deviceActor 時只碰 uid 家族（deleteAccountData 以外的呼叫端契約）
+  {
+    const { db, DELAY_DB } = openTestDb(`
+      INSERT INTO bounty_points (actor,uid,points,merged_into,updated_at) VALUES ('dev-keep',NULL,5,NULL,1);
+      INSERT INTO bounty_samples (id,actor,sys,ln_id,train_no,dir,trip_date,payload,submitted_at,verdict) VALUES
+        ('sB','dev-keep','tra_sched','南迴線','312',0,'2026-07-28','[]',1,'ok');`);
+    const out = await bountyPurgeUid({ DELAY_DB }, 'uid-777');
+    const n = db.prepare('SELECT COUNT(*) c FROM bounty_samples').get().c;
+    ok('L10 不傳 deviceActor 時不會誤刪任何匿名 token 的資料', out.samples === 0 && n === 1, JSON.stringify({ out, n }));
+  }
+
+  globalThis.fetch = realFetch;
+  ok('L11 離開區塊後 globalThis.fetch 已還原', globalThis.fetch === realFetch, String(globalThis.fetch === realFetch));
 }
 
 const pass = R.filter(r => r.p).length;

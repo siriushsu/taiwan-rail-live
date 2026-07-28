@@ -3140,6 +3140,7 @@ try { if (matchMedia('(max-width: 900px)').matches) document.body.classList.add(
       <summary><span>更新紀錄</span><span class="foot-sub">最後更新：2026/7/29</span></summary>
       <ul class="foot-list foot-recent">
         <li class="grp">最近更新</li>
+        <li><span class="d">7/29</span><span>刪除帳號時，會一併刪掉你上傳過的 GPS 校正旅程資料與貢獻點數</span></li>
         <li><span class="d">7/29</span><span>在高鐵或林鐵點下去跟車，不會再跟到同號碼的台鐵列車（謝謝網友回報）</span></li>
         <li><span class="d">7/29</span><span>圖磚還沒載入時墊底的台灣輪廓換了新資料，海岸線終於對得準（謝謝網友回報）</span></li>
         <li><span class="d">7/29</span><span>衛星底圖改用標準解析度圖磚，畫面略柔一點，換來圖資用量大減</span></li>
@@ -3147,7 +3148,6 @@ try { if (matchMedia('(max-width: 900px)').matches) document.body.classList.add(
         <li><span class="d">7/28</span><span>錄製途中看得見地圖與列車，也能一邊查別的車，不再是整片黑畫面</span></li>
         <li><span class="d">7/28</span><span>全站圖示換成軌島自製單色線稿，亮暗主題下都更一致清楚</span></li>
         <li><span class="d">7/28</span><span>「隨機跟隨」挑到的車會一路跟到終點，不再中途自己換車</span></li>
-        <li><span class="d">7/28</span><span>放空模式換景放慢、閒置久了改停全島畫面，列車照常跑</span></li>
       </ul>
       <!-- 第二層:完整歷史。刻意不掛 .foot-box 類名——placeFootBoxes() 用
            `.site-foot .foot-box` 搬移面板,巢狀同名會被當成另一個盒子一起搬走。 -->
@@ -3234,6 +3234,7 @@ try { if (matchMedia('(max-width: 900px)').matches) document.body.classList.add(
           <li class="web-only-donation-log"><span class="d">7/13</span><span>贊助方式更新：「請開發者喝咖啡」的銀行轉帳帳戶改用 LINE Bank（連線商業銀行 824）——謝謝每一位抖內支持軌島的朋友</span></li>
         <!-- APP_STRIP_END donation-log -->
         <li class="grp">資料校正</li>
+        <li><span class="d">7/29</span><span>刪除軌島帳號時，會一併刪掉你上傳過的 GPS 校正旅程資料與累積的貢獻點數，包含這台裝置以匿名身分傳的那些；隱私權政策也補上了這類資料保存多久、要怎麼刪除</span></li>
         <li><span class="d">7/29</span><span>圖磚還沒載入時墊底的台灣海陸輪廓換成內政部公開的縣市界線：舊資料比實際海岸線偏了一到三公里，東部海線好幾站看起來像在海上（謝謝網友回報）</span></li>
         <li><span class="d">7/28</span><span>新增「GPS 校正旅程」：懸賞板列出目前最缺實際乘車紀錄的路段，用 App 錄一趟就能幫忙把列車位置校正得更準。錄的時候只有里程會上傳、座標全程留在手機裡；中途重新整理或 App 被系統收掉都接得回同一趟，出錯時畫面上也看得到原因</span></li>
         <li><span class="d">7/28</span><span>錄製校正旅程時改成留在地圖上：看得見自己和列車在哪，也能繼續查看板、跟別的車；想看大字進度與品質說明時才點開詳細面板，回地圖不會停止錄製</span></li>
@@ -3518,7 +3519,7 @@ try { if (matchMedia('(max-width: 900px)').matches) document.body.classList.add(
 // 🔴 BUILD 字串會跨並行分支撞號（心得 16）：07-28 兩條線各自遞增又各自部署過——
 // origin/main 這條用到 v0728b，正式站那條用到 v0728f。本次三方合併把兩條線統一，
 // 所以往後推到一個雙方都沒用過的號，辨識線上跑哪一版仍以內容 hash 為準。
-const BUILD = 'v0729a';
+const BUILD = 'v0729b';
 // 成就徽章與車廂標記＝原本那些 emoji 的單色平面版（RailEmoji＝裁切過的 Noto Emoji 單色）。
 // 刻意保留 railIcon(name) 這個唯一入口:呼叫端一行都不用改,只有這裡決定畫法。
 // 🔴 ⚖ 與 ♾ 一律寫**不帶 VS16(U+FE0F)** 的碼位——帶了就強制彩色呈現,會蓋過 font-family
@@ -6439,16 +6440,23 @@ async function accountSignOut() {
   try { await a.fb.signOut(a.auth); accountClearLocal(); accountClose(); }
   catch (e) { a.actionError = '登出失敗：' + (e && e.message ? e.message : String(e)); accountRender(); }
 }
-async function accountDeletePaidProfile(user) {
+// 刪除伺服器端的帳號資料：RevenueCat customer ＋ D1 的懸賞校正旅程資料（worker 的
+// /api/account-delete 兩件一起做）。
+// 🔴 這裡不可以再用 plusProjectConfigured() 當閘門（2026-07-29 稽核）：那個旗標問的是「有沒有
+// RevenueCat 專案」，但這支端點現在還負責刪校正旅程資料——沒設 RevenueCat 的環境照樣有校正資料
+// 要刪，用購買設定當閘門會讓那些資料在刪帳號後原封不動留在 D1。
+async function accountDeleteServerData(user) {
   const a = state.account;
-  // 網站可能沒有 Web Billing key、所以不顯示購買入口，但該帳號仍可能曾在 App 購買；
-  // 刪除資料要看整個 RevenueCat project 是否存在，而不是目前平台能否發起付款。
-  if (!plusProjectConfigured() || !a || !a.fb || !user) return;
+  if (!a || !a.fb || !user) return;
   const token = a.fb.getIdToken ? await a.fb.getIdToken(user, true) : await user.getIdToken(true);
+  // 一起送本機的 device actor：校正旅程目前是以匿名裝置 token 記在 D1 的（bountyActor()），
+  // 不送的話伺服器只查得到 uid，一列都刪不到。伺服器端會擋掉「已併進別的 uid 的 token」。
   const r = await fetch(apiUrl('api/account-delete'), {
-    method: 'POST', cache: 'no-store', headers: { Authorization: `Bearer ${token}` },
+    method: 'POST', cache: 'no-store',
+    headers: { Authorization: `Bearer ${token}`, 'content-type': 'application/json' },
+    body: JSON.stringify({ actor: bountyActor() }),
   });
-  if (!r.ok) throw new Error('無法刪除購買服務中的帳號資料，請稍後再試；目前帳號尚未刪除');
+  if (!r.ok) throw new Error('無法刪除伺服器上的帳號資料，請稍後再試；目前帳號尚未刪除');
 }
 async function accountDelete() {
   const a = state.account, u = a && a.user; if (!a || !u) return;
@@ -6475,7 +6483,7 @@ async function accountDelete() {
       else if (appleAccessToken && a.fb.revokeAccessToken) await a.fb.revokeAccessToken(a.auth, appleAccessToken);
       else throw new Error('Apple 重新登入沒有回傳可撤銷的授權憑證');
     }
-    await accountDeletePaidProfile(u);
+    await accountDeleteServerData(u);
     for (const kind of USER_DATA_COLLECTIONS) await a.fb.deleteDoc(a.fb.doc(a.db, 'users', u.uid, 'data', kind));
     await a.fb.deleteUser(u); accountClearLocal(); accountClose(); showToast('軌島帳號與同步資料已刪除');
   } catch (e) { a.actionError = '刪除失敗：' + (e && e.message ? e.message : String(e)); accountRender(); }
@@ -11420,7 +11428,7 @@ async function fetchDelayHistory(no) {
   state.delayHist[no] = { loading: true, error: false, status: 0, data: null };
   if (state._delayHistOpen === no) renderDelayHist(); // 先畫「載入中」再取 token(不因取 token 的 await 延後回饋)
   // Plus 付費牆:後端要 Firebase ID token 驗 entitlement。已登入才帶 token;未登入(含免費層匿名 state.account
-  // 未建)照常送→後端回 401,由 renderDelayHist 顯示登入並訂閱 CTA。取 token 手法同 accountDeletePaidProfile。
+  // 未建)照常送→後端回 401,由 renderDelayHist 顯示登入並訂閱 CTA。取 token 手法同 accountDeleteServerData。
   let headers;
   try {
     const a = state.account, user = a && a.user;

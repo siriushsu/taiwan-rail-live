@@ -48,17 +48,29 @@ class D1Stmt {
 }
 
 function wrap(db) {
+  let batchQueue = Promise.resolve();   // 見下面 batch() 的說明：交易之間必須排隊，不可交錯
   return {
     prepare: sql => new D1Stmt(db, sql, []),
-    // D1 的 batch 是單一交易；照做，否則「寫一半失敗」的行為會與正式環境不同
-    async batch(stmts) {
-      db.exec('BEGIN');
-      try {
-        const out = [];
-        for (const s of stmts) out.push(await s.run());
-        db.exec('COMMIT');
-        return out;
-      } catch (e) { db.exec('ROLLBACK'); throw e; }
+    // D1 的 batch 是單一交易；照做，否則「寫一半失敗」的行為會與正式環境不同。
+    //
+    // 🔴 序列化不是裝飾（2026-07-29 補）：`for (…) await s.run()` 的每個 await 都會把控制權交回
+    // microtask queue，所以兩個同時進行中的 batch() 會交錯 → 第二個 BEGIN 撞上第一個未結束的交易
+    // （SQLite 直接丟「cannot start a transaction within a transaction」）。真 D1／SQLite 是單寫者、
+    // 交易之間互相排隊，沒有這種交錯。用一條 promise 鏈把 batch() 排成隊列，替身才對得上真實行為
+    // ——也才測得出「兩個併發請求交錯時會不會重複計點」這種只在交錯下現形的缺陷。
+    batch(stmts) {
+      const run = async () => {
+        db.exec('BEGIN');
+        try {
+          const out = [];
+          for (const s of stmts) out.push(await s.run());
+          db.exec('COMMIT');
+          return out;
+        } catch (e) { db.exec('ROLLBACK'); throw e; }
+      };
+      const next = batchQueue.then(run, run);      // 前一筆失敗也要接著跑，不然整個佇列被一次錯誤卡死
+      batchQueue = next.then(() => {}, () => {});  // 佇列本身永遠 resolve，錯誤只交給呼叫端那一份
+      return next;
     },
     async exec(sql) { db.exec(sql); return { count: 0, duration: 0 }; },
   };

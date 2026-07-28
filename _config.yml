@@ -2,5 +2,30 @@
 # 直接從 main 分支根目錄建置、push 就自動更新，且沒有 .assetsignore 那層保護。
 # app/ 底下有還沒 commit 到 gitignore 的草稿文件（隱私政策、條款、商店文案、
 # 原生 bridge 原始碼等），排除它們，避免 push 後被 Jekyll 當一般靜態檔公開發布。
+#
+# 2026-07-29 稽核補齊：正式站對 worker.js、docs/audits/*、hand off/* 一律回 404（.assetsignore
+# 管住了），但備援站照樣回 200——同一份東西，兩個站兩種行為。repo 本來就是 public，所以這不是
+# 新的秘密外洩，而是「多一個會被搜尋引擎索引的鏡像」與縱深防禦的破口。
+# 這份清單刻意對齊 .assetsignore 的同名條目；兩邊語意域不同（一個管 wrangler 上傳、一個管 Jekyll
+# 發布），但「不該公開的東西」應該是同一份。日後在 .assetsignore 加了新的排除，這裡也要加。
+# 反向提醒：備援站需要的東西不要誤排——index.html、data/、assets/、各法務頁都必須留著。
 exclude:
   - app
+  - worker.js
+  - wrangler.jsonc
+  - firebase.json
+  - firestore.rules
+  - schema
+  - scripts
+  - docs
+  - hand off
+  - prototypes
+  - suno musics
+  - node_modules
+  - package.json
+  - package-lock.json
+  - AGENTS.md
+  - DESIGN_BRIEF.md
+  - TODO.md
+  - design-mock.html
+  - scratchpad
