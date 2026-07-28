@@ -887,6 +887,15 @@ async function bountyClaim(request, env) {
 }
 
 const BOUNTY_MAX_SAMPLES_PER_BATCH = 600;   // 60 秒批次 @1Hz ＝ 60 筆；600 給重試合併留十倍餘裕
+// 🔴 lnId 不可以用 ASCII 白名單擋（2026-07-29 修）：台鐵 16 條線的 id 本身就是中文
+// （data/tra.json 的 lines[].id ＝「南迴線」「山線」「海線」…），舊的
+// /^[A-Za-z0-9_-]{1,32}$/ 會讓每一批台鐵上傳吃 400 bad_line ——而懸賞刻意只收台鐵、
+// 高鐵、林鐵（捷運不進懸賞），所以那等於整條上傳路徑是死的。
+// 後端 394 項驗收之所以全綠：submit 的 fixture 寫 lnId:'NH'，那是早就作廢的鍵空間，
+// 剛好是 ASCII —— fixture 缺了「能讓它變紅的那一筆」。
+// 仍然必須擋 '|'：seg_key（sys|lnId|A|B）與卡片 id（sys|lnId|dir|…）都用它分段，
+// 放進來就能偽造段鍵。控制字元一併擋掉。
+const BOUNTY_LINE_ID_RE = /^[^|\u0000-\u001f\u007f]{1,32}$/u;
 // POST /api/bounty-submit：沿途每 60 秒一批。一批一列、不在寫入時合併——
 // 每批獨立可驗，斷線／沒電時已經傳出去的不會丟，這是「部分覆蓋也計點」的前提（規格 §5）。
 async function bountySubmit(request, env) {
@@ -894,7 +903,7 @@ async function bountySubmit(request, env) {
   let b;
   try { b = await request.json(); } catch (e) { return jsonRes({ error: 'bad_json' }, 400, 'no-store'); }
   if (!b || !isActorId(b.actor)) return jsonRes({ error: 'bad_actor' }, 400, 'no-store');
-  if (!/^[A-Za-z0-9_-]{1,16}$/.test(String(b.sys || '')) || !/^[A-Za-z0-9_-]{1,32}$/.test(String(b.lnId || '')))
+  if (!/^[A-Za-z0-9_-]{1,16}$/.test(String(b.sys || '')) || !BOUNTY_LINE_ID_RE.test(String(b.lnId || '')))
     return jsonRes({ error: 'bad_line' }, 400, 'no-store');
   if (!/^[0-9A-Za-z]{1,8}$/.test(String(b.trainNo || ''))) return jsonRes({ error: 'bad_train' }, 400, 'no-store');
   if (!/^\d{4}-\d{2}-\d{2}$/.test(String(b.tripDate || ''))) return jsonRes({ error: 'bad_date' }, 400, 'no-store');

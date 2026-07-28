@@ -204,6 +204,31 @@ INSERT INTO bounty_claims (id,actor,seg_key,train_kind,dir,kind,slot,points_lock
       row && !hasGeoKeys(JSON.parse(row.payload)) && !/lat|lon|lng/i.test(row.payload), String(row && row.payload).slice(0, 80));
   }
 
+  // C5b 真實鍵空間：台鐵 16 條線的 lnId 本身就是中文（data/tra.json 的 lines[].id）。
+  // 這一組是 2026-07-29 補的迴歸——原本 lnId 用 /^[A-Za-z0-9_-]{1,32}$/ 擋，等於每一批
+  // 台鐵上傳都吃 400 bad_line、整條上傳路徑是死的，而 394 項驗收全綠，因為上面 OKBODY 的
+  // fixture 寫 lnId:'NH'（早就作廢的鍵空間，剛好是 ASCII）——fixture 缺了能讓它變紅的那一筆。
+  // 兩個方向都要驗：中文線名進得去，'|' 進不去（seg_key 與卡片 id 都用 '|' 分段，放進來
+  // 就能偽造段鍵），否則放寬之後又變成沒有牙的檢查。
+  {
+    const before = db.prepare('SELECT COUNT(*) c FROM bounty_samples').get().c;
+    // 🔴 trainNo 刻意換成 999：C7 用 (actor,trip_date,train_no) 數同一趟該有幾列,
+    // 沿用 OKBODY 的 312 會把這裡多寫的一列算進去、把 C7 從 2 撞成 3。
+    const zh = await bountySubmit(post({ ...OKBODY, sys: 'tra_sched', lnId: '南迴線', trainNo: '999' }), ENV(DELAY_DB));
+    const zhBody = await body(zh);
+    const row = db.prepare('SELECT ln_id FROM bounty_samples ORDER BY rowid DESC LIMIT 1').get();
+    ok('C5b 中文線名（南迴線）收得下,而且原樣寫進 D1',
+      zh.status === 200 && zhBody.verdict === 'pending' && row && row.ln_id === '南迴線',
+      JSON.stringify({ s: zh.status, b: zhBody, ln: row && row.ln_id }));
+    const after = db.prepare('SELECT COUNT(*) c FROM bounty_samples').get().c;
+    const pipe = await bountySubmit(post({ ...OKBODY, sys: 'tra_sched', lnId: '南迴|線' }), ENV(DELAY_DB));
+    const pipeBody = await body(pipe);
+    const after2 = db.prepare('SELECT COUNT(*) c FROM bounty_samples').get().c;
+    ok("C5c lnId 含 '|' 仍然擋下且零寫入（放寬不等於放行偽造段鍵）",
+      pipe.status === 400 && pipeBody.error === 'bad_line' && after2 === after,
+      JSON.stringify({ s: pipe.status, b: pipeBody, rows: `${before}→${after}→${after2}` }));
+  }
+
   // C6 夾帶座標一律 400，且不寫任何一列
   {
     const before = db.prepare('SELECT COUNT(*) c FROM bounty_samples').get().c;
