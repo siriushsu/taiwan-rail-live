@@ -66,3 +66,7 @@ Plus訂閱*
 assets/app-icon-*
 # 技術原型(3D 文湖線等):只在本機跑,不是產品的一部分,禁上正式站。
 prototypes
+# 各 session 的暫存工作區:中間產物、驗證輸出、交接草稿,內容不受控且多是未定案判斷。
+# .gitignore 管不到 wrangler(它上傳的是磁碟檔案),這裡要另外列一次——2026-07-26 的 .cache
+# 就是只進 .gitignore 沒進這裡,結果 TDX 原始快取在預覽站可下載。
+scratchpad

@@ -60,3 +60,7 @@ app/PRIVACY_POLICY_DRAFT.md
 app/STORE_LISTING_v1_FREE.md
 app/STORE_DATA_DISCLOSURES.md
 app/NATIVE_PRIVACY_AND_PERMISSIONS.md
+
+# 各 session 的暫存工作區：中間產物與草稿，內容不受控。這個 repo 是 public，
+# 任何一次 git add -A 都會把它掃進公開歷史（push 後不可改寫）。
+scratchpad/
