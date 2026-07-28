@@ -1,6 +1,6 @@
 # 軌島 · 台灣鐵道即時軌跡
 
-**線上版：https://railisland.tw** （備援：https://siriushsu.github.io/taiwan-rail-live/）
+**線上版：https://railisland.tw**
 
 > 在真實地圖上動畫化全台鐵道列車運行——台鐵（含每分鐘即時誤點）、高鐵，以及各捷運與輕軌，
 > 依實際時刻表運行；可跟隨列車看待避交會、查平交道通過預測與附近火車班次。
@@ -115,7 +115,7 @@ python3 -m http.server 5178      # 或用 .claude/launch.json 的 "static" 設�
 ## 部署
 
 - 前端為純靜態單頁（`index.html`，無 build step）。
-- 部署於 **Cloudflare Workers**（靜態資產），正式網域 **railisland.tw**；GitHub Pages 為備援站。
+- 部署於 **Cloudflare Workers**（靜態資產），正式網域 **railisland.tw**。
 - 安全標頭走 `_headers` 檔（靜態資產不經 Worker 計費）；設定見 `wrangler.jsonc`。
 - 版本戳記 `BUILD`（`index.html` 內，字母序遞增）顯示於畫面時鐘徽章與 console，供比對線上是否為最新版。
 
