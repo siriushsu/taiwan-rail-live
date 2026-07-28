@@ -10,6 +10,7 @@
 import { chromium, webkit, devices } from 'playwright';
 import { readFileSync } from 'node:fs';
 import { createHash } from 'node:crypto';
+import sharp from 'sharp';
 
 const BASE = process.argv[2] || 'http://127.0.0.1:5178';
 const R = [];
@@ -537,6 +538,22 @@ const browser = await chromium.launch();
   const c4 = await page.evaluate(() => getComputedStyle(document.getElementById('recordScreen')).backgroundColor);
   ok('C4 錄製畫面是黑底', /rgba?\(\s*(0|1[0-9]?|2[0-9])\s*,\s*(0|1[0-9]?|2[0-9])\s*,/.test(c4), c4);
 
+  // Task 4 前置：computed style 驗不出堆疊脈絡遮蔽（舊版 opacity/display/visibility 全正常，
+  // 但實際裁圖只有黑色）。固定裁錄製畫面中央的訊息帶，不取實作元素 rect 來生成判準；
+  // 紙色／金框 RGB 是視覺規格外部常數，直接解 screenshot 像素計數。
+  await page.evaluate(() => showToast('GPS 收不到，請移到窗邊再試一次'));
+  await page.waitForTimeout(100);
+  const c4bPng = await page.screenshot({ clip: { x: 20, y: 250, width: 350, height: 360 } });
+  const c4bRaw = await sharp(c4bPng).raw().toBuffer({ resolveWithObject: true });
+  let c4bPaper = 0, c4bGold = 0;
+  for (let i = 0; i < c4bRaw.data.length; i += c4bRaw.info.channels) {
+    const r = c4bRaw.data[i], g = c4bRaw.data[i + 1], b = c4bRaw.data[i + 2];
+    if (Math.abs(r - 255) <= 1 && Math.abs(g - 253) <= 1 && Math.abs(b - 246) <= 1) c4bPaper++;
+    if (Math.abs(r - 210) <= 2 && Math.abs(g - 161) <= 2 && Math.abs(b - 42) <= 2) c4bGold++;
+  }
+  ok('C4b 錄製中 showToast() 的紙色訊息與金框真的出現在黑幕上（固定矩形 screenshot 像素證據）',
+    c4bPaper > 300 && c4bGold > 20, JSON.stringify({ paper: c4bPaper, gold: c4bGold }));
+
   // 🔴 C5 判準是「點它會發生什麼」（心得 33）
   const c5 = await page.evaluate(() => {
     const btn = document.getElementById('recStop');
@@ -569,6 +586,68 @@ const browser = await chromium.launch();
       badge: getComputedStyle(document.querySelector('.badge')).display };
   });
   ok('C9 停止後模式關閉、會說謊的 UI 回來', !c9.on && !c9.cls && c9.badge !== 'none', JSON.stringify(c9));
+
+  // Task 4 前置：走真實「開始→落盤→把舊形狀挖掉欄位／塞入陣列→reload→補洞→真觸控停止」
+  // 全流程。期望值是本測試自己種的 7 點／futureGps.keep 與外部 storage key，不呼叫
+  // loadBountyRecording() 產生期望；缺欄位的預設值也直接寫死在斷言。若真正的落盤拿掉，
+  // preRaw 會是 null、reload 後單項乾淨 FAIL，不會因操作 hidden button 讓整份腳本中止。
+  const c10Seed = await page.evaluate(() => {
+    startBountyRecording({ sys: 'tra_sched', lnId: '南迴線', dir: 1, units: 11 });
+    const key = 'trainmap-bounty-recording-v1';
+    const raw = JSON.parse(localStorage.getItem(key) || 'null');
+    if (raw) {
+      delete raw.trainNo; delete raw.dir; delete raw.tripDate; delete raw.dNow; delete raw.quality;
+      raw.segs = []; // typeof [] === 'object' 的既有踩坑形狀：必須補成真正的物件
+      raw.points = 7;
+      raw.futureGps = { keep: 'yes' }; // 未知的下一批欄位不可在補洞時消失
+      localStorage.setItem(key, JSON.stringify(raw));
+    }
+    return raw;
+  });
+  await page.reload({ waitUntil: 'load' });
+  await page.waitForFunction(() => typeof state !== 'undefined' && !!state.recording, null, { timeout: 5000 }).catch(() => {});
+  const c10Restored = await page.evaluate(() => {
+    const key = 'trainmap-bounty-recording-v1';
+    const disk = JSON.parse(localStorage.getItem(key) || 'null');
+    const btn = document.getElementById('recStop');
+    const rr = btn.getBoundingClientRect(), x = rr.x + rr.width / 2, y = rr.y + rr.height / 2;
+    const hit = document.elementFromPoint(x, y);
+    return {
+      on: !!state.recording, cls: document.body.classList.contains('recording'),
+      screen: !document.getElementById('recordScreen').hidden,
+      black: getComputedStyle(document.getElementById('recordScreen')).backgroundColor,
+      state: state.recording ? {
+        trainNo: state.recording.trainNo, dir: state.recording.dir, dNow: state.recording.dNow,
+        points: state.recording.points, quality: state.recording.quality,
+        segsPlain: !!state.recording.segs && typeof state.recording.segs === 'object' && !Array.isArray(state.recording.segs),
+        futureKeep: state.recording.futureGps && state.recording.futureGps.keep,
+      } : null,
+      disk: disk ? {
+        segsPlain: !!disk.segs && typeof disk.segs === 'object' && !Array.isArray(disk.segs),
+        futureKeep: disk.futureGps && disk.futureGps.keep,
+      } : null,
+      hit: hit === btn || btn.contains(hit), x, y,
+    };
+  });
+  if (c10Restored.hit) {
+    await page.touchscreen.tap(c10Restored.x, c10Restored.y);
+    await page.waitForTimeout(100);
+  }
+  const c10Stopped = await page.evaluate(() => ({
+    on: !!state.recording,
+    cls: document.body.classList.contains('recording'),
+    screenHidden: document.getElementById('recordScreen').hidden,
+    stored: localStorage.getItem('trainmap-bounty-recording-v1'),
+  }));
+  ok('C10 recording 會落盤；reload 後缺欄位逐欄補洞、未知欄位保留、黑幕還原，真觸控停止後 storage 清乾淨',
+    !!c10Seed && c10Restored.on === true && c10Restored.cls === true && c10Restored.screen === true &&
+    /^rgba?\(\s*0\s*,\s*0\s*,\s*0/.test(c10Restored.black) && c10Restored.hit === true &&
+    c10Restored.state && c10Restored.state.trainNo === '' && c10Restored.state.dir === 0 &&
+    c10Restored.state.dNow === null && c10Restored.state.points === 7 && c10Restored.state.quality === 'good' &&
+    c10Restored.state.segsPlain === true && c10Restored.state.futureKeep === 'yes' &&
+    c10Restored.disk && c10Restored.disk.segsPlain === true && c10Restored.disk.futureKeep === 'yes' &&
+    c10Stopped.on === false && c10Stopped.cls === false && c10Stopped.screenHidden === true && c10Stopped.stored === null,
+    JSON.stringify({ seeded: !!c10Seed, restored: c10Restored, stopped: c10Stopped }));
   await ctx.close();
 }
 
@@ -783,6 +862,16 @@ const browser = await chromium.launch();
   ok('D6c 走完開板→接一段→開始錄製之後重新整理，?demo=bounty 撐得住、PHYSICAL_COLLECT_ENABLED 仍是 true',
     d6c.search.includes('demo=bounty') && d6c.phys === true,
     `重載前 search=${preReloadSearch}　重載後 ${JSON.stringify(d6c)}`);
+
+  // recording 現在會跨 reload 還原；D8 要操作黑幕底下的護照前，先照真實 demo 流程按「停止錄製」。
+  // 找不到／未命中時不直接 tap 讓 Playwright 整份中止，真正的還原缺陷由上面的 C10 單項斷言變紅。
+  await dp.waitForFunction(() => typeof state !== 'undefined' && !!state.recording, null, { timeout: 5000 }).catch(() => {});
+  const d6Stop = await dp.evaluate(() => {
+    const btn = document.getElementById('recStop'), r = btn.getBoundingClientRect();
+    const x = r.x + r.width / 2, y = r.y + r.height / 2, hit = document.elementFromPoint(x, y);
+    return { hit: hit === btn || btn.contains(hit), x, y };
+  });
+  if (d6Stop.hit) { await dp.touchscreen.tap(d6Stop.x, d6Stop.y); await dp.waitForTimeout(100); }
 
   // 🔴 D8（最終審查 A-1+A-2）：Task 7 做的懸賞地圖層要看得到金色線，前提是①有進得去的入口
   // （零完乘記錄時「校正貢獻」節也要露出收集地圖鈕）②?demo=bounty 種得出校正記錄，否則

@@ -541,7 +541,15 @@
   .rc-row { margin-top: 10px; font-size: 17px; opacity: .85; }
   .rc-bar { margin-top: 18px; width: min(320px, 76vw); height: 8px; border-radius: 4px; background: #222; overflow: hidden; }
   .rc-bar i { display: block; height: 100%; width: 0; background: #34c759; transition: width .4s; }
-  .rc-hint { margin-top: 18px; font-size: 15px; line-height: 1.5; max-width: 320px; opacity: .9; }
+  /* 錄製中的錯誤／狀態訊息不能走 .stage 內的全站 toast（會被本黑幕蓋住）；
+     固定用紙色金框在黑底上保持可讀，位置也不會影響錄製畫面的唯一停止鈕。 */
+  .rc-hint {
+    margin: 18px auto 0; width: min(320px, calc(100vw - 40px)); box-sizing: border-box;
+    background: #fffdf6; color: #3a3226; border: 1.5px solid #d2a12a; border-radius: 10px;
+    box-shadow: 0 3px 0 rgba(163,100,26,.3); padding: 9px 18px;
+    font-size: 15px; font-weight: 700; line-height: 1.5; white-space: normal;
+  }
+  .rc-hint[hidden] { display: none; }
   /* 一小時後迷迷糊糊也要按得到：44pt 是 Apple 的最小可觸控尺寸，這裡刻意給更大 */
   .rc-stop { min-width: 200px; min-height: 56px; font-size: 18px; border-radius: 28px;
     background: #fff; color: #000; border: 0; font-weight: 700; }
@@ -2879,16 +2887,16 @@ try { if (matchMedia('(max-width: 900px)').matches) document.body.classList.add(
 
   <footer class="site-foot">
     <details class="foot-box">
-      <summary><span>🛠 更新紀錄</span><span class="foot-sub">最後更新：2026/7/26</span></summary>
+      <summary><span>🛠 更新紀錄</span><span class="foot-sub">最後更新：2026/7/28</span></summary>
       <ul class="foot-list foot-recent">
-        <li class="grp">最近更新</li><li><span class="d">7/26</span><span>旅程護照的每一節都能各自收合了；車站收集超過 24 座時預設只露最常去的那批</span></li>
+        <li class="grp">最近更新</li><li><span class="d">7/28</span><span>錄製中的錯誤提示不再被黑幕蓋住；重新整理或 App 被系統回收後，也會接回尚未結束的錄製</span></li>
+        <li><span class="d">7/26</span><span>旅程護照的每一節都能各自收合了；車站收集超過 24 座時預設只露最常去的那批</span></li>
         <li><span class="d">7/26</span><span>旅程護照新增「車站收集」：完乘的起訖站自動成章，到月台按蓋章鈕升級成到訪章</span></li>
         <li><span class="d">7/26</span><span>按「我上車了」並選好下車站，沿路每過一站就自動蓋一枚章</span></li>
         <li><span class="d">7/26</span><span>搭過的路段也會收集，護照顯示每條線各自的完乘率，並新增四枚成就</span></li>
         <li><span class="d">7/26</span><span>護照新增「🗺 收集地圖」：全台路網轉灰，只有你搭過的區間會亮起來</span></li>
         <li><span class="d">7/26</span><span>更新紀錄瘦身：預設只列最近八條，其餘收進下方「完整更新歷史」依主題分類</span></li>
         <li><span class="d">7/26</span><span>新增「📖 使用說明」：各功能都有圖文步驟，按「試一次」還會直接幫你操作一遍</span></li>
-        <li><span class="d">7/26</span><span>手機／App 底部的「地圖」鈕換成「🔍 搜尋」，站名、車次、列車名稱一按就查</span></li>
         
       </ul>
       <!-- 第二層:完整歷史。刻意不掛 .foot-box 類名——placeFootBoxes() 用
@@ -3112,7 +3120,7 @@ try { if (matchMedia('(max-width: 900px)').matches) document.body.classList.add(
     <div class="rc-big"><span id="recKm">0.0</span><small>公里</small></div>
     <div class="rc-row"><span id="recSegs">0</span> 段已覆蓋・<span id="recPts">0</span> 點已鎖定</div>
     <div class="rc-bar"><i id="recBar"></i></div>
-    <div class="rc-hint" id="recHint" hidden></div>
+    <div class="rc-hint" id="recHint" role="status" aria-live="polite" hidden></div>
   </div>
   <button class="rc-stop" id="recStop" type="button">停止錄製</button>
 </div>
@@ -3226,7 +3234,7 @@ try { if (matchMedia('(max-width: 900px)').matches) document.body.classList.add(
 <script>
 // 版本戳記:每次改版 push 前手動遞增(字母序),畫面時鐘徽章與 console 都會顯示,
 // 供比對線上跑的是不是最新版(瀏覽器快取 max-age=600 常讓人看到舊版)
-const BUILD = 'v0726f';
+const BUILD = 'v0728a';
 const TRACK_AUDIT = new URLSearchParams(location.search).get('audit') === 'tracks';
 // 手機/平板直式「殼」斷點(議題1:640→900,iPad 直式改拿 tabbar＋更多抽屜):與 CSS @media 同步,版面類判斷一律用此常數。
 // 注意:裝置等級判斷(keepBuffer/powerSave 預設)刻意不用此常數、維持 640——iPad 不該因為改拿 tabbar 就被當低階裝置。
@@ -8718,10 +8726,15 @@ function unlockedAchievements(rides) {
 function placeMobileNotice(el) {
   if (!el) return;
   const mob = window.matchMedia(MOBILE_MQ).matches;
-  if (!mob || el.hidden) { el.style.top = ''; el.style.bottom = ''; el.style.maxHeight = ''; el.style.overflowY = ''; return; }
+  const collect = document.body.classList.contains('collect-map');
+  if ((!mob && !collect) || el.hidden) { el.style.top = ''; el.style.bottom = ''; el.style.maxHeight = ''; el.style.overflowY = ''; return; }
   const par = el.offsetParent; if (!par) return;
   const pr = par.getBoundingClientRect();
   let topV = pr.top + 12; // 上界:頂列控件(左上時鐘/換一班、右上工具/全畫面)最低的底 + 8px
+  if (collect) {
+    const bar = document.getElementById('collectBar');
+    if (bar && !bar.hidden && bar.offsetParent) { const r = bar.getBoundingClientRect(); if (r.height) topV = Math.max(topV, r.bottom + 8); }
+  }
   for (const sel of ['#clock', '#mapActions', '#toolsFab', '#fsFab']) { // #mapActions=隨機跟隨＋附近車站並排列(桌面 display:contents 無盒 → 下面 r.height 為 0 自動跳過)
     const c = document.querySelector(sel);
     if (c && c.offsetParent) { const r = c.getBoundingClientRect(); if (r.height && r.bottom > pr.top) topV = Math.max(topV, r.bottom + 8); }
@@ -8737,6 +8750,19 @@ function placeMobileNotice(el) {
   el.style.overflowY = 'auto';
 }
 function showToast(msg) {
+  // #recordScreen 在 body 層(z2400)，全站 toast 卻在 .stage(z1000)的堆疊脈絡內；
+  // 錄製中若仍塞進 #toasts，computed style 看似正常但每一個像素都會被黑幕蓋住。
+  // #recHint 是錄製畫面自己的 live region，只在這個模式接手，不改全站 toast 的層級與定位。
+  if (state.recording) {
+    const hint = document.getElementById('recHint');
+    if (hint) {
+      hint.innerHTML = msg;
+      hint.hidden = false;
+      clearTimeout(state._recHintTimer);
+      state._recHintTimer = setTimeout(() => { hint.hidden = true; hint.innerHTML = ''; }, 5000);
+      return;
+    }
+  }
   const box = document.getElementById('toasts');
   if (!box) return;
   const el = document.createElement('div');
@@ -9208,6 +9234,7 @@ function endRidingNow() {
 // 每一次定位回呼當下就用 projectOntoShape() 換成沿線里程，經緯度不進任何陣列、不進 localStorage、
 // 不進上傳 payload。這句話會寫進隱私政策與 App 送審說明，所以它必須是程式結構保證的，不是慣例。
 const BOUNTY_KEY = 'trainmap-bounty-v1';
+const BOUNTY_RECORDING_KEY = 'trainmap-bounty-recording-v1';
 // actor 直接用既有的 userDataDeviceId()：它已經在做規格 §6 要的事（首次使用產生隨機 id、
 // 存 trainmap-device-id）。再造一個只會讓「這個裝置是誰」有兩個答案。
 function bountyActor() { return userDataDeviceId(); }
@@ -9440,6 +9467,45 @@ async function bountyClaim(cardId) {
 // 🔴 誠實佔位：這個 task 只做畫面與 Wake Lock，不做真正的 GPS 取樣／裝置端投影／60 秒批次
 // 上傳——那些是 Task 4。state.recording 的 dNow/segs/points 這裡永遠留零，renderRecordScreen()
 // 不會假裝在收集資料；沒有任何程式碼在背景偷偷寫入這幾個欄位。
+function loadBountyRecording() {
+  try {
+    const o = JSON.parse(localStorage.getItem(BOUNTY_RECORDING_KEY) || 'null');
+    // 只拒絕整包不是物件／其實是陣列的情況；合法物件逐欄補洞並保留未知欄位，
+    // 讓下一批新增 GPS 欄位後，舊版也不會因形狀不完全相同而整趟丟掉。
+    const isObj = x => !!x && typeof x === 'object' && !Array.isArray(x);
+    if (!isObj(o)) return null;
+    const r = { ...o };
+    r.card = isObj(r.card) ? r.card : null;
+    r.sys = typeof r.sys === 'string' ? r.sys : '';
+    r.lnId = typeof r.lnId === 'string' ? r.lnId : '';
+    r.trainNo = typeof r.trainNo === 'string' ? r.trainNo : '';
+    r.dir = Number.isFinite(Number(r.dir)) ? Number(r.dir) : 0;
+    r.tripDate = typeof r.tripDate === 'string' && r.tripDate ? r.tripDate : todayStr(activeTz());
+    r.startedAt = Number.isFinite(Number(r.startedAt)) && Number(r.startedAt) > 0 ? Number(r.startedAt) : Date.now();
+    r.dNow = r.dNow == null ? null : (Number.isFinite(Number(r.dNow)) && Number(r.dNow) >= 0 ? Number(r.dNow) : null);
+    r.segs = isObj(r.segs) ? r.segs : {};
+    r.points = Number.isFinite(Number(r.points)) && Number(r.points) >= 0 ? Number(r.points) : 0;
+    r.quality = typeof r.quality === 'string' && r.quality ? r.quality : 'good';
+    return r;
+  } catch (e) { return null; }
+}
+function saveBountyRecording(r) {
+  try {
+    if (r) localStorage.setItem(BOUNTY_RECORDING_KEY, JSON.stringify(r));
+    else localStorage.removeItem(BOUNTY_RECORDING_KEY);
+  } catch (e) {}
+}
+function restoreBountyRecording() {
+  if (!PHYSICAL_COLLECT_ENABLED) return false;
+  const r = loadBountyRecording();
+  if (!r) return false;
+  state.recording = r;
+  document.body.classList.add('recording');
+  document.getElementById('recordScreen').hidden = false;
+  renderRecordScreen(); // 同時把補洞後的形狀落回磁碟，之後讀到的是穩定版本
+  acquireWakeLock();
+  return true;
+}
 function startBountyRecording(card) {
   if (!PHYSICAL_COLLECT_ENABLED) { showToast('GPS 校正旅程需要用 App'); return; }
   if (state.recording) { showToast('已經在錄了'); return; }
@@ -9462,8 +9528,11 @@ function startBountyRecording(card) {
   renderRecordScreen();
 }
 function stopBountyRecording() {
-  if (!state.recording) return;
   state.recording = null;
+  saveBountyRecording(null);
+  clearTimeout(state._recHintTimer);
+  const hint = document.getElementById('recHint');
+  if (hint) { hint.hidden = true; hint.innerHTML = ''; }
   document.body.classList.remove('recording');
   document.getElementById('recordScreen').hidden = true;
   releaseWakeLock();
@@ -9472,6 +9541,7 @@ function stopBountyRecording() {
 function renderRecordScreen() {
   const r = state.recording;
   if (!r) return;
+  saveBountyRecording(r);
   const nm = r.card ? bountyCardName(r.card) : null;
   document.getElementById('recRoute').textContent = nm ? `${nm.from} → ${nm.to}` : '';
   document.getElementById('recKm').textContent = (r.dNow == null ? 0 : r.dNow / 1000).toFixed(1);
@@ -13861,6 +13931,7 @@ async function boot() {
   } catch (e) { state.powerSave = false; }
   setBasemap();
   setupMapTools();
+  restoreBountyRecording(); // setupRecordScreen 已綁好停止鈕；資料還在載也先把黑幕與未完旅程接回來
   setupRecorder();
   await setupLocalNotifications();
   map.on('move zoom resize', reproject); // 縮放「動畫」與捏合手勢(_zoomAnim 凍結中)不在此重投影(會造成 issue #4 殘影);改由下方 onZoomAnim/捏合 zoom handler 專責同步
@@ -14060,6 +14131,7 @@ async function boot() {
   map.on('dragstart', () => { state._userMoved = true; });
   if (geoBoot) state._bootGeo.then(applyBootGeo);
   state.ready = true;
+  if (state.recording) renderRecordScreen(); // 還原黑幕先出；路網載完後再補一次，避免起訖站退化成「線名 →」
   publishTrackContinuityAudit();
   if (window.__notifyMockLog) {
     const cross = state.systems.filter(s => s.id === 'tra_sched' || s.id === 'thsr_sched')
