@@ -27,7 +27,8 @@
 // ⚠️ 一定要走 Distribute App ▸ App Store Connect ▸ Upload。若選了不重新簽章的匯出方式，
 //    上傳會因簽章不符被擋。
 import { execFileSync } from 'node:child_process';
-import { existsSync, readdirSync, statSync } from 'node:fs';
+import { createHash } from 'node:crypto';
+import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { homedir } from 'node:os';
@@ -74,6 +75,45 @@ const infoPlist = join(appsDir, app, 'Info.plist');
 console.log(`\narchive : ${archive}`);
 console.log(`app     : ${app}`);
 console.log(`版本    : ${plist('Print :CFBundleShortVersionString', infoPlist)} (build ${plist('Print :CFBundleVersion', infoPlist)})`);
+
+// ── 閘門 0：這顆 archive 真的是這棵樹建出來的嗎？────────────────────────────────
+// 2026-07-29 加。兩個真實存在的走錯路，靠人眼核對上面那三行是攔不住的：
+// (1) 不帶參數時 newestArchive() 挑「mtime 最新」——忘了 Archive、或 Archive 失敗沒注意，
+//     它就會對上一顆舊 archive 全綠通過，然後你在 Organizer 裡挑今天那顆（沒 patch 過的）
+//     去 Distribute，幾十分鐘後才收到 ITMS-90111。
+// (2) 這台機器上同時存在多棵 repo（主樹 /Users/xuxiang/Code/捷運小動畫 與統一分支
+//     /Users/xuxiang/Code/軌島-統一），**同名 workspace、同 bundle id、而且版號都是
+//     1.0.3 (14)**，只有網頁內容不同。從 Xcode「最近開啟」點錯一棵，archive 出來的
+//     App 少掉整批新功能，版號比對一路綠燈——上傳成功、裝上 TestFlight 才發現。
+// 版號比對不了這兩件事，內容比對可以：archive 內的 public/index.html 必須與這棵樹剛
+// build 出來的 app/www/index.html 逐 byte 相同。不同就是 archive 不是這棵樹的產物。
+const wwwIndex = join(appRoot, 'www/index.html');
+const archIndex = join(appsDir, app, 'public/index.html');
+if (!existsSync(wwwIndex)) {
+  console.error(`\n🔴 找不到 ${wwwIndex}——請先跑 node app/scripts/set-release-mode.mjs feature 建出 www。\n`);
+  process.exit(1);
+}
+if (!existsSync(archIndex)) {
+  console.error(`\n🔴 archive 裡沒有 public/index.html：${archIndex}\n   這顆 archive 不是軌島 App，或 Capacitor 的 web 資產沒被打包進去。\n`);
+  process.exit(1);
+}
+const buildOf = file => (readFileSync(file, 'utf8').match(/const BUILD = '([^']+)'/) || [])[1] || '(讀不到)';
+const wwwHash = createHash('md5').update(readFileSync(wwwIndex)).digest('hex');
+const archHash = createHash('md5').update(readFileSync(archIndex)).digest('hex');
+console.log(`網頁內容: BUILD ${buildOf(archIndex)}  md5 ${archHash.slice(0, 12)}…`);
+if (wwwHash !== archHash) {
+  console.error(
+    `\n🔴 這顆 archive 不是這棵樹建出來的，不可上傳：\n\n` +
+    `   archive 內  BUILD ${buildOf(archIndex)}  md5 ${archHash}\n` +
+    `   這棵樹 www  BUILD ${buildOf(wwwIndex)}  md5 ${wwwHash}\n` +
+    `   這棵樹      ${appRoot}\n\n` +
+    `   最可能的兩個原因：\n` +
+    `   ・忘了重新 Archive（腳本挑的是 mtime 最新的那顆＝上一次的 archive）\n` +
+    `   ・Xcode 開到另一棵 repo 的 App.xcworkspace（同名、同 bundle id、可能連版號都一樣）\n\n` +
+    `   確認 Xcode 開的是：${join(appRoot, 'ios/App/App.xcworkspace')}\n` +
+    `   重新 Product ▸ Archive，再跑一次這支腳本；或用參數指定正確的 archive。\n`);
+  process.exit(1);
+}
 
 // ── 上傳前的硬閘門：這兩件事改 plist 救不了，只能重新 Archive ──────────────────
 // 2026-07-26 實際踩到：機器上同時有 /Applications/Xcode.app（26.6 正式版）與

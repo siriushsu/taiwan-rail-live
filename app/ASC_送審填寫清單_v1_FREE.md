@@ -26,13 +26,30 @@
 | 欄位 | 值 |
 |---|---|
 | Privacy Policy URL | https://railisland.tw/privacy.html |
-| 資料蒐集 | 純免費版幾乎全部 Data Not Collected（見下） |
+| 資料蒐集 | **不是 Data Not Collected**——1.0.3 起要勾三項（見下） |
 
-純免費版問卷怎麼答：
-- 「Do you or your third-party partners collect data from this app?」→ App 本身不建立帳號、不同步、無廣告／分析 SDK。
-- 定位：只在按「附近列車」後於**裝置內**運算，不上傳、不連結身分 → 依 Apple 定義不列為 collected（但系統權限用途要如實寫）。
+> 🔴 **2026-07-29 改寫。這一節先前教人選「Data Not Collected」，從 1.0.3 起那是不實宣告。**
+> 變的是「GPS 校正旅程」：使用者主動接下一段懸賞、按下開始錄製之後，App 每約 60 秒會把
+> 位置在裝置上換算成的沿線里程與一組隨機裝置識別碼送到自家伺服器（`index.html:10271` 的
+> 樣本欄位 `d/t/v/acc`、`index.html:10305` 的上傳白名單）。座標本身確實不上傳
+> （`worker.js:914` 收到含經緯度的 payload 直接回 400），但 Apple 的 App Privacy 是問
+> 「有沒有資料離開裝置」，不是問「是不是原始座標」。權威版本在
+> `app/STORE_DATA_DISCLOSURES.md`，兩份不一致時以那份為準。
+
+1.0.3 的問卷怎麼答：
+- 「Do you or your third-party partners collect data from this app?」→ **Yes**。
+- **Location → Precise Location**：勾。用途 App Functionality。不連結身分、不做追蹤。
+  說明它只在使用者主動開始校正旅程後才產生，且上傳前已在裝置上換算成沿線里程。
+- **Identifiers → Device ID**：勾。用途 App Functionality（認列校正貢獻）。不連結身分、不做追蹤。
+  這是 App 自己 `crypto.randomUUID()` 產生存在本機的字串（`index.html:5822`），不是 IDFA／IDFV。
+- **Usage Data → Product Interaction**：勾。用途 Analytics。不連結身分、不做追蹤。
+  （`/api/*` 的鏡頭模式埋點，用來估底圖成本。）
 - Cloudflare 伺服器 log（IP、請求時間）：service provider 的必要安全記錄、不連結身分、不做追蹤。
-- 保守做法：若你要最乾淨，選 Data Not Collected；若要把 Cloudflare log 也揭露，填「Diagnostics／不連結身分／不追蹤」。兩者送審都過，擇一即可。
+  要揭露就填「Diagnostics／不連結身分／不追蹤」，不揭露也可以——這一項與上面三項不同，
+  Apple 對 service provider 的必要 log 本來就不要求列入。
+- ⚠️ 三項都要記得回答「Are these data linked to the user's identity?」→ **No**，
+  「Do you use this data for tracking purposes?」→ **No**。有帳號系統之後要重新評估
+  （`ACCOUNT_ENABLED` 目前是 false）。
 
 ## 三、定價與供應（Pricing and Availability）
 
