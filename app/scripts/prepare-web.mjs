@@ -138,15 +138,17 @@ html = stripJsRegion(html, 'web-tiles');
 // (4) 頁尾底圖來源文字換成本 build 的實況
 html = replaceHtmlRegion(html, 'basemap-credit',
   includeLicensedBasemaps
-    ? 'Stadia Maps（© Stadia Maps © OpenMapTiles © OpenStreetMap）、Esri World Imagery（衛星影像）與 Natural Earth（離線海陸輪廓）'
-    : 'Natural Earth（離線海陸輪廓；線上底圖未納入此版本）');
+    ? 'Stadia Maps（© Stadia Maps © OpenMapTiles © OpenStreetMap）、Esri World Imagery（衛星影像）與內政部「直轄市、縣市界線」（離線海陸輪廓，政府資料開放授權條款第1版）'
+    : '內政部「直轄市、縣市界線」（離線海陸輪廓，政府資料開放授權條款第1版；線上底圖未納入此版本）');
 // (4b) 狀態頁連結:App 包內沒有 status.html(其相對 /api 呼叫在 Capacitor 本機來源也不通),換成正式站絕對網址外開
 html = replaceHtmlRegion(html, 'status-link',
   '<li><span class="d">狀態</span><a href="https://railisland.tw/status.html" target="_blank" rel="noopener">資料源連線狀態頁</a></li>');
 // (5) 注入:第三方授權入口＋功能旗標＋RAIL_APP_CONFIG(授權圖磚與計量底圖的跟車 zoom 上限)
 const appConfig = includeLicensedBasemaps ? {
   followZoomCap: 16, // 計量底圖止血:跟車進場/導播 zoom 上限(index.html 的 FOLLOW_ZOOM_CAP/DIRECTOR_FOLLOW_Z 消費)
-  satRetina: true, // 衛星 Retina 高解析(index.html 的 SAT_RETINA 消費)。改 false → App 衛星圖磚量降到約 1/3,畫面略糊;Esri 額度吃緊時的止血開關
+  // 2026-07-29 關掉(與 index.html 的 SAT_RETINA_DEFAULT 同一輪)：Esri 免費額度 2M/期眼看要吃穿。
+  // 🔴 這個值一旦 build 進 App 就鎖死到下一次送審——網站改一行部署就生效，App 不行。
+  satRetina: false, // 衛星 Retina 高解析(index.html 的 SAT_RETINA 消費)。true → 圖磚量約 2.9 倍、Retina 螢幕較銳利
   tiles: {
     light: { url: `https://tiles.stadiamaps.com/tiles/alidade_smooth/{z}/{x}/{y}.png?api_key=${stadiaApiKey}`, maxZoom: 20, attribution: STADIA_ATTRIBUTION },
     dark: { url: `https://tiles.stadiamaps.com/tiles/alidade_smooth_dark/{z}/{x}/{y}.png?api_key=${stadiaApiKey}`, maxZoom: 20, attribution: STADIA_ATTRIBUTION },

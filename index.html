@@ -3137,17 +3137,17 @@ try { if (matchMedia('(max-width: 900px)').matches) document.body.classList.add(
 
   <footer class="site-foot">
     <details class="foot-box">
-      <summary><span>更新紀錄</span><span class="foot-sub">最後更新：2026/7/28</span></summary>
+      <summary><span>更新紀錄</span><span class="foot-sub">最後更新：2026/7/29</span></summary>
       <ul class="foot-list foot-recent">
         <li class="grp">最近更新</li>
+        <li><span class="d">7/29</span><span>在高鐵或林鐵點下去跟車，不會再跟到同號碼的台鐵列車（謝謝網友回報）</span></li>
+        <li><span class="d">7/29</span><span>圖磚還沒載入時墊底的台灣輪廓換了新資料，海岸線終於對得準（謝謝網友回報）</span></li>
+        <li><span class="d">7/29</span><span>衛星底圖改用標準解析度圖磚，畫面略柔一點，換來圖資用量大減</span></li>
         <li><span class="d">7/28</span><span>新增「GPS 校正旅程」：用 App 錄一趟實際乘車幫忙校正列車位置，座標不會離開手機</span></li>
         <li><span class="d">7/28</span><span>錄製途中看得見地圖與列車，也能一邊查別的車，不再是整片黑畫面</span></li>
         <li><span class="d">7/28</span><span>全站圖示換成軌島自製單色線稿，亮暗主題下都更一致清楚</span></li>
         <li><span class="d">7/28</span><span>「隨機跟隨」挑到的車會一路跟到終點，不再中途自己換車</span></li>
         <li><span class="d">7/28</span><span>放空模式換景放慢、閒置久了改停全島畫面，列車照常跑</span></li>
-        <li><span class="d">7/28</span><span>誤點的車過了表定到站時間後，點下去不會再從頭重播了（謝謝網友回報）</span></li>
-        <li><span class="d">7/27</span><span>切到「高」時，左邊牌子下面改寫「台灣高鐵即時軌跡」，不再沿用台鐵的字</span></li>
-        <li><span class="d">7/27</span><span>分頁改成「全／台／高／捷」，電腦版與 App 統一，切換時畫面不再跳動</span></li>
       </ul>
       <!-- 第二層:完整歷史。刻意不掛 .foot-box 類名——placeFootBoxes() 用
            `.site-foot .foot-box` 搬移面板,巢狀同名會被當成另一個盒子一起搬走。 -->
@@ -3173,6 +3173,7 @@ try { if (matchMedia('(max-width: 900px)').matches) document.body.classList.add(
         <li><span class="d">7/16</span><span>捷運準確度升級：六家捷運依官方到站看板即時校正，國定假日自動改跑假日班表</span></li>
         <li><span class="d">7/9</span><span>台鐵即時誤點上線——介接交通部 TDX 平臺每分鐘更新；7/11 起開站即真實時刻、捷運改逐班推演</span></li>
         <li class="grp">跟車、搜尋與車站看板</li>
+        <li><span class="d">7/29</span><span>台鐵、高鐵、林鐵有不少重複的車次號碼（1238、1241、1、2…），在高鐵或林鐵畫面點下去卻跟到台鐵的同號車；現在點哪個系統就跟哪個系統（謝謝網友回報）</span></li>
         <li><span class="d">7/28</span><span>「隨機跟隨」改成挑一班就陪你跟到終點，不再過一兩分鐘自己跳去別班車；想換車按「換一班」，結束按小卡的 ×</span></li>
         <li><span class="d">7/25</span><span>環島之星觀光列車上地圖了：搜尋車名或車次 1／2，跟著萌旅號 13 小時繞台灣一圈</span></li>
         <li><span class="d">7/22</span><span>台鐵列車通過不停靠的車站時不再假性減速，只在真正停靠站緩起緩停</span></li>
@@ -3218,7 +3219,7 @@ try { if (matchMedia('(max-width: 900px)').matches) document.body.classList.add(
         <li class="grp">外觀與品牌</li>
         <li><span class="d">7/28</span><span>全站圖示改用軌島自製的單色線稿與單色字形（介面圖示、成就徽章、車廂標記都在內），亮暗主題與各家瀏覽器下長相一致，不再交給各系統自己的 emoji 決定</span></li>
         <li><span class="d">7/27</span><span>切到「高」時左邊牌子下面的那行字改成「台灣高鐵即時軌跡」，先前一直沿用台鐵的字串</span></li>
-        <li><span class="d">7/25</span><span>衛星底圖改接 Esri 官方授權服務端點；7/24 起在高解析度螢幕上更清晰銳利</span></li>
+        <li><span class="d">7/25</span><span>衛星底圖改接 Esri 官方授權服務端點；7/24 起在高解析度螢幕上更清晰銳利，7/29 為控制圖資用量改回標準解析度</span></li>
         <li><span class="d">7/22</span><span>縮放時墊底的離線輪廓圖配色貼齊底圖，消除快速縮放的色差閃爍</span></li>
         <li><span class="d">7/16</span><span>整站外觀大改版「琺瑯 2.0」，並支援亮／暗自動切換</span></li>
         <li><span class="d">7/10</span><span>網站更名「軌島」，正式網址 railisland.tw 上線；品牌定裝：懸掛式站名牌 header 與新版標誌</span></li>
@@ -3233,6 +3234,7 @@ try { if (matchMedia('(max-width: 900px)').matches) document.body.classList.add(
           <li class="web-only-donation-log"><span class="d">7/13</span><span>贊助方式更新：「請開發者喝咖啡」的銀行轉帳帳戶改用 LINE Bank（連線商業銀行 824）——謝謝每一位抖內支持軌島的朋友</span></li>
         <!-- APP_STRIP_END donation-log -->
         <li class="grp">資料校正</li>
+        <li><span class="d">7/29</span><span>圖磚還沒載入時墊底的台灣海陸輪廓換成內政部公開的縣市界線：舊資料比實際海岸線偏了一到三公里，東部海線好幾站看起來像在海上（謝謝網友回報）</span></li>
         <li><span class="d">7/28</span><span>新增「GPS 校正旅程」：懸賞板列出目前最缺實際乘車紀錄的路段，用 App 錄一趟就能幫忙把列車位置校正得更準。錄的時候只有里程會上傳、座標全程留在手機裡；中途重新整理或 App 被系統收掉都接得回同一趟，出錯時畫面上也看得到原因</span></li>
         <li><span class="d">7/28</span><span>錄製校正旅程時改成留在地圖上：看得見自己和列車在哪，也能繼續查看板、跟別的車；想看大字進度與品質說明時才點開詳細面板，回地圖不會停止錄製</span></li>
         <li><span class="d">7/25</span><span>台鐵快車經過不停靠小站時的位置改用改點後的實際到站紀錄校正</span></li>
@@ -3259,7 +3261,7 @@ try { if (matchMedia('(max-width: 900px)').matches) document.body.classList.add(
         <li><span class="d">捷運</span><span>交通部 TDX 運輸資料流通服務——北捷／機捷／新北捷（淡海・安坑・三鶯）／中捷／高捷（含輕軌）的路線幾何、站序、逐班時刻表與班距資料</span></li>
         <li><span class="d">即時</span><span>台鐵即時誤點與車站地址介接交通部 TDX 平臺（TrainLiveBoard／Station，每分鐘更新）</span></li>
         <li><span class="d">軌道</span><span>台鐵軌道及阿里山林鐵的 TDX 缺口補線取自 © OpenStreetMap 貢獻者（ODbL），經 Overpass／OSM API</span></li>
-        <li><span class="d">底圖</span><span><!-- APP_REPLACE_START basemap-credit（App 換 Stadia/Esri 授權版文字，prepare-web.mjs 替換） -->CARTO basemaps（© OpenStreetMap）、Esri World Imagery（衛星影像）與 Natural Earth（離線海陸輪廓）<!-- APP_REPLACE_END basemap-credit --></span></li>
+        <li><span class="d">底圖</span><span><!-- APP_REPLACE_START basemap-credit（App 換 Stadia/Esri 授權版文字，prepare-web.mjs 替換） -->CARTO basemaps（© OpenStreetMap）、Esri World Imagery（衛星影像）與內政部「直轄市、縣市界線」（離線海陸輪廓，政府資料開放授權條款第1版）<!-- APP_REPLACE_END basemap-credit --></span></li>
         <!-- APP_REPLACE_START status-link:App 包內沒有 status.html 且其相對 API 呼叫在本機來源不通,App build 換成正式站絕對網址外開 -->
         <li><span class="d">狀態</span><a href="status.html">資料源連線狀態頁</a></li>
         <!-- APP_REPLACE_END status-link -->
@@ -3516,7 +3518,7 @@ try { if (matchMedia('(max-width: 900px)').matches) document.body.classList.add(
 // 🔴 BUILD 字串會跨並行分支撞號（心得 16）：07-28 兩條線各自遞增又各自部署過——
 // origin/main 這條用到 v0728b，正式站那條用到 v0728f。本次三方合併把兩條線統一，
 // 所以往後推到一個雙方都沒用過的號，辨識線上跑哪一版仍以內容 hash 為準。
-const BUILD = 'v0728g';
+const BUILD = 'v0729a';
 // 成就徽章與車廂標記＝原本那些 emoji 的單色平面版（RailEmoji＝裁切過的 Noto Emoji 單色）。
 // 刻意保留 railIcon(name) 這個唯一入口:呼叫端一行都不用改,只有這裡決定畫法。
 // 🔴 ⚖ 與 ♾ 一律寫**不帶 VS16(U+FE0F)** 的碼位——帶了就強制彩色呈現,會蓋過 font-family
@@ -5485,7 +5487,11 @@ const APP_CFG = window.RAIL_APP_CONFIG || {};
 const FOLLOW_ZOOM_CAP = APP_CFG.followZoomCap || Infinity; // App 計量底圖(Stadia/Esri)跟車 zoom 上限(App=16);網站不設限
 // 衛星 Retina 高解析:開=Retina 螢幕清晰,但圖磚量約 2.9 倍(桌面 z13 實測 72 vs 25 張)。網站與 App 共用同一個 Esri 2M/月額度,
 // 額度吃緊時的止血開關——網站改下面這行 true→false,App 改 prepare-web.mjs 的 satRetina。
-const SAT_RETINA_DEFAULT = true;
+// 2026-07-29 關掉：Esri World Imagery 免費額度 2M/期，07-28 上線後量測近 24h 約 12.4 萬張，
+// 照這個速度 08-03 前後就吃穿，之後每千張 $0.15。Retina 開著約 2.9 倍圖磚換來的是「Retina 螢幕上
+// 衛星圖更銳利」——在額度用完會變成「衛星圖直接不能用」面前，這個交換不划算。
+// 要復原就把這行改回 true（App 端還要一併改 prepare-web.mjs 的 satRetina，兩處是分開的）。
+const SAT_RETINA_DEFAULT = false;
 const SAT_RETINA = APP_CFG.satRetina ?? SAT_RETINA_DEFAULT;
 function followEntryZoom() { return Math.min(Math.max(map.getZoom(), 13), FOLLOW_ZOOM_CAP); } // 跟車進場:至少拉近到 13,App 再套上限
 const LOCATE_ENABLED = !!window.RAIL_NATIVE_GEOLOCATION;
@@ -6816,7 +6822,7 @@ function renderPinCard() {
       const mm = Math.floor(r.delta / 60), ss = Math.floor(r.delta % 60);
       const cd = String(mm).padStart(2, '0') + ':' + String(ss).padStart(2, '0');
       const dl = r.delayMin > 0 ? '<span class="xc-dl">+' + r.delayMin + '分</span>' : '';
-      return '<div class="xc-row" data-no="' + r.tr.train + '" title="跟隨 ' + r.tr.train + ' 次"><span class="xc-no">' + r.tr.train + '</span>' +
+      return '<div class="xc-row" data-no="' + r.tr.train + '" data-sys="' + (r.tr.sys || '') + '" title="跟隨 ' + r.tr.train + ' 次"><span class="xc-no">' + r.tr.train + '</span>' +
         '<span class="xc-kind">' + r.tr.typeName + '</span><span class="xc-dir">往' + r.dir + '</span>' +
         '<span class="xc-time">' + fmtHM(r.pass) + dl + '</span><span class="xc-cd">' + cd + '</span></div>';
     };
@@ -6841,14 +6847,20 @@ function renderPinCard() {
   state._pinRenderedAt = state.simSec;
   if (!el._wired) { // 事件委派只掛一次:卡片每模擬秒重繪(倒數要跳),per-render 綁 handler 會在重繪瞬間掉點擊
     el._wired = true;
-    el.onpointerdown = e => { const row = e.target.closest('.xc-row[data-no]'); el._downNo = row ? row.dataset.no : null; };
+    el.onpointerdown = e => {
+      const row = e.target.closest('.xc-row[data-no]');
+      el._downNo = row ? row.dataset.no : null;
+      el._downSys = row ? row.dataset.sys : null;
+    };
     el.onclick = e => {
       if (e.target.closest('#pinClose')) return closePinCard();
       if (e.target.closest('#pinSave')) return togglePinSave();
       const row = e.target.closest('.xc-row[data-no]');
       const no = row ? row.dataset.no : el._downNo; // 按下到放開之間列被重繪換走時,用 pointerdown 記的車次補(比照站牌看板)
+      const sys = row ? row.dataset.sys : el._downSys;
       if (!no) return;
-      const tr = state.trains.find(t => String(t.train) === no); if (tr) setFollow(tr);
+      // 這條路徑不經 followTrainNo,自己撈 state.trains——所以重號的篩選要在這裡自己做(issue #16)
+      const tr = findTrain(no, sys); if (tr) setFollow(tr);
     };
   }
 }
@@ -7656,11 +7668,16 @@ function loadAllGroup(g, keepView) {
   renderSystemsBar();
 }
 
-function findTrain(q) {
+// sysId 給了就只在那個系統裡找（issue #16）：「全」群組的 state.trains 是台鐵＋高鐵合併的
+// （applySchedSystems 依 sysList 順序 push、每班標 tr.sys），而兩家有大量重號車次（1238、121…），
+// 不篩系統就是「先插入的台鐵永遠贏」——在高鐵或林鐵時刻表點 1238 會跟到台鐵的 1238。
+// 呼叫端知道系統就一定要傳；不知道（例如只打了一個車號的搜尋）才留空走舊行為。
+function findTrain(q, sysId) {
   q = (q || '').trim(); if (!q) return null;
   const num = q.split(/[\s　]/)[0];
-  return state.trains.find(t => ('' + t.train) === num)
-    || state.trains.find(t => ('' + t.train) === q) || null;
+  const pool = sysId ? state.trains.filter(t => t.sys === sysId) : state.trains;
+  return pool.find(t => ('' + t.train) === num)
+    || pool.find(t => ('' + t.train) === q) || null;
 }
 
 // 跨午夜車次的有效模擬時間:00:00 後仍在跑的前一日班次,把 simSec 加一天來比對。
@@ -8756,22 +8773,30 @@ function toggleFav(tr) {
     const spd = specialOf(tr);
     const sp = (spd && spd.named) || SPECIAL_TRAINS[no];
     const stops = tr.stops;
-    favs.push({ train: no, label: `${sp ? sp.name : tr.typeName}　${stops[0].name}→${stops[stops.length - 1].name}` });
+    // sys 一起存(issue #16 重號):舊紀錄沒這欄→undefined→退回舊的「誰先找到算誰」,向下相容。
+    // favs 的 userDataCleanValue 是就地正規化 train/label,不像 pins/stations 會重建物件,所以額外欄位存得住。
+    favs.push({ train: no, sys: tr.sys, label: `${sp ? sp.name : tr.typeName}　${stops[0].name}→${stops[stops.length - 1].name}` });
   }
   saveFavs(favs); renderFavs(); renderFavPanel(); updateStar();
 }
 // 跟隨指定車次;在捷運頁會先切回時刻表系統(預設台鐵)。opts.fromStart:護照灰章用,從發車開始固定倍速看完才算完乘
+// opts.sys:呼叫端知道這班車屬於哪個時刻表系統時一定要傳(issue #16 重號)。傳了就三處都認它——
+// 切系統時切到它、findTrain 只在它裡面找、跨系統補找也只找它;沒傳才維持舊的「誰先找到算誰」。
 function followTrainNo(no, opts) {
+  const wantSys = (opts && opts.sys) ? String(opts.sys) : '';
   if (state.mode !== 'sched') {
-    const s = state.systems.find(x => x.mode === 'sched');
+    // 指名系統就直接切過去,不要落到 systems 裡第一個 sched(＝台鐵)——那正是重號跟錯的起點
+    const s = (wantSys && state.systems.find(x => x.mode === 'sched' && x.id === wantSys))
+      || state.systems.find(x => x.mode === 'sched');
     if (!s) return;
     loadSystem(s);
   }
-  let tr = findTrain(no);
-  if (!tr) { // 當前時刻表系統找不到 → 找其他 sched 系統(台鐵↔高鐵)有此車次就切換
+  let tr = findTrain(no, wantSys);
+  if (!tr) { // 當前時刻表系統找不到 → 找其他 sched 系統(台鐵↔高鐵↔林鐵)有此車次就切換
     const other = state.systems.find(x => x.mode === 'sched' && x.id !== state.sysId
+      && (wantSys ? x.id === wantSys : true)
       && (x.data.trains || []).some(t => String(t.train) === String(no)));
-    if (other) { loadSystem(other); tr = findTrain(no); }
+    if (other) { loadSystem(other); tr = findTrain(no, wantSys); }
   }
   if (tr) {
     const ts = document.getElementById('trainSearch'); if (ts) ts.value = no;
@@ -8881,7 +8906,7 @@ function renderFavs() {
     el.innerHTML = `<b>${escHtml(f.train)}</b><span>${escHtml(f.label)}</span><span class="rm" title="移除">×</span>`;
     el.onclick = e => {
       if (e.target.classList.contains('rm')) { removeFav(f.train); return; }
-      followTrainNo(f.train);
+      followTrainNo(f.train, { sys: f.sys });
     };
     box.appendChild(el);
   });
@@ -8902,7 +8927,7 @@ function renderFavPanel() {
     (favs.length
       ? (stns.length ? `<div class="sec">列車</div>` : '') + favs.map(f => {
           const no = escHtml(f.train);
-          return `<div class="row fv" data-no="${no}"><span class="dot" style="background:#d2a12a"></span>` +
+          return `<div class="row fv" data-no="${no}" data-sys="${escHtml(f.sys || '')}"><span class="dot" style="background:#d2a12a"></span>` +
             `<b>${no}</b><span class="dest">${escHtml(f.label)}</span>` +
             (NOTIFY_LOCAL_ENABLED && findLocalReminderTrain(f.train) ? `<button class="fv-notify" type="button" data-notify-no="${no}" aria-label="管理到站提醒">${railIcon('ui-notify')}</button>` : '') +
             `<span class="rm" data-no="${no}" title="移除">×</span></div>`;
@@ -9206,7 +9231,7 @@ function followDexStamp(cat, id) {
   const pool = cands.length > 1 ? cands.filter(t => String(t.train) !== String(last)) : cands;
   const tr = pool[Math.floor(Math.random() * pool.length)];
   state._dexLast[key] = String(tr.train);
-  followTrainNo(String(tr.train), { fromStart: true });
+  followTrainNo(String(tr.train), { fromStart: true, sys: tr.sys });
 }
 // 完乘記錄排序(issue#8,純顯示層):不碰資料/同步,只改 renderPassport 讀出後的呈現順序
 const RIDE_SORT_LABELS = { date: '日期', train: '車次', km: '距離', kind: '車種' };
@@ -11029,7 +11054,7 @@ function hlRow(h) {
   const running = !!trainPos(tr, state.simSec);
   const status = running ? '行駛中'
     : (state.simSec > last.arrSec ? '重播' : fmtHM(tr.stops[0].depSec % 86400) + ' 發');
-  return `<div class="row" data-no="${tr.train}" title="跟隨 ${tr.train} 次"><span class="dot" style="background:${tr.color}"></span>` +
+  return `<div class="row" data-no="${tr.train}" data-sys="${tr.sys || ''}" title="跟隨 ${tr.train} 次"><span class="dot" style="background:${tr.color}"></span>` +
     `<b>${h.title}</b><span class="dest">${tr.train}次 ${tr.stops[0].name}→${last.name}${h.sub ? ' · ' + h.sub : ''}</span>` +
     `<span class="min">${status}</span></div>`;
 }
@@ -11063,7 +11088,7 @@ function renderExplorePanel() {
     const gr = e.target.closest('.row[data-guide]');
     if (gr) { const n = exploreGuideTrains()[+gr.dataset.guide]; if (n) renderNamedIntro(n); return; } // 圖鑑列:開介紹卡(不跟隨、不收藏)
     const row = e.target.closest('.row[data-no]');
-    if (row) { closeExplorePanel(); followTrainNo(row.dataset.no); }
+    if (row) { closeExplorePanel(); followTrainNo(row.dataset.no, { sys: row.dataset.sys }); }
   };
 }
 function openExplorePanel() {
@@ -11186,7 +11211,9 @@ function openTodayPanel() {
     const retryEv = e.target.closest('[data-events-retry]');
     if (retryEv) { ensureStationEvents(retryEv.dataset.eventsRetry); renderTodayPanel(); return; }
     const fb = e.target.closest('[data-follow]');
-    if (fb) { closeTodayPanel(); followTrainNo(fb.dataset.follow); return; }
+    // 今日看板是全台鐵當日誤點排行(#todayPanel 註解與 /api/today-board 皆台鐵限定),
+    // 所以直接指名台鐵——在「全」群組(台鐵＋高鐵同載)時不指名就可能跟到高鐵的同號車。
+    if (fb) { closeTodayPanel(); followTrainNo(fb.dataset.follow, { sys: 'tra_sched' }); return; }
     const row = e.target.closest('.td-row[data-no]');
     if (row) {
       const no = row.dataset.no;
@@ -13414,7 +13441,7 @@ function renderBoard() {
   const list = rows.slice(0, 12).map(r => {
     const min = r.dtm < 60 ? '即將' : Math.round(r.dtm / 60) + ' 分';
     const dest = r.tr.loop ? '往 ' + r.loopDest : (r.isLast ? '（終點到達）' : '往 ' + r.dest);
-    return `<div class="row" data-no="${r.tr.train}" title="跟隨 ${r.tr.train} 次"><span class="dot" style="background:${r.tr.color}"></span>` +
+    return `<div class="row" data-no="${r.tr.train}" data-sys="${r.tr.sys || ''}" title="跟隨 ${r.tr.train} 次"><span class="dot" style="background:${r.tr.color}"></span>` +
       // 「推算」標貼著時刻放(被推算的是時間不是路線),與 lateTag 同位、不會同時出現(est 車無誤點資料);
       // 放 dest 欄會把「（終點到達）」擠成「(…」(280px 看板實測)。
       `<b>${r.tr.train}</b><span class="dest">${r.tr.loop ? r.tr.loopName : r.tr.typeName}　${dest}</span>` +
@@ -13445,12 +13472,14 @@ function renderBoard() {
   el.onpointerdown = e => {
     const row = e.target.closest('.row[data-no]');
     el._downNo = row ? row.dataset.no : null;
+    el._downSys = row ? row.dataset.sys : null;   // 車次補記的同時也補記系統,否則重號時補回來的是別家的車
   };
   el.onclick = e => {
     const row = e.target.closest('.row[data-no]');
     const no = row ? row.dataset.no : el._downNo;
-    el._downNo = null;
-    if (no) { closeBoard(); followTrainNo(no); }
+    const sys = row ? row.dataset.sys : el._downSys;
+    el._downNo = null; el._downSys = null;
+    if (no) { closeBoard(); followTrainNo(no, { sys }); }
   };
 }
 
@@ -13622,7 +13651,11 @@ function resolveScheduleDay(data) {
   return { ...data, trains, date: key, _schedDay: key, _schedStale: stale };
 }
 
-// 圖磚未載入或 App 離線時的海陸底層。台灣輪廓來自 Natural Earth 5.1.2（Public Domain），
+// 圖磚未載入或 App 離線時的海陸底層。台灣輪廓＝內政部「直轄市、縣市界線(TWD97經緯度)」1140318
+// 以共用邊消去（dissolve）取海岸線、RDP 簡化約 100m；政府資料開放授權條款第1版，署名為生效要件。
+// 2026-07-29 從 Natural Earth 5.1.2 換過來（issue #12）：NE 是 1:10m 概化海岸線，相對 OSM 系圖磚
+// 有 1–3km 位移，強迫顯示時看得出輪廓歪掉；用 1269 個已對過正射影像的車站座標當獨立真值量，
+// 舊檔有 24 站（東澳、南澳、崇德、和仁…全在東部海岸線）落在「海裡」，新檔 0 站。
 // 用獨立 pane 壓在 tilePane 下方：正常時被圖磚完整蓋住，斷網／圖磚缺口才露出，不影響列車 overlay。
 function offlineLandStyle() {
   if (state.basemap === 'sat') return { fillColor: '#345347', color: '#b7c7ad', fillOpacity: 1, opacity: .7, weight: 1.2 };
@@ -13637,7 +13670,7 @@ async function setupOfflineLand() {
   const pane = map.getPane('fallbackPane'); pane.style.zIndex = '150'; pane.style.pointerEvents = 'none';
   const renderer = L.canvas({ pane: 'fallbackPane', padding: .35 });
   state.offlineLand = L.geoJSON(land, { pane: 'fallbackPane', renderer, interactive: false, style: offlineLandStyle, smoothFactor: .5 }).addTo(map);
-  map.attributionControl.addAttribution('Made with Natural Earth');
+  map.attributionControl.addAttribution('臺灣輪廓：內政部');  // 政府資料開放授權條款：須標示資料提供機關
   document.querySelector('.stage').classList.add('offline-land');
 }
 
@@ -14462,7 +14495,7 @@ function drawWatermark(g, w, h) {
   // 放上一行與短的站名同列,不與長網址同列——窄畫面(直式錄影)兩者會在中間相撞
   g.textAlign = 'left'; g.globalAlpha = .8;
   g.font = '10px ' + wmFont;
-  const mapCredit = REC.fallbackVisible ? 'Natural Earth' : (state.basemap === 'sat' ? '© Esri — Maxar, Earthstar Geographics' : '© OpenStreetMap © CARTO');
+  const mapCredit = REC.fallbackVisible ? '臺灣輪廓：內政部' : (state.basemap === 'sat' ? '© Esri — Maxar, Earthstar Geographics' : '© OpenStreetMap © CARTO');
   g.fillText(mapCredit, pad, h - pad - 17);
   g.restore();
 }
@@ -15356,7 +15389,7 @@ function applyTripLink(tp) {
   const sysId = tripSysId(tp.code);
   // 日期不符 / 系統碼無效 → 行程已結束(優雅降級)
   if (!sysId || tp.date !== tripOpsDate()) { state._trip = { err: 'ended', destName: tp.dest, from: tp.from }; renderTripBanner(); return; }
-  followTrainNo(String(tp.no)); // 既有路徑：切 sched 系統、tra↔thsr 對位、setFollow
+  followTrainNo(String(tp.no), { sys: sysId }); // 既有路徑：切 sched 系統、tra↔thsr 對位、setFollow
   let tr = state.followTrain;
   // 撞號保險：跟到的系統與 payload 不符 → 改跟正確系統的同號車
   if (tr && tripSysCode(tr.sys) !== tp.code) {
@@ -15559,7 +15592,7 @@ document.getElementById('favPanel').onclick = e => {
   const sr = e.target.closest('.row.fvst');
   if (sr) { gotoFavStationKey(sr.dataset.stkey); return; }
   const row = e.target.closest('.row.fv');
-  if (row) { closeFavPanel(); followTrainNo(row.dataset.no); }
+  if (row) { closeFavPanel(); followTrainNo(row.dataset.no, { sys: row.dataset.sys }); }
 };
 // 命名地點對話框接線(儲存/取消/關閉/Enter 存/Esc 關/點背景關)
 document.getElementById('pinNameSave').onclick = confirmPinName;
@@ -15630,7 +15663,7 @@ initMusic();
   // 手機搜尋列住在「搜尋」sheet;跟車前先關該 sheet(比照亮點列點擊先關再跟),桌面搜尋在 header 不受影響
   const closeSearchHost = () => { if (window.matchMedia(MOBILE_MQ).matches && typeof closeSearchPanel === 'function') closeSearchPanel(); };
   // 只有車次號、不知道是台鐵還高鐵 → 切「全」(兩家真實時刻都在,findTrain 一定找得到);v0727c 前是已無頁籤的 nat
-  const followNo = no => { closeSearchHost(); if (state.mode !== 'sched') selectGroup(GROUPS.find(g => g.id === 'all')); followTrainNo(no); };
+  const followNo = (no, sys) => { closeSearchHost(); if (state.mode !== 'sched') selectGroup(GROUPS.find(g => g.id === 'all')); followTrainNo(no, { sys }); };
   ts.addEventListener('input', renderSearchDrop);
   ts.addEventListener('focus', () => { if (ts.value.trim()) renderSearchDrop(); });
   ts.addEventListener('keydown', e => {
@@ -15641,8 +15674,11 @@ initMusic();
     const trs = state._searchTrains || [], stns = state._searchStns || [], nmd = state._searchNamed || [];
     const exact = /^\d+$/.test(q) && trs.some(o => String(o.tr.train) === q);
     closeSearchDrop();
-    if (exact) followNo(q);                       // 全數字且車次精準命中→跟隨
-    else if (!/\d/.test(q) && trs.length) followNo(String(trs[0].tr.train)); // 名稱命中具名班次(藍皮…)→跟第一班
+    // 精準命中可能同時是台鐵與高鐵的同號車(issue #16)。只有命中集合同屬一個系統時才指定系統;
+    // 兩家都有就不指定,維持舊行為並讓使用者用下拉自己挑(下拉每列都標了系統且點擊會帶系統)。
+    const exactSys = [...new Set(trs.filter(o => String(o.tr.train) === q).map(o => o.sys && o.sys.id))];
+    if (exact) followNo(q, exactSys.length === 1 ? exactSys[0] : '');   // 全數字且車次精準命中→跟隨
+    else if (!/\d/.test(q) && trs.length) followNo(String(trs[0].tr.train), trs[0].sys && trs[0].sys.id); // 名稱命中具名班次(藍皮…)→跟第一班
     else if (!/\d/.test(q) && nmd.length) renderNamedIntro(nmd[0]); // 名稱命中無班次觀光列車(山嵐/鳴日)→介紹卡(內部重開下拉)
     else if (stns.length) gotoStn(stns[0]);       // 否則有車站→開第一站
     else if (q) { closeSearchHost(); followTrainNo(q); } // 都沒有→舊行為(含查無提示)
@@ -15655,7 +15691,7 @@ initMusic();
     const nmRow = e.target.closest('.row.named-row');
     if (nmRow) { const n = (state._searchNamed || [])[+nmRow.dataset.ni]; if (n) renderNamedIntro(n); return; }
     const trRow = e.target.closest('.row.tr-row');
-    if (trRow) { const o = (state._searchTrains || [])[+trRow.dataset.ti]; if (o) { closeSearchDrop(); followNo(String(o.tr.train)); } return; }
+    if (trRow) { const o = (state._searchTrains || [])[+trRow.dataset.ti]; if (o) { closeSearchDrop(); followNo(String(o.tr.train), o.sys && o.sys.id); } return; }
     const stRow = e.target.closest('.row.stn-row');
     if (stRow) { const st = (state._searchStns || [])[+stRow.dataset.i]; if (st) gotoStn(st); } // gotoStn 內已 closeSearchDrop
   });

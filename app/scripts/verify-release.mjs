@@ -260,8 +260,8 @@ export async function verifyRelease({
       '跟車進場 followEntryZoom 呼叫點少於 3 處——台鐵／高鐵／捷運跟車 zoom 上限未完整覆蓋');
     assert(html.includes(JSON.stringify(STADIA_ATTRIBUTION)),
       'Stadia 圖磚署名不是官方要求的三組連結逐字內容');
-    assert(html.includes('Stadia Maps（© Stadia Maps © OpenMapTiles © OpenStreetMap）、Esri World Imagery（衛星影像）與 Natural Earth（離線海陸輪廓）'),
-      'App 頁尾底圖來源未包含 Esri 衛星');
+    assert(html.includes('Stadia Maps（© Stadia Maps © OpenMapTiles © OpenStreetMap）、Esri World Imagery（衛星影像）與內政部「直轄市、縣市界線」（離線海陸輪廓，政府資料開放授權條款第1版）'),
+      'App 頁尾底圖來源未包含 Esri 衛星或離線輪廓的內政部署名');
   } else {
     assert(html.includes('window.RAIL_ONLINE_BASEMAPS_AVAILABLE=false'), '安全 build 必須明確關閉線上底圖');
     assert(!html.includes('tiles.stadiamaps.com'), '安全 build 不可含 Stadia 圖磚網址或 API key');
