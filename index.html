@@ -4018,6 +4018,8 @@ function resolvePerf(tr) {
   for (const [re, p] of PERF_RULES) if (re.test(cn)) return p;
   return PERF_BY_TYPE[tr.typeName] || PERF_DEFAULT;
 }
+// 顯示層時速的硬上限(車種極速)。每幀要用,快取在車上免得重跑 PERF_RULES 的正整比對。
+function speedCapOf(tr) { return tr._vCap != null ? tr._vCap : (tr._vCap = resolvePerf(tr).v); }
 // 給段距離 Lkm、段時間 T 秒、加速 aK/減速 bK(km/h/s)、極速 vK(km/h) → 相位參數(內部 SI)。
 // 不可行(時間太緊/太短/需超速才追上時刻)回 null,呼叫端退回等速(端點恆安全)。
 function buildProfile(Lkm, T, aK, bK, vK) {
@@ -4050,11 +4052,13 @@ function buildObsProfile(Lkm, T, pts, vTopK) {   // pts:[{t:段內秒, d:距跑�
   xs.push(T); ys.push(L);
   // 節點對軌道幾何複驗:build 端的閘門用官方里程,這裡的距離來自軌道投影,兩者不同源(刻意的兩道獨立防線)。
   // 與真停靠站相鄰的區間含起停,平均速度上限更嚴;超速代表該節點與本線幾何不相容 → 丟節點不丟整段。
-  // 門檻刻意維持硬編、不綁車種極速:2026-07-29 試過綁 vTopK,超標段是從 14 降到 3,
-  // 但 37 個跑段因節點被清到剩兩端而退回梯形(實測校正覆蓋率是本模型的本體價值),
-  // 通過站時刻位移也從中位 4s 惡化到 11s——用丟資料換數字好看,不划算。
-  // 殘留的「時刻表要求速度 > 車種極速」屬車種判定或里程資料的矛盾,另案處理,不在這裡掩蓋。
-  const VS_END = 115 / 3.6, VS_MID = 135 / 3.6;
+  // 門檻綁該車種極速(2026-07-29,使用者裁定「速度不能超過上限,比模型精度重要」)。
+  // 原本硬編 135＝最快車種的極速,對柴聯自強(110)、區間車(120)形同不設防,留下的節點
+  // 本身就要求車子跑不到的速度(246 次:29 秒衝 127.5),插值再怎麼夾都壓不下去。
+  // 代價:少數跑段的節點被清到剩兩端 → 退回梯形。那不是正確性損失,梯形恆不超速
+  // (buildProfile 需要超速時回 null 再退等速),只是通過站時刻少了實測校正。
+  // 端點區間含起停,沿用原本 115/135＝0.85 的比例壓得更嚴。
+  const VS_MID = (vTopK > 0 ? vTopK : 135) / 3.6, VS_END = VS_MID * 0.85;
   for (let guard = xs.length; guard > 0; guard--) {   // 上限先求值:xs 會邊刪邊縮,寫成 guard<xs.length 會提早收工
     let bad = -1;
     for (let i = 0; i < xs.length - 1; i++) {
@@ -4085,9 +4089,11 @@ function buildObsProfile(Lkm, T, pts, vTopK) {   // pts:[{t:段內秒, d:距跑�
   // 正是在替這個反效果讓路,於是割線快的區間永遠豁免——171 次那段割線 134.9 就放行到 202)。
   // 上限綁該車種極速;割線本身已超過極速時只能承認(時刻表要求的平均速度就那麼快),取 del 為準。
   // m[i] 為相鄰兩區間共用,處理區間 i 設定的 m[i+1] 會讓已收好的區間 i 重新超標 → 外層重掃直到不動
-  // (實測 3 輪內收斂;不設無限迴圈,殘留由驗收的 3% 容差兜住)。
+  // 收斂保證:上面的節點閘門已使每個區間割線 del ≤ 極速,而「兩端導數都設成 del」(線性)的
+  // 區間峰值恆等於 del ≤ cap。所以後段輪次改成直接壓線性,最壞情況全段線性、必定達標——
+  // 速度上限是硬要求,不留容差給殘留(使用者裁定:速度不能超過上限,比模型精度重要)。
   const VCAP = (vTopK > 0 ? vTopK : 130) / 3.6;
-  for (let pass = 0; pass < 4; pass++) {
+  for (let pass = 0; pass < 12; pass++) {
     let touched = false;
     for (let i = 0; i < n - 1; i++) {
       const cap = Math.max(VCAP, del[i]);
@@ -4098,9 +4104,9 @@ function buildObsProfile(Lkm, T, pts, vTopK) {   // pts:[{t:段內秒, d:距跑�
         return v;
       };
       if (dMax(m[i], m[i + 1]) <= cap) continue;
+      // 前六輪用二分,盡量保留實測形狀;之後仍超標的是「相鄰區間要求相反」的震盪段,直接壓線性。
+      if (pass >= 6) { m[i] = m[i + 1] = del[i]; touched = true; continue; }
       const mix = (v, u) => v + (del[i] - v) * u;   // u=0 維持原導數、u=1 為線性
-      // 註:試過「末輪強制壓成線性」當保底,反而更糟(峰值 135→150、違反上界 1→24 段)——
-      // 硬設 m 會破壞鄰區間已收好的結果,且末輪沒有機會再修。維持純二分。
       let lo = 0, hi = 1;
       for (let it = 0; it < 12; it++) {      // 二分找「最小的」拉向線性的比例,盡量保留實測形狀
         const mid = (lo + hi) / 2;
@@ -11336,7 +11342,7 @@ function speedProfile(tr) {
   for (let i = 0; i < N; i++) {
     const t = t0 + (t1 - t0) * i / (N - 1);
     const a = trainPos(tr, t), b = trainPos(tr, Math.min(t + 30, t1));
-    v.push(a && b ? haversineKm(a, b) / 30 * 3600 : 0);
+    v.push(a && b ? Math.min(haversineKm(a, b) / 30 * 3600, speedCapOf(tr)) : 0);  // 同 fpSpd:車種極速為硬上限
   }
   return (tr._spdProf = { v, t0, t1, max: Math.max(60, Math.ceil(Math.max(...v) / 20) * 20) });
 }
@@ -11665,9 +11671,12 @@ function updateFollowPanel(tr) {
     plate.classList.add('show');
     document.body.classList.add('dwell-show'); // 停靠站名牌顯示中:他 sheet 展開(sheet-open)時讓跟車小卡淡出讓位(見 CSS body.dwell-show.sheet-open)
   } else { plate.classList.remove('show'); document.body.classList.remove('dwell-show'); state._plateStop = null; }
-  // 即時時速(取前後 20 秒位移換算);大數字讀數,看著有速度感
+  // 即時時速(取前後 20 秒位移換算);大數字讀數,看著有速度感。
+  // 車種極速是硬上限:位置曲線本身已被夾在極速內(buildObsProfile),但相鄰段換軌道形狀物件時
+  // 端點未必完全重合,會有極稀少的位置跳躍(全網逐秒取樣 8.38M 次中 397 次,0.005%,最大 201.6),
+  // 用位置差分算速度就會被那一跳污染。跳躍本身是貼軌資料問題(另列待辦),這裡先保證讀數不說謊。
   const pa = trainPos(tr, state.simSec), pb = trainPos(tr, state.simSec + 20);
-  const kmh = (pa && pb) ? haversineKm(pa, pb) / 20 * 3600 : 0;
+  const kmh = (pa && pb) ? Math.min(haversineKm(pa, pb) / 20 * 3600, speedCapOf(tr)) : 0;
   document.getElementById('fpSpd').innerHTML = '<b>' + Math.round(kmh) + '</b> km/h';
   // 旅程進度條:環島車永不到站,改顯示完乘成就累積(連續跟滿半圈=到折返點枋寮即蓋章)
   if (tr.loop) {
