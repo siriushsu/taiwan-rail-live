@@ -26,6 +26,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
             fatalError("GoogleService-Info.plist 缺失：release build 必須帶入 Firebase Console 下載的正式 plist（見 app/STORE_SUBMISSION_CHECKLIST.md）")
             #endif
         }
+        RailBoardScheduleWriter.refreshIfNeeded(application: application)
         return true
     }
 
