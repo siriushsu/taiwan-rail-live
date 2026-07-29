@@ -3235,7 +3235,7 @@ try { if (matchMedia('(max-width: 900px)').matches) document.body.classList.add(
           <li class="web-only-donation-log"><span class="d">7/13</span><span>贊助方式更新：「請開發者喝咖啡」的銀行轉帳帳戶改用 LINE Bank（連線商業銀行 824）——謝謝每一位抖內支持軌島的朋友</span></li>
         <!-- APP_STRIP_END donation-log -->
         <li class="grp">資料校正</li>
-        <li><span class="d">7/29</span><span>修正懸賞板的停站任務：現在會顯示正確站名，列車真的停靠後會計入樣本、發點並完成認領；只有經過但不停靠不會誤算</span></li>
+        <li><span class="d">7/29</span><span>修正懸賞板的停站任務：現在會顯示正確站名，列車真的停靠後會計入樣本、發點並完成認領。你自己上下車的那一站也算得到——在月台上開始錄、或停穩後才結束錄都可以；只有經過但不停靠不會誤算</span></li>
         <li><span class="d">7/29</span><span>刪除軌島帳號時，會一併刪掉你上傳過的 GPS 校正旅程資料與累積的貢獻點數，包含這台裝置以匿名身分傳的那些；隱私權政策也補上了這類資料保存多久、要怎麼刪除</span></li>
         <li><span class="d">7/29</span><span>圖磚還沒載入時墊底的台灣海陸輪廓換成內政部公開的縣市界線：舊資料比實際海岸線偏了一到三公里，東部海線好幾站看起來像在海上（謝謝網友回報）</span></li>
         <li><span class="d">7/28</span><span>新增「GPS 校正旅程」：懸賞板列出目前最缺實際乘車紀錄的路段，用 App 錄一趟就能幫忙把列車位置校正得更準。錄的時候只有里程會上傳、座標全程留在手機裡；中途重新整理或 App 被系統收掉都接得回同一趟，出錯時畫面上也看得到原因</span></li>
@@ -10304,6 +10304,9 @@ function bountyPersistedSnapshot(r) {
     buf: bountyCleanSamples(r._buf), candidateBuf, perp, recent: bountyCleanSamples(r._recent, 180),
     lastFix: Number(r._lastFix) || 0, lastFlush: Number(r._lastFlush) || Number(r.startedAt) || Date.now(),
     batch: Math.max(0, Number(r._batch) || 0), demo: !!r.demo,
+    // 整趟里程範圍要跟著存：接回來時若少了它，dwell 的「另一側」判斷會從頭算起而與 Worker 分岔
+    dLo: Number.isFinite(Number(r._dLo)) ? Number(r._dLo) : null,
+    dHi: Number.isFinite(Number(r._dHi)) ? Number(r._dHi) : null,
   };
 }
 function bountyPersistRecording(r = state.recording) {
@@ -10337,6 +10340,8 @@ function bountyLoadPersistedRecording() {
       _recent: bountyCleanSamples(o.recent, 180), _lastFix: Number(o.lastFix) || 0,
       _lastFlush: Number(o.lastFlush) || Number(o.startedAt), _batch: Math.max(0, Number(o.batch) || 0),
       demo: !!o.demo,
+      _dLo: Number.isFinite(Number(o.dLo)) ? Number(o.dLo) : undefined,
+      _dHi: Number.isFinite(Number(o.dHi)) ? Number(o.dHi) : undefined,
     };
   } catch (e) { return null; }
 }
@@ -10388,8 +10393,12 @@ function bountyBestLine(r) {
   return best ? best.k : '';
 }
 // 錄製中的 dwell 進度與 Worker coverageOf() 共讀 quality.dwell 的同一組門檻。這裡只做即時
-// 預告；真正計點仍由隔日 Worker 判定。中途站已跨過兩側卻沒有低速段時，立刻顯示 no_dwell；
-// 線端站可能正要停穩，錄製中不提早判失敗，留給完整軌跡判定。
+// 預告；真正計點仍由隔日 Worker 判定。已跨過兩側卻沒有低速段時，立刻顯示 no_dwell；
+// 只跨到單側的站（你自己上下車那站）可能正要停穩，錄製中不提早判失敗，留給完整軌跡判定。
+//
+// 🔴 里程範圍取 r._dLo/_dHi（整趟）不是 _recent（最近 180 筆）：Worker 那邊用的是整趟，
+// 兩邊取不同的範圍就會出現「錄的時候看到綠燈、隔天卻沒收到」——例如進站前那段在隧道裡沒有
+// 定位，整趟看得出「有走到站前卻沒錄到」，180 筆的視窗卻已經滑過那個空洞看不出來。
 function bountyUpdateDwellProgress(r, rules) {
   if (!r.card || r.card.kind !== 'dwell') { r._dwellMissed = false; return; }
   const rec = lineNetwork().get(r.sys + '|' + r.lnId), D = rules.quality.dwell;
@@ -10398,6 +10407,8 @@ function bountyUpdateDwellProgress(r, rules) {
   const wanted = new Set((r.card.unitKeys || []).map(k => String(k).split('|'))
     .filter(p => p.length === 4 && p[2] === p[3]).map(p => p[2]));
   const pts = r._recent || [];
+  const tripLoM = Number.isFinite(r._dLo) ? r._dLo : Infinity;
+  const tripHiM = Number.isFinite(r._dHi) ? r._dHi : -Infinity;
   let missed = false;
   for (let i = 0; i < stations.length; i++) {
     const st = stations[i];
@@ -10409,7 +10420,9 @@ function bountyUpdateDwellProgress(r, rules) {
     const localDs = local.map(p => Number(p.d));
     const hasBefore = Math.min(...localDs) <= centerM - D.sideMinM;
     const hasAfter = Math.max(...localDs) >= centerM + D.sideMinM;
-    const spatialPass = i === 0 ? hasAfter : i === stations.length - 1 ? hasBefore : hasBefore && hasAfter;
+    const needBefore = tripLoM <= centerM - D.sideMinM;
+    const needAfter = tripHiM >= centerM + D.sideMinM;
+    const spatialPass = (!needBefore || hasBefore) && (!needAfter || hasAfter) && (hasBefore || hasAfter);
     if (!spatialPass) continue;
     let runStart = null, prevT = null, covered = false;
     for (const p of local) {
@@ -10422,7 +10435,7 @@ function bountyUpdateDwellProgress(r, rules) {
       if (t - runStart >= D.stopMinSec) { covered = true; break; }
     }
     if (covered) r._cov[key] = 1;
-    else if (i > 0 && i < stations.length - 1 && hasBefore && hasAfter) missed = true;
+    else if (needBefore && needAfter && hasBefore && hasAfter) missed = true;   // 兩側都過完了才敢說沒收到
   }
   r._dwellMissed = missed;
 }
@@ -10476,6 +10489,10 @@ function bountyOnFix(coords) {
   const preview = r.lnId ? r._buf[r._buf.length - 1] : previewBuf[previewBuf.length - 1];
   if (!preview) return;
   r.dNow = preview.d;
+  // 整趟走過的里程範圍（公尺）：dwell 判「另一側要不要求」用它，必須與 Worker 的 coverageOf()
+  // 同源，所以記整趟而不是 _recent 的視窗。
+  r._dLo = Math.min(Number.isFinite(r._dLo) ? r._dLo : preview.d, preview.d);
+  r._dHi = Math.max(Number.isFinite(r._dHi) ? r._dHi : preview.d, preview.d);
   r._recent.push(preview);
   if (r._recent.length > 180) r._recent.splice(0, r._recent.length - 180);
   bountyPersistRecording(r);
@@ -10491,6 +10508,11 @@ function bountyLockLine(r) {
   r.sys = key.slice(0, at); r.lnId = key.slice(at + 1);
   r._buf = bountyCleanSamples(r._candidateBuf[key]);
   for (const p of r._buf) bountyUpdateSegs(r, key, p.d / 1000);
+  // 鎖線前累積的里程範圍是「當時猜的那條線」的里程，鎖到別條線就完全不能用——照鎖定後的
+  // 這條線重算一次，否則 dwell 的「另一側」會拿別條線的里程去比。
+  const lockedDs = r._buf.map(p => Number(p.d)).filter(Number.isFinite);
+  r._dLo = lockedDs.length ? Math.min(...lockedDs) : undefined;
+  r._dHi = lockedDs.length ? Math.max(...lockedDs) : undefined;
   r._candidateBuf = {}; r._perp = {};
   return key;
 }

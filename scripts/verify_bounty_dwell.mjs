@@ -161,6 +161,40 @@ ok('D8 反例 E2E：通過不停靠時 dwell 不收樣、claim 不關',
     passedE2e.claimAfter.status === 'open',
   JSON.stringify({ verdict: passedE2e.sample.verdict, board: passedE2e.after, claim: passedE2e.claimAfter }));
 
+// ── 三個門檻的鑑別力（2026-07-29 補）─────────────────────────────────────────
+// 起因：把 stopMinSec 與 sideMinM 突變成 0，D1–D8 仍然 8/8 全綠——反例那趟是高速通過，
+// 光靠 stopSpeedMaxMps 就被擋掉，另外兩道閘門從來沒有被考到。下面三筆各自提供
+// 「能讓它變紅的那一筆輸入」。D9 同時是使用者要的新行為：自己上下車那站只有單側樣本也要算。
+const covOf = pts => _bounty.coverageOf(trip(pts), LINE, RULES, UNITS.peakHoursBySys);
+const hitsDwell = pts => covOf(pts).some(c => c.key === DWELL_KEY && c.kind === 'dwell');
+const iStop = LINE.stations.findIndex(s => s.name === '新烏日');
+const centerM = LINE.stations[iStop].d * 1000;
+
+// D9 起點站：停在月台上開始錄，只有出站側——中途站（新烏日不是線端）也必須算到
+ok('D9 從這一站的月台開始錄（只有出站側樣本）仍算錄到——上下車那站收得到',
+  hitsDwell(stopped.filter(p => Number(p.d) >= centerM - 5)),
+  JSON.stringify(covOf(stopped.filter(p => Number(p.d) >= centerM - 5)).filter(c => c.kind === 'dwell')));
+
+// D10 守 sideMinM：這趟明明走到了站前，站前那一側卻沒錄到（進站隧道沒定位）＝不算
+// 洞要挖穿整個 stationWindowM，不能只挖一半——站前 240–250m 留一個點就構成「站前有樣本」了
+const holeFromM = RULES.quality.dwell.stationWindowM + 10;
+const holed = stopped.filter(p => {
+  const d = Number(p.d);
+  return !(d < centerM - 5 && d > centerM - holeFromM);   // 挖掉整段進站，但保留更早的點
+});
+ok('D10 這趟有走到站前、站前卻沒有樣本（隧道空洞）時不算錄到——守住 sideMinM',
+  !hitsDwell(holed), JSON.stringify(covOf(holed).filter(c => c.kind === 'dwell')));
+
+// D11 守 stopMinSec：慢速爬行通過，速度夠低但沒有連續停滿＝不算
+const crawl = trajectory({ stop: true }).map(p => ({ ...p }));
+let crawlT = crawl[0].t;
+for (const p of crawl) { p.t = crawlT; crawlT += 1; }   // 重排時間，讓低速段只維持 2 秒
+const lowIdx = crawl.map((p, i) => [p, i]).filter(([p]) => Math.abs(p.d - centerM) <= RULES.quality.dwell.stopRadiusM &&
+  p.v <= RULES.quality.dwell.stopSpeedMaxMps).map(([, i]) => i);
+for (let k = 2; k < lowIdx.length; k++) crawl[lowIdx[k]].v = RULES.quality.dwell.stopSpeedMaxMps + 3;
+ok('D11 站心低速只維持 2 秒（慢速爬行通過）時不算錄到——守住 stopMinSec',
+  !hitsDwell(crawl), JSON.stringify({ 低速點數: lowIdx.length, dwell: covOf(crawl).filter(c => c.kind === 'dwell') }));
+
 const out = {
   criterion: RULES.quality.dwell,
   cardId: CARD_ID,

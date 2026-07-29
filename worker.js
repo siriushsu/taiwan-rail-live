@@ -1286,9 +1286,18 @@ const median = a => { const s = a.slice().sort((x, y) => x - y); const m = s.len
 // 用距離比例不用點數比例:取樣稀疏的那一段不該因為點少就被判成沒錄到,錄到的距離才是真的。
 //
 // dwell 不是「有點靠近車站」就算：那會把不停靠的通過車也算進來。共同判準放在
-// data/bounty_rules.json quality.dwell；這裡要求中途站前後兩側都有樣本、線端站至少有可行的
-// 單側樣本，且站中心附近有一段真的接近靜止的連續速度。peak/off 的切法不在這裡猜，直接吃
+// data/bounty_rules.json quality.dwell：站中心附近要有一段真的接近靜止的連續速度，
+// 而且該站前後兩側都要有樣本。peak/off 的切法不在這裡猜，直接吃
 // build_bounty_units.mjs 寫進同一份單位產物的 peakHoursBySys；門檻缺漏直接中止，不偷偷降級。
+//
+// 🔴 兩側樣本的例外（2026-07-29）：使用者自己上下車的那一站只會有單側樣本——在月台上開始錄，
+// 站前那一側根本不存在；停穩後結束錄，站後那一側也不存在。但那一站的停靠與離站時刻同樣有意義，
+// 不該收不到。所以「另一側」只在**這趟軌跡自己真的走到得了**的時候才要求：以整趟的里程範圍
+// [tripLoM, tripHiM] 判斷，範圍沒跨過去就不能拿那一側當否決理由。
+// 這一條同時涵蓋了線端站（軌跡不可能走出線外），所以不必再對 stations 的頭尾寫特例。
+// 仍要求至少一側有樣本——只有一個落在站心的孤點不算到過那一站。
+// 前端 bountyUpdateDwellProgress() 必須用同一組判斷（規格 §5：兩邊門檻不同才是 bug），
+// 那邊的里程範圍取 r._dLo/_dHi（整趟），不是 _recent 的視窗。
 function coverageOf(trip, line, rules, peakHoursBySys) {
   const sts = (line.stations || []).slice().sort((a, b) => a.d - b.d);
   const out = [];
@@ -1311,6 +1320,8 @@ function coverageOf(trip, line, rules, peakHoursBySys) {
   const peakHours = peakHoursBySys && peakHoursBySys[line.sys];
   if (!holiday && !Array.isArray(peakHours)) return out;
   const seen = new Set();
+  const tripDs = trip.pts.map(p => Number(p.d));
+  const tripLoM = Math.min(...tripDs), tripHiM = Math.max(...tripDs);
   for (let i = 0; i < sts.length; i++) {
     const st = sts[i], key = `${line.sys}|${line.lnId}|${st.name}|${st.name}`;
     if (seen.has(key)) continue;
@@ -1321,7 +1332,9 @@ function coverageOf(trip, line, rules, peakHoursBySys) {
     const localDs = local.map(p => Number(p.d));
     const hasBefore = Math.min(...localDs) <= centerM - D.sideMinM;
     const hasAfter = Math.max(...localDs) >= centerM + D.sideMinM;
-    const spatialPass = i === 0 ? hasAfter : i === sts.length - 1 ? hasBefore : hasBefore && hasAfter;
+    const needBefore = tripLoM <= centerM - D.sideMinM;   // 這趟有走到站前，就必須錄到站前
+    const needAfter = tripHiM >= centerM + D.sideMinM;    // 這趟有走到站後，就必須錄到站後
+    const spatialPass = (!needBefore || hasBefore) && (!needAfter || hasAfter) && (hasBefore || hasAfter);
     if (!spatialPass) continue;
 
     let runStart = null, prevT = null, stopAt = null;
