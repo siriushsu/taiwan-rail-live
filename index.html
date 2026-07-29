@@ -1158,6 +1158,15 @@
   }
   .alert-banner .ab-title { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .alert-banner .ab-more { flex: none; font-size: 11px; font-weight: 600; opacity: .9; white-space: nowrap; }
+  /* 關閉鈕(2026-07-30):橫幅一直掛在那裡會擋事,按 × 收起來,同一批公告本次瀏覽不再跳出(換新公告會再出現)。
+     手機不走這條——手機的橫幅已整個換成頂列的 .alert-chip,不佔版面故不需要關閉。 */
+  .alert-banner .ab-close {
+    flex: none; align-self: center; margin: -3px -7px -3px 0;
+    width: 24px; height: 24px; padding: 0; display: flex; align-items: center; justify-content: center;
+    background: none; border: 0; cursor: pointer; color: var(--warn-ink); opacity: .7;
+    font-family: "PingFang TC", "Noto Sans TC", sans-serif; font-size: 16px; line-height: 1;
+  }
+  .alert-banner .ab-close:hover { opacity: 1; }
   .alert-detail {
     position: absolute; top: 52px; right: 12px; z-index: 706;
     width: min(440px, calc(100% - 24px)); max-height: 60%; overflow-y: auto;
@@ -2257,10 +2266,25 @@
       display: flex; justify-content: space-between; align-items: flex-start; gap: 8px;
       z-index: 620; pointer-events: none;
     }
-    .topbar .tb-plate, .topbar .grouptabs { pointer-events: auto; }
+    .topbar .tb-plate, .topbar .grouptabs, .topbar .alert-chip { pointer-events: auto; }
     /* 短標分頁不做橫捲與遮罩(mock 遷移表明定停用);.topbar .grouptabs 特異性壓過通案手機 .grouptabs 的 mask/overflow */
     .topbar .grouptabs { margin: 0; flex-wrap: nowrap; overflow: visible; -webkit-mask-image: none; mask-image: none; }
     .topbar .grouptabs .gtab { font-size: 13px; padding: 6px 14px; min-height: 36px; }
+    /* 公告警示鈕:與短標分頁同高並肩的琥珀 pill,有公告才出現(JS 控 hidden)。
+       margin-left:auto 吃掉軌島牌與分頁之間的空白 → 緊貼分頁左側;窄機(360pt)空白被吃完後才會開始
+       壓縮,而 .tb-plate 是 flex:none、分頁是 nowrap,兩者都不縮,故 chip 自己 flex:none 也不縮——
+       三者總寬超過可用寬時寧可溢出也不擠壞分頁(實測 360pt 仍有餘裕,見驗收 A1)。
+       桌面完全走不到這裡(.topbar 整條 display:none),桌面是橫幅＋× 那條路。 */
+    .topbar .alert-chip {
+      margin-left: auto; flex: none; display: flex; align-items: center; gap: 3px;
+      min-height: 36px; padding: 6px 11px;
+      font: inherit; font-size: 13px; font-weight: 800; cursor: pointer;
+      background: var(--warn-bg); color: var(--warn-ink);
+      border: 1.5px solid var(--warn-line); border-radius: var(--r-pill);
+      box-shadow: var(--shadow-1);
+    }
+    .topbar .alert-chip .ac-ico { font-size: 14px; line-height: 1; }
+    .topbar .alert-chip .ac-n:empty { display: none; }
     body.live .topbar { display: none !important; }
     body.ambient .topbar { display: none; }
     /* GPS 錄製常駐列 × 頂列頁籤衝突修復(2026-07-28 迴歸修復,獨立驗收抓到):#recordBar 原本
@@ -2320,27 +2344,28 @@
     /* 手機改用雙指縮放,隱藏 Leaflet +/- 鈕 */
     .leaflet-control-zoom { display: none; }
     .leaflet-bottom.leaflet-right { bottom: 58px; }
-    /* 公告橫幅:手機 fs 殼下移到頂列(8~48)＋徽章/randBtn(58~94)之下的整寬橫條;safe-area 隨頂列一致下移。
-       全鏈(alert-detail/dwell-plate/xing-help/xing-card)基準隨之下移,保留原相對間距不相撞(桌面鏈零變化)。 */
-    .alert-banner {
-      top: calc(100px + env(safe-area-inset-top, 0px)); left: 8px; right: 8px; max-width: none;
-      font-size: 12px; padding: 5px 10px 6px;
-    }
-    .alert-detail { top: calc(138px + env(safe-area-inset-top, 0px)); right: 8px; width: calc(100% - 16px); }
-    body.fs .alert-banner, body.fs .alert-detail, body.fs .board { right: 8px; }
-    /* 以下整條頂部鏈(站名牌/平交道提示/平交道卡)的基準都已含「動作列佔 100~133」的 +39px：
-       動作列是整寬右側的並排鈕列(見 .map-actions),站名牌是整寬橫條,不下移就會被鈕壓住。
-       相對間距與桌面鏈完全不動,只是整鏈平移。 */
-    .alert-banner:not([hidden]) ~ .dwell-plate { top: calc(181px + env(safe-area-inset-top, 0px)); }
+    /* 公告橫幅在手機整個退場(2026-07-30):入口改成頂列的 .alert-chip(見上面那條規則)。
+       橫幅原本是 top:100 的整寬橫條,常駐時會蓋住搜尋面板的輸入框、也會撞上被底部 sheet 推高的
+       跟隨小卡(使用者實機回報,兩張截圖各一);更貴的是它拖著一整條讓位鏈——站名牌、平交道提示、
+       平交道卡、地圖動作列全部要為它下移 38~42px,每多一個頂部元件就多一條規則。
+       收成頂列鈕之後這條鏈整條拆除,手機頂部幾何回到單一基準(頂列 8~48 → 徽章列 58 → 動作列 100
+       → 站名牌 141 → 平交道卡 191),不再有「有沒有公告」這個變數。
+       🔴 讓那條鏈失效的是 JS——renderAlertBanner 在手機一律把橫幅設成 hidden 屬性,於是所有
+       `.alert-banner:not([hidden]) ~ X` 規則(桌面塊的 xing-card/xing-help/board 三條會洩進手機,
+       特異度 0,3,0 壓過手機 base 的 0,1,0)自動不成立。**不能只靠這裡的 display:none**:
+       display:none 的元素 `:not([hidden])` 照樣成立,那三條會把平交道卡拉到 54、提示拉到 96。
+       下面這條只是保險層,防 resize 跨界那一瞬間 JS 還沒同步時橫幅用桌面定位閃現。 */
+    .alert-banner { display: none; }
+    /* 詳情面板改接在頂列正下方(原本接在橫幅下方的 138);56 是 #searchPanel 用過的同一個上錨值。 */
+    .alert-detail { top: calc(56px + env(safe-area-inset-top, 0px)); right: 8px; width: calc(100% - 16px); }
+    body.fs .alert-detail, body.fs .board { right: 8px; }
     .xing-help { top: calc(193px + env(safe-area-inset-top, 0px)); }
-    .alert-banner:not([hidden]) ~ .xing-help { top: calc(235px + env(safe-area-inset-top, 0px)); }
     /* 平交道通過預測卡(手機):小卡+下移到動作列之下,限高留出底部跟隨卡空間 */
     .xing-card {
       top: calc(191px + env(safe-area-inset-top, 0px)); right: 8px; left: auto;
       width: 200px; max-width: calc(100% - 16px);
       max-height: calc(100% - 313px);
     }
-    .alert-banner:not([hidden]) ~ .xing-card { top: calc(229px + env(safe-area-inset-top, 0px)); max-height: calc(100% - 351px); }
     .xing-card .xc-head { padding: 6px 8px 6px 10px; gap: 7px; }
     .xing-card .xc-ttl b { font-size: 14px; }
     .xing-card .xc-meta { font-size: 10px; }
@@ -2418,8 +2443,6 @@
     .notify-modal { place-items: end center; padding: 8px 8px calc(66px + env(safe-area-inset-bottom, 0px)); }
     .notify-dialog { width: 100%; max-height: calc(100dvh - 82px - env(safe-area-inset-bottom, 0px)); align-self: end; border-radius: 16px 16px 10px 10px; }
     .notify-field { grid-template-columns: 96px minmax(0, 1fr); }
-    /* 手機看板是底部 sheet:取消桌面版「讓到公告下方」的頂緣定位 */
-    .alert-banner:not([hidden]) ~ .board { top: auto; max-height: 46%; }
     /* 手機資訊卡整體縮小:卡寬與字級圖示全面降一級;底部讓開速度膠囊 */
     /* 貼底小卡讓開 tab bar:原 60px 無 env,瀏海機(env≈34)tab bar 高 92px 會蓋住小卡下緣(真機回報病灶)。
        改 var+2px:非瀏海機 env=0 仍為 60px(零變化),瀏海機 60+env 抬到 tab bar 上緣。 */
@@ -2611,13 +2634,13 @@
     body.ambient .follow-panel .fp-next .stn { font-size: 14px; white-space: nowrap; }
     /* ── 地圖動作列(手機):隨機跟隨＋附近車站並排成一列靠右,自己佔 top:100 那條(高 33 → 底 133)。
        徽章列(58~92)整條讓給時鐘徽章:徽章在 401–415pt 機型會顯示全字樣「看板校正」撐到 290px,
-       右邊再放鈕只剩 1px(≤344 直接重疊)。公告橫幅佔的正是 100 那條整寬橫條,故整列一起下移;
-       橫幅點開的詳情面板是整寬覆蓋,此時整列退場(淡出而非 display:none,免得回來時閃動)。 ── */
+       右邊再放鈕只剩 1px(≤344 直接重疊)。2026-07-30 起公告橫幅在手機已退場(改頂列 .alert-chip),
+       這一列不再需要為它下移,永遠佔 100 那條;頂列鈕點開的詳情面板仍是整寬覆蓋,此時整列退場
+       (淡出而非 display:none,免得回來時閃動)。 ── */
     .map-actions {
       display: flex; align-items: flex-start; gap: 8px;
       position: absolute; right: 10px; top: calc(100px + env(safe-area-inset-top, 0px)); z-index: 620;
     }
-    .alert-banner:not([hidden]) ~ .map-actions { top: calc(138px + env(safe-area-inset-top, 0px)); }
     .alert-detail:not([hidden]) ~ .map-actions { opacity: 0; pointer-events: none; }
     /* 兩顆鈕交回一般流排版(桌面的絕對定位值全部歸零),外觀值不動。
        ⚠️ position 用 relative 不用 static:兩顆鈕的 ::after 觸控熱區是 absolute + width:100%,
@@ -2842,6 +2865,12 @@ try { if (matchMedia('(max-width: 900px)').matches) document.body.classList.add(
           <span class="stn" id="tbPlateR">高雄</span>
         </div>
       </div>
+      <!-- 公告警示鈕(手機 fs 專屬):有營運通阻公告時才出現,點一下開詳情。2026-07-30 取代原本 top:100 的
+           整寬橫幅——橫幅常駐會蓋住搜尋面板的輸入框、也會撞上被底部 sheet 推高的跟隨小卡(使用者實機回報),
+           而且它拖著一整條讓位鏈(站名牌/平交道提示/平交道卡/地圖動作列各自下移 38~42px)。收進頂列後不佔
+           版面,那條鏈整條拆掉。margin-left:auto 讓它吃掉軌島牌與頁籤之間的空白、緊貼頁籤左側,窄機
+           (360pt)才不會把頁籤擠出畫面。 -->
+      <button class="alert-chip" id="alertChip" hidden aria-label="營運通阻公告，點開看詳情" title="營運通阻公告"><span class="ac-ico" aria-hidden="true">⚠</span><span class="ac-n" id="alertChipN"></span></button>
       <div class="grouptabs" id="topTabs">
         <button class="gtab active" title="全台同框">全</button>
         <button class="gtab" title="台鐵">台</button>
@@ -13529,17 +13558,40 @@ function activeAlertList() {
   }
   return official.concat(selfAnomalyEntries());
 }
+// 公告的常駐入口有兩種形態(2026-07-30 使用者回報後改版):
+//   桌面 = 右上角橫幅,可按 × 收起,同一批公告本次瀏覽不再跳出(換新公告會再出現)
+//   手機 = 頂列的 ⚠ 鈕(.alert-chip),不佔版面所以沒有關閉的必要
+// 改版前手機也是 top:100 的整寬橫幅:它會蓋住搜尋面板的輸入框、也會撞上被底部 sheet 推高的跟隨小卡,
+// 而且拖著一整條讓位鏈(站名牌/平交道提示/平交道卡/地圖動作列各下移 38~42px)。
+// 🔴 手機一律把橫幅設成 hidden **屬性**,不能只靠 CSS 的 display:none —— 桌面塊那三條
+//    `.alert-banner:not([hidden]) ~ X`(xing-card/xing-help/board)特異度 0,3,0 會洩進手機、壓過手機
+//    base 的 0,1,0,而 display:none 的元素 `:not([hidden])` 照樣成立。設 hidden 那條鏈才會整條失效。
+// 已讀簽章用 sessionStorage(不是 localStorage):公告是當下狀況,關掉的意思是「這次看夠了」,不是永久靜音。
+function alertSig(list) { return list.map(a => (a.title || '') + '|' + (a.start || '')).join('§'); }
+function alertDismissed(list) {
+  try { return list.length > 0 && sessionStorage.getItem('trainmap-alert-dismissed') === alertSig(list); } catch (e) { return false; }
+}
 function renderAlertBanner() {
   const b = document.getElementById('alertBanner'), det = document.getElementById('alertDetail');
+  const chip = document.getElementById('alertChip'), chipN = document.getElementById('alertChipN');
   const list = activeAlertList();
-  if (!list.length) { b.hidden = true; det.hidden = true; updateFollowAlert(); return; }
+  if (!list.length) { b.hidden = true; det.hidden = true; if (chip) chip.hidden = true; updateFollowAlert(); return; }
   b.innerHTML = `<span class="ab-title">${escHtml(list[0].title || ((list[0].sysLabel || '') + '營運通阻公告'))}</span>` +
-    `<span class="ab-more">${list.length > 1 ? `等 ${list.length} 則 · ` : ''}詳情 ▾</span>`;
-  b.hidden = false;
+    `<span class="ab-more">${list.length > 1 ? `等 ${list.length} 則 · ` : ''}詳情 ▾</span>` +
+    `<button class="ab-close" type="button" aria-label="關閉公告橫幅" title="關閉——這批公告本次不再跳出">×</button>`;
+  b.hidden = window.matchMedia(MOBILE_MQ).matches || alertDismissed(list);
+  if (chip) { chip.hidden = false; chipN.textContent = list.length > 1 ? String(list.length) : ''; }
   if (!det.hidden) renderAlertDetail(); // 詳情展開中(勾選系統變更/每 5 分鐘重輪詢)同步換新內容,不殘留舊公告
-  b.onclick = () => {
-    if (det.hidden) { renderAlertDetail(); det.hidden = false; } else det.hidden = true;
+  const toggleDetail = () => { if (det.hidden) { renderAlertDetail(); det.hidden = false; } else det.hidden = true; };
+  b.onclick = (e) => {
+    if (e.target.closest('.ab-close')) { // × 不冒泡成「展開詳情」
+      try { sessionStorage.setItem('trainmap-alert-dismissed', alertSig(list)); } catch (err) {}
+      b.hidden = true; det.hidden = true;
+      return;
+    }
+    toggleDetail();
   };
+  if (chip) chip.onclick = toggleDetail;
   updateFollowAlert();
 }
 function renderAlertDetail() {
@@ -14836,6 +14888,7 @@ function setupMapTools() {
       if (mob) { if (!document.body.classList.contains('fs')) setFs(true); }
       else if (!state.liveMode && !document.fullscreenElement && document.body.classList.contains('fs')) setFs(false);
       if (!mob) closeTrainSheet(); // 「列車」sheet 是手機專屬構造:離開手機斷點即收(桌面走併卡);desktop 無 tc-sheet 時為 no-op
+      renderAlertBanner(); // 公告的形態綁斷點(手機=頂列鈕、桌面=橫幅),跨界要重算 alertBanner.hidden
     }
     placeFsOverlays(); if (state._fsCapsuleSync) state._fsCapsuleSync(false);
     // Batch B:跨界把搜尋列/頁尾盒搬回正確的家;離開手機時把走勢圖搬回原位、收起縣市 chip
