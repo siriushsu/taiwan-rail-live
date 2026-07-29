@@ -14,9 +14,9 @@
 // （心得 34：紅有產品回歸／環境條件／判準過期三種互斥原因）。
 //
 // 跑法：先在受測樹起 static server，再
-//   PORT=<port> ROOT=<受測樹> \
-//   T2_BASE_FILE=scripts/fixtures/baseline_pre_block.json T3_BASE=168.1 \
-//   node scripts/verify_no_overtake.mjs
+//   PORT=<port> ROOT=<受測樹> node scripts/verify_no_overtake.mjs
+// （T2／T3 的基準預設讀 `fixtures/baseline_pre_block.json`，不必也不該靠環境變數帶；
+//   要換基準才傳 T2_BASE_FILE／T3_BASE。）
 // 可選：STEP=<秒，預設 2>  LIVE=<誤點快照 json，預設 fixtures/tra_live_fixture.json>
 //       DELAY=none 關掉誤點注入（純表定模式）
 //       BASE=1 只輸出 JSON 統計（給控制組比對用）
@@ -359,7 +359,11 @@ check(`T1 開放路段不得對調順序（站區＝離最近車站 ≤${STATION
 // T2 的判準是「事件集合與改動前一致」，不是「次數大於零」——次數門檻抓不到「掉到剩 1 次」
 // （突變測試 M7 實測：把月台待避整批擋掉後只剩 1 次，`>0` 照樣綠燈）。基準是改動前那一版
 // 實際量到的「哪兩班車在月台上對調」的集合，存活率門檻取實測落差的中間值，不是手打的常數。
-const t2base = process.env.T2_BASE_FILE ? Object.keys(JSON.parse(fs.readFileSync(process.env.T2_BASE_FILE, 'utf8')).flipStillPairs || {}) : null;
+// 基準檔預設就指向釘死的那份，不靠呼叫端記得傳環境變數——漏傳的話 T2 退化成「>0 就算過」、
+// T3 完全不對基準，兩條判準會靜默失去牙齒而且全綠（獨立驗收者指出的脆弱點）。
+const BASE_FILE = process.env.T2_BASE_FILE || path.join(HERE, 'fixtures/baseline_pre_block.json');
+const baseJson = fs.existsSync(BASE_FILE) ? JSON.parse(fs.readFileSync(BASE_FILE, 'utf8')) : null;
+const t2base = baseJson ? Object.keys(baseJson.flipStillPairs || {}) : null;
 const nowPairs = new Set(Object.keys(R.flipStillPairs));
 const gone = t2base ? t2base.filter(k => !nowPairs.has(k)) : [];
 const survive = t2base && t2base.length ? (t2base.length - gone.length) / t2base.length : null;
@@ -371,8 +375,9 @@ check('T2 表定待避仍成立（月台上的對調車次對，與改動前同�
       `現在共 ${nowPairs.size} 組／${R.flipStill} 次` + (gone.length ? `；不見的：${JSON.stringify(gone.slice(0, 10))}` : '；一組都沒少'));
 
 // T3 是「不得增加」而不是「必須為零」：跑段交界本來就有既有的位置跳變（另列 issue），
-// 拿零當門檻只會量到那個舊缺陷。基準值由 T3_BASE 帶進來（對 HEAD~1 跑 BASE=1 取得）。
-const t3base = process.env.T3_BASE == null ? null : Number(process.env.T3_BASE);  // 改動前的『最大超標速度』，非次數
+// 拿零當門檻只會量到那個舊缺陷。基準值預設從釘死的基準檔讀，不靠呼叫端傳環境變數。
+const t3base = process.env.T3_BASE != null ? Number(process.env.T3_BASE)
+  : (baseJson && baseJson.overcapMax != null ? Number(baseJson.overcapMax) : null); // 改動前的『最大超標速度』，非次數
 check('T3 不瞬移（畫面速度超標不得由夾持造成）',
   R.overcapHeld === 0 && (t3base == null || R.overcapMax <= t3base + 1e-6),
   `超標取樣 ${R.overcap} 次、最大 ${R.overcapMax.toFixed(1)} km/h；其中「畫面比模型在同一時刻還快」的 ${R.overcapHeld} 次` +
