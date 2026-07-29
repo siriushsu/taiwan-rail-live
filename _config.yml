@@ -9,8 +9,13 @@
 # 這份清單刻意對齊 .assetsignore 的同名條目；兩邊語意域不同（一個管 wrangler 上傳、一個管 Jekyll
 # 發布），但「不該公開的東西」應該是同一份。日後在 .assetsignore 加了新的排除，這裡也要加。
 # 反向提醒：備援站需要的東西不要誤排——index.html、data/、assets/、各法務頁都必須留著。
+#
+# ⚠️ 目錄請一律寫尾斜線（app/），不要寫成 app。Jekyll 的 exclude 是「前綴比對」不是「路徑比對」
+# （entry_filter.rb 的 glob_include? 走 entry_path.start_with?(item)），所以 `- app` 會連
+# app-support.html、apple-touch-180.png 一起排掉——這兩個曾因此在備援站回 404 長達數週。
+# 寫成 `app/` 後前綴變 "app/"，只有真正在該目錄底下的檔案會命中。
 exclude:
-  - app
+  - app/
   - worker.js
   - wrangler.jsonc
   - firebase.json

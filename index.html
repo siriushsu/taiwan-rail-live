@@ -3140,6 +3140,9 @@ try { if (matchMedia('(max-width: 900px)').matches) document.body.classList.add(
       <summary><span>更新紀錄</span><span class="foot-sub">最後更新：2026/7/29</span></summary>
       <ul class="foot-list foot-recent">
         <li class="grp">最近更新</li>
+        <li><span class="d">7/29</span><span>後面的車不會再從前面那班身上穿過去了（謝謝網友回報）</span></li>
+        <li><span class="d">7/29</span><span>跟車小卡的時速不會再飆出車子跑不到的數字（謝謝網友回報）</span></li>
+        <li><span class="d">7/29</span><span>App 或分頁掛久了切回來，畫面時刻會自動對回現在，不會停在切走前那一刻</span></li>
         <li><span class="d">7/29</span><span>護照的收集章：名字太長的（像 EMU3000 新自強號）不會再被圓框切掉</span></li>
         <li><span class="d">7/29</span><span>刪除帳號時，會一併刪掉你上傳過的 GPS 校正旅程資料與貢獻點數</span></li>
         <li><span class="d">7/29</span><span>在高鐵或林鐵點下去跟車，不會再跟到同號碼的台鐵列車（謝謝網友回報）</span></li>
@@ -3163,6 +3166,7 @@ try { if (matchMedia('(max-width: 900px)').matches) document.body.classList.add(
         <li><span class="d">7/10</span><span>高鐵、桃園機捷、淡海輕軌、安坑輕軌加入路網</span></li>
         <li><span class="d">7/10</span><span>環島觀光列車一分為二：往東「山海號」、往西「平原號」</span></li>
         <li class="grp">即時動態與誤點</li>
+        <li><span class="d">7/29</span><span>畫面上後面的車會直接穿過前面那班：現在會保持車距跟著跑，該讓的就在站邊等；兩班車貼太近時，停著讓路的那班會整台挪到軌道右邊、通過的那班照原本的路線走，而且會一路讓到對方離開才回到軌道上，不會兩台互相推來推去。時刻表本身要它超車、中間又沒站可讓的極少數情況仍會出現（謝謝網友回報）</span></li>
         <li><span class="d">7/28</span><span>誤點的車過了表定到站時間後被當成已跑完：點下去會從頭重播、跟隨面板也提早說抵達。改用校正後的時間判斷，下一站與進度條一併同步（謝謝網友回報）</span></li>
         <li><span class="d">7/24</span><span>新增「資料源連線狀態頁」：各即時資料源連線狀況一目了然，並白話總結「地圖現在準嗎」</span></li>
         <li><span class="d">7/24</span><span>修正 App 在背景放久後時鐘停住、車輛位置對不上；回前景會自動追回「現在」</span></li>
@@ -3176,6 +3180,7 @@ try { if (matchMedia('(max-width: 900px)').matches) document.body.classList.add(
         <li><span class="d">7/29</span><span>台鐵、高鐵、林鐵有不少重複的車次號碼（1238、1241、1、2…），在高鐵或林鐵畫面點下去卻跟到台鐵的同號車；現在點哪個系統就跟哪個系統（謝謝網友回報）</span></li>
         <li><span class="d">7/28</span><span>「隨機跟隨」改成挑一班就陪你跟到終點，不再過一兩分鐘自己跳去別班車；想換車按「換一班」，結束按小卡的 ×</span></li>
         <li><span class="d">7/25</span><span>環島之星觀光列車上地圖了：搜尋車名或車次 1／2，跟著萌旅號 13 小時繞台灣一圈</span></li>
+        <li><span class="d">7/29</span><span>跟車小卡與速度曲線的時速改由車種極速把關，不會再出現該車跑不到的數字（原本快車跳站的長區間會被推估曲線衝到 160 km/h 以上）</span></li>
         <li><span class="d">7/22</span><span>台鐵列車通過不停靠的車站時不再假性減速，只在真正停靠站緩起緩停</span></li>
         <li><span class="d">7/18</span><span>搜尋框可以直接打列車名字：山嵐、鳴日、藍皮、海風…沒有固定車次的給你介紹卡</span></li>
         <li><span class="d">7/17</span><span>搜尋合而為一：車站名與車次打同一個框（原本的「找站」鈕退役）</span></li>
@@ -3521,7 +3526,7 @@ try { if (matchMedia('(max-width: 900px)').matches) document.body.classList.add(
 // 🔴 BUILD 字串會跨並行分支撞號（心得 16）：07-28 兩條線各自遞增又各自部署過——
 // origin/main 這條用到 v0728b，正式站那條用到 v0728f。本次三方合併把兩條線統一，
 // 所以往後推到一個雙方都沒用過的號，辨識線上跑哪一版仍以內容 hash 為準。
-const BUILD = 'v0729b';
+const BUILD = 'v0729c';
 // 成就徽章與車廂標記＝原本那些 emoji 的單色平面版（RailEmoji＝裁切過的 Noto Emoji 單色）。
 // 刻意保留 railIcon(name) 這個唯一入口:呼叫端一行都不用改,只有這裡決定畫法。
 // 🔴 ⚖ 與 ♾ 一律寫**不帶 VS16(U+FE0F)** 的碼位——帶了就強制彩色呈現,會蓋過 font-family
@@ -3583,6 +3588,8 @@ const state = {
   live: null, // 台鐵即時誤點 {map: 車次→誤點分, at: 抓取時刻, delayed, srcAt}
   traAnomaly: null, // 台鐵系統級大面積誤點的自家觀測 {d10, maxDelay, since} 或 null(非官方公告;d10=誤點≥10 分的班數)
   liveMode: false, director: false, liveReplay: false, // 直播模式(?live=1 即時 / ?live=2 導播)與其深夜重播段(00:45–05:15 重播 08:00 起)
+  clockAtNow: false, // 模擬時鐘是否處於「跟著現在」的狀態(開機對齊/按現在鈕為真,拖時刻尺或快轉即false)
+
   stnIntro: false, immersive: false, // 特殊站介紹開關(放空自動開)、極簡沉浸(全畫面隱藏左側卡)
   xingOn: false, // 台鐵平交道顯示開關(預設關;開了才畫記號、建命中、攔點擊)
   dirArrow: true, // 列車行進方向箭頭開關(預設開;台鐵/高鐵車號牌前緣加小箭頭,由前後點位推方向)
@@ -3633,6 +3640,7 @@ function togglePlay() {
   document.getElementById('ppTxt').textContent = state.playing ? '暫停' : '播放';
 }
 function setSpeed(v) {
+  if (v !== 1) state.clockAtNow = false;   // 快轉/慢放即離開「跟著現在」;回 1× 不自動視為回到現在(要按「現在」鈕)
   state.speedMult = v;
   document.getElementById('speed').value = v;
   document.getElementById('speedOut').textContent = v + '×';
@@ -3680,6 +3688,10 @@ function paintTimeRail() {
 }
 function setSimSec(sec) {
   state.simSec = ((sec % 86400) + 86400) % 86400;
+  // 顯式跳時間 = 離開「跟著現在」的狀態(拖時刻尺、跟車回放、時光機)。jumpToNow 會在呼叫本函式
+  // 之後把旗標設回 true。用旗標而不是用「與現在的差距」來判斷,是因為差距分不出「時鐘漂移」與
+  // 「使用者刻意拖到過去看重播」——兩者都是 1× 且落後於現在,靠差距判斷必然誤傷其中一方。
+  state.clockAtNow = false;
   if (state.followTrain) state.followTimeJumped = true; // 跟隨中顯式跳時間(現在鈕/拖曳/方向鍵)一律視為作弊路徑,不計完乘
   syncTimeUI();
   if (state.mode !== 'sched') { // 捷運分頁:跳時間同步小時檔(班距合成線車數+尖離峰徽章)
@@ -4018,6 +4030,8 @@ function resolvePerf(tr) {
   for (const [re, p] of PERF_RULES) if (re.test(cn)) return p;
   return PERF_BY_TYPE[tr.typeName] || PERF_DEFAULT;
 }
+// 顯示層時速的硬上限(車種極速)。每幀要用,快取在車上免得重跑 PERF_RULES 的正整比對。
+function speedCapOf(tr) { return tr._vCap != null ? tr._vCap : (tr._vCap = resolvePerf(tr).v); }
 // 給段距離 Lkm、段時間 T 秒、加速 aK/減速 bK(km/h/s)、極速 vK(km/h) → 相位參數(內部 SI)。
 // 不可行(時間太緊/太短/需超速才追上時刻)回 null,呼叫端退回等速(端點恆安全)。
 function buildProfile(Lkm, T, aK, bK, vK) {
@@ -4036,7 +4050,7 @@ function buildProfile(Lkm, T, aK, bK, vK) {
 // 折點來自 data/tra_pass_obs.json(7 天 TDX 官方歷史逐站觀測煉出的跑段內時間比例)。
 // 端點斜率設 0 → 在真停靠站仍平滑起停;中間速度連續 → 通過站不會瞬間變速;加權調和平均保證單調不過衝。
 // 產生方式、閘門與留一日交叉驗證數字見 scripts/build_pass_obs.mjs 與 研究_快車跳站校正 文件。
-function buildObsProfile(Lkm, T, pts) {   // pts:[{t:段內秒, d:距跑段起點公尺}] 依序
+function buildObsProfile(Lkm, T, pts, vTopK) {   // pts:[{t:段內秒, d:距跑段起點公尺}] 依序;vTopK=該車種極速(km/h)
   const L = Lkm * 1000;
   if (!(L > 0) || !(T > 0) || !pts || !pts.length) return null;
   const xs = [0], ys = [0];
@@ -4050,7 +4064,13 @@ function buildObsProfile(Lkm, T, pts) {   // pts:[{t:段內秒, d:距跑段起�
   xs.push(T); ys.push(L);
   // 節點對軌道幾何複驗:build 端的閘門用官方里程,這裡的距離來自軌道投影,兩者不同源(刻意的兩道獨立防線)。
   // 與真停靠站相鄰的區間含起停,平均速度上限更嚴;超速代表該節點與本線幾何不相容 → 丟節點不丟整段。
-  const VS_END = 115 / 3.6, VS_MID = 135 / 3.6;
+  // 門檻綁該車種極速(2026-07-29,使用者裁定「速度不能超過上限,比模型精度重要」)。
+  // 原本硬編 135＝最快車種的極速,對柴聯自強(110)、區間車(120)形同不設防,留下的節點
+  // 本身就要求車子跑不到的速度(246 次:29 秒衝 127.5),插值再怎麼夾都壓不下去。
+  // 代價:少數跑段的節點被清到剩兩端 → 退回梯形。那不是正確性損失,梯形恆不超速
+  // (buildProfile 需要超速時回 null 再退等速),只是通過站時刻少了實測校正。
+  // 端點區間含起停,沿用原本 115/135＝0.85 的比例壓得更嚴。
+  const VS_MID = (vTopK > 0 ? vTopK : 135) / 3.6, VS_END = VS_MID * 0.85;
   for (let guard = xs.length; guard > 0; guard--) {   // 上限先求值:xs 會邊刪邊縮,寫成 guard<xs.length 會提早收工
     let bad = -1;
     for (let i = 0; i < xs.length - 1; i++) {
@@ -4074,24 +4094,40 @@ function buildObsProfile(Lkm, T, pts) {   // pts:[{t:段內秒, d:距跑段起�
   }
   // 導數尖峰夾限:Fritsch–Carlson 只保證單調,m 上界是 3×min(相鄰割線),
   // 快慢段交界會讓區間內瞬時速度衝到割線的兩倍以上(實測 228→266 km/h)。
-  // 區間導數是二次式,取端點與駐點的極大值,超標就等比縮小兩端 m(縮到 0 時上界必為 1.5×割線,故一定收斂)。
-  // 台鐵路線最高速限 130 km/h;VCAP 取 150 留餘裕,並對割線本身就快的段放寬到 1.55×,避免與物理必然性打架。
-  const VCAP = 150 / 3.6;
-  for (let i = 0; i < n - 1; i++) {
-    const cap = Math.max(VCAP, 1.55 * del[i]);
-    const dMax = (a, b) => {              // d(s)=A s²+B s+a, s∈[0,1]
-      const A = 3 * a + 3 * b - 6 * del[i], B = -4 * a - 2 * b + 6 * del[i];
-      let v = Math.max(a, b);
-      if (A < 0) { const s = -B / (2 * A); if (s > 0 && s < 1) v = Math.max(v, A * s * s + B * s + a); }
-      return v;
-    };
-    if (dMax(m[i], m[i + 1]) <= cap) continue;
-    let lo = 0, hi = 1;
-    for (let it = 0; it < 12; it++) {      // 二分找最大可用縮放比
-      const mid = (lo + hi) / 2;
-      if (dMax(m[i] * mid, m[i + 1] * mid) <= cap) lo = mid; else hi = mid;
+  // 區間導數是二次式,取端點與駐點的極大值,超標就把兩端 m 往「本區間割線」拉(u=1 即線性)。
+  // 為什麼拉向割線而不是縮向 0(2026-07-29 修 issue #15):插值必須通過兩個節點,區間平均速度恆為
+  // 割線 del,所以「處處不超過 del」只有線性一種解 → del 才是峰值的真下限。把 m 縮向 0 是反方向:
+  // 兩端速度歸零,中間就得衝更高補回平均,m=0 時峰值反而是 1.5×del(舊版 cap 取 max(150,1.55×del)
+  // 正是在替這個反效果讓路,於是割線快的區間永遠豁免——171 次那段割線 134.9 就放行到 202)。
+  // 上限綁該車種極速;割線本身已超過極速時只能承認(時刻表要求的平均速度就那麼快),取 del 為準。
+  // m[i] 為相鄰兩區間共用,處理區間 i 設定的 m[i+1] 會讓已收好的區間 i 重新超標 → 外層重掃直到不動
+  // 收斂保證:上面的節點閘門已使每個區間割線 del ≤ 極速,而「兩端導數都設成 del」(線性)的
+  // 區間峰值恆等於 del ≤ cap。所以後段輪次改成直接壓線性,最壞情況全段線性、必定達標——
+  // 速度上限是硬要求,不留容差給殘留(使用者裁定:速度不能超過上限,比模型精度重要)。
+  const VCAP = (vTopK > 0 ? vTopK : 130) / 3.6;
+  for (let pass = 0; pass < 12; pass++) {
+    let touched = false;
+    for (let i = 0; i < n - 1; i++) {
+      const cap = Math.max(VCAP, del[i]);
+      const dMax = (a, b) => {              // d(s)=A s²+B s+a, s∈[0,1]
+        const A = 3 * a + 3 * b - 6 * del[i], B = -4 * a - 2 * b + 6 * del[i];
+        let v = Math.max(a, b);
+        if (A < 0) { const s = -B / (2 * A); if (s > 0 && s < 1) v = Math.max(v, A * s * s + B * s + a); }
+        return v;
+      };
+      if (dMax(m[i], m[i + 1]) <= cap) continue;
+      // 前六輪用二分,盡量保留實測形狀;之後仍超標的是「相鄰區間要求相反」的震盪段,直接壓線性。
+      if (pass >= 6) { m[i] = m[i + 1] = del[i]; touched = true; continue; }
+      const mix = (v, u) => v + (del[i] - v) * u;   // u=0 維持原導數、u=1 為線性
+      let lo = 0, hi = 1;
+      for (let it = 0; it < 12; it++) {      // 二分找「最小的」拉向線性的比例,盡量保留實測形狀
+        const mid = (lo + hi) / 2;
+        if (dMax(mix(m[i], mid), mix(m[i + 1], mid)) <= cap) hi = mid; else lo = mid;
+      }
+      m[i] = mix(m[i], hi); m[i + 1] = mix(m[i + 1], hi);
+      touched = true;
     }
-    m[i] *= lo; m[i + 1] *= lo;
+    if (!touched) break;
   }
   return { T, L, obs: true, xs, ys, h, m };
 }
@@ -4159,7 +4195,7 @@ function assignRunProfiles(s, perf, obs) {
         const nm = s[i + 1].name, f = obs[nm] ?? obs[nm.replace(/台/g, '臺')];
         if (f != null) pts.push({ t: f / 1000 * runT, d: cum * 1000 });
       }
-      if (pts.length) rp = buildObsProfile(runKm, runT, pts);
+      if (pts.length) rp = buildObsProfile(runKm, runT, pts, perf.v);
     }
     if (!rp) rp = buildProfile(runKm, runT, perf.a, perf.b, perf.v);
     if (rp && runKm > 0) {
@@ -4175,8 +4211,11 @@ function assignRunProfiles(s, perf, obs) {
   }
 }
 
-function trainPos(tr, t) {
-  t -= liveDelaySec(tr);
+// 「此刻走到 stops 的哪一段」抽成獨立函式:除了畫位置,前後車耦合(#17)也要問同一件事,
+// 而且要的是「哪條線形、沿線第幾公里」這種可比較的一維座標,不是經緯度。兩邊共用同一次掃描,
+// 每幀就不必為了算前後關係再走一遍 stops。回傳 null=此刻不在跑。
+// ln/d/dir 只有貼得上軌道線形的段才有;無線形的線(端點直線內插)不參與耦合。
+function trainSeg(tr, t) {
   if (tr.loop) t = tr.stops[0].arrSec + ((t - tr.stops[0].arrSec) % tr.loopSec + tr.loopSec) % tr.loopSec; // 環島車:任何時刻都映回本圈
   const s = tr.stops, n = s.length;
   // 跨午夜車次(時刻編碼 >86400):simSec 歸零後把前一日班次接續回來
@@ -4185,22 +4224,227 @@ function trainPos(tr, t) {
   for (let i = 0; i < n; i++) {
     if (t >= s[i].arrSec && t <= s[i].depSec) {
       // dwelling: snap to shape so it lines up with the moving segment
-      if (s[i].segLn) return posAlongShape(s[i].segLn, s[i].dA);
-      if (i > 0 && s[i - 1].segLn) return posAlongShape(s[i - 1].segLn, s[i - 1].dB);
-      return { lat: s[i].lat, lon: s[i].lon };
+      const seg = s[i].segLn ? s[i] : (i > 0 && s[i - 1].segLn ? s[i - 1] : null);
+      if (!seg) return { i, dwell: true, seg: null };
+      const d = seg === s[i] ? seg.dA : seg.dB;
+      return { i, dwell: true, seg, ln: seg.segLn, d, dir: Math.sign(seg.dB - seg.dA) || 1 };
     }
     if (i < n - 1 && t > s[i].depSec && t < s[i + 1].arrSec) {
       const span = s[i + 1].arrSec - s[i].depSec;
       let f = span > 0 ? (t - s[i].depSec) / span : 0;
       const sp = segProg(s[i], t - s[i].depSec); // 跑段梯形曲線:通過站不歸零,只在真停靠站緩起緩停
       if (sp != null) f = sp;
-      if (s[i].segLn) {
-        return schedSegmentPos(s[i], f);
-      }
-      return { lat: s[i].lat + (s[i + 1].lat - s[i].lat) * f, lon: s[i].lon + (s[i + 1].lon - s[i].lon) * f };
+      const seg = s[i];
+      if (!seg.segLn) return { i, dwell: false, seg: null, f };
+      // 里程與 schedSegmentPos 取同一條規則(接續段的 bridge 不算進沿線里程),兩者才不會各說各話
+      const lineKm = Math.abs(seg.dB - seg.dA), bridgeKm = seg.bridgeKm || 0;
+      const dir = Math.sign(seg.dB - seg.dA) || 1;
+      return { i, dwell: false, seg, f, ln: seg.segLn, dir,
+        d: seg.dA + dir * Math.min(lineKm, f * (lineKm + bridgeKm)) };
     }
   }
   return null;
+}
+
+// 純表定軸位置:不扣即時誤點、不含阻擋回撥。整趟速度曲線與阻擋自己的速度探針走這裡。
+function trainPosAt(tr, t) {
+  const g = trainSeg(tr, t);
+  if (!g) return null;
+  const s = tr.stops;
+  if (g.dwell) {
+    if (g.seg) return posAlongShape(g.ln, g.d);
+    return { lat: s[g.i].lat, lon: s[g.i].lon };
+  }
+  if (g.seg) return schedSegmentPos(g.seg, g.f);
+  return { lat: s[g.i].lat + (s[g.i + 1].lat - s[g.i].lat) * g.f, lon: s[g.i].lon + (s[g.i + 1].lon - s[g.i].lon) * g.f };
+}
+function trainPos(tr, t) { return trainPosAt(tr, t - liveDelaySec(tr) - blockHoldSec(tr)); }
+
+// ── 後車不穿越前車(issue #17) ─────────────────────────────────────────────────
+// 即時誤點是一班一班獨立套用的:前車晚了就往後移,後車沒跟著延後,於是後車在開放路段追上並穿過前車
+// (4026 在東澳待避 218,218 晚到,結果在隧道裡「超車」)。現實中調度會把後車留到前車通過再放行,
+// 但台鐵公開資料只給「每班車誤點幾分鐘」,沒有待避與放行關係。所以這裡**不模擬待避**,只做一件事:
+// 後車不得在開放路段越過前車。零誤點的表定模式一樣會發生(通過站時刻是跑段曲線合成的、各車種加減速
+// 不同,段內相對位置本來就沒被時刻表釘死),故不掛任何模式開關。
+//
+// 手法:給後車一個額外的「時間回撥」hold,**只加在 trainPos 一個入口**——effT/effTLive 一律不含,
+// 所以停靠站到離站時刻、完乘成就判定、停靠倒數、行程分享完全不受影響。用時間軸而不是直接夾里程,
+// 車才會繼續貼在線形上、照自己的車種加減速跑,尾巴與點擊命中也自動跟上。
+//
+// 三條規則:
+// (1) 前車「行進中」才算障礙,停站中不算。時刻表本身就寫滿待避,月台超車是合法的(現實中被待避的車
+//     在側線上);停站中的車也擋人的話,表定待避會整批失效。副產品:被擋的車不會停在隧道裡——它是
+//     減速到與前車同速跟在後面,只有前車自己快停下來時才停,而前車只在車站停。
+// (2) 前後順序取自**畫面位置**不是原始位置。用原始位置排序的話,夾持一生效順序就翻轉、約束跟著翻,
+//     會震盪;用畫面位置則自我穩定,順序只在前車進站停下、退出障礙集合的那一刻才翻轉。
+// (3) hold 的變化率兩頭都鉗住。畫面速度 = v_raw × (1 − dh/dτ):
+//     上升 dh/dτ ≤ 1 ⇒ 畫面速度 ≥ 0,最多停住、絕不倒退;
+//     下降要讓畫面速度 ≤ 車種極速(#15 的硬上限) ⇒ dh/dτ ≥ 1 − vcap/v_raw。
+//     停站時 v_raw = 0 ⇒ 可無限快釋放,而停站中原始位置本來就不動,所以釋放 hold 在畫面上零位移
+//     ——停站時間就是虧損的天然回收槽,追回過程零超速。任何一步都不是跳的。
+//
+// BLOCK_CAP_SEC:量到 hold 峰值中位 24s、p90 134s,但尾巴會到 731s(≈24 公里)。那比「超車」是更大的
+// 謊——畫面會跟停靠時刻、完乘章、跟車小卡全部對不上。上限就是「我們不模擬待避」的誠實邊界:超過兩
+// 分鐘還化解不了,代表時刻表真的要它超車而中間沒有站,那是我們沒有的資料。觸發次數要留計數,
+// 別讓「大部分修好了」變成「宣稱全修好了」。
+const BLOCK_SYS = { tra_sched: 1 };          // v1 只開台鐵:問題與逐車誤點都在這裡,其餘系統的衝突數還沒量過
+const BLOCK_GAP_KM = 0.4;                    // 標準車距
+// 車距是「棘輪」而不是硬要求。前車停站中不算障礙,後車會一路貼到它屁股後面;前車一開走就變成障礙,
+// 若這時硬要求 400m,後車得倒退補出 350m——它不能倒退,只能原地停死等 hold 追上(實測會停 14 秒,
+// 前車還在以 87km/h 拉開,畫面上就是「無緣無故停在路中間」,正是 T7 要抓的)。改成:咬住的當下以
+// 現況車距為準(至少 20m 不重疊),之後才慢慢長回 400m。長回速率相當於 10km/h 的相對速差,
+// 用「跟得比較近一陣子」換掉「停死」。
+const BLOCK_GAP_MIN_KM = 0.02;
+const BLOCK_GAP_GROW = 10 / 3600;            // km/s
+const BLOCK_CAP_SEC = 120;                   // hold 上限(秒)
+const BLOCK_MIN_V = 5 / 3600;                // 速度下限(km/s),把 over/v 的除零擋掉
+const BLOCK_SNAP_SEC = 300;                  // 模擬時鐘一次推進超過這個量=拖時刻尺/快轉大跳,直接對齊不慢追
+// 並排偏移(純畫面):同線同向、沿線距離不到一個車距的連續車列,標記各往軌道法線偏一點,
+// 讓「後車追上前車」讀成旁邊那條軌道,而不是兩顆標記合體。左右交替 ⇒ 一對車對稱各偏一半,
+// 誰都不是「被移動的那個」(既有鐵則:列車牌畫真實位置、不為了避讓標籤而動車)。
+const BLOCK_SIDE_KM = BLOCK_GAP_KM;
+const _blockHold = new Map(), _blockCapped = new Set(), _blockGap = new Map(), _blockPrevD = new Map(), _blockSide = new Map();
+const _blockSideSign = new Map();            // 上一幀給過的號誌:相位要黏著,身分一變才不會整組對調
+const _blockSideRole = new Map();            // 已經定案的讓位角色:同一對車沒散開就不重新分配
+let _blockSim = null;
+function blockKeyOf(tr) { return (tr.sys || '') + ':' + tr.train; } // 跨系統車次會撞號,不能只用車次
+function blockHoldSec(tr) { return _blockHold.size && BLOCK_SYS[tr.sys] ? (_blockHold.get(blockKeyOf(tr)) || 0) : 0; }
+function updateBlockHolds() {
+  _blockSide.clear();
+  if (state.mode !== 'sched' || !state.trains) { _blockHold.clear(); _blockGap.clear(); _blockPrevD.clear(); _blockSim = null; return; }
+  const dSim = _blockSim == null ? 0 : state.simSec - _blockSim;
+  const snap = !(dSim > 0 && dSim <= BLOCK_SNAP_SEC); // 倒轉/跨午夜/大跳一律直接對齊目標
+  _blockSim = state.simSec;
+  const groups = new Map();
+  for (const tr of state.trains) {
+    if (!BLOCK_SYS[tr.sys]) continue;
+    const key = blockKeyOf(tr), h = _blockHold.get(key) || 0;
+    const g = trainSeg(tr, state.simSec - liveDelaySec(tr) - h);
+    // 沒在跑,或這段沒貼上軌道線形 → 不參與耦合。緩動狀態一併清掉:不清的話,收班時帶著偏移離場的車,
+    // 隔天從起點出現的第一幀會先跳到舊偏移再滑回來
+    if (!g || !g.ln) { _blockHold.delete(key); _blockGap.delete(key); _blockPrevD.delete(key); _blockSideEase.delete(key); _blockSideSign.delete(key); _blockSideLatch.delete(key); _blockSideRole.delete(key); continue; }
+    const k = g.ln.id + '|' + g.dir;                       // 同一條線形+同方向才是同一條軌道
+    let a = groups.get(k); if (!a) groups.set(k, a = []);
+    a.push({ tr, key, h, g });
+  }
+  for (const arr of groups.values()) {
+    arr.sort((x, y) => (y.g.d - x.g.d) * x.g.dir);         // 由前往後(沿行進方向里程遞減)
+    let barrier = null;                                     // {d 沿線里程(km), key 前車};後車的畫面位置不得越過
+    for (const it of arr) {
+      const vcap = speedCapOf(it.tr) / 3600;                // km/s
+      const tAt = hh => state.simSec - liveDelaySec(it.tr) - hh;
+      let target = 0;
+      if (barrier && !it.g.dwell) {
+        const sep = (barrier.d - it.g.d) * it.g.dir;        // km,與前車的實際距離
+        const pv = _blockGap.get(it.key);
+        // 棘輪綁在「這一台前車」上:換一台前車就重新以現況起算。沿用上一台的棘輪(它可能在 12km 外,
+        // 早就長到 400m)會讓後車在新前車貼身出現的當下被要求退開 350m——它不能倒退,只能原地停死
+        // (西勢實測停 16 秒,前車還在 87km/h 拉開)。
+        let gk = (pv && pv.lead === barrier.key) ? pv.gk
+          : Math.min(BLOCK_GAP_KM, Math.max(BLOCK_GAP_MIN_KM, sep));   // 首次咬住:以現況為準,不硬拉開
+        // 只在「還有餘裕」時往回長。咬住的時候還在長,等於目標追著後車跑:前車以 7.5km/h(2m/s)拉開、
+        // 棘輪以 10km/h(2.8m/s)長,差距永遠補不完 ⇒ 後車在區間停死(實測宜蘭線 402 就是這樣)。
+        // 設計要的是「減速到與前車同速、跟在後面一個車距」,不是停死。
+        if (sep >= gk) gk = Math.min(BLOCK_GAP_KM, gk + BLOCK_GAP_GROW * (snap ? BLOCK_GAP_KM : dSim));
+        _blockGap.set(it.key, { lead: barrier.key, gk });
+        const over = (gk - sep);                            // km,>0=比該有的車距更近
+        if (over > 0) {
+          const g2 = trainSeg(it.tr, tAt(it.h - 2));        // 原始模型此刻的速度(km/s);換線形無從比里程 → 取極速
+          const vraw = (g2 && g2.ln === it.g.ln) ? Math.abs(g2.d - it.g.d) / 2 : vcap;
+          target = it.h + over / Math.max(vraw, BLOCK_MIN_V);
+        }
+      } else _blockGap.delete(it.key);
+      let h2;
+      if (it.h <= 0 && target <= 0) h2 = 0;                                          // 絕大多數車:沒被擋也沒在追回
+      else if (snap) h2 = target;
+      else if (target > it.h) h2 = Math.min(target, it.h + dSim);                    // 上升鉗制:最多停住
+      else {
+        // 下降鉗制:畫面位移不得超過「車種極速×這一幀」。不可拿當下 vraw 外推 vcap/vraw——剛離站時
+        // vraw≈0,外推等於允許無限追回(西勢實測一步瞬移 136m=245km/h)。位移對 h2 單調遞減,直接二分。
+        // 比的是畫出來的經緯度而不是里程:換線形時里程無從比,而那正是 hold 可能一次歸零的時候。
+        const prev = _blockPrevD.get(it.key) || trainPosAt(it.tr, tAt(it.h));
+        const maxKm = vcap * dSim;
+        const ok = hh => { const p = trainPosAt(it.tr, tAt(hh)); return p && haversineKm(p, prev) <= maxKm; };
+        if (!prev || ok(target)) h2 = target;
+        else {
+          let lo = target, hi = it.h;                       // lo=追最多(可能超速), hi=不追(必合法)
+          for (let k = 0; k < 12; k++) { const mid = (lo + hi) / 2; if (ok(mid)) hi = mid; else lo = mid; }
+          h2 = hi;
+        }
+      }
+      if (h2 > BLOCK_CAP_SEC) { h2 = BLOCK_CAP_SEC; _blockCapped.add(it.key); }
+      // 死區只能小到「看不出來」為止:二分解出來的 h2 是可行解,把它四捨五入成 0 等於多放行 h2 秒的
+      // 位移(0.05s×135km/h≈2m,實測讓畫面速度剛好超出極速 0.3km/h)。1ms 的死區只為了不讓 Map 長肥。
+      if (h2 > 1e-3) {
+        _blockHold.set(it.key, h2);
+        const pf = trainPosAt(it.tr, tAt(h2));              // 下一幀的位移基準
+        if (pf) _blockPrevD.set(it.key, pf); else _blockPrevD.delete(it.key);
+      } else { _blockHold.delete(it.key); _blockPrevD.delete(it.key); }
+      // 屏障存前車的里程本身,車距由每台後車各自的棘輪決定;前車停站中就不是障礙(月台待避合法),
+      // 屏障沿用更前面那班的
+      barrier = it.g.dwell ? barrier : { d: it.g.d, key: it.key };
+    }
+    // 並排偏移的配對:在同一份排序上取「連續且貼近」的車列。用 arr 的鄰接而不是 barrier 鏈——
+    // 停站中的車也要參與(月台待避的當下正是兩顆標記重疊的那一刻)。
+    // 號誌沿車列交替(相鄰兩台才分得開),但**相位不能綁沿線順序**:待避時後車會超過停站中的前車,
+    // 順序一翻整組號誌就跟著對調,兩台同時換邊 ⇒ 使用者看到同一台車被兩班自強超越時「左閃右閃」。
+    // 改成用身分定相位,優先序:
+    //   ① 車列裡「恰好一台」停站中 ⇒ 它靠行進方向的右邊(＝正在讓的那班固定靠右,經過的走左邊)
+    //   ② 否則沿用上一幀的號誌 ⇒ 讓位結束、大家都在跑之後不會突然對調
+    //   ③ 都沒有 ⇒ 照沿線順序,前面那台靠右
+    // ①要求「恰好一台」而不是「至少一台」:兩台都停在同一站時沒有誰在讓誰,里程還完全相同
+    // (實測 8888 與 272 同為 22.366),誰排前面純看排序的先後,一換就整組對調——那正是要防的閃爍。
+    const side = it => ({ ln: it.g.ln, d: it.g.d, dir: it.g.dir });
+    const nat = m => m % 2 ? -1 : 1;                        // 交替的原始號誌(相位未定)
+    for (let i = 0; i < arr.length;) {
+      let j = i + 1;
+      while (j < arr.length && (arr[j - 1].g.d - arr[j].g.d) * arr[j].g.dir <= BLOCK_SIDE_KM) j++;
+      if (j - i >= 2) {
+        let flip = 1;                                       // 整列一起翻:翻了相鄰仍相反,只是換邊
+        const dw = [];
+        for (let m = i; m < j; m++) if (arr[m].g.dwell) dw.push(m - i);
+        if (dw.length === 1) flip = nat(dw[0]);             // 讓停站中的那台拿到 +1(右)
+        else {
+          const k = arr.slice(i, j).findIndex(it => _blockSideSign.has(it.key));
+          if (k >= 0) flip = _blockSideSign.get(arr[i + k].key) * nat(k);
+        }
+        // 讓的那班整台退出軌道線靠右、過的那班留在線上完全不動(2026-07-29 使用者裁示)。
+        // 理由比「待避」更硬:不管是正式待避還是區間車靠站停、快車從主線通過,**停著的那班本來就
+        // 不在通過列車走的那條軌道上**;而通過的那班是真的在線上跑,不該被推離它的位置。
+        // 只在「兩台一列且恰好一台停站」時這樣畫——三台以上時還在線上的那幾台會互相疊,仍用左右交替。
+        const solo = (j - i === 2) && dw.length === 1;
+        // 角色一旦定了就閂住,直到這一對散開為止(2026-07-29 使用者:「避讓的車只要讓開,
+        // 就不應該在通過的車離開前回到軌道」)。沒有這道閂,通過的那班只要也在同一站停下,
+        // 判定就從「讓位」退回「對稱」、讓位那班往軌道走回一半——對方明明還貼在旁邊
+        // (實測 1124 讓 1122:對方一停,位移 35.6→23.2px,兩台距離仍是 0)。
+        // 閂也要蓋過「角色對調」:同一對車會接力(A 停、B 過;下一站換 B 停、A 過),而對調發生時
+        // 兩台往往還貼在一起(實測 105/1121 距離 0~1px 就換手:105 從 30.2px 滑回 9.2px、
+        // 1121 反而移出去 21.1px)——那正是使用者說的互相搶位子。所以只要這一對還在同一個車列裡,
+        // 就沿用已定案的分配,不重新判誰在讓誰;等他們散開(車列不再成立)自然清掉。
+        // 只閂「讓位」這種不對稱分配;對稱的兩台仍走原本的相位邏輯(_blockSideSign)。
+        let keep = null;
+        if (j - i === 2) {
+          const ra = _blockSideRole.get(arr[i].key), rb = _blockSideRole.get(arr[i + 1].key);
+          if (ra && rb && ra.other === arr[i + 1].key && rb.other === arr[i].key && (ra.q === 2 || ra.q === 0))
+            keep = [ra.q, rb.q];
+        }
+        for (let m = i; m < j; m++) {
+          const s = flip * nat(m - i);
+          // 倍率:讓的那班拿滿格(2＝原本兩台各半的總和,分離量不變),過的那班拿 0。
+          const q = keep ? keep[m - i] : (solo ? (arr[m].g.dwell ? 2 : 0) : s);
+          // 連 ln/d/dir 一起存:畫面端要用線形自己的切線,不能用「我→對方」的連線向量——
+          // 兩車停在同一站時經緯度完全相同(實測 3138 與 198 於同站,距離 0),連線向量長度是 0,
+          // 偏移會靜默失效,而那正是兩顆標記完全合體、最需要它的一刻。
+          _blockSide.set(arr[m].key, { s: q, other: arr[m === i ? i + 1 : m - 1].tr, ...side(arr[m]) });
+          _blockSideSign.set(arr[m].key, s);      // 相位記憶存 ±1,不存畫面用的倍率
+          if (j - i === 2) _blockSideRole.set(arr[m].key, { q, other: arr[m === i ? i + 1 : m - 1].key });
+          else _blockSideRole.delete(arr[m].key);  // 三台以上沒有「讓位角色」可言
+        }
+      }
+      i = j;
+    }
+  }
+  state._block = { holds: _blockHold, capped: _blockCapped }; // 診斷用把手(驗收的 T1–T7 不准讀這個)
 }
 
 // 跨線直通車的兩條來源 shape 在共站可能落於不同股道（八堵／成功／彰化實測約20m）。
@@ -4384,7 +4628,7 @@ function applySchedSystems(sysList) {
   const tkey = new Set();
   for (const sys of sysList) for (const t of (sys.data.types || [])) if (!tkey.has(t.key)) { tkey.add(t.key); state.types.push(t); }
   state.visible = new Set(state.types.map(t => t.key));
-  state.simSec = nowSecOfDay(sysList[0] && sysList[0].tz); // 海外群組:以該群當地時間為「現在」
+  state.simSec = nowSecOfDay(sysList[0] && sysList[0].tz); state.clockAtNow = true; // 海外群組:以該群當地時間為「現在」
   // 逐系統貼軌:只在同系統軌道上找,避免跨系統誤貼
   state._segStats = { onShape: 0, straight: 0, bridged: 0 };
   for (const sys of sysList) {
@@ -4876,16 +5120,18 @@ function drawSched(w, h) {
     const pos = trainPos(tr, state.simSec); if (!pos) continue;
     if (state.visible.has(tr.typeName)) n++;
     const cp = map.latLngToContainerPoint([pos.lat, pos.lon]);
+    const sh = blockSideShift(tr, pos, cp, showTrain); // 同線同向貼太近 → 兩顆標記各往軌道法線偏一半
     if (isFollow) { drawFollowMarker(cp, tr); state._trainHits.push({ x: cp.x, y: cp.y, tr }); continue; }
+    if (sh) { cp.x += sh.x; cp.y += sh.y; }
     if (!inView(cp)) continue;
     state._trainHits.push({ x: cp.x, y: cp.y, tr }); // 供點擊/hover 命中測試(每幀重建)
     const glowC = isHSR(tr) ? HSR_ORANGE : tr.color;
-    drawTrail(dt => trainPos(tr, state.simSec - dt), cp, glowC);
+    drawTrail(dt => trainPos(tr, state.simSec - dt), cp, glowC, sh);
     if (state._featured.has(tr)) drawFeaturedRing(cp); // 今日之最(探索面板推薦)→ 地圖上加繪金色光環識別
     glowUnder(cp, glowC, showTrain ? 10 : 3.5); // 車號牌模式:光暈放大到繞出牌緣,近看也發亮
     if (showTrain) isHSR(tr) ? drawHSRTag(cp, tr.train) : drawTag(cp, tr.train, tr.color, textColorFor(tr.color));
     else isHSR(tr) ? drawHSRDot(cp) : drawDot(cp, tr.color);
-    if (state.dirArrow && showTrain) drawDirArrow(cp, tr, glowC); // 車號牌前緣加行進方向箭頭(遠景圓點不畫,避免密集小點雜亂)
+    if (state.dirArrow && showTrain) drawDirArrow(cp, tr, glowC, sh); // 車號牌前緣加行進方向箭頭(遠景圓點不畫,避免密集小點雜亂)
   }
   // 站名標籤:大站先取位、字級隨站等、蓋在列車上層;錨點放軌道側邊(法線方向)——
   // 列車沿軌道跑就壓不到字,標籤與車號牌位置都固定不動(對列車做避讓會讓牌亂跳,已撤)
@@ -5136,9 +5382,66 @@ function drawArrowAt(cp, ang, color, hw, hh) {
   ctx.globalAlpha = 1; ctx.fillStyle = color; ctx.fill();
   ctx.lineWidth = 1.4; ctx.strokeStyle = pal().tagOutline; ctx.stroke();
 }
-function drawDirArrow(cp, tr, color) { // 台鐵/高鐵:牌=車次號(數字窄字),半寬 6+3/字
+// 並排偏移的畫面端。只動畫出來的標記:trainPos、停靠時刻、effT 全不受影響;
+// 命中測試跟著偏(點得到的必須是看得見的那顆)。位移量以「標記自己的尺寸」為尺度而不是固定 px——
+// 標記早就是比列車大得多的謊,用不超過標記自身半徑的位移換「兩班車看得出是兩班」是划算的。
+const BLOCK_SIDE_GAP = 2;              // 兩顆牌之間要留的縫(px)
+const BLOCK_TAG_H = 15;                // 車號牌高度(與 drawTag 的 ph 同值)
+const _blockSideEase = new Map();      // 進出偏移要漸變,不能一到門檻就跳
+const _blockSideLatch = new Set();     // 已經讓開的:通過的車真的走遠之前不准回到軌道上
+// 車號牌實寬(與 drawTag 同一條算式);標籤不變 → 每班量一次就夠
+function tagW(tr) {
+  if (tr._tagW == null) { ctx.font = '700 10px ' + FONT; tr._tagW = ctx.measureText(String(tr.train)).width + 10; }
+  return tr._tagW;
+}
+function blockSideShift(tr, pos, cp, big) {
+  const key = blockKeyOf(tr);
+  // 遠景圓點模式不偏(那個縮放下十幾 px 是好幾公里);跟隨中的主角是鏡頭錨點,更不能偏
+  const info = big && tr !== state.followTrain ? _blockSide.get(key) : null;
+  let ax = 0, ay = 0;
+  if (!info) _blockSideLatch.delete(key);              // 不配對了就放掉閂,不留陳舊狀態
+  const op = info && trainPos(info.other, state.simSec);
+  if (op) {
+    const ocp = map.latLngToContainerPoint([op.lat, op.lon]);
+    // 兩顆牌會疊到的距離,由「實際量到的牌寬」推得而不是手打的常數;且必須是一對車共用的值——
+    // 各用各的牌寬,「270」(窄)會比「2138」(寬)早歸零,同一對就變成一台偏一台不偏(實測 8/17 對)
+    const near = (tagW(tr) + tagW(info.other)) / 2;
+    // 讓開了就不准在通過的車離開前回到軌道(2026-07-29 使用者回報「互相搶奪位子」)。
+    // 原本 w=(near−距離)/near 綁**當下距離**線性漸變:通過的車走多遠、讓位的就回來多少,
+    // 兩顆牌保持等距一起移動＝看起來在搶位子(實測 3138 讓 198:通過的車才走 4px,
+    // 讓位的已從 31.3px 回落到 28.6px,一路陪著走回線上)。改成全有全無——
+    // 會疊到就整台讓開,直到「就算回到線上也不會疊」(距離 ≥ 兩個半寬之和)才鬆手。
+    // 離開的門檻比進入多一條縫,免得距離卡在臨界值時反覆進出。
+    const dist = Math.hypot(ocp.x - cp.x, ocp.y - cp.y);
+    const on = _blockSideLatch.has(key) ? dist < near + BLOCK_SIDE_GAP : dist < near;
+    if (on) _blockSideLatch.add(key); else _blockSideLatch.delete(key);
+    const w = on ? 1 : 0;
+    // 切線取線形本身、朝行進方向(同一對車拿到同一條切線 ⇒ 號誌相反就必然對稱各偏一半)。
+    // Mercator 保角 ⇒ 螢幕向量 ∝ (dlon·cosφ, −dlat);法線＝切線轉 90°。
+    const a1 = posAlongShape(info.ln, info.d - 0.05 * info.dir), a2 = posAlongShape(info.ln, info.d + 0.05 * info.dir);
+    const cl = Math.cos(pos.lat * Math.PI / 180);
+    const tx = (a2.lon - a1.lon) * cl, ty = -(a2.lat - a1.lat), L = Math.hypot(tx, ty);
+    if (w > 0 && L > 1e-9) {
+      const nx = -ty / L, ny = tx / L;
+      // 各偏「標記在這個方向上的半徑」＋半條縫。固定 px 不行:軌道垂直時法線是水平的,要讓開的是
+      // 牌寬(32px);9px 只夠讓開牌高,實測垂直軌道那半永遠還是疊在一起(潮州站 3138/198)。
+      const a = w * info.s * ((Math.abs(nx) * near + Math.abs(ny) * BLOCK_TAG_H) / 2 + BLOCK_SIDE_GAP / 2);
+      ax = nx * a; ay = ny * a;
+    }
+  }
+  const e = _blockSideEase.get(key) || { x: 0, y: 0 };
+  const x = e.x + (ax - e.x) * 0.18, y = e.y + (ay - e.y) * 0.18;
+  if (Math.abs(x) < 0.05 && Math.abs(y) < 0.05) { _blockSideEase.delete(key); return null; }
+  const n = { x, y }; _blockSideEase.set(key, n); return n;
+}
+function drawDirArrow(cp, tr, color, sh) { // 台鐵/高鐵:牌=車次號(數字窄字),半寬 6+3/字
   const pB = trainPos(tr, state.simSec - DIR_DT_SEC);
-  const ang = dirAngOf(tr, cp, pB ? map.latLngToContainerPoint([pB.lat, pB.lon]) : null);
+  const cpB = pB ? map.latLngToContainerPoint([pB.lat, pB.lon]) : null;
+  // 並排偏移時,回看點要套同一個位移:方向是「現在減八秒前」,只偏其中一頭等於把橫向位移
+  // 當成前進量算進去(偏移十幾 px、八秒前進才幾 px ⇒ 箭頭會轉去指偏移的方向)。
+  // 兩頭一起偏＝剛體平移,差向量不變,箭頭照樣是鐵軌的方向。
+  if (cpB && sh) { cpB.x += sh.x; cpB.y += sh.y; }
+  const ang = dirAngOf(tr, cp, cpB);
   if (ang === undefined) return;
   drawArrowAt(cp, ang, color, 6 + String(tr.train).length * 3, 8);
 }
@@ -5195,7 +5498,7 @@ function trailRibbon(P, w0, fillA, color) {
   g.addColorStop(1, trailRGBA(color, 0));
   ctx.fillStyle = g; ctx.fill();
 }
-function drawTrail(getPos, head, color) {
+function drawTrail(getPos, head, color, sh) {
   if (!trainGlow()) return;
   const step = TRAIL_SEC / TRAIL_STEPS;
   _trailPts.length = 0; _trailPts.push(head);
@@ -5203,6 +5506,7 @@ function drawTrail(getPos, head, color) {
     const pos = getPos(k * step);
     if (!pos) break; // 早於發車 / 環島與跨午夜回繞 → 沒有更早的位置,尾巴到此為止
     const cp = map.latLngToContainerPoint([pos.lat, pos.lon]);
+    if (sh) { cp.x += sh.x; cp.y += sh.y; } // 整條尾巴跟著偏(頭已經偏了):只偏頭會在車底折一個角
     const prev = _trailPts[_trailPts.length - 1];
     const d = Math.hypot(cp.x - prev.x, cp.y - prev.y);
     if (d > 200) break;      // 防回繞/跳站在畫面上拉出長弦
@@ -6975,6 +7279,7 @@ function tick(now) {
       if (h !== state.hour) { state.hour = h; recomputeTrains(); refreshBadge(); } // 換小時:尖離峰班距(僅班距合成線)+徽章+車數
     }
   }
+  updateBlockHolds(); // 後車不穿越前車:算完 simSec 之後、任何人問位置之前先更新阻擋回撥(相機與繪製都吃 trainPos)
   if (state.director && state.playing) directorTick(now); // 導播相位機:跟車段↔群車段循環(先於 autoTour,可能切換 autoTour 開關)
   if (state.autoTour && state.mode === 'sched' && state.playing) {
     const ftr = state.followTrain;
@@ -7019,7 +7324,7 @@ function tick(now) {
   state._rideClock = (state._rideClock || 0) + dt;
   if (state._rideClock >= 2) { state._rideClock = 0; ridingTick(); }
   state._liveClock = (state._liveClock || 0) + dt;
-  if (state._liveClock >= 1) { state._liveClock = 0; updateLiveBadge(); updateMetroBadge(); if (state.liveMode && !state.director) liveClockTick(); else if (state.director) directorClockTick(); } // 導播現在也是 1× 貼真實時刻,只是用不含深夜重播替代的簡化版;兩徽章同秒刷,快轉跨門檻時同步轉推估
+  if (state._liveClock >= 1) { state._liveClock = 0; updateLiveBadge(); updateMetroBadge(); if (state.liveMode && !state.director) liveClockTick(); else if (state.director) directorClockTick(); else clockDriftGuard(); } // 導播現在也是 1× 貼真實時刻,只是用不含深夜重播替代的簡化版;兩徽章同秒刷,快轉跨門檻時同步轉推估
   // 省電三板斧(繪製節流,不動上面的時間積分):
   // (1) 分頁隱藏停繪——時間照積分,只是不畫;錄影中例外(recCompose 每幀從主畫布拷貝,停繪會凍結成靜止幀)
   // (2) 待機時 draw 節流到 ~30fps;跟隨/幽靈車跟隨/放空/錄影/剛互動(1.5s 內)維持顯示器全速,體驗優先
@@ -7393,7 +7698,7 @@ function loadSystem(sys) {
     document.getElementById('flowWrap').hidden = false;
   } else {
     state.speed = sys.speed;
-    state.simSec = nowSecOfDay(sys.tz); // 實際時刻推演:以現在時刻起播(海外用該系統時區)
+    state.simSec = nowSecOfDay(sys.tz); state.clockAtNow = true; // 實際時刻推演:以現在時刻起播(海外用該系統時區)
     state.hour = Math.floor(state.simSec / 3600);
     state.lines = sys.data.lines.map(l => ({ ...l, abbr: abbrOf(l), times: sysTimesOf(sys, l) }));
     state.visible = new Set(state.lines.map(l => l.id));
@@ -7535,7 +7840,7 @@ function loadFreqGroup(g, sel, keepView) {
   state.sys = null; state.sysId = g.id;
   state.freqSel = sel || new Set(g.members);
   state.speed = 30; // 僅缺 segs 的線才用到;各線另存 _speed
-  state.simSec = nowSecOfDay(activeTz()); // 實際時刻推演:以現在時刻起播(海外群組用該群時區)
+  state.simSec = nowSecOfDay(activeTz()); state.clockAtNow = true; // 實際時刻推演:以現在時刻起播(海外群組用該群時區)
   setSpeed(1); // 時鐘既跳回「現在」,倍速也成對回 1×(同 jumpToNow 語意)——否則吃到開機預設 50×,畫面比現實快跑
   state.hour = Math.floor(state.simSec / 3600);
   rebuildFreqLines(g);
@@ -8352,9 +8657,12 @@ function releaseWakeLock() {
 }
 document.addEventListener('visibilitychange', () => {
   if (document.hidden) {
-    // 進背景前記下「當下是否正貼著真實時刻」,回前景才知道該不該重錨(見下)
+    // 進背景前記下「當下是否正貼著真實時刻」,回前景才知道該不該重錨(見下)。
+    // 判斷改看 clockAtNow 旗標,不看「與現在的差距 ≤120 秒」:那個寫法是單向陷阱——
+    // 時鐘一旦因故漂超過 120 秒(裝置休眠、rAF 長期凍結),就被判定「不是即時」而永遠不再重錨,
+    // 漂移只會越積越大。實測把時鐘推到漂 200 秒後切背景再回來,仍原封不動停在 199.5 秒。
     state._wasLiveOnHide = state.playing && state.speedMult === 1 && !state.liveMode && !state.director &&
-      Math.abs(state.simSec - nowSecOfDay(activeTz())) <= 120;
+      state.clockAtNow;
     return;
   }
   // 錄製模式也要重取:iOS 切走再切回來 wakeLock 會被釋放且**不會自動恢復**,
@@ -8660,6 +8968,20 @@ function initLive() {
   };
   go();
 }
+// 一般模式(非 OBS/導播)的時鐘防漂移,每秒由 tick 呼叫。
+// 原本只有 ?live 直播訊號源有 liveClockTick 顧時鐘,一般使用者完全沒有這道校正——前景純靠 rAF 的
+// dt 累加(實測 headless 45 秒只漂 0.11 秒,但 iOS App 的 WebView 背景行為與桌面不同,無法假設)。
+// 門檻取 2 秒:時鐘顯示到分(fmtHM),2 秒不影響讀數;列車位置在 2 秒內最多移動約 75 公尺(135km/h),
+// 短於一個月台。低於此值不動,免得每秒都在微調位置。
+function clockDriftGuard() {
+  if (!state.clockAtNow || !state.playing || state.speedMult !== 1 || state._scrubTime) return;
+  if (state.liveReplay || state.nightReplay || state.mode !== 'sched') return;
+  const now = nowSecOfDay(activeTz());
+  if (Math.abs(state.simSec - now) <= 2) return;
+  state.simSec = now;          // 不走 setSimSec:那會清掉 clockAtNow,而這正是「維持跟著現在」
+  state.t0 = performance.now(); // 同步歸零 dt 基準,免得下一幀把剛校好的時鐘再推一次
+  syncTimeUI();
+}
 // 每秒由 tick 呼叫:真實時刻 00:45–05:15 沒車,切到 08:00 起 1× 重播(REPLAY 標記);時段外貼回真實時刻
 function liveClockTick() {
   if (state.mode !== 'sched') return;
@@ -8676,6 +8998,7 @@ function liveClockTick() {
     jumpToNow(); // 既有「回到現在」路徑:真實時刻+1×+誤點重新套用
   } else if (!inWin && !state.liveReplay && !state.nightReplay && Math.abs(state.simSec - now) > 120) {
     setSimSec(now); // 24/7 長跑防漂移:非重播時段把模擬時鐘貼回真實時刻(誤點套用門檻 ±120s)
+    state.clockAtNow = true;  // setSimSec 會清旗標,這裡是「貼回現在」要補設回來
   }
   document.getElementById('replayBadge').hidden = !state.liveReplay;
 }
@@ -11530,8 +11853,11 @@ function speedProfile(tr) {
   const v = [];
   for (let i = 0; i < N; i++) {
     const t = t0 + (t1 - t0) * i / (N - 1);
-    const a = trainPos(tr, t), b = trainPos(tr, Math.min(t + 30, t1));
-    v.push(a && b ? haversineKm(a, b) / 30 * 3600 : 0);
+    // 整趟曲線是「時刻表＋動力學」的性質,取樣一次就快取整趟——若讀含阻擋的位置,一次暫時的
+    // 阻擋(#17)會被烤進這條快取曲線,之後整個 session 都對不上。故走純表定軸,只保留既有的誤點回撥。
+    const dl = liveDelaySec(tr);
+    const a = trainPosAt(tr, t - dl), b = trainPosAt(tr, Math.min(t + 30, t1) - dl);
+    v.push(a && b ? Math.min(haversineKm(a, b) / 30 * 3600, speedCapOf(tr)) : 0);  // 同 fpSpd:車種極速為硬上限
   }
   return (tr._spdProf = { v, t0, t1, max: Math.max(60, Math.ceil(Math.max(...v) / 20) * 20) });
 }
@@ -11860,9 +12186,12 @@ function updateFollowPanel(tr) {
     plate.classList.add('show');
     document.body.classList.add('dwell-show'); // 停靠站名牌顯示中:他 sheet 展開(sheet-open)時讓跟車小卡淡出讓位(見 CSS body.dwell-show.sheet-open)
   } else { plate.classList.remove('show'); document.body.classList.remove('dwell-show'); state._plateStop = null; }
-  // 即時時速(取前後 20 秒位移換算);大數字讀數,看著有速度感
+  // 即時時速(取前後 20 秒位移換算);大數字讀數,看著有速度感。
+  // 車種極速是硬上限:位置曲線本身已被夾在極速內(buildObsProfile),但相鄰段換軌道形狀物件時
+  // 端點未必完全重合,會有極稀少的位置跳躍(全網逐秒取樣 8.38M 次中 397 次,0.005%,最大 201.6),
+  // 用位置差分算速度就會被那一跳污染。跳躍本身是貼軌資料問題(另列待辦),這裡先保證讀數不說謊。
   const pa = trainPos(tr, state.simSec), pb = trainPos(tr, state.simSec + 20);
-  const kmh = (pa && pb) ? haversineKm(pa, pb) / 20 * 3600 : 0;
+  const kmh = (pa && pb) ? Math.min(haversineKm(pa, pb) / 20 * 3600, speedCapOf(tr)) : 0;
   document.getElementById('fpSpd').innerHTML = '<b>' + Math.round(kmh) + '</b> km/h';
   // 旅程進度條:環島車永不到站,改顯示完乘成就累積(連續跟滿半圈=到折返點枋寮即蓋章)
   if (tr.loop) {
@@ -13242,6 +13571,7 @@ function jumpToNow() {
     setSpeed(1);
     refreshBadge();
   }
+  state.clockAtNow = true;   // 必須在 setSimSec 之後:那裡會清掉旗標
 }
 
 // 手機底部 sheet(看板/最愛/旅程/探索,四選一互斥)開啟時,跟隨小卡要讓道到上方,
