@@ -3166,7 +3166,7 @@ try { if (matchMedia('(max-width: 900px)').matches) document.body.classList.add(
         <li><span class="d">7/10</span><span>高鐵、桃園機捷、淡海輕軌、安坑輕軌加入路網</span></li>
         <li><span class="d">7/10</span><span>環島觀光列車一分為二：往東「山海號」、往西「平原號」</span></li>
         <li class="grp">即時動態與誤點</li>
-        <li><span class="d">7/29</span><span>畫面上後面的車會直接穿過前面那班：現在會保持車距跟著跑，該讓的就在站邊等。時刻表本身要它超車、中間又沒站可讓的極少數情況仍會出現（謝謝網友回報）</span></li>
+        <li><span class="d">7/29</span><span>畫面上後面的車會直接穿過前面那班：現在會保持車距跟著跑，該讓的就在站邊等；兩班車貼太近時會左右錯開一點，看得出來是兩班。時刻表本身要它超車、中間又沒站可讓的極少數情況仍會出現（謝謝網友回報）</span></li>
         <li><span class="d">7/28</span><span>誤點的車過了表定到站時間後被當成已跑完：點下去會從頭重播、跟隨面板也提早說抵達。改用校正後的時間判斷，下一站與進度條一併同步（謝謝網友回報）</span></li>
         <li><span class="d">7/24</span><span>新增「資料源連線狀態頁」：各即時資料源連線狀況一目了然，並白話總結「地圖現在準嗎」</span></li>
         <li><span class="d">7/24</span><span>修正 App 在背景放久後時鐘停住、車輛位置對不上；回前景會自動追回「現在」</span></li>
@@ -4297,11 +4297,16 @@ const BLOCK_GAP_GROW = 10 / 3600;            // km/s
 const BLOCK_CAP_SEC = 120;                   // hold 上限(秒)
 const BLOCK_MIN_V = 5 / 3600;                // 速度下限(km/s),把 over/v 的除零擋掉
 const BLOCK_SNAP_SEC = 300;                  // 模擬時鐘一次推進超過這個量=拖時刻尺/快轉大跳,直接對齊不慢追
-const _blockHold = new Map(), _blockCapped = new Set(), _blockGap = new Map(), _blockPrevD = new Map();
+// 並排偏移(純畫面):同線同向、沿線距離不到一個車距的連續車列,標記各往軌道法線偏一點,
+// 讓「後車追上前車」讀成旁邊那條軌道,而不是兩顆標記合體。左右交替 ⇒ 一對車對稱各偏一半,
+// 誰都不是「被移動的那個」(既有鐵則:列車牌畫真實位置、不為了避讓標籤而動車)。
+const BLOCK_SIDE_KM = BLOCK_GAP_KM;
+const _blockHold = new Map(), _blockCapped = new Set(), _blockGap = new Map(), _blockPrevD = new Map(), _blockSide = new Map();
 let _blockSim = null;
 function blockKeyOf(tr) { return (tr.sys || '') + ':' + tr.train; } // 跨系統車次會撞號,不能只用車次
 function blockHoldSec(tr) { return _blockHold.size && BLOCK_SYS[tr.sys] ? (_blockHold.get(blockKeyOf(tr)) || 0) : 0; }
 function updateBlockHolds() {
+  _blockSide.clear();
   if (state.mode !== 'sched' || !state.trains) { _blockHold.clear(); _blockGap.clear(); _blockPrevD.clear(); _blockSim = null; return; }
   const dSim = _blockSim == null ? 0 : state.simSec - _blockSim;
   const snap = !(dSim > 0 && dSim <= BLOCK_SNAP_SEC); // 倒轉/跨午夜/大跳一律直接對齊目標
@@ -4311,7 +4316,9 @@ function updateBlockHolds() {
     if (!BLOCK_SYS[tr.sys]) continue;
     const key = blockKeyOf(tr), h = _blockHold.get(key) || 0;
     const g = trainSeg(tr, state.simSec - liveDelaySec(tr) - h);
-    if (!g || !g.ln) { _blockHold.delete(key); _blockGap.delete(key); _blockPrevD.delete(key); continue; } // 沒在跑,或這段沒貼上軌道線形 → 不參與耦合
+    // 沒在跑,或這段沒貼上軌道線形 → 不參與耦合。緩動狀態一併清掉:不清的話,收班時帶著偏移離場的車,
+    // 隔天從起點出現的第一幀會先跳到舊偏移再滑回來
+    if (!g || !g.ln) { _blockHold.delete(key); _blockGap.delete(key); _blockPrevD.delete(key); _blockSideEase.delete(key); continue; }
     const k = g.ln.id + '|' + g.dir;                       // 同一條線形+同方向才是同一條軌道
     let a = groups.get(k); if (!a) groups.set(k, a = []);
     a.push({ tr, key, h, g });
@@ -4372,6 +4379,17 @@ function updateBlockHolds() {
       // 屏障存前車的里程本身,車距由每台後車各自的棘輪決定;前車停站中就不是障礙(月台待避合法),
       // 屏障沿用更前面那班的
       barrier = it.g.dwell ? barrier : { d: it.g.d, key: it.key };
+    }
+    // 並排偏移的配對:在同一份排序上取「連續且貼近」的車列,左右交替。用 arr 的鄰接而不是 barrier 鏈——
+    // 停站中的車也要參與(月台待避的當下正是兩顆標記重疊的那一刻)。
+    for (let i = 1, run = -1; i < arr.length; i++) {
+      if ((arr[i - 1].g.d - arr[i].g.d) * arr[i].g.dir > BLOCK_SIDE_KM) { run = -1; continue; }
+      // 連 ln/d/dir 一起存:畫面端要用線形自己的切線,不能用「我→對方」的連線向量——
+      // 兩車停在同一站時經緯度完全相同(實測 3138 與 198 於同站,距離 0),連線向量長度是 0,
+      // 偏移會靜默失效,而那正是兩顆標記完全合體、最需要它的一刻。
+      const side = it => ({ ln: it.g.ln, d: it.g.d, dir: it.g.dir });
+      if (run < 0) { run = 0; _blockSide.set(arr[i - 1].key, { s: 1, other: arr[i].tr, ...side(arr[i - 1]) }); }
+      _blockSide.set(arr[i].key, { s: ++run % 2 ? -1 : 1, other: arr[i - 1].tr, ...side(arr[i]) });
     }
   }
   state._block = { holds: _blockHold, capped: _blockCapped }; // 診斷用把手(驗收的 T1–T7 不准讀這個)
@@ -5050,7 +5068,9 @@ function drawSched(w, h) {
     const pos = trainPos(tr, state.simSec); if (!pos) continue;
     if (state.visible.has(tr.typeName)) n++;
     const cp = map.latLngToContainerPoint([pos.lat, pos.lon]);
+    const sh = blockSideShift(tr, pos, cp, showTrain); // 同線同向貼太近 → 兩顆標記各往軌道法線偏一半
     if (isFollow) { drawFollowMarker(cp, tr); state._trainHits.push({ x: cp.x, y: cp.y, tr }); continue; }
+    if (sh) { cp.x += sh.x; cp.y += sh.y; }
     if (!inView(cp)) continue;
     state._trainHits.push({ x: cp.x, y: cp.y, tr }); // 供點擊/hover 命中測試(每幀重建)
     const glowC = isHSR(tr) ? HSR_ORANGE : tr.color;
@@ -5309,6 +5329,47 @@ function drawArrowAt(cp, ang, color, hw, hh) {
   ctx.closePath();
   ctx.globalAlpha = 1; ctx.fillStyle = color; ctx.fill();
   ctx.lineWidth = 1.4; ctx.strokeStyle = pal().tagOutline; ctx.stroke();
+}
+// 並排偏移的畫面端。只動畫出來的標記:trainPos、停靠時刻、effT 全不受影響;
+// 命中測試跟著偏(點得到的必須是看得見的那顆)。位移量以「標記自己的尺寸」為尺度而不是固定 px——
+// 標記早就是比列車大得多的謊,用不超過標記自身半徑的位移換「兩班車看得出是兩班」是划算的。
+const BLOCK_SIDE_GAP = 2;              // 兩顆牌之間要留的縫(px)
+const BLOCK_TAG_H = 15;                // 車號牌高度(與 drawTag 的 ph 同值)
+const _blockSideEase = new Map();      // 進出偏移要漸變,不能一到門檻就跳
+// 車號牌實寬(與 drawTag 同一條算式);標籤不變 → 每班量一次就夠
+function tagW(tr) {
+  if (tr._tagW == null) { ctx.font = '700 10px ' + FONT; tr._tagW = ctx.measureText(String(tr.train)).width + 10; }
+  return tr._tagW;
+}
+function blockSideShift(tr, pos, cp, big) {
+  const key = blockKeyOf(tr);
+  // 遠景圓點模式不偏(那個縮放下十幾 px 是好幾公里);跟隨中的主角是鏡頭錨點,更不能偏
+  const info = big && tr !== state.followTrain ? _blockSide.get(key) : null;
+  let ax = 0, ay = 0;
+  const op = info && trainPos(info.other, state.simSec);
+  if (op) {
+    const ocp = map.latLngToContainerPoint([op.lat, op.lon]);
+    // 兩顆牌會疊到的距離,由「實際量到的牌寬」推得而不是手打的常數;且必須是一對車共用的值——
+    // 各用各的牌寬,「270」(窄)會比「2138」(寬)早歸零,同一對就變成一台偏一台不偏(實測 8/17 對)
+    const near = (tagW(tr) + tagW(info.other)) / 2;
+    const w = Math.min(1, Math.max(0, (near - Math.hypot(ocp.x - cp.x, ocp.y - cp.y)) / near));
+    // 切線取線形本身、朝行進方向(同一對車拿到同一條切線 ⇒ 號誌相反就必然對稱各偏一半)。
+    // Mercator 保角 ⇒ 螢幕向量 ∝ (dlon·cosφ, −dlat);法線＝切線轉 90°。
+    const a1 = posAlongShape(info.ln, info.d - 0.05 * info.dir), a2 = posAlongShape(info.ln, info.d + 0.05 * info.dir);
+    const cl = Math.cos(pos.lat * Math.PI / 180);
+    const tx = (a2.lon - a1.lon) * cl, ty = -(a2.lat - a1.lat), L = Math.hypot(tx, ty);
+    if (w > 0 && L > 1e-9) {
+      const nx = -ty / L, ny = tx / L;
+      // 各偏「標記在這個方向上的半徑」＋半條縫。固定 px 不行:軌道垂直時法線是水平的,要讓開的是
+      // 牌寬(32px);9px 只夠讓開牌高,實測垂直軌道那半永遠還是疊在一起(潮州站 3138/198)。
+      const a = w * info.s * ((Math.abs(nx) * near + Math.abs(ny) * BLOCK_TAG_H) / 2 + BLOCK_SIDE_GAP / 2);
+      ax = nx * a; ay = ny * a;
+    }
+  }
+  const e = _blockSideEase.get(key) || { x: 0, y: 0 };
+  const x = e.x + (ax - e.x) * 0.18, y = e.y + (ay - e.y) * 0.18;
+  if (Math.abs(x) < 0.05 && Math.abs(y) < 0.05) { _blockSideEase.delete(key); return null; }
+  const n = { x, y }; _blockSideEase.set(key, n); return n;
 }
 function drawDirArrow(cp, tr, color) { // 台鐵/高鐵:牌=車次號(數字窄字),半寬 6+3/字
   const pB = trainPos(tr, state.simSec - DIR_DT_SEC);
