@@ -3140,6 +3140,7 @@ try { if (matchMedia('(max-width: 900px)').matches) document.body.classList.add(
       <summary><span>更新紀錄</span><span class="foot-sub">最後更新：2026/7/29</span></summary>
       <ul class="foot-list foot-recent">
         <li class="grp">最近更新</li>
+        <li><span class="d">7/29</span><span>跟車小卡的時速不會再飆出車子跑不到的數字（謝謝網友回報）</span></li>
         <li><span class="d">7/29</span><span>刪除帳號時，會一併刪掉你上傳過的 GPS 校正旅程資料與貢獻點數</span></li>
         <li><span class="d">7/29</span><span>在高鐵或林鐵點下去跟車，不會再跟到同號碼的台鐵列車（謝謝網友回報）</span></li>
         <li><span class="d">7/29</span><span>圖磚還沒載入時墊底的台灣輪廓換了新資料，海岸線終於對得準（謝謝網友回報）</span></li>
@@ -3176,6 +3177,7 @@ try { if (matchMedia('(max-width: 900px)').matches) document.body.classList.add(
         <li><span class="d">7/29</span><span>台鐵、高鐵、林鐵有不少重複的車次號碼（1238、1241、1、2…），在高鐵或林鐵畫面點下去卻跟到台鐵的同號車；現在點哪個系統就跟哪個系統（謝謝網友回報）</span></li>
         <li><span class="d">7/28</span><span>「隨機跟隨」改成挑一班就陪你跟到終點，不再過一兩分鐘自己跳去別班車；想換車按「換一班」，結束按小卡的 ×</span></li>
         <li><span class="d">7/25</span><span>環島之星觀光列車上地圖了：搜尋車名或車次 1／2，跟著萌旅號 13 小時繞台灣一圈</span></li>
+        <li><span class="d">7/29</span><span>跟車小卡與速度曲線的時速改由車種極速把關，不會再出現該車跑不到的數字（原本快車跳站的長區間會被推估曲線衝到 160 km/h 以上）</span></li>
         <li><span class="d">7/22</span><span>台鐵列車通過不停靠的車站時不再假性減速，只在真正停靠站緩起緩停</span></li>
         <li><span class="d">7/18</span><span>搜尋框可以直接打列車名字：山嵐、鳴日、藍皮、海風…沒有固定車次的給你介紹卡</span></li>
         <li><span class="d">7/17</span><span>搜尋合而為一：車站名與車次打同一個框（原本的「找站」鈕退役）</span></li>
@@ -3519,7 +3521,7 @@ try { if (matchMedia('(max-width: 900px)').matches) document.body.classList.add(
 // 🔴 BUILD 字串會跨並行分支撞號（心得 16）：07-28 兩條線各自遞增又各自部署過——
 // origin/main 這條用到 v0728b，正式站那條用到 v0728f。本次三方合併把兩條線統一，
 // 所以往後推到一個雙方都沒用過的號，辨識線上跑哪一版仍以內容 hash 為準。
-const BUILD = 'v0729b';
+const BUILD = 'v0729c';
 // 成就徽章與車廂標記＝原本那些 emoji 的單色平面版（RailEmoji＝裁切過的 Noto Emoji 單色）。
 // 刻意保留 railIcon(name) 這個唯一入口:呼叫端一行都不用改,只有這裡決定畫法。
 // 🔴 ⚖ 與 ♾ 一律寫**不帶 VS16(U+FE0F)** 的碼位——帶了就強制彩色呈現,會蓋過 font-family
@@ -4034,7 +4036,7 @@ function buildProfile(Lkm, T, aK, bK, vK) {
 // 折點來自 data/tra_pass_obs.json(7 天 TDX 官方歷史逐站觀測煉出的跑段內時間比例)。
 // 端點斜率設 0 → 在真停靠站仍平滑起停;中間速度連續 → 通過站不會瞬間變速;加權調和平均保證單調不過衝。
 // 產生方式、閘門與留一日交叉驗證數字見 scripts/build_pass_obs.mjs 與 研究_快車跳站校正 文件。
-function buildObsProfile(Lkm, T, pts) {   // pts:[{t:段內秒, d:距跑段起點公尺}] 依序
+function buildObsProfile(Lkm, T, pts, vTopK) {   // pts:[{t:段內秒, d:距跑段起點公尺}] 依序;vTopK=該車種極速(km/h)
   const L = Lkm * 1000;
   if (!(L > 0) || !(T > 0) || !pts || !pts.length) return null;
   const xs = [0], ys = [0];
@@ -4048,6 +4050,10 @@ function buildObsProfile(Lkm, T, pts) {   // pts:[{t:段內秒, d:距跑段起�
   xs.push(T); ys.push(L);
   // 節點對軌道幾何複驗:build 端的閘門用官方里程,這裡的距離來自軌道投影,兩者不同源(刻意的兩道獨立防線)。
   // 與真停靠站相鄰的區間含起停,平均速度上限更嚴;超速代表該節點與本線幾何不相容 → 丟節點不丟整段。
+  // 門檻刻意維持硬編、不綁車種極速:2026-07-29 試過綁 vTopK,超標段是從 14 降到 3,
+  // 但 37 個跑段因節點被清到剩兩端而退回梯形(實測校正覆蓋率是本模型的本體價值),
+  // 通過站時刻位移也從中位 4s 惡化到 11s——用丟資料換數字好看,不划算。
+  // 殘留的「時刻表要求速度 > 車種極速」屬車種判定或里程資料的矛盾,另案處理,不在這裡掩蓋。
   const VS_END = 115 / 3.6, VS_MID = 135 / 3.6;
   for (let guard = xs.length; guard > 0; guard--) {   // 上限先求值:xs 會邊刪邊縮,寫成 guard<xs.length 會提早收工
     let bad = -1;
@@ -4072,24 +4078,38 @@ function buildObsProfile(Lkm, T, pts) {   // pts:[{t:段內秒, d:距跑段起�
   }
   // 導數尖峰夾限:Fritsch–Carlson 只保證單調,m 上界是 3×min(相鄰割線),
   // 快慢段交界會讓區間內瞬時速度衝到割線的兩倍以上(實測 228→266 km/h)。
-  // 區間導數是二次式,取端點與駐點的極大值,超標就等比縮小兩端 m(縮到 0 時上界必為 1.5×割線,故一定收斂)。
-  // 台鐵路線最高速限 130 km/h;VCAP 取 150 留餘裕,並對割線本身就快的段放寬到 1.55×,避免與物理必然性打架。
-  const VCAP = 150 / 3.6;
-  for (let i = 0; i < n - 1; i++) {
-    const cap = Math.max(VCAP, 1.55 * del[i]);
-    const dMax = (a, b) => {              // d(s)=A s²+B s+a, s∈[0,1]
-      const A = 3 * a + 3 * b - 6 * del[i], B = -4 * a - 2 * b + 6 * del[i];
-      let v = Math.max(a, b);
-      if (A < 0) { const s = -B / (2 * A); if (s > 0 && s < 1) v = Math.max(v, A * s * s + B * s + a); }
-      return v;
-    };
-    if (dMax(m[i], m[i + 1]) <= cap) continue;
-    let lo = 0, hi = 1;
-    for (let it = 0; it < 12; it++) {      // 二分找最大可用縮放比
-      const mid = (lo + hi) / 2;
-      if (dMax(m[i] * mid, m[i + 1] * mid) <= cap) lo = mid; else hi = mid;
+  // 區間導數是二次式,取端點與駐點的極大值,超標就把兩端 m 往「本區間割線」拉(u=1 即線性)。
+  // 為什麼拉向割線而不是縮向 0(2026-07-29 修 issue #15):插值必須通過兩個節點,區間平均速度恆為
+  // 割線 del,所以「處處不超過 del」只有線性一種解 → del 才是峰值的真下限。把 m 縮向 0 是反方向:
+  // 兩端速度歸零,中間就得衝更高補回平均,m=0 時峰值反而是 1.5×del(舊版 cap 取 max(150,1.55×del)
+  // 正是在替這個反效果讓路,於是割線快的區間永遠豁免——171 次那段割線 134.9 就放行到 202)。
+  // 上限綁該車種極速;割線本身已超過極速時只能承認(時刻表要求的平均速度就那麼快),取 del 為準。
+  // m[i] 為相鄰兩區間共用,處理區間 i 設定的 m[i+1] 會讓已收好的區間 i 重新超標 → 外層重掃直到不動
+  // (實測 3 輪內收斂;不設無限迴圈,殘留由驗收的 3% 容差兜住)。
+  const VCAP = (vTopK > 0 ? vTopK : 130) / 3.6;
+  for (let pass = 0; pass < 4; pass++) {
+    let touched = false;
+    for (let i = 0; i < n - 1; i++) {
+      const cap = Math.max(VCAP, del[i]);
+      const dMax = (a, b) => {              // d(s)=A s²+B s+a, s∈[0,1]
+        const A = 3 * a + 3 * b - 6 * del[i], B = -4 * a - 2 * b + 6 * del[i];
+        let v = Math.max(a, b);
+        if (A < 0) { const s = -B / (2 * A); if (s > 0 && s < 1) v = Math.max(v, A * s * s + B * s + a); }
+        return v;
+      };
+      if (dMax(m[i], m[i + 1]) <= cap) continue;
+      const mix = (v, u) => v + (del[i] - v) * u;   // u=0 維持原導數、u=1 為線性
+      // 註:試過「末輪強制壓成線性」當保底,反而更糟(峰值 135→150、違反上界 1→24 段)——
+      // 硬設 m 會破壞鄰區間已收好的結果,且末輪沒有機會再修。維持純二分。
+      let lo = 0, hi = 1;
+      for (let it = 0; it < 12; it++) {      // 二分找「最小的」拉向線性的比例,盡量保留實測形狀
+        const mid = (lo + hi) / 2;
+        if (dMax(mix(m[i], mid), mix(m[i + 1], mid)) <= cap) hi = mid; else lo = mid;
+      }
+      m[i] = mix(m[i], hi); m[i + 1] = mix(m[i + 1], hi);
+      touched = true;
     }
-    m[i] *= lo; m[i + 1] *= lo;
+    if (!touched) break;
   }
   return { T, L, obs: true, xs, ys, h, m };
 }
@@ -4157,7 +4177,7 @@ function assignRunProfiles(s, perf, obs) {
         const nm = s[i + 1].name, f = obs[nm] ?? obs[nm.replace(/台/g, '臺')];
         if (f != null) pts.push({ t: f / 1000 * runT, d: cum * 1000 });
       }
-      if (pts.length) rp = buildObsProfile(runKm, runT, pts);
+      if (pts.length) rp = buildObsProfile(runKm, runT, pts, perf.v);
     }
     if (!rp) rp = buildProfile(runKm, runT, perf.a, perf.b, perf.v);
     if (rp && runKm > 0) {
