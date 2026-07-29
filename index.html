@@ -3140,6 +3140,7 @@ try { if (matchMedia('(max-width: 900px)').matches) document.body.classList.add(
       <summary><span>更新紀錄</span><span class="foot-sub">最後更新：2026/7/29</span></summary>
       <ul class="foot-list foot-recent">
         <li class="grp">最近更新</li>
+        <li><span class="d">7/29</span><span>護照的收集章：名字太長的（像 EMU3000 新自強號）不會再被圓框切掉</span></li>
         <li><span class="d">7/29</span><span>刪除帳號時，會一併刪掉你上傳過的 GPS 校正旅程資料與貢獻點數</span></li>
         <li><span class="d">7/29</span><span>在高鐵或林鐵點下去跟車，不會再跟到同號碼的台鐵列車（謝謝網友回報）</span></li>
         <li><span class="d">7/29</span><span>圖磚還沒載入時墊底的台灣輪廓換了新資料，海岸線終於對得準（謝謝網友回報）</span></li>
@@ -3147,7 +3148,6 @@ try { if (matchMedia('(max-width: 900px)').matches) document.body.classList.add(
         <li><span class="d">7/28</span><span>新增「GPS 校正旅程」：用 App 錄一趟實際乘車幫忙校正列車位置，座標不會離開手機</span></li>
         <li><span class="d">7/28</span><span>錄製途中看得見地圖與列車，也能一邊查別的車，不再是整片黑畫面</span></li>
         <li><span class="d">7/28</span><span>全站圖示換成軌島自製單色線稿，亮暗主題下都更一致清楚</span></li>
-        <li><span class="d">7/28</span><span>「隨機跟隨」挑到的車會一路跟到終點，不再中途自己換車</span></li>
       </ul>
       <!-- 第二層:完整歷史。刻意不掛 .foot-box 類名——placeFootBoxes() 用
            `.site-foot .foot-box` 搬移面板,巢狀同名會被當成另一個盒子一起搬走。 -->
@@ -3195,6 +3195,7 @@ try { if (matchMedia('(max-width: 900px)').matches) document.body.classList.add(
         <li><span class="d">7/13</span><span>新增「附近火車」：地圖上落一根釘，查周邊 60 分鐘內會通過的車次</span></li>
         <li><span class="d">7/12</span><span>新增平交道功能：點一下查接下來會通過的列車（7/13 補上貨運線 21 處）</span></li>
         <li class="grp">收藏、護照與成就</li>
+        <li><span class="d">7/29</span><span>收集章改成依名字長短自動配版：長名會縮小字級、必要時多折一行，「EMU3000 新自強號」「區間車（通勤電聯車）」這些再也不會被圓框切掉</span></li>
         <li><span class="d">7/26</span><span>旅程護照多了「車站收集」：完乘過的起訖站自動成章，人到月台再按「附近車站」裡的蓋章鈕，就升級成到訪章；同一座站去過越多次，章上的數字越大</span></li>
         <li><span class="d">7/26</span><span>跟著車按「我上車了」並選好在哪站下車，沿路每過一站就自動蓋一枚章，下車那站也會補上——全程只在上下車兩點用到定位，不會一直背景追蹤你</span></li>
         <li><span class="d">7/26</span><span>搭過的路段會一起收集，護照顯示「最常搭的一段」與每條路線各自的完乘率；新增四枚成就：車站巡禮、百站達成，以及同一段路來回搭滿 100／500 次的通勤成就</span></li>
@@ -9271,10 +9272,76 @@ function setRideSortMode(m) {
   renderPassport();
 }
 // ── 護照共用 builder(Batch B:桌面 #passport 與護照 sheet #ridePanel 單一事實來源) ──
-// 章名折行:4 字以上折兩行塞進圓章(仿 mock「藍皮/解憂號」)
-function sealName(n) {
-  const s = String(n == null ? '' : n), mid = Math.floor(s.length / 2);
-  return s.length >= 4 ? escHtml(s.slice(0, mid)) + '<br>' + escHtml(s.slice(mid)) : escHtml(s);
+// 章名折行:4 字以上折行塞進圓章(仿 mock「藍皮/解憂號」)。
+// 圓章是固定大小的圓,章名卻長短差很多——「EMU3000 新自強號」「灣仔內(大順鼎山)」在固定 10px
+// 兩行版面下會被裁掉(使用者 2026-07-29 回報)。**裁切線是圓弧不是方框**(border-radius:50% +
+// overflow:hidden),所以越靠上下兩端的行可用寬越窄,「塞得進 45px 方框」根本不是判準:逐行算它
+// 在圓內那個高度的弦長才準。做法是從最大字級往下試,第一個「每一行都在圓內」的組合就用它;
+// 先試兩行(＝既有版面,本來就放得下的短名一個像素都不變),兩行要縮到 SEAL_FS_MIN 以下才改三行。
+// 常數全部量出來的(見 2026-07-29 的 _probe_geom 量測):字寬 em 取兩引擎大值再加一點餘裕,
+// 行盒間距＝line-height,墨跡上下緣約在行中心 ±0.44em,圓半徑再收 0.2px——寧可字略小,不要裁字。
+const SEAL_FIT = {         // {圓半徑, 內容盒寬, 下方小字佔高, 下方小字寬, 最大字級, 字距, 行高}
+  seal: { r: 26, cw: 45, bot: 8.5, smW: 31, fs: 10, ls: .5, lh: 1.2 },  // 下方＝gap 1＋7.5;寬取「點我重播」
+  achv: { r: 26, cw: 45, bot: 15, smW: 14, fs: 10, ls: .5, lh: 1.2 },   // 下方換成 gap 1＋14px 圖示
+  stn: { r: 23, cw: 42, bot: 11, smW: 16, fs: 11, ls: .2, lh: 1.1 },    // 下方＝「到訪」11 高、約 16 寬
+};
+const SEAL_FS_MIN = 8;      // 兩行要縮得比這還小,不如多一行
+const sealCharEm = c => c === ' ' ? .37 : /[0-9]/.test(c) ? .72 : /[A-Z]/.test(c) ? .8
+  : /[a-z]/.test(c) ? .62 : /[（）]/.test(c) ? 1.08 : /[!-~]/.test(c) ? .56 : 1.02;
+// 等分切成 n 行,切點優先挪到「詞的接縫」(±2 字內):空白、左括號、字母轉數字——
+// 免得「EMU3000」被切成 EMU3／000 這種讀不出來的兩半(要切也是切在 EMU／3000)
+function sealCut(cs, ideal, min) {
+  for (let d = 0; d <= 2; d++) for (const p of (d ? [ideal - d, ideal + d] : [ideal])) {
+    if (p <= min || p >= cs.length) continue;
+    if (cs[p - 1] === ' ' || cs[p] === ' ' || cs[p] === '（' || cs[p] === '(') return p;
+    if (/[A-Za-z]/.test(cs[p - 1]) && /[0-9]/.test(cs[p])) return p;
+  }
+  return ideal;
+}
+function sealLines(cs, n) {
+  const out = [];
+  for (let k = 1, prev = 0; k <= n; k++) {
+    // 用 floor 不用 round:兩行時 floor(len/2) 就是舊版的切點,本來就放得下的名字連折行位置都不變
+    const cut = k === n ? cs.length : sealCut(cs, Math.floor(cs.length * k / n), prev);
+    out.push(cs.slice(prev, cut).join('').trim());
+    prev = cut;
+  }
+  return out.filter(Boolean);
+}
+// 這組行、這個字級,每一行的墨跡是不是都還在圓內?
+// 墨跡高度分兩種:純中文約 ±0.44em;含半形字的行要放到 ±0.5em——拉丁字母與數字走的是另一套
+// fallback 字型,在同一個行盒裡墨跡更高(實測 WebKit 的「DR3100」正是這樣擦到圓弧)。
+function sealFits(lines, fs, P) {
+  const lh = fs * P.lh, H = lines.length * lh + P.bot, rr = (P.r - .2) ** 2;
+  const chord = y => Math.sqrt(Math.max(0, rr - y * y));      // 該高度的弦長一半＝那一行能有多寬
+  for (let k = 0; k < lines.length; k++) {
+    const ink = /[!-~]/.test(lines[k]) ? .5 : .44;
+    const y = Math.abs(-H / 2 + (k + .5) * lh) + fs * ink;     // 這行墨跡離圓心最遠的那一緣
+    const w = [...lines[k]].reduce((a, c) => a + sealCharEm(c), 0) * fs + P.ls * lines[k].length;
+    // 🔴 內容盒寬這關一定要先過:瀏覽器是先把每一行排進內容盒才談裁切,任何一行超過就**自己再折一次**,
+    // 折出來的那一行會把整塊往外推,底下的小字被擠出圓外——上一版被裁的章大半是這樣來的,不是單純太寬。
+    if (w > P.cw || w / 2 > chord(y)) return false;
+  }
+  // 下方那行小字(已收藏／點我重播／到訪)不隨字級縮,行數一多就被推到圓的窄處去
+  return P.smW / 2 <= chord(H / 2 - 1);
+}
+function sealName(n, kind) {
+  const cs = [...String(n == null ? '' : n).trim()];
+  const P = SEAL_FIT[kind] || SEAL_FIT.seal;
+  if (cs.length < 4) return `<b>${escHtml(cs.join(''))}</b>`;
+  let best = null;
+  for (const rows of [2, 3]) {
+    const lines = sealLines(cs, rows);
+    for (let fs = P.fs; fs >= 5; fs -= .2) {
+      if (!sealFits(lines, fs, P)) continue;
+      if (!best || fs > best.fs) best = { lines, fs };
+      break;
+    }
+    if (best && best.fs >= SEAL_FS_MIN) break;   // 兩行就有夠大的字,不必再切一行
+  }
+  if (!best) best = { lines: sealLines(cs, 3), fs: 5 };       // 極端長名:塞不下也要看得見
+  const html = best.lines.map(escHtml).join('<br>');
+  return best.fs >= P.fs ? `<b>${html}</b>` : `<b style="font-size:${best.fs.toFixed(1)}px">${html}</b>`;
 }
 // ── 車站打卡收集(設計書 `打卡收集系統設計_2026-07-25.html` 第 2、6 節) ──
 // storage 獨立於 userData 四 kind(比照 P0 提醒的 trainmap-local-reminders-v1):不動 Firestore rules、
@@ -10749,7 +10816,7 @@ function buildStationStamps(rides) {
     shown.map(i => {
       const cls = 'stn-seal ' + i.s + (tierM.get(i.sys + '|' + i.name) === 0 ? ' t0' : '');
       const tip = i.name + '・' + STN_STATUS_LABEL[i.s] + (i.n > 1 ? '　' + i.n + ' 次' : '') + (i.d ? '　最近 ' + i.d : '');
-      return `<span class="${cls}" title="${escHtml(tip)}"><b>${sealName(i.name)}</b>` +
+      return `<span class="${cls}" title="${escHtml(tip)}">${sealName(i.name, 'stn')}` +
         (i.n > 1 ? `<small class="cnt">×${i.n}</small>` : `<small>${STN_STATUS_LABEL[i.s]}</small>`) + `</span>`;
     }).join('') + more + `</div>`;
 }
@@ -10926,7 +10993,7 @@ function buildStamps(rides) {
     const got = items.filter(i => i.got).length;
     return phSec(cat, items.length, null, `${escHtml(label)}<b>${got}/${items.length}</b>`) + `<div class="ph-stamps">` +
       items.map(i => `<span class="seal${i.got ? '' : ' na'}" data-cat="${escHtml(cat)}" data-id="${escHtml(i.id)}"` +
-        ` title="${escHtml(i.tip)}"><b>${sealName(i.name)}</b><small>${i.got ? '已收藏' : '點我重播'}</small></span>`).join('') + `</div>`;
+        ` title="${escHtml(i.tip)}">${sealName(i.name)}<small>${i.got ? '已收藏' : '點我重播'}</small></span>`).join('') + `</div>`;
   };
   const named = sd.namedTrains.filter(n => n.trainNos.length).map(n => // 無固定車次的觀光列車搭不到,不列入收集
     ({ name: n.name, got: coll.named.has(n.id), id: n.id, tip: coll.named.has(n.id) ? n.story : MISS_TIP }));
@@ -10945,7 +11012,7 @@ function buildAchv(rides, style) {
   }
   return phSec('achv', ACHIEVEMENTS.length, null, `成就徽章<b>${ach.size}/${ACHIEVEMENTS.length}</b>`) + `<div class="ph-stamps">` +
     ACHIEVEMENTS.map(a =>
-      `<span class="seal${ach.has(a.id) ? ' gold' : ' na'}" title="${escHtml(a.desc)}"><b>${sealName(a.name)}</b><small>${railIcon(a.icon)}</small></span>`).join('') + '</div>';
+      `<span class="seal${ach.has(a.id) ? ' gold' : ' na'}" title="${escHtml(a.desc)}">${sealName(a.name, 'achv')}<small>${railIcon(a.icon)}</small></span>`).join('') + '</div>';
 }
 // 完乘記錄列:桌面與 sheet 共用同一 markup,mode 決定排序(桌面隨排序鈕,sheet 固定 date 最新在前)
 function buildRideRows(rides, mode) {
