@@ -2,13 +2,24 @@
   "v": 1,
   "note": "門檻與文案的唯一定義。客端（錄製中的即時提示）與伺服器端（隔日驗證）共讀這一份——規格 §5：兩邊用不同門檻才是 bug。改任何數字都同時改變兩邊行為，這是刻意的。",
   "coverN": { "TRA": 1, "THSR": 1, "metro": 3 },
+  "dwellReward": {
+    "coveredMultiplier": 0.5
+  },
   "quality": {
     "accMedianPreciseOffM": 200,
     "accMedianBlockedM": 80,
     "sampleGapMedianSec": 5,
     "segCoverageMin": 0.6,
     "noFixGapSec": 90,
-    "liveWindowSec": 60
+    "liveWindowSec": 60,
+    "dwell": {
+      "stationWindowM": 250,
+      "sideMinM": 60,
+      "stopRadiusM": 100,
+      "stopSpeedMaxMps": 1.5,
+      "stopMinSec": 3,
+      "maxLowSpeedGapSec": 5
+    }
   },
   "integrity": {
     "tripDateMaxAgeDays": 7,

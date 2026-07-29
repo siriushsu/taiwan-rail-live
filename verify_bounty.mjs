@@ -1283,7 +1283,8 @@ async function measureRecCompact(page) {
   // quality 每個鍵都被具名引用。鍵清單取自 json 本身（規格），不是抄實作——日後往 json 加
   // 新門檻而客端硬編，這裡一樣會紅。
   const SERVER_ONLY = new Set(['segCoverageMin']);   // 事後品質閘在 worker 端跑，客端本來就用不到
-  const srcQ = await page.evaluate(() => [bountyLiveQuality, bountyTickQuality].map(f => f.toString()).join('\n'));
+  const srcQ = await page.evaluate(() =>
+    [bountyLiveQuality, bountyTickQuality, bountyUpdateDwellProgress].map(f => f.toString()).join('\n'));
   const unref = Object.keys(Q).filter(k => !SERVER_ONLY.has(k) && !srcQ.includes(k));
   ok('E5b 客端跑著的品質函式，對 bounty_rules.json 的每個門檻都是具名查表（硬編就會紅）',
     unref.length === 0, unref.length ? `沒被具名引用：${unref.join('、')}` : `${Object.keys(Q).length - SERVER_ONLY.size} 個鍵全部具名引用`);
@@ -1584,7 +1585,8 @@ async function checkQualityHintMobile(browserInst, width, height) {
   const bad = d2.cards.filter(c => {
     const m = /^(.*?)\s*→\s*(.*)$/.exec(c.r) || [];
     const lineName = (c.meta.split('・')[0] || '').trim();
-    return !m[1] || !m[2] || m[1] === m[2] || m[1] === lineName || c.r.includes('|');
+    const dwell = /停站$/.test(c.r) && /站/.test(c.meta);
+    return c.r.includes('|') || (!dwell && (!m[1] || !m[2] || m[1] === m[2] || m[1] === lineName));
   });
   ok('D3 卡面是真站名不是內部代碼（掉進 fallback 會顯示線名且終點空白）', bad.length === 0,
     bad.length ? JSON.stringify(bad) : d2.cards.map(c => c.r).join('、'));

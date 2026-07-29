@@ -3235,6 +3235,7 @@ try { if (matchMedia('(max-width: 900px)').matches) document.body.classList.add(
           <li class="web-only-donation-log"><span class="d">7/13</span><span>贊助方式更新：「請開發者喝咖啡」的銀行轉帳帳戶改用 LINE Bank（連線商業銀行 824）——謝謝每一位抖內支持軌島的朋友</span></li>
         <!-- APP_STRIP_END donation-log -->
         <li class="grp">資料校正</li>
+        <li><span class="d">7/29</span><span>修正懸賞板的停站任務：現在會顯示正確站名，列車真的停靠後會計入樣本、發點並完成認領；只有經過但不停靠不會誤算</span></li>
         <li><span class="d">7/29</span><span>刪除軌島帳號時，會一併刪掉你上傳過的 GPS 校正旅程資料與累積的貢獻點數，包含這台裝置以匿名身分傳的那些；隱私權政策也補上了這類資料保存多久、要怎麼刪除</span></li>
         <li><span class="d">7/29</span><span>圖磚還沒載入時墊底的台灣海陸輪廓換成內政部公開的縣市界線：舊資料比實際海岸線偏了一到三公里，東部海線好幾站看起來像在海上（謝謝網友回報）</span></li>
         <li><span class="d">7/28</span><span>新增「GPS 校正旅程」：懸賞板列出目前最缺實際乘車紀錄的路段，用 App 錄一趟就能幫忙把列車位置校正得更準。錄的時候只有里程會上傳、座標全程留在手機裡；中途重新整理或 App 被系統收掉都接得回同一趟，出錯時畫面上也看得到原因</span></li>
@@ -3397,7 +3398,7 @@ try { if (matchMedia('(max-width: 900px)').matches) document.body.classList.add(
       <span id="recQualityText">等待定位</span>
     </div>
     <div class="rc-big"><span id="recKm">0.0</span><small>公里</small></div>
-    <div class="rc-row"><span id="recSegs">0</span> 段已覆蓋・<span id="recPts">0</span> 點已鎖定</div>
+    <div class="rc-row"><span id="recSegs">0</span> <span id="recUnitWord">段</span>已覆蓋・<span id="recPts">0</span> 點已鎖定</div>
     <div class="rc-bar"><i id="recBar"></i></div>
   </div>
   <button class="rc-stop" id="recStop" type="button">停止錄製</button>
@@ -9886,13 +9887,26 @@ function bountyDemoBoard() {
   const CLAIMERS = [0, 2, 0, 1, 0], SAMPLES = [0, 1, 0, 0, 2];
   const cards = [];
   for (const [mapKey, rec] of lineNetwork()) {
-    if (cards.length >= 5 || !rec.segs || rec.segs.length < 6) continue;
+    if (cards.length >= 4 || !rec.segs || rec.segs.length < 6) continue;
     const i = cards.length, p = mapKey.split('|');
     const take = rec.segs.slice(i, i + 3 + (i % 3)); // 各卡段數不同
     cards.push({ id: `${mapKey}|${i % 2}|${KINDS[i]}|track|`, sys: p[0], lnId: p[1],
       trainKind: KINDS[i], dir: i % 2, kind: 'track', slot: '',
       unitKeys: take.map(s => s.key), units: take.length, points: take.length * 3,
       claimers: CLAIMERS[i], samples: SAMPLES[i], coverN: 1 });
+  }
+  // 示範板也必須含 dwell：不然備援站唯一可走的端到端設計驗收永遠只測得到 track，
+  // 這次兩個 dwell 結構洞就會再次在「全綠」測試外復發。
+  const dwellRec = [...lineNetwork()].find(([, r]) => (r.ln.stations || []).filter(s => s.name && s.d != null).length >= 3);
+  if (dwellRec) {
+    const [mapKey, rec] = dwellRec, p = mapKey.split('|');
+    const sts = (rec.ln.stations || []).filter(s => s.name && s.d != null).slice(1, 3);
+    cards.push({
+      id: `${mapKey}|0|區間|dwell|peak`, sys: p[0], lnId: p[1],
+      trainKind: '區間', dir: 0, kind: 'dwell', slot: 'peak',
+      unitKeys: sts.map(s => `${p[0]}|${p[1]}|${s.name}|${s.name}`),
+      units: sts.length, points: sts.length * 3, claimers: CLAIMERS[4], samples: SAMPLES[4], coverN: 1,
+    });
   }
   return { at: Date.now(), coverN: { TRA: 1, THSR: 1, metro: 3 }, cards, demo: true };
 }
@@ -9943,15 +9957,40 @@ async function fetchBountyMe() {
 // 計畫 B（後端）尚未實作，發卡時 dir 要照這個定義填。
 function bountyCardName(card) {
   const rec = lineNetwork().get(card.sys + '|' + card.lnId);
-  if (!rec) return { from: card.lnId, to: '', lineName: card.lnId, segs: card.units };
   const want = new Set(card.unitKeys || []);
+  if (card.kind === 'dwell') {
+    const raw = [...want].map(k => String(k).split('|')).filter(p => p.length === 4 && p[2] === p[3]).map(p => p[2]);
+    let stationNames = [...new Set(raw)];
+    if (rec) {
+      const order = new Map((rec.ln.stations || []).map((s, i) => [s.name, i]));
+      stationNames.sort((a, b) => (order.get(a) ?? 1e9) - (order.get(b) ?? 1e9) || a.localeCompare(b));
+    }
+    const first = stationNames[0] || (rec ? rec.name : card.lnId);
+    const title = stationNames.length > 1 ? `${first}等 ${stationNames.length} 站　停站` : `${first}　停站`;
+    return {
+      from: '', to: '', title, lineName: rec ? rec.name : card.lnId, segs: card.units,
+      isDwell: true, unitWord: '站', stationNames,
+    };
+  }
+  if (!rec) return {
+    from: card.lnId, to: '', title: card.lnId, lineName: card.lnId,
+    segs: card.units, isDwell: false, unitWord: '段',
+  };
   const names = new Set();
   for (const s of rec.segs) if (!want.size || want.has(s.key)) { names.add(s.a); names.add(s.b); }
   const sts = (rec.ln.stations || []).filter(s => names.has(s.name) && s.d != null)
     .slice().sort((a, b) => a.d - b.d);
-  if (!sts.length) return { from: rec.name, to: '', lineName: rec.name, segs: card.units }; // 一個端點都解不出來時不談方向
+  if (!sts.length) return {
+    from: rec.name, to: '', title: rec.name, lineName: rec.name,
+    segs: card.units, isDwell: false, unitWord: '段',
+  }; // 一個端點都解不出來時不談方向
   const lo = sts[0].name, hi = sts[sts.length - 1].name, down = Number(card.dir) === 1;
-  return { from: down ? hi : lo, to: down ? lo : hi, lineName: rec.name, segs: card.units };
+  const from = down ? hi : lo, to = down ? lo : hi;
+  return { from, to, title: `${from} → ${to}`, lineName: rec.name, segs: card.units,
+    isDwell: false, unitWord: '段' };
+}
+function bountySlotName(slot) {
+  return ({ peak: '平日尖峰', off: '平日離峰', holiday: '假日' })[slot] || '';
 }
 let bountyBoardMem = null;
 async function openBountyBoard() {
@@ -9971,26 +10010,28 @@ function renderBountyBoard() {
   const el = document.getElementById('bountyList');
   document.getElementById('bountySub').textContent = (b.demo ? '示範資料，僅供確認設計：這裡的路段與點數都是假的，接下來也不會真的錄。' : '')
     + (PHYSICAL_COLLECT_ENABLED
-      ? '接一段、搭那班車時開錄，把這段的速度剖面測出來。全部免費，獎勵是榮譽。'
-      : '這些路段還沒有實測資料。用 App 才能接下來錄——網頁可以先看看有哪些。');
-  if (!b.cards.length) { el.innerHTML = '<div class="bt-empty">目前沒有待校正的路段——全部收滿了。</div>'; return; }
+      ? '接一張、搭那班車時開錄，把沿途的速度剖面測出來。全部免費，獎勵是榮譽。'
+      : '這些項目還沒有實測資料。用 App 才能接下來錄——網頁可以先看看有哪些。');
+  if (!b.cards.length) { el.innerHTML = '<div class="bt-empty">目前沒有待校正的項目——全部收滿了。</div>'; return; }
   const claims = loadBounty().claims || {};
   el.innerHTML = b.cards.map(c => {
     const nm = bountyCardName(c);
     // 「已有 N 人接了這段」是資訊不是禁令（鎖價不獨佔，規格 §3）。0 人不是資訊，不顯示。
     // 數字一律過 bountyNum()（F-01）：伺服器回的字串不只是難看，走 innerHTML 就是可執行的 HTML。
     const claimers = bountyNum(c.claimers), coverN = bountyNum(c.coverN);
-    const meta = [nm.lineName, c.trainKind, `${bountyNum(c.units)} 段`,
-      claimers > 0 ? `已有 ${claimers} 人接了這段` : '',
+    const meta = [nm.lineName, c.trainKind, nm.isDwell ? bountySlotName(c.slot) : '',
+      `${bountyNum(c.units)} ${nm.unitWord}`,
+      claimers > 0 ? `已有 ${claimers} 人接了${nm.isDwell ? '這站' : '這段'}` : '',
       coverN > 1 ? `已有 ${bountyNum(c.samples)}/${coverN} 趟` : ''].filter(Boolean).join('・');
     // 已接下的卡要看得出來（2026-07-28 Codex 審查 F-05）：舊版無論接沒接都印「接下這段」，
     // 使用者在說明卡按了「等一下再說」之後回到板上，既看不出自己接過、也沒有任何路徑回到那張
     // 說明卡；再點一次還會**再送一次 POST**（實測兩次點擊＝兩個 claim 請求），而後端可能把
     // 重複認領當成新鎖價或衝突。鎖價 24 小時到期後才恢復成可接（判準用 claim 自己的 expiresAt）。
     const live = !!bountyLiveClaim(c.id, claims);
-    const label = !PHYSICAL_COLLECT_ENABLED ? '要用 App 才能接' : live ? '已接下・看說明' : '接下這段';
+    const label = !PHYSICAL_COLLECT_ENABLED ? '要用 App 才能接' : live ? '已接下・看說明' :
+      (nm.isDwell ? '接下停站' : '接下這段');
     return `<div class="bt-card" data-card="${escHtml(c.id)}">` +
-      `<div class="bt-r">${escHtml(nm.from)} → ${escHtml(nm.to)}</div>` +
+      `<div class="bt-r">${escHtml(nm.title)}</div>` +
       `<div class="bt-meta">${escHtml(meta)}</div>` +
       `<div class="bt-pt">${bountyNum(c.points)} 點</div>` +
       `<button class="bt-take" type="button"${live ? ' data-claimed="1"' : ''}>${label}</button>` +
@@ -10090,6 +10131,14 @@ async function bountyClaim(cardId) {
 // 一個獨立的全螢幕模式，比照收集地圖（setCollectMap，8937）：body class 收掉會說謊的 UI、
 // 專用畫面、一顆離開鈕。差別是這個模式要開一小時，所以每一個細節都要為「久」而設計。
 // 取樣層只把投影後的里程交給畫面；經緯度不進 state、localStorage 或上傳 payload。
+function bountyRecordingDir(card, tr) {
+  if (!card || card.kind !== 'dwell') return Number(card && card.dir) || 0;
+  const rec = lineNetwork().get(card.sys + '|' + card.lnId);
+  if (!rec || !tr || !Array.isArray(tr.stops)) return 0;
+  const at = new Map((rec.ln.stations || []).filter(s => s.name && s.d != null).map(s => [s.name, Number(s.d)]));
+  const ds = tr.stops.map(s => at.get(s.name)).filter(Number.isFinite);
+  return ds.length >= 2 && ds[ds.length - 1] < ds[0] ? 1 : 0;
+}
 function startBountyRecording(card) {
   if (!PHYSICAL_COLLECT_ENABLED) { showToast('GPS 校正旅程需要用 App'); return; }
   if (state.recording) { showToast('已經在錄了'); return; }
@@ -10099,13 +10148,16 @@ function startBountyRecording(card) {
     sys: (card && card.sys) || (tr && tr.sys) || '',
     lnId: (card && card.lnId) || '',
     trainNo: tr ? String(tr.train) : '',
-    dir: (card && card.dir) || 0,
+    // dwell 卡本身不分方向（board.dir 固定 0），但上傳軌跡仍須記真實里程方向，否則反向列車會被
+    // integrityGate 當成倒退。跟隨中的真班次有有序 stops，可直接在線上里程判斷，不猜車次號。
+    dir: bountyRecordingDir(card, tr),
     tripDate: todayStr(activeTz()),      // 讀真實時鐘,不吃 state.simSec——時刻尺可以拖,但人在的時間不會跟著跑
     startedAt: Date.now(),
     dNow: null, segs: {}, _cov: {}, points: Number(card && card.points) || 0, quality: 'none',
     _buf: [], _candidateBuf: {}, _perp: {}, _recent: [], _lastFix: 0,
     _lastFlush: Date.now(), _batch: 0, demo: DEMO_MODE === 'bounty',
-    _weakSince: 0, _nagOff: false,   // 即時品質提示(規格 §5 之五)的軟提示計時與「同一趟不重複跳」旗標
+    _weakSince: 0, _nagOff: false, _dwellMissed: false, _dwellNagOff: false,
+    // 即時品質提示(規格 §5 之五)的軟提示計時與「同一趟不重複跳」旗標
   };
   document.body.classList.add('recording');
   document.getElementById('recordBar').hidden = false;   // 常駐狀態列(規格覆審 2026-07-28):預設回地圖,不再自動開黑幕/詳細面板——見 #recordScreen 旁完整註解
@@ -10168,11 +10220,12 @@ function renderRecordScreen() {
   bountyPersistRecording(r);
   const nm = r.card ? bountyCardName(r.card) : null;
   const km = (r.dNow == null ? 0 : r.dNow / 1000).toFixed(1);
-  document.getElementById('recRoute').textContent = nm ? `${nm.from} → ${nm.to}` : '';
+  document.getElementById('recRoute').textContent = nm ? nm.title : '';
   document.getElementById('recKm').textContent = km;
   const cov = r._cov || {};
   const done = Object.values(cov).filter(c => c >= 0.6).length;
   document.getElementById('recSegs').textContent = String(done);
+  document.getElementById('recUnitWord').textContent = nm ? nm.unitWord : '段';
   document.getElementById('recPts').textContent = String(r.points);
   const total = (r.card && r.card.units) || Object.keys(cov).length || 1;
   document.getElementById('recBar').style.width = Math.min(100, done / total * 100) + '%';
@@ -10334,9 +10387,49 @@ function bountyBestLine(r) {
   }
   return best ? best.k : '';
 }
+// 錄製中的 dwell 進度與 Worker coverageOf() 共讀 quality.dwell 的同一組門檻。這裡只做即時
+// 預告；真正計點仍由隔日 Worker 判定。中途站已跨過兩側卻沒有低速段時，立刻顯示 no_dwell；
+// 線端站可能正要停穩，錄製中不提早判失敗，留給完整軌跡判定。
+function bountyUpdateDwellProgress(r, rules) {
+  if (!r.card || r.card.kind !== 'dwell') { r._dwellMissed = false; return; }
+  const rec = lineNetwork().get(r.sys + '|' + r.lnId), D = rules.quality.dwell;
+  if (!rec || !D) throw new Error('dwell rules unavailable');
+  const stations = (rec.ln.stations || []).filter(s => s.name && s.d != null).slice().sort((a, b) => a.d - b.d);
+  const wanted = new Set((r.card.unitKeys || []).map(k => String(k).split('|'))
+    .filter(p => p.length === 4 && p[2] === p[3]).map(p => p[2]));
+  const pts = r._recent || [];
+  let missed = false;
+  for (let i = 0; i < stations.length; i++) {
+    const st = stations[i];
+    if (!wanted.has(st.name)) continue;
+    const key = `${r.sys}|${r.lnId}|${st.name}|${st.name}`, centerM = Number(st.d) * 1000;
+    if (r._cov[key] >= 1) continue;
+    const local = pts.filter(p => Math.abs(Number(p.d) - centerM) <= D.stationWindowM);
+    if (!local.length) continue;
+    const localDs = local.map(p => Number(p.d));
+    const hasBefore = Math.min(...localDs) <= centerM - D.sideMinM;
+    const hasAfter = Math.max(...localDs) >= centerM + D.sideMinM;
+    const spatialPass = i === 0 ? hasAfter : i === stations.length - 1 ? hasBefore : hasBefore && hasAfter;
+    if (!spatialPass) continue;
+    let runStart = null, prevT = null, covered = false;
+    for (const p of local) {
+      const t = Number(p.t), v = Number(p.v);
+      const low = Math.abs(Number(p.d) - centerM) <= D.stopRadiusM &&
+        Number.isFinite(v) && v <= D.stopSpeedMaxMps;
+      if (!low) { runStart = null; prevT = null; continue; }
+      if (runStart == null || !(t > prevT) || t - prevT > D.maxLowSpeedGapSec) runStart = t;
+      prevT = t;
+      if (t - runStart >= D.stopMinSec) { covered = true; break; }
+    }
+    if (covered) r._cov[key] = 1;
+    else if (i > 0 && i < stations.length - 1 && hasBefore && hasAfter) missed = true;
+  }
+  r._dwellMissed = missed;
+}
 function bountyUpdateSegs(r, lineKey, dKm) {
   const rec = lineNetwork().get(lineKey);
   if (!rec) return;
+  if (r.card && r.card.kind === 'dwell') return; // dwell 不是軌道區間覆蓋率
   const wanted = new Set(r.card && r.card.unitKeys || []);
   for (const s of rec.segs) {
     if (wanted.size && !wanted.has(s.key)) continue;
@@ -10497,8 +10590,24 @@ async function bountyFlush(force, r = state.recording) {
 }
 function bountyDemoFix(r) {
   const rec = lineNetwork().get(r.sys + '|' + r.lnId);
-  if (!rec || !rec.segs.length) return;
+  if (!rec) return;
   const wanted = new Set(r.card && r.card.unitKeys || []);
+  if (r.card && r.card.kind === 'dwell') {
+    const names = new Set([...wanted].map(k => String(k).split('|')).filter(p => p[2] === p[3]).map(p => p[2]));
+    const stations = (rec.ln.stations || []).filter(s => names.has(s.name) && s.d != null);
+    if (!stations.length) return;
+    const st = stations.find((s, i) => i > 0 && i < stations.length - 1) || stations[0];
+    const seq = [
+      [-90, 12], [-60, 8], [-30, 3], [0, 0.5], [0, 0.4],
+      [0, 0.3], [0, 0.4], [30, 3], [60, 8], [90, 12],
+    ];
+    const n = r._demoStep || 0, step = seq[n % seq.length];
+    const p = posAlongShape(rec.ln, Math.max(0, Number(st.d) + step[0] / 1000));
+    r._demoStep = n + 1;
+    bountyOnFix({ latitude: p.lat, longitude: p.lon, accuracy: 8, speed: step[1] });
+    return;
+  }
+  if (!rec.segs.length) return;
   const segs = wanted.size ? rec.segs.filter(s => wanted.has(s.key)) : rec.segs.slice(0, 4);
   if (!segs.length) return;
   const n = r._demoStep || 0, seg = segs[Math.floor(n / 2) % segs.length];
@@ -10588,7 +10697,9 @@ async function bountyTickQuality() {
     // 常駐列燈號跟詳細面板同步(規格覆審 2026-07-28)：單一事實來源(r.quality)同時餵兩個畫面。
     const barSig = document.getElementById('recordBarSig');
     barSig.dataset.q = r.quality; barSig.title = '訊號：' + (labels[r.quality] || labels.none);
+    bountyUpdateDwellProgress(r, rules);
     bountyTickQualityHint(r, rules.qualityText);
+    renderRecordScreen();
     bountyPersistRecording(r);
   } catch (e) {
     bountyRecordNotice('品質規則暫時讀不到；里程仍會保存在裝置端。', 'error');
@@ -10619,6 +10730,15 @@ function bountyTickQualityHint(r, T) {
       positionRecHint();
       hint.querySelector('.rc-x').onclick = () => { r._nagOff = true; hint.hidden = true; };
     }
+    return;
+  }
+  if (r.card && r.card.kind === 'dwell' && r._dwellMissed && !r._dwellNagOff) {
+    hint.innerHTML = `<b>${escHtml(T.no_dwell.title)}</b><br>${escHtml(T.no_dwell.how)}` +
+      `<button class="rc-x" type="button">知道了</button>`;
+    hint.classList.remove('err');
+    hint.hidden = false;
+    positionRecHint();
+    hint.querySelector('.rc-x').onclick = () => { r._dwellNagOff = true; hint.hidden = true; };
     return;
   }
   r._weakSince = 0;
@@ -10675,19 +10795,25 @@ function showBountyBrief(card, claim) {
   bountyBriefCard = card;
   const nm = bountyCardName(card);
   const ug = bountyUndergroundHint(card);
-  const mins = bountySpanMinutes(card.sys, nm.from, nm.to, card.trainKind);
-  const durTxt = mins != null ? `，約 ${escHtml(mins)} 分鐘` : '，大概多久算不出來';
+  const mins = nm.isDwell ? null : bountySpanMinutes(card.sys, nm.from, nm.to, card.trainKind);
+  const durTxt = nm.isDwell ? '' : mins != null ? `，約 ${escHtml(mins)} 分鐘` : '，大概多久算不出來';
+  const unitTxt = `${escHtml(card.units)} ${nm.unitWord}`;
+  const taskTxt = nm.isDwell
+    ? `錄 ${escHtml(nm.title)}（${escHtml(nm.lineName)}・${escHtml(bountySlotName(card.slot))}・${unitTxt}）`
+    : `錄 ${escHtml(nm.title)}（${escHtml(nm.lineName)}，${unitTxt}${durTxt}）`;
+  const timingTxt = nm.isDwell
+    ? '進站前就開始錄，列車停穩後繼續錄到出站；只通過、不停靠不算停站樣本。'
+    : '搭上那班車之後開始錄，到站就結束。';
   // 原生設定頁的橋接：Capacitor Geolocation 沒有這個 API。比照 RAIL_NATIVE_LOCALNOTIFY.openSettings
   // 的既有做法——見 null 就改顯示純文字引導，不留一顆點了沒反應的鈕。
   const canOpen = !!(window.RAIL_NATIVE_GEOLOCATION && window.RAIL_NATIVE_GEOLOCATION.openSettings);
   document.getElementById('bountyBriefBody').innerHTML =
-    `<div class="bb-sec"><b>這趟要做什麼</b><p>錄 ${escHtml(nm.from)} → ${escHtml(nm.to)}` +
-      `（${escHtml(nm.lineName)}，${escHtml(card.units)} 段${durTxt}），值 <b>${escHtml(claim.points)} 點</b>。` +
+    `<div class="bb-sec"><b>這趟要做什麼</b><p>${taskTxt}，值 <b>${escHtml(claim.points)} 點</b>。` +
       // 最終審查 C:期限原本只在接下當下的 toast 一閃即逝(showBountyBrief 這張常駐卡完全沒提)，
       // 使用者接了段之後回頭想確認期限就找不到。與 bountyClaim() 兩條路徑(demo/真實)的 toast
       // 用同一句「24 小時內有效」，不用 claim.expiresAt 另外算文字——避免兩個地方各自描述
       // 同一件事卻可能用不同措辭。
-      `搭上那班車之後開始錄，到站就結束。這個鎖價 <b>24 小時內有效</b>。</p></div>` +
+      `${timingTxt}這個鎖價 <b>24 小時內有效</b>。</p></div>` +
     `<div class="bb-sec"><b>三件事先做好</b><ol>` +
       `<li>打開<b>精確位置</b>` + (canOpen
         ? `<button id="bountyOpenSettings" type="button">開啟設定</button>`

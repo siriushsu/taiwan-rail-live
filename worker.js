@@ -1035,6 +1035,9 @@ async function bountyMe(request, env) {
       const lk = `${r.sys}|${r.ln_id}`;
       const L = byLine.get(lk) || { sys: r.sys, lnId: r.ln_id, segs: 0, adopted: 0 };
       for (const c of cov) {
+        // 規格 §8 的護照數字與收集地圖明定是「校正 N 段」；dwell 沒有可畫的路段，不能把一站
+        // 混進 segs 後在前端叫成「一段」。dwell 的榮譽仍進總點數，這裡只守住路段統計的語意。
+        if (c && c.kind === 'dwell') continue;
         if (!segSeen.has(c.key)) { segSeen.add(c.key); L.segs++; }
         if (r.verdict === 'ok' && !segOk.has(c.key)) { segOk.add(c.key); L.adopted++; }
       }
@@ -1208,6 +1211,11 @@ async function bountyUnits(env) {
 // 冪等:重跑只會得到同一個結果(insert 用 OR IGNORE、update 全欄位重算),cron 補跑無害。
 async function bountyValuationCron(env) {
   const M = await bountyUnits(env);
+  const rules = await bountyRules(env);
+  const dwellCoveredMultiplier = Number(rules.dwellReward && rules.dwellReward.coveredMultiplier);
+  if (!(dwellCoveredMultiplier > 0 && dwellCoveredMultiplier <= 1)) {
+    throw new Error('invalid bounty rule: dwellReward.coveredMultiplier');
+  }
   const now = Date.now();
   // 起算點是一個要有人明確按下去的動作(Worker secret),不是一個會自己發生的副作用。
   // 未設定 → first_claimable_at 留 NULL → L2 恆 1。見 bountyL2 的註解。
@@ -1228,7 +1236,7 @@ async function bountyValuationCron(env) {
   }
   // 重算:只動還開著的(track 未收滿、dwell 恆算)。已下架的段留著歷史值,不必每天重寫。
   const rs = await env.DELAY_DB.prepare(
-    "SELECT seg_key,train_kind,dir,kind,slot,per_day,l2_capped_at,sample_count,first_claimable_at" +
+    "SELECT seg_key,train_kind,dir,kind,slot,per_day,l2_capped_at,sample_count,covered_at,first_claimable_at" +
     " FROM bounty_board WHERE kind='dwell' OR covered_at IS NULL").all();
   const upd = env.DELAY_DB.prepare(
     'UPDATE bounty_board SET l1=?, l2=?, points=?, first_claimable_at=?, l2_capped_at=?, unlocked_offer=?' +
@@ -1239,13 +1247,17 @@ async function bountyValuationCron(env) {
     await env.DELAY_DB.batch(rows.slice(i, i + 80).map(r => {
       const from = Number(r.first_claimable_at) || claimableFrom || 0;
       const l1 = bountyL1(r.per_day, med), l2 = bountyL2(now, from);
+      const basePoints = bountyPointsOf(l1, l2);
+      const points = r.kind === 'dwell' && Number(r.covered_at)
+        ? Math.max(1, Math.round(basePoints * dwellCoveredMultiplier))
+        : basePoints;
       // l2_capped_at 只記第一次到頂:自動開關的 30 天要從「到頂那一刻」起算,重寫等於永遠不會滿 30 天
       const cap = Number(r.l2_capped_at) || (l2 >= 5 ? now : 0);
       if (!Number(r.l2_capped_at) && cap) capped++;
       const un = bountyUnlocked({ l2, sample_count: r.sample_count, l2_capped_at: cap }, now);
       if (un) unlocked++;
       updated++;
-      return upd.bind(l1, l2, bountyPointsOf(l1, l2), from || null, cap || null, un,
+      return upd.bind(l1, l2, points, from || null, cap || null, un,
         r.seg_key, r.train_kind, r.dir, r.kind, r.slot);
     }));
   }
@@ -1259,14 +1271,25 @@ function assembleTrip(rows) {
   const pts = [];
   for (const r of rows) { try { pts.push(...JSON.parse(r.payload)); } catch (e) {} }
   pts.sort((a, b) => a.t - b.t);
+  // 上傳的 dir 是錄製開始時的提示值；dwell 卡本身不分方向，使用者又不一定先跟隨一班車，
+  // 所以不能拿它判真實軌跡是否「倒退」。完整趟已經組回來後，以首末里程判實際方向；
+  // 只有資料短到無法判斷時才保留上傳值，交給品質閘判 too_short。
+  const d0 = Number(pts[0] && pts[0].d), d1 = Number(pts[pts.length - 1] && pts[pts.length - 1].d);
+  const dir = pts.length >= 2 && Number.isFinite(d0) && Number.isFinite(d1) && d0 !== d1
+    ? (d1 < d0 ? 1 : 0) : Number(first.dir);
   return { actor: first.actor, tripDate: first.trip_date, trainNo: first.train_no, sys: first.sys,
-    lnId: first.ln_id, dir: Number(first.dir), sampleIds: rows.map(r => r.id), pts };
+    lnId: first.ln_id, dir, sampleIds: rows.map(r => r.id), pts };
 }
 const median = a => { const s = a.slice().sort((x, y) => x - y); const m = s.length >> 1;
   return !s.length ? 0 : (s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2); };
 // 每個正規區間錄到多少:把樣本點的里程投在區間 [dA,dB] 上,看有多少「秒」落在裡面對應到的距離比例。
 // 用距離比例不用點數比例:取樣稀疏的那一段不該因為點少就被判成沒錄到,錄到的距離才是真的。
-function coverageOf(trip, line, rules) {
+//
+// dwell 不是「有點靠近車站」就算：那會把不停靠的通過車也算進來。共同判準放在
+// data/bounty_rules.json quality.dwell；這裡要求中途站前後兩側都有樣本、線端站至少有可行的
+// 單側樣本，且站中心附近有一段真的接近靜止的連續速度。peak/off 的切法不在這裡猜，直接吃
+// build_bounty_units.mjs 寫進同一份單位產物的 peakHoursBySys；門檻缺漏直接中止，不偷偷降級。
+function coverageOf(trip, line, rules, peakHoursBySys) {
   const sts = (line.stations || []).slice().sort((a, b) => a.d - b.d);
   const out = [];
   const ds = trip.pts.map(p => p.d / 1000);          // 上傳是公尺，站里程是公里
@@ -1278,7 +1301,43 @@ function coverageOf(trip, line, rules) {
     for (const d of ds) if (d >= lo && d <= hi) { lo2 = Math.min(lo2, d); hi2 = Math.max(hi2, d); n++; }
     if (n < 2) continue;
     out.push({ key: `${line.sys}|${line.lnId}|${a.name < b.name ? a.name + '|' + b.name : b.name + '|' + a.name}`,
-      cov: Math.min(1, (hi2 - lo2) / (hi - lo)) });
+      kind: 'track', slot: '', dir: Number(trip.dir), cov: Math.min(1, (hi2 - lo2) / (hi - lo)) });
+  }
+
+  const D = rules && rules.quality && rules.quality.dwell;
+  if (!D) throw new Error('invalid bounty rule: quality.dwell');
+  const day = new Date(`${trip.tripDate}T00:00:00Z`).getUTCDay();
+  const holiday = day === 0 || day === 6;
+  const peakHours = peakHoursBySys && peakHoursBySys[line.sys];
+  if (!holiday && !Array.isArray(peakHours)) return out;
+  const seen = new Set();
+  for (let i = 0; i < sts.length; i++) {
+    const st = sts[i], key = `${line.sys}|${line.lnId}|${st.name}|${st.name}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    const centerM = Number(st.d) * 1000;
+    const local = trip.pts.filter(p => Math.abs(Number(p.d) - centerM) <= D.stationWindowM);
+    if (!local.length) continue;
+    const localDs = local.map(p => Number(p.d));
+    const hasBefore = Math.min(...localDs) <= centerM - D.sideMinM;
+    const hasAfter = Math.max(...localDs) >= centerM + D.sideMinM;
+    const spatialPass = i === 0 ? hasAfter : i === sts.length - 1 ? hasBefore : hasBefore && hasAfter;
+    if (!spatialPass) continue;
+
+    let runStart = null, prevT = null, stopAt = null;
+    for (const p of local) {
+      const t = Number(p.t), v = Number(p.v);
+      const low = Math.abs(Number(p.d) - centerM) <= D.stopRadiusM &&
+        Number.isFinite(v) && v <= D.stopSpeedMaxMps;
+      if (!low) { runStart = null; prevT = null; continue; }
+      if (runStart == null || !(t > prevT) || t - prevT > D.maxLowSpeedGapSec) runStart = t;
+      prevT = t;
+      if (t - runStart >= D.stopMinSec) { stopAt = t; break; }
+    }
+    if (stopAt == null) continue;
+    const hour = Math.floor((((stopAt % 86400) + 86400) % 86400) / 3600);
+    const slot = holiday ? 'holiday' : peakHours.includes(hour) ? 'peak' : 'off';
+    out.push({ key, kind: 'dwell', slot, dir: 0, cov: 1 });
   }
   return out;
 }
@@ -1303,8 +1362,9 @@ function integrityGate(trip, ctx, rules) {
   for (let i = 1; i < pts.length; i++) {
     const dt = pts[i].t - pts[i - 1].t, dd = pts[i].d - pts[i - 1].d;
     if (dt <= 0) continue;
-    if (dd < -50) return { pass: false, code: 'impossible_physics' };            // 50m 容差吸收 GPS 抖動
-    const v = dd / dt;
+    const forwardDd = Number(trip.dir) === 1 ? -dd : dd;
+    if (forwardDd < -50) return { pass: false, code: 'impossible_physics' };     // 50m 容差吸收 GPS 抖動
+    const v = forwardDd / dt;
     if (v > cap * 1.15) return { pass: false, code: 'impossible_physics' };      // 15% 容差吸收投影誤差
     const dv = (Number(pts[i].v) || v) - (Number(pts[i - 1].v) || v);
     if (Math.abs(dv / dt) > R.maxAccelMps2 * 3) return { pass: false, code: 'impossible_physics' };
@@ -1315,7 +1375,7 @@ function integrityGate(trip, ctx, rules) {
   for (let i = 1; i < pts.length; i++) {
     const dt = pts[i].t - pts[i - 1].t;
     if (dt <= 0 || !Number.isFinite(pts[i].v)) continue;
-    a.push(pts[i].v); b.push((pts[i].d - pts[i - 1].d) / dt);
+    a.push(pts[i].v); b.push(Math.abs(pts[i].d - pts[i - 1].d) / dt);
   }
   if (a.length >= 30) {
     const mA = a.reduce((s, x) => s + x, 0) / a.length, mB = b.reduce((s, x) => s + x, 0) / b.length;
@@ -1434,7 +1494,7 @@ async function bountyVerifyCron(env) {
     const ctx = { line, events, now };
     const v = verdictOf(integrityGate(trip, ctx, rules), qualityGate(trip, ctx, rules));
     stat[v.verdict]++;
-    const cov = (v.verdict === 'suspect' || !line) ? [] : coverageOf(trip, line, rules)
+    const cov = (v.verdict === 'suspect' || !line) ? [] : coverageOf(trip, line, rules, M.peakHoursBySys)
       .filter(c => c.cov >= rules.quality.segCoverageMin);
     const segsJson = JSON.stringify(cov);
     const upd = env.DELAY_DB.prepare(
@@ -1444,14 +1504,24 @@ async function bountyVerifyCron(env) {
     if (v.verdict === 'suspect') continue;                    // 不給章、不計點、不計入門檻
     // 🔴 unusable 與 ok 在點數上完全一樣：排除作弊就照給（規格 §1 拍板 3、§8）
     let earned = 0;
+    const creditedKinds = new Map();
     for (const c of cov) {
+      const creditKey = `${c.key}|${c.dir}|${c.kind}|${c.slot}`;
       const lock = await env.DELAY_DB.prepare(
-        "SELECT points_locked FROM bounty_claims WHERE actor=? AND seg_key=? AND status='open' AND expires_at>=?"
-      ).bind(trip.actor, c.key, Date.parse(trip.tripDate + 'T00:00:00Z')).first();
-      if (lock) { earned += Number(lock.points_locked) || 0; continue; }
+        "SELECT points_locked,train_kind FROM bounty_claims WHERE actor=? AND seg_key=? AND dir=? AND kind=? AND slot=?" +
+        " AND status='open' AND expires_at>=? ORDER BY claimed_at DESC,id DESC LIMIT 1"
+      ).bind(trip.actor, c.key, c.dir, c.kind, c.slot, Date.parse(trip.tripDate + 'T00:00:00Z')).first();
+      if (lock) {
+        creditedKinds.set(creditKey, String(lock.train_kind));
+        earned += Number(lock.points_locked) || 0;
+        continue;
+      }
       // 沒接懸賞就直接錄（跟車面板的第二個入口）：用當下的板價，不是 0
       const row = await env.DELAY_DB.prepare(
-        "SELECT points FROM bounty_board WHERE seg_key=? AND kind='track' AND dir=?").bind(c.key, trip.dir).first();
+        'SELECT points,train_kind FROM bounty_board WHERE seg_key=? AND kind=? AND dir=? AND slot=?' +
+        ' ORDER BY points DESC,train_kind LIMIT 1'
+      ).bind(c.key, c.kind, c.dir, c.slot).first();
+      if (row) creditedKinds.set(creditKey, String(row.train_kind));
       earned += Number(row && row.points) || 0;
     }
     earned = Math.min(earned, rules.dailyPointsCap);          // 每人每日計點上限（規格 §7 其他防線）
@@ -1466,14 +1536,18 @@ async function bountyVerifyCron(env) {
     // 不一致——使用者跑完一趟看到「1/1 收滿」，段卻永遠不下架。
     const need = rules.coverN[BOUNTY_SYS_BUCKET[trip.sys]] || rules.coverN.metro;
     for (const c of cov) {
+      const trainKind = creditedKinds.get(`${c.key}|${c.dir}|${c.kind}|${c.slot}`);
+      if (!trainKind) continue;
       await env.DELAY_DB.prepare(
         'UPDATE bounty_board SET sample_count = sample_count + 1,' +
-        " covered_at = CASE WHEN kind='track' AND sample_count + 1 >= ? THEN ? ELSE covered_at END" +
-        " WHERE seg_key=? AND dir=? AND kind='track'").bind(need, now, c.key, trip.dir).run();
+        ' covered_at = CASE WHEN sample_count + 1 >= ? THEN COALESCE(covered_at, ?) ELSE covered_at END' +
+        ' WHERE seg_key=? AND train_kind=? AND dir=? AND kind=? AND slot=?'
+      ).bind(need, now, c.key, trainKind, c.dir, c.kind, c.slot).run();
+      await env.DELAY_DB.prepare(
+        "UPDATE bounty_claims SET status='fulfilled' WHERE actor=? AND status='open'" +
+        ' AND seg_key=? AND train_kind=? AND dir=? AND kind=? AND slot=?'
+      ).bind(trip.actor, c.key, trainKind, c.dir, c.kind, c.slot).run();
     }
-    await env.DELAY_DB.prepare(
-      "UPDATE bounty_claims SET status='fulfilled' WHERE actor=? AND status='open' AND seg_key IN (" +
-      cov.map(() => '?').join(',') + ')').bind(trip.actor, ...cov.map(c => c.key)).run();
   }
   return stat;
 }

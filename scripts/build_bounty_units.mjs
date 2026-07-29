@@ -66,6 +66,7 @@ function pickLine(sys, a, b) {
 
 const trackCount = new Map();   // "segKey|kind|dir" → 次數
 const dwellCount = new Map();   // "segKey|slot" → 次數（車種另記）
+const peakHoursBySys = {};      // sys → 尖峰小時；驗證 cron 依同一份建置產物判 dwell slot
 let schedDate = '', nTrain = 0;
 
 // 時段切法:用每小時發車數的上四分位自動切「尖峰」,不手寫時段表。
@@ -88,6 +89,7 @@ for (const src of SOURCES) {
   schedDate = schedDate || S.date || '';
   nTrain += trains.length;
   const peak = peakHours(trains);
+  peakHoursBySys[src.sys] = [...peak].sort((a, b) => a - b);
   for (const tr of trains) {
     const kind = tr.typeName || tr.carName || '其他';
     const stops = (tr.stops || []).filter(s => s.name);
@@ -144,7 +146,7 @@ for (const [totalKey, n] of dwellHolidayTotal) {
   units.push({ segKey: p.slice(0, 4).join('|'), sys: p[0], trainKind: p[4], dir: 0, kind: 'dwell', slot: 'holiday', perDay: n });
 }
 
-const out = { generatedAt: Date.now(), schedDate, lines, units };
+const out = { generatedAt: Date.now(), schedDate, peakHoursBySys, lines, units };
 writeFileSync('data/bounty_units.json', JSON.stringify(out));
 const nTrack = units.filter(u => u.kind === 'track').length;
 console.log(`班表日 ${schedDate}・${nTrain} 班車 → 計價單位 ${units.length}（軌道 ${nTrack}／停站 ${units.length - nTrack}）・線 ${Object.keys(lines).length}`);
