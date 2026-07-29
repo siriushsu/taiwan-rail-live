@@ -42,7 +42,7 @@
     /* 面 */
     --paper:#FFFDF6;            /* 卡片底（兩種暖白已合併，#FFF8EC 廢止） */
     --paper-tr:rgba(255,253,246,.97);
-    --panel-glass:rgba(255,253,246,.82);
+    --panel-glass:rgba(255,253,246,.30);
     --bg-page:#EFE6D2;          /* 頁面底 */
     --bg-stage:#F7F0DD;         /* stage 底/hover */
     --map-bg:#F2EDE2;           /* 地圖底（圖磚未到時） */
@@ -69,7 +69,7 @@
   }
   html[data-theme=dark]{
     color-scheme:dark;
-    --paper:#141D31; --paper-tr:rgba(20,29,49,.97); --panel-glass:rgba(20,29,49,.82);
+    --paper:#141D31; --paper-tr:rgba(20,29,49,.97); --panel-glass:rgba(20,29,49,.30);
     --bg-page:#0A0F1C; --bg-stage:#0E1526; --map-bg:#10141c;
     --line:#2A3B5C; --line-dash:#31456B; --line-faint:#22304C;
     --ink:#ECF0F8; --muted:#93A3C0; --faint:#7286A8; --ink-strong:#ECF0F8;
@@ -1527,8 +1527,8 @@
   body.panel-translucent .follow-panel,
   body.panel-translucent .freq-card {
     background: var(--panel-glass);
-    -webkit-backdrop-filter: blur(14px) saturate(1.08);
-    backdrop-filter: blur(14px) saturate(1.08);
+    -webkit-backdrop-filter: blur(3px) saturate(1.08);
+    backdrop-filter: blur(3px) saturate(1.08);
   }
   .board h3 {
     margin: 0 -14px 7px; padding: 8px 34px 7px 14px;
@@ -3596,7 +3596,7 @@
 // 🔴 BUILD 字串會跨並行分支撞號（心得 16）：07-28 兩條線各自遞增又各自部署過——
 // origin/main 這條用到 v0728b，正式站那條用到 v0728f。本次三方合併把兩條線統一，
 // 所以往後推到一個雙方都沒用過的號，辨識線上跑哪一版仍以內容 hash 為準。
-const BUILD = 'v0730a';
+const BUILD = 'v0730b';
 // 成就徽章與車廂標記＝原本那些 emoji 的單色平面版（RailEmoji＝裁切過的 Noto Emoji 單色）。
 // 刻意保留 railIcon(name) 這個唯一入口:呼叫端一行都不用改,只有這裡決定畫法。
 // 🔴 ⚖ 與 ♾ 一律寫**不帶 VS16(U+FE0F)** 的碼位——帶了就強制彩色呈現,會蓋過 font-family
@@ -14575,7 +14575,7 @@ const HELP_GROUPS = [
       steps: ['「更多」→ 衛星影像'], tip: '拉太近時衛星影像可能還沒有那麼清晰的圖資。', try: 'sat' },
     { key: 'theme', ic: '◐', nm: '外觀：亮／暗／自動', one: '自動＝跟著系統的深色模式走。', seg: true },
     { key: 'panelopacity', ic: '▧', nm: '面板半透明', tg: 'panelOpacity',
-      one: '讓看板、列車卡與跟隨面板透出後方地圖，同時用背景模糊維持小字清楚。',
+      one: '讓看板、列車卡與跟隨面板透出後方地圖，面板底下的路線、車站都看得到。',
       steps: ['「更多」→ 打開「面板半透明」', '再按一次就恢復原本的實色紙面'],
       tip: '預設關閉；這項設定只會記在目前這台裝置。' },
     { key: 'track', ic: '軌', nm: '軌道與路線', one: '軌道要不要畫、要看哪些車種與路線，都在這裡。',
