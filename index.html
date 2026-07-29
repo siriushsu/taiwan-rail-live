@@ -3211,6 +3211,7 @@
       <summary><span>更新紀錄</span><span class="foot-sub">最後更新：2026/7/30</span></summary>
       <ul class="foot-list foot-recent">
         <li class="grp">最近更新</li>
+        <li><span class="d">7/30</span><span>iPhone 主畫面可以加「發車看板」小工具了，選好起站就能直接看下一班車</span></li>
         <li><span class="d">7/30</span><span>頂部的營運公告改成一顆通知鈕，不再壓著下面的面板；電腦版的橫幅也能關掉</span></li>
         <li><span class="d">7/30</span><span>車站與跟車面板可以調高度了：手機拉一下（或點一下）面板上緣的把手切小／中／大</span></li>
         <li><span class="d">7/30</span><span>外觀設定新增「面板半透明」，打開後面板會透出底下的地圖</span></li>
@@ -3218,7 +3219,6 @@
         <li><span class="d">7/29</span><span>GPS 校正旅程與收集地圖先收起來繼續打磨，之後會再開放</span></li>
         <li><span class="d">7/29</span><span>後面的車不會再從前面那班身上穿過去了（謝謝網友回報）</span></li>
         <li><span class="d">7/29</span><span>跟車小卡的時速不會再飆出車子跑不到的數字（謝謝網友回報）</span></li>
-        <li><span class="d">7/29</span><span>App 或分頁掛久了切回來，畫面時刻會自動對回現在，不會停在切走前那一刻</span></li>
       </ul>
       <!-- 第二層:完整歷史。刻意不掛 .foot-box 類名——placeFootBoxes() 用
            `.site-foot .foot-box` 搬移面板,巢狀同名會被當成另一個盒子一起搬走。 -->
@@ -3279,6 +3279,7 @@
         <li><span class="d">7/13</span><span>收集章可以重複點，換搭不同班次回味</span></li>
         <li><span class="d">7/9</span><span>旅程護照與 16 枚成就徽章、「探」今日亮點面板上線</span></li>
         <li class="grp">手機與操作</li>
+        <li><span class="d">7/30</span><span>新增 iPhone 主畫面小工具「發車看板」：長按桌面加入後選一個起站（可以再加目的站），桌面就會列出接下來幾班車；還能「只看這些」，例如只留自強號、或只盯自己每天搭的那幾班</span></li>
         <li><span class="d">7/30</span><span>營運通阻公告原本是頂部一整條橫幅，會把下面的面板整片往下推、在手機上壓到內容；現在收成軌切換鈕右邊的一顆「⚠」通知鈕，點了才展開詳情，電腦版的橫幅也多了「×」可以關掉（謝謝網友回報）</span></li>
         <li><span class="d">7/30</span><span>車站看板、跟車小卡、附近車站的面板高度可以自己調了：手機拉面板上緣的把手往上／往下切換小、中、大三段，點一下把手也會依序輪替，選好的段高會記住；最大那段會自動避開瀏海與動態島，不會再超出畫面（謝謝網友回報）</span></li>
         <li><span class="d">7/30</span><span>手機與 App 的音樂音量滑桿移除：iOS 不讓網頁自己調整播放音量，那顆滑桿一直沒有作用，請改用手機側邊的音量鍵；電腦版仍然保留（謝謝網友回報）</span></li>
@@ -3598,7 +3599,7 @@
 // 🔴 BUILD 字串會跨並行分支撞號（心得 16）：07-28 兩條線各自遞增又各自部署過——
 // origin/main 這條用到 v0728b，正式站那條用到 v0728f。本次三方合併把兩條線統一，
 // 所以往後推到一個雙方都沒用過的號，辨識線上跑哪一版仍以內容 hash 為準。
-const BUILD = 'v0730c';
+const BUILD = 'v0730d';
 // 成就徽章與車廂標記＝原本那些 emoji 的單色平面版（RailEmoji＝裁切過的 Noto Emoji 單色）。
 // 刻意保留 railIcon(name) 這個唯一入口:呼叫端一行都不用改,只有這裡決定畫法。
 // 🔴 ⚖ 與 ♾ 一律寫**不帶 VS16(U+FE0F)** 的碼位——帶了就強制彩色呈現,會蓋過 font-family
