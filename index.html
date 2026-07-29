@@ -3141,6 +3141,7 @@ try { if (matchMedia('(max-width: 900px)').matches) document.body.classList.add(
       <ul class="foot-list foot-recent">
         <li class="grp">最近更新</li>
         <li><span class="d">7/29</span><span>跟車小卡的時速不會再飆出車子跑不到的數字（謝謝網友回報）</span></li>
+        <li><span class="d">7/29</span><span>App 或分頁掛久了切回來，畫面時刻會自動對回現在，不會停在切走前那一刻</span></li>
         <li><span class="d">7/29</span><span>刪除帳號時，會一併刪掉你上傳過的 GPS 校正旅程資料與貢獻點數</span></li>
         <li><span class="d">7/29</span><span>在高鐵或林鐵點下去跟車，不會再跟到同號碼的台鐵列車（謝謝網友回報）</span></li>
         <li><span class="d">7/29</span><span>圖磚還沒載入時墊底的台灣輪廓換了新資料，海岸線終於對得準（謝謝網友回報）</span></li>
@@ -3583,6 +3584,8 @@ const state = {
   live: null, // 台鐵即時誤點 {map: 車次→誤點分, at: 抓取時刻, delayed, srcAt}
   traAnomaly: null, // 台鐵系統級大面積誤點的自家觀測 {d10, maxDelay, since} 或 null(非官方公告;d10=誤點≥10 分的班數)
   liveMode: false, director: false, liveReplay: false, // 直播模式(?live=1 即時 / ?live=2 導播)與其深夜重播段(00:45–05:15 重播 08:00 起)
+  clockAtNow: false, // 模擬時鐘是否處於「跟著現在」的狀態(開機對齊/按現在鈕為真,拖時刻尺或快轉即false)
+
   stnIntro: false, immersive: false, // 特殊站介紹開關(放空自動開)、極簡沉浸(全畫面隱藏左側卡)
   xingOn: false, // 台鐵平交道顯示開關(預設關;開了才畫記號、建命中、攔點擊)
   dirArrow: true, // 列車行進方向箭頭開關(預設開;台鐵/高鐵車號牌前緣加小箭頭,由前後點位推方向)
@@ -3633,6 +3636,7 @@ function togglePlay() {
   document.getElementById('ppTxt').textContent = state.playing ? '暫停' : '播放';
 }
 function setSpeed(v) {
+  if (v !== 1) state.clockAtNow = false;   // 快轉/慢放即離開「跟著現在」;回 1× 不自動視為回到現在(要按「現在」鈕)
   state.speedMult = v;
   document.getElementById('speed').value = v;
   document.getElementById('speedOut').textContent = v + '×';
@@ -3680,6 +3684,10 @@ function paintTimeRail() {
 }
 function setSimSec(sec) {
   state.simSec = ((sec % 86400) + 86400) % 86400;
+  // 顯式跳時間 = 離開「跟著現在」的狀態(拖時刻尺、跟車回放、時光機)。jumpToNow 會在呼叫本函式
+  // 之後把旗標設回 true。用旗標而不是用「與現在的差距」來判斷,是因為差距分不出「時鐘漂移」與
+  // 「使用者刻意拖到過去看重播」——兩者都是 1× 且落後於現在,靠差距判斷必然誤傷其中一方。
+  state.clockAtNow = false;
   if (state.followTrain) state.followTimeJumped = true; // 跟隨中顯式跳時間(現在鈕/拖曳/方向鍵)一律視為作弊路徑,不計完乘
   syncTimeUI();
   if (state.mode !== 'sched') { // 捷運分頁:跳時間同步小時檔(班距合成線車數+尖離峰徽章)
@@ -4408,7 +4416,7 @@ function applySchedSystems(sysList) {
   const tkey = new Set();
   for (const sys of sysList) for (const t of (sys.data.types || [])) if (!tkey.has(t.key)) { tkey.add(t.key); state.types.push(t); }
   state.visible = new Set(state.types.map(t => t.key));
-  state.simSec = nowSecOfDay(sysList[0] && sysList[0].tz); // 海外群組:以該群當地時間為「現在」
+  state.simSec = nowSecOfDay(sysList[0] && sysList[0].tz); state.clockAtNow = true; // 海外群組:以該群當地時間為「現在」
   // 逐系統貼軌:只在同系統軌道上找,避免跨系統誤貼
   state._segStats = { onShape: 0, straight: 0, bridged: 0 };
   for (const sys of sysList) {
@@ -7043,7 +7051,7 @@ function tick(now) {
   state._rideClock = (state._rideClock || 0) + dt;
   if (state._rideClock >= 2) { state._rideClock = 0; ridingTick(); }
   state._liveClock = (state._liveClock || 0) + dt;
-  if (state._liveClock >= 1) { state._liveClock = 0; updateLiveBadge(); updateMetroBadge(); if (state.liveMode && !state.director) liveClockTick(); else if (state.director) directorClockTick(); } // 導播現在也是 1× 貼真實時刻,只是用不含深夜重播替代的簡化版;兩徽章同秒刷,快轉跨門檻時同步轉推估
+  if (state._liveClock >= 1) { state._liveClock = 0; updateLiveBadge(); updateMetroBadge(); if (state.liveMode && !state.director) liveClockTick(); else if (state.director) directorClockTick(); else clockDriftGuard(); } // 導播現在也是 1× 貼真實時刻,只是用不含深夜重播替代的簡化版;兩徽章同秒刷,快轉跨門檻時同步轉推估
   // 省電三板斧(繪製節流,不動上面的時間積分):
   // (1) 分頁隱藏停繪——時間照積分,只是不畫;錄影中例外(recCompose 每幀從主畫布拷貝,停繪會凍結成靜止幀)
   // (2) 待機時 draw 節流到 ~30fps;跟隨/幽靈車跟隨/放空/錄影/剛互動(1.5s 內)維持顯示器全速,體驗優先
@@ -7417,7 +7425,7 @@ function loadSystem(sys) {
     document.getElementById('flowWrap').hidden = false;
   } else {
     state.speed = sys.speed;
-    state.simSec = nowSecOfDay(sys.tz); // 實際時刻推演:以現在時刻起播(海外用該系統時區)
+    state.simSec = nowSecOfDay(sys.tz); state.clockAtNow = true; // 實際時刻推演:以現在時刻起播(海外用該系統時區)
     state.hour = Math.floor(state.simSec / 3600);
     state.lines = sys.data.lines.map(l => ({ ...l, abbr: abbrOf(l), times: sysTimesOf(sys, l) }));
     state.visible = new Set(state.lines.map(l => l.id));
@@ -7559,7 +7567,7 @@ function loadFreqGroup(g, sel, keepView) {
   state.sys = null; state.sysId = g.id;
   state.freqSel = sel || new Set(g.members);
   state.speed = 30; // 僅缺 segs 的線才用到;各線另存 _speed
-  state.simSec = nowSecOfDay(activeTz()); // 實際時刻推演:以現在時刻起播(海外群組用該群時區)
+  state.simSec = nowSecOfDay(activeTz()); state.clockAtNow = true; // 實際時刻推演:以現在時刻起播(海外群組用該群時區)
   setSpeed(1); // 時鐘既跳回「現在」,倍速也成對回 1×(同 jumpToNow 語意)——否則吃到開機預設 50×,畫面比現實快跑
   state.hour = Math.floor(state.simSec / 3600);
   rebuildFreqLines(g);
@@ -8376,9 +8384,12 @@ function releaseWakeLock() {
 }
 document.addEventListener('visibilitychange', () => {
   if (document.hidden) {
-    // 進背景前記下「當下是否正貼著真實時刻」,回前景才知道該不該重錨(見下)
+    // 進背景前記下「當下是否正貼著真實時刻」,回前景才知道該不該重錨(見下)。
+    // 判斷改看 clockAtNow 旗標,不看「與現在的差距 ≤120 秒」:那個寫法是單向陷阱——
+    // 時鐘一旦因故漂超過 120 秒(裝置休眠、rAF 長期凍結),就被判定「不是即時」而永遠不再重錨,
+    // 漂移只會越積越大。實測把時鐘推到漂 200 秒後切背景再回來,仍原封不動停在 199.5 秒。
     state._wasLiveOnHide = state.playing && state.speedMult === 1 && !state.liveMode && !state.director &&
-      Math.abs(state.simSec - nowSecOfDay(activeTz())) <= 120;
+      state.clockAtNow;
     return;
   }
   // 錄製模式也要重取:iOS 切走再切回來 wakeLock 會被釋放且**不會自動恢復**,
@@ -8684,6 +8695,20 @@ function initLive() {
   };
   go();
 }
+// 一般模式(非 OBS/導播)的時鐘防漂移,每秒由 tick 呼叫。
+// 原本只有 ?live 直播訊號源有 liveClockTick 顧時鐘,一般使用者完全沒有這道校正——前景純靠 rAF 的
+// dt 累加(實測 headless 45 秒只漂 0.11 秒,但 iOS App 的 WebView 背景行為與桌面不同,無法假設)。
+// 門檻取 2 秒:時鐘顯示到分(fmtHM),2 秒不影響讀數;列車位置在 2 秒內最多移動約 75 公尺(135km/h),
+// 短於一個月台。低於此值不動,免得每秒都在微調位置。
+function clockDriftGuard() {
+  if (!state.clockAtNow || !state.playing || state.speedMult !== 1 || state._scrubTime) return;
+  if (state.liveReplay || state.nightReplay || state.mode !== 'sched') return;
+  const now = nowSecOfDay(activeTz());
+  if (Math.abs(state.simSec - now) <= 2) return;
+  state.simSec = now;          // 不走 setSimSec:那會清掉 clockAtNow,而這正是「維持跟著現在」
+  state.t0 = performance.now(); // 同步歸零 dt 基準,免得下一幀把剛校好的時鐘再推一次
+  syncTimeUI();
+}
 // 每秒由 tick 呼叫:真實時刻 00:45–05:15 沒車,切到 08:00 起 1× 重播(REPLAY 標記);時段外貼回真實時刻
 function liveClockTick() {
   if (state.mode !== 'sched') return;
@@ -8700,6 +8725,7 @@ function liveClockTick() {
     jumpToNow(); // 既有「回到現在」路徑:真實時刻+1×+誤點重新套用
   } else if (!inWin && !state.liveReplay && !state.nightReplay && Math.abs(state.simSec - now) > 120) {
     setSimSec(now); // 24/7 長跑防漂移:非重播時段把模擬時鐘貼回真實時刻(誤點套用門檻 ±120s)
+    state.clockAtNow = true;  // setSimSec 會清旗標,這裡是「貼回現在」要補設回來
   }
   document.getElementById('replayBadge').hidden = !state.liveReplay;
 }
@@ -13056,6 +13082,7 @@ function jumpToNow() {
     setSpeed(1);
     refreshBadge();
   }
+  state.clockAtNow = true;   // 必須在 setSimSec 之後:那裡會清掉旗標
 }
 
 // 手機底部 sheet(看板/最愛/旅程/探索,四選一互斥)開啟時,跟隨小卡要讓道到上方,
