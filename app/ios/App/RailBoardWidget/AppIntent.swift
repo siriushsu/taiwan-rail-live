@@ -50,6 +50,43 @@ struct DestinationOptionsProvider: DynamicOptionsProvider {
 }
 
 @available(iOS 17.0, *)
+struct BoardFilterOptionsProvider: DynamicOptionsProvider {
+    @IntentParameterDependency<ConfigurationAppIntent>(\.$origin, \.$destination)
+    var intent
+
+    func results() async throws -> IntentItemCollection<String> {
+        guard let origin = intent?.origin,
+              let originID = try RailBoardStore.shared.stationIndex(forKey: origin) else {
+            return .empty
+        }
+        var destinationID: Int?
+        if let destinationKey = intent?.destination {
+            destinationID = try RailBoardStore.shared.stationIndex(forKey: destinationKey)
+        }
+        let options = try RailBoardEngine().filterOptions(
+            originID: originID,
+            destinationID: destinationID
+        )
+
+        return IntentItemCollection(promptLabel: "留空就是全部都看") {
+            IntentItemSection("車種", items: options.types.map(\.intentItem))
+            IntentItemSection("車次", items: options.trains.map(\.intentItem))
+        }
+    }
+}
+
+@available(iOS 17.0, *)
+extension FilterOption {
+    var intentItem: IntentItem<String> {
+        IntentItem(
+            key,
+            title: LocalizedStringResource(stringLiteral: title),
+            subtitle: subtitle.map { LocalizedStringResource(stringLiteral: $0) }
+        )
+    }
+}
+
+@available(iOS 17.0, *)
 extension StationOption {
     /// 值是穩定鍵、顯示的是站名，兩者刻意不同——選單上不該出現 "tra|竹北"。
     var intentItem: IntentItem<String> {
@@ -73,6 +110,11 @@ struct ConfigurationAppIntent: WidgetConfigurationIntent {
 
     @Parameter(title: "目的站（可留空）", optionsProvider: DestinationOptionsProvider())
     var destination: String?
+
+    // 車種與車次刻意合成同一格：通勤族要的是「我那幾班」，等車族要的是「只看自強」，
+    // 兩者共用一個入口，勾選之間是 OR。
+    @Parameter(title: "只看這些（可留空）", optionsProvider: BoardFilterOptionsProvider())
+    var filters: [String]?
 }
 
 @available(iOS 17.0, *)

@@ -126,11 +126,22 @@ struct Provider: AppIntentTimelineProvider {
                 return Timeline(entries: [entry], policy: .never)
             }
 
+            let filters = BoardFilterSet(keys: configuration.filters)
             let prepared = try engine.prepare(
                 originID: originID,
                 destinationID: destinationID,
+                filters: filters,
                 now: now
             )
+            guard !prepared.journeys.isEmpty || filters.isEmpty else {
+                let entry = RailBoardEntry(
+                    date: now,
+                    configuration: configuration,
+                    content: .unavailable("所選班次近期沒有行駛")
+                )
+                return Timeline(entries: [entry], policy: .after(now.addingTimeInterval(60 * 60)))
+            }
+
             let nextJourney = prepared.journeys.first
             let shouldFetchLive = prepared.system.live
                 && nextJourney.map {
@@ -190,11 +201,21 @@ struct Provider: AppIntentTimelineProvider {
                 )
             }
 
+            let filters = BoardFilterSet(keys: configuration.filters)
             let prepared = try engine.prepare(
                 originID: originID,
                 destinationID: destinationID,
+                filters: filters,
                 now: now
             )
+            guard !prepared.journeys.isEmpty || filters.isEmpty else {
+                return RailBoardEntry(
+                    date: now,
+                    configuration: configuration,
+                    content: .unavailable("所選班次近期沒有行駛")
+                )
+            }
+
             let shouldFetchLive = prepared.system.live
                 && prepared.journeys.first.map {
                     $0.scheduledDate.timeIntervalSince(now) <= RailBoardConstants.liveWindow

@@ -314,6 +314,57 @@ struct PreparedBoard {
     }
 }
 
+/// 設定裡「只看這些」的一個勾選項。車種與車次共用同一個複選清單，所以值帶前綴區分。
+/// 車種字串可能含 `/`（莒光/復興），但兩者都不含 `|`，用 `|` 當分隔是安全的。
+enum BoardFilter: Hashable {
+    case trainType(String)
+    case trainNumber(String)
+
+    var key: String {
+        switch self {
+        case .trainType(let value): return "ty|\(value)"
+        case .trainNumber(let value): return "no|\(value)"
+        }
+    }
+
+    init?(key: String) {
+        guard let separator = key.firstIndex(of: "|") else { return nil }
+        let value = String(key[key.index(after: separator)...])
+        guard !value.isEmpty else { return nil }
+        switch key[key.startIndex ..< separator] {
+        case "ty": self = .trainType(value)
+        case "no": self = .trainNumber(value)
+        default: return nil
+        }
+    }
+}
+
+/// 勾選是 OR：勾了「自強」與「1112」＝所有自強再加上 1112 那班。全空＝不篩。
+/// 認不得的鍵（例如改點後消失的車次）直接忽略，不讓整張看板變空。
+struct BoardFilterSet {
+    private let types: Set<String>
+    private let numbers: Set<String>
+
+    var isEmpty: Bool { types.isEmpty && numbers.isEmpty }
+
+    init(keys: [String]?) {
+        let parsed = (keys ?? []).compactMap(BoardFilter.init(key:))
+        types = Set(parsed.compactMap { if case .trainType(let v) = $0 { return v } else { return nil } })
+        numbers = Set(parsed.compactMap { if case .trainNumber(let v) = $0 { return v } else { return nil } })
+    }
+
+    func matches(_ template: JourneyTemplate) -> Bool {
+        isEmpty || types.contains(template.trainType) || numbers.contains(template.trainNumber)
+    }
+}
+
+/// 設定畫面上的一列。`key` 存進設定，`title`／`subtitle` 只給人看。
+struct FilterOption: Hashable {
+    let key: String
+    let title: String
+    let subtitle: String?
+}
+
 struct RailBoardEngine {
     let store: RailBoardStore
 
@@ -321,7 +372,66 @@ struct RailBoardEngine {
         self.store = store
     }
 
-    func prepare(originID: Int, destinationID: Int?, now: Date) throws -> PreparedBoard {
+    /// 篩選清單刻意跟看板取同一份 templates：設定裡選得到的，就是看板上會出現的。
+    /// 車次取 14 天窗的聯集而不是只有今天——不然週末設定不了平日的通勤車。
+    func filterOptions(
+        originID: Int,
+        destinationID: Int?
+    ) throws -> (types: [FilterOption], trains: [FilterOption]) {
+        let stations = try store.stations().stations
+        let board = try store.board(stationID: originID)
+        let templates = matchingTemplates(board: board, destinationID: destinationID)
+
+        var countByType: [String: Int] = [:]
+        for template in templates {
+            countByType[template.trainType, default: 0] += 1
+        }
+        let sortedTypes: [(type: String, count: Int)] = countByType
+            .map { (type: $0.key, count: $0.value) }
+            .sorted { lhs, rhs in
+                lhs.count == rhs.count ? lhs.type < rhs.type : lhs.count > rhs.count
+            }
+        let types: [FilterOption] = sortedTypes.map { entry in
+            FilterOption(
+                key: BoardFilter.trainType(entry.type).key,
+                title: entry.type,
+                subtitle: "\(entry.count) 班"
+            )
+        }
+
+        var seen = Set<String>()
+        let trains = templates.compactMap { template -> FilterOption? in
+            guard seen.insert(template.trainNumber).inserted else { return nil }
+            let time = RailBoardClock.timeString(seconds: template.scheduledSecond)
+            let terminus = template.destinationID.flatMap { id in
+                stations.indices.contains(id) ? stations[id].n : nil
+            }
+            let subtitle: String?
+            if let arrivalSecond = template.arrivalSecond {
+                subtitle = "\(RailBoardClock.timeString(seconds: arrivalSecond)) 抵達"
+            } else {
+                switch template.relation {
+                case .departure: subtitle = terminus.map { "往\($0)" }
+                case .arrival: subtitle = "終到本站"
+                case .pass: subtitle = terminus.map { "通過 · 往\($0)" } ?? "通過"
+                }
+            }
+            return FilterOption(
+                key: BoardFilter.trainNumber(template.trainNumber).key,
+                title: "\(time)　\(template.trainType) \(template.trainNumber)",
+                subtitle: subtitle
+            )
+        }
+
+        return (types, trains)
+    }
+
+    func prepare(
+        originID: Int,
+        destinationID: Int?,
+        filters: BoardFilterSet = BoardFilterSet(keys: nil),
+        now: Date
+    ) throws -> PreparedBoard {
         let meta = try store.meta()
         let stations = try store.stations().stations
         let board = try store.board(stationID: originID)
@@ -344,6 +454,7 @@ struct RailBoardEngine {
         }
 
         let templates = matchingTemplates(board: board, destinationID: destinationID)
+            .filter { filters.matches($0) }
         let today = RailBoardClock.startOfDay(for: now)
         var allJourneys: [ScheduledJourney] = []
 
