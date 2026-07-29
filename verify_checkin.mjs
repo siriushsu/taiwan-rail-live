@@ -121,7 +121,8 @@ const legacyCounts = page => page.evaluate(() => ({
 
 const browser = await chromium.launch();
 try {
-  const { page } = await open(browser);
+  // ?collectmap=1：收集地圖預設藏起來(COLLECT_MAP_ENABLED)，這頁的 L 組要驗它的鈕沒被收合把手吃掉。
+  const { page } = await open(browser, { path: '/index.html?collectmap=1' });
 
   // 台鐵系統 id 由頁面提供（只取 key，不取 tier——tier 的正確性交給 C 組的金框驗證）
   const pick = await page.evaluate(tops => {
@@ -512,7 +513,9 @@ try {
   // 搭乘模式刻意讀真實時鐘，測試無法等時間流逝，故用「把誤點值設成負數」把表定時間軸往前推
   // （那是 ridingNowSched 的輸入，不是被測邏輯本身）。哪幾站該被蓋，一律由本腳本從 stops 的
   // 到站秒數自己算，不呼叫 ridingArrivedIdx —— 判準與實作不同源（心得 29）。
-  const { ctx: hctx, page: hp } = await open(browser, { app: true });
+  // ?collectmap=1：收集地圖 2026-07-29 起預設藏起來(index.html 的 COLLECT_MAP_ENABLED)，J 組驗的是
+  // 它的實作，所以這頁把它點亮；「預設是藏的」由 verify_hidden.mjs 驗。H/I 組(搭乘模式)不受這個旗標影響。
+  const { ctx: hctx, page: hp } = await open(browser, { app: true, path: '/index.html?collectmap=1' });
   const trip = await hp.evaluate(() => {
     const now = nowSecOfDay(activeTz());
     // 凌晨 0–5 點沒有任何行駛中的班次，H/I/J 三組（本頁共用）會整組跑不了。
@@ -968,7 +971,7 @@ try {
   await hctx.close();
 
   // 手機：上車流程的下車站選單與按鈕觸控尺寸（H14-17／K 組共用，同樣要 app context 才看得到票券鈕）
-  const { ctx: hmctx, page: hmp } = await open(browser, { width: 375, height: 780, touch: true, app: true }); // K 組要真的 tap
+  const { ctx: hmctx, page: hmp } = await open(browser, { width: 375, height: 780, touch: true, app: true, path: '/index.html?collectmap=1' }); // K 組要真的 tap；?collectmap=1 見上方 J 組說明
   const hmob = await hmp.evaluate(([train, sys, shift]) => {
     window.__SHIFT = shift;                      // 新分頁沒有 H 組設過的位移，要重新帶進來
     window.liveDelaySec = () => -window.__SHIFT;
@@ -1640,7 +1643,8 @@ try {
     // 逐字照抄會是 `web.evaluate is not a function`。這裡照現況解構，行為不變。
     // 視窗開成跟下面 app 頁一樣的 390×844(手機):N5/N5b 這類雙平台比對時,兩邊只有
     // RAIL_APP_CONFIG 這一個變因不同,不會把「平台差異」跟「桌面/手機寬度差異」混在同一個斷言裡。
-    const { ctx: webCtx, page: web } = await open(browser, { width: 390, height: 844, touch: true });
+    // ?collectmap=1：收集地圖預設藏起來(COLLECT_MAP_ENABLED)，N5b 驗的是「網頁端也長得出這顆入口」。
+    const { ctx: webCtx, page: web } = await open(browser, { width: 390, height: 844, touch: true, path: '/index.html?collectmap=1' });
     const n1 = await web.evaluate(() => ({
       flagApp: typeof IS_NATIVE_APP !== 'undefined' ? IS_NATIVE_APP : null,
       flagPhys: typeof PHYSICAL_COLLECT_ENABLED !== 'undefined' ? PHYSICAL_COLLECT_ENABLED : null,

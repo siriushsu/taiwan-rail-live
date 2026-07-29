@@ -12,7 +12,10 @@ import { readFileSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 import sharp from 'sharp';
 
-const BASE = process.argv[2] || 'http://127.0.0.1:5178';
+const BASE = process.argv[2] || 'http://127.0.0.1:5178'
+// 2026-07-29 懸賞入口預設藏起來(index.html 的 BOUNTY_ENABLED/COLLECT_MAP_ENABLED)。
+// 這支驗的是「實作還對不對」,所以每個 goto 都帶旗標把它點亮;「預設是藏的」由 verify_hidden.mjs 驗。
+const withFlags = u => u + (u.includes('?') ? '&' : '?') + 'bounty=1&collectmap=1';
 const R = [];
 const ok = (n, p, msg = '') => { R.push({ n, p }); console.log(`${p ? '  ok ' : 'FAIL '} ${n}${msg ? ' — ' + msg : ''}`); };
 // 中止時也要留下 N/M（2026-07-28 Codex 審查 F-11）：把 index.html 的必要 DOM id 改壞（例如
@@ -52,7 +55,7 @@ const T4_FIXES = T4_LINE.shape.map((p, i, a) => {
   const diskMd5 = createHash('md5').update(readFileSync('index.html')).digest('hex');
   let servedMd5 = '(抓不到)';
   try {
-    const buf = Buffer.from(await (await fetch(BASE + '/index.html')).arrayBuffer());
+    const buf = Buffer.from(await (await fetch(BASE + withFlags('/index.html'))).arrayBuffer());
     servedMd5 = createHash('md5').update(buf).digest('hex');
   } catch (e) { servedMd5 = '(fetch 失敗: ' + e.message + ')'; }
   const same = diskMd5 === servedMd5;
@@ -145,7 +148,7 @@ async function open(browser, { app = false, width = 1440, height = 900, touch = 
   const page = await ctx.newPage();
   const perr = [];
   page.on('pageerror', e => perr.push(String((e && e.message) || e)));
-  await page.goto(BASE + '/index.html', { waitUntil: 'load' });
+  await page.goto(BASE + withFlags('/index.html'), { waitUntil: 'load' });
   // 開機沒完成時把 pageerror 原文帶出來（F-11）：光看「waitForFunction timeout」分不出
   // 是資料載入慢還是 index.html 在 top-level 就丟例外（必要 DOM id 被改名就是這一種）。
   try {
@@ -950,7 +953,7 @@ async function openRecCompact(browser, width, height) {
   const page = await ctx.newPage();
   const perr = [];
   page.on('pageerror', e => perr.push(String((e && e.message) || e)));
-  await page.goto(BASE + '/index.html', { waitUntil: 'load' });
+  await page.goto(BASE + withFlags('/index.html'), { waitUntil: 'load' });
   try {
     await page.waitForFunction(() => typeof state !== 'undefined' && state.trains && state.trains.length > 0, { timeout: 40000 });
   } catch (e) {
@@ -1560,7 +1563,7 @@ async function checkQualityHintMobile(browserInst, width, height) {
     const ctx = await browser.newContext({ viewport: { width: w, height: 844 }, hasTouch: true });
     await ctx.route('**/api/**', r => r.fulfill({ status: 404, body: 'Not Found' })); // 備援站實況
     const page = await ctx.newPage();
-    await page.goto(BASE + '/index.html' + qs, { waitUntil: 'load' });
+    await page.goto(BASE + withFlags('/index.html' + qs), { waitUntil: 'load' });
     await page.waitForFunction(() => typeof state !== 'undefined' && state.trains && state.trains.length > 0, null, { timeout: 40000 });
     await page.evaluate(() => { const h = document.getElementById('howtoWrap'); if (h) h.remove(); });
     return { ctx, page };
@@ -1967,7 +1970,7 @@ for (const w of [360, 375, 390]) {
 for (const w of [375, 390]) {
   const ctx = await browser.newContext({ viewport: { width: w, height: 812 }, hasTouch: true });
   const page = await ctx.newPage();
-  await page.goto(BASE + '/index.html?demo=bounty', { waitUntil: 'load' });
+  await page.goto(BASE + withFlags('/index.html?demo=bounty'), { waitUntil: 'load' });
   await page.waitForFunction(() => typeof state !== 'undefined' && state.trains && state.trains.length > 0, { timeout: 40000 });
   await page.waitForTimeout(700); // 等 setupBountyDemo() 的 tick 追上 lineNetwork() 就緒（比照 D8a）
   await page.evaluate(() => {
@@ -2106,7 +2109,7 @@ for (const w of [375, 390]) {
     const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, hasTouch: true });
     await ctx.route('**/api/**', r => r.fulfill({ status: 404, body: 'Not Found' })); // 備援站實況
     const page = await ctx.newPage();
-    await page.goto(BASE + '/index.html?demo=bounty', { waitUntil: 'load' });
+    await page.goto(BASE + withFlags('/index.html?demo=bounty'), { waitUntil: 'load' });
     await page.waitForFunction(() => typeof state !== 'undefined' && state.trains && state.trains.length > 0, { timeout: 40000 });
     await page.waitForTimeout(1200); // seedBountyDemo() 的 tick 要等線網建好
     await page.evaluate(() => openBountyBoard());
@@ -2124,7 +2127,7 @@ for (const w of [375, 390]) {
     ok('X4b ?demo=bounty 自己仍然完整：示範旅程有校正段、示範認領存得住（隔離沒有把示範弄壞）',
       x4b.corrected > 0 && x4b.claims === 1, JSON.stringify(x4b));
     // 回到一般網址（同一個 context ⇒ 同一份 localStorage）
-    await page.goto(BASE + '/index.html', { waitUntil: 'load' });
+    await page.goto(BASE + withFlags('/index.html'), { waitUntil: 'load' });
     await page.waitForFunction(() => typeof state !== 'undefined' && state.trains && state.trains.length > 0, { timeout: 40000 });
     const x4 = await page.evaluate(() => {
       const raw = localStorage.getItem('trainmap-bounty-v1');
@@ -2146,7 +2149,7 @@ for (const w of [375, 390]) {
         trips: { 'demo-南迴線-枋寮-臺東': { lnId: '南迴線', sys: 'tra_sched', verdict: 'ok', segs: ['tra_sched|南迴線|加祿|枋寮'], u: 1 },
           'real-trip': { lnId: '宜蘭線', sys: 'tra_sched', verdict: 'ok', segs: ['tra_sched|宜蘭線|蘇澳|蘇澳新'], u: 2 } } }));
     });
-    await page.goto(BASE + '/index.html?demo=off', { waitUntil: 'load' });
+    await page.goto(BASE + withFlags('/index.html?demo=off'), { waitUntil: 'load' });
     await page.waitForFunction(() => typeof state !== 'undefined' && state.trains && state.trains.length > 0, { timeout: 40000 });
     await page.waitForTimeout(800);
     const x4c = await page.evaluate(() => {
@@ -2172,7 +2175,7 @@ for (const w of [375, 390]) {
     await ctx.route('**/api/bounty-me*', r => r.fulfill({ status: 200, contentType: 'application/json',
       body: JSON.stringify({ actor: 'x', points: 0, corrected: { segs: 0, adopted: 0 }, lines: [], firsts: [], trips: [] }) }));
     const page = await ctx.newPage();
-    await page.goto(BASE + '/index.html', { waitUntil: 'load' });
+    await page.goto(BASE + withFlags('/index.html'), { waitUntil: 'load' });
     await page.waitForFunction(() => typeof state !== 'undefined' && state.trains && state.trains.length > 0, { timeout: 40000 });
     await page.evaluate(() => { const h = document.getElementById('howtoWrap'); if (h) h.remove(); });
     const CID = BOARD.cards[0].id;

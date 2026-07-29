@@ -3140,17 +3140,13 @@ try { if (matchMedia('(max-width: 900px)').matches) document.body.classList.add(
       <summary><span>更新紀錄</span><span class="foot-sub">最後更新：2026/7/29</span></summary>
       <ul class="foot-list foot-recent">
         <li class="grp">最近更新</li>
+        <li><span class="d">7/29</span><span>GPS 校正旅程與收集地圖先收起來繼續打磨，之後會再開放</span></li>
         <li><span class="d">7/29</span><span>後面的車不會再從前面那班身上穿過去了（謝謝網友回報）</span></li>
         <li><span class="d">7/29</span><span>跟車小卡的時速不會再飆出車子跑不到的數字（謝謝網友回報）</span></li>
         <li><span class="d">7/29</span><span>App 或分頁掛久了切回來，畫面時刻會自動對回現在，不會停在切走前那一刻</span></li>
         <li><span class="d">7/29</span><span>護照的收集章：名字太長的（像 EMU3000 新自強號）不會再被圓框切掉</span></li>
-        <li><span class="d">7/29</span><span>刪除帳號時，會一併刪掉你上傳過的 GPS 校正旅程資料與貢獻點數</span></li>
         <li><span class="d">7/29</span><span>在高鐵或林鐵點下去跟車，不會再跟到同號碼的台鐵列車（謝謝網友回報）</span></li>
-        <li><span class="d">7/29</span><span>圖磚還沒載入時墊底的台灣輪廓換了新資料，海岸線終於對得準（謝謝網友回報）</span></li>
-        <li><span class="d">7/29</span><span>衛星底圖改用標準解析度圖磚，畫面略柔一點，換來圖資用量大減</span></li>
-        <li><span class="d">7/28</span><span>新增「GPS 校正旅程」：用 App 錄一趟實際乘車幫忙校正列車位置，座標不會離開手機</span></li>
-        <li><span class="d">7/28</span><span>錄製途中看得見地圖與列車，也能一邊查別的車，不再是整片黑畫面</span></li>
-        <li><span class="d">7/28</span><span>全站圖示換成軌島自製單色線稿，亮暗主題下都更一致清楚</span></li>
+        <li><span class="d">7/29</span><span>圖磚還沒載入時墊底的台灣輪廓換了新資料，海岸線終於對得準（謝謝網友回報）</span></li>        <li><span class="d">7/29</span><span>衛星底圖改用標準解析度圖磚，畫面略柔一點，換來圖資用量大減</span></li>
       </ul>
       <!-- 第二層:完整歷史。刻意不掛 .foot-box 類名——placeFootBoxes() 用
            `.site-foot .foot-box` 搬移面板,巢狀同名會被當成另一個盒子一起搬走。 -->
@@ -3223,6 +3219,7 @@ try { if (matchMedia('(max-width: 900px)').matches) document.body.classList.add(
         <li><span class="d">7/21</span><span>手機大改版：打開就是全螢幕地圖，面板都住進底部；新增「捷」分頁，北中高捷運一張圖同框</span></li>
         <li><span class="d">7/13</span><span>新增「省電」模式（手機預設開啟）：降到 30fps；手機一次只開一個面板</span></li>
         <li class="grp">外觀與品牌</li>
+        <li><span class="d">7/28</span><span>全站圖示換成軌島自製單色線稿，亮暗主題下都更一致清楚</span></li>
         <li><span class="d">7/28</span><span>全站圖示改用軌島自製的單色線稿與單色字形（介面圖示、成就徽章、車廂標記都在內），亮暗主題與各家瀏覽器下長相一致，不再交給各系統自己的 emoji 決定</span></li>
         <li><span class="d">7/27</span><span>切到「高」時左邊牌子下面的那行字改成「台灣高鐵即時軌跡」，先前一直沿用台鐵的字串</span></li>
         <li><span class="d">7/25</span><span>衛星底圖改接 Esri 官方授權服務端點；7/24 起在高解析度螢幕上更清晰銳利，7/29 為控制圖資用量改回標準解析度</span></li>
@@ -3240,11 +3237,8 @@ try { if (matchMedia('(max-width: 900px)').matches) document.body.classList.add(
           <li class="web-only-donation-log"><span class="d">7/13</span><span>贊助方式更新：「請開發者喝咖啡」的銀行轉帳帳戶改用 LINE Bank（連線商業銀行 824）——謝謝每一位抖內支持軌島的朋友</span></li>
         <!-- APP_STRIP_END donation-log -->
         <li class="grp">資料校正</li>
-        <li><span class="d">7/29</span><span>修正懸賞板的停站任務：現在會顯示正確站名，列車真的停靠後會計入樣本、發點並完成認領。你自己上下車的那一站也算得到——在月台上開始錄、或停穩後才結束錄都可以；只有經過但不停靠不會誤算</span></li>
         <li><span class="d">7/29</span><span>刪除軌島帳號時，會一併刪掉你上傳過的 GPS 校正旅程資料與累積的貢獻點數，包含這台裝置以匿名身分傳的那些；隱私權政策也補上了這類資料保存多久、要怎麼刪除</span></li>
         <li><span class="d">7/29</span><span>圖磚還沒載入時墊底的台灣海陸輪廓換成內政部公開的縣市界線：舊資料比實際海岸線偏了一到三公里，東部海線好幾站看起來像在海上（謝謝網友回報）</span></li>
-        <li><span class="d">7/28</span><span>新增「GPS 校正旅程」：懸賞板列出目前最缺實際乘車紀錄的路段，用 App 錄一趟就能幫忙把列車位置校正得更準。錄的時候只有里程會上傳、座標全程留在手機裡；中途重新整理或 App 被系統收掉都接得回同一趟，出錯時畫面上也看得到原因</span></li>
-        <li><span class="d">7/28</span><span>錄製校正旅程時改成留在地圖上：看得見自己和列車在哪，也能繼續查看板、跟別的車；想看大字進度與品質說明時才點開詳細面板，回地圖不會停止錄製</span></li>
         <li><span class="d">7/25</span><span>台鐵快車經過不停靠小站時的位置改用改點後的實際到站紀錄校正</span></li>
         <li><span class="d">7/24</span><span>台鐵列車站間位置改用官方里程推算（山線／海線長度也一併校正）</span></li>
         <li><span class="d">7/24</span><span>台鐵班表改為每天使用當日官方時刻，週末限定的加班車會在正確的日子出現</span></li>
@@ -3254,6 +3248,7 @@ try { if (matchMedia('(max-width: 900px)').matches) document.body.classList.add(
         <li><span class="d">7/17</span><span>安坑輕軌「台北小城」站位修正；144、146 次車種更正為 EMU3000</span></li>
         <li><span class="d">7/11</span><span>山線改走現行路線，不再誤用 1998 年的舊山線線形；成追線經成功站不再繞行</span></li>
         <li class="grp">曾經上線、後來拿掉</li>
+        <li><span class="d"></span><span><b>GPS 校正旅程與收集地圖</b>：7/28 上線、7/29 暫時收起繼續打磨——先把心力放在別的改進上。你在這台裝置上的乘車紀錄、護照印章與站章都不受影響，之後開回來時校正貢獻也還在</span></li>
         <li><span class="d"></span><span><b>站內錄影（Beta）</b>：7/10 上線、7/17 因地圖圖資的版權條款下架——想錄畫面請改用手機或電腦內建的螢幕錄影功能</span></li>
         <li><span class="d"></span><span><b>軌島帳號（跨裝置同步）</b>：7/16 上線、7/17 暫時收起整備。你在這台裝置上的收藏與完乘紀錄、以及先前已同步到雲端的資料都保留；已建立帳號的人仍可從「刪除軌島帳號」頁面自助刪除</span></li>
         <li><span class="d"></span><span><b>定位我</b>：定位功能目前停用中，7/18 把手機「更多」選單裡點了沒反應的入口一併拔掉</span></li>
@@ -3526,7 +3521,7 @@ try { if (matchMedia('(max-width: 900px)').matches) document.body.classList.add(
 // 🔴 BUILD 字串會跨並行分支撞號（心得 16）：07-28 兩條線各自遞增又各自部署過——
 // origin/main 這條用到 v0728b，正式站那條用到 v0728f。本次三方合併把兩條線統一，
 // 所以往後推到一個雙方都沒用過的號，辨識線上跑哪一版仍以內容 hash 為準。
-const BUILD = 'v0729d';
+const BUILD = 'v0729e';
 // 成就徽章與車廂標記＝原本那些 emoji 的單色平面版（RailEmoji＝裁切過的 Noto Emoji 單色）。
 // 刻意保留 railIcon(name) 這個唯一入口:呼叫端一行都不用改,只有這裡決定畫法。
 // 🔴 ⚖ 與 ♾ 一律寫**不帶 VS16(U+FE0F)** 的碼位——帶了就強制彩色呈現,會蓋過 font-family
@@ -5829,6 +5824,23 @@ const IS_NATIVE_APP = (() => {
 // 這裡不用下面的 DEMO_MODE 是因為它定義在第 5140 行、此處讀不到;語意刻意保持一致。
 const DEMO_AS_APP = (() => { try { return new URLSearchParams(location.search).get('demo') === 'bounty'; } catch (e) { return false; } })();
 const PHYSICAL_COLLECT_ENABLED = IS_NATIVE_APP || DEMO_AS_APP;
+// 2026-07-29 懸賞(GPS 校正旅程)暫時下架:護照的「校正貢獻」整節、懸賞板、錄一趟、說明中心那三節
+// 全部不出現;實作與後端一行都沒動,改成恆 true 即復活。?bounty=1 當次點亮(比照 PLUS_ENABLED 的
+// ?plus=1),驗收腳本靠它繼續驗實作;?demo=bounty 也算——備援站看設計的既有路徑不能被這個旗標切斷。
+// 「當次」＝這個分頁的這一輪,不是這一次導頁:boot 的 clearFollow() 會 replaceState 把整條 query
+// 抹掉(見 share-link 契約),所以純讀 location.search 的旗標一重新整理就掉——實測 reload 後
+// bounty/collectmap 都變回 false,連「錄製中重新整理接得回來」這種測試都驗不成。記在 sessionStorage,
+// 關掉分頁就沒了,不會外溢到使用者的其他分頁,也不進 localStorage。
+const flagOnce = (name) => { try {
+  const k = 'rail-flag-' + name;
+  if (new URLSearchParams(location.search).get(name) === '1') { sessionStorage.setItem(k, '1'); return true; }
+  return sessionStorage.getItem(k) === '1';
+} catch (e) { return false; } };
+const BOUNTY_ENABLED = (() => { try {
+  return flagOnce('bounty') || new URLSearchParams(location.search).get('demo') === 'bounty';
+} catch (e) { return false; } })();
+// 收集地圖同批下架。它其實不碰 GPS(資料來自既有乘車記錄),所以給它自己的旗標:要單獨復活只動這一行。
+const COLLECT_MAP_ENABLED = flagOnce('collectmap');
 const RECORDING_ENABLED = false; // 2026-07-17 錄影暫時下架(整備中):所有入口隱藏、實作全保留;改 true 即復活(工具列鈕+更多抽屜列+Plus 文案)
 const ACCOUNT_ENABLED = false; // 2026-07-17 帳號同步轉收費前暫時下架:入口全藏、不載 Firebase SDK、實作全保留;僅 ?account=delete 深連結(account-deletion.html)留給既有帳號刪資料;改 true 即復活
 // Plus 功能總閘(暗啟動):網站預設關、?plus=1 當次點亮供測試(比照 TRIP_SHARE_ENABLED)；上架公告批次改 true。
@@ -10669,7 +10681,9 @@ function bountyLoadPersistedRecording() {
   } catch (e) { return null; }
 }
 function bountyRestoreRecording() {
-  if (!PHYSICAL_COLLECT_ENABLED || state.recording) return false;
+  // 2026-07-29 下架期間不接回錄製:入口都藏了還把人丟回錄製畫面,他會沒有任何解釋也沒得回頭。
+  // 保存在裝置上的那筆不刪(改回 true 就接得回來)。
+  if (!BOUNTY_ENABLED || !PHYSICAL_COLLECT_ENABLED || state.recording) return false;
   const r = bountyLoadPersistedRecording();
   if (!r) return false;
   state.recording = r;
@@ -11383,7 +11397,7 @@ function buildLineBars() {
   const full = lines.filter(l => l.pct >= 0.999).length;
   return phSec('lines', lines.length, 10, `路線完乘<b>${lines.length}</b>` +
     (full ? `<span style="letter-spacing:0;font-weight:600">全線走完 ${full}</span>` : '') +
-    `<button class="pl-map" data-act="collectmap" title="收集地圖——全路網轉灰，只有你搭過的區間亮起">收集地圖</button>`) +
+    (COLLECT_MAP_ENABLED ? `<button class="pl-map" data-act="collectmap" title="收集地圖——全路網轉灰，只有你搭過的區間亮起">收集地圖</button>` : '')) +
     `<div class="ph-lines">` +
     lines.map(l => {
       const pct = Math.round(l.pct * 100);
@@ -11409,7 +11423,8 @@ function buildCorrectSection() {
   // 這裡補第二個入口,但要跟 verify_checkin.mjs J8「零路段時不露出入口(避免點進去是
   // 一張全灰地圖)」的既有防線並存:只在 buildLineBars() 自己不會出現(沒有完乘路段)
   // 且真的有校正段時才補,兩者都有資料時交給 buildLineBars() 那顆就好,不重複掛。
-  const showCorrectMapBtn = lineCompletion().length === 0 && bountyCorrectedSegs().size > 0;
+  if (!BOUNTY_ENABLED) return '';   // 2026-07-29 下架:整節不出現(懸賞板鈕是它唯一的家)
+  const showCorrectMapBtn = COLLECT_MAP_ENABLED && lineCompletion().length === 0 && bountyCorrectedSegs().size > 0;
   const inner = '校正貢獻<button class="pl-map pl-bounty" data-act="bountyboard" type="button">懸賞板</button>' +
     (showCorrectMapBtn ? '<button class="pl-map" data-act="collectmap" type="button">收集地圖</button>' : '');
   const me = bountyMeMem;
@@ -14373,24 +14388,24 @@ const HELP_GROUPS = [
       one: '真的在車上時按一下，沿路每過一站就自動幫你蓋一枚章。',
       steps: ['先跟著你要搭的那班車', '按卡片上的「我上車了」，並選好在哪一站下車', '之後不用管它——車每過一站就蓋一枚，到站自動結束'],
       tip: '只在上車、下車兩個點用到你的位置，中間由列車自己的時刻推算，所以進隧道、關螢幕都不影響。上車時就要選下車站，否則忘了按下車會一路蓋到終點。', try: 'follow' },
-    { key: 'collectmap', ic: '', nm: '收集地圖',
+    { key: 'collectmap', avail: () => COLLECT_MAP_ENABLED, ic: '', nm: '收集地圖',
       one: '一張只屬於你的地圖：全台路網轉灰，只有你搭過的區間亮起來。',
       steps: ['打開「護照」', '在「路線完乘」那一列按「收集地圖」', '看哪裡還是灰的，就是還沒去過的地方', '按上方的「離開」回到即時地圖'],
       tip: '搭快車被跳過的小站也算走過——你確實通過了那段軌道。每條路線的完乘率分開算。', try: 'collectmap' },
     // GPS 校正旅程拆成三節，因為使用者要問的是三個不同的問題：這是什麼／怎麼錄／錄完之後呢。
     // 只有中間那節限 App（startBountyRecording() 對非 App 直接擋下並吐司），懸賞板與護照的
     // 校正貢獻在網頁端都看得到，所以只有 bountyrec 掛 avail——比照 stncollect／riding 的寫法。
-    { key: 'bounty', ic: '懸', nm: '懸賞板：哪些路段還缺資料',
+    { key: 'bounty', avail: () => BOUNTY_ENABLED, ic: '懸', nm: '懸賞板：哪些路段還缺資料',
       one: '有些路段我們手上的行駛資料不夠準，缺哪一段就掛在懸賞板上，等人去搭一趟錄回來。',
       steps: ['打開「護照」，在「校正貢獻」那一列按「懸賞板」', '挑一段你本來就要搭的', '按下去接下來，出發前會有一張說明卡告訴你要準備什麼'],
       tip: '接下來的段 24 小時內有效，過期會放回板上給別人。看板不用 App，實際錄製要用 App。', try: 'bounty' },
     // 🔴 try 刻意不是「開始錄製」：那會真的叫起 GPS 開始錄一趟，是有副作用的動作，不能拿來當
     // 「試一次」。代點改成開懸賞板——那才是使用者的下一步。
-    { key: 'bountyrec', badge: 'App', avail: () => PHYSICAL_COLLECT_ENABLED, ic: '錄', nm: '錄一趟校正旅程',
+    { key: 'bountyrec', badge: 'App', avail: () => BOUNTY_ENABLED && PHYSICAL_COLLECT_ENABLED, ic: '錄', nm: '錄一趟校正旅程',
       one: '你搭車的時候順手錄一趟，我們用它把那段路的位置推算修準。',
       steps: ['先在懸賞板接一段', '真的搭上那班車之後，按說明卡的「開始錄製」', '錄製畫面上的燈號保持綠色就好——手機靠窗，別放在包包裡或車廂中央', '到站按「停止錄製」'],
       tip: '燈號變橘色會直接告訴你怎麼改善；如果寫「精確位置未開」一定要去設定打開，那是唯一不修就整趟白錄的狀況。錄到一半中斷沒關係，錄到的部分照樣算。', try: 'bounty' },
-    { key: 'bountyme', ic: '校', nm: '護照裡的校正貢獻',
+    { key: 'bountyme', avail: () => BOUNTY_ENABLED, ic: '校', nm: '護照裡的校正貢獻',
       one: '你錄過幾段、其中有幾段真的被採用，都記在護照的「校正貢獻」。',
       steps: ['打開「護照」', '找到「校正貢獻」那一列', '上面寫「校正 N 段（其中 M 段已採用）」'],
       tip: '兩個數字不一樣是正常的——訊號不好的那幾趟資料用不上，但校正者章與點數還是你的，而且我們會寫出是什麼原因、下次怎麼改善。某段如果是你第一個錄回來的，會標「首位校正者」。', try: 'ride' },
@@ -15763,7 +15778,8 @@ async function boot() {
   // 護照「校正貢獻」節(Task 6):開機當下渲染的第一次一定是空狀態(fetch 還沒回來),
   // 資料到了才重繪。renderRidePanel() 自己有 el.hidden 早退,手機沒開護照 sheet 時是免費的
   // no-op——併發呼叫兩邊比只呼叫 renderPassport() 更保險,不用賭使用者開 sheet 時 fetch 一定已經回來。
-  fetchBountyMe().then(() => { renderPassport(); renderRidePanel(); });
+  // 2026-07-29 下架期間不打這支:那一節根本不渲染,每次開機還去問一次 /api/bounty-me 是白花的 Worker 呼叫。
+  if (BOUNTY_ENABLED) fetchBountyMe().then(() => { renderPassport(); renderRidePanel(); });
   publishTrackContinuityAudit();
   if (window.__notifyMockLog) {
     const cross = state.systems.filter(s => s.id === 'tra_sched' || s.id === 'thsr_sched')
