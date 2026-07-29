@@ -3140,6 +3140,7 @@ try { if (matchMedia('(max-width: 900px)').matches) document.body.classList.add(
       <summary><span>更新紀錄</span><span class="foot-sub">最後更新：2026/7/29</span></summary>
       <ul class="foot-list foot-recent">
         <li class="grp">最近更新</li>
+        <li><span class="d">7/29</span><span>後面的車不會再從前面那班身上穿過去了（謝謝網友回報）</span></li>
         <li><span class="d">7/29</span><span>跟車小卡的時速不會再飆出車子跑不到的數字（謝謝網友回報）</span></li>
         <li><span class="d">7/29</span><span>App 或分頁掛久了切回來，畫面時刻會自動對回現在，不會停在切走前那一刻</span></li>
         <li><span class="d">7/29</span><span>刪除帳號時，會一併刪掉你上傳過的 GPS 校正旅程資料與貢獻點數</span></li>
@@ -3165,6 +3166,7 @@ try { if (matchMedia('(max-width: 900px)').matches) document.body.classList.add(
         <li><span class="d">7/10</span><span>高鐵、桃園機捷、淡海輕軌、安坑輕軌加入路網</span></li>
         <li><span class="d">7/10</span><span>環島觀光列車一分為二：往東「山海號」、往西「平原號」</span></li>
         <li class="grp">即時動態與誤點</li>
+        <li><span class="d">7/29</span><span>畫面上後面的車會直接穿過前面那班：現在會保持車距跟著跑，該讓的就在站邊等。時刻表本身要它超車、中間又沒站可讓的極少數情況仍會出現（謝謝網友回報）</span></li>
         <li><span class="d">7/28</span><span>誤點的車過了表定到站時間後被當成已跑完：點下去會從頭重播、跟隨面板也提早說抵達。改用校正後的時間判斷，下一站與進度條一併同步（謝謝網友回報）</span></li>
         <li><span class="d">7/24</span><span>新增「資料源連線狀態頁」：各即時資料源連線狀況一目了然，並白話總結「地圖現在準嗎」</span></li>
         <li><span class="d">7/24</span><span>修正 App 在背景放久後時鐘停住、車輛位置對不上；回前景會自動追回「現在」</span></li>
@@ -4242,8 +4244,8 @@ function trainSeg(tr, t) {
   return null;
 }
 
-function trainPos(tr, t) {
-  t -= liveDelaySec(tr);
+// 純表定軸位置:不扣即時誤點、不含阻擋回撥。整趟速度曲線與阻擋自己的速度探針走這裡。
+function trainPosAt(tr, t) {
   const g = trainSeg(tr, t);
   if (!g) return null;
   const s = tr.stops;
@@ -4253,6 +4255,126 @@ function trainPos(tr, t) {
   }
   if (g.seg) return schedSegmentPos(g.seg, g.f);
   return { lat: s[g.i].lat + (s[g.i + 1].lat - s[g.i].lat) * g.f, lon: s[g.i].lon + (s[g.i + 1].lon - s[g.i].lon) * g.f };
+}
+function trainPos(tr, t) { return trainPosAt(tr, t - liveDelaySec(tr) - blockHoldSec(tr)); }
+
+// ── 後車不穿越前車(issue #17) ─────────────────────────────────────────────────
+// 即時誤點是一班一班獨立套用的:前車晚了就往後移,後車沒跟著延後,於是後車在開放路段追上並穿過前車
+// (4026 在東澳待避 218,218 晚到,結果在隧道裡「超車」)。現實中調度會把後車留到前車通過再放行,
+// 但台鐵公開資料只給「每班車誤點幾分鐘」,沒有待避與放行關係。所以這裡**不模擬待避**,只做一件事:
+// 後車不得在開放路段越過前車。零誤點的表定模式一樣會發生(通過站時刻是跑段曲線合成的、各車種加減速
+// 不同,段內相對位置本來就沒被時刻表釘死),故不掛任何模式開關。
+//
+// 手法:給後車一個額外的「時間回撥」hold,**只加在 trainPos 一個入口**——effT/effTLive 一律不含,
+// 所以停靠站到離站時刻、完乘成就判定、停靠倒數、行程分享完全不受影響。用時間軸而不是直接夾里程,
+// 車才會繼續貼在線形上、照自己的車種加減速跑,尾巴與點擊命中也自動跟上。
+//
+// 三條規則:
+// (1) 前車「行進中」才算障礙,停站中不算。時刻表本身就寫滿待避,月台超車是合法的(現實中被待避的車
+//     在側線上);停站中的車也擋人的話,表定待避會整批失效。副產品:被擋的車不會停在隧道裡——它是
+//     減速到與前車同速跟在後面,只有前車自己快停下來時才停,而前車只在車站停。
+// (2) 前後順序取自**畫面位置**不是原始位置。用原始位置排序的話,夾持一生效順序就翻轉、約束跟著翻,
+//     會震盪;用畫面位置則自我穩定,順序只在前車進站停下、退出障礙集合的那一刻才翻轉。
+// (3) hold 的變化率兩頭都鉗住。畫面速度 = v_raw × (1 − dh/dτ):
+//     上升 dh/dτ ≤ 1 ⇒ 畫面速度 ≥ 0,最多停住、絕不倒退;
+//     下降要讓畫面速度 ≤ 車種極速(#15 的硬上限) ⇒ dh/dτ ≥ 1 − vcap/v_raw。
+//     停站時 v_raw = 0 ⇒ 可無限快釋放,而停站中原始位置本來就不動,所以釋放 hold 在畫面上零位移
+//     ——停站時間就是虧損的天然回收槽,追回過程零超速。任何一步都不是跳的。
+//
+// BLOCK_CAP_SEC:量到 hold 峰值中位 24s、p90 134s,但尾巴會到 731s(≈24 公里)。那比「超車」是更大的
+// 謊——畫面會跟停靠時刻、完乘章、跟車小卡全部對不上。上限就是「我們不模擬待避」的誠實邊界:超過兩
+// 分鐘還化解不了,代表時刻表真的要它超車而中間沒有站,那是我們沒有的資料。觸發次數要留計數,
+// 別讓「大部分修好了」變成「宣稱全修好了」。
+const BLOCK_SYS = { tra_sched: 1 };          // v1 只開台鐵:問題與逐車誤點都在這裡,其餘系統的衝突數還沒量過
+const BLOCK_GAP_KM = 0.4;                    // 標準車距
+// 車距是「棘輪」而不是硬要求。前車停站中不算障礙,後車會一路貼到它屁股後面;前車一開走就變成障礙,
+// 若這時硬要求 400m,後車得倒退補出 350m——它不能倒退,只能原地停死等 hold 追上(實測會停 14 秒,
+// 前車還在以 87km/h 拉開,畫面上就是「無緣無故停在路中間」,正是 T7 要抓的)。改成:咬住的當下以
+// 現況車距為準(至少 20m 不重疊),之後才慢慢長回 400m。長回速率相當於 10km/h 的相對速差,
+// 用「跟得比較近一陣子」換掉「停死」。
+const BLOCK_GAP_MIN_KM = 0.02;
+const BLOCK_GAP_GROW = 10 / 3600;            // km/s
+const BLOCK_CAP_SEC = 120;                   // hold 上限(秒)
+const BLOCK_MIN_V = 5 / 3600;                // 速度下限(km/s),把 over/v 的除零擋掉
+const BLOCK_SNAP_SEC = 300;                  // 模擬時鐘一次推進超過這個量=拖時刻尺/快轉大跳,直接對齊不慢追
+const _blockHold = new Map(), _blockCapped = new Set(), _blockGap = new Map(), _blockPrevD = new Map();
+let _blockSim = null;
+function blockKeyOf(tr) { return (tr.sys || '') + ':' + tr.train; } // 跨系統車次會撞號,不能只用車次
+function blockHoldSec(tr) { return _blockHold.size && BLOCK_SYS[tr.sys] ? (_blockHold.get(blockKeyOf(tr)) || 0) : 0; }
+function updateBlockHolds() {
+  if (state.mode !== 'sched' || !state.trains) { _blockHold.clear(); _blockGap.clear(); _blockPrevD.clear(); _blockSim = null; return; }
+  const dSim = _blockSim == null ? 0 : state.simSec - _blockSim;
+  const snap = !(dSim > 0 && dSim <= BLOCK_SNAP_SEC); // 倒轉/跨午夜/大跳一律直接對齊目標
+  _blockSim = state.simSec;
+  const groups = new Map();
+  for (const tr of state.trains) {
+    if (!BLOCK_SYS[tr.sys]) continue;
+    const key = blockKeyOf(tr), h = _blockHold.get(key) || 0;
+    const g = trainSeg(tr, state.simSec - liveDelaySec(tr) - h);
+    if (!g || !g.ln) { _blockHold.delete(key); _blockGap.delete(key); _blockPrevD.delete(key); continue; } // 沒在跑,或這段沒貼上軌道線形 → 不參與耦合
+    const k = g.ln.id + '|' + g.dir;                       // 同一條線形+同方向才是同一條軌道
+    let a = groups.get(k); if (!a) groups.set(k, a = []);
+    a.push({ tr, key, h, g });
+  }
+  for (const arr of groups.values()) {
+    arr.sort((x, y) => (y.g.d - x.g.d) * x.g.dir);         // 由前往後(沿行進方向里程遞減)
+    let barrier = null;                                     // {d 沿線里程(km), key 前車};後車的畫面位置不得越過
+    for (const it of arr) {
+      const vcap = speedCapOf(it.tr) / 3600;                // km/s
+      const tAt = hh => state.simSec - liveDelaySec(it.tr) - hh;
+      let target = 0;
+      if (barrier && !it.g.dwell) {
+        const sep = (barrier.d - it.g.d) * it.g.dir;        // km,與前車的實際距離
+        const pv = _blockGap.get(it.key);
+        // 棘輪綁在「這一台前車」上:換一台前車就重新以現況起算。沿用上一台的棘輪(它可能在 12km 外,
+        // 早就長到 400m)會讓後車在新前車貼身出現的當下被要求退開 350m——它不能倒退,只能原地停死
+        // (西勢實測停 16 秒,前車還在 87km/h 拉開)。
+        let gk = (pv && pv.lead === barrier.key) ? pv.gk
+          : Math.min(BLOCK_GAP_KM, Math.max(BLOCK_GAP_MIN_KM, sep));   // 首次咬住:以現況為準,不硬拉開
+        // 只在「還有餘裕」時往回長。咬住的時候還在長,等於目標追著後車跑:前車以 7.5km/h(2m/s)拉開、
+        // 棘輪以 10km/h(2.8m/s)長,差距永遠補不完 ⇒ 後車在區間停死(實測宜蘭線 402 就是這樣)。
+        // 設計要的是「減速到與前車同速、跟在後面一個車距」,不是停死。
+        if (sep >= gk) gk = Math.min(BLOCK_GAP_KM, gk + BLOCK_GAP_GROW * (snap ? BLOCK_GAP_KM : dSim));
+        _blockGap.set(it.key, { lead: barrier.key, gk });
+        const over = (gk - sep);                            // km,>0=比該有的車距更近
+        if (over > 0) {
+          const g2 = trainSeg(it.tr, tAt(it.h - 2));        // 原始模型此刻的速度(km/s);換線形無從比里程 → 取極速
+          const vraw = (g2 && g2.ln === it.g.ln) ? Math.abs(g2.d - it.g.d) / 2 : vcap;
+          target = it.h + over / Math.max(vraw, BLOCK_MIN_V);
+        }
+      } else _blockGap.delete(it.key);
+      let h2;
+      if (it.h <= 0 && target <= 0) h2 = 0;                                          // 絕大多數車:沒被擋也沒在追回
+      else if (snap) h2 = target;
+      else if (target > it.h) h2 = Math.min(target, it.h + dSim);                    // 上升鉗制:最多停住
+      else {
+        // 下降鉗制:畫面位移不得超過「車種極速×這一幀」。不可拿當下 vraw 外推 vcap/vraw——剛離站時
+        // vraw≈0,外推等於允許無限追回(西勢實測一步瞬移 136m=245km/h)。位移對 h2 單調遞減,直接二分。
+        // 比的是畫出來的經緯度而不是里程:換線形時里程無從比,而那正是 hold 可能一次歸零的時候。
+        const prev = _blockPrevD.get(it.key) || trainPosAt(it.tr, tAt(it.h));
+        const maxKm = vcap * dSim;
+        const ok = hh => { const p = trainPosAt(it.tr, tAt(hh)); return p && haversineKm(p, prev) <= maxKm; };
+        if (!prev || ok(target)) h2 = target;
+        else {
+          let lo = target, hi = it.h;                       // lo=追最多(可能超速), hi=不追(必合法)
+          for (let k = 0; k < 12; k++) { const mid = (lo + hi) / 2; if (ok(mid)) hi = mid; else lo = mid; }
+          h2 = hi;
+        }
+      }
+      if (h2 > BLOCK_CAP_SEC) { h2 = BLOCK_CAP_SEC; _blockCapped.add(it.key); }
+      // 死區只能小到「看不出來」為止:二分解出來的 h2 是可行解,把它四捨五入成 0 等於多放行 h2 秒的
+      // 位移(0.05s×135km/h≈2m,實測讓畫面速度剛好超出極速 0.3km/h)。1ms 的死區只為了不讓 Map 長肥。
+      if (h2 > 1e-3) {
+        _blockHold.set(it.key, h2);
+        const pf = trainPosAt(it.tr, tAt(h2));              // 下一幀的位移基準
+        if (pf) _blockPrevD.set(it.key, pf); else _blockPrevD.delete(it.key);
+      } else { _blockHold.delete(it.key); _blockPrevD.delete(it.key); }
+      // 屏障存前車的里程本身,車距由每台後車各自的棘輪決定;前車停站中就不是障礙(月台待避合法),
+      // 屏障沿用更前面那班的
+      barrier = it.g.dwell ? barrier : { d: it.g.d, key: it.key };
+    }
+  }
+  state._block = { holds: _blockHold, capped: _blockCapped }; // 診斷用把手(驗收的 T1–T7 不准讀這個)
 }
 
 // 跨線直通車的兩條來源 shape 在共站可能落於不同股道（八堵／成功／彰化實測約20m）。
@@ -7027,6 +7149,7 @@ function tick(now) {
       if (h !== state.hour) { state.hour = h; recomputeTrains(); refreshBadge(); } // 換小時:尖離峰班距(僅班距合成線)+徽章+車數
     }
   }
+  updateBlockHolds(); // 後車不穿越前車:算完 simSec 之後、任何人問位置之前先更新阻擋回撥(相機與繪製都吃 trainPos)
   if (state.director && state.playing) directorTick(now); // 導播相位機:跟車段↔群車段循環(先於 autoTour,可能切換 autoTour 開關)
   if (state.autoTour && state.mode === 'sched' && state.playing) {
     const ftr = state.followTrain;
@@ -11387,7 +11510,10 @@ function speedProfile(tr) {
   const v = [];
   for (let i = 0; i < N; i++) {
     const t = t0 + (t1 - t0) * i / (N - 1);
-    const a = trainPos(tr, t), b = trainPos(tr, Math.min(t + 30, t1));
+    // 整趟曲線是「時刻表＋動力學」的性質,取樣一次就快取整趟——若讀含阻擋的位置,一次暫時的
+    // 阻擋(#17)會被烤進這條快取曲線,之後整個 session 都對不上。故走純表定軸,只保留既有的誤點回撥。
+    const dl = liveDelaySec(tr);
+    const a = trainPosAt(tr, t - dl), b = trainPosAt(tr, Math.min(t + 30, t1) - dl);
     v.push(a && b ? Math.min(haversineKm(a, b) / 30 * 3600, speedCapOf(tr)) : 0);  // 同 fpSpd:車種極速為硬上限
   }
   return (tr._spdProf = { v, t0, t1, max: Math.max(60, Math.ceil(Math.max(...v) / 20) * 20) });
