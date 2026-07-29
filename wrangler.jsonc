@@ -29,8 +29,20 @@
   // Cron 觸發(UTC;15 1=台北 09:15、15 4=台北 12:15):scheduled handler 跑台鐵準點統計
   // 每日增量(抓 TDX 歷史前一日→寫 D1→重建 blob)。TDX 每日台北 08:00 更新前一日資料,
   // 第一發 09:15 抓;第二發 12:15 是自癒備援,補上第一發若尚未更新或失敗的缺口(冪等,重跑無害)。
+  //
+  // 🔴 2026-07-29 暫時停掉第二發(12:15)。原因不在誤點統計,在**懸賞估值 cron 只掛在這一發**
+  // (見 worker.js 的 scheduled():`event.cron === '15 4 * * *'`)。它一跑就會把
+  // data/bounty_units.json 的 3647 個計價單位整批上架成 281 張卡,其中 **167 張是 dwell(停站點)卡,
+  // 結構上是壞的**:
+  //   ・名字永遠是「線名 → 空白」——bountyCardName() 拿 unitKeys 比對 rec.segs(鍵是 站A|站B),
+  //     dwell 的段鍵兩端同名,比不中就走 `return { from: rec.name, to: '' }`(index.html:9944)
+  //   ・而且不可能完成——coverageOf() 第一行就 `if (a.name === b.name) continue`(worker.js:1278),
+  //     dwell 段永遠進不了 coverage,sample_count 不會加、點數不給、認領不會關
+  // 誤點統計這邊的代價只有「今天沒有第二次補抓」,09:15 那發是冪等且已經跑過,不影響資料。
+  // ✅ 恢復條件:dwell 兩個洞補好(或把 dwell 移出 bounty_units),把 "15 4 * * *" 加回來、
+  //    重跑 `npx wrangler triggers deploy` 即可——板會在下一個 12:15 自己長出來。
   "triggers": {
-    "crons": ["15 1 * * *", "15 4 * * *"]
+    "crons": ["15 1 * * *"]
   },
   // 速率限制(2026-07-26 稽核):/api/delay-history 與 /api/account-delete 在驗證階段就會對
   // Firebase identitytoolkit 與 RevenueCat 各發一次 outbound fetch——而那發生在「token 有沒有效」
