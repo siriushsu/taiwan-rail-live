@@ -1522,8 +1522,10 @@
     scrollbar-width: thin; scrollbar-color: var(--line) transparent;
   }
   body.panel-translucent .board,
-  body.panel-translucent .traincard.tc-sheet,
+  body.panel-translucent .traincard,
   body.panel-translucent #nearCard,
+  body.panel-translucent #xingCard,
+  body.panel-translucent #xingHelp,
   body.panel-translucent .follow-panel,
   body.panel-translucent .freq-card {
     background: var(--panel-glass);
@@ -3596,7 +3598,7 @@
 // 🔴 BUILD 字串會跨並行分支撞號（心得 16）：07-28 兩條線各自遞增又各自部署過——
 // origin/main 這條用到 v0728b，正式站那條用到 v0728f。本次三方合併把兩條線統一，
 // 所以往後推到一個雙方都沒用過的號，辨識線上跑哪一版仍以內容 hash 為準。
-const BUILD = 'v0730b';
+const BUILD = 'v0730c';
 // 成就徽章與車廂標記＝原本那些 emoji 的單色平面版（RailEmoji＝裁切過的 Noto Emoji 單色）。
 // 刻意保留 railIcon(name) 這個唯一入口:呼叫端一行都不用改,只有這裡決定畫法。
 // 🔴 ⚖ 與 ♾ 一律寫**不帶 VS16(U+FE0F)** 的碼位——帶了就強制彩色呈現,會蓋過 font-family
