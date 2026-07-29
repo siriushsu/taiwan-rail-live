@@ -68,6 +68,11 @@ const PRELUDE = `(d, useDelay) => {
     nowSecOfDay = () => state.simSec;         // liveActive() 要求模擬時鐘貼近現在：替時間裝測試替身
   }
   state.playing = false;
+  // 誤點漸變層 easedShift 有狀態、而且吃真實時鐘（每次呼叫都往目標推進一點）。不釘死的話
+  // liveDelaySec → trainSeg → dwell 會隨「這一輪跑多快」漂移：同一份程式碼連跑兩次，B16 一次
+  // 30 筆兩筆站錯邊、一次 28 筆全對。判準若會隨執行速度變色，紅綠都不能當證據（心得 31 的親戚：
+  // 比幾何之前要先把即時狀態旗標全部釘死，這裡釘的是「誤點推進到哪」）。
+  if (typeof easedShift === 'function') easedShift = (k, target) => target;
   // 量測期間把 trainPos 對 (車, 時刻) 記憶化，模擬時鐘一動就整批作廢。
   // 為什麼要：誤點漸變層吃真實時鐘，同一個 (tr, t) 隔幾百毫秒問會給出不同的位置，
   // 於是「畫的時候」與「量的時候」差到 1.41px（x/y 各一個取整格）——實測 929 班結構上
@@ -139,7 +144,7 @@ const M = await A.page.evaluate(() => {
     }
   }
 
-  const out = { scenes: scenes.length, sym: [], norm: [], zoom: [], step: [], pick: [], follow: [], runs3: 0, dot: [], ctrl: [], coin: [], arrow: [], arrowCtrl: [] };
+  const out = { scenes: scenes.length, sym: [], norm: [], zoom: [], step: [], pick: [], follow: [], runs3: 0, dot: [], ctrl: [], coin: [], arrow: [], arrowCtrl: [], yield: [], yieldSkip: [] };
 
   for (const sc of scenes) {
     state.simSec = sc.t; updateBlockHolds();
@@ -217,6 +222,39 @@ const M = await A.page.evaluate(() => {
                  Math.max(0, Math.min(r1.y1, r2.y1) - Math.max(r1.y0, r2.y0)); }
           out.coin.push({ t: sc.t, a: sc.a, b: sc.b, dM: +dM.toFixed(2),
             ma: +mag(oa).toFixed(2), mb: +mag(ob).toFixed(2), ov: ov == null ? null : +ov.toFixed(1) });
+        }
+      }
+    }
+
+    // 讓位的那班固定靠行進方向的右邊，經過的那班走左邊——使用者回報「同一台車被兩班自強超越，
+    // 兩次閃的邊不一樣」。根因是號誌的相位綁在沿線順序上，待避時後車超過前車、順序一翻就整組對調。
+    // 判準用自己算的右法線（切線轉 90°；螢幕 y 向下 ⇒ (−ty, tx) 指向行進方向的右手邊），
+    // 不讀 `_blockSide` 的 s（那是實作自己的簿記）。
+    {
+      const segOf = tr => trainSeg(tr, state.simSec - liveDelaySec(tr) - blockHoldSec(tr));
+      const ga = segOf(trA), gb = segOf(trB);
+      if (ga && gb && !!ga.dwell !== !!gb.dwell) {              // 一方停站一方在跑＝這就是「讓位」
+        // 「讓位的那班」只有在**附近恰好一班停著**時才指得出來。實測 7:27 的 107 與 4107：
+        // 兩班先後停在同一個月台（里程都是 35.675），這一刻誰在讓誰無法定義，兩班也不可能
+        // 都靠右（會疊在一起）。這種取樣要排除，但要把排除了幾筆講出來，免得判準悄悄變空。
+        // 「附近」要照**串**算不是照半徑算：A—B—C 每段各 0.4km 以內就串成一列，C 離 A 可以 0.8km。
+        // 先用半徑寫，於是漏掉 0.5km 外那台也停著的車，這一筆照樣被當成「只有一班在停」判紅。
+        const near = state.trains.map(tr => ({ tr, g: segOf(tr) }))
+          .filter(x => x.g && x.g.ln === ga.ln && x.g.dir === ga.dir)
+          .sort((x, y) => (y.g.d - x.g.d) * ga.dir);
+        let nd = 0;
+        for (let i = 0; i < near.length;) {
+          let j = i + 1;
+          while (j < near.length && (near[j - 1].g.d - near[j].g.d) * near[j].g.dir <= 0.4) j++;
+          if (near.slice(i, j).some(x => x.tr === trA)) nd = near.slice(i, j).filter(x => x.g.dwell).length;
+          i = j;
+        }
+        for (const [tr, o, g] of [[trA, oa, ga], [trB, ob, gb]]) {
+          const tg = shapeTangent(tr), m = mag(o);
+          if (!tg || m < 1) continue;
+          if (nd !== 1) { out.yieldSkip.push({ t: sc.t, tr: tr.train, nd }); continue; }
+          out.yield.push({ t: sc.t, tr: tr.train, dwell: !!g.dwell,
+            proj: +((o.x * -tg.y + o.y * tg.x) / m).toFixed(3) });   // >0＝在行進方向的右側
         }
       }
     }
@@ -370,6 +408,19 @@ check('B13 並排之後兩顆車號牌不得再相疊（矩形交集為零）',
   `${M.coin.length} 對完全重合的車，偏移後矩形交集面積最大 ${Math.max(0, ...M.coin.map(c => c.ov || 0))}px²` +
   (lapBad.length ? `；仍相疊 ${lapBad.length} 對，例：${JSON.stringify(lapBad.slice(0, 3))}` : ''));
 
+// B16 讓位的那班固定靠右。判準寫「誰在哪一側」而不是「有沒有換邊」——後者要靠時間序列才問得出來，
+// 而「恆在右側」比「不換邊」強：它同時排除了「一路都在錯邊」與「中途換邊」兩種壞法。
+const yBad = M.yield.filter(y => y.dwell ? y.proj <= 0 : y.proj >= 0);
+check('B16 讓位的那班（停站中）固定在行進方向的右側，經過的那班在左側',
+  M.yield.length > 0 && yBad.length === 0,
+  `${M.yield.length} 筆（讓位 ${M.yield.filter(y => y.dwell).length}／經過 ${M.yield.filter(y => !y.dwell).length}），` +
+  `讓位側投影最小 ${Math.min(1, ...M.yield.filter(y => y.dwell).map(y => y.proj))}、` +
+  `經過側最大 ${Math.max(-1, ...M.yield.filter(y => !y.dwell).map(y => y.proj))}` +
+  `；另排除 ${M.yieldSkip.length} 筆「附近不只一班停著、指不出誰在讓」的取樣` +
+  (M.yieldSkip.length ? `（例：${JSON.stringify(M.yieldSkip.slice(0, 3))}）` : '') +
+  `；取樣時刻 ${[...new Set(M.yield.map(y => y.t))].length} 個` +
+  (yBad.length ? `；站錯邊 ${yBad.length} 筆，例：${JSON.stringify(yBad.slice(0, 3))}` : ''));
+
 // B14 恆等式：偏移是純橫向平移，方向是「現在減八秒前」——兩頭一起平移，差向量不變。
 // 只偏其中一頭（原本的寫法）等於把橫向位移當成前進量算進去，箭頭會轉去指偏移的方向。
 const arrMoved = M.arrow.filter(a => a.ddeg > 0.01);
@@ -430,6 +481,206 @@ check('B11 時鐘在跑時偏移不閃爍（相鄰兩幀不得整段翻面）',
   MO.frames > 60 && MO.n > 0 && MO.maxAmp <= MO.amp && MO.maxJump < MO.maxAmp,
   `連續 ${MO.frames} 幀（30× 快轉）共 ${MO.n} 筆逐幀比較：偏移量最大 ${MO.maxAmp}px（上界＝半個牌寬＋縫 ${MO.amp}px），` +
   `幀間變化 p99 ${MO.p99}px、最大 ${MO.maxJump}px（整段翻面會是 ${(2 * MO.maxAmp).toFixed(1)}px）`);
+
+// ── B17 一整段待避的時間序列。使用者看到的是「同一台車被兩班自強超越，兩次閃的邊不一樣」——
+// 那是**換邊**，只有沿著時間走才問得出來（B16 是 45 個獨立時刻的快照，照不到換邊）。
+// 判準自帶「有沒有真的踩到」的閘門：區間內必須真的發生超越（沿線前後關係換號），
+// 沒換號就代表這條判準根本沒測到它要測的東西，直接判 FAIL 而不是靜靜地綠。
+const OV = await A.page.evaluate(() => {
+  const keyOf = tr => (tr.sys || '') + ':' + tr.train;
+  const settle = (n = 30) => { for (let k = 0; k < n; k++) draw(); };
+  const segOf = tr => trainSeg(tr, state.simSec - liveDelaySec(tr) - blockHoldSec(tr));
+  const tangent = tr => {
+    const g = segOf(tr); if (!g || !g.ln) return null;
+    const a = posAlongShape(g.ln, g.d - 0.02 * g.dir), b = posAlongShape(g.ln, g.d + 0.02 * g.dir);
+    if (!a || !b) return null;
+    const cl = Math.cos(a.lat * Math.PI / 180);
+    const x = (b.lon - a.lon) * cl, y = -(b.lat - a.lat), L = Math.hypot(x, y);
+    return L > 1e-9 ? { x: x / L, y: y / L } : null;
+  };
+  // 找場景要找「真的會超越」的那一種，不是「有停站車配對」就好——第一版只找後者，
+  // 挑到兩班停在同一站的（潮州 3138/198），整段沒換號，判準等於沒踩到 bug（它自己講出來了）。
+  const cands = [];
+  for (let t = 0; t < 86400 && cands.length < 60; t += 47) {
+    state.simSec = t; updateBlockHolds();
+    if (!_blockSide.size) continue;
+    const byKey = new Map(); for (const tr of state.trains) byKey.set(keyOf(tr), tr);
+    for (const [k, info] of _blockSide) {
+      const m0 = byKey.get(k); if (!m0 || !info.other) continue;
+      const gm = segOf(m0), go = segOf(info.other);
+      if (!gm || !go || !gm.dwell || go.dwell) continue;          // me 在讓、other 在跑
+      const p = trainPos(m0, t); if (!p) continue;
+      cands.push({ t, me: m0, other: info.other, lat: p.lat, lon: p.lon });
+      break;
+    }
+  }
+  // 便宜的預掃（不畫圖）：兩種場景各要一個
+  //   overtake＝區間內沿線前後關係真的換號（測「停站錨」那條規則）
+  //   depart  ＝停站在區間內真的結束、而且結束後還配著（測「相位黏著」那條規則——
+  //             停站錨一消失，相位就得有人接手，不然讓完的瞬間會換邊）
+  const scan = (c, from, to) => {
+    const orders = new Set(); let sawDwell = false, sawRun = false;
+    for (let dt = from; dt <= to; dt += 6) {
+      state.simSec = c.t + dt; updateBlockHolds();
+      if (!_blockSide.has(keyOf(c.me))) continue;
+      const gm = segOf(c.me), go = segOf(c.other); if (!gm || !go) continue;
+      // 只收非零的號：兩班停在同一站時里程差恰好是 0，把 Math.sign 的 0 也算成一種「號」
+      // 會讓 {0, 1} 通過「有兩種」的閘門 ⇒ 挑到根本沒發生超越的場景（第一版就是這樣過關的）
+      const s = Math.sign((go.d - gm.d) * gm.dir); if (s) orders.add(s);
+      if (gm.dwell) sawDwell = true; else if (sawDwell) sawRun = true;
+    }
+    return { overtook: orders.has(1) && orders.has(-1), departed: sawDwell && sawRun };
+  };
+  const walk = (hit, from, to) => {
+    // 鏡頭對準**這個窗的中段**而不是候選時刻：窗長 300 秒，沿用舊中心會讓車跑出畫面，
+    // _trainHits 找不到它，整段一列都收不到（看起來像「沒踩到」，其實是鏡頭沒跟上）。
+    const mid = trainPos(hit.me, hit.t + (from + to) / 2) || hit;
+    map.setView([mid.lat, mid.lon], 13, { animate: false });
+    const me = hit.me, other = hit.other, rows = [];
+    for (let dt = from; dt <= to; dt += 3) {                      // 逐 3 秒走過整段
+      state.simSec = hit.t + dt; updateBlockHolds(); settle(dt === from ? 40 : 8);
+      const info = _blockSide.get(keyOf(me));
+      if (!info) continue;                                        // me 還在並排的時候才有側別可言
+      const gPartner = segOf(info.other);
+      if (!gPartner || gPartner.dwell) continue;                  // 現在的鄰居也在停＝不是待避，規則不適用
+      const gm = segOf(me), go = segOf(other), tg = tangent(me);
+      const p = trainPos(me, state.simSec); if (!gm || !go || !tg || !p) continue;
+      const c = map.latLngToContainerPoint([p.lat, p.lon]);
+      const h = state._trainHits.find(x => x.tr === me); if (!h) continue;
+      const ox = h.x - c.x, oy = h.y - c.y, m = Math.hypot(ox, oy);
+      rows.push({ dt, dwell: !!gm.dwell, m: +m.toFixed(2),
+        partner: info.other.train, pDwell: !!gPartner.dwell,      // 角色有沒有換人，要看這兩個
+        order: Math.sign((go.d - gm.d) * gm.dir),                 // +1＝對方在前，−1＝對方在後
+        proj: m < 1 ? null : +((ox * -tg.y + oy * tg.x) / m).toFixed(3) });
+    }
+    const orders = new Set(rows.filter(r => r.m >= 1).map(r => r.order));
+    return { ok: true, me: me.train, other: other.train, t: hit.t, rows,
+      overtook: orders.has(1) && orders.has(-1),
+      departed: rows.some(r => r.dwell && r.m >= 1) && rows.some(r => !r.dwell && r.m >= 1) };
+  };
+  let ov = null;
+  for (const c of cands) {
+    if (scan(c, -150, 150).overtook) { const r = walk(c, -150, 150); if (r.overtook) { ov = r; break; } }
+  }
+  return {
+    ov: ov || { ok: false, why: `${cands.length} 個待避候選裡沒有一個在 ±150 秒內真的發生超越` },
+  };
+});
+const hhmm = t => `${Math.floor(t / 3600)}:${String(Math.floor(t % 3600 / 60)).padStart(2, '0')}`;
+const seqOf = R => (R.rows || []).filter(r => r.proj != null);
+const badOf = R => (R.rows || []).filter(r => r.dwell && r.proj != null && r.proj <= 0);
+// 「換邊」只算**情境沒變卻換了邊**。情境用「錨是誰」描述——錨＝唯一那台停站中的車；
+// 兩台都停（或都沒停）就沒有誰在讓誰，錨＝無。換邊唯一合法的理由是「換了一個新的錨」（角色真的對調）。
+// 這個定義是試出來的，兩次都被真資料修正：
+//   ・只要「停站狀態變了就算合法」⇒ 把「讓完、大家都在跑」那一刻排除掉，而那正是黏著唯一在管的一刻
+//     ⇒ 拿掉黏著的突變(N18)完全照不到（全綠）。
+//   ・只要「我在停站就算有錨」⇒ 兩台都停在同一站（實測 107 與 3151 同為 20.841）也算，
+//     於是「對方開走、剩我在讓」被誤判成閃爍。
+const anchorOf = r => r.dwell === r.pDwell ? 'none' : (r.dwell ? 'me' : 'you');
+const flipOf = R => { const s = seqOf(R); return s.filter((r, i) => i && Math.sign(r.proj) !== Math.sign(s[i - 1].proj)
+  && r.partner === s[i - 1].partner && r.dt - s[i - 1].dt === 3
+  && !(anchorOf(r) !== 'none' && anchorOf(r) !== anchorOf(s[i - 1]))); };
+const say = (R, gate, win) => R.ok
+  ? `${R.me} 讓 ${R.other}（${hhmm(R.t)} 起 ${win}），${seqOf(R).length} 個取樣點有偏移；${gate}；` +
+    `讓位側投影最小 ${Math.min(1, ...(R.rows || []).filter(r => r.dwell && r.proj != null).map(r => r.proj))}；` +
+    `全程換邊 ${flipOf(R).length} 次` +
+    (badOf(R).length ? `；站錯邊 ${badOf(R).length} 筆，例：${JSON.stringify(badOf(R).slice(0, 4))}` : '') +
+    (flipOf(R).length ? `；換邊於 dt=${flipOf(R).map(r => r.dt).slice(0, 6).join(',')}` : '')
+  : R.why;
+
+const OVv = OV.ov;
+check('B17 一整段待避走完（逐 3 秒），讓位那班全程待在同一側——且區間內真的發生過超越',
+  !!OVv.ok && OVv.overtook && seqOf(OVv).length > 0 && badOf(OVv).length === 0 && flipOf(OVv).length === 0,
+  say(OVv, OVv.overtook ? '沿線前後關係有換號（超越確實發生）' : '**沒換號＝這條判準沒踩到 bug**', '±150 秒'));
+
+// ── B18 讓完之後也不得換邊——「黏著上一幀的號誌」那條規則唯一的判準。
+//
+// 這一條**讀 `_blockSide` 的號誌，不量畫面**，與本檔其他每一條相反，理由要講清楚：
+// 待避結束的那一刻，讓的那班一開走就與對方拉開到一個車距（耦合機制的目的就是這個），
+// 兩顆牌不再相疊 ⇒ 螢幕偏移歸零 ⇒ 螢幕上量不到「它換到哪一邊」。實走六個候選、每個 191 個
+// 取樣點，讓完之後可量的列全部是 0 筆。號誌對應到畫面哪一側，由 B1/B2/B12/B13/B16/B17
+// 用畫面像素獨立證過；這裡只問「同一個情境下號誌穩不穩」，那是時間軸上的性質。
+// 侷限照實記：這條與實作同源（心得 29），它證明的是「規則有被遵守」，不是「畫面是對的」。
+//
+// 刻意不挑場景：全日所有「一方停站、鄰居在跑」的配對都走一遍。挑單一場景會踩空——
+// 第一版挑到 2114/1706 那段，拿掉黏著與有黏著的結果一模一樣（探針實測），判準於是永遠綠。
+const ST = await A.page.evaluate(() => {
+  const keyOf = tr => (tr.sys || '') + ':' + tr.train;
+  const segOf = tr => trainSeg(tr, state.simSec - liveDelaySec(tr) - blockHoldSec(tr));
+  const seeds = [], seen = new Set();
+  for (let t = 0; t < 86400; t += 53) {
+    state.simSec = t; updateBlockHolds();
+    for (const [k, info] of _blockSide) {
+      if (!info.other) continue;
+      const me = state.trains.find(x => keyOf(x) === k); if (!me) continue;
+      const gm = segOf(me), go = segOf(info.other);
+      if (gm && go && gm.dwell && !go.dwell) {
+        const tag = me.train + '/' + info.other.train;
+        if (!seen.has(tag)) { seen.add(tag); seeds.push({ t, no: me.train, other: info.other.train }); }
+        break;
+      }
+    }
+  }
+  const out = [];
+  for (const sd of seeds) {
+    const me = state.trains.find(x => x.train === sd.no && x.sys === 'tra_sched');
+    const you = state.trains.find(x => x.train === sd.other && x.sys === 'tra_sched');
+    if (!me || !you) continue;
+    const rows = [];
+    // 每一段各自從乾淨狀態起走。耦合停等與號誌記憶都是跨呼叫累積的，544 段接力掃下來，
+    // 前一段留下的狀態會漏進下一段：第一版就這樣掃出 2 次「換邊」（2134/270、112/1174），
+    // 單獨重走同樣的區間卻完全穩定＝那 2 次是掃描順序的產物，不是產品的行為。
+    // 真實使用是時間往前連續跑，不會這樣跳；跳完就要清乾淨，否則量到的是自己的殘留。
+    _blockHold.clear(); _blockGap.clear(); _blockPrevD.clear(); _blockSideEase.clear(); _blockSideSign.clear();
+    _blockSim = null;
+    for (let dt = -90; dt <= 480; dt += 3) {
+      state.simSec = sd.t + dt; updateBlockHolds();
+      const info = _blockSide.get(keyOf(me));
+      if (!info || info.other !== you) continue;
+      const gm = segOf(me), go = segOf(you); if (!gm || !go) continue;
+      // 車列成員也記下來：第三台車加入／離開會讓每個人的位次改變，那是情境真的變了不是閃爍
+      const arr = state.trains.map(tr => ({ tr, g: segOf(tr) }))
+        .filter(x => x.g && x.g.ln === gm.ln && x.g.dir === gm.dir)
+        .sort((x, y) => (y.g.d - x.g.d) * gm.dir);
+      let mem = '';
+      for (let i = 0; i < arr.length;) {
+        let j = i + 1;
+        while (j < arr.length && (arr[j - 1].g.d - arr[j].g.d) * arr[j].g.dir <= 0.4) j++;
+        if (arr.slice(i, j).some(x => x.tr === me)) mem = arr.slice(i, j).map(x => x.tr.train).sort().join(',');
+        i = j;
+      }
+      rows.push({ dt, s: info.s, mem, dwell: !!gm.dwell, pDwell: !!go.dwell });
+    }
+    if (rows.length) out.push({ t: sd.t, me: sd.no, you: sd.other, rows });
+  }
+  return out;
+});
+// 情境＝(錨是誰, 車列成員)。換邊唯一合法的理由是「換了一個新的錨」（角色真的對調）。
+// 「換錨」允許 ±1 個取樣點的時差：判準每 3 秒問一次「誰在停站」，而實作在自己那一幀用的是
+// **上一幀**的停等值，兩邊對「角色什麼時候換人」的認定天生差一拍。實測 112/1174 12:02 就是
+// 這樣：112 讓完換成 1174 停站，判準已經認定新錨、實作還沒，於是合法的角色對調被算成閃爍。
+// 這個容差不會放過 N18——拿掉黏著的換邊發生在「錨變成沒有人」的那一刻，附近沒有新錨出現。
+const anchorNear = (rows, i) => {
+  for (let j = Math.max(1, i - 1); j <= Math.min(rows.length - 1, i + 1); j++) {
+    if (rows[j].dt - rows[j - 1].dt !== 3) continue;
+    const a = anchorOf(rows[j]);
+    if (a !== 'none' && a !== anchorOf(rows[j - 1])) return true;
+  }
+  return false;
+};
+const badFlips = ST.flatMap(R => R.rows.filter((r, i) => i && R.rows[i - 1].dt === r.dt - 3
+  && r.s !== R.rows[i - 1].s && r.mem === R.rows[i - 1].mem && !anchorNear(R.rows, i))
+  .map(r => `${R.me}/${R.you} ${hhmm(R.t)}+${r.dt}`));
+// 閘門：全日必須真的出現「錨從某一班變成沒有人、而且還配著對」——那一刻只剩黏著撐著。
+// 沒出現過就代表這條判準沒踩到規則，要判紅而不是靜靜地綠。
+const stEnds = ST.filter(R => R.rows.some((r, i) => i && R.rows[i - 1].dt === r.dt - 3
+  && anchorOf(r) === 'none' && anchorOf(R.rows[i - 1]) !== 'none'));
+check('B18 讓完之後（讓的那班開走、沒有人在讓了）也不得換邊——相位黏著唯一的判準',
+  ST.length > 0 && stEnds.length > 0 && badFlips.length === 0,
+  `全日 ${ST.length} 段待避（共 ${ST.reduce((a, R) => a + R.rows.length, 0)} 個配對取樣點），` +
+  `其中 ${stEnds.length} 段走到「讓完、沒有人在讓了」那一刻` +
+  (stEnds.length ? '' : '　←**一段都沒有＝這條判準沒踩到規則**') +
+  `；情境沒變卻換邊 ${badFlips.length} 次` + (badFlips.length ? `：${badFlips.slice(0, 8).join('、')}` : ''));
 
 // ── B6 位置零變化：偏移是純畫面的，trainPos 逐值必須與「偏移加入前」相同
 if (BPORT) {

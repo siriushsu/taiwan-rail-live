@@ -3166,7 +3166,7 @@ try { if (matchMedia('(max-width: 900px)').matches) document.body.classList.add(
         <li><span class="d">7/10</span><span>高鐵、桃園機捷、淡海輕軌、安坑輕軌加入路網</span></li>
         <li><span class="d">7/10</span><span>環島觀光列車一分為二：往東「山海號」、往西「平原號」</span></li>
         <li class="grp">即時動態與誤點</li>
-        <li><span class="d">7/29</span><span>畫面上後面的車會直接穿過前面那班：現在會保持車距跟著跑，該讓的就在站邊等；兩班車貼太近時會左右錯開一點，看得出來是兩班。時刻表本身要它超車、中間又沒站可讓的極少數情況仍會出現（謝謝網友回報）</span></li>
+        <li><span class="d">7/29</span><span>畫面上後面的車會直接穿過前面那班：現在會保持車距跟著跑，該讓的就在站邊等；兩班車貼太近時會左右錯開一點，讓的那班固定靠右、超車的走左邊，看得出來是兩班。時刻表本身要它超車、中間又沒站可讓的極少數情況仍會出現（謝謝網友回報）</span></li>
         <li><span class="d">7/28</span><span>誤點的車過了表定到站時間後被當成已跑完：點下去會從頭重播、跟隨面板也提早說抵達。改用校正後的時間判斷，下一站與進度條一併同步（謝謝網友回報）</span></li>
         <li><span class="d">7/24</span><span>新增「資料源連線狀態頁」：各即時資料源連線狀況一目了然，並白話總結「地圖現在準嗎」</span></li>
         <li><span class="d">7/24</span><span>修正 App 在背景放久後時鐘停住、車輛位置對不上；回前景會自動追回「現在」</span></li>
@@ -4302,6 +4302,7 @@ const BLOCK_SNAP_SEC = 300;                  // 模擬時鐘一次推進超過�
 // 誰都不是「被移動的那個」(既有鐵則:列車牌畫真實位置、不為了避讓標籤而動車)。
 const BLOCK_SIDE_KM = BLOCK_GAP_KM;
 const _blockHold = new Map(), _blockCapped = new Set(), _blockGap = new Map(), _blockPrevD = new Map(), _blockSide = new Map();
+const _blockSideSign = new Map();            // 上一幀給過的號誌:相位要黏著,身分一變才不會整組對調
 let _blockSim = null;
 function blockKeyOf(tr) { return (tr.sys || '') + ':' + tr.train; } // 跨系統車次會撞號,不能只用車次
 function blockHoldSec(tr) { return _blockHold.size && BLOCK_SYS[tr.sys] ? (_blockHold.get(blockKeyOf(tr)) || 0) : 0; }
@@ -4318,7 +4319,7 @@ function updateBlockHolds() {
     const g = trainSeg(tr, state.simSec - liveDelaySec(tr) - h);
     // 沒在跑,或這段沒貼上軌道線形 → 不參與耦合。緩動狀態一併清掉:不清的話,收班時帶著偏移離場的車,
     // 隔天從起點出現的第一幀會先跳到舊偏移再滑回來
-    if (!g || !g.ln) { _blockHold.delete(key); _blockGap.delete(key); _blockPrevD.delete(key); _blockSideEase.delete(key); continue; }
+    if (!g || !g.ln) { _blockHold.delete(key); _blockGap.delete(key); _blockPrevD.delete(key); _blockSideEase.delete(key); _blockSideSign.delete(key); continue; }
     const k = g.ln.id + '|' + g.dir;                       // 同一條線形+同方向才是同一條軌道
     let a = groups.get(k); if (!a) groups.set(k, a = []);
     a.push({ tr, key, h, g });
@@ -4380,16 +4381,40 @@ function updateBlockHolds() {
       // 屏障沿用更前面那班的
       barrier = it.g.dwell ? barrier : { d: it.g.d, key: it.key };
     }
-    // 並排偏移的配對:在同一份排序上取「連續且貼近」的車列,左右交替。用 arr 的鄰接而不是 barrier 鏈——
+    // 並排偏移的配對:在同一份排序上取「連續且貼近」的車列。用 arr 的鄰接而不是 barrier 鏈——
     // 停站中的車也要參與(月台待避的當下正是兩顆標記重疊的那一刻)。
-    for (let i = 1, run = -1; i < arr.length; i++) {
-      if ((arr[i - 1].g.d - arr[i].g.d) * arr[i].g.dir > BLOCK_SIDE_KM) { run = -1; continue; }
-      // 連 ln/d/dir 一起存:畫面端要用線形自己的切線,不能用「我→對方」的連線向量——
-      // 兩車停在同一站時經緯度完全相同(實測 3138 與 198 於同站,距離 0),連線向量長度是 0,
-      // 偏移會靜默失效,而那正是兩顆標記完全合體、最需要它的一刻。
-      const side = it => ({ ln: it.g.ln, d: it.g.d, dir: it.g.dir });
-      if (run < 0) { run = 0; _blockSide.set(arr[i - 1].key, { s: 1, other: arr[i].tr, ...side(arr[i - 1]) }); }
-      _blockSide.set(arr[i].key, { s: ++run % 2 ? -1 : 1, other: arr[i - 1].tr, ...side(arr[i]) });
+    // 號誌沿車列交替(相鄰兩台才分得開),但**相位不能綁沿線順序**:待避時後車會超過停站中的前車,
+    // 順序一翻整組號誌就跟著對調,兩台同時換邊 ⇒ 使用者看到同一台車被兩班自強超越時「左閃右閃」。
+    // 改成用身分定相位,優先序:
+    //   ① 車列裡「恰好一台」停站中 ⇒ 它靠行進方向的右邊(＝正在讓的那班固定靠右,經過的走左邊)
+    //   ② 否則沿用上一幀的號誌 ⇒ 讓位結束、大家都在跑之後不會突然對調
+    //   ③ 都沒有 ⇒ 照沿線順序,前面那台靠右
+    // ①要求「恰好一台」而不是「至少一台」:兩台都停在同一站時沒有誰在讓誰,里程還完全相同
+    // (實測 8888 與 272 同為 22.366),誰排前面純看排序的先後,一換就整組對調——那正是要防的閃爍。
+    const side = it => ({ ln: it.g.ln, d: it.g.d, dir: it.g.dir });
+    const nat = m => m % 2 ? -1 : 1;                        // 交替的原始號誌(相位未定)
+    for (let i = 0; i < arr.length;) {
+      let j = i + 1;
+      while (j < arr.length && (arr[j - 1].g.d - arr[j].g.d) * arr[j].g.dir <= BLOCK_SIDE_KM) j++;
+      if (j - i >= 2) {
+        let flip = 1;                                       // 整列一起翻:翻了相鄰仍相反,只是換邊
+        const dw = [];
+        for (let m = i; m < j; m++) if (arr[m].g.dwell) dw.push(m - i);
+        if (dw.length === 1) flip = nat(dw[0]);             // 讓停站中的那台拿到 +1(右)
+        else {
+          const k = arr.slice(i, j).findIndex(it => _blockSideSign.has(it.key));
+          if (k >= 0) flip = _blockSideSign.get(arr[i + k].key) * nat(k);
+        }
+        for (let m = i; m < j; m++) {
+          const s = flip * nat(m - i);
+          // 連 ln/d/dir 一起存:畫面端要用線形自己的切線,不能用「我→對方」的連線向量——
+          // 兩車停在同一站時經緯度完全相同(實測 3138 與 198 於同站,距離 0),連線向量長度是 0,
+          // 偏移會靜默失效,而那正是兩顆標記完全合體、最需要它的一刻。
+          _blockSide.set(arr[m].key, { s, other: arr[m === i ? i + 1 : m - 1].tr, ...side(arr[m]) });
+          _blockSideSign.set(arr[m].key, s);
+        }
+      }
+      i = j;
     }
   }
   state._block = { holds: _blockHold, capped: _blockCapped }; // 診斷用把手(驗收的 T1–T7 不准讀這個)
