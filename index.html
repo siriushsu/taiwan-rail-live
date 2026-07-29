@@ -5074,12 +5074,12 @@ function drawSched(w, h) {
     if (!inView(cp)) continue;
     state._trainHits.push({ x: cp.x, y: cp.y, tr }); // 供點擊/hover 命中測試(每幀重建)
     const glowC = isHSR(tr) ? HSR_ORANGE : tr.color;
-    drawTrail(dt => trainPos(tr, state.simSec - dt), cp, glowC);
+    drawTrail(dt => trainPos(tr, state.simSec - dt), cp, glowC, sh);
     if (state._featured.has(tr)) drawFeaturedRing(cp); // 今日之最(探索面板推薦)→ 地圖上加繪金色光環識別
     glowUnder(cp, glowC, showTrain ? 10 : 3.5); // 車號牌模式:光暈放大到繞出牌緣,近看也發亮
     if (showTrain) isHSR(tr) ? drawHSRTag(cp, tr.train) : drawTag(cp, tr.train, tr.color, textColorFor(tr.color));
     else isHSR(tr) ? drawHSRDot(cp) : drawDot(cp, tr.color);
-    if (state.dirArrow && showTrain) drawDirArrow(cp, tr, glowC); // 車號牌前緣加行進方向箭頭(遠景圓點不畫,避免密集小點雜亂)
+    if (state.dirArrow && showTrain) drawDirArrow(cp, tr, glowC, sh); // 車號牌前緣加行進方向箭頭(遠景圓點不畫,避免密集小點雜亂)
   }
   // 站名標籤:大站先取位、字級隨站等、蓋在列車上層;錨點放軌道側邊(法線方向)——
   // 列車沿軌道跑就壓不到字,標籤與車號牌位置都固定不動(對列車做避讓會讓牌亂跳,已撤)
@@ -5371,9 +5371,14 @@ function blockSideShift(tr, pos, cp, big) {
   if (Math.abs(x) < 0.05 && Math.abs(y) < 0.05) { _blockSideEase.delete(key); return null; }
   const n = { x, y }; _blockSideEase.set(key, n); return n;
 }
-function drawDirArrow(cp, tr, color) { // 台鐵/高鐵:牌=車次號(數字窄字),半寬 6+3/字
+function drawDirArrow(cp, tr, color, sh) { // 台鐵/高鐵:牌=車次號(數字窄字),半寬 6+3/字
   const pB = trainPos(tr, state.simSec - DIR_DT_SEC);
-  const ang = dirAngOf(tr, cp, pB ? map.latLngToContainerPoint([pB.lat, pB.lon]) : null);
+  const cpB = pB ? map.latLngToContainerPoint([pB.lat, pB.lon]) : null;
+  // 並排偏移時,回看點要套同一個位移:方向是「現在減八秒前」,只偏其中一頭等於把橫向位移
+  // 當成前進量算進去(偏移十幾 px、八秒前進才幾 px ⇒ 箭頭會轉去指偏移的方向)。
+  // 兩頭一起偏＝剛體平移,差向量不變,箭頭照樣是鐵軌的方向。
+  if (cpB && sh) { cpB.x += sh.x; cpB.y += sh.y; }
+  const ang = dirAngOf(tr, cp, cpB);
   if (ang === undefined) return;
   drawArrowAt(cp, ang, color, 6 + String(tr.train).length * 3, 8);
 }
@@ -5430,7 +5435,7 @@ function trailRibbon(P, w0, fillA, color) {
   g.addColorStop(1, trailRGBA(color, 0));
   ctx.fillStyle = g; ctx.fill();
 }
-function drawTrail(getPos, head, color) {
+function drawTrail(getPos, head, color, sh) {
   if (!trainGlow()) return;
   const step = TRAIL_SEC / TRAIL_STEPS;
   _trailPts.length = 0; _trailPts.push(head);
@@ -5438,6 +5443,7 @@ function drawTrail(getPos, head, color) {
     const pos = getPos(k * step);
     if (!pos) break; // 早於發車 / 環島與跨午夜回繞 → 沒有更早的位置,尾巴到此為止
     const cp = map.latLngToContainerPoint([pos.lat, pos.lon]);
+    if (sh) { cp.x += sh.x; cp.y += sh.y; } // 整條尾巴跟著偏(頭已經偏了):只偏頭會在車底折一個角
     const prev = _trailPts[_trailPts.length - 1];
     const d = Math.hypot(cp.x - prev.x, cp.y - prev.y);
     if (d > 200) break;      // 防回繞/跳站在畫面上拉出長弦

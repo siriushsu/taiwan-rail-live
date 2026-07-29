@@ -39,6 +39,18 @@ const srvHash = crypto.createHash('md5')
   .update(Buffer.from(await (await fetch(`http://127.0.0.1:${PORT}/index.html`)).arrayBuffer())).digest('hex');
 console.log(`G0 target=${ROOT}\n   disk=${diskHash}\n   serve=${srvHash}`);
 if (diskHash !== srvHash) { console.log('FAIL  G0 — 伺服器吐的不是受測樹的檔'); process.exit(1); }
+// B6 的基準樹也要自檢：它必須是「已經有耦合、還沒有並排偏移」的那一版。用內容判身分而不是
+// 記住某個 hash——第一次跑就把 BPORT 指到耦合之前的樹，B6 於是拿耦合造成的位移當成偏移的鍋
+// （6738 點中 1 點不同，數字小到看起來像雜訊）。判準對象錯了，數字再漂亮都是假的（心得 32）。
+if (BPORT) {
+  const bTxt = await (await fetch(`http://127.0.0.1:${BPORT}/index.html`)).text();
+  const bHash = crypto.createHash('md5').update(Buffer.from(bTxt)).digest('hex');
+  const hasBlock = bTxt.includes('function updateBlockHolds'), hasSide = bTxt.includes('function blockSideShift');
+  console.log(`   base=${bHash}  耦合=${hasBlock ? '有' : '無'}  並排偏移=${hasSide ? '有' : '無'}`);
+  if (!hasBlock || hasSide) {
+    console.log(`FAIL  G0 — B6 的基準樹不對：要「有耦合、無並排偏移」的版本（port ${BPORT}）`); process.exit(1);
+  }
+}
 
 const delays = {};
 if (USE_DELAY) {
@@ -101,7 +113,10 @@ const M = await A.page.evaluate(() => {
   const shapeTangent = tr => {
     const g = trainSeg(tr, state.simSec - liveDelaySec(tr) - blockHoldSec(tr));
     if (!g || !g.ln) return null;
-    const a = posAlongShape(g.ln, g.d - 0.02), b = posAlongShape(g.ln, g.d + 0.02);
+    // 帶 g.dir ⇒ 切線朝「這班車實際前進的方向」。B2 只看垂直（絕對值），差 180° 照樣過；
+    // B15 要比的是箭頭指哪邊，方向反了會整批量到約 180°（首次跑就是這樣，配對車與對照組同時 173°
+    //  ⇒ 兩組都錯＝判準的參考方向錯，不是產品錯）。
+    const a = posAlongShape(g.ln, g.d - 0.02 * g.dir), b = posAlongShape(g.ln, g.d + 0.02 * g.dir);
     if (!a || !b) return null;
     const cl = Math.cos(a.lat * Math.PI / 180);
     const x = (b.lon - a.lon) * cl, y = -(b.lat - a.lat), L = Math.hypot(x, y);
@@ -124,7 +139,7 @@ const M = await A.page.evaluate(() => {
     }
   }
 
-  const out = { scenes: scenes.length, sym: [], norm: [], zoom: [], step: [], pick: [], follow: [], runs3: 0, dot: [], ctrl: [], coin: [] };
+  const out = { scenes: scenes.length, sym: [], norm: [], zoom: [], step: [], pick: [], follow: [], runs3: 0, dot: [], ctrl: [], coin: [], arrow: [], arrowCtrl: [] };
 
   for (const sc of scenes) {
     state.simSec = sc.t; updateBlockHolds();
@@ -204,6 +219,43 @@ const M = await A.page.evaluate(() => {
             ma: +mag(oa).toFixed(2), mb: +mag(ob).toFixed(2), ov: ov == null ? null : +ov.toFixed(1) });
         }
       }
+    }
+
+    // 箭頭：橫向偏移是平移，不是前進，不得被算進「往哪走」。兩條判準各走一條路——
+    // B14 是恆等式（同一時刻把配對整個拿掉重量一次，角度必須一模一樣），沒有任何門檻可調；
+    // B15 拿線形切線當外部真值，門檻取自同一幀沒配對的車（它們結構上沒有偏移，量到的偏差
+    //     就是「八秒弦線 vs 切線 ＋ dirAngOf 平滑」的固有底線，不必手打一個度數）。
+    {
+      const angOf = tr => { delete tr._dirAng; draw(); return tr._dirAng; };  // 清掉再畫一幀＝拿到未平滑的當幀角度
+      const devOf = tr => {
+        const tg = shapeTangent(tr), a = tr._dirAng;
+        if (!tg || a === undefined) return null;
+        let d = a - Math.atan2(tg.y, tg.x);
+        while (d > Math.PI) d -= 2 * Math.PI;
+        while (d < -Math.PI) d += 2 * Math.PI;
+        return +(Math.abs(d) * 180 / Math.PI).toFixed(2);
+      };
+      const ctrlTr = [];
+      for (const h of state._trainHits) {
+        if (h.tr.sys !== 'tra_sched' || _blockSide.has(keyOf(h.tr))) continue;
+        ctrlTr.push(h.tr); if (ctrlTr.length >= 6) break;   // 先抓名單：draw() 會重建 _trainHits
+      }
+      const withOff = [];
+      for (const tr of [trA, trB]) withOff.push({ tr, a: angOf(tr), m: mag(offOf(tr)), dev: devOf(tr) });
+      for (const tr of ctrlTr) { angOf(tr); const d = devOf(tr); if (d != null) out.arrowCtrl.push(d); }
+      const keepSide = new Map(_blockSide);
+      _blockSide.clear(); _blockSideEase.clear();          // 偏移歸零（updateBlockHolds 才會重建，draw 不會）
+      for (const w of withOff) {
+        const a0 = angOf(w.tr);
+        if (w.a === undefined || a0 === undefined) continue;
+        let d = w.a - a0;
+        while (d > Math.PI) d -= 2 * Math.PI;
+        while (d < -Math.PI) d += 2 * Math.PI;
+        out.arrow.push({ t: sc.t, tr: w.tr.train, m: +w.m.toFixed(2), dev: w.dev,
+          ddeg: +(Math.abs(d) * 180 / Math.PI).toFixed(3) });
+      }
+      for (const [k, v] of keepSide) _blockSide.set(k, v);
+      _blockSideEase.clear(); settle();
     }
 
     // 命中：點畫出來的那顆，選到的必須是它自己（心得 33：驗按鈕不是驗它在哪，是驗點它會發生什麼）
@@ -317,6 +369,26 @@ check('B13 並排之後兩顆車號牌不得再相疊（矩形交集為零）',
   M.coin.length > 0 && lapBad.length === 0,
   `${M.coin.length} 對完全重合的車，偏移後矩形交集面積最大 ${Math.max(0, ...M.coin.map(c => c.ov || 0))}px²` +
   (lapBad.length ? `；仍相疊 ${lapBad.length} 對，例：${JSON.stringify(lapBad.slice(0, 3))}` : ''));
+
+// B14 恆等式：偏移是純橫向平移，方向是「現在減八秒前」——兩頭一起平移，差向量不變。
+// 只偏其中一頭（原本的寫法）等於把橫向位移當成前進量算進去，箭頭會轉去指偏移的方向。
+const arrMoved = M.arrow.filter(a => a.ddeg > 0.01);
+check('B14 並排偏移不得轉動箭頭：同一時刻拿掉偏移重量，角度必須一模一樣',
+  M.arrow.length > 0 && arrMoved.length === 0,
+  `${M.arrow.length} 筆（偏移量中位 ${q(M.arrow.map(a => a.m), 0.5)}px），最大角度差 ` +
+  `${Math.max(0, ...M.arrow.map(a => a.ddeg))}°` +
+  (arrMoved.length ? `；轉動 ${arrMoved.length} 筆，例：${JSON.stringify(arrMoved.slice(0, 3))}` : ''));
+
+// B15 外部真值：箭頭要指著鐵軌。門檻不手打，取同一幀沒配對的車當對照組——
+// 它們結構上沒有偏移，量到的偏差就是「八秒弦線 vs 切線 ＋ 平滑」的固有底線。
+const acMax = M.arrowCtrl.length ? Math.max(...M.arrowCtrl) : null;
+const arrOff = acMax == null ? [] : M.arrow.filter(a => a.dev != null && a.dev > acMax);
+check('B15 箭頭指的是鐵軌的方向（真值取線形切線，門檻取自同幀未配對車的對照組）',
+  M.arrow.length > 0 && M.arrowCtrl.length > 0 && arrOff.length === 0,
+  `配對車 ${M.arrow.filter(a => a.dev != null).length} 筆最大偏差 ` +
+  `${Math.max(0, ...M.arrow.map(a => a.dev || 0))}°、中位 ${q(M.arrow.filter(a => a.dev != null).map(a => a.dev), 0.5)}°；` +
+  `對照組 ${M.arrowCtrl.length} 筆最大 ${acMax}°、中位 ${q(M.arrowCtrl, 0.5)}°` +
+  (arrOff.length ? `；超出 ${arrOff.length} 筆，例：${JSON.stringify(arrOff.slice(0, 3))}` : ''));
 
 check('B9 無 runtime 錯誤', A.errs.length === 0, A.errs.length ? A.errs[0] : '零 pageerror');
 
