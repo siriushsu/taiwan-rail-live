@@ -144,7 +144,7 @@ const M = await A.page.evaluate(() => {
     }
   }
 
-  const out = { scenes: scenes.length, sym: [], norm: [], zoom: [], step: [], pick: [], follow: [], runs3: 0, dot: [], ctrl: [], coin: [], arrow: [], arrowCtrl: [], yield: [], yieldSkip: [] };
+  const out = { scenes: scenes.length, sym: [], norm: [], zoom: [], step: [], pick: [], follow: [], runs3: 0, dot: [], ctrl: [], coin: [], arrow: [], arrowCtrl: [], yield: [], yieldSkip: [], solo: [] };
 
   for (const sc of scenes) {
     state.simSec = sc.t; updateBlockHolds();
@@ -192,11 +192,22 @@ const M = await A.page.evaluate(() => {
     // 對稱＝「兩台偏一樣多、而且偏向軌道的相反側」。刻意不寫成「向量和為零」——
     // 那隱含兩台的法線平行，在彎道上不成立（各自的法線本來就差幾度，實測到 5.7%）。
     // 「相反側」用內積為負表達，與軌道曲率無關。
-    if (pair2) out.sym.push({ t: sc.t, a: sc.a, b: sc.b,
-      m: +((mag(oa) + mag(ob)) / 2).toFixed(2),
-      dpx: +Math.abs(mag(oa) - mag(ob)).toFixed(2),
-      dmag: +(Math.abs(mag(oa) - mag(ob)) / Math.max(mag(oa), mag(ob), 1e-9)).toFixed(4),
-      cos: +((oa.x * ob.x + oa.y * ob.y) / Math.max(mag(oa) * mag(ob), 1e-9)).toFixed(4) });
+    if (pair2) {
+      // 分成兩種形狀分別記：恰好一台停站＝讓位,那一台整台退出線、另一台留在線上不動；
+      // 其餘(都在跑、或兩台都停在同一站)沒有誰在讓誰,仍是各偏一半的對稱形。
+      const sa = trainSeg(trA, state.simSec - liveDelaySec(trA) - blockHoldSec(trA));
+      const sb = trainSeg(trB, state.simSec - liveDelaySec(trB) - blockHoldSec(trB));
+      const one = sa && sb && (!!sa.dwell !== !!sb.dwell);
+      if (one) {
+        const [dw, run] = sa.dwell ? [oa, ob] : [ob, oa];
+        out.solo.push({ t: sc.t, a: sc.a, b: sc.b,
+          dwellM: +mag(dw).toFixed(2), runM: +mag(run).toFixed(2) });
+      } else out.sym.push({ t: sc.t, a: sc.a, b: sc.b,
+        m: +((mag(oa) + mag(ob)) / 2).toFixed(2),
+        dpx: +Math.abs(mag(oa) - mag(ob)).toFixed(2),
+        dmag: +(Math.abs(mag(oa) - mag(ob)) / Math.max(mag(oa), mag(ob), 1e-9)).toFixed(4),
+        cos: +((oa.x * ob.x + oa.y * ob.y) / Math.max(mag(oa) * mag(ob), 1e-9)).toFixed(4) });
+    }
 
     // 法線：偏移向量與「線形切線」垂直 ⇒ 單位內積為零
     for (const [tr, o] of [[trA, oa], [trB, ob]]) {
@@ -226,7 +237,7 @@ const M = await A.page.evaluate(() => {
       }
     }
 
-    // 讓位的那班固定靠行進方向的右邊，經過的那班走左邊——使用者回報「同一台車被兩班自強超越，
+    // 讓位的那班固定靠行進方向的右邊；兩台一列時經過的那班留在線上不動——使用者回報「同一台車被兩班自強超越，
     // 兩次閃的邊不一樣」。根因是號誌的相位綁在沿線順序上，待避時後車超過前車、順序一翻就整組對調。
     // 判準用自己算的右法線（切線轉 90°；螢幕 y 向下 ⇒ (−ty, tx) 指向行進方向的右手邊），
     // 不讀 `_blockSide` 的 s（那是實作自己的簿記）。
@@ -249,12 +260,14 @@ const M = await A.page.evaluate(() => {
           if (near.slice(i, j).some(x => x.tr === trA)) nd = near.slice(i, j).filter(x => x.g.dwell).length;
           i = j;
         }
+        // 零偏移的那班**也要記**：非對稱畫法下「經過的那班留在線上」正是要驗的事，
+        // 沿用舊的「m < 1 就跳過」會把整個經過側悄悄丟光（實測經過側 0 筆卻照樣綠）。
         for (const [tr, o, g] of [[trA, oa, ga], [trB, ob, gb]]) {
           const tg = shapeTangent(tr), m = mag(o);
-          if (!tg || m < 1) continue;
+          if (!tg) continue;
           if (nd !== 1) { out.yieldSkip.push({ t: sc.t, tr: tr.train, nd }); continue; }
-          out.yield.push({ t: sc.t, tr: tr.train, dwell: !!g.dwell,
-            proj: +((o.x * -tg.y + o.y * tg.x) / m).toFixed(3) });   // >0＝在行進方向的右側
+          out.yield.push({ t: sc.t, tr: tr.train, dwell: !!g.dwell, pair2, m: +m.toFixed(2),
+            proj: m < 1 ? null : +((o.x * -tg.y + o.y * tg.x) / m).toFixed(3) });
         }
       }
     }
@@ -297,10 +310,23 @@ const M = await A.page.evaluate(() => {
     }
 
     // 命中：點畫出來的那顆，選到的必須是它自己（心得 33：驗按鈕不是驗它在哪，是驗點它會發生什麼）
+    // 失手時不許只記「失手」就算數：同一個場景、同一個縮放，把 _blockSide 清空(＝偏移不存在)
+    // 重畫再點一次當**對照組**。對照組也點不到 ⇒ 那個重疊本來就在(常見是反向車、跨線車,
+    // 它們根本不在配對群組裡),與這套機制無關；對照組點得到 ⇒ 才是偏移害的。
     for (const tr of [trA, trB]) {
       const h = drawnCp(tr); if (!h) continue;
       const got = trainAt({ x: h.x, y: h.y });
-      out.pick.push({ t: sc.t, tr: tr.train, hit: got ? got.tr.train : null, ok: !!got && got.tr === tr });
+      const ok = !!got && got.tr === tr;
+      let ctrl = null;
+      if (!ok) {
+        const keep = new Map(_blockSide);
+        _blockSide.clear(); _blockSideEase.clear(); settle();
+        const h0 = drawnCp(tr), g0 = h0 ? trainAt({ x: h0.x, y: h0.y }) : null;
+        ctrl = { hit: g0 ? g0.tr.train : null, ok: !!g0 && g0.tr === tr };
+        for (const [k, v] of keep) _blockSide.set(k, v);
+        _blockSideEase.clear(); settle();
+      }
+      out.pick.push({ t: sc.t, tr: tr.train, hit: got ? got.tr.train : null, ok, ctrl });
     }
 
     // 漸變：從零起步不得一幀到位（清掉緩動狀態，逐幀記錄偏移量）
@@ -330,7 +356,7 @@ const q = (arr, p) => arr.length ? arr.slice().sort((x, y) => x - y)[Math.min(ar
 // 彎道上兩條法線本來就差幾度，位移量跟著差一點點（實測最大 3.6%＝0.14px，肉眼不存在）。
 // 百分比會把「小位移的微小差異」放大成假紅；一個像素則是這件事真正的視覺單位。
 const symBad = M.sym.filter(s => s.dpx > 1 || s.cos > -0.9);
-check('B1 一對並排的兩車各偏一半：偏移量相等、且偏向軌道的相反側',
+check('B1 沒有誰在讓誰時（都在跑／兩台都停同站）各偏一半：偏移量相等、且偏向軌道的相反側',
   M.sym.length > 0 && symBad.length === 0,
   `${M.sym.length} 對，兩台偏移量差距 p90 ${q(M.sym.map(s => s.dpx), 0.9)}px、` +
   `最大 ${Math.max(0, ...M.sym.map(s => s.dpx))}px（＝${(100 * Math.max(0, ...M.sym.map(s => s.dmag))).toFixed(1)}%）；` +
@@ -338,6 +364,21 @@ check('B1 一對並排的兩車各偏一半：偏移量相等、且偏向軌道�
   `${Math.max(-1, ...M.sym.map(s => s.cos))}；偏移量中位 ${q(M.sym.map(s => s.m), 0.5)}px` +
   `${M.runs3 ? `；另有 ${M.runs3} 組三台以上的車列（之字形，不做兩兩對稱檢查）` : ''}` +
   (symBad.length ? `；不對稱 ${symBad.length} 對，例：${JSON.stringify(symBad.slice(0, 3))}` : ''));
+
+// B1b 讓位時是非對稱的：讓的那班整台退出軌道線，過的那班**留在線上完全不動**（2026-07-29 使用者裁示）。
+// ⚠ 這裡刻意**不**寫「位移大到足以讓兩顆牌完全分開」的幾何式判準——寫過，在真程式碼上就紅 22/75。
+// 原因是實作的淡出權重 `w=(near−距離)/near` 按**總距離**打折，但只有「橫越軌道」那個分量才真的
+// 幫忙分開牌；同線兩台車的距離幾乎都是**沿著軌道**的，於是折扣白付、深疊時仍留約 1px 的細縫。
+// 那是對稱版就有的既有精度問題（總分離量兩版相同），與這次改動無關，不在這次範圍內。
+// 「分離量被砍半」這種壞法由 B1b 的下限＋B16 的投影一起接（突變 N22 實測會紅）。
+// 「過的那班不動」寫成 0px 而不是「比較小」——它是這個設計的重點：在主線上跑的那班,
+// 它的標記位置就是它真正的位置,一個像素都不該被推走。0px 量得到（螢幕座標取整,噪音底線就是 0）。
+const soloBad = M.solo.filter(s => s.runM > 0 || s.dwellM < 1);
+check('B1b 讓位時：讓的那班整台退出軌道線、過的那班留在線上零位移',
+  M.solo.length > 0 && soloBad.length === 0,
+  `${M.solo.length} 對「恰好一台停站」，讓位側位移中位 ${q(M.solo.map(s => s.dwellM), 0.5)}px、` +
+  `最小 ${Math.min(...M.solo.map(s => s.dwellM))}px；經過側位移最大 ${Math.max(0, ...M.solo.map(s => s.runM))}px` +
+  (soloBad.length ? `；不合 ${soloBad.length} 對，例：${JSON.stringify(soloBad.slice(0, 3))}` : ''));
 
 // B2 法線：與線形切線的單位內積
 const normBad = M.norm.filter(n => n.dot > 0.08);
@@ -380,10 +421,14 @@ check('B4 進出偏移是漸變不是跳（第一幀不得超過整段的一半�
 
 // B5 命中：點畫出來的位置選到的是它自己
 const missPick = M.pick.filter(p => !p.ok);
-check('B5 點偏移後的標記選到的是它自己（不是原位、也不是隔壁那班）',
-  M.pick.length > 0 && missPick.length === 0,
+const pickByOff = missPick.filter(p => !p.ctrl || p.ctrl.ok);     // 關掉偏移就點得到 ⇒ 偏移害的
+const pickPre = missPick.filter(p => p.ctrl && !p.ctrl.ok);       // 關掉也點不到 ⇒ 既有重疊
+check('B5 點偏移後的標記選到的是它自己；失手的必須在「關掉偏移」的對照組也一樣失手',
+  M.pick.length > 0 && pickByOff.length === 0,
   `${M.pick.length} 次點擊，命中率 ${pct(M.pick.length - missPick.length, M.pick.length)}` +
-  (missPick.length ? `；失手例：${JSON.stringify(missPick.slice(0, 3))}` : ''));
+  (pickPre.length ? `；${pickPre.length} 次失手在對照組(關掉偏移)也一樣失手＝既有重疊，` +
+    `例：${JSON.stringify(pickPre.slice(0, 2))}` : '') +
+  (pickByOff.length ? `；偏移造成 ${pickByOff.length} 次，例：${JSON.stringify(pickByOff.slice(0, 3))}` : ''));
 
 // B8 跟隨中的主角不偏
 const fBad = M.follow.filter(f => f.m > 0.05);
@@ -393,11 +438,13 @@ check('B8 跟隨中的主角是鏡頭錨點，不得被偏移',
 
 // B12 兩車位置完全重合（同站待避）時仍要並排——這一條是看實際畫面才發現的：
 // 數字判準全綠的那一版，兩班停在同一站的車仍然畫在同一個像素上。
-const coinBad = M.coin.filter(c => Math.min(c.ma, c.mb) < 1);
+// 非對稱畫法下「兩台各自都要有位移」不再成立（經過的那班本來就該是 0）——
+// 要驗的是**這一對有沒有被分開**，所以看兩者位移的總和而不是各自的最小值。
+const coinBad = M.coin.filter(c => c.ma + c.mb < 1);
 check('B12 兩班車位置完全重合（同站）時仍然要並排，不得靜默合體',
   M.coin.length > 0 && coinBad.length === 0,
-  `${M.coin.length} 對完全重合（相距 <1m），兩台偏移量最小值的中位 ` +
-  `${q(M.coin.map(c => Math.min(c.ma, c.mb)), 0.5)}px` +
+  `${M.coin.length} 對完全重合（相距 <1m），兩台偏移量總和的中位 ` +
+  `${q(M.coin.map(c => c.ma + c.mb), 0.5)}px` +
   (coinBad.length ? `；仍合體 ${coinBad.length} 對，例：${JSON.stringify(coinBad.slice(0, 3))}` : ''));
 
 // B13 偏移之後兩顆牌不可以還疊在一起——這條是「看實際畫面」得到的：位移量若寫成固定 px，
@@ -410,12 +457,19 @@ check('B13 並排之後兩顆車號牌不得再相疊（矩形交集為零）',
 
 // B16 讓位的那班固定靠右。判準寫「誰在哪一側」而不是「有沒有換邊」——後者要靠時間序列才問得出來，
 // 而「恆在右側」比「不換邊」強：它同時排除了「一路都在錯邊」與「中途換邊」兩種壞法。
-const yBad = M.yield.filter(y => y.dwell ? y.proj <= 0 : y.proj >= 0);
-check('B16 讓位的那班（停站中）固定在行進方向的右側，經過的那班在左側',
-  M.yield.length > 0 && yBad.length === 0,
-  `${M.yield.length} 筆（讓位 ${M.yield.filter(y => y.dwell).length}／經過 ${M.yield.filter(y => !y.dwell).length}），` +
-  `讓位側投影最小 ${Math.min(1, ...M.yield.filter(y => y.dwell).map(y => y.proj))}、` +
-  `經過側最大 ${Math.max(-1, ...M.yield.filter(y => !y.dwell).map(y => y.proj))}` +
+// 兩台一列時是非對稱的（讓位那班獨自退到右邊、經過那班零位移）；三台以上還在線上的那幾台
+// 會互相疊，仍是左右交替——兩種形狀分開驗，而且都要有樣本，不能哪一邊悄悄變空。
+const yieldSolo = M.yield.filter(y => y.pair2), yieldMulti = M.yield.filter(y => !y.pair2);
+const yBad = [
+  ...yieldSolo.filter(y => y.dwell ? !(y.proj > 0) : y.m !== 0),
+  ...yieldMulti.filter(y => y.proj == null || (y.dwell ? y.proj <= 0 : y.proj >= 0)),
+];
+check('B16 讓位的那班（停站中）固定在行進方向的右側；兩台一列時經過的那班留在線上零位移',
+  yieldSolo.some(y => y.dwell) && yieldSolo.some(y => !y.dwell) && yBad.length === 0,
+  `${M.yield.length} 筆（兩台一列 ${yieldSolo.length}：讓位 ${yieldSolo.filter(y => y.dwell).length}／` +
+  `經過 ${yieldSolo.filter(y => !y.dwell).length}；三台以上 ${yieldMulti.length}），` +
+  `讓位側投影最小 ${Math.min(1, ...yieldSolo.filter(y => y.dwell).map(y => y.proj))}、` +
+  `經過側位移最大 ${Math.max(0, ...yieldSolo.filter(y => !y.dwell).map(y => y.m))}px` +
   `；另排除 ${M.yieldSkip.length} 筆「附近不只一班停著、指不出誰在讓」的取樣` +
   (M.yieldSkip.length ? `（例：${JSON.stringify(M.yieldSkip.slice(0, 3))}）` : '') +
   `；取樣時刻 ${[...new Set(M.yield.map(y => y.t))].length} 個` +
@@ -423,11 +477,18 @@ check('B16 讓位的那班（停站中）固定在行進方向的右側，經過
 
 // B14 恆等式：偏移是純橫向平移，方向是「現在減八秒前」——兩頭一起平移，差向量不變。
 // 只偏其中一頭（原本的寫法）等於把橫向位移當成前進量算進去，箭頭會轉去指偏移的方向。
+// 非對稱畫法讓「經過的那班」偏移恆為 0——它進得來這份取樣，但對這條恆等式**沒有牙**
+// （拿掉一個等於 0 的東西當然不會轉）。所以要求真的有位移的樣本存在，否則判紅。
 const arrMoved = M.arrow.filter(a => a.ddeg > 0.01);
+// 實測（40 筆取樣）：停站中的車一台都不畫方向箭頭（0/26），而非對稱畫法下有位移的幾乎都是
+// 停站那班 ⇒ 這條恆等式真正測得到的是「兩台都在跑」的對稱場景。樣本會少但不會沒有；
+// 真的歸零時上面那個閘門會判紅，而不是留一句「10 筆」看起來很飽滿其實全在對 0 做實驗。
+const arrLive = M.arrow.filter(a => a.m > 1);
 check('B14 並排偏移不得轉動箭頭：同一時刻拿掉偏移重量，角度必須一模一樣',
-  M.arrow.length > 0 && arrMoved.length === 0,
-  `${M.arrow.length} 筆（偏移量中位 ${q(M.arrow.map(a => a.m), 0.5)}px），最大角度差 ` +
-  `${Math.max(0, ...M.arrow.map(a => a.ddeg))}°` +
+  arrLive.length > 0 && arrMoved.length === 0,
+  `${M.arrow.length} 筆（其中真的有位移的 ${arrLive.length} 筆，位移中位 ${q(arrLive.map(a => a.m), 0.5)}px），` +
+  `最大角度差 ${Math.max(0, ...M.arrow.map(a => a.ddeg))}°` +
+  (arrLive.length ? '' : '；沒有任何有位移的樣本＝這條判準這一輪沒測到東西') +
   (arrMoved.length ? `；轉動 ${arrMoved.length} 筆，例：${JSON.stringify(arrMoved.slice(0, 3))}` : ''));
 
 // B15 外部真值：箭頭要指著鐵軌。門檻不手打，取同一幀沒配對的車當對照組——
@@ -435,7 +496,7 @@ check('B14 並排偏移不得轉動箭頭：同一時刻拿掉偏移重量，角
 const acMax = M.arrowCtrl.length ? Math.max(...M.arrowCtrl) : null;
 const arrOff = acMax == null ? [] : M.arrow.filter(a => a.dev != null && a.dev > acMax);
 check('B15 箭頭指的是鐵軌的方向（真值取線形切線，門檻取自同幀未配對車的對照組）',
-  M.arrow.length > 0 && M.arrowCtrl.length > 0 && arrOff.length === 0,
+  M.arrow.filter(a => a.m > 1 && a.dev != null).length > 0 && M.arrowCtrl.length > 0 && arrOff.length === 0,
   `配對車 ${M.arrow.filter(a => a.dev != null).length} 筆最大偏差 ` +
   `${Math.max(0, ...M.arrow.map(a => a.dev || 0))}°、中位 ${q(M.arrow.filter(a => a.dev != null).map(a => a.dev), 0.5)}°；` +
   `對照組 ${M.arrowCtrl.length} 筆最大 ${acMax}°、中位 ${q(M.arrowCtrl, 0.5)}°` +
@@ -474,12 +535,14 @@ const MO = await A.page.evaluate(() => {
   // 上界＝「標記自己的半徑＋縫」：位移不得超過標記自身尺寸，這是幾何事實不是手打的門檻
   let wmax = 0; for (const f of rec) for (const k in f) { const tr = state.trains.find(t => (t.sys || '') + ':' + t.train === k);
     if (tr) wmax = Math.max(wmax, tagW(tr)); }
-  return { frames: rec.length, n: jumps.length, maxJump: Math.max(0, ...jumps), amp: +(wmax / 2 + BLOCK_SIDE_GAP).toFixed(2),
+  // 非對稱畫法下讓位那班獨自扛整段分離量(倍率 2),上界跟著從「半個牌寬」變成「整個牌寬」。
+  // 仍是從實際量到的 tagW 推出來的幾何事實,不是手打的門檻。
+  return { frames: rec.length, n: jumps.length, maxJump: Math.max(0, ...jumps), amp: +(wmax + BLOCK_SIDE_GAP).toFixed(2),
     maxAmp: +Math.max(0, ...amps).toFixed(2), p99: jumps.sort((x, y) => x - y)[Math.floor(jumps.length * 0.99)] || 0 };
 });
 check('B11 時鐘在跑時偏移不閃爍（相鄰兩幀不得整段翻面）',
   MO.frames > 60 && MO.n > 0 && MO.maxAmp <= MO.amp && MO.maxJump < MO.maxAmp,
-  `連續 ${MO.frames} 幀（30× 快轉）共 ${MO.n} 筆逐幀比較：偏移量最大 ${MO.maxAmp}px（上界＝半個牌寬＋縫 ${MO.amp}px），` +
+  `連續 ${MO.frames} 幀（30× 快轉）共 ${MO.n} 筆逐幀比較：偏移量最大 ${MO.maxAmp}px（上界＝整個牌寬＋縫 ${MO.amp}px），` +
   `幀間變化 p99 ${MO.p99}px、最大 ${MO.maxJump}px（整段翻面會是 ${(2 * MO.maxAmp).toFixed(1)}px）`);
 
 // ── B17 一整段待避的時間序列。使用者看到的是「同一台車被兩班自強超越，兩次閃的邊不一樣」——
@@ -649,7 +712,9 @@ const ST = await A.page.evaluate(() => {
         if (arr.slice(i, j).some(x => x.tr === me)) mem = arr.slice(i, j).map(x => x.tr.train).sort().join(',');
         i = j;
       }
-      rows.push({ dt, s: info.s, mem, dwell: !!gm.dwell, pDwell: !!go.dwell });
+      // 存號誌不存倍率：非對稱畫法讓倍率取 2(讓位)／0(留在線上)／±1(對稱),
+      // 「2 → 1」是分離量變了不是換邊,「0」則是根本沒有邊。換邊只看正負號。
+      rows.push({ dt, s: Math.sign(info.s), mem, dwell: !!gm.dwell, pDwell: !!go.dwell });
     }
     if (rows.length) out.push({ t: sd.t, me: sd.no, you: sd.other, rows });
   }
@@ -669,7 +734,7 @@ const anchorNear = (rows, i) => {
   return false;
 };
 const badFlips = ST.flatMap(R => R.rows.filter((r, i) => i && R.rows[i - 1].dt === r.dt - 3
-  && r.s !== R.rows[i - 1].s && r.mem === R.rows[i - 1].mem && !anchorNear(R.rows, i))
+  && r.s && R.rows[i - 1].s && r.s !== R.rows[i - 1].s && r.mem === R.rows[i - 1].mem && !anchorNear(R.rows, i))
   .map(r => `${R.me}/${R.you} ${hhmm(R.t)}+${r.dt}`));
 // 閘門：全日必須真的出現「錨從某一班變成沒有人、而且還配著對」——那一刻只剩黏著撐著。
 // 沒出現過就代表這條判準沒踩到規則，要判紅而不是靜靜地綠。

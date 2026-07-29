@@ -3166,7 +3166,7 @@ try { if (matchMedia('(max-width: 900px)').matches) document.body.classList.add(
         <li><span class="d">7/10</span><span>高鐵、桃園機捷、淡海輕軌、安坑輕軌加入路網</span></li>
         <li><span class="d">7/10</span><span>環島觀光列車一分為二：往東「山海號」、往西「平原號」</span></li>
         <li class="grp">即時動態與誤點</li>
-        <li><span class="d">7/29</span><span>畫面上後面的車會直接穿過前面那班：現在會保持車距跟著跑，該讓的就在站邊等；兩班車貼太近時會左右錯開一點，讓的那班固定靠右、超車的走左邊，看得出來是兩班。時刻表本身要它超車、中間又沒站可讓的極少數情況仍會出現（謝謝網友回報）</span></li>
+        <li><span class="d">7/29</span><span>畫面上後面的車會直接穿過前面那班：現在會保持車距跟著跑，該讓的就在站邊等；兩班車貼太近時，停著讓路的那班會整台挪到軌道右邊、通過的那班照原本的路線走，一眼看得出誰在讓誰。時刻表本身要它超車、中間又沒站可讓的極少數情況仍會出現（謝謝網友回報）</span></li>
         <li><span class="d">7/28</span><span>誤點的車過了表定到站時間後被當成已跑完：點下去會從頭重播、跟隨面板也提早說抵達。改用校正後的時間判斷，下一站與進度條一併同步（謝謝網友回報）</span></li>
         <li><span class="d">7/24</span><span>新增「資料源連線狀態頁」：各即時資料源連線狀況一目了然，並白話總結「地圖現在準嗎」</span></li>
         <li><span class="d">7/24</span><span>修正 App 在背景放久後時鐘停住、車輛位置對不上；回前景會自動追回「現在」</span></li>
@@ -4405,13 +4405,20 @@ function updateBlockHolds() {
           const k = arr.slice(i, j).findIndex(it => _blockSideSign.has(it.key));
           if (k >= 0) flip = _blockSideSign.get(arr[i + k].key) * nat(k);
         }
+        // 讓的那班整台退出軌道線靠右、過的那班留在線上完全不動(2026-07-29 使用者裁示)。
+        // 理由比「待避」更硬:不管是正式待避還是區間車靠站停、快車從主線通過,**停著的那班本來就
+        // 不在通過列車走的那條軌道上**;而通過的那班是真的在線上跑,不該被推離它的位置。
+        // 只在「兩台一列且恰好一台停站」時這樣畫——三台以上時還在線上的那幾台會互相疊,仍用左右交替。
+        const solo = (j - i === 2) && dw.length === 1;
         for (let m = i; m < j; m++) {
           const s = flip * nat(m - i);
+          // 倍率:讓的那班拿滿格(2＝原本兩台各半的總和,分離量不變),過的那班拿 0。
+          const q = solo ? (arr[m].g.dwell ? 2 : 0) : s;
           // 連 ln/d/dir 一起存:畫面端要用線形自己的切線,不能用「我→對方」的連線向量——
           // 兩車停在同一站時經緯度完全相同(實測 3138 與 198 於同站,距離 0),連線向量長度是 0,
           // 偏移會靜默失效,而那正是兩顆標記完全合體、最需要它的一刻。
-          _blockSide.set(arr[m].key, { s, other: arr[m === i ? i + 1 : m - 1].tr, ...side(arr[m]) });
-          _blockSideSign.set(arr[m].key, s);
+          _blockSide.set(arr[m].key, { s: q, other: arr[m === i ? i + 1 : m - 1].tr, ...side(arr[m]) });
+          _blockSideSign.set(arr[m].key, s);      // 相位記憶存 ±1,不存畫面用的倍率
         }
       }
       i = j;
