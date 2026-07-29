@@ -198,14 +198,15 @@ final class RailBoardStore {
         try decode(BoardDocument.self, relativePath: "board/\(stationID).json")
     }
 
-    func stationEntities() throws -> [StationEntity] {
+    func stationOptions() throws -> [StationOption] {
         let meta = try meta()
         let stations = try stations().stations
         let labels = Dictionary(uniqueKeysWithValues: meta.systems.map { ($0.id, $0.label) })
 
         return stations.enumerated().map { index, station in
-            StationEntity(
-                id: index,
+            StationOption(
+                key: StationOption.makeKey(systemID: station.s, name: station.n),
+                index: index,
                 name: station.n,
                 systemID: station.s,
                 systemLabel: labels[station.s] ?? station.s
@@ -213,9 +214,10 @@ final class RailBoardStore {
         }
     }
 
-    func destinationEntities(from originID: Int) throws -> [StationEntity] {
-        let board = try board(stationID: originID)
-        let allStations = try stationEntities()
+    func destinationOptions(from originKey: String) throws -> [StationOption] {
+        let allStations = try stationOptions()
+        guard let origin = allStations.first(where: { $0.key == originKey }) else { return [] }
+        let board = try board(stationID: origin.index)
         let reachable = Set(
             board.deps.flatMap { departure in
                 departure.to.compactMap { pair in pair.first }
@@ -226,6 +228,25 @@ final class RailBoardStore {
             guard allStations.indices.contains(stationID) else { return nil }
             return allStations[stationID]
         }
+    }
+
+    /// 設定裡存的是車站鍵、不是班表陣列的索引：索引會因為班表重建而位移，鍵不會。
+    /// 站被改名或撤站時回 nil，呼叫端要據此提示重新設定，不可退回索引 0。
+    func stationIndex(forKey key: String) throws -> Int? {
+        try stationOptions().first(where: { $0.key == key })?.index
+    }
+}
+
+/// 小工具設定用的車站選項。`key` 是「系統|站名」，在班表更新之間保持穩定。
+struct StationOption: Hashable {
+    let key: String
+    let index: Int
+    let name: String
+    let systemID: String
+    let systemLabel: String
+
+    static func makeKey(systemID: String, name: String) -> String {
+        "\(systemID)|\(name)"
     }
 }
 

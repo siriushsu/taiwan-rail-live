@@ -99,7 +99,7 @@ struct Provider: AppIntentTimelineProvider {
     ) async -> Timeline<RailBoardEntry> {
         let now = Date()
 
-        guard let origin = configuration.origin else {
+        guard let originKey = configuration.origin else {
             let message = (try? RailBoardStore.shared.meta()) == nil
                 ? "開啟軌島以載入班表"
                 : "請選擇起站"
@@ -112,9 +112,23 @@ struct Provider: AppIntentTimelineProvider {
         }
 
         do {
+            let originID = try RailBoardStore.shared.stationIndex(forKey: originKey)
+            let destinationID = try configuration.destination.flatMap {
+                try RailBoardStore.shared.stationIndex(forKey: $0)
+            }
+            let destinationLost = configuration.destination != nil && destinationID == nil
+            guard let originID, !destinationLost else {
+                let entry = RailBoardEntry(
+                    date: now,
+                    configuration: configuration,
+                    content: .unavailable("找不到這個車站，請重新設定")
+                )
+                return Timeline(entries: [entry], policy: .never)
+            }
+
             let prepared = try engine.prepare(
-                originID: origin.id,
-                destinationID: configuration.destination?.id,
+                originID: originID,
+                destinationID: destinationID,
                 now: now
             )
             let nextJourney = prepared.journeys.first
@@ -151,7 +165,7 @@ struct Provider: AppIntentTimelineProvider {
         for configuration: ConfigurationAppIntent,
         now: Date
     ) async -> RailBoardEntry {
-        guard let origin = configuration.origin else {
+        guard let originKey = configuration.origin else {
             let message = (try? RailBoardStore.shared.meta()) == nil
                 ? "開啟軌島以載入班表"
                 : "請選擇起站"
@@ -163,9 +177,22 @@ struct Provider: AppIntentTimelineProvider {
         }
 
         do {
+            let originID = try RailBoardStore.shared.stationIndex(forKey: originKey)
+            let destinationID = try configuration.destination.flatMap {
+                try RailBoardStore.shared.stationIndex(forKey: $0)
+            }
+            let destinationLost = configuration.destination != nil && destinationID == nil
+            guard let originID, !destinationLost else {
+                return RailBoardEntry(
+                    date: now,
+                    configuration: configuration,
+                    content: .unavailable("找不到這個車站，請重新設定")
+                )
+            }
+
             let prepared = try engine.prepare(
-                originID: origin.id,
-                destinationID: configuration.destination?.id,
+                originID: originID,
+                destinationID: destinationID,
                 now: now
             )
             let shouldFetchLive = prepared.system.live

@@ -8,98 +8,85 @@
 import AppIntents
 import Foundation
 
-struct StationEntity: AppEntity, Hashable {
-    static var typeDisplayRepresentation = TypeDisplayRepresentation(name: "車站")
-    static var defaultQuery = StationQuery()
+// 為什麼參數型別是 String 而不是 AppEntity：
+// 用 AppEntity（StationEntity）時，AppIntents 在小工具行程內每一次 InitializeAction 都會
+// 丟 "Failed to build EntityIdentifier. StationEntity is not a registered AppEntity identifier"，
+// 兩個參數一律被還原成 nil ⇒ 目的站選單永遠是空的、桌面上也永遠停在「請選擇起站」。
+// 實測排除過：把 optionsProvider 拿掉走 EntityQuery（照舊失敗）、把 entity 同時編進 App target
+// 讓 App bundle 也有 Metadata.appintents（照舊失敗）；Int 是合法 ID 型別（SDK interface 有
+// `extension Swift.Int : EntityIdentifierConvertible`），linkd 也確實把兩份 metadata 都註冊了。
+// 改走 Apple 小工具範本本身用的字串參數，繞開整套 EntityIdentifier 機制。
+// 附帶好處：存的是「系統|站名」而不是班表陣列索引，班表重建造成的索引位移不再會讓設定指到別站。
 
-    let id: Int
-    let name: String
-    let systemID: String
-    let systemLabel: String
-
-    var displayRepresentation: DisplayRepresentation {
-        DisplayRepresentation(
-            title: "\(name)",
-            subtitle: "\(systemLabel)"
-        )
-    }
-
-    init(id: Int, name: String, systemID: String, systemLabel: String) {
-        self.id = id
-        self.name = name
-        self.systemID = systemID
-        self.systemLabel = systemLabel
-    }
-}
-
-struct StationQuery: EntityQuery {
-    func entities(for identifiers: [StationEntity.ID]) async throws -> [StationEntity] {
-        let entities = try RailBoardStore.shared.stationEntities()
-        let byID = Dictionary(uniqueKeysWithValues: entities.map { ($0.id, $0) })
-        return identifiers.compactMap { byID[$0] }
-    }
-
-    func suggestedEntities() async throws -> [StationEntity] {
-        try RailBoardStore.shared.stationEntities()
-    }
-}
-
+@available(iOS 17.0, *)
 struct OriginOptionsProvider: DynamicOptionsProvider {
-    func results() async throws -> IntentItemCollection<StationEntity> {
-        let entities = try RailBoardStore.shared.stationEntities()
-        let tra = entities.filter { $0.systemID == "tra" }
-        let thsr = entities.filter { $0.systemID == "thsr" }
+    func results() async throws -> IntentItemCollection<String> {
+        let stations = try RailBoardStore.shared.stationOptions()
+        let tra = stations.filter { $0.systemID == "tra" }
+        let thsr = stations.filter { $0.systemID == "thsr" }
 
         return IntentItemCollection {
-            IntentItemSection("台鐵", items: tra)
-            IntentItemSection("高鐵", items: thsr)
+            IntentItemSection("台鐵", items: tra.map(\.intentItem))
+            IntentItemSection("高鐵", items: thsr.map(\.intentItem))
         }
     }
 }
 
+@available(iOS 17.0, *)
 struct DestinationOptionsProvider: DynamicOptionsProvider {
     @IntentParameterDependency<ConfigurationAppIntent>(\.$origin)
     var intent
 
-    func results() async throws -> IntentItemCollection<StationEntity> {
+    func results() async throws -> IntentItemCollection<String> {
         guard let origin = intent?.origin else {
             return .empty
         }
 
-        let destinations = try RailBoardStore.shared.destinationEntities(from: origin.id)
-        return IntentItemCollection(
-            promptLabel: "只顯示有直達列車的車站",
-            items: destinations
+        let destinations = try RailBoardStore.shared.destinationOptions(from: origin)
+        return IntentItemCollection(promptLabel: "只顯示有直達列車的車站") {
+            IntentItemSection(items: destinations.map(\.intentItem))
+        }
+    }
+}
+
+@available(iOS 17.0, *)
+extension StationOption {
+    /// 值是穩定鍵、顯示的是站名，兩者刻意不同——選單上不該出現 "tra|竹北"。
+    var intentItem: IntentItem<String> {
+        IntentItem(
+            key,
+            title: LocalizedStringResource(stringLiteral: name),
+            subtitle: LocalizedStringResource(stringLiteral: systemLabel)
         )
     }
 }
 
+@available(iOS 17.0, *)
 struct ConfigurationAppIntent: WidgetConfigurationIntent {
     static var title: LocalizedStringResource { "發車看板" }
     static var description: IntentDescription {
         IntentDescription("選擇起站；目的站可留空，以查看所有停靠、終到與通過列車。")
     }
 
-    // WidgetConfigurationIntent 的 metadata 要求 entity 參數使用 optional；
-    // Provider 仍把 nil 視為未完成設定，功能語意維持「起站必填」。
     @Parameter(title: "起站", optionsProvider: OriginOptionsProvider())
-    var origin: StationEntity?
+    var origin: String?
 
     @Parameter(title: "目的站（可留空）", optionsProvider: DestinationOptionsProvider())
-    var destination: StationEntity?
+    var destination: String?
 }
 
+@available(iOS 17.0, *)
 extension ConfigurationAppIntent {
     static var previewCommute: ConfigurationAppIntent {
         let intent = ConfigurationAppIntent()
-        intent.origin = StationEntity(id: 51, name: "竹北", systemID: "tra", systemLabel: "台鐵")
-        intent.destination = StationEntity(id: 32, name: "臺北", systemID: "tra", systemLabel: "台鐵")
+        intent.origin = StationOption.makeKey(systemID: "tra", name: "竹北")
+        intent.destination = StationOption.makeKey(systemID: "tra", name: "臺北")
         return intent
     }
 
     static var previewWatching: ConfigurationAppIntent {
         let intent = ConfigurationAppIntent()
-        intent.origin = StationEntity(id: 51, name: "竹北", systemID: "tra", systemLabel: "台鐵")
+        intent.origin = StationOption.makeKey(systemID: "tra", name: "竹北")
         intent.destination = nil
         return intent
     }
