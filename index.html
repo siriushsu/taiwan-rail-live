@@ -4207,8 +4207,11 @@ function assignRunProfiles(s, perf, obs) {
   }
 }
 
-function trainPos(tr, t) {
-  t -= liveDelaySec(tr);
+// 「此刻走到 stops 的哪一段」抽成獨立函式:除了畫位置,前後車耦合(#17)也要問同一件事,
+// 而且要的是「哪條線形、沿線第幾公里」這種可比較的一維座標,不是經緯度。兩邊共用同一次掃描,
+// 每幀就不必為了算前後關係再走一遍 stops。回傳 null=此刻不在跑。
+// ln/d/dir 只有貼得上軌道線形的段才有;無線形的線(端點直線內插)不參與耦合。
+function trainSeg(tr, t) {
   if (tr.loop) t = tr.stops[0].arrSec + ((t - tr.stops[0].arrSec) % tr.loopSec + tr.loopSec) % tr.loopSec; // 環島車:任何時刻都映回本圈
   const s = tr.stops, n = s.length;
   // 跨午夜車次(時刻編碼 >86400):simSec 歸零後把前一日班次接續回來
@@ -4217,22 +4220,39 @@ function trainPos(tr, t) {
   for (let i = 0; i < n; i++) {
     if (t >= s[i].arrSec && t <= s[i].depSec) {
       // dwelling: snap to shape so it lines up with the moving segment
-      if (s[i].segLn) return posAlongShape(s[i].segLn, s[i].dA);
-      if (i > 0 && s[i - 1].segLn) return posAlongShape(s[i - 1].segLn, s[i - 1].dB);
-      return { lat: s[i].lat, lon: s[i].lon };
+      const seg = s[i].segLn ? s[i] : (i > 0 && s[i - 1].segLn ? s[i - 1] : null);
+      if (!seg) return { i, dwell: true, seg: null };
+      const d = seg === s[i] ? seg.dA : seg.dB;
+      return { i, dwell: true, seg, ln: seg.segLn, d, dir: Math.sign(seg.dB - seg.dA) || 1 };
     }
     if (i < n - 1 && t > s[i].depSec && t < s[i + 1].arrSec) {
       const span = s[i + 1].arrSec - s[i].depSec;
       let f = span > 0 ? (t - s[i].depSec) / span : 0;
       const sp = segProg(s[i], t - s[i].depSec); // 跑段梯形曲線:通過站不歸零,只在真停靠站緩起緩停
       if (sp != null) f = sp;
-      if (s[i].segLn) {
-        return schedSegmentPos(s[i], f);
-      }
-      return { lat: s[i].lat + (s[i + 1].lat - s[i].lat) * f, lon: s[i].lon + (s[i + 1].lon - s[i].lon) * f };
+      const seg = s[i];
+      if (!seg.segLn) return { i, dwell: false, seg: null, f };
+      // 里程與 schedSegmentPos 取同一條規則(接續段的 bridge 不算進沿線里程),兩者才不會各說各話
+      const lineKm = Math.abs(seg.dB - seg.dA), bridgeKm = seg.bridgeKm || 0;
+      const dir = Math.sign(seg.dB - seg.dA) || 1;
+      return { i, dwell: false, seg, f, ln: seg.segLn, dir,
+        d: seg.dA + dir * Math.min(lineKm, f * (lineKm + bridgeKm)) };
     }
   }
   return null;
+}
+
+function trainPos(tr, t) {
+  t -= liveDelaySec(tr);
+  const g = trainSeg(tr, t);
+  if (!g) return null;
+  const s = tr.stops;
+  if (g.dwell) {
+    if (g.seg) return posAlongShape(g.ln, g.d);
+    return { lat: s[g.i].lat, lon: s[g.i].lon };
+  }
+  if (g.seg) return schedSegmentPos(g.seg, g.f);
+  return { lat: s[g.i].lat + (s[g.i + 1].lat - s[g.i].lat) * g.f, lon: s[g.i].lon + (s[g.i + 1].lon - s[g.i].lon) * g.f };
 }
 
 // 跨線直通車的兩條來源 shape 在共站可能落於不同股道（八堵／成功／彰化實測約20m）。
