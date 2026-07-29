@@ -3166,7 +3166,7 @@ try { if (matchMedia('(max-width: 900px)').matches) document.body.classList.add(
         <li><span class="d">7/10</span><span>高鐵、桃園機捷、淡海輕軌、安坑輕軌加入路網</span></li>
         <li><span class="d">7/10</span><span>環島觀光列車一分為二：往東「山海號」、往西「平原號」</span></li>
         <li class="grp">即時動態與誤點</li>
-        <li><span class="d">7/29</span><span>畫面上後面的車會直接穿過前面那班：現在會保持車距跟著跑，該讓的就在站邊等；兩班車貼太近時，停著讓路的那班會整台挪到軌道右邊、通過的那班照原本的路線走，一眼看得出誰在讓誰。時刻表本身要它超車、中間又沒站可讓的極少數情況仍會出現（謝謝網友回報）</span></li>
+        <li><span class="d">7/29</span><span>畫面上後面的車會直接穿過前面那班：現在會保持車距跟著跑，該讓的就在站邊等；兩班車貼太近時，停著讓路的那班會整台挪到軌道右邊、通過的那班照原本的路線走，而且會一路讓到對方離開才回到軌道上，不會兩台互相推來推去。時刻表本身要它超車、中間又沒站可讓的極少數情況仍會出現（謝謝網友回報）</span></li>
         <li><span class="d">7/28</span><span>誤點的車過了表定到站時間後被當成已跑完：點下去會從頭重播、跟隨面板也提早說抵達。改用校正後的時間判斷，下一站與進度條一併同步（謝謝網友回報）</span></li>
         <li><span class="d">7/24</span><span>新增「資料源連線狀態頁」：各即時資料源連線狀況一目了然，並白話總結「地圖現在準嗎」</span></li>
         <li><span class="d">7/24</span><span>修正 App 在背景放久後時鐘停住、車輛位置對不上；回前景會自動追回「現在」</span></li>
@@ -4303,6 +4303,7 @@ const BLOCK_SNAP_SEC = 300;                  // 模擬時鐘一次推進超過�
 const BLOCK_SIDE_KM = BLOCK_GAP_KM;
 const _blockHold = new Map(), _blockCapped = new Set(), _blockGap = new Map(), _blockPrevD = new Map(), _blockSide = new Map();
 const _blockSideSign = new Map();            // 上一幀給過的號誌:相位要黏著,身分一變才不會整組對調
+const _blockSideRole = new Map();            // 已經定案的讓位角色:同一對車沒散開就不重新分配
 let _blockSim = null;
 function blockKeyOf(tr) { return (tr.sys || '') + ':' + tr.train; } // 跨系統車次會撞號,不能只用車次
 function blockHoldSec(tr) { return _blockHold.size && BLOCK_SYS[tr.sys] ? (_blockHold.get(blockKeyOf(tr)) || 0) : 0; }
@@ -4319,7 +4320,7 @@ function updateBlockHolds() {
     const g = trainSeg(tr, state.simSec - liveDelaySec(tr) - h);
     // 沒在跑,或這段沒貼上軌道線形 → 不參與耦合。緩動狀態一併清掉:不清的話,收班時帶著偏移離場的車,
     // 隔天從起點出現的第一幀會先跳到舊偏移再滑回來
-    if (!g || !g.ln) { _blockHold.delete(key); _blockGap.delete(key); _blockPrevD.delete(key); _blockSideEase.delete(key); _blockSideSign.delete(key); continue; }
+    if (!g || !g.ln) { _blockHold.delete(key); _blockGap.delete(key); _blockPrevD.delete(key); _blockSideEase.delete(key); _blockSideSign.delete(key); _blockSideLatch.delete(key); _blockSideRole.delete(key); continue; }
     const k = g.ln.id + '|' + g.dir;                       // 同一條線形+同方向才是同一條軌道
     let a = groups.get(k); if (!a) groups.set(k, a = []);
     a.push({ tr, key, h, g });
@@ -4410,15 +4411,32 @@ function updateBlockHolds() {
         // 不在通過列車走的那條軌道上**;而通過的那班是真的在線上跑,不該被推離它的位置。
         // 只在「兩台一列且恰好一台停站」時這樣畫——三台以上時還在線上的那幾台會互相疊,仍用左右交替。
         const solo = (j - i === 2) && dw.length === 1;
+        // 角色一旦定了就閂住,直到這一對散開為止(2026-07-29 使用者:「避讓的車只要讓開,
+        // 就不應該在通過的車離開前回到軌道」)。沒有這道閂,通過的那班只要也在同一站停下,
+        // 判定就從「讓位」退回「對稱」、讓位那班往軌道走回一半——對方明明還貼在旁邊
+        // (實測 1124 讓 1122:對方一停,位移 35.6→23.2px,兩台距離仍是 0)。
+        // 閂也要蓋過「角色對調」:同一對車會接力(A 停、B 過;下一站換 B 停、A 過),而對調發生時
+        // 兩台往往還貼在一起(實測 105/1121 距離 0~1px 就換手:105 從 30.2px 滑回 9.2px、
+        // 1121 反而移出去 21.1px)——那正是使用者說的互相搶位子。所以只要這一對還在同一個車列裡,
+        // 就沿用已定案的分配,不重新判誰在讓誰;等他們散開(車列不再成立)自然清掉。
+        // 只閂「讓位」這種不對稱分配;對稱的兩台仍走原本的相位邏輯(_blockSideSign)。
+        let keep = null;
+        if (j - i === 2) {
+          const ra = _blockSideRole.get(arr[i].key), rb = _blockSideRole.get(arr[i + 1].key);
+          if (ra && rb && ra.other === arr[i + 1].key && rb.other === arr[i].key && (ra.q === 2 || ra.q === 0))
+            keep = [ra.q, rb.q];
+        }
         for (let m = i; m < j; m++) {
           const s = flip * nat(m - i);
           // 倍率:讓的那班拿滿格(2＝原本兩台各半的總和,分離量不變),過的那班拿 0。
-          const q = solo ? (arr[m].g.dwell ? 2 : 0) : s;
+          const q = keep ? keep[m - i] : (solo ? (arr[m].g.dwell ? 2 : 0) : s);
           // 連 ln/d/dir 一起存:畫面端要用線形自己的切線,不能用「我→對方」的連線向量——
           // 兩車停在同一站時經緯度完全相同(實測 3138 與 198 於同站,距離 0),連線向量長度是 0,
           // 偏移會靜默失效,而那正是兩顆標記完全合體、最需要它的一刻。
           _blockSide.set(arr[m].key, { s: q, other: arr[m === i ? i + 1 : m - 1].tr, ...side(arr[m]) });
           _blockSideSign.set(arr[m].key, s);      // 相位記憶存 ±1,不存畫面用的倍率
+          if (j - i === 2) _blockSideRole.set(arr[m].key, { q, other: arr[m === i ? i + 1 : m - 1].key });
+          else _blockSideRole.delete(arr[m].key);  // 三台以上沒有「讓位角色」可言
         }
       }
       i = j;
@@ -5368,6 +5386,7 @@ function drawArrowAt(cp, ang, color, hw, hh) {
 const BLOCK_SIDE_GAP = 2;              // 兩顆牌之間要留的縫(px)
 const BLOCK_TAG_H = 15;                // 車號牌高度(與 drawTag 的 ph 同值)
 const _blockSideEase = new Map();      // 進出偏移要漸變,不能一到門檻就跳
+const _blockSideLatch = new Set();     // 已經讓開的:通過的車真的走遠之前不准回到軌道上
 // 車號牌實寬(與 drawTag 同一條算式);標籤不變 → 每班量一次就夠
 function tagW(tr) {
   if (tr._tagW == null) { ctx.font = '700 10px ' + FONT; tr._tagW = ctx.measureText(String(tr.train)).width + 10; }
@@ -5378,13 +5397,23 @@ function blockSideShift(tr, pos, cp, big) {
   // 遠景圓點模式不偏(那個縮放下十幾 px 是好幾公里);跟隨中的主角是鏡頭錨點,更不能偏
   const info = big && tr !== state.followTrain ? _blockSide.get(key) : null;
   let ax = 0, ay = 0;
+  if (!info) _blockSideLatch.delete(key);              // 不配對了就放掉閂,不留陳舊狀態
   const op = info && trainPos(info.other, state.simSec);
   if (op) {
     const ocp = map.latLngToContainerPoint([op.lat, op.lon]);
     // 兩顆牌會疊到的距離,由「實際量到的牌寬」推得而不是手打的常數;且必須是一對車共用的值——
     // 各用各的牌寬,「270」(窄)會比「2138」(寬)早歸零,同一對就變成一台偏一台不偏(實測 8/17 對)
     const near = (tagW(tr) + tagW(info.other)) / 2;
-    const w = Math.min(1, Math.max(0, (near - Math.hypot(ocp.x - cp.x, ocp.y - cp.y)) / near));
+    // 讓開了就不准在通過的車離開前回到軌道(2026-07-29 使用者回報「互相搶奪位子」)。
+    // 原本 w=(near−距離)/near 綁**當下距離**線性漸變:通過的車走多遠、讓位的就回來多少,
+    // 兩顆牌保持等距一起移動＝看起來在搶位子(實測 3138 讓 198:通過的車才走 4px,
+    // 讓位的已從 31.3px 回落到 28.6px,一路陪著走回線上)。改成全有全無——
+    // 會疊到就整台讓開,直到「就算回到線上也不會疊」(距離 ≥ 兩個半寬之和)才鬆手。
+    // 離開的門檻比進入多一條縫,免得距離卡在臨界值時反覆進出。
+    const dist = Math.hypot(ocp.x - cp.x, ocp.y - cp.y);
+    const on = _blockSideLatch.has(key) ? dist < near + BLOCK_SIDE_GAP : dist < near;
+    if (on) _blockSideLatch.add(key); else _blockSideLatch.delete(key);
+    const w = on ? 1 : 0;
     // 切線取線形本身、朝行進方向(同一對車拿到同一條切線 ⇒ 號誌相反就必然對稱各偏一半)。
     // Mercator 保角 ⇒ 螢幕向量 ∝ (dlon·cosφ, −dlat);法線＝切線轉 90°。
     const a1 = posAlongShape(info.ln, info.d - 0.05 * info.dir), a2 = posAlongShape(info.ln, info.d + 0.05 * info.dir);

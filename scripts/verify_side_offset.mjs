@@ -168,8 +168,17 @@ const M = await A.page.evaluate(() => {
       if (!ca || !cb) continue;
       const dpx = Math.hypot(ca.x - cb.x, ca.y - cb.y);
       const diag = Math.max(diagOf(trA), diagOf(trB));
+      // ov＝畫出來的兩顆牌的交集面積；need＝兩個半寬之和（都回到線上時要多遠才不疊）。
+      // 有了這兩個量，「會疊到就整台讓開」才驗得到——不必再問「偏了幾 px」。
+      const ha0 = drawnCp(trA), hb0 = drawnCp(trB);
+      const rc = (h, tr) => ({ x0: h.x - tagW(tr) / 2, x1: h.x + tagW(tr) / 2, y0: h.y - 7.5, y1: h.y + 7.5 });
+      let ov0 = null;
+      if (ha0 && hb0) { const r1 = rc(ha0, trA), r2 = rc(hb0, trB);
+        ov0 = Math.max(0, Math.min(r1.x1, r2.x1) - Math.max(r1.x0, r2.x0)) *
+              Math.max(0, Math.min(r1.y1, r2.y1) - Math.max(r1.y0, r2.y0)); }
       out.zoom.push({ t: sc.t, z, dpx: +dpx.toFixed(1), diag: +diag.toFixed(1), r: +(dpx / diag).toFixed(3),
-        m: +Math.max(mag(oa), mag(ob)).toFixed(2) });
+        m: +Math.max(mag(oa), mag(ob)).toFixed(2),
+        need: +((tagW(trA) + tagW(trB)) / 2).toFixed(1), ov: ov0 == null ? null : +ov0.toFixed(1) });
       if (z <= 10) out.dot.push(+Math.max(mag(oa), mag(ob)).toFixed(3));   // 圓點模式必須恆零
       // 噪音底線的對照組：同一幀裡**沒有並排配對**的台鐵車，結構上偏移必為零，
       // 量到的任何非零都是量測噪音（latLngToContainerPoint 取整 × 誤點漸變層每次呼叫微動）。
@@ -199,9 +208,12 @@ const M = await A.page.evaluate(() => {
       const sb = trainSeg(trB, state.simSec - liveDelaySec(trB) - blockHoldSec(trB));
       const one = sa && sb && (!!sa.dwell !== !!sb.dwell);
       if (one) {
-        const [dw, run] = sa.dwell ? [oa, ob] : [ob, oa];
+        // 記「大的那個／小的那個」而不是「停站的／在跑的」：角色在遭遇開始時定案並閂住，
+        // 之後同一對車接力（換誰停站）也不對調，所以此刻停站的未必是退出去的那台。
+        // 「退出去的必須是遭遇開始時停站的那台」是時間序列才問得出來的，見 B19。
+        const [hi, lo] = mag(oa) >= mag(ob) ? [oa, ob] : [ob, oa];
         out.solo.push({ t: sc.t, a: sc.a, b: sc.b,
-          dwellM: +mag(dw).toFixed(2), runM: +mag(run).toFixed(2) });
+          outM: +mag(hi).toFixed(2), onM: +mag(lo).toFixed(2) });
       } else out.sym.push({ t: sc.t, a: sc.a, b: sc.b,
         m: +((mag(oa) + mag(ob)) / 2).toFixed(2),
         dpx: +Math.abs(mag(oa) - mag(ob)).toFixed(2),
@@ -373,11 +385,11 @@ check('B1 沒有誰在讓誰時（都在跑／兩台都停同站）各偏一半�
 // 「分離量被砍半」這種壞法由 B1b 的下限＋B16 的投影一起接（突變 N22 實測會紅）。
 // 「過的那班不動」寫成 0px 而不是「比較小」——它是這個設計的重點：在主線上跑的那班,
 // 它的標記位置就是它真正的位置,一個像素都不該被推走。0px 量得到（螢幕座標取整,噪音底線就是 0）。
-const soloBad = M.solo.filter(s => s.runM > 0 || s.dwellM < 1);
-check('B1b 讓位時：讓的那班整台退出軌道線、過的那班留在線上零位移',
+const soloBad = M.solo.filter(s => s.onM > 0 || s.outM < 1);
+check('B1b 讓位時是一台整台退出、另一台完全留在線上（不是各退一半）',
   M.solo.length > 0 && soloBad.length === 0,
-  `${M.solo.length} 對「恰好一台停站」，讓位側位移中位 ${q(M.solo.map(s => s.dwellM), 0.5)}px、` +
-  `最小 ${Math.min(...M.solo.map(s => s.dwellM))}px；經過側位移最大 ${Math.max(0, ...M.solo.map(s => s.runM))}px` +
+  `${M.solo.length} 對「恰好一台停站」，退出那台位移中位 ${q(M.solo.map(s => s.outM), 0.5)}px、` +
+  `最小 ${Math.min(...M.solo.map(s => s.outM))}px；留在線上那台位移最大 ${Math.max(0, ...M.solo.map(s => s.onM))}px` +
   (soloBad.length ? `；不合 ${soloBad.length} 對，例：${JSON.stringify(soloBad.slice(0, 3))}` : ''));
 
 // B2 法線：與線形切線的單位內積
@@ -387,24 +399,27 @@ check('B2 偏移沿軌道法線（與線形切線垂直，切線取自 posAlongS
   `${M.norm.length} 筆，|cos| 中位 ${q(M.norm.map(n => n.dot), 0.5)}、p90 ${q(M.norm.map(n => n.dot), 0.9)}、最大 ${Math.max(0, ...M.norm.map(n => n.dot))}` +
   (normBad.length ? `；超標 ${normBad.length} 筆，例：${JSON.stringify(normBad.slice(0, 3))}` : ''));
 
-// B3 只在標記會疊到時才偏，且越疊越偏。
+// B3 會疊到就整台讓開、不可能疊到就完全不偏。
 // 自變數是「兩顆標記的螢幕距離 ÷ 車號牌對角線」，不是縮放層級——第一版誤把縮放當代理，
 // 結果撞到「兩班車就停在同一點（端站接續）」，拉到 z16 螢幕距離仍是 0，判準自己紅了。
 // 縮放只是把同一對車推過各種螢幕距離的旋鈕，不是判準本身。
 // 用對角線而不是寬度：中心距離超過對角線，兩顆牌無論軌道角度都不可能相疊 ⇒ 這時還偏就是無謂地動車。
+// ⚠ 這一條原本寫「疊得越深偏得越多」（偏移量隨深度單調遞增）——**那正是使用者退掉的行為**：
+// 位移綁當下距離漸變，通過的車走多遠、讓位的就回來多少，看起來在互相搶位子（2026-07-29 回報）。
+// 現在改成全有全無，所以判準也改問結果而不問比例：**會疊到的就必須真的被分開**（牌的交集為零）。
 const tag = M.zoom.filter(r => r.z >= 11);          // 圓點模式另有 B7
 const apart = tag.filter(r => r.r >= 1), lap = tag.filter(r => r.r < 1);
 const apartMax = Math.max(0, ...apart.map(r => r.m));
-const bucket = f => { const s = lap.filter(r => r.r >= f - 0.25 && r.r < f); return s.length ? q(s.map(r => r.m), 0.5) : null; };
-const b = [0.25, 0.5, 0.75, 1].map(bucket);
-const mono = b.filter(v => v != null);
+const wouldLap = tag.filter(r => r.dpx < r.need);   // 都回到線上就會疊 ⇒ 必須被分開
+const stillLap = wouldLap.filter(r => r.ov == null || r.ov > 0);
 const noise = Math.max(0, ...M.ctrl);   // 對照組量到的噪音底線（結構上不可能有偏移的車）
-check('B3 兩顆牌不可能相疊時就不偏、疊得越深偏得越多（自變數＝螢幕距離 ÷ 車號牌對角線）',
+check('B3 會疊到就整台讓開（牌真的被分開）、不可能疊到就完全不偏',
   apart.length > 0 && lap.length > 0 && M.ctrl.length > 100 && apartMax <= noise &&
-  mono.length >= 2 && mono.every((v, i) => i === 0 || v <= mono[i - 1]),
+  wouldLap.length > 0 && stillLap.length === 0,
   `距離≥一條對角線 ${apart.length} 筆偏移最大 ${apartMax}px（對照組：${M.ctrl.length} 筆結構上不可能偏移的車，` +
-  `量測噪音底線 ${noise}px ← 螢幕座標取整）；可能相疊的 ${lap.length} 筆，` +
-  `依疊入深度（距離/對角線 0–.25/.25–.5/.5–.75/.75–1）偏移中位 ${b.map(v => v == null ? '—' : v).join(' → ')}px`);
+  `量測噪音底線 ${noise}px ← 螢幕座標取整）；` +
+  `「都回到線上就會疊」的 ${wouldLap.length} 筆，偏移後牌的交集面積最大 ${Math.max(0, ...wouldLap.map(r => r.ov || 0))}px²` +
+  (stillLap.length ? `；仍相疊 ${stillLap.length} 筆，例：${JSON.stringify(stillLap.slice(0, 3))}` : ''));
 
 // B7 遠景圓點模式恆零
 const dotMax = Math.max(0, ...M.dot);
@@ -460,16 +475,18 @@ check('B13 並排之後兩顆車號牌不得再相疊（矩形交集為零）',
 // 兩台一列時是非對稱的（讓位那班獨自退到右邊、經過那班零位移）；三台以上還在線上的那幾台
 // 會互相疊，仍是左右交替——兩種形狀分開驗，而且都要有樣本，不能哪一邊悄悄變空。
 const yieldSolo = M.yield.filter(y => y.pair2), yieldMulti = M.yield.filter(y => !y.pair2);
+// 「有位移的那台」而不是「停站的那台」——理由同 B1b（角色閂住、接力不對調）。
+// 這一條仍然有牙：它管的是**側別**（右手邊），把「靠左」與「兩台都偏」都排除掉。
 const yBad = [
-  ...yieldSolo.filter(y => y.dwell ? !(y.proj > 0) : y.m !== 0),
+  ...yieldSolo.filter(y => y.m > 0 ? !(y.proj > 0) : y.m !== 0),
   ...yieldMulti.filter(y => y.proj == null || (y.dwell ? y.proj <= 0 : y.proj >= 0)),
 ];
-check('B16 讓位的那班（停站中）固定在行進方向的右側；兩台一列時經過的那班留在線上零位移',
-  yieldSolo.some(y => y.dwell) && yieldSolo.some(y => !y.dwell) && yBad.length === 0,
-  `${M.yield.length} 筆（兩台一列 ${yieldSolo.length}：讓位 ${yieldSolo.filter(y => y.dwell).length}／` +
-  `經過 ${yieldSolo.filter(y => !y.dwell).length}；三台以上 ${yieldMulti.length}），` +
-  `讓位側投影最小 ${Math.min(1, ...yieldSolo.filter(y => y.dwell).map(y => y.proj))}、` +
-  `經過側位移最大 ${Math.max(0, ...yieldSolo.filter(y => !y.dwell).map(y => y.m))}px` +
+check('B16 退出軌道線的那班固定在行進方向的右側；兩台一列時另一班留在線上零位移',
+  yieldSolo.some(y => y.m > 0) && yieldSolo.some(y => y.m === 0) && yBad.length === 0,
+  `${M.yield.length} 筆（兩台一列 ${yieldSolo.length}：退出 ${yieldSolo.filter(y => y.m > 0).length}／` +
+  `留線上 ${yieldSolo.filter(y => y.m === 0).length}；三台以上 ${yieldMulti.length}），` +
+  `退出側投影最小 ${Math.min(1, ...yieldSolo.filter(y => y.m > 0).map(y => y.proj))}、` +
+  `留線上那側位移最大 ${Math.max(0, ...yieldSolo.filter(y => y.m === 0).map(y => y.m))}px` +
   `；另排除 ${M.yieldSkip.length} 筆「附近不只一班停著、指不出誰在讓」的取樣` +
   (M.yieldSkip.length ? `（例：${JSON.stringify(M.yieldSkip.slice(0, 3))}）` : '') +
   `；取樣時刻 ${[...new Set(M.yield.map(y => y.t))].length} 個` +
@@ -746,6 +763,130 @@ check('B18 讓完之後（讓的那班開走、沒有人在讓了）也不得換
   `其中 ${stEnds.length} 段走到「讓完、沒有人在讓了」那一刻` +
   (stEnds.length ? '' : '　←**一段都沒有＝這條判準沒踩到規則**') +
   `；情境沒變卻換邊 ${badFlips.length} 次` + (badFlips.length ? `：${badFlips.slice(0, 8).join('、')}` : ''));
+
+// ── B19 使用者的話直接翻成判準（2026-07-29）：「避讓的車只要讓開，就不應該在通過的車離開前
+// 回到軌道。」所以：從讓開的那一刻起，到通過的那班真的離開為止，讓位那班的位移**不得下降**。
+// 「離開」用外部幾何定義，不讀實作：兩台的**原始**螢幕距離 ≥ 兩個半寬之和 ⇒ 就算讓位那班
+// 回到線上，兩顆牌也不會疊 ⇒ 通過的車確實走掉了。
+// 這一條同時抓兩種回落，兩種都是實測到的：
+//   ① 淡出權重綁當下距離線性漸變（通過的車走多遠、讓位的就回來多少，等距一起移動＝搶位子）
+//   ② 通過的那班也在同一站停下 ⇒ 角色判定退回「對稱」⇒ 讓位那班往軌道走回一半
+// 位移一律從畫面量（_trainHits 減未偏移投影點），不讀 _blockSide／latch／role——
+// 那些是實作自己的簿記。_blockSide 只用來**挑**要看哪些對（挑場景不是判準）。
+const RB = await A.page.evaluate(() => {
+  const keyOf = tr => (tr.sys || '') + ':' + tr.train;
+  const segOf = tr => trainSeg(tr, state.simSec - liveDelaySec(tr) - blockHoldSec(tr));
+  const rawCp = tr => { const q = trainPos(tr, state.simSec); return q ? map.latLngToContainerPoint([q.lat, q.lon]) : null; };
+  const drawnCp = tr => { for (const h of state._trainHits) if (h.tr === tr) return h; return null; };
+  const magOf = tr => { const a = rawCp(tr), c = drawnCp(tr); return (a && c) ? Math.hypot(c.x - a.x, c.y - a.y) : null; };
+  const tw = tr => { ctx.font = '700 10px ' + FONT; return ctx.measureText(String(tr.train)).width + 10; };
+  // 判準自己的切線（與 B2/B16 同一個做法：取線形本身，不讀實作的簿記）
+  const tangent = tr => {
+    const g = segOf(tr); if (!g || !g.ln) return null;
+    const a = posAlongShape(g.ln, g.d - 0.02 * g.dir), b = posAlongShape(g.ln, g.d + 0.02 * g.dir);
+    if (!a || !b) return null;
+    const cl = Math.cos(a.lat * Math.PI / 180);
+    const x = (b.lon - a.lon) * cl, y = -(b.lat - a.lat), L = Math.hypot(x, y);
+    return L > 1e-9 ? { x: x / L, y: y / L } : null;
+  };
+  const clearAll = () => {
+    _blockHold.clear(); _blockGap.clear(); _blockPrevD.clear();
+    _blockSideEase.clear(); _blockSideSign.clear();
+    if (typeof _blockSideLatch !== 'undefined') _blockSideLatch.clear();
+    if (typeof _blockSideRole !== 'undefined') _blockSideRole.clear();
+    _blockSim = null;
+  };
+  const seeds = [], seen = new Set();
+  for (let t = 0; t < 86400 && seeds.length < 24; t += 149) {
+    state.simSec = t; updateBlockHolds();
+    for (const [k, info] of _blockSide) {
+      if (!info.other || info.s !== 2) continue;                 // s===2 ＝這一刻被判為讓位的那班
+      const me = state.trains.find(x => keyOf(x) === k); if (!me) continue;
+      const tag = me.train + '/' + info.other.train;
+      if (seen.has(tag)) break; seen.add(tag);
+      seeds.push({ t, me: me.train, you: info.other.train });
+      break;
+    }
+  }
+  const runs = [];
+  for (const sd of seeds) {
+    const me = state.trains.find(x => x.train === sd.me && x.sys === 'tra_sched');
+    const you = state.trains.find(x => x.train === sd.you && x.sys === 'tra_sched');
+    if (!me || !you) continue;
+    state.simSec = sd.t; clearAll(); updateBlockHolds();
+    const q0 = trainPos(me, state.simSec); if (!q0) continue;
+    map.setView([q0.lat, q0.lon], 14, { animate: false });
+    clearAll();                                                   // 每段各自從乾淨狀態起走
+    const rows = [];
+    for (let dt = -90; dt <= 300; dt += 3) {
+      state.simSec = sd.t + dt; updateBlockHolds();
+      for (let k = 0; k < 6; k++) draw();
+      const ra = rawCp(me), rb = rawCp(you);
+      if (!ra || !rb) continue;
+      const mm = magOf(me), my = magOf(you);
+      if (mm == null || my == null) continue;
+      // 位移量本身會隨軌道方向變（法線水平時要讓開的是牌寬 ~30px、垂直時只要牌高 15px），
+      // 直接比 px 會把「車在彎道上走」誤判成「往軌道回落」。所以除以「這個方向需要多少」再比。
+      const nOf = tr => { const tg = tangent(tr); if (!tg) return null;
+        return Math.abs(tg.y) * ((tw(me) + tw(you)) / 2) + Math.abs(tg.x) * 15; };
+      rows.push({ dt,
+        dpx: +Math.hypot(ra.x - rb.x, ra.y - rb.y).toFixed(1),
+        need: +((tw(me) + tw(you)) / 2).toFixed(1),
+        mMe: mm, mYou: my, nMe: nOf(me), nYou: nOf(you),
+        dMe: !!(segOf(me) || {}).dwell, dYou: !!(segOf(you) || {}).dwell });
+    }
+    runs.push({ t: sd.t, me: sd.me, you: sd.you, rows });
+  }
+  return runs;
+});
+// 逐段判三件事，全部只吃畫面量到的東西：
+//   ① 退出去的那台，是「讓開的那一刻正在停站」的那台（使用者原本的規則）
+//   ② 從讓開到通過的車離開為止，不得換人退出（換人＝兩台交換位置＝互相搶位子）
+//   ③ 同一期間，退出量（除以該方向需要的量之後）不得下降，另一台恆為 0
+const rbBad = [], rbDone = [];
+for (const R of RB) {
+  const rs = R.rows;
+  if (!rs.length) continue;
+  // 「讓開的那一刻」＝**不對稱**構型開始的那一刻：一台整台退出、另一台回到線上。
+  // 只寫 `max > 5` 會把前面「兩台都停在同一站、各偏一半」的對稱期也算進來，
+  // 於是整段對稱期都被記成「留線上那台也被推開」——那是判準的窗開錯了，不是產品的錯。
+  const ei = rs.findIndex(r => Math.max(r.mMe, r.mYou) > 5 && Math.min(r.mMe, r.mYou) <= 0.5);
+  if (ei < 0) continue;
+  const outMe = rs[ei].mMe >= rs[ei].mYou;                          // 退出去的是 me 還是 you
+  const gone = rs.findIndex((r, i) => i > ei && r.dpx >= r.need);   // 通過的車真的離開
+  if (gone < 0) continue;
+  rbDone.push(`${R.me}/${R.you}`);
+  // ① 讓開當下，退出去的那台必須正在停站（容許 ±1 個取樣點：判準每 3 秒問一次，
+  //    實作那一幀用的是上一幀的停等值，兩邊對「什麼時候開始停」天生差一拍）
+  const dwellAt = k => (outMe ? rs[k].dMe : rs[k].dYou);
+  if (!(dwellAt(ei) || (ei > 0 && dwellAt(ei - 1)) || (ei + 1 < rs.length && dwellAt(ei + 1))))
+    rbBad.push({ 段: `${R.me}/${R.you}`, dt: rs[ei].dt, 問題: '讓開的那台當下不是停站中的那台' });
+  let hi = 0;
+  for (let i = ei; i < gone; i++) {
+    const r = rs[i];
+    const mOut = outMe ? r.mMe : r.mYou, mOn = outMe ? r.mYou : r.mMe;
+    const nOut = outMe ? r.nMe : r.nYou;
+    // ② 換人退出
+    if (mOn > 0.5 && mOn > mOut)
+      rbBad.push({ 段: `${R.me}/${R.you}`, dt: r.dt, 問題: '換人退出', 退出: +mOut.toFixed(1), 另一台: +mOn.toFixed(1) });
+    else if (mOn > 0.5)
+      rbBad.push({ 段: `${R.me}/${R.you}`, dt: r.dt, 問題: '留線上那台也被推開', 另一台: +mOn.toFixed(1) });
+    // ③ 回落（比的是「佔該方向需求的幾成」，不是 px）
+    if (nOut) {
+      const ratio = mOut / nOut;
+      if (ratio < hi - 0.05) rbBad.push({ 段: `${R.me}/${R.you}`, dt: r.dt, 問題: '往軌道回落',
+        佔比: +ratio.toFixed(2), 峰值佔比: +hi.toFixed(2), 距離: r.dpx, 需要: r.need });
+      else hi = Math.max(hi, ratio);
+    }
+  }
+}
+check('B19 讓開之後，在通過的車離開前不得換人、不得往軌道回落（使用者回報「互相搶奪位子」的判準）',
+  RB.length > 0 && rbDone.length >= 5 && rbBad.length === 0,
+  `全日取 ${RB.length} 段讓位逐 3 秒走，其中 ${rbDone.length} 段真的走到「通過的車離開」` +
+  (rbDone.length >= 5 ? `（${rbDone.slice(0, 6).join('、')}…）` : '　←**不到 5 段＝這條判準沒踩到規則**') +
+  `；違規 ${rbBad.length} 次` + (rbBad.length ? `，例：${JSON.stringify(rbBad.slice(0, 3))}` : ''));
+
+
 
 // ── B6 位置零變化：偏移是純畫面的，trainPos 逐值必須與「偏移加入前」相同
 if (BPORT) {
