@@ -112,12 +112,12 @@ struct Provider: AppIntentTimelineProvider {
         }
 
         do {
-            let originID = try RailBoardStore.shared.stationIndex(forKey: originKey)
-            let destinationID = try configuration.destination.flatMap {
-                try RailBoardStore.shared.stationIndex(forKey: $0)
+            let originSelection = try RailBoardStore.shared.stationSelection(forKey: originKey)
+            let destinationSelection = try configuration.destination.flatMap {
+                try RailBoardStore.shared.stationSelection(forKey: $0)
             }
-            let destinationLost = configuration.destination != nil && destinationID == nil
-            guard let originID, !destinationLost else {
+            let destinationLost = configuration.destination != nil && destinationSelection == nil
+            guard let originSelection, !destinationLost else {
                 let entry = RailBoardEntry(
                     date: now,
                     configuration: configuration,
@@ -128,8 +128,10 @@ struct Provider: AppIntentTimelineProvider {
 
             let filters = BoardFilterSet(keys: configuration.filters)
             let prepared = try engine.prepare(
-                originID: originID,
-                destinationID: destinationID,
+                originID: originSelection.station.index,
+                destinationID: destinationSelection?.station.index,
+                originDisplayName: originSelection.displayName,
+                destinationDisplayName: destinationSelection?.displayName,
                 filters: filters,
                 now: now
             )
@@ -188,12 +190,12 @@ struct Provider: AppIntentTimelineProvider {
         }
 
         do {
-            let originID = try RailBoardStore.shared.stationIndex(forKey: originKey)
-            let destinationID = try configuration.destination.flatMap {
-                try RailBoardStore.shared.stationIndex(forKey: $0)
+            let originSelection = try RailBoardStore.shared.stationSelection(forKey: originKey)
+            let destinationSelection = try configuration.destination.flatMap {
+                try RailBoardStore.shared.stationSelection(forKey: $0)
             }
-            let destinationLost = configuration.destination != nil && destinationID == nil
-            guard let originID, !destinationLost else {
+            let destinationLost = configuration.destination != nil && destinationSelection == nil
+            guard let originSelection, !destinationLost else {
                 return RailBoardEntry(
                     date: now,
                     configuration: configuration,
@@ -203,8 +205,10 @@ struct Provider: AppIntentTimelineProvider {
 
             let filters = BoardFilterSet(keys: configuration.filters)
             let prepared = try engine.prepare(
-                originID: originID,
-                destinationID: destinationID,
+                originID: originSelection.station.index,
+                destinationID: destinationSelection?.station.index,
+                originDisplayName: originSelection.displayName,
+                destinationDisplayName: destinationSelection?.displayName,
                 filters: filters,
                 now: now
             )

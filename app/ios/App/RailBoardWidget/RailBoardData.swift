@@ -119,6 +119,48 @@ private struct RailBoardPlace: Decodable {
     let manual: Bool
 }
 
+private struct PlaceSelectionKey {
+    let lat: Double
+    let lon: Double
+    let label: String
+
+    init?(key: String) {
+        let parts = key.split(
+            separator: "|",
+            maxSplits: 2,
+            omittingEmptySubsequences: false
+        )
+        guard parts.count == 3, parts[0] == "place" else { return nil }
+        let coordinates = parts[1].split(
+            separator: ",",
+            maxSplits: 1,
+            omittingEmptySubsequences: false
+        )
+        guard
+            coordinates.count == 2,
+            let lat = Double(coordinates[0]),
+            let lon = Double(coordinates[1]),
+            lat.isFinite,
+            lon.isFinite
+        else {
+            return nil
+        }
+        self.lat = lat
+        self.lon = lon
+        label = String(parts[2])
+    }
+
+    static func makeKey(lat: Double, lon: Double, label: String) -> String {
+        let coordinates = String(
+            format: "%.6f,%.6f",
+            locale: Locale(identifier: "en_US_POSIX"),
+            lat,
+            lon
+        )
+        return "place|\(coordinates)|\(label)"
+    }
+}
+
 struct BoardDocument: Decodable {
     let v: Int
     let st: Int
@@ -254,7 +296,9 @@ final class RailBoardStore {
 
     func destinationOptions(from originKey: String) throws -> [StationOption] {
         let allStations = try stationOptions()
-        guard let origin = allStations.first(where: { $0.key == originKey }) else { return [] }
+        guard let origin = resolveStation(forKey: originKey, stations: allStations)?.station else {
+            return []
+        }
         let board = try board(stationID: origin.index)
         let reachable = Set(
             board.deps.flatMap { departure in
@@ -268,10 +312,32 @@ final class RailBoardStore {
         }
     }
 
-    /// 設定裡存的是車站鍵、不是班表陣列的索引：索引會因為班表重建而位移，鍵不會。
-    /// 站被改名或撤站時回 nil，呼叫端要據此提示重新設定，不可退回索引 0。
+    /// 舊設定的車站鍵與新設定的地點鍵都在這裡解析；timeline 每次建構都會重解，
+    /// 所以同名地點搬家後不必重開設定畫面，就會跟到現在位置的最近站。
+    func stationSelection(forKey key: String) throws -> StationSelection? {
+        try resolveStation(forKey: key, stations: stationOptions())
+    }
+
+    /// 索引會因班表重建而位移，設定只存穩定鍵。解析失敗時回 nil，不可退回索引 0。
     func stationIndex(forKey key: String) throws -> Int? {
-        try stationOptions().first(where: { $0.key == key })?.index
+        try stationSelection(forKey: key)?.station.index
+    }
+
+    private func resolveStation(
+        forKey key: String,
+        stations: [StationOption]
+    ) -> StationSelection? {
+        var departuresByIndex: [Int: Int] = [:]
+        return RailBoardPlaces.resolve(
+            key: key,
+            rootURL: rootURL,
+            stations: stations
+        ) { index in
+            if let cached = departuresByIndex[index] { return cached }
+            let count = (try? board(stationID: index))?.deps.count ?? 0
+            departuresByIndex[index] = count
+            return count
+        }
     }
 }
 
@@ -304,8 +370,15 @@ struct StationOption: Hashable {
     ]
 }
 
+struct StationSelection {
+    let station: StationOption
+    /// 只有地點鍵的 label 仍在 places.json 唯一命中時才有值；降級用內嵌座標時為 nil。
+    let displayName: String?
+}
+
 /// 一個使用者地點解析到既有車站鍵後的選單捷徑。
 struct PlaceStationOption {
+    let key: String
     let station: StationOption
     let label: String
     let distanceMeters: Double
@@ -346,72 +419,135 @@ private enum RailBoardPlaces {
         stations: [StationOption],
         departureCount: (Int) -> Int
     ) -> [PlaceStationOption] {
+        guard let document = document(rootURL: rootURL) else { return [] }
+
+        var candidates: [PlaceStationOption] = []
+        for place in document.places {
+            guard place.lat.isFinite, place.lon.isFinite else { continue }
+            guard let nearest = nearestStation(
+                lat: place.lat,
+                lon: place.lon,
+                stations: stations,
+                departureCount: departureCount
+            ) else {
+                continue
+            }
+            candidates.append(PlaceStationOption(
+                key: PlaceSelectionKey.makeKey(
+                    lat: place.lat,
+                    lon: place.lon,
+                    label: place.label
+                ),
+                station: nearest.station,
+                label: place.label,
+                distanceMeters: nearest.meters,
+                manual: place.manual
+            ))
+        }
+
+        return Array(candidates.sorted {
+            if $0.manual != $1.manual { return $0.manual && !$1.manual }
+            if $0.distanceMeters != $1.distanceMeters {
+                return $0.distanceMeters < $1.distanceMeters
+            }
+            if $0.displayLabel != $1.displayLabel { return $0.displayLabel < $1.displayLabel }
+            return $0.key < $1.key
+        }.prefix(maximumOptions))
+    }
+
+    static func resolve(
+        key: String,
+        rootURL: URL?,
+        stations: [StationOption],
+        departureCount: (Int) -> Int
+    ) -> StationSelection? {
+        guard key.hasPrefix("place|") else {
+            return stations.first(where: { $0.key == key }).map {
+                StationSelection(station: $0, displayName: nil)
+            }
+        }
+        guard let placeKey = PlaceSelectionKey(key: key) else { return nil }
+
+        let currentPlace: RailBoardPlace?
+        if
+            !placeKey.label.isEmpty,
+            let rootURL,
+            let document = document(rootURL: rootURL)
+        {
+            let matches = document.places.filter { $0.label == placeKey.label }
+            if
+                matches.count == 1,
+                matches[0].lat.isFinite,
+                matches[0].lon.isFinite
+            {
+                currentPlace = matches[0]
+            } else {
+                currentPlace = nil
+            }
+        } else {
+            currentPlace = nil
+        }
+
+        guard let nearest = nearestStation(
+            lat: currentPlace?.lat ?? placeKey.lat,
+            lon: currentPlace?.lon ?? placeKey.lon,
+            stations: stations,
+            departureCount: departureCount
+        ) else {
+            return nil
+        }
+        return StationSelection(
+            station: nearest.station,
+            displayName: currentPlace == nil ? nil : placeKey.label
+        )
+    }
+
+    private static func document(rootURL: URL) -> PlacesDocument? {
         let url = rootURL.appendingPathComponent("places.json")
         guard
             let data = try? Data(contentsOf: url),
             let document = try? JSONDecoder().decode(PlacesDocument.self, from: data),
             document.v == 1
         else {
-            return []
+            return nil
+        }
+        return document
+    }
+
+    /// 選單產生與地點鍵解析共用同一支最近站演算法，避免 5 公里／300 公尺平手規則漂移。
+    private static func nearestStation(
+        lat: Double,
+        lon: Double,
+        stations: [StationOption],
+        departureCount: (Int) -> Int
+    ) -> (station: StationOption, meters: Double)? {
+        let scored = stations.compactMap { station -> (station: StationOption, meters: Double)? in
+            guard let coordinate = station.coordinate else { return nil }
+            return (station, haversineMeters(
+                lat1: lat,
+                lon1: lon,
+                lat2: coordinate.lat,
+                lon2: coordinate.lon
+            ))
+        }
+        guard
+            let closest = scored.min(by: { $0.meters < $1.meters }),
+            closest.meters <= maximumDistanceMeters
+        else {
+            return nil
         }
 
-        let coordinateStations = stations.filter { $0.coordinate != nil }
-        guard !coordinateStations.isEmpty else { return [] }
-
-        var bestByStationKey: [String: PlaceStationOption] = [:]
-        for place in document.places {
-            guard place.lat.isFinite, place.lon.isFinite else { continue }
-
-            var scored: [(station: StationOption, meters: Double)] = []
-            for station in coordinateStations {
-                guard let coordinate = station.coordinate else { continue }
-                scored.append((station, haversineMeters(
-                    lat1: place.lat,
-                    lon1: place.lon,
-                    lat2: coordinate.lat,
-                    lon2: coordinate.lon
-                )))
-            }
-
-            guard
-                let closest = scored.min(by: { $0.meters < $1.meters }),
-                closest.meters <= maximumDistanceMeters
-            else {
-                continue
-            }
-            // 平手窗內全部視為候選，再依「發車數多 → 距離近 → 車站鍵」決勝。
-            // 三段都排完才取第一筆，是為了讓結果與 `stations` 的陣列順序完全無關（否則就退回靠運氣）。
-            let nearest = scored
-                .filter { $0.meters <= closest.meters + tieBreakMeters }
-                .sorted { lhs, rhs in
-                    let lhsDepartures = departureCount(lhs.station.index)
-                    let rhsDepartures = departureCount(rhs.station.index)
-                    if lhsDepartures != rhsDepartures { return lhsDepartures > rhsDepartures }
-                    if lhs.meters != rhs.meters { return lhs.meters < rhs.meters }
-                    return lhs.station.key < rhs.station.key
-                }[0]
-
-            let candidate = PlaceStationOption(
-                station: nearest.station,
-                label: place.label,
-                distanceMeters: nearest.meters,
-                manual: place.manual
-            )
-            if let current = bestByStationKey[nearest.station.key],
-               current.distanceMeters <= candidate.distanceMeters {
-                continue
-            }
-            bestByStationKey[nearest.station.key] = candidate
-        }
-
-        return Array(bestByStationKey.values.sorted {
-            if $0.manual != $1.manual { return $0.manual && !$1.manual }
-            if $0.distanceMeters != $1.distanceMeters {
-                return $0.distanceMeters < $1.distanceMeters
-            }
-            if $0.displayLabel != $1.displayLabel { return $0.displayLabel < $1.displayLabel }
-            return $0.station.key < $1.station.key
-        }.prefix(maximumOptions))
+        // 平手窗內全部視為候選，再依「發車數多 → 距離近 → 車站鍵」決勝。
+        // 三段都排完才取第一筆，結果才不依賴 stations 的陣列順序。
+        return scored
+            .filter { $0.meters <= closest.meters + tieBreakMeters }
+            .sorted { lhs, rhs in
+                let lhsDepartures = departureCount(lhs.station.index)
+                let rhsDepartures = departureCount(rhs.station.index)
+                if lhsDepartures != rhsDepartures { return lhsDepartures > rhsDepartures }
+                if lhs.meters != rhs.meters { return lhs.meters < rhs.meters }
+                return lhs.station.key < rhs.station.key
+            }[0]
     }
 
     private static func haversineMeters(
@@ -477,6 +613,8 @@ enum ScheduleNotice: Equatable {
 struct PreparedBoard {
     let originName: String
     let destinationName: String?
+    let originDisplayName: String?
+    let destinationDisplayName: String?
     let system: SystemMetadata
     let typeColors: [String: String]
     let stations: [StationRecord]
@@ -486,9 +624,9 @@ struct PreparedBoard {
 
     var title: String {
         if let destinationName {
-            return "\(originName) → \(destinationName)"
+            return "\(originDisplayName ?? originName) → \(destinationDisplayName ?? destinationName)"
         }
-        return originName
+        return originDisplayName ?? originName
     }
 
     var isWatching: Bool {
@@ -611,6 +749,8 @@ struct RailBoardEngine {
     func prepare(
         originID: Int,
         destinationID: Int?,
+        originDisplayName: String? = nil,
+        destinationDisplayName: String? = nil,
         filters: BoardFilterSet = BoardFilterSet(keys: nil),
         now: Date
     ) throws -> PreparedBoard {
@@ -673,6 +813,8 @@ struct RailBoardEngine {
         return PreparedBoard(
             originName: stations[originID].n,
             destinationName: destinationName,
+            originDisplayName: originDisplayName,
+            destinationDisplayName: destinationDisplayName,
             system: system,
             typeColors: meta.types,
             stations: stations,

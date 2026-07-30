@@ -173,7 +173,7 @@ extension StationOption {
 extension PlaceStationOption {
     var intentItem: IntentItem<String> {
         IntentItem(
-            station.key,
+            key,
             title: LocalizedStringResource(stringLiteral: displayLabel),
             subtitle: LocalizedStringResource(stringLiteral: subtitle)
         )
