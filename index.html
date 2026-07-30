@@ -3312,6 +3312,7 @@
       <summary><span>更新紀錄</span><span class="foot-sub">最後更新：2026/7/30</span></summary>
       <ul class="foot-list foot-recent">
         <li class="grp">最近更新</li>
+        <li><span class="d">7/30</span><span>搜尋今天已經跑完的車，現在會帶你回到它發車前，不再當場亂蓋完乘章（謝謝網友回報）</span></li>
         <li><span class="d">7/30</span><span>iPhone 主畫面可以加「發車看板」小工具了，選好起站就能直接看下一班車——選站不用再整份下拉，先挑縣市就會跳到那一區</span></li>
         <li><span class="d">7/30</span><span>頂部的營運公告改成一顆通知鈕，不再壓著下面的面板；電腦版的橫幅也能關掉</span></li>
         <li><span class="d">7/30</span><span>車站與跟車面板可以調高度了：手機拉一下（或點一下）面板上緣的把手切小／中／大——拉到最大現在一定會變大，車站看板也會跟著多列幾班車</span></li>
@@ -3319,7 +3320,6 @@
         <li><span class="d">7/30</span><span>手機與 App 的音樂音量滑桿拿掉了——它一直沒有作用，請用手機側邊的音量鍵</span></li>
         <li><span class="d">7/29</span><span>GPS 校正旅程與收集地圖先收起來繼續打磨，之後會再開放</span></li>
         <li><span class="d">7/29</span><span>後面的車不會再從前面那班身上穿過去了（謝謝網友回報）</span></li>
-        <li><span class="d">7/29</span><span>跟車小卡的時速不會再飆出車子跑不到的數字（謝謝網友回報）</span></li>
       </ul>
       <!-- 第二層:完整歷史。刻意不掛 .foot-box 類名——placeFootBoxes() 用
            `.site-foot .foot-box` 搬移面板,巢狀同名會被當成另一個盒子一起搬走。 -->
@@ -3369,6 +3369,7 @@
         <li><span class="d">7/13</span><span>新增「附近火車」：地圖上落一根釘，查周邊 60 分鐘內會通過的車次</span></li>
         <li><span class="d">7/12</span><span>新增平交道功能：點一下查接下來會通過的列車（7/13 補上貨運線 21 處）</span></li>
         <li class="grp">收藏、護照與成就</li>
+        <li><span class="d">7/30</span><span>搜尋一班今天已經跑完（或還沒發車）的車，時鐘會確實停在它發車前，不再過一秒就彈回現在——那正是原本會莫名跳出「完乘達成」的原因（謝謝網友回報）</span></li>
         <li><span class="d">7/29</span><span>收集章改成依名字長短自動配版：長名會縮小字級、必要時多折一行，「EMU3000 新自強號」「區間車（通勤電聯車）」這些再也不會被圓框切掉</span></li>
         <li><span class="d">7/26</span><span>旅程護照多了「車站收集」：完乘過的起訖站自動成章，人到月台再按「附近車站」裡的蓋章鈕，就升級成到訪章；同一座站去過越多次，章上的數字越大</span></li>
         <li><span class="d">7/26</span><span>跟著車按「我上車了」並選好在哪站下車，沿路每過一站就自動蓋一枚章，下車那站也會補上——全程只在上下車兩點用到定位，不會一直背景追蹤你</span></li>
@@ -3700,7 +3701,7 @@
 // 🔴 BUILD 字串會跨並行分支撞號（心得 16）：07-28 兩條線各自遞增又各自部署過——
 // origin/main 這條用到 v0728b，正式站那條用到 v0728f。本次三方合併把兩條線統一，
 // 所以往後推到一個雙方都沒用過的號，辨識線上跑哪一版仍以內容 hash 為準。
-const BUILD = 'v0730f';
+const BUILD = 'v0730g';
 // 成就徽章與車廂標記＝原本那些 emoji 的單色平面版（RailEmoji＝裁切過的 Noto Emoji 單色）。
 // 刻意保留 railIcon(name) 這個唯一入口:呼叫端一行都不用改,只有這裡決定畫法。
 // 🔴 ⚖ 與 ♾ 一律寫**不帶 VS16(U+FE0F)** 的碼位——帶了就強制彩色呈現,會蓋過 font-family
@@ -8237,9 +8238,16 @@ function setFollow(tr, isAuto, noJump, opts) {
   // 真全螢幕中不寫網址列:Safari 對 fullscreen 中的 replaceState 會踢出全螢幕,且全螢幕本來就看不到網址列
   try { if (!document.fullscreenElement) history.replaceState(null, '', '?train=' + encodeURIComponent(tr.train) + '&t=' + fmtHM(state.simSec)); } catch (e) {}
   const first = tr.stops[0], last = tr.stops[tr.stops.length - 1];
+  // 下面兩個分支都是刻意撥時鐘(時光機),所以必須同時離開「跟著現在」的狀態:clockDriftGuard 每秒
+  // 會把「還貼著現在」的時鐘拉回真實時刻,而它刻意不走 setSimSec(那會清掉 clockAtNow),所以也不會
+  // 被 followTimeJumped 攔。撥了時鐘卻沒清旗標 ⇒ 1 秒內時鐘跳回現在,而完乘資格快照 followStartEff
+  // 已經記在發車前(合格) ⇒ 搜尋一班今天已經跑完的車,當場就蓋章並彈成就(2026-07-30 使用者回報)。
+  // 順帶修掉同一個真因的另一半:搜尋還沒發車的車,時鐘也會被拉回現在＝時光機根本沒生效。
+  // fromStart 分支原本是靠 setSpeed(30) 順手把旗標清掉才沒中,不要依賴那個副作用。
   if (opts.fromStart) {
     // 護照灰章重播:強制從發車前 20 秒開始、固定倍速看完全程才算完乘(防秒蓋章)
     state.simSec = Math.max(0, first.depSec - 20) % 86400;
+    state.clockAtNow = false;
     syncTimeUI();
     if (!state._followSpeedSaved) { state._preFollowSpd = state.speedMult; state._followSpeedSaved = true; }
     setSpeed(30);
@@ -8247,6 +8255,7 @@ function setFollow(tr, isAuto, noJump, opts) {
   } else if (!tr.loop && (effTLive(tr) < first.depSec - 60 || effTLive(tr) > last.arrSec)) {
     // 環島車永遠在跑,不需要把時間拉回發車
     state.simSec = Math.max(0, first.depSec - 20) % 86400;
+    state.clockAtNow = false;
     syncTimeUI();
   }
   if (!noJump) {
