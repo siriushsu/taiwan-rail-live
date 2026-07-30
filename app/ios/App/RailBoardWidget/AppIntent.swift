@@ -18,19 +18,11 @@ import Foundation
 // 改走 Apple 小工具範本本身用的字串參數，繞開整套 EntityIdentifier 機制。
 // 附帶好處：存的是「系統|站名」而不是班表陣列索引，班表重建造成的索引位移不再會讓設定指到別站。
 
-@available(iOS 17.0, *)
-struct RegionOptionsProvider: DynamicOptionsProvider {
-    func results() async throws -> [String] {
-        try RailBoardStore.shared.regionOptions()
-    }
-}
-
 // 起站與目的站共用的縣市分段。順序由北到南沿幹線走（regionOrder），名單外的縣市（改制／資料異常）
 // 補在後面、查不到縣市的收在最後的「其他」——都不靜默丟掉，設定裡存的車站鍵才不會變成對不到標題的裸鍵。
-// hoist 有值＝把那一段提到最前面（只有起站用得到，見 DestinationOptionsProvider）。
 // 回傳 nil＝這份資料沒有縣市欄（舊 App 寫的 stations.json v1），由呼叫端各自退回原本的分段方式。
 @available(iOS 17.0, *)
-func stationRegionSections(_ stations: [StationOption], hoist: String? = nil) -> [IntentItemSection<String>]? {
+func stationRegionSections(_ stations: [StationOption]) -> [IntentItemSection<String>]? {
     guard stations.contains(where: { $0.region != nil }) else { return nil }
 
     var byRegion: [String: [StationOption]] = [:]
@@ -41,7 +33,6 @@ func stationRegionSections(_ stations: [StationOption], hoist: String? = nil) ->
     order += byRegion.keys
         .filter { $0 != "其他" && !StationOption.regionOrder.contains($0) }
         .sorted()
-    if let hoist, byRegion[hoist] != nil { order = [hoist] + order.filter { $0 != hoist } }
     if byRegion["其他"] != nil { order.append("其他") }
 
     return order.compactMap { region -> IntentItemSection<String>? in
@@ -54,21 +45,16 @@ func stationRegionSections(_ stations: [StationOption], hoist: String? = nil) ->
 }
 
 // 起站選單：245 個台鐵站原本只分「台鐵／高鐵」兩段，只能一路下拉找（使用者 2026-07-30 回報）。
-// 改成依縣市分段，並讓上面的「起站區域」把該縣市那段提到最前面。
-// 為什麼是「提到最前面」而不是「只留該區域」：設定裡存的值是車站鍵，若選過的起站因為換了區域
-// 而從清單消失，設定畫面就只剩一個對不到標題的裸鍵。永遠列出全部＝既有設定不會被弄壞。
-// 為什麼沒有搜尋框：搜尋要 EntityStringQuery，那需要 AppEntity——在這個 extension 內
-// EntityIdentifier 註冊一律失敗（見檔頭），所以搜尋這條路是關著的。
+// 改成依縣市由北到南分段，找站靠 iOS 自己給的搜尋框打站名（使用者裁示：不要多一格縣市選單）。
+// 刻意沒有依賴任何參數：這一列永遠列出全部車站，選過的起站就不會因為別格的值變動而從清單消失
+// （消失＝設定畫面只剩一個對不到標題的裸鍵）。
 @available(iOS 17.0, *)
 struct OriginOptionsProvider: DynamicOptionsProvider {
-    @IntentParameterDependency<ConfigurationAppIntent>(\.$region)
-    var intent
-
     func results() async throws -> IntentItemCollection<String> {
         let stations = try RailBoardStore.shared.stationOptions()
 
         // 舊 App 寫的 stations.json（v1）沒有縣市：退回原本的依系統分段，不是空清單。
-        guard let sections = stationRegionSections(stations, hoist: intent?.region) else {
+        guard let sections = stationRegionSections(stations) else {
             let tra = stations.filter { $0.systemID == "tra" }
             let thsr = stations.filter { $0.systemID == "thsr" }
             return IntentItemCollection {
@@ -76,19 +62,18 @@ struct OriginOptionsProvider: DynamicOptionsProvider {
                 IntentItemSection("高鐵", items: thsr.map(\.intentItem))
             }
         }
-        return IntentItemCollection(promptLabel: "先選上面的「起站區域」可以直接跳到該縣市", sections: sections)
+        return IntentItemCollection(promptLabel: "可以直接打站名搜尋，或依縣市往下找", sections: sections)
     }
 }
 
 // 目的站：也依縣市分段（使用者 2026-07-30 回報「起訖站不同縣市這樣不好查」）。
 //
-// 🔴 為什麼沒有「目的站區域」那一格可以選縣市（使用者要過，2026-07-30 實測做不到）：
+// 🔴 這裡不要再加「目的站區域」那一格（2026-07-30 實測做不到，使用者裁示改走打字搜尋）：
 // 這一列的清單必須依賴 origin 才知道哪些站到得了，而 @IntentParameterDependency 一旦把
 // 「目的站區域」也列進來（不管是跟 origin 一起兩個、或只留區域一個），設定畫面的「目的站」
 // 那一列就整列點不動——點下去連 extension 都不會被喚醒（系統紀錄零活動），因為 AppIntents
 // 判定依賴沒被滿足就直接停用那一列。改成 AppEnum＋預設值、把值存進設定再重開也一樣不動。
-// 起站那格能用是因為它「就算 intent 解不出來也照樣列全部」，目的站沒有這個退路。
-// 所以維持：清單照起站收窄、依縣市由北到南分段；清單長的時候 iOS 自己會給搜尋框可以打站名。
+// 起站那格能用是因為它「不依賴任何參數、照樣列全部」，目的站沒有這個退路。
 @available(iOS 17.0, *)
 struct DestinationOptionsProvider: DynamicOptionsProvider {
     @IntentParameterDependency<ConfigurationAppIntent>(\.$origin)
@@ -105,7 +90,7 @@ struct DestinationOptionsProvider: DynamicOptionsProvider {
                 IntentItemSection(items: destinations.map(\.intentItem))
             }
         }
-        return IntentItemCollection(promptLabel: "只顯示有直達列車的車站，依縣市分段", sections: sections)
+        return IntentItemCollection(promptLabel: "只顯示有直達列車的車站，可以直接打站名搜尋", sections: sections)
     }
 }
 
@@ -166,13 +151,8 @@ extension StationOption {
 struct ConfigurationAppIntent: WidgetConfigurationIntent {
     static var title: LocalizedStringResource { "發車看板" }
     static var description: IntentDescription {
-        IntentDescription("先選起站區域可以快速找到起站；起訖站清單都依縣市分段。目的站可留空，以查看所有停靠、終到與通過列車。")
+        IntentDescription("起訖站清單都依縣市由北到南分段，也可以直接打站名搜尋。目的站可留空，以查看所有停靠、終到與通過列車。")
     }
-
-    // 只是起站選單的導覽器，不影響看板內容：留空＝清單照北到南全列。
-    // 目的站沒有對應的一格（iOS 做不到，見 DestinationOptionsProvider），但它自己也依縣市分段。
-    @Parameter(title: "起站區域（可留空）", optionsProvider: RegionOptionsProvider())
-    var region: String?
 
     @Parameter(title: "起站", optionsProvider: OriginOptionsProvider())
     var origin: String?

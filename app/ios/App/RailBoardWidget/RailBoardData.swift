@@ -217,14 +217,6 @@ final class RailBoardStore {
         }
     }
 
-    /// 設定畫面「區域」的選項：只列真的有車站的縣市，順序由北到南（不是字典序）。
-    func regionOptions() throws -> [String] {
-        let present = Set(try stations().stations.compactMap(\.c))
-        let ordered = StationOption.regionOrder.filter(present.contains)
-        // 名單外的（縣市改制、資料異常）補在最後，不靜默丟掉
-        return ordered + present.subtracting(ordered).sorted()
-    }
-
     func destinationOptions(from originKey: String) throws -> [StationOption] {
         let allStations = try stationOptions()
         guard let origin = allStations.first(where: { $0.key == originKey }) else { return [] }
@@ -262,7 +254,7 @@ struct StationOption: Hashable {
         "\(systemID)|\(name)"
     }
 
-    /// 區域選單與分組標題的順序：由北到南沿著幹線走，找站的人是照地理找不是照筆畫找。
+    /// 分組標題的順序：由北到南沿著幹線走，找站的人是照地理找不是照筆畫找。
     static let regionOrder = [
         "基隆市", "臺北市", "新北市", "桃園市", "新竹市", "新竹縣", "苗栗縣",
         "臺中市", "彰化縣", "南投縣", "雲林縣", "嘉義市", "嘉義縣", "臺南市",
