@@ -1,4 +1,4 @@
-import { Capacitor } from '@capacitor/core';
+import { Capacitor, registerPlugin } from '@capacitor/core';
 import { FirebaseAuthentication } from '@capacitor-firebase/authentication';
 import { Geolocation } from '@capacitor/geolocation';
 import { LocalNotifications } from '@capacitor/local-notifications';
@@ -13,6 +13,13 @@ window.RAIL_FFLATE_URL = 'vendor/fflate.js';
 if (native) {
   window.RAIL_API_BASE = 'https://railisland.tw/';
   window.RAIL_FIREBASE_MODULE_URL = './vendor/firebase.mjs';
+
+  if (platform === 'ios') {
+    const RailPlaces = registerPlugin('RailPlaces');
+    window.RAIL_NATIVE_PLACES = {
+      sync: places => RailPlaces.sync({ places })
+    };
+  }
 
   window.RAIL_NATIVE_AUTH = {
     async signIn(provider) {

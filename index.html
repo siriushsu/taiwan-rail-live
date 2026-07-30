@@ -3312,6 +3312,7 @@
       <summary><span>更新紀錄</span><span class="foot-sub">最後更新：2026/7/30</span></summary>
       <ul class="foot-list foot-recent">
         <li class="grp">最近更新</li>
+        <li><span class="d">7/30</span><span>iPhone 發車看板的起站與目的站選單會列出你在軌島存過的「我的地點」，直接帶到最近的台鐵或高鐵站</span></li>
         <li><span class="d">7/30</span><span>搜尋今天已經跑完的車，現在會帶你回到它發車前，不再當場亂蓋完乘章（謝謝網友回報）</span></li>
         <li><span class="d">7/30</span><span>iPhone 主畫面可以加「發車看板」小工具了，選好起站就能直接看下一班車——選站不用再整份下拉，先挑縣市就會跳到那一區</span></li>
         <li><span class="d">7/30</span><span>頂部的營運公告改成一顆通知鈕，不再壓著下面的面板；電腦版的橫幅也能關掉</span></li>
@@ -3319,7 +3320,6 @@
         <li><span class="d">7/30</span><span>外觀設定新增「面板半透明」，打開後面板會透出底下的地圖，比較淡的字與速度曲線都會自動加深保持好讀；列車資訊縮到最小時就不透明了</span></li>
         <li><span class="d">7/30</span><span>手機與 App 的音樂音量滑桿拿掉了——它一直沒有作用，請用手機側邊的音量鍵</span></li>
         <li><span class="d">7/29</span><span>GPS 校正旅程與收集地圖先收起來繼續打磨，之後會再開放</span></li>
-        <li><span class="d">7/29</span><span>後面的車不會再從前面那班身上穿過去了（謝謝網友回報）</span></li>
       </ul>
       <!-- 第二層:完整歷史。刻意不掛 .foot-box 類名——placeFootBoxes() 用
            `.site-foot .foot-box` 搬移面板,巢狀同名會被當成另一個盒子一起搬走。 -->
@@ -3381,7 +3381,8 @@
         <li><span class="d">7/13</span><span>收集章可以重複點，換搭不同班次回味</span></li>
         <li><span class="d">7/9</span><span>旅程護照與 16 枚成就徽章、「探」今日亮點面板上線</span></li>
         <li class="grp">手機與操作</li>
-        <li><span class="d">7/30</span><span>新增 iPhone 主畫面小工具「發車看板」：長按桌面加入後選一個起站（可以再加目的站），桌面就會列出接下來幾班車；還能「只看這些」，例如只留自強號、或只盯自己每天搭的那幾班。選起站不必再整份 250 站下拉：清單依縣市分段（由北到南），上面多一格「區域」，選了就把該縣市那段提到最前面</span></li>
+        <li><span class="d">7/30</span><span>新增 iPhone 主畫面小工具「發車看板」：長按桌面加入後選一個起站（可以再加目的站），桌面就會列出接下來幾班車；還能「只看這些」，例如只留自強號、或只盯自己每天搭的那幾班。選起站不必再整份 250 站下拉：清單依縣市分段，由北到南排</span></li>
+        <li><span class="d">7/30</span><span>小工具的起站與目的站選單最上面多了一段「我的地點」：你在軌島存過的地點（家、公司…）會直接列出來，點一下就帶到離它最近的台鐵或高鐵站，不用自己記那一站叫什麼。附近 5 公里內沒有車站的地點不會出現；同一個車站只留最近的那一筆，最多列 20 筆，自己存的排在 Google 地圖匯入的前面。台鐵與高鐵同一棟的車站（台北、板橋、南港、左營…）會選班次比較多的那一邊</span></li>
         <li><span class="d">7/30</span><span>營運通阻公告原本是頂部一整條橫幅，會把下面的面板整片往下推、在手機上壓到內容；現在收成軌切換鈕右邊的一顆「⚠」通知鈕，點了才展開詳情，電腦版的橫幅也多了「×」可以關掉（謝謝網友回報）</span></li>
         <li><span class="d">7/30</span><span>車站看板、跟車小卡、附近車站的面板高度可以自己調了：手機拉面板上緣的把手往上／往下切換小、中、大三段，點一下把手也會依序輪替，選好的段高會記住；最大那段會自動避開瀏海與動態島，不會再超出畫面（謝謝網友回報）。7/30 修正：原本三段只是「上限」，車站班次少的時候三段一樣高、拉了看不出差別——現在拉到最大一定會撐開，而且車站看板在最大那段會多列到 24 班</span></li>
         <li><span class="d">7/30</span><span>手機與 App 的音樂音量滑桿移除：iOS 不讓網頁自己調整播放音量，那顆滑桿一直沒有作用，請改用手機側邊的音量鍵；電腦版仍然保留（謝謝網友回報）</span></li>
@@ -3701,7 +3702,7 @@
 // 🔴 BUILD 字串會跨並行分支撞號（心得 16）：07-28 兩條線各自遞增又各自部署過——
 // origin/main 這條用到 v0728b，正式站那條用到 v0728f。本次三方合併把兩條線統一，
 // 所以往後推到一個雙方都沒用過的號，辨識線上跑哪一版仍以內容 hash 為準。
-const BUILD = 'v0730g';
+const BUILD = 'v0730h';
 // 成就徽章與車廂標記＝原本那些 emoji 的單色平面版（RailEmoji＝裁切過的 Noto Emoji 單色）。
 // 刻意保留 railIcon(name) 這個唯一入口:呼叫端一行都不用改,只有這裡決定畫法。
 // 🔴 ⚖ 與 ♾ 一律寫**不帶 VS16(U+FE0F)** 的碼位——帶了就強制彩色呈現,會蓋過 font-family
@@ -7290,6 +7291,31 @@ function pinIcon(saved) { // Google Maps 風格圓點:草稿=藏青、已存最�
 }
 function loadPins() { return userDataLoadCollection('pins'); }
 function savePins(a) { return userDataSaveCollection('pins', a); }
+// App 小工具看不到 WebView localStorage：iOS bridge 存在時才掛同步；純網站／Android 不註冊 listener、無副作用。
+const setupNativePlacesSync = (() => {
+  const bridge = window.RAIL_NATIVE_PLACES;
+  if (!bridge || typeof bridge.sync !== 'function') return () => {};
+  let timer = null, started = false;
+  const push = () => {
+    const places = loadPins().map(p => ({
+      label: String(p.label || ''),
+      lat: Number(p.lat),
+      lon: Number(p.lon),
+      manual: p.source !== 'google-takeout'
+    }));
+    try { Promise.resolve(bridge.sync(places)).catch(() => {}); } catch (e) {}
+  };
+  const schedule = () => {
+    clearTimeout(timer);
+    timer = setTimeout(push, 500);
+  };
+  return () => {
+    if (started) return;
+    started = true;
+    push();
+    window.addEventListener('rail-user-data-changed', schedule);
+  };
+})();
 function pinSavedIdx(lat, lon) { return loadPins().findIndex(p => Math.abs(p.lat - lat) < 1e-6 && Math.abs(p.lon - lon) < 1e-6); }
 function openPinAt(lat, lon) { // 落/移釘 → 開卡(右上欄諸卡擇一)
   soloPanel('pin');
@@ -16055,6 +16081,7 @@ async function boot() {
   map.on('dragstart', () => { state._userMoved = true; });
   if (geoBoot) state._bootGeo.then(applyBootGeo);
   state.ready = true;
+  setupNativePlacesSync();
   // 錄製中的投影里程先於重新整理落在裝置端；線網就緒後接回同一趟並恢復前景取樣。
   // 沒有進行中的旅程也會順手重試先前斷線留下的批次，兩條路都只處理里程、不碰座標。
   if (!bountyRestoreRecording()) void bountyRetryPending();

@@ -44,6 +44,13 @@ func stationRegionSections(_ stations: [StationOption]) -> [IntentItemSection<St
     }
 }
 
+@available(iOS 17.0, *)
+func placeSection(_ stations: [StationOption]) -> IntentItemSection<String>? {
+    let places = RailBoardStore.shared.placeStationOptions(from: stations)
+    guard !places.isEmpty else { return nil }
+    return IntentItemSection("我的地點", items: places.map(\.intentItem))
+}
+
 // 起站選單：245 個台鐵站原本只分「台鐵／高鐵」兩段，只能一路下拉找（使用者 2026-07-30 回報）。
 // 改成依縣市由北到南分段，找站靠 iOS 自己給的搜尋框打站名（使用者裁示：不要多一格縣市選單）。
 // 刻意沒有依賴任何參數：這一列永遠列出全部車站，選過的起站就不會因為別格的值變動而從清單消失
@@ -52,17 +59,23 @@ func stationRegionSections(_ stations: [StationOption]) -> [IntentItemSection<St
 struct OriginOptionsProvider: DynamicOptionsProvider {
     func results() async throws -> IntentItemCollection<String> {
         let stations = try RailBoardStore.shared.stationOptions()
+        let places = placeSection(stations)
 
         // 舊 App 寫的 stations.json（v1）沒有縣市：退回原本的依系統分段，不是空清單。
         guard let sections = stationRegionSections(stations) else {
             let tra = stations.filter { $0.systemID == "tra" }
             let thsr = stations.filter { $0.systemID == "thsr" }
-            return IntentItemCollection {
-                IntentItemSection("台鐵", items: tra.map(\.intentItem))
+            var fallbackSections = [
+                IntentItemSection("台鐵", items: tra.map(\.intentItem)),
                 IntentItemSection("高鐵", items: thsr.map(\.intentItem))
-            }
+            ]
+            if let places { fallbackSections.insert(places, at: 0) }
+            return IntentItemCollection(sections: fallbackSections)
         }
-        return IntentItemCollection(promptLabel: "可以直接打站名搜尋，或依縣市往下找", sections: sections)
+        return IntentItemCollection(
+            promptLabel: "可以直接打站名搜尋，或依縣市往下找",
+            sections: places.map { [$0] + sections } ?? sections
+        )
     }
 }
 
@@ -85,12 +98,21 @@ struct DestinationOptionsProvider: DynamicOptionsProvider {
         }
 
         let destinations = try RailBoardStore.shared.destinationOptions(from: origin)
+        let places = placeSection(destinations)
         guard let sections = stationRegionSections(destinations) else {
-            return IntentItemCollection(promptLabel: "只顯示有直達列車的車站") {
+            var fallbackSections = [
                 IntentItemSection(items: destinations.map(\.intentItem))
-            }
+            ]
+            if let places { fallbackSections.insert(places, at: 0) }
+            return IntentItemCollection(
+                promptLabel: "只顯示有直達列車的車站",
+                sections: fallbackSections
+            )
         }
-        return IntentItemCollection(promptLabel: "只顯示有直達列車的車站，可以直接打站名搜尋", sections: sections)
+        return IntentItemCollection(
+            promptLabel: "只顯示有直達列車的車站，可以直接打站名搜尋",
+            sections: places.map { [$0] + sections } ?? sections
+        )
     }
 }
 
@@ -143,6 +165,17 @@ extension StationOption {
             key,
             title: LocalizedStringResource(stringLiteral: name),
             subtitle: LocalizedStringResource(stringLiteral: systemLabel)
+        )
+    }
+}
+
+@available(iOS 17.0, *)
+extension PlaceStationOption {
+    var intentItem: IntentItem<String> {
+        IntentItem(
+            station.key,
+            title: LocalizedStringResource(stringLiteral: displayLabel),
+            subtitle: LocalizedStringResource(stringLiteral: subtitle)
         )
     }
 }

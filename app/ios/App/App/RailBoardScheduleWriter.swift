@@ -202,7 +202,11 @@ enum RailBoardScheduleWriter {
         }
 
         let stationsData = Data(
-            JSONOutput.stations(builder.stations, regions: StationRegions()).utf8
+            JSONOutput.stations(
+                builder.stations,
+                regions: StationRegions(),
+                coordinates: builder.coordinates
+            ).utf8
         )
         try stationsData.write(
             to: stagingURL.appendingPathComponent("stations.json"),
@@ -334,6 +338,8 @@ private extension RailBoardScheduleWriter {
         let arrSec: Int
         let depSec: Int
         let stop: Bool
+        let lat: Double?
+        let lon: Double?
     }
 
     struct ExistingMeta: Decodable {
@@ -475,6 +481,8 @@ private extension RailBoardScheduleWriter {
         private(set) var boards: [Int: MutableBoard] = [:]
         private(set) var types: [TypeColor] = []
         private(set) var systems: [SystemMeta] = []
+        /// 座標是輸出附加資料，不可進 `Station` 身分鍵；同站只採班表第一次提供的座標。
+        private(set) var coordinates: [Station: (lat: Double, lon: Double)] = [:]
 
         private var stationIndices: [Station: Int]
         private var typeIndices: [String: Int] = [:]
@@ -522,6 +530,7 @@ private extension RailBoardScheduleWriter {
             for train in document.trains {
                 for stop in train.stops {
                     _ = stationIndex(systemID: system.id, name: stop.name)
+                    rememberCoordinate(systemID: system.id, stop: stop)
                 }
             }
 
@@ -619,6 +628,14 @@ private extension RailBoardScheduleWriter {
             return index
         }
 
+        private mutating func rememberCoordinate(systemID: String, stop: ScheduleStop) {
+            let station = Station(n: stop.name, s: systemID)
+            guard coordinates[station] == nil,
+                  let lat = stop.lat,
+                  let lon = stop.lon else { return }
+            coordinates[station] = (lat: lat, lon: lon)
+        }
+
         private mutating func boardAt(
             index: Int,
             systemID: String
@@ -641,15 +658,21 @@ private extension RailBoardScheduleWriter {
     }
 
     enum JSONOutput {
-        /// v2 起多了 `c`（縣市，查不到就整個欄位不寫）；小工具端 `c` 是 optional，
-        /// 舊 App 寫的 v1 檔案照樣讀得動（只是設定畫面沒有區域可選）。
-        static func stations(_ stations: [Station], regions: StationRegions) -> String {
+        /// v2 起多了 `c`；v3 起多了 `la`／`lo`。附加欄位查不到就整個不寫，
+        /// 小工具端皆以 optional 解碼，舊 App 寫的檔案照樣讀得動。
+        static func stations(
+            _ stations: [Station],
+            regions: StationRegions,
+            coordinates: [Station: (lat: Double, lon: Double)]
+        ) -> String {
             let records = stations.map { station -> String in
                 let region = regions.region(systemID: station.s, name: station.n)
                 let regionField = region.map { #","c":\#(string($0))"# } ?? ""
-                return #"{"n":\#(string(station.n)),"s":\#(string(station.s))\#(regionField)}"#
+                let coordinate = coordinates[station]
+                let coordinateFields = coordinate.map { #","la":\#($0.lat),"lo":\#($0.lon)"# } ?? ""
+                return #"{"n":\#(string(station.n)),"s":\#(string(station.s))\#(regionField)\#(coordinateFields)}"#
             }.joined(separator: ",")
-            return #"{"v":2,"stations":[\#(records)]}"#
+            return #"{"v":3,"stations":[\#(records)]}"#
         }
 
         static func meta(

@@ -102,6 +102,21 @@ struct StationRecord: Decodable {
     let s: String
     /// 縣市。v2（2026-07-30）才有，舊 App 寫的檔案是 nil ⇒ 設定畫面退回「依系統分組」。
     let c: String?
+    /// 座標。v3（2026-07-30）才有；缺任一欄就不參與「我的地點」最近站計算。
+    let la: Double?
+    let lo: Double?
+}
+
+private struct PlacesDocument: Decodable {
+    let v: Int
+    let places: [RailBoardPlace]
+}
+
+private struct RailBoardPlace: Decodable {
+    let label: String
+    let lat: Double
+    let lon: Double
+    let manual: Bool
 }
 
 struct BoardDocument: Decodable {
@@ -206,14 +221,34 @@ final class RailBoardStore {
         let labels = Dictionary(uniqueKeysWithValues: meta.systems.map { ($0.id, $0.label) })
 
         return stations.enumerated().map { index, station in
-            StationOption(
+            let coordinate: StationCoordinate?
+            if let lat = station.la, let lon = station.lo {
+                coordinate = StationCoordinate(lat: lat, lon: lon)
+            } else {
+                coordinate = nil
+            }
+            return StationOption(
                 key: StationOption.makeKey(systemID: station.s, name: station.n),
                 index: index,
                 name: station.n,
                 systemID: station.s,
                 systemLabel: labels[station.s] ?? station.s,
-                region: station.c
+                region: station.c,
+                coordinate: coordinate
             )
+        }
+    }
+
+    /// places.json 是選單捷徑的附加資料；任何讀取／解碼錯誤都回空，不能拖垮既有車站清單。
+    func placeStationOptions(from stations: [StationOption]) -> [PlaceStationOption] {
+        guard let rootURL else { return [] }
+        // 看板只在共站平手時才需要讀，而且同一站會被多個地點重複問到 → 用 cache 擋掉重複解碼。
+        var departuresByIndex: [Int: Int] = [:]
+        return RailBoardPlaces.options(rootURL: rootURL, stations: stations) { index in
+            if let cached = departuresByIndex[index] { return cached }
+            let count = (try? board(stationID: index))?.deps.count ?? 0
+            departuresByIndex[index] = count
+            return count
         }
     }
 
@@ -241,6 +276,11 @@ final class RailBoardStore {
 }
 
 /// 小工具設定用的車站選項。`key` 是「系統|站名」，在班表更新之間保持穩定。
+struct StationCoordinate: Hashable {
+    let lat: Double
+    let lon: Double
+}
+
 struct StationOption: Hashable {
     let key: String
     let index: Int
@@ -249,6 +289,8 @@ struct StationOption: Hashable {
     let systemLabel: String
     /// 縣市（v2 起）。nil＝舊資料或查不到，分組時歸到「其他」。
     let region: String?
+    /// 座標（v3 起）。用具名 Hashable 型別，避免 tuple 讓 StationOption 無法合成 Hashable。
+    let coordinate: StationCoordinate?
 
     static func makeKey(systemID: String, name: String) -> String {
         "\(systemID)|\(name)"
@@ -260,6 +302,134 @@ struct StationOption: Hashable {
         "臺中市", "彰化縣", "南投縣", "雲林縣", "嘉義市", "嘉義縣", "臺南市",
         "高雄市", "屏東縣", "臺東縣", "花蓮縣", "宜蘭縣",
     ]
+}
+
+/// 一個使用者地點解析到既有車站鍵後的選單捷徑。
+struct PlaceStationOption {
+    let station: StationOption
+    let label: String
+    let distanceMeters: Double
+    let manual: Bool
+
+    var displayLabel: String { label.isEmpty ? "未命名地點" : label }
+
+    var subtitle: String {
+        let distance: String
+        if distanceMeters < 1_000 {
+            distance = "\(Int(distanceMeters.rounded())) 公尺"
+        } else {
+            distance = String(
+                format: "%.1f 公里",
+                locale: Locale(identifier: "en_US_POSIX"),
+                distanceMeters / 1_000
+            )
+        }
+        return "\(station.systemLabel) \(station.name) · \(distance)"
+    }
+}
+
+private enum RailBoardPlaces {
+    private static let maximumDistanceMeters = 5_000.0
+    private static let maximumOptions = 20
+    /// 共站視為平手的門檻。實測全網 256 站有 12 對站距 < 365m，其中三對是 0.0m
+    /// （臺北↔臺北-環島、左營↔左營(舊城)、新城↔新城 (太魯閣)——同一個實體站的兩筆記錄），
+    /// 另有七對是台鐵與高鐵同一棟（新左營↔高鐵左營 24m、臺北↔高鐵台北 29m、板橋 56m、
+    /// 南港 94m、沙崙↔高鐵台南 112m、六家↔高鐵新竹 122m、豐富↔高鐵苗栗 156m）。
+    /// 這些站誰勝出本來由 `stations` 的陣列順序決定＝靠 dense 班表檔的出現順序，
+    /// 座標再精準也解決不了。改成 300m 內一律視為平手，取發車數較多的那一筆。
+    private static let tieBreakMeters = 300.0
+
+    /// - Parameter departureCount: 站索引 → 該站看板的發車班次數。共站平手時用它決勝，
+    ///   讓「家在板橋」落到台鐵板橋而不是只有幾班車的高鐵板橋（使用者 2026-07-30 裁示）。
+    static func options(
+        rootURL: URL,
+        stations: [StationOption],
+        departureCount: (Int) -> Int
+    ) -> [PlaceStationOption] {
+        let url = rootURL.appendingPathComponent("places.json")
+        guard
+            let data = try? Data(contentsOf: url),
+            let document = try? JSONDecoder().decode(PlacesDocument.self, from: data),
+            document.v == 1
+        else {
+            return []
+        }
+
+        let coordinateStations = stations.filter { $0.coordinate != nil }
+        guard !coordinateStations.isEmpty else { return [] }
+
+        var bestByStationKey: [String: PlaceStationOption] = [:]
+        for place in document.places {
+            guard place.lat.isFinite, place.lon.isFinite else { continue }
+
+            var scored: [(station: StationOption, meters: Double)] = []
+            for station in coordinateStations {
+                guard let coordinate = station.coordinate else { continue }
+                scored.append((station, haversineMeters(
+                    lat1: place.lat,
+                    lon1: place.lon,
+                    lat2: coordinate.lat,
+                    lon2: coordinate.lon
+                )))
+            }
+
+            guard
+                let closest = scored.min(by: { $0.meters < $1.meters }),
+                closest.meters <= maximumDistanceMeters
+            else {
+                continue
+            }
+            // 平手窗內全部視為候選，再依「發車數多 → 距離近 → 車站鍵」決勝。
+            // 三段都排完才取第一筆，是為了讓結果與 `stations` 的陣列順序完全無關（否則就退回靠運氣）。
+            let nearest = scored
+                .filter { $0.meters <= closest.meters + tieBreakMeters }
+                .sorted { lhs, rhs in
+                    let lhsDepartures = departureCount(lhs.station.index)
+                    let rhsDepartures = departureCount(rhs.station.index)
+                    if lhsDepartures != rhsDepartures { return lhsDepartures > rhsDepartures }
+                    if lhs.meters != rhs.meters { return lhs.meters < rhs.meters }
+                    return lhs.station.key < rhs.station.key
+                }[0]
+
+            let candidate = PlaceStationOption(
+                station: nearest.station,
+                label: place.label,
+                distanceMeters: nearest.meters,
+                manual: place.manual
+            )
+            if let current = bestByStationKey[nearest.station.key],
+               current.distanceMeters <= candidate.distanceMeters {
+                continue
+            }
+            bestByStationKey[nearest.station.key] = candidate
+        }
+
+        return Array(bestByStationKey.values.sorted {
+            if $0.manual != $1.manual { return $0.manual && !$1.manual }
+            if $0.distanceMeters != $1.distanceMeters {
+                return $0.distanceMeters < $1.distanceMeters
+            }
+            if $0.displayLabel != $1.displayLabel { return $0.displayLabel < $1.displayLabel }
+            return $0.station.key < $1.station.key
+        }.prefix(maximumOptions))
+    }
+
+    private static func haversineMeters(
+        lat1: Double,
+        lon1: Double,
+        lat2: Double,
+        lon2: Double
+    ) -> Double {
+        let radians = Double.pi / 180
+        let deltaLat = (lat2 - lat1) * radians
+        let deltaLon = (lon2 - lon1) * radians
+        let firstLat = lat1 * radians
+        let secondLat = lat2 * radians
+        let a = sin(deltaLat / 2) * sin(deltaLat / 2)
+            + cos(firstLat) * cos(secondLat) * sin(deltaLon / 2) * sin(deltaLon / 2)
+        let bounded = min(1, max(0, a))
+        return 6_371_000 * 2 * atan2(sqrt(bounded), sqrt(1 - bounded))
+    }
 }
 
 enum JourneyRelation: String {
