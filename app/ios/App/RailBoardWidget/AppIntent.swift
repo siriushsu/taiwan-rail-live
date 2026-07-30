@@ -52,7 +52,11 @@ func placeSection(_ stations: [StationOption]) -> IntentItemSection<String>? {
 }
 
 // 起站選單：245 個台鐵站原本只分「台鐵／高鐵」兩段，只能一路下拉找（使用者 2026-07-30 回報）。
-// 改成依縣市由北到南分段，找站靠 iOS 自己給的搜尋框打站名（使用者裁示：不要多一格縣市選單）。
+// 改成依縣市由北到南分段（使用者裁示：不要多一格縣市選單）。
+// 🔴 這一列「沒有」搜尋框（2026-07-30 使用者在真機設定畫面確認）：單選 String 參數的選單是
+// 彈出式的，iOS 不給搜尋列，只有 [String] 多選（「只看這些」）才有。文案一度寫成「可以直接打
+// 站名搜尋」，那是錯的、已改掉——要再寫「搜尋」兩個字之前，先回設定畫面確認它真的出現了。
+// 目前的替代路徑是縣市分段，加上最上面那段「我的地點」直接選存過的地方。
 // 刻意沒有依賴任何參數：這一列永遠列出全部車站，選過的起站就不會因為別格的值變動而從清單消失
 // （消失＝設定畫面只剩一個對不到標題的裸鍵）。
 @available(iOS 17.0, *)
@@ -73,7 +77,7 @@ struct OriginOptionsProvider: DynamicOptionsProvider {
             return IntentItemCollection(sections: fallbackSections)
         }
         return IntentItemCollection(
-            promptLabel: "可以直接打站名搜尋，或依縣市往下找",
+            promptLabel: "最上面是你存過的地點，往下依縣市排",
             sections: places.map { [$0] + sections } ?? sections
         )
     }
@@ -81,7 +85,7 @@ struct OriginOptionsProvider: DynamicOptionsProvider {
 
 // 目的站：也依縣市分段（使用者 2026-07-30 回報「起訖站不同縣市這樣不好查」）。
 //
-// 🔴 這裡不要再加「目的站區域」那一格（2026-07-30 實測做不到，使用者裁示改走打字搜尋）：
+// 🔴 這裡不要再加「目的站區域」那一格（2026-07-30 實測做不到，使用者裁示改走縣市分段）：
 // 這一列的清單必須依賴 origin 才知道哪些站到得了，而 @IntentParameterDependency 一旦把
 // 「目的站區域」也列進來（不管是跟 origin 一起兩個、或只留區域一個），設定畫面的「目的站」
 // 那一列就整列點不動——點下去連 extension 都不會被喚醒（系統紀錄零活動），因為 AppIntents
@@ -110,7 +114,7 @@ struct DestinationOptionsProvider: DynamicOptionsProvider {
             )
         }
         return IntentItemCollection(
-            promptLabel: "只顯示有直達列車的車站，可以直接打站名搜尋",
+            promptLabel: "只顯示有直達列車的車站",
             sections: places.map { [$0] + sections } ?? sections
         )
     }
@@ -184,7 +188,7 @@ extension PlaceStationOption {
 struct ConfigurationAppIntent: WidgetConfigurationIntent {
     static var title: LocalizedStringResource { "發車看板" }
     static var description: IntentDescription {
-        IntentDescription("起訖站清單都依縣市由北到南分段，也可以直接打站名搜尋。目的站可留空，以查看所有停靠、終到與通過列車。")
+        IntentDescription("起訖站清單依縣市由北到南分段，最上面可以直接選你在軌島存過的地點。目的站可留空，以查看所有停靠、終到與通過列車。")
     }
 
     @Parameter(title: "起站", optionsProvider: OriginOptionsProvider())
