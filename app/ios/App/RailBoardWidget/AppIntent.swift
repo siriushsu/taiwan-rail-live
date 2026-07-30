@@ -19,16 +19,55 @@ import Foundation
 // 附帶好處：存的是「系統|站名」而不是班表陣列索引，班表重建造成的索引位移不再會讓設定指到別站。
 
 @available(iOS 17.0, *)
+struct RegionOptionsProvider: DynamicOptionsProvider {
+    func results() async throws -> [String] {
+        try RailBoardStore.shared.regionOptions()
+    }
+}
+
+// 起站選單：245 個台鐵站原本只分「台鐵／高鐵」兩段，只能一路下拉找（使用者 2026-07-30 回報）。
+// 改成依縣市分段，並讓上面的「區域」把該縣市那段提到最前面。
+// 為什麼是「提到最前面」而不是「只留該區域」：設定裡存的值是車站鍵，若選過的起站因為換了區域
+// 而從清單消失，設定畫面就只剩一個對不到標題的裸鍵。永遠列出全部＝既有設定不會被弄壞。
+// 為什麼沒有搜尋框：搜尋要 EntityStringQuery，那需要 AppEntity——在這個 extension 內
+// EntityIdentifier 註冊一律失敗（見檔頭），所以搜尋這條路是關著的。
+@available(iOS 17.0, *)
 struct OriginOptionsProvider: DynamicOptionsProvider {
+    @IntentParameterDependency<ConfigurationAppIntent>(\.$region)
+    var intent
+
     func results() async throws -> IntentItemCollection<String> {
         let stations = try RailBoardStore.shared.stationOptions()
-        let tra = stations.filter { $0.systemID == "tra" }
-        let thsr = stations.filter { $0.systemID == "thsr" }
 
-        return IntentItemCollection {
-            IntentItemSection("台鐵", items: tra.map(\.intentItem))
-            IntentItemSection("高鐵", items: thsr.map(\.intentItem))
+        // 舊 App 寫的 stations.json（v1）沒有縣市：退回原本的依系統分段，不是空清單。
+        guard stations.contains(where: { $0.region != nil }) else {
+            let tra = stations.filter { $0.systemID == "tra" }
+            let thsr = stations.filter { $0.systemID == "thsr" }
+            return IntentItemCollection {
+                IntentItemSection("台鐵", items: tra.map(\.intentItem))
+                IntentItemSection("高鐵", items: thsr.map(\.intentItem))
+            }
         }
+
+        var byRegion: [String: [StationOption]] = [:]
+        for station in stations {
+            byRegion[station.region ?? "其他", default: []].append(station)
+        }
+        let present = try RailBoardStore.shared.regionOptions()
+        let picked = intent?.region
+        // 選了區域就把那一段拉到最前面；其餘維持由北到南，最後才是查不到縣市的「其他」。
+        var order = present.filter { $0 != picked }
+        if let picked, byRegion[picked] != nil { order.insert(picked, at: 0) }
+        if byRegion["其他"] != nil { order.append("其他") }
+
+        let sections = order.compactMap { region -> IntentItemSection<String>? in
+            guard let items = byRegion[region], !items.isEmpty else { return nil }
+            return IntentItemSection(
+                LocalizedStringResource(stringLiteral: region),
+                items: items.map(\.intentItem)
+            )
+        }
+        return IntentItemCollection(promptLabel: "先選上面的「區域」可以直接跳到該縣市", sections: sections)
     }
 }
 
@@ -102,8 +141,12 @@ extension StationOption {
 struct ConfigurationAppIntent: WidgetConfigurationIntent {
     static var title: LocalizedStringResource { "發車看板" }
     static var description: IntentDescription {
-        IntentDescription("選擇起站；目的站可留空，以查看所有停靠、終到與通過列車。")
+        IntentDescription("先選區域可以快速找到起站；目的站可留空，以查看所有停靠、終到與通過列車。")
     }
+
+    // 區域只是起站選單的導覽器，不影響看板內容：留空＝清單照北到南全列。
+    @Parameter(title: "區域（可留空）", optionsProvider: RegionOptionsProvider())
+    var region: String?
 
     @Parameter(title: "起站", optionsProvider: OriginOptionsProvider())
     var origin: String?

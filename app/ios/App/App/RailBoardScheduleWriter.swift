@@ -201,7 +201,9 @@ enum RailBoardScheduleWriter {
             try? fileManager.removeItem(at: stagingURL)
         }
 
-        let stationsData = Data(JSONOutput.stations(builder.stations).utf8)
+        let stationsData = Data(
+            JSONOutput.stations(builder.stations, regions: StationRegions()).utf8
+        )
         try stationsData.write(
             to: stagingURL.appendingPathComponent("stations.json"),
             options: .atomic
@@ -345,6 +347,73 @@ private extension RailBoardScheduleWriter {
     struct Station: Decodable, Hashable {
         let n: String
         let s: String
+    }
+
+    /// 車站 → 縣市，只給小工具設定畫面的「區域」用（245 站一路下拉找太慢）。
+    /// 縣市刻意不進 `Station`：那個型別是車站索引的身分鍵（index 穩定性靠它比對），
+    /// 多一個欄位就會讓舊 stations.json 的既有記錄比對不上、索引整批位移。改在輸出時查表附加。
+    struct StationRegions {
+        /// 正規化站名 → 縣市。台鐵讀 bundle 內 tra_station_info.json 的 address 前綴。
+        private var byName: [String: String] = [:]
+
+        /// 高鐵 12 站不在台鐵那份資料裡，且與同名台鐵站不一定同縣市（高鐵新竹在新竹縣竹北、
+        /// 台鐵新竹在新竹市），所以不可用站名回退查台鐵表——這裡寫死，站名本身不隨改點變動。
+        private static let thsr: [String: String] = [
+            "南港": "臺北市", "台北": "臺北市", "板橋": "新北市", "桃園": "桃園市",
+            "新竹": "新竹縣", "苗栗": "苗栗縣", "台中": "臺中市", "彰化": "彰化縣",
+            "雲林": "雲林縣", "嘉義": "嘉義縣", "台南": "臺南市", "左營": "高雄市",
+        ]
+
+        private struct StationInfo: Decodable {
+            let address: String
+        }
+
+        init(bundle: Bundle = .main) {
+            guard
+                let url = bundle.url(
+                    forResource: "public/data/tra_station_info.json",
+                    withExtension: nil
+                ),
+                let data = try? Data(contentsOf: url),
+                let raw = try? JSONDecoder().decode([String: StationInfo].self, from: data)
+            else {
+                return // 讀不到就一律回 nil：設定畫面自動退回原本的「依系統分組」，不是壞掉
+            }
+            for (name, info) in raw {
+                guard let region = Self.region(fromAddress: info.address) else { continue }
+                byName[Self.normalize(name)] = region
+            }
+        }
+
+        func region(systemID: String, name: String) -> String? {
+            let key = Self.normalize(name)
+            if systemID == "thsr" { return Self.thsr[key] }
+            if let hit = byName[key] { return hit }
+            // 班表用「左營(舊城)」「新城 (太魯閣)」這種帶括號別名，車站資料只收本名 → 去掉括號段再查一次
+            let base = Self.stripParenthetical(key)
+            return base == key ? nil : byName[base]
+        }
+
+        /// 「203001基隆市中山區中山一路 16 之 1 號」→「基隆市」。台灣的縣市名一律三個字。
+        static func region(fromAddress address: String) -> String? {
+            let body = address.drop(while: \.isNumber)
+            guard body.count >= 3 else { return nil }
+            let region = String(body.prefix(3))
+            guard region.hasSuffix("縣") || region.hasSuffix("市") else { return nil }
+            return region
+        }
+
+        /// 班表與車站資料的臺／台混用（臺北 vs 台北）、且別名帶半形/全形空白：查表前一律折平。
+        static func normalize(_ name: String) -> String {
+            name.replacingOccurrences(of: "臺", with: "台")
+                .replacingOccurrences(of: " ", with: "")
+                .replacingOccurrences(of: "　", with: "")
+        }
+
+        static func stripParenthetical(_ name: String) -> String {
+            guard let index = name.firstIndex(where: { $0 == "(" || $0 == "（" }) else { return name }
+            return String(name[name.startIndex ..< index])
+        }
     }
 
     struct SystemMeta {
@@ -572,11 +641,15 @@ private extension RailBoardScheduleWriter {
     }
 
     enum JSONOutput {
-        static func stations(_ stations: [Station]) -> String {
-            let records = stations.map {
-                #"{"n":\#(string($0.n)),"s":\#(string($0.s))}"#
+        /// v2 起多了 `c`（縣市，查不到就整個欄位不寫）；小工具端 `c` 是 optional，
+        /// 舊 App 寫的 v1 檔案照樣讀得動（只是設定畫面沒有區域可選）。
+        static func stations(_ stations: [Station], regions: StationRegions) -> String {
+            let records = stations.map { station -> String in
+                let region = regions.region(systemID: station.s, name: station.n)
+                let regionField = region.map { #","c":\#(string($0))"# } ?? ""
+                return #"{"n":\#(string(station.n)),"s":\#(string(station.s))\#(regionField)}"#
             }.joined(separator: ",")
-            return #"{"v":1,"stations":[\#(records)]}"#
+            return #"{"v":2,"stations":[\#(records)]}"#
         }
 
         static func meta(
