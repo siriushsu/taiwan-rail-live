@@ -923,22 +923,77 @@ struct MediumPlaceBoardView: View {
                     .monospacedDigit()
             }
 
-            HStack(alignment: .top, spacing: 8) {
-                ForEach(Array(snapshot.lines.prefix(3)).indices, id: \.self) { index in
-                    if index > 0 {
-                        Divider()
+            // GeometryReader 只為了拿到實際寬度餵給 PlaceColumnMetrics——機型與欄數都會動，
+            // 硬寫字級就等於把某一台 iPhone 的量測值寫成產品規格。
+            GeometryReader { geometry in
+                let columns = Array(snapshot.lines.prefix(3))
+                HStack(alignment: .top, spacing: 8) {
+                    ForEach(columns.indices, id: \.self) { index in
+                        if index > 0 {
+                            Divider()
+                        }
+                        MediumPlaceLineView(
+                            line: columns[index],
+                            entryDate: entryDate,
+                            typeColors: snapshot.typeColors,
+                            metrics: .forColumnWidth(
+                                columnWidth(
+                                    total: geometry.size.width,
+                                    columns: columns.count
+                                )
+                            )
+                        )
                     }
-                    MediumPlaceLineView(
-                        line: Array(snapshot.lines.prefix(3))[index],
-                        entryDate: entryDate,
-                        typeColors: snapshot.typeColors
-                    )
                 }
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
             }
-            .frame(maxHeight: .infinity, alignment: .top)
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 10)
+    }
+
+    /// 欄與欄之間各有一條 Divider（約 1pt）與兩段 8pt 間距。
+    private func columnWidth(total: CGFloat, columns: Int) -> CGFloat {
+        guard columns > 0 else { return total }
+        let gaps = CGFloat(max(0, columns - 1)) * (8 * 2 + 1)
+        return max(1, (total - gaps) / CGFloat(columns))
+    }
+}
+
+/// medium 的字級由「這一欄實際有多寬」推導，不是各處手打的常數。
+///
+/// 為什麼不是固定值：欄寬＝(小工具寬 − 內距 − 分隔線) ÷ 欄數，而兩者都會變——
+/// 小工具寬在 iPhone SE 是 291pt、16 Pro Max 是 364pt，欄數則看這個地點 1.5 公里內有幾條線。
+/// 原本整個 medium 都照「三欄 × 最窄機型」的最壞情況取字級（時刻 10pt、細節 8pt），
+/// 於是最常見的兩欄版面白白空了四分之一的高度、字還比 small 更小——使用者 2026-07-31
+/// 回報「small 還好，medium 要放大一點」講的就是這個。
+///
+/// 常數只有一個：最寬的那一列長什麼樣。其餘由它反解，所以換機型或多一條線都不必回來改。
+struct PlaceColumnMetrics {
+    let lineName: CGFloat
+    let distance: CGFloat
+    /// 時刻＋車種＋車次那一行。
+    let primary: CGFloat
+    /// 往 X ＋倒數那一行。
+    let secondary: CGFloat
+    let rowSpacing: CGFloat
+
+    /// 最寬的一列是「09:40 莒光/復興 1234」：9 個等寬數字（各約 0.6 em）、4 個中文字（各 1 em）、
+    /// 一個斜線（約 0.5 em）、兩個 3pt 字距 ⇒ 需要 9.9 × 字級 + 6 pt。
+    /// 「莒光/復興」是資料裡最長的車種名、4 碼是最長的車次（實測 983 班都是 4 碼）。
+    static func forColumnWidth(_ width: CGFloat) -> PlaceColumnMetrics {
+        // 夾在 10…15：低於 10 就該讓 minimumScaleFactor 去縮而不是整欄都設小，
+        // 高於 15 則會擠掉下面那行的倒數（「40 分鐘 59 秒」）。
+        let primary = min(15, max(10, (width - 6) / 9.9))
+        let secondary = min(11, max(8, primary * 0.78))
+        return PlaceColumnMetrics(
+            lineName: min(12, max(10, primary * 0.85)),
+            distance: min(10, max(9, secondary)),
+            primary: primary,
+            secondary: secondary,
+            // 字大了才有空間分行距；擠的時候寧可貼緊也不要少一列車。
+            rowSpacing: primary >= 13 ? 5 : 2
+        )
     }
 }
 
@@ -946,22 +1001,23 @@ private struct MediumPlaceLineView: View {
     let line: PlaceLineSnapshot
     let entryDate: Date
     let typeColors: [String: String]
+    let metrics: PlaceColumnMetrics
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
+        VStack(alignment: .leading, spacing: metrics.rowSpacing) {
             HStack(spacing: 4) {
                 Capsule()
                     .fill(Color(hex: line.color))
                     .frame(width: 15, height: 5)
                 Text(line.name)
-                    .font(.system(size: 10, weight: .semibold))
+                    .font(.system(size: metrics.lineName, weight: .semibold))
                     .lineLimit(1)
                     .minimumScaleFactor(0.65)
                 Spacer(minLength: 2)
                 // 垂距要跟 small 一樣顯示：落釘卡的「約 1.0 公里」是使用者判斷「這條線
                 // 是不是真的在我家旁邊」的依據,兩條線並列時尤其需要。名字先縮不讓距離被擠掉。
                 Text(distanceText)
-                    .font(.system(size: 9))
+                    .font(.system(size: metrics.distance))
                     .foregroundStyle(.secondary)
                     .monospacedDigit()
                     .lineLimit(1)
@@ -970,7 +1026,7 @@ private struct MediumPlaceLineView: View {
 
             if line.rows.isEmpty {
                 Text("60 分鐘內無車")
-                    .font(.system(size: 10, weight: .medium))
+                    .font(.system(size: metrics.primary, weight: .medium))
                     .foregroundStyle(.secondary)
                     .padding(.top, 8)
             } else {
@@ -987,7 +1043,7 @@ private struct MediumPlaceLineView: View {
                                 .monospacedDigit()
                                 .lineLimit(1)
                         }
-                        .font(.system(size: 10))
+                        .font(.system(size: metrics.primary))
                         .minimumScaleFactor(0.65)
 
                         HStack(spacing: 3) {
@@ -1005,7 +1061,7 @@ private struct MediumPlaceLineView: View {
                                 .monospacedDigit()
                                 .lineLimit(1)
                         }
-                        .font(.system(size: 8))
+                        .font(.system(size: metrics.secondary))
                         .foregroundStyle(.secondary)
                     }
                 }
