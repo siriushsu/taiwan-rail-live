@@ -642,6 +642,34 @@ async function basemapToken(request, env) {
   return jsonRes({ esri: env.ESRI_WEB_TOKEN }, 200, 'public, max-age=300, s-maxage=300');
 }
 
+// ── 衛星底圖的第二種計費方式：basemap session ────────────────────────────────
+// Esri 兩種計價擇一：按張數（2M 免費／$0.15 每千張）或按 session（1,000 免費／$4 每千顆，
+// 一顆管 12 小時、期間圖磚無限）。損益兩平在「一顆 session 涵蓋 27 張圖磚」——所以前端刻意
+// 不是一開站就換，而是等這個客戶端在衛星上真的載超過 SAT_SESSION_AT 張才來要，
+// 讓「瞄一眼就走」的人留在按張數那邊（見 index.html 的 satTileLoaded）。
+//
+// 為什麼由 Worker 代開而不是前端自己打 Esri：網站那把金鑰有 referrer 白名單，而
+// sessions/start 這個端點是真的會驗 referer 的（實測不帶或帶錯都回 401/498），Worker 端沒有
+// 瀏覽器 Referer，得自己補上。順帶好處是 API 金鑰不必為了這條再往外送一次。
+async function basemapSession(request, env) {
+  if (!env.ESRI_WEB_TOKEN) return jsonRes({ error: 'not_configured' }, 404, 'no-store');
+  // 每顆 session 都要錢，所以這條比 basemap-token 更該節流（那條抽再多次也只是同一個值）。
+  if (await rateLimited(env.BASEMAP_LIMITER, request)) return jsonRes({ error: 'rate_limited' }, 429, 'no-store');
+  try {
+    const r = await fetch(
+      'https://basemapstyles-api.arcgis.com/arcgis/rest/services/styles/v2/sessions/start'
+      + '?styleFamily=arcgis&token=' + encodeURIComponent(env.ESRI_WEB_TOKEN),
+      { headers: { referer: 'https://railisland.tw/' } });
+    const d = await r.json();
+    // 失敗一律回 502 不回顯上游 body——那裡面可能帶著我們送出去的 token 片段。
+    if (!r.ok || !d || !d.sessionToken) return jsonRes({ error: 'upstream' }, 502, 'no-store');
+    // 每個客戶端要自己的一顆（官方定義是「單一使用者的單一應用程式」），所以絕不可快取。
+    return jsonRes({ sessionToken: d.sessionToken, endTime: d.endTime }, 200, 'no-store');
+  } catch (e) {
+    return jsonRes({ error: 'upstream' }, 502, 'no-store');
+  }
+}
+
 // 刪除帳號時清除「我們這邊」的伺服器資料：RevenueCat customer ＋ D1 的懸賞校正旅程資料。
 // Secret API key 只能存在 Worker runtime；先以 Firebase Auth REST lookup 驗證呼叫者的 ID token，
 // 再只刪除該 token 自己的 uid，不接受前端傳 customer id／actor，避免知道別人 uid 就能刪除對方資料。
@@ -707,7 +735,7 @@ const API_POST_ALLOWED = new Set(['/api/account-delete', '/api/bounty-claim', '/
 // 'other',否則隨便打 /api/<亂數> 就能把 blob 基數炸開。新增端點時要一起加進來。
 const API_ENDPOINTS = new Set([
   'tra-live', 'tra-alert', 'thsr-alert', 'metro-alert', 'metro-live', 'ntmetro-live',
-  'delay-stats', 'delay-history', 'station-events', 'today-board', 'basemap-token', 'account-delete',
+  'delay-stats', 'delay-history', 'station-events', 'today-board', 'basemap-token', 'basemap-session', 'account-delete',
   'bounty-board', 'bounty-claim', 'bounty-submit', 'bounty-me', 'bounty-merge',
 ]);
 
@@ -1956,6 +1984,7 @@ export default {
     else if (url.pathname === '/api/station-events') res = await stationEvents(request, env);
     else if (url.pathname === '/api/today-board') res = await todayBoard(request, env);
     else if (url.pathname === '/api/basemap-token') res = await basemapToken(request, env);
+    else if (url.pathname === '/api/basemap-session') res = await basemapSession(request, env);
     else if (url.pathname === '/api/account-delete') res = await deleteAccountData(request, env);
     else if (url.pathname === '/api/bounty-board') res = await bountyBoard(request, env);
     else if (url.pathname === '/api/bounty-claim') res = await bountyClaim(request, env);

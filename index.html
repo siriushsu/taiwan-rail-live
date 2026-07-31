@@ -3309,9 +3309,10 @@
 
   <footer class="site-foot">
     <details class="foot-box">
-      <summary><span>更新紀錄</span><span class="foot-sub">最後更新：2026/7/31</span></summary>
+      <summary><span>更新紀錄</span><span class="foot-sub">最後更新：2026/8/1</span></summary>
       <ul class="foot-list foot-recent">
         <li class="grp">最近更新</li>
+        <li><span class="d">8/1</span><span>衛星底圖換成比較省的計費方式：看到的畫面完全一樣，只是我們付給圖資供應商的錢少很多</span></li>
         <li><span class="d">7/31</span><span>林鐵、高鐵有些車次號碼跟台鐵重複，台鐵誤點時同號的車會被一起推走——現在各算各的</span></li>
         <li><span class="d">7/31</span><span>誤點的車，跟車面板比地圖上的車慢半拍：車停在站上卻寫「行進中」，現在修好了（謝謝網友回報）</span></li>
         <li><span class="d">7/30</span><span>iPhone 發車看板的起站與目的站選單會列出你在軌島存過的「我的地點」：選了「家」，桌面顯示的就是「家」；日後把「家」重存到別的地方，桌面也會自己跟過去</span></li>
@@ -3319,7 +3320,6 @@
         <li><span class="d">7/30</span><span>iPhone 主畫面可以加「發車看板」小工具了，選好起站就能直接看下一班車——選站不用再整份下拉，先挑縣市就會跳到那一區</span></li>
         <li><span class="d">7/30</span><span>頂部的營運公告改成一顆通知鈕，不再壓著下面的面板；電腦版的橫幅也能關掉</span></li>
         <li><span class="d">7/30</span><span>車站與跟車面板可以調高度了：手機拉一下（或點一下）面板上緣的把手切小／中／大——拉到最大現在一定會變大，車站看板也會跟著多列幾班車</span></li>
-        <li><span class="d">7/30</span><span>外觀設定新增「面板半透明」，打開後面板會透出底下的地圖，比較淡的字與速度曲線都會自動加深保持好讀；列車資訊縮到最小時就不透明了</span></li>
       </ul>
       <!-- 第二層:完整歷史。刻意不掛 .foot-box 類名——placeFootBoxes() 用
            `.site-foot .foot-box` 搬移面板,巢狀同名會被當成另一個盒子一起搬走。 -->
@@ -3403,7 +3403,7 @@
         <li><span class="d">7/28</span><span>全站圖示換成軌島自製單色線稿，亮暗主題下都更一致清楚</span></li>
         <li><span class="d">7/28</span><span>全站圖示改用軌島自製的單色線稿與單色字形（介面圖示、成就徽章、車廂標記都在內），亮暗主題與各家瀏覽器下長相一致，不再交給各系統自己的 emoji 決定</span></li>
         <li><span class="d">7/27</span><span>切到「高」時左邊牌子下面的那行字改成「台灣高鐵即時軌跡」，先前一直沿用台鐵的字串</span></li>
-        <li><span class="d">7/25</span><span>衛星底圖改接 Esri 官方授權服務端點；7/24 起在高解析度螢幕上更清晰銳利，7/29 為控制圖資用量改回標準解析度</span></li>
+        <li><span class="d">7/25</span><span>衛星底圖改接 Esri 官方授權服務端點；7/24 起在高解析度螢幕上更清晰銳利，7/29 為控制圖資用量改回標準解析度；8/1 改成「看得夠多才算一次時段費」的計費方式，畫面完全一樣，圖資成本大幅下降</span></li>
         <li><span class="d">7/22</span><span>縮放時墊底的離線輪廓圖配色貼齊底圖，消除快速縮放的色差閃爍</span></li>
         <li><span class="d">7/16</span><span>整站外觀大改版「琺瑯 2.0」，並支援亮／暗自動切換</span></li>
         <li><span class="d">7/10</span><span>網站更名「軌島」，正式網址 railisland.tw 上線；品牌定裝：懸掛式站名牌 header 與新版標誌</span></li>
@@ -3703,7 +3703,7 @@
 // 🔴 BUILD 字串會跨並行分支撞號（心得 16）：07-28 兩條線各自遞增又各自部署過——
 // origin/main 這條用到 v0728b，正式站那條用到 v0728f。本次三方合併把兩條線統一，
 // 所以往後推到一個雙方都沒用過的號，辨識線上跑哪一版仍以內容 hash 為準。
-const BUILD = 'v0731c';
+const BUILD = 'v0801a';
 // 成就徽章與車廂標記＝原本那些 emoji 的單色平面版（RailEmoji＝裁切過的 Noto Emoji 單色）。
 // 刻意保留 railIcon(name) 這個唯一入口:呼叫端一行都不用改,只有這裡決定畫法。
 // 🔴 ⚖ 與 ♾ 一律寫**不帶 VS16(U+FE0F)** 的碼位——帶了就強制彩色呈現,會蓋過 font-family
@@ -14544,6 +14544,71 @@ async function setupOfflineLand() {
   document.querySelector('.stage').classList.add('offline-land');
 }
 
+// ── 衛星圖磚的計費模式切換:按張數 → 按 session ────────────────────────────────
+// Esri 衛星有兩種計價,擇一:按張數(2M 免費/期,超出 $0.15 每千張)或按 basemap session
+// (1,000 顆免費/月,超出 $4 每千顆;一顆管 12 小時,期間圖磚不再計張數)。
+// 損益兩平在「一顆 session 要涵蓋 27 張圖磚」——手機瞄一眼衛星只吃 14 張、桌機一屏 42 張,
+// 所以「一開站就換 session」對隨手看的人反而比較貴。做法因此是混合:
+//   先照原本按張數跑 → 這個客戶端在衛星上真的載超過 SAT_SESSION_AT 張(＝在探索,不是瞄一眼)
+//   → 才換成 session token,之後 12 小時內怎麼平移縮放都不再計張數。
+// 兩端都不會比原本貴:輕度使用者維持原本的張數計價,重度使用者被 session 封頂。
+// 取不到 session 就安靜留在張數計價(衛星照常顯示),所以這條路徑失敗不影響功能。
+const SAT_SESSION_AT = 40;                          // 桌機約一屏;跨過這條的人幾乎都會再看很多張
+const SAT_SESSION_KEY = 'trainmap-esri-session';
+const SAT_SESSION_MARGIN = 10 * 60000;              // 效期只剩 10 分鐘就當作要換新的
+let satTiles = 0, satSession = null, satSessionBusy = false;
+// 衛星圖磚網址的 ? 之前那段,建圖層時抓下來。刻意不在這裡讀 TILES——它是 boot 函式內的區域變數,
+// 這幾支是頂層函式,直接引用會 ReferenceError（改這段時踩過一次,錯誤被 .catch 吃掉、只看到衛星鈕消失）。
+let satTileUrlBase = null;
+
+// 把衛星圖層的 token 換掉。網站版的網址本來沒有 query,App 殼的則已由 prepare-web 烤上
+// ?token=<API key>——一律砍掉 ? 之後重接,兩種來源共用同一條路。
+function applySatToken(tok) {
+  if (!satTileUrlBase || !baseLayers.sat) return;
+  const url = satTileUrlBase + '?token=' + encodeURIComponent(tok);
+  baseLayers.sat.setUrl(url);
+  if (baseLayers.satLQ) baseLayers.satLQ.setUrl(url);
+}
+
+function satSessionUsable() { return satSession && satSession.exp - Date.now() > SAT_SESSION_MARGIN; }
+
+// 開一顆 session。App 殼用自己 build 內的金鑰直接跟 Esri 要(它那把沒有 referrer 限制,
+// capacitor://localhost 實測可過);網站走 Worker,因為網站那把有 referrer 白名單而
+// sessions/start 會真的驗 referer,得由 Worker 補上。
+async function fetchSatSession() {
+  const key = APP_CFG.esriKey;   // 只有 App 殼有;網站版是 undefined,走下面的 Worker 那條
+  if (key) {
+    const r = await fetch('https://basemapstyles-api.arcgis.com/arcgis/rest/services/styles/v2/sessions/start'
+      + '?styleFamily=arcgis&token=' + encodeURIComponent(key), { cache: 'no-store' });
+    if (!r.ok) throw new Error('session ' + r.status);
+    const d = await r.json();
+    return { t: d.sessionToken, exp: Number(d.endTime) || 0 };
+  }
+  const r = await fetch('/api/basemap-session', { cache: 'no-store' });
+  if (!r.ok) throw new Error('session ' + r.status);
+  const d = await r.json();
+  return { t: d.sessionToken, exp: Number(d.endTime) || 0 };
+}
+
+// 每次衛星圖磚載入時呼叫。三件事:累計張數、跨門檻就升級、效期快到就續一顆。
+// 續期刻意由「有圖磚在載」驅動而不是計時器——沒人在看衛星就不必花錢開新的。
+function satTileLoaded() {
+  if (satSessionBusy) return;
+  satTiles++;
+  const needNew = satSession ? !satSessionUsable() : satTiles >= SAT_SESSION_AT;
+  if (!needNew) return;
+  satSessionBusy = true;
+  fetchSatSession()
+    .then(s => {
+      if (!s.t || !(s.exp > Date.now())) throw new Error('bad session');
+      satSession = s;
+      try { localStorage.setItem(SAT_SESSION_KEY, JSON.stringify(s)); } catch (e) {}
+      applySatToken(s.t);
+    })
+    .catch(() => { /* 要不到就繼續按張數計價,衛星不受影響 */ })
+    .then(() => { satSessionBusy = false; });
+}
+
 // ── 底圖切換(亮 CARTO Positron / 暗 Dark Matter / 衛星 Esri) ──
 function onlineBasemapsAvailable() { return window.RAIL_ONLINE_BASEMAPS_AVAILABLE !== false; }
 function setBasemap() {
@@ -15842,6 +15907,17 @@ async function boot() {
     // SAT_RETINA 關閉時 sat 本身就是低解析度,不再養第二份(setBasemap 的 want 有 baseLayers.satLQ 存在性守門)
     if (k === 'sat' && SAT_RETINA) baseLayers.satLQ = L.tileLayer(t.url, { ...opt, detectRetina: false });
   }
+  // 衛星計費模式的掛勾:數圖磚、跨門檻換 session、效期快到續一顆(見 satTileLoaded 上方長註解)
+  if (baseLayers.sat) {
+    satTileUrlBase = TILES.sat.url.split('?')[0];
+    baseLayers.sat.on('tileload', satTileLoaded);
+    if (baseLayers.satLQ) baseLayers.satLQ.on('tileload', satTileLoaded);
+    // 上次來就已經是重度使用者的話,這次一開衛星就直接用還沒過期的那顆,不必再數 40 張。
+    try {
+      const d = JSON.parse(localStorage.getItem(SAT_SESSION_KEY) || 'null');
+      if (d && d.t && d.exp - Date.now() > SAT_SESSION_MARGIN) { satSession = d; applySatToken(d.t); }
+    } catch (e) {}
+  }
   // 網站版:向 Worker 要 Esri token 再補進圖層網址(App 殼的 APP_CFG.tiles 已自帶金鑰,不走這條)。
   // token 拿到前 satTokenState='pending',setBasemap 會暫時維持一般地圖——不是為了畫面好看,
   // 是不讓沒有 token 的圖磚請求送出去(那會是一整片 401)。要不到就把「衛星」鈕整顆藏掉。
@@ -15851,9 +15927,9 @@ async function boot() {
       .then(r => r.ok ? r.json() : null)
       .then(d => {
         if (!d || !d.esri) throw new Error('no token');
-        const url = TILES.sat.url + '?token=' + encodeURIComponent(d.esri);
-        baseLayers.sat.setUrl(url);
-        if (baseLayers.satLQ) baseLayers.satLQ.setUrl(url);
+        // 這條非同步回來時,上面可能已經把還沒過期的 session token 套上去了——那顆比較便宜,
+        // 別用 API key 蓋掉它(只有沒有可用 session 時才套 key)。
+        if (!satSessionUsable()) applySatToken(d.esri);
         satTokenState = 'ready';
       })
       .catch(() => {

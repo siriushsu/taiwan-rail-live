@@ -25,7 +25,10 @@ async function readRequiredEnv(name) {
 }
 
 const stadiaApiKey = includeLicensedBasemaps ? encodeURIComponent(await readRequiredEnv('STADIA_API_KEY')) : null;
-const esriApiKey = includeLicensedBasemaps ? encodeURIComponent(await readRequiredEnv('ESRI_API_KEY')) : null;
+// 兩個形態都要:圖磚網址吃 URL 編碼過的，開 basemap session 時前端會自己再編碼一次，
+// 所以 RAIL_APP_CONFIG.esriKey 必須放沒編碼的原值（塞編碼過的會變成二次編碼、開不了 session）。
+const esriApiKeyRaw = includeLicensedBasemaps ? await readRequiredEnv('ESRI_API_KEY') : null;
+const esriApiKey = includeLicensedBasemaps ? encodeURIComponent(esriApiKeyRaw) : null;
 await assertLicensedBuildAllowed({ includeLicensedMusic, includeLicensedBasemaps });
 
 // 地點型小工具的通過時刻索引必須由真實頁面 runtime 產生：段配對、obs 剖面與反解時刻
@@ -171,6 +174,11 @@ const appConfig = includeLicensedBasemaps ? {
   // 2026-07-29 關掉(與 index.html 的 SAT_RETINA_DEFAULT 同一輪)：Esri 免費額度 2M/期眼看要吃穿。
   // 🔴 這個值一旦 build 進 App 就鎖死到下一次送審——網站改一行部署就生效，App 不行。
   satRetina: false, // 衛星 Retina 高解析(index.html 的 SAT_RETINA 消費)。true → 圖磚量約 2.9 倍、Retina 螢幕較銳利
+  // 衛星計費模式從「按張數」升級成「按 session」時，App 殼要自己跟 Esri 開 session（index.html 的
+  // fetchSatSession 消費）。網站那把金鑰有 referrer 白名單所以得繞 Worker，App 這把沒有，
+  // capacitor://localhost 實測可直接開（2026-08-01 正負對照驗過）。
+  // 值與下面 tiles.sat.url 裡的是同一把，不是新的金鑰、不增加曝險面。
+  esriKey: esriApiKeyRaw,
   tiles: {
     light: { url: `https://tiles.stadiamaps.com/tiles/alidade_smooth/{z}/{x}/{y}.png?api_key=${stadiaApiKey}`, maxZoom: 20, attribution: STADIA_ATTRIBUTION },
     dark: { url: `https://tiles.stadiamaps.com/tiles/alidade_smooth_dark/{z}/{x}/{y}.png?api_key=${stadiaApiKey}`, maxZoom: 20, attribution: STADIA_ATTRIBUTION },
