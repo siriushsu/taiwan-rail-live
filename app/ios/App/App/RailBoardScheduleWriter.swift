@@ -198,6 +198,17 @@ enum RailBoardScheduleWriter {
         }.joined()
     }
 
+    /// 看板檔的格式版本。**動到 board／place-board／composite-board 的欄位或語意就 +1。**
+    ///
+    /// 為什麼需要它：重算閘門原本只比 `appBuild`（網頁 BUILD＋CFBundleVersion）與地點指紋，
+    /// 而**改 Swift 邏輯不會動到這三者中的任何一個** ⇒ 重裝後閘門判「不必重算」，
+    /// 磁碟上舊格式的看板檔原封不動留著，新功能在桌面上看起來像沒生效。
+    /// 2026-07-31 的方向欄位（`dir`）與共站入口就差點這樣出貨——當時的解法是手動推 build 號，
+    /// 但那要靠人記得。改成把版本寫在格式旁邊，改格式的那一手就會看到它。
+    ///
+    /// 2＝加入 `PlaceBoardPass.dir` 與 composite-board（2026-07-31）。
+    private static let boardFormatVersion = 2
+
     private static func shouldRebuild(
         rootURL: URL,
         appBuild: String,
@@ -211,6 +222,7 @@ enum RailBoardScheduleWriter {
             return true
         }
         return meta.appBuild != appBuild
+            || meta.boardFormat != boardFormatVersion
             || meta.placesFingerprint != placesFingerprint
     }
 
@@ -360,6 +372,7 @@ enum RailBoardScheduleWriter {
             JSONOutput.meta(
                 builtAt: builtAt,
                 appBuild: appBuild,
+                boardFormat: boardFormatVersion,
                 placesFingerprint: placesFingerprint,
                 types: builder.types,
                 systems: builder.systems
@@ -577,6 +590,8 @@ extension RailBoardScheduleWriter {
     struct ExistingMeta: Decodable {
         let appBuild: String
         let placesFingerprint: String?
+        /// 舊版 App 寫的 meta 沒有這個欄位；缺值一律當作「格式不同」而重算。
+        let boardFormat: Int?
     }
 
     struct ExistingStationsDocument: Decodable {
@@ -1448,6 +1463,7 @@ extension RailBoardScheduleWriter {
         static func meta(
             builtAt: String,
             appBuild: String,
+            boardFormat: Int,
             placesFingerprint: String,
             types: [TypeColor],
             systems: [SystemMeta]
@@ -1463,7 +1479,7 @@ extension RailBoardScheduleWriter {
             }.joined(separator: ",")
 
             return """
-            {"v":1,"builtAt":\(string(builtAt)),"appBuild":\(string(appBuild)),"placesFingerprint":\(string(placesFingerprint)),"types":{\(typeValues)},"systems":[\(systemValues)]}
+            {"v":1,"builtAt":\(string(builtAt)),"appBuild":\(string(appBuild)),"boardFormat":\(boardFormat),"placesFingerprint":\(string(placesFingerprint)),"types":{\(typeValues)},"systems":[\(systemValues)]}
             """
         }
 

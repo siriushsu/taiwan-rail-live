@@ -52,6 +52,7 @@ const pieces = [
   extractDeclaration(writerSource, 'struct Station: Decodable, Hashable'),
   extractDeclaration(writerSource, 'struct PlaceInput: Decodable'),
   extractDeclaration(writerSource, 'enum CompositeStationFinder'),
+  extractDeclaration(writerSource, 'struct ExistingMeta: Decodable'),
   extractDeclaration(dataSource, 'struct PlaceBoardDocument: Decodable'),
   extractDeclaration(dataSource, 'struct PlaceBoardLineRecord: Decodable'),
   extractDeclaration(dataSource, 'struct PlaceBoardPassRecord: Decodable'),
@@ -276,6 +277,41 @@ check(
 )
 
 print("")
+print("【重算閘門：改了看板格式一定要重算】")
+// 這一段對應 RailBoardScheduleWriter.shouldRebuild：舊 meta 沒有 boardFormat 欄位，
+// 解出來必須是 nil（≠ 目前的版本號）才會觸發重算；否則改了格式的那一版會靜默沿用舊看板檔。
+let legacyMeta = try JSONDecoder().decode(
+    ExistingMeta.self,
+    from: Data(#"{"v":1,"builtAt":"x","appBuild":"v0730h+15","placesFingerprint":"abc"}"#.utf8)
+)
+check("舊 meta（沒有 boardFormat）解成 nil", legacyMeta.boardFormat == nil)
+check("舊 meta 仍讀得到 appBuild", legacyMeta.appBuild == "v0730h+15")
+let currentMeta = try JSONDecoder().decode(
+    ExistingMeta.self,
+    from: Data(#"{"v":1,"builtAt":"x","appBuild":"v0730h+16","boardFormat":2,"placesFingerprint":"abc"}"#.utf8)
+)
+check("新 meta 讀得到 boardFormat", currentMeta.boardFormat == 2)
+// 寫出的 meta 一定要帶這個欄位，否則閘門永遠看到 nil、每次都重算（另一種壞法）。
+let writerText = try String(
+    contentsOf: URL(fileURLWithPath: CommandLine.arguments[2]),
+    encoding: .utf8
+)
+// 只比對不含反斜線的片段：這份 harness 是從 JS 樣板字串生出來的，
+// 反斜線會先被 JS 吃掉一層，寫成 Swift 跳脫反而對不上（第一版就是這樣紅的）。
+check(
+    "meta.json 的產生器有寫出 boardFormat 欄位",
+    writerText.contains(#""boardFormat":"#)
+)
+check(
+    "meta 產生器有收 boardFormat 參數",
+    writerText.contains("boardFormat: boardFormatVersion")
+)
+check(
+    "shouldRebuild 有比對 boardFormat",
+    writerText.contains("meta.boardFormat != boardFormatVersion")
+)
+
+print("")
 if failures.isEmpty {
     print("全部通過（\\(checks) 項）")
 } else {
@@ -287,4 +323,4 @@ if failures.isEmpty {
 const swiftPath = join(work, 'harness.swift');
 writeFileSync(swiftPath, harness);
 execFileSync('swiftc', ['-O', swiftPath, '-o', join(work, 'harness')], { stdio: 'inherit' });
-execFileSync(join(work, 'harness'), [work], { stdio: 'inherit' });
+execFileSync(join(work, 'harness'), [work, writerPath], { stdio: 'inherit' });
