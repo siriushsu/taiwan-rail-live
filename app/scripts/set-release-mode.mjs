@@ -42,8 +42,11 @@ const MODES = {
   // build 跳到 15 是為了避開「1.0.3 (14) 那顆已作廢的 archive 是否已被 ASC 吃掉」這個
   // 不確定性（那顆的刪帳號少了 device actor，不可送審）。下面那道單調遞增閘門只擋
   // 「往回推」，擋不住「撞到已用過的號」。
+  // 2026-07-31：build 15 於 07-30 15:0x 已上傳 ASC ⇒ 那個號燒掉了，這一輪從 16 起。
+  // pbxproj 早在 `45ab9aa` 就推到 16（小工具的重算閘門只吃 build 號，改 Swift 不推格
+  // 會讓修正在既有裝置上看起來沒生效），這裡是把表補齊，否則單調遞增閘門會擋下整個 build。
   feature: {
-    marketing: '1.3.0', build: '15', music: true,
+    marketing: '1.3.0', build: '16', music: true,
     why: 'TestFlight／送審版：含音樂、開機定位、打卡收集，以及 iPhone 主畫面「發車看板」小工具。',
   },
 };
