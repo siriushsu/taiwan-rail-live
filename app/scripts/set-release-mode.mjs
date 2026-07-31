@@ -45,8 +45,12 @@ const MODES = {
   // 2026-07-31：build 15 於 07-30 15:0x 已上傳 ASC ⇒ 那個號燒掉了，這一輪從 16 起。
   // pbxproj 早在 `45ab9aa` 就推到 16（小工具的重算閘門只吃 build 號，改 Swift 不推格
   // 會讓修正在既有裝置上看起來沒生效），這裡是把表補齊，否則單調遞增閘門會擋下整個 build。
+  // 2026-08-01：build 16（v0731b）使用者已上傳 ASC ⇒ 那個號燒掉了，這一輪從 17 起。
+  // 這一輪是為了 Esri 衛星改成「時段計費」而緊急重出的——App 佔衛星圖磚用量的 60%，
+  // 網站端改完只吃得到另外 40%，不重出 build 帳單降不下來。
+  // lookup API 08-01 實查線上仍是 `1.02` ⇒ `1.3.0` 仍安全（沒有改 marketing 的理由）。
   feature: {
-    marketing: '1.3.0', build: '16', music: true,
+    marketing: '1.3.0', build: '17', music: true,
     why: 'TestFlight／送審版：含音樂、開機定位、打卡收集，以及 iPhone 主畫面「發車看板」小工具。',
   },
 };
