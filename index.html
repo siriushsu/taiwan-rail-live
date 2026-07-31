@@ -3309,9 +3309,10 @@
 
   <footer class="site-foot">
     <details class="foot-box">
-      <summary><span>更新紀錄</span><span class="foot-sub">最後更新：2026/7/30</span></summary>
+      <summary><span>更新紀錄</span><span class="foot-sub">最後更新：2026/7/31</span></summary>
       <ul class="foot-list foot-recent">
         <li class="grp">最近更新</li>
+        <li><span class="d">7/31</span><span>誤點的車，跟車面板比地圖上的車慢半拍：車停在站上卻寫「行進中」，現在修好了（謝謝網友回報）</span></li>
         <li><span class="d">7/30</span><span>iPhone 發車看板的起站與目的站選單會列出你在軌島存過的「我的地點」：選了「家」，桌面顯示的就是「家」；日後把「家」重存到別的地方，桌面也會自己跟過去</span></li>
         <li><span class="d">7/30</span><span>搜尋今天已經跑完的車，現在會帶你回到它發車前，不再當場亂蓋完乘章（謝謝網友回報）</span></li>
         <li><span class="d">7/30</span><span>iPhone 主畫面可以加「發車看板」小工具了，選好起站就能直接看下一班車——選站不用再整份下拉，先挑縣市就會跳到那一區</span></li>
@@ -3319,7 +3320,6 @@
         <li><span class="d">7/30</span><span>車站與跟車面板可以調高度了：手機拉一下（或點一下）面板上緣的把手切小／中／大——拉到最大現在一定會變大，車站看板也會跟著多列幾班車</span></li>
         <li><span class="d">7/30</span><span>外觀設定新增「面板半透明」，打開後面板會透出底下的地圖，比較淡的字與速度曲線都會自動加深保持好讀；列車資訊縮到最小時就不透明了</span></li>
         <li><span class="d">7/30</span><span>手機與 App 的音樂音量滑桿拿掉了——它一直沒有作用，請用手機側邊的音量鍵</span></li>
-        <li><span class="d">7/29</span><span>GPS 校正旅程與收集地圖先收起來繼續打磨，之後會再開放</span></li>
       </ul>
       <!-- 第二層:完整歷史。刻意不掛 .foot-box 類名——placeFootBoxes() 用
            `.site-foot .foot-box` 搬移面板,巢狀同名會被當成另一個盒子一起搬走。 -->
@@ -3335,8 +3335,8 @@
         <li><span class="d">7/10</span><span>高鐵、桃園機捷、淡海輕軌、安坑輕軌加入路網</span></li>
         <li><span class="d">7/10</span><span>環島觀光列車一分為二：往東「山海號」、往西「平原號」</span></li>
         <li class="grp">即時動態與誤點</li>
+        <li><span class="d">7/31</span><span>誤點的車過了表定到站時間後被當成已跑完：點下去會從頭重播、跟隨面板也提早說抵達。改用校正後的時間判斷，下一站與進度條一併同步；7/31 再修一輪，面板把誤點重複扣了兩次，位置比地圖上的車慢一個誤點量，車停在站上卻寫「行進中」，現在面板與地圖同一個時間軸（謝謝網友回報）</span></li>
         <li><span class="d">7/29</span><span>畫面上後面的車會直接穿過前面那班：現在會保持車距跟著跑，該讓的就在站邊等；兩班車貼太近時，停著讓路的那班會整台挪到軌道右邊、通過的那班照原本的路線走，而且會一路讓到對方離開才回到軌道上，不會兩台互相推來推去。時刻表本身要它超車、中間又沒站可讓的極少數情況仍會出現（謝謝網友回報）</span></li>
-        <li><span class="d">7/28</span><span>誤點的車過了表定到站時間後被當成已跑完：點下去會從頭重播、跟隨面板也提早說抵達。改用校正後的時間判斷，下一站與進度條一併同步（謝謝網友回報）</span></li>
         <li><span class="d">7/24</span><span>新增「資料源連線狀態頁」：各即時資料源連線狀況一目了然，並白話總結「地圖現在準嗎」</span></li>
         <li><span class="d">7/24</span><span>修正 App 在背景放久後時鐘停住、車輛位置對不上；回前景會自動追回「現在」</span></li>
         <li><span class="d">7/18</span><span>「今日台鐵動態」看板：當日誤點排行與逐站歷程，已追回的直接標綠色準點</span></li>
@@ -3702,7 +3702,7 @@
 // 🔴 BUILD 字串會跨並行分支撞號（心得 16）：07-28 兩條線各自遞增又各自部署過——
 // origin/main 這條用到 v0728b，正式站那條用到 v0728f。本次三方合併把兩條線統一，
 // 所以往後推到一個雙方都沒用過的號，辨識線上跑哪一版仍以內容 hash 為準。
-const BUILD = 'v0730h';
+const BUILD = 'v0731a';
 // 成就徽章與車廂標記＝原本那些 emoji 的單色平面版（RailEmoji＝裁切過的 Noto Emoji 單色）。
 // 刻意保留 railIcon(name) 這個唯一入口:呼叫端一行都不用改,只有這裡決定畫法。
 // 🔴 ⚖ 與 ♾ 一律寫**不帶 VS16(U+FE0F)** 的碼位——帶了就強制彩色呈現,會蓋過 font-family
@@ -12016,7 +12016,7 @@ function closeTodayPanel() {
 
 // ── 跟隨動態事件(停靠/交會/待避) ──
 function dwellInfoOf(tr, t) {
-  t -= liveDelaySec(tr);
+  // t 由呼叫端一律傳 effTLive(tr)——那個值已經扣過即時誤點,本函式不再自行扣(issue #19)
   const s = tr.stops;
   for (let i = 0; i < s.length; i++)
     if (t >= s[i].arrSec && t < s[i].depSec)
@@ -12133,7 +12133,7 @@ function drawSpark(tr, t) {
 
 // 旅程進度:沿途各段里程(貼軌段用弧長、直線段用大圓距)累計,快取在車上
 function journeyProgress(tr, t) {
-  t -= liveDelaySec(tr);
+  // t 由呼叫端一律傳 effTLive(tr)——那個值已經扣過即時誤點,本函式不再自行扣(issue #19)
   const s = tr.stops;
   if (!tr._segKm) {
     tr._segKm = []; tr._totalKm = 0;
@@ -12159,7 +12159,7 @@ function journeyProgress(tr, t) {
 
 // ── 跟隨小面板(地圖左下角) ──
 function nextStopInfo(tr, t) {
-  t -= liveDelaySec(tr);
+  // t 由呼叫端一律傳 effTLive(tr)——那個值已經扣過即時誤點,本函式不再自行扣(issue #19)
   const s = tr.stops;
   for (let i = 0; i < s.length; i++) {
     if (s[i].stop === false) continue;          // 略過通過不停的站
