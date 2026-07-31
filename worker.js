@@ -881,7 +881,8 @@ async function bountyClaim(request, env) {
   if (bountyWritesOff(env)) return jsonRes({ error: 'bounty_paused' }, 503, 'no-store');
   let b;
   try { b = await request.json(); } catch (e) { return jsonRes({ error: 'bad_json' }, 400, 'no-store'); }
-  if (!b || !isActorId(b.actor)) return jsonRes({ error: 'bad_actor' }, 400, 'no-store');
+  if (!b || typeof b !== 'object' || Array.isArray(b) || '__proto__' in b) return jsonRes({ error: 'bad_json' }, 400, 'no-store');
+  if (!isActorId(b.actor)) return jsonRes({ error: 'bad_actor' }, 400, 'no-store');
   const parts = String(b.cardId || '').split('|');
   if (parts.length !== 6 || !parts[0] || !parts[1] || !parts[3] || (parts[4] !== 'track' && parts[4] !== 'dwell'))
     return jsonRes({ error: 'bad_card' }, 400, 'no-store');
@@ -951,7 +952,8 @@ async function bountySubmit(request, env) {
   if (bountyWritesOff(env)) return jsonRes({ error: 'bounty_paused' }, 503, 'no-store');
   let b;
   try { b = await request.json(); } catch (e) { return jsonRes({ error: 'bad_json' }, 400, 'no-store'); }
-  if (!b || !isActorId(b.actor)) return jsonRes({ error: 'bad_actor' }, 400, 'no-store');
+  if (!b || typeof b !== 'object' || Array.isArray(b) || '__proto__' in b) return jsonRes({ error: 'bad_json' }, 400, 'no-store');
+  if (!isActorId(b.actor)) return jsonRes({ error: 'bad_actor' }, 400, 'no-store');
   if (!/^[A-Za-z0-9_-]{1,16}$/.test(String(b.sys || '')) || !BOUNTY_LINE_ID_RE.test(String(b.lnId || '')))
     return jsonRes({ error: 'bad_line' }, 400, 'no-store');
   if (!/^[0-9A-Za-z]{1,8}$/.test(String(b.trainNo || ''))) return jsonRes({ error: 'bad_train' }, 400, 'no-store');
@@ -1082,7 +1084,8 @@ async function bountyMerge(request, env) {
   if (await rateLimited(env.AUTH_LIMITER, request)) return jsonRes({ error: 'rate_limited' }, 429, 'no-store');
   let b;
   try { b = await request.json(); } catch (e) { return jsonRes({ error: 'bad_json' }, 400, 'no-store'); }
-  if (!b || !isActorId(b.actor)) return jsonRes({ error: 'bad_actor' }, 400, 'no-store');
+  if (!b || typeof b !== 'object' || Array.isArray(b) || '__proto__' in b) return jsonRes({ error: 'bad_json' }, 400, 'no-store');
+  if (!isActorId(b.actor)) return jsonRes({ error: 'bad_actor' }, 400, 'no-store');
   const auth = (request.headers.get('Authorization') || '').match(/^Bearer\s+(.+)$/i);
   const uid = auth ? await firebaseUid(env, auth[1]) : null;
   if (!uid) return jsonRes({ error: 'unauthorized' }, 401, 'no-store');
