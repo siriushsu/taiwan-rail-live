@@ -3312,6 +3312,7 @@
       <summary><span>更新紀錄</span><span class="foot-sub">最後更新：2026/7/31</span></summary>
       <ul class="foot-list foot-recent">
         <li class="grp">最近更新</li>
+        <li><span class="d">7/31</span><span>林鐵、高鐵有些車次號碼跟台鐵重複，台鐵誤點時同號的車會被一起推走——現在各算各的</span></li>
         <li><span class="d">7/31</span><span>誤點的車，跟車面板比地圖上的車慢半拍：車停在站上卻寫「行進中」，現在修好了（謝謝網友回報）</span></li>
         <li><span class="d">7/30</span><span>iPhone 發車看板的起站與目的站選單會列出你在軌島存過的「我的地點」：選了「家」，桌面顯示的就是「家」；日後把「家」重存到別的地方，桌面也會自己跟過去</span></li>
         <li><span class="d">7/30</span><span>搜尋今天已經跑完的車，現在會帶你回到它發車前，不再當場亂蓋完乘章（謝謝網友回報）</span></li>
@@ -3319,7 +3320,6 @@
         <li><span class="d">7/30</span><span>頂部的營運公告改成一顆通知鈕，不再壓著下面的面板；電腦版的橫幅也能關掉</span></li>
         <li><span class="d">7/30</span><span>車站與跟車面板可以調高度了：手機拉一下（或點一下）面板上緣的把手切小／中／大——拉到最大現在一定會變大，車站看板也會跟著多列幾班車</span></li>
         <li><span class="d">7/30</span><span>外觀設定新增「面板半透明」，打開後面板會透出底下的地圖，比較淡的字與速度曲線都會自動加深保持好讀；列車資訊縮到最小時就不透明了</span></li>
-        <li><span class="d">7/30</span><span>手機與 App 的音樂音量滑桿拿掉了——它一直沒有作用，請用手機側邊的音量鍵</span></li>
       </ul>
       <!-- 第二層:完整歷史。刻意不掛 .foot-box 類名——placeFootBoxes() 用
            `.site-foot .foot-box` 搬移面板,巢狀同名會被當成另一個盒子一起搬走。 -->
@@ -3335,6 +3335,7 @@
         <li><span class="d">7/10</span><span>高鐵、桃園機捷、淡海輕軌、安坑輕軌加入路網</span></li>
         <li><span class="d">7/10</span><span>環島觀光列車一分為二：往東「山海號」、往西「平原號」</span></li>
         <li class="grp">即時動態與誤點</li>
+        <li><span class="d">7/31</span><span>阿里山林鐵與高鐵有 24 個車次號碼跟台鐵重複（像 1 次、101～121 次）。台鐵那班誤點時，同號的林鐵／高鐵車會被一起推走位置（實測最遠約 800 公尺），台鐵自己的誤點量也被拉得失真。現在各系統的誤點各算各的，互不干擾</span></li>
         <li><span class="d">7/31</span><span>誤點的車過了表定到站時間後被當成已跑完：點下去會從頭重播、跟隨面板也提早說抵達。改用校正後的時間判斷，下一站與進度條一併同步；7/31 再修一輪，面板把誤點重複扣了兩次，位置比地圖上的車慢一個誤點量，車停在站上卻寫「行進中」，現在面板與地圖同一個時間軸（謝謝網友回報）</span></li>
         <li><span class="d">7/29</span><span>畫面上後面的車會直接穿過前面那班：現在會保持車距跟著跑，該讓的就在站邊等；兩班車貼太近時，停著讓路的那班會整台挪到軌道右邊、通過的那班照原本的路線走，而且會一路讓到對方離開才回到軌道上，不會兩台互相推來推去。時刻表本身要它超車、中間又沒站可讓的極少數情況仍會出現（謝謝網友回報）</span></li>
         <li><span class="d">7/24</span><span>新增「資料源連線狀態頁」：各即時資料源連線狀況一目了然，並白話總結「地圖現在準嗎」</span></li>
@@ -3702,7 +3703,7 @@
 // 🔴 BUILD 字串會跨並行分支撞號（心得 16）：07-28 兩條線各自遞增又各自部署過——
 // origin/main 這條用到 v0728b，正式站那條用到 v0728f。本次三方合併把兩條線統一，
 // 所以往後推到一個雙方都沒用過的號，辨識線上跑哪一版仍以內容 hash 為準。
-const BUILD = 'v0731a';
+const BUILD = 'v0731b';
 // 成就徽章與車廂標記＝原本那些 emoji 的單色平面版（RailEmoji＝裁切過的 Noto Emoji 單色）。
 // 刻意保留 railIcon(name) 這個唯一入口:呼叫端一行都不用改,只有這裡決定畫法。
 // 🔴 ⚖ 與 ♾ 一律寫**不帶 VS16(U+FE0F)** 的碼位——帶了就強制彩色呈現,會蓋過 font-family
@@ -13337,7 +13338,11 @@ function liveDelaySec(tr) {
     const ls = state.schedSystems.find(s => s.live); // liveActive 已確保 schedSystems 有 live 端點
     if (!(ls && tr.sys && tr.sys !== ls.id)) target = (state.live.map.get(String(tr.train)) || 0) * 60; // 高鐵等非 live 系統 target 恆 0
   }
-  return easedShift('tra:' + tr.train, target, gateEpoch(_traGateEp, on)); // 退場也經漸變滑出,不在門檻關閉時提前 return 0
+  // key 必須帶系統別:台鐵∩林鐵有 21 個號碼、∩高鐵 3 個(車次 1、2、101–121…)撞號,鍵寫死 'tra:' 會讓
+  // 兩班共用同一個漸變條目——easedShift 有狀態,條目存在時不看 target 是誰傳的,於是林鐵那班讀到台鐵的
+  // 誤點被推走(實測 730m),它自己的 target=0 又反過來把條目往 0 拉,兩班互相拉扯(台鐵誤點也跟著失真)。
+  // 比照下方 metroShiftSec 的鍵作法。tr.sys 是穩定字串 id,跨 rebuild 不變。
+  return easedShift((tr.sys || 'tra_sched') + ':' + tr.train, target, gateEpoch(_traGateEp, on)); // 退場也經漸變滑出,不在門檻關閉時提前 return 0
 }
 async function pollLive() {
   const ls = state.schedSystems && state.schedSystems.find(s => s.live);
