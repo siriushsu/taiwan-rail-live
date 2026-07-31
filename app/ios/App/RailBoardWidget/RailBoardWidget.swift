@@ -146,8 +146,7 @@ struct Provider: AppIntentTimelineProvider {
 
         do {
             if
-                originKey.hasPrefix("place|"),
-                let placeBoard = try? RailBoardStore.shared.placeBoard(forKey: originKey)
+                let placeBoard = RailBoardStore.shared.placeLikeBoard(forKey: originKey)
             {
                 return placeTimeline(
                     placeBoard: placeBoard,
@@ -235,8 +234,7 @@ struct Provider: AppIntentTimelineProvider {
 
         do {
             if
-                originKey.hasPrefix("place|"),
-                let placeBoard = try? RailBoardStore.shared.placeBoard(forKey: originKey)
+                let placeBoard = RailBoardStore.shared.placeLikeBoard(forKey: originKey)
             {
                 return placeEntry(
                     placeBoard: placeBoard,

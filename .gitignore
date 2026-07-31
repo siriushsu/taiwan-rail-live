@@ -82,3 +82,7 @@ scratchpad/
 # 小工具地點看板索引：`npm run build` 的現場產物（app/scripts/build_place_index.mjs，約 9MB）。
 # 只有 App bundle 需要它，網站不讀。repo 是 public，一次 git add -A 就會永久留在公開歷史。
 data/place_index.json
+
+# 驗證腳本的工作目錄（verify_widget_logic / verify_place_direction / render_place_widget
+# 的預設輸出）：裡面有編出來的 binary 與中間 JSON。同上，repo 是 public。
+tmp/

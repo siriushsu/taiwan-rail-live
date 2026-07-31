@@ -201,6 +201,11 @@ struct PlaceBoardPassRecord: Decodable {
     let at: Int
     let days: Int
     let sys: String
+    /// 1＝里程遞增、0＝里程遞減。舊版 App 寫的看板沒有這個欄位，所以是 optional——
+    /// 缺值時方向篩選一律放行，升級過程中不會有人看到空看板。
+    let dir: Int?
+
+    var isForward: Bool? { dir.map { $0 == 1 } }
 }
 
 struct DepartureRecord: Decodable {
@@ -288,6 +293,43 @@ final class RailBoardStore {
 
     func board(stationID: Int) throws -> BoardDocument {
         try decode(BoardDocument.self, relativePath: "board/\(stationID).json")
+    }
+
+    /// 共站入口（台鐵與高鐵同一個地方）。App 每次重建班表時一併產生，找不到就當作沒有這個功能。
+    func composites() -> [CompositeStationRecord] {
+        (try? decode(
+            [CompositeStationRecord].self,
+            relativePath: "composites.json"
+        )) ?? []
+    }
+
+    /// 鍵存的是站名而不是索引：共站清單會隨班表重建，索引會位移、站名不會
+    /// （站名真的改了就當作這個入口消失，退回「找不到這個車站」而不是靜默指到別站）。
+    func compositeBoard(forKey key: String) -> PlaceBoardDocument? {
+        guard key.hasPrefix(Self.compositeKeyPrefix) else { return nil }
+        let label = String(key.dropFirst(Self.compositeKeyPrefix.count))
+        guard !label.isEmpty else { return nil }
+        let matches = composites().filter { $0.label == label }
+        guard matches.count == 1 else { return nil }
+        let document = try? decode(
+            PlaceBoardDocument.self,
+            relativePath: "composite-board/\(matches[0].i).json"
+        )
+        guard let document, document.v == 1 else { return nil }
+        return document
+    }
+
+    static let compositeKeyPrefix = "xsta|"
+    static let placeKeyPrefix = "place|"
+
+    /// 「我的地點」與「共站」在顯示與篩選上完全一樣，只差看板檔從哪個目錄讀。
+    /// 集中在這裡判前綴，呼叫端就不會有人漏掉其中一種（時間軸、快照、篩選清單三處都要）。
+    func placeLikeBoard(forKey key: String) -> PlaceBoardDocument? {
+        if key.hasPrefix(Self.compositeKeyPrefix) {
+            return compositeBoard(forKey: key)
+        }
+        guard key.hasPrefix(Self.placeKeyPrefix) else { return nil }
+        return (try? placeBoard(forKey: key)) ?? nil
     }
 
     /// 只有仍能在目前 places.json 唯一命中的地點才讀對應索引；搬家後會取新座標，
@@ -468,6 +510,17 @@ struct StationSelection {
 }
 
 /// 一個使用者地點解析到既有車站鍵後的選單捷徑。
+/// 共站入口的一筆。`i` 只在同一次發布內有效，設定裡存的是 `label`。
+struct CompositeStationRecord: Decodable {
+    let i: Int
+    let label: String
+    let subtitle: String
+    let lat: Double
+    let lon: Double
+
+    var key: String { RailBoardStore.compositeKeyPrefix + label }
+}
+
 struct PlaceStationOption {
     let key: String
     let station: StationOption
@@ -761,16 +814,19 @@ struct PreparedPlaceBoard {
     }
 }
 
-/// 設定裡「只看這些」的一個勾選項。車種與車次共用同一個複選清單，所以值帶前綴區分。
-/// 車種字串可能含 `/`（莒光/復興），但兩者都不含 `|`，用 `|` 當分隔是安全的。
+/// 設定裡「只看這些」的一個勾選項。車種、車次與方向共用同一個複選清單，所以值帶前綴區分。
+/// 車種字串可能含 `/`（莒光/復興），但都不含 `|`，用 `|` 當分隔是安全的。
 enum BoardFilter: Hashable {
     case trainType(String)
     case trainNumber(String)
+    /// 方向綁在線上：同一個地點可能同時有台鐵與高鐵，兩條線的「順里程」是不同的方向。
+    case direction(line: String, forward: Bool)
 
     var key: String {
         switch self {
         case .trainType(let value): return "ty|\(value)"
         case .trainNumber(let value): return "no|\(value)"
+        case .direction(let line, let forward): return "dir|\(line)|\(forward ? 1 : 0)"
         }
     }
 
@@ -781,31 +837,85 @@ enum BoardFilter: Hashable {
         switch key[key.startIndex ..< separator] {
         case "ty": self = .trainType(value)
         case "no": self = .trainNumber(value)
+        case "dir":
+            // 線 id 本身不含 `|`，但用 last 而不是 first 仍比較安全：真的哪天出現含分隔字元的
+            // 線 id，壞掉的會是最後一段的旗標而不是靜默對到別條線。
+            guard
+                let mark = value.lastIndex(of: "|"),
+                case let line = String(value[value.startIndex ..< mark]),
+                !line.isEmpty
+            else {
+                return nil
+            }
+            self = .direction(
+                line: line,
+                forward: value[value.index(after: mark)...] == "1"
+            )
         default: return nil
         }
     }
 }
 
-/// 勾選是 OR：勾了「自強」與「1112」＝所有自強再加上 1112 那班。全空＝不篩。
-/// 認不得的鍵（例如改點後消失的車次）直接忽略，不讓整張看板變空。
+/// 車種與車次之間是 OR：勾了「自強」與「1112」＝所有自強再加上 1112 那班。
+/// **方向是另一個維度、與前兩者 AND**——「只看往左營方向的自強」才是使用者要的意思，
+/// 若也做成 OR，勾了方向反而會把反方向的自強一起放進來。
+/// 全空＝不篩。認不得的鍵（例如改點後消失的車次）直接忽略，不讓整張看板變空。
 struct BoardFilterSet {
     private let types: Set<String>
     private let numbers: Set<String>
+    /// 鍵是線 id，值是被勾選的方向（可能兩個都勾＝等於沒篩）。
+    private let directionsByLine: [String: Set<Bool>]
 
-    var isEmpty: Bool { types.isEmpty && numbers.isEmpty }
+    var isEmpty: Bool {
+        types.isEmpty && numbers.isEmpty && directionsByLine.isEmpty
+    }
 
     init(keys: [String]?) {
         let parsed = (keys ?? []).compactMap(BoardFilter.init(key:))
         types = Set(parsed.compactMap { if case .trainType(let v) = $0 { return v } else { return nil } })
         numbers = Set(parsed.compactMap { if case .trainNumber(let v) = $0 { return v } else { return nil } })
+        var directions: [String: Set<Bool>] = [:]
+        for filter in parsed {
+            if case .direction(let line, let forward) = filter {
+                directions[line, default: []].insert(forward)
+            }
+        }
+        directionsByLine = directions
+    }
+
+    private var hasTrainFilter: Bool { !types.isEmpty || !numbers.isEmpty }
+
+    private func matchesTrain(trainType: String, trainNumber: String) -> Bool {
+        !hasTrainFilter || types.contains(trainType) || numbers.contains(trainNumber)
     }
 
     func matches(_ template: JourneyTemplate) -> Bool {
-        isEmpty || types.contains(template.trainType) || numbers.contains(template.trainNumber)
+        matchesTrain(
+            trainType: template.trainType,
+            trainNumber: template.trainNumber
+        )
     }
 
     func matches(trainType: String, trainNumber: String) -> Bool {
-        isEmpty || types.contains(trainType) || numbers.contains(trainNumber)
+        matchesTrain(trainType: trainType, trainNumber: trainNumber)
+    }
+
+    /// 地點看板專用：多帶一個方向維度。
+    /// 沒有勾這條線的方向就不篩這條線——一個地點可能同時有台鐵與高鐵，
+    /// 只勾了高鐵方向不該把台鐵整條清空。
+    /// `direction` 為 nil＝舊版 App 寫的看板沒有這個欄位，一律視為通過，不讓升級過程中看板變空。
+    func matches(
+        trainType: String,
+        trainNumber: String,
+        lineID: String,
+        direction: Bool?
+    ) -> Bool {
+        guard matchesTrain(trainType: trainType, trainNumber: trainNumber) else {
+            return false
+        }
+        guard let allowed = directionsByLine[lineID] else { return true }
+        guard let direction else { return true }
+        return allowed.contains(direction)
     }
 }
 
@@ -875,6 +985,40 @@ struct RailBoardEngine {
         }
 
         return (types, trains)
+    }
+
+    /// 每條線每個方向一個選項。標題用「往 X 方向」，X 取這條線這個方向裡最常見的終點站——
+    /// 不寫死「北上／南下」是因為支線（平溪、集集、深澳）根本沒有南北可言，
+    /// 而終點站名是資料自己講的話，換班表也不會過期。
+    /// 旗標值（順里程／逆里程）才是存進設定的鍵，終點站名只拿來顯示，
+    /// 所以就算某天最常見的終點換人，既有設定仍指著同一個方向。
+    func directionOptions(
+        placeBoard: PlaceBoardDocument
+    ) -> [FilterOption] {
+        placeBoard.lines.flatMap { line -> [FilterOption] in
+            var byDirection: [Bool: [String: Int]] = [:]
+            for pass in line.pass {
+                guard let forward = pass.isForward else { continue }
+                byDirection[forward, default: [:]][pass.to, default: 0] += 1
+            }
+            // 只有一個方向的線（支線末端、單向環島）不必給選項——勾了等於沒勾。
+            guard byDirection.count > 1 else { return [] }
+
+            return byDirection.keys.sorted { lhs, _ in lhs }.compactMap { forward in
+                guard let destinations = byDirection[forward] else { return nil }
+                let total = destinations.values.reduce(0, +)
+                let dominant = destinations.max {
+                    if $0.value != $1.value { return $0.value < $1.value }
+                    return $1.key < $0.key
+                }
+                guard let dominant else { return nil }
+                return FilterOption(
+                    key: BoardFilter.direction(line: line.id, forward: forward).key,
+                    title: "往 \(dominant.key) 方向",
+                    subtitle: "\(line.name) · \(total) 班"
+                )
+            }
+        }
     }
 
     func filterOptions(
@@ -958,7 +1102,9 @@ struct RailBoardEngine {
                     pass.sys == line.sys
                         && filters.matches(
                             trainType: pass.ty,
-                            trainNumber: pass.no
+                            trainNumber: pass.no,
+                            lineID: line.id,
+                            direction: pass.isForward
                         )
                 {
                     if system.days > 0 {

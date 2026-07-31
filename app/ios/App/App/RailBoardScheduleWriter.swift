@@ -110,9 +110,29 @@ enum RailBoardScheduleWriter {
 
         do {
             let placeBoards = loadPlaceBoards(placesData: placesData)
+            let composites = CompositeStationFinder.find(
+                coordinates: builder.coordinates,
+                systemOrder: systemInputs.map(\.id),
+                systemLabels: Dictionary(
+                    uniqueKeysWithValues: systemInputs.map { ($0.id, $0.label) }
+                )
+            )
+            let compositeBoards = buildPlaceBoards(
+                places: composites.map(\.place)
+            )
             try publish(
                 builder: builder,
                 placeBoards: placeBoards,
+                compositeBoards: compositeBoards,
+                compositeRecords: zip(composites, compositeBoards).map {
+                    CompositeStationRecord(
+                        i: $0.1.i,
+                        label: $0.0.place.label,
+                        subtitle: $0.0.subtitle,
+                        lat: $0.0.place.lat,
+                        lon: $0.0.place.lon
+                    )
+                },
                 rootURL: rootURL,
                 appBuild: appBuild,
                 placesFingerprint: placesFingerprint,
@@ -194,16 +214,13 @@ enum RailBoardScheduleWriter {
             || meta.placesFingerprint != placesFingerprint
     }
 
-    private static func loadPlaceBoards(
-        placesData: Data?
-    ) -> [PlaceBoardDocument] {
+    /// 索引與線形對「使用者的地點」與「共站入口」是同一份，讀一次就好。
+    /// 缺任何一份就回 nil，兩邊各自降級成空清單——寧可少一個入口，不要半套資料的看板。
+    private static func loadPlaceIndex() -> (
+        index: PlaceIndexDocument,
+        trackLines: [TrackLine]
+    )? {
         guard
-            let placesData,
-            let places = try? JSONDecoder().decode(
-                PlacesInputDocument.self,
-                from: placesData
-            ),
-            places.v == 1,
             let indexURL = Bundle.main.url(
                 forResource: "public/data/place_index.json",
                 withExtension: nil
@@ -215,7 +232,7 @@ enum RailBoardScheduleWriter {
             ),
             index.v == 1
         else {
-            return []
+            return nil
         }
 
         let trackResources = [
@@ -238,13 +255,35 @@ enum RailBoardScheduleWriter {
                 from: data
             )
         }
-        guard tracks.count == trackResources.count else { return [] }
+        guard tracks.count == trackResources.count else { return nil }
+        return (index, tracks.flatMap(\.lines))
+    }
 
+    private static func buildPlaceBoards(
+        places: [PlaceInput]
+    ) -> [PlaceBoardDocument] {
+        guard !places.isEmpty, let loaded = loadPlaceIndex() else { return [] }
         return PlaceBoardBuilder.build(
-            places: places.places,
-            index: index,
-            trackLines: tracks.flatMap(\.lines)
+            places: places,
+            index: loaded.index,
+            trackLines: loaded.trackLines
         )
+    }
+
+    private static func loadPlaceBoards(
+        placesData: Data?
+    ) -> [PlaceBoardDocument] {
+        guard
+            let placesData,
+            let places = try? JSONDecoder().decode(
+                PlacesInputDocument.self,
+                from: placesData
+            ),
+            places.v == 1
+        else {
+            return []
+        }
+        return buildPlaceBoards(places: places.places)
     }
 
     private static func loadExistingStations(rootURL: URL) -> [Station] {
@@ -264,6 +303,8 @@ enum RailBoardScheduleWriter {
     private static func publish(
         builder: BoardBuilder,
         placeBoards: [PlaceBoardDocument],
+        compositeBoards: [PlaceBoardDocument],
+        compositeRecords: [CompositeStationRecord],
         rootURL: URL,
         appBuild: String,
         placesFingerprint: String,
@@ -281,6 +322,10 @@ enum RailBoardScheduleWriter {
             "place-board",
             isDirectory: true
         )
+        let stagingCompositeBoardURL = stagingURL.appendingPathComponent(
+            "composite-board",
+            isDirectory: true
+        )
 
         try fileManager.createDirectory(
             at: stagingBoardURL,
@@ -288,6 +333,10 @@ enum RailBoardScheduleWriter {
         )
         try fileManager.createDirectory(
             at: stagingPlaceBoardURL,
+            withIntermediateDirectories: true
+        )
+        try fileManager.createDirectory(
+            at: stagingCompositeBoardURL,
             withIntermediateDirectories: true
         )
         defer {
@@ -341,10 +390,29 @@ enum RailBoardScheduleWriter {
                 options: .atomic
             )
         }
+        for compositeBoard in compositeBoards {
+            try placeEncoder.encode(compositeBoard).write(
+                to: stagingCompositeBoardURL.appendingPathComponent(
+                    "\(compositeBoard.i).json"
+                ),
+                options: .atomic
+            )
+        }
+        // 索引與看板檔在同一次發布裡一起產生，所以 `i` 永遠對得上；
+        // 設定裡存的是 label 不是 i，站增減造成的索引位移影響不到既有設定。
+        let compositesData = try placeEncoder.encode(compositeRecords)
+        try compositesData.write(
+            to: stagingURL.appendingPathComponent("composites.json"),
+            options: .atomic
+        )
 
         let boardURL = rootURL.appendingPathComponent("board", isDirectory: true)
         let placeBoardURL = rootURL.appendingPathComponent(
             "place-board",
+            isDirectory: true
+        )
+        let compositeBoardURL = rootURL.appendingPathComponent(
+            "composite-board",
             isDirectory: true
         )
         try fileManager.createDirectory(
@@ -353,6 +421,10 @@ enum RailBoardScheduleWriter {
         )
         try fileManager.createDirectory(
             at: placeBoardURL,
+            withIntermediateDirectories: true
+        )
+        try fileManager.createDirectory(
+            at: compositeBoardURL,
             withIntermediateDirectories: true
         )
 
@@ -385,6 +457,32 @@ enum RailBoardScheduleWriter {
         {
             try fileManager.removeItem(at: staleURL)
         }
+        for compositeBoard in compositeBoards {
+            try atomicallyInstall(
+                stagedURL: stagingCompositeBoardURL.appendingPathComponent(
+                    "\(compositeBoard.i).json"
+                ),
+                destinationURL: compositeBoardURL.appendingPathComponent(
+                    "\(compositeBoard.i).json"
+                ),
+                fileManager: fileManager
+            )
+        }
+        let validCompositeNames = Set(compositeBoards.map { "\($0.i).json" })
+        for staleURL in try fileManager.contentsOfDirectory(
+            at: compositeBoardURL,
+            includingPropertiesForKeys: nil
+        ) where staleURL.pathExtension == "json"
+            && !validCompositeNames.contains(staleURL.lastPathComponent)
+        {
+            try fileManager.removeItem(at: staleURL)
+        }
+        // composites.json 排在看板檔之後：索引出現時，它指到的每一份看板都已經就位。
+        try atomicallyInstall(
+            stagedURL: stagingURL.appendingPathComponent("composites.json"),
+            destinationURL: rootURL.appendingPathComponent("composites.json"),
+            fileManager: fileManager
+        )
         try atomicallyInstall(
             stagedURL: stagingURL.appendingPathComponent("stations.json"),
             destinationURL: rootURL.appendingPathComponent("stations.json"),
@@ -581,6 +679,152 @@ extension RailBoardScheduleWriter {
         let at: Int
         let days: Int
         let sys: String
+        /// 行進方向：1＝里程遞增、0＝里程遞減。
+        ///
+        /// 為什麼不用終點站名判方向：高鐵往台中的車兩個方向都有（順里程 36 段、逆里程 5 段），
+        /// 台鐵更明顯——同一個方向的終點站散在樹林／新竹／潮州／彰化。里程增減是段自帶的事實，
+        /// 不受終點站怎麼命名影響，而且支線（平溪、集集）也一樣適用，不必假設「南下＝里程遞增」。
+        let dir: Int
+    }
+
+    /// 共站（台鐵與高鐵同一個地方）的一筆。
+    struct CompositeStationRecord: Encodable {
+        let i: Int
+        let label: String
+        let subtitle: String
+        let lat: Double
+        let lon: Double
+    }
+
+    /// 找出「不同系統但實際上在同一個地方」的車站，做成一筆合併入口。
+    ///
+    /// 為什麼用座標而不是站名：12 個高鐵站有 8 個與台鐵共站，其中 5 個**名字不一樣**
+    /// （高鐵新竹在台鐵六家、高鐵苗栗在豐富、高鐵台中在新烏日、高鐵台南在沙崙、
+    /// 高鐵左營在新左營），剩下 3 個裡台北還要處理臺／台 的寫法差異。靠站名比對會漏掉一半。
+    ///
+    /// 800 公尺這個門檻不是猜的：實測 8 個共站的距離是 24–346 公尺，
+    /// 而最近的**非**共站是高鐵彰化到社頭 2451 公尺——中間隔了七倍，門檻放哪都一樣。
+    enum CompositeStationFinder {
+        static let maximumSeparationMeters = 800.0
+
+        /// 只為了比對站名是否等價；顯示一律用原本的寫法。
+        private static func normalized(_ name: String) -> String {
+            name.replacingOccurrences(of: "臺", with: "台")
+        }
+
+        static func find(
+            coordinates: [Station: (lat: Double, lon: Double)],
+            systemOrder: [String],
+            systemLabels: [String: String]
+        ) -> [(place: PlaceInput, subtitle: String)] {
+            let entries = coordinates.map {
+                (station: $0.key, lat: $0.value.lat, lon: $0.value.lon)
+            }.sorted {
+                let leftRank = systemOrder.firstIndex(of: $0.station.s) ?? .max
+                let rightRank = systemOrder.firstIndex(of: $1.station.s) ?? .max
+                if leftRank != rightRank { return leftRank < rightRank }
+                return $0.station.n < $1.station.n
+            }
+
+            // 只合併「不同系統」的站：同系統相鄰站再近也是兩站（例如台鐵的臺北與華山側線）。
+            var parent = Array(entries.indices)
+            func root(_ index: Int) -> Int {
+                var current = index
+                while parent[current] != current { current = parent[current] }
+                return current
+            }
+            for i in entries.indices {
+                for j in entries.indices where j > i {
+                    guard entries[i].station.s != entries[j].station.s else {
+                        continue
+                    }
+                    let separation = metersBetween(
+                        lat1: entries[i].lat, lon1: entries[i].lon,
+                        lat2: entries[j].lat, lon2: entries[j].lon
+                    )
+                    guard separation <= maximumSeparationMeters else { continue }
+                    let a = root(i)
+                    let b = root(j)
+                    if a != b { parent[max(a, b)] = min(a, b) }
+                }
+            }
+
+            var groups: [Int: [Int]] = [:]
+            for index in entries.indices {
+                groups[root(index), default: []].append(index)
+            }
+
+            return groups.keys.sorted().compactMap { key -> (PlaceInput, String)? in
+                guard let members = groups[key] else { return nil }
+                let systems = Set(members.map { entries[$0].station.s })
+                guard systems.count > 1 else { return nil }
+
+                // 🔴 一個群組可能含同系統的兩站：高鐵台中距台鐵新烏日 346 公尺、距台鐵烏日
+                // 也在 800 公尺內，於是「新烏日 — 高鐵台中 — 烏日」被連成一串。直接把全部成員
+                // 列出來會得到「新烏日・烏日・台中」與副標「台鐵・台鐵・高鐵 共站」。
+                // 所以每個系統只留一個代表：與「其他系統成員」總距離最短的那一個
+                // （台中這組＝新烏日，它比烏日更貼著高鐵站）。
+                let representatives = systems.sorted {
+                    let leftRank = systemOrder.firstIndex(of: $0) ?? .max
+                    let rightRank = systemOrder.firstIndex(of: $1) ?? .max
+                    if leftRank != rightRank { return leftRank < rightRank }
+                    return $0 < $1
+                }.compactMap { system -> Int? in
+                    members.filter { entries[$0].station.s == system }.min {
+                        distanceToOtherSystems($0, members: members, entries: entries)
+                            < distanceToOtherSystems($1, members: members, entries: entries)
+                    }
+                }
+                guard representatives.count == systems.count else { return nil }
+
+                // 名字寫法相同（台北／臺北）就只顯示第一個系統的寫法，不同才並列。
+                let names = representatives.map { entries[$0].station.n }
+                let label = Set(names.map(normalized)).count == 1
+                    ? names[0]
+                    : names.joined(separator: "・")
+                let subtitle = representatives
+                    .map { systemLabels[entries[$0].station.s] ?? entries[$0].station.s }
+                    .joined(separator: "・") + " 共站"
+
+                // 座標取代表的平均，不是全部成員的平均：後者會被「剛好也在附近的同系統鄰站」
+                // 把落點往旁邊拉（台中那組會被烏日拉走），代表平均才落在兩個系統之間。
+                let lat = representatives.reduce(0.0) { $0 + entries[$1].lat }
+                    / Double(representatives.count)
+                let lon = representatives.reduce(0.0) { $0 + entries[$1].lon }
+                    / Double(representatives.count)
+                // manual 只影響「我的地點」在選單裡的排序，共站不走那條路徑、值不被讀。
+                return (
+                    PlaceInput(label: label, lat: lat, lon: lon, manual: false),
+                    subtitle
+                )
+            }
+        }
+
+        /// 這一站到「群組裡其他系統的站」的總距離。用來在同系統有多站時挑代表。
+        private static func distanceToOtherSystems(
+            _ index: Int,
+            members: [Int],
+            entries: [(station: Station, lat: Double, lon: Double)]
+        ) -> Double {
+            members.filter { entries[$0].station.s != entries[index].station.s }
+                .reduce(0.0) { total, other in
+                    total + metersBetween(
+                        lat1: entries[index].lat, lon1: entries[index].lon,
+                        lat2: entries[other].lat, lon2: entries[other].lon
+                    )
+                }
+        }
+
+        private static func metersBetween(
+            lat1: Double, lon1: Double,
+            lat2: Double, lon2: Double
+        ) -> Double {
+            // 800 公尺尺度的等距近似；緯度取中點，台灣的經度收縮率誤差可忽略。
+            let meanLatitude = (lat1 + lat2) / 2 * .pi / 180
+            let dy = (lat2 - lat1) * 110_574
+            let dx = (lon2 - lon1) * 111_320 * cos(meanLatitude)
+            return (dx * dx + dy * dy).squareRoot()
+        }
     }
 
     enum PlaceBoardBuilder {
@@ -679,7 +923,8 @@ extension RailBoardScheduleWriter {
                             to: train.to,
                             at: at,
                             days: train.days,
-                            sys: train.sys
+                            sys: train.sys,
+                            dir: segment.dBMeters > segment.dAMeters ? 1 : 0
                         )
                     }
 

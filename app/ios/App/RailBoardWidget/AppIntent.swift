@@ -51,6 +51,27 @@ func placeSection(_ stations: [StationOption]) -> IntentItemSection<String>? {
     return IntentItemSection("我的地點", items: places.map(\.intentItem))
 }
 
+// 共站（台鐵與高鐵同一個地方，如台北、板橋、新烏日／高鐵台中）獨立成一段。
+// 為什麼不是在縣市那幾段裡把同名的併掉：12 個高鐵站有 8 個與台鐵共站，其中 5 個名字不一樣
+// （六家／新竹、豐富／苗栗、新烏日／台中、沙崙／台南、新左營／左營），靠站名比對會漏掉一半，
+// 所以共站是 App 端用座標判的（≤800 公尺），這裡只是把結果列出來。
+// 選了共站＝走地點看板那套（1.5 公里內每條線各一組），不是某一個系統的發車看板。
+@available(iOS 17.0, *)
+func compositeSection() -> IntentItemSection<String>? {
+    let composites = RailBoardStore.shared.composites()
+    guard !composites.isEmpty else { return nil }
+    return IntentItemSection(
+        "共站（台鐵＋高鐵一起看）",
+        items: composites.map {
+            IntentItem(
+                $0.key,
+                title: LocalizedStringResource(stringLiteral: $0.label),
+                subtitle: LocalizedStringResource(stringLiteral: $0.subtitle)
+            )
+        }
+    )
+}
+
 // 起站選單：245 個台鐵站原本只分「台鐵／高鐵」兩段，只能一路下拉找（使用者 2026-07-30 回報）。
 // 改成依縣市由北到南分段（使用者裁示：不要多一格縣市選單）。
 // 🔴 這一列「沒有」搜尋框（2026-07-30 使用者在真機設定畫面確認）：單選 String 參數的選單是
@@ -63,22 +84,24 @@ func placeSection(_ stations: [StationOption]) -> IntentItemSection<String>? {
 struct OriginOptionsProvider: DynamicOptionsProvider {
     func results() async throws -> IntentItemCollection<String> {
         let stations = try RailBoardStore.shared.stationOptions()
-        let places = placeSection(stations)
+        // 順序：自己存的地點 → 共站 → 依縣市排的全部車站。前兩段是「一次看到附近全部路線」，
+        // 第三段才是傳統的單一系統發車看板。
+        let leading = [placeSection(stations), compositeSection()].compactMap { $0 }
 
         // 舊 App 寫的 stations.json（v1）沒有縣市：退回原本的依系統分段，不是空清單。
         guard let sections = stationRegionSections(stations) else {
             let tra = stations.filter { $0.systemID == "tra" }
             let thsr = stations.filter { $0.systemID == "thsr" }
-            var fallbackSections = [
-                IntentItemSection("台鐵", items: tra.map(\.intentItem)),
-                IntentItemSection("高鐵", items: thsr.map(\.intentItem))
-            ]
-            if let places { fallbackSections.insert(places, at: 0) }
-            return IntentItemCollection(sections: fallbackSections)
+            return IntentItemCollection(
+                sections: leading + [
+                    IntentItemSection("台鐵", items: tra.map(\.intentItem)),
+                    IntentItemSection("高鐵", items: thsr.map(\.intentItem))
+                ]
+            )
         }
         return IntentItemCollection(
-            promptLabel: "最上面是你存過的地點，往下依縣市排",
-            sections: places.map { [$0] + sections } ?? sections
+            promptLabel: "最上面是你存過的地點與共站，往下依縣市排",
+            sections: leading + sections
         )
     }
 }
@@ -138,11 +161,12 @@ struct BoardFilterOptionsProvider: DynamicOptionsProvider {
             return .empty
         }
         let options: (types: [FilterOption], trains: [FilterOption])
-        if
-            origin.hasPrefix("place|"),
-            let placeBoard = try RailBoardStore.shared.placeBoard(forKey: origin)
-        {
-            options = try RailBoardEngine().filterOptions(placeBoard: placeBoard)
+        // 方向只有地點看板有：車站看板本來就是「這一站的發車」，方向由目的站決定。
+        var directions: [FilterOption] = []
+        if let placeBoard = RailBoardStore.shared.placeLikeBoard(forKey: origin) {
+            let engine = RailBoardEngine()
+            options = try engine.filterOptions(placeBoard: placeBoard)
+            directions = engine.directionOptions(placeBoard: placeBoard)
         } else {
             guard let originID = try RailBoardStore.shared.stationIndex(forKey: origin) else {
                 return .empty
@@ -154,7 +178,9 @@ struct BoardFilterOptionsProvider: DynamicOptionsProvider {
         }
         // 空的 section 不放進去（今天完全沒車的站）——寧可整格顯示「沒有可用的選項」，
         // 也不要塞一個空標題進 IntentItemCollection。
+        // 方向排在最前面：它是最粗的一刀（一次砍掉一半），車種車次是在那之上再細分。
         let sections = [
+            directions.isEmpty ? nil : IntentItemSection<String>("方向（與下面的條件同時成立）", items: directions.map(\.intentItem)),
             options.types.isEmpty ? nil : IntentItemSection<String>("車種", items: options.types.map(\.intentItem)),
             options.trains.isEmpty ? nil : IntentItemSection<String>("車次", items: options.trains.map(\.intentItem)),
         ].compactMap { $0 }
