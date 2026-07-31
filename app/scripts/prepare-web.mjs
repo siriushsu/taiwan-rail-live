@@ -28,6 +28,25 @@ const stadiaApiKey = includeLicensedBasemaps ? encodeURIComponent(await readRequ
 const esriApiKey = includeLicensedBasemaps ? encodeURIComponent(await readRequiredEnv('ESRI_API_KEY')) : null;
 await assertLicensedBuildAllowed({ includeLicensedMusic, includeLicensedBasemaps });
 
+// 地點型小工具的通過時刻索引必須由真實頁面 runtime 產生：段配對、obs 剖面與反解時刻
+// 全部呼叫 index.html 自己的函式，不在 Node 端維護第二份演算法。
+const placeIndexBuild = await new Promise((resolveBuild, rejectBuild) => {
+  execFile(
+    process.execPath,
+    [join(here, 'build_place_index.mjs')],
+    { cwd: repoRoot, maxBuffer: 64 * 1024 * 1024 },
+    (error, stdout, stderr) => {
+      if (error) {
+        rejectBuild(new Error(`place_index 建構失敗：${stderr || stdout || error.message}`));
+      } else {
+        resolveBuild({ stdout, stderr });
+      }
+    }
+  );
+});
+if (placeIndexBuild.stdout) process.stdout.write(placeIndexBuild.stdout);
+if (placeIndexBuild.stderr) process.stderr.write(placeIndexBuild.stderr);
+
 await rm(out, { recursive: true, force: true });
 await mkdir(out, { recursive: true });
 
@@ -66,6 +85,9 @@ for (const file of [
   'apple-touch-180.png', 'icon-maskable-512.png', 'og-1200x630.png'
 ]) await copyFile(file);
 for (const dir of ['assets', 'data']) await copyTree(dir);
+// place_index.json 是本次 build 現場產物，尚未 git add 時不會通過 copyTree 的「只收 tracked」
+// 閘門；明確單檔複製，不放寬其他未追蹤資料進 bundle。
+await copyFile('data/place_index.json');
 if (includeLicensedMusic) await copyTree('suno musics');
 
 const noticeEntries = [

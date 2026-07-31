@@ -134,11 +134,24 @@ struct BoardFilterOptionsProvider: DynamicOptionsProvider {
     var intent
 
     func results() async throws -> IntentItemCollection<String> {
-        guard let origin = intent?.origin,
-              let originID = try RailBoardStore.shared.stationIndex(forKey: origin) else {
+        guard let origin = intent?.origin else {
             return .empty
         }
-        let options = try RailBoardEngine().filterOptions(originID: originID, destinationID: nil)
+        let options: (types: [FilterOption], trains: [FilterOption])
+        if
+            origin.hasPrefix("place|"),
+            let placeBoard = try RailBoardStore.shared.placeBoard(forKey: origin)
+        {
+            options = try RailBoardEngine().filterOptions(placeBoard: placeBoard)
+        } else {
+            guard let originID = try RailBoardStore.shared.stationIndex(forKey: origin) else {
+                return .empty
+            }
+            options = try RailBoardEngine().filterOptions(
+                originID: originID,
+                destinationID: nil
+            )
+        }
         // 空的 section 不放進去（今天完全沒車的站）——寧可整格顯示「沒有可用的選項」，
         // 也不要塞一個空標題進 IntentItemCollection。
         let sections = [

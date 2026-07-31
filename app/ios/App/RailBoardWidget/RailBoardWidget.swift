@@ -60,8 +60,41 @@ struct BoardSnapshot {
     let generatedAt: Date
 }
 
+struct PlaceBoardRow: Identifiable {
+    let trainNumber: String
+    let trainType: String
+    let destinationName: String
+    let scheduledSecond: Int
+    let scheduledDate: Date
+    let systemID: String
+
+    var id: String {
+        "\(systemID)-\(scheduledDate.timeIntervalSince1970)-\(trainNumber)"
+    }
+
+    var scheduledTime: String {
+        RailBoardClock.timeString(seconds: scheduledSecond)
+    }
+}
+
+struct PlaceLineSnapshot: Identifiable {
+    let id: String
+    let name: String
+    let color: String
+    let perpendicularMeters: Int
+    let rows: [PlaceBoardRow]
+}
+
+struct PlaceBoardSnapshot {
+    let title: String
+    let lines: [PlaceLineSnapshot]
+    let typeColors: [String: String]
+    let generatedAt: Date
+}
+
 enum RailBoardEntryContent {
     case board(BoardSnapshot)
+    case place(PlaceBoardSnapshot)
     case unavailable(String)
 }
 
@@ -112,6 +145,17 @@ struct Provider: AppIntentTimelineProvider {
         }
 
         do {
+            if
+                originKey.hasPrefix("place|"),
+                let placeBoard = try? RailBoardStore.shared.placeBoard(forKey: originKey)
+            {
+                return placeTimeline(
+                    placeBoard: placeBoard,
+                    configuration: configuration,
+                    now: now
+                )
+            }
+
             let originSelection = try RailBoardStore.shared.stationSelection(forKey: originKey)
             let destinationSelection = try configuration.destination.flatMap {
                 try RailBoardStore.shared.stationSelection(forKey: $0)
@@ -190,6 +234,17 @@ struct Provider: AppIntentTimelineProvider {
         }
 
         do {
+            if
+                originKey.hasPrefix("place|"),
+                let placeBoard = try? RailBoardStore.shared.placeBoard(forKey: originKey)
+            {
+                return placeEntry(
+                    placeBoard: placeBoard,
+                    configuration: configuration,
+                    now: now
+                )
+            }
+
             let originSelection = try RailBoardStore.shared.stationSelection(forKey: originKey)
             let destinationSelection = try configuration.destination.flatMap {
                 try RailBoardStore.shared.stationSelection(forKey: $0)
@@ -269,6 +324,194 @@ struct Provider: AppIntentTimelineProvider {
         }
     }
 
+    private func placeTimeline(
+        placeBoard: PlaceBoardDocument,
+        configuration: ConfigurationAppIntent,
+        now: Date
+    ) -> Timeline<RailBoardEntry> {
+        if let message = placeBoard.unavailableMessage {
+            let entry = RailBoardEntry(
+                date: now,
+                configuration: configuration,
+                content: .unavailable(message)
+            )
+            return Timeline(
+                entries: [entry],
+                policy: .after(now.addingTimeInterval(60 * 60))
+            )
+        }
+
+        do {
+            let filters = BoardFilterSet(keys: configuration.filters)
+            let prepared = try engine.prepare(
+                placeBoard: placeBoard,
+                filters: filters,
+                now: now
+            )
+            guard !prepared.allPasses.isEmpty || filters.isEmpty else {
+                let entry = RailBoardEntry(
+                    date: now,
+                    configuration: configuration,
+                    content: .unavailable("所選班次近期沒有行駛")
+                )
+                return Timeline(
+                    entries: [entry],
+                    policy: .after(now.addingTimeInterval(60 * 60))
+                )
+            }
+            let entries = makePlaceEntries(
+                prepared: prepared,
+                configuration: configuration,
+                generatedAt: now
+            )
+            return Timeline(
+                entries: entries,
+                policy: entries.count > 1
+                    ? .atEnd
+                    : .after(now.addingTimeInterval(60 * 60))
+            )
+        } catch {
+            let entry = RailBoardEntry(
+                date: now,
+                configuration: configuration,
+                content: .unavailable("開啟軌島以載入附近路線")
+            )
+            return Timeline(
+                entries: [entry],
+                policy: .after(now.addingTimeInterval(15 * 60))
+            )
+        }
+    }
+
+    private func placeEntry(
+        placeBoard: PlaceBoardDocument,
+        configuration: ConfigurationAppIntent,
+        now: Date
+    ) -> RailBoardEntry {
+        if let message = placeBoard.unavailableMessage {
+            return RailBoardEntry(
+                date: now,
+                configuration: configuration,
+                content: .unavailable(message)
+            )
+        }
+        do {
+            let filters = BoardFilterSet(keys: configuration.filters)
+            let prepared = try engine.prepare(
+                placeBoard: placeBoard,
+                filters: filters,
+                now: now
+            )
+            guard !prepared.allPasses.isEmpty || filters.isEmpty else {
+                return RailBoardEntry(
+                    date: now,
+                    configuration: configuration,
+                    content: .unavailable("所選班次近期沒有行駛")
+                )
+            }
+            return placeEntry(
+                prepared: prepared,
+                configuration: configuration,
+                at: now,
+                generatedAt: now
+            )
+        } catch {
+            return RailBoardEntry(
+                date: now,
+                configuration: configuration,
+                content: .unavailable("開啟軌島以載入附近路線")
+            )
+        }
+    }
+
+    private func makePlaceEntries(
+        prepared: PreparedPlaceBoard,
+        configuration: ConfigurationAppIntent,
+        generatedAt: Date
+    ) -> [RailBoardEntry] {
+        let horizon = generatedAt.addingTimeInterval(
+            RailBoardConstants.timelineWindow
+        )
+        var seenDates = Set<Date>()
+        let transitionDates = prepared.allPasses
+            .flatMap {
+                [
+                    $0.scheduledDate.addingTimeInterval(
+                        -RailBoardConstants.placePassWindow
+                    ),
+                    $0.scheduledDate,
+                ]
+            }
+            .filter {
+                $0 > generatedAt
+                    && $0 <= horizon
+                    && seenDates.insert($0).inserted
+            }
+            .sorted()
+            .prefix(RailBoardConstants.maximumEntries - 1)
+
+        return ([generatedAt] + transitionDates).map {
+            placeEntry(
+                prepared: prepared,
+                configuration: configuration,
+                at: $0,
+                generatedAt: generatedAt
+            )
+        }
+    }
+
+    private func placeEntry(
+        prepared: PreparedPlaceBoard,
+        configuration: ConfigurationAppIntent,
+        at entryDate: Date,
+        generatedAt: Date
+    ) -> RailBoardEntry {
+        let horizon = entryDate.addingTimeInterval(
+            RailBoardConstants.placePassWindow
+        )
+        let rowLimit = prepared.lines.count == 1 ? 5 : 3
+        let lines = prepared.lines.map { line in
+            var seenTrains = Set<String>()
+            let upcoming = line.passes.filter {
+                $0.scheduledDate > entryDate
+                    && $0.scheduledDate <= horizon
+                    && seenTrains.insert(
+                        "\($0.systemID)|\($0.trainNumber)"
+                    ).inserted
+            }
+            return PlaceLineSnapshot(
+                id: line.id,
+                name: line.name,
+                color: line.color,
+                perpendicularMeters: line.perpendicularMeters,
+                rows: Array(
+                    upcoming
+                        .prefix(rowLimit)
+                        .map {
+                            PlaceBoardRow(
+                                trainNumber: $0.trainNumber,
+                                trainType: $0.trainType,
+                                destinationName: $0.destinationName,
+                                scheduledSecond: $0.scheduledSecond,
+                                scheduledDate: $0.scheduledDate,
+                                systemID: $0.systemID
+                            )
+                        }
+                )
+            )
+        }
+        return RailBoardEntry(
+            date: entryDate,
+            configuration: configuration,
+            content: .place(PlaceBoardSnapshot(
+                title: prepared.title,
+                lines: lines,
+                typeColors: prepared.typeColors,
+                generatedAt: generatedAt
+            ))
+        )
+    }
+
     private func entry(
         prepared: PreparedBoard,
         configuration: ConfigurationAppIntent,
@@ -343,6 +586,24 @@ struct RailBoardWidgetEntryView: View {
             switch entry.content {
             case .unavailable(let message):
                 unavailableView(message)
+            case .place(let snapshot):
+                switch family {
+                case .systemMedium:
+                    MediumPlaceBoardView(
+                        snapshot: snapshot,
+                        entryDate: entry.date
+                    )
+                case .accessoryRectangular:
+                    RectangularPlaceBoardView(
+                        snapshot: snapshot,
+                        entryDate: entry.date
+                    )
+                default:
+                    SmallPlaceBoardView(
+                        snapshot: snapshot,
+                        entryDate: entry.date
+                    )
+                }
             case .board(let snapshot):
                 switch family {
                 case .systemMedium:
@@ -483,6 +744,125 @@ struct SmallBoardView: View {
     }
 }
 
+struct SmallPlaceBoardView: View {
+    let snapshot: PlaceBoardSnapshot
+    let entryDate: Date
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 5) {
+            HStack(spacing: 5) {
+                Text(snapshot.title)
+                    .font(.system(size: 13, weight: .semibold))
+                    .lineLimit(1)
+                Spacer(minLength: 2)
+                Text("\(snapshot.lines.count) 條線")
+                    .font(.system(size: 9, weight: .medium))
+                    .foregroundStyle(.secondary)
+                    .fixedSize()
+            }
+
+            ForEach(Array(snapshot.lines.prefix(2)).indices, id: \.self) { index in
+                if index > 0 {
+                    Divider()
+                }
+                SmallPlaceLineView(
+                    line: Array(snapshot.lines.prefix(2))[index],
+                    entryDate: entryDate,
+                    typeColors: snapshot.typeColors
+                )
+            }
+        }
+        .frame(
+            maxWidth: .infinity,
+            maxHeight: .infinity,
+            alignment: .topLeading
+        )
+        .padding(12)
+    }
+}
+
+private struct SmallPlaceLineView: View {
+    let line: PlaceLineSnapshot
+    let entryDate: Date
+    let typeColors: [String: String]
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 2) {
+            HStack(spacing: 5) {
+                Capsule()
+                    .fill(Color(hex: line.color))
+                    .frame(width: 13, height: 5)
+                Text(line.name)
+                    .font(.system(size: 11, weight: .semibold))
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.7)
+                Spacer(minLength: 2)
+                Text(distanceText)
+                    .font(.system(size: 8))
+                    .foregroundStyle(.tertiary)
+                    .fixedSize()
+            }
+
+            if let row = line.rows.first {
+                HStack(alignment: .firstTextBaseline, spacing: 4) {
+                    Text(row.scheduledDate, style: .relative)
+                        .font(.system(size: 17, weight: .bold, design: .rounded))
+                        .monospacedDigit()
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.72)
+                    Spacer(minLength: 1)
+                    Text(row.scheduledTime)
+                        .font(.system(size: 10, weight: .semibold))
+                        .monospacedDigit()
+                }
+
+                HStack(spacing: 3) {
+                    if !RailBoardClock.calendar.isDate(
+                        row.scheduledDate,
+                        inSameDayAs: entryDate
+                    ) {
+                        Text("明天")
+                            .fontWeight(.bold)
+                    }
+                    Text("\(row.trainType) \(row.trainNumber)")
+                        .foregroundStyle(trainColor(row.trainType))
+                        .monospacedDigit()
+                        .lineLimit(1)
+                    Text("· 往 \(row.destinationName)")
+                        .lineLimit(1)
+                    Spacer(minLength: 2)
+                    if line.rows.count > 1 {
+                        Text("另 \(line.rows.count - 1) 班")
+                            .fixedSize()
+                    }
+                }
+                .font(.system(size: 8))
+                .foregroundStyle(.secondary)
+            } else {
+                Text("未來 60 分鐘沒有列車")
+                    .font(.system(size: 10, weight: .medium))
+                    .foregroundStyle(.secondary)
+                    .frame(maxWidth: .infinity, minHeight: 31, alignment: .leading)
+            }
+        }
+    }
+
+    private var distanceText: String {
+        if line.perpendicularMeters < 1_000 {
+            return "\(line.perpendicularMeters) m"
+        }
+        return String(
+            format: "%.1f km",
+            locale: Locale(identifier: "en_US_POSIX"),
+            Double(line.perpendicularMeters) / 1_000
+        )
+    }
+
+    private func trainColor(_ type: String) -> Color {
+        Color(hex: typeColors[type] ?? typeColors["其他"] ?? "#8E44AD")
+    }
+}
+
 struct MediumBoardView: View {
     let snapshot: BoardSnapshot
     let entryDate: Date
@@ -523,6 +903,130 @@ struct MediumBoardView: View {
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 10)
+    }
+}
+
+struct MediumPlaceBoardView: View {
+    let snapshot: PlaceBoardSnapshot
+    let entryDate: Date
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack {
+                Text(snapshot.title)
+                    .font(.system(size: 13, weight: .semibold))
+                    .lineLimit(1)
+                Spacer(minLength: 8)
+                Text("\(RailBoardClock.updateTimeString(snapshot.generatedAt)) 更新")
+                    .font(.system(size: 9))
+                    .foregroundStyle(.secondary)
+                    .monospacedDigit()
+            }
+
+            HStack(alignment: .top, spacing: 8) {
+                ForEach(Array(snapshot.lines.prefix(3)).indices, id: \.self) { index in
+                    if index > 0 {
+                        Divider()
+                    }
+                    MediumPlaceLineView(
+                        line: Array(snapshot.lines.prefix(3))[index],
+                        entryDate: entryDate,
+                        typeColors: snapshot.typeColors
+                    )
+                }
+            }
+            .frame(maxHeight: .infinity, alignment: .top)
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 10)
+    }
+}
+
+private struct MediumPlaceLineView: View {
+    let line: PlaceLineSnapshot
+    let entryDate: Date
+    let typeColors: [String: String]
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            HStack(spacing: 4) {
+                Capsule()
+                    .fill(Color(hex: line.color))
+                    .frame(width: 15, height: 5)
+                Text(line.name)
+                    .font(.system(size: 10, weight: .semibold))
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.65)
+                Spacer(minLength: 2)
+                // 垂距要跟 small 一樣顯示：落釘卡的「約 1.0 公里」是使用者判斷「這條線
+                // 是不是真的在我家旁邊」的依據,兩條線並列時尤其需要。名字先縮不讓距離被擠掉。
+                Text(distanceText)
+                    .font(.system(size: 9))
+                    .foregroundStyle(.secondary)
+                    .monospacedDigit()
+                    .lineLimit(1)
+                    .layoutPriority(1)
+            }
+
+            if line.rows.isEmpty {
+                Text("60 分鐘內無車")
+                    .font(.system(size: 10, weight: .medium))
+                    .foregroundStyle(.secondary)
+                    .padding(.top, 8)
+            } else {
+                ForEach(line.rows.prefix(3)) { row in
+                    VStack(alignment: .leading, spacing: 0) {
+                        HStack(spacing: 3) {
+                            Text(row.scheduledTime)
+                                .fontWeight(.semibold)
+                                .monospacedDigit()
+                            Text(row.trainType)
+                                .foregroundStyle(trainColor(row.trainType))
+                                .lineLimit(1)
+                            Text(row.trainNumber)
+                                .monospacedDigit()
+                                .lineLimit(1)
+                        }
+                        .font(.system(size: 10))
+                        .minimumScaleFactor(0.65)
+
+                        HStack(spacing: 3) {
+                            if !RailBoardClock.calendar.isDate(
+                                row.scheduledDate,
+                                inSameDayAs: entryDate
+                            ) {
+                                Text("明天")
+                                    .fontWeight(.bold)
+                            }
+                            Text("往 \(row.destinationName)")
+                                .lineLimit(1)
+                            Spacer(minLength: 2)
+                            Text(row.scheduledDate, style: .relative)
+                                .monospacedDigit()
+                                .lineLimit(1)
+                        }
+                        .font(.system(size: 8))
+                        .foregroundStyle(.secondary)
+                    }
+                }
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private var distanceText: String {
+        if line.perpendicularMeters < 1_000 {
+            return "\(line.perpendicularMeters) m"
+        }
+        return String(
+            format: "%.1f km",
+            locale: Locale(identifier: "en_US_POSIX"),
+            Double(line.perpendicularMeters) / 1_000
+        )
+    }
+
+    private func trainColor(_ type: String) -> Color {
+        Color(hex: typeColors[type] ?? typeColors["其他"] ?? "#8E44AD")
     }
 }
 
@@ -595,6 +1099,53 @@ struct MediumTrainRow: View {
 
     private var trainColor: Color {
         Color(hex: snapshot.typeColors[row.trainType] ?? snapshot.typeColors["其他"] ?? "#8E44AD")
+    }
+}
+
+struct RectangularPlaceBoardView: View {
+    let snapshot: PlaceBoardSnapshot
+    let entryDate: Date
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 1) {
+            Text(snapshot.title)
+                .font(.system(size: 9, weight: .medium))
+                .foregroundStyle(.secondary)
+                .lineLimit(1)
+            if
+                let line = snapshot.lines.first,
+                let row = line.rows.first
+            {
+                HStack(spacing: 3) {
+                    Capsule()
+                        .fill(Color(hex: line.color))
+                        .frame(width: 12, height: 4)
+                    Text(line.name)
+                        .lineLimit(1)
+                    Text(row.scheduledTime)
+                        .fontWeight(.semibold)
+                        .monospacedDigit()
+                }
+                .font(.system(size: 10))
+                HStack(spacing: 3) {
+                    Text("\(row.trainType) \(row.trainNumber)")
+                    Text("· 往 \(row.destinationName)")
+                    Spacer(minLength: 2)
+                    Text(row.scheduledDate, style: .relative)
+                        .monospacedDigit()
+                }
+                .font(.system(size: 9))
+                .lineLimit(1)
+            } else {
+                Text("60 分鐘內無車")
+                    .font(.system(size: 10, weight: .semibold))
+            }
+        }
+        .frame(
+            maxWidth: .infinity,
+            maxHeight: .infinity,
+            alignment: .leading
+        )
     }
 }
 
@@ -777,6 +1328,75 @@ extension BoardSnapshot {
     }
 }
 
+extension PlaceBoardSnapshot {
+    static var preview: PlaceBoardSnapshot {
+        let now = Date()
+        func row(
+            _ number: String,
+            _ type: String,
+            _ destination: String,
+            after minutes: Int,
+            systemID: String
+        ) -> PlaceBoardRow {
+            let date = now.addingTimeInterval(Double(minutes * 60))
+            let components = RailBoardClock.calendar.dateComponents(
+                [.hour, .minute, .second],
+                from: RailBoardClock.startOfDay(for: date),
+                to: date
+            )
+            let second = (components.hour ?? 0) * 3_600
+                + (components.minute ?? 0) * 60
+                + (components.second ?? 0)
+            return PlaceBoardRow(
+                trainNumber: number,
+                trainType: type,
+                destinationName: destination,
+                scheduledSecond: second,
+                scheduledDate: date,
+                systemID: systemID
+            )
+        }
+
+        return PlaceBoardSnapshot(
+            title: "家",
+            lines: [
+                PlaceLineSnapshot(
+                    id: "tra-western-north",
+                    name: "縱貫線北段",
+                    color: "#2E6FB0",
+                    perpendicularMeters: 180,
+                    rows: [
+                        row("4037", "區間快", "桃園", after: 4, systemID: "tra"),
+                        row("1282", "區間車", "南港", after: 13, systemID: "tra"),
+                        row("1283", "區間車", "楊梅", after: 18, systemID: "tra"),
+                    ]
+                ),
+                PlaceLineSnapshot(
+                    id: "thsr-main",
+                    name: "台灣高鐵",
+                    color: "#F06A22",
+                    perpendicularMeters: 920,
+                    rows: [
+                        row("0567", "高鐵", "左營", after: 7, systemID: "thsr"),
+                        row("0862", "高鐵", "南港", after: 22, systemID: "thsr"),
+                        row("0294", "高鐵", "南港", after: 41, systemID: "thsr"),
+                    ]
+                ),
+            ],
+            // 值必須與 App 實際寫出的 meta.json `types` 一致——預覽假資料一旦跟真值分岔，
+            // 用截圖審版面就會被誤導（2026-07-31 就發生過：這裡把區間快寫成橘色，
+            // 真值其實是 #16A085 青綠，害審查者以為 production 的 type→color 查表壞了）。
+            typeColors: [
+                "區間快": "#16A085",
+                "區間車": "#2E6FB0",
+                "高鐵": "#E85D0D",
+                "其他": "#8E44AD",
+            ],
+            generatedAt: now
+        )
+    }
+}
+
 struct RailBoardWidget: Widget {
     let kind = "RailBoardWidget"
 
@@ -801,7 +1421,7 @@ struct RailBoardWidget: Widget {
     RailBoardEntry(
         date: .now,
         configuration: .previewCommute,
-        content: .board(.preview)
+        content: .place(.preview)
     )
 }
 
@@ -811,7 +1431,7 @@ struct RailBoardWidget: Widget {
     RailBoardEntry(
         date: .now,
         configuration: .previewCommute,
-        content: .board(.preview)
+        content: .place(.preview)
     )
 }
 

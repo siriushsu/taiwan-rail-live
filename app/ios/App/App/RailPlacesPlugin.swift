@@ -1,5 +1,6 @@
 import Capacitor
 import Foundation
+import UIKit
 import WidgetKit
 
 @objc(RailBridgeViewController)
@@ -57,7 +58,9 @@ public final class RailPlacesPlugin: CAPPlugin, CAPBridgedPlugin {
                     options: .atomic
                 )
                 DispatchQueue.main.async {
-                    WidgetCenter.shared.reloadAllTimelines()
+                    RailBoardScheduleWriter.refreshIfNeeded(
+                        application: UIApplication.shared
+                    )
                     call.resolve()
                 }
             } catch {

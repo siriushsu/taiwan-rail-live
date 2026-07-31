@@ -78,3 +78,7 @@ app/NATIVE_PRIVACY_AND_PERMISSIONS.md
 # 各 session 的暫存工作區：中間產物與草稿，內容不受控。這個 repo 是 public，
 # 任何一次 git add -A 都會把它掃進公開歷史（push 後不可改寫）。
 scratchpad/
+
+# 小工具地點看板索引：`npm run build` 的現場產物（app/scripts/build_place_index.mjs，約 9MB）。
+# 只有 App bundle 需要它，網站不讀。repo 是 public，一次 git add -A 就會永久留在公開歷史。
+data/place_index.json

@@ -11,6 +11,7 @@ enum RailBoardConstants {
     static let appGroupID = "group.tw.railisland.app"
     static let liveURL = URL(string: "https://railisland.tw/api/tra-live")!
     static let liveWindow: TimeInterval = 30 * 60
+    static let placePassWindow: TimeInterval = 60 * 60
     static let timelineWindow: TimeInterval = 24 * 60 * 60
     static let maximumEntries = 50
 }
@@ -170,6 +171,38 @@ struct BoardDocument: Decodable {
     let pass: [PassRecord]
 }
 
+struct PlaceBoardDocument: Decodable {
+    let v: Int
+    let i: Int
+    let label: String
+    let lat: Double
+    let lon: Double
+    let lines: [PlaceBoardLineRecord]
+
+    var unavailableMessage: String? {
+        lines.isEmpty ? "1.5 公里內沒有台鐵或高鐵路線" : nil
+    }
+}
+
+struct PlaceBoardLineRecord: Decodable {
+    let id: String
+    let sys: String
+    let name: String
+    let color: String
+    let d: Int
+    let perp: Int
+    let pass: [PlaceBoardPassRecord]
+}
+
+struct PlaceBoardPassRecord: Decodable {
+    let no: String
+    let ty: String
+    let to: String
+    let at: Int
+    let days: Int
+    let sys: String
+}
+
 struct DepartureRecord: Decodable {
     let no: String
     let ty: String
@@ -257,6 +290,54 @@ final class RailBoardStore {
         try decode(BoardDocument.self, relativePath: "board/\(stationID).json")
     }
 
+    /// 只有仍能在目前 places.json 唯一命中的地點才讀對應索引；搬家後會取新座標，
+    /// 改名／刪除／重名則回 nil，交給既有最近站路徑安全降級。
+    func placeBoard(forKey key: String) throws -> PlaceBoardDocument? {
+        guard
+            let selection = PlaceSelectionKey(key: key),
+            let rootURL,
+            let places = RailBoardPlaces.document(rootURL: rootURL)
+        else {
+            return nil
+        }
+
+        let matches: [(offset: Int, element: RailBoardPlace)]
+        if selection.label.isEmpty {
+            matches = places.places.enumerated().filter {
+                abs($0.element.lat - selection.lat) <= 0.000_001
+                    && abs($0.element.lon - selection.lon) <= 0.000_001
+            }
+        } else {
+            matches = places.places.enumerated().filter {
+                $0.element.label == selection.label
+            }
+        }
+        guard
+            matches.count == 1,
+            matches[0].element.lat.isFinite,
+            matches[0].element.lon.isFinite
+        else {
+            return nil
+        }
+
+        let index = matches[0].offset
+        let place = matches[0].element
+        let document = try decode(
+            PlaceBoardDocument.self,
+            relativePath: "place-board/\(index).json"
+        )
+        guard
+            document.v == 1,
+            document.i == index,
+            document.label == place.label,
+            abs(document.lat - place.lat) <= 0.000_000_1,
+            abs(document.lon - place.lon) <= 0.000_000_1
+        else {
+            return nil
+        }
+        return document
+    }
+
     func stationOptions() throws -> [StationOption] {
         let meta = try meta()
         let stations = try stations().stations
@@ -286,12 +367,22 @@ final class RailBoardStore {
         guard let rootURL else { return [] }
         // 看板只在共站平手時才需要讀，而且同一站會被多個地點重複問到 → 用 cache 擋掉重複解碼。
         var departuresByIndex: [Int: Int] = [:]
-        return RailBoardPlaces.options(rootURL: rootURL, stations: stations) { index in
-            if let cached = departuresByIndex[index] { return cached }
-            let count = (try? board(stationID: index))?.deps.count ?? 0
-            departuresByIndex[index] = count
-            return count
-        }
+        return RailBoardPlaces.options(
+            rootURL: rootURL,
+            stations: stations,
+            departureCount: { index in
+                if let cached = departuresByIndex[index] { return cached }
+                let count = (try? board(stationID: index))?.deps.count ?? 0
+                departuresByIndex[index] = count
+                return count
+            },
+            lineCount: { index in
+                (try? self.decode(
+                    PlaceBoardDocument.self,
+                    relativePath: "place-board/\(index).json"
+                ))?.lines.count
+            }
+        )
     }
 
     func destinationOptions(from originKey: String) throws -> [StationOption] {
@@ -383,21 +474,17 @@ struct PlaceStationOption {
     let label: String
     let distanceMeters: Double
     let manual: Bool
+    let lineCount: Int?
 
     var displayLabel: String { label.isEmpty ? "未命名地點" : label }
 
     var subtitle: String {
-        let distance: String
-        if distanceMeters < 1_000 {
-            distance = "\(Int(distanceMeters.rounded())) 公尺"
-        } else {
-            distance = String(
-                format: "%.1f 公里",
-                locale: Locale(identifier: "en_US_POSIX"),
-                distanceMeters / 1_000
-            )
+        guard let lineCount else {
+            return "開啟軌島更新附近路線"
         }
-        return "\(station.systemLabel) \(station.name) · \(distance)"
+        return lineCount == 0
+            ? "1.5 公里內沒有路線"
+            : "1.5 公里內 \(lineCount) 條路線"
     }
 }
 
@@ -417,12 +504,13 @@ private enum RailBoardPlaces {
     static func options(
         rootURL: URL,
         stations: [StationOption],
-        departureCount: (Int) -> Int
+        departureCount: (Int) -> Int,
+        lineCount: (Int) -> Int?
     ) -> [PlaceStationOption] {
         guard let document = document(rootURL: rootURL) else { return [] }
 
         var candidates: [PlaceStationOption] = []
-        for place in document.places {
+        for (placeIndex, place) in document.places.enumerated() {
             guard place.lat.isFinite, place.lon.isFinite else { continue }
             guard let nearest = nearestStation(
                 lat: place.lat,
@@ -441,7 +529,8 @@ private enum RailBoardPlaces {
                 station: nearest.station,
                 label: place.label,
                 distanceMeters: nearest.meters,
-                manual: place.manual
+                manual: place.manual,
+                lineCount: lineCount(placeIndex)
             ))
         }
 
@@ -502,7 +591,7 @@ private enum RailBoardPlaces {
         )
     }
 
-    private static func document(rootURL: URL) -> PlacesDocument? {
+    static func document(rootURL: URL) -> PlacesDocument? {
         let url = rootURL.appendingPathComponent("places.json")
         guard
             let data = try? Data(contentsOf: url),
@@ -634,6 +723,44 @@ struct PreparedBoard {
     }
 }
 
+struct ScheduledPlacePass {
+    let trainNumber: String
+    let trainType: String
+    let destinationName: String
+    let scheduledSecond: Int
+    let scheduledDate: Date
+    let systemID: String
+}
+
+struct PreparedPlaceLine {
+    let id: String
+    let systemID: String
+    let name: String
+    let color: String
+    let perpendicularMeters: Int
+    let passes: [ScheduledPlacePass]
+}
+
+struct PreparedPlaceBoard {
+    let title: String
+    let lines: [PreparedPlaceLine]
+    let typeColors: [String: String]
+    let meta: MetaDocument
+
+    var allPasses: [ScheduledPlacePass] {
+        lines.flatMap(\.passes).sorted {
+            if $0.scheduledDate == $1.scheduledDate {
+                if $0.systemID != $1.systemID {
+                    return $0.systemID < $1.systemID
+                }
+                return $0.trainNumber.localizedStandardCompare($1.trainNumber)
+                    == .orderedAscending
+            }
+            return $0.scheduledDate < $1.scheduledDate
+        }
+    }
+}
+
 /// 設定裡「只看這些」的一個勾選項。車種與車次共用同一個複選清單，所以值帶前綴區分。
 /// 車種字串可能含 `/`（莒光/復興），但兩者都不含 `|`，用 `|` 當分隔是安全的。
 enum BoardFilter: Hashable {
@@ -675,6 +802,10 @@ struct BoardFilterSet {
 
     func matches(_ template: JourneyTemplate) -> Bool {
         isEmpty || types.contains(template.trainType) || numbers.contains(template.trainNumber)
+    }
+
+    func matches(trainType: String, trainNumber: String) -> Bool {
+        isEmpty || types.contains(trainType) || numbers.contains(trainNumber)
     }
 }
 
@@ -744,6 +875,141 @@ struct RailBoardEngine {
         }
 
         return (types, trains)
+    }
+
+    func filterOptions(
+        placeBoard: PlaceBoardDocument
+    ) throws -> (types: [FilterOption], trains: [FilterOption]) {
+        var countByType: [String: Int] = [:]
+        for pass in placeBoard.lines.flatMap(\.pass) {
+            countByType[pass.ty, default: 0] += 1
+        }
+        let typeCounts: [(type: String, count: Int)] = countByType.map {
+            (type: $0.key, count: $0.value)
+        }
+        let sortedTypeCounts = typeCounts.sorted { lhs, rhs in
+            if lhs.count != rhs.count { return lhs.count > rhs.count }
+            return lhs.type < rhs.type
+        }
+        let types: [FilterOption] = sortedTypeCounts.map { entry in
+            FilterOption(
+                key: BoardFilter.trainType(entry.type).key,
+                title: entry.type,
+                subtitle: "\(entry.count) 班"
+            )
+        }
+
+        var seen = Set<String>()
+        let trains = placeBoard.lines.flatMap { line in
+            line.pass.map { (line, $0) }
+        }.sorted {
+            if $0.1.at != $1.1.at { return $0.1.at < $1.1.at }
+            if $0.1.sys != $1.1.sys { return $0.1.sys < $1.1.sys }
+            return $0.1.no.localizedStandardCompare($1.1.no) == .orderedAscending
+        }.compactMap { line, pass -> FilterOption? in
+            let identity = "\(pass.sys)|\(pass.no)"
+            guard seen.insert(identity).inserted else { return nil }
+            return FilterOption(
+                key: BoardFilter.trainNumber(pass.no).key,
+                title: "\(RailBoardClock.timeString(seconds: pass.at))　\(pass.ty) \(pass.no)",
+                subtitle: "\(line.name) · 往\(pass.to)"
+            )
+        }
+        return (types, trains)
+    }
+
+    func prepare(
+        placeBoard: PlaceBoardDocument,
+        filters: BoardFilterSet = BoardFilterSet(keys: nil),
+        now: Date
+    ) throws -> PreparedPlaceBoard {
+        let meta = try store.meta()
+        let systems = Dictionary(
+            uniqueKeysWithValues: meta.systems.map { ($0.id, $0) }
+        )
+        let today = RailBoardClock.startOfDay(for: now)
+        let horizon = now.addingTimeInterval(RailBoardConstants.timelineWindow)
+
+        let lines = placeBoard.lines.map { line in
+            guard let system = systems[line.sys] else {
+                return PreparedPlaceLine(
+                    id: line.id,
+                    systemID: line.sys,
+                    name: line.name,
+                    color: line.color,
+                    perpendicularMeters: line.perp,
+                    passes: []
+                )
+            }
+
+            var scheduled: [ScheduledPlacePass] = []
+            for dayOffset in -1 ... 2 {
+                let serviceDay = RailBoardClock.dateByAdding(
+                    days: dayOffset,
+                    to: today
+                )
+                guard let sourceIndex = sourceIndex(
+                    actualServiceDay: serviceDay,
+                    system: system
+                ) else {
+                    continue
+                }
+                for pass in line.pass where
+                    pass.sys == line.sys
+                        && filters.matches(
+                            trainType: pass.ty,
+                            trainNumber: pass.no
+                        )
+                {
+                    if system.days > 0 {
+                        guard
+                            sourceIndex >= 0,
+                            sourceIndex < system.days,
+                            (pass.days & (1 << sourceIndex)) != 0
+                        else {
+                            continue
+                        }
+                    }
+                    let scheduledDate = RailBoardClock.absoluteDate(
+                        serviceDay: serviceDay,
+                        seconds: pass.at
+                    )
+                    guard scheduledDate > now, scheduledDate <= horizon else {
+                        continue
+                    }
+                    scheduled.append(ScheduledPlacePass(
+                        trainNumber: pass.no,
+                        trainType: pass.ty,
+                        destinationName: pass.to,
+                        scheduledSecond: pass.at,
+                        scheduledDate: scheduledDate,
+                        systemID: pass.sys
+                    ))
+                }
+            }
+            scheduled.sort {
+                if $0.scheduledDate == $1.scheduledDate {
+                    return $0.trainNumber.localizedStandardCompare($1.trainNumber)
+                        == .orderedAscending
+                }
+                return $0.scheduledDate < $1.scheduledDate
+            }
+            return PreparedPlaceLine(
+                id: line.id,
+                systemID: line.sys,
+                name: line.name,
+                color: line.color,
+                perpendicularMeters: line.perp,
+                passes: scheduled
+            )
+        }
+
+        return PreparedPlaceBoard(
+            title: placeBoard.label.isEmpty ? "未命名地點" : placeBoard.label,
+            lines: lines,
+            typeColors: meta.types,
+            meta: meta
+        )
     }
 
     func prepare(
@@ -1002,6 +1268,30 @@ struct RailBoardEngine {
             .min { lhs, rhs in
                 abs(lhs.timeIntervalSince(actualDay)) < abs(rhs.timeIntervalSince(actualDay))
             }
+    }
+
+    private func sourceIndex(
+        actualServiceDay: Date,
+        system: SystemMetadata
+    ) -> Int? {
+        guard let sourceDay = scheduleSourceDay(
+            for: actualServiceDay,
+            system: system
+        ) else {
+            return nil
+        }
+        guard system.days > 0 else { return 0 }
+        guard
+            let fromValue = system.from,
+            let fromDate = RailBoardClock.parseDate(fromValue)
+        else {
+            return nil
+        }
+        return RailBoardClock.calendar.dateComponents(
+            [.day],
+            from: fromDate,
+            to: sourceDay
+        ).day
     }
 
     private func markLastJourneysByCalendarDay(_ journeys: inout [ScheduledJourney]) {

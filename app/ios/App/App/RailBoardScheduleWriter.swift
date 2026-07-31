@@ -1,6 +1,9 @@
+import CryptoKit
 import Foundation
+#if canImport(UIKit)
 import UIKit
 import WidgetKit
+#endif
 
 /// 從 App bundle 的靜態班表建立發車看板資料，供 Widget extension 透過 App Group 讀取。
 enum RailBoardScheduleWriter {
@@ -16,6 +19,7 @@ enum RailBoardScheduleWriter {
         case failed
     }
 
+    #if canImport(UIKit)
     static func refreshIfNeeded(application: UIApplication) {
         let backgroundTask = BackgroundTask(application: application)
 
@@ -42,6 +46,7 @@ enum RailBoardScheduleWriter {
             }
         }
     }
+    #endif
 
     private static func refreshIfNeeded() -> RefreshResult {
         let fileManager = FileManager.default
@@ -49,9 +54,19 @@ enum RailBoardScheduleWriter {
             let rootURL = fileManager.containerURL(
                 forSecurityApplicationGroupIdentifier: appGroupID
             ),
-            let appBuild = currentAppBuild(),
-            shouldRebuild(rootURL: rootURL, appBuild: appBuild)
+            let appBuild = currentAppBuild()
         else {
+            return .unchanged
+        }
+        let placesData = try? Data(
+            contentsOf: rootURL.appendingPathComponent("places.json")
+        )
+        let placesFingerprint = fingerprint(placesData)
+        guard shouldRebuild(
+            rootURL: rootURL,
+            appBuild: appBuild,
+            placesFingerprint: placesFingerprint
+        ) else {
             return .unchanged
         }
 
@@ -94,10 +109,13 @@ enum RailBoardScheduleWriter {
         }
 
         do {
+            let placeBoards = loadPlaceBoards(placesData: placesData)
             try publish(
                 builder: builder,
+                placeBoards: placeBoards,
                 rootURL: rootURL,
                 appBuild: appBuild,
+                placesFingerprint: placesFingerprint,
                 fileManager: fileManager
             )
             return .written
@@ -153,7 +171,18 @@ enum RailBoardScheduleWriter {
         }
     }
 
-    private static func shouldRebuild(rootURL: URL, appBuild: String) -> Bool {
+    private static func fingerprint(_ data: Data?) -> String {
+        guard let data else { return "missing" }
+        return SHA256.hash(data: data).map {
+            String(format: "%02x", $0)
+        }.joined()
+    }
+
+    private static func shouldRebuild(
+        rootURL: URL,
+        appBuild: String,
+        placesFingerprint: String
+    ) -> Bool {
         let metaURL = rootURL.appendingPathComponent("meta.json")
         guard
             let data = try? Data(contentsOf: metaURL),
@@ -162,6 +191,60 @@ enum RailBoardScheduleWriter {
             return true
         }
         return meta.appBuild != appBuild
+            || meta.placesFingerprint != placesFingerprint
+    }
+
+    private static func loadPlaceBoards(
+        placesData: Data?
+    ) -> [PlaceBoardDocument] {
+        guard
+            let placesData,
+            let places = try? JSONDecoder().decode(
+                PlacesInputDocument.self,
+                from: placesData
+            ),
+            places.v == 1,
+            let indexURL = Bundle.main.url(
+                forResource: "public/data/place_index.json",
+                withExtension: nil
+            ),
+            let indexData = try? Data(contentsOf: indexURL),
+            let index = try? JSONDecoder().decode(
+                PlaceIndexDocument.self,
+                from: indexData
+            ),
+            index.v == 1
+        else {
+            return []
+        }
+
+        let trackResources = [
+            "public/data/tra.json",
+            "public/data/thsr_track.json",
+        ]
+        let tracks = trackResources.compactMap {
+            resource -> TrackDocument? in
+            guard
+                let url = Bundle.main.url(
+                    forResource: resource,
+                    withExtension: nil
+                ),
+                let data = try? Data(contentsOf: url)
+            else {
+                return nil
+            }
+            return try? JSONDecoder().decode(
+                TrackDocument.self,
+                from: data
+            )
+        }
+        guard tracks.count == trackResources.count else { return [] }
+
+        return PlaceBoardBuilder.build(
+            places: places.places,
+            index: index,
+            trackLines: tracks.flatMap(\.lines)
+        )
     }
 
     private static func loadExistingStations(rootURL: URL) -> [Station] {
@@ -180,8 +263,10 @@ enum RailBoardScheduleWriter {
 
     private static func publish(
         builder: BoardBuilder,
+        placeBoards: [PlaceBoardDocument],
         rootURL: URL,
         appBuild: String,
+        placesFingerprint: String,
         fileManager: FileManager
     ) throws {
         let stagingURL = rootURL.appendingPathComponent(
@@ -192,9 +277,17 @@ enum RailBoardScheduleWriter {
             "board",
             isDirectory: true
         )
+        let stagingPlaceBoardURL = stagingURL.appendingPathComponent(
+            "place-board",
+            isDirectory: true
+        )
 
         try fileManager.createDirectory(
             at: stagingBoardURL,
+            withIntermediateDirectories: true
+        )
+        try fileManager.createDirectory(
+            at: stagingPlaceBoardURL,
             withIntermediateDirectories: true
         )
         defer {
@@ -218,6 +311,7 @@ enum RailBoardScheduleWriter {
             JSONOutput.meta(
                 builtAt: builtAt,
                 appBuild: appBuild,
+                placesFingerprint: placesFingerprint,
                 types: builder.types,
                 systems: builder.systems
             ).utf8
@@ -237,10 +331,28 @@ enum RailBoardScheduleWriter {
                 options: .atomic
             )
         }
+        let placeEncoder = JSONEncoder()
+        placeEncoder.outputFormatting = [.sortedKeys]
+        for placeBoard in placeBoards {
+            try placeEncoder.encode(placeBoard).write(
+                to: stagingPlaceBoardURL.appendingPathComponent(
+                    "\(placeBoard.i).json"
+                ),
+                options: .atomic
+            )
+        }
 
         let boardURL = rootURL.appendingPathComponent("board", isDirectory: true)
+        let placeBoardURL = rootURL.appendingPathComponent(
+            "place-board",
+            isDirectory: true
+        )
         try fileManager.createDirectory(
             at: boardURL,
+            withIntermediateDirectories: true
+        )
+        try fileManager.createDirectory(
+            at: placeBoardURL,
             withIntermediateDirectories: true
         )
 
@@ -252,6 +364,26 @@ enum RailBoardScheduleWriter {
                 destinationURL: boardURL.appendingPathComponent("\(index).json"),
                 fileManager: fileManager
             )
+        }
+        for placeBoard in placeBoards {
+            try atomicallyInstall(
+                stagedURL: stagingPlaceBoardURL.appendingPathComponent(
+                    "\(placeBoard.i).json"
+                ),
+                destinationURL: placeBoardURL.appendingPathComponent(
+                    "\(placeBoard.i).json"
+                ),
+                fileManager: fileManager
+            )
+        }
+        let validPlaceBoardNames = Set(placeBoards.map { "\($0.i).json" })
+        for staleURL in try fileManager.contentsOfDirectory(
+            at: placeBoardURL,
+            includingPropertiesForKeys: nil
+        ) where staleURL.pathExtension == "json"
+            && !validPlaceBoardNames.contains(staleURL.lastPathComponent)
+        {
+            try fileManager.removeItem(at: staleURL)
         }
         try atomicallyInstall(
             stagedURL: stagingURL.appendingPathComponent("stations.json"),
@@ -283,7 +415,8 @@ enum RailBoardScheduleWriter {
     }
 }
 
-private extension RailBoardScheduleWriter {
+extension RailBoardScheduleWriter {
+    #if canImport(UIKit)
     final class BackgroundTask {
         private weak var application: UIApplication?
         private var identifier = UIBackgroundTaskIdentifier.invalid
@@ -308,6 +441,7 @@ private extension RailBoardScheduleWriter {
             identifier = .invalid
         }
     }
+    #endif
 
     struct SystemInput {
         let id: String
@@ -344,6 +478,7 @@ private extension RailBoardScheduleWriter {
 
     struct ExistingMeta: Decodable {
         let appBuild: String
+        let placesFingerprint: String?
     }
 
     struct ExistingStationsDocument: Decodable {
@@ -353,6 +488,396 @@ private extension RailBoardScheduleWriter {
     struct Station: Decodable, Hashable {
         let n: String
         let s: String
+    }
+
+    struct PlacesInputDocument: Decodable {
+        let v: Int
+        let places: [PlaceInput]
+    }
+
+    struct PlaceInput: Decodable {
+        let label: String
+        let lat: Double
+        let lon: Double
+        let manual: Bool
+    }
+
+    struct PlaceIndexDocument: Decodable {
+        let v: Int
+        let samples: Int
+        let lines: [String: PlaceIndexLine]
+        let segs: [PlaceIndexSegment]
+        let trains: [PlaceIndexTrain]
+    }
+
+    struct PlaceIndexLine: Decodable {
+        let sys: String
+        let name: String
+        let color: String
+        let order: Int
+    }
+
+    struct PlaceIndexTrain: Decodable {
+        let no: String
+        let ty: String
+        let days: Int
+        let sys: String
+        let to: String
+    }
+
+    struct PlaceIndexSegment: Decodable {
+        let trainIndex: Int
+        let lineID: String
+        let dAMeters: Int
+        let dBMeters: Int
+        let positions: [Int]
+        let times: [Int]
+
+        init(from decoder: Decoder) throws {
+            var values = try decoder.unkeyedContainer()
+            trainIndex = try values.decode(Int.self)
+            lineID = try values.decode(String.self)
+            dAMeters = try values.decode(Int.self)
+            dBMeters = try values.decode(Int.self)
+            positions = try values.decode([Int].self)
+            times = try values.decode([Int].self)
+        }
+    }
+
+    struct TrackDocument: Decodable {
+        let lines: [TrackLine]
+    }
+
+    struct TrackLine: Decodable {
+        let id: String
+        let name: String
+        let color: String
+        let shape: [[Double]]
+    }
+
+    struct PlaceBoardDocument: Encodable {
+        let v: Int
+        let i: Int
+        let label: String
+        let lat: Double
+        let lon: Double
+        let lines: [PlaceBoardLine]
+    }
+
+    struct PlaceBoardLine: Encodable {
+        let id: String
+        let sys: String
+        let name: String
+        let color: String
+        let d: Int
+        let perp: Int
+        let pass: [PlaceBoardPass]
+    }
+
+    struct PlaceBoardPass: Encodable {
+        let no: String
+        let ty: String
+        let to: String
+        let at: Int
+        let days: Int
+        let sys: String
+    }
+
+    enum PlaceBoardBuilder {
+        private static let maximumPerpendicularKilometers = 1.5
+        private static let maximumLines = 3
+
+        static func build(
+            places: [PlaceInput],
+            index: PlaceIndexDocument,
+            trackLines: [TrackLine]
+        ) -> [PlaceBoardDocument] {
+            let segmentsByLine = Dictionary(
+                grouping: index.segs,
+                by: \.lineID
+            )
+
+            return places.enumerated().map { placeIndex, place in
+                let nearby = trackLines.compactMap {
+                    line -> (line: TrackLine, projection: Projection)? in
+                    guard
+                        let projection = project(
+                            line: line,
+                            lat: place.lat,
+                            lon: place.lon
+                        ),
+                        projection.perpKilometers
+                            <= maximumPerpendicularKilometers
+                    else {
+                        return nil
+                    }
+                    return (line, projection)
+                }.sorted {
+                    if $0.projection.perpKilometers
+                        != $1.projection.perpKilometers
+                    {
+                    return $0.projection.perpKilometers
+                            < $1.projection.perpKilometers
+                    }
+                    let leftOrder = index.lines[$0.line.id]?.order
+                        ?? Int.max
+                    let rightOrder = index.lines[$1.line.id]?.order
+                        ?? Int.max
+                    if leftOrder != rightOrder {
+                        return leftOrder < rightOrder
+                    }
+                    return $0.line.id < $1.line.id
+                }.prefix(maximumLines)
+
+                let placeLines = nearby.compactMap {
+                    candidate -> PlaceBoardLine? in
+                    guard let lineMeta = index.lines[candidate.line.id] else {
+                        return nil
+                    }
+                    // 同一班車只留一筆。地點的里程若落在車站附近,「進站段」與「出站段」
+                    // 會同時包含它(下面刻意留的 ±1m 容差更保證了這件事),不去重的話同一班車
+                    // 會在看板佔掉兩列——實測竹北座標的前三筆是 1112／1112／1122,medium 每線
+                    // 只放 3 列,等於一半版面被同一班車吃掉。
+                    // JS 的 crossingPasses 用 byTrain Map 每班車只留最近的一次命中
+                    // (index.html:5771-5773),這裡做同一件事。
+                    // 鍵用 trainIndex 而不是車次號:台鐵 dense 裡有 5 個車次號各有 2–3 筆
+                    // 不同行駛日的變體,用號碼當鍵會把它們錯併成一班。
+                    // 取較早那筆即等價於 JS 的「delta 最小」——跨午夜以秒數累加表示
+                    // (實測最大 114720 秒),不會回繞成小數字,所以直接比大小是安全的。
+                    var earliestByTrain: [Int: PlaceBoardPass] = [:]
+                    for segment in segmentsByLine[candidate.line.id] ?? [] {
+                        let low = min(
+                            segment.dAMeters,
+                            segment.dBMeters
+                        )
+                        let high = max(
+                            segment.dAMeters,
+                            segment.dBMeters
+                        )
+                        let distance = candidate.projection.dMeters
+                        // 索引端點為整數公尺、投影仍保留浮點；站點邊界若不留量化容差，
+                        // 同一里程的到達／發車兩段會因 ±0.5m 被靜默漏掉其中一段。
+                        guard
+                            distance >= Double(low) - 1,
+                            distance <= Double(high) + 1,
+                            index.trains.indices.contains(segment.trainIndex),
+                            let at = interpolate(
+                                segment: segment,
+                                distanceMeters: distance
+                            )
+                        else {
+                            continue
+                        }
+                        if let existing = earliestByTrain[segment.trainIndex],
+                           existing.at <= at {
+                            continue
+                        }
+                        let train = index.trains[segment.trainIndex]
+                        earliestByTrain[segment.trainIndex] = PlaceBoardPass(
+                            no: train.no,
+                            ty: train.ty,
+                            to: train.to,
+                            at: at,
+                            days: train.days,
+                            sys: train.sys
+                        )
+                    }
+
+                    var passes = Array(earliestByTrain.values)
+                    passes.sort {
+                        if $0.at != $1.at { return $0.at < $1.at }
+                        if $0.sys != $1.sys { return $0.sys < $1.sys }
+                        return $0.no.localizedStandardCompare($1.no)
+                            == .orderedAscending
+                    }
+                    return PlaceBoardLine(
+                        id: candidate.line.id,
+                        sys: lineMeta.sys,
+                        name: lineMeta.name,
+                        color: lineMeta.color,
+                        d: Int(candidate.projection.dMeters.rounded()),
+                        perp: Int(
+                            (
+                                candidate.projection.perpKilometers
+                                    * 1_000
+                            ).rounded()
+                        ),
+                        pass: passes
+                    )
+                }
+
+                return PlaceBoardDocument(
+                    v: 1,
+                    i: placeIndex,
+                    label: place.label,
+                    lat: place.lat,
+                    lon: place.lon,
+                    lines: placeLines
+                )
+            }
+        }
+
+        private static func interpolate(
+            segment: PlaceIndexSegment,
+            distanceMeters: Double
+        ) -> Int? {
+            let span = Double(
+                abs(segment.dBMeters - segment.dAMeters)
+            )
+            guard
+                span > 0,
+                segment.positions.count >= 2,
+                segment.positions.count == segment.times.count
+            else {
+                return nil
+            }
+            let fraction = min(
+                1,
+                max(
+                    0,
+                    abs(
+                        distanceMeters - Double(segment.dAMeters)
+                    ) / span
+                )
+            )
+            let position = fraction * 1_000_000
+            var lowIndex = 0
+            var highIndex = segment.positions.count - 1
+            while lowIndex + 1 < highIndex {
+                let middle = (lowIndex + highIndex) / 2
+                if Double(segment.positions[middle]) <= position {
+                    lowIndex = middle
+                } else {
+                    highIndex = middle
+                }
+            }
+            lowIndex = min(lowIndex, segment.times.count - 2)
+            let lowPosition = Double(segment.positions[lowIndex])
+            let highPosition = Double(segment.positions[lowIndex + 1])
+            let localFraction = highPosition > lowPosition
+                ? min(
+                    1,
+                    max(
+                        0,
+                        (position - lowPosition)
+                            / (highPosition - lowPosition)
+                    )
+                )
+                : 0
+            let low = Double(segment.times[lowIndex])
+            let high = Double(segment.times[lowIndex + 1])
+            return Int(
+                (low + (high - low) * localFraction).rounded()
+            )
+        }
+
+        struct Projection {
+            let dMeters: Double
+            let perpKilometers: Double
+        }
+
+        static func project(
+            line: TrackLine,
+            lat: Double,
+            lon: Double,
+            useSegmentMidpointLatitude: Bool = false
+        ) -> Projection? {
+            guard line.shape.count >= 2 else { return nil }
+            let cumulative = cumulativeKilometers(line.shape)
+            let ky = 111.32
+            var bestDistance: Double?
+            var bestPerpendicular = Double.greatestFiniteMagnitude
+
+            for index in 0 ..< line.shape.count - 1 {
+                let first = line.shape[index]
+                let second = line.shape[index + 1]
+                guard first.count >= 2, second.count >= 2 else {
+                    continue
+                }
+                let projectionLatitude = useSegmentMidpointLatitude
+                    ? (first[0] + second[0]) / 2
+                    : lat
+                let kx = cos(
+                    projectionLatitude * Double.pi / 180
+                ) * 111.32
+                let ax = (first[1] - lon) * kx
+                let ay = (first[0] - lat) * ky
+                let bx = (second[1] - lon) * kx
+                let by = (second[0] - lat) * ky
+                let vx = bx - ax
+                let vy = by - ay
+                let lengthSquared = vx * vx + vy * vy
+                let fraction: Double
+                if lengthSquared > 0 {
+                    fraction = max(
+                        0,
+                        min(
+                            1,
+                            -(ax * vx + ay * vy) / lengthSquared
+                        )
+                    )
+                } else {
+                    fraction = 0
+                }
+                let px = ax + vx * fraction
+                let py = ay + vy * fraction
+                let perpendicular = hypot(px, py)
+                if perpendicular < bestPerpendicular {
+                    bestPerpendicular = perpendicular
+                    bestDistance = (
+                        cumulative[index]
+                            + sqrt(lengthSquared) * fraction
+                    ) * 1_000
+                }
+            }
+            guard let bestDistance else { return nil }
+            return Projection(
+                dMeters: bestDistance,
+                perpKilometers: bestPerpendicular
+            )
+        }
+
+        private static func cumulativeKilometers(
+            _ shape: [[Double]]
+        ) -> [Double] {
+            var result = Array(
+                repeating: 0.0,
+                count: shape.count
+            )
+            guard shape.count >= 2 else { return result }
+            for index in 1 ..< shape.count {
+                let first = shape[index - 1]
+                let second = shape[index]
+                guard first.count >= 2, second.count >= 2 else {
+                    result[index] = result[index - 1]
+                    continue
+                }
+                result[index] = result[index - 1] + haversineKilometers(
+                    lat1: first[0],
+                    lon1: first[1],
+                    lat2: second[0],
+                    lon2: second[1]
+                )
+            }
+            return result
+        }
+
+        private static func haversineKilometers(
+            lat1: Double,
+            lon1: Double,
+            lat2: Double,
+            lon2: Double
+        ) -> Double {
+            let radians = Double.pi / 180
+            let deltaLat = (lat2 - lat1) * radians
+            let deltaLon = (lon2 - lon1) * radians
+            let firstLat = lat1 * radians
+            let secondLat = lat2 * radians
+            let value = sin(deltaLat / 2) * sin(deltaLat / 2)
+                + cos(firstLat) * cos(secondLat)
+                * sin(deltaLon / 2) * sin(deltaLon / 2)
+            return 2 * 6_371 * asin(sqrt(value))
+        }
     }
 
     /// 車站 → 縣市，只給小工具設定畫面的「區域」用（245 站一路下拉找太慢）。
@@ -678,6 +1203,7 @@ private extension RailBoardScheduleWriter {
         static func meta(
             builtAt: String,
             appBuild: String,
+            placesFingerprint: String,
             types: [TypeColor],
             systems: [SystemMeta]
         ) -> String {
@@ -692,7 +1218,7 @@ private extension RailBoardScheduleWriter {
             }.joined(separator: ",")
 
             return """
-            {"v":1,"builtAt":\(string(builtAt)),"appBuild":\(string(appBuild)),"types":{\(typeValues)},"systems":[\(systemValues)]}
+            {"v":1,"builtAt":\(string(builtAt)),"appBuild":\(string(appBuild)),"placesFingerprint":\(string(placesFingerprint)),"types":{\(typeValues)},"systems":[\(systemValues)]}
             """
         }
 
