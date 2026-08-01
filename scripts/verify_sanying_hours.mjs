@@ -1,21 +1,26 @@
-// 三鶯線營運時段驗證(Chromium+WebKit):試營運 10:00-20:00 之外不得出現列車。
+// 三鶯線營運時段驗證(Chromium+WebKit):公告營運窗之外不得出現列車。
 // 起因:v0711j 把「正式營運後 6時至24時」的規劃當成現況寫死 06:00-23:30,
 // 每天生出 7.5 小時幽靈列車(使用者 2026-07-18 回報「開到八點而已,現場沒有車」)。
 // 官方依據 https://www.ntmetro.com.tw/basic/?mode=detail&node=863
-//   「營運時間除通車日6/30外,其餘時間為10:00至20:00,將以尖峰(17:30~19:30) 6分鐘、
-//     離峰及假日8分鐘的班距運行」
+//   2026-08-01 起延長為 08:00-22:00(原 10:00-20:00);平日尖峰 08:00-08:30、17:30-19:30 六分,
+//   平日離峰及假日八分。改點時只改下面的 OPEN/CLOSE 兩個常數,案例會自己跟著長。
 import { chromium, webkit } from 'playwright';
 
 const URL = process.env.VURL || 'http://localhost:5178/index.html';
 let fail = 0;
 const ck = (ok, msg) => { console.log((ok ? '  ✓ ' : '  ✗ ') + msg); if (!ok) fail++; };
 const hm = s => String(s / 3600 | 0).padStart(2, '0') + ':' + String(s % 3600 / 60 | 0).padStart(2, '0');
+const S = t => { const [h, m] = t.split(':').map(Number); return h * 3600 + m * 60; };
 
-// [當日秒, 是否應有車] —— 邊界取營運窗前後各一分鐘
+// 公告營運窗(= build_metro_times.mjs 的 first/last)。CLOSE 是末班「發車」時刻,
+// 末班跑完全程還要約 28 分鐘,故收班後的陰性案例要留到 CLOSE+RUN 之後。
+const OPEN = '08:00', CLOSE = '22:00', RUN = 40 * 60;
+// [當日秒, 是否應有車] —— 兩端各取窗外一分鐘與窗內一分鐘,中間鋪滿全窗(含新增的早尖峰)
 const CASES = [
-  [5 * 3600, false], [8 * 3600, false], [9 * 3600 + 59 * 60, false],
-  [10 * 3600 + 1 * 60, true], [14 * 3600, true], [18 * 3600, true], [19 * 3600 + 30 * 60, true],
-  [20 * 3600 + 40 * 60, false], [21 * 3600 + 11 * 60, false], [23 * 3600, false],
+  [S('05:00'), false], [S(OPEN) - 60, false],
+  [S(OPEN) + 60, true], [S('08:20'), true], [S('11:00'), true], [S('14:00'), true],
+  [S('18:00'), true], [S('21:00'), true], [S(CLOSE) - 60, true],
+  [S(CLOSE) + RUN + 60, false], [S('23:30'), false],
 ];
 
 for (const [name, launcher] of [['chromium', chromium], ['webkit', webkit]]) {
@@ -58,12 +63,12 @@ for (const [name, launcher] of [['chromium', chromium], ['webkit', webkit]]) {
     ck(expectRun ? n > 0 : n === 0,
       `${hm(sec)} 在跑 ${n} 班（應${expectRun ? '有車' : '為 0'}）`);
   }
-  ck(/10:00.*20:00|10:00–20:00/.test(res.lead), '導言標示營運時段 10:00–20:00');
-  ck(/10:00-20:00/.test(res.note), '資料來源註記含官方營運時段');
+  ck(res.lead.includes(`${OPEN}–${CLOSE}`), `導言標示營運時段 ${OPEN}–${CLOSE}`);
+  ck(res.note.includes(`${OPEN}-${CLOSE}`), '資料來源註記含官方營運時段');
 
   // 三鶯線另外兩條繪製路徑:北北桃群組(state.lines)、全台同框裝飾層(state.decoLines)
   // ——使用者多半是在這兩個視圖看到幽靈車,單系統視圖過了不代表這裡也過
-  const grp = await pg.evaluate(() => {
+  const grp = await pg.evaluate(night => {
     const cnt = arr => {
       const ln = (arr || []).find(l => l.id === 'LB');
       if (!ln) return null;
@@ -74,16 +79,16 @@ for (const [name, launcher] of [['chromium', chromium], ['webkit', webkit]]) {
     const o = {};
     state.playing = false;
     loadFreqGroup(GROUPS.find(g => g.id === 'north'));
-    setSimSec(21 * 3600 + 11 * 60); recomputeTrains(); o.northNight = cnt(state.lines);
+    setSimSec(night); recomputeTrains(); o.northNight = cnt(state.lines);
     setSimSec(14 * 3600); recomputeTrains(); o.northDay = cnt(state.lines);
     loadAllGroup(GROUPS.find(g => g.mode === 'all'));
-    setSimSec(21 * 3600 + 11 * 60); buildDecoLines(); o.allNight = cnt(state.decoLines);
+    setSimSec(night); buildDecoLines(); o.allNight = cnt(state.decoLines);
     setSimSec(14 * 3600); buildDecoLines(); o.allDay = cnt(state.decoLines);
     return o;
-  });
+  }, S('23:30'));
   for (const [key, label, expectRun] of [
-    ['northNight', '北北桃 21:11', false], ['northDay', '北北桃 14:00', true],
-    ['allNight', '全台同框 21:11', false], ['allDay', '全台同框 14:00', true]]) {
+    ['northNight', '北北桃 23:30', false], ['northDay', '北北桃 14:00', true],
+    ['allNight', '全台同框 23:30', false], ['allDay', '全台同框 14:00', true]]) {
     const g = grp[key];
     ck(g && (expectRun ? g.run > 0 : g.run === 0),
       `${label} 三鶯線在跑 ${g ? g.run : '(找不到線)'} 班（應${expectRun ? '有車' : '為 0'}）`);
