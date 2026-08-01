@@ -25,6 +25,12 @@
 **處置層** — 排程任務 `railisland-official-watch`（每天 08:30，本機，比照既有的 issue 巡檢）。
 讀報告後分流：機械的自己做完並上線，要判斷的停下來列證據問使用者。
 
+**它住在自己的 worktree：`/Users/xuxiang/Code/軌島-巡檢`（掛 `main`）。** 這條不是潔癖，是必要條件——
+這個 repo 同時有 30 個 worktree 在跑，主工作樹當天在 `feat/changelog-slim`、落後 main 約 20 顆，
+連 `watch_official.mjs` 都不存在。無人值守的任務跑在會被別人動的樹上，第一天就會炸或掃到別人的變更。
+`node_modules` 與 `.env` symlink 借主樹；基準存 `.cache/watch/state.json`（跟著這棵樹走，刪樹＝丟基準）。
+專屬樹 commit 後即「磁碟 == HEAD」，直接就是可以出貨的乾淨樹，不必再另開一個。
+
 為什麼要這條界線：把「新聞裡的未來規劃」當成現況正是 v0711j 幽靈列車的成因，
 那種錯只有人擋得掉；而 TDX 重抓重建是確定性的，讓人每天做只會被忽略。
 
