@@ -27,7 +27,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const SHOT_DIR = '/private/tmp/claude-501/-Users-xuxiang-Code------/7527b6c9-bef6-4caa-9ffe-60c4cba112b7/scratchpad';
+const SHOT_DIR = '/private/tmp/claude-501/-Users-xuxiang-Code------/038ab9c5-7b74-43c5-85f2-bd91a3879316/scratchpad';
 const PORT = 5207;
 const MIME = { '.html': 'text/html', '.js': 'text/javascript', '.mjs': 'text/javascript', '.json': 'application/json', '.css': 'text/css', '.png': 'image/png', '.jpg': 'image/jpeg', '.svg': 'image/svg+xml', '.mp3': 'audio/mpeg', '.ico': 'image/x-icon', '.webmanifest': 'application/manifest+json' };
 const server = createServer((req, res) => {
@@ -260,6 +260,28 @@ async function regression(label, { width, height, touch }) {
 }
 await regression('1280', { width: 1280, height: 800, touch: false });
 await regression('375', { width: 375, height: 812, touch: true });
+
+// ══════════════ G. 帳號系統重開:匿名使用者可抵達登入鈕(不注入帳號,真實走 plusGateOpen→accountEnsureInit) ══════════════
+// 匿名使用者點 Plus 入口 → 必須看得到登入鈕（不是空白視窗）
+// 這條在 ACCOUNT_ENABLED=false 時必失敗：accountEnsureInit 不載 Firebase ⇒ 畫不出登入鈕
+async function assertAnonymousCanReachLogin(page) {
+  await page.evaluate(() => { try { localStorage.clear(); } catch (e) {} });
+  await page.reload({ waitUntil: 'networkidle' });
+  await page.evaluate(() => window.plusGateOpen('test-gate', () => {}));
+  await page.waitForTimeout(2500); // Firebase SDK 是延遲載入,給它時間
+  const loginBtns = await page.locator('[data-login="google"], [data-login="apple"]').count();
+  return { name: '匿名使用者可抵達登入鈕', ok: loginBtns >= 2,
+           detail: `找到 ${loginBtns} 顆登入鈕（需要 Google＋Apple 兩顆）` };
+}
+{
+  const { ctx, page } = await newPage(chromiumB);
+  attach(page, 'G');
+  await page.goto(BASE, { waitUntil: 'domcontentloaded' });
+  await waitReady(page);
+  const r = await assertAnonymousCanReachLogin(page);
+  ok(r.name, r.ok, r.detail);
+  await ctx.close();
+}
 
 // ══════════════ 收尾 ══════════════
 ok('K 全程 pageerror/console.error 為零', allErrors.length === 0, allErrors.slice(0, 8).join(' | '));

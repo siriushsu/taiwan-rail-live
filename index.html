@@ -3309,9 +3309,10 @@
 
   <footer class="site-foot">
     <details class="foot-box">
-      <summary><span>更新紀錄</span><span class="foot-sub">最後更新：2026/8/1</span></summary>
+      <summary><span>更新紀錄</span><span class="foot-sub">最後更新：2026/8/2</span></summary>
       <ul class="foot-list foot-recent">
         <li class="grp">最近更新</li>
+        <li><span class="d">8/2</span><span>可以用軌島帳號登入，收藏的地點與完乘記錄會在手機和電腦之間同步</span></li>
         <li><span class="d">8/1</span><span>三鶯線跟上官方 8/1 延長：每天 08:00–22:00 都看得到車（原 10:00–20:00）</span></li>
         <li><span class="d">8/1</span><span>台鐵快車經過不停靠小站時的位置更準了——有網友拿碼錶實地量了十幾班車回報（謝謝）</span></li>
         <li><span class="d">8/1</span><span>衛星底圖換成比較省的計費方式：看到的畫面完全一樣，只是我們付給圖資供應商的錢少很多</span></li>
@@ -3319,7 +3320,6 @@
         <li><span class="d">7/31</span><span>誤點的車，跟車面板比地圖上的車慢半拍：車停在站上卻寫「行進中」，現在修好了（謝謝網友回報）</span></li>
         <li><span class="d">7/30</span><span>iPhone 發車看板的起站與目的站選單會列出你在軌島存過的「我的地點」：選了「家」，桌面顯示的就是「家」；日後把「家」重存到別的地方，桌面也會自己跟過去</span></li>
         <li><span class="d">7/30</span><span>搜尋今天已經跑完的車，現在會帶你回到它發車前，不再當場亂蓋完乘章（謝謝網友回報）</span></li>
-        <li><span class="d">7/30</span><span>iPhone 主畫面可以加「發車看板」小工具了，選好起站就能直接看下一班車——選站不用再整份下拉，先挑縣市就會跳到那一區</span></li>
       </ul>
       <!-- 第二層:完整歷史。刻意不掛 .foot-box 類名——placeFootBoxes() 用
            `.site-foot .foot-box` 搬移面板,巢狀同名會被當成另一個盒子一起搬走。 -->
@@ -3382,6 +3382,7 @@
         <li><span class="d">7/13</span><span>收集章可以重複點，換搭不同班次回味</span></li>
         <li><span class="d">7/9</span><span>旅程護照與 16 枚成就徽章、「探」今日亮點面板上線</span></li>
         <li class="grp">手機與操作</li>
+        <li><span class="d">7/30</span><span>iPhone 主畫面可以加「發車看板」小工具了，選好起站就能直接看下一班車——選站不用再整份下拉，先挑縣市就會跳到那一區</span></li>
         <li><span class="d">7/30</span><span>車站看板與跟車面板可以調高度了：手機拉一下（或點一下）面板上緣的把手，在小／中／大之間切換。原本「大」只是上限、內容短的時候三段一樣高，拉了像沒作用；現在「大」有保證高度，車站看板也會跟著多列幾班車</span></li>
         <li><span class="d">7/30</span><span>新增 iPhone 主畫面小工具「發車看板」：長按桌面加入後選一個起站（可以再加目的站），桌面就會列出接下來幾班車；還能「只看這些」，例如只留自強號、或只盯自己每天搭的那幾班。選起站不必再整份 250 站下拉：清單依縣市分段，由北到南排</span></li>
         <li><span class="d">7/30</span><span>小工具的起站與目的站選單最上面多了一段「我的地點」：你在軌島存過的地點（家、公司…）會直接列出來，點一下就帶到離它最近的台鐵或高鐵站，不用自己記那一站叫什麼；選好之後桌面標題顯示的是「家 → 公司」，不是站名。日後把「家」重存到別的地方，桌面會自己跟到新位置的最近車站，不必回設定畫面重選；把地點改名或刪掉也不會壞，只是標題退回顯示車站名。附近 5 公里內沒有車站的地點不會出現，最多列 20 筆，自己存的排在 Google 地圖匯入的前面。台鐵與高鐵同一棟的車站（台北、板橋、南港、左營…）會選班次比較多的那一邊。這一段只有 iPhone 版 App 才有</span></li>
@@ -6027,7 +6028,7 @@ const BOUNTY_ENABLED = (() => { try {
 // 收集地圖同批下架。它其實不碰 GPS(資料來自既有乘車記錄),所以給它自己的旗標:要單獨復活只動這一行。
 const COLLECT_MAP_ENABLED = flagOnce('collectmap');
 const RECORDING_ENABLED = false; // 2026-07-17 錄影暫時下架(整備中):所有入口隱藏、實作全保留;改 true 即復活(工具列鈕+更多抽屜列+Plus 文案)
-const ACCOUNT_ENABLED = false; // 2026-07-17 帳號同步轉收費前暫時下架:入口全藏、不載 Firebase SDK、實作全保留;僅 ?account=delete 深連結(account-deletion.html)留給既有帳號刪資料;改 true 即復活
+const ACCOUNT_ENABLED = true; // 2026-08-02 Plus 開張:雲端同步是 Plus 第二支柱,帳號系統重開。免費層仍匿名(accountEnsureInit 延遲初始化),只有購買 Plus／?account=delete 才載 Firebase
 // Plus 功能總閘(暗啟動):網站預設關、?plus=1 當次點亮供測試(比照 TRIP_SHARE_ENABLED)；上架公告批次改 true。
 // Capacitor 原生殼恆開(App 載入無 URL 參數,訂閱本來就是 App 功能;bridge 在頁面腳本前注入,判定可靠)。
 // 目前接「誤點履歷」頭牌卡的入口與卡片(見 openDelayHist/renderDelayHist);訂閱入口另受 plusConfigured 與 RevenueCat 設定控制。
