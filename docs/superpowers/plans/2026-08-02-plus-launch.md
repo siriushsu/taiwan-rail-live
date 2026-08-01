@@ -44,7 +44,7 @@
 | 檔案 | 責任 | 動它的 Task |
 |---|---|---|
 | `index.html` | 單檔前端全部。Plus 閘門、清單文案、護照徽章、行程分享入口、底圖切換 | 1,2,3,4,5,6,7 |
-| `app/ios/App/App/public/firebase-config.js` | App 端登入供應商開關 | 1 |
+| `firebase-config.js`（repo 根） | 登入供應商開關（來源檔；App 副本由 `npm run sync` 產生） | 1 |
 | `app/scripts/verify-release.mjs` | 發行前 CI 斷言 | 1,3 |
 | `app/scripts/prepare-web.mjs` | App build 時注入 `RAIL_APP_CONFIG` | 3 |
 | `worker.js` | `/api/basemap-token` rate limit | 3 |
@@ -109,7 +109,7 @@ git log --oneline -1
 
 **Files:**
 - Modify: `index.html`（`const ACCOUNT_ENABLED` 那一行）
-- Modify: `app/ios/App/App/public/firebase-config.js:4`
+- Modify: `firebase-config.js`（**repo 根目錄那份才是來源**；`app/ios/App/App/public/firebase-config.js` 是 `npm run sync` 產生的副本，改它會被蓋掉）
 - Modify: `scripts/verify_plus_subscription.mjs`（移除假登入注入）
 - Test: `scripts/verify_plus_subscription.mjs`
 
@@ -154,11 +154,13 @@ node scripts/verify_plus_subscription.mjs 2>&1 | tail -20
 const ACCOUNT_ENABLED = true; // 2026-08-02 Plus 開張:雲端同步是 Plus 第二支柱,帳號系統重開。免費層仍匿名(accountEnsureInit 延遲初始化),只有購買 Plus／?account=delete 才載 Firebase
 ```
 
-`app/ios/App/App/public/firebase-config.js:4`：
+repo 根目錄的 `firebase-config.js`（`index.html:33` 用 `<script src="firebase-config.js">` 載它，`prepare-web.mjs:86` 把它複製進 App bundle）：
 
 ```javascript
 window.RAIL_APPLE_LOGIN = true;
 ```
+
+⚠️ **不要改 `app/ios/App/App/public/firebase-config.js`**——那是建置產物，`npm run sync` 會用根目錄那份覆蓋它。改錯地方的症狀是「本機測試過了，App build 出來還是 false」。
 
 - [ ] **Step 4：跑測試，確認通過**
 
@@ -195,7 +197,7 @@ RAIL_ALLOW_SAFE_BUILD=1 node scripts/verify-release.mjs 2>&1 | tail -20
 
 ```bash
 cd /Users/xuxiang/Code/軌島-Plus開張
-git add index.html app/ios/App/App/public/firebase-config.js scripts/verify_plus_subscription.mjs
+git add index.html firebase-config.js scripts/verify_plus_subscription.mjs
 git commit -m "feat(Plus): 重開帳號系統與 Apple 登入，雲端同步回到 Plus 清單"
 ```
 
