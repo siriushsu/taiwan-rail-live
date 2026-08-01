@@ -215,19 +215,23 @@ git commit -m "feat(Plus): 重開帳號系統與 Apple 登入，雲端同步回�
 
 **Interfaces:**
 - Consumes：`state.plus.active`（Task 1）、`plusGateOpen(source, onGranted)`
-- Produces：`tripShareAllowed()` → boolean，Task 6 的清單驗收會呼叫它
+- Produces：`tripShareVisible()` → boolean，Task 6 的清單驗收會呼叫它
 
 - [ ] **Step 1：加一個資格判定函式**
 
 在 `TRIP_SHARE_ENABLED` 定義的**下方**加：
 
 ```javascript
-// 行程分享發起端＝Plus。?tripshare=1 保留給開發測試(比照 ?plus=1),不是後門——
-// 它只點亮入口,真正發起時仍會走 plusGateOpen 導去訂閱。接收端 ?trip= 永遠免費解碼。
-function tripShareAllowed() {
+// 行程分享發起端＝Plus。這支只管「鈕要不要出現」,不等於放行——
+// ?tripshare=1 是開發測試通道,它點亮入口讓版面看得到,但按下去仍會被 plusGateOpen 攔去訂閱。
+// 兩段式(顯示 vs 放行)是刻意的:URL 參數可以被轉貼,不能讓它變成公開後門。
+// 接收端 ?trip= 永遠免費解碼,不受這裡影響。
+function tripShareVisible() {
   return TRIP_SHARE_ENABLED || !!(state.plus && state.plus.active);
 }
 ```
+
+⚠️ **命名刻意不叫 `Allowed`**——它回答的是「看不看得到」，不是「能不能用」。放行由 Step 2b 的 `plusGateOpen` 負責。若把兩者合成一支，`?tripshare=1` 就成了任何人轉貼網址就能白拿的後門。
 
 - [ ] **Step 2：把發起鈕的顯示條件換掉**
 
@@ -240,14 +244,29 @@ function tripShareAllowed() {
 改成：
 
 ```javascript
-  if (tsBtn) tsBtn.hidden = !(tripShareAllowed() && !tr.loop && !!tripSysCode(tr.sys));
+  if (tsBtn) tsBtn.hidden = !(tripShareVisible() && !tr.loop && !!tripSysCode(tr.sys));
 ```
+
+- [ ] **Step 2b：按下去的地方接上 plusGateOpen**
+
+找到 `#fpTripShare` 的 click handler（開啟「選目的站」面板的那一處），把原本直接開面板的呼叫包起來：
+
+```javascript
+document.getElementById('fpTripShare').onclick = (e) => {
+  e.stopPropagation();
+  plusGateOpen('trip-share', () => openTripSharePanel()); // 非 Plus→導去訂閱;已訂閱→直接開面板
+};
+```
+
+現況（`index.html:16406`）是 `document.getElementById('fpTripShare').onclick = (e) => { e.stopPropagation(); openTripSharePanel(); };`——**只是把既有的 `openTripSharePanel()` 包進 gate 的 callback，不新造任何函式**。
+
+驗證這一步的判準：`?tripshare=1` 且未訂閱時，鈕**看得到**但按下去出現的是 Plus 訂閱視窗，不是選站面板。
 
 - [ ] **Step 3：確認接收端沒被波及**
 
 ```bash
 cd /Users/xuxiang/Code/軌島-Plus開張
-grep -n "TRIP_SHARE_ENABLED\|tripShareAllowed" index.html
+grep -n "TRIP_SHARE_ENABLED\|tripShareVisible" index.html
 ```
 
 預期：接收端解碼 `?trip=` 的兩處（約 `16110` 與 `16348` 的註解段）**完全沒有**引用這兩個名字——payload 是公開的，接收端永遠免費。
@@ -257,7 +276,7 @@ grep -n "TRIP_SHARE_ENABLED\|tripShareAllowed" index.html
 用本機 server 開三次：
 
 1. 無參數 → 跟隨一班台鐵車 → `#fpTripShare` **不出現**
-2. `?plus=1` → 同上 → 出現（`?plus=1` 只點亮 Plus UI，`state.plus.active` 仍 false ⇒ 這裡應該**仍不出現**，因為 `tripShareAllowed()` 讀的是 `active` 不是 `PLUS_ENABLED`）
+2. `?plus=1` → 同上 → 出現（`?plus=1` 只點亮 Plus UI，`state.plus.active` 仍 false ⇒ 這裡應該**仍不出現**，因為 `tripShareVisible()` 讀的是 `active` 不是 `PLUS_ENABLED`）
 3. `?tripshare=1` → 出現（開發測試通道）
 
 ⚠️ 情境 2 是本 Task 最容易寫錯的地方：`PLUS_ENABLED` 是**UI 總閘**，`state.plus.active` 才是**資格**。搞混會讓任何人加 `?plus=1` 就白拿。
@@ -861,7 +880,7 @@ git commit -m "feat(Plus): 跟車時在鎖定畫面與動態島顯示即時動�
 - Create: `scripts/verify_plus_features.mjs`
 
 **Interfaces:**
-- Consumes：Task 2–5 產出的 `tripShareAllowed()`／`satRetinaAllowed()`／`state.plus.founding`／`liveActivityAllowed()`
+- Consumes：Task 2–5 產出的 `tripShareVisible()`／`satRetinaAllowed()`／`state.plus.founding`／`liveActivityAllowed()`
 
 - [ ] **Step 1：先寫會失敗的驗收腳本**
 
@@ -875,7 +894,7 @@ git commit -m "feat(Plus): 跟車時在鎖定畫面與動態島顯示即時動�
 const REQUIRED = [
   { needle: '誤點履歷', symbol: /plusGateOpen\('delay-history'/ },
   { needle: '雲端同步', symbol: /const ACCOUNT_ENABLED = true/ },
-  { needle: '行程分享', symbol: /function tripShareAllowed\s*\(/ },
+  { needle: '行程分享', symbol: /function tripShareVisible\s*\(/ },
   { needle: '高解析',   symbol: /function satRetinaAllowed\s*\(/ },
   { needle: '創始會員', symbol: /function foundingFrom\s*\(/ },
   { needle: '動態島',   symbol: /function liveActivityAllowed\s*\(/ },
