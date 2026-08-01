@@ -296,6 +296,30 @@ async function main() {
   console.log(`══ 逐站校準 ══ ${Object.keys(calSt).length} 站另用自己的偏移（其餘用全網 ${CAL.first}s）`);
   console.log(`══ 偏移校準 ══ first−到站 ${CAL.first}s／last−離站 ${CAL.last}s／中點 ${CAL.mid}s（n=${CAL.n}）`);
 
+  // ── 逐站板窗基線：winMax 是「瞬時通過」的絕對門檻,但少數站的板面本身就把車掛得久
+  // （花壇 294s、竹南 473s、三民 252s）,該站的通過觀測會被整批誤剔（過閘率只有 2~13%）,
+  // 第一層全滅 → 退回第二層通用表 ⇒ 折點系統性偏晚。現地碼錶＋板面雙來源實測：花壇的
+  // 折點偏晚約 100s,使自強在花壇–彰化間的推估晚 80~170s。
+  // 改成「該站板窗基線 ＋ 原本的 240s 餘裕」：正常站基線 0s ⇒ 門檻仍是 240s、行為完全不變;
+  // 只放寬不收緊,數學上保證其他站的產物不可能改變（驗收即據此逐鍵比對）。
+  const stWinRaw = {};
+  for (const t of sched.trains) for (const d of have) {
+    const T = ob[d][t.train]; if (!T) continue;
+    for (const s of t.stops) {
+      if (s.stop !== false) continue;
+      const k = alias(norm(s.name)), e = T[k]; if (!e) continue;
+      (stWinRaw[k] || (stWinRaw[k] = [])).push(e.last - e.first);
+    }
+  }
+  const stWin = {};
+  for (const k in stWinRaw) if (stWinRaw[k].length >= 20) {
+    const v = Math.round(med(stWinRaw[k])); if (v > 0) stWin[k] = v;
+  }
+  const winMaxOf = k => GATE.winMax + (stWin[k] || 0);
+  const wideSt = Object.entries(stWin).sort((a, b) => b[1] - a[1]);
+  console.log(`══ 逐站板窗 ══ ${wideSt.length} 站基線 >0s（其餘沿用 ${GATE.winMax}s）`
+    + (wideSt.length ? `：${wideSt.map(([k, v]) => `${k} ${v}s→${winMaxOf(k)}s`).join('、')}` : ''));
+
   // ── 主掃描：每車次的 τ（各站實測時刻）、路段速度樣本、跑段內 f
   const trains = {}, segRaw = new Map(), diag = {};
   const dlyProbe = [];   // 誤點分層探測：同一節點在「準點日」與「誤點日」的 f 差異
@@ -347,15 +371,19 @@ async function main() {
         // 通過站：用 first 不用中點。中點的偏移隨板窗筆數劇烈漂移（n=1 −38s／n=4 +112s，極差 150s，
         // 而通過站有 49% 是 n=1），first 只有 15s 極差。板窗過寬或筆數多＝不是瞬間通過（隱藏停站、
         // 起站長掛上板），單一常數校不了 → 直接不當觀測點。
-        if (e.last - e.first > GATE.winMax || e.n >= GATE.nMax) { stat.rejWin++; continue; }
+        if (e.last - e.first > winMaxOf(oNames[i]) || e.n >= GATE.nMax) { stat.rejWin++; continue; }
         if (e.holeSuspect) { stat.rejHole++; continue; }   // 抓取斷線後的第一筆,first 不可信
         const tp = e.first - (calSt[oNames[i]] ?? CAL.first) + (PLACEBO ? placeboOff(t.train, names[i]) : 0);
-        m[i] = { arr: tp, dep: tp };
+        // relaxed＝只有靠逐站板窗放寬才進得來的觀測。這種只餵第一層（該車次自己的 f）,
+        // 不餵第二層路段速度表——第二層是全網共用的,一改就牽動每個靠它填補的折點,
+        // 而放寬的證據只在少數寬板窗站上成立,不足以支撐全網改動。
+        m[i] = { arr: tp, dep: tp, relaxed: e.last - e.first > GATE.winMax };
       }
       tau[d] = m;
       // 路段速度樣本
       for (let i = 0; i < s.length - 1; i++) {
         const A = m[i], B = m[i + 1]; if (!A || !B) continue;
+        if (A.relaxed || B.relaxed) continue;   // 見上：放寬進來的觀測不進第二層
         const dt = B.arr - A.dep;
         if (!(dt > 15) || dt > 3600) continue;
         const v = segKm[i] / (dt / 3600);
