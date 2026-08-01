@@ -320,6 +320,18 @@ function satRetinaAllowed() {
 }
 ```
 
+### ⚠️ 動 setBasemap／衛星層之前必讀（2026-08-02 由 `feat/trtc-live` session 提供，皆為已踩過的坑）
+
+1. **`satTileUrlBase` 必須維持頂層變數。** 把它移進函式裡讀 `TILES` 的症狀是**衛星鈕整顆消失**
+   （不是圖磚壞掉，是按鈕不見了，很難往這個方向想）。本 Task 只改「選哪一層」與「建幾層」，
+   **不要順手重構 URL 的取得方式**。
+2. **`SAT_SESSION_AT = 40` 的混合門檻是刻意的，不准簡化。** 載滿 40 張才換 Esri session 計價——
+   純 session 對「瞄一眼就走」的使用者更貴，損益兩平在 27 張。不要改成「一開站就換 session」。
+3. **成本背景（影響驗收時的判斷，不影響做法）**：Esri 本期計費期 07-16→08-15，
+   第 17/31 天已用 74.1%，估 08-04～08-05 見底、之後 $0.15/千。
+   Retina 是 4 倍圖磚量，但**只開給 Plus 訂閱者**（人數極少），淨增量有限。
+   驗收時若量到圖磚量暴增，先確認閘門是不是漏了（非 Plus 也吃到 Retina），不要當成正常。
+
 - [ ] **Step 2：圖層建構改成「兩層都建」**
 
 原本（約 `index.html:15909-15910`）：
@@ -595,6 +607,7 @@ struct RailFollowAttributes: ActivityAttributes {
     }
     var trainNo: String           // 車次
     var kind: String              // 車種(自強/區間/…);建立後不變的放這裡
+    var sys: String               // 系統別(tra_sched/thsr_sched/…)
 }
 
 private func delayText(_ sec: Int) -> String {
@@ -719,7 +732,8 @@ public final class RailLiveActivityPlugin: CAPPlugin, CAPBridgedPlugin {
         endCurrent()
         let attrs = RailFollowAttributes(
             trainNo: call.getString("trainNo") ?? "",
-            kind: call.getString("kind") ?? ""
+            kind: call.getString("kind") ?? "",
+            sys: call.getString("sys") ?? ""
         )
         do {
             let act = try Activity.request(
@@ -798,6 +812,7 @@ function laPayload(tr) {
   const last = tr.stops && tr.stops[tr.stops.length - 1];
   return {
     trainNo: String(tr.train || ''), kind: String(tr.kind || tr.typeName || ''),
+    sys: String(tr.sys || ''),   // 🔴 車次不是唯一鍵:台鐵與捷運/高鐵真的有同號車。凡以車次為鍵一律帶系統別
     nextStop: String(info.name || ''),
     arrivalIso: new Date(Date.now() + Math.max(0, info.min) * 60000).toISOString(),
     delaySec: Math.round(liveDelaySec(tr) || 0),
