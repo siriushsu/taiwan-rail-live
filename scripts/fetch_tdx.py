@@ -20,11 +20,26 @@ API_BASE = "https://tdx.transportdata.tw/api/basic/v2"
 HERE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 OUT = os.path.join(HERE, "data", "tdx")
 
+def _dotenv(name):
+    # 環境變數優先;沒有就退回 repo 根的 .env。每日巡檢排程(watch_official.mjs 那條線)
+    # 會無人值守地叫這支,要求呼叫端記得 export 就是遲早會漏的一步。
+    try:
+        with open(os.path.join(HERE, ".env"), encoding="utf-8") as f:
+            for ln in f:
+                ln = ln.strip()
+                if ln and not ln.startswith("#") and "=" in ln:
+                    k, v = ln.split("=", 1)
+                    if k.strip() == name:
+                        return v.strip().strip('"').strip("'")
+    except OSError:
+        pass
+    return None
+
 def get_token():
-    cid = os.environ.get("TDX_CLIENT_ID")
-    sec = os.environ.get("TDX_CLIENT_SECRET")
+    cid = os.environ.get("TDX_CLIENT_ID") or _dotenv("TDX_CLIENT_ID")
+    sec = os.environ.get("TDX_CLIENT_SECRET") or _dotenv("TDX_CLIENT_SECRET")
     if not cid or not sec:
-        sys.exit("ERROR: set TDX_CLIENT_ID and TDX_CLIENT_SECRET environment variables first.")
+        sys.exit("ERROR: 找不到 TDX_CLIENT_ID / TDX_CLIENT_SECRET(環境變數與 repo 根的 .env 都沒有)。")
     body = urllib.parse.urlencode({
         "grant_type": "client_credentials",
         "client_id": cid,
