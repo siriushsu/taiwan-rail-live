@@ -40,7 +40,8 @@ const server = createServer((req, res) => {
   res.end(readFileSync(fp));
 });
 await new Promise(r => server.listen(PORT, r));
-const BASE = `http://localhost:${PORT}/`;
+// PLUS_ENABLED 是 UI 總閘(網站端只認 ?plus=1)。不帶這個參數,plusOpen 畫不出方案卡,整支腳本會崩在 section A。
+const BASE = `http://localhost:${PORT}/?plus=1`;
 
 // 刻意用非真實佔位值:本 repo 公開,實際定價未拍板,不放進版控。
 // 判準只比「商店回傳什麼、UI 就顯示什麼」,不解析數值,故任何相異字串皆可。
