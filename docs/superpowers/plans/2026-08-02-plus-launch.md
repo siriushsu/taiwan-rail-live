@@ -686,7 +686,27 @@ git commit -m "feat(Plus): 創始會員徽章上護照，依訂閱起始時刻�
 
 ## Task 5：Live Activity LA-0（跟車即時動態）
 
-**這是本批次唯一的原生 Swift 工作，也是最大一塊。** 好消息是門檻比預期低很多：`RailBoardWidget` Extension 已經存在、deployment target 是 **17.6**（Live Activity 只要 16.1）、App Group `group.tw.railisland.app` 已通、JS↔Swift 橋接有 `RailPlacesPlugin` 當現成樣板。
+**這是本批次唯一的原生 Swift 工作，也是最大一塊。** 好消息是門檻比預期低很多：`RailBoardWidget` Extension 已經存在（**已在 `origin/main`**，不必等小工具分支）、App Group `group.tw.railisland.app` 兩邊的 entitlements 都已設、JS↔Swift 橋接有 `RailPlacesPlugin` 當現成樣板。
+
+🔴 **2026-08-02 更正（原文寫「deployment target 是 17.6」是錯的，會害實作者做出災難性的「修法」）**：
+這個 xcodeproj 有**兩個** deployment target，實查 `App.xcodeproj/project.pbxproj`：
+
+| target | bundle id | IPHONEOS_DEPLOYMENT_TARGET |
+|---|---|---|
+| App（主程式） | `tw.railisland.app` | **15.0** |
+| Widget Extension | `tw.railisland.app.RailBoardWidget` | 17.6 |
+
+`RailFollowActivity.swift` 放 Extension（17.6 ✓ 沒問題），但 **`RailLiveActivityPlugin.swift` 放 App target，
+它是對 iOS 15.0 編譯的**，而 `ActivityKit` 的 `Activity.request()` 需要 **16.1+** ⇒ **直接編不過**。
+
+⇒ **Plugin 裡所有碰 ActivityKit 的程式碼一律包 `if #available(iOS 16.1, *)`**
+（或在型別上標 `@available(iOS 16.1, *)`），並在 else 分支回一個明確的失敗給 JS，
+讓前端知道「這台裝置不支援」而不是靜默無反應。
+
+⇒ 🔴🔴 **絕對不准把 App target 的 `IPHONEOS_DEPLOYMENT_TARGET` 從 15.0 往上調來「修」這個編譯錯誤。**
+那會把所有 iOS 15／16.0 使用者**直接斷掉**，而且 diff 只有一行、複審極容易放過。
+Live Activity 是加值功能，不能拿「誰能用這個 App」去換。
+（這正是判準盲點形態 10 的形狀：規格寫錯 ⇒ 實作者「照著把它變成能跑」＝做出比原缺陷更嚴重的傷害。）
 
 **LA-0 的邊界（做這些、不做那些）**：純客端，零後端、零 APNs、零推播金鑰。倒數用 SwiftUI 的 `Text(timerInterval:)` 在客端自走；App 在前景時由既有的即時校正層推更新。**App 進背景久了誤點數字會停在最後一次更新的值**——這是 LA-0 的已知限制，不是缺陷（LA-1 才用 APNs 解）。
 
