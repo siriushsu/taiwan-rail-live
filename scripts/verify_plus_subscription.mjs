@@ -23,11 +23,16 @@
 import { chromium, webkit } from 'playwright';
 import { createServer } from 'node:http';
 import { readFileSync, existsSync, statSync, mkdirSync } from 'node:fs';
+import { createHash } from 'node:crypto';
 import path from 'node:path';
 import os from 'node:os';
 import { fileURLToPath } from 'node:url';
 
+// G0 自檢(心得32:驗收腳本第一道 gate 要印出驗的是哪個目錄):ROOT 由本檔自身路徑推導,
+// 不吃任何 --root／env 參數,結構上不會誤驗到別的 worktree;仍留一行可稽核紀錄。
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+console.log(`[G0] ROOT=${ROOT}`);
+console.log(`[G0] index.html md5=${createHash('md5').update(readFileSync(path.join(ROOT, 'index.html'))).digest('hex')}`);
 // 可推導,不寫死 session scratchpad 路徑(每個 session 都要手改一次的坑,2026-08-02)。
 const SHOT_DIR = process.env.SHOT_DIR || path.join(os.tmpdir(), 'rail-plus-shots');
 mkdirSync(SHOT_DIR, { recursive: true });
