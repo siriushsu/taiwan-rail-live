@@ -741,8 +741,9 @@ try {
   const DAY = 86400000;
 
   // days<0 = 截止日前開始訂閱(創始會員);days>0 = 截止日後(不是創始會員)
-  async function plusPage(days) {
-    const { ctx, page, errors } = await boot(cr, { width: 1280, height: 2200, query: '?plus=1' });
+  // vp 只換視窗尺寸/觸控,不改注入內容——6C 要的是「同一條真鏈路換一個容器」,鏈路本身必須一模一樣。
+  async function plusPage(days, vp = {}) {
+    const { ctx, page, errors } = await boot(cr, { width: 1280, height: 2200, ...vp, query: '?plus=1' });
     await page.evaluate(() => { try { localStorage.setItem('trainmap-passport-open', '1'); } catch (e) {} });
     await page.evaluate((d) => {
       const iso = new Date(FOUNDING_UNTIL_MS + d * 86400000).toISOString();
@@ -757,6 +758,15 @@ try {
         { identifier: '$rc_monthly', packageType: 'MONTHLY', webBillingProduct: { currentPrice: { formattedPrice: 'STUB-MONTH' } } },
         { identifier: '$rc_annual', packageType: 'ANNUAL', webBillingProduct: { currentPrice: { formattedPrice: 'STUB-YEAR' } } },
       ] };
+      // 每一支的回傳形狀都對著它在 app/src/native-bridge.mjs 的真身,不是「差不多就好」——
+      // fixture 與真身形狀不符時,產品碼裡為了吃真身而寫的正規化就沒有東西在守它,刪掉也全綠
+      // (N-2 實測過)。三支逐一對照(型別宣告 @revenuecat/purchases-capacitor definitions.d.ts):
+      //   getCustomerInfo → native-bridge 有 unwrap() ⇒ **裸** CustomerInfo(SDK 原回 {customerInfo})
+      //   getOfferings    → PurchasesOfferings = { all, current }
+      //   purchase        → purchasePackage() ⇒ MakePurchaseResult(含 customerInfo)
+      //   restore         → restorePurchases() ⇒ **{ customerInfo }**(definitions.d.ts:348-350)
+      // 這樣 plusPurchase()/plusRestore() 的 `result.customerInfo || result` 兩個分支各自被覆蓋到:
+      // 裸的那支走 `|| result`,包起來的兩支走 `.customerInfo`——正規化行變成承重的,刪掉會翻紅。
       window.RAIL_PLUS_TEST_ADAPTER = {
         calls: { getCustomerInfo: 0, getOfferings: 0, purchase: 0, restore: 0 },
         purchaseDate: iso,
@@ -764,7 +774,7 @@ try {
         getCustomerInfo: async function () { this.calls.getCustomerInfo++; return info(); },
         getOfferings: async function () { this.calls.getOfferings++; return { all: { plus: offering }, current: offering }; },
         purchase: async function () { this.calls.purchase++; return { customerInfo: info() }; },
-        restore: async function () { this.calls.restore++; return info(); },
+        restore: async function () { this.calls.restore++; return { customerInfo: info() }; },
       };
       state.plus = null;
       state.account = { ready: true, user: { uid: 'founding-test-uid', email: 'tester@example.com', displayName: '測試員' }, syncing: false, lastSync: 0, actionError: '', error: '' };
@@ -829,6 +839,33 @@ try {
       r3.active === true && r3.founding === true && r3.calls.restore === 1,
       `active=${r3.active} founding=${JSON.stringify(r3.founding)} wrote=${r3.wrote} calls=${JSON.stringify(r3.calls)} err=${r3.error}`);
 
+    // ── 登出路徑與渲染守門(N-1)──
+    // 這兩處在第 3 輪修好但零斷言:整個修回去,108/108 照樣全綠。刻意拆成兩條,因為兩處會**互相遮蔽**,
+    // 合成一條就會有一半沒牙:
+    //   ‧ accountClearLocal() 少清 founding 時,buildFoundingSeal() 的 active 守門仍會擋下徽章
+    //     ⇒ 畫面上看不出來,只有直接讀欄位才抓得到 ⇒ G6.9 斷言欄位值。
+    //   ‧ 反過來守門被拿掉時,founding 早就被清成 false ⇒ 欄位與畫面都正常 ⇒ 要另外造出
+    //     active:false + founding:true 這個「只有壞掉的寫入點才生得出來」的狀態去打它 ⇒ G6.10。
+    // 前一條剛好是後一條的前置:先登出(狀態已是 active:false),再手動把 founding 掰回 true。
+    const cleared = await page.evaluate(() => {
+      accountClearLocal(); // 內含 renderPassport(),登出當下的畫面就是這裡讀到的畫面
+      return { active: state.plus.active, founding: state.plus.founding };
+    });
+    const sealCleared = await readSeal(page);
+    ok('G6.9 登出(accountClearLocal())把 state.plus.founding 一起清成 false,護照上的徽章當場消失(active 與 founding 是兩個欄位;只清 active 會留下「已登出卻還掛著創始徽章」的畫面)',
+      cleared.active === false && cleared.founding === false && sealCleared.exists === false && sealCleared.passportHidden === false,
+      `active=${JSON.stringify(cleared.active)} founding=${JSON.stringify(cleared.founding)} seal=${JSON.stringify(sealCleared)}`);
+
+    const sealStale = await page.evaluate(() => {
+      state.plus.founding = true; // 只有「寫入點漏清 founding」才生得出來的殘留態
+      renderPassport();
+      const el = document.querySelector('#passport .ph-founding');
+      return { active: state.plus.active, founding: state.plus.founding, exists: !!el, passportHidden: document.getElementById('passport').hidden };
+    });
+    ok('G6.10 殘留態 active:false + founding:true(寫入點漏清時的樣子)→ buildFoundingSeal() 的 active 守門擋下,護照不畫徽章(不變式的第二道防線:不依賴每個寫入點都記得同步兩個欄位)',
+      sealStale.active === false && sealStale.founding === true && sealStale.exists === false && sealStale.passportHidden === false,
+      JSON.stringify(sealStale));
+
     ok('G6A 無 JS 例外', errors.length === 0, errors.slice(0, 3).join(' | '));
     await ctx.close();
   }
@@ -858,6 +895,41 @@ try {
     ok('G6B 無 JS 例外', errors.length === 0, errors.slice(0, 3).join(' | '));
     await ctx.close();
   }
+
+  // ── 6C:同一條真鏈路,換成 App 使用者真正看得到的容器(#ridePanel)(N-4)──
+  // 6A/6B 的端到端收尾查的是 #passport,而同一支腳本的 G2.*.2 自己就斷言了「#passport 在 body.fs 下
+  // display:none」——也就是那兩條「全鏈路」驗的正是 App 使用者看不到的那顆容器。這個功能的唯一受眾
+  // 是 App(WKWebView、≤900px)。G2/G5 驗過手機容器但用的是**手動塞 state**;兩半都有,缺的就是
+  // 「真 customerInfo 鏈路 × 手機容器」這個交集,補這一條。
+  // 面板刻意不再手動 renderRidePanel():點開當下就該有徽章,要靠補一次重繪才出現本身就是缺陷。
+  // passportDisplay==='none' 是這條的正向對照——它同時證明「我們真的在手機殼裡」,
+  // 否則視窗設定哪天失效,這條會退化成又一條桌面斷言而恆綠。
+  {
+    const { ctx, page, errors } = await plusPage(-1, { width: 375, height: 812, touch: true });
+    const fsOn = await page.evaluate(() => document.body.classList.contains('fs'));
+    const r1 = await callWriter(page, 'refresh', SENTINEL);
+    await page.click('#tabRide');
+    await page.waitForFunction(() => document.getElementById('ridePanel').hidden === false, null, { timeout: 10000 });
+    const seal = await page.evaluate(() => {
+      const el = document.querySelector('#ridePanel .ph-founding');
+      const r = el && el.getBoundingClientRect();
+      return {
+        exists: !!el,
+        display: el ? getComputedStyle(el).display : null,
+        area: r ? Math.round(r.width) * Math.round(r.height) : 0,
+        panelHidden: document.getElementById('ridePanel').hidden,
+        passportDisplay: getComputedStyle(document.getElementById('passport')).display,
+      };
+    });
+    ok('G6.11 端到端 × 手機 App 殼:375 觸控寬真呼叫 plusRefresh() 後點 #tabRide,徽章直接出現在使用者真正看得到的 #ridePanel(#passport 在 body.fs 下 display:none,6A 的收尾照不到這裡)',
+      fsOn === true && r1.active === true && r1.founding === true
+      && seal.exists === true && seal.display !== 'none' && seal.area > 0
+      && seal.panelHidden === false && seal.passportDisplay === 'none',
+      `fs=${fsOn} active=${r1.active} founding=${JSON.stringify(r1.founding)} ${JSON.stringify(seal)}`);
+
+    ok('G6C 無 JS 例外', errors.length === 0, errors.slice(0, 3).join(' | '));
+    await ctx.close();
+  }
   await cr.close();
 }
 
@@ -869,9 +941,11 @@ server.close();
 // 變小,「N/N PASS」看起來一模一樣漂亮。斷言數本身就是要被守住的東西,所以下面這張表是刻意手寫的:
 // 新增/刪除斷言時必須同步改它——改不動就代表有東西沒被跑到,那正是這道閘門要攔的。
 // (表不含這條閘門自己;它在把自己 push 進去之前先數,所以不會自我計數。)
-const EXPECTED_COUNTS = { G0: 9, G1: 11, G2: 43, G3: 6, G4: 3, G5: 24, G6: 11 };
+const EXPECTED_COUNTS = { G0: 9, G1: 11, G2: 43, G3: 6, G4: 3, G5: 24, G6: 15 };
 const actualCounts = {};
-for (const r of results) { const m = /^(G\d)/.exec(r.name); const k = m ? m[1] : '(未分組)'; actualCounts[k] = (actualCounts[k] || 0) + 1; }
+// `\d+`(不是 `\d`):只吃一位數的話,日後加的 G10 會被歸進 G1 ⇒ G1 被灌水,而 G1 自己少跑幾條時
+// 反而不會紅——一道用來防假綠的閘門自己製造假綠。
+for (const r of results) { const m = /^(G\d+)/.exec(r.name); const k = m ? m[1] : '(未分組)'; actualCounts[k] = (actualCounts[k] || 0) + 1; }
 const groupKeys = [...new Set([...Object.keys(EXPECTED_COUNTS), ...Object.keys(actualCounts)])].sort();
 const countMismatch = groupKeys.filter(g => (EXPECTED_COUNTS[g] || 0) !== (actualCounts[g] || 0));
 ok('G9 斷言總數閘門:每組實跑條數符合預期(條件式區塊整批消失時,分母變小不會被當成全綠)',
