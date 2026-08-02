@@ -3328,10 +3328,10 @@
         <li><span class="d">8/2</span><span>訂閱 Plus 後可以把正在跟的班次分享給朋友，對方點開連結就看得到車跑到哪、還要多久到</span></li>
         <li><span class="d">8/2</span><span>在 App 裡訂閱 Plus 後，衛星底圖會用高解析度圖磚（支援 Retina 螢幕）</span></li>
         <li><span class="d">8/2</span><span>最早訂閱 Plus 的人，App 的旅程護照上會有一枚創始會員徽章</span></li>
+        <li><span class="d">8/2</span><span>訂閱 Plus 後在 App 裡跟車，鎖定畫面和動態島會顯示下一站與到站時間</span></li>
         <li><span class="d">8/1</span><span>三鶯線跟上官方 8/1 延長：每天 08:00–22:00 都看得到車（原 10:00–20:00）</span></li>
         <li><span class="d">8/1</span><span>台鐵快車經過不停靠小站時的位置更準了——有網友拿碼錶實地量了十幾班車回報（謝謝）</span></li>
         <li><span class="d">8/1</span><span>衛星底圖換成比較省的計費方式：看到的畫面完全一樣，只是我們付給圖資供應商的錢少很多</span></li>
-        <li><span class="d">7/31</span><span>林鐵、高鐵有些車次號碼跟台鐵重複，台鐵誤點時同號的車會被一起推走——現在各算各的</span></li>
       </ul>
       <!-- 第二層:完整歷史。刻意不掛 .foot-box 類名——placeFootBoxes() 用
            `.site-foot .foot-box` 搬移面板,巢狀同名會被當成另一個盒子一起搬走。 -->
@@ -3395,6 +3395,7 @@
         <li><span class="d">7/13</span><span>收集章可以重複點，換搭不同班次回味</span></li>
         <li><span class="d">7/9</span><span>旅程護照與 16 枚成就徽章、「探」今日亮點面板上線</span></li>
         <li class="grp">手機與操作</li>
+        <li><span class="d">8/2</span><span>在 App 裡訂閱 Plus 後跟車，鎖定畫面與動態島會顯示這班車的下一站、到站時間與誤點；倒數自己會走，換一班車就換一張，停止跟車或跟到終點會自動收起來。需要 iOS 17.6 以上；App 退到背景比較久時，誤點數字會停在最後一次更新的值</span></li>
         <li><span class="d">7/30</span><span>iPhone 主畫面可以加「發車看板」小工具了，選好起站就能直接看下一班車——選站不用再整份下拉，先挑縣市就會跳到那一區</span></li>
         <li><span class="d">7/30</span><span>車站看板與跟車面板可以調高度了：手機拉一下（或點一下）面板上緣的把手，在小／中／大之間切換。原本「大」只是上限、內容短的時候三段一樣高，拉了像沒作用；現在「大」有保證高度，車站看板也會跟著多列幾班車</span></li>
         <li><span class="d">7/30</span><span>新增 iPhone 主畫面小工具「發車看板」：長按桌面加入後選一個起站（可以再加目的站），桌面就會列出接下來幾班車；還能「只看這些」，例如只留自強號、或只盯自己每天搭的那幾班。選起站不必再整份 250 站下拉：清單依縣市分段，由北到南排</span></li>
@@ -8418,6 +8419,7 @@ function clearFollow() {
   if (state._trip) { state._trip = null; renderTripBanner(); }
   closeTripSharePanel();
   placeTrainCard(); // followTrain 已清空 → 還原資訊卡到地圖下方
+  laSync(null); // 跟車即時動態:停止跟車就收卡片(updateFollowPanel 開頭早退,走不到它結尾那一處)
   placeControls(false);
   (state._placeFsOverlays || (() => {}))(document.body.classList.contains('fs'));
 }
@@ -9419,6 +9421,43 @@ function toggleFav(tr) {
   }
   saveFavs(favs); renderFavs(); renderFavPanel(); updateStar();
 }
+// ── 跟車即時動態(Live Activity)＝Plus 且原生殼才有 ──
+// 純客端:App 在前景時推更新,進背景後倒數由系統自走、誤點數字停在最後一次的值(LA-0 的已知邊界)。
+const LIVE_ACTIVITY_ENABLED = !!window.RAIL_NATIVE_LIVEACTIVITY;
+function liveActivityAllowed() {
+  return LIVE_ACTIVITY_ENABLED && !!(state.plus && state.plus.active);
+}
+// 下一站與倒數完全沿用跟隨面板那一套(updateFollowPanel):nextStopInfo() 回 {name, min, at},
+// min=距抵達分鐘數、at=表定時刻(秒)。Live Activity 只是把它算好的值搬過去,不另造演算法。
+function laPayload(tr) {
+  const info = nextStopInfo(tr, effTLive(tr)); if (!info) return null;
+  const last = tr.stops && tr.stops[tr.stops.length - 1];
+  return {
+    trainNo: String(tr.train || ''), kind: String(tr.kind || tr.typeName || ''),
+    sys: String(tr.sys || ''),   // 🔴 車次不是唯一鍵:台鐵與捷運/高鐵真的有同號車。凡以車次為鍵一律帶系統別
+    nextStop: String(info.name || ''),
+    arrivalIso: new Date(Date.now() + Math.max(0, info.min) * 60000).toISOString(),
+    delaySec: Math.round(liveDelaySec(tr) || 0),
+    terminus: String((last && last.name) || ''),
+  };
+}
+let _laLast = 0, _laKey = '';
+function laSync(tr, force) {
+  if (!LIVE_ACTIVITY_ENABLED) return;
+  const api = window.RAIL_NATIVE_LIVEACTIVITY;
+  if (!tr || !liveActivityAllowed()) { api.end(); _laLast = 0; _laKey = ''; return; }
+  const p = laPayload(tr);
+  if (!p) { api.end(); _laLast = 0; _laKey = ''; return; } // info 為 null＝已抵達終點,收卡片
+  const now = Date.now();
+  // 🔴 用「這是哪一台車」決定開新卡,不是用 force。force 只代表「立刻推一次別等節流」。
+  //    原稿的 `if (force || !_laLast) api.start(p)` 會依呼叫順序而定:若 updateFollowPanel
+  //    先跑(_laLast=0 ⇒ start),followTrainNo 的 force 再跑一次 start ⇒ 同一台車開兩張卡。
+  const key = p.sys + '#' + p.trainNo;
+  if (key !== _laKey) { _laKey = key; _laLast = now; api.start(p); return; } // 首次或換車
+  if (force) { _laLast = now; api.update(p); return; }                       // 同一台車:只推不重開
+  if (now - _laLast < 10000) return;          // 節流:倒數由系統自走,逐秒推是浪費
+  _laLast = now; api.update(p);
+}
 // 跟隨指定車次;在捷運頁會先切回時刻表系統(預設台鐵)。opts.fromStart:護照灰章用,從發車開始固定倍速看完才算完乘
 // opts.sys:呼叫端知道這班車屬於哪個時刻表系統時一定要傳(issue #16 重號)。傳了就三處都認它——
 // 切系統時切到它、findTrain 只在它裡面找、跨系統補找也只找它;沒傳才維持舊的「誰先找到算誰」。
@@ -9441,6 +9480,7 @@ function followTrainNo(no, opts) {
   if (tr) {
     const ts = document.getElementById('trainSearch'); if (ts) ts.value = no;
     setFollow(tr, false, false, opts);
+    laSync(tr, true); // 跟車即時動態:成功跟上就立刻推一次,不等 updateFollowPanel 的節流
   } else showSearchMiss(no + '（今日無此班次）');
 }
 function removeFav(no) {
@@ -12570,6 +12610,7 @@ function updateFollowPanel(tr) {
       });
     }
   }
+  laSync(tr, false); // 跟車即時動態:本函式每秒被叫,節流交給 laSync
 }
 
 function renderFollowBar(msg) {

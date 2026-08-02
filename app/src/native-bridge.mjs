@@ -19,6 +19,13 @@ if (native) {
     window.RAIL_NATIVE_PLACES = {
       sync: places => RailPlaces.sync({ places })
     };
+
+    const RailLiveActivity = registerPlugin('RailLiveActivity');
+    window.RAIL_NATIVE_LIVEACTIVITY = {
+      start: p => RailLiveActivity.start(p),
+      update: p => RailLiveActivity.update(p),
+      end: () => RailLiveActivity.end(),
+    };
   }
 
   window.RAIL_NATIVE_AUTH = {

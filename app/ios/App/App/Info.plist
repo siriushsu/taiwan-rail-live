@@ -22,6 +22,9 @@
 	<string>$(CURRENT_PROJECT_VERSION)</string>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
+	<!-- 跟車即時動態（Live Activity）：少了這把 Activity.request() 會直接丟 ActivityAuthorizationError -->
+	<key>NSSupportsLiveActivities</key>
+	<true/>
 	<!-- 軌島只用 HTTPS 標準加密（屬出口管制豁免）；宣告 false 讓送審不再詢問加密合規，也不需上傳加密文件 -->
 	<key>ITSAppUsesNonExemptEncryption</key>
 	<false/>
