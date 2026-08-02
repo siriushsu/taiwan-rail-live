@@ -17,7 +17,7 @@
 // (elementHandle.screenshot() 解碼,免原生 PNG 依賴,技法照抄
 // verify_translucent_contrast.mjs 已驗證過的做法);每條新斷言配一發瞄準它的突變
 // (founding:false 控制組必須翻紅、外加一發驗「像素檢查本身有沒有牙」的自檢)。
-import { chromium } from 'playwright';
+import { chromium, webkit } from 'playwright';
 import { createServer } from 'node:http';
 import { readFileSync, existsSync, statSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
@@ -538,6 +538,127 @@ const results_dir = path.join(ROOT, 'scratchpad'); // repo 的 scratchpad/ 已�
   const restoreHasFounding = /p\.founding\s*=\s*p\.active\s*&&\s*foundingFrom\(info\)/.test(restoreBody);
   ok('G4.2 plusRestore() 現在也寫入 p.founding(裁示二補齊的第 3 個同形寫入點,形狀與 plusRefresh/plusPurchase 一致)',
     restoreHasFounding, restoreHasFounding ? '有' : '沒有(裁示二應已補上,見 index.html plusRestore() 內)');
+}
+
+// ═══════════════ Group 5:WebKit(創始徽章唯一的真實受眾——App 全部走 WKWebView)═══════════════
+// 前面 71 條全是 chromium。這個功能的判定(founding)只有 App 拿得到,全部受眾都在 App=WKWebView
+// =WebKit,chromium 全綠對這個功能的真實使用者等於沒驗到目標引擎——本專案有明確前例:WebKit
+// 算 flex 容器內在寬度時不認子項的 flex-basis、只認顯式 width,曾把一排按鈕壓成 14px、chromium
+// 全綠使用者截圖才發現。CSS 現況(index.html:1013-1019)風險具體且已核對:.pf-mark 有
+// flex:none+顯式 width:30px(安全);.pf-txt 是同一個 flex row 裡的 item,只有
+// `display:flex;flex-direction:column;line-height:1.35`,沒有顯式 width、沒有 flex 覆寫——
+// 形狀與踩過的坑一致,必須實測,不能用「應該沒事」帶過。
+try {
+  const wk = await webkit.launch();
+  const webkitPfMetrics = {}; // 存每個寬度量到的 .pf-txt 數據,給後面跨引擎比對用
+  for (const [w, h] of [[360, 780], [375, 812], [414, 896]]) {
+    const { ctx, page, errors } = await boot(wk, { width: w, height: h, touch: true });
+    await injectCollector(page);
+
+    // 真觸控(hasTouch/isMobile 由 boot() 的 touch:true 設好)+ 真點 #tabRide,不繞過
+    // renderRidePanel() 開頭的 `if (el.hidden) return;` 早退,與 G2.*.3 同一套邏輯。
+    await page.evaluate(() => { state.plus = { active: true, founding: true }; });
+    await page.tap('#tabRide');
+    await page.waitForFunction(() => document.getElementById('ridePanel').hidden === false, null, { timeout: 10000 });
+    await fitViewport(page);
+
+    const ride = await page.evaluate(() => window.__rlHitTest('#ridePanel', { scrollIntoView: true }));
+    const hiddenAfterOpen = await page.evaluate(() => document.getElementById('ridePanel').hidden);
+    const badge = ride.report.find(e => e.sig.startsWith('DIV.ph-founding|'));
+    ok(`G5.${w}.0(webkit 真觸控)真點 #tabRide 開面板後,#ridePanel 不再 hidden 且含 .ph-founding`,
+      hiddenAfterOpen === false && !!badge, `hidden=${hiddenAfterOpen} badge=${!!badge}`);
+
+    const overflow = ride.report.filter(e => e.overflowH);
+    ok(`G5.${w}.1(webkit)#ridePanel 全部可見後代零水平溢出`,
+      overflow.length === 0,
+      overflow.length ? overflow.map(e => e.sig + ' rect=' + e.rect.join(',')).join(' ; ') : `共 ${ride.report.length} 個元素`);
+
+    const hitFail = ride.report.filter(e => e.hitFails && e.hitFails.length);
+    ok(`G5.${w}.2(webkit)#ridePanel 全部有文字的可見後代,多點 elementFromPoint 皆命中自己`,
+      hitFail.length === 0,
+      hitFail.length ? hitFail.map(e => e.sig + ':' + e.hitFails.join('/')).join(' ; ') : `測了 ${ride.report.filter(e => e.ownText).length} 個有文字元素`);
+
+    const px = await pixelStats(page, '.ph-founding');
+    const visiblyDistinct = !!px && px.distinctColors >= 4 && px.lumRange >= 20;
+    ok(`G5.${w}.3(webkit).ph-founding 實際渲染像素非底色`, visiblyDistinct, JSON.stringify(px));
+
+    // 直接量協調者點名的那個坑:.pf-txt 有沒有被 WebKit 已知的 flex-basis:auto 內在寬度算法
+    // 縮到只剩 min-content(理論上限:CJK 換行幾乎不受限,崩壞可以窄到剩一個字)。
+    // 第一版在這裡假設「健康情況=吃滿剩餘空間」算了個 expectedTxtW 直接比對,結果 360/375/414
+    // 全 FAIL——但同一個 formula 拿去 chromium(已知沒有這個坑的引擎)當正向對照,一樣 FAIL
+    // 且兩個引擎的 txtW 幾乎一模一樣(webkit 182.75px vs chromium 184px,誤差 1.25px)。
+    // 這證明錯的是 formula 本身,不是版面:.pf-txt 沒有設 flex-grow,預設 `flex:0 1 auto`
+    // 本來就不會撐滿剩餘空間(那段空白留白是 CSS 規格下的正確行為,不是 bug),两個引擎在這點上
+    // 完全一致。改成兩層真正有鑑別力的檢查:①「有沒有崩到不合理窄」的樓地板(遠低於健康值
+    // 183px 才會觸發)②「有沒有超出剩餘空間」的天花板(超出就會被 G5.*.1 的窮舉溢出檢查連帶
+    // 抓到,這裡多一層對 .pf-txt 專屬的直接證據)。真正回答「WebKit 算得跟 chromium 不一樣嗎」
+    // 的是下面 G5.control 的跨引擎數字比對,不是這裡自證的樓地板。
+    const pfMetrics = await page.evaluate(() => {
+      const founding = document.querySelector('.ph-founding');
+      const mark = document.querySelector('.pf-mark');
+      const txt = document.querySelector('.pf-txt');
+      const iEl = document.querySelector('.pf-txt i');
+      const csF = getComputedStyle(founding);
+      const contentW = founding.clientWidth - parseFloat(csF.paddingLeft) - parseFloat(csF.paddingRight);
+      const gap = parseFloat(csF.columnGap || csF.gap) || 10;
+      const markW = mark.getBoundingClientRect().width;
+      const txtW = txt.getBoundingClientRect().width;
+      return { contentW, markW, txtW, remainingSpace: contentW - markW - gap, iLines: iEl ? Array.from(iEl.getClientRects()).length : -1 };
+    });
+    webkitPfMetrics[w] = pfMetrics;
+    const MIN_SANE_PX = 100; // 健康值 183px 的樓地板,遠高於「崩成 min-content」會落到的範圍(單一 CJK 字約 15-20px)
+    const notCollapsed = pfMetrics.txtW > MIN_SANE_PX;
+    const notOverflowing = pfMetrics.txtW <= pfMetrics.remainingSpace + 2; // +2px 容錯
+    ok(`G5.${w}.4(webkit).pf-txt 寬度沒有崩到不合理窄(>${MIN_SANE_PX}px,排除 min-content 崩塌)且沒有超出剩餘空間(≤剩餘空間+2px)`,
+      notCollapsed && notOverflowing, JSON.stringify(pfMetrics));
+
+    // 突變:founding:false 重繪同一面板,徽章消失——證明上面幾條在 WebKit 這個引擎上真的在測
+    // 這個開關,不是恰好通過的死規則。chromium 已證明過的突變不能直接套用到另一個引擎,
+    // 兩者是獨立的渲染/JS 引擎,各自要有自己的牙。
+    const ride2 = await page.evaluate(() => { state.plus = { active: true, founding: false }; renderRidePanel(); return window.__rlHitTest('#ridePanel', { scrollIntoView: true }); });
+    const badgeGone = !ride2.report.some(e => e.sig.startsWith('DIV.ph-founding'));
+    ok(`G5.${w}.5(webkit,突變)founding:false 重繪同一面板 → .ph-founding 消失(證明上面幾條在 WebKit 上有牙)`,
+      badgeGone, `count=${ride2.report.filter(e => e.sig.includes('ph-founding')).length}`);
+
+    ok(`G5.${w} 無 JS 例外`, errors.length === 0, errors.slice(0, 3).join(' | '));
+    await ctx.close();
+  }
+
+  // 真正回答「WebKit 是不是把 .pf-txt 算得跟 chromium 不一樣」的檢查:同一寬度(375)下,
+  // 兩個引擎的 .pf-txt 實測寬度/換行數直接比對數字,不是各自跟自己的假設比。誤差容許 5px
+  // (次像素字型渲染/kerning 的正常引擎間差異,不是版面 bug)。
+  const crCheck = await chromium.launch();
+  {
+    const { ctx, page, errors } = await boot(crCheck, { width: 375, height: 812, touch: true });
+    await page.evaluate(() => { state.plus = { active: true, founding: true }; });
+    await page.click('#tabRide');
+    await page.waitForFunction(() => document.getElementById('ridePanel').hidden === false, null, { timeout: 10000 });
+    const pfMetrics = await page.evaluate(() => {
+      const founding = document.querySelector('.ph-founding');
+      const mark = document.querySelector('.pf-mark');
+      const txt = document.querySelector('.pf-txt');
+      const iEl = document.querySelector('.pf-txt i');
+      const csF = getComputedStyle(founding);
+      const contentW = founding.clientWidth - parseFloat(csF.paddingLeft) - parseFloat(csF.paddingRight);
+      const gap = parseFloat(csF.columnGap || csF.gap) || 10;
+      const markW = mark.getBoundingClientRect().width;
+      const txtW = txt.getBoundingClientRect().width;
+      return { contentW, markW, txtW, remainingSpace: contentW - markW - gap, iLines: iEl ? Array.from(iEl.getClientRects()).length : -1 };
+    });
+    const wkAt375 = webkitPfMetrics[375];
+    const widthDiff = Math.abs(pfMetrics.txtW - wkAt375.txtW);
+    ok(`G5.control(375).pf-txt 實測寬度跨引擎一致(誤差≤5px)`,
+      widthDiff <= 5, `chromium=${pfMetrics.txtW} webkit=${wkAt375.txtW} diff=${widthDiff.toFixed(2)}px`);
+    ok(`G5.control(375).pf-txt 副標換行數跨引擎一致`,
+      pfMetrics.iLines === wkAt375.iLines, `chromium iLines=${pfMetrics.iLines} webkit iLines=${wkAt375.iLines}`);
+    ok('G5.control 無 JS 例外', errors.length === 0, errors.slice(0, 3).join(' | '));
+    await ctx.close();
+  }
+  await crCheck.close();
+
+  await wk.close();
+} catch (e) {
+  ok('G5 webkit 手機路徑全項', false, 'webkit 啟動或執行失敗:' + String(e).slice(0, 300));
 }
 
 server.close();
