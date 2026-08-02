@@ -91,11 +91,16 @@ public final class RailLiveActivityPlugin: CAPPlugin, CAPBridgedPlugin {
     }
 
     @objc func update(_ call: CAPPluginCall) {
-        guard #available(iOS 17.6, *), let act = current as? Activity<RailFollowAttributes> else {
-            call.resolve(["ok": false, "why": "noactivity"]); return
-        }
+        guard #available(iOS 17.6, *) else { call.resolve(["ok": false, "why": "ios<17.6"]); return }
         let next = state(from: call)
         enqueue {
+            // 🔴 current 只能在 main queue 上讀(見上面 enqueue 的註解),而 Capacitor 的 plugin 方法
+            //    跑在它自己的背景序列佇列上 ⇒ 在 enqueue 外面讀它,一是對 var 的跨執行緒讀寫,
+            //    二是必定讀到 start 尚未寫入的舊值 ⇒ 跟上車後緊接的那發 force update 一律回
+            //    noactivity。start／end／load 三支都守著這條不變量,只有這裡漏在外面。
+            guard let act = self.current as? Activity<RailFollowAttributes> else {
+                call.resolve(["ok": false, "why": "noactivity"]); return
+            }
             await act.update(.init(state: next, staleDate: Date().addingTimeInterval(8 * 3600)))
             call.resolve(["ok": true])
         }

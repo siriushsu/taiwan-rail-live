@@ -9433,6 +9433,8 @@ function laPayload(tr) {
   const info = nextStopInfo(tr, effTLive(tr)); if (!info) return null;
   const last = tr.stops && tr.stops[tr.stops.length - 1];
   return {
+    // tr.kind 目前恆為 undefined(四份班表共 2206 筆車次沒有一筆有這欄),實際一律落到 typeName。
+    // 保留第一順位是防禦性寫法:哪天班表補上這欄,卡片會自動跟著跑,不必再改這裡。
     trainNo: String(tr.train || ''), kind: String(tr.kind || tr.typeName || ''),
     sys: String(tr.sys || ''),   // 🔴 車次不是唯一鍵:台鐵與捷運/高鐵真的有同號車。凡以車次為鍵一律帶系統別
     nextStop: String(info.name || ''),
@@ -9441,22 +9443,47 @@ function laPayload(tr) {
     terminus: String((last && last.name) || ''),
   };
 }
-let _laLast = 0, _laKey = '';
+let _laLast = 0, _laKey = '', _laDead = false;
+// 收卡。🔴 沒開過卡(_laKey 空)就不送:未訂閱者跟車時這裡每秒都會被走到一次,無條件送等於
+// 每秒過一次橋做白工。開機掃孤兒住在原生端的 load(),與這一發 end 無關,少送不會漏掉孤兒。
+function laStop(api) {
+  if (_laKey) Promise.resolve(api.end()).catch(() => {});
+  _laLast = 0; _laKey = '';
+}
 function laSync(tr, force) {
-  if (!LIVE_ACTIVITY_ENABLED) return;
+  if (!LIVE_ACTIVITY_ENABLED || _laDead) return;
   const api = window.RAIL_NATIVE_LIVEACTIVITY;
-  if (!tr || !liveActivityAllowed()) { api.end(); _laLast = 0; _laKey = ''; return; }
+  // 🔴 時光機/加速中一律不推卡片:鎖定畫面的倒數是以真實時鐘 1× 自走的,模擬時鐘不是
+  //    ——護照灰章重播撥回發車前並轉 30×,搜尋「今天已跑完/還沒發車」的車也會撥時鐘(setFollow
+  //    兩個分支都清 clockAtNow),推出去就是一個憑空捏造、而且真的在走的倒數,使用者無從分辨真假。
+  //    判準與 clockDriftGuard 同一組(跟著現在＋播放中＋1×＋沒在拖時刻尺)。
+  const liveClock = state.clockAtNow && state.playing && state.speedMult === 1 && !state._scrubTime;
+  if (!tr || !liveActivityAllowed() || !liveClock) { laStop(api); return; }
   const p = laPayload(tr);
-  if (!p) { api.end(); _laLast = 0; _laKey = ''; return; } // info 為 null＝已抵達終點,收卡片
+  if (!p) { laStop(api); return; } // info 為 null＝已抵達終點,收卡片
   const now = Date.now();
   // 🔴 用「這是哪一台車」決定開新卡,不是用 force。force 只代表「立刻推一次別等節流」。
   //    原稿的 `if (force || !_laLast) api.start(p)` 會依呼叫順序而定:若 updateFollowPanel
   //    先跑(_laLast=0 ⇒ start),followTrainNo 的 force 再跑一次 start ⇒ 同一台車開兩張卡。
   const key = p.sys + '#' + p.trainNo;
-  if (key !== _laKey) { _laKey = key; _laLast = now; api.start(p); return; } // 首次或換車
-  if (force) { _laLast = now; api.update(p); return; }                       // 同一台車:只推不重開
+  if (key !== _laKey) {                       // 首次、換車,或上一發 start 失敗後的重試
+    // 上一發 start 失敗會把 _laKey 清掉但保留 _laLast ⇒ 這裡擋住「每秒重試一次」的洗版;
+    // 換車時 _laKey 非空,不受這道節流影響,照樣立刻開新卡。
+    if (!_laKey && now - _laLast < 10000) return;
+    _laKey = key; _laLast = now;
+    // 🔴 原生端有三條「resolve 而不是 reject」的失敗路徑(裝置低於 17.6／使用者在系統設定
+    //    關掉即時動態／Activity.request 丟錯)。不看回傳就等於:_laKey 已寫入 ⇒ 之後只走 update
+    //    ⇒ 每發都回 noactivity ⇒ 這台車直到換車前永遠不會有卡片,而且零診斷零重試。
+    Promise.resolve(api.start(p)).then(r => {
+      if (r && r.ok) return;
+      if (r && r.why === 'ios<17.6') _laDead = true;      // 這台裝置本來就不支援,重試只是浪費
+      if (_laKey === key) _laKey = '';                    // 其餘:清鍵,節流窗到期後自然重試
+    }).catch(() => { if (_laKey === key) _laKey = ''; }); // 比較新的那張卡不能被舊的失敗回呼清掉
+    return;
+  }
+  if (force) { _laLast = now; Promise.resolve(api.update(p)).catch(() => {}); return; } // 同一台車:只推不重開
   if (now - _laLast < 10000) return;          // 節流:倒數由系統自走,逐秒推是浪費
-  _laLast = now; api.update(p);
+  _laLast = now; Promise.resolve(api.update(p)).catch(() => {});
 }
 // 跟隨指定車次;在捷運頁會先切回時刻表系統(預設台鐵)。opts.fromStart:護照灰章用,從發車開始固定倍速看完才算完乘
 // opts.sys:呼叫端知道這班車屬於哪個時刻表系統時一定要傳(issue #16 重號)。傳了就三處都認它——
