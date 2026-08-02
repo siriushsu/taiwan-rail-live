@@ -3314,13 +3314,13 @@
       <ul class="foot-list foot-recent">
         <li class="grp">最近更新</li>
         <li><span class="d">8/2</span><span>訂閱軌島 Plus 後可以用軌島帳號登入，收藏的地點與完乘記錄會在手機和電腦之間同步</span></li>
+        <li><span class="d">8/2</span><span>訂閱軌島 Plus 後可以分享「行程」：把正在跟的班次和目的站傳給朋友，對方點開連結就看得到車跑到哪、還要多久到，不用你一直回報位置</span></li>
         <li><span class="d">8/1</span><span>三鶯線跟上官方 8/1 延長：每天 08:00–22:00 都看得到車（原 10:00–20:00）</span></li>
         <li><span class="d">8/1</span><span>台鐵快車經過不停靠小站時的位置更準了——有網友拿碼錶實地量了十幾班車回報（謝謝）</span></li>
         <li><span class="d">8/1</span><span>衛星底圖換成比較省的計費方式：看到的畫面完全一樣，只是我們付給圖資供應商的錢少很多</span></li>
         <li><span class="d">7/31</span><span>林鐵、高鐵有些車次號碼跟台鐵重複，台鐵誤點時同號的車會被一起推走——現在各算各的</span></li>
         <li><span class="d">7/31</span><span>誤點的車，跟車面板比地圖上的車慢半拍：車停在站上卻寫「行進中」，現在修好了（謝謝網友回報）</span></li>
         <li><span class="d">7/30</span><span>iPhone 發車看板的起站與目的站選單會列出你在軌島存過的「我的地點」：選了「家」，桌面顯示的就是「家」；日後把「家」重存到別的地方，桌面也會自己跟過去</span></li>
-        <li><span class="d">7/30</span><span>搜尋今天已經跑完的車，現在會帶你回到它發車前，不再當場亂蓋完乘章（謝謝網友回報）</span></li>
       </ul>
       <!-- 第二層:完整歷史。刻意不掛 .foot-box 類名——placeFootBoxes() 用
            `.site-foot .foot-box` 搬移面板,巢狀同名會被當成另一個盒子一起搬走。 -->
@@ -6052,6 +6052,13 @@ const FORCE_BREATH = (() => { try { return new URLSearchParams(location.search).
 // 行程分享(暗啟動):v1 建置完成、旗標關閉出貨,訂閱上線才開(比照 RECORDING_ENABLED 模式)。只鎖「發起端」入口;
 // 接收端 ?trip= 解碼永遠作用(payload 本來就公開,不鎖)。?tripshare=1 當次開發起端測試(比照 ?breath=1,僅該次頁面生效)。
 const TRIP_SHARE_ENABLED = (() => { try { return new URLSearchParams(location.search).get('tripshare') === '1'; } catch (e) { return false; } })();
+// 行程分享發起端＝Plus。這支只管「鈕要不要出現」,不等於放行——
+// ?tripshare=1 是開發測試通道,它點亮入口讓版面看得到,但按下去仍會被 plusGateOpen 攔去訂閱。
+// 兩段式(顯示 vs 放行)是刻意的:URL 參數可以被轉貼,不能讓它變成公開後門。
+// 接收端 ?trip= 永遠免費解碼,不受這裡影響。
+function tripShareVisible() {
+  return TRIP_SHARE_ENABLED || !!(state.plus && state.plus.active);
+}
 // ?demo=collect／off:備援站確認設計用的示範收集資料開關。**必須在這裡就讀進來**——
 // boot 途中 clearFollow() 會 `history.replaceState(null,'',location.pathname)` 把 query string 抹掉,
 // 等到 setupCollectDemo 才讀就已經是空的(實測線上站正是如此,本機因載入快剛好躲過)。
@@ -12386,7 +12393,7 @@ function showFollowPanel(tr) {
   fp.hidden = false;
   // 行程分享發起入口:暗啟動旗標開 + 台鐵/高鐵一般班次(捷運 v1 不做、環島觀光列車無固定目的站→不顯)
   const tsBtn = document.getElementById('fpTripShare');
-  if (tsBtn) tsBtn.hidden = !(TRIP_SHARE_ENABLED && !tr.loop && !!tripSysCode(tr.sys));
+  if (tsBtn) tsBtn.hidden = !(tripShareVisible() && !tr.loop && !!tripSysCode(tr.sys));
   const notifyBtn = document.getElementById('fpNotify');
   if (notifyBtn) notifyBtn.style.display = NOTIFY_LOCAL_ENABLED && !!reminderSysOf(tr) ? '' : 'none';
   if (state._followTrainPrev !== tr) { state._followTrainPrev = tr; closeRideBox(); } // 換一班車就收起選單,不要沿用上一班的站
@@ -16431,7 +16438,10 @@ function renderTripBanner() {
   }
 }
 function closeTripBanner() { state._tripClosed = true; document.getElementById('tripBanner').hidden = true; } // 關橫幅不退跟車
-document.getElementById('fpTripShare').onclick = (e) => { e.stopPropagation(); openTripSharePanel(); };
+document.getElementById('fpTripShare').onclick = (e) => {
+  e.stopPropagation();
+  plusGateOpen('trip-share', () => openTripSharePanel()); // 非 Plus→導去訂閱;已訂閱→直接開面板
+};
 // #fpRide 網頁端開機會被 updateRideBtn 整顆 remove()(平台分界,見該函式開頭的
 // PHYSICAL_COLLECT_ENABLED 分支);這裡是 top-level 綁定,若執行當下它已經不在,原本會直接
 // 拋錯讓這行之後所有 top-level 綁定全滅。目前所有 updateRideBtn 呼叫點都在非同步路徑,不會

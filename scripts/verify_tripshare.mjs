@@ -108,6 +108,18 @@ if (sharedUrl) {
   await followInPage(page, p.no);
   const entry = await page.evaluate(() => { const b = document.getElementById('fpTripShare'); return { hidden: b.hidden, visible: !!b.offsetParent }; });
   ok('B1 ?tripshare=1 + 跟台鐵車 → 入口出現', entry.hidden === false && entry.visible === true, JSON.stringify(entry));
+  // B1b(2026-08-02,Plus 開賣 Task 2 新增):顯示≠放行——?tripshare=1 只點亮入口,未訂閱時點下去
+  // 要被 plusGateOpen 攔去帳號/訂閱面板,不能直接開選站面板。注入「已登入但未訂閱」態驗證。
+  await page.evaluate(() => {
+    state.account = { ready: true, user: { uid: 'gate-test-uid', email: 't@example.com', displayName: null }, syncing: false, lastSync: 0, actionError: '', error: '' };
+    state.plus = { active: false, loading: false, error: '', pkgMonthly: null, pkgAnnual: null, mgmtUrl: '', adapter: null, afterUnlock: null };
+  });
+  await page.click('#fpTripShare');
+  await page.waitForTimeout(150);
+  const gateUp = await page.evaluate(() => ({ plusModalOpen: !document.getElementById('plusModal').hidden, panelOpen: !document.getElementById('tripPanel').hidden }));
+  ok('B1b 未訂閱點入口 → 開 Plus 視窗,選站面板不開(plusGateOpen 攔截)', gateUp.plusModalOpen === true && gateUp.panelOpen === false, JSON.stringify(gateUp));
+  // 模擬購買完成(已訂閱):讓下面 B2-B4 測的是面板本身內容與連結格式,閘門本身已在 B1b 測過。
+  await page.evaluate(() => { document.getElementById('plusModal').hidden = true; state.plus.active = true; });
   await page.click('#fpTripShare');
   const panelUp = await page.evaluate(() => { const el = document.getElementById('tripPanel'); return { open: !el.hidden, rows: el.querySelectorAll('.row[data-dest]').length, closeInH3: !!el.querySelector('h3 .close') }; });
   ok('B2 選目的站面板開啟(有剩餘停站列)', panelUp.open && panelUp.rows > 0, JSON.stringify(panelUp));
