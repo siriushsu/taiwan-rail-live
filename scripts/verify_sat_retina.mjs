@@ -20,6 +20,10 @@
 //   - deviceScaleFactor 全程 ≥2,否則 detectRetina 對誰都不生效,情境 3/4 測不出差異。
 //   - Esri 圖磚全程用 page.route 攔截並回應本機小圖(絕不打真正的 ibasemaps-api,不需要真
 //     token)——圖磚是按張計費的,驗收不該燒真額度,也不該依賴外部服務的可用性。
+//   - 情境6(2026-08-02 Task 6b 補 S1)是刻意的例外:它就是要驗「APP_CFG.satRetina 沒被
+//     注入」這條路徑本身(網站真實預設),所以改傳 appCfg:null。與上面「固定環境」的原則
+//     不衝突——上面固定的是「資格/跟車」以外的變數,這裡動的正是「網站有沒有開這個平台開關」
+//     這個變數本身,而且只有這一個情境動它,其餘情境仍全程固定 true。
 import { chromium, webkit } from 'playwright';
 import { createServer } from 'node:http';
 import { readFileSync, existsSync, statSync } from 'node:fs';
@@ -59,12 +63,15 @@ const ok = (name, pass, detail = '') => { results.push({ name, pass, detail }); 
 
 // 開一頁:固定 SAT_RETINA=true(見檔頭理由)+ deviceScaleFactor(detectRetina 生效的必要條件)+
 // 攔截 Esri 圖磚請求記錄 z、不打真網路、也不需要真 token。
-async function boot(browser, { touch = false, width = 1280, height = 800, dsf = 2, query = '' } = {}) {
+// appCfg 預設 { satRetina: true } 延續既有情境1-5 的固定環境;傳 null 則完全不注入
+// window.RAIL_APP_CONFIG,比照網站真實預設(index.html 讀不到 APP_CFG.satRetina → 落回
+// SAT_RETINA_DEFAULT=false)——這是 S1 情境(見下方情境6)專用,其餘呼叫點不傳就不受影響。
+async function boot(browser, { touch = false, width = 1280, height = 800, dsf = 2, query = '', appCfg = { satRetina: true } } = {}) {
   const ctx = await browser.newContext({ viewport: { width, height }, deviceScaleFactor: dsf, hasTouch: touch, isMobile: touch });
-  await ctx.addInitScript(() => {
+  await ctx.addInitScript((cfg) => {
     try { localStorage.setItem('trainmap-howto-seen', '1'); } catch (e) {} // 蓋掉首訪教學卡(既有 E2E 慣例,見 afr-alishan-forest-railway 記憶)
-    window.RAIL_APP_CONFIG = { satRetina: true }; // SAT_RETINA 平台開關固定 true,理由見檔頭
-  });
+    if (cfg) window.RAIL_APP_CONFIG = cfg; // cfg=null → 不注入,比照網站真實預設
+  }, appCfg);
   const zooms = [];
   await ctx.route(/ibasemaps-api\.arcgis\.com/, route => route.fulfill({ status: 200, contentType: 'image/png', body: TINY_PNG }));
   const page = await ctx.newPage();
@@ -212,6 +219,57 @@ const cr = await chromium.launch();
   const cAfter = classify(zooms, zoomAfter);
   ok('情境5 購買完成後不必重切底圖,自動出現 z===zoom+1(高解析)', cAfter.hi > 0, `zoom=${zoomAfter} ${JSON.stringify(cAfter)}`);
   ok('情境5 無 JS 例外', errors.length === 0, errors.slice(0, 3).join(' | '));
+  await ctx.close();
+}
+
+// ── 情境 6(2026-08-02 Task 6b 補 S1):完全不注入 RAIL_APP_CONFIG(=網站真實預設,
+// SAT_RETINA_DEFAULT=false)+ Plus 資格 + 衛星(不跟車)→ 平台總開關擋下,全部 z===zoom。
+// 情境1-5 全程固定注入 satRetina:true(檔頭已解釋原因:隔離「資格」這個變數),代價是網站
+// 現行預設(無 APP_CFG 或 APP_CFG.satRetina 未設)這條路徑從未被走過——這正是「網站訂閱者
+// 拿不到 Retina」這個產品裁示唯一的守門員,SAT_RETINA 若被寫死 true 也测不出來。
+{
+  const { ctx, page, zooms, errors } = await boot(cr, { appCfg: null });
+  await injectPlus(page);
+  await openSatellite(page, false);
+  await page.waitForTimeout(800);
+  const zoom = await page.evaluate(() => Math.round(map.getZoom()));
+  const c = classify(zooms, zoom);
+  ok('情境6 網站預設(無RAIL_APP_CONFIG)+Plus+衛星:有發出圖磚請求', c.total > 0, JSON.stringify(c));
+  ok('情境6 網站預設+Plus+衛星:平台總開關擋下,全部 z===zoom(零 z+1)', c.total > 0 && c.hi === 0 && c.other === 0, `zoom=${zoom} ${JSON.stringify(c)}`);
+  ok('情境6 無 JS 例外', errors.length === 0, errors.slice(0, 3).join(' | '));
+  await ctx.close();
+}
+
+// ── 情境 7+8(2026-08-02 Task 6b 補 S2/S3):Plus → 先開衛星確認高解析 → 再開始跟車
+// (setFollow 內的 setBasemap()) → 應降回標準解析 → 接續停止跟車(clearFollow 內的
+// setBasemap())→ 應恢復高解析。情境2/4 都是「先跟車、後切衛星」,「已在衛星時開始/停止
+// 跟車」這兩條路徑(這兩個 setBasemap() 呼叫點)從未被走過。
+{
+  const { ctx, page, zooms, errors } = await boot(cr);
+  await injectPlus(page);
+  await openSatellite(page, false);
+  await page.waitForTimeout(800);
+  const zoomPre = await page.evaluate(() => Math.round(map.getZoom()));
+  const cPre = classify(zooms, zoomPre);
+  ok('情境7 前置:Plus+衛星(不跟車)先確認高解析', cPre.total > 0 && cPre.hi > 0, `zoom=${zoomPre} ${JSON.stringify(cPre)}`);
+
+  zooms.length = 0; // 清空,只看開始跟車後新發出的請求
+  const f = await followAnyTrain(page);
+  ok('情境7 前置:成功跟車', !!f, JSON.stringify(f));
+  await page.waitForTimeout(800);
+  const zoomFollow = await page.evaluate(() => Math.round(map.getZoom()));
+  const cFollow = classify(zooms, zoomFollow);
+  ok('情境7(S2)Plus+衛星,開始跟車後降回標準解析(零 z+1)', cFollow.total > 0 && cFollow.hi === 0 && cFollow.other === 0, `zoom=${zoomFollow} ${JSON.stringify(cFollow)}`);
+
+  zooms.length = 0; // 清空,只看停止跟車後新發出的請求
+  await page.evaluate(() => clearFollow());
+  await page.waitForFunction(() => !state.followTrain, null, { timeout: 5000 });
+  await page.waitForTimeout(800);
+  const zoomAfter = await page.evaluate(() => Math.round(map.getZoom()));
+  const cAfter2 = classify(zooms, zoomAfter);
+  ok('情境8(S3)接續情境7,停止跟車後恢復高解析(出現 z===zoom+1)', cAfter2.total > 0 && cAfter2.hi > 0, `zoom=${zoomAfter} ${JSON.stringify(cAfter2)}`);
+
+  ok('情境7+8 無 JS 例外', errors.length === 0, errors.slice(0, 3).join(' | '));
   await ctx.close();
 }
 

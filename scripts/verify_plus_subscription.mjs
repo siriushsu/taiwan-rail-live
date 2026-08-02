@@ -416,6 +416,109 @@ function collectFirebaseReqs(page) {
   await ctx.close();
 }
 
+// ══════════════ P. 雲端同步成功鏈(2026-08-02 Plus 開賣 Task 6b 補 P1/P2)══════════════
+// H/I4 的 Firestore stub 只探測「有沒有呼叫到 SDK」(doc/runTransaction 直接 throw),驗資格
+// 閘門夠了,但驗不到「刪光整段 transaction/merge/寫回」這種靜默失效——閘門通過後往下走,stub
+// 一樣拋例外,accountSyncNow 自己的 catch 一樣接成 return false,回傳值在「閘門擋下」與「閘門
+// 沒擋但實作被刪光」兩種情況下沒有差異。這裡升級成「會記錄」的假 Firestore:tx.get 回傳可控的
+// 雲端文件、tx.set 把寫入內容記下來,斷言直接看「寫進去的 kind/items/revision」,以及
+// 「本機原本沒有、雲端有的那一筆,同步後出現在本機」——這是 merge 真的跑過的證據,不是猜的。
+
+// P1:真的呼叫產品的收藏函式(toggleFav,不直接寫 localStorage),斷言 rail-user-data-changed
+// 監聽器真的把 accountScheduleSync 排程出去。監聽器只認事件 source、不看是否登入(登入檢查在
+// accountScheduleSync 內部才做),故不需要注入 state.account.user——直接量監聽器有沒有把呼叫
+// 轉出去(蓋掉 accountScheduleSync 本身當 spy,不call through:這裡只驗「排程」這個動作本身,
+// 不需要它真的跑完一輪同步)。accountScheduleSync 全站只有這一個呼叫點(grep 確認),故這是
+// 監聽器是否還在的乾淨訊號,不是碰巧被別的路徑觸發。
+// ⚠️ 這個監聽器是 accountEnsureInit() 內部才註冊的一行(ACCOUNT_ENABLED=false 時開機預設不會
+// 自動跑到那裡,見 setupAccountUi 的分流)——第一輪直接測 calls=0,不是監聽器被拔掉,是根本沒
+// 註冊過。改用 RAIL_FIREBASE_TEST_MODULES(既有的 accountLoadModules 短路點,同檔 6838 行)
+// 塞假 SDK,讓 accountEnsureInit() 不打真網路也能跑完、把監聽器掛上去,再測 toggleFav。
+{
+  const { ctx, page } = await newPage(chromiumB);
+  const errs = attach(page, 'P1');
+  await page.goto(BASE, { waitUntil: 'domcontentloaded' });
+  await waitReady(page);
+  const r = await page.evaluate(async () => {
+    window.RAIL_FIREBASE_TEST_MODULES = {
+      initializeApp: () => ({}), getAuth: () => ({}), getFirestore: () => ({}), onAuthStateChanged: () => {},
+    };
+    window.RAIL_FIREBASE_CONFIG = { apiKey: 'x', authDomain: 'x', projectId: 'x' };
+    await accountEnsureInit(); // 掛上 rail-user-data-changed 監聽器(見上方註解),不驗登入本身
+    let calls = 0;
+    window.accountScheduleSync = () => { calls++; }; // 蓋掉真身,只量「監聽器有沒有把事件轉呼叫出去」
+    const tr = state.trains.find(t => t.sys === 'tra_sched' && !t.loop) || state.trains[0];
+    toggleFav(tr); // 產品的收藏函式:內部 userDataSaveCollection→userDataNotify('local')→派 rail-user-data-changed
+    return { calls, trainNo: tr && String(tr.train) };
+  });
+  ok('P1 加入最愛(產品函式 toggleFav)後,rail-user-data-changed 監聽器把 accountScheduleSync 排程出去', r.calls === 1,
+    `calls=${r.calls} train=${r.trainNo}`);
+  ok('P1 本輪零 pageerror/console.error', errs.length === 0, errs.slice(0, 3).join(' | '));
+  await ctx.close();
+}
+
+// P2:升級 Firestore stub 為「會記錄」的假雲端——tx.get 回傳可控的雲端文件、tx.set 記錄寫入
+// 內容;斷言看寫進去的 kind/items/revision,以及「本機原本沒有、雲端有的那一筆,同步後出現在
+// 本機」。本機先用 toggleFav() 建一筆 local-only 收藏,雲端 favs 文件塞一筆 local 沒有的
+// cloud-only 收藏,revision 刻意給 5(遠高於本機剛建立的 1)讓 revision 斷言有牙。
+{
+  const { ctx, page } = await newPage(chromiumB);
+  const errs = attach(page, 'P2');
+  await page.goto(BASE, { waitUntil: 'domcontentloaded' });
+  await waitReady(page);
+  const r = await page.evaluate(async () => {
+    const localTr = state.trains.find(t => t.sys === 'tra_sched' && !t.loop) || state.trains[0];
+    toggleFav(localTr); // 產品函式,不直接寫 localStorage
+    const localNo = String(localTr.train);
+    const CLOUD_NO = '__CLOUD_ONLY_TRAIN__';
+    const cloudFavsDoc = {
+      version: 1, kind: 'favs', revision: 5, clientUpdatedAt: Date.now(),
+      items: [{ id: CLOUD_NO, value: { train: CLOUD_NO, label: '雲端獨有收藏' }, updatedAt: Date.now() }],
+      tombstones: [],
+    };
+    const writes = [];
+    const fb = {
+      doc: (db, ...segs) => ({ kind: segs[segs.length - 1] }),
+      runTransaction: async (db, fn) => {
+        const tx = {
+          get: async (ref) => { const d = ref.kind === 'favs' ? cloudFavsDoc : null; return { exists: () => !!d, data: () => d }; },
+          set: (ref, data) => { writes.push({ kind: ref.kind, data }); },
+        };
+        return fn(tx);
+      },
+      serverTimestamp: () => 'SERVER_TIME_STUB',
+    };
+    state.plus = { active: true, loading: false, error: '', pkgMonthly: null, pkgAnnual: null, mgmtUrl: '', adapter: null, afterUnlock: null }; // 雲端同步是 Plus 功能,不訂閱會被資格閘門擋在 transaction 之前
+    state.account = {
+      ready: true, syncing: false, lastSync: 0, actionError: '', error: '',
+      user: { uid: 'test-uid-p2', email: 'p2-test@example.com' },
+      db: {}, fb,
+    };
+    const result = await accountSyncNow('manual');
+    const favsWrite = writes.find(w => w.kind === 'favs');
+    const afterFavs = loadFavs(); // 同步完成後重讀本機收藏(走產品的讀取函式,不直接讀 localStorage)
+    return {
+      result, writeKinds: writes.map(w => w.kind).sort(),
+      favsWrite, localNo,
+      afterHasCloud: afterFavs.some(f => f.train === CLOUD_NO),
+      afterHasLocal: afterFavs.some(f => f.train === localNo),
+    };
+  });
+  ok('P2a accountSyncNow 回傳成功', r.result === true, `result=${r.result}`);
+  ok('P2b 四個 kind 都呼叫了 tx.set(pins/favs/rides/stations)', JSON.stringify(r.writeKinds) === JSON.stringify(['favs', 'pins', 'rides', 'stations']),
+    `writeKinds=${JSON.stringify(r.writeKinds)}`);
+  ok('P2c favs 寫入內容同時含本機那筆與雲端那筆(真的合併,不是只挑一邊)',
+    !!r.favsWrite && r.favsWrite.data.items.some(x => x.id === r.localNo) && r.favsWrite.data.items.some(x => x.id === '__CLOUD_ONLY_TRAIN__'),
+    JSON.stringify(r.favsWrite && r.favsWrite.data.items.map(x => x.id)));
+  ok('P2d revision = max(本機,雲端)+1(=6,雲端給的是5、本機剛建立是1)', !!r.favsWrite && r.favsWrite.data.revision === 6,
+    `revision=${r.favsWrite && r.favsWrite.data.revision}`);
+  ok('P2e 本機原本沒有、雲端有的那一筆,同步後出現在本機(merge 真的跑過,不是空轉)', r.afterHasCloud === true,
+    `afterHasCloud=${r.afterHasCloud}`);
+  ok('P2f 本機原本那一筆同步後仍在(合併不是覆蓋)', r.afterHasLocal === true, `afterHasLocal=${r.afterHasLocal}`);
+  ok('P2 本輪零 pageerror/console.error', errs.length === 0, errs.slice(0, 3).join(' | '));
+  await ctx.close();
+}
+
 // ══════════════ Z0 錯誤收集器的正向對照 ══════════════
 // 上面每一條「零 pageerror」與檔尾的 K「全程為零」都是「數量必須為 0」型斷言:收集器壞掉(listener
 // 掛在錯的 page、attach 忘了呼叫、Playwright 改事件名)時,它們全部會變成永遠的假綠。這裡故意在頁面裡

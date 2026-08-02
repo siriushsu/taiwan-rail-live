@@ -166,6 +166,12 @@ if (sharedUrl) {
   ok('C1 接收端自動跟車(正確車次)', r.following === pick.no, `following=${r.following} 期望=${pick.no}`);
   ok('C2 橫幅顯示(追蹤中)', r.hidden === false && r.stateTxt.trim() === '追蹤中', `hidden=${r.hidden} state=${r.stateTxt}`);
   ok('C3 橫幅起訖含目的站', r.routeTxt.includes(r.destName), `route="${r.routeTxt}" dest=${r.destName}`);
+  // T3(2026-08-02 Task 6b 補完):C3 比對的 r.destName 是 state._trip.dest.name——產品自己剛填的
+  // 值,跟橫幅渲染同源;若目的站選錯站(destination 判定邏輯本身壞掉),兩邊會一起錯,C3 仍會
+  // PASS(心得29 的同源盲點)。改拿 pick.dest——Test A 造連結當下、測試自己獨立持有的站名字串
+  // (經過 encodeURIComponent 往返)——做完全相等比對,不繞經任何產品狀態。
+  ok('T3 目的站與造連結當下完全相等(獨立值 pick.dest,不比對同源的 state._trip.dest)', r.destName === pick.dest,
+    `banner目的站=${r.destName} 造連結時=${pick.dest}`);
   ok('C4 橫幅含車種車次', r.routeTxt.includes(r.typeNo), `route="${r.routeTxt}" typeNo=${r.typeNo}`);
   const etaMin = parseHM(r.etaTxt), expMin = parseHM(r.expEta);
   const diff = etaMin != null && expMin != null ? Math.min(Math.abs(etaMin - expMin), 1440 - Math.abs(etaMin - expMin)) : 999;
@@ -174,6 +180,35 @@ if (sharedUrl) {
   const qual = await page.evaluate(() => { const tr = state.followTrain; if (!tr) return null; const first = tr.stops[0]; return { qualified: state.followStartEff <= first.depSec + 60 && !state.followTimeJumped, startEff: state.followStartEff, dep: first.depSec, jumped: state.followTimeJumped }; });
   ok('C6 中途加入完乘資格關閉(不蓋章)', qual && qual.qualified === false, JSON.stringify(qual));
   ok('C 無 JS 例外', errors.length === 0, errors.slice(0, 3).join(' | '));
+  await ctx.close();
+}
+
+// ── Test C2(2026-08-02 Task 6b 補 T2):接收端先撥到「回看」狀態(時鐘撥到過去、30x、暫停),
+// 再明確呼叫 applyTripLink()(不靠 boot 自動解碼——boot 對 ?trip= 的自動路徑會在測試拿到頁面
+// 控制權前就跑完 applyTripLink,來不及先佈置回看狀態)→ 斷言三件事都被強制拉回 live:時鐘貼近
+// 現在、速度=1、播放中。這正是「兩個人看同一個當下」的全部價值——現行零覆蓋(Test C 用的是乾淨
+// context 直接開連結,從未測過「已經在回看歷史」的接收端)。
+if (sharedUrl) {
+  const { ctx, page, errors } = await boot(cr, ''); // 乾淨開機,不帶 ?trip=,自己掌控何時呼叫 applyTripLink
+  const tripParam = new URL(sharedUrl).searchParams.get('trip');
+  const before = await page.evaluate((tp) => {
+    setSimSec(3600); // 撥到過去(台北 01:00,遠早於 08:30 固定鐘的追蹤班次)
+    setSpeed(30);
+    if (state.playing) togglePlay(); // 暫停
+    window.__t2_tripParam = tp;
+    return { simSec: state.simSec, speedMult: state.speedMult, playing: state.playing };
+  }, tripParam);
+  ok('T2 前置:接收端確實處於回看狀態(撥到過去+30x+暫停)',
+    before.simSec === 3600 && before.speedMult === 30 && before.playing === false, JSON.stringify(before));
+  const after = await page.evaluate(() => {
+    applyTripLink(parseTripParam(window.__t2_tripParam));
+    return { simSec: state.simSec, speedMult: state.speedMult, playing: state.playing, nowSec: nowSecOfDay(activeTz()) };
+  });
+  const clockDiff = Math.min(Math.abs(after.simSec - after.nowSec), 86400 - Math.abs(after.simSec - after.nowSec));
+  ok('T2 applyTripLink 把回看狀態強制拉回 live(時鐘貼近現在+速度=1+播放中)',
+    clockDiff <= 5 && after.speedMult === 1 && after.playing === true,
+    `simSec=${after.simSec} now=${after.nowSec} diff=${clockDiff}秒 speedMult=${after.speedMult} playing=${after.playing}`);
+  ok('T2 無 JS 例外', errors.length === 0, errors.slice(0, 3).join(' | '));
   await ctx.close();
 }
 
