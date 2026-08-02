@@ -1209,6 +1209,14 @@ for (const w of [360, 375, 414, 768]) await mobilePlusEntry(w, { sel: IMPORT_SEL
   // 兩邊都帶 ?tripshare=1:那是行程分享發起端的開發通道,不帶就量不到 KS8 要守的那條路徑
   const on = await run(`${BASE}?tripshare=1`, 'on');
   const off = await run(`http://localhost:${PORT}/index.html?__flagoff=1&tripshare=1`, 'off');
+  // 🔴 第三次載入:accountEnsureInit() **有跑**、但 accountReturning() 為 false 的那條路。
+  // 為什麼非它不可(實測結論,與直覺相反):accountSlotMode() 的 `if (!PLUS_ENABLED) return 'account'`
+  // 在「回訪者」情境下**不是 load-bearing**——那一行拿掉之後,fallthrough 的
+  // `accountReturning() ? 'account' : 'plus'` 對回訪者照樣回 'account',槽位一模一樣(實測驗證)。
+  // 它唯一撐著的是「初始化跑了、但這台裝置沒登入過」那格,而現在只有兩條路走得到:
+  // `ACCOUNT_ENABLED=true`(帳號入口復活批次,尚未發生)與 `?account=delete`(帳號刪除深連結,現在就走得到)。
+  // 用後者當代理,那一行就從「無人看守」變成有判準——不必等旗標翻真才發現它已經壞了。
+  const offInit = await run(`http://localhost:${PORT}/index.html?__flagoff=1&tripshare=1&account=delete`, 'off-init');
   // 前置:替換真的生效了。沒有這條,伺服器一旦找不到宣告字串(改寫、加空白),下面每一條都會在
   // 「旗標其實是開的」的頁面上量,而且量出來的「不存在」還是綠的——正是本 brief 警告的假綠形狀。
   ok('KS0 前置:?__flagoff=1 供應的頁面現讀 PLUS_ENABLED === false(替換真的生效)', off.r.flag === false, `off.flag=${off.r.flag}`);
@@ -1246,8 +1254,20 @@ for (const w of [360, 375, 414, 768]) await mobilePlusEntry(w, { sel: IMPORT_SEL
     on.r.slot.tripShareVisible === true, `on=${on.r.slot.tripShareVisible}`);
   ok('KS8 旗標關閉:?tripshare=1 這條開發通道也不再點亮行程分享發起端(URL 參數可被轉貼,不能變成公開後門)',
     off.r.slot.tripShareVisible === false, `off=${off.r.slot.tripShareVisible}`);
-  ok('KS 本輪零 pageerror/console.error', on.errs.length === 0 && off.errs.length === 0,
-    [...on.errs, ...off.errs].slice(0, 3).join(' | '));
+  // KS9/KS9b 判的是**身分**不是存在:這條路上鈕本來就該留著(帳號入口是它的合法身分),
+  // 寫成「不得存在」會把正確行為判成缺陷。所以正面斷言「在、且是帳號」——
+  // 收集器若壞掉,btnVisible 會是 false 而當場紅,沉默過不了關。
+  ok('KS9 旗標關閉 + 初始化有跑但這台裝置沒登入過(?account=delete;與 ACCOUNT_ENABLED 翻真時同一條分支):工具列槽位在,身分是「帳號」不是 Plus',
+    offInit.r.slot.btnVisible === true
+    && offInit.r.slot.btnLabel === '帳號'
+    && /登入與跨裝置同步/.test(offInit.r.slot.btnTitle || '')
+    && !/Plus/.test(`${offInit.r.slot.btnLabel || ''}${offInit.r.slot.btnTitle || ''}`),
+    JSON.stringify(offInit.r.slot));
+  ok('KS9b 同一條路:「更多」抽屜打開後那一列也在,標成「帳號同步」不是「軌島 Plus」',
+    offInit.r.slot.sheetOpen === true && offInit.r.slot.rowVisible === true && offInit.r.slot.rowLabel === '帳號同步',
+    JSON.stringify(offInit.r.slot));
+  ok('KS 本輪零 pageerror/console.error', on.errs.length === 0 && off.errs.length === 0 && offInit.errs.length === 0,
+    [...on.errs, ...off.errs, ...offInit.errs].slice(0, 3).join(' | '));
 }
 
 // ══════════════ Z0 錯誤收集器的正向對照 ══════════════

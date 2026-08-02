@@ -33,15 +33,19 @@ const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const SRC = readFileSync(path.join(ROOT, 'index.html'), 'utf8');
 const WSRC = readFileSync(path.join(ROOT, 'worker.js'), 'utf8');
 const TSRC = readFileSync(path.join(ROOT, 'terms.html'), 'utf8'); // 付費視窗法務列直接連到它,見 T1T
-// 條款的「軌島 Plus 訂閱」那一節(到下一個 <h2> 為止),去標籤後的純文字。
-// 只取這一節、不取整份:條款其他地方的免責語是**否定句**(「不保證完全正確」),
-// 整份餵進絕對句偵測器會被「保證」兩字誤咬 ⇒ 判準為了不相干的理由變紅,然後被人調鬆。
-const TERMS_PLUS_TEXT = (() => {
-  const i = TSRC.indexOf('軌島 Plus 訂閱');
-  if (i < 0) return '';
-  const j = TSRC.indexOf('<h2', i);
-  return TSRC.slice(i, j < 0 ? TSRC.length : j).replace(/<[^>]+>/g, ' ');
-})();
+// 條款**全文**(去標籤)都要過絕對句偵測器。
+// 🔴 這裡曾經只取「軌島 Plus 訂閱」那一節,理由是條款別處的免責語會被「保證」兩字誤咬。
+//    理由事實成立,但**縮小輸入是繞過症狀**:根因是 bannedIn() 純字面比對、不分極性。
+//    實測後果——把「軌島保證帳號同步一律不會失敗」塞進 §2、把「行程分享永遠免費」塞進 §5,
+//    六支閘門一條都不紅,而後者正是這條規則存在的理由本身(把 Plus 功能宣告成永久免費)。
+// 改法:對真正的否定句做**具名豁免**(比照 T1H 對條件式項目的 exempt),豁免看得見、可稽核,
+//    而且下面 T2a 有一條斷言證明「豁免掉的句子都還在原文裡」——被刪掉的豁免＝一張永久免死金牌。
+const TERMS_EXEMPT = [
+  '不是營運單位的行車控制、安全警示或官方旅運保證', // §1 免責:否定句,語意與「絕對保證」相反
+  '但不保證完全正確、不中斷或適合特定用途',         // §8 免責:同上
+];
+const TERMS_TEXT_ALL = TSRC.replace(/<[^>]+>/g, ' ');
+const TERMS_TEXT_CHECKED = TERMS_EXEMPT.reduce((s, ph) => s.split(ph).join(' '), TERMS_TEXT_ALL);
 const INDEX_MD5 = createHash('md5').update(SRC).digest('hex');
 console.log(`[G0] ROOT=${ROOT}`);
 console.log(`[G0] index.html md5=${INDEX_MD5}`);
@@ -364,8 +368,8 @@ const GATE_DISCLOSURE = {
   // 付款決定點(說明中心那一節自己的註解就寫著這句)。此前只吃 feats+trust ⇒ 複審把說明中心
   // 的 one: 改回「永遠免費」仍 88/88 全綠——同一句話換一個容器就不受管,等於三份清單只管了一份。
   const HELP_PLUS_TEXT = await readHelpPlusText(page);
-  const allTexts = [...feats, trust, HELP_PLUS_TEXT, TERMS_PLUS_TEXT];
-  ok('T2a 付費決定點三份文案(feats+plus-trust、說明中心 Plus 節、條款 Plus 節)皆不含絕對期限／絕對保證措辭(無私設例外)',
+  const allTexts = [...feats, trust, HELP_PLUS_TEXT, TERMS_TEXT_CHECKED];
+  ok('T2a 付費決定點三份文案(feats+plus-trust、說明中心 Plus 節、條款全文扣除具名豁免)皆不含絕對期限／絕對保證措辭',
     allTexts.every(t => bannedIn(t).length === 0),
     JSON.stringify(allTexts.map(t => [t.slice(0, 40), bannedIn(t)]).filter(x => x[1].length)) || `已驗 ${allTexts.length} 段`);
   // 正向對照:同一支偵測器餵一句一定含違禁詞的字串,必須抓得到。沒有這條,上面那個「全部乾淨」
@@ -375,9 +379,20 @@ const GATE_DISCLOSURE = {
   // 抽取器對照:上面多吃的兩段文字若抽成空字串,`every` 對空集合恆真 ⇒ 擴大範圍等於沒擴大。
   // 兩頭各釘一次(非空 + 不會把不相干字串認成命中),與 T1H 的抽取器對照同一形狀。
   ok('T2a 正向對照:說明中心與條款兩支文案抽取器都抽得出非空文字,且不會把不相干字串認成命中',
-    HELP_PLUS_TEXT.length > 20 && TERMS_PLUS_TEXT.length > 20
-    && !HELP_PLUS_TEXT.includes('verify-probe-absent') && !TERMS_PLUS_TEXT.includes('verify-probe-absent'),
-    `help=${HELP_PLUS_TEXT.length} terms=${TERMS_PLUS_TEXT.length} termsHead=${JSON.stringify(TERMS_PLUS_TEXT.slice(0, 40))}`);
+    HELP_PLUS_TEXT.length > 20 && TERMS_TEXT_CHECKED.length > 20
+    && !HELP_PLUS_TEXT.includes('verify-probe-absent') && !TERMS_TEXT_CHECKED.includes('verify-probe-absent'),
+    `help=${HELP_PLUS_TEXT.length} terms=${TERMS_TEXT_CHECKED.length}`);
+  // 🔴 具名豁免本身也要有牙,兩個方向各一:
+  //   (a) 豁免掉的句子必須還在條款原文裡——原句被刪掉之後,那條豁免就變成一張永久免死金牌,
+  //       日後有人寫出同形狀但語意相反的句子時它會靜靜放行;
+  //   (b) 剝除掉的字數必須恰等於那幾句的長度(每句換成一個空白)——證明豁免沒有順手吃掉別的內容,
+  //       數字由 TERMS_EXEMPT 自己推導,不是手打的常數。
+  const exemptGone = TERMS_EXEMPT.filter(ph => !TSRC.includes(ph));
+  const expectedDelta = TERMS_EXEMPT.reduce((n, ph) => n + (ph.length - 1), 0);
+  const actualDelta = TERMS_TEXT_ALL.length - TERMS_TEXT_CHECKED.length;
+  ok('T2a 具名豁免有牙且範圍最小:每句豁免詞都還在 terms.html 原文裡,且剝除字數恰等於那幾句的長度',
+    exemptGone.length === 0 && actualDelta === expectedDelta,
+    `失效豁免=${JSON.stringify(exemptGone)} 剝除=${actualDelta} 預期=${expectedDelta}`);
   const satItem = feats.find(t => t.includes('高解析')) || '';
   ok('T2b 衛星那項同時含「高解析」與「Retina」', satItem.includes('高解析') && satItem.includes('Retina'), satItem);
   ok('T2c plus-trust 保留「準確度」相關的免費承諾語', trust.includes('準確度'), trust);
@@ -678,7 +693,7 @@ server.close();
 const EXPECTED_COUNTS = {
   G0: 1, G1: 2, G2: 2, T0: 1, T0a: 1, T0b: 1, T0c: 1,
   T1: 6 + REQUIRED.length + GATE_CALLS.length + 4 * expectedFeatCount(inFounding),
-  T2: 1, T2a: 3, T2b: 1, T2c: 1, T2d: 1, T2e: 1, T2f: 1, // T2a=3:違禁詞斷言 + 偵測器正向對照 + 兩支文案抽取器的對照
+  T2: 1, T2a: 4, T2b: 1, T2c: 1, T2d: 1, T2e: 1, T2f: 1, // T2a=4:違禁詞斷言 + 偵測器正向對照 + 抽取器對照 + 具名豁免對照
   T3: 2, T3a: 1, T3b: 2, T4a: 2, T4b: 2, T4c: 2, T5: 6, T5w: 3, T7a: 4, T7b: 4,
 };
 const actualCounts = {};

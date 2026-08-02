@@ -198,26 +198,44 @@ for (const h of hits) console.log(`   ⚠️ ${h.file} [${h.rule}] ${h.text}`);
 console.log('\n── 歷史掃描:中間 commit(push 前必須處理) ──');
 let histHits = [];
 let histCommits = 0;
+// 🔴 取不到資料 ≠ 掃過了、乾淨。這兩件事此前在下面那條斷言眼裡完全一樣:catch 只印一行
+// console.log,而唯一的消費者是自動化(這一段本來就是為了計入 exit code 才存在的),
+// console.log 對它不存在。實測的真實失效模式:大 repo 讓 `git log -p` 撐爆 maxBuffer(ENOBUFS)
+// ⇒ 21 筆真命中整批消失、三條自檢全綠、ALL PASS exit 0。
+// 而 squash 之後「命中 0」會變成合法常態 ⇒ 那時再也分不出「乾淨」與「根本沒掃到」。
+// 所以掃描失敗一律記成錯誤,併進最後那條斷言。
+const histScanErrs = [];
 try {
   const log = execFileSync('git', ['log', '-p', '-U0', `${BASE}..HEAD`], { encoding: 'utf8', maxBuffer: 128 * 1024 * 1024 });
   histHits = scanDiffText(log).found; // 與主掃描同一支解析器 ⇒ 不可能只有這一半被改壞而無聲
-} catch (e) { console.log(`   (歷史掃描失敗:${String(e).slice(0, 100)})`); }
+} catch (e) { histScanErrs.push(`git log -p:${String(e).slice(0, 120)}`); }
 
 // 🔴 第三個資料面:commit message 本體。
 // 兩段掃描都只看 diff 裡以 `+` 開頭的行,而 commit message **不帶 + 前綴** ⇒ 結構上永遠掃不到。
 // 這不是理論風險:本批次「修掉三處洩漏」那顆 commit,自己的訊息裡把三處原文整段引用了進去
 // (作者在描述「我修了什麼」時貼了原句),由範圍複審抓出。訊息會隨 push 一起公開,
 // 在 GitHub 的 commit 頁面直接看得到。
-const histCommitList = execFileSync('git', ['log', '--format=%H', `${BASE}..HEAD`], { encoding: 'utf8' }).trim().split('\n').filter(Boolean);
+// 這一段同樣「取不到就是錯」,不是「取不到就當乾淨」:逐顆抓訊息任何一顆失敗都會讓
+// 那顆的訊息完全沒被看過,而迴圈跑完之後的結果長得跟「全都乾淨」一模一樣。
+let histCommitList = [];
+try {
+  histCommitList = execFileSync('git', ['log', '--format=%H', `${BASE}..HEAD`], { encoding: 'utf8' }).trim().split('\n').filter(Boolean);
+} catch (e) { histScanErrs.push(`git log --format=%H:${String(e).slice(0, 120)}`); }
 histCommits = histCommitList.length;
 for (const c of histCommitList) {
-  const msg = execFileSync('git', ['log', '-1', '--format=%B', c], { encoding: 'utf8' });
-  for (const h of scanMessageText(msg)) histHits.push({ commit: c.slice(0, 7), file: '(commit message)', rule: h.rule, text: h.text });
+  try {
+    const msg = execFileSync('git', ['log', '-1', '--format=%B', c], { encoding: 'utf8' });
+    for (const h of scanMessageText(msg)) histHits.push({ commit: c.slice(0, 7), file: '(commit message)', rule: h.rule, text: h.text });
+  } catch (e) { histScanErrs.push(`git log -1 ${c.slice(0, 7)}:${String(e).slice(0, 80)}`); }
 }
 
 // 歷史掃描器本身也要證明有在掃(比照主掃描的 addedLines>0):base..HEAD 是空的時候,
 // 「零歷史命中」跟主掃描的「零新增行命中」一樣沒有意義——那是量測器沒在量,不是乾淨。
 ok(histCommits > 0, `歷史掃描器有讀到 commit(base=${BASE}) — ${histCommits} 顆`);
+// 注意這條與上面那條不同層:上面數的是 commit 顆數(走 `git log --format=%H`),
+// 這條問的是「三支 git 呼叫有沒有哪一支根本沒回資料」。ENOBUFS 那個失效模式只會踩到這一條。
+ok(histScanErrs.length === 0,
+  `歷史掃描三支 git 呼叫全部取得資料(取不到 ≠ 乾淨) — ${histScanErrs.length ? '失敗:' + histScanErrs.join(' ; ') : '無失敗'}`);
 
 if (histHits.length === 0) {
   console.log('   ✅ 歷史與 commit message 都乾淨,可直接 push。');
