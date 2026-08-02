@@ -511,6 +511,43 @@ async function rateLimited(limiter, request, failClosed) {
   catch (e) { return !!failClosed; }
 }
 
+// 驗證 Firebase ID token → RevenueCat active entitlement,供任何 Plus 付費牆端點共用。
+// 原封不動抽自 delayHistory 的既有驗證邏輯(2026-08-02 抽 helper,判定邏輯不變,尤其
+// items.length>0 那條——entitlement_id 是內部不透明 id,理由見下方註解)。secret 未設定→
+// fail-closed 503(不放行任何人)。驗證範式抄自 deleteAccountData(同一組 env secret)。
+// 回傳 {ok:true, uid} 或 {ok:false, status, error};呼叫端自行決定 403(not_entitled)要不要
+// 原樣回傳,或(如 /api/plus-status)改寫成 200 {active:false}。
+async function checkPlusEntitlement(request, env) {
+  if (!env.FIREBASE_WEB_API_KEY || !env.REVENUECAT_PROJECT_ID || !env.REVENUECAT_V2_SECRET_KEY)
+    return { ok: false, status: 503, error: 'entitlement_unavailable' };
+  const authHeader = request.headers.get('Authorization') || '';
+  const authMatch = authHeader.match(/^Bearer\s+(.+)$/i), idToken = authMatch && authMatch[1];
+  if (!idToken || idToken.length > 4096) return { ok: false, status: 401, error: 'unauthorized' };
+  try {
+    const lookup = await fetch(`https://identitytoolkit.googleapis.com/v1/accounts:lookup?key=${encodeURIComponent(env.FIREBASE_WEB_API_KEY)}`, {
+      method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ idToken }),
+    });
+    if (!lookup.ok) return { ok: false, status: 401, error: 'unauthorized' };
+    const identity = await lookup.json(), uid = identity && identity.users && identity.users[0] && identity.users[0].localId;
+    if (!uid || typeof uid !== 'string') return { ok: false, status: 401, error: 'unauthorized' };
+    // 軌島 Plus 是單一 entitlement 產品,故「有任何 active entitlement=有 Plus」。若日後新增第二種
+    // entitlement tier,這裡要改成比對特定 entitlement——注意 RevenueCat v2 的
+    // active_entitlements.items[].entitlement_id 是內部不透明 id(entl...),不是 dashboard 設的
+    // lookup_key(plus);屆時需先用 GET /v2/projects/{pid}/entitlements 把 lookup_key 解析成內部 id 再比對。
+    const rc = await fetch(`https://api.revenuecat.com/v2/projects/${encodeURIComponent(env.REVENUECAT_PROJECT_ID)}/customers/${encodeURIComponent(uid)}/active_entitlements`, {
+      headers: { Authorization: `Bearer ${env.REVENUECAT_V2_SECRET_KEY}`, Accept: 'application/json' },
+    });
+    if (rc.status === 404) return { ok: false, status: 403, error: 'not_entitled' };          // 此 uid 從未在 RevenueCat 出現=沒買過
+    if (!rc.ok) return { ok: false, status: 503, error: 'entitlement_unavailable' };           // 上游暫時性錯誤:不當有資格、也不永久拒絕,讓前端可重試
+    const ent = await rc.json();
+    const entitled = Array.isArray(ent.items) && ent.items.length > 0;
+    if (!entitled) return { ok: false, status: 403, error: 'not_entitled' };
+    return { ok: true, uid };
+  } catch (e) {
+    return { ok: false, status: 503, error: 'entitlement_unavailable' };                       // 網路/解析暫時性錯誤:可重試
+  }
+}
+
 async function delayHistory(request, env) {
   const train = new URL(request.url).searchParams.get('train') || '';
   if (!isValidTrainNo(train)) return jsonRes({ error: 'bad train' }, 400, 'no-store');
@@ -520,34 +557,8 @@ async function delayHistory(request, env) {
   // ── Plus 付費牆:誤點履歷是 Plus 頭牌功能,先驗 Firebase ID token + RevenueCat entitlement ──
   // 此閘一定要在下方 edge.match 之前:授權後的 200 資料會寫進 train-keyed 共享邊緣快取;閘若放在
   // match 之後,無 token 的人也能從共享快取讀到,付費牆漏底。401/403/503 一律 no-store,不入共享快取。
-  // 驗證範式抄自 deleteAccountData(同一組 env secret)。secret 未設定→fail-closed 503(不放行任何人)。
-  if (!env.FIREBASE_WEB_API_KEY || !env.REVENUECAT_PROJECT_ID || !env.REVENUECAT_V2_SECRET_KEY)
-    return jsonRes({ error: 'entitlement_unavailable' }, 503, 'no-store');
-  const authHeader = request.headers.get('Authorization') || '';
-  const authMatch = authHeader.match(/^Bearer\s+(.+)$/i), idToken = authMatch && authMatch[1];
-  if (!idToken || idToken.length > 4096) return jsonRes({ error: 'unauthorized' }, 401, 'no-store');
-  try {
-    const lookup = await fetch(`https://identitytoolkit.googleapis.com/v1/accounts:lookup?key=${encodeURIComponent(env.FIREBASE_WEB_API_KEY)}`, {
-      method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ idToken }),
-    });
-    if (!lookup.ok) return jsonRes({ error: 'unauthorized' }, 401, 'no-store');
-    const identity = await lookup.json(), uid = identity && identity.users && identity.users[0] && identity.users[0].localId;
-    if (!uid || typeof uid !== 'string') return jsonRes({ error: 'unauthorized' }, 401, 'no-store');
-    // 軌島 Plus 是單一 entitlement 產品,故「有任何 active entitlement=有 Plus」。若日後新增第二種
-    // entitlement tier,這裡要改成比對特定 entitlement——注意 RevenueCat v2 的
-    // active_entitlements.items[].entitlement_id 是內部不透明 id(entl...),不是 dashboard 設的
-    // lookup_key(plus);屆時需先用 GET /v2/projects/{pid}/entitlements 把 lookup_key 解析成內部 id 再比對。
-    const rc = await fetch(`https://api.revenuecat.com/v2/projects/${encodeURIComponent(env.REVENUECAT_PROJECT_ID)}/customers/${encodeURIComponent(uid)}/active_entitlements`, {
-      headers: { Authorization: `Bearer ${env.REVENUECAT_V2_SECRET_KEY}`, Accept: 'application/json' },
-    });
-    if (rc.status === 404) return jsonRes({ error: 'not_entitled' }, 403, 'no-store');       // 此 uid 從未在 RevenueCat 出現=沒買過
-    if (!rc.ok) return jsonRes({ error: 'entitlement_unavailable' }, 503, 'no-store');        // 上游暫時性錯誤:不當有資格、也不永久拒絕,讓前端可重試
-    const ent = await rc.json();
-    const entitled = Array.isArray(ent.items) && ent.items.length > 0;
-    if (!entitled) return jsonRes({ error: 'not_entitled' }, 403, 'no-store');
-  } catch (e) {
-    return jsonRes({ error: 'entitlement_unavailable' }, 503, 'no-store');                    // 網路/解析暫時性錯誤:可重試
-  }
+  const check = await checkPlusEntitlement(request, env);
+  if (!check.ok) return jsonRes({ error: check.error }, check.status, 'no-store');
   // 快取鍵手動把 train 併進 URL 字串(同 stationEvents 慣例)——caches.default 精確比對傳入的
   // Request URL,鍵若只用不帶 query 的路徑,不同車次會互相污染快取。train 已白名單化,免 encode。
   const cacheKey = new Request(new URL('/api/delay-history?train=' + train, request.url), { method: 'GET' });
@@ -571,6 +582,21 @@ async function delayHistory(request, env) {
   } catch (e) {
     return jsonRes({ error: 'not_ready' }, 503, 'public, s-maxage=60');
   }
+}
+
+// GET /api/plus-status  Authorization: Bearer <Firebase ID token>
+// → 200 {active:boolean}｜401 無 token｜503 上游或 secret 未設(fail-closed)
+// 唯讀,不寫任何東西;no-store,不進共享 edge 快取(每個 uid 的答案不同)。網站端沒有 Web Billing
+// key(RAIL_REVENUECAT_CONFIG 只設 iosApiKey),plusConfigured() 恆 false,這支端點是網站讀 App
+// 買的資格的唯一管道——不開放網站購買,純唯讀查詢(2026-08-02)。
+async function plusStatus(request, env) {
+  // 與 delayHistory 共用同一組上游(Firebase+RevenueCat)、同一顆限流器:節流要在呼叫之前,理由同 delayHistory。
+  if (await rateLimited(env.AUTH_LIMITER, request)) return jsonRes({ error: 'rate_limited' }, 429, 'no-store');
+  const check = await checkPlusEntitlement(request, env);
+  // not_entitled(403)在這支端點不是錯誤,是正常答案的一種:「查得到、資格是 false」要跟「查不到」
+  // (503)分開,否則 RevenueCat 短暫故障會被前端誤讀成「沒訂閱」而把付費者的功能整批關掉。
+  if (!check.ok && check.status !== 403) return jsonRes({ error: check.error }, check.status, 'no-store');
+  return jsonRes({ active: check.ok }, 200, 'no-store');
 }
 
 // 今日逐站歷程(唯讀查 D1 tra_station_events):給前端「這班車今天到過哪些站、各站誤點/最大誤點」。
@@ -736,7 +762,7 @@ const API_POST_ALLOWED = new Set(['/api/account-delete', '/api/bounty-claim', '/
 const API_ENDPOINTS = new Set([
   'tra-live', 'tra-alert', 'thsr-alert', 'metro-alert', 'metro-live', 'ntmetro-live',
   'delay-stats', 'delay-history', 'station-events', 'today-board', 'basemap-token', 'basemap-session', 'account-delete',
-  'bounty-board', 'bounty-claim', 'bounty-submit', 'bounty-me', 'bounty-merge',
+  'bounty-board', 'bounty-claim', 'bounty-submit', 'bounty-me', 'bounty-merge', 'plus-status',
 ]);
 
 function addAppCors(headers, origin) {
@@ -1986,6 +2012,7 @@ export default {
     else if (url.pathname === '/api/basemap-token') res = await basemapToken(request, env);
     else if (url.pathname === '/api/basemap-session') res = await basemapSession(request, env);
     else if (url.pathname === '/api/account-delete') res = await deleteAccountData(request, env);
+    else if (url.pathname === '/api/plus-status') res = await plusStatus(request, env);
     else if (url.pathname === '/api/bounty-board') res = await bountyBoard(request, env);
     else if (url.pathname === '/api/bounty-claim') res = await bountyClaim(request, env);
     else if (url.pathname === '/api/bounty-submit') res = await bountySubmit(request, env);

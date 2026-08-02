@@ -22,12 +22,15 @@
 //     走的是與真實使用者相同的 render/購買路徑,只是用可控 stub 取代真商店,以取得可斷言的數值。
 import { chromium, webkit } from 'playwright';
 import { createServer } from 'node:http';
-import { readFileSync, existsSync, statSync } from 'node:fs';
+import { readFileSync, existsSync, statSync, mkdirSync } from 'node:fs';
 import path from 'node:path';
+import os from 'node:os';
 import { fileURLToPath } from 'node:url';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const SHOT_DIR = '/private/tmp/claude-501/-Users-xuxiang-Code------/038ab9c5-7b74-43c5-85f2-bd91a3879316/scratchpad';
+// 可推導,不寫死 session scratchpad 路徑(每個 session 都要手改一次的坑,2026-08-02)。
+const SHOT_DIR = process.env.SHOT_DIR || path.join(os.tmpdir(), 'rail-plus-shots');
+mkdirSync(SHOT_DIR, { recursive: true });
 const PORT = 5207;
 const MIME = { '.html': 'text/html', '.js': 'text/javascript', '.mjs': 'text/javascript', '.json': 'application/json', '.css': 'text/css', '.png': 'image/png', '.jpg': 'image/jpeg', '.svg': 'image/svg+xml', '.mp3': 'audio/mpeg', '.ico': 'image/x-icon', '.webmanifest': 'application/manifest+json' };
 const server = createServer((req, res) => {
@@ -263,13 +266,15 @@ await regression('1280', { width: 1280, height: 800, touch: false });
 await regression('375', { width: 375, height: 812, touch: true });
 
 // ══════════════ G. 帳號系統重開:匿名使用者可抵達登入鈕(不注入帳號,真實走 plusGateOpen→accountEnsureInit) ══════════════
-// 匿名使用者點 Plus 入口 → 必須看得到登入鈕（不是空白視窗）
-// 這條在 ACCOUNT_ENABLED=false 時必失敗：accountEnsureInit 不載 Firebase ⇒ 畫不出登入鈕
+// 匿名使用者點 Plus 入口 → 必須看得到 Google＋Apple 兩顆登入鈕（不是空白視窗、也不是只有一顆）
+// 這條在 RAIL_APPLE_LOGIN=false 時必失敗：accountRender 只畫得出 Google 一顆
 async function assertAnonymousCanReachLogin(page) {
   await page.evaluate(() => { try { localStorage.clear(); } catch (e) {} });
   await page.reload({ waitUntil: 'networkidle' });
   await page.evaluate(() => window.plusGateOpen('test-gate', () => {}));
-  await page.waitForTimeout(2500); // Firebase SDK 是延遲載入,給它時間
+  // 條件式等待,不用固定秒數:Firebase SDK 是延遲載入,冷載入比暖載入慢很多,
+  // 固定 timeout 會讓這條斷言實際在量「載入快不快」而不是「旗標對不對」。
+  await page.waitForSelector('[data-login="google"]', { timeout: 15000 }).catch(() => {});
   const loginBtns = await page.locator('[data-login="google"], [data-login="apple"]').count();
   return { name: '匿名使用者可抵達登入鈕', ok: loginBtns >= 2,
            detail: `找到 ${loginBtns} 顆登入鈕（需要 Google＋Apple 兩顆）` };
@@ -281,6 +286,41 @@ async function assertAnonymousCanReachLogin(page) {
   await waitReady(page);
   const r = await assertAnonymousCanReachLogin(page);
   ok(r.name, r.ok, r.detail);
+  await ctx.close();
+}
+
+// ══════════════ H. accountSyncNow 的 Plus 資格閘門(2026-08-02 心得35:沒有牙的判準等於沒驗) ══════════════
+// 注入一個已登入但 state.plus.active=false 的假帳號,呼叫 accountSyncNow('manual')。
+// 用 a.fb.doc 是否被呼叫到(syncAttempted)當唯一可信訊號——不能只看回傳值:gate 拿掉後,
+// 程式會往下走進 try 呼叫 a.fb.doc,stub 丟例外,accountSyncNow 自己的 catch 一樣會把它接成
+// return false,回傳值在兩種情況下都是 false,無法區分「閘門擋下」與「閘門被拿掉但半路失敗」。
+// 突變測試紀錄(手動執行,不留在腳本內):暫時把 index.html 的
+// `if (reason !== 'logout' && !(state.plus && state.plus.active)) return false;` 整行註解掉、
+// 重跑本腳本 → H1 轉 FAIL(syncAttempted=true);還原後重跑 → H1 轉回 PASS。
+{
+  const { ctx, page } = await newPage(chromiumB);
+  const errs = attach(page, 'H');
+  await page.goto(BASE, { waitUntil: 'domcontentloaded' });
+  await waitReady(page);
+  const r = await page.evaluate(async () => {
+    let syncAttempted = false;
+    state.plus = { active: false };
+    state.account = {
+      ready: true, syncing: false, lastSync: 0, actionError: '', error: '',
+      user: { uid: 'test-uid-h', email: 'gate-test@example.com' },
+      db: {}, // 只需 truthy,通過 accountSyncNow 開頭的 !a.db 檢查
+      fb: {
+        doc: () => { syncAttempted = true; throw new Error('gate 應該擋在這之前,不該呼叫到 Firestore SDK'); },
+        runTransaction: () => { syncAttempted = true; throw new Error('gate 應該擋在這之前,不該呼叫到 Firestore SDK'); },
+        serverTimestamp: () => 0,
+      },
+    };
+    const result = await accountSyncNow('manual');
+    return { result, syncAttempted };
+  });
+  ok('H1 未訂閱時 accountSyncNow 回 false 且未觸碰 Firestore(資格閘門有牙)', r.result === false && r.syncAttempted === false,
+    `result=${r.result} syncAttempted=${r.syncAttempted}`);
+  ok('H 本輪零 pageerror/console.error', errs.length === 0, errs.slice(0, 3).join(' | '));
   await ctx.close();
 }
 

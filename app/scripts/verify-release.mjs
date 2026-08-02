@@ -389,10 +389,18 @@ export async function verifyRelease({
 
   // 半套登入 gate（STORE_SUBMISSION_CHECKLIST 步驟 4）：帳號開了但 Sign in with Apple 沒開
   // ＝App Store Guideline 4.8 退件主因。檢查對象是重建後的 www/，舊副本綠燈不算數。
-  if (/const ACCOUNT_ENABLED = true/.test(html)) {
-    const firebaseConfig = await readFile(join(output, 'firebase-config.js'), 'utf8');
+  // 🔴 判準不綁 ACCOUNT_ENABLED(2026-08-02 判準過期修正):2026-07-21 起帳號實際入口是
+  // plusOpen→accountEnsureInit,ACCOUNT_ENABLED 只決定帳號鈕要不要 eager 顯示在主畫面——
+  // ACCOUNT_ENABLED=false 時 Google 登入鈕仍可能經由購買流程或 ?account=delete 深連結被畫出來
+  // (index.html 的 accountConfigured() 本身就與 ACCOUNT_ENABLED 無關)。舊判準綁 ACCOUNT_ENABLED
+  // 的後果不是誤紅,是永遠不跑(ACCOUNT_ENABLED 現在恆 false)——半套登入的防線形同不存在。
+  // 改綁 firebase-config.js 是否配置齊全(accountConfigured() 的靜態等價條件),才是登入鈕
+  // 實際會不會被畫出來的真正判準。
+  const firebaseConfig = await readFile(join(output, 'firebase-config.js'), 'utf8');
+  const firebaseConfigured = /apiKey\s*:/.test(firebaseConfig) && /authDomain\s*:/.test(firebaseConfig) && /projectId\s*:/.test(firebaseConfig);
+  if (firebaseConfigured) {
     assert(/window\.RAIL_APPLE_LOGIN\s*=\s*true/.test(firebaseConfig),
-      '帳號功能已開啟但 RAIL_APPLE_LOGIN 不是 true——半套登入（有 Google 無 Apple）會被 App Store 4.8 退件');
+      '登入鈕可能被畫出(Firebase 已配置)但 RAIL_APPLE_LOGIN 不是 true——半套登入（有 Google 無 Apple）會被 App Store 4.8 退件');
   }
 
   const textExtensions = new Set(['.html', '.js', '.mjs', '.json', '.css', '.webmanifest', '.txt', '.md']);

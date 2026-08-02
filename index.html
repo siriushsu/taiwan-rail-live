@@ -3312,7 +3312,7 @@
       <summary><span>更新紀錄</span><span class="foot-sub">最後更新：2026/8/2</span></summary>
       <ul class="foot-list foot-recent">
         <li class="grp">最近更新</li>
-        <li><span class="d">8/2</span><span>可以用軌島帳號登入，收藏的地點與完乘記錄會在手機和電腦之間同步</span></li>
+        <li><span class="d">8/2</span><span>訂閱軌島 Plus 後可以用軌島帳號登入，收藏的地點與完乘記錄會在手機和電腦之間同步</span></li>
         <li><span class="d">8/1</span><span>三鶯線跟上官方 8/1 延長：每天 08:00–22:00 都看得到車（原 10:00–20:00）</span></li>
         <li><span class="d">8/1</span><span>台鐵快車經過不停靠小站時的位置更準了——有網友拿碼錶實地量了十幾班車回報（謝謝）</span></li>
         <li><span class="d">8/1</span><span>衛星底圖換成比較省的計費方式：看到的畫面完全一樣，只是我們付給圖資供應商的錢少很多</span></li>
@@ -6028,7 +6028,9 @@ const BOUNTY_ENABLED = (() => { try {
 // 收集地圖同批下架。它其實不碰 GPS(資料來自既有乘車記錄),所以給它自己的旗標:要單獨復活只動這一行。
 const COLLECT_MAP_ENABLED = flagOnce('collectmap');
 const RECORDING_ENABLED = false; // 2026-07-17 錄影暫時下架(整備中):所有入口隱藏、實作全保留;改 true 即復活(工具列鈕+更多抽屜列+Plus 文案)
-const ACCOUNT_ENABLED = true; // 2026-08-02 Plus 開張:雲端同步是 Plus 第二支柱,帳號系統重開。免費層仍匿名(accountEnsureInit 延遲初始化),只有購買 Plus／?account=delete 才載 Firebase
+const ACCOUNT_ENABLED = false; // 2026-07-21 甲案裁示:免費層匿名,只有買 Plus 才登入。帳號鈕預設隱藏、不對訪客載 Firebase;
+// 購買鏈不需要它——plusOpen 自己會 accountEnsureInit() 延遲初始化。true 會讓 setupAccountUi()(互斥二選一)
+// 選中 eager 分支,把帳號鈕放回所有人主畫面、對每個訪客載 Firebase,等於把 07-17 那次刻意下架整個倒回去。
 // Plus 功能總閘(暗啟動):網站預設關、?plus=1 當次點亮供測試(比照 TRIP_SHARE_ENABLED)；上架公告批次改 true。
 // Capacitor 原生殼恆開(App 載入無 URL 參數,訂閱本來就是 App 功能;bridge 在頁面腳本前注入,判定可靠)。
 // 目前接「誤點履歷」頭牌卡的入口與卡片(見 openDelayHist/renderDelayHist);訂閱入口另受 plusConfigured 與 RevenueCat 設定控制。
@@ -6833,15 +6835,16 @@ function accountRender() {
   else {
     const u = a.user, photo = takeoutSafeHref(u.photoURL, '');
     const avatar = photo ? `<img src="${escHtml(photo)}" alt="">` : escHtml(accountDisplayName(u).slice(0, 1).toUpperCase());
-    const sync = a.syncing ? '正在合併這台裝置與雲端資料…' : (a.lastSync ? `上次同步：${new Date(a.lastSync).toLocaleString('zh-TW')}` : '尚未完成第一次同步');
-    const plus = state.plus && state.plus.active ? '訂閱中' : '未訂閱';
+    const subscribed = !!(state.plus && state.plus.active);
+    const sync = !subscribed ? '訂閱軌島 Plus 才會同步' : (a.syncing ? '正在合併這台裝置與雲端資料…' : (a.lastSync ? `上次同步：${new Date(a.lastSync).toLocaleString('zh-TW')}` : '尚未完成第一次同步'));
+    const plus = subscribed ? '訂閱中' : '未訂閱';
     // Plus 狀態列與入口以 plusProjectConfigured()(整個 RevenueCat project 是否有 Plus)為準,而非
     // plusConfigured()(此平台能否發起付款)——讓網站即使沒設 Web Billing key 也能查看訂閱狀態與
     // 「請在 App 內訂閱」說明;真正發起付款仍受 plusConfigured() 控管(見 plusOpen 內的 plusRefresh 閘)。
     body.innerHTML = `<div class="account-profile"><span class="account-avatar">${avatar}</span><span><b>${escHtml(accountDisplayName(u))}</b><small>${escHtml(u.email || 'Apple 隱藏電子郵件')}</small></span></div>` +
       `<div class="account-syncbox"><b>跨裝置同步</b><span>${escHtml(sync)}</span></div>` +
       (plusProjectConfigured() ? `<div class="account-syncbox"><b>軌島 Plus</b><span>${plus}</span></div>` : '') +
-      `<div class="account-user-actions">${plusProjectConfigured() ? '<button class="wide" type="button" data-action="plus">查看 Plus</button>' : ''}<button type="button" data-action="sync" ${a.syncing ? 'disabled' : ''}>立即同步</button><button type="button" data-action="logout">登出</button>` +
+      `<div class="account-user-actions">${plusProjectConfigured() ? '<button class="wide" type="button" data-action="plus">查看 Plus</button>' : ''}<button type="button" data-action="sync" ${(a.syncing || !subscribed) ? 'disabled' : ''}>立即同步</button><button type="button" data-action="logout">登出</button>` +
       `<button class="wide danger" type="button" data-action="delete">刪除帳號與同步資料</button></div>` +
       (a.actionError ? `<div class="account-error">${escHtml(a.actionError)}</div>` : '') +
       `<div class="account-note">登出會先完成最後同步，再從這台裝置移除私人收藏，避免下一個登入者看到或合併你的資料。</div>`;
@@ -6862,6 +6865,9 @@ function accountCloudEnvelope(docs) {
 async function accountSyncNow(reason) {
   const a = state.account;
   if (!a || !a.user || !a.db || a.syncing) return false;
+  // 雲端同步是 Plus 功能(2026-08-02 裁示:用戶端閘門)。logout 是刻意的例外——
+  // 登出會清掉本機資料(accountClearLocal),不讓最後一次回寫完成就等於吃掉使用者的東西。
+  if (reason !== 'logout' && !(state.plus && state.plus.active)) return false;
   a.syncing = true; a.actionError = ''; accountRender();
   try {
     // Firestore rules 尚未放行新 collection 時,整筆交易會 permission-denied——退回舊清單重試,
@@ -7032,6 +7038,7 @@ function accountEnsureInit() {
         state.account.user = user; state.account.ready = true; state.account.actionError = ''; accountRender();
         if (accountIntent === 'delete') { accountIntent = ''; accountOpen(); }
         if (user) {
+          await plusRefresh(); // 先確認資格再決定要不要同步;plusRefresh 自帶 !plusConfigured() 早退,不會在無購買通道的平台亂初始化 SDK
           await accountSyncNow('login');
           const pending = state.plusPending;
           if (pending) { state.plusPending = null; plusOpen(pending.source, pending.onGranted); }
@@ -7195,7 +7202,20 @@ function plusRender() {
 }
 async function plusRefresh() {
   const p = state.plus, user = state.account && state.account.user; if (!p || !user || p.loading) return false;
-  if (!plusConfigured()) { p.error = ''; plusRender(); return false; } // 此平台無購買通道:不初始化任何 billing SDK
+  if (!plusConfigured()) {
+    // 此平台無購買通道(網站沒有 Web Billing key,RAIL_REVENUECAT_CONFIG 只設 iosApiKey):不初始化任何
+    // billing SDK,但改打 /api/plus-status 讀 App 買的資格(2026-08-02 新增,唯讀,不開放網站購買)。
+    // 只信任明確的 {active:true};非 200 或 active:false 都不動 p.active——避免把上游短暫故障
+    // (503)誤讀成「沒訂閱」而讓付費者的功能閃爍消失(同一顧慮見 worker.js /api/plus-status 註解)。
+    p.error = '';
+    try {
+      const token = state.account.fb.getIdToken ? await state.account.fb.getIdToken(user) : await user.getIdToken();
+      const res = await fetch(apiUrl('api/plus-status'), { cache: 'no-store', headers: { Authorization: 'Bearer ' + token } });
+      if (res.ok) { const data = await res.json(); if (data && data.active === true) p.active = true; }
+    } catch (e) {}
+    accountRender(); plusRender();
+    return p.active;
+  }
   p.loading = true; p.error = ''; plusRender();
   try {
     p.adapter = await plusAdapterFor(user.uid);
