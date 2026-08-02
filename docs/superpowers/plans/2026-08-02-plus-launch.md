@@ -2038,8 +2038,11 @@ done
 | `verify_public_repo_hygiene.mjs` | 最終狀態 0 筆命中 | **1**（預設） | 歷史掃描現在**計入 exit code**。本分支有既存的歷史命中待 squash，所以預設路徑就是紅的——**那是正確的訊號**。要在合併前明示放行請加 `--allow-history-hits=<N>`（它會把容忍了幾筆印出來）；合併時 squash 掉之後，不帶參數就會自己變綠。 |
 
 ⚠️ **分數會隨新增判準而變大**：上表的分子分母是 Task 7C 收尾當下量到的值，不是永久契約。
-每支腳本自己都有「斷言總數閘門」（`T6`／`G9`／…）在守「條件式區塊整批消失 ⇒ 分母變小卻仍印全綠」，
-那才是權威。**這裡的數字只用來回答「跟上次比是不是掉了」**——掉了要查，長了先確認是誰加的。
+**六支裡只有兩支有「斷言總數閘門」**（`verify_plus_features.mjs` 的 `T6`、`verify_founding_seal.mjs` 的 `G9`）
+在守「條件式區塊整批消失 ⇒ 分母變小卻仍印全綠」；那兩支以閘門為權威，上表的數字只是佐證。
+**另外四支（`verify_plus_subscription`／`verify_sat_retina`／`verify_tripshare`／`verify_public_repo_hygiene`）
+一條總數閘門都沒有 ⇒ 上表的分母就是它們唯一的回歸偵測**：分母掉了必須查清楚是誰、為什麼，
+不可以直接把新數字抄進這張表。（`verify_plus_subscription` 尤其要盯——Task 7C 有 175 行改動落在它身上。）
 
 ⚠️ **前置**：這一步依賴 Task 6b 改過的三支腳本，所以 **Task 6b 是 Task 7 的 prerequisite**
 （Interfaces 原本只寫 Consumes Task 1–6，漏了 6b）。

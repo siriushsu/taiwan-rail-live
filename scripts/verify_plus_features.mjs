@@ -33,6 +33,15 @@ const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const SRC = readFileSync(path.join(ROOT, 'index.html'), 'utf8');
 const WSRC = readFileSync(path.join(ROOT, 'worker.js'), 'utf8');
 const TSRC = readFileSync(path.join(ROOT, 'terms.html'), 'utf8'); // 付費視窗法務列直接連到它,見 T1T
+// 條款的「軌島 Plus 訂閱」那一節(到下一個 <h2> 為止),去標籤後的純文字。
+// 只取這一節、不取整份:條款其他地方的免責語是**否定句**(「不保證完全正確」),
+// 整份餵進絕對句偵測器會被「保證」兩字誤咬 ⇒ 判準為了不相干的理由變紅,然後被人調鬆。
+const TERMS_PLUS_TEXT = (() => {
+  const i = TSRC.indexOf('軌島 Plus 訂閱');
+  if (i < 0) return '';
+  const j = TSRC.indexOf('<h2', i);
+  return TSRC.slice(i, j < 0 ? TSRC.length : j).replace(/<[^>]+>/g, ' ');
+})();
 const INDEX_MD5 = createHash('md5').update(SRC).digest('hex');
 console.log(`[G0] ROOT=${ROOT}`);
 console.log(`[G0] index.html md5=${INDEX_MD5}`);
@@ -118,6 +127,16 @@ async function boot(browser, { viewport = { width: 1280, height: 800 } } = {}) {
 const setPlus = (page, v) => page.evaluate(vv => {
   state.plus = { active: !!vv, founding: false, loading: false, error: '', pkgMonthly: null, pkgAnnual: null, mgmtUrl: '', adapter: null, afterUnlock: null };
 }, v);
+
+// 說明中心的 Plus 節(HELP_GROUPS 的 key='plus'):從頁面現讀該節本身,不讀整份原始碼——
+// 讀整份會讓「命中」變成永遠成立(功能字串在 plusRender/terms 裡本來就有),判準當場失明。
+// T1H 與 T2a 共用同一支抽取器:兩條判準看的是同一份對外文案,分開各寫一份遲早會漂開。
+const readHelpPlusText = page => page.evaluate(() => {
+  try {
+    const sec = HELP_GROUPS.flatMap(g => g.secs || []).find(s => s.key === 'plus');
+    return sec ? JSON.stringify(sec) : '';
+  } catch (e) { return ''; }
+});
 
 // 真正呼叫產品函式 plusRender(),讀它實際寫進 DOM 的文字——不是腳本自己組字串比對。
 const renderFeats = page => page.evaluate(() => {
@@ -225,7 +244,16 @@ function expectedFeatCount(founding) { return REQUIRED.filter(r => !r.conditiona
 // 三條都是同一個方向,結構上照不到相反的缺陷:程式裡多了一道付費牆,卻沒出現在任何一份對外清單裡
 // ——那正是「有付費牆卻沒揭露」這件事本身的形狀。plusRequire() 是「攔下來要資格」的唯一入口,
 // 所以「有付費牆」在原始碼裡就等於「有人呼叫了它」,拿它的呼叫點當集合。
-const GATE_CALLS = [...new Set([...stripComments(SRC).matchAll(/plusRequire\(\s*'([^']+)'/g)].map(m => m[1]))].sort();
+// 🔴 三種引號都要吃:此前只認單引號,複審實測 `plusRequire("probe-dq", …)` 加一道未登記的付費牆
+// ⇒ 88/88 全綠,差別只有一個字元。正向對照證明得了「抽取器不會永遠回空」,**證明不了它不會漏抓**
+// (under-matching),所以除了擴大 regex,下面再加一條「呼叫點總數 === 抓到的字面值數」的守門員——
+// 那條連 `plusRequire(varName, fn)` 這種非字面值寫法都擋得住:抽取器結構上抓不到的,就讓它對不上帳。
+const GATE_SRC = stripComments(SRC);
+const GATE_CALL_RE = /plusRequire\(\s*(['"`])([^'"`]+)\1/g;
+const GATE_CALLS = [...new Set([...GATE_SRC.matchAll(GATE_CALL_RE)].map(m => m[2]))].sort();
+const GATE_LITERALS = [...GATE_SRC.matchAll(GATE_CALL_RE)].length;
+const GATE_CALL_SITES = (GATE_SRC.match(/\bplusRequire\s*\(/g) || []).length
+  - (GATE_SRC.match(/function\s+plusRequire\s*\(/g) || []).length; // 扣掉宣告自己
 // 每個呼叫點要嘛對映到一個已揭露的功能(needle),要嘛掛在一個目前為 false 的功能旗標下
 // (功能整個不存在 ⇒ 沒有東西要揭露)。旗標一旦翻成 true,T1G 那條就會要求它補上 needle。
 const GATE_DISCLOSURE = {
@@ -251,14 +279,7 @@ const GATE_DISCLOSURE = {
   const { ctx, page, errors } = await boot(cr);
   await setPlus(page, false);
   const { feats, trust } = await renderFeats(page);
-  // 說明中心的 Plus 節(HELP_GROUPS 的 key='plus'):從頁面現讀該節本身,不讀整份原始碼——
-  // 讀整份會讓「命中」變成永遠成立(功能字串在 plusRender/terms 裡本來就有),判準當場失明。
-  const HELP_PLUS_TEXT = await page.evaluate(() => {
-    try {
-      const sec = HELP_GROUPS.flatMap(g => g.secs || []).find(s => s.key === 'plus');
-      return sec ? JSON.stringify(sec) : '';
-    } catch (e) { return ''; }
-  });
+  const HELP_PLUS_TEXT = await readHelpPlusText(page);
   // 條數從 REQUIRED 推導,不寫死:寫死的數字只要清單一長就過期,而換成另一個寫死的數字只是把坑
   // 往後推一格(2026-08-03 補「Google 清單匯入」那一項時實際踩到)。真正的判準是下面 T1F／T1R
   // 的逐項身分對映,這一條只負責抓「多了一項沒對映的東西」。
@@ -304,11 +325,20 @@ const GATE_DISCLOSURE = {
     ok(`T1G plusRequire('${src}') 這道付費閘門有被揭露(在清單與條款裡都找得到)${d && d.flag ? `,或它掛的 ${d.flag} 目前為 false(功能不存在,無可揭露)` : ''}`,
       byNeedle || byFlag, `needle=${d && d.needle} byNeedle=${byNeedle} flag=${d && d.flag}=${d && d.flag ? flagVals[d.flag] : '-'} byFlag=${byFlag}`);
   }
-  // 抽取器的正向對照:regex 打錯字(例如把單引號寫成雙引號)會讓 GATE_CALLS 變成空陣列,而空陣列在
-  // 上面的迴圈裡一條都不跑 ⇒ 整組靜默消失。這一條證明它真的抓得到呼叫點的形狀。
-  ok('T1G 正向對照:同一支呼叫點抽取器對一段含 plusRequire 的樣本抓得到(不是永遠回空陣列)',
-    GATE_CALLS.length > 0 && [...stripComments("x(); plusRequire('probe-src', fn);").matchAll(/plusRequire\(\s*'([^']+)'/g)].map(m => m[1])[0] === 'probe-src',
-    `實際抓到=${JSON.stringify(GATE_CALLS)}`);
+  // 抽取器的正向對照:regex 打錯字會讓 GATE_CALLS 變成空陣列,而空陣列在上面的迴圈裡一條都不跑
+  // ⇒ 整組靜默消失。逐種引號列出來,是因為「換一種寫法就繞過」正是這條防線實際被繞過的方式,
+  // 而「不會永遠回空」這種對照結構上照不到漏抓——要照到,就得把每一種該抓到的寫法都餵一次。
+  const quoteProbe = [...stripComments(
+    'x(); plusRequire(\'probe-sq\', a); plusRequire("probe-dq", b); plusRequire(`probe-tp`, c);'
+  ).matchAll(GATE_CALL_RE)].map(m => m[2]);
+  ok('T1G 正向對照:呼叫點抽取器對單引號／雙引號／樣板字面值三種寫法都抓得到(換一種引號就繞過)',
+    GATE_CALLS.length > 0 && JSON.stringify(quoteProbe) === JSON.stringify(['probe-sq', 'probe-dq', 'probe-tp']),
+    `樣本抓到=${JSON.stringify(quoteProbe)} 實際抓到=${JSON.stringify(GATE_CALLS)}`);
+  // 守門員:抽取器只認字面值,`plusRequire(name, fn)` 這種寫法它結構上看不到。
+  // 與其假裝抓得到,不如讓帳對不上——呼叫點數與抓到的字面值數不等,就是「有一道閘門沒被登記」。
+  ok('T1G0b plusRequire() 的呼叫點數 === 抽取器抓到的字面值數(非字面值寫法不會被靜默略過)',
+    GATE_CALL_SITES === GATE_LITERALS && GATE_CALL_SITES > 0,
+    `呼叫點=${GATE_CALL_SITES} 字面值=${GATE_LITERALS}`);
   // 反向:REQUIRED 每一項都出現在 feats 裡(防「做了功能但忘了寫進清單」)——除非該項有 conditional()
   // 且目前不成立(創始會員過了 FOUNDING_UNTIL_MS),那種情況下正確行為是「不出現」,一樣要驗到,
   // 不是跳過不驗。
@@ -330,14 +360,24 @@ const GATE_DISCLOSURE = {
   // 已隨信任聲明改寫成現在式一併撤除:例外一存在,這條斷言就對它要抓的那一類措辭失明。
   const BANNED_ABSOLUTE = ['永遠', '一律', '保證', '一個都不會拿走', '更清晰'];
   const bannedIn = s => BANNED_ABSOLUTE.filter(w => s.includes(w));
-  const allTexts = [...feats, trust];
-  ok('T2a feats 與 plus-trust 皆不含絕對期限／絕對保證措辭(無私設例外)',
+  // 🔴 三份對外文案一起驗,不是只驗付費面板那兩塊:說明中心的 Plus 節與條款第 3 節同樣是
+  // 付款決定點(說明中心那一節自己的註解就寫著這句)。此前只吃 feats+trust ⇒ 複審把說明中心
+  // 的 one: 改回「永遠免費」仍 88/88 全綠——同一句話換一個容器就不受管,等於三份清單只管了一份。
+  const HELP_PLUS_TEXT = await readHelpPlusText(page);
+  const allTexts = [...feats, trust, HELP_PLUS_TEXT, TERMS_PLUS_TEXT];
+  ok('T2a 付費決定點三份文案(feats+plus-trust、說明中心 Plus 節、條款 Plus 節)皆不含絕對期限／絕對保證措辭(無私設例外)',
     allTexts.every(t => bannedIn(t).length === 0),
-    JSON.stringify(allTexts.map(t => [t, bannedIn(t)]).filter(x => x[1].length)) || JSON.stringify(allTexts));
+    JSON.stringify(allTexts.map(t => [t.slice(0, 40), bannedIn(t)]).filter(x => x[1].length)) || `已驗 ${allTexts.length} 段`);
   // 正向對照:同一支偵測器餵一句一定含違禁詞的字串,必須抓得到。沒有這條,上面那個「全部乾淨」
   // 也可能是因為偵測器壞掉(例如清單被清空)——沉默不是證據。
   ok('T2a 正向對照:同一支違禁詞偵測器對一句含「永遠」的樣本必須命中(證明它不是恆真)',
     bannedIn('列車位置永遠免費').includes('永遠'), JSON.stringify(bannedIn('列車位置永遠免費')));
+  // 抽取器對照:上面多吃的兩段文字若抽成空字串,`every` 對空集合恆真 ⇒ 擴大範圍等於沒擴大。
+  // 兩頭各釘一次(非空 + 不會把不相干字串認成命中),與 T1H 的抽取器對照同一形狀。
+  ok('T2a 正向對照:說明中心與條款兩支文案抽取器都抽得出非空文字,且不會把不相干字串認成命中',
+    HELP_PLUS_TEXT.length > 20 && TERMS_PLUS_TEXT.length > 20
+    && !HELP_PLUS_TEXT.includes('verify-probe-absent') && !TERMS_PLUS_TEXT.includes('verify-probe-absent'),
+    `help=${HELP_PLUS_TEXT.length} terms=${TERMS_PLUS_TEXT.length} termsHead=${JSON.stringify(TERMS_PLUS_TEXT.slice(0, 40))}`);
   const satItem = feats.find(t => t.includes('高解析')) || '';
   ok('T2b 衛星那項同時含「高解析」與「Retina」', satItem.includes('高解析') && satItem.includes('Retina'), satItem);
   ok('T2c plus-trust 保留「準確度」相關的免費承諾語', trust.includes('準確度'), trust);
@@ -633,12 +673,12 @@ server.close();
 // 「為了正確的理由跟預期值對不上」——這正是複審 Important 5 點名的時間炸彈,詳見 T1/G1 註解。
 // 組成:1(前置條數) + 4×feats 項數(T1F×2 + T1T×1 + T1H×1) + 1(T1H 正向對照)
 //   + 1(T1G0 名單一致) + GATE_CALLS.length(逐個閘門的揭露) + 1(T1G 正向對照)
-//   + REQUIRED.length(T1R 反向) + 1(無 JS 例外)。
+//   + 1(T1G0b 呼叫點數對帳) + REQUIRED.length(T1R 反向) + 1(無 JS 例外)。
 // 三個變數都不是手打的常數:清單一長、多一道付費閘門,分子分母一起長,不必回頭改這個數字。
 const EXPECTED_COUNTS = {
   G0: 1, G1: 2, G2: 2, T0: 1, T0a: 1, T0b: 1, T0c: 1,
-  T1: 5 + REQUIRED.length + GATE_CALLS.length + 4 * expectedFeatCount(inFounding),
-  T2: 1, T2a: 2, T2b: 1, T2c: 1, T2d: 1, T2e: 1, T2f: 1, // T2a=2:違禁詞斷言本身 + 它的正向對照
+  T1: 6 + REQUIRED.length + GATE_CALLS.length + 4 * expectedFeatCount(inFounding),
+  T2: 1, T2a: 3, T2b: 1, T2c: 1, T2d: 1, T2e: 1, T2f: 1, // T2a=3:違禁詞斷言 + 偵測器正向對照 + 兩支文案抽取器的對照
   T3: 2, T3a: 1, T3b: 2, T4a: 2, T4b: 2, T4c: 2, T5: 6, T5w: 3, T7a: 4, T7b: 4,
 };
 const actualCounts = {};

@@ -370,21 +370,38 @@ function collectFirebaseReqs(page) {
   const firebaseReqs = collectFirebaseReqs(page); // 與 I2 同一支收集器、同一條 regex
   await page.goto(BASE, { waitUntil: 'domcontentloaded' });
   await waitReady(page);
-  const entry = await page.evaluate(() => {
+  const entry = await page.evaluate(async () => {
+    const vis = el => { if (!el) return false; const st = getComputedStyle(el), r = el.getBoundingClientRect();
+      return st.display !== 'none' && st.visibility !== 'hidden' && r.width > 0 && r.height > 0; };
     const btn = document.getElementById('accountBtn');
-    const row = document.querySelector('.ms-row[data-proxy="accountBtn"]');
     const cs = btn && getComputedStyle(btn), r = btn && btn.getBoundingClientRect();
-    return {
+    const out = {
       btnVisible: !!(btn && cs.display !== 'none' && cs.visibility !== 'hidden' && r.width > 0 && r.height > 0),
       btnLabel: btn && btn.querySelector('.tl') ? btn.querySelector('.tl').textContent : null,
-      rowShown: !!(row && row.style.display !== 'none'),
-      rowLabel: row && row.querySelector('span') ? row.querySelector('span').textContent : null,
     };
+    // G2 要量的是使用者看得到的結果,所以得等抽屜真的打開:抽屜列的 inline display 在開啟當下
+    // 會被 syncMoreSheet() 依代理鈕重算,開啟前那一格只是中間態(舊版斷言 row.style.display !== 'none'
+    // 就是咬在那個中間態上,2026-08-03 複審實測:拿掉 accountBtnSlot 的那一行只有 G2/I3c 紅,
+    // 同一趟真的點開抽屜再量的 N…b 全綠 ⇒ 那一行對使用者看得到的結果沒有影響)。
+    const fab = document.getElementById('toolsFab') || document.getElementById('tabMore');
+    if (fab) fab.click();
+    await new Promise(r2 => setTimeout(r2, 350));
+    const row = document.querySelector('.ms-row[data-proxy="accountBtn"]');
+    const other = document.querySelector('.ms-row[data-proxy="shareBtn"]');
+    out.sheetOpen = vis(document.querySelector('.more-sheet'));
+    out.rowShown = vis(row);
+    out.rowLabel = row && row.querySelector('span') ? row.querySelector('span').textContent : null;
+    out.otherRowVisible = vis(other);
+    if (fab) fab.click(); // 收回抽屜,不影響後面走真實點擊的那一段
+    await new Promise(r2 => setTimeout(r2, 200));
+    return out;
   });
   ok('G1 網站匿名訪客的工具列有 Plus 入口且標成 Plus(槽位改造真的跑過,不是還停在帳號標籤)',
     entry.btnVisible === true && entry.btnLabel === 'Plus', JSON.stringify(entry));
-  ok('G2 「更多」抽屜的同一個槽位也露出且標成「軌島 Plus」(手機唯一入口,桌面工具鈕在 ≤900 是 display:none)',
-    entry.rowShown === true && entry.rowLabel === '軌島 Plus', JSON.stringify(entry));
+  ok('G2 「更多」抽屜真的打開後,同一個槽位在畫面上可見且標成「軌島 Plus」(手機唯一入口,桌面工具鈕在 ≤900 是 display:none)',
+    entry.sheetOpen === true && entry.rowShown === true && entry.rowLabel === '軌島 Plus', JSON.stringify(entry));
+  ok('G2b 正向對照:同一張抽屜、同一支可見性探針量得到一列可見的鄰居(#shareBtn 那列)——證明它不是對整張抽屜都回 false',
+    entry.otherRowVisible === true, JSON.stringify(entry));
   // 真的點,不是 evaluate 呼叫函式。點不到就記下來往下走:讓它變成一條紅斷言,而不是拋例外中止整支腳本
   // ——中止的話後面所有情境(含守免費層匿名的 I 段)全部靜默不跑,只留一段堆疊,看不出還有什麼壞了。
   const entryClicked = await page.click('#accountBtn', { timeout: 5000 }).then(() => true).catch(() => false);
@@ -832,24 +849,38 @@ for (const w of [360, 375, 414, 768]) await mobilePlusEntry(w, { sel: IMPORT_SEL
   ok('I3 回訪使用者(留有 last-sync-uid)開機 accountEnsureInit 真的有跑(state.account.ready 轉真,不必先點過 Plus/帳號入口)',
     readyOk, `ready=${readyOk}`);
   // I3b/I3c:回訪／已登入者的帳號入口「真的看得見」。
-  // #accountBtn 的 HTML 預設是 inline display:none、抽屜列也是,而 accountEnsureInit() 裡那一行
-  // accountBtnSlot(...) 是這兩個入口在這條路上的唯一露出點——把它拿掉,回訪者的帳號入口整個消失
-  // (桌面與手機都是),而在補這兩條之前,整套判準一條都不會紅(2026-08-02 複審實測)。
+  // #accountBtn 的 HTML 預設是 inline display:none、抽屜列也是,accountEnsureInit() 裡那一行
+  // accountBtnSlot(...) 把工具列鈕的 inline none 還原——把它拿掉,回訪者的帳號入口整個消失,
+  // 而在補這兩條之前,整套判準一條都不會紅(2026-08-02 複審實測)。
+  // I3c 量的是**抽屜真的打開之後**那一列在畫面上的可見性:抽屜列的 inline display 由
+  // syncMoreSheet() 在開啟當下依代理鈕重算,開啟前那一格只是中間態(舊版咬在中間態上,
+  // 2026-08-03 複審實測那一行對使用者看得到的結果沒有影響)。
   // 這裡刻意只驗「看得見」不驗標籤:本情境的 uid 是假的,Firebase 不會給出真的 user,
   // 標籤會停在登出態該有的樣子(見 accountSlotMode),驗標籤等於把測試綁在一個與本條無關的分支上。
-  const slot = await page.evaluate(() => {
+  const slot = await page.evaluate(async () => {
     const vis = el => { if (!el) return false; const st = getComputedStyle(el), r = el.getBoundingClientRect();
       return st.display !== 'none' && st.visibility !== 'hidden' && r.width > 0 && r.height > 0; };
-    const btn = document.getElementById('accountBtn'), row = document.querySelector('.ms-row[data-proxy="accountBtn"]');
-    return { btnExists: !!btn, btnVisible: vis(btn), btnInline: btn ? btn.style.display : null,
-      rowExists: !!row, rowDisplay: row ? row.style.display : null,
+    const btn = document.getElementById('accountBtn');
+    const out = { btnExists: !!btn, btnVisible: vis(btn), btnInline: btn ? btn.style.display : null,
       shareVisible: vis(document.getElementById('shareBtn')) };
+    const fab = document.getElementById('toolsFab') || document.getElementById('tabMore');
+    if (fab) fab.click();
+    await new Promise(r => setTimeout(r, 350));
+    const row = document.querySelector('.ms-row[data-proxy="accountBtn"]');
+    out.sheetOpen = vis(document.querySelector('.more-sheet'));
+    out.rowExists = !!row;
+    out.rowVisible = vis(row);
+    out.otherRowVisible = vis(document.querySelector('.ms-row[data-proxy="shareBtn"]'));
+    if (fab) fab.click();
+    await new Promise(r => setTimeout(r, 200));
+    return out;
   });
   ok('I3b 回訪使用者的工具列帳號入口真的可見(#accountBtn 的 inline display:none 有被還原)',
     slot.btnVisible === true, JSON.stringify(slot));
-  ok('I3c 回訪使用者的「更多」抽屜列也露出來(手機唯一入口;HTML 預設 inline none)',
-    slot.rowExists === true && slot.rowDisplay !== 'none' && slot.shareVisible === true,
-    `rowDisplay=${slot.rowDisplay} 正向對照 shareVisible=${slot.shareVisible}`);
+  ok('I3c 回訪使用者:「更多」抽屜真的打開後,帳號那一列在畫面上可見(手機唯一入口)',
+    slot.sheetOpen === true && slot.rowVisible === true, JSON.stringify(slot));
+  ok('I3d 正向對照:同一張抽屜、同一支可見性探針量得到一列可見的鄰居(#shareBtn 那列)',
+    slot.otherRowVisible === true, JSON.stringify(slot));
   ok('I2b 正向對照:同一支收集器在回訪情境下抓得到 Firebase 請求(證明 I2 的「零」不是收集器壞掉)',
     firebaseReqs.length > 0, `抓到 ${firebaseReqs.length} 筆${firebaseReqs.length ? ':' + firebaseReqs[0] : ''}`);
   ok('I 回訪使用者本輪零 pageerror/console.error', errs.length === 0, errs.slice(0, 3).join(' | '));
@@ -1097,6 +1128,37 @@ for (const w of [360, 375, 414, 768]) await mobilePlusEntry(w, { sel: IMPORT_SEL
 //    為真 ⇒ 登出態不畫那顆鈕、已登入態才畫,兩個狀態各有一個明確的期望值。
 {
   const collect = async page => {
+    // (a0) 工具列槽位與它的抽屜列——最先量,因為下面就要開帳號面板把畫面蓋掉。
+    // 為什麼非量不可:這是網站與手機上**最先看到**的 Plus 觸發面(手機 .stage-tools 是 display:none,
+    // 抽屜列是唯一入口)。此前 KS 只量帳號面板與 plusOpen(),複審實測拿掉 setupAccountUi() 的
+    // `if (PLUS_ENABLED)` ⇒ 旗標關閉時工具列仍長出一顆標著「Plus」的鈕,而 plusOpen() 已被守衛擋住
+    // ⇒ 按下去靜默無反應,整支卻 193/193 全綠。止血旗標的意義是「所有觸發面都關得掉」,
+    // 只驗其中三個等於沒驗到這一條(index.html 自己也寫著「留著一顆點了沒有任何去處的鈕比沒有更糟」)。
+    const slot = await page.evaluate(async () => {
+      const vis = el => { if (!el) return false; const st = getComputedStyle(el), r = el.getBoundingClientRect();
+        return st.display !== 'none' && st.visibility !== 'hidden' && r.width > 0 && r.height > 0; };
+      const btn = document.getElementById('accountBtn');
+      const o = {
+        btnVisible: vis(btn),
+        btnLabel: btn && btn.querySelector('.tl') ? btn.querySelector('.tl').textContent.trim() : null,
+        btnTitle: btn ? (btn.getAttribute('title') || '') : null,
+      };
+      // 抽屜列一律等抽屜真的打開才量(syncMoreSheet() 在開啟當下依代理鈕重算那一格)
+      const fab = document.getElementById('toolsFab') || document.getElementById('tabMore');
+      if (fab) fab.click();
+      await new Promise(r => setTimeout(r, 350));
+      const row = document.querySelector('.ms-row[data-proxy="accountBtn"]');
+      o.sheetOpen = vis(document.querySelector('.more-sheet'));
+      o.rowVisible = vis(row);
+      o.rowLabel = row && row.querySelector('span') ? row.querySelector('span').textContent.trim() : null;
+      o.otherRowVisible = vis(document.querySelector('.ms-row[data-proxy="shareBtn"]'));
+      if (fab) fab.click();
+      await new Promise(r => setTimeout(r, 200));
+      // 行程分享發起端也是 Plus 觸發面,而它的顯示由 ?tripshare=1 這條開發通道點亮(可被轉貼)。
+      // 兩次載入都帶著那個參數,才量得到「旗標關閉時這條通道還會不會長出鈕」。
+      o.tripShareVisible = (() => { try { return tripShareVisible(); } catch (e) { return 'err'; } })();
+      return o;
+    });
     // (a) 登出態帳號面板:強制進入 ready 且無 user 的分支(否則停在「正在讀取登入狀態…」什麼都量不到)
     const out = await page.evaluate(() => {
       const q = sel => !!(document.getElementById('accountBody') || {}).querySelector?.(sel);
@@ -1132,7 +1194,7 @@ for (const w of [360, 375, 414, 768]) await mobilePlusEntry(w, { sel: IMPORT_SEL
       const m = document.getElementById('plusModal'), b = document.getElementById('plusBody');
       return { modalOpen: m ? !m.hidden : null, feats: b ? b.querySelectorAll('.plus-feature').length : -1 };
     });
-    return { ...out, ...panel };
+    return { ...out, ...panel, slot };
   };
   const run = async (base, tag) => {
     const { ctx, page } = await newPage(chromiumB);
@@ -1144,8 +1206,9 @@ for (const w of [360, 375, 414, 768]) await mobilePlusEntry(w, { sel: IMPORT_SEL
     await ctx.close();
     return { r, errs };
   };
-  const on = await run(BASE, 'on');
-  const off = await run(`http://localhost:${PORT}/index.html?__flagoff=1`, 'off');
+  // 兩邊都帶 ?tripshare=1:那是行程分享發起端的開發通道,不帶就量不到 KS8 要守的那條路徑
+  const on = await run(`${BASE}?tripshare=1`, 'on');
+  const off = await run(`http://localhost:${PORT}/index.html?__flagoff=1&tripshare=1`, 'off');
   // 前置:替換真的生效了。沒有這條,伺服器一旦找不到宣告字串(改寫、加空白),下面每一條都會在
   // 「旗標其實是開的」的頁面上量,而且量出來的「不存在」還是綠的——正是本 brief 警告的假綠形狀。
   ok('KS0 前置:?__flagoff=1 供應的頁面現讀 PLUS_ENABLED === false(替換真的生效)', off.r.flag === false, `off.flag=${off.r.flag}`);
@@ -1155,6 +1218,14 @@ for (const w of [360, 375, 414, 768]) await mobilePlusEntry(w, { sel: IMPORT_SEL
     on.r.modalOpen === true && on.r.feats > 0, JSON.stringify(on.r));
   ok('KS2 正向對照:旗標開啟時同一支收集器抓得到已登入態帳號面板的 Plus 入口與 Plus 狀態列',
     on.r.loggedInPlusBtn === true && on.r.loggedInPlusStatusRow === true, JSON.stringify(on.r));
+  // 工具列槽位的正向對照:同一支 slot 收集器在旗標開著時,必須抓得到一顆標成 Plus 的鈕與抽屜列。
+  // 沒有這兩條,下面 KS6/KS7 的「不是 Plus 入口」可能只是收集器根本沒在看(選擇器打錯／改名)。
+  ok('KS1b 正向對照:旗標開啟時同一支槽位收集器抓得到標成「Plus」的工具列鈕',
+    on.r.slot.btnVisible === true && on.r.slot.btnLabel === 'Plus' && /Plus/.test(on.r.slot.btnTitle || ''),
+    JSON.stringify(on.r.slot));
+  ok('KS2b 正向對照:旗標開啟時抽屜真的打開後,那一列可見且標成「軌島 Plus」',
+    on.r.slot.sheetOpen === true && on.r.slot.rowVisible === true && on.r.slot.rowLabel === '軌島 Plus',
+    JSON.stringify(on.r.slot));
   // 關閉態:必須全部消失
   ok('KS3 旗標關閉:plusOpen() 打不開 Plus 面板(深連結與既有呼叫點都摸不到那張畫面)',
     off.r.modalOpen === false && off.r.feats === 0, JSON.stringify(off.r));
@@ -1162,6 +1233,19 @@ for (const w of [360, 375, 414, 768]) await mobilePlusEntry(w, { sel: IMPORT_SEL
     off.r.loggedOutPlusBtn === false, JSON.stringify(off.r));
   ok('KS5 旗標關閉:帳號面板已登入態沒有 Plus 入口鈕,也不出現 Plus 狀態列',
     off.r.loggedInPlusBtn === false && off.r.loggedInPlusStatusRow === false, JSON.stringify(off.r));
+  // KS6/KS7 判的是「這個槽位是不是 Plus 入口」,不是「這顆鈕在不在」——槽位本身有兩種合法身分
+  // (Plus 入口／帳號入口),旗標關閉時它可以整顆消失(免費匿名),也可以留下來當帳號入口(回訪者)。
+  // 寫成「不得存在」會把後者判成缺陷,寫成身分才問對問題:關閉態不准有任何標著 Plus 的觸發面。
+  ok('KS6 旗標關閉:工具列槽位不是 Plus 入口(不得留下一顆標著 Plus、按下去卻被守衛擋掉的死鈕)',
+    !(off.r.slot.btnVisible && /Plus/.test(`${off.r.slot.btnLabel || ''}${off.r.slot.btnTitle || ''}`)),
+    JSON.stringify(off.r.slot));
+  ok('KS7 旗標關閉:「更多」抽屜打開後,那一列也不是 Plus 入口(手機唯一入口,不能只關桌面那顆)',
+    off.r.slot.sheetOpen === true && !(off.r.slot.rowVisible && /Plus/.test(off.r.slot.rowLabel || '')),
+    JSON.stringify(off.r.slot));
+  ok('KS2c 正向對照:旗標開啟且帶 ?tripshare=1 時,行程分享發起端入口本來就會亮(證明 KS8 的 false 不是參數沒吃到)',
+    on.r.slot.tripShareVisible === true, `on=${on.r.slot.tripShareVisible}`);
+  ok('KS8 旗標關閉:?tripshare=1 這條開發通道也不再點亮行程分享發起端(URL 參數可被轉貼,不能變成公開後門)',
+    off.r.slot.tripShareVisible === false, `off=${off.r.slot.tripShareVisible}`);
   ok('KS 本輪零 pageerror/console.error', on.errs.length === 0 && off.errs.length === 0,
     [...on.errs, ...off.errs].slice(0, 3).join(' | '));
 }

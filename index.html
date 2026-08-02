@@ -6085,7 +6085,10 @@ const TRIP_SHARE_ENABLED = (() => { try { return new URLSearchParams(location.se
 // 兩段式(顯示 vs 放行)是刻意的:URL 參數可以被轉貼,不能讓它變成公開後門。
 // 接收端 ?trip= 的解碼沒有資格閘門,不受這裡影響。
 function tripShareVisible() {
-  return TRIP_SHARE_ENABLED || plusIsActive();
+  // 止血旗標關閉時連鈕都不長:plusOpen() 現在自己會擋,發起端入口若還在,?tripshare=1 這條開發通道
+  // 就會留下一顆按了靜默無反應的死鈕。與 openDelayHist 的 `!PLUS_ENABLED → return`、
+  // setupAccountUi 的 `btn.remove()` 同一套慣例——旗標關掉是「功能不可達」,不是「功能免費」。
+  return PLUS_ENABLED && (TRIP_SHARE_ENABLED || plusIsActive());
 }
 // ?demo=collect／off:備援站確認設計用的示範收集資料開關。**必須在這裡就讀進來**——
 // boot 途中 clearFollow() 會 `history.replaceState(null,'',location.pathname)` 把 query string 抹掉,
@@ -6795,7 +6798,9 @@ function setupTakeoutUi() {
   // 入口不長出來時抽屜列也要一起走(比照 recBtn):留一列點了靜默無反應比沒有更糟(v0718i 對 recBtn/accountBtn 的同一教訓)
   if (!btn || !modal || !(TAKEOUT_PROTOTYPE || (accountConfigured() && plusConfigured()))) { if (row) row.remove(); return; }
   btn.style.display = '';
-  if (row) row.style.display = ''; // 抽屜列 HTML 預設 inline none,這裡是它唯一的露出點
+  if (row) row.style.display = ''; // 抽屜列 HTML 預設 inline none。注意:這一格是中間態,不是最終可見性
+  // ——抽屜每次打開時 syncMoreSheet() 都會依代理鈕(#importBtn)重算它,所以這裡設什麼都會被覆寫。
+  // 真正決定使用者看不看得到那一列的是代理鈕的可見性;留這一行只是讓兩者在開啟前就一致。
   btn.onclick = () => { if (plusConfigured()) plusRequire('takeout', takeoutOpen); else takeoutOpen(); };
   const close = () => { state.takeoutPick = null; takeoutClose(); };
   document.getElementById('takeoutX').onclick = close;
@@ -7108,7 +7113,9 @@ function accountBtnSlot(mode) {
     btn.onclick = plus ? () => plusOpen('toolbar') : accountOpen;
     btn.style.display = '';
   }
-  // 抽屜列 HTML 預設 inline none,這裡是唯一的露出點(eager／Plus 延遲初始化／免費層 Plus 入口都走這)
+  // 抽屜列 HTML 預設 inline none。這是「這條路上」把它從 none 還原的地方(eager／Plus 延遲初始化／
+  // 免費層 Plus 入口都走這),但**不是**最終可見性:抽屜每次打開時 syncMoreSheet() 會依代理鈕
+  // (#accountBtn)重算這一格。所以驗「使用者看不看得到那一列」要在抽屜打開之後量,不能量這一格。
   const row = document.querySelector('.ms-row[data-proxy="accountBtn"]');
   if (row) {
     const label = row.querySelector('span'); if (label) label.textContent = plus ? '軌島 Plus' : '帳號同步';
