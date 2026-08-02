@@ -578,6 +578,23 @@ App 路徑覆蓋 100%。網站只在「事後用網頁看護照」時看不到�
 ⇒ Step 3 徽章本體的文案不必動（它只在 App 裡渲染得出來，看得到它的人都在 App）。
 ⇒ 若日後開放網站購買，這個決定要重新評估（屆時網站會有真正的購買者拿不到徽章）。
 
+🔴 **2026-08-02 二次更正（上面那條 ⚠️ 把兩件事併成一句，第二件是錯的，由 Task 4 實作者頂回來才沒出貨）**：
+
+「創始資格判定是 App 限定」為真（上述 RevenueCat 欄位查證成立）。但由它推出的
+「所以插入點 `renderPassport()` 就是 App 使用者看到的地方」**為假，且方向剛好相反**：
+
+- `body.fs .passport { display:none }`，而 `body.fs` 在 `matchMedia('(max-width: 900px)')`
+  成立時掛上（index.html:2910）⇒ **App 與手機使用者永遠看不到 `#passport`**。
+- App／手機看到的是另一個元素與另一支函式：`#ridePanel`（index.html:3171）由
+  `renderRidePanel()`（:9635）渲染，由 `#rideBtn` 開啟。
+
+淨效果：照原稿出貨，這枚徽章**沒有任何人看得到**——創始會員在 App 裡看不到，
+而網站根本拿不到 `founding`。⇒ **Step 2 補第三個寫入點、Step 3 同時接兩支渲染函式**（下方已改）。
+
+同時出現在兩個介面**不是**新問題：`buildStamps(rides)`／`buildStationStamps(rides)`
+現在就已經同時出現在 `renderPassport()` 與 `renderRidePanel()`，章族內容跨兩介面重複是
+既有設計。徽章屬章族，跟著同一套走，不要為它另外加 CSS 或條件式。
+
 因為改價是手動動作、且 App 審核通過日不可預知，**截止時刻用 build 時常數**寫死，並在同一天在行事曆釘上 ASC 改價提醒——兩件事綁同一個日期，就不會只做一半。
 
 **Files:**
@@ -615,6 +632,11 @@ function foundingFrom(info) {
 
 `plusPurchase()` 裡 `p.active = plusActiveFrom(info);` 的**下一行**加同樣一行。（兩處都要，否則剛買完不會馬上拿到徽章。）
 
+🔴 **第三個寫入點（原稿漏了，2026-08-02 由實作者找出）**：`plusRestore()`（index.html:7305）
+也是 `p.active = plusActiveFrom(info);` 的同形寫入點，手上就有 `info`，但原稿沒列。
+漏了的後果是**換機／重裝後按「恢復訂閱」的創始會員拿不到徽章**，要等下次登入才補上。
+同樣在它的下一行加上那一行，形狀對齊前兩處。
+
 - [ ] **Step 3：護照裡露出徽章**
 
 `renderPassport()` 的 `stamps` 組裝行：
@@ -640,6 +662,19 @@ function buildFoundingSeal() {
 }
 ```
 
+🔴 **同時要接進 `renderRidePanel()`——這才是 App／手機唯一看得到的那條路**（見上方二次更正）。
+在 `renderRidePanel()` 的 innerHTML 組裝裡，`buildStamps(rides) +` 的**前面**插入
+`buildFoundingSeal() +`，與 `renderPassport()` 同序：
+
+```javascript
+    buildFoundingSeal() +
+    buildStamps(rides) +
+    buildStationStamps(rides) +
+```
+
+⚠️ `renderRidePanel()` 開頭是 `if (el.hidden) return;`——驗證時要先 `openRidePanel()`
+或點 `#rideBtn`，否則整支不跑，會量到「徽章不存在」的假陰性。
+
 - [ ] **Step 4：加樣式**
 
 在 `.ph-` 家族樣式附近加（沿用既有的 `--` 色票，不要引入新色）：
@@ -659,22 +694,29 @@ function buildFoundingSeal() {
 
 - [ ] **Step 5：驗證三態**
 
-用 Playwright 注入三種 `state.plus` 再呼叫 `renderPassport()`：
+用 Playwright 注入三種 `state.plus`，**兩條渲染路徑各驗一次**（桌面 `renderPassport()`／
+手機寬度開 `#ridePanel` 後 `renderRidePanel()`）：
 
 1. `{active:false}` → `.ph-founding` 不存在
 2. `{active:true, founding:false}` → 不存在
 3. `{active:true, founding:true}` → 存在，且 `elementFromPoint(中心)` 命中它自己（不被護照的收合動畫或其他章蓋住）
 
+情境 3 同時是情境 1／2 的正向對照：同一支選擇器在同一輪裡真的抓得到東西，
+那兩個「不存在」才是證據而不是選擇器打錯字。**兩條路徑都要有自己的情境 3**，
+不能用桌面那顆當手機那兩顆的對照。
+
 再加一條純函式測試餵 `foundingFrom()`：截止日**前一天**的 ISO → true；**後一天** → false；`undefined` → false。
 
 - [ ] **Step 6：手機四寬度**
 
-護照在手機是 sheet，360 寬時 `.ph-founding` 不得溢出、文字不得被裁。
+**手機看到的是 `#ridePanel` 不是 `#passport`**（`.passport` 在 ≤900px 是 `display:none`）。
+在 360／375／414／768 開 `#ridePanel`，`.ph-founding` 不得溢出、文字不得被裁，
+且要 `elementFromPoint` 命中——本專案的既有教訓是幾何不相交只證明「看起來沒疊」。
 
 - [ ] **Step 7：更新紀錄 + Commit**
 
 ```html
-<li><span class="d">8/2</span><span>最早訂閱 Plus 的人，旅程護照上會有一枚創始會員徽章</span></li>
+<li><span class="d">8/2</span><span>最早訂閱 Plus 的人，App 的旅程護照上會有一枚創始會員徽章</span></li>
 ```
 
 ```bash
