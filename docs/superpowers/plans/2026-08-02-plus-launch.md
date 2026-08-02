@@ -558,6 +558,26 @@ git commit -m "feat(Plus): 衛星高解析度改為訂閱專屬（App 限定）"
 
 **判定方式**：創始價與標準價是**同一個訂閱商品**（做法是「開賣時標準價直接設創始價 → 30 天後改價選 Option A」），所以 RevenueCat 的 entitlement 分不出來。唯一可用的訊號是**訂閱起始時刻**：`customerInfo.entitlements.active.plus.originalPurchaseDate`。
 
+⚠️ **2026-08-02 補：這個訊號只有 App 路徑拿得到，徽章因此是 App 路徑限定。**
+Task 1 之後 `plusRefresh()` 有兩條分支：`plusConfigured()` 為真時走 billing adapter（有 `customerInfo`，
+`foundingFrom(info)` 可用）；網站走 `/api/plus-status`，而該端點**只回 `{active}`**。
+根因不是懶得傳：Worker 的 `checkPlusEntitlement()` 打的 RevenueCat v2 `active_entitlements`，
+其 item 欄位**只有** `object`／`entitlement_id`／`expires_at`（2026-08-02 查官方 API 文件確認，
+無任何 purchase date 欄位）⇒ 網站要拿到訂閱起始時刻**必須多打一支 RevenueCat API**，
+落在一條有限流、對延遲敏感的路徑上。
+
+**裁示（例行判斷，非新政策）**：不為了一個裝飾性徽章加那支呼叫。理由是 v1 **只在 App 內購**
+（網站 `PLUS_ENABLED` 要 `?plus=1`），所以**每一個創始會員在拿到徽章的當下都是 App 使用者**，
+App 路徑覆蓋 100%。網站只在「事後用網頁看護照」時看不到徽章——優雅降級，不是壞掉。
+
+⇒ **Step 2 只改 `plusConfigured()` 那條分支**（`/api/plus-status` 那條沒有 `info` 可傳，
+硬加會是 `foundingFrom(undefined)` 恆 false 的死碼）。
+⇒ **Step 7 的更新紀錄那條要寫「在 App 的旅程護照上」**——它顯示在網站上。
+與衛星 Retina 那條的差別要分清楚：Retina 是**網站訂閱者根本拿不到**（真的會構成假廣告）；
+徽章是**拿得到、只是網站看不到**，但既然這行字會被網站讀者看到，講清楚在哪裡看得到才誠實。
+⇒ Step 3 徽章本體的文案不必動（它只在 App 裡渲染得出來，看得到它的人都在 App）。
+⇒ 若日後開放網站購買，這個決定要重新評估（屆時網站會有真正的購買者拿不到徽章）。
+
 因為改價是手動動作、且 App 審核通過日不可預知，**截止時刻用 build 時常數**寫死，並在同一天在行事曆釘上 ASC 改價提醒——兩件事綁同一個日期，就不會只做一半。
 
 **Files:**
