@@ -1,7 +1,7 @@
 // 誤點履歷卡(Plus 頭牌 UI)行為驗證——Playwright 真引擎(chromium+webkit)+ 本機靜態伺服器。
 // 後端 /api/delay-history 尚未部署,一律以 page.route 攔截餵假資料(90 天,含誤點/準點/缺日)。
 // 依據的關鍵事實(從 index.html 讀出,本腳本未參與實作):
-//   · PLUS_ENABLED = ?plus=1(暗啟動);為真時 renderDelayRow 在準點列尾端掛 .fp-dhlink、
+//   · PLUS_ENABLED 2026-08-02 開閘後恆真(不再認 ?plus=1);為真時 renderDelayRow 在準點列尾端掛 .fp-dhlink、
 //     並取消車次卡 #tcDelayHist 的 hidden。入口 gate 與準點列相同:tr.sys==='tra_sched' 且 delayStats.d>=5。
 //   · 統計列複用 state.delayStats[no] = {a 平均誤點, p 準點率%, d 樣本天數, m 最大誤點};由 /api/delay-stats 載入。
 //   · 卡片 #delayHistPanel(.board 家族):h3 sticky 內含 × 關閉鈕(v0717p);逐日長條 .dh-bars rect.dh-bar
@@ -242,7 +242,12 @@ await stateFlow('D(503)', '503', c => {
   ok('D2 503 態提供重試鈕', c.hasRetry, `retry=${c.hasRetry}`);
 });
 
-// ══════════════ E. 預設迴歸:無 ?plus=1 → 入口零存在、boot 零 error ══════════════
+// ══════════════ E. 開閘迴歸:不帶任何 query string(＝真實訪客) → 入口對所有人存在、boot 零 error ══════════════
+// 2026-08-02 開閘前這一節驗的是「無 ?plus=1 ⇒ 入口零存在」;PLUS_ENABLED 已經改成恆真的常值,
+// 那個前提不存在了(判準過期,不是產品回歸)。判準改成新的事實:預設網址就看得到入口——
+// 未訂閱者點進去看到的是模糊 teaser 與 CTA,90 天逐日資料本身由 worker.js 的
+// checkPlusEntitlement() 伺服器端強制,前端旗標本來就不是資料閘門。
+// 旗標若被改回只認 URL 參數,E1/E2 會當場轉紅,這正是它現在守的東西。
 {
   const { ctx, page, errs, no } = await bootFollowed(chromiumB, { tag: 'E', flag: false, histMode: 'full' });
   await page.waitForSelector('#fpDelay:not([hidden])', { timeout: 9000 }).catch(() => {});
@@ -252,10 +257,10 @@ await stateFlow('D(503)', '503', c => {
     tcHidden: document.getElementById('tcDelayHist').hidden,
     panelHidden: document.getElementById('delayHistPanel').hidden,
   }));
-  ok('E0 準點列本身仍正常顯示(不受旗標影響)', snap.fpDelayShown === true, JSON.stringify(snap));
-  ok('E1 旗標關 → 主入口零存在(.fp-dhlink=0)', snap.dhLink === 0, `n=${snap.dhLink}`);
-  ok('E2 旗標關 → 次要入口保持 hidden', snap.tcHidden === true);
-  ok('E3 旗標關 → 卡片保持 hidden', snap.panelHidden === true);
+  ok('E0 準點列本身正常顯示(入口的前提條件:台鐵車+樣本足)', snap.fpDelayShown === true, JSON.stringify(snap));
+  ok('E1 預設網址(無任何參數) → 主入口存在(.fp-dhlink≥1)', snap.dhLink >= 1, `n=${snap.dhLink}`);
+  ok('E2 預設網址 → 次要入口(車次卡)不再是 hidden', snap.tcHidden === false, `tcHidden=${snap.tcHidden}`);
+  ok('E3 入口存在不等於自動彈出:卡片預設仍關著', snap.panelHidden === true);
   ok('E Z boot 零 pageerror/console.error', errs.length === 0, errs.slice(0, 4).join(' | '));
   await ctx.close();
 }

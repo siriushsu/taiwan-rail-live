@@ -6033,8 +6033,8 @@ const IS_NATIVE_APP = (() => {
 const DEMO_AS_APP = (() => { try { return new URLSearchParams(location.search).get('demo') === 'bounty'; } catch (e) { return false; } })();
 const PHYSICAL_COLLECT_ENABLED = IS_NATIVE_APP || DEMO_AS_APP;
 // 2026-07-29 懸賞(GPS 校正旅程)暫時下架:護照的「校正貢獻」整節、懸賞板、錄一趟、說明中心那三節
-// 全部不出現;實作與後端一行都沒動,改成恆 true 即復活。?bounty=1 當次點亮(比照 PLUS_ENABLED 的
-// ?plus=1),驗收腳本靠它繼續驗實作;?demo=bounty 也算——備援站看設計的既有路徑不能被這個旗標切斷。
+// 全部不出現;實作與後端一行都沒動,改成恆 true 即復活。?bounty=1 當次點亮(比照 TRIP_SHARE_ENABLED 的
+// ?tripshare=1),驗收腳本靠它繼續驗實作;?demo=bounty 也算——備援站看設計的既有路徑不能被這個旗標切斷。
 // 「當次」＝這個分頁的這一輪,不是這一次導頁:boot 的 clearFollow() 會 replaceState 把整條 query
 // 抹掉(見 share-link 契約),所以純讀 location.search 的旗標一重新整理就掉——實測 reload 後
 // bounty/collectmap 都變回 false,連「錄製中重新整理接得回來」這種測試都驗不成。記在 sessionStorage,
@@ -6051,15 +6051,15 @@ const BOUNTY_ENABLED = (() => { try {
 const COLLECT_MAP_ENABLED = flagOnce('collectmap');
 const RECORDING_ENABLED = false; // 2026-07-17 錄影暫時下架(整備中):所有入口隱藏、實作全保留;改 true 即復活(工具列鈕+更多抽屜列+Plus 文案)
 const ACCOUNT_ENABLED = false; // 2026-07-21 甲案裁示:免費層匿名,只有買 Plus 才登入。帳號鈕預設隱藏、不對訪客載 Firebase;
-// 購買鏈不需要它——plusOpen 自己會 accountEnsureInit() 延遲初始化。true 會讓 setupAccountUi()(互斥二選一)
+// 購買鏈不需要它——有購買通道的平台由 plusOpen() 先 accountEnsureInit() 延遲初始化,無購買通道的平台
+// (網站)由 Plus 面板內的「登入以同步」CTA 觸發。true 會讓 setupAccountUi()(互斥二選一)
 // 選中 eager 分支,把帳號鈕放回所有人主畫面、對每個訪客載 Firebase,等於把 07-17 那次刻意下架整個倒回去。
-// Plus 功能總閘(暗啟動):網站預設關、?plus=1 當次點亮供測試(比照 TRIP_SHARE_ENABLED)；上架公告批次改 true。
-// Capacitor 原生殼恆開(App 載入無 URL 參數,訂閱本來就是 App 功能;bridge 在頁面腳本前注入,判定可靠)。
-// 目前接「誤點履歷」頭牌卡的入口與卡片(見 openDelayHist/renderDelayHist);訂閱入口另受 plusConfigured 與 RevenueCat 設定控制。
-const PLUS_ENABLED = (() => { try {
-  // if (window.Capacitor && Capacitor.isNativePlatform && Capacitor.isNativePlatform()) return true; // 第一版純免費先上，Plus（誤點履歷頭牌卡＋訂閱入口）暫時下架；1.1 開 Plus 時恢復此行原生恆開
-  return new URLSearchParams(location.search).get('plus') === '1';
-} catch (e) { return false; } })();
+// Plus 功能總閘:網站與原生 App 皆恆開(暗啟動結束)。它只決定「Plus 觸發面存不存在」——
+// 「誤點履歷」頭牌卡的入口與卡片(見 openDelayHist/renderDelayHist)、以及工具列的 Plus 面板入口(見 setupAccountUi)。
+// ⚠️ 恆開不等於這個平台賣得成:能否發起購買由 plusConfigured() 判定(網站沒有 Web Billing key ⇒ 恆假,
+// 面板停在「請在 App 內訂閱」,不出現任何購買鈕)。未訂閱者在網站看到的是 teaser/upsell 面,
+// 90 天逐日資料本身由 worker.js 的 checkPlusEntitlement() 伺服器端強制,不靠這支前端旗標。
+const PLUS_ENABLED = true;
 // 放空閒置達此秒數→劇場模式:切離線海陸底層(零圖磚)、相機停在全群組視角,列車/音樂/完乘全照常,只是不再抓圖磚。
 // ?theater=N 覆寫門檻(秒,測試用,不限環境——只會讓使用者自己更早進入省磚畫面,無風險)。見 enterTheater/camBlocked。
 const THEATER_IDLE_SEC = (() => {
@@ -7035,12 +7035,9 @@ async function accountDelete() {
 function accountEnsureInit() {
   if (accountEnsureInit._p) return accountEnsureInit._p;
   accountEnsureInit._p = (async () => {
-    const btn = document.getElementById('accountBtn'), modal = document.getElementById('accountModal');
+    const modal = document.getElementById('accountModal');
     let accountIntent = new URLSearchParams(location.search).get('account');
-    if (btn) { // 免費層延遲初始化時鈕已被 setupAccountUi 移除→null,跳過
-      btn.style.display = ''; btn.onclick = accountOpen;
-      const row = document.querySelector('.ms-row[data-proxy="accountBtn"]'); if (row) row.style.display = ''; // 抽屜列 HTML 預設 inline none,這裡是唯一的露出點(eager 與 Plus 延遲初始化都走這)
-    }
+    accountBtnSlot('account'); // 帳號系統一旦初始化,槽位就回歸帳號入口(蓋掉 setupAccountUi 可能設過的 Plus 標籤)
     const accountX = document.getElementById('accountX'); if (accountX) accountX.onclick = accountClose;
     if (modal) {
       modal.addEventListener('click', e => { if (e.target === modal) accountClose(); });
@@ -7081,6 +7078,29 @@ function accountEnsureInit() {
   })();
   return accountEnsureInit._p;
 }
+// #accountBtn(工具列)與 .ms-row[data-proxy="accountBtn"](「更多」抽屜列)是同一個槽位的兩個入口
+// ——抽屜列的點擊是 btn.click() 轉發過去的,所以只要換掉這顆鈕的 onclick,兩邊行為必然一致。
+// 這個槽位有兩種身分:'plus'(免費層匿名訪客——按下去開訂閱面板,不碰 Firebase)與
+// 'account'(帳號系統已初始化——按下去開帳號面板)。標籤/title/onclick 三件必須一起換,
+// 抽成一支就不會只改到其中一處(留下「寫著 Plus 但開帳號」的鈕)。
+function accountBtnSlot(mode) {
+  const btn = document.getElementById('accountBtn'); // 免費層且 Plus 關閉時整顆被移除→null,跳過
+  const plus = mode === 'plus';
+  if (btn) {
+    const ti = btn.querySelector('.ti'), tl = btn.querySelector('.tl');
+    if (ti) ti.textContent = plus ? '＋' : '帳';
+    if (tl) tl.textContent = plus ? 'Plus' : '帳號';
+    btn.title = plus ? '軌島 Plus：訂閱內容與登入同步' : '登入與跨裝置同步';
+    btn.onclick = plus ? () => plusOpen('toolbar') : accountOpen;
+    btn.style.display = '';
+  }
+  // 抽屜列 HTML 預設 inline none,這裡是唯一的露出點(eager／Plus 延遲初始化／免費層 Plus 入口都走這)
+  const row = document.querySelector('.ms-row[data-proxy="accountBtn"]');
+  if (row) {
+    const label = row.querySelector('span'); if (label) label.textContent = plus ? '軌島 Plus' : '帳號同步';
+    row.style.display = '';
+  }
+}
 async function setupAccountUi() {
   const btn = document.getElementById('accountBtn'), modal = document.getElementById('accountModal');
   if (!btn || !modal || !accountConfigured()) return;
@@ -7092,7 +7112,11 @@ async function setupAccountUi() {
   if (ACCOUNT_ENABLED || accountIntent === 'delete' || returning) {
     await accountEnsureInit(); return;
   }
-  // 免費層匿名:移除帳號入口鈕與抽屜列,不載 Firebase、不建 state.account;購買 Plus 時才由 plusOpen→accountEnsureInit 延遲初始化
+  // 免費層匿名:不載 Firebase、不建 state.account。Plus 開閘後這個槽位改當 Plus 面板入口——
+  // 剛在 App 訂閱、第一次用瀏覽器開站的人沒有 last-sync-uid,若整顆移除他就沒有任何入口可以登入同步。
+  // 按下去只 plusOpen()(純渲染,不碰帳號系統);要登入得再按面板內的 data-plus="login",匿名保證留在那一步。
+  if (PLUS_ENABLED) { accountBtnSlot('plus'); return; }
+  // Plus 也關閉時才回到「整顆移除」——留著一顆點了沒有任何去處的鈕比沒有更糟。
   btn.remove(); const row = document.querySelector('.ms-row[data-proxy="accountBtn"]'); if (row) row.remove();
 }
 
@@ -7188,7 +7212,11 @@ function plusState() {
 async function plusOpen(source, onGranted) {
   const p = plusState();
   if (typeof onGranted === 'function') p.afterUnlock = onGranted;
-  if (!state.account || !state.account.user) {
+  // 未登入時依「這個平台賣不賣得成」分流:
+  // ・有購買通道(App):訂閱資格要綁軌島帳號才能跨裝置恢復 ⇒ 維持先登入再開面板。
+  // ・無購買通道(網站):只展示不賣,直接開面板讓人看得到內容與「請在 App 內訂閱」;
+  //   登入改由面板內的 data-plus="login" CTA 觸發(plusLoginForSync),在那之前完全不碰 Firebase。
+  if ((!state.account || !state.account.user) && plusConfigured()) {
     state.plusPending = { source: source || 'account', onGranted };
     await accountEnsureInit(); // 免費層匿名→購買才延遲載入帳號系統(Firebase);登入後 onAuthStateChanged 讀 plusPending 回接本函式
     accountOpen(); showToast('請先登入軌島帳號，訂閱資格才能跨裝置使用'); return;
@@ -7201,6 +7229,17 @@ async function plusOpen(source, onGranted) {
   if (plusConfigured()) plusRefresh();
 }
 function plusClose() { const m = document.getElementById('plusModal'); if (m) m.hidden = true; }
+// 無購買通道的平台(網站)專用:Plus 面板內的「已經在 App 訂閱了？登入以同步」。
+// 這裡才是帳號系統的初始化點——免費層訪客在按下它之前完全不載 Firebase、不建 state.account。
+// 留 plusPending 讓登入完成後 onAuthStateChanged 把人帶回 Plus 面板,那時 plusRefresh() 已
+// 打過 /api/plus-status,看到的是「Plus 已啟用」而不是同一張推銷畫面。
+async function plusLoginForSync() {
+  const p = plusState();
+  state.plusPending = { source: p.source || 'plus-login' };
+  plusClose(); // 兩個對話框都在 body 層,不先關會疊在一起
+  await accountEnsureInit();
+  accountOpen();
+}
 function plusFinishPending() {
   const p = state.plus;
   if (!p || !p.active || typeof p.afterUnlock !== 'function') return false;
@@ -7245,8 +7284,12 @@ function plusRender() {
   if (p.loading) { body.innerHTML = hero + features + '<p class="account-intro">正在讀取方案與訂閱資格…</p>'; return; }
   if (!plusConfigured()) {
     // 此平台沒有購買通道(如網站未設定 Web Billing key):請在 App 內訂閱,而非給死板的 disabled 鈕。
+    // 未登入時多給一顆登入 CTA:剛在 App 訂閱的人到網站要靠它把資格接過來(/api/plus-status)。
+    // 這顆是免費層匿名的最後一道門——按下去才 accountEnsureInit(),在那之前這個畫面零 Firebase。
+    const loginCta = (state.account && state.account.user) ? '' :
+      '<button class="plus-restore" type="button" data-plus="login">已經在 App 訂閱了？登入以同步</button>';
     body.innerHTML = hero + features +
-      '<p class="account-note">目前請在軌島 App 內訂閱；訂閱後同一個軌島帳號在網站也會自動生效。</p>' + legal;
+      '<p class="account-note">目前請在軌島 App 內訂閱；訂閱後同一個軌島帳號在網站也會自動生效。</p>' + loginCta + legal;
     return;
   }
   const plan = (pkg, kind, primary) => pkg
@@ -7354,6 +7397,7 @@ function setupPlusUi() {
     const b = e.target.closest('[data-plus]'); if (!b) return;
     if (b.dataset.plus === 'buy') plusPurchase(b.dataset.pkg || 'annual');
     else if (b.dataset.plus === 'restore') plusRestore();
+    else if (b.dataset.plus === 'login') plusLoginForSync(); // 無購買通道的平台才畫得出這顆(見 plusRender)
     else plusRefresh();
   };
 }
@@ -8421,7 +8465,7 @@ function clearFollow() {
   // 使用者中途重新整理就會讀到空 query string、PHYSICAL_COLLECT_ENABLED 現場重新求值變 false,
   // 掉回一般網頁(明天備援站實測正是這條路)。這裡是所有 clearFollow() 呼叫的共同出口，修在這裡
   // 才能連開機那一次也護到，不是只護住錄製流程那一條呼叫路徑。其餘 query 參數
-  // (?theater=/?breath=/?tripshare=/?plus=)都只是一次性測試開關，消失不影響功能，不需要一起保留。
+  // (?theater=/?breath=/?tripshare=)都只是一次性測試開關，消失不影響功能，不需要一起保留。
   try { if (!document.fullscreenElement) history.replaceState(null, '', location.pathname + (DEMO_AS_APP ? '?demo=bounty' : '')); } catch (e) {}
   const fb = document.getElementById('followBar');
   if (fb) { fb.hidden = true; fb.className = 'followbar'; fb.innerHTML = ''; }

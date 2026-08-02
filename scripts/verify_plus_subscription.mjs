@@ -48,8 +48,10 @@ const server = createServer((req, res) => {
   res.end(readFileSync(fp));
 });
 await new Promise(r => server.listen(PORT, r));
-// PLUS_ENABLED 是 UI 總閘(網站端只認 ?plus=1)。不帶這個參數,plusOpen 畫不出方案卡,整支腳本會崩在 section A。
-const BASE = `http://localhost:${PORT}/?plus=1`;
+// PLUS_ENABLED 是 UI 總閘,2026-08-02 開閘後恆真(不再認 ?plus=1)。刻意不帶任何 query string:
+// 網址帶著 ?plus=1 會讓「旗標被改回只認 URL 參數」這種回退在本腳本裡完全看不出來(每一節都自帶
+// 通行證),整支腳本會變成永遠的綠燈。用真實預設網址跑,旗標一被關掉 A/B 段當場崩。
+const BASE = `http://localhost:${PORT}/`;
 
 // 刻意用非真實佔位值:本 repo 公開,實際定價未拍板,不放進版控。
 // 判準只比「商店回傳什麼、UI 就顯示什麼」,不解析數值,故任何相異字串皆可。
@@ -277,27 +279,222 @@ async function regression(label, { width, height, touch }) {
 await regression('1280', { width: 1280, height: 800, touch: false });
 await regression('375', { width: 375, height: 812, touch: true });
 
-// ══════════════ G. 帳號系統重開:匿名使用者可抵達登入鈕(不注入帳號,真實走 plusGateOpen→accountEnsureInit) ══════════════
-// 匿名使用者點 Plus 入口 → 必須看得到 Google＋Apple 兩顆登入鈕（不是空白視窗、也不是只有一顆）
-// 這條在 RAIL_APPLE_LOGIN=false 時必失敗：accountRender 只畫得出 Google 一顆
-async function assertAnonymousCanReachLogin(page) {
-  await page.evaluate(() => { try { localStorage.clear(); } catch (e) {} });
-  await page.reload({ waitUntil: 'networkidle' });
-  await page.evaluate(() => window.plusGateOpen('test-gate', () => {}));
-  // 條件式等待,不用固定秒數:Firebase SDK 是延遲載入,冷載入比暖載入慢很多,
-  // 固定 timeout 會讓這條斷言實際在量「載入快不快」而不是「旗標對不對」。
-  await page.waitForSelector('[data-login="google"]', { timeout: 15000 }).catch(() => {});
-  const loginBtns = await page.locator('[data-login="google"], [data-login="apple"]').count();
-  return { name: '匿名使用者可抵達登入鈕', ok: loginBtns >= 2,
-           detail: `找到 ${loginBtns} 顆登入鈕（需要 Google＋Apple 兩顆）` };
+// ══════════════ G. Plus 面板入口與兩段式登入(2026-08-02 開閘裁示) ══════════════
+// 舊版 G 斷言的是「匿名點 Plus 入口 → 直接看到 Google＋Apple 登入鈕」,那是被推翻的舊行為
+// (plusOpen 一開頭就強迫登入)。開閘後的裁示是兩段式:
+//   第一段 網站(無購買通道)的匿名訪客從 Plus 槽位開得了面板,看得到六項清單與「請在 App 內訂閱」,
+//          而且這一段全程零 Firebase、state.account 仍 undefined(甲案裁示的免費層匿名沒有被撤銷);
+//   第二段 面板內按下「已經在 App 訂閱了？登入以同步」之後,才出現 Google＋Apple 兩顆登入鈕。
+// 有購買通道的平台(App)不走這條:訂閱資格要綁帳號才能跨裝置恢復,維持「先登入再開面板」(見 G10)。
+//
+// 入口一律走真正的產品路徑(#accountBtn 的 click),不直接呼叫 plusOpen():直接呼叫會跳過
+// setupAccountUi 的槽位改造,「誰把入口放上去、按下去接到哪」這半段就等於沒驗到。
+const FIREBASE_REQ_RE = /gstatic\.com\/firebasejs|identitytoolkit\.googleapis\.com|firestore\.googleapis\.com|firebaseapp\.com/;
+function collectFirebaseReqs(page) {
+  const out = [];
+  page.on('request', req => { const u = req.url(); if (FIREBASE_REQ_RE.test(u)) out.push(u); });
+  return out;
 }
 {
   const { ctx, page } = await newPage(chromiumB);
-  attach(page, 'G');
+  const errs = attach(page, 'G');
+  const firebaseReqs = collectFirebaseReqs(page); // 與 I2 同一支收集器、同一條 regex
   await page.goto(BASE, { waitUntil: 'domcontentloaded' });
   await waitReady(page);
-  const r = await assertAnonymousCanReachLogin(page);
-  ok(r.name, r.ok, r.detail);
+  const entry = await page.evaluate(() => {
+    const btn = document.getElementById('accountBtn');
+    const row = document.querySelector('.ms-row[data-proxy="accountBtn"]');
+    const cs = btn && getComputedStyle(btn), r = btn && btn.getBoundingClientRect();
+    return {
+      btnVisible: !!(btn && cs.display !== 'none' && cs.visibility !== 'hidden' && r.width > 0 && r.height > 0),
+      btnLabel: btn && btn.querySelector('.tl') ? btn.querySelector('.tl').textContent : null,
+      rowShown: !!(row && row.style.display !== 'none'),
+      rowLabel: row && row.querySelector('span') ? row.querySelector('span').textContent : null,
+    };
+  });
+  ok('G1 網站匿名訪客的工具列有 Plus 入口且標成 Plus(槽位改造真的跑過,不是還停在帳號標籤)',
+    entry.btnVisible === true && entry.btnLabel === 'Plus', JSON.stringify(entry));
+  ok('G2 「更多」抽屜的同一個槽位也露出且標成「軌島 Plus」(手機唯一入口,桌面工具鈕在 ≤900 是 display:none)',
+    entry.rowShown === true && entry.rowLabel === '軌島 Plus', JSON.stringify(entry));
+  await page.click('#accountBtn'); // 真的點,不是 evaluate 呼叫函式
+  await page.waitForSelector('#plusModal:not([hidden])', { timeout: 8000 }).catch(() => {});
+  await page.waitForTimeout(300);
+  const panel = await page.evaluate(() => ({
+    open: !document.getElementById('plusModal').hidden,
+    feats: document.querySelectorAll('.plus-feature').length,
+    appOnly: /App\s*內訂閱/.test(document.getElementById('plusBody').textContent || ''),
+    buyBtns: document.querySelectorAll('[data-plus="buy"]').length,
+    loginCta: document.querySelectorAll('[data-plus="login"]').length,
+    ctaText: (document.querySelector('[data-plus="login"]') || {}).textContent || '',
+    loginBtns: document.querySelectorAll('[data-login]').length,
+    accountUndefined: typeof state.account === 'undefined',
+  }));
+  ok('G3 匿名點入口 → Plus 面板直接開且六項功能清單畫得出來(沒有被推去登入)',
+    panel.open === true && panel.feats >= 5, JSON.stringify(panel));
+  ok('G4 面板停在「請在 App 內訂閱」,零購買鈕(網站不賣)',
+    panel.appOnly === true && panel.buyBtns === 0, `appOnly=${panel.appOnly} buy=${panel.buyBtns}`);
+  ok('G5 看完整個面板,state.account 仍是 undefined(帳號系統沒被叫起來)',
+    panel.accountUndefined === true, `accountUndefined=${panel.accountUndefined}`);
+  ok('G6 看完整個面板,Firebase 網路請求仍為 0(免費層匿名沒有因為開放面板而破功)',
+    firebaseReqs.length === 0, firebaseReqs.slice(0, 3).join(' | '));
+  ok('G7 面板內有登入 CTA,但登入鈕此刻還沒出現(兩段式的第一段:看得到入口、還沒載帳號系統)',
+    panel.loginCta === 1 && /登入/.test(panel.ctaText) && panel.loginBtns === 0,
+    `cta=${panel.loginCta} 文字=${panel.ctaText} 登入鈕=${panel.loginBtns}`);
+  await page.click('[data-plus="login"]');
+  // 條件式等待,不用固定秒數:Firebase SDK 是延遲載入,冷載入比暖載入慢很多,
+  // 固定 timeout 會讓這條斷言實際在量「載入快不快」而不是「CTA 有沒有把帳號系統叫起來」。
+  await page.waitForSelector('[data-login="google"]', { timeout: 15000 }).catch(() => {});
+  const after = await page.evaluate(() => ({
+    loginBtns: document.querySelectorAll('[data-login="google"], [data-login="apple"]').length,
+    accountBuilt: !!state.account,
+  }));
+  ok('G8 按下 CTA 之後才出現 Google＋Apple 兩顆登入鈕(第二段;accountEnsureInit 是這時才跑的)',
+    after.loginBtns >= 2 && after.accountBuilt === true, JSON.stringify(after));
+  ok('G9 正向對照:同一支收集器在按下 CTA 之後抓得到 Firebase 請求(證明 G6 的「零」不是收集器壞掉)',
+    firebaseReqs.length > 0, `抓到 ${firebaseReqs.length} 筆${firebaseReqs.length ? '：' + firebaseReqs[0] : ''}`);
+  ok('G 本輪零 pageerror/console.error', errs.length === 0, errs.slice(0, 3).join(' | '));
+  await ctx.close();
+}
+// G10:有購買通道的平台(App)必須維持舊行為——訂閱資格要綁軌島帳號才能跨裝置恢復,所以那條路
+// 仍然先登入再開面板。注入 RAIL_PLUS_TEST_ADAPTER 讓 plusConfigured() 轉真(＝App 的
+// RAIL_NATIVE_PLUS_ADAPTER 等價物,沿用本檔既有慣例),但刻意不注入 state.account:要驗的正是
+// 「未登入時往哪走」。Firebase 用既有的 RAIL_FIREBASE_TEST_MODULES 短路,不打真網路。
+{
+  const { ctx, page } = await newPage(chromiumB);
+  const errs = attach(page, 'G10');
+  await page.goto(BASE, { waitUntil: 'domcontentloaded' });
+  await waitReady(page);
+  const r = await page.evaluate(async () => {
+    window.RAIL_FIREBASE_TEST_MODULES = { initializeApp: () => ({}), getAuth: () => ({}), getFirestore: () => ({}), onAuthStateChanged: () => {} };
+    window.RAIL_FIREBASE_CONFIG = { apiKey: 'x', authDomain: 'x', projectId: 'x' };
+    window.RAIL_REVENUECAT_CONFIG = { entitlement: 'plus', offeringId: 'plus' };
+    window.RAIL_PLUS_TEST_ADAPTER = {
+      setUser: async () => {}, getCustomerInfo: async () => ({ entitlements: { active: {} } }),
+      getOfferings: async () => ({ all: {}, current: null }), purchase: async () => ({}), restore: async () => ({ entitlements: { active: {} } }),
+    };
+    const configured = plusConfigured();
+    await plusOpen('native-path');
+    return {
+      configured,
+      plusHidden: document.getElementById('plusModal').hidden,
+      accountShown: !document.getElementById('accountModal').hidden,
+      feats: document.querySelectorAll('.plus-feature').length,
+    };
+  });
+  ok('G10 有購買通道的平台(App)匿名開 Plus → 維持先登入:帳號面板開、Plus 面板仍關、功能清單一項都沒畫',
+    r.configured === true && r.plusHidden === true && r.accountShown === true && r.feats === 0, JSON.stringify(r));
+  ok('G10 本輪零 pageerror/console.error', errs.length === 0, errs.slice(0, 3).join(' | '));
+  await ctx.close();
+}
+
+// ══════════════ N. 手機四寬度:Plus 入口在「更多」抽屜那一列 ══════════════
+// ≤900 的 .stage-tools 是 display:none ⇒ 手機唯一入口是抽屜列,桌面那顆工具鈕在手機驗不到東西。
+// 本輪新增了可見控件,依全域鐵則做 360/375/414/768 四寬度 × WebKit × 全控件相交掃描 ×
+// 多點 elementFromPoint × 375 真觸控端到端。
+// ⚠️ 可見性判準刻意不看 opacity:本專案有元素平時就是 opacity:0(閒置淡出、sheet 開啟時的讓位過渡),
+//    拿它當過濾條件會把受測對象整個排除掉而全綠。只排 display:none / visibility:hidden,rect 才是真相。
+// ⚠️ 幾何不相交只證明「看起來沒疊」:偽元素熱區(::after)被撐大到蓋掉鄰列時,rect 與 computed style
+//    兩邊都照不到(心得 33 的病灶)。所以另外橫掃整列 9×3 點,並要求上下鄰列各自命中自己。
+const MOBILE_SEL = '.ms-row[data-proxy="accountBtn"]';
+async function mobilePlusEntry(width) {
+  const { ctx, page } = await newPage(webkitB, { width, height: 780, touch: true });
+  const errs = attach(page, `N${width}`);
+  await page.goto(BASE, { waitUntil: 'domcontentloaded' });
+  await waitReady(page);
+  const toolbarHidden = await page.evaluate(() => getComputedStyle(document.querySelector('.stage-tools')).display === 'none');
+  await page.tap('#tabMore');
+  await page.waitForFunction(() => document.body.classList.contains('tools-open'), null, { timeout: 5000 });
+  await page.waitForTimeout(350); // sheet 上滑轉場走完再量
+  await page.locator(MOBILE_SEL).scrollIntoViewIfNeeded();
+  await page.waitForTimeout(150);
+  const s = await page.evaluate(sel => {
+    const vis = el => { const st = getComputedStyle(el), r = el.getBoundingClientRect();
+      return st.display !== 'none' && st.visibility !== 'hidden' && r.width > 0 && r.height > 0; };
+    const target = document.querySelector(sel);
+    if (!target || !vis(target)) return { found: false };
+    const tr = target.getBoundingClientRect();
+    const self = (el, x, y) => { const h = document.elementFromPoint(x, y); return !!h && (h === el || el.contains(h)); };
+    const topmost = el => { const r = el.getBoundingClientRect(); return self(el, r.left + r.width / 2, r.top + r.height / 2); };
+    const controls = [...document.querySelectorAll('button,a[href],input,select,label,[role=button],.ms-row,.tabbar,#randBtn,#nearBtn,#fsFab,.map-actions,.follow-panel')].filter(vis);
+    const collisions = [];
+    for (const b of controls) {
+      if (b === target || target.contains(b) || b.contains(target) || !topmost(b)) continue;
+      const br = b.getBoundingClientRect();
+      const iw = Math.min(tr.right, br.right) - Math.max(tr.left, br.left);
+      const ih = Math.min(tr.bottom, br.bottom) - Math.max(tr.top, br.top);
+      if (iw > 1 && ih > 1) collisions.push(`${b.id || b.dataset.proxy || b.className}(${Math.round(iw)}x${Math.round(ih)})`);
+    }
+    const miss = [];
+    for (const fx of [0.06, 0.18, 0.3, 0.42, 0.5, 0.62, 0.74, 0.86, 0.94])
+      for (const fy of [0.25, 0.5, 0.75])
+        if (!self(target, tr.left + tr.width * fx, tr.top + tr.height * fy)) miss.push(`${fx}/${fy}`);
+    const rows = [...document.querySelectorAll('#moreBody .ms-row')].filter(vis);
+    const i = rows.indexOf(target);
+    const neighbours = [rows[i - 1], rows[i + 1]].filter(Boolean).map(el => {
+      const r = el.getBoundingClientRect();
+      return { id: el.dataset.proxy || el.dataset.act || el.className, self: self(el, r.left + r.width / 2, r.top + r.height / 2) };
+    });
+    return { found: true, label: (target.querySelector('span') || {}).textContent || '',
+      h: Math.round(tr.height), collisions, miss, neighbours,
+      overflow: document.documentElement.scrollWidth - window.innerWidth };
+  }, MOBILE_SEL);
+  ok(`N${width}a 手機工具列 .stage-tools 是 display:none(抽屜列是唯一入口,這是後面幾條的前提)`, toolbarHidden === true, `hidden=${toolbarHidden}`);
+  ok(`N${width}b 抽屜列存在、可見、標成「軌島 Plus」且高度 ≥44px`, s.found === true && s.label === '軌島 Plus' && s.h >= 44, JSON.stringify(s.found ? { label: s.label, h: s.h } : s));
+  ok(`N${width}c 與所有可見控件零相交`, s.found === true && s.collisions.length === 0, (s.collisions || []).join(' | '));
+  ok(`N${width}d 橫掃 9×3 點 elementFromPoint 全部命中自己(偽元素熱區沒被別人蓋掉)`, s.found === true && s.miss.length === 0, `未命中 ${(s.miss || []).length} 點:${(s.miss || []).slice(0, 5).join(',')}`);
+  ok(`N${width}e 上下鄰列各自命中自己(這一列的熱區沒有撐大吃掉鄰列)`, s.found === true && (s.neighbours || []).every(n => n.self), JSON.stringify(s.neighbours));
+  ok(`N${width}f 頁面無橫向溢出`, (s.overflow || 0) <= 1, `overflow=${s.overflow}px`);
+  ok(`N${width} 本輪零 pageerror/console.error`, errs.length === 0, errs.slice(0, 3).join(' | '));
+  await ctx.close();
+}
+for (const w of [360, 375, 414, 768]) await mobilePlusEntry(w);
+// N-tap:375 真觸控端到端——點下去要真的開出 Plus 面板,而且這一刻仍然零帳號系統。
+// 反向對照(另開一頁,避免狀態污染):同樣手勢點「上一列」不得開出 Plus 面板,證明「開了」是這一列
+// 造成的,不是那個區域隨便點都會開(幾何過了不等於接線接對了)。
+{
+  const { ctx, page } = await newPage(webkitB, { width: 375, height: 780, touch: true });
+  const errs = attach(page, 'Ntap');
+  await page.goto(BASE, { waitUntil: 'domcontentloaded' });
+  await waitReady(page);
+  await page.tap('#tabMore');
+  await page.waitForFunction(() => document.body.classList.contains('tools-open'), null, { timeout: 5000 });
+  await page.waitForTimeout(350);
+  await page.locator(MOBILE_SEL).scrollIntoViewIfNeeded();
+  await page.tap(MOBILE_SEL);
+  await page.waitForSelector('#plusModal:not([hidden])', { timeout: 8000 }).catch(() => {});
+  const r = await page.evaluate(() => ({
+    plusOpen: !document.getElementById('plusModal').hidden,
+    feats: document.querySelectorAll('.plus-feature').length,
+    cta: document.querySelectorAll('[data-plus="login"]').length,
+    accountUndefined: typeof state.account === 'undefined',
+  }));
+  ok('N-tap 375 真觸控點抽屜列 → Plus 面板真的開出來(清單＋登入 CTA 都在)', r.plusOpen === true && r.feats >= 5 && r.cta === 1, JSON.stringify(r));
+  ok('N-tap 375 開面板這一刻 state.account 仍是 undefined(手機路徑的匿名保證與桌面一致)', r.accountUndefined === true, `accountUndefined=${r.accountUndefined}`);
+  ok('N-tap 本輪零 pageerror/console.error', errs.length === 0, errs.slice(0, 3).join(' | '));
+  await ctx.close();
+}
+{
+  const { ctx, page } = await newPage(webkitB, { width: 375, height: 780, touch: true });
+  const errs = attach(page, 'Ntap-ctrl');
+  await page.goto(BASE, { waitUntil: 'domcontentloaded' });
+  await waitReady(page);
+  await page.tap('#tabMore');
+  await page.waitForFunction(() => document.body.classList.contains('tools-open'), null, { timeout: 5000 });
+  await page.waitForTimeout(350);
+  const prevSel = await page.evaluate(sel => {
+    const vis = el => { const st = getComputedStyle(el), r = el.getBoundingClientRect();
+      return st.display !== 'none' && st.visibility !== 'hidden' && r.width > 0 && r.height > 0; };
+    const rows = [...document.querySelectorAll('#moreBody .ms-row')].filter(vis);
+    const prev = rows[rows.indexOf(document.querySelector(sel)) - 1];
+    return prev ? (prev.dataset.proxy ? `.ms-row[data-proxy="${prev.dataset.proxy}"]` : `.ms-row[data-act="${prev.dataset.act}"]`) : '';
+  }, MOBILE_SEL);
+  await page.locator(prevSel).scrollIntoViewIfNeeded();
+  await page.tap(prevSel);
+  await page.waitForTimeout(700);
+  const stillHidden = await page.evaluate(() => document.getElementById('plusModal').hidden);
+  ok('N-tap 反向對照:同樣手勢點上一列不會開出 Plus 面板(證明上一條的「開了」是這一列接的線)',
+    !!prevSel && stillHidden === true, `上一列=${prevSel} plusModal.hidden=${stillHidden}`);
+  ok('N-tap 反向對照 本輪零 pageerror/console.error', errs.length === 0, errs.slice(0, 3).join(' | '));
   await ctx.close();
 }
 
@@ -346,12 +543,8 @@ async function assertAnonymousCanReachLogin(page) {
 //    ——regex 寫錯、Firebase 換 CDN 主機、listener 掛太晚,全都會讓它變成永遠的假綠。
 //    所以 I2b 是它的正向對照:同一支 collectFirebaseReqs(共用同一條 regex,不可能漂移),
 //    在回訪情境下必須抓到 >0 筆。兩條合起來才證明「零」是真的零,不是收集器壞了。
-const FIREBASE_REQ_RE = /gstatic\.com\/firebasejs|identitytoolkit\.googleapis\.com|firestore\.googleapis\.com|firebaseapp\.com/;
-function collectFirebaseReqs(page) {
-  const out = [];
-  page.on('request', req => { const u = req.url(); if (FIREBASE_REQ_RE.test(u)) out.push(u); });
-  return out;
-}
+//    (collectFirebaseReqs 的定義已上移到 section G 之前——G 的兩段式登入也用同一支,
+//     兩節共用一條 regex 才不會各自漂移成兩套判準。)
 {
   const { ctx, page } = await newPage(chromiumB);
   const errs = attach(page, 'I-fresh');
