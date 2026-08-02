@@ -45,8 +45,12 @@ const BASE = `http://localhost:${PORT}/`;
 
 const results = [];
 const ok = (name, pass, detail = '') => { results.push({ name, pass, detail }); console.log(`${pass ? 'PASS' : 'FAIL'} ${name}${detail ? ' — ' + detail : ''}`); };
+// 純資訊、不計入分母:量得出來但沒有「有牙的判準」可寫的數字(例如兩個幾乎同亮度的填色,
+// 分層其實靠 1px 邊框而不是填色對比)。刻意不用 ok(..., true) 充數——恆真的 PASS 會讓
+// 「N/N」這個數字虛胖,而且會讓人以為那個維度已經有閘門守著。
+const info = (name, detail) => { console.log(`INFO ${name}${detail ? ' — ' + detail : ''}`); };
 
-async function boot(browser, { width = 1280, height = 900, touch = false, theme = 'light' } = {}) {
+async function boot(browser, { width = 1280, height = 900, touch = false, theme = 'light', query = '' } = {}) {
   const ctx = await browser.newContext({ viewport: { width, height }, hasTouch: touch, isMobile: touch });
   await ctx.addInitScript((th) => {
     try { localStorage.setItem('trainmap-howto-seen', '1'); } catch (e) {}
@@ -56,7 +60,7 @@ async function boot(browser, { width = 1280, height = 900, touch = false, theme 
   const errors = [];
   page.on('pageerror', e => errors.push('pageerror:' + String(e)));
   page.on('console', m => { if (m.type() === 'error' && !/Failed to load resource/.test(m.text())) errors.push('console:' + m.text()); });
-  await page.goto(BASE, { waitUntil: 'domcontentloaded' });
+  await page.goto(BASE + query, { waitUntil: 'domcontentloaded' });
   await page.waitForFunction(() => { try { return typeof state !== 'undefined' && state.mode === 'sched'; } catch (e) { return false; } }, null, { timeout: 30000 });
   return { ctx, page, errors };
 }
@@ -300,13 +304,19 @@ const results_dir = path.join(ROOT, 'scratchpad'); // repo 的 scratchpad/ 已�
       badNonBody.length === 0,
       badNonBody.length ? badNonBody.slice(0,5).map(d => `${d.sig} dy=${d.dyTop.toFixed(1)}`).join(' ; ') : `n=${nonBodyDeltas.length}`);
     const shiftVals = bodyDeltas.map(d => d.dyTop);
-    const uniformShift = shiftVals.length ? Math.max(...shiftVals) - Math.min(...shiftVals) <= 2 : true;
-    const medianShift = shiftVals.length ? shiftVals.slice().sort((a,b)=>a-b)[Math.floor(shiftVals.length/2)] : 0;
+    // M-5:原本寫 `shiftVals.length ? ... : true`——.ph-body 若哪天沒有子孫(選擇器改名、護照改版),
+    // 樣本為空這條會真空為真。改成「必須真的量到樣本」也是通過條件的一部分;另外 badVert 原本算了
+    // 卻沒參與 pass/fail(只出現在失敗訊息裡),一併納入判準:全距小 ≠ 沒有離群值。
+    const hasSamples = shiftVals.length > 0;
+    const spreadOk = hasSamples && Math.max(...shiftVals) - Math.min(...shiftVals) <= 2;
+    const medianShift = hasSamples ? shiftVals.slice().sort((a,b)=>a-b)[Math.floor(shiftVals.length/2)] : 0;
     const badVert = bodyDeltas.filter(d => Math.abs(d.dyTop - medianShift) > 2);
-    ok('G1.8 對照組:.ph-body 內所有子孫元素統一位移同一個量(無非預期跳動——不是各元素各移各的)',
+    const uniformShift = hasSamples && spreadOk && badVert.length === 0;
+    ok('G1.8 對照組:.ph-body 內所有子孫元素統一位移同一個量(無非預期跳動——不是各元素各移各的;樣本為空視同不通過)',
       uniformShift,
       uniformShift ? `n=${bodyDeltas.length} 皆位移≈${medianShift.toFixed(1)}px(徽章自身高度+collapse 後的間距)` :
-        `位移量不一致,不符:` + badVert.slice(0,5).map(d => `${d.sig} dy=${d.dyTop.toFixed(1)}`).join(' ; ') + ` (中位數=${medianShift.toFixed(1)})`);
+        !hasSamples ? '量不到任何 .ph-body 子孫,樣本為空(判準真空,不算通過)' :
+        `位移量不一致,不符:` + badVert.slice(0,5).map(d => `${d.sig} dy=${d.dyTop.toFixed(1)}`).join(' ; ') + ` (中位數=${medianShift.toFixed(1)}、全距=${(Math.max(...shiftVals)-Math.min(...shiftVals)).toFixed(1)})`);
     // 對照組本身(founding:false)也要零命中失敗——分辨「本來就有的缺陷」vs「我造成的」
     const hitFail2 = s2.report.filter(e => e.hitFails && e.hitFails.length);
     ok('G1.9 對照組(founding:false)本身也零命中失敗(排除既有缺陷的可能性)', hitFail2.length === 0,
@@ -405,9 +415,19 @@ const results_dir = path.join(ROOT, 'scratchpad'); // repo 的 scratchpad/ 已�
     const posTrue = positionedRects(ride3.report), posFalse = positionedRects(ride3b.report);
     const overlapsTrue = new Set(pairwiseOverlaps(posTrue)), overlapsFalse = new Set(pairwiseOverlaps(posFalse));
     const newOverlaps = [...overlapsTrue].filter(p => !overlapsFalse.has(p));
-    ok(`G2.${w}.8 窮舉 #ridePanel 內所有 position≠static 元素兩兩相交測試,徽章插入沒有製造新重疊(對照 founding:false)`,
-      newOverlaps.length === 0,
-      newOverlaps.length ? newOverlaps.join(' ; ') : `founding:true 共 ${posTrue.length} 個定位元素(含既有相交 ${overlapsTrue.size} 組)、founding:false 共 ${posFalse.length} 個,新增相交=0`);
+    // M-3:`newOverlaps.length === 0` 是「數量必須為 0」型斷言——收集器若沒在收(report 的 position
+    // 欄位哪天沒填、選擇器改名),newOverlaps 會恆空而恆綠。加正向對照當閘門:對照組本身必須真的
+    // 撈到定位元素(≥2)、而且偵測器真的開過火(founding:false 這一態本來就有 1 組既有相交——
+    // sticky <h3> 與它自己的關閉鈕)。這兩個數字是這個面板的結構事實,不是量出來湊的門檻;
+    // 面板改版到連 sticky 標題都沒有時它會翻紅,那正是「這條斷言已經沒有東西可測」該被知道的時候。
+    const collectorAlive = posTrue.length >= 2 && overlapsFalse.size >= 1;
+    // 措辭修正:這裡窮舉的是 position≠static 的元素(全 report 173 個裡的 2 個),不是「全部元素」
+    // ——靜態流裡的重疊/遮蔽由 .5 的多點命中測試負責,兩條合起來才是完整覆蓋。
+    ok(`G2.${w}.8 #ridePanel 內全部 position≠static 元素(不手挑名單)兩兩相交,對照 founding:false 零新增重疊;含收集器正向對照(靜態流重疊由 .5 命中測試負責)`,
+      newOverlaps.length === 0 && collectorAlive,
+      !collectorAlive ? `收集器正向對照失敗:定位元素 true=${posTrue.length}/false=${posFalse.length}(需≥2)、對照組既有相交=${overlapsFalse.size} 組(需≥1)——這條可能是恆綠的死規則`
+        : newOverlaps.length ? newOverlaps.join(' ; ')
+        : `founding:true 共 ${posTrue.length} 個定位元素(含既有相交 ${overlapsTrue.size} 組)、founding:false 共 ${posFalse.length} 個,新增相交=0`);
 
     if (w === 375) {
       // ── 第二重突變,只在一個寬度做:專門驗證 pixelStats() 這個新技法本身有沒有牙 ──
@@ -486,6 +506,7 @@ const results_dir = path.join(ROOT, 'scratchpad'); // repo 的 scratchpad/ 已�
     return {
       markColor: get(mark, 'color'), markBg: get(mark, 'backgroundColor'),
       foundingBg: get(founding, 'backgroundColor'), passportBg: get(passport, 'backgroundColor'),
+      borderColor: get(founding, 'borderTopColor'), borderWidth: get(founding, 'borderTopWidth'),
       bColor: get(b, 'color'), iColor: get(i, 'color'),
     };
   });
@@ -495,15 +516,28 @@ const results_dir = path.join(ROOT, 'scratchpad'); // repo 的 scratchpad/ 已�
   const markContrast = contrast(parseRgb(colors.markColor), parseRgb(colors.markBg));
   const bContrast = contrast(parseRgb(colors.bColor), parseRgb(colors.foundingBg));
   const iContrast = contrast(parseRgb(colors.iColor), parseRgb(colors.foundingBg));
-  const stageOnPaper = contrast(parseRgb(colors.foundingBg), parseRgb(colors.passportBg)); // 視覺分層對比(非文字)
+  // brief Step 4 唯一點名的暗色風險就是這條:金圓(--gold 填色)在暗色 stage 底上夠不夠醒目。
+  // 它不是文字疊底色,所以判準取 WCAG 1.4.11「非文字對比」的 3:1(圖形物件/UI 元件邊界的外部常數),
+  // 不是文字用的 4.5——判準來自外部標準,不是拿今天量到的數字回填(那種門檻下次改色一樣抓不到)。
+  const markOnStage = contrast(parseRgb(colors.markBg), parseRgb(colors.foundingBg));
+  const stageOnPaper = contrast(parseRgb(colors.foundingBg), parseRgb(colors.passportBg)); // 見文末 INFO
+  const lineOnStage = contrast(parseRgb(colors.borderColor), parseRgb(colors.foundingBg));
+  const lineOnPaper = contrast(parseRgb(colors.borderColor), parseRgb(colors.passportBg));
   ok('G3.1 暗色 .pf-mark 文字(--paper)對底色(--gold)對比比',
     markContrast >= 4.5, `ratio=${markContrast.toFixed(2)}:1 (WCAG AA 文字門檻 4.5:1) colors=${colors.markColor} on ${colors.markBg}`);
   ok('G3.2 暗色「創始會員」標題(--ink-strong)對底色(--bg-stage)對比比',
     bContrast >= 4.5, `ratio=${bContrast.toFixed(2)}:1 colors=${colors.bColor} on ${colors.foundingBg}`);
-  ok('G3.3 暗色副標(--faint)對底色(--bg-stage)對比比(資訊性參考,非強制 4.5)',
-    true, `ratio=${iContrast.toFixed(2)}:1 colors=${colors.iColor} on ${colors.foundingBg}`);
-  ok('G3.4 暗色徽章底(--bg-stage)與護照底(--paper)有可視分層(非純文字對比,資訊性參考)',
-    true, `ratio=${stageOnPaper.toFixed(2)}:1 colors=${colors.foundingBg} vs ${colors.passportBg}`);
+  // M-1:原本第二個參數直接傳 true,量到什麼都不會紅,卻計進分母。副標是 11.5px 的一般文字,
+  // WCAG AA 的門檻就是 4.5——直接用它當閘門,不再寫「資訊性參考」自我豁免。
+  ok('G3.3 暗色副標(--faint)對徽章底(--bg-stage)對比比 ≥ WCAG AA 文字門檻 4.5:1',
+    iContrast >= 4.5, `ratio=${iContrast.toFixed(2)}:1 colors=${colors.iColor} on ${colors.foundingBg}`);
+  ok('G3.4 暗色金圓章(--gold 填色)對徽章底(--bg-stage)對比比 ≥ WCAG 1.4.11 非文字門檻 3:1(brief Step 4 點名的風險)',
+    markOnStage >= 3, `ratio=${markOnStage.toFixed(2)}:1 colors=${colors.markBg} on ${colors.foundingBg}`);
+  // 「徽章底 vs 護照底」這組填色亮度幾乎一樣(暗色 --bg-stage #0E1526 vs --paper #141D31),
+  // 分層實際上是 1px 的 --line 邊框做出來的,不是填色對比——這個維度沒有可寫的亮度門檻
+  // (寫任何數字都是回填今天的量測值),故列為 INFO 不計分,數字留給人眼稽核。
+  info('G3.i 暗色分層數字(不計分,供人眼稽核)',
+    `徽章底 vs 護照底=${stageOnPaper.toFixed(2)}:1(幾乎同亮度,分層靠邊框);邊框 vs 徽章底=${lineOnStage.toFixed(2)}:1、邊框 vs 護照底=${lineOnPaper.toFixed(2)}:1;截圖 scratchpad/founding_seal_dark.png`);
 
   // 截圖存證(供人眼複查)
   try {
@@ -532,17 +566,32 @@ const results_dir = path.join(ROOT, 'scratchpad'); // repo 的 scratchpad/ 已�
   const html = readFileSync(path.join(ROOT, 'index.html'), 'utf8');
   const refreshStart = html.indexOf('async function plusRefresh()');
   const refreshBranchEnd = html.indexOf("return p.active;\n  }\n  p.loading = true");
-  const apiStatusBranch = html.slice(refreshStart, refreshBranchEnd);
-  ok('G4.1 /api/plus-status 分支(無 info 那條)沒有被加上 foundingFrom(brief 明確禁止,那裡沒 info 可傳)',
-    !/foundingFrom/.test(apiStatusBranch), apiStatusBranch.includes('foundingFrom') ? '出現在不該出現的地方' : '乾淨');
   const restoreStart = html.indexOf('async function plusRestore()');
   const restoreEnd = html.indexOf('async function plusRequire(');
-  const restoreBody = html.slice(restoreStart, restoreEnd);
+  // M-2:這兩條都是「必須不存在 / 必須符合形狀」的原始碼掃描,靠 indexOf 錨點切片——錨點被改名時
+  // indexOf 回 -1,`slice(-1, end)` 在 end 較小時回空字串,`!/foundingFrom/.test('')` 恆真 ⇒ 靜默 PASS。
+  // 先把「切片本身是不是有效的」變成一條自己的斷言(壞了要指得出是錨點壞了,不是產品壞了),
+  // 而且下面 G4.1 的通過條件也把它包進去,免得 G4.0 紅了 G4.1 還在真空放行。
+  // 兩段切片各自獨立判定,不共用一個 anchorsOk——共用的話「plusRefresh 被改名」會連帶把 G4.2 也
+  // 打紅,訊息變成「plusRestore 沒寫入」而誤導診斷方向。壞哪一段就只紅哪一段。
+  const refreshAnchorOk = refreshStart >= 0 && refreshBranchEnd > refreshStart;
+  const restoreAnchorOk = restoreStart >= 0 && restoreEnd > restoreStart;
+  const apiStatusBranch = refreshAnchorOk ? html.slice(refreshStart, refreshBranchEnd) : '';
+  const restoreBody = restoreAnchorOk ? html.slice(restoreStart, restoreEnd) : '';
+  // 切片必須真的是我以為的那段:早退分支要含 /api/plus-status,plusRestore() 本文要含 p.active 賦值。
+  const refreshSliceSane = refreshAnchorOk && apiStatusBranch.includes('api/plus-status');
+  const restoreSliceSane = restoreAnchorOk && restoreBody.includes('p.active = plusActiveFrom(info)');
+  ok('G4.0 契約掃描的原始碼錨點有效(plusRefresh 早退分支切片含 api/plus-status、plusRestore 本文含 p.active 賦值)',
+    refreshSliceSane && restoreSliceSane,
+    `refresh: start=${refreshStart} end=${refreshBranchEnd} 切片長=${apiStatusBranch.length} sane=${refreshSliceSane} ; restore: start=${restoreStart} end=${restoreEnd} 切片長=${restoreBody.length} sane=${restoreSliceSane}`);
+  ok('G4.1 /api/plus-status 分支(無 info 那條)沒有被加上 foundingFrom(brief 明確禁止,那裡沒 info 可傳)',
+    refreshSliceSane && !/foundingFrom/.test(apiStatusBranch),
+    !refreshSliceSane ? '切片無效(見 G4.0),這條不算通過——不是「乾淨」' : apiStatusBranch.includes('foundingFrom') ? '出現在不該出現的地方' : `乾淨(切片 ${apiStatusBranch.length} 字元)`);
   // 裁示二:plusRestore() 補齊第 3 個同形寫入點。用較嚴格的 regex(要求形狀與另兩處一致,
   // 不是隨便找到一個 `p.founding =` 就算數)——tighten 到「= p.active && foundingFrom(info)」。
-  const restoreHasFounding = /p\.founding\s*=\s*p\.active\s*&&\s*foundingFrom\(info\)/.test(restoreBody);
+  const restoreHasFounding = restoreSliceSane && /p\.founding\s*=\s*p\.active\s*&&\s*foundingFrom\(info\)/.test(restoreBody);
   ok('G4.2 plusRestore() 現在也寫入 p.founding(裁示二補齊的第 3 個同形寫入點,形狀與 plusRefresh/plusPurchase 一致)',
-    restoreHasFounding, restoreHasFounding ? '有' : '沒有(裁示二應已補上,見 index.html plusRestore() 內)');
+    restoreHasFounding, !restoreSliceSane ? '切片無效(見 G4.0),這條不算通過' : restoreHasFounding ? '有' : '沒有(裁示二應已補上,見 index.html plusRestore() 內)');
 }
 
 // ═══════════════ Group 5:WebKit(創始徽章唯一的真實受眾——App 全部走 WKWebView)═══════════════
@@ -666,7 +715,171 @@ try {
   ok('G5 webkit 手機路徑全項', false, 'webkit 啟動或執行失敗:' + String(e).slice(0, 300));
 }
 
+// ═══════ Group 6:寫入鏈路 customerInfo → foundingFrom() → p.founding → 徽章 真的被走過 ═══════
+// 為什麼非有這組不可(複審用突變證明過,不是推測):把三個
+// `p.founding = p.active && foundingFrom(info);`(plusRefresh/plusPurchase/plusRestore)**全部刪光**,
+// 前面 95 條裡只有 G4.2 會紅——而 G4.2 是原始碼文字 regex,只證明「字串還在」,不證明「值會被填對」。
+// 原因是 G1/G2/G5 全部用 page.evaluate 手動塞 state.plus 再叫渲染器,驗的是「渲染器拿到
+// founding:true 會不會畫」;G0 只驗純函式(輸入是手寫 fixture)。「誰把 founding 填進去」這一段
+// 從來沒有行為斷言。渲染器再對,鏈路斷掉一樣是所有創始會員都拿不到徽章、而驗收全綠。
+//
+// 做法用 repo 既有慣例 window.RAIL_PLUS_TEST_ADAPTER(index.html:7163 的 plusAdapterFor 短路;
+// verify_plus_subscription.mjs:108、verify_sat_retina.mjs:192、verify_delay_history_ui.mjs:94
+// 三支既有腳本都這樣用),注入帶 originalPurchaseDate 的假 customerInfo,然後呼叫**真正的**
+// plusRefresh()/plusPurchase()/plusRestore(),斷言 state.plus.founding 真的被填成 true/false,
+// 並一路驗到徽章有沒有出現在護照上(端到端,不是只看欄位)。
+//
+// 哨兵(SENTINEL):每次呼叫前把 state.plus.founding 設成字串 'UNWRITTEN',斷言一律用 ===true /
+// ===false 嚴格比對。這樣「沒有被寫入」與「寫成 false」是兩個可分辨的結果——刪掉任一個寫入點,
+// 對應的那組斷言必然翻紅(哨兵留著,true 與 false 兩種期望值都對不上),而不是靠某個值恰好相同蒙混。
+// PLUS_ENABLED 在網站端只認 ?plus=1(index.html:6055),沒有它 plusConfigured() 恆假、plusRefresh
+// 會走 /api/plus-status 早退分支根本到不了寫入點——所以這組一律帶 query 開站,並用 G6.0 把這個
+// 前置條件變成一條會紅的斷言,不讓它默默失效(前置條件不成立時的「全綠」是最貴的假綠)。
+{
+  const cr = await chromium.launch();
+  const SENTINEL = 'UNWRITTEN';
+  const DAY = 86400000;
+
+  // days<0 = 截止日前開始訂閱(創始會員);days>0 = 截止日後(不是創始會員)
+  async function plusPage(days) {
+    const { ctx, page, errors } = await boot(cr, { width: 1280, height: 2200, query: '?plus=1' });
+    await page.evaluate(() => { try { localStorage.setItem('trainmap-passport-open', '1'); } catch (e) {} });
+    await page.evaluate((d) => {
+      const iso = new Date(FOUNDING_UNTIL_MS + d * 86400000).toISOString();
+      window.RAIL_REVENUECAT_CONFIG = { entitlement: 'plus', offeringId: 'plus' };
+      // 形狀照 RevenueCat customerInfo:entitlements.active[entitlement].originalPurchaseDate 是
+      // ISO8601 字串(App/Capacitor 路徑,型別宣告已查證)。價格用非真實佔位值——repo 公開,定價不進版控。
+      const info = () => ({
+        entitlements: { active: { plus: { identifier: 'plus', originalPurchaseDate: iso } } },
+        managementURL: 'https://example.invalid/manage',
+      });
+      const offering = { availablePackages: [
+        { identifier: '$rc_monthly', packageType: 'MONTHLY', webBillingProduct: { currentPrice: { formattedPrice: 'STUB-MONTH' } } },
+        { identifier: '$rc_annual', packageType: 'ANNUAL', webBillingProduct: { currentPrice: { formattedPrice: 'STUB-YEAR' } } },
+      ] };
+      window.RAIL_PLUS_TEST_ADAPTER = {
+        calls: { getCustomerInfo: 0, getOfferings: 0, purchase: 0, restore: 0 },
+        purchaseDate: iso,
+        setUser: async () => {},
+        getCustomerInfo: async function () { this.calls.getCustomerInfo++; return info(); },
+        getOfferings: async function () { this.calls.getOfferings++; return { all: { plus: offering }, current: offering }; },
+        purchase: async function () { this.calls.purchase++; return { customerInfo: info() }; },
+        restore: async function () { this.calls.restore++; return info(); },
+      };
+      state.plus = null;
+      state.account = { ready: true, user: { uid: 'founding-test-uid', email: 'tester@example.com', displayName: '測試員' }, syncing: false, lastSync: 0, actionError: '', error: '' };
+      plusState();
+    }, days);
+    return { ctx, page, errors };
+  }
+
+  // 呼叫真正的寫入函式,前後夾哨兵。回傳的 wrote 表示「這一次呼叫真的動過 p.founding」。
+  async function callWriter(page, which, sentinel) {
+    return page.evaluate(async ({ which, sentinel }) => {
+      state.plus.founding = sentinel;
+      if (which === 'refresh') await plusRefresh();
+      else if (which === 'purchase') await plusPurchase('annual');
+      else if (which === 'restore') await plusRestore();
+      const f = state.plus.founding;
+      return {
+        active: state.plus.active, founding: f, wrote: f !== sentinel,
+        error: state.plus.error || '',
+        calls: JSON.parse(JSON.stringify(window.RAIL_PLUS_TEST_ADAPTER.calls)),
+      };
+    }, { which, sentinel });
+  }
+
+  const readSeal = page => page.evaluate(() => {
+    renderPassport();
+    const el = document.querySelector('#passport .ph-founding');
+    const r = el && el.getBoundingClientRect();
+    return {
+      exists: !!el,
+      display: el ? getComputedStyle(el).display : null,
+      area: r ? Math.round(r.width) * Math.round(r.height) : 0,
+      passportHidden: document.getElementById('passport').hidden,
+    };
+  });
+
+  // ── 6A:截止日前一天開始訂閱 → 是創始會員 ──
+  {
+    const { ctx, page, errors } = await plusPage(-1);
+    const pre = await page.evaluate(() => ({ enabled: PLUS_ENABLED, configured: plusConfigured(), founding: state.plus.founding }));
+    ok('G6.0 前置條件:?plus=1 讓 PLUS_ENABLED 為真、plusConfigured() 成立(否則 plusRefresh 走 /api/plus-status 早退分支,三個寫入點一個都到不了)',
+      pre.enabled === true && pre.configured === true && pre.founding === false,
+      `PLUS_ENABLED=${pre.enabled} plusConfigured=${pre.configured} plusState() 初始 founding=${JSON.stringify(pre.founding)}`);
+
+    const r1 = await callWriter(page, 'refresh', SENTINEL);
+    ok('G6.1 真呼叫 plusRefresh()(截止日前訂閱)→ state.plus.founding 被寫成 true',
+      r1.active === true && r1.founding === true,
+      `active=${r1.active} founding=${JSON.stringify(r1.founding)} wrote=${r1.wrote} calls=${JSON.stringify(r1.calls)} err=${r1.error}`);
+
+    const seal1 = await readSeal(page);
+    ok('G6.2 端到端:上一步之後 renderPassport() 畫得出徽章(customerInfo → foundingFrom → p.founding → .ph-founding 全鏈路,不是手動塞 state)',
+      seal1.exists === true && seal1.display !== 'none' && seal1.area > 0 && seal1.passportHidden === false,
+      JSON.stringify(seal1));
+
+    const r2 = await callWriter(page, 'purchase', SENTINEL);
+    ok('G6.3 真呼叫 plusPurchase(\'annual\')→ state.plus.founding 被寫成 true(呼叫前已重設哨兵,不吃 plusRefresh 的殘留值)',
+      r2.active === true && r2.founding === true && r2.calls.purchase === 1,
+      `active=${r2.active} founding=${JSON.stringify(r2.founding)} wrote=${r2.wrote} calls=${JSON.stringify(r2.calls)} err=${r2.error}`);
+
+    const r3 = await callWriter(page, 'restore', SENTINEL);
+    ok('G6.4 真呼叫 plusRestore()→ state.plus.founding 被寫成 true(呼叫前已重設哨兵)',
+      r3.active === true && r3.founding === true && r3.calls.restore === 1,
+      `active=${r3.active} founding=${JSON.stringify(r3.founding)} wrote=${r3.wrote} calls=${JSON.stringify(r3.calls)} err=${r3.error}`);
+
+    ok('G6A 無 JS 例外', errors.length === 0, errors.slice(0, 3).join(' | '));
+    await ctx.close();
+  }
+
+  // ── 6B:截止日後一天才開始訂閱 → 不是創始會員(擋「無條件寫 true」的實作) ──
+  {
+    const { ctx, page, errors } = await plusPage(+1);
+    const r1 = await callWriter(page, 'refresh', SENTINEL);
+    ok('G6.5 真呼叫 plusRefresh()(截止日後訂閱)→ active 仍為 true,但 founding 被寫成 false(不是哨兵殘留)',
+      r1.active === true && r1.founding === false && r1.wrote === true,
+      `active=${r1.active} founding=${JSON.stringify(r1.founding)} wrote=${r1.wrote} calls=${JSON.stringify(r1.calls)} err=${r1.error}`);
+
+    const seal1 = await readSeal(page);
+    ok('G6.6 端到端:上一步之後 renderPassport() 不畫徽章(非創始會員不得誤發)',
+      seal1.exists === false && seal1.passportHidden === false, JSON.stringify(seal1));
+
+    const r2 = await callWriter(page, 'purchase', SENTINEL);
+    ok('G6.7 真呼叫 plusPurchase(\'annual\')(截止日後)→ founding 被寫成 false(wrote=true 才算數,否則是寫入點被刪掉)',
+      r2.active === true && r2.founding === false && r2.wrote === true && r2.calls.purchase === 1,
+      `active=${r2.active} founding=${JSON.stringify(r2.founding)} wrote=${r2.wrote} calls=${JSON.stringify(r2.calls)} err=${r2.error}`);
+
+    const r3 = await callWriter(page, 'restore', SENTINEL);
+    ok('G6.8 真呼叫 plusRestore()(截止日後)→ founding 被寫成 false(wrote=true 才算數)',
+      r3.active === true && r3.founding === false && r3.wrote === true && r3.calls.restore === 1,
+      `active=${r3.active} founding=${JSON.stringify(r3.founding)} wrote=${r3.wrote} calls=${JSON.stringify(r3.calls)} err=${r3.error}`);
+
+    ok('G6B 無 JS 例外', errors.length === 0, errors.slice(0, 3).join(' | '));
+    await ctx.close();
+  }
+  await cr.close();
+}
+
 server.close();
+
+// ═══════════════ 斷言總數閘門(M-4) ═══════════════
+// 為什麼需要:G1.7/G1.7b/G1.8/G1.9 藏在 `if (sigMatch)` 內、G5 整組包在 try 內、G2 的三發突變只在
+// w===375 跑——這些區塊的前置條件一旦不成立,斷言是「整批從結果集消失」而不是「變紅」,分母悄悄
+// 變小,「N/N PASS」看起來一模一樣漂亮。斷言數本身就是要被守住的東西,所以下面這張表是刻意手寫的:
+// 新增/刪除斷言時必須同步改它——改不動就代表有東西沒被跑到,那正是這道閘門要攔的。
+// (表不含這條閘門自己;它在把自己 push 進去之前先數,所以不會自我計數。)
+const EXPECTED_COUNTS = { G0: 9, G1: 11, G2: 43, G3: 6, G4: 3, G5: 24, G6: 11 };
+const actualCounts = {};
+for (const r of results) { const m = /^(G\d)/.exec(r.name); const k = m ? m[1] : '(未分組)'; actualCounts[k] = (actualCounts[k] || 0) + 1; }
+const groupKeys = [...new Set([...Object.keys(EXPECTED_COUNTS), ...Object.keys(actualCounts)])].sort();
+const countMismatch = groupKeys.filter(g => (EXPECTED_COUNTS[g] || 0) !== (actualCounts[g] || 0));
+ok('G9 斷言總數閘門:每組實跑條數符合預期(條件式區塊整批消失時,分母變小不會被當成全綠)',
+  countMismatch.length === 0,
+  countMismatch.length
+    ? countMismatch.map(g => `${g}:預期 ${EXPECTED_COUNTS[g] || 0} 實跑 ${actualCounts[g] || 0}`).join(' ; ')
+    : groupKeys.map(g => `${g}=${actualCounts[g]}`).join(' '));
+
 const fail = results.filter(r => !r.pass);
 console.log(`\n──────── ${results.length - fail.length}/${results.length} PASS ────────`);
 if (fail.length) { console.log('FAIL:', fail.map(f => f.name).join(' ; ')); }
