@@ -6868,7 +6868,7 @@ async function accountSyncNow(reason) {
   if (!a || !a.user || !a.db || a.syncing) return false;
   // 雲端同步是 Plus 功能(2026-08-02 裁示:用戶端閘門)。logout 是刻意的例外——
   // 登出會清掉本機資料(accountClearLocal),不讓最後一次回寫完成就等於吃掉使用者的東西。
-  // 用 startsWith 不用 !==:rules 擋下時 catch 會遞迴成 'logout-legacy' 重試(index.html:6904),
+  // 用 startsWith 不用 !==:rules 擋下時下面的 catch 會遞迴成 reason+'-legacy' 重試,
   // 寫死 !== 'logout' 會讓重試被閘門擋掉、而 accountSignOut 照樣清本機 ⇒ 真的掉資料。
   if (!reason.startsWith('logout') && !(state.plus && state.plus.active)) return false;
   a.syncing = true; a.actionError = ''; accountRender();
