@@ -32,6 +32,7 @@ import { fileURLToPath } from 'node:url';
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const SRC = readFileSync(path.join(ROOT, 'index.html'), 'utf8');
 const WSRC = readFileSync(path.join(ROOT, 'worker.js'), 'utf8');
+const TSRC = readFileSync(path.join(ROOT, 'terms.html'), 'utf8'); // 付費視窗法務列直接連到它,見 T1T
 const INDEX_MD5 = createHash('md5').update(SRC).digest('hex');
 console.log(`[G0] ROOT=${ROOT}`);
 console.log(`[G0] index.html md5=${INDEX_MD5}`);
@@ -192,6 +193,15 @@ const REQUIRED = [
     check: () => /if \(!reason\.startsWith\('logout'\) && !plusIsActive\(\)\) return false;/.test(SRC),
   },
   { needle: '行程分享', check: () => fnBodyContains(SRC, 'tripShareVisible', 'plusIsActive()') },
+  {
+    needle: '已儲存清單',
+    // Google Takeout 清單匯入。入口在 setupTakeoutUi():有購買通道時把 takeoutOpen 包進
+    // plusRequire('takeout', …),資格判定在 plusRequire 內的 plusIsActive()。兩段都要驗——
+    // 只驗 setupTakeoutUi 有寫 plusRequire,把 plusRequire 內的 plusIsActive() 拿掉照樣綠;
+    // 只驗 plusRequire,把 setupTakeoutUi 改成直接 takeoutOpen() 也照樣綠。
+    check: () => fnBodyContains(SRC, 'setupTakeoutUi', "plusRequire('takeout'")
+      && fnBodyContains(SRC, 'plusRequire', 'plusIsActive()'),
+  },
   { needle: '高解析', check: () => fnBodyContains(SRC, 'satRetinaAllowed', 'plusIsActive()') },
   {
     needle: '創始會員',
@@ -204,6 +214,11 @@ const REQUIRED = [
   },
   { needle: '動態島', check: () => fnBodyContains(SRC, 'liveActivityAllowed', 'plusIsActive()') },
 ];
+// 「清單此刻應該有幾項」一律從 REQUIRED 推導,全檔不再各處寫死數字——2026-08-03 補
+// 「Google 清單匯入」那一項時,T1／T3b／T5／T6 四處寫死的 5/6 同時過期,正是這個坑。
+// (目前唯一的 conditional 是創始會員那項,故以 founding 布林代入;日後若多一種條件,
+//  這支要改成傳入完整情境,而不是再多寫一個常數。)
+function expectedFeatCount(founding) { return REQUIRED.filter(r => !r.conditional || founding).length; }
 
 // ══════════ T0:Step 0 新符號 plusIsActive() 本身的正確性(既有 5 支腳本沒有專門測到這個符號) ══════════
 {
@@ -223,14 +238,22 @@ const REQUIRED = [
   const { ctx, page, errors } = await boot(cr);
   await setPlus(page, false);
   const { feats, trust } = await renderFeats(page);
-  const expectCount = inFounding ? 6 : 5; // 創始會員那項只在創始期內存在,見 G1/REQUIRED[創始會員].conditional
-  ok(`T1 前置:feats 陣列項數符合創始期狀態(inFounding=${inFounding}→預期 ${expectCount} 項;多了是塞了沒對映的東西,少了是漏對映)`,
+  // 條數從 REQUIRED 推導,不寫死:寫死的數字只要清單一長就過期,而換成另一個寫死的數字只是把坑
+  // 往後推一格(2026-08-03 補「Google 清單匯入」那一項時實際踩到)。真正的判準是下面 T1F／T1R
+  // 的逐項身分對映,這一條只負責抓「多了一項沒對映的東西」。
+  const expectCount = expectedFeatCount(inFounding);
+  ok(`T1 前置:feats 陣列項數＝REQUIRED 此刻應出現的項數(inFounding=${inFounding}→${expectCount} 項;多了是塞了沒對映的東西,少了是漏對映)`,
     feats.length === expectCount, JSON.stringify(feats));
   // 正向:每一項 feats 文字都能在 REQUIRED 找到唯一對應的 needle,且 check() 通過(真的有資格判定,不是空話)
   feats.forEach((text, i) => {
     const match = REQUIRED.find(r => text.includes(r.needle));
     ok(`T1F feats[${i}] 對得到 REQUIRED 裡的某個 needle`, !!match, text);
     ok(`T1F feats[${i}] 對應的 check() 通過(真的有資格判定,不是空話)`, match ? match.check() : false, match ? match.needle : '(無對應項目)');
+    // T1T:付費視窗的法務列直接連到 terms.html ⇒ 使用者是在決定付錢的當下讀到那份條款的。
+    // 面板列了、條款沒寫(或反之)就是在付款決定點做不一致宣稱。這一條是 2026-08-03「有付費牆卻
+    // 不在任何對外清單裡」那件事的根因判準——舊的對映是單向的(清單項→閘門),照不到揭露這一側。
+    ok(`T1T feats[${i}] 在 terms.html 的 Plus 敘述裡也找得到`, !!match && TSRC.includes(match.needle),
+      match ? `needle=${match.needle} inTerms=${TSRC.includes(match.needle)}` : '(無對應項目)');
   });
   // 反向:REQUIRED 六項都出現在 feats 裡(防「做了功能但忘了寫進清單」)——除非該項有 conditional()
   // 且目前不成立(創始會員過了 FOUNDING_UNTIL_MS),那種情況下正確行為是「不出現」,一樣要驗到,
@@ -291,8 +314,8 @@ const REQUIRED = [
   const { feats } = await renderFeats(page);
   ok('T3b 創始期後(FOUNDING_UNTIL_MS+30天):feats 不再無條件出現「創始會員徽章」(過了期限才訂閱的人拿不到,清單不能繼續宣傳)',
     !feats.some(t => t.includes('創始會員徽章')), JSON.stringify(feats));
-  ok('T3b 創始期後:feats 仍有其他 5 項(不是整個清單壞掉,只有這一項消失)',
-    feats.length === 5, JSON.stringify(feats));
+  ok(`T3b 創始期後:feats 仍有其他 ${expectedFeatCount(false)} 項(不是整個清單壞掉,只有這一項消失)`,
+    feats.length === expectedFeatCount(false), JSON.stringify(feats));
   ok('T3 無 JS 例外', errors.length === 0, errors.slice(0, 3).join(' | '));
   await ctx.close();
 }
@@ -387,8 +410,8 @@ await cr.close();
   }
   await wk.close();
   const fmt = rows.map(r => `${r.w}px:共${r.geo.count}項 高=${r.geo.overflow.map(o => o.h).join('/')} 右溢=${r.geo.overflow.map(o => o.overRight).join('/')} 左溢=${r.geo.overflow.map(o => o.overLeft).join('/')} 重疊=${r.geo.overlaps.join('/')}`).join(' ; ');
-  ok(`T5 四寬度(WebKit):Plus 清單項數符合創始期狀態(inFounding=${inFounding}→預期 ${inFounding ? 6 : 5} 項)`,
-    rows.every(r => r.geo.count === (inFounding ? 6 : 5)), fmt);
+  ok(`T5 四寬度(WebKit):Plus 清單項數符合創始期狀態(inFounding=${inFounding}→預期 ${expectedFeatCount(inFounding)} 項)`,
+    rows.every(r => r.geo.count === expectedFeatCount(inFounding)), fmt);
   ok('T5 四寬度:每項功能高度>0(沒有被壓成 0)', rows.every(r => r.geo.overflow.every(o => o.h > 0)), fmt);
   ok('T5 四寬度:每項功能文字不超出容器左右緣', rows.every(r => r.geo.overflow.every(o => o.overRight <= 1 && o.overLeft <= 1)), fmt);
   ok('T5 四寬度:相鄰項目不垂直重疊', rows.every(r => r.geo.overlaps.every(gap => gap <= 1)), fmt);
@@ -545,11 +568,13 @@ server.close();
 // 小寫字母尾碼,不能只吃 [ab]——吃不到的字母會被靜靜併回不帶字母的裸組,分母對不上還以為是別的錯。
 // (T1F/T1R 用大寫字母尾碼,不被 [a-z]? 吃掉,全部併回裸組「T1」,這是刻意的——正向/反向本來就要合看。)
 // T1 的預期值是公式不是常數:創始會員那項的存在與否跟著 inFounding(G1 現讀)走,items 數會在
-// 2026-09-15 那天從 6 變 5,T1F 的配對數量跟著變(8+2*items 數);寫死 20 會在那天之後變成
+// 2026-09-15 那天少一項,T1F/T1T 的配對數量跟著變;寫死會在那天之後變成
 // 「為了正確的理由跟預期值對不上」——這正是複審 Important 5 點名的時間炸彈,詳見 T1/G1 註解。
+// 組成:1(前置條數) + 3×feats 項數(T1F×2 + T1T×1) + REQUIRED.length(T1R 反向) + 1(無 JS 例外)。
+// 兩個變數都不是手打的常數:清單一長,分子分母一起長,不必回頭改這個數字。
 const EXPECTED_COUNTS = {
   G0: 1, G1: 2, G2: 2, T0: 1, T0a: 1, T0b: 1, T0c: 1,
-  T1: 8 + 2 * (inFounding ? 6 : 5),
+  T1: 2 + REQUIRED.length + 3 * expectedFeatCount(inFounding),
   T2: 1, T2a: 1, T2b: 1, T2c: 1, T2d: 1, T2e: 1, T2f: 1,
   T3: 2, T3a: 1, T3b: 2, T4a: 2, T4b: 2, T4c: 2, T5: 6, T5w: 3, T7a: 4, T7b: 4,
 };

@@ -3329,9 +3329,9 @@
         <li><span class="d">8/2</span><span>在 App 裡訂閱 Plus 後，衛星底圖會用高解析度圖磚（支援 Retina 螢幕）</span></li>
         <li><span class="d">8/2</span><span>最早訂閱 Plus 的人，App 的旅程護照上會有一枚創始會員徽章</span></li>
         <li><span class="d">8/2</span><span>訂閱 Plus 後在 App 裡跟車，鎖定畫面和動態島會顯示下一站與到站時間</span></li>
+        <li><span class="d">8/2</span><span>訂閱 Plus 後可以在 App 裡把 Google Maps 的「已儲存」清單匯入成軌島的最愛地點</span></li>
         <li><span class="d">8/1</span><span>三鶯線跟上官方 8/1 延長：每天 08:00–22:00 都看得到車（原 10:00–20:00）</span></li>
         <li><span class="d">8/1</span><span>台鐵快車經過不停靠小站時的位置更準了——有網友拿碼錶實地量了十幾班車回報（謝謝）</span></li>
-        <li><span class="d">8/1</span><span>衛星底圖換成比較省的計費方式：看到的畫面完全一樣，只是我們付給圖資供應商的錢少很多</span></li>
       </ul>
       <!-- 第二層:完整歷史。刻意不掛 .foot-box 類名——placeFootBoxes() 用
            `.site-foot .foot-box` 搬移面板,巢狀同名會被當成另一個盒子一起搬走。 -->
@@ -3377,6 +3377,7 @@
         <li><span class="d">7/11</span><span>新增「群車」視角：不跟單一列車，看整片列車交錯；改連續慢速巡航永不停頓</span></li>
         <li><span class="d">7/9</span><span>沉浸放空升級：真・全螢幕、「簡」極簡沉浸、經過特殊車站自動跳站介紹</span></li>
         <li class="grp">平交道與儲存地點</li>
+        <li><span class="d">8/2</span><span>訂閱軌島 Plus 後，可以在 App 裡把 Google Maps 的「已儲存」清單匯入成軌島的最愛地點：從 Google Takeout 匯出的 ZIP（或解壓後的 CSV／JSON／GeoJSON）直接選檔，會先列出讀到的地點讓你勾選，確認後才寫入，只收台灣範圍內的地點。檔案全程只在你的裝置裡解析，不會上傳</span></li>
         <li><span class="d">7/22</span><span>「附近火車」更名為「儲存地點」：可以命名（家、公司…），存過的會進「我的最愛」</span></li>
         <li><span class="d">7/14</span><span>平交道位置依官方資料，可能與現場實際位置略有落差</span></li>
         <li><span class="d">7/13</span><span>新增「附近火車」：地圖上落一根釘，查周邊 60 分鐘內會通過的車次</span></li>
@@ -3699,7 +3700,7 @@
     <button class="ms-row" data-proxy="recBtn" data-close="1" style="display:none"><span>⏺ 錄影 Beta</span><span class="chev">›</span></button>
     <div class="ms-sec">分享與資料</div>
     <button class="ms-row" data-proxy="shareBtn" data-close="1"><span>↗ 分享畫面</span><span class="chev">›</span></button>
-    <button class="ms-row" data-proxy="importBtn" data-close="1"><span>Google 清單匯入</span><span class="chev">›</span></button>
+    <button class="ms-row" data-proxy="importBtn" data-close="1" style="display:none"><span>Google 清單匯入</span><span class="chev">›</span></button>
     <!-- 帳號同步下架(ACCOUNT_ENABLED=false):比照 #accountBtn 先 inline 藏,不靠 setupAccountUi 才移除。
          它有兩條走不到移除的路——setupMapTools 前段一拋(2026-07-26 實測過),以及 accountConfigured()
          為假時的提前 return;兩條都會留成「點了靜默無反應」的死列。還原點在 accountEnsureInit -->
@@ -6784,8 +6785,11 @@ function takeoutStartManual(index) {
 }
 function setupTakeoutUi() {
   const btn = document.getElementById('importBtn'), modal = document.getElementById('takeoutModal');
-  if (!btn || !modal || !(TAKEOUT_PROTOTYPE || (accountConfigured() && plusConfigured()))) return;
+  const row = document.querySelector('.ms-row[data-proxy="importBtn"]');
+  // 入口不長出來時抽屜列也要一起走(比照 recBtn):留一列點了靜默無反應比沒有更糟(v0718i 對 recBtn/accountBtn 的同一教訓)
+  if (!btn || !modal || !(TAKEOUT_PROTOTYPE || (accountConfigured() && plusConfigured()))) { if (row) row.remove(); return; }
   btn.style.display = '';
+  if (row) row.style.display = ''; // 抽屜列 HTML 預設 inline none,這裡是它唯一的露出點
   btn.onclick = () => { if (plusConfigured()) plusRequire('takeout', takeoutOpen); else takeoutOpen(); };
   const close = () => { state.takeoutPick = null; takeoutClose(); };
   document.getElementById('takeoutX').onclick = close;
@@ -6860,6 +6864,9 @@ function accountRender() {
   else if (!a.user) body.innerHTML =
     `<p class="account-intro">登入後會同步「最愛地點、最愛車站、最愛列車、完乘紀錄」。主題、音量與省電等裝置偏好不會同步；目前裝置上的訪客資料會在首次登入時合併進帳號。</p>` +
     `<div class="account-login"><button type="button" data-login="google">使用 Google 登入</button>${window.RAIL_APPLE_LOGIN === true ? '<button class="apple" type="button" data-login="apple">使用 Apple 登入</button>' : ''}</div>` +
+    // 不想登入的人要回得去 Plus 面板(這張畫面常常是從 Plus 面板的登入 CTA 過來的)。
+    // 只在沒有購買通道的平台畫:有購買通道的平台 plusOpen() 未登入時本來就會把人送回這張登入畫面,畫了等於原地打轉。
+    (plusProjectConfigured() && !plusConfigured() ? `<div class="account-user-actions"><button class="wide" type="button" data-action="plus">先看看軌島 Plus 有什麼</button></div>` : '') +
     `<div class="account-note">Google 登入只用於軌島帳號，不會因此取得 Google Maps 已儲存清單；清單匯入仍需使用 Google Takeout。</div>`;
   else {
     const u = a.user, photo = takeoutSafeHref(u.photoURL, '');
@@ -7037,7 +7044,7 @@ function accountEnsureInit() {
   accountEnsureInit._p = (async () => {
     const modal = document.getElementById('accountModal');
     let accountIntent = new URLSearchParams(location.search).get('account');
-    accountBtnSlot('account'); // 帳號系統一旦初始化,槽位就回歸帳號入口(蓋掉 setupAccountUi 可能設過的 Plus 標籤)
+    accountBtnSlot(accountSlotMode()); // 帳號系統初始化不等於這個人有帳號:身分交給 accountSlotMode 判(見該函式)。這也是回訪／已登入者槽位的唯一露出點
     const accountX = document.getElementById('accountX'); if (accountX) accountX.onclick = accountClose;
     if (modal) {
       modal.addEventListener('click', e => { if (e.target === modal) accountClose(); });
@@ -7064,6 +7071,7 @@ function accountEnsureInit() {
       Object.assign(state.account, { fb, app, auth, db: fb.getFirestore(app) });
       fb.onAuthStateChanged(state.account.auth, async user => {
         state.account.user = user; state.account.ready = true; state.account.actionError = ''; accountRender();
+        if (user) accountBtnSlot('account'); // 登入完成才把槽位換成帳號入口(帳號面板這時才有登出/同步/刪帳號可做);登出態刻意不翻,見 accountSlotMode
         if (accountIntent === 'delete') { accountIntent = ''; accountOpen(); }
         if (user) {
           await plusRefresh(); // 先確認資格再決定要不要同步;plusRefresh 自帶 !plusConfigured() 早退,不會在無購買通道的平台亂初始化 SDK
@@ -7101,14 +7109,27 @@ function accountBtnSlot(mode) {
     row.style.display = '';
   }
 }
+// 這台裝置上有沒有帳號足跡:登入過就會留下 last-sync-uid。setupAccountUi 的 returning 與槽位身分
+// 共用這一支,免得兩處各判一次而漂移。
+function accountReturning() {
+  try { return !!localStorage.getItem('trainmap-last-sync-uid'); } catch (e) { return false; }
+}
+// 槽位現在該是哪個身分。判準是「這個人跟帳號的關係」,不是「帳號系統初始化過沒有」——
+// 用後者的話,匿名訪客只要按過一次 Plus 面板裡的登入 CTA(那顆會 accountEnsureInit),槽位就
+// 永久翻成帳號入口;他若在登入畫面反悔(或登入失敗、popup 被擋),就再也回不到 Plus 面板了
+// ——手機更嚴重,抽屜列是唯一入口。已登入者仍然拿到帳號入口(登出/同步/刪帳號都只在那裡)。
+function accountSlotMode() {
+  if (state.account && state.account.user) return 'account';
+  if (!PLUS_ENABLED) return 'account';
+  return accountReturning() ? 'account' : 'plus'; // 登入過的裝置維持帳號入口;它的登出態另有回 Plus 的鈕(見 accountRender)
+}
 async function setupAccountUi() {
   const btn = document.getElementById('accountBtn'), modal = document.getElementById('accountModal');
   if (!btn || !modal || !accountConfigured()) return;
   const accountIntent = new URLSearchParams(location.search).get('account');
   // 登入過的人(本機還留著 last-sync-uid)開機就初始化,否則付費者冷啟動時所有用戶端閘門都會
   // 誤判他沒資格。從沒登入過的免費層仍然完全匿名:不載 Firebase、不建 state.account。
-  let returning = false;
-  try { returning = !!localStorage.getItem('trainmap-last-sync-uid'); } catch (e) {}
+  const returning = accountReturning();
   if (ACCOUNT_ENABLED || accountIntent === 'delete' || returning) {
     await accountEnsureInit(); return;
   }
@@ -7261,6 +7282,9 @@ function plusRender() {
     '<b>台鐵列車的誤點履歷（逐日紀錄，回溯 90 天）</b>',
     '收藏與完乘記錄跨裝置雲端同步',
     '行程分享：把你在哪班車上分享給朋友',
+    // App 限定:入口(setupTakeoutUi)掛在 plusConfigured() 上,網站沒有 Web Billing key ⇒ 恆假 ⇒ 鈕不出現。
+    // 2026-08-03 實測(網站 importBtnVisible=false／模擬原生殼=true)確認,不是從程式碼推論。
+    '在 App 匯入 Google Maps 已儲存清單，成為軌島的最愛地點',
     'App 非跟車時的衛星高解析圖磚（支援 Retina 螢幕）', // App 限定(2026-08-02 裁示):網站的 SAT_RETINA_DEFAULT 維持 false,不標明就是對網站訂閱者做假廣告
     '跟車時在鎖定畫面與動態島顯示即時動態（iOS 17.6 以上）',
     ...(Date.now() < FOUNDING_UNTIL_MS ? ['App 旅程護照的創始會員徽章'] : []),
@@ -14942,7 +14966,9 @@ const HELP_GROUPS = [
       steps: ['底部「亮點」或工具列的「探」', '點任一列車看介紹卡', '有班次的可以直接跟車'], try: 'explore' },
     { key: 'today', ic: '今', nm: '今日台鐵動態與誤點履歷',
       one: '今天全台鐵每班車誤點多少、每一站怎麼延誤，一次看完。',
-      steps: ['「更多」→ 今日台鐵動態', '點任一班次看逐站歷程', '跟台鐵車時，卡片上的「誤點履歷 ›」可看這班車過去 90 天的準點率'],
+      // 「誤點履歷 ›」入口對所有人存在,但卡片裡只有 30 天彙總是免費的,90 天逐日與週幾圖要 Plus
+      // (伺服器端 checkPlusEntitlement 強制)。措辭與 terms.html／Plus 面板的「回溯 90 天的逐日紀錄」一致。
+      steps: ['「更多」→ 今日台鐵動態', '點任一班次看逐站歷程', '跟台鐵車時，卡片上的「誤點履歷 ›」可看這班車近 30 天的準點統計；回溯 90 天的逐日紀錄與週幾圖需要軌島 Plus'],
       tip: '誤點資料每分鐘更新，來源是交通部 TDX。', try: 'today' },
   ]},
   { key: 'b', name: '我的', open: false, secs: [
@@ -14953,7 +14979,8 @@ const HELP_GROUPS = [
     { key: 'pin', ic: '釘', nm: '儲存地點', tg: 'pinBtn',
       one: '把家、公司、拍車點存下來，看有哪些火車會經過那裡。',
       steps: ['「更多」→ 打開「儲存地點」', '點地圖上任一位置', '取個名字存起來', '之後點那個釘，看接下來經過的列車與倒數'],
-      tip: '也可以從 Google Maps 的「已儲存」清單匯入；檔案只在這台裝置解析，不會上傳。', try: 'pin' },
+      // 匯入入口掛在 plusConfigured() 上(App 才有購買通道) ⇒ 是 App 限定的 Plus 功能,不可寫成無條件可用
+      tip: '也可以在 App 內從 Google Maps 的「已儲存」清單匯入（需軌島 Plus）；檔案只在這台裝置解析，不會上傳。', try: 'pin' },
     { key: 'fav', ic: '', nm: '最愛', one: '常看的車次與車站收起來，下次直接從「最愛」進去。',
       steps: ['跟車卡或看板標題的收藏鈕點一下收藏', '從底部「最愛」看全部', '再點一次取消收藏'], try: 'fav' },
     { key: 'ride', ic: '<span class="seal na" style="width:26px;height:26px;padding:0"><b style="font-size:7px">章</b></span>', nm: '旅程護照與完乘章',
@@ -15001,6 +15028,15 @@ const HELP_GROUPS = [
       one: '全台 415 處台鐵平交道，看接下來哪班車會通過。',
       steps: ['「更多」→ 打開「平交道記號」', '把地圖拉近就看得到記號', '點任一平交道，看接下來通過的列車與倒數'],
       tip: '遮斷機通常提前 30–60 秒動作，請以現場號誌為準。', try: 'xing' },
+    // 訂閱是新功能,依專案慣例必須有一節;avail 掛 PLUS_ENABLED,旗標關掉整節自動消失(不教一個按不到的東西)。
+    // 內容與 terms.html／plusRender() 的功能清單同一套措辭——說明中心也是付款決定點之一,兩邊講不一樣就是不實宣稱。
+    { key: 'plus', ic: '＋', nm: '軌島 Plus 與跨裝置同步', avail: () => PLUS_ENABLED,
+      one: '訂閱制的加值內容。列車位置、誤點資訊與系統覆蓋永遠免費，不受訂閱影響。',
+      steps: ['桌面按工具列的「Plus」、手機從「更多」→「軌島 Plus」，看裡面有哪些內容',
+        '訂閱在軌島 App 內完成，網站不收費',
+        '在網站用同一個軌島帳號登入，App 訂的資格就會生效（面板裡的「已經在 App 訂閱了？登入以同步」）'],
+      tip: 'Plus 內容：台鐵列車的誤點履歷（回溯 90 天的逐日紀錄）、收藏與完乘紀錄跨裝置雲端同步、行程分享、在 App 匯入 Google Maps 已儲存清單、App 非跟車時的衛星高解析圖磚，以及 iOS 17.6 以上可用的跟車鎖定畫面與動態島即時動態。',
+      try: 'plus' },
   ]},
   { key: 'c', name: '模式與外觀', open: false, secs: [
     { key: 'ambient', ic: '◌', nm: '放空模式', one: '全畫面自動導演，不用操作，掛著看就好。',
@@ -15053,6 +15089,9 @@ const HELP_TRY = {
   // 懸賞板沒有自己的 id 鈕（唯一入口是護照那列的 data-act="bountyboard"），所以走 run 代等價動作。
   // bountyrec 這節也指到這裡：真的按下「開始錄製」會叫起 GPS 錄一趟，有副作用，不能當「試一次」。
   bounty: { run: () => openBountyBoard(), toast: '這是懸賞板——右上角的 × 可以關掉' },
+  // 刻意不代點 #accountBtn:那個槽位在回訪/已登入者身上是「帳號」入口,代點會開出帳號面板而不是 Plus 面板
+  // (同一顆鈕兩種身分,見 accountSlotMode)。走等價動作直接開面板,比照 bounty。
+  plus: { ok: () => PLUS_ENABLED, run: () => plusOpen('help') },
   share: { id: 'shareBtn' },
 };
 // 離畫面中心最近的車站(「試一次」開看板用):複用附近車站那套候選(當前檢視看得到的站,共構站各留一筆)

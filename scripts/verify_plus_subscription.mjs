@@ -141,9 +141,36 @@ const readModal = (page) => page.evaluate(() => {
   };
 });
 const FORBIDDEN = ['一次購買', '永久解鎖', '不是訂閱'];
+// 原生殼等價物:plusConfigured() 轉真的注入內容。必須在頁面載入「之前」注入——setupTakeoutUi()
+// 在 boot 內就跑完了,執行期才設 window.RAIL_NATIVE_PLUS_ADAPTER 已經來不及(見 verify_plus_features
+// 的同一則教訓)。Firebase 用既有的 RAIL_FIREBASE_TEST_MODULES 短路,不打真網路。
+const NATIVE_INIT = () => {
+  window.RAIL_NATIVE_PLUS_ADAPTER = {
+    setUser: async () => {}, getCustomerInfo: async () => ({ entitlements: { active: {} } }),
+    getOfferings: async () => ({ all: {}, current: null }), purchase: async () => ({}), restore: async () => ({ entitlements: { active: {} } }),
+  };
+  window.RAIL_FIREBASE_TEST_MODULES = { initializeApp: () => ({}), getAuth: () => ({}), getFirestore: () => ({}), onAuthStateChanged: () => {} };
+};
 
 const chromiumB = await chromium.launch();
 const webkitB = await webkit.launch();
+
+// ══════════════ G0b. 旗標現讀:PLUS_ENABLED 被改回參數式時要有一條「有名字」的紅燈 ══════════════
+// 為什麼要獨立一條:旗標一旦改回只認 ?plus=1,本腳本(刻意不帶 query string)的 A 段會在
+// waitForSelector('.plus-plan') 逾時**拋例外中止整支腳本**——exit code 雖然是 1,但輸出裡 0 條 PASS、
+// 0 條 FAIL、沒有總計行,排查的人看不出「還有什麼壞了」。這一條把旗標本身變成一條具名斷言,
+// 而且跑在 A 段之前;A/B/W 三段也一併改成等不到就往下走(見 runFlow),其餘判準照常各自回報。
+// 從執行中的頁面現讀,不是 grep 原始碼:讀原始碼只證明字面上寫了 true,證明不了瀏覽器眼中它是 true。
+{
+  const { ctx, page } = await newPage(chromiumB);
+  const errs = attach(page, 'G0b');
+  await page.goto(BASE, { waitUntil: 'domcontentloaded' });
+  await waitReady(page);
+  const flagOn = await page.evaluate(() => { try { return PLUS_ENABLED === true; } catch (e) { return 'ReferenceError'; } });
+  ok('G0b 頁面現讀 PLUS_ENABLED === true(開閘;被改回只認 ?plus=1 時這裡先亮一條具名紅燈)', flagOn === true, `PLUS_ENABLED=${flagOn}`);
+  ok('G0b 本輪零 pageerror/console.error', errs.length === 0, errs.slice(0, 3).join(' | '));
+  await ctx.close();
+}
 
 // ══════════════ A/B. 主流程(桌機 1280×800 chromium、手機 375×812 觸控) ══════════════
 async function runFlow(browser, label, opts) {
@@ -153,7 +180,9 @@ async function runFlow(browser, label, opts) {
   await waitReady(page);
   await injectPlus(page, { mode: 'buy' });
   await page.evaluate(() => plusOpen('test'));
-  await page.waitForSelector('#plusBody .plus-plan', { timeout: 6000 });
+  // 等不到就往下走:讓 A1–A12 各自以「量到什麼」具名轉紅,不要在這裡拋例外中止整支腳本
+  // ——中止的話後面的 C/D/G/N/H/I/P/Z0 全部靜默不跑,只留一段堆疊,看不出還有什麼壞了。
+  await page.waitForSelector('#plusBody .plus-plan', { timeout: 6000 }).catch(() => {});
   const m = await readModal(page);
 
   ok(`${label}1 訂閱視窗顯示(modal 未隱藏)`, m.hidden === false, `hidden=${m.hidden}`);
@@ -177,11 +206,11 @@ async function runFlow(browser, label, opts) {
     m.text.slice(0, 0));
 
   // 購買年訂 → 訂閱成功。既有行為:成功後 modal 自動關閉並跳 toast;重開即渲染「已訂閱」狀態。
-  await page.click('#plusBody .plus-plan[data-pkg="annual"]');
-  await page.waitForFunction(() => state.plus && state.plus.active === true && state.plus.loading === false, null, { timeout: 6000 });
+  await page.click('#plusBody .plus-plan[data-pkg="annual"]', { timeout: 6000 }).catch(() => {}); // 同上:買不到就讓 A10–A12 轉紅,不中止
+  await page.waitForFunction(() => state.plus && state.plus.active === true && state.plus.loading === false, null, { timeout: 6000 }).catch(() => {});
   const closedAfterBuy = await page.evaluate(() => document.getElementById('plusModal').hidden);
   await page.evaluate(() => plusOpen('test'));
-  await page.waitForSelector('#plusBody .plus-owned', { state: 'visible', timeout: 6000 });
+  await page.waitForSelector('#plusBody .plus-owned', { state: 'visible', timeout: 6000 }).catch(() => {});
   const owned = await readModal(page);
   const acct = await page.evaluate(() => { accountRender(); return { active: !!(state.plus && state.plus.active), body: document.getElementById('accountBody').textContent || '' }; });
   ok(`${label}10 購買(年訂)後 Plus 已啟用,且購買成功自動關窗`, owned.owned && owned.ownedText.includes('Plus 已啟用') && acct.active === true && closedAfterBuy === true,
@@ -205,8 +234,8 @@ await runFlow(webkitB, 'W(WebKit)', { width: 1280, height: 800 });
   await waitReady(page);
   await injectPlus(page, { mode: 'buy', subscribed: false });
   await page.evaluate(() => plusOpen('test'));
-  await page.waitForSelector('#plusBody [data-plus="restore"]', { timeout: 6000 });
-  await page.click('#plusBody [data-plus="restore"]');
+  await page.waitForSelector('#plusBody [data-plus="restore"]', { timeout: 6000 }).catch(() => {}); // 同 A/B/W:等不到就讓 C2 具名轉紅,不中止整支腳本
+  await page.click('#plusBody [data-plus="restore"]', { timeout: 6000 }).catch(() => {});
   await page.waitForFunction(() => state.plus && state.plus.loading === false && (state.plus.error || '').length > 0, null, { timeout: 6000 }).catch(() => {});
   const err = await page.evaluate(() => (state.plus && state.plus.error) || '');
   ok('C1 未訂閱帳號 restore 走恢復路徑不拋例外', errs.length === 0, errs.slice(0, 3).join(' | '));
@@ -241,14 +270,16 @@ async function shot(label, { width, height, touch, theme }) {
   await waitReady(page);
   await injectPlus(page, { mode: 'buy' });
   await page.evaluate(() => plusOpen('test'));
-  await page.waitForSelector('#plusBody .plus-plan', { timeout: 6000 });
+  // 等不到價格鈕就照樣往下走:截圖段沒有截到東西應該由 E1 具名報紅,不該把整支腳本連同總計行一起帶走
+  await page.waitForSelector('#plusBody .plus-plan', { timeout: 6000 }).catch(() => {});
   await page.waitForTimeout(250);
   const themeApplied = await page.evaluate(() => document.documentElement.getAttribute('data-theme'));
   const file = path.join(SHOT_DIR, `plus_sub_${label}.png`);
-  await page.locator('.plus-dialog').screenshot({ path: file });
-  console.log(`SHOT ${label} (data-theme=${themeApplied}) → ${file}`);
+  // 同 E2 註解:截不到就記下來交給 E2 具名報紅,不要讓 locator.screenshot 的 timeout 帶走總計行
+  const shotOk = await page.locator('.plus-dialog').screenshot({ path: file }).then(() => true, () => false);
+  console.log(`SHOT ${label} (data-theme=${themeApplied}) → ${file}${shotOk ? '' : ' (截圖失敗)'}`);
   await ctx.close();
-  return { file, themeApplied };
+  return { file, themeApplied, shotOk };
 }
 const shotDeskLight = await shot('desktop_light', { width: 1280, height: 800, touch: false, theme: 'light' });
 const shotDeskDark = await shot('desktop_dark', { width: 1280, height: 800, touch: false, theme: 'dark' });
@@ -256,6 +287,9 @@ const shotMobLight = await shot('mobile_light', { width: 375, height: 812, touch
 const shotMobDark = await shot('mobile_dark', { width: 375, height: 812, touch: true, theme: 'dark' });
 ok('E1 亮/暗主題確實套用(截圖用)', shotDeskLight.themeApplied === 'light' && shotDeskDark.themeApplied === 'dark' && shotMobLight.themeApplied === 'light' && shotMobDark.themeApplied === 'dark',
   `desk=${shotDeskLight.themeApplied}/${shotDeskDark.themeApplied} mob=${shotMobLight.themeApplied}/${shotMobDark.themeApplied}`);
+const allShots = [shotDeskLight, shotDeskDark, shotMobLight, shotMobDark];
+ok('E2 四張購買畫面截圖都真的產出(截不到 = 訂閱視窗根本沒開,不可以靜默放過)', allShots.every(s => s.shotOk),
+  `成功 ${allShots.filter(s => s.shotOk).length}/4`);
 
 // ══════════════ F. 迴歸:預設旗標全關(無注入)開站正常,Plus modal 不可見,零 error ══════════════
 async function regression(label, { width, height, touch }) {
@@ -354,6 +388,48 @@ function collectFirebaseReqs(page) {
     after.loginBtns >= 2 && after.accountBuilt === true, JSON.stringify(after));
   ok('G9 正向對照:同一支收集器在按下 CTA 之後抓得到 Firebase 請求(證明 G6 的「零」不是收集器壞掉)',
     firebaseReqs.length > 0, `抓到 ${firebaseReqs.length} 筆${firebaseReqs.length ? '：' + firebaseReqs[0] : ''}`);
+  // G11/G12:在登入畫面反悔的人(不登入就關掉帳號面板)回得去 Plus 面板嗎?
+  // 這條路一度是單向門:accountEnsureInit() 一跑就把槽位翻成帳號入口,而登出態的帳號面板沒有任何
+  // 回 Plus 的路徑 ⇒ 只要按過一次登入 CTA(或登入失敗、popup 被擋),訂閱內容的入口就永久消失,
+  // 只能重新整理頁面。手機更嚴重:≤900 的 .stage-tools 是 display:none,抽屜列是唯一入口。
+  // 走真正的產品路徑(關面板→再點同一顆鈕),不直接呼叫函式:要驗的正是「槽位現在接到哪」。
+  await page.evaluate(() => accountClose());
+  await page.waitForTimeout(250);
+  const backout = await page.evaluate(() => {
+    const btn = document.getElementById('accountBtn'), row = document.querySelector('.ms-row[data-proxy="accountBtn"]');
+    return {
+      btnLabel: btn && btn.querySelector('.tl') ? btn.querySelector('.tl').textContent : null,
+      rowLabel: row && row.querySelector('span') ? row.querySelector('span').textContent : null,
+      loggedIn: !!(state.account && state.account.user),
+      accountBuilt: !!state.account,
+    };
+  });
+  ok('G11 按過登入 CTA 但沒登入就關掉帳號面板後,槽位仍是 Plus 入口(帳號系統已初始化 ≠ 這個人有帳號)',
+    backout.accountBuilt === true && backout.loggedIn === false && backout.btnLabel === 'Plus' && backout.rowLabel === '軌島 Plus',
+    JSON.stringify(backout));
+  const reClicked = await page.click('#accountBtn', { timeout: 5000 }).then(() => true).catch(() => false);
+  await page.waitForSelector('#plusModal:not([hidden])', { timeout: 8000 }).catch(() => {});
+  await page.waitForTimeout(200);
+  const back = await page.evaluate(() => ({
+    plusOpen: !document.getElementById('plusModal').hidden,
+    feats: document.querySelectorAll('.plus-feature').length,
+    cta: document.querySelectorAll('[data-plus="login"]').length,
+    accountOpen: !document.getElementById('accountModal').hidden,
+  }));
+  ok('G12 反悔之後再按一次槽位 → Plus 面板重新開得起來(功能清單＋登入 CTA 都在,不是被推去帳號面板)',
+    reClicked === true && back.plusOpen === true && back.feats >= 5 && back.cta === 1 && back.accountOpen === false,
+    `點得到=${reClicked} ` + JSON.stringify(back));
+  // G13:就算槽位真的變成帳號入口(回訪裝置的登出態就是這樣),登出態的帳號面板也要有回 Plus 的路——
+  // 兩道保險守的是同一件事:任何一條「進了帳號畫面又不想登入」的路都不該是死路。
+  const escape = await page.evaluate(() => {
+    accountOpen(); // 登出態的帳號面板
+    const n = document.querySelectorAll('#accountBody [data-action="plus"]').length;
+    const txt = (document.querySelector('#accountBody [data-action="plus"]') || {}).textContent || '';
+    accountClose();
+    return { n, txt, loggedIn: !!(state.account && state.account.user) };
+  });
+  ok('G13 登出態的帳號面板有一條回 Plus 的路(data-action="plus";無購買通道的平台才畫)',
+    escape.loggedIn === false && escape.n === 1 && /Plus/.test(escape.txt), JSON.stringify(escape));
   ok('G 本輪零 pageerror/console.error', errs.length === 0, errs.slice(0, 3).join(' | '));
   await ctx.close();
 }
@@ -389,6 +465,74 @@ function collectFirebaseReqs(page) {
   await ctx.close();
 }
 
+// ══════════════ T. 「Google 清單匯入」是 App 限定的 Plus 功能:文案這樣寫,實際就必須這樣 ══════════════
+// 開閘讓 plusConfigured() 在原生殼恆真,setupTakeoutUi() 的閘門本來就掛在它上面 ⇒ 匯入入口跟著現身,
+// 按下去走 plusRequire 進訂閱面板。2026-08-03 使用者裁定「一起放」⇒ 它成為第 4 項 Plus 賣點,
+// 而付費視窗/terms/說明中心都把它標成「在 App」——那句話是可驗證宣稱,不是修辭,所以在這裡實測兩邊。
+// ⚠️「必須看不到」型斷言:同一支可見性探針對同工具列的 #shareBtn 做正向對照,證明它分得出可見與不可見。
+{
+  const { ctx, page } = await newPage(chromiumB);
+  const errs = attach(page, 'T-web');
+  await page.goto(BASE, { waitUntil: 'domcontentloaded' });
+  await waitReady(page);
+  const w = await page.evaluate(() => {
+    const vis = el => { if (!el) return false; const st = getComputedStyle(el), r = el.getBoundingClientRect();
+      return st.display !== 'none' && st.visibility !== 'hidden' && r.width > 0 && r.height > 0; };
+    return { plusConfigured: plusConfigured(), accountConfigured: accountConfigured(),
+      importVisible: vis(document.getElementById('importBtn')),
+      importRowExists: !!document.querySelector('.ms-row[data-proxy="importBtn"]'),
+      shareVisible: vis(document.getElementById('shareBtn')) };
+  });
+  ok('T1 網站前置:帳號設定齊備但無購買通道(accountConfigured=true、plusConfigured=false)——否則下一條會為了錯的理由而綠',
+    w.accountConfigured === true && w.plusConfigured === false, JSON.stringify(w));
+  ok('T2 網站看不到匯入入口(文案標「在 App」的事實面)', w.importVisible === false, `importVisible=${w.importVisible}`);
+  ok('T2b 正向對照:同一支可見性探針在同一排工具列上量得到可見的鈕(#shareBtn)', w.shareVisible === true, `shareVisible=${w.shareVisible}`);
+  ok('T3 網站的抽屜列一併移除(入口不長出來時不留一列點了靜默無反應的死列)', w.importRowExists === false, `rowExists=${w.importRowExists}`);
+  ok('T-web 本輪零 pageerror/console.error', errs.length === 0, errs.slice(0, 3).join(' | '));
+  await ctx.close();
+}
+{
+  const { ctx, page } = await newPage(chromiumB);
+  const errs = attach(page, 'T-native');
+  await ctx.addInitScript(NATIVE_INIT);
+  await page.goto(BASE, { waitUntil: 'domcontentloaded' });
+  await waitReady(page);
+  const n = await page.evaluate(() => {
+    const vis = el => { if (!el) return false; const st = getComputedStyle(el), r = el.getBoundingClientRect();
+      return st.display !== 'none' && st.visibility !== 'hidden' && r.width > 0 && r.height > 0; };
+    const row = document.querySelector('.ms-row[data-proxy="importBtn"]');
+    return { plusConfigured: plusConfigured(), importVisible: vis(document.getElementById('importBtn')),
+      rowExists: !!row, rowDisplay: row ? row.style.display : null,
+      rowLabel: row && row.querySelector('span') ? row.querySelector('span').textContent : null };
+  });
+  ok('T4 原生殼(有購買通道)前置:plusConfigured()=true', n.plusConfigured === true, JSON.stringify(n));
+  ok('T5 原生殼看得到匯入入口(＝賣點清單第 4 項真的交得出來,不是只寫在文案裡)', n.importVisible === true, `importVisible=${n.importVisible}`);
+  ok('T6 原生殼的抽屜列也露出來且標成「Google 清單匯入」(手機唯一入口)',
+    n.rowExists === true && n.rowDisplay !== 'none' && n.rowLabel === 'Google 清單匯入', JSON.stringify(n));
+  // 未訂閱者按下去要被 Plus 閘門攔住(而不是直接開匯入,也不是靜默無反應):走真正的產品點擊
+  const clicked = await page.click('#importBtn', { timeout: 5000 }).then(() => true).catch(() => false);
+  await page.waitForTimeout(600);
+  const gated = await page.evaluate(() => ({
+    takeoutOpen: !document.getElementById('takeoutModal').hidden,
+    plusOpen: !document.getElementById('plusModal').hidden,
+    accountOpen: !document.getElementById('accountModal').hidden,
+  }));
+  ok('T7 未訂閱者按匯入 → 被 Plus 閘門導向登入/訂閱,匯入對話框沒有直接開(付費牆真的在,不是只寫在清單裡)',
+    clicked === true && gated.takeoutOpen === false && (gated.plusOpen || gated.accountOpen), `點得到=${clicked} ` + JSON.stringify(gated));
+  // 反向對照:同一顆鈕在「已訂閱」時必須真的把匯入開出來——否則 T7 的「沒開」可能只是它壞了
+  const opened = await page.evaluate(async () => {
+    accountClose(); plusClose();
+    state.plus = { active: true, loading: false, error: '', pkgMonthly: null, pkgAnnual: null, mgmtUrl: '', adapter: null, afterUnlock: null };
+    document.getElementById('importBtn').click();
+    await new Promise(r => setTimeout(r, 250));
+    return { takeoutOpen: !document.getElementById('takeoutModal').hidden, plusOpen: !document.getElementById('plusModal').hidden };
+  });
+  ok('T7b 反向對照:同一顆鈕在已訂閱狀態真的開出匯入對話框(證明 T7 的「沒開」是閘門擋的,不是這條路本身壞了)',
+    opened.takeoutOpen === true && opened.plusOpen === false, JSON.stringify(opened));
+  ok('T-native 本輪零 pageerror/console.error', errs.length === 0, errs.slice(0, 3).join(' | '));
+  await ctx.close();
+}
+
 // ══════════════ N. 手機四寬度:Plus 入口在「更多」抽屜那一列 ══════════════
 // ≤900 的 .stage-tools 是 display:none ⇒ 手機唯一入口是抽屜列,桌面那顆工具鈕在手機驗不到東西。
 // 本輪新增了可見控件,依全域鐵則做 360/375/414/768 四寬度 × WebKit × 全控件相交掃描 ×
@@ -398,16 +542,18 @@ function collectFirebaseReqs(page) {
 // ⚠️ 幾何不相交只證明「看起來沒疊」:偽元素熱區(::after)被撐大到蓋掉鄰列時,rect 與 computed style
 //    兩邊都照不到(心得 33 的病灶)。所以另外橫掃整列 9×3 點,並要求上下鄰列各自命中自己。
 const MOBILE_SEL = '.ms-row[data-proxy="accountBtn"]';
-async function mobilePlusEntry(width) {
+const IMPORT_SEL = '.ms-row[data-proxy="importBtn"]';
+async function mobilePlusEntry(width, { sel = MOBILE_SEL, label = '軌島 Plus', tag = 'N', native = false } = {}) {
   const { ctx, page } = await newPage(webkitB, { width, height: 780, touch: true });
-  const errs = attach(page, `N${width}`);
+  const errs = attach(page, `${tag}${width}`);
+  if (native) await ctx.addInitScript(NATIVE_INIT);
   await page.goto(BASE, { waitUntil: 'domcontentloaded' });
   await waitReady(page);
   const toolbarHidden = await page.evaluate(() => getComputedStyle(document.querySelector('.stage-tools')).display === 'none');
   await page.tap('#tabMore');
   await page.waitForFunction(() => document.body.classList.contains('tools-open'), null, { timeout: 5000 });
   await page.waitForTimeout(350); // sheet 上滑轉場走完再量
-  await page.locator(MOBILE_SEL).scrollIntoViewIfNeeded({ timeout: 5000 }).catch(() => {}); // 列不存在時讓 b~e 轉紅,不要中止腳本
+  await page.locator(sel).scrollIntoViewIfNeeded({ timeout: 5000 }).catch(() => {}); // 列不存在時讓 b~e 轉紅,不要中止腳本
   await page.waitForTimeout(150);
   const s = await page.evaluate(sel => {
     const vis = el => { const st = getComputedStyle(el), r = el.getBoundingClientRect();
@@ -439,17 +585,19 @@ async function mobilePlusEntry(width) {
     });
     return { found: true, label: (target.querySelector('span') || {}).textContent || '',
       h: Math.round(tr.height), collisions, miss, neighbours, overflow };
-  }, MOBILE_SEL);
-  ok(`N${width}a 手機工具列 .stage-tools 是 display:none(抽屜列是唯一入口,這是後面幾條的前提)`, toolbarHidden === true, `hidden=${toolbarHidden}`);
-  ok(`N${width}b 抽屜列存在、可見、標成「軌島 Plus」且高度 ≥44px`, s.found === true && s.label === '軌島 Plus' && s.h >= 44, JSON.stringify(s.found ? { label: s.label, h: s.h } : s));
-  ok(`N${width}c 與所有可見控件零相交`, s.found === true && s.collisions.length === 0, (s.collisions || []).join(' | '));
-  ok(`N${width}d 橫掃 9×3 點 elementFromPoint 全部命中自己(偽元素熱區沒被別人蓋掉)`, s.found === true && s.miss.length === 0, `未命中 ${(s.miss || []).length} 點:${(s.miss || []).slice(0, 5).join(',')}`);
-  ok(`N${width}e 上下鄰列各自命中自己(這一列的熱區沒有撐大吃掉鄰列)`, s.found === true && (s.neighbours || []).every(n => n.self), JSON.stringify(s.neighbours));
-  ok(`N${width}f 頁面無橫向溢出`, (s.overflow || 0) <= 1, `overflow=${s.overflow}px`);
-  ok(`N${width} 本輪零 pageerror/console.error`, errs.length === 0, errs.slice(0, 3).join(' | '));
+  }, sel);
+  ok(`${tag}${width}a 手機工具列 .stage-tools 是 display:none(抽屜列是唯一入口,這是後面幾條的前提)`, toolbarHidden === true, `hidden=${toolbarHidden}`);
+  ok(`${tag}${width}b 抽屜列存在、可見、標成「${label}」且高度 ≥44px`, s.found === true && s.label === label && s.h >= 44, JSON.stringify(s.found ? { label: s.label, h: s.h } : s));
+  ok(`${tag}${width}c 與所有可見控件零相交`, s.found === true && s.collisions.length === 0, (s.collisions || []).join(' | '));
+  ok(`${tag}${width}d 橫掃 9×3 點 elementFromPoint 全部命中自己(偽元素熱區沒被別人蓋掉)`, s.found === true && s.miss.length === 0, `未命中 ${(s.miss || []).length} 點:${(s.miss || []).slice(0, 5).join(',')}`);
+  ok(`${tag}${width}e 上下鄰列各自命中自己(這一列的熱區沒有撐大吃掉鄰列)`, s.found === true && (s.neighbours || []).every(n => n.self), JSON.stringify(s.neighbours));
+  ok(`${tag}${width}f 頁面無橫向溢出`, (s.overflow || 0) <= 1, `overflow=${s.overflow}px`);
+  ok(`${tag}${width} 本輪零 pageerror/console.error`, errs.length === 0, errs.slice(0, 3).join(' | '));
   await ctx.close();
 }
 for (const w of [360, 375, 414, 768]) await mobilePlusEntry(w);
+// 同一套掃描套在新公開的「Google 清單匯入」抽屜列上(它是 App 限定,故整段跑在模擬原生殼下)。
+for (const w of [360, 375, 414, 768]) await mobilePlusEntry(w, { sel: IMPORT_SEL, label: 'Google 清單匯入', tag: 'NI', native: true });
 // N-tap:375 真觸控端到端——點下去要真的開出 Plus 面板,而且這一刻仍然零帳號系統。
 // 反向對照(另開一頁,避免狀態污染):同樣手勢點「上一列」不得開出 Plus 面板,證明「開了」是這一列
 // 造成的,不是那個區域隨便點都會開(幾何過了不等於接線接對了)。
@@ -499,6 +647,48 @@ for (const w of [360, 375, 414, 768]) await mobilePlusEntry(w);
   ok('N-tap 反向對照:同樣手勢點上一列不會開出 Plus 面板(證明上一條的「開了」是這一列接的線)',
     !!prevSel && stillHidden === true, `上一列=${prevSel} plusModal.hidden=${stillHidden}`);
   ok('N-tap 反向對照 本輪零 pageerror/console.error', errs.length === 0, errs.slice(0, 3).join(' | '));
+  await ctx.close();
+}
+// NI-tap:匯入抽屜列的 375 真觸控端到端(模擬原生殼)。同一頁跑兩種資格狀態:未訂閱要被閘門攔下、
+// 已訂閱要真的開出匯入對話框——後者是前者的反向對照,少了它,「沒開」也可能只是這條路整個壞掉。
+// 這一列在網站曾是一條點了靜默無反應的死列(既有缺陷),所以「點下去有反應」本身就是要驗的東西。
+{
+  const { ctx, page } = await newPage(webkitB, { width: 375, height: 780, touch: true });
+  const errs = attach(page, 'NItap');
+  await ctx.addInitScript(NATIVE_INIT);
+  await page.goto(BASE, { waitUntil: 'domcontentloaded' });
+  await waitReady(page);
+  await page.tap('#tabMore');
+  await page.waitForFunction(() => document.body.classList.contains('tools-open'), null, { timeout: 5000 });
+  await page.waitForTimeout(350);
+  await page.locator(IMPORT_SEL).scrollIntoViewIfNeeded({ timeout: 5000 }).catch(() => {});
+  const tapped = await page.tap(IMPORT_SEL, { timeout: 5000 }).then(() => true).catch(() => false);
+  await page.waitForTimeout(700);
+  const r1 = await page.evaluate(() => ({
+    takeoutOpen: !document.getElementById('takeoutModal').hidden,
+    plusOpen: !document.getElementById('plusModal').hidden,
+    accountOpen: !document.getElementById('accountModal').hidden,
+    sheetClosed: !document.body.classList.contains('tools-open'),
+  }));
+  ok('NI-tap 375 真觸控點匯入抽屜列 → 真的有反應(未訂閱被 Plus 閘門導向登入/訂閱,匯入對話框沒直接開)',
+    tapped === true && r1.takeoutOpen === false && (r1.plusOpen || r1.accountOpen), `點得到=${tapped} ` + JSON.stringify(r1));
+  // 兩段之間先把三張浮層都關掉再重開抽屜:閘門若被改壞(突變 MJ),第一段會直接開出匯入對話框,
+  // 它會攔截後續的 tap 讓整支腳本在這裡逾時中止——後面的 H/I/P/Z0 就全部靜默不跑了。
+  const r2 = await page.evaluate(async () => {
+    accountClose(); plusClose(); takeoutClose();
+    state.plus = { active: true, loading: false, error: '', pkgMonthly: null, pkgAnnual: null, mgmtUrl: '', adapter: null, afterUnlock: null };
+    return { ready: true };
+  });
+  await page.tap('#tabMore', { timeout: 5000 }).catch(() => {});
+  await page.waitForFunction(() => document.body.classList.contains('tools-open'), null, { timeout: 5000 }).catch(() => {});
+  await page.waitForTimeout(350);
+  await page.locator(IMPORT_SEL).scrollIntoViewIfNeeded({ timeout: 5000 }).catch(() => {});
+  const tapped2 = await page.tap(IMPORT_SEL, { timeout: 5000 }).then(() => true).catch(() => false);
+  await page.waitForTimeout(600);
+  const r3 = await page.evaluate(() => ({ takeoutOpen: !document.getElementById('takeoutModal').hidden }));
+  ok('NI-tap 反向對照:同一列在已訂閱狀態下真的把匯入對話框點得開(證明上一條的「沒開」是閘門擋的)',
+    r2.ready === true && tapped2 === true && r3.takeoutOpen === true, `點得到=${tapped2} ` + JSON.stringify(r3));
+  ok('NI-tap 本輪零 pageerror/console.error', errs.length === 0, errs.slice(0, 3).join(' | '));
   await ctx.close();
 }
 
@@ -574,6 +764,25 @@ for (const w of [360, 375, 414, 768]) await mobilePlusEntry(w);
     .then(() => true).catch(() => false);
   ok('I3 回訪使用者(留有 last-sync-uid)開機 accountEnsureInit 真的有跑(state.account.ready 轉真,不必先點過 Plus/帳號入口)',
     readyOk, `ready=${readyOk}`);
+  // I3b/I3c:回訪／已登入者的帳號入口「真的看得見」。
+  // #accountBtn 的 HTML 預設是 inline display:none、抽屜列也是,而 accountEnsureInit() 裡那一行
+  // accountBtnSlot(...) 是這兩個入口在這條路上的唯一露出點——把它拿掉,回訪者的帳號入口整個消失
+  // (桌面與手機都是),而在補這兩條之前,整套判準一條都不會紅(2026-08-02 複審實測)。
+  // 這裡刻意只驗「看得見」不驗標籤:本情境的 uid 是假的,Firebase 不會給出真的 user,
+  // 標籤會停在登出態該有的樣子(見 accountSlotMode),驗標籤等於把測試綁在一個與本條無關的分支上。
+  const slot = await page.evaluate(() => {
+    const vis = el => { if (!el) return false; const st = getComputedStyle(el), r = el.getBoundingClientRect();
+      return st.display !== 'none' && st.visibility !== 'hidden' && r.width > 0 && r.height > 0; };
+    const btn = document.getElementById('accountBtn'), row = document.querySelector('.ms-row[data-proxy="accountBtn"]');
+    return { btnExists: !!btn, btnVisible: vis(btn), btnInline: btn ? btn.style.display : null,
+      rowExists: !!row, rowDisplay: row ? row.style.display : null,
+      shareVisible: vis(document.getElementById('shareBtn')) };
+  });
+  ok('I3b 回訪使用者的工具列帳號入口真的可見(#accountBtn 的 inline display:none 有被還原)',
+    slot.btnVisible === true, JSON.stringify(slot));
+  ok('I3c 回訪使用者的「更多」抽屜列也露出來(手機唯一入口;HTML 預設 inline none)',
+    slot.rowExists === true && slot.rowDisplay !== 'none' && slot.shareVisible === true,
+    `rowDisplay=${slot.rowDisplay} 正向對照 shareVisible=${slot.shareVisible}`);
   ok('I2b 正向對照:同一支收集器在回訪情境下抓得到 Firebase 請求(證明 I2 的「零」不是收集器壞掉)',
     firebaseReqs.length > 0, `抓到 ${firebaseReqs.length} 筆${firebaseReqs.length ? ':' + firebaseReqs[0] : ''}`);
   ok('I 回訪使用者本輪零 pageerror/console.error', errs.length === 0, errs.slice(0, 3).join(' | '));
@@ -713,6 +922,46 @@ for (const w of [360, 375, 414, 768]) await mobilePlusEntry(w);
     `afterHasCloud=${r.afterHasCloud}`);
   ok('P2f 本機原本那一筆同步後仍在(合併不是覆蓋)', r.afterHasLocal === true, `afterHasLocal=${r.afterHasLocal}`);
   ok('P2 本輪零 pageerror/console.error', errs.length === 0, errs.slice(0, 3).join(' | '));
+  await ctx.close();
+}
+
+// ══════════════ HP. 使用說明中心:新功能必加一節,且不得把付費內容講成免費 ══════════════
+// 說明中心是「說明的唯一來源」,也是使用者在決定要不要付錢時會讀到的地方之一——
+// 它把 Plus 內容寫成無條件可用,就跟付費視窗寫錯是同一類問題。
+// HP2 是「全稱斷言」(每一句提到 90 天的都要標 Plus),所以配 HP2a 證明收集器真的抓得到句子:
+// 收集器抓不到任何一句時,全稱斷言會空過成永遠的綠燈。
+{
+  const { ctx, page } = await newPage(chromiumB);
+  const errs = attach(page, 'HP');
+  await page.goto(BASE, { waitUntil: 'domcontentloaded' });
+  await waitReady(page);
+  const h = await page.evaluate(() => {
+    renderHelp();
+    const body = document.getElementById('helpBody');
+    const plusSec = body.querySelector('.help-sec[data-sec="plus"]');
+    // 全站說明文字裡每一句提到「90 天」的,逐句檢查有沒有標明需要 Plus
+    const lines = [...body.querySelectorAll('li, p')].map(el => el.textContent || '');
+    const d90 = lines.filter(t => /90\s*天/.test(t));
+    return {
+      secs: [...body.querySelectorAll('.help-sec')].map(s => s.dataset.sec),
+      hasPlusSec: !!plusSec,
+      plusText: plusSec ? (plusSec.textContent || '') : '',
+      n90: d90.length,
+      bad90: d90.filter(t => !/Plus/.test(t)),
+      // 舊的「儲存地點」那節也提到匯入(App 限定的 Plus 功能),同樣不得寫成無條件可用
+      pinText: (body.querySelector('.help-sec[data-sec="pin"]') || {}).textContent || '',
+    };
+  });
+  ok('HP1 說明中心有 Plus 專節,且講清楚在哪買、網站怎麼接資格',
+    h.hasPlusSec === true && /App/.test(h.plusText) && /登入/.test(h.plusText) && /誤點履歷/.test(h.plusText),
+    `hasPlusSec=${h.hasPlusSec} secs=${JSON.stringify(h.secs)}`);
+  ok('HP2a 正向對照:收集器真的抓得到提到「90 天」的說明句(否則 HP2b 是空過的全稱斷言)',
+    h.n90 >= 1, `抓到 ${h.n90} 句`);
+  ok('HP2b 每一句提到「90 天」的說明都標明需要 Plus(不把付費內容講成免費)',
+    h.bad90.length === 0, h.bad90.slice(0, 2).join(' | '));
+  ok('HP3 「儲存地點」那節提到的 Google 清單匯入標明了 App 與 Plus(它是 App 限定的 Plus 功能)',
+    /匯入/.test(h.pinText) && /App/.test(h.pinText) && /Plus/.test(h.pinText), h.pinText.slice(0, 120));
+  ok('HP 本輪零 pageerror/console.error', errs.length === 0, errs.slice(0, 3).join(' | '));
   await ctx.close();
 }
 

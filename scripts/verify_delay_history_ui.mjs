@@ -12,10 +12,15 @@
 import { chromium, webkit } from 'playwright';
 import { createServer } from 'node:http';
 import { readFileSync, existsSync, statSync } from 'node:fs';
+import { createHash } from 'node:crypto';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+// G0 自檢(心得32:驗收腳本第一道 gate 要印出「驗的是哪一棵樹」):ROOT 由本檔自身路徑推導,
+// 不吃任何 --root／env 參數,結構上不會誤驗到別的 worktree;仍留一行可稽核紀錄。
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+console.log(`[G0] ROOT=${ROOT}`);
+console.log(`[G0] index.html md5=${createHash('md5').update(readFileSync(path.join(ROOT, 'index.html'))).digest('hex')}`);
 const SHOT_DIR = '/private/tmp/claude-501/-Users-xuxiang-Code------/7527b6c9-bef6-4caa-9ffe-60c4cba112b7/scratchpad';
 const PORT = 5219;
 const MIME = { '.html': 'text/html', '.js': 'text/javascript', '.mjs': 'text/javascript', '.json': 'application/json', '.css': 'text/css', '.png': 'image/png', '.jpg': 'image/jpeg', '.svg': 'image/svg+xml', '.mp3': 'audio/mpeg', '.ico': 'image/x-icon', '.webmanifest': 'application/manifest+json' };
@@ -122,21 +127,26 @@ async function routeApis(page, no, histMode) {
     return r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ train: no, days, _meta: { window_days: 90, n: days.length, date_range: dr, generated: GEN } }) });
   });
 }
-// boot + route + follow 一班台鐵車;flag=false 測預設迴歸(不加 ?plus=1)
+// boot + route + follow 一班台鐵車。一律用真實預設網址,不帶任何 query string:
+// PLUS_ENABLED 2026-08-02 開閘後是字面 true,原本用來開旗標的 ?plus=1 已無作用,留著那個
+// flag 參數只會讓讀的人以為 flag:true/false 是兩種狀態(實際上兩者行為完全相同)。
 async function bootFollowed(browser, opts = {}) {
-  const { width = 1280, height = 800, touch = false, theme = 'light', flag = true, histMode = 'full', tag = '?' } = opts;
+  const { width = 1280, height = 800, touch = false, theme = 'light', histMode = 'full', tag = '?' } = opts;
   const { ctx, page } = await newPage(browser, { width, height, touch, theme });
   const errs = attach(page, tag);
-  await page.goto(BASE + (flag ? '?plus=1' : ''), { waitUntil: 'domcontentloaded' });
+  await page.goto(BASE, { waitUntil: 'domcontentloaded' });
   await waitReady(page);
   const no = await pickTra(page);
   if (no) { await routeApis(page, no, histMode); await page.evaluate(n => followTrainNo(n), no); }
   return { ctx, page, errs, no };
 }
+// 點不到／等不到一律吞掉例外往下走,讓後面的斷言以「量到什麼」具名轉紅——拋例外會中止整支腳本,
+// 只留一段堆疊,看不出還有什麼壞了(875fcf5 對 verify_plus_subscription 立的同一條原則)。
+// readCard() 對缺元素是 null-safe 的,所以卡片沒開時斷言拿到的是 hidden=true/空值,不是例外。
 async function openCardViaEntry(page) {
-  await page.waitForSelector('#fpDelay .fp-dhlink', { state: 'visible', timeout: 9000 });
-  await page.click('#fpDelay .fp-dhlink');
-  await page.waitForSelector('#delayHistPanel h3', { timeout: 6000 });
+  await page.waitForSelector('#fpDelay .fp-dhlink', { state: 'visible', timeout: 9000 }).catch(() => {});
+  await page.click('#fpDelay .fp-dhlink').catch(() => {});
+  await page.waitForSelector('#delayHistPanel h3', { timeout: 6000 }).catch(() => {});
 }
 
 const readCard = page => page.evaluate(() => {
@@ -169,12 +179,12 @@ async function fullFlow(browser, label, opts) {
   const { ctx, page, errs, no } = await bootFollowed(browser, { ...opts, histMode: 'full', tag: label });
   ok(`${label}0 找到台鐵車並跟隨`, !!no, `no=${no}`);
   // 等主入口出現(= delayStats 已載、renderDelayRow 已跑);此時次要入口(車次卡)同一 gate 也應解除 hidden
-  await page.waitForSelector('#fpDelay .fp-dhlink', { state: 'visible', timeout: 9000 });
+  await page.waitForSelector('#fpDelay .fp-dhlink', { state: 'visible', timeout: 9000 }).catch(() => {});
   const tcHidden = await page.evaluate(() => document.getElementById('tcDelayHist').hidden);
   ok(`${label}1 車次卡次要入口顯示(#tcDelayHist 非 hidden)`, tcHidden === false, `hidden=${tcHidden}`);
   await page.evaluate(() => { state.plus = { active: true }; }); // Plus 已訂閱 → 完整內容
   await openCardViaEntry(page);
-  await page.waitForSelector('#delayHistPanel .dh-bars', { timeout: 6000 });
+  await page.waitForSelector('#delayHistPanel .dh-bars', { timeout: 6000 }).catch(() => {});
   const c = await readCard(page);
   ok(`${label}2 卡片開啟(未隱藏)`, c.hidden === false);
   ok(`${label}3 統計列四值 = delayStats(平均2.4/準點82%/最大18/樣本26)`,
@@ -187,12 +197,12 @@ async function fullFlow(browser, label, opts) {
   ok(`${label}8 Plus active 無鎖層/CTA(完整內容)`, !c.hasLocked && !c.hasCta, `locked=${c.hasLocked} cta=${c.hasCta}`);
   ok(`${label}9 × 在 sticky h3 內(v0717p)`, c.closeInStickyH3);
   // × 可關
-  await page.click('#delayHistClose');
+  await page.click('#delayHistClose').catch(() => {});
   const closed = await page.evaluate(() => document.getElementById('delayHistPanel').hidden);
   ok(`${label}10 點 × 關閉卡片`, closed === true, `hidden=${closed}`);
   // 次要入口也能開卡
   await page.evaluate(() => document.getElementById('tcDelayHist').click());
-  await page.waitForSelector('#delayHistPanel .dh-bars', { timeout: 6000 });
+  await page.waitForSelector('#delayHistPanel .dh-bars', { timeout: 6000 }).catch(() => {});
   const via2 = await page.evaluate(() => !document.getElementById('delayHistPanel').hidden);
   ok(`${label}11 車次卡次要入口也能開卡`, via2 === true);
   ok(`${label}Z 本輪零 pageerror/console.error`, errs.length === 0, errs.slice(0, 3).join(' | '));
@@ -206,7 +216,7 @@ await fullFlow(webkitB, 'W(WebKit)', { width: 1280, height: 800 });
 {
   const { ctx, page, errs } = await bootFollowed(chromiumB, { tag: 'B', histMode: 'full' });
   await openCardViaEntry(page);
-  await page.waitForSelector('#delayHistPanel .dh-locked', { timeout: 6000 });
+  await page.waitForSelector('#delayHistPanel .dh-locked', { timeout: 6000 }).catch(() => {});
   const c = await readCard(page);
   ok('B1 未訂閱 → 圖表區有鎖層 .dh-locked', c.hasLocked, `locked=${c.hasLocked}`);
   ok('B2 鎖層 CSS filter 含 blur(模糊化)', /blur/.test(c.lockedBlur), `filter=${c.lockedBlur}`);
@@ -214,7 +224,7 @@ await fullFlow(webkitB, 'W(WebKit)', { width: 1280, height: 800 });
   ok('B4 未訂閱時統計列(teaser)仍可見', c.statVals.join(',') === ['2.4', '82%', '18', '26'].join(','), c.statVals.join(','));
   // 注入帳號+stub 商店 → 點 CTA 應開出 Plus modal
   await injectPlus(page, { mode: 'buy', subscribed: false });
-  await page.click('#delayHistPanel .dh-cta-btn');
+  await page.click('#delayHistPanel .dh-cta-btn').catch(() => {});
   await page.waitForSelector('#plusBody .plus-plan', { timeout: 6000 }).catch(() => {});
   const modal = await page.evaluate(() => ({ hidden: document.getElementById('plusModal').hidden, plans: document.querySelectorAll('#plusBody .plus-plan').length }));
   ok('B5 點 CTA 開出 Plus 訂閱視窗(plusGateOpen 首個接線點)', modal.hidden === false && modal.plans === 2, JSON.stringify(modal));
@@ -249,7 +259,7 @@ await stateFlow('D(503)', '503', c => {
 // checkPlusEntitlement() 伺服器端強制,前端旗標本來就不是資料閘門。
 // 旗標若被改回只認 URL 參數,E1/E2 會當場轉紅,這正是它現在守的東西。
 {
-  const { ctx, page, errs, no } = await bootFollowed(chromiumB, { tag: 'E', flag: false, histMode: 'full' });
+  const { ctx, page, errs, no } = await bootFollowed(chromiumB, { tag: 'E', histMode: 'full' });
   await page.waitForSelector('#fpDelay:not([hidden])', { timeout: 9000 }).catch(() => {});
   const snap = await page.evaluate(() => ({
     fpDelayShown: !document.getElementById('fpDelay').hidden,
@@ -270,7 +280,7 @@ async function overlapAt(width, height, touch) {
   const { ctx, page, errs } = await bootFollowed(chromiumB, { width, height, touch, tag: `F${width}`, histMode: 'full' });
   await page.evaluate(() => { state.plus = { active: true }; });
   await openCardViaEntry(page);
-  await page.waitForSelector('#delayHistPanel .dh-bars', { timeout: 6000 });
+  await page.waitForSelector('#delayHistPanel .dh-bars', { timeout: 6000 }).catch(() => {});
   await page.waitForTimeout(650); // 讓 body.sheet-open 觸發的 .controls 淡出過渡(opacity .5s)走完再量
   const res = await page.evaluate(() => {
     const overlap = (a, b, eps = 0.5) => !(a.right <= b.left + eps || b.right <= a.left + eps || a.bottom <= b.top + eps || b.bottom <= a.top + eps);
@@ -309,22 +319,28 @@ async function shot(name, { width, height, touch, theme, locked = false }) {
   const { ctx, page } = await bootFollowed(chromiumB, { width, height, touch, theme, tag: `SHOT-${name}`, histMode: 'full' });
   if (!locked) await page.evaluate(() => { state.plus = { active: true }; });
   await openCardViaEntry(page);
-  await page.waitForSelector('#delayHistPanel .dh-bars', { timeout: 6000 });
+  await page.waitForSelector('#delayHistPanel .dh-bars', { timeout: 6000 }).catch(() => {});
   await page.waitForTimeout(300);
   const themeApplied = await page.evaluate(() => document.documentElement.getAttribute('data-theme'));
   const file = path.join(SHOT_DIR, `dh_${name}.png`);
-  await page.locator('#delayHistPanel').screenshot({ path: file });
-  console.log(`SHOT ${name} (data-theme=${themeApplied}) → ${file}`);
+  // 截不到就記下來交給 G2 具名報紅:面板沒開時 locator.screenshot 會 timeout 拋例外,
+  // 那會把整支腳本連同總計行一起帶走(＝複審 Minor a 指的那種「靜默跳過後面全部」)。
+  const shotOk = await page.locator('#delayHistPanel').screenshot({ path: file }).then(() => true, () => false);
+  console.log(`SHOT ${name} (data-theme=${themeApplied}) → ${file}${shotOk ? '' : ' (截圖失敗)'}`);
   await ctx.close();
-  return themeApplied;
+  return { theme: themeApplied, shotOk };
 }
 const tD1 = await shot('desktop_light', { width: 1280, height: 800, touch: false, theme: 'light' });
 const tD2 = await shot('desktop_dark', { width: 1280, height: 800, touch: false, theme: 'dark' });
 const tM1 = await shot('mobile_light', { width: 375, height: 812, touch: true, theme: 'light' });
 const tM2 = await shot('mobile_dark', { width: 375, height: 812, touch: true, theme: 'dark' });
-await shot('locked_light', { width: 1280, height: 800, touch: false, theme: 'light', locked: true });
-await shot('locked_mobile_dark', { width: 375, height: 812, touch: true, theme: 'dark', locked: true });
-ok('G1 亮/暗主題確實套用(截圖用)', tD1 === 'light' && tD2 === 'dark' && tM1 === 'light' && tM2 === 'dark', `${tD1}/${tD2}/${tM1}/${tM2}`);
+const tL1 = await shot('locked_light', { width: 1280, height: 800, touch: false, theme: 'light', locked: true });
+const tL2 = await shot('locked_mobile_dark', { width: 375, height: 812, touch: true, theme: 'dark', locked: true });
+const shots = [tD1, tD2, tM1, tM2, tL1, tL2];
+ok('G1 亮/暗主題確實套用(截圖用)', tD1.theme === 'light' && tD2.theme === 'dark' && tM1.theme === 'light' && tM2.theme === 'dark',
+  `${tD1.theme}/${tD2.theme}/${tM1.theme}/${tM2.theme}`);
+ok('G2 六張截圖都真的產出(截不到 = 面板根本沒開,不可以靜默放過)', shots.every(s => s.shotOk),
+  `成功 ${shots.filter(s => s.shotOk).length}/6`);
 
 // ══════════════ 收尾 ══════════════
 ok('K 全程 pageerror/console.error 為零', allErrors.length === 0, allErrors.slice(0, 8).join(' | '));
