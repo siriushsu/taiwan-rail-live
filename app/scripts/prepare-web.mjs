@@ -171,9 +171,9 @@ html = replaceHtmlRegion(html, 'status-link',
 // (5) 注入:第三方授權入口＋功能旗標＋RAIL_APP_CONFIG(授權圖磚與計量底圖的跟車 zoom 上限)
 const appConfig = includeLicensedBasemaps ? {
   followZoomCap: 16, // 計量底圖止血:跟車進場/導播 zoom 上限(index.html 的 FOLLOW_ZOOM_CAP/DIRECTOR_FOLLOW_Z 消費)
-  // 2026-07-29 關掉(與 index.html 的 SAT_RETINA_DEFAULT 同一輪)：Esri 免費額度 2M/期眼看要吃穿。
+  // 2026-07-29 關掉(與 index.html 的 SAT_RETINA_DEFAULT 同一輪)：Esri 圖磚配額眼看要用完。
   // 🔴 這個值一旦 build 進 App 就鎖死到下一次送審——網站改一行部署就生效，App 不行。
-  satRetina: false, // 衛星 Retina 高解析(index.html 的 SAT_RETINA 消費)。true → 圖磚量約 2.9 倍、Retina 螢幕較銳利
+  satRetina: false, // 衛星 Retina 高解析(index.html 的 SAT_RETINA 消費)。true → 圖磚請求量明顯增加、Retina 螢幕較銳利
   // 衛星計費模式從「按張數」升級成「按 session」時，App 殼要自己跟 Esri 開 session（index.html 的
   // fetchSatSession 消費）。網站那把金鑰有 referrer 白名單所以得繞 Worker，App 這把沒有，
   // capacitor://localhost 實測可直接開（2026-08-01 正負對照驗過）。

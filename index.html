@@ -5972,11 +5972,11 @@ try {
 // (舊法「精確字串手術」讓網站日常改動動輒弄壞 App build,2026-07-22 改為本設定機制)。
 const APP_CFG = window.RAIL_APP_CONFIG || {};
 const FOLLOW_ZOOM_CAP = APP_CFG.followZoomCap || Infinity; // App 計量底圖(Stadia/Esri)跟車 zoom 上限(App=16);網站不設限
-// 衛星 Retina 高解析:開=Retina 螢幕清晰,但圖磚量約 2.9 倍(桌面 z13 實測 72 vs 25 張)。網站與 App 共用同一個 Esri 2M/月額度,
-// 額度吃緊時的止血開關——網站改下面這行 true→false,App 改 prepare-web.mjs 的 satRetina。
-// 2026-07-29 關掉：Esri World Imagery 免費額度 2M/期，07-28 上線後量測近 24h 約 12.4 萬張，
-// 照這個速度 08-03 前後就吃穿，之後每千張 $0.15。Retina 開著約 2.9 倍圖磚換來的是「Retina 螢幕上
-// 衛星圖更銳利」——在額度用完會變成「衛星圖直接不能用」面前，這個交換不划算。
+// 衛星 Retina 高解析:開=Retina 螢幕清晰,但圖磚請求量會明顯增加。網站與 App 共用同一份 Esri 圖磚配額,
+// 配額吃緊時的止血開關——網站改下面這行 true→false,App 改 prepare-web.mjs 的 satRetina。
+// 2026-07-29 關掉：上線後的實測用量顯示照當時的速度會在該計費期內把配額用完，
+// 而 Retina 換來的只是「Retina 螢幕上衛星圖更銳利」——在配額用完會變成
+// 「衛星圖直接不能用」面前，這個交換不划算。（實測數字與配額狀況屬營運資訊，不寫進公開 repo。）
 // 要復原就把這行改回 true（App 端還要一併改 prepare-web.mjs 的 satRetina，兩處是分開的）。
 const SAT_RETINA_DEFAULT = false;
 const SAT_RETINA = APP_CFG.satRetina ?? SAT_RETINA_DEFAULT;
@@ -14547,10 +14547,10 @@ async function setupOfflineLand() {
 }
 
 // ── 衛星圖磚的計費模式切換:按張數 → 按 session ────────────────────────────────
-// Esri 衛星有兩種計價,擇一:按張數(2M 免費/期,超出 $0.15 每千張)或按 basemap session
-// (1,000 顆免費/月,超出 $4 每千顆;一顆管 12 小時,期間圖磚不再計張數)。
-// 損益兩平在「一顆 session 要涵蓋 27 張圖磚」——手機瞄一眼衛星只吃 14 張、桌機一屏 42 張,
-// 所以「一開站就換 session」對隨手看的人反而比較貴。做法因此是混合:
+// Esri 衛星有兩種計價,擇一:按張數,或按 basemap session
+// (一顆 session 管 12 小時,期間圖磚不再計張數)。
+// 兩者有個損益兩平點:一顆 session 要涵蓋夠多張圖磚才划算,而「瞄一眼就走」的人載到的張數
+// 遠低於那個門檻,所以「一開站就換 session」對隨手看的人反而比較貴。做法因此是混合:
 //   先照原本按張數跑 → 這個客戶端在衛星上真的載超過 SAT_SESSION_AT 張(＝在探索,不是瞄一眼)
 //   → 才換成 session token,之後 12 小時內怎麼平移縮放都不再計張數。
 // 兩端都不會比原本貴:輕度使用者維持原本的張數計價,重度使用者被 session 封頂。

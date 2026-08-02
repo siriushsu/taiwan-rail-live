@@ -65,7 +65,7 @@ Apple 不會替你確認轉移依賴的授權。之前的做法是在 `terms.htm
 | 來源 | 用途 | 注意 |
 |---|---|---|
 | TDX 運輸資料流通服務 | 班表、即時位置、誤點 | 需標示來源 |
-| Stadia Maps | 一般／深色底圖 | 影片散布與商業錄影需 Enterprise（2026-07-21 報價 US$6,000/年）；金鑰須有來源限制 |
+| Stadia Maps | 一般／深色底圖 | 影片散布與商業錄影需 Enterprise 授權；金鑰須有來源限制 |
 | Esri World Imagery | 衛星底圖 | 需 token；網站版由 Worker `/api/basemap-token` 下發，不寫進公開 repo |
 | OpenStreetMap 貢獻者 | 底圖圖資 | ODbL，需標示 |
 | Suno（背景音樂） | App 內音樂 | 商用權以 Pro 訂閱期間生成為條件，見 `MUSIC_LICENSE_CHECKLIST.md` |
