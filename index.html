@@ -7099,6 +7099,9 @@ async function setupAccountUi() {
 // ── 訂閱制 Plus（RevenueCat 月/年訂閱 → plus entitlement） ────────────────────────
 // Plus 資格的唯一判定式。刻意抽成具名函式而不是內聯——它讓「這個 repo 裡總共有哪幾道 Plus 閘門」
 // 變成一次 grep 就答得完的問題,而不是要人肉掃六個不同的寫法。
+// 例外:plusRender()/plusRefresh()/plusPurchase()/plusRestore() 內部有幾處直接讀 `p.active`
+// (p===state.plus)——那些是訂閱視窗渲染自己的狀態(選哪個文案分支)或剛寫完 p.active 後緊接著算
+// p.founding,不是在替某個「功能」把關,不算閘門,故意不改用 plusIsActive()。
 function plusIsActive() { return !!(state.plus && state.plus.active); }
 const REVENUECAT_WEB_VERSION = '1.47.3';
 const REVENUECAT_WEB_URL = `https://cdn.jsdelivr.net/npm/@revenuecat/purchases-js@${REVENUECAT_WEB_VERSION}/dist/Purchases.umd.js`;
@@ -11886,8 +11889,9 @@ function buildRideRows(rides, mode) {
 function buildFoundingSeal() {
   // active 也要檢查:founding 只在寫入當下與 active 一起判定(p.founding = p.active && foundingFrom(info)),
   // 但兩者是分開的欄位——像 accountClearLocal() 這種只重置 active 卻忘了同步清 founding 的路徑,
-  // 不依賴寫入點永遠同步,守門直接兩個都看。
-  if (!plusIsActive() || !state.plus.founding) return '';
+  // 不依賴寫入點永遠同步,守門直接兩個都看——兩個條件都在這一行自帶 null-safety,不外包給呼叫順序
+  // 或 plusIsActive() 的內部短路(那個短路仍然存在、仍然安全,但讀這一行不該需要先去查它怎麼實作)。
+  if (!plusIsActive() || !(state.plus && state.plus.founding)) return '';
   return '<div class="ph-founding"><span class="pf-mark">創</span>' +
     '<span class="pf-txt"><b>創始會員</b><i>謝謝你在最早的時候就決定支持軌島</i></span></div>';
 }

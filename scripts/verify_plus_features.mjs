@@ -7,11 +7,18 @@
 //
 // 判準寫在效果上,三條自我約束(比照 verify_live_activity.mjs):
 //  (1) 斷言一律落在產品程式碼的行為上(plusRender() 實際渲染出的 DOM 文字、plusRefresh() 實際
-//      改動的 state.plus.active),不是落在腳本自己塞進去的字串。REQUIRED 的 symbol 檢查雖然是對
-//      index.html 原始碼做 regex,但那正是本檔刻意要驗的東西——「清單與實作有沒有脫鉤」問的就是
-//      原始碼裡指不指得到真的判定式,不是 DOM。
+//      改動的 state.plus.active),不是落在腳本自己塞進去的字串。REQUIRED 的 check() 雖然是對
+//      index.html/worker.js 原始碼做比對,但那正是本檔刻意要驗的東西——「清單與實作有沒有脫鉤」
+//      問的就是原始碼裡指不指得到真的判定式,不是 DOM;而且一律驗「函式 body 裡真的呼叫
+//      plusIsActive()」,不是只驗宣告存在(複審抓到的洞:宣告存在型 regex 對「把閘門 body 換成
+//      return true」語意失明,只對語法敏感——見檔尾 M11/M12/M13/M14/M15/M16 對照表)。
 //  (2) 每條斷言都配一發瞄準它語意的突變(見檔尾對照表),突變打在**產品碼**上,不是打在 DOM/state。
-//  (3) 凡「必須是 0/必須不存在」型的斷言一律配正向對照。
+//  (3) 凡「必須是 0/必須不存在」型的斷言一律配正向對照(G2 用 setTimeout 丟例外自證
+//      pageerror 收集器真的抓得到,不是一直靜靜地綠——page.evaluate(()=>{throw})不會觸發
+//      pageerror,例外會被 Playwright 接回 Node 端 rejection,踩過這個坑)。
+//  (4) 涉及 FOUNDING_UNTIL_MS 的斷言一律從頁面「現讀」該常數(G1),不在本檔另外寫死一份日期
+//      複本——複審抓到的洞:寫死「今天在創始期內」會在 2026-09-15 之後變成「為了正確的理由
+//      轉紅」,判準要跟著那個時間點自己換檔,不是被動等改壞。
 //
 // G0 自檢(心得32):ROOT 由本檔自身路徑推導,不吃 --root/env;伺服器連接埠取 0(OS 指派);
 //   斷言「伺服器吐出來的 index.html 位元組 === ROOT/index.html」。
@@ -24,9 +31,46 @@ import { fileURLToPath } from 'node:url';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const SRC = readFileSync(path.join(ROOT, 'index.html'), 'utf8');
+const WSRC = readFileSync(path.join(ROOT, 'worker.js'), 'utf8');
 const INDEX_MD5 = createHash('md5').update(SRC).digest('hex');
 console.log(`[G0] ROOT=${ROOT}`);
 console.log(`[G0] index.html md5=${INDEX_MD5}`);
+
+// 最小 JS 註解剝除(逐字元掃描,分辨字串/樣板字面量 vs // 與 /* */ 註解,尊重跳脫字元)——
+// 不剝註解會被自己的說明文字反咬:M16 突變測試撞到過,buildFoundingSeal() 緊鄰的註解本身就在
+// 講「不依賴 plusIsActive() 的內部短路」,把 code 裡的呼叫拿掉之後,body 字串裡仍然透過
+// 註解含有 needle 子字串,naive includes() 照樣判定「有呼叫」,把突變測試想抓的缺陷徹底蓋掉。
+function stripComments(code) {
+  let out = '', i = 0;
+  while (i < code.length) {
+    const c = code[i], c2 = code[i + 1];
+    if (c === '/' && c2 === '/') { while (i < code.length && code[i] !== '\n') i++; continue; }
+    if (c === '/' && c2 === '*') { i += 2; while (i < code.length && !(code[i] === '*' && code[i + 1] === '/')) i++; i += 2; continue; }
+    if (c === '"' || c === "'" || c === '`') {
+      const q = c; out += c; i++;
+      while (i < code.length && code[i] !== q) { if (code[i] === '\\') { out += code[i]; i++; if (i >= code.length) break; } out += code[i]; i++; }
+      if (i < code.length) { out += code[i]; i++; }
+      continue;
+    }
+    out += c; i++;
+  }
+  return out;
+}
+// 抓「function fnName(...) { ... }」這個宣告的完整 body(大括號配對計數,這幾個函式都短、
+// 無跨行巢狀物件字面量,簡單配對足夠),回傳「剝掉註解後的」body 字串是否包含 needle。
+// 抓不到宣告本身就是 false——這正是要抓「宣告被改寫成別的語法/被砍掉」的那一種缺陷
+// (呼應 M11 的發現);needle 只在程式碼裡才算數,只在註解裡提到不算(呼應 M16 的發現)。
+function fnBodyContains(src, fnName, needle) {
+  const m = new RegExp(`function\\s+${fnName}\\s*\\([^)]*\\)\\s*\\{`).exec(src);
+  if (!m) return false;
+  let i = m.index + m[0].length, depth = 1;
+  while (i < src.length && depth > 0) {
+    if (src[i] === '{') depth++;
+    else if (src[i] === '}') depth--;
+    i++;
+  }
+  return stripComments(src.slice(m.index, i)).includes(needle);
+}
 
 const MIME = { '.html': 'text/html', '.js': 'text/javascript', '.mjs': 'text/javascript', '.json': 'application/json', '.css': 'text/css', '.png': 'image/png', '.jpg': 'image/jpeg', '.svg': 'image/svg+xml', '.mp3': 'audio/mpeg', '.ico': 'image/x-icon', '.webmanifest': 'application/manifest+json' };
 const server = createServer((req, res) => {
@@ -85,15 +129,80 @@ const renderFeats = page => page.evaluate(() => {
 
 const cr = await chromium.launch();
 
-// ══════════ REQUIRED 對映表(逐項對映驗證見 task-6-brief.md Step 1 表格,已核過子字串成立) ══════════
+// REQUIRED 的「創始會員」conditional() 會讀這兩個模組層級變數;G1 區塊負責賦值。
+// 用 let 在這裡先宣告只是讓讀者一眼看到它們的生命週期,實際賦值前不會有任何 closure 被呼叫。
+let FOUNDING_UNTIL_MS_LIVE, inFounding;
+
+// ══════════ G1:FOUNDING_UNTIL_MS 現讀(供 T1/T3a/REQUIRED[創始會員] 判斷創始期是否已過)——
+// 只驗「讀得到、是有限數字」,不驗「晚於今天」。原本 T3 那條斷言驗的是「晚於今天」,但
+// 2026-09-15 之後這個常數合法變成過去式,那條斷言會為了正確的理由轉紅(複審 Important 5)。
+// 判準要能撐過那個時間點,不能只撐到那天為止。 ══════════
+{
+  const { ctx, page, errors } = await boot(cr);
+  FOUNDING_UNTIL_MS_LIVE = await page.evaluate(() => FOUNDING_UNTIL_MS);
+  inFounding = Date.now() < FOUNDING_UNTIL_MS_LIVE;
+  ok('G1 FOUNDING_UNTIL_MS 可從頁面讀到且是有限數字', Number.isFinite(FOUNDING_UNTIL_MS_LIVE),
+    `FOUNDING_UNTIL_MS=${FOUNDING_UNTIL_MS_LIVE} inFounding=${inFounding}`);
+  ok('G1 無 JS 例外', errors.length === 0, errors.slice(0, 3).join(' | '));
+  await ctx.close();
+}
+
+// ══════════ G2:page.on('pageerror') 收集器的正向對照——下面 9 條「無 JS 例外」斷言都靠它,
+// 但從沒有人證明過它真的抓得到東西。本專案踩過的坑:page.evaluate(() => { throw ... }) 不會
+// 觸發 pageerror(例外被 Playwright 接回 Node 端 rejection,chromium/webkit 皆同),要
+// setTimeout 讓例外真的在頁面自己的事件循環裡丟出來才會。壞掉的探針會讓人去修一個沒壞的東西,
+// 這裡先自證探針本身是活的。 ══════════
+{
+  const { ctx, page, errors } = await boot(cr);
+  await page.evaluate(() => { setTimeout(() => { throw new Error('verify-probe-should-be-caught'); }, 0); });
+  await page.waitForTimeout(300);
+  ok('G2 error 收集器正向對照:setTimeout 丟出的例外真的被 pageerror 收集器抓到', errors.length === 1, JSON.stringify(errors));
+  ok('G2 收集到的內容確實是我們丟的那個例外(不是巧合抓到別的東西)',
+    errors.length === 1 && errors[0].includes('verify-probe-should-be-caught'), JSON.stringify(errors));
+  await ctx.close();
+}
+
+// ══════════ REQUIRED 對映表(逐項對映驗證見 task-6-brief.md Step 1 表格;2026-08-02 複審後改版——
+// 原始六條 regex 全部只驗「字串存在於原始碼」,兩項指錯了函式、四項只驗宣告不驗 body,見下方
+// 各項註解與檔尾 M11-M16 突變表) ══════════
 // needle 必須是「feats 那一項文案裡真的出現的子字串」——對映靠它,不是靠人眼。
+// check() 才是真正的資格判定驗證,一律驗「body 裡真的呼叫 plusIsActive()」或等價的伺服器強制,
+// 不是「這個名字的函式存在」——名字存在 body 卻是 `return true` 的閘門報廢,舊版驗不出來。
 const REQUIRED = [
-  { needle: '誤點履歷', symbol: /plusGateOpen\('delay-history'/ },
-  { needle: '雲端同步', symbol: /!reason\.startsWith\('logout'\)/ },
-  { needle: '行程分享', symbol: /function tripShareVisible\s*\(/ },
-  { needle: '高解析', symbol: /function satRetinaAllowed\s*\(/ },
-  { needle: '創始會員', symbol: /function foundingFrom\s*\(/ },
-  { needle: '動態島', symbol: /function liveActivityAllowed\s*\(/ },
+  {
+    needle: '誤點履歷',
+    // 六項裡唯一有伺服器強制的一項(其餘都是純客端 UI 閘門)。原本的 symbol 只命中
+    // index.html 裡「訂閱 Plus 解鎖完整履歷」按鈕的 click handler(upsell 入口,不是閘門)。
+    // 真正的兩道閘:client 端 renderDelayHist() 裡決定要不要模糊圖表的 plusIsActive() 分支;
+    // server 端 worker.js delayHistory() 呼叫 checkPlusEntitlement() 且在 !check.ok 時擋掉資料
+    // (擋在共享 edge 快取 match 之前,見 worker.js:557-561 註解)。兩邊都要驗到,少驗一邊,
+    // 刪掉另一邊照樣綠燈。
+    check: () => {
+      const clientOk = fnBodyContains(SRC, 'renderDelayHist', 'plusIsActive()');
+      const serverOk = /async function delayHistory[\s\S]{0,900}?checkPlusEntitlement\(request,\s*env\)/.test(WSRC)
+        && /if \(!check\.ok\) return jsonRes\(\{ error: check\.error \}, check\.status/.test(WSRC);
+      return clientOk && serverOk;
+    },
+  },
+  {
+    needle: '雲端同步',
+    // 原本的 symbol 只命中 accountSyncNow() 裡 logout 例外子句的文字,那句話跟 Plus 完全無關——
+    // 就算把 `&& !plusIsActive()` 整段刪掉(閘門報廢、雲端同步變成人人可用),那句話還在,舊版
+    // 照樣綠燈。改成整條件式一起比對:少了 `&& !plusIsActive()` 這整條 regex 就不成立。
+    check: () => /if \(!reason\.startsWith\('logout'\) && !plusIsActive\(\)\) return false;/.test(SRC),
+  },
+  { needle: '行程分享', check: () => fnBodyContains(SRC, 'tripShareVisible', 'plusIsActive()') },
+  { needle: '高解析', check: () => fnBodyContains(SRC, 'satRetinaAllowed', 'plusIsActive()') },
+  {
+    needle: '創始會員',
+    // 原本的 symbol 指向 foundingFrom()——那是純函式,只從購買資訊算「這筆訂閱起始於創始期內
+    // 嗎」,body 裡本來就不會、也不應該呼叫 plusIsActive()(它甚至不讀 state)。真正決定「徽章
+    // 要不要畫出來」的閘門是 buildFoundingSeal(),見其 `if (!plusIsActive() || !(state.plus &&
+    // state.plus.founding)) return '';`——這才是清單那句話對映到的真實資格判定。
+    check: () => fnBodyContains(SRC, 'buildFoundingSeal', 'plusIsActive()'),
+    conditional: () => inFounding, // 過了 FOUNDING_UNTIL_MS,清單不再宣傳這項是設計行為,見 G1/T1
+  },
+  { needle: '動態島', check: () => fnBodyContains(SRC, 'liveActivityAllowed', 'plusIsActive()') },
 ];
 
 // ══════════ T0:Step 0 新符號 plusIsActive() 本身的正確性(既有 5 支腳本沒有專門測到這個符號) ══════════
@@ -109,21 +218,27 @@ const REQUIRED = [
   await ctx.close();
 }
 
-// ══════════ T1:清單↔實作雙向對映(正向:feats 每項都對得到 REQUIRED 且 symbol 存在;反向:REQUIRED 每項都在 feats 裡) ══════════
+// ══════════ T1:清單↔實作雙向對映(正向:feats 每項都對得到 REQUIRED 且 check() 通過;反向:REQUIRED 每項都在 feats 裡) ══════════
 {
   const { ctx, page, errors } = await boot(cr);
   await setPlus(page, false);
   const { feats, trust } = await renderFeats(page);
-  ok('T1 前置:feats 陣列恰有 6 項(舊清單 5 項,少了行程分享;多了就是塞了沒對映的東西)', feats.length === 6, JSON.stringify(feats));
-  // 正向:每一項 feats 文字都能在 REQUIRED 找到唯一對應的 needle,且該 symbol 真的存在於 index.html
+  const expectCount = inFounding ? 6 : 5; // 創始會員那項只在創始期內存在,見 G1/REQUIRED[創始會員].conditional
+  ok(`T1 前置:feats 陣列項數符合創始期狀態(inFounding=${inFounding}→預期 ${expectCount} 項;多了是塞了沒對映的東西,少了是漏對映)`,
+    feats.length === expectCount, JSON.stringify(feats));
+  // 正向:每一項 feats 文字都能在 REQUIRED 找到唯一對應的 needle,且 check() 通過(真的有資格判定,不是空話)
   feats.forEach((text, i) => {
     const match = REQUIRED.find(r => text.includes(r.needle));
     ok(`T1F feats[${i}] 對得到 REQUIRED 裡的某個 needle`, !!match, text);
-    ok(`T1F feats[${i}] 對應的 symbol 存在於 index.html(真的有資格判定,不是空話)`, match ? match.symbol.test(SRC) : false, match ? match.symbol.toString() : '(無對應項目)');
+    ok(`T1F feats[${i}] 對應的 check() 通過(真的有資格判定,不是空話)`, match ? match.check() : false, match ? match.needle : '(無對應項目)');
   });
-  // 反向:REQUIRED 六項都出現在 feats 裡(防「做了功能但忘了寫進清單」)
+  // 反向:REQUIRED 六項都出現在 feats 裡(防「做了功能但忘了寫進清單」)——除非該項有 conditional()
+  // 且目前不成立(創始會員過了 FOUNDING_UNTIL_MS),那種情況下正確行為是「不出現」,一樣要驗到,
+  // 不是跳過不驗。
   REQUIRED.forEach(r => {
-    ok(`T1R REQUIRED[${r.needle}] 出現在 feats 陣列裡`, feats.some(t => t.includes(r.needle)), JSON.stringify(feats));
+    const shouldAppear = !r.conditional || r.conditional();
+    ok(`T1R REQUIRED[${r.needle}] ${shouldAppear ? '出現在' : '(創始期後正確不再出現在)'} feats 陣列裡`,
+      feats.some(t => t.includes(r.needle)) === shouldAppear, JSON.stringify(feats));
   });
   ok('T1 無 JS 例外', errors.length === 0, errors.slice(0, 3).join(' | '));
   await ctx.close();
@@ -161,16 +276,17 @@ const REQUIRED = [
   const { ctx, page, errors } = await boot(cr);
   await setPlus(page, false);
   const { feats } = await renderFeats(page);
-  ok('T3a 創始期內(今天,2026-08-02):feats 含「創始會員徽章」', feats.some(t => t.includes('創始會員徽章')), JSON.stringify(feats));
+  // 用 G1 現讀到的 inFounding 判斷「現在」該不該看到這項,不寫死「今天在創始期內」——
+  // 那句話本身就是複審抓到的時間炸彈,見檔頭(4)。
+  ok(`T3a 創始期狀態(inFounding=${inFounding}):feats ${inFounding ? '含' : '不含'}「創始會員徽章」`,
+    feats.some(t => t.includes('創始會員徽章')) === inFounding, JSON.stringify(feats));
   ok('T3 前置無 JS 例外', errors.length === 0, errors.slice(0, 3).join(' | '));
   await ctx.close();
 }
 {
   const { ctx, page, errors } = await boot(cr);
   await setPlus(page, false);
-  const untilMs = await page.evaluate(() => FOUNDING_UNTIL_MS);
-  ok('T3 前置:FOUNDING_UNTIL_MS 可讀取且是合理的未來時刻(晚於今天)', Number.isFinite(untilMs) && untilMs > Date.now(), String(untilMs));
-  const future = untilMs + 30 * 86400000; // 期限後 30 天,避開邊界的時區/精度爭議
+  const future = FOUNDING_UNTIL_MS_LIVE + 30 * 86400000; // 期限後 30 天,避開邊界的時區/精度爭議;FOUNDING_UNTIL_MS_LIVE 已在 G1 現讀,不重複打頁面
   await page.evaluate(t => { Date.now = () => t; }, future);
   const { feats } = await renderFeats(page);
   ok('T3b 創始期後(FOUNDING_UNTIL_MS+30天):feats 不再無條件出現「創始會員徽章」(過了期限才訂閱的人拿不到,清單不能繼續宣傳)',
@@ -230,9 +346,11 @@ await cr.close();
   for (const w of [360, 375, 414, 768]) {
     const { ctx, page, errors } = await boot(wk, { viewport: { width: w, height: 800 } });
     await setPlus(page, false);
-    const geo = await page.evaluate(() => {
-      plusRender();
-      document.getElementById('plusModal').hidden = false; // 平常靠 plusOpen() 打開,這裡直接量真實佈局要先取消隱藏
+    const geo = await page.evaluate(async () => {
+      // 複審 Minor M-3:改走真正的入口 plusOpen(),不再直接翻 modal.hidden——plusOpen() 有
+      // 「未登入先導去登入面板」這條分支,直接翻 hidden 會量到使用者實際到不了的佈局路徑。
+      state.account = { user: { uid: 'verify-t5' }, fb: {} };
+      await plusOpen('verify-t5');
       const items = [...document.querySelectorAll('.plus-feature')];
       const dialog = document.querySelector('.plus-dialog').getBoundingClientRect();
       const rects = items.map(el => el.getBoundingClientRect());
@@ -255,7 +373,11 @@ await cr.close();
       wrap = await page.evaluate(() => {
         const items = [...document.querySelectorAll('.plus-feature')];
         const last = items[items.length - 1], prev = items[items.length - 2];
-        last.querySelector('span:last-child').textContent = '這是一段刻意加長用來強迫換行的測試文字，用來確認排版撐得住多行而不會破版或疊到旁邊的項目';
+        // 複審 Minor M-2:.plus-feature 結構是 <span>✓</span>TEXT,唯一的 <span> 是勾勾圖示、
+        // 剛好也是唯一的 element 子節點,CSS `span:last-child` 照樣命中它(text 節點不算入
+        // :last-child 的結構性判斷)——舊寫法改到的是勾勾符號,不是使用者會讀到的功能文字。
+        // lastChild 才是 DOM 順序上真正最後的節點(這裡就是那段文字節點),要用它才會改對東西。
+        last.lastChild.textContent = '這是一段刻意加長用來強迫換行的測試文字，用來確認排版撐得住多行而不會破版或疊到旁邊的項目';
         const r = last.getBoundingClientRect(), pr = last.parentElement.getBoundingClientRect(), pv = prev.getBoundingClientRect();
         return { h: Math.round(r.height), overRight: Math.round(r.right - pr.right), overLeft: Math.round(pr.left - r.left), gapFromPrev: Math.round(r.top - pv.bottom) };
       });
@@ -265,7 +387,8 @@ await cr.close();
   }
   await wk.close();
   const fmt = rows.map(r => `${r.w}px:共${r.geo.count}項 高=${r.geo.overflow.map(o => o.h).join('/')} 右溢=${r.geo.overflow.map(o => o.overRight).join('/')} 左溢=${r.geo.overflow.map(o => o.overLeft).join('/')} 重疊=${r.geo.overlaps.join('/')}`).join(' ; ');
-  ok('T5 四寬度(WebKit):Plus 清單恰 6 項', rows.every(r => r.geo.count === 6), fmt);
+  ok(`T5 四寬度(WebKit):Plus 清單項數符合創始期狀態(inFounding=${inFounding}→預期 ${inFounding ? 6 : 5} 項)`,
+    rows.every(r => r.geo.count === (inFounding ? 6 : 5)), fmt);
   ok('T5 四寬度:每項功能高度>0(沒有被壓成 0)', rows.every(r => r.geo.overflow.every(o => o.h > 0)), fmt);
   ok('T5 四寬度:每項功能文字不超出容器左右緣', rows.every(r => r.geo.overflow.every(o => o.overRight <= 1 && o.overLeft <= 1)), fmt);
   ok('T5 四寬度:相鄰項目不垂直重疊', rows.every(r => r.geo.overlaps.every(gap => gap <= 1)), fmt);
@@ -277,17 +400,158 @@ await cr.close();
   ok('T5w 360px 強迫換行後與前一項仍有正常間距、沒有疊上去', w360.gapFromPrev >= -1, JSON.stringify(w360));
 }
 
+// ══════════ T7:購買/恢復購買鈕真實命中測試(複審 Important 4)——T5 只量幾何(rect 有沒有超出
+// 容器),證明不了「按下去有沒有真的點到」。清單從 5→6 項且文字變長,直接把這兩顆鈕往下推;
+// 複審自己讀 CSS(.takeout-body overflow-y:auto)判斷「內容可捲、鈕仍可及」,但那個結論來自
+// 讀原始碼不是來自跑起來驗證——這裡補上跑起來的版本。涵蓋兩種可達狀態:
+//   (a) 已訂閱(p.active=true)——網站目前唯一真實會出現的狀態(plusConfigured() 因未設 Web
+//       Billing key 恆 false,見 plusRefresh() 的 /api/plus-status 分支),只有「恢復購買」鈕。
+//   (b) 有購買通道時(plusConfigured()=true,用既有 RAIL_PLUS_TEST_ADAPTER 慣例達成,同
+//       verify_plus_subscription.mjs 的 injectPlus)——月/年方案鈕 + 恢復購買鈕,這條路徑目前
+//       雖未在網站開通,原始碼仍然存在且必須驗。
+// 每顆鈕:多點 elementFromPoint(中心+四角內縮)命中自己,四寬度都跑;另外在(a)(b)各挑一寬度
+// 用真觸控 page.tap() 端到端點下去,並確認事件真的傳到業務邏輯(不是只證明幾何對得上)。
+// 正向對照:同一批順便對話框外一點做命中測試,證明這套機制分得出「有點到」與「沒點到」。 ══════════
+{
+  const wk3 = await webkit.launch();
+  // qs 預設空——PLUS_ENABLED 是頁面載入當下就凍結的 const(讀 URL 的 ?plus=1,見 index.html:6059-6062),
+  // 不是執行期可覆寫的旗標;plusConfigured() 的第一道閘就是 PLUS_ENABLED,(b)情境要讓
+  // RAIL_PLUS_TEST_ADAPTER 那支 OR 分支真的生效,必須在「頁面載入那一刻」就帶 ?plus=1,
+  // 執行期才設 window.RAIL_PLUS_TEST_ADAPTER 沒用(這就是第一輪跑出「0 顆方案鈕」的真因)。
+  const bootTouch = async (w, qs = '') => {
+    const ctx = await wk3.newContext({ viewport: { width: w, height: 800 }, hasTouch: true, isMobile: true });
+    await ctx.addInitScript(() => { try { localStorage.setItem('trainmap-howto-seen', '1'); } catch (e) {} });
+    const page = await ctx.newPage();
+    const errors = [];
+    page.on('pageerror', e => errors.push('pageerror:' + String(e)));
+    await page.goto(base + qs, { waitUntil: 'domcontentloaded' });
+    await page.waitForFunction(() => { try { return typeof state !== 'undefined' && state.ready === true; } catch (e) { return false; } }, null, { timeout: 40000 });
+    return { ctx, page, errors };
+  };
+  // (a) 已訂閱態:四寬度命中測試「恢復購買」鈕 + 375px 做一次真觸控
+  const rowsA = [];
+  for (const w of [360, 375, 414, 768]) {
+    const { ctx, page, errors } = await bootTouch(w);
+    const hit = await page.evaluate(async () => {
+      state.account = { user: { uid: 'verify-t7a' }, fb: {} };
+      // error 故意塞非空字串當「未觸發」的前態哨兵——plusRestore() 未配置通道時的早退分支會把它
+      // 清成 ''(見 index.html plusRestore),tap 後若還是原始哨兵字串就代表事件根本沒傳到那支函式;
+      // 一開始就塞 '' 的話這條斷言即使 tap 完全沒生效也會「巧合」通過,驗不到真相。
+      state.plus = { active: true, founding: false, loading: false, error: 'sentinel-untouched', pkgMonthly: null, pkgAnnual: null, mgmtUrl: '', adapter: null, afterUnlock: null };
+      await plusOpen('verify-t7a');
+      const btn = document.querySelector('.plus-restore');
+      if (!btn) return { found: false };
+      const r = btn.getBoundingClientRect();
+      const pts = [[r.left + r.width / 2, r.top + r.height / 2],
+        [r.left + Math.min(6, r.width / 3), r.top + Math.min(6, r.height / 3)],
+        [r.right - Math.min(6, r.width / 3), r.top + Math.min(6, r.height / 3)],
+        [r.left + Math.min(6, r.width / 3), r.bottom - Math.min(6, r.height / 3)],
+        [r.right - Math.min(6, r.width / 3), r.bottom - Math.min(6, r.height / 3)]];
+      const hits = pts.map(([x, y]) => { const h = document.elementFromPoint(x, y); return !!(h && (h === btn || btn.contains(h))); });
+      // 正向對照:對話框標題(#plusModal 的 h3,理應在按鈕矩形之外)不該被命中成這顆按鈕
+      const heroEl = document.querySelector('.plus-hero h3');
+      const hr = heroEl.getBoundingClientRect();
+      const outsideHit = document.elementFromPoint(hr.left + 4, hr.top + 4);
+      const outsideIsBtn = !!(outsideHit && (outsideHit === btn || btn.contains(outsideHit)));
+      return { found: true, rect: [r.left, r.top, r.right, r.bottom].map(v => Math.round(v)), hits, outsideIsBtn };
+    });
+    let tapOk = null;
+    if (w === 375 && hit.found) {
+      try { await page.tap('.plus-restore'); await page.waitForTimeout(50);
+        tapOk = await page.evaluate(() => state.plus && state.plus.error === ''); // plusRestore() 未配置通道時的可觀察分支:p.error=''(見 index.html plusRestore)
+      } catch (e) { tapOk = 'tap-threw:' + String(e).slice(0, 150); }
+    }
+    rowsA.push({ w, hit, errors, tapOk });
+    await ctx.close();
+  }
+  ok('T7a 四寬度:「恢復購買」鈕多點 elementFromPoint 皆命中自己(不只證明幾何不重疊,是真的點得到)',
+    rowsA.every(r => r.hit.found && r.hit.hits.every(Boolean)),
+    rowsA.map(r => `${r.w}:${r.hit.found ? r.hit.hits.join(',') : 'NOTFOUND'}`).join(' ; '));
+  ok('T7a 正向對照:對話框標題位置不會被命中成「恢復購買」鈕(證明命中測試分得出有點到/沒點到)',
+    rowsA.every(r => r.hit.found && !r.hit.outsideIsBtn),
+    rowsA.map(r => `${r.w}:${r.hit.outsideIsBtn}`).join(' ; '));
+  ok('T7a 375px 真觸控 page.tap() 端到端點下「恢復購買」,事件確實傳到 plusRestore()(未配置通道分支可觀察到 p.error 被清空)',
+    rowsA.find(r => r.w === 375).tapOk === true, JSON.stringify(rowsA.find(r => r.w === 375)));
+  ok('T7a 全程無 JS 例外', rowsA.every(r => r.errors.length === 0), rowsA.map(r => r.errors.join('|')).join(';'));
+
+  // (b) 有購買通道時:四寬度命中測試月/年方案鈕(RAIL_PLUS_TEST_ADAPTER,同 verify_plus_subscription.mjs 慣例)
+  const rowsB = [];
+  for (const w of [360, 375, 414, 768]) {
+    const { ctx, page, errors } = await bootTouch(w, '?plus=1'); // PLUS_ENABLED 要在載入當下就是 true,見上方 bootTouch 註解
+    // plusOpen() 尾端呼叫 plusRefresh() 是 fire-and-forget(沒有 await)——p.loading 這道
+    // 重入閘門一開始就被那個內部呼叫佔住,若這裡再自己 await plusRefresh() 一次只會立刻撞閘門
+    // 拿到 false、什麼都沒做(第一輪除錯抓到:count 恆 0)。改成不重複呼叫,只等原本那次的
+    // p.loading 變回 false,讓它自己在背景把 pkgAnnual/pkgMonthly 填好、重畫出 .plus-plan 鈕。
+    await page.evaluate(() => {
+      state.account = { user: { uid: 'verify-t7b' }, fb: {} };
+      window.RAIL_REVENUECAT_CONFIG = { entitlement: 'plus', offeringId: 'plus' };
+      const offering = { availablePackages: [
+        { identifier: '$rc_monthly', packageType: 'MONTHLY', webBillingProduct: { currentPrice: { formattedPrice: 'NT$90' } } },
+        { identifier: '$rc_annual', packageType: 'ANNUAL', webBillingProduct: { currentPrice: { formattedPrice: 'NT$390' } } },
+      ] };
+      window.RAIL_PLUS_TEST_ADAPTER = {
+        setUser: async () => {},
+        getCustomerInfo: async () => ({ entitlements: { active: {} }, managementURL: '' }),
+        getOfferings: async () => ({ all: { plus: offering }, current: offering }),
+        purchase: async (pkg) => { window.__t7PurchaseCalledWith = pkg && pkg.identifier; return { customerInfo: { entitlements: { active: { plus: { identifier: 'plus' } } } } }; },
+        restore: async () => ({ entitlements: { active: {} } }),
+      };
+      plusOpen('verify-t7b');
+    });
+    await page.waitForFunction(() => state.plus && state.plus.loading === false, null, { timeout: 10000 });
+    const hit = await page.evaluate(() => {
+      const btns = [...document.querySelectorAll('.plus-plan')];
+      if (btns.length !== 2) return { found: false, count: btns.length };
+      const per = btns.map(btn => {
+        const r = btn.getBoundingClientRect();
+        const pts = [[r.left + r.width / 2, r.top + r.height / 2],
+          [r.left + Math.min(6, r.width / 3), r.top + Math.min(6, r.height / 3)],
+          [r.right - Math.min(6, r.width / 3), r.top + Math.min(6, r.height / 3)],
+          [r.left + Math.min(6, r.width / 3), r.bottom - Math.min(6, r.height / 3)],
+          [r.right - Math.min(6, r.width / 3), r.bottom - Math.min(6, r.height / 3)]];
+        const hits = pts.map(([x, y]) => { const h = document.elementFromPoint(x, y); return !!(h && (h === btn || btn.contains(h))); });
+        return { pkg: btn.dataset.pkg, rect: [r.left, r.top, r.right, r.bottom].map(v => Math.round(v)), hits };
+      });
+      return { found: true, count: btns.length, per };
+    });
+    let tapOk = null;
+    if (w === 375 && hit.found) {
+      try {
+        await page.tap('.plus-plan[data-pkg="annual"]');
+        await page.waitForTimeout(50);
+        tapOk = await page.evaluate(() => window.__t7PurchaseCalledWith === '$rc_annual'); // 真觸控事件確實傳到 plusPurchase()→adapter.purchase(),不是只證明幾何對得上
+      } catch (e) { tapOk = 'tap-threw:' + String(e).slice(0, 150); }
+    }
+    rowsB.push({ w, hit, errors, tapOk });
+    await ctx.close();
+  }
+  ok('T7b 四寬度:方案鈕真的是兩顆(月/年)', rowsB.every(r => r.hit.found && r.hit.count === 2),
+    rowsB.map(r => `${r.w}:${r.hit.count}`).join(' ; '));
+  ok('T7b 四寬度:月/年方案鈕多點 elementFromPoint 皆命中自己',
+    rowsB.every(r => r.hit.found && r.hit.per.every(p => p.hits.every(Boolean))),
+    rowsB.map(r => `${r.w}:${r.hit.found ? r.hit.per.map(p => p.pkg + '=' + p.hits.join(',')).join('|') : 'NOTFOUND'}`).join(' ; '));
+  ok('T7b 375px 真觸控 page.tap() 端到端點下年訂閱鈕,事件確實傳到 plusPurchase()→adapter.purchase(拿到正確的 pkg)',
+    rowsB.find(r => r.w === 375).tapOk === true, JSON.stringify(rowsB.find(r => r.w === 375)));
+  ok('T7b 全程無 JS 例外', rowsB.every(r => r.errors.length === 0), rowsB.map(r => r.errors.join('|')).join(';'));
+
+  await wk3.close();
+}
+
 server.close();
 
 // ══════════ 斷言總數閘門(比照 verify_live_activity.mjs / verify_founding_seal.mjs 的形狀) ══════════
 // 用途:條件式區塊整批消失時,分母跟著變小、收尾只印「N/N PASS」⇒ 會被當成全綠。
-// 各組用 a/b/c…細分子情境(T0a/T0b/T0c、T2a..T2f、T4a/T4b/T4c),分組 regex 要吃任一個小寫字母
-// 尾碼,不能只吃 [ab]——吃不到的字母會被靜靜併回不帶字母的裸組,分母對不上還以為是別的錯。
+// 各組用 a/b/c…細分子情境(T0a/T0b/T0c、T2a..T2f、T4a/T4b/T4c、T7a/T7b),分組 regex 要吃任一個
+// 小寫字母尾碼,不能只吃 [ab]——吃不到的字母會被靜靜併回不帶字母的裸組,分母對不上還以為是別的錯。
 // (T1F/T1R 用大寫字母尾碼,不被 [a-z]? 吃掉,全部併回裸組「T1」,這是刻意的——正向/反向本來就要合看。)
+// T1 的預期值是公式不是常數:創始會員那項的存在與否跟著 inFounding(G1 現讀)走,items 數會在
+// 2026-09-15 那天從 6 變 5,T1F 的配對數量跟著變(8+2*items 數);寫死 20 會在那天之後變成
+// 「為了正確的理由跟預期值對不上」——這正是複審 Important 5 點名的時間炸彈,詳見 T1/G1 註解。
 const EXPECTED_COUNTS = {
-  G0: 1, T0: 1, T0a: 1, T0b: 1, T0c: 1, T1: 20,
+  G0: 1, G1: 2, G2: 2, T0: 1, T0a: 1, T0b: 1, T0c: 1,
+  T1: 8 + 2 * (inFounding ? 6 : 5),
   T2: 1, T2a: 1, T2b: 1, T2c: 1, T2d: 1, T2e: 1, T2f: 1,
-  T3: 3, T3a: 1, T3b: 2, T4a: 2, T4b: 2, T4c: 2, T5: 6, T5w: 3,
+  T3: 2, T3a: 1, T3b: 2, T4a: 2, T4b: 2, T4c: 2, T5: 6, T5w: 3, T7a: 4, T7b: 4,
 };
 const actualCounts = {};
 for (const r of results) { const m = /^([GT]\d+[a-z]?)/.exec(r.name); const k = m ? m[1] : '(未分組)'; actualCounts[k] = (actualCounts[k] || 0) + 1; }
