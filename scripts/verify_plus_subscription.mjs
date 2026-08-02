@@ -300,7 +300,7 @@ async function assertAnonymousCanReachLogin(page) {
 // 程式會往下走進 try 呼叫 a.fb.doc,stub 丟例外,accountSyncNow 自己的 catch 一樣會把它接成
 // return false,回傳值在兩種情況下都是 false,無法區分「閘門擋下」與「閘門被拿掉但半路失敗」。
 // 突變測試紀錄(手動執行,不留在腳本內):暫時把 index.html 的
-// `if (reason !== 'logout' && !(state.plus && state.plus.active)) return false;` 整行註解掉、
+// `if (!reason.startsWith('logout') && !(state.plus && state.plus.active)) return false;` 整行註解掉、
 // 重跑本腳本 → H1 轉 FAIL(syncAttempted=true);還原後重跑 → H1 轉回 PASS。
 {
   const { ctx, page } = await newPage(chromiumB);
@@ -326,6 +326,76 @@ async function assertAnonymousCanReachLogin(page) {
   ok('H1 未訂閱時 accountSyncNow 回 false 且未觸碰 Firestore(資格閘門有牙)', r.result === false && r.syncAttempted === false,
     `result=${r.result} syncAttempted=${r.syncAttempted}`);
   ok('H 本輪零 pageerror/console.error', errs.length === 0, errs.slice(0, 3).join(' | '));
+  await ctx.close();
+}
+
+// ══════════════ I. Step 4/6 修正輪(2026-08-02 複審 finding):冷啟動資格 bootstrap ＋ logout-legacy 不被閘門擋下 ══════════════
+// I1/I2:全新訪客(localStorage 空)——setupAccountUi 應該走 btn.remove() 那條,state.account 全程
+// undefined、零 Firebase 網路請求。免費層「完全匿名」的保證不能因為補了 returning 分支而破功。
+// I3:回訪使用者(localStorage 帶 trainmap-last-sync-uid)——setupAccountUi 的新 returning 條件要讓
+// accountEnsureInit 開機就真的跑完(state.account.ready 轉真),不必等使用者先點過 Plus/帳號入口。
+{
+  const { ctx, page } = await newPage(chromiumB);
+  const errs = attach(page, 'I-fresh');
+  const firebaseReqs = [];
+  page.on('request', req => {
+    const u = req.url();
+    if (/gstatic\.com\/firebasejs|identitytoolkit\.googleapis\.com|firestore\.googleapis\.com|firebaseapp\.com/.test(u)) firebaseReqs.push(u);
+  });
+  await page.goto(BASE, { waitUntil: 'domcontentloaded' });
+  await waitReady(page);
+  await page.waitForTimeout(1500); // 給任何遲滯的非同步初始化一點時間,才能有把握斷言「沒發生」
+  const accountUndefined = await page.evaluate(() => typeof state.account === 'undefined');
+  ok('I1 全新訪客開機後 state.account 仍是 undefined(免費層完全匿名不因 returning 分支破功)', accountUndefined,
+    `state.account ${accountUndefined ? '仍是 undefined' : '已被建立(不該發生)'}`);
+  ok('I2 全新訪客開機零 Firebase 網路請求', firebaseReqs.length === 0, firebaseReqs.slice(0, 3).join(' | '));
+  ok('I 全新訪客本輪零 pageerror/console.error', errs.length === 0, errs.slice(0, 3).join(' | '));
+  await ctx.close();
+}
+{
+  const { ctx, page } = await newPage(chromiumB);
+  const errs = attach(page, 'I-returning');
+  await ctx.addInitScript(() => { try { localStorage.setItem('trainmap-last-sync-uid', 'test-returning-uid'); } catch (e) {} });
+  await page.goto(BASE, { waitUntil: 'domcontentloaded' });
+  await waitReady(page);
+  const readyOk = await page.waitForFunction(() => state.account && state.account.ready === true, null, { timeout: 15000 })
+    .then(() => true).catch(() => false);
+  ok('I3 回訪使用者(留有 last-sync-uid)開機 accountEnsureInit 真的有跑(state.account.ready 轉真,不必先點過 Plus/帳號入口)',
+    readyOk, `ready=${readyOk}`);
+  ok('I 回訪使用者本輪零 pageerror/console.error', errs.length === 0, errs.slice(0, 3).join(' | '));
+  await ctx.close();
+}
+
+// I4:accountSyncNow('logout-legacy') 不被資格閘門擋下,即使使用者未訂閱——Firestore rules 尚未放行新
+// collection 時,accountSyncNow 的 catch 會遞迴呼叫 accountSyncNow(reason+'-legacy') 重試;若閘門用
+// 字串嚴格比對 `reason !== 'logout'`,重試時 reason 已經是 'logout-legacy' 不等於 'logout',會被誤擋,
+// 而 accountSignOut() 之後仍會無條件 accountClearLocal() 清本機——最後一次回寫沒完成就清本機＝真的掉資料。
+// 用 a.fb.doc 是否被呼叫到(syncAttempted)當判準,不是回傳值:兩種情況(被擋/沒被擋但半路故意失敗)
+// 回傳值都是 false,只有「有沒有嘗試碰 Firestore」能分辨(手法同 H)。
+{
+  const { ctx, page } = await newPage(chromiumB);
+  const errs = attach(page, 'I4');
+  await page.goto(BASE, { waitUntil: 'domcontentloaded' });
+  await waitReady(page);
+  const r = await page.evaluate(async () => {
+    let syncAttempted = false;
+    state.plus = { active: false }; // 刻意未訂閱:若閘門誤判把 logout-legacy 也擋下,syncAttempted 會維持 false
+    state.account = {
+      ready: true, syncing: false, lastSync: 0, actionError: '', error: '',
+      user: { uid: 'test-uid-i4', email: 'legacy-test@example.com' },
+      db: {},
+      fb: {
+        doc: () => { syncAttempted = true; throw new Error('探針:只需知道有沒有被呼叫到,不需要真的接 Firestore'); },
+        runTransaction: () => { syncAttempted = true; throw new Error('探針:只需知道有沒有被呼叫到,不需要真的接 Firestore'); },
+        serverTimestamp: () => 0,
+      },
+    };
+    const result = await accountSyncNow('logout-legacy');
+    return { result, syncAttempted };
+  });
+  ok(`I4 未訂閱使用者的 accountSyncNow('logout-legacy') 不被資格閘門擋下(有嘗試碰 Firestore)`, r.syncAttempted === true,
+    `result=${r.result} syncAttempted=${r.syncAttempted}`);
+  ok('I4 本輪零 pageerror/console.error', errs.length === 0, errs.slice(0, 3).join(' | '));
   await ctx.close();
 }
 

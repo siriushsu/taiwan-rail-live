@@ -6868,7 +6868,9 @@ async function accountSyncNow(reason) {
   if (!a || !a.user || !a.db || a.syncing) return false;
   // 雲端同步是 Plus 功能(2026-08-02 裁示:用戶端閘門)。logout 是刻意的例外——
   // 登出會清掉本機資料(accountClearLocal),不讓最後一次回寫完成就等於吃掉使用者的東西。
-  if (reason !== 'logout' && !(state.plus && state.plus.active)) return false;
+  // 用 startsWith 不用 !==:rules 擋下時 catch 會遞迴成 'logout-legacy' 重試(index.html:6904),
+  // 寫死 !== 'logout' 會讓重試被閘門擋掉、而 accountSignOut 照樣清本機 ⇒ 真的掉資料。
+  if (!reason.startsWith('logout') && !(state.plus && state.plus.active)) return false;
   a.syncing = true; a.actionError = ''; accountRender();
   try {
     // Firestore rules 尚未放行新 collection 時,整筆交易會 permission-denied——退回舊清單重試,
@@ -7055,7 +7057,11 @@ async function setupAccountUi() {
   const btn = document.getElementById('accountBtn'), modal = document.getElementById('accountModal');
   if (!btn || !modal || !accountConfigured()) return;
   const accountIntent = new URLSearchParams(location.search).get('account');
-  if (ACCOUNT_ENABLED || accountIntent === 'delete') { // 帳號全面啟用 或 刪帳號深連結:照舊 eager 初始化(顯示入口鈕、載 Firebase、監聽登入)
+  // 登入過的人(本機還留著 last-sync-uid)開機就初始化,否則付費者冷啟動時所有用戶端閘門都會
+  // 誤判他沒資格。從沒登入過的免費層仍然完全匿名:不載 Firebase、不建 state.account。
+  let returning = false;
+  try { returning = !!localStorage.getItem('trainmap-last-sync-uid'); } catch (e) {}
+  if (ACCOUNT_ENABLED || accountIntent === 'delete' || returning) {
     await accountEnsureInit(); return;
   }
   // 免費層匿名:移除帳號入口鈕與抽屜列,不載 Firebase、不建 state.account;購買 Plus 時才由 plusOpen→accountEnsureInit 延遲初始化
