@@ -2,9 +2,13 @@
 //
 // 為什麼需要這支:2026-08-02 的 Plus 批次,Global Constraint 第一行就寫著
 // 「本 repo 是 PUBLIC,內部成本資訊不得寫進 index.html／worker.js／docs/／測試檔」——
-// 而**寫下那條約束的人(我)在同一個檔案裡違反了三次**(驗收腳本註解「本期額度已用掉七成以上」、
-// 計畫檔「App 佔用量約八成」、計畫檔「第 17/31 天已用 74.1%,估 08-04 見底、之後 $0.15/千」)。
+// 而**寫下那條約束的人(我)在同一個檔案裡違反了三次**:一處在驗收腳本註解、兩處在計畫檔,
+// 型態分別是用量比例、計費期區間、以及「已用百分比＋見底日期＋超額費率」。
 // 複審只抓到其中一處。**散文寫的約束不會自己執行**,所以把它變成會紅的判準。
+//
+// ⚠️ 本檔自己也在掃描範圍內,所以下面的對照樣本一律用**明顯造假的數值**(99.9%、01-01、$9.99)。
+//    第一版拿真實字串當樣本,結果這支腳本自己就是最大的一處洩漏——
+//    執法的機制必須自己先守法,而對照要驗的是「形狀」不是「那個真值」。
 //
 // 只掃「新增行」(diff 的 +):既有的違規另案處理,不讓存量把新增的淹沒;
 // 也避免把 origin/main 既有的設計說明(「Esri 額度止血用」這類無數字的機制描述)算進來。
@@ -19,7 +23,7 @@ const BASE = process.argv[2] || 'origin/main';
 const RULES = [
   { name: '額度／用量百分比', re: /(額度|用量|配額|quota)[^\n]{0,20}\d+(\.\d+)?\s*[%％]/ },
   // ⚠️ 這兩條原本寫成「關鍵詞在前、數字在後」的單一順序,被正向對照當場咬出來:
-  //    中文數字那條的真實樣本是「佔 Esri 用量約八成」(佔在前)、見底那條是「估 08-04 見底」(日期在前)。
+  //    真實洩漏的語序是反的(「佔…用量約N成」關鍵詞在後、「估 MM-DD 見底」日期在前)。
   //    沒有對照的話,這兩條會是永遠的死規則,而它們正是要抓當天那兩處真洩漏的。
   { name: '用量比例(中文數字)', re: /(額度|用量|配額)[^\n]{0,12}[一二三四五六七八九]成/ },
   { name: '「第 N/M 天已用」型進度', re: /第\s*\d+\s*\/\s*\d+\s*天[^\n]{0,10}已用/ },
@@ -31,15 +35,21 @@ const RULES = [
 
 // 🔴 正向對照:pattern 打錯一個字,整支就變成永遠的綠燈(判準盲點形態 11)。
 // 每條規則都先餵一句「一定要被咬住」的樣本,咬不住就直接 FAIL,不進主掃描。
+// 這些樣本**必然**會命中自己的 pattern(那正是它們的用途),所以每行掛 ALLOW 標記讓主掃描跳過。
+// 用「逐行標記」而不是「整個檔案豁免」:這個檔案的其他部分仍然要被掃,
+// 否則它就變成 repo 裡唯一一個可以藏東西的地方——而它剛好是最容易被信任、最少被讀的檔。
 const CONTROLS = [
-  ['額度／用量百分比', '本期額度已用 74.1%'],
-  ['用量比例(中文數字)', 'App 佔 Esri 用量約八成'],
-  ['「第 N/M 天已用」型進度', '第 17/31 天已用 74.1%'],
-  ['金額費率', '之後 $0.15/千'],
-  ['計費期日期區間', 'Esri 本期計費期 07-16→08-15'],
-  ['見底／耗盡日期推估', '估 08-04 見底'],
-  ['疑似金鑰字串', 'token=AAPTxFakeKeyForControl123'],
+  ['額度／用量百分比', '本期額度已用 99.9%'], // hygiene:allow-sample
+  ['用量比例(中文數字)', '某端佔某服務用量約九成'], // hygiene:allow-sample
+  ['「第 N/M 天已用」型進度', '第 99/99 天已用 99.9%'], // hygiene:allow-sample
+  ['金額費率', '之後 $9.99/千'], // hygiene:allow-sample
+  ['計費期日期區間', '本期計費期 01-01→01-31'], // hygiene:allow-sample
+  ['見底／耗盡日期推估', '估 01-01 見底'], // hygiene:allow-sample
+  ['疑似金鑰字串', 'token=AAPTxFakeKeyForControl123'], // hygiene:allow-sample
 ];
+// 刻意拆成兩段字串:寫成完整字面的話,這一行自己就帶著標記 ⇒ 被算成第 8 個豁免。
+// (上面那條「豁免數必須等於對照數」的斷言第一次跑就咬到了這個 off-by-one,留著當它有牙的證據。)
+const ALLOW = 'hygiene:allow' + '-sample';
 
 let failed = 0;
 const ok = (pass, msg) => { console.log(`${pass ? 'PASS' : 'FAIL'} ${msg}`); if (!pass) failed++; };
@@ -54,10 +64,14 @@ if (failed) {
   process.exit(1);
 }
 
-console.log('\n── 主掃描:本分支新增行 ──');
+// 主掃描比對「合併基準 → **工作樹**」,不是 `BASE...HEAD`。
+// 理由:這支是 commit 前的閘門,要能在還沒 commit 時就告訴你哪一行不能進去。
+// 拿 HEAD 當右端的話,你永遠只能在犯錯之後才看到它(第一版就是這樣,自己被自己咬了一輪)。
+console.log('\n── 主掃描:合併基準 → 工作樹(含未 commit 的改動) ──');
 let diff = '';
 try {
-  diff = execFileSync('git', ['diff', `${BASE}...HEAD`, '-U0'], { encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 });
+  const mb = execFileSync('git', ['merge-base', BASE, 'HEAD'], { encoding: 'utf8' }).trim();
+  diff = execFileSync('git', ['diff', mb, '-U0'], { encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 });
 } catch (e) {
   ok(false, `取不到 diff(base=${BASE}):${String(e).slice(0, 120)}`);
   process.exit(1);
@@ -65,18 +79,23 @@ try {
 
 let file = '';
 const hits = [];
-let addedLines = 0;
+let addedLines = 0, allowed = 0;
 for (const line of diff.split('\n')) {
   if (line.startsWith('+++ b/')) { file = line.slice(6); continue; }
   if (!line.startsWith('+') || line.startsWith('+++')) continue;
   const text = line.slice(1);
   addedLines++;
+  if (text.includes(ALLOW)) { allowed++; continue; }
   for (const r of RULES) if (r.re.test(text)) hits.push({ file, rule: r.name, text: text.trim().slice(0, 160) });
 }
 
 // 掃描器本身也要證明有在掃:新增行為 0 表示 base 選錯或分支是空的,
 // 那樣「零命中」同樣沒有意義(形態 11 的另一半——量測器沒在量)。
 ok(addedLines > 0, `掃描器有讀到新增行(base=${BASE}) — ${addedLines} 行`);
+
+// 豁免行要印出數量:豁免是給對照樣本用的,數量應該恰好等於 CONTROLS 的長度。
+// 多出來就代表有人拿這個標記在藏東西——豁免機制本身也要看得見,不然它就是後門。
+ok(allowed === CONTROLS.length, `豁免行數量符合對照樣本數 — 豁免 ${allowed} 行 / 對照 ${CONTROLS.length} 條`);
 
 ok(hits.length === 0, `本分支新增行零內部成本／金鑰洩漏 — 命中 ${hits.length} 筆`);
 for (const h of hits) console.log(`   ⚠️ ${h.file} [${h.rule}] ${h.text}`);

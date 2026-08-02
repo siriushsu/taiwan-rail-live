@@ -1208,14 +1208,32 @@ const PLUS_ENABLED = (() => { try {
 
 ⚠️ 網站端**維持 `?plus=1`**——第一版只在 App 內購。
 
-- [ ] **Step 2：跑齊三支驗收腳本**
+- [ ] **Step 2：跑齊驗收腳本**
 
 ```bash
 cd /Users/xuxiang/Code/軌島-Plus開張
-node scripts/verify_plus_subscription.mjs && node scripts/verify_plus_features.mjs && node scripts/verify_sat_retina.mjs
+node scripts/verify_plus_subscription.mjs; node scripts/verify_plus_features.mjs; node scripts/verify_sat_retina.mjs; node scripts/verify_tripshare.mjs; node scripts/verify_public_repo_hygiene.mjs
 ```
 
-三支全綠才往下。
+全綠才往下。⚠️ 用 `;` 不用 `&&`——`&&` 會在第一支非零時**靜默跳過後面全部**，
+看起來像「只有一支失敗」，實際上是「後面幾支根本沒跑」（判準盲點形態 11 的 shell 變體）。
+
+- [ ] **Step 2b：🔴 push 前的歷史洩漏閘門（不可略過）**
+
+本 repo 是 **PUBLIC**，`git log -p` 撈得到**中間 commit**。最終狀態乾淨 ≠ 歷史乾淨：
+本批次有三處 Esri 額度/成本數字是在中途才被移除的，原始字串**仍留在 5 顆 commit 裡**
+（`2843a01` `08a111a` `6f5ca0e` `88ec068` `2587a4d`）。
+
+```bash
+node scripts/verify_public_repo_hygiene.mjs   # 看「歷史掃描」那一段
+```
+
+**只要那段非空，這條分支就不能以現有 commit 序列 push。** 兩條合規路徑：
+1. **squash 合併進 `main`**（推薦）——中間 commit 不進公開歷史，最終樹已驗證乾淨。
+2. 改寫這幾顆 commit 後再 push。
+
+⚠️ 選 1 時記得：ledger 用 commit hash 當復原錨點，squash 後那些 hash 只在本地有效，
+合併後要把 ledger 的錨點換成新的那顆。
 
 - [ ] **Step 3：發行前 CI**
 
