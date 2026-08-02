@@ -3451,7 +3451,7 @@
         <li class="grp">曾經上線、後來拿掉</li>
         <li><span class="d"></span><span><b>GPS 校正旅程與收集地圖</b>：7/28 上線、7/29 暫時收起繼續打磨——先把心力放在別的改進上。你在這台裝置上的乘車紀錄、護照印章與站章都不受影響，之後開回來時校正貢獻也還在</span></li>
         <li><span class="d"></span><span><b>站內錄影（Beta）</b>：7/10 上線、7/17 因地圖圖資的版權條款下架——想錄畫面請改用手機或電腦內建的螢幕錄影功能</span></li>
-        <li><span class="d"></span><span><b>軌島帳號（跨裝置同步）</b>：7/16 上線、7/17 暫時收起整備。你在這台裝置上的收藏與完乘紀錄、以及先前已同步到雲端的資料都保留；已建立帳號的人仍可從「刪除軌島帳號」頁面自助刪除</span></li>
+        <li><span class="d"></span><span><b>軌島帳號（跨裝置同步）</b>：7/16 上線、7/17 暫時收起整備，隨訂閱 Plus 重新開放——訂閱 Plus 並登入的人現在可以同步收藏與完乘紀錄。你在這台裝置上的收藏與完乘紀錄、以及先前已同步到雲端的資料都保留；已建立帳號的人仍可從「刪除軌島帳號」頁面自助刪除</span></li>
         <li><span class="d"></span><span><b>定位我</b>：定位功能目前停用中，7/18 把手機「更多」選單裡點了沒反應的入口一併拔掉</span></li>
         <li class="grp">起點</li>
         <li><span class="d">7/8</span><span>初版上線：台鐵全日時刻表動畫＋北捷／高捷（含輕軌）／中捷班距模擬</span></li>
@@ -7108,11 +7108,9 @@ const REVENUECAT_WEB_URL = `https://cdn.jsdelivr.net/npm/@revenuecat/purchases-j
 const REVENUECAT_WEB_SRI = 'sha384-uxK23EQfDmI/oo6YmVrqk+9HhGysN0x/nGR3rCt/WWke/GFeWKQDTigtWvgCEZrF';
 function plusConfig() { return window.RAIL_REVENUECAT_CONFIG || {}; }
 // 創始會員＝在創始價期間開始訂閱過的人。判定用訂閱起始時刻,不是當下時刻。
-// originalPurchaseDate 是這個 entitlement「第一次」被購買的日期,斷訂後再訂也不會變——
-// 所以徽章比 Apple Option A 的舊價保護更寬鬆(Option A 要求不斷訂才保住舊價,徽章只看有沒有
-// 在創始期買過)。這是刻意的產品選擇,兩者不是同一個機制,別誤讀成「徽章跟著舊價保護走」。
-// ⚠️ 這個日期與 ASC 上的改價日是同一天,改一個就要改另一個。
-const FOUNDING_UNTIL_MS = Date.parse('2026-09-15T00:00:00+08:00'); // 開賣日 + 30 天,發版前依實際開賣日校正
+// originalPurchaseDate 是這個 entitlement「第一次」被購買的日期,斷訂後再訂也不會變,
+// 故意不用會隨每次續訂/重新訂閱更新的 latestPurchaseDate。
+const FOUNDING_UNTIL_MS = Date.parse('2026-09-15T00:00:00+08:00'); // 創始會員徽章的資格截止時刻,發版前依實際開賣日校正
 function foundingFrom(info) {
   try {
     const ent = info && info.entitlements && info.entitlements.active && info.entitlements.active[plusConfig().entitlement || 'plus'];
@@ -7221,24 +7219,24 @@ function plusRender() {
   // 創始會員徽章有到期日(FOUNDING_UNTIL_MS,見上方 foundingFrom() 旁的說明):過了那天才訂閱的人
   // 永遠拿不到,清單不能無條件宣傳——到期後這一項直接從陣列消失,不留半吊子的「限期」措辭。
   const feats = [
-    '<b>每班車的誤點履歷（逐日紀錄，回溯 90 天）</b>',
+    '<b>台鐵列車的誤點履歷（逐日紀錄，回溯 90 天）</b>',
     '收藏與完乘記錄跨裝置雲端同步',
     '行程分享：把你在哪班車上分享給朋友',
-    'App 衛星底圖高解析度（支援 Retina 螢幕）', // App 限定(2026-08-02 裁示):網站的 SAT_RETINA_DEFAULT 維持 false,不標明就是對網站訂閱者做假廣告
-    '跟車時在鎖定畫面與動態島顯示即時動態（App）',
-    ...(Date.now() < FOUNDING_UNTIL_MS ? ['創始會員徽章'] : []),
+    'App 非跟車時的衛星高解析圖磚（支援 Retina 螢幕）', // App 限定(2026-08-02 裁示):網站的 SAT_RETINA_DEFAULT 維持 false,不標明就是對網站訂閱者做假廣告
+    '跟車時在鎖定畫面與動態島顯示即時動態（iOS 17.6 以上）',
+    ...(Date.now() < FOUNDING_UNTIL_MS ? ['App 旅程護照的創始會員徽章'] : []),
   ].map(t => `<div class="plus-feature"><span>✓</span>${t}</div>`).join('');
   const features = `<div class="plus-features">${feats}</div>` +
     '<p class="plus-trust">列車位置、誤點資訊與系統覆蓋永遠免費——Plus 不影響準確度。</p>';
   // 訂閱法務列(Apple 3.1.2):自動續訂說明 + 隱私權政策/使用條款連結(兩檔都在站台根目錄)。
   const legal = '<div class="plus-legal">' +
-    '<p>訂閱到期前會依商店規則自動續訂扣款；你可以隨時在 App Store／Google Play 或帳號的訂閱設定中取消，取消後於當期結束時停止續訂。</p>' +
+    '<p>訂閱到期前會依商店規則自動續訂扣款；你可以隨時在 App Store 的訂閱設定中取消，取消後於當期結束時停止續訂。</p>' +
     '<p><a href="privacy.html" target="_blank" rel="noopener">隱私權政策</a> · <a href="terms.html" target="_blank" rel="noopener">使用條款</a></p></div>';
   if (p.active) {
     // 已訂閱:管理訂閱在原生殼走商店訂閱管理深連結(customerInfo.managementURL);web 無 portal 時給說明文字。
     const manage = p.mgmtUrl
       ? `<a class="plus-manage" href="${escHtml(p.mgmtUrl)}" target="_blank" rel="noopener">管理訂閱</a>`
-      : '<p class="account-note">訂閱管理請至 App Store／Google Play 的訂閱設定。</p>';
+      : '<p class="account-note">訂閱管理請至 App Store 的訂閱設定。</p>';
     body.innerHTML = hero + features +
       '<div class="plus-owned">Plus 已啟用</div>' + manage +
       '<button class="plus-restore" type="button" data-plus="restore">恢復購買</button>' + legal;
@@ -12457,7 +12455,7 @@ function renderDelayHist() {
     // 付費牆:未登入(401)或無訂閱資格(403)——引導登入並訂閱 Plus。data-dh-cta 沿用既有 plusGateOpen 回路;
     // 用 dh-msg + dh-cta-btn(皆非絕對定位),不套 .dh-cta(inset:0 絕對定位需 .dh-lock 相對容器,無圖表可鎖)。
     body = statRow +
-      `<div class="dh-msg">登入並訂閱 Plus 後，可看每班車近 90 天逐日與週幾誤點履歷。</div>` +
+      `<div class="dh-msg">登入並訂閱 Plus 後，可看台鐵列車近 90 天逐日與週幾誤點履歷。</div>` +
       `<button class="dh-cta-btn" data-dh-cta="1">訂閱 Plus 解鎖完整履歷</button>`;
   } else if (rec.error) {
     body = statRow + `<div class="dh-msg">暫時無法載入誤點履歷${rec.status ? '（' + rec.status + '）' : ''}，稍後再試。</div>` +
