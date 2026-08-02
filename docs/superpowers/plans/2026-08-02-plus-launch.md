@@ -48,7 +48,8 @@
 | `app/scripts/verify-release.mjs` | 發行前 CI 斷言 | 1,3 |
 | `app/scripts/prepare-web.mjs` | App build 時注入 `RAIL_APP_CONFIG` | 3 |
 | `worker.js` | `/api/basemap-token` rate limit | 3 |
-| `app/ios/App/RailBoardWidget/RailFollowActivity.swift` | **新建**：Live Activity 的 SwiftUI 版面與 ActivityAttributes | 5 |
+| `app/ios/App/App/RailFollowAttributes.swift` | **新建**：`ActivityAttributes` 型別。實體檔放 App group，**同時掛進 App 與 Extension 兩個 target 的 Sources**（單一共享來源，避免兩份定義漂移） | 5 |
+| `app/ios/App/RailBoardWidget/RailFollowActivity.swift` | **新建**：Live Activity 的 SwiftUI 版面（**只有版面**；Attributes 在上一列那個檔） | 5 |
 | `app/ios/App/RailBoardWidget/RailBoardWidgetBundle.swift` | 把 Live Activity 加進 WidgetBundle | 5 |
 | `app/ios/App/App/RailLiveActivityPlugin.swift` | **新建**：JS↔ActivityKit 橋接 | 5 |
 | `app/ios/App/App/RailPlacesPlugin.swift` | 註冊新 plugin 實例（`capacitorDidLoad`） | 5 |
@@ -800,7 +801,10 @@ Extension 的 `IPHONEOS_DEPLOYMENT_TARGET` 是 **17.6**（`:535-562`、`:575-601
 **Interfaces:**
 - Consumes：`state.plus.active`（Task 1）、`state.followTrain`
 - Produces：
-  - Swift：`RailFollowAttributes`（`ActivityAttributes`），`ContentState` 欄位＝`nextStop: String`、`arrivalDate: Date`、`delaySec: Int`、`terminus: String`
+  - Swift：`RailFollowAttributes`（`ActivityAttributes`），`ContentState` 欄位＝`nextStop: String`、`arrivalDate: Date?`、`delaySec: Int`、`terminus: String`
+    🔴 `arrivalDate` **必須是 optional**。給非 optional 再配 `?? Date().addingTimeInterval(60)` 之類的
+    fallback，等於在解析失敗時**捏造一個真的在跑的「1 分鐘」倒數**——假倒數比沒有倒數糟得多。
+    解析不出時間就傳 `nil`，版面那一區留白。
   - JS：`window.RAIL_NATIVE_LIVEACTIVITY`，方法 `start({trainNo, kind, nextStop, arrivalIso, delaySec, terminus})`、`update({...同上})`、`end()`，皆回 Promise
 
 - [ ] **Step 0：借 gitignored 的建置輸入（不做的話第一發建置就掛）**
@@ -930,7 +934,21 @@ struct RailFollowActivityWidget: Widget {
 App target 的 Sources 是**逐檔列舉**的，新建 .swift 不會自己進去。手動加五段。
 UUID 已實查在現有檔案中皆不存在（`grep -c` 全為 0），可直接用：
 
-**① `PBXBuildFile` 區**（在既有的 `56F5C629301B0000003C7FE0 /* RailPlacesPlugin.swift in Sources */` 那行後面）加三行：
+🔴🔴 **順序鐵則：與 plugin 有關的那三筆，必須等 Step 5 把實體檔建出來之後才加。**
+Xcode 的 Sources phase 一旦引用某個 `.swift`，它就成為該 target 的**必要 build input**；
+檔案還不存在時，Step 4 的 build 會直接死在：
+
+```
+error: Build input file cannot be found: 'RailLiveActivityPlugin.swift'
+       (in target 'App' from project 'App')
+```
+
+（本批第一次跑就是這樣掛的，不是假設。）所以本步驟**分兩次做**：
+
+- **現在（Step 4 之前）只加 `RailFollowAttributes.swift` 的部分**：①的前兩行、②的第一行、③、④裡的 Attributes、⑤全部。
+- **Step 5 建好 plugin 之後再回來加 plugin 的部分**：①的第三行、②的第二行、③與④裡的 plugin。
+
+**① `PBXBuildFile` 區**（在既有的 `56F5C629301B0000003C7FE0 /* RailPlacesPlugin.swift in Sources */` 那行後面）加三行（**第三行留到 Step 5 後**）：
 
 ```
 		56F5C631301C0000003C7FE0 /* RailFollowAttributes.swift in Sources */ = {isa = PBXBuildFile; fileRef = 56F5C630301C0000003C7FE0 /* RailFollowAttributes.swift */; };
@@ -1018,7 +1036,11 @@ echo "exit=$?"; grep -E "BUILD (SUCCEEDED|FAILED)|error:" /tmp/rail-la-build1.lo
 
 預期：`exit=0`。**這一步失敗就停在這裡修，不要往下寫橋接**——Swift 編譯錯誤混在橋接問題裡很難分。
 
-⚠️ 這一關**只驗得到 Extension 那半**（版面＋共用型別）。plugin 還沒寫，App target 那半要等 Step 9b 的第二道 build gate。
+⚠️ 這一關**只驗得到 Extension 那半**（版面＋共用型別）。plugin 還沒寫，App target 那半要等 Step 9 的第二道 build gate。
+
+🔴 **前提：Step 2b 的 plugin 那三筆還沒加**（見 Step 2b 的順序鐵則）。若已經加了，這一步不會「只驗 Extension」，
+它會直接以 `Build input file cannot be found` 失敗——那不是你的 Swift 寫錯，是步驟順序踩到了。
+遇到就先回 Step 2b 把 plugin 那三筆拿掉，或直接跳去 Step 5 建檔再回來。
 
 - [ ] **Step 5：寫橋接 plugin**
 
@@ -1118,11 +1140,17 @@ public final class RailLiveActivityPlugin: CAPPlugin, CAPBridgedPlugin {
     }
 
     @objc func update(_ call: CAPPluginCall) {
-        guard #available(iOS 17.6, *), let act = current as? Activity<RailFollowAttributes> else {
-            call.resolve(["ok": false, "why": "noactivity"]); return
-        }
+        guard #available(iOS 17.6, *) else { call.resolve(["ok": false, "why": "ios<17.6"]); return }
         let next = state(from: call)
         enqueue {
+            // 🔴 current 只能在 main queue 上讀(見上面 enqueue 的註解),而 Capacitor 的 plugin 方法
+            //    跑在它自己的背景序列佇列上(CapacitorBridge.swift:131 的 DispatchQueue(label:"bridge"))
+            //    ⇒ 在 enqueue 外面讀它,一是對 var 的跨執行緒讀寫,二是必定讀到 start 尚未寫入的舊值
+            //    ⇒ 跟上車後緊接的那發 force update 一律回 noactivity。
+            //    start／end／load 三支都守著這條不變量,唯獨這裡曾漏在外面。
+            guard let act = self.current as? Activity<RailFollowAttributes> else {
+                call.resolve(["ok": false, "why": "noactivity"]); return
+            }
             await act.update(.init(state: next, staleDate: Date().addingTimeInterval(8 * 3600)))
             call.resolve(["ok": true])
         }
@@ -1227,25 +1255,52 @@ function laSync(tr, force) {
 
 ⚠️ **`p.trainNo` 單獨不是唯一鍵**（台鐵與高鐵／捷運真的有同號車），所以 `_laKey` 一定要含 `p.sys`。這與 `followTrainNo(no, {sys})` 是同一條專案鐵則。
 
-- [ ] **Step 9：第二道 build gate（🔴 Step 4 只驗得到 Extension 那半）**
+- [ ] **Step 9：第二道 build gate**
 
-Step 4 跑在 plugin 存在之前，所以它驗不到 App target 的 plugin、target membership、
-availability guard、Capacitor 註冊——H-1／H-2／H-3 這一整族的問題都會安然通過 Step 4。
-plugin 寫完、註冊完之後**一定要再建一次**：
+plugin 寫完、註冊完之後**一定要再建一次**。這一關要驗的是 H-1／H-2／H-3 那一族：
+檔案沒被加進 target 時 build 一樣成功，差別只在「它從頭到尾沒被編譯過」。
 
 ```bash
 cd /Users/xuxiang/Code/軌島-Plus開張/app
 xcodebuild -workspace ios/App/App.xcworkspace -scheme App -configuration Debug \
   -destination 'generic/platform=iOS Simulator' build > /tmp/rail-la-build2.log 2>&1
 echo "exit=$?"
-grep -c "RailLiveActivityPlugin.swift\|RailFollowAttributes.swift" /tmp/rail-la-build2.log
 ```
 
-判準兩條，缺一不可：
-1. `exit=0`
-2. **第二條指令回傳 > 0**——log 裡要真的出現這兩個檔被編譯的紀錄。
-   🔴 這一條就是 H-1 的正向對照：檔案沒被加進 target 時 build 一樣成功，
-   差別只在「它從頭到尾沒被編譯過」。沒有這條對照，`exit=0` 是沉默不是證據。
+🔴 **不要在指令尾端接管道**（`| tail` 之類會把真實 exit code 換成 tail 的 0）。
+
+判準（**逐檔逐 target，任一為 0 即紅**）：
+
+```bash
+# App target 這半
+grep -cE "SwiftCompile.*RailLiveActivityPlugin\.swift.*in target 'App'"  /tmp/rail-la-build2.log
+grep -cE "SwiftCompile.*RailFollowAttributes\.swift.*in target 'App'"    /tmp/rail-la-build2.log
+```
+
+⚠️ **上面這一發驗不到 Extension 那半。** `xcodebuild -scheme App` 在 Extension 已是增量最新時，
+對它只會做 `ProcessInfoPlistFile`、**一行 Swift 都不編**（本批實測即如此）。Extension 要另外建一次：
+
+```bash
+xcodebuild -project ios/App/App.xcodeproj -target RailBoardWidgetExtension -configuration Debug \
+  -sdk iphonesimulator CODE_SIGNING_ALLOWED=NO build > /tmp/rail-la-build2ext.log 2>&1
+echo "exit=$?"
+grep -cE "SwiftCompile.*RailFollowAttributes\.swift.*in target 'RailBoardWidgetExtension'" /tmp/rail-la-build2ext.log
+grep -cE "SwiftCompile.*RailFollowActivity\.swift.*in target 'RailBoardWidgetExtension'"   /tmp/rail-la-build2ext.log
+```
+
+🔴🔴 **絕對不要用「一支 grep 蓋兩個檔名」的聯集寫法**（`grep -c "A\|B"` 然後判 `> 0`）。
+那是把兩個獨立主張用 OR 併成一個：`RailFollowAttributes.swift` **必然**會進 Extension，
+它一個命中就足以讓 gate 恆綠，而 `RailLiveActivityPlugin.swift` 有沒有進 App target
+——也就是這道 gate 唯一真正要防的沉默失敗——**永遠不會被驗到**。
+一個主張一條斷言，各自指名 target。
+
+🔴 **不要用 `grep -c "error:"` 判成敗**：相依套件的棄用警告文字裡就有 `...WithURL:error:`，
+必然假陽性。要判就用行首錨定 `grep -cE "^[^ ]*error:"`。
+
+⚠️ **「binary 裡找得到 class symbol」這條對照做不出來**：`nm -gU`／`nm`／`nm -arch arm64`／
+`strings -a` 四種寫法，**已知存在的對照組 `RailPlacesPlugin` 一律 0 命中**（實測）⇒ 探針自己壞掉，
+兩個方向都證明不了，不要採計它、也不要為了讓它綠而調參數。
+「plugin 真的被 Capacitor 找得到」的唯一有效證據是 Step 10 的模擬器實呼。
 
 - [ ] **Step 10：模擬器實測（台鐵／高鐵）**
 
