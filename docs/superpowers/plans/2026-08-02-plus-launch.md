@@ -4,7 +4,7 @@
 
 **Goal：** 把 Plus 訂閱從「宣告五項、實際只有一項」補成「宣告六項、每項都真的能用」，與北捷逐車同一版上架。
 
-**Architecture：** 前端 `state.plus.active` 是唯一的資格判定來源（由 RevenueCat `customerInfo` 經 `plusRefresh()` 寫入）；需要伺服器強制的走 Worker 的 Firebase ID token ＋ RevenueCat v2 `active_entitlements` 雙重驗證（`/api/delay-history` 已是此模式的參考實作）。純呈現層的加值（衛星高解析、創始徽章、行程分享發起端）採用戶端閘門，不做伺服器強制——使用者 2026-08-02 明確裁示。Live Activity 掛進**既有的** `RailBoardWidget` Extension，不新開 target。
+**Architecture：** 前端 `state.plus.active` 是唯一的資格判定來源，由 `plusRefresh()` 寫入——App 走 RevenueCat `customerInfo`（原生 adapter），**網站走 Worker 的 `/api/plus-status`**（`revenuecat-config.js` 只有 `iosApiKey`，沒有 Web Billing key，網站永遠 `plusConfigured() === false`，讀不到 RevenueCat）。`plusRefresh()` 在 `onAuthStateChanged` 登入當下就跑一次，不等使用者打開 Plus 面板。需要伺服器強制的走 Worker 的 Firebase ID token ＋ RevenueCat v2 `active_entitlements` 雙重驗證（`/api/delay-history` 已是此模式的參考實作）。純呈現層的加值（衛星高解析、創始徽章、行程分享發起端）採用戶端閘門，不做伺服器強制——使用者 2026-08-02 明確裁示。Live Activity 掛進**既有的** `RailBoardWidget` Extension，不新開 target。
 
 **Tech Stack：** 單檔前端 `index.html`（純 JS，無框架、無模組）、Cloudflare Worker `worker.js`、Capacitor iOS 殼、SwiftUI WidgetKit ＋ ActivityKit、RevenueCat、Firebase Auth、Playwright（驗收）。
 
@@ -31,7 +31,7 @@
 | # | 項目 | 由哪個 Task 交付 | 強制層級 |
 |---|---|---|---|
 | 1 | 每班車的誤點履歷與統計圖表 | 已完成（Task 7 補 happy-path 實測） | 伺服器強制 |
-| 2 | 收藏跨裝置雲端同步 | Task 1 | 伺服器強制（Firestore rules） |
+| 2 | 收藏跨裝置雲端同步 | Task 1 | 用戶端閘門（2026-08-02 裁示，與衛星同一套榮譽制；Firestore rules 不動） |
 | 3 | 行程分享 | Task 2 | 用戶端閘門 |
 | 4 | 衛星高解析度（支援 Retina 螢幕） | Task 3 | 用戶端閘門（裁示） |
 | 5 | 創始會員徽章 | Task 4 | 用戶端閘門 |
@@ -105,17 +105,23 @@ git log --oneline -1
 
 ## Task 1：帳號系統重開（雲端同步）
 
-這是鏈最長的一項（要真機、要沙箱），先做。`ACCOUNT_ENABLED` 與 `RAIL_APPLE_LOGIN` **必須同批**——只開帳號不開 Apple 登入＝半套登入，是 App Store 4.8 的退件主因。
+這是鏈最長的一項（要真機、要沙箱），先做。本 Task 的核心不是翻旗標，是**讓 `state.plus.active` 在該真的時候真、並讓雲端同步只給有資格的人**——Task 2/3/4/5 的用戶端閘門全部踩在這個前提上。
+
+⚠️ 2026-08-02 修訂：初版計畫寫「翻開 `ACCOUNT_ENABLED` 與 `RAIL_APPLE_LOGIN` 兩個旗標」，那是錯的。翻開 `ACCOUNT_ENABLED` 會把帳號鈕放回所有人的主畫面（`setupAccountUi` 是互斥二選一），且**光翻旗標一層閘門都沒有**——`accountSyncNow` 與 `firestore.rules` 都不看資格，任何人登入就能免費同步。詳見 Step 3／Step 6。
 
 **Files:**
-- Modify: `index.html`（`const ACCOUNT_ENABLED` 那一行）
+- Modify: `index.html`（`onAuthStateChanged` 的 bootstrap、`plusRefresh` 的網站分支、`accountSyncNow` 的資格閘、`accountRender` 的同步鈕、更新紀錄）
 - Modify: `firebase-config.js`（**repo 根目錄那份才是來源**；`app/ios/App/App/public/firebase-config.js` 是 `npm run sync` 產生的副本，改它會被蓋掉）
-- Modify: `scripts/verify_plus_subscription.mjs`（移除假登入注入）
-- Test: `scripts/verify_plus_subscription.mjs`
+- Modify: `worker.js`（抽出 entitlement helper、新增 `/api/plus-status`）
+- Modify: `scripts/verify_plus_subscription.mjs`（新斷言、`SHOT_DIR`、`BASE` 帶 `?plus=1`）
+- **不動**：`index.html` 的 `const ACCOUNT_ENABLED`（維持 `false`）、`firestore.rules`（本批次採用戶端閘門）
 
 **Interfaces:**
 - Consumes：無（本批次第一個實作任務）
-- Produces：`state.account.user`（Firebase User 物件）在登入後可用；`accountEnsureInit()` 為冪等延遲初始化；`state.plus.active`（boolean）由 `plusRefresh()` 寫入。後續 Task 2/3/4/5 全部消費 `state.plus.active`。
+- Produces：
+  - `state.plus.active`（boolean）——**登入後即可用**（`onAuthStateChanged` 會 `await plusRefresh()`），不再需要使用者先打開 Plus 面板。後續 Task 2/3/4/5 全部消費它。
+  - `GET /api/plus-status`（`Authorization: Bearer <Firebase ID token>`）→ `200 {active:boolean}`｜`401`｜`503`。網站端資格的唯一來源。
+  - `state.account.user`（Firebase User 物件）在登入後可用；`accountEnsureInit()` 為冪等延遲初始化。
 
 - [ ] **Step 1：先寫會失敗的測試——證明現在買不了 Plus**
 
@@ -124,18 +130,22 @@ git log --oneline -1
 在 `scripts/verify_plus_subscription.mjs` 加一個新斷言（**不要動既有斷言**）：
 
 ```javascript
-// 匿名使用者點 Plus 入口 → 必須看得到登入鈕（不是空白視窗）
-// 這條在 ACCOUNT_ENABLED=false 時必失敗：accountEnsureInit 不載 Firebase ⇒ 畫不出登入鈕
+// 匿名使用者點 Plus 入口 → 必須看得到 Google＋Apple 兩顆登入鈕（不是空白視窗、也不是只有一顆）
+// 這條在 RAIL_APPLE_LOGIN=false 時必失敗：accountRender 只畫得出 Google 一顆
 async function assertAnonymousCanReachLogin(page) {
   await page.evaluate(() => { try { localStorage.clear(); } catch (e) {} });
   await page.reload({ waitUntil: 'networkidle' });
   await page.evaluate(() => window.plusGateOpen('test-gate', () => {}));
-  await page.waitForTimeout(2500); // Firebase SDK 是延遲載入,給它時間
+  // 條件式等待,不用固定秒數:Firebase SDK 是延遲載入,冷載入比暖載入慢很多,
+  // 固定 timeout 會讓這條斷言實際在量「載入快不快」而不是「旗標對不對」。
+  await page.waitForSelector('[data-login="google"]', { timeout: 15000 }).catch(() => {});
   const loginBtns = await page.locator('[data-login="google"], [data-login="apple"]').count();
   return { name: '匿名使用者可抵達登入鈕', ok: loginBtns >= 2,
            detail: `找到 ${loginBtns} 顆登入鈕（需要 Google＋Apple 兩顆）` };
 }
 ```
+
+⚠️ **`ACCOUNT_ENABLED` 與這條斷言無關**——`plusGateOpen` → `plusOpen` 會自己呼叫 `accountEnsureInit()`（index.html:7130），而 `accountEnsureInit` 對「鈕已被移除→null」有處理（index.html:7001），所以免費層匿名時購買鏈照樣通。會讓這條紅的只有 `RAIL_APPLE_LOGIN`。
 
 - [ ] **Step 2：跑它，確認失敗**
 
@@ -146,13 +156,7 @@ node scripts/verify_plus_subscription.mjs 2>&1 | tail -20
 
 預期：新斷言 FAIL，`找到 0 顆登入鈕`。
 
-- [ ] **Step 3：翻開兩個旗標**
-
-`index.html`——把 `ACCOUNT_ENABLED` 那一行改成：
-
-```javascript
-const ACCOUNT_ENABLED = true; // 2026-08-02 Plus 開張:雲端同步是 Plus 第二支柱,帳號系統重開。免費層仍匿名(accountEnsureInit 延遲初始化),只有購買 Plus／?account=delete 才載 Firebase
-```
+- [ ] **Step 3：只翻 `RAIL_APPLE_LOGIN`，`ACCOUNT_ENABLED` 維持 `false`**
 
 repo 根目錄的 `firebase-config.js`（`index.html:33` 用 `<script src="firebase-config.js">` 載它，`prepare-web.mjs:86` 把它複製進 App bundle）：
 
@@ -161,6 +165,63 @@ window.RAIL_APPLE_LOGIN = true;
 ```
 
 ⚠️ **不要改 `app/ios/App/App/public/firebase-config.js`**——那是建置產物，`npm run sync` 會用根目錄那份覆蓋它。改錯地方的症狀是「本機測試過了，App build 出來還是 false」。
+
+🔴 **`ACCOUNT_ENABLED` 必須維持 `false`。** 2026-07-21 使用者拍板甲案：「免費層匿名、只有買 Plus 才登入」。`setupAccountUi()`（index.html:7049-7054）是**互斥二選一**不是疊加——`true` 會選中 eager 分支，把帳號鈕放回所有人的主畫面、對每個訪客載 Firebase，等於把 07-17 那次刻意下架（為了「收費前不再有免費用過同步的新增使用者」）整個倒回去。購買鏈不需要它：`plusOpen` 自己會 `accountEnsureInit()`。
+
+- [ ] **Step 4：補開機資格 bootstrap（Task 2/3/4/5 全部靠這個）**
+
+`state.plus.active` 目前**只有使用者主動打開 Plus 面板時才會被填**——`p.active` 全檔僅三處寫入（index.html:7203／7221／7239），分別在 `plusRefresh`／`plusPurchase`／`plusRestore` 內，開機序列（index.html:14992-14993 的 `setupAccountUi()`／`setupPlusUi()`）一個都沒呼叫。後果：付費者冷啟動後所有用戶端閘門都判他沒資格。
+
+在 `onAuthStateChanged`（index.html:7031-7039）的 `if (user)` 分支，**`accountSyncNow('login')` 之前**插入：
+
+```javascript
+        if (user) {
+          await plusRefresh(); // 先確認資格再決定要不要同步;plusRefresh 自帶 !plusConfigured() 早退,不會在無購買通道的平台亂初始化 SDK
+          await accountSyncNow('login');
+```
+
+- [ ] **Step 5：網站端補 `/api/plus-status`**
+
+`plusRefresh()` 卡在 `plusConfigured()`（index.html:7069-7076），而它在網站上要求 `c.webApiKey`——`revenuecat-config.js` 只設了 `iosApiKey`。所以**網站端 `state.plus.active` 恆為 false**，四項 Plus 功能在 railisland.tw 上全部不生效。2026-08-02 使用者裁示：補一支唯讀端點讓網站讀得到 App 買的資格，不設 Web Billing key、不開放網站購買。
+
+`worker.js` 的 delay-history 處理器裡已經有這段驗證（`worker.js:524-545`：Firebase ID token 經 identitytoolkit lookup 換 uid → RevenueCat v2 `active_entitlements`）。把它**原封不動抽成 helper**（不要改判定邏輯，尤其 `items.length > 0` 那條——用 `entitlement_id` 比對會踩 v2 回傳內部不透明 id `entl...` 的靜默鎖死陷阱），delay-history 改呼叫 helper，再加：
+
+```javascript
+// GET /api/plus-status  Authorization: Bearer <Firebase ID token>
+// → 200 {active:boolean}｜401 無 token｜503 上游或 secret 未設(fail-closed)
+// 唯讀,不寫任何東西;no-store,不進共享 edge 快取(每個 uid 的答案不同)
+```
+
+回應一律 `Cache-Control: no-store`。secret 未設或上游錯 → 503，**不要回 `{active:false}`**——把「查不到」跟「沒資格」混在一起，會在 RevenueCat 短暫故障時把付費者的功能整批關掉。
+
+`index.html` 端：`plusRefresh()` 在 `!plusConfigured()` 早退之前，先試這支端點——拿 `state.account.user.getIdToken()` 打 `/api/plus-status`，回 `{active:true}` 就寫進 `p.active` 並 `accountRender()`。網站沒有購買通道這件事不變（`plusConfigured()` 仍是 false，`plusOpen` 照舊停在「請在 App 內訂閱」畫面）。
+
+- [ ] **Step 6：雲端同步接上資格閘門**
+
+`accountSyncNow(reason)`（index.html:6862-6864）現在只檢查 `a.user／a.db／a.syncing`，任何人登入就能同步。守門條件改成：
+
+```javascript
+async function accountSyncNow(reason) {
+  const a = state.account;
+  if (!a || !a.user || !a.db || a.syncing) return false;
+  // 雲端同步是 Plus 功能(2026-08-02 裁示:用戶端閘門)。logout 是刻意的例外——
+  // 登出會清掉本機資料(accountClearLocal),不讓最後一次回寫完成就等於吃掉使用者的東西。
+  if (reason !== 'logout' && !(state.plus && state.plus.active)) return false;
+```
+
+一個入口擋住全部六個呼叫點（`login`／`manual`／`local-change`／`foreground`／`logout`／`-legacy`）。
+
+`accountRender()`（index.html:6842-6844）的「立即同步」鈕與「跨裝置同步」狀態列，未訂閱時改成停用態＋一句說明（文案照 Global Constraints 的窄承諾，**不要**寫「永遠」「一個都不會拿走」）。
+
+- [ ] **Step 7：`SHOT_DIR` 不要寫死 session 路徑**
+
+`scripts/verify_plus_subscription.mjs:30` 目前是硬編的 session scratchpad 絕對路徑，每個 session 都要手改一次（本次就已經改過一次）。改成可推導：
+
+```javascript
+const SHOT_DIR = process.env.SHOT_DIR || path.join(os.tmpdir(), 'rail-plus-shots');
+```
+
+目錄不存在就 `fs.mkdirSync(SHOT_DIR, { recursive: true })`。
 
 - [ ] **Step 4：跑測試，確認通過**
 
@@ -171,7 +232,22 @@ node scripts/verify_plus_subscription.mjs 2>&1 | tail -20
 
 預期：新斷言 PASS（2 顆登入鈕），且**既有斷言全數維持通過**。任何既有斷言由綠轉紅＝回歸，停手查明。
 
-- [ ] **Step 5：確認 verify-release 的半套登入 gate 現在會放行**
+- [ ] **Step 8：跑測試，確認通過**
+
+```bash
+cd /Users/xuxiang/Code/軌島-Plus開張
+node scripts/verify_plus_subscription.mjs 2>&1 | tail -20
+```
+
+預期：新斷言 PASS（2 顆登入鈕），且**既有斷言全數維持通過**。任何既有斷言由綠轉紅＝回歸，停手查明。
+
+- [ ] **Step 9：閘門的突變測試（沒有牙的判準等於沒驗）**
+
+把 Step 6 的資格條件暫時拿掉（`if (reason !== 'logout' && !(state.plus && state.plus.active)) return false;` 整行註解掉），加一條驗這件事的斷言並確認它**轉紅**；還原後確認轉綠。斷言的做法：注入一個假登入使用者但 `state.plus.active = false`，觸發 `accountSyncNow('manual')`，斷言它回 `false` 且沒有發出任何 Firestore 寫入。
+
+沒轉紅＝判準沒有牙，回去修判準（心得 35）。
+
+- [ ] **Step 10：確認 verify-release 的半套登入 gate**
 
 ```bash
 cd /Users/xuxiang/Code/軌島-Plus開張/app
@@ -179,29 +255,31 @@ npm run sync 2>&1 | tail -5
 RAIL_ALLOW_SAFE_BUILD=1 node scripts/verify-release.mjs 2>&1 | tail -20
 ```
 
-預期：`verify-release.mjs:394` 那條「帳號功能已開啟但 RAIL_APPLE_LOGIN 不是 true」的斷言通過（因為兩個都 true 了）。
+⚠️ `verify-release.mjs:394-395` 那條的條件是「帳號功能已開啟時 `RAIL_APPLE_LOGIN` 必須是 true」。本 Task 讓 `ACCOUNT_ENABLED` 維持 `false` 而 `RAIL_APPLE_LOGIN` 轉 `true`——先跑一次看它怎麼判。若它因為「帳號沒開啟卻開了 Apple 登入」而紅，那是**判準過期**（07-21 之後帳號的實際入口是 `plusOpen` 不是 `ACCOUNT_ENABLED`），把斷言改成對「登入鈕實際會不會被畫出來」的條件式判斷，不要為了過關去翻旗標。
 
-- [ ] **Step 6：手機四寬度驗證**
+- [ ] **Step 11：手機四寬度驗證**
 
-登入面板是新露出的 UI，照 Global Constraints 掃 360／375／414／768 四寬度：面板不出視窗、兩顆登入鈕的 `elementFromPoint` 各自命中自己（**不是量幾何不相交——並排按鈕要驗點下去會發生什麼**）。
+登入面板是新露出的 UI，照 Global Constraints 掃 360／375／414／768 四寬度：面板不出視窗、兩顆登入鈕的 `elementFromPoint` 各自命中自己（**不是量幾何不相交——並排按鈕要驗點下去會發生什麼**）。未訂閱時的停用態同步鈕也要一起掃（它是本 Task 新增的 UI）。
 
-- [ ] **Step 7：更新紀錄加一條**
+- [ ] **Step 12：更新紀錄加一條**
 
-在 `#msAbout` 的 `.foot-recent` 最上方加：
+在 `#msAbout` 的 `.foot-recent` 最上方加（**文案必須說清楚這是 Plus 功能**，否則等於對外宣告同步免費）：
 
 ```html
-<li><span class="d">8/2</span><span>可以用軌島帳號登入，收藏的地點與完乘記錄會在手機和電腦之間同步</span></li>
+<li><span class="d">8/2</span><span>訂閱軌島 Plus 後可以用軌島帳號登入，收藏的地點與完乘記錄會在手機和電腦之間同步</span></li>
 ```
 
-- [ ] **Step 8：Commit**
+被擠出「最近更新」的舊條目**搬進**巢狀主題組——搬家不複製，搬完 grep 確認全檔只剩一份。
+
+- [ ] **Step 13：Commit**
 
 ```bash
 cd /Users/xuxiang/Code/軌島-Plus開張
-git add index.html firebase-config.js scripts/verify_plus_subscription.mjs
-git commit -m "feat(Plus): 重開帳號系統與 Apple 登入，雲端同步回到 Plus 清單"
+git add index.html firebase-config.js worker.js scripts/verify_plus_subscription.mjs
+git commit -m "feat(Plus): 雲端同步接上訂閱資格閘門，網站端補 /api/plus-status 讀 App 買的資格"
 ```
 
-- [ ] **Step 9：真機端到端（需要人，無法自動化）**
+- [ ] **Step 14：真機端到端（需要人，無法自動化）**
 
 在 Xcode 用 Team `UCD3GAKML6` 跑到實機，走完整鏈：**登入 → 登出 → 重新登入 → 刪帳號**。四步都要成功，且刪帳號後 `/api/account-delete` 回 200、Firestore 該 uid 的資料真的消失。
 
@@ -910,7 +988,7 @@ git commit -m "feat(Plus): 跟車時在鎖定畫面與動態島顯示即時動�
 //    改文案時若把 needle 也改掉,這支就會轉紅,那正是我們要的（清單與實作脫節必須有人知道）。
 const REQUIRED = [
   { needle: '誤點履歷', symbol: /plusGateOpen\('delay-history'/ },
-  { needle: '雲端同步', symbol: /const ACCOUNT_ENABLED = true/ },
+  { needle: '雲端同步', symbol: /reason !== 'logout' && !\(state\.plus && state\.plus\.active\)/ },
   { needle: '行程分享', symbol: /function tripShareVisible\s*\(/ },
   { needle: '高解析',   symbol: /function satRetinaAllowed\s*\(/ },
   { needle: '創始會員', symbol: /function foundingFrom\s*\(/ },
