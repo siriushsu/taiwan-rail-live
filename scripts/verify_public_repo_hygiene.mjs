@@ -1,0 +1,115 @@
+// 公開 repo 衛生檢查:掃「本分支新增的行」有沒有把內部成本／額度用量／金鑰類資訊寫進 repo。
+//
+// 為什麼需要這支:2026-08-02 的 Plus 批次,Global Constraint 第一行就寫著
+// 「本 repo 是 PUBLIC,內部成本資訊不得寫進 index.html／worker.js／docs/／測試檔」——
+// 而**寫下那條約束的人(我)在同一個檔案裡違反了三次**(驗收腳本註解「本期額度已用掉七成以上」、
+// 計畫檔「App 佔用量約八成」、計畫檔「第 17/31 天已用 74.1%,估 08-04 見底、之後 $0.15/千」)。
+// 複審只抓到其中一處。**散文寫的約束不會自己執行**,所以把它變成會紅的判準。
+//
+// 只掃「新增行」(diff 的 +):既有的違規另案處理,不讓存量把新增的淹沒;
+// 也避免把 origin/main 既有的設計說明(「Esri 額度止血用」這類無數字的機制描述)算進來。
+//
+// 用法:node scripts/verify_public_repo_hygiene.mjs [base]   base 預設 origin/main
+import { execFileSync } from 'node:child_process';
+
+const BASE = process.argv[2] || 'origin/main';
+
+// 禁的是「具體數值」,不是「提到成本」——機制說明(「額度吃緊時改 false」)必須留著,
+// 否則維護的人看不懂那個開關為什麼存在。所以每條 pattern 都綁著數字或金額符號。
+const RULES = [
+  { name: '額度／用量百分比', re: /(額度|用量|配額|quota)[^\n]{0,20}\d+(\.\d+)?\s*[%％]/ },
+  // ⚠️ 這兩條原本寫成「關鍵詞在前、數字在後」的單一順序,被正向對照當場咬出來:
+  //    中文數字那條的真實樣本是「佔 Esri 用量約八成」(佔在前)、見底那條是「估 08-04 見底」(日期在前)。
+  //    沒有對照的話,這兩條會是永遠的死規則,而它們正是要抓當天那兩處真洩漏的。
+  { name: '用量比例(中文數字)', re: /(額度|用量|配額)[^\n]{0,12}[一二三四五六七八九]成/ },
+  { name: '「第 N/M 天已用」型進度', re: /第\s*\d+\s*\/\s*\d+\s*天[^\n]{0,10}已用/ },
+  { name: '金額費率', re: /(\$|US\$|美元|NT\$)\s*\d+(\.\d+)?\s*\/\s*(千|萬|月|年|k)/ },
+  { name: '計費期日期區間', re: /計費期[^\n]{0,6}\d{1,2}-\d{1,2}\s*[→~-]\s*\d{1,2}-\d{1,2}/ },
+  { name: '見底／耗盡日期推估', re: /((見底|耗盡|用完)[^\n]{0,12}\d{1,2}[-\/月]\d{1,2})|(\d{1,2}[-\/月]\d{1,2}[^\n]{0,12}(見底|耗盡|用完))/ },
+  { name: '疑似金鑰字串', re: /(AAPT|sk-|ghp_|AIza)[A-Za-z0-9_\-]{12,}/ },
+];
+
+// 🔴 正向對照:pattern 打錯一個字,整支就變成永遠的綠燈(判準盲點形態 11)。
+// 每條規則都先餵一句「一定要被咬住」的樣本,咬不住就直接 FAIL,不進主掃描。
+const CONTROLS = [
+  ['額度／用量百分比', '本期額度已用 74.1%'],
+  ['用量比例(中文數字)', 'App 佔 Esri 用量約八成'],
+  ['「第 N/M 天已用」型進度', '第 17/31 天已用 74.1%'],
+  ['金額費率', '之後 $0.15/千'],
+  ['計費期日期區間', 'Esri 本期計費期 07-16→08-15'],
+  ['見底／耗盡日期推估', '估 08-04 見底'],
+  ['疑似金鑰字串', 'token=AAPTxFakeKeyForControl123'],
+];
+
+let failed = 0;
+const ok = (pass, msg) => { console.log(`${pass ? 'PASS' : 'FAIL'} ${msg}`); if (!pass) failed++; };
+
+console.log('── 正向對照:每條 pattern 都必須咬得住已知樣本 ──');
+for (const [name, sample] of CONTROLS) {
+  const rule = RULES.find(r => r.name === name);
+  ok(!!rule && rule.re.test(sample), `對照「${name}」咬得住樣本 — ${sample}`);
+}
+if (failed) {
+  console.log('\n🔴 pattern 自身壞掉,主掃描的「零命中」沒有意義,直接中止。');
+  process.exit(1);
+}
+
+console.log('\n── 主掃描:本分支新增行 ──');
+let diff = '';
+try {
+  diff = execFileSync('git', ['diff', `${BASE}...HEAD`, '-U0'], { encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 });
+} catch (e) {
+  ok(false, `取不到 diff(base=${BASE}):${String(e).slice(0, 120)}`);
+  process.exit(1);
+}
+
+let file = '';
+const hits = [];
+let addedLines = 0;
+for (const line of diff.split('\n')) {
+  if (line.startsWith('+++ b/')) { file = line.slice(6); continue; }
+  if (!line.startsWith('+') || line.startsWith('+++')) continue;
+  const text = line.slice(1);
+  addedLines++;
+  for (const r of RULES) if (r.re.test(text)) hits.push({ file, rule: r.name, text: text.trim().slice(0, 160) });
+}
+
+// 掃描器本身也要證明有在掃:新增行為 0 表示 base 選錯或分支是空的,
+// 那樣「零命中」同樣沒有意義(形態 11 的另一半——量測器沒在量)。
+ok(addedLines > 0, `掃描器有讀到新增行(base=${BASE}) — ${addedLines} 行`);
+
+ok(hits.length === 0, `本分支新增行零內部成本／金鑰洩漏 — 命中 ${hits.length} 筆`);
+for (const h of hits) console.log(`   ⚠️ ${h.file} [${h.rule}] ${h.text}`);
+
+// ── 第二階段:歷史掃描 ────────────────────────────────────────────────
+// 上面掃的是「HEAD 的樹」= 最終狀態。但這個 repo 是 PUBLIC,**中間 commit 也會被 push 出去**,
+// `git log -p` 撈得到。最終狀態乾淨 ≠ 歷史乾淨:把洩漏的那行在後續 commit 改掉,
+// 原始字串仍然永久留在前一顆 commit 裡。
+// 這一段刻意不計入 exit code——它要求的動作是「push 前 squash 或改寫歷史」,
+// 屬於合併時的閘門,不是每次跑驗收都能當場解決的事。但它必須**印出來**,
+// 否則就是另一個「寫了沒人看」的警告。
+console.log('\n── 歷史掃描:中間 commit(push 前必須處理) ──');
+let histHits = [];
+try {
+  const log = execFileSync('git', ['log', '-p', '-U0', `${BASE}..HEAD`], { encoding: 'utf8', maxBuffer: 128 * 1024 * 1024 });
+  let commit = '', hfile = '';
+  for (const line of log.split('\n')) {
+    if (line.startsWith('commit ')) { commit = line.slice(7, 14); continue; }
+    if (line.startsWith('+++ b/')) { hfile = line.slice(6); continue; }
+    if (!line.startsWith('+') || line.startsWith('+++')) continue;
+    const text = line.slice(1);
+    for (const r of RULES) if (r.re.test(text)) histHits.push({ commit, file: hfile, rule: r.name, text: text.trim().slice(0, 120) });
+  }
+} catch (e) { console.log(`   (歷史掃描失敗:${String(e).slice(0, 100)})`); }
+
+if (histHits.length === 0) {
+  console.log('   ✅ 歷史也乾淨,可直接 push。');
+} else {
+  const commits = [...new Set(histHits.map(h => h.commit))];
+  console.log(`   🔴 ${histHits.length} 筆命中,分布在 ${commits.length} 顆 commit:${commits.join(' ')}`);
+  for (const h of histHits) console.log(`      ${h.commit} ${h.file} [${h.rule}] ${h.text}`);
+  console.log('   ⇒ push 前必須 squash 合併(或改寫這幾顆),否則這些字串會永久公開。');
+}
+
+console.log(`\n──────── ${failed ? 'FAIL' : 'ALL PASS'}(最終狀態)${histHits.length ? ' ／ 歷史待處理' : ''} ────────`);
+process.exit(failed ? 1 : 0);

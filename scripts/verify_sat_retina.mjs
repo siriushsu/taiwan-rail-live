@@ -19,7 +19,7 @@
 //     判準等於沒有牙(心得29:判準的真值來源不得與被驗對象共用同一個會變動的旗標)。
 //   - deviceScaleFactor 全程 ≥2,否則 detectRetina 對誰都不生效,情境 3/4 測不出差異。
 //   - Esri 圖磚全程用 page.route 攔截並回應本機小圖(絕不打真正的 ibasemaps-api,不需要真
-//     token)——本期 Esri 額度已用掉七成以上,不能為了跑驗收再燒一張真圖磚。
+//     token)——圖磚是按張計費的,驗收不該燒真額度,也不該依賴外部服務的可用性。
 import { chromium, webkit } from 'playwright';
 import { createServer } from 'node:http';
 import { readFileSync, existsSync, statSync } from 'node:fs';
