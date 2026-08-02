@@ -376,7 +376,7 @@ grep -n "TRIP_SHARE_ENABLED\|tripShareVisible" index.html
 用本機 server 開三次：
 
 1. 無參數 → 跟隨一班台鐵車 → `#fpTripShare` **不出現**
-2. `?plus=1` → 同上 → 出現（`?plus=1` 只點亮 Plus UI，`state.plus.active` 仍 false ⇒ 這裡應該**仍不出現**，因為 `tripShareVisible()` 讀的是 `active` 不是 `PLUS_ENABLED`）
+2. `?plus=1` → 同上 → **仍不出現**（`?plus=1` 只點亮 Plus UI，`state.plus.active` 仍 false；`tripShareVisible()` 讀的是 `active` 不是 `PLUS_ENABLED`）
 3. `?tripshare=1` → 出現（開發測試通道）
 
 ⚠️ 情境 2 是本 Task 最容易寫錯的地方：`PLUS_ENABLED` 是**UI 總閘**，`state.plus.active` 才是**資格**。搞混會讓任何人加 `?plus=1` 就白拿。
