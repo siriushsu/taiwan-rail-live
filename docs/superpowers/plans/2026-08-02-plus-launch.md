@@ -981,7 +981,10 @@ function laPayloadMetro() {
     const nx = Array.isArray(ot.path) ? ot.path.find(p => p.i !== ot.i) : null;
     return { trainNo: String(ot.no || ''), kind: '', sys: 'trtc',
              nextStop: nx ? String(nx.name || '') : '',
-             arrivalIso: '',                    // 見下方「官方到站倒數」
+             // 🔴 nx.eta 已經是絕對 epoch 秒、且錨在上游 NowDateTime。禁止再加 Date.now(),
+             //    也不要自己從 CountDown 重算——那正是 feat/trtc-live e4f4b80 修掉的 bug
+             //    (原本錨在我方 fetch 時刻,每份快照系統性多算 6~10 秒)。
+             arrivalIso: nx ? new Date(nx.eta * 1000).toISOString() : '',
              delaySec: 0, terminus: String(ot.destName || '') };
   }
   if (f.tr) { /* 實際時刻班次:沿用 nextStopInfo 那一套,shift 走 metroShiftSec(f.ln, f.tr) */ }
@@ -989,15 +992,19 @@ function laPayloadMetro() {
 }
 ```
 
-⚠️ **官方到站倒數這一版留空**。`feat/trtc-live` 的 Task 6 會在跟車卡加上官方到站倒數（月台告示牌那個數字），**在它落地之前不要自己從 `state.trtc` 算**——會跟畫面顯示的不一致。所以 `arrivalIso` 對官方車先給空字串，Swift 端要能**降級渲染**：沒有 `arrivalIso` 就不畫 `Text(timerInterval:)` 那一列，只顯示車號／下一站／終點。卡片仍然有用，且他們 Task 6 落地後只要把一個取值換掉。
+✅ **官方到站倒數已可用**（`feat/trtc-live` 的 Task 6 已落地：`e4f4b80` 含基準修正 ＋ `14e9deb`）。`state.trtc.byLine` 裡每台官方車的 `path[]` 依 `eta` 遞增排序，`eta` 是**絕對 epoch 秒**。
 
-🔴 **時間基準**（`feat/trtc-live` 2026-08-02 修復 `e4f4b80` 的教訓）：官方 `CountDown` 是相對於**上游自己的 `NowDateTime`**，不是我們的 `Date.now()`。兩者實測差 6～10 秒。將來接官方倒數時，錨點只能是 `NowDateTime`；用 `Date.now()` 會讓倒數比月台告示牌多算一個 fetch 延遲。
+🔴 **`eta` 已經錨在上游 `NowDateTime`，不要再加 `Date.now()`，也不要自己從 `CountDown` 重算。** 這正是他們修掉的 bug——原本 `path[].eta` 錨在我方 fetch 時刻，比上游實際時刻系統性多算一個延遲（實測每份快照內是 6～10 秒的單一常數；修完 215 組 path/board delta 全為 0）。同一個錯誤也曾讓地圖上官方車的位置推估整體偏移。
+
+⚠️ **`path` 一定要濾掉 `p.i === t.i`**：它會含「列車進站」（0 秒）的**當前站**，不濾就會拿到「它正停著的那一站」當下一站。
+
+⚠️ **文湖線（BR）的 `path` 恆為空陣列** ⇒ `arrivalIso` 拿不到，Swift 端的**降級渲染**（沒有 `arrivalIso` 就不畫 `Text(timerInterval:)` 那一列，只顯示車號／下一站／終點）仍然必要，不要因為高運量有倒數就省掉。前端另有 `trtcBoardEta(ln, i, nx, dir)` 走看板列解，但那是前端函式、解不出唯一列時回 `null` 不猜——要在 Swift 端用得另外從 worker 出一份，**本版不做**。
 
 🔴 **拆卡片的接點：捷運是 `clearFreqFollow()`（`index.html:5047`，14 個呼叫點），不是 `clearFollow()`。** 兩個都要掛。掛在 `clearFreqFollow()` 函式**內部**一處，不要去改 14 個呼叫點。
 
 🔴 **官方車的跟隨結束得比時刻表車頻繁得多，Live Activity 要能承受「開一秒就結束」。** `trtcActive(ln)` 一翻假就 `clearFreqFollow()` ＋ toast（`index.html:5120`），翻假條件包括**使用者調速、把時間軸拉離現在超過 120 秒、資料齡超過門檻、上游沒有這條線的車**——按一下加速鈕就會發生。Swift 端必須：`Activity.request()` 的 handle 要留著，`end()` 在 request 還沒 resolve 時被呼叫，要 await 完再 end，**不可讓 end 被丟掉**（否則鎖定畫面留下一張永不消失的孤兒卡片）。驗收要有這一條：`start()` 後 200ms 內 `end()`，確認卡片不殘留。
 
-⚠️ **文湖線官方車現況跟不了**：`at` 平均 335s 舊，20/20 超過 `TRTC_STALE_MID=240`，地圖上只畫得出 2/20 台。所以「跟一台文湖線官方車」目前做不到，Live Activity 的驗收改用高運量線。`feat/trtc-live` 會在他們的 Task 8 裁定要不要放寬門檻——**不要為此自己調門檻**。
+⚠️ **文湖線官方車的可達性浮動極大，不要當成恆定狀態**。`feat/trtc-live` 在同一台伺服器上量到 BR 存活 3/24，二十分鐘後 24/24；另一次抽測 18 台 0 台過舊。所以「文湖線跟不了」是**單次量測的假象**——但也因此它**不能當驗收樣本**（同一支測試在不同時段會得到不同結果，紅了分不清是產品壞了還是剛好上游沒車）。Live Activity 的驗收一律用高運量線。`feat/trtc-live` 會在他們的 Task 8 於不同時段各量一次後裁定門檻——**不要為此自己調 `TRTC_STALE_MID`**。
 
 - [ ] **Step 10：模擬器實測**
 
@@ -1015,7 +1022,8 @@ cd /Users/xuxiang/Code/軌島-Plus開張/app && npm run sync
 捷運三個情境（Step 9 的接點）——**三種 `state.freqFollow` 形狀各驗一次，只驗一種等於沒驗**：
 
 5. `f.tr`（時刻表捷運，例：新北捷）→ 出卡片，下一站與倒數與跟車卡一致
-6. `f.ot`（**北捷官方逐車，用高運量線不要用文湖線**）→ 出卡片，顯示車號／下一站／終點，**不畫倒數列**（`arrivalIso` 為空的降級渲染）；車號原樣顯示不做任何拆解
+6. `f.ot`（**北捷官方逐車，用高運量線**——文湖線的資料可達性浮動、當樣本會得到不穩定的紅）→ 出卡片，顯示車號／下一站／終點**與到站倒數**（`nx.eta`）；下一站不可以是它正停著的那一站（驗 `p.i !== ot.i` 的濾除真的有作用）；車號原樣顯示不做任何拆解
+6b. 降級渲染：把 `arrivalIso` 手動塞成空字串（模擬文湖線 `path` 恆空）→ 卡片仍出現，只是不畫倒數列，**不是崩潰也不是顯示 1970**
 7. `f.k`（班距示意車）→ **不出卡片**，且 console 零錯誤
 
 8. 跟一台官方車後**按加速鈕** → `trtcActive` 翻假 → 卡片立刻收掉，不殘留
@@ -1035,7 +1043,7 @@ cd /Users/xuxiang/Code/軌島-Plus開張/app && npm run sync
 <li><span class="d">8/2</span><span>訂閱 Plus 後在 App 裡跟車，鎖定畫面和動態島會顯示下一站與到站倒數</span></li>
 ```
 
-⚠️ 文案不要寫死「到站倒數」——北捷官方車這一版沒有倒數列（見 Step 9）。改成「顯示下一站與到站時間」，或等 `feat/trtc-live` 的 Task 6 官方倒數落地後再照實描述。
+⚠️ 文案的邊界：台鐵與北捷高運量**有**倒數，文湖線**沒有**（`path` 恆空）。所以不要寫成「所有列車都有到站倒數」。上面那句「下一站與到站倒數」對絕大多數情況成立，可用；但若要更嚴謹可寫「下一站與到站時間」。
 
 ```bash
 git add app/ios/App/RailBoardWidget/RailFollowActivity.swift app/ios/App/RailBoardWidget/RailBoardWidgetBundle.swift \
