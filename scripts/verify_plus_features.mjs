@@ -33,19 +33,17 @@ const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const SRC = readFileSync(path.join(ROOT, 'index.html'), 'utf8');
 const WSRC = readFileSync(path.join(ROOT, 'worker.js'), 'utf8');
 const TSRC = readFileSync(path.join(ROOT, 'terms.html'), 'utf8'); // 付費視窗法務列直接連到它,見 T1T
-// 條款**全文**(去標籤)都要過絕對句偵測器。
-// 🔴 這裡曾經只取「軌島 Plus 訂閱」那一節,理由是條款別處的免責語會被「保證」兩字誤咬。
-//    理由事實成立,但**縮小輸入是繞過症狀**:根因是 bannedIn() 純字面比對、不分極性。
-//    實測後果——把「軌島保證帳號同步一律不會失敗」塞進 §2、把「行程分享永遠免費」塞進 §5,
-//    六支閘門一條都不紅,而後者正是這條規則存在的理由本身(把 Plus 功能宣告成永久免費)。
-// 改法:對真正的否定句做**具名豁免**(比照 T1H 對條件式項目的 exempt),豁免看得見、可稽核,
-//    而且下面 T2a 有一條斷言證明「豁免掉的句子都還在原文裡」——被刪掉的豁免＝一張永久免死金牌。
-const TERMS_EXEMPT = [
-  '不是營運單位的行車控制、安全警示或官方旅運保證', // §1 免責:否定句,語意與「絕對保證」相反
-  '但不保證完全正確、不中斷或適合特定用途',         // §8 免責:同上
-];
-const TERMS_TEXT_ALL = TSRC.replace(/<[^>]+>/g, ' ');
-const TERMS_TEXT_CHECKED = TERMS_EXEMPT.reduce((s, ph) => s.split(ph).join(' '), TERMS_TEXT_ALL);
+// 條款頁的**可見內文**(剝掉 head／style／script)。
+// 為什麼要剝:全文 4280 字裡有一半以上是 head＋CSS ⇒ 抽取器的「非空」對照近乎恆真,
+// 而且 FAIL 訊息會指向一堆樣式碼、看不出違規在哪一句。
+const TERMS_BODY_TEXT = (() => {
+  const noHead = TSRC
+    .replace(/<head\b[\s\S]*?<\/head>/gi, ' ')
+    .replace(/<style\b[\s\S]*?<\/style>/gi, ' ')
+    .replace(/<script\b[\s\S]*?<\/script>/gi, ' ');
+  const m = /<body[^>]*>([\s\S]*?)<\/body>/i.exec(noHead);
+  return (m ? m[1] : noHead).replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+})();
 const INDEX_MD5 = createHash('md5').update(SRC).digest('hex');
 console.log(`[G0] ROOT=${ROOT}`);
 console.log(`[G0] index.html md5=${INDEX_MD5}`);
@@ -360,39 +358,84 @@ const GATE_DISCLOSURE = {
   const { ctx, page, errors } = await boot(cr);
   await setPlus(page, false);
   const { feats, trust } = await renderFeats(page);
-  // 絕對期限／絕對保證一律不得出現在付款決定點的文案裡——「永遠免費」此前是私設例外,
-  // 已隨信任聲明改寫成現在式一併撤除:例外一存在,這條斷言就對它要抓的那一類措辭失明。
-  const BANNED_ABSOLUTE = ['永遠', '一律', '保證', '一個都不會拿走', '更清晰'];
-  const bannedIn = s => BANNED_ABSOLUTE.filter(w => s.includes(w));
-  // 🔴 三份對外文案一起驗,不是只驗付費面板那兩塊:說明中心的 Plus 節與條款第 3 節同樣是
-  // 付款決定點(說明中心那一節自己的註解就寫著這句)。此前只吃 feats+trust ⇒ 複審把說明中心
-  // 的 one: 改回「永遠免費」仍 88/88 全綠——同一句話換一個容器就不受管,等於三份清單只管了一份。
+  // ══ 絕對承諾偵測器(T2a) ══
+  // 🔴 這是**絆線,不是證明**:綠只代表「沒踩到已知的措辭家族」,不代表文案裡沒有絕對承諾。
+  //    要證明後者需要人讀。判準的價值在於「同一句話換一個寫法就繞過」這件事不再發生。
+  //
+  // 為什麼從單詞清單改成家族＋極性:上一版是純字面比對,複審實測「永久／終身／無限期」
+  // 三種同義寫法全部 91/91 全綠——改一個字就繞過;而為了避開誤咬又把輸入縮到只剩一節,
+  // 那是繞過症狀。根因是「不分極性」,所以極性要正面處理。
+  //
+  // 兩層:
+  //  A 永久性詞——這類在對外文案裡幾乎沒有合法用法,出現即命中,不看上下文。
+  //  B 保證性詞——合法用法很常見(「不保證完全正確」「一律以現場為準」),所以要兩個條件同時成立:
+  //      (1) 所在的**同一子句**裡,該詞之前沒有否定標記(不／未／無／非／並非/不是);
+  //      (2) 該詞之後 20 字內出現「承諾對象」(免費、可用、不會…)——
+  //          「一律以…為準」是範圍語不是承諾,靠這一條放行。
+  const ABS_PERMANENT = ['永遠', '永久', '終身', '無限期', '永不', '絕不', '一輩子', '不限期',
+    '一個都不會拿走', '更清晰']; // 後兩個是本專案過去實際踩過的具體措辭,留著當回歸
+  const ABS_GUARANTEE = ['保證', '一律', '必定', '確保', '絕對', '一直'];
+  const NEG_MARKERS = ['不', '未', '無', '非', '沒'];
+  const COMMIT_OBJ = ['免費', '收費', '不會', '可用', '有效', '提供', '正確', '成功', '同步', '支援', '開放', '保留', '存在', '失敗', '中斷'];
+  const ctxOf = (s, i, w) => s.slice(Math.max(0, i - 30), i + w.length + 30).replace(/\s+/g, ' ').trim();
+  function bannedIn(str) {
+    const out = [];
+    const text = String(str || '');
+    for (const w of ABS_PERMANENT) {
+      let i = text.indexOf(w);
+      while (i >= 0) { out.push({ w, why: '永久性措辭', ctx: ctxOf(text, i, w) }); i = text.indexOf(w, i + w.length); }
+    }
+    // 子句切分:極性判定要在同一子句內做,跨句會把上一句的否定誤算進來
+    let base = 0;
+    for (const clause of text.split(/[。！？；\n]/)) {
+      for (const w of ABS_GUARANTEE) {
+        let k = clause.indexOf(w);
+        while (k >= 0) {
+          const before = clause.slice(0, k);
+          const after = clause.slice(k + w.length, k + w.length + 20);
+          const negated = NEG_MARKERS.some(n => before.includes(n));
+          const committed = COMMIT_OBJ.some(c => after.includes(c));
+          if (!negated && committed) out.push({ w, why: '保證性措辭＋承諾對象', ctx: ctxOf(text, base + k, w) });
+          k = clause.indexOf(w, k + w.length);
+        }
+      }
+      base += clause.length + 1;
+    }
+    return out;
+  }
+  // 🔴 四份對外文案一起驗:付費面板(feats+plus-trust)、說明中心 Plus 節、條款頁可見內文。
+  // 條款這一份刻意吃**全文**不取節——縮小輸入等於把「§5 寫『行程分享永遠免費』」這種
+  // 最該被抓的情況排除在外(複審實測:塞在 §5 六支閘門一條都不紅)。
   const HELP_PLUS_TEXT = await readHelpPlusText(page);
-  const allTexts = [...feats, trust, HELP_PLUS_TEXT, TERMS_TEXT_CHECKED];
-  ok('T2a 付費決定點三份文案(feats+plus-trust、說明中心 Plus 節、條款全文扣除具名豁免)皆不含絕對期限／絕對保證措辭',
-    allTexts.every(t => bannedIn(t).length === 0),
-    JSON.stringify(allTexts.map(t => [t.slice(0, 40), bannedIn(t)]).filter(x => x[1].length)) || `已驗 ${allTexts.length} 段`);
-  // 正向對照:同一支偵測器餵一句一定含違禁詞的字串,必須抓得到。沒有這條,上面那個「全部乾淨」
-  // 也可能是因為偵測器壞掉(例如清單被清空)——沉默不是證據。
-  ok('T2a 正向對照:同一支違禁詞偵測器對一句含「永遠」的樣本必須命中(證明它不是恆真)',
-    bannedIn('列車位置永遠免費').includes('永遠'), JSON.stringify(bannedIn('列車位置永遠免費')));
-  // 抽取器對照:上面多吃的兩段文字若抽成空字串,`every` 對空集合恆真 ⇒ 擴大範圍等於沒擴大。
-  // 兩頭各釘一次(非空 + 不會把不相干字串認成命中),與 T1H 的抽取器對照同一形狀。
-  ok('T2a 正向對照:說明中心與條款兩支文案抽取器都抽得出非空文字,且不會把不相干字串認成命中',
-    HELP_PLUS_TEXT.length > 20 && TERMS_TEXT_CHECKED.length > 20
-    && !HELP_PLUS_TEXT.includes('verify-probe-absent') && !TERMS_TEXT_CHECKED.includes('verify-probe-absent'),
-    `help=${HELP_PLUS_TEXT.length} terms=${TERMS_TEXT_CHECKED.length}`);
-  // 🔴 具名豁免本身也要有牙,兩個方向各一:
-  //   (a) 豁免掉的句子必須還在條款原文裡——原句被刪掉之後,那條豁免就變成一張永久免死金牌,
-  //       日後有人寫出同形狀但語意相反的句子時它會靜靜放行;
-  //   (b) 剝除掉的字數必須恰等於那幾句的長度(每句換成一個空白)——證明豁免沒有順手吃掉別的內容,
-  //       數字由 TERMS_EXEMPT 自己推導,不是手打的常數。
-  const exemptGone = TERMS_EXEMPT.filter(ph => !TSRC.includes(ph));
-  const expectedDelta = TERMS_EXEMPT.reduce((n, ph) => n + (ph.length - 1), 0);
-  const actualDelta = TERMS_TEXT_ALL.length - TERMS_TEXT_CHECKED.length;
-  ok('T2a 具名豁免有牙且範圍最小:每句豁免詞都還在 terms.html 原文裡,且剝除字數恰等於那幾句的長度',
-    exemptGone.length === 0 && actualDelta === expectedDelta,
-    `失效豁免=${JSON.stringify(exemptGone)} 剝除=${actualDelta} 預期=${expectedDelta}`);
+  const allTexts = [...feats, trust, HELP_PLUS_TEXT, TERMS_BODY_TEXT];
+  const allHits = allTexts.flatMap(t => bannedIn(t));
+  ok('T2a 付費決定點四份文案(feats、plus-trust、說明中心 Plus 節、條款頁可見內文)皆不含絕對期限／絕對保證措辭',
+    allHits.length === 0,
+    allHits.length ? allHits.map(h => `「${h.w}」(${h.why}) …${h.ctx}…`).join(' ｜ ') : `已驗 ${allTexts.length} 段、${allTexts.reduce((n, t) => n + t.length, 0)} 字`);
+  // 正向對照:同義變體逐種餵一次。只餵一句的話,換一種寫法就繞過而對照照樣綠——
+  // 那正是這一版要修的缺陷本身(under-matching,正向對照結構上照不到,只能把家族列出來)。
+  const POS_SAMPLES = ['行程分享永遠免費。', '行程分享永久免費。', '行程分享終身免費、絕不收費。',
+    '行程分享無限期免費。', '軌島保證帳號同步一律不會失敗。', '軌島確保行程分享必定持續可用。'];
+  const posMiss = POS_SAMPLES.filter(x => bannedIn(x).length === 0);
+  ok('T2a 正向對照:同義變體逐句都咬得住(永遠／永久／終身／無限期／保證＋一律／確保＋必定)',
+    posMiss.length === 0, posMiss.length ? `漏抓:${posMiss.join(' ')}` : `${POS_SAMPLES.length} 句全中`);
+  // 🔴 反向誤紅對照:合法的否定式免責語與範圍語**不得**被咬。
+  // 誤紅比漏抓更危險——它會讓下一個人把整條判準調鬆或直接刪掉(上一版靠縮小輸入迴避誤咬,
+  // 就是這個壓力造成的)。所以極性正面處理,並把「不該紅」的樣本釘成常駐判準。
+  const NEG_SAMPLES = ['開發者不保證第三方服務持續可用。',
+    '實際乘車、平交道與營運決策一律以交通營運單位及現場資訊為準。',
+    '列車位置不是營運單位的行車控制、安全警示或官方旅運保證。',
+    '軌島以現況提供,但不保證完全正確、不中斷或適合特定用途。'];
+  const negFalse = NEG_SAMPLES.flatMap(x => bannedIn(x).map(h => `${x} → 「${h.w}」`));
+  ok('T2a 反向誤紅對照:合法的否定式免責語與範圍語不得被咬(誤紅會讓下一個人把整條判準調鬆或刪掉)',
+    negFalse.length === 0, negFalse.length ? negFalse.join(' ｜ ') : `${NEG_SAMPLES.length} 句全部正確放行`);
+  // 抽取器對照:條款那一份若抽成空字串或抽到整份原始碼,上面的 every 就沒有意義。
+  // 兩頭各釘一次:非空、含得到 Plus 那一節的錨點、且**不含 CSS 大括號**(證明 head/style 真的被剝掉)。
+  ok('T2a 抽取器對照:說明中心與條款兩支抽取器都抽得出非空可見內文,且條款那份已剝掉 head/style(不含 CSS 大括號)',
+    HELP_PLUS_TEXT.length > 20 && !HELP_PLUS_TEXT.includes('verify-probe-absent')
+    && TERMS_BODY_TEXT.length > 200 && TERMS_BODY_TEXT.includes('軌島 Plus 訂閱')
+    && /[{}]/.test(TSRC) && !/[{}]/.test(TERMS_BODY_TEXT),
+    `help=${HELP_PLUS_TEXT.length} termsBody=${TERMS_BODY_TEXT.length}/全文 ${TSRC.length} 字`);
   const satItem = feats.find(t => t.includes('高解析')) || '';
   ok('T2b 衛星那項同時含「高解析」與「Retina」', satItem.includes('高解析') && satItem.includes('Retina'), satItem);
   ok('T2c plus-trust 保留「準確度」相關的免費承諾語', trust.includes('準確度'), trust);

@@ -109,11 +109,17 @@ ok(missing.length === 0 && RULES.length === CONTROLS.length,
 // 正向對照只證明「收集器不會永遠回空」,證明不了「它不會漏抓」;要證偽漏抓,
 // 得餵一份**已知必然命中**的輸入給同一條解析路徑。
 function scanDiffText(text) {
-  let commit = '', file = '', addedLines = 0, allowed = 0;
+  let commit = '', file = '', addedLines = 0, allowed = 0, lastOld = '';
   const found = [];
+  // files = 這支解析器**實際看進去內容**的檔案集合。只認 `+++ b/` 這個「後面跟著可掃描的行」
+  // 的表頭:被 .gitattributes 標成 -diff 的檔只會吐 `Binary files … differ`,沒有 `+++`,
+  // 正好落在集合外——那就是它該被抓到的方式。純刪除檔(`+++ /dev/null`)沒有新增行可掃,算看過。
+  const files = new Set();
   for (const line of text.split('\n')) {
     if (line.startsWith('commit ')) { commit = line.slice(7, 14); continue; }
-    if (line.startsWith('+++ b/')) { file = line.slice(6); continue; }
+    if (line.startsWith('--- a/')) { lastOld = line.slice(6); continue; }
+    if (line.startsWith('+++ /dev/null')) { if (lastOld) files.add(lastOld); continue; }
+    if (line.startsWith('+++ b/')) { file = line.slice(6); files.add(file); continue; }
     if (!line.startsWith('+') || line.startsWith('+++')) continue;
     const t = line.slice(1);
     addedLines++;
@@ -122,7 +128,7 @@ function scanDiffText(text) {
     if (t.includes(ALLOW)) { allowed++; continue; }
     for (const r of RULES) if (r.re.test(t)) found.push({ commit, file, rule: r.name, text: t.trim().slice(0, 160) });
   }
-  return { found, addedLines, allowed };
+  return { found, addedLines, allowed, files };
 }
 // commit message 是第三個資料面,不帶 `+` 前綴 ⇒ 走另一條解析路徑,所以它也要有自己的自檢。
 function scanMessageText(msg) {
@@ -132,6 +138,30 @@ function scanMessageText(msg) {
     for (const r of RULES) if (r.re.test(line)) found.push({ rule: r.name, text: line.trim().slice(0, 120) });
   }
   return found;
+}
+
+// 🔴 檔案集合覆蓋自檢:掃描器「看進去內容的檔案集合」必須涵蓋「這個範圍內真的動過的檔案集合」。
+// 為什麼要這一條,而不是一個形態補一個旗標:三種已知的「成功但回傳不完整」形態——
+//   (a) `git log -p` 被加上 pathspec、(b) .gitattributes 把某類檔標成 `-diff`
+//       (一般人為了產物檔／二進位檔會加的正常設定,不需要惡意)、(c) merge commit 預設不出 diff
+// ——全都**不丟例外**,所以上一輪那條 histScanErrs 一條都抓不到;而它們的**共同顯形**都是
+// 「有檔案沒出現在掃描裡」。期望集合的來源必須與 `-p` 無關(用 --name-only),
+// 否則判準與受測物同源、會一起失明。
+function filesChangedNameOnly(args) {
+  return new Set(execFileSync('git', ['diff', '--name-only', ...args], { encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 })
+    .split('\n').map(t => t.trim()).filter(Boolean));
+}
+// 真二進位檔(PNG 之類)本來就沒有可掃的文字行,落在集合外是正確的,不該報紅。
+// 判「是不是真的二進位」要用**內容**(有沒有 NUL byte),不能用 git 的 binary 判定——
+// 後者正是被 .gitattributes 操縱的那一個,拿它當判準等於與受測物同源。
+function looksBinaryAtHead(p) {
+  try {
+    const buf = execFileSync('git', ['show', `HEAD:${p}`], { encoding: 'buffer', maxBuffer: 16 * 1024 * 1024 });
+    return buf.subarray(0, 8000).includes(0);
+  } catch (e) { return false; } // 取不到就當文字:寧可為此紅一次,也不要靜默放過一個沒被掃到的檔
+}
+function coverageGap(seen, expected) {
+  return [...expected].filter(f => !seen.has(f) && !looksBinaryAtHead(f));
 }
 
 // 自檢樣本用**既有的** CONTROLS 元素組成,不引入任何新的字面樣本:
@@ -163,15 +193,16 @@ if (failed) {
 // 拿 HEAD 當右端的話,你永遠只能在犯錯之後才看到它(第一版就是這樣,自己被自己咬了一輪)。
 console.log('\n── 主掃描:合併基準 → 工作樹(含未 commit 的改動) ──');
 let diff = '';
+let MERGE_BASE = '';
 try {
-  const mb = execFileSync('git', ['merge-base', BASE, 'HEAD'], { encoding: 'utf8' }).trim();
-  diff = execFileSync('git', ['diff', mb, '-U0'], { encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 });
+  MERGE_BASE = execFileSync('git', ['merge-base', BASE, 'HEAD'], { encoding: 'utf8' }).trim();
+  diff = execFileSync('git', ['diff', MERGE_BASE, '-U0'], { encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 });
 } catch (e) {
   ok(false, `取不到 diff(base=${BASE}):${String(e).slice(0, 120)}`);
   process.exit(1);
 }
 
-const { found: hits, addedLines, allowed } = scanDiffText(diff);
+const { found: hits, addedLines, allowed, files: mainFilesSeen } = scanDiffText(diff);
 
 // 掃描器本身也要證明有在掃:新增行為 0 表示 base 選錯或分支是空的,
 // 那樣「零命中」同樣沒有意義(形態 11 的另一半——量測器沒在量)。
@@ -184,6 +215,17 @@ ok(addedLines > 0, `掃描器有讀到新增行(base=${BASE}) — ${addedLines} 
 //    而為了不相干的理由變紅。合併那一輪要把它改成條件式(本檔有出現在 diff 裡才要求相等),
 //    現在不改是因為改了就沒有東西守著「有人拿標記藏東西」這件事。
 ok(allowed === CONTROLS.length, `豁免行數量符合對照樣本數 — 豁免 ${allowed} 行 / 對照 ${CONTROLS.length} 條`);
+
+// 覆蓋自檢(主掃描):同樣的三種形態也會讓主掃描無聲漏檔——.gitattributes 是全域設定,
+// 不會只影響歷史那一半。只補歷史、不補主掃描,等於把同一個洞留了一半。
+{
+  let gap = [], expected = new Set();
+  try { expected = filesChangedNameOnly([MERGE_BASE]); gap = coverageGap(mainFilesSeen, expected); }
+  catch (e) { gap = ['(取不到期望檔案集合:' + String(e).slice(0, 80) + ')']; }
+  ok(gap.length === 0,
+    `主掃描看進去的檔案集合涵蓋範圍內動過的所有文字檔 — 期望 ${expected.size} 檔 / 實看 ${mainFilesSeen.size} 檔` +
+    (gap.length ? ` / 🔴 沒被掃到:${gap.slice(0, 8).join('、')}${gap.length > 8 ? ` …共 ${gap.length} 檔` : ''}` : ''));
+}
 
 ok(hits.length === 0, `本分支新增行零內部成本／金鑰洩漏 — 命中 ${hits.length} 筆`);
 for (const h of hits) console.log(`   ⚠️ ${h.file} [${h.rule}] ${h.text}`);
@@ -198,6 +240,7 @@ for (const h of hits) console.log(`   ⚠️ ${h.file} [${h.rule}] ${h.text}`);
 console.log('\n── 歷史掃描:中間 commit(push 前必須處理) ──');
 let histHits = [];
 let histCommits = 0;
+let histFilesSeen = new Set();
 // 🔴 取不到資料 ≠ 掃過了、乾淨。這兩件事此前在下面那條斷言眼裡完全一樣:catch 只印一行
 // console.log,而唯一的消費者是自動化(這一段本來就是為了計入 exit code 才存在的),
 // console.log 對它不存在。實測的真實失效模式:大 repo 讓 `git log -p` 撐爆 maxBuffer(ENOBUFS)
@@ -206,8 +249,12 @@ let histCommits = 0;
 // 所以掃描失敗一律記成錯誤,併進最後那條斷言。
 const histScanErrs = [];
 try {
-  const log = execFileSync('git', ['log', '-p', '-U0', `${BASE}..HEAD`], { encoding: 'utf8', maxBuffer: 128 * 1024 * 1024 });
-  histHits = scanDiffText(log).found; // 與主掃描同一支解析器 ⇒ 不可能只有這一半被改壞而無聲
+  // --diff-merges=remerge:merge commit 預設**完全不出 diff** ⇒ 只活在衝突解法裡的行結構上掃不到,
+  // 而衝突落點通常正是更新紀錄與版本字串——洩漏字串會住的地方。這是覆蓋自檢的**配套不是替代**:
+  // 拿掉它,下面那條覆蓋自檢就會把漏掉的檔名印出來。
+  const log = execFileSync('git', ['log', '-p', '-U0', '--diff-merges=remerge', `${BASE}..HEAD`], { encoding: 'utf8', maxBuffer: 128 * 1024 * 1024 });
+  const hr = scanDiffText(log); // 與主掃描同一支解析器 ⇒ 不可能只有這一半被改壞而無聲
+  histHits = hr.found; histFilesSeen = hr.files;
 } catch (e) { histScanErrs.push(`git log -p:${String(e).slice(0, 120)}`); }
 
 // 🔴 第三個資料面:commit message 本體。
@@ -236,6 +283,17 @@ ok(histCommits > 0, `歷史掃描器有讀到 commit(base=${BASE}) — ${histCom
 // 這條問的是「三支 git 呼叫有沒有哪一支根本沒回資料」。ENOBUFS 那個失效模式只會踩到這一條。
 ok(histScanErrs.length === 0,
   `歷史掃描三支 git 呼叫全部取得資料(取不到 ≠ 乾淨) — ${histScanErrs.length ? '失敗:' + histScanErrs.join(' ; ') : '無失敗'}`);
+// 🔴 上面那條只答「有沒有丟例外」。三支呼叫**成功但回傳不完整**時它是空的、而 21 筆真命中
+// 會無聲蒸發(實測:只加一個 `docs/** -diff` 的 .gitattributes、腳本一行不動,6 筆就沒了)。
+// 這一條答的是「該看的檔案都看到了嗎」,才是那三種形態的共同顯形。
+{
+  let gap = [], expected = new Set();
+  try { expected = filesChangedNameOnly([`${BASE}...HEAD`]); gap = coverageGap(histFilesSeen, expected); }
+  catch (e) { gap = ['(取不到期望檔案集合:' + String(e).slice(0, 80) + ')']; }
+  ok(gap.length === 0,
+    `歷史掃描看進去的檔案集合涵蓋範圍內動過的所有文字檔 — 期望 ${expected.size} 檔 / 實看 ${histFilesSeen.size} 檔` +
+    (gap.length ? ` / 🔴 沒被掃到:${gap.slice(0, 8).join('、')}${gap.length > 8 ? ` …共 ${gap.length} 檔` : ''}` : ''));
+}
 
 if (histHits.length === 0) {
   console.log('   ✅ 歷史與 commit message 都乾淨,可直接 push。');

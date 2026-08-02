@@ -1194,7 +1194,25 @@ for (const w of [360, 375, 414, 768]) await mobilePlusEntry(w, { sel: IMPORT_SEL
       const m = document.getElementById('plusModal'), b = document.getElementById('plusBody');
       return { modalOpen: m ? !m.hidden : null, feats: b ? b.querySelectorAll('.plus-feature').length : -1 };
     });
-    return { ...out, ...panel, slot };
+    // (d) 槽位的**行為證據**:標籤與 title 是會漂的字串,只咬它們有兩個方向都錯——
+    // 漏抓(onclick 恆指向 plusOpen ⇒ 旗標關閉時是一顆按了靜默無反應的死鈕,而標籤照樣寫「帳號」)
+    // 與假紅(純文案改名「帳號」→「我的帳號」)。所以真的按下去,看它把哪一張面板打開。
+    const behave = await page.evaluate(async () => {
+      try { plusClose && plusClose(); } catch (e) {}
+      try { accountClose && accountClose(); } catch (e) {}
+      await new Promise(r => setTimeout(r, 150));
+      const btn = document.getElementById('accountBtn');
+      const handlerSrc = btn && btn.onclick ? `${btn.onclick.name || ''}|${String(btn.onclick).slice(0, 120)}` : null;
+      if (btn) btn.click();
+      await new Promise(r => setTimeout(r, 450));
+      const pm = document.getElementById('plusModal'), am = document.getElementById('accountModal');
+      const o = { handlerSrc, plusOpened: pm ? !pm.hidden : null, acctOpened: am ? !am.hidden : null };
+      try { plusClose && plusClose(); } catch (e) {}
+      try { accountClose && accountClose(); } catch (e) {}
+      await new Promise(r => setTimeout(r, 150));
+      return o;
+    });
+    return { ...out, ...panel, slot, behave };
   };
   const run = async (base, tag) => {
     const { ctx, page } = await newPage(chromiumB);
@@ -1257,15 +1275,25 @@ for (const w of [360, 375, 414, 768]) await mobilePlusEntry(w, { sel: IMPORT_SEL
   // KS9/KS9b 判的是**身分**不是存在:這條路上鈕本來就該留著(帳號入口是它的合法身分),
   // 寫成「不得存在」會把正確行為判成缺陷。所以正面斷言「在、且是帳號」——
   // 收集器若壞掉,btnVisible 會是 false 而當場紅,沉默過不了關。
-  ok('KS9 旗標關閉 + 初始化有跑但這台裝置沒登入過(?account=delete;與 ACCOUNT_ENABLED 翻真時同一條分支):工具列槽位在,身分是「帳號」不是 Plus',
+  // 判準寫成「不得是 Plus 那組文案」而不是「必須恰等於『帳號』」:後者把判準綁在會漂的字面上,
+  // 純改文案就假紅。真正的身分證據在下一條(按下去走到哪),文案這一半只要求「不是 Plus」。
+  const notPlusCopy = t => !/Plus/i.test(String(t || ''));
+  ok('KS9 旗標關閉 + 初始化有跑但這台裝置沒登入過(?account=delete;與 ACCOUNT_ENABLED 翻真時同一條分支):工具列槽位在,文案不是 Plus 那組',
     offInit.r.slot.btnVisible === true
-    && offInit.r.slot.btnLabel === '帳號'
-    && /登入與跨裝置同步/.test(offInit.r.slot.btnTitle || '')
-    && !/Plus/.test(`${offInit.r.slot.btnLabel || ''}${offInit.r.slot.btnTitle || ''}`),
+    && notPlusCopy(offInit.r.slot.btnLabel) && notPlusCopy(offInit.r.slot.btnTitle),
     JSON.stringify(offInit.r.slot));
-  ok('KS9b 同一條路:「更多」抽屜打開後那一列也在,標成「帳號同步」不是「軌島 Plus」',
-    offInit.r.slot.sheetOpen === true && offInit.r.slot.rowVisible === true && offInit.r.slot.rowLabel === '帳號同步',
+  ok('KS9a 同一條路的**行為證據**:真的按下那顆鈕會開出帳號面板,不是 Plus 面板、也不是靜默沒反應的死鈕',
+    offInit.r.behave.acctOpened === true && offInit.r.behave.plusOpened === false
+    && !/plusOpen/.test(offInit.r.behave.handlerSrc || ''),
+    JSON.stringify(offInit.r.behave));
+  ok('KS9b 同一條路:「更多」抽屜打開後那一列也在,文案不是「軌島 Plus」那組',
+    offInit.r.slot.sheetOpen === true && offInit.r.slot.rowVisible === true && notPlusCopy(offInit.r.slot.rowLabel),
     JSON.stringify(offInit.r.slot));
+  // 行為證據的正向對照:同一支探針在旗標開啟態必須量到相反的結果(按下去開 Plus 面板)。
+  // 沒有這條,KS9a 的「開的是帳號面板」有可能只是探針根本沒按到、或永遠回同一組值。
+  ok('KS9c 正向對照:同一支行為探針在旗標開啟態量到相反結果(按下去開的是 Plus 面板)',
+    on.r.behave.plusOpened === true && /plusOpen/.test(on.r.behave.handlerSrc || ''),
+    JSON.stringify(on.r.behave));
   ok('KS 本輪零 pageerror/console.error', on.errs.length === 0 && off.errs.length === 0 && offInit.errs.length === 0,
     [...on.errs, ...off.errs, ...offInit.errs].slice(0, 3).join(' | '));
 }
