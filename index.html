@@ -7301,7 +7301,9 @@ async function plusRestore() {
     p.adapter = p.adapter || await plusAdapterFor(user.uid);
     const result = await p.adapter.restore();
     const info = result && (result.customerInfo || result);
-    p.active = plusActiveFrom(info); p.mgmtUrl = (info && info.managementURL) || p.mgmtUrl || ''; accountRender();
+    p.active = plusActiveFrom(info);
+    p.founding = p.active && foundingFrom(info);
+    p.mgmtUrl = (info && info.managementURL) || p.mgmtUrl || ''; accountRender();
     if (p.active) {
       if (!plusFinishPending()) { plusClose(); showToast('已恢復訂閱資格'); }
     } else p.error = '這個帳號目前沒有可恢復的 Plus 訂閱資格。';
@@ -9644,6 +9646,7 @@ function renderRidePanel() {
     `<h3>旅程護照<button class="close" id="rideClose">×</button></h3>` +
     `<div class="ride-stats">章 <b>${collGot}</b> · 站 <b>${stationCollection(rides).size}</b> · 成就 <b>${achN}</b> · 完乘 <b>${rides.length}</b></div>` +
     `<div class="sub">從發車一路跟到終點就蓋一枚完乘章（調速可以・跳時間不算）· 灰色的章點了帶你搭一趟</div>` +
+    buildFoundingSeal() +
     buildStamps(rides) +
     buildStationStamps(rides) +
     buildLineBars() +
