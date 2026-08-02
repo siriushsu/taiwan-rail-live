@@ -950,7 +950,56 @@ function laSync(tr, force) {
 
 ⚠️ `updateFollowPanel` 開頭有 `if (fp.hidden || !tr) return;` 的早退，所以停止跟車不會走到結尾那行——`clearFollow()` 那一處是必要的，不能省。
 
-- [ ] **Step 9：模擬器實測**
+- [ ] **Step 9：捷運接點（含北捷官方逐車）**
+
+> 本節的結構事實由 `feat/trtc-live` session 於 2026-08-02 查碼回覆（行號取自他們的 `91b77c0`，會漂但結構不變）。使用者裁示 Live Activity 第一版**要涵蓋捷運、含北捷**。
+
+台鐵走 `state.followTrain`／`updateFollowPanel`；**捷運完全是另一條路徑**，走 `state.freqFollow`／`updateFreqCard`。`updateFreqFollowCamera()` 的三個分支全部收斂到 `updateFreqCard(info)`：
+
+| 分支 | `state.freqFollow` | 是什麼 | 發不發卡片 |
+|---|---|---|---|
+| `f.tr` | `{ln, tr}` | 實際時刻班次 | 發 |
+| `f.ot` | `{ln, ot}` | **北捷官方逐車**（本版主打） | 發 |
+| `f.k` | `{ln, k}` | 班距示意車 | **不發**——它不是一台真的車 |
+
+⇒ 接點掛在 `updateFreqCard` 結尾**一處**即可，兩種真車同時涵蓋，與 `feat/trtc-live` 零耦合。
+
+🔴 **守衛條件是 `f.tr || f.ot`，不是 `f.tr`。** 官方車沒有 `f.tr`——只判 `f.tr` 會把這一版的主打功能整個排除掉。
+
+🔴 **官方列傳進來的 `info` 是最小合成物件**（只有 `{loop, termName}`，**沒有 `nextName`／`nextSec`**），所以台鐵那套 `nextSec - simSec + shift` 對官方車套不上。`updateFreqCard` 內部本來就直接讀 `state.freqFollow`，接點也照做：
+
+```javascript
+// 捷運的 payload 與台鐵刻意分開:兩邊的資料來源、欄位、生命週期都不同,硬合成一支會讓兩邊都變脆。
+function laPayloadMetro() {
+  const f = state.freqFollow; if (!f) return null;
+  if (f.ot) {                                   // 北捷官方逐車
+    const ot = f.ot;
+    // 🔴 ot.no 是不透明字串鍵——文湖線的值是 "121,164"(兩個車廂編號當一個字串,不是車次)。
+    //    只可原樣顯示,禁止 split(',')／數值化／拿去跨系統比對。
+    // 🔴 path 第一筆偶爾就是「目前所在站」,不濾會把現在站顯示成下一站(實測「東門→東門」)。
+    //    文湖線恆無 path ⇒ nx 為 null 是正常情況,不是錯誤。
+    const nx = Array.isArray(ot.path) ? ot.path.find(p => p.i !== ot.i) : null;
+    return { trainNo: String(ot.no || ''), kind: '', sys: 'trtc',
+             nextStop: nx ? String(nx.name || '') : '',
+             arrivalIso: '',                    // 見下方「官方到站倒數」
+             delaySec: 0, terminus: String(ot.destName || '') };
+  }
+  if (f.tr) { /* 實際時刻班次:沿用 nextStopInfo 那一套,shift 走 metroShiftSec(f.ln, f.tr) */ }
+  return null;                                  // f.k 班距示意車:不發卡片
+}
+```
+
+⚠️ **官方到站倒數這一版留空**。`feat/trtc-live` 的 Task 6 會在跟車卡加上官方到站倒數（月台告示牌那個數字），**在它落地之前不要自己從 `state.trtc` 算**——會跟畫面顯示的不一致。所以 `arrivalIso` 對官方車先給空字串，Swift 端要能**降級渲染**：沒有 `arrivalIso` 就不畫 `Text(timerInterval:)` 那一列，只顯示車號／下一站／終點。卡片仍然有用，且他們 Task 6 落地後只要把一個取值換掉。
+
+🔴 **時間基準**（`feat/trtc-live` 2026-08-02 修復 `e4f4b80` 的教訓）：官方 `CountDown` 是相對於**上游自己的 `NowDateTime`**，不是我們的 `Date.now()`。兩者實測差 6～10 秒。將來接官方倒數時，錨點只能是 `NowDateTime`；用 `Date.now()` 會讓倒數比月台告示牌多算一個 fetch 延遲。
+
+🔴 **拆卡片的接點：捷運是 `clearFreqFollow()`（`index.html:5047`，14 個呼叫點），不是 `clearFollow()`。** 兩個都要掛。掛在 `clearFreqFollow()` 函式**內部**一處，不要去改 14 個呼叫點。
+
+🔴 **官方車的跟隨結束得比時刻表車頻繁得多，Live Activity 要能承受「開一秒就結束」。** `trtcActive(ln)` 一翻假就 `clearFreqFollow()` ＋ toast（`index.html:5120`），翻假條件包括**使用者調速、把時間軸拉離現在超過 120 秒、資料齡超過門檻、上游沒有這條線的車**——按一下加速鈕就會發生。Swift 端必須：`Activity.request()` 的 handle 要留著，`end()` 在 request 還沒 resolve 時被呼叫，要 await 完再 end，**不可讓 end 被丟掉**（否則鎖定畫面留下一張永不消失的孤兒卡片）。驗收要有這一條：`start()` 後 200ms 內 `end()`，確認卡片不殘留。
+
+⚠️ **文湖線官方車現況跟不了**：`at` 平均 335s 舊，20/20 超過 `TRTC_STALE_MID=240`，地圖上只畫得出 2/20 台。所以「跟一台文湖線官方車」目前做不到，Live Activity 的驗收改用高運量線。`feat/trtc-live` 會在他們的 Task 8 裁定要不要放寬門檻——**不要為此自己調門檻**。
+
+- [ ] **Step 10：模擬器實測**
 
 ```bash
 cd /Users/xuxiang/Code/軌島-Plus開張/app && npm run sync
@@ -963,19 +1012,30 @@ cd /Users/xuxiang/Code/軌島-Plus開張/app && npm run sync
 3. 停止跟車 → 卡片消失
 4. 換一班車 → 舊卡片被取代不是兩張並存
 
-- [ ] **Step 10：非 Plus 與非原生要安靜地什麼都不做**
+捷運三個情境（Step 9 的接點）——**三種 `state.freqFollow` 形狀各驗一次，只驗一種等於沒驗**：
 
-驗證兩個負向情境：純網站（`window.RAIL_NATIVE_LIVEACTIVITY` 不存在）跟車 → console 零錯誤；App 內未訂閱跟車 → 不建立卡片、零錯誤。
+5. `f.tr`（時刻表捷運，例：新北捷）→ 出卡片，下一站與倒數與跟車卡一致
+6. `f.ot`（**北捷官方逐車，用高運量線不要用文湖線**）→ 出卡片，顯示車號／下一站／終點，**不畫倒數列**（`arrivalIso` 為空的降級渲染）；車號原樣顯示不做任何拆解
+7. `f.k`（班距示意車）→ **不出卡片**，且 console 零錯誤
 
-- [ ] **Step 11：真機驗動態島**
+8. 跟一台官方車後**按加速鈕** → `trtcActive` 翻假 → 卡片立刻收掉，不殘留
+9. `start()` 後 200ms 內 `end()`（模擬「開一秒就結束」）→ 鎖定畫面不留孤兒卡片
+
+- [ ] **Step 11：非 Plus 與非原生要安靜地什麼都不做**
+
+驗證兩個負向情境：純網站（`window.RAIL_NATIVE_LIVEACTIVITY` 不存在）跟車 → console 零錯誤；App 內未訂閱跟車 → 不建立卡片、零錯誤。**台鐵與捷運兩條路徑各驗一次**。
+
+- [ ] **Step 12：真機驗動態島**
 
 模擬器的動態島行為與真機有差。在有動態島的實機上確認 compact／expanded／minimal 三種版面都不破版、文字不被裁。
 
-- [ ] **Step 12：更新紀錄 + Commit**
+- [ ] **Step 13：更新紀錄 + Commit**
 
 ```html
 <li><span class="d">8/2</span><span>訂閱 Plus 後在 App 裡跟車，鎖定畫面和動態島會顯示下一站與到站倒數</span></li>
 ```
+
+⚠️ 文案不要寫死「到站倒數」——北捷官方車這一版沒有倒數列（見 Step 9）。改成「顯示下一站與到站時間」，或等 `feat/trtc-live` 的 Task 6 官方倒數落地後再照實描述。
 
 ```bash
 git add app/ios/App/RailBoardWidget/RailFollowActivity.swift app/ios/App/RailBoardWidget/RailBoardWidgetBundle.swift \
