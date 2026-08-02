@@ -334,14 +334,21 @@ async function assertAnonymousCanReachLogin(page) {
 // undefined、零 Firebase 網路請求。免費層「完全匿名」的保證不能因為補了 returning 分支而破功。
 // I3:回訪使用者(localStorage 帶 trainmap-last-sync-uid)——setupAccountUi 的新 returning 條件要讓
 // accountEnsureInit 開機就真的跑完(state.account.ready 轉真),不必等使用者先點過 Plus/帳號入口。
+//
+// ⚠️ I2 是「數量必須為 0」型斷言,而這種斷言在收集器根本沒收到東西時會無條件通過
+//    ——regex 寫錯、Firebase 換 CDN 主機、listener 掛太晚,全都會讓它變成永遠的假綠。
+//    所以 I2b 是它的正向對照:同一支 collectFirebaseReqs(共用同一條 regex,不可能漂移),
+//    在回訪情境下必須抓到 >0 筆。兩條合起來才證明「零」是真的零,不是收集器壞了。
+const FIREBASE_REQ_RE = /gstatic\.com\/firebasejs|identitytoolkit\.googleapis\.com|firestore\.googleapis\.com|firebaseapp\.com/;
+function collectFirebaseReqs(page) {
+  const out = [];
+  page.on('request', req => { const u = req.url(); if (FIREBASE_REQ_RE.test(u)) out.push(u); });
+  return out;
+}
 {
   const { ctx, page } = await newPage(chromiumB);
   const errs = attach(page, 'I-fresh');
-  const firebaseReqs = [];
-  page.on('request', req => {
-    const u = req.url();
-    if (/gstatic\.com\/firebasejs|identitytoolkit\.googleapis\.com|firestore\.googleapis\.com|firebaseapp\.com/.test(u)) firebaseReqs.push(u);
-  });
+  const firebaseReqs = collectFirebaseReqs(page);
   await page.goto(BASE, { waitUntil: 'domcontentloaded' });
   await waitReady(page);
   await page.waitForTimeout(1500); // 給任何遲滯的非同步初始化一點時間,才能有把握斷言「沒發生」
@@ -355,6 +362,7 @@ async function assertAnonymousCanReachLogin(page) {
 {
   const { ctx, page } = await newPage(chromiumB);
   const errs = attach(page, 'I-returning');
+  const firebaseReqs = collectFirebaseReqs(page); // I2 的正向對照,見上方註解
   await ctx.addInitScript(() => { try { localStorage.setItem('trainmap-last-sync-uid', 'test-returning-uid'); } catch (e) {} });
   await page.goto(BASE, { waitUntil: 'domcontentloaded' });
   await waitReady(page);
@@ -362,6 +370,8 @@ async function assertAnonymousCanReachLogin(page) {
     .then(() => true).catch(() => false);
   ok('I3 回訪使用者(留有 last-sync-uid)開機 accountEnsureInit 真的有跑(state.account.ready 轉真,不必先點過 Plus/帳號入口)',
     readyOk, `ready=${readyOk}`);
+  ok('I2b 正向對照:同一支收集器在回訪情境下抓得到 Firebase 請求(證明 I2 的「零」不是收集器壞掉)',
+    firebaseReqs.length > 0, `抓到 ${firebaseReqs.length} 筆${firebaseReqs.length ? ':' + firebaseReqs[0] : ''}`);
   ok('I 回訪使用者本輪零 pageerror/console.error', errs.length === 0, errs.slice(0, 3).join(' | '));
   await ctx.close();
 }
