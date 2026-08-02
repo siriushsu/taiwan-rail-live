@@ -424,6 +424,36 @@ const results_dir = path.join(ROOT, 'scratchpad'); // repo 的 scratchpad/ 已�
       ok(`G2.${w}.9(harness 自檢,不是產品缺陷)opacity:0 後 pixelStats 正確判定為近乎底色(distinctColors≤2,證明 G2.${w}.6 不是死規則)`,
         correctlyFlat, JSON.stringify(pxBroken));
       await page.evaluate(() => { const el = document.querySelector('.ph-founding'); if (el) el.style.opacity = ''; });
+
+      // ── 第三重突變:G2.*.4/G2.*.5 是本輪把「只驗徽章」擴大成「窮舉整個容器」的兩條——擴大
+      // 範圍不等於自動有牙,沒有一發專門瞄準它們的突變,等於只驗了「當下沒破」沒驗「壞了抓不抓得到」。
+      await page.evaluate(() => { state.plus = { active: true, founding: true }; renderRidePanel(); });
+      // 10. 逼 .ph-founding 撐寬到遠超容器,證明「溢出」真的會被 overflowH 量到
+      await page.evaluate(() => { const el = document.querySelector('.ph-founding'); if (el) { el.style.width = '3000px'; el.style.whiteSpace = 'nowrap'; el.style.flex = 'none'; } });
+      const rideOverflowBroken = await page.evaluate(() => window.__rlHitTest('#ridePanel', { scrollIntoView: true }));
+      const badgeOverflowEntry = rideOverflowBroken.report.find(e => e.sig.startsWith('DIV.ph-founding|'));
+      ok(`G2.${w}.10(突變)刻意撐寬 .ph-founding 到 3000px → overflowH 正確變 true(證明 G2.${w}.4 不是死規則)`,
+        !!badgeOverflowEntry && badgeOverflowEntry.overflowH === true,
+        badgeOverflowEntry ? `overflowH=${badgeOverflowEntry.overflowH} rect=${badgeOverflowEntry.rect.join(',')}` : '找不到 .ph-founding');
+      await page.evaluate(() => { const el = document.querySelector('.ph-founding'); if (el) { el.style.width = ''; el.style.whiteSpace = ''; el.style.flex = ''; } });
+
+      // 11. 逼 .ph-founding 的 elementFromPoint 命不中自己(pointer-events:none 讓命中測試
+      // 穿透到它後面的元素),證明「命中測試」真的會被 hitFails 量到。
+      // 注意:.ph-founding 本身是純容器(<div><span>創</span><span>...</span></div>),沒有
+      // 直接文字子節點,__rlHitTest 的 ownText 判斷(只認直接 text node)因此不會對 .ph-founding
+      // 這個 DIV 自己取樣——真正被取樣、會反映 pointer-events 遮蔽的是它的子孫(.pf-mark 的
+      // 「創」、.pf-txt 內 <b>/<i> 的文字),要用 inFounding 撈全部子孫項,不能只挑 DIV.ph-founding
+      // 這一條(第一次寫成只挑它自己,結果 hitFails 恆空——不是斷言沒牙,是找錯了要看的元素)。
+      await page.evaluate(() => { const el = document.querySelector('.ph-founding'); if (el) el.style.pointerEvents = 'none'; });
+      const rideHitBroken = await page.evaluate(() => window.__rlHitTest('#ridePanel', { scrollIntoView: true }));
+      const foundingDescendants = rideHitBroken.report.filter(e => e.inFounding);
+      const brokenHitEntries = foundingDescendants.filter(e => e.hitFails && e.hitFails.length > 0);
+      ok(`G2.${w}.11(突變)刻意讓 .ph-founding 的 pointer-events:none → 底下子孫的 hitFails 正確非空(證明 G2.${w}.5 不是死規則)`,
+        brokenHitEntries.length > 0,
+        brokenHitEntries.length ? brokenHitEntries.map(e => e.sig + ':' + e.hitFails.join('/')).join(' ; ') : `founding 子孫共 ${foundingDescendants.length} 個,全部 hitFails 皆空`);
+      await page.evaluate(() => { const el = document.querySelector('.ph-founding'); if (el) el.style.pointerEvents = ''; });
+      // 還原乾淨狀態,避免污染下面的「無 JS 例外」檢查
+      await page.evaluate(() => { renderRidePanel(); });
     }
 
     ok(`G2.${w} 無 JS 例外`, errors.length === 0, errors.slice(0, 3).join(' | '));
