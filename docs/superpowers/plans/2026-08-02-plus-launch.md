@@ -750,14 +750,50 @@ git commit -m "feat(Plus): 創始會員徽章上護照，依訂閱起始時刻�
 Live Activity 是加值功能，不能拿「誰能用這個 App」去換。
 （這正是判準盲點形態 10 的形狀：規格寫錯 ⇒ 實作者「照著把它變成能跑」＝做出比原缺陷更嚴重的傷害。）
 
+🔴🔴 **2026-08-02 第二次更正——target membership（獨立規格複審抓到，兩條是疊加的編譯級阻斷）**
+
+原稿只寫「建這個檔」，但這個 xcodeproj 的兩個 target 收檔案的方式**完全不同**，實查 `project.pbxproj`：
+
+| target | 收檔方式 | 後果 |
+|---|---|---|
+| App | 一般 `PBXGroup`（`:138-155`），Sources 逐檔列舉（`:312-320`，目前只有 3 個 Swift 檔） | **新建的 .swift 不會自己被編進去**，必須手動加 `project.pbxproj` |
+| RailBoardWidgetExtension | `PBXFileSystemSynchronizedRootGroup`（`:83`），只掛在這個 target（`:201-203`） | `RailBoardWidget/` 底下新檔會自動編進 Extension，但**只進 Extension** |
+
+⇒ 兩個具體後果，照原稿做會連續撞兩次牆：
+
+1. `RailLiveActivityPlugin.swift` 建在 `App/` 底下 **不會進 App binary**。前端 `registerPlugin('RailLiveActivity')` 拿到的是不存在的 plugin，呼叫變成 Promise 失敗，鎖定畫面永遠沒有卡片——而且 **build 是成功的**，所以不會有任何紅燈提醒你。
+2. 就算修好第 1 點，`RailFollowAttributes` 定義在 `RailBoardWidget/` ⇒ 只存在 Extension module，App target 看不見 ⇒ plugin 編譯失敗（找不到型別）。
+
+⇒ **修法：Attributes 抽成「兩個 target 共用」的獨立檔**，版面（SwiftUI）仍留 Extension：
+
+| 檔案 | 放哪 | App target | Extension target |
+|---|---|---|---|
+| `App/RailFollowAttributes.swift`（資料型別） | `App/` | ✅ 顯式加入 | ✅ 顯式加入 |
+| `RailBoardWidget/RailFollowActivity.swift`（SwiftUI 版面） | `RailBoardWidget/` | ✗ | ✅ 自動（synchronized） |
+| `App/RailLiveActivityPlugin.swift`（橋接） | `App/` | ✅ 顯式加入 | ✗ |
+
+⚠️ **不要用「兩個 target 各複製一份 Attributes」繞過**：那會產生 `App.RailFollowAttributes` 與 `RailBoardWidgetExtension.RailFollowAttributes` 兩個**不同的型別**，ActivityKit 配不起來，症狀是「`request()` 成功但畫面永遠沒有卡片」——比編譯失敗難查十倍。共用同一個檔案是 Apple 的既定作法。
+
+🔴🔴 **2026-08-02 第三次更正——`#available` 門檻改 17.6，不是 16.2（同一次複審）**
+
+Extension 的 `IPHONEOS_DEPLOYMENT_TARGET` 是 **17.6**（`:535-562`、`:575-601`）。Live Activity 的版面**住在 Extension 裡**，所以 iOS 16.2～17.5 的裝置：App 裝得起來、plugin guard 放行、`Activity.request()` 也許不丟錯，但**沒有任何 UI 能被渲染**。
+
+⇒ **plugin 的 guard 一律用 `#available(iOS 17.6, *)`**，else 分支回 `{ok:false, why:'ios<17.6'}`。
+⇒ 🔴 **不准把 Extension 的 17.6 往下調來「多支援一些人」**：`RailBoardWidget` 用了 iOS 17 才有的 WidgetKit／AppIntents API（見 `RailBoardWidget/AppIntent.swift`），往下調會連既有的發車看板小工具一起弄壞。這是**已上線功能** vs **加值新功能**的取捨，前者優先。
+（若日後要覆蓋 16.2～17.5，正解是另開一個低 target 的 Extension，不是動現有那個。本版不做。）
+
 **LA-0 的邊界（做這些、不做那些）**：純客端，零後端、零 APNs、零推播金鑰。倒數用 SwiftUI 的 `Text(timerInterval:)` 在客端自走；App 在前景時由既有的即時校正層推更新。**App 進背景久了誤點數字會停在最後一次更新的值**——這是 LA-0 的已知限制，不是缺陷（LA-1 才用 APNs 解）。
 
+🔴 **捷運（含北捷官方逐車）不在本 Task**——移到 **Task 5b**，因為它依賴的 `state.trtc`／`f.ot`／`trtcActive` 全部在 `feat/trtc-live`，**目前這棵樹裡一個都不存在**（實查：`git merge-base --is-ancestor feat/trtc-live feat/plus-launch` 為否）。在這裡寫等於寫一個永遠不會被觸發的分支，而且驗收無從執行。Task 5 只做台鐵／高鐵（`state.followTrain` 那條路徑），5b 在合併後才動工。
+
 **Files:**
-- Create: `app/ios/App/RailBoardWidget/RailFollowActivity.swift`
+- Create: `app/ios/App/App/RailFollowAttributes.swift`（**兩個 target 共用**）
+- Create: `app/ios/App/RailBoardWidget/RailFollowActivity.swift`（版面，Extension 專屬）
 - Modify: `app/ios/App/RailBoardWidget/RailBoardWidgetBundle.swift`
 - Create: `app/ios/App/App/RailLiveActivityPlugin.swift`
 - Modify: `app/ios/App/App/RailPlacesPlugin.swift`（`capacitorDidLoad` 註冊新 plugin）
 - Modify: `app/ios/App/App/Info.plist`
+- **Modify: `app/ios/App/App.xcodeproj/project.pbxproj`（🔴 少了這個，上面兩個 Create 等於沒做）**
 - Modify: `app/src/native-bridge.mjs`
 - Modify: `index.html`（跟車起訖時呼叫橋接）
 
@@ -798,17 +834,19 @@ symlink 是 gitignored 的，不會被 commit。**2026-08-02 已實跑驗證**�
 
 - [ ] **Step 2：定義 Attributes 與版面**
 
-建 `app/ios/App/RailBoardWidget/RailFollowActivity.swift`：
+**兩個檔，不是一個。** 先建共用型別 `app/ios/App/App/RailFollowAttributes.swift`：
 
 ```swift
 import ActivityKit
-import SwiftUI
-import WidgetKit
+import Foundation
 
+// 🔴 這個檔同時屬於 App target 與 RailBoardWidgetExtension target(見 Step 2b)。
+//    兩邊必須是「同一個型別」,ActivityKit 才配得起來——不可各複製一份。
+@available(iOS 17.6, *)
 struct RailFollowAttributes: ActivityAttributes {
     public struct ContentState: Codable, Hashable {
         var nextStop: String      // 下一站站名
-        var arrivalDate: Date     // 預計抵達時刻(倒數由 SwiftUI 自走,不必逐秒推)
+        var arrivalDate: Date?    // 預計抵達時刻;🔴 可為 nil＝這台車此刻算不出 ETA,不畫倒數
         var delaySec: Int         // 誤點秒數;0=準點、負值=早到
         var terminus: String      // 終點站,用於 minimal 版面
     }
@@ -816,6 +854,18 @@ struct RailFollowAttributes: ActivityAttributes {
     var kind: String              // 車種(自強/區間/…);建立後不變的放這裡
     var sys: String               // 系統別(tra_sched/thsr_sched/…)
 }
+```
+
+🔴 **`arrivalDate` 一定要是 `Date?`。** 原稿寫成非 optional，配上 plugin 端「解析失敗就 `Date().addingTimeInterval(60)`」的 fallback，
+結果是**算不出 ETA 時卡片上會出現一個憑空捏造、而且真的在走的「還有 1 分鐘」倒數**——比不顯示更糟，
+因為使用者無從分辨真假。拿不到就是 `nil`，版面那一列整個不畫。
+
+再建版面 `app/ios/App/RailBoardWidget/RailFollowActivity.swift`：
+
+```swift
+import ActivityKit
+import SwiftUI
+import WidgetKit
 
 private func delayText(_ sec: Int) -> String {
     if sec >= 60 { return "誤點 \(sec / 60) 分" }
@@ -823,7 +873,17 @@ private func delayText(_ sec: Int) -> String {
     return "準點"
 }
 
+@available(iOS 17.6, *)
 struct RailFollowActivityWidget: Widget {
+    // 🔴 倒數只在真的有 ETA 時才畫。arrivalDate 為 nil ⇒ 整列不畫(不是畫 0、不是畫 1970)。
+    @ViewBuilder
+    private func countdown(_ date: Date?, maxWidth: CGFloat) -> some View {
+        if let date, date > Date() {
+            Text(timerInterval: Date()...date, countsDown: true)
+                .monospacedDigit().frame(maxWidth: maxWidth)
+        }
+    }
+
     var body: some WidgetConfiguration {
         ActivityConfiguration(for: RailFollowAttributes.self) { context in
             // 鎖定畫面 / 橫幅
@@ -836,9 +896,8 @@ struct RailFollowActivityWidget: Widget {
                         .font(.caption2).foregroundStyle(.secondary)
                 }
                 Spacer()
-                Text(timerInterval: Date()...context.state.arrivalDate, countsDown: true)
-                    .font(.system(.title2, design: .rounded).monospacedDigit())
-                    .frame(maxWidth: 88)
+                countdown(context.state.arrivalDate, maxWidth: 88)
+                    .font(.system(.title2, design: .rounded))
             }
             .padding()
             .activityBackgroundTint(Color.black.opacity(0.35))
@@ -848,8 +907,7 @@ struct RailFollowActivityWidget: Widget {
                     Text(context.attributes.trainNo).font(.caption).padding(.leading, 4)
                 }
                 DynamicIslandExpandedRegion(.trailing) {
-                    Text(timerInterval: Date()...context.state.arrivalDate, countsDown: true)
-                        .font(.caption.monospacedDigit()).frame(maxWidth: 62)
+                    countdown(context.state.arrivalDate, maxWidth: 62).font(.caption)
                 }
                 DynamicIslandExpandedRegion(.bottom) {
                     Text("下一站 \(context.state.nextStop) · \(delayText(context.state.delaySec))")
@@ -858,8 +916,7 @@ struct RailFollowActivityWidget: Widget {
             } compactLeading: {
                 Text(context.state.nextStop.prefix(2))
             } compactTrailing: {
-                Text(timerInterval: Date()...context.state.arrivalDate, countsDown: true)
-                    .frame(maxWidth: 44).monospacedDigit()
+                countdown(context.state.arrivalDate, maxWidth: 44)
             } minimal: {
                 Text(context.attributes.trainNo.prefix(3))
             }
@@ -867,6 +924,67 @@ struct RailFollowActivityWidget: Widget {
     }
 }
 ```
+
+- [ ] **Step 2b：把兩個新檔加進 `project.pbxproj`（🔴 跳過這步，Step 4 會「BUILD SUCCEEDED」但功能完全不存在）**
+
+App target 的 Sources 是**逐檔列舉**的，新建 .swift 不會自己進去。手動加五段。
+UUID 已實查在現有檔案中皆不存在（`grep -c` 全為 0），可直接用：
+
+**① `PBXBuildFile` 區**（在既有的 `56F5C629301B0000003C7FE0 /* RailPlacesPlugin.swift in Sources */` 那行後面）加三行：
+
+```
+		56F5C631301C0000003C7FE0 /* RailFollowAttributes.swift in Sources */ = {isa = PBXBuildFile; fileRef = 56F5C630301C0000003C7FE0 /* RailFollowAttributes.swift */; };
+		56F5C632301C0000003C7FE0 /* RailFollowAttributes.swift in Sources */ = {isa = PBXBuildFile; fileRef = 56F5C630301C0000003C7FE0 /* RailFollowAttributes.swift */; };
+		56F5C634301D0000003C7FE0 /* RailLiveActivityPlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = 56F5C633301D0000003C7FE0 /* RailLiveActivityPlugin.swift */; };
+```
+
+🔴 **`RailFollowAttributes.swift` 有兩個 `PBXBuildFile`、共用同一個 `fileRef`**——這正是「一個檔案、兩個 target」的表達方式。少一個就回到 H-2 的編譯失敗。
+
+**② `PBXFileReference` 區**（在 `56F5C628301B0000003C7FE0 /* RailPlacesPlugin.swift */` 那行後面）加兩行：
+
+```
+		56F5C630301C0000003C7FE0 /* RailFollowAttributes.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RailFollowAttributes.swift; sourceTree = "<group>"; };
+		56F5C633301D0000003C7FE0 /* RailLiveActivityPlugin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RailLiveActivityPlugin.swift; sourceTree = "<group>"; };
+```
+
+**③ App 的 `PBXGroup` children**（`504EC3061FED79650016851F /* App */`，在 `56F5C626301A0000003C7FE0 /* RailBoardScheduleWriter.swift */,` 後面）加兩行：
+
+```
+				56F5C630301C0000003C7FE0 /* RailFollowAttributes.swift */,
+				56F5C633301D0000003C7FE0 /* RailLiveActivityPlugin.swift */,
+```
+
+**④ App target 的 Sources**（`504EC3001FED79650016851F /* Sources */`，在 `56F5C627301A0000003C7FE0 /* RailBoardScheduleWriter.swift in Sources */,` 後面）加兩行：
+
+```
+				56F5C631301C0000003C7FE0 /* RailFollowAttributes.swift in Sources */,
+				56F5C634301D0000003C7FE0 /* RailLiveActivityPlugin.swift in Sources */,
+```
+
+**⑤ Extension target 的 Sources**（`56F5C60A30198D8B003C7FE0 /* Sources */`，目前 `files = ( );` 是空的——這是正常的，
+因為它的 Swift 檔都走 synchronized group；共用檔在 group 外面，所以要顯式列）改成：
+
+```
+		56F5C60A30198D8B003C7FE0 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				56F5C632301C0000003C7FE0 /* RailFollowAttributes.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+```
+
+**驗這一步做對了**（不要靠肉眼看 diff）：
+
+```bash
+cd /Users/xuxiang/Code/軌島-Plus開張/app/ios/App
+xcodebuild -workspace App.xcworkspace -list
+xcodebuild -workspace App.xcworkspace -scheme App -showBuildSettings > /dev/null
+```
+
+兩條都要正常回應。`project.pbxproj` 格式壞掉時 `xcodebuild` 會直接報 parse error——
+這比開 Xcode 用眼睛看可靠，也比等到 Step 4 才發現快。
 
 - [ ] **Step 3：掛進 WidgetBundle**
 
@@ -890,10 +1008,17 @@ struct RailBoardWidgetBundle: WidgetBundle {
 ```bash
 cd /Users/xuxiang/Code/軌島-Plus開張/app
 xcodebuild -workspace ios/App/App.xcworkspace -scheme App -configuration Debug \
-  -destination 'generic/platform=iOS Simulator' build 2>&1 | tail -25
+  -destination 'generic/platform=iOS Simulator' build > /tmp/rail-la-build1.log 2>&1
+echo "exit=$?"; grep -E "BUILD (SUCCEEDED|FAILED)|error:" /tmp/rail-la-build1.log
 ```
 
-預期：`BUILD SUCCEEDED`。**這一步失敗就停在這裡修，不要往下寫橋接**——Swift 編譯錯誤混在橋接問題裡很難分。
+🔴 **判準是 `exit=0`，不是 log 裡有沒有 `BUILD SUCCEEDED`。** 原稿這裡寫的是 `... build 2>&1 | tail -25`，
+和上面 Step 0 自己的警告直接矛盾——**接了管道，exit code 就變成 `tail` 的 0，`BUILD FAILED` 也回 0**。
+（這是本檔第二次踩同一個坑，所以改成落檔再讀，不留管道。）
+
+預期：`exit=0`。**這一步失敗就停在這裡修，不要往下寫橋接**——Swift 編譯錯誤混在橋接問題裡很難分。
+
+⚠️ 這一關**只驗得到 Extension 那半**（版面＋共用型別）。plugin 還沒寫，App target 那半要等 Step 9b 的第二道 build gate。
 
 - [ ] **Step 5：寫橋接 plugin**
 
@@ -914,15 +1039,34 @@ public final class RailLiveActivityPlugin: CAPPlugin, CAPBridgedPlugin {
         CAPPluginMethod(name: "end", returnType: CAPPluginReturnPromise),
     ]
 
-    private var current: Any?  // Activity<RailFollowAttributes>;用 Any 存,避免整個 class 被 @available 綁死
+    // current／chain 只在 main queue 上被讀寫(由 enqueue 保證)。用 Any 存 Activity,
+    // 避免整個 class 被 @available 綁死(class 本身要對 iOS 15.0 編得過)。
+    private var current: Any?
+    private var chain: Task<Void, Never>?
 
+    // 🔴 把所有 ActivityKit 動作排成一條序列。原稿的 end 是 fire-and-forget 的 Task,
+    //    換車時「舊卡的 end」與「新卡的 request」會交錯 ⇒ 兩張卡並存,或新卡被舊卡的 end 收掉。
+    //    Capacitor 的 plugin 方法在自己的序列佇列上被呼叫,對同一來源佇列 main.async 保序。
+    private func enqueue(_ job: @escaping @MainActor () async -> Void) {
+        DispatchQueue.main.async {
+            let prev = self.chain
+            self.chain = Task { @MainActor in await prev?.value; await job() }
+        }
+    }
+
+    // 🔴 signature 提到 @available 型別 ⇒ 方法本身必須標 @available。
+    //    原稿沒標,而 class 是對 iOS 15.0 編譯的 ⇒ 直接編不過(而且錯誤訊息指向型別不是這裡)。
+    @available(iOS 17.6, *)
     private func state(from call: CAPPluginCall) -> RailFollowAttributes.ContentState {
-        let iso = ISO8601DateFormatter()
-        iso.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
         let raw = call.getString("arrivalIso") ?? ""
-        let date = iso.date(from: raw)
-            ?? ISO8601DateFormatter().date(from: raw)
-            ?? Date().addingTimeInterval(60)
+        var date: Date? = nil
+        if !raw.isEmpty {
+            let iso = ISO8601DateFormatter()
+            iso.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+            date = iso.date(from: raw) ?? ISO8601DateFormatter().date(from: raw)
+        }
+        // 🔴 解析不出來就是 nil。原稿的 `?? Date().addingTimeInterval(60)` 會在卡片上
+        //    造出一個憑空捏造、而且真的在走的「還有 1 分鐘」——使用者無從分辨真假。
         return RailFollowAttributes.ContentState(
             nextStop: call.getString("nextStop") ?? "",
             arrivalDate: date,
@@ -931,51 +1075,68 @@ public final class RailLiveActivityPlugin: CAPPlugin, CAPBridgedPlugin {
         )
     }
 
+    // 收掉所有屬於本 App 的跟車卡片——包含「App 被系統終止後遺留」的孤兒。
+    // 🔴 只清 self.current 不夠:handle 不跨行程存活,App 重開後那張卡還在鎖定畫面上,
+    //    會一路留到 staleDate(8 小時),而且再跟一次車就變兩張。
+    @available(iOS 17.6, *)
+    @MainActor
+    private func endAll() async {
+        current = nil
+        for act in Activity<RailFollowAttributes>.activities {
+            await act.end(nil, dismissalPolicy: .immediate)
+        }
+    }
+
+    override public func load() {
+        guard #available(iOS 17.6, *) else { return }
+        enqueue { await self.endAll() }   // App 啟動先掃一次孤兒
+    }
+
     @objc func start(_ call: CAPPluginCall) {
-        guard #available(iOS 16.2, *) else { call.resolve(["ok": false, "why": "ios<16.2"]); return }
+        guard #available(iOS 17.6, *) else { call.resolve(["ok": false, "why": "ios<17.6"]); return }
         guard ActivityAuthorizationInfo().areActivitiesEnabled else {
             call.resolve(["ok": false, "why": "disabled"]); return
         }
-        endCurrent()
         let attrs = RailFollowAttributes(
             trainNo: call.getString("trainNo") ?? "",
             kind: call.getString("kind") ?? "",
             sys: call.getString("sys") ?? ""
         )
-        do {
-            let act = try Activity.request(
-                attributes: attrs,
-                content: .init(state: state(from: call), staleDate: Date().addingTimeInterval(8 * 3600))
-            )
-            current = act
-            call.resolve(["ok": true])
-        } catch {
-            call.resolve(["ok": false, "why": error.localizedDescription])
+        let st = state(from: call)
+        enqueue {
+            await self.endAll()   // 🔴 await:舊卡確實收掉之後才開新的
+            do {
+                self.current = try Activity.request(
+                    attributes: attrs,
+                    content: .init(state: st, staleDate: Date().addingTimeInterval(8 * 3600))
+                )
+                call.resolve(["ok": true])
+            } catch {
+                call.resolve(["ok": false, "why": error.localizedDescription])
+            }
         }
     }
 
     @objc func update(_ call: CAPPluginCall) {
-        guard #available(iOS 16.2, *), let act = current as? Activity<RailFollowAttributes> else {
-            call.resolve(["ok": false]); return
+        guard #available(iOS 17.6, *), let act = current as? Activity<RailFollowAttributes> else {
+            call.resolve(["ok": false, "why": "noactivity"]); return
         }
         let next = state(from: call)
-        Task { await act.update(.init(state: next, staleDate: Date().addingTimeInterval(8 * 3600)))
-               call.resolve(["ok": true]) }
+        enqueue {
+            await act.update(.init(state: next, staleDate: Date().addingTimeInterval(8 * 3600)))
+            call.resolve(["ok": true])
+        }
     }
 
     @objc func end(_ call: CAPPluginCall) {
-        endCurrent(); call.resolve(["ok": true])
-    }
-
-    private func endCurrent() {
-        guard #available(iOS 16.2, *), let act = current as? Activity<RailFollowAttributes> else { return }
-        current = nil
-        Task { await act.end(nil, dismissalPolicy: .immediate) }
+        guard #available(iOS 17.6, *) else { call.resolve(["ok": true]); return }
+        enqueue { await self.endAll(); call.resolve(["ok": true]) }
     }
 }
 ```
 
-⚠️ 用 `iOS 16.2` 而不是 16.1 作為門檻：`ActivityContent`／`staleDate` API 是 16.2 才有的，寫 16.1 會編不過。
+⚠️ 門檻是 **17.6**（＝Extension 的 deployment target），不是 16.1／16.2。理由見本 Task 開頭第三次更正：
+版面住在 Extension 裡，16.2～17.5 的裝置放行 plugin 只會得到「request 成功但畫面永遠空白」。
 
 - [ ] **Step 6：註冊 plugin 實例**
 
@@ -1038,15 +1199,20 @@ function laPayload(tr) {
 呼叫點用一個 helper 收在一起，避免三處各寫一份 guard：
 
 ```javascript
-let _laLast = 0;
+let _laLast = 0, _laKey = '';
 function laSync(tr, force) {
   if (!LIVE_ACTIVITY_ENABLED) return;
   const api = window.RAIL_NATIVE_LIVEACTIVITY;
-  if (!tr || !liveActivityAllowed()) { api.end(); _laLast = 0; return; }
+  if (!tr || !liveActivityAllowed()) { api.end(); _laLast = 0; _laKey = ''; return; }
   const p = laPayload(tr);
-  if (!p) { api.end(); _laLast = 0; return; } // info 為 null＝已抵達終點,收卡片
+  if (!p) { api.end(); _laLast = 0; _laKey = ''; return; } // info 為 null＝已抵達終點,收卡片
   const now = Date.now();
-  if (force || !_laLast) { _laLast = now; api.start(p); return; }
+  // 🔴 用「這是哪一台車」決定開新卡,不是用 force。force 只代表「立刻推一次別等節流」。
+  //    原稿的 `if (force || !_laLast) api.start(p)` 會依呼叫順序而定:若 updateFollowPanel
+  //    先跑(_laLast=0 ⇒ start),followTrainNo 的 force 再跑一次 start ⇒ 同一台車開兩張卡。
+  const key = p.sys + '#' + p.trainNo;
+  if (key !== _laKey) { _laKey = key; _laLast = now; api.start(p); return; } // 首次或換車
+  if (force) { _laLast = now; api.update(p); return; }                       // 同一台車:只推不重開
   if (now - _laLast < 10000) return;          // 節流:倒數由系統自走,逐秒推是浪費
   _laLast = now; api.update(p);
 }
@@ -1059,7 +1225,104 @@ function laSync(tr, force) {
 
 ⚠️ `updateFollowPanel` 開頭有 `if (fp.hidden || !tr) return;` 的早退，所以停止跟車不會走到結尾那行——`clearFollow()` 那一處是必要的，不能省。
 
-- [ ] **Step 9：捷運接點（含北捷官方逐車）**
+⚠️ **`p.trainNo` 單獨不是唯一鍵**（台鐵與高鐵／捷運真的有同號車），所以 `_laKey` 一定要含 `p.sys`。這與 `followTrainNo(no, {sys})` 是同一條專案鐵則。
+
+- [ ] **Step 9：第二道 build gate（🔴 Step 4 只驗得到 Extension 那半）**
+
+Step 4 跑在 plugin 存在之前，所以它驗不到 App target 的 plugin、target membership、
+availability guard、Capacitor 註冊——H-1／H-2／H-3 這一整族的問題都會安然通過 Step 4。
+plugin 寫完、註冊完之後**一定要再建一次**：
+
+```bash
+cd /Users/xuxiang/Code/軌島-Plus開張/app
+xcodebuild -workspace ios/App/App.xcworkspace -scheme App -configuration Debug \
+  -destination 'generic/platform=iOS Simulator' build > /tmp/rail-la-build2.log 2>&1
+echo "exit=$?"
+grep -c "RailLiveActivityPlugin.swift\|RailFollowAttributes.swift" /tmp/rail-la-build2.log
+```
+
+判準兩條，缺一不可：
+1. `exit=0`
+2. **第二條指令回傳 > 0**——log 裡要真的出現這兩個檔被編譯的紀錄。
+   🔴 這一條就是 H-1 的正向對照：檔案沒被加進 target 時 build 一樣成功，
+   差別只在「它從頭到尾沒被編譯過」。沒有這條對照，`exit=0` 是沉默不是證據。
+
+- [ ] **Step 10：模擬器實測（台鐵／高鐵）**
+
+```bash
+cd /Users/xuxiang/Code/軌島-Plus開張/app && npm run sync
+```
+
+用 iOS Simulator 跑起來（模擬器支援 Live Activity 的鎖定畫面顯示），注入 `state.plus = {active:true}` 後跟一班台鐵車，確認：
+
+1. 鎖定畫面出現卡片，車次／下一站／誤點文字正確
+2. 倒數自己在走（不是靜止的數字）
+3. 停止跟車 → 卡片消失
+4. 換一班車 → 舊卡片被取代不是兩張並存
+5. **自然跟到終點** → 卡片自己收掉。
+   🔴 這一條要**實測看卡片**，不可以靠讀碼推斷。規格裡「`info === null` 就 `end()`」那條路徑
+   有可能根本走不到（抵達時 `clearFollow()` 可能先發生）——那沒關係，收卡片由哪條路徑達成不重要，
+   **重要的是卡片真的消失了**。判準寫在結果上，不寫在路徑上。
+6. **殺掉 App 再重開**（模擬器上滑掉）→ 上一輪的卡片被收掉，且再跟一次車不會變成兩張。
+   （這是 `load()` 那一發 `endAll()` 的正向對照。）
+7. `start()` 後 200ms 內 `end()`（模擬「開一秒就結束」）→ 鎖定畫面不留孤兒卡片。
+
+- [ ] **Step 11：非 Plus 與非原生要安靜地什麼都不做**
+
+驗證兩個負向情境：純網站（`window.RAIL_NATIVE_LIVEACTIVITY` 不存在）跟車 → console 零錯誤；App 內未訂閱跟車 → 不建立卡片、零錯誤。
+
+- [ ] **Step 12：真機驗動態島**
+
+模擬器的動態島行為與真機有差。在有動態島的實機上確認 compact／expanded／minimal 三種版面都不破版、文字不被裁。
+**外加**：把 `arrivalIso` 塞空字串跑一次，確認倒數那一列整個不見（不是變成 0、不是 1970），版面不塌。
+
+- [ ] **Step 13：更新紀錄 + Commit**
+
+```html
+<li><span class="d">M/D</span><span>訂閱 Plus 後在 App 裡跟車，鎖定畫面和動態島會顯示下一站與到站時間</span></li>
+```
+
+⚠️ `M/D` 用**實際完成當天**的日期，不是規格撰寫日（8/2）。更新紀錄是對外公開日誌，寫錯日期＝對外資訊不實。
+⚠️ 文案寫「到站時間」不寫「到站倒數」：算不出 ETA 的車（Task 5b 的文湖線）不會有倒數列，寫死「倒數」會變成做不到的承諾。
+
+```bash
+git add app/ios/App/App/RailFollowAttributes.swift app/ios/App/RailBoardWidget/RailFollowActivity.swift \
+        app/ios/App/RailBoardWidget/RailBoardWidgetBundle.swift \
+        app/ios/App/App/RailLiveActivityPlugin.swift app/ios/App/App/RailPlacesPlugin.swift \
+        app/ios/App/App/Info.plist app/ios/App/App.xcodeproj/project.pbxproj \
+        app/src/native-bridge.mjs index.html
+git commit -m "feat(Plus): 跟車時在鎖定畫面與動態島顯示即時動態（Live Activity LA-0，台鐵／高鐵）"
+```
+
+🔴 `project.pbxproj` 與 `RailFollowAttributes.swift` **必須在 add 清單裡**。原稿兩個都漏了——
+少了前者，別人 clone 下來的專案根本沒有這個 plugin；少了後者，直接編不過。
+
+---
+
+## Task 5b：Live Activity 捷運接點（🔴 前置＝`feat/trtc-live` 已合併）
+
+**這個 Task 在 `feat/trtc-live` 合併進來之前不可以開工。** 它需要的 `state.trtc`、`f.ot`、
+`trtcActive()` 目前**在這棵樹裡一個都不存在**（實查 `git merge-base --is-ancestor feat/trtc-live feat/plus-launch` 為否）。
+硬做的結果是一個永遠不會被觸發的分支，加上完全無法執行的驗收。
+
+**開工前第一件事**（不做就停下來回報，不要自己去重建北捷）：
+
+```bash
+cd /Users/xuxiang/Code/軌島-Plus開張
+git merge-base --is-ancestor feat/trtc-live HEAD && echo "OK 可開工" || echo "STOP 尚未合併"
+grep -c "trtcActive\|state.trtc" index.html
+```
+
+第一條要 `OK 可開工`，第二條要 > 0。
+
+🔴 **本節所有 `index.html:行號` 一律視為過期，改以函式名定位。** 規格寫作時引用的是
+`feat/trtc-live` 的 `91b77c0`，合併後全部會漂（已知 `clearFreqFollow()` 就從 5047 漂到 5017）。
+依行號插入的風險是把程式插進不相干的函式裡——用 `grep -n "function clearFreqFollow"` 這種方式定位。
+
+**Files:** Modify `index.html`（`laPayloadMetro()` ＋ `updateFreqCard` 結尾接點 ＋ `clearFreqFollow()` 內一處）
+
+
+- [ ] **Step 1：捷運接點（含北捷官方逐車）**
 
 > 本節的結構事實由 `feat/trtc-live` session 於 2026-08-02 查碼回覆（行號取自他們的 `91b77c0`，會漂但結構不變）。使用者裁示 Live Activity 第一版**要涵蓋捷運、含北捷**。
 
@@ -1115,53 +1378,27 @@ function laPayloadMetro() {
 
 ⚠️ **文湖線官方車的可達性浮動極大，不要當成恆定狀態**。`feat/trtc-live` 在同一台伺服器上量到 BR 存活 3/24，二十分鐘後 24/24；另一次抽測 18 台 0 台過舊。所以「文湖線跟不了」是**單次量測的假象**——但也因此它**不能當驗收樣本**（同一支測試在不同時段會得到不同結果，紅了分不清是產品壞了還是剛好上游沒車）。Live Activity 的驗收一律用高運量線。`feat/trtc-live` 會在他們的 Task 8 於不同時段各量一次後裁定門檻——**不要為此自己調 `TRTC_STALE_MID`**。
 
-- [ ] **Step 10：模擬器實測**
+
+- [ ] **Step 2：模擬器實測（捷運三種形狀）**
+
+**三種 `state.freqFollow` 形狀各驗一次，只驗一種等於沒驗**：
+
+1. `f.tr`（時刻表捷運，例：新北捷）→ 出卡片，下一站與倒數與跟車卡一致
+2. `f.ot`（**北捷官方逐車，用高運量線**——文湖線的資料可達性浮動、當樣本會得到不穩定的紅）→ 出卡片，顯示車號／下一站／終點**與到站倒數**（`nx.eta`）；下一站不可以是它正停著的那一站（驗 `p.i !== ot.i` 的濾除真的有作用）；車號原樣顯示不做任何拆解
+3. 降級渲染：把 `arrivalIso` 手動塞成空字串（模擬文湖線 `path` 恆空）→ 卡片仍出現，只是不畫倒數列，**不是崩潰也不是顯示 1970**
+4. `f.k`（班距示意車）→ **不出卡片**，且 console 零錯誤
+5. 跟一台官方車後**按加速鈕** → `trtcActive` 翻假 → 卡片立刻收掉，不殘留
+6. App 內未訂閱跟一台捷運車 → 不建立卡片、零錯誤
+
+- [ ] **Step 3：更新紀錄 + Commit**
 
 ```bash
-cd /Users/xuxiang/Code/軌島-Plus開張/app && npm run sync
-```
-
-用 iOS Simulator 跑起來（模擬器支援 Live Activity 的鎖定畫面顯示），注入 `state.plus = {active:true}` 後跟一班台鐵車，確認：
-
-1. 鎖定畫面出現卡片，車次／下一站／誤點文字正確
-2. 倒數自己在走（不是靜止的數字）
-3. 停止跟車 → 卡片消失
-4. 換一班車 → 舊卡片被取代不是兩張並存
-
-捷運三個情境（Step 9 的接點）——**三種 `state.freqFollow` 形狀各驗一次，只驗一種等於沒驗**：
-
-5. `f.tr`（時刻表捷運，例：新北捷）→ 出卡片，下一站與倒數與跟車卡一致
-6. `f.ot`（**北捷官方逐車，用高運量線**——文湖線的資料可達性浮動、當樣本會得到不穩定的紅）→ 出卡片，顯示車號／下一站／終點**與到站倒數**（`nx.eta`）；下一站不可以是它正停著的那一站（驗 `p.i !== ot.i` 的濾除真的有作用）；車號原樣顯示不做任何拆解
-6b. 降級渲染：把 `arrivalIso` 手動塞成空字串（模擬文湖線 `path` 恆空）→ 卡片仍出現，只是不畫倒數列，**不是崩潰也不是顯示 1970**
-7. `f.k`（班距示意車）→ **不出卡片**，且 console 零錯誤
-
-8. 跟一台官方車後**按加速鈕** → `trtcActive` 翻假 → 卡片立刻收掉，不殘留
-9. `start()` 後 200ms 內 `end()`（模擬「開一秒就結束」）→ 鎖定畫面不留孤兒卡片
-
-- [ ] **Step 11：非 Plus 與非原生要安靜地什麼都不做**
-
-驗證兩個負向情境：純網站（`window.RAIL_NATIVE_LIVEACTIVITY` 不存在）跟車 → console 零錯誤；App 內未訂閱跟車 → 不建立卡片、零錯誤。**台鐵與捷運兩條路徑各驗一次**。
-
-- [ ] **Step 12：真機驗動態島**
-
-模擬器的動態島行為與真機有差。在有動態島的實機上確認 compact／expanded／minimal 三種版面都不破版、文字不被裁。
-
-- [ ] **Step 13：更新紀錄 + Commit**
-
-```html
-<li><span class="d">8/2</span><span>訂閱 Plus 後在 App 裡跟車，鎖定畫面和動態島會顯示下一站與到站倒數</span></li>
-```
-
-⚠️ 文案的邊界：台鐵與北捷高運量**有**倒數，文湖線**沒有**（`path` 恆空）。所以不要寫成「所有列車都有到站倒數」。上面那句「下一站與到站倒數」對絕大多數情況成立，可用；但若要更嚴謹可寫「下一站與到站時間」。
-
-```bash
-git add app/ios/App/RailBoardWidget/RailFollowActivity.swift app/ios/App/RailBoardWidget/RailBoardWidgetBundle.swift \
-        app/ios/App/App/RailLiveActivityPlugin.swift app/ios/App/App/RailPlacesPlugin.swift \
-        app/ios/App/App/Info.plist app/src/native-bridge.mjs index.html
-git commit -m "feat(Plus): 跟車時在鎖定畫面與動態島顯示即時動態（Live Activity LA-0）"
+git add index.html
+git commit -m "feat(Plus): Live Activity 接上捷運與北捷官方逐車"
 ```
 
 ---
+
 
 ## Task 6：Plus 功能清單與文案校正
 
@@ -1363,6 +1600,99 @@ git commit -m "feat(Plus): 訂閱清單改成六項，每一項都對得上真�
 
 ---
 
+## Task 6b：補上驗收腳本的九個確認盲點
+
+**這不是新功能，是還債。** 2026-08-02 一次獨立稽核在 `/tmp` 副本裡對產品程式碼做了九發突變，
+**九發全部沒有讓任何一支驗收腳本變紅**：
+
+| # | 突變（產品程式碼） | 使用者實際會受的害 | 分數 |
+|---|---|---|---|
+| S1 | `SAT_RETINA` 固定 `true`，忽略網站預設開關 | 網站也開始抓 Retina 圖磚 ⇒ **直接燒 Esri 額度** | 22/22 |
+| P2 | 刪掉 Firestore transaction／merge／寫回整段 | 雲端同步變成什麼都沒做，使用者資料**沒上雲** | 67/67 |
+| T2 | 刪掉接收端 `setSimSec/setSpeed(1)/togglePlay()` | 收到分享連結的人**看的不是同一個當下** | 51/56 |
+| P1 | 刪掉 `rail-user-data-changed` listener | 改了收藏不會自動排程同步 | 67/67 |
+| S2 | 刪掉開始跟車的 `setBasemap()` | 衛星模式下跟車仍用高解析 ⇒ 燒額度 | 22/22 |
+| S3 | 刪掉停止跟車的 `setBasemap()` | 停跟後不恢復高解析（Plus 買了拿不到） | 22/22 |
+| T3 | 目的站名改成錯的 | 接收端顯示錯誤目的站 | 51/56 |
+| S4 | 刪掉 `plusRefresh()` 的衛星重掛 | 回訪的 Plus 使用者要手動切一次才有高解析 | 22/22 |
+| T1 | `liveDelaySec()` 恆回 0 | ETA 全失真（判準與實作同源，恆綠） | 51/56 |
+
+🟢 **已先確認：這九處產品程式碼目前全部是對的**（逐一讀碼複驗）。所以這是「壞了不會有人告訴我們」，
+不是「現在就壞了」。但這批要開賣訂閱，付費功能的靜默失效不能靠運氣。
+
+🔴 **根因是同一個，而且與 Task 4 那一輪一模一樣：斷言全部落在受測物的下游。**
+測試用 `page.evaluate` 把狀態塞進去，驗的是「渲染器拿到正確的值會不會畫」，
+從來沒驗過「誰負責把那個值填進去」。修法不是多加幾條斷言，是**把輸入端換成真實路徑**。
+
+**Files:** Modify `scripts/verify_plus_subscription.mjs`、`scripts/verify_tripshare.mjs`、`scripts/verify_sat_retina.mjs`
+
+- [ ] **Step 1：先補會燒錢的三條（S1／S2／S3）**
+
+三條都在 `verify_sat_retina.mjs`，而且都與 Esri 額度直接相關（本期額度吃緊，開關失守是**當天見效的成本事件**）。
+
+- **S1**：現行每一頁都注入 `RAIL_APP_CONFIG.satRetina = true`（`:64-67`），所以**網站預設路徑一次都沒被測到**。
+  加一個情境：**不注入任何 App 設定**、`state.plus.active = true`、開衛星 → 圖磚必須**全部是標準解析**。
+  （這條同時是「網站訂閱者拿不到 Retina」這個產品裁示的唯一守門員。）
+- **S2**：現行順序都是「先跟車、後切衛星」，所以「已在衛星時開始跟車」這條路徑沒被走過。
+  加一個情境：Plus → 開衛星（確認拿到高解析）→ **再**開始跟車 → 圖磚必須降回標準解析。
+- **S3**：接續 S2，停止跟車 → 圖磚必須**回到高解析**。整支目前沒有任何一條在取消跟車後重新分類 z 值。
+
+- [ ] **Step 2：補雲端同步的成功鏈（P2／P1）**
+
+在 `verify_plus_subscription.mjs`。現行的 Firestore stub 只被用來**探測 `doc()` 有沒有被呼叫**，
+所以整段 transaction 刪光仍然全綠。
+
+- **P2**：把 stub 升級成會**記錄**的假 Firestore（`runTransaction` 收到什麼、`tx.set` 寫了哪些 kind、
+  payload 的 `items`／`revision` 長什麼樣）。斷言要看**寫進去的內容**，不是「有沒有碰過 SDK」。
+  🔴 判準至少要有一條是「本機原本沒有、雲端有的那一筆，同步後出現在本機」——這是 merge 真的跑過的證據。
+- **P1**：真的去改一筆收藏（走產品的收藏函式，不是直接寫 `localStorage`），
+  然後斷言 `accountScheduleSync()` 被排程。刪掉 `rail-user-data-changed` 的 listener 這條必須變紅。
+
+- [ ] **Step 3：補行程分享接收端（T2／T3）**
+
+在 `verify_tripshare.mjs`。
+
+- **T2**：載入分享連結**前**先把接收端撥到回看狀態（`setSimSec` 撥到過去、`setSpeed(30)`、暫停），
+  再 `applyTripLink()` → 斷言三件事都被強制回來：時鐘貼近現在、速度 = 1、正在播放。
+  這正是「兩個人看同一個當下」的全部價值，現行零覆蓋。
+- **T3**：目的站名的斷言不要用 `includes()` 比 `state._trip.dest`（那是產品自己剛填的，同源）。
+  改成拿**當初造連結時用的那個站名字串**（測試自己持有的獨立值）做**完全相等**比對。
+
+- [ ] **Step 4：每一條新斷言都要配一發突變（否則等於沒補）**
+
+🔴 **這是本 Task 唯一的驗收條件。** 補完斷言之後，逐條在 `git worktree add --detach` 的隔離樹裡
+把對應的產品程式碼改壞，確認**紅的是預期那幾條**，再還原確認全綠。
+
+```bash
+cd /Users/xuxiang/Code/軌島-Plus開張
+git worktree add --detach /tmp/rail-mut-$$ HEAD
+ln -s /Users/xuxiang/Code/軌島-Plus開張/node_modules /tmp/rail-mut-$$/node_modules
+# 在 /tmp/rail-mut-$$ 裡逐一施加上表九個突變，各跑一次三支腳本，記錄分數
+```
+
+沒有做這一步的「我補了斷言」不算完成——**上一輪的教訓就是「新加的判準自己沒有牙」**。
+突變要瞄準**語意**（把資格改成恆真、把寫入點刪掉、把值改成錯的），
+不要瞄準測試自己塞的狀態（改下游只證明下游自洽）。
+
+- [ ] **Step 5：T1／S4 明確記錄為「本批不補」並寫下理由**
+
+- **T1**（ETA 同源 oracle）：要修得建一個獨立的 ETA 真值來源（不用 `liveDelaySec()`／`fmtHM()`），
+  工程量大於本批剩餘價值，且 `liveDelaySec` 另有專屬的位置驗收在守。
+- **S4**（`plusRefresh()` 衛星重掛）：純 UX 降級（回訪者手動切一次就好），不是資料或金錢風險。
+
+兩條都寫進 ledger 的 minor 清單，交給最終全分支複審決定要不要在合併前補。
+**🔴 不要靜默略過**——沒寫下來的「決定不做」與「忘了做」在三個月後長得一模一樣。
+
+- [ ] **Step 6：Commit**
+
+```bash
+git add scripts/verify_plus_subscription.mjs scripts/verify_tripshare.mjs scripts/verify_sat_retina.mjs
+git commit -m "test(Plus): 補上三支驗收腳本的確認盲點（成本開關、同步成功鏈、接收端強制 live）"
+```
+
+---
+
+
 ## Task 7：開閘與端到端驗收
 
 **Files:**
@@ -1371,6 +1701,40 @@ git commit -m "feat(Plus): 訂閱清單改成六項，每一項都對得上真�
 
 **Interfaces:**
 - Consumes：Task 1–6 全部
+
+- [ ] **Step 0：把本批所有更新紀錄條目的日期改成「實際上線日」**
+
+本批每個 Task 各自 commit 時寫的是**當天**日期（規格撰寫日 8/2），但整批是**一起上線**的。
+中間只要跨一天，網站上就會出現一批日期比實際發布早的條目——更新紀錄是對外公開日誌，日期不實就是對外資訊不實。
+
+```bash
+grep -n 'class="d">' index.html | head -20
+```
+
+把本批新增的那幾條（帳號同步、行程分享、衛星高解析、創始徽章、Live Activity、Plus 功能清單）
+統一改成 promote 到正式站那一天。**其他既有條目不要動。**
+
+- [ ] **Step 0b：翻開全部四個旗標（🔴 只翻 `PLUS_ENABLED` ＝ 對外公告拿不到的功能）**
+
+本批四條更新紀錄描述的功能，**目前旗標全部是關的**（第 4 輪實作者查出並回報）：
+
+| 旗標 | 現值 | 位置 | 現在的實際行為 |
+|---|---|---|---|
+| `ACCOUNT_ENABLED` | `false` | `index.html:6052` | 帳號鈕隱藏、不載 Firebase ⇒ **雲端同步整個拿不到** |
+| `TRIP_SHARE_ENABLED` | 只認 `?tripshare=1` | `index.html:6074` | 一般使用者看不到入口 |
+| `PLUS_ENABLED` | 只認 `?plus=1` | `index.html:6058` | 訂閱入口整個看不到 |
+| `SAT_RETINA_DEFAULT` | `false` | `index.html:5998` | 網站端**刻意**不給 Retina（**這條是產品裁示，不要翻**） |
+
+⇒ **前三個要在這一步翻開**（`SAT_RETINA_DEFAULT` 維持 `false`，衛星高解析是 App 限定，見 Task 6 的文案）。
+⇒ 🔴 **翻旗標與那四條更新紀錄必須同一次出貨**。先出更新紀錄後翻旗標＝公告了拿不到的功能；
+反過來也一樣糟。這是「宣稱與實作相符」在時序上的形式。
+
+- [ ] **Step 0c：解掉更新紀錄的自我矛盾**
+
+「曾經上線、後來拿掉」那一組裡還留著「帳號同步 7/17 收起」，與本批新增的「帳號同步可用」直接打架
+（第 4 輪實作者回報；他刻意沒動，因為那是內容決策）。翻開 `ACCOUNT_ENABLED` 之後，
+舊那條就不再成立——改寫成「7/17 曾收起，8/x 隨 Plus 重新開放」，或整條移除。
+**兩條同時掛在對外頁面上，讀者只會覺得我們自己搞不清楚。**
 
 - [ ] **Step 1：恢復原生恆開**
 
