@@ -725,6 +725,24 @@ Live Activity 是加值功能，不能拿「誰能用這個 App」去換。
   - Swift：`RailFollowAttributes`（`ActivityAttributes`），`ContentState` 欄位＝`nextStop: String`、`arrivalDate: Date`、`delaySec: Int`、`terminus: String`
   - JS：`window.RAIL_NATIVE_LIVEACTIVITY`，方法 `start({trainNo, kind, nextStop, arrivalIso, delaySec, terminus})`、`update({...同上})`、`end()`，皆回 Promise
 
+- [ ] **Step 0：借 gitignored 的建置輸入（不做的話第一發建置就掛）**
+
+這棵是乾淨 worktree，`GoogleService-Info.plist` 是**刻意 gitignored** 的（`app/.gitignore:11`），
+所以不在這裡。少了它 `xcodebuild` 會直接失敗，而錯誤訊息（`Build input file cannot be found`）
+看起來像專案壞掉，其實只是環境條件。
+
+```bash
+ln -sf /Users/xuxiang/Code/捷運小動畫/app/ios/App/App/GoogleService-Info.plist \
+       /Users/xuxiang/Code/軌島-Plus開張/app/ios/App/App/GoogleService-Info.plist
+```
+
+symlink 是 gitignored 的，不會被 commit。**2026-08-02 已實跑驗證**：補上這個 symlink 後
+`xcodebuild -workspace App.xcworkspace -scheme App -destination 'platform=iOS Simulator,name=iPhone 17 Pro,OS=27.0' -configuration Debug CODE_SIGNING_ALLOWED=NO build`
+＝ **BUILD SUCCEEDED**、0 error、Widget Extension 一併建起來。所以原生迴圈在本機是通的。
+
+⚠️ 跑建置指令時**尾端不要接管道**（`| tail`／`| grep`）：那會把 exit code 換成管道最後一支的，
+`BUILD FAILED` 也會回 0。要看摘要就先導向檔案再讀。（2026-08-02 我自己踩過一次。）
+
 - [ ] **Step 1：Info.plist 加開關**
 
 `app/ios/App/App/Info.plist` 的最外層 `<dict>` 內加：
@@ -1268,12 +1286,40 @@ node scripts/verify_plus_subscription.mjs; node scripts/verify_plus_features.mjs
 node scripts/verify_public_repo_hygiene.mjs   # 看「歷史掃描」那一段
 ```
 
-**只要那段非空，這條分支就不能以現有 commit 序列 push。** 兩條合規路徑：
-1. **squash 合併進 `main`**（推薦）——中間 commit 不進公開歷史，最終樹已驗證乾淨。
-2. 改寫這幾顆 commit 後再 push。
+**只要那段非空，這條分支就不能以現有 commit 序列 push。**
 
-⚠️ 選 1 時記得：ledger 用 commit hash 當復原錨點，squash 後那些 hash 只在本地有效，
-合併後要把 ledger 的錨點換成新的那顆。
+🔴🔴 **最容易踩的一步：把分支 push 上去開 PR，本身就已經公開了。**
+`git push origin feat/plus-launch` 之後，那些中間 commit 在 GitHub 上**立刻可見**
+（分支頁、commit 列表、PR 的 Commits 分頁都看得到）。**GitHub 的 squash-merge 按鈕只讓 `main`
+乾淨，不會回頭抹掉你已經傳上去的分支歷史**——等到那時才想清乾淨已經來不及。
+⇒ **順序只有一種是安全的：先在本機清乾淨，再 push。**
+
+🔴 **掃描涵蓋三個面，不是兩個**（2026-08-02 範圍複審補上）：
+檔案最終狀態、**檔案的中間 commit**、以及 **commit message 本體**。
+第三面最容易漏——訊息不帶 `+` 前綴，原本兩段掃描結構上都照不到，
+而本批次真的中過一次（描述「我修掉了什麼」時把原文整段引用進訊息裡）。腳本現已一併掃。
+
+兩條合規路徑：
+
+**Option 1：squash 合併（推薦）**
+```bash
+git checkout main && git pull
+git merge --squash feat/plus-launch
+git commit          # ⚠️ 訊息重新寫過,不要複製任何一顆舊訊息(它們正是洩漏源)
+```
+
+**Option 2：只改寫受影響 commit 的訊息（不動檔案內容時適用）**
+```bash
+FULL=$(git rev-parse <那顆 commit>)
+FILTER_BRANCH_SQUELCH_WARNING=1 git filter-branch -f --msg-filter \
+  "if [ \"\$GIT_COMMIT\" = \"$FULL\" ]; then cat /path/to/新訊息.txt; else cat; fi" \
+  origin/main..HEAD
+```
+⚠️ `filter-branch` **要求工作樹乾淨**（有未 commit 的改動會直接拒絕）。
+並行有 subagent 在編輯時跑不了——先等它收工。
+
+⚠️ 兩條路都記得：ledger 用 commit hash 當復原錨點，改寫／squash 後那些 hash 會失效，
+完成後要把 ledger 的錨點換成新的。（Option 2 只有被改寫那顆**及其後代**換 hash，祖先不動。）
 
 - [ ] **Step 3：發行前 CI**
 
