@@ -180,6 +180,22 @@ window.RAIL_APPLE_LOGIN = true;
           await accountSyncNow('login');
 ```
 
+🔴 **光補這一行還不夠**，因為 `ACCOUNT_ENABLED=false` 時開機序列根本不會呼叫 `accountEnsureInit()`（`setupAccountUi` 走 `btn.remove()` 那條），`onAuthStateChanged` 連註冊都沒註冊——上面那行要等使用者先點過 Plus／帳號入口才會跑。付費者冷啟動、還沒互動之前，`state.plus.active` 仍是 false，Task 2/3/4 的**被動**閘門（衛星在圖層建立時判、創始徽章在護照渲染時判、行程分享鈕的顯示）會集體誤判他沒資格。
+
+所以 `setupAccountUi()`（index.html:7054-7063）要多一個條件：**登入過的人開機就初始化**。判別依據用現成的 `localStorage['trainmap-last-sync-uid']`——它在同步成功時寫入（index.html:6893）、`accountClearLocal()` 時移除（登出與刪帳號都會走到），語意剛好是「這台裝置上有人登入過且還沒登出」。
+
+```javascript
+  // 登入過的人(本機還留著 last-sync-uid)開機就初始化,否則付費者冷啟動時所有用戶端閘門都會
+  // 誤判他沒資格。從沒登入過的免費層仍然完全匿名:不載 Firebase、不建 state.account。
+  let returning = false;
+  try { returning = !!localStorage.getItem('trainmap-last-sync-uid'); } catch (e) {}
+  if (ACCOUNT_ENABLED || accountIntent === 'delete' || returning) {
+    await accountEnsureInit(); return;
+  }
+```
+
+⚠️ 這**不是**把 `ACCOUNT_ENABLED` 偷偷打開：從沒登入過的訪客走的還是 `btn.remove()` 那條，一個 byte 的 Firebase 都不載。07-21 拍板的「免費層匿名」完整保留。
+
 - [ ] **Step 5：網站端補 `/api/plus-status`**
 
 `plusRefresh()` 卡在 `plusConfigured()`（index.html:7069-7076），而它在網站上要求 `c.webApiKey`——`revenuecat-config.js` 只設了 `iosApiKey`。所以**網站端 `state.plus.active` 恆為 false**，四項 Plus 功能在 railisland.tw 上全部不生效。2026-08-02 使用者裁示：補一支唯讀端點讓網站讀得到 App 買的資格，不設 Web Billing key、不開放網站購買。
@@ -206,8 +222,12 @@ async function accountSyncNow(reason) {
   if (!a || !a.user || !a.db || a.syncing) return false;
   // 雲端同步是 Plus 功能(2026-08-02 裁示:用戶端閘門)。logout 是刻意的例外——
   // 登出會清掉本機資料(accountClearLocal),不讓最後一次回寫完成就等於吃掉使用者的東西。
-  if (reason !== 'logout' && !(state.plus && state.plus.active)) return false;
+  // 用 startsWith 不用 !==:rules 擋下時 catch 會遞迴成 'logout-legacy' 重試(index.html:6904),
+  // 寫死 !== 'logout' 會讓重試被閘門擋掉、而 accountSignOut 照樣清本機 ⇒ 真的掉資料。
+  if (!reason.startsWith('logout') && !(state.plus && state.plus.active)) return false;
 ```
+
+驗收要涵蓋 `'logout-legacy'`：斷言未訂閱使用者的 `accountSyncNow('logout-legacy')` **不被擋下**（回傳不是「因閘門而 false」）。只驗 `'logout'` 通過等於沒驗到這個洞。
 
 一個入口擋住全部六個呼叫點（`login`／`manual`／`local-change`／`foreground`／`logout`／`-legacy`）。
 
