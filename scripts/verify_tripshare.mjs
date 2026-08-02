@@ -261,6 +261,21 @@ async function overlapCheck(browser, label, width, height, touch) {
   await ctx.close();
 }
 for (const [w, h] of [[360, 780], [375, 812], [414, 896], [768, 1024]]) await overlapCheck(cr, `chromium ${w}`, w, h, true);
+
+// ══════════════ Z0 錯誤收集器的正向對照 ══════════════
+// 上面 9 條「無 JS 例外／console 零 error」都是「數量必須為 0」型:boot() 的 listener 若失效,
+// 它們會全部變成永遠的假綠——分不出「真的沒錯」與「量測器根本沒在量」。
+// ⚠️ 例外必須發生在頁面自己的 task 裡才會觸發 pageerror;`page.evaluate(() => { throw ... })` 的例外
+//    會被 Playwright 以 rejection 接回 Node,一筆都收不到(2026-08-02 實測),那種探針本身就是壞的。
+try {
+  const { ctx, page, errors } = await boot(cr, '');
+  await page.evaluate(() => { setTimeout(() => { throw new Error('__collector_probe__'); }, 0); });
+  await page.waitForTimeout(400);
+  ok('Z0 錯誤收集器正向對照:故意丟的 pageerror 有被收到(證明上面「無 JS 例外」不是假綠)',
+    errors.some(s => s.includes('__collector_probe__')), `本輪收到 ${errors.length} 筆`);
+  await ctx.close();
+} catch (e) { ok('Z0 錯誤收集器正向對照', false, '探針情境失敗:' + String(e).slice(0, 150)); }
+
 await cr.close();
 
 // ── webkit 390 抽測(macOS/iOS 預設引擎) ──

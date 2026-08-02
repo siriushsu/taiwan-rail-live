@@ -62,13 +62,20 @@ const ok = (name, pass, detail = '') => { results.push({ name, pass, detail }); 
 const skip = (name, reason) => { skips.push({ name, reason }); console.log(`SKIP ${name} — ${reason}`); };
 
 const allErrors = [];
+// 本檔有 ~10 條「零 pageerror/console.error」斷言,全部是「數量必須為 0」型——收集器若沒掛上,
+// 它們會全部無條件通過。兩道防線:(1) Z0 正向對照證明 listener 真的收得到(見檔尾);
+// (2) 下面兩個計數器證明「每一個開出來的 page 都有掛」——attach 與 newPage 是分開兩次呼叫,
+//     新增情境時可能只寫了 newPage 忘了 attach,那顆 page 的例外就會全程隱形。
+let pagesCreated = 0, pagesAttached = 0;
 function attach(page, tag) {
   const local = [];
+  pagesAttached++;
   page.on('pageerror', e => { const m = `[${tag}] pageerror: ${e}`; local.push(m); allErrors.push(m); });
   page.on('console', m => { if (m.type() === 'error') { const s = `[${tag}] console.error: ${m.text()}`; local.push(s); allErrors.push(s); } });
   return local;
 }
 async function newPage(browser, { width = 1280, height = 800, touch = false, theme = 'light' } = {}) {
+  pagesCreated++;
   const ctx = await browser.newContext({ viewport: { width, height }, hasTouch: touch, isMobile: touch });
   await ctx.addInitScript(t => {
     try { localStorage.setItem('trainmap-howto-seen', '1'); } catch (e) {}
@@ -408,6 +415,34 @@ function collectFirebaseReqs(page) {
   ok('I4 本輪零 pageerror/console.error', errs.length === 0, errs.slice(0, 3).join(' | '));
   await ctx.close();
 }
+
+// ══════════════ Z0 錯誤收集器的正向對照 ══════════════
+// 上面每一條「零 pageerror」與檔尾的 K「全程為零」都是「數量必須為 0」型斷言:收集器壞掉(listener
+// 掛在錯的 page、attach 忘了呼叫、Playwright 改事件名)時,它們全部會變成永遠的假綠。這裡故意在頁面裡
+// 丟一顆例外,證明同一支 attach() 掛的 listener 真的收得到。
+// ⚠️ 探針形式很關鍵:`page.evaluate(() => { throw ... })` 的例外是被 Playwright 接住、以 rejection
+//    回到 Node,**完全不會觸發 pageerror**(2026-08-02 實測:形式A 收到 0 筆、形式B 收到 1 筆)。
+//    要真的觸發,例外必須發生在頁面自己的 task 裡,所以用 setTimeout 包起來。
+//    否則探針本身就是壞的——而壞掉的正向對照比沒有更糟,它會讓你以為驗過了。
+{
+  const before = allErrors.length;
+  const { ctx, page } = await newPage(chromiumB);
+  const errs = attach(page, 'Z0-probe');
+  await page.goto(BASE, { waitUntil: 'domcontentloaded' });
+  await waitReady(page); // 與其他情境一致等到 boot 完成:半途關頁會產生中止類的假錯誤,污染 K
+  await page.evaluate(() => { setTimeout(() => { throw new Error('__collector_probe__'); }, 0); });
+  await page.waitForTimeout(400);
+  ok('Z0 錯誤收集器正向對照:故意丟的 pageerror 有被收到(證明上面所有「零例外」不是假綠)',
+    errs.some(s => s.includes('__collector_probe__')), `本輪收到 ${errs.length} 筆`);
+  // 探針是刻意製造的,不能算進 K 的「全程為零」;摘除後比長度確認摘得剛好,避免摘太多把真錯誤一起吃掉。
+  for (let i = allErrors.length - 1; i >= 0; i--) if (allErrors[i].includes('__collector_probe__')) allErrors.splice(i, 1);
+  ok('Z0b 探針已從全程收集器摘乾淨(沒多摘也沒少摘)', allErrors.length === before,
+    `摘除前後 ${before} → ${allErrors.length}`);
+  await ctx.close();
+}
+// 每一顆開出來的 page 都必須掛上收集器,否則它的例外全程隱形、K 依然是綠的。
+ok('Z0c 每顆 page 都掛上了錯誤收集器', pagesCreated === pagesAttached,
+  `newPage=${pagesCreated} attach=${pagesAttached}`);
 
 // ══════════════ 收尾 ══════════════
 ok('K 全程 pageerror/console.error 為零', allErrors.length === 0, allErrors.slice(0, 8).join(' | '));
