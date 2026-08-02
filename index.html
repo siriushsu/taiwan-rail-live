@@ -6001,7 +6001,7 @@ const SAT_RETINA = APP_CFG.satRetina ?? SAT_RETINA_DEFAULT;
 // 衛星高解析(Retina)＝Plus。SAT_RETINA 保留為「這個平台建不建得出高解析層」的總開關
 // (Esri 額度止血用),資格判定另外走 satRetinaAllowed()——兩者是 AND。
 function satRetinaAllowed() {
-  return SAT_RETINA && !!(state.plus && state.plus.active);
+  return SAT_RETINA && plusIsActive();
 }
 function followEntryZoom() { return Math.min(Math.max(map.getZoom(), 13), FOLLOW_ZOOM_CAP); } // 跟車進場:至少拉近到 13,App 再套上限
 const LOCATE_ENABLED = !!window.RAIL_NATIVE_GEOLOCATION;
@@ -6078,7 +6078,7 @@ const TRIP_SHARE_ENABLED = (() => { try { return new URLSearchParams(location.se
 // 兩段式(顯示 vs 放行)是刻意的:URL 參數可以被轉貼,不能讓它變成公開後門。
 // 接收端 ?trip= 永遠免費解碼,不受這裡影響。
 function tripShareVisible() {
-  return TRIP_SHARE_ENABLED || !!(state.plus && state.plus.active);
+  return TRIP_SHARE_ENABLED || plusIsActive();
 }
 // ?demo=collect／off:備援站確認設計用的示範收集資料開關。**必須在這裡就讀進來**——
 // boot 途中 clearFollow() 會 `history.replaceState(null,'',location.pathname)` 把 query string 抹掉,
@@ -6864,7 +6864,7 @@ function accountRender() {
   else {
     const u = a.user, photo = takeoutSafeHref(u.photoURL, '');
     const avatar = photo ? `<img src="${escHtml(photo)}" alt="">` : escHtml(accountDisplayName(u).slice(0, 1).toUpperCase());
-    const subscribed = !!(state.plus && state.plus.active);
+    const subscribed = plusIsActive();
     const sync = !subscribed ? '訂閱軌島 Plus 才會同步' : (a.syncing ? '正在合併這台裝置與雲端資料…' : (a.lastSync ? `上次同步：${new Date(a.lastSync).toLocaleString('zh-TW')}` : '尚未完成第一次同步'));
     const plus = subscribed ? '訂閱中' : '未訂閱';
     // Plus 狀態列與入口以 plusProjectConfigured()(整個 RevenueCat project 是否有 Plus)為準,而非
@@ -6898,7 +6898,7 @@ async function accountSyncNow(reason) {
   // 登出會清掉本機資料(accountClearLocal),不讓最後一次回寫完成就等於吃掉使用者的東西。
   // 用 startsWith 不用 !==:rules 擋下時下面的 catch 會遞迴成 reason+'-legacy' 重試,
   // 寫死 !== 'logout' 會讓重試被閘門擋掉、而 accountSignOut 照樣清本機 ⇒ 真的掉資料。
-  if (!reason.startsWith('logout') && !(state.plus && state.plus.active)) return false;
+  if (!reason.startsWith('logout') && !plusIsActive()) return false;
   a.syncing = true; a.actionError = ''; accountRender();
   try {
     // Firestore rules 尚未放行新 collection 時,整筆交易會 permission-denied——退回舊清單重試,
@@ -7097,6 +7097,9 @@ async function setupAccountUi() {
 }
 
 // ── 訂閱制 Plus（RevenueCat 月/年訂閱 → plus entitlement） ────────────────────────
+// Plus 資格的唯一判定式。刻意抽成具名函式而不是內聯——它讓「這個 repo 裡總共有哪幾道 Plus 閘門」
+// 變成一次 grep 就答得完的問題,而不是要人肉掃六個不同的寫法。
+function plusIsActive() { return !!(state.plus && state.plus.active); }
 const REVENUECAT_WEB_VERSION = '1.47.3';
 const REVENUECAT_WEB_URL = `https://cdn.jsdelivr.net/npm/@revenuecat/purchases-js@${REVENUECAT_WEB_VERSION}/dist/Purchases.umd.js`;
 const REVENUECAT_WEB_SRI = 'sha384-uxK23EQfDmI/oo6YmVrqk+9HhGysN0x/nGR3rCt/WWke/GFeWKQDTigtWvgCEZrF';
@@ -7208,13 +7211,19 @@ function plusFinishPending() {
 function plusRender() {
   const body = document.getElementById('plusBody'), p = state.plus; if (!body || !p) return;
   const hero = `<div class="plus-hero"><span class="plus-mark">＋</span><h3>軌島 Plus 訂閱</h3><p>以月訂或年訂支持軌島持續運作。同一個軌島帳號可在網站與 App 使用與恢復訂閱資格。</p></div>`;
-  // 定案 Plus 功能清單(此順序);① 誤點歷史圖表為頭牌放第一。價格一律取自商店回傳,此處不列任何價格。
+  // 定案 Plus 功能清單(此順序);①誤點履歷為頭牌放第一。價格一律取自商店回傳,此處不列任何價格。
+  // 每一項都對映到一個真的資格判定,清單與實作是否脫節由 verify_plus_features.mjs 機械稽核
+  // (見該檔 REQUIRED 對映表)。① 只涵蓋 /api/delay-history(90 天逐日,有 Plus 閘門)獨有的部分——
+  // /api/delay-stats(30 天彙總)零資格檢查、本來就免費,不可算進賣點。
+  // 創始會員徽章有到期日(FOUNDING_UNTIL_MS,見上方 foundingFrom() 旁的說明):過了那天才訂閱的人
+  // 永遠拿不到,清單不能無條件宣傳——到期後這一項直接從陣列消失,不留半吊子的「限期」措辭。
   const feats = [
-    '<b>每班車的誤點履歷與統計圖表</b>',
-    '收藏跨裝置雲端同步',
-    '衛星底圖',
-    'App 進階定位與 Live Activity',
-    '創始會員徽章',
+    '<b>每班車的誤點履歷（逐日紀錄，回溯 90 天）</b>',
+    '收藏與完乘記錄跨裝置雲端同步',
+    '行程分享：把你在哪班車上分享給朋友',
+    'App 衛星底圖高解析度（支援 Retina 螢幕）', // App 限定(2026-08-02 裁示):網站的 SAT_RETINA_DEFAULT 維持 false,不標明就是對網站訂閱者做假廣告
+    '跟車時在鎖定畫面與動態島顯示即時動態（App）',
+    ...(Date.now() < FOUNDING_UNTIL_MS ? ['創始會員徽章'] : []),
   ].map(t => `<div class="plus-feature"><span>✓</span>${t}</div>`).join('');
   const features = `<div class="plus-features">${feats}</div>` +
     '<p class="plus-trust">列車位置、誤點資訊與系統覆蓋永遠免費——Plus 不影響準確度。</p>';
@@ -7256,13 +7265,17 @@ async function plusRefresh() {
   if (!plusConfigured()) {
     // 此平台無購買通道(網站沒有 Web Billing key,RAIL_REVENUECAT_CONFIG 只設 iosApiKey):不初始化任何
     // billing SDK,但改打 /api/plus-status 讀 App 買的資格(2026-08-02 新增,唯讀,不開放網站購買)。
-    // 只信任明確的 {active:true};非 200 或 active:false 都不動 p.active——避免把上游短暫故障
-    // (503)誤讀成「沒訂閱」而讓付費者的功能閃爍消失(同一顧慮見 worker.js /api/plus-status 註解)。
     p.error = '';
     try {
       const token = state.account.fb.getIdToken ? await state.account.fb.getIdToken(user) : await user.getIdToken();
       const res = await fetch(apiUrl('api/plus-status'), { cache: 'no-store', headers: { Authorization: 'Bearer ' + token } });
-      if (res.ok) { const data = await res.json(); if (data && data.active === true) p.active = true; }
+      if (res.ok) {
+        const data = await res.json();
+        // 只有 200 才是「後端給了確定答案」:true 給資格、false 收回資格。非 200(503/401)是「查不出來」,
+        // 一律維持現狀——把上游短暫故障誤讀成「沒訂閱」會讓付費者的功能整批閃爍消失(同一顧慮見
+        // worker.js /api/plus-status 註解,那裡就是為了讓前端能分辨才把 403 轉成 200 {active:false})。
+        if (data && typeof data.active === 'boolean') p.active = data.active;
+      }
     } catch (e) {}
     accountRender(); plusRender();
     return p.active;
@@ -7321,14 +7334,14 @@ async function plusRestore() {
   finally { p.loading = false; plusRender(); }
 }
 async function plusRequire(source, onGranted) {
-  if (state.plus && state.plus.active) { if (typeof onGranted === 'function') onGranted(); return true; }
+  if (plusIsActive()) { if (typeof onGranted === 'function') onGranted(); return true; }
   if (!plusConfigured()) return false;
   plusOpen(source, onGranted);
   return false;
 }
 // Plus 功能總閘 helper(上架批次接功能用;目前刻意不接任何現有功能):已訂閱直接放行,否則開訂閱視窗。
 function plusGateOpen(source, onGranted) {
-  if (state.plus && state.plus.active) { if (typeof onGranted === 'function') onGranted(); return; }
+  if (plusIsActive()) { if (typeof onGranted === 'function') onGranted(); return; }
   plusOpen(source, onGranted);
 }
 function setupPlusUi() {
@@ -9214,7 +9227,7 @@ function musicRamp(to, ms, thenPause) { // 音量漸變(50ms 一階)
     if (i >= steps) { clearInterval(state.music._fade); if (thenPause) a.pause(); }
   }, 50);
 }
-function musicMixEntitled() { return REC_MUSIC_PROTOTYPE || !!(musicRecordingLicensed() && state.plus && state.plus.active); }
+function musicMixEntitled() { return REC_MUSIC_PROTOTYPE || (musicRecordingLicensed() && plusIsActive()); }
 function musicEnsureMix(force) {
   const m = state.music; if (!m || m.mixDest || (!force && !musicMixEntitled())) return m && m.mixDest;
   try {
@@ -9425,7 +9438,7 @@ function toggleFav(tr) {
 // 純客端:App 在前景時推更新,進背景後倒數由系統自走、誤點數字停在最後一次的值(LA-0 的已知邊界)。
 const LIVE_ACTIVITY_ENABLED = !!window.RAIL_NATIVE_LIVEACTIVITY;
 function liveActivityAllowed() {
-  return LIVE_ACTIVITY_ENABLED && !!(state.plus && state.plus.active);
+  return LIVE_ACTIVITY_ENABLED && plusIsActive();
 }
 // 下一站與倒數完全沿用跟隨面板那一套(updateFollowPanel):nextStopInfo() 回 {name, min, at},
 // min=距抵達分鐘數、at=表定時刻(秒)。Live Activity 只是把它算好的值搬過去,不另造演算法。
@@ -11874,7 +11887,7 @@ function buildFoundingSeal() {
   // active 也要檢查:founding 只在寫入當下與 active 一起判定(p.founding = p.active && foundingFrom(info)),
   // 但兩者是分開的欄位——像 accountClearLocal() 這種只重置 active 卻忘了同步清 founding 的路徑,
   // 不依賴寫入點永遠同步,守門直接兩個都看。
-  if (!state.plus || !state.plus.active || !state.plus.founding) return '';
+  if (!plusIsActive() || !state.plus.founding) return '';
   return '<div class="ph-founding"><span class="pf-mark">創</span>' +
     '<span class="pf-txt"><b>創始會員</b><i>謝謝你在最早的時候就決定支持軌島</i></span></div>';
 }
@@ -12455,7 +12468,7 @@ function renderDelayHist() {
         `<div class="dh-sec">各週幾平均誤點</div>${dhWeekday(days)}`;
       const range = (meta.date_range && meta.date_range.length === 2) ? `${meta.date_range[0]} ～ ${meta.date_range[1]}` : '';
       const src = `<div class="dh-src">資料：交通部TDX運輸資料流通服務平臺・軌島每日彙整${range ? '<br>統計區間 ' + range : ''}</div>`;
-      if (state.plus && state.plus.active) {
+      if (plusIsActive()) {
         body = statRow + charts + src;
       } else {
         // 未訂閱:圖表區模糊+置中 CTA;統計列與資料標示仍可見當 teaser
