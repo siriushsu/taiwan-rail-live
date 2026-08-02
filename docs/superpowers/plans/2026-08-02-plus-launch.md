@@ -1784,11 +1784,34 @@ git commit -m "test(Plus): 補上三支驗收腳本的確認盲點（成本開�
 ## Task 7：開閘與端到端驗收
 
 **Files:**
-- Modify: `index.html`（`PLUS_ENABLED` 的原生恆開那一行）
-- Modify: `scripts/verify_plus_subscription.mjs`
+- Modify: `index.html`（`PLUS_ENABLED` 的原生恆開那一行、付費視窗六項文案、更新紀錄去重）
+- Modify: `terms.html`、`privacy.html`、`app-support.html`（Step 0d 的對外文案收斂）
+- Modify: `scripts/verify_plus_subscription.mjs`、`scripts/verify_public_repo_hygiene.mjs`
 
 **Interfaces:**
-- Consumes：Task 1–6 全部
+- Consumes：Task 1–6 **與 Task 6b** 全部（6b 改過的三支腳本是 Step 2 的前置）
+
+### 🔴 開工前的兩道前置（獨立稽核判定，缺一不可）
+
+**前置一：Task 8 的外部狀態必須先確定，Task 7 才做得完。**（原規格把順序寫反了）
+Task 7 的 Step 0 要把更新紀錄改成「實際上線日」、Step 4 要跑 ASC 沙箱購買——
+但**建立／確認訂閱商品、RevenueCat offering、確定真正商店上線日**全排在 Task 8。
+商品不存在時沙箱 happy path 跑不起來；上線日未定時填進去的只能是猜的日期。
+⇒ **Task 8 的商品與 offering 要先就位**；`FOUNDING_UNTIL_MS` 的校正要排在主要驗收**之後**，
+而且改完常數要重跑一次相關驗收，不能改完就出貨。
+⚠️ 「實際上線日」＝**App 商店版本真的可下載那天**，不是 Task 7 的 commit 日、也不是送審日。
+
+**前置二：開閘是寫死進 App binary 的，必須先定好止血方案。**
+`PLUS_ENABLED` 在原生環境是 `return true` 的**常數**，不是可遠端關閉的 feature flag
+——build 進 App 就鎖死到下一次送審。原規格從開閘寫到 commit，完全沒有「發現問題之後怎麼辦」。
+開閘前要先寫下並經使用者確認：
+
+1. 如何**停止新購買**（ASC 下架商品／RevenueCat offering 停用，各需多久生效）
+2. 如何**暫停或降級功能**而不必等送審（網站端旗標可以，App 端有哪些做得到）
+3. **已付費週期**怎麼交付或退款（誰執行、走哪個介面）
+4. 已發布的**更新紀錄與對外文案**怎麼更正
+
+這四題沒有答案就不要開閘——真的出事時沒有時間現想。
 
 - [ ] **Step 0：把本批所有更新紀錄條目的日期改成「實際上線日」**
 
@@ -1813,16 +1836,86 @@ grep -n 'class="d">' index.html | head -20
 | `PLUS_ENABLED` | 只認 `?plus=1` | `index.html:6058` | 訂閱入口整個看不到 |
 | `SAT_RETINA_DEFAULT` | `false` | `index.html:5998` | 網站端**刻意**不給 Retina（**這條是產品裁示，不要翻**） |
 
-⇒ **前三個要在這一步翻開**（`SAT_RETINA_DEFAULT` 維持 `false`，衛星高解析是 App 限定，見 Task 6 的文案）。
+🔴🔴 **上面這張表的結論已被獨立複審推翻，不要照它做。** 修正後的裁示如下：
+
+| 旗標 | 這一步怎麼處理 | 理由 |
+|---|---|---|
+| `ACCOUNT_ENABLED` | **維持 `false`，不准翻** | 它不是「允許 Plus 登入」的閘，是 `setupAccountUi()` 的 **eager 初始化**開關（`index.html:7092`）。翻成 `true` ＝ 帳號鈕與 Firebase 送給**每一個免費訪客**，直接撤銷 2026-07-21 的甲案裁示（免費層匿名），並讓既有驗收 I1／I2（新訪客 `state.account` 不存在、Firebase 請求為零）必紅——那兩條正是刻意在守免費層匿名的 |
+| `TRIP_SHARE_ENABLED` | **維持 `false`，不准翻** | 付費者入口早就由 `tripShareVisible() = TRIP_SHARE_ENABLED \|\| plus active` 開了。這個旗標只是把入口**額外顯示給未訂閱者**的 dev／upsell 通道，不是付費功能可用性的必要條件。翻了會推翻 Task 2 已驗的「無參數不顯示」，並讓 `verify_tripshare.mjs` 的 A2／F5 轉紅 |
+| `PLUS_ENABLED` | **只恢復原生恆開那一行**（見 Step 1），網站端另見下方 | 見下 |
+| `SAT_RETINA_DEFAULT` | 維持 `false` | 產品裁示，衛星高解析是 App 限定 |
+
+🔴 **`ACCOUNT_ENABLED` 維持 `false` 會留下一個真的缺口，必須另外補**：
+一位剛在 App 訂閱、第一次用瀏覽器開 `railisland.tw` 的使用者，既沒有 `last-sync-uid`
+（所以 `setupAccountUi()` 的 `returning` 是 false、入口被 `btn.remove()` 拿掉），
+網站的 `PLUS_ENABLED` 又只認 `?plus=1` ⇒ **他沒有任何入口可以登入，等於買了拿不到「跨裝置同步」**。
+
+**裁示（2026-08-02，使用者選定）**：網站端開 Plus 面板，但**只展示與登入、不賣**，
+面板內加一顆「已經在 App 訂閱了？登入以同步」，**點下去才** `accountEnsureInit()`。
+⇒ 免費訪客仍然零 Firebase、零帳號鈕，甲案裁示完整保住；訂閱者有可發現的入口。
+
 ⇒ 🔴 **翻旗標與那四條更新紀錄必須同一次出貨**。先出更新紀錄後翻旗標＝公告了拿不到的功能；
 反過來也一樣糟。這是「宣稱與實作相符」在時序上的形式。
 
 - [ ] **Step 0c：解掉更新紀錄的自我矛盾**
 
 「曾經上線、後來拿掉」那一組裡還留著「帳號同步 7/17 收起」，與本批新增的「帳號同步可用」直接打架
-（第 4 輪實作者回報；他刻意沒動，因為那是內容決策）。翻開 `ACCOUNT_ENABLED` 之後，
-舊那條就不再成立——改寫成「7/17 曾收起，8/x 隨 Plus 重新開放」，或整條移除。
+（第 4 輪實作者回報；他刻意沒動，因為那是內容決策）。
+改寫成「7/17 曾收起，8/x 隨 Plus 重新開放」，或整條移除。
 **兩條同時掛在對外頁面上，讀者只會覺得我們自己搞不清楚。**
+
+🔴 **這一步的工作是「去重」，不是「新增」**（獨立稽核指出，前提已過期）：
+`index.html` 目前**已經有**行程分享的條目，而且**同一個功能同時掛在「最近更新」與舊主題組裡**
+——正好違反 Global Constraints 的「搬家不複製」。帳號、衛星、創始徽章也有同形重複。
+
+正確做法：每個功能**只留一份正本**（在巢狀主題組），首層「最近更新」只放短摘要且 ≤8 條，
+並保留**一個**實際上線日。**不要再加第三份公告**——那會讓後面「批次改日期」時無從判斷哪份才是正本。
+
+- [ ] **Step 0d：對外文案收斂（🔴 不改就是在付款決定點做不實宣稱）**
+
+獨立稽核把 `terms.html`／`privacy.html`／`app-support.html`／付費視窗拆成 73 條可獨立判定的宣稱，
+其中 **❌ 平台不可用 12、❌ 未實作 4、❌ 免費冒充付費 1**。付費視窗會**直接連到 `terms.html`**
+（`plusRender()` 內），所以使用者是在**決定要不要付錢的當下**讀到這些句子的。
+
+⚠️ **下列行號取自 `db0de39`，會漂。一律按內容定位，不要按行號。**
+
+九項必改（這是最小集合，不是全面改寫）：
+
+1. **全站付款平台收斂成第一版事實：只有 iOS App Store。**
+   `revenuecat-config.js` **只有 `iosApiKey`**，沒有 `androidApiKey`／`webApiKey`；Android 原生產物
+   尚未生成。刪掉 Google Play、網站 Web Billing、網站帳號訂閱管理與相關退款／收據敘述。
+   涉及：`terms.html:42-44`、`privacy.html:61,95-96,112`、`app-support.html:62,69`、`index.html:7235,7241`。
+2. **`terms.html:42` 的 Plus 功能例子改成真實六項。**
+   - 「衛星底圖」→「App 非跟車時的衛星高解析圖磚」。**衛星底圖本體是免費的**
+     （`satRetinaAllowed() { return SAT_RETINA && plusIsActive(); }` 只擋 Retina）。
+   - **刪掉「進階定位」**——這個字串在 `index.html` **零命中**，是個不存在的功能。
+3. **「每班車」必須限縮。** `renderDelayRow()` 的真實閘門是
+   `tr.sys === 'tra_sched' && s.d >= 5` ⇒ 只有**有足夠樣本的台鐵車次**。
+   高鐵、林鐵、捷運與樣本不足的台鐵車次都拿不到。改 `index.html:7224` 並同步 `terms.html:42`。
+4. **創始會員徽章標明 App 限定**（`index.html:7229`）。`p.founding` 只在 adapter 的
+   refresh／purchase／restore 三條 App 路徑寫入；網站 `/api/plus-status` 只回 `{active}`，
+   **沒有任何途徑補算 founding**。建議字串：「App 旅程護照的創始會員徽章」。
+5. **Live Activity 標明「iOS 17.6 以上」**（`index.html:7228`），不要泛稱「App」。
+   Swift 端全面 `@available(iOS 17.6, *)`，iOS 15～17.5 會被明確拒絕，Android 根本不存在。
+   更新紀錄 `index.html:3398` 已經寫對了，直接沿用它的限制語氣。
+6. **衛星高解析要揭露「跟車時降回標準解析」**（`index.html:7227` 或同視窗的信任文字）。
+   跟車是核心使用情境、不是極端例外，而且程式對**所有訂閱者**一律降級。
+7. **開賣切旗標的同一批，刪掉 `app-support.html:57-58` 的「現在還不能買／沒有 IAP」。**
+   這句現在為真，開賣當下立刻變成付款決定點上的直接錯誤。
+8. **錄影與 GPS 校正旅程改成條件式／尚未開放**（`app-support.html:79-80`、`privacy.html:54,63-64`）。
+   兩者目前都整體下架，公開使用者做不到。`terms.html:50` 已經寫對（「目前版本尚未開放」），沿用同一模式。
+9. **`privacy.html:57,106` 的定位保存期限改成精確行為。**
+   現況是「30 天後不再使用」（讀取端忽略），**不是「30 天後自動刪除」**——舊值仍留在 `localStorage`。
+
+🔴 **不要過度修改。** 稽核明列 41 條 ✅ 相符、可原樣保留，其中特別容易被誤刪的：
+
+- 「90 天逐日紀錄」**不是**把免費統計拿來賣：免費的是 30 天聚合列，Plus 真正新增的是
+  90 天逐日與週幾圖，且伺服器端 `checkPlusEntitlement()` 強制驗。**要限縮，不是整項刪掉。**
+  （前一份複審說「免費統計圖表被列為 Plus」是**說過頭了**，只有 `terms.html:42` 把兩者混在一起的問題。）
+- 「列車位置、誤點資訊與系統覆蓋永遠免費」、雲端同步、網站不付款而讀 App 資格、商店動態價格
+  ——皆有程式支撐，原樣保留。
+- 更新紀錄 `index.html:3330,3385` 的創始徽章文案**已經正確標了「App 的旅程護照」**，
+  問題只在付費視窗漏標。
 
 - [ ] **Step 1：恢復原生恆開**
 
@@ -1841,25 +1934,63 @@ const PLUS_ENABLED = (() => { try {
 
 ```bash
 cd /Users/xuxiang/Code/軌島-Plus開張
-node scripts/verify_plus_subscription.mjs; node scripts/verify_plus_features.mjs; node scripts/verify_sat_retina.mjs; node scripts/verify_tripshare.mjs; node scripts/verify_public_repo_hygiene.mjs
+for s in verify_plus_subscription verify_plus_features verify_sat_retina verify_tripshare verify_public_repo_hygiene; do
+  node "scripts/$s.mjs" > "/tmp/t7-$s.log" 2>&1; echo "$s exit=$?"
+done
 ```
 
-全綠才往下。⚠️ 用 `;` 不用 `&&`——`&&` 會在第一支非零時**靜默跳過後面全部**，
+全綠才往下。⚠️ 不用 `&&`——`&&` 會在第一支非零時**靜默跳過後面全部**，
 看起來像「只有一支失敗」，實際上是「後面幾支根本沒跑」（判準盲點形態 11 的 shell 變體）。
+
+🔴 **但也不要用 `;` 串成一行**：那樣整串 shell 的 exit code 只等於**最後一支**，
+前四支全紅、最後一支綠時整串仍回 0 ⇒ 若執行器只看 exit code，關鍵紅燈會被最後那支衛生腳本遮掉。
+所以改成上面的迴圈：**每一支各自印出自己的 exit code**，五個數字要逐一確認，不是看一個總結。
+
+⚠️ **`verify_tripshare.mjs` 的基準是 51/56 不是 56/56**——那 5 條紅是既有版面缺陷、
+修法在一條還沒合併的分支上。它維持 51/56 才算過，變成 56/56 或掉到 50 以下都要查。
+
+⚠️ **前置**：這一步依賴 Task 6b 改過的三支腳本，所以 **Task 6b 是 Task 7 的 prerequisite**
+（Interfaces 原本只寫 Consumes Task 1–6，漏了 6b）。
 
 - [ ] **Step 2b：🔴 push 前的歷史洩漏閘門（不可略過）**
 
 本 repo 是 **PUBLIC**，`git log -p` 撈得到**中間 commit**。最終狀態乾淨 ≠ 歷史乾淨：
 本批次有三處第三方服務成本數字是在中途才被移除的，原始字串仍留在中間 commit 裡。
 
-📌 **2026-08-02 進度**：**commit message 那一面已清乾淨**（命中 7 → 0，用下方 Option 2 的
-commit-tree 手法改寫，分支當時未 push、洩漏全程沒外流）。剩下的命中全是**檔案 diff 內容**，
-分布在 4 顆 commit（`08a111a` `6f5ca0e` `88ec068` `2587a4d`，另 `2843a01` 已改寫為 `4c8cdbf`）
-⇒ **這一面只能靠 Option 1 的 squash 處理，執行 Task 7 時仍要照跑一次確認數字。**
+🔴🔴 **「分布在 4 顆 commit」這個說法已被獨立稽核推翻，不要當成範圍。**（2026-08-02 複審）
+四顆本身都不是誤報，但**不完整**：
+
+- 漏掉 **`4c8cdbf`**：衛生掃描器第一版把真實成本／額度數字**內嵌成規則說明與正向對照**
+  ⇒ **執法機制自己成了最大的洩漏源**。
+- 漏掉 **`39d78e5`**：它把第一版的真值換成假值，但 **patch 的刪除側仍完整公開舊值**。
+- 更大宗的根本不是成本數字，是**類別 (e) 未公開商業決策共 12 條**——定價、創始方案、
+  調價與既有訂閱者處理、免費／付費邊界裁示、跨分支發布協調、尚未裁示的商業項目，
+  **連 commit message 本體也有**。
+
+⇒ **squash 範圍必須是完整 47 顆，不是「處理那四顆」。**
+
+🔴🔴 **那支掃描腳本現在不是一道會擋人的閘門，跑它之前先修好：**
 
 ```bash
-node scripts/verify_public_repo_hygiene.mjs   # 看「歷史掃描」那一段
+node scripts/verify_public_repo_hygiene.mjs   # ⚠️ 只看 exit code 會拿到假的綠燈
 ```
+
+- **C-01：`process.exit(failed ? 1 : 0)` 完全不看 `histHits`。** 腳本自己的註解寫著
+  「這一段刻意不計入 exit code」——是刻意的，**但寫在註解裡的約束不會自己執行**：
+  任何 CI／pre-push／未來的 agent 拿 exit code 當 go/no-go，就會在**已知有歷史洩漏時拿到 0**。
+  修法：歷史有命中就非零退出（要保留「僅提示」模式的話，用明確的旗標而不是預設值）。
+- ✅ **「刪除側全盲」那條複審發現是錯的，不要照它改。**（2026-08-02 由另一 session 實測駁回，
+  本 session 複驗同意。）歷史掃描範圍是 `git log -p -U0 ${BASE}..HEAD`（`:133`，BASE 預設 `origin/main`）
+  ⇒ **分支引入的任何值，必然是範圍內某顆 commit 的 `+` 行**，`+`-only 對「這條分支引入了什麼」
+  是**正確**的過濾。範圍內的 `-` 行只代表分支*移除*了東西：要嘛更早在範圍內以 `+` 出現過（已抓到），
+  要嘛存在於 BASE（早就公開在 main 上，是另一個問題，不是這支分支閘門該答的）。
+  🔴 **改成兩側都掃只會製造大量假陽性**——每一顆刪掉敏感字串的**修復** commit 都會被判成洩漏，
+  最後沒人敢信這支腳本。複審報告自己也寫「HEAD 版掃描器實跑列出 5 顆 addition-side 命中」，
+  正好包含它宣稱漏掉的 `4c8cdbf`。
+- 次要（可延後）：規則只涵蓋少數金鑰 prefix 與成本型樣，**完全沒有類別 (c)–(f) 的規則**；
+  工作樹掃描漏 untracked 檔；歷史階段的豁免沒有計數驗證。
+
+**修完要重掃三面**：新 commit 的完整 tree、相對 `origin/main` 的 patch、唯一那則 commit message。
 
 **只要那段非空，這條分支就不能以現有 commit 序列 push。**
 
@@ -1876,12 +2007,41 @@ node scripts/verify_public_repo_hygiene.mjs   # 看「歷史掃描」那一段
 
 兩條合規路徑：
 
-**Option 1：squash 合併（推薦）**
+**Option 1：squash 合併（唯一可行的路）**
+
+🔴🔴 **上面那份 `git checkout main` 的寫法不能執行，不要照抄**：
+`main` 已經被 `/Users/xuxiang/Code/軌島-巡檢` checkout 走了，在本樹下這道指令會被 git 直接拒絕；
+而且 Global Constraints 本來就禁止跨樹 checkout。改成從乾淨的隔離工作區做：
+
 ```bash
-git checkout main && git pull
-git merge --squash feat/plus-launch
-git commit          # ⚠️ 訊息重新寫過,不要複製任何一顆舊訊息(它們正是洩漏源)
+cd /Users/xuxiang/Code/軌島-Plus開張
+git fetch origin
+git worktree add -b release/plus-launch <乾淨目錄> origin/main   # 從「現在的」origin/main 起
+cd <乾淨目錄>
+git merge --squash feat/plus-launch                              # 範圍＝完整 47 顆,normal merge 不合格
+# ⚠️ 出 commit 之前先做下面兩件事,再 git commit
 ```
+
+🔴 **不可以把 `feat/plus-launch` 的 tree 直接改掛成 `origin/main` 的子節點**：
+merge-base 是 `9912d5d`，而 `origin/main` 比它多 1 顆（`a274168` 台鐵班表重抓）
+⇒ 那樣做會靜默退掉那顆。必須走三方語意（`merge --squash` 就是）。
+
+**出唯一那顆 commit 之前必做兩件：**
+
+1. **把 `docs/superpowers/plans/` 整個從最終 tree 移除**（2026-08-02 使用者裁示）。
+   獨立稽核判定**這份 plan 文件本身就是內部 launch brief**——定價、創始方案、調價與既有訂閱者
+   處理、免費／付費邊界裁示、跨分支發布協調、尚未裁示的商業項目，全都在裡面（類別 (e) 共 12 條）。
+   逐行消毒易漏，而且每次編輯都要重做一次。移到已 gitignored 的 `.superpowers/` 工作區，本機照常讀得到。
+2. **清掉仍留在程式裡的類別 (e)**：`index.html:7099-7108` 那段註解揭露了創始資格與價格保護的
+   內部理由、以及尚未發布的截止時點。**判定碼要留，內部理由要拿掉。**
+
+**commit message 必須重新寫成中性的發布摘要**，不可複製任何一顆舊訊息——
+稽核在 `2a993dd`／`08a111a`／`9c80458`／`cc74027`／`72e9020`／`a9d322d`／`a69267d`／`6bec51b`／
+`92f40b5` 的**訊息本體**裡都找到類別 (e) 內容。
+
+**舊分支 `feat/plus-launch` 保留當私有參考，但它的 47 顆物件永遠不能 push、
+也不能成為任何公開 merge commit 的 parent。** 不存在「再補一顆刪除 commit 就可安全 push」的路——
+舊 blob、patch 與 message 都還在，`git log -p` 撈得回來。
 
 **Option 2：只改寫受影響 commit 的訊息（不動檔案內容時適用）**
 
@@ -1927,7 +2087,8 @@ git update-ref refs/heads/feat/plus-launch "$NEW" "$OLD_HEAD"   # ← 三參數
 
 ```bash
 cd /Users/xuxiang/Code/軌島-Plus開張/app
-npm run sync && RAIL_ALLOW_SAFE_BUILD=1 node scripts/verify-release.mjs > /tmp/rel.txt 2>&1; echo "exit=$?"
+npm run sync:release > /tmp/rel-sync.txt 2>&1; echo "sync exit=$?"
+node scripts/verify-release.mjs > /tmp/rel.txt 2>&1; echo "verify exit=$?"
 ```
 
 🔴 **尾端不要接管道**。原稿寫的是 `... | tail -25`，而**管道會把真實 exit code 換成 `tail` 的 0**
