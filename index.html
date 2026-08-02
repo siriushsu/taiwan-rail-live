@@ -3327,6 +3327,7 @@
         <li><span class="d">8/2</span><span>訂閱軌島 Plus 後可以用軌島帳號登入，收藏的地點與完乘記錄會在手機和電腦之間同步</span></li>
         <li><span class="d">8/2</span><span>訂閱軌島 Plus 後可以分享「行程」：把正在跟的班次和目的站傳給朋友，對方點開連結就看得到車跑到哪、還要多久到，不用你一直回報位置</span></li>
         <li><span class="d">8/2</span><span>在 App 裡訂閱 Plus 後，衛星底圖會用高解析度圖磚（支援 Retina 螢幕）</span></li>
+        <li><span class="d">8/2</span><span>最早訂閱 Plus 的人，App 的旅程護照上會有一枚創始會員徽章</span></li>
         <li><span class="d">8/1</span><span>三鶯線跟上官方 8/1 延長：每天 08:00–22:00 都看得到車（原 10:00–20:00）</span></li>
         <li><span class="d">8/1</span><span>台鐵快車經過不停靠小站時的位置更準了——有網友拿碼錶實地量了十幾班車回報（謝謝）</span></li>
         <li><span class="d">8/1</span><span>衛星底圖換成比較省的計費方式：看到的畫面完全一樣，只是我們付給圖資供應商的錢少很多</span></li>
@@ -6961,7 +6962,7 @@ async function accountSignIn(providerName) {
 }
 function accountClearLocal() {
   const empty = userDataEmpty(); empty.revision = 0; empty.updatedAt = userDataNow(); userDataWrite(empty);
-  if (state.plus) { state.plus.active = false; state.plus.pkgMonthly = null; state.plus.pkgAnnual = null; state.plus.mgmtUrl = ''; state.plus.adapter = null; state.plus.afterUnlock = null; }
+  if (state.plus) { state.plus.active = false; state.plus.founding = false; state.plus.pkgMonthly = null; state.plus.pkgAnnual = null; state.plus.mgmtUrl = ''; state.plus.adapter = null; state.plus.afterUnlock = null; }
   if (window.RAIL_NATIVE_PLUS_ADAPTER && window.RAIL_NATIVE_PLUS_ADAPTER.clearUser) window.RAIL_NATIVE_PLUS_ADAPTER.clearUser().catch(() => {});
   state.plusPending = null;
   try { localStorage.removeItem('trainmap-last-sync-uid'); } catch (e) {}
@@ -7096,14 +7097,19 @@ const REVENUECAT_WEB_VERSION = '1.47.3';
 const REVENUECAT_WEB_URL = `https://cdn.jsdelivr.net/npm/@revenuecat/purchases-js@${REVENUECAT_WEB_VERSION}/dist/Purchases.umd.js`;
 const REVENUECAT_WEB_SRI = 'sha384-uxK23EQfDmI/oo6YmVrqk+9HhGysN0x/nGR3rCt/WWke/GFeWKQDTigtWvgCEZrF';
 function plusConfig() { return window.RAIL_REVENUECAT_CONFIG || {}; }
-// 創始會員＝在創始價期間開始訂閱的人。判定用訂閱起始時刻,不是當下時刻——
-// 改價後他們的價格被 Apple 的 Option A 保住(不斷訂就不受影響),徽章也要跟著保住。
+// 創始會員＝在創始價期間開始訂閱過的人。判定用訂閱起始時刻,不是當下時刻。
+// originalPurchaseDate 是這個 entitlement「第一次」被購買的日期,斷訂後再訂也不會變——
+// 所以徽章比 Apple Option A 的舊價保護更寬鬆(Option A 要求不斷訂才保住舊價,徽章只看有沒有
+// 在創始期買過)。這是刻意的產品選擇,兩者不是同一個機制,別誤讀成「徽章跟著舊價保護走」。
 // ⚠️ 這個日期與 ASC 上的改價日是同一天,改一個就要改另一個。
 const FOUNDING_UNTIL_MS = Date.parse('2026-09-15T00:00:00+08:00'); // 開賣日 + 30 天,發版前依實際開賣日校正
 function foundingFrom(info) {
   try {
     const ent = info && info.entitlements && info.entitlements.active && info.entitlements.active[plusConfig().entitlement || 'plus'];
     const t = ent && (ent.originalPurchaseDate || ent.latestPurchaseDate);
+    // Date.parse(t):App(Capacitor)路徑 t 是 ISO8601 字串,沒問題。若日後開放網站 Web Billing,
+    // @revenuecat/purchases-js 的同名欄位是 Date 物件——Date.parse(Date 物件) 靠隱式 toString()
+    // 各引擎實務可行但不是規格保證,屆時改 new Date(t).getTime() 更穩(目前網站無購買通道,非現在的缺陷)。
     return !!t && Date.parse(t) < FOUNDING_UNTIL_MS;
   } catch (e) { return false; }
 }
@@ -7168,7 +7174,7 @@ async function plusAdapterFor(uid) {
   };
 }
 function plusState() {
-  if (!state.plus) state.plus = { active: false, loading: false, error: '', pkgMonthly: null, pkgAnnual: null, mgmtUrl: '', adapter: null, afterUnlock: null };
+  if (!state.plus) state.plus = { active: false, founding: false, loading: false, error: '', pkgMonthly: null, pkgAnnual: null, mgmtUrl: '', adapter: null, afterUnlock: null };
   return state.plus;
 }
 async function plusOpen(source, onGranted) {
@@ -11795,7 +11801,10 @@ function buildRideRows(rides, mode) {
 }
 // 創始會員徽章:只有創始期間訂閱的人看得到,放護照最上方(它不是靠跑車跑出來的,與收集章分開)
 function buildFoundingSeal() {
-  if (!state.plus || !state.plus.founding) return '';
+  // active 也要檢查:founding 只在寫入當下與 active 一起判定(p.founding = p.active && foundingFrom(info)),
+  // 但兩者是分開的欄位——像 accountClearLocal() 這種只重置 active 卻忘了同步清 founding 的路徑,
+  // 不依賴寫入點永遠同步,守門直接兩個都看。
+  if (!state.plus || !state.plus.active || !state.plus.founding) return '';
   return '<div class="ph-founding"><span class="pf-mark">創</span>' +
     '<span class="pf-txt"><b>創始會員</b><i>謝謝你在最早的時候就決定支持軌島</i></span></div>';
 }

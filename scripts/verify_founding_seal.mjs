@@ -20,10 +20,15 @@
 import { chromium, webkit } from 'playwright';
 import { createServer } from 'node:http';
 import { readFileSync, existsSync, statSync, writeFileSync } from 'node:fs';
+import { createHash } from 'node:crypto';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+// M-6:第一道 gate 印出驗的是哪棵樹(本專案多 worktree 並行常態,踩過驗錯樹的虧;ROOT 由
+// 本檔自身路徑推導,結構上不會誤驗別的 worktree,這行是便宜的可稽核紀錄,不是唯一防線)。
+console.log(`[G0] ROOT=${ROOT}`);
+console.log(`[G0] index.html md5=${createHash('md5').update(readFileSync(path.join(ROOT, 'index.html'))).digest('hex')}`);
 const PORT = 5417;
 const MIME = { '.html': 'text/html', '.js': 'text/javascript', '.mjs': 'text/javascript', '.json': 'application/json', '.css': 'text/css', '.png': 'image/png', '.jpg': 'image/jpeg', '.svg': 'image/svg+xml', '.mp3': 'audio/mpeg', '.ico': 'image/x-icon', '.webmanifest': 'application/manifest+json' };
 const server = createServer((req, res) => {
