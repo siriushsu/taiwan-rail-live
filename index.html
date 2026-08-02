@@ -1006,6 +1006,17 @@
   .passport.closed .ph-sub, .passport.closed .ph-body { display: none; }
   .passport .ph-stats { flex: 1 1 100%; order: 2; font-size: 12.5px; color: var(--muted); font-variant-numeric: tabular-nums; }
   .passport .ph-stats b { color: var(--red); }
+  /* margin-top 與 .ph-sec 的 13px 一致(不是憑空發明的值):.ph-body 沒有自己的 padding/border,
+     它的第一個子元素的 margin-top 會「穿透」collapse 成 .ph-head 與內容之間的間距——徽章是新的
+     第一個子元素,若沿用 brief 原給的 margin-top:0,會把這段既有間距吃掉,徽章因此貼著護照標題列,
+     與其它每個分節(明星列車/車種圖鑑…)的既有節奏不一致(對照組實測:有徽章 0px vs 無徽章 13px)。 */
+  .ph-founding { display:flex; align-items:center; gap:10px; margin:13px 0 10px; padding:9px 12px;
+                 border:1px solid var(--line); border-radius:var(--r-m); background:var(--bg-stage); }
+  .ph-founding .pf-mark { flex:none; width:30px; height:30px; border-radius:var(--r-pill); display:grid; place-items:center;
+                          font-weight:900; font-size:15px; color:var(--paper); background:var(--gold); }
+  .ph-founding .pf-txt { display:flex; flex-direction:column; line-height:1.35; }
+  .ph-founding .pf-txt b { font-size:13.5px; color:var(--ink-strong); }
+  .ph-founding .pf-txt i { font-style:normal; font-size:11.5px; color:var(--faint); }
   /* .ph-* 家族(Batch B):新增 #ridePanel 一起匹配,護照 sheet 與桌面 #passport 共用同一套骨架;
      .passport 分支不變=桌面零變化 */
   .passport .ph-sec, #ridePanel .ph-sec {
@@ -7085,6 +7096,17 @@ const REVENUECAT_WEB_VERSION = '1.47.3';
 const REVENUECAT_WEB_URL = `https://cdn.jsdelivr.net/npm/@revenuecat/purchases-js@${REVENUECAT_WEB_VERSION}/dist/Purchases.umd.js`;
 const REVENUECAT_WEB_SRI = 'sha384-uxK23EQfDmI/oo6YmVrqk+9HhGysN0x/nGR3rCt/WWke/GFeWKQDTigtWvgCEZrF';
 function plusConfig() { return window.RAIL_REVENUECAT_CONFIG || {}; }
+// 創始會員＝在創始價期間開始訂閱的人。判定用訂閱起始時刻,不是當下時刻——
+// 改價後他們的價格被 Apple 的 Option A 保住(不斷訂就不受影響),徽章也要跟著保住。
+// ⚠️ 這個日期與 ASC 上的改價日是同一天,改一個就要改另一個。
+const FOUNDING_UNTIL_MS = Date.parse('2026-09-15T00:00:00+08:00'); // 開賣日 + 30 天,發版前依實際開賣日校正
+function foundingFrom(info) {
+  try {
+    const ent = info && info.entitlements && info.entitlements.active && info.entitlements.active[plusConfig().entitlement || 'plus'];
+    const t = ent && (ent.originalPurchaseDate || ent.latestPurchaseDate);
+    return !!t && Date.parse(t) < FOUNDING_UNTIL_MS;
+  } catch (e) { return false; }
+}
 function plusProjectConfigured() {
   const c = plusConfig();
   return !!(window.RAIL_NATIVE_PLUS_ADAPTER || window.RAIL_PLUS_TEST_ADAPTER || (c.entitlement && (c.webApiKey || c.iosApiKey || c.androidApiKey)));
@@ -7240,6 +7262,7 @@ async function plusRefresh() {
     p.adapter = await plusAdapterFor(user.uid);
     const [info, offerings] = await Promise.all([p.adapter.getCustomerInfo(), p.adapter.getOfferings()]);
     p.active = plusActiveFrom(info);
+    p.founding = p.active && foundingFrom(info);
     p.mgmtUrl = (info && info.managementURL) || '';
     const offering = plusConfig().offeringId && offerings.all ? offerings.all[plusConfig().offeringId] : offerings.current;
     const pkgs = offering && offering.availablePackages || [];
@@ -7259,6 +7282,7 @@ async function plusPurchase(kind) {
     const result = await p.adapter.purchase(pkg, user.email || '');
     const info = result && (result.customerInfo || result);
     p.active = plusActiveFrom(info);
+    p.founding = p.active && foundingFrom(info);
     p.mgmtUrl = (info && info.managementURL) || p.mgmtUrl || '';
     if (!p.active) throw new Error('付款完成但尚未取得訂閱資格，請按「恢復購買」');
     if (state.basemap === 'sat') setBasemap(); // 資格變動→衛星解析度跟著換,不必等使用者重切底圖
@@ -11766,6 +11790,12 @@ function buildRideRows(rides, mode) {
     `<div class="ph-row"><span class="datestamp">${escHtml((r.date || '').slice(5).replace(/-/g, '.'))}</span><b>${escHtml(r.train)}</b>` +
     `<span class="k">${escHtml(r.kind)}</span><span class="r">${escHtml(r.from)}→${escHtml(r.to)}</span><span class="km">${escHtml(r.km)} km</span></div>`).join('');
 }
+// 創始會員徽章:只有創始期間訂閱的人看得到,放護照最上方(它不是靠跑車跑出來的,與收集章分開)
+function buildFoundingSeal() {
+  if (!state.plus || !state.plus.founding) return '';
+  return '<div class="ph-founding"><span class="pf-mark">創</span>' +
+    '<span class="pf-txt"><b>創始會員</b><i>謝謝你在最早的時候就決定支持軌島</i></span></div>';
+}
 function renderPassport() {
   const el = document.getElementById('passport');
   if (state.mode !== 'sched') { el.hidden = true; el.innerHTML = ''; return; }
@@ -11774,7 +11804,7 @@ function renderPassport() {
   const longest = rides.reduce((a, r) => Math.max(a, Number(r.km) || 0), 0);
   // Batch B:收集章/成就/完乘列改走共用 builder(輸出與舊版逐字相同,桌面護照零變化)
   const rideSort = getRideSortMode();
-  const stamps = buildStamps(rides) + buildStationStamps(rides) + buildLineBars() + buildCorrectSection() + buildAchv(rides, 'seal');
+  const stamps = buildFoundingSeal() + buildStamps(rides) + buildStationStamps(rides) + buildLineBars() + buildCorrectSection() + buildAchv(rides, 'seal');
   const stnCount = stationCollection(rides).size;
   const list = buildRideRows(rides, rideSort);
   // 排序切換鈕:有記錄才顯示(空清單沒東西可排);選中狀態直接烤進 HTML,不用另外 sync
