@@ -1065,6 +1065,22 @@ git commit -m "feat(Plus): 跟車時在鎖定畫面與動態島顯示即時動�
 **Interfaces:**
 - Consumes：Task 2–5 產出的 `tripShareVisible()`／`satRetinaAllowed()`／`state.plus.founding`／`liveActivityAllowed()`
 
+- [ ] **Step 0：把資格判定收斂成單一符號 `plusIsActive()`**
+
+到這裡為止，`!!(state.plus && state.plus.active)` 這個判斷式會散在約六處（`plusRequire`／`plusGateOpen`／`accountSyncNow`／`tripShareVisible`／`satRetinaAllowed`／`liveActivityAllowed`）。**先抽成單一定義再做 Step 1 的稽核**：
+
+```javascript
+// Plus 資格的唯一判定式。刻意抽成具名函式而不是內聯——它讓「這個 repo 裡總共有哪幾道 Plus 閘門」
+// 變成一次 grep 就答得完的問題,而不是要人肉掃六個不同的寫法。
+function plusIsActive() { return !!(state.plus && state.plus.active); }
+```
+
+各功能自己的述詞（`satRetinaAllowed()` 等）維持不動，只把裡面的 `!!(state.plus && state.plus.active)` 換成 `plusIsActive()`。
+
+⚠️ 這不只是 DRY。這是判準盲點形態 10 的破法第三條——**規格裡每一條「強制層級」的宣告都要指得到具體的程式碼位置**。收斂成單一符號之後，「開賣清單的六項是不是每一項都真的有閘門」才是一個可機械回答的問題，而不是靠人記得。
+
+⚠️ 改完必須重跑 Task 1–5 的既有驗收腳本，確認一條都沒有由綠轉紅——這是純重構，任何行為變化都是缺陷。
+
 - [ ] **Step 1：先寫會失敗的驗收腳本**
 
 建 `scripts/verify_plus_features.mjs`。核心判準＝**清單上的每一項，都要能在程式裡指到一個真的資格判定**：
@@ -1076,7 +1092,7 @@ git commit -m "feat(Plus): 跟車時在鎖定畫面與動態島顯示即時動�
 //    改文案時若把 needle 也改掉,這支就會轉紅,那正是我們要的（清單與實作脫節必須有人知道）。
 const REQUIRED = [
   { needle: '誤點履歷', symbol: /plusGateOpen\('delay-history'/ },
-  { needle: '雲端同步', symbol: /reason !== 'logout' && !\(state\.plus && state\.plus\.active\)/ },
+  { needle: '雲端同步', symbol: /!reason\.startsWith\('logout'\)/ },
   { needle: '行程分享', symbol: /function tripShareVisible\s*\(/ },
   { needle: '高解析',   symbol: /function satRetinaAllowed\s*\(/ },
   { needle: '創始會員', symbol: /function foundingFrom\s*\(/ },
