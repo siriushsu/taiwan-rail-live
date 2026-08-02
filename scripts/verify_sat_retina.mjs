@@ -240,10 +240,9 @@ const cr = await chromium.launch();
   await ctx.close();
 }
 
-// ── 情境 7+8(2026-08-02 Task 6b 補 S2/S3):Plus → 先開衛星確認高解析 → 再開始跟車
-// (setFollow 內的 setBasemap()) → 應降回標準解析 → 接續停止跟車(clearFollow 內的
-// setBasemap())→ 應恢復高解析。情境2/4 都是「先跟車、後切衛星」,「已在衛星時開始/停止
-// 跟車」這兩條路徑(這兩個 setBasemap() 呼叫點)從未被走過。
+// ── 情境 7(2026-08-02 Task 6b 補 S2):Plus → 先開衛星確認高解析 → 再開始跟車(exercised:
+// setFollow 內的 setBasemap())→ 應降回標準解析。情境2/4 都是「先跟車、後切衛星」,「已在
+// 衛星時開始跟車」這條路徑從未被走過。
 {
   const { ctx, page, zooms, errors } = await boot(cr);
   await injectPlus(page);
@@ -261,15 +260,40 @@ const cr = await chromium.launch();
   const cFollow = classify(zooms, zoomFollow);
   ok('情境7(S2)Plus+衛星,開始跟車後降回標準解析(零 z+1)', cFollow.total > 0 && cFollow.hi === 0 && cFollow.other === 0, `zoom=${zoomFollow} ${JSON.stringify(cFollow)}`);
 
+  ok('情境7 無 JS 例外', errors.length === 0, errors.slice(0, 3).join(' | '));
+  await ctx.close();
+}
+
+// ── 情境 8(2026-08-02 Task 6b 補 S3,獨立開機、不接續情境7):停止跟車(exercised:
+// clearFollow 內的 setBasemap())→ 應恢復高解析。整支目前沒有任何一條在取消跟車後重新分類
+// z 值。
+// ⚠️ 刻意不接續情境7 那個 page(原設計是同一頁「開衛星→跟車→停跟車」一路測下去,但突變測試
+// 揭穿它有耦合:S2 一旦壞掉(setFollow 內的 setBasemap() 被刪),地圖全程停在 sat 圖層沒換過,
+// 「停止跟車」時 setBasemap() 判定的目標圖層(sat)跟現在其實一樣,不會重新 add 圖層、視野也
+// 沒變,於是完全沒有新請求可觀察(total===0),把情境8 的斷言一起拖紅——同一顆突變紅了兩條,
+// 判準耦合)。改成獨立開機,並且用「先跟車、後開衛星」建立起跑點(同情境2/4 已驗證過的路徑:
+// 衛星鈕自己的 onclick 直接呼叫 setBasemap(),不經過 setFollow,故完全不依賴 S2 那行是否存在)
+// ——這樣「停止跟車」測到的是一次真正的 satLQ→sat 圖層切換,S2 壞不壞都不影響這裡的起跑點。
+{
+  const { ctx, page, zooms, errors } = await boot(cr);
+  await injectPlus(page);
+  const f = await followAnyTrain(page); // 先跟車,衛星還沒開(不經過 S2 那行 setBasemap 的衛星判斷)
+  ok('情境8 前置:成功跟車', !!f, JSON.stringify(f));
+  await openSatellite(page, false); // 衛星鈕 onclick 自己呼叫 setBasemap(),與情境2/4 同路徑
+  await page.waitForTimeout(800);
+  const zoomPre = await page.evaluate(() => Math.round(map.getZoom()));
+  const cPre = classify(zooms, zoomPre);
+  ok('情境8 前置:跟車中開衛星=標準解析(零 z+1,同情境4 已驗證的路徑)', cPre.total > 0 && cPre.hi === 0 && cPre.other === 0, `zoom=${zoomPre} ${JSON.stringify(cPre)}`);
+
   zooms.length = 0; // 清空,只看停止跟車後新發出的請求
   await page.evaluate(() => clearFollow());
   await page.waitForFunction(() => !state.followTrain, null, { timeout: 5000 });
   await page.waitForTimeout(800);
   const zoomAfter = await page.evaluate(() => Math.round(map.getZoom()));
-  const cAfter2 = classify(zooms, zoomAfter);
-  ok('情境8(S3)接續情境7,停止跟車後恢復高解析(出現 z===zoom+1)', cAfter2.total > 0 && cAfter2.hi > 0, `zoom=${zoomAfter} ${JSON.stringify(cAfter2)}`);
+  const cAfter = classify(zooms, zoomAfter);
+  ok('情境8(S3)停止跟車後恢復高解析(出現 z===zoom+1)', cAfter.total > 0 && cAfter.hi > 0, `zoom=${zoomAfter} ${JSON.stringify(cAfter)}`);
 
-  ok('情境7+8 無 JS 例外', errors.length === 0, errors.slice(0, 3).join(' | '));
+  ok('情境8 無 JS 例外', errors.length === 0, errors.slice(0, 3).join(' | '));
   await ctx.close();
 }
 
