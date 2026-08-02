@@ -290,7 +290,12 @@ export async function verifyRelease({
       '暗色底圖不是含 api_key 的 Stadia alidade_smooth_dark');
     const satTokenMatch = html.match(/ibasemaps-api\.arcgis\.com\/arcgis\/rest\/services\/World_Imagery\/MapServer\/tile\/\{z\}\/\{y\}\/\{x\}\?token=([^'"\s]+)/);
     assert(satTokenMatch, '衛星底圖必須是含 token 的授權 Esri ibasemaps');
-    assert(!html.includes("plusGateOpen('satellite'"), 'App 第一版衛星免費，不可殘留 Plus 付費閘');
+    // 2026-08-02:衛星本體維持免費(satLine 那條顧),但高解析(Retina)是 Plus。
+    // 這條反過來要求資格函式存在——移除它等於把付費層靜默送掉。
+    assert(/function satRetinaAllowed\s*\(/.test(html),
+      '衛星高解析的資格判定 satRetinaAllowed() 消失——Retina 會變成全體免費');
+    assert(/const wantLQ = [^;]*satRetinaAllowed\(\)/.test(html),
+      'setBasemap 的選層條件沒有消費 satRetinaAllowed()——資格判定形同虛設');
     // 原本是逐字比對整行 `const sat = online && state.basemap === 'sat';`，但那樣任何無關的條件
     // （2026-07-26 加的 token 就緒判斷）也會誤擋。改成檢查意圖：判斷式裡不得出現付費條件。
     const satLine = (html.match(/const sat = online && state\.basemap === 'sat'[^;\n]*;/) || [])[0];

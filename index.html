@@ -3315,12 +3315,12 @@
         <li class="grp">最近更新</li>
         <li><span class="d">8/2</span><span>訂閱軌島 Plus 後可以用軌島帳號登入，收藏的地點與完乘記錄會在手機和電腦之間同步</span></li>
         <li><span class="d">8/2</span><span>訂閱軌島 Plus 後可以分享「行程」：把正在跟的班次和目的站傳給朋友，對方點開連結就看得到車跑到哪、還要多久到，不用你一直回報位置</span></li>
+        <li><span class="d">8/2</span><span>訂閱 Plus 後，衛星底圖會用高解析度圖磚（支援 Retina 螢幕）</span></li>
         <li><span class="d">8/1</span><span>三鶯線跟上官方 8/1 延長：每天 08:00–22:00 都看得到車（原 10:00–20:00）</span></li>
         <li><span class="d">8/1</span><span>台鐵快車經過不停靠小站時的位置更準了——有網友拿碼錶實地量了十幾班車回報（謝謝）</span></li>
         <li><span class="d">8/1</span><span>衛星底圖換成比較省的計費方式：看到的畫面完全一樣，只是我們付給圖資供應商的錢少很多</span></li>
         <li><span class="d">7/31</span><span>林鐵、高鐵有些車次號碼跟台鐵重複，台鐵誤點時同號的車會被一起推走——現在各算各的</span></li>
         <li><span class="d">7/31</span><span>誤點的車，跟車面板比地圖上的車慢半拍：車停在站上卻寫「行進中」，現在修好了（謝謝網友回報）</span></li>
-        <li><span class="d">7/30</span><span>iPhone 發車看板的起站與目的站選單會列出你在軌島存過的「我的地點」：選了「家」，桌面顯示的就是「家」；日後把「家」重存到別的地方，桌面也會自己跟過去</span></li>
       </ul>
       <!-- 第二層:完整歷史。刻意不掛 .foot-box 類名——placeFootBoxes() 用
            `.site-foot .foot-box` 搬移面板,巢狀同名會被當成另一個盒子一起搬走。 -->
@@ -5982,6 +5982,11 @@ const FOLLOW_ZOOM_CAP = APP_CFG.followZoomCap || Infinity; // App 計量底圖(S
 // 要復原就把這行改回 true（App 端還要一併改 prepare-web.mjs 的 satRetina，兩處是分開的）。
 const SAT_RETINA_DEFAULT = false;
 const SAT_RETINA = APP_CFG.satRetina ?? SAT_RETINA_DEFAULT;
+// 衛星高解析(Retina)＝Plus。SAT_RETINA 保留為「這個平台建不建得出高解析層」的總開關
+// (Esri 額度止血用),資格判定另外走 satRetinaAllowed()——兩者是 AND。
+function satRetinaAllowed() {
+  return SAT_RETINA && !!(state.plus && state.plus.active);
+}
 function followEntryZoom() { return Math.min(Math.max(map.getZoom(), 13), FOLLOW_ZOOM_CAP); } // 跟車進場:至少拉近到 13,App 再套上限
 const LOCATE_ENABLED = !!window.RAIL_NATIVE_GEOLOCATION;
 const NOTIFY_LOCAL_ENABLED = !!window.RAIL_NATIVE_LOCALNOTIFY;
@@ -7240,6 +7245,7 @@ async function plusRefresh() {
     const pkgs = offering && offering.availablePackages || [];
     p.pkgAnnual = plusPickPackage(pkgs, 'annual');
     p.pkgMonthly = plusPickPackage(pkgs, 'month');
+    if (state.basemap === 'sat') setBasemap(); // 資格變動→衛星解析度跟著換,不必等使用者重切底圖
     accountRender(); plusFinishPending(); return p.active;
   } catch (e) { p.error = '無法讀取 Plus：' + (e && e.message ? e.message : String(e)); return false; }
   finally { p.loading = false; plusRender(); }
@@ -7255,6 +7261,7 @@ async function plusPurchase(kind) {
     p.active = plusActiveFrom(info);
     p.mgmtUrl = (info && info.managementURL) || p.mgmtUrl || '';
     if (!p.active) throw new Error('付款完成但尚未取得訂閱資格，請按「恢復購買」');
+    if (state.basemap === 'sat') setBasemap(); // 資格變動→衛星解析度跟著換,不必等使用者重切底圖
     accountRender();
     if (!plusFinishPending()) { plusClose(); showToast('軌島 Plus 已啟用'); }
   } catch (e) {
@@ -14656,8 +14663,9 @@ function setBasemap() {
   const sat = online && state.basemap === 'sat' && satTokenState === 'ready'; // token 未到位前先維持一般地圖,不送無 token 的圖磚請求
   stage.classList.toggle('sat', sat);
   stage.classList.toggle('dark', state.mapDark && !sat);
-  // 跟車中鏡頭連續平移,detectRetina 版衛星圖磚量 4 倍會讓載入變慢,改用無 detectRetina 的 satLQ
-  const want = sat ? (state.followTrain && baseLayers.satLQ ? 'satLQ' : 'sat') : (state.mapDark ? 'dark' : 'light');
+  // 跟車中鏡頭連續平移一律用標準解析(圖磚量 4 倍會拖慢載入),非 Plus 也一律標準解析。
+  const wantLQ = !!baseLayers.satLQ && (state.followTrain || !satRetinaAllowed());
+  const want = sat ? (wantLQ ? 'satLQ' : 'sat') : (state.mapDark ? 'dark' : 'light');
   for (const k in baseLayers) {
     if (k === want) { if (!map.hasLayer(baseLayers[k])) baseLayers[k].addTo(map); }
     else if (map.hasLayer(baseLayers[k])) map.removeLayer(baseLayers[k]);
@@ -15941,8 +15949,9 @@ async function boot() {
     baseLayers[k] = L.tileLayer(t.url, opt);
     // 跟車鏡頭連續平移時 detectRetina 的 4 倍圖磚量會讓載入明顯變慢,跟車中改用這份無 detectRetina 版本
     // (setBasemap 依 state.followTrain 二選一;detectRetina 是 Leaflet 建構時就烘進 zoomOffset,無法動態切換單一圖層,故養兩份)
-    // SAT_RETINA 關閉時 sat 本身就是低解析度,不再養第二份(setBasemap 的 want 有 baseLayers.satLQ 存在性守門)
-    if (k === 'sat' && SAT_RETINA) baseLayers.satLQ = L.tileLayer(t.url, { ...opt, detectRetina: false });
+    // 衛星兩層並存:sat=detectRetina(高解析,Plus 專屬)、satLQ=標準解析(免費層與跟車時用)。
+    // 兩層都建才切得動——資格是 runtime 才知道的(要等 plusRefresh),不能在建層時決定。
+    if (k === 'sat') baseLayers.satLQ = L.tileLayer(t.url, { ...opt, detectRetina: false });
   }
   // 衛星計費模式的掛勾:數圖磚、跨門檻換 session、效期快到續一顆(見 satTileLoaded 上方長註解)
   if (baseLayers.sat) {
