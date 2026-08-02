@@ -3322,16 +3322,21 @@
   <footer class="site-foot">
     <details class="foot-box">
       <summary><span>更新紀錄</span><span class="foot-sub">最後更新：2026/8/2</span></summary>
+      <!-- 第一層是「最近更新」的檢視,不是正本:每一條都用 data-cl-of 指向第二層某條的 data-cl。
+           要把一條擠出第一層之前,它的正本必須已經在第二層存在——2026-08-03 就踩過一次:8/1 的
+           衛星計費那條只活在第一層(第二層只有一句夾在 7/25 條目裡、日期對不上的附帶說明),
+           被擠掉時等於刪掉那次變更唯一一筆可辨識的對外紀錄。CL1／CL2 兩條判準守這件事。
+           內容 li 上限 8 條(li.grp 是標題不算)。 -->
       <ul class="foot-list foot-recent">
         <li class="grp">最近更新</li>
-        <li><span class="d">8/2</span><span>訂閱軌島 Plus 後可以用軌島帳號登入，收藏的地點與完乘記錄會在手機和電腦之間同步</span></li>
-        <li><span class="d">8/2</span><span>訂閱 Plus 後可以把正在跟的班次分享給朋友，對方點開連結就看得到車跑到哪、還要多久到</span></li>
-        <li><span class="d">8/2</span><span>在 App 裡訂閱 Plus 後，衛星底圖會用高解析度圖磚（支援 Retina 螢幕）</span></li>
-        <li><span class="d">8/2</span><span>最早訂閱 Plus 的人，App 的旅程護照上會有一枚創始會員徽章</span></li>
-        <li><span class="d">8/2</span><span>訂閱 Plus 後在 App 裡跟車，鎖定畫面和動態島會顯示下一站與到站時間</span></li>
-        <li><span class="d">8/2</span><span>訂閱 Plus 後可以在 App 裡把 Google Maps 的「已儲存」清單匯入成軌島的最愛地點</span></li>
-        <li><span class="d">8/1</span><span>三鶯線跟上官方 8/1 延長：每天 08:00–22:00 都看得到車（原 10:00–20:00）</span></li>
-        <li><span class="d">8/1</span><span>台鐵快車經過不停靠小站時的位置更準了——有網友拿碼錶實地量了十幾班車回報（謝謝）</span></li>
+        <li data-cl-of="sync"><span class="d">8/2</span><span>訂閱軌島 Plus 後可以用軌島帳號登入，收藏的地點與完乘記錄會在手機和電腦之間同步</span></li>
+        <li data-cl-of="tripshare"><span class="d">8/2</span><span>訂閱 Plus 後可以把正在跟的班次分享給朋友，對方點開連結就看得到車跑到哪、還要多久到</span></li>
+        <li data-cl-of="satretina"><span class="d">8/2</span><span>在 App 裡訂閱 Plus 後，衛星底圖會用高解析度圖磚（支援 Retina 螢幕）</span></li>
+        <li data-cl-of="founding"><span class="d">8/2</span><span>最早訂閱 Plus 的人，App 的旅程護照上會有一枚創始會員徽章</span></li>
+        <li data-cl-of="liveactivity"><span class="d">8/2</span><span>訂閱 Plus 後在 App 裡跟車，鎖定畫面和動態島會顯示下一站與到站時間</span></li>
+        <li data-cl-of="takeout"><span class="d">8/2</span><span>訂閱 Plus 後可以在 App 裡把 Google Maps 的「已儲存」清單匯入成軌島的最愛地點</span></li>
+        <li data-cl-of="sanying"><span class="d">8/1</span><span>三鶯線跟上官方 8/1 延長：每天 08:00–22:00 都看得到車（原 10:00–20:00）</span></li>
+        <li data-cl-of="traobs"><span class="d">8/1</span><span>台鐵快車經過不停靠小站時的位置更準了——有網友拿碼錶實地量了十幾班車回報（謝謝）</span></li>
       </ul>
       <!-- 第二層:完整歷史。刻意不掛 .foot-box 類名——placeFootBoxes() 用
            `.site-foot .foot-box` 搬移面板,巢狀同名會被當成另一個盒子一起搬走。 -->
@@ -3377,13 +3382,13 @@
         <li><span class="d">7/11</span><span>新增「群車」視角：不跟單一列車，看整片列車交錯；改連續慢速巡航永不停頓</span></li>
         <li><span class="d">7/9</span><span>沉浸放空升級：真・全螢幕、「簡」極簡沉浸、經過特殊車站自動跳站介紹</span></li>
         <li class="grp">平交道與儲存地點</li>
-        <li><span class="d">8/2</span><span>訂閱軌島 Plus 後，可以在 App 裡把 Google Maps 的「已儲存」清單匯入成軌島的最愛地點：從 Google Takeout 匯出的 ZIP（或解壓後的 CSV／JSON／GeoJSON）直接選檔，會先列出讀到的地點讓你勾選，確認後才寫入，只收台灣範圍內的地點。檔案全程只在你的裝置裡解析，不會上傳</span></li>
+        <li data-cl="takeout"><span class="d">8/2</span><span>訂閱軌島 Plus 後，可以在 App 裡把 Google Maps 的「已儲存」清單匯入成軌島的最愛地點：從 Google Takeout 匯出的 ZIP（或解壓後的 CSV／JSON／GeoJSON）直接選檔，會先列出讀到的地點讓你勾選，確認後才寫入，只收台灣範圍內的地點。檔案全程只在你的裝置裡解析，不會上傳</span></li>
         <li><span class="d">7/22</span><span>「附近火車」更名為「儲存地點」：可以命名（家、公司…），存過的會進「我的最愛」</span></li>
         <li><span class="d">7/14</span><span>平交道位置依官方資料，可能與現場實際位置略有落差</span></li>
         <li><span class="d">7/13</span><span>新增「附近火車」：地圖上落一根釘，查周邊 60 分鐘內會通過的車次</span></li>
         <li><span class="d">7/12</span><span>新增平交道功能：點一下查接下來會通過的列車（7/13 補上貨運線 21 處）</span></li>
         <li class="grp">收藏、護照與成就</li>
-        <li><span class="d">8/2</span><span>在創始期間訂閱 Plus 的人，App 的旅程護照最上方會多一枚「創始會員」徽章，之後才訂閱的不會有；徽章跟著訂閱資格走，退訂或登出就一起收起來</span></li>
+        <li data-cl="founding"><span class="d">8/2</span><span>在創始期間訂閱 Plus 的人，App 的旅程護照最上方會多一枚「創始會員」徽章，之後才訂閱的不會有；徽章跟著訂閱資格走，退訂或登出就一起收起來</span></li>
         <li><span class="d">7/30</span><span>搜尋一班今天已經跑完（或還沒發車）的車，時鐘會確實停在它發車前，不再過一秒就彈回現在——那正是原本會莫名跳出「完乘達成」的原因（謝謝網友回報）</span></li>
         <li><span class="d">7/29</span><span>收集章改成依名字長短自動配版：長名會縮小字級、必要時多折一行，「EMU3000 新自強號」「區間車（通勤電聯車）」這些再也不會被圓框切掉</span></li>
         <li><span class="d">7/26</span><span>旅程護照多了「車站收集」：完乘過的起訖站自動成章，人到月台再按「附近車站」裡的蓋章鈕，就升級成到訪章；同一座站去過越多次，章上的數字越大</span></li>
@@ -3396,7 +3401,7 @@
         <li><span class="d">7/13</span><span>收集章可以重複點，換搭不同班次回味</span></li>
         <li><span class="d">7/9</span><span>旅程護照與 16 枚成就徽章、「探」今日亮點面板上線</span></li>
         <li class="grp">手機與操作</li>
-        <li><span class="d">8/2</span><span>在 App 裡訂閱 Plus 後跟車，鎖定畫面與動態島會顯示這班車的下一站、到站時間與誤點；倒數自己會走，換一班車就換一張，停止跟車或跟到終點會自動收起來。需要 iOS 17.6 以上；App 退到背景比較久時，誤點數字會停在最後一次更新的值</span></li>
+        <li data-cl="liveactivity"><span class="d">8/2</span><span>在 App 裡訂閱 Plus 後跟車，鎖定畫面與動態島會顯示這班車的下一站、到站時間與誤點；倒數自己會走，換一班車就換一張，停止跟車或跟到終點會自動收起來。需要 iOS 17.6 以上；App 退到背景比較久時，誤點數字會停在最後一次更新的值</span></li>
         <li><span class="d">7/30</span><span>iPhone 主畫面可以加「發車看板」小工具了，選好起站就能直接看下一班車——選站不用再整份下拉，先挑縣市就會跳到那一區</span></li>
         <li><span class="d">7/30</span><span>車站看板與跟車面板可以調高度了：手機拉一下（或點一下）面板上緣的把手，在小／中／大之間切換。原本「大」只是上限、內容短的時候三段一樣高，拉了像沒作用；現在「大」有保證高度，車站看板也會跟著多列幾班車</span></li>
         <li><span class="d">7/30</span><span>新增 iPhone 主畫面小工具「發車看板」：長按桌面加入後選一個起站（可以再加目的站），桌面就會列出接下來幾班車；還能「只看這些」，例如只留自強號、或只盯自己每天搭的那幾班。選起站不必再整份 250 站下拉：清單依縣市分段，由北到南排</span></li>
@@ -3416,20 +3421,21 @@
         <li><span class="d">7/21</span><span>手機大改版：打開就是全螢幕地圖，面板都住進底部；新增「捷」分頁，北中高捷運一張圖同框</span></li>
         <li><span class="d">7/13</span><span>新增「省電」模式（手機預設開啟）：降到 30fps；手機一次只開一個面板</span></li>
         <li class="grp">外觀與品牌</li>
-        <li><span class="d">8/2</span><span>在 App 裡訂閱 Plus 後，衛星底圖會換成高解析度圖磚，在 Retina 螢幕上更銳利；沒訂閱的人維持標準解析度，畫面內容一樣</span></li>
+        <li data-cl="satretina"><span class="d">8/2</span><span>在 App 裡訂閱 Plus 後，衛星底圖會換成高解析度圖磚，在 Retina 螢幕上更銳利；沒訂閱的人維持標準解析度，畫面內容一樣</span></li>
+        <li data-cl="satbilling"><span class="d">8/1</span><span>衛星底圖換成比較省的計費方式：計費從「看了幾張圖磚」改成「看得夠多才算一次時段費」，看到的畫面完全一樣，只是我們付給圖資供應商的錢少很多</span></li>
         <li><span class="d">7/30</span><span>外觀設定新增「面板半透明」開關（預設關閉）：打開後車站看板、跟車小卡、跟隨面板會透出底下的地圖並加上模糊，關掉就回到原本的實心底。半透明時原本偏淡的次要文字會自動加深一階，疊在路網上仍然看得清楚；跟車小卡收合成一條（只剩車號與時速）時維持實心底，不跟著透明。7/30 再補一輪（透明度與模糊程度都沒動）：字外圍加了一圈紙色描邊，疊在衛星影像或密集路網上也不會融進背景；全程速度曲線加粗、加一層淡底板，暗色主題的線色改亮，看得出哪一段跑得快；手機的「列車」面板縮到最小那段也維持實心底</span></li>
         <li><span class="d">7/28</span><span>全站圖示換成軌島自製單色線稿，亮暗主題下都更一致清楚</span></li>
         <li><span class="d">7/28</span><span>全站圖示改用軌島自製的單色線稿與單色字形（介面圖示、成就徽章、車廂標記都在內），亮暗主題與各家瀏覽器下長相一致，不再交給各系統自己的 emoji 決定</span></li>
         <li><span class="d">7/27</span><span>切到「高」時左邊牌子下面的那行字改成「台灣高鐵即時軌跡」，先前一直沿用台鐵的字串</span></li>
-        <li><span class="d">7/25</span><span>衛星底圖改接 Esri 官方授權服務端點；7/24 起在高解析度螢幕上更清晰銳利，7/29 為控制圖資用量改回標準解析度；8/1 改成「看得夠多才算一次時段費」的計費方式，畫面完全一樣，圖資成本大幅下降</span></li>
+        <li><span class="d">7/25</span><span>衛星底圖改接 Esri 官方授權服務端點；7/24 起在高解析度螢幕上更清晰銳利，7/29 為控制圖資用量改回標準解析度</span></li>
         <li><span class="d">7/22</span><span>縮放時墊底的離線輪廓圖配色貼齊底圖，消除快速縮放的色差閃爍</span></li>
         <li><span class="d">7/16</span><span>整站外觀大改版「琺瑯 2.0」，並支援亮／暗自動切換</span></li>
         <li><span class="d">7/10</span><span>網站更名「軌島」，正式網址 railisland.tw 上線；品牌定裝：懸掛式站名牌 header 與新版標誌</span></li>
         <li><span class="d">7/10</span><span>夜間與衛星模式視覺升級；「軌」軌道顯示三段切換：自動／淡化／隱藏</span></li>
         <li><span class="d">7/9</span><span>站名移到軌道側邊不再互相壓住；雙欄版面：搜尋／最愛／旅程收集移到右側欄</span></li>
         <li class="grp">分享與個人化</li>
-        <li><span class="d">8/2</span><span>訂閱軌島 Plus 後可以用軌島帳號登入（Google 或 Apple）：收藏的地點、最愛車站與完乘記錄會在手機和電腦之間自動同步，換裝置也不必從頭來過</span></li>
-        <li><span class="d">8/2</span><span>訂閱 Plus 後可以分享「行程」：把正在跟的班次和目的站打包成一條連結傳給朋友，對方點開就看得到車跑到哪、還剩幾站、幾點到；分享的是班次，不是你的定位</span></li>
+        <li data-cl="sync"><span class="d">8/2</span><span>訂閱軌島 Plus 後可以用軌島帳號登入（Google 或 Apple）：收藏的地點、最愛車站與完乘記錄會在手機和電腦之間自動同步，換裝置也不必從頭來過</span></li>
+        <li data-cl="tripshare"><span class="d">8/2</span><span>訂閱 Plus 後可以分享「行程」：把正在跟的班次和目的站打包成一條連結傳給朋友，對方點開就看得到車跑到哪、還剩幾站、幾點到；分享的是班次，不是你的定位</span></li>
         <li><span class="d">7/24</span><span>可把常看的地點設為預設啟動視野；探索面板新增「觀光列車圖鑑」</span></li>
         <li><span class="d">7/18</span><span>下次打開就回到上次看的地方：位置、縮放與路網頁籤都會記住，不需註冊登入</span></li>
         <li><span class="d">7/13</span><span>新增「分享畫面」：把地圖位置、時間與路網打包成一條連結</span></li>
@@ -3438,14 +3444,14 @@
           <li class="web-only-donation-log"><span class="d">7/13</span><span>贊助方式更新：「請開發者喝咖啡」的銀行轉帳帳戶改用 LINE Bank（連線商業銀行 824）——謝謝每一位抖內支持軌島的朋友</span></li>
         <!-- APP_STRIP_END donation-log -->
         <li class="grp">資料校正</li>
-        <li><span class="d">8/1</span><span>台鐵快車在不停靠的小站之間跑到哪裡，推估得更準了。有網友拿碼錶站在彰化與花壇之間實地量了十幾班車，回報「車普遍比畫面上早經過」，自強號差到快兩分鐘。追查後發現不是推估方式的問題，而是我們在校正資料時把花壇這類「到站看板顯示時間比較長」的車站整批當成不可信而丟掉了，那幾站只好套用全線的平均值。現在改成看各站自己的顯示習慣，這些站的實測資料重新派上用場（謝謝網友回報，也謝謝那個早上）</span></li>
+        <li data-cl="traobs"><span class="d">8/1</span><span>台鐵快車在不停靠的小站之間跑到哪裡，推估得更準了。有網友拿碼錶站在彰化與花壇之間實地量了十幾班車，回報「車普遍比畫面上早經過」，自強號差到快兩分鐘。追查後發現不是推估方式的問題，而是我們在校正資料時把花壇這類「到站看板顯示時間比較長」的車站整批當成不可信而丟掉了，那幾站只好套用全線的平均值。現在改成看各站自己的顯示習慣，這些站的實測資料重新派上用場（謝謝網友回報，也謝謝那個早上）</span></li>
         <li><span class="d">7/29</span><span>刪除軌島帳號時，會一併刪掉你上傳過的 GPS 校正旅程資料與累積的貢獻點數，包含這台裝置以匿名身分傳的那些；隱私權政策也補上了這類資料保存多久、要怎麼刪除</span></li>
         <li><span class="d">7/29</span><span>圖磚還沒載入時墊底的台灣海陸輪廓換成內政部公開的縣市界線：舊資料比實際海岸線偏了一到三公里，東部海線好幾站看起來像在海上（謝謝網友回報）</span></li>
         <li><span class="d">7/25</span><span>台鐵快車經過不停靠小站時的位置改用改點後的實際到站紀錄校正</span></li>
         <li><span class="d">7/24</span><span>台鐵列車站間位置改用官方里程推算（山線／海線長度也一併校正）</span></li>
         <li><span class="d">7/24</span><span>台鐵班表改為每天使用當日官方時刻，週末限定的加班車會在正確的日子出現</span></li>
         <li><span class="d">7/21</span><span>修正桃園機捷南下停靠站對調：普通車過長庚站站停、直達車只停新北產業</span></li>
-        <li><span class="d">8/1</span><span>三鶯線營運時段兩度跟改：7/18 先修成實際的每天 10:00–20:00（在那之前，非營運時間會跑出根本不存在的列車）；8/1 官方把試營運延長為 08:00–22:00，早上 8:00–8:30 的班距也跟著改成六分鐘</span></li>
+        <li data-cl="sanying"><span class="d">8/1</span><span>三鶯線營運時段兩度跟改：7/18 先修成實際的每天 10:00–20:00（在那之前，非營運時間會跑出根本不存在的列車）；8/1 官方把試營運延長為 08:00–22:00，早上 8:00–8:30 的班距也跟著改成六分鐘</span></li>
         <li><span class="d">7/18</span><span>平溪、深澳、集集、內灣線車種改為 DR1000 柴油客車（這幾段沒有電化）</span></li>
         <li><span class="d">7/17</span><span>安坑輕軌「台北小城」站位修正；144、146 次車種更正為 EMU3000</span></li>
         <li><span class="d">7/11</span><span>山線改走現行路線，不再誤用 1998 年的舊山線線形；成追線經成功站不再繞行</span></li>

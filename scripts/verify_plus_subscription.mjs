@@ -965,6 +965,57 @@ for (const w of [360, 375, 414, 768]) await mobilePlusEntry(w, { sel: IMPORT_SEL
   await ctx.close();
 }
 
+// ══════════════ CL. 更新紀錄兩層結構:第一層是檢視,第二層才是正本 ══════════════
+// 2026-08-03 的實際缺陷:為了把第一層維持在 8 條,擠掉了最舊的一條(8/1 衛星計費),
+// 但那條的正本並不存在——第二層只有一句夾在 7/25 條目裡、日期對不上的附帶說明。
+// 擠掉它＝刪掉那次變更唯一一筆可辨識的對外紀錄,而且當時沒有任何判準會發現。
+//
+// 判準寫「配對關係」不寫字面值:第一層每條用 data-cl-of 指向第二層某條的 data-cl。
+// 刻意不用「日期＋文字相似度」去猜配對——實測現有 8 條的最長共同子字串最低只有 8 個字,
+// 門檻設在那裡等於零餘裕,改個措辭就假紅(而且正是「日期對不上」那種缺陷最會漏掉的形狀)。
+// 明示的 id 對映沒有門檻、沒有會漂移的量,而且「要離開第一層,正本必須先存在」這條紀律
+// 變成寫得出來的東西:指向不存在的 id 會當場紅。
+{
+  const { ctx, page } = await newPage(chromiumB);
+  const errs = attach(page, 'CL');
+  await page.goto(BASE, { waitUntil: 'domcontentloaded' });
+  await waitReady(page);
+  const cl = await page.evaluate(() => {
+    const recent = document.querySelector('.foot-recent');
+    const more = document.querySelector('.foot-more');
+    if (!recent || !more) return { fatal: `recent=${!!recent} more=${!!more}` };
+    // li.grp 是分組標題不是內容(第一層有一顆「最近更新」,第二層每個主題組各一顆)
+    const top = [...recent.querySelectorAll(':scope > li:not(.grp)')];
+    const canon = [...more.querySelectorAll('li[data-cl]')];
+    const canonIds = canon.map(li => li.dataset.cl);
+    const txt = li => (li.textContent || '').replace(/\s+/g, ' ').trim();
+    return {
+      topCount: top.length,
+      grpCount: recent.querySelectorAll(':scope > li.grp').length,
+      canonCount: canon.length,
+      dupIds: canonIds.filter((id, i) => canonIds.indexOf(id) !== i),
+      // 每條第一層:有沒有宣告正本、宣告的正本在不在第二層、那條正本有沒有被歸進某個主題組
+      rows: top.map(li => {
+        const of = li.dataset.clOf || '';
+        const hit = of ? more.querySelector(`li[data-cl="${CSS.escape(of)}"]`) : null;
+        return { of, found: !!hit, text: txt(li).slice(0, 24) };
+      }),
+    };
+  });
+  ok('CL0 正向對照:收集器真的抓到第一層條目與第二層正本(否則下面兩條全稱斷言是空過的)',
+    !cl.fatal && cl.topCount >= 1 && cl.canonCount >= 1, JSON.stringify({ top: cl.topCount, canon: cl.canonCount, fatal: cl.fatal }));
+  ok('CL1 第一層每一條都在第二層有正本(data-cl-of → data-cl 找得到;要擠出第一層,正本必須先存在)',
+    !cl.fatal && cl.rows.length > 0 && cl.rows.every(r => r.of && r.found),
+    JSON.stringify((cl.rows || []).filter(r => !r.of || !r.found)) || '(全數對上)');
+  ok('CL1b 第二層的正本 id 不重複(重複＝兩條互相蓋掉,對映會指到哪條無法預期)',
+    !cl.fatal && cl.dupIds.length === 0, JSON.stringify(cl.dupIds));
+  // 8 是專案自己訂的版面上限(不是量出來的值);li.grp 標題不計入,否則加一個分組標題就會被誤判超量
+  ok('CL2 第一層內容條目不超過 8 條(li.grp 標題不算)',
+    !cl.fatal && cl.topCount <= 8, `內容=${cl.topCount} 標題=${cl.grpCount}`);
+  ok('CL 本輪零 pageerror/console.error', errs.length === 0, errs.slice(0, 3).join(' | '));
+  await ctx.close();
+}
+
 // ══════════════ Z0 錯誤收集器的正向對照 ══════════════
 // 上面每一條「零 pageerror」與檔尾的 K「全程為零」都是「數量必須為 0」型斷言:收集器壞掉(listener
 // 掛在錯的 page、attach 忘了呼叫、Playwright 改事件名)時,它們全部會變成永遠的假綠。這裡故意在頁面裡
