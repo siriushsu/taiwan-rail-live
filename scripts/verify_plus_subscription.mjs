@@ -316,7 +316,9 @@ function collectFirebaseReqs(page) {
     entry.btnVisible === true && entry.btnLabel === 'Plus', JSON.stringify(entry));
   ok('G2 「更多」抽屜的同一個槽位也露出且標成「軌島 Plus」(手機唯一入口,桌面工具鈕在 ≤900 是 display:none)',
     entry.rowShown === true && entry.rowLabel === '軌島 Plus', JSON.stringify(entry));
-  await page.click('#accountBtn'); // 真的點,不是 evaluate 呼叫函式
+  // 真的點,不是 evaluate 呼叫函式。點不到就記下來往下走:讓它變成一條紅斷言,而不是拋例外中止整支腳本
+  // ——中止的話後面所有情境(含守免費層匿名的 I 段)全部靜默不跑,只留一段堆疊,看不出還有什麼壞了。
+  const entryClicked = await page.click('#accountBtn', { timeout: 5000 }).then(() => true).catch(() => false);
   await page.waitForSelector('#plusModal:not([hidden])', { timeout: 8000 }).catch(() => {});
   await page.waitForTimeout(300);
   const panel = await page.evaluate(() => ({
@@ -330,7 +332,7 @@ function collectFirebaseReqs(page) {
     accountUndefined: typeof state.account === 'undefined',
   }));
   ok('G3 匿名點入口 → Plus 面板直接開且六項功能清單畫得出來(沒有被推去登入)',
-    panel.open === true && panel.feats >= 5, JSON.stringify(panel));
+    entryClicked === true && panel.open === true && panel.feats >= 5, `點得到=${entryClicked} ` + JSON.stringify(panel));
   ok('G4 面板停在「請在 App 內訂閱」,零購買鈕(網站不賣)',
     panel.appOnly === true && panel.buyBtns === 0, `appOnly=${panel.appOnly} buy=${panel.buyBtns}`);
   ok('G5 看完整個面板,state.account 仍是 undefined(帳號系統沒被叫起來)',
@@ -340,7 +342,7 @@ function collectFirebaseReqs(page) {
   ok('G7 面板內有登入 CTA,但登入鈕此刻還沒出現(兩段式的第一段:看得到入口、還沒載帳號系統)',
     panel.loginCta === 1 && /登入/.test(panel.ctaText) && panel.loginBtns === 0,
     `cta=${panel.loginCta} 文字=${panel.ctaText} 登入鈕=${panel.loginBtns}`);
-  await page.click('[data-plus="login"]');
+  await page.click('[data-plus="login"]', { timeout: 5000 }).catch(() => {}); // 同上:CTA 不存在時讓 G8/G9 轉紅,不要中止腳本
   // 條件式等待,不用固定秒數:Firebase SDK 是延遲載入,冷載入比暖載入慢很多,
   // 固定 timeout 會讓這條斷言實際在量「載入快不快」而不是「CTA 有沒有把帳號系統叫起來」。
   await page.waitForSelector('[data-login="google"]', { timeout: 15000 }).catch(() => {});
@@ -405,13 +407,14 @@ async function mobilePlusEntry(width) {
   await page.tap('#tabMore');
   await page.waitForFunction(() => document.body.classList.contains('tools-open'), null, { timeout: 5000 });
   await page.waitForTimeout(350); // sheet 上滑轉場走完再量
-  await page.locator(MOBILE_SEL).scrollIntoViewIfNeeded();
+  await page.locator(MOBILE_SEL).scrollIntoViewIfNeeded({ timeout: 5000 }).catch(() => {}); // 列不存在時讓 b~e 轉紅,不要中止腳本
   await page.waitForTimeout(150);
   const s = await page.evaluate(sel => {
     const vis = el => { const st = getComputedStyle(el), r = el.getBoundingClientRect();
       return st.display !== 'none' && st.visibility !== 'hidden' && r.width > 0 && r.height > 0; };
+    const overflow = document.documentElement.scrollWidth - window.innerWidth; // 與 target 無關,先算好:找不到列時也要照樣回報
     const target = document.querySelector(sel);
-    if (!target || !vis(target)) return { found: false };
+    if (!target || !vis(target)) return { found: false, overflow };
     const tr = target.getBoundingClientRect();
     const self = (el, x, y) => { const h = document.elementFromPoint(x, y); return !!h && (h === el || el.contains(h)); };
     const topmost = el => { const r = el.getBoundingClientRect(); return self(el, r.left + r.width / 2, r.top + r.height / 2); };
@@ -435,8 +438,7 @@ async function mobilePlusEntry(width) {
       return { id: el.dataset.proxy || el.dataset.act || el.className, self: self(el, r.left + r.width / 2, r.top + r.height / 2) };
     });
     return { found: true, label: (target.querySelector('span') || {}).textContent || '',
-      h: Math.round(tr.height), collisions, miss, neighbours,
-      overflow: document.documentElement.scrollWidth - window.innerWidth };
+      h: Math.round(tr.height), collisions, miss, neighbours, overflow };
   }, MOBILE_SEL);
   ok(`N${width}a 手機工具列 .stage-tools 是 display:none(抽屜列是唯一入口,這是後面幾條的前提)`, toolbarHidden === true, `hidden=${toolbarHidden}`);
   ok(`N${width}b 抽屜列存在、可見、標成「軌島 Plus」且高度 ≥44px`, s.found === true && s.label === '軌島 Plus' && s.h >= 44, JSON.stringify(s.found ? { label: s.label, h: s.h } : s));
@@ -459,8 +461,8 @@ for (const w of [360, 375, 414, 768]) await mobilePlusEntry(w);
   await page.tap('#tabMore');
   await page.waitForFunction(() => document.body.classList.contains('tools-open'), null, { timeout: 5000 });
   await page.waitForTimeout(350);
-  await page.locator(MOBILE_SEL).scrollIntoViewIfNeeded();
-  await page.tap(MOBILE_SEL);
+  await page.locator(MOBILE_SEL).scrollIntoViewIfNeeded({ timeout: 5000 }).catch(() => {});
+  const tapped = await page.tap(MOBILE_SEL, { timeout: 5000 }).then(() => true).catch(() => false);
   await page.waitForSelector('#plusModal:not([hidden])', { timeout: 8000 }).catch(() => {});
   const r = await page.evaluate(() => ({
     plusOpen: !document.getElementById('plusModal').hidden,
@@ -468,7 +470,7 @@ for (const w of [360, 375, 414, 768]) await mobilePlusEntry(w);
     cta: document.querySelectorAll('[data-plus="login"]').length,
     accountUndefined: typeof state.account === 'undefined',
   }));
-  ok('N-tap 375 真觸控點抽屜列 → Plus 面板真的開出來(清單＋登入 CTA 都在)', r.plusOpen === true && r.feats >= 5 && r.cta === 1, JSON.stringify(r));
+  ok('N-tap 375 真觸控點抽屜列 → Plus 面板真的開出來(清單＋登入 CTA 都在)', tapped === true && r.plusOpen === true && r.feats >= 5 && r.cta === 1, `點得到=${tapped} ` + JSON.stringify(r));
   ok('N-tap 375 開面板這一刻 state.account 仍是 undefined(手機路徑的匿名保證與桌面一致)', r.accountUndefined === true, `accountUndefined=${r.accountUndefined}`);
   ok('N-tap 本輪零 pageerror/console.error', errs.length === 0, errs.slice(0, 3).join(' | '));
   await ctx.close();
@@ -488,8 +490,10 @@ for (const w of [360, 375, 414, 768]) await mobilePlusEntry(w);
     const prev = rows[rows.indexOf(document.querySelector(sel)) - 1];
     return prev ? (prev.dataset.proxy ? `.ms-row[data-proxy="${prev.dataset.proxy}"]` : `.ms-row[data-act="${prev.dataset.act}"]`) : '';
   }, MOBILE_SEL);
-  await page.locator(prevSel).scrollIntoViewIfNeeded();
-  await page.tap(prevSel);
+  if (prevSel) { // 受測那一列不存在時 prevSel 會是空字串,直接讓下面的斷言以「找不到上一列」轉紅
+    await page.locator(prevSel).scrollIntoViewIfNeeded({ timeout: 5000 }).catch(() => {});
+    await page.tap(prevSel, { timeout: 5000 }).catch(() => {});
+  }
   await page.waitForTimeout(700);
   const stillHidden = await page.evaluate(() => document.getElementById('plusModal').hidden);
   ok('N-tap 反向對照:同樣手勢點上一列不會開出 Plus 面板(證明上一條的「開了」是這一列接的線)',
