@@ -1277,6 +1277,19 @@ grep -n "永遠\|一個都不會拿走\|更清晰" index.html terms.html privacy
 
 清單從 5 項變 6 項且文字變長，360 寬時 `.plus-feature` 不得斷行破版、不得溢出彈窗。
 
+- [ ] **Step 6b：補上行程分享的更新紀錄（別的 session 刻意留給我們的債）**
+
+修 `#tripBanner` 版面的那個 session **刻意沒加**更新紀錄條目，使用者裁示留給本批次，理由是：
+行程分享在此之前 `TRIP_SHARE_ENABLED` 一直關著、站內更新紀錄從沒提過它，
+先加等於**提前公告一個開不了的功能**。
+
+而本批次**它就開了**（開賣清單第 3 項，Plus 訂閱者可見）⇒ 這條債現在到期。
+草稿在 `TODO.md`「行程分享」節，寫的時候注意兩件事：
+
+- 用使用者語氣寫（本專案更新紀錄的既有規矩），並照兩層結構放進正確的主題組。
+- **要寫清楚它是 Plus 功能**，別讓免費使用者以為自己有——這與衛星 Retina 那條的
+  「窄承諾」要求同源：講得到就要真的拿得到。
+
 - [ ] **Step 7：Commit**
 
 ```bash
@@ -1398,8 +1411,13 @@ git update-ref refs/heads/feat/plus-launch "$NEW" "$OLD_HEAD"   # ← 三參數
 
 ```bash
 cd /Users/xuxiang/Code/軌島-Plus開張/app
-npm run sync && RAIL_ALLOW_SAFE_BUILD=1 node scripts/verify-release.mjs 2>&1 | tail -25
+npm run sync && RAIL_ALLOW_SAFE_BUILD=1 node scripts/verify-release.mjs > /tmp/rel.txt 2>&1; echo "exit=$?"
 ```
+
+🔴 **尾端不要接管道**。原稿寫的是 `... | tail -25`，而**管道會把真實 exit code 換成 `tail` 的 0**
+——本批次已經因為這個吃過一次虧：`BUILD FAILED` 被吞掉、回報成 exit 0，只因為順手 grep 了輸出內容
+才抓到。⇒ 一律「重導到檔案 → 印 `$?` → 再讀檔」。推廣版:**exit code 0 只有在指令尾端沒有管道時
+才算證據。**
 
 - [ ] **Step 4：ASC 沙箱購買 happy-path（需要人）**
 
@@ -1456,6 +1474,17 @@ App 送審通過、確定開賣日之後，回頭把 `FOUNDING_UNTIL_MS` 改成�
 - [ ] **Step 1：等北捷逐車先併**
 
 `feat/trtc-live` 動的是 `renderFreqBoard`／`trainPos` 一帶，`feat/plus-launch` 動的是 `plusRender`／`setBasemap`／跟隨面板／護照——重疊很少，但**仍要序列合併**，不要同時併。北捷先（它更接近完成、且是這一版的主打）。
+
+🔴 **這一版有第三條分支要一起推（2026-08-02 使用者裁示，經跨 session 訊息轉達）**：
+`claude/angry-hertz-74ce20`（worktree `.claude/worktrees/gracious-shannon-9ffc4f`），兩顆 commit
+`8968c5a`／`5941bb3`，修的是 `#tripBanner` 的**既有**版面缺陷（手機蓋住時鐘徽章與地圖動作鈕、
+桌面蓋住停靠站名牌），只動 `index.html` 兩處 CSS（+28/−2）。**已 commit、未 push、未部署**
+（照跨 session 部署 hold）。使用者要求**之後推的時候要一起推**。
+
+⚠️ 對驗收基準的影響：`scripts/verify_tripshare.mjs` 的那 5 條紅是**既有缺陷、非本批次迴歸**
+（對方在乾淨 `origin/main` 上重跑一樣紅，已獨立確認）。所以在 `feat/plus-launch` 上跑到
+**51/56 是正確的**；但**合併那條分支之後必須變 56/56**——合併後若仍是 51/56，代表那兩顆 commit
+沒進來，不要當成「本來就這樣」放過。
 
 - [ ] **Step 2：Plus 分支 rebase 到併完北捷的 main**
 
