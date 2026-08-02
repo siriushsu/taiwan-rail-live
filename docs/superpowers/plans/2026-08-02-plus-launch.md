@@ -33,7 +33,7 @@
 | 1 | 每班車的誤點履歷與統計圖表 | 已完成（Task 7 補 happy-path 實測） | 伺服器強制 |
 | 2 | 收藏跨裝置雲端同步 | Task 1 | 用戶端閘門（2026-08-02 裁示，與衛星同一套榮譽制；Firestore rules 不動） |
 | 3 | 行程分享 | Task 2 | 用戶端閘門 |
-| 4 | 衛星高解析度（支援 Retina 螢幕） | Task 3 | 用戶端閘門（裁示） |
+| 4 | **App** 衛星高解析度（支援 Retina 螢幕） | Task 3 | 用戶端閘門（裁示）／**App 限定** |
 | 5 | 創始會員徽章 | Task 4 | 用戶端閘門 |
 | 6 | 跟車即時動態（鎖定畫面／動態島） | Task 5 | 用戶端閘門 |
 
@@ -392,7 +392,9 @@ git commit -m "feat(Plus): 行程分享發起端改吃訂閱資格，不再靠�
 
 ## Task 3：衛星高解析度接 entitlement
 
-裁示＝**用戶端閘門（榮譽制）**，不做 Worker 代理圖磚。理由：App 端的 `satRetina` 是 build 時注入的，實務上翻不動，而 App 佔 Esri 用量約八成——成本最大的那塊本來就收得住。順手給 `/api/basemap-token` 加 rate limit。
+裁示＝**用戶端閘門（榮譽制）**，不做 Worker 代理圖磚。理由：App 端的 `satRetina` 是 build 時注入的，實務上翻不動，而 App 佔 Esri 用量約八成——成本最大的那塊本來就收得住。
+
+⚠️ **2026-08-02 裁示：Retina 維持 App 限定。** `index.html` 的 `SAT_RETINA_DEFAULT` **不改**，仍是 `false` ⇒ 網站訂閱者也拿不到高解析（`baseLayers.satLQ` 在網站上根本不會被建立）。因此凡是會顯示在網站上的文案——`plusRender()` 的功能清單、`#msAbout` 的更新紀錄——**都必須標明 App 限定**，否則就是對網站訂閱者做假廣告。清單已有這個慣例（現有的「App 進階定位與 Live Activity」）。
 
 ⚠️ 這不是「條件改一行」。`SAT_RETINA` 現在是 false，所以 `baseLayers.satLQ` **根本沒被建出來**（`if (k === 'sat' && SAT_RETINA)`）。要做分層＝兩層都建、依資格選。
 
@@ -400,7 +402,7 @@ git commit -m "feat(Plus): 行程分享發起端改吃訂閱資格，不再靠�
 - Modify: `index.html`（圖層建構處、`setBasemap()` 的 `want` 判斷、`plusRefresh` 後的重掛）
 - Modify: `app/scripts/prepare-web.mjs`（`satRetina: false` → `true`，讓 App 也建兩層）
 - Modify: `app/scripts/verify-release.mjs`（反向改寫「不可殘留 Plus 付費閘」斷言）
-- Modify: `worker.js`（`basemapToken` 加 rate limit）
+- **不動** `worker.js`：初版寫「`basemapToken` 加 rate limit」，前提是錯的（見 Step 7）
 
 **Interfaces:**
 - Consumes：`state.plus.active`（Task 1）
@@ -504,7 +506,13 @@ function satRetinaAllowed() {
 
 - [ ] **Step 7：`/api/basemap-token` 加 rate limit**
 
-`worker.js` 的 `basemapToken` 目前零驗證零節流。加一道以 IP 為鍵的簡單節流（用既有的 `caches.default` 或 KV，依 repo 現有慣例擇一）：**每 IP 每分鐘 12 次**。超過回 429。
+❌ **本步驟作廢，不要做。前提是錯的。**
+
+初版寫「`worker.js` 的 `basemapToken` 目前零驗證零節流，加一道每 IP 每分鐘 12 次」。實查：07-29 的 `3625692`（`feat(worker): /api/basemap-token 加 rate limit(60 次/分鐘)`）**早就加過了**，`worker.js:666` 的 `rateLimited(env.BASEMAP_LIMITER, request)` 在跑。
+
+🔴 而且**不能直接把這個 limiter 調小**：`worker.js:683` 顯示 `/api/basemap-session` 共用同一個 binding，那裡的註解明寫「每顆 session 都要錢，所以這條比 basemap-token 更該節流」。收緊到 12/分會連帶勒住更貴、更該保的 session 端點。真要分開就得先拆成兩個 binding——那是另一件事，不在本批次範圍。
+
+（「零驗證」那半仍然成立：這支端點不檢查任何身分。但那是既有設計，本批次不處理。）
 
 ⚠️ 上限不能設太低：一個正常使用者在切換底圖／App 冷啟動時可能連打數次。12/分是「人不可能達到、腳本抓取會撞牆」的位置。
 
@@ -540,7 +548,7 @@ page.on('request', r => {
 
 ```bash
 git add index.html worker.js app/scripts/prepare-web.mjs app/scripts/verify-release.mjs scripts/verify_sat_retina.mjs
-git commit -m "feat(Plus): 衛星高解析度改為訂閱專屬，並給底圖 token 端點加上節流"
+git commit -m "feat(Plus): 衛星高解析度改為訂閱專屬（App 限定）"
 ```
 
 ---
@@ -1107,7 +1115,7 @@ const REQUIRED = [
 | 誤點履歷 | `每班車的誤點履歷與統計圖表` | ✓ |
 | 雲端同步 | `收藏與完乘記錄跨裝置雲端同步` | ✓ |
 | 行程分享 | `行程分享：把你在哪班車上分享給朋友` | ✓ |
-| 高解析 | `衛星底圖高解析度（支援 Retina 螢幕）` | ✓ |
+| 高解析 | `App 衛星底圖高解析度（支援 Retina 螢幕）` | ✓ |
 | 創始會員 | `創始會員徽章` | ✓ |
 | 動態島 | `跟車時在鎖定畫面與動態島顯示即時動態（App）` | ✓ |
 
@@ -1138,7 +1146,7 @@ node scripts/verify_plus_features.mjs
     '<b>每班車的誤點履歷與統計圖表</b>',
     '收藏與完乘記錄跨裝置雲端同步',
     '行程分享：把你在哪班車上分享給朋友',
-    '衛星底圖高解析度（支援 Retina 螢幕）',
+    'App 衛星底圖高解析度（支援 Retina 螢幕）', // App 限定(2026-08-02 裁示):網站的 SAT_RETINA_DEFAULT 維持 false,不標明就是對網站訂閱者做假廣告
     '跟車時在鎖定畫面與動態島顯示即時動態（App）',
     '創始會員徽章',
   ].map(t => `<div class="plus-feature"><span>✓</span>${t}</div>`).join('');
