@@ -17,7 +17,7 @@
 //      pageerror 收集器真的抓得到,不是一直靜靜地綠——page.evaluate(()=>{throw})不會觸發
 //      pageerror,例外會被 Playwright 接回 Node 端 rejection,踩過這個坑)。
 //  (4) 涉及 FOUNDING_UNTIL_MS 的斷言一律從頁面「現讀」該常數(G1),不在本檔另外寫死一份日期
-//      複本——複審抓到的洞:寫死「今天在創始期內」會在 2026-09-15 之後變成「為了正確的理由
+//      複本——複審抓到的洞:寫死「今天在創始期內」會在截止時點之後變成「為了正確的理由
 //      轉紅」,判準要跟著那個時間點自己換檔,不是被動等改壞。
 //
 // G0 自檢(心得32):ROOT 由本檔自身路徑推導,不吃 --root/env;伺服器連接埠取 0(OS 指派);
@@ -136,7 +136,7 @@ let FOUNDING_UNTIL_MS_LIVE, inFounding;
 
 // ══════════ G1:FOUNDING_UNTIL_MS 現讀(供 T1/T3a/REQUIRED[創始會員] 判斷創始期是否已過)——
 // 只驗「讀得到、是有限數字」,不驗「晚於今天」。原本 T3 那條斷言驗的是「晚於今天」,但
-// 2026-09-15 之後這個常數合法變成過去式,那條斷言會為了正確的理由轉紅(複審 Important 5)。
+// 截止時點過了之後這個常數合法變成過去式,那條斷言會為了正確的理由轉紅(複審 Important 5)。
 // 判準要能撐過那個時間點,不能只撐到那天為止。 ══════════
 {
   const { ctx, page, errors } = await boot(cr);
@@ -172,7 +172,7 @@ let FOUNDING_UNTIL_MS_LIVE, inFounding;
 const REQUIRED = [
   {
     needle: '誤點履歷',
-    // 六項裡唯一有伺服器強制的一項(其餘都是純客端 UI 閘門)。原本的 symbol 只命中
+    // 清單裡唯一有伺服器強制的一項(其餘都是純客端 UI 閘門)。原本的 symbol 只命中
     // index.html 裡「訂閱 Plus 解鎖完整履歷」按鈕的 click handler(upsell 入口,不是閘門)。
     // 真正的兩道閘:client 端 renderDelayHist() 裡決定要不要模糊圖表的 plusIsActive() 分支;
     // server 端 worker.js delayHistory() 呼叫 checkPlusEntitlement() 且在 !check.ok 時擋掉資料
@@ -220,6 +220,19 @@ const REQUIRED = [
 //  這支要改成傳入完整情境,而不是再多寫一個常數。)
 function expectedFeatCount(founding) { return REQUIRED.filter(r => !r.conditional || founding).length; }
 
+// ══════════ 反方向的揭露集合(T1G,見 T1 區塊):每一道付費閘門都必須對應到已揭露的功能 ══════════
+// REQUIRED 那張表走的是「清單列了 ⇒ 程式裡要有真閘門」,以及 T1T/T1H 的「清單列了 ⇒ 條款/說明也要寫」。
+// 三條都是同一個方向,結構上照不到相反的缺陷:程式裡多了一道付費牆,卻沒出現在任何一份對外清單裡
+// ——那正是「有付費牆卻沒揭露」這件事本身的形狀。plusRequire() 是「攔下來要資格」的唯一入口,
+// 所以「有付費牆」在原始碼裡就等於「有人呼叫了它」,拿它的呼叫點當集合。
+const GATE_CALLS = [...new Set([...stripComments(SRC).matchAll(/plusRequire\(\s*'([^']+)'/g)].map(m => m[1]))].sort();
+// 每個呼叫點要嘛對映到一個已揭露的功能(needle),要嘛掛在一個目前為 false 的功能旗標下
+// (功能整個不存在 ⇒ 沒有東西要揭露)。旗標一旦翻成 true,T1G 那條就會要求它補上 needle。
+const GATE_DISCLOSURE = {
+  takeout: { needle: '已儲存清單' },
+  'record-music': { flag: 'RECORDING_ENABLED' },
+};
+
 // ══════════ T0:Step 0 新符號 plusIsActive() 本身的正確性(既有 5 支腳本沒有專門測到這個符號) ══════════
 {
   const { ctx, page, errors } = await boot(cr);
@@ -238,6 +251,14 @@ function expectedFeatCount(founding) { return REQUIRED.filter(r => !r.conditiona
   const { ctx, page, errors } = await boot(cr);
   await setPlus(page, false);
   const { feats, trust } = await renderFeats(page);
+  // 說明中心的 Plus 節(HELP_GROUPS 的 key='plus'):從頁面現讀該節本身,不讀整份原始碼——
+  // 讀整份會讓「命中」變成永遠成立(功能字串在 plusRender/terms 裡本來就有),判準當場失明。
+  const HELP_PLUS_TEXT = await page.evaluate(() => {
+    try {
+      const sec = HELP_GROUPS.flatMap(g => g.secs || []).find(s => s.key === 'plus');
+      return sec ? JSON.stringify(sec) : '';
+    } catch (e) { return ''; }
+  });
   // 條數從 REQUIRED 推導,不寫死:寫死的數字只要清單一長就過期,而換成另一個寫死的數字只是把坑
   // 往後推一格(2026-08-03 補「Google 清單匯入」那一項時實際踩到)。真正的判準是下面 T1F／T1R
   // 的逐項身分對映,這一條只負責抓「多了一項沒對映的東西」。
@@ -254,8 +275,41 @@ function expectedFeatCount(founding) { return REQUIRED.filter(r => !r.conditiona
     // 不在任何對外清單裡」那件事的根因判準——舊的對映是單向的(清單項→閘門),照不到揭露這一側。
     ok(`T1T feats[${i}] 在 terms.html 的 Plus 敘述裡也找得到`, !!match && TSRC.includes(match.needle),
       match ? `needle=${match.needle} inTerms=${TSRC.includes(match.needle)}` : '(無對應項目)');
+    // T1H:說明中心也是付款決定點之一(HELP_GROUPS 的 plus 節本身就寫著這句)。條款被納入判準、
+    // 說明中心沒有,等於留了一個沒有機械保障的第三份對外清單。
+    // 🔴 具名容忍:條件式項目(創始會員徽章)刻意豁免——它會在期限後從清單消失,寫進靜態說明文案
+    //    只會變成過期的教學。豁免寫在這裡而不是靜靜跳過,才看得出容忍了什麼、為什麼。
+    const exempt = !!(match && match.conditional);
+    ok(`T1H feats[${i}] 在使用說明中心的 Plus 節裡也找得到${exempt ? '(條件式項目已具名豁免:期限後會從清單消失,不寫進靜態說明)' : ''}`,
+      !!match && (exempt || HELP_PLUS_TEXT.includes(match.needle)),
+      match ? `needle=${match.needle} inHelp=${HELP_PLUS_TEXT.includes(match.needle)} exempt=${exempt}` : '(無對應項目)');
   });
-  // 反向:REQUIRED 六項都出現在 feats 裡(防「做了功能但忘了寫進清單」)——除非該項有 conditional()
+  // T1H 的正向對照:上面那組「找得到」若因為抽取器壞掉(節被改名、欄位換名)而拿到空字串,會全部
+  // 變成紅——但若有人把抽取器改成回傳整份 index.html,就會全部變成假綠。兩頭各釘一條。
+  ok('T1H 正向對照:說明中心 Plus 節抽得出非空文字,且不會把不相干的字串也認成命中',
+    HELP_PLUS_TEXT.length > 20 && !HELP_PLUS_TEXT.includes('verify-probe-not-in-help'),
+    `len=${HELP_PLUS_TEXT.length} head=${JSON.stringify(HELP_PLUS_TEXT.slice(0, 60))}`);
+
+  // ══ T1G:反方向——每一個付費閘門都必須對應到已揭露的功能(集合與對映表定義在 REQUIRED 旁) ══
+  ok('T1G0 plusRequire() 的呼叫點名單與揭露對映表一致(新增一道付費牆而沒登記,這裡先紅)',
+    JSON.stringify(GATE_CALLS) === JSON.stringify(Object.keys(GATE_DISCLOSURE).sort()),
+    `原始碼=${JSON.stringify(GATE_CALLS)} 對映表=${JSON.stringify(Object.keys(GATE_DISCLOSURE).sort())}`);
+  const flagVals = await page.evaluate(names => Object.fromEntries(names.map(n => {
+    try { return [n, eval(n)]; } catch (e) { return [n, 'ReferenceError']; }
+  })), Object.values(GATE_DISCLOSURE).filter(d => d.flag).map(d => d.flag));
+  for (const src of GATE_CALLS) {
+    const d = GATE_DISCLOSURE[src];
+    const byNeedle = !!(d && d.needle) && feats.some(t => t.includes(d.needle)) && TSRC.includes(d.needle);
+    const byFlag = !!(d && d.flag) && flagVals[d.flag] === false;
+    ok(`T1G plusRequire('${src}') 這道付費閘門有被揭露(在清單與條款裡都找得到)${d && d.flag ? `,或它掛的 ${d.flag} 目前為 false(功能不存在,無可揭露)` : ''}`,
+      byNeedle || byFlag, `needle=${d && d.needle} byNeedle=${byNeedle} flag=${d && d.flag}=${d && d.flag ? flagVals[d.flag] : '-'} byFlag=${byFlag}`);
+  }
+  // 抽取器的正向對照:regex 打錯字(例如把單引號寫成雙引號)會讓 GATE_CALLS 變成空陣列,而空陣列在
+  // 上面的迴圈裡一條都不跑 ⇒ 整組靜默消失。這一條證明它真的抓得到呼叫點的形狀。
+  ok('T1G 正向對照:同一支呼叫點抽取器對一段含 plusRequire 的樣本抓得到(不是永遠回空陣列)',
+    GATE_CALLS.length > 0 && [...stripComments("x(); plusRequire('probe-src', fn);").matchAll(/plusRequire\(\s*'([^']+)'/g)].map(m => m[1])[0] === 'probe-src',
+    `實際抓到=${JSON.stringify(GATE_CALLS)}`);
+  // 反向:REQUIRED 每一項都出現在 feats 裡(防「做了功能但忘了寫進清單」)——除非該項有 conditional()
   // 且目前不成立(創始會員過了 FOUNDING_UNTIL_MS),那種情況下正確行為是「不出現」,一樣要驗到,
   // 不是跳過不驗。
   REQUIRED.forEach(r => {
@@ -272,20 +326,25 @@ function expectedFeatCount(founding) { return REQUIRED.filter(r => !r.conditiona
   const { ctx, page, errors } = await boot(cr);
   await setPlus(page, false);
   const { feats, trust } = await renderFeats(page);
-  // 「永遠免費」是 Step 5 明示保留的唯一例外(它是刻意的分界承諾,不是本次要抓的絕對句)。
-  const hasBannedAbsolute = s => {
-    const stripped = s.replace(/永遠免費/g, '');
-    return stripped.includes('永遠') || s.includes('一個都不會拿走') || s.includes('更清晰');
-  };
+  // 絕對期限／絕對保證一律不得出現在付款決定點的文案裡——「永遠免費」此前是私設例外,
+  // 已隨信任聲明改寫成現在式一併撤除:例外一存在,這條斷言就對它要抓的那一類措辭失明。
+  const BANNED_ABSOLUTE = ['永遠', '一律', '保證', '一個都不會拿走', '更清晰'];
+  const bannedIn = s => BANNED_ABSOLUTE.filter(w => s.includes(w));
   const allTexts = [...feats, trust];
-  ok('T2a feats 與 plus-trust 皆不含窄承諾違禁詞(「永遠免費」例外)',
-    allTexts.every(t => !hasBannedAbsolute(t)), JSON.stringify(allTexts));
+  ok('T2a feats 與 plus-trust 皆不含絕對期限／絕對保證措辭(無私設例外)',
+    allTexts.every(t => bannedIn(t).length === 0),
+    JSON.stringify(allTexts.map(t => [t, bannedIn(t)]).filter(x => x[1].length)) || JSON.stringify(allTexts));
+  // 正向對照:同一支偵測器餵一句一定含違禁詞的字串,必須抓得到。沒有這條,上面那個「全部乾淨」
+  // 也可能是因為偵測器壞掉(例如清單被清空)——沉默不是證據。
+  ok('T2a 正向對照:同一支違禁詞偵測器對一句含「永遠」的樣本必須命中(證明它不是恆真)',
+    bannedIn('列車位置永遠免費').includes('永遠'), JSON.stringify(bannedIn('列車位置永遠免費')));
   const satItem = feats.find(t => t.includes('高解析')) || '';
   ok('T2b 衛星那項同時含「高解析」與「Retina」', satItem.includes('高解析') && satItem.includes('Retina'), satItem);
   ok('T2c plus-trust 保留「準確度」相關的免費承諾語', trust.includes('準確度'), trust);
-  // 已裁示:/api/delay-stats(30 天彙總)零資格檢查、本來就免費,第1項不能宣稱涵蓋它——
-  // 只檢查「有沒有提到誤點履歷」抓不到這個缺陷(它本來就提到了),要正面驗證文案scope縮回
-  // /api/delay-history 真正獨有的部分(90 天、逐日),且不能重現舊版把兩者混在一起的措辭。
+  // API 契約:付費項的措辭只能涵蓋受 entitlement 保護的 endpoint 輸出。/api/delay-stats
+  // (30 天彙總)零資格檢查,不在 Plus 閘門之後,故第1項不得宣稱涵蓋它。只檢查「有沒有提到
+  // 誤點履歷」抓不到這個偏差(它本來就提到了),要正面驗證措辭收斂在 /api/delay-history
+  // 獨有的部分(90 天、逐日),且不重現把兩支 endpoint 混在一起的舊措辭。
   const item1 = feats[0] || '';
   ok('T2d 第1項文案宣稱「90天」', /90\s*天/.test(item1), item1);
   ok('T2e 第1項文案宣稱「逐日」(免費彙總是 30 天聚合值,不是逐日)', /逐日/.test(item1), item1);
@@ -362,7 +421,7 @@ const fakeAccount = () => { state.account = { user: { getIdToken: async () => 'F
 
 await cr.close();
 
-// ══════════ T5:手機四寬度(360/375/414/768,WebKit)——清單 5→6 項且文字變長,不得斷行破版、不得溢出彈窗 ══════════
+// ══════════ T5:手機四寬度(360/375/414/768,WebKit)——清單項數與文字長度會隨揭露內容變動,不得斷行破版、不得溢出彈窗 ══════════
 {
   const wk = await webkit.launch();
   const rows = [];
@@ -390,7 +449,7 @@ await cr.close();
     });
     let wrap = null;
     if (w === 360) {
-      // 目前六項文案在 360px 剛好都撐得下單行(見下面 fmt 印出的高度全部相同)——這件事本身不能
+      // 目前的清單文案在 360px 剛好都撐得下單行(見下面 fmt 印出的高度全部相同)——這件事本身不能
       // 當「不斷行破版」的證明,那只證明了「現在還沒撞到」。真的要驗的是排版本身撐不撐得住換行,
       // 手法:直接把最後一項的文字換成刻意過長的字串強迫它換行,量換行後有沒有溢出/疊到鄰項。
       wrap = await page.evaluate(() => {
@@ -424,7 +483,7 @@ await cr.close();
 }
 
 // ══════════ T7:購買/恢復購買鈕真實命中測試(複審 Important 4)——T5 只量幾何(rect 有沒有超出
-// 容器),證明不了「按下去有沒有真的點到」。清單從 5→6 項且文字變長,直接把這兩顆鈕往下推;
+// 容器),證明不了「按下去有沒有真的點到」。清單一長、文字一變長就會把這兩顆鈕往下推;
 // 複審自己讀 CSS(.takeout-body overflow-y:auto)判斷「內容可捲、鈕仍可及」,但那個結論來自
 // 讀原始碼不是來自跑起來驗證——這裡補上跑起來的版本。涵蓋兩種可達狀態:
 //   (a) 已訂閱(p.active=true)——網站目前唯一真實會出現的狀態(plusConfigured() 因未設 Web
@@ -509,8 +568,10 @@ await cr.close();
       state.account = { user: { uid: 'verify-t7b' }, fb: {} };
       window.RAIL_REVENUECAT_CONFIG = { entitlement: 'plus', offeringId: 'plus' };
       const offering = { availablePackages: [
-        { identifier: '$rc_monthly', packageType: 'MONTHLY', webBillingProduct: { currentPrice: { formattedPrice: 'NT$90' } } },
-        { identifier: '$rc_annual', packageType: 'ANNUAL', webBillingProduct: { currentPrice: { formattedPrice: 'NT$390' } } },
+        // 價格字串一律用非數字 stub(同 verify_plus_subscription / verify_delay_history_ui 的慣例):
+        // 測試檔在公開 repo 裡,長得像真價格的樣本會被讀成定價宣告;而且本檔沒有任何斷言在解析它的內容。
+        { identifier: '$rc_monthly', packageType: 'MONTHLY', webBillingProduct: { currentPrice: { formattedPrice: 'NT$MONTH-STUB' } } },
+        { identifier: '$rc_annual', packageType: 'ANNUAL', webBillingProduct: { currentPrice: { formattedPrice: 'NT$YEAR-STUB' } } },
       ] };
       window.RAIL_PLUS_TEST_ADAPTER = {
         setUser: async () => {},
@@ -568,14 +629,16 @@ server.close();
 // 小寫字母尾碼,不能只吃 [ab]——吃不到的字母會被靜靜併回不帶字母的裸組,分母對不上還以為是別的錯。
 // (T1F/T1R 用大寫字母尾碼,不被 [a-z]? 吃掉,全部併回裸組「T1」,這是刻意的——正向/反向本來就要合看。)
 // T1 的預期值是公式不是常數:創始會員那項的存在與否跟著 inFounding(G1 現讀)走,items 數會在
-// 2026-09-15 那天少一項,T1F/T1T 的配對數量跟著變;寫死會在那天之後變成
+// 截止時點過了之後少一項,T1F/T1T/T1H 的配對數量跟著變;寫死會在那之後變成
 // 「為了正確的理由跟預期值對不上」——這正是複審 Important 5 點名的時間炸彈,詳見 T1/G1 註解。
-// 組成:1(前置條數) + 3×feats 項數(T1F×2 + T1T×1) + REQUIRED.length(T1R 反向) + 1(無 JS 例外)。
-// 兩個變數都不是手打的常數:清單一長,分子分母一起長,不必回頭改這個數字。
+// 組成:1(前置條數) + 4×feats 項數(T1F×2 + T1T×1 + T1H×1) + 1(T1H 正向對照)
+//   + 1(T1G0 名單一致) + GATE_CALLS.length(逐個閘門的揭露) + 1(T1G 正向對照)
+//   + REQUIRED.length(T1R 反向) + 1(無 JS 例外)。
+// 三個變數都不是手打的常數:清單一長、多一道付費閘門,分子分母一起長,不必回頭改這個數字。
 const EXPECTED_COUNTS = {
   G0: 1, G1: 2, G2: 2, T0: 1, T0a: 1, T0b: 1, T0c: 1,
-  T1: 2 + REQUIRED.length + 3 * expectedFeatCount(inFounding),
-  T2: 1, T2a: 1, T2b: 1, T2c: 1, T2d: 1, T2e: 1, T2f: 1,
+  T1: 5 + REQUIRED.length + GATE_CALLS.length + 4 * expectedFeatCount(inFounding),
+  T2: 1, T2a: 2, T2b: 1, T2c: 1, T2d: 1, T2e: 1, T2f: 1, // T2a=2:違禁詞斷言本身 + 它的正向對照
   T3: 2, T3a: 1, T3b: 2, T4a: 2, T4b: 2, T4c: 2, T5: 6, T5w: 3, T7a: 4, T7b: 4,
 };
 const actualCounts = {};

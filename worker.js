@@ -586,9 +586,9 @@ async function delayHistory(request, env) {
 
 // GET /api/plus-status  Authorization: Bearer <Firebase ID token>
 // → 200 {active:boolean}｜401 無 token｜503 上游或 secret 未設(fail-closed)
-// 唯讀,不寫任何東西;no-store,不進共享 edge 快取(每個 uid 的答案不同)。網站端沒有 Web Billing
-// key(RAIL_REVENUECAT_CONFIG 只設 iosApiKey),plusConfigured() 恆 false,這支端點是網站讀 App
-// 買的資格的唯一管道——不開放網站購買,純唯讀查詢(2026-08-02)。
+// 唯讀,不寫任何東西;no-store,不進共享 edge 快取(每個 uid 的答案不同)。無 web billing key 的
+// 平台(RAIL_REVENUECAT_CONFIG 只設 iosApiKey)plusConfigured() 恆 false、不初始化 billing SDK,
+// 這支端點就是那些平台查詢既有資格的唯一管道:純查詢,不發起購買、不改變資格。
 async function plusStatus(request, env) {
   // 與 delayHistory 共用同一組上游(Firebase+RevenueCat)、同一顆限流器:節流要在呼叫之前,理由同 delayHistory。
   if (await rateLimited(env.AUTH_LIMITER, request)) return jsonRes({ error: 'rate_limited' }, 429, 'no-store');

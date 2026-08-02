@@ -1,9 +1,9 @@
 // 衛星高解析(Retina)接 entitlement 驗證(2026-08-02,Plus 開賣 Task 3)——Playwright 真引擎 + 本機靜態伺服器。
-// 背景:衛星本體維持免費;Retina(detectRetina,圖磚量約 4 倍)收斂成 Plus 專屬。
-//   satRetinaAllowed() = SAT_RETINA(平台端「建不建得出高解析層」總開關,Esri 額度止血用)
+// 背景:衛星本體維持免費;Retina(detectRetina,顯著更多圖磚請求)收斂成 Plus 專屬。
+//   satRetinaAllowed() = SAT_RETINA(平台端總開關,控制要不要建高解析層)
 //     && !!(state.plus && state.plus.active)(訂閱資格)——兩者是 AND。
 //   setBasemap() 依此在 baseLayers.sat(detectRetina)／baseLayers.satLQ(標準解析)間二選一;
-//   跟車中(state.followTrain)不論資格一律標準解析(4 倍圖磚量拖慢跟車鏡頭)。
+//   跟車中(state.followTrain)不論資格一律標準解析(高解析的額外圖磚請求會拖慢跟車鏡頭)。
 //
 // 判準(Step 8 原文):量「實際發出的圖磚請求 z 值」,不量畫面糊不糊——外部可觀測事實,
 //   不與實作共用推導假設(心得29)。Leaflet TileLayer 的 detectRetina 只在瀏覽器
@@ -12,7 +12,7 @@
 //
 // 環境變數刻意全程固定,只讓「Plus 資格 / 跟車」在情境間變動:
 //   - APP_CFG.satRetina 全程注入 true(=index.html 的 SAT_RETINA 平台開關開著,對應 App 端
-//     prepare-web.mjs 的 satRetina:true,或網站端額度止血開關重開後的狀態)。
+//     prepare-web.mjs 的 satRetina:true,或網站端這個平台開關被打開後的狀態)。
 //     若讓「匿名」情境跑在網站現行預設(SAT_RETINA=false)、只讓「Plus」情境開 true,
 //     Step 9 的突變測試會測不出資格判準被拔掉——SAT_RETINA 本身已經是 false,
 //     mutation 後 satRetinaAllowed()=SAT_RETINA 對匿名情境仍是 false,情境 1 不會轉紅,
@@ -225,8 +225,8 @@ const cr = await chromium.launch();
 // ── 情境 6(2026-08-02 Task 6b 補 S1):完全不注入 RAIL_APP_CONFIG(=網站真實預設,
 // SAT_RETINA_DEFAULT=false)+ Plus 資格 + 衛星(不跟車)→ 平台總開關擋下,全部 z===zoom。
 // 情境1-5 全程固定注入 satRetina:true(檔頭已解釋原因:隔離「資格」這個變數),代價是網站
-// 現行預設(無 APP_CFG 或 APP_CFG.satRetina 未設)這條路徑從未被走過——這正是「網站訂閱者
-// 拿不到 Retina」這個產品裁示唯一的守門員,SAT_RETINA 若被寫死 true 也测不出來。
+// 現行預設(無 APP_CFG 或 APP_CFG.satRetina 未設)這條路徑從未被走過——這條是「平台開關沒開時,
+// 訂閱資格不足以打開高解析層」這個技術契約唯一的守門員,SAT_RETINA 若被寫死 true 也测不出來。
 {
   const { ctx, page, zooms, errors } = await boot(cr, { appCfg: null });
   await injectPlus(page);

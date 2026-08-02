@@ -2011,20 +2011,35 @@ const PLUS_ENABLED = true;
 
 ```bash
 cd /Users/xuxiang/Code/軌島-Plus開張
-for s in verify_plus_subscription verify_plus_features verify_sat_retina verify_tripshare verify_public_repo_hygiene; do
+for s in verify_plus_subscription verify_plus_features verify_sat_retina verify_founding_seal verify_tripshare verify_public_repo_hygiene; do
   node "scripts/$s.mjs" > "/tmp/t7-$s.log" 2>&1; echo "$s exit=$?"
 done
 ```
 
-全綠才往下。⚠️ 不用 `&&`——`&&` 會在第一支非零時**靜默跳過後面全部**，
+⚠️ 不用 `&&`——`&&` 會在第一支非零時**靜默跳過後面全部**，
 看起來像「只有一支失敗」，實際上是「後面幾支根本沒跑」（判準盲點形態 11 的 shell 變體）。
 
 🔴 **但也不要用 `;` 串成一行**：那樣整串 shell 的 exit code 只等於**最後一支**，
-前四支全紅、最後一支綠時整串仍回 0 ⇒ 若執行器只看 exit code，關鍵紅燈會被最後那支衛生腳本遮掉。
-所以改成上面的迴圈：**每一支各自印出自己的 exit code**，五個數字要逐一確認，不是看一個總結。
+前幾支全紅、最後一支綠時整串仍回 0 ⇒ 若執行器只看 exit code，關鍵紅燈會被最後那支衛生腳本遮掉。
+所以改成上面的迴圈：**每一支各自印出自己的 exit code**，六個數字要逐一確認，不是看一個總結。
 
-⚠️ **`verify_tripshare.mjs` 的基準是 51/56 不是 56/56**——那 5 條紅是既有版面缺陷、
-修法在一條還沒合併的分支上。它維持 51/56 才算過，變成 56/56 或掉到 50 以下都要查。
+#### 🔴 逐支的期望值（不是「全綠才往下」）
+
+「全綠」這個說法在這個批次是**錯的**，照字面執行會逼人去改一個不該改的判準
+（`verify_tripshare` 正確的樣子就是紅的）。逐支對照下表：
+
+| 腳本 | 期望分數 | 期望 exit | 為什麼 |
+|---|---|---|---|
+| `verify_plus_subscription.mjs` | 193/193 | **0** | 全數必須綠 |
+| `verify_plus_features.mjs` | 88/88 | **0** | 全數必須綠 |
+| `verify_sat_retina.mjs` | 33/33 | **0** | 全數必須綠 |
+| `verify_founding_seal.mjs` | 112/112 | **0** | 全數必須綠 |
+| `verify_tripshare.mjs` | **55/60** | **1** | 那 5 條紅是**既有版面缺陷**（橫幅與時鐘徽章重疊），修法在一條**尚未合併**的分支上。維持 55/60 才算過；**變成 60/60 或掉到 54 以下都要查**。不要為了讓它變綠而改判準。 |
+| `verify_public_repo_hygiene.mjs` | 最終狀態 0 筆命中 | **1**（預設） | 歷史掃描現在**計入 exit code**。本分支有既存的歷史命中待 squash，所以預設路徑就是紅的——**那是正確的訊號**。要在合併前明示放行請加 `--allow-history-hits=<N>`（它會把容忍了幾筆印出來）；合併時 squash 掉之後，不帶參數就會自己變綠。 |
+
+⚠️ **分數會隨新增判準而變大**：上表的分子分母是 Task 7C 收尾當下量到的值，不是永久契約。
+每支腳本自己都有「斷言總數閘門」（`T6`／`G9`／…）在守「條件式區塊整批消失 ⇒ 分母變小卻仍印全綠」，
+那才是權威。**這裡的數字只用來回答「跟上次比是不是掉了」**——掉了要查，長了先確認是誰加的。
 
 ⚠️ **前置**：這一步依賴 Task 6b 改過的三支腳本，所以 **Task 6b 是 Task 7 的 prerequisite**
 （Interfaces 原本只寫 Consumes Task 1–6，漏了 6b）。

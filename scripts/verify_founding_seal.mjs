@@ -207,8 +207,19 @@ const results_dir = path.join(ROOT, 'scratchpad'); // repo 的 scratchpad/ 已�
   const cr = await chromium.launch();
   const { ctx, page, errors } = await boot(cr);
   const untilMs = await page.evaluate(() => { try { return FOUNDING_UNTIL_MS; } catch (e) { return null; } });
-  const expected = Date.parse('2026-09-15T00:00:00+08:00');
-  ok('G0.0 FOUNDING_UNTIL_MS 可讀取且等於 brief 給的值(2026-09-15 台北 00:00)', untilMs === expected, `讀到=${untilMs} 期望=${expected}`);
+  // G0.0 舊版把資格截止日的字面值又抄了一份進這個公開的測試檔,而且出貨前依實際開賣日校正
+  // index.html 的常數時,它會為了正確的理由轉紅。改成不重寫那個日期的兩件事:
+  //   (a) 結構(這一條):常數解析得出來,而且落在台北時間的午夜整點——「是個能當日界用的時點」
+  //       這件事本身可驗,不必知道是哪一天;
+  //   (b) 行為:邊界兩側各測一次,由下面 G0.1(前一天→true)／G0.2(後一天→false)／G0.7(邊界本身
+  //       嚴格小於)負責,它們的輸入全部由現讀的 untilMs 推導,常數改成任何日期都仍然成立。
+  // ⚠️ 刻意不寫成「從頁面讀出來再跟自己比」:那種斷言的資訊量是零(判準落在受測物的下游)。
+  const tpeParts = Number.isFinite(untilMs)
+    ? new Intl.DateTimeFormat('en-GB', { timeZone: 'Asia/Taipei', hourCycle: 'h23', hour: '2-digit', minute: '2-digit', second: '2-digit' }).format(new Date(untilMs))
+    : '(不是有限數字)';
+  ok('G0.0 FOUNDING_UNTIL_MS 解析得出來,且落在台北時間的午夜整點(不重寫日期字面值)',
+    Number.isFinite(untilMs) && tpeParts === '00:00:00' && untilMs % 1000 === 0,
+    `讀到=${untilMs} 台北時刻=${tpeParts} 毫秒餘=${Number.isFinite(untilMs) ? untilMs % 1000 : 'n/a'}`);
 
   const r = await page.evaluate((until) => {
     const info = t => ({ entitlements: { active: { plus: { originalPurchaseDate: t } } } });

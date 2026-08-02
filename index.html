@@ -6057,10 +6057,10 @@ const BOUNTY_ENABLED = (() => { try {
 // 收集地圖同批下架。它其實不碰 GPS(資料來自既有乘車記錄),所以給它自己的旗標:要單獨復活只動這一行。
 const COLLECT_MAP_ENABLED = flagOnce('collectmap');
 const RECORDING_ENABLED = false; // 2026-07-17 錄影暫時下架(整備中):所有入口隱藏、實作全保留;改 true 即復活(工具列鈕+更多抽屜列+Plus 文案)
-const ACCOUNT_ENABLED = false; // 2026-07-21 甲案裁示:免費層匿名,只有買 Plus 才登入。帳號鈕預設隱藏、不對訪客載 Firebase;
+const ACCOUNT_ENABLED = false; // 此旗標只控制帳號 UI 要不要 eager 初始化:false=帳號鈕預設隱藏、不對訪客載 Firebase。
 // 購買鏈不需要它——有購買通道的平台由 plusOpen() 先 accountEnsureInit() 延遲初始化,無購買通道的平台
 // (網站)由 Plus 面板內的「登入以同步」CTA 觸發。true 會讓 setupAccountUi()(互斥二選一)
-// 選中 eager 分支,把帳號鈕放回所有人主畫面、對每個訪客載 Firebase,等於把 07-17 那次刻意下架整個倒回去。
+// 選中 eager 分支,把帳號鈕放回所有人主畫面、對每個訪客載 Firebase。
 // Plus 功能總閘:網站與原生 App 皆恆開(暗啟動結束)。它只決定「Plus 觸發面存不存在」——
 // 「誤點履歷」頭牌卡的入口與卡片(見 openDelayHist/renderDelayHist)、以及工具列的 Plus 面板入口(見 setupAccountUi)。
 // ⚠️ 恆開不等於這個平台賣得成:能否發起購買由 plusConfigured() 判定(網站沒有 Web Billing key ⇒ 恆假,
@@ -6083,7 +6083,7 @@ const TRIP_SHARE_ENABLED = (() => { try { return new URLSearchParams(location.se
 // 行程分享發起端＝Plus。這支只管「鈕要不要出現」,不等於放行——
 // ?tripshare=1 是開發測試通道,它點亮入口讓版面看得到,但按下去仍會被 plusGateOpen 攔去訂閱。
 // 兩段式(顯示 vs 放行)是刻意的:URL 參數可以被轉貼,不能讓它變成公開後門。
-// 接收端 ?trip= 永遠免費解碼,不受這裡影響。
+// 接收端 ?trip= 的解碼沒有資格閘門,不受這裡影響。
 function tripShareVisible() {
   return TRIP_SHARE_ENABLED || plusIsActive();
 }
@@ -6907,7 +6907,7 @@ function accountCloudEnvelope(docs) {
 async function accountSyncNow(reason) {
   const a = state.account;
   if (!a || !a.user || !a.db || a.syncing) return false;
-  // 雲端同步是 Plus 功能(2026-08-02 裁示:用戶端閘門)。logout 是刻意的例外——
+  // 雲端同步受 Plus 資格閘門控管(用戶端判定)。logout 是刻意的例外——
   // 登出會清掉本機資料(accountClearLocal),不讓最後一次回寫完成就等於吃掉使用者的東西。
   // 用 startsWith 不用 !==:rules 擋下時下面的 catch 會遞迴成 reason+'-legacy' 重試,
   // 寫死 !== 'logout' 會讓重試被閘門擋掉、而 accountSignOut 照樣清本機 ⇒ 真的掉資料。
@@ -7166,13 +7166,18 @@ function foundingFrom(info) {
   try {
     const ent = info && info.entitlements && info.entitlements.active && info.entitlements.active[plusConfig().entitlement || 'plus'];
     const t = ent && (ent.originalPurchaseDate || ent.latestPurchaseDate);
-    // Date.parse(t):App(Capacitor)路徑 t 是 ISO8601 字串,沒問題。若日後開放網站 Web Billing,
-    // @revenuecat/purchases-js 的同名欄位是 Date 物件——Date.parse(Date 物件) 靠隱式 toString()
-    // 各引擎實務可行但不是規格保證,屆時改 new Date(t).getTime() 更穩(目前網站無購買通道,非現在的缺陷)。
+    // Date.parse(t):原生(Capacitor)adapter 回傳 ISO8601 字串,沒問題。web billing adapter
+    // (@revenuecat/purchases-js)的同名欄位是 Date 物件——Date.parse(Date 物件) 靠隱式 toString()
+    // 各引擎實務可行但不是規格保證,接上該 adapter 時改 new Date(t).getTime() 更穩。
     return !!t && Date.parse(t) < FOUNDING_UNTIL_MS;
   } catch (e) { return false; }
 }
 function plusProjectConfigured() {
+  // PLUS_ENABLED 是止血旗標:關掉時「Plus 觸發面存不存在」的答案一律是「不存在」,這一支也不例外。
+  // 少了這道閘,關旗標反而會「打開」帳號面板登出態那顆入口鈕——它的條件是
+  // `plusProjectConfigured() && !plusConfigured()`,而 plusConfigured() 第一行就吃 PLUS_ENABLED ⇒
+  // 旗標一關 !plusConfigured() 反轉成 true(實測:原生殼登出態的入口鈕由不存在變成存在)。
+  if (!PLUS_ENABLED) return false;
   const c = plusConfig();
   return !!(window.RAIL_NATIVE_PLUS_ADAPTER || window.RAIL_PLUS_TEST_ADAPTER || (c.entitlement && (c.webApiKey || c.iosApiKey || c.androidApiKey)));
 }
@@ -7237,6 +7242,7 @@ function plusState() {
   return state.plus;
 }
 async function plusOpen(source, onGranted) {
+  if (!PLUS_ENABLED) return; // 止血旗標關閉時整張面板不可達:入口鈕都撤掉了,但深連結與既有呼叫點仍摸得到這支,故在此再擋一次
   const p = plusState();
   if (typeof onGranted === 'function') p.afterUnlock = onGranted;
   // 未登入時依「這個平台賣不賣得成」分流:
@@ -7278,10 +7284,10 @@ function plusFinishPending() {
 function plusRender() {
   const body = document.getElementById('plusBody'), p = state.plus; if (!body || !p) return;
   const hero = `<div class="plus-hero"><span class="plus-mark">＋</span><h3>軌島 Plus 訂閱</h3><p>以月訂或年訂支持軌島持續運作。同一個軌島帳號可在網站與 App 使用與恢復訂閱資格。</p></div>`;
-  // 定案 Plus 功能清單(此順序);①誤點履歷為頭牌放第一。價格一律取自商店回傳,此處不列任何價格。
-  // 每一項都對映到一個真的資格判定,清單與實作是否脫節由 verify_plus_features.mjs 機械稽核
-  // (見該檔 REQUIRED 對映表)。① 只涵蓋 /api/delay-history(90 天逐日,有 Plus 閘門)獨有的部分——
-  // /api/delay-stats(30 天彙總)零資格檢查、本來就免費,不可算進賣點。
+  // Plus 功能清單。技術契約:清單與資格判定必須一致——每一項都要對映到一個真的資格判定,
+  // 由 verify_plus_features.mjs 機械稽核(見該檔 REQUIRED 對映表)。價格一律取自商店回傳,
+  // 此處不列任何價格。① 的措辭只涵蓋 /api/delay-history(90 天逐日,有 Plus 閘門)獨有的部分——
+  // /api/delay-stats(30 天彙總)零資格檢查、無閘門,不在此清單的涵蓋範圍內。
   // 創始會員徽章有到期日(FOUNDING_UNTIL_MS,見上方 foundingFrom() 旁的說明):過了那天才訂閱的人
   // 永遠拿不到,清單不能無條件宣傳——到期後這一項直接從陣列消失,不留半吊子的「限期」措辭。
   const feats = [
@@ -7291,12 +7297,13 @@ function plusRender() {
     // App 限定:入口(setupTakeoutUi)掛在 plusConfigured() 上,網站沒有 Web Billing key ⇒ 恆假 ⇒ 鈕不出現。
     // 2026-08-03 實測(網站 importBtnVisible=false／模擬原生殼=true)確認,不是從程式碼推論。
     '在 App 匯入 Google Maps 已儲存清單，成為軌島的最愛地點',
-    'App 非跟車時的衛星高解析圖磚（支援 Retina 螢幕）', // App 限定(2026-08-02 裁示):網站的 SAT_RETINA_DEFAULT 維持 false,不標明就是對網站訂閱者做假廣告
+    // App 限定:網站的 SAT_RETINA_DEFAULT 為 false ⇒ satRetinaAllowed() 在網站恆假,措辭必須標明平台。
+    'App 非跟車時的衛星高解析圖磚（支援 Retina 螢幕）',
     '跟車時在鎖定畫面與動態島顯示即時動態（iOS 17.6 以上）',
     ...(Date.now() < FOUNDING_UNTIL_MS ? ['App 旅程護照的創始會員徽章'] : []),
   ].map(t => `<div class="plus-feature"><span>✓</span>${t}</div>`).join('');
   const features = `<div class="plus-features">${feats}</div>` +
-    '<p class="plus-trust">列車位置、誤點資訊與系統覆蓋永遠免費——Plus 不影響準確度。</p>';
+    '<p class="plus-trust">列車位置、誤點資訊與系統覆蓋現在免費提供——Plus 不影響準確度。</p>';
   // 訂閱法務列(Apple 3.1.2):自動續訂說明 + 隱私權政策/使用條款連結(兩檔都在站台根目錄)。
   const legal = '<div class="plus-legal">' +
     '<p>訂閱到期前會依商店規則自動續訂扣款；你可以隨時在 App Store 的訂閱設定中取消，取消後於當期結束時停止續訂。</p>' +
@@ -7338,7 +7345,7 @@ async function plusRefresh() {
   const p = state.plus, user = state.account && state.account.user; if (!p || !user || p.loading) return false;
   if (!plusConfigured()) {
     // 此平台無購買通道(網站沒有 Web Billing key,RAIL_REVENUECAT_CONFIG 只設 iosApiKey):不初始化任何
-    // billing SDK,但改打 /api/plus-status 讀 App 買的資格(2026-08-02 新增,唯讀,不開放網站購買)。
+    // billing SDK,只打 /api/plus-status 查詢既有資格(唯讀,不發起購買)。
     p.error = '';
     try {
       const token = state.account.fb.getIdToken ? await state.account.fb.getIdToken(user) : await user.getIdToken();
@@ -15037,7 +15044,7 @@ const HELP_GROUPS = [
     // 訂閱是新功能,依專案慣例必須有一節;avail 掛 PLUS_ENABLED,旗標關掉整節自動消失(不教一個按不到的東西)。
     // 內容與 terms.html／plusRender() 的功能清單同一套措辭——說明中心也是付款決定點之一,兩邊講不一樣就是不實宣稱。
     { key: 'plus', ic: '＋', nm: '軌島 Plus 與跨裝置同步', avail: () => PLUS_ENABLED,
-      one: '訂閱制的加值內容。列車位置、誤點資訊與系統覆蓋永遠免費，不受訂閱影響。',
+      one: '訂閱制的加值內容。列車位置、誤點資訊與系統覆蓋現在免費提供，不受訂閱影響。',
       steps: ['桌面按工具列的「Plus」、手機從「更多」→「軌島 Plus」，看裡面有哪些內容',
         '訂閱在軌島 App 內完成，網站不收費',
         '在網站用同一個軌島帳號登入，App 訂的資格就會生效（面板裡的「已經在 App 訂閱了？登入以同步」）'],

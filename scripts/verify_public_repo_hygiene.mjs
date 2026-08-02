@@ -16,7 +16,15 @@
 // 用法:node scripts/verify_public_repo_hygiene.mjs [base]   base 預設 origin/main
 import { execFileSync } from 'node:child_process';
 
-const BASE = process.argv[2] || 'origin/main';
+const ARGV = process.argv.slice(2);
+const BASE = ARGV.find(a => !a.startsWith('--')) || 'origin/main';
+// 🔴 具名容忍(不是靜默上限):歷史命中要求的動作是「push 前 squash 或改寫那幾顆 commit」,
+// 那是合併時才做得到的事,所以允許在合併之前明示放行——但必須是**呼叫者打出來的一個決定**,
+// 而且要印出容忍了什麼、幾筆。此前這一整類完全不影響 exit code ⇒ 只看 exit code 的自動化
+// 會把「21 筆待處理」讀成「全都掃過了」,靜默的上限會被讀成通行證。
+//   用法:--allow-history-hits=<N>   (未給＝0＝一筆都不容忍)
+const ALLOW_HIST_ARG = ARGV.find(a => a.startsWith('--allow-history-hits='));
+const ALLOW_HIST = ALLOW_HIST_ARG ? Number(ALLOW_HIST_ARG.split('=')[1]) : 0;
 
 // 禁的是「具體數值」,不是「提到成本」——機制說明(「額度吃緊時改 false」)必須留著,
 // 否則維護的人看不懂那個開關為什麼存在。所以每條 pattern 都綁著數字或金額符號。
@@ -124,11 +132,12 @@ for (const h of hits) console.log(`   ⚠️ ${h.file} [${h.rule}] ${h.text}`);
 // 上面掃的是「HEAD 的樹」= 最終狀態。但這個 repo 是 PUBLIC,**中間 commit 也會被 push 出去**,
 // `git log -p` 撈得到。最終狀態乾淨 ≠ 歷史乾淨:把洩漏的那行在後續 commit 改掉,
 // 原始字串仍然永久留在前一顆 commit 裡。
-// 這一段刻意不計入 exit code——它要求的動作是「push 前 squash 或改寫歷史」,
-// 屬於合併時的閘門,不是每次跑驗收都能當場解決的事。但它必須**印出來**,
-// 否則就是另一個「寫了沒人看」的警告。
+// 這一段**計入 exit code**(2026-08-03 修正):它要求的動作是「push 前 squash 或改寫歷史」,
+// 屬於合併時的閘門;但「不是現在能解決」不等於「可以不影響 exit code」——只看 exit code 的
+// 自動化會把這一整類發現讀成不存在。要放行就用 --allow-history-hits=<N> 明示,見檔頭。
 console.log('\n── 歷史掃描:中間 commit(push 前必須處理) ──');
 let histHits = [];
+let histCommits = 0;
 try {
   const log = execFileSync('git', ['log', '-p', '-U0', `${BASE}..HEAD`], { encoding: 'utf8', maxBuffer: 128 * 1024 * 1024 });
   let commit = '', hfile = '';
@@ -148,13 +157,19 @@ try {
 // 這不是理論風險:本批次「修掉三處洩漏」那顆 commit,自己的訊息裡把三處原文整段引用了進去
 // (作者在描述「我修了什麼」時貼了原句),由範圍複審抓出。訊息會隨 push 一起公開,
 // 在 GitHub 的 commit 頁面直接看得到。
-for (const c of (execFileSync('git', ['log', '--format=%H', `${BASE}..HEAD`], { encoding: 'utf8' }).trim().split('\n').filter(Boolean))) {
+const histCommitList = execFileSync('git', ['log', '--format=%H', `${BASE}..HEAD`], { encoding: 'utf8' }).trim().split('\n').filter(Boolean);
+histCommits = histCommitList.length;
+for (const c of histCommitList) {
   const msg = execFileSync('git', ['log', '-1', '--format=%B', c], { encoding: 'utf8' });
   for (const line of msg.split('\n')) {
     if (line.includes(ALLOW)) continue;
     for (const r of RULES) if (r.re.test(line)) histHits.push({ commit: c.slice(0, 7), file: '(commit message)', rule: r.name, text: line.trim().slice(0, 120) });
   }
 }
+
+// 歷史掃描器本身也要證明有在掃(比照主掃描的 addedLines>0):base..HEAD 是空的時候,
+// 「零歷史命中」跟主掃描的「零新增行命中」一樣沒有意義——那是量測器沒在量,不是乾淨。
+ok(histCommits > 0, `歷史掃描器有讀到 commit(base=${BASE}) — ${histCommits} 顆`);
 
 if (histHits.length === 0) {
   console.log('   ✅ 歷史與 commit message 都乾淨,可直接 push。');
@@ -164,6 +179,14 @@ if (histHits.length === 0) {
   for (const h of histHits) console.log(`      ${h.commit} ${h.file} [${h.rule}] ${h.text}`);
   console.log('   ⇒ push 前必須 squash 合併(或改寫這幾顆),否則這些字串會永久公開。');
 }
+// 具名容忍要印出來:容忍了什麼、幾筆、上限是多少。靜默容忍會被讀成「全都掃過了」。
+if (ALLOW_HIST > 0) {
+  console.log(`   🟡 具名容忍 --allow-history-hits=${ALLOW_HIST}:呼叫端明示接受「歷史命中尚未 squash」這一類,` +
+    `本次 ${histHits.length} 筆${histHits.length <= ALLOW_HIST ? '在容忍額度內,不計入 exit code' : '超出容忍額度,仍計入 exit code'}。`);
+}
+ok(histHits.length <= ALLOW_HIST,
+  `歷史／commit message 命中在容忍額度內 — 命中 ${histHits.length} 筆 / 容忍上限 ${ALLOW_HIST}` +
+  (histHits.length > ALLOW_HIST ? '(push 前 squash 或改寫;確定要先放行請加 --allow-history-hits=<N>)' : ''));
 
-console.log(`\n──────── ${failed ? 'FAIL' : 'ALL PASS'}(最終狀態)${histHits.length ? ' ／ 歷史待處理' : ''} ────────`);
+console.log(`\n──────── ${failed ? 'FAIL' : 'ALL PASS'} ／ 最終狀態命中 ${hits.length} 筆、歷史命中 ${histHits.length} 筆(容忍 ${ALLOW_HIST}) ────────`);
 process.exit(failed ? 1 : 0);

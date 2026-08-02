@@ -79,6 +79,11 @@ app/NATIVE_PRIVACY_AND_PERMISSIONS.md
 # 任何一次 git add -A 都會把它掃進公開歷史（push 後不可改寫）。
 scratchpad/
 
+# 施工帳本（規格、計畫、逐任務報告與複審紀錄）。內容是還沒定案的判斷與缺陷細節，
+# 這個 repo 是 public。此前唯一在擋的是 .superpowers/sdd/.gitignore 這個「未追蹤」的檔——
+# 從乾淨 worktree 出貨時它自己不會被帶上，等於沒防線；故改由這條追蹤中的規則負責。
+/.superpowers/
+
 # 小工具地點看板索引：`npm run build` 的現場產物（app/scripts/build_place_index.mjs，約 9MB）。
 # 只有 App bundle 需要它，網站不讀。repo 是 public，一次 git add -A 就會永久留在公開歷史。
 data/place_index.json

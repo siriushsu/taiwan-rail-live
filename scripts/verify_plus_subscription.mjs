@@ -38,6 +38,14 @@ const SHOT_DIR = process.env.SHOT_DIR || path.join(os.tmpdir(), 'rail-plus-shots
 mkdirSync(SHOT_DIR, { recursive: true });
 const PORT = 5207;
 const MIME = { '.html': 'text/html', '.js': 'text/javascript', '.mjs': 'text/javascript', '.json': 'application/json', '.css': 'text/css', '.png': 'image/png', '.jpg': 'image/jpeg', '.svg': 'image/svg+xml', '.mp3': 'audio/mpeg', '.ico': 'image/x-icon', '.webmanifest': 'application/manifest+json' };
+// 止血旗標關閉版:網址帶 ?__flagoff=1 時,供應同一份磁碟檔、只把 PLUS_ENABLED 的宣告翻成 false。
+// 為什麼改原始碼而不是靠既有的 URL 參數:PLUS_ENABLED 已刻意不再認 ?plus=1(見下方 BASE 註解),
+// 要驗「關得掉嗎」就只能動那一行宣告本身。KS0 會現讀頁面確認真的翻到了。
+// ⚠️ 用 query 標記而不是路徑前綴(/__flagoff/):頁面裡的 API 是相對路徑(`api/tra-live`),
+//    掛在路徑前綴下會變成 /__flagoff/api/…,繞過本伺服器的 /api/ 短路而 404,把整段染上假的
+//    console.error(第一版實測到 6 個)。query 標記不動路徑,所有相對資源照常解析。
+const FLAG_ON_DECL = 'const PLUS_ENABLED = true;';
+const FLAG_OFF_DECL = 'const PLUS_ENABLED = false;';
 const server = createServer((req, res) => {
   const url = new URL(req.url, 'http://x');
   if (url.pathname.startsWith('/api/')) { res.statusCode = 200; res.setHeader('content-type', 'application/json'); return res.end('{}'); }
@@ -45,6 +53,12 @@ const server = createServer((req, res) => {
   if (existsSync(fp) && statSync(fp).isDirectory()) fp = path.join(fp, 'index.html');
   if (!path.resolve(fp).startsWith(ROOT) || !existsSync(fp)) { res.statusCode = 404; return res.end('nf'); }
   res.setHeader('content-type', MIME[path.extname(fp)] || 'application/octet-stream');
+  if (url.searchParams.get('__flagoff') === '1' && fp.endsWith('index.html')) {
+    const src = readFileSync(fp, 'utf8');
+    // 找不到宣告就回 500:靜默供應未替換的版本會讓整個 KS 段變成「旗標開著卻宣稱驗了關閉態」的假綠。
+    if (!src.includes(FLAG_ON_DECL)) { res.statusCode = 500; return res.end('flag-decl-not-found'); }
+    return res.end(src.replace(FLAG_ON_DECL, FLAG_OFF_DECL));
+  }
   res.end(readFileSync(fp));
 });
 await new Promise(r => server.listen(PORT, r));
@@ -138,6 +152,8 @@ const readModal = (page) => page.evaluate(() => {
     privacy: !!body.querySelector('.plus-legal a[href="privacy.html"]'),
     terms: !!body.querySelector('.plus-legal a[href="terms.html"]'),
     trust: !!body.querySelector('.plus-trust'),
+    trustText: (body.querySelector('.plus-trust') || {}).textContent || '',
+    feats: body.querySelectorAll('.plus-feature').length,
   };
 });
 const FORBIDDEN = ['一次購買', '永久解鎖', '不是訂閱'];
@@ -172,6 +188,10 @@ const webkitB = await webkit.launch();
   await ctx.close();
 }
 
+// 完整 Plus 清單的基準項數:由第一趟主流程(A)實地量到,不是手打的常數。
+// 用途見 runFlow 內 `${label}1` 旁的註解;取不到(仍為 null 或 0)時 G3/G4/N-tap 會具名轉紅。
+let BASELINE_FEATS = null;
+
 // ══════════════ A/B. 主流程(桌機 1280×800 chromium、手機 375×812 觸控) ══════════════
 async function runFlow(browser, label, opts) {
   const { ctx, page } = await newPage(browser, opts);
@@ -186,6 +206,10 @@ async function runFlow(browser, label, opts) {
   const m = await readModal(page);
 
   ok(`${label}1 訂閱視窗顯示(modal 未隱藏)`, m.hidden === false, `hidden=${m.hidden}`);
+  // 這一趟(桌機、有購買通道、真的走 plusOpen)是本檔的「完整清單」基準:後面每一條入口路徑都要求
+  // 畫出同樣多項,而不是各自釘一個寫死的下限(`>= 5` 少一項也過、多十項也過)。清單本身的絕對內容
+  // 由 verify_plus_features.mjs 的 REQUIRED 對映表負責,這裡負責的是「每條入口路徑渲染的是同一份」。
+  if (BASELINE_FEATS === null) BASELINE_FEATS = m.feats;
   ok(`${label}2 出現月/年兩顆價格鈕`, m.plans.length === 2 && m.plans.some(p => p.pkg === 'month') && m.plans.some(p => p.pkg === 'annual'),
     `plans=${JSON.stringify(m.plans.map(p => p.pkg))}`);
   ok(`${label}3 年訂在前(第一顆)且為主推(有「最划算」徽章)`, m.plans[0] && m.plans[0].pkg === 'annual' && m.plans[0].primary === true && m.plans[0].badge.includes('最划算'),
@@ -200,8 +224,19 @@ async function runFlow(browser, label, opts) {
     FORBIDDEN.filter(w => m.text.includes(w)).join(','));
   ok(`${label}7 法務列含隱私權政策(privacy.html)與使用條款(terms.html)連結`, m.privacy && m.terms,
     `privacy=${m.privacy} terms=${m.terms}`);
-  ok(`${label}8 頭牌功能=誤點履歷 + 信任聲明「永遠免費」皆在`, m.text.includes('誤點履歷') && m.trust && m.text.includes('永遠免費'),
-    `誤點履歷=${m.text.includes('誤點履歷')} trust=${m.trust}`);
+  // 舊版釘死字面值「永遠免費」,文案一改就為了正確的理由轉紅;而且釘另一個字面值只是把同一個坑
+  // 往後推一格。改測語意:信任聲明這個節點存在,而且它主張的是「準確度不受 Plus 影響」——
+  // 「準確度」是被主張的對象、「不影響/不受影響」是主張本身,兩者都在才算真的做了這個宣稱。
+  const trustClaim = m.trustText.includes('準確度') && /不影響|不受.{0,4}影響/.test(m.trustText);
+  ok(`${label}8 頭牌功能=誤點履歷,且信任聲明存在並主張「準確度不受 Plus 影響」`,
+    m.text.includes('誤點履歷') && m.trust && trustClaim,
+    `誤點履歷=${m.text.includes('誤點履歷')} trust=${m.trust} trustText=${JSON.stringify(m.trustText)}`);
+  // 正向對照:同一支語意偵測器對「有準確度、沒有否定」與「有否定、沒有準確度」兩種殘缺樣本都要拒收,
+  // 證明它不是只要 .plus-trust 存在就恆真(那正是舊斷言換成語意版之後最容易退化成的樣子)。
+  const claimOf = s => s.includes('準確度') && /不影響|不受.{0,4}影響/.test(s);
+  ok(`${label}8 正向對照:語意偵測器對殘缺樣本必須拒收(只有「準確度」或只有「不影響」都不算做了宣稱)`,
+    claimOf('Plus 不影響準確度') === true && claimOf('準確度很高') === false && claimOf('不影響任何東西') === false,
+    `完整=${claimOf('Plus 不影響準確度')} 只有準確度=${claimOf('準確度很高')} 只有不影響=${claimOf('不影響任何東西')}`);
   ok(`${label}9 自動續訂法務說明存在`, m.text.includes('自動續訂') || m.text.includes('自動續'),
     m.text.slice(0, 0));
 
@@ -313,11 +348,11 @@ async function regression(label, { width, height, touch }) {
 await regression('1280', { width: 1280, height: 800, touch: false });
 await regression('375', { width: 375, height: 812, touch: true });
 
-// ══════════════ G. Plus 面板入口與兩段式登入(2026-08-02 開閘裁示) ══════════════
-// 舊版 G 斷言的是「匿名點 Plus 入口 → 直接看到 Google＋Apple 登入鈕」,那是被推翻的舊行為
-// (plusOpen 一開頭就強迫登入)。開閘後的裁示是兩段式:
-//   第一段 網站(無購買通道)的匿名訪客從 Plus 槽位開得了面板,看得到六項清單與「請在 App 內訂閱」,
-//          而且這一段全程零 Firebase、state.account 仍 undefined(甲案裁示的免費層匿名沒有被撤銷);
+// ══════════════ G. Plus 面板入口與兩段式登入 ══════════════
+// 舊版 G 斷言的是「匿名點 Plus 入口 → 直接看到 Google＋Apple 登入鈕」,那是被取代的舊行為
+// (plusOpen 一開頭就強迫登入)。現行契約是兩段式:
+//   第一段 無購買通道的平台,匿名訪客從 Plus 槽位開得了面板,看得到功能清單與「請在 App 內訂閱」,
+//          而且這一段全程零 Firebase、state.account 仍 undefined(未登入即可瀏覽的契約沒有被撤銷);
 //   第二段 面板內按下「已經在 App 訂閱了？登入以同步」之後,才出現 Google＋Apple 兩顆登入鈕。
 // 有購買通道的平台(App)不走這條:訂閱資格要綁帳號才能跨裝置恢復,維持「先登入再開面板」(見 G10)。
 //
@@ -365,8 +400,9 @@ function collectFirebaseReqs(page) {
     loginBtns: document.querySelectorAll('[data-login]').length,
     accountUndefined: typeof state.account === 'undefined',
   }));
-  ok('G3 匿名點入口 → Plus 面板直接開且六項功能清單畫得出來(沒有被推去登入)',
-    entryClicked === true && panel.open === true && panel.feats >= 5, `點得到=${entryClicked} ` + JSON.stringify(panel));
+  ok('G3 匿名點入口 → Plus 面板直接開,且畫出的功能項數與 A 段基準一致(沒有被推去登入、也沒有半截渲染)',
+    entryClicked === true && panel.open === true && BASELINE_FEATS > 0 && panel.feats === BASELINE_FEATS,
+    `點得到=${entryClicked} 基準=${BASELINE_FEATS} ` + JSON.stringify(panel));
   ok('G4 面板停在「請在 App 內訂閱」,零購買鈕(網站不賣)',
     panel.appOnly === true && panel.buyBtns === 0, `appOnly=${panel.appOnly} buy=${panel.buyBtns}`);
   ok('G5 看完整個面板,state.account 仍是 undefined(帳號系統沒被叫起來)',
@@ -416,9 +452,9 @@ function collectFirebaseReqs(page) {
     cta: document.querySelectorAll('[data-plus="login"]').length,
     accountOpen: !document.getElementById('accountModal').hidden,
   }));
-  ok('G12 反悔之後再按一次槽位 → Plus 面板重新開得起來(功能清單＋登入 CTA 都在,不是被推去帳號面板)',
-    reClicked === true && back.plusOpen === true && back.feats >= 5 && back.cta === 1 && back.accountOpen === false,
-    `點得到=${reClicked} ` + JSON.stringify(back));
+  ok('G12 反悔之後再按一次槽位 → Plus 面板重新開得起來(功能項數與 A 段基準一致、登入 CTA 在,不是被推去帳號面板)',
+    reClicked === true && back.plusOpen === true && BASELINE_FEATS > 0 && back.feats === BASELINE_FEATS && back.cta === 1 && back.accountOpen === false,
+    `點得到=${reClicked} 基準=${BASELINE_FEATS} ` + JSON.stringify(back));
   // G13:就算槽位真的變成帳號入口(回訪裝置的登出態就是這樣),登出態的帳號面板也要有回 Plus 的路——
   // 兩道保險守的是同一件事:任何一條「進了帳號畫面又不想登入」的路都不該是死路。
   const escape = await page.evaluate(() => {
@@ -467,27 +503,43 @@ function collectFirebaseReqs(page) {
 
 // ══════════════ T. 「Google 清單匯入」是 App 限定的 Plus 功能:文案這樣寫,實際就必須這樣 ══════════════
 // 開閘讓 plusConfigured() 在原生殼恆真,setupTakeoutUi() 的閘門本來就掛在它上面 ⇒ 匯入入口跟著現身,
-// 按下去走 plusRequire 進訂閱面板。2026-08-03 使用者裁定「一起放」⇒ 它成為第 4 項 Plus 賣點,
-// 而付費視窗/terms/說明中心都把它標成「在 App」——那句話是可驗證宣稱,不是修辭,所以在這裡實測兩邊。
+// 按下去走 plusRequire 進訂閱面板。它是 Plus 功能清單的一項,而付費視窗/terms/說明中心都把它標成
+// 「在 App」——那句話是可驗證宣稱,不是修辭,所以在這裡實測兩邊。
 // ⚠️「必須看不到」型斷言:同一支可見性探針對同工具列的 #shareBtn 做正向對照,證明它分得出可見與不可見。
 {
   const { ctx, page } = await newPage(chromiumB);
   const errs = attach(page, 'T-web');
   await page.goto(BASE, { waitUntil: 'domcontentloaded' });
   await waitReady(page);
-  const w = await page.evaluate(() => {
+  const w = await page.evaluate(async () => {
     const vis = el => { if (!el) return false; const st = getComputedStyle(el), r = el.getBoundingClientRect();
       return st.display !== 'none' && st.visibility !== 'hidden' && r.width > 0 && r.height > 0; };
-    return { plusConfigured: plusConfigured(), accountConfigured: accountConfigured(),
+    // 使用者看得到的結果要在「更多」抽屜真的打開之後才量:抽屜列的可見性由 syncMoreSheet() 在
+    // 開啟當下依代理鈕重算(index.html 的 syncMoreSheet),開啟前那一格 inline display 只是中間態。
+    const fab = document.getElementById('toolsFab') || document.getElementById('tabMore');
+    if (fab) fab.click();
+    await new Promise(r => setTimeout(r, 350));
+    const rowVis = p => { const r = document.querySelector(`.ms-row[data-proxy="${p}"]`); return { exists: !!r, visible: vis(r) }; };
+    const out = { plusConfigured: plusConfigured(), accountConfigured: accountConfigured(),
       importVisible: vis(document.getElementById('importBtn')),
-      importRowExists: !!document.querySelector('.ms-row[data-proxy="importBtn"]'),
+      sheetOpen: vis(document.querySelector('.more-sheet')),
+      importRow: rowVis('importBtn'), shareRow: rowVis('shareBtn'),
       shareVisible: vis(document.getElementById('shareBtn')) };
+    if (fab) fab.click(); // 收回抽屜,不影響後面的量測
+    await new Promise(r => setTimeout(r, 200));
+    return out;
   });
   ok('T1 網站前置:帳號設定齊備但無購買通道(accountConfigured=true、plusConfigured=false)——否則下一條會為了錯的理由而綠',
     w.accountConfigured === true && w.plusConfigured === false, JSON.stringify(w));
   ok('T2 網站看不到匯入入口(文案標「在 App」的事實面)', w.importVisible === false, `importVisible=${w.importVisible}`);
   ok('T2b 正向對照:同一支可見性探針在同一排工具列上量得到可見的鈕(#shareBtn)', w.shareVisible === true, `shareVisible=${w.shareVisible}`);
-  ok('T3 網站的抽屜列一併移除(入口不長出來時不留一列點了靜默無反應的死列)', w.importRowExists === false, `rowExists=${w.importRowExists}`);
+  // T3 舊版只斷言 `importRowExists === false`——那是開機當下的中間態,量不到使用者到底看不看得到:
+  // 抽屜列就算留著,syncMoreSheet() 在開啟時也會依代理鈕把它設回 display:none。改成量「抽屜真的
+  // 打開之後,那一列在畫面上不存在」,並用同一支探針在同一張抽屜裡量到一列可見的鄰居當正向對照。
+  ok('T3 網站:「更多」抽屜真的打開後,匯入那一列在畫面上看不到(入口不長出來時不留一列點了靜默無反應的死列)',
+    w.sheetOpen === true && w.importRow.visible === false, JSON.stringify(w));
+  ok('T3b 正向對照:同一張抽屜、同一支探針量得到一列可見的鄰居(#shareBtn 那列)——證明它不是對整張抽屜都回 false',
+    w.shareRow.exists === true && w.shareRow.visible === true, JSON.stringify(w));
   ok('T-web 本輪零 pageerror/console.error', errs.length === 0, errs.slice(0, 3).join(' | '));
   await ctx.close();
 }
@@ -497,18 +549,31 @@ function collectFirebaseReqs(page) {
   await ctx.addInitScript(NATIVE_INIT);
   await page.goto(BASE, { waitUntil: 'domcontentloaded' });
   await waitReady(page);
-  const n = await page.evaluate(() => {
+  const n = await page.evaluate(async () => {
     const vis = el => { if (!el) return false; const st = getComputedStyle(el), r = el.getBoundingClientRect();
       return st.display !== 'none' && st.visibility !== 'hidden' && r.width > 0 && r.height > 0; };
+    const fab = document.getElementById('toolsFab') || document.getElementById('tabMore');
+    if (fab) fab.click();
+    await new Promise(r => setTimeout(r, 350));
     const row = document.querySelector('.ms-row[data-proxy="importBtn"]');
-    return { plusConfigured: plusConfigured(), importVisible: vis(document.getElementById('importBtn')),
-      rowExists: !!row, rowDisplay: row ? row.style.display : null,
+    const other = document.querySelector('.ms-row[data-proxy="shareBtn"]');
+    const out = { plusConfigured: plusConfigured(), importVisible: vis(document.getElementById('importBtn')),
+      sheetOpen: vis(document.querySelector('.more-sheet')),
+      rowExists: !!row, rowVisible: vis(row), otherRowVisible: vis(other),
       rowLabel: row && row.querySelector('span') ? row.querySelector('span').textContent : null };
+    if (fab) fab.click();
+    await new Promise(r => setTimeout(r, 200));
+    return out;
   });
   ok('T4 原生殼(有購買通道)前置:plusConfigured()=true', n.plusConfigured === true, JSON.stringify(n));
-  ok('T5 原生殼看得到匯入入口(＝賣點清單第 4 項真的交得出來,不是只寫在文案裡)', n.importVisible === true, `importVisible=${n.importVisible}`);
-  ok('T6 原生殼的抽屜列也露出來且標成「Google 清單匯入」(手機唯一入口)',
-    n.rowExists === true && n.rowDisplay !== 'none' && n.rowLabel === 'Google 清單匯入', JSON.stringify(n));
+  ok('T5 原生殼看得到匯入入口(＝清單裡的這一項真的交得出來,不是只寫在文案裡)', n.importVisible === true, `importVisible=${n.importVisible}`);
+  // T6 舊版咬的是開機當下的 inline `row.style.display`,而使用者看到的那格是 syncMoreSheet() 在
+  // 抽屜開啟時依代理鈕重算的——複審實測拿掉 setupTakeoutUi 裡那行 `row.style.display=''` 之後,
+  // 只有舊 T6 轉紅、手機唯一入口照樣可見可點,證明它守的是沒有可見效果的中間態。改量開啟後的實況。
+  ok('T6 原生殼:「更多」抽屜真的打開後,匯入那一列看得到且標成「Google 清單匯入」(手機唯一入口)',
+    n.sheetOpen === true && n.rowVisible === true && n.rowLabel === 'Google 清單匯入', JSON.stringify(n));
+  ok('T6b 正向對照:同一支探針在同一張抽屜裡也量得到鄰居列可見(#shareBtn 那列)——證明它不是對整張抽屜都回 true',
+    n.otherRowVisible === true, JSON.stringify(n));
   // 未訂閱者按下去要被 Plus 閘門攔住(而不是直接開匯入,也不是靜默無反應):走真正的產品點擊
   const clicked = await page.click('#importBtn', { timeout: 5000 }).then(() => true).catch(() => false);
   await page.waitForTimeout(600);
@@ -618,7 +683,9 @@ for (const w of [360, 375, 414, 768]) await mobilePlusEntry(w, { sel: IMPORT_SEL
     cta: document.querySelectorAll('[data-plus="login"]').length,
     accountUndefined: typeof state.account === 'undefined',
   }));
-  ok('N-tap 375 真觸控點抽屜列 → Plus 面板真的開出來(清單＋登入 CTA 都在)', tapped === true && r.plusOpen === true && r.feats >= 5 && r.cta === 1, `點得到=${tapped} ` + JSON.stringify(r));
+  ok('N-tap 375 真觸控點抽屜列 → Plus 面板真的開出來(功能項數與 A 段基準一致、登入 CTA 在)',
+    tapped === true && r.plusOpen === true && BASELINE_FEATS > 0 && r.feats === BASELINE_FEATS && r.cta === 1,
+    `點得到=${tapped} 基準=${BASELINE_FEATS} ` + JSON.stringify(r));
   ok('N-tap 375 開面板這一刻 state.account 仍是 undefined(手機路徑的匿名保證與桌面一致)', r.accountUndefined === true, `accountUndefined=${r.accountUndefined}`);
   ok('N-tap 本輪零 pageerror/console.error', errs.length === 0, errs.slice(0, 3).join(' | '));
   await ctx.close();
@@ -1014,6 +1081,89 @@ for (const w of [360, 375, 414, 768]) await mobilePlusEntry(w, { sel: IMPORT_SEL
     !cl.fatal && cl.topCount <= 8, `內容=${cl.topCount} 標題=${cl.grpCount}`);
   ok('CL 本輪零 pageerror/console.error', errs.length === 0, errs.slice(0, 3).join(' | '));
   await ctx.close();
+}
+
+// ══════════════ KS. 止血旗標關得掉嗎(PLUS_ENABLED=false 時所有 Plus 觸發面都要消失) ══════════════
+// 這條旗標存在的意義就是「要用的時候真的關得掉」,但它此前有一個反直覺的洞:帳號面板登出態那顆
+// 「先看看軌島 Plus 有什麼」的條件是 `plusProjectConfigured() && !plusConfigured()`,而只有
+// plusConfigured() 吃 PLUS_ENABLED ⇒ 旗標一關,`!plusConfigured()` 反轉成 true,鈕反而被「打開」。
+// plusOpen() 本身也沒有守衛。修法是讓 plusProjectConfigured() 與 plusOpen() 也吃這條旗標。
+//
+// 🔴 這一段全是「必須不存在」型斷言,單獨跑等於用沉默當證據。所以旗標關閉態與開啟態走的是
+//    同一支 collect(),開啟態那幾條就是它的正向對照:同一支收集器在旗標開著時必須抓得到那些鈕
+//    與那張面板。收集器若壞掉(選擇器打錯、面板改名),正向對照會先紅,而不是讓關閉態假綠。
+//    ⚠️ 正向對照刻意用「原生殼」情境:登出態那顆鈕在無購買通道的平台本來就會出現(兩段式登入的
+//    設計),拿它當對照分不出「旗標關掉了」與「這個平台本來就沒有」。原生殼下 plusConfigured()
+//    為真 ⇒ 登出態不畫那顆鈕、已登入態才畫,兩個狀態各有一個明確的期望值。
+{
+  const collect = async page => {
+    // (a) 登出態帳號面板:強制進入 ready 且無 user 的分支(否則停在「正在讀取登入狀態…」什麼都量不到)
+    const out = await page.evaluate(() => {
+      const q = sel => !!(document.getElementById('accountBody') || {}).querySelector?.(sel);
+      try { accountEnsureInit && accountEnsureInit(); } catch (e) {}
+      try { accountOpen && accountOpen(); } catch (e) {}
+      try { if (!state.account) state.account = {}; state.account.ready = true; state.account.user = null; state.account.error = ''; accountRender(); } catch (e) {}
+      const loggedOutPlusBtn = q('[data-action="plus"]');
+      // (b) 已登入態帳號面板
+      try {
+        state.account.user = { uid: 'ks', displayName: '測試', email: 'ks@example.invalid', providerData: [{ providerId: 'google.com' }] };
+        state.account.db = {}; state.account.actionError = '';
+        accountRender();
+      } catch (e) {}
+      const body = document.getElementById('accountBody');
+      // Plus 狀態列判定取「結構」不取自由文字:已登入態另有一句「訂閱軌島 Plus 才會同步」的
+      // 同步提示,拿 textContent 比對「軌島 Plus」會把那句話也算成狀態列(第一版實測誤判)。
+      // 真正的狀態列是一個 .account-syncbox,其 <b> 恰為「軌島 Plus」。
+      const syncBoxes = [...(body ? body.querySelectorAll('.account-syncbox') : [])]
+        .map(el => (el.querySelector('b') || {}).textContent || '');
+      return {
+        loggedOutPlusBtn,
+        loggedInPlusBtn: q('[data-action="plus"]'),
+        loggedInSyncBoxes: syncBoxes,
+        loggedInPlusStatusRow: syncBoxes.some(t => t.trim() === '軌島 Plus'),
+        flag: (() => { try { return PLUS_ENABLED; } catch (e) { return 'ReferenceError'; } })(),
+      };
+    });
+    // (c) Plus 面板可達性:走真正的函式,不是只看鈕在不在
+    const panel = await page.evaluate(async () => {
+      try { accountClose && accountClose(); } catch (e) {}
+      try { await plusOpen('ks-probe'); } catch (e) { return { threw: String(e) }; }
+      await new Promise(r => setTimeout(r, 350));
+      const m = document.getElementById('plusModal'), b = document.getElementById('plusBody');
+      return { modalOpen: m ? !m.hidden : null, feats: b ? b.querySelectorAll('.plus-feature').length : -1 };
+    });
+    return { ...out, ...panel };
+  };
+  const run = async (base, tag) => {
+    const { ctx, page } = await newPage(chromiumB);
+    const errs = attach(page, `KS-${tag}`);
+    await ctx.addInitScript(NATIVE_INIT); // 原生殼:plusConfigured() 為真,才分得出「旗標關掉」與「這個平台本來就沒有購買通道」
+    await page.goto(base, { waitUntil: 'domcontentloaded' });
+    await waitReady(page);
+    const r = await collect(page);
+    await ctx.close();
+    return { r, errs };
+  };
+  const on = await run(BASE, 'on');
+  const off = await run(`http://localhost:${PORT}/index.html?__flagoff=1`, 'off');
+  // 前置:替換真的生效了。沒有這條,伺服器一旦找不到宣告字串(改寫、加空白),下面每一條都會在
+  // 「旗標其實是開的」的頁面上量,而且量出來的「不存在」還是綠的——正是本 brief 警告的假綠形狀。
+  ok('KS0 前置:?__flagoff=1 供應的頁面現讀 PLUS_ENABLED === false(替換真的生效)', off.r.flag === false, `off.flag=${off.r.flag}`);
+  ok('KS0 前置:預設網址現讀 PLUS_ENABLED === true(對照組真的是開啟態)', on.r.flag === true, `on.flag=${on.r.flag}`);
+  // 正向對照(旗標開啟,原生殼)——證明同一支 collect() 真的抓得到這三個東西
+  ok('KS1 正向對照:旗標開啟時同一支收集器抓得到 Plus 面板(開得起來且畫得出功能項)',
+    on.r.modalOpen === true && on.r.feats > 0, JSON.stringify(on.r));
+  ok('KS2 正向對照:旗標開啟時同一支收集器抓得到已登入態帳號面板的 Plus 入口與 Plus 狀態列',
+    on.r.loggedInPlusBtn === true && on.r.loggedInPlusStatusRow === true, JSON.stringify(on.r));
+  // 關閉態:必須全部消失
+  ok('KS3 旗標關閉:plusOpen() 打不開 Plus 面板(深連結與既有呼叫點都摸不到那張畫面)',
+    off.r.modalOpen === false && off.r.feats === 0, JSON.stringify(off.r));
+  ok('KS4 旗標關閉:帳號面板登出態沒有任何通往 Plus 的鈕(關掉旗標不得反而把它打開)',
+    off.r.loggedOutPlusBtn === false, JSON.stringify(off.r));
+  ok('KS5 旗標關閉:帳號面板已登入態沒有 Plus 入口鈕,也不出現 Plus 狀態列',
+    off.r.loggedInPlusBtn === false && off.r.loggedInPlusStatusRow === false, JSON.stringify(off.r));
+  ok('KS 本輪零 pageerror/console.error', on.errs.length === 0 && off.errs.length === 0,
+    [...on.errs, ...off.errs].slice(0, 3).join(' | '));
 }
 
 // ══════════════ Z0 錯誤收集器的正向對照 ══════════════
