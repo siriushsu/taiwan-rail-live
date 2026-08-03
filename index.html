@@ -6550,13 +6550,13 @@ function userDataStorageKey(uid) { return uid ? USER_DATA_KEY + ':uid:' + uid : 
 // 成功時才寫,見 accountSyncTxn),對從未成功同步過的人(所有非訂閱者——他們的同步本來就被
 // plusIsActive() 閘門擋下,見 accountSyncNow)這把 key 永遠不存在,這道安全網形同虛設。
 // 🔴 2026-08-04 複審 Important 2 重新設計 R4 時發現的第二個洞:一開始改讀 ACCOUNT_UID_KEY 還不夠
-// ——ACCOUNT_UID_KEY 在登出時必須被清掉(accountClearLocal,見下方說明,理由是防止「下一個匿名
+// ——ACCOUNT_UID_KEY 在登出時必須被清掉(accountForgetIdentity,見下方說明,理由是防止「下一個匿名
 // 訪客」被 userDataActiveUid() 的 fallback 誤判成前一個帳號),但這代表如果拿同一把 key 做這裡的
 // 陌生人判斷,任何人登出後,下一個登入的人(不論是不是同一人)都會看到 lastUid 已被清成不存在,
 // 落回「繼承」分支——陌生人防護在真實的登出之後形同失效(2026-08-04 複審實測:先匿名寫一筆→
 // 登入 A→A 真的登出→登入 B,B 會看到 A 留下的裝置資料)。兩個判斷的生命週期天生衝突,拆成
 // 兩把獨立的 key:ACCOUNT_UID_KEY 服務 fallback(必須在登出時清空),ACCOUNT_LAST_UID_KEY 服務
-// 這裡的陌生人判斷(見下方,刻意在 accountClearLocal 保留不清)。
+// 這裡的陌生人判斷(見下方,刻意在 accountForgetIdentity 保留不清)。
 const ACCOUNT_LAST_UID_KEY = 'trainmap-account-last-uid';
 function userDataMigrateAccountPartition(uid) {
   let lastUid = null;
@@ -6959,7 +6959,11 @@ function accountRender() {
       `<div class="account-user-actions">${plusProjectConfigured() ? '<button class="wide" type="button" data-action="plus">查看 Plus</button>' : ''}<button type="button" data-action="sync" ${(a.syncing || !subscribed) ? 'disabled' : ''}>立即同步</button><button type="button" data-action="logout">登出</button>` +
       `<button class="wide danger" type="button" data-action="delete">刪除帳號與同步資料</button></div>` +
       (a.actionError ? `<div class="account-error">${escHtml(a.actionError)}</div>` : '') +
-      `<div class="account-note">登出會先完成最後同步，再從這台裝置移除私人收藏，避免下一個登入者看到或合併你的資料。</div>`;
+      // 2026-08-04 複審輪2 Important 4:登出已改成「只換身分、不動資料」(見 accountEndSession),
+      // 這句原本寫「從這台裝置移除私人收藏」就不再準確。「下一個登入者看不到、不會被合併」仍然
+      // 成立,但靠的是本機資料依 uid 分區＋陌生人判斷,不是靠銷毀。要真的清除裝置上的收藏只有
+      // 刪除帳號一條路,文案直接把那個入口指出來。
+      `<div class="account-note">登出會先完成最後同步，再把畫面切回訪客狀態。你的收藏留在這台裝置上，同一個帳號登入就會回來；換別人登入看不到，也不會被合併。要一併清除這台裝置上的收藏，請用下方的「刪除帳號與同步資料」。</div>`;
   }
 }
 function accountCloudEnvelope(docs) {
@@ -6979,10 +6983,11 @@ function accountCloudEnvelope(docs) {
 //    排程(見 accountScheduleSync);這裡遇到「已有同步在跑」時,非登出呼叫維持原行為直接放棄,
 //    但登出呼叫改成等它做完、再自己補做最後一次——不能讓 a.syncing 讓最後同步被靜默跳過
 //    (這正是原本的根因:accountSignOut 呼叫 accountSyncNow('logout') 時若恰好撞上另一個進行中
-//    的同步,原本會被 a.syncing 擋下直接回 false,accountClearLocal 隨即清空本機,那個進行中的
+//    的同步,原本會被 a.syncing 擋下直接回 false,當時的 accountClearLocal 隨即清空本機(輪2 起
+//    登出已不再清資料,見 accountEndSession;這裡描述的是當初的根因),那個進行中的
 //    同步事後才把它擷取的舊快照寫回剛清空的本機)。
 // 2. 登入世代複查(見 accountSyncTxn 尾端):每次同步在開始時記下當時的世代(a.gen,
-//    accountClearLocal 每次登出/清本機都會前進)與 uid,Firestore 交易解決後、寫回本機前重新
+//    accountForgetIdentity 每次登出/刪除帳號都會前進)與 uid,Firestore 交易解決後、寫回本機前重新
 //    比對——身分已變(登出,或被其他清空本機的路徑如 accountDelete 搶先)就丟棄這次結果,不寫
 //    本機。這是比序列化更底層的安全網:即使未來有其他呼叫路徑在同步進行中清空本機而沒有像
 //    accountSignOut 一樣等待,晚到的寫入依然不會復活成資料。
@@ -7008,7 +7013,10 @@ async function accountSyncNow(reason) {
     if (!a.user) return false; // 等待期間身分已經清空(理論上不會發生,accountSignOut 本身在等這支函式,多一層防呆)
   }
   // 雲端同步受 Plus 資格閘門控管(用戶端判定)。logout 是刻意的例外——
-  // 登出會清掉本機資料(accountClearLocal),不讓最後一次回寫完成就等於吃掉使用者的東西。
+  // 2026-08-04 複審輪2 Important 4:登出本身已經不清本機資料了(見 accountEndSession),這道例外
+  // 因此不再是「不讓最後一次回寫完成就等於吃掉使用者的東西」的必要條件,而是「登出前把手上的
+  // 變更送上雲端」的最後機會——刻意保留(對訂閱者是正確行為,且下一行的字面被 verify_plus_features
+  // 的 T1 逐字比對,不可改動)。
   // 用 startsWith 不用 !==:重試(見 accountSyncTxn 的 permission-denied 分支)會把 reason 接上
   // '-legacy' 後綴——重試現在改在 accountSyncTxn 內部進行、不再回頭經過這道閘門,但 reason
   // 字串維持同一套 startsWith 判斷原則,避免未來有人在這裡加判斷時重蹈舊坑(寫死 !== 'logout'
@@ -7103,12 +7111,26 @@ async function accountSignIn(providerName) {
     }
   } catch (e) { a.actionError = '登入失敗：' + (e && e.message ? e.message : String(e)); accountRender(); }
 }
-// uid 由呼叫端明確傳入(登出/刪除帳號當下的 state.account.user 可能已經被 onAuthStateChanged
-// 提前清成 null——不能靠這裡重新去問「現在是誰」),否則會清錯分區(清到匿名分區,而不是剛
-// 登出/被刪除那個帳號自己的分區)。
-function accountClearLocal(uid) {
+// 🔴 2026-08-04 複審輪2 Important 1＋4:登出與刪除帳號原本共用同一支 accountClearLocal(uid),
+// 但兩者該清的範圍其實相反,同一套清法對兩邊都錯:
+//   · 對登出「清太多」——它把空 envelope 寫進 :uid:<uid> 分區,登入期間新增/修改的東西當場銷毀。
+//     非訂閱者的登入同步恆被 plusIsActive() 閘門擋下(見 accountSyncNow),雲端拿不回來 ⇒ 永久消失。
+//     Task 8 收緊 firestore.rules 之後連登出那次回寫也會被伺服器擋下,傷害範圍再擴大。
+//   · 對刪除帳號「清太少」——Task 6 分區化之後 userDataWrite 的 legacy 雙寫被限縮在 if (!uid) 分支,
+//     uid 為真時只有那個分區被寫空,共用匿名 key 與四個 legacy 陣列動都沒動;登入前存的釘選(含
+//     經緯度)因此仍留在裝置上,重新整理就回到畫面,牴觸 privacy.html / account-deletion.html
+//     「清除目前裝置內的私人收藏」的明文承諾。
+// 拆成三支,讓「忘掉身分」與「清除資料」是兩件可以分別選用的事:
+//   accountForgetIdentity() 兩者共用:這台裝置不再有已驗證身分(世代前進、Plus 狀態、身分 key)。
+//                                    刻意完全不碰收藏資料。
+//   accountEndSession()     登出:只忘掉身分。收藏原封不動留在該帳號自己的分區裡,同一個帳號
+//                                 再登入就回得來;分區本身(加上 ACCOUNT_LAST_UID_KEY 的陌生人
+//                                 判斷)已經保證「下一個登入的別人看不到、也不會被合併」,不必
+//                                 再靠銷毀資料達成——見帳號面板那句說明文案。
+//   accountClearLocal(uid)  刪除帳號:忘掉身分,並真的清除這台裝置上的私人收藏(該帳號分區＋
+//                                    共用匿名 key＋四個 legacy 陣列,三處缺一就是承諾跳票)。
+function accountForgetIdentity() {
   if (state.account) state.account.gen = (state.account.gen || 0) + 1; // C-2 世代前進:仍在途的舊同步之後複查世代會發現對不上,結果被丟棄不寫本機(見 accountSyncTxn)
-  const empty = userDataEmpty(); empty.revision = 0; empty.updatedAt = userDataNow(); userDataWrite(empty, uid);
   if (state.plus) { state.plus.active = false; state.plus.founding = false; state.plus.pkgMonthly = null; state.plus.pkgAnnual = null; state.plus.mgmtUrl = ''; state.plus.adapter = null; state.plus.afterUnlock = null; }
   if (window.RAIL_NATIVE_PLUS_ADAPTER && window.RAIL_NATIVE_PLUS_ADAPTER.clearUser) window.RAIL_NATIVE_PLUS_ADAPTER.clearUser().catch(() => {});
   plusTeardownListener().catch(() => {}); // C-4:登出解除 CustomerInfo 更新 listener,避免舊使用者的推播繼續打在剛登出/換人的 state 上
@@ -7120,20 +7142,30 @@ function accountClearLocal(uid) {
   // 注意:ACCOUNT_LAST_UID_KEY 刻意不在這裡清掉(見該常數上方 Important 2 說明)——它服務
   // userDataMigrateAccountPartition 的陌生人判斷,必須撐過登出才擋得住「這台裝置下一個登入的
   // 別人」,清掉的話等於每次登出都讓陌生人防護重新歸零。
+}
+function accountEndSession() { accountForgetIdentity(); userDataRenderAll(); } // 登出:身分沒了,資料留著
+// uid 由呼叫端明確傳入(刪除帳號當下的 state.account.user 可能已經被 onAuthStateChanged 提前清成
+// null——不能靠這裡重新去問「現在是誰」),否則會清錯分區(清到匿名分區,而不是剛被刪除那個帳號
+// 自己的分區)。
+function accountClearLocal(uid) {
+  accountForgetIdentity();
+  const blank = () => { const e = userDataEmpty(); e.revision = 0; e.updatedAt = userDataNow(); return e; };
+  userDataWrite(blank(), uid);  // 這個帳號自己的分區
+  userDataWrite(blank(), null); // 共用匿名 key ＋ 四個 legacy 陣列(走 userDataWrite 的 if (!uid) 分支)
   userDataRenderAll();
 }
 async function accountSignOut() {
   const a = state.account; if (!a || !a.auth) return;
-  const uid = a.user && a.user.uid; // 登出前先記下 uid;稍後清本機分區要用它,不依賴屆時的 state.account.user(signOut 完成後 onAuthStateChanged 可能已經把它設回 null)
+  const uid = a.user && a.user.uid; // 登出前先記下 uid,不依賴屆時的 state.account.user(signOut 完成後 onAuthStateChanged 可能已經把它設回 null)
   // 2026-08-04 複審 Minor 1:a.user 已是 null 時(還沒登入,或已經在登出中)uid 會是 null——
-  // accountClearLocal(null) 清的是「未登入時使用中的分區」也就是匿名共用 key,還連帶清 4 個
-  // legacy 陣列(見 accountClearLocal 與 userDataWrite 的 if (!uid) 分支)。沒有已驗證身分卻按
-  // 登出,不該波及匿名訪客自己的資料。
+  // 沒有已驗證身分卻按登出,整條流程都不該跑:它會真的去 signOut()、把 Plus 狀態與 CustomerInfo
+  // listener 一起拆掉(見 accountForgetIdentity)。輪2 起登出已不再清任何本機資料,但這道守衛
+  // 仍然是「沒有身分就不該有登出副作用」的唯一防線。
   if (!uid) return;
   a.loggingOut = true; clearTimeout(a.syncTimer); a.syncTimer = 0; // C-2 登出序列化:先擋新排程(accountScheduleSync 會看 a.loggingOut)、清掉還沒觸發的 debounce timer
   try {
     await accountSyncNow('logout'); // 一定會做完最後一次同步,不會被 a.syncing 靜默跳過(見 accountSyncNow 內對 isLogout 的等待邏輯)
-    try { await a.fb.signOut(a.auth); accountClearLocal(uid); accountClose(); }
+    try { await a.fb.signOut(a.auth); accountEndSession(); accountClose(); }
     catch (e) { a.actionError = '登出失敗：' + (e && e.message ? e.message : String(e)); accountRender(); }
   } finally { a.loggingOut = false; }
 }
@@ -7163,6 +7195,13 @@ async function accountDelete() {
   // a.syncSuspended 檢查)。旗標刻意取語意中性的名字,不沿用 a.loggingOut——這裡是刪帳號,不是
   // 登出,兩件事各自的觸發/復原時機不同,不應該共用同一把旗標。
   a.syncSuspended = true; clearTimeout(a.syncTimer); a.syncTimer = 0;
+  // 🔴 2026-08-04 複審輪2 Important 3:a.syncSuspended 只擋得住「新發起」的同步,擋不住「已在途」
+  // 的那一筆——它早就進了 Firestore 交易,tx.set 會在下面 deleteDoc 迴圈跑完之後才提交,把剛刪掉
+  // 的四份文件原地重建(accountSyncTxn 尾端的世代複查只擋本機回寫,tx.set 在交易內早已發生,擋不到
+  // 雲端那一半;deleteUser 之後 ID token 仍有效約一小時,rules 的 request.auth.uid 照樣放行)。
+  // accountSignOut() 靠 accountSyncNow('logout') 內的 await a.syncPromise 等在途同步,這裡補上對稱
+  // 的一行,否則刪帳號與登出的保護程度不對稱。
+  if (a.syncing) { try { await a.syncPromise; } catch (e) {} }
   a.actionError = ''; accountRender();
   try {
     const providerId = u.providerData && u.providerData[0] && u.providerData[0].providerId;
@@ -7239,13 +7278,28 @@ function accountEnsureInit() {
           // 同一人」要用的是「這次登入之前」裝置記錄的 uid;若先寫再 render,遷移讀到的會是剛
           // 寫進去的這次 uid 本身,永遠判成同一人,Important 1 想擋的陌生人繼承就形同虛設。
           // ACCOUNT_LAST_UID_KEY 同一時機一起寫(見該常數上方 Important 2 說明——這把 key 不會被
-          // accountClearLocal 清掉,陌生人判斷才不會在真實登出之後失效)。
+          // accountForgetIdentity 清掉,陌生人判斷才不會在真實登出之後失效)。
           userDataRenderAll();
           try { localStorage.setItem(ACCOUNT_UID_KEY, user.uid); localStorage.setItem(ACCOUNT_LAST_UID_KEY, user.uid); } catch (e) {}
           await plusRefresh(); // 先確認資格再決定要不要同步;plusRefresh 自帶 !plusConfigured() 早退,不會在無購買通道的平台亂初始化 SDK
           await accountSyncNow('login');
           const pending = state.plusPending;
           if (pending) { state.plusPending = null; plusOpen(pending.source, pending.onGranted); }
+        } else {
+          // 🔴 2026-08-04 複審輪2 Important 2:user 為 null 時原本什麼都不做,於是程式分不出
+          // 「auth 還沒解析」(fallback 該生效)與「auth 解析結果就是沒登入」(fallback 不該生效)
+          // ——兩者在 userDataActiveUid() 眼裡都只是 state.account.user 為 falsy。伺服器端讓 session
+          // 失效時(refresh token 被撤銷、帳號在別台被刪、憑證失效)會走到這裡而 accountSignOut()
+          // 從未被呼叫,ACCOUNT_UID_KEY 原封不動留著 ⇒ 畫面已回到未登入態,userDataActiveUid() 卻
+          // 仍解析成上一個帳號:那個人的私人收藏還看得到、還能編輯,之後這台裝置的匿名使用也全部
+          // 寫進他的分區。而且使用者自己救不了——登出鈕只在 a.user 為真時才畫(見 accountRender),
+          // 卡住之後連清掉它的入口都沒有。
+          // auth 明確說「沒有身分」就把身分痕跡清掉,讓 ACCOUNT_UID_KEY 的不變式維持成立:
+          // 這把 key 存在 ⟺ 這台裝置有一個已驗證的身分。刻意只清 key＋重繪,不呼叫
+          // accountForgetIdentity():Plus 狀態的撤銷有 C-4 自己的路徑(CustomerInfo listener 與回
+          // 前景重驗),不該由「auth 送來一次 null」順手代勞——初次開機沒登入也會走到這一支。
+          try { localStorage.removeItem(ACCOUNT_UID_KEY); } catch (e) {}
+          userDataRenderAll(); // 畫面立刻換回匿名分區,不留著上一個帳號的私人收藏在螢幕上
         }
       });
     } catch (e) { state.account.ready = true; state.account.error = e && e.message ? e.message : String(e); accountRender(); }
@@ -7467,7 +7521,7 @@ async function plusEnsureListener(adapter) {
     plusListenerId = id; plusListenerAdapter = adapter;
   } catch (e) { /* 註冊失敗:兩個追蹤變數維持 teardown 後的 null,下次呼叫(如下次 plusRefresh)會重試 */ }
 }
-// 登出時解除註冊(accountClearLocal 呼叫),避免舊使用者的推播繼續打在剛登出/換人的 state 上。
+// 登出時解除註冊(accountForgetIdentity 呼叫),避免舊使用者的推播繼續打在剛登出/換人的 state 上。
 async function plusTeardownListener() {
   const adapter = plusListenerAdapter, id = plusListenerId;
   plusListenerId = null; plusListenerAdapter = null;
@@ -12256,7 +12310,7 @@ function buildRideRows(rides, mode) {
 // 創始會員徽章:只有創始期間訂閱的人看得到,放護照最上方(它不是靠跑車跑出來的,與收集章分開)
 function buildFoundingSeal() {
   // active 也要檢查:founding 只在寫入當下與 active 一起判定(p.founding = p.active && foundingFrom(info)),
-  // 但兩者是分開的欄位——像 accountClearLocal() 這種只重置 active 卻忘了同步清 founding 的路徑,
+  // 但兩者是分開的欄位——像 accountForgetIdentity() 這種只重置 active 卻忘了同步清 founding 的路徑,
   // 不依賴寫入點永遠同步,守門直接兩個都看——兩個條件都在這一行自帶 null-safety,不外包給呼叫順序
   // 或 plusIsActive() 的內部短路(那個短路仍然存在、仍然安全,但讀這一行不該需要先去查它怎麼實作)。
   if (!plusIsActive() || !(state.plus && state.plus.founding)) return '';

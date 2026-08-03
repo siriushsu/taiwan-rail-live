@@ -8,7 +8,7 @@
 //     - plusEnsureListener(adapter)/plusTeardownListener():在 adapter 具備
 //       addCustomerInfoUpdateListener 時註冊(typeof 特性偵測,不是每個平台必要條件),
 //       用 plusListenerAdapter 記錄「目前掛在哪一顆 adapter 上」做冪等,登出
-//       (accountClearLocal)時解除註冊。
+//       (accountEndSession -> accountForgetIdentity)時解除註冊。
 //     - plusApplyCustomerInfo(info):套用 CustomerInfo 到 state.plus(active/founding/mgmtUrl),
 //       只給 listener 回呼與 plusRevalidateBeforeAction 兩個新消費者共用——plusRefresh()/
 //       plusPurchase()/plusRestore() 既有三處欄位寫入原封不動(觸碰過一次,踩到
@@ -395,10 +395,10 @@ async function setupForegroundLogin(page, uid) {
   ok('L8 前置條件:登入後 listener 已註冊一次、尚未解除', pre.addCalls === 1 && pre.removeCalls === 0, JSON.stringify(pre));
 
   const post = await page.evaluate(() => {
-    accountClearLocal(); // 登出清理(accountSignOut 內會呼叫這支)
+    accountEndSession(); // 登出清理(accountSignOut 內會呼叫這支;2026-08-04 複審輪2 前叫 accountClearLocal,那個名字現在專指刪除帳號那條會真的清資料的路徑)
     return { removeCalls: window.__spy.removeListener, removedIds: window.__removedIds };
   });
-  ok('L8 accountClearLocal()(登出清理)⇒ removeCustomerInfoUpdateListener 真的被呼叫一次,帶著註冊時拿到的同一個 id',
+  ok('L8 accountEndSession()(登出清理)⇒ removeCustomerInfoUpdateListener 真的被呼叫一次,帶著註冊時拿到的同一個 id',
     post.removeCalls === 1 && post.removedIds[0] === 'listener-id-1', JSON.stringify(post));
 
   // 登出後重新登入(同一顆 adapter 物件,uid 換一個)——teardown 有把追蹤變數歸零的話,應該會重新註冊。

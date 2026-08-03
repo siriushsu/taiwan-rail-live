@@ -10,8 +10,8 @@
 //       不寫本機)。a.gen 由 accountClearLocal()(每次登出/清本機)與 onAuthStateChanged 的每次
 //       身分變動遞增。
 //   · accountSignOut() 登出前先記下 uid、設 a.loggingOut=true、清掉 a.syncTimer,
-//     await accountSyncNow('logout') 之後才呼叫 accountClearLocal(uid) 清本機。
-//   · accountClearLocal(uid) 現在吃明確的 uid 參數(呼叫端負責在 onAuthStateChanged 把
+//     await accountSyncNow('logout') 之後才呼叫 accountEndSession()。
+//   · accountClearLocal(uid) 吃明確的 uid 參數(呼叫端負責在 onAuthStateChanged 把
 //     state.account.user 設回 null 之前就決定好),依 uid 清對應分區,並讓 a.gen 前進。
 //   · userDataRead(uid)/userDataWrite(data,uid):uid 省略時預設用 userDataActiveUid()
 //     (=state.account.user.uid,未登入為 null);uid 為 null 明確代表匿名共用 key
@@ -52,7 +52,27 @@
 //     沒有 'logout' 例外)——刪帳號期間(reauth popup 到 deleteDoc 迴圈之間有多個 await)一律
 //     不受理任何同步,避免 visibilitychange 觸發的同步把剛刪掉的 Firestore 文件重建。
 //   · accountSignOut() 在算出 uid 之後多一道 `if (!uid) return;`——a.user 已是 null 時不再往下
-//     跑,避免 accountClearLocal(null) 誤清匿名分區。
+//     跑,沒有已驗證身分就不該有登出副作用(signOut()、拆 Plus 狀態與 CustomerInfo listener)。
+//
+//   ── 2026-08-04 複審修復輪2(第 2 輪不通過,新發現)追加的機制 ──
+//   · accountClearLocal(uid) 拆成三支,因為登出與刪除帳號該清的範圍其實相反:
+//       accountForgetIdentity() 兩者共用「這台裝置不再有已驗證身分」(gen 前進、Plus 狀態、
+//                               ACCOUNT_UID_KEY、last-sync-uid),刻意完全不碰收藏資料;
+//       accountEndSession()     登出 = accountForgetIdentity() + userDataRenderAll()。
+//                               本機收藏原封不動留在該帳號的分區,同一個帳號再登入就回得來。
+//       accountClearLocal(uid)  刪除帳號 = accountForgetIdentity() + 把空 envelope 寫進「該 uid
+//                               分區」與「共用匿名 key」(後者連帶清四個 legacy 陣列,走
+//                               userDataWrite 的 if (!uid) 分支)+ 重繪。
+//     輪2 之前兩邊共用一套清法:對登出清太多(登入期間的編輯當場銷毀,非訂閱者的登入同步恆被
+//     plusIsActive() 擋下 ⇒ 永久消失),對刪帳號又清太少(共用 key 與 legacy 陣列沒清,含經緯度
+//     的釘選重新整理就回到畫面,牴觸 privacy.html / account-deletion.html 的明文承諾)。
+//   · onAuthStateChanged 的 user 為 null 分支(輪2 之前完全不存在):清掉 ACCOUNT_UID_KEY 並重繪。
+//     沒有它,程式分不出「auth 還沒解析」與「auth 解析結果就是沒登入」——伺服器端讓 session 失效
+//     時(token 撤銷、帳號在別台被刪)畫面已回到未登入態,userDataActiveUid() 卻仍靠 fallback 解析
+//     成上一個帳號,且登出鈕只在 a.user 為真時才畫,使用者連清掉它的入口都沒有。
+//   · accountDelete() 在設完 a.syncSuspended 之後補上 `if (a.syncing) await a.syncPromise`——
+//     syncSuspended 只擋得住「新發起」的同步,擋不住「已在途」那一筆(它的 tx.set 會在 deleteDoc
+//     迴圈之後才提交,把剛刪掉的四份文件重建;世代複查只擋本機回寫,擋不到雲端那一半)。
 import { chromium } from 'playwright';
 import { createServer } from 'node:http';
 import { readFileSync, existsSync, statSync } from 'node:fs';
@@ -135,7 +155,7 @@ const chromiumB = await chromium.launch();
 
     let release; const gate = new Promise(res => { release = res; });
     window.__release = release;
-    let txnCalls = 0;
+    let txnCalls = 0, signOutCalls = 0;
     state.account.fb = {
       doc: (db, ...segs) => ({ kind: segs[segs.length - 1] }),
       runTransaction: async (db, fn) => {
@@ -148,7 +168,7 @@ const chromiumB = await chromium.launch();
         return fn(tx);
       },
       serverTimestamp: () => 'SERVER_TIME_STUB',
-      signOut: async () => {},
+      signOut: async () => { signOutCalls++; },
     };
 
     window.__p1 = accountSyncNow('local-change'); // 不 await:應該同步跑到 gate 卡住,a.syncing=true
@@ -174,9 +194,10 @@ const chromiumB = await chromium.launch();
     return {
       midP1Syncing, midLoggingOut,
       midUnchanged: midPartition === preKey,
-      txnCalls, txnCallsBeforeRelease,
-      finalEmpty: finalPartition.collections.favs.items.length === 0 && finalPartition.collections.pins.items.length === 0,
-      finalRevision: finalPartition.revision,
+      txnCalls, txnCallsBeforeRelease, signOutCalls,
+      loggingOutFinal: state.account.loggingOut,
+      uidKeyFinal: localStorage.getItem('trainmap-account-uid'),
+      finalFavs: finalPartition.collections.favs.items.map(x => x.value.train),
     };
   }, UID);
   ok('R1 前置條件:accountSyncNow(\'local-change\') 呼叫後立刻卡在 gate 上(a.syncing===true,還沒解決)',
@@ -184,8 +205,13 @@ const chromiumB = await chromium.launch();
   ok('R1 前置條件:accountSignOut() 呼叫後立刻進入登出流程(a.loggingOut===true)', r.midLoggingOut === true, JSON.stringify(r));
   ok('R1a 序列化有牙:同步仍卡在 gate 時,accountSignOut() 沒有搶先清空本機(分區內容與同步前逐位元組相同)',
     r.midUnchanged === true, JSON.stringify(r));
-  ok('R1b 序列化沒有卡死:放行 gate 後,登出流程最終仍會完整跑完、本機分區確實被清空',
-    r.finalEmpty === true && r.finalRevision === 0, JSON.stringify(r));
+  // R1b 原本量的是「分區被清空」——那在輪2 之前是登出跑完的證據,現在登出刻意不清資料
+  // (複審輪2 Important 4,見 accountEndSession),再拿它當證據就是把已修好的缺陷寫回判準。
+  // 改量登出流程本身留下的三個痕跡:signOut 被呼叫、loggingOut 被 finally 復原、身分 key 已清。
+  ok('R1b 序列化沒有卡死:放行 gate 後,登出流程最終仍完整跑完(fb.signOut 被呼叫一次、a.loggingOut 由 finally 復原成 false、ACCOUNT_UID_KEY 已清)——它只是被序列化,不是被卡死',
+    r.signOutCalls === 1 && r.loggingOutFinal === false && r.uidKeyFinal === null, JSON.stringify(r));
+  ok('R1e Important 4(序列化路徑):登出等完在途同步之後也沒有摧毀本機資料——R1_TRAIN 仍在該帳號的分區裡(最後一次同步的合併結果照常寫回)',
+    JSON.stringify(r.finalFavs) === JSON.stringify(['R1_TRAIN']), JSON.stringify(r));
   // R1c 是序列化「本身」唯一有牙的斷言:R1a/R1b 驗的是最終結果乾淨,但那個結果同時也會被
   // C-2 的另一道防線(世代複查)獨立保住——即使序列化整個被拔掉,accountClearLocal 一樣會讓
   // a.gen 前進,讓 p1 那筆卡住的交易事後解決時被世代複查擋下、寫不進本機,最終看起來一樣乾淨。
@@ -209,9 +235,10 @@ const chromiumB = await chromium.launch();
 }
 
 // ══════════════ R2. 登入世代複查:即使有路徑繞過序列化直接清本機,晚到的同步結果也不會復活 ══════════════
-// accountDelete() 目前沒有像 accountSignOut() 一樣序列化(它有自己的刪帳號流程,見 Task 6 報告的
-// 範圍討論)——用「同步進行中,直接呼叫 accountClearLocal(uid) 模擬 accountDelete 的清空時機」
-// 複現這個更底層的情境:序列化不存在時,污染判準是否仍然靠世代複查擋下。
+// accountDelete() 自輪2 起也會等在途同步(見 R8w),但世代複查是比序列化更底層、獨立的一道防線:
+// 未來若有其他路徑在同步進行中清空本機而沒有等待,晚到的寫入依然不能復活成資料。這裡直接呼叫
+// accountClearLocal(uid)(輪2 起它是刪除帳號專用的「真的清資料」那一支)複現那個情境:序列化不
+// 存在時,污染判準是否仍然靠世代複查擋下。
 {
   const { ctx, page } = await newPage(chromiumB);
   const errs = attach(page, 'R2');
@@ -376,13 +403,19 @@ const chromiumB = await chromium.launch();
     const aInherited = userDataRead('race-r4-a').collections.favs.items.some(x => x.value.train === 'A_DEVICE_DATA');
     userDataSaveCollection('favs', [{ train: 'A_DEVICE_DATA' }, { train: 'A_OWN_TRAIN' }]);
 
-    // A 真正登出:呼叫真正的 accountClearLocal(A 的 uid),不是換個變數就算數——這一步正是
+    // A 真正登出:呼叫真正的 accountEndSession(),不是換個變數就算數——這一步正是
     // Important 2 指出「會出事的那一步」,舊版整個沒有這一步。
-    accountClearLocal('race-r4-a');
+    accountEndSession();
     const clearedGen = state.account.gen;
-    const aAfterClear = userDataRead('race-r4-a').collections.favs.items.map(x => x.value.train);
-    const uidKeyAfterClear = localStorage.getItem('trainmap-account-uid');
-    const lastUidKeyAfterClear = localStorage.getItem('trainmap-account-last-uid');
+    const aAfterLogout = userDataRead('race-r4-a').collections.favs.items.map(x => x.value.train).sort();
+    const uidKeyAfterLogout = localStorage.getItem('trainmap-account-uid');
+    const lastUidKeyAfterLogout = localStorage.getItem('trainmap-account-last-uid');
+
+    // 登出後這台裝置回到匿名(state.account.user 為 null,ACCOUNT_UID_KEY 已被清)——此刻畫面該
+    // 讀到的是匿名共用分區,不是 A 的分區。A 的分區內容(多一筆 A_OWN_TRAIN)與匿名分區內容
+    // (只有 A_DEVICE_DATA)刻意做成可區分,不然「讀到哪一個」測不出來。
+    state.account = { user: null, gen: clearedGen };
+    const anonViewAfterLogout = userDataLoadCollection('favs').map(x => x.train).sort();
 
     // 登入 B(這台裝置從沒登入過的另一個帳號)。
     state.account = { user: { uid: 'race-r4-b' }, gen: clearedGen };
@@ -390,13 +423,20 @@ const chromiumB = await chromium.launch();
     userDataSaveCollection('favs', [{ train: 'R4_B_TRAIN' }]);
     const bFavs = userDataRead('race-r4-b').collections.favs.items.map(x => x.value.train).sort();
 
-    return { aInherited, aAfterClear, uidKeyAfterClear, lastUidKeyAfterClear, bBeforeWrite, bFavs };
+    return { aInherited, aAfterLogout, uidKeyAfterLogout, lastUidKeyAfterLogout, anonViewAfterLogout, bBeforeWrite, bFavs };
   });
   ok('R4-pre 正向對照:A 第一次登入時,裝置上既有的匿名收藏(A_DEVICE_DATA)真的被繼承進 A 的分區(不是本來就是空的,下面「B 看不到」才有意義)',
     r.aInherited === true, JSON.stringify(r));
-  ok('R4-clear 前置條件:accountClearLocal(A 的 uid)真的清空了 A 的本機分區、也真的移除了 trainmap-account-uid,但保留 trainmap-account-last-uid(三件事都要成立,登出呼叫才算真的生效——生效與否直接決定下面「B 看不到 A」是不是巧合)',
-    r.aAfterClear.length === 0 && r.uidKeyAfterClear === null && r.lastUidKeyAfterClear === 'race-r4-a', JSON.stringify(r));
-  ok('R4a Important 2 核心斷言:走過真正的 accountClearLocal 登出之後,B 登入時分區裡不含 A 的任何一筆(A_DEVICE_DATA / A_OWN_TRAIN 都不該出現)——這是複審實測會紅、且舊版 R4 完全測不到的情境',
+  ok('R4-logout 前置條件:accountEndSession()(登出)真的生效了——trainmap-account-uid 被移除,但 trainmap-account-last-uid 保留成 A(兩件事都要成立,下面「B 看不到 A」才不是巧合)',
+    r.uidKeyAfterLogout === null && r.lastUidKeyAfterLogout === 'race-r4-a', JSON.stringify(r));
+  // R4c 是複審輪2 Important 4 的核心斷言,也是 brief 對 Task 8 的前置要求(「非訂閱者走完整登出
+  // 流程 ⇒ 本機資料沒有被摧毀」)。輪1 的登出把空 envelope 寫進 :uid:A 分區,登入期間新增的
+  // A_OWN_TRAIN 當場消失;非訂閱者的登入同步恆被 plusIsActive() 擋下,雲端也拿不回來。
+  ok('R4c Important 4 核心斷言:登出「不摧毀資料」——A 登入期間新增的 A_OWN_TRAIN 與繼承來的 A_DEVICE_DATA,登出後都仍完整留在 A 自己的分區裡(同一個帳號再登入就回得來)',
+    JSON.stringify(r.aAfterLogout) === JSON.stringify(['A_DEVICE_DATA', 'A_OWN_TRAIN']), JSON.stringify(r));
+  ok('R4d 登出後畫面切回匿名分區:讀到的是共用 key 的內容(只有 A_DEVICE_DATA),不是 A 的分區(那裡多一筆 A_OWN_TRAIN)——「資料留著」不等於「還看得到別人的資料」',
+    JSON.stringify(r.anonViewAfterLogout) === JSON.stringify(['A_DEVICE_DATA']), JSON.stringify(r));
+  ok('R4a Important 2 核心斷言:走過真正的 accountEndSession 登出之後,B 登入時分區裡不含 A 的任何一筆(A_DEVICE_DATA / A_OWN_TRAIN 都不該出現)——這是複審實測會紅、且舊版 R4 完全測不到的情境',
     r.bBeforeWrite.length === 0, JSON.stringify(r));
   ok('R4b 帳號 B 自己新增的收藏只有自己的項目,不含 A 的', JSON.stringify(r.bFavs) === JSON.stringify(['R4_B_TRAIN']), JSON.stringify(r));
   ok('R4 本輪零 pageerror/console.error', errs.length === 0, errs.slice(0, 3).join(' | '));
@@ -755,7 +795,14 @@ const chromiumB = await chromium.launch();
   // 空窗期間取消收藏其中一筆(對應複審案例的「使用者在此取消收藏 OLD_ANON」)。
   await page.evaluate(() => { userDataSaveCollection('favs', [{ train: 'PRE_EXISTING_FAV_B' }]); });
   const gapAfterCancel = await page.evaluate(() => userDataLoadCollection('favs').map(x => x.train).sort());
-  await page.waitForFunction(() => state.account && state.account.user && state.account.user.uid === 'boot-gap-uid', null, { timeout: 10000 });
+  // 🔴 2026-08-04 複審輪2 Minor 7:這一行原本沒有 .catch()——複審突變 M6(把 accountReturning()
+  // 退回舊 key)讓 state.account 從此不會在開機被建立,waitForFunction 逾時直接把整支腳本 uncaught
+  // 打斷,下面四條專門為 Critical 1 設計的 R9-boot 斷言「一條都沒有跑到」,輸出裡卻只看得到一個
+  // Playwright 堆疊,看不出那四條是沒跑還是跑了沒事(＝假綠的一種)。改成先收斂成布林、再當一條
+  // 具名斷言回報,逾時本身就是 FAIL,而且後面四條照常執行、照常印出各自讀到的值。
+  const authResolvedInTime = await page
+    .waitForFunction(() => state.account && state.account.user && state.account.user.uid === 'boot-gap-uid', null, { timeout: 10000 })
+    .then(() => true).catch(() => false);
   await page.waitForTimeout(300); // 讓 render/plusRefresh 等後續非同步收尾
   const afterAuthSnapshot = await page.evaluate(() => ({
     userNow: state.account && state.account.user && state.account.user.uid,
@@ -763,6 +810,8 @@ const chromiumB = await chromium.launch();
   }));
   ok('R9-boot-pre 前置條件:accountReturning() 修好之後,非訂閱者開機 state.account 真的會被建立(不必先點過 Plus/帳號入口)',
     gapSnapshot.accountExists === true, JSON.stringify(gapSnapshot));
+  ok('R9-boot-pre 前置條件(Minor 7):onAuthStateChanged 在時限內真的解析出真使用者——這一條逾時代表下面四條核心斷言的前提不成立,必須看得見是「沒跑到」而不是靜靜地綠',
+    authResolvedInTime === true, `authResolvedInTime=${authResolvedInTime}`);
   ok('R9-boot-pre 前置條件:量測當下 onAuthStateChanged 確實還沒解出真使用者(下面才是真正的「開機空窗期」,不是巧合量到已經解完的狀態)',
     gapSnapshot.userStillNull === true, JSON.stringify(gapSnapshot));
   ok('R9e Critical 1 核心斷言:開機空窗期就已經正確讀到這個 uid 的分區——裝置上既有的兩筆收藏都看得到,不是掉回匿名分區的空清單',
@@ -774,6 +823,343 @@ const chromiumB = await chromium.launch();
   ok('R9f 正向對照:auth 確實解析完成(state.account.user.uid 變成真正登入的 uid,不是上面兩條沒驗到東西的巧合)',
     afterAuthSnapshot.userNow === 'boot-gap-uid', JSON.stringify(afterAuthSnapshot));
   ok('R9-boot 本輪零 pageerror/console.error', errs.length === 0, errs.slice(0, 3).join(' | '));
+  await ctx.close();
+}
+
+// ══════════════ R8w. 複審輪2 Important 3:accountDelete() 必須等「已在途」的同步收斂 ══════════════
+// a.syncSuspended(R8 驗的那道)只擋得住「新發起」的同步。已經進到 Firestore 交易裡的那一筆擋不住:
+// 它的 tx.set 會在 deleteDoc 迴圈跑完之後才提交,把剛刪掉的四份文件原地重建(accountSyncTxn 尾端
+// 的世代複查只擋本機回寫,tx.set 在交易內早已發生,擋不到雲端那一半;deleteUser 之後 ID token 仍
+// 有效約一小時,rules 的 request.auth.uid 照樣放行)。手法:runTransaction 卡在 gate 上模擬「在途」,
+// 然後呼叫 accountDelete(),量兩件事——(a) 在途同步解決之前,刪除流程一步都不該動;
+// (b) 最終的 Firestore 動作順序裡,所有 tx.set 都在第一個 deleteDoc 之前。
+{
+  const { ctx, page } = await newPage(chromiumB);
+  const errs = attach(page, 'R8w');
+  await page.goto(BASE, { waitUntil: 'domcontentloaded' });
+  await waitReady(page);
+  const UID = 'race-r8w-uid';
+  const r = await page.evaluate(async (UID) => {
+    state.plus = { active: true };
+    window.confirm = () => true;
+    const ops = []; // 依序記錄三種 Firestore 動作,順序本身就是判準
+    let releaseTxn; const txnGate = new Promise(res => { releaseTxn = res; });
+    state.account = {
+      ready: true, syncing: false, lastSync: 0, actionError: '', error: '', syncTimer: 0, gen: 0,
+      loggingOut: false, syncSuspended: false, syncPromise: null,
+      user: { uid: UID, email: 'r8w@example.com', providerData: [{ providerId: 'google.com' }], getIdToken: async () => 'fake-token' },
+      auth: {}, db: {},
+      fb: {
+        doc: () => ({}),
+        GoogleAuthProvider: function () {},
+        reauthenticateWithPopup: async () => ({}),
+        runTransaction: async (db, fn) => {
+          await txnGate; // 這一筆同步「已在途」:交易已經開始、還沒解決
+          const tx = { get: async () => ({ exists: () => false, data: () => null }), set: () => { ops.push('TXN_SET'); } };
+          return fn(tx);
+        },
+        serverTimestamp: () => 'T',
+        deleteDoc: async () => { ops.push('DELETE_DOC'); },
+        deleteUser: async () => { ops.push('DELETE_USER'); },
+      },
+    };
+    userDataSaveCollection('favs', [{ train: 'R8W_TRAIN' }]);
+
+    const syncP = accountSyncNow('local-change'); // 卡在交易內,a.syncing=true、a.syncPromise 已設好
+    await new Promise(res => setTimeout(res, 0));
+    const syncingBeforeDelete = state.account.syncing === true;
+
+    const deleteP = accountDelete(); // 應該卡在新增的 `await a.syncPromise` 那一行
+    // 250ms 遠超過「沒有等待」的版本跑完 reauth -> accountDeleteServerData(打本機 stub server)
+    // -> 4 個 deleteDoc -> deleteUser 所需的時間,所以下面 opsWhileSyncInFlight 為空是有意義的。
+    await new Promise(res => setTimeout(res, 250));
+    const opsWhileSyncInFlight = ops.slice();
+
+    releaseTxn();
+    await syncP; await deleteP;
+    const opsFinal = ops.slice();
+    return {
+      syncingBeforeDelete, opsWhileSyncInFlight, opsFinal,
+      txnSetCount: opsFinal.filter(x => x === 'TXN_SET').length,
+      deleteDocCount: opsFinal.filter(x => x === 'DELETE_DOC').length,
+      deleteUserCount: opsFinal.filter(x => x === 'DELETE_USER').length,
+      allSetsBeforeFirstDelete: opsFinal.includes('DELETE_DOC') && opsFinal.includes('TXN_SET')
+        && opsFinal.indexOf('DELETE_DOC') > opsFinal.lastIndexOf('TXN_SET'),
+    };
+  }, UID);
+  ok('R8w 前置條件:呼叫 accountDelete() 之前,真的有一筆同步在途(a.syncing===true 且卡在 Firestore 交易裡)',
+    r.syncingBeforeDelete === true, JSON.stringify(r));
+  ok('R8w Important 3 核心斷言:在途同步還沒解決之前,刪除流程一步都還沒動(250ms 內零 DELETE_DOC、零 DELETE_USER)——accountDelete() 真的在等 a.syncPromise,不是只設個旗標就往下衝',
+    r.opsWhileSyncInFlight.length === 0, JSON.stringify(r));
+  ok('R8w Important 3 核心斷言(順序):最終的 Firestore 動作順序裡,所有 tx.set 都發生在第一個 deleteDoc 之前——剛刪掉的文件不會被在途同步重建',
+    r.allSetsBeforeFirstDelete === true, JSON.stringify(r));
+  ok('R8w 正向對照(同一支收集器):三種動作最終都真的被記錄到(4 筆 tx.set、4 筆 deleteDoc、1 筆 deleteUser)——證明上面「為 0」與「順序」不是因為 stub 根本沒被呼叫',
+    r.txnSetCount === 4 && r.deleteDocCount === 4 && r.deleteUserCount === 1, JSON.stringify(r));
+  ok('R8w 本輪零 pageerror/console.error', errs.length === 0, errs.slice(0, 3).join(' | '));
+  await ctx.close();
+}
+
+// ══════════════ R10. 複審輪2 Minor 5:onAuthStateChanged 內「先 render 後寫 key」的順序 ══════════════
+// 報告 §8.2 宣稱這個順序是關鍵,但輪1 的套件對它零覆蓋:複審把那兩行對調,63/63 全綠,他自己的
+// 端到端探針卻直接紅(B 登入後看到了裝置上的匿名資料)。原因是 R4/R5/R6 都是手動塞 state.account
+// 與兩把 key,走不到 onAuthStateChanged,結構上照不到「這兩件事誰先誰後」。這裡改用
+// RAIL_FIREBASE_TEST_MODULES 走真的 onAuthStateChanged 路徑,而且把 callback 的觸發時機交給測試,
+// 才能在「登入之前」把裝置狀態擺成複審那個會出事的樣子:裝置上有匿名資料、上一個驗證過身分的是
+// 別人(A 登出後留下的 ACCOUNT_LAST_UID_KEY)、現在換 B 登入。
+// 順序正確 ⇒ userDataRenderAll() 先跑,遷移讀到的 lastUid 還是 A,判定陌生人 ⇒ B 拿到空分區。
+// 順序對調 ⇒ 兩把 key 先被寫成 B,遷移讀到的 lastUid 變成 B 自己,判成同一人 ⇒ B 繼承裝置上的匿名資料。
+{
+  const { ctx, page } = await newPage(chromiumB);
+  await ctx.addInitScript(() => {
+    window.RAIL_FIREBASE_CONFIG = { apiKey: 'x', authDomain: 'x', projectId: 'x' };
+    window.RAIL_FIREBASE_TEST_MODULES = {
+      initializeApp: () => ({}), getAuth: () => ({}), getFirestore: () => ({}),
+      onAuthStateChanged: (auth, cb) => { window.__authCb = cb; }, // 觸發時機交給測試,不自己跑
+    };
+  });
+  const errs = attach(page, 'R10');
+  await page.goto(BASE, { waitUntil: 'domcontentloaded' });
+  await waitReady(page);
+  const pre = await page.evaluate(async () => {
+    // 裝置狀態:A 曾經登入過又登出(ACCOUNT_UID_KEY 已被清、ACCOUNT_LAST_UID_KEY 留著),
+    // 共用匿名 key 裡有一筆這台裝置的資料。
+    localStorage.setItem('trainmap-account-last-uid', 'r10-uid-a');
+    localStorage.removeItem('trainmap-account-uid');
+    userDataSaveCollection('favs', [{ train: 'R10_ANON_ON_DEVICE' }]);
+    await accountEnsureInit(); // 登出態的裝置要由使用者主動點帳號/Plus 入口才會初始化,這裡等價地直接呼叫
+    return {
+      anonFavs: userDataRead(null).collections.favs.items.map(x => x.value.train),
+      lastUidBeforeLogin: localStorage.getItem('trainmap-account-last-uid'),
+      uidKeyBeforeLogin: localStorage.getItem('trainmap-account-uid'),
+      authCbRegistered: typeof window.__authCb === 'function',
+      bPartitionExisted: localStorage.getItem('trainmap-user-data-v1:uid:r10-uid-b') !== null,
+    };
+  });
+  const post = await page.evaluate(async () => {
+    // 加 typeof 守衛:callback 沒註冊時本節只會在自己的前置條件具名失敗,不會丟 TypeError 把整支
+    // 腳本打斷(輪2 Minor 7 的教訓——沒跑到的斷言看起來跟綠的一樣)。
+    if (typeof window.__authCb === 'function') await window.__authCb({ uid: 'r10-uid-b', email: 'b@example.com' }); // B 登入(走真的 callback 本體)
+    return {
+      bFavs: userDataRead('r10-uid-b').collections.favs.items.map(x => x.value.train),
+      lastUidAfterLogin: localStorage.getItem('trainmap-account-last-uid'),
+      uidKeyAfterLogin: localStorage.getItem('trainmap-account-uid'),
+      anonStill: userDataRead(null).collections.favs.items.map(x => x.value.train),
+    };
+  });
+  ok('R10-pre 正向對照:登入之前,裝置的共用匿名 key 裡真的有一筆資料(R10_ANON_ON_DEVICE)——不然下面「B 分區為空」只是因為本來就沒東西可繼承',
+    JSON.stringify(pre.anonFavs) === JSON.stringify(['R10_ANON_ON_DEVICE']), JSON.stringify(pre));
+  ok('R10-pre 前置條件:登入之前,上一個驗證過身分的是別人(last-uid=r10-uid-a)、ACCOUNT_UID_KEY 已被登出清掉、B 的分區還不存在、真的 onAuthStateChanged callback 已註冊',
+    pre.lastUidBeforeLogin === 'r10-uid-a' && pre.uidKeyBeforeLogin === null && pre.authCbRegistered === true && pre.bPartitionExisted === false, JSON.stringify(pre));
+  ok('R10a Minor 5 核心斷言:走真的 onAuthStateChanged 讓 B 登入之後,B 的分區不含裝置上的匿名資料——遷移的陌生人判斷讀到的是「這次登入之前」的 last-uid(A),不是剛被寫進去的 B 自己',
+    post.bFavs.length === 0, JSON.stringify(post));
+  ok('R10b 正向對照(同一支收集器):callback 本體真的跑完了那兩行——兩把 key 都已經被寫成 B(證明上面的「空」不是因為 callback 根本沒執行)',
+    post.uidKeyAfterLogin === 'r10-uid-b' && post.lastUidAfterLogin === 'r10-uid-b', JSON.stringify(post));
+  ok('R10c 登入沒有搬走匿名分區:共用 key 的內容原樣還在(遷移是「繼承一份」不是「移走」,這裡是不繼承,更不該動它)',
+    JSON.stringify(post.anonStill) === JSON.stringify(['R10_ANON_ON_DEVICE']), JSON.stringify(post));
+  ok('R10 本輪零 pageerror/console.error', errs.length === 0, errs.slice(0, 3).join(' | '));
+  await ctx.close();
+}
+
+// ══════════════ R11. 複審輪2 Minor 6:accountSignOut() 的 `if (!uid) return;` 守衛零覆蓋 ══════════════
+// 複審突變(拔掉那道守衛)→ 63/63 全綠。修對了但沒有任何判準看守。輪2 起登出已經不清本機資料,
+// 所以這道守衛擋的不再是「誤清匿名分區」,而是「沒有已驗證身分卻跑完整條登出副作用」:真的去
+// signOut()、把 Plus 狀態與 CustomerInfo listener 拆掉、世代前進(讓在途同步的結果被丟棄)。
+// 判準因此改量那些副作用有沒有發生,而不是量資料還在不在(輪2 之後資料兩邊都會在,量它沒有牙)。
+{
+  const { ctx, page } = await newPage(chromiumB);
+  const errs = attach(page, 'R11');
+  await page.goto(BASE, { waitUntil: 'domcontentloaded' });
+  await waitReady(page);
+  const r = await page.evaluate(async () => {
+    userDataSaveCollection('favs', [{ train: 'R11_ANON' }]);
+    state.plus = { active: true };
+    let signOutCalls = 0, loggingOutWhenSignOutCalled = null;
+    state.account = {
+      ready: true, syncing: false, lastSync: 0, actionError: '', error: '', syncTimer: 0, gen: 0,
+      loggingOut: false, syncSuspended: false, syncPromise: null,
+      user: null, // ← 沒有已驗證身分(還沒登入,或已經在登出中)
+      auth: {}, db: {},
+      fb: {
+        signOut: async () => { signOutCalls++; loggingOutWhenSignOutCalled = state.account.loggingOut; },
+        doc: () => ({}),
+        runTransaction: async () => ({ version: USER_DATA_VERSION, revision: 1, updatedAt: Date.now(), collections: {} }),
+        serverTimestamp: () => 'T',
+      },
+    };
+
+    await accountSignOut(); // 守衛應該讓它立刻返回,什麼都不做
+    const noUserSignOutCalls = signOutCalls, noUserGen = state.account.gen;
+    const anonAfter = userDataLoadCollection('favs').map(x => x.train);
+
+    // 正向對照:同一個 stub、同一顆頁面,只把 user 補上,accountSignOut() 就真的會走完登出流程。
+    state.account.user = { uid: 'r11-uid', email: 'r11@example.com' };
+    await accountSignOut();
+    return {
+      noUserSignOutCalls, noUserGen, anonAfter,
+      controlSignOutCalls: signOutCalls, controlLoggingOut: loggingOutWhenSignOutCalled, controlGen: state.account.gen,
+    };
+  });
+  ok('R11-pre 前置條件:這台裝置的匿名分區真的有一筆資料(下面的觀察都建立在「有東西可波及」之上)',
+    JSON.stringify(r.anonAfter) === JSON.stringify(['R11_ANON']), JSON.stringify(r));
+  ok('R11a Minor 6 核心斷言:a.user 為 null 時呼叫 accountSignOut(),連 fb.signOut() 都不會被呼叫(守衛擋在整條流程之前,不是跑完才發現沒事做)',
+    r.noUserSignOutCalls === 0, JSON.stringify(r));
+  ok('R11b Minor 6 核心斷言(第二個副作用):同一次呼叫也沒有讓世代前進(a.gen 仍是 0)——accountForgetIdentity() 完全沒被跑到,不會誤丟別的在途同步結果',
+    r.noUserGen === 0, JSON.stringify(r));
+  ok('R11c 正向對照(同一支收集器):把 user 補上之後,同一個 stub 的 fb.signOut() 真的被呼叫了一次、當下 a.loggingOut===true、世代也前進到 1——證明上面兩條的「0」是守衛擋下來的,不是 stub 本身恆為 0',
+    r.controlSignOutCalls === 1 && r.controlLoggingOut === true && r.controlGen === 1, JSON.stringify(r));
+  ok('R11 本輪零 pageerror/console.error', errs.length === 0, errs.slice(0, 3).join(' | '));
+  await ctx.close();
+}
+
+// ══════════════ R12. 複審輪2 Important 1:刪除帳號要真的清掉「這台裝置內的私人收藏」 ══════════════
+// 複審實測:登入前先匿名存過釘選的人,刪帳號後重新整理,那顆含經緯度的釘選會回到畫面上——因為
+// accountClearLocal 只把空 envelope 寫進 :uid:<uid> 分區,而 userDataWrite 的 legacy 雙寫被
+// if (!uid) 限縮成只給匿名分區,共用 key 與四個 legacy 陣列動都沒動。這牴觸 privacy.html:110 與
+// account-deletion.html:30 的明文承諾,而且是 Task 6 引入的回歸(複審對照組 678af69^ 為 PASS)。
+// 這裡走完整的 accountDelete() 流程,再真的 reload 一次頁面,量使用者真正會看到的結果。
+{
+  const { ctx, page } = await newPage(chromiumB);
+  const errs = attach(page, 'R12');
+  await page.goto(BASE, { waitUntil: 'domcontentloaded' });
+  await waitReady(page);
+  const UID = 'race-r12-uid';
+  const r = await page.evaluate(async (UID) => {
+    // 登入前的匿名使用:存一顆含經緯度的釘選(複審重現情境的第一步)。
+    userDataSaveCollection('pins', [{ lat: 25.0478, lon: 121.517, label: 'R12_HOME_PIN' }]);
+    const anonBefore = userDataRead(null).collections.pins.items.map(x => x.value.label);
+    const legacyBefore = localStorage.getItem(USER_DATA_LEGACY.pins) || '';
+
+    state.plus = { active: true };
+    window.confirm = () => true;
+    let deleteUserCalled = false;
+    state.account = {
+      ready: true, syncing: false, lastSync: 0, actionError: '', error: '', syncTimer: 0, gen: 0,
+      loggingOut: false, syncSuspended: false, syncPromise: null,
+      user: { uid: UID, email: 'r12@example.com', providerData: [{ providerId: 'google.com' }], getIdToken: async () => 'fake-token' },
+      auth: {}, db: {},
+      fb: {
+        doc: () => ({}),
+        GoogleAuthProvider: function () {},
+        reauthenticateWithPopup: async () => ({}),
+        deleteDoc: async () => {},
+        deleteUser: async () => { deleteUserCalled = true; },
+        runTransaction: async () => ({ version: USER_DATA_VERSION, revision: 1, updatedAt: Date.now(), collections: {} }),
+        serverTimestamp: () => 'T',
+      },
+    };
+    localStorage.setItem('trainmap-account-uid', UID);
+    localStorage.setItem('trainmap-account-last-uid', UID);
+    // 第一次登入把裝置上既有的匿名收藏繼承進帳號分區(既有行為,R5 另外驗)。
+    const inheritedIntoAccount = userDataRead(UID).collections.pins.items.map(x => x.value.label);
+
+    await accountDelete();
+    return {
+      anonBefore, legacyBeforeHasPin: legacyBefore.includes('R12_HOME_PIN'), inheritedIntoAccount, deleteUserCalled,
+      partitionAfter: userDataRead(UID).collections.pins.items.map(x => x.value.label),
+      anonAfter: userDataRead(null).collections.pins.items.map(x => x.value.label),
+      legacyAfter: USER_DATA_COLLECTIONS.map(k => localStorage.getItem(USER_DATA_LEGACY[k])),
+      uidKeyAfter: localStorage.getItem('trainmap-account-uid'),
+    };
+  }, UID);
+  // 真的重新整理一次:複審描述的傷害就是「重新整理就回到畫面上」,只量 localStorage 不夠貼近。
+  await page.reload({ waitUntil: 'domcontentloaded' });
+  await waitReady(page);
+  const afterReload = await page.evaluate(() => ({
+    activeUid: userDataActiveUid(),
+    pins: userDataLoadCollection('pins').map(x => x.label),
+  }));
+  ok('R12-pre 正向對照:刪帳號之前,那顆含經緯度的釘選真的同時存在於共用匿名 key、legacy 陣列與帳號分區三個地方(三處都要先有東西,下面「三處都空」才有意義)',
+    JSON.stringify(r.anonBefore) === JSON.stringify(['R12_HOME_PIN']) && r.legacyBeforeHasPin === true
+    && JSON.stringify(r.inheritedIntoAccount) === JSON.stringify(['R12_HOME_PIN']), JSON.stringify(r));
+  ok('R12-pre 前置條件:accountDelete() 真的整條跑完了(deleteUser 被呼叫、ACCOUNT_UID_KEY 已清)',
+    r.deleteUserCalled === true && r.uidKeyAfter === null, JSON.stringify(r));
+  ok('R12a Important 1 核心斷言(帳號分區):刪帳號後,該 uid 自己的分區被清空',
+    r.partitionAfter.length === 0, JSON.stringify(r));
+  ok('R12b Important 1 核心斷言(共用匿名 key):刪帳號後,登入前存進共用 key 的私人收藏也被清掉——輪1 只清了分區,這裡原封不動留著',
+    r.anonAfter.length === 0, JSON.stringify(r));
+  ok('R12c Important 1 核心斷言(四個 legacy 陣列):trainmap-pins/favs/rides/fav-stations 四把舊 key 全部被清成空陣列——輪1 完全沒碰它們',
+    r.legacyAfter.every(v => v === '[]'), JSON.stringify(r.legacyAfter));
+  ok('R12d Important 1 使用者可見結果:刪帳號後真的重新整理頁面,那顆含經緯度的釘選沒有回到畫面上(這正是 privacy.html/account-deletion.html「清除目前裝置內的私人收藏」承諾的兌現)',
+    afterReload.pins.length === 0 && afterReload.activeUid === null, JSON.stringify(afterReload));
+  ok('R12 本輪零 pageerror/console.error', errs.length === 0, errs.slice(0, 3).join(' | '));
+  await ctx.close();
+}
+
+// ══════════════ R13. 複審輪2 Important 2:session 在伺服器端失效(未走登出)後的身分痕跡 ══════════════
+// onAuthStateChanged 收到 user===null 時輪1 什麼都不做,於是程式分不出「auth 還沒解析」(fallback
+// 該生效)與「auth 解析結果就是沒登入」(fallback 不該生效)。token 被撤銷/帳號在別台被刪/憑證失效
+// 時就走這條:畫面回到未登入態,userDataActiveUid() 卻仍解析成上一個 uid,那個人的私人收藏還看得到、
+// 還能編輯,之後這台裝置的匿名使用也全部寫進他的分區;而且登出鈕只在 a.user 為真時才畫,使用者
+// 連清掉它的入口都沒有。這裡用可控的 onAuthStateChanged callback 先送 user、再送 null,量前後差異。
+{
+  const { ctx, page } = await newPage(chromiumB);
+  await ctx.addInitScript((arg) => {
+    try {
+      const now = Date.now();
+      localStorage.setItem('trainmap-account-uid', arg.uid);       // 這台裝置上一次驗證過的身分
+      localStorage.setItem('trainmap-account-last-uid', arg.uid);
+      localStorage.setItem('trainmap-user-data-v1:uid:' + arg.uid, JSON.stringify({
+        version: 1, deviceId: 'test-device', revision: 2, updatedAt: now,
+        collections: {
+          pins: { items: [], tombstones: [] },
+          favs: { items: [{ id: 'A_SECRET', value: { train: 'A_SECRET' }, updatedAt: now }], tombstones: [] },
+          rides: { items: [], tombstones: [] },
+          stations: { items: [], tombstones: [] },
+        },
+      }));
+    } catch (e) {}
+    window.RAIL_FIREBASE_CONFIG = { apiKey: 'x', authDomain: 'x', projectId: 'x' };
+    window.RAIL_FIREBASE_TEST_MODULES = {
+      initializeApp: () => ({}), getAuth: () => ({}), getFirestore: () => ({}),
+      // 先如常送出已登入的 user(session 還原),之後由測試自己送 null 模擬伺服器端失效。
+      onAuthStateChanged: (auth, cb) => { window.__authCb = cb; cb({ uid: arg.uid, email: 'a@example.com' }); },
+    };
+  }, { uid: 'r13-uid-a' });
+  const errs = attach(page, 'R13');
+  await page.goto(BASE, { waitUntil: 'domcontentloaded' });
+  await waitReady(page);
+  // 刻意自己再呼叫一次 accountEnsureInit()(冪等):這個裝置本來就會因為 accountReturning()===true
+  // 在開機自動初始化,但本節要驗的是 session 失效,不是開機路徑——不依賴它,accountReturning() 若被
+  // 改壞,本節也只會在自己的前置條件上具名失敗,不會因為 window.__authCb 不存在而整支腳本崩掉
+  // (輪2 Minor 7 的同一個教訓:斷言沒跑到看起來卻是綠的)。
+  const before = await page.evaluate(async () => {
+    await accountEnsureInit();
+    return {
+      authCbRegistered: typeof window.__authCb === 'function',
+      userUid: state.account && state.account.user && state.account.user.uid,
+      activeUid: userDataActiveUid(),
+      uidKey: localStorage.getItem('trainmap-account-uid'),
+      favs: userDataLoadCollection('favs').map(x => x.train),
+    };
+  });
+  const after = await page.evaluate(async () => {
+    if (typeof window.__authCb === 'function') await window.__authCb(null); // session 在伺服器端失效:accountSignOut() 從未被呼叫
+    return {
+      userNow: state.account && state.account.user,
+      activeUid: userDataActiveUid(),
+      uidKey: localStorage.getItem('trainmap-account-uid'),
+      favs: userDataLoadCollection('favs').map(x => x.train),
+      lastUidKey: localStorage.getItem('trainmap-account-last-uid'),
+      partitionStillOnDisk: (() => {
+        try { return JSON.parse(localStorage.getItem('trainmap-user-data-v1:uid:r13-uid-a')).collections.favs.items.map(x => x.id); }
+        catch (e) { return null; }
+      })(),
+    };
+  });
+  ok('R13-pre 正向對照:session 失效之前,這台裝置確實解析成 A、而且畫面上真的看得到 A 的私人收藏(下面「看不到了」才是變化,不是本來就空)',
+    before.authCbRegistered === true && before.userUid === 'r13-uid-a' && before.activeUid === 'r13-uid-a'
+    && before.uidKey === 'r13-uid-a' && JSON.stringify(before.favs) === JSON.stringify(['A_SECRET']), JSON.stringify(before));
+  ok('R13-pre 前置條件:送出 null 之後 state.account.user 真的變成 falsy(auth 確實解析成「沒有登入」)',
+    !after.userNow, JSON.stringify(after));
+  ok('R13a Important 2 核心斷言:session 失效後 ACCOUNT_UID_KEY 被清掉——不然它會一直卡著(登出鈕只在 a.user 為真時才畫,使用者沒有任何入口清得掉)',
+    after.uidKey === null, JSON.stringify(after));
+  ok('R13b Important 2 核心斷言:userDataActiveUid() 不再解析成上一個帳號(回到 null=匿名),之後這台裝置的匿名使用不會寫進那個帳號的分區',
+    after.activeUid === null, JSON.stringify(after));
+  ok('R13c Important 2 核心斷言:畫面上也不再看得到上一個帳號的私人收藏(A_SECRET 消失)——面板顯示未登入、內容卻還是別人的私人資料是最糟的組合',
+    JSON.stringify(after.favs) === JSON.stringify([]), JSON.stringify(after));
+  ok('R13d 這是「切走身分」不是「銷毀資料」:A 的分區本身仍完整留在裝置上(A 重新登入回得來),陌生人判斷用的 last-uid 也保留',
+    JSON.stringify(after.partitionStillOnDisk) === JSON.stringify(['A_SECRET']) && after.lastUidKey === 'r13-uid-a', JSON.stringify(after));
+  ok('R13 本輪零 pageerror/console.error', errs.length === 0, errs.slice(0, 3).join(' | '));
   await ctx.close();
 }
 
