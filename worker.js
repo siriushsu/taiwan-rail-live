@@ -642,6 +642,7 @@ async function trtcLive(request, env) {
 // ── 北捷看板事件帳本(B1):D1 編排層 ──
 // 事件推導與身分指派全在 scripts/trtc_board_ledger.mjs 的純函式；這裡只負責資產、上游、D1。
 let trtcLedgerModelPromise = null;
+let trtcBoardModelPromise = null;
 let trtcLedgerSchemaReady = false;
 
 async function trtcLedgerAssetJson(env, path) {
@@ -650,13 +651,24 @@ async function trtcLedgerAssetJson(env, path) {
   return r.json();
 }
 
-async function trtcLedgerModel(env) {
-  if (!trtcLedgerModelPromise) trtcLedgerModelPromise = Promise.all([
+function trtcModelSources(env) {
+  return Promise.all([
     trtcLedgerAssetJson(env, 'data/trtc.json'),
     trtcLedgerAssetJson(env, 'data/trtc_times.json'),
     trtcLedgerAssetJson(env, 'data/trtc_codes.json'),
-  ]).then(([trtc, times, codes]) => buildTrtcModel(trtc, times, codes));
+  ]);
+}
+
+async function trtcLedgerModel(env) { // 帳本用:排除 Y(不佔 D1 寫入額度)
+  if (!trtcLedgerModelPromise) trtcLedgerModelPromise = trtcModelSources(env)
+    .then(([trtc, times, codes]) => buildTrtcModel(trtc, times, codes));
   return trtcLedgerModelPromise;
+}
+
+async function trtcBoardModel(env) { // 前端位置錨點用:含 Y(同一份 TrackInfo 已夾帶,不多打上游也不多寫帳本)
+  if (!trtcBoardModelPromise) trtcBoardModelPromise = trtcModelSources(env)
+    .then(([trtc, times, codes]) => buildTrtcModel(trtc, times, codes, { includeY: true }));
+  return trtcBoardModelPromise;
 }
 
 async function ensureTrtcLedger(env) {
@@ -698,7 +710,7 @@ function trtcBoardEpoch(rows, fallbackEpoch) {
 
 async function trtcBoardPositionAnchors(env, rows) {
   const nowEpoch = trtcBoardEpoch(rows, Math.floor(Date.now() / 1000));
-  const model = await trtcLedgerModel(env);
+  const model = await trtcBoardModel(env);
   const resolved = resolveBoardRows(model, rows, trtcEpoch);
   const claimed = claimBoardRows(model, resolved.rows, nowEpoch, new Map());
   const collapsed = collapseClaims(claimed.claims);

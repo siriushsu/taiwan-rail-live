@@ -42,10 +42,11 @@ async function waitFor(child, pattern, timeoutMs) {
   });
 }
 
-const model = buildTrtcModel(
+const model = buildTrtcModel( // includeY 必須與 worker.js 的 trtcBoardModel 一致，否則本地錨點少一條線
   JSON.parse(fs.readFileSync(path.join(ROOT, 'data/trtc.json'))),
   JSON.parse(fs.readFileSync(path.join(ROOT, 'data/trtc_times.json'))),
   JSON.parse(fs.readFileSync(path.join(ROOT, 'data/trtc_codes.json'))),
+  { includeY: true },
 );
 
 async function fixtureRows(slot) {
@@ -180,6 +181,10 @@ async function run() {
         _easedShift.clear(); _metroGateEp.on = false; _metroGateEp.at = 0;
         _mlGate = true; _mlGateAt = Date.now();
         const audit = applyTrtcBoard(rows, at);
+        // 回放的是歷史語料，但要模擬的是「這份 snapshot 剛剛才到」：資料齡以牆鐘計，
+        // 不覆寫的話整批語料都會被判成幾十小時前的舊資料、shift 全歸零。
+        // 資料齡本身另有專屬斷言（含新鮮/過期兩側對照），不靠這裡的主迴圈驗。
+        for (const ln of metroLivePool()) if (ln._trtcBoard) ln._trtcBoard.at = Date.now();
         _mlGate = true; _mlGateAt = Date.now();
         const pool = metroLivePool().filter(ln => isTrtcBoardLine(ln) && ln._tt);
         const countRows = [], positions = [];
@@ -236,6 +241,52 @@ async function run() {
       '逐班校正位置優於純班表', `corrected=${JSON.stringify(dist(correctedErrors))}, baseline=${JSON.stringify(dist(baselineErrors))}`);
     check(directions.has(-1) && directions.has(1), '兩個行車方向皆有實測', `directions=${JSON.stringify([...directions].sort())}`);
     check(Object.values(lineTotals).every(x => x.roster === 0 || x.matched > 0), '各北捷線皆有真實錨點覆蓋', JSON.stringify(lineTotals));
+    check(lineTotals.Y && lineTotals.Y.roster > 0 && lineTotals.Y.matched > 0,
+      '環狀線 Y 已進入看板校正路徑', JSON.stringify(lineTotals.Y || null));
+
+    // 資料齡與逐班未命中的退路：兩者都只准改「校正量」，不准改「車在不在」。
+    // 判準刻意不看 metroLiveOn 自己回什麼（那會與實作同源）——只看畫面上的車數與實際 shift 值。
+    const gates = await page.evaluate(() => {
+      const pool = metroLivePool().filter(ln => isTrtcBoardLine(ln) && ln._trtcBoard && ln._trtcBoard.n > 0);
+      const resync = () => { // easedShift 只在 gate 剛開啟的 5 秒內直接對齊 target，否則從 0 慢慢爬
+        _easedShift.clear(); _metroGateEp.on = false; _metroGateEp.at = 0;
+        _mlGate = true; _mlGateAt = Date.now();
+      };
+      const countAll = () => pool.reduce((n, ln) => n + ln._tt.filter(tr => freqTrainPosAt(ln, tr, state.simSec) != null).length, 0);
+      const roster = pool.reduce((n, ln) => n + ln._tt.filter(tr => freqTrainTime(tr, state.simSec) != null).length, 0);
+      const maxShift = () => { // 正向對照：沒有它，staleShift===0 可能只是「本來就全 0」的空斷言
+        let m = 0;
+        for (const ln of pool)
+          for (const tr of ln._tt) if (ln._trtcBoard.shifts.has(tr)) m = Math.max(m, Math.abs(metroShiftSec(ln, tr)));
+        return Math.round(m);
+      };
+      resync();
+      const fresh = countAll();
+      resync();
+      const freshShift = maxShift();
+      // ① 未被看板認到的班次，target 應退回全線中位數 all，不是 0
+      const ln0 = pool.find(ln => ln._trtcBoard.all !== 0 &&
+        ln._tt.some(tr => freqTrainTime(tr, state.simSec) != null && !ln._trtcBoard.shifts.has(tr)));
+      let fallback = null;
+      if (ln0) {
+        const miss = ln0._tt.find(tr => freqTrainTime(tr, state.simSec) != null && !ln0._trtcBoard.shifts.has(tr));
+        resync();
+        fallback = { line: ln0.id, all: ln0._trtcBoard.all, applied: Math.round(metroShiftSec(ln0, miss)) };
+      }
+      // ④ 把資料齡推到 40 分前：校正應整批歸零，車數一台都不准變
+      const saved = pool.map(ln => ln._trtcBoard.at);
+      pool.forEach(ln => { ln._trtcBoard.at = Date.now() - 40 * 60e3; });
+      resync();
+      const staleShift = maxShift();
+      const stale = countAll();
+      pool.forEach((ln, i) => { ln._trtcBoard.at = saved[i]; });
+      resync();
+      return { roster, fresh, stale, freshShift, staleShift, fallback, lines: pool.length };
+    });
+    check(gates.fallback && gates.fallback.applied === gates.fallback.all,
+      '未認到的班次退回全線中位數（非 0）', JSON.stringify(gates.fallback));
+    check(gates.roster === gates.fresh && gates.fresh === gates.stale && gates.freshShift > 0 && gates.staleShift === 0,
+      '資料齡到期只關校正、不動車數（附新鮮側正向對照）', JSON.stringify(gates));
     const serviceDays = await page.evaluate(() => ({
       saturdayAfterMidnight: taipeiServiceDayStr(Date.parse('2026-08-01T17:00:00Z')),
       mondayMorning: taipeiServiceDayStr(Date.parse('2026-08-03T00:30:00Z')),

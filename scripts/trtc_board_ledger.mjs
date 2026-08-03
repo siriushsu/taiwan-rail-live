@@ -109,11 +109,14 @@ function timetableRuns(timesLine, stations) {
   return new Map([...buckets].map(([key, values]) => [key, median(values)]));
 }
 
-export function buildTrtcModel(trtc, times, codes) {
+// opts.includeY:環狀線 Y 屬新北捷,D1 帳本刻意不收(寫入額度只留給北捷八線)。
+// 但 TrackInfo 本來就夾帶 Y 的倒數列,拿來當前端位置錨點不需要多打一次上游、也不多寫一筆帳本,
+// 所以「產錨點」這條路徑單獨用 includeY:true 建模,帳本路徑維持預設排除。
+export function buildTrtcModel(trtc, times, codes, opts = {}) {
   const lines = new Map();
   const stationNameIndex = new Map();
   for (const source of (trtc && trtc.lines) || []) {
-    if (!source || source.id === 'Y') continue;
+    if (!source || (source.id === 'Y' && !opts.includeY)) continue;
     const stations = (source.stations || []).map(s => ({
       name: normStationName(s.name), dwell: Number(s.dwell) > 0 ? Number(s.dwell) : DEFAULT_DWELL_SEC,
       d: Number.isFinite(Number(s.d)) ? Number(s.d) : null,
