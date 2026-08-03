@@ -6986,6 +6986,7 @@ function accountClearLocal() {
   const empty = userDataEmpty(); empty.revision = 0; empty.updatedAt = userDataNow(); userDataWrite(empty);
   if (state.plus) { state.plus.active = false; state.plus.founding = false; state.plus.pkgMonthly = null; state.plus.pkgAnnual = null; state.plus.mgmtUrl = ''; state.plus.adapter = null; state.plus.afterUnlock = null; }
   if (window.RAIL_NATIVE_PLUS_ADAPTER && window.RAIL_NATIVE_PLUS_ADAPTER.clearUser) window.RAIL_NATIVE_PLUS_ADAPTER.clearUser().catch(() => {});
+  plusTeardownListener().catch(() => {}); // C-4:登出解除 CustomerInfo 更新 listener,避免舊使用者的推播繼續打在剛登出/換人的 state 上
   state.plusPending = null;
   try { localStorage.removeItem('trainmap-last-sync-uid'); } catch (e) {}
   if (typeof renderSavedPins === 'function') renderSavedPins();
@@ -7093,7 +7094,11 @@ function accountEnsureInit() {
       });
     } catch (e) { state.account.ready = true; state.account.error = e && e.message ? e.message : String(e); accountRender(); }
     window.addEventListener('rail-user-data-changed', e => { if (!e.detail || e.detail.source === 'local') accountScheduleSync(); });
-    document.addEventListener('visibilitychange', () => { if (!document.hidden && state.account && state.account.user) accountSyncNow('foreground'); });
+    // C-4:回前景不能只同步資料、不查資格——退費/撤銷後,若 CustomerInfo 更新 listener 沒收到通知
+    // (例如 App 被系統整個砍掉重開、或推播恰好錯過),回前景至少會補查一次。plusRefresh() 自己有
+    // p.loading 早退與 !plusConfigured() 分流,故意不 await——與同一行原本就有的
+    // accountSyncNow('foreground') 一樣是 fire-and-forget,不讓這個事件處理常式被卡住。
+    document.addEventListener('visibilitychange', () => { if (!document.hidden && state.account && state.account.user) { accountSyncNow('foreground'); plusRefresh(); } });
   })();
   return accountEnsureInit._p;
 }
@@ -7262,8 +7267,8 @@ function plusPickPackage(pkgs, kind) {
   return hit('packageType') || hit('identifier') || null;
 }
 async function plusAdapterFor(uid) {
-  if (window.RAIL_NATIVE_PLUS_ADAPTER) { await window.RAIL_NATIVE_PLUS_ADAPTER.setUser(uid); return window.RAIL_NATIVE_PLUS_ADAPTER; }
-  if (window.RAIL_PLUS_TEST_ADAPTER) { await window.RAIL_PLUS_TEST_ADAPTER.setUser(uid); return window.RAIL_PLUS_TEST_ADAPTER; }
+  if (window.RAIL_NATIVE_PLUS_ADAPTER) { await window.RAIL_NATIVE_PLUS_ADAPTER.setUser(uid); await plusEnsureListener(window.RAIL_NATIVE_PLUS_ADAPTER); return window.RAIL_NATIVE_PLUS_ADAPTER; }
+  if (window.RAIL_PLUS_TEST_ADAPTER) { await window.RAIL_PLUS_TEST_ADAPTER.setUser(uid); await plusEnsureListener(window.RAIL_PLUS_TEST_ADAPTER); return window.RAIL_PLUS_TEST_ADAPTER; }
   const ns = await plusLoadWebSdk(), Ctor = ns.Purchases;
   if (!plusAdapterFor._purchases) plusAdapterFor._purchases = Ctor.configure({ apiKey: plusConfig().webApiKey, appUserId: uid });
   else if (plusAdapterFor._purchases.getAppUserId() !== uid) await plusAdapterFor._purchases.changeUser(uid);
@@ -7274,7 +7279,64 @@ async function plusAdapterFor(uid) {
     getOfferings: () => p.getOfferings(),
     purchase: (pkg, email) => p.purchase({ rcPackage: pkg, customerEmail: email || undefined }),
     restore: () => p.getCustomerInfo(),
+    // 不接 addCustomerInfoUpdateListener passthrough:目前沒有查證過的證據顯示這支動態載入的
+    // Web SDK(REVENUECAT_WEB_URL,不在 node_modules 裡、型別宣告無從查起)真的有同名方法——
+    // plusEnsureListener() 本來就用 typeof 判斷特性存在與否,沒有這個方法就靜靜跳過,不影響資格
+    // 判定本身(見該函式註解)。網站目前也沒有設定 webApiKey,這個分支實務上不會被走到。
   };
+}
+// ═══ C-4 止血(退費/撤銷/到期後,資格靠快取撐著、沒人去重新驗證):CustomerInfo 更新 listener ═══
+// 只有原生 adapter(或刻意模擬它的測試 adapter)具備 addCustomerInfoUpdateListener 時才註冊——
+// 沒有這個方法就靜靜跳過(typeof 特性偵測,不是每個平台的必要條件)。
+// 冪等:plusListenerAdapter 記錄「目前掛在哪一個 adapter 物件上」,同一顆 adapter(原生殼/測試
+// adapter 都是全域單例,物件參考不會變)重複呼叫不重複掛,只有第一次真的呼叫 SDK 的註冊 API。
+let plusListenerId = null, plusListenerAdapter = null;
+async function plusEnsureListener(adapter) {
+  if (!adapter || typeof adapter.addCustomerInfoUpdateListener !== 'function') return;
+  if (plusListenerId && plusListenerAdapter === adapter) return; // 已經掛在同一顆 adapter 上,冪等早退
+  await plusTeardownListener(); // 防禦性:adapter 换成別的物件時,先解除掛在舊物件上的那個
+  try {
+    const id = await adapter.addCustomerInfoUpdateListener(info => {
+      // SDK 主動推播,永遠是「這是目前真正的 CustomerInfo」,不是「查不到」的錯誤狀態——
+      // 不必比照 plusRefresh() 的 Promise.allSettled 錯誤分流,直接套用即可。
+      plusApplyCustomerInfo(info);
+      if (state.basemap === 'sat') setBasemap(); // 資格變動→衛星解析度跟著換,同 plusRefresh/plusPurchase 既有做法
+      accountRender(); plusRender();
+    });
+    plusListenerId = id; plusListenerAdapter = adapter;
+  } catch (e) { /* 註冊失敗:兩個追蹤變數維持 teardown 後的 null,下次呼叫(如下次 plusRefresh)會重試 */ }
+}
+// 登出時解除註冊(accountClearLocal 呼叫),避免舊使用者的推播繼續打在剛登出/換人的 state 上。
+async function plusTeardownListener() {
+  const adapter = plusListenerAdapter, id = plusListenerId;
+  plusListenerId = null; plusListenerAdapter = null;
+  if (!adapter || !id || typeof adapter.removeCustomerInfoUpdateListener !== 'function') return;
+  try { await adapter.removeCustomerInfoUpdateListener(id); } catch (e) {}
+}
+// 套用一份新的 CustomerInfo 到 state.plus(active/founding/mgmtUrl)。只給本任務新增的兩個消費者
+// 用(上面的 listener 回呼、下面付費操作前的 plusRevalidateBeforeAction),刻意不去動
+// plusRefresh()/plusPurchase()/plusRestore() 既有三處的欄位寫入(維持三處原本逐行不同的樣子):
+// 實際試過把 plusPurchase/plusRestore 改成呼叫這支共用函式,雖然計算結果不變,但
+// verify_founding_seal.mjs 的 G4.0/G4.2 是對 plusRestore() 原始碼字面做 regex 掃描
+// (斷言 `p.founding = p.active && foundingFrom(info)` 這幾個字面上還在該函式本文裡),字面消失
+// 就從 118/118 掉到 116/118——這正是「判準证明的是字串、不是行為」的活教材,故保留三處原樣,
+// 只讓新增的兩個消費者共用這支函式。
+function plusApplyCustomerInfo(info) {
+  const p = plusState();
+  p.active = plusActiveFrom(info);
+  p.founding = p.active && foundingFrom(info);
+  p.mgmtUrl = (info && info.managementURL) || p.mgmtUrl || '';
+  return p.active;
+}
+// 重要付費操作(購買/恢復購買)前重新驗證資格(C-4 第 3 點):adapter 若支援,先取一次目前的
+// CustomerInfo 套用進 state,避免在退費/撤銷後的舊快取上疊加購買判斷。失敗(網路錯誤等)不阻擋
+// 原本的購買/恢復流程,也不把資格改成 false——同 plusRefresh() 既有的「查不到就維持現狀」顧慮。
+async function plusRevalidateBeforeAction(adapter) {
+  if (!adapter || typeof adapter.getCustomerInfo !== 'function') return;
+  try {
+    plusApplyCustomerInfo(await adapter.getCustomerInfo());
+    if (state.basemap === 'sat') setBasemap();
+  } catch (e) {}
 }
 function plusState() {
   if (!state.plus) state.plus = { active: false, founding: false, loading: false, error: '', pkgMonthly: null, pkgAnnual: null, mgmtUrl: '', adapter: null, afterUnlock: null };
@@ -7381,7 +7443,14 @@ function plusRender() {
     '<button class="plus-restore" type="button" data-plus="restore">已訂閱？恢復購買</button>' + legal;
 }
 async function plusRefresh() {
-  const p = state.plus, user = state.account && state.account.user; if (!p || !user || p.loading) return false;
+  // 🔴C-4 前提修復:原本這裡讀 state.plus(可能是 undefined)而不是 plusState()——冷啟動的回訪
+  // 使用者從沒開過 Plus 面板,state.plus 從未被任何呼叫初始化過,accountEnsureInit() 登入當下
+  // 那次 await plusRefresh() 會被 !p 擋下直接 return false,連 plusState() 都沒機會跑,資格永遠
+  // 沒查過(實測驗證,見 verify_plus_refresh_lifecycle.mjs 第 1 節)。plusOpen()/plusRestore() 都已經
+  // 用 plusState() 才沒踩到;這裡補齊同一個模式。既有呼叫端(state.plus 早已存在)行為不變——
+  // plusState() 對已存在的 state.plus 只是原樣回傳,不會重建。
+  const user = state.account && state.account.user; if (!user) return false;
+  const p = plusState(); if (p.loading) return false;
   if (!plusConfigured()) {
     // 此平台無購買通道(網站沒有 Web Billing key,RAIL_REVENUECAT_CONFIG 只設 iosApiKey):不初始化任何
     // billing SDK,只打 /api/plus-status 查詢既有資格(唯讀,不發起購買)。
@@ -7439,6 +7508,7 @@ async function plusPurchase(kind) {
   const pkg = p && (kind === 'month' ? p.pkgMonthly : p.pkgAnnual);
   if (!p || !p.adapter || !pkg || !user || p.loading) return;
   p.loading = true; p.error = ''; plusRender();
+  await plusRevalidateBeforeAction(p.adapter); // C-4:購買前重新驗證資格,見該函式註解
   try {
     const result = await p.adapter.purchase(pkg, user.email || '');
     const info = result && (result.customerInfo || result);
@@ -7460,6 +7530,7 @@ async function plusRestore() {
   p.loading = true; p.error = ''; plusRender();
   try {
     p.adapter = p.adapter || await plusAdapterFor(user.uid);
+    await plusRevalidateBeforeAction(p.adapter); // C-4:恢復購買前重新驗證資格,見該函式註解
     const result = await p.adapter.restore();
     const info = result && (result.customerInfo || result);
     p.active = plusActiveFrom(info);

@@ -98,7 +98,19 @@ if (native) {
       async getCustomerInfo() { return unwrap(await Purchases.getCustomerInfo()); },
       getOfferings: () => Purchases.getOfferings(),
       purchase: aPackage => Purchases.purchasePackage({ aPackage }),
-      restore: () => Purchases.restorePurchases()
+      restore: () => Purchases.restorePurchases(),
+      // 退費/撤銷/到期後資格持續有效的止血(C-4):讓 index.html 訂閱 SDK 主動推播的 CustomerInfo
+      // 更新,不必等下次登入或使用者手動開 Plus 面板才發現資格變了。型別宣告
+      // (@revenuecat/purchases-capacitor/dist/esm/definitions.d.ts:253):
+      //   addCustomerInfoUpdateListener(customerInfoUpdateListener: CustomerInfoUpdateListener): Promise<PurchasesCallbackId>
+      // callback 收到的是「裸」CustomerInfo,不經 { customerInfo } 包裝鍵——已對照兩端原生實作逐行核實,
+      // 不是只憑型別宣告猜的:iOS PurchasesPlugin.swift 的 `purchases(_:receivedUpdated:)` 呼叫
+      // `call.resolve(CommonFunctionality.encode(customerInfo: customerInfo))`(無 wrapperKey);
+      // Android PurchasesPlugin.kt 的 addCustomerInfoUpdateListener 同樣直接 resolveWithMap 未經
+      // wrapperKey。這與 getCustomerInfo() 不同——那條原生實作走的是帶 wrapperKey 的
+      // getCompletionBlockHandler,才需要上面的 unwrap()。
+      addCustomerInfoUpdateListener: listener => Purchases.addCustomerInfoUpdateListener(listener),
+      removeCustomerInfoUpdateListener: listenerToRemove => Purchases.removeCustomerInfoUpdateListener({ listenerToRemove }),
     };
   }
 }
