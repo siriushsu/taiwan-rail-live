@@ -121,9 +121,23 @@ const ok = (name, pass, detail = '') => { results.push({ name, pass, detail }); 
   ok('G0 伺服器吐出的 index.html 與 ROOT 逐 byte 相同', served === INDEX_MD5, `served=${served} root=${INDEX_MD5}`);
 }
 
+// 測試用固定「上線錨點」:動態取「今天的台北午夜整點」而非寫死字面值——這裡只是要讓
+// FOUNDING_UNTIL_MS 在每次測試執行當下都落在「創始期內」(G1/T1/T3a/T5 驗的正是 inFounding
+// 為 true 那個分支),寫死字面值遲早變成過去式、悄悄讓這個分支的覆蓋消失(跟本任務要修的
+// 「猜的日期會過期」是同一個坑)。
+// 2026-08-03 起 FOUNDING_UNTIL_MS 已從 index.html 寫死的日期改成讀 revenuecat-config.js 的
+// foundingLaunchAt(見該檔與 index.html foundingFrom() 旁的說明);正式站現在(且應該)是
+// foundingLaunchAt:null(上線日未定,發版時才填)——頁面若不主動注入,FOUNDING_UNTIL_MS 會是
+// NaN,下面 G1「可從頁面讀到且是有限數字」與 T1/T3a/T5 的項數期望都會落空。boot() 一律注入
+// 這個測試值,與正式站現況脫鉤(本檔驗的是清單/資格判定邏輯本身,不是正式站填了什麼日期)。
+const TEST_FOUNDING_LAUNCH_AT = `${new Intl.DateTimeFormat('sv-SE', { timeZone: 'Asia/Taipei' }).format(new Date())}T00:00:00+08:00`;
+
 async function boot(browser, { viewport = { width: 1280, height: 800 } } = {}) {
   const ctx = await browser.newContext({ viewport });
   await ctx.addInitScript(() => { try { localStorage.setItem('trainmap-howto-seen', '1'); } catch (e) {} });
+  await ctx.addInitScript((launchAt) => {
+    window.RAIL_REVENUECAT_CONFIG = { entitlement: 'plus', offeringId: 'plus', foundingLaunchAt: launchAt };
+  }, TEST_FOUNDING_LAUNCH_AT);
   const page = await ctx.newPage();
   const errors = [];
   page.on('pageerror', e => errors.push('pageerror:' + String(e)));

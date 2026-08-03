@@ -200,6 +200,38 @@ export async function verifyRelease({
   const relativeFiles = files.map(file => relative(output, file).replaceAll('\\', '/'));
   const indexPath = join(output, 'index.html');
   const html = await readFile(indexPath, 'utf8');
+
+  // ── 創始會員截止時刻的「上線錨點」(B-4,2026-08-03 裁示)───────────────────────
+  // 創始價視窗＝上線錨點時刻起算固定 30 天。上線錨點由 revenuecat-config.js 的
+  // window.RAIL_REVENUECAT_CONFIG.foundingLaunchAt 提供(見該檔註解),程式碼本身不留猜的
+  // 日期。index.html 端「未設定」有安全預設(foundingFrom() 一律回傳 false,沒人是創始
+  // 會員)——但那個安全預設是給網站用的(網站部署不經過這支腳本,沒有等效閘門);App 一旦
+  // 送審就無法即時改,所以這裡是唯一會把「忘了填」或「填了過去式舊值」擋成 build 失敗的地方,
+  // 不讓需要人為決定的值靠「安全預設」矇混過關溜上線。
+  const revenuecatSource = await readFile(join(output, 'revenuecat-config.js'), 'utf8');
+  const foundingLaunchAtMatch = revenuecatSource.match(/foundingLaunchAt\s*:\s*(null|'([^']*)'|"([^"]*)")/);
+  assert(foundingLaunchAtMatch,
+    'revenuecat-config.js 找不到 foundingLaunchAt 欄位——請在該檔 window.RAIL_REVENUECAT_CONFIG 補上 '
+    + "foundingLaunchAt(ISO8601 時刻字串,建議台北時區午夜整點,例如 '2026-09-01T00:00:00+08:00')");
+  const foundingLaunchAtRaw = foundingLaunchAtMatch[1] === 'null'
+    ? null
+    : (foundingLaunchAtMatch[2] !== undefined ? foundingLaunchAtMatch[2] : foundingLaunchAtMatch[3]);
+  assert(foundingLaunchAtRaw !== null && foundingLaunchAtRaw !== '',
+    `revenuecat-config.js 的 foundingLaunchAt 尚未設定(目前是${foundingLaunchAtRaw === null ? ' null' : '空字串'})——`
+    + '這是發版流程要在按下發版當下才決定的值,請把實際上線日期填進 revenuecat-config.js 的 '
+    + 'window.RAIL_REVENUECAT_CONFIG.foundingLaunchAt 後重新建置');
+  const foundingLaunchAtMs = Date.parse(foundingLaunchAtRaw);
+  assert(Number.isFinite(foundingLaunchAtMs),
+    `revenuecat-config.js 的 foundingLaunchAt 不是可解析的日期(目前值：${foundingLaunchAtRaw})——`
+    + '請改成 ISO8601 時刻字串並修正 revenuecat-config.js 的 window.RAIL_REVENUECAT_CONFIG.foundingLaunchAt');
+  // 用台北時區的「今天 00:00」當比較基準(不比對時分秒),避免同一個日曆日內因為 build 執行的
+  // 時刻不同而誤判成「早於本次 build」。
+  const buildDayTaipei = new Intl.DateTimeFormat('sv-SE', { timeZone: 'Asia/Taipei' }).format(new Date());
+  const buildDayStartMs = Date.parse(`${buildDayTaipei}T00:00:00+08:00`);
+  assert(foundingLaunchAtMs >= buildDayStartMs,
+    `revenuecat-config.js 的 foundingLaunchAt(${foundingLaunchAtRaw})早於本次 build 的日期(${buildDayTaipei})——`
+    + '上線日看起來還停在過去,請到 revenuecat-config.js 確認/更新 window.RAIL_REVENUECAT_CONFIG.foundingLaunchAt');
+
   const musicEnabled = html.includes('window.RAIL_MUSIC_AVAILABLE=true');
   const basemapsEnabled = html.includes('window.RAIL_ONLINE_BASEMAPS_AVAILABLE=true');
 

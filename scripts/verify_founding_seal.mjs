@@ -50,12 +50,28 @@ const ok = (name, pass, detail = '') => { results.push({ name, pass, detail }); 
 // 「N/N」這個數字虛胖,而且會讓人以為那個維度已經有閘門守著。
 const info = (name, detail) => { console.log(`INFO ${name}${detail ? ' — ' + detail : ''}`); };
 
-async function boot(browser, { width = 1280, height = 900, touch = false, theme = 'light', query = '' } = {}) {
+// 測試用固定「上線錨點」:動態取「今天的台北午夜整點」,不寫死字面值——這裡只需要一個
+// FOUNDING_UNTIL_MS 算得出來的有效輸入,日期本身無意義,但寫死字面值遲早變成過去式
+// (跟本任務要修的「猜的日期會過期」是同一個坑,連測試 fixture 都不該再犯)。
+// 2026-08-03 起 FOUNDING_UNTIL_MS 已從 index.html 寫死的日期改成讀 revenuecat-config.js 的
+// foundingLaunchAt(見該檔與 index.html foundingFrom() 旁的說明);正式站現在(且應該)是
+// foundingLaunchAt:null(上線日未定,發版時才填)。
+const TEST_FOUNDING_LAUNCH_AT = `${new Intl.DateTimeFormat('sv-SE', { timeZone: 'Asia/Taipei' }).format(new Date())}T00:00:00+08:00`;
+
+async function boot(browser, { width = 1280, height = 900, touch = false, theme = 'light', query = '', foundingLaunchAt = TEST_FOUNDING_LAUNCH_AT } = {}) {
   const ctx = await browser.newContext({ viewport: { width, height }, hasTouch: touch, isMobile: touch });
   await ctx.addInitScript((th) => {
     try { localStorage.setItem('trainmap-howto-seen', '1'); } catch (e) {}
     try { localStorage.setItem('trainmap-appearance', th); } catch (e) {}
   }, theme);
+  // 在頁面自己的 <script src="revenuecat-config.js">(其 `window.X = window.X || {...}`)執行前
+  // (addInitScript 保證先於頁面任何 <script>)注入 window.RAIL_REVENUECAT_CONFIG,讓後者因為
+  // 已存在而短路——測試值才會生效,且與正式站 revenuecat-config.js 現在的真實內容脫鉤(Group 7
+  // 測的正是「這個欄位是 null」那個安全預設,不依賴/不斷言正式站現在真的填了什麼)。
+  // foundingLaunchAt 傳 null ⇒ 注入物件裡這個欄位也是 null,模擬「尚未設定」(Group 7 專用)。
+  await ctx.addInitScript((launchAt) => {
+    window.RAIL_REVENUECAT_CONFIG = { entitlement: 'plus', offeringId: 'plus', foundingLaunchAt: launchAt };
+  }, foundingLaunchAt);
   const page = await ctx.newPage();
   const errors = [];
   page.on('pageerror', e => errors.push('pageerror:' + String(e)));
@@ -944,6 +960,38 @@ try {
   await cr.close();
 }
 
+// ═══════════════ Group 7:foundingLaunchAt 未設定(revenuecat-config.js 現況)→ 安全預設,
+// 不得誤判成「沒設定＝人人都是創始會員」(B-4,2026-08-03 裁示第 4 條)═══════════════
+// 用 boot() 的 foundingLaunchAt:null 明確模擬「這個欄位是 null」,不依賴/不斷言正式站
+// revenuecat-config.js 現在真的長怎樣——那件事本身會隨發版流程改變,不該是這組測試通不通過
+// 的前提(該檔現在確實是 null,見其註解,但這裡故意不用「讀真實檔案」的方式驗證這件事,
+// 一律走 boot() 的明確覆寫,兩者脫鉤)。
+{
+  const cr = await chromium.launch();
+  const { ctx, page, errors } = await boot(cr, { foundingLaunchAt: null });
+  const r = await page.evaluate(() => {
+    const info = t => ({ entitlements: { active: { plus: { originalPurchaseDate: t } } } });
+    return {
+      configValue: plusConfig().foundingLaunchAt,
+      untilMs: (() => { try { return FOUNDING_UNTIL_MS; } catch (e) { return 'threw:' + String(e); } })(),
+      epoch: foundingFrom(info(new Date(0).toISOString())), // 1970 年購買——理論上最早、最該判定為創始會員的輸入,仍必須是 false
+      justNow: foundingFrom(info(new Date().toISOString())),
+      noThrow: (() => { try { foundingFrom(info(new Date().toISOString())); return true; } catch (e) { return false; } })(),
+    };
+  });
+  ok('G7.0 前置條件:注入的 revenuecat-config.js 確實不含 foundingLaunchAt(讀到 null),不是巧合通過',
+    r.configValue === null, JSON.stringify(r));
+  ok('G7.1 未設定 ⇒ FOUNDING_UNTIL_MS 為 NaN(不落地一個猜的日期當退路)', Number.isNaN(r.untilMs), JSON.stringify(r));
+  ok('G7.2 未設定 ⇒ 即使購買時刻是 1970 年(理論上最早、最該算創始會員的輸入)foundingFrom() 仍回傳 false——證明是安全預設擋下所有輸入,不是巧合沒觸發到判定式',
+    r.epoch === false, JSON.stringify(r));
+  ok('G7.3 未設定 ⇒ 購買時刻是現在,foundingFrom() 仍回傳 false(不是只有極端輸入才安全)',
+    r.justNow === false, JSON.stringify(r));
+  ok('G7.4 未設定 ⇒ foundingFrom() 不丟例外(NaN 比較走的是正常回傳路徑,不是靠 catch 兜底)',
+    r.noThrow === true, JSON.stringify(r));
+  ok('G7 無 JS 例外', errors.length === 0, errors.slice(0, 3).join(' | '));
+  await ctx.close(); await cr.close();
+}
+
 server.close();
 
 // ═══════════════ 斷言總數閘門(M-4) ═══════════════
@@ -952,7 +1000,7 @@ server.close();
 // 變小,「N/N PASS」看起來一模一樣漂亮。斷言數本身就是要被守住的東西,所以下面這張表是刻意手寫的:
 // 新增/刪除斷言時必須同步改它——改不動就代表有東西沒被跑到,那正是這道閘門要攔的。
 // (表不含這條閘門自己;它在把自己 push 進去之前先數,所以不會自我計數。)
-const EXPECTED_COUNTS = { G0: 9, G1: 11, G2: 43, G3: 6, G4: 3, G5: 24, G6: 15 };
+const EXPECTED_COUNTS = { G0: 9, G1: 11, G2: 43, G3: 6, G4: 3, G5: 24, G6: 15, G7: 6 };
 const actualCounts = {};
 // `\d+`(不是 `\d`):只吃一位數的話,日後加的 G10 會被歸進 G1 ⇒ G1 被灌水,而 G1 自己少跑幾條時
 // 反而不會紅——一道用來防假綠的閘門自己製造假綠。

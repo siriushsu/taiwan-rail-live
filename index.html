@@ -7168,9 +7168,17 @@ function plusConfig() { return window.RAIL_REVENUECAT_CONFIG || {}; }
 // 創始會員＝在創始價期間開始訂閱過的人。判定用訂閱起始時刻,不是當下時刻。
 // originalPurchaseDate 是這個 entitlement「第一次」被購買的日期,斷訂後再訂也不會變,
 // 故意不用會隨每次續訂/重新訂閱更新的 latestPurchaseDate。
-const FOUNDING_UNTIL_MS = Date.parse('2026-09-15T00:00:00+08:00'); // 創始會員徽章的資格截止時刻,發版前依實際開賣日校正
+// 創始價視窗＝「上線錨點時刻」起算固定 30 天(裁示 2026-08-03)。上線錨點由
+// revenuecat-config.js 的 foundingLaunchAt 提供,發版流程按下發版當下才決定填入——程式碼
+// 本身不留猜的日期,App 發版閘門(app/scripts/verify-release.mjs)會擋下未設定/無法解析/
+// 早於本次 build 日期的值,不讓猜的日期溜上線。
+// FOUNDING_LAUNCH_MS 解析失敗(未設定)時為 NaN,FOUNDING_UNTIL_MS 也隨之為 NaN——下面
+// foundingFrom() 對此有明確的安全預設(一律回傳 false),不會誤判成「沒設定＝人人都是創始會員」。
+const FOUNDING_LAUNCH_MS = Date.parse(plusConfig().foundingLaunchAt || '');
+const FOUNDING_UNTIL_MS = Number.isFinite(FOUNDING_LAUNCH_MS) ? FOUNDING_LAUNCH_MS + 30 * 86400000 : NaN;
 function foundingFrom(info) {
   try {
+    if (!Number.isFinite(FOUNDING_UNTIL_MS)) return false; // 上線錨點未設定/不可解析 ⇒ 安全預設:沒人是創始會員(見上方常數宣告的說明)
     const ent = info && info.entitlements && info.entitlements.active && info.entitlements.active[plusConfig().entitlement || 'plus'];
     const t = ent && (ent.originalPurchaseDate || ent.latestPurchaseDate);
     // Date.parse(t):原生(Capacitor)adapter 回傳 ISO8601 字串,沒問題。web billing adapter
