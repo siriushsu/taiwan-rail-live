@@ -72,6 +72,27 @@ const BASE = `http://localhost:${PORT}/`;
 const M_PRICE = 'NT$MONTH-STUB';  // stub「月訂」價(模擬商店回傳;index.html 不得硬編此值)
 const A_PRICE = 'NT$YEAR-STUB';   // stub「年訂」價
 
+// 最小 JS 註解剝除(逐字元掃描,分辨字串／樣板字面量 vs `//` 與 `/* */`,尊重跳脫字元)——
+// 與 verify_plus_features.mjs 的同名函式同一套邏輯,踩的是同一個坑:不剝註解,「原始碼裡有沒有
+// 呼叫某個函式」的字串比對可以被**註解**滿足。複審 MC3 實測:把 `plusOpen('toolbar')` 藏進
+// onclick 的註解裡、真正的呼叫換成 no-op,KS9a/KS9c 的 handlerSrc regex 照樣通過。
+function stripComments(code) {
+  let out = '', i = 0;
+  while (i < code.length) {
+    const c = code[i], c2 = code[i + 1];
+    if (c === '/' && c2 === '/') { while (i < code.length && code[i] !== '\n') i++; continue; }
+    if (c === '/' && c2 === '*') { i += 2; while (i < code.length && !(code[i] === '*' && code[i + 1] === '/')) i++; i += 2; continue; }
+    if (c === '"' || c === "'" || c === '`') {
+      const q = c; out += c; i++;
+      while (i < code.length && code[i] !== q) { if (code[i] === '\\') { out += code[i]; i++; if (i >= code.length) break; } out += code[i]; i++; }
+      if (i < code.length) { out += code[i]; i++; }
+      continue;
+    }
+    out += c; i++;
+  }
+  return out;
+}
+
 const results = [];
 const skips = [];
 const ok = (name, pass, detail = '') => { results.push({ name, pass, detail }); console.log(`${pass ? 'PASS' : 'FAIL'} ${name}${detail ? ' — ' + detail : ''}`); };
@@ -1202,7 +1223,10 @@ for (const w of [360, 375, 414, 768]) await mobilePlusEntry(w, { sel: IMPORT_SEL
       try { accountClose && accountClose(); } catch (e) {}
       await new Promise(r => setTimeout(r, 150));
       const btn = document.getElementById('accountBtn');
-      const handlerSrc = btn && btn.onclick ? `${btn.onclick.name || ''}|${String(btn.onclick).slice(0, 120)}` : null;
+      // 原始碼原封不動帶回 Node 端再剝註解(剝除器住在 Node 那邊,不重複注進頁面)。
+      // 取樣窗要寬到裝得下整個 handler:本專案最長的那顆(accountOpen)實測 265 字元,
+      // 窗口太窄會讓「不得出現 plusOpen」那半靠截斷而通過——那是最壞的假綠。
+      const handlerSrc = btn && btn.onclick ? `${btn.onclick.name || ''}|${String(btn.onclick).slice(0, 400)}` : null;
       if (btn) btn.click();
       await new Promise(r => setTimeout(r, 450));
       const pm = document.getElementById('plusModal'), am = document.getElementById('accountModal');
@@ -1282,9 +1306,12 @@ for (const w of [360, 375, 414, 768]) await mobilePlusEntry(w, { sel: IMPORT_SEL
     offInit.r.slot.btnVisible === true
     && notPlusCopy(offInit.r.slot.btnLabel) && notPlusCopy(offInit.r.slot.btnTitle),
     JSON.stringify(offInit.r.slot));
+  // handlerSrc 的字串比對一律先剝註解:不剝的話,把 plusOpen(...) 藏進註解就能滿足這條(複審 MC3 實證)。
+  // 這一半只是陪襯,有牙的是行為那一半(plusOpened/acctOpened),但陪襯也不該是可以被文字騙過的。
+  const handlerCode = s => stripComments(String(s || ''));
   ok('KS9a 同一條路的**行為證據**:真的按下那顆鈕會開出帳號面板,不是 Plus 面板、也不是靜默沒反應的死鈕',
     offInit.r.behave.acctOpened === true && offInit.r.behave.plusOpened === false
-    && !/plusOpen/.test(offInit.r.behave.handlerSrc || ''),
+    && !/plusOpen/.test(handlerCode(offInit.r.behave.handlerSrc)),
     JSON.stringify(offInit.r.behave));
   ok('KS9b 同一條路:「更多」抽屜打開後那一列也在,文案不是「軌島 Plus」那組',
     offInit.r.slot.sheetOpen === true && offInit.r.slot.rowVisible === true && notPlusCopy(offInit.r.slot.rowLabel),
@@ -1292,7 +1319,7 @@ for (const w of [360, 375, 414, 768]) await mobilePlusEntry(w, { sel: IMPORT_SEL
   // 行為證據的正向對照:同一支探針在旗標開啟態必須量到相反的結果(按下去開 Plus 面板)。
   // 沒有這條,KS9a 的「開的是帳號面板」有可能只是探針根本沒按到、或永遠回同一組值。
   ok('KS9c 正向對照:同一支行為探針在旗標開啟態量到相反結果(按下去開的是 Plus 面板)',
-    on.r.behave.plusOpened === true && /plusOpen/.test(on.r.behave.handlerSrc || ''),
+    on.r.behave.plusOpened === true && /plusOpen/.test(handlerCode(on.r.behave.handlerSrc)),
     JSON.stringify(on.r.behave));
   ok('KS 本輪零 pageerror/console.error', on.errs.length === 0 && off.errs.length === 0 && offInit.errs.length === 0,
     [...on.errs, ...off.errs, ...offInit.errs].slice(0, 3).join(' | '));

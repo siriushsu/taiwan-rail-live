@@ -13,7 +13,9 @@
 // 只掃「新增行」(diff 的 +):既有的違規另案處理,不讓存量把新增的淹沒;
 // 也避免把 origin/main 既有的設計說明(「Esri 額度止血用」這類無數字的機制描述)算進來。
 //
-// 用法:node scripts/verify_public_repo_hygiene.mjs [base]   base 預設 origin/main
+// 用法:node scripts/verify_public_repo_hygiene.mjs [base] [--allow-history-hits=<N>]
+//   base 預設 origin/main。base **只能放寬範圍不能縮小**:掃描範圍必須涵蓋 origin/main..HEAD 的
+//   全部,縮小會被下面那條「範圍涵蓋」斷言擋下並印出少掃了哪幾顆 commit。
 import { execFileSync } from 'node:child_process';
 
 const ARGV = process.argv.slice(2);
@@ -26,6 +28,17 @@ if (badFlags.length) {
   process.exit(2);
 }
 const BASE = ARGV.find(a => !a.startsWith('-')) || 'origin/main';
+// 🔴 範圍錨點(2026-08-03 修復輪 4 補):掃描範圍必須涵蓋 `origin/main..HEAD` 的**全部**,
+// 而「全部」由這個**外部基準**算出,不吃呼叫者給的 BASE。
+// 為什麼非要外部基準不可:此前六條自檢的「期望」與「實看」**都從同一個 BASE 算**——
+// 範圍一縮,量尺跟著縮,覆蓋自檢結構上不可能發現。複審零編輯、零旗標實測:
+// `node scripts/verify_public_repo_hygiene.mjs <某顆中間 commit>` ⇒ ALL PASS exit 0,
+// 21 筆真命中一筆不剩。而那顆正是「修好洩漏」的 commit,「從修好的那一顆開始掃」
+// 是最自然的人類動作,它換來的卻是一張全綠。
+// BASE 保留給診斷用(想單看某一段時很方便),但**縮小範圍必須紅**,不是靜默放行。
+// 取不到 origin/main(離線／沒有 remote)同樣算紅:錨點不存在時,「涵蓋了」這句話沒有意義,
+// 而「取不到 ≠ 掃過了」正是這支腳本反覆踩到的同一個形態。
+const ANCHOR = 'origin/main';
 // 🔴 具名容忍(不是靜默上限):歷史命中要求的動作是「push 前 squash 或改寫那幾顆 commit」,
 // 那是合併時才做得到的事,所以允許在合併之前明示放行——但必須是**呼叫者打出來的一個決定**,
 // 而且要印出容忍了什麼、幾筆。此前這一整類完全不影響 exit code ⇒ 只看 exit code 的自動化
@@ -111,12 +124,15 @@ ok(missing.length === 0 && RULES.length === CONTROLS.length,
 function scanDiffText(text) {
   let commit = '', file = '', addedLines = 0, allowed = 0, lastOld = '';
   const found = [];
+  // commits = 這支解析器**實際走過**的 commit 集合。與 files 同樣的用途:讓「掃描範圍」
+  // 這件事有一個從受測物本身讀出來的量,可以拿去跟外部錨點(ANCHOR)比對。
+  const commits = new Set();
   // files = 這支解析器**實際看進去內容**的檔案集合。只認 `+++ b/` 這個「後面跟著可掃描的行」
   // 的表頭:被 .gitattributes 標成 -diff 的檔只會吐 `Binary files … differ`,沒有 `+++`,
   // 正好落在集合外——那就是它該被抓到的方式。純刪除檔(`+++ /dev/null`)沒有新增行可掃,算看過。
   const files = new Set();
   for (const line of text.split('\n')) {
-    if (line.startsWith('commit ')) { commit = line.slice(7, 14); continue; }
+    if (line.startsWith('commit ')) { commit = line.slice(7, 14); commits.add(line.slice(7).trim()); continue; }
     if (line.startsWith('--- a/')) { lastOld = line.slice(6); continue; }
     if (line.startsWith('+++ /dev/null')) { if (lastOld) files.add(lastOld); continue; }
     if (line.startsWith('+++ b/')) { file = line.slice(6); files.add(file); continue; }
@@ -128,7 +144,7 @@ function scanDiffText(text) {
     if (t.includes(ALLOW)) { allowed++; continue; }
     for (const r of RULES) if (r.re.test(t)) found.push({ commit, file, rule: r.name, text: t.trim().slice(0, 160) });
   }
-  return { found, addedLines, allowed, files };
+  return { found, addedLines, allowed, files, commits };
 }
 // commit message 是第三個資料面,不帶 `+` 前綴 ⇒ 走另一條解析路徑,所以它也要有自己的自檢。
 function scanMessageText(msg) {
@@ -202,6 +218,14 @@ try {
   process.exit(1);
 }
 
+// 範圍錨點的兩個量:規範基準的合併點(給主掃描的覆蓋自檢用)與規範基準以來的 commit 清單
+// (給下面那條「範圍涵蓋」斷言用)。這兩個都**不經過 BASE**,才打得斷「量尺跟著範圍一起縮」。
+let ANCHOR_MERGE_BASE = '', anchorCommits = [], anchorErr = '';
+try {
+  ANCHOR_MERGE_BASE = execFileSync('git', ['merge-base', ANCHOR, 'HEAD'], { encoding: 'utf8' }).trim();
+  anchorCommits = execFileSync('git', ['rev-list', `${ANCHOR}..HEAD`], { encoding: 'utf8' }).trim().split('\n').filter(Boolean);
+} catch (e) { anchorErr = String(e).replace(/\s+/g, ' ').slice(0, 140); }
+
 const { found: hits, addedLines, allowed, files: mainFilesSeen } = scanDiffText(diff);
 
 // 掃描器本身也要證明有在掃:新增行為 0 表示 base 選錯或分支是空的,
@@ -218,12 +242,17 @@ ok(allowed === CONTROLS.length, `豁免行數量符合對照樣本數 — 豁免
 
 // 覆蓋自檢(主掃描):同樣的三種形態也會讓主掃描無聲漏檔——.gitattributes 是全域設定,
 // 不會只影響歷史那一半。只補歷史、不補主掃描,等於把同一個洞留了一半。
+// 期望集合從**錨點**的合併點算(不是 BASE 的):BASE 預設就是 ANCHOR ⇒ 兩者同值、行為不變;
+// BASE 被縮小時 expected 不跟著縮,少掃的檔就會具名印出來。
 {
   let gap = [], expected = new Set();
-  try { expected = filesChangedNameOnly([MERGE_BASE]); gap = coverageGap(mainFilesSeen, expected); }
-  catch (e) { gap = ['(取不到期望檔案集合:' + String(e).slice(0, 80) + ')']; }
+  if (anchorErr) gap = [`(取不到範圍錨點 ${ANCHOR}:${anchorErr})`];
+  else {
+    try { expected = filesChangedNameOnly([ANCHOR_MERGE_BASE]); gap = coverageGap(mainFilesSeen, expected); }
+    catch (e) { gap = ['(取不到期望檔案集合:' + String(e).slice(0, 80) + ')']; }
+  }
   ok(gap.length === 0,
-    `主掃描看進去的檔案集合涵蓋範圍內動過的所有文字檔 — 期望 ${expected.size} 檔 / 實看 ${mainFilesSeen.size} 檔` +
+    `主掃描看進去的檔案集合涵蓋錨點(${ANCHOR})以來動過的所有文字檔 — 期望 ${expected.size} 檔 / 實看 ${mainFilesSeen.size} 檔` +
     (gap.length ? ` / 🔴 沒被掃到:${gap.slice(0, 8).join('、')}${gap.length > 8 ? ` …共 ${gap.length} 檔` : ''}` : ''));
 }
 
@@ -241,6 +270,7 @@ console.log('\n── 歷史掃描:中間 commit(push 前必須處理) ──');
 let histHits = [];
 let histCommits = 0;
 let histFilesSeen = new Set();
+let histCommitsSeen = new Set();
 // 🔴 取不到資料 ≠ 掃過了、乾淨。這兩件事此前在下面那條斷言眼裡完全一樣:catch 只印一行
 // console.log,而唯一的消費者是自動化(這一段本來就是為了計入 exit code 才存在的),
 // console.log 對它不存在。實測的真實失效模式:大 repo 讓 `git log -p` 撐爆 maxBuffer(ENOBUFS)
@@ -250,11 +280,16 @@ let histFilesSeen = new Set();
 const histScanErrs = [];
 try {
   // --diff-merges=remerge:merge commit 預設**完全不出 diff** ⇒ 只活在衝突解法裡的行結構上掃不到,
-  // 而衝突落點通常正是更新紀錄與版本字串——洩漏字串會住的地方。這是覆蓋自檢的**配套不是替代**:
-  // 拿掉它,下面那條覆蓋自檢就會把漏掉的檔名印出來。
+  // 而衝突落點通常正是更新紀錄與版本字串——洩漏字串會住的地方。
+  // ⚠️ 這一項**沒有安全網**(此處原本寫成「拿掉它,下面那條覆蓋自檢就會把漏掉的檔名印出來」,寫反了):
+  //    覆蓋自檢比對的是**檔案集合**,只有在「merge 動到的檔沒被範圍內任何其他 commit 動過」時才照得到;
+  //    而衝突落點恰恰是每顆 commit 都在動的那幾個檔(更新紀錄、版本字串、index.html)
+  //    ⇒ 拿掉 remerge,那個檔仍然在 seen 裡、gap 仍然是空的、覆蓋自檢照樣全綠。
+  //    下一個人讀的是這裡不是報告,所以這句話必須跟事實一致:remerge 是這條路上唯一的東西,
+  //    刪掉它不會有人接住。
   const log = execFileSync('git', ['log', '-p', '-U0', '--diff-merges=remerge', `${BASE}..HEAD`], { encoding: 'utf8', maxBuffer: 128 * 1024 * 1024 });
   const hr = scanDiffText(log); // 與主掃描同一支解析器 ⇒ 不可能只有這一半被改壞而無聲
-  histHits = hr.found; histFilesSeen = hr.files;
+  histHits = hr.found; histFilesSeen = hr.files; histCommitsSeen = hr.commits;
 } catch (e) { histScanErrs.push(`git log -p:${String(e).slice(0, 120)}`); }
 
 // 🔴 第三個資料面:commit message 本體。
@@ -279,6 +314,21 @@ for (const c of histCommitList) {
 // 歷史掃描器本身也要證明有在掃(比照主掃描的 addedLines>0):base..HEAD 是空的時候,
 // 「零歷史命中」跟主掃描的「零新增行命中」一樣沒有意義——那是量測器沒在量,不是乾淨。
 ok(histCommits > 0, `歷史掃描器有讀到 commit(base=${BASE}) — ${histCommits} 顆`);
+// 🔴 範圍涵蓋斷言:`ANCHOR..HEAD` 的每一顆 commit 都必須出現在**實際掃過**的 commit 集合裡。
+// 期望來自外部錨點(`git rev-list origin/main..HEAD`)、實看來自受測物自己(`git log -p` 輸出裡
+// 解析到的 `commit ` 表頭)⇒ 兩邊不同源,範圍被縮小時這條會紅並具名印出少了哪幾顆。
+// 上面那兩條都答不了這個問題:`histCommits > 0` 只問「有沒有讀到東西」,覆蓋自檢問的是「檔案」
+// 而它的期望集合此前也吃同一個 BASE ⇒ 範圍縮小時三條一起印綠。
+// 錨點取不到時一律紅:不是「跳過」,取不到 ≠ 涵蓋了。
+{
+  const missing = anchorCommits.filter(c => !histCommitsSeen.has(c));
+  ok(!anchorErr && missing.length === 0,
+    `掃描範圍涵蓋 ${ANCHOR}..HEAD 的每一顆 commit(BASE 只能放寬範圍,不能縮小) — ` +
+    `錨點 ${anchorCommits.length} 顆 / 實掃 ${histCommitsSeen.size} 顆` +
+    (anchorErr ? ` / 🔴 取不到錨點 ${ANCHOR}:${anchorErr}` : '') +
+    (missing.length ? ` / 🔴 base=${BASE} 把範圍縮小了,少掃 ${missing.length} 顆:` +
+      `${missing.slice(0, 8).map(c => c.slice(0, 7)).join(' ')}${missing.length > 8 ? ' …' : ''}` : ''));
+}
 // 注意這條與上面那條不同層:上面數的是 commit 顆數(走 `git log --format=%H`),
 // 這條問的是「三支 git 呼叫有沒有哪一支根本沒回資料」。ENOBUFS 那個失效模式只會踩到這一條。
 ok(histScanErrs.length === 0,
@@ -286,12 +336,16 @@ ok(histScanErrs.length === 0,
 // 🔴 上面那條只答「有沒有丟例外」。三支呼叫**成功但回傳不完整**時它是空的、而 21 筆真命中
 // 會無聲蒸發(實測:只加一個 `docs/** -diff` 的 .gitattributes、腳本一行不動,6 筆就沒了)。
 // 這一條答的是「該看的檔案都看到了嗎」,才是那三種形態的共同顯形。
+// 期望集合同樣改吃錨點(理由見主掃描那一條):BASE 預設＝ANCHOR 時完全等值,行為不變。
 {
   let gap = [], expected = new Set();
-  try { expected = filesChangedNameOnly([`${BASE}...HEAD`]); gap = coverageGap(histFilesSeen, expected); }
-  catch (e) { gap = ['(取不到期望檔案集合:' + String(e).slice(0, 80) + ')']; }
+  if (anchorErr) gap = [`(取不到範圍錨點 ${ANCHOR}:${anchorErr})`];
+  else {
+    try { expected = filesChangedNameOnly([`${ANCHOR}...HEAD`]); gap = coverageGap(histFilesSeen, expected); }
+    catch (e) { gap = ['(取不到期望檔案集合:' + String(e).slice(0, 80) + ')']; }
+  }
   ok(gap.length === 0,
-    `歷史掃描看進去的檔案集合涵蓋範圍內動過的所有文字檔 — 期望 ${expected.size} 檔 / 實看 ${histFilesSeen.size} 檔` +
+    `歷史掃描看進去的檔案集合涵蓋錨點(${ANCHOR})以來動過的所有文字檔 — 期望 ${expected.size} 檔 / 實看 ${histFilesSeen.size} 檔` +
     (gap.length ? ` / 🔴 沒被掃到:${gap.slice(0, 8).join('、')}${gap.length > 8 ? ` …共 ${gap.length} 檔` : ''}` : ''));
 }
 
