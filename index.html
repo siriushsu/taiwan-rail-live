@@ -7283,8 +7283,9 @@ function accountBtnSlot(mode) {
     row.style.display = '';
   }
 }
-// 這台裝置上有沒有帳號足跡:登入過就會留下 last-sync-uid。setupAccountUi 的 returning 與槽位身分
-// 共用這一支,免得兩處各判一次而漂移。
+// 這台裝置上有沒有帳號足跡:登入過就會留下 ACCOUNT_UID_KEY(2026-08-04 複審 Important 1 前是
+// last-sync-uid,見下方函式內註解)。setupAccountUi 的 returning 與槽位身分共用這一支,免得
+// 兩處各判一次而漂移。
 function accountReturning() {
   // 2026-08-04 複審 Important 1:原本讀 trainmap-last-sync-uid(只在同步成功時才寫)——非訂閱者
   // 的同步恆被 plusIsActive() 閘門擋下,這把 key 永遠不存在,setupAccountUi() 因此永遠不會為
