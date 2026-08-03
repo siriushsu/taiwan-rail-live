@@ -3340,13 +3340,13 @@
       <ul class="foot-list foot-recent">
         <li class="grp">最近更新</li>
         <li data-cl-of="takeout-preview"><span class="d">8/3</span><span>Google 清單超過預覽上限時，沒顯示的地點不會再自動跟著匯入；想全部匯入可以明確勾選其餘筆數</span></li>
+        <li data-cl-of="favtrainkey"><span class="d">8/3</span><span>台鐵與高鐵剛好同車次時，現在可以一起收藏；移除其中一班也不會再把另一班一併刪掉</span></li>
         <li data-cl-of="sync"><span class="d">8/2</span><span>訂閱軌島 Plus 後可以用軌島帳號登入，收藏的地點與完乘記錄會在手機和電腦之間同步</span></li>
         <li data-cl-of="tripshare"><span class="d">8/2</span><span>訂閱 Plus 後可以把正在跟的班次分享給朋友，對方點開連結就看得到車跑到哪、還要多久到</span></li>
         <li data-cl-of="satretina"><span class="d">8/2</span><span>在 App 裡訂閱 Plus 後，衛星底圖會用高解析度圖磚（支援 Retina 螢幕）</span></li>
         <li data-cl-of="founding"><span class="d">8/2</span><span>最早訂閱 Plus 的人，App 的旅程護照上會有一枚創始會員徽章</span></li>
         <li data-cl-of="liveactivity"><span class="d">8/2</span><span>訂閱 Plus 後在 App 裡跟車，鎖定畫面和動態島會顯示下一站與到站時間</span></li>
         <li data-cl-of="takeout"><span class="d">8/2</span><span>訂閱 Plus 後可以在 App 裡把 Google Maps 的「已儲存」清單匯入成軌島的最愛地點</span></li>
-        <li data-cl-of="sanying"><span class="d">8/1</span><span>三鶯線跟上官方 8/1 延長：每天 08:00–22:00 都看得到車（原 10:00–20:00）</span></li>
       </ul>
       <!-- 第二層:完整歷史。刻意不掛 .foot-box 類名——placeFootBoxes() 用
            `.site-foot .foot-box` 搬移面板,巢狀同名會被當成另一個盒子一起搬走。 -->
@@ -3399,6 +3399,7 @@
         <li><span class="d">7/13</span><span>新增「附近火車」：地圖上落一根釘，查周邊 60 分鐘內會通過的車次</span></li>
         <li><span class="d">7/12</span><span>新增平交道功能：點一下查接下來會通過的列車（7/13 補上貨運線 21 處）</span></li>
         <li class="grp">收藏、護照與成就</li>
+        <li data-cl="favtrainkey"><span class="d">8/3</span><span>台鐵與高鐵有些車次號碼相同，過去收藏其中一班會蓋掉另一班，移除時也會兩班一起消失；現在最愛列車會連同鐵路系統分開辨認，同號車可以各自收藏與移除</span></li>
         <li data-cl="founding"><span class="d">8/2</span><span>在創始期間訂閱 Plus 的人，App 的旅程護照最上方會多一枚「創始會員」徽章，之後才訂閱的不會有；徽章跟著訂閱資格走，退訂或登出就一起收起來</span></li>
         <li><span class="d">7/30</span><span>搜尋一班今天已經跑完（或還沒發車）的車，時鐘會確實停在它發車前，不再過一秒就彈回現在——那正是原本會莫名跳出「完乘達成」的原因（謝謝網友回報）</span></li>
         <li><span class="d">7/29</span><span>收集章改成依名字長短自動配版：長名會縮小字級、必要時多折一行，「EMU3000 新自強號」「區間車（通勤電聯車）」這些再也不會被圓框切掉</span></li>
@@ -6462,7 +6463,9 @@ function userDataCleanValue(kind, value) {
 }
 function userDataItemId(kind, v) {
   if (kind === 'pins') return Number(v.lat).toFixed(6) + ',' + Number(v.lon).toFixed(6);
-  if (kind === 'favs') return String(v.train);
+  // 舊最愛沒有 sys；比照本檔 rides 的逐字既有慣例「v.sys = String(v.sys || 'tra_sched')」，
+  // 一律視為台鐵 tra_sched，既有收藏才有穩定歸屬。
+  if (kind === 'favs') return String(v.sys || 'tra_sched') + '|' + String(v.train);
   if (kind === 'stations') return String(v.sys) + '|' + String(v.name); // 同站從分頁或同框收藏都算同一筆(捷運 sys 一律 'metro')
   // checkins/segments:value 裡的 k 就是本機儲存鍵(站名或路段鍵),直接拿來當 id——
   // 沒有這條分支,兩個 kind 都會落到下面的 rides fallback,v.train/v.date 恆為 undefined,
@@ -6470,6 +6473,31 @@ function userDataItemId(kind, v) {
   // 不採用呼叫端自己帶的 item.id)。
   if (kind === 'checkins' || kind === 'segments') return String(v.k);
   return String(v.sys || 'tra_sched') + '|' + String(v.train) + '|' + String(v.date);
+}
+// 最愛列車 id 從「車次」升級為「系統|車次」。items 可由 value.sys 重算；舊 tombstone
+// 只剩車次、已無法反推原系統，故同樣依本檔 rides 的逐字慣例
+//「v.sys = String(v.sys || 'tra_sched')」歸到 tra_sched。保留原 updatedAt /
+// deletedAt，不讓一次格式遷移被同步誤判成較新的新增或刪除。回傳 changed 供本機只寫回一次。
+function userDataMigrateFavCollection(src) {
+  const collection = src && typeof src === 'object' ? userDataJsonClone(src) : { items: [], tombstones: [] };
+  if (!Array.isArray(collection.items)) collection.items = [];
+  if (!Array.isArray(collection.tombstones)) collection.tombstones = [];
+  let changed = false;
+  for (const rec of collection.items) {
+    if (!rec || !rec.value || typeof rec.value !== 'object') continue;
+    const train = String(rec.value.train == null ? '' : rec.value.train).trim();
+    if (!train) continue;
+    const sys = String(rec.value.sys || 'tra_sched');
+    if (rec.value.sys !== sys) { rec.value.sys = sys; changed = true; }
+    const id = sys + '|' + train;
+    if (rec.id !== id) { rec.id = id; changed = true; }
+  }
+  for (const rec of collection.tombstones) {
+    if (!rec || typeof rec.id !== 'string' || rec.id.includes('|')) continue;
+    rec.id = 'tra_sched|' + rec.id;
+    changed = true;
+  }
+  return { collection, changed };
 }
 function userDataNormalizeCollection(kind, src) {
   const byId = new Map(), deleted = new Map();
@@ -6503,7 +6531,10 @@ function userDataNormalizeEnvelope(src) {
   out.deviceId = typeof src.deviceId === 'string' ? src.deviceId : out.deviceId;
   out.revision = Math.max(0, Number(src.revision) || 0);
   out.updatedAt = Number(src.updatedAt) || 0;
-  USER_DATA_COLLECTIONS.forEach(k => { out.collections[k] = userDataNormalizeCollection(k, src.collections[k]); });
+  USER_DATA_COLLECTIONS.forEach(k => {
+    const col = k === 'favs' ? userDataMigrateFavCollection(src.collections[k]).collection : src.collections[k];
+    out.collections[k] = userDataNormalizeCollection(k, col);
+  });
   return out;
 }
 function userDataMigrateLegacy() {
@@ -6516,6 +6547,7 @@ function userDataMigrateLegacy() {
       seen.add(id); out.collections[kind].items.push({ id, value, updatedAt: at });
     }
   });
+  out.collections.favs = userDataMigrateFavCollection(out.collections.favs).collection;
   out.revision = 1; out.updatedAt = at;
   try { localStorage.setItem(USER_DATA_KEY, JSON.stringify(out)); } catch (e) {}
   return out;
@@ -6523,7 +6555,22 @@ function userDataMigrateLegacy() {
 function userDataRead() {
   try {
     const raw = localStorage.getItem(USER_DATA_KEY);
-    if (raw) { const out = userDataNormalizeEnvelope(JSON.parse(raw)); if (out) return out; }
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      const favMigration = userDataMigrateFavCollection(parsed && parsed.collections && parsed.collections.favs);
+      const out = userDataNormalizeEnvelope(parsed);
+      if (out) {
+        if (favMigration.changed) {
+          // 不增 revision／不改時間戳：這只是同一筆資料換 canonical key，不是一次使用者編輯。
+          // 寫回失敗不影響本次已讀出的 out；不能因此掉到下方 legacy migration，反而拿舊陣列蓋資料。
+          try {
+            localStorage.setItem(USER_DATA_KEY, JSON.stringify(out));
+            localStorage.setItem(USER_DATA_LEGACY.favs, JSON.stringify(out.collections.favs.items.map(x => x.value)));
+          } catch (e) {}
+        }
+        return out;
+      }
+    }
   } catch (e) {}
   return userDataMigrateLegacy();
 }
@@ -9643,11 +9690,14 @@ function renderTrainCard(tr) {
 // ── 最愛列車(localStorage) ──
 function loadFavs() { return userDataLoadCollection('favs'); }
 function saveFavs(f) { userDataSaveCollection('favs', f); }
-function isFav(no) { return loadFavs().some(f => f.train === String(no)); }
+function favTrainSys(f) { return String(f && f.sys || 'tra_sched'); }
+function favTrainKey(no, sys) { return userDataItemId('favs', { train: String(no), sys }); }
+function favItemKey(f) { return favTrainKey(f.train, favTrainSys(f)); }
+function isFav(no, sys) { const key = favTrainKey(no, sys); return loadFavs().some(f => favItemKey(f) === key); }
 function updateStar() {
   const b = document.getElementById('tcStar'), tr = state.followTrain;
   if (!tr) return;
-  const on = isFav(tr.train);
+  const on = isFav(tr.train, tr.sys);
   b.innerHTML = railIcon('ui-favorite', on ? 'ri-icon--fill' : '');
   b.classList.toggle('on', on);
   b.title = on ? '移除最愛' : '加入最愛';
@@ -9655,13 +9705,14 @@ function updateStar() {
 function toggleFav(tr) {
   if (!tr) return;
   const no = String(tr.train);
+  const key = favTrainKey(no, tr.sys);
   let favs = loadFavs();
-  if (favs.some(f => f.train === no)) favs = favs.filter(f => f.train !== no);
+  if (favs.some(f => favItemKey(f) === key)) favs = favs.filter(f => favItemKey(f) !== key);
   else {
     const spd = specialOf(tr);
     const sp = (spd && spd.named) || SPECIAL_TRAINS[no];
     const stops = tr.stops;
-    // sys 一起存(issue #16 重號):舊紀錄沒這欄→undefined→退回舊的「誰先找到算誰」,向下相容。
+    // sys 一起存(issue #16 重號)；舊紀錄沒這欄時由 favTrainSys 依資料遷移慣例視為 tra_sched。
     // favs 的 userDataCleanValue 是就地正規化 train/label,不像 pins/stations 會重建物件,所以額外欄位存得住。
     favs.push({ train: no, sys: tr.sys, label: `${sp ? sp.name : tr.typeName}　${stops[0].name}→${stops[stops.length - 1].name}` });
   }
@@ -9756,8 +9807,9 @@ function followTrainNo(no, opts) {
     laSync(tr, true); // 跟車即時動態:成功跟上就立刻推一次,不等 updateFollowPanel 的節流
   } else showSearchMiss(no + '（今日無此班次）');
 }
-function removeFav(no) {
-  saveFavs(loadFavs().filter(x => x.train !== no));
+function removeFav(no, sys) {
+  const key = favTrainKey(no, sys);
+  saveFavs(loadFavs().filter(x => favItemKey(x) !== key));
   renderFavs(); renderFavPanel();
   if (state.followTrain) updateStar();
 }
@@ -9858,8 +9910,8 @@ function renderFavs() {
     el.className = 'favchip';
     el.innerHTML = `<b>${escHtml(f.train)}</b><span>${escHtml(f.label)}</span><span class="rm" title="移除">×</span>`;
     el.onclick = e => {
-      if (e.target.classList.contains('rm')) { removeFav(f.train); return; }
-      followTrainNo(f.train, { sys: f.sys });
+      if (e.target.classList.contains('rm')) { removeFav(f.train, favTrainSys(f)); return; }
+      followTrainNo(f.train, { sys: favTrainSys(f) });
     };
     box.appendChild(el);
   });
@@ -9880,10 +9932,11 @@ function renderFavPanel() {
     (favs.length
       ? (stns.length ? `<div class="sec">列車</div>` : '') + favs.map(f => {
           const no = escHtml(f.train);
-          return `<div class="row fv" data-no="${no}" data-sys="${escHtml(f.sys || '')}"><span class="dot" style="background:#d2a12a"></span>` +
+          const sys = favTrainSys(f), reminderSys = sys === 'thsr_sched' ? 'thsr' : (sys === 'tra_sched' ? 'tra' : '');
+          return `<div class="row fv" data-no="${no}" data-sys="${escHtml(sys)}"><span class="dot" style="background:#d2a12a"></span>` +
             `<b>${no}</b><span class="dest">${escHtml(f.label)}</span>` +
-            (NOTIFY_LOCAL_ENABLED && findLocalReminderTrain(f.train) ? `<button class="fv-notify" type="button" data-notify-no="${no}" aria-label="管理到站提醒">${railIcon('ui-notify')}</button>` : '') +
-            `<span class="rm" data-no="${no}" title="移除">×</span></div>`;
+            (NOTIFY_LOCAL_ENABLED && findLocalReminderTrain(f.train, reminderSys) ? `<button class="fv-notify" type="button" data-notify-no="${no}" data-notify-sys="${reminderSys}" aria-label="管理到站提醒">${railIcon('ui-notify')}</button>` : '') +
+            `<span class="rm" data-no="${no}" data-sys="${escHtml(sys)}" title="移除">×</span></div>`;
         }).join('')
       : '') +
     (pins.length
@@ -16966,9 +17019,9 @@ document.getElementById('todayBtn').onclick = () => {
 };
 document.getElementById('favPanel').onclick = e => {
   const nb = e.target.closest('.fv-notify');
-  if (nb) { e.stopPropagation(); openLocalReminderSheet(findLocalReminderTrain(nb.dataset.notifyNo), 'favorite'); return; }
+  if (nb) { e.stopPropagation(); openLocalReminderSheet(findLocalReminderTrain(nb.dataset.notifyNo, nb.dataset.notifySys), 'favorite'); return; }
   const rm = e.target.closest('.rm');
-  if (rm) { rm.dataset.pin ? removePinByKey(rm.dataset.pin) : (rm.dataset.stkey ? removeFavStation(rm.dataset.stkey) : removeFav(rm.dataset.no)); return; }
+  if (rm) { rm.dataset.pin ? removePinByKey(rm.dataset.pin) : (rm.dataset.stkey ? removeFavStation(rm.dataset.stkey) : removeFav(rm.dataset.no, rm.dataset.sys)); return; }
   const db = e.target.closest('.fv-default');
   if (db) { e.stopPropagation(); toggleDefaultPlace(db.dataset.defpin); return; } // 設為/取消預設啟動地點(不觸發整列的「飛過去」)
   const pr = e.target.closest('.row.fvpin');
