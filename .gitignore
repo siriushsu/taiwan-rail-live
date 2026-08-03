@@ -83,6 +83,11 @@ scratchpad/
 # 這個 repo 是 public。此前唯一在擋的是 .superpowers/sdd/.gitignore 這個「未追蹤」的檔——
 # 從乾淨 worktree 出貨時它自己不會被帶上，等於沒防線；故改由這條追蹤中的規則負責。
 /.superpowers/
+# 同一個理由、另一個路徑：施工計畫書寫在 docs/ 底下，上面那條是根錨定的擋不到。
+# 2026-08-03 獨立稽核抓到 plus-launch 計畫書（2314 行）已被追蹤且會隨 squash 上公開 GitHub——
+# 裡面有逐顆點名的歷史洩漏索引與未公開商業決策。verify_public_repo_hygiene 的 pattern
+# 全都綁著數字或金額符號，對「純敘述的整份內部文件」結構上永遠隱形，只能靠這條規則擋。
+docs/superpowers/plans/
 
 # 小工具地點看板索引：`npm run build` 的現場產物（app/scripts/build_place_index.mjs，約 9MB）。
 # 只有 App bundle 需要它，網站不讀。repo 是 public，一次 git add -A 就會永久留在公開歷史。
