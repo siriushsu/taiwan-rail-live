@@ -80,6 +80,12 @@ function merge(local, favsDoc) {
 }
 const fav = (label, updatedAt) => ({ id: 'same-train', value: { train: 'same-train', label }, updatedAt });
 const del = deletedAt => ({ id: 'same-train', deletedAt });
+// 最愛的唯一鍵是「系統別|車次」(P2-2 起,缺 sys 者一律歸 tra_sched),所以上面兩個舊格式 fixture
+// 在 normalize 之後會落成 tra_sched|same-train:item 由 userDataItemId 依 value 重算,
+// tombstone 由 userDataMigrateFavCollection 就地補前綴。這裡刻意寫死字面值而不呼叫
+// userDataItemId ——判準要獨立聲明鍵格式,跟實作共用推導式的話,鍵算錯時兩邊會一起錯而全綠。
+// 本檔驗的是時間戳裁決,不是鍵格式;鍵只是查得到那一筆的手段。
+const FAV_ID = 'tra_sched|same-train';
 
 let pass = 0, fail = 0;
 function check(name, ok, detail) {
@@ -91,7 +97,7 @@ function check(name, ok, detail) {
 {
   const col = merge(localEnvelope({ item: fav('B 較新', LATER_ONE_MINUTE) }),
     cloudDoc({ item: fav('A 快鐘舊值', FAST_THREE_DAYS), clientAt: FAST_THREE_DAYS }));
-  const got = col.items.find(x => x.id === 'same-train');
+  const got = col.items.find(x => x.id === FAV_ID);
   check('C1 快 3 天的 item 不會壓過他機稍後的合法編輯', got?.value.label === 'B 較新', JSON.stringify(got));
 }
 
@@ -99,7 +105,7 @@ function check(name, ok, detail) {
 {
   const col = merge(localEnvelope({ item: fav('B 較早', LATER_ONE_MINUTE) }),
     cloudDoc({ item: fav('A 小偏移', SMALL_THREE_MINUTES), clientAt: SMALL_THREE_MINUTES }));
-  const got = col.items.find(x => x.id === 'same-train');
+  const got = col.items.find(x => x.id === FAV_ID);
   check('C2 小偏移 item 仍依原時間生效且不被誤夾',
     got?.value.label === 'A 小偏移' && got.updatedAt === SMALL_THREE_MINUTES, JSON.stringify(got));
 }
@@ -108,7 +114,7 @@ function check(name, ok, detail) {
 {
   const col = merge(localEnvelope({ item: fav('B 離線較早', OFFLINE_OLDER) }),
     cloudDoc({ item: fav('A 離線較新', OFFLINE_SMALL_SKEW), clientAt: SMALL_THREE_MINUTES }));
-  const got = col.items.find(x => x.id === 'same-train');
+  const got = col.items.find(x => x.id === FAV_ID);
   check('C3 小偏移的離線 item 上線後仍生效且保留原時間',
     got?.value.label === 'A 離線較新' && got.updatedAt === OFFLINE_SMALL_SKEW, JSON.stringify(got));
 }
@@ -117,7 +123,7 @@ function check(name, ok, detail) {
 {
   const col = merge(localEnvelope({ item: fav('B 稍後重建', LATER_ONE_MINUTE) }),
     cloudDoc({ tombstone: del(FAST_THREE_DAYS), clientAt: FAST_THREE_DAYS }));
-  const got = col.items.find(x => x.id === 'same-train');
+  const got = col.items.find(x => x.id === FAV_ID);
   check('C4 快 3 天的 tombstone 不會壓過他機稍後的合法重建', got?.value.label === 'B 稍後重建', JSON.stringify(col));
 }
 
@@ -125,18 +131,18 @@ function check(name, ok, detail) {
 {
   const col = merge(localEnvelope({ item: fav('B 較早', LATER_ONE_MINUTE) }),
     cloudDoc({ tombstone: del(SMALL_THREE_MINUTES), clientAt: SMALL_THREE_MINUTES }));
-  const tomb = col.tombstones.find(x => x.id === 'same-train');
+  const tomb = col.tombstones.find(x => x.id === FAV_ID);
   check('C5 小偏移 tombstone 仍依原時間生效且不被誤夾',
-    !col.items.some(x => x.id === 'same-train') && tomb?.deletedAt === SMALL_THREE_MINUTES, JSON.stringify(col));
+    !col.items.some(x => x.id === FAV_ID) && tomb?.deletedAt === SMALL_THREE_MINUTES, JSON.stringify(col));
 }
 
 // 6. 離線 12 小時前的刪除在上線後仍保留原時間，並刪掉同時段較早的項目。
 {
   const col = merge(localEnvelope({ item: fav('B 離線較早', OFFLINE_OLDER) }),
     cloudDoc({ tombstone: del(OFFLINE_SMALL_SKEW), clientAt: SMALL_THREE_MINUTES }));
-  const tomb = col.tombstones.find(x => x.id === 'same-train');
+  const tomb = col.tombstones.find(x => x.id === FAV_ID);
   check('C6 小偏移的離線 tombstone 上線後仍生效且保留原時間',
-    !col.items.some(x => x.id === 'same-train') && tomb?.deletedAt === OFFLINE_SMALL_SKEW, JSON.stringify(col));
+    !col.items.some(x => x.id === FAV_ID) && tomb?.deletedAt === OFFLINE_SMALL_SKEW, JSON.stringify(col));
 }
 
 // 7. envelope 的同步錨點要取 Firestore serverTimestamp，不再優先採信快 3 天的 client 值。
