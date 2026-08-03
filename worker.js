@@ -516,6 +516,18 @@ async function rateLimited(limiter, request, failClosed) {
 // 絕不可拿同一個常數去比對兩邊——之後接 webhook 時要另外定義自己的大寫常數。
 const RC_ENV_PRODUCTION = 'production';
 
+// /subscriptions 分頁參數。🔴 2026-08-03 複審 I-1(b)修正:官方規格 limit 預設只有 20(低於 1 或
+// 高於 100 會被 clamp,不是拒絕),且這支端點的 parameters 裡沒有 sort、規格也沒有任何「較新
+// 排前面」的排序保證——不能假設第一頁就包含使用者現在生效的那筆訂閱。一個訂閱紀錄超過一頁
+// 的老客戶,若現行有效的那筆剛好不在第一頁,原本「只讀第一頁」的寫法會把他判定為無資格。
+// RC_SUBS_LIMIT 直接拿規格允許的上限(一次拿最多,減少來回次數)。RC_SUBS_MAX_PAGES 是防禦性
+// 上限,不是預期會被真實客戶觸發的門檻——軌島 Plus 是單一 entitlement、單一產品的訂閱制,
+// 真實客戶的訂閱紀錄數(含歷年取消/續訂/換方案)落在個位數到十位數,5 頁 × 100 筆=最多掃
+// 500 筆,是任何真實使用者的數十倍安全餘裕;存在的目的純粹是避免上游一旦回傳異常的分頁鏈
+// (例如 next_page 一直不是 null)時陷入無界迴圈,不是為了服務會員到這個量級的客戶。
+const RC_SUBS_LIMIT = 100;
+const RC_SUBS_MAX_PAGES = 5;
+
 // 從 GET /v2/.../customers/{id}/subscriptions 的回應判「這個客戶有沒有**正式環境**的 Plus 存取權」。
 // 三道條件全部要成立才算數:
 //  (1) gives_access === true——RevenueCat 官方規格明文:「To determine whether or not a subscription
@@ -528,17 +540,24 @@ const RC_ENV_PRODUCTION = 'production';
 //      上游若哪天忽略了那個參數(改版、打錯字),本地這道仍然擋得住。
 //  (3) entitlements 裡有我們要的 lookup_key。Subscription 的巢狀 Entitlement 物件有 lookup_key
 //      (人類可讀的 'plus'),不是 active_entitlements 那個不透明的 entitlement_id,所以這裡終於
-//      比對得到具體 entitlement。⚠️ 但**清單缺席時退回「只看 gives_access」**:若上游哪天改成
-//      要 expand 才展開巢狀物件,嚴格比對會把**所有付費者**一次擋光;軌島 Plus 目前是單一
-//      entitlement 產品(每個商品都掛在 plus 上),退回去等於改造前那條「有存取權就是有 Plus」,
-//      而環境那一道仍然在——比改造前嚴格,不會更鬆。
+//      比對得到具體 entitlement。
+//      🔴 2026-08-03 複審 I-2 修正:官方規格裡 entitlements 是 Subscription 的**必填**欄位
+//      (Subscription.required 含 entitlements;entitlements 本身 required:[items, next_page,
+//      object, url]),這支端點也沒有 expand 參數——「上游哪天改成要 expand 才展開巢狀物件」
+//      這個顧慮在現行規格下不成立。真正要分辨的是「缺席」與「明確回空陣列」兩件不同的事:
+//        · 缺席(ents 為 null,即上游違反自己規格沒帶這個必填欄位)⇒ 保留防禦性 fallback,
+//          視同「只看 gives_access」——這是規格外的異常情形,寧可放行也不要因為上游一個
+//          違規回應就把所有付費者一次擋光。
+//        · 明確回空陣列(entitlements.items 為 [])⇒ 語意就是「這筆訂閱不掛任何 entitlement」,
+//          正確答案是 false,不能跟缺席混為一談——混談等於多給資格,是複審抓到的唯一一處
+//          程式行為超出自己註解宣稱範圍的地方。
 function plusEntitledFromSubscriptions(body, wantEntitlement) {
   const items = body && Array.isArray(body.items) ? body.items : [];
   return items.some(sub => {
     if (!sub || sub.gives_access !== true) return false;
     if (sub.environment !== RC_ENV_PRODUCTION) return false;
     const ents = sub.entitlements && Array.isArray(sub.entitlements.items) ? sub.entitlements.items : null;
-    if (!ents || !ents.length) return true;
+    if (!ents) return true;
     return ents.some(e => e && e.lookup_key === wantEntitlement);
   });
 }
@@ -569,16 +588,39 @@ async function checkPlusEntitlement(request, env) {
     // entitlement 的 lookup_key 與前端 revenuecat-config.js 的 entitlement 同一個值('plus');
     // 不是 secret,給 env 覆寫只是為了不把它寫死在兩個地方。
     const wantEntitlement = env.REVENUECAT_ENTITLEMENT || 'plus';
-    const rc = await fetch(`https://api.revenuecat.com/v2/projects/${encodeURIComponent(env.REVENUECAT_PROJECT_ID)}/customers/${encodeURIComponent(uid)}/subscriptions?environment=${RC_ENV_PRODUCTION}`, {
-      headers: { Authorization: `Bearer ${env.REVENUECAT_V2_SECRET_KEY}`, Accept: 'application/json' },
-    });
-    if (rc.status === 404) return { ok: false, status: 403, error: 'not_entitled' };          // 此 uid 從未在 RevenueCat 出現=沒買過
-    if (!rc.ok) return { ok: false, status: 503, error: 'entitlement_unavailable' };           // 上游暫時性錯誤:不當有資格、也不永久拒絕,讓前端可重試
-    const subs = await rc.json();
-    if (!plusEntitledFromSubscriptions(subs, wantEntitlement)) return { ok: false, status: 403, error: 'not_entitled' };
-    return { ok: true, uid };
+    // 分頁:見上方 RC_SUBS_LIMIT/RC_SUBS_MAX_PAGES 的說明。每頁先問「這頁裡有沒有找到」,
+    // 找到就立刻回傳(不必翻完剩下的頁);沒找到才看 next_page 決定要不要翻下一頁。
+    let rcUrl = `https://api.revenuecat.com/v2/projects/${encodeURIComponent(env.REVENUECAT_PROJECT_ID)}/customers/${encodeURIComponent(uid)}/subscriptions?environment=${RC_ENV_PRODUCTION}&limit=${RC_SUBS_LIMIT}`;
+    for (let page = 0; page < RC_SUBS_MAX_PAGES; page++) {
+      const rc = await fetch(rcUrl, {
+        headers: { Authorization: `Bearer ${env.REVENUECAT_V2_SECRET_KEY}`, Accept: 'application/json' },
+      });
+      if (rc.status === 404) {
+        // 🔴 2026-08-03 複審 I-1(c):404 的 resource_missing 同時涵蓋「這個 uid 從未在 RevenueCat
+        // 出現(沒買過)」與「project_id/customer_id 這個 ID 本身就不存在」——REVENUECAT_PROJECT_ID
+        // 設錯時,每一個使用者都會打出這個 404,不能把設定錯誤偽裝成「這個人沒買」。RevenueCat
+        // 的 Error schema 有一個共用的 param 欄位(「若錯誤與特定參數有關,是哪一個參數」),
+        // 盡力用它分辨:上游明確指出出錯的參數是 project_id 才視為設定錯誤。
+        // ⚠️ 殘留風險(認領,非臆測):官方文件沒有明文保證這支端點的 404 一定會填 param——
+        // 若上游剛好沒填、或填的是 customer_id,就落回原本的 403 not_entitled,這是「無法保證
+        // 可靠區分」時選擇的安全預設,不是忽略了這個問題(細節見 task-4-report.md 殘留風險)。
+        let param = null;
+        try { const body404 = await rc.json(); param = body404 && body404.param; } catch (e) {}
+        if (param === 'project_id') {
+          console.error('[plus] 上游 404 指出 project_id 有問題(REVENUECAT_PROJECT_ID 疑似設定錯誤),回 503 而非誤判為未訂閱');
+          return { ok: false, status: 503, error: 'entitlement_unavailable' };
+        }
+        return { ok: false, status: 403, error: 'not_entitled' };                              // 此 uid 從未在 RevenueCat 出現=沒買過(或無法確認是哪個 ID 出錯,安全預設維持原行為)
+      }
+      if (!rc.ok) return { ok: false, status: 503, error: 'entitlement_unavailable' };          // 上游暫時性錯誤:不當有資格、也不永久拒絕,讓前端可重試
+      const subs = await rc.json();
+      if (plusEntitledFromSubscriptions(subs, wantEntitlement)) return { ok: true, uid };
+      if (!subs || typeof subs.next_page !== 'string' || !subs.next_page) break;                // next_page 缺席/null:已到最後一頁,正常結束(不是還有下一頁沒跟)
+      rcUrl = subs.next_page;                                                                    // next_page 本身就是完整 URL(規格原文),直接拿來當下一次的請求目標
+    }
+    return { ok: false, status: 403, error: 'not_entitled' };                                    // 翻完所有頁、或翻頁上限用完仍未找到 ⇒ 安全方向是視同無資格,不得因為我們自己停手就靜默當成有資格
   } catch (e) {
-    return { ok: false, status: 503, error: 'entitlement_unavailable' };                       // 網路/解析暫時性錯誤:可重試
+    return { ok: false, status: 503, error: 'entitlement_unavailable' };                         // 網路/解析暫時性錯誤:可重試
   }
 }
 

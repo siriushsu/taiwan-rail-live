@@ -1347,7 +1347,9 @@ for (const w of [360, 375, 414, 768]) await mobilePlusEntry(w, { sel: IMPORT_SEL
     if (!o.keepState) state.plus = null;           // keepState:接續上一次 refresh 的 state（驗「第二次刷新失敗時舊值怎麼辦」）
     const p = plusState();
     if (o.preActive) p.active = true;              // 「刷新前已經是付費者」的起手狀態
-    const offering = { availablePackages: [
+    // emptyOfferings:getOfferings 成功回應但 availablePackages 是空陣列——與 offeringsThrows
+    // （拋錯）是兩條不同的路徑，F-4 補的就是這條「成功但空」目前沒被測到的組合。
+    const offering = { availablePackages: o.emptyOfferings ? [] : [
       { identifier: '$rc_monthly', packageType: 'MONTHLY', webBillingProduct: { currentPrice: { formattedPrice: o.M } } },
       { identifier: '$rc_annual', packageType: 'ANNUAL', webBillingProduct: { currentPrice: { formattedPrice: o.A } } },
     ] };
@@ -1422,6 +1424,17 @@ for (const w of [360, 375, 414, 768]) await mobilePlusEntry(w, { sel: IMPORT_SEL
   ok('SB7 正向對照：兩邊都正常且沒有資格 ⇒ 月/年兩個方案都畫得出來（證明 SB5 的「方案 0 個」是 getOfferings 失敗造成的，不是方案渲染本來就壞）',
     bothOk.active === false && bothOk.plans === 2 && bothOk.text.includes(A_PRICE),
     JSON.stringify({ active: bothOk.active, plans: bothOk.plans }));
+
+  // F-4：offerings「成功但空」（availablePackages:[]，不是拋錯）目前沒有判準——SB4/SB5 測的都是
+  // getOfferings 拋錯這條路徑。拆解後 plusPickPackage([]) 回 null ⇒ p.pkgAnnual/pkgMonthly 皆
+  // null ⇒ 落到同一句「目前無法取得訂閱方案，請稍後再試。」，行為與 SB5 一致但是不同的程式路徑
+  // （SB5 走 offeringsR.status==='rejected' 的 else 分支；這條走 'fulfilled' 分支後 plusPickPackage
+  // 自己回 null），故需要獨立判準。
+  const emptyOffers = await refreshWith(page, { ...OPTS, entKind: 'none', emptyOfferings: true });
+  const hasCopyEmpty = emptyOffers.text.includes('目前無法取得訂閱方案，請稍後再試。');
+  ok('SB8 方案清單讀取「成功但空」（availablePackages:[]，非拋錯）⇒ 月/年皆挑不出方案、畫面同樣落到「目前無法取得訂閱方案，請稍後再試。」（與 SB5 的拋錯情境是兩條不同路徑）',
+    emptyOffers.plans === 0 && emptyOffers.active === false && hasCopyEmpty,
+    JSON.stringify({ plans: emptyOffers.plans, active: emptyOffers.active, hasCopyEmpty }));
   ok('SB 本輪零 pageerror/console.error', errs.length === 0, errs.slice(0, 3).join(' | '));
   await ctx.close();
 

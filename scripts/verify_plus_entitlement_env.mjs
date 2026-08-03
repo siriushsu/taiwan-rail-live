@@ -37,7 +37,7 @@ let fails = 0;
 // 段落完整性守門員：整段被刪掉時，收尾只會印「全部 PASS」而分母悄悄變小＝假綠。
 // 刻意**不寫「總共幾條」這種手打常數**（判準寫「是什麼」不寫「有幾個」）——只要求
 // 每個宣告過的段落都真的跑過至少一條，段落整批消失時會有一條具名紅燈。
-const SECTIONS = ['1 環境判別', '2 存取權判別', '3 entitlement 比對', '4 端點與 query', '5 錯誤分流', '6 plus-status 端到端', '7 發版閘門'];
+const SECTIONS = ['1 環境判別', '2 存取權判別', '3 entitlement 比對', '4 端點與 query', '5 錯誤分流', '6 plus-status 端到端', '7 發版閘門', '8 分頁與跟頁'];
 const seen = new Map();
 let SECTION = '(未分段)';
 const section = (name) => { SECTION = name; console.log(`\n===== ${name} =====`); };
@@ -49,9 +49,13 @@ const check = (ok, msg, detail = '') => {
 
 // ── 替身 ────────────────────────────────────────────────────────────────────
 let upstream = [];                       // 每一發 outbound fetch 的網址
-let rcBody = { items: [] };              // RevenueCat 端點要回什麼
+let rcBody = { items: [] };              // RevenueCat 端點要回什麼(單頁測試用)
 let rcStatus = 200;
 let rcThrow = false;
+// 分頁測試專用(F-1):設定時,每一發 api.revenuecat.com 呼叫依序取下一筆(超出陣列長度時
+// 重複最後一筆,用來模擬「next_page 一直不是 null」的情境以測翻頁上限)。與 rcBody/rcStatus
+// 互斥——設定 rcSeq 時忽略 rcBody/rcStatus,見 runPages()。
+let rcSeq = null;
 const realFetch = globalThis.fetch;
 globalThis.fetch = async (url) => {
   const u = String(url);
@@ -61,6 +65,11 @@ globalThis.fetch = async (url) => {
   }
   if (u.includes('api.revenuecat.com')) {
     if (rcThrow) throw new TypeError('network down');
+    if (rcSeq) {
+      const n = upstream.filter(x => x.includes('api.revenuecat.com')).length - 1;
+      const { status = 200, body = { items: [] } } = rcSeq[Math.min(n, rcSeq.length - 1)];
+      return new Response(JSON.stringify(body), { status });
+    }
     return new Response(JSON.stringify(rcBody), { status: rcStatus });
   }
   return new Response('{}', { status: 500 });
@@ -89,8 +98,15 @@ const SANDBOX_SUB = sub({ environment: 'sandbox' });
 const PRODUCTION_SUB = sub();
 
 const run = async ({ body = { items: [] }, status = 200, thrown = false, env = ENV() } = {}) => {
-  upstream = []; rcBody = body; rcStatus = status; rcThrow = thrown;
+  upstream = []; rcBody = body; rcStatus = status; rcThrow = thrown; rcSeq = null;
   const r = await checkPlusEntitlement(req(), env);
+  return r;
+};
+// 分頁測試專用(F-1):pages 是 [{status?, body}, ...],依呼叫順序取用,見上方 rcSeq 說明。
+const runPages = async (pages, env = ENV()) => {
+  upstream = []; rcThrow = false; rcSeq = pages;
+  const r = await checkPlusEntitlement(req(), env);
+  rcSeq = null;
   return r;
 };
 
@@ -157,6 +173,14 @@ section(SECTIONS[2]);
   const fallback = await run({ body: { items: [noEnts] } });
   check(fallback.ok === true,
     'entitlements 清單缺席（上游沒展開巢狀物件）⇒ 退回只看 gives_access，不把付費者一次擋光', JSON.stringify(fallback));
+
+  // 🔴複審 I-2：entitlements**明確回空陣列**（這筆訂閱不掛任何 entitlement）與**缺席**是兩件
+  // 不同的事——前者的正確答案是 false，舊版程式碼把兩者混為一談（多給資格，是複審抓到的唯一
+  // 一處程式行為超出自己註解宣稱範圍的地方）。與上一條 fallback（缺席 ⇒ true）逐欄只差
+  // entitlements 這一個欄位，對照才看得出程式碼真的分辨這兩種語意，不是巧合過關。
+  const emptyEnts = await run({ body: { items: [sub({ entitlements: { items: [] } })] } });
+  check(emptyEnts.ok === false && emptyEnts.status === 403,
+    'entitlements 明確回空陣列（不是缺席）⇒ 判定為無資格——與上一條「缺席退回 true」對照，證明程式碼分辨「缺席」與「空陣列」', JSON.stringify(emptyEnts));
 }
 
 // ── 4. 打的是哪一支端點（沉默不是證據：直接數上游網址） ──────────────────────────────
@@ -170,6 +194,8 @@ section(SECTIONS[3]);
     '完全不再打 /active_entitlements（那支端點在協定層面就分辨不出環境）', rcCalls.join(' , '));
   check(rcCalls.length === 1 && /[?&]environment=production(&|$)/.test(rcCalls[0]),
     'query string 帶 ?environment=production 讓上游先濾一次（本地那道是第二層防線）', rcCalls.join(' , '));
+  check(rcCalls.length === 1 && /[?&]limit=100(&|$)/.test(rcCalls[0]),
+    '🔴複審 I-1(b)：query string 帶 ?limit=100（規格允許的上限，一次拿最多，減少分頁來回次數）', rcCalls.join(' , '));
   check(upstream.some(u => u.includes('identitytoolkit.googleapis.com')),
     '正向對照：上游計數器真的收得到（Firebase 驗證那一發有被記到）', `本輪共 ${upstream.length} 發`);
 }
@@ -180,6 +206,18 @@ section(SECTIONS[4]);
   const r404 = await run({ status: 404, body: {} });
   check(r404.ok === false && r404.status === 403 && r404.error === 'not_entitled',
     '上游 404（此 uid 從未在 RevenueCat 出現）⇒ 403 not_entitled', JSON.stringify(r404));
+
+  // 🔴複審 I-1(c)：404 的 resource_missing 同時涵蓋「這個 uid 從未在 RevenueCat 出現（沒買過）」
+  // 與「project_id/customer_id 這個 ID 本身不存在」——REVENUECAT_PROJECT_ID 設錯時，每一個
+  // 使用者都會打出這個 404，不能把設定錯誤偽裝成「這個人沒買」。盡力用 Error schema 共用的
+  // param 欄位分辨：上游明確指出出錯的參數是 project_id 才視為設定錯誤。
+  const r404Project = await run({ status: 404, body: { object: 'error', type: 'resource_missing', message: 'Resource not found', param: 'project_id' } });
+  check(r404Project.ok === false && r404Project.status === 503 && r404Project.error === 'entitlement_unavailable',
+    '上游 404 且 param 指出是 project_id ⇒ 503（設定錯誤，不得偽裝成「這個人沒買」）', JSON.stringify(r404Project));
+
+  const r404Customer = await run({ status: 404, body: { object: 'error', type: 'resource_missing', message: 'Resource not found', param: 'customer_id' } });
+  check(r404Customer.ok === false && r404Customer.status === 403 && r404Customer.error === 'not_entitled',
+    '正向對照：上游 404 且 param 是 customer_id（這個人真的沒買過）⇒ 維持 403 not_entitled，不是任何 404 都變 503', JSON.stringify(r404Customer));
 
   const r500 = await run({ status: 500, body: {} });
   check(r500.ok === false && r500.status === 503 && r500.error === 'entitlement_unavailable',
@@ -242,6 +280,47 @@ section(SECTIONS[6]);
   check(/window\.RAIL_PLUS_SANDBOX_OK=\$\{plusSandboxOk\}/.test(prepareSrc)
     && /process\.env\.RAIL_PLUS_SANDBOX_OK\s*===\s*'1'/.test(prepareSrc),
     'prepare-web.mjs 真的在注入同一個變數名，且值來自建置期環境變數（不是頁面上可改的東西）');
+}
+
+// ── 8. 分頁：limit 上限、跟 next_page 直到找到或翻完、翻頁上限的安全方向（F-1） ──────
+// 🔴複審 I-1(b)：/subscriptions 的 limit 預設只有 20，且這支端點沒有 sort、規格也沒有任何
+// 「較新排前面」的排序保證——第一頁不能假設含有使用者現在生效的那筆訂閱。三件事都要驗：
+// (a) 有效訂閱在第 2 頁時仍判定為有資格；(b) 翻頁上限用完時走安全方向（不得靜默當成有資格）；
+// (c) next_page 為 null 時正常結束。
+section(SECTIONS[7]);
+{
+  // (a) 第 1 頁只有 sandbox（無資格），第 2 頁才是正式有效訂閱 ⇒ 必須真的翻頁才找得到。
+  const p2 = await runPages([
+    { body: { items: [SANDBOX_SUB], next_page: 'https://api.revenuecat.com/v2/projects/proj_x/customers/uid-under-test/subscriptions?environment=production&limit=100&starting_after=sub_1' } },
+    { body: { items: [PRODUCTION_SUB], next_page: null } },
+  ]);
+  const rcCallsP2 = upstream.filter(u => u.includes('api.revenuecat.com'));
+  check(p2.ok === true && rcCallsP2.length === 2,
+    '(a) 有效訂閱在第 2 頁（第 1 頁只有 sandbox）⇒ 仍判定為有資格，且真的翻了 2 頁上游（不是巧合過關）',
+    JSON.stringify({ p2, 上游呼叫次數: rcCallsP2.length }));
+
+  // (c) 單頁、next_page 明確是 null（不是缺席）⇒ 正常結束，只打 1 次上游。
+  const singlePage = await runPages([{ body: { items: [SANDBOX_SUB], next_page: null } }]);
+  const rcCallsSingle = upstream.filter(u => u.includes('api.revenuecat.com'));
+  check(singlePage.ok === false && singlePage.status === 403 && rcCallsSingle.length === 1,
+    '(c) next_page 明確是 null ⇒ 判定翻頁到底、正常結束於無資格，只打 1 次上游（不會誤以為還有下一頁）',
+    JSON.stringify({ singlePage, 上游呼叫次數: rcCallsSingle.length }));
+
+  // (b) 翻頁上限用完時走安全方向。MAX_PAGES_EXPECTED 必須與 worker.js 的 RC_SUBS_MAX_PAGES
+  // 保持一致——這裡刻意寫死而不 import，是有意的契約測試（這個上限值本身就是要驗的東西，
+  // 不是像 'production' 那種語意常數；之後若調整 worker.js 那個值，這裡要一起改）。
+  // 前 MAX_PAGES_EXPECTED 頁都只有 sandbox（無正式資格），「獎品」（正式有效訂閱）刻意放在
+  // 第 MAX_PAGES_EXPECTED+1 頁——翻頁上限正確運作時永遠翻不到那裡；上限被拿掉或改鬆，
+  // 就會翻到那頁找到獎品、誤判為有資格。
+  const MAX_PAGES_EXPECTED = 5;
+  const beyondCapPages = Array.from({ length: MAX_PAGES_EXPECTED }, (_, i) => ({
+    body: { items: [SANDBOX_SUB], next_page: `https://api.revenuecat.com/v2/projects/proj_x/customers/uid-under-test/subscriptions?environment=production&limit=100&starting_after=p${i}` },
+  })).concat([{ body: { items: [PRODUCTION_SUB], next_page: null } }]);
+  const capped = await runPages(beyondCapPages);
+  const rcCallsCapped = upstream.filter(u => u.includes('api.revenuecat.com'));
+  check(capped.ok === false && capped.status === 403 && rcCallsCapped.length === MAX_PAGES_EXPECTED,
+    `(b) 翻頁上限用完仍未找到 ⇒ 安全方向是視同無資格（不得因為我們自己停止翻頁就靜默當成有資格）；剛好翻了 ${MAX_PAGES_EXPECTED} 頁就停手，沒有翻到藏著正式資格的第 ${MAX_PAGES_EXPECTED + 1} 頁`,
+    JSON.stringify({ capped, 上游呼叫次數: rcCallsCapped.length }));
 }
 
 globalThis.fetch = realFetch;
