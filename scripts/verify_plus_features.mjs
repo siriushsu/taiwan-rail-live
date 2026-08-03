@@ -33,6 +33,7 @@ const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const SRC = readFileSync(path.join(ROOT, 'index.html'), 'utf8');
 const WSRC = readFileSync(path.join(ROOT, 'worker.js'), 'utf8');
 const TSRC = readFileSync(path.join(ROOT, 'terms.html'), 'utf8'); // 付費視窗法務列直接連到它,見 T1T
+const ASRC = readFileSync(path.join(ROOT, 'app-support.html'), 'utf8'); // B-1 稽核修復:這頁的導覽文案要對 index.html 的槽位標籤真值,見 T8
 // 條款頁的**可見內文**(剝掉 head／style／script)。
 // 為什麼要剝:全文 4280 字裡有一半以上是 head＋CSS ⇒ 抽取器的「非空」對照近乎恆真,
 // 而且 FAIL 訊息會指向一堆樣式碼、看不出違規在哪一句。
@@ -82,6 +83,20 @@ function fnBodyContains(src, fnName, needle) {
     i++;
   }
   return stripComments(src.slice(m.index, i)).includes(needle);
+}
+// 同一種「function fnName(...) { ... }」大括號配對抓法,但回傳**原始碼片段本身**(含註解、不比對
+// 子字串)——給 T8 丟進 new Function 真的求值用。執行期不在乎註解,只有 fnBodyContains 那種
+// 「拿字串去 includes()」才需要先剝。抓不到宣告回 null,呼叫端要顯式判斷(不當成空字串靜默通過)。
+function extractFnSrc(src, fnName) {
+  const m = new RegExp(`function\\s+${fnName}\\s*\\([^)]*\\)\\s*\\{`).exec(src);
+  if (!m) return null;
+  let i = m.index + m[0].length, depth = 1;
+  while (i < src.length && depth > 0) {
+    if (src[i] === '{') depth++;
+    else if (src[i] === '}') depth--;
+    i++;
+  }
+  return src.slice(m.index, i);
 }
 
 const MIME = { '.html': 'text/html', '.js': 'text/javascript', '.mjs': 'text/javascript', '.json': 'application/json', '.css': 'text/css', '.png': 'image/png', '.jpg': 'image/jpeg', '.svg': 'image/svg+xml', '.mp3': 'audio/mpeg', '.ico': 'image/x-icon', '.webmanifest': 'application/manifest+json' };
@@ -829,6 +844,80 @@ await cr.close();
 
 server.close();
 
+// ══════════ T8:app-support.html 的「導覽目標標籤」與 index.html 槽位邏輯真值比對
+// (2026-08-03,B-1 稽核修復)。背景:app-support.html 從未被本檔或任何驗收腳本掃過,文案可以
+// 無限漂移而不被發現——它曾寫「在『軌島帳號』→『查看 Plus』」,但那顆鈕的標籤其實依登入狀態是
+// 「Plus」／「帳號」(桌面工具列)或「軌島 Plus」／「帳號同步」(手機「更多」抽屜列),見
+// accountBtnSlot()/accountSlotMode()。從沒有一顆鈕真的叫「軌島帳號」——那是開啟之後面板本身
+// 的標題(#accountTitle),不是入口鈕上的文字,照文案找的人找不到那顆鈕。
+//
+// 判準:app-support.html 用 <span data-uilabel>X</span> 明確標出每一個「宣稱是使用者真的會
+// 看到的導覽標籤」的子字串——不是掃全頁所有「」引號(那會連「軌島帳號面板」這種沿用整站慣例的
+// 一般性稱呼、或「刪除帳號與同步資料」這種與本次修復無關的既有按鈕文字都當成標籤宣稱來查,誤紅
+// 範圍會遠超這個 task 的範疇)。data-uilabel 讓「這是一個可驗證的標籤宣稱」變成顯式標記,不必
+// 靠 NLP 猜哪句話在講按鈕。
+//
+// 真值集合不是本檔手打的清單:讀 index.html 原始碼、抽出 accountBtnSlot() 函式體原始文字,丟進
+// new Function 配一份假 DOM 真的呼叫兩次(mode='plus'/'account'),取得它實際寫入
+// tl.textContent 與 label.textContent 的 4 個字串——手法比照 verify_sat_retina.mjs 的 G1
+// (讀原始碼→抽錨點→new Function 真求值,不是 regex 比對字面值/讀註解)。 ══════════
+{
+  const fnSrc = extractFnSrc(SRC, 'accountBtnSlot');
+  // 假 DOM:只給 accountBtnSlot() 實際碰到的兩個節點——#accountBtn(內含 .ti/.tl 兩個 span)
+  // 與 .ms-row[data-proxy="accountBtn"](內含一個 span);.style 給空物件讓 display 賦值不出錯;
+  // plusOpen/accountOpen 只被「參照」賦給 onclick、從未在函式體內被呼叫,給空函式即可——同
+  // sat_retina G1 的做法:自由變數的值不重要,重要的是它存在,求值才不會因 ReferenceError 中斷。
+  function callAccountBtnSlot(mode) {
+    const ti = { textContent: '' }, tl = { textContent: '' }, label = { textContent: '' };
+    const btn = { style: {}, querySelector: sel => (sel === '.ti' ? ti : sel === '.tl' ? tl : null) };
+    const row = { style: {}, querySelector: sel => (sel === 'span' ? label : null) };
+    const fakeDocument = {
+      getElementById: id => (id === 'accountBtn' ? btn : null),
+      querySelector: sel => (sel === '.ms-row[data-proxy="accountBtn"]' ? row : null),
+    };
+    new Function('document', 'accountOpen', 'plusOpen', `${fnSrc}\naccountBtnSlot(${JSON.stringify(mode)});`)
+      (fakeDocument, () => {}, () => {});
+    return { toolbar: tl.textContent, drawer: label.textContent };
+  }
+  let plusLabels = null, acctLabels = null, extractError = null;
+  try {
+    if (!fnSrc) throw new Error('找不到「function accountBtnSlot(...) {」——index.html 結構已變動,請更新 verify_plus_features.mjs 的抽取邏輯');
+    plusLabels = callAccountBtnSlot('plus');
+    acctLabels = callAccountBtnSlot('account');
+  } catch (e) { extractError = e; }
+  ok('T8a accountBtnSlot() 可從 index.html 原始碼抽取並在假 DOM 上真實求值(兩種 mode 皆不丟例外;抓不到宣告或求值出錯就是這格錯,不會被誤判成過關)',
+    extractError === null && !!plusLabels && !!acctLabels,
+    extractError ? String(extractError).slice(0, 300) : `plus=${JSON.stringify(plusLabels)} account=${JSON.stringify(acctLabels)}`);
+
+  // 真值集合:四個槽位標籤字串,全部來自上面真的求值——沒有一個是本檔手打的。
+  const SLOT_LABELS = extractError ? new Set() : new Set([plusLabels.toolbar, plusLabels.drawer, acctLabels.toolbar, acctLabels.drawer]);
+  const fabricatedIn = claimList => claimList.filter(c => !SLOT_LABELS.has(c));
+
+  // app-support.html 的宣稱:每個 <span data-uilabel>X</span> 都是一個「導覽目標標籤」宣稱。
+  const claims = [...ASRC.matchAll(/<span data-uilabel>([^<]*)<\/span>/g)].map(m => m[1]);
+  ok('T8b app-support.html 至少標出一個 data-uilabel 導覽標籤宣稱(不是掃描器抓空——抓空的話下面兩條會恆真恆綠,驗不到任何東西)',
+    claims.length > 0, `claims=${JSON.stringify(claims)}`);
+
+  const fabricated = fabricatedIn(claims);
+  ok('T8c app-support.html 宣稱的每一個導覽目標標籤,都是 index.html 槽位邏輯真的會渲染出來的字串(不是杜撰或已過期的標籤,例如舊版寫的「軌島帳號」——那是面板標題不是入口鈕文字)',
+    fabricated.length === 0,
+    fabricated.length ? `杜撰/過期:${JSON.stringify(fabricated)} 真值集合=${JSON.stringify([...SLOT_LABELS])}` : `claims=${JSON.stringify(claims)} 真值集合=${JSON.stringify([...SLOT_LABELS])}`);
+  // 正向對照(GLOBAL-CONSTRAINTS #10):塞一個已知不在真值集合裡的合成字串,證明「杜撰偵測」真的
+  // 抓得到東西,不是因為現有文案剛好都合法而恆綠、或比對邏輯本身寫反了。
+  const probe = fabricatedIn([...claims, 'verify-probe-fabricated-label']);
+  ok('T8c 正向對照:杜撰標籤偵測對合成的假標籤真的會抓到(不是因為現有文案剛好都合法而恆綠)',
+    probe.length === 1 && probe[0] === 'verify-probe-fabricated-label', JSON.stringify(probe));
+
+  // 涵蓋度(brief 原文:「文案要涵蓋使用者實際會遇到的狀態，不能只寫其中一種」)——plus 模式
+  // (新訪客,鈕顯示 Plus/軌島 Plus)與 account 模式(已登入或曾登入,鈕顯示 帳號/帳號同步)至少
+  // 各被提到一次(桌面或手機任一形式皆可),不能只寫其中一種狀態就當作寫完了。
+  const hasPlusMode = !extractError && (claims.includes(plusLabels.toolbar) || claims.includes(plusLabels.drawer));
+  const hasAcctMode = !extractError && (claims.includes(acctLabels.toolbar) || claims.includes(acctLabels.drawer));
+  ok('T8d app-support.html 同時涵蓋 plus 模式與 account 模式的導覽標籤,不是只寫其中一種使用者會遇到的狀態',
+    hasPlusMode && hasAcctMode,
+    `plus模式(${JSON.stringify([plusLabels && plusLabels.toolbar, plusLabels && plusLabels.drawer])})提到=${hasPlusMode} account模式(${JSON.stringify([acctLabels && acctLabels.toolbar, acctLabels && acctLabels.drawer])})提到=${hasAcctMode}`);
+}
+
 // ══════════ 斷言總數閘門(比照 verify_live_activity.mjs / verify_founding_seal.mjs 的形狀) ══════════
 // 用途:條件式區塊整批消失時,分母跟著變小、收尾只印「N/N PASS」⇒ 會被當成全綠。
 // 各組用 a/b/c…細分子情境(T0a/T0b/T0c、T2a..T2f、T4a/T4b/T4c、T7a/T7b),分組 regex 要吃任一個
@@ -846,6 +935,7 @@ const EXPECTED_COUNTS = {
   T1: 6 + REQUIRED.length + GATE_CALLS.length + 4 * expectedFeatCount(inFounding),
   T2: 1, T2a: 4, T2b: 1, T2c: 1, T2d: 1, T2e: 1, T2f: 1, // T2a=4:違禁詞斷言 + 偵測器正向對照 + 抽取器對照 + 具名豁免對照
   T3: 2, T3a: 1, T3b: 2, T4a: 2, T4b: 2, T4c: 2, T5: 6, T5w: 3, T7a: 4, T7b: 4,
+  T8a: 1, T8b: 1, T8c: 2, T8d: 1, // T8=app-support.html 導覽標籤真值比對(見上方 T8 區塊);T8c=核心斷言+杜撰偵測正向對照
 };
 const actualCounts = {};
 for (const r of results) { const m = /^([GT]\d+[a-z]?)/.exec(r.name); const k = m ? m[1] : '(未分組)'; actualCounts[k] = (actualCounts[k] || 0) + 1; }
