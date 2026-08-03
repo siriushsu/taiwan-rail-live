@@ -288,12 +288,18 @@ section(SECTIONS[6]);
 }
 
 // ── 8. 分頁：limit 上限、跟 next_page 直到找到或翻完、翻頁上限的安全方向（F-1）；
-//    以及 next_page 解析的安全性（🔴複審修復輪 2 G-1+G-2） ──────────────────────────
+//    以及 next_page 解析的安全性（🔴複審修復輪 2 G-1+G-2、修復輪 3 H-1）──────────────────
 // 🔴複審 I-1(b)：/subscriptions 的 limit 預設只有 20，且這支端點沒有 sort、規格也沒有任何
-// 「較新排前面」的排序保證——第一頁不能假設含有使用者現在生效的那筆訂閱。四件事都要驗：
+// 「較新排前面」的排序保證——第一頁不能假設含有使用者現在生效的那筆訂閱。以下都要驗：
 // (a) 有效訂閱在第 2 頁時仍判定為有資格；(b) 翻頁上限用完時走安全方向（不得靜默當成有資格）；
-// (c) next_page 為 null 時正常結束；(d) next_page 指向外部 host 時，實際請求仍然釘死打在
-// api.revenuecat.com（G-2：不得把帶 secret key 的請求送去上游回應指定的任意網址）。
+// (c) next_page 為 null 時正常結束；(d) next_page 指向外部 host 時，origin 比對不符必須被
+// 拒絕、停止翻頁並留下診斷紀錄（H-1：不是「盡力修正後放行」）；(e) next_page 自己的
+// origin 合法、但 pathname 以 // 開頭的 protocol-relative 繞法——修復輪 2 的兩段式解析
+// （先 new URL(x,base) 把相對路徑當絕對URL，再取 pathname+search 重新套用 origin）會把
+// 這種 pathname 誤判成 protocol-relative URL、host 被換掉；正確修法只解析一次、直接比對
+// origin，這個繞法的 origin 本來就真的是 api.revenuecat.com，所以會被放行（不是漏網），
+// 但判準不能用「字串裡有沒有出現 evil.example.com」這種天真寫法——繞法字串本身的路徑就
+// 含這個子字串，必須解析出精確 host 才能分辨路徑裡的雜訊與真正的連線目標。
 //
 // (a)(b) 的 next_page fixture 刻意寫成官方規格 example 的**相對路徑**形式——ListSubscriptions.
 // next_page 的 example 逐字是 `/v2/projects/.../subscriptions?starting_after=...`，整份規格裡
@@ -338,21 +344,60 @@ section(SECTIONS[7]);
     `(b) 翻頁上限用完仍未找到 ⇒ 安全方向是視同無資格（不得因為我們自己停止翻頁就靜默當成有資格）；剛好翻了 ${MAX_PAGES_EXPECTED} 頁就停手（皆為絕對 URL 且 host 正確），沒有翻到藏著正式資格的第 ${MAX_PAGES_EXPECTED + 1} 頁`,
     JSON.stringify({ capped, 上游呼叫次數: rcCallsCapped.length }));
 
-  // (d) G-2（安全）：next_page 指向外部／惡意 host 時，實際發出的請求仍然要釘死打在
-  // api.revenuecat.com——不能天真寫成 new URL(nextPage, RC_ORIGIN)（絕對 URL 會讓 base
-  // 完全被忽略，帶 Authorization: Bearer <secret key> 的請求就會被送去上游回應裡指定的
-  // 任意網址）。g2.ok===true 證明請求真的落在替身的 RC 分支並拿到第 2 頁資料（不是巧合
-  // 因為某個分支剛好也回 200），最後一條是雙重否定確認：惡意 host 從未出現在任何一發
-  // 上游呼叫裡。
+  // (d) H-1（Critical，安全）：next_page 指向外部／惡意 host 時，正確修法不是「盡力修正後
+  // 放行」（修復輪 2 的天真兩段式解析），而是解析一次、直接比對 origin，不符就拒絕（回傳
+  // null）、停止翻頁、落到既有的 403 not_entitled 安全方向，並且用 console.error 留下
+  // 診斷紀錄（收掉修復輪 2 疑慮 3：「G-2 目前是靜默導正，若上游曾回過非自身 origin 的
+  // next_page 看不到」）。console.error 用範圍侷限的替身攔截，跑完立刻還原，不影響其他
+  // 段落原本讓 console.error 直接印出的行為。
+  let consoleErrorLog = [];
+  const realConsoleError = console.error;
+  console.error = (...args) => { consoleErrorLog.push(args.join(' ')); };
+
   const evilNextPage = 'https://evil.example.com/v2/projects/proj_x/customers/uid-under-test/subscriptions?starting_after=sub_1';
   const g2 = await runPages([
     { body: { items: [SANDBOX_SUB], next_page: evilNextPage } },
     { body: { items: [PRODUCTION_SUB], next_page: null } },
   ]);
-  const rcCallsG2 = upstream.filter(isRcUrl);
-  check(g2.ok === true && rcCallsG2.length === 2 && !upstream.some(u => u.includes('evil.example.com')),
-    '(d) next_page 指向外部 host（evil.example.com）⇒ 實際請求仍然釘死打在 api.revenuecat.com，惡意 host 從未出現在任何一發上游呼叫裡',
+  check(g2.ok === false && g2.status === 403 && g2.error === 'not_entitled' && !upstream.some(u => u.includes('evil.example.com')),
+    '(d) next_page 指向外部 host（evil.example.com）⇒ origin 比對不符，拒絕跟隨、停止翻頁，落到 403 not_entitled 安全方向（不再是「修正後放行」），惡意 host 從未出現在任何一發上游呼叫裡',
     JSON.stringify({ g2, 上游網址: upstream }));
+  check(consoleErrorLog.length === 1,
+    '(d) 上述拒絕留下 1 筆 console.error 診斷紀錄（可被 Observability 追蹤，不是靜默處理）',
+    JSON.stringify({ consoleErrorLog }));
+
+  // 正向對照：正常相對路徑翻頁 ⇒ 不觸發拒絕、不寫入 console.error（上面那條不是每輪都印，
+  // 只有真的判定拒絕才印，不是巧合冒出來的雜訊）。
+  consoleErrorLog = [];
+  const p2Ctrl = await runPages([
+    { body: { items: [SANDBOX_SUB], next_page: '/v2/projects/proj_x/customers/uid-under-test/subscriptions?environment=production&limit=100&starting_after=sub_1' } },
+    { body: { items: [PRODUCTION_SUB], next_page: null } },
+  ]);
+  check(p2Ctrl.ok === true && consoleErrorLog.length === 0,
+    '正向對照：next_page 是正常相對路徑 ⇒ 不觸發拒絕、不寫入 console.error',
+    JSON.stringify({ p2Ctrl, consoleErrorLog }));
+
+  // (e) H-1（Critical，安全）：protocol-relative 繞法——next_page 自己的 origin 完全合法
+  // （api.revenuecat.com），但 pathname 以 // 開頭。修復輪 2 的兩段式解析會把第二次
+  // new URL() 的輸入（pathname+search）誤判成 protocol-relative URL，host 被換成 //
+  // 後面那段（evil.example.com）。正確修法只解析一次、比對 origin——這個輸入的 origin
+  // 本來就真的是 api.revenuecat.com，所以會被放行、正常翻到第 2 頁（不是拒絕；拒絕反而
+  // 是誤傷，見 worker.js resolveRcNextPage() 註解）。這裡刻意不用「字串裡有沒有出現
+  // evil.example.com」判斷——繞法字串本身的路徑就含這個子字串，天真的 includes 在正確
+  // 版本下也會誤判成紅，必須解析出精確 host 才能分辨路徑裡的雜訊與真正的連線目標。
+  consoleErrorLog = [];
+  const bypassNextPage = 'https://api.revenuecat.com//evil.example.com/steal';
+  const eResult = await runPages([
+    { body: { items: [SANDBOX_SUB], next_page: bypassNextPage } },
+    { body: { items: [PRODUCTION_SUB], next_page: null } },
+  ]);
+  const rcCallsE = upstream.filter(u => u.includes('api.revenuecat.com'));
+  const rcHostsE = rcCallsE.map(u => { try { return new URL(u).host; } catch { return '(unparseable)'; } });
+  check(eResult.ok === true && rcCallsE.length === 2 && rcHostsE.every(h => h === 'api.revenuecat.com') && consoleErrorLog.length === 0,
+    '(e) protocol-relative 繞法（origin 合法、pathname 以 // 開頭）⇒ 正確解析後仍放行、真的翻到第 2 頁找到資格（不是被誤判拒絕），每一發「疑似 RC」呼叫解析後的 host 都真的是 api.revenuecat.com、也沒有觸發拒絕的 console.error（這條在舊的兩段式字串手術解析下必須是紅的：見突變測試 M-H1）',
+    JSON.stringify({ eResult, 上游網址: upstream, RC呼叫解析host: rcHostsE, consoleErrorLog }));
+
+  console.error = realConsoleError;
 }
 
 globalThis.fetch = realFetch;

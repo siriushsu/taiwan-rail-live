@@ -532,7 +532,8 @@ const RC_SUBS_MAX_PAGES = 5;
 // 不可信任上游回傳值裡帶的 origin——理由見下面 resolveRcNextPage() 的完整說明。
 const RC_ORIGIN = 'https://api.revenuecat.com';
 
-// 把 /subscriptions 回應裡的 next_page 解析成「保證打在 RC_ORIGIN」的絕對 URL。
+// 把 /subscriptions 回應裡的 next_page 解析成絕對 URL;若解析後的 origin 不是 RC_ORIGIN,
+// 回傳 null(呼叫端必須拒絕跟隨,見 checkPlusEntitlement 的處理)。
 // 🔴 2026-08-03 複審修復輪 2 G-1+G-2 修正(上一輪 F-1 分頁修復本身有兩個洞):
 //  · G-1(Critical):上一輪的註解宣稱「next_page 本身就是完整 URL(規格原文)」——這句話不成立。
 //    官方 OpenAPI v2 的 ListSubscriptions.next_page,description 散文寫「URL」,但 example 逐字是
@@ -545,11 +546,21 @@ const RC_ORIGIN = 'https://api.revenuecat.com';
 //    nextPage 剛好是絕對 URL(不論規格是否保證,上游一旦改變行為或這段回應被竄改),
 //    `new URL(絕對URL, base)` 會完全無視 base、直接採用該絕對 URL 自己的 origin,我們會把帶著
 //    Authorization: Bearer <secret key> 的請求送去上游回應裡任意指定的網址(等同資訊外洩的
-//    open redirect)。正確作法是只取解析後的 pathname+search,origin 永遠重新套用 RC_ORIGIN——
-//    不論輸入是相對路徑或絕對 URL(惡意與否),結果永遠回到我們自己的 origin。
+//    open redirect)。
+//  🔴 2026-08-03 複審修復輪 3 H-1 修正(G-2 當時選的修法本身還有一個洞):
+//  · H-1(Critical,安全):G-2 的寫法是「取解析後的 pathname+search,再用 new URL(那段字串,
+//    RC_ORIGIN) 重新套用 origin」——這是兩段式的字串手術,第二段解析有 protocol-relative
+//    繞法:若第一段解析出的 pathname 剛好以 `//` 開頭(例如 nextPage 寫成
+//    `RC_ORIGIN + '//evil.example.com/steal'`,這個字串本身的 origin 完全合法、看起來毫無
+//    可疑),第二段 `new URL('//host/path', base)` 會把開頭的 `//` 當成 network-path
+//    reference(protocol-relative URL)解析,host 就跟著換成 `//` 後面那段,secret key
+//    又送去 evil.example.com 了。教訓:**不要做字串拼接手術,只解析一次、直接比對 origin**——
+//    不相符就整個拒絕(不去嘗試「修正」外部 origin),這樣不論用什麼手法讓 next_page 的最終
+//    origin 不是 RC_ORIGIN,一律被擋下,不會有第二次字串解析的機會被鑽漏洞。
 function resolveRcNextPage(nextPage) {
   const parsed = new URL(nextPage, RC_ORIGIN);
-  return new URL(parsed.pathname + parsed.search, RC_ORIGIN).href;
+  if (parsed.origin !== RC_ORIGIN) return null;
+  return parsed.href;
 }
 
 // 從 GET /v2/.../customers/{id}/subscriptions 的回應判「這個客戶有沒有**正式環境**的 Plus 存取權」。
@@ -640,7 +651,16 @@ async function checkPlusEntitlement(request, env) {
       const subs = await rc.json();
       if (plusEntitledFromSubscriptions(subs, wantEntitlement)) return { ok: true, uid };
       if (!subs || typeof subs.next_page !== 'string' || !subs.next_page) break;                // next_page 缺席/null:已到最後一頁,正常結束(不是還有下一頁沒跟)
-      rcUrl = resolveRcNextPage(subs.next_page);                                                  // 見 resolveRcNextPage():規格 example 是相對路徑,且 origin 必須釘死、不可信任上游回傳值
+      const resolvedNextPage = resolveRcNextPage(subs.next_page);
+      if (!resolvedNextPage) {
+        // origin 不符 RC_ORIGIN(見 resolveRcNextPage 註解 H-1)——不信任、停止翻頁,落到下面
+        // 迴圈外既有的 403 not_entitled 安全方向(不是 503:這不是暫時性上游錯誤,是我們主動
+        // 判定不可信任這個 next_page,語意上更接近「翻不到更多、視同無資格」)。console.error
+        // 讓這個從未預期發生的情況可被 Observability 追蹤到,不是靜默處理。
+        console.error(`[plus] next_page 解析後的 origin 與 RevenueCat 不符,拒絕跟隨、停止翻頁:${subs.next_page}`);
+        break;
+      }
+      rcUrl = resolvedNextPage;                                                                   // 見 resolveRcNextPage():規格 example 是相對路徑,且 origin 必須釘死、不可信任上游回傳值
     }
     return { ok: false, status: 403, error: 'not_entitled' };                                    // 翻完所有頁、或翻頁上限用完仍未找到 ⇒ 安全方向是視同無資格,不得因為我們自己停手就靜默當成有資格
   } catch (e) {
