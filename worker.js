@@ -528,6 +528,30 @@ const RC_ENV_PRODUCTION = 'production';
 const RC_SUBS_LIMIT = 100;
 const RC_SUBS_MAX_PAGES = 5;
 
+// RevenueCat API 的固定 origin。/subscriptions 的 next_page 一律要重新套用這個 origin,
+// 不可信任上游回傳值裡帶的 origin——理由見下面 resolveRcNextPage() 的完整說明。
+const RC_ORIGIN = 'https://api.revenuecat.com';
+
+// 把 /subscriptions 回應裡的 next_page 解析成「保證打在 RC_ORIGIN」的絕對 URL。
+// 🔴 2026-08-03 複審修復輪 2 G-1+G-2 修正(上一輪 F-1 分頁修復本身有兩個洞):
+//  · G-1(Critical):上一輪的註解宣稱「next_page 本身就是完整 URL(規格原文)」——這句話不成立。
+//    官方 OpenAPI v2 的 ListSubscriptions.next_page,description 散文寫「URL」,但 example 逐字是
+//    `/v2/projects/proj1ab2c3d4/customers/.../subscriptions?starting_after=sub1a2b3c4d`,是相對
+//    路徑;整份規格裡 next_page 的 example 沒有一個是絕對 URL(散文是詮釋,example 才是規格
+//    真正錨定的東西)。舊寫法 `rcUrl = subs.next_page` 直接把相對路徑字串送進 fetch(),在正式
+//    環境 fetch 沒有隱含 base、會同步拋 TypeError——有效訂閱剛好落在第 2 頁的客戶,翻頁時就會
+//    被外層 catch 接住變 503(方向安全,但分頁修復對它自己要解決的情境完全沒生效)。
+//  · G-2(Important,安全):修 G-1 時**不能**天真寫成 `new URL(nextPage, RC_ORIGIN)`——若
+//    nextPage 剛好是絕對 URL(不論規格是否保證,上游一旦改變行為或這段回應被竄改),
+//    `new URL(絕對URL, base)` 會完全無視 base、直接採用該絕對 URL 自己的 origin,我們會把帶著
+//    Authorization: Bearer <secret key> 的請求送去上游回應裡任意指定的網址(等同資訊外洩的
+//    open redirect)。正確作法是只取解析後的 pathname+search,origin 永遠重新套用 RC_ORIGIN——
+//    不論輸入是相對路徑或絕對 URL(惡意與否),結果永遠回到我們自己的 origin。
+function resolveRcNextPage(nextPage) {
+  const parsed = new URL(nextPage, RC_ORIGIN);
+  return new URL(parsed.pathname + parsed.search, RC_ORIGIN).href;
+}
+
 // 從 GET /v2/.../customers/{id}/subscriptions 的回應判「這個客戶有沒有**正式環境**的 Plus 存取權」。
 // 三道條件全部要成立才算數:
 //  (1) gives_access === true——RevenueCat 官方規格明文:「To determine whether or not a subscription
@@ -590,7 +614,7 @@ async function checkPlusEntitlement(request, env) {
     const wantEntitlement = env.REVENUECAT_ENTITLEMENT || 'plus';
     // 分頁:見上方 RC_SUBS_LIMIT/RC_SUBS_MAX_PAGES 的說明。每頁先問「這頁裡有沒有找到」,
     // 找到就立刻回傳(不必翻完剩下的頁);沒找到才看 next_page 決定要不要翻下一頁。
-    let rcUrl = `https://api.revenuecat.com/v2/projects/${encodeURIComponent(env.REVENUECAT_PROJECT_ID)}/customers/${encodeURIComponent(uid)}/subscriptions?environment=${RC_ENV_PRODUCTION}&limit=${RC_SUBS_LIMIT}`;
+    let rcUrl = `${RC_ORIGIN}/v2/projects/${encodeURIComponent(env.REVENUECAT_PROJECT_ID)}/customers/${encodeURIComponent(uid)}/subscriptions?environment=${RC_ENV_PRODUCTION}&limit=${RC_SUBS_LIMIT}`;
     for (let page = 0; page < RC_SUBS_MAX_PAGES; page++) {
       const rc = await fetch(rcUrl, {
         headers: { Authorization: `Bearer ${env.REVENUECAT_V2_SECRET_KEY}`, Accept: 'application/json' },
@@ -616,7 +640,7 @@ async function checkPlusEntitlement(request, env) {
       const subs = await rc.json();
       if (plusEntitledFromSubscriptions(subs, wantEntitlement)) return { ok: true, uid };
       if (!subs || typeof subs.next_page !== 'string' || !subs.next_page) break;                // next_page 缺席/null:已到最後一頁,正常結束(不是還有下一頁沒跟)
-      rcUrl = subs.next_page;                                                                    // next_page 本身就是完整 URL(規格原文),直接拿來當下一次的請求目標
+      rcUrl = resolveRcNextPage(subs.next_page);                                                  // 見 resolveRcNextPage():規格 example 是相對路徑,且 origin 必須釘死、不可信任上游回傳值
     }
     return { ok: false, status: 403, error: 'not_entitled' };                                    // 翻完所有頁、或翻頁上限用完仍未找到 ⇒ 安全方向是視同無資格,不得因為我們自己停手就靜默當成有資格
   } catch (e) {

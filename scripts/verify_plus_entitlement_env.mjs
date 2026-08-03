@@ -59,6 +59,11 @@ let rcSeq = null;
 const realFetch = globalThis.fetch;
 globalThis.fetch = async (url) => {
   const u = String(url);
+  // 🔴複審修復輪 2 G-1:忠實模擬 fetch() 對相對路徑的真實行為——Workers/瀏覽器的 fetch() 沒有
+  // 隱含 base,傳相對路徑字串進去會直接拋 TypeError,這正是 G-1 的正式環境症狀。替身若對
+  // 相對路徑照樣放行(例如回一個假 Response),next_page 誤用相對路徑的迴歸就永遠測不到
+  // ——判準不能跟「假設 fetch 對任何字串都不會拋錯」這個錯誤前提共用。
+  try { new URL(u); } catch { upstream.push(u); throw new TypeError(`Failed to parse URL from ${u}`); }
   upstream.push(u);
   if (u.includes('identitytoolkit.googleapis.com')) {
     return new Response(JSON.stringify({ users: [{ localId: 'uid-under-test' }] }), { status: 200 });
@@ -282,22 +287,33 @@ section(SECTIONS[6]);
     'prepare-web.mjs 真的在注入同一個變數名，且值來自建置期環境變數（不是頁面上可改的東西）');
 }
 
-// ── 8. 分頁：limit 上限、跟 next_page 直到找到或翻完、翻頁上限的安全方向（F-1） ──────
+// ── 8. 分頁：limit 上限、跟 next_page 直到找到或翻完、翻頁上限的安全方向（F-1）；
+//    以及 next_page 解析的安全性（🔴複審修復輪 2 G-1+G-2） ──────────────────────────
 // 🔴複審 I-1(b)：/subscriptions 的 limit 預設只有 20，且這支端點沒有 sort、規格也沒有任何
-// 「較新排前面」的排序保證——第一頁不能假設含有使用者現在生效的那筆訂閱。三件事都要驗：
+// 「較新排前面」的排序保證——第一頁不能假設含有使用者現在生效的那筆訂閱。四件事都要驗：
 // (a) 有效訂閱在第 2 頁時仍判定為有資格；(b) 翻頁上限用完時走安全方向（不得靜默當成有資格）；
-// (c) next_page 為 null 時正常結束。
+// (c) next_page 為 null 時正常結束；(d) next_page 指向外部 host 時，實際請求仍然釘死打在
+// api.revenuecat.com（G-2：不得把帶 secret key 的請求送去上游回應指定的任意網址）。
+//
+// (a)(b) 的 next_page fixture 刻意寫成官方規格 example 的**相對路徑**形式——ListSubscriptions.
+// next_page 的 example 逐字是 `/v2/projects/.../subscriptions?starting_after=...`，整份規格裡
+// next_page 沒有一個 example 是絕對 URL（散文寫「URL」是詮釋，example 才是規格錨定的東西）。
+// 上一輪的 fixture 誤寫成絕對 URL，於是判準與 worker.js「next_page 就是完整 URL」的錯誤假設
+// 共用同一個前提——正式環境會在第 2 頁對相對路徑字串拋 TypeError 的分頁邏輯，測試永遠是綠的。
+// 替身的 fetch()（見上方）現在會對非絕對 URL 忠實拋錯，加上這裡改回相對路徑，才讓這個迴歸
+// 有機會真的觸發。
+const isRcUrl = (u) => { try { return new URL(u).host === 'api.revenuecat.com'; } catch { return false; } };
 section(SECTIONS[7]);
 {
   // (a) 第 1 頁只有 sandbox（無資格），第 2 頁才是正式有效訂閱 ⇒ 必須真的翻頁才找得到。
   const p2 = await runPages([
-    { body: { items: [SANDBOX_SUB], next_page: 'https://api.revenuecat.com/v2/projects/proj_x/customers/uid-under-test/subscriptions?environment=production&limit=100&starting_after=sub_1' } },
+    { body: { items: [SANDBOX_SUB], next_page: '/v2/projects/proj_x/customers/uid-under-test/subscriptions?environment=production&limit=100&starting_after=sub_1' } },
     { body: { items: [PRODUCTION_SUB], next_page: null } },
   ]);
   const rcCallsP2 = upstream.filter(u => u.includes('api.revenuecat.com'));
-  check(p2.ok === true && rcCallsP2.length === 2,
-    '(a) 有效訂閱在第 2 頁（第 1 頁只有 sandbox）⇒ 仍判定為有資格，且真的翻了 2 頁上游（不是巧合過關）',
-    JSON.stringify({ p2, 上游呼叫次數: rcCallsP2.length }));
+  check(p2.ok === true && rcCallsP2.length === 2 && rcCallsP2.every(isRcUrl),
+    '(a) 有效訂閱在第 2 頁（第 1 頁只有 sandbox，next_page 是規格 example 的相對路徑）⇒ 仍判定為有資格，且真的翻了 2 頁上游、每一發都是絕對 URL 且 host 為 api.revenuecat.com（不是把相對路徑原封不動送進 fetch）',
+    JSON.stringify({ p2, 上游呼叫次數: rcCallsP2.length, 上游網址: rcCallsP2 }));
 
   // (c) 單頁、next_page 明確是 null（不是缺席）⇒ 正常結束，只打 1 次上游。
   const singlePage = await runPages([{ body: { items: [SANDBOX_SUB], next_page: null } }]);
@@ -314,13 +330,29 @@ section(SECTIONS[7]);
   // 就會翻到那頁找到獎品、誤判為有資格。
   const MAX_PAGES_EXPECTED = 5;
   const beyondCapPages = Array.from({ length: MAX_PAGES_EXPECTED }, (_, i) => ({
-    body: { items: [SANDBOX_SUB], next_page: `https://api.revenuecat.com/v2/projects/proj_x/customers/uid-under-test/subscriptions?environment=production&limit=100&starting_after=p${i}` },
+    body: { items: [SANDBOX_SUB], next_page: `/v2/projects/proj_x/customers/uid-under-test/subscriptions?environment=production&limit=100&starting_after=p${i}` },
   })).concat([{ body: { items: [PRODUCTION_SUB], next_page: null } }]);
   const capped = await runPages(beyondCapPages);
   const rcCallsCapped = upstream.filter(u => u.includes('api.revenuecat.com'));
-  check(capped.ok === false && capped.status === 403 && rcCallsCapped.length === MAX_PAGES_EXPECTED,
-    `(b) 翻頁上限用完仍未找到 ⇒ 安全方向是視同無資格（不得因為我們自己停止翻頁就靜默當成有資格）；剛好翻了 ${MAX_PAGES_EXPECTED} 頁就停手，沒有翻到藏著正式資格的第 ${MAX_PAGES_EXPECTED + 1} 頁`,
+  check(capped.ok === false && capped.status === 403 && rcCallsCapped.length === MAX_PAGES_EXPECTED && rcCallsCapped.every(isRcUrl),
+    `(b) 翻頁上限用完仍未找到 ⇒ 安全方向是視同無資格（不得因為我們自己停止翻頁就靜默當成有資格）；剛好翻了 ${MAX_PAGES_EXPECTED} 頁就停手（皆為絕對 URL 且 host 正確），沒有翻到藏著正式資格的第 ${MAX_PAGES_EXPECTED + 1} 頁`,
     JSON.stringify({ capped, 上游呼叫次數: rcCallsCapped.length }));
+
+  // (d) G-2（安全）：next_page 指向外部／惡意 host 時，實際發出的請求仍然要釘死打在
+  // api.revenuecat.com——不能天真寫成 new URL(nextPage, RC_ORIGIN)（絕對 URL 會讓 base
+  // 完全被忽略，帶 Authorization: Bearer <secret key> 的請求就會被送去上游回應裡指定的
+  // 任意網址）。g2.ok===true 證明請求真的落在替身的 RC 分支並拿到第 2 頁資料（不是巧合
+  // 因為某個分支剛好也回 200），最後一條是雙重否定確認：惡意 host 從未出現在任何一發
+  // 上游呼叫裡。
+  const evilNextPage = 'https://evil.example.com/v2/projects/proj_x/customers/uid-under-test/subscriptions?starting_after=sub_1';
+  const g2 = await runPages([
+    { body: { items: [SANDBOX_SUB], next_page: evilNextPage } },
+    { body: { items: [PRODUCTION_SUB], next_page: null } },
+  ]);
+  const rcCallsG2 = upstream.filter(isRcUrl);
+  check(g2.ok === true && rcCallsG2.length === 2 && !upstream.some(u => u.includes('evil.example.com')),
+    '(d) next_page 指向外部 host（evil.example.com）⇒ 實際請求仍然釘死打在 api.revenuecat.com，惡意 host 從未出現在任何一發上游呼叫裡',
+    JSON.stringify({ g2, 上游網址: upstream }));
 }
 
 globalThis.fetch = realFetch;
