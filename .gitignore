@@ -96,3 +96,6 @@ data/place_index.json
 # 驗證腳本的工作目錄（verify_widget_logic / verify_place_direction / render_place_widget
 # 的預設輸出）：裡面有編出來的 binary 與中間 JSON。同上，repo 是 public。
 tmp/
+
+# Firestore 模擬器的除錯 log（跑 verify_firestore_rules 時產生）
+firestore-debug.log
