@@ -6,10 +6,23 @@ service cloud.firestore {
       return request.auth != null && request.auth.uid == uid;
     }
 
+    function hasActiveEntitlement(uid) {
+      let entitlement = get(/databases/$(database)/documents/entitlements/$(uid));
+      // 文件不存在時 get() 回 null,這裡要擋的就是它。寫成 `entitlement.data != null` 不行——
+      // 那是先對 null 取 .data,求值錯誤會搶在比較之前發生,該子句永遠不會回 false(實測:整條
+      // 刪掉仍 14/14 全綠,換成本寫法後模擬器軌跡由 Null value error 變成乾淨的 false)。
+      // 兩種寫法最終都拒絕,但只有這個寫法是這段程式在擋,不是靠平台的求值錯誤語意兜底。
+      return entitlement != null
+        && entitlement.data.active == true
+        && (entitlement.data.activeUntilMs == 0
+          || entitlement.data.activeUntilMs > request.time.toMillis());
+    }
+
     // 四份同步文件：pins / favs / rides / stations。只能由本人讀寫，其他使用者完全看不到。
     match /users/{uid}/data/{kind} {
       allow read, delete: if owns(uid) && kind in ['pins', 'favs', 'rides', 'stations'];
       allow create, update: if owns(uid)
+        && hasActiveEntitlement(uid)
         && kind in ['pins', 'favs', 'rides', 'stations']
         && request.resource.data.keys().hasOnly([
           'version', 'kind', 'revision', 'clientUpdatedAt', 'items', 'tombstones', 'updatedAt'

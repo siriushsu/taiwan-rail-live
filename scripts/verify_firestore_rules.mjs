@@ -34,62 +34,180 @@ async function check(name, fn) {
 
 const UID_A = 'uid-a', UID_B = 'uid-b';
 // 合法的同步文件形狀，逐欄對齊 rules 的 hasOnly 白名單。
-const validDoc = () => ({
-  version: 1, kind: 'favs', revision: 1, clientUpdatedAt: Date.now(),
+const validDoc = (kind = 'favs', revision = 1) => ({
+  version: 1, kind, revision, clientUpdatedAt: Date.now(),
   items: [], tombstones: [], updatedAt: serverTimestamp(),
 });
 
 const dataRef = (db, uid, kind = 'favs') => doc(db, 'users', uid, 'data', kind);
+const entitlementRef = (db, uid) => doc(db, 'entitlements', uid);
+const entitlementDoc = ({ active = true, activeUntilMs = Date.now() + 86_400_000 } = {}) => ({
+  active, activeUntilMs, updatedAtMs: Date.now(), source: 'plus-status',
+});
+
+async function seedEntitlement(uid, data = entitlementDoc()) {
+  await testEnv.withSecurityRulesDisabled(async context => {
+    await assertSucceeds(setDoc(entitlementRef(context.firestore(), uid), data));
+  });
+}
+
+async function removeEntitlement(uid) {
+  await testEnv.withSecurityRulesDisabled(async context => {
+    await deleteDoc(entitlementRef(context.firestore(), uid));
+  });
+}
+
+async function seedData(uid, kind = 'favs') {
+  await testEnv.withSecurityRulesDisabled(async context => {
+    await assertSucceeds(setDoc(dataRef(context.firestore(), uid, kind), validDoc(kind)));
+  });
+}
+
+async function removeData(uid, kind = 'favs') {
+  await testEnv.withSecurityRulesDisabled(async context => {
+    await deleteDoc(dataRef(context.firestore(), uid, kind));
+  });
+}
 
 // ── 現行規則的既有保證（Task 8 收緊之後這些都不得退化）────────────────────────
-await check('R1 本人可以寫自己的同步文件', async () => {
+await check('R1 本人有有效資格時可以建立與更新自己的同步文件', async () => {
+  await seedEntitlement(UID_A);
   const db = testEnv.authenticatedContext(UID_A).firestore();
   await assertSucceeds(setDoc(dataRef(db, UID_A), validDoc()));
+  await assertSucceeds(setDoc(dataRef(db, UID_A), validDoc('favs', 2)));
 });
 
-await check('R2 本人可以讀自己的同步文件', async () => {
-  const db = testEnv.authenticatedContext(UID_A).firestore();
-  await assertSucceeds(getDoc(dataRef(db, UID_A)));
+await check('R2 本人無資格仍可以讀自己的同步文件', async () => {
+  const uid = 'r2-no-entitlement';
+  await removeEntitlement(uid);
+  await seedData(uid);
+  const db = testEnv.authenticatedContext(uid).firestore();
+  await assertSucceeds(getDoc(dataRef(db, uid)));
 });
 
-await check('R3 本人可以刪自己的同步文件（帳號刪除要走這條）', async () => {
-  const db = testEnv.authenticatedContext(UID_A).firestore();
-  await assertSucceeds(deleteDoc(dataRef(db, UID_A)));
+await check('R3 本人無資格仍可以刪自己的同步文件（帳號刪除要走這條）', async () => {
+  const uid = 'r3-no-entitlement';
+  await removeEntitlement(uid);
+  await seedData(uid);
+  const db = testEnv.authenticatedContext(uid).firestore();
+  await assertSucceeds(deleteDoc(dataRef(db, uid)));
 });
 
 await check('R4 別人的 uid 一律寫不了', async () => {
-  const db = testEnv.authenticatedContext(UID_B).firestore();
-  await assertFails(setDoc(dataRef(db, UID_A), validDoc()));
+  const uid = 'r4-owner';
+  await seedEntitlement(uid);
+  const intruderDb = testEnv.authenticatedContext(UID_B).firestore();
+  const ownerDb = testEnv.authenticatedContext(uid).firestore();
+  await removeData(uid);
+  await assertFails(setDoc(dataRef(intruderDb, uid), validDoc()));
+  await assertSucceeds(setDoc(dataRef(ownerDb, uid), validDoc()));
+  await assertFails(setDoc(dataRef(intruderDb, uid), validDoc('favs', 2)));
+  await assertSucceeds(setDoc(dataRef(ownerDb, uid), validDoc('favs', 2)));
+  await assertFails(deleteDoc(dataRef(intruderDb, uid)));
+  await assertSucceeds(deleteDoc(dataRef(ownerDb, uid)));
 });
 
 await check('R5 別人的 uid 一律讀不了', async () => {
-  const db = testEnv.authenticatedContext(UID_B).firestore();
-  await assertFails(getDoc(dataRef(db, UID_A)));
+  const uid = 'r5-owner';
+  await seedEntitlement(uid);
+  await seedData(uid);
+  const intruderDb = testEnv.authenticatedContext(UID_B).firestore();
+  const ownerDb = testEnv.authenticatedContext(uid).firestore();
+  await assertFails(getDoc(dataRef(intruderDb, uid)));
+  await assertSucceeds(getDoc(dataRef(ownerDb, uid)));
 });
 
 await check('R6 未登入一律寫不了', async () => {
-  const db = testEnv.unauthenticatedContext().firestore();
-  await assertFails(setDoc(dataRef(db, UID_A), validDoc()));
+  const uid = 'r6-owner';
+  await seedEntitlement(uid);
+  const unauthDb = testEnv.unauthenticatedContext().firestore();
+  const ownerDb = testEnv.authenticatedContext(uid).firestore();
+  await assertFails(setDoc(dataRef(unauthDb, uid), validDoc()));
+  await assertSucceeds(setDoc(dataRef(ownerDb, uid), validDoc()));
 });
 
 await check('R7 不在白名單的 kind 寫不了', async () => {
-  const db = testEnv.authenticatedContext(UID_A).firestore();
-  await assertFails(setDoc(dataRef(db, UID_A, 'secrets'), { ...validDoc(), kind: 'secrets' }));
+  const uid = 'r7-owner';
+  await seedEntitlement(uid);
+  const db = testEnv.authenticatedContext(uid).firestore();
+  await assertFails(setDoc(dataRef(db, uid, 'secrets'), validDoc('secrets')));
+  await assertSucceeds(setDoc(dataRef(db, uid), validDoc()));
 });
 
 await check('R8 多帶一個欄位就寫不了（hasOnly 白名單有牙）', async () => {
-  const db = testEnv.authenticatedContext(UID_A).firestore();
-  await assertFails(setDoc(dataRef(db, UID_A), { ...validDoc(), evil: 1 }));
+  const uid = 'r8-owner';
+  await seedEntitlement(uid);
+  const db = testEnv.authenticatedContext(uid).firestore();
+  await assertFails(setDoc(dataRef(db, uid), { ...validDoc(), evil: 1 }));
+  await assertSucceeds(setDoc(dataRef(db, uid), validDoc()));
 });
 
 await check('R9 entitlements 客戶端一律寫不了（只能由後端 Admin 憑證寫）', async () => {
-  const db = testEnv.authenticatedContext(UID_A).firestore();
-  await assertFails(setDoc(doc(db, 'entitlements', UID_A), { active: true }));
+  const uid = 'r9-owner';
+  const db = testEnv.authenticatedContext(uid).firestore();
+  await assertFails(setDoc(entitlementRef(db, uid), entitlementDoc()));
+  await seedEntitlement(uid);
 });
 
 await check('R10 entitlements 本人讀得到', async () => {
+  await seedEntitlement(UID_A);
   const db = testEnv.authenticatedContext(UID_A).firestore();
-  await assertSucceeds(getDoc(doc(db, 'entitlements', UID_A)));
+  await assertSucceeds(getDoc(entitlementRef(db, UID_A)));
+});
+
+// ── Task 8：Plus 資格閘門。拒絕案例都在同一情境內附可寫的正向對照。──────────
+await check('E1 無資格文件時 create/update 都不可寫；有效資格對照可寫', async () => {
+  const uid = 'e1-missing';
+  const db = testEnv.authenticatedContext(uid).firestore();
+  await removeEntitlement(uid);
+  await removeData(uid);
+  await assertFails(setDoc(dataRef(db, uid), validDoc()));
+  await seedData(uid);
+  await assertFails(setDoc(dataRef(db, uid), validDoc('favs', 2)));
+
+  await seedEntitlement(uid);
+  await removeData(uid);
+  await assertSucceeds(setDoc(dataRef(db, uid), validDoc()));
+  await assertSucceeds(setDoc(dataRef(db, uid), validDoc('favs', 2)));
+});
+
+await check('E2 active:false 時 create/update 都不可寫；active:true 對照可寫', async () => {
+  const uid = 'e2-inactive';
+  const db = testEnv.authenticatedContext(uid).firestore();
+  await seedEntitlement(uid, entitlementDoc({ active: false, activeUntilMs: 0 }));
+  await removeData(uid);
+  await assertFails(setDoc(dataRef(db, uid), validDoc()));
+  await seedData(uid);
+  await assertFails(setDoc(dataRef(db, uid), validDoc('favs', 2)));
+
+  await seedEntitlement(uid);
+  await removeData(uid);
+  await assertSucceeds(setDoc(dataRef(db, uid), validDoc()));
+  await assertSucceeds(setDoc(dataRef(db, uid), validDoc('favs', 2)));
+});
+
+await check('E3 資格已過期時 create/update 都不可寫；未到期對照可寫', async () => {
+  const uid = 'e3-expired';
+  const db = testEnv.authenticatedContext(uid).firestore();
+  await seedEntitlement(uid, entitlementDoc({ activeUntilMs: Date.now() - 86_400_000 }));
+  await removeData(uid);
+  await assertFails(setDoc(dataRef(db, uid), validDoc()));
+  await seedData(uid);
+  await assertFails(setDoc(dataRef(db, uid), validDoc('favs', 2)));
+
+  await seedEntitlement(uid);
+  await removeData(uid);
+  await assertSucceeds(setDoc(dataRef(db, uid), validDoc()));
+  await assertSucceeds(setDoc(dataRef(db, uid), validDoc('favs', 2)));
+});
+
+await check('E4 activeUntilMs == 0 的終身資格可 create/update', async () => {
+  const uid = 'e4-lifetime';
+  const db = testEnv.authenticatedContext(uid).firestore();
+  await seedEntitlement(uid, entitlementDoc({ activeUntilMs: 0 }));
+  await removeData(uid);
+  await assertSucceeds(setDoc(dataRef(db, uid), validDoc()));
+  await assertSucceeds(setDoc(dataRef(db, uid), validDoc('favs', 2)));
 });
 
 await testEnv.cleanup();
