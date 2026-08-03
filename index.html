@@ -2122,6 +2122,16 @@
   .takeout-row a, .takeout-row button { color: var(--navy); font: inherit; font-weight: 700; }
   .takeout-row a { display: inline-flex; align-items: center; min-height: 44px; }
   .takeout-row button { min-height: 44px; padding: 5px 9px; border: 1px solid var(--line); border-radius: 6px; background: var(--bg-stage); cursor: pointer; }
+  .takeout-bulk {
+    display: flex; align-items: center; gap: 10px; min-height: 52px; box-sizing: border-box;
+    margin: 7px 0 4px; padding: 7px 10px; border: 1.5px solid var(--navy); border-radius: 9px;
+    background: var(--bg-stage); color: var(--ink); cursor: pointer;
+  }
+  .takeout-bulk input { flex: none; width: 20px; height: 20px; margin: 0; }
+  .takeout-bulk span { min-width: 0; }
+  .takeout-bulk b, .takeout-bulk small { display: block; }
+  .takeout-bulk b { color: var(--navy); font-size: 12.5px; }
+  .takeout-bulk small { margin-top: 2px; color: var(--faint); font-size: 11px; line-height: 1.45; }
   .takeout-more { color: var(--faint); font-size: 11px; margin-top: 5px; }
   .takeout-actions {
     display: flex; justify-content: flex-end; gap: 8px; padding: 10px 14px;
@@ -3321,7 +3331,7 @@
 
   <footer class="site-foot">
     <details class="foot-box">
-      <summary><span>更新紀錄</span><span class="foot-sub">最後更新：2026/8/2</span></summary>
+      <summary><span>更新紀錄</span><span class="foot-sub">最後更新：2026/8/3</span></summary>
       <!-- 第一層是「最近更新」的檢視,不是正本:每一條都用 data-cl-of 指向第二層某條的 data-cl。
            要把一條擠出第一層之前,它的正本必須已經在第二層存在——2026-08-03 就踩過一次:8/1 的
            衛星計費那條只活在第一層(第二層只有一句夾在 7/25 條目裡、日期對不上的附帶說明),
@@ -3329,6 +3339,7 @@
            內容 li 上限 8 條(li.grp 是標題不算)。 -->
       <ul class="foot-list foot-recent">
         <li class="grp">最近更新</li>
+        <li data-cl-of="takeout-preview"><span class="d">8/3</span><span>Google 清單超過預覽上限時，沒顯示的地點不會再自動跟著匯入；想全部匯入可以明確勾選其餘筆數</span></li>
         <li data-cl-of="sync"><span class="d">8/2</span><span>訂閱軌島 Plus 後可以用軌島帳號登入，收藏的地點與完乘記錄會在手機和電腦之間同步</span></li>
         <li data-cl-of="tripshare"><span class="d">8/2</span><span>訂閱 Plus 後可以把正在跟的班次分享給朋友，對方點開連結就看得到車跑到哪、還要多久到</span></li>
         <li data-cl-of="satretina"><span class="d">8/2</span><span>在 App 裡訂閱 Plus 後，衛星底圖會用高解析度圖磚（支援 Retina 螢幕）</span></li>
@@ -3336,7 +3347,6 @@
         <li data-cl-of="liveactivity"><span class="d">8/2</span><span>訂閱 Plus 後在 App 裡跟車，鎖定畫面和動態島會顯示下一站與到站時間</span></li>
         <li data-cl-of="takeout"><span class="d">8/2</span><span>訂閱 Plus 後可以在 App 裡把 Google Maps 的「已儲存」清單匯入成軌島的最愛地點</span></li>
         <li data-cl-of="sanying"><span class="d">8/1</span><span>三鶯線跟上官方 8/1 延長：每天 08:00–22:00 都看得到車（原 10:00–20:00）</span></li>
-        <li data-cl-of="traobs"><span class="d">8/1</span><span>台鐵快車經過不停靠小站時的位置更準了——有網友拿碼錶實地量了十幾班車回報（謝謝）</span></li>
       </ul>
       <!-- 第二層:完整歷史。刻意不掛 .foot-box 類名——placeFootBoxes() 用
            `.site-foot .foot-box` 搬移面板,巢狀同名會被當成另一個盒子一起搬走。 -->
@@ -3382,6 +3392,7 @@
         <li><span class="d">7/11</span><span>新增「群車」視角：不跟單一列車，看整片列車交錯；改連續慢速巡航永不停頓</span></li>
         <li><span class="d">7/9</span><span>沉浸放空升級：真・全螢幕、「簡」極簡沉浸、經過特殊車站自動跳站介紹</span></li>
         <li class="grp">平交道與儲存地點</li>
+        <li data-cl="takeout-preview"><span class="d">8/3</span><span>匯入 Google Maps 「已儲存」清單時，預設只會匯入預覽裡看得到、能逐筆取消的地點；若清單超過手機順暢預覽的筆數，會另外列出「也匯入其餘 N 個未預覽地點」，只有主動勾選才會一起納入</span></li>
         <li data-cl="takeout"><span class="d">8/2</span><span>訂閱軌島 Plus 後，可以在 App 裡把 Google Maps 的「已儲存」清單匯入成軌島的最愛地點：從 Google Takeout 匯出的 ZIP（或解壓後的 CSV／JSON／GeoJSON）直接選檔，會先列出讀到的地點讓你勾選，確認後才寫入，只收台灣範圍內的地點。檔案全程只在你的裝置裡解析，不會上傳</span></li>
         <li><span class="d">7/22</span><span>「附近火車」更名為「儲存地點」：可以命名（家、公司…），存過的會進「我的最愛」</span></li>
         <li><span class="d">7/14</span><span>平交道位置依官方資料，可能與現場實際位置略有落差</span></li>
@@ -6749,7 +6760,7 @@ function takeoutOpen() {
 }
 function takeoutSelectedCount() {
   const r = state.takeoutResult;
-  return r ? r.resolved.filter(x => x.selected !== false).length : 0;
+  return r ? r.resolved.filter(x => x.selected === true).length : 0;
 }
 function takeoutSafeHref(value, fallback) {
   // 空值直接回 fallback:否則 new URL('', location.href) 會解析成本頁網址(https,truthy),
@@ -6766,17 +6777,23 @@ function takeoutSyncConfirm() {
 function takeoutRenderPreview() {
   const box = document.getElementById('takeoutPreview'), r = state.takeoutResult;
   if (!box || !r) { if (box) box.innerHTML = ''; takeoutSyncConfirm(); return; }
-  r.resolved.forEach(x => { if (x.selected == null) x.selected = true; });
   const shownResolved = r.resolved.slice(0, 200), shownIncomplete = r.incomplete.slice(0, 100);
+  if (r.includeUnshown == null) r.includeUnshown = false;
+  r.resolved.forEach((x, i) => {
+    if (i >= shownResolved.length) x.selected = r.includeUnshown;
+    else if (x.selected == null) x.selected = true;
+  });
   const rowName = item => `<span class="name"><b>${escHtml(item.title)}</b><small>${escHtml(item.list || item.sourceFile || '')}</small></span>`;
   let html = `<div class="takeout-summary"><span class="ok">可匯入 ${r.resolved.length}</span>` +
     `<span class="warn">需定位 ${r.incomplete.length}</span><span>海外略過 ${r.outside.length}</span></div>`;
   html += `<div class="takeout-more">跨裝置同步最多保存 ${USER_DATA_PIN_LIMIT} 個地點；超過時會保留既有收藏並略過多出的新地點。</div>`;
   if (shownResolved.length) {
-    html += `<section class="takeout-sec"><h3>可匯入台灣地點</h3>` + shownResolved.map((item, i) =>
+    const unshownCount = r.resolved.length - shownResolved.length;
+    html += `<section class="takeout-sec"><h3>可匯入台灣地點</h3>` +
+      (unshownCount ? `<label class="takeout-bulk"><input class="takeout-include-unshown" type="checkbox" ${r.includeUnshown ? 'checked' : ''}><span><b>也匯入其餘 ${unshownCount} 個未預覽地點</b><small>為避免手機卡頓，這些地點不逐筆顯示；勾選後會全部納入。</small></span></label>` : '') + shownResolved.map((item, i) =>
       `<label class="takeout-row"><input class="takeout-check" type="checkbox" data-i="${i}" ${item.selected !== false ? 'checked' : ''}>${rowName(item)}` +
       `<a href="${escHtml(takeoutSafeHref(item.url, `https://www.google.com/maps/search/?api=1&query=${item.coord.lat},${item.coord.lon}`))}" target="_blank" rel="noopener">查看</a></label>`).join('') +
-      (r.resolved.length > shownResolved.length ? `<div class="takeout-more">另有 ${r.resolved.length - shownResolved.length} 筆已選取，為避免手機卡頓不逐筆列出。</div>` : '') + `</section>`;
+      (unshownCount ? `<div class="takeout-more">其餘 ${unshownCount} 筆預設不匯入；可用上方選項一次納入。</div>` : '') + `</section>`;
   }
   if (shownIncomplete.length) {
     html += `<section class="takeout-sec"><h3>需要人工定位</h3>` + shownIncomplete.map((item, i) =>
@@ -6821,6 +6838,12 @@ function setupTakeoutUi() {
     }
   };
   document.getElementById('takeoutPreview').onchange = e => {
+    const bulk = e.target.closest('.takeout-include-unshown');
+    if (bulk && state.takeoutResult) {
+      state.takeoutResult.includeUnshown = bulk.checked;
+      state.takeoutResult.resolved.slice(200).forEach(item => { item.selected = bulk.checked; });
+      takeoutSyncConfirm(); return;
+    }
     const c = e.target.closest('.takeout-check'); if (!c || !state.takeoutResult) return;
     const item = state.takeoutResult.resolved[+c.dataset.i]; if (item) item.selected = c.checked;
     takeoutSyncConfirm();
@@ -6829,7 +6852,7 @@ function setupTakeoutUi() {
     const b = e.target.closest('.takeout-locate'); if (b) takeoutStartManual(+b.dataset.i);
   };
   document.getElementById('takeoutConfirm').onclick = () => {
-    const items = state.takeoutResult ? state.takeoutResult.resolved.filter(x => x.selected !== false) : [];
+    const items = state.takeoutResult ? state.takeoutResult.resolved.filter(x => x.selected === true) : [];
     try {
       const out = takeoutApply(items); takeoutClose();
       showToast(`已匯入 ${out.added} 個新地點${out.updated ? `，更新 ${out.updated} 個既有地點` : ''}${out.skipped ? `；${out.skipped} 個因收藏已滿略過` : ''}`);
