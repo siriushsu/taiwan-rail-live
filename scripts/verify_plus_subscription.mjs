@@ -1001,7 +1001,7 @@ for (const w of [360, 375, 414, 768]) await mobilePlusEntry(w, { sel: IMPORT_SEL
     const CLOUD_NO = '__CLOUD_ONLY_TRAIN__';
     const cloudFavsDoc = {
       version: 1, kind: 'favs', revision: 5, clientUpdatedAt: Date.now(),
-      items: [{ id: CLOUD_NO, value: { train: CLOUD_NO, label: '雲端獨有收藏' }, updatedAt: Date.now() }],
+      items: [{ id: `tra_sched|${CLOUD_NO}`, value: { train: CLOUD_NO, sys: 'tra_sched', label: '雲端獨有收藏' }, updatedAt: Date.now() }],
       tombstones: [],
     };
     const writes = [];
@@ -1036,7 +1036,7 @@ for (const w of [360, 375, 414, 768]) await mobilePlusEntry(w, { sel: IMPORT_SEL
   ok('P2b 四個 kind 都呼叫了 tx.set(pins/favs/rides/stations)', JSON.stringify(r.writeKinds) === JSON.stringify(['favs', 'pins', 'rides', 'stations']),
     `writeKinds=${JSON.stringify(r.writeKinds)}`);
   ok('P2c favs 寫入內容同時含本機那筆與雲端那筆(真的合併,不是只挑一邊)',
-    !!r.favsWrite && r.favsWrite.data.items.some(x => x.id === r.localNo) && r.favsWrite.data.items.some(x => x.id === '__CLOUD_ONLY_TRAIN__'),
+    !!r.favsWrite && r.favsWrite.data.items.some(x => x.id === `tra_sched|${r.localNo}`) && r.favsWrite.data.items.some(x => x.id === 'tra_sched|__CLOUD_ONLY_TRAIN__'),
     JSON.stringify(r.favsWrite && r.favsWrite.data.items.map(x => x.id)));
   ok('P2d revision = max(本機,雲端)+1(=6,雲端給的是5、本機剛建立是1)', !!r.favsWrite && r.favsWrite.data.revision === 6,
     `revision=${r.favsWrite && r.favsWrite.data.revision}`);
