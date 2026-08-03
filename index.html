@@ -6370,6 +6370,10 @@ const USER_DATA_COLLECTIONS = ['pins', 'favs', 'rides', 'stations'];
 const USER_DATA_LEGACY = { pins: 'trainmap-pins', favs: 'trainmap-favs', rides: 'trainmap-rides', stations: 'trainmap-fav-stations' };
 const USER_DATA_PIN_LIMIT = 800;
 const USER_DATA_TOMBSTONE_LIMIT = 2000;
+// 小偏移寬限採 5 分鐘：需求明列「幾秒～幾分鐘」不應被誤夾，並取 Microsoft Learn 所列
+// 「Maximum tolerance for computer clock synchronization ... 5 minutes」作分鐘級上界：
+// https://learn.microsoft.com/en-us/previous-versions/windows/it-pro/windows-server-2012-r2-and-2012/jj852172(v=ws.11)
+const USER_DATA_CLOCK_SKEW_GRACE_MS = 5 * 60 * 1000;
 function userDataNow() { return Date.now(); }
 function userDataDeviceId() {
   try {
@@ -6460,20 +6464,31 @@ function userDataItemId(kind, v) {
   if (kind === 'checkins' || kind === 'segments') return String(v.k);
   return String(v.sys || 'tra_sched') + '|' + String(v.train) + '|' + String(v.date);
 }
-function userDataNormalizeCollection(kind, src) {
+function userDataResolveTimestamp(raw, clock) {
+  const at = Number(raw) || 0;
+  if (!clock || !Number.isFinite(clock.serverAt) || clock.serverAt <= 0) return at;
+  const futureLimit = clock.serverAt + USER_DATA_CLOCK_SKEW_GRACE_MS;
+  if (at <= futureLimit) return at;
+  // clientUpdatedAt 與 serverTimestamp 是同一次 Firestore 寫入的兩個時刻；只有明顯超前時才用
+  // 兩者差值校正。舊資料若缺 clientUpdatedAt，仍至少夾到可信伺服器時間的寬限上界。
+  const clientAt = Number(clock.clientAt) || 0;
+  const ahead = clientAt - clock.serverAt;
+  return Math.max(0, Math.min(ahead > USER_DATA_CLOCK_SKEW_GRACE_MS ? at - ahead : at, futureLimit));
+}
+function userDataNormalizeCollection(kind, src, clock) {
   const byId = new Map(), deleted = new Map();
   const items = src && Array.isArray(src.items) ? src.items : [];
   const tombstones = src && Array.isArray(src.tombstones) ? src.tombstones : [];
   for (const rec of items) {
     const v = userDataCleanValue(kind, rec && rec.value);
     if (!v) continue;
-    const id = userDataItemId(kind, v), at = Number(rec.updatedAt) || 0;
+    const id = userDataItemId(kind, v), at = userDataResolveTimestamp(rec.updatedAt, clock);
     const old = byId.get(id);
     if (!old || at >= old.updatedAt) byId.set(id, { id, value: v, updatedAt: at });
   }
   for (const rec of tombstones) {
     if (!rec || typeof rec.id !== 'string') continue;
-    const at = Number(rec.deletedAt) || 0;
+    const at = userDataResolveTimestamp(rec.deletedAt, clock);
     if (at >= (deleted.get(rec.id) || 0)) deleted.set(rec.id, at);
   }
   for (const [id, at] of deleted) {
@@ -6902,9 +6917,11 @@ function accountCloudEnvelope(docs) {
   USER_DATA_COLLECTIONS.forEach(kind => {
     const d = docs[kind];
     if (!d) return;
-    out.collections[kind] = userDataNormalizeCollection(kind, d);
+    const serverAt = d.updatedAt && typeof d.updatedAt.toMillis === 'function' ? Number(d.updatedAt.toMillis()) || 0 : 0;
+    const clientAt = Number(d.clientUpdatedAt) || 0;
+    out.collections[kind] = userDataNormalizeCollection(kind, d, serverAt ? { serverAt, clientAt } : null);
     out.revision = Math.max(out.revision, Number(d.revision) || 0);
-    const t = d.clientUpdatedAt || (d.updatedAt && typeof d.updatedAt.toMillis === 'function' ? d.updatedAt.toMillis() : 0);
+    const t = serverAt || clientAt;
     out.updatedAt = Math.max(out.updatedAt, Number(t) || 0);
   });
   return out;
