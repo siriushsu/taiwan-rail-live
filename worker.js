@@ -1,6 +1,6 @@
 import {
   TRTC_LEDGER_SCHEMA, buildTrtcModel, buildLedgerFromRaw,
-  trtcOperatingState, trtcServiceDay,
+  trtcOperatingState, trtcServiceDay, resolveBoardRows, claimBoardRows, collapseClaims,
 } from './scripts/trtc_board_ledger.mjs';
 
 // Cloudflare Worker 入口:靜態資產(assets binding)+ /api/tra-live 台鐵即時動態代理
@@ -605,12 +605,18 @@ async function trtcLive(request, env) {
         trains: trains.filter(t => t.at != null && /^[A-Z]+\d+$/.test(t.stn) && (t.dir === 1 || t.dir === 2)),
         board, cd: { rows: tk.length, dropped: cdDropped, dateDropped: boardDateDropped,
           pathDropped: pathCdDropped, pathDateDropped, pathNoTrainNo, carsRejected } };
-      // B1 只加一個新頂層欄位；legacy 的 at/src/trains/board/cd 產生路徑與欄位順序不動。
-      // 帳本預覽失敗一律回空陣列，不能拖垮原本逐車 API。
+      // 前端逐班校正只消費這份「物理位置錨點」。站名正規化、支線/終點消歧與
+      // 倒數是否真能證明車在上一區間，全部復用 B1 已驗的純函式，不在前端重造一套。
+      // 錨點沒有列車名冊欄位，更不會產生車；它只說「這裡有一筆可用位置證據」。
+      let boardPos = { at: null, rows: [], dropped: {} };
+      try { boardPos = await trtcBoardPositionAnchors(env, tk); }
+      catch (e) { console.error('[trtc board-pos] 錨點組裝失敗:', (e && e.stack) || String(e)); }
+      // legacy 的 at/src/trains/board/cd 產生路徑與欄位順序不動；帳本預覽失敗一律
+      // 回空陣列，不能拖垮原本逐車 API。
       let ledger = [];
       try { ledger = await trtcLedgerPreview(env, hwRaw, brRaw, tk); }
       catch (e) { console.error('[trtc ledger] API 組裝失敗:', (e && e.stack) || String(e)); }
-      trtcMem = { data: { ...legacy, ledger }, raw: { hw: hwRaw, br: brRaw, tk }, at: Date.now() };
+      trtcMem = { data: { ...legacy, boardPos, ledger }, raw: { hw: hwRaw, br: brRaw, tk }, at: Date.now() };
     }
     const res = jsonRes(trtcMem.data, 200, 'public, s-maxage=15, stale-while-revalidate=120');
     await edge.put(cacheKey, res.clone());
@@ -626,7 +632,7 @@ async function trtcLive(request, env) {
     // 把「上游掛掉」這個環境問題指成程式缺陷(Re-review-2 P-5)。
     let ledger = [];
     try { ledger = await trtcLedgerMaterialized(env, Math.floor(Date.now() / 1000)); } catch (e) {}
-    const res = jsonRes({ at: new Date().toISOString(), src: null, trains: [], board: [],
+    const res = jsonRes({ at: new Date().toISOString(), src: null, trains: [], board: [], boardPos: { at: null, rows: [], dropped: {} },
       cd: { rows: 0, dropped: 0, dateDropped: 0, pathDropped: 0, pathDateDropped: 0, pathNoTrainNo: 0 }, ledger }, 200, 'public, s-maxage=15');
     await edge.put(cacheKey, res.clone());
     return res;
@@ -688,6 +694,21 @@ function trtcBoardEpoch(rows, fallbackEpoch) {
     if (Number.isFinite(t) && (newest == null || t > newest)) newest = t;
   }
   return newest == null ? fallbackEpoch : newest;
+}
+
+async function trtcBoardPositionAnchors(env, rows) {
+  const nowEpoch = trtcBoardEpoch(rows, Math.floor(Date.now() / 1000));
+  const model = await trtcLedgerModel(env);
+  const resolved = resolveBoardRows(model, rows, trtcEpoch);
+  const claimed = claimBoardRows(model, resolved.rows, nowEpoch, new Map());
+  const collapsed = collapseClaims(claimed.claims);
+  return {
+    at: nowEpoch,
+    rows: collapsed.map(x => ({ line: x.line, dir: x.dir, from: x.from, to: x.to,
+      dest: x.destIdx, run: x.run, arrEpoch: x.arrEpoch, no: x.no || '', terminal: !!x.terminal })),
+    dropped: { ...resolved.dropped, unclaimed: claimed.unclaimed.length,
+      collapsed: claimed.claims.length - collapsed.length },
+  };
 }
 
 function ledgerTrackRows(updates) {
@@ -837,14 +858,20 @@ async function trtcLedgerScheduled(event, env) {
   const [model, first] = await Promise.all([
     trtcLedgerModel(env),
     Promise.all([
-      trtcCall(trtcApiUrl(env, 'TrackInfo'), 'getTrackInfo', env),
+      trtcCall(trtcApiUrl(env, 'TrackInfo'), 'getTrackInfo', env).catch(e => {
+        console.warn('[cron trtc-ledger] TrackInfo 第一次取樣失敗:', (e && e.message) || String(e));
+        return [];
+      }),
       trtcCall(trtcApiUrl(env, 'CarWeight'), 'getCarWeightByInfoEx', env).catch(() => []),
       trtcCall(trtcApiUrl(env, 'CarWeightBR'), 'getCarWeightBRInfo', env).catch(() => []),
     ]),
   ]);
   const [board1, hwRaw, brRaw] = first;
   if (delayMs) await new Promise(resolve => setTimeout(resolve, delayMs));
-  const board2 = await trtcCall(trtcApiUrl(env, 'TrackInfo'), 'getTrackInfo', env);
+  const board2 = await trtcCall(trtcApiUrl(env, 'TrackInfo'), 'getTrackInfo', env).catch(e => {
+    console.warn('[cron trtc-ledger] TrackInfo 第二次取樣失敗:', (e && e.message) || String(e));
+    return [];
+  });
   const now1 = trtcBoardEpoch(board1, gateNow), day = trtcServiceDay(now1);
   const context = await trtcLedgerContext(env, day, now1);
   const part1 = buildLedgerFromRaw({ model, boardRows: board1, hwRows: hwRaw, brRows: brRaw,

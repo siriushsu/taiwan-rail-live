@@ -37,7 +37,22 @@ const percentile = (values, p) => {
   return a.length ? a[Math.min(a.length - 1, Math.floor((a.length - 1) * p))] : null;
 };
 const dist = values => ({ count: values.length, p50: percentile(values, .5), p90: percentile(values, .9), max: percentile(values, 1) });
+const trackEpochSnapshot = db => {
+  const rows = db.prepare('SELECT * FROM trtc_tracks').all();
+  const epochKeys = Object.keys(rows[0] || {}).filter(key => key.endsWith('_epoch'));
+  const newest = Math.max(0, ...rows.flatMap(row => epochKeys.map(key => Number(row[key]) || 0)));
+  return { newest, written: rows.filter(row => epochKeys.some(key => Number(row[key]) === newest)).length };
+};
 const md5 = data => crypto.createHash('md5').update(data).digest('hex');
+const sha256 = data => crypto.createHash('sha256').update(data).digest('hex');
+// 以唯讀 `git archive HEAD` 啟動乾淨 Worker、同一份 s02 fixture 產生；不依賴會遺失、
+// 也無法自證來源的 tmp golden 檔。這四個 legacy 欄位不是本次新增的 boardPos。
+const LEGACY_GOLDEN_SHA256 = {
+  src: '75ad2c7f042ad0f36ff75f38b1a8fa3cc40f859cee9573f055fd8f85fc2177e5',
+  trains: 'a9b9456ff6e64b7ec77bdde5d5d3e9e70413e5b13eb2e625b6d80c62b961d5d5',
+  board: '4c2036c82a179bb4c4d03025833291adc3afe4245c0728cae113aa00b03eea48',
+  cd: '39b654e0acacf665e3ca854a5641a28f6e37ba6428b4b9368b102db9c47fe072',
+};
 const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
 const curl = (url, args = []) => execFileSync('curl', ['-k', '-sS', ...args, url], { encoding: 'utf8' });
 const jsonCurl = (url, args = []) => JSON.parse(curl(url, args));
@@ -231,7 +246,9 @@ async function run() {
       { cwd: ROOT, stdio: ['ignore', 'pipe', 'pipe'] });
     await waitFor(fixtureProc, /"ready":true/, 10000);
     workerProc = spawn('arch', ['-arm64', process.execPath, path.join(ROOT, 'node_modules/wrangler/bin/wrangler.js'),
-      'dev', '--local-protocol', 'https', '--port', String(WORKER_PORT), '--inspector-port', String(INSPECTOR_PORT), '--test-scheduled'],
+      'dev', '--local-protocol', 'https', '--port', String(WORKER_PORT), '--inspector-port', String(INSPECTOR_PORT), '--test-scheduled',
+      '--var', 'TRTC_API_USER:fixture-user', '--var', 'TRTC_API_PASS:fixture-pass',
+      '--var', `TRTC_API_BASE:${FIXTURE}`, '--var', 'TRTC_BOARD_SAMPLE_DELAY_MS:0'],
       { cwd: ROOT, stdio: ['ignore', 'pipe', 'pipe'] });
     await waitFor(workerProc, /Ready on https:\/\/localhost/, 30000);
 
@@ -242,14 +259,14 @@ async function run() {
     // V1
     jsonCurl(`${FIXTURE}/__config?slot=s02&advance=1`, ['-X', 'POST']);
     const after = jsonCurl(`${BASE}/api/trtc-live`);
-    const goldenPath = path.join(ROOT, 'tmp/trtc-live-golden.json');
-    const golden = JSON.parse(fs.readFileSync(goldenPath));
     const stableKeys = ['src', 'trains', 'board', 'cd'];
-    const equal = stableKeys.every(k => JSON.stringify(golden[k]) === JSON.stringify(after[k]));
+    const legacyHashes = Object.fromEntries(stableKeys.map(k => [k, sha256(JSON.stringify(after[k]))]));
+    const equal = stableKeys.every(k => legacyHashes[k] === LEGACY_GOLDEN_SHA256[k]);
     ok(equal && Array.isArray(after.ledger) && after.ledger.length > 0, 'V1 舊輸出凍結',
-      `${stableKeys.join('/')} deep-equal；ledger=${after.ledger.length}`);
+      `${stableKeys.join('/')} SHA-256 相符；ledger=${after.ledger.length}`);
     const mutant = structuredClone(after); mutant.board[0].eta++;
-    ok(JSON.stringify(golden.board) !== JSON.stringify(mutant.board), 'V1 正向對照（改一個舊欄位）', 'board deep-equal 轉紅');
+    ok(sha256(JSON.stringify(mutant.board)) !== LEGACY_GOLDEN_SHA256.board,
+      'V1 正向對照（改一個舊欄位）', 'board SHA-256 轉紅');
     note('V1 at 欄位', '`at` 本來就是 Worker 回應當下的 new Date().toISOString()，兩次執行不可能 byte-equal；已驗型別與 ISO 格式，未假報 byte-equal');
 
     // V8 先窗外，fixture 必須 0 call；再窗內當正向對照與 V7 第一輪。
@@ -281,6 +298,34 @@ async function run() {
     noUnique.exec('CREATE TABLE x(v TEXT); INSERT INTO x VALUES (\'same\'); INSERT INTO x VALUES (\'same\');');
     const doubled = Number(noUnique.prepare('SELECT COUNT(*) AS n FROM x').get().n); noUnique.close();
     ok(doubled === 2, 'V7 正向對照（無 UNIQUE/upsert）', `rows=${doubled}`);
+
+    // T1：兩次 TrackInfo 任一次失敗都不能讓整分鐘作廢。用不同快照的 updated_epoch
+    // 證明該輪真的寫進 D1，不接受「資料庫原本就有資料」造成的假綠。
+    const partialCases = [
+      { failTk: 1, slot: 's04', epoch: 1785716906, label: '第一次失敗、第二次仍寫入' },
+      { failTk: 2, slot: 's06', epoch: 1785717116, label: '第二次失敗、第一次仍寫入' },
+    ];
+    for (const tc of partialCases) {
+      jsonCurl(`${FIXTURE}/__config?slot=${tc.slot}&advance=1&failTk=${tc.failTk}`, ['-X', 'POST']);
+      db = findLedgerDb();
+      const beforeEventEpoch = Number(db.prepare('SELECT COALESCE(MAX(updated_epoch),0) AS n FROM trtc_events').get().n);
+      const beforeTrackEpoch = trackEpochSnapshot(db).newest;
+      db.close();
+      curl(`${BASE}/cdn-cgi/handler/scheduled?cron=${encodeURIComponent('* * * * *')}&time=${tc.epoch * 1000}`);
+      await sleep(100);
+      const partialState = jsonCurl(`${FIXTURE}/__state`);
+      db = findLedgerDb();
+      const eventEpoch = Number(db.prepare('SELECT COALESCE(MAX(updated_epoch),0) AS n FROM trtc_events').get().n);
+      const trackEpochState = trackEpochSnapshot(db), trackEpoch = trackEpochState.newest;
+      const written = Number(db.prepare('SELECT COUNT(*) AS n FROM trtc_events WHERE updated_epoch=?').get(eventEpoch).n);
+      const trackWritten = trackEpochState.written;
+      db.close();
+      const failedCalls = partialState.calls.filter(x => x.kind === 'tk' && x.failed).map(x => x.ordinal);
+      ok(partialState.kindCounts.tk === 2 && failedCalls.length === 1 && failedCalls[0] === tc.failTk &&
+        eventEpoch > beforeEventEpoch && trackEpoch > beforeTrackEpoch && written > 0 && trackWritten > 0,
+        `T1 上游部分失敗（${tc.label}）`, `failedTk=${JSON.stringify(failedCalls)}, ` +
+        `events ${beforeEventEpoch}->${eventEpoch} (${written}), tracks ${beforeTrackEpoch}->${trackEpoch} (${trackWritten})`);
+    }
 
     // V9
     const finalState = jsonCurl(`${FIXTURE}/__state`);
