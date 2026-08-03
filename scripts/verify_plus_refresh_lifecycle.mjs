@@ -141,7 +141,10 @@ const chromiumB = await chromium.launch();
 {
   const { ctx, page } = await newPage(chromiumB, {
     init: (arg) => {
-      try { localStorage.setItem('trainmap-last-sync-uid', arg.uid); } catch (e) {} // accountReturning()===true
+      // 2026-08-04 C-2 複審 Important 1:accountReturning() 改讀 trainmap-account-uid(見
+      // index.html accountReturning 上方註解——非訂閱者的同步恆被 plusIsActive() 擋下,
+      // trainmap-last-sync-uid 永遠不會被寫,舊 key 當這裡的判準已經不成立)。
+      try { localStorage.setItem('trainmap-account-uid', arg.uid); } catch (e) {} // accountReturning()===true
       window.RAIL_FIREBASE_CONFIG = { apiKey: 'x', authDomain: 'x', projectId: 'x' }; // accountConfigured() 要求的三欄
       window.__spy = { getCustomerInfo: 0 };
       window.__active = true;
