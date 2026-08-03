@@ -61,6 +61,53 @@ const base = `http://localhost:${PORT}/`;
 const results = [];
 const ok = (name, pass, detail = '') => { results.push({ name, pass, detail }); console.log(`${pass ? 'PASS' : 'FAIL'} ${name}${detail ? ' — ' + detail : ''}`); };
 
+// ══════════════ G1(2026-08-03,B-2 稽核修復):prepare-web.mjs 建置旗標 satRetina ══════════════
+// 背景:merge-tree 唯讀實算顯示 app/scripts/prepare-web.mjs 的 satRetina 是本分支併回 origin/main
+// 時的衝突點——「順手解成 main 側」會把這顆付費功能建置旗標關掉,而且上面情境1-8/webkit(驗的是
+// satRetinaAllowed() 的訂閱資格邏輯)完全連不到這裡,兩層之間沒有任何判準,33 條全綠也擋不住。
+// 手法:讀 prepare-web.mjs 原始碼,用錨點抽出 appConfig 三元式的原始文字,丟進 new Function 的
+// 獨立作用域裡真的求值(不是 regex/讀註解——若值被改成引用某個變數,少給的自由變數會在呼叫時
+// 丟 ReferenceError,錯在「抽取/求值失敗」這一格,不會被誤判成過關)。satRetina 是常數字面值,
+// 不依賴 .env 真金鑰或 esbuild/place_index 那些步驟,故此法比「實跑一次完整 App build 後讀產物」
+// 更輕量,且同樣是「真的算出來」而非文字比對。
+//   ↳ 考慮過改放 app/scripts/verify-release.mjs 的 assert()(它在每次真正的 prepare-web.mjs
+//     build 尾聲都會跑):放棄——那條路徑需要 repo 根目錄 .env 真的存在 STADIA_API_KEY/
+//     ESRI_API_KEY 兩個變數,且會觸發完整 build(esbuild 打包、place_index 重建、檔案複製),
+//     不符合這支腳本「免密鑰、免完整 build、跑得快」的既有慣例(見檔頭:Esri 圖磚全程攔截、
+//     不需要真 token),也不會反映在「node scripts/verify_sat_retina.mjs 從 33/33 變成
+//     33+N/33+N」這個驗收條件上——那個條件本來就是量這支腳本自己的輸出。
+{
+  const prepareWebPath = path.join(ROOT, 'app', 'scripts', 'prepare-web.mjs');
+  const startAnchor = 'const appConfig = ';
+  const endAnchor = '} : null;';
+  let appConfig, extractError = null;
+  try {
+    const src = readFileSync(prepareWebPath, 'utf8');
+    const s = src.indexOf(startAnchor);
+    if (s < 0) throw new Error(`找不到起錨點「${startAnchor}」——prepare-web.mjs 結構已變動,請更新 verify_sat_retina.mjs 的抽取邏輯`);
+    const exprStart = s + startAnchor.length;
+    const e = src.indexOf(endAnchor, exprStart);
+    if (e < 0) throw new Error(`找不到迄錨點「${endAnchor}」——prepare-web.mjs 結構已變動,請更新 verify_sat_retina.mjs 的抽取邏輯`);
+    const exprSrc = src.slice(exprStart, e + endAnchor.length - 1); // 含結尾 "} : null",不含分號
+    // 只給三元式實際引用到的 5 個自由變數(見 prepare-web.mjs:172-188);值內容不重要(不影響
+    // satRetina 這個常數字面值),給假字串只是讓 esriKey/tiles.*.url 求值不因 ReferenceError 中斷。
+    appConfig = new Function(
+      'includeLicensedBasemaps', 'esriApiKeyRaw', 'esriApiKey', 'stadiaApiKey', 'STADIA_ATTRIBUTION',
+      `return (${exprSrc});`
+    )(true, 'FAKE_ESRI_KEY_RAW', 'FAKE_ESRI_KEY_ENC', 'FAKE_STADIA_KEY', 'FAKE_ATTRIBUTION');
+  } catch (err) { extractError = err; }
+  ok(
+    'G1 prepare-web.mjs 的 appConfig 三元式可被真實求值(RAIL_INCLUDE_LICENSED_BASEMAPS=1 情境,抽取錨點與原始碼同步)',
+    extractError === null && !!appConfig && typeof appConfig === 'object',
+    extractError ? String(extractError).slice(0, 300) : `keys=${JSON.stringify(Object.keys(appConfig))}`
+  );
+  ok(
+    'G1 prepare-web.mjs:172-188 建置旗標 satRetina===true——這是付費功能(衛星高解析)的平台端總開關,被改成 false=不論訂閱資格全體降回標準解析,且 App 一旦以此值送審就鎖死到下次改版;上面情境1-8 驗的是資格邏輯,連不到這顆建置旗標,靠這條把兩層接起來',
+    extractError === null && !!appConfig && appConfig.satRetina === true,
+    extractError ? '(求值失敗,見上一項)' : `實際值=${JSON.stringify(appConfig.satRetina)}`
+  );
+}
+
 // 開一頁:固定 SAT_RETINA=true(見檔頭理由)+ deviceScaleFactor(detectRetina 生效的必要條件)+
 // 攔截 Esri 圖磚請求記錄 z、不打真網路、也不需要真 token。
 // appCfg 預設 { satRetina: true } 延續既有情境1-5 的固定環境;傳 null 則完全不注入
