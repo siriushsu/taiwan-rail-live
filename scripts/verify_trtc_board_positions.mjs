@@ -287,6 +287,26 @@ async function run() {
       '未認到的班次退回全線中位數（非 0）', JSON.stringify(gates.fallback));
     check(gates.roster === gates.fresh && gates.fresh === gates.stale && gates.freshShift > 0 && gates.staleShift === 0,
       '資料齡到期只關校正、不動車數（附新鮮側正向對照）', JSON.stringify(gates));
+    // 異常偵測雙向：上面 17 槽正常語料跑完必須零告警（也順便把覆蓋率基線建起來），
+    // 接著注入「文湖線列車大批從線上消失」必須叫、而且只叫被注入的那條線。
+    // 🔴 注入一定要接在正常槽之後：從第一槽就注入的話基線本身就是低的，相對判準測不到「掉下去」。
+    const anomNormal = await page.evaluate(() =>
+      metroLivePool().filter(ln => isTrtcBoardLine(ln) && anomalyOf(ln)).map(ln => ln.id + ':' + anomalyOf(ln).kind));
+    let anomAfter = [];
+    for (let i = 15; i <= 17; i++) {
+      const p = boardPositionPayload(await fixtureRows(`s${String(i).padStart(2, '0')}`));
+      const rows = p.rows.filter((r, k) => r.line !== 'BR' || k % 5 === 0); // 文湖線錨點剩兩成
+      anomAfter = await page.evaluate(({ rows, at }) => {
+        state.simSec = trtcServiceSec(at); state.clockAtNow = true;
+        _mlGate = true; _mlGateAt = Date.now();
+        applyTrtcBoard(rows, at);
+        return metroLivePool().filter(ln => isTrtcBoardLine(ln) && anomalyOf(ln)).map(ln => ln.id + ':' + anomalyOf(ln).kind);
+      }, { rows, at: p.at });
+    }
+    check(anomNormal.length === 0 && anomAfter.length === 1 && anomAfter[0] === 'BR:gone',
+      '異常偵測：正常日零告警、列車大批停駛會叫（且只叫該線）',
+      `正常17槽=${JSON.stringify(anomNormal)}, 注入後=${JSON.stringify(anomAfter)}`);
+
     const serviceDays = await page.evaluate(() => ({
       saturdayAfterMidnight: taipeiServiceDayStr(Date.parse('2026-08-01T17:00:00Z')),
       mondayMorning: taipeiServiceDayStr(Date.parse('2026-08-03T00:30:00Z')),

@@ -408,8 +408,23 @@ function synthTimes(line, cfg) {
   return { days: cfg.dayMap, sets, holiday: cfg.dayMap[0] }; // 班距合成線:國定假日=週日型班距
 }
 
+// 文湖線是全網唯一沒有官方逐班時刻的線(TDX StationTimeTable 端點說明明文寫「臺北捷運目前無提供
+// 文湖線站別時刻表,建議您可使用取得捷運路線發車班距頻率資料」),只能合成。而 TDX 公告的是「範圍」,
+// 取中點對 BR 系統性偏疏 ⇒ 畫面比實際少約三成車。下表是 2026-08-02/08-03 用官方逐車 feed 累積
+// 8 萬筆到站事件實測的各時段實際班距(中位),對照組 BL 0.93/R 0.99/G 0.98/O 0.99 皆在 0.9~1.1。
+// 🔴 這是「只覆蓋 BR 一線」,不是把中點公式改成取範圍下限——後者實測會讓 18 組線×日型中
+//    超標的從 4 組變 12 組(小碧潭公告 12~20 卻實際跑 18 分=貼上限)。見
+//    memory/metro-offpeak-headway-formula.md。要覆蓋別條線必須先有同等級的實測與對照組。
+// 沒量到的時段(平日 06-07、19:30-23、23-24)刻意留空,自動落回公告中點:bands 查表是
+// `.find` 取第一個命中,實測帶排在公告帶前面即可,不必去切公告帶。
+const BR_MEASURED_HEADWAY = {
+  平日: [['07:00', '09:00', 132], ['09:00', '17:00', 276], ['17:00', '19:30', 144]],
+  假日: [['06:00', '07:00', 390], ['07:00', '09:00', 366], ['09:00', '17:00', 252],
+    ['17:00', '19:30', 240], ['19:30', '23:00', 300], ['23:00', '24:00', 450]],
+};
+
 // TDX 班距+首末班 → synthTimes 的 cfg(文湖線/台中捷運這類無逐站時刻表的線)
-function tdxSynthCfg({ freqFile, routeId, lineIdF, flFile, terminals }) {
+function tdxSynthCfg({ freqFile, routeId, lineIdF, flFile, terminals, measured }) {
   const freq = J(freqFile), fl = J(flFile);
   const services = {};
   for (const [tag, dayKey] of [['平日', 'Monday'], ['假日', 'Saturday']]) {
@@ -425,7 +440,8 @@ function tdxSynthCfg({ freqFile, routeId, lineIdF, flFile, terminals }) {
     if (!ends.length || !bands.length) continue;
     const first = Math.min(...ends.map(x => toSec(x.FirstTrainTime)));
     const last = Math.max(...ends.map(x => { const s = toSec(x.LastTrainTime); return s < 4 * 3600 ? s + 86400 : s; }));
-    services[tag] = { first, last, bands };
+    const obs = ((measured || {})[tag] || []).map(([a, b, sec]) => [toSec(a), toSec(b) || 86400, sec]);
+    services[tag] = { first, last, bands: [...obs, ...bands] }; // 實測帶優先，其餘落回公告中點
   }
   return { services, dayMap: ['假日', '平日', '平日', '平日', '平日', '平日', '假日'] };
 }
@@ -446,7 +462,8 @@ const SYSTEMS = [
   { file: 'data/trtc.json', out: 'data/trtc_times.json',
     src: '台北捷運/新北捷運(環狀線)各站時刻表:交通部TDX運輸資料流通服務(2026-07-16 抓取);班次依平日/週六/週日/國定假日對應;文湖線無逐站時刻表,以官方班距與首末班推算(非公告時刻)',
     synth: [{ lineId: 'BR', freqFile: 'data/tdx/TRTC_Frequency.json', routeId: 'BR-1',
-      flFile: 'data/tdx/TRTC_FirstLastTimetable.json', terminals: ['BR01', 'BR24'] }],
+      flFile: 'data/tdx/TRTC_FirstLastTimetable.json', terminals: ['BR01', 'BR24'],
+      measured: BR_MEASURED_HEADWAY }],
     lines: {
       R: [{ op: 'TRTC', routeId: 'R-1' }, { op: 'TRTC', routeId: 'R-2' }],
       R_XBT: [{ op: 'TRTC', routeId: 'R-3' }],
