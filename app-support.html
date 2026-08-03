@@ -39,6 +39,10 @@
     <p>App 內建台灣輪廓、軌道與時刻表資料，可在沒有線上圖磚時維持台灣形狀與列車動畫。即時誤點、營運公告、線上底圖、登入同步及購買驗證仍需要網路。</p>
   </details>
   <details>
+    <summary>App 一開啟就會連到 Firebase 嗎？</summary>
+    <p>iOS App 啟動時會先初始化 Firebase 登入元件並掛上登入狀態監聽器，但這不等於登入。若你尚未登入且本機沒有可還原的 Firebase 登入狀態，初始化本身不會向 Google／Firebase 發出網路請求，也不會建立或傳送 Firebase 使用者識別碼；要等你選擇 Google 或 Apple 登入時，Firebase Authentication 才會開始連線及處理帳號資料。地圖、列車動態、底圖等基本功能仍會連線到軌島 API、Cloudflare 或底圖供應商，完整說明請見<a href="./privacy.html">隱私權政策</a>。</p>
+  </details>
+  <details>
     <summary>為什麼定位功能沒有反應？</summary>
     <p>請到 iOS 或 Android 系統設定確認已允許軌島在使用期間取得位置。定位只用於裝置內計算附近鐵道與列車；不授權時仍可使用「落釘」手動選擇位置。</p>
   </details>
