@@ -860,7 +860,21 @@ server.close();
 // 真值集合不是本檔手打的清單:讀 index.html 原始碼、抽出 accountBtnSlot() 函式體原始文字,丟進
 // new Function 配一份假 DOM 真的呼叫兩次(mode='plus'/'account'),取得它實際寫入
 // tl.textContent 與 label.textContent 的 4 個字串——手法比照 verify_sat_retina.mjs 的 G1
-// (讀原始碼→抽錨點→new Function 真求值,不是 regex 比對字面值/讀註解)。 ══════════
+// (讀原始碼→抽錨點→new Function 真求值,不是 regex 比對字面值/讀註解)。
+//
+// 🔴 已知限制(2026-08-03 複審 Important 2,刻意保留、不擴大):data-uilabel 是 **opt-in** 標記,
+// 不是全頁掃描。`claims` 只認確切格式 <span data-uilabel>X</span>——app-support.html 裡沒有
+// 包這個標記的文字(包括本次沒動到的「查看 Plus」「恢復購買」等既有按鈕文字,以及未來任何
+// 新增的指路文案),T8 完全看不到、不會變紅,不是「驗過了沒問題」而是「根本沒被驗到」。
+// 為什麼不改成掃全頁所有「」引號:app-support.html 本來就有其他合法的引號用法(例如
+// 「軌島帳號面板」這種沿用全站慣例的一般性稱呼、「刪除帳號與同步資料」這個與本次修復無關但
+// 同樣真實存在的既有按鈕文字),全頁掃描結構上一定會把這些也拉進真值比對,不是誤紅就是得另外
+// 建一份涵蓋帳號刪除等其他流程的真值集合。這正是 GLOBAL-CONSTRAINTS #20 對 T2a
+// (絕對承諾偵測器)訂下的同一種取捨:文案類判準寧可漏抓、不要誤紅——誤紅的代價是使用者/
+// 複審會把整條斷言調鬆或刪掉,那才是真正的判準報廢。收斂範圍是刻意的,不是遺漏;
+// 如果之後有人新增指路文案卻忘了包 <span data-uilabel>,**唯一的補救不是擴大這支腳本的掃描
+// 邏輯,是在編輯 app-support.html 當下就被提醒**——見該檔案裡「帳號與 Plus」段附近的 HTML
+// 註解。 ══════════
 {
   const fnSrc = extractFnSrc(SRC, 'accountBtnSlot');
   // 假 DOM:只給 accountBtnSlot() 實際碰到的兩個節點——#accountBtn(內含 .ti/.tl 兩個 span)
