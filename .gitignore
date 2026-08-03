@@ -86,3 +86,9 @@ data/place_index.json
 # 驗證腳本的工作目錄（verify_widget_logic / verify_place_direction / render_place_widget
 # 的預設輸出）：裡面有編出來的 binary 與中間 JSON。同上，repo 是 public。
 tmp/
+
+# superpowers 的規格書與施工計畫：純內部流程產物，不是給訪客也不是給貢獻者看的。
+# 它們會逐字引用送北捷的企劃書承諾、付費層邊界裁示、未上線旗標與成本數字——
+# 這個 repo 是 public，進了版控就是永久公開（push 後不可改寫）。
+# 2026-08-02 使用者裁示不進版控；SDD 的帳本與任務簡報本來就在 gitignored 的 .superpowers/。
+docs/superpowers/

@@ -1,3 +1,8 @@
+import {
+  TRTC_LEDGER_SCHEMA, buildTrtcModel, buildLedgerFromRaw,
+  trtcOperatingState, trtcServiceDay,
+} from './scripts/trtc_board_ledger.mjs';
+
 // Cloudflare Worker 入口:靜態資產(assets binding)+ /api/tra-live 台鐵即時動態代理
 // + /api/tra-alert 台鐵營運通阻公告 + /api/thsr-alert 高鐵營運狀態公告(颱風停駛等)
 // + /api/metro-alert 捷運營運狀態公告(五家聚合)
@@ -429,6 +434,432 @@ async function ntmetroLive(request, env, sys) {
   }
 }
 
+// ── 北捷官方會員 API 代理(逐車位置) ──
+// 帳密只在 Worker:這套認證把帳密明文放 request body,前端直連＝公開帳密(repo 是 PUBLIC)。
+// 三支並行:CarWeight(高運量逐車) / CarWeightBR(文湖線逐車) / TrackInfo(終點與未來路徑)。
+// TrackInfo 掛掉只退化成「無未來路徑」,不讓整包失敗。TTL 15s 配合上游更新頻率
+// (實測 NowDateTime 每 15 秒換值;現制 /api/metro-live 的 115s 對逐車太久,車 2 分鐘就過一站)。
+const TRTC_SOAP = (inner) =>
+  `<?xml version="1.0" encoding="utf-8"?><soap:Envelope xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/"><soap:Body>${inner}</soap:Body></soap:Envelope>`;
+// .asmx 直接 Response.Write 一段 JSON、其後才接空 SOAP envelope ⇒ 抓開頭 JSON;
+// 例外:CarWeightBR 包在 <...Result> 內。兩種都試。實測(2026-08-01)兩條路徑皆有命中,維持原樣。
+function trtcParse(txt) {
+  let m = txt.match(/^\s*(\[[\s\S]*?\])\s*(?=<\?xml|<soap)/);
+  if (m) { try { return JSON.parse(m[1]); } catch (e) { /* fall through */ } }
+  m = txt.match(/<\w*Result>([\s\S]*?)<\/\w*Result>/);
+  if (m) { try { return JSON.parse(m[1].replace(/&quot;/g, '"').replace(/&amp;/g, '&')); } catch (e) { /* fall through */ } }
+  return null;
+}
+async function trtcCall(url, method, env) {
+  const cred = `<userName>${env.TRTC_API_USER}</userName><passWord>${env.TRTC_API_PASS}</passWord>`;
+  const r = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'text/xml; charset=utf-8' },
+    body: TRTC_SOAP(`<${method} xmlns="http://tempuri.org/">${cred}</${method}>`) });
+  if (!r.ok) throw new Error(method + ' ' + r.status);
+  const d = trtcParse(await r.text());
+  // 上游故障會回 HTML 錯誤頁但 HTTP 仍 200(規格書「列車位置」端點即如此,本設計不用它)⇒ 解不出 JSON 視同失敗
+  if (!Array.isArray(d)) throw new Error(method + ' 非陣列回應');
+  return d;
+}
+function trtcApiUrl(env, endpoint) {
+  const base = String((env && env.TRTC_API_BASE) || 'https://api.metro.taipei').replace(/\/$/, '');
+  return `${base}/metroapi/${endpoint}.asmx`;
+}
+// 官方時刻字串 "2026-07-31 22:12:27"(台北時間,無時區標示)→ epoch 秒
+function trtcEpoch(s) {
+  const m = String(s).match(/(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2}):(\d{2})/);
+  if (!m) return null;
+  return Math.floor(Date.UTC(+m[1], +m[2] - 1, +m[3], +m[4], +m[5], +m[6]) / 1000) - 8 * 3600;
+}
+// 上游偶爾對同一車次回多筆「抵站歷史」而非現況:文湖線 CarWeightBR 實測(2026-08-01 07:40)
+// 31 筆/17 唯一車次,13 筆是舊站舊時刻的重複列(同車次兩筆站碼與 UpdateTime 一起往回走,
+// 例:BR04@07:34:22 → BR03@07:36:31)。高運量 CarWeight 同時段 69/69 零重複,但同供應商
+// 同形狀的資料,防禦性地兩支都套用去重,不留「只驗過其中一支」的假設。
+// 依 TrainNumber 分組只留 timeField 最新(epoch 最大)的一筆。
+function dedupeLatest(rows, timeField) {
+  const latest = new Map(); // TrainNumber → { row, t }
+  for (const r of rows) {
+    const t = trtcEpoch(r[timeField]);
+    if (t == null) continue;
+    const prev = latest.get(r.TrainNumber);
+    if (!prev || t > prev.t) latest.set(r.TrainNumber, { row: r, t });
+  }
+  return [...latest.values()].map(v => v.row);
+}
+// 每節車廂擁擠度(task-12,TDX 沒有的官方獨家資料,免費):高運量 6 節、文湖線 4 節,節數不同
+// 但值域是同一套 4 級(見官方新聞稿,2022-06-22)。worker 這層只搬運不解讀:不做等級對映、
+// 不依 sys 分岔語意——標籤與顏色統一在前端一處決定。缺值就整個不帶欄位(回傳 null),
+// 不要塞 0/null 進陣列——下游要能用「有沒有這個欄位」判斷可用性,混進假值會讓 UI 畫出
+// 不存在的空車廂。
+// 複審 Important 2(task-12):值域必須收在官方 1–4 級的整數,不能只擋「非正數」——
+// 上游若曾送出 9/5/2.5 這類值域外的髒值,前端逐格對照表(TRTC_CROWD[v])查無對應項會
+// 整格跳過不畫,導致「少畫一格、整條左移」(fail-shifted,指到錯的節次),比整條不顯示更糟
+// (需求書原文:「講錯方向比不講更糟」)。任何一格出界,整讀視同缺值,整個 cars 欄位不帶。
+const carsOf = (r, keys) => {
+  const v = keys.map(k => Number(r[k]));
+  return v.every(x => Number.isInteger(x) && x >= 1 && x <= 4) ? v : null;
+};
+let trtcMem = null; // { data, at }
+// 記憶體層門檻抽成獨立可測函式(task-11):驗收腳本要直接量這個條件式的邊界(14999/15001ms),
+// 不透過真的等待 15 秒,也不靠讀常數字面值反推——見 verify_trtc_freshness.mjs。
+function trtcMemoStale(stale, now) { return !stale || now - stale.at > 15e3; }
+async function trtcLive(request, env) {
+  const cacheKey = new Request(new URL('/api/trtc-live', request.url), { method: 'GET' });
+  const edge = caches.default;
+  const hit = await edge.match(cacheKey);
+  if (hit) return hit;
+  const stale = trtcMem;
+  try {
+    if (trtcMemoStale(stale, Date.now())) {
+      // 三支各自吞錯:任一支當輪打不到不該拖垮其他支(文湖線抖一下不該讓高運量 69 台一起熄燈)。
+      // TrackInfo 是加值(終點＋未來路徑),掛掉只退化成「無未來路徑」。
+      const [hwRaw, brRaw, tk] = await Promise.all([
+        trtcCall(trtcApiUrl(env, 'CarWeight'), 'getCarWeightByInfoEx', env).catch(() => []),
+        trtcCall(trtcApiUrl(env, 'CarWeightBR'), 'getCarWeightBRInfo', env).catch(() => []),
+        trtcCall(trtcApiUrl(env, 'TrackInfo'), 'getTrackInfo', env).catch(() => []),
+      ]);
+      // hw 與 br 只有一支空 ⇒ 該系統當輪沒車(或暫時打不到),另一支照常輸出;
+      // 兩支都空才算整體真的掛了,走下面 catch 的降級路徑。
+      if (hwRaw.length === 0 && brRaw.length === 0) throw new Error('trtc hw/br 全空,上游疑似全掛');
+      const hw = dedupeLatest(hwRaw, 'utime');
+      const br = dedupeLatest(brRaw, 'UpdateTime');
+      // 車次 → { dest, path[] }。TrackInfo 一台車在前方數站各一筆。
+      // CountDown 的值域**不是**只有 MM:SS 與「列車進站」——實測至少還有「營運時間已過」「資料擷取中」
+      // 「月台暫停服務」,而且是一個晚上陸續冒出來的,不可當成窮舉。解不出秒數一律丟列(fail-closed),
+      // 未知的第 N 種值也一樣被丟掉;丟掉幾列由下面的 cd:{rows,dropped} 回報給驗收腳本。
+      const meta = new Map();
+      // 🔴 觀測性(複審第二輪 Important 4):解不出時刻一律 fail-closed 跳過是對的行為,但跟 board
+      // 一樣不可以「靜默」丟——上游哪天在部分列停送 NowDateTime,path 會靜默縮水,症狀是地圖與卡片
+      // 退回表定班次,看起來像「沒有官方資料」而不是「我們把資料丟了」,兩者要能從回傳分得開。
+      // pathNoTrainNo(task-12 補記):board 迴圈(下面)不濾 TrainNumber,path 迴圈這裡濾,
+      // 兩邊各自對 tk.length 的差額若沒有計數器會對不上帳——上游若哪天對更多列停送
+      // TrainNumber,path 會靜默縮水成「看起來只是資料變少」而非「我們把它丟了」,和
+      // pathCdDropped/pathDateDropped 同一組觀測性缺口,只補計數不改行為。
+      let pathCdDropped = 0, pathDateDropped = 0, pathNoTrainNo = 0, carsRejected = 0;
+      for (const r of tk) {
+        if (!r.TrainNumber) { pathNoTrainNo++; continue; }
+        let e = meta.get(r.TrainNumber);
+        if (!e) meta.set(r.TrainNumber, e = { dest: r.DestinationName || null, path: [] });
+        const cd = String(r.CountDown);
+        const mm = cd.match(/^(\d+):(\d+)$/);
+        const sec = mm ? (+mm[1] * 60 + +mm[2]) : (cd === '列車進站' ? 0 : null);
+        if (sec == null) { pathCdDropped++; continue; }
+        // 基準比照下面 board 的做法(:539-541)用上游自己的 NowDateTime,不用我們的 fetch 時刻。
+        // 這裡原本是迴圈外算一次的 Date.now(),與 board 各自的 per-row NowDateTime 基準不一致
+        // ——複審實測兩者對同一批 tk 列算出的 eta 差 6~10 秒(=Date.now()−NowDateTime 這個固定量,
+        // 不是雜訊),導致卡片(讀這裡的 path）／地圖 trtcPos(也讀 path)比看板／上游實際時刻系統性偏晚。
+        // 解不出上游時刻就跳過這筆,不用我們的時刻頂替(比照 board 的 :541)。
+        const base = trtcEpoch(r.NowDateTime);
+        if (base == null) { pathDateDropped++; continue; }
+        e.path.push({ name: String(r.StationName || '').replace(/站$/, ''), eta: base + sec });
+      }
+      for (const e of meta.values()) e.path.sort((a, b) => a.eta - b.eta);
+      // 看板列:TrackInfo 原始列就是月台告示牌的內容(319 筆涵蓋 118 站=北捷全部車站)。
+      // ⚠️ 2026-08-03:上面這句是**未經驗證的斷言**——沒有人拿實體月台顯示器跟畫面同框比對過。
+      // 已驗證的只到「我方看板列 == 獨立打上游 getTrackInfo 逐列相等」(verify_trtc_board.mjs:89)。
+      // 對外文案不得據此宣稱「和站內顯示器一致」(2026-08-03 已把更新紀錄兩條改掉)。
+      // 基準時刻用上游自己的 NowDateTime,不用我們的 fetch 時刻——實測上游資料可落後約 15 秒,
+      // 用 fetch 時刻會讓倒數系統性樂觀。不從 trains 反推:join 不到車次的車(文湖線尤其)
+      // 會整批消失,看板會缺列,故直接對 tk 原始列各自取值。
+      // 🔴 觀測性(複審 Minor):解不出秒數就丟列是正確且 fail-closed 的行為(未知的第四種值也一樣
+      // 被丟掉),但「靜默丟掉」會讓「上游把常態值換成新寫法」偽裝成「現在是深夜、上游本來就沒列」
+      // ——涵蓋判準只會走「跳過B:上游 feed 沒有這一站的列」。這裡只加計數不改行為,讓兩者分得開。
+      // 實測第三種非時間值:「營運時間已過」(末班後整批出現),brief 第 24 行寫「唯一非時間值是
+      // 列車進站」是錯的。
+      const board = [];
+      let cdDropped = 0, boardDateDropped = 0;
+      for (const r of tk) {
+        const cd = String(r.CountDown);
+        const mm = cd.match(/^(\d+):(\d+)$/);
+        const sec = mm ? (+mm[1] * 60 + +mm[2]) : (cd === '列車進站' ? 0 : null);
+        if (sec == null) { cdDropped++; continue; }
+        const base = trtcEpoch(r.NowDateTime);
+        // 複審第二輪 Important 4:這裡原本沒計數,和上面 board 的 cdDropped 不對稱——補上,
+        // 讓「NowDateTime 這個上游欄位開始壞掉」不會偽裝成「這班車本來就不在 board 上」。
+        if (base == null) { boardDateDropped++; continue; }
+        board.push({ name: String(r.StationName || ''), dest: String(r.DestinationName || ''),
+                     eta: base + sec, no: String(r.TrainNumber || '') });
+      }
+      const trains = [];
+      for (const r of hw) {
+        const m = meta.get(r.TrainNumber);
+        const cars = carsOf(r, ['Cart1L', 'Cart2L', 'Cart3L', 'Cart4L', 'Cart5L', 'Cart6L']);
+        if (!cars) carsRejected++; // 複審第二輪 Important 4:整讀拒收(缺值或值域外)也要計數,理由同 :551-553
+        trains.push({ no: String(r.TrainNumber), sys: 'hw', dir: +r.CID, stn: r.StationID,
+          at: trtcEpoch(r.utime), dest: m ? m.dest : null, path: m ? m.path : [], ...(cars ? { cars } : {}) });
+      }
+      for (const r of br) {
+        const no = String(r.TrainNumber);
+        // meta 的鍵全部來自 TrackInfo 的 TrainNumber;TrackInfo 對文湖線只給站名/倒數,
+        // 該線各列 TrainNumber 恆為空字串(上面建 meta 時已被 `if (!r.TrainNumber) continue`
+        // 濾掉),⇒ meta 裡不可能存在任何合法的文湖線鍵。舊寫法多一層
+        // `meta.get(no.split(',')[0])`,把 "137,200" 降級比對成 "137" 去撞高運量的車次鍵,
+        // 是穩定的假匹配(實測 2026-08-01,4 個車次 34 筆全部撞錯),不是偶發噪音。
+        // 這裡只做 exact match——對現有上游形狀恆為 undefined,不做任何降級比對。
+        const m = meta.get(no);
+        const cars = carsOf(r, ['Car1', 'Car2', 'Car3', 'Car4']);
+        if (!cars) carsRejected++; // 同上,hw/br 合計一個計數器即可(不分系統),只加計數不改行為
+        trains.push({ no, sys: 'br', dir: +r.CID, stn: r.StationID,
+          at: trtcEpoch(r.UpdateTime), dest: m ? m.dest : null, path: m ? m.path : [], ...(cars ? { cars } : {}) });
+      }
+      const legacy = { at: new Date().toISOString(), src: 'trtc',
+        trains: trains.filter(t => t.at != null && /^[A-Z]+\d+$/.test(t.stn) && (t.dir === 1 || t.dir === 2)),
+        board, cd: { rows: tk.length, dropped: cdDropped, dateDropped: boardDateDropped,
+          pathDropped: pathCdDropped, pathDateDropped, pathNoTrainNo, carsRejected } };
+      // B1 只加一個新頂層欄位；legacy 的 at/src/trains/board/cd 產生路徑與欄位順序不動。
+      // 帳本預覽失敗一律回空陣列，不能拖垮原本逐車 API。
+      let ledger = [];
+      try { ledger = await trtcLedgerPreview(env, hwRaw, brRaw, tk); }
+      catch (e) { console.error('[trtc ledger] API 組裝失敗:', (e && e.stack) || String(e)); }
+      trtcMem = { data: { ...legacy, ledger }, raw: { hw: hwRaw, br: brRaw, tk }, at: Date.now() };
+    }
+    const res = jsonRes(trtcMem.data, 200, 'public, s-maxage=15, stale-while-revalidate=120');
+    await edge.put(cacheKey, res.clone());
+    return res;
+  } catch (e) {
+    // stale 快取設 5 分鐘齡限:TTL 15s 的資料若因上游持續掛掉而擺到 5 分鐘還沒更新,
+    // 列車實際位置可能已經跑出 2-3 站,繼續標成 src:'trtc' 送出去是主動誤導,不如降級成 null。
+    if (stale && Date.now() - stale.at < 5 * 60e3) return jsonRes(stale.data, 200, 'public, s-maxage=15');
+    // 軟失敗:回 200+src:null(前端 applyTrtcLive 對 null 直接 no-op,退回時刻表＋現制看板校正)。
+    // 負向結果也快取 15s,免得上游持續掛時每個請求 1:1 重打上游。不帶 error 字串進 body。
+    // board 不帶(降級時看板前端直接退回 _tt 路徑,不需要空陣列以外的形狀)。
+    // cd 一併帶上(值為 0/0):少了它,驗收腳本的觀測性斷言會紅在「worker 沒回 cd 欄位」,
+    // 把「上游掛掉」這個環境問題指成程式缺陷(Re-review-2 P-5)。
+    let ledger = [];
+    try { ledger = await trtcLedgerMaterialized(env, Math.floor(Date.now() / 1000)); } catch (e) {}
+    const res = jsonRes({ at: new Date().toISOString(), src: null, trains: [], board: [],
+      cd: { rows: 0, dropped: 0, dateDropped: 0, pathDropped: 0, pathDateDropped: 0, pathNoTrainNo: 0 }, ledger }, 200, 'public, s-maxage=15');
+    await edge.put(cacheKey, res.clone());
+    return res;
+  }
+}
+
+// ── 北捷看板事件帳本(B1):D1 編排層 ──
+// 事件推導與身分指派全在 scripts/trtc_board_ledger.mjs 的純函式；這裡只負責資產、上游、D1。
+let trtcLedgerModelPromise = null;
+let trtcLedgerSchemaReady = false;
+
+async function trtcLedgerAssetJson(env, path) {
+  const r = await env.ASSETS.fetch(new Request(`https://assets.local/${path}`));
+  if (!r.ok) throw new Error(`ledger asset ${path} ${r.status}`);
+  return r.json();
+}
+
+async function trtcLedgerModel(env) {
+  if (!trtcLedgerModelPromise) trtcLedgerModelPromise = Promise.all([
+    trtcLedgerAssetJson(env, 'data/trtc.json'),
+    trtcLedgerAssetJson(env, 'data/trtc_times.json'),
+    trtcLedgerAssetJson(env, 'data/trtc_codes.json'),
+  ]).then(([trtc, times, codes]) => buildTrtcModel(trtc, times, codes));
+  return trtcLedgerModelPromise;
+}
+
+async function ensureTrtcLedger(env) {
+  if (!env || !env.TRTC_LEDGER) return false;
+  if (!trtcLedgerSchemaReady) {
+    await env.TRTC_LEDGER.batch(TRTC_LEDGER_SCHEMA.map(sql => env.TRTC_LEDGER.prepare(sql)));
+    trtcLedgerSchemaReady = true;
+  }
+  return true;
+}
+
+async function trtcLedgerContext(env, day, nowEpoch) {
+  if (!await ensureTrtcLedger(env)) return { priorTracks: [], aliases: [], historicalEvents: [] };
+  const db = env.TRTC_LEDGER;
+  const [tracks, aliases, events] = await Promise.all([
+    db.prepare(`SELECT day,track_id,line,dir,station_idx,progress,official_no,crowd,evidence,
+        evidence_epoch,last_seen_epoch,payload FROM trtc_tracks
+        WHERE day=? AND last_seen_epoch>=?`).bind(day, nowEpoch - 30 * 60).all(),
+    db.prepare(`SELECT day,alias_type,alias,track_id,first_seen_epoch,last_seen_epoch
+        FROM trtc_track_aliases WHERE day=?`).bind(day).all(),
+    // 同一分鐘重跑必須用同一組基線：本分鐘才寫的事件不可立刻回頭改變本分鐘的 run。
+    db.prepare(`SELECT day,line,dir,train_key,station_idx,kind,epoch,src,state
+        FROM trtc_events WHERE day=? AND kind='arr' AND state<>'forecast' AND updated_epoch<?
+        ORDER BY epoch DESC LIMIT 4000`).bind(day, nowEpoch).all(),
+  ]);
+  return {
+    priorTracks: tracks.results || [], aliases: aliases.results || [], historicalEvents: events.results || [],
+  };
+}
+
+function trtcBoardEpoch(rows, fallbackEpoch) {
+  let newest = null;
+  for (const row of rows || []) {
+    const t = trtcEpoch(row && row.NowDateTime);
+    if (Number.isFinite(t) && (newest == null || t > newest)) newest = t;
+  }
+  return newest == null ? fallbackEpoch : newest;
+}
+
+function ledgerTrackRows(updates) {
+  return (updates || []).map(x => ({
+    day: x.day, track_id: x.trackId, line: x.line, dir: x.dir, station_idx: x.stationIdx,
+    progress: x.progress, official_no: x.officialNo, crowd: x.crowd == null ? null : JSON.stringify(x.crowd),
+    evidence: x.evidence, evidence_epoch: x.evidenceEpoch, last_seen_epoch: x.lastSeenEpoch,
+    payload: JSON.stringify(x.payload),
+  }));
+}
+
+function ledgerEventRows(events) {
+  return (events || []).map(x => ({
+    day: x.day, line: x.line, dir: x.dir, train_key: x.trackId, station_idx: x.stationIdx,
+    kind: x.kind, epoch: x.epoch, src: x.src,
+    crowd: x.crowd == null ? null : JSON.stringify(x.crowd), state: x.state,
+    observed_epoch: x.observedEpoch, updated_epoch: x.updatedEpoch,
+  }));
+}
+
+function dedupeRows(rows, keyOf) {
+  const out = new Map();
+  for (const row of rows) out.set(keyOf(row), row);
+  return [...out.values()];
+}
+
+function multiInsertStatements(db, table, columns, rows, chunkSize, suffix) {
+  const statements = [];
+  for (let i = 0; i < rows.length; i += chunkSize) {
+    const part = rows.slice(i, i + chunkSize);
+    const values = part.map(() => `(${columns.map(() => '?').join(',')})`).join(',');
+    const sql = `INSERT INTO ${table} (${columns.join(',')}) VALUES ${values} ${suffix}`;
+    statements.push(db.prepare(sql).bind(...part.flatMap(row => columns.map(c => row[c]))));
+  }
+  return statements;
+}
+
+async function persistTrtcLedger(env, parts, nowEpoch) {
+  if (!await ensureTrtcLedger(env)) return { events: 0, tracks: 0, aliases: 0 };
+  const db = env.TRTC_LEDGER;
+  const eventRows = dedupeRows(parts.flatMap(x => ledgerEventRows(x.events)),
+    x => `${x.day}|${x.line}|${x.dir}|${x.train_key}|${x.station_idx}|${x.kind}|${x.src}`);
+  const trackRows = dedupeRows(parts.flatMap(x => ledgerTrackRows(x.trackUpdates)), x => `${x.day}|${x.track_id}`);
+  const aliasRows = dedupeRows(parts.flatMap(x => x.aliasUpdates || []).map(x => ({
+    day: x.day, alias_type: x.aliasType, alias: x.alias, track_id: x.trackId,
+    first_seen_epoch: x.epoch, last_seen_epoch: x.epoch,
+  })), x => `${x.day}|${x.alias_type}|${x.alias}`);
+
+  const statements = [];
+  statements.push(...multiInsertStatements(db, 'trtc_events',
+    ['day','line','dir','train_key','station_idx','kind','epoch','src','crowd','state','observed_epoch','updated_epoch'],
+    eventRows, 5,
+    `ON CONFLICT(day,line,dir,train_key,station_idx,kind,src) DO UPDATE SET
+       epoch=excluded.epoch, crowd=COALESCE(excluded.crowd,trtc_events.crowd),
+       state=excluded.state, observed_epoch=excluded.observed_epoch, updated_epoch=excluded.updated_epoch
+     WHERE trtc_events.state='forecast' AND
+       (excluded.state='observed' OR trtc_events.epoch>excluded.observed_epoch)`));
+  statements.push(...multiInsertStatements(db, 'trtc_tracks',
+    ['day','track_id','line','dir','station_idx','progress','official_no','crowd','evidence','evidence_epoch','last_seen_epoch','payload'],
+    trackRows, 5,
+    `ON CONFLICT(day,track_id) DO UPDATE SET
+       line=excluded.line,dir=excluded.dir,station_idx=excluded.station_idx,progress=excluded.progress,
+       official_no=COALESCE(excluded.official_no,trtc_tracks.official_no),crowd=COALESCE(excluded.crowd,trtc_tracks.crowd),
+       evidence=excluded.evidence,evidence_epoch=excluded.evidence_epoch,last_seen_epoch=excluded.last_seen_epoch,
+       payload=excluded.payload`));
+  statements.push(...multiInsertStatements(db, 'trtc_track_aliases',
+    ['day','alias_type','alias','track_id','first_seen_epoch','last_seen_epoch'], aliasRows, 10,
+    `ON CONFLICT(day,alias_type,alias) DO UPDATE SET
+       last_seen_epoch=excluded.last_seen_epoch`));
+  // 預測過時後凍結；只轉 state，不再改 epoch。真正「觀測到進站」的列在上面先升成 observed。
+  statements.push(db.prepare(`UPDATE trtc_events SET state='elapsed',updated_epoch=?
+    WHERE state='forecast' AND epoch<=?`).bind(nowEpoch, nowEpoch));
+  await db.batch(statements);
+  return { events: eventRows.length, tracks: trackRows.length, aliases: aliasRows.length };
+}
+
+function trackUpdateAsPrior(x) {
+  return { day: x.day, track_id: x.trackId, line: x.line, dir: x.dir, station_idx: x.stationIdx,
+    progress: x.progress, official_no: x.officialNo, crowd: x.crowd == null ? null : JSON.stringify(x.crowd),
+    evidence: x.evidence, evidence_epoch: x.evidenceEpoch, last_seen_epoch: x.lastSeenEpoch,
+    payload: JSON.stringify(x.payload) };
+}
+function aliasUpdateAsPrior(x) {
+  return { day: x.day, alias_type: x.aliasType, alias: x.alias, track_id: x.trackId,
+    first_seen_epoch: x.epoch, last_seen_epoch: x.epoch };
+}
+function eventAsHistory(x) {
+  return { day: x.day, line: x.line, dir: x.dir, train_key: x.trackId, station_idx: x.stationIdx,
+    kind: x.kind, epoch: x.epoch, src: x.src, state: x.state };
+}
+
+async function trtcLedgerPreview(env, hw, br, boardRows) {
+  if (!env || !env.TRTC_LEDGER) return [];
+  const fallback = Math.floor(Date.now() / 1000);
+  const nowEpoch = trtcBoardEpoch(boardRows, fallback);
+  const day = trtcServiceDay(nowEpoch);
+  const [model, context] = await Promise.all([trtcLedgerModel(env), trtcLedgerContext(env, day, nowEpoch)]);
+  const built = buildLedgerFromRaw({ model, boardRows, hwRows: hw, brRows: br, epochOf: trtcEpoch,
+    ...context, nowEpoch, day });
+  return built.frame;
+}
+
+async function trtcLedgerMaterialized(env, nowEpoch) {
+  if (!await ensureTrtcLedger(env)) return [];
+  const day = trtcServiceDay(nowEpoch);
+  const r = await env.TRTC_LEDGER.prepare(`SELECT payload,evidence_epoch FROM trtc_tracks
+    WHERE day=? AND last_seen_epoch>=? ORDER BY line,dir,progress`).bind(day, nowEpoch - 15 * 60).all();
+  const out = [];
+  for (const row of r.results || []) {
+    try { const p = JSON.parse(row.payload); p.ageSec = Math.max(0, nowEpoch - Number(row.evidence_epoch)); out.push(p); } catch (e) {}
+  }
+  return out;
+}
+
+function trtcLedgerNowEpoch(event, env) {
+  const forced = Number(env && env.TRTC_NOW_EPOCH);
+  if (Number.isFinite(forced) && forced > 0) return Math.floor(forced);
+  const scheduled = Number(event && event.scheduledTime);
+  return Number.isFinite(scheduled) && scheduled > 0 ? Math.floor(scheduled / 1000) : Math.floor(Date.now() / 1000);
+}
+
+async function pruneTrtcLedger(env, nowEpoch) {
+  if (!await ensureTrtcLedger(env)) return 0;
+  // 保留「當日 + 往前 7 個服務日」共 8 天；delete < today-7。
+  const cutoff = addDays(trtcServiceDay(nowEpoch), -7);
+  const db = env.TRTC_LEDGER;
+  const results = await db.batch([
+    db.prepare('DELETE FROM trtc_events WHERE day<?').bind(cutoff),
+    db.prepare('DELETE FROM trtc_tracks WHERE day<?').bind(cutoff),
+    db.prepare('DELETE FROM trtc_track_aliases WHERE day<?').bind(cutoff),
+  ]);
+  const changes = results.reduce((n, r) => n + Number(r.meta && r.meta.changes || 0), 0);
+  console.log(`[cron trtc-ledger] 清理 < ${cutoff}: ${changes} 列`);
+  return changes;
+}
+
+async function trtcLedgerScheduled(event, env) {
+  const gateNow = trtcLedgerNowEpoch(event, env);
+  const gate = trtcOperatingState(gateNow);
+  if (gate.prune) await pruneTrtcLedger(env, gateNow);
+  if (!gate.open) {
+    console.log(`[cron trtc-ledger] 窗外 ${gate.minute}min，不呼叫上游`);
+    return { skipped: true, pruned: gate.prune };
+  }
+  const delayRaw = env && env.TRTC_BOARD_SAMPLE_DELAY_MS;
+  const delayMs = delayRaw == null ? 30000 : Math.max(0, Math.min(60000, Number(delayRaw) || 0));
+  const [model, first] = await Promise.all([
+    trtcLedgerModel(env),
+    Promise.all([
+      trtcCall(trtcApiUrl(env, 'TrackInfo'), 'getTrackInfo', env),
+      trtcCall(trtcApiUrl(env, 'CarWeight'), 'getCarWeightByInfoEx', env).catch(() => []),
+      trtcCall(trtcApiUrl(env, 'CarWeightBR'), 'getCarWeightBRInfo', env).catch(() => []),
+    ]),
+  ]);
+  const [board1, hwRaw, brRaw] = first;
+  if (delayMs) await new Promise(resolve => setTimeout(resolve, delayMs));
+  const board2 = await trtcCall(trtcApiUrl(env, 'TrackInfo'), 'getTrackInfo', env);
+  const now1 = trtcBoardEpoch(board1, gateNow), day = trtcServiceDay(now1);
+  const context = await trtcLedgerContext(env, day, now1);
+  const part1 = buildLedgerFromRaw({ model, boardRows: board1, hwRows: hwRaw, brRows: brRaw,
+    epochOf: trtcEpoch, ...context, nowEpoch: now1, day });
+  const now2 = trtcBoardEpoch(board2, now1 + Math.round(delayMs / 1000));
+  const part2 = buildLedgerFromRaw({ model, boardRows: board2, hwRows: hwRaw, brRows: brRaw, epochOf: trtcEpoch,
+    priorTracks: part1.trackUpdates.map(trackUpdateAsPrior),
+    aliases: context.aliases.concat(part1.aliasUpdates.map(aliasUpdateAsPrior)),
+    historicalEvents: context.historicalEvents.concat(part1.events.map(eventAsHistory)), nowEpoch: now2, day });
+  const stats = await persistTrtcLedger(env, [part1, part2], now2);
+  console.log(`[cron trtc-ledger] ${day}: board ${board1.length}+${board2.length}, hwRaw ${hwRaw.length}, brRaw ${brRaw.length}, ` +
+    `events ${stats.events}, tracks ${stats.tracks}, aliases ${stats.aliases}`);
+  return { skipped: false, day, stats, diagnostics: [part1.diagnostics, part2.diagnostics] };
+}
+
 // 台鐵準點率統計(D1 唯讀查詢):資料由外部批次工作預先算好寫入 kv_blobs,Worker 只做單列查詢+
 // 原樣回傳字串,不 JSON.parse 再 stringify、不跑 cron/scheduled handler——免費方案 10ms CPU 預算裡最省的做法。
 async function delayStats(request, env) {
@@ -734,7 +1165,7 @@ const API_POST_ALLOWED = new Set(['/api/account-delete', '/api/bounty-claim', '/
 // /api 端點白名單——只給流量埋點的 blob 用(不是路由閘門,路由在 fetch 裡)。不在名單內一律記成
 // 'other',否則隨便打 /api/<亂數> 就能把 blob 基數炸開。新增端點時要一起加進來。
 const API_ENDPOINTS = new Set([
-  'tra-live', 'tra-alert', 'thsr-alert', 'metro-alert', 'metro-live', 'ntmetro-live',
+  'tra-live', 'tra-alert', 'thsr-alert', 'metro-alert', 'metro-live', 'ntmetro-live', 'trtc-live',
   'delay-stats', 'delay-history', 'station-events', 'today-board', 'basemap-token', 'basemap-session', 'account-delete',
   'bounty-board', 'bounty-claim', 'bounty-submit', 'bounty-me', 'bounty-merge',
 ]);
@@ -1903,6 +2334,14 @@ export default {
   // 每天台北 09:15 / 12:15 觸發(wrangler.jsonc triggers.crons)。錯誤 console.error 後
   // rethrow,讓 Cloudflare 把該次 cron 標記為失敗(observability 可查)。
   async scheduled(event, env) {
+    // 每分鐘的北捷帳本與每日台鐵誤點 cron 必須完全分流；不然會每分鐘重跑台鐵 ingest。
+    if (event && event.cron === '* * * * *') {
+      try { return await trtcLedgerScheduled(event, env); }
+      catch (e) {
+        console.error('[cron trtc-ledger] 失敗:', (e && e.stack) || String(e));
+        throw e;
+      }
+    }
     try {
       const r = await ingestDelayHistory(env);
       console.log(`[cron delay] 完成: 寫入日 ${JSON.stringify(r.written)}, D1 迄日 ${r.dbMax}`);
@@ -1979,6 +2418,7 @@ export default {
       const sys = url.searchParams.get('sys');
       res = NTM_LIVE_SYS.has(sys) ? await ntmetroLive(request, env, sys) : jsonRes({ error: 'bad sys' }, 400, 'no-store');
     }
+    else if (url.pathname === '/api/trtc-live') { res = await trtcLive(request, env); }
     else if (url.pathname === '/api/delay-stats') res = await delayStats(request, env);
     else if (url.pathname === '/api/delay-history') res = await delayHistory(request, env);
     else if (url.pathname === '/api/station-events') res = await stationEvents(request, env);
@@ -2020,3 +2460,18 @@ export const _bounty = { bountyCardId, bountySegLine, groupBoardRows, bountyBoar
   bountyClaim, hasGeoKeys, sanitizeSamples, bountySubmit, firebaseUid, bountyMe, bountyMerge, bountyPurgeUid,
   bountyMedian, bountyL1, bountyL2, bountyPointsOf, bountyUnlocked, bountyValuationCron,
   assembleTrip, integrityGate, qualityGate, verdictOf, coverageOf, bountyVerifyCron, bountyResetMemCaches };
+// 純函式導出,供離線回歸測試 import:trtcParse 雙路徑解析(含上游故障回 HTML 錯誤頁、
+// HTTP 仍 200 那個坑應回 null)、trtcEpoch 台北時間換算、dedupeLatest 同車次抵站歷史去重
+// (文湖線 CarWeightBR 把歷史當現況回傳的真實坑,C1)。trtcCall 不是純函式(真的打上游),
+// 導出目的是讓 Task 10 的看板驗收腳本能繞過我們自己 worker 的 15 秒快取,直接打
+// getTrackInfo 拿當下最新的 CountDown/NowDateTime 做獨立比對(判準不可與 board[] 同源)——
+// 呼叫端須自備 { TRTC_API_USER, TRTC_API_PASS } 的 env 物件,帳密從 .dev.vars/環境變數讀。
+// trtcMemoStale 是記憶體層門檻的獨立可測版本(task-11),供 verify_trtc_freshness.mjs 量邊界。
+// carsOf 是每節車廂擁擠度的缺值防護(task-12):導出讓驗收腳本直接測邊界(缺值/非數字/
+// 非正數一律回 null),不必等真的上游漏欄位才驗到。
+export const _trtc = { trtcParse, trtcEpoch, dedupeLatest, trtcCall, trtcApiUrl, trtcMemoStale, carsOf };
+// B1 驗收用：導出編排層供本機 D1/fixture 測試，正式 router 不因此增加任何路徑。
+export const _trtcLedger = {
+  trtcBoardEpoch, trtcLedgerContext, persistTrtcLedger, trtcLedgerPreview,
+  trtcLedgerMaterialized, trtcLedgerNowEpoch, pruneTrtcLedger, trtcLedgerScheduled,
+};
