@@ -515,6 +515,103 @@ async function rateLimited(limiter, request, failClosed) {
 // production/sandbox;**webhook** payload 是**大寫** PRODUCTION/SANDBOX。兩套慣例不同世代,
 // 絕不可拿同一個常數去比對兩邊——之後接 webhook 時要另外定義自己的大寫常數。
 const RC_ENV_PRODUCTION = 'production';
+// RevenueCat webhook 的環境值是大寫；REST 的 RC_ENV_PRODUCTION 是小寫。兩者不得共用，
+// 否則 sandbox 事件可能被誤認成正式環境，或正式 REST 訂閱全部被誤擋。
+const RC_WEBHOOK_ENV_PRODUCTION = 'PRODUCTION';
+const RC_WEBHOOK_ENV_SANDBOX = 'SANDBOX';
+
+const GOOGLE_OAUTH_TOKEN_URL = 'https://oauth2.googleapis.com/token';
+const GOOGLE_DATASTORE_SCOPE = 'https://www.googleapis.com/auth/datastore';
+const GOOGLE_JWT_LIFETIME_SECONDS = 3600;
+const FIRESTORE_TOKEN_REFRESH_SKEW_MS = 60e3;
+// 資格文件的寬限取 24 小時：足以吸收 webhook 短暫漏送與兩端時鐘偏移，又不會在訂閱
+// 真正到期後留下長期權限。退款／撤銷事件正常送達時仍會立即寫 active:false，不等寬限。
+const PLUS_ENTITLEMENT_GRACE_MS = 24 * 60 * 60 * 1000;
+
+let firestoreAccessToken = null;
+let firestoreAccessTokenExpiresAtMs = 0;
+let firestoreAccessTokenIssuer = '';
+
+function base64UrlBytes(bytes) {
+  let binary = '';
+  for (let i = 0; i < bytes.length; i += 1) binary += String.fromCharCode(bytes[i]);
+  return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '');
+}
+
+function base64UrlText(text) {
+  return base64UrlBytes(new TextEncoder().encode(text));
+}
+
+function serviceAccountPrivateKeyBytes(pem) {
+  if (typeof pem !== 'string') throw new Error('firestore private key missing');
+  // wrangler secret 可貼真正換行，也可能由密碼管理器帶成字面上的 \\n；兩種都接受。
+  const normalized = pem.replace(/\\n/g, '\n').trim();
+  const match = normalized.match(/^-----BEGIN PRIVATE KEY-----\s+([A-Za-z0-9+/=\s]+)\s+-----END PRIVATE KEY-----$/);
+  if (!match) throw new Error('firestore private key must be PKCS8');
+  const binary = atob(match[1].replace(/\s/g, ''));
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i += 1) bytes[i] = binary.charCodeAt(i);
+  return bytes;
+}
+
+async function createGoogleServiceAccountJwt(env, nowMs = Date.now()) {
+  const issuer = env.FIRESTORE_SERVICE_ACCOUNT_EMAIL;
+  if (!issuer || !env.FIRESTORE_SERVICE_ACCOUNT_PRIVATE_KEY) throw new Error('firestore credentials missing');
+  const issuedAt = Math.floor(nowMs / 1000);
+  const header = { alg: 'RS256', typ: 'JWT' };
+  const claims = {
+    iss: issuer,
+    scope: GOOGLE_DATASTORE_SCOPE,
+    aud: GOOGLE_OAUTH_TOKEN_URL,
+    iat: issuedAt,
+    exp: issuedAt + GOOGLE_JWT_LIFETIME_SECONDS,
+  };
+  const signingInput = `${base64UrlText(JSON.stringify(header))}.${base64UrlText(JSON.stringify(claims))}`;
+  const key = await crypto.subtle.importKey(
+    'pkcs8', serviceAccountPrivateKeyBytes(env.FIRESTORE_SERVICE_ACCOUNT_PRIVATE_KEY),
+    { name: 'RSASSA-PKCS1-v1_5', hash: 'SHA-256' }, false, ['sign']
+  );
+  const signature = await crypto.subtle.sign('RSASSA-PKCS1-v1_5', key, new TextEncoder().encode(signingInput));
+  return `${signingInput}.${base64UrlBytes(new Uint8Array(signature))}`;
+}
+
+function firestoreConfigured(env) {
+  return !!(env.FIRESTORE_PROJECT_ID && env.FIRESTORE_SERVICE_ACCOUNT_EMAIL && env.FIRESTORE_SERVICE_ACCOUNT_PRIVATE_KEY);
+}
+
+function resetFirestoreAccessTokenCache() {
+  firestoreAccessToken = null;
+  firestoreAccessTokenExpiresAtMs = 0;
+  firestoreAccessTokenIssuer = '';
+}
+
+async function getFirestoreAccessToken(env, nowMs = Date.now()) {
+  if (!firestoreConfigured(env)) throw new Error('firestore configuration missing');
+  const issuer = env.FIRESTORE_SERVICE_ACCOUNT_EMAIL;
+  if (firestoreAccessToken && firestoreAccessTokenIssuer === issuer
+      && nowMs < firestoreAccessTokenExpiresAtMs - FIRESTORE_TOKEN_REFRESH_SKEW_MS) {
+    return firestoreAccessToken;
+  }
+  const assertion = await createGoogleServiceAccountJwt(env, nowMs);
+  const response = await fetch(GOOGLE_OAUTH_TOKEN_URL, {
+    method: 'POST',
+    headers: { 'content-type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams({
+      grant_type: 'urn:ietf:params:oauth:grant-type:jwt-bearer',
+      assertion,
+    }),
+  });
+  if (!response.ok) throw new Error(`google oauth ${response.status}`);
+  const body = await response.json();
+  if (!body || typeof body.access_token !== 'string' || !body.access_token) throw new Error('google oauth malformed response');
+  const expiresIn = Number(body.expires_in);
+  const lifetimeMs = Number.isFinite(expiresIn) && expiresIn > 0
+    ? expiresIn * 1000 : GOOGLE_JWT_LIFETIME_SECONDS * 1000;
+  firestoreAccessToken = body.access_token;
+  firestoreAccessTokenExpiresAtMs = nowMs + lifetimeMs;
+  firestoreAccessTokenIssuer = issuer;
+  return firestoreAccessToken;
+}
 
 // /subscriptions 分頁參數。🔴 2026-08-03 複審 I-1(b)修正:官方規格 limit 預設只有 20(低於 1 或
 // 高於 100 會被 clamp,不是拒絕),且這支端點的 parameters 裡沒有 sort、規格也沒有任何「較新
@@ -586,15 +683,116 @@ function resolveRcNextPage(nextPage) {
 //        · 明確回空陣列(entitlements.items 為 [])⇒ 語意就是「這筆訂閱不掛任何 entitlement」,
 //          正確答案是 false,不能跟缺席混為一談——混談等於多給資格,是複審抓到的唯一一處
 //          程式行為超出自己註解宣稱範圍的地方。
-function plusEntitledFromSubscriptions(body, wantEntitlement) {
+function subscriptionMatchesPlus(sub, wantEntitlement) {
+  if (!sub || sub.gives_access !== true) return false;
+  if (sub.environment !== RC_ENV_PRODUCTION) return false;
+  const ents = sub.entitlements && Array.isArray(sub.entitlements.items) ? sub.entitlements.items : null;
+  // entitlements 缺席是違反規格的上游異常，保留原有的防禦性 fallback；明確空陣列則是
+  // 「這筆訂閱不掛任何 entitlement」，必須回 false，不能靜默多給資格。
+  if (!ents) return true;
+  return ents.some(e => e && e.lookup_key === wantEntitlement);
+}
+
+function plusAccessSubscriptions(body, wantEntitlement) {
   const items = body && Array.isArray(body.items) ? body.items : [];
-  return items.some(sub => {
-    if (!sub || sub.gives_access !== true) return false;
-    if (sub.environment !== RC_ENV_PRODUCTION) return false;
-    const ents = sub.entitlements && Array.isArray(sub.entitlements.items) ? sub.entitlements.items : null;
-    if (!ents) return true;
-    return ents.some(e => e && e.lookup_key === wantEntitlement);
+  return items.filter(sub => subscriptionMatchesPlus(sub, wantEntitlement));
+}
+
+function plusEntitledFromSubscriptions(body, wantEntitlement) {
+  return plusAccessSubscriptions(body, wantEntitlement).length > 0;
+}
+
+// entitlements/{uid} 是 Task 8 的固定契約：active(boolean)、activeUntilMs(number)、
+// updatedAtMs(number)、source(string)。activeUntilMs 是訂閱到期毫秒加上寬限；正式有效且
+// 無到期日（終身型）用 0 代表不設限。inactive 文件也寫 0，但 rules 會先要求 active===true。
+function plusEntitlementDocument(body, wantEntitlement, source, nowMs = Date.now()) {
+  const access = plusAccessSubscriptions(body, wantEntitlement);
+  let activeUntilMs = 0;
+  if (access.length) {
+    const expirations = access.map(sub => {
+      // ends_at 是 RevenueCat 定義的最新一期預期結束；舊回應若沒有它，退回本期結束。
+      const end = Number.isFinite(sub.ends_at) ? sub.ends_at : sub.current_period_ends_at;
+      return Number.isFinite(end) && end > 0 ? end : 0;
+    });
+    if (expirations.every(ms => ms > 0)) activeUntilMs = Math.max(...expirations) + PLUS_ENTITLEMENT_GRACE_MS;
+  }
+  return { active: access.length > 0, activeUntilMs, updatedAtMs: nowMs, source };
+}
+
+function firestoreEntitlementPayload(doc) {
+  return {
+    fields: {
+      active: { booleanValue: doc.active },
+      activeUntilMs: { integerValue: String(doc.activeUntilMs) },
+      updatedAtMs: { integerValue: String(doc.updatedAtMs) },
+      source: { stringValue: doc.source },
+    },
+  };
+}
+
+function validFirestoreDocumentId(value) {
+  if (typeof value !== 'string' || !value || value === '.' || value === '..' || value.includes('/')) return false;
+  const bytes = new TextEncoder().encode(value).length;
+  return bytes <= 1500 && !/^__.*__$/.test(value);
+}
+
+async function writePlusEntitlement(uid, doc, env, nowMs = Date.now()) {
+  if (!validFirestoreDocumentId(uid)) throw new Error('invalid entitlement uid');
+  const token = await getFirestoreAccessToken(env, nowMs);
+  const project = encodeURIComponent(env.FIRESTORE_PROJECT_ID);
+  const documentId = encodeURIComponent(uid);
+  const response = await fetch(`https://firestore.googleapis.com/v1/projects/${project}/databases/(default)/documents/entitlements/${documentId}`, {
+    method: 'PATCH',
+    headers: { Authorization: `Bearer ${token}`, 'content-type': 'application/json' },
+    body: JSON.stringify(firestoreEntitlementPayload(doc)),
   });
+  if (!response.ok) throw new Error(`firestore write ${response.status}`);
+}
+
+// /api/plus-status 與 webhook 共用唯一一條 RevenueCat 讀取路徑：limit=100、逐頁累積所有
+// 符合資格的 subscription，且每一個 next_page 都由 resolveRcNextPage() 釘死 origin。
+// 為了讓 activeUntilMs 能取到所有頁的最晚到期日，命中後不提早回傳，會翻到自然結尾。
+async function fetchRevenueCatSubscriptions(uid, env, wantEntitlement) {
+  const matches = [];
+  let rcUrl = `${RC_ORIGIN}/v2/projects/${encodeURIComponent(env.REVENUECAT_PROJECT_ID)}/customers/${encodeURIComponent(uid)}/subscriptions?environment=${RC_ENV_PRODUCTION}&limit=${RC_SUBS_LIMIT}`;
+  for (let page = 0; page < RC_SUBS_MAX_PAGES; page++) {
+    const rc = await fetch(rcUrl, {
+      headers: { Authorization: `Bearer ${env.REVENUECAT_V2_SECRET_KEY}`, Accept: 'application/json' },
+    });
+    if (rc.status === 404) {
+      let param = null;
+      try { const body404 = await rc.json(); param = body404 && body404.param; } catch (e) {}
+      if (param === 'project_id') {
+        console.error('[plus] 上游 404 指出 project_id 有問題(REVENUECAT_PROJECT_ID 疑似設定錯誤),回 503 而非誤判為未訂閱');
+        return { ok: false, status: 503, error: 'entitlement_unavailable' };
+      }
+      return { ok: true, subscriptions: { items: [] } };
+    }
+    if (!rc.ok) return { ok: false, status: 503, error: 'entitlement_unavailable' };
+    const subs = await rc.json();
+    matches.push(...plusAccessSubscriptions(subs, wantEntitlement));
+
+    if (!subs || typeof subs.next_page !== 'string' || !subs.next_page) {
+      return { ok: true, subscriptions: { items: matches } };
+    }
+    const resolvedNextPage = resolveRcNextPage(subs.next_page);
+    if (!resolvedNextPage) {
+      console.error(`[plus] next_page 解析後的 origin 與 RevenueCat 不符,拒絕跟隨、停止翻頁:${subs.next_page}`);
+      // 沒有命中時維持既有的 403 安全方向；若已有命中，activeUntilMs 可能還有後頁資料，
+      // 改回可診斷、可重試的 503，不能拿不完整集合寫出看似成功的資格文件。
+      return matches.length
+        ? { ok: false, status: 503, error: 'entitlement_unavailable' }
+        : { ok: true, subscriptions: { items: [] } };
+    }
+    rcUrl = resolvedNextPage;
+  }
+  // 翻頁上限用完仍有 next_page。無命中維持現行安全方向；已有命中則不能用不完整集合計算
+  // activeUntilMs，回 503 讓 observability 與客戶端都看得出「查不完整」，不靜默寫錯文件。
+  if (matches.length) {
+    console.error('[plus] subscriptions 翻頁達安全上限且已有資格命中,activeUntilMs 無法完整計算,回 503');
+    return { ok: false, status: 503, error: 'entitlement_unavailable' };
+  }
+  return { ok: true, subscriptions: { items: [] } };
 }
 
 // 驗證 Firebase ID token → RevenueCat 正式環境的訂閱存取權,供任何 Plus 付費牆端點共用。
@@ -605,8 +803,8 @@ function plusEntitledFromSubscriptions(body, wantEntitlement) {
 // 改打 /subscriptions:它有 environment query 參數,回應的 Subscription 也有 top-level 必填的
 // environment 與 gives_access 兩個欄位(判定細節見 plusEntitledFromSubscriptions)。
 // secret 未設定→fail-closed 503(不放行任何人)。驗證範式抄自 deleteAccountData(同一組 env secret)。
-// 回傳 {ok:true, uid} 或 {ok:false, status, error};呼叫端自行決定 403(not_entitled)要不要
-// 原樣回傳,或(如 /api/plus-status)改寫成 200 {active:false}。
+// 成功與明確無資格都會附上 uid 與跨頁累積的命中 subscriptions，供資格文件使用；
+// 呼叫端自行決定 403(not_entitled)要不要原樣回傳，或(如 /api/plus-status)改寫成 200 {active:false}。
 async function checkPlusEntitlement(request, env) {
   if (!env.FIREBASE_WEB_API_KEY || !env.REVENUECAT_PROJECT_ID || !env.REVENUECAT_V2_SECRET_KEY)
     return { ok: false, status: 503, error: 'entitlement_unavailable' };
@@ -623,46 +821,14 @@ async function checkPlusEntitlement(request, env) {
     // entitlement 的 lookup_key 與前端 revenuecat-config.js 的 entitlement 同一個值('plus');
     // 不是 secret,給 env 覆寫只是為了不把它寫死在兩個地方。
     const wantEntitlement = env.REVENUECAT_ENTITLEMENT || 'plus';
-    // 分頁:見上方 RC_SUBS_LIMIT/RC_SUBS_MAX_PAGES 的說明。每頁先問「這頁裡有沒有找到」,
-    // 找到就立刻回傳(不必翻完剩下的頁);沒找到才看 next_page 決定要不要翻下一頁。
-    let rcUrl = `${RC_ORIGIN}/v2/projects/${encodeURIComponent(env.REVENUECAT_PROJECT_ID)}/customers/${encodeURIComponent(uid)}/subscriptions?environment=${RC_ENV_PRODUCTION}&limit=${RC_SUBS_LIMIT}`;
-    for (let page = 0; page < RC_SUBS_MAX_PAGES; page++) {
-      const rc = await fetch(rcUrl, {
-        headers: { Authorization: `Bearer ${env.REVENUECAT_V2_SECRET_KEY}`, Accept: 'application/json' },
-      });
-      if (rc.status === 404) {
-        // 🔴 2026-08-03 複審 I-1(c):404 的 resource_missing 同時涵蓋「這個 uid 從未在 RevenueCat
-        // 出現(沒買過)」與「project_id/customer_id 這個 ID 本身就不存在」——REVENUECAT_PROJECT_ID
-        // 設錯時,每一個使用者都會打出這個 404,不能把設定錯誤偽裝成「這個人沒買」。RevenueCat
-        // 的 Error schema 有一個共用的 param 欄位(「若錯誤與特定參數有關,是哪一個參數」),
-        // 盡力用它分辨:上游明確指出出錯的參數是 project_id 才視為設定錯誤。
-        // ⚠️ 殘留風險(認領,非臆測):官方文件沒有明文保證這支端點的 404 一定會填 param——
-        // 若上游剛好沒填、或填的是 customer_id,就落回原本的 403 not_entitled,這是「無法保證
-        // 可靠區分」時選擇的安全預設,不是忽略了這個問題(細節見 task-4-report.md 殘留風險)。
-        let param = null;
-        try { const body404 = await rc.json(); param = body404 && body404.param; } catch (e) {}
-        if (param === 'project_id') {
-          console.error('[plus] 上游 404 指出 project_id 有問題(REVENUECAT_PROJECT_ID 疑似設定錯誤),回 503 而非誤判為未訂閱');
-          return { ok: false, status: 503, error: 'entitlement_unavailable' };
-        }
-        return { ok: false, status: 403, error: 'not_entitled' };                              // 此 uid 從未在 RevenueCat 出現=沒買過(或無法確認是哪個 ID 出錯,安全預設維持原行為)
-      }
-      if (!rc.ok) return { ok: false, status: 503, error: 'entitlement_unavailable' };          // 上游暫時性錯誤:不當有資格、也不永久拒絕,讓前端可重試
-      const subs = await rc.json();
-      if (plusEntitledFromSubscriptions(subs, wantEntitlement)) return { ok: true, uid };
-      if (!subs || typeof subs.next_page !== 'string' || !subs.next_page) break;                // next_page 缺席/null:已到最後一頁,正常結束(不是還有下一頁沒跟)
-      const resolvedNextPage = resolveRcNextPage(subs.next_page);
-      if (!resolvedNextPage) {
-        // origin 不符 RC_ORIGIN(見 resolveRcNextPage 註解 H-1)——不信任、停止翻頁,落到下面
-        // 迴圈外既有的 403 not_entitled 安全方向(不是 503:這不是暫時性上游錯誤,是我們主動
-        // 判定不可信任這個 next_page,語意上更接近「翻不到更多、視同無資格」)。console.error
-        // 讓這個從未預期發生的情況可被 Observability 追蹤到,不是靜默處理。
-        console.error(`[plus] next_page 解析後的 origin 與 RevenueCat 不符,拒絕跟隨、停止翻頁:${subs.next_page}`);
-        break;
-      }
-      rcUrl = resolvedNextPage;                                                                   // 見 resolveRcNextPage():規格 example 是相對路徑,且 origin 必須釘死、不可信任上游回傳值
-    }
-    return { ok: false, status: 403, error: 'not_entitled' };                                    // 翻完所有頁、或翻頁上限用完仍未找到 ⇒ 安全方向是視同無資格,不得因為我們自己停手就靜默當成有資格
+    const truth = await fetchRevenueCatSubscriptions(uid, env, wantEntitlement);
+    if (!truth.ok) return truth;
+    // subscriptions 是跨頁累積後「所有符合資格的命中集合」，不是任一頁的原始 body；
+    // plus-status 與 webhook 都用這份集合計算 activeUntilMs，避免有效訂閱在後頁時寫錯。
+    const subscriptions = truth.subscriptions;
+    if (!plusEntitledFromSubscriptions(subscriptions, wantEntitlement))
+      return { ok: false, status: 403, error: 'not_entitled', uid, subscriptions };
+    return { ok: true, uid, subscriptions };
   } catch (e) {
     return { ok: false, status: 503, error: 'entitlement_unavailable' };                         // 網路/解析暫時性錯誤:可重試
   }
@@ -705,8 +871,9 @@ async function delayHistory(request, env) {
 }
 
 // GET /api/plus-status  Authorization: Bearer <Firebase ID token>
-// → 200 {active:boolean}｜401 無 token｜503 上游或 secret 未設(fail-closed)
-// 唯讀,不寫任何東西;no-store,不進共享 edge 快取(每個 uid 的答案不同)。無 web billing key 的
+// → 200 {active:boolean}｜401 無 token｜503 上游或 RevenueCat secret 未設(fail-closed)
+// 回應仍是 RevenueCat 真相的唯讀答案；查到真相後另外自癒寫入 Firestore。寫入失敗只記錄診斷，
+// 不得把已查到的答案改成 503。no-store,不進共享 edge 快取(每個 uid 的答案不同)。無 web billing key 的
 // 平台(RAIL_REVENUECAT_CONFIG 只設 iosApiKey)plusConfigured() 恆 false、不初始化 billing SDK,
 // 這支端點就是那些平台查詢既有資格的唯一管道:純查詢,不發起購買、不改變資格。
 async function plusStatus(request, env) {
@@ -716,7 +883,71 @@ async function plusStatus(request, env) {
   // not_entitled(403)在這支端點不是錯誤,是正常答案的一種:「查得到、資格是 false」要跟「查不到」
   // (503)分開,否則 RevenueCat 短暫故障會被前端誤讀成「沒訂閱」而把付費者的功能整批關掉。
   if (!check.ok && check.status !== 403) return jsonRes({ error: check.error }, check.status, 'no-store');
+  if (check.uid && check.subscriptions) {
+    const wantEntitlement = env.REVENUECAT_ENTITLEMENT || 'plus';
+    const doc = plusEntitlementDocument(check.subscriptions, wantEntitlement, 'plus-status');
+    try {
+      await writePlusEntitlement(check.uid, doc, env);
+    } catch (e) {
+      // 不含 uid／憑證，只留下路徑與錯誤類型，讓 Worker observability 能診斷設定或上游故障。
+      console.error('[plus-entitlement] plus-status Firestore write failed:', String(e && e.message || e));
+    }
+  }
   return jsonRes({ active: check.ok }, 200, 'no-store');
+}
+
+async function constantTimeHeaderEqual(actual, expected) {
+  const encoder = new TextEncoder();
+  const [a, b] = await Promise.all([
+    crypto.subtle.digest('SHA-256', encoder.encode(actual)),
+    crypto.subtle.digest('SHA-256', encoder.encode(expected)),
+  ]);
+  const aa = new Uint8Array(a), bb = new Uint8Array(b);
+  let different = 0;
+  for (let i = 0; i < aa.length; i += 1) different |= aa[i] ^ bb[i];
+  return different === 0;
+}
+
+// POST /api/revenuecat-webhook
+// RevenueCat dashboard 設定的 Authorization 完整值必須與 REVENUECAT_WEBHOOK_AUTH secret 完全相同。
+// webhook 本身只當喚醒訊號：正式事件一律用 fetchRevenueCatSubscriptions() 重查完整分頁真相再寫，
+// 退款、撤銷、到期不靠本地事件型別表推演。sandbox 事件確認收件但不寫，避免測試交易蓋掉正式資格。
+async function revenueCatWebhook(request, env) {
+  if (request.method !== 'POST') {
+    const response = jsonRes({ error: 'method not allowed' }, 405, 'no-store');
+    response.headers.set('Allow', 'POST, OPTIONS');
+    return response;
+  }
+  if (!env.REVENUECAT_WEBHOOK_AUTH) return jsonRes({ error: 'webhook_unavailable' }, 503, 'no-store');
+  const authorized = await constantTimeHeaderEqual(
+    request.headers.get('Authorization') || '', env.REVENUECAT_WEBHOOK_AUTH
+  );
+  if (!authorized) return jsonRes({ error: 'unauthorized' }, 401, 'no-store');
+  // 這是會寫 Firestore 的端點，限流器服務拋例外時 fail closed；binding 未設定的離線測試仍放行。
+  if (await rateLimited(env.AUTH_LIMITER, request, true)) return jsonRes({ error: 'rate_limited' }, 429, 'no-store');
+
+  let payload;
+  try { payload = await request.json(); }
+  catch (e) { return jsonRes({ error: 'bad_request' }, 400, 'no-store'); }
+  const event = payload && payload.event;
+  const uid = event && event.app_user_id;
+  if (!event || !validFirestoreDocumentId(uid)) return jsonRes({ error: 'bad_request' }, 400, 'no-store');
+  if (event.environment === RC_WEBHOOK_ENV_SANDBOX) return jsonRes({ ok: true }, 200, 'no-store');
+  if (event.environment !== RC_WEBHOOK_ENV_PRODUCTION) return jsonRes({ error: 'bad_request' }, 400, 'no-store');
+  if (!env.REVENUECAT_PROJECT_ID || !env.REVENUECAT_V2_SECRET_KEY || !firestoreConfigured(env))
+    return jsonRes({ error: 'entitlement_unavailable' }, 503, 'no-store');
+
+  try {
+    const wantEntitlement = env.REVENUECAT_ENTITLEMENT || 'plus';
+    const truth = await fetchRevenueCatSubscriptions(uid, env, wantEntitlement);
+    if (!truth.ok) throw new Error(`revenuecat subscriptions ${truth.status}`);
+    const doc = plusEntitlementDocument(truth.subscriptions, wantEntitlement, 'revenuecat-webhook');
+    await writePlusEntitlement(uid, doc, env);
+    return jsonRes({ ok: true }, 200, 'no-store');
+  } catch (e) {
+    console.error('[plus-entitlement] revenuecat-webhook sync failed:', String(e && e.message || e));
+    return jsonRes({ error: 'entitlement_write_failed' }, 503, 'no-store');
+  }
 }
 
 // 今日逐站歷程(唯讀查 D1 tra_station_events):給前端「這班車今天到過哪些站、各站誤點/最大誤點」。
@@ -876,13 +1107,13 @@ const SEC_HEADERS = {
 const APP_ORIGINS = new Set(['capacitor://localhost', 'https://localhost']);
 // 非 GET 的白名單。🔴 這道門是刻意關死的:預設所有 /api/* 只收 GET/HEAD,要開洞就逐條加進來,
 // 不可以改成「全部放行」——擋掉的是「隨手對唯讀端點打 POST」這類探測,而那正是最便宜的防線。
-const API_POST_ALLOWED = new Set(['/api/account-delete', '/api/bounty-claim', '/api/bounty-submit', '/api/bounty-merge']);
+const API_POST_ALLOWED = new Set(['/api/account-delete', '/api/bounty-claim', '/api/bounty-submit', '/api/bounty-merge', '/api/revenuecat-webhook']);
 // /api 端點白名單——只給流量埋點的 blob 用(不是路由閘門,路由在 fetch 裡)。不在名單內一律記成
 // 'other',否則隨便打 /api/<亂數> 就能把 blob 基數炸開。新增端點時要一起加進來。
 const API_ENDPOINTS = new Set([
   'tra-live', 'tra-alert', 'thsr-alert', 'metro-alert', 'metro-live', 'ntmetro-live',
   'delay-stats', 'delay-history', 'station-events', 'today-board', 'basemap-token', 'basemap-session', 'account-delete',
-  'bounty-board', 'bounty-claim', 'bounty-submit', 'bounty-me', 'bounty-merge', 'plus-status',
+  'bounty-board', 'bounty-claim', 'bounty-submit', 'bounty-me', 'bounty-merge', 'plus-status', 'revenuecat-webhook',
 ]);
 
 function addAppCors(headers, origin) {
@@ -2133,6 +2364,7 @@ export default {
     else if (url.pathname === '/api/basemap-session') res = await basemapSession(request, env);
     else if (url.pathname === '/api/account-delete') res = await deleteAccountData(request, env);
     else if (url.pathname === '/api/plus-status') res = await plusStatus(request, env);
+    else if (url.pathname === '/api/revenuecat-webhook') res = await revenueCatWebhook(request, env);
     else if (url.pathname === '/api/bounty-board') res = await bountyBoard(request, env);
     else if (url.pathname === '/api/bounty-claim') res = await bountyClaim(request, env);
     else if (url.pathname === '/api/bounty-submit') res = await bountySubmit(request, env);
@@ -2162,7 +2394,11 @@ export const _delayHistory = { delayHistoryWindow, buildDelayHistoryBody, isVali
 // env 替身與 fetch 替身——導出它們的目的正是要能數「打的是哪一支端點、帶了什麼 query」。
 // 刻意不導出 RC_ENV_PRODUCTION:測試的正/反樣本一律用自己寫死的 'production'/'sandbox' 字面值,
 // 與實作共用同一個常數的話,那個常數被改壞時兩邊會一起改壞而全綠(判準不得與實作同源)。
-export const _plus = { checkPlusEntitlement, plusEntitledFromSubscriptions, plusStatus };
+export const _plus = {
+  checkPlusEntitlement, plusEntitledFromSubscriptions, plusEntitlementDocument, firestoreEntitlementPayload,
+  createGoogleServiceAccountJwt, getFirestoreAccessToken, resetFirestoreAccessTokenCache,
+  writePlusEntitlement, plusStatus, revenueCatWebhook,
+};
 // 供離線回歸測試 import:驗「節流擋在 outbound fetch 之前」。這兩個不是純函式,測試得自備
 // env 替身與 fetch 替身;導出的目的就是讓測試能數「被擋掉時到底有沒有打上游」。
 export const _rateLimit = { rateLimited, delayHistory, deleteAccountData };
