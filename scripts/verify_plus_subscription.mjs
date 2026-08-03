@@ -838,7 +838,7 @@ for (const w of [360, 375, 414, 768]) await mobilePlusEntry(w, { sel: IMPORT_SEL
 // ══════════════ I. Step 4/6 修正輪(2026-08-02 複審 finding):冷啟動資格 bootstrap ＋ logout-legacy 不被閘門擋下 ══════════════
 // I1/I2:全新訪客(localStorage 空)——setupAccountUi 應該走 btn.remove() 那條,state.account 全程
 // undefined、零 Firebase 網路請求。免費層「完全匿名」的保證不能因為補了 returning 分支而破功。
-// I3:回訪使用者(localStorage 帶 trainmap-last-sync-uid)——setupAccountUi 的新 returning 條件要讓
+// I3:回訪使用者(localStorage 帶 trainmap-account-uid)——setupAccountUi 的新 returning 條件要讓
 // accountEnsureInit 開機就真的跑完(state.account.ready 轉真),不必等使用者先點過 Plus/帳號入口。
 //
 // ⚠️ I2 是「數量必須為 0」型斷言,而這種斷言在收集器根本沒收到東西時會無條件通過
@@ -865,12 +865,15 @@ for (const w of [360, 375, 414, 768]) await mobilePlusEntry(w, { sel: IMPORT_SEL
   const { ctx, page } = await newPage(chromiumB);
   const errs = attach(page, 'I-returning');
   const firebaseReqs = collectFirebaseReqs(page); // I2 的正向對照,見上方註解
-  await ctx.addInitScript(() => { try { localStorage.setItem('trainmap-last-sync-uid', 'test-returning-uid'); } catch (e) {} });
+  // 2026-08-04 C-2 複審 Important 1:accountReturning() 改讀 trainmap-account-uid——
+  // trainmap-last-sync-uid 只在同步成功時才寫,對非訂閱者這道判準本來就永遠不成立(見 index.html
+  // accountReturning 上方註解),舊 key 當這裡的前置已經測不出「回訪使用者」這件事本身。
+  await ctx.addInitScript(() => { try { localStorage.setItem('trainmap-account-uid', 'test-returning-uid'); } catch (e) {} });
   await page.goto(BASE, { waitUntil: 'domcontentloaded' });
   await waitReady(page);
   const readyOk = await page.waitForFunction(() => state.account && state.account.ready === true, null, { timeout: 15000 })
     .then(() => true).catch(() => false);
-  ok('I3 回訪使用者(留有 last-sync-uid)開機 accountEnsureInit 真的有跑(state.account.ready 轉真,不必先點過 Plus/帳號入口)',
+  ok('I3 回訪使用者(留有 account-uid)開機 accountEnsureInit 真的有跑(state.account.ready 轉真,不必先點過 Plus/帳號入口)',
     readyOk, `ready=${readyOk}`);
   // I3b/I3c:回訪／已登入者的帳號入口「真的看得見」。
   // #accountBtn 的 HTML 預設是 inline display:none、抽屜列也是,accountEnsureInit() 裡那一行

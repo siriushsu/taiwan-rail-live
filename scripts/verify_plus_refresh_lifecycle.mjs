@@ -8,7 +8,7 @@
 //     - plusEnsureListener(adapter)/plusTeardownListener():在 adapter 具備
 //       addCustomerInfoUpdateListener 時註冊(typeof 特性偵測,不是每個平台必要條件),
 //       用 plusListenerAdapter 記錄「目前掛在哪一顆 adapter 上」做冪等,登出
-//       (accountClearLocal)時解除註冊。
+//       (accountEndSession -> accountForgetIdentity)時解除註冊。
 //     - plusApplyCustomerInfo(info):套用 CustomerInfo 到 state.plus(active/founding/mgmtUrl),
 //       只給 listener 回呼與 plusRevalidateBeforeAction 兩個新消費者共用——plusRefresh()/
 //       plusPurchase()/plusRestore() 既有三處欄位寫入原封不動(觸碰過一次,踩到
@@ -154,7 +154,10 @@ const chromiumB = await chromium.launch();
 {
   const { ctx, page } = await newPage(chromiumB, {
     init: (arg) => {
-      try { localStorage.setItem('trainmap-last-sync-uid', arg.uid); } catch (e) {} // accountReturning()===true
+      // 2026-08-04 C-2 複審 Important 1:accountReturning() 改讀 trainmap-account-uid(見
+      // index.html accountReturning 上方註解——非訂閱者的同步恆被 plusIsActive() 擋下,
+      // trainmap-last-sync-uid 永遠不會被寫,舊 key 當這裡的判準已經不成立)。
+      try { localStorage.setItem('trainmap-account-uid', arg.uid); } catch (e) {} // accountReturning()===true
       window.RAIL_FIREBASE_CONFIG = { apiKey: 'x', authDomain: 'x', projectId: 'x' }; // accountConfigured() 要求的三欄
       window.__spy = { getCustomerInfo: 0 };
       window.__active = true;
@@ -405,10 +408,10 @@ async function setupForegroundLogin(page, uid) {
   ok('L8 前置條件:登入後 listener 已註冊一次、尚未解除', pre.addCalls === 1 && pre.removeCalls === 0, JSON.stringify(pre));
 
   const post = await page.evaluate(() => {
-    accountClearLocal(); // 登出清理(accountSignOut 內會呼叫這支)
+    accountEndSession(); // 登出清理(accountSignOut 內會呼叫這支;2026-08-04 複審輪2 前叫 accountClearLocal,那個名字現在專指刪除帳號那條會真的清資料的路徑)
     return { removeCalls: window.__spy.removeListener, removedIds: window.__removedIds };
   });
-  ok('L8 accountClearLocal()(登出清理)⇒ removeCustomerInfoUpdateListener 真的被呼叫一次,帶著註冊時拿到的同一個 id',
+  ok('L8 accountEndSession()(登出清理)⇒ removeCustomerInfoUpdateListener 真的被呼叫一次,帶著註冊時拿到的同一個 id',
     post.removeCalls === 1 && post.removedIds[0] === 'listener-id-1', JSON.stringify(post));
 
   // 登出後重新登入(同一顆 adapter 物件,uid 換一個)——teardown 有把追蹤變數歸零的話,應該會重新註冊。

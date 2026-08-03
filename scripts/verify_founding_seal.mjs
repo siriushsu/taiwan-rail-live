@@ -29,7 +29,10 @@ const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 // 本檔自身路徑推導,結構上不會誤驗別的 worktree,這行是便宜的可稽核紀錄,不是唯一防線)。
 console.log(`[G0] ROOT=${ROOT}`);
 console.log(`[G0] index.html md5=${createHash('md5').update(readFileSync(path.join(ROOT, 'index.html'))).digest('hex')}`);
-const PORT = 5417;
+// 埠位改成可用 PORT env 覆寫(比照 verify_sat_retina / verify_plus_refresh_lifecycle /
+// verify_account_sync_race):這台機器 30+ worktree 並行,2026-08-04 實測 5417 被另一棵樹的常駐
+// static server 佔住,寫死埠位會讓這支腳本在別人開著 server 時完全跑不起來。
+const PORT = Number(process.env.PORT || 5417);
 const MIME = { '.html': 'text/html', '.js': 'text/javascript', '.mjs': 'text/javascript', '.json': 'application/json', '.css': 'text/css', '.png': 'image/png', '.jpg': 'image/jpeg', '.svg': 'image/svg+xml', '.mp3': 'audio/mpeg', '.ico': 'image/x-icon', '.webmanifest': 'application/manifest+json' };
 const server = createServer((req, res) => {
   const url = new URL(req.url, 'http://x');
@@ -869,17 +872,17 @@ try {
     // ── 登出路徑與渲染守門(N-1)──
     // 這兩處在第 3 輪修好但零斷言:整個修回去,108/108 照樣全綠。刻意拆成兩條,因為兩處會**互相遮蔽**,
     // 合成一條就會有一半沒牙:
-    //   ‧ accountClearLocal() 少清 founding 時,buildFoundingSeal() 的 active 守門仍會擋下徽章
+    //   ‧ 登出清理少清 founding 時,buildFoundingSeal() 的 active 守門仍會擋下徽章
     //     ⇒ 畫面上看不出來,只有直接讀欄位才抓得到 ⇒ G6.9 斷言欄位值。
     //   ‧ 反過來守門被拿掉時,founding 早就被清成 false ⇒ 欄位與畫面都正常 ⇒ 要另外造出
     //     active:false + founding:true 這個「只有壞掉的寫入點才生得出來」的狀態去打它 ⇒ G6.10。
     // 前一條剛好是後一條的前置:先登出(狀態已是 active:false),再手動把 founding 掰回 true。
     const cleared = await page.evaluate(() => {
-      accountClearLocal(); // 內含 renderPassport(),登出當下的畫面就是這裡讀到的畫面
+      accountEndSession(); // 內含 renderPassport(),登出當下的畫面就是這裡讀到的畫面(2026-08-04 複審輪2 前叫 accountClearLocal)
       return { active: state.plus.active, founding: state.plus.founding };
     });
     const sealCleared = await readSeal(page);
-    ok('G6.9 登出(accountClearLocal())把 state.plus.founding 一起清成 false,護照上的徽章當場消失(active 與 founding 是兩個欄位;只清 active 會留下「已登出卻還掛著創始徽章」的畫面)',
+    ok('G6.9 登出(accountEndSession())把 state.plus.founding 一起清成 false,護照上的徽章當場消失(active 與 founding 是兩個欄位;只清 active 會留下「已登出卻還掛著創始徽章」的畫面)',
       cleared.active === false && cleared.founding === false && sealCleared.exists === false && sealCleared.passportHidden === false,
       `active=${JSON.stringify(cleared.active)} founding=${JSON.stringify(cleared.founding)} seal=${JSON.stringify(sealCleared)}`);
 
