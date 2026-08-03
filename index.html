@@ -7383,13 +7383,27 @@ async function plusEnsureListener(adapter) {
   if (plusListenerId && plusListenerAdapter === adapter) return; // 已經掛在同一顆 adapter 上,冪等早退
   await plusTeardownListener(); // 防禦性:adapter 换成別的物件時,先解除掛在舊物件上的那個
   try {
-    const id = await adapter.addCustomerInfoUpdateListener(info => {
-      // SDK 主動推播,永遠是「這是目前真正的 CustomerInfo」,不是「查不到」的錯誤狀態——
-      // 不必比照 plusRefresh() 的 Promise.allSettled 錯誤分流,直接套用即可。
+    const id = await adapter.addCustomerInfoUpdateListener((info, err) => {
+      // 🔴C-4 Important-1 修復:這裡不是「SDK 主動推播必為真值」的單純情境——Capacitor keep-alive
+      // callback 的失敗路徑逐字是 `storedCall.callback(null, result.error)`(見
+      // app/node_modules/@capacitor/ios/Capacitor/Capacitor/assets/native-bridge.js:962-966),
+      // Android 端 `addCustomerInfoUpdateListener` 開頭就有 `rejectIfNotConfigured(call)`
+      // (app/node_modules/@revenuecat/purchases-capacitor/android/.../PurchasesPlugin.kt:191-192),
+      // 原生端一 reject 就會落在這條 (null, error) 路徑上。err 有值,或 info 不成形(例如沒有
+      // entitlements),都是「原生端出錯/沒答案」,不是「查不到資格」——同 plusRefresh() 的
+      // Promise.allSettled 錯誤分流、plusRevalidateBeforeAction() 的 catch 同一個原則:只有拿到
+      // 明確答案才收回資格,查不到就完全不動 state.plus。
+      if (err || !info || !info.entitlements) return;
       plusApplyCustomerInfo(info);
       if (state.basemap === 'sat') setBasemap(); // 資格變動→衛星解析度跟著換,同 plusRefresh/plusPurchase 既有做法
       accountRender(); plusRender();
     });
+    // C-4 Minor-2 修復:cap.toNative 內部失敗(bridge 尚未就緒/例外)會回傳 null 當 callbackId
+    // (app/node_modules/@capacitor/ios/Capacitor/Capacitor/assets/native-bridge.js:928),falsy id
+    // 不代表「已註冊」,不落地追蹤變數——否則 plusListenerAdapter 會殘留一個看似掛著的 adapter
+    // 參考,卻配一個 null id,下次 plusEnsureListener 的冪等檢查與 plusTeardownListener 的清理
+    // 都要靠這兩個變數互相一致才會正確運作。
+    if (!id) return;
     plusListenerId = id; plusListenerAdapter = adapter;
   } catch (e) { /* 註冊失敗:兩個追蹤變數維持 teardown 後的 null,下次呼叫(如下次 plusRefresh)會重試 */ }
 }
@@ -7541,7 +7555,12 @@ async function plusRefresh() {
   if (!plusConfigured()) {
     // 此平台無購買通道(網站沒有 Web Billing key,RAIL_REVENUECAT_CONFIG 只設 iosApiKey):不初始化任何
     // billing SDK,只打 /api/plus-status 查詢既有資格(唯讀,不發起購買)。
-    p.error = '';
+    // 🔴C-4 Minor-1 修復:這條分支原本全程沒有設 p.loading——網站上 plusConfigured() 恆假,C-4 新加的
+    // visibilitychange(accountEnsureInit() 內)每次回前景都會 fire-and-forget 呼叫 plusRefresh(),
+    // 快速反覆切換前景會同時有多個 fetch 在飛,回應可能亂序覆寫 p.active。補上 p.loading 讓函式頂端
+    // 既有的 `if (p.loading) return false;` 早退守衛生效:同一時間只允許一個請求在飛,後到的觸發
+    // 直接跳過(不排隊、不重試),下一次回前景再重新查一次——結構上不可能有兩個回應競爭寫入 p.active。
+    p.loading = true; p.error = ''; plusRender();
     try {
       const token = state.account.fb.getIdToken ? await state.account.fb.getIdToken(user) : await user.getIdToken();
       const res = await fetch(apiUrl('api/plus-status'), { cache: 'no-store', headers: { Authorization: 'Bearer ' + token } });
@@ -7552,7 +7571,8 @@ async function plusRefresh() {
         // worker.js /api/plus-status 註解,那裡就是為了讓前端能分辨才把 403 轉成 200 {active:false})。
         if (data && typeof data.active === 'boolean') p.active = data.active;
       }
-    } catch (e) {}
+    } catch (e) {
+    } finally { p.loading = false; }
     accountRender(); plusRender();
     return p.active;
   }
@@ -7595,8 +7615,11 @@ async function plusPurchase(kind) {
   const pkg = p && (kind === 'month' ? p.pkgMonthly : p.pkgAnnual);
   if (!p || !p.adapter || !pkg || !user || p.loading) return;
   p.loading = true; p.error = ''; plusRender();
-  await plusRevalidateBeforeAction(p.adapter); // C-4:購買前重新驗證資格,見該函式註解
   try {
+    // C-4 Minor-3 修復:原本這行呼叫在 try 外(p.loading=true 之後、try{ 之前)——目前不會拋,
+    // 但日後有人在這個空隙加一行會拋例外的程式碼,p.loading 就會永久卡 true,把 refresh/purchase/
+    // restore 三個入口一起鎖死(因為三者共用同一顆 state.plus)。移進 try 內,照 plusRestore() 既有寫法。
+    await plusRevalidateBeforeAction(p.adapter); // C-4:購買前重新驗證資格,見該函式註解
     const result = await p.adapter.purchase(pkg, user.email || '');
     const info = result && (result.customerInfo || result);
     p.active = plusActiveFrom(info);
