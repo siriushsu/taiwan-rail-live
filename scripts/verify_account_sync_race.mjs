@@ -153,6 +153,14 @@ const chromiumB = await chromium.launch();
     r.midUnchanged === true, JSON.stringify(r));
   ok('R1b 序列化沒有卡死:放行 gate 後,登出流程最終仍會完整跑完、本機分區確實被清空',
     r.finalEmpty === true && r.finalRevision === 0, JSON.stringify(r));
+  // R1c 是序列化「本身」唯一有牙的斷言:R1a/R1b 驗的是最終結果乾淨,但那個結果同時也會被
+  // C-2 的另一道防線(世代複查)獨立保住——即使序列化整個被拔掉,accountClearLocal 一樣會讓
+  // a.gen 前進,讓 p1 那筆卡住的交易事後解決時被世代複查擋下、寫不進本機,最終看起來一樣乾淨。
+  // 真正只有序列化才會留下的痕跡,是「accountSyncNow('logout') 有沒有真的等 p1 做完、再親自補跑
+  // 一次自己的交易」——沒有序列化就直接 return false,txnCalls 停在 1;有序列化則等 p1 解決後
+  // 落到下面補做一次,txnCalls 會變成 2。這條斷言在 mutation A 才顯出唯一的區辨力,見 task-6-report.md。
+  ok('R1c 序列化真的補做了最後一次同步(不是被 a.syncing 靜默跳過):txnCalls 達到 2(第一次是卡住的那次,第二次是登出等到之後親自補做的那次)',
+    r.txnCalls === 2, JSON.stringify(r));
   ok('R1 本輪零 pageerror/console.error', errs.length === 0, errs.slice(0, 3).join(' | '));
   await ctx.close();
 }
