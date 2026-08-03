@@ -176,8 +176,30 @@ function looksBinaryAtHead(p) {
     return buf.subarray(0, 8000).includes(0);
   } catch (e) { return false; } // 取不到就當文字:寧可為此紅一次,也不要靜默放過一個沒被掃到的檔
 }
-function coverageGap(seen, expected) {
-  return [...expected].filter(f => !seen.has(f) && !looksBinaryAtHead(f));
+// 🔴 2026-08-03 修復輪 5:純改名／純 mode change 會讓覆蓋自檢誤紅。
+// 它們的 diff **沒有 `+++ b/` 行**(只有 `rename from/to`、`old mode/new mode`)⇒ 進不了 seen;
+// 而 `--name-only` 會報這些路徑 ⇒ 判成「有檔沒被掃到」。但它們**本來就沒有可掃的新增內容**,
+// 一顆 `git mv` 或 `chmod +x` 就能在 push 前最後一道閘門上生出假紅,而假紅會讓人把閘門調鬆或跳過。
+//
+// 判準寫「這個檔在這個範圍內有沒有可掃的新增內容」,**不是**「差一個就放行」那種數量式放寬:
+// `--numstat` 的第一欄就是新增行數,`0` ⇒ 沒有任何 `+` 行可掃 ⇒ 它不該出現在期望集合裡。
+// ⚠️ `-` 欄(git 判定二進位)**不算 0**,必須留在期望集合裡交給 looksBinaryAtHead 的 NUL 判定——
+//    被 `.gitattributes -diff` 標掉的文字檔正是回 `-`,把 `-` 當 0 排除等於親手拆掉那一發反向對照。
+// -z 格式(實測):一般檔 `<加>\t<刪>\t<路徑>NUL`;改名 `<加>\t<刪>\tNUL<舊名>NUL<新名>NUL`。
+function zeroAddedPaths(args) {
+  const toks = execFileSync('git', ['diff', '--numstat', '-z', ...args], { encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 }).split('\0');
+  const zero = new Set();
+  for (let i = 0; i < toks.length; i++) {
+    const m = /^(\S+)\t(\S+)\t([\s\S]*)$/.exec(toks[i]);
+    if (!m) continue;
+    let p = m[3];
+    if (p === '') { i += 2; p = toks[i]; } // 改名:接下來兩個 token 是舊名與新名,取新名
+    if (m[1] === '0') zero.add(p);
+  }
+  return zero;
+}
+function coverageGap(seen, expected, zeroAdded) {
+  return [...expected].filter(f => !seen.has(f) && !zeroAdded.has(f) && !looksBinaryAtHead(f));
 }
 
 // 自檢樣本用**既有的** CONTROLS 元素組成,不引入任何新的字面樣本:
@@ -245,14 +267,20 @@ ok(allowed === CONTROLS.length, `豁免行數量符合對照樣本數 — 豁免
 // 期望集合從**錨點**的合併點算(不是 BASE 的):BASE 預設就是 ANCHOR ⇒ 兩者同值、行為不變;
 // BASE 被縮小時 expected 不跟著縮,少掃的檔就會具名印出來。
 {
-  let gap = [], expected = new Set();
+  let gap = [], expected = new Set(), nz = 0;
   if (anchorErr) gap = [`(取不到範圍錨點 ${ANCHOR}:${anchorErr})`];
   else {
-    try { expected = filesChangedNameOnly([ANCHOR_MERGE_BASE]); gap = coverageGap(mainFilesSeen, expected); }
-    catch (e) { gap = ['(取不到期望檔案集合:' + String(e).slice(0, 80) + ')']; }
+    try {
+      expected = filesChangedNameOnly([ANCHOR_MERGE_BASE]);
+      const zero = zeroAddedPaths([ANCHOR_MERGE_BASE]);
+      nz = [...expected].filter(f => zero.has(f)).length;
+      gap = coverageGap(mainFilesSeen, expected, zero);
+    } catch (e) { gap = ['(取不到期望檔案集合:' + String(e).slice(0, 80) + ')']; }
   }
   ok(gap.length === 0,
     `主掃描看進去的檔案集合涵蓋錨點(${ANCHOR})以來動過的所有文字檔 — 期望 ${expected.size} 檔 / 實看 ${mainFilesSeen.size} 檔` +
+    // 豁免要看得見:不印的話「期望 30 / 實看 28」卻是綠的會讓下一個人以為判準壞了。
+    (nz ? ` / 其中 ${nz} 檔本次無新增內容(純改名／純 mode change),沒有可掃的 + 行` : '') +
     (gap.length ? ` / 🔴 沒被掃到:${gap.slice(0, 8).join('、')}${gap.length > 8 ? ` …共 ${gap.length} 檔` : ''}` : ''));
 }
 
@@ -338,14 +366,19 @@ ok(histScanErrs.length === 0,
 // 這一條答的是「該看的檔案都看到了嗎」,才是那三種形態的共同顯形。
 // 期望集合同樣改吃錨點(理由見主掃描那一條):BASE 預設＝ANCHOR 時完全等值,行為不變。
 {
-  let gap = [], expected = new Set();
+  let gap = [], expected = new Set(), nz = 0;
   if (anchorErr) gap = [`(取不到範圍錨點 ${ANCHOR}:${anchorErr})`];
   else {
-    try { expected = filesChangedNameOnly([`${ANCHOR}...HEAD`]); gap = coverageGap(histFilesSeen, expected); }
-    catch (e) { gap = ['(取不到期望檔案集合:' + String(e).slice(0, 80) + ')']; }
+    try {
+      expected = filesChangedNameOnly([`${ANCHOR}...HEAD`]);
+      const zero = zeroAddedPaths([`${ANCHOR}...HEAD`]);
+      nz = [...expected].filter(f => zero.has(f)).length;
+      gap = coverageGap(histFilesSeen, expected, zero);
+    } catch (e) { gap = ['(取不到期望檔案集合:' + String(e).slice(0, 80) + ')']; }
   }
   ok(gap.length === 0,
     `歷史掃描看進去的檔案集合涵蓋錨點(${ANCHOR})以來動過的所有文字檔 — 期望 ${expected.size} 檔 / 實看 ${histFilesSeen.size} 檔` +
+    (nz ? ` / 其中 ${nz} 檔本次無新增內容(純改名／純 mode change),沒有可掃的 + 行` : '') +
     (gap.length ? ` / 🔴 沒被掃到:${gap.slice(0, 8).join('、')}${gap.length > 8 ? ` …共 ${gap.length} 檔` : ''}` : ''));
 }
 
