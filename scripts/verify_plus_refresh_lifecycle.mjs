@@ -28,6 +28,19 @@
 //     直接 throw,用「有沒有被呼叫到」當判準,不是看回傳值)。
 //   · accountConfigured() 要求 window.RAIL_FIREBASE_CONFIG 具備 apiKey/authDomain/projectId,
 //     否則 setupAccountUi() 不會呼叫 accountEnsureInit(),回訪使用者的自動登入流程根本不會跑。
+//
+// ── 複審修復批次補充(L10-L13、COUNT-GATE,本輪新增,原 33 條 L1-L9/Z 不動)──
+//   · L10(Important-1):plusEnsureListener 的 addCustomerInfoUpdateListener callback 簽章從
+//     `info =>` 改成 `(info, err) =>`,err 有值或 info 不成形時直接 return、不動 state.plus——
+//     Capacitor keep-alive callback 失敗路徑逐字是 `storedCall.callback(null, result.error)`
+//     (app/node_modules/@capacitor/ios/Capacitor/Capacitor/assets/native-bridge.js:962-966)。
+//   · L11(Minor-2):註冊回傳 falsy id(cap.toNative 失敗回 null,native-bridge.js:928)時新增
+//     `if (!id) return;`,不落地 plusListenerId/plusListenerAdapter——直接讀這兩個頂層 let 變數
+//     (與 state 一樣是裸露全域繫結,page.evaluate 可直接引用,無須額外 hook)。
+//   · L12/L13(Minor-1):plusRefresh() 的 `!plusConfigured()`(網站)分支補上 p.loading 早退守衛,
+//     解決快速反覆回前景時多個 fetch 併發、回應可能亂序覆寫 p.active 的風險。L12 直接呼叫
+//     plusRefresh() 驗守衛本身,L13 走真實的 visibilitychange 事件端到端驗證。
+//   · COUNT-GATE(Important-2):斷言總數閘門,形狀照抄 verify_founding_seal.mjs:1003-1010。
 import { chromium } from 'playwright';
 import { createServer } from 'node:http';
 import { readFileSync, existsSync, statSync } from 'node:fs';
@@ -175,7 +188,7 @@ const chromiumB = await chromium.launch();
     r.statePlusExists === true, JSON.stringify(r));
   ok('L2 回訪使用者冷啟動:plusRefresh() 的 meaningful body 真的執行到——adapter.getCustomerInfo 被呼叫過至少一次(修復前恆為 0,見 L1 同一個 r)',
     r.getCustomerInfoCalls >= 1 && r.active === true, JSON.stringify(r));
-  ok('L 本輪零 pageerror/console.error', errs.length === 0, errs.slice(0, 3).join(' | '));
+  ok('L2 本輪零 pageerror/console.error', errs.length === 0, errs.slice(0, 3).join(' | ')); // 掛在 L2(此區塊最後一條編號斷言)名下,供下方 G9 風格斷言總數閘門分組
   await ctx.close();
 }
 
@@ -427,11 +440,204 @@ async function setupForegroundLogin(page, uid) {
   await ctx.close();
 }
 
+// ══════════════ 第 9 節(複審 Important-1):listener 回呼——原生端錯誤/不成形 info 不得被讀成「沒訂閱」══════════════
+// Capacitor keep-alive callback 的失敗路徑逐字是 (null, error)(見 native-bridge.js:962-966,
+// index.html plusEnsureListener 內修復註解逐字引用同一段)。這裡故意餵三種「查不到」的輸入
+// (err/info 為 null/info 缺 entitlements),證明都不會被讀成「沒訂閱」,並用同一顆 callback 做
+// 正向對照(合法的、entitlement 已消失的 CustomerInfo 仍然會讓 active 真的變 false)——證明
+// 上面三條「不變」不是因為這條路徑整個死掉。
+{
+  const { ctx, page } = await newPage(chromiumB, {
+    init: () => { window.RAIL_APP_CONFIG = { satRetina: true }; }, // 讓 satRetinaAllowed() 反映 plusIsActive(),見檔頭引用
+  });
+  const errs = attach(page, 'L10');
+  await page.goto(BASE, { waitUntil: 'domcontentloaded' });
+  await waitReady(page);
+  await page.evaluate(() => {
+    window.__spy = { addListener: 0 };
+    window.__listenerCb = null;
+    window.RAIL_REVENUECAT_CONFIG = { entitlement: 'plus', offeringId: 'plus' };
+    window.RAIL_PLUS_TEST_ADAPTER = {
+      setUser: async () => {},
+      getCustomerInfo: async () => ({ entitlements: { active: { plus: { identifier: 'plus' } } } }),
+      getOfferings: async () => ({ all: {}, current: null }),
+      purchase: async () => ({}), restore: async () => ({ entitlements: { active: {} } }),
+      addCustomerInfoUpdateListener: async cb => { window.__spy.addListener++; window.__listenerCb = cb; return 'l10-id'; },
+      removeCustomerInfoUpdateListener: async () => {},
+    };
+  });
+  await loginAndRefresh(page);
+  const pre = await page.evaluate(() => ({ active: state.plus.active, satRetina: satRetinaAllowed(), listenerRegistered: window.__spy.addListener === 1 }));
+  ok('L10 前置條件:訂閱中 ⇒ active/satRetinaAllowed()===true 且 listener 已註冊(不是本來就假,下面的「不變」才有意義)',
+    pre.active === true && pre.satRetina === true && pre.listenerRegistered === true, JSON.stringify(pre));
+
+  const r1 = await page.evaluate(() => { window.__listenerCb(null, new Error('模擬原生端 reject(如 Android rejectIfNotConfigured)')); return { active: state.plus.active, satRetina: satRetinaAllowed() }; });
+  ok('L10a listener 回呼帶原生錯誤 (null, error) ⇒ state.plus.active 維持不變(不被讀成「沒訂閱」)',
+    r1.active === true && r1.satRetina === true, JSON.stringify(r1));
+
+  const r2 = await page.evaluate(() => { window.__listenerCb(null); return { active: state.plus.active }; });
+  ok('L10b listener 回呼 info 為 null(無 error 物件,只是沒有答案)⇒ state.plus.active 維持不變',
+    r2.active === true, JSON.stringify(r2));
+
+  const r3 = await page.evaluate(() => { window.__listenerCb({}); return { active: state.plus.active }; });
+  ok('L10c listener 回呼 info 不成形(缺 entitlements)⇒ state.plus.active 維持不變',
+    r3.active === true, JSON.stringify(r3));
+
+  const r4 = await page.evaluate(() => { window.__listenerCb({ entitlements: { active: {} } }); return { active: state.plus.active, satRetina: satRetinaAllowed() }; });
+  ok('L10d 正向對照:同一顆 callback 餵一份合法、entitlement 已消失的 CustomerInfo(無 error)⇒ active 真的變 false,satRetinaAllowed() 真的關閉(證明這條路徑活著,不是整條死了才不變)',
+    r4.active === false && r4.satRetina === false, JSON.stringify(r4));
+
+  ok('L10 本輪零 pageerror/console.error', errs.length === 0, errs.slice(0, 3).join(' | '));
+  await ctx.close();
+}
+
+// ══════════════ 第 10 節(複審 Minor-2):註冊回傳 falsy id 不落地追蹤變數 ══════════════
+// cap.toNative 內部失敗會回傳 null 當 callbackId(native-bridge.js:928)。修復前 plusListenerId=id
+// (unconditional)⇒ id 為 null 時仍會把 plusListenerAdapter 設成真物件,造成「id 是 null 但
+// adapter 卻是真物件」的不一致狀態。直接讀模組級變數 plusListenerId/plusListenerAdapter(頂層 let
+// 宣告,與 state 一樣是這個執行環境的裸露全域繫結,無須額外的測試專用 hook)。
+{
+  const { ctx, page } = await newPage(chromiumB);
+  const errs = attach(page, 'L11');
+  await page.goto(BASE, { waitUntil: 'domcontentloaded' });
+  await waitReady(page);
+  await page.evaluate(() => {
+    window.__spy = { addListener: 0 };
+    window.__L11_adapter = {
+      setUser: async () => {},
+      getCustomerInfo: async () => ({ entitlements: { active: {} } }),
+      addCustomerInfoUpdateListener: async () => { window.__spy.addListener++; return window.__spy.addListener === 1 ? null : 'l11-real-id'; },
+      removeCustomerInfoUpdateListener: async () => {},
+    };
+  });
+  const after1 = await page.evaluate(async () => {
+    await plusEnsureListener(window.__L11_adapter);
+    return { id: plusListenerId, hasAdapter: !!plusListenerAdapter, calls: window.__spy.addListener };
+  });
+  ok('L11a 註冊回傳 falsy id(模擬 cap.toNative 失敗)⇒ plusListenerId 與 plusListenerAdapter 都維持 null(不落地「id 是 null、adapter 卻是真物件」的不一致狀態)',
+    after1.id === null && after1.hasAdapter === false && after1.calls === 1, JSON.stringify(after1));
+
+  const after2 = await page.evaluate(async () => {
+    await plusEnsureListener(window.__L11_adapter);
+    return { id: plusListenerId, hasAdapter: !!plusListenerAdapter, calls: window.__spy.addListener };
+  });
+  ok('L11b 正向對照:同一顆 adapter 下一次註冊成功拿到真 id ⇒ 正確落地(falsy id 沒有把後續合法註冊卡死)',
+    after2.id === 'l11-real-id' && after2.hasAdapter === true && after2.calls === 2, JSON.stringify(after2));
+
+  ok('L11 本輪零 pageerror/console.error', errs.length === 0, errs.slice(0, 3).join(' | '));
+  await ctx.close();
+}
+
+// ══════════════ 第 11 節(複審 Minor-1):網站路徑的併發 refresh 守衛 ══════════════
+// 網站上 plusConfigured() 恆假,C-4 的 visibilitychange 每次回前景都 fire-and-forget 呼叫
+// plusRefresh();快速反覆觸發若沒有守衛,多個 fetch 會同時在飛,回應可能亂序覆寫 p.active。
+// 修法是在 !plusConfigured() 分支也設 p.loading,讓函式頂端既有的 `if (p.loading) return false;`
+// 早退守衛生效。plusRefresh() 在第一個 await(getIdToken/fetch)之前就同步把 p.loading 設成
+// true,故「不 await 就連續呼叫兩次」足以確定性地讓第二次撞上守衛,不需要真的操弄回應時序
+// (時序操弄本身容易變成不穩定的計時假設;這裡用同步呼叫順序讓結果變成確定性的)。
+{
+  const { ctx, page } = await newPage(chromiumB, {
+    init: () => { window.RAIL_REVENUECAT_CONFIG = { entitlement: 'plus', offeringId: 'plus' }; }, // 故意不設 webApiKey/adapter ⇒ plusConfigured() 恆假,走網站分支
+  });
+  const errs = attach(page, 'L12');
+  let reqCount = 0;
+  page.on('request', req => { if (req.url().includes('/api/plus-status')) reqCount++; });
+  await page.route('**/api/plus-status', route => route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ active: true }) }));
+  await page.goto(BASE, { waitUntil: 'domcontentloaded' });
+  await waitReady(page);
+  // state.account 刻意比照 verify_plus_features.mjs 的 fakeAccount 手法(fb:{} + user.getIdToken):
+  // plusRefresh() 網站分支讀 state.account.fb.getIdToken,缺這個殼會在測試本身就先拋例外。
+  await page.evaluate(() => {
+    state.plus = null;
+    state.account = { ready: true, user: { uid: 'l12-uid', email: 't@example.com', getIdToken: async () => 'FAKE_TOKEN' }, fb: {}, syncing: false, lastSync: 0, actionError: '', error: '' };
+  });
+  ok('L12 前置條件:尚未呼叫 plusRefresh() 前零個 /api/plus-status 請求', reqCount === 0, `reqCount=${reqCount}`);
+
+  const concurrent = await page.evaluate(async () => {
+    const p1 = plusRefresh();
+    const p2 = plusRefresh(); // 不 await p1,緊接著同步呼叫第二次——p1 已在第一個 await 前同步把 p.loading 設成 true
+    const [r1, r2] = await Promise.all([p1, p2]);
+    return { r1, r2 };
+  });
+  await page.waitForTimeout(50); // 讓 Playwright 的 request 事件與頁面內 Promise 解決同步落定
+  ok('L12a 網站路徑併發呼叫 plusRefresh():同時只有一個請求真的發出去(第二次撞上 p.loading 守衛,回傳 false)',
+    reqCount === 1 && concurrent.r2 === false, `reqCount=${reqCount} ${JSON.stringify(concurrent)}`);
+  ok('L12a 正向對照:先發的那一次仍然正常完成、真的拿到後端答案(守衛沒有連帶把第一次也擋掉)',
+    concurrent.r1 === true, JSON.stringify(concurrent));
+
+  // 正向對照:第一輪完全結束(p.loading 已重置)後再呼叫一次,應該要發出「新的」請求——
+  // 證明守衛只擋真正同時在飛的那一刻,不是把這顆 adapter/使用者永久卡住。
+  const again = await page.evaluate(() => plusRefresh());
+  await page.waitForTimeout(50);
+  ok('L12b 正向對照:第一輪完全結束後再呼叫一次 ⇒ 真的發出新的請求(守衛不是永久卡死,只擋真正併發的那一刻)',
+    reqCount === 2 && again === true, `reqCount=${reqCount} again=${again}`);
+
+  ok('L12 本輪零 pageerror/console.error', errs.length === 0, errs.slice(0, 3).join(' | '));
+  await ctx.close();
+}
+
+// ══════════════ 第 12 節(複審 Minor-1,端到端):快速反覆回前景的真實觸發路徑只會落地一個請求 ══════════════
+// 與第 11 節不同:這裡不直接呼叫 plusRefresh(),改成真的掛上 accountEnsureInit() 註冊的
+// visibilitychange 監聽器,再連續 dispatch 3 次事件——驗證的是「使用者反覆切換前景」這個真實
+// 觸發路徑本身,不只是 plusRefresh() 這個函式的守衛。
+{
+  const { ctx, page } = await newPage(chromiumB, {
+    init: () => { window.RAIL_REVENUECAT_CONFIG = { entitlement: 'plus', offeringId: 'plus' }; },
+  });
+  const errs = attach(page, 'L13');
+  let reqCount = 0;
+  page.on('request', req => { if (req.url().includes('/api/plus-status')) reqCount++; });
+  await page.route('**/api/plus-status', route => route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ active: true }) }));
+  await page.goto(BASE, { waitUntil: 'domcontentloaded' });
+  await waitReady(page);
+  await page.evaluate(() => {
+    window.RAIL_FIREBASE_CONFIG = { apiKey: 'x', authDomain: 'x', projectId: 'x' };
+    window.RAIL_FIREBASE_TEST_MODULES = { initializeApp: () => ({}), getAuth: () => ({}), getFirestore: () => ({}), onAuthStateChanged: () => {} };
+  });
+  await page.evaluate(async () => { await accountEnsureInit(); }); // 掛上真正的 visibilitychange 監聽器,不觸發真登入
+  await page.evaluate(() => {
+    state.plus = null;
+    state.account = { ready: true, user: { uid: 'l13-uid', email: 't@example.com', getIdToken: async () => 'FAKE_TOKEN' }, fb: {}, syncing: false, lastSync: 0, actionError: '', error: '' };
+  });
+  const beforeCount = reqCount;
+  await page.evaluate(async () => {
+    document.dispatchEvent(new Event('visibilitychange'));
+    document.dispatchEvent(new Event('visibilitychange'));
+    document.dispatchEvent(new Event('visibilitychange'));
+    await new Promise(r => setTimeout(r, 400)); // 讓 fire-and-forget 的 plusRefresh() 有時間跑完
+  });
+  await page.waitForTimeout(50);
+  ok('L13 端到端:連續 dispatch 3 次 visibilitychange(模擬反覆切換前景)⇒ 只多發出 1 個 /api/plus-status 請求,不是 3 個',
+    reqCount === beforeCount + 1, `before=${beforeCount} after=${reqCount}`);
+  ok('L13 本輪零 pageerror/console.error', errs.length === 0, errs.slice(0, 3).join(' | '));
+  await ctx.close();
+}
+
 await chromiumB.close();
 server.close();
 
 ok('Z 每顆開出來的 page 都掛上了錯誤收集器(newPage/attach 沒有漏配對)', pagesCreated === pagesAttached, `newPage=${pagesCreated} attach=${pagesAttached}`);
 ok('Z 全程 pageerror/console.error 為零', allErrors.length === 0, allErrors.slice(0, 8).join(' | '));
+
+// ═══════════════ 斷言總數閘門(複審 Important-2,形狀照抄 verify_founding_seal.mjs:1003-1010) ═══════════════
+// 為什麼需要:條件式區塊(如 L10 的 if (sigMatch) 之類、或整節被誤刪)一旦前置條件不成立,斷言是
+// 「整批從結果集消失」而不是「變紅」,分母悄悄變小,「N/N PASS」看起來一模一樣漂亮。斷言數本身
+// 就是要被守住的東西,所以下面這張表是刻意手寫的:新增/刪除斷言時必須同步改它——改不動就代表
+// 有東西沒被跑到,那正是這道閘門要攔的。
+// (表不含這條閘門自己;它在把自己 push 進去之前先數,所以不會自我計數——同founding_seal.mjs 手法。)
+const EXPECTED_COUNTS = { L1: 1, L2: 2, L3: 2, L4: 6, L5: 3, L6: 4, L7: 7, L8: 4, L9: 2, L10: 6, L11: 3, L12: 5, L13: 2, Z: 2 };
+const actualCounts = {};
+// `\d+`(不是 `\d`):只吃一位數的話,日後加的 L10 會被歸進 L1 ⇒ L1 被灌水,而 L10 自己少跑幾條
+// 反而不會紅——一道用來防假綠的閘門自己製造假綠(同 founding_seal.mjs 的理由)。字母尾碼
+// (L7a/L7b/L7c)刻意併入同一個數字群組(L7),與既有 G1.7/G1.7b 用點號後綴的做法異曲同工。
+for (const r of results) { const m = /^(L\d+|Z)/.exec(r.name); const k = m ? m[1] : '(未分組)'; actualCounts[k] = (actualCounts[k] || 0) + 1; }
+const groupKeys = [...new Set([...Object.keys(EXPECTED_COUNTS), ...Object.keys(actualCounts)])].sort();
+const countMismatch = groupKeys.filter(g => (EXPECTED_COUNTS[g] || 0) !== (actualCounts[g] || 0));
+ok('COUNT-GATE 斷言總數閘門:每組實跑條數符合預期(條件式區塊整批消失時,分母變小不會被當成全綠)',
+  countMismatch.length === 0,
+  countMismatch.length
+    ? countMismatch.map(g => `${g}:預期 ${EXPECTED_COUNTS[g] || 0} 實跑 ${actualCounts[g] || 0}`).join(' ; ')
+    : groupKeys.map(g => `${g}=${actualCounts[g]}`).join(' '));
 
 const fail = results.filter(r => !r.pass);
 console.log(`\n──────── ${results.length - fail.length}/${results.length} PASS ────────`);
