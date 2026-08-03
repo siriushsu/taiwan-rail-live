@@ -32,6 +32,23 @@ export async function readReleasePolicy() {
   return JSON.parse(await readFile(join(appRoot, 'release-policy.json'), 'utf8'));
 }
 
+// 發行版不得允許 sandbox 資格。背景:RevenueCat 的 entitlements.active 等同 activeInAnyEnvironment
+// (SDK doc comment),所以 index.html 的 plusActiveFrom 用建置期注入的 window.RAIL_PLUS_SANDBOX_OK
+// 把 sandbox 購買擋在正式 build 之外;那個旗標只給「要實測購買流程」的內部版打開
+// (RAIL_PLUS_SANDBOX_OK=1 npm run build)。這道閘門就是「內部版上不了架」的那把鎖——沒有它,
+// 那個建置旗標就只是一個沒人看守的後門。
+// 判準刻意是「必須明確寫著 false」而不是「不得出現 true」:注入整段被拿掉時,後者會沉默放行
+// (constraint 10 的沉默不是證據)。抽成獨立導出函式是為了能單元測試——餵合成 HTML 就驗得到
+// 紅/綠,不必先建出一整包 www(見 scripts/verify_plus_entitlement_env.mjs)。
+export function assertPlusSandboxOff(html) {
+  assert(/window\.RAIL_PLUS_SANDBOX_OK=(true|false)/.test(html),
+    '發行包缺少 window.RAIL_PLUS_SANDBOX_OK 注入——sandbox 資格閘門的建置旗標不見了,'
+    + '請確認 app/scripts/prepare-web.mjs 仍在注入這個值');
+  assert(!/window\.RAIL_PLUS_SANDBOX_OK=true/.test(html),
+    '發行包把 sandbox 資格打開了(window.RAIL_PLUS_SANDBOX_OK=true)——TestFlight/模擬器的 sandbox 購買'
+    + '會解鎖正式付費功能。這個旗標只給內部測試版用,送審/上架的 build 請不要帶 RAIL_PLUS_SANDBOX_OK=1');
+}
+
 export async function assertLicensedBuildAllowed({ includeLicensedMusic, includeLicensedBasemaps }) {
   const policy = await readReleasePolicy();
   if (includeLicensedMusic) {
@@ -241,6 +258,8 @@ export async function verifyRelease({
   if (expectLicensedBasemaps !== undefined) {
     assert(basemapsEnabled === expectLicensedBasemaps, '線上底圖旗標與本次 build 模式不一致');
   }
+
+  assertPlusSandboxOff(html);
 
   await assertLicensedBuildAllowed({
     includeLicensedMusic: musicEnabled,

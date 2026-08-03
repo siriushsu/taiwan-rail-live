@@ -7220,9 +7220,33 @@ function plusLoadWebSdk() {
   });
   return plusLoadWebSdk._p;
 }
+// sandbox 資格要不要算數,由「這份 build 是不是刻意允許 sandbox」決定,不是由使用者決定。
+// 值由 App 殼建置期注入(app/scripts/prepare-web.mjs 讀環境變數 RAIL_PLUS_SANDBOX_OK=1),
+// 網站與任何沒帶這個環境變數的 build 都拿不到這個 key ⇒ 恆 false(fail-closed)。
+// 發版閘門(app/scripts/verify-release.mjs 的 assertPlusSandboxOff)會擋下把 true 打包進發行版,
+// 所以它不是「使用者可切換的開關」,是一條只能在建置機器上打開、且過不了發版檢查的測試通道。
+// ⚠️ 代價要講清楚:TestFlight 與 App Store 是同一顆 binary,因此「能測購買流程的 build」與
+//   「能送審的 build」必須是兩次建置——要在裝置/模擬器/TestFlight 實測 sandbox 購買就帶
+//   RAIL_PLUS_SANDBOX_OK=1 建一份內部版,那一份過不了發版閘門也上不了架。
+const PLUS_SANDBOX_OK = window.RAIL_PLUS_SANDBOX_OK === true;
+// Plus 資格的唯一判定式(所有消費者——plusRefresh/plusPurchase/plusRestore——都走這裡)。
+// 環境收斂:RevenueCat 的 entitlements.active **等同 activeInAnyEnvironment**(SDK 自己的 doc
+// comment:app/ios/App/Pods/RevenueCat/Sources/Purchasing/EntitlementInfos.swift 的
+// 「- Warning: this is equivalent to ``activeInAnyEnvironment``」),所以 sandbox/TestFlight 購買
+// 也會出現在裡面——只看 key 在不在,等於讓 sandbox 購買解鎖正式付費功能與雲端同步。
+// 為什麼不直接改用 activeInCurrentEnvironment(原生 SDK 有,而且正是為此而生):**Capacitor plugin
+// 沒有把它橋到 JS**——app/node_modules/@revenuecat/purchases-typescript-internal-esm/dist/
+// customerInfo.d.ts 的 PurchasesEntitlementInfos 只有 all / active / verification 三個欄位。
+// JS 這一側拿得到的環境訊號只剩每筆 entitlement 自帶的 isSandbox(同檔 PurchasesEntitlementInfo:
+// 「False if this entitlement is unlocked via a production purchase」),故在此自行收斂。
+// 欄位不存在時(Web Billing SDK、測試 adapter)維持既有行為——那些路徑沒有 sandbox 這個概念,
+// 把「查不到 isSandbox」當成 sandbox 會讓網站端的資格整批消失。
 function plusActiveFrom(info) {
   const active = info && info.entitlements && info.entitlements.active;
-  return !!(active && Object.prototype.hasOwnProperty.call(active, plusConfig().entitlement || 'plus'));
+  const key = plusConfig().entitlement || 'plus';
+  if (!(active && Object.prototype.hasOwnProperty.call(active, key))) return false;
+  const ent = active[key];
+  return PLUS_SANDBOX_OK || !(ent && ent.isSandbox === true);
 }
 function plusPackagePrice(pkg) {
   const p = pkg && (pkg.webBillingProduct || pkg.product || pkg.storeProduct) || {};
@@ -7379,15 +7403,33 @@ async function plusRefresh() {
   p.loading = true; p.error = ''; plusRender();
   try {
     p.adapter = await plusAdapterFor(user.uid);
-    const [info, offerings] = await Promise.all([p.adapter.getCustomerInfo(), p.adapter.getOfferings()]);
-    p.active = plusActiveFrom(info);
-    p.founding = p.active && foundingFrom(info);
-    p.mgmtUrl = (info && info.managementURL) || '';
-    const offering = plusConfig().offeringId && offerings.all ? offerings.all[plusConfig().offeringId] : offerings.current;
-    const pkgs = offering && offering.availablePackages || [];
-    p.pkgAnnual = plusPickPackage(pkgs, 'annual');
-    p.pkgMonthly = plusPickPackage(pkgs, 'month');
-    if (state.basemap === 'sat') setBasemap(); // 資格變動→衛星解析度跟著換,不必等使用者重切底圖
+    // 資格與方案清單刻意**分開結算**(allSettled 而不是 all):兩者綁在同一個 Promise.all 時,
+    // 方案清單(getOfferings)一失敗就整個掉進 catch,連讀成功的資格都不會被寫進 p.active——
+    // 付費者被當成未啟用、付費功能整批消失。這正是 !plusConfigured() 那條分支早就寫下的同一個
+    // 顧慮(見上方「非 200 是查不出來,一律維持現狀」),只是這條路徑漏了。
+    const [infoR, offeringsR] = await Promise.allSettled([p.adapter.getCustomerInfo(), p.adapter.getOfferings()]);
+    const errMsg = (e) => (e && e.message ? e.message : String(e));
+    if (infoR.status === 'fulfilled') {
+      const info = infoR.value;
+      p.active = plusActiveFrom(info);
+      p.founding = p.active && foundingFrom(info);
+      p.mgmtUrl = (info && info.managementURL) || '';
+      if (state.basemap === 'sat') setBasemap(); // 資格變動→衛星解析度跟著換,不必等使用者重切底圖
+    } else {
+      // 資格讀不出來≠沒訂閱:維持現狀(p.active/p.founding/p.mgmtUrl 一律不動),只把錯誤講出來。
+      p.error = '無法讀取 Plus：' + errMsg(infoR.reason);
+    }
+    if (offeringsR.status === 'fulfilled') {
+      const offerings = offeringsR.value;
+      const offering = plusConfig().offeringId && offerings.all ? offerings.all[plusConfig().offeringId] : offerings.current;
+      const pkgs = offering && offering.availablePackages || [];
+      p.pkgAnnual = plusPickPackage(pkgs, 'annual');
+      p.pkgMonthly = plusPickPackage(pkgs, 'month');
+    } else {
+      // 方案清單讀不到:只影響「買得到什麼」這一半,不影響資格。清成 null 讓 plusRender() 落到
+      // 既有的「目前無法取得訂閱方案，請稍後再試。」;已訂閱者看到的仍是「Plus 已啟用」。
+      p.pkgAnnual = null; p.pkgMonthly = null;
+    }
     accountRender(); plusFinishPending(); return p.active;
   } catch (e) { p.error = '無法讀取 Plus：' + (e && e.message ? e.message : String(e)); return false; }
   finally { p.loading = false; plusRender(); }

@@ -111,13 +111,16 @@ function attach(page, tag) {
   page.on('console', m => { if (m.type() === 'error') { const s = `[${tag}] console.error: ${m.text()}`; local.push(s); allErrors.push(s); } });
   return local;
 }
-async function newPage(browser, { width = 1280, height = 800, touch = false, theme = 'light' } = {}) {
+// init:額外的 addInitScript。給「必須在頁面腳本執行**之前**就存在」的建置期注入用
+// (如 window.RAIL_PLUS_SANDBOX_OK——index.html 的 PLUS_SANDBOX_OK 是頂層 const,載入後才設就來不及)。
+async function newPage(browser, { width = 1280, height = 800, touch = false, theme = 'light', init = null } = {}) {
   pagesCreated++;
   const ctx = await browser.newContext({ viewport: { width, height }, hasTouch: touch, isMobile: touch });
   await ctx.addInitScript(t => {
     try { localStorage.setItem('trainmap-howto-seen', '1'); } catch (e) {}
     try { localStorage.setItem('trainmap-appearance', t); } catch (e) {}
   }, theme);
+  if (init) await ctx.addInitScript(init);
   const page = await ctx.newPage();
   return { ctx, page };
 }
@@ -1323,6 +1326,121 @@ for (const w of [360, 375, 414, 768]) await mobilePlusEntry(w, { sel: IMPORT_SEL
     JSON.stringify(on.r.behave));
   ok('KS 本輪零 pageerror/console.error', on.errs.length === 0 && off.errs.length === 0 && offInit.errs.length === 0,
     [...on.errs, ...off.errs, ...offInit.errs].slice(0, 3).join(' | '));
+}
+
+// ══════════════ SB. sandbox 資格不得被當成正式 Plus（C-3）＋ 資格與方案清單解耦（P2-5） ══════════════
+// C-3：RevenueCat 的 entitlements.active **等同 activeInAnyEnvironment**（SDK 自己的 doc comment：
+//   app/ios/App/Pods/RevenueCat/Sources/Purchasing/EntitlementInfos.swift），所以 sandbox／TestFlight
+//   購買也會出現在裡面。原本的 plusActiveFrom 只看 key 在不在 ⇒ sandbox 購買解鎖正式付費功能。
+//   Capacitor plugin 沒有把 activeInCurrentEnvironment 橋到 JS（customerInfo.d.ts 的
+//   PurchasesEntitlementInfos 只有 all/active/verification），能用的只有每筆 entitlement 的 isSandbox。
+// P2-5：資格（getCustomerInfo）與方案清單（getOfferings）原本綁在同一個 Promise.all，
+//   方案清單一失敗就整個掉進 catch，已付費者被當成未啟用。
+//
+// 判準形狀刻意成對：每一條「判定為無資格」都配一條**只差一個欄位**的「判定為有資格」，
+// 否則「false」可能只是整條 plusRefresh 壞掉（Global Constraint 10）。
+{
+  // 一次 plusRefresh 的完整結果：資格、錯誤、以及畫面實際渲染出什麼。
+  const refreshWith = (page, o) => page.evaluate((o) => {
+    state.account = { ready: true, user: { uid: 'test-uid', email: 'tester@example.com', displayName: '測試員' }, syncing: false, lastSync: 0, actionError: '', error: '' };
+    window.RAIL_REVENUECAT_CONFIG = { entitlement: 'plus', offeringId: 'plus' };
+    if (!o.keepState) state.plus = null;           // keepState:接續上一次 refresh 的 state（驗「第二次刷新失敗時舊值怎麼辦」）
+    const p = plusState();
+    if (o.preActive) p.active = true;              // 「刷新前已經是付費者」的起手狀態
+    const offering = { availablePackages: [
+      { identifier: '$rc_monthly', packageType: 'MONTHLY', webBillingProduct: { currentPrice: { formattedPrice: o.M } } },
+      { identifier: '$rc_annual', packageType: 'ANNUAL', webBillingProduct: { currentPrice: { formattedPrice: o.A } } },
+    ] };
+    // entKind: 'none' 沒有資格｜'production' 正式購買（isSandbox:false）｜'sandbox' sandbox 購買（isSandbox:true）
+    //          'legacy' 連 isSandbox 欄位都沒有（Web Billing SDK／舊版 adapter 的形狀）
+    const ent = { identifier: 'plus' };
+    if (o.entKind === 'production') ent.isSandbox = false;
+    if (o.entKind === 'sandbox') ent.isSandbox = true;
+    const active = o.entKind === 'none' ? {} : { plus: ent };
+    window.RAIL_PLUS_TEST_ADAPTER = {
+      setUser: async () => {},
+      getCustomerInfo: async () => { if (o.infoThrows) throw new Error('__info_down__'); return { entitlements: { active }, managementURL: '' }; },
+      getOfferings: async () => { if (o.offeringsThrows) throw new Error('__offerings_down__'); return { all: { plus: offering }, current: offering }; },
+      purchase: async () => ({}), restore: async () => ({ entitlements: { active } }),
+    };
+    return plusRefresh().then(() => {
+      const body = document.getElementById('plusBody');
+      return {
+        active: state.plus.active, error: state.plus.error,
+        plans: body.querySelectorAll('.plus-plan').length,
+        owned: !!body.querySelector('.plus-owned'),
+        text: body.textContent || '',
+        sandboxOk: (() => { try { return PLUS_SANDBOX_OK; } catch (e) { return 'threw:' + String(e); } })(),
+      };
+    });
+  }, o);
+  const OPTS = { M: M_PRICE, A: A_PRICE };
+
+  // ── SB 群：一般 build（沒有任何 RAIL_PLUS_SANDBOX_OK 注入，等同網站與正式 App）──
+  const { ctx, page } = await newPage(chromiumB);
+  const errs = attach(page, 'SB');
+  await page.goto(BASE, { waitUntil: 'domcontentloaded' });
+  await waitReady(page);
+
+  const prod = await refreshWith(page, { ...OPTS, entKind: 'production' });
+  ok('SB0 前置：一般 build 的 PLUS_SANDBOX_OK 是 false（沒帶建置旗標就不允許 sandbox 資格，fail-closed）',
+    prod.sandboxOk === false, `PLUS_SANDBOX_OK=${JSON.stringify(prod.sandboxOk)}`);
+  ok('SB1 正向對照：正式購買（isSandbox:false）的資格 ⇒ 判定為已啟用，畫面出現「Plus 已啟用」',
+    prod.active === true && prod.owned === true, JSON.stringify({ active: prod.active, owned: prod.owned }));
+
+  const sand = await refreshWith(page, { ...OPTS, entKind: 'sandbox' });
+  ok('SB2 sandbox 購買（同一筆資料只差 isSandbox:true）⇒ 判定為未啟用，畫面回到方案選購而不是「Plus 已啟用」',
+    sand.active === false && sand.owned === false && sand.plans === 2,
+    JSON.stringify({ active: sand.active, owned: sand.owned, plans: sand.plans }));
+
+  const legacy = await refreshWith(page, { ...OPTS, entKind: 'legacy' });
+  ok('SB3 連 isSandbox 欄位都沒有的 adapter（Web Billing SDK 的形狀）⇒ 維持既有行為判定為已啟用（不把「查不到環境」當成 sandbox，否則網站端資格會整批消失）',
+    legacy.active === true, JSON.stringify({ active: legacy.active }));
+
+  // ── P2-5：資格與方案清單解耦 ──
+  const offDownActive = await refreshWith(page, { ...OPTS, entKind: 'production', offeringsThrows: true });
+  ok('SB4 方案清單讀取失敗、資格讀取成功（正式購買）⇒ 資格照給（不會因為 getOfferings 拋錯就把付費者當成未啟用）',
+    offDownActive.active === true && offDownActive.owned === true,
+    JSON.stringify({ active: offDownActive.active, owned: offDownActive.owned, error: offDownActive.error }));
+
+  // 兩段式：先一次成功的 refresh（方案畫得出來），再在**同一個 state 上**讓 getOfferings 失敗。
+  // 這樣才驗得到「失敗時把舊方案清掉」——單獨跑一次失敗的 refresh，方案本來就是空的，
+  // 那個 0 是初始值不是清除結果，判準會沒有牙（心得 29：不該相同卻相同＝零資訊）。
+  const freeFirst = await refreshWith(page, { ...OPTS, entKind: 'none' });
+  const offDownFree = await refreshWith(page, { ...OPTS, entKind: 'none', offeringsThrows: true, keepState: true });
+  const hasCopy = offDownFree.text.includes('目前無法取得訂閱方案，請稍後再試。');
+  ok('SB5 方案清單先載得出來、第二次刷新時 getOfferings 失敗 ⇒ 舊方案被清掉、畫面換成既有的「目前無法取得訂閱方案，請稍後再試。」（不是留著一份可能已失效的舊價格）',
+    freeFirst.plans === 2 && offDownFree.active === false && offDownFree.plans === 0 && hasCopy,
+    JSON.stringify({ 先前方案數: freeFirst.plans, active: offDownFree.active, plans: offDownFree.plans, hasCopy }));
+
+  const infoDown = await refreshWith(page, { ...OPTS, entKind: 'none', preActive: true, infoThrows: true });
+  ok('SB6 資格讀取失敗 ⇒ 既有的 p.active 維持現狀不被改寫成 false（上游故障不等於沒訂閱），且有錯誤訊息',
+    infoDown.active === true && /無法讀取 Plus/.test(infoDown.error),
+    JSON.stringify({ active: infoDown.active, error: infoDown.error }));
+
+  const bothOk = await refreshWith(page, { ...OPTS, entKind: 'none' });
+  ok('SB7 正向對照：兩邊都正常且沒有資格 ⇒ 月/年兩個方案都畫得出來（證明 SB5 的「方案 0 個」是 getOfferings 失敗造成的，不是方案渲染本來就壞）',
+    bothOk.active === false && bothOk.plans === 2 && bothOk.text.includes(A_PRICE),
+    JSON.stringify({ active: bothOk.active, plans: bothOk.plans }));
+  ok('SB 本輪零 pageerror/console.error', errs.length === 0, errs.slice(0, 3).join(' | '));
+  await ctx.close();
+
+  // ── SBX 群：帶建置旗標的內部測試版（RAIL_PLUS_SANDBOX_OK 注入為 true）──
+  // 沒有這一段，SB2 的「未啟用」有可能只是因為 sandbox 那條路整條死掉；有了它才證明
+  // 「這個判定真的看的是建置旗標」，也才證明 TestFlight／模擬器的可測試性沒有被修掉。
+  const sbx = await newPage(chromiumB, { init: () => { window.RAIL_PLUS_SANDBOX_OK = true; } });
+  const sbxErrs = attach(sbx.page, 'SBX');
+  await sbx.page.goto(BASE, { waitUntil: 'domcontentloaded' });
+  await waitReady(sbx.page);
+  const sbxSand = await refreshWith(sbx.page, { ...OPTS, entKind: 'sandbox' });
+  ok('SBX1 建置期注入 RAIL_PLUS_SANDBOX_OK=true 的內部測試版：同一筆 sandbox 資格改為判定已啟用（TestFlight／模擬器仍測得了購買流程）',
+    sbxSand.sandboxOk === true && sbxSand.active === true && sbxSand.owned === true,
+    JSON.stringify({ sandboxOk: sbxSand.sandboxOk, active: sbxSand.active, owned: sbxSand.owned }));
+  const sbxProd = await refreshWith(sbx.page, { ...OPTS, entKind: 'production' });
+  ok('SBX2 同一份內部測試版對正式購買的資格照樣判定已啟用（旗標只放寬 sandbox，不是把整條判定短路成恆真）',
+    sbxProd.active === true, JSON.stringify({ active: sbxProd.active }));
+  ok('SBX 本輪零 pageerror/console.error', sbxErrs.length === 0, sbxErrs.slice(0, 3).join(' | '));
+  await sbx.ctx.close();
 }
 
 // ══════════════ Z0 錯誤收集器的正向對照 ══════════════

@@ -511,10 +511,46 @@ async function rateLimited(limiter, request, failClosed) {
   catch (e) { return !!failClosed; }
 }
 
-// 驗證 Firebase ID token → RevenueCat active entitlement,供任何 Plus 付費牆端點共用。
-// 原封不動抽自 delayHistory 的既有驗證邏輯(2026-08-02 抽 helper,判定邏輯不變,尤其
-// items.length>0 那條——entitlement_id 是內部不透明 id,理由見下方註解)。secret 未設定→
-// fail-closed 503(不放行任何人)。驗證範式抄自 deleteAccountData(同一組 env secret)。
+// RevenueCat 的環境值。⚠️ REST API(v1/v2)的 query 參數與 schema enum 是**小寫**
+// production/sandbox;**webhook** payload 是**大寫** PRODUCTION/SANDBOX。兩套慣例不同世代,
+// 絕不可拿同一個常數去比對兩邊——之後接 webhook 時要另外定義自己的大寫常數。
+const RC_ENV_PRODUCTION = 'production';
+
+// 從 GET /v2/.../customers/{id}/subscriptions 的回應判「這個客戶有沒有**正式環境**的 Plus 存取權」。
+// 三道條件全部要成立才算數:
+//  (1) gives_access === true——RevenueCat 官方規格明文:「To determine whether or not a subscription
+//      currently provides access to any associated entitlements, use the _gives_access_ field」,
+//      刻意不看 status(它的 enum 還會再長,而且 trialing/in_grace_period 這類要不要給存取權
+//      不該由我們重新推導一次)。
+//  (2) environment === 'production'——Subscription 的 environment 是 top-level 必填欄位。
+//      **欄位不存在/不是 production 一律不算**:不准「拿不到環境資訊就當成正式」。
+//      我們同時在 query string 帶 ?environment=production 讓上游先濾一次,這裡是第二道——
+//      上游若哪天忽略了那個參數(改版、打錯字),本地這道仍然擋得住。
+//  (3) entitlements 裡有我們要的 lookup_key。Subscription 的巢狀 Entitlement 物件有 lookup_key
+//      (人類可讀的 'plus'),不是 active_entitlements 那個不透明的 entitlement_id,所以這裡終於
+//      比對得到具體 entitlement。⚠️ 但**清單缺席時退回「只看 gives_access」**:若上游哪天改成
+//      要 expand 才展開巢狀物件,嚴格比對會把**所有付費者**一次擋光;軌島 Plus 目前是單一
+//      entitlement 產品(每個商品都掛在 plus 上),退回去等於改造前那條「有存取權就是有 Plus」,
+//      而環境那一道仍然在——比改造前嚴格,不會更鬆。
+function plusEntitledFromSubscriptions(body, wantEntitlement) {
+  const items = body && Array.isArray(body.items) ? body.items : [];
+  return items.some(sub => {
+    if (!sub || sub.gives_access !== true) return false;
+    if (sub.environment !== RC_ENV_PRODUCTION) return false;
+    const ents = sub.entitlements && Array.isArray(sub.entitlements.items) ? sub.entitlements.items : null;
+    if (!ents || !ents.length) return true;
+    return ents.some(e => e && e.lookup_key === wantEntitlement);
+  });
+}
+
+// 驗證 Firebase ID token → RevenueCat 正式環境的訂閱存取權,供任何 Plus 付費牆端點共用。
+// 原本抽自 delayHistory 的既有驗證邏輯(2026-08-02 抽 helper);2026-08-03 收斂環境:
+// 舊版打 /active_entitlements 並用 items.length>0 判定,**那支端點在協定層面就分辨不出環境**——
+// 官方 OpenAPI v2 的 CustomerEntitlement 只有 object/entitlement_id/expires_at 三個欄位而且標了
+// additionalProperties:false(規格明文禁止出現其他欄位),所以 sandbox 購買會被當成正式 Plus。
+// 改打 /subscriptions:它有 environment query 參數,回應的 Subscription 也有 top-level 必填的
+// environment 與 gives_access 兩個欄位(判定細節見 plusEntitledFromSubscriptions)。
+// secret 未設定→fail-closed 503(不放行任何人)。驗證範式抄自 deleteAccountData(同一組 env secret)。
 // 回傳 {ok:true, uid} 或 {ok:false, status, error};呼叫端自行決定 403(not_entitled)要不要
 // 原樣回傳,或(如 /api/plus-status)改寫成 200 {active:false}。
 async function checkPlusEntitlement(request, env) {
@@ -530,18 +566,16 @@ async function checkPlusEntitlement(request, env) {
     if (!lookup.ok) return { ok: false, status: 401, error: 'unauthorized' };
     const identity = await lookup.json(), uid = identity && identity.users && identity.users[0] && identity.users[0].localId;
     if (!uid || typeof uid !== 'string') return { ok: false, status: 401, error: 'unauthorized' };
-    // 軌島 Plus 是單一 entitlement 產品,故「有任何 active entitlement=有 Plus」。若日後新增第二種
-    // entitlement tier,這裡要改成比對特定 entitlement——注意 RevenueCat v2 的
-    // active_entitlements.items[].entitlement_id 是內部不透明 id(entl...),不是 dashboard 設的
-    // lookup_key(plus);屆時需先用 GET /v2/projects/{pid}/entitlements 把 lookup_key 解析成內部 id 再比對。
-    const rc = await fetch(`https://api.revenuecat.com/v2/projects/${encodeURIComponent(env.REVENUECAT_PROJECT_ID)}/customers/${encodeURIComponent(uid)}/active_entitlements`, {
+    // entitlement 的 lookup_key 與前端 revenuecat-config.js 的 entitlement 同一個值('plus');
+    // 不是 secret,給 env 覆寫只是為了不把它寫死在兩個地方。
+    const wantEntitlement = env.REVENUECAT_ENTITLEMENT || 'plus';
+    const rc = await fetch(`https://api.revenuecat.com/v2/projects/${encodeURIComponent(env.REVENUECAT_PROJECT_ID)}/customers/${encodeURIComponent(uid)}/subscriptions?environment=${RC_ENV_PRODUCTION}`, {
       headers: { Authorization: `Bearer ${env.REVENUECAT_V2_SECRET_KEY}`, Accept: 'application/json' },
     });
     if (rc.status === 404) return { ok: false, status: 403, error: 'not_entitled' };          // 此 uid 從未在 RevenueCat 出現=沒買過
     if (!rc.ok) return { ok: false, status: 503, error: 'entitlement_unavailable' };           // 上游暫時性錯誤:不當有資格、也不永久拒絕,讓前端可重試
-    const ent = await rc.json();
-    const entitled = Array.isArray(ent.items) && ent.items.length > 0;
-    if (!entitled) return { ok: false, status: 403, error: 'not_entitled' };
+    const subs = await rc.json();
+    if (!plusEntitledFromSubscriptions(subs, wantEntitlement)) return { ok: false, status: 403, error: 'not_entitled' };
     return { ok: true, uid };
   } catch (e) {
     return { ok: false, status: 503, error: 'entitlement_unavailable' };                       // 網路/解析暫時性錯誤:可重試
@@ -2037,6 +2071,12 @@ export const _metroAlert = {
 export const _stationEvents = { diffTrains, twDayFromMemAt };
 // 純函式導出,供離線回歸測試 import:誤點履歷視窗計算、車次驗證與回應組裝。
 export const _delayHistory = { delayHistoryWindow, buildDelayHistoryBody, isValidTrainNo };
+// 供離線回歸測試 import:Plus 資格的環境收斂(scripts/verify_plus_entitlement_env.mjs)。
+// plusEntitledFromSubscriptions 是純函式;checkPlusEntitlement/plusStatus 不是,測試要自備
+// env 替身與 fetch 替身——導出它們的目的正是要能數「打的是哪一支端點、帶了什麼 query」。
+// 刻意不導出 RC_ENV_PRODUCTION:測試的正/反樣本一律用自己寫死的 'production'/'sandbox' 字面值,
+// 與實作共用同一個常數的話,那個常數被改壞時兩邊會一起改壞而全綠(判準不得與實作同源)。
+export const _plus = { checkPlusEntitlement, plusEntitledFromSubscriptions, plusStatus };
 // 供離線回歸測試 import:驗「節流擋在 outbound fetch 之前」。這兩個不是純函式,測試得自備
 // env 替身與 fetch 替身;導出的目的就是讓測試能數「被擋掉時到底有沒有打上游」。
 export const _rateLimit = { rateLimited, delayHistory, deleteAccountData };
