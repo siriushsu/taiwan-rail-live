@@ -31,13 +31,15 @@ console.log(`[G0] app/scripts/prepare-web.mjs md5=${md5(PREPARE)}`);
 
 const { _plus } = await import('../worker.js');
 const { assertPlusSandboxOff } = await import('../app/scripts/verify-release.mjs');
-const { checkPlusEntitlement, plusStatus } = _plus;
+const { checkPlusEntitlement, plusStatus, resolveRcNextPage, rcSubscriptionsPageError,
+  subscriptionMatchesPlus, plusEntitlementDocument } = _plus;
 
 let fails = 0;
 // 段落完整性守門員：整段被刪掉時，收尾只會印「全部 PASS」而分母悄悄變小＝假綠。
 // 刻意**不寫「總共幾條」這種手打常數**（判準寫「是什麼」不寫「有幾個」）——只要求
 // 每個宣告過的段落都真的跑過至少一條，段落整批消失時會有一條具名紅燈。
-const SECTIONS = ['1 環境判別', '2 存取權判別', '3 entitlement 比對', '4 端點與 query', '5 錯誤分流', '6 plus-status 端到端', '7 發版閘門', '8 分頁與跟頁'];
+const SECTIONS = ['1 環境判別', '2 存取權判別', '3 entitlement 比對', '4 端點與 query', '5 錯誤分流', '6 plus-status 端到端', '7 發版閘門', '8 分頁與跟頁',
+  '9 回應 schema 守門(I-3／I-4)', '10 分頁 404 與 customer 綁定(I-1／I-5)'];
 const seen = new Map();
 let SECTION = '(未分段)';
 const section = (name) => { SECTION = name; console.log(`\n===== ${name} =====`); };
@@ -186,6 +188,54 @@ section(SECTIONS[2]);
   const emptyEnts = await run({ body: { items: [sub({ entitlements: { items: [] } })] } });
   check(emptyEnts.ok === false && emptyEnts.status === 403,
     'entitlements 明確回空陣列（不是缺席）⇒ 判定為無資格——與上一條「缺席退回 true」對照，證明程式碼分辨「缺席」與「空陣列」', JSON.stringify(emptyEnts));
+
+  // 🔴 2026-08-04 敵意稽核 I-3：上面兩條只覆蓋「缺席」與「空陣列」兩態，中間還有第三態
+  // ——**property 存在但型別不對**。舊版寫成
+  //   `sub.entitlements && Array.isArray(sub.entitlements.items) ? ... : null`
+  // 把 `{items:'x'}`／`{items:null}`／`{}`／`null` 全部折疊成同一個 null，再被
+  // `if (!ents) return true` 放行 ⇒ **多給資格**（沒掛 plus 的訂閱拿到 Plus）。
+  // 正確答案不是「當成空陣列」也不是「當成缺席」，而是「這個 200 不符官方 schema」＝可重試的
+  // 503，且不得寫資格文件。判準的真值來源是 RevenueCat Developer API v2 的 Subscription 欄位表
+  // （entitlements 為必填，且其本身 required:[items, next_page, object, url]），不是實作。
+  // 這一族刻意機械窮舉「存在但形狀錯」的各種寫法，不是只挑稽核報告舉的那一個例子。
+  const I3_MALFORMED_ENTS = [
+    ['entitlements 是 null', null],
+    ['entitlements 是空物件（連 items 都沒有）', {}],
+    ['entitlements 是陣列', []],
+    ['entitlements.items 是字串', { items: 'not-an-array' }],
+    ['entitlements.items 是 null', { items: null }],
+    ['entitlements.items 是物件', { items: {} }],
+    ['entitlements.items 內含非物件成員', { items: ['plus'] }],
+  ];
+  for (const [label, ents] of I3_MALFORMED_ENTS) {
+    const r = await run({ body: { items: [sub({ entitlements: ents })] } });
+    check(r.ok === false && r.status === 503 && r.error === 'entitlement_unavailable',
+      `${label} ⇒ 整次 200 判為 malformed 回 503（不得折疊成「缺席 fallback」而多給資格，也不得折疊成「空陣列」）`,
+      JSON.stringify(r));
+  }
+
+  // I-3 有兩層防線，上面那批只驗得到**第一層**（rcSubscriptionsPageError 把整次 200 判 malformed）。
+  // 第二層是 subscriptionMatchesPlus() 自己在型別錯時回 false 而不是 true——它在正常管線上到不了
+  // （第一層先擋掉），所以端到端測試對它是全盲的：把第二層改回舊的折疊寫法，上面那批照樣全綠。
+  // 這裡直接對它下判準，讓兩層各自有牙（否則「補的那條也沒牙」）。
+  const matchesFalse = I3_MALFORMED_ENTS
+    .filter(([, ents]) => subscriptionMatchesPlus(sub({ entitlements: ents }), 'plus') !== false)
+    .map(([label]) => label);
+  check(matchesFalse.length === 0,
+    '第二層：subscriptionMatchesPlus() 對每一種「entitlements 存在但形狀錯」都回 false（型別混淆絕不可以擴大「缺席 fallback」的範圍）',
+    JSON.stringify({ 竟然沒被判false的: matchesFalse }));
+  // 正向對照：第二層不是「一律回 false」——三種合法輸入的答案必須各自正確。
+  const absentEnts = sub(); delete absentEnts.entitlements;
+  check(subscriptionMatchesPlus(absentEnts, 'plus') === true
+      && subscriptionMatchesPlus(sub(), 'plus') === true
+      && subscriptionMatchesPlus(sub({ entitlements: { items: [] } }), 'plus') === false
+      && subscriptionMatchesPlus(sub({ entitlements: { items: [{ lookup_key: 'other' }] } }), 'plus') === false,
+    '正向對照：第二層對三種合法輸入各自答對（缺席⇒true、掛 plus⇒true、空陣列與別的 key⇒false），不是靠「一律回 false」矇過上一條',
+    JSON.stringify({
+      缺席: subscriptionMatchesPlus(absentEnts, 'plus'),
+      掛plus: subscriptionMatchesPlus(sub(), 'plus'),
+      空陣列: subscriptionMatchesPlus(sub({ entitlements: { items: [] } }), 'plus'),
+    }));
 }
 
 // ── 4. 打的是哪一支端點（沉默不是證據：直接數上游網址） ──────────────────────────────
@@ -380,11 +430,15 @@ section(SECTIONS[7]);
   // (e) H-1（Critical，安全）：protocol-relative 繞法——next_page 自己的 origin 完全合法
   // （api.revenuecat.com），但 pathname 以 // 開頭。修復輪 2 的兩段式解析會把第二次
   // new URL() 的輸入（pathname+search）誤判成 protocol-relative URL，host 被換成 //
-  // 後面那段（evil.example.com）。正確修法只解析一次、比對 origin——這個輸入的 origin
-  // 本來就真的是 api.revenuecat.com，所以會被放行、正常翻到第 2 頁（不是拒絕；拒絕反而
-  // 是誤傷，見 worker.js resolveRcNextPage() 註解）。這裡刻意不用「字串裡有沒有出現
-  // evil.example.com」判斷——繞法字串本身的路徑就含這個子字串，天真的 includes 在正確
-  // 版本下也會誤判成紅，必須解析出精確 host 才能分辨路徑裡的雜訊與真正的連線目標。
+  // 後面那段（evil.example.com）。
+  // 🔴 2026-08-04 敵意稽核 I-5 之後，這條輸入的**期望答案改變了**：resolveRcNextPage() 現在
+  // 除了 origin 還要求 pathname 逐字等於「同一個 customer 的 subscriptions 端點」，而
+  // `//evil.example.com/steal` 不是 ⇒ 從「放行、翻到第 2 頁」變成「拒絕跟隨、停在 403」。
+  // 判準跟著實作改是危險動作，所以這裡刻意保留這條輸入原本真正要守的那件事——**不論放行或
+  // 拒絕，任何一發實際送出去的連線，其解析後的 host 都必須是 api.revenuecat.com**——而且
+  // 仍然不用「字串裡有沒有出現 evil.example.com」這種天真寫法（繞法字串本身的路徑就含這個
+  // 子字串，天真的 includes 連正確版本都會誤判成紅）。
+  // 「兩段式字串手術會不會被抓到」這件事改由下面 (f) 那族不變式守——它比這條端到端情境更準。
   consoleErrorLog = [];
   const bypassNextPage = 'https://api.revenuecat.com//evil.example.com/steal';
   const eResult = await runPages([
@@ -392,12 +446,198 @@ section(SECTIONS[7]);
     { body: { items: [PRODUCTION_SUB], next_page: null } },
   ]);
   const rcCallsE = upstream.filter(u => u.includes('api.revenuecat.com'));
-  const rcHostsE = rcCallsE.map(u => { try { return new URL(u).host; } catch { return '(unparseable)'; } });
-  check(eResult.ok === true && rcCallsE.length === 2 && rcHostsE.every(h => h === 'api.revenuecat.com') && consoleErrorLog.length === 0,
-    '(e) protocol-relative 繞法（origin 合法、pathname 以 // 開頭）⇒ 正確解析後仍放行、真的翻到第 2 頁找到資格（不是被誤判拒絕），每一發「疑似 RC」呼叫解析後的 host 都真的是 api.revenuecat.com、也沒有觸發拒絕的 console.error（這條在舊的兩段式字串手術解析下必須是紅的：見突變測試 M-H1）',
-    JSON.stringify({ eResult, 上游網址: upstream, RC呼叫解析host: rcHostsE, consoleErrorLog }));
+  const hostsE = upstream.map(u => { try { return new URL(u).host; } catch { return '(unparseable)'; } });
+  check(eResult.ok === false && eResult.status === 403 && rcCallsE.length === 1
+      && !hostsE.includes('evil.example.com') && consoleErrorLog.length === 1,
+    '(e) protocol-relative 繞法（origin 合法、pathname 以 // 開頭）⇒ pathname 不是 canonical endpoint，拒絕跟隨、停在 403，只打了第 1 頁；所有實際送出的連線解析後的 host 沒有一個是 evil.example.com，且留下 1 筆診斷紀錄',
+    JSON.stringify({ eResult, 上游網址: upstream, 解析host: hostsE, consoleErrorLog }));
+
+  // (f) 🔴 2026-08-04 敵意稽核 I-5：直接對 resolveRcNextPage() 斷言一條**不變式**，用一族
+  // 機械窮舉的對抗性輸入打它，而不是只覆蓋稽核報告舉的那一個例子。
+  // 不變式（兩個外部錨點，都不是從實作回推的）：對任何輸入，回傳值要嘛是 null（拒絕），
+  // 要嘛是一個 ① origin 逐字等於 RevenueCat 的 API origin、且 ② pathname 逐字等於「這次查詢
+  // 自己的 customer subscriptions 端點」的 URL。任何「回了一個 origin 或 pathname 不對的 URL」
+  // 都是漏洞，不論是哪種寫法造成的。
+  // 這一族刻意讓每個保護各自有一個**只有它擋得住**的成員：
+  //   · 拿掉 origin 檢查 → ① 會回一個 evil origin 的 URL（它的 pathname 完全 canonical）
+  //   · 拿掉 pathname 檢查 → ②③⑦⑧ 會回別的 customer／別的 project／別的端點（origin 完全合法）
+  //   · 換回修復輪 2 的兩段式字串手術 → ④ 的第二段解析把 host 換成 evil，而 pathname 剛好被
+  //     手術成 canonical ⇒ origin 與 pathname 兩個檢查都「看起來」通過，只有這條不變式抓得到
+  const RC_API_ORIGIN = 'https://api.revenuecat.com';                    // 外部常數（RevenueCat 的 API origin）
+  const CANONICAL_PATH = '/v2/projects/proj_x/customers/uid-under-test/subscriptions';
+  const ADVERSARIAL_NEXT_PAGES = [
+    ['① canonical pathname，但換成外部 origin', `https://evil.example.com${CANONICAL_PATH}?starting_after=s1`, 'reject'],
+    ['② origin 合法，但換成別人的 customer', `${RC_API_ORIGIN}/v2/projects/proj_x/customers/uid-other/subscriptions?starting_after=s1`, 'reject'],
+    ['③ origin 合法，但換成別的端點', `${RC_API_ORIGIN}/v2/projects/proj_x/customers/uid-under-test/purchases?starting_after=s1`, 'reject'],
+    ['④ protocol-relative 前綴 ＋ canonical 尾巴（兩段式字串手術會被鑽的形狀）', `${RC_API_ORIGIN}//evil.example.com${CANONICAL_PATH}`, 'reject'],
+    ['⑤ 純相對、canonical（規格 example 的形狀，唯一常見的正常值）', `${CANONICAL_PATH}?environment=production&limit=100&starting_after=s1`, 'follow'],
+    ['⑥ 絕對、canonical', `${RC_API_ORIGIN}${CANONICAL_PATH}?starting_after=s1`, 'follow'],
+    ['⑦ origin 合法，但換成別的 project', `${RC_API_ORIGIN}/v2/projects/proj_other/customers/uid-under-test/subscriptions`, 'reject'],
+    ['⑧ 用 ../ 正規化後溜到別人的 customer', `${RC_API_ORIGIN}${CANONICAL_PATH}/../../uid-other/subscriptions`, 'reject'],
+  ];
+  const invariantViolations = [];
+  const followed = [];
+  for (const [label, input] of ADVERSARIAL_NEXT_PAGES) {
+    let out;
+    try { out = resolveRcNextPage(input, CANONICAL_PATH); }
+    catch (e) { out = null; }                                            // 解析不出來＝拒絕，也滿足不變式
+    if (out === null) continue;
+    followed.push(label);
+    const parsed = new URL(out);
+    if (parsed.origin !== RC_API_ORIGIN || parsed.pathname !== CANONICAL_PATH) {
+      invariantViolations.push(`${label} ⇒ ${parsed.origin}${parsed.pathname}`);
+    }
+  }
+  check(invariantViolations.length === 0,
+    '(f) resolveRcNextPage() 對整族對抗性 next_page 都守住不變式：不是回 null，就是回一個 origin 與 pathname 都逐字正確的 URL（沒有任何一個輸入能讓它交出別的 host／別的 customer／別的端點）',
+    JSON.stringify({ 違反: invariantViolations, 被放行的: followed }));
+  // 正向對照：不變式若靠「永遠回 null」滿足就是零資訊。這條要求該放行的真的被放行。
+  const shouldFollow = ADVERSARIAL_NEXT_PAGES.filter(([, , want]) => want === 'follow').map(([label]) => label);
+  const shouldReject = ADVERSARIAL_NEXT_PAGES.filter(([, , want]) => want === 'reject').map(([label]) => label);
+  check(shouldFollow.every(label => followed.includes(label)) && !shouldReject.some(label => followed.includes(label)),
+    '(f) 正向對照：同一支收集器裡，canonical 的兩個輸入真的被放行（不是靠「永遠回 null」矇過不變式），其餘全部被拒絕',
+    JSON.stringify({ 應放行: shouldFollow, 應拒絕: shouldReject, 實際放行: followed }));
 
   console.error = realConsoleError;
+}
+
+// ── 9. 回應 schema 守門：髒 200 不得被讀成「確定沒訂閱」或「已翻到底」（I-4）───────────────
+// 🔴 2026-08-04 敵意稽核 I-4：舊版 plusAccessSubscriptions() 對非陣列 items 直接退回空陣列，
+// fetchRevenueCatSubscriptions() 對非字串的 next_page 直接視為自然結尾——兩者都把「上游回了
+// 不符 schema 的髒 200」與一個明確的業務答案合併了，而那個答案還會被寫成 active:false 的資格
+// 文件（付費者被靜默關掉）或用不完整頁集算出偏短的 activeUntilMs。
+// 判準的真值來源是 RevenueCat Developer API v2 的 ListSubscriptions 欄位表逐字所寫的
+// `items required Array of objects`、`next_page required string or null`，不是實作。
+section(SECTIONS[8]);
+{
+  const I4_MALFORMED_BODIES = [
+    ['items 是 null', { object: 'list', items: null, next_page: null }],
+    ['items 是物件', { object: 'list', items: {}, next_page: null }],
+    ['items 是字串', { object: 'list', items: 'nope', next_page: null }],
+    ['items 缺席', { object: 'list', next_page: null }],
+    ['整個 body 是陣列', []],
+    ['整個 body 是字串', 'not-a-list'],
+    ['整個 body 是 null', null],
+    ['next_page 是物件', { object: 'list', items: [], next_page: { cursor: 'later' } }],
+    ['next_page 是數字', { object: 'list', items: [], next_page: 42 }],
+    ['next_page 是空字串', { object: 'list', items: [], next_page: '' }],
+    ['next_page 是陣列', { object: 'list', items: [], next_page: ['/v2/x'] }],
+  ];
+  const realConsoleError = console.error;
+  const gateLogs = [];
+  console.error = (...args) => { gateLogs.push(args.join(' ')); };
+  try {
+    for (const [label, body] of I4_MALFORMED_BODIES) {
+      gateLogs.length = 0;
+      const r = await run({ body });
+      // 兩個維度：答案是 503，**而且**是被 schema 守門明確擋下的（留下可診斷的紀錄），
+      // 不是靠某個下游函式碰巧拋錯被外層 catch 吞成 503。少了第二個維度，把守門整段刪掉
+      // 這條照樣全綠——那正是「判準落在受測物下游」的典型盲點。
+      check(r.ok === false && r.status === 503 && r.error === 'entitlement_unavailable'
+          && gateLogs.some(line => line.includes('不符官方 schema')),
+        `${label} ⇒ 503，且由 schema 守門明確擋下並留下診斷紀錄（髒 200 不得被讀成「確定沒訂閱」或「已翻到底」）`,
+        JSON.stringify({ r, gateLogs }));
+    }
+  } finally { console.error = realConsoleError; }
+
+  // 第二層（與守門獨立）：純篩選 helper 自己也不准把 malformed 折疊成空集合。它在正常管線上
+  // 到不了（守門先擋），端到端測試對它全盲——所以直接對 plusEntitlementDocument() 下判準：
+  // 拿一個 items 不是陣列的 body 進去，必須拋錯，而不是靜靜產生一份 active:false 的資格文件
+  // （那份文件會被寫進 Firestore，把付費者關掉）。
+  let threwOnMalformed = false;
+  try { plusEntitlementDocument({ object: 'list', items: null, next_page: null }, 'plus', 'plus-status', 1); }
+  catch (e) { threwOnMalformed = true; }
+  const cleanDoc = plusEntitlementDocument({ object: 'list', items: [], next_page: null }, 'plus', 'plus-status', 1);
+  check(threwOnMalformed && cleanDoc.active === false,
+    '第二層：純篩選 helper 對 malformed body 直接拋錯（不得產出「看起來成功」的 inactive 文件）；正向對照是合規空清單仍然安靜地產出 active:false',
+    JSON.stringify({ threwOnMalformed, cleanDoc }));
+
+  // 正向對照：同一支替身、同一條路徑，合規的空清單仍然要得到「確定沒訂閱」的 403，
+  // 合規的非空清單仍然要得到 ok:true。沒有這兩條，上面整批 503 可能只是路徑整條壞掉。
+  const cleanEmpty = await run({ body: { object: 'list', items: [], next_page: null } });
+  check(cleanEmpty.ok === false && cleanEmpty.status === 403 && cleanEmpty.error === 'not_entitled',
+    '正向對照：合規的空清單（items:[]、next_page:null）⇒ 仍然是明確的 403 not_entitled，不是被新守門一起打成 503', JSON.stringify(cleanEmpty));
+  const cleanHit = await run({ body: { object: 'list', items: [PRODUCTION_SUB], next_page: null } });
+  check(cleanHit.ok === true,
+    '正向對照：合規的非空清單 ⇒ 仍然判定為有資格（證明守門沒有把正常回應一起擋掉）', JSON.stringify(cleanHit));
+
+  // 直接對純函式斷言，補上端到端測不到的維度：這支閘門必須說得出「哪裡不合規」，
+  // 而不是只回一個 boolean——診斷字串會進 console.error，是線上唯一的線索。
+  const err = rcSubscriptionsPageError({ object: 'list', items: [{ customer_id: 'uid-under-test', entitlements: { items: 'x' } }], next_page: null }, 'uid-under-test');
+  check(typeof err === 'string' && err.length > 0 && !err.includes('uid-under-test'),
+    'rcSubscriptionsPageError() 回的是可診斷的原因字串，而且不夾帶 uid 或訂閱內容（這個字串會被寫進 console.error）', String(err));
+  const noErr = rcSubscriptionsPageError({ object: 'list', items: [PRODUCTION_SUB], next_page: null }, 'uid-under-test');
+  check(noErr === null, '正向對照：合規回應 ⇒ 守門回 null（不是每次都喊違規）', String(noErr));
+}
+
+// ── 10. 分頁途中的 404 與 customer 綁定（I-1／I-5）──────────────────────────────────────
+section(SECTIONS[9]);
+{
+  const nextPageOf = (cursor) => `/v2/projects/proj_x/customers/uid-under-test/subscriptions?environment=production&limit=100&starting_after=${cursor}`;
+
+  // 🔴 I-1：404 只有在**第一頁**才可能是「這個 customer 不存在」。第 1 頁已經證明有有效訂閱、
+  // 第 2 頁回 404 時，舊版直接回空集合 ⇒ 付費者被判 403、plus-status 還會覆寫 active:false 的
+  // 資格文件。後續頁的 404 語意是「分頁游標失效／上游狀態改變」＝這次查詢失敗，不是「沒買過」。
+  const p2NotFound = await runPages([
+    { body: { items: [PRODUCTION_SUB], next_page: nextPageOf('sub_1') } },
+    { status: 404, body: { object: 'error', type: 'resource_missing', param: 'customer_id' } },
+  ]);
+  check(p2NotFound.ok === false && p2NotFound.status === 503 && p2NotFound.error === 'entitlement_unavailable',
+    '第 1 頁已有正式有效訂閱、第 2 頁回 404 ⇒ 503（分頁失敗），不得清空已累積的命中把付費者判成無資格',
+    JSON.stringify(p2NotFound));
+
+  // 同一族的另一半：即使第 1 頁沒有命中，第 2 頁的 404 仍然是分頁失敗，不是「這個人沒買過」
+  // ——因為第 1 頁的 200 已經證明了這個 customer 存在。
+  const p2NotFoundNoHit = await runPages([
+    { body: { items: [SANDBOX_SUB], next_page: nextPageOf('sub_1') } },
+    { status: 404, body: { object: 'error', type: 'resource_missing', param: 'customer_id' } },
+  ]);
+  check(p2NotFoundNoHit.ok === false && p2NotFoundNoHit.status === 503,
+    '第 1 頁 200（證明 customer 存在）、第 2 頁回 404 ⇒ 一樣是 503，不因為「還沒命中」就退回成功空集合',
+    JSON.stringify(p2NotFoundNoHit));
+
+  // 正向對照：第一頁的 404 仍然是「這個人沒買過」的明確答案（403），沒有被上面兩條一起改掉。
+  const firstPage404 = await runPages([{ status: 404, body: { object: 'error', type: 'resource_missing', param: 'customer_id' } }]);
+  check(firstPage404.ok === false && firstPage404.status === 403 && firstPage404.error === 'not_entitled',
+    '正向對照：**第一頁**的 customer-not-found 404 ⇒ 仍然是 403 not_entitled（只有後續頁才升成 503）',
+    JSON.stringify(firstPage404));
+
+  // 正向對照：兩頁都正常時仍然翻得完、找得到（證明上面的 503 是 404 造成的，不是分頁整條壞掉）。
+  const twoCleanPages = await runPages([
+    { body: { items: [SANDBOX_SUB], next_page: nextPageOf('sub_1') } },
+    { body: { items: [PRODUCTION_SUB], next_page: null } },
+  ]);
+  check(twoCleanPages.ok === true,
+    '正向對照：兩頁都是正常 200 ⇒ 照樣翻完並判定為有資格', JSON.stringify(twoCleanPages));
+
+  // 🔴 I-5（第二層）：subscriptionMatchesPlus() 完全沒有碰 customer_id，所以只要一筆別人的
+  // 訂閱混進回應（上游異常、代理損壞、或跟到別的 customer 的分頁），它的資格就會被算成
+  // 目前這個 uid 的。customer-scoped 端點回別人的訂閱是嚴重異常 ⇒ malformed 503，
+  // 刻意不「靜靜濾掉」——濾掉會讓這種回應變成一次成功的空集合去覆寫 active:false 的文件。
+  const foreignSub = await run({ body: { object: 'list', items: [sub({ customer_id: 'uid-other' })], next_page: null } });
+  check(foreignSub.ok === false && foreignSub.status === 503,
+    '回應裡的 subscription customer_id 是別人 ⇒ 503（不得把別人的付款資格嫁接到目前的 uid，也不得靜靜濾掉當成空集合）',
+    JSON.stringify(foreignSub));
+
+  const foreignMixed = await run({ body: { object: 'list', items: [PRODUCTION_SUB, sub({ customer_id: 'uid-other' })], next_page: null } });
+  check(foreignMixed.ok === false && foreignMixed.status === 503,
+    '混合清單：自己的有效訂閱 ＋ 一筆別人的 ⇒ 整次 200 判 malformed 503（不是「有一筆對就算過」）',
+    JSON.stringify(foreignMixed));
+
+  // 🔴 I-5（第一層，端到端）：稽核報告的原始重現情境——第 1 頁的 next_page 指向同一個 origin
+  // 但**別人的 customer**，第 2 頁擺一筆別人的有效 Plus 訂閱。舊版 ok:true（資格被嫁接）。
+  const consoleLog = [];
+  const realConsoleError = console.error;
+  console.error = (...args) => { consoleLog.push(args.join(' ')); };
+  const crossCustomer = await runPages([
+    { body: { items: [], next_page: '/v2/projects/proj_x/customers/uid-other/subscriptions?starting_after=sub_1' } },
+    { body: { items: [sub({ customer_id: 'uid-other' })], next_page: null } },
+  ]);
+  const rcCallsCross = upstream.filter(u => u.includes('api.revenuecat.com'));
+  console.error = realConsoleError;
+  check(crossCustomer.ok === false && crossCustomer.status === 403 && rcCallsCross.length === 1 && consoleLog.length === 1,
+    '跨 customer 的 next_page（同 origin、換 uid）⇒ 拒絕跟隨、只打第 1 頁、留下診斷紀錄，別人的 Plus 訂閱不會被算成這個 uid 的資格',
+    JSON.stringify({ crossCustomer, 上游: rcCallsCross, consoleLog }));
 }
 
 globalThis.fetch = realFetch;

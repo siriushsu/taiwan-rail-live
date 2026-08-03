@@ -33,6 +33,8 @@ const SECTIONS = [
   '6 plus-status 寫入失敗隔離',
   '7 webhook 速率限制',
   '8 分頁累積與 origin 白名單',
+  '9 TRANSFER 事件的雙主體處理',
+  '10 查詢不完整／不合規時不得寫文件',
 ];
 const seen = new Map();
 let SECTION = '(未分段)';
@@ -69,6 +71,9 @@ let oauthCount = 0;
 let oauthExpiresIn = 3600;
 let rcBody = { items: [baseSubscription()] };
 let rcPages = null;
+// TRANSFER 有兩個主體，替身必須能對「不同 customer」回不同真相——否則測不出「轉出者寫
+// inactive、轉入者寫 active」這件事，也測不出兩邊各自打對了自己的 endpoint。
+let rcByCustomer = null;
 let rcStatus = 200;
 let firestoreStatus = 200;
 let trafficPoints = [];
@@ -88,6 +93,12 @@ globalThis.fetch = async (input, init = {}) => {
     return new Response(JSON.stringify({ users: [{ localId: UID }] }), { status: 200 });
   }
   if (url.includes('api.revenuecat.com')) {
+    if (rcByCustomer) {
+      const matched = new URL(url).pathname.match(/\/customers\/([^/]+)\/subscriptions$/);
+      const who = matched ? decodeURIComponent(matched[1]) : '';
+      const entry = rcByCustomer[who] || { body: { items: [] } };
+      return new Response(JSON.stringify(entry.body), { status: entry.status || 200 });
+    }
     if (rcPages) {
       const n = calls.filter(call => call.url.includes('api.revenuecat.com')).length - 1;
       const page = rcPages[Math.min(n, rcPages.length - 1)];
@@ -131,6 +142,7 @@ function resetIo({ resetToken = true } = {}) {
   oauthExpiresIn = 3600;
   rcBody = { items: [baseSubscription()] };
   rcPages = null;
+  rcByCustomer = null;
   rcStatus = 200;
   firestoreStatus = 200;
   trafficPoints = [];
@@ -151,6 +163,13 @@ const webhookRequest = (authorization, environment = 'PRODUCTION', method = 'POS
 };
 const plusStatusRequest = () => new Request('https://railisland.tw/api/plus-status', {
   headers: { Authorization: `Bearer ${'x'.repeat(900)}`, 'cf-connecting-ip': '203.0.113.8' },
+});
+// 任意 event 形狀的 webhook 請求（TRANSFER 用）。webhookRequest() 那支永遠是單一 app_user_id
+// 的 RENEWAL 形狀——判準盲點第 6 條指的就是「fixture 只有一種形狀」。
+const webhookEventRequest = (event, authorization = AUTH_VALUE) => new Request('https://railisland.tw/api/revenuecat-webhook', {
+  method: 'POST',
+  headers: { 'content-type': 'application/json', 'cf-connecting-ip': '203.0.113.7', Authorization: authorization },
+  body: JSON.stringify({ api_version: '1.0', event }),
 });
 
 section(SECTIONS[0]);
@@ -209,9 +228,40 @@ section(SECTIONS[2]);
   const inactiveDoc = plusEntitlementDocument({ items: [baseSubscription({ gives_access: false })] }, 'plus', 'plus-status', NOW_MS);
   check(inactiveDoc.active === false && inactiveDoc.activeUntilMs === 0,
     '無存取權 ⇒ active=false、activeUntilMs=0', JSON.stringify(inactiveDoc));
-  const lifetimeDoc = plusEntitlementDocument({ items: [baseSubscription({ ends_at: null, current_period_ends_at: null })] }, 'plus', 'plus-status', NOW_MS);
-  check(lifetimeDoc.active === true && lifetimeDoc.activeUntilMs === 0,
-    '正式有效但無到期日 ⇒ activeUntilMs=0（不設限）', JSON.stringify(lifetimeDoc));
+  // 🔴 2026-08-04 敵意稽核 I-6：這條原本寫「正式有效但無到期日 ⇒ activeUntilMs=0（不設限）」，
+  // 局部變數還叫 lifetimeDoc——那是**把被測物的假設直接抄成期待值**（判準盲點第 7 條），於是這盞
+  // 綠燈反而把缺陷鎖住。RevenueCat 從來沒說 ends_at:null 代表終身：Developer API v2 的
+  // Subscription schema 對 ends_at 的說明逐字是 "Can be null if the subscription is paused until
+  // an indefinite date."——是「被無限期暫停」，不是 lifetime marker。
+  // 期待值改成從外部錨點推，不從實作：
+  //  (1) 官方 schema 不支持「null＝終身」⇒ 產出的 active 文件**不得**是不設限（0）。
+  //  (2) 這筆訂閱 gives_access=true ⇒ 現在確實有存取權，文件仍須 active 且 activeUntilMs > NOW
+  //      （否則等於把付了錢的人當場關掉）。
+  //  (3) 「沒有依據的資格文件不該活過一週」是產品層級判斷，不是實作常數。門檻刻意取得比實作的
+  //      寬限（24 小時）鬆很多：日後把寬限調成 48 小時，這條不該因此變紅；但只要有人把它改回
+  //      0（不設限）或改成一年，這條一定紅。
+  const UNBOUNDED = 0;
+  const SANE_MAX_UNKNOWN_WINDOW_MS = 7 * 24 * 60 * 60 * 1000;
+  const UNKNOWN_EXPIRY_SHAPES = [
+    ['兩個到期欄位都是 null', { ends_at: null, current_period_ends_at: null }],
+    ['兩個到期欄位都缺席', { ends_at: undefined, current_period_ends_at: undefined }],
+    ['到期欄位是 ISO 字串（型別錯）', { ends_at: '2030-01-01T00:00:00Z', current_period_ends_at: '2030-01-01T00:00:00Z' }],
+    ['到期欄位是 0', { ends_at: 0, current_period_ends_at: 0 }],
+    ['到期欄位是負數', { ends_at: -1, current_period_ends_at: -1 }],
+    ['到期欄位是 NaN／Infinity', { ends_at: NaN, current_period_ends_at: Infinity }],
+  ];
+  for (const [label, over] of UNKNOWN_EXPIRY_SHAPES) {
+    const doc = plusEntitlementDocument({ items: [baseSubscription(over)] }, 'plus', 'plus-status', NOW_MS);
+    check(doc.active === true && doc.activeUntilMs !== UNBOUNDED
+        && doc.activeUntilMs > NOW_MS && doc.activeUntilMs <= NOW_MS + SANE_MAX_UNKNOWN_WINDOW_MS,
+      `正式有效但${label} ⇒ 仍然 active，且 activeUntilMs 是明確有界的短期窗（不得是 0＝不設限：官方 schema 沒有「null＝終身」這回事）`,
+      JSON.stringify(doc));
+  }
+  const mixedExpiryDoc = plusEntitlementDocument({ items: [
+    baseSubscription(), baseSubscription({ id: 'sub_unknown_expiry', ends_at: null, current_period_ends_at: null }),
+  ] }, 'plus', 'plus-status', NOW_MS);
+  check(mixedExpiryDoc.active === true && mixedExpiryDoc.activeUntilMs !== UNBOUNDED && mixedExpiryDoc.activeUntilMs > NOW_MS,
+    '多筆命中中只要有一筆解析不出到期日 ⇒ 整份文件仍然不得退化成不設限', JSON.stringify(mixedExpiryDoc));
   const emptyEntitlementsDoc = plusEntitlementDocument({ items: [baseSubscription({ entitlements: { items: [] } })] }, 'plus', 'plus-status', NOW_MS);
   check(emptyEntitlementsDoc.active === false && emptyEntitlementsDoc.activeUntilMs === 0,
     'entitlements 明確回空陣列 ⇒ 不算有資格（不能與欄位缺席的 fallback 混為一談）', JSON.stringify(emptyEntitlementsDoc));
@@ -408,6 +458,161 @@ section(SECTIONS[7]);
   check(requiredHosts.length === 0,
     '正向對照：同一 host 收集器確實看見 Firebase、RevenueCat、OAuth、Firestore 四種合法上游（不是空集合假綠）',
     JSON.stringify({ hosts, missing: requiredHosts }));
+}
+
+// ── 9. TRANSFER 事件的雙主體處理（🔴 2026-08-04 敵意稽核 I-2）──────────────────────────
+// 舊版無條件把 event.app_user_id 當唯一 uid，缺席即 400 ⇒ **每一筆 TRANSFER 都必定 400**、
+// 零 RevenueCat 查詢、零 Firestore 寫入，而且會燒掉 RevenueCat 有限的重試次數（官方 up to 5）。
+// TRANSFER 不是 subscriber-identity 形狀：官方 Event Types and Fields 把它的 Applicable fields
+// 列成「Common fields · Transfer」，欄位表把 transferred_from、transferred_to 都標成 Always，
+// 而 app_user_id 不在其中。fixture 刻意寫成官方那個形狀（不帶 app_user_id）。
+const TRANSFER_FROM = 'uid-transfer-from';
+const TRANSFER_TO = 'uid-transfer-to';
+section(SECTIONS[8]);
+{
+  resetIo();
+  // 轉出者在正式環境已無有效訂閱、轉入者有——真相一律重查上游，不從事件內容推演。
+  rcByCustomer = {
+    [TRANSFER_FROM]: { body: { items: [], next_page: null } },
+    [TRANSFER_TO]: { body: { items: [baseSubscription({ customer_id: TRANSFER_TO })], next_page: null } },
+  };
+  let response = await worker.fetch(webhookEventRequest({
+    id: 'event-transfer', type: 'TRANSFER', environment: 'PRODUCTION',
+    transferred_from: [TRANSFER_FROM], transferred_to: [TRANSFER_TO],
+  }), ENV(), {});
+  const transferWrites = callsTo('firestore.googleapis.com');
+  const writtenByUid = Object.fromEntries(transferWrites.map(call => [
+    decodeURIComponent(call.url.split('/documents/entitlements/')[1] || ''),
+    JSON.parse(call.body).fields.active.booleanValue,
+  ]));
+  check(response.status === 200 && transferWrites.length === 2
+      && writtenByUid[TRANSFER_FROM] === false && writtenByUid[TRANSFER_TO] === true,
+    'TRANSFER（無 app_user_id，只有 transferred_from／transferred_to）⇒ 200，且轉出與轉入兩個 uid 各寫一份文件，內容是各自重查上游的真相（不是 400 什麼都不做）',
+    JSON.stringify({ status: response.status, writes: transferWrites.length, writtenByUid }));
+
+  const rcPaths = callsTo('api.revenuecat.com').map(call => new URL(call.url).pathname);
+  check(rcPaths.length === 2
+      && rcPaths.some(p => p.endsWith(`/customers/${TRANSFER_FROM}/subscriptions`))
+      && rcPaths.some(p => p.endsWith(`/customers/${TRANSFER_TO}/subscriptions`)),
+    'TRANSFER 真的為兩個 uid 各打了自己的 customer-scoped endpoint（不是拿同一個 uid 查兩次）',
+    JSON.stringify(rcPaths));
+
+  // environment 對 TRANSFER 只是「Sometimes」欄位；拿它當硬閘等於把每一筆不帶 environment 的
+  // 轉移都擋成 400。缺席時放行是安全的——重查那支查詢自己就把環境釘死在 production。
+  resetIo();
+  rcByCustomer = {
+    [TRANSFER_FROM]: { body: { items: [], next_page: null } },
+    [TRANSFER_TO]: { body: { items: [baseSubscription({ customer_id: TRANSFER_TO })], next_page: null } },
+  };
+  response = await worker.fetch(webhookEventRequest({
+    id: 'event-transfer-no-env', type: 'TRANSFER',
+    transferred_from: [TRANSFER_FROM], transferred_to: [TRANSFER_TO],
+  }), ENV(), {});
+  check(response.status === 200 && callsTo('firestore.googleapis.com').length === 2,
+    'TRANSFER 不帶 environment（官方標為 Sometimes）⇒ 仍然處理，不因為缺一個選填欄位就 400 並燒掉重試次數',
+    `status=${response.status} writes=${callsTo('firestore.googleapis.com').length}`);
+
+  // 反向對照 1：明確標 SANDBOX 的 TRANSFER 仍然只確認收件，不得動任何正式資格文件。
+  resetIo();
+  response = await worker.fetch(webhookEventRequest({
+    id: 'event-transfer-sandbox', type: 'TRANSFER', environment: 'SANDBOX',
+    transferred_from: [TRANSFER_FROM], transferred_to: [TRANSFER_TO],
+  }), ENV(), {});
+  check(response.status === 200 && calls.length === 0,
+    '反向對照：SANDBOX 的 TRANSFER ⇒ 接受但零上游、零寫入（沙盒轉移不得蓋掉正式資格）',
+    `status=${response.status} calls=${calls.length}`);
+
+  // 反向對照 2：非 TRANSFER 事件仍然嚴格要求 app_user_id；新的分流不是把 400 整批放寬。
+  resetIo();
+  response = await worker.fetch(webhookEventRequest({
+    id: 'event-renewal-no-uid', type: 'RENEWAL', environment: 'PRODUCTION',
+    transferred_from: [TRANSFER_FROM], transferred_to: [TRANSFER_TO],
+  }), ENV(), {});
+  check(response.status === 400 && calls.length === 0,
+    '反向對照：RENEWAL 缺 app_user_id ⇒ 仍然 400、零上游（transferred_* 只對 TRANSFER 有意義，不得被別的事件借用）',
+    `status=${response.status} calls=${calls.length}`);
+
+  // 反向對照 3：TRANSFER 但兩個陣列都空／不是合法 uid ⇒ 沒有主體可寫，維持 400。
+  resetIo();
+  response = await worker.fetch(webhookEventRequest({
+    id: 'event-transfer-empty', type: 'TRANSFER', environment: 'PRODUCTION',
+    transferred_from: [], transferred_to: ['bad/uid'],
+  }), ENV(), {});
+  check(response.status === 400 && calls.length === 0,
+    '反向對照：TRANSFER 的兩個陣列都沒有合法 uid ⇒ 400、零上游（不是「只要是 TRANSFER 就一律 200」）',
+    `status=${response.status} calls=${calls.length}`);
+
+  // 去重：同一個 uid 同時出現在轉出與轉入時只處理一次（RevenueCat 的 restore 情境會這樣）。
+  resetIo();
+  rcByCustomer = { [TRANSFER_TO]: { body: { items: [baseSubscription({ customer_id: TRANSFER_TO })], next_page: null } } };
+  response = await worker.fetch(webhookEventRequest({
+    id: 'event-transfer-same', type: 'TRANSFER', environment: 'PRODUCTION',
+    transferred_from: [TRANSFER_TO], transferred_to: [TRANSFER_TO],
+  }), ENV(), {});
+  check(response.status === 200 && callsTo('firestore.googleapis.com').length === 1,
+    '同一個 uid 同時出現在轉出與轉入 ⇒ 去重，只查一次寫一次', `writes=${callsTo('firestore.googleapis.com').length}`);
+}
+
+// ── 10. 查詢不完整／不合規時，一行 Firestore 都不准寫（I-1／I-3／I-4／I-5）───────────────
+// 判準盲點第 2、4 條：這支腳本的分頁段本來全是 200，抓不到「查一半失敗卻照樣寫文件」這件事。
+// 寫入是有副作用的一端——「回 503」與「沒有寫壞文件」是兩個不同維度，兩個都要驗。
+section(SECTIONS[9]);
+{
+  const NEXT_PAGE = `/v2/projects/project-fixture/customers/${UID}/subscriptions?environment=production&limit=100&starting_after=sub_fixture`;
+  const INCOMPLETE_CASES = [
+    ['第 1 頁已命中、第 2 頁 404（分頁失敗）', [
+      { body: { items: [baseSubscription()], next_page: NEXT_PAGE } },
+      { status: 404, body: { object: 'error', type: 'resource_missing', param: 'customer_id' } },
+    ]],
+    ['第 1 頁已命中、第 2 頁 items 不是陣列（髒 200）', [
+      { body: { items: [baseSubscription()], next_page: NEXT_PAGE } },
+      { body: { object: 'list', items: null, next_page: null } },
+    ]],
+    ['第 1 頁 next_page 是物件（型別違規）', [
+      { body: { items: [baseSubscription()], next_page: { cursor: 'later' } } },
+    ]],
+    ['第 1 頁混進別人的 customer_id', [
+      { body: { items: [baseSubscription({ customer_id: 'uid-someone-else' })], next_page: null } },
+    ]],
+    ['第 1 頁 entitlements.items 型別錯（不得當成缺席 fallback）', [
+      { body: { items: [baseSubscription({ entitlements: { items: 'not-an-array' } })], next_page: null } },
+    ]],
+  ];
+  for (const [label, pages] of INCOMPLETE_CASES) {
+    resetIo();
+    rcPages = pages;
+    const response = await plusStatus(plusStatusRequest(), ENV());
+    const writes = callsTo('firestore.googleapis.com');
+    check(response.status === 503 && writes.length === 0,
+      `${label} ⇒ /api/plus-status 回 503，且**一行 Firestore 都沒寫**（不得用不完整／不合規的資料覆寫既有資格文件）`,
+      `status=${response.status} writes=${writes.length}`);
+  }
+
+  // 正向對照（同一支寫入收集器）：兩頁都正常時照樣翻完、照樣寫一份 active 文件。
+  // 沒有這條，上面整批「writes=0」可能只是寫入路徑整條壞掉。
+  resetIo();
+  rcPages = [
+    { body: { items: [baseSubscription()], next_page: NEXT_PAGE } },
+    { body: { items: [baseSubscription({ id: 'sub_fixture_page_2' })], next_page: null } },
+  ];
+  const okResponse = await plusStatus(plusStatusRequest(), ENV());
+  const okWrites = callsTo('firestore.googleapis.com');
+  const okDoc = okWrites[0] ? JSON.parse(okWrites[0].body) : {};
+  check(okResponse.status === 200 && (await okResponse.json()).active === true
+      && okWrites.length === 1 && okDoc.fields.active.booleanValue === true,
+    '正向對照：兩頁都合規 ⇒ 200 active:true 且確實寫了一份 active 文件（證明上面那批 writes=0 是守門造成的，不是寫入路徑壞了）',
+    `status=${okResponse.status} writes=${okWrites.length} doc=${JSON.stringify(okDoc)}`);
+
+  // webhook 那一端也要有同樣的保證：查不完整時不得寫，且要回可重試的 503。
+  resetIo();
+  rcPages = [
+    { body: { items: [baseSubscription()], next_page: NEXT_PAGE } },
+    { status: 404, body: { object: 'error', type: 'resource_missing', param: 'customer_id' } },
+  ];
+  const hookResponse = await worker.fetch(webhookRequest(AUTH_VALUE), ENV(), {});
+  check(hookResponse.status === 503 && callsTo('firestore.googleapis.com').length === 0,
+    'webhook 路徑同理：分頁查不完整 ⇒ 503（讓 RevenueCat 重試），且零 Firestore 寫入',
+    `status=${hookResponse.status} writes=${callsTo('firestore.googleapis.com').length}`);
 }
 
 globalThis.fetch = realFetch;
