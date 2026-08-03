@@ -6509,18 +6509,52 @@ function userDataMigrateLegacy() {
   try { localStorage.setItem(USER_DATA_KEY, JSON.stringify(out)); } catch (e) {}
   return out;
 }
-function userDataRead() {
+// C-2 修復(登出競態污染下一帳號)第三件事:本機 envelope 依 uid 分區。未登入(uid 為 null)
+// 沿用原本共用的 USER_DATA_KEY——匿名訪客的行為完全不變,不需要遷移,也保留雙寫舊版 legacy
+// 陣列的部署回退相容性。已登入時每個帳號各自一把 key,不同帳號的本機資料不再共用同一份——
+// 這樣即使某次同步的回寫時序出錯(見 accountSyncTxn 的世代複查這道獨立防線),頂多弄髒自己的
+// 分區,不會把資料寫進別人的分區或匿名分區。
+function userDataActiveUid() {
+  try { return (state.account && state.account.user && state.account.user.uid) || null; } catch (e) { return null; }
+}
+function userDataStorageKey(uid) { return uid ? USER_DATA_KEY + ':uid:' + uid : USER_DATA_KEY; }
+// 帳號分區在本機第一次被讀取(這個 uid 還沒有自己的分區 key)時的遷移入口——不能因為改用
+// 分區 key,就讓「裝置上既有的本機資料」憑空消失(Task 6 驗收條件)。
+// 規則:這台裝置記錄的上一個同步帳號(trainmap-last-sync-uid)若不存在,或正好就是這個 uid
+// 自己,代表共用 key 裡的資料本來就該歸這個帳號所有,原樣繼承(同時維持「第一次登入把裝置上
+// 既有的匿名收藏併入雲端」的既有行為);上一個同步帳號是別的 uid 時,共用 key 裡的資料屬於
+// 那個帳號,不可轉交給新登入的人——這個分區改從空白 envelope 開始(那個帳號自己的資料仍完好
+// 留在雲端,不會遺失;殘留在共用 key 裡的舊資料本身是否可能是「更早一次競態留下的髒資料」,
+// 見 Task 6 報告的討論)。遷移結果立即寫回分區 key:下次呼叫 userDataRead 會直接命中分區 key、
+// 不會重跑這裡,「跑兩次」因此天然冪等。
+function userDataMigrateAccountPartition(uid) {
+  let lastUid = null;
+  try { lastUid = localStorage.getItem('trainmap-last-sync-uid'); } catch (e) {}
+  const out = (!lastUid || lastUid === uid) ? userDataRead(null) : userDataEmpty();
+  try { localStorage.setItem(userDataStorageKey(uid), JSON.stringify(out)); } catch (e) {}
+  return out;
+}
+// uid 省略(undefined)時預設讀寫「目前使用中的分區」(未登入=匿名共用 key,已登入=該帳號自己
+// 的分區)——userDataLoadCollection/userDataSaveCollection/RailIslandUserData 等既有呼叫端完全
+// 不必跟著改,自動依登入狀態切換分區。accountSyncTxn 會明確傳入 myUid(而不是依賴這個預設),
+// 確保同一次同步從頭到尾對著同一個分區,不受同步途中身分變動影響。
+function userDataRead(uid) {
+  if (uid === undefined) uid = userDataActiveUid();
   try {
-    const raw = localStorage.getItem(USER_DATA_KEY);
+    const raw = localStorage.getItem(userDataStorageKey(uid));
     if (raw) { const out = userDataNormalizeEnvelope(JSON.parse(raw)); if (out) return out; }
   } catch (e) {}
+  if (uid) return userDataMigrateAccountPartition(uid);
   return userDataMigrateLegacy();
 }
-function userDataWrite(data) {
+function userDataWrite(data, uid) {
+  if (uid === undefined) uid = userDataActiveUid();
   const out = userDataNormalizeEnvelope(data); if (!out) return false;
   try {
-    localStorage.setItem(USER_DATA_KEY, JSON.stringify(out));
-    USER_DATA_COLLECTIONS.forEach(kind => {
+    localStorage.setItem(userDataStorageKey(uid), JSON.stringify(out));
+    // legacy 陣列雙寫只保留給匿名分區(部署回退時的相容性,見上方檔頭說明)——已登入帳號的資料
+    // 絕不能流進這組全裝置共用的 key,那正是分區想避免的「不同帳號共用一個 key」。
+    if (!uid) USER_DATA_COLLECTIONS.forEach(kind => {
       localStorage.setItem(USER_DATA_LEGACY[kind], JSON.stringify(out.collections[kind].items.map(x => x.value)));
     });
     return true;
@@ -6909,21 +6943,57 @@ function accountCloudEnvelope(docs) {
   });
   return out;
 }
+// C-2 修復(登出競態讓前一帳號快照寫回、污染下一帳號)——三件事的其中兩件在這裡:
+// 1. 登出序列化:a.loggingOut 由 accountSignOut() 設定,擋掉登出流程期間任何非登出的新同步
+//    排程(見 accountScheduleSync);這裡遇到「已有同步在跑」時,非登出呼叫維持原行為直接放棄,
+//    但登出呼叫改成等它做完、再自己補做最後一次——不能讓 a.syncing 讓最後同步被靜默跳過
+//    (這正是原本的根因:accountSignOut 呼叫 accountSyncNow('logout') 時若恰好撞上另一個進行中
+//    的同步,原本會被 a.syncing 擋下直接回 false,accountClearLocal 隨即清空本機,那個進行中的
+//    同步事後才把它擷取的舊快照寫回剛清空的本機)。
+// 2. 登入世代複查(見 accountSyncTxn 尾端):每次同步在開始時記下當時的世代(a.gen,
+//    accountClearLocal 每次登出/清本機都會前進)與 uid,Firestore 交易解決後、寫回本機前重新
+//    比對——身分已變(登出,或被其他清空本機的路徑如 accountDelete 搶先)就丟棄這次結果,不寫
+//    本機。這是比序列化更底層的安全網:即使未來有其他呼叫路徑在同步進行中清空本機而沒有像
+//    accountSignOut 一樣等待,晚到的寫入依然不會復活成資料。
+// 實際讀寫改用 accountSyncTxn 內明確傳遞的 myUid(userDataRead/userDataWrite 的第二參數),
+// 不用中途可能已經變動的 a.user.uid,同一次同步從頭到尾都對著同一個本機分區。
 async function accountSyncNow(reason) {
   const a = state.account;
-  if (!a || !a.user || !a.db || a.syncing) return false;
+  if (!a || !a.user || !a.db) return false;
+  // 注意:這裡刻意每處都重寫 reason.startsWith('logout'),不抽成共用變數——
+  // verify_plus_features.mjs 的 T1[雲端同步] 對下面這行(`if (!reason.startsWith('logout') &&
+  // !plusIsActive()) return false;`)做逐字 regex 比對,抽成變數會讓那行字面消失、判準假紅
+  // (2026-08-03 C-2 修復輪實測踩到,見該檔該項註解)。
+  if (a.loggingOut && !reason.startsWith('logout')) return false;
+  if (a.syncing) {
+    if (!reason.startsWith('logout')) return false;
+    try { await a.syncPromise; } catch (e) {}
+    if (!a.user) return false; // 等待期間身分已經清空(理論上不會發生,accountSignOut 本身在等這支函式,多一層防呆)
+  }
   // 雲端同步受 Plus 資格閘門控管(用戶端判定)。logout 是刻意的例外——
   // 登出會清掉本機資料(accountClearLocal),不讓最後一次回寫完成就等於吃掉使用者的東西。
-  // 用 startsWith 不用 !==:rules 擋下時下面的 catch 會遞迴成 reason+'-legacy' 重試,
-  // 寫死 !== 'logout' 會讓重試被閘門擋掉、而 accountSignOut 照樣清本機 ⇒ 真的掉資料。
+  // 用 startsWith 不用 !==:重試(見 accountSyncTxn 的 permission-denied 分支)會把 reason 接上
+  // '-legacy' 後綴——重試現在改在 accountSyncTxn 內部進行、不再回頭經過這道閘門,但 reason
+  // 字串維持同一套 startsWith 判斷原則,避免未來有人在這裡加判斷時重蹈舊坑(寫死 !== 'logout'
+  // 會讓重試被閘門誤擋、而 accountSignOut 照樣清本機 ⇒ 真的掉資料)。
   if (!reason.startsWith('logout') && !plusIsActive()) return false;
+  const myGen = a.gen, myUid = a.user.uid;
   a.syncing = true; a.actionError = ''; accountRender();
+  const task = accountSyncTxn(reason, myGen, myUid);
+  a.syncPromise = task;
+  try { return await task; }
+  finally { if (a.syncPromise === task) { a.syncing = false; a.syncPromise = null; } accountRender(); }
+}
+// accountSyncNow 拆出來的實際交易邏輯——獨立成函式是為了讓 permission-denied 的重試
+// (見下方 catch)只重跑交易本身,不重新經過外層的 a.syncing/a.loggingOut/plusIsActive() 閘門。
+async function accountSyncTxn(reason, myGen, myUid) {
+  const a = state.account;
   try {
     // Firestore rules 尚未放行新 collection 時,整筆交易會 permission-denied——退回舊清單重試,
     // 別讓新收藏類型上線的時間差中斷既有同步(stations 資料仍留在本機,rules 部署後重整即恢復上傳)
     const kinds = a.legacyKinds ? USER_DATA_COLLECTIONS.filter(k => k !== 'stations') : USER_DATA_COLLECTIONS;
-    const refs = Object.fromEntries(kinds.map(kind => [kind, a.fb.doc(a.db, 'users', a.user.uid, 'data', kind)]));
-    const local = userDataRead();
+    const refs = Object.fromEntries(kinds.map(kind => [kind, a.fb.doc(a.db, 'users', myUid, 'data', kind)]));
+    const local = userDataRead(myUid);
     const merged = await a.fb.runTransaction(a.db, async tx => {
       const docs = {};
       for (const kind of kinds) { const snap = await tx.get(refs[kind]); docs[kind] = snap.exists() ? snap.data() : null; }
@@ -6935,10 +7005,14 @@ async function accountSyncNow(reason) {
       });
       return out;
     });
-    if (!userDataWrite(merged)) throw new Error('瀏覽器儲存空間不足，無法保存同步結果');
+    // C-2 登入世代複查:交易解決後,身分是否還跟發起這次同步時一樣?變了(登出,或本機已被其他
+    // 路徑搶先清空)就丟棄這次結果,不寫回本機——這是修復「前一帳號快照寫回、污染下一帳號」的
+    // 關鍵一步,見本函式呼叫端 accountSyncNow 頂端的說明。
+    if (a.gen !== myGen || !a.user || a.user.uid !== myUid) return false;
+    if (!userDataWrite(merged, myUid)) throw new Error('瀏覽器儲存空間不足，無法保存同步結果');
     userDataNotify('remote');
     a.lastSync = Date.now();
-    try { localStorage.setItem('trainmap-last-sync-uid', a.user.uid); } catch (e) {}
+    try { localStorage.setItem('trainmap-last-sync-uid', myUid); } catch (e) {}
     if (typeof renderSavedPins === 'function') renderSavedPins();
     if (typeof renderFavs === 'function') renderFavs();
     if (typeof renderFavPanel === 'function') renderFavPanel();
@@ -6948,14 +7022,14 @@ async function accountSyncNow(reason) {
     return true;
   } catch (e) {
     if (!a.legacyKinds && e && e.code === 'permission-denied') {
-      a.legacyKinds = true; a.syncing = false; // 新 collection 被 rules 擋下 → 本 session 改用舊清單同步
-      return accountSyncNow(reason + '-legacy');
+      a.legacyKinds = true; // 新 collection 被 rules 擋下 → 本 session 改用舊清單同步
+      return accountSyncTxn(reason + '-legacy', myGen, myUid);
     }
     a.actionError = '同步失敗：' + (e && e.message ? e.message : String(e)); return false;
-  } finally { a.syncing = false; accountRender(); }
+  }
 }
 function accountScheduleSync() {
-  const a = state.account; if (!a || !a.user) return;
+  const a = state.account; if (!a || !a.user || a.loggingOut) return; // C-2:登出流程開始後不再受理新排程(避免新 timer 在清空本機後才觸發同步、把資料寫回去)
   clearTimeout(a.syncTimer); a.syncTimer = setTimeout(() => accountSyncNow('local-change'), 1200);
 }
 function accountNativeCredential(providerName, result) {
@@ -6982,8 +7056,12 @@ async function accountSignIn(providerName) {
     }
   } catch (e) { a.actionError = '登入失敗：' + (e && e.message ? e.message : String(e)); accountRender(); }
 }
-function accountClearLocal() {
-  const empty = userDataEmpty(); empty.revision = 0; empty.updatedAt = userDataNow(); userDataWrite(empty);
+// uid 由呼叫端明確傳入(登出/刪除帳號當下的 state.account.user 可能已經被 onAuthStateChanged
+// 提前清成 null——不能靠這裡重新去問「現在是誰」),否則會清錯分區(清到匿名分區,而不是剛
+// 登出/被刪除那個帳號自己的分區)。
+function accountClearLocal(uid) {
+  if (state.account) state.account.gen = (state.account.gen || 0) + 1; // C-2 世代前進:仍在途的舊同步之後複查世代會發現對不上,結果被丟棄不寫本機(見 accountSyncTxn)
+  const empty = userDataEmpty(); empty.revision = 0; empty.updatedAt = userDataNow(); userDataWrite(empty, uid);
   if (state.plus) { state.plus.active = false; state.plus.founding = false; state.plus.pkgMonthly = null; state.plus.pkgAnnual = null; state.plus.mgmtUrl = ''; state.plus.adapter = null; state.plus.afterUnlock = null; }
   if (window.RAIL_NATIVE_PLUS_ADAPTER && window.RAIL_NATIVE_PLUS_ADAPTER.clearUser) window.RAIL_NATIVE_PLUS_ADAPTER.clearUser().catch(() => {});
   plusTeardownListener().catch(() => {}); // C-4:登出解除 CustomerInfo 更新 listener,避免舊使用者的推播繼續打在剛登出/換人的 state 上
@@ -6996,9 +7074,13 @@ function accountClearLocal() {
 }
 async function accountSignOut() {
   const a = state.account; if (!a || !a.auth) return;
-  await accountSyncNow('logout');
-  try { await a.fb.signOut(a.auth); accountClearLocal(); accountClose(); }
-  catch (e) { a.actionError = '登出失敗：' + (e && e.message ? e.message : String(e)); accountRender(); }
+  const uid = a.user && a.user.uid; // 登出前先記下 uid;稍後清本機分區要用它,不依賴屆時的 state.account.user(signOut 完成後 onAuthStateChanged 可能已經把它設回 null)
+  a.loggingOut = true; clearTimeout(a.syncTimer); a.syncTimer = 0; // C-2 登出序列化:先擋新排程(accountScheduleSync 會看 a.loggingOut)、清掉還沒觸發的 debounce timer
+  try {
+    await accountSyncNow('logout'); // 一定會做完最後一次同步,不會被 a.syncing 靜默跳過(見 accountSyncNow 內對 isLogout 的等待邏輯)
+    try { await a.fb.signOut(a.auth); accountClearLocal(uid); accountClose(); }
+    catch (e) { a.actionError = '登出失敗：' + (e && e.message ? e.message : String(e)); accountRender(); }
+  } finally { a.loggingOut = false; }
 }
 // 刪除伺服器端的帳號資料：RevenueCat customer ＋ D1 的懸賞校正旅程資料（worker 的
 // /api/account-delete 兩件一起做）。
@@ -7045,7 +7127,7 @@ async function accountDelete() {
     }
     await accountDeleteServerData(u);
     for (const kind of USER_DATA_COLLECTIONS) await a.fb.deleteDoc(a.fb.doc(a.db, 'users', u.uid, 'data', kind));
-    await a.fb.deleteUser(u); accountClearLocal(); accountClose(); showToast('軌島帳號與同步資料已刪除');
+    await a.fb.deleteUser(u); accountClearLocal(u.uid); accountClose(); showToast('軌島帳號與同步資料已刪除');
   } catch (e) { a.actionError = '刪除失敗：' + (e && e.message ? e.message : String(e)); accountRender(); }
 }
 // 帳號系統延遲初始化:免費層匿名(不載 Firebase、不建 state.account),只有需要登入時(購買 Plus,或
@@ -7071,7 +7153,7 @@ function accountEnsureInit() {
       else if (action && action.dataset.action === 'logout') accountSignOut();
       else if (action && action.dataset.action === 'delete') accountDelete();
     };
-    state.account = { ready: false, user: null, syncing: false, lastSync: 0, actionError: '', error: '', syncTimer: 0 };
+    state.account = { ready: false, user: null, syncing: false, lastSync: 0, actionError: '', error: '', syncTimer: 0, gen: 0, loggingOut: false, syncPromise: null };
     accountRender();
     try {
       const fb = await accountLoadModules(), app = fb.initializeApp(window.RAIL_FIREBASE_CONFIG);
@@ -7082,6 +7164,7 @@ function accountEnsureInit() {
         : fb.getAuth(app);
       Object.assign(state.account, { fb, app, auth, db: fb.getFirestore(app) });
       fb.onAuthStateChanged(state.account.auth, async user => {
+        state.account.gen = (state.account.gen || 0) + 1; // C-2:每次身分變動(登入/登出/session 還原)世代前進,讓仍在途的舊同步之後複查世代能發現對不上(見 accountSyncTxn)
         state.account.user = user; state.account.ready = true; state.account.actionError = ''; accountRender();
         if (user) accountBtnSlot('account'); // 登入完成才把槽位換成帳號入口(帳號面板這時才有登出/同步/刪帳號可做);登出態刻意不翻,見 accountSlotMode
         if (accountIntent === 'delete') { accountIntent = ''; accountOpen(); }
