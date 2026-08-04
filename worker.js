@@ -870,10 +870,38 @@ function trtcBoardEpoch(rows, fallbackEpoch) {
   return newest == null ? fallbackEpoch : newest;
 }
 
+let trtcBoardBranchHintDay = null;
+let trtcBoardBranchHints = new Map();
+let trtcBoardBranchHintsLoaded = false;
+
+async function loadTrtcBoardBranchHints(env, day) {
+  if (!await ensureTrtcLedger(env)) return new Map();
+  const result = await env.TRTC_LEDGER.prepare(`SELECT a.alias,t.line
+      FROM trtc_track_aliases a JOIN trtc_tracks t ON t.day=a.day AND t.track_id=a.track_id
+      WHERE a.day=? AND a.alias_type='hw_no' AND t.line IN ('O_LUZHOU','O_XINZHUANG')`)
+    .bind(day).all();
+  return new Map((result.results || []).map(x => [String(x.alias), String(x.line)]));
+}
+
 async function trtcBoardPositionAnchors(env, rows) {
   const nowEpoch = trtcBoardEpoch(rows, Math.floor(Date.now() / 1000));
+  const day = trtcServiceDay(nowEpoch);
+  if (trtcBoardBranchHintDay !== day) {
+    trtcBoardBranchHintDay = day;
+    trtcBoardBranchHints = new Map();
+    trtcBoardBranchHintsLoaded = false;
+  }
+  if (!trtcBoardBranchHintsLoaded) {
+    try {
+      for (const [no, line] of await loadTrtcBoardBranchHints(env, day)) trtcBoardBranchHints.set(no, line);
+      trtcBoardBranchHintsLoaded = true;
+    } catch (e) {
+      console.warn('[trtc board-pos] 橘線分支提示讀取失敗:', (e && e.message) || String(e));
+    }
+  }
   const model = await trtcBoardModel(env);
-  const resolved = resolveBoardRows(model, rows, trtcEpoch);
+  const resolved = resolveBoardRows(model, rows, trtcEpoch, trtcBoardBranchHints);
+  trtcBoardBranchHints = resolved.lineHints;
   const claimed = claimBoardRows(model, resolved.rows, nowEpoch, new Map());
   const collapsed = collapseClaims(claimed.claims);
   return {
@@ -881,7 +909,9 @@ async function trtcBoardPositionAnchors(env, rows) {
     rows: collapsed.map(x => ({ line: x.line, dir: x.dir, from: x.from, to: x.to,
       dest: x.destIdx, run: x.run, arrEpoch: x.arrEpoch, no: x.no || '', terminal: !!x.terminal })),
     dropped: { ...resolved.dropped, unclaimed: claimed.unclaimed.length,
-      collapsed: claimed.claims.length - collapsed.length },
+      collapsed: claimed.claims.length - collapsed.length,
+      branchHinted: resolved.branch.hinted, branchFallback: resolved.branch.fallback,
+      branchConflicts: resolved.branch.conflicts },
   };
 }
 

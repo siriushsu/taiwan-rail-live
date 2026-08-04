@@ -5,7 +5,8 @@ import path from 'node:path';
 import { spawn, execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { chromium, webkit } from 'playwright';
-import { buildTrtcModel, resolveBoardRows, claimBoardRows, collapseClaims } from './trtc_board_ledger.mjs';
+import { buildTrtcModel, resolveBoardRows, claimBoardRows, collapseClaims,
+  branchLineHintsFromLedger } from './trtc_board_ledger.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const FIXTURE_PORT = Number(process.env.TRTC_POS_FIXTURE_PORT || 43387);
@@ -13,7 +14,11 @@ const WORKER_PORT = Number(process.env.TRTC_POS_WORKER_PORT || 43389);
 const INSPECTOR_PORT = Number(process.env.TRTC_POS_INSPECTOR_PORT || 43390);
 const FIXTURE = `http://127.0.0.1:${FIXTURE_PORT}`;
 const BASE = `https://127.0.0.1:${WORKER_PORT}`;
-const SCREEN_BASELINE_REF = process.env.TRTC_SCREEN_BASELINE_REF || 'c93d20c';
+const SCREEN_BASELINE_REF = process.env.TRTC_SCREEN_BASELINE_REF || '45f0fc1';
+// hold-out 的預測視野上限。舊值 4*60+15=255 秒是人為的，會讓「7 分以上」永遠 n=0；
+// UI 來車看板每方向顯示兩班，第二班在 4 分班距的線上約 8 分、5 分班距約 10 分，
+// 全都落在舊上限之外 ⇒ 產品上看得到的東西從來沒被驗過。拉到 30 分鐘才量得到衰減曲線。
+const HOLDOUT_HORIZON_SEC = Number(process.env.TRTC_HOLDOUT_HORIZON_SEC || 1800);
 const output = { fixture: FIXTURE, base: BASE, assertions: [], samples: [], mobile: [], metrics: {} };
 let failures = 0;
 
@@ -27,6 +32,83 @@ const percentile = (values, p) => {
   return a.length ? a[Math.min(a.length - 1, Math.floor((a.length - 1) * p))] : null;
 };
 const dist = values => ({ count: values.length, p50: percentile(values, .5), p90: percentile(values, .9), max: percentile(values, 1) });
+const signedDist = values => ({ count: values.length, p50: percentile(values, .5),
+  p90: percentile(values, .9), min: percentile(values, 0), max: percentile(values, 1),
+  mean: values.length ? values.reduce((a, b) => a + b, 0) / values.length : null });
+const haversineM = (a, b) => {
+  const rad = x => x * Math.PI / 180, p1 = rad(a.lat), p2 = rad(b.lat);
+  const dp = p2 - p1, dl = rad(b.lon - a.lon);
+  const h = Math.sin(dp / 2) ** 2 + Math.cos(p1) * Math.cos(p2) * Math.sin(dl / 2) ** 2;
+  return 12742000 * Math.asin(Math.min(1, Math.sqrt(h)));
+};
+
+function scanPositionSanity(frames) {
+  const range = frames.flatMap(f => f.rangeFailures || []);
+  const jumps = [], backwards = [], crossings = [];
+  let eligibleFramePairs = 0;
+  for (let i = 1; i < frames.length; i++) {
+    const before = frames[i - 1], after = frames[i], dt = after.at - before.at;
+    if (!(dt > 0 && dt <= 30)) continue;
+    eligibleFramePairs++;
+    const a = new Map(before.positions.map(x => [x.tripKey, x]));
+    const b = new Map(after.positions.map(x => [x.tripKey, x]));
+    for (const [key, next] of b) {
+      const prev = a.get(key); if (!prev) continue;
+      const meters = haversineM(prev, next);
+      if (meters > 2000) jumps.push({ fromSlot: before.slot, toSlot: after.slot, tripKey: key,
+        line: next.line, dt, meters: Math.round(meters), fromOrd: prev.ord, toOrd: next.ord });
+      if (next.ord < prev.ord - .75) backwards.push({ fromSlot: before.slot, toSlot: after.slot,
+        tripKey: key, line: next.line, fromOrd: prev.ord, toOrd: next.ord });
+    }
+    const groups = new Map();
+    for (const next of b.values()) {
+      const prev = a.get(next.tripKey); if (!prev || prev.routeKey !== next.routeKey) continue;
+      let list = groups.get(next.routeKey); if (!list) groups.set(next.routeKey, list = []);
+      list.push({ prev, next });
+    }
+    for (const [routeKey, list] of groups) for (let x = 0; x < list.length; x++) for (let y = x + 1; y < list.length; y++) {
+      const p = list[x], q = list[y];
+      if ((p.prev.ord - q.prev.ord) * (p.next.ord - q.next.ord) < -1e-6)
+        crossings.push({ fromSlot: before.slot, toSlot: after.slot, routeKey,
+          a: p.next.tripKey, b: q.next.tripKey });
+    }
+  }
+  return { eligibleFramePairs, range, jumps, backwards, crossings };
+}
+
+function summarizeHoldout(frames, predictedMutationSec = 0, truthMutationSec = 0) {
+  const forecasts = frames.flatMap((frame, frameIndex) => (frame.predictions || []).map(x => ({ ...x,
+    frameIndex, slot: frame.slot, issuedSec: frame.issuedSec, predictedSec: x.predictedSec + predictedMutationSec })));
+  const truths = frames.flatMap((frame, frameIndex) => (frame.truths || []).map(x => ({ ...x,
+    frameIndex, slot: frame.slot, actualSec: x.actualSec + truthMutationSec })));
+  const samples = [];
+  for (const f of forecasts) {
+    const future = truths.filter(t => t.frameIndex > f.frameIndex && t.line === f.line && t.dir === f.dir && t.to === f.to &&
+      t.actualSec >= f.issuedSec && t.actualSec - f.issuedSec <= HOLDOUT_HORIZON_SEC &&
+      (f.no ? (t.no && t.no === f.no) : (!t.no && t.tripKey === f.tripKey)))
+      .sort((a, b) => a.frameIndex - b.frameIndex || a.actualSec - b.actualSec)[0];
+    if (!future) continue;
+    const horizonSec = f.predictedSec - f.issuedSec;
+    if (!(horizonSec >= 0 && horizonSec <= HOLDOUT_HORIZON_SEC)) continue;
+    const signedErrorSec = f.predictedSec - future.actualSec;
+    samples.push({ line: f.line, source: f.source, identity: f.no ? 'official_no' : 'anonymous_schedule_assignment',
+      slot: f.slot, truthSlot: future.slot, tripKey: f.tripKey, no: f.no || '', to: f.to,
+      issuedSec: f.issuedSec, predictedSec: f.predictedSec, actualSec: future.actualSec,
+      horizonSec, signedErrorSec, absErrorSec: Math.abs(signedErrorSec) });
+  }
+  const group = rows => ({ absolute: dist(rows.map(x => x.absErrorSec)), signed: signedDist(rows.map(x => x.signedErrorSec)),
+    bias: { early: rows.filter(x => x.signedErrorSec < 0).length, exact: rows.filter(x => x.signedErrorSec === 0).length,
+      late: rows.filter(x => x.signedErrorSec > 0).length } });
+  const byLine = {};
+  for (const line of [...new Set(samples.map(x => x.line))].sort()) {
+    byLine[line] = {};
+    for (const source of ['own', 'fallback']) byLine[line][source] = group(samples.filter(x => x.line === line && x.source === source));
+  }
+  const bySource = Object.fromEntries(['own', 'fallback'].map(source => [source, group(samples.filter(x => x.source === source))]));
+  const byIdentity = Object.fromEntries(['official_no', 'anonymous_schedule_assignment']
+    .map(identity => [identity, group(samples.filter(x => x.identity === identity))]));
+  return { samples, byLine, bySource, byIdentity };
+}
 const epoch = value => {
   const m = String(value).match(/(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2}):(\d{2})/);
   return m ? Math.floor(Date.UTC(+m[1], +m[2] - 1, +m[3], +m[4], +m[5], +m[6]) / 1000) - 8 * 3600 : null;
@@ -62,15 +144,24 @@ async function fixtureRows(slot) {
   return JSON.parse(json);
 }
 
-function boardPositionPayload(raw) {
+function boardPositionPayload(raw, branchHints = null) {
   const at = Math.max(...raw.map(row => epoch(row.NowDateTime) || 0));
-  const resolved = resolveBoardRows(model, raw, epoch);
+  const resolved = resolveBoardRows(model, raw, epoch, branchHints || new Map());
+  if (branchHints) {
+    branchHints.clear();
+    for (const [no, line] of resolved.lineHints) branchHints.set(no, line);
+  }
   const claimed = claimBoardRows(model, resolved.rows, at, new Map());
   const collapsed = collapseClaims(claimed.claims);
   return {
     at,
     rows: collapsed.map(x => ({ line: x.line, dir: x.dir, from: x.from, to: x.to,
       dest: x.destIdx, run: x.run, arrEpoch: x.arrEpoch, no: x.no || '', terminal: !!x.terminal })),
+    atStation: collapsed.flatMap(owner => (owner.eventClaims.length ? owner.eventClaims : [owner])
+      .filter(event => event.atStation).map(event => ({ line: event.line, to: event.to,
+        arrEpoch: event.arrEpoch, no: event.no || owner.no || '', owner: { line: owner.line, dir: owner.dir,
+          from: owner.from, to: owner.to, dest: owner.destIdx, arrEpoch: owner.arrEpoch, no: owner.no || '' } }))),
+    branch: resolved.branch,
   };
 }
 
@@ -205,14 +296,18 @@ async function run() {
     await page.evaluate(() => { _trtcPolling = true; }); // 後續逐槽由測試明確注入，避免 15 秒輪詢改動 fixture call 順序
     await page.evaluate(() => { _lineAnom.clear(); _trtcNoTrip.clear(); _easedShift.clear(); });
 
-    const correctedErrors = [], baselineErrors = [], directions = new Set(), lineTotals = {};
+    const anchorResiduals = [], baselineDistances = [], directions = new Set(), lineTotals = {};
     const invariantFailures = [], rawSnapshots = [], currentScreenCounts = [], normalAnomalyFrames = [];
+    const auditFrames = [], branchFrames = [], branchHints = new Map();
     let mutationWitness = 0;
     for (let i = 1; i <= 17; i++) {
       const slot = `s${String(i).padStart(2, '0')}`;
       const raw = await fixtureRows(slot); rawSnapshots.push(raw);
-      const payload = boardPositionPayload(raw);
-      const result = await page.evaluate(({ rows, at }) => {
+      const payload = boardPositionPayload(raw, branchHints);
+      branchFrames.push({ slot, ...payload.branch, hints: branchHints.size,
+        luzhou: payload.rows.filter(x => x.line === 'O_LUZHOU' && !x.terminal).length,
+        xinzhuang: payload.rows.filter(x => x.line === 'O_XINZHUANG' && !x.terminal).length });
+      const result = await page.evaluate(({ rows, at, atStation, horizonCap }) => {
         map.setView([25.0478, 121.5170], 16, { animate: false });
         state.simSec = trtcServiceSec(at); state.clockAtNow = true;
         _easedShift.clear(); _metroGateEp.on = false; _metroGateEp.at = 0;
@@ -224,12 +319,50 @@ async function run() {
         for (const ln of metroLivePool()) if (ln._trtcBoard) ln._trtcBoard.at = Date.now();
         _mlGate = true; _mlGateAt = Date.now();
         const pool = metroLivePool().filter(ln => isTrtcBoardLine(ln) && ln._tt);
-        const countRows = [], positions = [];
+        const countRows = [], positions = [], predictions = [], screenPositions = [], rangeFailures = [];
         let mutationHits = 0;
         for (const ln of pool) {
           const roster = ln._tt.filter(tr => freqTrainTime(tr, state.simSec) != null).length;
           const screen = ln._tt.filter(tr => freqTrainPosAt(ln, tr, state.simSec) != null).length;
-          countRows.push({ line: ln.id, roster, screen, matched: audit.byLine[ln.id] ? audit.byLine[ln.id].matched : 0 });
+          countRows.push({ line: ln.id, roster, screen,
+            anchors: audit.byLine[ln.id] ? audit.byLine[ln.id].anchors : 0,
+            movingAnchors: rows.filter(x => x.line === ln.id && !x.terminal).length,
+            matched: audit.byLine[ln.id] ? audit.byLine[ln.id].matched : 0 });
+          for (const tr of ln._tt) {
+            const rosterTime = freqTrainTime(tr, state.simSec);
+            if (rosterTime == null) continue;
+            const board = ln._trtcBoard;
+            const own = !!(board && board.shifts.has(tr));
+            const targetShift = board ? (own ? board.shifts.get(tr) : board.all) : 0;
+            const shifted = Math.max(tr[1], Math.min(tr[tr.length - 1], rosterTime - targetShift));
+            const tripKey = freqTripKey(ln, tr), pos = freqTrainPosAt(ln, tr, state.simSec);
+            if (!(shifted >= tr[1] && shifted <= tr[tr.length - 1]) || !pos ||
+                !Number.isFinite(pos.lat) || !Number.isFinite(pos.lon))
+              rangeFailures.push({ line: ln.id, tripKey, shifted, start: tr[1], end: tr[tr.length - 1], pos });
+            let ord = tr.length / 2 - 1;
+            for (let k = 1; k < tr.length / 2; k++) {
+              const dep = tr[(k - 1) * 2 + 1], nextDep = tr[k * 2 + 1], run = runBetween(ln, tr[(k - 1) * 2], tr[k * 2]);
+              const move = run && run < nextDep - dep ? run : nextDep - dep;
+              if (shifted < nextDep) { ord = k - 1 + Math.max(0, Math.min(1, (shifted - dep) / Math.max(1, move))); break; }
+            }
+            screenPositions.push({ line: ln.id, dir: tr[0] <= tr[tr.length - 2] ? 1 : -1,
+              dest: tr[tr.length - 2], routeKey: ln.id + '|' + (tr[0] <= tr[tr.length - 2] ? 1 : -1) + '|' + tr[tr.length - 2],
+              tripKey, ord, lat: pos && pos.lat, lon: pos && pos.lon });
+            if (!board) continue;
+            let no = '';
+            const currentAssignment = audit.assignments.find(a => a.tripKey === tripKey);
+            if (own && currentAssignment) no = currentAssignment.no || '';
+            else for (const [key, value] of _trtcNoTrip) if (value === tripKey) { no = key.split('|').slice(2).join('|'); break; }
+            for (let k = 1; k < tr.length / 2; k++) {
+              const from = tr[(k - 1) * 2], to = tr[k * 2], dep = tr[(k - 1) * 2 + 1], nextDep = tr[k * 2 + 1];
+              const run = runBetween(ln, from, to), move = run && run < nextDep - dep ? run : nextDep - dep;
+              const predictedSec = dep + move + targetShift;
+              if (predictedSec + .5 < state.simSec) continue;
+              if (predictedSec - state.simSec > horizonCap) break;
+              predictions.push({ line: ln.id, dir: tr[0] <= tr[tr.length - 2] ? 1 : -1, tripKey, no, to, predictedSec,
+                source: own ? 'own' : 'fallback', targetShift });
+            }
+          }
         }
         for (const a of audit.assignments) {
           const ln = pool.find(x => x.id === a.line);
@@ -250,20 +383,34 @@ async function run() {
             expected = posBetweenStations(ln, a.from, a.to, progress);
           }
           if (actual && baseline && expected) positions.push({ line: a.line, dir: a.dir, no: a.no,
-            correctedM: map.distance(actual, expected), baselineM: map.distance(baseline, expected), shift: a.shift });
+            anchorResidualM: map.distance(actual, expected), baselineDistanceM: map.distance(baseline, expected), shift: a.shift });
+        }
+        const truths = [];
+        for (const truth of atStation || []) {
+          const actualSec = trtcServiceSec(truth.arrEpoch);
+          const owner = truth.owner, ownerSec = trtcServiceSec(owner.arrEpoch);
+          const hit = audit.assignments.find(a => a.line === owner.line && a.dir === (owner.dir === 2 ? 1 : -1) &&
+            a.from === owner.from && a.to === owner.to && a.dest === owner.dest && a.arrSec === ownerSec &&
+            (!owner.no || a.no === owner.no));
+          truths.push({ line: truth.line, dir: owner.dir === 2 ? 1 : -1, to: truth.to, no: truth.no || '', actualSec,
+            tripKey: hit ? hit.tripKey : '', assignmentMatched: !!hit });
         }
         const anomalies = pool.filter(ln => anomalyOf(ln)).map(ln => ln.id + ':' + anomalyOf(ln).kind);
-        return { audit, countRows, positions, mutationHits, zoom: map.getZoom(), anomalies };
-      }, payload);
+        return { audit, countRows, positions, predictions, truths, screenPositions, rangeFailures, simSec: state.simSec,
+          mutationHits, zoom: map.getZoom(), anomalies };
+      }, { ...payload, horizonCap: HOLDOUT_HORIZON_SEC });
+      auditFrames.push({ slot, at: payload.at, issuedSec: result.simSec, predictions: result.predictions, truths: result.truths,
+        positions: result.screenPositions, rangeFailures: result.rangeFailures });
       currentScreenCounts.push(Object.fromEntries(result.countRows.map(row => [row.line, row.screen])));
       normalAnomalyFrames.push({ slot, anomalies: result.anomalies });
       for (const row of result.countRows) {
         if (row.roster !== row.screen) invariantFailures.push({ slot, ...row });
-        const rec = lineTotals[row.line] || (lineTotals[row.line] = { roster: 0, matched: 0 });
-        rec.roster += row.roster; rec.matched += row.matched;
+        const rec = lineTotals[row.line] || (lineTotals[row.line] = { roster: 0, anchors: 0, movingAnchors: 0, matched: 0 });
+        rec.roster += row.roster; rec.anchors += row.anchors;
+        rec.movingAnchors += row.movingAnchors; rec.matched += row.matched;
       }
       for (const p of result.positions) {
-        correctedErrors.push(p.correctedM); baselineErrors.push(p.baselineM); directions.add(p.dir);
+        anchorResiduals.push(p.anchorResidualM); baselineDistances.push(p.baselineDistanceM); directions.add(p.dir);
       }
       mutationWitness += result.mutationHits;
       output.samples.push({ slot, at: payload.at, rows: payload.rows.length, matched: result.audit.matched,
@@ -272,13 +419,87 @@ async function run() {
     }
 
     output.metrics = {
-      invariantFailures, mutationWitness, corrected: dist(correctedErrors), baseline: dist(baselineErrors),
-      directions: [...directions].sort(), lineTotals,
+      invariantFailures, mutationWitness, anchorConsistencyOnly: dist(anchorResiduals), baselineDistance: dist(baselineDistances),
+      directions: [...directions].sort(), lineTotals, orangeBranchHints: branchFrames,
     };
     check(invariantFailures.length === 0 && mutationWitness > 0, '車數恆等式（附真實偏移突變）',
       `17 snapshots，mismatch=${invariantFailures.length}；舊式 shift 決定存在的突變命中=${mutationWitness}`);
-    check(correctedErrors.length > 0 && percentile(correctedErrors, .9) < percentile(baselineErrors, .9),
-      '逐班校正位置優於純班表', `corrected=${JSON.stringify(dist(correctedErrors))}, baseline=${JSON.stringify(dist(baselineErrors))}`);
+    const warm = branchFrames.slice(8);
+    const hintControl = resolveBoardRows(model, [{ TrainNumber: '431', StationName: '行天宮站',
+      DestinationName: '南勢角站', CountDown: '00:30', NowDateTime: '2026-08-03 08:17:53' }], epoch,
+      new Map([['431', 'O_LUZHOU']]));
+    const hintMutation = resolveBoardRows(model, [{ TrainNumber: '431', StationName: '行天宮站',
+      DestinationName: '南勢角站', CountDown: '00:30', NowDateTime: '2026-08-03 08:17:53' }], epoch,
+      new Map([['431', 'O_XINZHUANG']]));
+    const ledgerHint = branchLineHintsFromLedger(
+      [{ track_id: 'trk-l', line: 'O_LUZHOU', official_no: '431' }],
+      [{ alias_type: 'hw_no', alias: '431', track_id: 'trk-l' }]);
+    check(branchFrames[0].fallback > 0 && branchFrames.some(x => x.hinted > 0) &&
+      warm.every(x => x.fallback === 0 && x.conflicts === 0),
+      '橘線跨輪分支身分：無證據首輪保留退路，暖機後共線列全數有提示',
+      `firstFallback=${branchFrames[0].fallback}, warm=${JSON.stringify(warm.map(x => ({ slot: x.slot, hinted: x.hinted, fallback: x.fallback, conflicts: x.conflicts })))}`);
+    check(hintControl.rows[0] && hintControl.rows[0].line === 'O_LUZHOU' &&
+      hintMutation.rows[0] && hintMutation.rows[0].line === 'O_XINZHUANG' && ledgerHint.get('431') === 'O_LUZHOU',
+      '橘線分支提示控制組／突變組／帳本復原組',
+      `control=${hintControl.rows[0] && hintControl.rows[0].line}, mutation=${hintMutation.rows[0] && hintMutation.rows[0].line}, ledger=${ledgerHint.get('431')}`);
+    const positionSanity = scanPositionSanity(auditFrames);
+    const sanityControl = scanPositionSanity([
+      { slot: 'c1', at: 0, positions: [
+        { tripKey: 'a', line: 'T', routeKey: 'T|1|2', ord: 0, lat: 25, lon: 121 },
+        { tripKey: 'b', line: 'T', routeKey: 'T|1|2', ord: 1, lat: 25.001, lon: 121 }], rangeFailures: [] },
+      { slot: 'c2', at: 15, positions: [
+        { tripKey: 'a', line: 'T', routeKey: 'T|1|2', ord: .1, lat: 25.0001, lon: 121 },
+        { tripKey: 'b', line: 'T', routeKey: 'T|1|2', ord: 1.1, lat: 25.0011, lon: 121 }], rangeFailures: [] },
+    ]);
+    const sanityMutation = scanPositionSanity([
+      { slot: 'm1', at: 0, positions: [
+        { tripKey: 'a', line: 'T', routeKey: 'T|1|2', ord: 0, lat: 25, lon: 121 },
+        { tripKey: 'b', line: 'T', routeKey: 'T|1|2', ord: 1, lat: 25.001, lon: 121 }], rangeFailures: [] },
+      { slot: 'm2', at: 15, positions: [
+        { tripKey: 'a', line: 'T', routeKey: 'T|1|2', ord: 2, lat: 25.1, lon: 121 },
+        { tripKey: 'b', line: 'T', routeKey: 'T|1|2', ord: -.1, lat: 25.0011, lon: 121 }],
+        rangeFailures: [{ line: 'T', tripKey: 'mutated' }] },
+    ]);
+    output.metrics.positionSanity = positionSanity;
+    output.metrics.positionSanityMutation = { control: sanityControl, mutated: sanityMutation };
+    const sanityCount = x => x.range.length + x.jumps.length + x.backwards.length + x.crossings.length;
+    check(anchorResiduals.length > 0 && percentile(anchorResiduals, .9) < 1500 && positionSanity.range.length === 0,
+      '位置區間契約：不出班表行程範圍（跨槽跳站／倒退／穿越因 210 秒槽距無法下結論）',
+      `anchor 同源殘差只作契約檢查=${JSON.stringify(dist(anchorResiduals))}；sanity=${JSON.stringify(positionSanity)}`);
+    check(sanityCount(sanityControl) === 0 && sanityCount(sanityMutation) >= 4,
+      '位置離譜收集器控制組／突變組', `control=${sanityCount(sanityControl)}, mutation=${sanityCount(sanityMutation)}`);
+
+    // A 主菜：第 k 槽只以當下 shift 預測下一站到站秒；真值只取後續槽 CountDown=列車進站。
+    // 有官方車號的列直接用車號跨槽對齊（不經後槽班表 matcher）；文湖線無車號，只能另列為
+    // anonymous_schedule_assignment，不能把它與官方車號組混成同等強度的獨立真值。
+    const holdout = summarizeHoldout(auditFrames);
+    const predictionMutation = summarizeHoldout(auditFrames, 60, 0);
+    const truthMutation = summarizeHoldout(auditFrames, 0, 60);
+    const sampleKey = x => `${x.slot}|${x.truthSlot}|${x.tripKey}|${x.to}|${x.source}`;
+    const baseByKey = new Map(holdout.samples.map(x => [sampleKey(x), x]));
+    const predWitness = predictionMutation.samples.filter(x => baseByKey.has(sampleKey(x)) &&
+      x.signedErrorSec - baseByKey.get(sampleKey(x)).signedErrorSec === 60).length;
+    const truthWitness = truthMutation.samples.filter(x => baseByKey.has(sampleKey(x)) &&
+      x.signedErrorSec - baseByKey.get(sampleKey(x)).signedErrorSec === -60).length;
+    const holdoutFutureOnly = holdout.samples.every(x => Number(x.truthSlot.slice(1)) > Number(x.slot.slice(1)));
+    output.metrics.arrivalHoldout = holdout;
+    output.metrics.arrivalHoldoutFrameCounts = auditFrames.map(f => ({ slot: f.slot,
+      predictions: f.predictions.length, truths: f.truths.length,
+      predictionWithNo: f.predictions.filter(x => x.no).length,
+      truthMatched: f.truths.filter(x => x.assignmentMatched).length,
+      truthWithNo: f.truths.filter(x => x.no).length }));
+    output.metrics.arrivalHoldoutDebug = auditFrames.slice(0, 2).map(f => ({ slot: f.slot,
+      predictions: f.predictions.slice(0, 8), truths: f.truths.slice(0, 8) }));
+    output.metrics.arrivalHoldoutFrames = auditFrames.map(f => ({ slot: f.slot, at: f.at, issuedSec: f.issuedSec,
+      predictions: f.predictions, truths: f.truths }));
+    output.metrics.arrivalHoldoutMutation = { predictionPlus60Witness: predWitness, truthPlus60Witness: truthWitness };
+    check(holdout.samples.length > 0 && holdoutFutureOnly,
+      '到站時間 hold-out：預測只用第 k 槽、真值只來自後續「列車進站」槽',
+      `forecasts=${holdout.samples.length}, official-no=${holdout.samples.filter(x => x.identity === 'official_no').length}, ` +
+      `anonymous=${holdout.samples.filter(x => x.identity !== 'official_no').length}`);
+    check(predWitness > 0 && truthWitness > 0,
+      '時間誤差收集器控制組／雙向突變組',
+      `prediction+60s witnesses=${predWitness}, future-truth+60s witnesses=${truthWitness}`);
     check(directions.has(-1) && directions.has(1), '兩個行車方向皆有實測', `directions=${JSON.stringify([...directions].sort())}`);
     check(Object.values(lineTotals).every(x => x.roster === 0 || x.matched > 0), '各北捷線皆有真實錨點覆蓋', JSON.stringify(lineTotals));
     check(lineTotals.Y && lineTotals.Y.roster > 0 && lineTotals.Y.matched > 0,
@@ -397,7 +618,7 @@ async function run() {
       '已知限制：移除車數判定後，看板九線對停駛／誤點型事故不再自行告警（改由官方公告承擔）',
       `三種注入的告警數皆為 0 = ${structurallyBlind}`);
 
-    // 最重要的存在性對照：同一批 17 槽在改動前 c93d20c 與目前 index 上逐槽逐線數車，必須完全相同。
+    // 最重要的存在性對照：同一批 17 槽在派工基準 45f0fc1 與目前 index 上逐槽逐線數車，必須完全相同。
     // 基準頁只替換 document；資料、fixture、payload 與瀏覽器引擎都和目前頁一致。
     const baselineHtml = execFileSync('git', ['show', `${SCREEN_BASELINE_REF}:index.html`],
       { cwd: ROOT, encoding: 'utf8', maxBuffer: 8 * 1024 * 1024 });

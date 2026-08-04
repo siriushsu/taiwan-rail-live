@@ -155,19 +155,23 @@ function boardCandidates(model, stationName, destName) {
     .map(x => ({ line: x.line, stationIdx: x.i, destIdx: byDest.get(x.line) }));
 }
 
-function pickBoardCandidate(candidates, trainNo) {
+function pickBoardCandidate(candidates, trainNo, lineHints) {
   if (candidates.length === 1) return candidates[0];
   const ids = candidates.map(x => x.line).sort().join('+');
   if (ids === 'BL+BR') return candidates.find(x => x.line === (trainNo ? 'BL' : 'BR')) || null;
   if (ids === 'O_LUZHOU+O_XINZHUANG') {
+    const hintedLine = trainNo && lineHints && lineHints.get(String(trainNo));
+    const hinted = hintedLine && candidates.find(v => v.line === hintedLine);
+    if (hinted) return hinted;
     const x = candidates.find(v => v.line === 'O_XINZHUANG');
     return x && x.stationIdx <= O_TRUNK_MAX && x.destIdx <= O_TRUNK_MAX ? x : null;
   }
   return null;
 }
 
-export function resolveBoardRows(model, rows, epochOf) {
+export function resolveBoardRows(model, rows, epochOf, seedLineHints = new Map()) {
   const out = [], dropped = { countdown: 0, time: 0, station: 0, ambiguous: 0 };
+  const prepared = [], directLines = new Map(), lineHints = new Map(seedLineHints || []);
   for (const raw of rows || []) {
     const sec = countdownSec(raw && raw.CountDown);
     if (sec == null) { dropped.countdown++; continue; }
@@ -176,8 +180,25 @@ export function resolveBoardRows(model, rows, epochOf) {
     const no = String(raw && raw.TrainNumber || '');
     const candidates = boardCandidates(model, normStationName(raw && raw.StationName), normStationName(raw && raw.DestinationName));
     if (!candidates.length) { dropped.station++; continue; }
-    const pick = pickBoardCandidate(candidates, no);
+    prepared.push({ raw, sec, baseEpoch, no, candidates });
+    if (no && candidates.length === 1 && /^O_(?:LUZHOU|XINZHUANG)$/.test(candidates[0].line)) {
+      if (!directLines.has(no)) directLines.set(no, new Set());
+      directLines.get(no).add(candidates[0].line);
+    }
+  }
+  const conflicts = new Set();
+  for (const [no, lines] of directLines) {
+    if (lines.size === 1) lineHints.set(no, [...lines][0]);
+    else { conflicts.add(no); lineHints.delete(no); }
+  }
+  let hinted = 0, fallback = 0;
+  for (const { raw, sec, baseEpoch, no, candidates } of prepared) {
+    const orangeAmbiguous = candidates.length > 1 &&
+      candidates.map(x => x.line).sort().join('+') === 'O_LUZHOU+O_XINZHUANG';
+    const hasHint = orangeAmbiguous && no && lineHints.has(no) && !conflicts.has(no);
+    const pick = pickBoardCandidate(candidates, no, conflicts.has(no) ? null : lineHints);
     if (!pick) { dropped.ambiguous++; continue; }
+    if (orangeAmbiguous) { if (hasHint) hinted++; else fallback++; }
     const dir = pick.destIdx > pick.stationIdx ? 2 : 1;
     out.push({
       line: pick.line, dir, stationIdx: pick.stationIdx, destIdx: pick.destIdx,
@@ -185,7 +206,25 @@ export function resolveBoardRows(model, rows, epochOf) {
       arrEpoch: baseEpoch + sec, baseEpoch, sec, atStation: sec === 0,
     });
   }
-  return { rows: out, dropped };
+  return { rows: out, dropped, lineHints,
+    branch: { hinted, fallback, conflicts: conflicts.size, learned: directLines.size } };
+}
+
+// 橘線車進入大橋頭以南共線段後，站碼與終點「南勢角」都無法再分出蘆洲／新莊。
+// 看板官方車號才是跨輪身分；這份 hint 只改錨點屬於哪一支，不參與列車存在性。
+export function branchLineHintsFromLedger(priorTracks = [], aliases = []) {
+  const byId = new Map((priorTracks || []).map(x => [String(x.track_id), x]));
+  const hints = new Map();
+  const accept = (no, line) => {
+    if (no && /^O_(?:LUZHOU|XINZHUANG)$/.test(String(line || ''))) hints.set(String(no), String(line));
+  };
+  for (const track of priorTracks || []) accept(track.official_no, track.line);
+  for (const alias of aliases || []) {
+    if (alias.alias_type !== 'hw_no') continue;
+    const track = byId.get(String(alias.track_id));
+    if (track) accept(alias.alias, track.line);
+  }
+  return hints;
 }
 
 export function calibrationKey(line, dir, from, to) { return `${line}|${dir}|${from}>${to}`; }
@@ -569,7 +608,7 @@ export function buildLedgerFromRaw({ model, boardRows, hwRows, brRows, epochOf, 
     const track = trackById.get(String(a.track_id));
     if (track) priorLineByAlias.set(aliasKey(a.alias_type, String(a.alias)), track.line);
   }
-  const resolved = resolveBoardRows(model, boardRows, epochOf);
+  const resolved = resolveBoardRows(model, boardRows, epochOf, branchLineHintsFromLedger(priorTracks, aliases));
   // 支線共站的 StationID 本身無法分支；同批看板已有終點，先用它提示官方號所屬線。
   for (const row of resolved.rows) if (row.no) priorLineByAlias.set(aliasKey('hw_no', row.no), row.line);
   const claimed = claimBoardRows(model, resolved.rows, nowEpoch, calibrations);
