@@ -20,6 +20,7 @@ const FILES = {
   terms: 'terms.html',
   privacy: 'privacy.html',
   support: 'app-support.html',
+  accountDeletion: 'account-deletion.html',
   rules: 'firestore.rules',
   worker: 'worker.js',
   index: 'index.html',
@@ -134,8 +135,14 @@ const entitlementDocumentFunction = extractFunction(src.worker, 'plusEntitlement
 const writeEntitlementFunction = extractFunction(src.worker, 'writePlusEntitlement');
 const plusStatusFunction = extractFunction(src.worker, 'plusStatus');
 const webhookFunction = extractFunction(src.worker, 'revenueCatWebhook');
+// 批二-C：刪帳號一併刪除資格文件（entitlements/{uid}）。
+const deleteAccountDataFunction = extractFunction(src.worker, 'deleteAccountData');
+const deletePlusEntitlementFunction = extractFunction(src.worker, 'deletePlusEntitlement');
 
-const docs = { terms: htmlText(src.terms), privacy: htmlText(src.privacy), support: htmlText(src.support) };
+const docs = {
+  terms: htmlText(src.terms), privacy: htmlText(src.privacy), support: htmlText(src.support),
+  accountDeletion: htmlText(src.accountDeletion),
+};
 const privacySyncList = htmlText((src.privacy.match(/<p>Plus 訂閱有效且登入後[^]*?<\/ul>/) || [])[0] || '');
 const scopes = {
   termsAccount: paragraphWith(src.terms, '跨裝置同步屬軌島 Plus 功能'),
@@ -229,6 +236,28 @@ check('D6-ACCOUNT-DELETION', '文案', '三份文件都提供刪除帳號與同�
   return { pass: Object.values(found).every(Boolean), detail: Object.entries(found).map(([name, value]) => `${name}=${value}`).join('；') };
 });
 
+// 批二-C（2026-08-04 整合稽核 Important 4）：刪帳號會刪掉資格文件（entitlements/{uid}），
+// 且要準確揭露刪除帳號不會取消訂閱本身——訂閱在 Apple／RevenueCat 那邊，軌島刪不掉也不該假裝
+// 刪得掉。三份文件裡至少要有一份把「刪帳號會刪什麼」講到資格紀錄；「訂閱不會被取消」這句則要求
+// terms／privacy／account-deletion 三處一致（terms.html 原本就有這句，這裡連它一起釘住，
+// 避免日後改 terms.html 時只顧著改新兩處、把原本就對的那句改壞而沒人發現）。
+check('D7-ENTITLEMENT-DELETION', '文案', '刪除帳號涵蓋 Plus 資格紀錄，並準確揭露訂閱不會因此被取消', () => {
+  const ENTITLEMENT = /Plus\s*資格紀錄/;
+  const NO_CANCEL = /刪除軌島帳號不會自動取消進行中的訂閱/;
+  const CANCEL_WHERE = /App Store 的訂閱設定取消訂閱/;
+  const found = {
+    privacyDeletionListMentionsEntitlement: ENTITLEMENT.test(elementWith(src.privacy, '刪除帳號會刪除')),
+    accountDeletionListMentionsEntitlement: ENTITLEMENT.test(docs.accountDeletion),
+    privacyStatesNoCancel: NO_CANCEL.test(docs.privacy) && CANCEL_WHERE.test(docs.privacy),
+    accountDeletionStatesNoCancel: NO_CANCEL.test(docs.accountDeletion) && CANCEL_WHERE.test(docs.accountDeletion),
+    termsStatesNoCancel: NO_CANCEL.test(docs.terms) && CANCEL_WHERE.test(docs.terms),
+  };
+  return {
+    pass: Object.values(found).every(Boolean),
+    detail: Object.entries(found).map(([key, value]) => `${key}=${value}`).join('；'),
+  };
+});
+
 check('B1-SYNC-KINDS', '行為', '前端同步集合與規則允許集合一致', () => ({
   pass: sameSet(indexKinds, readDeleteKinds) && sameSet(indexKinds, createUpdateKinds),
   detail: `index.USER_DATA_COLLECTIONS=[${indexKinds.join(',')}]; read/delete.kind=[${readDeleteKinds.join(',')}]; create/update.kind=[${createUpdateKinds.join(',')}]`,
@@ -285,6 +314,18 @@ check('B6-LAPSED-CLOUD-RETENTION', '行為', '資格失效寫成 inactive，資�
   return {
     pass: inactive.active === false && active.active === true && statusWrites && webhookWrites && entitlementPath && qualificationDeletes.length === 0 && accountDeletes.length > 0,
     detail: `空資格→active=${inactive.active}；有效正向對照→active=${active.active}；plus-status 寫資格=${statusWrites}；webhook 寫資格=${webhookWrites}；寫入路徑=entitlements:${entitlementPath}；同一破壞呼叫收集器 資格更新=[${qualificationDeletes.join(',') || '無'}]／accountDelete=[${accountDeletes.join(',') || '無'}]`,
+  };
+});
+
+check('B7-ACCOUNT-DELETE-ENTITLEMENT', '行為', '刪帳號流程真的呼叫刪除資格文件，404 視為成功、其他失敗會讓整支回錯（撐住 D7 的文案承諾）', () => {
+  const callsDelete = /\bdeletePlusEntitlement\s*\(/.test(deleteAccountDataFunction);
+  const deletesEntitlementPath = /documents\/entitlements\/\$\{documentId\}/.test(deletePlusEntitlementFunction);
+  const usesDeleteMethod = /method:\s*'DELETE'/.test(deletePlusEntitlementFunction);
+  const idempotent404 = /response\.status\s*===\s*404/.test(deletePlusEntitlementFunction) && /response\.ok/.test(deletePlusEntitlementFunction);
+  const failureSurfaced = /entitlement deletion failed/.test(deleteAccountDataFunction);
+  return {
+    pass: callsDelete && deletesEntitlementPath && usesDeleteMethod && idempotent404 && failureSurfaced,
+    detail: `呼叫=${callsDelete}；路徑=${deletesEntitlementPath}；DELETE 方法=${usesDeleteMethod}；404 冪等=${idempotent404}；失敗會回錯=${failureSurfaced}`,
   };
 });
 
