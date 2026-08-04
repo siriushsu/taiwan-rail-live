@@ -252,10 +252,23 @@ await check('E3 資格已過期時 create/update 都不可寫；未到期對照�
   await assertSucceeds(setDoc(dataRef(db, uid), validDoc('favs', 2)));
 });
 
-await check('E4 activeUntilMs == 0 的終身資格可 create/update', async () => {
-  const uid = 'e4-lifetime';
+// 🔴 2026-08-04:這條原本叫「activeUntilMs == 0 的終身資格可 create/update」,斷言方向與現在相反。
+// 那個「0＝終身」是從實作回推的假設,不是規格(RevenueCat 的 ends_at 為 null 是「無限期暫停」),
+// 敵意稽核 I-6 已經把它從 worker 那半邊拿掉——active 文件不再寫得出 0。判準卻還把規則這半邊的
+// 同一個誤讀釘住,等於用測試保護一個洞:任何讓 0 落地的回歸或外力寫入,都會被升級成永不失效的
+// 雲端寫入權,而且測試會說這是對的。方向改成「0 ⇒ 拒絕」。
+await check('E4 active 文件的 activeUntilMs == 0 ⇒ 拒絕（0 不是終身標記）；換成有界到期時間的對照可寫', async () => {
+  const uid = 'e4-zero-until';
   const db = testEnv.authenticatedContext(uid).firestore();
   await seedEntitlement(uid, entitlementDoc({ activeUntilMs: 0 }));
+  await removeData(uid);
+  await assertFails(setDoc(dataRef(db, uid), validDoc()));
+  await seedData(uid);
+  await assertFails(setDoc(dataRef(db, uid), validDoc('favs', 2)));
+
+  // 正向對照(照 E2／E3 的形狀):同一個 uid、同一份資料,只把 activeUntilMs 換成有界的未來時間
+  // ⇒ 可寫。少了這一段,上面兩發 assertFails 可能是別的原因造成的——拒絕永遠比放行容易誤中。
+  await seedEntitlement(uid);
   await removeData(uid);
   await assertSucceeds(setDoc(dataRef(db, uid), validDoc()));
   await assertSucceeds(setDoc(dataRef(db, uid), validDoc('favs', 2)));
