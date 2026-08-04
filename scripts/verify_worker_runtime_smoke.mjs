@@ -104,17 +104,20 @@ async function startServer(label, workerSource) {
     try { rmSync(dir, { recursive: true, force: true }); } catch (e) { /* 同上 */ }
   };
 
-  // 就緒檢查一定要**真打一發 HTTP**（只看埠開了會誤判成已就緒）。
-  const deadline = Date.now() + 150_000;
+  // 就緒檢查一定要**真打一發 HTTP**（只看埠開了會誤判成已就緒——這台的 wrangler 立刻 bind 好埠，
+  // 但要約 50 秒才真的能服務）。每一發自帶 timeout，否則暖機期卡住的請求會把整個 deadline 用光。
+  // 刻意**不**看狀態碼：/api/delay-stats 在全新的本機 D1 上本來就回 503，那是環境條件不是暖機狀態，
+  // 把它寫進就緒條件會讓這支永遠等不到（試過）。
+  const deadline = Date.now() + 240_000;
   let ready = false;
   while (Date.now() < deadline) {
     if (proc.exitCode !== null) break;
     try {
-      const r = await fetch(`${base}/api/delay-stats`, { redirect: 'follow' });
+      const r = await fetch(`${base}/api/delay-stats`, { redirect: 'follow', signal: AbortSignal.timeout(8000) });
       await r.text();
-      ready = true;
-      break;
-    } catch (e) { await new Promise((res) => setTimeout(res, 1000)); }
+      ready = true; break;                                        // 給得出回應就算就緒，不看狀態碼
+    } catch (e) { /* 還沒起來，等下一輪 */ }
+    await new Promise((res) => setTimeout(res, 1000));
   }
   check(ready, `[${label}] wrangler dev 起得來且真的回應 HTTP（不是只看到埠開著）`,
     ready ? `${base}` : `退出碼=${proc.exitCode}；log 尾巴：${log.slice(-400)}`);

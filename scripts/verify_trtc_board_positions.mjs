@@ -125,24 +125,33 @@ async function waitFor(child, pattern, timeoutMs) {
   });
 }
 
-// 就緒檢查刻意**真打一發 HTTP**，不比對 wrangler 的 log 措辭。
-// 🔴 2026-08-05：原本等 /Ready on https:\/\/localhost/，但這台的 wrangler 印到
-// 「⎔ Starting local server...」就不再印就緒行 ⇒ 30 秒必逾時、整支腳本從此 exit 1，
-// 而且是在任何一條斷言跑到之前就死，症狀偽裝成「環境問題」而不是「判準過期」。
-// log 措辭是會隨工具版本漂移的量，「這台 server 會不會回應」才是要等的事實
-// （wrangler-local-verification-traps 坑 6）。
+// 就緒＝**這台 server 對任何請求給得出一個 HTTP 回應**：不看狀態碼、不比對 wrangler 的 log 措辭。
+//
+// 🔴 2026-08-05：原本等 `/Ready on https:\/\/localhost/` **只等 30 秒**，於是這支長期在任何一條
+// 斷言跑到之前就 exit 1（覆蓋率＝0），症狀偽裝成「環境問題」。受控實驗（每 10 秒探一次）量到：
+// wrangler **立刻就 bind 好埠**（`lsof` 馬上看得到 LISTEN），但要**約 50 秒**才真的能服務，
+// 暖機期間單一發請求會卡 13～50 秒。真因就是等太短。
+//   · 我一度誤判成「這版 wrangler 不印 Ready on 了」——手動觀察只等 45 秒。它有印，只是很慢。
+//   · 每一發必須自帶 timeout：node 的 `fetch` 沒有預設 timeout，三發卡住就把整個 deadline 用光。
+//   · 刻意**不**把「非 503」當就緒條件——`/api/delay-stats` 在全新的本機 D1 上本來就回 503，
+//     那是環境條件不是暖機狀態，寫進就緒條件會讓這支永遠等不到（試過，是上一版的紅因）。
+// 總 deadline 給 300 秒：50 秒是機器閒置時的值，這台常有 2 個 session 併跑，實測會更久。
 async function waitForHttp(url, timeoutMs, child) {
   const prev = process.env.NODE_TLS_REJECT_UNAUTHORIZED;
   process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';                 // 本機 wrangler 是自簽憑證
   try {
     const deadline = Date.now() + timeoutMs;
-    let last = '';
+    let last = '(還沒送出任何請求)';
     while (Date.now() < deadline) {
       if (child && child.exitCode !== null) throw new Error(`server exited ${child.exitCode}`);
-      try { const r = await fetch(url); await r.text(); return; }
-      catch (e) { last = String((e && e.message) || e); await new Promise(res => setTimeout(res, 500)); }
+      try {
+        const r = await fetch(url, { signal: AbortSignal.timeout(8000) });
+        await r.text();
+        return r.status;
+      } catch (e) { last = String((e && e.message) || e); }
+      await new Promise(res => setTimeout(res, 1000));
     }
-    throw new Error(`server ready timeout：${timeoutMs}ms 內 ${url} 都連不上（最後一個錯誤：${last}）`);
+    throw new Error(`server ready timeout：${timeoutMs}ms 內 ${url} 一個 HTTP 回應都沒給（最後一次：${last}）`);
   } finally {
     if (prev === undefined) delete process.env.NODE_TLS_REJECT_UNAUTHORIZED;
     else process.env.NODE_TLS_REJECT_UNAUTHORIZED = prev;
@@ -305,7 +314,7 @@ async function run() {
       '--var', 'TRTC_API_USER:fixture-user', '--var', 'TRTC_API_PASS:fixture-pass',
       '--var', `TRTC_API_BASE:${FIXTURE}`, '--var', 'TRTC_BOARD_SAMPLE_DELAY_MS:0'],
       { cwd: ROOT, stdio: ['ignore', 'pipe', 'pipe'] });
-    await waitForHttp(`${BASE}/api/delay-stats`, 150000, workerProc);
+    await waitForHttp(`${BASE}/api/delay-stats`, 300000, workerProc);   // 這台實測閒置約 50 秒才能服務;兩個 session 併跑時更久
 
     browser = await chromium.launch({ headless: true });
     const context = await browser.newContext({ viewport: { width: 1280, height: 900 }, ignoreHTTPSErrors: true });
