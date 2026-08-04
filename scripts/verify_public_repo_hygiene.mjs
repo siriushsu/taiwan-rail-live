@@ -62,7 +62,15 @@ const RULES = [
   { name: '「第 N/M 天已用」型進度', re: /第\s*\d+\s*\/\s*\d+\s*天[^\n]{0,10}已用/ },
   // 這條原本也只認一種語序(符號在前),與上面兩條同病——複審指出「同一批修好了兩條卻沒把
   // 同一課套用到第三條」。補上中文語序:「每千次…收費 N 美元」。
-  { name: '金額費率', re: /((\$|US\$|美元|NT\$)\s*\d+(\.\d+)?\s*\/\s*(千|萬|月|年|k))|(每\s*(千|萬)[^\n]{0,12}\d+(\.\d+)?\s*(美元|元|美金))/ },
+  // 🔴 2026-08-04 又補兩個逃生口。用同一組 RULES 對整棵追蹤樹重掃時發現,這條規則放過了
+  //    這個 repo 歷史上真的出現過的兩種寫法:
+  //      (a)「符號＋數字＋『每』＋單位」而中間沒有斜線——舊 pattern 第一支硬性要求 `/`,
+  //         第二支又要求「每」在數字前面,兩支都咬不到「數字在前、每在後」這種語序。
+  //      (b) 帶千分位逗號的金額——舊 pattern 的 \d+ 在逗號處就斷了。
+  //    (兩種語序的實際樣本放在下面 CONTROLS,那裡才是會被真的拿去測 pattern 的地方;
+  //     寫在這裡只會讓這個檔案自己變成命中來源——這支腳本的歷史裡已經有人這樣中過三次。)
+  //    逗號寫成 (,\d{3})* 而不是 [\d,]*,才不會把散文裡的「$5, 每年…」誤咬成費率。
+  { name: '金額費率', re: /((\$|US\$|美元|NT\$)\s*\d+(,\d{3})*(\.\d+)?\s*(\/\s*(千|萬|月|年|k)|每\s*(千|萬|張|次|月|年)))|(每\s*(千|萬)[^\n]{0,12}\d+(,\d{3})*(\.\d+)?\s*(美元|元|美金))/ },
   { name: '計費期日期區間', re: /計費期[^\n]{0,6}\d{1,2}-\d{1,2}\s*[→~-]\s*\d{1,2}-\d{1,2}/ },
   { name: '見底／耗盡日期推估', re: /((見底|耗盡|用完)[^\n]{0,12}\d{1,2}[-\/月]\d{1,2})|(\d{1,2}[-\/月]\d{1,2}[^\n]{0,12}(見底|耗盡|用完))/ },
   { name: '疑似金鑰字串', re: /(AAPT|sk-|ghp_|AIza)[A-Za-z0-9_\-]{12,}/ },
@@ -77,7 +85,9 @@ const CONTROLS = [
   ['額度／用量百分比', '本期額度已用 99.9%'], // hygiene:allow-sample
   ['用量比例(中文數字)', '某端佔某服務用量約九成'], // hygiene:allow-sample
   ['「第 N/M 天已用」型進度', '第 99/99 天已用 99.9%'], // hygiene:allow-sample
-  ['金額費率', '之後 $9.99/千'], // hygiene:allow-sample
+  // 三個樣本對應這條規則的三種語序:斜線式、千分位逗號、「數字在前、每在後」。
+  // 一條規則配多個樣本(見下方迴圈):補了 pattern 卻不補樣本,新補的那一支就是沒人驗過的死規則。
+  ['金額費率', ['之後 $9.99/千', 'US$9,999/年', '$9.99 每千張']], // hygiene:allow-sample
   ['計費期日期區間', '本期計費期 01-01→01-31'], // hygiene:allow-sample
   ['見底／耗盡日期推估', '估 01-01 見底'], // hygiene:allow-sample
   ['疑似金鑰字串', 'token=AAPTxFakeKeyForControl123'], // hygiene:allow-sample
@@ -95,7 +105,8 @@ const ok = (pass, msg) => { console.log(`${pass ? 'PASS' : 'FAIL'} ${msg}`); if 
 // (複審用突變實測過:換成真數字後 ALL PASS / exit 0。)
 // 反過來白名單化「什麼數字算假」就擋得住,而且**不必在這裡寫出任何真數字**
 // ——寫出來就等於又洩漏一次,那正是這支腳本 v1 犯的錯。
-const FAKE_TOKENS = ['99.9', '99', '9.99', '01', '31', '123'];
+// '9' 與 '999' 是為了千分位的那個對照樣本 —— 逗號會讓金額被拆成兩段數字分別檢查。
+const FAKE_TOKENS = ['99.9', '99', '9.99', '9', '999', '01', '31', '123'];
 function digitsAreObviouslyFake(s) {
   const nums = s.match(/\d+(\.\d+)?/g) || [];
   return nums.every(n => FAKE_TOKENS.includes(n));
@@ -104,8 +115,11 @@ function digitsAreObviouslyFake(s) {
 console.log('── 正向對照:每條 pattern 都必須咬得住已知樣本 ──');
 for (const [name, sample] of CONTROLS) {
   const rule = RULES.find(r => r.name === name);
-  ok(!!rule && rule.re.test(sample), `對照「${name}」咬得住樣本 — ${sample}`);
-  ok(digitsAreObviouslyFake(sample), `對照「${name}」的數字全是造假值(沒有人偷換成真數字)`);
+  // 一條規則可以配多個樣本(同一個 pattern 常要涵蓋好幾種語序);單一字串仍然照舊可用。
+  for (const one of Array.isArray(sample) ? sample : [sample]) {
+    ok(!!rule && rule.re.test(one), `對照「${name}」咬得住樣本 — ${one}`);
+    ok(digitsAreObviouslyFake(one), `對照「${name}」的數字全是造假值(沒有人偷換成真數字)`);
+  }
 }
 // 每條 RULE 都必須有對照,否則新增的 pattern 會悄悄變成沒人驗過的死規則(形態 11)。
 // 複審實測:加第 8 條 RULE 不加對照,舊版仍 ALL PASS——覆蓋率原本只是人工維持的巧合。
