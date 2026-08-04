@@ -13,18 +13,69 @@ import { createHash } from 'node:crypto';
 import { initializeTestEnvironment, assertSucceeds, assertFails } from '@firebase/rules-unit-testing';
 import { doc, getDoc, setDoc, deleteDoc, serverTimestamp } from 'firebase/firestore';
 
+// 任何提早離開的路徑（例外、reject、逾時）都要印得出可辨識的一行——空輸出或裸 Node stack
+// trace 會被「grep 有沒有 FAIL」的判斷者（人或 CI）誤讀成全綠。這是本批次真的踩到的坑。
+function bail(line) {
+  console.log(line);
+  process.exit(1);
+}
+process.on('unhandledRejection', (reason) => {
+  bail(`FAIL unhandled rejection — ${reason && reason.message ? reason.message : String(reason)}`);
+});
+process.on('uncaughtException', (err) => {
+  bail(`FAIL uncaught exception — ${err && err.message ? err.message : String(err)}`);
+});
+
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const RULES_PATH = path.join(ROOT, 'firestore.rules');
 const RULES = readFileSync(RULES_PATH, 'utf8');
 console.log(`[G0] ROOT=${ROOT}`);
 console.log(`[G0] firestore.rules md5=${createHash('md5').update(RULES).digest('hex')}`);
 
+// 預期會執行的斷言數。具名常數，刻意寫死——**不可**從下面的 pass/fail 計數自己推導，
+// 那樣「少跑幾條」永遠會自動通過，這道閘門就變成零資訊的裝飾品。
+const EXPECTED_CHECK_COUNT = 14;
+
+const HOST = '127.0.0.1';
 const PORT = Number(process.env.FIRESTORE_EMULATOR_PORT || (process.env.FIRESTORE_EMULATOR_HOST || '').split(':')[1] || 8080);
 
-const testEnv = await initializeTestEnvironment({
-  projectId: 'demo-rail',
-  firestore: { rules: RULES, host: '127.0.0.1', port: PORT },
-});
+// 啟動前先比對 env port 與 firebase.json：不一致就直接 FAIL 並把兩個值都印出來，不要等到
+// 連線逾時才發現——這正是本批次踩到的真實情境（用了 8579，firebase.json 宣告 8577）。
+const FIREBASE_JSON_PATH = path.join(ROOT, 'firebase.json');
+const firebaseJson = JSON.parse(readFileSync(FIREBASE_JSON_PATH, 'utf8'));
+const DECLARED_PORT = firebaseJson?.emulators?.firestore?.port;
+if (typeof DECLARED_PORT !== 'number') {
+  bail(`FAIL firebase.json 沒有宣告 emulators.firestore.port（path=${FIREBASE_JSON_PATH}）`);
+}
+if (PORT !== DECLARED_PORT) {
+  bail(`FAIL port 不一致 — env 解析出 FIRESTORE_EMULATOR_PORT=${PORT}，但 firebase.json 宣告 `
+    + `emulators.firestore.port=${DECLARED_PORT}（兩者必須相同，否則模擬器沒連上也不會有人發現）`);
+}
+
+// 連不上要大聲失敗：具名 timeout＋具名 catch。沒有這層時，模擬器沒起來只會是一則沒有
+// 「FAIL」字樣的裸 Node stack trace（見 Codex 2026-08-04 Minor 3）。
+const CONNECT_TIMEOUT_MS = 15_000;
+function withTimeout(promise, ms, label) {
+  let timer;
+  const timeout = new Promise((_, reject) => {
+    timer = setTimeout(() => reject(new Error(`${label} 逾時 ${ms}ms`)), ms);
+  });
+  return Promise.race([promise, timeout]).finally(() => clearTimeout(timer));
+}
+
+let testEnv;
+try {
+  testEnv = await withTimeout(
+    initializeTestEnvironment({
+      projectId: 'demo-rail',
+      firestore: { rules: RULES, host: HOST, port: PORT },
+    }),
+    CONNECT_TIMEOUT_MS,
+    `connect ${HOST}:${PORT}`,
+  );
+} catch (e) {
+  bail(`FAIL emulator connection ${HOST}:${PORT} — ${e && e.message ? e.message : String(e)}`);
+}
 
 let pass = 0, fail = 0;
 async function check(name, fn) {
@@ -211,5 +262,14 @@ await check('E4 activeUntilMs == 0 的終身資格可 create/update', async () =
 });
 
 await testEnv.cleanup();
+
+// executed count 閘門：實際跑過的斷言數必須等於預期條數，抓「少跑一條卻沒人發現」。
+const executed = pass + fail;
+if (executed !== EXPECTED_CHECK_COUNT) {
+  fail += 1;
+  console.log(`FAIL executed count ${executed} != expected ${EXPECTED_CHECK_COUNT}`
+    + `（有斷言沒被跑到——對照上面逐行 PASS/FAIL 找漏掉哪條）`);
+}
+
 console.log(`\n合計 ${pass} PASS / ${fail} FAIL`);
 process.exit(fail ? 1 : 0);
