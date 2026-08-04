@@ -2,7 +2,8 @@
 // 北捷看板帳本本機 fixture server。只讀已落盤語料，不連線、不需要真實帳密。
 //
 // 預設回放 s02；同一個 scheduled 內的第二次 TrackInfo 會前進到下一份 tk 快照。
-// 測試可用 /__reset 歸零、/__state 讀 access log、/__config?slot=s02&advance=1 調整。
+// 測試可用 /__reset 歸零、/__state 讀 access log、
+// /__config?slot=s02&advance=1&failTk=2 調整（failTk 可填 1、2、1,2 或留空）。
 import http from 'node:http';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -19,6 +20,8 @@ for (const list of Object.values(snaps)) list.sort((a, b) => a.at - b.at);
 
 let firstSlot = process.env.TRTC_FIXTURE_SLOT || 's02';
 let advanceTk = process.env.TRTC_FIXTURE_ADVANCE_TK !== '0';
+let failTkCalls = new Set(String(process.env.TRTC_FIXTURE_FAIL_TK || '').split(',')
+  .map(Number).filter(x => Number.isInteger(x) && x > 0));
 let calls = [];
 let kindCounts = { tk: 0, hw: 0, br: 0 };
 
@@ -45,7 +48,9 @@ const soap = rows => `${JSON.stringify(rows)}<?xml version="1.0" encoding="utf-8
 const server = http.createServer((req, res) => {
   const url = new URL(req.url, `http://127.0.0.1:${PORT}`);
   if (req.method === 'GET' && url.pathname === '/health') return json(res, { ok: true, corpus: path.basename(CORPUS) });
-  if (req.method === 'GET' && url.pathname === '/__state') return json(res, { firstSlot, advanceTk, kindCounts, calls });
+  if (req.method === 'GET' && url.pathname === '/__state') return json(res, {
+    firstSlot, advanceTk, failTk: [...failTkCalls].sort((a, b) => a - b), kindCounts, calls,
+  });
   if (req.method === 'POST' && url.pathname === '/__reset') {
     calls = []; kindCounts = { tk: 0, hw: 0, br: 0 };
     return json(res, { ok: true });
@@ -53,8 +58,10 @@ const server = http.createServer((req, res) => {
   if (req.method === 'POST' && url.pathname === '/__config') {
     if (url.searchParams.has('slot')) firstSlot = url.searchParams.get('slot');
     if (url.searchParams.has('advance')) advanceTk = url.searchParams.get('advance') !== '0';
+    if (url.searchParams.has('failTk')) failTkCalls = new Set(String(url.searchParams.get('failTk') || '').split(',')
+      .map(Number).filter(x => Number.isInteger(x) && x > 0));
     calls = []; kindCounts = { tk: 0, hw: 0, br: 0 };
-    return json(res, { ok: true, firstSlot, advanceTk });
+    return json(res, { ok: true, firstSlot, advanceTk, failTk: [...failTkCalls].sort((a, b) => a - b) });
   }
   if (req.method !== 'POST') return json(res, { error: 'not found' }, 404);
   let body = '';
@@ -65,10 +72,13 @@ const server = http.createServer((req, res) => {
     if (/getTrackInfo/.test(body) || /TrackInfo/.test(url.pathname)) kind = 'tk';
     else if (/getCarWeightBRInfo/.test(body) || /CarWeightBR/.test(url.pathname)) kind = 'br';
     else if (/getCarWeightByInfoEx/.test(body) || /CarWeight/.test(url.pathname)) kind = 'hw';
-    calls.push({ method: req.method, path: url.pathname, kind, host: req.headers.host || '' });
     if (!kind) return json(res, { error: 'unknown fixture method' }, 400);
+    const ordinal = kindCounts[kind] + 1;
     const rows = rowsFor(kind);
     kindCounts[kind]++;
+    const failed = kind === 'tk' && failTkCalls.has(ordinal);
+    calls.push({ method: req.method, path: url.pathname, kind, ordinal, failed, host: req.headers.host || '' });
+    if (failed) return json(res, { error: `fixture ${kind} #${ordinal} failed` }, 503);
     res.writeHead(200, { 'content-type': 'text/xml; charset=utf-8', 'cache-control': 'no-store' });
     res.end(soap(rows));
   });

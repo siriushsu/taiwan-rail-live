@@ -266,6 +266,13 @@ section(SECTIONS[2]);
   // 網站、日後改成用 30x 導向新路徑是完全合理的事，設 'error' 反而會把一個可用的資料源弄壞。
   const EXEMPT = [
     { why: '新北捷官網列車動態：公開端點、零憑證（連 User-Agent 都是禮貌性標示）', match: (t) => t.includes('trainstatus.ntmetro.com.tw') },
+    // 2026-08-04 兩批合流時這條判準第一次遇到它：呼叫點來自 35a3573（自家營運異常偵測），
+    // 早已在正式站跑，只是那批沒有本判準、本批沒有那個呼叫點，合併才第一次相遇。
+    // 零憑證已實查：worker.js:327 的 init 只有 `accept: 'application/json'` 與 AbortSignal。
+    // 刻意豁免而不是補 redirect:'error'——NCDR 是政府網站，改版用 30x 導向新路徑是常見的事，
+    // 設 'error' 會在對方轉址那天讓災害示警整個停擺，而它正是安全相關功能，壞掉的代價高於
+    // 一個「本來就沒有憑證可外洩」的轉址風險。理由與上面新北捷那條同構。
+    { why: 'NCDR 官方災害示警 feed：公開端點、零憑證（sourceUrl 可由 env 注入本機 fixture 供測試）', match: (t) => t.includes('sourceUrl') },
   ];
   const unguarded = sites.filter(site => !/redirect:\s*'error'/.test(site.text));
   const violations = unguarded.filter(site => !EXEMPT.some(rule => rule.match(site.text)));

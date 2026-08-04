@@ -489,10 +489,16 @@ await cr.close();
     await page.waitForTimeout(500);
     const geo = await page.evaluate(() => {
       document.querySelectorAll('details').forEach(d => { d.open = true; });
-      const lis = [...document.querySelectorAll('li')].filter(li => /鎖定畫面/.test(li.textContent));
+      // 🔴 2026-08-04 改判準:原本用 /鎖定畫面/ 文字比對並寫死「恰好 2 條」(第一層一條＋第二層正本
+      //    一條)。第一層是「最近更新」,有 8 條上限、新功能一來舊的就會被擠進第二層——那是設計,
+      //    不是缺陷(CL1 保證擠出去之前正本必須先存在)。所以條數是會漂移的量,綁它等於讓這條判準
+      //    在下一次有人加更新紀錄時假紅。改成綁身分:正本(data-cl)必須在,第一層那條(data-cl-of)
+      //    有就一起量幾何、沒有也不算錯。
+      const lis = [...document.querySelectorAll('li[data-cl="liveactivity"], li[data-cl-of="liveactivity"]')];
       return lis.map(li => {
         const r = li.getBoundingClientRect(), pr = li.parentElement.getBoundingClientRect();
-        return { h: Math.round(r.height), overRight: Math.round(r.right - pr.right), overLeft: Math.round(pr.left - r.left) };
+        return { h: Math.round(r.height), overRight: Math.round(r.right - pr.right), overLeft: Math.round(pr.left - r.left),
+          canon: !!li.getAttribute('data-cl') };
       });
     });
     rows.push({ w, natural, geo });
@@ -500,8 +506,8 @@ await cr.close();
   }
   await wk.close();
   const fmt = rows.map(r => `${r.w}px:找到${r.geo.length}條 高=${r.geo.map(g => g.h).join('/')} 右溢=${r.geo.map(g => g.overRight).join('/')} 捲寬${r.natural.sw}/${r.natural.cw}`).join(' ; ');
-  ok('T12 四寬度(360/375/414/768,WebKit):兩條 8/2 更新紀錄都在且高度 >0',
-    rows.every(r => r.geo.length === 2 && r.geo.every(g => g.h > 0)), fmt);
+  ok('T12 四寬度(360/375/414/768,WebKit):Live Activity 更新紀錄的第二層正本恰好一條、且抓到的每一條都渲染得出來(高度 >0)',
+    rows.every(r => r.geo.filter(g => g.canon).length === 1 && r.geo.length > 0 && r.geo.every(g => g.h > 0)), fmt);
   ok('T12 四寬度:更新紀錄 li 不超出容器左右緣',
     rows.every(r => r.geo.every(g => g.overRight <= 1 && g.overLeft <= 1)), fmt);
   ok('T12 四寬度:頁面無橫向捲動',
