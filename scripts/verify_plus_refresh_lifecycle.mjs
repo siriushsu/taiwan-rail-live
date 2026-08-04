@@ -68,7 +68,13 @@ const server = createServer((req, res) => {
   res.end(readFileSync(fp));
 });
 await new Promise((resolve, reject) => { server.on('error', reject); server.listen(PORT, resolve); });
-const BASE = `http://localhost:${PORT}/`;
+// 🔴 2026-08-05:BASE 帶 ?plus=1。PLUS_ENABLED(index.html 的 IIFE)2026-08-04 改回「原生 App 恆開、
+// 網站要 ?plus=1」,而它是頁面載入當下就凍結的 const ⇒ 後續在 page.evaluate 注入
+// RAIL_PLUS_TEST_ADAPTER 一律來不及,plusConfigured() 恆假、plusRefresh() 走不進 adapter 分支,
+// 於是 plusEnsureListener() 從來沒被呼叫過。症狀不是紅燈而是**整支腳本拋例外中止**
+// (`window.__listenerCb is not a function`,L4 那一段),輸出裡沒有總計行、看不出還有什麼壞了。
+// 與 verify_account_sync_race.mjs 同一個漏網成因(2026-08-04 那輪 BASE 補 ?plus=1 的掃描漏了這兩支)。
+const BASE = `http://localhost:${PORT}/?plus=1`;
 
 const results = [];
 const ok = (name, pass, detail = '') => { results.push({ name, pass, detail }); console.log(`${pass ? 'PASS' : 'FAIL'} ${name}${detail ? ' — ' + detail : ''}`); };

@@ -100,7 +100,22 @@ const server = createServer((req, res) => {
   res.end(readFileSync(fp));
 });
 await new Promise((resolve, reject) => { server.on('error', reject); server.listen(PORT, resolve); });
-const BASE = `http://localhost:${PORT}/`;
+// 🔴 2026-08-05:BASE 帶 ?plus=1。PLUS_ENABLED(index.html 的 IIFE)2026-08-04 改回「原生 App 恆開、
+// 網站要 ?plus=1」,而它是**頁面載入當下就凍結的 const**——之後在 page.evaluate 裡注入
+// RAIL_NATIVE_PLUS_ADAPTER／RAIL_PLUS_TEST_ADAPTER 一律來不及。旗標為假時 plusConfigured() 第一行
+// 就 return false,於是:
+//   · plusRefresh() 走 !plusConfigured() 的唯讀分支,**完全不碰 adapter**(R15 的 listener 恆 0 次、
+//     R17 的方案清單恆空,而 p.active 改由 /api/plus-status 的回應決定——R15 沒 route 到它 ⇒ 恆 false,
+//     R17 有 route 且回 active:true ⇒ 恆 true。同一批前置條件給出兩個相反讀數,看起來像 fixture 沒重置,
+//     其實兩者同源);
+//   · plusRestore() 第一行 `if (!plusConfigured()) return;` 直接早退(R20-restore 的正向對照恆紅,
+//     而 plusPurchase()／plusEnsureListener() 沒有這道檢查 ⇒ 另兩個對照組照樣綠,更像是替身壞了)。
+// 這支腳本是 2026-08-04 那輪「BASE 補 ?plus=1」掃描的漏網之魚(verify_plus_subscription.mjs:60、
+// verify_founding_seal、verify_plus_features、verify_sat_retina、verify_delay_history_ui 都已補)。
+// 下面 G1 是這件事的具名閘門:旗標機制再變一次,轉紅的會是 G1 而不是散落各段的前置條件。
+const BASE = `http://localhost:${PORT}/?plus=1`;
+// 對照組網址(真實網站訪客):用來證明 G1 不是恆真——旗標真的被讀到、且兩側答案不同。
+const OFF_BASE = `http://localhost:${PORT}/`;
 
 const results = [];
 const ok = (name, pass, detail = '') => { results.push({ name, pass, detail }); console.log(`${pass ? 'PASS' : 'FAIL'} ${name}${detail ? ' — ' + detail : ''}`); };
@@ -127,6 +142,33 @@ async function waitReady(page) {
 }
 
 const chromiumB = await chromium.launch();
+
+// ══════════════ G1. 前置閘門:Plus 總閘(PLUS_ENABLED)真的在該開的那一側 ══════════════
+// 為什麼要獨立成一條具名斷言(比照 verify_plus_subscription.mjs 的 G0b):旗標為假時,下面 R15/R17/
+// R20-restore 的紅燈長得像「fixture 狀態沒重置／注入點跑掉」——同一輪對同一個狀態給出相反讀數、
+// 三個同形狀的正向對照只紅一個。實際上全部是這一顆旗標的下游(理由見 BASE 旁的長註解)。
+// 有了這一條,旗標機制再變一次時,轉紅的是「總閘沒開」而不是七條互相矛盾的前置條件。
+// **兩側都驗**:只驗 BASE 那側的話,`?plus=1` 被改成恆真(或這條斷言退化成恆真)時仍會全綠。
+// 從執行中的頁面現讀 PLUS_ENABLED,不 grep 原始碼:讀原始碼只證明字面寫了什麼,證明不了瀏覽器
+// 求值出來是什麼(它是 IIFE,結果取決於 location.search 與 Capacitor 是否存在)。
+{
+  const readFlag = async (url, tag) => {
+    const { ctx, page } = await newPage(chromiumB);
+    const errs = attach(page, tag);
+    await page.goto(url, { waitUntil: 'domcontentloaded' });
+    await waitReady(page);
+    const v = await page.evaluate(() => { try { return PLUS_ENABLED === true; } catch (e) { return 'ReferenceError'; } });
+    await ctx.close();
+    return { v, errs };
+  };
+  const on = await readFlag(BASE, 'G1-on');
+  const off = await readFlag(OFF_BASE, 'G1-off');
+  ok('G1 前置閘門:BASE(帶 ?plus=1)頁面現讀 PLUS_ENABLED === true——這是本檔所有 Plus 段落(R15/R16/R17/R19/R20)賴以成立的前提,它為假時 plusConfigured() 恆假、adapter 替身一顆都不會被用到',
+    on.v === true, `PLUS_ENABLED=${on.v}`);
+  ok('G1 反向對照:OFF_BASE(無 ?plus=1,＝真實網站訪客)頁面現讀 PLUS_ENABLED === false——證明上一條讀的是真的旗標、不是恆真的常數',
+    off.v === false, `PLUS_ENABLED=${off.v}`);
+  ok('G1 本輪零 pageerror/console.error', on.errs.length === 0 && off.errs.length === 0, [...on.errs, ...off.errs].slice(0, 3).join(' | '));
+}
 
 // ══════════════ R1. 登出序列化:accountSignOut() 真的會等既有同步做完,不會搶先清本機 ══════════════
 // 手法:Firestore stub 的 runTransaction 第一次呼叫卡在一個測試可控的 gate(deferred promise)上,
@@ -1394,6 +1436,17 @@ const chromiumB = await chromium.launch();
     r.removeListenerCalls === 0 && r.addListenerCalls === 0, JSON.stringify(r));
   ok('R15i 既有行為不受影響(回歸安全網):即使是冷啟動的第一次 null,ACCOUNT_UID_KEY 仍然被清掉——這件事不看 previousUid,見 else 分支最後兩行',
     r.afterUidKey === null, JSON.stringify(r));
+  // 🔴 2026-08-05:R15g/R15h 上面三個 0 在「替身根本沒接上」時也會是 0(獨立驗收實測:把
+  // RAIL_NATIVE_PLUS_ADAPTER 整個不裝,R15-cold-pre/R15g/R15h 三條照樣全綠)——沉默不是證據。
+  // 補一條**同一支收集器**的正向對照:冷啟動之後真的送一個 truthy user 進去,同一顆 __spy 必須動起來。
+  // 它動得起來,上面那三個 0 才是「這條路徑刻意不做」而不是「量測器從頭到尾沒接上」。
+  // 手法同 R8w/R10b/R11c 既有的「正向對照(同一支收集器)」慣例。
+  const ctl = await page.evaluate(async () => {
+    await window.__authCb({ uid: 'r15-cold-later-uid', email: 'cold@example.com' });
+    return { addListenerCalls: window.__spy.addListener, setUserCalls: window.__spy.setUser, clearUserCalls: window.__spy.clearUser };
+  });
+  ok('R15-cold-ctl 正向對照(同一支收集器):冷啟動之後真的登入時,同一顆 __spy 的 addListener/setUser 必須動起來——證明 R15g/R15h 的 0 是「這條路徑刻意不做」,不是替身沒接上',
+    ctl.addListenerCalls === 1 && ctl.setUserCalls === 1 && ctl.clearUserCalls === 0, JSON.stringify(ctl));
   ok('R15-cold 本輪零 pageerror/console.error', errs.length === 0, errs.slice(0, 3).join(' | '));
   await ctx.close();
 }
