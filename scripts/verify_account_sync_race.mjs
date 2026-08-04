@@ -1239,6 +1239,165 @@ const chromiumB = await chromium.launch();
   await ctx.close();
 }
 
+// ══════════════ R15. 批二-E(整合稽核 2026-08-04 Minor 1):session 非正常失效時要拆掉 Plus 身分 ══════════════
+// R13 已經驗過「ACCOUNT_UID_KEY 被清、userDataActiveUid() 回到 null、本機分區不受影響」,但那次稽核
+// 之後才發現:那條路徑(輪2 當時的版本)只清了 uid fallback key,從沒真的把 Plus 身分拆掉——
+// refresh token 被撤銷/帳號在別台被刪/session 在伺服器端失效,都會走到 onAuthStateChanged 的 else
+// 分支而 accountSignOut() 從未被呼叫,plusIsActive() 仍是 true、plusRequire() 仍會放行 granted
+// callback,畫面已經換成訪客,同一台裝置的匿名使用者卻仍拿得到純客端付費功能(Takeout 匯入/
+// 行程分享/衛星 Retina/Live Activity)。
+//
+// 手法:比照 R10/R13 用可控的 window.__authCb(登記時不自動觸發,交給測試決定何時送出),但這裡
+// 每次都直接 `await window.__authCb(...)`——callback 本體就是 index.html 的
+// `async user => {...}`,直接 await 它等於 await 到內部的 plusRefresh()/accountSyncNow('login')/
+// (批二-E 新增的)`await accountForgetIdentity()` 全部真正跑完,不必用 waitForTimeout 猜時間。
+// window.RAIL_NATIVE_PLUS_ADAPTER 而不是 RAIL_PLUS_TEST_ADAPTER:accountForgetIdentity() 的
+// clearUser() 只認前者(見 index.html accountForgetIdentity/plusAdapterFor),要驗「native logout」
+// 這個副作用一定要用這顆全域。removeCustomerInfoUpdateListener 刻意做成真的非同步(setTimeout,不是
+// 微任務就結束)——只有這樣,「呼叫了但沒 await」與「呼叫且 await 完成」在測試裡才是可觀察的差異
+// (若用純同步 mock,即使 index.html 忘了 await,JS 對 async function 一路跑到第一個真 await 之前都是
+// 同步的,side effect 一樣會在 window.__authCb(...) 返回前發生,測不出「忘了 await」這個退化)。
+{
+  const { ctx, page } = await newPage(chromiumB);
+  await ctx.addInitScript((arg) => {
+    const now = Date.now();
+    try {
+      localStorage.setItem('trainmap-user-data-v1:uid:' + arg.uid, JSON.stringify({
+        version: 1, deviceId: 'test-device', revision: 2, updatedAt: now,
+        collections: {
+          pins: { items: [], tombstones: [] },
+          favs: { items: [{ id: 'R15_SECRET', value: { train: 'R15_SECRET' }, updatedAt: now }], tombstones: [] },
+          rides: { items: [], tombstones: [] },
+          stations: { items: [], tombstones: [] },
+        },
+      }));
+    } catch (e) {}
+    window.__spy = { addListener: 0, removeListener: 0, clearUser: 0, setUser: 0 };
+    window.__removedIds = [];
+    window.RAIL_NATIVE_PLUS_ADAPTER = {
+      setUser: async () => { window.__spy.setUser++; },
+      getCustomerInfo: async () => ({ entitlements: { active: { plus: { identifier: 'plus' } } } }),
+      getOfferings: async () => ({ all: {}, current: { availablePackages: [] } }),
+      addCustomerInfoUpdateListener: async () => { window.__spy.addListener++; return 'r15-listener-id-' + window.__spy.addListener; },
+      // 刻意用真的 setTimeout(不是純微任務)讓「呼叫了」與「呼叫且完成」可以被測試分辨——見上方區塊註解。
+      removeCustomerInfoUpdateListener: async id => new Promise(res => setTimeout(() => { window.__spy.removeListener++; window.__removedIds.push(id); res(); }, 30)),
+      clearUser: async () => { window.__spy.clearUser++; },
+    };
+    window.RAIL_REVENUECAT_CONFIG = { entitlement: 'plus', offeringId: 'plus' };
+    window.RAIL_FIREBASE_CONFIG = { apiKey: 'x', authDomain: 'x', projectId: 'x' };
+    window.RAIL_FIREBASE_TEST_MODULES = {
+      initializeApp: () => ({}), getAuth: () => ({}), getFirestore: () => ({}),
+      onAuthStateChanged: (auth, cb) => { window.__authCb = cb; }, // 觸發時機交給測試,不自己跑(R10/R13 既有手法)
+    };
+  }, { uid: 'r15-uid-a' });
+  const errs = attach(page, 'R15');
+  await page.goto(BASE, { waitUntil: 'domcontentloaded' });
+  await waitReady(page);
+
+  const pre = await page.evaluate(async () => {
+    await accountEnsureInit();
+    await window.__authCb({ uid: 'r15-uid-a', email: 'a@example.com' }); // 登入(比照 session 還原),await 到 plusRefresh()/accountSyncNow('login') 都跑完
+    return {
+      authCbRegistered: typeof window.__authCb === 'function',
+      plusActive: plusIsActive(),
+      addListenerCalls: window.__spy.addListener,
+      clearUserCalls: window.__spy.clearUser,
+    };
+  });
+  ok('R15-pre 前置條件:登入之後 plusIsActive() 真的是 true、CustomerInfo listener 真的註冊了一次、clearUser 還沒被叫過——下面「變成 false / 被拆」才有意義,不是本來就是那樣',
+    pre.authCbRegistered === true && pre.plusActive === true && pre.addListenerCalls === 1 && pre.clearUserCalls === 0, JSON.stringify(pre));
+
+  const post = await page.evaluate(async () => {
+    window.__grantedCalled = 0;
+    await window.__authCb(null); // 整合稽核 Minor 1 的核心場景:伺服器端讓 session 失效,accountSignOut() 從未被呼叫
+    const requireResult = await plusRequire('r15', () => { window.__grantedCalled++; });
+    return {
+      plusActive: plusIsActive(),
+      requireResult, grantedCalled: window.__grantedCalled,
+      removeListenerCalls: window.__spy.removeListener, removedIds: window.__removedIds.slice(),
+      clearUserCalls: window.__spy.clearUser,
+      uidKey: localStorage.getItem('trainmap-account-uid'),
+      lastUidKey: localStorage.getItem('trainmap-account-last-uid'),
+      partitionStillOnDisk: (() => {
+        try { return JSON.parse(localStorage.getItem('trainmap-user-data-v1:uid:r15-uid-a')).collections.favs.items.map(x => x.id); }
+        catch (e) { return null; }
+      })(),
+    };
+  });
+  ok('R15a 核心斷言(整合稽核 Minor 1):非正常 session 失效後 plusIsActive() 變成 false——修復前這裡恆為 true,付費牆在客戶端形同沒關',
+    post.plusActive === false, JSON.stringify(post));
+  ok('R15b 核心斷言:plusRequire() 不再放行——回傳值不是 true、granted callback 也沒有被呼叫(修復前訪客樣貌的裝置仍能直接拿到付費功能)',
+    post.requireResult === false && post.grantedCalled === 0, JSON.stringify(post));
+  ok('R15c 核心斷言:listener 真的被拆(可觀測的替身證明——removeCustomerInfoUpdateListener 真的被呼叫一次且真的跑完,帶著註冊時拿到的同一個 id;不是只看 plusTeardownListener 有沒有被呼叫,也不是呼叫了但沒等它做完)',
+    post.removeListenerCalls === 1 && post.removedIds[0] === 'r15-listener-id-1', JSON.stringify(post));
+  ok('R15d 核心斷言:native adapter 的 clearUser() 也真的被呼叫一次——與登出同一套 teardown(accountForgetIdentity)連原生殼的副作用都一起做了',
+    post.clearUserCalls === 1, JSON.stringify(post));
+  ok('R15e 既有不變式沒有被破壞:ACCOUNT_UID_KEY 仍然被清掉(這件事不看 previousUid,任何 null 都該清——與批二-E 之前的既有行為一致)',
+    post.uidKey === null, JSON.stringify(post));
+  ok('R15f 不可回歸:這是「切走身分」不是「銷毀資料」——本機分區(R15_SECRET)原樣留在裝置上、ACCOUNT_LAST_UID_KEY(陌生人判斷)也沒被動到,accountForgetIdentity() 刻意不碰這兩者',
+    // 前綴同 R13d 的說明:最愛 canonical key 是「系統別|車次」,字面寫死不與實作共用推導式。
+    JSON.stringify(post.partitionStillOnDisk) === JSON.stringify(['tra_sched|R15_SECRET']) && post.lastUidKey === 'r15-uid-a', JSON.stringify(post));
+  ok('R15 本輪零 pageerror/console.error', errs.length === 0, errs.slice(0, 3).join(' | '));
+  await ctx.close();
+}
+
+// ══════════════ R15(續). 正向對照:冷啟動的第一次 null 不該觸發 native logout ══════════════
+// 「冷啟動」定義:這個 session(這顆分頁的記憶體)從來沒有送過一次 truthy user——即使裝置磁碟上
+// 還留著上次登入的 ACCOUNT_UID_KEY fallback 痕跡(這正是 accountReturning()===true 會自動觸發
+// accountEnsureInit() 的那個情境),auth 第一次解析出來的結果就是「沒有登入」時,previousUid 應該是
+// falsy(state.account.user 從初始化以來從未被設成 truthy 值過)。這種情況不該呼叫 native adapter 的
+// clearUser(),也不該去拆一個從沒註冊過的 listener——這裡用同一顆 RAIL_NATIVE_PLUS_ADAPTER 的 spy
+// 直接量「有沒有被呼叫」,不是猜測。
+{
+  const { ctx, page } = await newPage(chromiumB);
+  await ctx.addInitScript((arg) => {
+    try { localStorage.setItem('trainmap-account-uid', arg.staleUid); } catch (e) {} // 裝置上次登入留下的 fallback 痕跡(這個 session 記憶體裡從未出現過的身分)
+    window.__spy = { addListener: 0, removeListener: 0, clearUser: 0, setUser: 0 };
+    window.__removedIds = [];
+    window.RAIL_NATIVE_PLUS_ADAPTER = {
+      setUser: async () => { window.__spy.setUser++; },
+      getCustomerInfo: async () => ({ entitlements: { active: {} } }),
+      getOfferings: async () => ({ all: {}, current: { availablePackages: [] } }),
+      addCustomerInfoUpdateListener: async () => { window.__spy.addListener++; return 'r15-cold-listener-id'; },
+      removeCustomerInfoUpdateListener: async id => { window.__spy.removeListener++; window.__removedIds.push(id); },
+      clearUser: async () => { window.__spy.clearUser++; },
+    };
+    window.RAIL_FIREBASE_CONFIG = { apiKey: 'x', authDomain: 'x', projectId: 'x' };
+    window.RAIL_FIREBASE_TEST_MODULES = {
+      initializeApp: () => ({}), getAuth: () => ({}), getFirestore: () => ({}),
+      onAuthStateChanged: (auth, cb) => { window.__authCb = cb; },
+    };
+  }, { staleUid: 'r15-stale-uid' });
+  const errs = attach(page, 'R15-cold');
+  await page.goto(BASE, { waitUntil: 'domcontentloaded' });
+  await waitReady(page);
+
+  const r = await page.evaluate(async () => {
+    await accountEnsureInit(); // 這個裝置本來就會因為 accountReturning()===true 在開機自動初始化(見 R10/R13 同一句註解),這裡等價地直接呼叫,冪等
+    const authCbRegistered = typeof window.__authCb === 'function';
+    const beforeUser = state.account && state.account.user;
+    const beforeUidKey = localStorage.getItem('trainmap-account-uid');
+    if (authCbRegistered) await window.__authCb(null); // 冷啟動的第一次 null——這個 session 從未送過 truthy user
+    return {
+      authCbRegistered, beforeUserIsNull: beforeUser === null, beforeUidKey,
+      afterUidKey: localStorage.getItem('trainmap-account-uid'),
+      clearUserCalls: window.__spy.clearUser,
+      removeListenerCalls: window.__spy.removeListener,
+      addListenerCalls: window.__spy.addListener,
+    };
+  });
+  ok('R15-cold-pre 前置條件:進場時裝置上確實留著上次的 ACCOUNT_UID_KEY fallback 痕跡、真的 onAuthStateChanged callback 已註冊、state.account.user 此刻是 null(這才是「冷啟動的第一次 null」要驗的起點,不是巧合)',
+    r.authCbRegistered === true && r.beforeUserIsNull === true && r.beforeUidKey === 'r15-stale-uid', JSON.stringify(r));
+  ok('R15g 正向對照核心斷言(整合稽核 Minor 1 的邊界情況):冷啟動的第一次 null 不觸發 native adapter 的 clearUser()——這個 session 從來沒有一個已驗證身分可拆,對本來就是訪客的人做這個副作用沒有意義',
+    r.clearUserCalls === 0, JSON.stringify(r));
+  ok('R15h 正向對照核心斷言:同一次冷啟動 null 也沒有呼叫 removeCustomerInfoUpdateListener——addListenerCalls 也是 0 證明真的從沒註冊過,不是「拆了一個空的」湊巧看起來沒事',
+    r.removeListenerCalls === 0 && r.addListenerCalls === 0, JSON.stringify(r));
+  ok('R15i 既有行為不受影響(回歸安全網):即使是冷啟動的第一次 null,ACCOUNT_UID_KEY 仍然被清掉——這件事不看 previousUid,見 else 分支最後兩行',
+    r.afterUidKey === null, JSON.stringify(r));
+  ok('R15-cold 本輪零 pageerror/console.error', errs.length === 0, errs.slice(0, 3).join(' | '));
+  await ctx.close();
+}
+
 await chromiumB.close();
 server.close();
 

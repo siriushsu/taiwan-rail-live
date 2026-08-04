@@ -7240,7 +7240,11 @@ function accountForgetIdentity() {
   if (state.account) state.account.gen = (state.account.gen || 0) + 1; // C-2 世代前進:仍在途的舊同步之後複查世代會發現對不上,結果被丟棄不寫本機(見 accountSyncTxn)
   if (state.plus) { state.plus.active = false; state.plus.founding = false; state.plus.pkgMonthly = null; state.plus.pkgAnnual = null; state.plus.mgmtUrl = ''; state.plus.adapter = null; state.plus.afterUnlock = null; }
   if (window.RAIL_NATIVE_PLUS_ADAPTER && window.RAIL_NATIVE_PLUS_ADAPTER.clearUser) window.RAIL_NATIVE_PLUS_ADAPTER.clearUser().catch(() => {});
-  plusTeardownListener().catch(() => {}); // C-4:登出解除 CustomerInfo 更新 listener,避免舊使用者的推播繼續打在剛登出/換人的 state 上
+  // C-4:登出解除 CustomerInfo 更新 listener,避免舊使用者的推播繼續打在剛登出/換人的 state 上。
+  // 🔴 2026-08-04 批二-E:接住這個 promise 並回傳(既有兩個呼叫端 accountEndSession/accountClearLocal
+  // 都不 await,行為不變——fire-and-forget 依舊);onAuthStateChanged 的 session 失效分支需要確定
+  // listener 真的解除完成才能判斷「拆乾淨了」,故讓它可以被 await。
+  const teardown = plusTeardownListener().catch(() => {});
   state.plusPending = null;
   try { localStorage.removeItem('trainmap-last-sync-uid'); } catch (e) {}
   // 2026-08-04 複審 Critical 1:ACCOUNT_UID_KEY 也要在登出/刪除帳號時清掉,否則下一個匿名訪客
@@ -7249,6 +7253,7 @@ function accountForgetIdentity() {
   // 注意:ACCOUNT_LAST_UID_KEY 刻意不在這裡清掉(見該常數上方 Important 2 說明)——它服務
   // userDataMigrateAccountPartition 的陌生人判斷,必須撐過登出才擋得住「這台裝置下一個登入的
   // 別人」,清掉的話等於每次登出都讓陌生人防護重新歸零。
+  return teardown;
 }
 function accountEndSession() { accountForgetIdentity(); userDataRenderAll(); } // 登出:身分沒了,資料留著
 // uid 由呼叫端明確傳入(刪除帳號當下的 state.account.user 可能已經被 onAuthStateChanged 提前清成
@@ -7377,6 +7382,9 @@ function accountEnsureInit() {
       Object.assign(state.account, { fb, app, auth, db: fb.getFirestore(app) });
       fb.onAuthStateChanged(state.account.auth, async user => {
         state.account.gen = (state.account.gen || 0) + 1; // C-2:每次身分變動(登入/登出/session 還原)世代前進,讓仍在途的舊同步之後複查世代能發現對不上(見 accountSyncTxn)
+        // 🔴 2026-08-04 批二-E:在覆寫 state.account.user 之前先留一份「這次事件發生前是誰」——下面
+        // else 分支要用它分辨這次 null 是不是一次真的「從有身分變成沒有」,見該分支內說明。
+        const previousUid = state.account.user && state.account.user.uid;
         state.account.user = user; state.account.ready = true; state.account.actionError = ''; accountRender();
         if (user) accountBtnSlot('account'); // 登入完成才把槽位換成帳號入口(帳號面板這時才有登出/同步/刪帳號可做);登出態刻意不翻,見 accountSlotMode
         if (accountIntent === 'delete') { accountIntent = ''; accountOpen(); }
@@ -7407,9 +7415,28 @@ function accountEnsureInit() {
           // 寫進他的分區。而且使用者自己救不了——登出鈕只在 a.user 為真時才畫(見 accountRender),
           // 卡住之後連清掉它的入口都沒有。
           // auth 明確說「沒有身分」就把身分痕跡清掉,讓 ACCOUNT_UID_KEY 的不變式維持成立:
-          // 這把 key 存在 ⟺ 這台裝置有一個已驗證的身分。刻意只清 key＋重繪,不呼叫
-          // accountForgetIdentity():Plus 狀態的撤銷有 C-4 自己的路徑(CustomerInfo listener 與回
-          // 前景重驗),不該由「auth 送來一次 null」順手代勞——初次開機沒登入也會走到這一支。
+          // 這把 key 存在 ⟺ 這台裝置有一個已驗證的身分。
+          // 🔴 2026-08-04 批二-E(整合稽核 Minor 1):上面這段輪2 當時只清了 uid fallback key,沒有
+          // 真的拆掉 Plus 身分——refresh token 被撤銷/帳號在別台被刪/session 在伺服器端失效,都會
+          // 走到這裡而 accountSignOut() 從未被呼叫,plusIsActive() 仍是 true、plusRequire() 仍會放行
+          // granted callback,畫面已經換成訪客,同一台裝置的匿名使用者卻仍拿得到純客端付費功能
+          // (Takeout 匯入/行程分享/衛星 Retina/Live Activity)。伺服器與 Firestore 規則本身仍安全
+          // (雲端寫入要資格文件),但這是「付費牆在客戶端漏了一半」。
+          // previousUid(上面覆寫前留的值)是判斷「這是不是一次真轉換」的唯一依據:
+          //   · previousUid 為真 ⇒ 這個 session 剛才確實有一個已驗證身分,這次 null 是它消失了——
+          //     不論是 accountSignOut() 觸發還是伺服器端讓 session 失效,都要執行與登出同一套
+          //     Plus 身分 teardown(accountForgetIdentity——世代前進、state.plus 歸零、native adapter
+          //     clearUser()、CustomerInfo listener 解除)。await 是必要的:plusTeardownListener()
+          //     真的解除掛在原生 adapter 上的 listener 是非同步操作,這次回呼要在做完之後才算數,
+          //     不能讓它停在路上就宣稱「拆乾淨了」。
+          //   · previousUid 為 falsy ⇒ 這是這個 session 第一次收到 auth 的解析結果、而結果是「沒有
+          //     登入」(冷啟動——ACCOUNT_UID_KEY 可能還留著上次的 fallback 值,但那只是磁碟上的
+          //     痕跡,這個 session 的記憶體裡從來沒有一個已驗證身分可拆)。這種情況不該觸發
+          //     native adapter 的 clearUser() 或拆 CustomerInfo listener——對本來就是訪客的人做這些
+          //     副作用沒有意義,也不該讓從未註冊過的 listener 平白被拆一次。
+          // accountForgetIdentity() 刻意完全不碰收藏資料(本機分區依 uid 留著,同一個帳號回來還在)
+          // 也刻意不清 ACCOUNT_LAST_UID_KEY(陌生人判斷要撐過這次事件,只有刪除帳號才清)。
+          if (previousUid) await accountForgetIdentity();
           try { localStorage.removeItem(ACCOUNT_UID_KEY); } catch (e) {}
           userDataRenderAll(); // 畫面立刻換回匿名分區,不留著上一個帳號的私人收藏在螢幕上
         }
