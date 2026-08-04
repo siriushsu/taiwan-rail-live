@@ -7752,6 +7752,12 @@ async function plusEnsureListener(adapter) {
   if (!adapter || typeof adapter.addCustomerInfoUpdateListener !== 'function') return;
   if (plusListenerId && plusListenerAdapter === adapter) return; // 已經掛在同一顆 adapter 上,冪等早退
   await plusTeardownListener(); // 防禦性:adapter 换成別的物件時,先解除掛在舊物件上的那個
+  // 🔴 2026-08-04 Codex 稽核 M-1:記下註冊當下的身分。解除 listener 是非同步的(而且
+  // accountForgetIdentity() 兩個既有呼叫端都不 await),原生端已經派送出去的 callback 仍可能在
+  // 解除完成之後才抵達;plusApplyCustomerInfo() 寫的正是被就地改寫過的同一顆 state.plus,
+  // 沒有這道複查就會把剛拆掉的資格推回去。
+  const acc0 = state.account || {};
+  const regGen = acc0.gen, regUid = acc0.user && acc0.user.uid;
   try {
     const id = await adapter.addCustomerInfoUpdateListener((info, err) => {
       // 🔴C-4 Important-1 修復:這裡不是「SDK 主動推播必為真值」的單純情境——Capacitor keep-alive
@@ -7764,6 +7770,9 @@ async function plusEnsureListener(adapter) {
       // Promise.allSettled 錯誤分流、plusRevalidateBeforeAction() 的 catch 同一個原則:只有拿到
       // 明確答案才收回資格,查不到就完全不動 state.plus。
       if (err || !info || !info.entitlements) return;
+      // Codex 稽核 M-1:註冊之後身分變了 ⇒ 這份推播講的是上一個人,丟掉。
+      const a2 = state.account;
+      if (!a2 || a2.gen !== regGen || !a2.user || a2.user.uid !== regUid) return;
       plusApplyCustomerInfo(info);
       if (state.basemap === 'sat') setBasemap(); // 資格變動→衛星解析度跟著換,同 plusRefresh/plusPurchase 既有做法
       accountRender(); plusRender();
@@ -8003,6 +8012,12 @@ async function plusPurchase(kind) {
   const p = state.plus, user = state.account && state.account.user;
   const pkg = p && (kind === 'month' ? p.pkgMonthly : p.pkgAnnual);
   if (!p || !p.adapter || !pkg || !user || p.loading) return;
+  // 🔴 2026-08-04 Codex 稽核 M-1:付款表單可能開著好幾分鐘,期間使用者可能登出或換人。
+  // accountForgetIdentity() 是**就地**改寫 state.plus(見該函式那行),而這裡的 p 正是同一顆
+  // 物件 ⇒ await 之後的 `p.active = ...` 會把已經拆掉的 Plus 身分整個復活,連帶讓下一個在這台
+  // 裝置登入的人繼承前一個人付費買到的資格。p.loading 擋不住這種:它擋的是「同一個身分的多發
+  // 請求」,不是「請求在飛的途中身分變了」——與最終複審 I-2 是同一個洞的另一條入口。
+  const myGen = state.account.gen, myUid = user.uid;
   p.loading = true; p.error = ''; plusRender();
   try {
     // C-4 Minor-3 修復:原本這行呼叫在 try 外(p.loading=true 之後、try{ 之前)——目前不會拋,
@@ -8010,6 +8025,12 @@ async function plusPurchase(kind) {
     // restore 三個入口一起鎖死(因為三者共用同一顆 state.plus)。移進 try 內,照 plusRestore() 既有寫法。
     await plusRevalidateBeforeAction(p.adapter); // C-4:購買前重新驗證資格,見該函式註解
     const result = await p.adapter.purchase(pkg, user.email || '');
+    // 身分在付款途中變了 ⇒ 這筆購買不屬於「現在坐在這台裝置前的人」。交易本身沒有損失
+    // (RevenueCat 記著,原使用者下次登入 plusRefresh() 或按恢復購買就會拿到),但絕不可套用到
+    // 現在的 state 上,也不可對現在的人宣告「已啟用」或解鎖 afterUnlock。finally 照常放掉
+    // p.loading 並重繪,所以這裡直接早退是安全的。
+    const a2 = state.account;
+    if (!a2 || a2.gen !== myGen || !a2.user || a2.user.uid !== myUid) return;
     const info = result && (result.customerInfo || result);
     p.active = plusActiveFrom(info);
     p.founding = p.active && foundingFrom(info);
@@ -8038,11 +8059,15 @@ async function plusPurchase(kind) {
 async function plusRestore() {
   const p = plusState(), user = state.account && state.account.user; if (!user || p.loading) return;
   if (!plusConfigured()) { p.error = ''; plusRender(); return; } // 此平台無購買通道:不初始化 billing SDK
+  const myGen = state.account.gen, myUid = user.uid; // Codex 稽核 M-1:理由同 plusPurchase()
   p.loading = true; p.error = ''; plusRender();
   try {
     p.adapter = p.adapter || await plusAdapterFor(user.uid);
     await plusRevalidateBeforeAction(p.adapter); // C-4:恢復購買前重新驗證資格,見該函式註解
     const result = await p.adapter.restore();
+    // 身分在途中變了 ⇒ 整包丟掉,不套用、不宣告、不解鎖(理由與早退安全性同 plusPurchase())。
+    const a2 = state.account;
+    if (!a2 || a2.gen !== myGen || !a2.user || a2.user.uid !== myUid) return;
     const info = result && (result.customerInfo || result);
     p.active = plusActiveFrom(info);
     p.founding = p.active && foundingFrom(info);

@@ -1756,6 +1756,90 @@ const chromiumB = await chromium.launch();
   await ctx.close();
 }
 
+// ── R20:購買/恢復/推播的結果在飛,身分就變了 ⇒ 不得復活(2026-08-04 Codex 稽核 M-1)────────
+// R19 驗的是 plusRefresh() 那一條(網站分支,打 /api/plus-status)。同一個洞還有三條入口,
+// 全部落在「await 之後直接寫 p.active」:
+//   · plusPurchase()  —— App Store 付款表單可能開著好幾分鐘
+//   · plusRestore()   —— 恢復購買同理
+//   · CustomerInfo 推播 listener —— 解除是非同步的,已派送的 callback 仍會抵達
+// 關鍵機制:accountForgetIdentity() 是**就地**改寫 state.plus,而這三處手上的 p 正是同一顆物件,
+// 所以遲到的寫入是真的會落在現況上,不是寫進一顆被丟棄的舊物件。
+// 後果比 R19 更重:購買成功會走 plusFinishPending() → afterUnlock,等於直接對「現在坐在這台
+// 裝置前的人」解鎖付費功能,而那可能是登出後的訪客或下一個登入的別人。
+//
+// 每個情境都配**正向對照**(同一段程式碼、不登出):對照組必須看到 active:true 且 afterUnlock
+// 真的被呼叫。沒有這一半的話,「active 是 false」可能只是因為這組假的 adapter 從頭到尾沒生效——
+// 沉默不是證據(同 I2b／E4 的正向對照原則)。
+//
+// ⚠️ 誠實標註哪一條才是承重的:三發突變(各拆掉一道世代複查)實測**只有 `R20-<mode>` 那條轉紅**,
+// `-unlock` 三條全程是綠的——因為 accountForgetIdentity() 會把 afterUnlock 也清成 null,
+// 所以在這個突變下「沒解鎖」是白送的 0,不是這條斷言擋下來的。保留它們是因為它們守的是另一件事
+// (哪天 teardown 不再清 afterUnlock,它們就會是唯一叫出來的),但**不要把它們當成 M-1 的守衛**。
+async function m1Case(tag, mode, logout) {
+  const { ctx, page } = await newPage(chromiumB);
+  const errs = attach(page, tag);
+  await page.goto(BASE, { waitUntil: 'domcontentloaded' });
+  await waitReady(page);
+  await page.evaluate((mode) => {
+    window.RAIL_PLUS_TEST_ADAPTER = {};        // 讓 plusConfigured() 為真(plusRestore 會查)
+    window.__m1 = { unlocked: 0 };
+    let release; const held = new Promise(r => { release = r; });
+    window.__m1release = () => release();
+    const key = (plusConfig().entitlement) || 'plus';
+    const INFO = { entitlements: { active: { [key]: { isSandbox: false } } }, managementURL: '' };
+    state.plus = null;
+    const p = plusState();
+    p.pkgMonthly = {};
+    p.afterUnlock = () => { window.__m1.unlocked++; };
+    p.adapter = {
+      purchase: () => held.then(() => INFO),
+      restore: () => held.then(() => INFO),
+      addCustomerInfoUpdateListener: (cb) => { window.__m1cb = cb; return 'm1-listener'; },
+      removeCustomerInfoUpdateListener: () => {},
+    };
+    state.account = {
+      ready: true, syncing: false, lastSync: 0, actionError: '', error: '', syncTimer: 0, gen: 0,
+      loggingOut: false, syncSuspended: false, syncPromise: null, legacyKinds: false,
+      user: { uid: 'race-r20-uid', email: 'r20@example.com' }, auth: {}, db: {},
+      fb: { getIdToken: async () => 'R20_FAKE_ID_TOKEN' },
+    };
+    if (mode === 'purchase') window.__m1p = plusPurchase('month');
+    else if (mode === 'restore') window.__m1p = plusRestore();
+    else window.__m1p = plusEnsureListener(p.adapter);
+  }, mode);
+  const before = await page.evaluate(() => ({ active: plusIsActive(), unlocked: window.__m1.unlocked }));
+  if (logout) await page.evaluate(async () => { await accountForgetIdentity(); state.account.user = null; });
+  const after = await page.evaluate(async (mode) => {
+    if (mode === 'listener') {
+      await window.__m1p;                       // 先確定 listener 真的掛上了
+      const key = (plusConfig().entitlement) || 'plus';
+      window.__m1cb({ entitlements: { active: { [key]: { isSandbox: false } } } }, null);
+    } else {
+      window.__m1release();
+      await window.__m1p;                       // 等那發遲到的結果真的被處理完
+    }
+    await new Promise(r => setTimeout(r, 0));   // plusFinishPending 用 setTimeout(next,0) 送 afterUnlock
+    return { active: plusIsActive(), unlocked: window.__m1.unlocked };
+  }, mode);
+  await ctx.close();
+  return { before, after, errs };
+}
+
+for (const mode of ['purchase', 'restore', 'listener']) {
+  const stale = await m1Case(`R20-${mode}`, mode, true);
+  const ctl = await m1Case(`R20-${mode}-ctl`, mode, false);
+  ok(`R20-${mode}-pre 前置條件:結果還沒回來之前 plusIsActive() 是 false、afterUnlock 沒被呼叫(這一段真的有東西可以被復活)`,
+    stale.before.active === false && stale.before.unlocked === 0, JSON.stringify(stale.before));
+  ok(`R20-${mode} 核心斷言(Codex 稽核 M-1):身分在途中被拆掉後,遲到的 ${mode} 結果不得把 plusIsActive() 復活`,
+    stale.after.active === false, JSON.stringify(stale.after));
+  ok(`R20-${mode}-unlock 使用者可見結果:遲到的結果不得對現在的人解鎖付費功能(afterUnlock 不得被呼叫)`,
+    stale.after.unlocked === 0, JSON.stringify(stale.after));
+  ok(`R20-${mode}-ctl 正向對照:同一段程式碼、不登出時 active 必須變 true${mode === 'listener' ? '' : ' 且 afterUnlock 真的被呼叫'}——證明這組假 adapter 真的有生效,上面三條的 false 不是因為它從頭到尾沒動`,
+    ctl.after.active === true && (mode === 'listener' || ctl.after.unlocked === 1), JSON.stringify(ctl.after));
+  ok(`R20-${mode} 本輪零 pageerror/console.error`,
+    stale.errs.length === 0 && ctl.errs.length === 0, [...stale.errs, ...ctl.errs].slice(0, 3).join(' | '));
+}
+
 await chromiumB.close();
 server.close();
 
