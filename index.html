@@ -3344,6 +3344,7 @@
            內容 li 上限 8 條(li.grp 是標題不算)。 -->
       <ul class="foot-list foot-recent">
         <li class="grp">最近更新</li>
+        <li data-cl-of="moresheet"><span class="d">8/4</span><span>電腦版把頁面捲下去後開「更多」，選單上方會被切掉；現在捲到哪裡開都完整</span></li>
         <li data-cl-of="orangebranch"><span class="d">8/4</span><span>橘線列車進共線段後會延續蘆洲／迴龍的支線身分，不再誤算成新莊線</span></li>
         <li data-cl-of="hazardwatch"><span class="d">8/4</span><span>颱風、地震等示警生效時，軌島立即重查各家官方營運公告並持續複查</span></li>
         <li data-cl-of="appdata"><span class="d">8/4</span><span>App 的台鐵班表過期後會自動上網補最新的，不必等改版</span></li>
@@ -3351,7 +3352,6 @@
         <li data-cl-of="brheadway"><span class="d">8/4</span><span>文湖線班距改吃八萬筆到站實測重算——畫面原本少了約三成的車</span></li>
         <li data-cl-of="yboard"><span class="d">8/4</span><span>環狀線也改吃官方到站倒數逐班校正；沒對到的班次改用全線平均誤點量</span></li>
         <li data-cl-of="trtcboard"><span class="d">8/3</span><span>北捷列車位置改為逐班跟著官方秒級到站倒數校正，不會憑空多車或少車</span></li>
-        <li data-cl-of="inapphint"><span class="d">8/3</span><span>從 LINE、FB 開軌島時，提示卡蓋住播放鍵與跟車小卡，現在會讓開了</span></li>
       </ul>
       <!-- 第二層:完整歷史。刻意不掛 .foot-box 類名——placeFootBoxes() 用
            `.site-foot .foot-box` 搬移面板,巢狀同名會被當成另一個盒子一起搬走。 -->
@@ -3425,6 +3425,7 @@
         <li><span class="d">7/13</span><span>收集章可以重複點，換搭不同班次回味</span></li>
         <li><span class="d">7/9</span><span>旅程護照與 16 枚成就徽章、「探」今日亮點面板上線</span></li>
         <li class="grp">手機與操作</li>
+        <li data-cl="moresheet"><span class="d">8/4</span><span>電腦版把頁面往下捲之後再開「更多」，選單會被推出畫面上緣，最上面幾列看不到也點不到，得先關掉、把右邊捲軸拉回最上面才正常；現在不論捲到哪裡開，選單都會完整留在畫面裡</span></li>
         <li data-cl="inapphint"><span class="d">8/3</span><span>在 LINE、Facebook、Threads 裡開軌島時，底下「用瀏覽器開啟」的提示卡壓住播放／暫停鍵和跟車小卡（連小卡的關閉鈕都點不到）；現在提示卡會讓開，小卡也跟著往上排</span></li>
         <li data-cl="liveactivity"><span class="d">8/2</span><span>在 App 裡訂閱 Plus 後跟車，鎖定畫面與動態島會顯示這班車的下一站、到站時間與誤點；倒數自己會走，換一班車就換一張，停止跟車或跟到終點會自動收起來。需要 iOS 17.6 以上；App 退到背景比較久時，誤點數字會停在最後一次更新的值</span></li>
         <li><span class="d">7/30</span><span>車站看板與跟車面板可以調高度了：手機拉一下（或點一下）面板上緣的把手，在小／中／大之間切換。原本「大」只是上限、內容短的時候三段一樣高，拉了像沒作用；現在「大」有保證高度，車站看板也會跟著多列幾班車</span></li>
@@ -16363,7 +16364,15 @@ function setupMapTools() {
     const W = 340;
     sheet.style.left = Math.max(12, Math.min(r.left, window.innerWidth - W - 12)) + 'px';
     sheet.style.right = 'auto';
-    sheet.style.bottom = Math.round(window.innerHeight - r.top + 8) + 'px'; // 鈕正上方 8px
+    // 目標是貼在鈕正上方 8px。但帶(.controls)是 position:absolute、會隨頁面捲動離開視窗,
+    // 捲下去之後鈕的 r.top 變小甚至為負 ⇒ 這個 bottom 變大 ⇒ 面板整個被推出視窗上緣
+    // (2026-08-04 回報:先拉捲軸再開「更多」看不到選單上方,要關掉、捲回頂端、重開才行)。
+    // 所以比照 left 也 clamp:面板上緣至少留 12px 在視窗內——寧可不貼齊鈕,也不能看不見。
+    // 面板是 fixed,量高度要在它已顯示之後;setMore() 先 toggle body.tools-open 再呼叫本函式。
+    const H = sheet.getBoundingClientRect().height;
+    sheet.style.bottom = Math.round(
+      Math.max(12, Math.min(window.innerHeight - r.top + 8, window.innerHeight - H - 12))
+    ) + 'px';
   }
   const setMore = on => {
     document.body.classList.toggle('tools-open', on);
