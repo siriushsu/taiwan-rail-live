@@ -18,8 +18,23 @@ const ALERT_URL = 'https://tdx.transportdata.tw/api/basic/v3/Rail/TRA/Alert?%24f
 const THSR_ALERT_URL = 'https://tdx.transportdata.tw/api/basic/v2/Rail/THSR/AlertInfo?%24format=JSON';
 
 // ══ 憑證 subrequest 的 redirect 政策(2026-08-04 敵意稽核 C-1)═══════════════════════════
+//
+// 🔴 2026-08-04 23:36 事故:這條政策原本寫 `redirect: 'error'`,上線後正式站所有打 TDX 的端點
+// 全部 502(tra-live／metro-live／三個 alert),十六分鐘後回滾。**Cloudflare Workers 的 fetch()
+// 根本不接受 'error'**,runtime 在呼叫當下就丟:
+//   Invalid redirect value, must be one of "follow" or "manual"
+//   ("error" won't be implemented since it does not make sense at the edge;
+//    use "manual" and check the response status code)
+// ——與上游回不回 30x 完全無關,每一發都炸。當時的判準 verify_plus_redirect_policy.mjs 全綠,
+// 因為它跑在本機 Node(Node 的 fetch **支援** 'error')且自己 mock 了「遇到 30x 才 reject」的
+// Workers 語意——判準的行為模型與實作出自同一個誤解,結構上測不出來。
+//
+// 現行政策:一律 `redirect: 'manual'`,**呼叫端負責把非 2xx 擋掉**(本檔 20 處全部有 `!x.ok`
+// 之類的全稱檢查;只認 `status === 401` 這種單點檢查是不夠的,擋不掉 302)。
+// 安全目標不變:manual 不跟隨 ⇒ Authorization 不會被送到 redirect 目的地。
+//
 // 凡是帶著 secret／ID token／JWT assertion／OAuth bearer 出門的 subrequest,一律明確寫
-// `redirect: 'error'`。Cloudflare Workers 的 Request 文件逐字寫著:
+// `redirect: 'manual'`。Cloudflare Workers 的 Request 文件逐字寫著:
 //   "If the response is a redirect and the redirect mode is set to `follow` (see below), then all
 //    headers will be forwarded to the redirect destination, even if the destination is a different
 //    hostname or domain. This includes sensitive headers like `Cookie`, `Authorization`, or any
@@ -30,13 +45,17 @@ const THSR_ALERT_URL = 'https://tdx.transportdata.tw/api/basic/v2/Rail/THSR/Aler
 // 發生在**單一次 fetch() 內部**——resolveRcNextPage() 那種對 response body 做的白名單完全攔不到。
 //
 // 嚴重度的誠實定位:機制已由官方文件證實,但觸發要件是「上游(RevenueCat／Google／TDX)自己回一個
-// 跨網域 30x」,不是攻擊者當下可控的。這些端點都是 JSON API、正常從不 redirect,所以設成 'error'
+// 跨網域 30x」,不是攻擊者當下可控的。這些端點都是 JSON API、正常從不 redirect,所以改成 'manual'
 // 幾乎零行為風險,而萬一真的發生就是 secret 全失守——代價極低、後果極大的縱深防禦。
 //
-// 刻意不用 'manual' 自己實作跳轉政策:那要逐跳解析、白名單比對 scheme/origin/path,是這裡不需要的
-// 複雜度(沒有任何一支上游需要我們跟隨 redirect)。唯一不設的情形是**完全不帶憑證**的公開端點
-// (本檔目前只有新北捷官網那支 ntmetroLive),那裡 redirect 不會外洩任何東西。
-// 判準:scripts/verify_plus_redirect_policy.mjs(行為模擬 30x ＋ 原始碼掃描所有 fetch 呼叫點)。
+// 不需要自己實作跳轉政策(逐跳解析、白名單比對 scheme/origin/path):沒有任何一支上游需要我們
+// 跟隨 redirect,所以 manual ＋「非 2xx 一律當失敗」就夠了,30x 直接走既有的錯誤路徑。
+// 不設的情形是**完全不帶憑證**的公開端點(本檔目前兩處:新北捷官網那支 ntmetroLive、NCDR 災害
+// 示警那支),那裡 redirect 不會外洩任何東西,而對方是別人的網站、日後改用 30x 導向新路徑是完全
+// 合理的事——不跟隨反而會在對方轉址那天讓那條資料源整個停擺。
+// 判準:scripts/verify_plus_redirect_policy.mjs(行為模擬 30x ＋ 原始碼掃描所有 fetch 呼叫點)
+// ＋ scripts/verify_worker_runtime_smoke.mjs(**在真 workerd 裡跑**——上面那個事故就是本機 Node
+// 與 workerd 行為不同造成的,只有真 runtime 答得出來)。
 
 let tok = null, tokExp = 0;
 async function getToken(env) {
@@ -49,7 +68,7 @@ async function getToken(env) {
       client_id: env.TDX_CLIENT_ID,
       client_secret: env.TDX_CLIENT_SECRET,
     }),
-    redirect: 'error',
+    redirect: 'manual',
   });
   if (!r.ok) throw new Error('tdx auth ' + r.status);
   const d = await r.json();
@@ -82,7 +101,7 @@ async function traLive(request, env, ctx) {
   if (hit) return hit;
   try {
     if (!mem || Date.now() - memAt > 55e3) {
-      const r = await fetch(API_URL, { headers: { authorization: 'Bearer ' + await getToken(env) }, redirect: 'error' });
+      const r = await fetch(API_URL, { headers: { authorization: 'Bearer ' + await getToken(env) }, redirect: 'manual' });
       if (r.status === 401) { tok = null; throw new Error('tdx 401'); }
       if (!r.ok) throw new Error('tdx api ' + r.status);
       const d = await r.json();
@@ -178,7 +197,7 @@ async function traAlert(request, env) {
   if (hit) return hit;
   try {
     if (!alertMem || Date.now() - alertMemAt > 110e3) {
-      const r = await fetch(ALERT_URL, { headers: { authorization: 'Bearer ' + await getToken(env) }, redirect: 'error' });
+      const r = await fetch(ALERT_URL, { headers: { authorization: 'Bearer ' + await getToken(env) }, redirect: 'manual' });
       if (r.status === 401) { tok = null; throw new Error('tdx 401'); }
       if (!r.ok) throw new Error('tdx api ' + r.status);
       const d = await r.json();
@@ -213,7 +232,7 @@ async function thsrAlert(request, env) {
   if (hit) return hit;
   try {
     if (!thsrAlertMem || Date.now() - thsrAlertMemAt > 110e3) {
-      const r = await fetch(THSR_ALERT_URL, { headers: { authorization: 'Bearer ' + await getToken(env) }, redirect: 'error' });
+      const r = await fetch(THSR_ALERT_URL, { headers: { authorization: 'Bearer ' + await getToken(env) }, redirect: 'manual' });
       if (r.status === 401) { tok = null; throw new Error('tdx 401'); }
       if (!r.ok) throw new Error('tdx api ' + r.status);
       const d = await r.json();
@@ -477,7 +496,7 @@ let tymcNewsMem = null, tymcNewsMemAt = 0;
 async function fetchTymcNewsAlerts(token) {
   if (tymcNewsMem && Date.now() - tymcNewsMemAt <= METRO_NEWS_TTL_MS) return tymcNewsMem;
   try {
-    const r = await fetch(TYMC_NEWS_URL, { headers: { authorization: 'Bearer ' + token }, redirect: 'error' });
+    const r = await fetch(TYMC_NEWS_URL, { headers: { authorization: 'Bearer ' + token }, redirect: 'manual' });
     if (r.status === 401) { tok = null; throw new Error('tdx 401'); }
     if (!r.ok) throw new Error('tdx api ' + r.status);
     const d = await r.json();
@@ -503,7 +522,7 @@ async function metroAlert(request, env) {
         Promise.all(METRO_ALERT_OPS.map(async ({ op, sys, label }) => {
           try {
             const r = await fetch(`https://tdx.transportdata.tw/api/basic/v2/Rail/Metro/Alert/${op}?%24format=JSON`,
-              { headers: { authorization: 'Bearer ' + token }, redirect: 'error' });
+              { headers: { authorization: 'Bearer ' + token }, redirect: 'manual' });
             if (r.status === 401) { tok = null; throw new Error('tdx 401'); }
             if (!r.ok) throw new Error('tdx api ' + r.status);
             const d = await r.json();
@@ -558,7 +577,7 @@ async function metroLive(request, env, sys) {
       const token = await getToken(env);
       const parts = await Promise.all(METRO_LIVE_OPS[sys].map(async op => {
         const r = await fetch(`https://tdx.transportdata.tw/api/basic/v2/Rail/Metro/LiveBoard/${op}?%24top=5000&%24format=JSON`,
-          { headers: { authorization: 'Bearer ' + token }, redirect: 'error' });
+          { headers: { authorization: 'Bearer ' + token }, redirect: 'manual' });
         if (r.status === 401) { tok = null; throw new Error('tdx 401'); }
         if (!r.ok) throw new Error('tdx api ' + r.status);
         const d = await r.json();
@@ -636,10 +655,11 @@ function trtcParse(txt) {
 }
 async function trtcCall(url, method, env) {
   const cred = `<userName>${env.TRTC_API_USER}</userName><passWord>${env.TRTC_API_PASS}</passWord>`;
-  // redirect:'error' —— 帳密就寫在 body 裡,而 Workers 的 fetch 預設 follow 會把 body 原樣
+  // redirect:'manual' —— 帳密就寫在 body 裡,而 Workers 的 fetch 預設 follow 會把 body 原樣
   // 帶去跨網域的 30x 目的地。上游今天不回 30x(這條路徑已在正式站運作),所以這個值只在
-  // 「上游被劫持或設定跑掉」時才改變行為:失敗而不是把北捷帳密送出去。
-  const r = await fetch(url, { method: 'POST', redirect: 'error', headers: { 'Content-Type': 'text/xml; charset=utf-8' },
+  // 「上游被劫持或設定跑掉」時才改變行為:30x 會落到下面那行 `!r.ok` 而 throw,
+  // 帳密不會被送出去。(不用 'error':Workers 的 fetch 不接受這個值,見檔頭事故紀錄。)
+  const r = await fetch(url, { method: 'POST', redirect: 'manual', headers: { 'Content-Type': 'text/xml; charset=utf-8' },
     body: TRTC_SOAP(`<${method} xmlns="http://tempuri.org/">${cred}</${method}>`) });
   if (!r.ok) throw new Error(method + ' ' + r.status);
   const d = trtcParse(await r.text());
@@ -1289,7 +1309,7 @@ async function getFirestoreAccessToken(env, nowMs = Date.now()) {
       grant_type: 'urn:ietf:params:oauth:grant-type:jwt-bearer',
       assertion,
     }),
-    redirect: 'error',                                        // C-1:見檔頭「憑證 subrequest 的 redirect 政策」
+    redirect: 'manual',                                        // C-1:見檔頭「憑證 subrequest 的 redirect 政策」
   });
   if (!response.ok) throw new Error(`google oauth ${response.status}`);
   const body = await response.json();
@@ -1597,7 +1617,7 @@ async function writePlusEntitlement(uid, doc, env, nowMs = Date.now()) {
     // ── 讀：拿現存文件的 updateTime（precondition 用）與 updatedAtMs（新舊比較用）──
     const current = await fetch(url, {
       headers: { Authorization: `Bearer ${token}` },
-      redirect: 'error',                                      // C-1:見檔頭「憑證 subrequest 的 redirect 政策」
+      redirect: 'manual',                                      // C-1:見檔頭「憑證 subrequest 的 redirect 政策」
     });
     let precondition;
     if (current.status === 404) {
@@ -1621,7 +1641,7 @@ async function writePlusEntitlement(uid, doc, env, nowMs = Date.now()) {
       method: 'PATCH',
       headers: { Authorization: `Bearer ${token}`, 'content-type': 'application/json' },
       body: JSON.stringify(firestoreEntitlementPayload(doc)),
-      redirect: 'error',                                      // C-1:見檔頭「憑證 subrequest 的 redirect 政策」
+      redirect: 'manual',                                      // C-1:見檔頭「憑證 subrequest 的 redirect 政策」
     });
     if (response.ok) return { written: true, outcome: precondition.startsWith('currentDocument.exists') ? 'created' : 'updated' };
     let reason = '';
@@ -1650,7 +1670,7 @@ async function fetchRevenueCatSubscriptions(uid, env, wantEntitlement) {
   for (let page = 0; page < RC_SUBS_MAX_PAGES; page++) {
     const rc = await fetch(rcUrl, {
       headers: { Authorization: `Bearer ${env.REVENUECAT_V2_SECRET_KEY}`, Accept: 'application/json' },
-      redirect: 'error',                                      // C-1:見檔頭「憑證 subrequest 的 redirect 政策」
+      redirect: 'manual',                                      // C-1:見檔頭「憑證 subrequest 的 redirect 政策」
     });
     if (rc.status === 404) {
       // 🔴 2026-08-04 敵意稽核 I-1 修正:404 只有在**第一頁**才可能是「這個 customer 不存在」。
@@ -1723,7 +1743,7 @@ async function checkPlusEntitlement(request, env) {
   try {
     const lookup = await fetch(`https://identitytoolkit.googleapis.com/v1/accounts:lookup?key=${encodeURIComponent(env.FIREBASE_WEB_API_KEY)}`, {
       method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ idToken }),
-      redirect: 'error',                                      // C-1:見檔頭「憑證 subrequest 的 redirect 政策」
+      redirect: 'manual',                                      // C-1:見檔頭「憑證 subrequest 的 redirect 政策」
     });
     if (!lookup.ok) return { ok: false, status: 401, error: 'unauthorized' };
     const identity = await lookup.json(), uid = identity && identity.users && identity.users[0] && identity.users[0].localId;
@@ -2024,7 +2044,7 @@ async function basemapSession(request, env) {
     const r = await fetch(
       'https://basemapstyles-api.arcgis.com/arcgis/rest/services/styles/v2/sessions/start'
       + '?styleFamily=arcgis&token=' + encodeURIComponent(env.ESRI_WEB_TOKEN),
-      { headers: { referer: 'https://railisland.tw/' }, redirect: 'error' });   // C-1:見檔頭 redirect 政策
+      { headers: { referer: 'https://railisland.tw/' }, redirect: 'manual' });   // C-1:見檔頭 redirect 政策
     const d = await r.json();
     // 失敗一律回 502 不回顯上游 body——那裡面可能帶著我們送出去的 token 片段。
     if (!r.ok || !d || !d.sessionToken) return jsonRes({ error: 'upstream' }, 502, 'no-store');
@@ -2059,7 +2079,7 @@ async function deletePlusEntitlement(uid, env, nowMs = Date.now()) {
   const response = await fetch(url, {
     method: 'DELETE',
     headers: { Authorization: `Bearer ${token}` },
-    redirect: 'error',                                        // C-1:見檔頭「憑證 subrequest 的 redirect 政策」
+    redirect: 'manual',                                        // C-1:見檔頭「憑證 subrequest 的 redirect 政策」
   });
   if (response.ok || response.status === 404) return { deleted: true };
   throw new Error(`firestore entitlement delete ${response.status}`);
@@ -2093,7 +2113,7 @@ async function deleteAccountData(request, env) {
   try {
     const lookup = await fetch(`https://identitytoolkit.googleapis.com/v1/accounts:lookup?key=${encodeURIComponent(env.FIREBASE_WEB_API_KEY)}`, {
       method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ idToken }),
-      redirect: 'error',                                      // C-1:見檔頭「憑證 subrequest 的 redirect 政策」
+      redirect: 'manual',                                      // C-1:見檔頭「憑證 subrequest 的 redirect 政策」
     });
     if (!lookup.ok) return jsonRes({ error: 'unauthorized' }, 401, 'no-store');
     const identity = await lookup.json(), uid = identity && identity.users && identity.users[0] && identity.users[0].localId;
@@ -2107,7 +2127,7 @@ async function deleteAccountData(request, env) {
     if (env.REVENUECAT_PROJECT_ID && env.REVENUECAT_V2_SECRET_KEY) {
       const rc = await fetch(`https://api.revenuecat.com/v2/projects/${encodeURIComponent(env.REVENUECAT_PROJECT_ID)}/customers/${encodeURIComponent(uid)}`, {
         method: 'DELETE', headers: { Authorization: `Bearer ${env.REVENUECAT_V2_SECRET_KEY}`, Accept: 'application/json' },
-        redirect: 'error',                                    // C-1:見檔頭「憑證 subrequest 的 redirect 政策」
+        redirect: 'manual',                                    // C-1:見檔頭「憑證 subrequest 的 redirect 政策」
       });
       // 從未開過購買頁的帳號可能沒有 RevenueCat customer；404 代表已達成「沒有資料可刪」。
       if (!(rc.ok || rc.status === 404)) return jsonRes({ error: 'purchase profile deletion failed' }, 502, 'no-store');
@@ -2219,7 +2239,7 @@ async function firebaseUid(env, idToken) {
   try {
     const lookup = await fetch(`https://identitytoolkit.googleapis.com/v1/accounts:lookup?key=${encodeURIComponent(env.FIREBASE_WEB_API_KEY)}`, {
       method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ idToken }),
-      redirect: 'error',                                      // C-1:見檔頭「憑證 subrequest 的 redirect 政策」
+      redirect: 'manual',                                      // C-1:見檔頭「憑證 subrequest 的 redirect 政策」
     });
     if (!lookup.ok) return null;
     const identity = await lookup.json();
@@ -3232,8 +3252,8 @@ function buildBlob(rows, generatedIso) {
 async function fetchDelayDay(token, dayIso) {
   const url = `${HIST_DELAY_URL}?Dates=${dayIso}&%24top=1000000&%24format=JSONL`;
   const headers = { authorization: 'Bearer ' + token, accept: 'application/json, text/plain, */*' };
-  let r = await fetch(url, { headers, redirect: 'error' });   // C-1:見檔頭「憑證 subrequest 的 redirect 政策」
-  if (r.status === 429) { await sleep(5000); r = await fetch(url, { headers, redirect: 'error' }); }
+  let r = await fetch(url, { headers, redirect: 'manual' });   // C-1:見檔頭「憑證 subrequest 的 redirect 政策」
+  if (r.status === 429) { await sleep(5000); r = await fetch(url, { headers, redirect: 'manual' }); }
   if (r.status === 401) { tok = null; throw new Error('tdx 401 historical'); }
   if (!r.ok) throw new Error('tdx historical ' + r.status + ' for ' + dayIso);
   return await r.text();

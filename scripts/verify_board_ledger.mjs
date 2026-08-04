@@ -139,6 +139,29 @@ async function waitFor(child, pattern, timeoutMs) {
   });
 }
 
+// 就緒檢查刻意**真打一發 HTTP**，不比對 wrangler 的 log 措辭。
+// 🔴 2026-08-05：原本等 /Ready on https:\/\/localhost/，但這台的 wrangler 印到
+// 「⎔ Starting local server...」就不再印就緒行 ⇒ 30 秒必逾時、整支腳本從此 exit 1。
+// 前面的純函式斷言全綠，所以症狀偽裝成「環境問題」而不是「判準過期」。log 措辭是會隨工具版本
+// 漂移的量，「這台 server 會不會回應」才是要等的事實（wrangler-local-verification-traps 坑 6）。
+async function waitForHttp(url, timeoutMs, child) {
+  const prev = process.env.NODE_TLS_REJECT_UNAUTHORIZED;
+  process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';                 // 本機 wrangler 是自簽憑證
+  try {
+    const deadline = Date.now() + timeoutMs;
+    let last = '';
+    while (Date.now() < deadline) {
+      if (child && child.exitCode !== null) throw new Error(`server exited ${child.exitCode}`);
+      try { const r = await fetch(url); await r.text(); return; }
+      catch (e) { last = String((e && e.message) || e); await new Promise(res => setTimeout(res, 500)); }
+    }
+    throw new Error(`server ready timeout：${timeoutMs}ms 內 ${url} 都連不上（最後一個錯誤：${last}）`);
+  } finally {
+    if (prev === undefined) delete process.env.NODE_TLS_REJECT_UNAUTHORIZED;
+    else process.env.NODE_TLS_REJECT_UNAUTHORIZED = prev;
+  }
+}
+
 function findLedgerDb() {
   const dir = path.join(ROOT, '.wrangler/state/v3/d1/miniflare-D1DatabaseObject');
   for (const file of fs.existsSync(dir) ? fs.readdirSync(dir).filter(f => f.endsWith('.sqlite') && f !== 'metadata.sqlite') : []) {
@@ -250,7 +273,7 @@ async function run() {
       '--var', 'TRTC_API_USER:fixture-user', '--var', 'TRTC_API_PASS:fixture-pass',
       '--var', `TRTC_API_BASE:${FIXTURE}`, '--var', 'TRTC_BOARD_SAMPLE_DELAY_MS:0'],
       { cwd: ROOT, stdio: ['ignore', 'pipe', 'pipe'] });
-    await waitFor(workerProc, /Ready on https:\/\/localhost/, 30000);
+    await waitForHttp(`${BASE}/api/delay-stats`, 150000, workerProc);
 
     const localAsset = fs.readFileSync(path.join(ROOT, 'data/trtc_codes.json'));
     const servedAsset = Buffer.from(curl(`${BASE}/data/trtc_codes.json`));

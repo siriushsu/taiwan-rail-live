@@ -13,11 +13,24 @@
 // 只記「我方送出的第一個 URL」，替身不會回 30x、也不模擬自動跟隨，於是 C-1 在它們眼裡全綠。
 //
 // 這支腳本補的就是那個維度：替身**忠實模擬 Workers 的 redirect 語意**，
-//   · init.redirect === 'error' ⇒ 遇到 30x 直接 reject（不會有第二發請求）
-//   · 未設定或 'follow'         ⇒ 跟隨，並把**原樣的 headers／body** 帶到新目的地
+//   · init.redirect === 'manual' ⇒ 不跟隨，把 30x 本身當成 Response 回來（不會有第二發請求）
+//   · init.redirect === 'error'  ⇒ **在 fetch() 呼叫當下就丟**，與上游回不回 30x 無關（見下）
+//   · 未設定或 'follow'          ⇒ 跟隨，並把**原樣的 headers／body** 帶到新目的地
 // 然後用金絲雀字串（LEAK_CANARY_*）標記每一種憑證，斷言「非白名單 host 的請求裡永遠不含金絲雀」。
 // 沉默不是證據，所以同一支收集器另外跑一發**故意不設 redirect** 的對照請求：它必須真的洩漏，
 // 證明替身與偵測器都有牙。
+//
+// 🔴 2026-08-04 23:36 事故（本檔自己就是肇因的一半）：這支判準原本要求 worker.js 每個呼叫點寫
+// `redirect: 'error'`，全綠出貨後正式站所有打 TDX 的端點當場 502，十六分鐘後回滾。真因是
+// **Cloudflare Workers 的 fetch() 根本不接受 'error'**，runtime 在呼叫當下就丟
+// `Invalid redirect value, must be one of "follow" or "manual"…`。而本檔跑在本機 Node（Node 的
+// fetch **支援** 'error'），替身又自己把 'error' 模擬成「遇到 30x 才 reject」——**判準的行為模型
+// 與實作出自同一個誤解**（心得 29：判準不得與實作同源），所以結構上測不出來。
+// 現行政策改成一律 `redirect: 'manual'`，安全目標不變（不跟隨＝憑證不會被帶走），但**多一份
+// 呼叫端責任**：manual 會把 302 當成正常 Response 回來，呼叫端必須用 `!x.ok` 之類的全稱檢查把
+// 非 2xx 擋掉（只認 `status === 401` 這種單點檢查擋不掉 302）。這一點由第 4 段掃描把關。
+// 另外本檔**只能**證到「語意層」；「這個值 workerd 收不收」只有真 runtime 答得出來，那是
+// scripts/verify_worker_runtime_smoke.mjs 的職責，兩支要一起跑才算驗過。
 //
 // 用法：node scripts/verify_plus_redirect_policy.mjs
 import { createHash } from 'node:crypto';
@@ -36,7 +49,12 @@ const { _plus } = await import('../worker.js');
 const { plusStatus, resetFirestoreAccessTokenCache } = _plus;
 
 let fails = 0;
-const SECTIONS = ['1 跨網域 30x 不得帶走憑證', '2 替身與偵測器的正向對照', '3 原始碼掃描：每個帶憑證的 fetch 都設了 redirect'];
+const SECTIONS = [
+  '1 跨網域 30x 不得帶走憑證',
+  '2 替身與偵測器的正向對照',
+  "3 原始碼掃描：每個 fetch 都設了 redirect:'manual'，且全檔不得再出現 'error'",
+  '4 manual 的呼叫端責任：30x 必須被當成失敗擋下來',
+];
 const seen = new Map();
 let SECTION = '(未分段)';
 const section = (name) => { SECTION = name; console.log(`\n===== ${name} =====`); };
@@ -84,8 +102,8 @@ async function hop(url, init, depth) {
   requests.push({ url, host: new URL(url).host, headers, body, redirect: init.redirect, depth });
 
   if (redirectingHost && url.includes(redirectingHost)) {
-    // Workers 語意：'error' ⇒ fetch() reject；預設 'follow' ⇒ 跟隨且**原樣轉送所有 header**。
-    if (init.redirect === 'error') throw new TypeError('fetch failed: unexpected redirect');
+    // Workers 語意：'manual' ⇒ 不跟隨，把 30x 本身當成 Response 回給呼叫端（憑證不會外流，
+    // 但呼叫端有責任把非 2xx 當成失敗）；預設 'follow' ⇒ 跟隨且**原樣轉送所有 header**。
     if (init.redirect === 'manual') return new Response(null, { status: 302, headers: { location: THIEF_URL } });
     if (depth >= 3) throw new TypeError('too many redirects');
     return await hop(THIEF_URL, init, depth + 1);          // 同一個 init ⇒ headers/body 原樣帶過去
@@ -113,7 +131,20 @@ async function hop(url, init, depth) {
   return new Response('{}', { status: 599 });
 }
 
-globalThis.fetch = async (input, init = {}) => hop(String(typeof input === 'string' ? input : input.url), init, 0);
+globalThis.fetch = async (input, init = {}) => {
+  // 🔴 2026-08-04 事故修正：這個替身原本把 'error' 模擬成「遇到 30x 才 reject」——那是 Node 的
+  // 語意，不是 workerd 的。真 workerd 在 **fetch() 呼叫當下** 就丟（連請求都不會送出去），
+  // 與上游回不回 30x 完全無關：
+  //   Invalid redirect value, must be one of "follow" or "manual" ("error" won't be implemented…)
+  // 當時判準全綠、上線後正式站所有 TDX 端點 502。現在照真 runtime 模擬——擋在 hop() 之前，
+  // 所以 requests 一發都不會被記到，任何人再寫 'error' 都會在這裡當場炸掉，不必等到上線。
+  if (init.redirect === 'error') {
+    throw new TypeError('Invalid redirect value, must be one of "follow" or "manual" ' +
+      '("error" won\'t be implemented since it does not make sense at the edge; ' +
+      'use "manual" and check the response status code)');
+  }
+  return hop(String(typeof input === 'string' ? input : input.url), init, 0);
+};
 
 // wrangler secret 可貼真換行；這裡動態產生一次性測試金鑰，repo 裡不放固定私鑰。
 const keyPair = await crypto.subtle.generateKey({
@@ -155,8 +186,8 @@ section(SECTIONS[0]);
       JSON.stringify({ 非白名單: offHost.map(r => r.host), 洩漏: leaked.map(r => serialize(r).slice(0, 120)) }));
 
     const sent = requests.find(req => req.url.includes(upstream));
-    check(sent && sent.redirect === 'error',
-      `${upstream} 這一發請求真的帶著 redirect:'error' 出門（不是靠替身沒回 30x 才沒事）`,
+    check(sent && sent.redirect === 'manual',
+      `${upstream} 這一發請求真的帶著 redirect:'manual' 出門（不是靠替身沒回 30x 才沒事）`,
       JSON.stringify({ redirect: sent && sent.redirect }));
   }
 }
@@ -185,17 +216,35 @@ section(SECTIONS[1]);
     '對照組：不帶憑證的請求跟隨到同一個目的地 ⇒ 偵測器不誤報（它認的是憑證，不是 host）',
     JSON.stringify({ 到達竊取端: cleanHits.length }));
 
-  // 對照組 3：redirect:'error' 的請求在替身上真的會 reject（不是被靜默當成 200）。
+  // 對照組 3：redirect:'manual' 遇到 30x ⇒ 不跟隨、把 30x 本身當成 Response 回來（不是靜默 200，
+  // 也不是 reject）。這三種結局的差別正是改用 manual 之後呼叫端要負的新責任，必須量出來。
   requests = [];
-  let rejected = false;
-  try {
-    await globalThis.fetch(`https://api.revenuecat.com/v2/projects/p/customers/${UID}/subscriptions`, {
-      headers: { Authorization: `Bearer ${RC_SECRET}` }, redirect: 'error',
-    });
-  } catch (e) { rejected = true; }
-  check(rejected && requests.filter(req => req.host === THIEF_HOST).length === 0,
-    "對照組：redirect:'error' 遇到 30x ⇒ 替身如 Workers 那樣 reject，且沒有第二發請求",
-    JSON.stringify({ rejected, 到達竊取端: requests.filter(r => r.host === THIEF_HOST).length }));
+  const manualRes = await globalThis.fetch(`https://api.revenuecat.com/v2/projects/p/customers/${UID}/subscriptions`, {
+    headers: { Authorization: `Bearer ${RC_SECRET}` }, redirect: 'manual',
+  });
+  check(manualRes.status === 302 && manualRes.ok === false
+      && requests.filter(req => req.host === THIEF_HOST).length === 0,
+    "對照組：redirect:'manual' 遇到 30x ⇒ 沒有第二發請求，且回來的是 status=302／ok=false 的 Response（呼叫端只要有 !x.ok 就擋得掉）",
+    JSON.stringify({ status: manualRes.status, ok: manualRes.ok, 到達竊取端: requests.filter(r => r.host === THIEF_HOST).length }));
+
+  // 對照組 4（事故回歸）：redirect:'error' 必須在**呼叫當下**就丟，而且與上游回不回 30x 無關。
+  // 這正是 2026-08-04 那場 502 的形狀——當時替身把它模擬成「遇到 30x 才 reject」，於是本機全綠。
+  // 兩發都測：有 30x 的、以及完全不轉址的。後者才是真正的鑑別點。
+  const errorCases = [];
+  for (const [label, host] of [['上游會回 30x', 'api.revenuecat.com'], ['上游根本不轉址', null]]) {
+    redirectingHost = host;
+    requests = [];
+    let thrown = null;
+    try {
+      await globalThis.fetch(`https://api.revenuecat.com/v2/projects/p/customers/${UID}/subscriptions`, {
+        headers: { Authorization: `Bearer ${RC_SECRET}` }, redirect: 'error',
+      });
+    } catch (e) { thrown = e; }
+    errorCases.push({ label, thrown: !!thrown, 訊息對: /Invalid redirect value/.test(String(thrown)), 送出幾發: requests.length });
+  }
+  check(errorCases.every(c => c.thrown && c.訊息對 && c.送出幾發 === 0),
+    "對照組：redirect:'error' 在替身上**呼叫當下**就丟（連請求都沒送出），上游轉不轉址都一樣 ⇒ 替身忠於 workerd，不是 Node 語意",
+    JSON.stringify(errorCases));
   redirectingHost = null;
 }
 
@@ -220,16 +269,16 @@ section(SECTIONS[2]);
   // 一行程式碼」——第一版就是這樣誤紅的）。樣本刻意涵蓋三個會咬人的形狀：URL 字串裡的 `//`、
   // 區塊註解裡假裝成程式碼的內容、樣板字串裡的 `//` 與 ${}。
   const LEXER_FIXTURE = [
-    "const u = 'https://a.example//x';   // 註解裡假裝有 fetch( 與 redirect: 'error'",
-    "fetch(u, { redirect: 'error' });",
-    "/* 區塊註解 fetch(bad) redirect: 'error' */",
+    "const u = 'https://a.example//x';   // 註解裡假裝有 fetch( 與 redirect: 'manual'",
+    "fetch(u, { redirect: 'manual' });",
+    "/* 區塊註解 fetch(bad) redirect: 'manual' */",
     'const t = `https://b.example//y?q=${1}`; fetch(t);',
   ].join('\n');
   const lexed = blankComments(LEXER_FIXTURE);
   const lexerProblems = [];
   if (lexed.length !== LEXER_FIXTURE.length) lexerProblems.push('長度被改變');
   if ((lexed.match(/fetch\s*\(/g) || []).length !== 2) lexerProblems.push(`fetch( 應剩 2 處，實得 ${(lexed.match(/fetch\s*\(/g) || []).length}`);
-  if ((lexed.match(/redirect:\s*'error'/g) || []).length !== 1) lexerProblems.push('註解裡的 redirect 沒清乾淨或程式碼裡的被清掉');
+  if ((lexed.match(/redirect:\s*'manual'/g) || []).length !== 1) lexerProblems.push('註解裡的 redirect 沒清乾淨或程式碼裡的被清掉');
   if (!lexed.includes("'https://a.example//x'")) lexerProblems.push('URL 字串裡的 // 被誤判成行註解');
   if (!lexed.includes('fetch(t);')) lexerProblems.push('樣板字串裡的 // 或 ${} 讓後面的程式碼被吃掉');
   check(lexerProblems.length === 0,
@@ -269,17 +318,28 @@ section(SECTIONS[2]);
     // 2026-08-04 兩批合流時這條判準第一次遇到它：呼叫點來自 35a3573（自家營運異常偵測），
     // 早已在正式站跑，只是那批沒有本判準、本批沒有那個呼叫點，合併才第一次相遇。
     // 零憑證已實查：worker.js:327 的 init 只有 `accept: 'application/json'` 與 AbortSignal。
-    // 刻意豁免而不是補 redirect:'error'——NCDR 是政府網站，改版用 30x 導向新路徑是常見的事，
-    // 設 'error' 會在對方轉址那天讓災害示警整個停擺，而它正是安全相關功能，壞掉的代價高於
+    // 刻意豁免而不是補 redirect:'manual'——NCDR 是政府網站，改版用 30x 導向新路徑是常見的事，
+    // 不跟隨會在對方轉址那天讓災害示警整個停擺，而它正是安全相關功能，壞掉的代價高於
     // 一個「本來就沒有憑證可外洩」的轉址風險。理由與上面新北捷那條同構。
     { why: 'NCDR 官方災害示警 feed：公開端點、零憑證（sourceUrl 可由 env 注入本機 fixture 供測試）', match: (t) => t.includes('sourceUrl') },
   ];
-  const unguarded = sites.filter(site => !/redirect:\s*'error'/.test(site.text));
+  const unguarded = sites.filter(site => !/redirect:\s*'manual'/.test(site.text));
   const violations = unguarded.filter(site => !EXEMPT.some(rule => rule.match(site.text)));
   check(violations.length === 0,
-    "worker.js 裡每一個 fetch 呼叫點都明確設了 redirect: 'error'（具名豁免除外）",
+    "worker.js 裡每一個 fetch 呼叫點都明確設了 redirect: 'manual'（具名豁免除外）",
     violations.length ? `未設防且未豁免的行號：${violations.map(s => s.line).join(', ')}`
       : `已檢查 ${sites.length} 個呼叫點，其中 ${unguarded.length} 個走具名豁免`);
+
+  // 🔴 事故回歸（2026-08-04）：'error' 這個值 workerd 直接拒收，全檔任何一處出現都會炸掉那條路徑。
+  // 掃的是 blankComments() 之後的 code，所以檔頭那段事故紀錄（註解）不會誤判成違規；反過來說，
+  // 真的有人在程式碼裡寫回 'error' 就一定被抓到。
+  const errorSites = [];
+  const errRe = /redirect:\s*'error'/g;
+  let em;
+  while ((em = errRe.exec(code))) errorSites.push(code.slice(0, em.index).split('\n').length);
+  check(errorSites.length === 0,
+    "worker.js 全檔不得再出現 redirect: 'error'（workerd 在 fetch() 呼叫當下就丟 Invalid redirect value ⇒ 那條路徑必 502）",
+    errorSites.length ? `行號：${errorSites.join(', ')}` : '0 處');
 
   // 自檢 C：豁免清單不得過期，也不得被拿來當萬用擋箭牌——每一條都必須恰好對到現存的一個
   // 呼叫點，而且那個呼叫點的引數裡不能出現任何憑證字樣。
@@ -290,13 +350,13 @@ section(SECTIONS[2]);
     const dirty = CREDENTIAL_MARKERS.filter(marker => hits[0].text.includes(marker));
     return dirty.length ? `${rule.why} ⇒ 引數裡出現憑證字樣 ${dirty.join('/')}` : null;
   }).filter(Boolean);
-  check(exemptProblems.length === 0 && sites.some(s => /redirect:\s*'error'/.test(s.text)),
+  check(exemptProblems.length === 0 && sites.some(s => /redirect:\s*'manual'/.test(s.text)),
     '豁免清單自檢：每一條豁免都恰好對到一個現存呼叫點、而且那個呼叫點真的不帶憑證；同時確實存在有設防的呼叫點（不是整批走豁免）',
     JSON.stringify({ 豁免問題: exemptProblems }));
 
   // 自檢 D（識別導向，不寫死數量）：六種憑證放法都真的落在「有設防」那一側。
   // 特別涵蓋 fetchDelayDay 那種「憑證在呼叫點外面的變數裡」的形狀——第一版的規則就是被它騙過。
-  const guarded = sites.filter(site => /redirect:\s*'error'/.test(site.text));
+  const guarded = sites.filter(site => /redirect:\s*'manual'/.test(site.text));
   const missingKinds = [
     ['header 放 RevenueCat secret', s => /Authorization: `Bearer \$\{env\.REVENUECAT_V2_SECRET_KEY\}`/.test(s.text)],
     ['body 放 OAuth JWT assertion', s => s.text.includes('assertion,')],
@@ -310,6 +370,77 @@ section(SECTIONS[2]);
   check(missingKinds.length === 0,
     '覆蓋率自檢：八種憑證放法（header/body/query、大小寫、動態值、呼叫點外的變數）都落在有設防的那一側',
     JSON.stringify({ 沒掃到的憑證放法: missingKinds }));
+}
+
+// ── 4. manual 的呼叫端責任：30x 回來時必須被當成失敗擋下來 ─────────────────────────────
+// 'error' 的語意是「遇到 30x 就 reject」，呼叫端什麼都不必做；改用 'manual' 之後，302 會變成一個
+// **正常 resolve 的 Response**，呼叫端不檢查就會把它當成功往下走（多半接著 r.json() 爆，但也可能
+// 靜默拿到空資料）。所以改用 manual 是把一份責任從 runtime 移到呼叫端——那份責任必須被驗，
+// 否則等於把「憑證不外洩」換成「靜默走進錯誤分支」。
+//
+// 判準刻意只認**全稱檢查**（`!x.ok` / `x.ok ?` / `if (x.ok)`）：`if (x.status === 401)` 這種單點
+// 檢查擋得掉 401 卻擋不掉 302，正是這一節要抓的形狀。
+section(SECTIONS[3]);
+{
+  const code = blankComments(readFileSync(WORKER_PATH, 'utf8'));
+
+  // 回傳「沒有全稱檢查」的呼叫點清單；抽成函式是為了下面能用已知答案的 fixture 反過來驗它有牙。
+  //
+  // 🔴 錨點刻意綁在**呼叫式本身**（同一支已自檢過的括號配對器），不是綁「redirect: 那一行的前後
+  // 幾行」。第一版就是綁行距，往回只看四行 ⇒ getTdxToken()／getFirestoreAccessToken() 這兩發把
+  // redirect 寫在 init 的第 7、8 行，被誤判成「沒被賦值給變數」，兩個假紅。行距是會漂移的量
+  // （心得 35），呼叫式的結構不會。
+  const findUnchecked = (src) => {
+    const out = [];
+    const re = /(?<![.\w$])fetch\s*\(/g;
+    let m;
+    while ((m = re.exec(src))) {
+      const before = src.slice(0, m.index).trimEnd();
+      if (/\b(async|function)$/.test(before)) continue;              // 方法／函式定義
+      const open = src.indexOf('(', m.index);
+      const close = matchParen(src, open);
+      if (close < 0) continue;
+      const args = src.slice(open + 1, close);
+      if (!/redirect:\s*'manual'/.test(args)) continue;              // 只管 manual 那些
+      const line = src.slice(0, m.index).split('\n').length;
+      // 賦值變數名：呼叫式左邊那一段（`const r = await ` / `const r = `）。
+      // 宣告關鍵字是選擇性的——fetchDelayDay() 的 429 重試是 `r = await fetch(…)`（重新賦值給
+      // 既有變數），第一版硬要 const/let 就把它誤判成「沒被賦值」。`(?<![=!<>])=` 排掉 ===／!== 那些比較。
+      const v = (before.match(/(?:(?:const|let|var)\s+)?(\w+)\s*(?<![=!<>])=\s*(?:await\s*)?$/) || [])[1];
+      if (!v) { out.push({ line, v: null, why: '這發 fetch 沒有被賦值給變數 ⇒ 回應根本沒被檢查' }); continue; }
+      const after = src.slice(close).split('\n').slice(0, 23).join('\n');
+      if (!new RegExp(`[!(\\s]${v}\\.ok\\b`).test(after)) {
+        out.push({ line, v, why: `呼叫式之後 22 行內找不到 ${v}.ok 全稱檢查` });
+      }
+    }
+    return out;
+  };
+
+  const unchecked = findUnchecked(code);
+  const manualCount = (code.match(/redirect:\s*'manual'/g) || []).length;
+  check(unchecked.length === 0 && manualCount > 0,
+    `worker.js 裡每一發 redirect:'manual' 的回應都有 .ok 全稱檢查（302 會被當成失敗）— 共 ${manualCount} 發`,
+    unchecked.length ? JSON.stringify(unchecked) : '');
+
+  // 正向對照：偵測器不是「永遠回空陣列」。三個已知答案的樣本——沒檢查、只檢查 status===401、
+  // 有 !r.ok——前兩個必須被抓、第三個不可被誤報。
+  const FIXTURE_BAD = ["const r = await fetch(u, { redirect: 'manual' });", 'const j = await r.json();'].join('\n');
+  const FIXTURE_WEAK = ["const r = await fetch(u, { redirect: 'manual' });", 'if (r.status === 401) return bad();', 'const j = await r.json();'].join('\n');
+  const FIXTURE_GOOD = ["const r = await fetch(u, { redirect: 'manual' });", 'if (!r.ok) return bad();', 'const j = await r.json();'].join('\n');
+  // 重新賦值給既有變數（fetchDelayDay 的 429 重試就是這個形狀）——沒有 const/let，但一樣有檢查。
+  const FIXTURE_REASSIGN = ["let r = await fetch(u, { redirect: 'manual' });",
+    "if (r.status === 429) { r = await fetch(u, { redirect: 'manual' }); }",
+    'if (!r.ok) throw new Error(String(r.status));'].join('\n');
+  const probes = {
+    沒檢查: findUnchecked(FIXTURE_BAD).length,
+    只檢查status401: findUnchecked(FIXTURE_WEAK).length,
+    有全稱檢查: findUnchecked(FIXTURE_GOOD).length,
+    重新賦值也有檢查: findUnchecked(FIXTURE_REASSIGN).length,
+  };
+  check(probes.沒檢查 === 1 && probes.只檢查status401 === 1
+      && probes.有全稱檢查 === 0 && probes.重新賦值也有檢查 === 0,
+    "呼叫端偵測器自檢：抓得到「完全沒檢查」與「只檢查 status===401」，且不誤報「有 !r.ok」與「重新賦值的重試」",
+    JSON.stringify(probes));
 }
 
 // 把註解字元換成空白（保留長度與換行），字串／樣板字面量原樣保留——URL 裡的 `//` 不可以被
