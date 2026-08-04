@@ -7169,10 +7169,22 @@ async function accountSyncTxn(reason, myGen, myUid) {
     userDataRenderAll();
     return true;
   } catch (e) {
-    if (!a.legacyKinds && e && e.code === 'permission-denied') {
+    const denied = !!(e && e.code === 'permission-denied');
+    // 2026-08-04 Task 8:收緊 rules 之後,permission-denied 有兩個成因,而下面那條重試只治其中一個。
+    //   (a) 新 collection 還沒被 rules 放行 —— 退回舊清單重試有意義。
+    //   (b) 這個人沒有有效 Plus 資格 —— 四個 kind 全被擋,退回舊清單重試一樣會被擋。
+    // 不分辨的話,唯一走得到這裡的非訂閱者路徑(登出例外)會:多打一次註定失敗的交易、而且把
+    // a.legacyKinds 永久設成 true(整個 session 不會重置)⇒ 他若在同一個 session 內買了 Plus,
+    // 之後每次同步都靜默少傳 stations,直到重新整理才恢復。用 plusIsActive() 分辨:
+    // 有資格才可能是 (a)。這是用戶端的成因判斷,不是資格閘門——真正的裁決者仍是 rules。
+    if (!a.legacyKinds && denied && plusIsActive()) {
       a.legacyKinds = true; // 新 collection 被 rules 擋下 → 本 session 改用舊清單同步
       return accountSyncTxn(reason + '-legacy', myGen, myUid);
     }
+    // 沒有資格而被擋是設計本身(條款與隱私政策都寫明「無有效資格時新變更留在裝置、不寫雲端」),
+    // 不是故障:登出已經不清本機資料(見 accountEndSession),東西一筆都沒少。報「同步失敗」只會
+    // 讓一個什麼都沒失去的人以為出事了。其餘錯誤照舊回報。
+    if (denied && !plusIsActive()) { a.actionError = ''; return false; }
     a.actionError = '同步失敗：' + (e && e.message ? e.message : String(e)); return false;
   }
 }
@@ -7247,6 +7259,11 @@ function accountClearLocal(uid) {
   const blank = () => { const e = userDataEmpty(); e.revision = 0; e.updatedAt = userDataNow(); return e; };
   userDataWrite(blank(), uid);  // 這個帳號自己的分區
   userDataWrite(blank(), null); // 共用匿名 key ＋ 四個 legacy 陣列(走 userDataWrite 的 if (!uid) 分支)
+  // 2026-08-04 複審 Minor:LAST_UID 在登出時刻意留著(擋下一個登入的別人),但帳號已經刪掉時
+  // 它指向一個不存在的 uid——同一個人重新註冊會拿到新 uid,陌生人判斷因而把他當外人:他在
+  // 刪帳號之後、重新註冊之前以匿名身分累積的收藏不會被帶進新帳號。刪除是不可逆的終點,
+  // 這台裝置已經沒有「上一個已驗證身分」可言,清掉才是誠實的狀態。
+  try { localStorage.removeItem(ACCOUNT_LAST_UID_KEY); } catch (e) {}
   userDataRenderAll();
 }
 async function accountSignOut() {

@@ -1062,6 +1062,7 @@ const chromiumB = await chromium.launch();
       anonAfter: userDataRead(null).collections.pins.items.map(x => x.value.label),
       legacyAfter: USER_DATA_COLLECTIONS.map(k => localStorage.getItem(USER_DATA_LEGACY[k])),
       uidKeyAfter: localStorage.getItem('trainmap-account-uid'),
+      lastUidKeyAfter: localStorage.getItem('trainmap-account-last-uid'),
     };
   }, UID);
   // 真的重新整理一次:複審描述的傷害就是「重新整理就回到畫面上」,只量 localStorage 不夠貼近。
@@ -1084,6 +1085,24 @@ const chromiumB = await chromium.launch();
     r.legacyAfter.every(v => v === '[]'), JSON.stringify(r.legacyAfter));
   ok('R12d Important 1 使用者可見結果:刪帳號後真的重新整理頁面,那顆含經緯度的釘選沒有回到畫面上(這正是 privacy.html/account-deletion.html「清除目前裝置內的私人收藏」承諾的兌現)',
     afterReload.pins.length === 0 && afterReload.activeUid === null, JSON.stringify(afterReload));
+  // 2026-08-04 park 的 Minor:LAST_UID 在登出時刻意保留(R4 的前置條件正是在驗這件事),但刪帳號
+  // 是不可逆的終點——那把 key 指向一個已經不存在的 uid。留著的話,同一個人重新註冊會拿到新 uid、
+  // 被自己的裝置判成陌生人,於是他在刪帳號之後累積的匿名收藏不會被帶進新帳號。
+  // 下面不只驗 key 的狀態,直接把「刪帳號 → 繼續匿名使用 → 重新註冊」整條走完,量他看得到什麼。
+  ok('R12e 刪帳號清掉 last-uid(與登出相反:R4 的前置條件驗的是登出必須保留它)——帳號都刪了,這台裝置已經沒有「上一個已驗證身分」可言',
+    r.lastUidKeyAfter === null, JSON.stringify({ lastUidKeyAfter: r.lastUidKeyAfter, uidKeyAfter: r.uidKeyAfter }));
+  const reReg = await page.evaluate(() => {
+    // 刪帳號之後繼續用(匿名),存一筆新的東西。
+    userDataSaveCollection('pins', [{ lat: 24.1477, lon: 120.6736, label: 'R12_AFTER_DELETE_PIN' }]);
+    // 重新註冊:新帳號一定是新的 uid。比照 onAuthStateChanged 的順序,先讀遷移結果再寫兩把 key。
+    const NEWUID = 'race-r12-uid-2';
+    state.account = { user: { uid: NEWUID }, gen: 0 };
+    localStorage.setItem('trainmap-account-uid', NEWUID);
+    const inherited = userDataRead(NEWUID).collections.pins.items.map(x => x.value.label);
+    return { inherited };
+  });
+  ok('R12f 使用者可見結果:刪帳號後繼續匿名累積的收藏,在重新註冊(新 uid)時真的被帶進新帳號——留著舊 last-uid 的話,他會被自己的裝置當成陌生人而拿到空的',
+    JSON.stringify(reReg.inherited) === JSON.stringify(['R12_AFTER_DELETE_PIN']), JSON.stringify(reReg));
   ok('R12 本輪零 pageerror/console.error', errs.length === 0, errs.slice(0, 3).join(' | '));
   await ctx.close();
 }
@@ -1164,6 +1183,59 @@ const chromiumB = await chromium.launch();
     // 前綴同 R3e 的說明:最愛 canonical key 是「系統別|車次」,字面寫死不與實作共用推導式。
     JSON.stringify(after.partitionStillOnDisk) === JSON.stringify(['tra_sched|A_SECRET']) && after.lastUidKey === 'r13-uid-a', JSON.stringify(after));
   ok('R13 本輪零 pageerror/console.error', errs.length === 0, errs.slice(0, 3).join(' | '));
+  await ctx.close();
+}
+
+// ══════════════ R14. Task 8:permission-denied 的兩個成因不可混為一談 ══════════════
+// 收緊 firestore.rules(寫入要求有效 Plus 資格)之後,accountSyncTxn 的 catch 會收到兩種
+// permission-denied:(a) 新 collection 還沒被 rules 放行——退回舊清單(去掉 stations)重試有意義;
+// (b) 這個人沒有有效資格——四個 kind 全被擋,重試一樣被擋。原本的 catch 只認 error.code,不分成因,
+// 於是唯一走得到那裡的非訂閱者路徑(登出例外)會多打一次註定失敗的交易,而且把 a.legacyKinds
+// 永久設成 true(整個 session 不重置)⇒ 他若在同一個 session 內買了 Plus,之後每次同步都靜默
+// 少傳 stations,直到重新整理。修法用 plusIsActive() 分辨成因,並把「沒資格而被擋」當成設計本身
+// (條款寫明無資格時新變更留在裝置)而不報「同步失敗」。
+// 三組互為對照:非訂閱者(不重試、不設旗標、不報錯)/ 訂閱者(照舊重試、旗標設起來)/
+// 非訂閱者但錯誤不是 permission-denied(照舊報錯)——第二三組證明沉默是有範圍的,不是把 catch 拆了。
+{
+  const { ctx, page } = await newPage(chromiumB);
+  const errs = attach(page, 'R14');
+  await page.goto(BASE, { waitUntil: 'domcontentloaded' });
+  await waitReady(page);
+  const r = await page.evaluate(async () => {
+    const denied = () => { const e = new Error('Missing or insufficient permissions.'); e.code = 'permission-denied'; return e; };
+    // 每組都重新建 state.account:a.legacyKinds 是 session 級旗標,共用會讓後一組看到前一組的殘留。
+    const run = async (plusActive, thrown) => {
+      let txnCalls = 0;
+      state.plus = plusActive ? { active: true } : { active: false };
+      state.account = {
+        ready: true, syncing: false, lastSync: 0, actionError: '', error: '', syncTimer: 0, gen: 0,
+        loggingOut: false, syncSuspended: false, syncPromise: null, legacyKinds: false,
+        user: { uid: 'race-r14-uid', email: 'r14@example.com' }, auth: {}, db: {},
+        fb: { doc: () => ({}), runTransaction: async () => { txnCalls++; throw thrown(); }, serverTimestamp: () => 'T' },
+      };
+      // 用 'logout' —— 非訂閱者唯一走得到 accountSyncTxn 的 reason(其餘都被 plusIsActive() 閘門擋在外面)。
+      const result = await accountSyncNow('logout');
+      return { result, txnCalls, legacyKinds: state.account.legacyKinds, actionError: state.account.actionError, plusSeen: plusIsActive() };
+    };
+    return {
+      nonSubscriber: await run(false, denied),
+      subscriber: await run(true, denied),
+      otherError: await run(false, () => new Error('瀏覽器儲存空間不足')),
+    };
+  });
+  ok('R14 前置條件:三組的 plusIsActive() 真的照設定分流(非訂閱=false、訂閱=true),否則下面全是同一組場景跑三遍',
+    r.nonSubscriber.plusSeen === false && r.subscriber.plusSeen === true && r.otherError.plusSeen === false, JSON.stringify(r));
+  ok('R14a 核心斷言:非訂閱者被 rules 擋下時只打一次交易,不做註定失敗的 legacy 重試(txnCalls===1)',
+    r.nonSubscriber.txnCalls === 1, JSON.stringify(r.nonSubscriber));
+  ok('R14b 核心斷言:非訂閱者被擋不可以污染 a.legacyKinds——設起來就等於「他這個 session 若買了 Plus,之後每次同步都靜默少傳 stations」',
+    r.nonSubscriber.legacyKinds === false, JSON.stringify(r.nonSubscriber));
+  ok('R14c 核心斷言:沒有資格而被擋是設計本身不是故障,不報「同步失敗」(登出不清本機,他一筆都沒少)',
+    r.nonSubscriber.actionError === '' && r.nonSubscriber.result === false, JSON.stringify(r.nonSubscriber));
+  ok('R14d 正向對照(有資格):同一個 permission-denied,訂閱者仍會退回舊清單重試——證明 R14a 的「只打一次」是成因判斷擋下的,不是重試路徑被整條拆掉(txnCalls===2 且旗標設起來)',
+    r.subscriber.txnCalls === 2 && r.subscriber.legacyKinds === true, JSON.stringify(r.subscriber));
+  ok('R14e 正向對照(非 permission-denied):同樣是非訂閱者,換成別的錯誤照舊回報「同步失敗」——證明 R14c 的沉默只涵蓋「被 rules 擋」,不是把整個 catch 的錯誤回報拆了',
+    /同步失敗/.test(r.otherError.actionError) && r.otherError.txnCalls === 1, JSON.stringify(r.otherError));
+  ok('R14 本輪零 pageerror/console.error', errs.length === 0, errs.slice(0, 3).join(' | '));
   await ctx.close();
 }
 
