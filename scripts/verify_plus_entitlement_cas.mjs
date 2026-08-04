@@ -391,6 +391,12 @@ section(SECTIONS[2]);
   check(slowResult.status === 200 && slowResult.body.active === true,
     '寫入被跳過不影響 /api/plus-status 的唯讀答案（它回的是自己剛查到的真相，仍是 200）',
     JSON.stringify(slowResult));
+  // 批二-B：兩個真相在這裡分家的最乾淨案例——RevenueCat 說有資格（active:true），但這一發的資格
+  // 文件寫入被 CAS 判成「現存的比較新」而跳過，我方既沒寫、也沒讀回它的內容 ⇒ 不得宣稱雲端已放行。
+  // 期望值是本檔自己宣告的字面 false，不從 writePlusEntitlement 的回傳推導。
+  check(slowResult.body.cloudSyncReady === false,
+    '批二-B：CAS 跳過寫入（skipped-older）時 cloudSyncReady 必須是 false——active 為真不等於雲端寫得進去',
+    JSON.stringify(slowResult.body));
   check(fastResult.status === 200 && fastResult.body.ok === true,
     '正向對照：先完成的 webhook 回 200，且它那一筆確實是寫進去的那份', JSON.stringify(fastResult));
   check(logs.some(line => line.includes('刻意跳過')),
@@ -420,6 +426,12 @@ section(SECTIONS[3]);
     JSON.stringify(slowResult));
   check(fastResult.status === 200 && fastResult.body.active === true,
     '正向對照：先完成的 plus-status 回 200 active:true，且它那一筆確實是寫進去的那份', JSON.stringify(fastResult));
+  // 批二-B 正向對照（與第 3 段那條互為對照，同一支替身、同一顆假 Firestore）：這一發真的把 active
+  // 的資格文件寫進去了 ⇒ cloudSyncReady 必須是 true。少了這條，上一段的 false 可能只是「這個欄位
+  // 恆為 false」而不是「它真的在回報落地結果」。
+  check(fastResult.body.cloudSyncReady === true,
+    '批二-B 正向對照：資格文件真的寫進去（CAS created／updated）且內容 active ⇒ cloudSyncReady 為 true',
+    JSON.stringify(fastResult.body));
 }
 
 // ── 5. 衝突後的行為 ──────────────────────────────────────────────────────────────────

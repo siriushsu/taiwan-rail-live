@@ -384,15 +384,25 @@ section(SECTIONS[5]);
     'Firestore 寫入失敗時 /api/plus-status 仍回正確唯讀答案', `status=${response.status} body=${JSON.stringify(body)}`);
   check(firestoreWrites().length === 1 && errors.some(line => line.includes('Firestore write failed')),
     '失敗確實發生且有診斷 log，不是靜默跳過寫入', `writes=${firestoreWrites().length} logs=${JSON.stringify(errors)}`);
+  // 批二-B：這正是「兩個真相分家」最危險的一格——RevenueCat 說有資格，資格文件卻寫失敗了。
+  // 客戶端拿 cloudSyncReady 決定要不要嘗試雲端同步，這裡回 true 等於叫他去撞 rules。
+  check(body.cloudSyncReady === false,
+    '批二-B：Firestore 寫入失敗 ⇒ cloudSyncReady 必須是 false（active 為真不代表雲端寫得進去）',
+    JSON.stringify(body));
 
   resetIo();
   const successErrors = [];
   console.error = (...args) => successErrors.push(args.map(String).join(' '));
   try { response = await plusStatus(plusStatusRequest(), ENV()); }
   finally { console.error = realConsoleError; }
+  const successBody = await response.json();
   check(response.status === 200 && firestoreWrites().length === 1 && successErrors.length === 0,
     '正向對照：寫入成功時仍回 200、確實寫一筆且不誤報錯',
     `status=${response.status} writes=${firestoreWrites().length} logs=${successErrors.length}`);
+  // 批二-B 正向對照：有資格＋寫入成功才是唯一該回 true 的組合。少了這條，上面那條 false
+  // 可能只是「這個欄位恆為 false」。
+  check(successBody.cloudSyncReady === true,
+    '批二-B 正向對照：有效訂閱＋資格文件寫入成功 ⇒ cloudSyncReady 為 true', JSON.stringify(successBody));
 
   resetIo();
   rcBody = { items: [baseSubscription({ environment: 'sandbox' })] };
@@ -406,6 +416,11 @@ section(SECTIONS[5]);
       && sandboxStatusDoc.fields.source.stringValue === 'plus-status',
     'sandbox-only /api/plus-status ⇒ 唯讀回 active:false，且自癒文件也寫 active:false',
     `response=${JSON.stringify(sandboxStatusBody)} doc=${JSON.stringify(sandboxStatusDoc)}`);
+  // 批二-B：這一格「寫入成功、但寫進去的是 active:false 的文件」。firestore.rules 讀的是文件內容，
+  // 不是「有沒有寫成功」，所以只看 written 就回 true 會對一個沒資格的人宣稱雲端已放行。
+  check(sandboxStatusBody.cloudSyncReady === false,
+    '批二-B：寫入成功但文件內容是 active:false ⇒ cloudSyncReady 仍必須是 false（rules 讀的是內容，不是寫入結果）',
+    JSON.stringify(sandboxStatusBody));
 }
 
 section(SECTIONS[6]);

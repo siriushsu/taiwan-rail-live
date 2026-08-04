@@ -7139,7 +7139,10 @@ function userDataRenderAll() {
 }
 // accountSyncNow 拆出來的實際交易邏輯——獨立成函式是為了讓 permission-denied 的重試
 // (見下方 catch)只重跑交易本身,不重新經過外層的 a.syncing/a.loggingOut/plusIsActive() 閘門。
-async function accountSyncTxn(reason, myGen, myUid) {
+// retried:這一發是不是「上一發失敗之後的重試」。批二-B 用它把資格落地握手鎖成**每次同步最多一次**
+// ——兩條重試路徑(握手後全量重試、退回舊清單重試)都傳 true,重試再失敗時不會又打一次
+// /api/plus-status。外層 accountSyncNow 只傳三個參數(undefined ⇒ 第一發),不必跟著改。
+async function accountSyncTxn(reason, myGen, myUid, retried) {
   const a = state.account;
   try {
     // Firestore rules 尚未放行新 collection 時,整筆交易會 permission-denied——退回舊清單重試,
@@ -7177,9 +7180,31 @@ async function accountSyncTxn(reason, myGen, myUid) {
     // a.legacyKinds 永久設成 true(整個 session 不會重置)⇒ 他若在同一個 session 內買了 Plus,
     // 之後每次同步都靜默少傳 stations,直到重新整理才恢復。用 plusIsActive() 分辨:
     // 有資格才可能是 (a)。這是用戶端的成因判斷,不是資格閘門——真正的裁決者仍是 rules。
+    // 🔴 2026-08-04 批二-B(整合稽核 Important 2／3):Task 8 分出的成因 (a) 其實還要再分一層,
+    // 而且新的那一層才是剛付完錢的人真正會遇到的:
+    //   (a1) /entitlements/{uid} 資格文件還沒落地 —— 買完當下 RevenueCat 已經說有資格(plusIsActive()
+    //        為真、純客端功能全開),但 rules 讀的那份文件要等 webhook 或一次主動握手才寫得進去,
+    //        在那之前**四個 kind 全部**被擋。退回舊清單重試對這個成因完全無效(少傳一個 kind 不會
+    //        讓 rules 改口),而且會把 a.legacyKinds 這面 session 級旗標永久設起來 ⇒ 文件之後真的
+    //        落地了,他每次同步仍然靜默少傳 stations,直到重新整理。
+    //   (a2) 新 collection 還沒被 rules 放行 —— 這個才是退回舊清單真正在治的東西。
+    // 分辨方式不是猜,是**去問**:plusReconcileEntitlement() 打一次 /api/plus-status,那條路徑本身
+    // 就會用 service account 寫資格文件,回應直接告訴我們文件此刻在不在(見該函式與 worker.js
+    // plusStatus 的說明)。握手成功 ⇒ 成因是 (a1),把降級收回來(plusMarkCloudSyncReady 內清掉
+    // legacyKinds)並**全量**重試,降級期間沒上去的 stations 就在這一次補上去。
+    // 握手不成功(上游故障/文件仍未落地)⇒ 不硬撐,落到下面既有的 (a2) 路徑,行為與批二-B 之前一樣。
+    // `!plusCloudSyncReady()` 讓握手在一次同步裡最多只發生一次:文件已確認落地卻仍被擋,那就真的
+    // 是 (a2),再握手一次也不會有新資訊。整條路徑的交易次數因此有上限(原始 1 + 握手後重試 1 +
+    // 舊清單重試 1),不會變成對著註定失敗的 rules 洗版。
+    if (denied && plusIsActive() && !plusCloudSyncReady() && !retried) {
+      const landed = await plusReconcileEntitlement();
+      // 握手期間有多個 await,身分可能已經變了——比照本函式尾端的世代複查,對不上就別再發交易。
+      if (a.gen !== myGen || !a.user || a.user.uid !== myUid) return false;
+      if (landed) return accountSyncTxn(reason + '-reconciled', myGen, myUid, true);
+    }
     if (!a.legacyKinds && denied && plusIsActive()) {
       a.legacyKinds = true; // 新 collection 被 rules 擋下 → 本 session 改用舊清單同步
-      return accountSyncTxn(reason + '-legacy', myGen, myUid);
+      return accountSyncTxn(reason + '-legacy', myGen, myUid, true);
     }
     // 沒有資格而被擋是設計本身(條款與隱私政策都寫明「無有效資格時新變更留在裝置、不寫雲端」),
     // 不是故障:登出已經不清本機資料(見 accountEndSession),東西一筆都沒少。報「同步失敗」只會
@@ -7238,7 +7263,9 @@ async function accountSignIn(providerName) {
 //                                    共用匿名 key＋四個 legacy 陣列,三處缺一就是承諾跳票)。
 function accountForgetIdentity() {
   if (state.account) state.account.gen = (state.account.gen || 0) + 1; // C-2 世代前進:仍在途的舊同步之後複查世代會發現對不上,結果被丟棄不寫本機(見 accountSyncTxn)
-  if (state.plus) { state.plus.active = false; state.plus.founding = false; state.plus.pkgMonthly = null; state.plus.pkgAnnual = null; state.plus.mgmtUrl = ''; state.plus.adapter = null; state.plus.afterUnlock = null; }
+  // 批二-B:cloudSyncReady(資格文件落地)綁在「這個身分」上,身分沒了就不再成立——下一個登入的人
+  // 必須自己重新握手一次,不能繼承上一個人的落地結論。
+  if (state.plus) { state.plus.active = false; state.plus.founding = false; state.plus.pkgMonthly = null; state.plus.pkgAnnual = null; state.plus.mgmtUrl = ''; state.plus.adapter = null; state.plus.afterUnlock = null; state.plus.cloudSyncReady = false; }
   if (window.RAIL_NATIVE_PLUS_ADAPTER && window.RAIL_NATIVE_PLUS_ADAPTER.clearUser) window.RAIL_NATIVE_PLUS_ADAPTER.clearUser().catch(() => {});
   // C-4:登出解除 CustomerInfo 更新 listener,避免舊使用者的推播繼續打在剛登出/換人的 state 上。
   // 🔴 2026-08-04 批二-E:接住這個 promise 並回傳(既有兩個呼叫端 accountEndSession/accountClearLocal
@@ -7520,6 +7547,68 @@ async function setupAccountUi() {
 // (p===state.plus)——那些是訂閱視窗渲染自己的狀態(選哪個文案分支)或剛寫完 p.active 後緊接著算
 // p.founding,不是在替某個「功能」把關,不算閘門,故意不改用 plusIsActive()。
 function plusIsActive() { return !!(state.plus && state.plus.active); }
+// 🔴 2026-08-04 批二-B(整合稽核 Important 2／3):Plus 有**兩個獨立的真相**,把它們當同一件事
+// 正是「剛付完錢的人收藏站點不會上雲、而且不會收到任何錯誤」的根因。
+//   plusIsActive()       ＝ 帳務上有沒有資格(RevenueCat 說了算)。管的是純客端功能:Takeout 匯入、
+//                          行程分享、衛星 Retina、Live Activity。買完當下就知道。
+//   plusCloudSyncReady() ＝ Firestore 的 /entitlements/{uid} 資格文件有沒有真的落地(伺服器說了算,
+//                          由 /api/plus-status 的 cloudSyncReady 欄位確認)。管的是雲端同步——
+//                          firestore.rules 讀的就是那份文件,它沒落地時**四個 kind 全部**被擋。
+// 買完之後 active 立刻為真、文件卻要等 webhook 或一次主動握手才落地,中間那段時間兩者必然分家;
+// 兩個狀態各自可查,誰管誰一眼就看得出來,才不會再有人用其中一個去推論另一個。
+function plusCloudSyncReady() { return !!(state.plus && state.plus.cloudSyncReady); }
+// 「確認落地」的唯一入口。之所以要是一支函式而不是散在各處的賦值:落地這件事同時代表
+// **之前所有基於「被 rules 擋」而做的降級都失去依據**——a.legacyKinds(退回舊清單、少傳 stations)
+// 是 session 級旗標且永不重置,不在這裡一起收回來,使用者就會在資格已經生效之後,每次同步仍然
+// 靜默少傳 stations 直到他重新整理為止(Task 8 的 commit 訊息明說這條尾巴不在該次範圍內)。
+function plusMarkCloudSyncReady() {
+  const p = plusState();
+  p.cloudSyncReady = true;
+  if (state.account) state.account.legacyKinds = false; // 收回降級;下一次同步是全量,補傳降級期間沒上去的 stations
+  return true;
+}
+// 資格落地握手:主動打一次 /api/plus-status,讓 Worker 用 service account 把 /entitlements/{uid}
+// 寫進去,並用它的回應確認「這一刻文件真的在那裡」。**這條路徑本身就是 writer**,所以它不是輪詢
+// 等待,而是一次會改變世界的請求——這也是為什麼重試策略可以這麼保守:
+//   · 一次呼叫就結案。Worker 是 `await writePlusEntitlement(...)` 之後才回應的,回 cloudSyncReady:true
+//     時文件已經寫進 Firestore 了,沒有「再等一下就會好」的中間態可以輪詢。
+//   · 失敗(401／503／網路錯／CAS 跳過)不在原地重試,不排 timer、不遞增退避。原因是失敗的成因都
+//     不是「時間不夠」:上游故障要等它自己好,而下一次自然觸發(下一輪同步、回前景 visibilitychange、
+//     再一次購買/恢復購買)本來就會再握手一次。在這裡加輪詢只會對一個已經在故障的上游洗版。
+//   · p.cloudSyncReady 為真就直接回 true,不再打——握手成功是不需要重做的事實。
+//   · 同一時間只允許一發在飛(p.cloudSyncPromise),理由同 plusRefresh() 的 p.loading 守衛:
+//     回應亂序覆寫狀態比多等一次還糟。
+// 拿不到 ID token 時(尚未登入、或 SDK 還沒備妥)直接回 false 不發請求:沒有身分的請求後端只會回
+// 401,發它等於白打一發並在 console 留下噪音。
+async function plusReconcileEntitlement() {
+  const a = state.account, user = a && a.user;
+  if (!user) return false;
+  const p = plusState();
+  if (p.cloudSyncReady) return true;
+  if (p.cloudSyncPromise) return p.cloudSyncPromise;
+  const getToken = a.fb && a.fb.getIdToken ? () => a.fb.getIdToken(user)
+    : (typeof user.getIdToken === 'function' ? () => user.getIdToken() : null);
+  if (!getToken) return false;
+  const myGen = a.gen, myUid = user.uid;
+  const task = (async () => {
+    try {
+      const token = await getToken();
+      const res = await fetch(apiUrl('api/plus-status'), { cache: 'no-store', headers: { Authorization: 'Bearer ' + token } });
+      if (!res.ok) return false;
+      const data = await res.json();
+      // 握手期間身分可能已經變了(登出/換人/session 失效)——比照 accountSyncTxn 的世代複查,
+      // 對不上就整份丟棄,不把上一個帳號的資格狀態寫到現在這個人身上。
+      const now = state.account;
+      if (!now || now.gen !== myGen || !now.user || now.user.uid !== myUid) return false;
+      if (data && typeof data.active === 'boolean') p.active = data.active;
+      if (data && data.cloudSyncReady === true) return plusMarkCloudSyncReady();
+      return false;
+    } catch (e) { return false; }
+    finally { p.cloudSyncPromise = null; }
+  })();
+  p.cloudSyncPromise = task;
+  return task;
+}
 const REVENUECAT_WEB_VERSION = '1.47.3';
 const REVENUECAT_WEB_URL = `https://cdn.jsdelivr.net/npm/@revenuecat/purchases-js@${REVENUECAT_WEB_VERSION}/dist/Purchases.umd.js`;
 const REVENUECAT_WEB_SRI = 'sha384-uxK23EQfDmI/oo6YmVrqk+9HhGysN0x/nGR3rCt/WWke/GFeWKQDTigtWvgCEZrF';
@@ -7707,7 +7796,9 @@ async function plusRevalidateBeforeAction(adapter) {
   } catch (e) {}
 }
 function plusState() {
-  if (!state.plus) state.plus = { active: false, founding: false, loading: false, error: '', pkgMonthly: null, pkgAnnual: null, mgmtUrl: '', adapter: null, afterUnlock: null };
+  // cloudSyncReady/cloudSyncPromise 是批二-B 新增的第二個狀態(資格文件落地),與 active(帳務資格)
+  // 刻意分開存放,見 plusCloudSyncReady() 上方說明。
+  if (!state.plus) state.plus = { active: false, founding: false, loading: false, error: '', pkgMonthly: null, pkgAnnual: null, mgmtUrl: '', adapter: null, afterUnlock: null, cloudSyncReady: false, cloudSyncPromise: null };
   return state.plus;
 }
 async function plusOpen(source, onGranted) {
@@ -7837,6 +7928,11 @@ async function plusRefresh() {
         // 一律維持現狀——把上游短暫故障誤讀成「沒訂閱」會讓付費者的功能整批閃爍消失(同一顧慮見
         // worker.js /api/plus-status 註解,那裡就是為了讓前端能分辨才把 403 轉成 200 {active:false})。
         if (data && typeof data.active === 'boolean') p.active = data.active;
+        // 批二-B:這條分支打的就是資格文件的 writer,所以它同時也是一次免費的握手——多讀一個欄位
+        // 就好,不另外發請求(verify_plus_refresh_lifecycle 的 L12/L13 在數這條路徑發幾發請求)。
+        // 只認明確的 true:欄位缺席(舊版 Worker)或 false 一律維持現狀,不把「這次沒確認到」當成
+        // 「確定沒落地」——與上一行「非 200 是查不出來」同一套顧慮。
+        if (data && data.cloudSyncReady === true) plusMarkCloudSyncReady();
       }
     } catch (e) {
     } finally { p.loading = false; }
@@ -7894,6 +7990,13 @@ async function plusPurchase(kind) {
     p.mgmtUrl = (info && info.managementURL) || p.mgmtUrl || '';
     if (!p.active) throw new Error('付款完成但尚未取得訂閱資格，請按「恢復購買」');
     if (state.basemap === 'sat') setBasemap(); // 資格變動→衛星解析度跟著換,不必等使用者重切底圖
+    // 🔴 2026-08-04 批二-B:買完立刻做資格落地握手,不要等使用者第一次同步撞上 permission-denied
+    // 才補救(那是稽核 Important 2／3 描述的實際症狀)。/api/plus-status 這條路徑本身就會用
+    // service account 寫 /entitlements/{uid},所以這一發是「主動讓文件落地並確認」,不是查詢。
+    // 落地了就補一次全量同步:購買之前這個人的所有本機變更都被資格閘門擋著沒上雲(見
+    // accountSyncNow 的閘門),這一次才是它們第一次有機會上去。握手失敗不擋購買流程——資格已經
+    // 生效、純客端功能照常開,雲端同步會在下一次自然觸發時再握手一次(見 accountSyncTxn 的 catch)。
+    if (await plusReconcileEntitlement()) accountSyncNow('entitlement');
     accountRender();
     if (!plusFinishPending()) { plusClose(); showToast('軌島 Plus 已啟用'); }
   } catch (e) {
@@ -7914,6 +8017,9 @@ async function plusRestore() {
     p.founding = p.active && foundingFrom(info);
     p.mgmtUrl = (info && info.managementURL) || p.mgmtUrl || ''; accountRender();
     if (p.active) {
+      // 批二-B:恢復購買與購買同一個道理——資格是在別台買的,這台裝置的資格文件可能從來沒被
+      // 寫過(webhook 只會為購買當下的 uid 寫一次)。同樣先握手再補一次全量同步,見 plusPurchase()。
+      if (await plusReconcileEntitlement()) accountSyncNow('entitlement');
       if (!plusFinishPending()) { plusClose(); showToast('已恢復訂閱資格'); }
     } else p.error = '這個帳號目前沒有可恢復的 Plus 訂閱資格。';
   } catch (e) { p.error = '無法恢復訂閱：' + (e && e.message ? e.message : String(e)); }

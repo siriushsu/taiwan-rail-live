@@ -1398,6 +1398,237 @@ const chromiumB = await chromium.launch();
   await ctx.close();
 }
 
+// ══════════════ R16. 批二-B(整合稽核 Important 2／3):買完 Plus 之後的資格落地握手 ══════════════
+// Plus 有兩個獨立的真相,而修復前的程式把它們當同一件事:
+//   · 帳務資格(RevenueCat 說有沒有訂閱)—— 買完當下就為真,決定純客端功能。
+//   · /entitlements/{uid} 資格文件有沒有落地 —— firestore.rules 讀的是它,它不在時**四個 kind 全滅**。
+// 稽核描述的症狀:買完 → 客戶端立刻認為自己是 Plus 而開始同步 → 文件還沒寫好 → permission-denied
+// → 退回舊清單(去掉 stations)重試 → 一樣被擋,而 a.legacyKinds 是 session 級旗標且永不重置
+// ⇒ 文件之後真的落地了,他每次同步仍然靜默少傳 stations,直到重新整理。
+//
+// 本段驗的是完整時序:買完 → 文件還沒落地(被擋、降級) → 落地 → 全量補傳,而且斷言落在
+// **使用者真正看得到的結果**(收藏站點最後有沒有真的被提交上雲),不是只看旗標值。
+//
+// 判準的真值來源刻意獨立於被測程式(心得 29):「文件在不在」由本檔在 Node 這一側用 docLanded 掌握,
+// 透過 exposeFunction 交給頁面裡的假 Firestore 當 rules 的裁決依據;前端的 state.plus 完全不參與
+// 這個裁決。假 Worker 也忠實模擬真 Worker 的因果:/api/plus-status 這條路徑**本身就是資格文件的
+// writer**(見 worker.js plusStatus),所以「打它」就是「讓文件落地」,回應的 cloudSyncReady 是那次
+// 寫入的結果,不是另一個獨立旗標。假 Firestore 在 **commit 時**才裁決(tx.get 照樣成功——rules 對
+// 這四份文件的 read 本來就不要求資格),這樣「嘗試寫了哪些 kind」與「真的提交了哪些 kind」是兩組
+// 可分辨的觀測,才測得到「試了但沒上去」這種修復前的實際狀態。
+// 期望的 kind 名單、順序與 canonical id 全部是本檔寫死的字面值,不從 USER_DATA_COLLECTIONS 推導。
+{
+  const { ctx, page } = await newPage(chromiumB);
+  const errs = attach(page, 'R16');
+  let workerCanWrite = false, docLanded = false;
+  const statusAuth = [];
+  await page.exposeFunction('__railDocLanded', () => docLanded);
+  await page.route('**/api/plus-status', route => {
+    statusAuth.push(route.request().headers()['authorization'] || '');
+    if (workerCanWrite) docLanded = true;               // 這條路徑就是 writer:寫得進去 ⇒ 文件此刻落地
+    route.fulfill({
+      status: 200, contentType: 'application/json',
+      body: JSON.stringify({ active: true, cloudSyncReady: workerCanWrite }),
+    });
+  });
+  await page.goto(BASE, { waitUntil: 'domcontentloaded' });
+  await waitReady(page);
+  const UID = 'race-r16-uid';
+  const setup = await page.evaluate(async (UID) => {
+    window.__attempts = []; window.__commits = [];
+    state.plus = null; plusState().active = true;       // 剛買完:帳務資格為真,cloudSyncReady 仍是初始的 false
+    state.account = {
+      ready: true, syncing: false, lastSync: 0, actionError: '', error: '', syncTimer: 0, gen: 0,
+      loggingOut: false, syncSuspended: false, syncPromise: null, legacyKinds: false,
+      user: { uid: UID, email: 'r16@example.com' }, auth: {}, db: {},
+    };
+    // 走產品的儲存函式,不直接寫 localStorage——這兩筆就是下面要看「有沒有真的上雲」的東西。
+    userDataSaveCollection('stations', [{ sys: 'tra_sched', name: 'R16_STATION', lat: 25.047675, lon: 121.517055 }]); // stations 的 CleanValue 要求 lat/lon 合法,缺了會被整筆丟掉
+    userDataSaveCollection('favs', [{ sys: 'tra_sched', train: 'R16_TRAIN' }]);
+    state.account.fb = {
+      doc: (db, ...segs) => ({ kind: segs[segs.length - 1] }),
+      getIdToken: async () => 'R16_FAKE_ID_TOKEN',      // 握手要 Firebase ID token(見 plusReconcileEntitlement)
+      serverTimestamp: () => 'SERVER_TIME_STUB',
+      runTransaction: async (db, fn) => {
+        const attempt = [];
+        const tx = {
+          get: async () => ({ exists: () => false, data: () => null }), // rules 允許讀,只有寫要資格
+          set: (ref, data) => attempt.push({ kind: ref.kind, ids: (data.items || []).map(i => i.id) }),
+        };
+        const out = await fn(tx);
+        window.__attempts.push(attempt.map(w => w.kind));
+        if (!(await window.__railDocLanded())) {        // rules 在 commit 才裁決:文件不在 ⇒ 整筆被擋
+          const e = new Error('Missing or insufficient permissions.'); e.code = 'permission-denied'; throw e;
+        }
+        window.__commits.push(attempt);
+        return out;
+      },
+    };
+    return {
+      plusActive: plusIsActive(), cloudReady: plusCloudSyncReady(),
+      stationsLocal: userDataRead(UID).collections.stations.items.map(i => i.id),
+    };
+  }, UID);
+  ok('R16-pre 前置條件:兩個狀態一開始就是分家的——帳務資格已經是 true(剛買完),資格文件落地仍是 false(下面的「被擋」才不是因為他根本沒訂閱)',
+    setup.plusActive === true && setup.cloudReady === false, JSON.stringify(setup));
+  ok('R16-pre 正向對照:本機真的有一筆收藏站點可以被送上去(id 是 canonical 的「系統別|站名」),不然下面「stations 有沒有上雲」量的是空氣',
+    JSON.stringify(setup.stationsLocal) === JSON.stringify(['tra_sched|R16_STATION']), JSON.stringify(setup));
+
+  // ── 第 1 段:文件還沒落地(假 Worker 這一刻寫不進 Firestore)──────────────────────────
+  const p1 = await page.evaluate(async () => {
+    const r = await accountSyncNow('local-change');
+    return {
+      r, attempts: window.__attempts.slice(), commits: window.__commits.slice(),
+      legacyKinds: state.account.legacyKinds, actionError: state.account.actionError,
+      cloudReady: plusCloudSyncReady(), plusActive: plusIsActive(),
+    };
+  });
+  ok('R16a 核心斷言:資格文件還沒落地時,一筆都沒有真的寫上雲(零 commit),而且不對使用者謊稱成功——回傳 false 且面板上留著錯誤訊息',
+    p1.r === false && p1.commits.length === 0 && /同步失敗/.test(p1.actionError), JSON.stringify(p1));
+  ok('R16b 核心斷言:握手真的發生了——/api/plus-status 被打了 1 次,而且帶著 Bearer 身分(沒帶身分的請求後端只會回 401,等於白打)',
+    statusAuth.length === 1 && /^Bearer .+/.test(statusAuth[0] || ''), JSON.stringify({ statusAuth }));
+  ok('R16c 核心斷言:被擋時交易次數有上限——整次同步只送出 2 發(第一發全量、第二發是退回舊清單的重試),不是對著註定被 rules 擋下的規則洗版',
+    JSON.stringify(p1.attempts) === JSON.stringify([['pins', 'favs', 'rides', 'stations'], ['pins', 'favs', 'rides']]),
+    JSON.stringify(p1.attempts));
+  ok('R16d 前置事實(下面「收回降級」才有東西可收):文件落地之前,a.legacyKinds 確實被設成 true,而且 cloudSyncReady 仍是 false',
+    p1.legacyKinds === true && p1.cloudReady === false, JSON.stringify(p1));
+
+  // ── 第 2 段:文件落地(假 Worker 這一刻寫得進去)──────────────────────────────────────
+  workerCanWrite = true;
+  const p2 = await page.evaluate(async () => {
+    const r = await accountSyncNow('local-change');
+    return {
+      r, attempts: window.__attempts.slice(), commits: window.__commits.slice(),
+      legacyKinds: state.account.legacyKinds, actionError: state.account.actionError,
+      cloudReady: plusCloudSyncReady(), plusActive: plusIsActive(), lastSync: state.account.lastSync,
+    };
+  });
+  ok('R16e 核心斷言:資格文件落地的那一刻,之前的降級被收回來——a.legacyKinds 變回 false(修復前它是 session 級旗標且永不重置)',
+    p2.legacyKinds === false, JSON.stringify(p2));
+  ok('R16f 核心斷言(使用者真正看得到的結果):落地後那一次同步真的把四個 kind 全量提交上雲,而且 stations 裡就是他那筆收藏站點——降級期間沒上去的東西補上去了',
+    p2.commits.length === 1
+      && JSON.stringify(p2.commits[0].map(w => w.kind)) === JSON.stringify(['pins', 'favs', 'rides', 'stations'])
+      && JSON.stringify((p2.commits[0].find(w => w.kind === 'stations') || {}).ids) === JSON.stringify(['tra_sched|R16_STATION']),
+    JSON.stringify(p2.commits));
+  ok('R16g 核心斷言(時序):這一輪的兩發交易依序是「舊清單(還在降級中)→ 握手成功後的全量重試」——證明全量那發是握手促成的,不是第一發就送全量碰巧成功',
+    JSON.stringify(p2.attempts.slice(2)) === JSON.stringify([['pins', 'favs', 'rides'], ['pins', 'favs', 'rides', 'stations']]),
+    JSON.stringify(p2.attempts));
+  ok('R16h 兩個狀態各自到位:資格文件落地後 plusCloudSyncReady() 變 true、plusIsActive() 仍是 true,而且這次同步回傳 true、錯誤訊息被清掉',
+    p2.cloudReady === true && p2.plusActive === true && p2.r === true && p2.actionError === '' && p2.lastSync > 0, JSON.stringify(p2));
+  ok('R16i 握手每次同步最多一次:這一輪只多打 1 發 /api/plus-status(累計 2),重試不會再打一次',
+    statusAuth.length === 2, JSON.stringify({ statusAuth }));
+
+  // ── 第 3 段:握手成功之後不再重打 ────────────────────────────────────────────────────
+  const p3 = await page.evaluate(async () => {
+    const before = window.__attempts.length;
+    const r = await accountSyncNow('local-change');
+    return { r, newAttempts: window.__attempts.slice(before), commits: window.__commits.length };
+  });
+  ok('R16j 握手不重打:資格文件已確認落地之後,再同步一次完全不碰 /api/plus-status(累計仍是 2),而且交易一發就成功',
+    statusAuth.length === 2 && p3.r === true
+      && JSON.stringify(p3.newAttempts) === JSON.stringify([['pins', 'favs', 'rides', 'stations']]) && p3.commits === 2,
+    JSON.stringify({ statusAuth, p3 }));
+  ok('R16 本輪零 pageerror/console.error', errs.length === 0, errs.slice(0, 3).join(' | '));
+  await ctx.close();
+}
+
+// ══════════════ R17. 批二-B:購買完成當下就主動握手,不等第一次同步撞牆 ══════════════
+// R16 驗的是「撞上 permission-denied 之後補救」這條被動路徑。這一段驗主動路徑:買完就先確認資格
+// 文件落地,讓使用者的第一次同步一次就成功——購買之前他的所有本機變更都被資格閘門擋著沒上雲
+// (見 accountSyncNow 的閘門),握手之後那次全量同步才是它們第一次有機會上去。
+// 走的是真的 plusPurchase()(商店替身比照 verify_plus_subscription 的 injectPlus),不是手動設旗標。
+{
+  const { ctx, page } = await newPage(chromiumB);
+  const errs = attach(page, 'R17');
+  let docLanded = false;
+  const statusAuth = [];
+  await page.exposeFunction('__railDocLanded', () => docLanded);
+  await page.route('**/api/plus-status', route => {
+    statusAuth.push(route.request().headers()['authorization'] || '');
+    docLanded = true;                                    // 打它＝資格文件落地(同 R16 的因果)
+    route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ active: true, cloudSyncReady: true }) });
+  });
+  await page.goto(BASE, { waitUntil: 'domcontentloaded' });
+  await waitReady(page);
+  const UID = 'race-r17-uid';
+  const before = await page.evaluate(async (UID) => {
+    window.__attempts = []; window.__commits = [];
+    state.plus = null;
+    state.account = {
+      ready: true, syncing: false, lastSync: 0, actionError: '', error: '', syncTimer: 0, gen: 0,
+      loggingOut: false, syncSuspended: false, syncPromise: null, legacyKinds: false,
+      user: { uid: UID, email: 'r17@example.com' }, auth: {}, db: {},
+      fb: {
+        doc: (db, ...segs) => ({ kind: segs[segs.length - 1] }),
+        getIdToken: async () => 'R17_FAKE_ID_TOKEN',
+        serverTimestamp: () => 'SERVER_TIME_STUB',
+        runTransaction: async (db, fn) => {
+          const attempt = [];
+          const tx = {
+            get: async () => ({ exists: () => false, data: () => null }),
+            set: (ref, data) => attempt.push({ kind: ref.kind, ids: (data.items || []).map(i => i.id) }),
+          };
+          const out = await fn(tx);
+          window.__attempts.push(attempt.map(w => w.kind));
+          if (!(await window.__railDocLanded())) { const e = new Error('Missing or insufficient permissions.'); e.code = 'permission-denied'; throw e; }
+          window.__commits.push(attempt);
+          return out;
+        },
+      },
+    };
+    userDataSaveCollection('stations', [{ sys: 'tra_sched', name: 'R17_STATION', lat: 25.047675, lon: 121.517055 }]); // 同 R16:stations 需要合法 lat/lon
+    const blocked = await accountSyncNow('local-change'); // 購買之前:被資格閘門擋在 Firestore 之外
+    // 商店替身(同 verify_plus_subscription injectPlus 的形狀):買下去才變成有資格。
+    window.RAIL_REVENUECAT_CONFIG = { entitlement: 'plus', offeringId: 'plus' };
+    let sub = false;
+    const info = () => ({ entitlements: { active: sub ? { plus: { identifier: 'plus' } } : {} }, managementURL: '' });
+    const offering = { availablePackages: [{ identifier: '$rc_annual', packageType: 'ANNUAL', webBillingProduct: { currentPrice: { formattedPrice: 'NT$1' } } }] };
+    window.RAIL_PLUS_TEST_ADAPTER = {
+      setUser: async () => {}, getCustomerInfo: async () => info(),
+      getOfferings: async () => ({ all: { plus: offering }, current: offering }),
+      purchase: async () => { sub = true; return { customerInfo: info() }; },
+      restore: async () => info(),
+    };
+    await plusRefresh();                                  // 備妥 adapter 與方案(真實流程打開面板時就會做)
+    return {
+      blocked, attemptsBefore: window.__attempts.length,
+      plusActive: plusIsActive(), cloudReady: plusCloudSyncReady(), hasPkg: !!(state.plus && state.plus.pkgAnnual),
+    };
+  }, UID);
+  ok('R17-pre 正向對照:購買之前同步被資格閘門擋下——一發交易都沒送出去、回傳 false,而且兩個狀態都還是 false',
+    before.blocked === false && before.attemptsBefore === 0 && before.plusActive === false && before.cloudReady === false,
+    JSON.stringify(before));
+  ok('R17-pre 前置條件:商店替身備妥了年訂方案(下面 plusPurchase 才叫得動),而且此刻一發 /api/plus-status 都還沒打過',
+    before.hasPkg === true && statusAuth.length === 0, JSON.stringify({ before, statusAuth }));
+
+  const after = await page.evaluate(async () => {
+    await plusPurchase('annual');
+    // 購買流程內的 accountSyncNow('entitlement') 是 fire-and-forget,等它自己收斂(不猜固定秒數)。
+    const t0 = Date.now();
+    while (Date.now() - t0 < 5000) {
+      if (state.account.syncPromise) { try { await state.account.syncPromise; } catch (e) {} }
+      else if (!state.account.syncing) break;
+      await new Promise(r => setTimeout(r, 10));
+    }
+    return {
+      plusActive: plusIsActive(), cloudReady: plusCloudSyncReady(),
+      attempts: window.__attempts.slice(), commits: window.__commits.slice(),
+      legacyKinds: state.account.legacyKinds, lastSync: state.account.lastSync,
+    };
+  });
+  ok('R17a 核心斷言:購買完成當下就打了 1 次 /api/plus-status——握手是購買流程主動做的,不是等第一次同步撞上 permission-denied 才補救',
+    statusAuth.length === 1 && /^Bearer .+/.test(statusAuth[0] || ''), JSON.stringify({ statusAuth }));
+  ok('R17b 核心斷言(使用者真正看得到的結果):握手之後真的補了一次全量同步,四個 kind 全部提交,stations 裡就是購買前存下的那筆站點',
+    after.commits.length === 1
+      && JSON.stringify(after.commits[0].map(w => w.kind)) === JSON.stringify(['pins', 'favs', 'rides', 'stations'])
+      && JSON.stringify((after.commits[0].find(w => w.kind === 'stations') || {}).ids) === JSON.stringify(['tra_sched|R17_STATION']),
+    JSON.stringify(after.commits));
+  ok('R17c 兩個狀態都到位:購買後 plusIsActive() 與 plusCloudSyncReady() 都是 true,而且第一次同步就成功(lastSync 有值、沒有進入降級)',
+    after.plusActive === true && after.cloudReady === true && after.lastSync > 0 && after.legacyKinds === false, JSON.stringify(after));
+  ok('R17 本輪零 pageerror/console.error', errs.length === 0, errs.slice(0, 3).join(' | '));
+  await ctx.close();
+}
+
 await chromiumB.close();
 server.close();
 

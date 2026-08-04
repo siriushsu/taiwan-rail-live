@@ -1550,11 +1550,27 @@ async function delayHistory(request, env) {
 }
 
 // GET /api/plus-status  Authorization: Bearer <Firebase ID token>
-// → 200 {active:boolean}｜401 無 token｜503 上游或 RevenueCat secret 未設(fail-closed)
+// → 200 {active:boolean, cloudSyncReady:boolean}｜401 無 token｜503 上游或 RevenueCat secret 未設(fail-closed)
 // 回應仍是 RevenueCat 真相的唯讀答案；查到真相後另外自癒寫入 Firestore。寫入失敗只記錄診斷，
 // 不得把已查到的答案改成 503。no-store,不進共享 edge 快取(每個 uid 的答案不同)。無 web billing key 的
 // 平台(RAIL_REVENUECAT_CONFIG 只設 iosApiKey)plusConfigured() 恆 false、不初始化 billing SDK,
 // 這支端點就是那些平台查詢既有資格的唯一管道:純查詢,不發起購買、不改變資格。
+//
+// 🔴 2026-08-04 批二-B(整合稽核 Important 2／3):回應的兩個欄位是**兩個獨立的真相**，不可混用。
+//   · active         ＝ RevenueCat 說這個人有沒有有效訂閱。決定純客端功能(Takeout 匯入／行程分享／
+//                      衛星 Retina／Live Activity)。買完當下就知道。
+//   · cloudSyncReady ＝ /entitlements/{uid} 這份資格文件**在這次請求中確認落地了**。firestore.rules
+//                      讀的是它，所以只有它為真，雲端同步才寫得進去。
+// 兩者會分家的真實情境正是這條稽核要修的東西:剛買完的人 active 已經是 true(客戶端立刻認為自己
+// 是 Plus 而開始同步)，資格文件卻還沒寫好 ⇒ rules 一律擋 ⇒ 同步收到 permission-denied。這支端點
+// 本身就是資格文件的 writer，所以「呼叫它」＝「主動讓文件落地」，回應等於一次握手的結果。
+// cloudSyncReady 的判定刻意嚴格，只有兩個條件同時成立才回 true:
+//   (a) 這次 CAS 真的寫進去了(outcome 'created'／'updated'，written===true)；
+//   (b) 寫進去的那份文件本身是 active(active:false 的文件照樣被 rules 擋，宣稱 ready 等於說謊)。
+// 'skipped-older'(現存文件比這筆真相新)刻意算 **false**:我方沒有寫、也沒有讀回它的內容，
+// 無從斷言它是 active——回 false 讓客戶端下一次握手重試(下一次的 updatedAtMs 更大，必然寫得進去)，
+// 這個方向的錯只會多一次往返，反方向的錯(謊稱 ready)會讓客戶端拿註定被擋的交易去撞牆。
+// 寫入拋錯(Firestore 故障／service account 未設定)也是 false，同一個理由。
 async function plusStatus(request, env) {
   // 與 delayHistory 共用同一組上游(Firebase+RevenueCat)、同一顆限流器:節流要在呼叫之前,理由同 delayHistory。
   if (await rateLimited(env.AUTH_LIMITER, request)) return jsonRes({ error: 'rate_limited' }, 429, 'no-store');
@@ -1562,17 +1578,19 @@ async function plusStatus(request, env) {
   // not_entitled(403)在這支端點不是錯誤,是正常答案的一種:「查得到、資格是 false」要跟「查不到」
   // (503)分開,否則 RevenueCat 短暫故障會被前端誤讀成「沒訂閱」而把付費者的功能整批關掉。
   if (!check.ok && check.status !== 403) return jsonRes({ error: check.error }, check.status, 'no-store');
+  let cloudSyncReady = false;
   if (check.uid && check.subscriptions) {
     const wantEntitlement = env.REVENUECAT_ENTITLEMENT || 'plus';
     const doc = plusEntitlementDocument(check.subscriptions, wantEntitlement, 'plus-status');
     try {
-      await writePlusEntitlement(check.uid, doc, env);
+      const write = await writePlusEntitlement(check.uid, doc, env);
+      cloudSyncReady = doc.active === true && !!(write && write.written);
     } catch (e) {
       // 不含 uid／憑證，只留下路徑與錯誤類型，讓 Worker observability 能診斷設定或上游故障。
       console.error('[plus-entitlement] plus-status Firestore write failed:', String(e && e.message || e));
     }
   }
-  return jsonRes({ active: check.ok }, 200, 'no-store');
+  return jsonRes({ active: check.ok, cloudSyncReady }, 200, 'no-store');
 }
 
 async function constantTimeHeaderEqual(actual, expected) {
