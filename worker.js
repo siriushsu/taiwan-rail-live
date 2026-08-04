@@ -1785,7 +1785,38 @@ async function basemapSession(request, env) {
   }
 }
 
-// 刪除帳號時清除「我們這邊」的伺服器資料：RevenueCat customer ＋ D1 的懸賞校正旅程資料。
+// 刪帳號時一併刪除這個 uid 的資格文件（entitlements/{uid}）——2026-08-04 整合稽核 Important 4：
+// 舊版 /api/account-delete 只刪 RevenueCat customer 與 D1 校正資料，entitlements/{uid} 留著不動。
+// 兩個問題：(1) 揭露不實——條款／隱私政策承諾刪除帳號會清掉軌島保存的資料，這份文件卻繼續存在；
+// (2) 資格殘留——文件本身就是雲端同步的付費牆憑據（firestore.rules 的 hasActiveEntitlement()
+// 直接讀它），帳號已經不存在，不該再留一份「這個 uid 有權寫雲端資料」的文件。
+//
+// 用單純 DELETE、不做 CAS：writePlusEntitlement() 的 compare-and-set 解的是「兩個 writer 各自在
+// 不同時間點查到不同真相，互相覆蓋」；這裡只有一個動作（刪除），沒有「舊真相」可比，硬套 CAS
+// 只是白多一次 GET。200（真的刪到）與 404（本來就不存在）都是「現在沒有這份文件」這個目標狀態，
+// 兩者都算成功——冪等是這支函式存在的理由。故意不去查證 Firestore 對「刪除不存在的文件」實際會
+// 回 200 還是 404：兩種都接受，不必依賴對第三方行為的假設。
+//
+// 這裡不呼叫、也不修改 writePlusEntitlement／checkPlusEntitlement／plusStatus／
+// revenueCatWebhook——那一帶是另一個並行批次的地界，此函式只透過 getFirestoreAccessToken／
+// firestoreConfigured／validFirestoreDocumentId 這幾支底層工具函式，不動它們的邏輯。
+async function deletePlusEntitlement(uid, env, nowMs = Date.now()) {
+  if (!validFirestoreDocumentId(uid)) throw new Error('invalid entitlement uid');
+  const token = await getFirestoreAccessToken(env, nowMs);
+  const project = encodeURIComponent(env.FIRESTORE_PROJECT_ID);
+  const documentId = encodeURIComponent(uid);
+  const url = `https://firestore.googleapis.com/v1/projects/${project}/databases/(default)/documents/entitlements/${documentId}`;
+  const response = await fetch(url, {
+    method: 'DELETE',
+    headers: { Authorization: `Bearer ${token}` },
+    redirect: 'error',                                        // C-1:見檔頭「憑證 subrequest 的 redirect 政策」
+  });
+  if (response.ok || response.status === 404) return { deleted: true };
+  throw new Error(`firestore entitlement delete ${response.status}`);
+}
+
+// 刪除帳號時清除「我們這邊」的伺服器資料：RevenueCat customer ＋ D1 的懸賞校正旅程資料
+// ＋資格文件（見上方 deletePlusEntitlement）。
 // Secret API key 只能存在 Worker runtime；先以 Firebase Auth REST lookup 驗證呼叫者的 ID token，
 // 再只刪除該 token 自己的 uid，不接受前端傳 customer id／actor，避免知道別人 uid 就能刪除對方資料。
 //
@@ -1830,6 +1861,31 @@ async function deleteAccountData(request, env) {
       });
       // 從未開過購買頁的帳號可能沒有 RevenueCat customer；404 代表已達成「沒有資料可刪」。
       if (!(rc.ok || rc.status === 404)) return jsonRes({ error: 'purchase profile deletion failed' }, 502, 'no-store');
+    }
+    // 🔴 2026-08-04 整合稽核 Important 4（批二-C）：刪除資格文件，見上方 deletePlusEntitlement()
+    // 完整說明。刻意排在 RevenueCat customer 刪除之後、回應之前——這裡要交代的是刪除之後的競態：
+    // 一則在途的 RevenueCat webhook，或使用者裝置上還沒死透的 /api/plus-status 呼叫（Firebase
+    // Auth 帳號要等到這支端點回應後、前端才會呼叫 deleteUser()，見 index.html accountDelete()
+    // 的呼叫順序；已核發的 ID token 在那之後通常還會再活約一小時），都可能在我們刪掉這份文件之後
+    // 重新查一次 RevenueCat 並把文件寫回去（那兩條路徑不屬於這個批次的地界，不能改）。這個競態
+    // 結構上無法完全關閉：關閉需要 plus-status／webhook 知道「這個 uid 剛被刪過帳號」，但它們的
+    // 契約就是「重查即時真相」，加一個那樣的旁路等於改了不該碰的邏輯。
+    // 兩種先後順序裡選「先刪 RevenueCat customer、後刪資格文件」：此時若真的撞上競態重新查
+    // RevenueCat，查到的會是「這個 customer 已經不存在」——fetchRevenueCatSubscriptions() 對第 1
+    // 頁 404 的既有處理是視同無訂閱——最壞只會重新寫出一份 active:false 的文件（揭露上不乾淨，
+    // 但不是可以拿來當付費憑據的文件）；顛倒過來的話，競態抓到的會是真的還在生效的訂閱，可能
+    // 重新寫出 active:true，那份文件從此不會再被這支端點碰第二次。
+    // 未設定 Firestore 時跳過、不當錯誤：沒有 service account 就不可能有任何 writer 寫出過資格
+    // 文件，道理與上面「未設定 RevenueCat＝沒有購買資料可刪」相同。真的失敗（非 404）則整支回錯
+    // 並記 log——刪除失敗不能被靜默吞掉，寧可讓使用者以為要重按一次，也不要回報「已刪除」卻留著
+    // 一份還能通過 firestore.rules 資格檢查的文件。
+    if (firestoreConfigured(env)) {
+      try {
+        await deletePlusEntitlement(uid, env);
+      } catch (e) {
+        console.error('[plus-entitlement] account-delete entitlement deletion failed:', String(e && e.message || e));
+        return jsonRes({ error: 'entitlement deletion failed' }, 502, 'no-store');
+      }
     }
     return jsonRes({ ok: true, deleted: purged }, 200, 'no-store');
   } catch (e) {
@@ -3156,6 +3212,11 @@ export const _plus = {
 // 供離線回歸測試 import:驗「節流擋在 outbound fetch 之前」。這兩個不是純函式,測試得自備
 // env 替身與 fetch 替身;導出的目的就是讓測試能數「被擋掉時到底有沒有打上游」。
 export const _rateLimit = { rateLimited, delayHistory, deleteAccountData };
+// 供離線回歸測試 import（scripts/verify_plus_firestore_gate.mjs 第 11 節、
+// scripts/verify_plus_data_claims.mjs B7）：刪帳號一併刪除資格文件。與上面的 _rateLimit 分開
+// 導出——那組服務的是「節流擋在 fetch 前」這個窄用途，這裡要驗的是刪除本身的語意（真的送出
+// 刪除請求、404 冪等、失敗會讓整支回錯）。
+export const _accountDelete = { deleteAccountData, deletePlusEntitlement };
 // 純函式與端點處理器導出，供離線回歸測試 import（scripts/verify_bounty_*.mjs）。
 // 端點也導出的理由同 _rateLimit：這些不是純函式，測試要自備 env 替身才驗得到「節流有沒有擋在
 // D1 寫入之前」「回應裡有沒有夾帶 reject_code」這類只在編排層才成立的性質。

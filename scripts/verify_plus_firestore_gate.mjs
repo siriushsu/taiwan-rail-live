@@ -20,6 +20,9 @@ const {
   getFirestoreAccessToken, resetFirestoreAccessTokenCache,
   writePlusEntitlement, plusStatus,
 } = workerModule._plus;
+// 批二-C：刪帳號一併刪除資格文件。與上面的 _plus 分開導出（見 worker.js 該 export 旁的註解），
+// 這裡單獨解構，不去動 _plus 那個物件字面量本身。
+const { deleteAccountData } = workerModule._accountDelete;
 
 let fails = 0;
 // 突變證明仍會跑完整支腳本，只把 PASS 行收起來，保留真實 exit code 與 FAIL 行；不用管道截輸出。
@@ -35,6 +38,7 @@ const SECTIONS = [
   '8 分頁累積與 origin 白名單',
   '9 TRANSFER 事件的雙主體處理',
   '10 查詢不完整／不合規時不得寫文件',
+  '11 刪帳號一併刪除資格文件',
 ];
 const seen = new Map();
 let SECTION = '(未分段)';
@@ -165,6 +169,9 @@ const callsTo = (fragment) => calls.filter(call => call.url.includes(fragment));
 // callsTo('firestore...') 會把那發讀取一起數進去。仍然斷言「零 Firestore 動作」的地方刻意保留
 // callsTo()：那些情境連讀都不該發生，數全部比只數 PATCH 強。
 const firestoreWrites = () => calls.filter(call => call.url.includes('firestore.googleapis.com') && call.method === 'PATCH');
+// 批二-C：刪帳號一併刪除資格文件，用的是 DELETE，跟上面的 PATCH 寫入是不同方法、不同語意——
+// 分開收集，不讓「刪了幾筆」與「寫了幾筆」混在同一個計數裡。
+const firestoreDeletes = () => calls.filter(call => call.url.includes('firestore.googleapis.com') && call.method === 'DELETE');
 const decodeJwtPart = (part) => JSON.parse(Buffer.from(part, 'base64url').toString('utf8'));
 const webhookRequest = (authorization, environment = 'PRODUCTION', method = 'POST') => {
   const headers = { 'content-type': 'application/json', 'cf-connecting-ip': '203.0.113.7' };
@@ -178,6 +185,11 @@ const webhookRequest = (authorization, environment = 'PRODUCTION', method = 'POS
 };
 const plusStatusRequest = () => new Request('https://railisland.tw/api/plus-status', {
   headers: { Authorization: `Bearer ${'x'.repeat(900)}`, 'cf-connecting-ip': '203.0.113.8' },
+});
+const deleteAccountRequest = (body = {}) => new Request('https://railisland.tw/api/account-delete', {
+  method: 'POST',
+  headers: { Authorization: `Bearer ${'x'.repeat(900)}`, 'content-type': 'application/json', 'cf-connecting-ip': '203.0.113.12' },
+  body: JSON.stringify(body),
 });
 // 任意 event 形狀的 webhook 請求（TRANSFER 用）。webhookRequest() 那支永遠是單一 app_user_id
 // 的 RENEWAL 形狀——判準盲點第 6 條指的就是「fixture 只有一種形狀」。
@@ -644,6 +656,79 @@ section(SECTIONS[9]);
   check(hookResponse.status === 503 && callsTo('firestore.googleapis.com').length === 0,
     'webhook 路徑同理：分頁查不完整 ⇒ 503（讓 RevenueCat 重試），且零 Firestore 寫入',
     `status=${hookResponse.status} writes=${firestoreWrites().length}`);
+}
+
+// ── 11. 刪帳號一併刪除資格文件（2026-08-04 整合稽核 Important 4／批二-C）──────────────────
+// 判準盲點第 2 條的另一個現場：只驗「回應 200」測不出「到底有沒有真的送出刪除請求」——拿掉
+// 刪除呼叫，函式一樣可以無條件回 200（因為前面的步驟都還在）。所以 11-1 先單獨驗「真的打了
+// entitlements/{uid} 的 DELETE」，11-2／11-3 才各自驗那發請求的結果怎麼影響整體回應——三條
+// 刻意互相獨立：11-2 只斷言 response.status（不疊加「有沒有送出請求」），所以拿掉刪除呼叫不會
+// 連帶把它燒紅；11-3 用 500（不是 404），所以「把 404 當失敗」的突變不會連帶把它燒紅。
+section(SECTIONS[10]);
+{
+  // 11-1：正常情況（文件存在，Firestore 對 DELETE 回 200）⇒ 整支成功，且真的送出了 DELETE，
+  // 不是意外經由 PATCH（CAS 寫入路徑不是這支端點該做的事）。
+  resetIo();
+  let response = await deleteAccountData(deleteAccountRequest(), ENV());
+  let respBody = await response.json();
+  let deletes = firestoreDeletes();
+  check(response.status === 200 && respBody.ok === true && deletes.length === 1
+      && deletes[0].url.endsWith(`/documents/entitlements/${UID}`) && firestoreWrites().length === 0,
+    '刪帳號真的送出對 entitlements/{uid} 的 Firestore DELETE 請求（不是 PATCH），且整體回應成功',
+    JSON.stringify({ status: response.status, body: respBody, deletes: deletes.map(c => `${c.method} ${c.url}`) }));
+
+  // 11-2：資格文件本來就不存在（Firestore 對 DELETE 回 404）⇒ 視同成功，不是失敗——冪等。
+  resetIo();
+  firestoreStatus = 404;
+  response = await deleteAccountData(deleteAccountRequest(), ENV());
+  check(response.status === 200,
+    '資格文件本來就不存在（Firestore DELETE 回 404）⇒ 整支刪帳號仍視為成功，不是失敗',
+    `status=${response.status}`);
+
+  // 11-3：Firestore 真的壞掉（500，非 404）⇒ 失敗不可以被靜默吞掉，整支回錯且留下診斷 log，
+  // 不可以仍然回「已刪除」。
+  resetIo();
+  firestoreStatus = 500;
+  const entitlementDeleteErrors = [];
+  const realConsoleErrorForDelete = console.error;
+  console.error = (...args) => entitlementDeleteErrors.push(args.map(String).join(' '));
+  try { response = await deleteAccountData(deleteAccountRequest(), ENV()); }
+  finally { console.error = realConsoleErrorForDelete; }
+  respBody = await response.json();
+  check(response.status !== 200 && respBody.error === 'entitlement deletion failed'
+      && entitlementDeleteErrors.some(line => line.includes('entitlement deletion failed')),
+    '資格文件刪除真的失敗（非 404）⇒ 整支 /api/account-delete 回錯（不是仍然 200「已刪除」），且留下診斷 log',
+    JSON.stringify({ status: response.status, body: respBody, logs: entitlementDeleteErrors }));
+
+  // 11-4：正向對照——RevenueCat customer 也有設定時（ENV() 預設就有），刪除順序是「先刪 RC
+  // customer，後刪資格文件」：見 worker.js deleteAccountData 裡這段呼叫上方的競態說明——此時即使
+  // 撞上競態重新查 RevenueCat，查到的也是 customer 已不存在，最壞只會重建出 active:false 的文件，
+  // 不會是 active:true。
+  resetIo();
+  response = await deleteAccountData(deleteAccountRequest(), ENV());
+  const rcDeleteIdx = calls.findIndex(call => call.url.includes('api.revenuecat.com') && call.method === 'DELETE');
+  const entitlementDeleteIdx = calls.findIndex(call => call.url.includes('firestore.googleapis.com') && call.method === 'DELETE');
+  check(response.status === 200 && rcDeleteIdx >= 0 && entitlementDeleteIdx >= 0 && rcDeleteIdx < entitlementDeleteIdx,
+    '正向對照：同時刪除 RevenueCat customer 與資格文件時，RC customer 先刪、資格文件後刪',
+    JSON.stringify({ status: response.status, rcDeleteIdx, entitlementDeleteIdx }));
+
+  // 11-5：正向對照——未設定 RevenueCat 的環境，資格文件照樣會刪（兩者是各自獨立的判斷，不是
+  // 「有 RC 才刪資格文件」）。
+  resetIo();
+  response = await deleteAccountData(deleteAccountRequest(), ENV({ REVENUECAT_PROJECT_ID: undefined, REVENUECAT_V2_SECRET_KEY: undefined }));
+  check(response.status === 200 && callsTo('api.revenuecat.com').length === 0 && firestoreDeletes().length === 1,
+    '正向對照：未設定 RevenueCat 時仍會刪除資格文件（兩者互不綁架，同一支端點旁邊 RevenueCat 未設定不影響校正資料刪除是同一種判斷）',
+    JSON.stringify({ status: response.status, rcCalls: callsTo('api.revenuecat.com').length, entitlementDeletes: firestoreDeletes().length }));
+
+  // 11-6：正向對照——未設定 Firestore 的環境（沒有 service account）⇒ 乾乾淨淨跳過，不視為錯誤、
+  // 不打任何 Firestore 端點。
+  resetIo();
+  response = await deleteAccountData(deleteAccountRequest(), ENV({
+    FIRESTORE_PROJECT_ID: undefined, FIRESTORE_SERVICE_ACCOUNT_EMAIL: undefined, FIRESTORE_SERVICE_ACCOUNT_PRIVATE_KEY: undefined,
+  }));
+  check(response.status === 200 && callsTo('firestore.googleapis.com').length === 0,
+    '正向對照：未設定 Firestore 的環境仍可正常刪帳號，且完全不打 Firestore（設定狀態不該綁架帳號刪除）',
+    `status=${response.status} firestoreCalls=${callsTo('firestore.googleapis.com').length}`);
 }
 
 globalThis.fetch = realFetch;
