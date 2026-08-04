@@ -3318,13 +3318,13 @@
       <ul class="foot-list foot-recent">
         <li class="grp">最近更新</li>
         <li><span class="d">8/4</span><span>阿里山林鐵 1、2 次的介紹被寫成台鐵環島之星，現在改回阿里山號（謝謝網友回報）</span></li>
+        <li><span class="d">8/4</span><span>App 的台鐵班表過期後會自動上網補最新的，不必等改版</span></li>
         <li><span class="d">8/3</span><span>從 LINE、FB 開軌島時，提示卡蓋住播放鍵與跟車小卡，現在會讓開了</span></li>
         <li><span class="d">8/1</span><span>三鶯線跟上官方 8/1 延長：每天 08:00–22:00 都看得到車（原 10:00–20:00）</span></li>
         <li><span class="d">8/1</span><span>台鐵快車經過不停靠小站時的位置更準了——有網友拿碼錶實地量了十幾班車回報（謝謝）</span></li>
         <li><span class="d">8/1</span><span>衛星底圖換成比較省的計費方式：看到的畫面完全一樣，只是我們付給圖資供應商的錢少很多</span></li>
         <li><span class="d">7/31</span><span>林鐵、高鐵有些車次號碼跟台鐵重複，台鐵誤點時同號的車會被一起推走——現在各算各的</span></li>
         <li><span class="d">7/31</span><span>誤點的車，跟車面板比地圖上的車慢半拍：車停在站上卻寫「行進中」，現在修好了（謝謝網友回報）</span></li>
-        <li><span class="d">7/30</span><span>iPhone 發車看板的起站與目的站選單會列出你在軌島存過的「我的地點」：選了「家」，桌面顯示的就是「家」；日後把「家」重存到別的地方，桌面也會自己跟過去</span></li>
       </ul>
       <!-- 第二層:完整歷史。刻意不掛 .foot-box 類名——placeFootBoxes() 用
            `.site-foot .foot-box` 搬移面板,巢狀同名會被當成另一個盒子一起搬走。 -->
@@ -3427,6 +3427,7 @@
           <li class="web-only-donation-log"><span class="d">7/13</span><span>贊助方式更新：「請開發者喝咖啡」的銀行轉帳帳戶改用 LINE Bank（連線商業銀行 824）——謝謝每一位抖內支持軌島的朋友</span></li>
         <!-- APP_STRIP_END donation-log -->
         <li class="grp">資料校正</li>
+        <li><span class="d">8/4</span><span>App 內建的台鐵班表只有 14 天（官方只公布這麼多），過期後原本得等下次改版才會更新，那段期間連假加班車、臨時改點都會對不上。現在過期時 App 會自動上網補最新的班表，補不到才用內建那份</span></li>
         <li><span class="d">8/1</span><span>台鐵快車在不停靠的小站之間跑到哪裡，推估得更準了。有網友拿碼錶站在彰化與花壇之間實地量了十幾班車，回報「車普遍比畫面上早經過」，自強號差到快兩分鐘。追查後發現不是推估方式的問題，而是我們在校正資料時把花壇這類「到站看板顯示時間比較長」的車站整批當成不可信而丟掉了，那幾站只好套用全線的平均值。現在改成看各站自己的顯示習慣，這些站的實測資料重新派上用場（謝謝網友回報，也謝謝那個早上）</span></li>
         <li><span class="d">7/29</span><span>刪除軌島帳號時，會一併刪掉你上傳過的 GPS 校正旅程資料與累積的貢獻點數，包含這台裝置以匿名身分傳的那些；隱私權政策也補上了這類資料保存多久、要怎麼刪除</span></li>
         <li><span class="d">7/29</span><span>圖磚還沒載入時墊底的台灣海陸輪廓換成內政部公開的縣市界線：舊資料比實際海岸線偏了一到三公里，東部海線好幾站看起來像在海上（謝謝網友回報）</span></li>
@@ -3713,7 +3714,7 @@
 // 🔴 BUILD 字串會跨並行分支撞號（心得 16）：07-28 兩條線各自遞增又各自部署過——
 // origin/main 這條用到 v0728b，正式站那條用到 v0728f。本次三方合併把兩條線統一，
 // 所以往後推到一個雙方都沒用過的號，辨識線上跑哪一版仍以內容 hash 為準。
-const BUILD = 'v0804a';
+const BUILD = 'v0804b';
 // 成就徽章與車廂標記＝原本那些 emoji 的單色平面版（RailEmoji＝裁切過的 Noto Emoji 單色）。
 // 刻意保留 railIcon(name) 這個唯一入口:呼叫端一行都不用改,只有這裡決定畫法。
 // 🔴 ⚖ 與 ♾ 一律寫**不帶 VS16(U+FE0F)** 的碼位——帶了就強制彩色呈現,會蓋過 font-family
@@ -14533,6 +14534,23 @@ function resolveScheduleDay(data) {
   return { ...data, trains, date: key, _schedDay: key, _schedStale: stale };
 }
 
+// App 殼專用:打包進 bundle 的台鐵班表只在「送審」時才會更新,而台鐵 ODS 只發佈未來 14 天
+// ⇒ 那個窗必然會過期,而且是靜默的——上面 resolveScheduleDay 只退「同週幾最近日」再 console.warn,
+// 畫面照常有車,但連假/國定假日/加班車/改點全部會錯,一路錯到下次送審為止。
+// 所以過期時回頭向網站抓最新那份(網站每週重抓重部署,見 npm run fetch-schedule)。
+// 幾個刻意的判斷:
+//  - 只在 App 跑:網站版 API_BASE 為空、apiUrl() 會原樣回傳同一個相對路徑,抓了還是同一份檔案。
+//    這個 guard 也保證本次改動對網站是行為零變化。
+//  - 只在過期時抓:窗還涵蓋今天就完全不發這個請求 ⇒ 平常零額外流量;過期時實測約 390KB(Brotli)。
+//  - 抓不到(離線)或抓回來一樣過期 ⇒ 沿用 bundle 那份,退回舊行為,不會比原本差。
+async function refreshStaleSchedule(def, day) {
+  if (!day || !day._schedStale || !API_BASE) return day;
+  const fresh = resolveScheduleDay(await fetchJSON(apiUrl(def.url.replace(/^\.\//, ''))));
+  if (!fresh || fresh._schedStale) return day;
+  console.info('[schedule] 打包的班表已過期,已向網站補抓最新那份:' + fresh._schedDay);
+  return fresh;
+}
+
 // 圖磚未載入或 App 離線時的海陸底層。台灣輪廓＝內政部「直轄市、縣市界線(TWD97經緯度)」1140318
 // 以共用邊消去（dissolve）取海岸線、RDP 簡化約 100m；政府資料開放授權條款第1版，署名為生效要件。
 // 2026-07-29 從 Natural Earth 5.1.2 換過來（issue #12）：NE 是 1:10m 概化海岸線，相對 OSM 系圖磚
@@ -16144,8 +16162,9 @@ async function boot() {
   }
 
   for (const d of SYS_DEFS) {
-    const data = await fetchJSON(d.url);
-    if (data) state.systems.push({ ...d, data: resolveScheduleDay(data) }); // 多日班表→挑台北營運日當日子集;舊格式原樣通過
+    let day = resolveScheduleDay(await fetchJSON(d.url)); // 多日班表→挑台北營運日當日子集;舊格式原樣通過
+    day = await refreshStaleSchedule(d, day);             // App 殼:打包的窗過期就回頭向網站抓最新那份
+    if (day) state.systems.push({ ...d, data: day });
   }
   // 各 sched 系統的軌道底圖幾何(台鐵 tra.json / 高鐵 thsr_track.json)掛在該系統上,loadSystem 依系統取用
   for (const s of state.systems) if (s.track) s._track = await fetchJSON(s.track);
