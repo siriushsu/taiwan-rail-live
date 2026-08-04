@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 // B1 V1–V9 一鍵驗收。全程只連本機 fixture / Wrangler，不呼叫真實北捷上游。
 import fs from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
 import crypto from 'node:crypto';
 import { spawn, execFileSync } from 'node:child_process';
@@ -20,6 +21,12 @@ const FIXTURE = `http://127.0.0.1:${FIXTURE_PORT}`;
 const BASE = `https://127.0.0.1:${WORKER_PORT}`;
 const output = [];
 let failures = 0;
+const SERVER_BYTE_FILES = [
+  'worker.js',
+  'index.html',
+  'scripts/trtc_board_ledger.mjs',
+  'data/trtc_codes.json',
+];
 const say = s => { output.push(s); console.log(s); };
 const ok = (condition, label, detail = '') => {
   if (!condition) failures++;
@@ -141,15 +148,12 @@ async function waitFor(child, pattern, timeoutMs) {
 
 // 就緒＝**這台 server 對任何請求給得出一個 HTTP 回應**：不看狀態碼、不比對 wrangler 的 log 措辭。
 //
-// 🔴 2026-08-05：原本等 `/Ready on https:\/\/localhost/` **只等 30 秒**，於是這支長期在前面的純
-// 函式斷言全綠之後、起 server 那一步 exit 1，症狀偽裝成「環境問題」。受控實驗（每 10 秒探一次）
-// 量到：wrangler **立刻就 bind 好埠**（`lsof` 馬上看得到 LISTEN），但要**約 50 秒**才真的能服務，
-// 暖機期間單一發請求會卡 13～50 秒。真因就是等太短。
-//   · 我一度誤判成「這版 wrangler 不印 Ready on 了」——手動觀察只等 45 秒。它有印，只是很慢。
-//   · 每一發必須自帶 timeout：node 的 `fetch` 沒有預設 timeout，三發卡住就把整個 deadline 用光。
-//   · 刻意**不**把「非 503」當就緒條件——`/api/delay-stats` 在全新的本機 D1 上本來就回 503，
-//     那是環境條件不是暖機狀態，寫進就緒條件會讓這支永遠等不到。
-// 總 deadline 給 300 秒：50 秒是機器閒置時的值，這台常有 2 個 session 併跑，實測會更久。
+// 🔴 2026-08-05：覆蓋率曾為 0 的真因不是 timeout，而是從 ROOT 啟動時 assets.directory="."
+// 把大量未追蹤／ignored 目錄納入監看，形成重載風暴；埠雖 LISTEN，四分鐘仍回不了一個 byte。
+// 現在 server 從乾淨 worktree 起，正常只需個位數秒。這個 helper 仍有兩個必要防呆：
+//   · 就緒必須真打一發 HTTP，不能只看埠或 wrangler log。
+//   · 每一發必須自帶 timeout；且不把「非 503」當條件，因為全新 local D1 的 delay-stats 本來可回 503。
+// 300 秒只是壅塞環境的最終 fail-loud deadline；另有明確 `<30 秒` assertion 防止效能退化。
 async function waitForHttp(url, timeoutMs, child) {
   const prev = process.env.NODE_TLS_REJECT_UNAUTHORIZED;
   process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';                 // 本機 wrangler 是自簽憑證
@@ -172,8 +176,51 @@ async function waitForHttp(url, timeoutMs, child) {
   }
 }
 
-function findLedgerDb() {
-  const dir = path.join(ROOT, '.wrangler/state/v3/d1/miniflare-D1DatabaseObject');
+function prepareCleanServerTree() {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'trtc-ledger-'));
+  const tree = path.join(dir, 'vtree');
+  let added = false;
+  try {
+    execFileSync('git', ['-C', ROOT, 'worktree', 'add', '--detach', tree, 'HEAD'], { stdio: 'ignore' });
+    added = true;
+    const mismatches = SERVER_BYTE_FILES.filter(file => {
+      const workFile = path.join(ROOT, file), treeFile = path.join(tree, file);
+      return !fs.existsSync(workFile) || !fs.existsSync(treeFile) ||
+        md5(fs.readFileSync(workFile)) !== md5(fs.readFileSync(treeFile));
+    });
+    ok(mismatches.length === 0, '起 server 的樹與工作樹逐 byte 相同', mismatches.length
+      ? `不同檔案：${mismatches.join('、')}；請先 commit 再驗收`
+      : `${SERVER_BYTE_FILES.length} 檔皆與 HEAD 相同`);
+    if (mismatches.length) throw new Error(`乾淨 server 樹與工作樹不同；請先 commit：${mismatches.join(', ')}`);
+    // 不可 symlink node_modules：assets.directory="." 的監看器會沿連結走進數萬個目錄。
+    for (const file of ['.dev.vars', '.env']) {
+      const source = path.join(ROOT, file), target = path.join(tree, file);
+      if (fs.existsSync(source) && !fs.existsSync(target)) fs.symlinkSync(source, target);
+    }
+    return { dir, tree };
+  } catch (error) {
+    if (added) {
+      try { execFileSync('git', ['-C', ROOT, 'worktree', 'remove', '--force', tree], { stdio: 'ignore' }); } catch {}
+    }
+    fs.rmSync(dir, { recursive: true, force: true });
+    throw error;
+  }
+}
+
+function removeCleanServerTree(serverTree) {
+  if (!serverTree) return;
+  try {
+    execFileSync('git', ['-C', ROOT, 'worktree', 'remove', '--force', serverTree.tree], { stdio: 'ignore' });
+    ok(true, '乾淨 server worktree 已移除', serverTree.tree);
+  } catch (error) {
+    ok(false, '乾淨 server worktree 已移除', String(error && error.message || error));
+  } finally {
+    fs.rmSync(serverTree.dir, { recursive: true, force: true });
+  }
+}
+
+function findLedgerDb(serverRoot) {
+  const dir = path.join(serverRoot, '.wrangler/state/v3/d1/miniflare-D1DatabaseObject');
   for (const file of fs.existsSync(dir) ? fs.readdirSync(dir).filter(f => f.endsWith('.sqlite') && f !== 'metadata.sqlite') : []) {
     const db = new DatabaseSync(path.join(dir, file));
     try { db.prepare('SELECT COUNT(*) FROM trtc_events').get(); return db; } catch { db.close(); }
@@ -272,18 +319,22 @@ async function run() {
   ok(trtcOperatingState(Date.parse('2026-08-03T00:17:00Z') / 1000).open &&
     !trtcOperatingState(Date.parse('2026-08-03T19:00:00Z') / 1000).open, 'V8 營運窗純函式', '台北08:17=open／03:00=closed');
 
-  let fixtureProc, workerProc;
+  let fixtureProc, workerProc, serverTree;
   try {
-    fs.rmSync(path.join(ROOT, '.wrangler'), { recursive: true, force: true });
+    serverTree = prepareCleanServerTree();
+    fs.rmSync(path.join(serverTree.tree, '.wrangler'), { recursive: true, force: true });
     fixtureProc = spawn(process.execPath, [path.join(ROOT, 'scripts/fixture_trtc_board_ledger.mjs'), String(FIXTURE_PORT)],
       { cwd: ROOT, stdio: ['ignore', 'pipe', 'pipe'] });
     await waitFor(fixtureProc, /"ready":true/, 10000);
+    const serverStartedAt = Date.now();
     workerProc = spawn('arch', ['-arm64', process.execPath, path.join(ROOT, 'node_modules/wrangler/bin/wrangler.js'),
       'dev', '--local-protocol', 'https', '--port', String(WORKER_PORT), '--inspector-port', String(INSPECTOR_PORT), '--test-scheduled',
       '--var', 'TRTC_API_USER:fixture-user', '--var', 'TRTC_API_PASS:fixture-pass',
       '--var', `TRTC_API_BASE:${FIXTURE}`, '--var', 'TRTC_BOARD_SAMPLE_DELAY_MS:0'],
-      { cwd: ROOT, stdio: ['ignore', 'pipe', 'pipe'] });
-    await waitForHttp(`${BASE}/api/delay-stats`, 300000, workerProc);   // 這台實測閒置約 50 秒才能服務;兩個 session 併跑時更久
+      { cwd: serverTree.tree, stdio: ['ignore', 'pipe', 'pipe'] });
+    await waitForHttp(`${BASE}/api/delay-stats`, 300000, workerProc);   // 乾淨樹應為個位數秒；下方另有 <30 秒 gate
+    const serverSeconds = (Date.now() - serverStartedAt) / 1000;
+    ok(serverSeconds < 30, 'wrangler dev 起服務耗時 < 30 秒', `${serverSeconds.toFixed(1)} 秒`);
 
     const localAsset = fs.readFileSync(path.join(ROOT, 'data/trtc_codes.json'));
     const servedAsset = Buffer.from(curl(`${BASE}/data/trtc_codes.json`));
@@ -316,12 +367,12 @@ async function run() {
     ok(inState.kindCounts.tk === 2 && inState.kindCounts.hw === 1 && inState.kindCounts.br === 1,
       'V8 正向對照（窗內取樣）', JSON.stringify(inState.kindCounts));
     await sleep(100);
-    let db = findLedgerDb();
+    let db = findLedgerDb(serverTree.tree);
     const n1 = Number(db.prepare('SELECT COUNT(*) AS n FROM trtc_events').get().n); db.close();
     jsonCurl(`${FIXTURE}/__config?slot=s02&advance=1`, ['-X', 'POST']);
     curl(`${BASE}/cdn-cgi/handler/scheduled?cron=${encodeURIComponent('* * * * *')}&time=${insideMs}`);
     await sleep(100);
-    db = findLedgerDb();
+    db = findLedgerDb(serverTree.tree);
     const n2 = Number(db.prepare('SELECT COUNT(*) AS n FROM trtc_events').get().n);
     const trackCount = Number(db.prepare('SELECT COUNT(*) AS n FROM trtc_tracks').get().n);
     const aliasCount = Number(db.prepare('SELECT COUNT(*) AS n FROM trtc_track_aliases').get().n);
@@ -340,14 +391,14 @@ async function run() {
     ];
     for (const tc of partialCases) {
       jsonCurl(`${FIXTURE}/__config?slot=${tc.slot}&advance=1&failTk=${tc.failTk}`, ['-X', 'POST']);
-      db = findLedgerDb();
+      db = findLedgerDb(serverTree.tree);
       const beforeEventEpoch = Number(db.prepare('SELECT COALESCE(MAX(updated_epoch),0) AS n FROM trtc_events').get().n);
       const beforeTrackEpoch = trackEpochSnapshot(db).newest;
       db.close();
       curl(`${BASE}/cdn-cgi/handler/scheduled?cron=${encodeURIComponent('* * * * *')}&time=${tc.epoch * 1000}`);
       await sleep(100);
       const partialState = jsonCurl(`${FIXTURE}/__state`);
-      db = findLedgerDb();
+      db = findLedgerDb(serverTree.tree);
       const eventEpoch = Number(db.prepare('SELECT COALESCE(MAX(updated_epoch),0) AS n FROM trtc_events').get().n);
       const trackEpochState = trackEpochSnapshot(db), trackEpoch = trackEpochState.newest;
       const written = Number(db.prepare('SELECT COUNT(*) AS n FROM trtc_events WHERE updated_epoch=?').get(eventEpoch).n);
@@ -368,6 +419,8 @@ async function run() {
   } finally {
     if (workerProc && !workerProc.killed) workerProc.kill('SIGTERM');
     if (fixtureProc && !fixtureProc.killed) fixtureProc.kill('SIGTERM');
+    await sleep(100);
+    removeCleanServerTree(serverTree);
   }
 
   say(`\n${failures ? `FAIL ${failures}` : 'PASS'}: B1 V1–V9 驗收完成`);

@@ -1,7 +1,9 @@
 #!/usr/bin/env node
 // 北捷逐班位置校正驗收：只連本機 fixture / Wrangler，真實語料逐快照回放。
 import fs from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
+import crypto from 'node:crypto';
 import { spawn, execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { chromium, webkit } from 'playwright';
@@ -15,12 +17,22 @@ const INSPECTOR_PORT = Number(process.env.TRTC_POS_INSPECTOR_PORT || 43390);
 const FIXTURE = `http://127.0.0.1:${FIXTURE_PORT}`;
 const BASE = `https://127.0.0.1:${WORKER_PORT}`;
 const SCREEN_BASELINE_REF = process.env.TRTC_SCREEN_BASELINE_REF || '45f0fc1';
+const STATIC_BASELINE_REF = process.env.TRTC_STATIC_BASELINE_REF || '1208e30c70441ec65d80b95d32e3685aa968e09d';
 // hold-out 的預測視野上限。舊值 4*60+15=255 秒是人為的，會讓「7 分以上」永遠 n=0；
 // UI 來車看板每方向顯示兩班，第二班在 4 分班距的線上約 8 分、5 分班距約 10 分，
 // 全都落在舊上限之外 ⇒ 產品上看得到的東西從來沒被驗過。拉到 30 分鐘才量得到衰減曲線。
 const HOLDOUT_HORIZON_SEC = Number(process.env.TRTC_HOLDOUT_HORIZON_SEC || 1800);
 const output = { fixture: FIXTURE, base: BASE, assertions: [], samples: [], mobile: [], metrics: {} };
 let failures = 0;
+const SERVER_BYTE_FILES = [
+  'worker.js',
+  'index.html',
+  'scripts/trtc_board_ledger.mjs',
+  'data/trtc.json',
+  'data/trtc_times.json',
+  'data/trtc_codes.json',
+];
+const md5 = data => crypto.createHash('md5').update(data).digest('hex');
 
 function check(condition, label, detail) {
   output.assertions.push({ pass: !!condition, label, detail });
@@ -127,15 +139,12 @@ async function waitFor(child, pattern, timeoutMs) {
 
 // 就緒＝**這台 server 對任何請求給得出一個 HTTP 回應**：不看狀態碼、不比對 wrangler 的 log 措辭。
 //
-// 🔴 2026-08-05：原本等 `/Ready on https:\/\/localhost/` **只等 30 秒**，於是這支長期在任何一條
-// 斷言跑到之前就 exit 1（覆蓋率＝0），症狀偽裝成「環境問題」。受控實驗（每 10 秒探一次）量到：
-// wrangler **立刻就 bind 好埠**（`lsof` 馬上看得到 LISTEN），但要**約 50 秒**才真的能服務，
-// 暖機期間單一發請求會卡 13～50 秒。真因就是等太短。
-//   · 我一度誤判成「這版 wrangler 不印 Ready on 了」——手動觀察只等 45 秒。它有印，只是很慢。
-//   · 每一發必須自帶 timeout：node 的 `fetch` 沒有預設 timeout，三發卡住就把整個 deadline 用光。
-//   · 刻意**不**把「非 503」當就緒條件——`/api/delay-stats` 在全新的本機 D1 上本來就回 503，
-//     那是環境條件不是暖機狀態，寫進就緒條件會讓這支永遠等不到（試過，是上一版的紅因）。
-// 總 deadline 給 300 秒：50 秒是機器閒置時的值，這台常有 2 個 session 併跑，實測會更久。
+// 🔴 2026-08-05：覆蓋率曾為 0 的真因不是 timeout，而是從 ROOT 啟動時 assets.directory="."
+// 把大量未追蹤／ignored 目錄納入監看，形成重載風暴；埠雖 LISTEN，四分鐘仍回不了一個 byte。
+// 現在 server 從乾淨 worktree 起，正常只需個位數秒。這個 helper 仍有兩個必要防呆：
+//   · 就緒必須真打一發 HTTP，不能只看埠或 wrangler log。
+//   · 每一發必須自帶 timeout；且不把「非 503」當條件，因為全新 local D1 的 delay-stats 本來可回 503。
+// 300 秒只是壅塞環境的最終 fail-loud deadline；另有明確 `<30 秒` assertion 防止效能退化。
 async function waitForHttp(url, timeoutMs, child) {
   const prev = process.env.NODE_TLS_REJECT_UNAUTHORIZED;
   process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';                 // 本機 wrangler 是自簽憑證
@@ -155,6 +164,49 @@ async function waitForHttp(url, timeoutMs, child) {
   } finally {
     if (prev === undefined) delete process.env.NODE_TLS_REJECT_UNAUTHORIZED;
     else process.env.NODE_TLS_REJECT_UNAUTHORIZED = prev;
+  }
+}
+
+function prepareCleanServerTree() {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'trtc-pos-'));
+  const tree = path.join(dir, 'vtree');
+  let added = false;
+  try {
+    execFileSync('git', ['-C', ROOT, 'worktree', 'add', '--detach', tree, 'HEAD'], { stdio: 'ignore' });
+    added = true;
+    const mismatches = SERVER_BYTE_FILES.filter(file => {
+      const workFile = path.join(ROOT, file), treeFile = path.join(tree, file);
+      return !fs.existsSync(workFile) || !fs.existsSync(treeFile) ||
+        md5(fs.readFileSync(workFile)) !== md5(fs.readFileSync(treeFile));
+    });
+    check(mismatches.length === 0, '起 server 的樹與工作樹逐 byte 相同', mismatches.length
+      ? `不同檔案：${mismatches.join('、')}；請先 commit 再驗收`
+      : `${SERVER_BYTE_FILES.length} 檔皆與 HEAD 相同`);
+    if (mismatches.length) throw new Error(`乾淨 server 樹與工作樹不同；請先 commit：${mismatches.join(', ')}`);
+    // 不可 symlink node_modules：assets.directory="." 的監看器會沿連結走進數萬個目錄。
+    for (const file of ['.dev.vars', '.env']) {
+      const source = path.join(ROOT, file), target = path.join(tree, file);
+      if (fs.existsSync(source) && !fs.existsSync(target)) fs.symlinkSync(source, target);
+    }
+    return { dir, tree };
+  } catch (error) {
+    if (added) {
+      try { execFileSync('git', ['-C', ROOT, 'worktree', 'remove', '--force', tree], { stdio: 'ignore' }); } catch {}
+    }
+    fs.rmSync(dir, { recursive: true, force: true });
+    throw error;
+  }
+}
+
+function removeCleanServerTree(serverTree) {
+  if (!serverTree) return;
+  try {
+    execFileSync('git', ['-C', ROOT, 'worktree', 'remove', '--force', serverTree.tree], { stdio: 'ignore' });
+    check(true, '乾淨 server worktree 已移除', serverTree.tree);
+  } catch (error) {
+    check(false, '乾淨 server worktree 已移除', String(error && error.message || error));
+  } finally {
+    fs.rmSync(serverTree.dir, { recursive: true, force: true });
   }
 }
 
@@ -261,60 +313,70 @@ async function preparePage(page, documentHtml = null) {
   });
 }
 
-async function waitForBoot(page) {
+async function waitForBoot(page, timeoutMs = 30000) {
   await page.goto(BASE, { waitUntil: 'domcontentloaded', timeout: 30000 });
   await page.waitForFunction(() => typeof state !== 'undefined' &&
     ((state.decoLines || []).concat(state.lines || [])).some(ln => ln._sys === 'mrt' && ln._tt && ln._tt.length),
-    null, { timeout: 30000 });
+    null, { timeout: timeoutMs });
 }
 
 async function mobileMatrix(browserType, workerName) {
   const browser = await browserType.launch({ headless: true });
-  const context = await browser.newContext({ viewport: { width: 360, height: 800 }, isMobile: true,
-    hasTouch: true, deviceScaleFactor: 1, ignoreHTTPSErrors: true });
-  const page = await context.newPage();
-  await preparePage(page);
-  page.on('pageerror', error => console.error(`[${workerName} pageerror]`, error.message));
-  for (const width of [360, 375, 414, 768]) {
-    await page.setViewportSize({ width, height: width === 768 ? 1024 : 800 });
-    await waitForBoot(page);
-    const selector = 'button.gtab[title="捷運與輕軌"]:visible';
-    await page.waitForSelector(selector, { state: 'visible' });
-    const hit = await page.$eval(selector, el => {
-      const r = el.getBoundingClientRect(), top = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
-      return !!(top && (top === el || top.closest('button') === el));
-    });
-    await page.tap(selector);
-    await page.waitForFunction(() => state.mode === 'freq', null, { timeout: 10000 });
-    const layout = await page.evaluate(() => {
-      const badge = document.getElementById('metroBadge');
-      const r = badge && !badge.hidden ? badge.getBoundingClientRect() : null;
-      return {
-        group: state.group, mode: state.mode,
-        noHorizontalScroll: document.documentElement.scrollWidth <= innerWidth + 1,
-        badgeInside: !r || (r.left >= 0 && r.right <= innerWidth && r.top >= 0 && r.bottom <= innerHeight),
-      };
-    });
-    const rec = { engine: workerName, width, elementFromPoint: hit, ...layout };
-    output.mobile.push(rec);
-    check(hit && layout.mode === 'freq' && layout.noHorizontalScroll && layout.badgeInside,
-      `${workerName} 觸控 ${width}px`, JSON.stringify(rec));
+  try {
+    const context = await browser.newContext({ viewport: { width: 360, height: 800 }, isMobile: true,
+      hasTouch: true, deviceScaleFactor: 1, ignoreHTTPSErrors: true });
+    const page = await context.newPage();
+    await preparePage(page);
+    page.on('pageerror', error => console.error(`[${workerName} pageerror]`, error.message));
+    // 一個引擎只需完整 boot 一次；之後切 viewport 就能驗 responsive 與真 tap，不必重抓四輪全站資料。
+    // 手機 context 在這台載完整資料樹偶爾會超過 30 秒；這是頁面 boot 上限，與 wrangler <30 秒 gate 無關。
+    await waitForBoot(page, 90000);
+    for (const width of [360, 375, 414, 768]) {
+      await page.setViewportSize({ width, height: width === 768 ? 1024 : 800 });
+      const selector = 'button.gtab[title="捷運與輕軌"]:visible';
+      await page.waitForSelector(selector, { state: 'visible' });
+      const hit = await page.$eval(selector, el => {
+        const r = el.getBoundingClientRect(), top = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
+        return !!(top && (top === el || top.closest('button') === el));
+      });
+      await page.tap(selector);
+      await page.waitForFunction(() => state.mode === 'freq', null, { timeout: 10000 });
+      const layout = await page.evaluate(() => {
+        const badge = document.getElementById('metroBadge');
+        const r = badge && !badge.hidden ? badge.getBoundingClientRect() : null;
+        return {
+          group: state.group, mode: state.mode,
+          noHorizontalScroll: document.documentElement.scrollWidth <= innerWidth + 1,
+          badgeInside: !r || (r.left >= 0 && r.right <= innerWidth && r.top >= 0 && r.bottom <= innerHeight),
+        };
+      });
+      const rec = { engine: workerName, width, elementFromPoint: hit, ...layout };
+      output.mobile.push(rec);
+      check(hit && layout.mode === 'freq' && layout.noHorizontalScroll && layout.badgeInside,
+        `${workerName} 觸控 ${width}px`, JSON.stringify(rec));
+    }
+  } finally {
+    await browser.close().catch(() => {});
   }
-  await browser.close();
 }
 
 async function run() {
-  let fixtureProc, workerProc, browser;
+  let fixtureProc, workerProc, browser, serverTree;
   try {
+    serverTree = prepareCleanServerTree();
     fixtureProc = spawn(process.execPath, [path.join(ROOT, 'scripts/fixture_trtc_board_ledger.mjs'), String(FIXTURE_PORT)],
       { cwd: ROOT, stdio: ['ignore', 'pipe', 'pipe'] });
     await waitFor(fixtureProc, /"ready":true/, 10000);
+    const serverStartedAt = Date.now();
     workerProc = spawn('arch', ['-arm64', process.execPath, path.join(ROOT, 'node_modules/wrangler/bin/wrangler.js'),
       'dev', '--local-protocol', 'https', '--port', String(WORKER_PORT), '--inspector-port', String(INSPECTOR_PORT), '--test-scheduled',
       '--var', 'TRTC_API_USER:fixture-user', '--var', 'TRTC_API_PASS:fixture-pass',
       '--var', `TRTC_API_BASE:${FIXTURE}`, '--var', 'TRTC_BOARD_SAMPLE_DELAY_MS:0'],
-      { cwd: ROOT, stdio: ['ignore', 'pipe', 'pipe'] });
-    await waitForHttp(`${BASE}/api/delay-stats`, 300000, workerProc);   // 這台實測閒置約 50 秒才能服務;兩個 session 併跑時更久
+      { cwd: serverTree.tree, stdio: ['ignore', 'pipe', 'pipe'] });
+    await waitForHttp(`${BASE}/api/delay-stats`, 300000, workerProc);   // 乾淨樹應為個位數秒；下方另有 <30 秒 gate
+    const serverSeconds = (Date.now() - serverStartedAt) / 1000;
+    output.metrics.serverStartupSeconds = serverSeconds;
+    check(serverSeconds < 30, 'wrangler dev 起服務耗時 < 30 秒', `${serverSeconds.toFixed(1)} 秒`);
 
     browser = await chromium.launch({ headless: true });
     const context = await browser.newContext({ viewport: { width: 1280, height: 900 }, ignoreHTTPSErrors: true });
@@ -324,8 +386,11 @@ async function run() {
     await waitForBoot(page);
     await page.waitForFunction(() => state._trtcBoardAudit && state._trtcBoardAudit.matched > 0, null, { timeout: 30000 });
     const integrated = await page.evaluate(() => ({ ...state._trtcBoardAudit, assignments: undefined }));
-    check(integrated.rows > 0 && integrated.matched > 0, '前後端 boardPos payload 已接通',
-      `rows=${integrated.rows}, matched=${integrated.matched}, roster=${integrated.roster}`);
+    const uncovered = Object.entries(integrated.byLine || {}).filter(([, rec]) => rec.roster > 0 && rec.matched === 0)
+      .map(([line]) => line);
+    check(integrated.rows > 0 && integrated.matched > 0 && uncovered.length === 0,
+      '前後端 boardPos payload 已接通，且每條營運中的北捷線都有匹配',
+      `rows=${integrated.rows}, matched=${integrated.matched}, roster=${integrated.roster}, uncovered=${JSON.stringify(uncovered)}`);
     await page.evaluate(() => { _trtcPolling = true; }); // 後續逐槽由測試明確注入，避免 15 秒輪詢改動 fixture call 順序
     await page.evaluate(() => { _lineAnom.clear(); _trtcNoTrip.clear(); _easedShift.clear(); });
 
@@ -451,7 +516,7 @@ async function run() {
         roster: result.audit.roster, mutationHits: result.mutationHits, zoom: result.zoom });
     }
 
-    output.metrics = {
+    output.metrics = { ...output.metrics,
       invariantFailures, mutationWitness, anchorConsistencyOnly: dist(anchorResiduals), baselineDistance: dist(baselineDistances),
       directions: [...directions].sort(), lineTotals, orangeBranchHints: branchFrames,
     };
@@ -561,14 +626,19 @@ async function run() {
       const fresh = countAll();
       resync();
       const freshShift = maxShift();
-      // ① 未被看板認到的班次，target 應退回全線中位數 all，不是 0
-      const ln0 = pool.find(ln => ln._trtcBoard.all !== 0 &&
-        ln._tt.some(tr => freqTrainTime(tr, state.simSec) != null && !ln._trtcBoard.shifts.has(tr)));
+      // ① 未被看板認到的班次，target 應退回全線中位數 all，不是 0。
+      // 語料可能剛好全數認到，不能因此讓 gate 沒有見證：受控刪一筆 shift，再驗同一條產品語意。
+      const ln0 = pool.find(ln => ln._trtcBoard.all !== 0 && ln._trtcBoard.shifts.size > 0);
       let fallback = null;
       if (ln0) {
-        const miss = ln0._tt.find(tr => freqTrainTime(tr, state.simSec) != null && !ln0._trtcBoard.shifts.has(tr));
+        const miss = ln0._trtcBoard.shifts.keys().next().value;
+        const savedShift = ln0._trtcBoard.shifts.get(miss);
+        ln0._trtcBoard.shifts.delete(miss);
         resync();
-        fallback = { line: ln0.id, all: ln0._trtcBoard.all, applied: Math.round(metroShiftSec(ln0, miss)) };
+        fallback = { line: ln0.id, all: ln0._trtcBoard.all, applied: Math.round(metroShiftSec(ln0, miss)),
+          mutation: 'delete-one-shift' };
+        ln0._trtcBoard.shifts.set(miss, savedShift);
+        resync();
       }
       // ④ 把資料齡推到 40 分前：校正應整批歸零，車數一台都不准變
       const saved = pool.map(ln => ln._trtcBoard.at);
@@ -651,6 +721,15 @@ async function run() {
       '已知限制：移除車數判定後，看板九線對停駛／誤點型事故不再自行告警（改由官方公告承擔）',
       `三種注入的告警數皆為 0 = ${structurallyBlind}`);
 
+    const serviceDays = await page.evaluate(() => ({
+      saturdayAfterMidnight: taipeiServiceDayStr(Date.parse('2026-08-01T17:00:00Z')),
+      mondayMorning: taipeiServiceDayStr(Date.parse('2026-08-03T00:30:00Z')),
+    }));
+    check(serviceDays.saturdayAfterMidnight === '2026-08-01' && serviceDays.mondayMorning === '2026-08-03',
+      '04:00 北捷營運日切點', JSON.stringify(serviceDays));
+    // 現行頁的 rAF/canvas 動畫會和下一張基準頁爭主線程；完成現行頁斷言後先關掉，讓基準頁單獨 boot。
+    await page.close();
+
     // 最重要的存在性對照：同一批 17 槽在派工基準 45f0fc1 與目前 index 上逐槽逐線數車，必須完全相同。
     // 基準頁只替換 document；資料、fixture、payload 與瀏覽器引擎都和目前頁一致。
     const baselineHtml = execFileSync('git', ['show', `${SCREEN_BASELINE_REF}:index.html`],
@@ -685,19 +764,12 @@ async function run() {
     check(screenParityFailures.length === 0, `畫面車數與改動前 ${SCREEN_BASELINE_REF} 逐槽逐線完全相同`,
       `17 槽 × ${Object.keys(currentScreenCounts[0] || {}).length} 線，差異=${JSON.stringify(screenParityFailures)}`);
 
-    const serviceDays = await page.evaluate(() => ({
-      saturdayAfterMidnight: taipeiServiceDayStr(Date.parse('2026-08-01T17:00:00Z')),
-      mondayMorning: taipeiServiceDayStr(Date.parse('2026-08-03T00:30:00Z')),
-    }));
-    check(serviceDays.saturdayAfterMidnight === '2026-08-01' && serviceDays.mondayMorning === '2026-08-03',
-      '04:00 北捷營運日切點', JSON.stringify(serviceDays));
     await context.close(); await browser.close(); browser = null;
 
     // 靜態分層掃描只看本次新增行；零命中旁邊放同一掃描器的突變，證明規則真的會開火。
-    // 🔴 基準必須是 origin/main 不是工作樹：用 `git diff`(無基準) 的話，一 commit 下去 added 就
-    // 變空字串，staticHits 恆 0、字串突變仍回 2 ⇒ 這條斷言會永久全綠卻一行程式碼都沒看。
-    // 同理要自檢「掃到的真的是本次新程式碼」，否則基準漂掉時同樣是假綠（心得 32）。
-    const diff = execFileSync('git', ['diff', '--unified=0', 'origin/main', '--', 'index.html', 'worker.js'], { cwd: ROOT, encoding: 'utf8' });
+    // 🔴 基準固定在逐班位置功能 commit c548186 的父版；origin/main 會前進，功能一合入就會把
+    // added 掃成空字串。固定基準才能在本腳本 commit 後仍真的掃到受測入口，不是假綠。
+    const diff = execFileSync('git', ['diff', '--unified=0', STATIC_BASELINE_REF, '--', 'index.html', 'worker.js'], { cwd: ROOT, encoding: 'utf8' });
     const added = diff.split('\n').filter(x => x.startsWith('+') && !x.startsWith('+++')).join('\n');
     const scansNewCode = /applyTrtcBoard/.test(added) && /trtcBoardPositionAnchors/.test(added);
     const forbidden = /last_seen|confidence|retention|retainSec|staleSec|windowSec|保留秒數|過舊門檻|信心分數/g;
@@ -716,6 +788,7 @@ async function run() {
     if (workerProc && !workerProc.killed) workerProc.kill('SIGTERM');
     if (fixtureProc && !fixtureProc.killed) fixtureProc.kill('SIGTERM');
     await sleep(100);
+    removeCleanServerTree(serverTree);
     fs.mkdirSync(path.join(ROOT, 'tmp'), { recursive: true });
     output.failures = failures;
     fs.writeFileSync(path.join(ROOT, 'tmp/verify_trtc_board_positions-output.json'), JSON.stringify(output, null, 2) + '\n');
