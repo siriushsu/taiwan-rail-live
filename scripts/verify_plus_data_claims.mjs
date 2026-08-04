@@ -268,8 +268,13 @@ check('B2-WRITE-ENTITLEMENT', '行為', '雲端新增與更新要求本人、有
   const callsGate = /\bhasActiveEntitlement\s*\(\s*uid\s*\)/.test(createUpdateRule);
   const exists = /entitlement\s*!=\s*null/.test(activeRule);
   const active = /\.data\.active\s*==\s*true/.test(activeRule);
-  const unexpired = /activeUntilMs\s*==\s*0/.test(activeRule) && /activeUntilMs\s*>\s*request\.time\.toMillis\(\)/.test(activeRule);
-  return { pass: hasOwner && callsGate && exists && active && unexpired, detail: `create/update.owns=${hasOwner}；create/update.hasActiveEntitlement=${callsGate}；gate=${compact(activeRule.match(/return[^;]+;/s)?.[0] || '未讀到')}` };
+  // 🔴 2026-08-04:這一行原本要求 `activeUntilMs == 0` 這一支**存在**,而本條宣稱的是「未過期」
+  // ——`== 0` 的語意正好是「永不失效」,等於這條斷言在驗自己宣稱的反面,還順便把那個洞釘住
+  // (規則那邊的 E4 也是同一個誤讀)。ends_at 為 null 逐字只代表「無限期暫停」,不是終身標記;
+  // 規則已拿掉那一支,這裡改成要求它**不存在**,這條斷言才真的在守自己的標題。
+  const noLifetimeEscape = !/activeUntilMs\s*==\s*0/.test(activeRule);
+  const unexpired = noLifetimeEscape && /activeUntilMs\s*>\s*request\.time\.toMillis\(\)/.test(activeRule);
+  return { pass: hasOwner && callsGate && exists && active && unexpired, detail: `create/update.owns=${hasOwner}；create/update.hasActiveEntitlement=${callsGate}；無「==0 永不失效」逃生口=${noLifetimeEscape}；gate=${compact(activeRule.match(/return[^;]+;/s)?.[0] || '未讀到')}` };
 });
 
 check('B3-READ-DELETE-NO-PLUS', '行為', '本人讀取與刪除不套用 Plus 資格條件', () => {
