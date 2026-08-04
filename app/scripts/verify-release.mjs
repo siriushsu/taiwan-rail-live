@@ -367,8 +367,8 @@ export async function verifyRelease({
   // build 結尾呼叫時 cap sync 尚未跑,故 skipNativeSyncCheck=true;獨立 npm run verify 才做此比對。
   if (!skipNativeSyncCheck) {
     const nativeIndexes = [
-      ['iOS', join(appRoot, 'ios/App/App/public/index.html')]
-      // Android 生成後補上 ['Android', join(appRoot, 'android/app/src/main/assets/public/index.html')]
+      ['iOS', join(appRoot, 'ios/App/App/public/index.html')],
+      ['Android', join(appRoot, 'android/app/src/main/assets/public/index.html')]
     ];
     for (const [label, nativeIndex] of nativeIndexes) {
       let nativeHtml;
