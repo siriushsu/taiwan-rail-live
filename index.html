@@ -15487,7 +15487,13 @@ async function setupOfflineLand() {
 const SAT_SESSION_AT = 40;                          // 桌機約一屏;跨過這條的人幾乎都會再看很多張
 const SAT_SESSION_KEY = 'trainmap-esri-session';
 const SAT_SESSION_MARGIN = 10 * 60000;              // 效期只剩 10 分鐘就當作要換新的
-let satTiles = 0, satSession = null, satSessionBusy = false;
+// 🔴 2026-08-04:要不到 session 之後的退避窗。沒有它的話,失敗會在**下一張圖磚載入時**立刻重試,
+// 而衛星平移一次就是幾十張 ⇒ 等於對 /api/basemap-session 連發。這在舊的 60/分鐘節流下還撐得住,
+// 但該端點已收緊到 5/分鐘(見 wrangler.jsonc 的 BASEMAP_SESSION_LIMITER),在 CGNAT 之類共用 IP 下
+// 就會變成:被擋的客戶端不斷重試、把自己那個 IP 的額度一直咬住,同 IP 的其他人也跟著永遠拿不到
+// ——反而讓「本來該被 session 封頂的重度使用者」全部退回較貴的按張數計價。退避讓它自己解開。
+const SAT_SESSION_RETRY_MS = 60000;
+let satTiles = 0, satSession = null, satSessionBusy = false, satSessionRetryAt = 0;
 // 衛星圖磚網址的 ? 之前那段,建圖層時抓下來。刻意不在這裡讀 TILES——它是 boot 函式內的區域變數,
 // 這幾支是頂層函式,直接引用會 ReferenceError（改這段時踩過一次,錯誤被 .catch 吃掉、只看到衛星鈕消失）。
 let satTileUrlBase = null;
@@ -15528,15 +15534,20 @@ function satTileLoaded() {
   satTiles++;
   const needNew = satSession ? !satSessionUsable() : satTiles >= SAT_SESSION_AT;
   if (!needNew) return;
+  if (Date.now() < satSessionRetryAt) return;   // 上一次要不到,退避窗還沒過(見 SAT_SESSION_RETRY_MS)
   satSessionBusy = true;
   fetchSatSession()
     .then(s => {
       if (!s.t || !(s.exp > Date.now())) throw new Error('bad session');
       satSession = s;
+      satSessionRetryAt = 0;                    // 成功了就把退避解除,續期時不必等
       try { localStorage.setItem(SAT_SESSION_KEY, JSON.stringify(s)); } catch (e) {}
       applySatToken(s.t);
     })
-    .catch(() => { /* 要不到就繼續按張數計價,衛星不受影響 */ })
+    .catch(() => {
+      // 要不到就繼續按張數計價,衛星不受影響;但要等一個退避窗才准再問(見 SAT_SESSION_RETRY_MS)。
+      satSessionRetryAt = Date.now() + SAT_SESSION_RETRY_MS;
+    })
     .then(() => { satSessionBusy = false; });
 }
 

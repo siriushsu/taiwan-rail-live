@@ -57,12 +57,21 @@
   // BASEMAP_LIMITER 的理由不同:/api/basemap-token 無從要求憑證(token 本來就得送到瀏覽器才用得了),
   // 節流是要擋「拿它當公用 token 水龍頭迴圈抽取」——抽走的每一把都會去打我們計費的 Esri 額度。
   // 60 次/分鐘對真人綽綽有餘(前端整個 session 只取一次,失敗才重試)。
+  // BASEMAP_SESSION_LIMITER(2026-08-04 稽核後新增):/api/basemap-session 與上面那條的**單價不同**。
+  // basemap-token 抽再多次都只是同一個值(拿走一把就夠了,再抽不多花錢);basemap-session 則是
+  // **每呼叫一次就開一顆計費的 session**。合法客戶端的真實速率是「每 12 小時約 1 顆」
+  // (見 index.html 的 SAT_SESSION_AT/SAT_SESSION_MARGIN),所以 60/分鐘對這條端點寬得毫無道理——
+  // 一個 IP 一天可以逼出 86,400 顆。5/分鐘對真人仍有 300 倍餘裕(而且失敗會安靜退回按張數計價,
+  // 衛星照常顯示),對濫用者則把成本降三個數量級。
+  // ⚠️ 這個值與 index.html 的 SAT_SESSION_RETRY_MS 是一組的:前端失敗後要退避,否則在 CGNAT 之類
+  // 共用 IP 下,被擋的客戶端會在每一張圖磚載入時重試、把自己那個 IP 的額度一直咬住(見該常數註解)。
   "unsafe": {
     "bindings": [
       { "name": "AUTH_LIMITER", "type": "ratelimit", "namespace_id": "1001", "simple": { "limit": 20, "period": 60 } },
       { "name": "DELETE_LIMITER", "type": "ratelimit", "namespace_id": "1002", "simple": { "limit": 5, "period": 60 } },
       { "name": "BOUNTY_LIMITER", "type": "ratelimit", "namespace_id": "1003", "simple": { "limit": 30, "period": 60 } },
-      { "name": "BASEMAP_LIMITER", "type": "ratelimit", "namespace_id": "1004", "simple": { "limit": 60, "period": 60 } }
+      { "name": "BASEMAP_LIMITER", "type": "ratelimit", "namespace_id": "1004", "simple": { "limit": 60, "period": 60 } },
+      { "name": "BASEMAP_SESSION_LIMITER", "type": "ratelimit", "namespace_id": "1005", "simple": { "limit": 5, "period": 60 } }
     ]
   },
   "assets": {
