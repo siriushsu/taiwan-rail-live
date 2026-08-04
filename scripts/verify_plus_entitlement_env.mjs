@@ -303,6 +303,20 @@ section(SECTIONS[5]);
   const production = await read({ items: [PRODUCTION_SUB] });
   check(production.status === 200 && production.json.active === true,
     '正向對照：正式訂閱客戶 ⇒ 200 {active:true}（證明上一條的 false 不是整條路徑壞掉）', JSON.stringify(production));
+  // ── 批二-B：回應是兩個獨立真相，schema 與語意都要守住 ──────────────────────────────
+  // 本段的 ENV() 沒有 FIRESTORE_PROJECT_ID／service account ⇒ writePlusEntitlement 必定拋錯、
+  // 資格文件一定沒落地。這正是最危險的組合：RevenueCat 說有資格（active:true），但 rules 讀的
+  // 那份文件根本不存在。此時若把 cloudSyncReady 也回成 true，客戶端會拿註定被擋的交易去撞牆，
+  // 而且永遠不會再握手一次。欄位名與期望值都是本檔字面宣告，不從 worker.js 讀。
+  check(Object.keys(production.json).sort().join(',') === 'active,cloudSyncReady',
+    '批二-B：/api/plus-status 的回應恰好是 {active, cloudSyncReady} 兩個欄位（多一個少一個都要在這裡紅）',
+    JSON.stringify(production.json));
+  check(production.json.cloudSyncReady === false,
+    '批二-B：Firestore 設定缺席（寫入必定失敗）時 cloudSyncReady 必須是 false——不可以因為 RevenueCat 說有資格就宣稱雲端已放行',
+    JSON.stringify(production.json));
+  check(sandboxOnly.json.cloudSyncReady === false,
+    '批二-B：無資格客戶的 cloudSyncReady 同樣是 false（active:false 的資格文件照樣被 rules 擋）',
+    JSON.stringify(sandboxOnly.json));
 }
 
 // ── 7. 發版閘門：發行包不得允許 sandbox 資格 ─────────────────────────────────────────
