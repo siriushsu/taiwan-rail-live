@@ -1629,6 +1629,61 @@ const chromiumB = await chromium.launch();
   await ctx.close();
 }
 
+// ══════════════ R18. 批二-D(整合稽核 I-5):帳號面板文案「訪客資料會不會併入帳號」的兩種情況都要真的發生 ══════════════
+// accountRender() 未登入畫面現在依「這台裝置有沒有登入過別的帳號」分兩種情況說明(批二-D 改寫,
+// 見 index.html accountRender 的 account-intro,以及 scripts/verify_plus_data_claims.mjs 的
+// D8-GUEST-MERGE-CLAIM——那邊只驗文案本身講了什麼,這裡驗文案講的事情是不是真的會發生)：
+//   R18a 正向對照(文案「若這台裝置沒登入過其他帳號,首次登入時會併入」):全新裝置,訪客先寫一筆,
+//        第一次登入 → 應該繼承。
+//   R18b-d(文案「若這台裝置先前登入過別的帳號,訪客資料不會自動併入,但仍留在裝置上」——稽核
+//        I-5 的原始重現路徑):登入 A → A 真正登出(accountEndSession)→ 此刻是訪客,新增一筆
+//        (稽核逐字取名 B_VISITOR)→ 換一個從沒登入過的 uid B 登入 → B 看不到那筆訪客資料,
+//        但資料仍完整留在共用匿名 key,不是被刪除。
+{
+  const { ctx, page } = await newPage(chromiumB);
+  const errs = attach(page, 'R18');
+  await page.goto(BASE, { waitUntil: 'domcontentloaded' });
+  await waitReady(page);
+  const r = await page.evaluate(() => {
+    // R18a:全新裝置(從未驗證過任何身分),訪客先寫一筆,uid A 第一次登入。
+    userDataSaveCollection('favs', [{ train: 'R18_PRE_A' }]);
+    state.account = { user: { uid: 'r18-a' }, gen: 0 };
+    localStorage.setItem('trainmap-account-uid', 'r18-a');
+    localStorage.setItem('trainmap-account-last-uid', 'r18-a');
+    const aInherited = userDataRead('r18-a').collections.favs.items.map(x => x.value.train).sort();
+
+    // A 真正登出:呼叫真正的 accountEndSession()(比照 R4 的既有手法)。它只會忘掉身分
+    // (ACCOUNT_UID_KEY 清掉、ACCOUNT_LAST_UID_KEY 留著),不會自己把 state.account.user 設回
+    // null——那是 Firebase onAuthStateChanged 的非同步 callback 才會做的事,這裡沒有真的
+    // Firebase Auth,比照 R4 手動補上這一步,否則下一步「訪客新增」其實還是寫進 A 的分區,
+    // 測不到真正要驗的陌生人路徑。
+    accountEndSession();
+    state.account = { user: null, gen: state.account.gen };
+
+    // 訪客(登出後)新增一筆——稽核重現步驟裡的 B_VISITOR。先確認寫入的當下讀到的是共用匿名
+    // 分區(不是殘留在 A 的分區裡),不然下面「B 看不到」測不出是分區隔離擋下的,還是本來就沒東西。
+    const anonymousBeforeGuestAdd = userDataLoadCollection('favs').map(x => x.train).sort();
+    userDataSaveCollection('favs', [...userDataLoadCollection('favs'), { train: 'B_VISITOR' }]);
+
+    // 換一個全新、從沒在這台裝置登入過的 uid B。
+    state.account = { user: { uid: 'r18-b' }, gen: state.account.gen };
+    const bAfterLogin = userDataRead('r18-b').collections.favs.items.map(x => x.value.train);
+    const anonymousStillStored = userDataRead(null).collections.favs.items.map(x => x.value.train).sort();
+
+    return { aInherited, anonymousBeforeGuestAdd, bAfterLogin, anonymousStillStored };
+  });
+  ok('R18a 正向對照(帳號面板文案「若這台裝置沒登入過其他帳號，首次登入時會把裝置上的訪客資料併入帳號」):全新裝置的訪客資料,在第一次登入時真的被繼承進帳號',
+    JSON.stringify(r.aInherited) === JSON.stringify(['R18_PRE_A']), JSON.stringify(r));
+  ok('R18b 前置條件:A 登出、B 登入前,訪客身分讀寫到的確實是共用匿名分區(R18_PRE_A),不是殘留在 A 自己的分區裡——下面「B 看不到」才是分區隔離擋下的,不是本來就沒東西可繼承',
+    JSON.stringify(r.anonymousBeforeGuestAdd) === JSON.stringify(['R18_PRE_A']), JSON.stringify(r));
+  ok('R18c 核心斷言(帳號面板文案「若這台裝置先前登入過別的帳號，訪客資料不會自動併入」):A 登出後訪客新增的 B_VISITOR,換 uid B 登入時,B 的分區裡沒有這一筆',
+    !r.bAfterLogin.includes('B_VISITOR'), JSON.stringify(r));
+  ok('R18d 核心斷言(帳號面板文案「但仍留在裝置上，不會遺失」):B 登入之後,B_VISITOR 仍完整留在共用匿名 key 裡,不是被刪除或搬走',
+    r.anonymousStillStored.includes('B_VISITOR'), JSON.stringify(r));
+  ok('R18 本輪零 pageerror/console.error', errs.length === 0, errs.slice(0, 3).join(' | '));
+  await ctx.close();
+}
+
 await chromiumB.close();
 server.close();
 
