@@ -155,7 +155,14 @@ const scopes = {
   supportLead: paragraphWith(src.support, '帳號用於在 Plus 資格有效期間'),
   supportTakeout: paragraphWith(src.support, '原始檔案只在裝置內解析'),
   supportInactive: paragraphWith(src.support, '沒有有效 Plus 資格時'),
+  // 批二-D(M-2):取消訂閱那段——揭露「至少用到當期結束、技術性緩衝最多再晚一天」。
+  termsCancel: paragraphWith(src.terms, '訂閱會在到期前依商店規則自動續訂扣款'),
 };
+// 批二-D(I-5):未登入畫面對「訪客資料會不會併入帳號」的說明,只會在 accountRender() 那個分支
+// 出現一次(用「登入後會同步」當錨點,已排除掉本檔自己的程式碼註解——見下方 stripComments)。
+const guestMergeIntroMatch = stripComments(src.index).match(/<p class="account-intro">(登入後會同步[^]*?)<\/p>/);
+if (!guestMergeIntroMatch) throw new Error('找不到未登入畫面的 account-intro 文案(I-5)');
+const guestMergeIntro = htmlText(guestMergeIntroMatch[1]);
 const docConcepts = {
   最愛地點: /最愛地點/,
   最愛列車: /最愛列車/,
@@ -255,6 +262,84 @@ check('D7-ENTITLEMENT-DELETION', '文案', '刪除帳號涵蓋 Plus 資格紀錄
   return {
     pass: Object.values(found).every(Boolean),
     detail: Object.entries(found).map(([key, value]) => `${key}=${value}`).join('；'),
+  };
+});
+
+// 批二-D（整合稽核 I-5）：未登入畫面原本無條件承諾「目前裝置上的訪客資料會在首次登入時合併進
+// 帳號」。實際上 userDataMigrateAccountPartition() 只在「這台裝置沒登入過其他帳號，或上一個
+// 登入的正是這個帳號」時才繼承匿名資料；上一個驗證過身分的是別的帳號時，新登入拿到空白分區，
+// 訪客資料不會併入——但資料沒有遺失，仍留在共用的匿名 key 裡（稽核實跑：anonymousStillStored
+// 裡還有那筆）。這條只驗文案本身有沒有把兩種情況都講清楚、且不再是無條件句；行為本身（那條
+// 「登出→訪客新增→換一個 uid 登入」的真實路徑）驗到 verify_account_sync_race.mjs 的 R18——
+// 那邊已經有 Playwright 起真實頁面、真實呼叫 accountEndSession()/userDataRead() 的既有機制
+// （R4/R5/R6 珠玉在前），比在這支純靜態分析的檔案裡另外土法接一套瀏覽器更省風險。
+check('D8-GUEST-MERGE-CLAIM', '文案', '未登入畫面對「訪客資料會不會併入帳號」依裝置登入史分兩種情況說明，不再無條件承諾，且交代不併入時資料還在裝置上', () => {
+  const condMerge = /若這台裝置沒登入過其他帳號/.test(guestMergeIntro) && /併入帳號/.test(guestMergeIntro);
+  const condNoMerge = /若這台裝置先前登入過別的帳號/.test(guestMergeIntro) && /不會自動併入/.test(guestMergeIntro);
+  const dataRetained = /不會遺失/.test(guestMergeIntro);
+  // 舊版突變基準：整句話沒有任何前提子句，直接斷言「會」。改回這句話，本斷言必須紅。
+  const oldUnconditional = /目前裝置上的訪客資料會在首次登入時合併進帳號/.test(guestMergeIntro);
+  return {
+    pass: condMerge && condNoMerge && dataRetained && !oldUnconditional,
+    detail: `會併情境=${condMerge}；不併情境=${condNoMerge}；不遺失=${dataRetained}；殘留舊無條件句=${oldUnconditional}；讀到=${guestMergeIntro}`,
+  };
+});
+
+// 批二-D（整合稽核 M-2）：terms.html 原本寫「取消後 Plus 功能會持續使用到當期已付費的週期結束
+// 為止」，但 worker.js 的 activeUntilMs 一律是「訂閱到期毫秒＋24 小時寬限」，firestore.rules
+// 把整段都視為可寫——條款講的是精確終點，規則實際放行的時間比那個終點晚。使用者裁示：這一輪
+// 只做文案止血，不改 worker.js／firestore.rules；24 小時寬限本身是刻意的營運緩衝（見
+// worker.js PLUS_ENTITLEMENT_GRACE_MS 上方說明：吸收 webhook 漏送與時鐘偏移，退款／撤銷仍會
+// 立即寫 inactive，不等寬限）。文案改成「至少用到當期結束、技術性因素最多再晚一天，且不是
+// 可主張的權利」——floor＋有界上限＋免責聲明三件事都要到齊，才不會又製造出新的無條件承諾
+// （反過來寫成「保證多用一天」一樣是說謊）。
+check('D9-GRACE-DISCLOSED', '文案', '取消訂閱條款把「使用到當期結束」講成保底而非精確終點，揭露技術緩衝的存在與上限，且不把緩衝講成使用者可主張的權利', () => {
+  const floor = /至少可使用到當期已付費的週期結束/.test(scopes.termsCancel);
+  const boundedExtra = /最多一天/.test(scopes.termsCancel) && /(?:技術限制|系統資格確認)/.test(scopes.termsCancel);
+  const notARight = /不是延長使用權益/.test(scopes.termsCancel) && /不能另行主張/.test(scopes.termsCancel);
+  // 舊版突變基準：只有精確終點「為止」，沒有任何緩衝揭露。
+  const oldHardCutoffOnly = /持續使用到當期已付費的週期結束為止/.test(scopes.termsCancel);
+  return {
+    pass: floor && boundedExtra && notARight && !oldHardCutoffOnly,
+    detail: `保底措辭=${floor}；揭露上限=${boundedExtra}；非可主張的權利=${notARight}；殘留舊精確終點句=${oldHardCutoffOnly}；讀到=${scopes.termsCancel}`,
+  };
+});
+
+// M-2 的行為側驗證：🔴 稽核明講「判準應用產品定義而不是直接把實作的 24h 當期待值」，
+// 不能 import PLUS_ENTITLEMENT_GRACE_MS 再斷言它等於自己（零資訊）。這裡改成兩個獨立來源
+// 互相印證：disclosedCeilingMs 純粹從 terms.html 的白話文字解析（不讀 worker.js 任何一個字，
+// 「最多一天」這個字面上限由這支測試自己定義／解析，代表產品願意公開承諾的上限）；actualGraceMs
+// 不讀常數本身，而是像 B6 一樣把 worker.js 當模組載入，餵一筆有明確 ends_at 的合成訂閱給真正的
+// plusEntitlementDocument()，量它實際吐出的 activeUntilMs 比 ends_at 晚多少——不管這個寬限
+// 日後是常數、查表還是別的算法，量到的都是「真正放行到多晚」，不是它宣告了什麼名字的常數。
+// 斷言的是「文案揭露的上限 ⊇ 實際放行的行為」，兩個數字現在剛好都對到 24 小時只是巧合；
+// 只要行為那側漂移到超過文案揭露的上限（不論用什麼方式漂移），這條就會紅。
+check('B8-GRACE-CEILING-COVERS-BEHAVIOR', '行為', 'M-2:terms.html 揭露的技術緩衝上限，真的涵蓋 worker.js 實際會放行的寬限（不是拿實作常數比對自己）', async () => {
+  const workerModule = await import(pathToFileURL(path.join(ROOT, FILES.worker)).href);
+  const makeDoc = workerModule._plus && workerModule._plus.plusEntitlementDocument;
+  if (typeof makeDoc !== 'function') return { pass: false, detail: '未讀到 _plus.plusEntitlementDocument 導出' };
+  const nowMs = Date.now();
+  const knownEndMs = nowMs + 3600_000; // 訂閱本身還沒到期,只是要給一個「已知、可解析」的到期時間
+  const doc = makeDoc({
+    items: [{ gives_access: true, environment: 'production', ends_at: knownEndMs, entitlements: { items: [{ lookup_key: 'plus' }] } }],
+  }, 'plus', 'verify', nowMs);
+  const actualGraceMs = doc.activeUntilMs - knownEndMs;
+
+  const dayWords = { 一: 1, 兩: 2, 二: 2, 三: 3, 四: 4, 五: 5, 六: 6, 七: 7 };
+  function parseCeilingMs(text) {
+    let m = text.match(/最多(一|兩|二|三|四|五|六|七|\d+)天/);
+    if (m) return (dayWords[m[1]] ?? Number(m[1])) * 24 * 3600_000;
+    m = text.match(/最多(一|兩|二|三|四|五|六|七|\d+)小時/);
+    if (m) return (dayWords[m[1]] ?? Number(m[1])) * 3600_000;
+    return NaN;
+  }
+  const disclosedCeilingMs = parseCeilingMs(scopes.termsCancel);
+
+  const sane = Number.isFinite(disclosedCeilingMs) && disclosedCeilingMs > 0 && disclosedCeilingMs <= 7 * 24 * 3600_000;
+  const behaviorWithinDisclosed = Number.isFinite(actualGraceMs) && actualGraceMs > 0 && actualGraceMs <= disclosedCeilingMs;
+  return {
+    pass: sane && behaviorWithinDisclosed,
+    detail: `文案揭露上限=${disclosedCeilingMs}ms(合理範圍內=${sane})；實際放行寬限(行為量出)=${actualGraceMs}ms；上限涵蓋實際行為=${behaviorWithinDisclosed}`,
   };
 });
 
