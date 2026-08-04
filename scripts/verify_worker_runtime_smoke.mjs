@@ -74,8 +74,11 @@ async function startServer(label, workerSource) {
   const dir = mkdtempSync(path.join(os.tmpdir(), 'rt-smoke-'));
   const tree = path.join(dir, 'vtree');
   execFileSync('git', ['-C', ROOT, 'worktree', 'add', '--detach', tree, 'HEAD'], { stdio: 'ignore' });
-  // node_modules 借主樹的（wrangler 本體）；.dev.vars/.env 有就借。
-  symlinkSync(path.join(ROOT, 'node_modules'), path.join(tree, 'node_modules'));
+  // 🔴 刻意**不**把 node_modules symlink 進來。wrangler 本體是用 ROOT 的絕對路徑呼叫的，
+  // 而 worker.js 只 import 同 repo 的相對檔（`./scripts/trtc_board_ledger.mjs`），零 node_modules 相依。
+  // 借進來反而害慘：本專案 `assets.directory` 是 `"."`，資產監看器會跟著 symlink 走進數萬個目錄
+  // ——wrangler 會自己抱怨「reduce the number of subdirectories」，然後起服務從約 60 秒暴增到
+  // 超過 240 秒（2026-08-05 實測，這支因此假紅一次）。
   for (const f of ['.dev.vars', '.env']) {
     if (existsSync(path.join(ROOT, f)) && !existsSync(path.join(tree, f))) {
       symlinkSync(path.join(ROOT, f), path.join(tree, f));
@@ -108,7 +111,8 @@ async function startServer(label, workerSource) {
   // 但要約 50 秒才真的能服務）。每一發自帶 timeout，否則暖機期卡住的請求會把整個 deadline 用光。
   // 刻意**不**看狀態碼：/api/delay-stats 在全新的本機 D1 上本來就回 503，那是環境條件不是暖機狀態，
   // 把它寫進就緒條件會讓這支永遠等不到（試過）。
-  const deadline = Date.now() + 240_000;
+  const t0 = Date.now();
+  const deadline = t0 + 300_000;
   let ready = false;
   while (Date.now() < deadline) {
     if (proc.exitCode !== null) break;
@@ -119,8 +123,11 @@ async function startServer(label, workerSource) {
     } catch (e) { /* 還沒起來，等下一輪 */ }
     await new Promise((res) => setTimeout(res, 1000));
   }
+  const 起服務秒 = Math.round((Date.now() - t0) / 1000);
+  // 耗時要印出來：這個數字一變大就是監看範圍又被撐開了（例如有人把 node_modules 借回樹裡），
+  // 藏起來的話只會在某天變成「逾時假紅」再重查一次。
   check(ready, `[${label}] wrangler dev 起得來且真的回應 HTTP（不是只看到埠開著）`,
-    ready ? `${base}` : `退出碼=${proc.exitCode}；log 尾巴：${log.slice(-400)}`);
+    ready ? `${base}（起服務耗時 ${起服務秒}s）` : `等了 ${起服務秒}s 仍無回應；退出碼=${proc.exitCode}；log 尾巴：${log.slice(-400)}`);
   return { base, stop, log: () => log, ready };
 }
 
