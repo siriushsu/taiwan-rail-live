@@ -1316,7 +1316,15 @@ async function basemapToken(request, env) {
 async function basemapSession(request, env) {
   if (!env.ESRI_WEB_TOKEN) return jsonRes({ error: 'not_configured' }, 404, 'no-store');
   // 每顆 session 都要錢，所以這條比 basemap-token 更該節流（那條抽再多次也只是同一個值）。
-  if (await rateLimited(env.BASEMAP_LIMITER, request)) return jsonRes({ error: 'rate_limited' }, 429, 'no-store');
+  // 🔴 2026-08-04 稽核後收緊：改用專屬的 BASEMAP_SESSION_LIMITER（5/分鐘，見 wrangler.jsonc 註解）。
+  // 合法客戶端每 12 小時才要一顆，共用 60/分鐘那條等於對「每次呼叫都計費」的端點開了 86,400/日的門。
+  // 兩層保險：
+  //  · `|| env.BASEMAP_LIMITER` —— 新 binding 萬一沒部署成功，退回舊的 60/分鐘，**絕不會變成無限制**
+  //    （rateLimited() 對缺席的 limiter 是回 false 放行的，所以這個 fallback 不是裝飾）。
+  //  · failClosed=true —— limiter 自己拋錯時視同已達上限。方向是刻意的：擋下來只是退回按張數計價
+  //    （前端 .catch 會安靜留在原本的計價，衛星照常顯示），放行則是無上限地開計費 session。
+  if (await rateLimited(env.BASEMAP_SESSION_LIMITER || env.BASEMAP_LIMITER, request, true))
+    return jsonRes({ error: 'rate_limited' }, 429, 'no-store');
   try {
     const r = await fetch(
       'https://basemapstyles-api.arcgis.com/arcgis/rest/services/styles/v2/sessions/start'
@@ -2698,7 +2706,7 @@ export const _stationEvents = { diffTrains, twDayFromMemAt };
 export const _delayHistory = { delayHistoryWindow, buildDelayHistoryBody, isValidTrainNo };
 // 供離線回歸測試 import:驗「節流擋在 outbound fetch 之前」。這兩個不是純函式,測試得自備
 // env 替身與 fetch 替身;導出的目的就是讓測試能數「被擋掉時到底有沒有打上游」。
-export const _rateLimit = { rateLimited, delayHistory, deleteAccountData };
+export const _rateLimit = { rateLimited, delayHistory, deleteAccountData, basemapSession };
 // 純函式與端點處理器導出，供離線回歸測試 import（scripts/verify_bounty_*.mjs）。
 // 端點也導出的理由同 _rateLimit：這些不是純函式，測試要自備 env 替身才驗得到「節流有沒有擋在
 // D1 寫入之前」「回應裡有沒有夾帶 reject_code」這類只在編排層才成立的性質。
