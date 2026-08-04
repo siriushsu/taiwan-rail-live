@@ -38,14 +38,6 @@ const SHOT_DIR = process.env.SHOT_DIR || path.join(os.tmpdir(), 'rail-plus-shots
 mkdirSync(SHOT_DIR, { recursive: true });
 const PORT = 5207;
 const MIME = { '.html': 'text/html', '.js': 'text/javascript', '.mjs': 'text/javascript', '.json': 'application/json', '.css': 'text/css', '.png': 'image/png', '.jpg': 'image/jpeg', '.svg': 'image/svg+xml', '.mp3': 'audio/mpeg', '.ico': 'image/x-icon', '.webmanifest': 'application/manifest+json' };
-// 止血旗標關閉版:網址帶 ?__flagoff=1 時,供應同一份磁碟檔、只把 PLUS_ENABLED 的宣告翻成 false。
-// 為什麼改原始碼而不是靠既有的 URL 參數:PLUS_ENABLED 已刻意不再認 ?plus=1(見下方 BASE 註解),
-// 要驗「關得掉嗎」就只能動那一行宣告本身。KS0 會現讀頁面確認真的翻到了。
-// ⚠️ 用 query 標記而不是路徑前綴(/__flagoff/):頁面裡的 API 是相對路徑(`api/tra-live`),
-//    掛在路徑前綴下會變成 /__flagoff/api/…,繞過本伺服器的 /api/ 短路而 404,把整段染上假的
-//    console.error(第一版實測到 6 個)。query 標記不動路徑,所有相對資源照常解析。
-const FLAG_ON_DECL = 'const PLUS_ENABLED = true;';
-const FLAG_OFF_DECL = 'const PLUS_ENABLED = false;';
 const server = createServer((req, res) => {
   const url = new URL(req.url, 'http://x');
   if (url.pathname.startsWith('/api/')) { res.statusCode = 200; res.setHeader('content-type', 'application/json'); return res.end('{}'); }
@@ -53,19 +45,20 @@ const server = createServer((req, res) => {
   if (existsSync(fp) && statSync(fp).isDirectory()) fp = path.join(fp, 'index.html');
   if (!path.resolve(fp).startsWith(ROOT) || !existsSync(fp)) { res.statusCode = 404; return res.end('nf'); }
   res.setHeader('content-type', MIME[path.extname(fp)] || 'application/octet-stream');
-  if (url.searchParams.get('__flagoff') === '1' && fp.endsWith('index.html')) {
-    const src = readFileSync(fp, 'utf8');
-    // 找不到宣告就回 500:靜默供應未替換的版本會讓整個 KS 段變成「旗標開著卻宣稱驗了關閉態」的假綠。
-    if (!src.includes(FLAG_ON_DECL)) { res.statusCode = 500; return res.end('flag-decl-not-found'); }
-    return res.end(src.replace(FLAG_ON_DECL, FLAG_OFF_DECL));
-  }
   res.end(readFileSync(fp));
 });
 await new Promise(r => server.listen(PORT, r));
-// PLUS_ENABLED 是 UI 總閘,2026-08-02 開閘後恆真(不再認 ?plus=1)。刻意不帶任何 query string:
-// 網址帶著 ?plus=1 會讓「旗標被改回只認 URL 參數」這種回退在本腳本裡完全看不出來(每一節都自帶
-// 通行證),整支腳本會變成永遠的綠燈。用真實預設網址跑,旗標一被關掉 A/B 段當場崩。
-const BASE = `http://localhost:${PORT}/`;
+// 2026-08-04 PLUS_ENABLED 改回「原生 App 恆開、網站要 ?plus=1」(部署不可分割,見 index.html
+// PLUS_ENABLED 旁的說明)。本檔絕大多數段落要驗的是「Plus 面板長什麼樣/能不能買」,不是旗標
+// 開關本身,所以 BASE 直接帶 ?plus=1,讓它們原封不動照跑;真正要驗旗標開關的兩處
+// (G0b、KS)改用 OFF_BASE(不帶 qs 的真實網站訪客網址)。
+// ⚠️ 舊版(2026-08-02~08-04)PLUS_ENABLED 曾經是不分平台恆真的字面 true,那時候本檔刻意不帶任何
+// query string 跑、靠 ?__flagoff=1 動態改寫原始碼宣告來模擬「關閉」──因為當時 URL 參數本來就
+// 不影響這顆旗標,除了改原始碼沒有別的路可以測「關得掉嗎」。旗標现在恢復成讀 ?plus=1,那條路
+// 直接開著,那一整套原始碼改寫機制(FLAG_ON_DECL/FLAG_OFF_DECL/__flagoff)已經沒有存在的理由,
+// 已移除;見 KS 段的 on/off URL。
+const BASE = `http://localhost:${PORT}/?plus=1`;
+const OFF_BASE = `http://localhost:${PORT}/`;
 
 // 刻意用非真實佔位值:本 repo 公開,實際定價未拍板,不放進版控。
 // 判準只比「商店回傳什麼、UI 就顯示什麼」,不解析數值,故任何相異字串皆可。
@@ -195,19 +188,32 @@ const NATIVE_INIT = () => {
 const chromiumB = await chromium.launch();
 const webkitB = await webkit.launch();
 
-// ══════════════ G0b. 旗標現讀:PLUS_ENABLED 被改回參數式時要有一條「有名字」的紅燈 ══════════════
-// 為什麼要獨立一條:旗標一旦改回只認 ?plus=1,本腳本(刻意不帶 query string)的 A 段會在
-// waitForSelector('.plus-plan') 逾時**拋例外中止整支腳本**——exit code 雖然是 1,但輸出裡 0 條 PASS、
-// 0 條 FAIL、沒有總計行,排查的人看不出「還有什麼壞了」。這一條把旗標本身變成一條具名斷言,
-// 而且跑在 A 段之前;A/B/W 三段也一併改成等不到就往下走(見 runFlow),其餘判準照常各自回報。
-// 從執行中的頁面現讀,不是 grep 原始碼:讀原始碼只證明字面上寫了 true,證明不了瀏覽器眼中它是 true。
+// ══════════════ G0b. 旗標現讀:BASE/OFF_BASE 兩個網址要落在旗標的兩側,要有一條「有名字」的紅燈 ══════════════
+// 為什麼要獨立一條:下面 A 段用的 BASE 若沒有真的讓 PLUS_ENABLED 為真(例如 ?plus=1 的讀取邏輯被
+// 拔掉、或 PORT/query string 拼錯),會在 waitForSelector('.plus-plan') 逾時**拋例外中止整支腳本**
+// ——exit code 雖然是 1,但輸出裡 0 條 PASS、0 條 FAIL、沒有總計行,排查的人看不出「還有什麼壞了」。
+// 這一條把旗標本身變成一條具名斷言,而且跑在 A 段之前;A/B/W 三段也一併改成等不到就往下走
+// (見 runFlow),其餘判準照常各自回報。從執行中的頁面現讀,不是 grep 原始碼:讀原始碼只證明字面上
+// 寫了什麼,證明不了瀏覽器眼中它求值出來是什麼。
+// 2026-08-04 起旗標讀 URL 參數(原生 App 恆開、網站要 ?plus=1),兩個方向都要驗:OFF_BASE(真實網站
+// 訪客,無 qs)必須是 false,BASE(帶 ?plus=1)必須是 true——只驗其中一側,另一側被改壞時仍會全綠。
 {
   const { ctx, page } = await newPage(chromiumB);
   const errs = attach(page, 'G0b');
+  await page.goto(OFF_BASE, { waitUntil: 'domcontentloaded' });
+  await waitReady(page);
+  const flagOff = await page.evaluate(() => { try { return PLUS_ENABLED === true; } catch (e) { return 'ReferenceError'; } });
+  ok('G0b 頁面現讀(OFF_BASE,無 ?plus=1)PLUS_ENABLED === false(真實網站訪客預設關閉)', flagOff === false, `PLUS_ENABLED=${flagOff}`);
+  ok('G0b(off)本輪零 pageerror/console.error', errs.length === 0, errs.slice(0, 3).join(' | '));
+  await ctx.close();
+}
+{
+  const { ctx, page } = await newPage(chromiumB);
+  const errs = attach(page, 'G0b-on');
   await page.goto(BASE, { waitUntil: 'domcontentloaded' });
   await waitReady(page);
   const flagOn = await page.evaluate(() => { try { return PLUS_ENABLED === true; } catch (e) { return 'ReferenceError'; } });
-  ok('G0b 頁面現讀 PLUS_ENABLED === true(開閘;被改回只認 ?plus=1 時這裡先亮一條具名紅燈)', flagOn === true, `PLUS_ENABLED=${flagOn}`);
+  ok('G0b 頁面現讀(BASE,帶 ?plus=1)PLUS_ENABLED === true(下面 A/B/W 段賴以成立的前提)', flagOn === true, `PLUS_ENABLED=${flagOn}`);
   ok('G0b 本輪零 pageerror/console.error', errs.length === 0, errs.slice(0, 3).join(' | '));
   await ctx.close();
 }
@@ -1254,9 +1260,11 @@ for (const w of [360, 375, 414, 768]) await mobilePlusEntry(w, { sel: IMPORT_SEL
     await ctx.close();
     return { r, errs };
   };
-  // 兩邊都帶 ?tripshare=1:那是行程分享發起端的開發通道,不帶就量不到 KS8 要守的那條路徑
-  const on = await run(`${BASE}?tripshare=1`, 'on');
-  const off = await run(`http://localhost:${PORT}/index.html?__flagoff=1&tripshare=1`, 'off');
+  // 兩邊都帶 tripshare=1:那是行程分享發起端的開發通道,不帶就量不到 KS8 要守的那條路徑。
+  // on=BASE(已含 ?plus=1)加碼一個參數;off=OFF_BASE(真實訪客網址,不帶 ?plus=1)——2026-08-04
+  // 起旗標讀 URL 參數,「關閉」不再需要動態改寫原始碼,不帶 ?plus=1 本身就是關閉態。
+  const on = await run(`${BASE}&tripshare=1`, 'on');
+  const off = await run(`${OFF_BASE}?tripshare=1`, 'off');
   // 🔴 第三次載入:accountEnsureInit() **有跑**、但 accountReturning() 為 false 的那條路。
   // 為什麼非它不可(實測結論,與直覺相反):accountSlotMode() 的 `if (!PLUS_ENABLED) return 'account'`
   // 在「回訪者」情境下**不是 load-bearing**——那一行拿掉之後,fallthrough 的
@@ -1264,11 +1272,12 @@ for (const w of [360, 375, 414, 768]) await mobilePlusEntry(w, { sel: IMPORT_SEL
   // 它唯一撐著的是「初始化跑了、但這台裝置沒登入過」那格,而現在只有兩條路走得到:
   // `ACCOUNT_ENABLED=true`(帳號入口復活批次,尚未發生)與 `?account=delete`(帳號刪除深連結,現在就走得到)。
   // 用後者當代理,那一行就從「無人看守」變成有判準——不必等旗標翻真才發現它已經壞了。
-  const offInit = await run(`http://localhost:${PORT}/index.html?__flagoff=1&tripshare=1&account=delete`, 'off-init');
-  // 前置:替換真的生效了。沒有這條,伺服器一旦找不到宣告字串(改寫、加空白),下面每一條都會在
-  // 「旗標其實是開的」的頁面上量,而且量出來的「不存在」還是綠的——正是本 brief 警告的假綠形狀。
-  ok('KS0 前置:?__flagoff=1 供應的頁面現讀 PLUS_ENABLED === false(替換真的生效)', off.r.flag === false, `off.flag=${off.r.flag}`);
-  ok('KS0 前置:預設網址現讀 PLUS_ENABLED === true(對照組真的是開啟態)', on.r.flag === true, `on.flag=${on.r.flag}`);
+  const offInit = await run(`${OFF_BASE}?tripshare=1&account=delete`, 'off-init');
+  // 前置:on/off 兩個網址真的落在旗標的兩側。沒有這條,萬一 PORT/query string 拼錯或旗標的
+  // 讀取邏輯本身壞了,下面每一條都會在錯的頁面上量,而且量出來的「不存在」還是綠的——正是本
+  // brief 警告的假綠形狀。
+  ok('KS0 前置:OFF_BASE(無 ?plus=1)現讀 PLUS_ENABLED === false(真實網站訪客的預設狀態)', off.r.flag === false, `off.flag=${off.r.flag}`);
+  ok('KS0 前置:BASE(帶 ?plus=1)現讀 PLUS_ENABLED === true(對照組真的是開啟態)', on.r.flag === true, `on.flag=${on.r.flag}`);
   // 正向對照(旗標開啟,原生殼)——證明同一支 collect() 真的抓得到這三個東西
   ok('KS1 正向對照:旗標開啟時同一支收集器抓得到 Plus 面板(開得起來且畫得出功能項)',
     on.r.modalOpen === true && on.r.feats > 0, JSON.stringify(on.r));

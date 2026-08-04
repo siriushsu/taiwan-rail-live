@@ -1,8 +1,9 @@
 // 誤點履歷卡(Plus 頭牌 UI)行為驗證——Playwright 真引擎(chromium+webkit)+ 本機靜態伺服器。
 // 後端 /api/delay-history 尚未部署,一律以 page.route 攔截餵假資料(90 天,含誤點/準點/缺日)。
 // 依據的關鍵事實(從 index.html 讀出,本腳本未參與實作):
-//   · PLUS_ENABLED 2026-08-02 開閘後恆真(不再認 ?plus=1);為真時 renderDelayRow 在準點列尾端掛 .fp-dhlink、
-//     並取消車次卡 #tcDelayHist 的 hidden。入口 gate 與準點列相同:tr.sys==='tra_sched' 且 delayStats.d>=5。
+//   · PLUS_ENABLED 2026-08-04 改回「原生 App 恆開、網站要 ?plus=1」(index.html:6059-6062);為真時
+//     renderDelayRow 在準點列尾端掛 .fp-dhlink、並取消車次卡 #tcDelayHist 的 hidden。入口 gate 與
+//     準點列相同:tr.sys==='tra_sched' 且 delayStats.d>=5,但準點列本身的顯示不吃 PLUS_ENABLED。
 //   · 統計列複用 state.delayStats[no] = {a 平均誤點, p 準點率%, d 樣本天數, m 最大誤點};由 /api/delay-stats 載入。
 //   · 卡片 #delayHistPanel(.board 家族):h3 sticky 內含 × 關閉鈕(v0717p);逐日長條 .dh-bars rect.dh-bar
 //     (fd≤5→.ok 綠 / >5→.hi 紅)、週幾 .dh-wd 七柱、資料標示 .dh-src。
@@ -127,14 +128,15 @@ async function routeApis(page, no, histMode) {
     return r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ train: no, days, _meta: { window_days: 90, n: days.length, date_range: dr, generated: GEN } }) });
   });
 }
-// boot + route + follow 一班台鐵車。一律用真實預設網址,不帶任何 query string:
-// PLUS_ENABLED 2026-08-02 開閘後是字面 true,原本用來開旗標的 ?plus=1 已無作用,留著那個
-// flag 參數只會讓讀的人以為 flag:true/false 是兩種狀態(實際上兩者行為完全相同)。
+// boot + route + follow 一班台鐵車。2026-08-04 PLUS_ENABLED 改回只認 ?plus=1(部署不可分割,
+// 網站要先能在暗著的狀態下部署;index.html:6059-6062 的 IIFE)——預設帶 qs='?plus=1',讓本檔
+// 其餘各段(A/M/W/B/C/D/F/G)量到的都是「入口存在」那個狀態,不必逐一改呼叫點。唯一的例外是
+// 下面的 E 段:它就是要驗「不帶 qs 的真實訪客看到什麼」,呼叫時明式傳 qs:'' 覆寫這個預設值。
 async function bootFollowed(browser, opts = {}) {
-  const { width = 1280, height = 800, touch = false, theme = 'light', histMode = 'full', tag = '?' } = opts;
+  const { width = 1280, height = 800, touch = false, theme = 'light', histMode = 'full', tag = '?', qs = '?plus=1' } = opts;
   const { ctx, page } = await newPage(browser, { width, height, touch, theme });
   const errs = attach(page, tag);
-  await page.goto(BASE, { waitUntil: 'domcontentloaded' });
+  await page.goto(BASE + qs, { waitUntil: 'domcontentloaded' });
   await waitReady(page);
   const no = await pickTra(page);
   if (no) { await routeApis(page, no, histMode); await page.evaluate(n => followTrainNo(n), no); }
@@ -248,18 +250,24 @@ await stateFlow('C(空資料)', 'empty', c => {
   ok('C2 空資料態無長條/無鎖層', c.bars === 0 && !c.hasLocked, `bars=${c.bars}`);
 });
 await stateFlow('D(503)', '503', c => {
-  ok('D1 503 態顯示失敗訊息(含 503)', /暫時讀不到/.test(c.text) && /503/.test(c.text), c.msg);
+  // 原判準寫死措辭「暫時讀不到」,而 a40f63a(07-21)把文案改成「暫時無法載入」後就一直紅到今天
+  // ——那是判準過期,不是產品回歸(訊息在、狀態碼在、重試鈕在)。改綁「.dh-msg 這個元素帶出了
+  // 狀態碼」:元素是結構、503 是外部常數,兩者都不會因為改文案而漂移。比原判準更嚴(原本查整卡
+  // textContent,現在要求出現在失敗訊息元素裡)。措辭本身由 D2 之外的人工檢視負責。
+  ok('D1 503 態:.dh-msg 帶出狀態碼的失敗訊息(綁元素不綁措辭)', /503/.test(c.msg), `msg=${c.msg}`);
   ok('D2 503 態提供重試鈕', c.hasRetry, `retry=${c.hasRetry}`);
 });
 
-// ══════════════ E. 開閘迴歸:不帶任何 query string(＝真實訪客) → 入口對所有人存在、boot 零 error ══════════════
-// 2026-08-02 開閘前這一節驗的是「無 ?plus=1 ⇒ 入口零存在」;PLUS_ENABLED 已經改成恆真的常值,
-// 那個前提不存在了(判準過期,不是產品回歸)。判準改成新的事實:預設網址就看得到入口——
-// 未訂閱者點進去看到的是模糊 teaser 與 CTA,90 天逐日資料本身由 worker.js 的
-// checkPlusEntitlement() 伺服器端強制,前端旗標本來就不是資料閘門。
-// 旗標若被改回只認 URL 參數,E1/E2 會當場轉紅,這正是它現在守的東西。
+// ══════════════ E. 開閘旗標迴歸:不帶任何 query string(＝真實網站訪客) → 入口對所有人不存在 ══════════════
+// 2026-08-04 改回「原生 App 恆開、網站要 ?plus=1」(部署不可分割,見 index.html PLUS_ENABLED
+// 旁的說明)。這一節原本驗的是「無 ?plus=1 ⇒ 入口零存在」,2026-08-02 開閘後那前提一度不成立
+// 而被改成反過來的斷言;現在旗標的行為又改回最初那個形狀,判準也跟著換回來——這不是走回頭路,
+// 是旗標本身的語意又變了(判準過期,不是產品回歸)。
+// E1/E2 驗「預設網址(無 qs)入口不存在」,E4 是正向對照:同一支收集器帶 ?plus=1 時必須真的抓得到
+// 入口,否則 E1/E2 的「0」可能只是選擇器打錯、腳本自己失明,不是產品真的關著。
+// 旗標若又被改回恆真(不分平台),E1/E2 會當場轉紅——這正是它現在守的東西。
 {
-  const { ctx, page, errs, no } = await bootFollowed(chromiumB, { tag: 'E', histMode: 'full' });
+  const { ctx, page, errs, no } = await bootFollowed(chromiumB, { tag: 'E', histMode: 'full', qs: '' });
   await page.waitForSelector('#fpDelay:not([hidden])', { timeout: 9000 }).catch(() => {});
   const snap = await page.evaluate(() => ({
     fpDelayShown: !document.getElementById('fpDelay').hidden,
@@ -267,12 +275,25 @@ await stateFlow('D(503)', '503', c => {
     tcHidden: document.getElementById('tcDelayHist').hidden,
     panelHidden: document.getElementById('delayHistPanel').hidden,
   }));
-  ok('E0 準點列本身正常顯示(入口的前提條件:台鐵車+樣本足)', snap.fpDelayShown === true, JSON.stringify(snap));
-  ok('E1 預設網址(無任何參數) → 主入口存在(.fp-dhlink≥1)', snap.dhLink >= 1, `n=${snap.dhLink}`);
-  ok('E2 預設網址 → 次要入口(車次卡)不再是 hidden', snap.tcHidden === false, `tcHidden=${snap.tcHidden}`);
-  ok('E3 入口存在不等於自動彈出:卡片預設仍關著', snap.panelHidden === true);
+  ok('E0 準點列本身正常顯示(入口的前提條件:台鐵車+樣本足,不受 PLUS_ENABLED 影響)', snap.fpDelayShown === true, JSON.stringify(snap));
+  ok('E1 預設網址(無 ?plus=1,＝真實網站訪客) → 主入口不存在(.fp-dhlink=0)', snap.dhLink === 0, `n=${snap.dhLink}`);
+  ok('E2 預設網址 → 次要入口(車次卡)維持 hidden', snap.tcHidden === true, `tcHidden=${snap.tcHidden}`);
+  ok('E3 卡片預設關著(即使入口不存在,面板本身也不該被誤開)', snap.panelHidden === true);
   ok('E Z boot 零 pageerror/console.error', errs.length === 0, errs.slice(0, 4).join(' | '));
   await ctx.close();
+
+  // E4 正向對照:同一支收集器帶 ?plus=1 時,入口必須真的出現——證明 E1/E2 的「0」是產品行為,
+  // 不是收集器本身瞎眼(選擇器打錯、面板改名)。
+  const { ctx: ctx4, page: page4, errs: errs4 } = await bootFollowed(chromiumB, { tag: 'E4', histMode: 'full', qs: '?plus=1' });
+  await page4.waitForSelector('#fpDelay .fp-dhlink', { state: 'visible', timeout: 9000 }).catch(() => {});
+  const snap4 = await page4.evaluate(() => ({
+    dhLink: document.querySelectorAll('.fp-dhlink').length,
+    tcHidden: document.getElementById('tcDelayHist').hidden,
+  }));
+  ok('E4 正向對照:帶 ?plus=1 → 主入口存在(.fp-dhlink≥1)', snap4.dhLink >= 1, `n=${snap4.dhLink}`);
+  ok('E4 正向對照:帶 ?plus=1 → 次要入口(車次卡)不再是 hidden', snap4.tcHidden === false, `tcHidden=${snap4.tcHidden}`);
+  ok('E4 Z boot 零 pageerror/console.error', errs4.length === 0, errs4.slice(0, 4).join(' | '));
+  await ctx4.close();
 }
 
 // ══════════════ F. 寬度掃描:卡片開啟時與既有控件無相交(getBoundingClientRect) ══════════════

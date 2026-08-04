@@ -3344,14 +3344,14 @@
            內容 li 上限 8 條(li.grp 是標題不算)。 -->
       <ul class="foot-list foot-recent">
         <li class="grp">最近更新</li>
-        <li data-cl-of="sync"><span class="d">8/4</span><span>訂閱軌島 Plus 後可以用軌島帳號登入，收藏的地點與完乘記錄會在手機和電腦之間同步</span></li>
-        <li data-cl-of="tripshare"><span class="d">8/4</span><span>訂閱 Plus 後可以把正在跟的班次分享給朋友，對方點開連結就看得到車跑到哪、還要多久到</span></li>
-        <li data-cl-of="founding"><span class="d">8/4</span><span>最早訂閱 Plus 的人，App 的旅程護照上會有一枚創始會員徽章</span></li>
-        <li data-cl-of="brheadway"><span class="d">8/4</span><span>文湖線班距改吃八萬筆到站實測重算——畫面原本少了約三成的車</span></li>
+        <li data-cl-of="orangebranch"><span class="d">8/4</span><span>橘線列車進共線段後會延續蘆洲／迴龍的支線身分，不再誤算成新莊線</span></li>
         <li data-cl-of="hazardwatch"><span class="d">8/4</span><span>颱風、地震等示警生效時，軌島立即重查各家官方營運公告並持續複查</span></li>
         <li data-cl-of="appdata"><span class="d">8/4</span><span>App 的台鐵班表過期後會自動上網補最新的，不必等改版</span></li>
         <li data-cl-of="afrtrainno"><span class="d">8/4</span><span>阿里山林鐵 1、2 次的介紹被寫成台鐵環島之星，現在改回阿里山號（謝謝網友回報）</span></li>
+        <li data-cl-of="brheadway"><span class="d">8/4</span><span>文湖線班距改吃八萬筆到站實測重算——畫面原本少了約三成的車</span></li>
+        <li data-cl-of="yboard"><span class="d">8/4</span><span>環狀線也改吃官方到站倒數逐班校正；沒對到的班次改用全線平均誤點量</span></li>
         <li data-cl-of="trtcboard"><span class="d">8/3</span><span>北捷列車位置改為逐班跟著官方秒級到站倒數校正，不會憑空多車或少車</span></li>
+        <li data-cl-of="inapphint"><span class="d">8/3</span><span>從 LINE、FB 開軌島時，提示卡蓋住播放鍵與跟車小卡，現在會讓開了</span></li>
       </ul>
       <!-- 第二層:完整歷史。刻意不掛 .foot-box 類名——placeFootBoxes() 用
            `.site-foot .foot-box` 搬移面板,巢狀同名會被當成另一個盒子一起搬走。 -->
@@ -6095,12 +6095,23 @@ const ACCOUNT_ENABLED = false; // 此旗標只控制帳號 UI 要不要 eager �
 // 購買鏈不需要它——有購買通道的平台由 plusOpen() 先 accountEnsureInit() 延遲初始化,無購買通道的平台
 // (網站)由 Plus 面板內的「登入以同步」CTA 觸發。true 會讓 setupAccountUi()(互斥二選一)
 // 選中 eager 分支,把帳號鈕放回所有人主畫面、對每個訪客載 Firebase。
-// Plus 功能總閘:網站與原生 App 皆恆開(暗啟動結束)。它只決定「Plus 觸發面存不存在」——
+// Plus 功能總閘:**原生 App 恆開、網站要 ?plus=1**。它只決定「Plus 觸發面存不存在」——
 // 「誤點履歷」頭牌卡的入口與卡片(見 openDelayHist/renderDelayHist)、以及工具列的 Plus 面板入口(見 setupAccountUi)。
+//
+// 2026-08-04 從「兩邊都恆開」改回這個形式,原因是**部署不可分割**:wrangler 的 assets.directory
+// 是 ".",部署 Worker 就等於同時把前端推上正式站,沒有只上 API 不上前端的做法。而 Plus 的購買通道
+// 只存在於 App 內(網站沒有 Web Billing key,見下一段),網站若先恆開就是「看得到買不到」。
+// 改成原生恆開之後,網站可以先部署讓 Worker 的 Plus 寫入路徑上線(一般使用者在網站上完全看不到 Plus),
+// 這樣 Plus 版 App build 才驗得了「sandbox 購買 → /entitlements/{uid} 落地」這條只有真實環境答得出來的鏈。
+// **上線當天要做的**:把這裡改回恆真,並把更新紀錄 Plus 三條(sync/tripshare/founding)放回第一層。
+//
 // ⚠️ 恆開不等於這個平台賣得成:能否發起購買由 plusConfigured() 判定(網站沒有 Web Billing key ⇒ 恆假,
 // 面板停在「請在 App 內訂閱」,不出現任何購買鈕)。未訂閱者在網站看到的是 teaser/upsell 面,
 // 90 天逐日資料本身由 worker.js 的 checkPlusEntitlement() 伺服器端強制,不靠這支前端旗標。
-const PLUS_ENABLED = true;
+const PLUS_ENABLED = (() => { try {
+  if (window.Capacitor && Capacitor.isNativePlatform && Capacitor.isNativePlatform()) return true;
+  return new URLSearchParams(location.search).get('plus') === '1';
+} catch (e) { return false; } })();
 // 放空閒置達此秒數→劇場模式:切離線海陸底層(零圖磚)、相機停在全群組視角,列車/音樂/完乘全照常,只是不再抓圖磚。
 // ?theater=N 覆寫門檻(秒,測試用,不限環境——只會讓使用者自己更早進入省磚畫面,無風險)。見 enterTheater/camBlocked。
 const THEATER_IDLE_SEC = (() => {

@@ -132,7 +132,7 @@ const ok = (name, pass, detail = '') => { results.push({ name, pass, detail }); 
 // 這個測試值,與正式站現況脫鉤(本檔驗的是清單/資格判定邏輯本身,不是正式站填了什麼日期)。
 const TEST_FOUNDING_LAUNCH_AT = `${new Intl.DateTimeFormat('sv-SE', { timeZone: 'Asia/Taipei' }).format(new Date())}T00:00:00+08:00`;
 
-async function boot(browser, { viewport = { width: 1280, height: 800 } } = {}) {
+async function boot(browser, { viewport = { width: 1280, height: 800 }, qs = '' } = {}) {
   const ctx = await browser.newContext({ viewport });
   await ctx.addInitScript(() => { try { localStorage.setItem('trainmap-howto-seen', '1'); } catch (e) {} });
   await ctx.addInitScript((launchAt) => {
@@ -149,7 +149,7 @@ async function boot(browser, { viewport = { width: 1280, height: 800 } } = {}) {
     if (/^Failed to load resource: the server responded with a status of/.test(m.text())) return;
     errors.push('console:' + m.text().slice(0, 200));
   });
-  await page.goto(base, { waitUntil: 'domcontentloaded' });
+  await page.goto(base + qs, { waitUntil: 'domcontentloaded' });
   await page.waitForFunction(() => { try { return typeof state !== 'undefined' && state.ready === true; } catch (e) { return false; } }, null, { timeout: 40000 });
   return { ctx, page, errors };
 }
@@ -661,7 +661,12 @@ await cr.close();
   const wk = await webkit.launch();
   const rows = [];
   for (const w of [360, 375, 414, 768]) {
-    const { ctx, page, errors } = await boot(wk, { viewport: { width: w, height: 800 } });
+    // 2026-08-04 PLUS_ENABLED 改回只認 ?plus=1(見 index.html:6059-6062 的 IIFE):這裡走的是
+    // 真正的入口 plusOpen(),它本身就有 `if (!PLUS_ENABLED) return;` 這道守衛(index.html:7856),
+    // 不帶 qs 時 plusOpen() 會靜默早退、.plus-feature 永遠 0 項——不是「量到 0」,是「量到 undefined」
+    // (items[-1]),下面 wrap 那段對 undefined.lastChild 取值直接讓整支腳本崩潰、連總計行都不印。
+    // 同一份坑 T7 的 bootTouch 已經踩過一次(見下方 T7 區塊註解),T5 這裡補齊同一治法。
+    const { ctx, page, errors } = await boot(wk, { viewport: { width: w, height: 800 }, qs: '?plus=1' });
     await setPlus(page, false);
     const geo = await page.evaluate(async () => {
       // 複審 Minor M-3:改走真正的入口 plusOpen(),不再直接翻 modal.hidden——plusOpen() 有
@@ -746,9 +751,11 @@ await cr.close();
     return { ctx, page, errors };
   };
   // (a) 已訂閱態:四寬度命中測試「恢復購買」鈕 + 375px 做一次真觸控
+  // 同上方 bootTouch 註解與下方 (b):plusOpen() 本身就有 `if (!PLUS_ENABLED) return;` 這道守衛,
+  // 不管 state.plus.active 是不是 true,不帶 ?plus=1 面板根本開不出來(.plus-restore 永遠 null)。
   const rowsA = [];
   for (const w of [360, 375, 414, 768]) {
-    const { ctx, page, errors } = await bootTouch(w);
+    const { ctx, page, errors } = await bootTouch(w, '?plus=1');
     const hit = await page.evaluate(async () => {
       state.account = { user: { uid: 'verify-t7a' }, fb: {} };
       // error 故意塞非空字串當「未觸發」的前態哨兵——plusRestore() 未配置通道時的早退分支會把它
