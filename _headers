@@ -19,3 +19,13 @@
   Referrer-Policy: strict-origin-when-cross-origin
   Permissions-Policy: accelerometer=(), autoplay=(self), camera=(), display-capture=(), encrypted-media=(), fullscreen=(self), geolocation=(self), gyroscope=(), magnetometer=(), microphone=(), midi=(), payment=(self), publickey-credentials-get=(), screen-wake-lock=(self), usb=(), xr-spatial-tracking=(), browsing-topics=()
   Content-Security-Policy: default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'none'; form-action 'self'; script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://static.cloudflareinsights.com https://www.gstatic.com https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com; img-src 'self' data: blob: https:; media-src 'self' data: blob:; font-src 'self' data:; worker-src 'self' blob:; manifest-src 'self'; connect-src 'self' https://cloudflareinsights.com https://*.googleapis.com https://api.revenuecat.com
+
+# App 殼要跨來源抓這些資料檔(index.html 的 initDataFreshness / refreshStaleSchedule):打包進
+# bundle 的 data/*.json 是送審當下的快照,之後只有再送審才會更新——台鐵班表 14 天窗必然過期、
+# 三鶯線試營運時段 2026-08-31 會變、各線改點也會變。App 開機比對 data_manifest.json,
+# 只有雜湊對不上的檔才回這裡重抓。
+# 用 * 而不是指定 origin 的兩個理由:(1) _headers 是靜態的,不能依 Origin 分支,而 iOS 殼是
+# capacitor://localhost、Android 殼是 https://localhost,兩個都要;(2) 這些檔本來就公開可下載
+# (curl 得到),CORS 只管「別的網站的 JS 能不能讀」,開 * 不增加任何實質暴露面。
+/data/*
+  Access-Control-Allow-Origin: *

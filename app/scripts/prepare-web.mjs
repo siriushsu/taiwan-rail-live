@@ -31,6 +31,21 @@ const esriApiKeyRaw = includeLicensedBasemaps ? await readRequiredEnv('ESRI_API_
 const esriApiKey = includeLicensedBasemaps ? encodeURIComponent(esriApiKeyRaw) : null;
 await assertLicensedBuildAllowed({ includeLicensedMusic, includeLicensedBasemaps });
 
+// data_manifest 閘門:App 開機靠它判斷「打包的資料檔有沒有比網站舊」(index.html 的
+// initDataFreshness)。清單過期是無聲失效——網站會宣稱什麼都沒變,App 就永遠不更新資料,
+// 畫面照常有車、不報錯,只是班次是錯的。所以打包前先擋下來,而不是事後才發現。
+await new Promise(ok => {
+  execFile(process.execPath, [join(repoRoot, 'scripts/verify_data_manifest.mjs'), repoRoot],
+    (err, stdout, stderr) => {
+      process.stdout.write(stdout || '');
+      if (err) {
+        process.stderr.write(stderr || '');
+        process.exit(1);          // 直接退出:閘門訊息已經講清楚怎麼修,再疊一層 stack trace 只是雜訊
+      }
+      ok();
+    });
+});
+
 // 地點型小工具的通過時刻索引必須由真實頁面 runtime 產生：段配對、obs 剖面與反解時刻
 // 全部呼叫 index.html 自己的函式，不在 Node 端維護第二份演算法。
 const placeIndexBuild = await new Promise((resolveBuild, rejectBuild) => {
