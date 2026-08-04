@@ -3314,11 +3314,11 @@
 
   <footer class="site-foot">
     <details class="foot-box">
-      <summary><span>更新紀錄</span><span class="foot-sub">最後更新：2026/8/3</span></summary>
+      <summary><span>更新紀錄</span><span class="foot-sub">最後更新：2026/8/4</span></summary>
       <ul class="foot-list foot-recent">
         <li class="grp">最近更新</li>
+        <li><span class="d">8/4</span><span>颱風、地震、雷雨、豪雨等災害示警生效時，軌島會啟動加強監看：立即重查台鐵、高鐵與捷運的官方營運公告，示警期間持續複查；災害示警本身不代表列車已停駛，也不會讓地圖上的車消失</span></li>
         <li><span class="d">8/4</span><span>文湖線車數修正——官方沒有公開逐班時刻，我們原本照公告班距範圍取中間值推算，實測發現全時段都比實際疏，畫面上少了約三成的車；改用累積八萬筆到站觀測的實際班距重算</span></li>
-        <li><span class="d">8/4</span><span>捷運新增「列車大批停駛」偵測：地震、雷雨、颱風這類重大服務調整時，時鐘徽章會轉為異常提醒，請以官方公告為準</span></li>
         <li><span class="d">8/4</span><span>環狀線也改吃官方到站倒數逐班校正，位置跟著實際車況走；當下沒對到的班次改用全線平均誤點量，不再假裝準點</span></li>
         <li><span class="d">8/3</span><span>北捷列車位置改為逐班跟著官方秒級到站倒數校正；即時資料沒對到時仍照當日班表走，不會憑空多車或少車</span></li>
         <li><span class="d">8/3</span><span>從 LINE、FB 開軌島時，提示卡蓋住播放鍵與跟車小卡，現在會讓開了</span></li>
@@ -3714,7 +3714,7 @@
 // 🔴 BUILD 字串會跨並行分支撞號（心得 16）：07-28 兩條線各自遞增又各自部署過——
 // origin/main 這條用到 v0728b，正式站那條用到 v0728f。本次三方合併把兩條線統一，
 // 所以往後推到一個雙方都沒用過的號，辨識線上跑哪一版仍以內容 hash 為準。
-const BUILD = 'v0804a';
+const BUILD = 'v0804d';
 // 成就徽章與車廂標記＝原本那些 emoji 的單色平面版（RailEmoji＝裁切過的 Noto Emoji 單色）。
 // 刻意保留 railIcon(name) 這個唯一入口:呼叫端一行都不用改,只有這裡決定畫法。
 // 🔴 ⚖ 與 ♾ 一律寫**不帶 VS16(U+FE0F)** 的碼位——帶了就強制彩色呈現,會蓋過 font-family
@@ -3775,6 +3775,7 @@ const state = {
   trackStyle: 'auto', // 軌道顯示:auto(亮色原色/夜間衛星自動淡化)、faint(一律更淡)、hidden(只留列車與車站)
   live: null, // 台鐵即時誤點 {map: 車次→誤點分, at: 抓取時刻, delayed, srcAt}
   traAnomaly: null, // 台鐵系統級大面積誤點的自家觀測 {d10, maxDelay, since} 或 null(非官方公告;d10=誤點≥10 分的班數)
+  hazardWatch: null, // NCDR 生效中災害示警；只觸發重查與文字提示，不參與列車名冊/位置
   liveMode: false, director: false, liveReplay: false, // 直播模式(?live=1 即時 / ?live=2 導播)與其深夜重播段(00:45–05:15 重播 08:00 起)
   clockAtNow: false, // 模擬時鐘是否處於「跟著現在」的狀態(開機對齊/按現在鈕為真,拖時刻尺或快轉即false)
 
@@ -13318,21 +13319,19 @@ function anomalyOf(ln) { // 消費端一律走這裡讀(line 物件會重建,ln.
   return e.cur;
 }
 // 逐線三訊號 + 2 進 2 出遲滯。acc=接受樣本 diff 陣列, rej=超 ±10 分窗丟棄 row 數, st2=交管不停 row 數。
-function evalLineAnomaly(ln, acc, rej, st2, covDrop) {
+function evalLineAnomaly(ln, acc, rej, st2) {
   const key = anomKey(ln);
   let e = _lineAnom.get(key);
   if (!e) e = { strike: 0, clear: 0, cur: null, at: 0 };
   const n = acc.length + rej;
   // 樣本不足且無其他訊號=無資料,維持現狀(不加 strike/clear、不更新 at)。
-  // covDrop 必須豁免:大批列車停駛時樣本本來就會塌到 6 以下,那正是要抓的情況,不能當成「沒資料」。
-  if (n < 6 && st2 < 2 && !covDrop) { if (e.cur || e.strike || e.clear) _lineAnom.set(key, e); return; }
+  if (n < 6 && st2 < 2) { if (e.cur || e.strike || e.clear) _lineAnom.set(key, e); return; }
   let kind = null;
   // reject 須同時「倖存樣本塌掉」(acc<5):分岔線(淡海 Y 字)與末班時段有結構性對不上的看板列,
   // 若仍有 5+ 個接受樣本=該線明明追蹤正常,rejects 是噪音非脫節(2026-07-17 綠山線 acc6/rej7 實測誤報案)
   if (n >= 6 && rej / n >= 0.5 && acc.length < 5) kind = 'reject'; // 過半樣本落窗外且倖存樣本塌掉=看板與時刻表重大脫節
   else if (acc.length >= 6 && madSec(acc) >= 180) kind = 'spread'; // 接受樣本仍高度離散=誤點把班次錯配成矛盾兩群(機捷 9 分誤點型)
   else if (st2 >= 2) kind = 'skip';                              // 多站交管不停=營運調整
-  else if (covDrop) kind = 'gone';                               // 線上車數相對自己近況腰斬=大批列車停駛(見 trtcCoverageDrop)
   e.at = Date.now();
   if (kind) { e.strike++; e.clear = 0; if (e.strike >= 2) { if (!e.cur) e.cur = { since: Date.now(), kind }; else e.cur.kind = kind; } }
   else { e.clear++; e.strike = 0; if (e.clear >= 2) e.cur = null; }
@@ -13533,25 +13532,15 @@ function trtcServiceSec(epoch) {
   const sec = d.getUTCHours() * 3600 + d.getUTCMinutes() * 60 + d.getUTCSeconds();
   return d.getUTCHours() < 4 ? sec + 86400 : sec;
 }
-// 第四訊號（只有看板路徑會用）：認到的車數相對「這條線自己近況」腰斬 = 列車大批從線上消失。
-// 地震／雷雨／颱風的實際特徵就是這個——列車停駛或長時間停等，看板倒數超過區間行駛時間，
-// 錨點整批被認領規則丟掉。實測（scratchpad/anomaly_probe）：原有三訊號對「全線停擺 30 分」
-// 完全看不見，因為認領沒有 |shift| 上限，誤點的車會改認更早的班次、中位 shift 仍只有十幾秒；
-// 但認到的車數從 30 掉到 8。
-// 🔴 判準刻意寫成「相對自己近況」而不是絕對門檻：各線常態覆蓋率差很多
-//    （尖峰語料實測 R 96%、BL 92%、BR 85%、Y 83%、O_LUZHOU 只有 60%），
-//    而離峰／深夜的常態值沒有語料可校準——寫死絕對值等於寫死一個沒驗過的數字（心得 35）。
-const _trtcCov = new Map();
-function trtcCoverageDrop(ln, matched, roster) {
-  if (!roster) return false;
-  const key = anomKey(ln);
-  let a = _trtcCov.get(key); if (!a) _trtcCov.set(key, a = []);
-  const cur = matched / roster;
-  a.push(cur); if (a.length > 20) a.shift(); // 15 秒一輪 ⇒ 基線窗約 5 分鐘
-  if (a.length < 8) return false;            // 基線樣本不足不判(剛開站/剛切分頁)
-  const base = trtcMedian(a.slice(0, -1));   // 基線不含當下,避免自己把自己拉低
-  return base > 0.5 && cur < base * 0.5;
-}
+// 🔴 這裡曾經有第四訊號 trtcCoverageDrop（「線上車數相對自己近況腰斬＝大批列車停駛」），
+// 2026-08-04 移除，不要再加回來。判準寫成「跌破 20 輪歷史最低值」，代數上等於
+// `cur < min(a)`（中位數在門檻裡完全不參與），而「破新低」是 rank statistic：
+// 只看名次不看幅度 ⇒ 對「這條線有多穩」免疫。用各線語料實測抖動幅度模擬「無事故、
+// 覆蓋率平穩」1 小時，誤報率一律 62~68%（抖動 9.3% 的 BR 與 28.6% 的 Y 幾乎同值），
+// 4 小時 98.7%、一個營運日 100%。當時驗收之所以全綠，是因為語料只有 17 槽＝4 分鐘，
+// 那個長度的誤報率才 10.4%（9 條線期望 0.9 條開火，實測 0 條完全合理）。
+// 要重做的話門檻必須「看幅度不看名次」（如 median − k×MAD），而 k 要多大得用離峰語料定，
+// 現在沒有那份資料。⇒ 大批停駛改由官方公告（NCDR 天災觸發 + 掃官網）承擔，不自己推定。
 function applyTrtcBoard(rows, observedEpoch) {
   const nowSec = trtcServiceSec(observedEpoch), serviceDay = trtcServiceDayOfEpoch(observedEpoch);
   if (!Array.isArray(rows) || nowSec == null || !serviceDay) { clearTrtcBoard(); return null; }
@@ -13566,7 +13555,7 @@ function applyTrtcBoard(rows, observedEpoch) {
   }
   const best = [];
   let physicalClaims = 0;
-  const anchorsPerLine = new Map(); // 逐線實體錨點數:異常偵測要用「接不上名冊的比例」
+  const anchorsPerLine = new Map(); // 逐線 collapseClaims 後實體錨點數:異常偵測儀器,不可改用 matched
   for (const anchor of rows || []) {
     const ln = byId.get(String(anchor && anchor.line || ''));
     const arrEpoch = Number(anchor && anchor.arrEpoch), from = Number(anchor && anchor.from);
@@ -13647,8 +13636,7 @@ function applyTrtcBoard(rows, observedEpoch) {
   for (const ln of mine) {
     const acc = (perLine.get(ln) || { values: [] }).values;
     const roster = ln._tt.filter(tr => trtcRosterActive(tr, nowSec)).length;
-    evalLineAnomaly(ln, acc, Math.max(0, (anchorsPerLine.get(ln) || 0) - acc.length), 0,
-      trtcCoverageDrop(ln, acc.length, roster));
+    evalLineAnomaly(ln, acc, Math.max(0, (anchorsPerLine.get(ln) || 0) - acc.length), 0);
   }
   const audit = {
     rows: (rows || []).length, physicalClaims, matched: final.length,
@@ -13656,6 +13644,7 @@ function applyTrtcBoard(rows, observedEpoch) {
     roster: mine.reduce((n, ln) => n + ln._tt.filter(tr => trtcRosterActive(tr, nowSec)).length, 0),
     byLine: Object.fromEntries(mine.map(ln => [ln.id, {
       roster: ln._tt.filter(tr => trtcRosterActive(tr, nowSec)).length,
+      anchors: anchorsPerLine.get(ln) || 0,
       matched: (ln._trtcBoard && ln._trtcBoard.n) || 0,
     }])),
     assignments: final.map(e => ({ line: e.ln.id, dir: e.dir, dest: e.dest, from: e.from, to: e.to,
@@ -13774,9 +13763,7 @@ function updateMetroBadge() {
   if (anomLines.length) { // 異常優先:任一線偵測到異常,徽章轉「異常推定」(est 靜態外觀 + 警示色)
     el.textContent = '異常推定';
     el.classList.add('est'); el.classList.add('anom');
-    el.title = anomLines.map(ln => (ln.name || ln.id) + '：' + (anomalyOf(ln).kind === 'gone'
-      ? '線上列車數明顯少於班表,可能有重大服務調整,請以官方公告為準'
-      : '看板與時刻表明顯不符,位置僅供參考')).join('\n');
+    el.title = anomLines.map(ln => (ln.name || ln.id) + '：看板與時刻表明顯不符,位置僅供參考').join('\n');
   } else if (onLines.length) {
     el.classList.remove('anom');
     const parts = onLines.map(ln => {
@@ -13910,8 +13897,29 @@ setInterval(pollNtmLive, 60e3);
 // ── 營運通阻/狀態公告(每 5 分鐘輪詢):sched=台鐵/高鐵各自端點;freq=捷運五家聚合 api/metro-alert ──
 // 只轉述官方公告不推定個別班次:正常條目 status:1 濾除,其餘當異常帶出
 const escHtml = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
-async function pollAlert() {
-  if (document.hidden) return;
+let _alertPolling = null, _alertPollingKey = '', _alertPending = false;
+function alertPollKey() {
+  if (state.mode === 'sched') return `sched|${(state.schedSystems || []).filter(s => s.alert).map(s => `${s.id}:${s.alert}`).join(',')}|deco:${!!state.deco}`;
+  // metro-alert 一次回五家聚合資料，勾選範圍只在 render-time 過濾，不是 request 的一部分。
+  // key 固定可避免請求途中勾選系統時把仍可用的聚合回應丟掉、又沒有 pending 補跑。
+  return 'freq';
+}
+function pollAlert() {
+  if (document.hidden) return Promise.resolve();
+  const key = alertPollKey();
+  // interval、換分頁、回前景與災害觸發可能同時到；共用同一個 in-flight Promise，避免公告重複請求與舊回應互蓋。
+  // 若 in-flight 期間模式/勾選系統已變，記一個 pending，完成後依「最新 state」補跑；否則冷啟動的 freq
+  // 請求可能吃掉 finishLoad 的 sched 請求，台鐵/高鐵公告要空窗到下一個 5 分鐘 interval。
+  if (_alertPolling) { if (_alertPollingKey !== key) _alertPending = true; return _alertPolling; }
+  _alertPending = false;
+  _alertPollingKey = key;
+  _alertPolling = pollAlertOnce(key).finally(async () => {
+    _alertPolling = null; _alertPollingKey = '';
+    if (_alertPending && !document.hidden) await pollAlert();
+  });
+  return _alertPolling;
+}
+async function pollAlertOnce(key) {
   if (state.mode === 'sched') {
     const sysList = (state.schedSystems || []).filter(s => s.alert);
     if (!sysList.length) return;
@@ -13927,13 +13935,18 @@ async function pollAlert() {
         for (const a of d.alerts) if (a.status !== 1) merged.push({ ...a, sysLabel: sys.label });
       } catch (e) { /* 單一系統失敗略過,不影響其他系統 */ }
     }
-    if (ok) state.alert = { at, list: merged }; // 至少一個系統回應才更新(全失敗保留舊資料)
+    const nextAlert = ok ? { at, list: merged } : null; // 至少一個系統回應才更新(全失敗保留舊資料)
+    let nextMetro = null;
     if (state.deco) { // 全台同框:額外抓捷運公告(高雄輕軌等),與台鐵/高鐵公告合併顯示(純台鐵/高鐵分頁不抓)
       try {
         const r = await fetch(apiUrl('api/metro-alert'), { cache: 'no-store' });
-        if (r.ok) { const d = await r.json(); if (Array.isArray(d.alerts)) state.metroAlert = { at: d.at || '', list: d.alerts.filter(a => a.status !== 1) }; }
+        if (r.ok) { const d = await r.json(); if (Array.isArray(d.alerts)) nextMetro = { at: d.at || '', list: d.alerts.filter(a => a.status !== 1) }; }
       } catch (e) { /* 失敗保留舊資料 */ }
     }
+    // await 期間若已換模式/群組，舊回應一律丟棄；pending 會按最新 key 補跑，禁止舊 TRA 蓋掉新 HSR。
+    if (alertPollKey() !== key) return;
+    if (nextAlert) state.alert = nextAlert;
+    if (nextMetro) state.metroAlert = nextMetro;
   } else {
     // 捷運分頁:五家聚合端點(Worker 已標好 status/sys/sysLabel),颱風調整班距等異常才入列
     try {
@@ -13941,10 +13954,79 @@ async function pollAlert() {
       if (!r.ok) throw new Error(r.status);
       const d = await r.json();
       if (!Array.isArray(d.alerts)) throw new Error('bad payload');
+      if (alertPollKey() !== key) return;
       state.metroAlert = { at: d.at || '', list: d.alerts.filter(a => a.status !== 1) };
     } catch (e) { /* 失敗保留舊資料 */ }
   }
+  if (alertPollKey() !== key) return;
   renderAlertBanner();
+}
+
+// ── NCDR 災害示警觸發器 ──────────────────────────────────────────────────────
+// Worker 每分鐘讀一次「生效中的示警」總 feed；前端首見/更新事件立即重查公告，事件仍在時每 2 分鐘複查。
+// 🔴 分層鐵則：這裡只加速既有公告 poll 並產生文字；班次異常由原本的連續節拍檢查，
+// 不寫 ln._tt、不碰 freqTrainPosAt，也不增刪任何車。
+const HAZARD_POLL_MS = 60e3, HAZARD_RECHECK_MS = 120e3;
+let _hazardPolling = null, _hazardChecking = null, _hazardSig = '', _hazardCheckedAt = 0, _hazardPending = false;
+function hazardSig(list) {
+  return (Array.isArray(list) ? list : []).map(h => `${h.id || ''}|${h.updated || ''}`).sort().join('§');
+}
+function activeHazards(list, now = Date.now()) {
+  return (Array.isArray(list) ? list : []).filter(h => {
+    if (!h || !h.id || !h.type) return false;
+    const expires = Date.parse(h.expiresAt || '');
+    return Number.isFinite(expires) && expires > now;
+  });
+}
+function runHazardChecks() {
+  if (document.hidden) { _hazardPending = true; return Promise.resolve(); }
+  if (_hazardChecking) return _hazardChecking;
+  _hazardPending = false;
+  // 即時班次本來就持續以北捷 15 秒／其他來源 60 秒檢查；不可額外餵同一份 Worker cache snapshot，
+  // 否則會把一次觀測重複推進「2 進」異常遲滯。災害觸發只立即加速官方公告，班次仍由原節拍持續判讀。
+  _hazardChecking = Promise.allSettled([pollAlert()]).finally(() => { _hazardChecking = null; });
+  return _hazardChecking;
+}
+function pollHazard() {
+  if (document.hidden) { _hazardPending = true; return Promise.resolve(); }
+  if (_hazardPolling) return _hazardPolling;
+  _hazardPolling = (async () => {
+    try {
+      const r = await fetch(apiUrl('api/hazard-alert'), { cache: 'no-store' });
+      if (!r.ok) throw new Error(r.status);
+      const d = await r.json();
+      if (!Array.isArray(d.hazards)) throw new Error('bad payload');
+      const list = activeHazards(d.hazards);
+      state.hazardWatch = list.length ? { at: d.at || '', observedAt: d.observedAt || '', stale: !!d.stale, list } : null;
+      const sig = hazardSig(list), now = Date.now();
+      const changed = !!sig && sig !== _hazardSig;
+      const due = !!sig && now - _hazardCheckedAt >= HAZARD_RECHECK_MS;
+      _hazardSig = sig;
+      if (!sig) { _hazardCheckedAt = 0; _hazardPending = false; }
+      else if (changed || due || _hazardPending) {
+        _hazardCheckedAt = now;
+        await runHazardChecks();
+      }
+      renderAlertBanner();
+    } catch (e) {
+      // 來源失敗保留「仍在有效期內」的上次事件並明標 stale；到期或缺有效 expiresAt 的項目淘汰，
+      // 避免一次看過的短時雷雨在 NCDR outage 後永久顯示成仍生效。
+      const watch = state.hazardWatch;
+      if (watch) {
+        const list = activeHazards(watch.list);
+        state.hazardWatch = list.length ? { ...watch, stale: true, list } : null;
+        _hazardSig = hazardSig(list);
+        if (!list.length) { _hazardCheckedAt = 0; _hazardPending = false; }
+        else if (Date.now() - _hazardCheckedAt >= HAZARD_RECHECK_MS || _hazardPending) {
+          // NCDR 暫時不可更新，與「已知仍生效事件要重查鐵道公告」是兩件事；後者仍照 2 分鐘節拍跑。
+          _hazardCheckedAt = Date.now();
+          await runHazardChecks();
+        }
+        renderAlertBanner();
+      }
+    }
+  })().finally(() => { _hazardPolling = null; });
+  return _hazardPolling;
 }
 // 公告文字/影響範圍 → 本站軌道線 id;「東部幹線」等總稱先展開,再比對各線基底名
 const ALERT_LINE_GROUPS = { '東部幹線': ['宜蘭線', '北迴線', '臺東線'], '西部幹線': ['縱貫線', '山線', '海線', '屏東線'] };
@@ -13984,6 +14066,18 @@ function selfAnomalyEntries() {
   }
   return out;
 }
+// 外部災害只是一個「去檢查」的理由，不是鐵路異常證據；文字必須把兩者分清楚。
+function hazardWatchEntries() {
+  const watch = state.hazardWatch, list = watch && Array.isArray(watch.list) ? watch.list : [];
+  if (!list.length) return [];
+  const types = [...new Set(list.map(h => h.type).filter(Boolean))];
+  const sig = hazardSig(list);
+  return [{ self: true, hazard: true, sig,
+    title: `${types.join('、')}示警生效，已啟動加強監看`,
+    // 🔴 這句刻意不寫「本站正在判斷班次是否異常」：大批停駛的自家推定已於 08-04 移除
+    //（判準誤報率過高，見 applyTrtcBoard 上方的說明），我們現在做的就只是加強重查官方公告。
+    desc: `這是外部災害示警，不代表列車已停駛；軌島已加強重查台鐵、高鐵與捷運的官方營運公告${watch.stale ? '。示警來源暫時無法更新，目前沿用尚未到期的上次成功資料' : ''}。列車是否停駛請以各營運單位公告為準。來源：NCDR 民生示警公開資料平台。` }];
+}
 // 目前模式該顯示的公告:官方公告在前、自家觀測在後。sched=台鐵/高鐵(+全台同框帶捷運公告);freq=捷運(只留畫面上勾選中系統)
 function activeAlertList() {
   let official;
@@ -13997,7 +14091,7 @@ function activeAlertList() {
     const vis = state.freqSel || new Set(state.sysId ? [state.sysId] : []);
     official = ((state.metroAlert && state.metroAlert.list) || []).filter(a => !a.sys || vis.has(a.sys));
   }
-  return official.concat(selfAnomalyEntries());
+  return official.concat(hazardWatchEntries(), selfAnomalyEntries());
 }
 // 公告的常駐入口有兩種形態(2026-07-30 使用者回報後改版):
 //   桌面 = 右上角橫幅,可按 × 收起,同一批公告本次瀏覽不再跳出(換新公告會再出現)
@@ -14008,7 +14102,7 @@ function activeAlertList() {
 //    `.alert-banner:not([hidden]) ~ X`(xing-card/xing-help/board)特異度 0,3,0 會洩進手機、壓過手機
 //    base 的 0,1,0,而 display:none 的元素 `:not([hidden])` 照樣成立。設 hidden 那條鏈才會整條失效。
 // 已讀簽章用 sessionStorage(不是 localStorage):公告是當下狀況,關掉的意思是「這次看夠了」,不是永久靜音。
-function alertSig(list) { return list.map(a => (a.title || '') + '|' + (a.start || '')).join('§'); }
+function alertSig(list) { return list.map(a => (a.title || '') + '|' + (a.sig || a.start || '')).join('§'); }
 function alertDismissed(list) {
   try { return list.length > 0 && sessionStorage.getItem('trainmap-alert-dismissed') === alertSig(list); } catch (e) { return false; }
 }
@@ -14040,12 +14134,12 @@ function renderAlertDetail() {
   const list = activeAlertList();
   const fmtT = s => s ? String(s).replace('T', ' ').slice(5, 16) : '';
   det.innerHTML = list.map(a =>
-    `<div class="ad-row${a.self ? ' is-self' : ''}"><b>${a.self ? '<span class="ad-self">本站觀測</span>' : ''}${a.sysLabel ? escHtml('【' + a.sysLabel + '】') : ''}${escHtml(a.title || '通阻公告')}</b>` +
+    `<div class="ad-row${a.self ? ' is-self' : ''}"><b>${a.hazard ? '<span class="ad-self">災害觸發</span>' : a.self ? '<span class="ad-self">本站觀測</span>' : ''}${a.sysLabel ? escHtml('【' + a.sysLabel + '】') : ''}${escHtml(a.title || '通阻公告')}</b>` +
     (a.start || a.end ? `<div class="ad-time">${escHtml(fmtT(a.start))}${a.end ? ' ～ ' + escHtml(fmtT(a.end)) : ' 起'}</div>` : '') +
     (a.desc ? `<div>${escHtml(a.desc)}</div>` : '') +
     (a.lines && a.lines.length ? `<div class="ad-time">影響路線：${escHtml(a.lines.join('、'))}</div>` : '') +
     `</div>`).join('') +
-    `<div class="ad-src">來源：TDX 營運通阻／狀態公告（每 5 分鐘更新）· 動畫依當日時刻表推演，台鐵誤點已逐車套用、部分捷運營運時段依官方即時資訊校正；但停駛、取消或加開的班次與臨時班距調整不會反映——畫面上列車仍可能照表出現，實際運行以官方公告為準` +
+    `<div class="ad-src">來源：TDX 營運通阻／狀態公告（平時每 5 分鐘；災害示警生效時加強重查）${state.hazardWatch ? '；災害觸發來源：NCDR 生效中示警' : ''} · 動畫依當日時刻表推演，台鐵誤點已逐車套用、部分捷運營運時段依官方即時資訊校正；但停駛、取消或加開的班次與臨時班距調整不會反映——畫面上列車仍可能照表出現，實際運行以官方公告為準` +
     (state.mode !== 'sched' ? '　' + metroLinksHtml(state.freqSel || new Set()) : '') + `</div>`;
 }
 // 跟隨中的車行經公告影響路線 → 面板加警示列(虛構環島車不套用)
@@ -14067,6 +14161,9 @@ function updateFollowAlert() {
 setInterval(pollAlert, 300e3);
 document.addEventListener('visibilitychange', () => { if (!document.hidden) pollAlert(); });
 pollAlert();
+setInterval(pollHazard, HAZARD_POLL_MS);
+document.addEventListener('visibilitychange', () => { if (!document.hidden) pollHazard(); else _hazardPending = true; });
+pollHazard();
 
 function jumpToNow() {
   if (state.mode === 'sched') {

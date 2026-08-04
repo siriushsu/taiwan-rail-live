@@ -13,6 +13,7 @@ const WORKER_PORT = Number(process.env.TRTC_POS_WORKER_PORT || 43389);
 const INSPECTOR_PORT = Number(process.env.TRTC_POS_INSPECTOR_PORT || 43390);
 const FIXTURE = `http://127.0.0.1:${FIXTURE_PORT}`;
 const BASE = `https://127.0.0.1:${WORKER_PORT}`;
+const SCREEN_BASELINE_REF = process.env.TRTC_SCREEN_BASELINE_REF || 'c93d20c';
 const output = { fixture: FIXTURE, base: BASE, assertions: [], samples: [], mobile: [], metrics: {} };
 let failures = 0;
 
@@ -73,10 +74,42 @@ function boardPositionPayload(raw) {
   };
 }
 
+const brRowsCache = new WeakMap();
+function brRowIndexes(raw) { // 注入在原始 TrackInfo 層做；逐列 resolve，避免把其他線同批對照組一起改掉
+  let indexes = brRowsCache.get(raw);
+  if (indexes) return indexes;
+  indexes = new Set();
+  raw.forEach((row, index) => {
+    const resolved = resolveBoardRows(model, [row], epoch);
+    if (resolved.rows.length && resolved.rows[0].line === 'BR') indexes.add(index);
+  });
+  brRowsCache.set(raw, indexes);
+  return indexes;
+}
+function injectBrDrop(raw, count) {
+  const br = brRowIndexes(raw); let seen = 0;
+  return raw.filter((row, index) => !br.has(index) || seen++ >= count);
+}
+function injectBrHalf(raw) {
+  const br = brRowIndexes(raw); let seen = 0;
+  return raw.filter((row, index) => !br.has(index) || seen++ % 2 === 1);
+}
+function injectBrDelay(raw, seconds) {
+  const br = brRowIndexes(raw);
+  return raw.map((row, index) => {
+    if (!br.has(index)) return row;
+    const m = String(row.CountDown == null ? '' : row.CountDown).match(/^(\d+):(\d+)$/);
+    const old = m ? +m[1] * 60 + +m[2] : (String(row.CountDown) === '列車進站' ? 0 : null);
+    if (old == null) return row;
+    const next = old + seconds;
+    return { ...row, CountDown: `${String(Math.floor(next / 60)).padStart(2, '0')}:${String(next % 60).padStart(2, '0')}` };
+  });
+}
+
 const LEAFLET_DIST = process.env.TRTC_LEAFLET_DIST || '/tmp/trtc-playwright-deps/node_modules/leaflet/dist';
 const leafletJs = fs.readFileSync(path.join(LEAFLET_DIST, 'leaflet.js'));
 const leafletCss = fs.readFileSync(path.join(LEAFLET_DIST, 'leaflet.css'));
-async function preparePage(page) {
+async function preparePage(page, documentHtml = null) {
   await page.addInitScript(() => localStorage.setItem('trainmap-howto-seen', '1'));
   await page.route('**/*', async route => {
     const url = new URL(route.request().url());
@@ -88,6 +121,8 @@ async function preparePage(page) {
     }
     if (url.hostname === '127.0.0.1' || url.hostname === 'localhost') {
       if (route.request().resourceType() === 'document') {
+        if (documentHtml != null) return route.fulfill({ status: 200, contentType: 'text/html; charset=utf-8',
+          body: documentHtml.replace(/\s+integrity="[^"]+"/g, '') });
         const response = await route.fetch();
         const html = (await response.text()).replace(/\s+integrity="[^"]+"/g, '');
         return route.fulfill({ response, body: html,
@@ -168,13 +203,15 @@ async function run() {
     check(integrated.rows > 0 && integrated.matched > 0, '前後端 boardPos payload 已接通',
       `rows=${integrated.rows}, matched=${integrated.matched}, roster=${integrated.roster}`);
     await page.evaluate(() => { _trtcPolling = true; }); // 後續逐槽由測試明確注入，避免 15 秒輪詢改動 fixture call 順序
+    await page.evaluate(() => { _lineAnom.clear(); _trtcNoTrip.clear(); _easedShift.clear(); });
 
     const correctedErrors = [], baselineErrors = [], directions = new Set(), lineTotals = {};
-    const invariantFailures = [];
+    const invariantFailures = [], rawSnapshots = [], currentScreenCounts = [], normalAnomalyFrames = [];
     let mutationWitness = 0;
     for (let i = 1; i <= 17; i++) {
       const slot = `s${String(i).padStart(2, '0')}`;
-      const payload = boardPositionPayload(await fixtureRows(slot));
+      const raw = await fixtureRows(slot); rawSnapshots.push(raw);
+      const payload = boardPositionPayload(raw);
       const result = await page.evaluate(({ rows, at }) => {
         map.setView([25.0478, 121.5170], 16, { animate: false });
         state.simSec = trtcServiceSec(at); state.clockAtNow = true;
@@ -215,8 +252,11 @@ async function run() {
           if (actual && baseline && expected) positions.push({ line: a.line, dir: a.dir, no: a.no,
             correctedM: map.distance(actual, expected), baselineM: map.distance(baseline, expected), shift: a.shift });
         }
-        return { audit, countRows, positions, mutationHits, zoom: map.getZoom() };
+        const anomalies = pool.filter(ln => anomalyOf(ln)).map(ln => ln.id + ':' + anomalyOf(ln).kind);
+        return { audit, countRows, positions, mutationHits, zoom: map.getZoom(), anomalies };
       }, payload);
+      currentScreenCounts.push(Object.fromEntries(result.countRows.map(row => [row.line, row.screen])));
+      normalAnomalyFrames.push({ slot, anomalies: result.anomalies });
       for (const row of result.countRows) {
         if (row.roster !== row.screen) invariantFailures.push({ slot, ...row });
         const rec = lineTotals[row.line] || (lineTotals[row.line] = { roster: 0, matched: 0 });
@@ -243,6 +283,9 @@ async function run() {
     check(Object.values(lineTotals).every(x => x.roster === 0 || x.matched > 0), '各北捷線皆有真實錨點覆蓋', JSON.stringify(lineTotals));
     check(lineTotals.Y && lineTotals.Y.roster > 0 && lineTotals.Y.matched > 0,
       '環狀線 Y 已進入看板校正路徑', JSON.stringify(lineTotals.Y || null));
+    check(normalAnomalyFrames.every(frame => frame.anomalies.length === 0),
+      '異常偵測：正常語料 17 槽逐線零告警',
+      JSON.stringify(normalAnomalyFrames.filter(frame => frame.anomalies.length)));
 
     // 資料齡與逐班未命中的退路：兩者都只准改「校正量」，不准改「車在不在」。
     // 判準刻意不看 metroLiveOn 自己回什麼（那會與實作同源）——只看畫面上的車數與實際 shift 值。
@@ -287,25 +330,106 @@ async function run() {
       '未認到的班次退回全線中位數（非 0）', JSON.stringify(gates.fallback));
     check(gates.roster === gates.fresh && gates.fresh === gates.stale && gates.freshShift > 0 && gates.staleShift === 0,
       '資料齡到期只關校正、不動車數（附新鮮側正向對照）', JSON.stringify(gates));
-    // 異常偵測雙向：上面 17 槽正常語料跑完必須零告警（也順便把覆蓋率基線建起來），
-    // 接著注入「文湖線列車大批從線上消失」必須叫、而且只叫被注入的那條線。
-    // 🔴 注入一定要接在正常槽之後：從第一槽就注入的話基線本身就是低的，相對判準測不到「掉下去」。
-    const anomNormal = await page.evaluate(() =>
-      metroLivePool().filter(ln => isTrtcBoardLine(ln) && anomalyOf(ln)).map(ln => ln.id + ':' + anomalyOf(ln).kind));
-    let anomAfter = [];
-    for (let i = 15; i <= 17; i++) {
-      const p = boardPositionPayload(await fixtureRows(`s${String(i).padStart(2, '0')}`));
-      const rows = p.rows.filter((r, k) => r.line !== 'BR' || k % 5 === 0); // 文湖線錨點剩兩成
-      anomAfter = await page.evaluate(({ rows, at }) => {
+    // 異常偵測：2026-08-04 移除「車數腰斬」的自家推定（誤報率過高），大批停駛改由官方公告承擔。
+    // 這裡剩兩件事要守：① 舊三訊號的接線還活著（九條看板線唯一的入口就是 applyTrtcBoard 這一處，
+    // 曾經整整九線斷線而 verify_anomaly 18/18 照樣全綠）；② 任何注入都不准再產生 'gone'。
+    const resetAnomalyState = () => page.evaluate(() => {
+      _lineAnom.clear(); _trtcNoTrip.clear(); _easedShift.clear();
+      for (const ln of metroLivePool()) delete ln._anomaly;
+    });
+    const applyAnomalyRaw = async raw => {
+      const p = boardPositionPayload(raw);
+      return page.evaluate(({ rows, at }) => {
         state.simSec = trtcServiceSec(at); state.clockAtNow = true;
         _mlGate = true; _mlGateAt = Date.now();
-        applyTrtcBoard(rows, at);
-        return metroLivePool().filter(ln => isTrtcBoardLine(ln) && anomalyOf(ln)).map(ln => ln.id + ':' + anomalyOf(ln).kind);
-      }, { rows, at: p.at });
+        const audit = applyTrtcBoard(rows, at);
+        return {
+          anomalies: metroLivePool().filter(ln => isTrtcBoardLine(ln) && anomalyOf(ln))
+            .map(ln => ln.id + ':' + anomalyOf(ln).kind),
+          br: audit.byLine.BR || null,
+        };
+      }, p);
+    };
+    const runAnomalyScenario = async mutate => {
+      await resetAnomalyState();
+      const baseline = [], injected = [];
+      for (let i = 0; i < 10; i++) baseline.push(await applyAnomalyRaw(rawSnapshots[i]));
+      for (let i = 10; i < rawSnapshots.length; i++) injected.push(await applyAnomalyRaw(mutate(rawSnapshots[i])));
+      return { baseline, injected, final: injected.at(-1) };
+    };
+    // ① 車數型注入一律不准再叫（這正是被移除的那個判準會開火的三種情境）
+    const scenarios = [
+      ['BR 少 3 列', raw => injectBrDrop(raw, 3)],
+      ['BR 半數消失', injectBrHalf],
+      ['BR 全線 +10 分', raw => injectBrDelay(raw, 600)],
+    ];
+    output.metrics.anomalyAfterRemoval = {};
+    for (const [label, mutate] of scenarios) {
+      const result = await runAnomalyScenario(mutate);
+      const goneHits = [...result.baseline, ...result.injected]
+        .flatMap(step => step.anomalies.filter(value => value.endsWith(':gone')));
+      output.metrics.anomalyAfterRemoval[label] = result;
+      check(goneHits.length === 0, `車數判定已移除：${label}不再產生 'gone'`,
+        `goneHits=${JSON.stringify(goneHits)}, final=${JSON.stringify(result.final)}`);
     }
-    check(anomNormal.length === 0 && anomAfter.length === 1 && anomAfter[0] === 'BR:gone',
-      '異常偵測：正常日零告警、列車大批停駛會叫（且只叫該線）',
-      `正常17槽=${JSON.stringify(anomNormal)}, 注入後=${JSON.stringify(anomAfter)}`);
+
+    // ② 接線斷了沒：applyTrtcBoard 是九條看板線唯一的異常評估入口（pollMetroLive 排除 mrt、
+    // Y 移出 pollNtmLive 之後就只剩這裡），曾經整整九線斷線而 verify_anomaly 18/18 照樣全綠。
+    // 用 spy 直接數呼叫，判準是「恰好等於這 9 條線的 id 集合」——接線斷掉是 0，多接一處會多。
+    await resetAnomalyState();
+    const wired = await page.evaluate(({ rows, at }) => {
+      const saved = evalLineAnomaly, seen = [];
+      evalLineAnomaly = (ln, ...rest) => { seen.push(ln.id); return saved(ln, ...rest); };
+      try { applyTrtcBoard(rows, at); } finally { evalLineAnomaly = saved; }
+      return { seen: seen.sort(), expected: metroLivePool().filter(isTrtcBoardLine).map(ln => ln.id).sort() };
+    }, boardPositionPayload(rawSnapshots[0]));
+    output.metrics.anomalyWiring = wired;
+    check(wired.seen.length > 0 && JSON.stringify(wired.seen) === JSON.stringify(wired.expected),
+      '異常評估接線仍在：applyTrtcBoard 逐線呼叫 evalLineAnomaly（斷線=0，判準為恰好等於 9 線 id 集合）',
+      `seen=${JSON.stringify(wired.seen)}`);
+
+    // ③ 把「舊三訊號對看板路徑結構性打不到」寫成斷言，免得日後有人把 ② 的綠誤讀成「偵測還會動」。
+    // 誤點的車不是產生矛盾樣本，而是倒數超過區間行駛時間 ⇒ 在 claim 階段整批被丟掉（實測：
+    // 隔列 +10 分與半數消失的 anchors 同為 23）⇒ acc 沒有那群車，MAD 不升、rej 也不升。
+    const structurallyBlind = Object.values(output.metrics.anomalyAfterRemoval)
+      .every(r => r.final.anomalies.length === 0);
+    check(structurallyBlind,
+      '已知限制：移除車數判定後，看板九線對停駛／誤點型事故不再自行告警（改由官方公告承擔）',
+      `三種注入的告警數皆為 0 = ${structurallyBlind}`);
+
+    // 最重要的存在性對照：同一批 17 槽在改動前 c93d20c 與目前 index 上逐槽逐線數車，必須完全相同。
+    // 基準頁只替換 document；資料、fixture、payload 與瀏覽器引擎都和目前頁一致。
+    const baselineHtml = execFileSync('git', ['show', `${SCREEN_BASELINE_REF}:index.html`],
+      { cwd: ROOT, encoding: 'utf8', maxBuffer: 8 * 1024 * 1024 });
+    const baselinePage = await context.newPage();
+    await preparePage(baselinePage, baselineHtml); await waitForBoot(baselinePage);
+    await baselinePage.evaluate(() => {
+      _trtcPolling = true; _lineAnom.clear(); _trtcNoTrip.clear(); _easedShift.clear();
+    });
+    const oldScreenCounts = [];
+    for (const raw of rawSnapshots) {
+      const p = boardPositionPayload(raw);
+      oldScreenCounts.push(await baselinePage.evaluate(({ rows, at }) => {
+        state.simSec = trtcServiceSec(at); state.clockAtNow = true;
+        _mlGate = true; _mlGateAt = Date.now(); applyTrtcBoard(rows, at);
+        return Object.fromEntries(metroLivePool().filter(ln => isTrtcBoardLine(ln) && ln._tt)
+          .map(ln => [ln.id, ln._tt.filter(tr => freqTrainPosAt(ln, tr, state.simSec) != null).length]));
+      }, p));
+    }
+    await baselinePage.close();
+    const screenParityFailures = [];
+    for (let i = 0; i < currentScreenCounts.length; i++) {
+      for (const line of new Set([...Object.keys(currentScreenCounts[i]), ...Object.keys(oldScreenCounts[i])])) {
+        if (currentScreenCounts[i][line] !== oldScreenCounts[i][line]) screenParityFailures.push({
+          slot: `s${String(i + 1).padStart(2, '0')}`, line,
+          before: oldScreenCounts[i][line], after: currentScreenCounts[i][line],
+        });
+      }
+    }
+    output.metrics.screenCountParity = { baselineRef: SCREEN_BASELINE_REF, before: oldScreenCounts,
+      after: currentScreenCounts, failures: screenParityFailures };
+    check(screenParityFailures.length === 0, `畫面車數與改動前 ${SCREEN_BASELINE_REF} 逐槽逐線完全相同`,
+      `17 槽 × ${Object.keys(currentScreenCounts[0] || {}).length} 線，差異=${JSON.stringify(screenParityFailures)}`);
 
     const serviceDays = await page.evaluate(() => ({
       saturdayAfterMidnight: taipeiServiceDayStr(Date.parse('2026-08-01T17:00:00Z')),

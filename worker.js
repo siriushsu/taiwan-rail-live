@@ -6,6 +6,7 @@ import {
 // Cloudflare Worker 入口:靜態資產(assets binding)+ /api/tra-live 台鐵即時動態代理
 // + /api/tra-alert 台鐵營運通阻公告 + /api/thsr-alert 高鐵營運狀態公告(颱風停駛等)
 // + /api/metro-alert 捷運營運狀態公告(五家聚合)
+// + /api/hazard-alert NCDR 生效中災害示警(只當營運檢查觸發器,不參與列車名冊/位置)
 // + /api/delay-stats 台鐵準點率統計(唯讀查 D1 預先算好的 blob,原樣回傳,不解析)
 // 金鑰只存在 Worker 環境變數(dashboard Variables and Secrets),前端不直連 TDX。
 // 雙層快取護住 TDX 用量:PoP 邊緣快取 55 秒(workers.dev 網域上 Cache API 無效,
@@ -215,6 +216,167 @@ async function thsrAlert(request, env) {
     if (thsrAlertMem) return jsonRes(thsrAlertMem, 200, 'public, s-maxage=30');
     return jsonRes({ error: String(e.message || e) }, 502, 'no-store');
   }
+}
+
+// 災害示警觸發器:NCDR 官方「生效中的示警」總 JSON,免 key、每分鐘更新。
+// 這層只回答「現在有沒有值得加強監看的外部事件」；不把災害推定成鐵路異常，更不會改列車名冊或位置。
+// 用總 feed 一次抓回再篩選，避免颱風/地震/降雨/雷雨四支各打一次而放大 NCDR 流量。
+const NCDR_ACTIVE_HAZARD_URL = 'https://alerts.ncdr.nat.gov.tw/JSONAtomFeeds.ashx';
+const HAZARD_TYPES = [
+  '土石流及大規模崩塌', '颱風', '地震', '雷雨', '降雨', '強風', '海嘯', '淹水', '火山',
+];
+const HAZARD_MEM_TTL_MS = 60e3;
+const HAZARD_FAIL_TTL_MS = 30e3;
+const HAZARD_FETCH_TIMEOUT_MS = 8e3;
+let hazardMem = null, hazardMemAt = 0, hazardRefresh = null, hazardFailAt = 0;
+
+function ncdrText(value) {
+  if (value == null) return '';
+  if (typeof value === 'string' || typeof value === 'number') return String(value).trim();
+  if (Array.isArray(value)) return value.map(ncdrText).find(Boolean) || '';
+  if (typeof value === 'object') return ncdrText(value['#text'] ?? value._ ?? value['@term'] ?? value.term ?? value.name ?? value.title);
+  return '';
+}
+
+// NCDR JSON feed 的 effective/expires 實測會是「2026/7/23 下午 11:30:00」；Date.parse 在不同
+// runtime 對中文上午/下午不一致，所以明確換成 UTC epoch。ISO 8601 則先交給 Date.parse。
+function ncdrTimeMs(value) {
+  const text = ncdrText(value);
+  if (!text) return null;
+  const direct = Date.parse(text);
+  if (Number.isFinite(direct)) return direct;
+  const m = text.match(/^(\d{4})\/(\d{1,2})\/(\d{1,2})\s*(上午|下午)\s*(\d{1,2}):(\d{2})(?::(\d{2}))?$/);
+  if (!m) return null;
+  let hour = Number(m[5]) % 12;
+  if (m[4] === '下午') hour += 12;
+  return Date.UTC(Number(m[1]), Number(m[2]) - 1, Number(m[3]), hour, Number(m[6]), Number(m[7] || 0)) - 8 * 3600e3;
+}
+
+function ncdrHazardType(entry) {
+  const categories = Array.isArray(entry && entry.category) ? entry.category : [entry && entry.category];
+  const text = categories.map(ncdrText).filter(Boolean).concat(ncdrText(entry && entry.title)).join(' ');
+  return HAZARD_TYPES.find(type => text.includes(type)) || null;
+}
+
+// 官方 Atom extension 在 XML/部分 JSON 轉換器會保留 cap: 前綴；舊版總 JSON 則可能攤平成無前綴鍵。
+// 兩種都讀，但缺欄位不猜：狀態或有效期無法確認的 entry 不得觸發正式監看。
+function ncdrField(entry, name) {
+  return entry && (entry[`cap:${name}`] ?? entry[name]);
+}
+
+function normalizeNcdrHazards(feed, nowMs = Date.now()) {
+  const root = feed && feed.feed && typeof feed.feed === 'object' ? feed.feed : feed;
+  const entries = Array.isArray(root && root.entry) ? root.entry : (root && root.entry ? [root.entry] : []);
+  const hazards = [];
+  for (const entry of entries) {
+    if (!entry || typeof entry !== 'object') continue;
+    const status = ncdrText(ncdrField(entry, 'status'));
+    const msgType = ncdrText(ncdrField(entry, 'msgType'));
+    if (status !== 'Actual') continue; // 缺 status 也 fail-closed；Test/Exercise/Draft 不可喚醒正式監看
+    if (!/^(Alert|Update)$/i.test(msgType)) continue; // Cancel/Error/Ack 與缺值都不可沿用成有效示警
+    const type = ncdrHazardType(entry);
+    if (!type) continue;
+    const effective = ncdrText(ncdrField(entry, 'effective'));
+    const expires = ncdrText(ncdrField(entry, 'expires'));
+    const effectiveMs = ncdrTimeMs(effective), expiresMs = ncdrTimeMs(expires);
+    if (!Number.isFinite(effectiveMs) || !Number.isFinite(expiresMs)) continue;
+    if (effectiveMs > nowMs || expiresMs <= nowMs) continue;
+    const id = ncdrText(entry.id);
+    if (!id) continue; // 沒穩定 id 無法在前端去重，fail-closed 不觸發
+    hazards.push({
+      id, type, title: ncdrText(entry.title) || type,
+      updated: ncdrText(entry.updated), effective, expires,
+      effectiveAt: new Date(effectiveMs).toISOString(), expiresAt: new Date(expiresMs).toISOString(),
+    });
+  }
+  return hazards.sort((a, b) => a.id.localeCompare(b.id));
+}
+
+function resetHazardMem() { hazardMem = null; hazardMemAt = 0; hazardRefresh = null; hazardFailAt = 0; }
+
+function refreshHazardMem(env) {
+  if (hazardRefresh) return hazardRefresh; // 同 isolate cache miss 共流，避免同一瞬間所有訪客一起打 NCDR
+  hazardRefresh = (async () => {
+    const sourceUrl = (env && env.NCDR_ALERT_URL) || NCDR_ACTIVE_HAZARD_URL; // 測試可注入本機 fixture；正式環境不設即鎖官方源
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), HAZARD_FETCH_TIMEOUT_MS);
+    let r;
+    try {
+      r = await fetch(sourceUrl, { headers: { accept: 'application/json' }, signal: controller.signal });
+    } catch (e) {
+      if (controller.signal.aborted) throw new Error('ncdr timeout');
+      throw e;
+    } finally { clearTimeout(timer); }
+    if (!r.ok) throw new Error('ncdr api ' + r.status);
+    const d = await r.json();
+    const root = d && d.feed && typeof d.feed === 'object' ? d.feed : d;
+    hazardMem = {
+      at: ncdrText(root && root.updated) || new Date().toISOString(), observedAt: new Date().toISOString(),
+      source: 'NCDR', stale: false, hazards: normalizeNcdrHazards(d, Date.now()),
+    };
+    hazardMemAt = Date.now(); hazardFailAt = 0;
+  })().catch(e => { hazardFailAt = Date.now(); throw e; })
+    .finally(() => { hazardRefresh = null; });
+  return hazardRefresh;
+}
+
+async function hazardAlert(request, env) {
+  const cacheKey = new Request(new URL('/api/hazard-alert', request.url), { method: 'GET' });
+  const edge = caches.default;
+  const hit = await edge.match(cacheKey);
+  if (hit) return hit;
+  try {
+    if (!hazardMem || Date.now() - hazardMemAt > HAZARD_MEM_TTL_MS) {
+      if (!hazardMem && hazardFailAt && Date.now() - hazardFailAt < HAZARD_FAIL_TTL_MS) throw new Error('ncdr cooldown');
+      await refreshHazardMem(env);
+    }
+    const res = jsonRes(hazardMem, 200, 'public, s-maxage=60, stale-while-revalidate=60');
+    await edge.put(cacheKey, res.clone());
+    return res;
+  } catch (e) {
+    // NCDR 短暫失敗時沿用 isolate 內最後成功狀態並明標 stale；不要因一輪 429 就把仍生效的監看關掉。
+    if (hazardMem) {
+      const now = Date.now();
+      const hazards = hazardMem.hazards.filter(h => {
+        const expires = ncdrTimeMs(h.expiresAt || h.expires);
+        return Number.isFinite(expires) && expires > now;
+      });
+      const res = jsonRes({ ...hazardMem, stale: true, hazards }, 200, 'public, s-maxage=30');
+      await edge.put(cacheKey, res.clone());
+      return res;
+    }
+    // 冷啟動失敗也短暫負向快取；仍回 502，前端會保留舊狀態，不把「來源掛掉」解讀成「災害解除」。
+    const res = jsonRes({ error: 'hazard_not_ready' }, 502, 'public, s-maxage=30');
+    await edge.put(cacheKey, res.clone());
+    return res;
+  }
+}
+
+// 每分鐘 cron 先看災害；有生效事件才喚醒三個既有官方營運公告端點。端點自己的 110 秒雙層快取
+// 仍是上游節流閘，所以 cron 每分鐘執行不等於每分鐘重打 TDX。北捷列車資料則沿用同一分鐘本來就會跑的
+// trtcLedgerScheduled，不因災害多打一份上游，也不把災害訊號混進列車存在性。
+async function hazardMonitorScheduled(event, env) {
+  const base = 'https://railisland.tw';
+  const r = await hazardAlert(new Request(base + '/api/hazard-alert'), env);
+  if (!r.ok) throw new Error('hazard api ' + r.status);
+  const d = await r.json();
+  const hazards = Array.isArray(d && d.hazards) ? d.hazards : [];
+  if (!hazards.length) return { active: 0, announcements: false };
+  const settled = await Promise.allSettled([
+    traAlert(new Request(base + '/api/tra-alert'), env),
+    thsrAlert(new Request(base + '/api/thsr-alert'), env),
+    metroAlert(new Request(base + '/api/metro-alert'), env),
+  ]);
+  return { active: hazards.length, announcements: true,
+    failed: settled.filter(x => x.status === 'rejected' || !(x.value && x.value.ok)).length };
+}
+
+function hazardMonitorWithTimeout(event, env, timeoutMs = 12000) {
+  let timer;
+  return Promise.race([
+    hazardMonitorScheduled(event, env),
+    new Promise((_, reject) => { timer = setTimeout(() => reject(new Error('hazard timeout')), timeoutMs); }),
+  ]).finally(() => clearTimeout(timer));
 }
 
 // 捷運營運狀態公告:TDX v2 Rail/Metro/Alert/{op},僅五家有端點(新北捷運/淡海/安坑輕軌無此 API)。
@@ -1204,7 +1366,7 @@ const API_POST_ALLOWED = new Set(['/api/account-delete', '/api/bounty-claim', '/
 // /api 端點白名單——只給流量埋點的 blob 用(不是路由閘門,路由在 fetch 裡)。不在名單內一律記成
 // 'other',否則隨便打 /api/<亂數> 就能把 blob 基數炸開。新增端點時要一起加進來。
 const API_ENDPOINTS = new Set([
-  'tra-live', 'tra-alert', 'thsr-alert', 'metro-alert', 'metro-live', 'ntmetro-live', 'trtc-live',
+  'tra-live', 'tra-alert', 'thsr-alert', 'metro-alert', 'hazard-alert', 'metro-live', 'ntmetro-live', 'trtc-live',
   'delay-stats', 'delay-history', 'station-events', 'today-board', 'basemap-token', 'basemap-session', 'account-delete',
   'bounty-board', 'bounty-claim', 'bounty-submit', 'bounty-me', 'bounty-merge',
 ]);
@@ -2372,10 +2534,22 @@ async function pruneStationEvents(env) {
 export default {
   // 每天台北 09:15 / 12:15 觸發(wrangler.jsonc triggers.crons)。錯誤 console.error 後
   // rethrow,讓 Cloudflare 把該次 cron 標記為失敗(observability 可查)。
-  async scheduled(event, env) {
+  async scheduled(event, env, ctx) {
     // 每分鐘的北捷帳本與每日台鐵誤點 cron 必須完全分流；不然會每分鐘重跑台鐵 ingest。
     if (event && event.cron === '* * * * *') {
-      try { return await trtcLedgerScheduled(event, env); }
+      // 災害監看與北捷帳本平行跑：前者即使失敗只記錄，不得拖垮不可重現的帳本取樣；
+      // 帳本若失敗仍照舊 rethrow，讓 Cloudflare 把 cron 標紅。
+      const hazardTask = hazardMonitorWithTimeout(event, env).catch(e => {
+        console.error('[cron hazard] 失敗:', (e && e.stack) || String(e));
+        return { error: String((e && e.message) || e) };
+      });
+      // 災害來源/公告不能延遲或改變北捷帳本 cron 的成功/失敗契約；scheduled runtime 一定提供 waitUntil。
+      // 本機直接呼叫 default.scheduled 若沒帶 ctx，catch 已吞住 rejection，帳本仍照原路徑完成。
+      if (ctx && typeof ctx.waitUntil === 'function') ctx.waitUntil(hazardTask);
+      try {
+        const ledger = await trtcLedgerScheduled(event, env);
+        return ledger; // 維持原本 scheduled 回傳 shape，避免帳本驗收/觀測端因加觸發器而變契約
+      }
       catch (e) {
         console.error('[cron trtc-ledger] 失敗:', (e && e.stack) || String(e));
         throw e;
@@ -2448,6 +2622,7 @@ export default {
     else if (url.pathname === '/api/tra-alert') res = await traAlert(request, env);
     else if (url.pathname === '/api/thsr-alert') res = await thsrAlert(request, env);
     else if (url.pathname === '/api/metro-alert') res = await metroAlert(request, env);
+    else if (url.pathname === '/api/hazard-alert') res = await hazardAlert(request, env);
     else if (url.pathname === '/api/metro-live') {
       const sys = url.searchParams.get('sys');
       // hasOwnProperty.call 而非 METRO_LIVE_OPS[sys]:後者吃原型鏈,sys='constructor' 等會誤過閘門
@@ -2485,6 +2660,8 @@ export const _metroAlert = {
   metroAlertOpFallback, isRecentNews, isIncidentNewsTitle,
   stripHtmlAndTruncate, formatNewsTitle, mapNewsToAlert, filterAndMapNews,
 };
+// NCDR 災害觸發器純解析 + 端點/cron 編排，供 fixture-only 離線回歸測試。
+export const _hazard = { ncdrTimeMs, normalizeNcdrHazards, hazardAlert, hazardMonitorScheduled, resetHazardMem };
 // 純函式導出,供離線回歸測試 import:逐站事件 diff 與 mem.at→台北日換算。
 export const _stationEvents = { diffTrains, twDayFromMemAt };
 // 純函式導出,供離線回歸測試 import:誤點履歷視窗計算、車次驗證與回應組裝。

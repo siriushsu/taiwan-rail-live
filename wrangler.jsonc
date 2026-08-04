@@ -16,7 +16,8 @@
   // D1 綁定:預先算好的統計 blob(如台鐵準點率)存放處,/api/delay-stats 唯讀單列查詢用
   "d1_databases": [
     { "binding": "DELAY_DB", "database_name": "railisland-delay-history", "database_id": "33a943cc-50af-4ee3-905c-534db842a48b" },
-    // 北捷看板事件帳本(B1):每分鐘 cron 寫到站/出發事件,/api/trtc-live 的 ledger 欄位讀它。
+    // 北捷看板事件帳本(B1):每分鐘 cron 寫到站/出發事件,/api/trtc-live 的 ledger 欄位讀它；
+    // 同一班 cron 也會查 NCDR 生效中災害示警，有事件才喚醒官方營運公告快取（不多打一份北捷上游）。
     // 2026-08-03 建於 APAC。schema 由 worker 啟動時 CREATE TABLE IF NOT EXISTS 自建,無 migration 工具。
     { "binding": "TRTC_LEDGER", "database_name": "railisland-trtc-ledger", "database_id": "d9f5267d-f670-4657-b261-5bff39c51ebc" }
   ],
@@ -29,7 +30,8 @@
     { "binding": "USAGE", "dataset": "railisland_usage" },
     { "binding": "TRAFFIC", "dataset": "railisland_traffic" }
   ],
-  // Cron 觸發(UTC;15 1=台北 09:15、15 4=台北 12:15):scheduled handler 跑台鐵準點統計
+  // Cron 觸發(* * * * *=北捷帳本＋災害觸發器；UTC 15 1=台北 09:15、15 4=台北 12:15):
+  // scheduled handler 的每日分支跑台鐵準點統計
   // 每日增量(抓 TDX 歷史前一日→寫 D1→重建 blob)。TDX 每日台北 08:00 更新前一日資料,
   // 第一發 09:15 抓;第二發 12:15 是自癒備援,補上第一發若尚未更新或失敗的缺口(冪等,重跑無害)。
   //
