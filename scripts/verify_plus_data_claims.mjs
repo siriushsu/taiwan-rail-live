@@ -273,15 +273,20 @@ check('D7-ENTITLEMENT-DELETION', '文案', '刪除帳號涵蓋 Plus 資格紀錄
 // 「登出→訪客新增→換一個 uid 登入」的真實路徑）驗到 verify_account_sync_race.mjs 的 R18——
 // 那邊已經有 Playwright 起真實頁面、真實呼叫 accountEndSession()/userDataRead() 的既有機制
 // （R4/R5/R6 珠玉在前），比在這支純靜態分析的檔案裡另外土法接一套瀏覽器更省風險。
-check('D8-GUEST-MERGE-CLAIM', '文案', '未登入畫面對「訪客資料會不會併入帳號」依裝置登入史分兩種情況說明，不再無條件承諾，且交代不併入時資料還在裝置上', () => {
-  const condMerge = /若這台裝置沒登入過其他帳號/.test(guestMergeIntro) && /併入帳號/.test(guestMergeIntro);
-  const condNoMerge = /若這台裝置先前登入過別的帳號/.test(guestMergeIntro) && /不會自動併入/.test(guestMergeIntro);
+check('D8-GUEST-MERGE-CLAIM', '文案', '未登入畫面對「訪客資料會不會併入帳號」依「這台裝置還記不記得別的帳號」分兩種情況說明（不是用登入史，那在刪帳號路徑上不成立），不再無條件承諾，且交代不併入時資料還在裝置上', () => {
+  // 措辭鎖「記著/沒記著別的帳號」而不是「先前登入過」:刪除帳號會清掉 ACCOUNT_LAST_UID_KEY
+  // (R12f 在驗那之後的匿名收藏會被帶進新帳號),那時「先前登入過別的帳號」為真但資料確實會併入
+  // ⇒ 用登入史描述會是一句不實陳述。真正決定行為的是「這台裝置現在還記不記得別的帳號」。
+  const condMerge = /若這台裝置沒有記著別的帳號/.test(guestMergeIntro) && /併入帳號/.test(guestMergeIntro);
+  const condNoMerge = /若這台裝置還記著上一個登入的別的帳號/.test(guestMergeIntro) && /不會自動併入/.test(guestMergeIntro);
+  // 「先前登入過」這個措辭本身要擋住:它在刪帳號路徑上不成立,將來有人改回去就要紅。
+  const noLoginHistoryFraming = !/先前登入過別的帳號|沒登入過其他帳號/.test(guestMergeIntro);
   const dataRetained = /不會遺失/.test(guestMergeIntro);
   // 舊版突變基準：整句話沒有任何前提子句，直接斷言「會」。改回這句話，本斷言必須紅。
   const oldUnconditional = /目前裝置上的訪客資料會在首次登入時合併進帳號/.test(guestMergeIntro);
   return {
-    pass: condMerge && condNoMerge && dataRetained && !oldUnconditional,
-    detail: `會併情境=${condMerge}；不併情境=${condNoMerge}；不遺失=${dataRetained}；殘留舊無條件句=${oldUnconditional}；讀到=${guestMergeIntro}`,
+    pass: condMerge && condNoMerge && dataRetained && !oldUnconditional && noLoginHistoryFraming,
+    detail: `會併情境=${condMerge}；不併情境=${condNoMerge}；不遺失=${dataRetained}；殘留舊無條件句=${oldUnconditional}；未用「登入史」措辭=${noLoginHistoryFraming}；讀到=${guestMergeIntro}`,
   };
 });
 
