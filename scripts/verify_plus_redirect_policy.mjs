@@ -100,7 +100,16 @@ async function hop(url, init, depth) {
   if (url === 'https://oauth2.googleapis.com/token') {
     return new Response(JSON.stringify({ access_token: OAUTH_TOKEN, expires_in: 3600 }), { status: 200 });
   }
-  if (url.includes('firestore.googleapis.com')) return new Response('{}', { status: 200 });
+  // 資格文件寫入是「GET 現存文件 → 帶 precondition PATCH」兩發（CAS）。GET 必須回一份帶
+  // updateTime 的真文件，否則寫入路徑會在讀完就中止，那發 PATCH 的 redirect 政策就等於沒被驗到。
+  if (url.includes('firestore.googleapis.com')) {
+    return new Response(JSON.stringify({
+      name: `projects/project-fixture/databases/(default)/documents/entitlements/${UID}`,
+      fields: { active: { booleanValue: false }, activeUntilMs: { integerValue: '0' },
+        updatedAtMs: { integerValue: '1' }, source: { stringValue: 'plus-status' } },
+      createTime: '2026-08-04T00:00:00.000000Z', updateTime: '2026-08-04T00:00:00.000000Z',
+    }), { status: 200 });
+  }
   return new Response('{}', { status: 599 });
 }
 

@@ -76,6 +76,7 @@ let rcPages = null;
 let rcByCustomer = null;
 let rcStatus = 200;
 let firestoreStatus = 200;
+let firestoreDoc = null;
 let trafficPoints = [];
 const realFetch = globalThis.fetch;
 
@@ -107,6 +108,15 @@ globalThis.fetch = async (input, init = {}) => {
     return new Response(JSON.stringify(rcBody), { status: rcStatus });
   }
   if (url.includes('firestore.googleapis.com')) {
+    // writePlusEntitlement 現在是「讀 → 帶 precondition 寫」：GET 回現存文件（firestoreDoc 為
+    // null ⇒ 404＝文件不存在），PATCH 才吃 firestoreStatus。這支腳本驗的是既有性質，所以現存
+    // 文件預設不存在（等同全新使用者）；CAS 的新舊比較與衝突重試由
+    // scripts/verify_plus_entitlement_cas.mjs 用一顆會真的執行 precondition 的替身驗。
+    if (method === 'GET') {
+      return firestoreDoc
+        ? new Response(JSON.stringify(firestoreDoc), { status: 200 })
+        : new Response(JSON.stringify({ error: { code: 404, status: 'NOT_FOUND' } }), { status: 404 });
+    }
     return new Response('{}', { status: firestoreStatus });
   }
   return new Response('{}', { status: 599 });
@@ -145,11 +155,16 @@ function resetIo({ resetToken = true } = {}) {
   rcByCustomer = null;
   rcStatus = 200;
   firestoreStatus = 200;
+  firestoreDoc = null;
   trafficPoints = [];
   if (resetToken) resetFirestoreAccessTokenCache();
 }
 
 const callsTo = (fragment) => calls.filter(call => call.url.includes(fragment));
+// 資格文件的寫入路徑現在會先 GET 再 PATCH（CAS），所以「寫了幾筆」必須只數 PATCH——用
+// callsTo('firestore...') 會把那發讀取一起數進去。仍然斷言「零 Firestore 動作」的地方刻意保留
+// callsTo()：那些情境連讀都不該發生，數全部比只數 PATCH 強。
+const firestoreWrites = () => calls.filter(call => call.url.includes('firestore.googleapis.com') && call.method === 'PATCH');
 const decodeJwtPart = (part) => JSON.parse(Buffer.from(part, 'base64url').toString('utf8'));
 const webhookRequest = (authorization, environment = 'PRODUCTION', method = 'POST') => {
   const headers = { 'content-type': 'application/json', 'cf-connecting-ip': '203.0.113.7' };
@@ -276,10 +291,11 @@ section(SECTIONS[2]);
 
   resetIo();
   await writePlusEntitlement(UID, activeDoc, ENV(), NOW_MS);
-  const writes = callsTo('firestore.googleapis.com');
+  const writes = firestoreWrites();
   const written = writes[0] ? JSON.parse(writes[0].body) : {};
+  const writePath = writes[0] ? new URL(writes[0].url).pathname : '';
   check(writes.length === 1 && writes[0].method === 'PATCH'
-      && writes[0].url.endsWith(`/documents/entitlements/${UID}`),
+      && writePath.endsWith(`/documents/entitlements/${UID}`),
     '實際寫入 entitlements/{uid}，使用 Firestore REST PATCH', writes.map(c => `${c.method} ${c.url}`).join(' | '));
   check(writes.length === 1 && written.fields.source.stringValue === 'plus-status'
       && writes[0].headers.get('Authorization') === 'Bearer oauth-fixture-1',
@@ -300,7 +316,7 @@ section(SECTIONS[3]);
 
   resetIo();
   response = await worker.fetch(webhookRequest(AUTH_VALUE), ENV(), {});
-  const acceptedWrites = callsTo('firestore.googleapis.com');
+  const acceptedWrites = firestoreWrites();
   check(response.status === 200 && (await response.json()).ok === true && acceptedWrites.length === 1,
     'Authorization 正確 ⇒ 路由接受並真的寫入 Firestore', `status=${response.status} writes=${acceptedWrites.length}`);
   check(trafficPoints.some(point => point.blobs && point.blobs[1] === 'revenuecat-webhook'),
@@ -324,11 +340,11 @@ section(SECTIONS[4]);
   check(response.status === 200 && callsTo('api.revenuecat.com').length === 0
       && callsTo('firestore.googleapis.com').length === 0,
     'SANDBOX webhook ⇒ 接受但不查正式資格、不寫 Firestore',
-    `status=${response.status} rc=${callsTo('api.revenuecat.com').length} writes=${callsTo('firestore.googleapis.com').length}`);
+    `status=${response.status} rc=${callsTo('api.revenuecat.com').length} writes=${firestoreWrites().length}`);
 
   resetIo();
   response = await worker.fetch(webhookRequest(AUTH_VALUE, 'PRODUCTION'), ENV(), {});
-  const writes = callsTo('firestore.googleapis.com');
+  const writes = firestoreWrites();
   const body = writes[0] ? JSON.parse(writes[0].body) : {};
   check(response.status === 200 && writes.length === 1 && body.fields.active.booleanValue === true,
     '正向對照：PRODUCTION webhook＋正式有效訂閱 ⇒ 寫 active=true',
@@ -337,7 +353,7 @@ section(SECTIONS[4]);
   resetIo();
   rcBody = { items: [baseSubscription({ environment: 'sandbox' })] };
   response = await worker.fetch(webhookRequest(AUTH_VALUE, 'PRODUCTION'), ENV(), {});
-  const sandboxInRest = callsTo('firestore.googleapis.com');
+  const sandboxInRest = firestoreWrites();
   const sandboxBody = sandboxInRest[0] ? JSON.parse(sandboxInRest[0].body) : {};
   check(response.status === 200 && sandboxInRest.length === 1 && sandboxBody.fields.active.booleanValue === false,
     '第二道防線：REST 回應若混入 sandbox 訂閱，也只能寫 active=false', JSON.stringify(sandboxBody));
@@ -345,7 +361,7 @@ section(SECTIONS[4]);
   resetIo();
   rcBody = { items: [baseSubscription({ gives_access: false })] };
   response = await worker.fetch(webhookRequest(AUTH_VALUE, 'PRODUCTION'), ENV(), {});
-  const revokedWrites = callsTo('firestore.googleapis.com');
+  const revokedWrites = firestoreWrites();
   const revokedBody = revokedWrites[0] ? JSON.parse(revokedWrites[0].body) : {};
   check(response.status === 200 && revokedWrites.length === 1
       && revokedBody.fields.active.booleanValue === false
@@ -366,23 +382,23 @@ section(SECTIONS[5]);
   const body = await response.json();
   check(response.status === 200 && body.active === true,
     'Firestore 寫入失敗時 /api/plus-status 仍回正確唯讀答案', `status=${response.status} body=${JSON.stringify(body)}`);
-  check(callsTo('firestore.googleapis.com').length === 1 && errors.some(line => line.includes('Firestore write failed')),
-    '失敗確實發生且有診斷 log，不是靜默跳過寫入', `writes=${callsTo('firestore.googleapis.com').length} logs=${JSON.stringify(errors)}`);
+  check(firestoreWrites().length === 1 && errors.some(line => line.includes('Firestore write failed')),
+    '失敗確實發生且有診斷 log，不是靜默跳過寫入', `writes=${firestoreWrites().length} logs=${JSON.stringify(errors)}`);
 
   resetIo();
   const successErrors = [];
   console.error = (...args) => successErrors.push(args.map(String).join(' '));
   try { response = await plusStatus(plusStatusRequest(), ENV()); }
   finally { console.error = realConsoleError; }
-  check(response.status === 200 && callsTo('firestore.googleapis.com').length === 1 && successErrors.length === 0,
+  check(response.status === 200 && firestoreWrites().length === 1 && successErrors.length === 0,
     '正向對照：寫入成功時仍回 200、確實寫一筆且不誤報錯',
-    `status=${response.status} writes=${callsTo('firestore.googleapis.com').length} logs=${successErrors.length}`);
+    `status=${response.status} writes=${firestoreWrites().length} logs=${successErrors.length}`);
 
   resetIo();
   rcBody = { items: [baseSubscription({ environment: 'sandbox' })] };
   response = await plusStatus(plusStatusRequest(), ENV());
   const sandboxStatusBody = await response.json();
-  const sandboxStatusWrites = callsTo('firestore.googleapis.com');
+  const sandboxStatusWrites = firestoreWrites();
   const sandboxStatusDoc = sandboxStatusWrites[0] ? JSON.parse(sandboxStatusWrites[0].body) : {};
   check(response.status === 200 && sandboxStatusBody.active === false
       && sandboxStatusWrites.length === 1
@@ -404,9 +420,9 @@ section(SECTIONS[6]);
   resetIo();
   const openLimiter = limiter(true);
   response = await worker.fetch(webhookRequest(AUTH_VALUE), ENV({ AUTH_LIMITER: openLimiter }), {});
-  check(response.status === 200 && openLimiter.calls === 1 && callsTo('firestore.googleapis.com').length === 1,
+  check(response.status === 200 && openLimiter.calls === 1 && firestoreWrites().length === 1,
     '正向對照：limiter 放行 ⇒ webhook 會走到 Firestore 寫入',
-    `status=${response.status} limiter=${openLimiter.calls} writes=${callsTo('firestore.googleapis.com').length}`);
+    `status=${response.status} limiter=${openLimiter.calls} writes=${firestoreWrites().length}`);
 
   resetIo();
   const brokenLimiter = limiter(true, true);
@@ -428,7 +444,7 @@ section(SECTIONS[7]);
   let response = await plusStatus(plusStatusRequest(), ENV());
   const pageBody = await response.json();
   const pageCalls = callsTo('api.revenuecat.com');
-  const pageWrites = callsTo('firestore.googleapis.com');
+  const pageWrites = firestoreWrites();
   const pageWriteBody = pageWrites[0] ? JSON.parse(pageWrites[0].body) : {};
   check(response.status === 200 && pageBody.active === true && pageCalls.length === 2
       && pageWriteBody.fields && pageWriteBody.fields.active.booleanValue === true
@@ -480,9 +496,9 @@ section(SECTIONS[8]);
     id: 'event-transfer', type: 'TRANSFER', environment: 'PRODUCTION',
     transferred_from: [TRANSFER_FROM], transferred_to: [TRANSFER_TO],
   }), ENV(), {});
-  const transferWrites = callsTo('firestore.googleapis.com');
+  const transferWrites = firestoreWrites();
   const writtenByUid = Object.fromEntries(transferWrites.map(call => [
-    decodeURIComponent(call.url.split('/documents/entitlements/')[1] || ''),
+    decodeURIComponent(new URL(call.url).pathname.split('/documents/entitlements/')[1] || ''),
     JSON.parse(call.body).fields.active.booleanValue,
   ]));
   check(response.status === 200 && transferWrites.length === 2
@@ -508,9 +524,9 @@ section(SECTIONS[8]);
     id: 'event-transfer-no-env', type: 'TRANSFER',
     transferred_from: [TRANSFER_FROM], transferred_to: [TRANSFER_TO],
   }), ENV(), {});
-  check(response.status === 200 && callsTo('firestore.googleapis.com').length === 2,
+  check(response.status === 200 && firestoreWrites().length === 2,
     'TRANSFER 不帶 environment（官方標為 Sometimes）⇒ 仍然處理，不因為缺一個選填欄位就 400 並燒掉重試次數',
-    `status=${response.status} writes=${callsTo('firestore.googleapis.com').length}`);
+    `status=${response.status} writes=${firestoreWrites().length}`);
 
   // 反向對照 1：明確標 SANDBOX 的 TRANSFER 仍然只確認收件，不得動任何正式資格文件。
   resetIo();
@@ -549,8 +565,8 @@ section(SECTIONS[8]);
     id: 'event-transfer-same', type: 'TRANSFER', environment: 'PRODUCTION',
     transferred_from: [TRANSFER_TO], transferred_to: [TRANSFER_TO],
   }), ENV(), {});
-  check(response.status === 200 && callsTo('firestore.googleapis.com').length === 1,
-    '同一個 uid 同時出現在轉出與轉入 ⇒ 去重，只查一次寫一次', `writes=${callsTo('firestore.googleapis.com').length}`);
+  check(response.status === 200 && firestoreWrites().length === 1,
+    '同一個 uid 同時出現在轉出與轉入 ⇒ 去重，只查一次寫一次', `writes=${firestoreWrites().length}`);
 }
 
 // ── 10. 查詢不完整／不合規時，一行 Firestore 都不准寫（I-1／I-3／I-4／I-5）───────────────
@@ -596,7 +612,7 @@ section(SECTIONS[9]);
     { body: { items: [baseSubscription({ id: 'sub_fixture_page_2' })], next_page: null } },
   ];
   const okResponse = await plusStatus(plusStatusRequest(), ENV());
-  const okWrites = callsTo('firestore.googleapis.com');
+  const okWrites = firestoreWrites();
   const okDoc = okWrites[0] ? JSON.parse(okWrites[0].body) : {};
   check(okResponse.status === 200 && (await okResponse.json()).active === true
       && okWrites.length === 1 && okDoc.fields.active.booleanValue === true,
@@ -612,7 +628,7 @@ section(SECTIONS[9]);
   const hookResponse = await worker.fetch(webhookRequest(AUTH_VALUE), ENV(), {});
   check(hookResponse.status === 503 && callsTo('firestore.googleapis.com').length === 0,
     'webhook 路徑同理：分頁查不完整 ⇒ 503（讓 RevenueCat 重試），且零 Firestore 寫入',
-    `status=${hookResponse.status} writes=${callsTo('firestore.googleapis.com').length}`);
+    `status=${hookResponse.status} writes=${firestoreWrites().length}`);
 }
 
 globalThis.fetch = realFetch;

@@ -1290,18 +1290,120 @@ function validFirestoreDocumentId(value) {
   return bytes <= 1500 && !/^__.*__$/.test(value);
 }
 
+// 讀回來的資格文件裡的 updatedAtMs。Firestore REST 把 int64 包成**字串**（integerValue），
+// 所以一定要自己轉數字。回 null 的語意是「這份文件排不出先後」（欄位缺席、型別不是我方寫的
+// integerValue、或轉不出有限數），呼叫端據此決定怎麼辦——不可以拿 0 代替 null，那會讓
+// 「讀不出時間戳」與「時間戳真的是 0」變成同一件事。
+function storedEntitlementUpdatedAtMs(document) {
+  const field = document && document.fields && document.fields.updatedAtMs;
+  if (!field || typeof field !== 'object' || typeof field.integerValue !== 'string') return null;
+  const value = Number(field.integerValue);
+  return Number.isFinite(value) ? value : null;
+}
+
+// 一次 CAS 最多試幾輪。**有上限**這件事本身就是「不可能活鎖」的證明（見下方邊界決定）。
+// 3 輪的依據：資格文件的 writer 只有兩個入口（/api/plus-status 與 /api/revenuecat-webhook），
+// Firestore 規則對 /entitlements/{uid} 是 `allow write: if false`，沒有第三方 writer。
+const FIRESTORE_CAS_MAX_ATTEMPTS = 3;
+// 「文件在我讀完之後被別人動過」的所有表達方式。409／412 一望即知；Google API 也會用
+// 400（FAILED_PRECONDITION）／404（NOT_FOUND，文件在讀與寫之間被刪掉）表達同一件事，
+// 所以再看一次回應的 error.status，才不會把「衝突」誤判成不可重試的硬失敗。
+const FIRESTORE_CONFLICT_HTTP = new Set([409, 412]);
+const FIRESTORE_CONFLICT_REASONS = new Set(['ABORTED', 'ALREADY_EXISTS', 'FAILED_PRECONDITION', 'NOT_FOUND']);
+
+// ── 資格文件寫入：compare-and-set，舊真相不得覆蓋新真相 ──────────────────────────────
+// 🔴 2026-08-04 整合稽核 Important 1：/api/plus-status 與 RevenueCat webhook 各自獨立查真相，
+// 再對同一份 entitlements/{uid} 做**無條件** PATCH。文件雖然帶著 updatedAtMs，寫入時卻沒有
+// compare-and-set／transaction／precondition，也沒有每 uid 的序列化，於是真正生效的是
+// 「最後抵達 Firestore 的請求」，不是「最新取得的 RevenueCat 真相」：
+//   1. 較早的 plus-status 查到有效訂閱（updatedAtMs 較小），它那發 Firestore 請求延遲；
+//   2. 退款 webhook 稍後重查到無資格，先寫入 active:false（updatedAtMs 較大）；
+//   3. 第 1 步那筆舊 PATCH 最後抵達，把文件反向覆寫回 active:true。
+// firestore.rules 只看 active 與 activeUntilMs，不看 updatedAtMs ⇒ 已退款的人可以繼續寫雲端
+// 資料，直到舊訂閱原到期日再加寬限（年訂剛開始就退款的話，殘留可接近一年）。反向排序同樣會
+// 出事：舊的 inactive 蓋掉新的「重新訂閱」⇒ 付費者被誤判成沒訂閱。兩個方向是同一個缺陷的兩面。
+//
+// 修法＝**讀 → 比 updatedAtMs → 帶 precondition 寫 → 衝突就重讀重判**。
+// Firestore REST v1 discovery document 對 Precondition 的逐字說明
+// （https://firestore.googleapis.com/$discovery/rest?version=v1，schemas.Precondition）：
+//   updateTime — "When set, the target document must exist and have been last updated at that
+//                 time. Timestamp must be microsecond aligned."
+//   exists     — "When set to `true`, the target document must exist. When set to `false`,
+//                 the target document must not exist."
+// documents.patch 把這兩個收成 query 參數 currentDocument.updateTime／currentDocument.exists。
+// 於是「我讀到的那一版就是我要覆寫的那一版」由 Firestore 自己保證（讀與寫之間有人插隊就 412／
+// 409），我方只需要負責「比我新的不要覆寫」。updateTime 一律**原樣回送**，不重新格式化——
+// 規格要求微秒對齊，自己解析再組回去只會製造對不上的機會。
+//
+// 為什麼不用 read-write transaction（beginTransaction → get → commit）：單一文件的 CAS 用
+// precondition 只要兩發請求，transaction 要三發，保證強度一樣（都是「讀到的版本沒被動過才寫」）。
+// 為什麼 precondition 一定要配「重讀再判斷」：只把 PATCH 加上重試等於沒修——重試送的還是那筆
+// 舊真相，它遲早會在某個沒有衝突的時刻寫成功，缺陷原封不動。衝突的語意是「文件已經變了」，
+// 唯一正確的反應是重讀、重新比 updatedAtMs，再決定要不要寫。
+//
+// 邊界決定：
+//  · 兩筆 updatedAtMs **相同**（同一毫秒）⇒ 寫（條件是 stored <= incoming）。同一毫秒的兩筆是
+//    一樣新的真相，誰贏都對；而且同一筆 webhook 事件被重送時仍寫得進去，不會卡住自癒。用 `<`
+//    的話，文件一旦被設成同一毫秒就永遠寫不進去。`<=` 唯一的風險是搭配**無限**重試時可能活鎖，
+//    而這裡的重試次數是常數上限，所以活鎖在結構上不可能發生。
+//  · 上限用完仍衝突 ⇒ **保留現況**、不強寫，並拋錯。此時文件是別人剛寫進去的、至少跟我一樣新，
+//    留著它比覆寫它安全（fail-closed 會把付費者關掉，是對付費者最傷的方向）。拋錯讓 webhook
+//    回 503 由 RevenueCat 重試（重試會重查當下真相），plus-status 則沿用既有的「寫入失敗不影響
+//    唯讀答案」隔離。
+//  · 現存文件讀不出合法 updatedAtMs（舊格式／被外力改壞）⇒ 視同排不出先後＝可以覆寫：我方這筆
+//    是剛查到的真相，一份無法排序的文件沒有「比較新」的立場。
+//  · 讀到 200 卻沒有 updateTime ⇒ 拋錯不寫。沒有 updateTime 就做不出 CAS，這時候硬寫等於把
+//    CAS 靜默降級回舊的無條件覆寫，正是這條稽核要修的東西。
+//  · 判定為「舊的，跳過」是**成功**不是失敗：正常回傳 { written:false, outcome:'skipped-older' }，
+//    webhook 因此回 200（不燒掉 RevenueCat 有限的重試次數），並留下一行明說「刻意跳過」的 log。
 async function writePlusEntitlement(uid, doc, env, nowMs = Date.now()) {
   if (!validFirestoreDocumentId(uid)) throw new Error('invalid entitlement uid');
   const token = await getFirestoreAccessToken(env, nowMs);
   const project = encodeURIComponent(env.FIRESTORE_PROJECT_ID);
   const documentId = encodeURIComponent(uid);
-  const response = await fetch(`https://firestore.googleapis.com/v1/projects/${project}/databases/(default)/documents/entitlements/${documentId}`, {
-    method: 'PATCH',
-    headers: { Authorization: `Bearer ${token}`, 'content-type': 'application/json' },
-    body: JSON.stringify(firestoreEntitlementPayload(doc)),
-    redirect: 'error',                                        // C-1:見檔頭「憑證 subrequest 的 redirect 政策」
-  });
-  if (!response.ok) throw new Error(`firestore write ${response.status}`);
+  const url = `https://firestore.googleapis.com/v1/projects/${project}/databases/(default)/documents/entitlements/${documentId}`;
+  for (let attempt = 1; attempt <= FIRESTORE_CAS_MAX_ATTEMPTS; attempt += 1) {
+    // ── 讀：拿現存文件的 updateTime（precondition 用）與 updatedAtMs（新舊比較用）──
+    const current = await fetch(url, {
+      headers: { Authorization: `Bearer ${token}` },
+      redirect: 'error',                                      // C-1:見檔頭「憑證 subrequest 的 redirect 政策」
+    });
+    let precondition;
+    if (current.status === 404) {
+      precondition = 'currentDocument.exists=false';          // 文件不存在 ⇒ 只有「還是不存在」才准建立
+    } else if (current.ok) {
+      const existing = await current.json();
+      const updateTime = existing && existing.updateTime;
+      if (typeof updateTime !== 'string' || !updateTime) throw new Error('firestore read missing updateTime');
+      const storedUpdatedAtMs = storedEntitlementUpdatedAtMs(existing);
+      if (storedUpdatedAtMs !== null && storedUpdatedAtMs > doc.updatedAtMs) {
+        // 刻意跳過，不是失敗：現存文件比這筆真相新。log 不含 uid／憑證（同 plus-status 的慣例）。
+        console.log(`[plus-entitlement] CAS 刻意跳過寫入：現存文件較新（stored=${storedUpdatedAtMs} incoming=${doc.updatedAtMs} source=${doc.source}）`);
+        return { written: false, outcome: 'skipped-older' };
+      }
+      precondition = `currentDocument.updateTime=${encodeURIComponent(updateTime)}`;
+    } else {
+      throw new Error(`firestore read ${current.status}`);
+    }
+    // ── 寫：precondition 保證覆寫的就是剛剛讀到的那一版 ──
+    const response = await fetch(`${url}?${precondition}`, {
+      method: 'PATCH',
+      headers: { Authorization: `Bearer ${token}`, 'content-type': 'application/json' },
+      body: JSON.stringify(firestoreEntitlementPayload(doc)),
+      redirect: 'error',                                      // C-1:見檔頭「憑證 subrequest 的 redirect 政策」
+    });
+    if (response.ok) return { written: true, outcome: precondition.startsWith('currentDocument.exists') ? 'created' : 'updated' };
+    let reason = '';
+    try {
+      const failure = await response.json();
+      reason = (failure && failure.error && failure.error.status) || '';
+    } catch (e) {}
+    const conflict = FIRESTORE_CONFLICT_HTTP.has(response.status)
+      || ((response.status === 400 || response.status === 404) && FIRESTORE_CONFLICT_REASONS.has(reason));
+    if (!conflict) throw new Error(`firestore write ${response.status}`);
+    console.log(`[plus-entitlement] CAS 衝突，重讀後重新判斷（attempt=${attempt} status=${response.status} reason=${reason || '未提供'} source=${doc.source}）`);
+  }
+  throw new Error('firestore write conflict unresolved');
 }
 
 // /api/plus-status 與 webhook 共用唯一一條 RevenueCat 讀取路徑：limit=100、逐頁累積所有
