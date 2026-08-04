@@ -3319,6 +3319,8 @@
         <li class="grp">最近更新</li>
         <li><span class="d">8/4</span><span>橘線列車進入大橋頭以南共線路段後，會延續它原本來自蘆洲或迴龍的支線身分，不再把往南勢角的蘆洲線列車誤算到新莊線；班表車數不變</span></li>
         <li><span class="d">8/4</span><span>颱風、地震、雷雨、豪雨等災害示警生效時，軌島會啟動加強監看：立即重查台鐵、高鐵與捷運的官方營運公告，示警期間持續複查；災害示警本身不代表列車已停駛，也不會讓地圖上的車消失</span></li>
+        <li><span class="d">8/4</span><span>App 的台鐵班表過期後會自動上網補最新的，不必等改版</span></li>
+        <li><span class="d">8/4</span><span>阿里山林鐵 1、2 次的介紹被寫成台鐵環島之星，現在改回阿里山號（謝謝網友回報）</span></li>
         <li><span class="d">8/4</span><span>文湖線車數修正——官方沒有公開逐班時刻，我們原本照公告班距範圍取中間值推算，實測發現全時段都比實際疏，畫面上少了約三成的車；改用累積八萬筆到站觀測的實際班距重算</span></li>
         <li><span class="d">8/4</span><span>環狀線也改吃官方到站倒數逐班校正，位置跟著實際車況走；當下沒對到的班次改用全線平均誤點量，不再假裝準點</span></li>
         <li><span class="d">8/3</span><span>北捷列車位置改為逐班跟著官方秒級到站倒數校正；即時資料沒對到時仍照當日班表走，不會憑空多車或少車</span></li>
@@ -3328,7 +3330,6 @@
         <li><span class="d">8/1</span><span>衛星底圖換成比較省的計費方式：看到的畫面完全一樣，只是我們付給圖資供應商的錢少很多</span></li>
         <li><span class="d">7/31</span><span>林鐵、高鐵有些車次號碼跟台鐵重複，台鐵誤點時同號的車會被一起推走——現在各算各的</span></li>
         <li><span class="d">7/31</span><span>誤點的車，跟車面板比地圖上的車慢半拍：車停在站上卻寫「行進中」，現在修好了（謝謝網友回報）</span></li>
-        <li><span class="d">7/30</span><span>iPhone 發車看板的起站與目的站選單會列出你在軌島存過的「我的地點」：選了「家」，桌面顯示的就是「家」；日後把「家」重存到別的地方，桌面也會自己跟過去</span></li>
       </ul>
       <!-- 第二層:完整歷史。刻意不掛 .foot-box 類名——placeFootBoxes() 用
            `.site-foot .foot-box` 搬移面板,巢狀同名會被當成另一個盒子一起搬走。 -->
@@ -3356,6 +3357,8 @@
         <li><span class="d">7/16</span><span>捷運準確度升級：六家捷運依官方到站看板即時校正，國定假日自動改跑假日班表</span></li>
         <li><span class="d">7/9</span><span>台鐵即時誤點上線——介接交通部 TDX 平臺每分鐘更新；7/11 起開站即真實時刻、捷運改逐班推演</span></li>
         <li class="grp">跟車、搜尋與車站看板</li>
+        <li><span class="d">8/4</span><span>阿里山林鐵的 1、2 次跟台鐵環島之星是同一組車次號碼，點下去的介紹卡卻寫成「環島之星 萌旅號　全台唯一環島觀光列車…」；現在林鐵的車一律顯示自己的車種介紹（阿里山號），收藏與搜尋結果裡的名字也一併改正（謝謝網友回報）</span></li>
+        <li><span class="d">7/30</span><span>搜尋今天已經跑完的車，現在會帶你回到它發車前，不再當場亂蓋完乘章（謝謝網友回報）</span></li>
         <li><span class="d">7/29</span><span>台鐵、高鐵、林鐵有不少重複的車次號碼（1238、1241、1、2…），在高鐵或林鐵畫面點下去卻跟到台鐵的同號車；現在點哪個系統就跟哪個系統（謝謝網友回報）</span></li>
         <li><span class="d">7/28</span><span>「隨機跟隨」改成挑一班就陪你跟到終點，不再過一兩分鐘自己跳去別班車；想換車按「換一班」，結束按小卡的 ×</span></li>
         <li><span class="d">7/25</span><span>環島之星觀光列車上地圖了：搜尋車名或車次 1／2，跟著萌旅號 13 小時繞台灣一圈</span></li>
@@ -3429,6 +3432,7 @@
           <li class="web-only-donation-log"><span class="d">7/13</span><span>贊助方式更新：「請開發者喝咖啡」的銀行轉帳帳戶改用 LINE Bank（連線商業銀行 824）——謝謝每一位抖內支持軌島的朋友</span></li>
         <!-- APP_STRIP_END donation-log -->
         <li class="grp">資料校正</li>
+        <li><span class="d">8/4</span><span>App 內建的班表是送審當下的快照，之後原本得等下次改版才會更新——台鐵官方只公布未來 14 天，用完就會對不上連假加班車與臨時改點；三鶯線、各捷運線改點也一樣。現在 App 開機會比對一份很小的資料清單，只有真的變動過的檔案才重新下載，沒變的一個都不抓；抓不到就用內建那份，不會比原本差</span></li>
         <li><span class="d">8/1</span><span>台鐵快車在不停靠的小站之間跑到哪裡，推估得更準了。有網友拿碼錶站在彰化與花壇之間實地量了十幾班車，回報「車普遍比畫面上早經過」，自強號差到快兩分鐘。追查後發現不是推估方式的問題，而是我們在校正資料時把花壇這類「到站看板顯示時間比較長」的車站整批當成不可信而丟掉了，那幾站只好套用全線的平均值。現在改成看各站自己的顯示習慣，這些站的實測資料重新派上用場（謝謝網友回報，也謝謝那個早上）</span></li>
         <li><span class="d">7/29</span><span>刪除軌島帳號時，會一併刪掉你上傳過的 GPS 校正旅程資料與累積的貢獻點數，包含這台裝置以匿名身分傳的那些；隱私權政策也補上了這類資料保存多久、要怎麼刪除</span></li>
         <li><span class="d">7/29</span><span>圖磚還沒載入時墊底的台灣海陸輪廓換成內政部公開的縣市界線：舊資料比實際海岸線偏了一到三公里，東部海線好幾站看起來像在海上（謝謝網友回報）</span></li>
@@ -3715,7 +3719,7 @@
 // 🔴 BUILD 字串會跨並行分支撞號（心得 16）：07-28 兩條線各自遞增又各自部署過——
 // origin/main 這條用到 v0728b，正式站那條用到 v0728f。本次三方合併把兩條線統一，
 // 所以往後推到一個雙方都沒用過的號，辨識線上跑哪一版仍以內容 hash 為準。
-const BUILD = 'v0804e';
+const BUILD = 'v0804f';
 // 成就徽章與車廂標記＝原本那些 emoji 的單色平面版（RailEmoji＝裁切過的 Noto Emoji 單色）。
 // 刻意保留 railIcon(name) 這個唯一入口:呼叫端一行都不用改,只有這裡決定畫法。
 // 🔴 ⚖ 與 ♾ 一律寫**不帶 VS16(U+FE0F)** 的碼位——帶了就強制彩色呈現,會蓋過 font-family
@@ -8409,10 +8413,12 @@ const AMEN_FLAGS = [
 ];
 // 特別列車檔案(data/tra_special_trains.json)比對:車次號→具名列車、carName→車型、停站→支線。
 // 結果快取在車上;檔案缺失時回傳 null,呼叫端退回內建簡版(SPECIAL_TRAINS/KIND_RULES)
+// 這份檔只涵蓋台鐵,而車次號跨系統會撞號(林鐵 1/2 次 vs 環島之星 1/2 次,issue#23),
+// 故比對前必須以 tr.sys 限定台鐵——比照 assignRunProfiles 的實測通過時刻查表。
 function specialOf(tr) {
   if (tr._sp !== undefined) return tr._sp;
   const sd = state.special;
-  if (!sd) return (tr._sp = null);
+  if (!sd || tr.sys !== 'tra_sched') return (tr._sp = null);
   const no = String(tr.train);
   const named = sd.namedTrains.find(n => n.trainNos.includes(no)) || null;
   const stock = sd.rollingStock.find(r => r.carNames.includes(tr.carName)) || null;
@@ -14817,9 +14823,46 @@ function drawFlow() {
 }
 const FLOW_LBL_DEFAULT = '全日同時運行列車數（依時刻表）——點擊圖表跳到該時刻';
 
+// App 殼專用:哪些打包的資料檔已經比網站舊(由 initDataFreshness 依 data_manifest.json 算出)。
+// null＝還沒判定或不適用(網站版恆為 null) ⇒ fetchJSON 走原本的相對路徑,行為與改動前一致。
+let _staleData = null;
+const MANIFEST = 'data/data_manifest.json';
+
 async function fetchJSON(url) {
+  // bundle 內這個檔已經過期 ⇒ 改抓網站上那份。只認 './data/…' 字面路徑,
+  // 絕對網址(apiUrl 的產物)與其他來源一律不碰。
+  const rel = typeof url === 'string' && url.startsWith('./data/') ? url.slice(2) : null;
+  const remote = (rel && _staleData && _staleData.has(rel)) ? apiUrl(rel) : null;
+  if (remote) {
+    const got = await fetchJSONAt(remote);
+    if (got) return got;                       // 抓不到就往下走,退回 bundle 那份(不會比原本差)
+  }
+  return fetchJSONAt(url);
+}
+async function fetchJSONAt(url) {
   try { const r = await fetch(url, { cache: 'no-store' }); return r.ok ? await r.json() : null; }
   catch (e) { return null; }
+}
+
+// App 殼專用:比對「bundle 內的資料清單」與「網站上的資料清單」,標出哪些檔已經過期。
+// 為什麼需要:bundle 裡的 data/*.json 是送審當下的快照,之後只有再送審才會更新——三鶯線
+// 試營運時段(2026-08-31 到期)、各線改點、台鐵班表重抓都會讓它與網站脫節,而畫面照常有車、
+// 不會報錯,使用者只是看到錯的班次。
+// 成本:平常一個約 1KB 的請求;有檔案改了才下載那幾個檔,沒改的一個都不抓。
+// 只在 App 跑:網站版 API_BASE 為空,兩份清單會是同一個檔案,比了也沒有意義。
+// 任何一步失敗(離線、清單缺檔、格式壞掉)一律靜默退回「全部用 bundle」＝改動前的行為。
+async function initDataFreshness() {
+  if (!API_BASE) return;
+  try {
+    const [local, remote] = await Promise.all([fetchJSONAt('./' + MANIFEST), fetchJSONAt(apiUrl(MANIFEST))]);
+    if (!local || !remote) return;
+    const stale = Object.keys(remote).filter(k => local[k] && local[k] !== remote[k]);
+    // local 沒有的鍵不納入:那是網站新增、但這版 App 根本不會載的檔,抓了也沒人用。
+    if (stale.length) {
+      _staleData = new Set(stale);
+      console.info('[data] 打包的資料有 ' + stale.length + ' 個檔比網站舊，將改抓最新版：' + stale.join(', '));
+    }
+  } catch (e) { /* 靜默退回 bundle */ }
 }
 
 // 多日班表(fetch_tra_schedule.py 產出 dates:{日期→[trains 索引]} 聯集檔):boot 時依台北營運日
@@ -14859,6 +14902,23 @@ function resolveScheduleDay(data) {
   const idxs = data.dates[key] || [];
   const trains = idxs.map(i => data.trains[i]).filter(Boolean);
   return { ...data, trains, date: key, _schedDay: key, _schedStale: stale };
+}
+
+// App 殼專用:打包進 bundle 的台鐵班表只在「送審」時才會更新,而台鐵 ODS 只發佈未來 14 天
+// ⇒ 那個窗必然會過期,而且是靜默的——上面 resolveScheduleDay 只退「同週幾最近日」再 console.warn,
+// 畫面照常有車,但連假/國定假日/加班車/改點全部會錯,一路錯到下次送審為止。
+// 所以過期時回頭向網站抓最新那份(網站每週重抓重部署,見 npm run fetch-schedule)。
+// 幾個刻意的判斷:
+//  - 只在 App 跑:網站版 API_BASE 為空、apiUrl() 會原樣回傳同一個相對路徑,抓了還是同一份檔案。
+//    這個 guard 也保證本次改動對網站是行為零變化。
+//  - 只在過期時抓:窗還涵蓋今天就完全不發這個請求 ⇒ 平常零額外流量;過期時實測約 390KB(Brotli)。
+//  - 抓不到(離線)或抓回來一樣過期 ⇒ 沿用 bundle 那份,退回舊行為,不會比原本差。
+async function refreshStaleSchedule(def, day) {
+  if (!day || !day._schedStale || !API_BASE) return day;
+  const fresh = resolveScheduleDay(await fetchJSON(apiUrl(def.url.replace(/^\.\//, ''))));
+  if (!fresh || fresh._schedStale) return day;
+  console.info('[schedule] 打包的班表已過期,已向網站補抓最新那份:' + fresh._schedDay);
+  return fresh;
 }
 
 // 圖磚未載入或 App 離線時的海陸底層。台灣輪廓＝內政部「直轄市、縣市界線(TWD97經緯度)」1140318
@@ -16471,9 +16531,14 @@ async function boot() {
     sys.data.trains.push(mk('97', ali, zhu, r5(S - 72 * 60)), mk('98', zhu, ali, r5(S + 38 * 60)));
   }
 
+  // 必須在任何 fetchJSON('./data/…') 之前:它決定哪些打包資料要改抓網站上的最新版。
+  // 網站版直接 return,不影響開機時序。
+  await initDataFreshness();
+
   for (const d of SYS_DEFS) {
-    const data = await fetchJSON(d.url);
-    if (data) state.systems.push({ ...d, data: resolveScheduleDay(data) }); // 多日班表→挑台北營運日當日子集;舊格式原樣通過
+    let day = resolveScheduleDay(await fetchJSON(d.url)); // 多日班表→挑台北營運日當日子集;舊格式原樣通過
+    day = await refreshStaleSchedule(d, day);             // 保險:清單機制沒生效時,台鐵這一份仍會自救
+    if (day) state.systems.push({ ...d, data: day });
   }
   // 各 sched 系統的軌道底圖幾何(台鐵 tra.json / 高鐵 thsr_track.json)掛在該系統上,loadSystem 依系統取用
   for (const s of state.systems) if (s.track) s._track = await fetchJSON(s.track);
