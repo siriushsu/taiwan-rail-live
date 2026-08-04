@@ -2702,6 +2702,11 @@
     body.fs:not(.ambient):not(.live) .leaflet-bottom.leaflet-right { bottom: calc(var(--tabbar-clear) + 62px); }
     /* 展開態(cexp):完整帶佔滿下緣會壓住版權角→比照 sheet-open 淡出版權(短暫互動態,收合即回,不影響授權常態顯示) */
     body.cexp .leaflet-control-attribution { opacity: 0; pointer-events: none; }
+    /* 同理:App 內建瀏覽器逃生提示(bottom:74px、z713)整片壓在展開帶上。cexp 是使用者主動點出、
+       5 秒無互動自動收回的短暫態,收回提示就回來;反過來收掉膠囊則會讓 in-app 瀏覽器的訪客
+       整場拿不到播放/速度控制。這條同時是 placeFsOverlays 那道 opacity 門檻的前提——
+       淡出的提示不再算「下緣家具」,跟車卡才不會白白多讓 88px。 */
+    body.cexp .iab-hint { opacity: 0; pointer-events: none; }
 
     /* ── 手機速度控制膠囊(≤900 一律;非放空非直播;桌面完全不變) ──
        預設 slim:貼底置中細長膠囊,只露 ▶/⏸ + 倍速 + 模擬時刻。
@@ -3339,11 +3344,11 @@
            內容 li 上限 8 條(li.grp 是標題不算)。 -->
       <ul class="foot-list foot-recent">
         <li class="grp">最近更新</li>
+        <li data-cl-of="inapphint"><span class="d">8/3</span><span>從 LINE、FB 開軌島時，提示卡蓋住播放鍵與跟車小卡，現在會讓開了</span></li>
         <li data-cl-of="takeout-preview"><span class="d">8/3</span><span>Google 清單超過預覽上限時，沒顯示的地點不會再自動跟著匯入；想全部匯入可以明確勾選其餘筆數</span></li>
         <li data-cl-of="favtrainkey"><span class="d">8/3</span><span>台鐵與高鐵剛好同車次時，現在可以一起收藏；移除其中一班也不會再把另一班一併刪掉</span></li>
         <li data-cl-of="sync"><span class="d">8/2</span><span>訂閱軌島 Plus 後可以用軌島帳號登入，收藏的地點與完乘記錄會在手機和電腦之間同步</span></li>
         <li data-cl-of="tripshare"><span class="d">8/2</span><span>訂閱 Plus 後可以把正在跟的班次分享給朋友，對方點開連結就看得到車跑到哪、還要多久到</span></li>
-        <li data-cl-of="satretina"><span class="d">8/2</span><span>在 App 裡訂閱 Plus 後，衛星底圖會用高解析度圖磚（支援 Retina 螢幕）</span></li>
         <li data-cl-of="founding"><span class="d">8/2</span><span>最早訂閱 Plus 的人，App 的旅程護照上會有一枚創始會員徽章</span></li>
         <li data-cl-of="liveactivity"><span class="d">8/2</span><span>訂閱 Plus 後在 App 裡跟車，鎖定畫面和動態島會顯示下一站與到站時間</span></li>
         <li data-cl-of="takeout"><span class="d">8/2</span><span>訂閱 Plus 後可以在 App 裡把 Google Maps 的「已儲存」清單匯入成軌島的最愛地點</span></li>
@@ -3413,8 +3418,8 @@
         <li><span class="d">7/13</span><span>收集章可以重複點，換搭不同班次回味</span></li>
         <li><span class="d">7/9</span><span>旅程護照與 16 枚成就徽章、「探」今日亮點面板上線</span></li>
         <li class="grp">手機與操作</li>
+        <li data-cl="inapphint"><span class="d">8/3</span><span>在 LINE、Facebook、Threads 裡開軌島時，底下「用瀏覽器開啟」的提示卡壓住播放／暫停鍵和跟車小卡（連小卡的關閉鈕都點不到）；現在提示卡會讓開，小卡也跟著往上排</span></li>
         <li data-cl="liveactivity"><span class="d">8/2</span><span>在 App 裡訂閱 Plus 後跟車，鎖定畫面與動態島會顯示這班車的下一站、到站時間與誤點；倒數自己會走，換一班車就換一張，停止跟車或跟到終點會自動收起來。需要 iOS 17.6 以上；App 退到背景比較久時，誤點數字會停在最後一次更新的值</span></li>
-        <li><span class="d">7/30</span><span>iPhone 主畫面可以加「發車看板」小工具了，選好起站就能直接看下一班車——選站不用再整份下拉，先挑縣市就會跳到那一區</span></li>
         <li><span class="d">7/30</span><span>車站看板與跟車面板可以調高度了：手機拉一下（或點一下）面板上緣的把手，在小／中／大之間切換。原本「大」只是上限、內容短的時候三段一樣高，拉了像沒作用；現在「大」有保證高度，車站看板也會跟著多列幾班車</span></li>
         <li><span class="d">7/30</span><span>新增 iPhone 主畫面小工具「發車看板」：長按桌面加入後選一個起站（可以再加目的站），桌面就會列出接下來幾班車；還能「只看這些」，例如只留自強號、或只盯自己每天搭的那幾班。選起站不必再整份 250 站下拉：清單依縣市分段，由北到南排</span></li>
         <li><span class="d">7/30</span><span>小工具的起站與目的站選單最上面多了一段「我的地點」：你在軌島存過的地點（家、公司…）會直接列出來，點一下就帶到離它最近的台鐵或高鐵站，不用自己記那一站叫什麼；選好之後桌面標題顯示的是「家 → 公司」，不是站名。日後把「家」重存到別的地方，桌面會自己跟到新位置的最近車站，不必回設定畫面重選；把地點改名或刪掉也不會壞，只是標題退回顯示車站名。附近 5 公里內沒有車站的地點不會出現，最多列 20 筆，自己存的排在 Google 地圖匯入的前面。台鐵與高鐵同一棟的車站（台北、板橋、南港、左營…）會選班次比較多的那一邊。這一段只有 iPhone 版 App 才有</span></li>
@@ -6009,11 +6014,11 @@ try {
 // (舊法「精確字串手術」讓網站日常改動動輒弄壞 App build,2026-07-22 改為本設定機制)。
 const APP_CFG = window.RAIL_APP_CONFIG || {};
 const FOLLOW_ZOOM_CAP = APP_CFG.followZoomCap || Infinity; // App 計量底圖(Stadia/Esri)跟車 zoom 上限(App=16);網站不設限
-// 衛星 Retina 高解析:開=Retina 螢幕清晰,但圖磚量約 2.9 倍(桌面 z13 實測 72 vs 25 張)。網站與 App 共用同一個 Esri 2M/月額度,
-// 額度吃緊時的止血開關——網站改下面這行 true→false,App 改 prepare-web.mjs 的 satRetina。
-// 2026-07-29 關掉：Esri World Imagery 免費額度 2M/期，07-28 上線後量測近 24h 約 12.4 萬張，
-// 照這個速度 08-03 前後就吃穿，之後每千張 $0.15。Retina 開著約 2.9 倍圖磚換來的是「Retina 螢幕上
-// 衛星圖更銳利」——在額度用完會變成「衛星圖直接不能用」面前，這個交換不划算。
+// 衛星 Retina 高解析:開=Retina 螢幕清晰,但圖磚請求量會明顯增加。網站與 App 共用同一份 Esri 圖磚配額,
+// 配額吃緊時的止血開關——網站改下面這行 true→false,App 改 prepare-web.mjs 的 satRetina。
+// 2026-07-29 關掉：上線後的實測用量顯示照當時的速度會在該計費期內把配額用完，
+// 而 Retina 換來的只是「Retina 螢幕上衛星圖更銳利」——在配額用完會變成
+// 「衛星圖直接不能用」面前，這個交換不划算。（實測數字與配額狀況屬營運資訊，不寫進公開 repo。）
 // 要復原就把這行改回 true（App 端還要一併改 prepare-web.mjs 的 satRetina，兩處是分開的）。
 const SAT_RETINA_DEFAULT = false;
 const SAT_RETINA = APP_CFG.satRetina ?? SAT_RETINA_DEFAULT;
@@ -15260,10 +15265,10 @@ async function setupOfflineLand() {
 }
 
 // ── 衛星圖磚的計費模式切換:按張數 → 按 session ────────────────────────────────
-// Esri 衛星有兩種計價,擇一:按張數(2M 免費/期,超出 $0.15 每千張)或按 basemap session
-// (1,000 顆免費/月,超出 $4 每千顆;一顆管 12 小時,期間圖磚不再計張數)。
-// 損益兩平在「一顆 session 要涵蓋 27 張圖磚」——手機瞄一眼衛星只吃 14 張、桌機一屏 42 張,
-// 所以「一開站就換 session」對隨手看的人反而比較貴。做法因此是混合:
+// Esri 衛星有兩種計價,擇一:按張數,或按 basemap session
+// (一顆 session 管 12 小時,期間圖磚不再計張數)。
+// 兩者有個損益兩平點:一顆 session 要涵蓋夠多張圖磚才划算,而「瞄一眼就走」的人載到的張數
+// 遠低於那個門檻,所以「一開站就換 session」對隨手看的人反而比較貴。做法因此是混合:
 //   先照原本按張數跑 → 這個客戶端在衛星上真的載超過 SAT_SESSION_AT 張(＝在探索,不是瞄一眼)
 //   → 才換成 session token,之後 12 小時內怎麼平移縮放都不再計張數。
 // 兩端都不會比原本貴:輕度使用者維持原本的張數計價,重度使用者被 session 封頂。
@@ -15839,27 +15844,82 @@ function setupMapTools() {
   setupBountyBrief(); // 出發前說明卡:關閉/等一下再說/開始錄製 三顆鈕(規格 §5 之四)
   setupRecordScreen(); // 極簡錄製畫面:停止錄製鈕(規格 §5 之一)
   setupHelp(); // 使用說明中心的四個入口與 ?help=1(要排在 setupHowto 之後:兩張卡不疊,help 開了就收首訪卡)
-  // 手機:跟隨小卡與跟隨鎖鈕依站台帶(速度膠囊)實際位置讓位——膠囊展開(cexp)變高時上移,收回還原。
+  // 手機:下緣家具由下往上排成三層——tab bar → 速度膠囊 → 逃生提示 → 跟車卡,每層讓開它下面那層。
   // 桌面帶常駐 stage 下緣、跟隨卡 CSS 固定 bottom 86px 在帶上方,不需 JS 重排。
+  const FS_TOP_KEEP = ['.topbar', '.badge', '#randBtn', '#nearBtn', '#tripClose'];
   function placeFsOverlays() {
     const isMobile = window.matchMedia(MOBILE_MQ).matches;
     const fp = document.getElementById('followPanel');
+    // 捷運跟車卡(#freqCard)與台鐵跟隨小卡是同一套定位(.stage 內 absolute/left/bottom、同樣貼底),
+    // 一樣得依膠囊實高讓位——但顯示條件各自獨立(freqFollow vs followTrain),閘門要分開算,
+    // 不能共用 followVisible(否則捷運跟車時整張卡不會抬,膠囊展開 cexp 就整片蓋住)。
+    const fc = document.getElementById('freqCard');
     const lc = document.querySelector('.follow-lock-ctl');
-    const followVisible = state.followTrain && !fp.hidden && !document.body.classList.contains('immersive');
-    if (isMobile && followVisible
-      && !document.body.classList.contains('ambient') && !document.body.classList.contains('live')) {
-      const stR = document.querySelector('.stage').getBoundingClientRect();
-      const ctR = document.querySelector('.controls').getBoundingClientRect();
-      const lift = Math.max(52, Math.round(stR.bottom - ctR.top) + 8); // 膠囊頂到 stage 底的高度+8
-      fp.style.bottom = lift + 'px';
-      if (lc) lc.style.marginBottom = (lift - 10) + 'px';
-    } else {
-      fp.style.bottom = '';
-      if (lc) lc.style.marginBottom = '';
+    const ih = document.getElementById('iabHint');
+    const ctl = document.querySelector('.controls');
+    const stR = document.querySelector('.stage').getBoundingClientRect();
+    const shellOk = isMobile && !document.body.classList.contains('ambient') && !document.body.classList.contains('live');
+    const immersive = document.body.classList.contains('immersive');
+    const followVisible = state.followTrain && !fp.hidden && !immersive;
+    const freqVisible = !!(state.freqFollow && fc && !fc.hidden && !immersive);
+    // ── 第一層:逃生提示(#iabHint)讓開膠囊 ──
+    // 提示 CSS 釘死 bottom:74px,而收合(slim)膠囊的頂端比提示的下緣還高 26–29px ⇒ 提示(z713)
+    // 整片壓在膠囊(z700)頂端,正好吃掉播放/暫停鍵:elementFromPoint(#pp 中心) 回 div#iabHint,
+    // 雙引擎 × 五個手機寬度 10/10 全中、與寬度無關(每個 in-app 瀏覽器訪客都按不到播放/暫停)。
+    // 兩邊都是可點控件,「誰畫在上面」解不了,只能把提示整個排到膠囊之上。
+    // 方向刻意不是反過來(提示疊到「卡」之上):那樣在 320×568 會把提示推到壓住 #randBtn(實測命中換人)。
+    // opacity 門檻:body.cexp 讓提示淡出(見上方 CSS),此刻它不佔視覺也不吃點擊,就不可再當家具——
+    // 否則會拿展開帶(162px 高)的頂端再往上推一次,連帶把卡推出畫面。
+    const ihShown = !!(shellOk && ih && !ih.hidden && ih.offsetParent && +getComputedStyle(ih).opacity >= 0.5);
+    if (ih) ih.style.bottom = (ihShown && ctl) ? (Math.round(stR.bottom - ctl.getBoundingClientRect().top) + 8) + 'px' : '';
+    // ── 第二層:跟車卡抬到整組下緣家具之上,但不得越過上緣家具 ──
+    let lift = null;
+    if (shellOk && (followVisible || freqVisible)) {
+      let topmost = ctl.getBoundingClientRect().top;
+      // 提示在上一步已就位,這裡量到的是它的**新**位置(它現在是下緣家具的最頂端)。
+      if (ihShown) topmost = Math.min(topmost, ih.getBoundingClientRect().top);
+      lift = Math.max(52, Math.round(stR.bottom - topmost) + 8); // 下緣家具最高點到 stage 底 +8
+      // 上界只算「與卡水平相交」的上緣家具:卡貼左(寬 176),而 #randBtn/#nearBtn/#tripClose 都貼右,
+      // 兩邊本來就撞不到;拿整個 #mapActions／#tripBanner 當上界會過度保守,反把卡壓回提示下面。
+      let cardH = 0, cardL = Infinity, cardR = -Infinity;
+      for (const el of [followVisible && fp, freqVisible && fc]) {
+        if (!el) continue;
+        const r = el.getBoundingClientRect();
+        cardH = Math.max(cardH, r.height); cardL = Math.min(cardL, r.left); cardR = Math.max(cardR, r.right);
+      }
+      let ceil = stR.top; // 底線:卡整張要留在 stage 內(stage overflow:hidden,飛出去連卡自己的 × 都點不到)
+      for (const sel of FS_TOP_KEEP) for (const el of document.querySelectorAll(sel)) {
+        if (!el.offsetParent || getComputedStyle(el).visibility === 'hidden') continue;
+        const r = el.getBoundingClientRect();
+        if (r.height > 0.5 && r.right > cardL + 0.5 && r.left < cardR - 0.5) ceil = Math.max(ceil, r.bottom);
+      }
+      lift = Math.max(52, Math.min(lift, Math.round(stR.bottom - (ceil + 8) - cardH)));
     }
+    fp.style.bottom = (lift != null && followVisible) ? lift + 'px' : '';
+    if (fc) fc.style.bottom = (lift != null && freqVisible) ? lift + 'px' : '';
+    // 跟隨鎖(Leaflet 右下控制角)台鐵與捷運兩種跟車都會顯示,抬升條件因此不可綁 followVisible——
+    // 綁著的話捷運跟車 + 膠囊展開(cexp)時鎖鈕 44×44 整顆壓在膠囊的「現在」鈕上。
+    if (lc) lc.style.marginBottom = (lift != null && (followVisible || freqVisible)) ? (lift - 10) + 'px' : '';
   }
   // 跟隨開始/結束時由 setFollow/clearFollow 經 state._placeFsOverlays 明確重排
   state._placeFsOverlays = placeFsOverlays;
+  // 三層堆疊裡任一層的**高度**變了,它上面那幾層就得重排;但高度自己會變、而且不發任何事件:
+  //   ・卡的內容隨跟隨中的車逐秒換(站名長度、誤點列在不在,實測 140–207px 之間跳);
+  //   ・提示的 .ih-note 會依複製結果/網址長度換行(copyUrl 失敗時整條網址塞進去);
+  //   ・膠囊 cfaint/slim/cexp 三態高度差到 132px。
+  // 既有的呼叫點(顯示切換、膠囊狀態機、resize)只涵蓋最後一項,前兩項會讓上界與讓位量停在舊值 ⇒ 補一支
+  // ResizeObserver。本函式只寫 bottom/marginBottom,不改任何被觀察元素的尺寸,不會自激;
+  // 仍用 rAF 併批,避免同一幀內多個元素各觸發一次。
+  if (window.ResizeObserver) {
+    let pending = false;
+    const ro = new ResizeObserver(() => {
+      if (pending) return;
+      pending = true;
+      requestAnimationFrame(() => { pending = false; placeFsOverlays(); });
+    });
+    for (const el of [document.querySelector('.controls'), document.getElementById('iabHint'),
+                      document.getElementById('followPanel'), document.getElementById('freqCard')]) if (el) ro.observe(el);
+  }
   function setFs(on) {
     // 手機殼(≤900)不可退出全螢幕:地圖就是 App 本體。以「當下寬度」判斷,離開視窄後(resize 到桌面)才放行 setFs(false)。
     // Esc、放空退出連動的 setFs(false) 因此在手機自然無效;setFs(true) 不受限。

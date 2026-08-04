@@ -34,12 +34,17 @@ const LOG = path.join(ROOT, '.cache', 'launch_watch.tsv');  // .cache/ 已在 .g
 const args = process.argv.slice(2);
 const esriArg = (args.find(a => a.startsWith('--esri=')) || '').split('=')[1];
 
-// Stadia 方案（官方定價表）：含額度與超額單價（每千 credits）
-const PLANS = [
-  { name: 'Starter', base: 20, incl: 1e6, over: 0.03 },
-  { name: 'Standard', base: 80, incl: 7.5e6, over: 0.02 },
-  { name: 'Professional', base: 250, incl: 25e6, over: 0.015 },
-];
+// 第三方方案額度與單價：供應商定價表與我們的用量、成本推估都屬營運資訊，不放進這個公開 repo。
+// 改讀 .cache/vendor-pricing.json（`.cache/` 已在 .gitignore 與 .assetsignore）。
+// 檔案不存在時只跳過「成本推估」那幾行，名次、請求數與實際用量照常輸出。
+// 形狀如下（值全是佔位符，不是真的方案內容）：
+//   { "stadia": { "quotaPlan": "<方案名>", "quotaIncl": <含額度>,
+//                 "plans": [ { "name": "<方案名>", "base": <月費>, "incl": <含額度>, "over": <每千超額單價> } ] },
+//     "esri":   { "incl": <免費張數>, "overPerK": <每千張超額單價> } }
+const PRICING_FILE = path.join(ROOT, '.cache', 'vendor-pricing.json');
+let PRICING = null;
+try { PRICING = JSON.parse(fs.readFileSync(PRICING_FILE, 'utf8')); } catch (e) { /* 沒有就降級,不是錯誤 */ }
+const PLANS = (PRICING && PRICING.stadia && PRICING.stadia.plans) || [];
 const planCost = (p, credits) => p.base + Math.max(0, credits - p.incl) / 1000 * p.over;
 const bestPlan = credits => PLANS.map(p => ({ p, c: planCost(p, credits) })).sort((a, b) => a.c - b.c)[0];
 const n = v => Math.round(v).toLocaleString();
@@ -165,7 +170,9 @@ if (s.err) {
 
   console.log(`\n  Stadia credits（管理 API 實數，UTC 日）`);
   console.log(`    計費期　${s.start} → ${s.end}　第 ${elapsed}/${periodDays} 日`);
-  console.log(`    期間累計　${n(s.total)} / ${n(7.5e6)}　(${(s.total / 7.5e6 * 100).toFixed(1)}% of Standard)`);
+  const sq = (PRICING && PRICING.stadia && PRICING.stadia.quotaIncl) ? PRICING.stadia : null;
+  console.log(`    期間累計　${n(s.total)}` +
+    (sq ? ` / ${n(sq.quotaIncl)}　(${(s.total / sq.quotaIncl * 100).toFixed(1)}% of ${sq.quotaPlan})` : ''));
   console.log(`    近日　　${days.slice(-6).map(([d, v]) => `${d.slice(5)} ${n(v)}`).join('　')}`);
   console.log(`    ⚠ 今日（UTC ${today[0]}）尚未結束，已過 ${utcHrs.toFixed(1)}/24 小時`);
 
@@ -177,8 +184,9 @@ if (s.err) {
   console.log(`\n    期末推估（剩 ${left} 日）`);
   for (const [tag, rate] of [['若回落到前 3 日均值', lo], ['若維持今日水準', hi]]) {
     const end = s.total + left * rate;
-    const b = bestPlan(end);
-    console.log(`      ${tag.padEnd(11)}　${n(rate)}/日 → 期末 ${(end / 1e6).toFixed(1)}M　最省方案 ${b.p.name} US$${b.c.toFixed(0)}`);
+    const b = PLANS.length ? bestPlan(end) : null;
+    console.log(`      ${tag.padEnd(11)}　${n(rate)}/日 → 期末 ${(end / 1e6).toFixed(1)}M` +
+      (b ? `　最省方案 ${b.p.name} US$${b.c.toFixed(0)}` : '　(方案試算需 .cache/vendor-pricing.json)'));
   }
 }
 
@@ -192,11 +200,13 @@ if (esri === null && fs.existsSync(LOG)) {
   }
 }
 if (esri !== null) {
-  // Esri：2M 免費/計費期，超額 $0.15/千張。計費期與 Stadia 不同（07-16–08-15），須另外看後台。
+  // Esri 的免費張數與超額單價同樣讀 .cache/vendor-pricing.json。計費期與 Stadia 不同，須另外看後台。
   console.log(`\n  Esri 衛星圖磚　${n(esri)}　(${esriArg ? '實讀' : '沿用當日前一筆'})`);
   const eMonth = esri * 30;
-  console.log(`    若每日維持此量　${(eMonth / 1e6).toFixed(1)}M/月（免費 2M，超額 $0.15/千）` +
-    ` → US$${(Math.max(0, eMonth - 2e6) / 1000 * 0.15).toFixed(0)}/月`);
+  const ep = (PRICING && PRICING.esri) || null;
+  console.log(`    若每日維持此量　${(eMonth / 1e6).toFixed(1)}M/月` +
+    (ep ? `　→ US$${(Math.max(0, eMonth - ep.incl) / 1000 * ep.overPerK).toFixed(0)}/月`
+        : '　(成本試算需 .cache/vendor-pricing.json)'));
   console.log(`    ⚠ Esri 計費期與 Stadia 不同，期間累計要自己看後台（無 API 可查）`);
 } else {
   console.log('\n  Esri 衛星圖磚　未帶入（加 --esri=<後台今日張數>）');

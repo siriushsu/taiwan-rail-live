@@ -70,12 +70,15 @@ prototypes
 # .gitignore 管不到 wrangler(它上傳的是磁碟檔案),這裡要另外列一次——2026-07-26 的 .cache
 # 就是只進 .gitignore 沒進這裡,結果 TDX 原始快取在預覽站可下載。
 scratchpad
-# SDD(subagent-driven-development)的工作區:帳本、任務簡報、以及每輪的完整 diff 副本。
+# SDD(subagent-driven-development)的工作區:帳本、任務簡報、複審報告、以及每輪的完整 diff 副本。
 # 與 scratchpad 同形——已進 .gitignore(.superpowers/sdd/.gitignore 一個 `*`),但同一課要記兩次:
-# 從工作樹出貨時 .gitignore 完全不管用。這裡的 review-*.diff 保存的是「改動前」的內容,
-# 就算敏感字串已在最終狀態被移除,diff 副本裡仍是原文。2026-08-02 補。
+# 從工作樹出貨時 .gitignore 完全不管用,這些會全部變成公開路徑(2026-08-02 稽核實測 81 檔)。
+# 而且 review-*.diff 保存的是「改動前」的內容,就算敏感字串已在最終狀態被移除,diff 副本裡仍是原文。
 .superpowers
 # 小工具地點看板索引：只給 App bundle 用,網站不讀,9MB 不必當靜態資產外供
 data/place_index.json
 # 驗證腳本的工作目錄：binary 與中間 JSON，不是站台檔案（.gitignore 管不到 wrangler，見上）
 tmp
+# 外包施工單(內部作業文件,敘述了配額與帳號約束)。2026-08-03 差分實測:少了這條,
+# 從工作樹部署的檔案數會多 1,它就變成公開路徑——同 .cache/scratchpad 的理由。
+CODEX-*

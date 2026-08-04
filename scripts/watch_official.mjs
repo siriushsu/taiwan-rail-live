@@ -62,11 +62,20 @@ const want = kind => !ONLY || ONLY === kind;
 //   (1) 欄位層:UpdateTime 這類每次都動的欄位 → VOLATILE 剔除;
 //   (2) 陣列層:TDX 同樣的 296 筆記錄會以不同順序回傳(當天 KRTC 逐筆比對 0/296 筆實質不同,
 //       但整包 hash 不同)→ 逐筆序列化後排序再 hash。key 順序也一併固定。
-const canon = v => {
-  if (Array.isArray(v)) return v.map(canon);
+//   (3) 內層陣列:記錄「裡面」的 Timetables/Headways 每次呼叫也會換順序(2026-08-03 實測
+//       淡海/安坑 StationTimeTable,時刻值集合完全相同、只有前後對調,commit 完隔 9 分鐘
+//       再跑照樣報「有變」)。這兩個欄位是集合語意(同一站的各班車),排序不會蓋掉真變動;
+//       Shape/StationOfLine 那種順序即語意的陣列**不可**排,所以只按欄位名排,不全域排。
+const ORDER_FREE = new Set(['Timetables', 'Headways']);
+const sortRecs = a => a.map(x => JSON.stringify(x)).sort().map(s => JSON.parse(s));
+const canon = (v, key) => {
+  if (Array.isArray(v)) {
+    const a = v.map(x => canon(x));
+    return ORDER_FREE.has(key) ? sortRecs(a) : a;
+  }
   if (v && typeof v === 'object') {
     const o = {};
-    for (const k of Object.keys(v).sort()) if (!VOLATILE.has(k)) o[k] = canon(v[k]);
+    for (const k of Object.keys(v).sort()) if (!VOLATILE.has(k)) o[k] = canon(v[k], k);
     return o;
   }
   return v;
@@ -119,7 +128,9 @@ function diffKind(live, snap) {
   const added = [...fl].filter(k => !fs.has(k)), removed = [...fs].filter(k => !fl.has(k));
   const ms = new Map((snap || []).map(r => [recKey(r), r]));
   let valueChanged = 0;
-  const times = o => JSON.stringify((o.Timetables || o.Headways || []).map(t => [t.DepartureTime, t.ArrivalTime ?? null, t.StartTime, t.EndTime]));
+  // 與 canon 的 ORDER_FREE 同一個理由:內層順序會抖,排過再比才問得出「時刻值真的動了嗎」
+  const times = o => JSON.stringify((o.Timetables || o.Headways || [])
+    .map(t => JSON.stringify([t.DepartureTime, t.ArrivalTime ?? null, t.StartTime, t.EndTime])).sort());
   for (const r of live || []) { const b = ms.get(recKey(r)); if (b && times(r) !== times(b)) valueChanged++; }
   return { fieldsAdded: added, fieldsRemoved: removed, valueChanged };
 }
@@ -195,16 +206,25 @@ function isDateLine(s) {
   return rest.length <= 6;
 }
 
+// 日期行擋掉了「一行裡自帶日期」的頁尾,擋不掉「標題行與日期行分開兩行」的頁尾樣板
+// (2026-08-03 實測兩則:北捷頁尾「臺北大眾捷運股份有限公司版權所有」+「115-08-03」、
+//  新北捷運頁尾「網站最後更版時間:」+「2026/08/02」)。北捷那則的日期就是當天日期,
+// 不擋就是天天假警報。NOISE_RE 是整行等值比對,對「公司名+版權所有」這種串接無效,
+// 故另立子字串判準:命中的行是頁尾樣板,它後面那個日期不屬於任何公告 → 整則丟掉。
+const CHROME_RE = /版權所有|all rights reserved|©|網站最後更版|最後更新|更新日期|本頁產生時間|資料更新時間|瀏覽人次|到訪人次|累計人次/i;
+
 function extractItems(text) {
   const lines = text.split('\n').map(t => t.trim()).filter(t => t.length > 1);
   const out = [];
   for (let i = 0; i < lines.length; i++) {
     if (!isDateLine(lines[i])) continue;
     for (let j = i - 1; j >= Math.max(0, i - 3); j--) {
-      if (!DATE_RE.test(lines[j]) && !NOISE_RE.test(lines[j]) && lines[j].length >= 6) {
-        out.push({ date: lines[i].replace(/^發布日期[:：]\s*/, ''), title: lines[j] });
-        break;
-      }
+      if (DATE_RE.test(lines[j]) || NOISE_RE.test(lines[j]) || lines[j].length < 6) continue;
+      // 最近的候選標題就是標題。它若是頁尾樣板,代表這個日期長在頁尾區塊裡,
+      // 再往前找只會撈到地址、電話等另一種雜訊 → 直接放棄這個日期行。
+      if (CHROME_RE.test(lines[j])) break;
+      out.push({ date: lines[i].replace(/^發布日期[:：]\s*/, ''), title: lines[j] });
+      break;
     }
   }
   return out;

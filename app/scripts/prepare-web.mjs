@@ -171,8 +171,9 @@ html = replaceHtmlRegion(html, 'status-link',
 // (5) 注入:第三方授權入口＋功能旗標＋RAIL_APP_CONFIG(授權圖磚與計量底圖的跟車 zoom 上限)
 const appConfig = includeLicensedBasemaps ? {
   followZoomCap: 16, // 計量底圖止血:跟車進場/導播 zoom 上限(index.html 的 FOLLOW_ZOOM_CAP/DIRECTOR_FOLLOW_Z 消費)
-  // 2026-08-02:衛星 Retina 收斂成 Plus 訂閱專屬(index.html 的 satRetinaAllowed())，
-  // 這裡只決定「這個平台建不建得出高解析層」，不等於全體使用者都拿得到——非 Plus 一律降回標準解析。
+  // 2026-07-29 曾因圖磚配額吃緊整個關掉;2026-08-02 改成收斂給 Plus 訂閱者
+  // (index.html 的 satRetinaAllowed())——這裡只決定「這個平台建不建得出高解析層」，
+  // 不等於全體使用者都拿得到:非 Plus 一律降回標準解析，所以額度風險已由訂閱資格擋住。
   // 🔴 這個值一旦 build 進 App 就鎖死到下一次送審——網站改一行部署就生效，App 不行。
   satRetina: true, // 兩層都建;實際給不給高解析由 index.html 的 satRetinaAllowed()(訂閱資格)決定。額度吃緊時改 false＝全體降回標準解析
   // 衛星計費模式從「按張數」升級成「按 session」時，App 殼要自己跟 Esri 開 session（index.html 的

@@ -5,8 +5,9 @@
 // index.html:6999-7006，刪帳號順序取自 index.html:7108-7135，資格文件更新取自
 // worker.js:708-719、879-896、915-949。行號只供人閱讀；判準本身解析當下檔案，不靠行號定位。
 import { readFileSync } from 'node:fs';
+import { createHash } from 'node:crypto';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 
 const SELF_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const args = process.argv.slice(2);
@@ -24,6 +25,12 @@ const FILES = {
   index: 'index.html',
 };
 const src = Object.fromEntries(Object.entries(FILES).map(([key, file]) => [key, readFileSync(path.join(ROOT, file), 'utf8')]));
+
+// 這支吃 --root：下面的 [ROOT] 已經報了路徑，但路徑對不代表檔案是你以為的那份
+// （沿用舊 worktree、或別的 session 正在改同一棵樹都照樣全綠）。逐檔 md5 才驗得到內容。
+for (const [key, file] of Object.entries(FILES)) {
+  console.log(`[G0] ${file} md5=${createHash('md5').update(src[key]).digest('hex')}`);
+}
 
 function stripComments(code) {
   let out = '', i = 0;
@@ -260,8 +267,10 @@ check('B5-ACCOUNT-DELETE', '行為', '刪帳號逐份刪除同步資料且不要
 });
 
 check('B6-LAPSED-CLOUD-RETENTION', '行為', '資格失效寫成 inactive，資格更新流程不刪同步資料', async () => {
-  const moduleUrl = 'data:text/javascript;base64,' + Buffer.from(src.worker, 'utf8').toString('base64');
-  const workerModule = await import(moduleUrl);
+  // 從 ROOT 的實體檔案載入,不要把原始碼包成 data: URL——data: 模組沒有目錄,worker.js 裡
+  // 任何相對 import(北捷看板帳本那支)都會 "Failed to resolve module specifier" 而整條斷言掛掉。
+  // 2026-08-04 併 origin/main 時實際踩到:兩條分支各自都綠,合起來才顯形。
+  const workerModule = await import(pathToFileURL(path.join(ROOT, FILES.worker)).href);
   const makeDoc = workerModule._plus && workerModule._plus.plusEntitlementDocument;
   if (typeof makeDoc !== 'function') return { pass: false, detail: '未讀到 _plus.plusEntitlementDocument 導出' };
   const inactive = makeDoc({ items: [] }, 'plus', 'verify');

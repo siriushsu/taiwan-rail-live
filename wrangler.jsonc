@@ -15,7 +15,10 @@
   "preview_urls": true,
   // D1 綁定:預先算好的統計 blob(如台鐵準點率)存放處,/api/delay-stats 唯讀單列查詢用
   "d1_databases": [
-    { "binding": "DELAY_DB", "database_name": "railisland-delay-history", "database_id": "33a943cc-50af-4ee3-905c-534db842a48b" }
+    { "binding": "DELAY_DB", "database_name": "railisland-delay-history", "database_id": "33a943cc-50af-4ee3-905c-534db842a48b" },
+    // 北捷看板事件帳本(B1):每分鐘 cron 寫到站/出發事件,/api/trtc-live 的 ledger 欄位讀它。
+    // 2026-08-03 建於 APAC。schema 由 worker 啟動時 CREATE TABLE IF NOT EXISTS 自建,無 migration 工具。
+    { "binding": "TRTC_LEDGER", "database_name": "railisland-trtc-ledger", "database_id": "d9f5267d-f670-4657-b261-5bff39c51ebc" }
   ],
   // Analytics Engine 綁定:
   // USAGE  :/api/tra-live 每筆請求埋點(cam/z/裝置),用來回答放空/跟車/靜止各佔多少前景分鐘
@@ -42,7 +45,7 @@
   // 2026-07-29 兩洞已在本機修好並驗收；12:15 cron 仍是 owner 刻意停用。是否恢復只由 owner
   // 決定，agent 不得自行把 "15 4 * * *" 加回來或部署 triggers。
   "triggers": {
-    "crons": ["15 1 * * *"]
+    "crons": ["* * * * *", "15 1 * * *"]
   },
   // 速率限制(2026-07-26 稽核):/api/delay-history 與 /api/account-delete 在驗證階段就會對
   // Firebase identitytoolkit 與 RevenueCat 各發一次 outbound fetch——而那發生在「token 有沒有效」
