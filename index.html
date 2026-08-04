@@ -3427,7 +3427,7 @@
           <li class="web-only-donation-log"><span class="d">7/13</span><span>贊助方式更新：「請開發者喝咖啡」的銀行轉帳帳戶改用 LINE Bank（連線商業銀行 824）——謝謝每一位抖內支持軌島的朋友</span></li>
         <!-- APP_STRIP_END donation-log -->
         <li class="grp">資料校正</li>
-        <li><span class="d">8/4</span><span>App 內建的台鐵班表只有 14 天（官方只公布這麼多），過期後原本得等下次改版才會更新，那段期間連假加班車、臨時改點都會對不上。現在過期時 App 會自動上網補最新的班表，補不到才用內建那份</span></li>
+        <li><span class="d">8/4</span><span>App 內建的班表是送審當下的快照，之後原本得等下次改版才會更新——台鐵官方只公布未來 14 天，用完就會對不上連假加班車與臨時改點；三鶯線、各捷運線改點也一樣。現在 App 開機會比對一份很小的資料清單，只有真的變動過的檔案才重新下載，沒變的一個都不抓；抓不到就用內建那份，不會比原本差</span></li>
         <li><span class="d">8/1</span><span>台鐵快車在不停靠的小站之間跑到哪裡，推估得更準了。有網友拿碼錶站在彰化與花壇之間實地量了十幾班車，回報「車普遍比畫面上早經過」，自強號差到快兩分鐘。追查後發現不是推估方式的問題，而是我們在校正資料時把花壇這類「到站看板顯示時間比較長」的車站整批當成不可信而丟掉了，那幾站只好套用全線的平均值。現在改成看各站自己的顯示習慣，這些站的實測資料重新派上用場（謝謝網友回報，也謝謝那個早上）</span></li>
         <li><span class="d">7/29</span><span>刪除軌島帳號時，會一併刪掉你上傳過的 GPS 校正旅程資料與累積的貢獻點數，包含這台裝置以匿名身分傳的那些；隱私權政策也補上了這類資料保存多久、要怎麼刪除</span></li>
         <li><span class="d">7/29</span><span>圖磚還沒載入時墊底的台灣海陸輪廓換成內政部公開的縣市界線：舊資料比實際海岸線偏了一到三公里，東部海線好幾站看起來像在海上（謝謝網友回報）</span></li>
@@ -3714,7 +3714,7 @@
 // 🔴 BUILD 字串會跨並行分支撞號（心得 16）：07-28 兩條線各自遞增又各自部署過——
 // origin/main 這條用到 v0728b，正式站那條用到 v0728f。本次三方合併把兩條線統一，
 // 所以往後推到一個雙方都沒用過的號，辨識線上跑哪一版仍以內容 hash 為準。
-const BUILD = 'v0804b';
+const BUILD = 'v0804c';
 // 成就徽章與車廂標記＝原本那些 emoji 的單色平面版（RailEmoji＝裁切過的 Noto Emoji 單色）。
 // 刻意保留 railIcon(name) 這個唯一入口:呼叫端一行都不用改,只有這裡決定畫法。
 // 🔴 ⚖ 與 ♾ 一律寫**不帶 VS16(U+FE0F)** 的碼位——帶了就強制彩色呈現,會蓋過 font-family
@@ -14490,9 +14490,46 @@ function drawFlow() {
 }
 const FLOW_LBL_DEFAULT = '全日同時運行列車數（依時刻表）——點擊圖表跳到該時刻';
 
+// App 殼專用:哪些打包的資料檔已經比網站舊(由 initDataFreshness 依 data_manifest.json 算出)。
+// null＝還沒判定或不適用(網站版恆為 null) ⇒ fetchJSON 走原本的相對路徑,行為與改動前一致。
+let _staleData = null;
+const MANIFEST = 'data/data_manifest.json';
+
 async function fetchJSON(url) {
+  // bundle 內這個檔已經過期 ⇒ 改抓網站上那份。只認 './data/…' 字面路徑,
+  // 絕對網址(apiUrl 的產物)與其他來源一律不碰。
+  const rel = typeof url === 'string' && url.startsWith('./data/') ? url.slice(2) : null;
+  const remote = (rel && _staleData && _staleData.has(rel)) ? apiUrl(rel) : null;
+  if (remote) {
+    const got = await fetchJSONAt(remote);
+    if (got) return got;                       // 抓不到就往下走,退回 bundle 那份(不會比原本差)
+  }
+  return fetchJSONAt(url);
+}
+async function fetchJSONAt(url) {
   try { const r = await fetch(url, { cache: 'no-store' }); return r.ok ? await r.json() : null; }
   catch (e) { return null; }
+}
+
+// App 殼專用:比對「bundle 內的資料清單」與「網站上的資料清單」,標出哪些檔已經過期。
+// 為什麼需要:bundle 裡的 data/*.json 是送審當下的快照,之後只有再送審才會更新——三鶯線
+// 試營運時段(2026-08-31 到期)、各線改點、台鐵班表重抓都會讓它與網站脫節,而畫面照常有車、
+// 不會報錯,使用者只是看到錯的班次。
+// 成本:平常一個約 1KB 的請求;有檔案改了才下載那幾個檔,沒改的一個都不抓。
+// 只在 App 跑:網站版 API_BASE 為空,兩份清單會是同一個檔案,比了也沒有意義。
+// 任何一步失敗(離線、清單缺檔、格式壞掉)一律靜默退回「全部用 bundle」＝改動前的行為。
+async function initDataFreshness() {
+  if (!API_BASE) return;
+  try {
+    const [local, remote] = await Promise.all([fetchJSONAt('./' + MANIFEST), fetchJSONAt(apiUrl(MANIFEST))]);
+    if (!local || !remote) return;
+    const stale = Object.keys(remote).filter(k => local[k] && local[k] !== remote[k]);
+    // local 沒有的鍵不納入:那是網站新增、但這版 App 根本不會載的檔,抓了也沒人用。
+    if (stale.length) {
+      _staleData = new Set(stale);
+      console.info('[data] 打包的資料有 ' + stale.length + ' 個檔比網站舊，將改抓最新版：' + stale.join(', '));
+    }
+  } catch (e) { /* 靜默退回 bundle */ }
 }
 
 // 多日班表(fetch_tra_schedule.py 產出 dates:{日期→[trains 索引]} 聯集檔):boot 時依台北營運日
@@ -16161,9 +16198,13 @@ async function boot() {
     sys.data.trains.push(mk('97', ali, zhu, r5(S - 72 * 60)), mk('98', zhu, ali, r5(S + 38 * 60)));
   }
 
+  // 必須在任何 fetchJSON('./data/…') 之前:它決定哪些打包資料要改抓網站上的最新版。
+  // 網站版直接 return,不影響開機時序。
+  await initDataFreshness();
+
   for (const d of SYS_DEFS) {
     let day = resolveScheduleDay(await fetchJSON(d.url)); // 多日班表→挑台北營運日當日子集;舊格式原樣通過
-    day = await refreshStaleSchedule(d, day);             // App 殼:打包的窗過期就回頭向網站抓最新那份
+    day = await refreshStaleSchedule(d, day);             // 保險:清單機制沒生效時,台鐵這一份仍會自救
     if (day) state.systems.push({ ...d, data: day });
   }
   // 各 sched 系統的軌道底圖幾何(台鐵 tra.json / 高鐵 thsr_track.json)掛在該系統上,loadSystem 依系統取用
