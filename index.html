@@ -7276,7 +7276,10 @@ function accountForgetIdentity() {
   if (state.account) state.account.gen = (state.account.gen || 0) + 1; // C-2 世代前進:仍在途的舊同步之後複查世代會發現對不上,結果被丟棄不寫本機(見 accountSyncTxn)
   // 批二-B:cloudSyncReady(資格文件落地)綁在「這個身分」上,身分沒了就不再成立——下一個登入的人
   // 必須自己重新握手一次,不能繼承上一個人的落地結論。
-  if (state.plus) { state.plus.active = false; state.plus.founding = false; state.plus.pkgMonthly = null; state.plus.pkgAnnual = null; state.plus.mgmtUrl = ''; state.plus.adapter = null; state.plus.afterUnlock = null; state.plus.cloudSyncReady = false; }
+  if (state.plus) { state.plus.active = false; state.plus.founding = false; state.plus.pkgMonthly = null; state.plus.pkgAnnual = null; state.plus.mgmtUrl = ''; state.plus.adapter = null; state.plus.afterUnlock = null; state.plus.cloudSyncReady = false; state.plus.cloudSyncPromise = null; }
+  // ↑ cloudSyncPromise 也要清(最終複審 Minor 2):它是「同一時間只准一發握手在飛」的去重槽,
+  //   留著的話換人之後 plusReconcileEntitlement() 會 return 上一個身分的在途 promise,那發的世代
+  //   複查必然回 false ⇒ 新使用者白白失敗一輪握手。清掉只是丟棄槽位,在飛的那發自己會照常收尾。
   if (window.RAIL_NATIVE_PLUS_ADAPTER && window.RAIL_NATIVE_PLUS_ADAPTER.clearUser) window.RAIL_NATIVE_PLUS_ADAPTER.clearUser().catch(() => {});
   // C-4:登出解除 CustomerInfo 更新 listener,避免舊使用者的推播繼續打在剛登出/換人的 state 上。
   // 🔴 2026-08-04 批二-E:接住這個 promise 並回傳(既有兩個呼叫端 accountEndSession/accountClearLocal
@@ -7929,11 +7932,23 @@ async function plusRefresh() {
     // 快速反覆切換前景會同時有多個 fetch 在飛,回應可能亂序覆寫 p.active。補上 p.loading 讓函式頂端
     // 既有的 `if (p.loading) return false;` 早退守衛生效:同一時間只允許一個請求在飛,後到的觸發
     // 直接跳過(不排隊、不重試),下一次回前景再重新查一次——結構上不可能有兩個回應競爭寫入 p.active。
+    // 🔴 2026-08-04 最終複審 I-2:p.loading 只擋得住「同一個身分的多發請求」,擋不住「請求在飛的
+    // 途中身分變了」——登出、session 被伺服器端失效、換人登入,都會在這一發回應抵達前發生,而
+    // p.loading 在那之後才被 finally 放掉。沒有世代複查的話,遲到的回應會把已經拆掉的 Plus 身分
+    // 復活:實測(卡住回應、期間登出)登出後 {active:false,ready:false},遲到回應抵達後變成
+    // {active:true,ready:true,user:false} ⇒ 訪客的 plusRequire() 放行純客端付費功能(批二-E 要關的
+    // 洞的另一條入口);更糟的是 cloudSyncReady 也被復活,下一個登入的人 plusReconcileEntitlement()
+    // 會直接早退回 true、完全不握手,違反 accountForgetIdentity() 明文宣告的「不繼承上一個人的
+    // 落地結論」。照 plusReconcileEntitlement 與 accountSyncTxn 同一套寫法留世代與 uid。
+    const myGen = state.account.gen, myUid = user.uid;
     p.loading = true; p.error = ''; plusRender();
     try {
       const token = state.account.fb.getIdToken ? await state.account.fb.getIdToken(user) : await user.getIdToken();
       const res = await fetch(apiUrl('api/plus-status'), { cache: 'no-store', headers: { Authorization: 'Bearer ' + token } });
-      if (res.ok) {
+      // 身分在途中變了 ⇒ 這個答案是上一個人的,整包丟掉(不早退,讓 finally 與收尾的 render 照常跑)。
+      const a2 = state.account;
+      const stale = a2.gen !== myGen || !a2.user || a2.user.uid !== myUid;
+      if (!stale && res.ok) {
         const data = await res.json();
         // 只有 200 才是「後端給了確定答案」:true 給資格、false 收回資格。非 200(503/401)是「查不出來」,
         // 一律維持現狀——把上游短暫故障誤讀成「沒訂閱」會讓付費者的功能整批閃爍消失(同一顧慮見
@@ -8007,7 +8022,12 @@ async function plusPurchase(kind) {
     // 落地了就補一次全量同步:購買之前這個人的所有本機變更都被資格閘門擋著沒上雲(見
     // accountSyncNow 的閘門),這一次才是它們第一次有機會上去。握手失敗不擋購買流程——資格已經
     // 生效、純客端功能照常開,雲端同步會在下一次自然觸發時再握手一次(見 accountSyncTxn 的 catch)。
-    if (await plusReconcileEntitlement()) accountSyncNow('entitlement');
+    // 🔴 最終複審 I-4:這裡刻意**不 await**。上一段已經寫明「握手失敗不擋購買流程」,但 await
+    // 讓它擋了:這一發要串 Firebase lookup → RevenueCat(可能多頁)→ OAuth → Firestore GET → PATCH
+    // (最多 3 輪 CAS),而且沒有逾時。上游任一環卡住 ⇒ 錢已經付了,使用者卻只看到轉不停的面板、
+    // 沒有成功提示、afterUnlock 不觸發,而 refresh／purchase／restore 共用的 p.loading 全鎖死。
+    // 改成 fire-and-forget:成功提示與解鎖立刻發生,落地了再補同步。
+    plusReconcileEntitlement().then(ok => { if (ok) accountSyncNow('entitlement'); }).catch(() => {});
     accountRender();
     if (!plusFinishPending()) { plusClose(); showToast('軌島 Plus 已啟用'); }
   } catch (e) {
@@ -8030,7 +8050,12 @@ async function plusRestore() {
     if (p.active) {
       // 批二-B:恢復購買與購買同一個道理——資格是在別台買的,這台裝置的資格文件可能從來沒被
       // 寫過(webhook 只會為購買當下的 uid 寫一次)。同樣先握手再補一次全量同步,見 plusPurchase()。
-      if (await plusReconcileEntitlement()) accountSyncNow('entitlement');
+      // 🔴 最終複審 I-4:這裡刻意**不 await**。上一段已經寫明「握手失敗不擋購買流程」,但 await
+    // 讓它擋了:這一發要串 Firebase lookup → RevenueCat(可能多頁)→ OAuth → Firestore GET → PATCH
+    // (最多 3 輪 CAS),而且沒有逾時。上游任一環卡住 ⇒ 錢已經付了,使用者卻只看到轉不停的面板、
+    // 沒有成功提示、afterUnlock 不觸發,而 refresh／purchase／restore 共用的 p.loading 全鎖死。
+    // 改成 fire-and-forget:成功提示與解鎖立刻發生,落地了再補同步。
+    plusReconcileEntitlement().then(ok => { if (ok) accountSyncNow('entitlement'); }).catch(() => {});
       if (!plusFinishPending()) { plusClose(); showToast('已恢復訂閱資格'); }
     } else p.error = '這個帳號目前沒有可恢復的 Plus 訂閱資格。';
   } catch (e) { p.error = '無法恢復訂閱：' + (e && e.message ? e.message : String(e)); }

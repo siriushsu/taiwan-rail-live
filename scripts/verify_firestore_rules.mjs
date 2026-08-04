@@ -225,7 +225,15 @@ await check('E1 無資格文件時 create/update 都不可寫；有效資格對�
 await check('E2 active:false 時 create/update 都不可寫；active:true 對照可寫', async () => {
   const uid = 'e2-inactive';
   const db = testEnv.authenticatedContext(uid).firestore();
-  await seedEntitlement(uid, entitlementDoc({ active: false, activeUntilMs: 0 }));
+  // 🔴 到期時間**必須留在未來**（用預設值），不可以像以前那樣一起寫 0。
+  // 理由：規則是 `active == true && activeUntilMs > now` 的合取式。fixture 若把兩個條件
+  // 同時弄成假，那份文件會先被到期子句擋下，`active == true` 就不再是 load-bearing——
+  // 這條斷言宣稱在測 active，實際上測到的是到期。實測過：把 `active == true` 整行從
+  // firestore.rules 刪掉，全套仍然 14/14 全綠，E2 一聲不吭。
+  // （這是 6ddbf93 拿掉 `activeUntilMs == 0 ||` 之後才出現的副作用：在那之前 0 代表
+  //   「永不失效」＝到期子句為真，active 才是唯一擋得住的條件。）
+  // 只讓「被測的那一個條件」為假，其餘全部保持為真——合取式判準的通則。
+  await seedEntitlement(uid, entitlementDoc({ active: false }));
   await removeData(uid);
   await assertFails(setDoc(dataRef(db, uid), validDoc()));
   await seedData(uid);

@@ -433,6 +433,25 @@ section(SECTIONS[5]);
   check(sandboxStatusBody.cloudSyncReady === false,
     '批二-B：寫入成功但文件內容是 active:false ⇒ cloudSyncReady 仍必須是 false（rules 讀的是內容，不是寫入結果）',
     JSON.stringify(sandboxStatusBody));
+  // 🔴 2026-08-04 最終複審 I-1：這一格是「文件 active:true、但已經過期」。RevenueCat 在帳單重試／
+  // 寬限期仍可能回 gives_access:true 而 ends_at 已經過去（plusAccessSubscriptions 只看 gives_access／
+  // environment／lookup_key，不看到期），於是文件寫出 active:true + 一個過去的 activeUntilMs。
+  // firestore.rules 是 `active == true && activeUntilMs > 現在` 的合取式，這種文件它一定拒絕；
+  // cloudSyncReady 若只看 active 就會對一份保證被拒的文件宣稱 ready。判準三件一起驗，才不會
+  // 因為 fixture 沒真的做出「active 為真」而變成空歡喜（那樣它就是在測別的東西）。
+  resetIo();
+  const longExpired = Date.now() - 96 * 3600 * 1000;
+  rcBody = { items: [baseSubscription({ ends_at: longExpired, current_period_ends_at: longExpired })] };
+  response = await plusStatus(plusStatusRequest(), ENV());
+  const expiredBody = await response.json();
+  const expiredWrites = firestoreWrites();
+  const expiredDoc = expiredWrites[0] ? JSON.parse(expiredWrites[0].body) : {};
+  const expiredDocActive = !!(expiredDoc.fields && expiredDoc.fields.active && expiredDoc.fields.active.booleanValue === true);
+  const expiredDocUntil = Number(expiredDoc.fields && expiredDoc.fields.activeUntilMs ? expiredDoc.fields.activeUntilMs.integerValue : NaN);
+  check(expiredDocActive && expiredDocUntil < Date.now() && expiredBody.cloudSyncReady === false,
+    '最終複審 I-1：文件是 active:true 但 activeUntilMs 已過期（rules 保證拒絕）⇒ cloudSyncReady 必須是 false',
+    `文件active=${expiredDocActive} 到期距今(小時)=${((expiredDocUntil - Date.now()) / 3600000).toFixed(1)} cloudSyncReady=${expiredBody.cloudSyncReady}`);
+  rcBody = { items: [baseSubscription()] };
 }
 
 section(SECTIONS[6]);

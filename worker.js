@@ -1581,10 +1581,21 @@ async function plusStatus(request, env) {
   let cloudSyncReady = false;
   if (check.uid && check.subscriptions) {
     const wantEntitlement = env.REVENUECAT_ENTITLEMENT || 'plus';
-    const doc = plusEntitlementDocument(check.subscriptions, wantEntitlement, 'plus-status');
+    // nowMs 明確傳進去,好讓下面的 cloudSyncReady 跟這份文件用同一個時鐘判斷到期(不要各自 Date.now())。
+    const nowMs = Date.now();
+    const doc = plusEntitlementDocument(check.subscriptions, wantEntitlement, 'plus-status', nowMs);
     try {
       const write = await writePlusEntitlement(check.uid, doc, env);
-      cloudSyncReady = doc.active === true && !!(write && write.written);
+      // 🔴 2026-08-04 最終複審 I-1:這個條件必須與 firestore.rules 的 hasActiveEntitlement() **逐項對齊**
+      // ——規則是 `active == true && activeUntilMs > 現在`,少一項就是對一份規則保證會拒絕的文件宣稱 ready。
+      // 漏掉到期那半會怎麼出事:RevenueCat 在帳單重試／寬限期仍可能回 gives_access:true 而 ends_at 已經
+      // 過去(plusAccessSubscriptions 只看 gives_access／environment／lookup_key,不看到期),此時
+      // plusEntitlementDocument 產出的正是「active:true 但 activeUntilMs 已過去」。實測探針:
+      // ends_at 為四天前 ⇒ doc.activeUntilMs 距現在 -72 小時,rules 拒絕、舊條件卻回 ready:true。
+      // 代價不是多一次往返:前端的 plusMarkCloudSyncReady() 是**單向閂**(只有 accountForgetIdentity
+      // 會歸零),誤設之後就不再握手,legacyKinds 也永遠收不回來 ⇒ 等寬限期過去、資格恢復正常之後,
+      // 那個 session 每次同步仍靜默少傳 stations,直到重新整理。那正是批二-B 宣稱已經切掉的尾巴。
+      cloudSyncReady = doc.active === true && doc.activeUntilMs > nowMs && !!(write && write.written);
     } catch (e) {
       // 不含 uid／憑證，只留下路徑與錯誤類型，讓 Worker observability 能診斷設定或上游故障。
       console.error('[plus-entitlement] plus-status Firestore write failed:', String(e && e.message || e));

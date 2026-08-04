@@ -1603,7 +1603,14 @@ const chromiumB = await chromium.launch();
 
   const after = await page.evaluate(async () => {
     await plusPurchase('annual');
-    // 購買流程內的 accountSyncNow('entitlement') 是 fire-and-forget,等它自己收斂(不猜固定秒數)。
+    // 🔴 2026-08-04 最終複審 I-4:購買流程內的**資格握手**也改成 fire-and-forget 了(在那之前它是
+    // await,會把成功提示、解鎖與 p.loading 一起卡在一發沒有逾時的網路請求後面)。於是
+    // plusPurchase() 回來的當下,握手可能還在飛,statusAuth 還是空的。
+    // 這裡只改「什麼時候觀測」,R17a/b/c 三條斷言本身一個字都沒動:先等握手那個明確的把手
+    // (p.cloudSyncPromise)收斂,再讓出一棒給它 .then 裡的 accountSyncNow,最後沿用既有迴圈等同步
+    // 收斂。三段都是等明確訊號,不猜固定秒數。
+    if (state.plus && state.plus.cloudSyncPromise) { try { await state.plus.cloudSyncPromise; } catch (e) {} }
+    await new Promise(r => setTimeout(r, 0));
     const t0 = Date.now();
     while (Date.now() - t0 < 5000) {
       if (state.account.syncPromise) { try { await state.account.syncPromise; } catch (e) {} }
@@ -1633,9 +1640,9 @@ const chromiumB = await chromium.launch();
 // accountRender() 未登入畫面現在依「這台裝置有沒有登入過別的帳號」分兩種情況說明(批二-D 改寫,
 // 見 index.html accountRender 的 account-intro,以及 scripts/verify_plus_data_claims.mjs 的
 // D8-GUEST-MERGE-CLAIM——那邊只驗文案本身講了什麼,這裡驗文案講的事情是不是真的會發生)：
-//   R18a 正向對照(文案「若這台裝置沒登入過其他帳號,首次登入時會併入」):全新裝置,訪客先寫一筆,
+//   R18a 正向對照(文案「若這台裝置沒有記著別的帳號,首次登入時會併入」):全新裝置,訪客先寫一筆,
 //        第一次登入 → 應該繼承。
-//   R18b-d(文案「若這台裝置先前登入過別的帳號,訪客資料不會自動併入,但仍留在裝置上」——稽核
+//   R18b-d(文案「若這台裝置還記著上一個登入的別的帳號,訪客資料不會自動併入,但仍留在裝置上」——稽核
 //        I-5 的原始重現路徑):登入 A → A 真正登出(accountEndSession)→ 此刻是訪客,新增一筆
 //        (稽核逐字取名 B_VISITOR)→ 換一個從沒登入過的 uid B 登入 → B 看不到那筆訪客資料,
 //        但資料仍完整留在共用匿名 key,不是被刪除。
@@ -1672,15 +1679,80 @@ const chromiumB = await chromium.launch();
 
     return { aInherited, anonymousBeforeGuestAdd, bAfterLogin, anonymousStillStored };
   });
-  ok('R18a 正向對照(帳號面板文案「若這台裝置沒登入過其他帳號，首次登入時會把裝置上的訪客資料併入帳號」):全新裝置的訪客資料,在第一次登入時真的被繼承進帳號',
+  ok('R18a 正向對照(帳號面板文案「若這台裝置沒有記著別的帳號，首次登入時會把裝置上的訪客資料併入帳號」):全新裝置的訪客資料,在第一次登入時真的被繼承進帳號',
     JSON.stringify(r.aInherited) === JSON.stringify(['R18_PRE_A']), JSON.stringify(r));
   ok('R18b 前置條件:A 登出、B 登入前,訪客身分讀寫到的確實是共用匿名分區(R18_PRE_A),不是殘留在 A 自己的分區裡——下面「B 看不到」才是分區隔離擋下的,不是本來就沒東西可繼承',
     JSON.stringify(r.anonymousBeforeGuestAdd) === JSON.stringify(['R18_PRE_A']), JSON.stringify(r));
-  ok('R18c 核心斷言(帳號面板文案「若這台裝置先前登入過別的帳號，訪客資料不會自動併入」):A 登出後訪客新增的 B_VISITOR,換 uid B 登入時,B 的分區裡沒有這一筆',
+  ok('R18c 核心斷言(帳號面板文案「若這台裝置還記著上一個登入的別的帳號，訪客資料不會自動併入」):A 登出後訪客新增的 B_VISITOR,換 uid B 登入時,B 的分區裡沒有這一筆',
     !r.bAfterLogin.includes('B_VISITOR'), JSON.stringify(r));
   ok('R18d 核心斷言(帳號面板文案「但仍留在裝置上，不會遺失」):B 登入之後,B_VISITOR 仍完整留在共用匿名 key 裡,不是被刪除或搬走',
     r.anonymousStillStored.includes('B_VISITOR'), JSON.stringify(r));
   ok('R18 本輪零 pageerror/console.error', errs.length === 0, errs.slice(0, 3).join(' | '));
+  await ctx.close();
+}
+
+// ── R19:plusRefresh 的回應還在飛,身分就變了 ⇒ 遲到的答案不得復活 Plus 身分(最終複審 I-2)────────
+// plusRefresh() 在 plusConfigured() 為假時(網站沒有 Web Billing key)走的那條分支會打
+// /api/plus-status,回應帶著 active 與 cloudSyncReady。它有 p.loading 守衛,但那只擋得住
+// 「同一個身分的多發請求」,擋不住「請求在飛的途中身分變了」——登出、session 被伺服器端失效、
+// 換人登入都會這樣,而 p.loading 要到 finally 才放掉。沒有世代複查的話,遲到的回應會把已經拆掉的
+// Plus 身分整包復活。兩個後果分開驗:
+//   (a) 訪客的 plusIsActive()／plusRequire() 不得被放行——那是批二-E 要關的洞的另一條入口;
+//   (b) cloudSyncReady 不得被復活——它一旦為真,下一個登入的人 plusReconcileEntitlement() 會直接
+//       早退回 true、完全不握手,等於繼承上一個人的落地結論(accountForgetIdentity 的註解明文
+//       宣告不可以這樣)。
+// 回應內容刻意寫成最誘人的 {active:true, cloudSyncReady:true}:連這個都復活不了才算真的擋住。
+// 卡住回應的方式是 route handler 裡 await 一個由本檔在 Node 這一側掌握的 promise——時序是宣告的,
+// 不是靠 sleep 猜的。
+{
+  const { ctx, page } = await newPage(chromiumB);
+  const errs = attach(page, 'R19');
+  let release = null;
+  const held = new Promise(resolve => { release = resolve; });
+  await page.route('**/api/plus-status', async route => {
+    await held;
+    await route.fulfill({
+      status: 200, contentType: 'application/json',
+      body: JSON.stringify({ active: true, cloudSyncReady: true }),
+    });
+  });
+  await page.goto(BASE, { waitUntil: 'domcontentloaded' });
+  await waitReady(page);
+  const before = await page.evaluate(() => {
+    state.plus = null; plusState();
+    state.account = {
+      ready: true, syncing: false, lastSync: 0, actionError: '', error: '', syncTimer: 0, gen: 0,
+      loggingOut: false, syncSuspended: false, syncPromise: null, legacyKinds: false,
+      user: { uid: 'race-r19-uid', email: 'r19@example.com' }, auth: {}, db: {},
+      fb: { getIdToken: async () => 'R19_FAKE_ID_TOKEN' },
+    };
+    window.__r19 = plusRefresh();            // fire-and-forget:回應被卡住,函式停在 await fetch
+    return { active: plusIsActive(), ready: plusCloudSyncReady() };
+  });
+  // 回應還沒放行的期間把身分拆掉(與登出同一套 teardown:世代前進、state.plus 歸零)。
+  await page.evaluate(async () => { await accountForgetIdentity(); state.account.user = null; });
+  const afterLogout = await page.evaluate(() => ({ active: plusIsActive(), ready: plusCloudSyncReady() }));
+  release();
+  const afterLate = await page.evaluate(async () => {
+    await window.__r19;                      // 等那發遲到的回應真的被處理完
+    window.__r19granted = 0;
+    const ret = await plusRequire('r19', () => { window.__r19granted++; });
+    return {
+      active: plusIsActive(), ready: plusCloudSyncReady(),
+      requireReturn: ret, granted: window.__r19granted,
+    };
+  });
+  ok('R19-pre 前置條件:請求送出的當下身分還在、Plus 兩個狀態都還是 false(這一段真的有東西可以被復活,不是一開始就沒東西)',
+    before.active === false && before.ready === false, JSON.stringify(before));
+  ok('R19-pre2 前置條件:拆身分之後、遲到回應抵達之前,兩個狀態都是 false',
+    afterLogout.active === false && afterLogout.ready === false, JSON.stringify(afterLogout));
+  ok('R19a 核心斷言(最終複審 I-2):遲到的 /api/plus-status 回應(active:true)抵達後,plusIsActive() 仍是 false——不得復活已經拆掉的 Plus 身分',
+    afterLate.active === false, JSON.stringify(afterLate));
+  ok('R19b 核心斷言:遲到回應的 cloudSyncReady:true 不得被採用——否則下一個登入的人會早退不握手,等於繼承上一個人的落地結論',
+    afterLate.ready === false, JSON.stringify(afterLate));
+  ok('R19c 使用者可見結果:登出後的訪客 plusRequire() 不放行純客端付費功能(回傳不是 true、granted callback 沒被呼叫)',
+    afterLate.requireReturn !== true && afterLate.granted === 0, JSON.stringify(afterLate));
+  ok('R19 本輪零 pageerror/console.error', errs.length === 0, errs.slice(0, 3).join(' | '));
   await ctx.close();
 }
 
