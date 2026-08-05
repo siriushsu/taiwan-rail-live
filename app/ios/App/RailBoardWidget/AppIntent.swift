@@ -124,7 +124,21 @@ struct DestinationOptionsProvider: DynamicOptionsProvider {
             return .empty
         }
 
+        // 共站／我的地點走的是「附近路線」時間軸，目的站參數不參與渲染。若讓我的地點
+        // 借最近車站列出目的站，使用者會選到一個實際不生效的設定；兩種地點鍵都在這裡
+        // 明確停用目的站，改由「只看這些」篩方向、車種或車次。
+        if origin.hasPrefix(RailBoardStore.compositeKeyPrefix)
+            || origin.hasPrefix("place|")
+        {
+            return .empty
+        }
+
         let destinations = try RailBoardStore.shared.destinationOptions(from: origin)
+        // 普通車站今天沒有任何直達目的地時也可能得到空陣列。這時直接回 .empty，不能把
+        // 無標題、零 items 的 section 交給 AppIntents（iOS 27 會讓設定流程失效）。
+        guard !destinations.isEmpty else {
+            return .empty
+        }
         let places = placeSection(destinations)
         guard let sections = stationRegionSections(destinations) else {
             var fallbackSections = [
@@ -227,7 +241,7 @@ extension PlaceStationOption {
 struct ConfigurationAppIntent: WidgetConfigurationIntent {
     static var title: LocalizedStringResource { "發車看板" }
     static var description: IntentDescription {
-        IntentDescription("起訖站清單依縣市由北到南分段，最上面可以直接選你在軌島存過的地點。目的站可留空，以查看所有停靠、終到與通過列車。")
+        IntentDescription("起訖站清單依縣市由北到南分段，最上面可以直接選你在軌島存過的地點。目的站可留空，以查看所有停靠、終到與通過列車；起站選共站或我的地點時，請用「只看這些」依方向、車種或車次篩選。")
     }
 
     @Parameter(title: "起站", optionsProvider: OriginOptionsProvider())

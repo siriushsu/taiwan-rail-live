@@ -23,5 +23,5 @@ window.RAIL_REVENUECAT_CONFIG = window.RAIL_REVENUECAT_CONFIG || {
   // 2026-07-26：29 首 Suno 曲目核對完成（依據＝擁有人明示聲明全部生成於 Pro 訂閱期間，
   // 非逐首文件證據；證據強度與殘留待查項見 app/MUSIC_LICENSE_CHECKLIST.md）。
   musicRecordingLicensed: true,
-  foundingLaunchAt: null
+  foundingLaunchAt: '2026-08-08T12:00:00+08:00'
 };
