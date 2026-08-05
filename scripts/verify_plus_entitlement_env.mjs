@@ -29,7 +29,9 @@ console.log(`[G0] worker.js md5=${md5(WORKER)}`);
 console.log(`[G0] app/scripts/verify-release.mjs md5=${md5(RELEASE)}`);
 console.log(`[G0] app/scripts/prepare-web.mjs md5=${md5(PREPARE)}`);
 
-const { _plus } = await import('../worker.js');
+const workerModule = await import('../worker.js');
+const { _plus } = workerModule;
+const worker = workerModule.default;
 const { assertPlusSandboxOff, assertPlusSandboxTestBuild } = await import('../app/scripts/verify-release.mjs');
 const { checkPlusEntitlement, plusStatus, resolveRcNextPage, rcSubscriptionsPageError,
   subscriptionMatchesPlus, plusEntitlementDocument } = _plus;
@@ -39,7 +41,7 @@ let fails = 0;
 // 刻意**不寫「總共幾條」這種手打常數**（判準寫「是什麼」不寫「有幾個」）——只要求
 // 每個宣告過的段落都真的跑過至少一條，段落整批消失時會有一條具名紅燈。
 const SECTIONS = ['1 環境判別', '2 存取權判別', '3 entitlement 比對', '4 端點與 query', '5 錯誤分流', '6 plus-status 端到端', '7 發版閘門', '8 分頁與跟頁',
-  '9 回應 schema 守門(I-3／I-4)', '10 分頁 404 與 customer 綁定(I-1／I-5)'];
+  '9 回應 schema 守門(I-3／I-4)', '10 分頁 404 與 customer 綁定(I-1／I-5)', '11 TestFlight CORS 預檢'];
 const seen = new Map();
 let SECTION = '(未分段)';
 const section = (name) => { SECTION = name; console.log(`\n===== ${name} =====`); };
@@ -678,6 +680,25 @@ section(SECTIONS[9]);
   check(crossCustomer.ok === false && crossCustomer.status === 403 && rcCallsCross.length === 1 && consoleLog.length === 1,
     '跨 customer 的 next_page（同 origin、換 uid）⇒ 拒絕跟隨、只打第 1 頁、留下診斷紀錄，別人的 Plus 訂閱不會被算成這個 uid 的資格',
     JSON.stringify({ crossCustomer, 上游: rcCallsCross, consoleLog }));
+}
+
+// ── 11. TestFlight 自訂 header 的 CORS 預檢 ────────────────────────────────────────
+section(SECTIONS[10]);
+{
+  const preflight = await worker.fetch(new Request('https://railisland.tw/api/plus-status', {
+    method: 'OPTIONS',
+    headers: {
+      Origin: 'capacitor://localhost',
+      'Access-Control-Request-Method': 'GET',
+      'Access-Control-Request-Headers': 'authorization, x-rail-plus-sandbox-build',
+    },
+  }), ENV(), {});
+  const allowed = String(preflight.headers.get('Access-Control-Allow-Headers') || '')
+    .toLowerCase().split(',').map(value => value.trim()).filter(Boolean);
+  check(preflight.status === 204 && allowed.includes('authorization')
+      && allowed.includes('x-rail-plus-sandbox-build'),
+    'Capacitor 的 /api/plus-status 預檢明確允許 Authorization 與 TestFlight build header（否則只看得到 OPTIONS，真正 GET 不會送出）',
+    JSON.stringify({ status: preflight.status, allowed }));
 }
 
 globalThis.fetch = realFetch;

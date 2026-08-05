@@ -3485,7 +3485,9 @@ export default {
       if (APP_ORIGINS.has(origin)) {
         addAppCors(h, origin);
         h.set('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-        h.set('Access-Control-Allow-Headers', 'Authorization, Content-Type');
+        // TestFlight 的資格握手會帶 build allowlist header；漏掉它時瀏覽器只送 OPTIONS，
+        // 真正的 /api/plus-status GET 會在 CORS 預檢階段被擋，Sandbox 資格文件永遠無法落地。
+        h.set('Access-Control-Allow-Headers', 'Authorization, Content-Type, X-Rail-Plus-Sandbox-Build');
         h.set('Access-Control-Max-Age', '86400');
       }
       return new Response(null, { status: APP_ORIGINS.has(origin) ? 204 : 403, headers: h });
