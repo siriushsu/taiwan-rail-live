@@ -6,6 +6,10 @@
 .env
 .env.example
 .dev.vars*
+# 本機 CLI／驗收輸出可能含部署回應、授權錯誤或暫存設定；不屬於網站資產。
+# 2026-08-05 build 21 Preview 實際抓到這兩個未追蹤檔，故用磁碟現況做部署時必須明確排除。
+firebase-debug.log
+r.json
 *.bak-*
 .wrangler
 .DS_Store
