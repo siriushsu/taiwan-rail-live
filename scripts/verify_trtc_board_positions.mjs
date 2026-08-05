@@ -8,7 +8,10 @@ import { chromium, webkit } from 'playwright';
 import { buildTrtcModel, resolveBoardRows, claimBoardRows, collapseClaims,
   branchLineHintsFromLedger } from './trtc_board_ledger.mjs';
 
-const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+const ROOT = path.resolve(process.env.TRTC_POS_ROOT || path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..'));
+const OUTPUT = path.resolve(process.env.TRTC_POS_OUTPUT || path.join(ROOT, 'tmp/verify_trtc_board_positions-output.json'));
+const PAGE_ROOT = path.resolve(process.env.TRTC_POS_PAGE_ROOT || ROOT);
+const PAGE_HTML = PAGE_ROOT === ROOT ? null : fs.readFileSync(path.join(PAGE_ROOT, 'index.html'), 'utf8');
 const FIXTURE_PORT = Number(process.env.TRTC_POS_FIXTURE_PORT || 43387);
 const WORKER_PORT = Number(process.env.TRTC_POS_WORKER_PORT || 43389);
 const INSPECTOR_PORT = Number(process.env.TRTC_POS_INSPECTOR_PORT || 43390);
@@ -235,7 +238,7 @@ function injectBrDelay(raw, seconds) {
 const LEAFLET_DIST = process.env.TRTC_LEAFLET_DIST || '/tmp/trtc-playwright-deps/node_modules/leaflet/dist';
 const leafletJs = fs.readFileSync(path.join(LEAFLET_DIST, 'leaflet.js'));
 const leafletCss = fs.readFileSync(path.join(LEAFLET_DIST, 'leaflet.css'));
-async function preparePage(page, documentHtml = null) {
+async function preparePage(page, documentHtml = PAGE_HTML) {
   await page.addInitScript(() => localStorage.setItem('trainmap-howto-seen', '1'));
   await page.route('**/*', async route => {
     const url = new URL(route.request().url());
@@ -722,7 +725,7 @@ async function run() {
     if (CLEAN_PERSIST_DIR) fs.rmSync(PERSIST_DIR, { recursive: true, force: true });
     fs.mkdirSync(path.join(ROOT, 'tmp'), { recursive: true });
     output.failures = failures;
-    fs.writeFileSync(path.join(ROOT, 'tmp/verify_trtc_board_positions-output.json'), JSON.stringify(output, null, 2) + '\n');
+    fs.writeFileSync(OUTPUT, JSON.stringify(output, null, 2) + '\n');
   }
   if (failures) process.exitCode = 1;
 }
@@ -732,7 +735,7 @@ run().catch(error => {
   output.error = String(error && error.stack || error);
   output.failures = failures;
   fs.mkdirSync(path.join(ROOT, 'tmp'), { recursive: true });
-  fs.writeFileSync(path.join(ROOT, 'tmp/verify_trtc_board_positions-output.json'), JSON.stringify(output, null, 2) + '\n');
+  fs.writeFileSync(OUTPUT, JSON.stringify(output, null, 2) + '\n');
   console.error(output.error);
   process.exitCode = 1;
 });

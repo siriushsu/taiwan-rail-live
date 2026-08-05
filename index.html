@@ -3344,14 +3344,14 @@
            內容 li 上限 8 條(li.grp 是標題不算)。 -->
       <ul class="foot-list foot-recent">
         <li class="grp">最近更新</li>
+        <li data-cl-of="metromotion"><span class="d">8/5</span><span>淡海輕軌等捷運收到新即時資料時，不再先停住再猛追；所有捷運與輕軌都改成平順加減速</span></li>
+        <li data-cl-of="trtcpos"><span class="d">8/5</span><span>北捷列車會依官方到站倒數直接算出目前在站間的位置，換站資料不再變成一筆要慢慢追的誤差</span></li>
         <li data-cl-of="trtcmotion"><span class="d">8/5</span><span>北捷列車不再每次收到新到站資料就停一下、再突然加速追趕，站間移動會持續而平順</span></li>
         <li data-cl-of="moresheet"><span class="d">8/4</span><span>電腦版把頁面捲下去後開「更多」，選單上方會被切掉；現在捲到哪裡開都完整</span></li>
         <li data-cl-of="orangebranch"><span class="d">8/4</span><span>橘線列車進共線段後會延續蘆洲／迴龍的支線身分，不再誤算成新莊線</span></li>
         <li data-cl-of="hazardwatch"><span class="d">8/4</span><span>颱風、地震等示警生效時，軌島立即重查各家官方營運公告並持續複查</span></li>
         <li data-cl-of="appdata"><span class="d">8/4</span><span>App 的台鐵班表過期後會自動上網補最新的，不必等改版</span></li>
         <li data-cl-of="afrtrainno"><span class="d">8/4</span><span>阿里山林鐵 1、2 次的介紹被寫成台鐵環島之星，現在改回阿里山號（謝謝網友回報）</span></li>
-        <li data-cl-of="brheadway"><span class="d">8/4</span><span>文湖線班距改吃八萬筆到站實測重算——畫面原本少了約三成的車</span></li>
-        <li data-cl-of="yboard"><span class="d">8/4</span><span>環狀線也改吃官方到站倒數逐班校正；沒對到的班次改用全線平均誤點量</span></li>
       </ul>
       <!-- 第二層:完整歷史。刻意不掛 .foot-box 類名——placeFootBoxes() 用
            `.site-foot .foot-box` 搬移面板,巢狀同名會被當成另一個盒子一起搬走。 -->
@@ -3367,6 +3367,8 @@
         <li><span class="d">7/10</span><span>高鐵、桃園機捷、淡海輕軌、安坑輕軌加入路網</span></li>
         <li><span class="d">7/10</span><span>環島觀光列車一分為二：往東「山海號」、往西「平原號」</span></li>
         <li class="grp">即時動態與誤點</li>
+        <li data-cl="metromotion"><span class="d">8/5</span><span>所有捷運與輕軌共用平順運動模型：每站間用簡單的加速、巡航、減速曲線；淡海輕軌、安坑輕軌、機捷、高捷等收到新的即時校正時，速度也限制在正常推演的 0.25～2 倍，不再為了追資料停住或突然衝刺</span></li>
+        <li data-cl="trtcpos"><span class="d">8/5</span><span>北捷列車有官方到站倒數時，現在直接用「站間行駛時間與剩餘秒數」算出列車在兩站之間的位置；班表仍是唯一車輛名冊，沒有可靠錨點時才回到原本的平順推估</span></li>
         <li data-cl="trtcmotion"><span class="d">8/5</span><span>北捷列車每次收到新的官方到站資料時，原本會為了校正位置先停住、再突然加速追趕；現在把差距分散到接下來的移動中慢慢吸收，兩站之間會持續前進，追趕速度也有上限</span></li>
         <li data-cl="orangebranch"><span class="d">8/4</span><span>橘線列車進入大橋頭以南的共線路段後，會延續它原本來自蘆洲或迴龍的支線身分，不再把往南勢角的蘆洲線列車誤算成新莊線；當日班表的車數不受影響</span></li>
         <li data-cl="hazardwatch"><span class="d">8/4</span><span>颱風、地震、雷雨、豪雨等示警生效時，軌島會立即重查台鐵、高鐵與捷運的官方營運公告並持續複查。示警本身不代表停駛，也不會讓地圖上的車消失；以各營運單位公告為準</span></li>
@@ -3757,7 +3759,7 @@
 // 🔴 BUILD 字串會跨並行分支撞號（心得 16）：07-28 兩條線各自遞增又各自部署過——
 // origin/main 這條用到 v0728b，正式站那條用到 v0728f。本次三方合併把兩條線統一，
 // 所以往後推到一個雙方都沒用過的號，辨識線上跑哪一版仍以內容 hash 為準。
-const BUILD = 'v0805a';
+const BUILD = 'v0805c';
 // 成就徽章與車廂標記＝原本那些 emoji 的單色平面版（RailEmoji＝裁切過的 Noto Emoji 單色）。
 // 刻意保留 railIcon(name) 這個唯一入口:呼叫端一行都不用改,只有這裡決定畫法。
 // 🔴 ⚖ 與 ♾ 一律寫**不帶 VS16(U+FE0F)** 的碼位——帶了就強制彩色呈現,會蓋過 font-family
@@ -4188,10 +4190,14 @@ function runBetween(ln, a, b) {
 }
 function posBetweenStations(ln, ia, ib, f) {
   if (ln.hasShape) {
-    const da = ln.stations[ia].d, db = ln.stations[ib].d;
+    // TDX 站點里程與 shape 弧長各自四捨五入，端點偶爾會超出線形數公尺（淡水 +1.99m）。
+    // 先夾端點再內插；若等內插後才由 posAlongShape 夾，離站初段會原地吃掉這段差值，看成停一下才走。
+    const shapeLen = ln.cum[ln.cum.length - 1];
+    const da = Math.max(0, Math.min(shapeLen, ln.stations[ia].d));
+    const db = Math.max(0, Math.min(shapeLen, ln.stations[ib].d));
     let d;
     if (ln.loop) {
-      const L = ln.loopLen || ln.cum[ln.cum.length - 1];
+      const L = ln.loopLen || shapeLen;
       const fwd = ((db - da) % L + L) % L, bwd = ((da - db) % L + L) % L;
       d = fwd <= bwd ? da + fwd * f : da - bwd * f;
       d = ((d % L) + L) % L;
@@ -4202,13 +4208,26 @@ function posBetweenStations(ln, ia, ib, f) {
   return { lat: A.lat + (B.lat - A.lat) * f, lon: A.lon + (B.lon - A.lon) * f };
 }
 // 對外入口套即時校正回撥(比照台鐵 trainPos 的 liveDelaySec 語意);內層 raw 給已自行回撥的呼叫端
+function freqTrainBaseAt(ln, tr, t, rosterTime) {
+  if (rosterTime == null) rosterTime = freqTrainTime(tr, t);
+  if (rosterTime == null) return { pos: null, anchored: null, tm: null, sh: 0 };
+  const sh = metroShiftSec(ln, tr);
+  const shifted = Math.max(tr[1], Math.min(tr[tr.length - 1], rosterTime - sh));
+  const fallback = freqTrainPosRaw(ln, tr, shifted), anchored0 = trtcBoardPosition(ln, tr, t);
+  // 倒數若與目前平順位置差太遠，代表是稀疏／過站／錯配資料；不能為了追準度把車瞬移。
+  // 25m 內才接手（z16 約十餘 px 以下），否則讓既有 0.25×–2× 模型繼續靠近並於後續畫格再判斷。
+  const anchored = anchored0 && fallback && haversineKm(anchored0.pos, fallback) <= .025 ? anchored0 : null;
+  return { pos: anchored ? anchored.pos : fallback, anchored, tm: shifted, sh };
+}
 function freqTrainPosAt(ln, tr, t) {
   // 車的存在區間只由班表決定：即時校正只能在這個區間內移動它，
   // 不能因為誤點就讓車提前出生、晚點消失或在起點前被 freqTrainPosRaw 濾掉。
   const rosterTime = freqTrainTime(tr, t);
   if (rosterTime == null) return null;
-  const shifted = Math.max(tr[1], Math.min(tr[tr.length - 1], rosterTime - metroShiftSec(ln, tr)));
-  return freqTrainPosRaw(ln, tr, shifted);
+  // 北捷有逐班實體錨點時直接吃「這一站到下一站」的位置，不先換算成整班 shift 再追。
+  // 名冊 gate 已在上面通過；錨點只決定名冊內這班此刻畫在哪，不會建車或延長生命。
+  const base = freqTrainBaseAt(ln, tr, t, rosterTime);
+  return trtcHeadwayPosition(ln, tr, t, base.pos);
 }
 function freqTrainPosRaw(ln, tr, t) {
   const tm = freqTrainTime(tr, t);
@@ -4221,8 +4240,23 @@ function freqTrainPosRaw(ln, tr, t) {
   const ib = tr[lo * 2 + 2], tb = tr[lo * 2 + 3];
   const span = tb - ta;
   const run = runBetween(ln, ia, ib);
-  const moveT = run && run < span ? run : span; // 先行駛後停站;缺行駛秒整段線性
-  const f = Math.min(1, span > 0 ? (tm - ta) / moveT : 1);
+  const moveT = run && run < span ? run : span; // 有段秒就先行駛後停站；缺段秒則用兩站表定間隔跑完整段
+  const elapsed = tm - ta;
+  let f = Math.min(1, span > 0 ? elapsed / moveT : 1);
+  // 所有捷運／輕軌的純班表站間都用同一個停→停梯形；live 校正只改查詢時間，不另造一套速度形狀。
+  // profile 依線物件快取，避免每幀每車重解方程；不可行的極短段記 null 並維持原本等速安全回退。
+  if (f > 0 && f < 1 && moveT > 0) {
+    if (!ln._metroProfiles) ln._metroProfiles = new Map();
+    const pk = ia + '>' + ib + '@' + moveT;
+    let profile = ln._metroProfiles.get(pk);
+    if (profile === undefined) {
+      const km = ln.hasShape ? Math.abs(ln.stations[ib].d - ln.stations[ia].d)
+        : haversineKm(ln.stations[ia], ln.stations[ib]);
+      profile = buildProfile(km, moveT, TRTC_BOARD_PERF.a, TRTC_BOARD_PERF.b, TRTC_BOARD_PERF.v) || null;
+      ln._metroProfiles.set(pk, profile);
+    }
+    if (profile) f = profTimeToProg(profile, elapsed);
+  }
   return posBetweenStations(ln, ia, ib, f);
 }
 // 跟隨資訊卡:目前位置+下一停靠站(名稱與時刻)+終點;nextSec 加回校正量=預期實際到離站時刻
@@ -4230,13 +4264,13 @@ function freqTrainInfoAt(ln, tr, t) {
   const rosterTime = freqTrainTime(tr, t);
   const n = tr.length;
   if (rosterTime == null) return { pos: null, done: t > tr[n - 1] || (t < tr[1] && t + 86400 > tr[n - 1]) };
-  const sh = metroShiftSec(ln, tr);
-  const tm = Math.max(tr[1], Math.min(tr[n - 1], rosterTime - sh));
-  const pos = freqTrainPosRaw(ln, tr, tm);
+  const base = freqTrainBaseAt(ln, tr, t, rosterTime), sh = base.sh, tm = base.tm;
+  const anchored = base.anchored, pos = trtcHeadwayPosition(ln, tr, t, base.pos);
   let ni = n - 2;
   for (let i = 1; i < n; i += 2) if (tr[i] > tm) { ni = i - 1; break; }
   const term = ln.stations[tr[n - 2]];
-  return { pos, nextName: (ln.stations[tr[ni]] || {}).name || '', nextSec: tr[ni + 1] + sh,
+  return { pos, nextName: anchored ? ((ln.stations[anchored.to] || {}).name || '') : ((ln.stations[tr[ni]] || {}).name || ''),
+    nextSec: anchored ? anchored.arrSec : tr[ni + 1] + sh,
     termName: ln.loop ? null : (term ? term.name : ''), loop: !!ln.loop };
 }
 
@@ -14217,8 +14251,8 @@ async function setupLocalNotifications() {
 // ── 即時校正共用漸變層:偏移目標任何變化(門檻進出/每分鐘資料更新/開機首拉)都平滑收斂,消除硬切跳位。
 //    advance-on-query:查詢時就地推進,dt 上限 0.1s(未被查詢期間等同凍結,回前景/回視野再滑,不會瞬跳)。
 //    預設維持 v0718g:偏移上升鉗在模擬時間流速(位置不倒退)、下降 τ=1s 追回。
-//    北捷逐班另傳 motion profile:兩方向都用模擬時間速率限制,把誤差以 0.25–2× 段內標稱速度吸收；
-//    target 更新當下 adv=0,所以位置連續,站間也不會因校正完全停住或暴衝。台鐵與其他捷運不走此 profile。
+//    所有捷運 live 校正都傳 motion profile:兩方向都用模擬時間速率限制,把誤差以 0.25–2× 段內標稱速度吸收；
+//    target 更新當下 adv=0,所以位置連續,站間也不會因校正完全停住或暴衝。台鐵不走此 profile。
 //    epoch=校正剛(重新)啟用(開機首拉/回看歸來):該瞬間 5 秒窗內首見或跨 epoch 的 entry 直接對齊目標,
 //    不做數十分鐘的凍結慢追;epoch 之中途才冒出的誤點(0→1)才走凍結追上。
 const _easedShift = new Map(); // key → {cur, at, sim, ep}
@@ -14226,6 +14260,7 @@ const _traGateEp = { on: false, ep: 0, at: 0 }, _metroGateEp = { on: false, ep: 
 const TRTC_MOTION_MIN_RATE = .25;
 const TRTC_MOTION_MAX_RATE = 2;
 const TRTC_MOTION_PROFILE = { minRate: TRTC_MOTION_MIN_RATE, maxRate: TRTC_MOTION_MAX_RATE };
+const METRO_MOTION_PROFILE = TRTC_MOTION_PROFILE;
 function gateEpoch(g, on) { if (on !== g.on) { g.on = on; if (on) { g.ep++; g.at = performance.now(); } } return g; }
 function easedShift(key, target, g, motion) {
   let e = _easedShift.get(key);
@@ -14248,7 +14283,9 @@ function easedShift(key, target, g, motion) {
     else                e.cur = Math.max(target, e.cur - fall);
   } else if (target > e.cur) e.cur = Math.min(target, e.cur + adv); // 上升鉗制:位置恆不倒退
   else e.cur += (target - e.cur) * (1 - Math.exp(-dt)); // τ=1s,約 3 秒收斂
-  if (!target && Math.abs(e.cur) < .25) { _easedShift.delete(key); return 0; } // 已滑回表定(<0.25s)=清 entry 回 fast path
+  // 有界模式不能用 <0.25s 直接歸零：例如 -0.20→0 的清理跳步會讓有效時間短暫倒退。
+  // motion 的 min/max 本來就會精確夾到 target=0，等真的到 0 再刪；舊模式維持既有死區。
+  if (!target && (motion ? e.cur === 0 : Math.abs(e.cur) < .25)) { _easedShift.delete(key); return 0; }
   return e.cur;
 }
 
@@ -14404,6 +14441,72 @@ function metroFresh(ln) { // 新鮮 tier(校正中):資料 5 分內且模擬時�
 function freqTripKey(ln, tr) { // 線物件 rebuild 後仍穩定;同線同秒起訖若真重複,末站+末秒仍能消歧
   return freqSysIdOf(ln) + ':' + ln.id + ':' + tr[0] + '@' + tr[1] + '>' + tr[tr.length - 2] + '@' + tr[tr.length - 1];
 }
+const TRTC_BOARD_PERF = { a: 3.6, b: 4.3, v: 80 }; // km/h/s、km/h：各捷運站間共用的簡單停→停梯形
+const TRTC_BOARD_MIN_GAP_KM = .02; // 防穿越用的視覺下限；若原本更近就沿用原距離，不把車憑空拉開
+function trtcBoardFraction(rec, simSec) {
+  const start = rec.arrSec - rec.run, elapsed = Math.max(0, Math.min(rec.run, simSec - start));
+  return rec.profile ? profTimeToProg(rec.profile, elapsed) : elapsed / rec.run;
+}
+function trtcBoardPosition(ln, tr, simSec) {
+  const board = ln && ln._trtcBoard, rec = board && board.positions && board.positions.get(tr);
+  if (!rec || !metroLiveOn(ln) || !(rec.run > 0)) return null;
+  const start = rec.arrSec - rec.run, dwell = Number(ln.stations[rec.to] && ln.stations[rec.to].dwell) || 25;
+  if (simSec < start || simSec > rec.arrSec + dwell) return null;
+  const f = trtcBoardFraction(rec, simSec);
+  return { pos: posBetweenStations(ln, rec.from, rec.to, f), from: rec.from, to: rec.to,
+    run: rec.run, arrSec: rec.arrSec, progress: f, moving: f > 0 && f < 1 };
+}
+// 同方向列車各自吃自己的 15 秒倒數，但不能因此改寫兩車原有的前後關係。
+// applyTrtcBoard 會在換入新 snapshot 前記住相鄰車距與前後順序；兩車仍各自照倒數／梯形推進，
+// 車距可自然增減，只有推算結果要穿越時才擋住。約束沿線一維里程，不拿經緯度直線距離猜前後。
+function trtcHeadwayPosition(ln, tr, simSec, pos) {
+  const board = ln && ln._trtcBoard, link = board && board.headways && board.headways.get(tr);
+  const rec = board && board.positions && board.positions.get(tr), leadRec = link && board.positions.get(link.lead);
+  if (!pos || !link || !rec || !leadRec || !ln.hasShape ||
+      rec.from !== leadRec.from || rec.to !== leadRec.to) return pos;
+  const leadBase = freqTrainBaseAt(ln, link.lead, simSec), leadPos = leadBase.pos;
+  if (!leadPos) return pos;
+  const rearD = projectOntoShape(ln, pos.lat, pos.lon).d, leadD = projectOntoShape(ln, leadPos.lat, leadPos.lon).d;
+  const dir = Math.sign(ln.stations[rec.to].d - ln.stations[rec.from].d) || 1;
+  // 原距離只提供初始條件與順序，不是永久固定值；固定舊距離會讓正常跟車變成長時間爬行。
+  // 若原本已近於 20m，維持原距離即可，絕不為了視覺好看把後車往回拉。
+  const wanted = Math.max(.001, Math.min(TRTC_BOARD_MIN_GAP_KM, link.km));
+  if (rearD == null || leadD == null || (leadD - rearD) * dir >= wanted) return pos;
+  const total = ln.cum[ln.cum.length - 1], limitedD = Math.max(0, Math.min(total, leadD - dir * wanted));
+  return posAlongShape(ln, limitedD);
+}
+
+function snapshotTrtcHeadways(lines, nowSec) {
+  const out = new Map();
+  for (const ln of lines) {
+    const board = ln._trtcBoard;
+    if (!ln.hasShape || !board || !board.positions) continue;
+    const groups = new Map();
+    // 只讀上一份看板已經存好的絕對站間位置，不重跑 freqTrainPosAt／metroShiftSec；
+    // 量車距本身不能反過來推進 eased 狀態，否則驗收器與畫面會因「多讀一次」得到不同答案。
+    for (const [tr, rec] of board.positions) {
+      const start = rec.arrSec - rec.run, dwell = Number(ln.stations[rec.to] && ln.stations[rec.to].dwell) || 25;
+      if (nowSec < start || nowSec > rec.arrSec + dwell) continue;
+      const f = trtcBoardFraction(rec, nowSec);
+      const d = ln.stations[rec.from].d + (ln.stations[rec.to].d - ln.stations[rec.from].d) * f;
+      const dir = Math.sign(ln.stations[rec.to].d - ln.stations[rec.from].d) || 1;
+      // 只有上一畫格真的同在一個站間才算一組；不能把「全線相鄰但隔著車站」的兩班硬綁。
+      const groupKey = dir + '|' + rec.from + '>' + rec.to;
+      let a = groups.get(groupKey); if (!a) groups.set(groupKey, a = []);
+      a.push({ tr, d, dir });
+    }
+    const links = new Map();
+    for (const a of groups.values()) {
+      a.sort((x, y) => (y.d - x.d) * x.dir); // 由前往後；里程遞增／遞減兩方向共用
+      for (let i = 1; i < a.length; i++) {
+        const km = (a[i - 1].d - a[i].d) * a[i].dir;
+        if (km > 0) links.set(a[i].tr, { lead: a[i - 1].tr, km });
+      }
+    }
+    out.set(ln, links);
+  }
+  return out;
+}
 function metroShiftSec(ln, tr) { // 正=實際比表定晚跑(誤點);北捷逐班,其他現行資料源維持逐線;經 easedShift 平滑進出
   const s = ln._liveShift, on = metroLiveOn(ln);
   let target = 0, dch; // 方向字元 f/b/a:eased 偏移逐線逐方向共用(非逐車)
@@ -14416,7 +14519,7 @@ function metroShiftSec(ln, tr) { // 正=實際比表定晚跑(誤點);北捷逐�
   else { const fwd = tr[0] <= tr[tr.length - 2]; dch = fwd ? 'f' : 'b'; if (on && s) { const v = fwd ? s.f : s.b; target = v != null ? v : (s.all || 0); } }
   // key 須跨 rebuildFreqLines 穩定(line 物件會重建,不可用 ln 物件當 key);epoch 用全域時間軸 gate(逐線資料齡不算重啟)
   return easedShift(freqSysIdOf(ln) + ':' + ln.id + ':' + dch, target, gateEpoch(_metroGateEp, metroLiveGate()),
-    tr && ln._trtcTripMode ? TRTC_MOTION_PROFILE : null);
+    METRO_MOTION_PROFILE);
 }
 function freqSysIdOf(ln) { return ln._sys || (state.sys && state.sys.id); }
 function metroLivePool() { // 校正對象:各捷運分頁=state.lines;全台同框=裝飾捷運層(deco 也吃 _tt+simSec,同一套錨定直接適用)
@@ -14500,6 +14603,9 @@ function applyTrtcBoard(rows, observedEpoch) {
   if (_trtcNoTripDay !== serviceDay) { _trtcNoTripDay = serviceDay; _trtcNoTrip.clear(); }
   const mine = metroLivePool().filter(ln => isTrtcBoardLine(ln) && ln._tt && ln._tt.length);
   const byId = new Map(mine.map(ln => [ln.id, ln]));
+  // 換入新 15 秒 snapshot 前，先從上一畫格記住同線同向相鄰車的沿線距離與前後身分。
+  // 新倒數仍讓兩車各自推進；只有推算結果要反轉順序時才以這份舊畫面約束後車。
+  const previousHeadways = snapshotTrtcHeadways(mine, nowSec);
   // 每份成功 snapshot 都完整取代上份：當輪沒認到的班次只退回班表位置。
   for (const ln of mine) {
     ln._trtcTripMode = true; // 失敗退場時仍查同一個 easedShift trip key，才會滑回表定而非硬跳
@@ -14575,11 +14681,18 @@ function applyTrtcBoard(rows, observedEpoch) {
   }
   const final = accepted.filter(e => !rejected.has(e)), perLine = new Map();
   for (const e of final) {
-    let rec = perLine.get(e.ln); if (!rec) perLine.set(e.ln, rec = { shifts: new Map(), values: [] });
+    let rec = perLine.get(e.ln); if (!rec) perLine.set(e.ln, rec = { shifts: new Map(), positions: new Map(), headways: previousHeadways.get(e.ln) || new Map(), values: [] });
     rec.shifts.set(e.tr, Math.round(e.shift)); rec.values.push(e.shift);
+    // 已到站／過站才收到的倒數不能拿來瞬移；只有「現在仍在這個站間」的正倒數可直接定位。
+    if (e.run > 0 && e.from !== e.to && e.arrSec > nowSec && e.arrSec - nowSec <= e.run) {
+      const km = e.ln.hasShape ? Math.abs(e.ln.stations[e.to].d - e.ln.stations[e.from].d)
+        : haversineKm(e.ln.stations[e.from], e.ln.stations[e.to]);
+      rec.positions.set(e.tr, { from: e.from, to: e.to, run: e.run, arrSec: e.arrSec,
+        profile: buildProfile(km, e.run, TRTC_BOARD_PERF.a, TRTC_BOARD_PERF.b, TRTC_BOARD_PERF.v) });
+    }
     if (e.no) _trtcNoTrip.set(e.ln.id + '|' + e.dir + '|' + e.no, e.tripKey);
   }
-  for (const [ln, rec] of perLine) ln._trtcBoard = { shifts: rec.shifts,
+  for (const [ln, rec] of perLine) ln._trtcBoard = { shifts: rec.shifts, positions: rec.positions, headways: rec.headways,
     all: Math.round(trtcMedian(rec.values) || 0), at: observedEpoch * 1000, n: rec.shifts.size, rows: rows.length };
   // 逐線異常偵測(地震/雷雨/颱風造成的重大調度要看得出來,好去找官方公告)。
   // 對應既有三訊號:acc=逐班校正量樣本、rej=有實體錨點卻接不上任何名冊班次的列(看板與時刻表脫節)、
