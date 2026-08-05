@@ -1,0 +1,1275 @@
+{
+  "requestedWidth": 375,
+  "densityDpi": 461,
+  "appPid": "3455",
+  "targetDescription": {
+    "attached": true,
+    "empty": false,
+    "height": 2195,
+    "never_attached": false,
+    "screenX": 0,
+    "screenY": 136,
+    "visible": true,
+    "width": 1080
+  },
+  "scan": {
+    "viewport": {
+      "innerWidth": 375,
+      "innerHeight": 762,
+      "dpr": 2.8812501430511475,
+      "visualScale": 1
+    },
+    "bodyClasses": "fs cfaint",
+    "controls": [
+      {
+        "key": "c0",
+        "label": "a:Leaflet",
+        "tag": "A",
+        "text": "Leaflet",
+        "rect": {
+          "x": 239.97,
+          "y": 635.22,
+          "width": 42.85,
+          "height": 11.8
+        },
+        "points": [
+          {
+            "x": 261.4,
+            "y": 641.12,
+            "owner": "c0"
+          },
+          {
+            "x": 245.97,
+            "y": 641.12,
+            "owner": "c0"
+          },
+          {
+            "x": 276.82,
+            "y": 641.12,
+            "owner": "c0"
+          },
+          {
+            "x": 261.4,
+            "y": 639.15,
+            "owner": "c0"
+          },
+          {
+            "x": 261.4,
+            "y": 643.08,
+            "owner": "c0"
+          }
+        ],
+        "centerHit": "c0",
+        "pseudo": []
+      },
+      {
+        "key": "c1",
+        "label": "button:全",
+        "tag": "BUTTON",
+        "text": "全",
+        "rect": {
+          "x": 172.14,
+          "y": 8,
+          "width": 43.76,
+          "height": 36
+        },
+        "points": [
+          {
+            "x": 194.02,
+            "y": 26,
+            "owner": "c1"
+          },
+          {
+            "x": 178.14,
+            "y": 26,
+            "owner": "c1"
+          },
+          {
+            "x": 209.9,
+            "y": 26,
+            "owner": "c1"
+          },
+          {
+            "x": 194.02,
+            "y": 14,
+            "owner": "c1"
+          },
+          {
+            "x": 194.02,
+            "y": 38,
+            "owner": "c1"
+          }
+        ],
+        "centerHit": "c1",
+        "pseudo": []
+      },
+      {
+        "key": "c2",
+        "label": "button:台",
+        "tag": "BUTTON",
+        "text": "台",
+        "rect": {
+          "x": 221.9,
+          "y": 8,
+          "width": 43.76,
+          "height": 36
+        },
+        "points": [
+          {
+            "x": 243.78,
+            "y": 26,
+            "owner": "c2"
+          },
+          {
+            "x": 227.9,
+            "y": 26,
+            "owner": "c2"
+          },
+          {
+            "x": 259.66,
+            "y": 26,
+            "owner": "c2"
+          },
+          {
+            "x": 243.78,
+            "y": 14,
+            "owner": "c2"
+          },
+          {
+            "x": 243.78,
+            "y": 38,
+            "owner": "c2"
+          }
+        ],
+        "centerHit": "c2",
+        "pseudo": []
+      },
+      {
+        "key": "c3",
+        "label": "button:高",
+        "tag": "BUTTON",
+        "text": "高",
+        "rect": {
+          "x": 271.66,
+          "y": 8,
+          "width": 43.76,
+          "height": 36
+        },
+        "points": [
+          {
+            "x": 293.54,
+            "y": 26,
+            "owner": "c3"
+          },
+          {
+            "x": 277.66,
+            "y": 26,
+            "owner": "c3"
+          },
+          {
+            "x": 309.42,
+            "y": 26,
+            "owner": "c3"
+          },
+          {
+            "x": 293.54,
+            "y": 14,
+            "owner": "c3"
+          },
+          {
+            "x": 293.54,
+            "y": 38,
+            "owner": "c3"
+          }
+        ],
+        "centerHit": "c3",
+        "pseudo": []
+      },
+      {
+        "key": "c4",
+        "label": "button:捷",
+        "tag": "BUTTON",
+        "text": "捷",
+        "rect": {
+          "x": 321.42,
+          "y": 8,
+          "width": 43.76,
+          "height": 36
+        },
+        "points": [
+          {
+            "x": 343.3,
+            "y": 26,
+            "owner": "c4"
+          },
+          {
+            "x": 327.42,
+            "y": 26,
+            "owner": "c4"
+          },
+          {
+            "x": 359.18,
+            "y": 26,
+            "owner": "c4"
+          },
+          {
+            "x": 343.3,
+            "y": 14,
+            "owner": "c4"
+          },
+          {
+            "x": 343.3,
+            "y": 38,
+            "owner": "c4"
+          }
+        ],
+        "centerHit": "c4",
+        "pseudo": []
+      },
+      {
+        "key": "c5",
+        "label": "#randBtn",
+        "tag": "BUTTON",
+        "text": "隨機跟隨",
+        "rect": {
+          "x": 153.7,
+          "y": 100,
+          "width": 101.75,
+          "height": 33.51
+        },
+        "points": [
+          {
+            "x": 204.57,
+            "y": 116.76,
+            "owner": "c5"
+          },
+          {
+            "x": 159.7,
+            "y": 116.76,
+            "owner": "c5"
+          },
+          {
+            "x": 249.44,
+            "y": 116.76,
+            "owner": "c5"
+          },
+          {
+            "x": 204.57,
+            "y": 106,
+            "owner": "c5"
+          },
+          {
+            "x": 204.57,
+            "y": 127.51,
+            "owner": "c5"
+          }
+        ],
+        "centerHit": "c5",
+        "pseudo": [
+          {
+            "which": "::after",
+            "content": "\"\"",
+            "pointerEvents": "auto",
+            "width": "98.9696px",
+            "height": "43.9967px"
+          }
+        ]
+      },
+      {
+        "key": "c6",
+        "label": "#nearBtn",
+        "tag": "BUTTON",
+        "text": "◎ 附近車站",
+        "rect": {
+          "x": 263.44,
+          "y": 100,
+          "width": 101.74,
+          "height": 36.29
+        },
+        "points": [
+          {
+            "x": 314.31,
+            "y": 118.15,
+            "owner": "c6"
+          },
+          {
+            "x": 269.44,
+            "y": 118.15,
+            "owner": "c6"
+          },
+          {
+            "x": 359.18,
+            "y": 118.15,
+            "owner": "c6"
+          },
+          {
+            "x": 314.31,
+            "y": 106,
+            "owner": "c6"
+          },
+          {
+            "x": 314.31,
+            "y": 130.29,
+            "owner": "c6"
+          }
+        ],
+        "centerHit": "c6",
+        "pseudo": [
+          {
+            "which": "::after",
+            "content": "\"\"",
+            "pointerEvents": "auto",
+            "width": "98.9642px",
+            "height": "43.9967px"
+          }
+        ]
+      },
+      {
+        "key": "c7",
+        "label": "#tabSearch",
+        "tag": "BUTTON",
+        "text": "搜尋",
+        "rect": {
+          "x": 4,
+          "y": 715.56,
+          "width": 73.44,
+          "height": 44
+        },
+        "points": [
+          {
+            "x": 40.72,
+            "y": 737.56,
+            "owner": "c7"
+          },
+          {
+            "x": 10,
+            "y": 737.56,
+            "owner": "c7"
+          },
+          {
+            "x": 71.43,
+            "y": 737.56,
+            "owner": "c7"
+          },
+          {
+            "x": 40.72,
+            "y": 721.56,
+            "owner": "c7"
+          },
+          {
+            "x": 40.72,
+            "y": 753.56,
+            "owner": "c7"
+          }
+        ],
+        "centerHit": "c7",
+        "pseudo": []
+      },
+      {
+        "key": "c8",
+        "label": "#tabExplore",
+        "tag": "BUTTON",
+        "text": "探 亮點",
+        "rect": {
+          "x": 77.43,
+          "y": 715.56,
+          "width": 73.44,
+          "height": 44
+        },
+        "points": [
+          {
+            "x": 114.15,
+            "y": 737.56,
+            "owner": "c8"
+          },
+          {
+            "x": 83.43,
+            "y": 737.56,
+            "owner": "c8"
+          },
+          {
+            "x": 144.87,
+            "y": 737.56,
+            "owner": "c8"
+          },
+          {
+            "x": 114.15,
+            "y": 721.56,
+            "owner": "c8"
+          },
+          {
+            "x": 114.15,
+            "y": 753.56,
+            "owner": "c8"
+          }
+        ],
+        "centerHit": "c8",
+        "pseudo": []
+      },
+      {
+        "key": "c9",
+        "label": "#tabFav",
+        "tag": "BUTTON",
+        "text": "最愛",
+        "rect": {
+          "x": 150.87,
+          "y": 715.56,
+          "width": 73.44,
+          "height": 44
+        },
+        "points": [
+          {
+            "x": 187.59,
+            "y": 737.56,
+            "owner": "c9"
+          },
+          {
+            "x": 156.87,
+            "y": 737.56,
+            "owner": "c9"
+          },
+          {
+            "x": 218.31,
+            "y": 737.56,
+            "owner": "c9"
+          },
+          {
+            "x": 187.59,
+            "y": 721.56,
+            "owner": "c9"
+          },
+          {
+            "x": 187.59,
+            "y": 753.56,
+            "owner": "c9"
+          }
+        ],
+        "centerHit": "c9",
+        "pseudo": []
+      },
+      {
+        "key": "c10",
+        "label": "#tabRide",
+        "tag": "BUTTON",
+        "text": "旅 護照",
+        "rect": {
+          "x": 224.31,
+          "y": 715.56,
+          "width": 73.44,
+          "height": 44
+        },
+        "points": [
+          {
+            "x": 261.03,
+            "y": 737.56,
+            "owner": "c10"
+          },
+          {
+            "x": 230.31,
+            "y": 737.56,
+            "owner": "c10"
+          },
+          {
+            "x": 291.75,
+            "y": 737.56,
+            "owner": "c10"
+          },
+          {
+            "x": 261.03,
+            "y": 721.56,
+            "owner": "c10"
+          },
+          {
+            "x": 261.03,
+            "y": 753.56,
+            "owner": "c10"
+          }
+        ],
+        "centerHit": "c10",
+        "pseudo": []
+      },
+      {
+        "key": "c11",
+        "label": "#tabMore",
+        "tag": "BUTTON",
+        "text": "⋯ 更多",
+        "rect": {
+          "x": 297.75,
+          "y": 715.56,
+          "width": 73.44,
+          "height": 44
+        },
+        "points": [
+          {
+            "x": 334.47,
+            "y": 737.56,
+            "owner": "c11"
+          },
+          {
+            "x": 303.75,
+            "y": 737.56,
+            "owner": "c11"
+          },
+          {
+            "x": 365.19,
+            "y": 737.56,
+            "owner": "c11"
+          },
+          {
+            "x": 334.47,
+            "y": 721.56,
+            "owner": "c11"
+          },
+          {
+            "x": 334.47,
+            "y": 753.56,
+            "owner": "c11"
+          }
+        ],
+        "centerHit": "c11",
+        "pseudo": []
+      }
+    ],
+    "overlaps": [],
+    "rowSweeps": [
+      {
+        "y": 26,
+        "segments": [
+          {
+            "from": 1,
+            "to": 171,
+            "owner": null
+          },
+          {
+            "from": 173,
+            "to": 215,
+            "owner": "c1"
+          },
+          {
+            "from": 217,
+            "to": 221,
+            "owner": null
+          },
+          {
+            "from": 223,
+            "to": 265,
+            "owner": "c2"
+          },
+          {
+            "from": 267,
+            "to": 271,
+            "owner": null
+          },
+          {
+            "from": 273,
+            "to": 315,
+            "owner": "c3"
+          },
+          {
+            "from": 317,
+            "to": 321,
+            "owner": null
+          },
+          {
+            "from": 323,
+            "to": 365,
+            "owner": "c4"
+          },
+          {
+            "from": 367,
+            "to": 373,
+            "owner": null
+          }
+        ]
+      },
+      {
+        "y": 116.76,
+        "segments": [
+          {
+            "from": 1,
+            "to": 153,
+            "owner": null
+          },
+          {
+            "from": 155,
+            "to": 255,
+            "owner": "c5"
+          },
+          {
+            "from": 257,
+            "to": 263,
+            "owner": null
+          },
+          {
+            "from": 265,
+            "to": 365,
+            "owner": "c6"
+          },
+          {
+            "from": 367,
+            "to": 373,
+            "owner": null
+          }
+        ]
+      },
+      {
+        "y": 641.12,
+        "segments": [
+          {
+            "from": 1,
+            "to": 239,
+            "owner": null
+          },
+          {
+            "from": 241,
+            "to": 281,
+            "owner": "c0"
+          },
+          {
+            "from": 283,
+            "to": 373,
+            "owner": null
+          }
+        ]
+      },
+      {
+        "y": 737.56,
+        "segments": [
+          {
+            "from": 1,
+            "to": 3,
+            "owner": null
+          },
+          {
+            "from": 5,
+            "to": 77,
+            "owner": "c7"
+          },
+          {
+            "from": 79,
+            "to": 149,
+            "owner": "c8"
+          },
+          {
+            "from": 151,
+            "to": 223,
+            "owner": "c9"
+          },
+          {
+            "from": 225,
+            "to": 297,
+            "owner": "c10"
+          },
+          {
+            "from": 299,
+            "to": 371,
+            "owner": "c11"
+          },
+          {
+            "from": 373,
+            "to": 373,
+            "owner": null
+          }
+        ]
+      }
+    ]
+  },
+  "touches": [
+    {
+      "key": "c0",
+      "label": "a:Leaflet",
+      "cssCenter": [
+        261.39,
+        641.12
+      ],
+      "deviceTap": [
+        753,
+        1983
+      ],
+      "elementFromPoint": "c0",
+      "events": [
+        {
+          "type": "pointerdown",
+          "target": "A",
+          "owner": "c0"
+        },
+        {
+          "type": "pointerup",
+          "target": "A",
+          "owner": "c0"
+        },
+        {
+          "type": "click",
+          "target": "A",
+          "owner": "c0"
+        }
+      ],
+      "topActivity": "topResumedActivity=ActivityRecord{f4f4c28 u0 tw.railisland.app/.MainActivity t26}",
+      "stateChanged": false,
+      "before": {
+        "url": "https://localhost/",
+        "sysId": "tra_sched",
+        "group": "all",
+        "follow": null,
+        "body": "fs cfaint",
+        "visiblePanels": []
+      },
+      "after": {
+        "url": "https://localhost/",
+        "sysId": "tra_sched",
+        "group": "all",
+        "follow": null,
+        "body": "fs cfaint",
+        "visiblePanels": []
+      },
+      "pass": true
+    },
+    {
+      "key": "c1",
+      "label": "button:全",
+      "cssCenter": [
+        194.02,
+        26
+      ],
+      "deviceTap": [
+        559,
+        211
+      ],
+      "elementFromPoint": "c1",
+      "events": [
+        {
+          "type": "pointerdown",
+          "target": "BUTTON",
+          "owner": "c1"
+        },
+        {
+          "type": "pointerup",
+          "target": "BUTTON",
+          "owner": "c1"
+        },
+        {
+          "type": "click",
+          "target": "BUTTON",
+          "owner": "c1"
+        }
+      ],
+      "topActivity": "topResumedActivity=ActivityRecord{f4f4c28 u0 tw.railisland.app/.MainActivity t26}",
+      "stateChanged": false,
+      "before": {
+        "url": "https://localhost/",
+        "sysId": "tra_sched",
+        "group": "all",
+        "follow": null,
+        "body": "fs cfaint",
+        "visiblePanels": []
+      },
+      "after": {
+        "url": "https://localhost/",
+        "sysId": "tra_sched",
+        "group": "all",
+        "follow": null,
+        "body": "fs cfaint",
+        "visiblePanels": []
+      },
+      "pass": true
+    },
+    {
+      "key": "c2",
+      "label": "button:台",
+      "cssCenter": [
+        243.78,
+        26
+      ],
+      "deviceTap": [
+        702,
+        211
+      ],
+      "elementFromPoint": "c2",
+      "events": [
+        {
+          "type": "pointerdown",
+          "target": "BUTTON",
+          "owner": "c2"
+        },
+        {
+          "type": "pointerup",
+          "target": "BUTTON",
+          "owner": "c2"
+        },
+        {
+          "type": "click",
+          "target": "BUTTON",
+          "owner": "c2"
+        }
+      ],
+      "topActivity": "topResumedActivity=ActivityRecord{f4f4c28 u0 tw.railisland.app/.MainActivity t26}",
+      "stateChanged": false,
+      "before": {
+        "url": "https://localhost/",
+        "sysId": "tra_sched",
+        "group": "all",
+        "follow": null,
+        "body": "fs cfaint",
+        "visiblePanels": []
+      },
+      "after": {
+        "url": "https://localhost/",
+        "sysId": "tra_sched",
+        "group": "all",
+        "follow": null,
+        "body": "fs cfaint",
+        "visiblePanels": []
+      },
+      "pass": true
+    },
+    {
+      "key": "c3",
+      "label": "button:高",
+      "cssCenter": [
+        293.54,
+        26
+      ],
+      "deviceTap": [
+        846,
+        211
+      ],
+      "elementFromPoint": "c3",
+      "events": [
+        {
+          "type": "pointerdown",
+          "target": "BUTTON",
+          "owner": "c3"
+        },
+        {
+          "type": "pointerup",
+          "target": "BUTTON",
+          "owner": "c3"
+        },
+        {
+          "type": "click",
+          "target": "BUTTON",
+          "owner": "c3"
+        }
+      ],
+      "topActivity": "topResumedActivity=ActivityRecord{f4f4c28 u0 tw.railisland.app/.MainActivity t26}",
+      "stateChanged": false,
+      "before": {
+        "url": "https://localhost/",
+        "sysId": "tra_sched",
+        "group": "all",
+        "follow": null,
+        "body": "fs cfaint",
+        "visiblePanels": []
+      },
+      "after": {
+        "url": "https://localhost/",
+        "sysId": "tra_sched",
+        "group": "all",
+        "follow": null,
+        "body": "fs cfaint",
+        "visiblePanels": []
+      },
+      "pass": true
+    },
+    {
+      "key": "c4",
+      "label": "button:捷",
+      "cssCenter": [
+        343.3,
+        26
+      ],
+      "deviceTap": [
+        989,
+        211
+      ],
+      "elementFromPoint": "c4",
+      "events": [
+        {
+          "type": "pointerdown",
+          "target": "BUTTON",
+          "owner": "c4"
+        },
+        {
+          "type": "pointerup",
+          "target": "BUTTON",
+          "owner": "c4"
+        },
+        {
+          "type": "click",
+          "target": "BUTTON",
+          "owner": "c4"
+        }
+      ],
+      "topActivity": "topResumedActivity=ActivityRecord{f4f4c28 u0 tw.railisland.app/.MainActivity t26}",
+      "stateChanged": false,
+      "before": {
+        "url": "https://localhost/",
+        "sysId": "tra_sched",
+        "group": "all",
+        "follow": null,
+        "body": "fs cfaint",
+        "visiblePanels": []
+      },
+      "after": {
+        "url": "https://localhost/",
+        "sysId": "tra_sched",
+        "group": "all",
+        "follow": null,
+        "body": "fs cfaint",
+        "visiblePanels": []
+      },
+      "pass": true
+    },
+    {
+      "key": "c5",
+      "label": "#randBtn",
+      "cssCenter": [
+        204.57,
+        116.75
+      ],
+      "deviceTap": [
+        589,
+        472
+      ],
+      "elementFromPoint": "c5",
+      "events": [
+        {
+          "type": "pointerdown",
+          "target": "randBtn",
+          "owner": "c5"
+        },
+        {
+          "type": "pointerup",
+          "target": "randBtn",
+          "owner": "c5"
+        },
+        {
+          "type": "click",
+          "target": "randBtn",
+          "owner": "c5"
+        }
+      ],
+      "topActivity": "topResumedActivity=ActivityRecord{f4f4c28 u0 tw.railisland.app/.MainActivity t26}",
+      "stateChanged": false,
+      "before": {
+        "url": "https://localhost/",
+        "sysId": "tra_sched",
+        "group": "all",
+        "follow": null,
+        "body": "fs cfaint",
+        "visiblePanels": []
+      },
+      "after": {
+        "url": "https://localhost/",
+        "sysId": "tra_sched",
+        "group": "all",
+        "follow": null,
+        "body": "fs cfaint",
+        "visiblePanels": []
+      },
+      "pass": true
+    },
+    {
+      "key": "c6",
+      "label": "#nearBtn",
+      "cssCenter": [
+        314.31,
+        118.14
+      ],
+      "deviceTap": [
+        906,
+        476
+      ],
+      "elementFromPoint": "c6",
+      "events": [
+        {
+          "type": "pointerdown",
+          "target": "nearBtn",
+          "owner": "c6"
+        },
+        {
+          "type": "pointerup",
+          "target": "nearBtn",
+          "owner": "c6"
+        },
+        {
+          "type": "click",
+          "target": "nearBtn",
+          "owner": "c6"
+        }
+      ],
+      "topActivity": "topResumedActivity=ActivityRecord{f4f4c28 u0 tw.railisland.app/.MainActivity t26}",
+      "stateChanged": false,
+      "before": {
+        "url": "https://localhost/",
+        "sysId": "tra_sched",
+        "group": "all",
+        "follow": null,
+        "body": "fs cfaint",
+        "visiblePanels": []
+      },
+      "after": {
+        "url": "https://localhost/",
+        "sysId": "tra_sched",
+        "group": "all",
+        "follow": null,
+        "body": "fs cfaint",
+        "visiblePanels": []
+      },
+      "pass": true
+    },
+    {
+      "key": "c7",
+      "label": "#tabSearch",
+      "cssCenter": [
+        40.72,
+        737.56
+      ],
+      "deviceTap": [
+        117,
+        2261
+      ],
+      "elementFromPoint": "c7",
+      "events": [
+        {
+          "type": "pointerdown",
+          "target": "SPAN",
+          "owner": "c7"
+        },
+        {
+          "type": "pointerup",
+          "target": "SPAN",
+          "owner": "c7"
+        },
+        {
+          "type": "click",
+          "target": "SPAN",
+          "owner": "c7"
+        }
+      ],
+      "topActivity": "topResumedActivity=ActivityRecord{f4f4c28 u0 tw.railisland.app/.MainActivity t26}",
+      "stateChanged": false,
+      "before": {
+        "url": "https://localhost/",
+        "sysId": "tra_sched",
+        "group": "all",
+        "follow": null,
+        "body": "fs cfaint",
+        "visiblePanels": []
+      },
+      "after": {
+        "url": "https://localhost/",
+        "sysId": "tra_sched",
+        "group": "all",
+        "follow": null,
+        "body": "fs cfaint",
+        "visiblePanels": []
+      },
+      "pass": true
+    },
+    {
+      "key": "c8",
+      "label": "#tabExplore",
+      "cssCenter": [
+        114.15,
+        737.56
+      ],
+      "deviceTap": [
+        329,
+        2261
+      ],
+      "elementFromPoint": "c8",
+      "events": [
+        {
+          "type": "pointerdown",
+          "target": "SPAN",
+          "owner": "c8"
+        },
+        {
+          "type": "pointerup",
+          "target": "SPAN",
+          "owner": "c8"
+        },
+        {
+          "type": "click",
+          "target": "SPAN",
+          "owner": "c8"
+        }
+      ],
+      "topActivity": "topResumedActivity=ActivityRecord{f4f4c28 u0 tw.railisland.app/.MainActivity t26}",
+      "stateChanged": false,
+      "before": {
+        "url": "https://localhost/",
+        "sysId": "tra_sched",
+        "group": "all",
+        "follow": null,
+        "body": "fs cfaint",
+        "visiblePanels": []
+      },
+      "after": {
+        "url": "https://localhost/",
+        "sysId": "tra_sched",
+        "group": "all",
+        "follow": null,
+        "body": "fs cfaint",
+        "visiblePanels": []
+      },
+      "pass": true
+    },
+    {
+      "key": "c9",
+      "label": "#tabFav",
+      "cssCenter": [
+        187.59,
+        737.56
+      ],
+      "deviceTap": [
+        540,
+        2261
+      ],
+      "elementFromPoint": "c9",
+      "events": [
+        {
+          "type": "pointerdown",
+          "target": "SPAN",
+          "owner": "c9"
+        },
+        {
+          "type": "pointerup",
+          "target": "SPAN",
+          "owner": "c9"
+        },
+        {
+          "type": "click",
+          "target": "SPAN",
+          "owner": "c9"
+        }
+      ],
+      "topActivity": "topResumedActivity=ActivityRecord{f4f4c28 u0 tw.railisland.app/.MainActivity t26}",
+      "stateChanged": false,
+      "before": {
+        "url": "https://localhost/",
+        "sysId": "tra_sched",
+        "group": "all",
+        "follow": null,
+        "body": "fs cfaint",
+        "visiblePanels": []
+      },
+      "after": {
+        "url": "https://localhost/",
+        "sysId": "tra_sched",
+        "group": "all",
+        "follow": null,
+        "body": "fs cfaint",
+        "visiblePanels": []
+      },
+      "pass": true
+    },
+    {
+      "key": "c10",
+      "label": "#tabRide",
+      "cssCenter": [
+        261.03,
+        737.56
+      ],
+      "deviceTap": [
+        752,
+        2261
+      ],
+      "elementFromPoint": "c10",
+      "events": [
+        {
+          "type": "pointerdown",
+          "target": "SPAN",
+          "owner": "c10"
+        },
+        {
+          "type": "pointerup",
+          "target": "SPAN",
+          "owner": "c10"
+        },
+        {
+          "type": "click",
+          "target": "SPAN",
+          "owner": "c10"
+        }
+      ],
+      "topActivity": "topResumedActivity=ActivityRecord{f4f4c28 u0 tw.railisland.app/.MainActivity t26}",
+      "stateChanged": false,
+      "before": {
+        "url": "https://localhost/",
+        "sysId": "tra_sched",
+        "group": "all",
+        "follow": null,
+        "body": "fs cfaint",
+        "visiblePanels": []
+      },
+      "after": {
+        "url": "https://localhost/",
+        "sysId": "tra_sched",
+        "group": "all",
+        "follow": null,
+        "body": "fs cfaint",
+        "visiblePanels": []
+      },
+      "pass": true
+    },
+    {
+      "key": "c11",
+      "label": "#tabMore",
+      "cssCenter": [
+        334.47,
+        737.56
+      ],
+      "deviceTap": [
+        964,
+        2261
+      ],
+      "elementFromPoint": "c11",
+      "events": [
+        {
+          "type": "pointerdown",
+          "target": "SPAN",
+          "owner": "c11"
+        },
+        {
+          "type": "pointerup",
+          "target": "SPAN",
+          "owner": "c11"
+        },
+        {
+          "type": "click",
+          "target": "SPAN",
+          "owner": "c11"
+        }
+      ],
+      "topActivity": "topResumedActivity=ActivityRecord{f4f4c28 u0 tw.railisland.app/.MainActivity t26}",
+      "stateChanged": false,
+      "before": {
+        "url": "https://localhost/",
+        "sysId": "tra_sched",
+        "group": "all",
+        "follow": null,
+        "body": "fs cfaint",
+        "visiblePanels": []
+      },
+      "after": {
+        "url": "https://localhost/",
+        "sysId": "tra_sched",
+        "group": "all",
+        "follow": null,
+        "body": "fs cfaint",
+        "visiblePanels": []
+      },
+      "pass": true
+    }
+  ],
+  "summary": {
+    "actualWidth": 375,
+    "controlCount": 12,
+    "overlapCount": 0,
+    "centerHitFailures": [],
+    "touchFailures": [],
+    "pseudoControlCount": 2
+  }
+}

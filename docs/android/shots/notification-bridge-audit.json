@@ -1,0 +1,42 @@
+{
+  "device": "Pixel 7 AVD",
+  "androidApi": 35,
+  "initialCheck": "prompt",
+  "firstRequest": {
+    "decision": "denied",
+    "checkAfterDecision": "prompt-with-rationale"
+  },
+  "retryRequest": {
+    "decision": "granted",
+    "checkAfterDecision": "granted"
+  },
+  "directBridgeSchedule": {
+    "deliveredId": 20508051,
+    "deliveredTitle": "軌島 Stage 2",
+    "pendingImmediatelyAfterSchedule": [20508051],
+    "cancelledId": 20508052,
+    "pendingBeforeCancel": [20508051, 20508052],
+    "pendingAfterCancel": [20508051],
+    "pendingAfterDelivery": []
+  },
+  "productPrimerFlow": {
+    "train": "2551",
+    "system": "tra_sched",
+    "checkBeforeSave": "prompt",
+    "saveTapOpenedPrimer": true,
+    "primerConfirmationOpenedSystemPrompt": true,
+    "checkAfterAllow": "granted",
+    "scheduledNotification": {
+      "id": 1,
+      "title": "2551 次 新竹 開車前 10 分鐘",
+      "at": "Wed Aug 05 19:33:00 GMT+08:00 2026"
+    },
+    "cleanupPending": [],
+    "cleanupStored": []
+  },
+  "screenshots": [
+    "notification-primer.png",
+    "notification-permission-after-primer.png",
+    "notification-delivered.png"
+  ]
+}

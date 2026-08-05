@@ -2905,10 +2905,7 @@
   if (localStorage.getItem('trainmap-panel-translucent') === '1') document.body.classList.add('panel-translucent');
   var ua = navigator.userAgent || '';
   var iOS = /iPhone|iPad|iPod/.test(ua) || (/Macintosh/.test(ua) && 'ontouchend' in document);
-  var nativeApp = typeof window.RAIL_ONLINE_BASEMAPS_AVAILABLE !== 'undefined'
-    || Object.keys(window).some(function (k) { return /^RAIL_NATIVE_/.test(k) && !!window[k]; });
-  try { nativeApp = nativeApp || !!(window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform()); } catch (e) {}
-  if (iOS || nativeApp) document.body.classList.add('music-volume-unavailable');
+  if (iOS) document.body.classList.add('music-volume-unavailable');
 } catch (e) {} })();
 </script>
 <div class="wrap">
@@ -6219,7 +6216,13 @@ function onLocateFail(err) {
   const iOS = /iPhone|iPad|iPod/.test(ua) || (/Macintosh/.test(ua) && 'ontouchend' in document);
   const standalone = navigator.standalone === true || matchMedia('(display-mode: standalone)').matches;
   const android = /Android/.test(ua);
+  const nativeAndroid = android && IS_NATIVE_APP;
   if (err && err.code === 3) { showToast('定位逾時，請在收訊較好處再試一次；或用「釘」直接點你的位置看附近火車。'); return; }
+  if (nativeAndroid) {
+    if (state._setDropMode) state._setDropMode(true, true);
+    showToast('系統設定→應用程式→軌島→權限→位置允許；或用「釘」手動點位置');
+    return;
+  }
   let note;
   if (iOS && standalone) note = 'iPhone 主畫面 App 常無法自動定位，用 Safari 開較穩定';
   else if (iOS) note = '可到 iPhone 設定→隱私權與安全性→定位服務 開啟並允許 Safari';
