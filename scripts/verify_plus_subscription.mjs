@@ -278,7 +278,7 @@ async function runFlow(browser, label, opts) {
   await page.waitForSelector('#plusBody .plus-owned', { state: 'visible', timeout: 6000 }).catch(() => {});
   const owned = await readModal(page);
   const acct = await page.evaluate(() => { accountRender(); return { active: !!(state.plus && state.plus.active), body: document.getElementById('accountBody').textContent || '' }; });
-  ok(`${label}10 購買(年訂)後 Plus 已啟用,且購買成功自動關窗`, owned.owned && owned.ownedText.includes('Plus 已啟用') && acct.active === true && closedAfterBuy === true,
+  ok(`${label}10 購買(年票)後通行證已啟用,且購買成功自動關窗`, owned.owned && owned.ownedText.includes('通行證已啟用') && acct.active === true && closedAfterBuy === true,
     `ownedText=${owned.ownedText} active=${acct.active} closedAfterBuy=${closedAfterBuy}`);
   ok(`${label}11 已訂閱狀態同時提供「恢復購買」與「管理訂閱」(有 mgmtUrl→連結)`, owned.hasRestore && owned.manageHref === 'https://apps.apple.com/account/subscriptions',
     `restore=${owned.hasRestore} manage=${owned.manageHref}`);
@@ -304,7 +304,7 @@ await runFlow(webkitB, 'W(WebKit)', { width: 1280, height: 800 });
   await page.waitForFunction(() => state.plus && state.plus.loading === false && (state.plus.error || '').length > 0, null, { timeout: 6000 }).catch(() => {});
   const err = await page.evaluate(() => (state.plus && state.plus.error) || '');
   ok('C1 未訂閱帳號 restore 走恢復路徑不拋例外', errs.length === 0, errs.slice(0, 3).join(' | '));
-  ok('C2 restore 給出「沒有可恢復的 Plus 訂閱資格」訊息', err.includes('沒有可恢復') && err.includes('訂閱'), `error=${err}`);
+  ok('C2 restore 給出「沒有可恢復的通行證資格」訊息', err.includes('沒有可恢復') && err.includes('通行證'), `error=${err}`);
   await ctx.close();
 }
 
@@ -427,9 +427,9 @@ function collectFirebaseReqs(page) {
     return out;
   });
   ok('G1 網站匿名訪客的工具列有 Plus 入口且標成 Plus(槽位改造真的跑過,不是還停在帳號標籤)',
-    entry.btnVisible === true && entry.btnLabel === 'Plus', JSON.stringify(entry));
-  ok('G2 「更多」抽屜真的打開後,同一個槽位在畫面上可見且標成「軌島 Plus」(手機唯一入口,桌面工具鈕在 ≤900 是 display:none)',
-    entry.sheetOpen === true && entry.rowShown === true && entry.rowLabel === '軌島 Plus', JSON.stringify(entry));
+    entry.btnVisible === true && entry.btnLabel === '通行證', JSON.stringify(entry));
+  ok('G2 「更多」抽屜真的打開後,同一個槽位在畫面上可見且標成「軌島通行證」(手機唯一入口,桌面工具鈕在 ≤900 是 display:none)',
+    entry.sheetOpen === true && entry.rowShown === true && entry.rowLabel === '軌島通行證', JSON.stringify(entry));
   ok('G2b 正向對照:同一張抽屜、同一支可見性探針量得到一列可見的鄰居(#shareBtn 那列)——證明它不是對整張抽屜都回 false',
     entry.otherRowVisible === true, JSON.stringify(entry));
   // 真的點,不是 evaluate 呼叫函式。點不到就記下來往下走:讓它變成一條紅斷言,而不是拋例外中止整支腳本
@@ -488,7 +488,7 @@ function collectFirebaseReqs(page) {
     };
   });
   ok('G11 按過登入 CTA 但沒登入就關掉帳號面板後,槽位仍是 Plus 入口(帳號系統已初始化 ≠ 這個人有帳號)',
-    backout.accountBuilt === true && backout.loggedIn === false && backout.btnLabel === 'Plus' && backout.rowLabel === '軌島 Plus',
+    backout.accountBuilt === true && backout.loggedIn === false && backout.btnLabel === '通行證' && backout.rowLabel === '軌島通行證',
     JSON.stringify(backout));
   const reClicked = await page.click('#accountBtn', { timeout: 5000 }).then(() => true).catch(() => false);
   await page.waitForSelector('#plusModal:not([hidden])', { timeout: 8000 }).catch(() => {});
@@ -512,7 +512,7 @@ function collectFirebaseReqs(page) {
     return { n, txt, loggedIn: !!(state.account && state.account.user) };
   });
   ok('G13 登出態的帳號面板有一條回 Plus 的路(data-action="plus";無購買通道的平台才畫)',
-    escape.loggedIn === false && escape.n === 1 && /Plus/.test(escape.txt), JSON.stringify(escape));
+    escape.loggedIn === false && escape.n === 1 && /通行證/.test(escape.txt), JSON.stringify(escape));
   ok('G 本輪零 pageerror/console.error', errs.length === 0, errs.slice(0, 3).join(' | '));
   await ctx.close();
 }
@@ -655,7 +655,7 @@ function collectFirebaseReqs(page) {
 //    兩邊都照不到(心得 33 的病灶)。所以另外橫掃整列 9×3 點,並要求上下鄰列各自命中自己。
 const MOBILE_SEL = '.ms-row[data-proxy="accountBtn"]';
 const IMPORT_SEL = '.ms-row[data-proxy="importBtn"]';
-async function mobilePlusEntry(width, { sel = MOBILE_SEL, label = '軌島 Plus', tag = 'N', native = false } = {}) {
+async function mobilePlusEntry(width, { sel = MOBILE_SEL, label = '軌島通行證', tag = 'N', native = false } = {}) {
   const { ctx, page } = await newPage(webkitB, { width, height: 780, touch: true });
   const errs = attach(page, `${tag}${width}`);
   if (native) await ctx.addInitScript(NATIVE_INIT);
@@ -1078,7 +1078,7 @@ for (const w of [360, 375, 414, 768]) await mobilePlusEntry(w, { sel: IMPORT_SEL
       hasPlusSec: !!plusSec,
       plusText: plusSec ? (plusSec.textContent || '') : '',
       n90: d90.length,
-      bad90: d90.filter(t => !/Plus/.test(t)),
+      bad90: d90.filter(t => !/通行證/.test(t)),
       // 舊的「儲存地點」那節也提到匯入(App 限定的 Plus 功能),同樣不得寫成無條件可用
       pinText: (body.querySelector('.help-sec[data-sec="pin"]') || {}).textContent || '',
     };
@@ -1088,10 +1088,10 @@ for (const w of [360, 375, 414, 768]) await mobilePlusEntry(w, { sel: IMPORT_SEL
     `hasPlusSec=${h.hasPlusSec} secs=${JSON.stringify(h.secs)}`);
   ok('HP2a 正向對照:收集器真的抓得到提到「90 天」的說明句(否則 HP2b 是空過的全稱斷言)',
     h.n90 >= 1, `抓到 ${h.n90} 句`);
-  ok('HP2b 每一句提到「90 天」的說明都標明需要 Plus(不把付費內容講成免費)',
+  ok('HP2b 每一句提到「90 天」的說明都標明需要通行證(不把付費內容講成免費)',
     h.bad90.length === 0, h.bad90.slice(0, 2).join(' | '));
-  ok('HP3 「儲存地點」那節提到的 Google 清單匯入標明了 App 與 Plus(它是 App 限定的 Plus 功能)',
-    /匯入/.test(h.pinText) && /App/.test(h.pinText) && /Plus/.test(h.pinText), h.pinText.slice(0, 120));
+  ok('HP3 「儲存地點」那節提到的 Google 清單匯入標明了 App 與通行證(它是 App 限定的通行證功能)',
+    /匯入/.test(h.pinText) && /App/.test(h.pinText) && /通行證/.test(h.pinText), h.pinText.slice(0, 120));
   ok('HP 本輪零 pageerror/console.error', errs.length === 0, errs.slice(0, 3).join(' | '));
   await ctx.close();
 }
@@ -1215,7 +1215,7 @@ for (const w of [360, 375, 414, 768]) await mobilePlusEntry(w, { sel: IMPORT_SEL
         loggedOutPlusBtn,
         loggedInPlusBtn: q('[data-action="plus"]'),
         loggedInSyncBoxes: syncBoxes,
-        loggedInPlusStatusRow: syncBoxes.some(t => t.trim() === '軌島 Plus'),
+        loggedInPlusStatusRow: syncBoxes.some(t => t.trim() === '軌島通行證'),
         flag: (() => { try { return PLUS_ENABLED; } catch (e) { return 'ReferenceError'; } })(),
       };
     });
@@ -1286,10 +1286,10 @@ for (const w of [360, 375, 414, 768]) await mobilePlusEntry(w, { sel: IMPORT_SEL
   // 工具列槽位的正向對照:同一支 slot 收集器在旗標開著時,必須抓得到一顆標成 Plus 的鈕與抽屜列。
   // 沒有這兩條,下面 KS6/KS7 的「不是 Plus 入口」可能只是收集器根本沒在看(選擇器打錯／改名)。
   ok('KS1b 正向對照:旗標開啟時同一支槽位收集器抓得到標成「Plus」的工具列鈕',
-    on.r.slot.btnVisible === true && on.r.slot.btnLabel === 'Plus' && /Plus/.test(on.r.slot.btnTitle || ''),
+    on.r.slot.btnVisible === true && on.r.slot.btnLabel === '通行證' && /軌島通行證/.test(on.r.slot.btnTitle || ''),
     JSON.stringify(on.r.slot));
-  ok('KS2b 正向對照:旗標開啟時抽屜真的打開後,那一列可見且標成「軌島 Plus」',
-    on.r.slot.sheetOpen === true && on.r.slot.rowVisible === true && on.r.slot.rowLabel === '軌島 Plus',
+  ok('KS2b 正向對照:旗標開啟時抽屜真的打開後,那一列可見且標成「軌島通行證」',
+    on.r.slot.sheetOpen === true && on.r.slot.rowVisible === true && on.r.slot.rowLabel === '軌島通行證',
     JSON.stringify(on.r.slot));
   // 關閉態:必須全部消失
   ok('KS3 旗標關閉:plusOpen() 打不開 Plus 面板(深連結與既有呼叫點都摸不到那張畫面)',
@@ -1328,7 +1328,7 @@ for (const w of [360, 375, 414, 768]) await mobilePlusEntry(w, { sel: IMPORT_SEL
     offInit.r.behave.acctOpened === true && offInit.r.behave.plusOpened === false
     && !/plusOpen/.test(handlerCode(offInit.r.behave.handlerSrc)),
     JSON.stringify(offInit.r.behave));
-  ok('KS9b 同一條路:「更多」抽屜打開後那一列也在,文案不是「軌島 Plus」那組',
+  ok('KS9b 同一條路:「更多」抽屜打開後那一列也在,文案不是「軌島通行證」那組',
     offInit.r.slot.sheetOpen === true && offInit.r.slot.rowVisible === true && notPlusCopy(offInit.r.slot.rowLabel),
     JSON.stringify(offInit.r.slot));
   // 行為證據的正向對照:同一支探針在旗標開啟態必須量到相反的結果(按下去開 Plus 面板)。
@@ -1403,12 +1403,12 @@ for (const w of [360, 375, 414, 768]) await mobilePlusEntry(w, { sel: IMPORT_SEL
   const prod = await refreshWith(page, { ...OPTS, entKind: 'production' });
   ok('SB0 前置：一般 build 的 PLUS_SANDBOX_OK 是 false（沒帶建置旗標就不允許 sandbox 資格，fail-closed）',
     prod.sandboxOk === false, `PLUS_SANDBOX_OK=${JSON.stringify(prod.sandboxOk)}`);
-  ok('SB1 正向對照：正式購買（isSandbox:false）的資格 ⇒ 判定為已啟用，畫面出現「Plus 已啟用」',
+  ok('SB1 正向對照：正式購買（isSandbox:false）的資格 ⇒ 判定為已啟用，畫面出現「通行證已啟用」',
     prod.active === true && prod.owned === true && prod.entitlementEnvironment === 'production'
       && prod.syncCollection === 'users' && prod.sandboxHeader === '', JSON.stringify(prod));
 
   const sand = await refreshWith(page, { ...OPTS, entKind: 'sandbox' });
-  ok('SB2 sandbox 購買（同一筆資料只差 isSandbox:true）⇒ 判定為未啟用，畫面回到方案選購而不是「Plus 已啟用」',
+  ok('SB2 sandbox 購買（同一筆資料只差 isSandbox:true）⇒ 判定為未啟用，畫面回到方案選購而不是「通行證已啟用」',
     sand.active === false && sand.owned === false && sand.plans === 2,
     JSON.stringify({ active: sand.active, owned: sand.owned, plans: sand.plans }));
 
@@ -1460,7 +1460,7 @@ for (const w of [360, 375, 414, 768]) await mobilePlusEntry(w, { sel: IMPORT_SEL
   // 「這個判定真的看的是建置旗標」，也才證明 TestFlight／模擬器的可測試性沒有被修掉。
   const sbx = await newPage(chromiumB, { init: () => {
     window.RAIL_PLUS_SANDBOX_OK = true;
-    window.RAIL_PLUS_SANDBOX_BUILD = '21';
+    window.RAIL_PLUS_SANDBOX_BUILD = '22';
   } });
   const sbxErrs = attach(sbx.page, 'SBX');
   await sbx.page.goto(BASE, { waitUntil: 'domcontentloaded' });
@@ -1469,7 +1469,7 @@ for (const w of [360, 375, 414, 768]) await mobilePlusEntry(w, { sel: IMPORT_SEL
   ok('SBX1 建置期注入 RAIL_PLUS_SANDBOX_OK=true 的內部測試版：同一筆 sandbox 資格改為判定已啟用（TestFlight／模擬器仍測得了購買流程）',
     sbxSand.sandboxOk === true && sbxSand.active === true && sbxSand.owned === true
       && sbxSand.entitlementEnvironment === 'sandbox' && sbxSand.syncCollection === 'sandboxUsers'
-      && sbxSand.sandboxHeader === '21', JSON.stringify(sbxSand));
+      && sbxSand.sandboxHeader === '22', JSON.stringify(sbxSand));
   await sbx.page.evaluate(() => { state.plus.cloudSyncReady = true; });
   const sbxProd = await refreshWith(sbx.page, { ...OPTS, entKind: 'production', keepState: true });
   ok('SBX2 同一份內部測試版對正式購買的資格照樣判定已啟用（旗標只放寬 sandbox，不是把整條判定短路成恆真）',

@@ -1006,6 +1006,12 @@
   .passport.closed .ph-sub, .passport.closed .ph-body { display: none; }
   .passport .ph-stats { flex: 1 1 100%; order: 2; font-size: 12.5px; color: var(--muted); font-variant-numeric: tabular-nums; }
   .passport .ph-stats b { color: var(--red); }
+  .passport-showcase {
+    margin: 10px 0 12px; padding: 9px 11px; border: 1px solid color-mix(in srgb, var(--gold) 58%, transparent);
+    border-radius: 8px; background: color-mix(in srgb, var(--gold) 10%, transparent);
+    color: var(--muted); font-size: 12px; font-weight: 650; line-height: 1.55;
+  }
+  .passport-showcase b { color: var(--ink-strong); }
   /* margin-top 與 .ph-sec 的 13px 一致(不是憑空發明的值):.ph-body 沒有自己的 padding/border,
      它的第一個子元素的 margin-top 會「穿透」collapse 成 .ph-head 與內容之間的間距——徽章是新的
      第一個子元素,若沿用 brief 原給的 margin-top:0,會把這段既有間距吃掉,徽章因此貼著護照標題列,
@@ -3344,14 +3350,14 @@
            內容 li 上限 8 條(li.grp 是標題不算)。 -->
       <ul class="foot-list foot-recent">
         <li class="grp">最近更新</li>
-        <li data-cl-of="plussandboxtest"><span class="d">8/5</span><span>TestFlight 測試版恢復購買後，現在會完成同步資格驗證；已補齊伺服器寫入資格所需設定，不再出現權限不足，也能測跨裝置同步與付費功能</span></li>
+        <li data-cl-of="ownershowcase"><span class="d">8/5</span><span>TestFlight 擁有者帳號多了完整護照展示，可以一次驗收集滿圖鑑、21 枚成就、百站與完乘排版，不會寫入假進度</span></li>
+        <li data-cl-of="passrename"><span class="d">8/5</span><span>「軌島 Plus」更名為「軌島通行證」：訂閱方案改稱月票與年票，所有使用者都是島民</span></li>
+        <li data-cl-of="plussandboxtest"><span class="d">8/5</span><span>TestFlight 測試版恢復購買後，現在會完成同步資格驗證；已補齊伺服器寫入資格所需設定，不再出現權限不足，也能測跨裝置同步與通行證功能</span></li>
         <li data-cl-of="widgetdestination"><span class="d">8/5</span><span>iPhone 小工具的起站選「共站」或「我的地點」後，再點「目的站」會讓設定畫面閃退；現在不再閃退，請改用「只看這些」挑方向、車種或車次</span></li>
         <li data-cl-of="metromotion"><span class="d">8/5</span><span>淡海輕軌等捷運收到新即時資料時，不再先停住再猛追；所有捷運與輕軌都改成平順加減速</span></li>
         <li data-cl-of="trtcpos"><span class="d">8/5</span><span>北捷列車會依官方到站倒數直接算出目前在站間的位置，換站資料不再變成一筆要慢慢追的誤差</span></li>
         <li data-cl-of="trtcmotion"><span class="d">8/5</span><span>北捷列車不再每次收到新到站資料就停一下、再突然加速追趕，站間移動會持續而平順</span></li>
         <li data-cl-of="moresheet"><span class="d">8/4</span><span>電腦版把頁面捲下去後開「更多」，選單上方會被切掉；現在捲到哪裡開都完整</span></li>
-        <li data-cl-of="orangebranch"><span class="d">8/4</span><span>橘線列車進共線段後會延續蘆洲／迴龍的支線身分，不再誤算成新莊線</span></li>
-        <li data-cl-of="hazardwatch"><span class="d">8/4</span><span>颱風、地震等示警生效時，軌島立即重查各家官方營運公告並持續複查</span></li>
       </ul>
       <!-- 第二層:完整歷史。刻意不掛 .foot-box 類名——placeFootBoxes() 用
            `.site-foot .foot-box` 搬移面板,巢狀同名會被當成另一個盒子一起搬走。 -->
@@ -3408,14 +3414,15 @@
         <li><span class="d">7/9</span><span>沉浸放空升級：真・全螢幕、「簡」極簡沉浸、經過特殊車站自動跳站介紹</span></li>
         <li class="grp">平交道與儲存地點</li>
         <li data-cl="takeout-preview"><span class="d">8/3</span><span>匯入 Google Maps 「已儲存」清單時，預設只會匯入預覽裡看得到、能逐筆取消的地點；若清單超過手機順暢預覽的筆數，會另外列出「也匯入其餘 N 個未預覽地點」，只有主動勾選才會一起納入</span></li>
-        <li data-cl="takeout"><span class="d">8/2</span><span>訂閱軌島 Plus 後，可以在 App 裡把 Google Maps 的「已儲存」清單匯入成軌島的最愛地點：從 Google Takeout 匯出的 ZIP（或解壓後的 CSV／JSON／GeoJSON）直接選檔，會先列出讀到的地點讓你勾選，確認後才寫入，只收台灣範圍內的地點。檔案全程只在你的裝置裡解析，不會上傳</span></li>
+        <li data-cl="takeout"><span class="d">8/2</span><span>訂閱軌島通行證後，可以在 App 裡把 Google Maps 的「已儲存」清單匯入成軌島的最愛地點：從 Google Takeout 匯出的 ZIP（或解壓後的 CSV／JSON／GeoJSON）直接選檔，會先列出讀到的地點讓你勾選，確認後才寫入，只收台灣範圍內的地點。檔案全程只在你的裝置裡解析，不會上傳</span></li>
         <li><span class="d">7/22</span><span>「附近火車」更名為「儲存地點」：可以命名（家、公司…），存過的會進「我的最愛」</span></li>
         <li><span class="d">7/14</span><span>平交道位置依官方資料，可能與現場實際位置略有落差</span></li>
         <li><span class="d">7/13</span><span>新增「附近火車」：地圖上落一根釘，查周邊 60 分鐘內會通過的車次</span></li>
         <li><span class="d">7/12</span><span>新增平交道功能：點一下查接下來會通過的列車（7/13 補上貨運線 21 處）</span></li>
         <li class="grp">收藏、護照與成就</li>
+        <li data-cl="ownershowcase"><span class="d">8/5</span><span>TestFlight 擁有者帳號可以切換「完整護照展示」，一次查看集滿圖鑑、21 枚成就、百站與路線完乘的排版；只是預覽，不會把假進度寫進真實護照</span></li>
         <li data-cl="favtrainkey"><span class="d">8/3</span><span>台鐵與高鐵有些車次號碼相同，過去收藏其中一班會蓋掉另一班，移除時也會兩班一起消失；現在最愛列車會連同鐵路系統分開辨認，同號車可以各自收藏與移除</span></li>
-        <li data-cl="founding"><span class="d">8/4</span><span>在創始期間訂閱 Plus 的人，App 的旅程護照最上方會多一枚「創始會員」徽章，之後才訂閱的不會有；徽章跟著訂閱資格走，退訂或登出就一起收起來</span></li>
+        <li data-cl="founding"><span class="d">8/4</span><span>在創始期間訂閱通行證的島民，App 的旅程護照最上方會多一枚「創始島民」徽章，之後才訂閱的不會有；徽章跟著訂閱資格走，退訂或登出就一起收起來</span></li>
         <li><span class="d">7/30</span><span>搜尋一班今天已經跑完（或還沒發車）的車，時鐘會確實停在它發車前，不再過一秒就彈回現在——那正是原本會莫名跳出「完乘達成」的原因（謝謝網友回報）</span></li>
         <li><span class="d">7/29</span><span>收集章改成依名字長短自動配版：長名會縮小字級、必要時多折一行，「EMU3000 新自強號」「區間車（通勤電聯車）」這些再也不會被圓框切掉</span></li>
         <li><span class="d">7/26</span><span>旅程護照多了「車站收集」：完乘過的起訖站自動成章，人到月台再按「附近車站」裡的蓋章鈕，就升級成到訪章；同一座站去過越多次，章上的數字越大</span></li>
@@ -3431,7 +3438,7 @@
         <li data-cl="widgetdestination"><span class="d">8/5</span><span>iPhone 主畫面的「發車看板」小工具，起站選了「共站」或「我的地點」之後，再點「目的站」會讓設定畫面閃退；現在這兩種起站不再開啟不適用的目的站清單，請改用「只看這些」依方向、車種或車次篩選</span></li>
         <li data-cl="moresheet"><span class="d">8/4</span><span>電腦版把頁面往下捲之後再開「更多」，選單會被推出畫面上緣，最上面幾列看不到也點不到，得先關掉、把右邊捲軸拉回最上面才正常；現在不論捲到哪裡開，選單都會完整留在畫面裡</span></li>
         <li data-cl="inapphint"><span class="d">8/3</span><span>在 LINE、Facebook、Threads 裡開軌島時，底下「用瀏覽器開啟」的提示卡壓住播放／暫停鍵和跟車小卡（連小卡的關閉鈕都點不到）；現在提示卡會讓開，小卡也跟著往上排</span></li>
-        <li data-cl="liveactivity"><span class="d">8/2</span><span>在 App 裡訂閱 Plus 後跟車，鎖定畫面與動態島會顯示這班車的下一站、到站時間與誤點；倒數自己會走，換一班車就換一張，停止跟車或跟到終點會自動收起來。需要 iOS 17.6 以上；App 退到背景比較久時，誤點數字會停在最後一次更新的值</span></li>
+        <li data-cl="liveactivity"><span class="d">8/2</span><span>在 App 裡訂閱通行證後跟車，鎖定畫面與動態島會顯示這班車的下一站、到站時間與誤點；倒數自己會走，換一班車就換一張，停止跟車或跟到終點會自動收起來。需要 iOS 17.6 以上；App 退到背景比較久時，誤點數字會停在最後一次更新的值</span></li>
         <li><span class="d">7/30</span><span>車站看板與跟車面板可以調高度了：手機拉一下（或點一下）面板上緣的把手，在小／中／大之間切換。原本「大」只是上限、內容短的時候三段一樣高，拉了像沒作用；現在「大」有保證高度，車站看板也會跟著多列幾班車</span></li>
         <li><span class="d">7/30</span><span>新增 iPhone 主畫面小工具「發車看板」：長按桌面加入後選一個起站（可以再加目的站），桌面就會列出接下來幾班車；還能「只看這些」，例如只留自強號、或只盯自己每天搭的那幾班。選起站不必再整份 250 站下拉：清單依縣市分段，由北到南排</span></li>
         <li><span class="d">7/30</span><span>小工具的起站與目的站選單最上面多了一段「我的地點」：你在軌島存過的地點（家、公司…）會直接列出來，點一下就帶到離它最近的台鐵或高鐵站，不用自己記那一站叫什麼；選好之後桌面標題顯示的是「家 → 公司」，不是站名。日後把「家」重存到別的地方，桌面會自己跟到新位置的最近車站，不必回設定畫面重選；把地點改名或刪掉也不會壞，只是標題退回顯示車站名。附近 5 公里內沒有車站的地點不會出現，最多列 20 筆，自己存的排在 Google 地圖匯入的前面。台鐵與高鐵同一棟的車站（台北、板橋、南港、左營…）會選班次比較多的那一邊。這一段只有 iPhone 版 App 才有</span></li>
@@ -3450,7 +3457,7 @@
         <li><span class="d">7/21</span><span>手機大改版：打開就是全螢幕地圖，面板都住進底部；新增「捷」分頁，北中高捷運一張圖同框</span></li>
         <li><span class="d">7/13</span><span>新增「省電」模式（手機預設開啟）：降到 30fps；手機一次只開一個面板</span></li>
         <li class="grp">外觀與品牌</li>
-        <li data-cl="satretina"><span class="d">8/2</span><span>在 App 裡訂閱 Plus 後，衛星底圖會換成高解析度圖磚，在 Retina 螢幕上更銳利；沒訂閱的人維持標準解析度，畫面內容一樣</span></li>
+        <li data-cl="satretina"><span class="d">8/2</span><span>在 App 裡訂閱通行證後，衛星底圖會換成高解析度圖磚，在 Retina 螢幕上更銳利；沒訂閱的人維持標準解析度，畫面內容一樣</span></li>
         <li data-cl="satbilling"><span class="d">8/1</span><span>衛星底圖換成比較省的計費方式：計費從「看了幾張圖磚」改成「看得夠多才算一次時段費」，看到的畫面完全一樣，只是我們付給圖資供應商的錢少很多</span></li>
         <li><span class="d">7/30</span><span>外觀設定新增「面板半透明」開關（預設關閉）：打開後車站看板、跟車小卡、跟隨面板會透出底下的地圖並加上模糊，關掉就回到原本的實心底。半透明時原本偏淡的次要文字會自動加深一階，疊在路網上仍然看得清楚；跟車小卡收合成一條（只剩車號與時速）時維持實心底，不跟著透明。7/30 再補一輪（透明度與模糊程度都沒動）：字外圍加了一圈紙色描邊，疊在衛星影像或密集路網上也不會融進背景；全程速度曲線加粗、加一層淡底板，暗色主題的線色改亮，看得出哪一段跑得快；手機的「列車」面板縮到最小那段也維持實心底</span></li>
         <li><span class="d">7/28</span><span>全站圖示換成軌島自製單色線稿，亮暗主題下都更一致清楚</span></li>
@@ -3463,9 +3470,10 @@
         <li><span class="d">7/10</span><span>夜間與衛星模式視覺升級；「軌」軌道顯示三段切換：自動／淡化／隱藏</span></li>
         <li><span class="d">7/9</span><span>站名移到軌道側邊不再互相壓住；雙欄版面：搜尋／最愛／旅程收集移到右側欄</span></li>
         <li class="grp">分享與個人化</li>
-        <li data-cl="plussandboxtest"><span class="d">8/5</span><span>TestFlight 測試版的 App Store 測試訂閱現在會完整開啟 Plus：完成月訂或年訂後，可以實際驗收 Google 清單匯入、衛星高解析、Live Activity、誤點履歷與跨裝置同步；恢復購買後的同步資格驗證也不再被 App 連線預檢或伺服器寫入設定擋住。測試訂閱與同步資料都和正式購買分開，不會真的扣款或改動正式資格</span></li>
-        <li data-cl="sync"><span class="d">8/4</span><span>訂閱軌島 Plus 後可以用軌島帳號登入（Google 或 Apple）：收藏的地點、最愛車站與完乘記錄會在手機和電腦之間自動同步，換裝置也不必從頭來過</span></li>
-        <li data-cl="tripshare"><span class="d">8/4</span><span>訂閱 Plus 後可以分享「行程」：把正在跟的班次和目的站打包成一條連結傳給朋友，對方點開就看得到車跑到哪、還剩幾站、幾點到；分享的是班次，不是你的定位</span></li>
+        <li data-cl="passrename"><span class="d">8/5</span><span>「軌島 Plus」正式更名為「軌島通行證」，兩種自動續訂方案改稱月票與年票；每個使用者都是島民，通行證是 App 數位功能訂閱，不是實際乘車票券</span></li>
+        <li data-cl="plussandboxtest"><span class="d">8/5</span><span>TestFlight 測試版的 App Store 測試訂閱現在會完整開啟通行證：訂閱月票或年票後，可以實際驗收 Google 清單匯入、衛星高解析、Live Activity、誤點履歷與跨裝置同步；恢復購買後的同步資格驗證也不再被 App 連線預檢或伺服器寫入設定擋住。測試訂閱與同步資料都和正式購買分開，不會真的扣款或改動正式資格</span></li>
+        <li data-cl="sync"><span class="d">8/4</span><span>訂閱軌島通行證後可以用軌島帳號登入（Google 或 Apple）：收藏的地點、最愛車站與完乘記錄會在手機和電腦之間自動同步，換裝置也不必從頭來過</span></li>
+        <li data-cl="tripshare"><span class="d">8/4</span><span>訂閱通行證後可以分享「行程」：把正在跟的班次和目的站打包成一條連結傳給朋友，對方點開就看得到車跑到哪、還剩幾站、幾點到；分享的是班次，不是你的定位</span></li>
         <li><span class="d">7/24</span><span>可把常看的地點設為預設啟動視野；探索面板新增「觀光列車圖鑑」</span></li>
         <li><span class="d">7/18</span><span>下次打開就回到上次看的地方：位置、縮放與路網頁籤都會記住，不需註冊登入</span></li>
         <li><span class="d">7/13</span><span>新增「分享畫面」：把地圖位置、時間與路網打包成一條連結</span></li>
@@ -3489,7 +3497,7 @@
         <li class="grp">曾經上線、後來拿掉</li>
         <li><span class="d"></span><span><b>GPS 校正旅程與收集地圖</b>：7/28 上線、7/29 暫時收起繼續打磨——先把心力放在別的改進上。你在這台裝置上的乘車紀錄、護照印章與站章都不受影響，之後開回來時校正貢獻也還在</span></li>
         <li><span class="d"></span><span><b>站內錄影（Beta）</b>：7/10 上線、7/17 因地圖圖資的版權條款下架——想錄畫面請改用手機或電腦內建的螢幕錄影功能</span></li>
-        <li><span class="d"></span><span><b>軌島帳號（跨裝置同步）</b>：7/16 上線、7/17 暫時收起整備，隨訂閱 Plus 重新開放——訂閱 Plus 並登入的人現在可以同步收藏與完乘紀錄。你在這台裝置上的收藏與完乘紀錄、以及先前已同步到雲端的資料都保留；已建立帳號的人仍可從「刪除軌島帳號」頁面自助刪除</span></li>
+        <li><span class="d"></span><span><b>軌島帳號（跨裝置同步）</b>：7/16 上線、7/17 暫時收起整備，隨軌島通行證重新開放——訂閱通行證並登入的人現在可以同步收藏與完乘紀錄。你在這台裝置上的收藏與完乘紀錄、以及先前已同步到雲端的資料都保留；已建立帳號的人仍可從「刪除軌島帳號」頁面自助刪除</span></li>
         <li><span class="d"></span><span><b>定位我</b>：定位功能目前停用中，7/18 把手機「更多」選單裡點了沒反應的入口一併拔掉</span></li>
         <li class="grp">起點</li>
         <li><span class="d">7/8</span><span>初版上線：台鐵全日時刻表動畫＋北捷／高捷（含輕軌）／中捷班距模擬</span></li>
@@ -3581,7 +3589,7 @@
 </div>
 <div class="takeout-modal plus-modal" id="plusModal" hidden>
   <section class="takeout-dialog plus-dialog" role="dialog" aria-modal="true" aria-labelledby="plusTitle">
-    <div class="takeout-head"><h2 id="plusTitle">軌島 Plus</h2><button id="plusX" type="button" aria-label="關閉">×</button></div>
+    <div class="takeout-head"><h2 id="plusTitle">軌島通行證</h2><button id="plusX" type="button" aria-label="關閉">×</button></div>
     <div class="takeout-body" id="plusBody"><p class="account-intro">正在讀取購買資格…</p></div>
   </section>
 </div>
@@ -3761,7 +3769,7 @@
 // 🔴 BUILD 字串會跨並行分支撞號（心得 16）：07-28 兩條線各自遞增又各自部署過——
 // origin/main 這條用到 v0728b，正式站那條用到 v0728f。本次三方合併把兩條線統一，
 // 所以往後推到一個雙方都沒用過的號，辨識線上跑哪一版仍以內容 hash 為準。
-const BUILD = 'v0805f';
+const BUILD = 'v0805g';
 // 成就徽章與車廂標記＝原本那些 emoji 的單色平面版（RailEmoji＝裁切過的 Noto Emoji 單色）。
 // 刻意保留 railIcon(name) 這個唯一入口:呼叫端一行都不用改,只有這裡決定畫法。
 // 🔴 ⚖ 與 ♾ 一律寫**不帶 VS16(U+FE0F)** 的碼位——帶了就強制彩色呈現,會蓋過 font-family
@@ -7092,6 +7100,27 @@ function accountClose() {
   modal.hidden = true; document.body.classList.remove('account-open'); state.plusPending = null;
 }
 function accountDisplayName(user) { return (user && (user.displayName || user.email)) || '軌島使用者'; }
+// Owner 驗收用的「完整護照展示」：只在原生 TestFlight build 22 與指定帳號上存在。
+// 成就本來由完乘／車站／路段紀錄即時推導，不是可以在 RevenueCat 勾選的 entitlement。
+// 把假紀錄寫入帳號會污染真實進度，也會被跨裝置合併；所以這裡只換渲染用的 view model，
+// 不呼叫 saveRides/saveCheckins/userDataWrite，也不進 Firestore。正式 build 沒有 sandbox build 標記，即使同一信箱也不會出現。
+const PASSPORT_SHOWCASE_EMAIL = 'sirius1984@gmail.com';
+const PASSPORT_SHOWCASE_KEY = 'rail-owner-passport-showcase-v1';
+function passportShowcaseEligible() {
+  const u = state.account && state.account.user;
+  return IS_NATIVE_APP && PLUS_SANDBOX_BUILD === '22' && !!u &&
+    String(u.email || '').trim().toLowerCase() === PASSPORT_SHOWCASE_EMAIL;
+}
+function passportShowcaseOn() {
+  if (!passportShowcaseEligible()) return false;
+  try { return localStorage.getItem(PASSPORT_SHOWCASE_KEY) !== '0'; } catch (e) { return true; }
+}
+function passportShowcaseSet(on) {
+  if (!passportShowcaseEligible()) return;
+  try { localStorage.setItem(PASSPORT_SHOWCASE_KEY, on ? '1' : '0'); } catch (e) {}
+  accountRender(); renderPassport(); renderRidePanel();
+  showToast(on ? '已開啟完整護照展示，真實進度沒有被改動' : '已切回你的真實護照');
+}
 function accountRender() {
   const body = document.getElementById('accountBody'), a = state.account; if (!body || !a) return;
   if (a.error) body.innerHTML = `<p class="account-intro">登入與同步目前無法使用。</p><div class="account-error">${escHtml(a.error)}</div>`;
@@ -7112,21 +7141,23 @@ function accountRender() {
     `<div class="account-login"><button type="button" data-login="google">使用 Google 登入</button>${window.RAIL_APPLE_LOGIN === true ? '<button class="apple" type="button" data-login="apple">使用 Apple 登入</button>' : ''}</div>` +
     // 不想登入的人要回得去 Plus 面板(這張畫面常常是從 Plus 面板的登入 CTA 過來的)。
     // 只在沒有購買通道的平台畫:有購買通道的平台 plusOpen() 未登入時本來就會把人送回這張登入畫面,畫了等於原地打轉。
-    (plusProjectConfigured() && !plusConfigured() ? `<div class="account-user-actions"><button class="wide" type="button" data-action="plus">先看看軌島 Plus 有什麼</button></div>` : '') +
+    (plusProjectConfigured() && !plusConfigured() ? `<div class="account-user-actions"><button class="wide" type="button" data-action="plus">先看看軌島通行證有什麼</button></div>` : '') +
     `<div class="account-note">Google 登入只用於軌島帳號，不會因此取得 Google Maps 已儲存清單；清單匯入仍需使用 Google Takeout。</div>`;
   else {
     const u = a.user, photo = takeoutSafeHref(u.photoURL, '');
     const avatar = photo ? `<img src="${escHtml(photo)}" alt="">` : escHtml(accountDisplayName(u).slice(0, 1).toUpperCase());
     const subscribed = plusIsActive();
-    const sync = !subscribed ? '訂閱軌島 Plus 才會同步' : (a.syncing ? '正在合併這台裝置與雲端資料…' : (a.lastSync ? `上次同步：${new Date(a.lastSync).toLocaleString('zh-TW')}` : '尚未完成第一次同步'));
+    const sync = !subscribed ? '訂閱軌島通行證才會同步' : (a.syncing ? '正在合併這台裝置與雲端資料…' : (a.lastSync ? `上次同步：${new Date(a.lastSync).toLocaleString('zh-TW')}` : '尚未完成第一次同步'));
     const plus = subscribed ? '訂閱中' : '未訂閱';
+    const showcase = passportShowcaseEligible(), showcasing = passportShowcaseOn();
     // Plus 狀態列與入口以 plusProjectConfigured()(整個 RevenueCat project 是否有 Plus)為準,而非
     // plusConfigured()(此平台能否發起付款)——讓網站即使沒設 Web Billing key 也能查看訂閱狀態與
     // 「請在 App 內訂閱」說明;真正發起付款仍受 plusConfigured() 控管(見 plusOpen 內的 plusRefresh 閘)。
     body.innerHTML = `<div class="account-profile"><span class="account-avatar">${avatar}</span><span><b>${escHtml(accountDisplayName(u))}</b><small>${escHtml(u.email || 'Apple 隱藏電子郵件')}</small></span></div>` +
       `<div class="account-syncbox"><b>跨裝置同步</b><span>${escHtml(sync)}</span></div>` +
-      (plusProjectConfigured() ? `<div class="account-syncbox"><b>軌島 Plus</b><span>${plus}</span></div>` : '') +
-      `<div class="account-user-actions">${plusProjectConfigured() ? '<button class="wide" type="button" data-action="plus">查看 Plus</button>' : ''}<button type="button" data-action="sync" ${(a.syncing || !subscribed) ? 'disabled' : ''}>立即同步</button><button type="button" data-action="logout">登出</button>` +
+      (plusProjectConfigured() ? `<div class="account-syncbox"><b>軌島通行證</b><span>${plus}</span></div>` : '') +
+      (showcase ? `<div class="account-syncbox"><b>完整護照展示</b><span>${showcasing ? '已開啟（不改寫真實進度）' : '目前顯示真實進度'}</span></div>` : '') +
+      `<div class="account-user-actions">${plusProjectConfigured() ? '<button class="wide" type="button" data-action="plus">查看通行證</button>' : ''}${showcase ? `<button class="wide" type="button" data-action="showcase" data-on="${showcasing ? '0' : '1'}">${showcasing ? '查看我的真實護照' : '開啟完整護照展示'}</button>` : ''}<button type="button" data-action="sync" ${(a.syncing || !subscribed) ? 'disabled' : ''}>立即同步</button><button type="button" data-action="logout">登出</button>` +
       `<button class="wide danger" type="button" data-action="delete">刪除帳號與同步資料</button></div>` +
       (a.actionError ? `<div class="account-error">${escHtml(a.actionError)}</div>` : '') +
       // 2026-08-04 複審輪2 Important 4:登出已改成「只換身分、不動資料」(見 accountEndSession),
@@ -7476,6 +7507,7 @@ function accountEnsureInit() {
       const login = e.target.closest('[data-login]'), action = e.target.closest('[data-action]');
       if (login) accountSignIn(login.dataset.login);
       else if (action && action.dataset.action === 'sync') accountSyncNow('manual');
+      else if (action && action.dataset.action === 'showcase') { passportShowcaseSet(action.dataset.on === '1'); accountClose(); openRidePanel(); }
       else if (action && action.dataset.action === 'plus') plusOpen('account');
       else if (action && action.dataset.action === 'logout') accountSignOut();
       else if (action && action.dataset.action === 'delete') accountDelete();
@@ -7572,8 +7604,8 @@ function accountBtnSlot(mode) {
   if (btn) {
     const ti = btn.querySelector('.ti'), tl = btn.querySelector('.tl');
     if (ti) ti.textContent = plus ? '＋' : '帳';
-    if (tl) tl.textContent = plus ? 'Plus' : '帳號';
-    btn.title = plus ? '軌島 Plus：訂閱內容與登入同步' : '登入與跨裝置同步';
+    if (tl) tl.textContent = plus ? '通行證' : '帳號';
+    btn.title = plus ? '軌島通行證：訂閱內容與登入同步' : '登入與跨裝置同步';
     btn.onclick = plus ? () => plusOpen('toolbar') : accountOpen;
     btn.style.display = '';
   }
@@ -7582,7 +7614,7 @@ function accountBtnSlot(mode) {
   // (#accountBtn)重算這一格。所以驗「使用者看不看得到那一列」要在抽屜打開之後量,不能量這一格。
   const row = document.querySelector('.ms-row[data-proxy="accountBtn"]');
   if (row) {
-    const label = row.querySelector('span'); if (label) label.textContent = plus ? '軌島 Plus' : '帳號同步';
+    const label = row.querySelector('span'); if (label) label.textContent = plus ? '軌島通行證' : '帳號同步';
     row.style.display = '';
   }
 }
@@ -7963,13 +7995,13 @@ function plusFinishPending() {
   const p = state.plus;
   if (!p || !p.active || typeof p.afterUnlock !== 'function') return false;
   const next = p.afterUnlock; p.afterUnlock = null;
-  plusClose(); showToast('軌島 Plus 已啟用');
+  plusClose(); showToast('軌島通行證已啟用');
   setTimeout(next, 0);
   return true;
 }
 function plusRender() {
   const body = document.getElementById('plusBody'), p = state.plus; if (!body || !p) return;
-  const hero = `<div class="plus-hero"><span class="plus-mark">＋</span><h3>軌島 Plus 訂閱</h3><p>以月訂或年訂支持軌島持續運作。同一個軌島帳號可在網站與 App 使用與恢復訂閱資格。</p></div>`;
+  const hero = `<div class="plus-hero"><span class="plus-mark">票</span><h3>軌島通行證</h3><p>選一張適合你的票，開啟進階功能，也支持軌島繼續運轉。</p></div>`;
   // Plus 功能清單。技術契約:清單與資格判定必須一致——每一項都要對映到一個真的資格判定,
   // 由 verify_plus_features.mjs 機械稽核(見該檔 REQUIRED 對映表)。價格一律取自商店回傳,
   // 此處不列任何價格。① 的措辭只涵蓋 /api/delay-history(90 天逐日,有 Plus 閘門)獨有的部分——
@@ -7986,13 +8018,14 @@ function plusRender() {
     // App 限定:網站的 SAT_RETINA_DEFAULT 為 false ⇒ satRetinaAllowed() 在網站恆假,措辭必須標明平台。
     'App 非跟車時的衛星高解析圖磚（支援 Retina 螢幕）',
     '跟車時在鎖定畫面與動態島顯示即時動態（iOS 17.6 以上）',
-    ...(Date.now() < FOUNDING_UNTIL_MS ? ['App 旅程護照的創始會員徽章'] : []),
+    ...(Date.now() < FOUNDING_UNTIL_MS ? ['App 旅程護照的創始島民徽章'] : []),
   ].map(t => `<div class="plus-feature"><span>✓</span>${t}</div>`).join('');
   const features = `<div class="plus-features">${feats}</div>` +
-    '<p class="plus-trust">列車位置、誤點資訊與系統覆蓋現在免費提供——Plus 不影響準確度。</p>';
+    '<p class="plus-trust">列車位置、誤點資訊與系統覆蓋現在免費提供——通行證不影響準確度。</p>';
   // 訂閱法務列(Apple 3.1.2):自動續訂說明 + 隱私權政策/使用條款連結(兩檔都在站台根目錄)。
   const legal = '<div class="plus-legal">' +
-    '<p>訂閱到期前會依商店規則自動續訂扣款；你可以隨時在 App Store 的訂閱設定中取消，取消後於當期結束時停止續訂。</p>' +
+    '<p>月票與年票都是自動續訂方案；你可以隨時在 App Store 的訂閱設定中取消，取消後於當期結束時停止續訂。</p>' +
+    '<p>軌島通行證是 App 數位功能訂閱，不是實際乘車票券。</p>' +
     '<p><a href="privacy.html" target="_blank" rel="noopener">隱私權政策</a> · <a href="terms.html" target="_blank" rel="noopener">使用條款</a></p></div>';
   if (p.active) {
     // 已訂閱:管理訂閱在原生殼走商店訂閱管理深連結(customerInfo.managementURL);web 無 portal 時給說明文字。
@@ -8000,7 +8033,7 @@ function plusRender() {
       ? `<a class="plus-manage" href="${escHtml(p.mgmtUrl)}" target="_blank" rel="noopener">管理訂閱</a>`
       : '<p class="account-note">訂閱管理請至 App Store 的訂閱設定。</p>';
     body.innerHTML = hero + features +
-      '<div class="plus-owned">Plus 已啟用</div>' + manage +
+      '<div class="plus-owned">通行證已啟用</div>' + manage +
       '<button class="plus-restore" type="button" data-plus="restore">恢復購買</button>' + legal;
     return;
   }
@@ -8018,7 +8051,7 @@ function plusRender() {
   const plan = (pkg, kind, primary) => pkg
     ? `<button class="plus-plan${primary ? ' plus-plan-primary' : ''}" type="button" data-plus="buy" data-pkg="${kind}">` +
       (primary ? '<span class="plus-plan-badge">最划算</span>' : '') +
-      `<span class="plus-plan-name">${kind === 'annual' ? '年訂閱' : '月訂閱'}</span>` +
+      `<span class="plus-plan-name">${kind === 'annual' ? '訂閱年票' : '訂閱月票'}</span>` +
       `<span class="plus-plan-price">${escHtml(plusPackagePrice(pkg))}</span></button>`
     : '';
   const plans = plan(p.pkgAnnual, 'annual', true) + plan(p.pkgMonthly, 'month', false);
@@ -8159,7 +8192,7 @@ async function plusPurchase(kind) {
     // 改成 fire-and-forget:成功提示與解鎖立刻發生,落地了再補同步。
     plusReconcileEntitlement().then(ok => { if (ok) accountSyncNow('entitlement'); }).catch(() => {});
     accountRender();
-    if (!plusFinishPending()) { plusClose(); showToast('軌島 Plus 已啟用'); }
+    if (!plusFinishPending()) { plusClose(); showToast('軌島通行證已啟用'); }
   } catch (e) {
     const cancelled = e && (e.userCancelled || e.errorCode === 'UserCancelledError');
     if (!cancelled) p.error = '訂閱未完成：' + (e && e.message ? e.message : String(e));
@@ -8191,8 +8224,8 @@ async function plusRestore() {
     // 沒有成功提示、afterUnlock 不觸發,而 refresh／purchase／restore 共用的 p.loading 全鎖死。
     // 改成 fire-and-forget:成功提示與解鎖立刻發生,落地了再補同步。
     plusReconcileEntitlement().then(ok => { if (ok) accountSyncNow('entitlement'); }).catch(() => {});
-      if (!plusFinishPending()) { plusClose(); showToast('已恢復訂閱資格'); }
-    } else p.error = '這個帳號目前沒有可恢復的 Plus 訂閱資格。';
+      if (!plusFinishPending()) { plusClose(); showToast('已恢復通行證資格'); }
+    } else p.error = '這個帳號目前沒有可恢復的通行證資格。';
   } catch (e) { p.error = '無法恢復訂閱：' + (e && e.message ? e.message : String(e)); }
   finally { p.loading = false; plusRender(); }
 }
@@ -10598,22 +10631,86 @@ function recordRide(tr) {
   announceCollections(tr, rides, prevColl, prevAch);
 }
 // 護照 sheet(Batch B):與桌面 #passport 合併=同一份 builder;收集章→成就(chips)→完乘記錄(全量,最新在前)
+// 展示模式的資料只在記憶體即時產生，不參與完乘去重、成就通知、同步或匯出。
+// 以獨立的 passport* view helper 包住護照呼叫點，不去改 collectionOf/
+// unlockedAchievements/stationCollection 的真實語意，避免展示狀態滲進解鎖通知或其他功能。
+function passportRides(rides) {
+  if (!passportShowcaseOn()) return rides;
+  const rows = [
+    ['408', 'EMU3000 新自強號', '臺東', '樹林', 405, 52, 5 * 3600 + 22 * 60],
+    ['117', '普悠瑪自強號', '南港', '潮州', 392, 18, 7 * 3600 + 10 * 60],
+    ['278', '太魯閣自強號', '花蓮', '彰化', 351, 16, 8 * 3600 + 5 * 60],
+    ['111', '山海號', '臺北', '枋寮', 376, 24, 9 * 3600],
+    ['3005', '自強號', '七堵', '高雄', 367, 20, 10 * 3600],
+    ['127', '莊園豪華列車', '南港', '花蓮', 348, 12, 11 * 3600],
+    ['523', '鳴日號', '南港', '花蓮', 341, 11, 12 * 3600],
+    ['667', '觀光列車', '臺中', '臺東', 337, 15, 13 * 3600],
+    ['4772', '區間車', '八堵', '菁桐', 332, 51, 14 * 3600],
+    ['4814', '深澳支線區間車', '瑞芳', '八斗子', 329, 8, 15 * 3600],
+    ['2703', '內灣支線區間車', '新竹', '內灣', 326, 14, 16 * 3600],
+    ['4201', '集集支線區間車', '二水', '車埕', 323, 10, 17 * 3600],
+    ['3501', '沙崙支線區間車', '彰化', '沙鹿', 320, 9, 18 * 3600],
+    ['3701', '六家支線區間車', '新竹', '六家', 318, 7, 19 * 3600],
+    ['129', '夜行自強號', '南港', '潮州', 315, 17, 22 * 3600 + 30 * 60],
+  ];
+  return rows.map((r, i) => ({
+    train: r[0], sys: 'tra_sched', kind: r[1], from: r[2], to: r[3], km: r[4], stops: r[5], dep: r[6],
+    date: i < 3 ? '2026-08-05' : `2026-07-${String(31 - i).padStart(2, '0')}`,
+    namedId: i === 3 ? 'shanhai' : undefined,
+  }));
+}
+function passportCollectionOf(rides) {
+  if (!passportShowcaseOn() || !state.special) return collectionOf(rides);
+  return {
+    named: new Set(state.special.namedTrains.filter(x => x.trainNos.length).map(x => x.id)),
+    stock: new Set(state.special.rollingStock.map(x => x.id)),
+    branch: new Set(state.special.branchLines.map(x => x.id)),
+  };
+}
+function passportAchievements(rides) {
+  return passportShowcaseOn() ? new Set(ACHIEVEMENTS.map(x => x.id)) : unlockedAchievements(rides);
+}
+function passportStationCollection(rides) {
+  if (!passportShowcaseOn()) return stationCollection(rides);
+  const m = new Map(), source = state.schedStations || [];
+  for (const s of source) {
+    const sys = s.sys || 'tra_sched', name = s.name;
+    if (!name || m.has(sys + '|' + name)) continue;
+    const i = m.size;
+    m.set(sys + '|' + name, { name, sys, s: i % 4 === 0 ? 'visit' : 'pass', n: 1 + (i % 12), d: '2026-08-05' });
+    if (m.size >= 100) break;
+  }
+  return m;
+}
+function passportLineBars() {
+  if (!passportShowcaseOn()) return buildLineBars();
+  const lines = [
+    ['西部幹線', '#315a8c'], ['東部幹線', '#cf3d3d'], ['南迴線', '#d08a18'],
+    ['平溪／深澳線', '#50886a'], ['內灣／六家線', '#805ba5'], ['集集線', '#9a6a42'],
+  ];
+  return phSec('lines', lines.length, 10, `路線完乘<b>${lines.length}</b><span style="letter-spacing:0;font-weight:600">全線走完 ${lines.length}</span>`) +
+    `<div class="ph-lines">${lines.map(x => `<div class="ph-line" title="${escHtml(x[0])}　100%"><span class="pl-name">${escHtml(x[0])}</span><span class="pl-bar"><i style="width:100%;background:${x[1]}"></i></span><span class="pl-pct done">100%</span></div>`).join('')}</div>`;
+}
+function passportShowcaseBanner() {
+  return passportShowcaseOn() ? '<div class="passport-showcase"><b>完整護照展示中</b>　這些是給擁有者驗收版面用的示範進度；你真正的完乘、車站與路段紀錄都沒有被改寫。</div>' : '';
+}
 function renderRidePanel() {
   const el = document.getElementById('ridePanel');
   if (el.hidden) return;
-  const rides = loadRides();
-  const coll = collectionOf(rides);
+  const rides = passportRides(loadRides());
+  const coll = passportCollectionOf(rides);
   const collGot = coll.named.size + coll.stock.size + coll.branch.size;
-  const achN = unlockedAchievements(rides).size;
+  const achN = passportAchievements(rides).size;
   const list = buildRideRows(rides, 'date'); // 手機不做排序鈕,固定日期最新在前
   el.innerHTML =
     `<h3>旅程護照<button class="close" id="rideClose">×</button></h3>` +
-    `<div class="ride-stats">章 <b>${collGot}</b> · 站 <b>${stationCollection(rides).size}</b> · 成就 <b>${achN}</b> · 完乘 <b>${rides.length}</b></div>` +
+    `<div class="ride-stats">章 <b>${collGot}</b> · 站 <b>${passportStationCollection(rides).size}</b> · 成就 <b>${achN}</b> · 完乘 <b>${rides.length}</b></div>` +
     `<div class="sub">從發車一路跟到終點就蓋一枚完乘章（調速可以・跳時間不算）· 灰色的章點了帶你搭一趟</div>` +
+    passportShowcaseBanner() +
     buildFoundingSeal() +
     buildStamps(rides) +
     buildStationStamps(rides) +
-    buildLineBars() +
+    passportLineBars() +
     buildCorrectSection() +
     buildAchv(rides, 'chip') +
     phSec('rides', rides.length, 12, '完乘記錄') +
@@ -12527,13 +12624,13 @@ function ppSecClick(e) {
   return true;
 }
 function buildStationStamps(rides) {
-  const coll = stationCollection(rides);
+  const coll = passportStationCollection(rides);
   if (!coll.size) return '';
   const tierM = stationTierMap();
   const items = [...coll.values()].sort((a, b) => b.n - a.n || a.name.localeCompare(b.name, 'zh-Hant'));
   const visited = items.filter(i => i.s === 'visit').length;
   // 路段:搭乘模式走過的最細區間。最常搭的那一段就是通勤族的日常,直接標出來當深度指標
-  const sg = segmentCollection(), sgN = Object.keys(sg).length;
+  const sg = passportShowcaseOn() ? { 'tra_sched|west|臺北|板橋': 500 } : segmentCollection(), sgN = Object.keys(sg).length;
   const top = Object.entries(sg).sort((a, b) => b[1] - a[1])[0];
   const sub = [
     visited ? `到訪 ${visited}` : '',
@@ -12723,7 +12820,7 @@ function buildCorrectSection() {
 function buildStamps(rides) {
   const sd = state.special;
   if (!sd) return '';
-  const coll = collectionOf(rides);
+  const coll = passportCollectionOf(rides);
   const MISS_TIP = '還沒搭過——點我去搭一班';
   const stampRow = (label, cat, items) => {
     if (!items.length) return '';
@@ -12742,7 +12839,7 @@ function buildStamps(rides) {
 }
 // 成就:桌面用金/灰圓章(style='seal',與舊版逐字相同,護照零變化),護照 sheet 用 chips(style='chip',mock C)
 function buildAchv(rides, style) {
-  const ach = unlockedAchievements(rides);
+  const ach = passportAchievements(rides);
   if (style === 'chip') {
     return phSec('achv', ACHIEVEMENTS.length, null, `成就<b>${ach.size}/${ACHIEVEMENTS.length}</b>`) + `<div class="achv-chips">` +
       ACHIEVEMENTS.map(a => `<span class="achv-chip${ach.has(a.id) ? ' on' : ''}" title="${escHtml(a.desc)}">${railIcon(a.icon)}<span>${escHtml(a.name)}</span></span>`).join('') + `</div>`;
@@ -12763,20 +12860,20 @@ function buildFoundingSeal() {
   // 但兩者是分開的欄位——像 accountForgetIdentity() 這種只重置 active 卻忘了同步清 founding 的路徑,
   // 不依賴寫入點永遠同步,守門直接兩個都看——兩個條件都在這一行自帶 null-safety,不外包給呼叫順序
   // 或 plusIsActive() 的內部短路(那個短路仍然存在、仍然安全,但讀這一行不該需要先去查它怎麼實作)。
-  if (!plusIsActive() || !(state.plus && state.plus.founding)) return '';
+  if (!passportShowcaseOn() && (!plusIsActive() || !(state.plus && state.plus.founding))) return '';
   return '<div class="ph-founding"><span class="pf-mark">創</span>' +
-    '<span class="pf-txt"><b>創始會員</b><i>謝謝你在最早的時候就決定支持軌島</i></span></div>';
+    '<span class="pf-txt"><b>創始島民</b><i>謝謝你在最早的時候就決定支持軌島</i></span></div>';
 }
 function renderPassport() {
   const el = document.getElementById('passport');
   if (state.mode !== 'sched') { el.hidden = true; el.innerHTML = ''; return; }
-  const rides = loadRides();
+  const rides = passportRides(loadRides());
   const totalKm = rides.reduce((a, r) => a + (Number(r.km) || 0), 0);
   const longest = rides.reduce((a, r) => Math.max(a, Number(r.km) || 0), 0);
   // Batch B:收集章/成就/完乘列改走共用 builder(輸出與舊版逐字相同,桌面護照零變化)
   const rideSort = getRideSortMode();
-  const stamps = buildFoundingSeal() + buildStamps(rides) + buildStationStamps(rides) + buildLineBars() + buildCorrectSection() + buildAchv(rides, 'seal');
-  const stnCount = stationCollection(rides).size;
+  const stamps = passportShowcaseBanner() + buildFoundingSeal() + buildStamps(rides) + buildStationStamps(rides) + passportLineBars() + buildCorrectSection() + buildAchv(rides, 'seal');
+  const stnCount = passportStationCollection(rides).size;
   const list = buildRideRows(rides, rideSort);
   // 排序切換鈕:有記錄才顯示(空清單沒東西可排);選中狀態直接烤進 HTML,不用另外 sync
   const sortSeg = list ? `<span class="seg ph-sort" id="phSortSeg">${Object.entries(RIDE_SORT_LABELS)
@@ -13329,8 +13426,8 @@ function renderDelayHist() {
     // 付費牆:未登入(401)或無訂閱資格(403)——引導登入並訂閱 Plus。data-dh-cta 沿用既有 plusGateOpen 回路;
     // 用 dh-msg + dh-cta-btn(皆非絕對定位),不套 .dh-cta(inset:0 絕對定位需 .dh-lock 相對容器,無圖表可鎖)。
     body = statRow +
-      `<div class="dh-msg">登入並訂閱 Plus 後，可看台鐵列車近 90 天逐日與週幾誤點履歷。</div>` +
-      `<button class="dh-cta-btn" data-dh-cta="1">訂閱 Plus 解鎖完整履歷</button>`;
+      `<div class="dh-msg">登入並訂閱通行證後，可看台鐵列車近 90 天逐日與週幾誤點履歷。</div>` +
+      `<button class="dh-cta-btn" data-dh-cta="1">訂閱通行證解鎖完整履歷</button>`;
   } else if (rec.error) {
     body = statRow + `<div class="dh-msg">暫時無法載入誤點履歷${rec.status ? '（' + rec.status + '）' : ''}，稍後再試。</div>` +
       `<button class="dh-retry" data-dh-retry="1">重新整理</button>`;
@@ -13351,7 +13448,7 @@ function renderDelayHist() {
         body = statRow +
           `<div class="dh-lock"><div class="dh-locked">${charts}</div>` +
           `<div class="dh-cta"><div class="dh-cta-txt">解鎖 90 天逐日與週幾誤點統計</div>` +
-          `<button class="dh-cta-btn" data-dh-cta="1">訂閱 Plus 解鎖完整履歷</button></div></div>` + src;
+          `<button class="dh-cta-btn" data-dh-cta="1">訂閱通行證解鎖完整履歷</button></div></div>` + src;
       }
     }
   }
@@ -16244,7 +16341,7 @@ const HELP_GROUPS = [
       one: '今天全台鐵每班車誤點多少、每一站怎麼延誤，一次看完。',
       // 「誤點履歷 ›」入口對所有人存在,但卡片裡只有 30 天彙總是免費的,90 天逐日與週幾圖要 Plus
       // (伺服器端 checkPlusEntitlement 強制)。措辭與 terms.html／Plus 面板的「回溯 90 天的逐日紀錄」一致。
-      steps: ['「更多」→ 今日台鐵動態', '點任一班次看逐站歷程', '跟台鐵車時，卡片上的「誤點履歷 ›」可看這班車近 30 天的準點統計；回溯 90 天的逐日紀錄與週幾圖需要軌島 Plus'],
+      steps: ['「更多」→ 今日台鐵動態', '點任一班次看逐站歷程', '跟台鐵車時，卡片上的「誤點履歷 ›」可看這班車近 30 天的準點統計；回溯 90 天的逐日紀錄與週幾圖需要軌島通行證'],
       tip: '誤點資料每分鐘更新，來源是交通部 TDX。', try: 'today' },
   ]},
   { key: 'b', name: '我的', open: false, secs: [
@@ -16256,7 +16353,7 @@ const HELP_GROUPS = [
       one: '把家、公司、拍車點存下來，看有哪些火車會經過那裡。',
       steps: ['「更多」→ 打開「儲存地點」', '點地圖上任一位置', '取個名字存起來', '之後點那個釘，看接下來經過的列車與倒數'],
       // 匯入入口掛在 plusConfigured() 上(App 才有購買通道) ⇒ 是 App 限定的 Plus 功能,不可寫成無條件可用
-      tip: '也可以在 App 內從 Google Maps 的「已儲存」清單匯入（需軌島 Plus）；檔案只在這台裝置解析，不會上傳。', try: 'pin' },
+      tip: '也可以在 App 內從 Google Maps 的「已儲存」清單匯入（需軌島通行證）；檔案只在這台裝置解析，不會上傳。', try: 'pin' },
     { key: 'fav', ic: '', nm: '最愛', one: '常看的車次與車站收起來，下次直接從「最愛」進去。',
       steps: ['跟車卡或看板標題的收藏鈕點一下收藏', '從底部「最愛」看全部', '再點一次取消收藏'], try: 'fav' },
     { key: 'ride', ic: '<span class="seal na" style="width:26px;height:26px;padding:0"><b style="font-size:7px">章</b></span>', nm: '旅程護照與完乘章',
@@ -16306,12 +16403,12 @@ const HELP_GROUPS = [
       tip: '遮斷機通常提前 30–60 秒動作，請以現場號誌為準。', try: 'xing' },
     // 訂閱是新功能,依專案慣例必須有一節;avail 掛 PLUS_ENABLED,旗標關掉整節自動消失(不教一個按不到的東西)。
     // 內容與 terms.html／plusRender() 的功能清單同一套措辭——說明中心也是付款決定點之一,兩邊講不一樣就是不實宣稱。
-    { key: 'plus', ic: '＋', nm: '軌島 Plus 與跨裝置同步', avail: () => PLUS_ENABLED,
+    { key: 'plus', ic: '票', nm: '軌島通行證與跨裝置同步', avail: () => PLUS_ENABLED,
       one: '訂閱制的加值內容。列車位置、誤點資訊與系統覆蓋現在免費提供，不受訂閱影響。',
-      steps: ['桌面按工具列的「Plus」、手機從「更多」→「軌島 Plus」，看裡面有哪些內容',
+      steps: ['桌面按工具列的「通行證」、手機從「更多」→「軌島通行證」，看裡面有哪些內容',
         '訂閱在軌島 App 內完成，網站不收費',
         '在網站用同一個軌島帳號登入，App 訂的資格就會生效（面板裡的「已經在 App 訂閱了？登入以同步」）'],
-      tip: 'Plus 內容：台鐵列車的誤點履歷（回溯 90 天的逐日紀錄）、收藏與完乘紀錄跨裝置雲端同步、行程分享、在 App 匯入 Google Maps 已儲存清單、App 非跟車時的衛星高解析圖磚，以及 iOS 17.6 以上可用的跟車鎖定畫面與動態島即時動態。',
+      tip: '通行證內容：台鐵列車的誤點履歷（回溯 90 天的逐日紀錄）、收藏與完乘紀錄跨裝置雲端同步、行程分享、在 App 匯入 Google Maps 已儲存清單、App 非跟車時的衛星高解析圖磚，以及 iOS 17.6 以上可用的跟車鎖定畫面與動態島即時動態。',
       try: 'plus' },
   ]},
   { key: 'c', name: '模式與外觀', open: false, secs: [

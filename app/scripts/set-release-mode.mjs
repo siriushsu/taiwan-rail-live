@@ -64,12 +64,12 @@ const MODES = {
     why: '小工具設定修正版：起站選共站或我的地點後，打開目的站不再讓設定流程失效。'
        + '沿用 1.3.2 (19) 的北捷帳本與班表到期自救內容。',
   },
-  // 2026-08-05：build 20 已上 TestFlight、build 號已燒掉；21 專門驗收 Sandbox 購買後的
-  // Plus 客端功能、雲端同步與伺服器付費牆。這顆不可選去正式送審；正式版必須另推 build 號，
+  // 2026-08-05：build 20、21 已上 TestFlight，build 號皆已燒掉；22 專門驗收 Sandbox 購買後的
+  // 軌島通行證客端功能、雲端同步與伺服器付費牆。這顆不可選去正式送審；正式版必須另推 build 號，
   // 回到 feature 模式並由 assertPlusSandboxOff 驗證測試通道確實關閉。
   testflight: {
-    marketing: '1.3.2', build: '21', music: true, plusSandboxBuild: '21',
-    why: 'TestFlight Plus 端到端測試版：Sandbox 月訂／年訂完成後，完整開放 Plus 與雲端功能驗收。',
+    marketing: '1.3.2', build: '22', music: true, plusSandboxBuild: '22',
+    why: 'TestFlight 軌島通行證端到端測試版：Sandbox 月票／年票完成後，完整開放通行證與雲端功能驗收。',
   },
 };
 

@@ -143,20 +143,20 @@ const docs = {
   terms: htmlText(src.terms), privacy: htmlText(src.privacy), support: htmlText(src.support),
   accountDeletion: htmlText(src.accountDeletion),
 };
-const privacySyncList = htmlText((src.privacy.match(/<p>Plus 訂閱有效且登入後[^]*?<\/ul>/) || [])[0] || '');
+const privacySyncList = htmlText((src.privacy.match(/<p>通行證有效且登入後[^]*?<\/ul>/) || [])[0] || '');
 const scopes = {
-  termsAccount: paragraphWith(src.terms, '跨裝置同步屬軌島 Plus 功能'),
+  termsAccount: paragraphWith(src.terms, '跨裝置同步屬軌島通行證功能'),
   termsTakeout: paragraphWith(src.terms, '你應只匯入自己有權使用'),
   privacyAccount: paragraphWith(src.privacy, '軌島使用這些資料建立帳號'),
   privacySyncList,
   privacyTakeout: paragraphWith(src.privacy, 'Google Takeout ZIP'),
-  privacyInactive: paragraphWith(src.privacy, '沒有有效 Plus 資格時'),
-  privacyRetention: elementWith(src.privacy, '曾在 Plus 資格有效期間同步'),
-  supportLead: paragraphWith(src.support, '帳號用於在 Plus 資格有效期間'),
+  privacyInactive: paragraphWith(src.privacy, '沒有有效通行證資格時'),
+  privacyRetention: elementWith(src.privacy, '曾在資格有效期間同步'),
+  supportLead: paragraphWith(src.support, '帳號用於在通行證有效期間'),
   supportTakeout: paragraphWith(src.support, '原始檔案只在裝置內解析'),
-  supportInactive: paragraphWith(src.support, '沒有有效 Plus 資格時'),
+  supportInactive: paragraphWith(src.support, '沒有有效通行證資格時'),
   // 批二-D(M-2):取消訂閱那段——揭露「至少用到當期結束、技術性緩衝最多再晚一天」。
-  termsCancel: paragraphWith(src.terms, '訂閱會在到期前依商店規則自動續訂扣款'),
+  termsCancel: paragraphWith(src.terms, '月票與年票都會在到期前依商店規則自動續訂扣款'),
 };
 // 批二-D(I-5):未登入畫面對「訪客資料會不會併入帳號」的說明,只會在 accountRender() 那個分支
 // 出現一次(用「登入後會同步」當錨點,已排除掉本檔自己的程式碼註解——見下方 stripComments)。
@@ -193,7 +193,7 @@ check('D2-ACTIVE-LOGIN', '文案', '三份文件都把有效資格與登入寫�
     supportTakeout: scopes.supportTakeout,
   };
   const found = Object.fromEntries(Object.entries(claims).map(([name, text]) => {
-    const effective = /(?:Plus\s*)?(?:訂閱|資格)有效(?:期間)?/.test(text);
+    const effective = /(?:通行證|資格)有效(?:期間)?/.test(text);
     const login = /登入|帳號用於/.test(text);
     const at = text.indexOf('有效');
     const read = at >= 0 ? text.slice(Math.max(0, at - 38), at + 62) : text.slice(0, 100);
@@ -216,7 +216,7 @@ check('D3-INACTIVE-LOCAL', '文案', '三份文件都交代無有效資格時新
 
 check('D4-LAPSED-RETENTION', '文案', '三份文件都交代資格失效不會自動刪除既有雲端副本', () => {
   const found = Object.fromEntries(Object.entries({ terms: scopes.termsAccount, privacyContent: scopes.privacyInactive, privacyRetention: scopes.privacyRetention, support: scopes.supportInactive }).map(([name, plain]) => {
-    const trigger = /資格失效/.test(plain) || (/(?:停止訂閱|失去 Plus 資格)/.test(plain) && /到期/.test(plain) && /退款/.test(plain));
+    const trigger = /資格失效/.test(plain) || (/(?:停止訂閱|失去通行證資格)/.test(plain) && /到期/.test(plain) && /退款/.test(plain));
     const retention = /(?:雲端副本.{0,25}不會.{0,10}自動刪除|雲端副本.{0,80}不會.{0,45}自動刪除|不會.{0,10}自動刪除.{0,15}雲端副本)/.test(plain);
     const untilDelete = /雲端副本.{0,150}刪除.{0,12}(?:軌島)?帳號/.test(plain);
     const at = plain.indexOf('自動刪除');
@@ -230,7 +230,7 @@ check('D4-LAPSED-RETENTION', '文案', '三份文件都交代資格失效不會�
 check('D5-OWNER-ACCESS', '文案', '隱私政策區分本人讀刪與有效資格寫入', () => {
   const privacy = docs.privacy;
   const ownerReadDelete = /只允許本人讀取或刪除自己的資料/.test(privacy);
-  const activeWrite = /新增或更新雲端資料.{0,20}(?:需要|需).{0,12}有效.{0,8}Plus 資格/.test(privacy);
+  const activeWrite = /新增或更新雲端資料.{0,20}(?:需要|需).{0,12}有效.{0,8}通行證資格/.test(privacy);
   return { pass: ownerReadDelete && activeWrite, detail: `本人讀刪=${ownerReadDelete}；有效資格寫入=${activeWrite}；讀到=${sentenceWith(src.privacy, '存取控制')}` };
 });
 
@@ -238,7 +238,7 @@ check('D6-ACCOUNT-DELETION', '文案', '三份文件都提供刪除帳號與同�
   const found = {
     terms: /刪除後.{0,12}無法復原.{0,12}同步資料/.test(docs.terms),
     privacy: /刪除帳號會刪除.{0,45}(?:四類同步資料|同步資料)/.test(docs.privacy),
-    support: /刪除帳號與同步資料/.test(docs.support) && /無論 Plus 資格是否仍有效/.test(docs.support),
+    support: /刪除帳號與同步資料/.test(docs.support) && /無論通行證資格是否仍有效/.test(docs.support),
   };
   return { pass: Object.values(found).every(Boolean), detail: Object.entries(found).map(([name, value]) => `${name}=${value}`).join('；') };
 });
@@ -248,8 +248,8 @@ check('D6-ACCOUNT-DELETION', '文案', '三份文件都提供刪除帳號與同�
 // 刪得掉。三份文件裡至少要有一份把「刪帳號會刪什麼」講到資格紀錄；「訂閱不會被取消」這句則要求
 // terms／privacy／account-deletion 三處一致（terms.html 原本就有這句，這裡連它一起釘住，
 // 避免日後改 terms.html 時只顧著改新兩處、把原本就對的那句改壞而沒人發現）。
-check('D7-ENTITLEMENT-DELETION', '文案', '刪除帳號涵蓋 Plus 資格紀錄，並準確揭露訂閱不會因此被取消', () => {
-  const ENTITLEMENT = /Plus\s*資格紀錄/;
+check('D7-ENTITLEMENT-DELETION', '文案', '刪除帳號涵蓋通行證資格紀錄，並準確揭露訂閱不會因此被取消', () => {
+  const ENTITLEMENT = /通行證資格紀錄/;
   const NO_CANCEL = /刪除軌島帳號不會自動取消進行中的訂閱/;
   const CANCEL_WHERE = /App Store 的訂閱設定取消訂閱/;
   const found = {

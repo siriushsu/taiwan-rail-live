@@ -254,7 +254,7 @@ const REQUIRED = [
   },
   { needle: '高解析', check: () => fnBodyContains(SRC, 'satRetinaAllowed', 'plusIsActive()') },
   {
-    needle: '創始會員',
+    needle: '創始島民',
     // 原本的 symbol 指向 foundingFrom()——那是純函式,只從購買資訊算「這筆訂閱起始於創始期內
     // 嗎」,body 裡本來就不會、也不應該呼叫 plusIsActive()(它甚至不讀 state)。真正決定「徽章
     // 要不要畫出來」的閘門是 buildFoundingSeal(),見其 `if (!plusIsActive() || !(state.plus &&
@@ -570,7 +570,7 @@ const GATE_DISCLOSURE = {
   // 兩頭各釘一次:非空、含得到 Plus 那一節的錨點、且**不含 CSS 大括號**(證明 head/style 真的被剝掉)。
   ok('T2a 抽取器對照:說明中心與條款兩支抽取器都抽得出非空可見內文,且條款那份已剝掉 head/style(不含 CSS 大括號)',
     HELP_PLUS_TEXT.length > 20 && !HELP_PLUS_TEXT.includes('verify-probe-absent')
-    && TERMS_BODY_TEXT.length > 200 && TERMS_BODY_TEXT.includes('軌島 Plus 訂閱')
+    && TERMS_BODY_TEXT.length > 200 && TERMS_BODY_TEXT.includes('軌島通行證')
     && /[{}]/.test(TSRC) && !/[{}]/.test(TERMS_BODY_TEXT),
     `help=${HELP_PLUS_TEXT.length} termsBody=${TERMS_BODY_TEXT.length}/全文 ${TSRC.length} 字`);
   const satItem = feats.find(t => t.includes('高解析')) || '';
@@ -595,8 +595,8 @@ const GATE_DISCLOSURE = {
   const { feats } = await renderFeats(page);
   // 用 G1 現讀到的 inFounding 判斷「現在」該不該看到這項,不寫死「今天在創始期內」——
   // 那句話本身就是複審抓到的時間炸彈,見檔頭(4)。
-  ok(`T3a 創始期狀態(inFounding=${inFounding}):feats ${inFounding ? '含' : '不含'}「創始會員徽章」`,
-    feats.some(t => t.includes('創始會員徽章')) === inFounding, JSON.stringify(feats));
+  ok(`T3a 創始期狀態(inFounding=${inFounding}):feats ${inFounding ? '含' : '不含'}「創始島民徽章」`,
+    feats.some(t => t.includes('創始島民徽章')) === inFounding, JSON.stringify(feats));
   ok('T3 前置無 JS 例外', errors.length === 0, errors.slice(0, 3).join(' | '));
   await ctx.close();
 }
@@ -606,8 +606,8 @@ const GATE_DISCLOSURE = {
   const future = FOUNDING_UNTIL_MS_LIVE + 30 * 86400000; // 期限後 30 天,避開邊界的時區/精度爭議;FOUNDING_UNTIL_MS_LIVE 已在 G1 現讀,不重複打頁面
   await page.evaluate(t => { Date.now = () => t; }, future);
   const { feats } = await renderFeats(page);
-  ok('T3b 創始期後(FOUNDING_UNTIL_MS+30天):feats 不再無條件出現「創始會員徽章」(過了期限才訂閱的人拿不到,清單不能繼續宣傳)',
-    !feats.some(t => t.includes('創始會員徽章')), JSON.stringify(feats));
+  ok('T3b 創始期後(FOUNDING_UNTIL_MS+30天):feats 不再無條件出現「創始島民徽章」(過了期限才訂閱的人拿不到,清單不能繼續宣傳)',
+    !feats.some(t => t.includes('創始島民徽章')), JSON.stringify(feats));
   ok(`T3b 創始期後:feats 仍有其他 ${expectedFeatCount(false)} 項(不是整個清單壞掉,只有這一項消失)`,
     feats.length === expectedFeatCount(false), JSON.stringify(feats));
   ok('T3 無 JS 例外', errors.length === 0, errors.slice(0, 3).join(' | '));

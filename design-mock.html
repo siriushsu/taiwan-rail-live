@@ -708,6 +708,12 @@
   .passport.closed .ph-sub, .passport.closed .ph-body { display: none; }
   .passport .ph-stats { flex: 1 1 100%; order: 2; font-size: 12.5px; color: var(--muted); font-variant-numeric: tabular-nums; }
   .passport .ph-stats b { color: var(--red); }
+  .passport-showcase {
+    margin: 10px 0 12px; padding: 9px 11px; border: 1px solid color-mix(in srgb, var(--gold) 58%, transparent);
+    border-radius: 8px; background: color-mix(in srgb, var(--gold) 10%, transparent);
+    color: var(--muted); font-size: 12px; font-weight: 650; line-height: 1.55;
+  }
+  .passport-showcase b { color: var(--ink-strong); }
   .passport .ph-sec {
     display: flex; align-items: baseline; gap: 6px;
     font-size: 11px; font-weight: 800; letter-spacing: 3px; color: var(--faint);
@@ -2529,7 +2535,7 @@
     </div>
 
     <div class="modal-card" id="plusModal">
-      <div class="panel-head"><h3>軌島 Plus</h3><span class="panel-close">✕</span></div>
+      <div class="panel-head"><h3>軌島通行證</h3><span class="panel-close">✕</span></div>
       <div class="modal-body" id="plusBody">
         <div style="display:flex;align-items:center;gap:14px">
           <span class="seal gold" style="flex:none"><b>軌島<br>PLUS</b><small>支持者</small></span>

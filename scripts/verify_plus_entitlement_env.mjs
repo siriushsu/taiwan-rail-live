@@ -138,7 +138,7 @@ section(SECTIONS[0]);
 
   const wrongBuild = await run({ body: { items: [SANDBOX_SUB] }, request: req('20') });
   check(wrongBuild.ok === false && wrongBuild.status === 403,
-    '不是核准的 build 21 即使自帶 Sandbox header 仍無資格', JSON.stringify(wrongBuild));
+    '未核准的 build 20 即使自帶 Sandbox header 仍無資格', JSON.stringify(wrongBuild));
 
   const testflight = await run({ body: { items: [SANDBOX_SUB] }, request: req('21') });
   const testflightRc = upstream.filter(u => u.includes('api.revenuecat.com'));
@@ -147,6 +147,14 @@ section(SECTIONS[0]);
       && /environment=production/.test(testflightRc[0]) && /environment=sandbox/.test(testflightRc[1]),
     'build 21＋Firebase 身分＋真正 Sandbox subscription ⇒ 先查正式、再回退 Sandbox 並取得測試資格',
     JSON.stringify({ testflight, rc: testflightRc }));
+
+  const testflight22 = await run({ body: { items: [SANDBOX_SUB] }, request: req('22') });
+  const testflight22Rc = upstream.filter(u => u.includes('api.revenuecat.com'));
+  check(testflight22.ok === true && testflight22.entitlementEnvironment === 'sandbox'
+      && testflight22Rc.length === 2
+      && /environment=production/.test(testflight22Rc[0]) && /environment=sandbox/.test(testflight22Rc[1]),
+    'build 22＋Firebase 身分＋真正 Sandbox subscription ⇒ 同樣取得測試資格',
+    JSON.stringify({ testflight22, rc: testflight22Rc }));
 
   // 「拿不到環境資訊」不准當成正式——這是 Task 4 簡報明文的紅線。
   const noEnvSub = sub(); delete noEnvSub.environment;
@@ -331,6 +339,9 @@ section(SECTIONS[5]);
   const testflight = await read({ items: [SANDBOX_SUB] }, req('21'));
   check(testflight.status === 200 && testflight.json.active === true && testflight.json.environment === 'sandbox',
     'build 21 的 /api/plus-status 對 Sandbox 購買回 active:true＋environment:sandbox', JSON.stringify(testflight));
+  const testflight22 = await read({ items: [SANDBOX_SUB] }, req('22'));
+  check(testflight22.status === 200 && testflight22.json.active === true && testflight22.json.environment === 'sandbox',
+    'build 22 的 /api/plus-status 對 Sandbox 購買回 active:true＋environment:sandbox', JSON.stringify(testflight22));
   check(Object.keys(production.json).sort().join(',') === 'active,cloudSyncReady,environment',
     '批二-B：/api/plus-status 的回應恰好是 {active, cloudSyncReady, environment} 三個欄位（多一個少一個都要在這裡紅）',
     JSON.stringify(production.json));
@@ -360,10 +371,10 @@ section(SECTIONS[6]);
 
   let testBuildMsg = null;
   try {
-    assertPlusSandboxTestBuild('<script>window.RAIL_PLUS_SANDBOX_OK=true;window.RAIL_PLUS_SANDBOX_BUILD="21"</script>', '21');
+    assertPlusSandboxTestBuild('<script>window.RAIL_PLUS_SANDBOX_OK=true;window.RAIL_PLUS_SANDBOX_BUILD="22"</script>', '22');
   } catch (e) { testBuildMsg = e.message; }
   check(testBuildMsg === null,
-    'TestFlight 閘門只接受明確的 SANDBOX_OK=true＋逐字 build 21', String(testBuildMsg));
+    'TestFlight 閘門只接受明確的 SANDBOX_OK=true＋逐字 build 22', String(testBuildMsg));
 
   // 上面三條驗的是「這支函式有牙」，驗不到「它有沒有被接上發版流程」——直接 import 呼叫的測試
   // 對「verifyRelease 裡那一行被刪掉」是全盲的。這一條補上接線證據：驗 verifyRelease 的函式本體
@@ -714,7 +725,6 @@ section(SECTIONS[11]);
     'wrangler runtime 同時帶 Firestore project ID 與已用現有 private key 完成 OAuth 驗證的 service-account email（缺任一個都會讓真機同步寫入失敗）',
     JSON.stringify({ hasProject, hasEmail }));
 }
-
 globalThis.fetch = realFetch;
 
 // ── 收尾：段落完整性（整段被刪掉時要有具名紅燈，不是靜靜地少跑幾條還印「全部 PASS」）──

@@ -466,6 +466,17 @@ section(SECTIONS[5]);
       && JSON.parse(sandboxTestWrite.body).fields.active.booleanValue === true,
     'build 21 Sandbox 購買 ⇒ 正式文件自癒為 inactive、隔離文件 active，並回 cloudSyncReady:true',
     JSON.stringify({ body: sandboxTestBody, writes: sandboxTestWrites.map(call => call.url) }));
+
+  resetIo();
+  rcBody = { items: [baseSubscription({ environment: 'sandbox' })] };
+  response = await plusStatus(plusStatusRequest('22'), ENV());
+  const sandboxTest22Body = await response.json();
+  const sandboxTest22Writes = firestoreWrites();
+  check(response.status === 200 && sandboxTest22Body.active === true
+      && sandboxTest22Body.cloudSyncReady === true && sandboxTest22Body.environment === 'sandbox'
+      && sandboxTest22Writes.length === 2,
+    'build 22 Sandbox 購買 ⇒ 同樣寫入隔離資格並回 cloudSyncReady:true',
+    JSON.stringify({ body: sandboxTest22Body, writes: sandboxTest22Writes.map(call => call.url) }));
   // 🔴 2026-08-04 最終複審 I-1：這一格是「文件 active:true、但已經過期」。RevenueCat 在帳單重試／
   // 寬限期仍可能回 gives_access:true 而 ends_at 已經過去（plusAccessSubscriptions 只看 gives_access／
   // environment／lookup_key，不看到期），於是文件寫出 active:true + 一個過去的 activeUntilMs。

@@ -222,7 +222,7 @@ await fullFlow(webkitB, 'W(WebKit)', { width: 1280, height: 800 });
   const c = await readCard(page);
   ok('B1 未訂閱 → 圖表區有鎖層 .dh-locked', c.hasLocked, `locked=${c.hasLocked}`);
   ok('B2 鎖層 CSS filter 含 blur(模糊化)', /blur/.test(c.lockedBlur), `filter=${c.lockedBlur}`);
-  ok('B3 置中 CTA 鈕存在(訂閱 Plus 解鎖完整履歷)', c.hasCta && /訂閱 Plus 解鎖完整履歷/.test(c.text), `cta=${c.hasCta}`);
+  ok('B3 置中 CTA 鈕存在(訂閱通行證解鎖完整履歷)', c.hasCta && /訂閱通行證解鎖完整履歷/.test(c.text), `cta=${c.hasCta}`);
   ok('B4 未訂閱時統計列(teaser)仍可見', c.statVals.join(',') === ['2.4', '82%', '18', '26'].join(','), c.statVals.join(','));
   // 注入帳號+stub 商店 → 點 CTA 應開出 Plus modal
   await injectPlus(page, { mode: 'buy', subscribed: false });

@@ -555,7 +555,7 @@ const results_dir = path.join(ROOT, 'scratchpad'); // repo 的 scratchpad/ 已�
   const lineOnPaper = contrast(parseRgb(colors.borderColor), parseRgb(colors.passportBg));
   ok('G3.1 暗色 .pf-mark 文字(--paper)對底色(--gold)對比比',
     markContrast >= 4.5, `ratio=${markContrast.toFixed(2)}:1 (WCAG AA 文字門檻 4.5:1) colors=${colors.markColor} on ${colors.markBg}`);
-  ok('G3.2 暗色「創始會員」標題(--ink-strong)對底色(--bg-stage)對比比',
+  ok('G3.2 暗色「創始島民」標題(--ink-strong)對底色(--bg-stage)對比比',
     bContrast >= 4.5, `ratio=${bContrast.toFixed(2)}:1 colors=${colors.bColor} on ${colors.foundingBg}`);
   // M-1:原本第二個參數直接傳 true,量到什麼都不會紅,卻計進分母。副標是 11.5px 的一般文字,
   // WCAG AA 的門檻就是 4.5——直接用它當閘門,不再寫「資訊性參考」自我豁免。
