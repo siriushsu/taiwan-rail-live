@@ -12,6 +12,8 @@ const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const FIXTURE_PORT = Number(process.env.TRTC_POS_FIXTURE_PORT || 43387);
 const WORKER_PORT = Number(process.env.TRTC_POS_WORKER_PORT || 43389);
 const INSPECTOR_PORT = Number(process.env.TRTC_POS_INSPECTOR_PORT || 43390);
+const PERSIST_DIR = process.env.TRTC_POS_PERSIST_DIR || fs.mkdtempSync('/tmp/railisland-trtc-pos-');
+const CLEAN_PERSIST_DIR = !process.env.TRTC_POS_PERSIST_DIR;
 const FIXTURE = `http://127.0.0.1:${FIXTURE_PORT}`;
 const BASE = `https://127.0.0.1:${WORKER_PORT}`;
 const SCREEN_BASELINE_REF = process.env.TRTC_SCREEN_BASELINE_REF || '45f0fc1';
@@ -311,6 +313,7 @@ async function run() {
     await waitFor(fixtureProc, /"ready":true/, 10000);
     workerProc = spawn('arch', ['-arm64', process.execPath, path.join(ROOT, 'node_modules/wrangler/bin/wrangler.js'),
       'dev', '--local-protocol', 'https', '--port', String(WORKER_PORT), '--inspector-port', String(INSPECTOR_PORT), '--test-scheduled',
+      '--persist-to', PERSIST_DIR,
       '--var', 'TRTC_API_USER:fixture-user', '--var', 'TRTC_API_PASS:fixture-pass',
       '--var', `TRTC_API_BASE:${FIXTURE}`, '--var', 'TRTC_BOARD_SAMPLE_DELAY_MS:0'],
       { cwd: ROOT, stdio: ['ignore', 'pipe', 'pipe'] });
@@ -716,6 +719,7 @@ async function run() {
     if (workerProc && !workerProc.killed) workerProc.kill('SIGTERM');
     if (fixtureProc && !fixtureProc.killed) fixtureProc.kill('SIGTERM');
     await sleep(100);
+    if (CLEAN_PERSIST_DIR) fs.rmSync(PERSIST_DIR, { recursive: true, force: true });
     fs.mkdirSync(path.join(ROOT, 'tmp'), { recursive: true });
     output.failures = failures;
     fs.writeFileSync(path.join(ROOT, 'tmp/verify_trtc_board_positions-output.json'), JSON.stringify(output, null, 2) + '\n');
