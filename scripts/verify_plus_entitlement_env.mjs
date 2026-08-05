@@ -30,7 +30,7 @@ console.log(`[G0] app/scripts/verify-release.mjs md5=${md5(RELEASE)}`);
 console.log(`[G0] app/scripts/prepare-web.mjs md5=${md5(PREPARE)}`);
 
 const { _plus } = await import('../worker.js');
-const { assertPlusSandboxOff } = await import('../app/scripts/verify-release.mjs');
+const { assertPlusSandboxOff, assertPlusSandboxTestBuild } = await import('../app/scripts/verify-release.mjs');
 const { checkPlusEntitlement, plusStatus, resolveRcNextPage, rcSubscriptionsPageError,
   subscriptionMatchesPlus, plusEntitlementDocument } = _plus;
 
@@ -85,8 +85,11 @@ globalThis.fetch = async (url) => {
 const ENV = (over = {}) => ({
   FIREBASE_WEB_API_KEY: 'k', REVENUECAT_PROJECT_ID: 'proj_x', REVENUECAT_V2_SECRET_KEY: 'sk_x', ...over,
 });
-const req = () => new Request('https://railisland.tw/api/plus-status', {
-  headers: { Authorization: 'Bearer ' + 'x'.repeat(900), 'cf-connecting-ip': '203.0.113.9' },
+const req = (sandboxBuild = '') => new Request('https://railisland.tw/api/plus-status', {
+  headers: {
+    Authorization: 'Bearer ' + 'x'.repeat(900), 'cf-connecting-ip': '203.0.113.9',
+    ...(sandboxBuild ? { 'X-Rail-Plus-Sandbox-Build': sandboxBuild } : {}),
+  },
 });
 
 // 一筆 Subscription 的形狀（依官方 OpenAPI v2 的 Subscription schema：gives_access / environment /
@@ -104,9 +107,9 @@ const sub = (over = {}) => ({
 const SANDBOX_SUB = sub({ environment: 'sandbox' });
 const PRODUCTION_SUB = sub();
 
-const run = async ({ body = { items: [] }, status = 200, thrown = false, env = ENV() } = {}) => {
+const run = async ({ body = { items: [] }, status = 200, thrown = false, env = ENV(), request = req() } = {}) => {
   upstream = []; rcBody = body; rcStatus = status; rcThrow = thrown; rcSeq = null;
-  const r = await checkPlusEntitlement(req(), env);
+  const r = await checkPlusEntitlement(request, env);
   return r;
 };
 // 分頁測試專用(F-1):pages 是 [{status?, body}, ...],依呼叫順序取用,見上方 rcSeq 說明。
@@ -127,6 +130,18 @@ section(SECTIONS[0]);
   const neg = await run({ body: { items: [SANDBOX_SUB] } });
   check(neg.ok === false && neg.status === 403 && neg.error === 'not_entitled',
     'sandbox 環境的訂閱（其餘欄位與上一條逐欄相同）⇒ 判定為無資格（403 not_entitled）', JSON.stringify(neg));
+
+  const wrongBuild = await run({ body: { items: [SANDBOX_SUB] }, request: req('20') });
+  check(wrongBuild.ok === false && wrongBuild.status === 403,
+    '不是核准的 build 21 即使自帶 Sandbox header 仍無資格', JSON.stringify(wrongBuild));
+
+  const testflight = await run({ body: { items: [SANDBOX_SUB] }, request: req('21') });
+  const testflightRc = upstream.filter(u => u.includes('api.revenuecat.com'));
+  check(testflight.ok === true && testflight.entitlementEnvironment === 'sandbox'
+      && testflightRc.length === 2
+      && /environment=production/.test(testflightRc[0]) && /environment=sandbox/.test(testflightRc[1]),
+    'build 21＋Firebase 身分＋真正 Sandbox subscription ⇒ 先查正式、再回退 Sandbox 並取得測試資格',
+    JSON.stringify({ testflight, rc: testflightRc }));
 
   // 「拿不到環境資訊」不准當成正式——這是 Task 4 簡報明文的紅線。
   const noEnvSub = sub(); delete noEnvSub.environment;
@@ -292,9 +307,9 @@ section(SECTIONS[4]);
 // ── 6. 端到端：/api/plus-status 對 sandbox-only 客戶回 active:false ──────────────────
 section(SECTIONS[5]);
 {
-  const read = async (body) => {
+  const read = async (body, request = req()) => {
     upstream = []; rcBody = body; rcStatus = 200; rcThrow = false;
-    const res = await plusStatus(req(), ENV());
+    const res = await plusStatus(request, ENV());
     return { status: res.status, json: await res.json() };
   };
   const sandboxOnly = await read({ items: [SANDBOX_SUB] });
@@ -308,8 +323,11 @@ section(SECTIONS[5]);
   // 資格文件一定沒落地。這正是最危險的組合：RevenueCat 說有資格（active:true），但 rules 讀的
   // 那份文件根本不存在。此時若把 cloudSyncReady 也回成 true，客戶端會拿註定被擋的交易去撞牆，
   // 而且永遠不會再握手一次。欄位名與期望值都是本檔字面宣告，不從 worker.js 讀。
-  check(Object.keys(production.json).sort().join(',') === 'active,cloudSyncReady',
-    '批二-B：/api/plus-status 的回應恰好是 {active, cloudSyncReady} 兩個欄位（多一個少一個都要在這裡紅）',
+  const testflight = await read({ items: [SANDBOX_SUB] }, req('21'));
+  check(testflight.status === 200 && testflight.json.active === true && testflight.json.environment === 'sandbox',
+    'build 21 的 /api/plus-status 對 Sandbox 購買回 active:true＋environment:sandbox', JSON.stringify(testflight));
+  check(Object.keys(production.json).sort().join(',') === 'active,cloudSyncReady,environment',
+    '批二-B：/api/plus-status 的回應恰好是 {active, cloudSyncReady, environment} 三個欄位（多一個少一個都要在這裡紅）',
     JSON.stringify(production.json));
   check(production.json.cloudSyncReady === false,
     '批二-B：Firestore 設定缺席（寫入必定失敗）時 cloudSyncReady 必須是 false——不可以因為 RevenueCat 說有資格就宣稱雲端已放行',
@@ -323,7 +341,7 @@ section(SECTIONS[5]);
 section(SECTIONS[6]);
 {
   const threw = (html) => { try { assertPlusSandboxOff(html); return null; } catch (e) { return e.message; } };
-  const ok = threw('<script>window.RAIL_MUSIC_AVAILABLE=true;window.RAIL_PLUS_SANDBOX_OK=false</script>');
+  const ok = threw('<script>window.RAIL_MUSIC_AVAILABLE=true;window.RAIL_PLUS_SANDBOX_OK=false;window.RAIL_PLUS_SANDBOX_BUILD=null</script>');
   check(ok === null, '注入 window.RAIL_PLUS_SANDBOX_OK=false 的發行包 ⇒ 通過', String(ok));
 
   const onMsg = threw('<script>window.RAIL_MUSIC_AVAILABLE=true;window.RAIL_PLUS_SANDBOX_OK=true</script>');
@@ -335,13 +353,21 @@ section(SECTIONS[6]);
   check(typeof missMsg === 'string' && /RAIL_PLUS_SANDBOX_OK/.test(missMsg),
     '注入整段不見了 ⇒ 也要擋下（沉默不是證據：閘門驗的是「明確是 false」不是「剛好沒有 true」）', String(missMsg));
 
+  let testBuildMsg = null;
+  try {
+    assertPlusSandboxTestBuild('<script>window.RAIL_PLUS_SANDBOX_OK=true;window.RAIL_PLUS_SANDBOX_BUILD="21"</script>', '21');
+  } catch (e) { testBuildMsg = e.message; }
+  check(testBuildMsg === null,
+    'TestFlight 閘門只接受明確的 SANDBOX_OK=true＋逐字 build 21', String(testBuildMsg));
+
   // 上面三條驗的是「這支函式有牙」，驗不到「它有沒有被接上發版流程」——直接 import 呼叫的測試
   // 對「verifyRelease 裡那一行被刪掉」是全盲的。這一條補上接線證據：驗 verifyRelease 的函式本體
   // （不是整個檔案）裡真的有呼叫它。這是原始碼字串比對、比行為證據弱，故只當接線檢查用。
   const releaseSrc = readFileSync(RELEASE, 'utf8');
   const verifyReleaseBody = releaseSrc.slice(releaseSrc.indexOf('export async function verifyRelease'));
-  check(verifyReleaseBody.length > 0 && /^\s*assertPlusSandboxOff\(html\);\s*$/m.test(verifyReleaseBody),
-    'verifyRelease() 本體真的呼叫了 assertPlusSandboxOff(html)（閘門有被接上發版流程，不是一支沒人叫的函式）');
+  check(verifyReleaseBody.length > 0 && /assertPlusSandboxTestBuild\(html, expectPlusSandboxBuild\)/.test(verifyReleaseBody)
+      && /assertPlusSandboxOff\(html\)/.test(verifyReleaseBody),
+    'verifyRelease() 本體同時接上正式關閉閘門與 TestFlight build 閘門');
 
   // 閘門的對象要真的是 build 產物在用的那個變數名——prepare-web.mjs 若改了名字，
   // 上面三條照樣全綠而閘門看守的是一個不存在的東西。

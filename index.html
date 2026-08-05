@@ -3344,6 +3344,7 @@
            內容 li 上限 8 條(li.grp 是標題不算)。 -->
       <ul class="foot-list foot-recent">
         <li class="grp">最近更新</li>
+        <li data-cl-of="plussandboxtest"><span class="d">8/5</span><span>TestFlight 測試版完成月訂或年訂後，現在會真的開啟 Plus，也能測跨裝置同步與付費功能</span></li>
         <li data-cl-of="widgetdestination"><span class="d">8/5</span><span>iPhone 小工具的起站選「共站」或「我的地點」後，再點「目的站」會讓設定畫面閃退；現在不再閃退，請改用「只看這些」挑方向、車種或車次</span></li>
         <li data-cl-of="metromotion"><span class="d">8/5</span><span>淡海輕軌等捷運收到新即時資料時，不再先停住再猛追；所有捷運與輕軌都改成平順加減速</span></li>
         <li data-cl-of="trtcpos"><span class="d">8/5</span><span>北捷列車會依官方到站倒數直接算出目前在站間的位置，換站資料不再變成一筆要慢慢追的誤差</span></li>
@@ -3351,7 +3352,6 @@
         <li data-cl-of="moresheet"><span class="d">8/4</span><span>電腦版把頁面捲下去後開「更多」，選單上方會被切掉；現在捲到哪裡開都完整</span></li>
         <li data-cl-of="orangebranch"><span class="d">8/4</span><span>橘線列車進共線段後會延續蘆洲／迴龍的支線身分，不再誤算成新莊線</span></li>
         <li data-cl-of="hazardwatch"><span class="d">8/4</span><span>颱風、地震等示警生效時，軌島立即重查各家官方營運公告並持續複查</span></li>
-        <li data-cl-of="appdata"><span class="d">8/4</span><span>App 的台鐵班表過期後會自動上網補最新的，不必等改版</span></li>
       </ul>
       <!-- 第二層:完整歷史。刻意不掛 .foot-box 類名——placeFootBoxes() 用
            `.site-foot .foot-box` 搬移面板,巢狀同名會被當成另一個盒子一起搬走。 -->
@@ -3463,6 +3463,7 @@
         <li><span class="d">7/10</span><span>夜間與衛星模式視覺升級；「軌」軌道顯示三段切換：自動／淡化／隱藏</span></li>
         <li><span class="d">7/9</span><span>站名移到軌道側邊不再互相壓住；雙欄版面：搜尋／最愛／旅程收集移到右側欄</span></li>
         <li class="grp">分享與個人化</li>
+        <li data-cl="plussandboxtest"><span class="d">8/5</span><span>TestFlight 測試版的 App Store 測試訂閱現在會完整開啟 Plus：完成月訂或年訂後，可以實際驗收 Google 清單匯入、衛星高解析、Live Activity、誤點履歷與跨裝置同步；測試訂閱與同步資料都和正式購買分開，不會真的扣款或改動正式資格</span></li>
         <li data-cl="sync"><span class="d">8/4</span><span>訂閱軌島 Plus 後可以用軌島帳號登入（Google 或 Apple）：收藏的地點、最愛車站與完乘記錄會在手機和電腦之間自動同步，換裝置也不必從頭來過</span></li>
         <li data-cl="tripshare"><span class="d">8/4</span><span>訂閱 Plus 後可以分享「行程」：把正在跟的班次和目的站打包成一條連結傳給朋友，對方點開就看得到車跑到哪、還剩幾站、幾點到；分享的是班次，不是你的定位</span></li>
         <li><span class="d">7/24</span><span>可把常看的地點設為預設啟動視野；探索面板新增「觀光列車圖鑑」</span></li>
@@ -3760,7 +3761,7 @@
 // 🔴 BUILD 字串會跨並行分支撞號（心得 16）：07-28 兩條線各自遞增又各自部署過——
 // origin/main 這條用到 v0728b，正式站那條用到 v0728f。本次三方合併把兩條線統一，
 // 所以往後推到一個雙方都沒用過的號，辨識線上跑哪一版仍以內容 hash 為準。
-const BUILD = 'v0805c';
+const BUILD = 'v0805d';
 // 成就徽章與車廂標記＝原本那些 emoji 的單色平面版（RailEmoji＝裁切過的 Noto Emoji 單色）。
 // 刻意保留 railIcon(name) 這個唯一入口:呼叫端一行都不用改,只有這裡決定畫法。
 // 🔴 ⚖ 與 ♾ 一律寫**不帶 VS16(U+FE0F)** 的碼位——帶了就強制彩色呈現,會蓋過 font-family
@@ -7224,7 +7225,8 @@ async function accountSyncTxn(reason, myGen, myUid, retried) {
     // Firestore rules 尚未放行新 collection 時,整筆交易會 permission-denied——退回舊清單重試,
     // 別讓新收藏類型上線的時間差中斷既有同步(stations 資料仍留在本機,rules 部署後重整即恢復上傳)
     const kinds = a.legacyKinds ? USER_DATA_COLLECTIONS.filter(k => k !== 'stations') : USER_DATA_COLLECTIONS;
-    const refs = Object.fromEntries(kinds.map(kind => [kind, a.fb.doc(a.db, 'users', myUid, 'data', kind)]));
+    const syncCollection = plusSyncCollection();
+    const refs = Object.fromEntries(kinds.map(kind => [kind, a.fb.doc(a.db, syncCollection, myUid, 'data', kind)]));
     const local = userDataRead(myUid);
     const merged = await a.fb.runTransaction(a.db, async tx => {
       const docs = {};
@@ -7341,7 +7343,7 @@ function accountForgetIdentity() {
   if (state.account) state.account.gen = (state.account.gen || 0) + 1; // C-2 世代前進:仍在途的舊同步之後複查世代會發現對不上,結果被丟棄不寫本機(見 accountSyncTxn)
   // 批二-B:cloudSyncReady(資格文件落地)綁在「這個身分」上,身分沒了就不再成立——下一個登入的人
   // 必須自己重新握手一次,不能繼承上一個人的落地結論。
-  if (state.plus) { state.plus.active = false; state.plus.founding = false; state.plus.pkgMonthly = null; state.plus.pkgAnnual = null; state.plus.mgmtUrl = ''; state.plus.adapter = null; state.plus.afterUnlock = null; state.plus.cloudSyncReady = false; state.plus.cloudSyncPromise = null; }
+  if (state.plus) { state.plus.active = false; state.plus.entitlementEnvironment = ''; state.plus.founding = false; state.plus.pkgMonthly = null; state.plus.pkgAnnual = null; state.plus.mgmtUrl = ''; state.plus.adapter = null; state.plus.afterUnlock = null; state.plus.cloudSyncReady = false; state.plus.cloudSyncPromise = null; }
   // ↑ cloudSyncPromise 也要清(最終複審 Minor 2):它是「同一時間只准一發握手在飛」的去重槽,
   //   留著的話換人之後 plusReconcileEntitlement() 會 return 上一個身分的在途 promise,那發的世代
   //   複查必然回 false ⇒ 新使用者白白失敗一輪握手。清掉只是丟棄槽位,在飛的那發自己會照常收尾。
@@ -7448,7 +7450,9 @@ async function accountDelete() {
       else throw new Error('Apple 重新登入沒有回傳可撤銷的授權憑證');
     }
     await accountDeleteServerData(u);
-    for (const kind of USER_DATA_COLLECTIONS) await a.fb.deleteDoc(a.fb.doc(a.db, 'users', u.uid, 'data', kind));
+    for (const collection of ['users', 'sandboxUsers']) {
+      for (const kind of USER_DATA_COLLECTIONS) await a.fb.deleteDoc(a.fb.doc(a.db, collection, u.uid, 'data', kind));
+    }
     await a.fb.deleteUser(u); accountClearLocal(u.uid); accountClose(); showToast('軌島帳號與同步資料已刪除');
   } catch (e) { a.actionError = '刪除失敗：' + (e && e.message ? e.message : String(e)); accountRender(); }
   finally { a.syncSuspended = false; }
@@ -7672,14 +7676,18 @@ async function plusReconcileEntitlement() {
   const task = (async () => {
     try {
       const token = await getToken();
-      const res = await fetch(apiUrl('api/plus-status'), { cache: 'no-store', headers: { Authorization: 'Bearer ' + token } });
+      const res = await fetch(apiUrl('api/plus-status'), { cache: 'no-store', headers: plusApiHeaders(token) });
       if (!res.ok) return false;
       const data = await res.json();
       // 握手期間身分可能已經變了(登出/換人/session 失效)——比照 accountSyncTxn 的世代複查,
       // 對不上就整份丟棄,不把上一個帳號的資格狀態寫到現在這個人身上。
       const now = state.account;
       if (!now || now.gen !== myGen || !now.user || now.user.uid !== myUid) return false;
-      if (data && typeof data.active === 'boolean') p.active = data.active;
+      if (data && typeof data.active === 'boolean') {
+        p.active = data.active;
+        plusSetEnvironment(p, p.active && data.environment === 'sandbox' && PLUS_SANDBOX_OK
+          ? 'sandbox' : (p.active ? 'production' : ''));
+      }
       if (data && data.cloudSyncReady === true) return plusMarkCloudSyncReady();
       return false;
     } catch (e) { return false; }
@@ -7754,8 +7762,17 @@ function plusLoadWebSdk() {
 // 所以它不是「使用者可切換的開關」,是一條只能在建置機器上打開、且過不了發版檢查的測試通道。
 // ⚠️ 代價要講清楚:TestFlight 與 App Store 是同一顆 binary,因此「能測購買流程的 build」與
 //   「能送審的 build」必須是兩次建置——要在裝置/模擬器/TestFlight 實測 sandbox 購買就帶
-//   RAIL_PLUS_SANDBOX_OK=1 建一份內部版,那一份過不了發版閘門也上不了架。
+//   RAIL_PLUS_SANDBOX_OK=1 建一份專用內部版；正式送審要另升 build，關閉旗標並通過正式閘門。
 const PLUS_SANDBOX_OK = window.RAIL_PLUS_SANDBOX_OK === true;
+// Sandbox 後端通道也要由同一份 build 明確提出；網站與正式 App 沒有 build 標記，永遠只查正式資格。
+// 這顆 header 不是憑證，Worker 仍會驗 Firebase ID token 並向 RevenueCat 重查同 uid 的訂閱真相。
+const PLUS_SANDBOX_BUILD = PLUS_SANDBOX_OK && /^\d+$/.test(String(window.RAIL_PLUS_SANDBOX_BUILD || ''))
+  ? String(window.RAIL_PLUS_SANDBOX_BUILD) : '';
+function plusApiHeaders(token) {
+  const headers = { Authorization: 'Bearer ' + token };
+  if (PLUS_SANDBOX_BUILD) headers['X-Rail-Plus-Sandbox-Build'] = PLUS_SANDBOX_BUILD;
+  return headers;
+}
 // Plus 資格的唯一判定式(所有消費者——plusRefresh/plusPurchase/plusRestore——都走這裡)。
 // 環境收斂:RevenueCat 的 entitlements.active **等同 activeInAnyEnvironment**(SDK 自己的 doc
 // comment:app/ios/App/Pods/RevenueCat/Sources/Purchasing/EntitlementInfos.swift 的
@@ -7774,6 +7791,26 @@ function plusActiveFrom(info) {
   if (!(active && Object.prototype.hasOwnProperty.call(active, key))) return false;
   const ent = active[key];
   return PLUS_SANDBOX_OK || !(ent && ent.isSandbox === true);
+}
+function plusEnvironmentFrom(info) {
+  if (!plusActiveFrom(info)) return '';
+  const active = info && info.entitlements && info.entitlements.active;
+  const ent = active && active[plusConfig().entitlement || 'plus'];
+  return PLUS_SANDBOX_OK && ent && ent.isSandbox === true ? 'sandbox' : 'production';
+}
+function plusSetEnvironment(p, environment) {
+  const next = environment === 'sandbox' ? 'sandbox' : (environment === 'production' ? 'production' : '');
+  if (p.entitlementEnvironment !== next) {
+    // cloudSyncReady 只證明「當時那個環境」的資格文件已落地；環境切換後不可沿用舊結論，
+    // 否則會拿 production 的 ready 去寫 sandboxUsers（或反向），接著被 rules 拒絕卻不再握手。
+    p.cloudSyncReady = false;
+    p.cloudSyncPromise = null;
+  }
+  p.entitlementEnvironment = next;
+  return next;
+}
+function plusSyncCollection() {
+  return state.plus && state.plus.entitlementEnvironment === 'sandbox' ? 'sandboxUsers' : 'users';
 }
 function plusPackagePrice(pkg) {
   const p = pkg && (pkg.webBillingProduct || pkg.product || pkg.storeProduct) || {};
@@ -7869,6 +7906,7 @@ async function plusTeardownListener() {
 function plusApplyCustomerInfo(info) {
   const p = plusState();
   p.active = plusActiveFrom(info);
+  plusSetEnvironment(p, plusEnvironmentFrom(info));
   p.founding = p.active && foundingFrom(info);
   p.mgmtUrl = (info && info.managementURL) || p.mgmtUrl || '';
   return p.active;
@@ -7886,7 +7924,7 @@ async function plusRevalidateBeforeAction(adapter) {
 function plusState() {
   // cloudSyncReady/cloudSyncPromise 是批二-B 新增的第二個狀態(資格文件落地),與 active(帳務資格)
   // 刻意分開存放,見 plusCloudSyncReady() 上方說明。
-  if (!state.plus) state.plus = { active: false, founding: false, loading: false, error: '', pkgMonthly: null, pkgAnnual: null, mgmtUrl: '', adapter: null, afterUnlock: null, cloudSyncReady: false, cloudSyncPromise: null };
+  if (!state.plus) state.plus = { active: false, entitlementEnvironment: '', founding: false, loading: false, error: '', pkgMonthly: null, pkgAnnual: null, mgmtUrl: '', adapter: null, afterUnlock: null, cloudSyncReady: false, cloudSyncPromise: null };
   return state.plus;
 }
 async function plusOpen(source, onGranted) {
@@ -8018,7 +8056,7 @@ async function plusRefresh() {
     p.loading = true; p.error = ''; plusRender();
     try {
       const token = state.account.fb.getIdToken ? await state.account.fb.getIdToken(user) : await user.getIdToken();
-      const res = await fetch(apiUrl('api/plus-status'), { cache: 'no-store', headers: { Authorization: 'Bearer ' + token } });
+      const res = await fetch(apiUrl('api/plus-status'), { cache: 'no-store', headers: plusApiHeaders(token) });
       // 身分在途中變了 ⇒ 這個答案是上一個人的,整包丟掉(不早退,讓 finally 與收尾的 render 照常跑)。
       const a2 = state.account;
       const stale = a2.gen !== myGen || !a2.user || a2.user.uid !== myUid;
@@ -8027,7 +8065,11 @@ async function plusRefresh() {
         // 只有 200 才是「後端給了確定答案」:true 給資格、false 收回資格。非 200(503/401)是「查不出來」,
         // 一律維持現狀——把上游短暫故障誤讀成「沒訂閱」會讓付費者的功能整批閃爍消失(同一顧慮見
         // worker.js /api/plus-status 註解,那裡就是為了讓前端能分辨才把 403 轉成 200 {active:false})。
-        if (data && typeof data.active === 'boolean') p.active = data.active;
+        if (data && typeof data.active === 'boolean') {
+          p.active = data.active;
+          plusSetEnvironment(p, p.active && data.environment === 'sandbox' && PLUS_SANDBOX_OK
+            ? 'sandbox' : (p.active ? 'production' : ''));
+        }
         // 批二-B:這條分支打的就是資格文件的 writer,所以它同時也是一次免費的握手——多讀一個欄位
         // 就好,不另外發請求(verify_plus_refresh_lifecycle 的 L12/L13 在數這條路徑發幾發請求)。
         // 只認明確的 true:欄位缺席(舊版 Worker)或 false 一律維持現狀,不把「這次沒確認到」當成
@@ -8051,6 +8093,7 @@ async function plusRefresh() {
     if (infoR.status === 'fulfilled') {
       const info = infoR.value;
       p.active = plusActiveFrom(info);
+      plusSetEnvironment(p, plusEnvironmentFrom(info));
       p.founding = p.active && foundingFrom(info);
       p.mgmtUrl = (info && info.managementURL) || '';
       if (state.basemap === 'sat') setBasemap(); // 資格變動→衛星解析度跟著換,不必等使用者重切底圖
@@ -8098,6 +8141,7 @@ async function plusPurchase(kind) {
     if (!a2 || a2.gen !== myGen || !a2.user || a2.user.uid !== myUid) return;
     const info = result && (result.customerInfo || result);
     p.active = plusActiveFrom(info);
+    plusSetEnvironment(p, plusEnvironmentFrom(info));
     p.founding = p.active && foundingFrom(info);
     p.mgmtUrl = (info && info.managementURL) || p.mgmtUrl || '';
     if (!p.active) throw new Error('付款完成但尚未取得訂閱資格，請按「恢復購買」');
@@ -8135,6 +8179,7 @@ async function plusRestore() {
     if (!a2 || a2.gen !== myGen || !a2.user || a2.user.uid !== myUid) return;
     const info = result && (result.customerInfo || result);
     p.active = plusActiveFrom(info);
+    plusSetEnvironment(p, plusEnvironmentFrom(info));
     p.founding = p.active && foundingFrom(info);
     p.mgmtUrl = (info && info.managementURL) || p.mgmtUrl || ''; accountRender();
     if (p.active) {
@@ -13213,7 +13258,7 @@ async function fetchDelayHistory(no) {
   try {
     const a = state.account, user = a && a.user;
     const token = user ? (a.fb && a.fb.getIdToken ? await a.fb.getIdToken(user) : await user.getIdToken()) : null;
-    if (token) headers = { Authorization: 'Bearer ' + token };
+    if (token) headers = plusApiHeaders(token);
   } catch (e) { /* 取 token 失敗:當未登入照常送 */ }
   fetch(apiUrl('api/delay-history?train=' + encodeURIComponent(no)), headers ? { cache: 'no-store', headers } : { cache: 'no-store' })
     .then(r => r.ok ? r.json() : Promise.reject(r.status))

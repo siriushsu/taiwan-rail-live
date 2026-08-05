@@ -405,7 +405,9 @@ check('B6-LAPSED-CLOUD-RETENTION', '行為', '資格失效寫成 inactive，資�
   const accountDeletes = destructiveCollector(deleteFunction);
   const statusWrites = /\bwritePlusEntitlement\s*\(/.test(plusStatusFunction);
   const webhookWrites = /\bwritePlusEntitlement\s*\(/.test(webhookFunction);
-  const entitlementPath = /documents\/entitlements\/\$\{documentId\}/.test(writeEntitlementFunction);
+  const entitlementPath = /PLUS_ENTITLEMENT_COLLECTION/.test(writeEntitlementFunction)
+    && /documents\/\$\{collection\}\/\$\{documentId\}/.test(writeEntitlementFunction)
+    && /'entitlements'/.test(src.worker) && /'sandboxEntitlements'/.test(src.worker);
   return {
     pass: inactive.active === false && active.active === true && statusWrites && webhookWrites && entitlementPath && qualificationDeletes.length === 0 && accountDeletes.length > 0,
     detail: `空資格→active=${inactive.active}；有效正向對照→active=${active.active}；plus-status 寫資格=${statusWrites}；webhook 寫資格=${webhookWrites}；寫入路徑=entitlements:${entitlementPath}；同一破壞呼叫收集器 資格更新=[${qualificationDeletes.join(',') || '無'}]／accountDelete=[${accountDeletes.join(',') || '無'}]`,
@@ -414,7 +416,9 @@ check('B6-LAPSED-CLOUD-RETENTION', '行為', '資格失效寫成 inactive，資�
 
 check('B7-ACCOUNT-DELETE-ENTITLEMENT', '行為', '刪帳號流程真的呼叫刪除資格文件，404 視為成功、其他失敗會讓整支回錯（撐住 D7 的文案承諾）', () => {
   const callsDelete = /\bdeletePlusEntitlement\s*\(/.test(deleteAccountDataFunction);
-  const deletesEntitlementPath = /documents\/entitlements\/\$\{documentId\}/.test(deletePlusEntitlementFunction);
+  const deletesEntitlementPath = /PLUS_ENTITLEMENT_COLLECTION/.test(deletePlusEntitlementFunction)
+    && /documents\/\$\{collection\}\/\$\{documentId\}/.test(deletePlusEntitlementFunction)
+    && /RC_ENV_PRODUCTION/.test(deleteAccountDataFunction) && /RC_ENV_SANDBOX/.test(deleteAccountDataFunction);
   const usesDeleteMethod = /method:\s*'DELETE'/.test(deletePlusEntitlementFunction);
   const idempotent404 = /response\.status\s*===\s*404/.test(deletePlusEntitlementFunction) && /response\.ok/.test(deletePlusEntitlementFunction);
   const failureSurfaced = /entitlement deletion failed/.test(deleteAccountDataFunction);

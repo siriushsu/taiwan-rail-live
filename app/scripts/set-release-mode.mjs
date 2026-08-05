@@ -1,7 +1,8 @@
 // 把 iOS 專案切到某一種發行模式，然後一路建置到發行閘門通過。
 //
 //   node app/scripts/set-release-mode.mjs hotfix    → 1.0.1 (build 12)，無音樂
-//   node app/scripts/set-release-mode.mjs feature   → 1.0.2 (build 13)，含音樂
+//   node app/scripts/set-release-mode.mjs feature   → 正式發行模式，Sandbox 資格關閉
+//   node app/scripts/set-release-mode.mjs testflight → TestFlight 測試模式，Sandbox 購買可完整解鎖
 //
 // build 號為什麼從 11 跳到 12：11 已經被一顆「忘了跑 patch-archive-os、帶著 beta macOS
 // 標記」的 archive 上傳掉了。build 號在同一個版本內不可重複，所以往前跳一號。
@@ -63,6 +64,13 @@ const MODES = {
     why: '小工具設定修正版：起站選共站或我的地點後，打開目的站不再讓設定流程失效。'
        + '沿用 1.3.2 (19) 的北捷帳本與班表到期自救內容。',
   },
+  // 2026-08-05：build 20 已上 TestFlight、build 號已燒掉；21 專門驗收 Sandbox 購買後的
+  // Plus 客端功能、雲端同步與伺服器付費牆。這顆不可選去正式送審；正式版必須另推 build 號，
+  // 回到 feature 模式並由 assertPlusSandboxOff 驗證測試通道確實關閉。
+  testflight: {
+    marketing: '1.3.2', build: '21', music: true, plusSandboxBuild: '21',
+    why: 'TestFlight Plus 端到端測試版：Sandbox 月訂／年訂完成後，完整開放 Plus 與雲端功能驗收。',
+  },
 };
 
 const mode = process.argv[2];
@@ -108,11 +116,19 @@ if (gotM.length !== 1 || gotM[0] !== cfg.marketing || gotB.length !== 1 || gotB[
 console.log(`\n▸ 模式：${mode}  ${cfg.why}`);
 console.log(`  版號 ${before.m} (${before.b}) → ${cfg.marketing} (${cfg.build})`);
 console.log(`  音樂 ${cfg.music ? '開啟（154MB 級）' : '關閉（與線上 build 8 一致）'}\n`);
+if (cfg.plusSandboxBuild) console.log(`  Plus Sandbox 開啟（僅 TestFlight build ${cfg.plusSandboxBuild}；不可送正式審查）\n`);
 
 // 線上底圖兩個模式都要開——那是 App 的基本功能，不是新增項目。
 const env = { ...process.env, LANG: 'en_US.UTF-8', RAIL_INCLUDE_LICENSED_BASEMAPS: '1', RAIL_REQUIRE_NATIVE: '1' };
 if (cfg.music) env.RAIL_INCLUDE_LICENSED_MUSIC = '1';
 else delete env.RAIL_INCLUDE_LICENSED_MUSIC;
+if (cfg.plusSandboxBuild) {
+  env.RAIL_PLUS_SANDBOX_OK = '1';
+  env.RAIL_PLUS_SANDBOX_BUILD = cfg.plusSandboxBuild;
+} else {
+  delete env.RAIL_PLUS_SANDBOX_OK;
+  delete env.RAIL_PLUS_SANDBOX_BUILD;
+}
 
 const run = (cmd, args) => execFileSync(cmd, args, { cwd: appRoot, env, stdio: 'inherit' });
 run('npm', ['run', 'sync']);

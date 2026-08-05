@@ -26,6 +26,13 @@ service cloud.firestore {
         && entitlement.data.activeUntilMs > request.time.toMillis();
     }
 
+    function hasActiveSandboxEntitlement(uid) {
+      let entitlement = get(/databases/$(database)/documents/sandboxEntitlements/$(uid));
+      return entitlement != null
+        && entitlement.data.active == true
+        && entitlement.data.activeUntilMs > request.time.toMillis();
+    }
+
     // 四份同步文件：pins / favs / rides / stations。只能由本人讀寫，其他使用者完全看不到。
     match /users/{uid}/data/{kind} {
       allow read, delete: if owns(uid) && kind in ['pins', 'favs', 'rides', 'stations'];
@@ -49,8 +56,37 @@ service cloud.firestore {
         && (kind != 'stations' || request.resource.data.items.size() <= 500);
     }
 
+    // TestFlight build 21 的跨裝置同步使用完全獨立的資料空間；Sandbox 資格不能寫正式 users/{uid}。
+    // 規則形狀刻意與正式同步相同，測到的是同一套限制，但資料與權限不互相滲透。
+    match /sandboxUsers/{uid}/data/{kind} {
+      allow read, delete: if owns(uid) && kind in ['pins', 'favs', 'rides', 'stations'];
+      allow create, update: if owns(uid)
+        && hasActiveSandboxEntitlement(uid)
+        && kind in ['pins', 'favs', 'rides', 'stations']
+        && request.resource.data.keys().hasOnly([
+          'version', 'kind', 'revision', 'clientUpdatedAt', 'items', 'tombstones', 'updatedAt'
+        ])
+        && request.resource.data.version == 1
+        && request.resource.data.kind == kind
+        && request.resource.data.revision is int
+        && request.resource.data.clientUpdatedAt is int
+        && request.resource.data.items is list
+        && request.resource.data.tombstones is list
+        && request.resource.data.updatedAt is timestamp
+        && request.resource.data.tombstones.size() <= 2000
+        && (kind != 'pins' || request.resource.data.items.size() <= 800)
+        && (kind != 'favs' || request.resource.data.items.size() <= 1000)
+        && (kind != 'rides' || request.resource.data.items.size() <= 2000)
+        && (kind != 'stations' || request.resource.data.items.size() <= 500);
+    }
+
     // Plus 資格只能由本人讀；寫入必須由受信任的購買驗證後端使用 Admin SDK 完成。
     match /entitlements/{uid} {
+      allow read: if owns(uid);
+      allow write: if false;
+    }
+
+    match /sandboxEntitlements/{uid} {
       allow read: if owns(uid);
       allow write: if false;
     }

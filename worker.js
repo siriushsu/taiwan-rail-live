@@ -1222,12 +1222,32 @@ async function rateLimited(limiter, request, failClosed) {
 // production/sandbox;**webhook** payload 是**大寫** PRODUCTION/SANDBOX。兩套慣例不同世代,
 // 絕不可拿同一個常數去比對兩邊——之後接 webhook 時要另外定義自己的大寫常數。
 const RC_ENV_PRODUCTION = 'production';
+const RC_ENV_SANDBOX = 'sandbox';
 // RevenueCat webhook 的環境值是大寫；REST 的 RC_ENV_PRODUCTION 是小寫。兩者不得共用，
 // 否則 sandbox 事件可能被誤認成正式環境，或正式 REST 訂閱全部被誤擋。
 const RC_WEBHOOK_ENV_PRODUCTION = 'PRODUCTION';
 const RC_WEBHOOK_ENV_SANDBOX = 'SANDBOX';
 // TRANSFER 是唯一「主體不是單一 app_user_id」的事件型別，見 webhookTargetUids() 的說明。
 const RC_WEBHOOK_TYPE_TRANSFER = 'TRANSFER';
+// build 21 是專供 TestFlight 做端到端 Sandbox 購買驗收的版本。前端只有在建置期明確打開
+// RAIL_PLUS_SANDBOX_OK 且把 build 號注入時才會帶這顆 header；正式 App 與網站不帶。
+// header 本身不是授權憑證——呼叫者仍須先通過 Firebase ID token，接著由 RevenueCat
+// Developer API 證明同一個 uid 真的有 gives_access 的 sandbox subscription。把 build 號釘死
+// 是縮小測試通道的操作範圍，不把可偽造的客端字串誤當成安全邊界。
+const PLUS_SANDBOX_TEST_HEADER = 'x-rail-plus-sandbox-build';
+const PLUS_SANDBOX_TEST_BUILD = '21';
+const PLUS_ENTITLEMENT_COLLECTION = Object.freeze({
+  [RC_ENV_PRODUCTION]: 'entitlements',
+  [RC_ENV_SANDBOX]: 'sandboxEntitlements',
+});
+
+function plusEnvironment(value) {
+  return value === RC_ENV_SANDBOX ? RC_ENV_SANDBOX : RC_ENV_PRODUCTION;
+}
+
+function sandboxPlusRequested(request) {
+  return request.headers.get(PLUS_SANDBOX_TEST_HEADER) === PLUS_SANDBOX_TEST_BUILD;
+}
 
 const GOOGLE_OAUTH_TOKEN_URL = 'https://oauth2.googleapis.com/token';
 const GOOGLE_DATASTORE_SCOPE = 'https://www.googleapis.com/auth/datastore';
@@ -1430,15 +1450,15 @@ function rcSubscriptionsPageError(body, expectCustomerId) {
   return null;
 }
 
-// 從 GET /v2/.../customers/{id}/subscriptions 的回應判「這個客戶有沒有**正式環境**的 Plus 存取權」。
+// 從 GET /v2/.../customers/{id}/subscriptions 的回應判「這個客戶在指定環境有沒有 Plus 存取權」。
 // 三道條件全部要成立才算數:
 //  (1) gives_access === true——RevenueCat 官方規格明文:「To determine whether or not a subscription
 //      currently provides access to any associated entitlements, use the _gives_access_ field」,
 //      刻意不看 status(它的 enum 還會再長,而且 trialing/in_grace_period 這類要不要給存取權
 //      不該由我們重新推導一次)。
-//  (2) environment === 'production'——Subscription 的 environment 是 top-level 必填欄位。
-//      **欄位不存在/不是 production 一律不算**:不准「拿不到環境資訊就當成正式」。
-//      我們同時在 query string 帶 ?environment=production 讓上游先濾一次,這裡是第二道——
+//  (2) environment === 指定環境——Subscription 的 environment 是 top-level 必填欄位。
+//      **欄位不存在/不是指定環境一律不算**:不准「拿不到環境資訊就當成 production/sandbox」。
+//      我們同時在 query string 帶 ?environment=... 讓上游先濾一次,這裡是第二道——
 //      上游若哪天忽略了那個參數(改版、打錯字),本地這道仍然擋得住。
 //  (3) entitlements 裡有我們要的 lookup_key。Subscription 的巢狀 Entitlement 物件有 lookup_key
 //      (人類可讀的 'plus'),不是 active_entitlements 那個不透明的 entitlement_id,所以這裡終於
@@ -1460,9 +1480,9 @@ function rcSubscriptionsPageError(body, expectCustomerId) {
 //          正常管線走不到這一支:rcSubscriptionsPageError() 已在上游把整次 200 判成 malformed
 //          回 503。這裡回 false 是第二道防線,語意是「型別混淆絕不可以擴大 fallback 的範圍」
 //          ——舊版把它折疊成 null 再 `if (!ents) return true`,那正是多給資格的那一行。
-function subscriptionMatchesPlus(sub, wantEntitlement) {
+function subscriptionMatchesPlus(sub, wantEntitlement, entitlementEnvironment = RC_ENV_PRODUCTION) {
   if (!sub || typeof sub !== 'object' || sub.gives_access !== true) return false;
-  if (sub.environment !== RC_ENV_PRODUCTION) return false;
+  if (sub.environment !== plusEnvironment(entitlementEnvironment)) return false;
   if (!Object.prototype.hasOwnProperty.call(sub, 'entitlements')) return true;   // 唯一的 fallback:真正缺席
   const ents = sub.entitlements;
   if (!ents || typeof ents !== 'object' || Array.isArray(ents) || !Array.isArray(ents.items)) return false;
@@ -1473,17 +1493,17 @@ function subscriptionMatchesPlus(sub, wantEntitlement) {
 // 舊版在這裡對非陣列 items 靜默退回 [],等於把「上游回了不符規格的髒 200」與「這個人確定沒有
 // 訂閱」合併成同一個答案(而後者會被寫成 active:false 的資格文件)。現在不合規的 body 直接拋錯,
 // 由呼叫端的 try 轉成可重試的 503——純篩選 helper 不准替 malformed 決定業務答案。
-function plusAccessSubscriptions(body, wantEntitlement) {
+function plusAccessSubscriptions(body, wantEntitlement, entitlementEnvironment = RC_ENV_PRODUCTION) {
   if (!body || typeof body !== 'object' || !Array.isArray(body.items))
     throw new TypeError('revenuecat list malformed: items 不是陣列');
-  return body.items.filter(sub => subscriptionMatchesPlus(sub, wantEntitlement));
+  return body.items.filter(sub => subscriptionMatchesPlus(sub, wantEntitlement, entitlementEnvironment));
 }
 
-function plusEntitledFromSubscriptions(body, wantEntitlement) {
-  return plusAccessSubscriptions(body, wantEntitlement).length > 0;
+function plusEntitledFromSubscriptions(body, wantEntitlement, entitlementEnvironment = RC_ENV_PRODUCTION) {
+  return plusAccessSubscriptions(body, wantEntitlement, entitlementEnvironment).length > 0;
 }
 
-// entitlements/{uid} 是 Task 8 的固定契約：active(boolean)、activeUntilMs(number)、
+// entitlements/{uid} 與 sandboxEntitlements/{uid} 共用固定契約：active(boolean)、activeUntilMs(number)、
 // updatedAtMs(number)、source(string)。activeUntilMs 是訂閱到期毫秒加上寬限。
 // inactive 文件寫 0，但 rules 會先要求 active===true，所以那個 0 不代表任何存取權。
 //
@@ -1505,8 +1525,8 @@ function plusEntitledFromSubscriptions(body, wantEntitlement) {
 //    到期後任何一次前端查詢都會重新問 RevenueCat。損害因此有界，且沒有可用性代價。
 //  · 若日後真的推出 lifetime 產品，必須用明確的產品／entitlement allowlist 來辨識，
 //    絕不可以從「到期欄位是 null」反推——那正是這條稽核發現的錯誤推論本身。
-function plusEntitlementDocument(body, wantEntitlement, source, nowMs = Date.now()) {
-  const access = plusAccessSubscriptions(body, wantEntitlement);
+function plusEntitlementDocument(body, wantEntitlement, source, nowMs = Date.now(), entitlementEnvironment = RC_ENV_PRODUCTION) {
+  const access = plusAccessSubscriptions(body, wantEntitlement, entitlementEnvironment);
   let activeUntilMs = 0;
   if (access.length) {
     const expirations = access.map(sub => {
@@ -1554,7 +1574,7 @@ function storedEntitlementUpdatedAtMs(document) {
 
 // 一次 CAS 最多試幾輪。**有上限**這件事本身就是「不可能活鎖」的證明（見下方邊界決定）。
 // 3 輪的依據：資格文件的 writer 只有兩個入口（/api/plus-status 與 /api/revenuecat-webhook），
-// Firestore 規則對 /entitlements/{uid} 是 `allow write: if false`，沒有第三方 writer。
+// Firestore 規則對正式／Sandbox 兩種資格文件都是 `allow write: if false`，沒有第三方 writer。
 const FIRESTORE_CAS_MAX_ATTEMPTS = 3;
 // 「文件在我讀完之後被別人動過」的所有表達方式。409／412 一望即知；Google API 也會用
 // 400（FAILED_PRECONDITION）／404（NOT_FOUND，文件在讀與寫之間被刪掉）表達同一件事，
@@ -1564,7 +1584,7 @@ const FIRESTORE_CONFLICT_REASONS = new Set(['ABORTED', 'ALREADY_EXISTS', 'FAILED
 
 // ── 資格文件寫入：compare-and-set，舊真相不得覆蓋新真相 ──────────────────────────────
 // 🔴 2026-08-04 整合稽核 Important 1：/api/plus-status 與 RevenueCat webhook 各自獨立查真相，
-// 再對同一份 entitlements/{uid} 做**無條件** PATCH。文件雖然帶著 updatedAtMs，寫入時卻沒有
+// 再對同一份資格文件做**無條件** PATCH。文件雖然帶著 updatedAtMs，寫入時卻沒有
 // compare-and-set／transaction／precondition，也沒有每 uid 的序列化，於是真正生效的是
 // 「最後抵達 Firestore 的請求」，不是「最新取得的 RevenueCat 真相」：
 //   1. 較早的 plus-status 查到有效訂閱（updatedAtMs 較小），它那發 Firestore 請求延遲；
@@ -1607,12 +1627,14 @@ const FIRESTORE_CONFLICT_REASONS = new Set(['ABORTED', 'ALREADY_EXISTS', 'FAILED
 //    CAS 靜默降級回舊的無條件覆寫，正是這條稽核要修的東西。
 //  · 判定為「舊的，跳過」是**成功**不是失敗：正常回傳 { written:false, outcome:'skipped-older' }，
 //    webhook 因此回 200（不燒掉 RevenueCat 有限的重試次數），並留下一行明說「刻意跳過」的 log。
-async function writePlusEntitlement(uid, doc, env, nowMs = Date.now()) {
+async function writePlusEntitlement(uid, doc, env, nowMs = Date.now(), entitlementEnvironment = RC_ENV_PRODUCTION) {
   if (!validFirestoreDocumentId(uid)) throw new Error('invalid entitlement uid');
   const token = await getFirestoreAccessToken(env, nowMs);
   const project = encodeURIComponent(env.FIRESTORE_PROJECT_ID);
   const documentId = encodeURIComponent(uid);
-  const url = `https://firestore.googleapis.com/v1/projects/${project}/databases/(default)/documents/entitlements/${documentId}`;
+  const selectedEnvironment = plusEnvironment(entitlementEnvironment);
+  const collection = PLUS_ENTITLEMENT_COLLECTION[selectedEnvironment];
+  const url = `https://firestore.googleapis.com/v1/projects/${project}/databases/(default)/documents/${collection}/${documentId}`;
   for (let attempt = 1; attempt <= FIRESTORE_CAS_MAX_ATTEMPTS; attempt += 1) {
     // ── 讀：拿現存文件的 updateTime（precondition 用）與 updatedAtMs（新舊比較用）──
     const current = await fetch(url, {
@@ -1662,11 +1684,12 @@ async function writePlusEntitlement(uid, doc, env, nowMs = Date.now()) {
 // pathname（I-5）。為了讓 activeUntilMs 能取到所有頁的最晚到期日，命中後不提早回傳，會翻到自然
 // 結尾。每一頁在做任何業務判定之前都先過 rcSubscriptionsPageError()（I-3／I-4／I-5）：
 // 不符官方 schema 的 200 一律升成可重試的 503，絕不折疊成「確定沒訂閱」或「已翻到底」。
-async function fetchRevenueCatSubscriptions(uid, env, wantEntitlement) {
+async function fetchRevenueCatSubscriptions(uid, env, wantEntitlement, entitlementEnvironment = RC_ENV_PRODUCTION) {
   const matches = [];
+  const selectedEnvironment = plusEnvironment(entitlementEnvironment);
   // canonical endpoint：既是第一發請求的路徑，也是 I-5 用來認「下一頁還是不是同一個資源」的錨。
   const canonicalPath = `/v2/projects/${encodeURIComponent(env.REVENUECAT_PROJECT_ID)}/customers/${encodeURIComponent(uid)}/subscriptions`;
-  let rcUrl = `${RC_ORIGIN}${canonicalPath}?environment=${RC_ENV_PRODUCTION}&limit=${RC_SUBS_LIMIT}`;
+  let rcUrl = `${RC_ORIGIN}${canonicalPath}?environment=${selectedEnvironment}&limit=${RC_SUBS_LIMIT}`;
   for (let page = 0; page < RC_SUBS_MAX_PAGES; page++) {
     const rc = await fetch(rcUrl, {
       headers: { Authorization: `Bearer ${env.REVENUECAT_V2_SECRET_KEY}`, Accept: 'application/json' },
@@ -1698,7 +1721,7 @@ async function fetchRevenueCatSubscriptions(uid, env, wantEntitlement) {
       console.error(`[plus] subscriptions 第 ${page + 1} 頁不符官方 schema,判為 malformed 回 503(不寫資格文件):${shapeError}`);
       return { ok: false, status: 503, error: 'entitlement_unavailable' };
     }
-    matches.push(...plusAccessSubscriptions(subs, wantEntitlement));
+    matches.push(...plusAccessSubscriptions(subs, wantEntitlement, selectedEnvironment));
 
     // 走到這裡 next_page 只可能是 null／缺席（＝翻到底）或合法非空字串（＝還有下一頁）。
     if (subs.next_page === null || subs.next_page === undefined) {
@@ -1724,7 +1747,7 @@ async function fetchRevenueCatSubscriptions(uid, env, wantEntitlement) {
   return { ok: true, subscriptions: { items: [] } };
 }
 
-// 驗證 Firebase ID token → RevenueCat 正式環境的訂閱存取權,供任何 Plus 付費牆端點共用。
+// 驗證 Firebase ID token → RevenueCat 訂閱存取權,供任何 Plus 付費牆端點共用。
 // 原本抽自 delayHistory 的既有驗證邏輯(2026-08-02 抽 helper);2026-08-03 收斂環境:
 // 舊版打 /active_entitlements 並用 items.length>0 判定,**那支端點在協定層面就分辨不出環境**——
 // 官方 OpenAPI v2 的 CustomerEntitlement 只有 object/entitlement_id/expires_at 三個欄位而且標了
@@ -1732,7 +1755,9 @@ async function fetchRevenueCatSubscriptions(uid, env, wantEntitlement) {
 // 改打 /subscriptions:它有 environment query 參數,回應的 Subscription 也有 top-level 必填的
 // environment 與 gives_access 兩個欄位(判定細節見 plusEntitledFromSubscriptions)。
 // secret 未設定→fail-closed 503(不放行任何人)。驗證範式抄自 deleteAccountData(同一組 env secret)。
-// 成功與明確無資格都會附上 uid 與跨頁累積的命中 subscriptions，供資格文件使用；
+// 正常請求只查 production。只有 build 21 TestFlight 明確帶測試 header 時，才會在 production
+// 沒資格後回退查 sandbox；兩邊仍各由 environment query 與逐筆 environment 欄位雙重收斂。
+// 成功與明確無資格都會附上 uid、選中的環境與跨頁累積的命中 subscriptions，供資格文件使用；
 // 呼叫端自行決定 403(not_entitled)要不要原樣回傳，或(如 /api/plus-status)改寫成 200 {active:false}。
 async function checkPlusEntitlement(request, env) {
   if (!env.FIREBASE_WEB_API_KEY || !env.REVENUECAT_PROJECT_ID || !env.REVENUECAT_V2_SECRET_KEY)
@@ -1751,14 +1776,24 @@ async function checkPlusEntitlement(request, env) {
     // entitlement 的 lookup_key 與前端 revenuecat-config.js 的 entitlement 同一個值('plus');
     // 不是 secret,給 env 覆寫只是為了不把它寫死在兩個地方。
     const wantEntitlement = env.REVENUECAT_ENTITLEMENT || 'plus';
-    const truth = await fetchRevenueCatSubscriptions(uid, env, wantEntitlement);
-    if (!truth.ok) return truth;
+    const productionTruth = await fetchRevenueCatSubscriptions(uid, env, wantEntitlement, RC_ENV_PRODUCTION);
+    if (!productionTruth.ok) return productionTruth;
+    let entitlementEnvironment = RC_ENV_PRODUCTION;
+    let truth = productionTruth;
+    if (!plusEntitledFromSubscriptions(productionTruth.subscriptions, wantEntitlement, RC_ENV_PRODUCTION)
+        && sandboxPlusRequested(request)) {
+      const sandboxTruth = await fetchRevenueCatSubscriptions(uid, env, wantEntitlement, RC_ENV_SANDBOX);
+      if (!sandboxTruth.ok) return sandboxTruth;
+      entitlementEnvironment = RC_ENV_SANDBOX;
+      truth = sandboxTruth;
+    }
     // subscriptions 是跨頁累積後「所有符合資格的命中集合」，不是任一頁的原始 body；
     // plus-status 與 webhook 都用這份集合計算 activeUntilMs，避免有效訂閱在後頁時寫錯。
     const subscriptions = truth.subscriptions;
-    if (!plusEntitledFromSubscriptions(subscriptions, wantEntitlement))
-      return { ok: false, status: 403, error: 'not_entitled', uid, subscriptions };
-    return { ok: true, uid, subscriptions };
+    const common = { uid, subscriptions, entitlementEnvironment, productionSubscriptions: productionTruth.subscriptions };
+    if (!plusEntitledFromSubscriptions(subscriptions, wantEntitlement, entitlementEnvironment))
+      return { ok: false, status: 403, error: 'not_entitled', ...common };
+    return { ok: true, ...common };
   } catch (e) {
     return { ok: false, status: 503, error: 'entitlement_unavailable' };                         // 網路/解析暫時性錯誤:可重試
   }
@@ -1810,8 +1845,9 @@ async function delayHistory(request, env) {
 // 🔴 2026-08-04 批二-B(整合稽核 Important 2／3):回應的兩個欄位是**兩個獨立的真相**，不可混用。
 //   · active         ＝ RevenueCat 說這個人有沒有有效訂閱。決定純客端功能(Takeout 匯入／行程分享／
 //                      衛星 Retina／Live Activity)。買完當下就知道。
-//   · cloudSyncReady ＝ /entitlements/{uid} 這份資格文件**在這次請求中確認落地了**。firestore.rules
-//                      讀的是它，所以只有它為真，雲端同步才寫得進去。
+//   · cloudSyncReady ＝ 所選環境的資格文件**在這次請求中確認落地了**。production 讀
+//                      /entitlements/{uid}，Sandbox 讀 /sandboxEntitlements/{uid}；只有它為真，
+//                      對應 users／sandboxUsers 的雲端同步才寫得進去。
 // 兩者會分家的真實情境正是這條稽核要修的東西:剛買完的人 active 已經是 true(客戶端立刻認為自己
 // 是 Plus 而開始同步)，資格文件卻還沒寫好 ⇒ rules 一律擋 ⇒ 同步收到 permission-denied。這支端點
 // 本身就是資格文件的 writer，所以「呼叫它」＝「主動讓文件落地」，回應等於一次握手的結果。
@@ -1830,13 +1866,25 @@ async function plusStatus(request, env) {
   // (503)分開,否則 RevenueCat 短暫故障會被前端誤讀成「沒訂閱」而把付費者的功能整批關掉。
   if (!check.ok && check.status !== 403) return jsonRes({ error: check.error }, check.status, 'no-store');
   let cloudSyncReady = false;
-  if (check.uid && check.subscriptions) {
+  if (check.uid && check.subscriptions && check.productionSubscriptions) {
     const wantEntitlement = env.REVENUECAT_ENTITLEMENT || 'plus';
     // nowMs 明確傳進去,好讓下面的 cloudSyncReady 跟這份文件用同一個時鐘判斷到期(不要各自 Date.now())。
     const nowMs = Date.now();
-    const doc = plusEntitlementDocument(check.subscriptions, wantEntitlement, 'plus-status', nowMs);
+    const selectedEnvironment = plusEnvironment(check.entitlementEnvironment);
+    // 正式文件永遠由正式真相自癒；TestFlight 回退到 sandbox 時再另外寫 sandboxEntitlements。
+    // 兩份文件分開，sandbox webhook／到期不可能覆蓋正式購買資格。
+    const productionDoc = plusEntitlementDocument(
+      check.productionSubscriptions, wantEntitlement, 'plus-status', nowMs, RC_ENV_PRODUCTION
+    );
     try {
-      const write = await writePlusEntitlement(check.uid, doc, env);
+      const productionWrite = await writePlusEntitlement(check.uid, productionDoc, env, nowMs, RC_ENV_PRODUCTION);
+      let selectedDoc = productionDoc, selectedWrite = productionWrite;
+      if (selectedEnvironment === RC_ENV_SANDBOX) {
+        selectedDoc = plusEntitlementDocument(
+          check.subscriptions, wantEntitlement, 'plus-status', nowMs, RC_ENV_SANDBOX
+        );
+        selectedWrite = await writePlusEntitlement(check.uid, selectedDoc, env, nowMs, RC_ENV_SANDBOX);
+      }
       // 🔴 2026-08-04 最終複審 I-1:這個條件必須與 firestore.rules 的 hasActiveEntitlement() **逐項對齊**
       // ——規則是 `active == true && activeUntilMs > 現在`,少一項就是對一份規則保證會拒絕的文件宣稱 ready。
       // 漏掉到期那半會怎麼出事:RevenueCat 在帳單重試／寬限期仍可能回 gives_access:true 而 ends_at 已經
@@ -1846,13 +1894,18 @@ async function plusStatus(request, env) {
       // 代價不是多一次往返:前端的 plusMarkCloudSyncReady() 是**單向閂**(只有 accountForgetIdentity
       // 會歸零),誤設之後就不再握手,legacyKinds 也永遠收不回來 ⇒ 等寬限期過去、資格恢復正常之後,
       // 那個 session 每次同步仍靜默少傳 stations,直到重新整理。那正是批二-B 宣稱已經切掉的尾巴。
-      cloudSyncReady = doc.active === true && doc.activeUntilMs > nowMs && !!(write && write.written);
+      cloudSyncReady = selectedDoc.active === true && selectedDoc.activeUntilMs > nowMs
+        && !!(selectedWrite && selectedWrite.written);
     } catch (e) {
       // 不含 uid／憑證，只留下路徑與錯誤類型，讓 Worker observability 能診斷設定或上游故障。
       console.error('[plus-entitlement] plus-status Firestore write failed:', String(e && e.message || e));
     }
   }
-  return jsonRes({ active: check.ok, cloudSyncReady }, 200, 'no-store');
+  return jsonRes({
+    active: check.ok,
+    cloudSyncReady,
+    environment: check.ok ? plusEnvironment(check.entitlementEnvironment) : null,
+  }, 200, 'no-store');
 }
 
 async function constantTimeHeaderEqual(actual, expected) {
@@ -1899,8 +1952,9 @@ function webhookTargetUids(event) {
 
 // POST /api/revenuecat-webhook
 // RevenueCat dashboard 設定的 Authorization 完整值必須與 REVENUECAT_WEBHOOK_AUTH secret 完全相同。
-// webhook 本身只當喚醒訊號：正式事件一律用 fetchRevenueCatSubscriptions() 重查完整分頁真相再寫，
-// 退款、撤銷、到期不靠本地事件型別表推演。sandbox 事件確認收件但不寫，避免測試交易蓋掉正式資格。
+// webhook 本身只當喚醒訊號：事件一律用 fetchRevenueCatSubscriptions() 重查完整分頁真相再寫，
+// 退款、撤銷、到期不靠本地事件型別表推演。production 與 sandbox 寫入不同 collection，
+// 所以測試交易可以完整驗收續訂／到期，又不會蓋掉正式資格。
 async function revenueCatWebhook(request, env) {
   if (request.method !== 'POST') {
     const response = jsonRes({ error: 'method not allowed' }, 405, 'no-store');
@@ -1921,13 +1975,12 @@ async function revenueCatWebhook(request, env) {
   const event = payload && payload.event;
   const uids = webhookTargetUids(event);
   if (!event || !uids.length) return jsonRes({ error: 'bad_request' }, 400, 'no-store');
-  if (event.environment === RC_WEBHOOK_ENV_SANDBOX) return jsonRes({ ok: true }, 200, 'no-store');
   // 🔴 I-2：environment 對 TRANSFER 只是「Sometimes」欄位，拿它當硬閘等於把每一筆不帶
   // environment 的轉移都擋成 400（並燒掉有限的重試次數）。TRANSFER 缺席時放行是安全的——
-  // 下面重查真相的那支查詢自己就把環境釘死在 production（query 帶 environment=production，
-  // 回應再逐筆比對 environment === 'production'），sandbox 的訂閱不可能因此混進資格文件。
+  // environment 缺席時無法知道是哪一邊的轉移，所以兩邊都各自重查並寫進隔離 collection；
+  // 每一支查詢仍同時靠 environment query 與逐筆 environment 比對收斂，不會互相混入。
   // 其他事件型別維持原本的嚴格閘：它們的 environment 是必填，缺席就是不該接受的形狀。
-  if (event.environment !== RC_WEBHOOK_ENV_PRODUCTION
+  if (event.environment !== RC_WEBHOOK_ENV_PRODUCTION && event.environment !== RC_WEBHOOK_ENV_SANDBOX
       && !(event.type === RC_WEBHOOK_TYPE_TRANSFER && event.environment === undefined))
     return jsonRes({ error: 'bad_request' }, 400, 'no-store');
   if (!env.REVENUECAT_PROJECT_ID || !env.REVENUECAT_V2_SECRET_KEY || !firestoreConfigured(env))
@@ -1935,13 +1988,23 @@ async function revenueCatWebhook(request, env) {
 
   try {
     const wantEntitlement = env.REVENUECAT_ENTITLEMENT || 'plus';
+    const entitlementEnvironments = event.environment === RC_WEBHOOK_ENV_SANDBOX
+      ? [RC_ENV_SANDBOX]
+      : event.environment === RC_WEBHOOK_ENV_PRODUCTION
+        ? [RC_ENV_PRODUCTION]
+        : [RC_ENV_PRODUCTION, RC_ENV_SANDBOX];
     // 逐一處理（TRANSFER 會有兩個 uid）。任何一個失敗就整支回 503 讓 RevenueCat 重試；
     // 重試安全，因為每次都是重查當下真相再覆寫，不是套用事件內容。
     for (const targetUid of uids) {
-      const truth = await fetchRevenueCatSubscriptions(targetUid, env, wantEntitlement);
-      if (!truth.ok) throw new Error(`revenuecat subscriptions ${truth.status}`);
-      const doc = plusEntitlementDocument(truth.subscriptions, wantEntitlement, 'revenuecat-webhook');
-      await writePlusEntitlement(targetUid, doc, env);
+      for (const entitlementEnvironment of entitlementEnvironments) {
+        const truth = await fetchRevenueCatSubscriptions(targetUid, env, wantEntitlement, entitlementEnvironment);
+        if (!truth.ok) throw new Error(`revenuecat subscriptions ${truth.status}`);
+        const nowMs = Date.now();
+        const doc = plusEntitlementDocument(
+          truth.subscriptions, wantEntitlement, 'revenuecat-webhook', nowMs, entitlementEnvironment
+        );
+        await writePlusEntitlement(targetUid, doc, env, nowMs, entitlementEnvironment);
+      }
     }
     return jsonRes({ ok: true }, 200, 'no-store');
   } catch (e) {
@@ -2055,7 +2118,7 @@ async function basemapSession(request, env) {
   }
 }
 
-// 刪帳號時一併刪除這個 uid 的資格文件（entitlements/{uid}）——2026-08-04 整合稽核 Important 4：
+// 刪帳號時一併刪除這個 uid 的正式與 Sandbox 資格文件——2026-08-04 整合稽核 Important 4：
 // 舊版 /api/account-delete 只刪 RevenueCat customer 與 D1 校正資料，entitlements/{uid} 留著不動。
 // 兩個問題：(1) 揭露不實——條款／隱私政策承諾刪除帳號會清掉軌島保存的資料，這份文件卻繼續存在；
 // (2) 資格殘留——文件本身就是雲端同步的付費牆憑據（firestore.rules 的 hasActiveEntitlement()
@@ -2070,12 +2133,13 @@ async function basemapSession(request, env) {
 // 這裡不呼叫、也不修改 writePlusEntitlement／checkPlusEntitlement／plusStatus／
 // revenueCatWebhook——那一帶是另一個並行批次的地界，此函式只透過 getFirestoreAccessToken／
 // firestoreConfigured／validFirestoreDocumentId 這幾支底層工具函式，不動它們的邏輯。
-async function deletePlusEntitlement(uid, env, nowMs = Date.now()) {
+async function deletePlusEntitlement(uid, env, nowMs = Date.now(), entitlementEnvironment = RC_ENV_PRODUCTION) {
   if (!validFirestoreDocumentId(uid)) throw new Error('invalid entitlement uid');
   const token = await getFirestoreAccessToken(env, nowMs);
   const project = encodeURIComponent(env.FIRESTORE_PROJECT_ID);
   const documentId = encodeURIComponent(uid);
-  const url = `https://firestore.googleapis.com/v1/projects/${project}/databases/(default)/documents/entitlements/${documentId}`;
+  const collection = PLUS_ENTITLEMENT_COLLECTION[plusEnvironment(entitlementEnvironment)];
+  const url = `https://firestore.googleapis.com/v1/projects/${project}/databases/(default)/documents/${collection}/${documentId}`;
   const response = await fetch(url, {
     method: 'DELETE',
     headers: { Authorization: `Bearer ${token}` },
@@ -2151,7 +2215,8 @@ async function deleteAccountData(request, env) {
     // 一份還能通過 firestore.rules 資格檢查的文件。
     if (firestoreConfigured(env)) {
       try {
-        await deletePlusEntitlement(uid, env);
+        await deletePlusEntitlement(uid, env, Date.now(), RC_ENV_PRODUCTION);
+        await deletePlusEntitlement(uid, env, Date.now(), RC_ENV_SANDBOX);
       } catch (e) {
         console.error('[plus-entitlement] account-delete entitlement deletion failed:', String(e && e.message || e));
         return jsonRes({ error: 'entitlement deletion failed' }, 502, 'no-store');
@@ -3493,6 +3558,7 @@ export const _plus = {
   createGoogleServiceAccountJwt, getFirestoreAccessToken, resetFirestoreAccessTokenCache,
   writePlusEntitlement, plusStatus, revenueCatWebhook,
   resolveRcNextPage, rcSubscriptionsPageError, webhookTargetUids, subscriptionMatchesPlus,
+  sandboxPlusRequested, fetchRevenueCatSubscriptions,
 };
 // 供離線回歸測試 import:驗「節流擋在 outbound fetch 之前」。這兩個不是純函式,測試得自備
 // env 替身與 fetch 替身;導出的目的就是讓測試能數「被擋掉時到底有沒有打上游」。

@@ -183,8 +183,11 @@ const webhookRequest = (authorization, environment = 'PRODUCTION', method = 'POS
     } }) : undefined,
   });
 };
-const plusStatusRequest = () => new Request('https://railisland.tw/api/plus-status', {
-  headers: { Authorization: `Bearer ${'x'.repeat(900)}`, 'cf-connecting-ip': '203.0.113.8' },
+const plusStatusRequest = (sandboxBuild = '') => new Request('https://railisland.tw/api/plus-status', {
+  headers: {
+    Authorization: `Bearer ${'x'.repeat(900)}`, 'cf-connecting-ip': '203.0.113.8',
+    ...(sandboxBuild ? { 'X-Rail-Plus-Sandbox-Build': sandboxBuild } : {}),
+  },
 });
 const deleteAccountRequest = (body = {}) => new Request('https://railisland.tw/api/account-delete', {
   method: 'POST',
@@ -312,6 +315,17 @@ section(SECTIONS[2]);
   check(writes.length === 1 && written.fields.source.stringValue === 'plus-status'
       && writes[0].headers.get('Authorization') === 'Bearer oauth-fixture-1',
     '實際 REST body 與 Authorization 都送到替身（不是只測沒被呼叫的純函式）', JSON.stringify(written));
+
+  resetIo();
+  const sandboxDoc = plusEntitlementDocument(
+    { items: [baseSubscription({ environment: 'sandbox' })] }, 'plus', 'plus-status', NOW_MS, 'sandbox'
+  );
+  await writePlusEntitlement(UID, sandboxDoc, ENV(), NOW_MS, 'sandbox');
+  const sandboxWrite = firestoreWrites()[0];
+  check(sandboxDoc.active === true && sandboxWrite
+      && new URL(sandboxWrite.url).pathname.endsWith(`/documents/sandboxEntitlements/${UID}`),
+    'Sandbox 資格只寫 sandboxEntitlements/{uid}，不會覆蓋正式 entitlements/{uid}',
+    sandboxWrite ? sandboxWrite.url : '沒有 PATCH');
 }
 
 section(SECTIONS[3]);
@@ -348,11 +362,15 @@ section(SECTIONS[3]);
 section(SECTIONS[4]);
 {
   resetIo();
+  rcBody = { items: [baseSubscription({ environment: 'sandbox' })] };
   let response = await worker.fetch(webhookRequest(AUTH_VALUE, 'SANDBOX'), ENV(), {});
-  check(response.status === 200 && callsTo('api.revenuecat.com').length === 0
-      && callsTo('firestore.googleapis.com').length === 0,
-    'SANDBOX webhook ⇒ 接受但不查正式資格、不寫 Firestore',
-    `status=${response.status} rc=${callsTo('api.revenuecat.com').length} writes=${firestoreWrites().length}`);
+  const sandboxWebhookWrites = firestoreWrites();
+  check(response.status === 200 && callsTo('api.revenuecat.com').length === 1
+      && /environment=sandbox/.test(callsTo('api.revenuecat.com')[0].url)
+      && sandboxWebhookWrites.length === 1
+      && new URL(sandboxWebhookWrites[0].url).pathname.endsWith(`/documents/sandboxEntitlements/${UID}`),
+    'SANDBOX webhook ⇒ 重查 Sandbox 真相並只寫隔離資格文件',
+    `status=${response.status} rc=${callsTo('api.revenuecat.com').length} writes=${sandboxWebhookWrites.map(x => x.url).join(',')}`);
 
   resetIo();
   response = await worker.fetch(webhookRequest(AUTH_VALUE, 'PRODUCTION'), ENV(), {});
@@ -433,6 +451,21 @@ section(SECTIONS[5]);
   check(sandboxStatusBody.cloudSyncReady === false,
     '批二-B：寫入成功但文件內容是 active:false ⇒ cloudSyncReady 仍必須是 false（rules 讀的是內容，不是寫入結果）',
     JSON.stringify(sandboxStatusBody));
+
+  resetIo();
+  rcBody = { items: [baseSubscription({ environment: 'sandbox' })] };
+  response = await plusStatus(plusStatusRequest('21'), ENV());
+  const sandboxTestBody = await response.json();
+  const sandboxTestWrites = firestoreWrites();
+  const productionTestWrite = sandboxTestWrites.find(call => call.url.includes('/documents/entitlements/'));
+  const sandboxTestWrite = sandboxTestWrites.find(call => call.url.includes('/documents/sandboxEntitlements/'));
+  check(response.status === 200 && sandboxTestBody.active === true
+      && sandboxTestBody.cloudSyncReady === true && sandboxTestBody.environment === 'sandbox'
+      && sandboxTestWrites.length === 2 && productionTestWrite && sandboxTestWrite
+      && JSON.parse(productionTestWrite.body).fields.active.booleanValue === false
+      && JSON.parse(sandboxTestWrite.body).fields.active.booleanValue === true,
+    'build 21 Sandbox 購買 ⇒ 正式文件自癒為 inactive、隔離文件 active，並回 cloudSyncReady:true',
+    JSON.stringify({ body: sandboxTestBody, writes: sandboxTestWrites.map(call => call.url) }));
   // 🔴 2026-08-04 最終複審 I-1：這一格是「文件 active:true、但已經過期」。RevenueCat 在帳單重試／
   // 寬限期仍可能回 gives_access:true 而 ends_at 已經過去（plusAccessSubscriptions 只看 gives_access／
   // environment／lookup_key，不看到期），於是文件寫出 active:true + 一個過去的 activeUntilMs。
@@ -560,7 +593,7 @@ section(SECTIONS[8]);
     JSON.stringify(rcPaths));
 
   // environment 對 TRANSFER 只是「Sometimes」欄位；拿它當硬閘等於把每一筆不帶 environment 的
-  // 轉移都擋成 400。缺席時放行是安全的——重查那支查詢自己就把環境釘死在 production。
+  // 轉移都擋成 400。缺席時無法猜是哪一邊，因此 production／sandbox 兩邊都各自重查並隔離寫入。
   resetIo();
   rcByCustomer = {
     [TRANSFER_FROM]: { body: { items: [], next_page: null } },
@@ -570,19 +603,32 @@ section(SECTIONS[8]);
     id: 'event-transfer-no-env', type: 'TRANSFER',
     transferred_from: [TRANSFER_FROM], transferred_to: [TRANSFER_TO],
   }), ENV(), {});
-  check(response.status === 200 && firestoreWrites().length === 2,
-    'TRANSFER 不帶 environment（官方標為 Sometimes）⇒ 仍然處理，不因為缺一個選填欄位就 400 並燒掉重試次數',
-    `status=${response.status} writes=${firestoreWrites().length}`);
+  const noEnvTransferWrites = firestoreWrites();
+  const noEnvTransferQueries = callsTo('api.revenuecat.com').map(call => new URL(call.url).searchParams.get('environment'));
+  check(response.status === 200 && noEnvTransferWrites.length === 4
+      && noEnvTransferWrites.filter(call => call.url.includes('/documents/entitlements/')).length === 2
+      && noEnvTransferWrites.filter(call => call.url.includes('/documents/sandboxEntitlements/')).length === 2
+      && noEnvTransferQueries.filter(value => value === 'production').length === 2
+      && noEnvTransferQueries.filter(value => value === 'sandbox').length === 2,
+    'TRANSFER 不帶 environment（官方標為 Sometimes）⇒ production／sandbox 都各查各寫，不漏掉 Sandbox 轉移也不混用文件',
+    `status=${response.status} queries=${JSON.stringify(noEnvTransferQueries)} writes=${noEnvTransferWrites.map(x => x.url).join(',')}`);
 
-  // 反向對照 1：明確標 SANDBOX 的 TRANSFER 仍然只確認收件，不得動任何正式資格文件。
+  // 明確標 SANDBOX 的 TRANSFER 要更新隔離資格文件，但不得動任何正式資格文件。
   resetIo();
+  rcByCustomer = {
+    [TRANSFER_FROM]: { body: { items: [], next_page: null } },
+    [TRANSFER_TO]: { body: { items: [baseSubscription({ customer_id: TRANSFER_TO, environment: 'sandbox' })], next_page: null } },
+  };
   response = await worker.fetch(webhookEventRequest({
     id: 'event-transfer-sandbox', type: 'TRANSFER', environment: 'SANDBOX',
     transferred_from: [TRANSFER_FROM], transferred_to: [TRANSFER_TO],
   }), ENV(), {});
-  check(response.status === 200 && calls.length === 0,
-    '反向對照：SANDBOX 的 TRANSFER ⇒ 接受但零上游、零寫入（沙盒轉移不得蓋掉正式資格）',
-    `status=${response.status} calls=${calls.length}`);
+  const sandboxTransferWrites = firestoreWrites();
+  check(response.status === 200 && callsTo('api.revenuecat.com').length === 2
+      && sandboxTransferWrites.length === 2
+      && sandboxTransferWrites.every(call => call.url.includes('/documents/sandboxEntitlements/')),
+    'SANDBOX 的 TRANSFER ⇒ 兩個 uid 都重查並只寫 sandboxEntitlements（不得蓋正式資格）',
+    `status=${response.status} rc=${callsTo('api.revenuecat.com').length} writes=${sandboxTransferWrites.map(x => x.url).join(',')}`);
 
   // 反向對照 2：非 TRANSFER 事件仍然嚴格要求 app_user_id；新的分流不是把 400 整批放寬。
   resetIo();
@@ -691,9 +737,11 @@ section(SECTIONS[10]);
   let response = await deleteAccountData(deleteAccountRequest(), ENV());
   let respBody = await response.json();
   let deletes = firestoreDeletes();
-  check(response.status === 200 && respBody.ok === true && deletes.length === 1
-      && deletes[0].url.endsWith(`/documents/entitlements/${UID}`) && firestoreWrites().length === 0,
-    '刪帳號真的送出對 entitlements/{uid} 的 Firestore DELETE 請求（不是 PATCH），且整體回應成功',
+  check(response.status === 200 && respBody.ok === true && deletes.length === 2
+      && deletes.some(call => call.url.endsWith(`/documents/entitlements/${UID}`))
+      && deletes.some(call => call.url.endsWith(`/documents/sandboxEntitlements/${UID}`))
+      && firestoreWrites().length === 0,
+    '刪帳號同時刪除正式與 Sandbox 資格文件（不是 PATCH），且整體回應成功',
     JSON.stringify({ status: response.status, body: respBody, deletes: deletes.map(c => `${c.method} ${c.url}`) }));
 
   // 11-2：資格文件本來就不存在（Firestore 對 DELETE 回 404）⇒ 視同成功，不是失敗——冪等。
@@ -735,8 +783,8 @@ section(SECTIONS[10]);
   // 「有 RC 才刪資格文件」）。
   resetIo();
   response = await deleteAccountData(deleteAccountRequest(), ENV({ REVENUECAT_PROJECT_ID: undefined, REVENUECAT_V2_SECRET_KEY: undefined }));
-  check(response.status === 200 && callsTo('api.revenuecat.com').length === 0 && firestoreDeletes().length === 1,
-    '正向對照：未設定 RevenueCat 時仍會刪除資格文件（兩者互不綁架，同一支端點旁邊 RevenueCat 未設定不影響校正資料刪除是同一種判斷）',
+  check(response.status === 200 && callsTo('api.revenuecat.com').length === 0 && firestoreDeletes().length === 2,
+    '正向對照：未設定 RevenueCat 時仍會刪除正式與 Sandbox 資格文件（兩者互不綁架）',
     JSON.stringify({ status: response.status, rcCalls: callsTo('api.revenuecat.com').length, entitlementDeletes: firestoreDeletes().length }));
 
   // 11-6：正向對照——未設定 Firestore 的環境（沒有 service account）⇒ 乾乾淨淨跳過，不視為錯誤、

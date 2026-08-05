@@ -68,7 +68,9 @@ const server = createServer((req, res) => {
   res.end(readFileSync(fp));
 });
 await new Promise((resolve, reject) => { server.on('error', reject); server.listen(PORT, resolve); });
-const BASE = `http://localhost:${PORT}/`;
+// Plus 公開入口目前受止血旗標保護；這支回歸是專門驗 Plus 生命週期，必須走既有的測試開關，
+// 否則 plusConfigured() 會在 adapter 前就 fail-closed，所有 listener 判準都只是在驗「功能關閉」。
+const BASE = `http://localhost:${PORT}/?plus=1`;
 
 const results = [];
 const ok = (name, pass, detail = '') => { results.push({ name, pass, detail }); console.log(`${pass ? 'PASS' : 'FAIL'} ${name}${detail ? ' — ' + detail : ''}`); };

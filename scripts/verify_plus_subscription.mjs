@@ -1381,6 +1381,10 @@ for (const w of [360, 375, 414, 768]) await mobilePlusEntry(w, { sel: IMPORT_SEL
       const body = document.getElementById('plusBody');
       return {
         active: state.plus.active, error: state.plus.error,
+        entitlementEnvironment: state.plus.entitlementEnvironment,
+        cloudSyncReady: state.plus.cloudSyncReady,
+        syncCollection: plusSyncCollection(),
+        sandboxHeader: plusApiHeaders('__test_token__')['X-Rail-Plus-Sandbox-Build'] || '',
         plans: body.querySelectorAll('.plus-plan').length,
         owned: !!body.querySelector('.plus-owned'),
         text: body.textContent || '',
@@ -1400,7 +1404,8 @@ for (const w of [360, 375, 414, 768]) await mobilePlusEntry(w, { sel: IMPORT_SEL
   ok('SB0 前置：一般 build 的 PLUS_SANDBOX_OK 是 false（沒帶建置旗標就不允許 sandbox 資格，fail-closed）',
     prod.sandboxOk === false, `PLUS_SANDBOX_OK=${JSON.stringify(prod.sandboxOk)}`);
   ok('SB1 正向對照：正式購買（isSandbox:false）的資格 ⇒ 判定為已啟用，畫面出現「Plus 已啟用」',
-    prod.active === true && prod.owned === true, JSON.stringify({ active: prod.active, owned: prod.owned }));
+    prod.active === true && prod.owned === true && prod.entitlementEnvironment === 'production'
+      && prod.syncCollection === 'users' && prod.sandboxHeader === '', JSON.stringify(prod));
 
   const sand = await refreshWith(page, { ...OPTS, entKind: 'sandbox' });
   ok('SB2 sandbox 購買（同一筆資料只差 isSandbox:true）⇒ 判定為未啟用，畫面回到方案選購而不是「Plus 已啟用」',
@@ -1453,17 +1458,24 @@ for (const w of [360, 375, 414, 768]) await mobilePlusEntry(w, { sel: IMPORT_SEL
   // ── SBX 群：帶建置旗標的內部測試版（RAIL_PLUS_SANDBOX_OK 注入為 true）──
   // 沒有這一段，SB2 的「未啟用」有可能只是因為 sandbox 那條路整條死掉；有了它才證明
   // 「這個判定真的看的是建置旗標」，也才證明 TestFlight／模擬器的可測試性沒有被修掉。
-  const sbx = await newPage(chromiumB, { init: () => { window.RAIL_PLUS_SANDBOX_OK = true; } });
+  const sbx = await newPage(chromiumB, { init: () => {
+    window.RAIL_PLUS_SANDBOX_OK = true;
+    window.RAIL_PLUS_SANDBOX_BUILD = '21';
+  } });
   const sbxErrs = attach(sbx.page, 'SBX');
   await sbx.page.goto(BASE, { waitUntil: 'domcontentloaded' });
   await waitReady(sbx.page);
   const sbxSand = await refreshWith(sbx.page, { ...OPTS, entKind: 'sandbox' });
   ok('SBX1 建置期注入 RAIL_PLUS_SANDBOX_OK=true 的內部測試版：同一筆 sandbox 資格改為判定已啟用（TestFlight／模擬器仍測得了購買流程）',
-    sbxSand.sandboxOk === true && sbxSand.active === true && sbxSand.owned === true,
-    JSON.stringify({ sandboxOk: sbxSand.sandboxOk, active: sbxSand.active, owned: sbxSand.owned }));
-  const sbxProd = await refreshWith(sbx.page, { ...OPTS, entKind: 'production' });
+    sbxSand.sandboxOk === true && sbxSand.active === true && sbxSand.owned === true
+      && sbxSand.entitlementEnvironment === 'sandbox' && sbxSand.syncCollection === 'sandboxUsers'
+      && sbxSand.sandboxHeader === '21', JSON.stringify(sbxSand));
+  await sbx.page.evaluate(() => { state.plus.cloudSyncReady = true; });
+  const sbxProd = await refreshWith(sbx.page, { ...OPTS, entKind: 'production', keepState: true });
   ok('SBX2 同一份內部測試版對正式購買的資格照樣判定已啟用（旗標只放寬 sandbox，不是把整條判定短路成恆真）',
-    sbxProd.active === true, JSON.stringify({ active: sbxProd.active }));
+    sbxProd.active === true && sbxProd.entitlementEnvironment === 'production'
+      && sbxProd.syncCollection === 'users' && sbxProd.cloudSyncReady === false,
+    JSON.stringify(sbxProd));
   ok('SBX 本輪零 pageerror/console.error', sbxErrs.length === 0, sbxErrs.slice(0, 3).join(' | '));
   await sbx.ctx.close();
 }

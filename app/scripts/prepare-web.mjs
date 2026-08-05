@@ -209,9 +209,13 @@ const appConfig = includeLicensedBasemaps ? {
 // ⇒ 這是建置期的測試通道,不是使用者可切換的開關。無條件注入(值 true/false 都寫出來),
 // 讓發版閘門驗的是「明確是 false」而不是「字串剛好不存在」。
 const plusSandboxOk = process.env.RAIL_PLUS_SANDBOX_OK === '1';
+const plusSandboxBuild = String(process.env.RAIL_PLUS_SANDBOX_BUILD || '');
+if (plusSandboxOk && !/^[1-9]\d*$/.test(plusSandboxBuild)) {
+  throw new Error('RAIL_PLUS_SANDBOX_OK=1 時必須同時提供正整數 RAIL_PLUS_SANDBOX_BUILD，讓 Worker 能把測試通道限縮到指定 build');
+}
 html = html
   .replace('<span class="ver" id="buildVer"></span>', '<a href="third-party-notices.txt" target="_blank" rel="noopener" style="min-height:44px;display:inline-flex;align-items:center;padding:0 4px">第三方軟體授權</a>\n      <span class="ver" id="buildVer"></span>')
-  .replace('<script src="revenuecat-config.js"></script>', `<script src="revenuecat-config.js"></script>\n<script>window.RAIL_MUSIC_AVAILABLE=${includeLicensedMusic};window.RAIL_ONLINE_BASEMAPS_AVAILABLE=${includeLicensedBasemaps};window.RAIL_PLUS_SANDBOX_OK=${plusSandboxOk}${appConfig ? `;window.RAIL_APP_CONFIG=${JSON.stringify(appConfig)}` : ''}</script>\n<script src="native-bridge.js"></script>`);
+  .replace('<script src="revenuecat-config.js"></script>', `<script src="revenuecat-config.js"></script>\n<script>window.RAIL_MUSIC_AVAILABLE=${includeLicensedMusic};window.RAIL_ONLINE_BASEMAPS_AVAILABLE=${includeLicensedBasemaps};window.RAIL_PLUS_SANDBOX_OK=${plusSandboxOk};window.RAIL_PLUS_SANDBOX_BUILD=${plusSandboxOk ? JSON.stringify(plusSandboxBuild) : 'null'}${appConfig ? `;window.RAIL_APP_CONFIG=${JSON.stringify(appConfig)}` : ''}</script>\n<script src="native-bridge.js"></script>`);
 if (!html.includes('vendor/leaflet/leaflet.js') || !html.includes('native-bridge.js')) throw new Error('App index vendor/native bridge injection failed');
 if (/ko-fi|PayPal|111010691056|web-only-donation-log|贊助方式更新/i.test(html) || html.includes('id="donateCopy"') || html.includes('class="foot-box foot-donate"')) throw new Error('External donation content leaked into native App');
 if (/cartocdn\.com|arcgisonline\.com/i.test(html)) throw new Error('App index still contains unlicensed CARTO/Esri tile URLs');
@@ -221,6 +225,7 @@ await verifyRelease({
   out,
   expectLicensedMusic: includeLicensedMusic,
   expectLicensedBasemaps: includeLicensedBasemaps,
+  expectPlusSandboxBuild: plusSandboxOk ? plusSandboxBuild : null,
   // cap sync 在 build 之後才跑,此刻原生內嵌資產必然還是舊版;原生同步的比對留給獨立的 npm run verify。
   skipNativeSyncCheck: true
 });

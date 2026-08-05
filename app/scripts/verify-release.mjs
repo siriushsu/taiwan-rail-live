@@ -47,6 +47,19 @@ export function assertPlusSandboxOff(html) {
   assert(!/window\.RAIL_PLUS_SANDBOX_OK=true/.test(html),
     '發行包把 sandbox 資格打開了(window.RAIL_PLUS_SANDBOX_OK=true)——TestFlight/模擬器的 sandbox 購買'
     + '會解鎖正式付費功能。這個旗標只給內部測試版用,送審/上架的 build 請不要帶 RAIL_PLUS_SANDBOX_OK=1');
+  assert(/window\.RAIL_PLUS_SANDBOX_BUILD=null/.test(html),
+    '正式發行包仍帶著 RAIL_PLUS_SANDBOX_BUILD——即使 SANDBOX_OK=false 也拒絕留下含糊的測試通道標記');
+}
+
+// TestFlight 內部測試包也要有自己的 fail-closed 閘門：只有 boolean=true 不夠，還必須把這次
+// 明確核准的 build 號逐字打進包內。正式 verify 不傳 expect 值，仍走上面的嚴格關閉檢查。
+export function assertPlusSandboxTestBuild(html, expectedBuild) {
+  const build = String(expectedBuild || '');
+  assert(/^[1-9]\d*$/.test(build), 'TestFlight Sandbox build 號必須是正整數');
+  assert(/window\.RAIL_PLUS_SANDBOX_OK=true/.test(html),
+    'TestFlight Sandbox 包沒有注入 window.RAIL_PLUS_SANDBOX_OK=true——購買後只會看到價格、不會解鎖');
+  assert(html.includes(`window.RAIL_PLUS_SANDBOX_BUILD=${JSON.stringify(build)}`),
+    `TestFlight Sandbox 包的測試通道 build 標記不是 ${build}`);
 }
 
 export async function assertLicensedBuildAllowed({ includeLicensedMusic, includeLicensedBasemaps }) {
@@ -210,6 +223,8 @@ export async function verifyRelease({
   out = defaultOut,
   expectLicensedMusic,
   expectLicensedBasemaps,
+  expectPlusSandboxBuild = process.env.RAIL_PLUS_SANDBOX_OK === '1'
+    ? String(process.env.RAIL_PLUS_SANDBOX_BUILD || '') : null,
   skipNativeSyncCheck = false
 } = {}) {
   const output = resolve(out);
@@ -259,7 +274,8 @@ export async function verifyRelease({
     assert(basemapsEnabled === expectLicensedBasemaps, '線上底圖旗標與本次 build 模式不一致');
   }
 
-  assertPlusSandboxOff(html);
+  if (expectPlusSandboxBuild !== null) assertPlusSandboxTestBuild(html, expectPlusSandboxBuild);
+  else assertPlusSandboxOff(html);
 
   await assertLicensedBuildAllowed({
     includeLicensedMusic: musicEnabled,

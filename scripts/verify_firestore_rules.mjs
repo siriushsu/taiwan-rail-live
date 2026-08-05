@@ -34,7 +34,7 @@ console.log(`[G0] firestore.rules md5=${createHash('md5').update(RULES).digest('
 
 // 預期會執行的斷言數。具名常數，刻意寫死——**不可**從下面的 pass/fail 計數自己推導，
 // 那樣「少跑幾條」永遠會自動通過，這道閘門就變成零資訊的裝飾品。
-const EXPECTED_CHECK_COUNT = 14;
+const EXPECTED_CHECK_COUNT = 18;
 
 const HOST = '127.0.0.1';
 const PORT = Number(process.env.FIRESTORE_EMULATOR_PORT || (process.env.FIRESTORE_EMULATOR_HOST || '').split(':')[1] || 8080);
@@ -91,7 +91,9 @@ const validDoc = (kind = 'favs', revision = 1) => ({
 });
 
 const dataRef = (db, uid, kind = 'favs') => doc(db, 'users', uid, 'data', kind);
+const sandboxDataRef = (db, uid, kind = 'favs') => doc(db, 'sandboxUsers', uid, 'data', kind);
 const entitlementRef = (db, uid) => doc(db, 'entitlements', uid);
+const sandboxEntitlementRef = (db, uid) => doc(db, 'sandboxEntitlements', uid);
 const entitlementDoc = ({ active = true, activeUntilMs = Date.now() + 86_400_000 } = {}) => ({
   active, activeUntilMs, updatedAtMs: Date.now(), source: 'plus-status',
 });
@@ -99,6 +101,12 @@ const entitlementDoc = ({ active = true, activeUntilMs = Date.now() + 86_400_000
 async function seedEntitlement(uid, data = entitlementDoc()) {
   await testEnv.withSecurityRulesDisabled(async context => {
     await assertSucceeds(setDoc(entitlementRef(context.firestore(), uid), data));
+  });
+}
+
+async function seedSandboxEntitlement(uid, data = entitlementDoc()) {
+  await testEnv.withSecurityRulesDisabled(async context => {
+    await assertSucceeds(setDoc(sandboxEntitlementRef(context.firestore(), uid), data));
   });
 }
 
@@ -280,6 +288,42 @@ await check('E4 active 文件的 activeUntilMs == 0 ⇒ 拒絕（0 不是終身�
   await removeData(uid);
   await assertSucceeds(setDoc(dataRef(db, uid), validDoc()));
   await assertSucceeds(setDoc(dataRef(db, uid), validDoc('favs', 2)));
+});
+
+// ── build 21 TestFlight：Sandbox 資格與正式同步資料雙向隔離 ────────────────────────
+await check('S1 有效 Sandbox 資格只能寫 sandboxUsers，不能寫正式 users', async () => {
+  const uid = 's1-sandbox-only';
+  await seedSandboxEntitlement(uid);
+  const db = testEnv.authenticatedContext(uid).firestore();
+  await assertSucceeds(setDoc(sandboxDataRef(db, uid), validDoc()));
+  await assertFails(setDoc(dataRef(db, uid), validDoc()));
+});
+
+await check('S2 有效正式資格只能寫正式 users，不能寫 sandboxUsers', async () => {
+  const uid = 's2-production-only';
+  await seedEntitlement(uid);
+  const db = testEnv.authenticatedContext(uid).firestore();
+  await assertSucceeds(setDoc(dataRef(db, uid), validDoc()));
+  await assertFails(setDoc(sandboxDataRef(db, uid), validDoc()));
+});
+
+await check('S3 Sandbox 同步資料仍只允許本人讀寫，別人不可碰', async () => {
+  const uid = 's3-owner';
+  await seedSandboxEntitlement(uid);
+  const ownerDb = testEnv.authenticatedContext(uid).firestore();
+  const intruderDb = testEnv.authenticatedContext(UID_B).firestore();
+  await assertSucceeds(setDoc(sandboxDataRef(ownerDb, uid), validDoc()));
+  await assertSucceeds(getDoc(sandboxDataRef(ownerDb, uid)));
+  await assertFails(getDoc(sandboxDataRef(intruderDb, uid)));
+  await assertFails(setDoc(sandboxDataRef(intruderDb, uid), validDoc('favs', 2)));
+});
+
+await check('S4 sandboxEntitlements 本人可讀、客戶端一律不可寫', async () => {
+  const uid = 's4-entitlement';
+  await seedSandboxEntitlement(uid);
+  const db = testEnv.authenticatedContext(uid).firestore();
+  await assertSucceeds(getDoc(sandboxEntitlementRef(db, uid)));
+  await assertFails(setDoc(sandboxEntitlementRef(db, uid), entitlementDoc()));
 });
 
 await testEnv.cleanup();
