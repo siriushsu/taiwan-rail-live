@@ -1006,12 +1006,6 @@
   .passport.closed .ph-sub, .passport.closed .ph-body { display: none; }
   .passport .ph-stats { flex: 1 1 100%; order: 2; font-size: 12.5px; color: var(--muted); font-variant-numeric: tabular-nums; }
   .passport .ph-stats b { color: var(--red); }
-  .passport-showcase {
-    margin: 10px 0 12px; padding: 9px 11px; border: 1px solid color-mix(in srgb, var(--gold) 58%, transparent);
-    border-radius: 8px; background: color-mix(in srgb, var(--gold) 10%, transparent);
-    color: var(--muted); font-size: 12px; font-weight: 650; line-height: 1.55;
-  }
-  .passport-showcase b { color: var(--ink-strong); }
   /* margin-top 與 .ph-sec 的 13px 一致(不是憑空發明的值):.ph-body 沒有自己的 padding/border,
      它的第一個子元素的 margin-top 會「穿透」collapse 成 .ph-head 與內容之間的間距——徽章是新的
      第一個子元素,若沿用 brief 原給的 margin-top:0,會把這段既有間距吃掉,徽章因此貼著護照標題列,
@@ -3342,7 +3336,7 @@
 
   <footer class="site-foot">
     <details class="foot-box">
-      <summary><span>更新紀錄</span><span class="foot-sub">最後更新：2026/8/5</span></summary>
+      <summary><span>更新紀錄</span><span class="foot-sub">最後更新：2026/8/6</span></summary>
       <!-- 第一層是「最近更新」的檢視,不是正本:每一條都用 data-cl-of 指向第二層某條的 data-cl。
            要把一條擠出第一層之前,它的正本必須已經在第二層存在——2026-08-03 就踩過一次:8/1 的
            衛星計費那條只活在第一層(第二層只有一句夾在 7/25 條目裡、日期對不上的附帶說明),
@@ -3350,7 +3344,7 @@
            內容 li 上限 8 條(li.grp 是標題不算)。 -->
       <ul class="foot-list foot-recent">
         <li class="grp">最近更新</li>
-        <li data-cl-of="ownershowcase"><span class="d">8/5</span><span>TestFlight 擁有者帳號多了完整護照展示，可以一次驗收集滿圖鑑、21 枚成就、百站與完乘排版，不會寫入假進度</span></li>
+        <li data-cl-of="passproduction"><span class="d">8/6</span><span>正式版軌島通行證改用 App Store 正式月票與年票，測試版的展示進度不會出現在一般使用者護照</span></li>
         <li data-cl-of="passrename"><span class="d">8/5</span><span>「軌島 Plus」更名為「軌島通行證」：訂閱方案改稱月票與年票，所有使用者都是島民</span></li>
         <li data-cl-of="plussandboxtest"><span class="d">8/5</span><span>TestFlight 測試版恢復購買後，現在會完成同步資格驗證；已補齊伺服器寫入資格所需設定，不再出現權限不足，也能測跨裝置同步與通行證功能</span></li>
         <li data-cl-of="widgetdestination"><span class="d">8/5</span><span>iPhone 小工具的起站選「共站」或「我的地點」後，再點「目的站」會讓設定畫面閃退；現在不再閃退，請改用「只看這些」挑方向、車種或車次</span></li>
@@ -3420,7 +3414,6 @@
         <li><span class="d">7/13</span><span>新增「附近火車」：地圖上落一根釘，查周邊 60 分鐘內會通過的車次</span></li>
         <li><span class="d">7/12</span><span>新增平交道功能：點一下查接下來會通過的列車（7/13 補上貨運線 21 處）</span></li>
         <li class="grp">收藏、護照與成就</li>
-        <li data-cl="ownershowcase"><span class="d">8/5</span><span>TestFlight 擁有者帳號可以切換「完整護照展示」，一次查看集滿圖鑑、21 枚成就、百站與路線完乘的排版；只是預覽，不會把假進度寫進真實護照</span></li>
         <li data-cl="favtrainkey"><span class="d">8/3</span><span>台鐵與高鐵有些車次號碼相同，過去收藏其中一班會蓋掉另一班，移除時也會兩班一起消失；現在最愛列車會連同鐵路系統分開辨認，同號車可以各自收藏與移除</span></li>
         <li data-cl="founding"><span class="d">8/4</span><span>在創始期間訂閱通行證的島民，App 的旅程護照最上方會多一枚「創始島民」徽章，之後才訂閱的不會有；徽章跟著訂閱資格走，退訂或登出就一起收起來</span></li>
         <li><span class="d">7/30</span><span>搜尋一班今天已經跑完（或還沒發車）的車，時鐘會確實停在它發車前，不再過一秒就彈回現在——那正是原本會莫名跳出「完乘達成」的原因（謝謝網友回報）</span></li>
@@ -3470,6 +3463,7 @@
         <li><span class="d">7/10</span><span>夜間與衛星模式視覺升級；「軌」軌道顯示三段切換：自動／淡化／隱藏</span></li>
         <li><span class="d">7/9</span><span>站名移到軌道側邊不再互相壓住；雙欄版面：搜尋／最愛／旅程收集移到右側欄</span></li>
         <li class="grp">分享與個人化</li>
+        <li data-cl="passproduction"><span class="d">8/6</span><span>App 的軌島通行證改用 App Store 正式訂閱：月票與年票購買後會開啟進階功能與雲端同步；TestFlight 的展示進度不會出現在正式版</span></li>
         <li data-cl="passrename"><span class="d">8/5</span><span>「軌島 Plus」正式更名為「軌島通行證」，兩種自動續訂方案改稱月票與年票；每個使用者都是島民，通行證是 App 數位功能訂閱，不是實際乘車票券</span></li>
         <li data-cl="plussandboxtest"><span class="d">8/5</span><span>TestFlight 測試版的 App Store 測試訂閱現在會完整開啟通行證：訂閱月票或年票後，可以實際驗收 Google 清單匯入、衛星高解析、Live Activity、誤點履歷與跨裝置同步；恢復購買後的同步資格驗證也不再被 App 連線預檢或伺服器寫入設定擋住。測試訂閱與同步資料都和正式購買分開，不會真的扣款或改動正式資格</span></li>
         <li data-cl="sync"><span class="d">8/4</span><span>訂閱軌島通行證後可以用軌島帳號登入（Google 或 Apple）：收藏的地點、最愛車站與完乘記錄會在手機和電腦之間自動同步，換裝置也不必從頭來過</span></li>
@@ -3769,7 +3763,7 @@
 // 🔴 BUILD 字串會跨並行分支撞號（心得 16）：07-28 兩條線各自遞增又各自部署過——
 // origin/main 這條用到 v0728b，正式站那條用到 v0728f。本次三方合併把兩條線統一，
 // 所以往後推到一個雙方都沒用過的號，辨識線上跑哪一版仍以內容 hash 為準。
-const BUILD = 'v0805g';
+const BUILD = 'v0806a';
 // 成就徽章與車廂標記＝原本那些 emoji 的單色平面版（RailEmoji＝裁切過的 Noto Emoji 單色）。
 // 刻意保留 railIcon(name) 這個唯一入口:呼叫端一行都不用改,只有這裡決定畫法。
 // 🔴 ⚖ 與 ♾ 一律寫**不帶 VS16(U+FE0F)** 的碼位——帶了就強制彩色呈現,會蓋過 font-family
@@ -7100,27 +7094,6 @@ function accountClose() {
   modal.hidden = true; document.body.classList.remove('account-open'); state.plusPending = null;
 }
 function accountDisplayName(user) { return (user && (user.displayName || user.email)) || '軌島使用者'; }
-// Owner 驗收用的「完整護照展示」：只在原生 TestFlight build 22 與指定帳號上存在。
-// 成就本來由完乘／車站／路段紀錄即時推導，不是可以在 RevenueCat 勾選的 entitlement。
-// 把假紀錄寫入帳號會污染真實進度，也會被跨裝置合併；所以這裡只換渲染用的 view model，
-// 不呼叫 saveRides/saveCheckins/userDataWrite，也不進 Firestore。正式 build 沒有 sandbox build 標記，即使同一信箱也不會出現。
-const PASSPORT_SHOWCASE_EMAIL = 'sirius1984@gmail.com';
-const PASSPORT_SHOWCASE_KEY = 'rail-owner-passport-showcase-v1';
-function passportShowcaseEligible() {
-  const u = state.account && state.account.user;
-  return IS_NATIVE_APP && PLUS_SANDBOX_BUILD === '22' && !!u &&
-    String(u.email || '').trim().toLowerCase() === PASSPORT_SHOWCASE_EMAIL;
-}
-function passportShowcaseOn() {
-  if (!passportShowcaseEligible()) return false;
-  try { return localStorage.getItem(PASSPORT_SHOWCASE_KEY) !== '0'; } catch (e) { return true; }
-}
-function passportShowcaseSet(on) {
-  if (!passportShowcaseEligible()) return;
-  try { localStorage.setItem(PASSPORT_SHOWCASE_KEY, on ? '1' : '0'); } catch (e) {}
-  accountRender(); renderPassport(); renderRidePanel();
-  showToast(on ? '已開啟完整護照展示，真實進度沒有被改動' : '已切回你的真實護照');
-}
 function accountRender() {
   const body = document.getElementById('accountBody'), a = state.account; if (!body || !a) return;
   if (a.error) body.innerHTML = `<p class="account-intro">登入與同步目前無法使用。</p><div class="account-error">${escHtml(a.error)}</div>`;
@@ -7149,15 +7122,13 @@ function accountRender() {
     const subscribed = plusIsActive();
     const sync = !subscribed ? '訂閱軌島通行證才會同步' : (a.syncing ? '正在合併這台裝置與雲端資料…' : (a.lastSync ? `上次同步：${new Date(a.lastSync).toLocaleString('zh-TW')}` : '尚未完成第一次同步'));
     const plus = subscribed ? '訂閱中' : '未訂閱';
-    const showcase = passportShowcaseEligible(), showcasing = passportShowcaseOn();
     // Plus 狀態列與入口以 plusProjectConfigured()(整個 RevenueCat project 是否有 Plus)為準,而非
     // plusConfigured()(此平台能否發起付款)——讓網站即使沒設 Web Billing key 也能查看訂閱狀態與
     // 「請在 App 內訂閱」說明;真正發起付款仍受 plusConfigured() 控管(見 plusOpen 內的 plusRefresh 閘)。
     body.innerHTML = `<div class="account-profile"><span class="account-avatar">${avatar}</span><span><b>${escHtml(accountDisplayName(u))}</b><small>${escHtml(u.email || 'Apple 隱藏電子郵件')}</small></span></div>` +
       `<div class="account-syncbox"><b>跨裝置同步</b><span>${escHtml(sync)}</span></div>` +
       (plusProjectConfigured() ? `<div class="account-syncbox"><b>軌島通行證</b><span>${plus}</span></div>` : '') +
-      (showcase ? `<div class="account-syncbox"><b>完整護照展示</b><span>${showcasing ? '已開啟（不改寫真實進度）' : '目前顯示真實進度'}</span></div>` : '') +
-      `<div class="account-user-actions">${plusProjectConfigured() ? '<button class="wide" type="button" data-action="plus">查看通行證</button>' : ''}${showcase ? `<button class="wide" type="button" data-action="showcase" data-on="${showcasing ? '0' : '1'}">${showcasing ? '查看我的真實護照' : '開啟完整護照展示'}</button>` : ''}<button type="button" data-action="sync" ${(a.syncing || !subscribed) ? 'disabled' : ''}>立即同步</button><button type="button" data-action="logout">登出</button>` +
+      `<div class="account-user-actions">${plusProjectConfigured() ? '<button class="wide" type="button" data-action="plus">查看通行證</button>' : ''}<button type="button" data-action="sync" ${(a.syncing || !subscribed) ? 'disabled' : ''}>立即同步</button><button type="button" data-action="logout">登出</button>` +
       `<button class="wide danger" type="button" data-action="delete">刪除帳號與同步資料</button></div>` +
       (a.actionError ? `<div class="account-error">${escHtml(a.actionError)}</div>` : '') +
       // 2026-08-04 複審輪2 Important 4:登出已改成「只換身分、不動資料」(見 accountEndSession),
@@ -7507,7 +7478,6 @@ function accountEnsureInit() {
       const login = e.target.closest('[data-login]'), action = e.target.closest('[data-action]');
       if (login) accountSignIn(login.dataset.login);
       else if (action && action.dataset.action === 'sync') accountSyncNow('manual');
-      else if (action && action.dataset.action === 'showcase') { passportShowcaseSet(action.dataset.on === '1'); accountClose(); openRidePanel(); }
       else if (action && action.dataset.action === 'plus') plusOpen('account');
       else if (action && action.dataset.action === 'logout') accountSignOut();
       else if (action && action.dataset.action === 'delete') accountDelete();
@@ -10631,86 +10601,22 @@ function recordRide(tr) {
   announceCollections(tr, rides, prevColl, prevAch);
 }
 // 護照 sheet(Batch B):與桌面 #passport 合併=同一份 builder;收集章→成就(chips)→完乘記錄(全量,最新在前)
-// 展示模式的資料只在記憶體即時產生，不參與完乘去重、成就通知、同步或匯出。
-// 以獨立的 passport* view helper 包住護照呼叫點，不去改 collectionOf/
-// unlockedAchievements/stationCollection 的真實語意，避免展示狀態滲進解鎖通知或其他功能。
-function passportRides(rides) {
-  if (!passportShowcaseOn()) return rides;
-  const rows = [
-    ['408', 'EMU3000 新自強號', '臺東', '樹林', 405, 52, 5 * 3600 + 22 * 60],
-    ['117', '普悠瑪自強號', '南港', '潮州', 392, 18, 7 * 3600 + 10 * 60],
-    ['278', '太魯閣自強號', '花蓮', '彰化', 351, 16, 8 * 3600 + 5 * 60],
-    ['111', '山海號', '臺北', '枋寮', 376, 24, 9 * 3600],
-    ['3005', '自強號', '七堵', '高雄', 367, 20, 10 * 3600],
-    ['127', '莊園豪華列車', '南港', '花蓮', 348, 12, 11 * 3600],
-    ['523', '鳴日號', '南港', '花蓮', 341, 11, 12 * 3600],
-    ['667', '觀光列車', '臺中', '臺東', 337, 15, 13 * 3600],
-    ['4772', '區間車', '八堵', '菁桐', 332, 51, 14 * 3600],
-    ['4814', '深澳支線區間車', '瑞芳', '八斗子', 329, 8, 15 * 3600],
-    ['2703', '內灣支線區間車', '新竹', '內灣', 326, 14, 16 * 3600],
-    ['4201', '集集支線區間車', '二水', '車埕', 323, 10, 17 * 3600],
-    ['3501', '沙崙支線區間車', '彰化', '沙鹿', 320, 9, 18 * 3600],
-    ['3701', '六家支線區間車', '新竹', '六家', 318, 7, 19 * 3600],
-    ['129', '夜行自強號', '南港', '潮州', 315, 17, 22 * 3600 + 30 * 60],
-  ];
-  return rows.map((r, i) => ({
-    train: r[0], sys: 'tra_sched', kind: r[1], from: r[2], to: r[3], km: r[4], stops: r[5], dep: r[6],
-    date: i < 3 ? '2026-08-05' : `2026-07-${String(31 - i).padStart(2, '0')}`,
-    namedId: i === 3 ? 'shanhai' : undefined,
-  }));
-}
-function passportCollectionOf(rides) {
-  if (!passportShowcaseOn() || !state.special) return collectionOf(rides);
-  return {
-    named: new Set(state.special.namedTrains.filter(x => x.trainNos.length).map(x => x.id)),
-    stock: new Set(state.special.rollingStock.map(x => x.id)),
-    branch: new Set(state.special.branchLines.map(x => x.id)),
-  };
-}
-function passportAchievements(rides) {
-  return passportShowcaseOn() ? new Set(ACHIEVEMENTS.map(x => x.id)) : unlockedAchievements(rides);
-}
-function passportStationCollection(rides) {
-  if (!passportShowcaseOn()) return stationCollection(rides);
-  const m = new Map(), source = state.schedStations || [];
-  for (const s of source) {
-    const sys = s.sys || 'tra_sched', name = s.name;
-    if (!name || m.has(sys + '|' + name)) continue;
-    const i = m.size;
-    m.set(sys + '|' + name, { name, sys, s: i % 4 === 0 ? 'visit' : 'pass', n: 1 + (i % 12), d: '2026-08-05' });
-    if (m.size >= 100) break;
-  }
-  return m;
-}
-function passportLineBars() {
-  if (!passportShowcaseOn()) return buildLineBars();
-  const lines = [
-    ['西部幹線', '#315a8c'], ['東部幹線', '#cf3d3d'], ['南迴線', '#d08a18'],
-    ['平溪／深澳線', '#50886a'], ['內灣／六家線', '#805ba5'], ['集集線', '#9a6a42'],
-  ];
-  return phSec('lines', lines.length, 10, `路線完乘<b>${lines.length}</b><span style="letter-spacing:0;font-weight:600">全線走完 ${lines.length}</span>`) +
-    `<div class="ph-lines">${lines.map(x => `<div class="ph-line" title="${escHtml(x[0])}　100%"><span class="pl-name">${escHtml(x[0])}</span><span class="pl-bar"><i style="width:100%;background:${x[1]}"></i></span><span class="pl-pct done">100%</span></div>`).join('')}</div>`;
-}
-function passportShowcaseBanner() {
-  return passportShowcaseOn() ? '<div class="passport-showcase"><b>完整護照展示中</b>　這些是給擁有者驗收版面用的示範進度；你真正的完乘、車站與路段紀錄都沒有被改寫。</div>' : '';
-}
 function renderRidePanel() {
   const el = document.getElementById('ridePanel');
   if (el.hidden) return;
-  const rides = passportRides(loadRides());
-  const coll = passportCollectionOf(rides);
+  const rides = loadRides();
+  const coll = collectionOf(rides);
   const collGot = coll.named.size + coll.stock.size + coll.branch.size;
-  const achN = passportAchievements(rides).size;
+  const achN = unlockedAchievements(rides).size;
   const list = buildRideRows(rides, 'date'); // 手機不做排序鈕,固定日期最新在前
   el.innerHTML =
     `<h3>旅程護照<button class="close" id="rideClose">×</button></h3>` +
-    `<div class="ride-stats">章 <b>${collGot}</b> · 站 <b>${passportStationCollection(rides).size}</b> · 成就 <b>${achN}</b> · 完乘 <b>${rides.length}</b></div>` +
+    `<div class="ride-stats">章 <b>${collGot}</b> · 站 <b>${stationCollection(rides).size}</b> · 成就 <b>${achN}</b> · 完乘 <b>${rides.length}</b></div>` +
     `<div class="sub">從發車一路跟到終點就蓋一枚完乘章（調速可以・跳時間不算）· 灰色的章點了帶你搭一趟</div>` +
-    passportShowcaseBanner() +
     buildFoundingSeal() +
     buildStamps(rides) +
     buildStationStamps(rides) +
-    passportLineBars() +
+    buildLineBars() +
     buildCorrectSection() +
     buildAchv(rides, 'chip') +
     phSec('rides', rides.length, 12, '完乘記錄') +
@@ -12624,13 +12530,13 @@ function ppSecClick(e) {
   return true;
 }
 function buildStationStamps(rides) {
-  const coll = passportStationCollection(rides);
+  const coll = stationCollection(rides);
   if (!coll.size) return '';
   const tierM = stationTierMap();
   const items = [...coll.values()].sort((a, b) => b.n - a.n || a.name.localeCompare(b.name, 'zh-Hant'));
   const visited = items.filter(i => i.s === 'visit').length;
   // 路段:搭乘模式走過的最細區間。最常搭的那一段就是通勤族的日常,直接標出來當深度指標
-  const sg = passportShowcaseOn() ? { 'tra_sched|west|臺北|板橋': 500 } : segmentCollection(), sgN = Object.keys(sg).length;
+  const sg = segmentCollection(), sgN = Object.keys(sg).length;
   const top = Object.entries(sg).sort((a, b) => b[1] - a[1])[0];
   const sub = [
     visited ? `到訪 ${visited}` : '',
@@ -12820,7 +12726,7 @@ function buildCorrectSection() {
 function buildStamps(rides) {
   const sd = state.special;
   if (!sd) return '';
-  const coll = passportCollectionOf(rides);
+  const coll = collectionOf(rides);
   const MISS_TIP = '還沒搭過——點我去搭一班';
   const stampRow = (label, cat, items) => {
     if (!items.length) return '';
@@ -12839,7 +12745,7 @@ function buildStamps(rides) {
 }
 // 成就:桌面用金/灰圓章(style='seal',與舊版逐字相同,護照零變化),護照 sheet 用 chips(style='chip',mock C)
 function buildAchv(rides, style) {
-  const ach = passportAchievements(rides);
+  const ach = unlockedAchievements(rides);
   if (style === 'chip') {
     return phSec('achv', ACHIEVEMENTS.length, null, `成就<b>${ach.size}/${ACHIEVEMENTS.length}</b>`) + `<div class="achv-chips">` +
       ACHIEVEMENTS.map(a => `<span class="achv-chip${ach.has(a.id) ? ' on' : ''}" title="${escHtml(a.desc)}">${railIcon(a.icon)}<span>${escHtml(a.name)}</span></span>`).join('') + `</div>`;
@@ -12860,20 +12766,20 @@ function buildFoundingSeal() {
   // 但兩者是分開的欄位——像 accountForgetIdentity() 這種只重置 active 卻忘了同步清 founding 的路徑,
   // 不依賴寫入點永遠同步,守門直接兩個都看——兩個條件都在這一行自帶 null-safety,不外包給呼叫順序
   // 或 plusIsActive() 的內部短路(那個短路仍然存在、仍然安全,但讀這一行不該需要先去查它怎麼實作)。
-  if (!passportShowcaseOn() && (!plusIsActive() || !(state.plus && state.plus.founding))) return '';
+  if (!plusIsActive() || !(state.plus && state.plus.founding)) return '';
   return '<div class="ph-founding"><span class="pf-mark">創</span>' +
     '<span class="pf-txt"><b>創始島民</b><i>謝謝你在最早的時候就決定支持軌島</i></span></div>';
 }
 function renderPassport() {
   const el = document.getElementById('passport');
   if (state.mode !== 'sched') { el.hidden = true; el.innerHTML = ''; return; }
-  const rides = passportRides(loadRides());
+  const rides = loadRides();
   const totalKm = rides.reduce((a, r) => a + (Number(r.km) || 0), 0);
   const longest = rides.reduce((a, r) => Math.max(a, Number(r.km) || 0), 0);
   // Batch B:收集章/成就/完乘列改走共用 builder(輸出與舊版逐字相同,桌面護照零變化)
   const rideSort = getRideSortMode();
-  const stamps = passportShowcaseBanner() + buildFoundingSeal() + buildStamps(rides) + buildStationStamps(rides) + passportLineBars() + buildCorrectSection() + buildAchv(rides, 'seal');
-  const stnCount = passportStationCollection(rides).size;
+  const stamps = buildFoundingSeal() + buildStamps(rides) + buildStationStamps(rides) + buildLineBars() + buildCorrectSection() + buildAchv(rides, 'seal');
+  const stnCount = stationCollection(rides).size;
   const list = buildRideRows(rides, rideSort);
   // 排序切換鈕:有記錄才顯示(空清單沒東西可排);選中狀態直接烤進 HTML,不用另外 sync
   const sortSeg = list ? `<span class="seg ph-sort" id="phSortSeg">${Object.entries(RIDE_SORT_LABELS)

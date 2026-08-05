@@ -58,13 +58,13 @@ const MODES = {
   // 不是送審。build 從 19 起；marketing 進到 1.3.2 而不是沿用 1.3.1——1.3.1 那個版本項目
   // 正在送審中，同一個版本項目底下再多一顆 build，會讓「哪一顆該送審」變成可誤按的選擇，
   // 而這顆的送審文件（What's New／審查備註）並沒有對齊北捷的內容。
-  // 2026-08-05：1.3.2 (19) 已上 TestFlight、build 號已燒掉；20 是小工具設定目的站閃退的修正版。
+  // 2026-08-06：build 20、21、22 都已上傳；23 是軌島通行證第一顆正式送審包。
+  // 必須走 feature 模式，讓 assertPlusSandboxOff 證明 Sandbox 測試通道與 build 標記都已移除。
   feature: {
-    marketing: '1.3.2', build: '20', music: true,
-    why: '小工具設定修正版：起站選共站或我的地點後，打開目的站不再讓設定流程失效。'
-       + '沿用 1.3.2 (19) 的北捷帳本與班表到期自救內容。',
+    marketing: '1.3.2', build: '23', music: true,
+    why: '軌島通行證正式送審版：使用 App Store 正式月票／年票與 production 資格，關閉 TestFlight Sandbox 通道。',
   },
-  // 2026-08-05：build 20、21 已上 TestFlight，build 號皆已燒掉；22 專門驗收 Sandbox 購買後的
+  // 2026-08-06：build 20、21、22 已上 TestFlight；22 專門驗收 Sandbox 購買後的
   // 軌島通行證客端功能、雲端同步與伺服器付費牆。這顆不可選去正式送審；正式版必須另推 build 號，
   // 回到 feature 模式並由 assertPlusSandboxOff 驗證測試通道確實關閉。
   testflight: {
