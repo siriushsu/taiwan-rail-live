@@ -22,10 +22,12 @@ import { fileURLToPath } from 'node:url';
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const md5 = (p) => createHash('md5').update(readFileSync(p)).digest('hex');
 const WORKER = path.join(ROOT, 'worker.js');
+const WRANGLER = path.join(ROOT, 'wrangler.jsonc');
 const RELEASE = path.join(ROOT, 'app/scripts/verify-release.mjs');
 const PREPARE = path.join(ROOT, 'app/scripts/prepare-web.mjs');
 console.log(`[G0] ROOT=${ROOT}`);
 console.log(`[G0] worker.js md5=${md5(WORKER)}`);
+console.log(`[G0] wrangler.jsonc md5=${md5(WRANGLER)}`);
 console.log(`[G0] app/scripts/verify-release.mjs md5=${md5(RELEASE)}`);
 console.log(`[G0] app/scripts/prepare-web.mjs md5=${md5(PREPARE)}`);
 
@@ -41,7 +43,8 @@ let fails = 0;
 // 刻意**不寫「總共幾條」這種手打常數**（判準寫「是什麼」不寫「有幾個」）——只要求
 // 每個宣告過的段落都真的跑過至少一條，段落整批消失時會有一條具名紅燈。
 const SECTIONS = ['1 環境判別', '2 存取權判別', '3 entitlement 比對', '4 端點與 query', '5 錯誤分流', '6 plus-status 端到端', '7 發版閘門', '8 分頁與跟頁',
-  '9 回應 schema 守門(I-3／I-4)', '10 分頁 404 與 customer 綁定(I-1／I-5)', '11 TestFlight CORS 預檢'];
+  '9 回應 schema 守門(I-3／I-4)', '10 分頁 404 與 customer 綁定(I-1／I-5)', '11 TestFlight CORS 預檢',
+  '12 Firestore runtime 身分'];
 const seen = new Map();
 let SECTION = '(未分段)';
 const section = (name) => { SECTION = name; console.log(`\n===== ${name} =====`); };
@@ -699,6 +702,17 @@ section(SECTIONS[10]);
       && allowed.includes('x-rail-plus-sandbox-build'),
     'Capacitor 的 /api/plus-status 預檢明確允許 Authorization 與 TestFlight build header（否則只看得到 OPTIONS，真正 GET 不會送出）',
     JSON.stringify({ status: preflight.status, allowed }));
+}
+
+// ── 12. Firestore runtime 身分不得只設 private key ───────────────────────────────
+section(SECTIONS[11]);
+{
+  const wrangler = readFileSync(WRANGLER, 'utf8');
+  const hasProject = /"FIRESTORE_PROJECT_ID"\s*:\s*"railisland"/.test(wrangler);
+  const hasEmail = /"FIRESTORE_SERVICE_ACCOUNT_EMAIL"\s*:\s*"firebase-adminsdk-fbsvc@railisland\.iam\.gserviceaccount\.com"/.test(wrangler);
+  check(hasProject && hasEmail,
+    'wrangler runtime 同時帶 Firestore project ID 與已用現有 private key 完成 OAuth 驗證的 service-account email（缺任一個都會讓真機同步寫入失敗）',
+    JSON.stringify({ hasProject, hasEmail }));
 }
 
 globalThis.fetch = realFetch;

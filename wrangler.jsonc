@@ -13,6 +13,12 @@
   ],
   "workers_dev": true,
   "preview_urls": true,
+  // Plus 資格文件的 Firestore REST 寫入身分。project/email 都是公開識別值；
+  // 對應的 FIRESTORE_SERVICE_ACCOUNT_PRIVATE_KEY 仍只放 Cloudflare secret，絕不進版控。
+  "vars": {
+    "FIRESTORE_PROJECT_ID": "railisland",
+    "FIRESTORE_SERVICE_ACCOUNT_EMAIL": "firebase-adminsdk-fbsvc@railisland.iam.gserviceaccount.com"
+  },
   // D1 綁定:預先算好的統計 blob(如台鐵準點率)存放處,/api/delay-stats 唯讀單列查詢用
   "d1_databases": [
     { "binding": "DELAY_DB", "database_name": "railisland-delay-history", "database_id": "33a943cc-50af-4ee3-905c-534db842a48b" },

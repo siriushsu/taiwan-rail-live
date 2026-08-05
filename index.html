@@ -3344,7 +3344,7 @@
            內容 li 上限 8 條(li.grp 是標題不算)。 -->
       <ul class="foot-list foot-recent">
         <li class="grp">最近更新</li>
-        <li data-cl-of="plussandboxtest"><span class="d">8/5</span><span>TestFlight 測試版恢復購買後，現在會完成同步資格驗證，不再出現權限不足，也能測跨裝置同步與付費功能</span></li>
+        <li data-cl-of="plussandboxtest"><span class="d">8/5</span><span>TestFlight 測試版恢復購買後，現在會完成同步資格驗證；已補齊伺服器寫入資格所需設定，不再出現權限不足，也能測跨裝置同步與付費功能</span></li>
         <li data-cl-of="widgetdestination"><span class="d">8/5</span><span>iPhone 小工具的起站選「共站」或「我的地點」後，再點「目的站」會讓設定畫面閃退；現在不再閃退，請改用「只看這些」挑方向、車種或車次</span></li>
         <li data-cl-of="metromotion"><span class="d">8/5</span><span>淡海輕軌等捷運收到新即時資料時，不再先停住再猛追；所有捷運與輕軌都改成平順加減速</span></li>
         <li data-cl-of="trtcpos"><span class="d">8/5</span><span>北捷列車會依官方到站倒數直接算出目前在站間的位置，換站資料不再變成一筆要慢慢追的誤差</span></li>
@@ -3463,7 +3463,7 @@
         <li><span class="d">7/10</span><span>夜間與衛星模式視覺升級；「軌」軌道顯示三段切換：自動／淡化／隱藏</span></li>
         <li><span class="d">7/9</span><span>站名移到軌道側邊不再互相壓住；雙欄版面：搜尋／最愛／旅程收集移到右側欄</span></li>
         <li class="grp">分享與個人化</li>
-        <li data-cl="plussandboxtest"><span class="d">8/5</span><span>TestFlight 測試版的 App Store 測試訂閱現在會完整開啟 Plus：完成月訂或年訂後，可以實際驗收 Google 清單匯入、衛星高解析、Live Activity、誤點履歷與跨裝置同步；恢復購買後的同步資格驗證也不再被 App 連線預檢擋住。測試訂閱與同步資料都和正式購買分開，不會真的扣款或改動正式資格</span></li>
+        <li data-cl="plussandboxtest"><span class="d">8/5</span><span>TestFlight 測試版的 App Store 測試訂閱現在會完整開啟 Plus：完成月訂或年訂後，可以實際驗收 Google 清單匯入、衛星高解析、Live Activity、誤點履歷與跨裝置同步；恢復購買後的同步資格驗證也不再被 App 連線預檢或伺服器寫入設定擋住。測試訂閱與同步資料都和正式購買分開，不會真的扣款或改動正式資格</span></li>
         <li data-cl="sync"><span class="d">8/4</span><span>訂閱軌島 Plus 後可以用軌島帳號登入（Google 或 Apple）：收藏的地點、最愛車站與完乘記錄會在手機和電腦之間自動同步，換裝置也不必從頭來過</span></li>
         <li data-cl="tripshare"><span class="d">8/4</span><span>訂閱 Plus 後可以分享「行程」：把正在跟的班次和目的站打包成一條連結傳給朋友，對方點開就看得到車跑到哪、還剩幾站、幾點到；分享的是班次，不是你的定位</span></li>
         <li><span class="d">7/24</span><span>可把常看的地點設為預設啟動視野；探索面板新增「觀光列車圖鑑」</span></li>
@@ -3761,7 +3761,7 @@
 // 🔴 BUILD 字串會跨並行分支撞號（心得 16）：07-28 兩條線各自遞增又各自部署過——
 // origin/main 這條用到 v0728b，正式站那條用到 v0728f。本次三方合併把兩條線統一，
 // 所以往後推到一個雙方都沒用過的號，辨識線上跑哪一版仍以內容 hash 為準。
-const BUILD = 'v0805e';
+const BUILD = 'v0805f';
 // 成就徽章與車廂標記＝原本那些 emoji 的單色平面版（RailEmoji＝裁切過的 Noto Emoji 單色）。
 // 刻意保留 railIcon(name) 這個唯一入口:呼叫端一行都不用改,只有這裡決定畫法。
 // 🔴 ⚖ 與 ♾ 一律寫**不帶 VS16(U+FE0F)** 的碼位——帶了就強制彩色呈現,會蓋過 font-family
