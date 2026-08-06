@@ -3344,6 +3344,7 @@
            內容 li 上限 8 條(li.grp 是標題不算)。 -->
       <ul class="foot-list foot-recent">
         <li class="grp">最近更新</li>
+        <li data-cl-of="widgetdestination2"><span class="d">8/6</span><span>iPhone 小工具剛更新、車站資料還在準備時，點「起站」或「目的站」可能讓設定畫面直接退出；現在會先用內建車站清單，不必等待</span></li>
         <li data-cl-of="sharelink"><span class="d">8/6</span><span>App 的「分享畫面」與「行程分享」不再傳出無法開啟的網址，改為可直接開啟的 railisland.tw 連結</span></li>
         <li data-cl-of="passproduction"><span class="d">8/6</span><span>正式版軌島通行證改用 App Store 正式月票與年票，測試版的展示進度不會出現在一般使用者護照</span></li>
         <li data-cl-of="passrename"><span class="d">8/5</span><span>「軌島 Plus」更名為「軌島通行證」：訂閱方案改稱月票與年票，所有使用者都是島民</span></li>
@@ -3351,7 +3352,6 @@
         <li data-cl-of="widgetdestination"><span class="d">8/5</span><span>iPhone 小工具的起站選「共站」或「我的地點」後，再點「目的站」會讓設定畫面閃退；現在不再閃退，請改用「只看這些」挑方向、車種或車次</span></li>
         <li data-cl-of="metromotion"><span class="d">8/5</span><span>淡海輕軌等捷運收到新即時資料時，不再先停住再猛追；所有捷運與輕軌都改成平順加減速</span></li>
         <li data-cl-of="trtcpos"><span class="d">8/5</span><span>北捷列車會依官方到站倒數直接算出目前在站間的位置，換站資料不再變成一筆要慢慢追的誤差</span></li>
-        <li data-cl-of="trtcmotion"><span class="d">8/5</span><span>北捷列車不再每次收到新到站資料就停一下、再突然加速追趕，站間移動會持續而平順</span></li>
       </ul>
       <!-- 第二層:完整歷史。刻意不掛 .foot-box 類名——placeFootBoxes() 用
            `.site-foot .foot-box` 搬移面板,巢狀同名會被當成另一個盒子一起搬走。 -->
@@ -3428,6 +3428,7 @@
         <li><span class="d">7/13</span><span>收集章可以重複點，換搭不同班次回味</span></li>
         <li><span class="d">7/9</span><span>旅程護照與 16 枚成就徽章、「探」今日亮點面板上線</span></li>
         <li class="grp">手機與操作</li>
+        <li data-cl="widgetdestination2"><span class="d">8/6</span><span>iPhone 主畫面的「發車看板」小工具，App 剛更新、共享車站資料還在背景準備時，點「起站」就可能讓設定畫面直接退出；現在起站與目的站都有一份內建的輕量車站清單可立即使用，完整班表完成後會自動接手，目的站仍會照起站只列出有直達列車的車站</span></li>
         <li data-cl="sharelink"><span class="d">8/6</span><span>從 App 分享目前畫面或行程時，原本會把 App 內部的 capacitor://localhost 網址傳出去，其他人無法開啟；現在一律改成可直接開啟的 railisland.tw 公開連結</span></li>
         <li data-cl="widgetdestination"><span class="d">8/5</span><span>iPhone 主畫面的「發車看板」小工具，起站選了「共站」或「我的地點」之後，再點「目的站」會讓設定畫面閃退；現在這兩種起站不再開啟不適用的目的站清單，請改用「只看這些」依方向、車種或車次篩選</span></li>
         <li data-cl="moresheet"><span class="d">8/4</span><span>電腦版把頁面往下捲之後再開「更多」，選單會被推出畫面上緣，最上面幾列看不到也點不到，得先關掉、把右邊捲軸拉回最上面才正常；現在不論捲到哪裡開，選單都會完整留在畫面裡</span></li>
@@ -3764,7 +3765,7 @@
 // 🔴 BUILD 字串會跨並行分支撞號（心得 16）：07-28 兩條線各自遞增又各自部署過——
 // origin/main 這條用到 v0728b，正式站那條用到 v0728f。本次三方合併把兩條線統一，
 // 所以往後推到一個雙方都沒用過的號，辨識線上跑哪一版仍以內容 hash 為準。
-const BUILD = 'v0806b';
+const BUILD = 'v0806c';
 // 成就徽章與車廂標記＝原本那些 emoji 的單色平面版（RailEmoji＝裁切過的 Noto Emoji 單色）。
 // 刻意保留 railIcon(name) 這個唯一入口:呼叫端一行都不用改,只有這裡決定畫法。
 // 🔴 ⚖ 與 ♾ 一律寫**不帶 VS16(U+FE0F)** 的碼位——帶了就強制彩色呈現,會蓋過 font-family

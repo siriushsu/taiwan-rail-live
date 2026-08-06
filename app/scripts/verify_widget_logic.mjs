@@ -47,6 +47,44 @@ function extractDeclaration(source, header, label = header) {
 
 const writerSource = readFileSync(writerPath, 'utf8');
 const dataSource = readFileSync(join(widgetDir, 'RailBoardData.swift'), 'utf8');
+const intentSource = readFileSync(join(widgetDir, 'AppIntent.swift'), 'utf8');
+const fallbackBuilderPath = join(here, 'build_widget_station_fallback.mjs');
+
+// 2026-08-06 真機回報：App 更新後共享班表尚未建立時，起站／目的站 provider 把讀檔錯誤
+// 丟回 AppIntents，iOS 會關掉整張 Widget 設定頁。兩列都必須能改讀 bundle 內建站表；目的站
+// 在共享資料正常時仍保留「只列直達站」的起站連動。
+const destinationProvider = extractDeclaration(
+  intentSource,
+  'struct DestinationOptionsProvider: DynamicOptionsProvider',
+  'DestinationOptionsProvider',
+);
+if (!destinationProvider.includes('RailBoardStore.shared.configurationStationOptions()')) {
+  throw new Error('目的站 provider 讀不到共享班表時必須退回內建車站清單');
+}
+if (!destinationProvider.includes('@IntentParameterDependency<ConfigurationAppIntent>(\\.$origin)')) {
+  throw new Error('目的站 provider 應保留依起站只列直達站的既有行為');
+}
+if (!destinationProvider.includes('destinationOptions(from: origin)')
+    || !destinationProvider.includes('catch {')) {
+  throw new Error('目的站 provider 必須在直達站讀取失敗時接住錯誤並降級');
+}
+console.log('【目的站選單契約】✅ 正常只列直達站，資料準備中降級成完整站表');
+
+const originProvider = extractDeclaration(
+  intentSource,
+  'struct OriginOptionsProvider: DynamicOptionsProvider',
+  'OriginOptionsProvider',
+);
+for (const [label, provider] of [
+  ['起站', originProvider],
+  ['目的站', destinationProvider],
+]) {
+  if (!provider.includes('configurationStationOptions()')) {
+    throw new Error(`${label} provider 必須使用不丟錯的設定專用車站目錄`);
+  }
+}
+console.log('【起訖站容錯契約】✅ 共享班表準備中也不會把讀檔錯誤丟回 AppIntents');
+execFileSync(process.execPath, [fallbackBuilderPath, '--check'], { stdio: 'inherit' });
 
 const pieces = [
   extractDeclaration(writerSource, 'struct Station: Decodable, Hashable'),

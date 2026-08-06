@@ -83,7 +83,8 @@ func compositeSection() -> IntentItemSection<String>? {
 @available(iOS 17.0, *)
 struct OriginOptionsProvider: DynamicOptionsProvider {
     func results() async throws -> IntentItemCollection<String> {
-        let stations = try RailBoardStore.shared.stationOptions()
+        let stations = RailBoardStore.shared.configurationStationOptions()
+        guard !stations.isEmpty else { return .empty }
         // 順序：自己存的地點 → 共站 → 依縣市排的全部車站。前兩段是「一次看到附近全部路線」，
         // 第三段才是傳統的單一系統發車看板。
         let leading = [placeSection(stations), compositeSection()].compactMap { $0 }
@@ -113,7 +114,8 @@ struct OriginOptionsProvider: DynamicOptionsProvider {
 // 「目的站區域」也列進來（不管是跟 origin 一起兩個、或只留區域一個），設定畫面的「目的站」
 // 那一列就整列點不動——點下去連 extension 都不會被喚醒（系統紀錄零活動），因為 AppIntents
 // 判定依賴沒被滿足就直接停用那一列。改成 AppEnum＋預設值、把值存進設定再重開也一樣不動。
-// 起站那格能用是因為它「不依賴任何參數、照樣列全部」，目的站沒有這個退路。
+// 2026-08-06 又找到另一種「直接退出」：App 更新後完整班表還在背景建立，這裡讀檔丟錯會讓
+// iOS 關掉設定頁。直達站連動本身保留；只有讀不到共享資料時才暫列內建的完整站表。
 @available(iOS 17.0, *)
 struct DestinationOptionsProvider: DynamicOptionsProvider {
     @IntentParameterDependency<ConfigurationAppIntent>(\.$origin)
@@ -133,25 +135,30 @@ struct DestinationOptionsProvider: DynamicOptionsProvider {
             return .empty
         }
 
-        let destinations = try RailBoardStore.shared.destinationOptions(from: origin)
-        // 普通車站今天沒有任何直達目的地時也可能得到空陣列。這時直接回 .empty，不能把
-        // 無標題、零 items 的 section 交給 AppIntents（iOS 27 會讓設定流程失效）。
-        guard !destinations.isEmpty else {
-            return .empty
+        let destinations: [StationOption]
+        let promptLabel: LocalizedStringResource
+        do {
+            destinations = try RailBoardStore.shared.destinationOptions(from: origin)
+            promptLabel = "只顯示有直達列車的車站"
+        } catch {
+            // App 更新／首次開啟的完整班表尚未發布時，先用 bundle 內建目錄讓設定繼續。
+            // 不可把錯誤丟回 AppIntents：iOS 會直接關掉整張小工具設定頁。
+            destinations = RailBoardStore.shared.configurationStationOptions()
+            promptLabel = "班表準備中，先列出全部車站"
         }
+        guard !destinations.isEmpty else { return .empty }
+
         let places = placeSection(destinations)
         guard let sections = stationRegionSections(destinations) else {
-            var fallbackSections = [
-                IntentItemSection(items: destinations.map(\.intentItem))
-            ]
+            var fallbackSections = [IntentItemSection(items: destinations.map(\.intentItem))]
             if let places { fallbackSections.insert(places, at: 0) }
             return IntentItemCollection(
-                promptLabel: "只顯示有直達列車的車站",
+                promptLabel: promptLabel,
                 sections: fallbackSections
             )
         }
         return IntentItemCollection(
-            promptLabel: "只顯示有直達列車的車站",
+            promptLabel: promptLabel,
             sections: places.map { [$0] + sections } ?? sections
         )
     }

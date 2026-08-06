@@ -98,6 +98,14 @@ struct StationsDocument: Decodable {
     let stations: [StationRecord]
 }
 
+/// 小工具 extension 內建的輕量車站目錄。只供設定畫面在 App Group 班表尚未完成時選站；
+/// 真正的車次與索引仍一律讀共享資料，絕不拿 fallback 猜班次。
+private struct FallbackStationsDocument: Decodable {
+    let v: Int
+    let systems: [String: String]
+    let stations: [StationRecord]
+}
+
 struct StationRecord: Decodable {
     let n: String
     let s: String
@@ -385,7 +393,36 @@ final class RailBoardStore {
         let stations = try stations().stations
         let labels = Dictionary(uniqueKeysWithValues: meta.systems.map { ($0.id, $0.label) })
 
-        return stations.enumerated().map { index, station in
+        return makeStationOptions(stations: stations, labels: labels)
+    }
+
+    /// App 更新／首次開啟時，完整看板會在背景建立；那段空窗若把讀檔錯誤直接丟回
+    /// DynamicOptionsProvider，iOS 會關掉整張小工具設定頁。設定清單因此必須是 no-throw：
+    /// 共享資料可讀就用最新版本，否則讀 extension bundle 內的穩定車站鍵目錄。
+    func configurationStationOptions() -> [StationOption] {
+        if let current = try? stationOptions(), !current.isEmpty {
+            return current
+        }
+        guard
+            let url = Bundle.main.url(
+                forResource: "RailBoardFallbackStations",
+                withExtension: "json"
+            ),
+            let data = try? Data(contentsOf: url),
+            let document = try? decoder.decode(FallbackStationsDocument.self, from: data),
+            document.v == 1,
+            !document.stations.isEmpty
+        else {
+            return []
+        }
+        return makeStationOptions(stations: document.stations, labels: document.systems)
+    }
+
+    private func makeStationOptions(
+        stations: [StationRecord],
+        labels: [String: String]
+    ) -> [StationOption] {
+        stations.enumerated().map { index, station in
             let coordinate: StationCoordinate?
             if let lat = station.la, let lon = station.lo {
                 coordinate = StationCoordinate(lat: lat, lon: lon)
