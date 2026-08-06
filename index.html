@@ -2457,6 +2457,11 @@
     .badge { top: calc(58px + env(safe-area-inset-top, 0px)); left: 10px; gap: 9px; padding: 5px 11px 6px; }
     .badge .clock { font-size: 17px; }
     .badge .count { font-size: 12px; }
+    /* 行程連結的追蹤橫幅原本固定 top:56，會整片壓住這列時鐘。接收行程時先把非必要的
+       地圖動作列收起，橫幅排到時鐘下方；關閉橫幅後 body.trip-open 移除，兩者自然復原。 */
+    body.trip-open .map-actions { opacity: 0; pointer-events: none; }
+    body.trip-open .trip-banner { top: calc(118px + env(safe-area-inset-top, 0px)); }
+    body.trip-open .trip-banner ~ .dwell-plate { top: calc(251px + env(safe-area-inset-top, 0px)); }
     /* ≤400px 窄機:尖峰跟隨時 LIVE＋看板校正＋三位數班次會把徽章撐到壓住全畫面鈕——
        「看板校正」縮成純脈動藍點(400px 以上字樣不變) */
     @media (max-width: 400px) {
@@ -3344,6 +3349,7 @@
            內容 li 上限 8 條(li.grp 是標題不算)。 -->
       <ul class="foot-list foot-recent">
         <li class="grp">最近更新</li>
+        <li data-cl-of="release140"><span class="d">8/6</span><span>軌島 1.4.0 準備上線：加入軌島帳號、通行證月票／年票、跨裝置同步、鎖定畫面即時動態與發車看板小工具，並修好分享連結、行程橫幅與小工具設定</span></li>
         <li data-cl-of="widgetdestination2"><span class="d">8/6</span><span>iPhone 小工具剛更新、車站資料還在準備時，點「起站」或「目的站」可能讓設定畫面直接退出；現在會先用內建車站清單，不必等待</span></li>
         <li data-cl-of="sharelink"><span class="d">8/6</span><span>App 的「分享畫面」與「行程分享」不再傳出無法開啟的網址，改為可直接開啟的 railisland.tw 連結</span></li>
         <li data-cl-of="passproduction"><span class="d">8/6</span><span>正式版軌島通行證改用 App Store 正式月票與年票，測試版的展示進度不會出現在一般使用者護照</span></li>
@@ -3351,7 +3357,6 @@
         <li data-cl-of="plussandboxtest"><span class="d">8/5</span><span>TestFlight 測試版恢復購買後，現在會完成同步資格驗證；已補齊伺服器寫入資格所需設定，不再出現權限不足，也能測跨裝置同步與通行證功能</span></li>
         <li data-cl-of="widgetdestination"><span class="d">8/5</span><span>iPhone 小工具的起站選「共站」或「我的地點」後，再點「目的站」會讓設定畫面閃退；現在不再閃退，請改用「只看這些」挑方向、車種或車次</span></li>
         <li data-cl-of="metromotion"><span class="d">8/5</span><span>淡海輕軌等捷運收到新即時資料時，不再先停住再猛追；所有捷運與輕軌都改成平順加減速</span></li>
-        <li data-cl-of="trtcpos"><span class="d">8/5</span><span>北捷列車會依官方到站倒數直接算出目前在站間的位置，換站資料不再變成一筆要慢慢追的誤差</span></li>
       </ul>
       <!-- 第二層:完整歷史。刻意不掛 .foot-box 類名——placeFootBoxes() 用
            `.site-foot .foot-box` 搬移面板,巢狀同名會被當成另一個盒子一起搬走。 -->
@@ -3465,6 +3470,7 @@
         <li><span class="d">7/10</span><span>夜間與衛星模式視覺升級；「軌」軌道顯示三段切換：自動／淡化／隱藏</span></li>
         <li><span class="d">7/9</span><span>站名移到軌道側邊不再互相壓住；雙欄版面：搜尋／最愛／旅程收集移到右側欄</span></li>
         <li class="grp">分享與個人化</li>
+        <li data-cl="release140"><span class="d">8/6</span><span>iPhone／iPad 版升級至 1.4.0：加入軌島帳號、通行證月票與年票、收藏與完乘紀錄跨裝置同步、跟車鎖定畫面與動態島即時動態，以及可自訂起訖站的發車看板小工具；也一併修好 App 分享連結、行程追蹤橫幅蓋住時鐘與小工具設定穩定性</span></li>
         <li data-cl="passproduction"><span class="d">8/6</span><span>App 的軌島通行證改用 App Store 正式訂閱：月票與年票購買後會開啟進階功能與雲端同步；TestFlight 的展示進度不會出現在正式版</span></li>
         <li data-cl="passrename"><span class="d">8/5</span><span>「軌島 Plus」正式更名為「軌島通行證」，兩種自動續訂方案改稱月票與年票；每個使用者都是島民，通行證是 App 數位功能訂閱，不是實際乘車票券</span></li>
         <li data-cl="plussandboxtest"><span class="d">8/5</span><span>TestFlight 測試版的 App Store 測試訂閱現在會完整開啟通行證：訂閱月票或年票後，可以實際驗收 Google 清單匯入、衛星高解析、Live Activity、誤點履歷與跨裝置同步；恢復購買後的同步資格驗證也不再被 App 連線預檢或伺服器寫入設定擋住。測試訂閱與同步資料都和正式購買分開，不會真的扣款或改動正式資格</span></li>
@@ -3765,7 +3771,7 @@
 // 🔴 BUILD 字串會跨並行分支撞號（心得 16）：07-28 兩條線各自遞增又各自部署過——
 // origin/main 這條用到 v0728b，正式站那條用到 v0728f。本次三方合併把兩條線統一，
 // 所以往後推到一個雙方都沒用過的號，辨識線上跑哪一版仍以內容 hash 為準。
-const BUILD = 'v0806c';
+const BUILD = 'v0806e';
 // 成就徽章與車廂標記＝原本那些 emoji 的單色平面版（RailEmoji＝裁切過的 Noto Emoji 單色）。
 // 刻意保留 railIcon(name) 這個唯一入口:呼叫端一行都不用改,只有這裡決定畫法。
 // 🔴 ⚖ 與 ♾ 一律寫**不帶 VS16(U+FE0F)** 的碼位——帶了就強制彩色呈現,會蓋過 font-family
@@ -17978,9 +17984,11 @@ function applyTripLink(tp) {
 function renderTripBanner() {
   const el = document.getElementById('tripBanner'); if (!el) return;
   const trip = state._trip;
-  if (!trip || state._tripClosed) { el.hidden = true; return; }
+  const open = !!(trip && !state._tripClosed);
+  el.hidden = !open;
+  document.body.classList.toggle('trip-open', open);
+  if (!open) return;
   const stEl = document.getElementById('tripState'), rtEl = document.getElementById('tripRoute'), etaEl = document.getElementById('tripEta');
-  el.hidden = false;
   if (trip.err) {
     stEl.className = 'tb-state ended';
     stEl.textContent = trip.err === 'notfound' ? '查無班次' : '行程已結束';
@@ -18008,7 +18016,7 @@ function renderTripBanner() {
       + (dlMin > 0 ? ` <span class="lateTag">誤點 ${dlMin} 分</span>` : '');
   }
 }
-function closeTripBanner() { state._tripClosed = true; document.getElementById('tripBanner').hidden = true; } // 關橫幅不退跟車
+function closeTripBanner() { state._tripClosed = true; renderTripBanner(); } // 關橫幅不退跟車；同時還原手機上方動作列
 document.getElementById('fpTripShare').onclick = (e) => {
   e.stopPropagation();
   plusGateOpen('trip-share', () => openTripSharePanel()); // 非 Plus→導去訂閱;已訂閱→直接開面板
