@@ -28,6 +28,7 @@ await new Promise(r => server.listen(PORT, r));
 const results = [];
 const ok = (name, pass, detail = '') => { results.push({ name, pass, detail }); console.log(`${pass ? 'PASS' : 'FAIL'} ${name}${detail ? ' — ' + detail : ''}`); };
 const base = `http://localhost:${PORT}/`;
+const sharedQuery = value => new URL(value).search;
 
 async function boot(browser, urlPath, { width = 1280, height = 800, touch = false } = {}) {
   const ctx = await browser.newContext({ viewport: { width, height }, hasTouch: touch, isMobile: touch, timezoneId: 'Asia/Taipei' });
@@ -86,14 +87,16 @@ let sharedUrl = null, pick = null;
     const entry = await page.evaluate(() => { const b = document.getElementById('fpTripShare'); return { exists: !!b, hidden: b ? b.hidden : null, visible: b ? !!b.offsetParent : null }; });
     ok('A2 無 tripshare → 發起入口不顯示(暗啟動)', entry.exists && entry.hidden === true && entry.visible === false, JSON.stringify(entry));
     sharedUrl = await page.evaluate((dest) => buildTripUrl(state.followTrain, dest), pick.dest);
-    ok('A3 in-page buildTripUrl 產出 ?trip= 連結', !!sharedUrl && /\?trip=tra\./.test(sharedUrl), sharedUrl);
+    ok('A3 in-page buildTripUrl 產出 railisland.tw 的 ?trip= 公開連結', !!sharedUrl && /^https:\/\/railisland\.tw\/\?trip=tra\./.test(sharedUrl), sharedUrl);
+    const viewUrl = await page.evaluate(() => buildShareUrl());
+    ok('A3b 一般畫面分享也固定產出 railisland.tw 公開連結', /^https:\/\/railisland\.tw\/\?/.test(viewUrl), viewUrl);
   }
   ok('A 無 JS 例外', errors.length === 0, errors.slice(0, 3).join(' | '));
   await ctx.close();
 }
 // ?trip= 解碼在「無 tripshare」下仍作用(接收端不受旗標)
 if (sharedUrl) {
-  const rpath = sharedUrl.slice(base.length);
+  const rpath = sharedQuery(sharedUrl);
   const { ctx, page, errors } = await boot(cr, rpath);
   const r = await page.evaluate(() => ({ hidden: document.getElementById('tripBanner').hidden, following: state.followTrain ? String(state.followId) : null, hasTrip: !!(state._trip && state._trip.tr) }));
   ok('A4 接收端 ?trip= 不受旗標(無 tripshare 仍解碼顯示橫幅+跟車)', r.hidden === false && r.following === pick.no && r.hasTrip, JSON.stringify(r));
@@ -101,13 +104,13 @@ if (sharedUrl) {
   await ctx.close();
 }
 
-// ── Test B:?tripshare=1 + 跟台鐵車 → 入口出現 → 選目的站 → 產連結、格式正確 ──
+// ── Test B:?tripshare=1&plus=1 + 跟台鐵車 → 入口出現 → 選目的站 → 產連結、格式正確 ──
 {
-  const { ctx, page, errors } = await boot(cr, '?tripshare=1');
+  const { ctx, page, errors } = await boot(cr, '?tripshare=1&plus=1');
   const p = await findRunningTrain(page); // 同固定鐘→同一批在跑班次
   await followInPage(page, p.no);
   const entry = await page.evaluate(() => { const b = document.getElementById('fpTripShare'); return { hidden: b.hidden, visible: !!b.offsetParent }; });
-  ok('B1 ?tripshare=1 + 跟台鐵車 → 入口出現', entry.hidden === false && entry.visible === true, JSON.stringify(entry));
+  ok('B1 Plus＋tripshare 開發旗標 + 跟台鐵車 → 入口出現', entry.hidden === false && entry.visible === true, JSON.stringify(entry));
   // B1b(2026-08-02,Plus 開賣 Task 2 新增):顯示≠放行——?tripshare=1 只點亮入口,未訂閱時點下去
   // 要被 plusGateOpen 攔去帳號/訂閱面板,不能直接開選站面板。注入「已登入但未訂閱」態驗證。
   await page.evaluate(() => {
@@ -136,6 +139,12 @@ if (sharedUrl) {
   const fmtOk = seg.length >= 4 && seg[0] === 'tra' && seg[1] === p.no && decodeURIComponent(seg[2]) === p.dest && /^\d{8}$/.test(seg[3]);
   ok('B4 連結格式正確(sys.車次.目的站.日期[.起站])', fmtOk, `seg=${JSON.stringify(seg)} 期望dest=${p.dest}`);
   ok('B4b 日期=台北營運日 20260718', seg[3] === '20260718', `date=${seg[3]}`);
+  const nativePayload = await page.evaluate(async dest => {
+    window.RAIL_NATIVE_SHARE = { share: async payload => { window.__tripNativePayload = payload; } };
+    await shareTrip(state.followTrain, dest);
+    return window.__tripNativePayload;
+  }, p.dest);
+  ok('B4c Capacitor 原生分享收到 railisland.tw 公開網址', nativePayload && nativePayload.url === expUrl && /^https:\/\/railisland\.tw\//.test(nativePayload.url), JSON.stringify(nativePayload));
   ok('B 選站面板點站後關閉', await page.evaluate(() => document.getElementById('tripPanel').hidden === true), '');
   ok('B 無 JS 例外', errors.length === 0, errors.slice(0, 3).join(' | '));
   await ctx.close();
@@ -143,7 +152,7 @@ if (sharedUrl) {
 
 // ── Test C:開該連結(乾淨 context)→ 自動跟車 + 橫幅起訖/車次正確 + ETA 與時刻表一致(≤1 分) ──
 {
-  const rpath = sharedUrl.slice(base.length);
+  const rpath = sharedQuery(sharedUrl);
   const { ctx, page, errors } = await boot(cr, rpath);
   await page.waitForFunction(() => { try { return !document.getElementById('tripBanner').hidden; } catch (e) { return false; } }, null, { timeout: 15000 });
   const r = await page.evaluate(() => {
@@ -234,7 +243,7 @@ if (sharedUrl) {
   }
   // D3 已到達(車過目的站):真流程開連結後,凍結時鐘推進到過站,驗狀態
   {
-    const rpath = sharedUrl.slice(base.length);
+    const rpath = sharedQuery(sharedUrl);
     const { ctx, page, errors } = await boot(cr, rpath);
     await page.waitForFunction(() => { try { return !!(state._trip && state._trip.tr); } catch (e) { return false; } }, null, { timeout: 15000 });
     const r = await page.evaluate(() => {
@@ -272,7 +281,7 @@ function overlapArea(a, b) {
   return x * y;
 }
 async function overlapCheck(browser, label, width, height, touch) {
-  const rpath = sharedUrl.slice(base.length);
+  const rpath = sharedQuery(sharedUrl);
   const { ctx, page, errors } = await boot(browser, rpath, { width, height, touch });
   await page.waitForFunction(() => { try { return !document.getElementById('tripBanner').hidden; } catch (e) { return false; } }, null, { timeout: 15000 });
   await page.waitForTimeout(200);
@@ -319,7 +328,7 @@ try {
   await overlapCheck(wk, 'webkit 390', 390, 844, true);
   // webkit 也跑一輪接收端基本流程(解碼+跟車+橫幅)
   {
-    const rpath = sharedUrl.slice(base.length);
+    const rpath = sharedQuery(sharedUrl);
     const { ctx, page, errors } = await boot(wk, rpath, { width: 390, height: 844, touch: true });
     await page.waitForFunction(() => { try { return !document.getElementById('tripBanner').hidden; } catch (e) { return false; } }, null, { timeout: 15000 });
     const r = await page.evaluate(() => ({ following: state.followTrain ? String(state.followId) : null, st: document.getElementById('tripState').textContent.trim(), route: document.getElementById('tripRoute').textContent }));
@@ -343,6 +352,7 @@ try {
   ok('F3 日期走 todayStr(\'Asia/Taipei\')(v0718d 錨定,禁裝置時區 new Date 直算)', blk.includes("todayStr('Asia/Taipei')"), '含 todayStr(Asia/Taipei)');
   ok('F4 高鐵不顯逐車誤點(thsr 誤點=0)', /tr\.sys === 'tra_sched' \? liveDelaySec\(tr\) : 0/.test(blk), 'thsr delay 恆 0');
   ok('F5 旗標暗啟動預設關(TRIP_SHARE_ENABLED 由 ?tripshare=1 決定)', /const TRIP_SHARE_ENABLED = \(\(\) => \{ try \{ return new URLSearchParams\(location\.search\)\.get\('tripshare'\) === '1'/.test(html), '旗標定義符合 ?breath 慣例');
+  ok('F6 App／網站分享網址固定使用正式公開站', /const PUBLIC_SHARE_BASE = 'https:\/\/railisland\.tw\/';/.test(html) && blk.includes("return PUBLIC_SHARE_BASE + '?trip='"), '不依賴 capacitor://localhost 或目前頁面 origin');
 }
 
 server.close();
