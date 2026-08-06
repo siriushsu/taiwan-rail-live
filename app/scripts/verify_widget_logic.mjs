@@ -51,8 +51,9 @@ const intentSource = readFileSync(join(widgetDir, 'AppIntent.swift'), 'utf8');
 const fallbackBuilderPath = join(here, 'build_widget_station_fallback.mjs');
 
 // 2026-08-06 真機回報：App 更新後共享班表尚未建立時，起站／目的站 provider 把讀檔錯誤
-// 丟回 AppIntents，iOS 會關掉整張 Widget 設定頁。兩列都必須能改讀 bundle 內建站表；目的站
-// 在共享資料正常時仍保留「只列直達站」的起站連動。
+// 丟回 AppIntents，iOS 會關掉整張 Widget 設定頁；第二輪真機又抓到依賴值短暫為 nil、或
+// 起站鍵暫時解析成空陣列時，目的站回 .empty 也會讓選單「載入一下就收起」。兩列都必須能
+// 改讀 bundle 內建站表；目的站在共享資料正常時仍保留「只列直達站」的起站連動。
 const destinationProvider = extractDeclaration(
   intentSource,
   'struct DestinationOptionsProvider: DynamicOptionsProvider',
@@ -68,7 +69,14 @@ if (!destinationProvider.includes('destinationOptions(from: origin)')
     || !destinationProvider.includes('catch {')) {
   throw new Error('目的站 provider 必須在直達站讀取失敗時接住錯誤並降級');
 }
-console.log('【目的站選單契約】✅ 正常只列直達站，資料準備中降級成完整站表');
+if (/guard\s+let\s+origin\s*=\s*intent\?\.origin\s+else\s*\{\s*return\s+\.empty/s.test(destinationProvider)) {
+  throw new Error('目的站 provider 不可在起站依賴值短暫為 nil 時回 .empty');
+}
+if (!destinationProvider.includes('if direct.isEmpty {')
+    || !destinationProvider.includes('if let origin = intent?.origin {')) {
+  throw new Error('目的站 provider 必須接住 nil dependency 與空直達站陣列，兩者都降級成完整站表');
+}
+console.log('【目的站選單契約】✅ 正常只列直達站；依賴值 nil、空陣列或讀檔錯誤皆降級成完整站表');
 
 const originProvider = extractDeclaration(
   intentSource,

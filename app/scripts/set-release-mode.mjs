@@ -59,12 +59,12 @@ const MODES = {
   // 正在送審中，同一個版本項目底下再多一顆 build，會讓「哪一顆該送審」變成可誤按的選擇，
   // 而這顆的送審文件（What's New／審查備註）並沒有對齊北捷的內容。
   // 2026-08-06：build 20、21、22 都已上傳；23 是軌島通行證第一顆正式送審包。
-  // 24 改以 1.4.0 承接這次帳號、通行證、Live Activity、雲端同步與小工具的大改版，
-  // 並補進 App 公開分享網址與 Widget 起訖站設定退出修正；仍必須走 feature 模式，
+  // 24 改以 1.4.0 承接這次帳號、通行證、Live Activity、雲端同步與小工具的大改版；
+  // 25 再補進目的站依賴值稍晚送到時，選單短暫載入後自行收起的真機修正。仍必須走 feature 模式，
   // 讓 assertPlusSandboxOff 證明 Sandbox 測試通道與 build 標記都已移除。
   feature: {
-    marketing: '1.4.0', build: '24', music: true,
-    why: '軌島 1.4.0 正式版：帳號、通行證、Live Activity、雲端同步與小工具；使用 production 資格並關閉 TestFlight Sandbox 通道。',
+    marketing: '1.4.0', build: '25', music: true,
+    why: '軌島 1.4.0 正式版：帳號、通行證、Live Activity、雲端同步與小工具目的站選單修正；使用 production 資格並關閉 TestFlight Sandbox 通道。',
   },
   // 2026-08-06：build 20、21、22 已上 TestFlight；22 專門驗收 Sandbox 購買後的
   // 軌島通行證客端功能、雲端同步與伺服器付費牆。這顆不可選去正式送審；正式版必須另推 build 號，

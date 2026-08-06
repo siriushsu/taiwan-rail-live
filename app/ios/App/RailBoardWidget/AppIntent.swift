@@ -114,22 +114,21 @@ struct OriginOptionsProvider: DynamicOptionsProvider {
 // 「目的站區域」也列進來（不管是跟 origin 一起兩個、或只留區域一個），設定畫面的「目的站」
 // 那一列就整列點不動——點下去連 extension 都不會被喚醒（系統紀錄零活動），因為 AppIntents
 // 判定依賴沒被滿足就直接停用那一列。改成 AppEnum＋預設值、把值存進設定再重開也一樣不動。
-// 2026-08-06 又找到另一種「直接退出」：App 更新後完整班表還在背景建立，這裡讀檔丟錯會讓
-// iOS 關掉設定頁。直達站連動本身保留；只有讀不到共享資料時才暫列內建的完整站表。
+// 2026-08-06 又找到兩種「載入一下就收起來」：App 更新後完整班表還在背景建立時，這裡可能
+// ①讀檔丟錯，或 ②iOS 暫時還沒把 origin dependency 交進來／舊鍵一時對不到而得到空陣列。
+// 任何一種若回 .empty，系統都會直接把目的站選單收掉。直達站連動本身保留；只有依賴值或
+// 共享資料尚未就緒時才暫列內建的完整站表，讓使用者永遠有東西可選。
 @available(iOS 17.0, *)
 struct DestinationOptionsProvider: DynamicOptionsProvider {
     @IntentParameterDependency<ConfigurationAppIntent>(\.$origin)
     var intent
 
     func results() async throws -> IntentItemCollection<String> {
-        guard let origin = intent?.origin else {
-            return .empty
-        }
-
         // 共站／我的地點走的是「附近路線」時間軸，目的站參數不參與渲染。若讓我的地點
         // 借最近車站列出目的站，使用者會選到一個實際不生效的設定；兩種地點鍵都在這裡
         // 明確停用目的站，改由「只看這些」篩方向、車種或車次。
-        if origin.hasPrefix(RailBoardStore.compositeKeyPrefix)
+        if let origin = intent?.origin,
+           origin.hasPrefix(RailBoardStore.compositeKeyPrefix)
             || origin.hasPrefix("place|")
         {
             return .empty
@@ -137,14 +136,29 @@ struct DestinationOptionsProvider: DynamicOptionsProvider {
 
         let destinations: [StationOption]
         let promptLabel: LocalizedStringResource
-        do {
-            destinations = try RailBoardStore.shared.destinationOptions(from: origin)
-            promptLabel = "只顯示有直達列車的車站"
-        } catch {
-            // App 更新／首次開啟的完整班表尚未發布時，先用 bundle 內建目錄讓設定繼續。
-            // 不可把錯誤丟回 AppIntents：iOS 會直接關掉整張小工具設定頁。
+        if let origin = intent?.origin {
+            do {
+                let direct = try RailBoardStore.shared.destinationOptions(from: origin)
+                if direct.isEmpty {
+                    // 起站鍵剛寫入、共享 stations/board 還沒換成同一代時，解析會回空陣列而
+                    // 不是丟錯。空集合交給 AppIntents 會讓目的站選單立即收起，照樣要降級。
+                    destinations = RailBoardStore.shared.configurationStationOptions()
+                    promptLabel = "班表準備中，先列出全部車站"
+                } else {
+                    destinations = direct
+                    promptLabel = "只顯示有直達列車的車站"
+                }
+            } catch {
+                // App 更新／首次開啟的完整班表尚未發布時，先用 bundle 內建目錄讓設定繼續。
+                // 不可把錯誤丟回 AppIntents：iOS 會直接關掉整張小工具設定頁。
+                destinations = RailBoardStore.shared.configurationStationOptions()
+                promptLabel = "班表準備中，先列出全部車站"
+            }
+        } else {
+            // IntentParameterDependency 的 wrappedValue 契約本來就是 optional；真機在開啟
+            // 選單的第一拍可能先給 nil，下一拍才帶入已選起站。這一拍不能回 .empty。
             destinations = RailBoardStore.shared.configurationStationOptions()
-            promptLabel = "班表準備中，先列出全部車站"
+            promptLabel = "正在讀取起站，先列出全部車站"
         }
         guard !destinations.isEmpty else { return .empty }
 
