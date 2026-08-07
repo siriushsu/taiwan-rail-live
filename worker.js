@@ -2182,6 +2182,69 @@ async function stationEvents(request, env) {
   }
 }
 
+// ── 跟車即時動態:交班與註銷 ──
+// 端點外部可打,限流擋在任何 D1 寫入之前(照本檔慣例,寫入型一律 failClosed=true)。
+async function laBind(request, env) {
+  // 端點只收 POST(同 deleteAccountData 慣例)——API_POST_ALLOWED 只擋「非 GET/HEAD 且不在名單內」,
+  // 不會讓 GET 打這張名單內的端點回 405,故仍要自己擋。
+  if (request.method !== 'POST') return jsonRes({ error: 'method not allowed' }, 405, 'no-store');
+  if (await rateLimited(env.LA_LIMITER, request, true)) return jsonRes({ error: 'rate_limited' }, 429, 'no-store');
+  let b;
+  try { b = await request.json(); } catch (e) { return jsonRes({ error: 'bad_json' }, 400, 'no-store'); }
+  if (!b) return jsonRes({ error: 'bad_json' }, 400, 'no-store');
+  if (!/^[0-9a-f]{64}$/.test(String(b.token || ''))) return jsonRes({ error: 'bad_token' }, 400, 'no-store');
+  if (b.sys !== 'tra_sched' && b.sys !== 'thsr_sched') return jsonRes({ error: 'bad_sys' }, 400, 'no-store');
+  if (!/^[0-9A-Za-z]{1,8}$/.test(String(b.trainNo || ''))) return jsonRes({ error: 'bad_train' }, 400, 'no-store');
+  if (!Array.isArray(b.stops) || !b.stops.length || b.stops.length > 200) return jsonRes({ error: 'bad_stops' }, 400, 'no-store');
+  // at 是絕對 epoch 秒,且必須落在現在前後一天內——擋掉「服務日算錯整整差一天」那類壞資料,
+  // 否則後端會安靜地推出一張倒數 23 小時的卡。
+  const nowSec = Math.floor(Date.now() / 1000);
+  if (!b.stops.every(s => s && typeof s.name === 'string' && Number.isFinite(Number(s.at))
+      && Math.abs(Number(s.at) - nowSec) < 86400))
+    return jsonRes({ error: 'bad_stops' }, 400, 'no-store');
+  if (!Array.isArray(b.stopCodes) || b.stopCodes.length !== b.stops.length) return jsonRes({ error: 'bad_codes' }, 400, 'no-store');
+  if (!b.staMap || typeof b.staMap !== 'object' || Array.isArray(b.staMap)) return jsonRes({ error: 'bad_map' }, 400, 'no-store');
+
+  // 具名的本機測試閘門:設了才開,且只認那個確切的值。正式環境不設這顆 secret ⇒ 這條路徑不存在。
+  const auth = (request.headers.get('Authorization') || '').match(/^Bearer\s+(.+)$/i);
+  let uid;
+  if (env.LA_TEST_BEARER && auth && auth[1] === env.LA_TEST_BEARER) uid = 'local-test';
+  else {
+    const check = await checkPlusEntitlement(request, env);
+    if (!check.ok) return jsonRes({ error: check.error }, check.status, 'no-store');
+    uid = check.uid;
+  }
+  try {
+    const now = Math.floor(Date.now() / 1000);
+    await env.DELAY_DB.prepare(
+      'INSERT INTO la_bindings (token,uid,sys,train_no,stops,sta_map,stop_codes,last_idx,last_delay,bound_at,expire_at)' +
+      ' VALUES (?,?,?,?,?,?,?,-1,0,?,?) ON CONFLICT(token) DO UPDATE SET' +
+      ' uid=excluded.uid, sys=excluded.sys, train_no=excluded.train_no, stops=excluded.stops,' +
+      ' sta_map=excluded.sta_map, stop_codes=excluded.stop_codes, last_idx=-1, last_delay=0,' +
+      ' bound_at=excluded.bound_at, expire_at=excluded.expire_at'
+    ).bind(String(b.token), uid, String(b.sys), String(b.trainNo),
+      JSON.stringify(b.stops), JSON.stringify(b.staMap), JSON.stringify(b.stopCodes),
+      now, now + 8 * 3600).run();
+    return jsonRes({ ok: true }, 200, 'no-store');
+  } catch (e) {
+    return jsonRes({ error: 'bind_failed' }, 503, 'no-store');
+  }
+}
+
+async function laUnbind(request, env) {
+  if (request.method !== 'POST') return jsonRes({ error: 'method not allowed' }, 405, 'no-store');
+  if (await rateLimited(env.LA_LIMITER, request, true)) return jsonRes({ error: 'rate_limited' }, 429, 'no-store');
+  let b;
+  try { b = await request.json(); } catch (e) { return jsonRes({ ok: true }, 200, 'no-store'); }
+  // 冪等:不存在也回 200。註銷不另驗身分——APNs token 本身就是難以猜中的憑證,
+  // 而誤刪的成本只是一張卡停止自動換站(退化成 LA-0 的前景行為),不是資料損失。
+  if (b && /^[0-9a-f]{64}$/.test(String(b.token || ''))) {
+    try { await env.DELAY_DB.prepare('DELETE FROM la_bindings WHERE token=?').bind(String(b.token)).run(); }
+    catch (e) { /* 表還沒建或 D1 暫時不可用:回 200,前端沒有可做的補救 */ }
+  }
+  return jsonRes({ ok: true }, 200, 'no-store');
+}
+
 // 今日準點/誤點榜(唯讀查 D1):每班車一列=今天最新一筆事件(obs_at 最大)+今天整體 max(delay_max)。
 // 用視窗函式在 SQL 端聚合(絕不把全日事件撈回 JS 再算);空表優雅回空陣列。
 async function todayBoard(request, env) {
@@ -2384,13 +2447,14 @@ const SEC_HEADERS = {
 const APP_ORIGINS = new Set(['capacitor://localhost', 'https://localhost']);
 // 非 GET 的白名單。🔴 這道門是刻意關死的:預設所有 /api/* 只收 GET/HEAD,要開洞就逐條加進來,
 // 不可以改成「全部放行」——擋掉的是「隨手對唯讀端點打 POST」這類探測,而那正是最便宜的防線。
-const API_POST_ALLOWED = new Set(['/api/account-delete', '/api/bounty-claim', '/api/bounty-submit', '/api/bounty-merge', '/api/revenuecat-webhook']);
+const API_POST_ALLOWED = new Set(['/api/account-delete', '/api/bounty-claim', '/api/bounty-submit', '/api/bounty-merge', '/api/revenuecat-webhook', '/api/la/bind', '/api/la/unbind']);
 // /api 端點白名單——只給流量埋點的 blob 用(不是路由閘門,路由在 fetch 裡)。不在名單內一律記成
 // 'other',否則隨便打 /api/<亂數> 就能把 blob 基數炸開。新增端點時要一起加進來。
 const API_ENDPOINTS = new Set([
   'tra-live', 'tra-alert', 'thsr-alert', 'metro-alert', 'hazard-alert', 'metro-live', 'ntmetro-live', 'trtc-live',
   'delay-stats', 'delay-history', 'thsr-schedule', 'station-events', 'today-board', 'basemap-token', 'basemap-session', 'account-delete',
   'bounty-board', 'bounty-claim', 'bounty-submit', 'bounty-me', 'bounty-merge', 'plus-status', 'revenuecat-webhook',
+  'la/bind', 'la/unbind',
 ]);
 
 function addAppCors(headers, origin) {
@@ -3870,6 +3934,8 @@ export default {
     else if (url.pathname === '/api/bounty-submit') res = await bountySubmit(request, env);
     else if (url.pathname === '/api/bounty-me') res = await bountyMe(request, env);
     else if (url.pathname === '/api/bounty-merge') res = await bountyMerge(request, env);
+    else if (url.pathname === '/api/la/bind') res = await laBind(request, env);
+    else if (url.pathname === '/api/la/unbind') res = await laUnbind(request, env);
     else res = await env.ASSETS.fetch(request);
     const h = new Headers(res.headers);
     for (const [k, v] of Object.entries(SEC_HEADERS)) h.set(k, v);
