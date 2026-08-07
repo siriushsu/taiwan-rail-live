@@ -1,6 +1,7 @@
 import {
   TRTC_LEDGER_SCHEMA, buildTrtcModel, buildLedgerFromRaw,
   trtcOperatingState, trtcServiceDay, resolveBoardRows, claimBoardRows, collapseClaims,
+  bindTracksToTrips, buildTripSetsByLineDir,
 } from './scripts/trtc_board_ledger.mjs';
 
 // Cloudflare Worker 入口:靜態資產(assets binding)+ /api/tra-live 台鐵即時動態代理
@@ -878,6 +879,73 @@ async function trtcBoardModel(env) { // 前端位置錨點用:含 Y(同一份 Tr
   return trtcBoardModelPromise;
 }
 
+// ── 逐班綁定器(工項2-3):資產、D1 讀寫全在這裡,身分/shift 判斷全在 trtc_board_ledger.mjs ──
+let trtcDayTypeTablePromise = null;
+async function trtcDayTypeTable(env) { // data/tw_daytype.json:TW_DAYTYPE 的後端副本(前端本單不改)
+  if (!trtcDayTypeTablePromise) trtcDayTypeTablePromise = trtcLedgerAssetJson(env, 'data/tw_daytype.json');
+  return trtcDayTypeTablePromise;
+}
+
+let trtcTripSetsCache = null; // { day, tripSets, dayKeys } —— 一天只需重建一次,不隨每輪 cron 重算
+async function trtcTripSetsForDay(env, day) {
+  if (trtcTripSetsCache && trtcTripSetsCache.day === day) return trtcTripSetsCache;
+  const [[, times], dayTypeTable] = await Promise.all([trtcModelSources(env), trtcDayTypeTable(env)]);
+  trtcTripSetsCache = { day, ...buildTripSetsByLineDir(times, dayTypeTable, day) };
+  return trtcTripSetsCache;
+}
+
+// 冷啟動載回:優先讀 trtc_state['trip_dyn'](day 相符即整包還原,含 lastShift/badStreak 等動態延續
+// 狀態,round-trip 完全等價——見 R4);trip_dyn 缺或跨日才退化用 trtc_trip_bindings 重建身分
+// (動態欄位只能歸零,一輪內會自然回溫,不影響正確性只影響安全閥計數短暫重算)。
+async function loadTrtcTripBindingState(env, day) {
+  if (!await ensureTrtcLedger(env)) return [];
+  const db = env.TRTC_LEDGER;
+  const stateRow = await db.prepare(`SELECT v FROM trtc_state WHERE k='trip_dyn'`).first();
+  if (stateRow && stateRow.v) {
+    try {
+      const parsed = JSON.parse(stateRow.v);
+      if (parsed && parsed.day === day && Array.isArray(parsed.bindings)) return parsed.bindings;
+    } catch (e) {
+      console.warn('[trtc-binder] trip_dyn 解析失敗,改走冷啟動重建:', (e && e.message) || String(e));
+    }
+  }
+  const rows = await db.prepare(`SELECT line,dir,trip_key,track_id,bound_epoch,birth,done,rebinds
+      FROM trtc_trip_bindings WHERE day=?`).bind(day).all();
+  return (rows.results || []).map(r => ({
+    line: r.line, dir: Number(r.dir), tripKey: r.trip_key, trackId: r.track_id,
+    boundEpoch: Number(r.bound_epoch), birth: r.birth, done: !!r.done, rebinds: Number(r.rebinds) || 0,
+    lastShift: 0, lastTo: null, lastArrEpoch: null, badStreak: 0,
+  }));
+}
+
+// 寫入紀律(設計書 §6):trtc_trip_bindings 只在 events 有變動(bind/rebind/done)的那幾列 upsert;
+// trtc_state['trip_dyn'] 每輪整包覆寫 1 次(訪客 join 用途留給下一單,這裡先把管線接好)。
+async function persistTrtcTripBindingRound(env, day, nowEpoch, dayType, bindings, events) {
+  if (!await ensureTrtcLedger(env)) return { bindingRows: 0 };
+  const db = env.TRTC_LEDGER;
+  const touched = new Map(); // "line|dir|tripKey" -> 最新 record
+  for (const ev of events || []) {
+    const key = `${ev.line}|${ev.dir}|${ev.tripKey}`;
+    if (touched.has(key)) continue;
+    const rec = bindings.find(b => b.line === ev.line && b.dir === ev.dir && b.tripKey === ev.tripKey);
+    if (rec) touched.set(key, rec);
+  }
+  const statements = [];
+  for (const rec of touched.values()) {
+    statements.push(db.prepare(`INSERT INTO trtc_trip_bindings
+        (day,line,dir,trip_key,track_id,bound_epoch,birth,done,rebinds) VALUES (?,?,?,?,?,?,?,?,?)
+        ON CONFLICT(day,line,dir,trip_key) DO UPDATE SET
+          track_id=excluded.track_id, bound_epoch=excluded.bound_epoch, birth=excluded.birth,
+          done=excluded.done, rebinds=excluded.rebinds`)
+      .bind(day, rec.line, rec.dir, rec.tripKey, rec.trackId, rec.boundEpoch, rec.birth, rec.done ? 1 : 0, rec.rebinds));
+  }
+  statements.push(db.prepare(`INSERT INTO trtc_state (k,v) VALUES ('trip_dyn',?)
+      ON CONFLICT(k) DO UPDATE SET v=excluded.v`)
+    .bind(JSON.stringify({ at: nowEpoch, day, dayType, bindings })));
+  await db.batch(statements);
+  return { bindingRows: touched.size };
+}
+
 async function ensureTrtcLedger(env) {
   if (!env || !env.TRTC_LEDGER) return false;
   if (!trtcLedgerSchemaReady) {
@@ -1088,6 +1156,8 @@ async function pruneTrtcLedger(env, nowEpoch) {
     db.prepare('DELETE FROM trtc_events WHERE day<?').bind(cutoff),
     db.prepare('DELETE FROM trtc_tracks WHERE day<?').bind(cutoff),
     db.prepare('DELETE FROM trtc_track_aliases WHERE day<?').bind(cutoff),
+    db.prepare('DELETE FROM trtc_trip_bindings WHERE day<?').bind(cutoff),
+    // trtc_state 不用清:'trip_dyn' 是每輪整包覆寫的單列,不是逐日累積表。
   ]);
   const changes = results.reduce((n, r) => n + Number(r.meta && r.meta.changes || 0), 0);
   console.log(`[cron trtc-ledger] 清理 < ${cutoff}: ${changes} 列`);
@@ -1133,7 +1203,29 @@ async function trtcLedgerScheduled(event, env) {
   const stats = await persistTrtcLedger(env, [part1, part2], now2);
   console.log(`[cron trtc-ledger] ${day}: board ${board1.length}+${board2.length}, hwRaw ${hwRaw.length}, brRaw ${brRaw.length}, ` +
     `events ${stats.events}, tracks ${stats.tracks}, aliases ${stats.aliases}`);
-  return { skipped: false, day, stats, diagnostics: [part1.diagnostics, part2.diagnostics] };
+  // 逐班綁定器(工項3):獨立 try/catch,不得拖垮上面已經成功寫入的帳本主流程(比照 hazardTask
+  // 隔離寫法,worker.js scheduled() 內 hazardMonitorWithTimeout 的 catch)。用 includeY:true 的
+  // model(既有 trtcBoardModel)——本單 Y 尚無 claims 流入是預期現象,只是先接好介面(工項4的事)。
+  let bindResult = null;
+  try {
+    const [bindModel, { tripSets, dayKeys }, dayTypeTable, priorBindings] = await Promise.all([
+      trtcBoardModel(env), trtcTripSetsForDay(env, day), trtcDayTypeTable(env), loadTrtcTripBindingState(env, day),
+    ]);
+    const dayType = dayKeys.get('BL') || null;
+    const round1 = bindTracksToTrips({ model: bindModel, tripSets, dayType, tracks: part1.claims,
+      priorBindings, nowEpoch: now1, day });
+    const round2 = bindTracksToTrips({ model: bindModel, tripSets, dayType, tracks: part2.claims,
+      priorBindings: round1.bindings, nowEpoch: now2, day });
+    const persisted = await persistTrtcTripBindingRound(env, day, now2, dayType, round2.bindings,
+      [...round1.events, ...round2.events]);
+    bindResult = { audit: round2.audit, bindingRows: persisted.bindingRows, bound: round2.bindings.length };
+    console.log(`[cron trtc-binder] ${day}: bound ${round2.audit.bound}, unbound ${round2.audit.unbound}, ` +
+      `rebinds ${round2.audit.rebinds}, done ${round2.audit.done}, capped ${round2.audit.capped}, ` +
+      `legMiss ${round2.audit.legMiss}, active ${round2.bindings.length}, upserts ${persisted.bindingRows}`);
+  } catch (e) {
+    console.error('[cron trtc-binder] 失敗:', (e && e.stack) || String(e));
+  }
+  return { skipped: false, day, stats, bind: bindResult, diagnostics: [part1.diagnostics, part2.diagnostics] };
 }
 
 // 台鐵準點率統計(D1 唯讀查詢):資料由外部批次工作預先算好寫入 kv_blobs,Worker 只做單列查詢+
