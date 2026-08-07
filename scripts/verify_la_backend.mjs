@@ -1,10 +1,27 @@
 // LA 後端驗收。本檔【不打正式站】,一律對本機 wrangler dev 跑。
 // 起 server 的指令見計畫 Task 4 Step 3;埠由呼叫端指定並傳進 LA_BASE。
+import { execFileSync } from 'node:child_process';
+
 const BASE = process.env.LA_BASE;
 // 🔴 base 必須是 https(worker.js 有 http→https 301,純 http 會讓所有 /api/* 無限重導),
 //    且呼叫端要帶 NODE_TLS_REJECT_UNAUTHORIZED=0(本機自簽憑證)。起 server 的完整方式見計畫 Task 4 Step 3。
 if (!BASE) { console.error('請設 LA_BASE=https://127.0.0.1:<port>'); process.exit(2); }
 if (!BASE.startsWith('https://')) { console.error('LA_BASE 必須是 https,純 http 會被 301 無限重導'); process.exit(2); }
+// LA_WT:起 wrangler dev 那個乾淨 worktree 的絕對路徑——B14 要直查本機 D1(la_bindings 的
+// last_idx/last_delay 沒有對應的讀取端點),得在同一個 cwd 下用 wrangler d1 execute --local
+// 才能打到「這台正在跑的 server」用的那份 .wrangler/state/v3/d1。
+const WT = process.env.LA_WT;
+if (!WT) { console.error('請設 LA_WT=<起 wrangler dev 的乾淨 worktree 絕對路徑>'); process.exit(2); }
+function d1Exec(sql) {
+  const out = execFileSync('arch',
+    ['-arm64', 'node', './node_modules/wrangler/bin/wrangler.js', 'd1', 'execute', 'DELAY_DB', '--local', '--json', '--command', sql],
+    { cwd: WT, encoding: 'utf8' });
+  return JSON.parse(out);   // --json 讓 stdout 只有乾淨 JSON,banner/警告都在 stderr
+}
+function d1FirstRow(sql) {
+  const res = d1Exec(sql);
+  return res[0] && res[0].results && res[0].results[0];
+}
 const results = [];
 const ok = (n, p, d = '') => { results.push({ n, p }); console.log(`${p ? 'PASS' : 'FAIL'} ${n}${d ? ' — ' + d : ''}`); };
 const post = (path, body, hdr = {}) => fetch(BASE + path, {
@@ -83,12 +100,30 @@ const VALID = {
   const r = await post('/api/la/bind', { ...VALID, stopCodes: bigStopCodes }, AUTH);
   ok('B12 stopCodes 序列化超過大小上限被拒', r.status === 400, `HTTP ${r.status}`);
 }
-// B13 同一 token 重複 bind、換不同車次 → 200(驗 upsert 路徑而非只測到 B0 那種首次 insert;
+// B13/B14 同一 token 重複 bind、換不同車次:B13 驗 HTTP 200(upsert 分支不 503),
+// B14 直查 D1 驗 last_idx/last_delay 真的歸零——只驗 200 證明不了 SET 子句沒有被改寫成
+// 保留舊值(SQLite UPSERT 允許 SET 右側直接引用目標表現值,那樣改寫一樣會成功回 200)。
 // 依賴 B0 已先綁定過 VALID.token——腳本本來就依序執行,B8 的冪等測試也同樣依賴 B0 的綁定存在。
-// 必須排在 B8 之前:B8 會把 VALID.token 從表裡刪掉,順序反了這裡測到的就是首次 insert 不是 upsert)
+// 必須排在 B8 之前:B8 會把 VALID.token 從表裡刪掉,順序反了這裡測到的就是首次 insert 不是 upsert。
 {
+  // 前置狀態:B14 唯一會失效的方式是「重新 bind 之前 last_idx 剛好已經是 -1」——那樣「歸零」
+  // 與「保留舊值」兩種行為結果相同,突變測不出來。所以先手動把 last_idx/last_delay 撥成非預設值
+  // (7/180,不是 -1/0),且撥值後【先查一次確認真的生效】才繼續——撥值本身失敗(token 打錯、
+  // 列不存在)會讓後面的歸零斷言退化成同義反覆,必須先排除、不能假設它一定成功。
+  d1Exec(`UPDATE la_bindings SET last_idx=7, last_delay=180 WHERE token='${VALID.token}'`);
+  const pre = d1FirstRow(`SELECT last_idx, last_delay FROM la_bindings WHERE token='${VALID.token}'`);
+  const preOk = !!pre && pre.last_idx === 7 && pre.last_delay === 180;
+  ok('B14 前置:手動撥值 last_idx=7/last_delay=180 生效', preOk,
+    pre ? `last_idx=${pre.last_idx} last_delay=${pre.last_delay}` : '(查無列,token 尚未綁定?)');
+  if (!preOk) { console.error('B14 前置狀態鋪設失敗,中止——後續的歸零斷言在此狀態下毫無意義'); process.exit(2); }
+
   const r = await post('/api/la/bind', { ...VALID, trainNo: '999' }, AUTH);
   ok('B13 同 token 重複 bind 換車次 → 200', r.status === 200, `HTTP ${r.status}`);
+
+  const post_ = d1FirstRow(`SELECT last_idx, last_delay FROM la_bindings WHERE token='${VALID.token}'`);
+  ok('B14 重複 bind 後 last_idx/last_delay 真的歸零(不是保留舊值)',
+    !!post_ && post_.last_idx === -1 && post_.last_delay === 0,
+    post_ ? `last_idx=${post_.last_idx} last_delay=${post_.last_delay}` : '(查無列)');
 }
 // B7 GET 打 bind → 405(端點只收 POST;順帶證明 API_POST_ALLOWED 真的有掛上)
 {
