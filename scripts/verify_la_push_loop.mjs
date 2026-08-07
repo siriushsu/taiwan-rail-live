@@ -16,6 +16,11 @@
 // 不呼叫 laArrivalIso 自己——那樣會變成「驗證這支函式跟自己一致」而不是「驗證值對不對」。
 //
 // 本檔只讀/寫本機 D1(la_bindings),不影響 verify_la_backend.mjs 既有的 34 條斷言。
+//
+// 修復輪次1(獨立驗收 1 Critical + 9 Important 之後):P1/P1host/P1log/P5/P6/P6c 是原地
+// 改寫(Critical1 的刪列改看 reason 不看 status、Important8/9 的兩側閘門與欄位契約),
+// P13-P17 是新增的 Group C,逐項收 Important1/2/4/5/6(3 併入 P1log/P15、7 在
+// verify_la_backend.mjs 的 J4/J5——JWT 簽章邏輯的家在那邊)。
 import { getPlatformProxy } from 'wrangler';
 
 const results = [];
@@ -52,6 +57,8 @@ const TDX_API_FRAG = 'TrainLiveBoard';
 const APNS_FRAG = '/3/device/';
 const calls = [];               // 每次 fetch 的紀錄:{dest,url,init}
 let apnsNextStatus = 200;       // 下一發 APNs 呼叫要回的狀態碼
+let apnsNextReason = '';        // 修復輪次1(Critical1):非 2xx 時的 body.reason,delPushAll 現在看這個決定要不要刪列
+let apnsRejectToken = null;     // 修復輪次1(Important2):設了就讓「打到這個 token」的那發 fetch 直接 reject(模擬網路層失敗)
 let tdxBoard = null;            // null=TDX 呼叫要失敗(模擬上游掛掉);否則是 TrainLiveBoards 陣列
 let tdxAuthFail = false;
 
@@ -60,7 +67,8 @@ globalThis.fetch = async (url, init) => {
   const u = String(url);
   calls.push({ url: u, init });
   if (u.includes(APNS_FRAG)) {
-    return new Response(JSON.stringify({}), { status: apnsNextStatus });
+    if (apnsRejectToken && u.includes(apnsRejectToken)) throw new Error('[verify_la_push_loop] 模擬 APNs 網路層 reject(Important2 測試)');
+    return new Response(JSON.stringify({ reason: apnsNextReason }), { status: apnsNextStatus });
   }
   if (u.includes(AUTH_URL_FRAG)) {
     if (tdxAuthFail) return new Response('unauthorized', { status: 401 });
@@ -73,11 +81,31 @@ globalThis.fetch = async (url, init) => {
   throw new Error(`[verify_la_push_loop] 未預期的 fetch 目標(測試設計漏配):${u}`);
 };
 
+// 修復輪次1(Important3):暫時接管 console.log/error,讓斷言能檢查「有沒有留下 log」,
+// 而不是只看回傳值——laPushAll 是 cron 內部呼叫,回傳值會被 ctx.waitUntil 吞掉,
+// 出問題時營運端唯一看得到的只有 log。
+async function captureConsole(fn) {
+  const origLog = console.log, origErr = console.error;
+  const logLines = [], errLines = [];
+  console.log = (...a) => { logLines.push(a.map(String).join(' ')); };
+  console.error = (...a) => { errLines.push(a.map(String).join(' ')); };
+  try { return { result: await fn(), logLines, errLines }; }
+  finally { console.log = origLog; console.error = origErr; }
+}
+
 // caches.default:traLive 進來第一件事就查邊緣快取。Node 沒有這個全域,補一個永遠 miss 的假身,
 // 讓它照真實邏輯往下走到 fetch(不是為了測快取本身——快取行為不在本檔範圍)。
 globalThis.caches = { default: { async match() { return undefined; }, async put() {} } };
 
 const { env, dispose } = await getPlatformProxy({ configPath: `${WT}/wrangler.jsonc` });
+// 修復輪次1(Important8 延伸):沒有 APNS_KEY_P8 時 laPushAll 在 worker.js 第一行就早退成
+// no-op(回 {sent:0,dropped:0}),後面一大堆 `=== 0` 的斷言會全數假綠——缺這道 gate 的話,
+// 整支腳本可能自始至終都在驗證「函式沒被呼叫過」而不是「函式行為正確」。
+if (!env.APNS_KEY_P8) abort('目標 worktree 的 .dev.vars 沒有設定 APNS_KEY_P8——laPushAll 會早退成 no-op,後面所有斷言都會假綠,請先確認 .dev.vars');
+// 修復輪次1(Important8):拿掉 worktree .dev.vars 可能帶的 APNS_HOST,讓本檔其餘測試的
+// 「預設打 production host」假設不被本機 dev 設定牽動;APNS_HOST 兩側各自的驗證在下面
+// P1host 區塊用 env 複本獨立測,不依賴這裡的狀態。
+if ('APNS_HOST' in env) delete env.APNS_HOST;
 const worker = await import(`${WT}/worker.js`);
 const { laPushAll } = worker._la;
 if (typeof laPushAll !== 'function') abort('worker.js 沒有導出 _la.laPushAll,無法測試(檢查 worker.js 底部 export 區塊)');
@@ -130,13 +158,66 @@ function tok(tag) { return (tag + '0'.repeat(64)).slice(0, 64); }   // 湊成 64
     ok('P1 authorization 是 bearer+JWT(三段式)', /^bearer [^.]+\.[^.]+\.[^.]+$/.test(h.authorization), h.authorization.slice(0, 20) + '…');
     const body = JSON.parse(init.body);
     ok('P1 body.aps.content-state.nextStop = 南港(idx0)', body.aps['content-state'].nextStop === '南港', JSON.stringify(body.aps['content-state']));
-    const expectArrival = new Date(stops[0].at * 1000).toISOString();
-    ok('P1 arrivalDate 獨立算術核對(未過站)', body.aps['content-state'].arrivalDate === expectArrival, body.aps['content-state'].arrivalDate);
+    // 🔴 修復輪次1(Important9):欄位集合照 Swift ContentState 契約獨立驗(design.md §5.1),
+    // 不是照實作目前送什麼反推——這樣才抓得到「少送一個欄位」或「多送一個沒人要的欄位」。
+    const csKeys = Object.keys(body.aps['content-state']).sort();
+    const CONTRACT_KEYS = ['arrivalDate', 'delaySec', 'departedDate', 'nextStop', 'terminus'].sort();
+    ok('P1(Important9)content-state 欄位集合與 Swift ContentState 契約完全一致(不多不少)',
+      JSON.stringify(csKeys) === JSON.stringify(CONTRACT_KEYS), JSON.stringify(csKeys));
+    // 🔴 修復輪次1(資料契約變更):arrivalDate/departedDate 改送 epoch 秒數字,不送 ISO 字串
+    // ——Swift 端 JSONDecoder 預設 .deferredToDate 解的是 timeIntervalSinceReferenceDate,
+    // 不是 ISO 8601。期望值獨立用算術算,不呼叫 laArrivalEpoch 自己(心得29:判準不可與被測物同源)。
+    const expectArrival = stops[0].at;   // delaySec=0,還沒到站 ⇒ 就是表定時刻本身
+    ok('P1 arrivalDate 是 epoch 秒數字且獨立算術核對(未過站)',
+      body.aps['content-state'].arrivalDate === expectArrival && typeof body.aps['content-state'].arrivalDate === 'number',
+      String(body.aps['content-state'].arrivalDate));
     ok('P1 departedDate=null(idx=0 無前一站)', body.aps['content-state'].departedDate === null, String(body.aps['content-state'].departedDate));
     ok('P1 terminus=板橋(最後一站)', body.aps['content-state'].terminus === '板橋', body.aps['content-state'].terminus);
   }
   const row1 = await getRow(T);
   ok('P1 推播成功後 D1 last_idx 更新成 0', !!row1 && row1.last_idx === 0 && row1.last_delay === 0, row1 ? `last_idx=${row1.last_idx}` : '(查無列)');
+
+  // P1log(修復輪次1 Important3):每個 tick 結束要留下 sent/dropped 摘要 log——laPushAll
+  // 是 cron 內部呼叫,回傳值會被 ctx.waitUntil 吞掉,出問題時營運端唯一看得到的只有 log。
+  {
+    const Tlog = tok('p1log');
+    await delRow(Tlog);
+    mockNowSec += 1;
+    const stopsLog = [{ name: 'L0', at: mockNowSec + 100 }, { name: 'L1', at: mockNowSec + 200 }];
+    await insRow({ token: Tlog, sys: 'thsr_sched', train_no: '9log', stops: stopsLog, last_idx: -1, last_delay: 0, bound_at: mockNowSec, expire_at: mockNowSec + 3600 });
+    calls.length = 0; apnsNextStatus = 200; apnsNextReason = '';
+    const { result: rlog, logLines } = await captureConsole(() => laPushAll(env, fakeCtx, BASE_URL));
+    ok('P1log(Important3)tick 結束留下 sent/dropped 摘要 log',
+      logLines.some(l => l.includes('tick 完成') && l.includes(`sent=${rlog.sent}`) && l.includes(`dropped=${rlog.dropped}`)),
+      JSON.stringify(logLines));
+    await delRow(Tlog);
+  }
+
+  // P1host(修復輪次1 Important8):APNS_HOST 是具名的兩側閘門——沒設要走 production,
+  // 設了要真的生效,不能被忽略。用 env 複本各自獨立測,不依賴 worktree .dev.vars 的內容
+  // (上面已經把 env.APNS_HOST 拿掉,所以「沒設」這一側現在不論 .dev.vars 寫什麼都成立)。
+  {
+    const Th = tok('p1host');
+    await delRow(Th);
+    mockNowSec += 1;
+    const stopsH = [{ name: 'H0', at: mockNowSec + 100 }, { name: 'H1', at: mockNowSec + 200 }];
+    await insRow({ token: Th, sys: 'thsr_sched', train_no: '9host', stops: stopsH, last_idx: -1, last_delay: 0, bound_at: mockNowSec, expire_at: mockNowSec + 3600 });
+    calls.length = 0; apnsNextStatus = 200; apnsNextReason = '';
+    await laPushAll(env, fakeCtx, BASE_URL);
+    const c1 = calls.filter(c => c.url.includes(APNS_FRAG))[0];
+    ok('P1host(Important8正面)沒設 APNS_HOST 時打 production host',
+      !!c1 && c1.url.startsWith('https://api.push.apple.com/'), c1 ? c1.url : '(無呼叫)');
+    await delRow(Th);
+
+    await insRow({ token: Th, sys: 'thsr_sched', train_no: '9host2', stops: stopsH, last_idx: -1, last_delay: 0, bound_at: mockNowSec, expire_at: mockNowSec + 3600 });
+    calls.length = 0; apnsNextStatus = 200; apnsNextReason = '';
+    const envSandbox = { ...env, APNS_HOST: 'api.sandbox.push.apple.com' };
+    await laPushAll(envSandbox, fakeCtx, BASE_URL);
+    const c2 = calls.filter(c => c.url.includes(APNS_FRAG))[0];
+    ok('P1host(關鍵,Important8反面)設了 APNS_HOST 就真的生效,不是被忽略',
+      !!c2 && c2.url.startsWith('https://api.sandbox.push.apple.com/'), c2 ? c2.url : '(無呼叫)');
+    await delRow(Th);
+  }
 
   // P2:狀態沒變(idx 仍是 0、delay 仍是 0)→ 不該再推
   calls.length = 0;
@@ -153,8 +234,10 @@ function tok(tag) { return (tag + '0'.repeat(64)).slice(0, 64); }   // 湊成 64
   if (apnsCalls3.length === 1) {
     const body = JSON.parse(apnsCalls3[0].init.body);
     ok('P3 nextStop=台北(idx1)', body.aps['content-state'].nextStop === '台北', body.aps['content-state'].nextStop);
-    const expectDeparted = new Date(stops[0].at * 1000).toISOString();
-    ok('P3 departedDate 獨立算術核對(=前一站表定時刻)', body.aps['content-state'].departedDate === expectDeparted, body.aps['content-state'].departedDate);
+    const expectDeparted = stops[0].at;   // delaySec=0 ⇒ departedDate = prev.at + 0
+    ok('P3 departedDate 是 epoch 秒數字且獨立算術核對(=前一站表定時刻)',
+      body.aps['content-state'].departedDate === expectDeparted && typeof body.aps['content-state'].departedDate === 'number',
+      String(body.aps['content-state'].departedDate));
   } else ok('P3 APNs 呼叫次數應為 1(結構性略過後續細項)', false, `count=${apnsCalls3.length}`);
 
   // P4:時間前進到全部站過完 → 應收卡(D1 刪列),不推播
@@ -167,19 +250,49 @@ function tok(tag) { return (tag + '0'.repeat(64)).slice(0, 64); }   // 湊成 64
   ok('P4 全程走完後 D1 列被刪除(收卡)', row4 === null, row4 ? JSON.stringify(row4) : '(已刪除)');
 }
 
-// P5/P6:APNs 回 410/400 → 視為 token 失效,刪列、計入 dropped
-for (const [tag, status] of [['p5', 410], ['p6', 400]]) {
+// P5/P6(修復輪次1 Critical1 重寫):是否刪列現在看 body.reason,不是看 status——
+// BadTopic/PayloadEmpty/BadMessageId 一樣是 400,但那是我方 topic 字串或 payload 出錯,
+// 不是這個 token 失效。正面三種(token 真的沒救了)才刪:Unregistered(410 唯一 reason)、
+// BadDeviceToken、DeviceTokenNotForTopic。
+for (const [tag, status, reason] of [
+  ['p5', 410, 'Unregistered'],
+  ['p6a', 400, 'BadDeviceToken'],
+  ['p6b', 400, 'DeviceTokenNotForTopic'],
+]) {
   const T = tok(tag);
   await delRow(T);
   mockNowSec = 1_800_000_000;
   const stops = [{ name: 'A', at: mockNowSec + 100 }, { name: 'B', at: mockNowSec + 200 }];
   await insRow({ token: T, sys: 'thsr_sched', train_no: '9' + tag, stops, last_idx: -1, last_delay: 0, bound_at: mockNowSec, expire_at: mockNowSec + 3600 });
-  calls.length = 0; apnsNextStatus = status;
+  calls.length = 0; apnsNextStatus = status; apnsNextReason = reason;
   const r = await laPushAll(env, fakeCtx, BASE_URL);
-  ok(`P5/6(${status}) dropped 計數正確`, r.dropped === 1 && r.sent === 0, JSON.stringify(r));
+  ok(`P5/6(${status}/${reason}) dropped 計數正確`, r.dropped === 1 && r.sent === 0, JSON.stringify(r));
   const row = await getRow(T);
-  ok(`P5/6(${status}) token 失效後 D1 列被刪除`, row === null, row ? JSON.stringify(row) : '(已刪除)');
+  ok(`P5/6(${status}/${reason}) token 真的沒救 → D1 列被刪除`, row === null, row ? JSON.stringify(row) : '(已刪除)');
   await delRow(T);   // 防禦性清理:若上面兩條斷言其一為 FAIL(產品碼沒刪成),殘列不該汙染後面批次的計數
+}
+
+// P6c(關鍵,Critical1 本體——就是驗收回報那個「一個 tick 清空整表」的真實觸發場景):
+// 400 但 reason 不在上面名單(例如我方 topic 字串打錯的 BadTopic)→ 不是這個 token 的問題,
+// 不准刪列、不准計入 dropped/sent,留給下一分鐘(等我方修好設定)重試。且用兩列同時中招,
+// 證明不是只驗到單列——舊 bug 的殺傷力恰恰是「同一個誤設會讓批次裡每一列都回同樣的 400」。
+{
+  const Ta = tok('p6ca'), Tb = tok('p6cb');
+  await delRow(Ta); await delRow(Tb);
+  mockNowSec = 1_800_000_000;
+  const mk = (name) => [{ name: name + '0', at: mockNowSec + 100 }, { name: name + '1', at: mockNowSec + 200 }];
+  await insRow({ token: Ta, sys: 'thsr_sched', train_no: '9p6ca', stops: mk('A'), last_idx: -1, last_delay: 0, bound_at: mockNowSec, expire_at: mockNowSec + 3600 });
+  await insRow({ token: Tb, sys: 'thsr_sched', train_no: '9p6cb', stops: mk('B'), last_idx: -1, last_delay: 0, bound_at: mockNowSec, expire_at: mockNowSec + 3600 });
+  calls.length = 0; apnsNextStatus = 400; apnsNextReason = 'BadTopic';
+  const r = await laPushAll(env, fakeCtx, BASE_URL);
+  ok('P6c(關鍵)BadTopic 不計入 dropped 也不計入 sent', r.dropped === 0 && r.sent === 0, JSON.stringify(r));
+  const apnsCallsP6c = calls.filter(c => c.url.includes(APNS_FRAG));
+  ok('P6c(關鍵)兩列都真的打過 APNs(不是被提前擋掉,證明真的走過失敗路徑)', apnsCallsP6c.length === 2, `count=${apnsCallsP6c.length}`);
+  const rowA = await getRow(Ta), rowB = await getRow(Tb);
+  ok('P6c(關鍵)整批都沒被誤刪——這正是舊 bug「一個 tick 清空整表」的複現場景',
+    !!rowA && rowA.last_idx === -1 && !!rowB && rowB.last_idx === -1,
+    `A=${rowA ? JSON.stringify(rowA) : '被刪!'} B=${rowB ? JSON.stringify(rowB) : '被刪!'}`);
+  await delRow(Ta); await delRow(Tb);
 }
 
 // P7:APNs 回 429/500(暫時性錯誤)→ 不刪列、不更新 last_idx,留給下一分鐘重試
@@ -189,7 +302,10 @@ for (const [tag, status] of [['p7a', 429], ['p7b', 500]]) {
   mockNowSec = 1_800_000_000;
   const stops = [{ name: 'A', at: mockNowSec + 100 }, { name: 'B', at: mockNowSec + 200 }];
   await insRow({ token: T, sys: 'thsr_sched', train_no: '9' + tag, stops, last_idx: -1, last_delay: 0, bound_at: mockNowSec, expire_at: mockNowSec + 3600 });
-  calls.length = 0; apnsNextStatus = status;
+  // reason 清空(不是 apnsNextStatus 那種每次都設的欄位):429/500 在真實 APNs 不會帶
+  // Unregistered/BadDeviceToken/DeviceTokenNotForTopic 這類 reason,留空才是寫實模擬,
+  // 不然會殘留前一個情境(P6c)的 'BadTopic',把「本來就不該讀 reason」的路徑測得不乾淨。
+  calls.length = 0; apnsNextStatus = status; apnsNextReason = '';
   const r = await laPushAll(env, fakeCtx, BASE_URL);
   ok(`P7(${status}) 不計入 sent 也不計入 dropped(留給下一輪重試)`, r.sent === 0 && r.dropped === 0, JSON.stringify(r));
   const row = await getRow(T);
@@ -302,6 +418,166 @@ for (const [tag, status] of [['p7a', 429], ['p7b', 500]]) {
   const row12 = await getRow(T12);
   ok('P12 D1 last_idx 依表定退路更新為 0', !!row12 && row12.last_idx === 0, row12 ? `last_idx=${row12.last_idx}` : '(查無列)');
   await delRow(T12);
+}
+
+// ══════════════════════════════════════════════════════════════════
+// Group C(修復輪次1):獨立驗收回報 1 Critical + 9 Important 的補充覆蓋。
+// Critical1(reason 而非 status)與 Important8/9 已經改在 P1/P1host/P5/P6/P6c 原地驗掉,
+// 這裡收剩下的:Important1(型別)、2(單列例外隔離)、4(JWT 403 作廢)、5(LIMIT)、
+// 6(cron 不污染用量分析)。Important3(log)已併入 P1log 與下面 P15。Important7(簽章)
+// 在 verify_la_backend.mjs 的 J4/J5(那才是 JWT 邏輯的家)。
+// ══════════════════════════════════════════════════════════════════
+
+// P13(Important1):stops[].at 若因舊資料/字串型 bind payload 而是字串,"1800000100"+0
+// 會做字串串接(不是加法),把 arrivalDate 撐成天文數字的年份,且 laSchedIdx 內部
+// stops[i].at+delaySec>nowSec 的比較會被那個巨大的假數字撐到恆真 ⇒ idx 永遠卡在 0。
+{
+  const T13 = tok('p13');
+  await delRow(T13);
+  mockNowSec = 1_800_000_000;
+  // 刻意把 at 存成字串(insRow 用 JSON.stringify,字串會原樣序列化成 JSON 字串,
+  // 完整複現「D1 裡本來就存了字串」的情境,不只是呼叫參數型別不對)。
+  const stops13 = [{ name: 'X', at: String(mockNowSec + 100) }, { name: 'Y', at: String(mockNowSec + 200) }];
+  await insRow({ token: T13, sys: 'thsr_sched', train_no: '9p13', stops: stops13, last_idx: -1, last_delay: 0, bound_at: mockNowSec, expire_at: mockNowSec + 3600 });
+  calls.length = 0; apnsNextStatus = 200; apnsNextReason = '';
+  const r13 = await laPushAll(env, fakeCtx, BASE_URL);
+  ok('P13(Important1)字串型 at 仍正確觸發推播', r13.sent === 1, JSON.stringify(r13));
+  const apnsCalls13 = calls.filter(c => c.url.includes(APNS_FRAG));
+  if (apnsCalls13.length === 1) {
+    const cs = JSON.parse(apnsCalls13[0].init.body).aps['content-state'];
+    ok('P13(關鍵)arrivalDate 是合理範圍內的 epoch 數字(不是字串串接出的天文數字/2540年)',
+      typeof cs.arrivalDate === 'number' && Math.abs(cs.arrivalDate - (mockNowSec + 100)) < 5,
+      String(cs.arrivalDate));
+  } else ok('P13 APNs 呼叫次數應為 1(結構性略過細項)', false, `count=${apnsCalls13.length}`);
+
+  // 時間前進到第一站已過:若型別沒修好,laSchedIdx 內部字串串接算出的假時刻遠在未來,
+  // 比較恆真 ⇒ idx 永遠停在 0,卡片凍死。
+  mockNowSec = Number(stops13[0].at) + 5;
+  calls.length = 0; apnsNextStatus = 200;
+  const r13b = await laPushAll(env, fakeCtx, BASE_URL);
+  ok('P13(關鍵)時間前進後 idx 真的前進(沒有因字串串接卡死在 0)', r13b.sent === 1, JSON.stringify(r13b));
+  const row13 = await getRow(T13);
+  ok('P13(關鍵)D1 last_idx 前進到 1', !!row13 && row13.last_idx === 1, row13 ? `last_idx=${row13.last_idx}` : '(查無列)');
+  await delRow(T13);
+}
+
+// P14(Important2):某一列的 APNs fetch 網路層 reject,不得拖垮同一批次的其他列——
+// 最寫實的觸發是 fetch() 對 APNs 的網路層 reject,沒有 per-row try/catch 的話第 N 列一炸,
+// 後面全部本分鐘不更新。
+// 🔴 修復輪次1(硬化,突變測試發現):laPushAll 呼叫在此包一層本機 try/catch——若 per-row
+// 保護被改壞而讓例外逸出 laPushAll,要在這裡留下一條乾淨的 FAIL,不能讓例外一路衝到頂層
+// process.on('uncaughtException') 把整支腳本 abort 掉(那樣 P15-P17 共 15 條斷言會連跑都
+// 沒機會跑,訊號比「哪裡壞了」還模糊)。
+{
+  const Ta = tok('p14a'), Tb = tok('p14b'), Tc = tok('p14c');
+  await delRow(Ta); await delRow(Tb); await delRow(Tc);
+  mockNowSec = 1_800_000_000;
+  const mk = (name) => [{ name: name + '0', at: mockNowSec + 100 }, { name: name + '1', at: mockNowSec + 200 }];
+  await insRow({ token: Ta, sys: 'thsr_sched', train_no: '9p14a', stops: mk('A'), last_idx: -1, last_delay: 0, bound_at: mockNowSec, expire_at: mockNowSec + 3600 });
+  await insRow({ token: Tb, sys: 'thsr_sched', train_no: '9p14b', stops: mk('B'), last_idx: -1, last_delay: 0, bound_at: mockNowSec, expire_at: mockNowSec + 3600 });
+  await insRow({ token: Tc, sys: 'thsr_sched', train_no: '9p14c', stops: mk('C'), last_idx: -1, last_delay: 0, bound_at: mockNowSec, expire_at: mockNowSec + 3600 });
+  calls.length = 0; apnsNextStatus = 200; apnsNextReason = ''; apnsRejectToken = Tb;
+  let r14 = null, r14err = null;
+  try { r14 = await laPushAll(env, fakeCtx, BASE_URL); } catch (e) { r14err = e; }
+  apnsRejectToken = null;
+  ok('P14(關鍵)laPushAll 不因單列 reject 而整支拋出例外(per-row try/catch 有生效)',
+    r14err === null, r14err ? String((r14err && r14err.stack) || r14err).split('\n')[0] : '(無例外)');
+  if (r14) {
+    ok('P14(關鍵)一列 reject 不影響其餘列的 sent 計數(sent=2,不是 0 或 1)', r14.sent === 2, JSON.stringify(r14));
+    const rowA = await getRow(Ta), rowB = await getRow(Tb), rowC = await getRow(Tc);
+    ok('P14 未受影響列 A 正常推播更新', !!rowA && rowA.last_idx === 0, rowA ? `last_idx=${rowA.last_idx}` : '(查無列)');
+    ok('P14(關鍵)炸掉的列之後的列 C 仍正常推播(證明迴圈真的繼續往下跑,不是提前中止)', !!rowC && rowC.last_idx === 0, rowC ? `last_idx=${rowC.last_idx}` : '(查無列)');
+    ok('P14 炸掉的列 B 保持原狀(下一分鐘自然重試,沒有半途寫壞 last_idx)', !!rowB && rowB.last_idx === -1, rowB ? `last_idx=${rowB.last_idx}` : '(查無列!)');
+  } else {
+    ok('P14 一列 reject 不影響其餘列的 sent 計數(sent=2,不是 0 或 1)', false, '(laPushAll 已拋出例外,無回傳值可驗,見上一條)');
+    ok('P14 未受影響列 A 正常推播更新', false, '(laPushAll 已拋出例外,略過)');
+    ok('P14(關鍵)炸掉的列之後的列 C 仍正常推播(證明迴圈真的繼續往下跑,不是提前中止)', false, '(laPushAll 已拋出例外,略過)');
+    ok('P14 炸掉的列 B 保持原狀(下一分鐘自然重試,沒有半途寫壞 last_idx)', false, '(laPushAll 已拋出例外,略過)');
+  }
+  await delRow(Ta); await delRow(Tb); await delRow(Tc);
+}
+
+// P15(Important4+3):APNs 回 403(InvalidProviderToken,例如金鑰輪替/時鐘偏移)→
+// 這把 JWT 本身壞了,不是這個 token 的問題:不刪列、不計入 sent/dropped,但要留 log,
+// 且下一次 laJwt() 必須強制重簽(不能卡滿 50 分鐘快取,否則接下來全軍覆沒)。
+{
+  const T15a = tok('p15a');
+  await delRow(T15a);
+  mockNowSec = 1_800_000_000;
+  const stops15a = [{ name: 'A', at: mockNowSec + 100 }, { name: 'B', at: mockNowSec + 200 }];
+  await insRow({ token: T15a, sys: 'thsr_sched', train_no: '9p15a', stops: stops15a, last_idx: -1, last_delay: 0, bound_at: mockNowSec, expire_at: mockNowSec + 3600 });
+  calls.length = 0; apnsNextStatus = 403; apnsNextReason = 'InvalidProviderToken';
+  const { result: r15a, errLines: errLines15 } = await captureConsole(() => laPushAll(env, fakeCtx, BASE_URL));
+  ok('P15 403 不計入 sent 也不計入 dropped', r15a.sent === 0 && r15a.dropped === 0, JSON.stringify(r15a));
+  ok('P15(Important3)403 的失敗留下 status+reason 的 log(不能零 log 讓 cron 看起來成功)',
+    errLines15.some(l => l.includes('403') && l.includes('InvalidProviderToken')), JSON.stringify(errLines15));
+  const row15a = await getRow(T15a);
+  ok('P15 403 不刪列(問題在 JWT,不在這個 token)', !!row15a && row15a.last_idx === -1, row15a ? `last_idx=${row15a.last_idx}` : '(查無列!)');
+  const jwt1 = (calls.filter(c => c.url.includes(APNS_FRAG))[0] || {}).init?.headers?.authorization;
+  ok('P15 前置:確實捕捉到第一次的 JWT', typeof jwt1 === 'string' && jwt1.startsWith('bearer '), String(jwt1));
+  await delRow(T15a);
+
+  // 換一列全新的、正常會成功的推播——時間只前進極短(遠低於 50 分鐘快取窗)。
+  // 若快取沒被 403 作廢,這裡會拿到跟 jwt1 一模一樣的字串(命中快取,laJwt 不重算 iat)。
+  mockNowSec += 5;
+  const T15b = tok('p15b');
+  await delRow(T15b);
+  const stops15b = [{ name: 'C', at: mockNowSec + 100 }, { name: 'D', at: mockNowSec + 200 }];
+  await insRow({ token: T15b, sys: 'thsr_sched', train_no: '9p15b', stops: stops15b, last_idx: -1, last_delay: 0, bound_at: mockNowSec, expire_at: mockNowSec + 3600 });
+  calls.length = 0; apnsNextStatus = 200; apnsNextReason = '';
+  const r15b = await laPushAll(env, fakeCtx, BASE_URL);
+  ok('P15 重置後的下一次推播正常成功', r15b.sent === 1, JSON.stringify(r15b));
+  const jwt2 = (calls.filter(c => c.url.includes(APNS_FRAG))[0] || {}).init?.headers?.authorization;
+  ok('P15(關鍵)403 之後拿到的是【新簽】的 JWT,不是卡住的舊快取',
+    typeof jwt2 === 'string' && jwt2 !== jwt1, `jwt1===jwt2 ? ${jwt2 === jwt1}`);
+  await delRow(T15b);
+}
+
+// P16(Important5):LA_ROW_LIMIT 防 tick 重疊——超過上限的列數必須被截斷且留下 log,
+// 不能無聲少推。用 env.LA_ROW_LIMIT 覆寫成很小的值,不必真的塞 500+ 列進 D1。
+{
+  const tokens16 = [tok('p16a'), tok('p16b'), tok('p16c')];
+  for (const t of tokens16) await delRow(t);
+  mockNowSec = 1_800_000_000;
+  for (let i = 0; i < tokens16.length; i++) {
+    const stops = [{ name: 'S' + i, at: mockNowSec + 100 }, { name: 'E' + i, at: mockNowSec + 200 }];
+    await insRow({ token: tokens16[i], sys: 'thsr_sched', train_no: '9p16' + i, stops, last_idx: -1, last_delay: 0, bound_at: mockNowSec, expire_at: mockNowSec + 3600 });
+  }
+  calls.length = 0; apnsNextStatus = 200; apnsNextReason = '';
+  const envLimited = { ...env, LA_ROW_LIMIT: 2 };   // 3 列超過上限 2,不動共用 env
+  const { result: r16, errLines: errLines16 } = await captureConsole(() => laPushAll(envLimited, fakeCtx, BASE_URL));
+  ok('P16(關鍵)超過上限時只處理 LIMIT 筆(sent=2,不是 3)', r16.sent === 2, JSON.stringify(r16));
+  ok('P16(Important3延伸)觸頂必須留下 log,不能無聲截斷', errLines16.some(l => l.includes('列數觸頂')), JSON.stringify(errLines16));
+  const rows16 = await Promise.all(tokens16.map(getRow));
+  const stillMinus1 = rows16.filter(r => r && r.last_idx === -1).length;
+  ok('P16 被截斷的那一列留給下一分鐘(last_idx 仍是 -1,沒被跳過當作已處理)', stillMinus1 === 1, JSON.stringify(rows16.map(r => r && r.last_idx)));
+  for (const t of tokens16) await delRow(t);
+}
+
+// P17(Important6):cron 呼叫 traLive 不可污染用量分析 dataset(railisland_usage)。
+// 用一個假的 env.USAGE 觀察 writeDataPoint 有沒有被呼叫。正向對照:直接呼叫 traLive
+// (模擬真人前景請求,不帶 _src=cron)必須真的觸發一次寫入——不然「cron 沒觸發」這條斷言
+// 可能只是因為假 USAGE 綁定本身永遠不會被叫到(=== 0 的常見假綠陷阱)。
+{
+  const usageCalls = [];
+  const envWithUsage = { ...env, USAGE: { writeDataPoint: (...a) => { usageCalls.push(a); } } };
+
+  mockNowSec += 200;   // 前進>55秒逼真的重打上游,不吃前面測試留下的 traLive mem 快取
+  tdxBoard = [{ TrainNo: '1', DelayTime: 0, StationID: '5050', TrainStationStatus: 1 }];
+  usageCalls.length = 0;
+  await worker._la.traLive(new Request('https://dummy.invalid/api/tra-live?cam=follow&z=12'), envWithUsage, fakeCtx);
+  ok('P17(正向對照)真人前景請求(無 _src=cron)確實觸發用量埋點', usageCalls.length === 1, `count=${usageCalls.length}`);
+
+  const T17 = tok('p17');
+  await delRow(T17);
+  const stops17 = [{ name: '潮州', at: mockNowSec + 600 }, { name: '屏東', at: mockNowSec + 2040 }];
+  await insRow({ token: T17, sys: 'tra_sched', train_no: '1', stops: stops17, staMap: { '5050': 0 }, stopCodes: ['5050', '5000'], last_idx: -1, last_delay: 0, bound_at: mockNowSec, expire_at: mockNowSec + 3600 });
+  mockNowSec += 200;   // 再前進一輪,逼 laPushAll 這次真的重打上游(不吃上面 traLive 留下的快取)
+  tdxBoard = [{ TrainNo: '1', DelayTime: 0, StationID: '5050', TrainStationStatus: 1 }];
+  usageCalls.length = 0; calls.length = 0; apnsNextStatus = 200; apnsNextReason = '';
+  await laPushAll(envWithUsage, fakeCtx, BASE_URL);
+  ok('P17(關鍵)cron(laPushAll 內部呼叫 traLive)不寫入用量分析,不污染 railisland_usage', usageCalls.length === 0, `count=${usageCalls.length}`);
+  await delRow(T17);
 }
 
 await dispose();
