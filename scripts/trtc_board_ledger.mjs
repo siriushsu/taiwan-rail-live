@@ -842,11 +842,16 @@ export function bindTracksToTrips({ model, tripSets, dayType, tracks, priorBindi
     }
   }
 
-  // 8) 無反轉約束(§5.1(b),v1.1改):候選(tr,shift)與同(line,dir)班表序相鄰的「活躍」綁定
-  //    比較修正後末站時刻(tr末站時刻+各自 shift),只查緊鄰前後兩班,該班未綁或已收班則不構成約束。
+  // 8) 無反轉約束(§5.1(b),v1.2改):候選(tr,shift)與同(line,dir)班表序相鄰的「活躍」綁定
+  //    比較修正後**發車**時刻(tr[1]+各自 shift),只查緊鄰前後兩班,該班未綁或已收班則不構成約束。
   //    取代 v1.0 的「前驅單調水位線」——語料實測水位線會把終點折返靜默重生的車永久擋死
   //    (unbound 67.8%,98.2% 有合理候選卻被水位/連鎖佔用擋掉;水位線把「出生順序」當成
   //    「發車順序」,兩者在 track 折返/碎裂重生時脫鉤)。FIFO 的目的是時序不反轉,不是出生序單調。
+  //    v1.1 曾比較「修正後末站時刻」,短程/長程班交錯發車時(如 R 線北投/淡水)不同路線長度的
+  //    末站時刻不可比,系統性誤判假反轉(語料實測 21.3% 相鄰班次對 destIdx 不同,cost=11 的
+  //    近乎完美匹配被短程鄰班擋下)。改比「修正後發車時刻」:同 (line,dir) 班次同起點
+  //    (分支已拆獨立線 id),發車序即物理進入共線段的 FIFO 序,跨目的地天生可比,且仍保留
+  //    跨目的地真反轉偵測能力(這是不採 destIdx 分組方案的原因——分組會連這個能力一併失去)。
   const scheduleNeighbors = new Map(); // fullKey -> { prevKey, nextKey }(依 tr[1] 班表序)
   for (const [gk, trips] of tripSets || []) {
     const sep = gk.lastIndexOf('|'); const line = gk.slice(0, sep), dir = Number(gk.slice(sep + 1));
@@ -862,16 +867,16 @@ export function bindTracksToTrips({ model, tripSets, dayType, tracks, priorBindi
   function violatesNoReversal(fullKey, tr, shift) {
     const nb = scheduleNeighbors.get(fullKey);
     if (!nb) return false;
-    const candEnd = tr[tr.length - 1] + shift;
+    const candDep = tr[1] + shift;
     if (nb.prevKey) {
       const prevRec = records.get(nb.prevKey);
       const prevTr = prevRec && !prevRec.done && tripByFullKey.get(nb.prevKey);
-      if (prevTr && prevTr[prevTr.length - 1] + prevRec.lastShift > candEnd) return true;
+      if (prevTr && prevTr[1] + prevRec.lastShift > candDep) return true;
     }
     if (nb.nextKey) {
       const nextRec = records.get(nb.nextKey);
       const nextTr = nextRec && !nextRec.done && tripByFullKey.get(nb.nextKey);
-      if (nextTr && nextTr[nextTr.length - 1] + nextRec.lastShift < candEnd) return true;
+      if (nextTr && nextTr[1] + nextRec.lastShift < candDep) return true;
     }
     return false;
   }
