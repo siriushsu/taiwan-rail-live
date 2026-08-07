@@ -729,7 +729,10 @@ CREATE INDEX IF NOT EXISTS ix_la_expire ON la_bindings(expire_at);
 // LA 後端驗收。本檔【不打正式站】,一律對本機 wrangler dev 跑。
 // 起 server 的指令見計畫 Task 4 Step 3;埠由呼叫端指定並傳進 LA_BASE。
 const BASE = process.env.LA_BASE;
-if (!BASE) { console.error('請設 LA_BASE=http://localhost:<port>'); process.exit(2); }
+// 🔴 base 必須是 https(worker.js 有 http→https 301,純 http 會讓所有 /api/* 無限重導),
+//    且呼叫端要帶 NODE_TLS_REJECT_UNAUTHORIZED=0(本機自簽憑證)。起 server 的完整方式見計畫 Task 4 Step 3。
+if (!BASE) { console.error('請設 LA_BASE=https://127.0.0.1:<port>'); process.exit(2); }
+if (!BASE.startsWith('https://')) { console.error('LA_BASE 必須是 https,純 http 會被 301 無限重導'); process.exit(2); }
 const results = [];
 const ok = (n, p, d = '') => { results.push({ n, p }); console.log(`${p ? 'PASS' : 'FAIL'} ${n}${d ? ' — ' + d : ''}`); };
 const post = (path, body, hdr = {}) => fetch(BASE + path, {
@@ -800,21 +803,50 @@ process.exit(bad ? 1 : 0);
 
 - [ ] **Step 3: 跑測試，確認失敗**
 
-先建本機測試用的 `.dev.vars`（**已被 `.gitignore` 排除，不會進版控**）：
+> 🔴 **這一步有六個本專案實測過的坑，照做，不要自己簡化。**
+
+**(1) 從乾淨 worktree 起 server，不要從工作樹。** 工作樹起的 `wrangler dev` 會陷入
+每秒約 5 次的重載風暴（`assets.directory` 是 `"."`＝整個 repo 都在監看，未追蹤檔一多就爆），
+症狀是「埠在聽但久候零回應」，而且會偽裝成別的原因。乾淨樹實測 0 次/10 秒。
 
 ```bash
-printf 'LA_TEST_BEARER=LA-LOCAL-TEST\n' >> .dev.vars
+V=$(mktemp -d)/vtree && git worktree add --detach "$V" HEAD && ln -s "$PWD/node_modules" "$V/node_modules" && printf 'LA_TEST_BEARER=LA-LOCAL-TEST\n' > "$V/.dev.vars" && echo "$V"
 ```
 
-起 server 並跑：
-
-```bash
-arch -arm64 node ./node_modules/wrangler/bin/wrangler.js dev --local --port 8799
-```
+**(2) 必須 `--local-protocol https`。** `worker.js` 開頭有既有的 http→https 301，
+純 http 的 `wrangler dev` 會讓**所有** `/api/*` 無限重導——不只新端點。埠自己挑一個不常見的
+（這台機器 70+ worktree 並行，8787/8799 這種常撞）。
 
 ```bash
-LA_BASE=http://localhost:8799 node scripts/verify_la_backend.mjs
+cd <上一步印出的 $V> && find .wrangler -delete 2>/dev/null; arch -arm64 node ./node_modules/wrangler/bin/wrangler.js dev --local-protocol https --port 39471 --inspector-port 39472
 ```
+
+**(3) 就緒條件＝「給得出任何 HTTP 回應」，不要看狀態碼、不要看 log 字串、不要看 `lsof`。**
+這台的 `wrangler dev` **立刻 bind 埠但要約 50 秒才真的能服務**，暖機期間 `curl` 回 `000`（連上了但零 byte）。
+`lsof` 看到 LISTEN 完全不能當就緒證據。輪詢每一發要**自帶 timeout**（node 的 `fetch` 沒有預設 timeout，
+三發卡住就把整個 deadline 用光），總 deadline 給 **240 秒**：
+
+```bash
+for i in $(seq 1 48); do curl -sk -m 5 -o /dev/null -w "" https://127.0.0.1:39471/api/tra-live && echo "ready after ${i}0s" && break; sleep 5; done
+```
+
+**(4) 腳本端**要 `NODE_TLS_REJECT_UNAUTHORIZED=0`（本機自簽憑證）且 base 是 **https**：
+
+```bash
+NODE_TLS_REJECT_UNAUTHORIZED=0 LA_BASE=https://127.0.0.1:39471 node scripts/verify_la_backend.mjs
+```
+
+**(5) 每次重啟 server 前必 `find .wrangler -delete`。** 本機的 `caches.default` **跨重啟存活**，
+會讓突變測試打到上一輪留下的快取而假綠。唯一線索是「該變卻一字不差」。
+
+**(6) 收工要把行程清乾淨**，而且不能只殺埠上那顆——wrangler 是父子多進程，
+`pkill -f 'bin/wrangler.js dev'` 殺不到 workerd（它的 argv 是 `workerd serve`）：
+
+```bash
+pgrep -lf "wrangler|workerd" | grep 39471
+```
+
+看 argv 的埠號確認是自己那幾顆再逐一殺，**別誤殺別的 session 的**。
 
 預期：B0–B8 全 FAIL（端點還不存在，`/api/la/bind` 會被 assets fallback 接走）。
 
@@ -916,7 +948,7 @@ async function laUnbind(request, env) {
 - [ ] **Step 5: 跑測試，確認通過**
 
 ```bash
-LA_BASE=http://localhost:8799 node scripts/verify_la_backend.mjs
+NODE_TLS_REJECT_UNAUTHORIZED=0 LA_BASE=https://127.0.0.1:39471 node scripts/verify_la_backend.mjs
 ```
 
 預期：`總計 9 項, FAIL 0`。
@@ -1013,7 +1045,7 @@ ok('N15 誤點把到站推到未來 → 又回 ISO(不是永久 null)', typeof l
 - [ ] **Step 2: 跑測試，確認失敗**
 
 ```bash
-LA_BASE=http://localhost:8799 node scripts/verify_la_backend.mjs
+NODE_TLS_REJECT_UNAUTHORIZED=0 LA_BASE=https://127.0.0.1:39471 node scripts/verify_la_backend.mjs
 ```
 
 預期：整支在 import 就爆（`Cannot find module './la_push_core.mjs'`），N1–N15 一條都跑不到。
@@ -1068,7 +1100,7 @@ import { laNextIdx, laSchedIdx, laArrivalIso } from './scripts/la_push_core.mjs'
 - [ ] **Step 4: 跑測試，確認通過**
 
 ```bash
-LA_BASE=http://localhost:8799 node scripts/verify_la_backend.mjs
+NODE_TLS_REJECT_UNAUTHORIZED=0 LA_BASE=https://127.0.0.1:39471 node scripts/verify_la_backend.mjs
 ```
 
 預期：B0–B8 + N1–N15 全 PASS，共 24 項。
@@ -1153,7 +1185,7 @@ laArrivalIso:到站時刻已過就回 null,一條規則同時吃掉交會待避�
 - [ ] **Step 2: 跑測試，確認失敗**
 
 ```bash
-LA_BASE=http://localhost:8799 node scripts/verify_la_backend.mjs
+NODE_TLS_REJECT_UNAUTHORIZED=0 LA_BASE=https://127.0.0.1:39471 node scripts/verify_la_backend.mjs
 ```
 
 預期：J1–J3 FAIL。
@@ -1186,7 +1218,7 @@ export async function laJwt(env) {
 - [ ] **Step 4: 跑測試，確認通過**
 
 ```bash
-LA_BASE=http://localhost:8799 node scripts/verify_la_backend.mjs
+NODE_TLS_REJECT_UNAUTHORIZED=0 LA_BASE=https://127.0.0.1:39471 node scripts/verify_la_backend.mjs
 ```
 
 預期：J1–J3 PASS。
@@ -1319,7 +1351,7 @@ printf 'APNS_HOST=api.sandbox.push.apple.com\n' >> .dev.vars
 先確認自動驗收仍全綠：
 
 ```bash
-LA_BASE=http://localhost:8799 node scripts/verify_la_backend.mjs
+NODE_TLS_REJECT_UNAUTHORIZED=0 LA_BASE=https://127.0.0.1:39471 node scripts/verify_la_backend.mjs
 ```
 
 真機跟一台車讓它 bind，然後手動觸發一次 cron：
