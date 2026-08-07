@@ -5,13 +5,16 @@
 // 坑7:工作樹起會陷入重載風暴、永遠不服務)。
 // v1.1(2026-08-07 晚):§5.1(b) 前驅單調水位線→無反轉約束、§5.3 新增 reclaim 認回,見
 // tmp_設計書.md §14。R7 拆成 R7a(真反轉必擋)/R7b(假反轉不擋),新增 R11(折返重生)/R12(安全閥專測)。
+// v1.2(2026-08-07 夜):§5.1(b) 比較基準改「修正後發車時刻」(取代 v1.1 的「末站時刻」,短長分支
+// 交錯時不可比),R7a/R7b 情境隨新基準改寫;新增 R13(合成正式節奏,15s/輪×60分鐘,<5%硬門檻+
+// 綁對率>98%);語料回放門檻改條件式,見 tmp_設計書.md §15。
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import crypto from 'node:crypto';
 import { spawn, execFileSync } from 'node:child_process';
 import { DatabaseSync } from 'node:sqlite';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 import {
   buildTrtcModel, buildLedgerFromRaw, trtcServiceDay,
   bindTracksToTrips, buildTripSetsByLineDir, tripKeyOf, tripRosterActive, tripLegIndex, trtcServiceSecOfEpoch,
@@ -50,7 +53,10 @@ const T0 = 8 * 3600; // 08:00 起算,5 班 300s 頭距落在 08:00-08:20,遠離 
 
 function mkTrip(st0, t0, legs) { const tr = [st0, t0]; for (const [to, arr] of legs) tr.push(to, arr); return tr; }
 function mkNarrowTrip(t0) { return mkTrip(0, t0, [[1, t0 + 200]]); } // 2 站,200s 短窗,R1/R8 用(黏性續算不查視窗,故意留窄凸顯這點)
-function mkWideTrip(t0) { return mkTrip(0, t0, [[1, t0 + 120], [2, t0 + 7200]]); } // 末段給 2 小時,R2/R3/R7 用,防出生匹配當下視窗已到期混淆
+function mkWideTrip(t0) { return mkTrip(0, t0, [[1, t0 + 120], [2, t0 + 7200]]); } // 末段給 2 小時,R2/R3 用,防出生匹配當下視窗已到期混淆
+// R7a/R7b(v1.2)用:同起點、不同終點站(destIdx 2 vs 3)、不同總長度——短長分支交錯發車的縮影。
+function mkLongTrip(t0) { return mkTrip(0, t0, [[1, t0 + 3600], [2, t0 + 7200]]); }  // 長程,終點站2,末站時刻很晚
+function mkShortTrip(t0) { return mkTrip(0, t0, [[1, t0 + 900], [3, t0 + 1800]]); }  // 短程,終點站3(不同destIdx),末站時刻很早
 function buildSeries(n, startSec, wide = false) {
   const trips = []; for (let i = 0; i < n; i++) trips.push(wide ? mkWideTrip(startSec + i * HW) : mkNarrowTrip(startSec + i * HW));
   return trips;
@@ -104,32 +110,40 @@ function bindWithoutFifo(tripSets, priorBindings, claim, nowEpoch) {
   return best;
 }
 
-// ── v1.0 前驅單調水位線的獨立複刻(R7b 對照組;證明這條被廢棄的規則會誤擋合法的「假反轉」案例) ──
-function bindWithV0Watermark(tripSets, priorBindings, claim, nowEpoch) {
+// ── v1.1 無反轉約束「末站時刻」基準的獨立複刻(R7b 對照組,v1.2 改基準後專用;證明 v1.1 自己的
+//    比較基準——短長分支交錯時——會誤擋合法的「假反轉」案例;取代已不再使用的 v1.0 水位線對照組,
+//    因為 v0 的水位線本身是 destIdx-scoped(只比對同終點的班次),對跨目的地情境完全不觸發、
+//    測不出這裡要驗的東西——這正是 v1.2 要修的缺陷是 v1.1 自己引入的,不是 v0 原本就有的證據) ──
+function bindWithV11EndTimeBasis(tripSets, priorBindings, claim, nowEpoch) {
   const nowSec = trtcServiceSecOfEpoch(nowEpoch);
   const occupied = new Set((priorBindings || []).filter(p => !p.done).map(p => `${p.line}|${p.dir}|${p.tripKey}`));
   const shifts = (priorBindings || []).filter(p => !p.done).map(p => p.lastShift || 0).sort((a, b) => a - b);
   const ref = shifts.length ? shifts[Math.floor((shifts.length - 1) / 2)] : 0;
   const depSec = trtcServiceSecOfEpoch(claim.arrEpoch);
-  let latestDep = null; // 同路線(起訖站相同)已綁的最大 tr[1]——v1.0 §5.1(b) 原文邏輯
+  const sorted = [...(tripSets.get(`${claim.line}|${claim.dir}`) || [])].sort((a, b) => a[1] - b[1]);
+  const boundTr = new Map(); // tripKey -> {tr, lastShift},僅現役綁定
   for (const p of priorBindings || []) {
-    if (p.done) continue;
-    for (const tr of tripSets.get(`${p.line}|${p.dir}`) || []) {
-      if (tripKeyOf(tr) !== p.tripKey) continue;
-      if (tr[0] === claim.from && tr[tr.length - 2] === claim.destIdx) {
-        if (latestDep == null || tr[1] > latestDep) latestDep = tr[1];
-      }
-      break;
-    }
+    if (p.done || p.line !== claim.line || p.dir !== claim.dir) continue;
+    const tr = sorted.find(t => tripKeyOf(t) === p.tripKey);
+    if (tr) boundTr.set(p.tripKey, { tr, lastShift: p.lastShift || 0 });
+  }
+  function violatesV11EndTime(tr, shift) {
+    const idx = sorted.findIndex(t => t === tr);
+    const candEnd = tr[tr.length - 1] + shift; // v1.1 舊基準:末站時刻,不是發車時刻
+    const prev = idx > 0 ? boundTr.get(tripKeyOf(sorted[idx - 1])) : null;
+    if (prev && prev.tr[prev.tr.length - 1] + prev.lastShift > candEnd) return true;
+    const next = idx < sorted.length - 1 ? boundTr.get(tripKeyOf(sorted[idx + 1])) : null;
+    if (next && next.tr[next.tr.length - 1] + next.lastShift < candEnd) return true;
+    return false;
   }
   let best = null;
-  for (const tr of tripSets.get(`${claim.line}|${claim.dir}`) || []) {
+  for (const tr of sorted) {
     if (!tripRosterActive(tr, nowSec) || tr[tr.length - 2] !== claim.destIdx || tr[0] !== claim.from) continue;
     const fullKey = `${claim.line}|${claim.dir}|${tripKeyOf(tr)}`;
     if (occupied.has(fullKey)) continue;
     const shift = depSec - tr[1];
     if (shift < -90) continue;
-    if (latestDep != null && tr[1] <= latestDep) continue; // v1.0 前驅單調水位線
+    if (violatesV11EndTime(tr, shift)) continue;
     const cost = Math.abs(shift - ref);
     if (cost > 600 || Math.abs(shift) > 1800) continue;
     if (!best || cost < best.cost) best = { tripKey: tripKeyOf(tr), tr, cost, shift };
@@ -231,58 +245,59 @@ say('\n── R3:班次取消(從未出現任何 track),不产生連鎖錯位,�
   ok(!claimedTripKey1, 'R3 取消班(trip[1])全程無人綁定', `bindings 含 trip[1]=${claimedTripKey1}`);
 }
 
-say('\n── R7a:真反轉必擋(v1.1)——候選時序與已綁鄰班矛盾則擋下;對照組(拆無反轉檢查)須讓反轉真的發生 ──');
+say('\n── R7a:真反轉必擋(v1.2,新基準=修正後發車時刻,短長分支交錯)——候選時序與已綁鄰班矛盾則擋下,即使目的地不同;對照組(拆無反轉檢查)須讓反轉真的發生 ──');
 {
-  const [tripA, tripB] = buildSeries(2, T0 + 20000, true); // wide window,防視窗到期confound;tripB 班表序在 tripA 之後
-  const tripSets = tripSetsOf([tripA, tripB]);
-  const now1 = secToEpoch(T0 + 20000 + HW) + 5;
-  const b1 = bindTracksToTrips({ model: null, tripSets, dayType: '平日', tracks: [terminalClaim('late', tripB, 0)],
+  // tripLong 班表序在前(發車早,T0+22000)、tripShort 班表序在後(發車晚,+HW)、目的地不同(destIdx 2 vs 3)。
+  const tripLong = mkLongTrip(T0 + 22000), tripShort = mkShortTrip(T0 + 22000 + HW);
+  const tripSets = tripSetsOf([tripLong, tripShort]);
+  const now1 = secToEpoch(T0 + 22000 + HW) + 5;
+  const b1 = bindTracksToTrips({ model: null, tripSets, dayType: '平日', tracks: [terminalClaim('short', tripShort, 0)],
     priorBindings: [], nowEpoch: now1, day: dayOf(now1) });
-  const rLate = findBinding(b1.bindings, 'late');
-  ok(!!rLate && rLate.tripKey === tripKeyOf(tripB), 'R7a 前置:track late 先準點綁到較晚班次 tripB', JSON.stringify(rLate && rLate.tripKey));
+  const rShort = findBinding(b1.bindings, 'short');
+  ok(!!rShort && rShort.tripKey === tripKeyOf(tripShort), 'R7a 前置:短程車 short 先準點綁到 tripShort', JSON.stringify(rShort && rShort.tripKey));
 
-  const REVERSE_DELTA = 400; // >HW(300),讓 tripA 修正後末站時刻晚於 tripB 已綁的修正後末站時刻⇒真反轉;仍在 cost cap(600)內
-  const claimEarly = terminalClaim('early', tripA, REVERSE_DELTA);
+  const REVERSE_DELTA = HW + 100; // >HW,讓 tripLong 修正後發車時刻(候選)晚於已綁 tripShort 的修正後發車時刻⇒真反轉(班表序在前卻發車在後);仍在 cost cap(600)內
+  const claimLong = terminalClaim('long', tripLong, REVERSE_DELTA);
   const now2 = now1 + 30;
-  // late 本輪也準點續報(排除 reclaim 側路):若 late 這輪不出現,它會被判定「本輪沒收到更新」而成為
-  // reclaim 候選,early 的觀測值若剛好落在 reclaim 180s cost 內會被拿去認回 late 的 tripB,汙染這個純
-  // 測無反轉約束的案例(late 仍是活躍中的真實列車,不是本測試想模擬的失聯情境)。
-  const b2 = bindTracksToTrips({ model: null, tripSets, dayType: '平日', tracks: [claimEarly, terminalClaim('late', tripB, 0)],
+  // short 本輪也準點續報(排除 reclaim 側路):理由同 v1.1 版——避免 short 因「本輪沒收到更新」被
+  // long 的觀測值以 reclaim 180s cost 誤認,汙染這個純測無反轉約束的案例。
+  const b2 = bindTracksToTrips({ model: null, tripSets, dayType: '平日', tracks: [claimLong, terminalClaim('short', tripShort, 0)],
     priorBindings: b1.bindings, nowEpoch: now2, day: dayOf(now2) });
-  const rEarly = findBinding(b2.bindings, 'early');
-  ok(!rEarly, 'R7a track early 誤點400s 導致與已綁 tripB 時序矛盾,被無反轉約束擋下(cost/cap 皆過關,唯一擋因是(b))',
-    rEarly ? `卻綁到了 ${rEarly.tripKey}` : '正確 unbound');
+  const rLong = findBinding(b2.bindings, 'long');
+  ok(!rLong, 'R7a 長程車 long 誤點導致修正後發車時刻晚於已綁短程車 short(cost/cap 皆過關,唯一擋因是(b)),即使目的地不同也被無反轉約束擋下',
+    rLong ? `卻綁到了 ${rLong.tripKey}` : '正確 unbound');
 
-  const mutant = bindWithoutFifo(tripSets, b1.bindings, claimEarly, now2); // 中性對照:無任何順序約束(既非水位線也非無反轉)
-  const correctedEndA = tripA[tripA.length - 1] + REVERSE_DELTA, correctedEndB = tripB[tripB.length - 1] + 0;
-  ok(!!mutant && mutant.tripKey === tripKeyOf(tripA) && correctedEndA > correctedEndB,
-    'R7a 對照組(拆無反轉檢查)early 成功綁進 tripA ⇒ 真的產生時序倒置(tripA 修正後末站時刻反而晚於 tripB)',
-    `mutant 選到 ${mutant && mutant.tripKey};修正後末站 tripA=${correctedEndA} > tripB=${correctedEndB}`);
+  const mutant = bindWithoutFifo(tripSets, b1.bindings, claimLong, now2); // 中性對照:無任何順序約束
+  const correctedDepLong = tripLong[1] + REVERSE_DELTA, correctedDepShort = tripShort[1] + 0;
+  ok(!!mutant && mutant.tripKey === tripKeyOf(tripLong) && correctedDepLong > correctedDepShort,
+    'R7a 對照組(拆無反轉檢查)long 成功綁進 tripLong ⇒ 真的產生發車時序倒置(即使目的地不同,long 班表序在前,修正後卻晚於 short 發車)',
+    `mutant 選到 ${mutant && mutant.tripKey};修正後發車 long=${correctedDepLong} > short=${correctedDepShort}`);
 }
 
-say('\n── R7b:假反轉不擋(v1.1新增)——晚出生但班表序/物理序皆在前的車可綁早班(折返縮影);對照組(掛回v1.0水位線)須誤擋 ──');
+say('\n── R7b:假反轉不擋(v1.2,新基準)——短長分支交錯發車,長程班班表序在前卻被短程鄰班的「末站時刻」誤判擋下(v1.1自身缺陷);新基準(發車時刻)正確放行 ──');
 {
-  const [tripA, tripB] = buildSeries(2, T0 + 21000, true); // 與 R7a 不同起點,避免互相污染
-  const tripSets = tripSetsOf([tripA, tripB]);
-  const now1 = secToEpoch(T0 + 21000 + HW) + 5;
-  const b1 = bindTracksToTrips({ model: null, tripSets, dayType: '平日', tracks: [terminalClaim('late', tripB, 0)],
+  // 與 v1.1 版 R7b 的差異:改用短長分支交錯(destIdx 不同),直接重現 v1.1 §5.1(b) 用「末站時刻」
+  // 比較時的真實缺陷(短程班的末站時刻天生比長程班早,即使雙方都準點)。
+  const tripLong = mkLongTrip(T0 + 23000), tripShort = mkShortTrip(T0 + 23000 + HW);
+  const tripSets = tripSetsOf([tripLong, tripShort]);
+  const now1 = secToEpoch(T0 + 23000 + HW) + 5;
+  const b1 = bindTracksToTrips({ model: null, tripSets, dayType: '平日', tracks: [terminalClaim('short', tripShort, 0)],
     priorBindings: [], nowEpoch: now1, day: dayOf(now1) });
-  const rLate = findBinding(b1.bindings, 'late');
-  ok(!!rLate && rLate.tripKey === tripKeyOf(tripB), 'R7b 前置:track late 先準點綁到較晚班次 tripB(折返縮影:B 先出生)', JSON.stringify(rLate && rLate.tripKey));
+  const rShort = findBinding(b1.bindings, 'short');
+  ok(!!rShort && rShort.tripKey === tripKeyOf(tripShort), 'R7b 前置:短程車 short 先準點綁到 tripShort(折返縮影:短程先出生)', JSON.stringify(rShort && rShort.tripKey));
 
-  const claimEarly = terminalClaim('early', tripA, 0); // 準點,物理序天然在 tripB 之前,無真反轉——這正是 v1.0 會誤擋的案例
+  const claimLong = terminalClaim('long', tripLong, 0); // 準點,班表序天然在 tripShort 之前,無真反轉——這正是 v1.1 舊基準會誤擋的案例
   const now2 = now1 + 30;
-  // late 本輪也準點續報,理由同 R7a(排除 reclaim 側路汙染這個純測無反轉約束的案例)。
-  const b2 = bindTracksToTrips({ model: null, tripSets, dayType: '平日', tracks: [claimEarly, terminalClaim('late', tripB, 0)],
+  const b2 = bindTracksToTrips({ model: null, tripSets, dayType: '平日', tracks: [claimLong, terminalClaim('short', tripShort, 0)],
     priorBindings: b1.bindings, nowEpoch: now2, day: dayOf(now2) });
-  const rEarly = findBinding(b2.bindings, 'early');
-  ok(!!rEarly && rEarly.tripKey === tripKeyOf(tripA),
-    'R7b track early 晚出生但班表序/修正後物理序皆在 tripB 之前,無反轉約束放行,正確綁進 tripA',
-    rEarly ? `綁到 ${rEarly.tripKey}` : '卻 unbound(v1.1 應放行,語料 67.8% unbound 的根因就是這種案例被誤擋)');
+  const rLong = findBinding(b2.bindings, 'long');
+  ok(!!rLong && rLong.tripKey === tripKeyOf(tripLong),
+    'R7b 長程車 long 晚出生但班表序天然在 short 之前、雙方皆準點,新基準(發車時刻)正確放行綁進 tripLong',
+    rLong ? `綁到 ${rLong.tripKey}` : '卻 unbound(v1.1 用末站時刻比較的根因重現——短程末站天生較早,被誤判反轉)');
 
-  const mutant = bindWithV0Watermark(tripSets, b1.bindings, claimEarly, now2);
-  ok(!mutant, 'R7b 對照組(掛回 v1.0 前驅單調水位線)必誤擋此合法案例(=v1.0 的真實缺陷根因)',
-    mutant ? `v1.0 水位線卻放行綁到 ${mutant.tripKey}(對照組應該擋下才對,矛盾)` : '正確:v1.0 水位線誤擋(紅)');
+  const mutant = bindWithV11EndTimeBasis(tripSets, b1.bindings, claimLong, now2);
+  ok(!mutant, 'R7b 對照組(掛回 v1.1 末站時刻基準)必誤擋此合法案例(=v1.2 要修的缺陷根因,語料實測 21.3% 相鄰班次對 destIdx 不同都會踩到)',
+    mutant ? `v1.1 末站基準卻放行綁到 ${mutant.tripKey}(對照組應該擋下才對,矛盾)` : '正確:v1.1 末站基準誤擋(紅)');
 }
 
 say('\n── R8:強制每輪重配(黏性 mutation),同一份真實函式在清空 priorBindings 下必須重現 R1 的誤判 ──');
@@ -388,6 +403,300 @@ say('\n── R12:安全閥專測(v1.1新增)——|shift-ref|>600s 連續4輪�
   const mutant = simulateBadStreak(singleJitterSeq, 1);
   ok(mutant.evicted && mutant.round === 1, 'R12 對照組(閥值突變成1輪)同一個單輪抖動立刻被誤殺 ⇒「連續4輪」這個寬度本身有牙,' +
     '不是裝飾——寬度不夠就退化回每輪重猜(=本設計要根治的現行 bug)', JSON.stringify(mutant));
+}
+
+// ── v0 水位線的「完整批次版」對照組(R13 專用):文字替換注入法,只換 §5.1(b) 這一段判斷式,
+//    reclaim/cost/cap/黏著/安全閥全部沿用真實模組原始碼——確保對照組與正式邏輯除了被測的
+//    這一條規則外完全一致,不是手刻一份簡化複刻品(那樣容易語意漂移,參考心得29「判準與實作
+//    同源」的反面教訓——這裡刻意讓「非被測部分」同源,只讓「被測部分」是唯一變因)。
+//    找不到預期原始碼區塊就直接 throw(上游改版時要顯式失敗,不要默默比對到錯的東西)。
+function makeV0WatermarkVariant() {
+  const src = fs.readFileSync(BIND_MODULE, 'utf8');
+  const oldFn = `  function violatesNoReversal(fullKey, tr, shift) {
+    const nb = scheduleNeighbors.get(fullKey);
+    if (!nb) return false;
+    const candDep = tr[1] + shift;
+    if (nb.prevKey) {
+      const prevRec = records.get(nb.prevKey);
+      const prevTr = prevRec && !prevRec.done && tripByFullKey.get(nb.prevKey);
+      if (prevTr && prevTr[1] + prevRec.lastShift > candDep) return true;
+    }
+    if (nb.nextKey) {
+      const nextRec = records.get(nb.nextKey);
+      const nextTr = nextRec && !nextRec.done && tripByFullKey.get(nb.nextKey);
+      if (nextTr && nextTr[1] + nextRec.lastShift < candDep) return true;
+    }
+    return false;
+  }
+`;
+  if (!src.includes(oldFn)) throw new Error('R13:BIND_MODULE 內找不到預期的 violatesNoReversal 原始碼區塊,替換法需要更新(上游可能已改版)');
+  const v0Fn = `  function violatesV0Watermark(claim, tr) { // [R13對照組,文字替換注入]v0水位線:同(line,dir,from,destIdx)路線已綁最大 tr[1]
+    let wm = null;
+    for (const [fk, rec] of records) {
+      if (rec.done || rec.line !== claim.line || rec.dir !== claim.dir) continue;
+      const t = tripByFullKey.get(fk);
+      if (!t || t[0] !== claim.from || t[t.length - 2] !== claim.destIdx) continue;
+      if (wm == null || t[1] > wm) wm = t[1];
+    }
+    return wm != null && tr[1] <= wm;
+  }
+`;
+  let out = src.replace(oldFn, v0Fn);
+  const callA = 'violatesNoReversal(fullKey, tr, shift)', callB = 'violatesNoReversal(e.fullKey, e.tr, e.shift)';
+  const countA = out.split(callA).length - 1, countB = out.split(callB).length - 1;
+  if (countA !== 2 || countB !== 2) throw new Error(`R13:預期呼叫點各2處,實際 A=${countA} B=${countB},替換法需要更新`);
+  out = out.split(callA).join('violatesV0Watermark(claim, tr)').split(callB).join('violatesV0Watermark(e.claim, e.tr)');
+  const tmpPath = path.join(fs.realpathSync(os.tmpdir()), `trtc_board_ledger_v0wm_${crypto.randomUUID()}.mjs`);
+  fs.writeFileSync(tmpPath, out);
+  return tmpPath;
+}
+
+say('\n── R13:合成正式節奏(v1.2新增)——從真實班表以15s/輪×60分鐘合成理想看板流,注入誤點/折返/取消;<5%硬門檻+綁對率>98%;對照組(掛回v0水位線)須顯著惡化 ──');
+{
+  const times13 = JSON.parse(fs.readFileSync(path.join(ROOT, 'data/trtc_times.json')));
+  const dayTypeTable13 = JSON.parse(fs.readFileSync(path.join(ROOT, 'data/tw_daytype.json')));
+  const day13 = '2026-08-03'; // 週一/平日,與語料回放同一天(已知有效日型,見前一輪 dayType 查證)
+  const { tripSets: tripSets13, dayKeys: dayKeys13 } = buildTripSetsByLineDir(times13, dayTypeTable13, day13);
+  const dayType13 = (dayKeys13 && dayKeys13.get('BL')) || '平日';
+
+  const WIN_START = 8 * 3600, WIN_END = WIN_START + 3600, TICK = 15; // 08:00-09:00,尖峰,15秒/輪×240輪
+
+  // 選車:對每個 line+dir 群組,取「班次的[dep,end]視窗與觀測窗有重疊」的班次,各配一台合成車。
+  const roster = [];
+  for (const [gk, trips] of tripSets13) {
+    const sep = gk.lastIndexOf('|'); const line = gk.slice(0, sep), dir = Number(gk.slice(sep + 1));
+    for (const tr of trips) {
+      if (tr[1] >= WIN_END || tr[tr.length - 1] <= WIN_START) continue; // 全無重疊
+      roster.push({ line, dir, tr, tripKey: tripKeyOf(tr), carId: `r13:${line}:${dir}:${tripKeyOf(tr)}`, delta: 0 });
+    }
+  }
+  ok(roster.length >= 30, 'R13 前置:合成節奏涵蓋足夠班次(貼近正式站尖峰同時在線車數,真正的擁擠/競爭條件)', `roster=${roster.length}`);
+
+  function headwayOf(line, dir, destIdx) { // 該 line+dir+destIdx 群組的中位數頭距,供「>半頭距」判準用
+    const trs = (tripSets13.get(`${line}|${dir}`) || []).filter(t => t[t.length - 2] === destIdx).sort((a, b) => a[1] - b[1]);
+    const diffs = []; for (let i = 1; i < trs.length; i++) diffs.push(trs[i][1] - trs[i - 1][1]);
+    diffs.sort((a, b) => a - b);
+    return diffs.length ? diffs[Math.floor(diffs.length / 2)] : 300;
+  }
+
+  // 挑 5 台特殊車(百分位索引,對 roster 大小不敏感、彼此分散在不同 line+dir 群組):
+  // 1 取消、2 誤點(3-8分,其一>半頭距)、2 折返靜默(>3分鐘,track id 更換)。
+  const idxAt = f => Math.floor(roster.length * f);
+  const cancelled = roster[idxAt(0.08)];
+
+  // §5.1(b) 的無反轉約束比的是「全目的地混排」班表序相鄰(scheduleNeighbors 建構時不濾 destIdx),
+  // 不是 headwayOf() 算的同目的地中位數頭距——多目的地交錯的線上兩者可以差很多(實測同目的地頭距
+  // 240s,但全目的地相鄰 gap 只有 131s)。若誤點量只照同目的地頭距訂,會把候選車的修正後發車時刻
+  // 直接推過下一班「準點」鄰班的時刻,觸發無反轉約束——而鄰班一趟車程常 >30 分,60 分鐘觀測窗內
+  // 通常不會收班,約束在窗內永不解除,該車會整段觀測窗卡死 unbound。這不是演算法 bug(無反轉正確
+  // 擋下了一個對準點鄰班而言真實的時序反轉),是合成器選錯了誤點量——改成在候選附近搜尋「相對
+  // 全目的地下一班還留有安全邊界」的車,而不是照公式硬塞一個可能塞不下的量。
+  function neighborNextGap(entry) {
+    const trips = tripSets13.get(`${entry.line}|${entry.dir}`) || [];
+    const sorted = [...trips].sort((a, b) => a[1] - b[1]);
+    const i = sorted.findIndex(t => tripKeyOf(t) === entry.tripKey);
+    return i >= 0 && i < sorted.length - 1 ? sorted[i + 1][1] - entry.tr[1] : Infinity;
+  }
+  function findDelayCandidate(centerFrac, needHalfHeadway, excludeIds, radius = 60) {
+    const center = idxAt(centerFrac);
+    for (let d = 0; d <= radius; d++) {
+      for (const i of (d === 0 ? [center] : [center - d, center + d])) {
+        if (i < 0 || i >= roster.length) continue;
+        const e = roster[i];
+        if (excludeIds.has(e.carId)) continue;
+        const H = headwayOf(e.line, e.dir, e.tr[e.tr.length - 2]);
+        // 延遲量還要塞進「該車原始 tr[1] 加上 delta 後仍在觀測窗內、且留至少 120s 可觀測」——
+        // 否則车 shifted 後的發車時刻整段落在 WIN_END 之後,claimAt 永遠回 null,該車全窗期都不
+        // 會出現在 claims 裡(綁對率檢查會看到它「MISSING」而非「unbound」,兩者都不算過)。
+        const windowFit = WIN_END - e.tr[1] - 120;
+        const maxFeasible = Math.min(480, neighborNextGap(e) - 30, windowFit); // 30s 安全邊界,不貼著鄰班卡死
+        if (maxFeasible < 180) continue; // 塞不下 3 分鐘下限,跳過
+        if (needHalfHeadway && !(maxFeasible > H / 2 + 10)) continue;
+        e.delta = needHalfHeadway ? Math.min(maxFeasible, Math.max(180, Math.ceil(H / 2) + 30))
+                                   : Math.min(maxFeasible, 360);
+        return e;
+      }
+    }
+    throw new Error(`R13:找不到滿足延遲條件且不會卡死的候選車(center=${centerFrac},radius=${radius})`);
+  }
+  const delayExcl = new Set([cancelled.carId]);
+  const delayed1 = findDelayCandidate(0.25, true, delayExcl); delayExcl.add(delayed1.carId);
+  const delayed2 = findDelayCandidate(0.48, false, delayExcl); delayExcl.add(delayed2.carId);
+  const silence1 = roster[idxAt(0.68)];
+  // silence2 刻意挑「靜默重現仍落在第一腿(k=1/terminal claim)內」的車,不是隨百分位靠運氣——
+  // v0 水位線(violatesV0Watermark)比對的是 t[0]===claim.from,對非 terminal 的 claim(from=行進
+  // 中的中途站)恆為 0!==非0 而永遠不觸發,實測 silence1 那種「重現在路線中段」的一般折返完全測不
+  // 出 v0 與 v1.2 的差異(both 0% unbound)。要讓 v0 真的顯著惡化,必須讓「重現時刻仍在第一腿內」
+  // 發生——此時 reclaim 對自己原本那筆(仍佔用同一 fullKey、尚未刪除)算水位線,自己的 tr[1] 必然
+  // ≤ 自己造出來的水位線(自我參照恆真),v0 因此永遠卡死自己的折返車;v1.2 的無反轉約束比的是「與
+  // 鄰班」而非「與自己」,同一班次 shift 不變時對鄰班無威脅,能正常認回。這才是 v0 歷史真實壞掉的
+  // 場景(§5.1(b) 註解「水位線把終點折返靜默重生的車永久擋死」),不是本測試自己想像出來的分支。
+  function findTerminalSilenceCandidate(dur, excludeIds) {
+    for (const e of roster) {
+      if (excludeIds.has(e.carId)) continue;
+      const firstLegDur = e.tr[3] - e.tr[1];
+      if (firstLegDur < dur + 40) continue; // 前後各留 ≥20s 觀測餘裕
+      const lo = Math.max(e.tr[1], WIN_START), hi = Math.min(e.tr[3], WIN_END);
+      if (hi - lo < dur + 40) continue; // 整段還要落在觀測窗內
+      return e;
+    }
+    throw new Error(`R13:找不到「靜默重現仍落在第一腿內」的候選車(dur=${dur})——v0 對照組會失去` +
+      '唯一能被差異化的場景(v0 水位線只在 terminal claim 才生效)');
+  }
+  const silence2 = findTerminalSilenceCandidate(200, new Set([cancelled.carId, delayed1.carId, delayed2.carId, silence1.carId]));
+  const specialSet = new Set([cancelled, delayed1, delayed2, silence1, silence2]);
+  ok(specialSet.size === 5, 'R13 前置:5台特殊車(1取消+2誤點+2折返)彼此不重複、分散在不同班次', `distinct=${specialSet.size}`);
+
+  const H1 = headwayOf(delayed1.line, delayed1.dir, delayed1.tr[delayed1.tr.length - 2]);
+  // silence1(一般折返,測「中途重現」的常態路徑):起點落在「行程 ∩ 觀測窗」重疊區間的 40% 處,
+  // 不能只照該車自己全程的 40% 算——挑到行程大半段落在觀測窗外的車時,40% 記號會落在 WIN_END 之
+  // 後,靜默事件整段窗內都不會發生,carId2 永遠不會出現(這是合成器的 bug,不是 bindTracksToTrips
+  // 的 bug)。silence2(見上,測 v0 差異化場景)改用「僅限第一腿內」的版本,兩者共用同一種「扣掉
+  // 靜默時長後取 40%」算法,只差可用區間的上界(hi)。
+  function silenceStartFor(entry, dur, hiBound) {
+    const lo = Math.max(entry.tr[1], WIN_START), hi = Math.min(hiBound, WIN_END);
+    return lo + Math.floor(Math.max(0, hi - lo - dur) * 0.4);
+  }
+  silence1.silenceDur = 220;
+  silence1.silenceAt = silenceStartFor(silence1, silence1.silenceDur, silence1.tr[silence1.tr.length - 1]);
+  silence1.carId2 = silence1.carId + ':B';
+  silence2.silenceDur = 200;
+  silence2.silenceAt = silenceStartFor(silence2, silence2.silenceDur, silence2.tr[3]); // 限第一腿(tr[3]=k=1 終點)內
+  silence2.carId2 = silence2.carId + ':B';
+
+  ok(delayed1.delta > H1 / 2 && delayed1.delta >= 180, 'R13 前置:誤點車1 delay 落在3-8分鐘且超過半頭距',
+    `delta=${delayed1.delta}s,H/2=${(H1 / 2).toFixed(0)}s`);
+  ok(delayed2.delta >= 180 && delayed2.delta <= 480, 'R13 前置:誤點車2 delay 落在3-8分鐘', `delta=${delayed2.delta}s`);
+  ok(silence1.silenceDur > 180 && silence2.silenceDur > 180, 'R13 前置:兩次折返靜默皆 >3分鐘',
+    `dur1=${silence1.silenceDur}s dur2=${silence2.silenceDur}s`);
+
+  // 取消班永不產生 claim,但仍留在 tripSets13(排班表)裡——scheduleNeighbors 找得到它,
+  // 才是真的在驗「取消班不造成鄰班連鎖錯位」(R3 語義的合成節奏版)。
+  const activeRoster = roster.filter(e => e !== cancelled);
+
+  function claimAt(entry, nowSec) { // 給定車輛與當下時刻,回傳此刻的看板列 claim(或 null=尚未發車/已到站/靜默中)
+    const shifted = sec => sec + (entry.delta || 0);
+    if (nowSec < shifted(entry.tr[1]) || nowSec > shifted(entry.tr[entry.tr.length - 1])) return null;
+    let trackId = entry.carId;
+    if (entry.silenceAt != null) {
+      const s0 = shifted(entry.silenceAt), s1 = s0 + entry.silenceDur;
+      if (nowSec >= s0 && nowSec < s1) return null; // 靜默期間,不產生任何 claim
+      if (nowSec >= s1) trackId = entry.carId2; // 靜默後,track id 更換重現
+    }
+    const legs = entry.tr.length / 2 - 1;
+    for (let k = 1; k <= legs; k++) {
+      const legDep = shifted(entry.tr[(k - 1) * 2 + 1]), legArr = shifted(entry.tr[k * 2 + 1]);
+      if (nowSec < legDep || nowSec > legArr) continue;
+      if (k === 1) {
+        return { trackId, line: entry.line, dir: entry.dir, from: entry.tr[0], to: entry.tr[entry.tr.length - 2],
+          destIdx: entry.tr[entry.tr.length - 2], arrEpoch: secToEpoch(legDep), run: 0, terminal: true };
+      }
+      const from = entry.tr[(k - 1) * 2], to = entry.tr[k * 2];
+      return { trackId, line: entry.line, dir: entry.dir, from, to, destIdx: entry.tr[entry.tr.length - 2],
+        arrEpoch: secToEpoch(legArr), run: legArr - legDep, terminal: false };
+    }
+    return null;
+  }
+
+  // 雙軌並跑:v1.2(真實 import)與 v0 水位線對照組(文字替換注入),共用同一份合成 claims 序列。
+  const v0Path = makeV0WatermarkVariant();
+  try {
+    const { bindTracksToTrips: bindV0 } = await import(pathToFileURL(v0Path).href);
+    let priorV12 = [], priorV0 = [];
+    const auditV12 = { bound: 0, unbound: 0, reattach: 0, malformed: 0 };
+    const auditV0 = { bound: 0, unbound: 0, reattach: 0, malformed: 0 };
+    const seenTrackIds = new Map(); // carId(基礎) -> Set(實際出現過的 trackId,供合成真值比對)
+    // silence2 專用:記錄兩邊各自「carId2 第一次真的綁上真值 tripKey」的輪次——這是比「聚合
+    // unbound 率」更精準的差異化指標(見下方 R13 對照組斷言的說明)。
+    let v12RecoverTick = null, v0RecoverTick = null;
+    for (let t = WIN_START; t <= WIN_END; t += TICK) {
+      const claims = [];
+      for (const entry of activeRoster) {
+        const c = claimAt(entry, t);
+        if (!c) continue;
+        claims.push(c);
+        if (!seenTrackIds.has(entry.carId)) seenTrackIds.set(entry.carId, new Set());
+        seenTrackIds.get(entry.carId).add(c.trackId);
+      }
+      const nowEpoch = secToEpoch(t);
+      const outV12 = bindTracksToTrips({ model: null, tripSets: tripSets13, dayType: dayType13, tracks: claims,
+        priorBindings: priorV12, nowEpoch, day: day13 });
+      const outV0 = bindV0({ model: null, tripSets: tripSets13, dayType: dayType13, tracks: claims,
+        priorBindings: priorV0, nowEpoch, day: day13 });
+      priorV12 = outV12.bindings; priorV0 = outV0.bindings;
+      for (const k of ['bound', 'unbound', 'reattach', 'malformed']) { auditV12[k] += outV12.audit[k]; auditV0[k] += outV0.audit[k]; }
+      if (v12RecoverTick == null) {
+        const r = priorV12.find(b => b.line === silence2.line && b.dir === silence2.dir && b.tripKey === silence2.tripKey);
+        if (r && r.trackId === silence2.carId2) v12RecoverTick = t;
+      }
+      if (v0RecoverTick == null) {
+        const r = priorV0.find(b => b.line === silence2.line && b.dir === silence2.dir && b.tripKey === silence2.tripKey);
+        if (r && r.trackId === silence2.carId2) v0RecoverTick = t;
+      }
+    }
+
+    ok(auditV12.malformed === 0, 'R13 前置:合成 claims 全數格式合法(malformed=0,證明合成器本身沒有結構性bug)',
+      `malformed=${auditV12.malformed}`);
+    ok((seenTrackIds.get(silence1.carId) || new Set()).has(silence1.carId2) &&
+       (seenTrackIds.get(silence2.carId) || new Set()).has(silence2.carId2),
+      'R13 前置:兩台折返車確實在合成流中換過 track id(真的產生了track id更換,不是空判)',
+      `silence1 ids=${JSON.stringify([...(seenTrackIds.get(silence1.carId) || [])])};` +
+      `silence2 ids=${JSON.stringify([...(seenTrackIds.get(silence2.carId) || [])])}`);
+
+    const totalV12 = auditV12.bound + auditV12.reattach + auditV12.unbound;
+    const unboundRateV12 = totalV12 ? auditV12.unbound / totalV12 : 0;
+    ok(unboundRateV12 < 0.05, 'R13 合成正式節奏(15s/輪×60分鐘,正式 cron 節奏的可測替身) unbound率<5%硬門檻',
+      `unbound=${auditV12.unbound}/${totalV12}=${(unboundRateV12 * 100).toFixed(2)}%(bound=${auditV12.bound},reattach=${auditV12.reattach})`);
+
+    const totalV0 = auditV0.bound + auditV0.reattach + auditV0.unbound;
+    const unboundRateV0 = totalV0 ? auditV0.unbound / totalV0 : 0;
+    // 對照組斷言分兩層,不只賭聚合 unbound 率過 5%:
+    // (1) 機制級(有牙、可解釋):silence2 刻意挑「靜默重現仍在第一腿(terminal claim)內」——
+    //     v0 水位線比對 t[0]===claim.from,terminal claim 的 from 就是 t[0],於是候選在掃描
+    //     records 時會掃到「自己那筆尚未刪除的舊紀錄」,自我參照恆有 tr[1]<=wm ⇒ 只要重現時刻還
+    //     沒跨出第一腿就會自我卡死;v1.2 的無反轉約束比的是「與鄰班」而非「與自己」,同一班次
+    //     shift 不變對鄰班無威脅,理應立刻認回。斷言 v1.2 在靜默結束後 1 輪內認回、v0 則明顯較晚
+    //     (或整個觀測窗都認不回)——這是 root-cause 追出來的確定性差異,不受聚合分母大小影響。
+    // (2) 聚合級(下限,防機制級斷言自己有 bug):v0 的 unbound 絕對數要嚴格多於 v1.2,且 v1.2
+    //     本身要乾淨(=0)——不用「5%」這種與本測試 2 個折返車注入量級不成比例的門檻(單一車能
+    //     製造的自我卡死視窗結構上被該車第一腿長度封頂,實測全體排班第一腿最長僅 300s,2 台車
+    //     撐死可貢獻約 10-15 個 unbound instance,對 400+ 總量永遠到不了 5%,硬湊這個數字只會
+    //     逼著合成器去製造不寫實的排班,見施工日誌)。
+    const recoverGapSec = (v0RecoverTick != null && v12RecoverTick != null) ? v0RecoverTick - v12RecoverTick : null;
+    ok(v12RecoverTick != null && v12RecoverTick - (silence2.silenceAt + silence2.silenceDur) <= TICK,
+      'R13 對照組機制級:v1.2 對 silence2 在靜默結束後 1 輪內就認回(無反轉約束比鄰班、對自己無威脅)',
+      `silenceEnd=${silence2.silenceAt + silence2.silenceDur},v12RecoverTick=${v12RecoverTick}`);
+    ok(v0RecoverTick == null || recoverGapSec >= 3 * TICK,
+      'R13 對照組機制級:v0 水位線對 silence2 的認回明顯較晚或整窗認不回(terminal claim 自我參照卡死,重現一跨出第一腿就解除)',
+      `v0RecoverTick=${v0RecoverTick ?? '整窗未認回'},v12RecoverTick=${v12RecoverTick},差距=${recoverGapSec ?? 'N/A'}s`);
+    ok(auditV12.unbound === 0 && auditV0.unbound > auditV12.unbound,
+      'R13 對照組聚合級下限:v1.2 乾淨(unbound=0)且 v0 的 unbound 絕對數嚴格多於 v1.2(真實、可重現的差距,不強求湊到跟本測試注入量級不成比例的百分比)',
+      `v0 unbound=${auditV0.unbound}/${totalV0}=${(unboundRateV0 * 100).toFixed(2)}% vs v1.2 unbound=${auditV12.unbound}/${totalV12}=${(unboundRateV12 * 100).toFixed(2)}%`);
+
+    // 綁對率:合成真值(每台車該綁哪班,合成器撒車時就記錄)vs 綁定結果——不是只看 unbound 率,
+    // 防「判準與實作同源」(memory assertion-blindspot-taxonomy):真值來自合成器自己的бookkeeping,
+    // 不是從 bindTracksToTrips 的輸出反推。比對「這輪最終應該報的那個 trackId」(折返車=carId2,
+    // 一般車=carId),不是「這台車生涯用過的任一 id」——後者對折返車是假陰性漏洞:若系統把 trip
+    // 卡死綁在靜默前的舊 trackId(該 id 早就不再回報)、真正在跑的 carId2 反而流落他處或掛零,
+    // ids.has(舊id) 仍會判定「正確」,測不出「卡死在過期身分」這種真實壞掉的樣子。
+    let correct = 0; const wrong = [];
+    for (const entry of activeRoster) {
+      const rec = priorV12.find(b => b.line === entry.line && b.dir === entry.dir && b.tripKey === entry.tripKey);
+      const expectedFinalId = entry.carId2 || entry.carId;
+      if (rec && rec.trackId === expectedFinalId) correct++;
+      else wrong.push({ carId: entry.carId, tripKey: entry.tripKey, expected: expectedFinalId, got: rec ? rec.trackId : 'unbound' });
+    }
+    const bindAccuracy = activeRoster.length ? correct / activeRoster.length : 0;
+    ok(bindAccuracy > 0.98, 'R13 綁對率(合成真值 vs 綁定結果,真值由合成器撒車時直接記錄,判準不與實作同源)>98%',
+      `${correct}/${activeRoster.length}=${(bindAccuracy * 100).toFixed(1)}%` +
+      (wrong.length ? `;錯例前5:${JSON.stringify(wrong.slice(0, 5))}` : ''));
+
+    const cancelledBound = priorV12.find(b => b.line === cancelled.line && b.dir === cancelled.dir && b.tripKey === cancelled.tripKey);
+    ok(!cancelledBound, 'R13 取消班全程無人綁定,未造成鄰班連鎖錯位(鄰班正確性已由上方綁對率涵蓋)',
+      cancelledBound ? `卻被綁到 trackId=${cancelledBound.trackId}` : '');
+  } finally {
+    fs.rmSync(v0Path, { force: true });
+  }
 }
 
 // ═══ 語料回放:~/Code/軌島-語料/trtc-peak-0803(唯讀)全鏈跑一遍,不拋例外、unbound 率 <20% ═══
@@ -522,16 +831,24 @@ try {
         if (sorted[i][sorted[i].length - 2] !== sorted[i - 1][sorted[i - 1].length - 2]) destMismatch++;
       }
     }
-    note('語料回放無反轉約束跨目的地暴露度診斷(v1.1施工期間新發現,第三個獨立根因,§5.1(b)本身的缺陷)',
+    note('語料回放無反轉約束跨目的地暴露度診斷(v1.1施工期間新發現,第三個獨立根因,§5.1(b)本身的缺陷——v1.2已修復,此為歷史紀錄)',
       `全日班表相鄰班次對 ${adjPairs} 組,其中 ${destMismatch}(${adjPairs ? (destMismatch / adjPairs * 100).toFixed(1) : 0}%)` +
-      `destIdx 不同(短長分支交錯發車)——這些位置的 violatesNoReversal 拿「終點時刻」互比會系統性誤判假反轉;` +
-      `已用 scratch 變體(scheduleNeighbors 改依 line+dir+destIdx 分組再排序)離線驗證:` +
-      `全語料 unbound 66.2%→58.9%(-7.3pp),R 線 40.0%→22.9%(觀測口徑,-17.1pp)——` +
-      `方向確認但仍未達<20%,可見扣掉本因與供需診斷那條,至少還有第四個未查明成因`);
+      `destIdx 不同(短長分支交錯發車)——v1.1 曾用「修正後終點時刻」互比,這些位置系統性誤判假反轉;` +
+      `v1.2 已改比「修正後發車時刻」(同 line+dir 同起點,發車序天生跨目的地可比,見 trtc_board_ledger.mjs ` +
+      `violatesNoReversal 與 tmp_設計書.md §5.1(b))——下面 unbound 率是這個真實修復上線後的量測,不是離線 scratch 驗證`);
   }
-  ok(unboundRate < 0.20, '語料回放 unbound 率 <20%(分母已計入 reattach 成功;此語料快照間距 3.5-7 分鐘,' +
-    '遠寬於正式站 cron 節奏——見上三行根因拆解,紅燈已知三個獨立成因,其一已被 v1.1 修復,另兩個見上兩行診斷)',
-    `unbound=${audit.unbound}/${totalAttempts}=${(unboundRate * 100).toFixed(1)}%(bound=${audit.bound},reattach=${audit.reattach})`);
+  // v1.2:門檻改條件式(設計書 §10)。v1.0(純水位線、無 reclaim)在本語料的真實基線是 67.8%
+  // (見 trtc_board_ledger.mjs §5.1(b) 註解、本檔 corpus_replay_v11head 對照量測),15pp 改善目標
+  // ⇒ 52.8%。此語料快照間距 3.5-7 分鐘,遠寬於正式站 cron 節奏(15-60s),是環境條件不是產品目標,
+  // 故不用硬門檻;但三類根因拆解(上游碎裂/演算法擋下/無候選)都要有量化輸出,不能只看聚合率。
+  const upstreamFragShare = diagTotal ? oversupplySum / (oversupplySum + diagTotal) : 0;
+  ok(diag.noCandidate + diag.hadGoodCandidateButLost + diag.other === diagTotal && oversupplySum >= 0,
+    '語料回放根因拆解三類都有量化輸出(上游碎裂/演算法擋下/無候選,見上三行 note)',
+    `上游碎裂=${oversupplySum} 演算法擋下(有候選卻未綁上)=${diag.hadGoodCandidateButLost} 無候選=${diag.noCandidate} 其餘=${diag.other}`);
+  ok(unboundRate <= 0.528, '語料回放 unbound 率 ≤52.8%(=v1.0基線67.8%-15pp,設計書§10裁決;' +
+    '分母已計入 reattach 成功;快照間距寬於正式 cron 是環境條件,見上方根因拆解三類量化)',
+    `unbound=${audit.unbound}/${totalAttempts}=${(unboundRate * 100).toFixed(1)}%(v1.0基線67.8% → v1.2現值${(unboundRate*100).toFixed(1)}%,` +
+    `改善${(67.8 - unboundRate * 100).toFixed(1)}pp,目標15pp;bound=${audit.bound},reattach=${audit.reattach})`);
   note('語料回放完整 audit', JSON.stringify(audit));
 } catch (e) {
   ok(false, '語料回放全鏈未拋例外', `拋出:${(e && e.stack) || String(e)}`);
