@@ -3349,6 +3349,7 @@
            內容 li 上限 8 條(li.grp 是標題不算)。 -->
       <ul class="foot-list foot-recent">
         <li class="grp">最近更新</li>
+        <li data-cl-of="punctualtrains"><span class="d">8/7</span><span>探索面板新增「準點排行」榜：近30天最準點的10班台鐵車，依誤點排序</span></li>
         <li data-cl-of="thsrautosched"><span class="d">8/7</span><span>高鐵時刻表改為每天自動更新，加開與調整班次當天就會反映</span></li>
         <li data-cl-of="widgetdestination3"><span class="d">8/6</span><span>iPhone 小工具的目的站選單偶爾只顯示一下「載入中」就收起；現在即使起站連動稍晚送到，也會先列出完整車站，不必重複點選</span></li>
         <li data-cl-of="release140"><span class="d">8/6</span><span>軌島 1.4.0 準備上線：加入軌島帳號、通行證月票／年票、跨裝置同步、鎖定畫面即時動態與發車看板小工具，並修好分享連結、行程橫幅與小工具設定</span></li>
@@ -3356,7 +3357,6 @@
         <li data-cl-of="sharelink"><span class="d">8/6</span><span>App 的「分享畫面」與「行程分享」不再傳出無法開啟的網址，改為可直接開啟的 railisland.tw 連結</span></li>
         <li data-cl-of="passproduction"><span class="d">8/6</span><span>正式版軌島通行證改用 App Store 正式月票與年票，測試版的展示進度不會出現在一般使用者護照</span></li>
         <li data-cl-of="passrename"><span class="d">8/5</span><span>「軌島 Plus」更名為「軌島通行證」：訂閱方案改稱月票與年票，所有使用者都是島民</span></li>
-        <li data-cl-of="plussandboxtest"><span class="d">8/5</span><span>TestFlight 測試版恢復購買後，現在會完成同步資格驗證；已補齊伺服器寫入資格所需設定，不再出現權限不足，也能測跨裝置同步與通行證功能</span></li>
       </ul>
       <!-- 第二層:完整歷史。刻意不掛 .foot-box 類名——placeFootBoxes() 用
            `.site-foot .foot-box` 搬移面板,巢狀同名會被當成另一個盒子一起搬走。 -->
@@ -3372,6 +3372,7 @@
         <li><span class="d">7/10</span><span>高鐵、桃園機捷、淡海輕軌、安坑輕軌加入路網</span></li>
         <li><span class="d">7/10</span><span>環島觀光列車一分為二：往東「山海號」、往西「平原號」</span></li>
         <li class="grp">即時動態與誤點</li>
+        <li data-cl="punctualtrains"><span class="d">8/7</span><span>探索面板新增「準點排行」榜：近 30 天最準點的 10 班台鐵車，依單日最糟全程誤點排序，地圖上以綠色光環標示（比金色「今日之最」優先顯示）</span></li>
         <li data-cl="thsrautosched"><span class="d">8/7</span><span>高鐵班表改為伺服器每天自動抓取今天與明天的官方時刻表（含加開與停駛調整），不再依賴內建快照；官方資料暫時抓不到時自動退回內建班表，地圖不會空白</span></li>
         <li data-cl="metromotion"><span class="d">8/5</span><span>所有捷運與輕軌共用平順運動模型：每站間用簡單的加速、巡航、減速曲線；淡海輕軌、安坑輕軌、機捷、高捷等收到新的即時校正時，速度也限制在正常推演的 0.25～2 倍，不再為了追資料停住或突然衝刺</span></li>
         <li data-cl="trtcpos"><span class="d">8/5</span><span>北捷列車有官方到站倒數時，現在直接用「站間行駛時間與剩餘秒數」算出列車在兩站之間的位置；班表仍是唯一車輛名冊，沒有可靠錨點時才回到原本的平順推估</span></li>
@@ -3773,7 +3774,7 @@
 // 🔴 BUILD 字串會跨並行分支撞號（心得 16）：07-28 兩條線各自遞增又各自部署過——
 // origin/main 這條用到 v0728b，正式站那條用到 v0728f。本次三方合併把兩條線統一，
 // 所以往後推到一個雙方都沒用過的號，辨識線上跑哪一版仍以內容 hash 為準。
-const BUILD = 'v0807a';
+const BUILD = 'v0807b';
 // 成就徽章與車廂標記＝原本那些 emoji 的單色平面版（RailEmoji＝裁切過的 Noto Emoji 單色）。
 // 刻意保留 railIcon(name) 這個唯一入口:呼叫端一行都不用改,只有這裡決定畫法。
 // 🔴 ⚖ 與 ♾ 一律寫**不帶 VS16(U+FE0F)** 的碼位——帶了就強制彩色呈現,會蓋過 font-family
@@ -4865,6 +4866,7 @@ function applySchedSystems(sysList) {
   state.mode = 'sched';
   state._hotScene = null; state._hotFresh = true; state._hotNext = 0; // 群車放空的熱區隨換系統作廢,重新選景
   state._featured = null; // 每日之最(地圖金環識別)隨換系統作廢,drawSched 會重新 buildFeatured()
+  state._punctual = null; // 準點排行(地圖綠環識別)隨換系統作廢,drawSched 會重新 buildPunctual()
   state.deco = false; state.decoLines = null; // 預設關裝飾層;loadAllGroup 會在之後重新開
   state.sys = sysList[0] || null;
   state.data = sysList[0] ? sysList[0].data : null;
@@ -5336,6 +5338,7 @@ function drawSched(w, h) {
   const z = map.getZoom();
   const showTrain = z >= 11;
   if (!state._featured) buildFeatured(); // 每日之最快取:換系統/時刻表被 applySchedSystems 作廢後,這裡補建一次
+  if (!state._punctual) buildPunctual(); // 準點排行快取:同上,換系統/資料到貨後補建一次
   const inView = p => p.x >= -40 && p.x <= w + 40 && p.y >= -20 && p.y <= h + 20;
   if (state.trackLines) {
     ctx.lineCap = 'round'; ctx.lineJoin = 'round';
@@ -5416,7 +5419,9 @@ function drawSched(w, h) {
     state._trainHits.push({ x: cp.x, y: cp.y, tr }); // 供點擊/hover 命中測試(每幀重建)
     const glowC = isHSR(tr) ? HSR_ORANGE : tr.color;
     drawTrail(dt => trainPos(tr, state.simSec - dt), cp, glowC, sh);
-    if (state._featured.has(tr)) drawFeaturedRing(cp); // 今日之最(探索面板推薦)→ 地圖上加繪金色光環識別
+    // 兩環互斥:準點排行(綠)比今日之最(金)難得,同時中選只畫綠環;drawFeaturedRing 本體與既有金環零變化
+    if (state._punctual.has(tr)) drawPunctualRing(cp);
+    else if (state._featured.has(tr)) drawFeaturedRing(cp); // 今日之最(探索面板推薦)→ 地圖上加繪金色光環識別
     glowUnder(cp, glowC, showTrain ? 10 : 3.5); // 車號牌模式:光暈放大到繞出牌緣,近看也發亮
     if (showTrain) isHSR(tr) ? drawHSRTag(cp, tr.train) : drawTag(cp, tr.train, tr.color, textColorFor(tr.color));
     else isHSR(tr) ? drawHSRDot(cp) : drawDot(cp, tr.color);
@@ -5600,6 +5605,22 @@ function drawFeaturedRing(p) {
     const ph = ((now + i * 1000) % 2000) / 2000;
     ctx.beginPath(); ctx.arc(p.x, p.y, 8 + ph * 16, 0, 7);
     ctx.strokeStyle = '#f0b429'; ctx.globalAlpha = 0.55 * (1 - ph); ctx.lineWidth = 2.5; ctx.stroke();
+  }
+  ctx.globalAlpha = 1;
+}
+
+// ── 準點排行(近30天最準點的10班台鐵車;探索面板「準點排行」節)的地圖識別:綠色光環(車底,z 不拘) ──
+// 結構原封不動比照 drawFeaturedRing(金環)——常駐淡底盤+兩圈相位錯開擴散圈,只換色,兩者視覺語言與
+// 效能同量級(同樣 1 次 fill + 2 次 stroke);固定色未套 pal() 主題色,比照金環的做法(金環本來就不看
+// 主題),在亮/暗兩種底圖上都測過清楚可辨。
+function drawPunctualRing(p) {
+  ctx.beginPath(); ctx.arc(p.x, p.y, 13, 0, 7);
+  ctx.fillStyle = 'rgba(34,197,94,.15)'; ctx.fill();
+  const now = performance.now();
+  for (let i = 0; i < 2; i++) {
+    const ph = ((now + i * 1000) % 2000) / 2000;
+    ctx.beginPath(); ctx.arc(p.x, p.y, 8 + ph * 16, 0, 7);
+    ctx.strokeStyle = '#22c55e'; ctx.globalAlpha = 0.55 * (1 - ph); ctx.lineWidth = 2.5; ctx.stroke();
   }
   ctx.globalAlpha = 1;
 }
@@ -12878,11 +12899,51 @@ function computeHighlights() {
   }
   return out;
 }
+// ── 台鐵「準點排行」榜(誤點資料庫正面互補;誤點排行標最慢,這個標最準)——固定前10名,不是門檻 ──
+// 探索面板「準點排行」節與地圖綠環共用同一份排名。
+// 🔴不是門檻是排行榜:用「排序後取前10名」而非任何固定門檻——門檻值會隨資料量逐日漂移(同一份資料,
+// 換個 m 門檻可能今天命中23班、換一批新資料暴增到43班或剩4班,體驗不穩定);固定10名永遠剛好10列。
+// 篩選 d>=20 不是可調品質門檻,是「資料充足性保護」——沒有它,只有3天紀錄的車會靠運氣霸榜。
+// 排序鍵依序(4 鍵缺一不可,見 punctualRanked 內註解):m 遞增→a 遞增→d 遞減→車次號(整數)遞增。
+// state.delayStats 可能還沒 lazy fetch 回來(見 ensureDelayStats),此時回空陣列(不拋錯、不假設已載入)。
+function punctualRanked() {
+  const ds = state.delayStats;
+  if (!ds) return [];
+  const rows = [];
+  for (const no in ds) { const s = ds[no]; if (s && s.d >= 20) rows.push({ no, a: s.a, d: s.d, m: s.m }); }
+  // ①m 遞增(30天內單日「全程」最大誤點,越小越準) ②a 遞增(平均最終誤點,同 m 時再比這項)
+  // ③d 遞減(有紀錄天數越多越可信) ④車次號當整數比較遞增(穩定排序用——字串比較會讓 "503" 排到
+  // "1106" 後面)。③④不是裝飾:同一天算出來的第10名與第11名 m/a/d 三值可能完全相同,只靠車次號分勝負,
+  // 少一個鍵名次就會不穩定。
+  rows.sort((x, y) => (x.m - y.m) || (x.a - y.a) || (y.d - x.d) || (Number(x.no) - Number(y.no)));
+  return rows.slice(0, 10);
+}
+// 現時系統列車中命中前10榜者,依名次排序(供探索面板列出;buildPunctual 轉存 Set 供地圖比對同一份名單)。
+// 🔴跨系統閘門:榜單是台鐵車次號,高鐵/林鐵有同號車(如 101~121 次;issue#23 同款坑,這個專案已踩五次)
+// ——比對必須先限定 tr.sys==='tra_sched',否則高鐵同號車會錯戴台鐵的準點排行標記,比照 specialOf() 的做法。
+function punctualTrainList() {
+  const ranked = punctualRanked();
+  if (!ranked.length) return [];
+  const order = new Map(ranked.map((r, i) => [r.no, i]));
+  return state.trains.filter(tr => tr.sys === 'tra_sched' && order.has(String(tr.train)))
+    .sort((a, b) => order.get(String(a.train)) - order.get(String(b.train)));
+}
+// 準點排行節資料觸發:比照 fpDelay/openDelayHist 同一條鐵則——只有列車含台鐵時才打 /api/delay-stats,
+// 不為高鐵/林鐵/捷運等其他系統打這支 API(ensureDelayStats 本身有 in-flight/已載入 guard,重複呼叫安全)。
+function ensurePunctualData() {
+  if (state.trains.some(tr => tr.sys === 'tra_sched')) ensureDelayStats();
+}
 // 每日之最(探索面板 best 四項)的地圖識別快取:tr→emoji,供 drawSched 加繪金環+徽章。
 // 地圖識別只畫金色光環(徽章 emoji 曾疊在牌角,12px 下🛑成一顆紅點,使用者裁定全部拿掉)。
 // 換系統/時刻表時由 applySchedSystems 作廢(= null),drawSched 每幀 lazy init 重建一次。
 function buildFeatured() {
   state._featured = new Set(computeHighlights().best.map(h => h.tr));
+}
+// 準點排行(地圖綠環識別)快取:比照 buildFeatured()/state._featured 的生命週期
+// (建/換系統作廢/drawSched 補建);見 punctualTrainList 的跨系統閘門說明。
+function buildPunctual() {
+  ensurePunctualData();
+  state._punctual = new Set(punctualTrainList());
 }
 function hlRow(h) {
   const tr = h.tr, last = tr.stops[tr.stops.length - 1];
@@ -12891,6 +12952,23 @@ function hlRow(h) {
     : (state.simSec > last.arrSec ? '重播' : fmtHM(tr.stops[0].depSec % 86400) + ' 發');
   return `<div class="row" data-no="${tr.train}" data-sys="${tr.sys || ''}" title="跟隨 ${tr.train} 次"><span class="dot" style="background:${tr.color}"></span>` +
     `<b>${h.title}</b><span class="dest">${tr.train}次 ${tr.stops[0].name}→${last.name}${h.sub ? ' · ' + h.sub : ''}</span>` +
+    `<span class="min">${status}</span></div>`;
+}
+// 準點排行列(比照 hlRow 樣式與互動;沒有個別頭銜,粗體字直接是車次號):data-no/data-sys 與 hlRow 同款,
+// 點一列由 renderExplorePanel 既有的 el.onclick 處理常式共用(跟隨該班車)。
+// 🔴每一列自己帶證據(誠實線的要求):這是排行榜不是規則,不寫「全程誤點沒超過 N 分」這種對全榜的
+// 統一宣稱,改成每列各自秀出它自己的三個數字(最糟單日全程誤點/平均誤點/有紀錄天數),數字直接來自
+// state.delayStats,查得到、對得上,不靠通則。a/m 沿用 renderDelayRow 既有的「整數不補小數」格式慣例。
+function punctualRow(tr) {
+  const last = tr.stops[tr.stops.length - 1];
+  const running = !!trainPos(tr, state.simSec);
+  const status = running ? '行駛中'
+    : (state.simSec > last.arrSec ? '重播' : fmtHM(tr.stops[0].depSec % 86400) + ' 發');
+  const s = (state.delayStats || {})[String(tr.train)] || {};
+  const fmt1 = v => (v == null ? '?' : (Number.isInteger(v) ? String(v) : v.toFixed(1)));
+  const mTxt = fmt1(s.m), aTxt = fmt1(s.a), dTxt = s.d != null ? s.d : '?';
+  return `<div class="row" data-no="${tr.train}" data-sys="${tr.sys || ''}" title="跟隨 ${tr.train} 次・近30天最糟單日全程誤點 ${mTxt} 分、平均 ${aTxt} 分、${dTxt} 天有紀錄"><span class="dot" style="background:${tr.color}"></span>` +
+    `<b>${tr.train}次</b><span class="dest">${tr.typeName || ''}${tr.typeName ? ' · ' : ''}最糟${mTxt}分・平均${aTxt}分・${dTxt}天</span>` +
     `<span class="min">${status}</span></div>`;
 }
 // 觀光列車圖鑑(無固定車次:trainNos 為空的山嵐/鳴日/環島之星…):不進成就/護照(index 既有設計),
@@ -12907,14 +12985,21 @@ function guideRow(n, i) {
 function renderExplorePanel() {
   const el = document.getElementById('explorePanel');
   if (el.hidden) return;
+  ensurePunctualData(); // 保險再觸發一次(已載入/載入中會早退),比照 openDelayHist 同款寫法
   const hl = computeHighlights();
   const guides = exploreGuideTrains();
+  const punctual = punctualTrainList();
   const noteTxt = (document.getElementById('note') || {}).textContent || ''; // #note 遷入亮點 sheet 註腳(重開即新文案)
   document.getElementById('expBody').innerHTML =
     `<div class="sub">從 ${state.trains.length} 班車裡挑出來的 · 點一列跟隨</div>` +
     (hl.special.length ? `<div class="sec">特別列車出沒中</div>` + hl.special.map(hlRow).join('') : '') +
     (hl.best.length ? `<div class="sec">今日之最</div>` + hl.best.map(hlRow).join('') : '') +
     (hl.branches.length ? `<div class="sec">支線小火車</div>` + hl.branches.map(hlRow).join('') : '') +
+    (punctual.length ? `<div class="sec">準點排行</div>` + punctual.map(punctualRow).join('') +
+      // 誠實線:這是排行榜不是規則,不寫「零誤點」/「準點率100%」/「從不誤點」/「抵達誤點」,也不寫
+      // 「全程誤點沒超過N分」這種對全榜的統一宣稱(那是舊版門檻式判定的講法,已作廢)——
+      // 每列自己帶證據(見 punctualRow),這裡只交代排序方式與資料範圍(見 punctualRanked 判定式註解)。
+      `<div class="sub">近 30 天最準點的 10 班車，依單日最糟全程誤點排序（同分再比平均誤點、有紀錄天數、車次號）；至少 20 天有紀錄才列入計算，資料來源台鐵</div>` : '') +
     (guides.length ? `<div class="sec">觀光列車圖鑑（無固定車次）</div>` + guides.map(guideRow).join('') : '') +
     (noteTxt ? `<div class="exp-note">${escHtml(noteTxt)}</div>` : '');
   el.querySelector('#exploreClose').onclick = closeExplorePanel;
@@ -13235,7 +13320,11 @@ function ensureDelayStats() {
     .then(r => r.ok ? r.json() : Promise.reject(r.status))
     .then(j => { state.delayStats = (j && j.trains) || {}; })
     .catch(() => { state.delayStats = {}; }) // 靜默失敗:標記已載入(空)不再重試,也不噴 console
-    .finally(() => { state._delayStatsFetching = false; renderDelayRow(); }); // 到貨後補上這行(面板仍開著才會顯示)
+    .finally(() => {
+      state._delayStatsFetching = false;
+      state._punctual = null; // 準點排行 Set 隨資料到貨作廢,下一幀 drawSched 用新資料補建(見 buildPunctual)
+      renderDelayRow(); renderExplorePanel(); // 到貨後補上這行(面板仍開著才會顯示)
+    });
 }
 // 只在跟隨「台鐵」列車且該車次有足夠樣本(d≥5)時顯示;高鐵/捷運車次可能與台鐵撞號(如 152),
 // 必用系統別 gate(tr.sys==='tra_sched'),不是只查車次號在不在資料庫。
