@@ -3385,6 +3385,7 @@
            內容 li 上限 8 條(li.grp 是標題不算)。 -->
       <ul class="foot-list foot-recent">
         <li class="grp">最近更新</li>
+        <li data-cl-of="crossnight452"><span class="d">8/8</span><span>修正：週五深夜 452 次這類特定日開行的跨夜車，過了午夜就從地圖上消失（謝謝網友回報）</span></li>
         <li data-cl-of="thsrfreeseat"><span class="d">8/8</span><span>跟隨高鐵列車時，資訊卡新增「自由座車廂」提示：一排小方塊標出今天這班車自由座在第幾節，不必再猜（免費功能）</span></li>
         <li data-cl-of="mytrains"><span class="d">8/8</span><span>最愛面板新增「我的車」：收藏的台鐵列車集中列出近 30 天準點表現（通行證功能）</span></li>
         <li data-cl-of="punctualtrains"><span class="d">8/7</span><span>探索面板新增「準點排行」榜：近30天最準點的10班台鐵車，依誤點排序</span></li>
@@ -3392,7 +3393,6 @@
         <li data-cl-of="widgetdestination3"><span class="d">8/6</span><span>iPhone 小工具的目的站選單偶爾只顯示一下「載入中」就收起；現在即使起站連動稍晚送到，也會先列出完整車站，不必重複點選</span></li>
         <li data-cl-of="release140"><span class="d">8/6</span><span>軌島 1.4.0 準備上線：加入軌島帳號、通行證月票／年票、跨裝置同步、鎖定畫面即時動態與發車看板小工具，並修好分享連結、行程橫幅與小工具設定</span></li>
         <li data-cl-of="widgetdestination2"><span class="d">8/6</span><span>iPhone 小工具剛更新、車站資料還在準備時，點「起站」或「目的站」可能讓設定畫面直接退出；現在會先用內建車站清單，不必等待</span></li>
-        <li data-cl-of="sharelink"><span class="d">8/6</span><span>App 的「分享畫面」與「行程分享」不再傳出無法開啟的網址，改為可直接開啟的 railisland.tw 連結</span></li>
       </ul>
       <!-- 第二層:完整歷史。刻意不掛 .foot-box 類名——placeFootBoxes() 用
            `.site-foot .foot-box` 搬移面板,巢狀同名會被當成另一個盒子一起搬走。 -->
@@ -3408,6 +3408,7 @@
         <li><span class="d">7/10</span><span>高鐵、桃園機捷、淡海輕軌、安坑輕軌加入路網</span></li>
         <li><span class="d">7/10</span><span>環島觀光列車一分為二：往東「山海號」、往西「平原號」</span></li>
         <li class="grp">即時動態與誤點</li>
+        <li data-cl="crossnight452"><span class="d">8/8</span><span>只在特定日開行的跨夜車（如週五深夜 452 次）過午夜就從地圖消失，未開行日清晨反而多畫一班；現在把昨天發車仍在路上的班接回名冊，幽靈班一併擋掉（謝謝網友回報）</span></li>
         <li data-cl="mytrains"><span class="d">8/8</span><span>最愛面板新增「我的車・準點」：收藏的台鐵列車集中列出近 30 天最糟單日全程誤點、平均誤點與有紀錄天數，並標示是否上「準點排行」榜；點一列可看 90 天逐日履歷。集中比較是通行證功能，未訂閱會看到模糊預覽與訂閱入口</span></li>
         <li data-cl="punctualtrains"><span class="d">8/7</span><span>探索面板新增「準點排行」榜：近 30 天最準點的 10 班台鐵車，依單日最糟全程誤點排序，地圖上以綠色光環標示（比金色「今日之最」優先顯示）</span></li>
         <li data-cl="thsrautosched"><span class="d">8/7</span><span>高鐵班表改為伺服器每天自動抓取今天與明天的官方時刻表（含加開與停駛調整），不再依賴內建快照；官方資料暫時抓不到時自動退回內建班表，地圖不會空白</span></li>
@@ -3812,7 +3813,9 @@
 // 🔴 BUILD 字串會跨並行分支撞號（心得 16）：07-28 兩條線各自遞增又各自部署過——
 // origin/main 這條用到 v0728b，正式站那條用到 v0728f。本次三方合併把兩條線統一，
 // 所以往後推到一個雙方都沒用過的號，辨識線上跑哪一版仍以內容 hash 為準。
-const BUILD = 'v0807d';
+// 2026-08-08 合併:本分支到 v0807d、origin/main 到 v0808a,兩邊都用過的號一律跳過,
+// 推到雙方都沒用過的 v0808b(同上,辨識線上跑哪一版仍以內容 hash 為準)。
+const BUILD = 'v0808b';
 // 成就徽章與車廂標記＝原本那些 emoji 的單色平面版（RailEmoji＝裁切過的 Noto Emoji 單色）。
 // 刻意保留 railIcon(name) 這個唯一入口:呼叫端一行都不用改,只有這裡決定畫法。
 // 🔴 ⚖ 與 ♾ 一律寫**不帶 VS16(U+FE0F)** 的碼位——帶了就強制彩色呈現,會蓋過 font-family
@@ -4537,6 +4540,25 @@ function assignRunProfiles(s, perf, obs) {
   }
 }
 
+// 跨午夜時間軸的唯一判定(2026-08-08,452 事件):「t 要不要 +86400 解讀成前一日發車的班」集中在這裡。
+// 三種身分三種答案:
+// ・_prevNight(逐日名冊從昨天借進來的跨夜班):貼著現在(clockAtNow)恆解讀為昨天那班——清晨接續
+//   回來,跑完後擠出行程窗外(今天沒有這班,不得晚上再開一次);時光機/重播已離開「現在」,保留
+//   未包裝解讀,搜尋這種已跑完的班會自動回放昨夜出發段(setFollow 的拉回發車分支)。
+// ・_noPrevWrap(逐日名冊裡「昨天沒開」的班):清晨不得接續成昨天的班——昨天根本沒開,接了就是畫
+//   出不存在的幽靈班(452 在開行日清晨的鏡像 bug)。只在名冊仍是今天的名冊時生效(_rosterDay 比對
+//   state.wallDay):頁面開著跨夜沒重載時名冊整份是昨天的,+86400 接續是合法的「名冊日」解讀。
+// ・其他(每日班、高鐵/林鐵等無日期資料、過期 bundle 退回):維持原條件,行為零變化。
+function schedWrapT(s, t, grace) {
+  if (s._prevNight) {
+    if (t + 86400 <= s[s.length - 1].depSec + grace) return t + 86400;
+    return state.clockAtNow ? t + 86400 : t;
+  }
+  if (t < s[0].arrSec && t + 86400 <= s[s.length - 1].depSec + grace
+      && !(s._noPrevWrap && s._rosterDay === state.wallDay)) return t + 86400;
+  return t;
+}
+
 // 「此刻走到 stops 的哪一段」抽成獨立函式:除了畫位置,前後車耦合(#17)也要問同一件事,
 // 而且要的是「哪條線形、沿線第幾公里」這種可比較的一維座標,不是經緯度。兩邊共用同一次掃描,
 // 每幀就不必為了算前後關係再走一遍 stops。回傳 null=此刻不在跑。
@@ -4544,8 +4566,8 @@ function assignRunProfiles(s, perf, obs) {
 function trainSeg(tr, t) {
   if (tr.loop) t = tr.stops[0].arrSec + ((t - tr.stops[0].arrSec) % tr.loopSec + tr.loopSec) % tr.loopSec; // 環島車:任何時刻都映回本圈
   const s = tr.stops, n = s.length;
-  // 跨午夜車次(時刻編碼 >86400):simSec 歸零後把前一日班次接續回來
-  if (t < s[0].arrSec && t + 86400 <= s[n - 1].depSec) t += 86400;
+  // 跨午夜車次(時刻編碼 >86400):simSec 歸零後把前一日班次接續回來(判定集中在 schedWrapT)
+  t = schedWrapT(s, t, 0);
   if (t < s[0].arrSec || t > s[n - 1].depSec) return null;
   for (let i = 0; i < n; i++) {
     if (t >= s[i].arrSec && t <= s[i].depSec) {
@@ -8573,7 +8595,7 @@ function tick(now) {
   state._rideClock = (state._rideClock || 0) + dt;
   if (state._rideClock >= 2) { state._rideClock = 0; ridingTick(); }
   state._liveClock = (state._liveClock || 0) + dt;
-  if (state._liveClock >= 1) { state._liveClock = 0; updateLiveBadge(); updateMetroBadge(); if (state.liveMode && !state.director) liveClockTick(); else if (state.director) directorClockTick(); else clockDriftGuard(); } // 導播現在也是 1× 貼真實時刻,只是用不含深夜重播替代的簡化版;兩徽章同秒刷,快轉跨門檻時同步轉推估
+  if (state._liveClock >= 1) { state._liveClock = 0; state.wallDay = todayStr(); updateLiveBadge(); updateMetroBadge(); if (state.liveMode && !state.director) liveClockTick(); else if (state.director) directorClockTick(); else clockDriftGuard(); } // 導播現在也是 1× 貼真實時刻,只是用不含深夜重播替代的簡化版;兩徽章同秒刷,快轉跨門檻時同步轉推估
   // 省電三板斧(繪製節流,不動上面的時間積分):
   // (1) 分頁隱藏停繪——時間照積分,只是不畫;錄影中例外(recCompose 每幀從主畫布拷貝,停繪會凍結成靜止幀)
   // (2) 待機時 draw 節流到 ~30fps;跟隨/幽靈車跟隨/放空/錄影/剛互動(1.5s 內)維持顯示器全速,體驗優先
@@ -9253,8 +9275,7 @@ function findTrain(q, sysId) {
 function effT(tr) {
   const s = tr.stops;
   if (tr.loop) return s[0].arrSec + ((state.simSec - s[0].arrSec) % tr.loopSec + tr.loopSec) % tr.loopSec; // 環島車:映回本圈
-  return (state.simSec < s[0].arrSec && state.simSec + 86400 <= s[s.length - 1].depSec + 3600)
-    ? state.simSec + 86400 : state.simSec;
+  return schedWrapT(s, state.simSec, 3600);
 }
 // 套過即時校正的有效時間:與 trainPos 走同一條時間軸(先扣誤點、再做跨午夜接續,順序與 trainPos 一致)。
 // 凡「這班車現在跑到班表的哪一秒」——行程邊界(發車前/抵達後)、下一站、停靠倒數、進度、速度曲線游標
@@ -9265,7 +9286,7 @@ function effT(tr) {
 function effTLive(tr) {
   const s = tr.stops, t = state.simSec - liveDelaySec(tr);
   if (tr.loop) return s[0].arrSec + ((t - s[0].arrSec) % tr.loopSec + tr.loopSec) % tr.loopSec;
-  return (t < s[0].arrSec && t + 86400 <= s[s.length - 1].depSec + 3600) ? t + 86400 : t;
+  return schedWrapT(s, t, 3600);
 }
 
 // 站台帶(琺瑯 2.0)常駐 stage 下緣,不再隨跟隨搬移 DOM;保留空殼給 setFollow/clearFollow 既有呼叫點
@@ -11404,7 +11425,7 @@ function ridingTrainOf(r) {
 // 跨午夜映射比照 effT;誤點則把真實時間換算回表定時間軸(車誤點 10 分 → 現在等於表定的 10 分前)。
 function ridingNowSched(tr) {
   const s = tr.stops, real = nowSecOfDay(activeTz());
-  const t = (real < s[0].arrSec && real + 86400 <= s[s.length - 1].depSec + 3600) ? real + 86400 : real;
+  const t = schedWrapT(s, real, 3600);
   return t - Math.round(liveDelaySec(tr));
 }
 function ridingArrivedIdx(tr, schedNow) { // 表定已抵達的最後一站;還沒發車回 -1
@@ -16265,6 +16286,32 @@ function resolveScheduleDay(data) {
   }
   const idxs = data.dates[key] || [];
   const trains = idxs.map(i => data.trains[i]).filter(Boolean);
+  // 跨午夜名冊補接(2026-08-08,452 事件):逐日名冊只收「今天發車」的班,昨天發車、過了午夜仍在
+  // 路上的班(如週五深夜的 452)一過 00:00 就整車消失——trainSeg 的 +86400 接續只救得到名冊裡的車。
+  // 借法:昨天名單有、今天名單沒有、時刻超過 86400 的班,以淺 clone 借進今天名冊(stops 陣列另
+  // slice 一份標 _prevNight,班表元素仍共用,enrich 的速度曲線只算一份);schedWrapT 對這種班恆以
+  // 「昨天那班」解讀。同時把「昨天有沒有開」記在今天每班的 stops 上(_noPrevWrap+_rosterDay),
+  // 擋反向幽靈:只在特定日開行的跨夜班,開行日清晨會被 +86400 誤接成「昨晚那班」——昨晚根本沒開。
+  // 昨天不在資料窗內(prevIdxs 為 undefined,如過期 bundle 退回同週幾)⇒ 兩者都不動,維持原行為。
+  const prevKey = new Date(Date.parse(key + 'T00:00:00Z') - 86400000).toISOString().slice(0, 10);
+  const prevIdxs = data.dates[prevKey];
+  if (prevIdxs) {
+    const prevSet = new Set(prevIdxs), todaySet = new Set(idxs);
+    for (const i of idxs) {
+      const tr = data.trains[i];
+      if (tr && tr.stops) { tr.stops._noPrevWrap = !prevSet.has(i); tr.stops._rosterDay = key; }
+    }
+    for (const i of prevIdxs) {
+      const tr = data.trains[i];
+      if (!tr || todaySet.has(i) || tr.loop || !tr.stops || !tr.stops.length) continue;
+      const last = tr.stops[tr.stops.length - 1];
+      if (!(Math.max(last.arrSec, last.depSec) > 86400)) continue; // 昨天之內就跑完的班,借了也畫不到
+      const stops = tr.stops.slice();
+      stops._prevNight = true;
+      trains.push({ ...tr, stops });
+    }
+  }
+  state.wallDay = today; // schedWrapT 據此判斷「名冊是否仍是今天的名冊」;之後每秒 tick 持續刷新
   return { ...data, trains, date: key, _schedDay: key, _schedStale: stale };
 }
 
