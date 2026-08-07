@@ -1585,7 +1585,7 @@
   body.panel-translucent .chip, body.panel-translucent .kindchip,
   body.panel-translucent .lateTag, body.panel-translucent .okTag,
   body.panel-translucent .fp-alert, body.panel-translucent .fp-alert *,
-  body.panel-translucent .tc-tt, body.panel-translucent .dh-cta {
+  body.panel-translucent .tc-tt, body.panel-translucent .dh-cta, body.panel-translucent .myt-cta {
     text-shadow: none;
   }
   /* 路線/車種識別色點:顏色由資料決定(什麼色都可能),沒有邊框時直接貼在同色系路網上會消失 */
@@ -1746,6 +1746,21 @@
   #favPanel .row.fvpin .ico { flex: none; font-size: 13px; line-height: 1; }
   #favPanel .row .rm { margin-left: auto; color: var(--faint); font-weight: 700; padding: 0 4px; }
   #favPanel .row .rm:hover { color: var(--red); }
+  /* 我的車(通行證專屬:favPanel 收藏的台鐵列車準點總覽,見 myTrainSection)。列本身的 cursor/hover
+     吃通用的 .board .row[data-no] 規則(不必再寫一次);這裡只補 teaser 遮罩——結構比照誤點履歷卡
+     的 dh-lock/dh-cta(模糊+置中CTA),換一套自己的類名,不共用 .delayhist-panel 專屬作用域。 */
+  #favPanel .myt-lock { position: relative; }
+  #favPanel .myt-locked { filter: blur(5px); pointer-events: none; user-select: none; }
+  #favPanel .myt-cta {
+    position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 8px; text-align: center; padding: 12px; background: var(--paper-tr); border-radius: 8px;
+  }
+  #favPanel .myt-cta-txt { font-size: 11.5px; font-weight: 700; color: var(--muted); }
+  #favPanel .myt-cta-btn {
+    font-size: 13px; font-weight: 800; color: var(--on-navy); background: var(--navy);
+    border: 0; border-radius: 8px; padding: 8px 16px; cursor: pointer; box-shadow: var(--shadow-navy);
+  }
+  #favPanel .myt-cta-btn:hover { background: var(--red); }
   .board .ride-stats { font-size: 12.5px; color: var(--muted); margin: 2px 0 6px; }
   .board .ride-stats b { color: var(--red); font-variant-numeric: tabular-nums; }
   .board .ride-kinds { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 7px; }
@@ -3341,7 +3356,7 @@
 
   <footer class="site-foot">
     <details class="foot-box">
-      <summary><span>更新紀錄</span><span class="foot-sub">最後更新：2026/8/7</span></summary>
+      <summary><span>更新紀錄</span><span class="foot-sub">最後更新：2026/8/8</span></summary>
       <!-- 第一層是「最近更新」的檢視,不是正本:每一條都用 data-cl-of 指向第二層某條的 data-cl。
            要把一條擠出第一層之前,它的正本必須已經在第二層存在——2026-08-03 就踩過一次:8/1 的
            衛星計費那條只活在第一層(第二層只有一句夾在 7/25 條目裡、日期對不上的附帶說明),
@@ -3349,6 +3364,7 @@
            內容 li 上限 8 條(li.grp 是標題不算)。 -->
       <ul class="foot-list foot-recent">
         <li class="grp">最近更新</li>
+        <li data-cl-of="mytrains"><span class="d">8/8</span><span>最愛面板新增「我的車」：收藏的台鐵列車集中列出近 30 天準點表現（通行證功能）</span></li>
         <li data-cl-of="punctualtrains"><span class="d">8/7</span><span>探索面板新增「準點排行」榜：近30天最準點的10班台鐵車，依誤點排序</span></li>
         <li data-cl-of="thsrautosched"><span class="d">8/7</span><span>高鐵時刻表改為每天自動更新，加開與調整班次當天就會反映</span></li>
         <li data-cl-of="widgetdestination3"><span class="d">8/6</span><span>iPhone 小工具的目的站選單偶爾只顯示一下「載入中」就收起；現在即使起站連動稍晚送到，也會先列出完整車站，不必重複點選</span></li>
@@ -3356,7 +3372,6 @@
         <li data-cl-of="widgetdestination2"><span class="d">8/6</span><span>iPhone 小工具剛更新、車站資料還在準備時，點「起站」或「目的站」可能讓設定畫面直接退出；現在會先用內建車站清單，不必等待</span></li>
         <li data-cl-of="sharelink"><span class="d">8/6</span><span>App 的「分享畫面」與「行程分享」不再傳出無法開啟的網址，改為可直接開啟的 railisland.tw 連結</span></li>
         <li data-cl-of="passproduction"><span class="d">8/6</span><span>正式版軌島通行證改用 App Store 正式月票與年票，測試版的展示進度不會出現在一般使用者護照</span></li>
-        <li data-cl-of="passrename"><span class="d">8/5</span><span>「軌島 Plus」更名為「軌島通行證」：訂閱方案改稱月票與年票，所有使用者都是島民</span></li>
       </ul>
       <!-- 第二層:完整歷史。刻意不掛 .foot-box 類名——placeFootBoxes() 用
            `.site-foot .foot-box` 搬移面板,巢狀同名會被當成另一個盒子一起搬走。 -->
@@ -3372,6 +3387,7 @@
         <li><span class="d">7/10</span><span>高鐵、桃園機捷、淡海輕軌、安坑輕軌加入路網</span></li>
         <li><span class="d">7/10</span><span>環島觀光列車一分為二：往東「山海號」、往西「平原號」</span></li>
         <li class="grp">即時動態與誤點</li>
+        <li data-cl="mytrains"><span class="d">8/8</span><span>最愛面板新增「我的車・準點」：收藏的台鐵列車集中列出近 30 天最糟單日全程誤點、平均誤點與有紀錄天數，並標示是否上「準點排行」榜；點一列可看 90 天逐日履歷。集中比較是通行證功能，未訂閱會看到模糊預覽與訂閱入口</span></li>
         <li data-cl="punctualtrains"><span class="d">8/7</span><span>探索面板新增「準點排行」榜：近 30 天最準點的 10 班台鐵車，依單日最糟全程誤點排序，地圖上以綠色光環標示（比金色「今日之最」優先顯示）</span></li>
         <li data-cl="thsrautosched"><span class="d">8/7</span><span>高鐵班表改為伺服器每天自動抓取今天與明天的官方時刻表（含加開與停駛調整），不再依賴內建快照；官方資料暫時抓不到時自動退回內建班表，地圖不會空白</span></li>
         <li data-cl="metromotion"><span class="d">8/5</span><span>所有捷運與輕軌共用平順運動模型：每站間用簡單的加速、巡航、減速曲線；淡海輕軌、安坑輕軌、機捷、高捷等收到新的即時校正時，速度也限制在正常推演的 0.25～2 倍，不再為了追資料停住或突然衝刺</span></li>
@@ -3774,7 +3790,7 @@
 // 🔴 BUILD 字串會跨並行分支撞號（心得 16）：07-28 兩條線各自遞增又各自部署過——
 // origin/main 這條用到 v0728b，正式站那條用到 v0728f。本次三方合併把兩條線統一，
 // 所以往後推到一個雙方都沒用過的號，辨識線上跑哪一版仍以內容 hash 為準。
-const BUILD = 'v0807b';
+const BUILD = 'v0807c';
 // 成就徽章與車廂標記＝原本那些 emoji 的單色平面版（RailEmoji＝裁切過的 Noto Emoji 單色）。
 // 刻意保留 railIcon(name) 這個唯一入口:呼叫端一行都不用改,只有這裡決定畫法。
 // 🔴 ⚖ 與 ♾ 一律寫**不帶 VS16(U+FE0F)** 的碼位——帶了就強制彩色呈現,會蓋過 font-family
@@ -10437,6 +10453,54 @@ function removeFav(no, sys) {
   if (state.followTrain) updateStar();
 }
 
+// ── 我的車(通行證):收藏的台鐵列車集中比較近30天準點——favPanel 新增節,見 renderFavPanel 插入點 ──
+// 只收台鐵:高鐵/林鐵有同號車(favtrainkey 8/3 修的同一族坑,issue#23 同款),混進來就是錯的資料。
+function myTrainFavs() {
+  return loadFavs().filter(f => favTrainSys(f) === 'tra_sched');
+}
+// 單列:比照 punctualRow 的三數字慣例(最糟單日全程誤點/平均誤點/有紀錄天數),但資料來源是收藏項(f)
+// 不是目前跑著的即時列車物件——收藏的車不保證今天有跑,不能像 punctualRow 那樣讀 tr.stops 算「行駛中/
+// 重播/幾點發車」,改顯示收藏當下存的 label(車種與起訖站)。rankedSet 是 punctualRanked() 轉的 Set,
+// 同一份判定,不另外算一次「準不準」。
+function myTrainRow(f, rankedSet) {
+  const no = String(f.train);
+  const s = (state.delayStats || {})[no] || {};
+  const fmt1 = v => (v == null ? '?' : (Number.isInteger(v) ? String(v) : v.toFixed(1)));
+  const mTxt = fmt1(s.m), aTxt = fmt1(s.a), dTxt = s.d != null ? s.d : '?';
+  const rankTag = rankedSet.has(no) ? '<span class="okTag">上榜</span>' : '';
+  return `<div class="row myt" data-no="${escHtml(no)}" title="查看 ${escHtml(no)} 次誤點履歷・近30天最糟單日全程誤點 ${mTxt} 分、平均 ${aTxt} 分、${dTxt} 天有紀錄"><span class="dot" style="background:var(--gold)"></span>` +
+    `<b>${escHtml(no)}次</b><span class="dest">${escHtml(f.label || '')}・最糟${mTxt}分・平均${aTxt}分・${dTxt}天</span>${rankTag}</div>`;
+}
+// 「我的車・準點」節本體(favPanel 新增;通行證專屬):收藏的台鐵列車集中看近30天準點,並標示是否上
+// 「準點排行」榜。PLUS_ENABLED 是網站暗啟動旗標(App 恆開、網站要 ?plus=1)——整節一起藏,比照
+// fp-dhlink(誤點履歷入口)同一條鐵則,不是只藏 CTA。免費層看得到入口與模糊 teaser(照誤點履歷卡
+// 的 dh-lock/dh-cta 模式,換一套自己的類名 myt-*,見 CSS),解鎖走 plusGateOpen。
+function myTrainSection() {
+  if (!PLUS_ENABLED) return '';
+  const favs = myTrainFavs();
+  if (favs.length) ensureDelayStats(); // 保險觸發:favPanel 可能在沒跟過車、沒開過探索面板時就先開,比照 ensurePunctualData 同款寫法
+  const head = `<div class="sec">我的車・準點</div>`;
+  if (!favs.length) {
+    return head + `<div class="sub">收藏台鐵列車後，這裡會集中列出它們近 30 天的準點表現，通行證訂閱者可完整比較——跟隨列車時點資訊卡的收藏鈕即可收藏。</div>`;
+  }
+  const rankedSet = new Set(punctualRanked().map(r => r.no));
+  const rows = favs.map(f => myTrainRow(f, rankedSet)).join('');
+  if (plusIsActive()) {
+    return head + `<div class="sub">收藏的台鐵列車，近 30 天準點表現一覽・點一列看 90 天履歷</div>` + rows;
+  }
+  return head +
+    `<div class="myt-lock"><div class="myt-locked">${rows}</div>` +
+    `<div class="myt-cta"><div class="myt-cta-txt">訂閱通行證，集中比較收藏的 ${favs.length} 班台鐵車準點表現</div>` +
+    `<button class="myt-cta-btn" type="button" data-myt-cta="1">訂閱通行證解鎖我的車</button></div></div>`;
+}
+// 「我的車」列點擊:開既有 90 天誤點履歷卡(openDelayHist)。收藏的車不保證今天有開(findTrain 只在當日
+// 班表裡找),找不到就退而求其次組一個最小 tr 物件——openDelayHist 只讀 tr.sys/tr.train/tr.loop/
+// tr.typeName 四欄,不需要 stops/color,合成物件足夠安全,不會拋錯。
+function openMyTrainHist(no) {
+  const tr = findTrain(no, 'tra_sched') || { train: no, sys: 'tra_sched' };
+  openDelayHist(tr);
+}
+
 // ── 最愛車站(與最愛列車同一套 userData 同步;車站看板 ☆ 收藏、最愛面板點站跳轉開板) ──
 function loadFavStations() { return userDataLoadCollection('stations'); }
 // 捷運站不分「分頁(freq)/同框(deco)」視角,一律以 'metro' 當系統鍵——同一站只收藏一筆
@@ -10562,6 +10626,7 @@ function renderFavPanel() {
             `<span class="rm" data-no="${no}" data-sys="${escHtml(sys)}" title="移除">×</span></div>`;
         }).join('')
       : '') +
+    myTrainSection() +
     (pins.length
       ? (() => { const defKey = defaultPlaceKey();
           return `<div class="sec">地點</div>` + pins.map(p => {
@@ -13323,7 +13388,7 @@ function ensureDelayStats() {
     .finally(() => {
       state._delayStatsFetching = false;
       state._punctual = null; // 準點排行 Set 隨資料到貨作廢,下一幀 drawSched 用新資料補建(見 buildPunctual)
-      renderDelayRow(); renderExplorePanel(); // 到貨後補上這行(面板仍開著才會顯示)
+      renderDelayRow(); renderExplorePanel(); renderFavPanel(); // 到貨後補上這行(面板仍開著才會顯示;renderFavPanel 內建 el.hidden 早退)
     });
 }
 // 只在跟隨「台鐵」列車且該車次有足夠樣本(d≥5)時顯示;高鐵/捷運車次可能與台鐵撞號(如 152),
@@ -18255,6 +18320,8 @@ document.getElementById('todayBtn').onclick = () => {
 document.getElementById('favPanel').onclick = e => {
   const nb = e.target.closest('.fv-notify');
   if (nb) { e.stopPropagation(); openLocalReminderSheet(findLocalReminderTrain(nb.dataset.notifyNo, nb.dataset.notifySys), 'favorite'); return; }
+  const myc = e.target.closest('[data-myt-cta]');
+  if (myc) { e.stopPropagation(); plusGateOpen('my-trains', () => renderFavPanel()); return; } // 解鎖後:favPanel 仍開著,重畫即從模糊 teaser 換成完整清單
   const rm = e.target.closest('.rm');
   if (rm) { rm.dataset.pin ? removePinByKey(rm.dataset.pin) : (rm.dataset.stkey ? removeFavStation(rm.dataset.stkey) : removeFav(rm.dataset.no, rm.dataset.sys)); return; }
   const db = e.target.closest('.fv-default');
@@ -18263,6 +18330,8 @@ document.getElementById('favPanel').onclick = e => {
   if (pr) { closeFavPanel(); gotoSavedPin(pr.dataset.pin); return; }
   const sr = e.target.closest('.row.fvst');
   if (sr) { gotoFavStationKey(sr.dataset.stkey); return; }
+  const myr = e.target.closest('.row.myt');
+  if (myr) { openMyTrainHist(myr.dataset.no); return; } // 我的車(通行證):開既有 90 天誤點履歷卡,不是跟隨
   const row = e.target.closest('.row.fv');
   if (row) { closeFavPanel(); followTrainNo(row.dataset.no, { sys: row.dataset.sys }); }
 };

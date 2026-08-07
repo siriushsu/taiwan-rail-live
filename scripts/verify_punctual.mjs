@@ -105,7 +105,14 @@ try {
   const browser = await chromium.launch();
   const { ctx, page } = await open(browser, { width: 1440 });
 
-  ok('A0 BUILD 已遞增', await page.evaluate(() => BUILD) === 'v0807b', await page.evaluate(() => BUILD));
+  // A0：判準寫「有沒有相對基準遞增」,不寫死當下那個字串——寫死的話下一次改版必然假紅
+  // (BUILD 是每次出貨都會動的漂移量,心得 35:判準要從當下量到的東西推導,不要手打常數)。
+  {
+    const baseBuild = (execSync(`git show ${BASE_REF}:index.html`, { encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 })
+      .match(/const BUILD = '([^']+)'/) || [])[1] || null;
+    const nowBuild = await page.evaluate(() => BUILD);
+    ok('A0 BUILD 相對基準已遞增', !!baseBuild && !!nowBuild && nowBuild !== baseBuild, `${baseBuild} → ${nowBuild}`);
+  }
 
   // A1：d>=20 是資料充足性保護,不是品質門檻——樣本太少的即使 m/a 完美也不能進榜
   const dGate = await page.evaluate(() => {
