@@ -8696,7 +8696,7 @@ const API_BASE = window.RAIL_API_BASE || '';
 const apiUrl = path => API_BASE ? new URL(path, API_BASE).href : path;
 const SYS_DEFS = [
   { id: 'tra_sched', label: '台鐵', url: './data/tra_schedule_dense.json', mode: 'sched', live: apiUrl('api/tra-live'), alert: apiUrl('api/tra-alert'), special: true, track: './data/tra.json' },
-  { id: 'thsr_sched', label: '高鐵', url: './data/thsr_schedule_dense.json', mode: 'sched', alert: apiUrl('api/thsr-alert'), track: './data/thsr_track.json' },
+  { id: 'thsr_sched', label: '高鐵', url: apiUrl('api/thsr-schedule'), fallbackUrl: './data/thsr_schedule_dense.json', mode: 'sched', alert: apiUrl('api/thsr-alert'), track: './data/thsr_track.json' },
   // 阿里山林鐵:TDX 只有 v3/Rail/AFR(v2 全 404),且無 DailyTrainTimetable/TrainLiveBoard/Alert
   // → 定期時刻表(每日相同)、無即時誤點、無官方公告介接,故不帶 live/alert/special
   { id: 'afr_sched', label: '阿里山林鐵', url: './data/afr_schedule_dense.json', mode: 'sched', track: './data/afr.json' },
@@ -17689,7 +17689,9 @@ async function boot() {
   await initDataFreshness();
 
   for (const d of SYS_DEFS) {
-    let day = resolveScheduleDay(await fetchJSON(d.url)); // 多日班表→挑台北營運日當日子集;舊格式原樣通過
+    let raw = await fetchJSON(d.url);
+    if (!raw && d.fallbackUrl) raw = await fetchJSON(d.fallbackUrl); // API 失敗(非 2xx/網路錯)退回打包靜態檔,目前僅高鐵設有 fallbackUrl
+    let day = resolveScheduleDay(raw);                    // 多日班表→挑台北營運日當日子集;舊格式原樣通過
     day = await refreshStaleSchedule(d, day);             // 保險:清單機制沒生效時,台鐵這一份仍會自救
     if (day) state.systems.push({ ...d, data: day });
   }
