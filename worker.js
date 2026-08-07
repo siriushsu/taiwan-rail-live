@@ -2196,6 +2196,9 @@ async function laBind(request, env) {
   if (b.sys !== 'tra_sched' && b.sys !== 'thsr_sched') return jsonRes({ error: 'bad_sys' }, 400, 'no-store');
   if (!/^[0-9A-Za-z]{1,8}$/.test(String(b.trainNo || ''))) return jsonRes({ error: 'bad_train' }, 400, 'no-store');
   if (!Array.isArray(b.stops) || !b.stops.length || b.stops.length > 200) return jsonRes({ error: 'bad_stops' }, 400, 'no-store');
+  // 筆數上限(200)只界定陣列長度,單一欄位仍可能被塞超大字串撐爆 D1 一列——
+  // 台鐵全線約 241 站,單一車次停靠站最多約 60,12000 bytes 留了數倍餘裕。
+  if (JSON.stringify(b.stops).length > 12000) return jsonRes({ error: 'bad_stops' }, 400, 'no-store');
   // at 是絕對 epoch 秒,且必須落在現在前後一天內——擋掉「服務日算錯整整差一天」那類壞資料,
   // 否則後端會安靜地推出一張倒數 23 小時的卡。
   const nowSec = Math.floor(Date.now() / 1000);
@@ -2203,7 +2206,11 @@ async function laBind(request, env) {
       && Math.abs(Number(s.at) - nowSec) < 86400))
     return jsonRes({ error: 'bad_stops' }, 400, 'no-store');
   if (!Array.isArray(b.stopCodes) || b.stopCodes.length !== b.stops.length) return jsonRes({ error: 'bad_codes' }, 400, 'no-store');
+  // stopCodes 筆數已經被上面「與 stops.length 相等」間接鎖在 200 以內,這裡只補序列化大小上限。
+  if (JSON.stringify(b.stopCodes).length > 4000) return jsonRes({ error: 'bad_codes' }, 400, 'no-store');
   if (!b.staMap || typeof b.staMap !== 'object' || Array.isArray(b.staMap)) return jsonRes({ error: 'bad_map' }, 400, 'no-store');
+  // 含通過站的 staMap 約 100–150 筆,400 筆／8000 bytes 都留了 2–3 倍餘裕。
+  if (Object.keys(b.staMap).length > 400 || JSON.stringify(b.staMap).length > 8000) return jsonRes({ error: 'bad_map' }, 400, 'no-store');
 
   // 具名的本機測試閘門:設了才開,且只認那個確切的值。正式環境不設這顆 secret ⇒ 這條路徑不存在。
   const auth = (request.headers.get('Authorization') || '').match(/^Bearer\s+(.+)$/i);

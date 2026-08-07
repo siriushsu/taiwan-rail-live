@@ -56,6 +56,40 @@ const VALID = {
   const r = await post('/api/la/bind', far, AUTH);
   ok('B6 at 離現在太遠被拒', r.status === 400, `HTTP ${r.status}`);
 }
+// B9 stops 序列化超過大小上限 → 400(筆數上限只界定陣列長度,單一欄位仍可能被塞爆;
+// 只改 name 長度,shape/count/時間範圍都維持合法,隔離出「只有大小上限這條斷言」在擋)
+{
+  const bigStops = [{ ...VALID.stops[0], name: 'X'.repeat(12500) }, VALID.stops[1]];
+  const r = await post('/api/la/bind', { ...VALID, stops: bigStops }, AUTH);
+  ok('B9 stops 序列化超過大小上限被拒', r.status === 400, `HTTP ${r.status}`);
+}
+// B10 staMap 鍵數超過上限 → 400(鍵多但單筆值小,JSON 總大小仍遠小於 8000,
+// 隔離出「鍵數」與下面 B11「序列化大小」是兩條獨立斷言,不是同一條檢查的兩個名字)
+{
+  const manyKeysMap = {};
+  for (let i = 0; i <= 400; i++) manyKeysMap[String(i)] = 1;   // 401 筆
+  const r = await post('/api/la/bind', { ...VALID, staMap: manyKeysMap }, AUTH);
+  ok('B10 staMap 鍵數超過上限被拒', r.status === 400, `HTTP ${r.status}`);
+}
+// B11 staMap 序列化超過大小上限 → 400(鍵數僅 1,不會被 B10 那條鍵數上限擋到)
+{
+  const bigValueMap = { '5050': 'X'.repeat(8500) };
+  const r = await post('/api/la/bind', { ...VALID, staMap: bigValueMap }, AUTH);
+  ok('B11 staMap 序列化超過大小上限被拒', r.status === 400, `HTTP ${r.status}`);
+}
+// B12 stopCodes 序列化超過大小上限 → 400(筆數仍等於 stops.length,不會被筆數檢查擋到)
+{
+  const bigStopCodes = ['X'.repeat(4500), VALID.stopCodes[1]];
+  const r = await post('/api/la/bind', { ...VALID, stopCodes: bigStopCodes }, AUTH);
+  ok('B12 stopCodes 序列化超過大小上限被拒', r.status === 400, `HTTP ${r.status}`);
+}
+// B13 同一 token 重複 bind、換不同車次 → 200(驗 upsert 路徑而非只測到 B0 那種首次 insert;
+// 依賴 B0 已先綁定過 VALID.token——腳本本來就依序執行,B8 的冪等測試也同樣依賴 B0 的綁定存在。
+// 必須排在 B8 之前:B8 會把 VALID.token 從表裡刪掉,順序反了這裡測到的就是首次 insert 不是 upsert)
+{
+  const r = await post('/api/la/bind', { ...VALID, trainNo: '999' }, AUTH);
+  ok('B13 同 token 重複 bind 換車次 → 200', r.status === 200, `HTTP ${r.status}`);
+}
 // B7 GET 打 bind → 405(端點只收 POST;順帶證明 API_POST_ALLOWED 真的有掛上)
 {
   const r = await fetch(BASE + '/api/la/bind');
