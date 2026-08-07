@@ -57,10 +57,15 @@ const THSR_ALERT_URL = 'https://tdx.transportdata.tw/api/basic/v2/Rail/THSR/Aler
 // ＋ scripts/verify_worker_runtime_smoke.mjs(**在真 workerd 裡跑**——上面那個事故就是本機 Node
 // 與 workerd 行為不同造成的,只有真 runtime 答得出來)。
 
+// AUTH_URL 只在本機 --test-scheduled 驗證高鐵班表 cron 時經 env.TDX_AUTH_URL_OVERRIDE 覆寫,
+// 好讓整條 ingest 路徑(含拿 token)在本機也能指向 fixture server、零真上游;正式環境永遠不會
+// 設定這個變數(不在 wrangler.jsonc vars 裡),行為與改動前完全相同。
+function authUrl(env) { return (env && env.TDX_AUTH_URL_OVERRIDE) || AUTH_URL; }
+
 let tok = null, tokExp = 0;
 async function getToken(env) {
   if (tok && Date.now() < tokExp - 60e3) return tok;
-  const r = await fetch(AUTH_URL, {
+  const r = await fetch(authUrl(env), {
     method: 'POST',
     headers: { 'content-type': 'application/x-www-form-urlencoded' },
     body: new URLSearchParams({
@@ -2243,7 +2248,7 @@ const API_POST_ALLOWED = new Set(['/api/account-delete', '/api/bounty-claim', '/
 // 'other',否則隨便打 /api/<亂數> 就能把 blob 基數炸開。新增端點時要一起加進來。
 const API_ENDPOINTS = new Set([
   'tra-live', 'tra-alert', 'thsr-alert', 'metro-alert', 'hazard-alert', 'metro-live', 'ntmetro-live', 'trtc-live',
-  'delay-stats', 'delay-history', 'station-events', 'today-board', 'basemap-token', 'basemap-session', 'account-delete',
+  'delay-stats', 'delay-history', 'thsr-schedule', 'station-events', 'today-board', 'basemap-token', 'basemap-session', 'account-delete',
   'bounty-board', 'bounty-claim', 'bounty-submit', 'bounty-me', 'bounty-merge', 'plus-status', 'revenuecat-webhook',
 ]);
 
@@ -3392,6 +3397,195 @@ async function ingestDelayHistory(env) {
   return { written, dbMax };
 }
 
+// ── 高鐵未來班表 cron(scheduled handler)+ /api/thsr-schedule ──────────────────
+// 現行 data/thsr_schedule_dense.json 是 2026-07-09 單日快照(commit 076b43c 之後從未更新),
+// 前端過期偵測對它是 no-op(無 dates 欄位)。改為 cron 每日抓 TDX「今天＋明天」逐日時刻表
+// (抓明天是為了補「00:00 到 cron 執行前」的空窗:昨天抓的『明天』就是今天)存入 D1 blob,
+// /api/thsr-schedule 唯讀吐回今日文件;靜態檔降級為前端 fetch 失敗時的最後退路。
+// 12 站座標表不重新投影幾何(那需要 THSR_Shape.json,cron 沒有那份輸入):直接借用現行
+// data/thsr_schedule_dense.json 裡已經投影好的站名→座標(12 站固定不變,見 thsrBuildStationMap)。
+const THSR_SCHED_BLOB_KEY = 'thsr_sched';
+const THSR_SCHED_KEEP_DAYS = 3;   // days 物件最多保留幾個日鍵(依 YYYYMMDD 字串序留最新)
+const THSR_COLOR = '#E85D0D';     // 高鐵企業橘,與 scripts/build_thsr_schedule.mjs 一致
+
+// "HH:MM" 或 "HH:MM:SS" → 午夜起算秒(語意同 build_thsr_schedule.mjs 的 hmsToSec)
+function thsrHmsToSec(t) {
+  const p = String(t).split(':').map(Number);
+  return p[0] * 3600 + p[1] * 60 + (p[2] || 0);
+}
+
+// 從現行(或任何同 schema 的)dense 文件抽出「站名→座標」映射(純函式)。
+// 12 站固定不變,不需要重新對線投影;stationMap 值只留 {lat,lon},同名取第一次出現。
+function thsrBuildStationMap(doc) {
+  const map = new Map();
+  for (const t of (doc && doc.trains) || []) {
+    for (const s of (t && t.stops) || []) {
+      if (s && s.name && !map.has(s.name)) map.set(s.name, { lat: s.lat, lon: s.lon });
+    }
+  }
+  return map;
+}
+
+// TDX Rail/THSR/DailyTimetable/TrainDate/{date} 原始回應(daily,陣列) → dense 文件(純函式,
+// 供離線測試,不碰網路/D1)。與現行 build_thsr_schedule.mjs 的差異:不做弧長投影/單調性檢查
+// (那需要路線幾何,cron 沒有那份輸入),改以「站名是否都在 stationMap 內」把關——只要有一站
+// 不在 12 站映射內,整班跳過(不逐站過濾,避免半殘路線),計數進回傳的 meta.skipped。
+function thsrConvertDaily(daily, dateIso, stationMap) {
+  const trains = [];
+  const skipped = [];
+  const list = Array.isArray(daily) ? daily : [];
+  for (const rec of list) {
+    const info = (rec && rec.DailyTrainInfo) || {};
+    const trainNo = info.TrainNo;
+    const seq = ((rec && rec.StopTimes) || []).slice().sort((a, b) => a.StopSequence - b.StopSequence);
+    if (seq.length < 2) { skipped.push({ train: trainNo, reason: 'too_few_stops' }); continue; }
+    const names = seq.map(s => s.StationName && s.StationName.Zh_tw);
+    const unknown = [...new Set(names.filter(n => !n || !stationMap.has(n)))];
+    if (unknown.length) { skipped.push({ train: trainNo, reason: 'unknown_station', stations: unknown }); continue; }
+    const sched = [];
+    let prev = -1;
+    for (const s of seq) {
+      const name = s.StationName.Zh_tw;
+      const coord = stationMap.get(name);
+      let arr = thsrHmsToSec(s.ArrivalTime || s.DepartureTime);
+      let dep = thsrHmsToSec(s.DepartureTime || s.ArrivalTime);
+      while (arr < prev) arr += 86400;   // 跨午夜遞增修正,語意同 build_thsr_schedule.mjs
+      while (dep < arr) dep += 86400;
+      sched.push({ name, lat: coord.lat, lon: coord.lon, arr, dep });
+      prev = dep;
+    }
+    if (sched.length < 2) { skipped.push({ train: trainNo, reason: 'too_few_stops' }); continue; }
+    trains.push({
+      train: trainNo, typeName: '高鐵', carName: '高鐵', color: THSR_COLOR,
+      stops: sched.map((x, i) => ({ name: x.name, lat: x.lat, lon: x.lon, order: i + 1, arrSec: x.arr, depSec: x.dep, stop: true })),
+    });
+  }
+  const dateKey = String(dateIso).replace(/-/g, '');
+  const doc = {
+    system: '高鐵時刻表',
+    date: dateKey,
+    source_notes: `時刻表來源:交通部 TDX Rail/THSR/DailyTimetable/TrainDate(${dateKey} 當日逐車次,含加開/停駛);站點座標沿用既有路線幾何投影(data/thsr_schedule_dense.json)`,
+    types: [{ key: '高鐵', color: THSR_COLOR }],
+    trains,
+  };
+  return { doc, meta: { total: list.length, converted: trains.length, skipped } };
+}
+
+// 日鍵(YYYYMMDD)→ UTC 午夜 ms,供「找最接近今天的既有日鍵」算日曆距離(跨月/跨年也正確;
+// 純數字相減在 20260131→20260201 這種邊界會算錯,不能用)。
+function thsrKeyToMs(key) {
+  const s = String(key);
+  return Date.parse(`${s.slice(0, 4)}-${s.slice(4, 6)}-${s.slice(6, 8)}T00:00:00Z`);
+}
+
+// 依台北「今天」日鍵在 blob.days 裡選要吐回的文件(純函式,供離線測試,不碰網路/D1/快取)。
+// 有今天就吐今天原樣(不加 served_date);沒有就取日曆距離最近的既有日鍵,文件補 served_date。
+// days 為空回 null,呼叫端據此回 404。
+function thsrSelectServedDay(days, todayKey) {
+  const keys = Object.keys(days || {});
+  if (!keys.length) return null;
+  if (Object.prototype.hasOwnProperty.call(days, todayKey)) return { key: todayKey, doc: days[todayKey] };
+  const todayMs = thsrKeyToMs(todayKey);
+  keys.sort((a, b) => Math.abs(thsrKeyToMs(a) - todayMs) - Math.abs(thsrKeyToMs(b) - todayMs));
+  const key = keys[0];
+  return { key, doc: { ...days[key], served_date: key } };
+}
+
+// TDX 端點 URL。env.THSR_SCHEDULE_BASE_URL_OVERRIDE 只在本機 --test-scheduled 驗證時經
+// wrangler --var 注入,指向本機 fixture server;正式環境永遠未設定,行為即硬編網址,零變化。
+const THSR_SCHEDULE_URL_BASE = 'https://tdx.transportdata.tw/api/basic/v2/Rail/THSR/DailyTimetable/TrainDate';
+function thsrScheduleUrl(env, dateIso) {
+  const base = (env && env.THSR_SCHEDULE_BASE_URL_OVERRIDE) || THSR_SCHEDULE_URL_BASE;
+  return `${base}/${dateIso}?%24format=JSON`;
+}
+async function fetchThsrDaily(env, token, dateIso) {
+  const url = thsrScheduleUrl(env, dateIso);
+  const r = await fetch(url, { headers: { authorization: 'Bearer ' + token, accept: 'application/json' }, redirect: 'manual' });
+  if (r.status === 401) { tok = null; throw new Error('tdx 401 thsr-schedule'); }
+  if (!r.ok) throw new Error('tdx thsr-schedule ' + r.status + ' for ' + dateIso);
+  return await r.json();
+}
+
+let thsrStationMapMem = null;
+async function thsrStationMap(env) {
+  if (thsrStationMapMem) return thsrStationMapMem;
+  const r = await env.ASSETS.fetch(new Request('https://railisland.tw/data/thsr_schedule_dense.json'));
+  if (!r.ok) throw new Error('thsr_schedule_dense unavailable: ' + r.status);
+  thsrStationMapMem = thsrBuildStationMap(await r.json());
+  return thsrStationMapMem;
+}
+
+// scheduled handler 的高鐵班表 ingest:抓「今天＋明天」,轉換失敗的那天保留既有值(console.warn),
+// 兩天都失敗就整體不覆寫既有 blob(冪等,下次 cron 續補)。days 只留最新 THSR_SCHED_KEEP_DAYS 個
+// 日鍵;skip 統計放進 blob 的 _meta(不進 denseDoc 本體,denseDoc 頂層鍵須與現行靜態檔完全一致)。
+async function ingestThsrSchedule(env) {
+  const db = env.DELAY_DB;
+  const today = twToday();
+  const tomorrow = addDays(today, 1);
+  const stationMap = await thsrStationMap(env);
+
+  let days = {}, metas = {};
+  try {
+    const row = await db.prepare('SELECT v FROM kv_blobs WHERE k=?').bind(THSR_SCHED_BLOB_KEY).first();
+    if (row && row.v) {
+      const parsed = JSON.parse(row.v);
+      if (parsed && parsed.days && typeof parsed.days === 'object') days = { ...parsed.days };
+      if (parsed && parsed._meta && typeof parsed._meta === 'object') metas = { ...parsed._meta };
+    }
+  } catch (e) { console.warn('[cron thsr-sched] 讀既有 blob 失敗,視為空:', (e && e.message) || String(e)); }
+
+  const results = {};
+  let token = null;
+  for (const dateIso of [today, tomorrow]) {
+    try {
+      if (!token) token = await getToken(env);
+      const daily = await fetchThsrDaily(env, token, dateIso);
+      const { doc, meta } = thsrConvertDaily(daily, dateIso, stationMap);
+      const dayKey = dateIso.replace(/-/g, '');
+      days[dayKey] = doc;
+      metas[dayKey] = { total: meta.total, converted: meta.converted, skipped: meta.skipped };
+      results[dateIso] = { ok: true, total: meta.total, converted: meta.converted, skipped: meta.skipped.length };
+    } catch (e) {
+      results[dateIso] = { ok: false, error: String((e && e.message) || e) };
+      console.warn(`[cron thsr-sched] ${dateIso} 抓取/轉換失敗,保留既有值:`, results[dateIso].error);
+    }
+  }
+
+  if (!Object.values(results).some(r => r.ok)) {
+    console.warn('[cron thsr-sched] 今天與明天皆失敗,不覆寫既有 blob:', JSON.stringify(results));
+    return { results, written: false };
+  }
+
+  const keys = Object.keys(days).sort();   // YYYYMMDD 字串序=時間序,見 thsrKeyToMs 註解
+  while (keys.length > THSR_SCHED_KEEP_DAYS) { const drop = keys.shift(); delete days[drop]; delete metas[drop]; }
+
+  const json = JSON.stringify({ fetchedAt: new Date().toISOString(), days, _meta: metas });
+  await db.prepare("INSERT OR REPLACE INTO kv_blobs(k,v,updated) VALUES(?,?,datetime('now'))").bind(THSR_SCHED_BLOB_KEY, json).run();
+  console.log(`[cron thsr-sched] 完成: ${JSON.stringify(results)}, 保留日鍵 ${JSON.stringify(Object.keys(days))}, bytes=${json.length}`);
+  return { results, written: true, dayKeys: Object.keys(days) };
+}
+
+// /api/thsr-schedule:唯讀吐回台北「今天」的高鐵班表(cron 寫好的 D1 blob)。無今天退最近日鍵
+// (見 thsrSelectServedDay),blob 不存在或空一律 404 not_ready——前端 fetchJSON 對非 2xx 回 null,
+// 會自動退到 SYS_DEFS.thsr_sched 的 fallbackUrl(打包靜態檔),不需要在這裡特別處理降級文案。
+async function thsrSchedule(request, env) {
+  const cacheKey = new Request(new URL('/api/thsr-schedule', request.url), { method: 'GET' });
+  const edge = caches.default;
+  const hit = await edge.match(cacheKey);
+  if (hit) return hit;
+  let row;
+  try { row = await env.DELAY_DB.prepare('SELECT v FROM kv_blobs WHERE k=?').bind(THSR_SCHED_BLOB_KEY).first(); }
+  catch (e) { return jsonRes({ error: 'not_ready' }, 404, 'public, s-maxage=60'); }
+  if (!row || !row.v) return jsonRes({ error: 'not_ready' }, 404, 'public, s-maxage=60');
+  let blob;
+  try { blob = JSON.parse(row.v); } catch (e) { return jsonRes({ error: 'not_ready' }, 404, 'public, s-maxage=60'); }
+  const picked = thsrSelectServedDay((blob && blob.days) || {}, twToday().replace(/-/g, ''));
+  if (!picked) return jsonRes({ error: 'not_ready' }, 404, 'public, s-maxage=60');
+  const res = jsonRes(picked.doc, 200, 'public, s-maxage=300, stale-while-revalidate=3600');
+  await edge.put(cacheKey, res.clone());
+  return res;
+}
+
 // 逐站事件保留期:刪掉台北今日往前 STATION_EVENT_KEEP_DAYS 天以外的舊列(重用 addDays/twToday)。
 // 獨立於 delay ingest——放進 scheduled 的 finally,ingest 成功或失敗(rethrow)都會執行;本函式失敗
 // 只由呼叫端 console.error、不 rethrow,不動既有「ingest 失敗要 rethrow」的語意。
@@ -3442,6 +3636,14 @@ export default {
       // 逐站事件保留期清理:獨立 try/catch,不影響上面 ingest 的成功/失敗(rethrow)語意;finally 確保 ingest 失敗也會跑
       try { await pruneStationEvents(env); }
       catch (e) { console.error('[cron station-events] 清理失敗:', (e && e.stack) || String(e)); }
+      // 高鐵未來班表 ingest:獨立 try/catch,不影響上面台鐵 ingest 的成功/失敗(rethrow)語意,
+      // 也不被它拖垮(擺在 finally,ingestDelayHistory 失敗一樣會跑到這裡)。
+      try {
+        const rt = await ingestThsrSchedule(env);
+        console.log(`[cron thsr-sched] scheduled 完成: written=${rt.written}`);
+      } catch (e) {
+        console.error('[cron thsr-sched] 失敗:', (e && e.stack) || String(e));
+      }
       // 懸賞估值只掛第二班(台北 12:15)。掛兩班等於每天重算兩次估值,而 L2 是以「天」為單位的,
       // 多跑一次只是多花 D1 寫入。挑第二班是因為第一班要先讓 ingestDelayHistory 把前一日的
       // 誤點資料寫進來——驗證閘的第二重要對那份資料。獨立 try/catch,不影響上面 ingest 的 rethrow 語意。
@@ -3513,6 +3715,7 @@ export default {
     }
     else if (url.pathname === '/api/trtc-live') { res = await trtcLive(request, env); }
     else if (url.pathname === '/api/delay-stats') res = await delayStats(request, env);
+    else if (url.pathname === '/api/thsr-schedule') res = await thsrSchedule(request, env);
     else if (url.pathname === '/api/delay-history') res = await delayHistory(request, env);
     else if (url.pathname === '/api/station-events') res = await stationEvents(request, env);
     else if (url.pathname === '/api/today-board') res = await todayBoard(request, env);
@@ -3591,4 +3794,12 @@ export const _trtc = { trtcParse, trtcEpoch, dedupeLatest, trtcCall, trtcApiUrl,
 export const _trtcLedger = {
   trtcBoardEpoch, trtcLedgerContext, persistTrtcLedger, trtcLedgerPreview,
   trtcLedgerMaterialized, trtcLedgerNowEpoch, pruneTrtcLedger, trtcLedgerScheduled,
+};
+// 純函式與端點/cron 導出,供離線回歸測試 import(scripts/verify_thsr_schedule.mjs)。
+// thsrConvertDaily/thsrBuildStationMap/thsrSelectServedDay/thsrKeyToMs 是純函式,可直接餵 fixture。
+// fetchThsrDaily/thsrStationMap/ingestThsrSchedule/thsrSchedule 會碰 D1/ASSETS/網路,測試要自備
+// env 替身(env.DELAY_DB、env.ASSETS、env.TDX_AUTH_URL_OVERRIDE、env.THSR_SCHEDULE_BASE_URL_OVERRIDE)。
+export const _thsr = {
+  thsrConvertDaily, thsrBuildStationMap, thsrSelectServedDay, thsrKeyToMs, thsrScheduleUrl,
+  fetchThsrDaily, thsrStationMap, ingestThsrSchedule, thsrSchedule, authUrl,
 };
