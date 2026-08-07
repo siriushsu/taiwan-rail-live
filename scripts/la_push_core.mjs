@@ -32,3 +32,22 @@ export function laArrivalIso(atSec, delaySec, nowSec) {
   const arrive = atSec + delaySec;
   return arrive > nowSec ? new Date(arrive * 1000).toISOString() : null;
 }
+
+// APNs 的 provider token(ES256 JWT)。Apple 規定至少 20 分鐘才可換新、最長 60 分鐘,
+// 所以快取 50 分鐘——每次都重簽會被 Apple 當濫用擋掉。
+let _laJwt = null, _laJwtAt = 0;
+export async function laJwt(env) {
+  const now = Math.floor(Date.now() / 1000);
+  if (_laJwt && now - _laJwtAt < 3000) return _laJwt;
+  const pem = String(env.APNS_KEY_P8).replace(/-----[^-]+-----/g, '').replace(/\s+/g, '');
+  const der = Uint8Array.from(atob(pem), c => c.charCodeAt(0));
+  const key = await crypto.subtle.importKey('pkcs8', der, { name: 'ECDSA', namedCurve: 'P-256' }, false, ['sign']);
+  const b64u = o => btoa(typeof o === 'string' ? o : JSON.stringify(o)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+  const head = b64u({ alg: 'ES256', kid: String(env.APNS_KEY_ID) });
+  const body = b64u({ iss: String(env.APNS_TEAM_ID), iat: now });
+  const sig = await crypto.subtle.sign({ name: 'ECDSA', hash: 'SHA-256' },
+    key, new TextEncoder().encode(`${head}.${body}`));
+  const sigB64 = btoa(String.fromCharCode(...new Uint8Array(sig))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+  _laJwt = `${head}.${body}.${sigB64}`; _laJwtAt = now;
+  return _laJwt;
+}

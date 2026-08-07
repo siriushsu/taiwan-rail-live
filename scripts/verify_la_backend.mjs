@@ -1,7 +1,7 @@
 // LA 後端驗收。本檔【不打正式站】,一律對本機 wrangler dev 跑。
 // 起 server 的指令見計畫 Task 4 Step 3;埠由呼叫端指定並傳進 LA_BASE。
 import { execFileSync } from 'node:child_process';
-import { laNextIdx, laSchedIdx, laArrivalIso } from './la_push_core.mjs';
+import { laNextIdx, laSchedIdx, laArrivalIso, laJwt } from './la_push_core.mjs';
 
 // results/ok/abort 三個必須排在最前面——連 LA_BASE/LA_WT 都還沒驗證前就要能用,
 // 否則環境參數缺失那幾條 early-exit 沒有「總計」行可印(批次工具 grep 不到、真人也看不出腳本有跑過)。
@@ -214,6 +214,21 @@ ok('N12 全部過完 → 回 stops.length(呼叫端據此收卡)', laSchedIdx(SC
 ok('N13 未到站 → 回 ISO 字串', laArrivalIso(T0 + 600, 0, T0) === new Date((T0 + 600) * 1000).toISOString(), String(laArrivalIso(T0 + 600, 0, T0)));
 ok('N14 到站時刻已過 → 回 null', laArrivalIso(T0 + 600, 0, T0 + 601) === null, String(laArrivalIso(T0 + 600, 0, T0 + 601)));
 ok('N15 誤點把到站推到未來 → 又回 ISO(不是永久 null)', typeof laArrivalIso(T0 + 600, 600, T0 + 700) === 'string', String(laArrivalIso(T0 + 600, 600, T0 + 700)));
+
+// J 系列:APNs JWT。只驗結構與可解性,不驗 Apple 會不會接受(那要真金鑰,見 Step 6)。
+{
+  // 測試用的 EC P-256 金鑰(僅供本檔驗結構,不是任何真實憑證)
+  const kp = await crypto.subtle.generateKey({ name: 'ECDSA', namedCurve: 'P-256' }, true, ['sign']);
+  const pkcs8 = await crypto.subtle.exportKey('pkcs8', kp.privateKey);
+  const b64 = btoa(String.fromCharCode(...new Uint8Array(pkcs8))).replace(/(.{64})/g, '$1\n');
+  const fakeEnv = { APNS_KEY_P8: `-----BEGIN PRIVATE KEY-----\n${b64}\n-----END PRIVATE KEY-----`, APNS_KEY_ID: 'ABC1234567', APNS_TEAM_ID: 'TEAM123456' };
+  const jwt = await laJwt(fakeEnv);
+  const [h, p, s] = String(jwt).split('.');
+  const dec = x => JSON.parse(atob(x.replace(/-/g, '+').replace(/_/g, '/')));
+  ok('J1 JWT 三段結構', !!(h && p && s), `len=${String(jwt).length}`);
+  ok('J2 header alg=ES256 且帶 kid', dec(h).alg === 'ES256' && dec(h).kid === 'ABC1234567', JSON.stringify(dec(h)));
+  ok('J3 payload iss=TeamID 且 iat 是現在', dec(p).iss === 'TEAM123456' && Math.abs(dec(p).iat - Math.floor(Date.now() / 1000)) < 60, JSON.stringify(dec(p)));
+}
 
 summary();   // 走到這裡＝完整跑完,印不帶「中止」字樣的總計行
 process.exit(results.filter(r => !r.p).length ? 1 : 0);

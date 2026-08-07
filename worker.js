@@ -3,7 +3,7 @@ import {
   trtcOperatingState, trtcServiceDay, resolveBoardRows, claimBoardRows, collapseClaims,
   bindTracksToTrips, buildTripSetsByLineDir, joinBoardRowsToTrips,
 } from './scripts/trtc_board_ledger.mjs';
-import { laNextIdx, laSchedIdx, laArrivalIso } from './scripts/la_push_core.mjs';
+import { laNextIdx, laSchedIdx, laArrivalIso, laJwt } from './scripts/la_push_core.mjs';
 
 // Cloudflare Worker 入口:靜態資產(assets binding)+ /api/tra-live 台鐵即時動態代理
 // + /api/tra-alert 台鐵營運通阻公告 + /api/thsr-alert 高鐵營運狀態公告(颱風停駛等)
@@ -2253,6 +2253,89 @@ async function laUnbind(request, env) {
   return jsonRes({ ok: true }, 200, 'no-store');
 }
 
+// 每分鐘掃一次所有未過期的交班,算出「現在該顯示哪一站」,變了才推。
+// 讀 traLive 走既有雙層快取(與訪客共用)⇒ 零新增 TDX 呼叫。
+async function laPushAll(env, ctx, baseUrl) {
+  if (!env.APNS_KEY_P8 || !env.DELAY_DB) return { sent: 0, dropped: 0 };   // 未設定就整支不動
+  const now = Math.floor(Date.now() / 1000);
+  await env.DELAY_DB.prepare('DELETE FROM la_bindings WHERE expire_at < ?').bind(now).run();
+  const rs = await env.DELAY_DB.prepare('SELECT * FROM la_bindings').all();
+  const rows = rs.results || [];
+  if (!rows.length) return { sent: 0, dropped: 0 };
+
+  // 台鐵即時:整批共用一次
+  let live = {};
+  if (rows.some(r => r.sys === 'tra_sched')) {
+    try {
+      const r = await traLive(new Request(baseUrl + '/api/tra-live'), env, ctx);
+      const j = await r.json();
+      for (const t of (j.trains || [])) live[String(t.no)] = t;
+    } catch (e) { /* 上游掛掉:live 留空,下面一律走 last_delay 的 fallback */ }
+  }
+
+  const jwt = await laJwt(env);
+  let sent = 0, dropped = 0;
+  for (const row of rows) {
+    const stops = JSON.parse(row.stops), staMap = JSON.parse(row.sta_map), stopCodes = JSON.parse(row.stop_codes);
+    const t = row.sys === 'tra_sched' ? live[String(row.train_no)] : null;
+    // 誤點:拿得到就用,拿不到沿用最後已知值(不歸零——歸零會讓卡片跳)
+    const delaySec = t ? (Number(t.delay) || 0) * 60 : row.last_delay;
+    // 有觀測就用觀測(承重牆 1);沒有(支線 92 站缺口、高鐵、上游掛掉)就走表定退路,
+    // 卡片【仍然前進】——凍住不動比慢一兩分鐘更糟。
+    const idx = t ? laNextIdx(String(t.sta), Number(t.status), staMap, stopCodes, row.last_idx)
+                  : laSchedIdx(stops, delaySec, now, row.last_idx);
+    if (idx >= stops.length) {                            // 走完全程 → 收卡
+      await env.DELAY_DB.prepare('DELETE FROM la_bindings WHERE token=?').bind(row.token).run();
+      continue;
+    }
+    // 🔴 idx < 0 是「剛 bind、TDX 還沒回報過這台車」,不是走完了。
+    //    把它併進上面那條會讓新卡在第一分鐘就被刪掉——不推也不收卡,下一分鐘再說。
+    if (idx < 0) continue;
+    if (idx === row.last_idx && delaySec === row.last_delay) continue;   // 沒變就不推
+
+    const st = stops[idx];
+    const prev = idx > 0 ? stops[idx - 1] : null;
+    const body = {
+      aps: {
+        timestamp: now, event: 'update',
+        'content-state': {
+          nextStop: st.name,
+          // st.at 已是絕對 epoch(前端換算好),後端零時區運算。
+          // 到站時刻已過 ⇒ laArrivalIso 回 null,卡片只剩站名不畫假倒數。
+          arrivalDate: laArrivalIso(st.at, delaySec, now),
+          departedDate: prev ? new Date((prev.at + delaySec) * 1000).toISOString() : null,
+          delaySec, terminus: stops[stops.length - 1].name,
+        },
+      },
+    };
+    // 🔴 開發 build(entitlements aps-environment=development)拿到的是 sandbox token,
+    //    打 production host 一律回 400 BadDeviceToken。用 env 切,不要寫死。
+    const host = env.APNS_HOST || 'api.push.apple.com';
+    const res = await fetch(`https://${host}/3/device/${row.token}`, {
+      method: 'POST',
+      headers: {
+        authorization: 'bearer ' + jwt,
+        'apns-topic': 'tw.railisland.app.push-type.liveactivity',
+        'apns-push-type': 'liveactivity',
+        'apns-priority': '5',        // 5 不計入更新預算;不指定會是 10 且計入
+        'content-type': 'application/json',
+      },
+      body: JSON.stringify(body),
+    });
+    if (res.status === 410 || res.status === 400) {      // token 失效 → 清掉不再推
+      await env.DELAY_DB.prepare('DELETE FROM la_bindings WHERE token=?').bind(row.token).run();
+      dropped++; continue;
+    }
+    if (res.ok) {
+      await env.DELAY_DB.prepare('UPDATE la_bindings SET last_idx=?, last_delay=? WHERE token=?')
+        .bind(idx, delaySec, row.token).run();
+      sent++;
+    }
+    // 其餘(429／5xx)：不更新 last_idx,下一分鐘自然重試
+  }
+  return { sent, dropped };
+}
+
 // 今日準點/誤點榜(唯讀查 D1):每班車一列=今天最新一筆事件(obs_at 最大)+今天整體 max(delay_max)。
 // 用視窗函式在 SQL 端聚合(絕不把全日事件撈回 JS 再算);空表優雅回空陣列。
 async function todayBoard(request, env) {
@@ -3830,6 +3913,11 @@ export default {
       // 災害來源/公告不能延遲或改變北捷帳本 cron 的成功/失敗契約；scheduled runtime 一定提供 waitUntil。
       // 本機直接呼叫 default.scheduled 若沒帶 ctx，catch 已吞住 rejection，帳本仍照原路徑完成。
       if (ctx && typeof ctx.waitUntil === 'function') ctx.waitUntil(hazardTask);
+      const laTask = laPushAll(env, ctx, 'https://railisland.tw').catch(e => {
+        console.error('[cron la-push] 失敗:', (e && e.stack) || String(e));
+        return { error: String((e && e.message) || e) };
+      });
+      if (ctx && typeof ctx.waitUntil === 'function') ctx.waitUntil(laTask);
       try {
         const ledger = await trtcLedgerScheduled(event, env);
         return ledger; // 維持原本 scheduled 回傳 shape，避免帳本驗收/觀測端因加觸發器而變契約
@@ -4010,6 +4098,11 @@ export const _trtcLedger = {
   trtcBoardEpoch, trtcLedgerContext, persistTrtcLedger, trtcLedgerPreview,
   trtcLedgerMaterialized, trtcLedgerNowEpoch, pruneTrtcLedger, trtcLedgerScheduled,
 };
+// laPushAll 導出(task-6)：這條迴圈是全功能唯一沒有純函式測試覆蓋的部分(呼叫 D1／APNs／
+// traLive 三個 IO)。workerd 的 fetch 會拒絕自簽 HTTPS 憑證,沒辦法用假伺服器讓 wrangler dev
+// 打;改用 getPlatformProxy 在 Node 端直接呼叫本函式,fetch 全域可監控/替換,繞過該限制,見
+// scripts/verify_la_push_loop.mjs。正式 router 不因此增加任何路徑。
+export const _la = { laPushAll };
 // 純函式與端點/cron 導出,供離線回歸測試 import(scripts/verify_thsr_schedule.mjs)。
 // thsrConvertDaily/thsrBuildStationMap/thsrSelectServedDay/thsrKeyToMs 是純函式,可直接餵 fixture。
 // fetchThsrDaily/thsrStationMap/ingestThsrSchedule/thsrSchedule 會碰 D1/ASSETS/網路,測試要自備
