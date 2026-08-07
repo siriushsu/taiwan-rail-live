@@ -1,6 +1,7 @@
 // LA 後端驗收。本檔【不打正式站】,一律對本機 wrangler dev 跑。
 // 起 server 的指令見計畫 Task 4 Step 3;埠由呼叫端指定並傳進 LA_BASE。
 import { execFileSync } from 'node:child_process';
+import { laNextIdx, laSchedIdx, laArrivalIso } from './la_push_core.mjs';
 
 const BASE = process.env.LA_BASE;
 // 🔴 base 必須是 https(worker.js 有 http→https 301,純 http 會讓所有 /api/* 無限重導),
@@ -136,6 +137,34 @@ const VALID = {
   const b = await post('/api/la/unbind', { token: VALID.token });
   ok('B8 unbind 冪等', a.status === 200 && b.status === 200, `${a.status}/${b.status}`);
 }
+
+// N 系列:換站決策純函式。不經 HTTP,直接測邏輯。
+const MAP = { '5050': 1, '5040': 1, '5030': 1, '5000': 2 };   // 潮州→1, 竹田/西勢(通過)→1, 屏東→2
+const CODES = ['5050', '5000', '4340'];                        // 停靠站:潮州(0) 屏東(1) 新左營(2)
+const nx = (...a) => laNextIdx(...a);
+
+ok('N1 已離站(status2)→下一個停靠站', nx('5050', 2, MAP, CODES, -1) === 1, String(nx('5050', 2, MAP, CODES, -1)));
+ok('N2 進站中(status0)且該站是停靠站→就是它自己', nx('5050', 0, MAP, CODES, -1) === 0, String(nx('5050', 0, MAP, CODES, -1)));
+// N3 是設計書 §8 明列的案例:在站上仍顯示該站(月台顯示器語意),不是提前翻到下一站
+ok('N3 在站上(status1)且該站是停靠站→仍是它自己', nx('5050', 1, MAP, CODES, -1) === 0, String(nx('5050', 1, MAP, CODES, -1)));
+ok('N4 通過站不論 status 都走映射', nx('5040', 0, MAP, CODES, -1) === 1, String(nx('5040', 0, MAP, CODES, -1)));
+ok('N5 單調閘門:回報較早的站不倒退', nx('5050', 2, MAP, CODES, 2) === 2, String(nx('5050', 2, MAP, CODES, 2)));
+ok('N6 認不出的站碼→維持現狀', nx('9999', 2, MAP, CODES, 1) === 1, String(nx('9999', 2, MAP, CODES, 1)));
+ok('N7 終點之後(映射無值)→維持現狀', nx('4340', 2, MAP, CODES, 2) === 2, String(nx('4340', 2, MAP, CODES, 2)));
+
+// ── 車不在 feed 的退路:必須【繼續前進】,不是凍住(設計書 §6) ──
+const T0 = 1_800_000_000;
+const SCH = [{ at: T0 + 600 }, { at: T0 + 1800 }, { at: T0 + 3600 }];
+ok('N8 表定推進:第一站還沒到 → idx 0', laSchedIdx(SCH, 0, T0, -1) === 0, String(laSchedIdx(SCH, 0, T0, -1)));
+ok('N9 表定推進:第一站已過 → 前進到 idx 1', laSchedIdx(SCH, 0, T0 + 900, 0) === 1, String(laSchedIdx(SCH, 0, T0 + 900, 0)));
+ok('N10 表定推進吃誤點:誤點 10 分 ⇒ 同一時刻仍在 idx 0', laSchedIdx(SCH, 600, T0 + 900, 0) === 0, String(laSchedIdx(SCH, 600, T0 + 900, 0)));
+ok('N11 表定推進也守單調閘門', laSchedIdx(SCH, 0, T0, 2) === 2, String(laSchedIdx(SCH, 0, T0, 2)));
+ok('N12 全部過完 → 回 stops.length(呼叫端據此收卡)', laSchedIdx(SCH, 0, T0 + 9999, 0) === 3, String(laSchedIdx(SCH, 0, T0 + 9999, 0)));
+
+// ── 到站時刻已過 → arrivalDate = nil(設計書 §6 那條吃掉交會待避/停站不更新的規則) ──
+ok('N13 未到站 → 回 ISO 字串', laArrivalIso(T0 + 600, 0, T0) === new Date((T0 + 600) * 1000).toISOString(), String(laArrivalIso(T0 + 600, 0, T0)));
+ok('N14 到站時刻已過 → 回 null', laArrivalIso(T0 + 600, 0, T0 + 601) === null, String(laArrivalIso(T0 + 600, 0, T0 + 601)));
+ok('N15 誤點把到站推到未來 → 又回 ISO(不是永久 null)', typeof laArrivalIso(T0 + 600, 600, T0 + 700) === 'string', String(laArrivalIso(T0 + 600, 600, T0 + 700)));
 
 const bad = results.filter(r => !r.p).length;
 console.log(`\n總計 ${results.length} 項,FAIL ${bad}`);
