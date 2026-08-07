@@ -646,6 +646,7 @@ const TRIP_BIND_COST_CAP_SEC = 600;         // cost=|shift-ref| 上限
 const TRIP_BIND_ABS_CAP_SEC = 1800;         // |shift| 絕對上限(雙保險,防 ref 本身跑掉)
 const TRIP_BIND_BAD_STREAK_LIMIT = 4;       // 安全閥:連續幾輪 cost 超標才解綁重配(§5.2)
 const TRIP_BIND_DONE_GRACE_SEC = 120;       // 收班寬限(§5.3)
+const TRIP_BIND_RECLAIM_COST_CAP_SEC = 180; // 認回:cost=|shift-lastShift| 上限(§5.3,v1.1)
 
 // 與前端 freqTripKey 後綴同構(index.html:14499-14501):line/dir 由呼叫端欄位攜帶,這裡只回線內局部鍵。
 export function tripKeyOf(tr) {
@@ -719,7 +720,7 @@ function tripBindKey(line, dir, tripKey) { return `${line}|${dir}|${tripKey}`; }
 // 輸出 { bindings, events, audit }。
 export function bindTracksToTrips({ model, tripSets, dayType, tracks, priorBindings, nowEpoch, day }) {
   const nowSec = trtcServiceSecOfEpoch(nowEpoch);
-  const audit = { bound: 0, unbound: 0, rebinds: 0, capped: 0, done: 0, legMiss: 0, malformed: 0 };
+  const audit = { bound: 0, unbound: 0, rebinds: 0, capped: 0, done: 0, legMiss: 0, malformed: 0, reattach: 0 };
   const events = [];
 
   // 1) 展開 prior 狀態成可變工作副本。
@@ -841,20 +842,88 @@ export function bindTracksToTrips({ model, tripSets, dayType, tracks, priorBindi
     }
   }
 
-  // 8) 出生綁定(§5.1):候選池排除已佔用(records 現存的所有 fullKey,即剛才兩輪驅逐後的存活集合)。
-  const occupiedTripKeys = new Set(records.keys());
-  const latestDepByRoute = new Map(); // "line|dir|st0|stN" -> 已綁最大 tr[1](前驅單調用)
-  for (const rec of records.values()) {
-    if (rec.done) continue;
-    const tr = tripByFullKey.get(tripBindKey(rec.line, rec.dir, rec.tripKey));
-    if (!tr) continue;
-    const rk = `${rec.line}|${rec.dir}|${tr[0]}|${tr[tr.length - 2]}`;
-    const cur = latestDepByRoute.get(rk);
-    if (cur == null || tr[1] > cur) latestDepByRoute.set(rk, tr[1]);
+  // 8) 無反轉約束(§5.1(b),v1.1改):候選(tr,shift)與同(line,dir)班表序相鄰的「活躍」綁定
+  //    比較修正後末站時刻(tr末站時刻+各自 shift),只查緊鄰前後兩班,該班未綁或已收班則不構成約束。
+  //    取代 v1.0 的「前驅單調水位線」——語料實測水位線會把終點折返靜默重生的車永久擋死
+  //    (unbound 67.8%,98.2% 有合理候選卻被水位/連鎖佔用擋掉;水位線把「出生順序」當成
+  //    「發車順序」,兩者在 track 折返/碎裂重生時脫鉤)。FIFO 的目的是時序不反轉,不是出生序單調。
+  const scheduleNeighbors = new Map(); // fullKey -> { prevKey, nextKey }(依 tr[1] 班表序)
+  for (const [gk, trips] of tripSets || []) {
+    const sep = gk.lastIndexOf('|'); const line = gk.slice(0, sep), dir = Number(gk.slice(sep + 1));
+    const sorted = [...trips].sort((a, b) => a[1] - b[1]);
+    for (let i = 0; i < sorted.length; i++) {
+      const fullKey = tripBindKey(line, dir, tripKeyOf(sorted[i]));
+      scheduleNeighbors.set(fullKey, {
+        prevKey: i > 0 ? tripBindKey(line, dir, tripKeyOf(sorted[i - 1])) : null,
+        nextKey: i < sorted.length - 1 ? tripBindKey(line, dir, tripKeyOf(sorted[i + 1])) : null,
+      });
+    }
+  }
+  function violatesNoReversal(fullKey, tr, shift) {
+    const nb = scheduleNeighbors.get(fullKey);
+    if (!nb) return false;
+    const candEnd = tr[tr.length - 1] + shift;
+    if (nb.prevKey) {
+      const prevRec = records.get(nb.prevKey);
+      const prevTr = prevRec && !prevRec.done && tripByFullKey.get(nb.prevKey);
+      if (prevTr && prevTr[prevTr.length - 1] + prevRec.lastShift > candEnd) return true;
+    }
+    if (nb.nextKey) {
+      const nextRec = records.get(nb.nextKey);
+      const nextTr = nextRec && !nextRec.done && tripByFullKey.get(nb.nextKey);
+      if (nextTr && nextTr[nextTr.length - 1] + nextRec.lastShift < candEnd) return true;
+    }
+    return false;
   }
 
-  const edges = [];
+  // 9) 認回 reclaim(§5.3,v1.1新增):出生綁定之前,先讓「已綁但這輪沒收到更新」的班次
+  //    (line+dir+dest 相同、cost=|shift-lastShift|≤180s 取最小者)優先認回新 track——
+  //    track_id 更新、boundEpoch 延續、badStreak 歸零(新連續性起點),不走出生的
+  //    ref-relative cost/cap,但仍過 (8) 無反轉檢查。處理「同一班次中途斷連、track 換 id
+  //    重現」(Y 的 synth 碎裂、CW alias 斷檔、終點折返靜默後在路線中段以新 id 重見)。
+  const reclaimEdges = [];
   for (const claim of freshTracks) {
+    for (const [fullKey, rec] of records) {
+      if (rec.done || updatedFullKeys.has(fullKey)) continue; // 本輪仍在回報中的不算「失聯」
+      if (rec.line !== claim.line || rec.dir !== claim.dir) continue;
+      const tr = tripByFullKey.get(fullKey); if (!tr || tr[tr.length - 2] !== claim.destIdx) continue;
+      let scheduledEvent;
+      if (claim.terminal) {
+        if (tr[0] !== claim.from) continue;
+        scheduledEvent = tr[1];
+      } else {
+        const k = tripLegIndex(tr, claim.from, claim.to);
+        if (k < 0) continue;
+        scheduledEvent = tr[(k - 1) * 2 + 1];
+      }
+      const shift = claim.depSec - scheduledEvent;
+      const cost = Math.abs(shift - rec.lastShift);
+      if (cost > TRIP_BIND_RECLAIM_COST_CAP_SEC) continue;
+      if (violatesNoReversal(fullKey, tr, shift)) continue; // (8) 無反轉檢查仍要過
+      reclaimEdges.push({ claim, fullKey, tr, shift, cost });
+    }
+  }
+  reclaimEdges.sort((a, b) => a.cost - b.cost);
+  const reclaimedTracks = new Set(), reclaimedKeys = new Set();
+  for (const e of reclaimEdges) {
+    if (reclaimedTracks.has(e.claim.trackId) || reclaimedKeys.has(e.fullKey)) continue;
+    if (violatesNoReversal(e.fullKey, e.tr, e.shift)) continue; // 同輪較早認回可能已改變鄰居活躍狀態,重驗
+    reclaimedTracks.add(e.claim.trackId); reclaimedKeys.add(e.fullKey);
+    const rec = records.get(e.fullKey);
+    rec.trackId = e.claim.trackId; rec.lastShift = e.shift; rec.lastTo = e.claim.to;
+    rec.lastArrEpoch = e.claim.arrEpoch; rec.badStreak = 0;
+    rec._reachedEnd = !e.claim.terminal && e.claim.to === e.tr[e.tr.length - 2] && e.claim.arrEpoch <= nowEpoch;
+    updatedFullKeys.add(e.fullKey);
+    events.push({ type: 'reattach', day, line: rec.line, dir: rec.dir, tripKey: rec.tripKey,
+      trackId: e.claim.trackId, epoch: nowEpoch });
+    audit.reattach++;
+  }
+  const birthTracks = reclaimedTracks.size ? freshTracks.filter(c => !reclaimedTracks.has(c.trackId)) : freshTracks;
+
+  // 10) 出生綁定(§5.1):候選池排除已佔用(records 現存的所有 fullKey,含剛認回的)。
+  const occupiedTripKeys = new Set(records.keys());
+  const edges = [];
+  for (const claim of birthTracks) {
     const gk = `${claim.line}|${claim.dir}`;
     const ref = refByGroup.get(gk) || 0;
     for (const tr of (tripSets && tripSets.get(gk)) || []) {
@@ -872,18 +941,17 @@ export function bindTracksToTrips({ model, tripSets, dayType, tracks, priorBindi
       }
       const shift = claim.depSec - scheduledEvent;
       if (shift < TRIP_BIND_MAX_EARLY_SEC) continue; // (a) 禁早發
-      const rk = `${claim.line}|${claim.dir}|${tr[0]}|${tr[tr.length - 2]}`;
-      const latestDep = latestDepByRoute.get(rk);
-      if (latestDep != null && tr[1] <= latestDep) continue; // (b) 前驅單調
+      if (violatesNoReversal(fullKey, tr, shift)) continue; // (b) 無反轉約束
       const cost = Math.abs(shift - ref);
       if (cost > TRIP_BIND_COST_CAP_SEC || Math.abs(shift) > TRIP_BIND_ABS_CAP_SEC) { audit.capped++; continue; } // (c) cap
-      edges.push({ claim, tr, fullKey, shift, cost, rk });
+      edges.push({ claim, tr, fullKey, shift, cost });
     }
   }
   edges.sort((a, b) => a.cost - b.cost);
   const usedTracks = new Set(), usedTripKeys = new Set(occupiedTripKeys);
   for (const e of edges) {
     if (usedTracks.has(e.claim.trackId) || usedTripKeys.has(e.fullKey)) continue;
+    if (violatesNoReversal(e.fullKey, e.tr, e.shift)) continue; // 同輪較早出生可能已改變鄰居活躍狀態,重驗
     usedTracks.add(e.claim.trackId); usedTripKeys.add(e.fullKey);
     const priorRebinds = evictedRebinds.get(e.claim.trackId);
     records.set(e.fullKey, {
@@ -892,16 +960,14 @@ export function bindTracksToTrips({ model, tripSets, dayType, tracks, priorBindi
       lastShift: e.shift, lastTo: e.claim.to, lastArrEpoch: e.claim.arrEpoch, badStreak: 0,
       done: false, rebinds: priorRebinds != null ? priorRebinds + 1 : 0,
     });
-    const cur = latestDepByRoute.get(e.rk);
-    if (cur == null || e.tr[1] > cur) latestDepByRoute.set(e.rk, e.tr[1]);
     events.push({ type: 'bind', day, line: e.claim.line, dir: e.claim.dir, tripKey: tripKeyOf(e.tr),
       trackId: e.claim.trackId, epoch: nowEpoch, birth: e.claim.terminal ? 'terminal' : 'seed' });
     audit.bound++;
     if (priorRebinds != null) audit.rebinds++;
   }
-  audit.unbound += freshTracks.filter(c => !usedTracks.has(c.trackId)).length;
+  audit.unbound += birthTracks.filter(c => !usedTracks.has(c.trackId)).length;
 
-  // 9) 收班判定(§5.3):對所有存活(非 done)紀錄跑一次,涵蓋沉默(本輪沒有沿用列的失聯 track)
+  // 11) 收班判定(§5.3):對所有存活(非 done)紀錄跑一次,涵蓋沉默(本輪沒有沿用列的失聯 track)
   //    與剛出生的兩種情況。「觀測到達終點」或「修正後末站時刻已過+120s 寬限」任一成立即收班。
   for (const [fullKey, rec] of records) {
     if (rec.done) continue;
