@@ -27,7 +27,17 @@ const PORT = 5219;
 const MIME = { '.html': 'text/html', '.js': 'text/javascript', '.mjs': 'text/javascript', '.json': 'application/json', '.css': 'text/css', '.png': 'image/png', '.jpg': 'image/jpeg', '.svg': 'image/svg+xml', '.mp3': 'audio/mpeg', '.ico': 'image/x-icon', '.webmanifest': 'application/manifest+json' };
 const server = createServer((req, res) => {
   const url = new URL(req.url, 'http://x');
-  if (url.pathname.startsWith('/api/')) { res.statusCode = 200; res.setHeader('content-type', 'application/json'); return res.end('{}'); }
+  // /api/* 預設回空物件(alert／token 那些對開機非必要的端點都吃得下)。高鐵班表是唯一的例外:
+  // 2026-08-07(9f05f2f)起 SYS_DEFS 的 thsr_sched 改以 apiUrl('api/thsr-schedule') 為主來源,
+  // 靜態檔降級成「fetch 失敗」時的退路(index.html:8737,17848)。而空物件是 200,fetchJSONAt 視同
+  // 成功(index.html:16115)⇒ fallbackUrl 永遠不會啟動 ⇒ applySchedSystems 迭代 undefined 的
+  // sys.data.trains 當場拋錯 ⇒ boot 中止在 state.ready=true 之前 ⇒ waitReady 空等 30 秒逾時。
+  // 這裡直接吐打包的那份 dense 班表(＝生產端點回的同一個 schema),讓 fixture 代表「API 正常」。
+  if (url.pathname.startsWith('/api/')) {
+    res.statusCode = 200; res.setHeader('content-type', 'application/json');
+    if (url.pathname === '/api/thsr-schedule') return res.end(readFileSync(path.join(ROOT, 'data/thsr_schedule_dense.json')));
+    return res.end('{}');
+  }
   let fp = path.join(ROOT, decodeURIComponent(url.pathname));
   if (existsSync(fp) && statSync(fp).isDirectory()) fp = path.join(fp, 'index.html');
   if (!path.resolve(fp).startsWith(ROOT) || !existsSync(fp)) { res.statusCode = 404; return res.end('nf'); }
@@ -139,7 +149,17 @@ async function bootFollowed(browser, opts = {}) {
   await page.goto(BASE + qs, { waitUntil: 'domcontentloaded' });
   await waitReady(page);
   const no = await pickTra(page);
-  if (no) { await routeApis(page, no, histMode); await page.evaluate(n => followTrainNo(n), no); }
+  if (no) {
+    await routeApis(page, no, histMode);
+    // 準點排行(5e89822)讓開機第一幀的 drawSched→buildPunctual→ensurePunctualData 就抓走 /api/delay-stats,
+    // 而 ensureDelayStats 抓一次就永久快取(index.html:13474 的 in-flight/已載入 guard)⇒ waitReady 之後才裝的
+    // page.route 一次都攔不到,state.delayStats 停在伺服器 stub 回的 {},入口 gate 的 d>=5 永遠不成立。
+    // 先等開機那次落定(否則它晚回來會蓋掉重抓的結果),再清快取讓下面的 followTrainNo 重抓一次——
+    // 這次才會走到上面的攔截器。(main 上 ensureDelayStats 只從跟車路徑呼叫,所以本檔原本不必做這件事。)
+    await page.waitForFunction(() => !state._delayStatsFetching && state.delayStats, null, { timeout: 8000 }).catch(() => {});
+    await page.evaluate(() => { state.delayStats = null; state._delayStatsFetching = false; });
+    await page.evaluate(n => followTrainNo(n), no);
+  }
   return { ctx, page, errs, no };
 }
 // 點不到／等不到一律吞掉例外往下走,讓後面的斷言以「量到什麼」具名轉紅——拋例外會中止整支腳本,

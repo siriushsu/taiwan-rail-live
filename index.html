@@ -971,6 +971,20 @@
   .traincard .tc-st.hd:hover { background: none; }
   .traincard .tc-st.past { opacity: .45; }
   .traincard .tc-st.cur { color: var(--red); font-weight: 800; }
+  /* 高鐵自由座車廂:一排小方塊(每節車廂一顆)+一行文字,自由座 highlight。獨立於 tc-body 的
+     兩欄 grid 之外(自成一列,不擠壓介紹/日誌欄寬);手機小段 sheet 要跟著 tc-body 一起收起,
+     見下方 .sheet-small 清單。 */
+  .traincard .tc-freeseat {
+    display: flex; align-items: center; gap: 7px; flex-wrap: wrap;
+    margin-top: 8px; padding-top: 7px; border-top: 1.5px dashed var(--line-dash);
+  }
+  .traincard .tc-freeseat .fs-cars { display: inline-flex; gap: 2px; flex: none; }
+  .traincard .tc-freeseat .fs-box {
+    width: 12px; height: 16px; border-radius: 2px;
+    background: var(--line-faint); border: 1px solid var(--line);
+  }
+  .traincard .tc-freeseat .fs-box.on { background: var(--ok); border-color: var(--ok); }
+  .traincard .tc-freeseat .fs-text { font-size: 12.5px; font-weight: 700; color: var(--navy); white-space: nowrap; }
   .traincard .tc-body {
     display: grid; grid-template-columns: 1.3fr 1fr; gap: 6px 26px;
     margin-top: 9px; padding-top: 9px; border-top: 1.5px dashed var(--line-dash);
@@ -2694,6 +2708,7 @@
       min-height: min(var(--sheet-size), calc(100dvh - var(--sheet-safe-top, env(safe-area-inset-top, 0px)) - 8px - var(--sheet-bottom-offset)));
     }
     .traincard.tc-sheet.sheet-small .tc-body,
+    .traincard.tc-sheet.sheet-small .tc-freeseat,
     .traincard.tc-sheet.sheet-small .tc-dhlink,
     .traincard.tc-sheet.sheet-small .tc-sparkwrap,
     .traincard.tc-sheet.sheet-small .tc-stops { display: none; }
@@ -3323,6 +3338,12 @@
         <span class="tl-delay" id="tcLiveDelay"></span>
       </div>
     </div>
+    <!-- 高鐵自由座車廂(免費功能;只有高鐵才有,renderFreeSeat 依 isHSR 把關):一排小方塊代表車廂,
+         自由座 highlight+一行文字複述,「看一眼就懂」放在頭列正下方,不必展開才看得到 -->
+    <div class="tc-freeseat" id="tcFreeseat" hidden>
+      <span class="fs-cars" id="fsCars" aria-hidden="true"></span>
+      <span class="fs-text" id="fsText"></span>
+    </div>
     <div class="tc-body">
       <div class="tc-intro" id="tcIntro"></div>
       <div class="tc-events">
@@ -3364,6 +3385,7 @@
            內容 li 上限 8 條(li.grp 是標題不算)。 -->
       <ul class="foot-list foot-recent">
         <li class="grp">最近更新</li>
+        <li data-cl-of="thsrfreeseat"><span class="d">8/8</span><span>跟隨高鐵列車時，資訊卡新增「自由座車廂」提示：一排小方塊標出今天這班車自由座在第幾節，不必再猜（免費功能）</span></li>
         <li data-cl-of="mytrains"><span class="d">8/8</span><span>最愛面板新增「我的車」：收藏的台鐵列車集中列出近 30 天準點表現（通行證功能）</span></li>
         <li data-cl-of="punctualtrains"><span class="d">8/7</span><span>探索面板新增「準點排行」榜：近30天最準點的10班台鐵車，依誤點排序</span></li>
         <li data-cl-of="thsrautosched"><span class="d">8/7</span><span>高鐵時刻表改為每天自動更新，加開與調整班次當天就會反映</span></li>
@@ -3371,7 +3393,6 @@
         <li data-cl-of="release140"><span class="d">8/6</span><span>軌島 1.4.0 準備上線：加入軌島帳號、通行證月票／年票、跨裝置同步、鎖定畫面即時動態與發車看板小工具，並修好分享連結、行程橫幅與小工具設定</span></li>
         <li data-cl-of="widgetdestination2"><span class="d">8/6</span><span>iPhone 小工具剛更新、車站資料還在準備時，點「起站」或「目的站」可能讓設定畫面直接退出；現在會先用內建車站清單，不必等待</span></li>
         <li data-cl-of="sharelink"><span class="d">8/6</span><span>App 的「分享畫面」與「行程分享」不再傳出無法開啟的網址，改為可直接開啟的 railisland.tw 連結</span></li>
-        <li data-cl-of="passproduction"><span class="d">8/6</span><span>正式版軌島通行證改用 App Store 正式月票與年票，測試版的展示進度不會出現在一般使用者護照</span></li>
       </ul>
       <!-- 第二層:完整歷史。刻意不掛 .foot-box 類名——placeFootBoxes() 用
            `.site-foot .foot-box` 搬移面板,巢狀同名會被當成另一個盒子一起搬走。 -->
@@ -3410,6 +3431,7 @@
         <li><span class="d">7/16</span><span>捷運準確度升級：六家捷運依官方到站看板即時校正，國定假日自動改跑假日班表</span></li>
         <li><span class="d">7/9</span><span>台鐵即時誤點上線——介接交通部 TDX 平臺每分鐘更新；7/11 起開站即真實時刻、捷運改逐班推演</span></li>
         <li class="grp">跟車、搜尋與車站看板</li>
+        <li data-cl="thsrfreeseat"><span class="d">8/8</span><span>跟隨高鐵列車時，資訊卡新增自由座車廂提示：以車廂圖示＋文字標出今天這班車的自由座在哪幾節（例如「自由座 10–12 車」）。資料來源為交通部 TDX 高鐵每日自由座資訊，逐日更新；僅高鐵列車顯示，資料尚未到位或查無該車次時安靜不顯示</span></li>
         <li data-cl="afrtrainno"><span class="d">8/4</span><span>阿里山林鐵的 1、2 次跟台鐵環島之星是同一組車次號碼，點下去的介紹卡卻寫成「環島之星 萌旅號　全台唯一環島觀光列車…」；現在林鐵的車一律顯示自己的車種介紹（阿里山號），收藏與搜尋結果裡的名字也一併改正（謝謝網友回報）</span></li>
         <li><span class="d">7/30</span><span>搜尋今天已經跑完的車，現在會帶你回到它發車前，不再當場亂蓋完乘章（謝謝網友回報）</span></li>
         <li><span class="d">7/29</span><span>台鐵、高鐵、林鐵有不少重複的車次號碼（1238、1241、1、2…），在高鐵或林鐵畫面點下去卻跟到台鐵的同號車；現在點哪個系統就跟哪個系統（謝謝網友回報）</span></li>
@@ -3790,7 +3812,7 @@
 // 🔴 BUILD 字串會跨並行分支撞號（心得 16）：07-28 兩條線各自遞增又各自部署過——
 // origin/main 這條用到 v0728b，正式站那條用到 v0728f。本次三方合併把兩條線統一，
 // 所以往後推到一個雙方都沒用過的號，辨識線上跑哪一版仍以內容 hash 為準。
-const BUILD = 'v0807c';
+const BUILD = 'v0807d';
 // 成就徽章與車廂標記＝原本那些 emoji 的單色平面版（RailEmoji＝裁切過的 Noto Emoji 單色）。
 // 刻意保留 railIcon(name) 這個唯一入口:呼叫端一行都不用改,只有這裡決定畫法。
 // 🔴 ⚖ 與 ♾ 一律寫**不帶 VS16(U+FE0F)** 的碼位——帶了就強制彩色呈現,會蓋過 font-family
@@ -10295,6 +10317,75 @@ function directorClockTick() {
   if (Math.abs(state.simSec - now) > 120) setSimSec(now);
 }
 
+// ── 高鐵自由座車廂(免費功能:資料一天最多變一次,實測連續四天觀察同一批車次皆未變動,
+// 原本設想要收進通行證的理由不成立,故改回免費)。資料來源:交通部 TDX 高鐵每日自由座公告,
+// 不是即時車廂擁擠度(沒有這份資料),文案只能講「自由座」不能暗示「目前擁擠程度」。
+//
+// 🔴 車次號兩個上游格式不一致(2026-08-08 實測兩支端點都打過):高鐵班表(tr.train 來源,
+// DailyTimetable)回補零到 4 碼「0108」;這支自由座端點(DailyFreeSeatingCar)不補零回「108」
+// ——同一個 TDX 家族、同一個「車次」概念,兩支端點格式各自為政。查表前一律先剝掉前導零比對。
+function thsrTrainKey(no) { return String(no).replace(/^0+(?=\d)/, ''); }
+
+// 全站一天只變一次:跟到第一班高鐵車才觸發首次抓取(免費功能不必開機就打),之後全部吃這份
+// in-memory cache。undefined=未抓過;null=抓過但空/失敗(不重試,避免上游持續失敗時每次跟車
+// 都重打一次;使用者重新整理頁面會自然重試,與其他一次性資料源的降級慣例一致)。
+let _thsrFreeSeatCache;
+let _thsrFreeSeatPromise = null;
+async function loadThsrFreeSeat() {
+  if (_thsrFreeSeatCache !== undefined) return _thsrFreeSeatCache;
+  if (!_thsrFreeSeatPromise) {
+    _thsrFreeSeatPromise = fetchJSONAt(apiUrl('api/thsr-freeseat')).then(d => {
+      _thsrFreeSeatCache = (d && d.cars && typeof d.cars === 'object') ? d.cars : null;
+      return _thsrFreeSeatCache;
+    });
+  }
+  return _thsrFreeSeatPromise;
+}
+
+// 車廂編號陣列 → 人讀範圍文字,如 [10,11,12]→"10–12"、[3,5,6,7]→"3、5–7"(純函式)。
+function fsRangeText(cars) {
+  const sorted = [...new Set(cars)].sort((a, b) => a - b);
+  const parts = [];
+  let start = sorted[0], prev = sorted[0];
+  for (let i = 1; i < sorted.length; i++) {
+    if (sorted[i] === prev + 1) { prev = sorted[i]; continue; }
+    parts.push(start === prev ? `${start}` : `${start}–${prev}`);
+    start = prev = sorted[i];
+  }
+  parts.push(start === prev ? `${start}` : `${start}–${prev}`);
+  return parts.join('、');
+}
+
+// THSR 700T 全車隊固定 12 節;Math.max 防禦萬一出現非典型編組(不假設上游資料乾淨)。
+const THSR_FREESEAT_TOTAL_CARS = 12;
+function paintFreeSeat(tr) {
+  const box = document.getElementById('tcFreeseat');
+  const table = _thsrFreeSeatCache;
+  const key = thsrTrainKey(tr.train);
+  const raw = table && Object.prototype.hasOwnProperty.call(table, key) ? table[key] : null;
+  const cars = Array.isArray(raw) ? raw.filter(n => Number.isInteger(n) && n > 0) : null;
+  if (!cars || !cars.length) { box.hidden = true; return; }
+  const total = Math.max(THSR_FREESEAT_TOTAL_CARS, ...cars);
+  const onSet = new Set(cars);
+  document.getElementById('fsCars').innerHTML = Array.from({ length: total }, (_, i) => i + 1)
+    .map(n => `<i class="fs-box${onSet.has(n) ? ' on' : ''}"></i>`).join('');
+  document.getElementById('fsText').textContent = `自由座 ${fsRangeText(cars)} 車`;
+  box.hidden = false;
+}
+// 只有高鐵才有「自由座」概念(台鐵/林鐵/捷運都沒有,isHSR 把關——這個專案的跨系統撞號坑已踩過
+// 五次);資料未到/該車次不在清單/上游失敗一律安靜不顯示,不拋錯不留空框。首次跟高鐵車時才觸發
+// 抓取,抓完若還跟著同一班車(guard 防跟隨已切換到別班車)才補畫。
+function renderFreeSeat(tr) {
+  const box = document.getElementById('tcFreeseat');
+  if (!isHSR(tr)) { box.hidden = true; return; }
+  if (_thsrFreeSeatCache === undefined) {
+    box.hidden = true;
+    loadThsrFreeSeat().then(() => { if (state.followTrain === tr) renderFreeSeat(tr); });
+    return;
+  }
+  paintFreeSeat(tr);
+}
+
 // 地圖下方的列車資訊卡:介紹+服務標記,旅程日誌由 renderFollowEvents 填
 function renderTrainCard(tr) {
   const it = trainIntro(tr);
@@ -10320,6 +10411,7 @@ function renderTrainCard(tr) {
       `<span>${fmtHM(x.s.arrSec % 86400)}</span><span>${fmtHM(x.s.depSec % 86400)}</span></div>`).join('');
   state._tcCurIdx = null;
   updateStar();
+  renderFreeSeat(tr);
   renderFollowEvents();
   document.getElementById('trainCard').hidden = false;
   setTimeout(() => drawSpark(tr, effTLive(tr)), 0); // 等 layout 有寬度再畫速度曲線
