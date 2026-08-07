@@ -470,6 +470,28 @@ async function runIngestFailureSemantics() {
       ok('V4b 情境B:D1 該列逐位元組完全不變(未被 INSERT OR REPLACE 碰過)', row.v === preBlob, `pre=${preBlob.length}bytes got=${row.v.length}bytes`);
     }
 
+    // ── 情境 C:THSR_SCHED_KEEP_DAYS=3 修剪——5 個日鍵(3 舊+今天+明天皆成功)應剪到剩最新 3 個 ──
+    {
+      // _meta 也要種好每個舊日鍵的條目(形狀比照真實 cron 寫入,見 worker.js:3546)——不種的話,
+      // 修剪後「20200103 沒有 meta 條目」會是我測試種子不完整造成的假象,不是實作的真實不變量
+      // (ingestThsrSchedule 只在「這輪真的抓到那天」時才寫 metas[dayKey],從不回填舊條目)。
+      const oldKeys = ['20200101', '20200102', '20200103'];
+      const oldDays = Object.fromEntries(oldKeys.map(k => [k, { system: '高鐵時刻表', date: k, trains: [{ train: 'OLD-' + k }] }]));
+      const oldMetas = Object.fromEntries(oldKeys.map(k => [k, { total: 1, converted: 1, skipped: [] }]));
+      const seedBlob = JSON.stringify({ fetchedAt: '2000-01-01T00:00:00Z', days: oldDays, _meta: oldMetas });
+      const seedSql = `INSERT INTO kv_blobs (k,v,updated) VALUES ('thsr_sched', '${seedBlob.replace(/'/g, "''")}', datetime('now'));`;
+      const { DELAY_DB } = openTestDb(seedSql);
+      failDate = null;   // 今明兩天皆成功 → 5 個日鍵(3 舊+2 新)超過上限 3
+      const rt = await ingestThsrSchedule({ ...envBase, DELAY_DB });
+      const row = await DELAY_DB.prepare('SELECT v FROM kv_blobs WHERE k=?').bind('thsr_sched').first();
+      const blob = JSON.parse(row.v);
+      const keys = Object.keys(blob.days).sort();
+      ok('V4b 情境C:修剪到恰好 3 個日鍵(THSR_SCHED_KEEP_DAYS)', keys.length === 3, JSON.stringify(keys));
+      ok('V4b 情境C:留下的是最新 3 個(最舊兩個 20200101/20200102 被剪掉,20200103+今天+明天留下)',
+        JSON.stringify(keys) === JSON.stringify(['20200103', todayKey, tomorrowKey].sort()), JSON.stringify(keys));
+      ok('V4b 情境C:_meta 同步修剪(不殘留已刪日鍵的統計)', Object.keys(blob._meta || {}).sort().join(',') === keys.join(','), JSON.stringify(blob._meta));
+    }
+
     // 正向對照:上面「逐位元組相同/不同」的比對邏輯本身有牙,不是恆真
     ok('V4b 正向對照(JSON.stringify 比對邏輯會抓到不同值)',
       JSON.stringify({ trains: [{ train: 'DIFFERENT' }] }) !== JSON.stringify({ trains: [{ train: 'OLD-KEEP' }] }));
