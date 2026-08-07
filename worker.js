@@ -2263,18 +2263,54 @@ async function laUnbind(request, env) {
 // 出錯——那種錯誤對批次裡每一列都會發生,若照舊邏輯「410 或 400 就刪」,一個 tick 內就會把
 // 整張 la_bindings 清空且零 log(cron 仍顯示成功)。見設計書 §4.3、§6。
 const LA_PERM_FAIL_REASONS = new Set(['Unregistered', 'BadDeviceToken', 'DeviceTokenNotForTopic']);
+// 🔴 修復輪次2(批次熔斷):BadDeviceToken 與 DeviceTokenNotForTopic 都可能是「單一設定錯誤」
+// 讓整批同時觸發——host 打錯 ⇒ 全部 BadDeviceToken,apns-topic 打錯 bundle id ⇒ 全部
+// DeviceTokenNotForTopic。即使 Critical1 的 reason 篩選是對的,一次系統性設錯仍會讓整批
+// 「合法地」符合 LA_PERM_FAIL_REASONS 而被逐列刪除,結果和舊 bug 一樣是一個 tick 清空整表,
+// 只是誘因從四種 reason 縮成兩種。production/sandbox 兩種 APNs 環境的 token 本來就會並存
+// 同一張表(App Store 版與 Xcode 直裝版同時在用),大量 BadDeviceToken 不是假想情境。
+// 熔斷救不回「這一分鐘沒推播」(host/topic 真的打錯就是全滅),只保住「綁定本身還在」——
+// 設定修好後卡片自己接上,不必要求每個使用者重開 App 重新跟車。
+//
+// 門檻分兩層:(1) 候選刪除數 < LA_BREAKER_MIN_FAILS 一律不熔斷——只有 1 列同時失敗這件事,
+// 不管佔這個 tick 的比例多高,都不足以區分「這唯一一列真的壞了」與「系統性設錯」,熔斷在
+// 這裡沒有意義,反而會擋住正常的個別 token 汰換(小樣本安全閥)。(2) 達到門檻後才看比例是否
+// >= LA_BREAKER_RATIO——真正的設定錯誤會讓每一列打到 APNs 都以同一種 reason 失敗(比例趨近
+// 100%),個別 token 自然汰換在正常運作下不太可能佔到一半以上,除非表本身就很小(已被第 1 層
+// 排除)或幾乎全表同時過期(機率低,就算誤觸發,代價也只是那批列延後一兩個 tick 才被清掉)。
+const LA_BREAKER_MIN_FAILS = 2;
+const LA_BREAKER_RATIO = 0.5;
 async function laPushAll(env, ctx, baseUrl) {
-  if (!env.APNS_KEY_P8 || !env.DELAY_DB) return { sent: 0, dropped: 0 };   // 未設定就整支不動
+  if (!env.APNS_KEY_P8 || !env.DELAY_DB) {
+    // 🔴 修復輪次2(無聲失敗 a):未設定就整支不動,舊版零 log——tick 摘要 log 在這條
+    // early return 之後,cron 照樣顯示成功,金鑰忘記設定或設錯 binding 名稱時完全看不出來。
+    console.error('[cron la-push] APNS_KEY_P8 或 DELAY_DB 未設定,cron 本輪整支跳過');
+    return { sent: 0, dropped: 0 };
+  }
   const now = Math.floor(Date.now() / 1000);
   await env.DELAY_DB.prepare('DELETE FROM la_bindings WHERE expire_at < ?').bind(now).run();
   // 🔴 修復輪次1(Important 5):LIMIT 防 tick 重疊——每列至少 2 個 subrequest、序列往返
   // APNs 每發約 100ms,約 600 列就會超過 cron 的 60 秒週期,tick 重疊會讓兩個 tick 讀到同一個
   // last_idx 而重複推播。多要 1 筆用來判斷是否被截斷,截斷必須 log(本專案鐵則:沒有無聲的上限)。
-  const limit = Number(env.LA_ROW_LIMIT) || 500;
-  const rs = await env.DELAY_DB.prepare('SELECT * FROM la_bindings LIMIT ?').bind(limit + 1).all();
+  // 🔴 修復輪次2(無聲失敗 b):LA_ROW_LIMIT 設了但解不出合法正數時,舊版 Number('abc')||500
+  // 靜默退回 500,設錯值零訊號。只在「有設但解不出來」時才 log——沒設本來就該用預設值,
+  // 那不是錯誤。
+  const limitRaw = env.LA_ROW_LIMIT;
+  const limitParsed = Number(limitRaw);
+  let limit = 500;
+  if (limitRaw !== undefined) {
+    if (Number.isFinite(limitParsed) && limitParsed > 0) limit = limitParsed;
+    else console.error(`[cron la-push] LA_ROW_LIMIT="${limitRaw}" 不是合法正數,退回預設值 500`);
+  }
+  // 🔴 修復輪次2(無聲失敗 c):原本 SELECT 無 ORDER BY,每個 tick 被截掉的都是同一批尾端列,
+  // 那些卡片會凍到自己 expire_at 到期才被上面那行 DELETE 收掉——log 卻寫「留到下一分鐘」,
+  // 名實不符。改成 ORDER BY expire_at ASC:最快到期的列永遠排最前面、永遠不會被截斷;犧牲
+  // 的是最新綁定的列(expire_at 最晚,排最後)——它們最多是「這一輪還沒拿到第一次推播」,
+  // 佇列位置只會隨其他列到期/收卡而往前進,不會像舊版那樣被同一批永遠卡在尾端。
+  const rs = await env.DELAY_DB.prepare('SELECT * FROM la_bindings ORDER BY expire_at ASC LIMIT ?').bind(limit + 1).all();
   let rows = rs.results || [];
   if (rows.length > limit) {
-    console.error(`[cron la-push] 列數觸頂:本輪 ${rows.length}>${limit},只處理前 ${limit} 列,其餘留到下一分鐘`);
+    console.error(`[cron la-push] 列數觸頂:本輪 ${rows.length}>${limit},已依到期時間排序只處理最快到期的前 ${limit} 列,較新的 ${rows.length - limit} 列本輪未推播(持續觸頂會延後,不保證下一輪一定處理到)`);
     rows = rows.slice(0, limit);
   }
   if (!rows.length) return { sent: 0, dropped: 0 };
@@ -2292,6 +2328,10 @@ async function laPushAll(env, ctx, baseUrl) {
 
   const jwt = await laJwt(env);
   let sent = 0, dropped = 0;
+  // 🔴 修復輪次2(批次熔斷):不在迴圈內立刻刪列,先收集候選 token,等整批掃完才決定要不要
+  // 真的刪——熔斷需要看過「這個 tick 到底有多少列同時觸發永久失敗」才能判斷,迴圈跑到一半
+  // 沒有這個全局資訊。
+  const permFailCandidates = [];
   for (const row of rows) {
     // 🔴 修復輪次1(Important 2):單列例外不得拖垮整批。fetch() 對 APNs 網路層 reject、
     // 壞掉的 row.stops 都可能在這裡拋出——沒有這層防護,第 N 列一炸,N+1..最後全部本分鐘
@@ -2367,17 +2407,29 @@ async function laPushAll(env, ctx, baseUrl) {
       // (金鑰輪替/時鐘偏移),不是這個 token 的問題——不刪列,但要讓下一次 laJwt() 強制重簽,
       // 否則會卡滿 50 分鐘的快取期限持續全軍覆沒。
       if (res.status === 403) laJwtReset();
-      if (LA_PERM_FAIL_REASONS.has(reason)) {
-        await env.DELAY_DB.prepare('DELETE FROM la_bindings WHERE token=?').bind(row.token).run();
-        dropped++;
-      }
+      // 🔴 修復輪次2:先收集,不立刻刪——見迴圈外的批次熔斷判斷。
+      if (LA_PERM_FAIL_REASONS.has(reason)) permFailCandidates.push(row.token);
       // 其餘(429/5xx/403/reason 不在上面名單的 400):不更新 last_idx,下一分鐘自然重試
     } catch (e) {
       console.error(`[cron la-push] 單列處理失敗(不影響其他列)token=${String(row.token).slice(0, 8)}… :`, (e && e.stack) || String(e));
     }
   }
-  console.log(`[cron la-push] tick 完成: rows=${rows.length} sent=${sent} dropped=${dropped}`);
-  return { sent, dropped };
+  // 🔴 修復輪次2(批次熔斷):見函式開頭常數註解的門檻設計。候選數 < LA_BREAKER_MIN_FAILS
+  // 一律照刪(小樣本安全閥);達到門檻後看比例是否 >= LA_BREAKER_RATIO,才像是系統性設定
+  // 錯誤,不是個別 token 自然汰換。
+  const breakerRatio = rows.length ? permFailCandidates.length / rows.length : 0;
+  const breakerTripped = permFailCandidates.length >= LA_BREAKER_MIN_FAILS && breakerRatio >= LA_BREAKER_RATIO;
+  if (breakerTripped) {
+    console.error(`[cron la-push] 熔斷觸發:本輪 ${permFailCandidates.length}/${rows.length} 列(${Math.round(breakerRatio * 100)}%)同時回報永久失敗 reason,懷疑是設定錯誤(APNS_HOST/apns-topic)而非個別 token 失效,本輪不刪任何列,請檢查設定`);
+  } else {
+    for (const token of permFailCandidates) {
+      await env.DELAY_DB.prepare('DELETE FROM la_bindings WHERE token=?').bind(token).run();
+      dropped++;
+    }
+  }
+  const heldBack = breakerTripped ? permFailCandidates.length : 0;
+  console.log(`[cron la-push] tick 完成: rows=${rows.length} sent=${sent} dropped=${dropped}${heldBack ? ` heldBack=${heldBack}(熔斷)` : ''}`);
+  return { sent, dropped, heldBack };
 }
 
 // 今日準點/誤點榜(唯讀查 D1):每班車一列=今天最新一筆事件(obs_at 最大)+今天整體 max(delay_max)。

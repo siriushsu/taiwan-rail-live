@@ -59,6 +59,8 @@ const calls = [];               // 每次 fetch 的紀錄:{dest,url,init}
 let apnsNextStatus = 200;       // 下一發 APNs 呼叫要回的狀態碼
 let apnsNextReason = '';        // 修復輪次1(Critical1):非 2xx 時的 body.reason,delPushAll 現在看這個決定要不要刪列
 let apnsRejectToken = null;     // 修復輪次1(Important2):設了就讓「打到這個 token」的那發 fetch 直接 reject(模擬網路層失敗)
+let apnsPerToken = {};          // 修復輪次2(批次熔斷):token → {status,reason} 覆寫,不在表裡的 token 走全域 apnsNextStatus/apnsNextReason——
+                                 // 熔斷的「少數列失效、其餘成功」情境需要同一批裡不同列拿到不同回應,原本的全域兩個變數做不到。
 let tdxBoard = null;            // null=TDX 呼叫要失敗(模擬上游掛掉);否則是 TrainLiveBoards 陣列
 let tdxAuthFail = false;
 
@@ -68,7 +70,10 @@ globalThis.fetch = async (url, init) => {
   calls.push({ url: u, init });
   if (u.includes(APNS_FRAG)) {
     if (apnsRejectToken && u.includes(apnsRejectToken)) throw new Error('[verify_la_push_loop] 模擬 APNs 網路層 reject(Important2 測試)');
-    return new Response(JSON.stringify({ reason: apnsNextReason }), { status: apnsNextStatus });
+    const overrideTok = Object.keys(apnsPerToken).find(t => u.includes(t));
+    const status = overrideTok ? apnsPerToken[overrideTok].status : apnsNextStatus;
+    const reason = overrideTok ? apnsPerToken[overrideTok].reason : apnsNextReason;
+    return new Response(JSON.stringify({ reason }), { status });
   }
   if (u.includes(AUTH_URL_FRAG)) {
     if (tdxAuthFail) return new Response('unauthorized', { status: 401 });
@@ -578,6 +583,132 @@ for (const [tag, status] of [['p7a', 429], ['p7b', 500]]) {
   await laPushAll(envWithUsage, fakeCtx, BASE_URL);
   ok('P17(關鍵)cron(laPushAll 內部呼叫 traLive)不寫入用量分析,不污染 railisland_usage', usageCalls.length === 0, `count=${usageCalls.length}`);
   await delRow(T17);
+}
+
+// ══════════════════════════════════════════════════════════════════
+// Group D(修復輪次2):獨立 re-review 確認輪次1全數 ADDRESSED 之後的新工作——批次熔斷、
+// 三個無聲失敗小洞、LIMIT 截斷改依到期時間排序。
+// ══════════════════════════════════════════════════════════════════
+
+// P18(無聲失敗 a):APNS_KEY_P8 未設定時整支不動,但必須留一行 log——舊版零 log,
+// tick 摘要 log 在這條 early return 之後,cron 面板照樣顯示成功。
+{
+  const envNoKey = { ...env };
+  delete envNoKey.APNS_KEY_P8;
+  const { result: rNoKey, errLines: errLinesNoKey } = await captureConsole(() => laPushAll(envNoKey, fakeCtx, BASE_URL));
+  ok('P18(關鍵)APNS_KEY_P8 未設定仍要留一行 log,不能零訊號', errLinesNoKey.some(l => l.includes('APNS_KEY_P8')), JSON.stringify(errLinesNoKey));
+  ok('P18 未設定時仍照常回傳 {sent:0,dropped:0},不拋例外', rNoKey.sent === 0 && rNoKey.dropped === 0, JSON.stringify(rNoKey));
+}
+
+// P19(無聲失敗 b):LA_ROW_LIMIT 設了但解不出合法正數(手滑打成非數字字串,或 0/負數)時
+// 必須留 log——舊版 Number('abc')||500 靜默退回預設值,設錯值完全零訊號。同時驗證「根本
+// 沒設」這個正常情況不會被誤觸發同一條 log(沒設不是錯,不該報)。
+{
+  const T19 = tok('p19');
+  await delRow(T19);
+  mockNowSec = 1_800_000_000;
+  await insRow({ token: T19, sys: 'thsr_sched', train_no: '9p19', stops: [{ name: 'A', at: mockNowSec + 100 }, { name: 'B', at: mockNowSec + 200 }], last_idx: -1, last_delay: 0, bound_at: mockNowSec, expire_at: mockNowSec + 3600 });
+  calls.length = 0; apnsNextStatus = 200; apnsNextReason = '';
+  const envBadLimit = { ...env, LA_ROW_LIMIT: 'abc' };
+  const { result: rBadLimit, errLines: errLinesBadLimit } = await captureConsole(() => laPushAll(envBadLimit, fakeCtx, BASE_URL));
+  ok('P19(關鍵)LA_ROW_LIMIT 設了但解不出數字時要留 log', errLinesBadLimit.some(l => l.includes('LA_ROW_LIMIT') && l.includes('abc')), JSON.stringify(errLinesBadLimit));
+  ok('P19 仍照樣退回預設值運作(這一列正常被處理,不因為設定錯而整支跳過)', rBadLimit.sent === 1, JSON.stringify(rBadLimit));
+  await delRow(T19);
+
+  const T19b = tok('p19b');
+  await delRow(T19b);
+  await insRow({ token: T19b, sys: 'thsr_sched', train_no: '9p19b', stops: [{ name: 'A', at: mockNowSec + 100 }, { name: 'B', at: mockNowSec + 200 }], last_idx: -1, last_delay: 0, bound_at: mockNowSec, expire_at: mockNowSec + 3600 });
+  calls.length = 0; apnsNextStatus = 200; apnsNextReason = '';
+  const { errLines: errLinesUnset } = await captureConsole(() => laPushAll(env, fakeCtx, BASE_URL));   // env 本身沒設 LA_ROW_LIMIT
+  ok('P19(對照)LA_ROW_LIMIT 根本沒設時不該觸發「不是合法正數」的 log(沒設不是錯)', !errLinesUnset.some(l => l.includes('LA_ROW_LIMIT')), JSON.stringify(errLinesUnset));
+  await delRow(T19b);
+}
+
+// P20(無聲失敗 c 的正面驗證,延伸 Important5/P16):LIMIT 觸頂時,被截斷的必須是「最新綁定」
+// (expire_at 最晚)的列,最快到期的列永遠不能被截斷——否則舊 bug(同一批尾端列每次都被砍,
+// 直到自己 expire_at 到期)還在,只是換了個無關的排序面貌。刻意用「新、中、快到期」的插入
+// 順序(不照 expire_at 順序插入),證明排序看的是 expire_at 欄位值,不是 rowid/插入序。
+{
+  const T20soon = tok('p20soon'), T20mid = tok('p20mid'), T20new = tok('p20new');
+  for (const t of [T20soon, T20mid, T20new]) await delRow(t);
+  mockNowSec = 1_800_000_000;
+  const mk = (n) => [{ name: n + '0', at: mockNowSec + 100 }, { name: n + '1', at: mockNowSec + 200 }];
+  await insRow({ token: T20new, sys: 'thsr_sched', train_no: '9p20n', stops: mk('N'), last_idx: -1, last_delay: 0, bound_at: mockNowSec, expire_at: mockNowSec + 7200 });
+  await insRow({ token: T20mid, sys: 'thsr_sched', train_no: '9p20m', stops: mk('M'), last_idx: -1, last_delay: 0, bound_at: mockNowSec, expire_at: mockNowSec + 3600 });
+  await insRow({ token: T20soon, sys: 'thsr_sched', train_no: '9p20s', stops: mk('S'), last_idx: -1, last_delay: 0, bound_at: mockNowSec, expire_at: mockNowSec + 100 });
+  calls.length = 0; apnsNextStatus = 200; apnsNextReason = '';
+  const envLimited2 = { ...env, LA_ROW_LIMIT: 2 };
+  const r20 = await laPushAll(envLimited2, fakeCtx, BASE_URL);
+  ok('P20 3 列超過上限 2,仍只處理 2 列(sent=2)', r20.sent === 2, JSON.stringify(r20));
+  const rowSoon = await getRow(T20soon), rowMid = await getRow(T20mid), rowNew = await getRow(T20new);
+  ok('P20(關鍵)最快到期的列一定被處理到(last_idx 從 -1 變成 0,不會被截斷)', !!rowSoon && rowSoon.last_idx === 0, rowSoon ? `last_idx=${rowSoon.last_idx}` : '(查無列!)');
+  ok('P20 中間到期時間的列也被處理到', !!rowMid && rowMid.last_idx === 0, rowMid ? `last_idx=${rowMid.last_idx}` : '(查無列!)');
+  ok('P20(關鍵)最新綁定(expire_at 最晚)的列才是被截斷、本輪未推播的那個', !!rowNew && rowNew.last_idx === -1, rowNew ? `last_idx=${rowNew.last_idx}` : '(查無列!)');
+  for (const t of [T20soon, T20mid, T20new]) await delRow(t);
+}
+
+// P21(批次熔斷,關鍵——re-review 這輪的主要工作):三側缺一不可。
+// P21a:少數列失效(2/10,ratio=20%)→ 候選數達到 LA_BREAKER_MIN_FAILS(2)但比例遠低於
+//       LA_BREAKER_RATIO(50%)→ 不熔斷,照常刪那 2 列。刻意選「候選數過門檻但比例不過」,
+//       才能單獨驗到比例守門有沒有牙(跟 P21c 的「比例過但候選數不過」互為對照)。
+{
+  const N = 10, FAIL_COUNT = 2;
+  const tokens = Array.from({ length: N }, (_, i) => tok('p21a' + i));
+  for (const t of tokens) await delRow(t);
+  mockNowSec = 1_800_000_000;
+  for (let i = 0; i < N; i++) {
+    const stops = [{ name: 'A' + i, at: mockNowSec + 100 }, { name: 'B' + i, at: mockNowSec + 200 }];
+    await insRow({ token: tokens[i], sys: 'thsr_sched', train_no: '9p21a' + i, stops, last_idx: -1, last_delay: 0, bound_at: mockNowSec, expire_at: mockNowSec + 3600 + i });
+  }
+  calls.length = 0; apnsNextStatus = 200; apnsNextReason = ''; apnsPerToken = {};
+  for (let i = 0; i < FAIL_COUNT; i++) apnsPerToken[tokens[i]] = { status: 410, reason: 'Unregistered' };
+  const { result: r21a, errLines: errLines21a } = await captureConsole(() => laPushAll(env, fakeCtx, BASE_URL));
+  apnsPerToken = {};
+  ok('P21a(關鍵)少數列失效(2/10=20%,未達 50% 門檻)→ 不熔斷,dropped=2', r21a.dropped === 2 && (r21a.heldBack || 0) === 0, JSON.stringify(r21a));
+  ok('P21a sent=8(其餘 8 列正常推播成功)', r21a.sent === 8, JSON.stringify(r21a));
+  const rows21a = await Promise.all(tokens.map(getRow));
+  ok('P21a(關鍵)那 2 列真的被刪除(候選數過門檻但比例不過,不熔斷,照常刪)', rows21a.slice(0, FAIL_COUNT).every(r => r === null), JSON.stringify(rows21a.slice(0, FAIL_COUNT)));
+  ok('P21a 其餘 8 列都還在且已標記推播成功', rows21a.slice(FAIL_COUNT).every(r => r && r.last_idx === 0), JSON.stringify(rows21a.slice(FAIL_COUNT).map(r => r && r.last_idx)));
+  ok('P21a 沒有熔斷 log(這條不該出現)', !errLines21a.some(l => l.includes('熔斷觸發')), JSON.stringify(errLines21a));
+  for (const t of tokens) await delRow(t);
+}
+
+// P21b:整批失效(4/4=100%)→ 候選數與比例都過門檻 → 熔斷觸發,一列都不刪,且留下含比例與
+//       總列數的 log。這是驗收報告點名的真實觸發場景本身(host/topic 打錯,每一列都同一種
+//       reason 失敗)。
+{
+  const tokensB = [tok('p21b0'), tok('p21b1'), tok('p21b2'), tok('p21b3')];
+  for (const t of tokensB) await delRow(t);
+  mockNowSec = 1_800_000_000;
+  for (let i = 0; i < tokensB.length; i++) {
+    const stops = [{ name: 'A' + i, at: mockNowSec + 100 }, { name: 'B' + i, at: mockNowSec + 200 }];
+    await insRow({ token: tokensB[i], sys: 'thsr_sched', train_no: '9p21b' + i, stops, last_idx: -1, last_delay: 0, bound_at: mockNowSec, expire_at: mockNowSec + 3600 + i });
+  }
+  calls.length = 0; apnsNextStatus = 400; apnsNextReason = 'BadDeviceToken'; apnsPerToken = {};
+  const { result: r21b, errLines: errLines21b } = await captureConsole(() => laPushAll(env, fakeCtx, BASE_URL));
+  ok('P21b(關鍵)整批同時失效(4/4=100%)→ 熔斷觸發,dropped=0(不是 4)', r21b.dropped === 0, JSON.stringify(r21b));
+  ok('P21b(關鍵)heldBack 回報實際被擋下的列數=4', r21b.heldBack === 4, JSON.stringify(r21b));
+  const rowsB = await Promise.all(tokensB.map(getRow));
+  ok('P21b(關鍵)四列一列都沒被刪——這正是「一個 tick 清空整表」的批次版重現場景', rowsB.every(r => !!r && r.last_idx === -1), JSON.stringify(rowsB.map(r => r && r.last_idx)));
+  ok('P21b(關鍵)熔斷 log 含比例與總列數,不是空泛的一句話', errLines21b.some(l => l.includes('熔斷觸發') && l.includes('4/4') && l.includes('100%')), JSON.stringify(errLines21b));
+  for (const t of tokensB) await delRow(t);
+}
+
+// P21c:表裡只有 1 列且該列真的失效(1/1=100%)→ 比例是滿分,但候選數 1 沒達到
+//       LA_BREAKER_MIN_FAILS(2)→ 不熔斷,照常刪。證明小樣本沒被熔斷誤擋——這正是
+//       re-review 特別點名要處理的邊界,單一列失敗這件事本身永遠不足以判斷是設定錯誤
+//       還是這唯一一個 token 真的沒救了,兩者從機率上根本無法區分,只能保守地當作後者處理。
+{
+  const T21c = tok('p21c');
+  await delRow(T21c);
+  mockNowSec = 1_800_000_000;
+  await insRow({ token: T21c, sys: 'thsr_sched', train_no: '9p21c', stops: [{ name: 'A', at: mockNowSec + 100 }, { name: 'B', at: mockNowSec + 200 }], last_idx: -1, last_delay: 0, bound_at: mockNowSec, expire_at: mockNowSec + 3600 });
+  calls.length = 0; apnsNextStatus = 410; apnsNextReason = 'Unregistered'; apnsPerToken = {};
+  const r21c = await laPushAll(env, fakeCtx, BASE_URL);
+  ok('P21c(關鍵)表裡只有 1 列且它真的失效(1/1=100%)→ 未達最低候選數,不熔斷,dropped=1', r21c.dropped === 1 && (r21c.heldBack || 0) === 0, JSON.stringify(r21c));
+  const row21c = await getRow(T21c);
+  ok('P21c(關鍵)唯一那一列真的被刪除(小樣本沒被熔斷誤擋)', row21c === null, row21c ? JSON.stringify(row21c) : '(已刪除)');
+  await delRow(T21c);
 }
 
 await dispose();
