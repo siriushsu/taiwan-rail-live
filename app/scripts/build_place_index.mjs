@@ -99,6 +99,7 @@ try {
     const segs = [];
     const trains = [];
     const stats = {};
+    const linearLegs = [];
 
     for (const spec of specs) {
       const system = state.systems.find(candidate => candidate.id === spec.runtimeID);
@@ -172,15 +173,38 @@ try {
           const totalKm = schedSegmentKm(segment);
           if (!(lineKm > 0) || !(totalKm > 0)) continue;
           if (!segment.rp) {
-            throw new Error(
-              `頁面未替 ${train.train} ${segment.name}→${next.name} 建立速度曲線`
-            );
+            // 缺 rp 分兩種:時刻表對本跑段要求超過車種極速時,頁面依設計拒建曲線、消費端退等速
+            // (實例:4041 於 08-19/20 改點加停冬山,蘇澳新→冬山 5.2km 只給 180 秒,需 150km/h);
+            // 或 enrich 管線真的失效。用「跑段可行性」分辨:重解梯形建得出來=頁面本該有 rp=真失敗;
+            // 建不出來=模型合法拒絕,取樣端比照網站消費端退線性,不擋 build。
+            let k0 = stopIndex;
+            while (k0 > 0 && stops[k0].stop === false) k0--;
+            let k1 = stopIndex + 1;
+            while (k1 < stops.length - 1 && stops[k1].stop === false) k1++;
+            let runKm = 0;
+            for (let i = k0; i < k1; i++) {
+              runKm += stops[i].segLn ? schedSegmentKm(stops[i]) : haversineKm(stops[i], stops[i + 1]);
+            }
+            const runT = stops[k1].arrSec - stops[k0].depSec;
+            const perf = resolvePerf(train) || {};
+            if (buildProfile(runKm, runT, perf.a, perf.b, perf.v)) {
+              throw new Error(
+                `頁面未替 ${train.train} ${segment.name}→${next.name} 建立速度曲線`
+                  + `(跑段 ${runKm.toFixed(1)}km/${runT}s 梯形可解,enrich 疑似失效)`
+              );
+            }
+            linearLegs.push(`${train.train} ${segment.name}→${next.name}(${runKm.toFixed(1)}km/${runT}s)`);
           }
 
-          const timeAt = lineProgress => {
-            const segmentProgress = lineProgress * lineKm / totalKm;
-            return segProgToTime(segment, segmentProgress);
-          };
+          const timeAt = segment.rp
+            ? (lineProgress => {
+              const segmentProgress = lineProgress * lineKm / totalKm;
+              return segProgToTime(segment, segmentProgress);
+            })
+            : (lineProgress => {
+              const segmentProgress = lineProgress * lineKm / totalKm;
+              return segment.depSec + segmentProgress * (next.arrSec - segment.depSec);
+            });
           const evaluateInterval = (left, right) => {
             let best = null;
             for (const local of [0.1, 0.25, 0.5, 0.75, 0.9]) {
@@ -228,6 +252,7 @@ try {
       });
     }
 
+    if (linearLegs.length) stats.linearLegs = linearLegs; // 退線性的腿全數列出,不做無聲上限
     return { v: 1, samples, lines, segs, trains, stats };
   }, { samples });
 
