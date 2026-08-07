@@ -10346,18 +10346,26 @@ let _laLast = 0, _laKey = '', _laDead = false, _laListening = false, _laToken = 
 // 跟車即時動態的後端交班。前端只交【表定】時刻與站碼映射,誤點由後端每分鐘自己算——
 // 這樣這張表永不過期(鎖屏時前端也重傳不了),而 offset 是後端唯一的動態量。
 let _laBound = '';                     // 已交班的 key,避免同一台車重複 bind
+let _laEpoch = 0;                      // 每次 laUnbind() 遞增;讓飛行中的 laBind 認得出自己已經被取消(修復輪次1 Important 5)
 function laBind(token, key, tr) {
   // 把表定 arrSec(自服務日午夜起算)換成【絕對 epoch 秒】,後端就完全不必碰時區與服務日。
-  // 域校正比照 effTLive:真實時鐘跨過午夜後 state.simSec 會回捲到 0,但跨午夜車次的 arrSec
-  // 仍是從「發車那天午夜」起算(可能 > 86400)——這裡刻意不比照 effTLive 扣即時誤點,
-  // 要換算的是【表定】時刻,不是「套過誤點」的現在;誤點留給後端每分鐘自己算(issue 同 effTLive 的分工)。
+  // 域校正比照 effTLive 的兩個分支,含環島車 loop 分支(修復輪次1 Important 1——原本只抄了
+  // effTLive 的非 loop 分支,00:00–08:00 這種 LOOP_DEP 前的窗口整段差一圈 loopSec);差別只在
+  // 這裡刻意不比照 effTLive 扣即時誤點——要換算的是【表定】時刻,不是「套過誤點」的現在,
+  // 誤點留給後端每分鐘自己算(issue 同 effTLive 的分工)。
   const s = tr.stops, raw = state.simSec;
-  const t = (raw < s[0].arrSec && raw + 86400 <= s[s.length - 1].depSec + 3600) ? raw + 86400 : raw;
-  const ref = nextStopInfo(tr, t);
-  if (!ref) return;                    // 已過終點:沒有下一站可推,不交班
+  const t = tr.loop
+    ? s[0].arrSec + ((raw - s[0].arrSec) % tr.loopSec + tr.loopSec) % tr.loopSec
+    : (raw < s[0].arrSec && raw + 86400 <= s[s.length - 1].depSec + 3600) ? raw + 86400 : raw;
+  // 已過終點的判斷改走 effTLive,與 laPayload/全站台「跑完了沒」同一條時間軸(issue #14 那組;
+  // 修復輪次1 Important 2)。純表定 t 在誤點車剛過表定終點、但實際還沒到站的窗口內會提早判定
+  // 「已過終點」而永遠不交班——這裡只是取消交班的判斷,不影響 t 用於下面 originSec 的換算
+  // (那部分本來就該是純表定時刻,不是套過誤點的 effTLive)。
+  if (!nextStopInfo(tr, effTLive(tr))) return;   // 已過終點:沒有下一站可推,不交班
   const originSec = Math.floor(Date.now() / 1000) - t;   // arrSec → epoch 的常數位移
   const stops = s.filter(x => x.stop !== false)
     .map(x => ({ name: x.name, at: Math.round(originSec + x.arrSec) }));
+  const myEpoch = _laEpoch;              // 修復輪次1 Important 5:記住送出當下的世代,回應回來時比對
   fetch(apiUrl('api/la/bind'), {
     method: 'POST', headers: { 'content-type': 'application/json' },
     body: JSON.stringify({
@@ -10365,14 +10373,26 @@ function laBind(token, key, tr) {
       stops, staMap: buildStaMap(tr.stops, state.stnInfoMap || {}),
       stopCodes: buildStopCodes(tr.stops, state.stnInfoMap || {}),
     }),
-  }).then(() => { _laBound = key; }).catch(() => {});   // 失敗靜默:卡片仍是 LA-0 行為,不是壞掉
+  }).then(r => {
+    if (!r.ok) return;                   // 修復輪次1 Important 3:後端拒絕(400/429/503…)不可標記已交班
+    if (myEpoch !== _laEpoch) {          // 修復輪次1 Important 5:回應回來前被 laUnbind() 取消過,
+      fetch(apiUrl('api/la/unbind'), {   // 伺服器那筆現在是孤兒(這裡是唯一還記得住這個 token 的地方,
+        method: 'POST', headers: { 'content-type': 'application/json' },  // _laToken 可能已經被換卡蓋掉),補一發清掉
+        body: JSON.stringify({ token }),
+      }).catch(() => {});
+      return;
+    }
+    _laBound = key;
+  }).catch(() => {});   // 失敗靜默:卡片仍是 LA-0 行為,不是壞掉
 }
 function laUnbind() {
+  _laEpoch++;                          // 不管有沒有真的交過班,先讓飛行中的 laBind 過期(修復輪次1 Important 5)
   if (!_laBound) return;               // 沒交過班就不送,未訂閱者每秒走到這裡不該打後端
-  _laBound = '';
+  const tok = _laToken;
+  _laBound = ''; _laToken = '';
   fetch(apiUrl('api/la/unbind'), {
     method: 'POST', headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ token: _laToken }),
+    body: JSON.stringify({ token: tok }),
   }).catch(() => {});
 }
 // 收卡。🔴 沒開過卡(_laKey 空)就不送:未訂閱者跟車時這裡每秒都會被走到一次,無條件送等於
@@ -10409,6 +10429,8 @@ function laSync(tr, force) {
   //    先跑(_laLast=0 ⇒ start),followTrainNo 的 force 再跑一次 start ⇒ 同一台車開兩張卡。
   const key = p.sys + '#' + p.trainNo;
   if (key !== _laKey) {                       // 首次、換車,或上一發 start 失敗後的重試
+    laUnbind();     // 修復輪次1 Important 4:換車前先把舊卡的 binding 收掉,否則孤兒留在後端等 8 小時
+                     // TTL 過期——未交過班/未訂閱時 laUnbind() 內建 !_laBound 早退,這裡是免費的 no-op。
     // 上一發 start 失敗會把 _laKey 清掉但保留 _laLast ⇒ 這裡擋住「每秒重試一次」的洗版;
     // 換車時 _laKey 非空,不受這道節流影響,照樣立刻開新卡。
     if (!_laKey && now - _laLast < 10000) return;

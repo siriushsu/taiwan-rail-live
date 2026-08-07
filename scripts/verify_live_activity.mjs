@@ -96,9 +96,46 @@ async function boot(browser, { bridge = true, plus = false, startResult = null, 
     //    這樣傳的),帶斜線的比對永遠對不上,請求會穿透到假伺服器的 /api/* 兜底(回 200 {}、
     //    不進這支記錄器)——實測踩到過,bindCalls 恆 0 且零例外,很難從結果反推。
     window.__laBindCalls = [];
+    // 修復輪次1 Important 8:替身原本不論 payload 長什麼樣一律回 200,契約壞掉也測不出來。
+    // 補一個最小契約檢查器(不是 worker.js 全套規則,理由見報告)——挑最會被未來改壞的四條:
+    //  1) token 格式(64 碼小寫 hex)——bind/unbind 的鍵,錯了後端整包 400。
+    //  2) sys 在白名單(tra_sched/thsr_sched)——afr_sched 等未支援系統送出去必被拒,曾是真的踩過的坑。
+    //  3) stopCodes.length===stops.length——兩處各自 filter(stop!==false)算出來的,兩處改動
+    //     不同步就會悄悄不一致(laBind 與 buildStopCodes 是兩個獨立函式)。
+    //  4) stops 非空且 at 嚴格遞增——這正是本輪 laBind 域校正/gate 出過真代數 bug 的那個維度,
+    //     最貼近「未來會被改壞」的機率。不挑的四項(byte 上限、staMap 鍵數上限):真實台鐵車次
+    //     資料量遠低於那些門檻,復刻確切位元組數只是把後端實作細節硬編進前端測試,自己先脆。
+    window.__laCheckBindContract = function (b) {
+      if (!b || typeof b !== 'object') return ['body 不是物件'];
+      const errs = [];
+      if (!/^[0-9a-f]{64}$/.test(String(b.token || ''))) errs.push('token 格式錯(非 64 碼小寫 hex)');
+      if (b.sys !== 'tra_sched' && b.sys !== 'thsr_sched') errs.push('sys 不在白名單(tra_sched/thsr_sched)');
+      if (!Array.isArray(b.stops) || !b.stops.length) errs.push('stops 非陣列或為空');
+      else if (!b.stops.every((s, i) => i === 0 || (typeof s.at === 'number' && s.at > b.stops[i - 1].at))) errs.push('stops[].at 未嚴格遞增');
+      if (!Array.isArray(b.stopCodes) || !Array.isArray(b.stops) || b.stopCodes.length !== b.stops.length) errs.push('stopCodes.length!==stops.length');
+      return errs;
+    };
+    // 修復輪次1 Important 3/5 用:測試可強制下一發 bind 回應的狀態(不看契約),或延後回應時間。
+    window.__laForceBindStatus = null;   // {status, body} —— 設了就無條件蓋過契約檢查的結果
+    window.__laBindDelayMs = 0;          // >0 時 bind 回應延後這麼久才 resolve,製造「回應還沒回來就被取消」的競態窗
     const _fetch = window.fetch;
     window.fetch = (u, o) => {
       const s = String(u);
+      if (s.includes('api/la/bind')) {
+        const body = o && o.body ? JSON.parse(o.body) : null;
+        const errs = window.__laCheckBindContract(body);
+        window.__laBindCalls.push({ url: s, body, contractErrors: errs });
+        const respond = () => {
+          if (window.__laForceBindStatus) {
+            const f = window.__laForceBindStatus;
+            return new Response(JSON.stringify(f.body || {}), { status: f.status, headers: { 'content-type': 'application/json' } });
+          }
+          if (errs.length) return new Response(JSON.stringify({ error: 'contract_violation', errs }), { status: 400, headers: { 'content-type': 'application/json' } });
+          return new Response('{"ok":true}', { status: 200, headers: { 'content-type': 'application/json' } });
+        };
+        const delay = window.__laBindDelayMs || 0;
+        return delay > 0 ? new Promise(res => setTimeout(() => res(respond()), delay)) : Promise.resolve(respond());
+      }
       if (s.includes('api/la/')) {
         window.__laBindCalls.push({ url: s, body: o && o.body ? JSON.parse(o.body) : null });
         return Promise.resolve(new Response('{"ok":true}', { status: 200, headers: { 'content-type': 'application/json' } }));
@@ -616,6 +653,74 @@ const cr = await chromium.launch();
   await ctx.close();
 }
 
+// ══════════ T18：環島車(loop)域校正——修復輪次1 Important 1 的手工 fixture ══════════
+// effTLive 對 loop 車有獨立分支(映回單一圈長 loopSec,見 index.html 9206-9209 一帶),laBind 域校正
+// 原本完全沒有這個分支,00:00–08:00(LOOP_DEP=08:00 之前)一律誤差整整一圈 loopSec。用手工 tr
+// (不吃真的 8888/8889,結果不受「此刻真的有沒有環島車在跑」影響)獨立手算比對。
+{
+  const { ctx, page } = await boot(cr, { plus: true });
+  await page.evaluate(() => {
+    // 仿 8888/8889 的形狀:loopSec=43200(12 小時),s[0].arrSec=28800(08:00 發車)
+    state.simSec = 3600; state.clockAtNow = true;                 // 台北時間 01:00,LOOP_DEP 前
+    window.__laBindCalls = [];
+    laBind('e'.repeat(64), 'tra_sched#FAKELOOP', {
+      sys: 'tra_sched', train: 'FAKELOOP', loop: true, loopSec: 43200,
+      stops: [
+        { name: 'P0起站', arrSec: 28800, depSec: 28800, stop: true },   // 08:00
+        { name: 'P1', arrSec: 32400, depSec: 32420, stop: true },        // 09:00
+        { name: 'P2終點', arrSec: 72000, depSec: 72000, stop: true },    // 20:00(=一圈終點)
+      ],
+    });
+  });
+  await page.waitForFunction(() => (window.__laBindCalls || []).length > 0, null, { timeout: 5000 });
+  const b = await page.evaluate(() => window.__laBindCalls[0].body);
+  const nowS = Math.floor(Date.now() / 1000);
+  // simSec=3600(01:00)映回本圈:28800+((3600-28800)%43200+43200)%43200=28800+18000=46800(13:00)。
+  // 三站距映回後的 t(46800)分鐘數:P0=(28800-46800)/60=-300,P1=(32400-46800)/60=-240,P2=(72000-46800)/60=+420。
+  // 沒修 loop 分支的舊碼會落到非 loop 分支算出 t=3600(見下方註解推導),三站全部偏差整整
+  // 720 分鐘(=43200 秒=一圈)——這正是 Important 1 要抓的量級,不是幾分鐘的代數誤差。
+  const expectMin = [-300, -240, 420];
+  const got = b.stops.map(s => (s.at - nowS) / 60);
+  const diffs = got.map((g, i) => Math.abs(g - expectMin[i]));
+  ok('T18 環島車(loop)域校正:00:00–08:00 窗內映回本圈,三站分鐘數精確符合獨立手算(容差 6 秒;偏差 720 分=未修的 loop 分支缺失)',
+    diffs.every(d => d < 0.1),
+    `期望=${expectMin.join('/')} 實際=${got.map(x => x.toFixed(2)).join('/')}`);
+  await ctx.close();
+}
+
+// ══════════ T19：誤點車剛過表定終點、但實際還沒到——修復輪次1 Important 2 的手工 fixture ══════════
+// laBind 原本用「純表定 t」判斷已過終點,與 laPayload/全站台一致採用的 effTLive(delay-aware)不同軸
+// ——誤點車在「表定終點已過、但實際還沒到」的窗口內會被誤判成已過終點而永遠不交班。用
+// monkey-patch liveDelaySec 精確控制誤點秒數,不吃真實即時資料(才不會被「此刻有沒有誤點車」左右)。
+{
+  const { ctx, page } = await boot(cr, { plus: true });
+  await page.evaluate(() => {
+    liveDelaySec = tr => (tr.train === 'FAKEDELAY' ? 300 : 0); // 固定誤點 5 分鐘
+    state.simSec = 1030; state.clockAtNow = true;   // 表定終點(1000)已過 30 秒,但誤點 5 分還沒真的到
+    window.__laBindCalls = [];
+    laBind('f'.repeat(64), 'tra_sched#FAKEDELAY', {
+      sys: 'tra_sched', train: 'FAKEDELAY',
+      stops: [
+        { name: '起站', arrSec: 700, depSec: 700, stop: true },
+        { name: '終點', arrSec: 1000, depSec: 1000, stop: true },
+      ],
+    });
+  });
+  // 沒修的舊碼:純表定 t=1030≥終點 1000,nextStopInfo 回 null 提早 return,__laBindCalls 永遠 0 筆——
+  // 用 .catch 讓「等不到」變乾淨的 FAIL,不要讓整支腳本連後面測項的紀錄都沒留就當掉。
+  await page.waitForFunction(() => (window.__laBindCalls || []).length > 0, null, { timeout: 5000 }).catch(() => {});
+  const n = await page.evaluate(() => window.__laBindCalls.filter(c => /bind$/.test(c.url)).length);
+  ok('T19 誤點車剛過表定終點但未真的到站(effTLive 仍在行程內)⇒ 照樣交班,不被純表定 t 誤判已過終點擋下',
+    n === 1, `bind 呼叫 ${n} 次(0 次即為未修的 bug)`);
+  const b = n === 1 ? await page.evaluate(() => window.__laBindCalls[0].body) : null;
+  const nowS = Math.floor(Date.now() / 1000);
+  const gotTerminus = b ? (b.stops[b.stops.length - 1].at - nowS) : NaN;
+  ok('T19 payload 的 at 仍是【純表定】軸(終點 at-now≈-30 秒,不是誤把 effTLive 的 730 拿去換算 at)',
+    b !== null && Math.abs(gotTerminus - (-30)) < 6,
+    `終點 at-now=${gotTerminus}秒(期望≈-30;若誤用 effTLive 換算 at 會落在 +270 附近;未交班則此欄為 NaN)`);
+  await ctx.close();
+}
+
 // ══════════ T15：key 不符的 token 被丟掉(換車競態)——負向斷言,配 T14 當正向對照 ══════════
 {
   const { ctx, page } = await boot(cr, { plus: true });
@@ -629,18 +734,74 @@ const cr = await chromium.launch();
   await ctx.close();
 }
 
-// ══════════ T16：停止跟車 → 送出 unbind ══════════
+// ══════════ T16：停止跟車 → 送出 unbind,payload 帶正確 token(修復輪次1 Important 6/7) ══════════
+// 🔴 原斷言 ok('T16 停止跟車送出 unbind', true) 是恆真陳述,前面那發 waitForFunction 沒等到
+//    才會讓整支腳本連流程帶測試總數都不留紀錄地當掉(Important 6)——真牙全部活在那發
+//    等待裡,而且從未檢查送出去的 body 到底裝了什麼(Important 7,送 {} 一樣會綠)。
+//    改成:等待本身加 .catch 讓「沒等到」變成乾淨的 FAIL 而不是整支炸掉,並且對 payload 的
+//    token 欄位做實質斷言。
 {
   const { ctx, page } = await boot(cr, { plus: true });
   const f = await followRunningTRA(page);
   ok('T16 前置:成功跟上一班在跑的台鐵車', !!f, JSON.stringify(f));
   await page.waitForFunction(() => (window.__laCalls || []).some(c => c.m === 'start'), null, { timeout: 15000 });
   const key = await page.evaluate(() => { const s = window.__laCalls.find(c => c.m === 'start').p; return s.sys + '#' + s.trainNo; });
-  await page.evaluate(k => window.__laEmit('pushToken', { token: 'bb'.repeat(32), key: k }), key);
-  await page.waitForFunction(() => window.__laBindCalls.length > 0, null, { timeout: 10000 });
+  const tok = '66'.repeat(32);
+  await page.evaluate(({ k, t }) => window.__laEmit('pushToken', { token: t, key: k }), { k: key, t: tok });
+  await page.waitForFunction(() => window.__laBindCalls.some(c => /bind$/.test(c.url)), null, { timeout: 10000 });
   await page.evaluate(() => clearFollow());
-  await page.waitForFunction(() => window.__laBindCalls.some(c => /unbind$/.test(c.url)), null, { timeout: 10000 });
-  ok('T16 停止跟車送出 unbind', true);
+  await page.waitForFunction(() => window.__laBindCalls.some(c => /unbind$/.test(c.url)), null, { timeout: 10000 }).catch(() => {});
+  const un = await page.evaluate(() => window.__laBindCalls.find(c => /unbind$/.test(c.url)));
+  ok('T16 停止跟車送出 unbind,payload 的 token 與交班時相同(送空物件{}一樣會被舊斷言判過,見 Important 6/7)',
+    !!(un && un.body && un.body.token === tok), JSON.stringify(un && un.body));
+  await ctx.close();
+}
+
+// ══════════ T21：換車時舊卡的 binding 要收掉——修復輪次1 Important 4 的手工情境 ══════════
+// followTrainNo() 只呼叫 setFollow+laSync,從不呼叫 clearFollow/laStop——換車時舊卡在後端的
+// binding 原本沒有任何清理路徑,一直留到 8 小時 TTL 過期。
+{
+  const { ctx, page } = await boot(cr, { plus: true });
+  const a = await followRunningTRA(page, 0);
+  await page.waitForFunction(() => (window.__laCalls || []).some(c => c.m === 'start'), null, { timeout: 15000 });
+  const keyA = await page.evaluate(() => { const s = window.__laCalls.find(c => c.m === 'start').p; return s.sys + '#' + s.trainNo; });
+  const tokenA = '22'.repeat(32);
+  await page.evaluate(({ k, t }) => window.__laEmit('pushToken', { token: t, key: k }), { k: keyA, t: tokenA });
+  await page.waitForFunction(() => (window.__laBindCalls || []).some(c => /bind$/.test(c.url)), null, { timeout: 10000 });
+  const b = await followRunningTRA(page, 1);            // ← 真實產品函式,觸發換車
+  ok('T21 前置:兩班不同的車,A 已交班成功', !!a && !!b && a.no !== b.no, `${JSON.stringify(a)} -> ${JSON.stringify(b)}`);
+  await page.waitForFunction(() => window.__laBindCalls.some(c => /unbind$/.test(c.url)), null, { timeout: 10000 }).catch(() => {});
+  const un = await page.evaluate(() => window.__laBindCalls.filter(c => /unbind$/.test(c.url)));
+  ok('T21 換到 B 車 ⇒ A 車的 binding 收到 unbind(不是留著孤兒到 TTL 才過期,沒有牙的版本這裡是 0 次)',
+    un.length >= 1 && un[0].body && un[0].body.token === tokenA,
+    `unbind 次數=${un.length}${un[0] ? ` token相符=${un[0].body && un[0].body.token === tokenA}` : ''}`);
+  await ctx.close();
+}
+
+// ══════════ T22：飛行中的 bind 被 clearFollow() 取消——修復輪次1 Important 5 的手工情境 ══════════
+// 用 __laBindDelayMs 讓 bind 回應延後,製造「回應還沒回來、就被 clearFollow() 收掉」的競態窗——
+// 原本 _laBound 只在 bind 的 .then() 裡設,clearFollow 那一刻讀到還是空字串,laUnbind() 的
+// !_laBound 早退會整個跳過清理;之後遲到的 .then() 才把 _laBound 設成已經沒人要的 key,
+// 從此再也沒有人會替它送 unbind,伺服器那筆孤兒到 TTL 才過期。
+{
+  const { ctx, page } = await boot(cr, { plus: true });
+  const f = await followRunningTRA(page);
+  ok('T22 前置:成功跟上一班在跑的台鐵車', !!f, JSON.stringify(f));
+  await page.waitForFunction(() => (window.__laCalls || []).some(c => c.m === 'start'), null, { timeout: 15000 });
+  const key = await page.evaluate(() => { const s = window.__laCalls.find(c => c.m === 'start').p; return s.sys + '#' + s.trainNo; });
+  const token = '33'.repeat(32);
+  await page.evaluate(() => { window.__laBindDelayMs = 1500; });
+  await page.evaluate(({ k, t }) => window.__laEmit('pushToken', { token: t, key: k }), { k: key, t: token });
+  await page.waitForTimeout(200);   // 確保 bind fetch 已經發出、但因為延遲還沒 resolve
+  const midBindCount = await page.evaluate(() => window.__laBindCalls.filter(c => /bind$/.test(c.url)).length);
+  ok('T22 前置:bind 請求已送出但回應還在飛(製造競態窗)', midBindCount === 1, `bind=${midBindCount}`);
+  await page.evaluate(() => clearFollow());               // 這一刻 _laBound 還是空的(bind 還沒 resolve)
+  await page.waitForTimeout(2200);                        // 等過 1500ms 延遲,讓 bind 的 .then() 真的跑完
+  const unbinds = await page.evaluate(() => window.__laBindCalls.filter(c => /unbind$/.test(c.url)));
+  ok('T22 clearFollow() 發生在 bind 回應回來之前 ⇒ bind 成功後補一發清理 unbind(沒有牙的版本這裡是 0 次)',
+    unbinds.length >= 1 && unbinds[unbinds.length - 1].body && unbinds[unbinds.length - 1].body.token === token,
+    `unbind 次數=${unbinds.length} 明細=${JSON.stringify(unbinds.map(u => u.body))}`);
+  await page.evaluate(() => { window.__laBindDelayMs = 0; });
   await ctx.close();
 }
 
@@ -663,6 +824,68 @@ const cr = await chromium.launch();
   await page.waitForTimeout(600);
   const n = await page.evaluate(() => window.__laBindCalls.length);
   ok('T17 未訂閱者零 bind', n === 0, `bind 呼叫 ${n} 次`);
+  await ctx.close();
+}
+
+// ══════════ T20：bind 回應非 2xx 不可標記已交班——修復輪次1 Important 3 的手工情境 ══════════
+{
+  const { ctx, page } = await boot(cr, { plus: true });
+  const f = await followRunningTRA(page);
+  ok('T20 前置:成功跟上一班在跑的台鐵車', !!f, JSON.stringify(f));
+  await page.waitForFunction(() => (window.__laCalls || []).some(c => c.m === 'start'), null, { timeout: 15000 });
+  const key = await page.evaluate(() => { const s = window.__laCalls.find(c => c.m === 'start').p; return s.sys + '#' + s.trainNo; });
+  await page.evaluate(() => { window.__laForceBindStatus = { status: 400, body: { error: 'bad_sys' } }; });
+  await page.evaluate(k => window.__laEmit('pushToken', { token: '77'.repeat(32), key: k }), key);
+  await page.waitForFunction(() => (window.__laBindCalls || []).some(c => /bind$/.test(c.url)), null, { timeout: 10000 }).catch(() => {});
+  const bindN = await page.evaluate(() => window.__laBindCalls.filter(c => /bind$/.test(c.url)).length);
+  ok('T20 前置:bind 請求確實發出(400 是後端拒絕,不是前端沒送出去)', bindN === 1, `bind=${bindN}`);
+  await page.waitForTimeout(300);   // 等 fetch 的 .then() 真的跑完
+  const bound = await page.evaluate(() => _laBound);
+  ok('T20 bind 回應 400(非 2xx)⇒ 不標記已交班,_laBound 仍是空字串(沒看 r.ok 的版本這裡會是 key)',
+    bound === '', `_laBound=${JSON.stringify(bound)}`);
+  await page.evaluate(() => { window.__laForceBindStatus = null; });   // 只擋這一發,後面不受影響
+  await page.evaluate(() => clearFollow());
+  await page.waitForTimeout(600);   // 沒有牙的話仍會送出 unbind,固定等待+讀值取代 waitForFunction 避免掛死
+  const unN = await page.evaluate(() => window.__laBindCalls.filter(c => /unbind$/.test(c.url)).length);
+  ok('T20 正向對照(行為面):交班失敗 ⇒ clearFollow() 之後沒有 unbind 可送(對照 T16——真交班成功時一定送得出 unbind)',
+    unN === 0, `unbind 呼叫 ${unN} 次`);
+  await ctx.close();
+}
+
+// ══════════ T23：真實跟車的 bind payload 通過契約檢查——修復輪次1 Important 8(正向對照) ══════════
+{
+  const { ctx, page } = await boot(cr, { plus: true });
+  const f = await followRunningTRA(page);
+  ok('T23 前置:成功跟上一班在跑的台鐵車', !!f, JSON.stringify(f));
+  await page.waitForFunction(() => (window.__laCalls || []).some(c => c.m === 'start'), null, { timeout: 15000 });
+  const key = await page.evaluate(() => { const s = window.__laCalls.find(c => c.m === 'start').p; return s.sys + '#' + s.trainNo; });
+  await page.evaluate(k => window.__laEmit('pushToken', { token: '44'.repeat(32), key: k }), key);
+  await page.waitForFunction(() => (window.__laBindCalls || []).length > 0, null, { timeout: 10000 });
+  const errs = await page.evaluate(() => window.__laBindCalls[0].contractErrors);
+  ok('T23 真實跟車產生的 bind payload 通過全部四條契約檢查(token 格式/sys 白名單/stopCodes 長度/at 遞增)',
+    Array.isArray(errs) && errs.length === 0, JSON.stringify(errs));
+  await ctx.close();
+}
+
+// ══════════ T24：契約檢查器本身有牙——修復輪次1 Important 8(檢查器單元測試) ══════════
+// 直接餵檢查器合法/四種各自違規的 payload,不經過 laBind——證明它不是永遠回空陣列的裝飾品。
+{
+  const { ctx, page } = await boot(cr, { plus: true });
+  const cases = await page.evaluate(() => {
+    const base = { token: '5'.repeat(64), sys: 'tra_sched', stops: [{ at: 100 }, { at: 200 }], stopCodes: ['a', 'b'] };
+    const bad = {
+      token格式: Object.assign({}, base, { token: 'zz'.repeat(32) }),           // 非 hex
+      sys白名單: Object.assign({}, base, { sys: 'afr_sched' }),                 // 未支援系統(林鐵)
+      stopCodes長度: Object.assign({}, base, { stopCodes: ['a'] }),             // 長度不符
+      at遞增: Object.assign({}, base, { stops: [{ at: 200 }, { at: 100 }] }),   // 未遞增
+    };
+    return {
+      good: window.__laCheckBindContract(base).length === 0,
+      bad: Object.fromEntries(Object.entries(bad).map(([k, v]) => [k, window.__laCheckBindContract(v).length > 0])),
+    };
+  });
+  ok('T24 契約檢查器本身有牙:合法 payload 判 0 錯,四種各自違規的 payload 都判出 ≥1 個錯',
+    cases.good && Object.values(cases.bad).every(Boolean), JSON.stringify(cases));
   await ctx.close();
 }
 
@@ -716,7 +939,7 @@ server.close();
 // 用途:條件式區塊整批消失時,分母跟著變小、收尾只印「N/N PASS」⇒ 會被當成全綠。
 // 注意 T4 走「找不到撞號車對」那一支時只產 2 條(其中一條刻意記 FAIL),這道閘門會跟著紅——
 // 那是預期行為:資料裡沒有撞號車對時,那條判準本來就沒被執行,不該當成通過。
-const EXPECTED_COUNTS = { G0: 1, T0: 2, T1: 8, T2: 3, T3: 4, T4: 4, T5: 5, T6: 4, T7: 5, T8: 7, T9: 4, T10a: 5, T10b: 4, T11: 6, T12: 3, T14a: 1, T14b: 1, T14: 6, T15: 2, T16: 2, T17: 2 };
+const EXPECTED_COUNTS = { G0: 1, T0: 2, T1: 8, T2: 3, T3: 4, T4: 4, T5: 5, T6: 4, T7: 5, T8: 7, T9: 4, T10a: 5, T10b: 4, T11: 6, T12: 3, T14a: 1, T14b: 1, T14: 6, T15: 2, T16: 2, T17: 2, T18: 1, T19: 2, T20: 4, T21: 2, T22: 3, T23: 2, T24: 1 };
 const actualCounts = {};
 // `T\d+[ab]?`:T10a/T10b 是兩個獨立情境(可回復 vs 不可回復),分開記數才不會互相掩護。
 // T14a/T14b 同理各自獨立記數;T14c/d/e/f 沒有 a/b 字尾,一律落回裸「T14」桶(見上面正規式)。
