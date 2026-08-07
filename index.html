@@ -10342,16 +10342,59 @@ function laPayload(tr) {
     terminus: String((last && last.name) || ''),
   };
 }
-let _laLast = 0, _laKey = '', _laDead = false;
+let _laLast = 0, _laKey = '', _laDead = false, _laListening = false, _laToken = '';
+// 跟車即時動態的後端交班。前端只交【表定】時刻與站碼映射,誤點由後端每分鐘自己算——
+// 這樣這張表永不過期(鎖屏時前端也重傳不了),而 offset 是後端唯一的動態量。
+let _laBound = '';                     // 已交班的 key,避免同一台車重複 bind
+function laBind(token, key, tr) {
+  // 把表定 arrSec(自服務日午夜起算)換成【絕對 epoch 秒】,後端就完全不必碰時區與服務日。
+  // 域校正比照 effTLive:真實時鐘跨過午夜後 state.simSec 會回捲到 0,但跨午夜車次的 arrSec
+  // 仍是從「發車那天午夜」起算(可能 > 86400)——這裡刻意不比照 effTLive 扣即時誤點,
+  // 要換算的是【表定】時刻,不是「套過誤點」的現在;誤點留給後端每分鐘自己算(issue 同 effTLive 的分工)。
+  const s = tr.stops, raw = state.simSec;
+  const t = (raw < s[0].arrSec && raw + 86400 <= s[s.length - 1].depSec + 3600) ? raw + 86400 : raw;
+  const ref = nextStopInfo(tr, t);
+  if (!ref) return;                    // 已過終點:沒有下一站可推,不交班
+  const originSec = Math.floor(Date.now() / 1000) - t;   // arrSec → epoch 的常數位移
+  const stops = s.filter(x => x.stop !== false)
+    .map(x => ({ name: x.name, at: Math.round(originSec + x.arrSec) }));
+  fetch(apiUrl('api/la/bind'), {
+    method: 'POST', headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({
+      token, sys: String(tr.sys || ''), trainNo: String(tr.train || ''),
+      stops, staMap: buildStaMap(tr.stops, state.stnInfoMap || {}),
+      stopCodes: buildStopCodes(tr.stops, state.stnInfoMap || {}),
+    }),
+  }).then(() => { _laBound = key; }).catch(() => {});   // 失敗靜默:卡片仍是 LA-0 行為,不是壞掉
+}
+function laUnbind() {
+  if (!_laBound) return;               // 沒交過班就不送,未訂閱者每秒走到這裡不該打後端
+  _laBound = '';
+  fetch(apiUrl('api/la/unbind'), {
+    method: 'POST', headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ token: _laToken }),
+  }).catch(() => {});
+}
 // 收卡。🔴 沒開過卡(_laKey 空)就不送:未訂閱者跟車時這裡每秒都會被走到一次,無條件送等於
 // 每秒過一次橋做白工。開機掃孤兒住在原生端的 load(),與這一發 end 無關,少送不會漏掉孤兒。
 function laStop(api) {
   if (_laKey) Promise.resolve(api.end()).catch(() => {});
+  laUnbind();
   _laLast = 0; _laKey = '';
 }
 function laSync(tr, force) {
   if (!LIVE_ACTIVITY_ENABLED || _laDead) return;
   const api = window.RAIL_NATIVE_LIVEACTIVITY;
+  if (!_laListening && api.addListener) {
+    _laListening = true;
+    api.addListener('pushToken', ({ token, key }) => {
+      // 🔴 比對 key:換車很快時 token 回來的可能是【舊卡】的,推到已收掉的卡上
+      //    (與既有 start 回呼那條「比較新的那張卡不能被舊的失敗回呼清掉」同一個思路)
+      if (key !== _laKey || !liveActivityAllowed()) return;
+      _laToken = token;
+      if (state.followTrain) laBind(token, key, state.followTrain);
+    });
+  }
   // 🔴 時光機/加速中一律不推卡片:鎖定畫面的倒數是以真實時鐘 1× 自走的,模擬時鐘不是
   //    ——護照灰章重播撥回發車前並轉 30×,搜尋「今天已跑完/還沒發車」的車也會撥時鐘(setFollow
   //    兩個分支都清 clockAtNow),推出去就是一個憑空捏造、而且真的在走的倒數,使用者無從分辨真假。
@@ -10373,7 +10416,7 @@ function laSync(tr, force) {
     // 🔴 原生端有三條「resolve 而不是 reject」的失敗路徑(裝置低於 17.6／使用者在系統設定
     //    關掉即時動態／Activity.request 丟錯)。不看回傳就等於:_laKey 已寫入 ⇒ 之後只走 update
     //    ⇒ 每發都回 noactivity ⇒ 這台車直到換車前永遠不會有卡片,而且零診斷零重試。
-    Promise.resolve(api.start(p)).then(r => {
+    Promise.resolve(api.start(Object.assign({ key }, p))).then(r => {
       if (r && r.ok) return;
       if (r && r.why === 'ios<17.6') _laDead = true;      // 這台裝置本來就不支援,重試只是浪費
       if (_laKey === key) _laKey = '';                    // 其餘:清鍵,節流窗到期後自然重試

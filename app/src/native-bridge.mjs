@@ -25,6 +25,7 @@ if (native) {
       start: p => RailLiveActivity.start(p),
       update: p => RailLiveActivity.update(p),
       end: () => RailLiveActivity.end(),
+      addListener: (ev, cb) => RailLiveActivity.addListener(ev, cb),
     };
   }
 

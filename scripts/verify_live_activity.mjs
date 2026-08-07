@@ -83,6 +83,28 @@ async function boot(browser, { bridge = true, plus = false, startResult = null, 
       update: p => rec('update', p),
       end: () => rec('end', null),
     };
+    // 假橋接補上事件通道:讓測試能模擬原生端送回 push token
+    window.__laListeners = {};
+    window.RAIL_NATIVE_LIVEACTIVITY.addListener = (ev, cb) => {
+      (window.__laListeners[ev] = window.__laListeners[ev] || []).push(cb);
+      return Promise.resolve({ remove: () => {} });
+    };
+    window.__laEmit = (ev, payload) => (window.__laListeners[ev] || []).forEach(f => f(payload));
+    // 攔截 bind/unbind 的網路請求,記錄下來(不真的打後端)
+    // 🔴 不能寫死帶前導斜線的 '/api/la/':apiUrl() 在非原生環境(API_BASE='')原樣回傳
+    //    'api/la/bind' 這種「無前導斜線」的相對路徑(index.html 全部 fetch(apiUrl(...)) 呼叫點都是
+    //    這樣傳的),帶斜線的比對永遠對不上,請求會穿透到假伺服器的 /api/* 兜底(回 200 {}、
+    //    不進這支記錄器)——實測踩到過,bindCalls 恆 0 且零例外,很難從結果反推。
+    window.__laBindCalls = [];
+    const _fetch = window.fetch;
+    window.fetch = (u, o) => {
+      const s = String(u);
+      if (s.includes('api/la/')) {
+        window.__laBindCalls.push({ url: s, body: o && o.body ? JSON.parse(o.body) : null });
+        return Promise.resolve(new Response('{"ok":true}', { status: 200, headers: { 'content-type': 'application/json' } }));
+      }
+      return _fetch(u, o);
+    };
   }, { bridge, startResult });
   const page = await ctx.newPage();
   const errors = [];
@@ -479,6 +501,171 @@ const cr = await chromium.launch();
   await ctx.close();
 }
 
+// ══════════ T14：收到 token → 送出 bind,payload 含四個必要欄位 ══════════
+// 🔴 brief 原稿寫死車次 554——只有它真的在跑的那幾小時才會成立,其餘時間 followTrainNo
+//    會把它當成「今天已跑完/還沒發車」而撥時鐘進時光機(setFollow 的既有行為,見 laSync 開頭的
+//    註解),liveClock 閘門就會擋下 api.start(),__laCalls 永遠等不到 'start' 而卡死在 waitForFunction。
+//    改用既有的 followRunningTRA(此刻真的在跑的車),T1-T11 都是這樣做,理由相同。
+{
+  const { ctx, page } = await boot(cr, { plus: true });
+  const f = await followRunningTRA(page);
+  ok('T14 前置:成功跟上一班在跑的台鐵車', !!f, JSON.stringify(f));
+  await page.waitForFunction(() => (window.__laCalls || []).some(c => c.m === 'start'), null, { timeout: 15000 });
+  const key = await page.evaluate(() => window.__laCalls.find(c => c.m === 'start').p.sys + '#' + window.__laCalls.find(c => c.m === 'start').p.trainNo);
+  await page.evaluate(k => window.__laEmit('pushToken', { token: 'deadbeef'.repeat(8), key: k }), key);
+  await page.waitForFunction(() => (window.__laBindCalls || []).length > 0, null, { timeout: 10000 });
+  const b = await page.evaluate(() => window.__laBindCalls[0]);
+  ok('T14a token 到達後送出 bind', /api\/la\/bind$/.test(b.url), b.url);
+  ok('T14b bind payload 四欄齊備',
+     !!(b.body && b.body.token && b.body.trainNo && Array.isArray(b.body.stops) && b.body.staMap && Array.isArray(b.body.stopCodes)),
+     JSON.stringify(Object.keys(b.body || {})));
+  const nowS = Math.floor(Date.now() / 1000);
+  ok('T14c stops 帶的是【絕對 epoch】且遞增',
+     b.body.stops.length > 1
+     && b.body.stops.every(s => Number.isFinite(s.at) && Math.abs(s.at - nowS) < 86400)
+     && b.body.stops.every((s, i) => i === 0 || s.at > b.body.stops[i - 1].at),
+     `${b.body.stops.length} 站,首站 at=${b.body.stops[0].at}(now=${nowS})`);
+  await ctx.close();
+}
+
+// T14d 跨午夜車次:arrSec 超過 86400 的班次,換算出來的 at 仍在「現在前後一天內」
+// (若用「台北今日午夜＋arrSec」的算法,這裡會整整差一天——這條就是為了 gate 那個做法)
+// 同 T14 的理由:候選車必須是「此刻真的在跑」的,否則一樣卡在時光機閘門。
+{
+  const { ctx, page } = await boot(cr, { plus: true });
+  const cross = await page.evaluate(() => {
+    const run = state.trains.filter(t => {
+      if (t.sys !== 'tra_sched' || t.loop) return false;
+      const e = effTLive(t), s = t.stops;
+      return e > s[0].depSec + 60 && e < s[s.length - 1].arrSec - 300;
+    });
+    const t = run.find(x => (x.stops || []).some(s => s.arrSec > 86400));
+    return t ? String(t.train) : null;
+  });
+  if (!cross) { ok('T14d 跨午夜車次換算正確', true, '此刻沒有正在跑的跨午夜車次,略過'); }
+  else {
+    await page.evaluate(no => followTrainNo(no, { sys: 'tra_sched' }), cross);
+    await page.waitForFunction(() => (window.__laCalls || []).some(c => c.m === 'start'), null, { timeout: 15000 });
+    const k = await page.evaluate(() => { const s = window.__laCalls.find(c => c.m === 'start').p; return s.sys + '#' + s.trainNo; });
+    await page.evaluate(kk => window.__laEmit('pushToken', { token: 'dd'.repeat(32), key: kk }), k);
+    await page.waitForFunction(() => (window.__laBindCalls || []).length > 0, null, { timeout: 10000 });
+    const bb = await page.evaluate(() => window.__laBindCalls[0].body);
+    const n2 = Math.floor(Date.now() / 1000);
+    const worst = Math.max(...bb.stops.map(s => Math.abs(s.at - n2)));
+    ok('T14d 跨午夜車次換算正確', worst < 86400, `車次 ${cross},最遠一站距現在 ${(worst / 3600).toFixed(1)} 小時`);
+  }
+  await ctx.close();
+}
+
+// T14e/T14f:上面 T14c/d 的容差(< 86400 秒)只夠擋「差一整天」,擋不住「差幾分鐘~幾十分鐘」
+// 的代數錯誤(例如把 nextStopInfo 回傳的 ref.min 重複計入位移)。這裡改用手工 tr(不吃今日班表,
+// 結果不受「今天有沒有跨午夜車」影響),直接控制 state.simSec 與 Date.now() 的關係,拿獨立手算的
+// 期望值比對——不重用 laBind 內部的任何一步。容差 6 秒只是留給「evaluate 呼叫本身的延遲」。
+{
+  const { ctx, page } = await boot(cr, { plus: true });
+  // T14e:模擬「真實時鐘已跨過午夜、state.simSec 回捲到 00:30(=1800)」,但車次昨晚 23:00 出發、
+  // stops 仍是從發車日午夜起算(不回捲)。四站手算距now應為 -90/-60/-25/+5 分。
+  await page.evaluate(() => {
+    state.simSec = 1800; state.clockAtNow = true;
+    window.__laBindCalls = [];
+    laBind('a'.repeat(64), 'tra_sched#FAKE1', {
+      sys: 'tra_sched', train: 'FAKE1',
+      stops: [
+        { name: 'A起站23:00', arrSec: 82800, depSec: 82800, stop: true },
+        { name: 'B23:30', arrSec: 84600, depSec: 84620, stop: true },
+        { name: 'C跨日00:05', arrSec: 86700, depSec: 86720, stop: true },
+        { name: 'D跨日終點00:35', arrSec: 88500, depSec: 88500, stop: true },
+      ],
+    });
+  });
+  await page.waitForFunction(() => (window.__laBindCalls || []).length > 0, null, { timeout: 5000 });
+  {
+    const b = await page.evaluate(() => window.__laBindCalls[0].body);
+    const nowS = Math.floor(Date.now() / 1000);
+    const expectMin = [-90, -60, -25, 5];
+    const got = b.stops.map(s => (s.at - nowS) / 60);
+    const diffs = got.map((g, i) => Math.abs(g - expectMin[i]));
+    ok('T14e 跨午夜(simSec 回捲過午夜)換算的四站分鐘數精確符合獨立手算(容差 6 秒)',
+      diffs.every(d => d < 0.1),
+      `期望=${expectMin.join('/')} 實際=${got.map(x => x.toFixed(2)).join('/')}`);
+  }
+  // T14f:非跨午夜的乾淨情境,單獨驗證 ref 站本身不會被算成「現在」(0 分)——
+  // t 恰好等於第一站 arrSec,ref 應落在第二站(5 分後),第三站應為 15 分後。
+  await page.evaluate(() => {
+    state.simSec = 100; state.clockAtNow = true;
+    window.__laBindCalls = [];
+    laBind('b'.repeat(64), 'tra_sched#FAKE2', {
+      sys: 'tra_sched', train: 'FAKE2',
+      stops: [
+        { name: 'X已過', arrSec: 100, depSec: 100, stop: true },
+        { name: 'Yref', arrSec: 400, depSec: 420, stop: true },
+        { name: 'Z', arrSec: 1000, depSec: 1000, stop: true },
+      ],
+    });
+  });
+  await page.waitForFunction(() => (window.__laBindCalls || []).length > 0, null, { timeout: 5000 });
+  {
+    const b = await page.evaluate(() => window.__laBindCalls[0].body);
+    const nowS = Math.floor(Date.now() / 1000);
+    const got = b.stops.map(s => (s.at - nowS) / 60);
+    ok('T14f 非跨午夜:ref 站(5 分後)的 at 精確落在 now+5 分,不是 now+0 分(容差 6 秒)',
+      Math.abs(got[1] - 5) < 0.1, `Y(ref)距now=${got[1].toFixed(2)}分(重複計入 ref.min 的錯誤會給出 0 分)`);
+    ok('T14f 非跨午夜:再下一站精確落在 now+15 分(容差 6 秒)',
+      Math.abs(got[2] - 15) < 0.1, `Z距now=${got[2].toFixed(2)}分`);
+  }
+  await ctx.close();
+}
+
+// ══════════ T15：key 不符的 token 被丟掉(換車競態)——負向斷言,配 T14 當正向對照 ══════════
+{
+  const { ctx, page } = await boot(cr, { plus: true });
+  const f = await followRunningTRA(page);
+  ok('T15 前置:成功跟上一班在跑的台鐵車', !!f, JSON.stringify(f));
+  await page.waitForFunction(() => (window.__laCalls || []).some(c => c.m === 'start'), null, { timeout: 15000 });
+  await page.evaluate(() => window.__laEmit('pushToken', { token: 'aa'.repeat(32), key: 'tra_sched#9999' }));
+  await page.waitForTimeout(600);
+  const n = await page.evaluate(() => window.__laBindCalls.length);
+  ok('T15 key 不符的 token 不送 bind', n === 0, `bind 呼叫 ${n} 次(T14 證明同一支記錄器抓得到)`);
+  await ctx.close();
+}
+
+// ══════════ T16：停止跟車 → 送出 unbind ══════════
+{
+  const { ctx, page } = await boot(cr, { plus: true });
+  const f = await followRunningTRA(page);
+  ok('T16 前置:成功跟上一班在跑的台鐵車', !!f, JSON.stringify(f));
+  await page.waitForFunction(() => (window.__laCalls || []).some(c => c.m === 'start'), null, { timeout: 15000 });
+  const key = await page.evaluate(() => { const s = window.__laCalls.find(c => c.m === 'start').p; return s.sys + '#' + s.trainNo; });
+  await page.evaluate(k => window.__laEmit('pushToken', { token: 'bb'.repeat(32), key: k }), key);
+  await page.waitForFunction(() => window.__laBindCalls.length > 0, null, { timeout: 10000 });
+  await page.evaluate(() => clearFollow());
+  await page.waitForFunction(() => window.__laBindCalls.some(c => /unbind$/.test(c.url)), null, { timeout: 10000 });
+  ok('T16 停止跟車送出 unbind', true);
+  await ctx.close();
+}
+
+// ══════════ T17：未訂閱者不送 bind(負向,對照 T14) ══════════
+// 🔴 未訂閱時 laSync 的 liveActivityAllowed() 一開始就是 false,走 laStop() 分支,_laKey 從頭到尾
+//    是空字串——不管跟不跟得到車、車在不在跑都一樣。emit 的 key 若沿用 brief 原稿寫死的
+//    'tra_sched#554',回呼裡 `key !== _laKey` 這半(空字串比車次字串,恆不等)自己就會擋下,
+//    根本測不到後半的 `!liveActivityAllowed()`——brief 表列的第 5 發突變(拿掉 liveActivityAllowed
+//    那半)會因此測不出來(key 不符那半照樣擋人,是假綠)。改 emit key='' 與 _laKey 對上,
+//    讓「未訂閱」是唯一擋下 bind 的原因,才真的驗到 liveActivityAllowed() 那半。
+{
+  const { ctx, page } = await boot(cr, { plus: false });
+  const followed = await page.evaluate(() => {
+    followTrainNo('554', { sys: 'tra_sched' });
+    return state.followTrain ? String(state.followTrain.train) : null;
+  });
+  ok('T17 前置:未訂閱也能正常跟車(state.followTrain 有值,否則下面測的是假陽性)', followed === '554', String(followed));
+  await page.waitForTimeout(1500);
+  await page.evaluate(() => window.__laEmit('pushToken', { token: 'cc'.repeat(32), key: '' }));
+  await page.waitForTimeout(600);
+  const n = await page.evaluate(() => window.__laBindCalls.length);
+  ok('T17 未訂閱者零 bind', n === 0, `bind 呼叫 ${n} 次`);
+  await ctx.close();
+}
+
 await cr.close();
 
 // ══════════ T12：更新紀錄兩條 li 的四寬度幾何(WebKit) ══════════
@@ -529,9 +716,10 @@ server.close();
 // 用途:條件式區塊整批消失時,分母跟著變小、收尾只印「N/N PASS」⇒ 會被當成全綠。
 // 注意 T4 走「找不到撞號車對」那一支時只產 2 條(其中一條刻意記 FAIL),這道閘門會跟著紅——
 // 那是預期行為:資料裡沒有撞號車對時,那條判準本來就沒被執行,不該當成通過。
-const EXPECTED_COUNTS = { G0: 1, T0: 2, T1: 8, T2: 3, T3: 4, T4: 4, T5: 5, T6: 4, T7: 5, T8: 7, T9: 4, T10a: 5, T10b: 4, T11: 6, T12: 3 };
+const EXPECTED_COUNTS = { G0: 1, T0: 2, T1: 8, T2: 3, T3: 4, T4: 4, T5: 5, T6: 4, T7: 5, T8: 7, T9: 4, T10a: 5, T10b: 4, T11: 6, T12: 3, T14a: 1, T14b: 1, T14: 6, T15: 2, T16: 2, T17: 2 };
 const actualCounts = {};
-// `T\d+[ab]?`:T10a/T10b 是兩個獨立情境(可回復 vs 不可回復),分開記數才不會互相掩護
+// `T\d+[ab]?`:T10a/T10b 是兩個獨立情境(可回復 vs 不可回復),分開記數才不會互相掩護。
+// T14a/T14b 同理各自獨立記數;T14c/d/e/f 沒有 a/b 字尾,一律落回裸「T14」桶(見上面正規式)。
 for (const r of results) { const m = /^([GT]\d+[ab]?)/.exec(r.name); const k = m ? m[1] : '(未分組)'; actualCounts[k] = (actualCounts[k] || 0) + 1; }
 const groupKeys = [...new Set([...Object.keys(EXPECTED_COUNTS), ...Object.keys(actualCounts)])].sort();
 const countMismatch = groupKeys.filter(g => (EXPECTED_COUNTS[g] || 0) !== (actualCounts[g] || 0));
