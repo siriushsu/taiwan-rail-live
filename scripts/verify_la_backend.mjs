@@ -7,16 +7,46 @@ import { laNextIdx, laSchedIdx, laArrivalIso } from './la_push_core.mjs';
 // 否則環境參數缺失那幾條 early-exit 沒有「總計」行可印(批次工具 grep 不到、真人也看不出腳本有跑過)。
 const results = [];
 const ok = (n, p, d = '') => { results.push({ n, p }); console.log(`${p ? 'PASS' : 'FAIL'} ${n}${d ? ' — ' + d : ''}`); };
-// 中止但一律印「總計」行的統一出口。兩個讀者要同時滿足:
+// 「總計」行的唯一產生點,不論從哪條路徑抵達都只印一次(printed 旗標)。兩個讀者要同時滿足:
 // (a) 批次工具只 grep "總計" 認定腳本跑過一輪——中止也要有這行,不然這個維度會靜默零覆蓋;
 // (b) 真人要一眼看出這不是「完整跑完」的結果,不能被 FAIL 0 誤讀成全過——所以行內明寫「中止,未完成」。
-// exit code 用 2 跟「完整跑完但有 FAIL」的 1、「全過」的 0 分開,批次工具不必解析文字就能三態分流。
-function abort(reason) {
+let printed = false;
+function summary(reason) {
+  if (printed) return;
+  printed = true;
   const bad = results.filter(r => !r.p).length;
+  console.log(reason
+    ? `\n總計(中止,未完成) ${results.length} 項,FAIL ${bad} — 原因:${reason}`
+    : `\n總計 ${results.length} 項,FAIL ${bad}`);
+}
+// 中止的統一出口。exit code 用 2 跟「完整跑完但有 FAIL」的 1、「全過」的 0 分開,
+// 批次工具不必解析文字就能三態分流。
+function abort(reason) {
   console.error(reason);
-  console.log(`\n總計(中止,未完成) ${results.length} 項,FAIL ${bad} — 原因:${reason}`);
+  summary(reason);
   process.exit(2);
 }
+// 🔴 例外防護掛在【行程層】,不是逐一包住每個 fetch/post/d1Exec 呼叫點——涵蓋範圍要跟著
+// 「這支腳本」走,而不是跟著「當初記得包起來的那幾行」走。之後任何人在本檔新增第 N 個
+// fetch/await/斷言,不必做任何防護動作就自動被涵蓋。各路徑的落點是實測的(node v24.14):
+//   - top-level await 的 rejection(fetch 連線失敗、JSON.parse 失敗)→ uncaughtException
+//   - 斷言或 helper 內部的同步例外                                  → uncaughtException
+//   - 沒 await 的浮動 promise rejection                            → unhandledRejection
+// 三者的預設 exit code 都是 1,會跟本腳本「跑完但有 FAIL」的 1 相撞(批次工具光看 exit code
+// 會把「半途炸裂、完全沒跑完」誤讀成「跑到底、剛好幾項 FAIL」),所以一律改判 2。
+const fatal = (tag) => (e) => {
+  console.error(e && e.stack ? e.stack : String(e));   // 掛了 handler 就沒有預設 stack trace,自己補
+  abort(`${tag}:${String((e && e.message) || e).split('\n')[0]}`);
+};
+process.on('uncaughtException', fatal('未攔截例外,腳本中止'));
+process.on('unhandledRejection', fatal('未處理的 promise rejection,腳本中止'));
+// 最後一道網:任何繞過上面兩者的結束路徑(例如日後有人直接在中間 process.exit()),
+// 只要「總計」還沒印就補印,並改判 2(實測 exit 事件裡改 process.exitCode 有效)。
+process.on('exit', () => {
+  if (printed) return;
+  summary('行程在印出「總計」之前就結束了');
+  process.exitCode = 2;
+});
 
 const BASE = process.env.LA_BASE;
 // 🔴 base 必須是 https(worker.js 有 http→https 301,純 http 會讓所有 /api/* 無限重導),
@@ -185,6 +215,5 @@ ok('N13 未到站 → 回 ISO 字串', laArrivalIso(T0 + 600, 0, T0) === new Dat
 ok('N14 到站時刻已過 → 回 null', laArrivalIso(T0 + 600, 0, T0 + 601) === null, String(laArrivalIso(T0 + 600, 0, T0 + 601)));
 ok('N15 誤點把到站推到未來 → 又回 ISO(不是永久 null)', typeof laArrivalIso(T0 + 600, 600, T0 + 700) === 'string', String(laArrivalIso(T0 + 600, 600, T0 + 700)));
 
-const bad = results.filter(r => !r.p).length;
-console.log(`\n總計 ${results.length} 項,FAIL ${bad}`);
-process.exit(bad ? 1 : 0);
+summary();   // 走到這裡＝完整跑完,印不帶「中止」字樣的總計行
+process.exit(results.filter(r => !r.p).length ? 1 : 0);
