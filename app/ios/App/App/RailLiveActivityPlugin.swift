@@ -16,6 +16,7 @@ public final class RailLiveActivityPlugin: CAPPlugin, CAPBridgedPlugin {
     // 避免整個 class 被 @available 綁死(class 本身要對 iOS 15.0 編得過)。
     private var current: Any?
     private var chain: Task<Void, Never>?
+    private var tokenTask: Task<Void, Never>?
 
     // 🔴 把所有 ActivityKit 動作排成一條序列。原稿的 end 是 fire-and-forget 的 Task,
     //    換車時「舊卡的 end」與「新卡的 request」會交錯 ⇒ 兩張卡並存,或新卡被舊卡的 end 收掉。
@@ -54,6 +55,7 @@ public final class RailLiveActivityPlugin: CAPPlugin, CAPBridgedPlugin {
     @available(iOS 17.6, *)
     @MainActor
     private func endAll() async {
+        tokenTask?.cancel(); tokenTask = nil
         current = nil
         for act in Activity<RailFollowAttributes>.activities {
             await act.end(nil, dismissalPolicy: .immediate)
@@ -79,10 +81,21 @@ public final class RailLiveActivityPlugin: CAPPlugin, CAPBridgedPlugin {
         enqueue {
             await self.endAll()   // 🔴 await:舊卡確實收掉之後才開新的
             do {
-                self.current = try Activity.request(
+                let act = try Activity.request(
                     attributes: attrs,
-                    content: .init(state: st, staleDate: Date().addingTimeInterval(8 * 3600))
+                    content: .init(state: st, staleDate: Date().addingTimeInterval(8 * 3600)),
+                    pushType: .token          // 🔴 少了這個參數就拿不到 token,卡片只能靠前景更新
                 )
+                self.current = act
+                // pushTokenUpdates 是 AsyncSequence,token 會【多次】輪替,不是拿一次就結束。
+                // 這條 Task 的生命週期綁在 endAll()——換車時先 cancel,否則舊卡的 token 會被當成新卡的送上去。
+                let key = call.getString("key") ?? ""
+                self.tokenTask = Task { @MainActor in
+                    for await data in act.pushTokenUpdates {
+                        let hex = data.map { String(format: "%02x", $0) }.joined()
+                        self.notifyListeners("pushToken", data: ["token": hex, "key": key])
+                    }
+                }
                 call.resolve(["ok": true])
             } catch {
                 call.resolve(["ok": false, "why": error.localizedDescription])
