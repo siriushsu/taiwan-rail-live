@@ -18,6 +18,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 import {
   buildTrtcModel, buildLedgerFromRaw, trtcServiceDay,
   bindTracksToTrips, buildTripSetsByLineDir, tripKeyOf, tripRosterActive, tripLegIndex, trtcServiceSecOfEpoch,
+  claimBoardRows, collapseClaims, assignLedgerFrame, joinBoardRowsToTrips,
 } from './trtc_board_ledger.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -699,6 +700,266 @@ say('\n── R13:合成正式節奏(v1.2新增)——從真實班表以15s/輪�
   }
 }
 
+// ═══ 工項4:Y 進 tracks/bindings(model includeY 交集帳本路徑)。R14/R5+非Y迴歸雜湊比對 ═══
+say('\n── R14(工項4):Y 進 tracks/bindings——正面:Y 綁得上自己班表;反面:D1 寫入邊界過濾後 events 絕不含 Y ──');
+{
+  const trtcJson14 = JSON.parse(fs.readFileSync(path.join(ROOT, 'data/trtc.json')));
+  const times14 = JSON.parse(fs.readFileSync(path.join(ROOT, 'data/trtc_times.json')));
+  const codesJson14 = JSON.parse(fs.readFileSync(path.join(ROOT, 'data/trtc_codes.json')));
+  const dayTypeTable14 = JSON.parse(fs.readFileSync(path.join(ROOT, 'data/tw_daytype.json')));
+  const day14 = '2026-08-03'; // 週一/平日,與 R13 同一天(已知有效日型)
+  const modelY14 = buildTrtcModel(trtcJson14, times14, codesJson14, { includeY: true });
+  ok(modelY14.lines.has('Y'), 'R14 前置:Y 進 model.lines(includeY:true)', `lines=${[...modelY14.lines.keys()].sort().join(',')}`);
+  const { tripSets: tripSets14, dayKeys: dayKeys14 } = buildTripSetsByLineDir(times14, dayTypeTable14, day14);
+  const yTrips14 = tripSets14.get('Y|2') || [];
+  ok(yTrips14.length > 10, 'R14 前置:Y|2 該日班表有足夠班次(非空,證明 tripSets 真的含 Y)', `Y|2=${yTrips14.length}`);
+
+  const tr14 = yTrips14[Math.floor(yTrips14.length / 2)]; // 挑中段一班,避開頭尾邊界情況
+  const legIdx14 = 3; // 第3腿,避開起點站,模擬「行駛中」列車(非終點觀測)
+  const legFrom14 = tr14[(legIdx14 - 1) * 2], legTo14 = tr14[legIdx14 * 2];
+  const schedDep14 = tr14[(legIdx14 - 1) * 2 + 1], schedArr14 = tr14[legIdx14 * 2 + 1];
+  const DELTA14 = 12; // 準點微幅(秒),不涉及誤點/安全閥,單純測「Y 綁不綁得上」
+  const rowArrEpoch14 = secToEpoch(schedArr14 + DELTA14);
+  // 直接餵 resolveBoardRows 的輸出形狀(略過站名比對這一步——Y 有站名與其他線同名的風險,
+  // 站名解析是通用邏輯、非工項4改動範圍,這裡只測 claimBoardRows 之後、對 Y 才真正相關的部分)。
+  const resolvedRow14 = { line: 'Y', dir: 2, stationIdx: legTo14, destIdx: tr14[tr14.length - 2],
+    destName: '', no: '', arrEpoch: rowArrEpoch14, baseEpoch: rowArrEpoch14, sec: 0, atStation: false };
+  const nowEpoch14 = secToEpoch(schedDep14 + DELTA14 + 5); // 剛發車後5秒的「現在」
+  const claimed14 = claimBoardRows(modelY14, [resolvedRow14], nowEpoch14, new Map());
+  ok(claimed14.claims.length === 1 && claimed14.claims[0].from === legFrom14 && claimed14.claims[0].to === legTo14,
+    'R14 前置:claimBoardRows 正確解出這筆 Y 觀測(未被 unclaimed 丟棄)',
+    `claims=${claimed14.claims.length}, unclaimed=${JSON.stringify(claimed14.unclaimed)}`);
+  const collapsed14 = collapseClaims(claimed14.claims);
+  const assigned14 = assignLedgerFrame({ model: modelY14, claims: collapsed14, cars: [], priorTracks: [], aliases: [],
+    day: day14, nowEpoch: nowEpoch14, calibrations: new Map() });
+
+  const yTrackUpdate14 = assigned14.trackUpdates.find(x => x.line === 'Y');
+  ok(!!yTrackUpdate14, 'R14 正面(1):assignLedgerFrame 對 Y 觀測產生 trackUpdates(工項4要求 Y 的 tracks 寫 D1 的前提)',
+    JSON.stringify(yTrackUpdate14));
+  const yEventsUnfiltered14 = assigned14.events.filter(e => e.line === 'Y');
+  ok(yEventsUnfiltered14.length > 0, 'R14 前置:純函式層面 assignLedgerFrame 確實會對 Y 產生 events' +
+    '(證明下面的「絕不進 events」斷言不是空集合偽陽性,過濾器真的在擋東西)', `events(Y)=${yEventsUnfiltered14.length}`);
+  // 反面:複刻 worker.js persistTrtcLedger 的寫入邊界過濾運算式(e.line!=='Y'),逐字一致(見下方
+  // 雜湊比對段落再次以真實語料驗證同一運算式)。
+  const filteredEvents14 = assigned14.events.filter(e => e.line !== 'Y');
+  ok(filteredEvents14.every(e => e.line !== 'Y') &&
+    filteredEvents14.length === assigned14.events.length - yEventsUnfiltered14.length,
+    'R14 反面:套用 D1 寫入邊界過濾器(worker.js persistTrtcLedger 的 e.line!==\'Y\')後,events 絕不含 Y',
+    `filtered=${filteredEvents14.length}/${assigned14.events.length}`);
+
+  const round14 = bindTracksToTrips({ model: modelY14, tripSets: tripSets14, dayType: dayKeys14.get('Y') || null,
+    tracks: assigned14.claims, priorBindings: [], nowEpoch: nowEpoch14, day: day14 });
+  const yBinding14 = round14.bindings.find(b => b.line === 'Y' && !b.done);
+  ok(!!yBinding14 && yBinding14.tripKey === tripKeyOf(tr14), 'R14 正面(2):Y 軌跡綁得上 Y 自己的班表(tripKey 精確相符)',
+    JSON.stringify(yBinding14));
+}
+
+say('\n── R5(工項4,設計書§10):Y track 人為碎裂(斷3分鐘)——重接回同一班次比率量化(目標>90%) ──');
+{
+  const times5 = JSON.parse(fs.readFileSync(path.join(ROOT, 'data/trtc_times.json')));
+  const dayTypeTable5 = JSON.parse(fs.readFileSync(path.join(ROOT, 'data/tw_daytype.json')));
+  const day5 = '2026-08-03';
+  const { tripSets: tripSets5, dayKeys: dayKeys5 } = buildTripSetsByLineDir(times5, dayTypeTable5, day5);
+  const dayTypeY5 = dayKeys5.get('Y') || null;
+
+  function legWindow5(tr, legIdx) {
+    const from = tr[(legIdx - 1) * 2], to = tr[legIdx * 2];
+    const dep = tr[(legIdx - 1) * 2 + 1], arr = tr[legIdx * 2 + 1];
+    return { from, to, dep, arr, run: arr - dep };
+  }
+  // round1 在 breakLegIdx 建立綁定,靜默(碎裂中,不送任何 claim),round3 在 reappearLegIdx
+  // (排定發車 >= round1 發車+180s 的第一腿)以新 trackId 重現。shift 全程固定 DELTA(不額外
+  // 注入漂移)——本測試只量「認回機制本身」在 Y 真實班表跨度上的成功率,不與漂移量測混淆
+  // (漂移是 train-kinematics-model 的獨立關注點)。
+  function simulateFragment5(tr, dir, sampleId) {
+    const legCount = (tr.length - 2) / 2;
+    const breakLegIdx = Math.max(1, Math.min(legCount, Math.round(legCount * 0.35)));
+    const w0 = legWindow5(tr, breakLegIdx);
+    const DELTA = 8;
+    const round1Now = secToEpoch(w0.arr + DELTA + 3);
+    const trackA = `y5:${sampleId}:A`;
+    const claimA = { trackId: trackA, line: 'Y', dir, from: w0.from, to: w0.to, destIdx: tr[tr.length - 2],
+      arrEpoch: secToEpoch(w0.arr + DELTA), run: w0.run, terminal: false };
+    const r1 = bindTracksToTrips({ model: null, tripSets: tripSets5, dayType: dayTypeY5, tracks: [claimA],
+      priorBindings: [], nowEpoch: round1Now, day: day5 });
+    const b1 = r1.bindings.find(b => b.trackId === trackA && !b.done);
+    if (!b1) return { sampleId, ok: false, skip: true, reason: 'round1未出生(前置失敗,不計入分母)' };
+
+    let reappearLegIdx = -1;
+    for (let k = breakLegIdx + 1; k <= legCount; k++) {
+      if (legWindow5(tr, k).dep >= w0.dep + DELTA + 180) { reappearLegIdx = k; break; }
+    }
+    if (reappearLegIdx < 0) return { sampleId, ok: false, skip: true, reason: '該班剩餘里程不足3分鐘(結構性排除,不計入分母)' };
+    const w1 = legWindow5(tr, reappearLegIdx);
+    const trackB = `y5:${sampleId}:B`;
+    const claimB = { trackId: trackB, line: 'Y', dir, from: w1.from, to: w1.to, destIdx: tr[tr.length - 2],
+      arrEpoch: secToEpoch(w1.arr + DELTA), run: w1.run, terminal: false };
+    const round3Now = secToEpoch(w1.arr + DELTA + 3);
+    const r3 = bindTracksToTrips({ model: null, tripSets: tripSets5, dayType: dayTypeY5, tracks: [claimB],
+      priorBindings: r1.bindings, nowEpoch: round3Now, day: day5 });
+    const b3 = r3.bindings.find(b => b.trackId === trackB && !b.done);
+    const reconnected = !!b3 && b3.tripKey === tripKeyOf(tr) && b3.boundEpoch === b1.boundEpoch;
+    return { sampleId, ok: reconnected, skip: false, reason: reconnected ? '' :
+      (b3 ? 'trackId B 綁到別的 tripKey 或 boundEpoch 未延續(疑似當全新出生非認回)' : 'trackId B 完全 unbound') };
+  }
+
+  const results5 = [];
+  for (const dir of [1, 2]) {
+    const trips = tripSets5.get(`Y|${dir}`) || [];
+    const stride = Math.max(1, Math.floor(trips.length / 18)); // 每方向約取18班,雙向合計約36次模擬
+    for (let i = 0; i < trips.length; i += stride) results5.push(simulateFragment5(trips[i], dir, `${dir}-${i}`));
+  }
+  const attempted5 = results5.filter(r => !r.skip);
+  const succeeded5 = attempted5.filter(r => r.ok);
+  const rate5 = attempted5.length ? succeeded5.length / attempted5.length : 0;
+  ok(attempted5.length >= 20, 'R5 前置:實際模擬到足夠的碎裂案例(非結構性排除)', `attempted=${attempted5.length}/${results5.length}`);
+  ok(rate5 > 0.90, 'R5 Y track 人為碎裂(斷3分鐘)重接回同一班次比率>90%(設計書§10目標)',
+    `${succeeded5.length}/${attempted5.length}=${(rate5 * 100).toFixed(1)}%`);
+  const failures5 = attempted5.filter(r => !r.ok);
+  if (failures5.length) note('R5 未重接個案(誠實列出)', failures5.map(f => `${f.sampleId}:${f.reason}`).join('; '));
+  else note('R5 本次抽樣全數重接', '結構性上限(設計書§11風險2:無alias)在本抽樣未出現,不代表全域必為100%(本測試刻意隔離單一trip、無跨車競爭,見施工日誌工項4節)');
+}
+
+say('\n── 工項4非Y迴歸雜湊比對(比照 B1 V1「舊輸出凍結」前例)——Y off 全輸出 vs Y on 過濾後非Y輸出逐byte相符;突變對照證明有牙 ──');
+{
+  const CORPUS_HG = process.env.TRTC_FIXTURE_DIR || '/Users/xuxiang/Code/軌島-語料/trtc-peak-0803';
+  const epochOfHG = value => {
+    const m = String(value).match(/(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2}):(\d{2})/);
+    return m ? Math.floor(Date.UTC(+m[1], +m[2] - 1, +m[3], +m[4], +m[5], +m[6]) / 1000) - 8 * 3600 : null;
+  };
+  const trtcJsonHG = JSON.parse(fs.readFileSync(path.join(ROOT, 'data/trtc.json')));
+  const timesHG = JSON.parse(fs.readFileSync(path.join(ROOT, 'data/trtc_times.json')));
+  const codesJsonHG = JSON.parse(fs.readFileSync(path.join(ROOT, 'data/trtc_codes.json')));
+  const dayTypeTableHG = JSON.parse(fs.readFileSync(path.join(ROOT, 'data/tw_daytype.json')));
+  const tkFileHG = fs.readdirSync(CORPUS_HG).filter(f => f.startsWith('snap_tk_')).sort()[0];
+  const hwFileHG = fs.readdirSync(CORPUS_HG).filter(f => f.startsWith('snap_hw_')).sort()[0];
+  const brFileHG = fs.readdirSync(CORPUS_HG).filter(f => f.startsWith('snap_br_')).sort()[0];
+  ok(!!tkFileHG, 'HG 前置:語料目錄有 tk 快照可用', `${CORPUS_HG}/${tkFileHG || '(none)'}`);
+  const tkSnapHG = JSON.parse(fs.readFileSync(path.join(CORPUS_HG, tkFileHG)));
+  const hwSnapHG = JSON.parse(fs.readFileSync(path.join(CORPUS_HG, hwFileHG)));
+  const brSnapHG = JSON.parse(fs.readFileSync(path.join(CORPUS_HG, brFileHG)));
+  const nowEpochHG = Math.max(...tkSnapHG.rows.map(r => epochOfHG(r.NowDateTime) || 0));
+  const dayHG = trtcServiceDay(nowEpochHG);
+
+  const modelOffHG = buildTrtcModel(trtcJsonHG, timesHG, codesJsonHG); // opts省略=includeY:false(工項4修改前的舊行為)
+  const modelOnHG = buildTrtcModel(trtcJsonHG, timesHG, codesJsonHG, { includeY: true }); // 工項4後 trtcLedgerModel 的行為
+  ok(!modelOffHG.lines.has('Y') && modelOnHG.lines.has('Y'), 'HG 前置:兩顆 model 的 Y 存在性確實不同(否則比較無意義)',
+    `off has Y=${modelOffHG.lines.has('Y')}, on has Y=${modelOnHG.lines.has('Y')}`);
+
+  const builtOffHG = buildLedgerFromRaw({ model: modelOffHG, boardRows: tkSnapHG.rows, hwRows: hwSnapHG.rows,
+    brRows: brSnapHG.rows, epochOf: epochOfHG, priorTracks: [], aliases: [], historicalEvents: [],
+    nowEpoch: nowEpochHG, day: dayHG });
+  const builtOnHG = buildLedgerFromRaw({ model: modelOnHG, boardRows: tkSnapHG.rows, hwRows: hwSnapHG.rows,
+    brRows: brSnapHG.rows, epochOf: epochOfHG, priorTracks: [], aliases: [], historicalEvents: [],
+    nowEpoch: nowEpochHG, day: dayHG });
+  ok(builtOnHG.frame.some(x => x.line === 'Y') || builtOnHG.events.some(x => x.line === 'Y'),
+    'HG 前置:Y on 這一輪語料確實產生了 Y 的 frame/events(否則下面的「過濾後不變」是無意義的空比對)',
+    `frame(Y)=${builtOnHG.frame.filter(x => x.line === 'Y').length}, events(Y)=${builtOnHG.events.filter(x => x.line === 'Y').length}`);
+
+  const { tripSets: tripSetsHG, dayKeys: dayKeysHG } = buildTripSetsByLineDir(timesHG, dayTypeTableHG, dayHG);
+  const dayTypeHG = dayKeysHG.get('BL') || null;
+  const boundOffHG = bindTracksToTrips({ model: modelOffHG, tripSets: tripSetsHG, dayType: dayTypeHG,
+    tracks: builtOffHG.claims, priorBindings: [], nowEpoch: nowEpochHG, day: dayHG });
+  const boundOnHG = bindTracksToTrips({ model: modelOnHG, tripSets: tripSetsHG, dayType: dayTypeHG,
+    tracks: builtOnHG.claims, priorBindings: [], nowEpoch: nowEpochHG, day: dayHG });
+
+  const nonY = x => x.line !== 'Y';
+  const md5Of = obj => md5(JSON.stringify(obj));
+  const offSigHG = {
+    frame: builtOffHG.frame.filter(nonY), events: builtOffHG.events.filter(nonY),
+    trackUpdates: builtOffHG.trackUpdates.filter(nonY), aliasUpdates: builtOffHG.aliasUpdates,
+    bindings: boundOffHG.bindings.filter(nonY),
+  };
+  // events 用 worker.js persistTrtcLedger 的同一過濾運算式(e.line!=='Y');tracks/aliases/bindings
+  // 刻意不在 worker.js 過濾(Y 本該進 D1),這裡取「非Y列」只是為了跟 off 那邊(結構上不可能有Y)比較。
+  const onSigFilteredHG = {
+    frame: builtOnHG.frame.filter(nonY), events: builtOnHG.events.filter(e => e.line !== 'Y'),
+    trackUpdates: builtOnHG.trackUpdates.filter(nonY), aliasUpdates: builtOnHG.aliasUpdates,
+    bindings: boundOnHG.bindings.filter(nonY),
+  };
+  const sigKeysHG = ['frame', 'events', 'trackUpdates', 'aliasUpdates', 'bindings'];
+  const mismatchesHG = sigKeysHG.filter(k => md5Of(offSigHG[k]) !== md5Of(onSigFilteredHG[k]));
+  ok(mismatchesHG.length === 0,
+    'HG(a) Y off 全輸出 vs Y on 過濾後非Y輸出逐byte相符(md5,不比計數)——Y 開啟對非Y線零副作用',
+    mismatchesHG.length ? `不符欄位:${mismatchesHG.join(',')}` :
+      sigKeysHG.map(k => `${k}=${md5Of(offSigHG[k]).slice(0, 8)}`).join(' '));
+
+  // 正向對照(突變):structuredClone + 改一個非Y列的一個欄位,md5 必須轉紅——證明比對機制有牙,
+  // 不是「兩邊剛好都是空陣列/形狀相同就放行」的偽陽性(比照 B1 V1 的 mutant.board[0].eta++ 手法)。
+  const mutantFrameHG = structuredClone(onSigFilteredHG.frame);
+  const mutantIdxHG = mutantFrameHG.findIndex(x => x.line !== 'Y');
+  ok(mutantIdxHG >= 0, 'HG 前置:過濾後 frame 內確有非Y列可供突變(樣本不為空)', `length=${mutantFrameHG.length}`);
+  if (mutantIdxHG >= 0) {
+    mutantFrameHG[mutantIdxHG].arrEpoch = (mutantFrameHG[mutantIdxHG].arrEpoch || 0) + 1;
+    ok(md5Of(mutantFrameHG) !== md5Of(offSigHG.frame),
+      'HG(b) 正向對照:改一個非Y列的 arrEpoch 後 md5 必轉紅', '確認雜湊比對機制真的在比內容,不是形狀相同就放行');
+  }
+}
+
+// ═══ 工項5:訪客唯讀 join(joinBoardRowsToTrips)。R10+基礎正反面 ═══
+say('\n── R10(工項5,設計書§7/§10):訪客 join——有號列 no→alias→binding;無號列 cost=|rowShift-lastShift|且僅限已綁班次;45s 窗突變對照 ──');
+{
+  const [tripJ] = buildSeries(1, T0 + 2000, true); // 寬視窗版,避免無關的黏著/視窗到期干擾
+  const tripSetsJ = tripSetsOf([tripJ]);
+  const legFromJ = tripJ[0], legToJ = tripJ[2];
+  const schedDepJ = tripJ[1], schedArrJ = tripJ[3];
+  const bindingJ = { line: LINE, dir: DIR, tripKey: tripKeyOf(tripJ), trackId: 'trkJ', lastShift: 10, done: false };
+
+  const rowNumbered = { line: LINE, dir: DIR, from: legFromJ, to: legToJ, run: schedArrJ - schedDepJ,
+    arrEpoch: secToEpoch(schedArrJ + 15), no: '9001', terminal: false };
+  const aliasMap = new Map([['9001', 'trkJ']]);
+  const matchNumbered = joinBoardRowsToTrips({ tripSets: tripSetsJ, rows: [rowNumbered], bindings: [bindingJ], aliasByHwNo: aliasMap });
+  ok(matchNumbered.length === 1 && matchNumbered[0].key === tripKeyOf(tripJ) && matchNumbered[0].shift === 15,
+    'R10 前置(有號列):no→alias→binding 精確匹配,shift 正確反映這一輪的新鮮偏移', JSON.stringify(matchNumbered));
+
+  const rowNumberedNoAlias = { ...rowNumbered, no: '9999' }; // 查無此車號
+  const missNoAlias = joinBoardRowsToTrips({ tripSets: tripSetsJ, rows: [rowNumberedNoAlias], bindings: [bindingJ], aliasByHwNo: aliasMap });
+  ok(missNoAlias.length === 0, 'R10 前置(有號列,反面):alias 查無此車號 ⇒ 不產生 trips 項(丟棄)', JSON.stringify(missNoAlias));
+
+  const rowUnnumbered = { line: LINE, dir: DIR, from: legFromJ, to: legToJ, run: schedArrJ - schedDepJ,
+    arrEpoch: secToEpoch(schedArrJ + 18), no: '', terminal: false }; // 無號,真實shift=18,與lastShift=10差8秒,遠小於45s
+  const matchUnnumbered = joinBoardRowsToTrips({ tripSets: tripSetsJ, rows: [rowUnnumbered], bindings: [bindingJ], aliasByHwNo: new Map() });
+  ok(matchUnnumbered.length === 1 && matchUnnumbered[0].key === tripKeyOf(tripJ) && matchUnnumbered[0].shift === 18,
+    'R10 前置(無號列):cost-based 最近匹配成功(cost=8s≤45s窗)', JSON.stringify(matchUnnumbered));
+
+  const missUnbound = joinBoardRowsToTrips({ tripSets: tripSetsJ, rows: [rowUnnumbered], bindings: [], aliasByHwNo: new Map() });
+  ok(missUnbound.length === 0, 'R10 前置(無號列,反面):同一列在「這班尚未被 cron 綁定」時 ⇒ 不產生 trips 項(僅限已綁班次)',
+    JSON.stringify(missUnbound));
+
+  // R10 主測:BR 尖峰頭距 132s(設計書§7 原文舉例)情境——45s 窗安全,突變成 300s 產生跨班誤 join。
+  const H = 132;
+  const tripA = mkTrip(0, T0 + 5000, [[1, T0 + 5000 + 200]]);
+  const tripB = mkTrip(0, T0 + 5000 + H, [[1, T0 + 5000 + H + 200]]);
+  const tripSetsAB = tripSetsOf([tripA, tripB]);
+  const bindingA = { line: LINE, dir: DIR, tripKey: tripKeyOf(tripA), trackId: 'trkA', lastShift: 0, done: false };
+  const bindingB = { line: LINE, dir: DIR, tripKey: tripKeyOf(tripB), trackId: 'trkB', lastShift: 0, done: false };
+  const rowLateOnA = { line: LINE, dir: DIR, from: tripA[0], to: tripA[2], run: tripA[3] - tripA[1],
+    arrEpoch: secToEpoch(tripA[3] + 80), no: '', terminal: false }; // 真身是A,遲80秒(cost-to-A=80,cost-to-B=|80-132|=52)
+
+  const narrow = joinBoardRowsToTrips({ tripSets: tripSetsAB, rows: [rowLateOnA], bindings: [bindingA, bindingB],
+    aliasByHwNo: new Map(), windowSec: 45 });
+  ok(narrow.length === 0, 'R10(a) 45s窗(設計書值):cost-to-A=80/cost-to-B=52 皆超窗 ⇒ 安全丟棄,不誤配(不校正勝過誤校正)',
+    JSON.stringify(narrow));
+
+  const wide = joinBoardRowsToTrips({ tripSets: tripSetsAB, rows: [rowLateOnA], bindings: [bindingA, bindingB],
+    aliasByHwNo: new Map(), windowSec: 300 });
+  ok(wide.length === 1 && wide[0].key === tripKeyOf(tripB),
+    'R10(b) 對照組(窗突變45→300s):BR尖峰頭距132s情境下,真身是A(遲80秒)的列車被誤 join 到相鄰班B' +
+    '(cost-to-B=52<cost-to-A=80,更寬的窗讓兩者都「合格」,取最小者反而選錯)——證明45s這個寬度本身有牙',
+    JSON.stringify(wide));
+
+  const rowOnTimeA = { line: LINE, dir: DIR, from: tripA[0], to: tripA[2], run: tripA[3] - tripA[1],
+    arrEpoch: secToEpoch(tripA[3] + 2), no: '', terminal: false }; // 準點(+2秒),cost-to-A=2
+  const normalWindow = joinBoardRowsToTrips({ tripSets: tripSetsAB, rows: [rowOnTimeA], bindings: [bindingA, bindingB],
+    aliasByHwNo: new Map(), windowSec: 45 });
+  ok(normalWindow.length === 1 && normalWindow[0].key === tripKeyOf(tripA),
+    'R10 前置:45s 窗下,準點列車(cost=2s)正確匹配A(基準,供下面收窄對照組比較)', JSON.stringify(normalWindow));
+  const tiny = joinBoardRowsToTrips({ tripSets: tripSetsAB, rows: [rowOnTimeA], bindings: [bindingA, bindingB],
+    aliasByHwNo: new Map(), windowSec: 0.045 });
+  ok(tiny.length === 0, 'R10(c) 對照組(窗收窄45→0.045s):同一顆準點列車(cost=2s>0.045s)不再匹配 ⇒ 窗真的是門檻,不是裝飾',
+    JSON.stringify(tiny));
+}
+
 // ═══ 語料回放:~/Code/軌島-語料/trtc-peak-0803(唯讀)全鏈跑一遍,不拋例外、unbound 率 <20% ═══
 say('\n── 語料回放:trtc-peak-0803 全鏈(buildLedgerFromRaw→bindTracksToTrips 逐快照串接) ──');
 const CORPUS = process.env.TRTC_FIXTURE_DIR || '/Users/xuxiang/Code/軌島-語料/trtc-peak-0803';
@@ -978,6 +1239,44 @@ try {
   ok(continuing.length === 0 || boundEpochPreserved,
     'R4 快路徑:延續綁定的 boundEpoch 全數不變(=延續非重綁;D1 round-trip 保真)',
     continuing.slice(0, 3).map(c => `${c.key}:${c.b1.boundEpoch}->${c.b2.boundEpoch}`).join('; '));
+
+  // ═══ 工項5 端到端:訪客路徑 join(復用本輪已跑起來的 server/D1,round2 剛寫入的 trip_dyn/aliases) ═══
+  say('\n── 工項5端到端:GET /api/trtc-live 的 boardPos.trips——新欄位接上;既有9欄位rows零回歸;訪客路徑零寫入 ──');
+  const liveBefore = jsonCurl(`${BASE}/api/trtc-live`);
+  ok(!!liveBefore.boardPos && Array.isArray(liveBefore.boardPos.trips),
+    'E2E(工項5) boardPos.trips 為陣列(新欄位已接上實際 API 回應)',
+    `trips.length=${liveBefore.boardPos && liveBefore.boardPos.trips && liveBefore.boardPos.trips.length}`);
+  ok(!!liveBefore.boardPos && 'dayType' in liveBefore.boardPos,
+    'E2E(工項5) boardPos.dayType 欄位存在(值可為 null,但 key 必須在,設計書§7契約)',
+    `dayType=${JSON.stringify(liveBefore.boardPos && liveBefore.boardPos.dayType)}`);
+  const rowKeys9 = ['line', 'dir', 'from', 'to', 'dest', 'run', 'arrEpoch', 'no', 'terminal'].sort();
+  const liveRows = (liveBefore.boardPos && liveBefore.boardPos.rows) || [];
+  const rowsShapeOk = liveRows.length > 0 && liveRows.every(r => JSON.stringify(Object.keys(r).sort()) === JSON.stringify(rowKeys9));
+  ok(rowsShapeOk, 'E2E(工項5) 既有 boardPos.rows 9 欄位形狀零回歸(逐列比對 key 集合,不只比數量)',
+    `rows=${liveRows.length}, sample keys=${JSON.stringify(Object.keys(liveRows[0] || {}).sort())}`);
+  if (liveBefore.boardPos.trips.length > 0) {
+    const tripKeysExpected = ['line', 'dir', 'key', 'shift', 'eta'].sort();
+    const t0 = liveBefore.boardPos.trips[0];
+    ok(JSON.stringify(Object.keys(t0).sort()) === JSON.stringify(tripKeysExpected),
+      'E2E(工項5) trips[] 單筆形狀符合設計書§7契約(line/dir/key/shift/eta)', JSON.stringify(t0));
+  } else {
+    note('E2E(工項5) 這一輪 trips[] 為空', '可能是這批 fixture 的看板列剛好都 join 不到(不影響存在性,見設計書§7「join不到=丟棄」);純函式層級的非空案例已由上方 R10 前置(有號列)/(無號列)兩項直接驗證');
+  }
+
+  // 單寫者鐵則:訪客路徑(GET /api/trtc-live)連打 3 次,trtc_trip_bindings 列數與 trip_dyn 內容必須完全不變。
+  db = findLedgerDb(dbDir);
+  const beforeBindingsCount = db.prepare('SELECT COUNT(*) AS n FROM trtc_trip_bindings').get().n;
+  const beforeStateJson = db.prepare(`SELECT v FROM trtc_state WHERE k='trip_dyn'`).get().v;
+  db.close();
+  jsonCurl(`${BASE}/api/trtc-live`); jsonCurl(`${BASE}/api/trtc-live`); jsonCurl(`${BASE}/api/trtc-live`);
+  await sleep(100);
+  db = findLedgerDb(dbDir);
+  const afterBindingsCount = db.prepare('SELECT COUNT(*) AS n FROM trtc_trip_bindings').get().n;
+  const afterStateJson = db.prepare(`SELECT v FROM trtc_state WHERE k='trip_dyn'`).get().v;
+  db.close();
+  ok(afterBindingsCount === beforeBindingsCount && afterStateJson === beforeStateJson,
+    'E2E(工項5) 單寫者鐵則:連打3次 /api/trtc-live(訪客路徑)後,trtc_trip_bindings 列數與 trtc_state[trip_dyn] 內容完全不變(訪客路徑零寫入)',
+    `bindings ${beforeBindingsCount}->${afterBindingsCount}; state不變=${afterStateJson === beforeStateJson}`);
 
   // 認回延續性(v1.1,機會性偵測):同 (line,dir,tripKey)、boundEpoch 不變、但 trackId 換了⇒真實語料
   // 在這兩輪之間自然發生了 reclaim。語料快照間距寬(~7分鐘),不保證每次跑都會出現,故不設 length>0

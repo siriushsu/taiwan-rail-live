@@ -123,9 +123,10 @@ function timetableRuns(timesLine, stations) {
   return new Map([...buckets].map(([key, values]) => [key, median(values)]));
 }
 
-// opts.includeY:環狀線 Y 屬新北捷,D1 帳本刻意不收(寫入額度只留給北捷八線)。
-// 但 TrackInfo 本來就夾帶 Y 的倒數列,拿來當前端位置錨點不需要多打一次上游、也不多寫一筆帳本,
-// 所以「產錨點」這條路徑單獨用 includeY:true 建模,帳本路徑維持預設排除。
+// opts.includeY:環狀線 Y 屬新北捷。呼叫端(worker.js trtcLedgerModel/trtcBoardModel)工項4起
+// 兩者皆傳 includeY:true——Y 的 tracks/bindings 與其他八線同一條路徑處理,只有 events 表在
+// D1 寫入層(persistTrtcLedger)另外過濾排除(設計書 §6.1,寫入額度考量)。opts 預設 false
+// 只留給「刻意不含 Y」的呼叫端(如本檔的單元測試)使用。
 export function buildTrtcModel(trtc, times, codes, opts = {}) {
   const lines = new Map();
   const stationNameIndex = new Map();
@@ -707,8 +708,8 @@ export function buildTripSetsByLineDir(times, dayTypeTable, serviceDay) {
 function tripBindKey(line, dir, tripKey) { return `${line}|${dir}|${tripKey}`; }
 
 // 純函式核心。輸入:
-//   model      - buildTrtcModel(...,{includeY:true}) 的那顆(既有 trtcBoardModel);本單 Y 尚無 tracks
-//                流入是預期現象,只是先接好介面(工項 4 才會真的送 Y 的 claims 進來)。
+//   model      - buildTrtcModel(...,{includeY:true}) 的那顆(既有 trtcBoardModel,工項4起
+//                trtcLedgerModel 也用這個 opts);Y 與其他八線同一條路徑處理,無特判。
 //   tripSets   - buildTripSetsByLineDir(...).tripSets,Map<"line|dir", trip[]>。
 //   dayType    - 呼叫端選定的日型標籤,本函式不用它做綁定判斷(候選是否 roster-active 已經
 //                由 tripSets+nowEpoch 完全決定),只原樣帶進 audit 供上層/前端一致性檢查用。
@@ -990,4 +991,90 @@ export function bindTracksToTrips({ model, tripSets, dayType, tracks, priorBindi
 
   const bindings = [...records.values()].map(({ _reachedEnd, ...rest }) => rest);
   return { bindings, events, audit: { ...audit, dayType } };
+}
+
+// ═══ 訪客唯讀 join(工項5):15秒新鮮看板列 × ≤60秒舊 cron 綁定快照,worker 內完成,絕不寫 D1 ═══
+// 設計書 §7:有官方車號的列 no→alias→binding,精確查表(識別靠車號,不設容忍窗);無號列沿用
+// 現行候選掃描結構,但 cost 換成 |rowShift-binding.lastShift|、僅限已綁班次、窗 45s(BR 尖峰頭距
+// 132s > 2×45s,相鄰班次不可混淆)。join 不到就丟棄該列(不產 trip 校正),存在性零影響。
+export const TRIP_BIND_VISITOR_JOIN_WINDOW_SEC = 45;
+
+function buildTripByFullKeyForJoin(tripSets) { // 與 bindTracksToTrips 內部同名區塊同構(本檔:749-753)
+  const map = new Map();
+  for (const [gk, trips] of tripSets || []) {
+    const sep = gk.lastIndexOf('|'); const line = gk.slice(0, sep), dir = Number(gk.slice(sep + 1));
+    for (const tr of trips) map.set(tripBindKey(line, dir, tripKeyOf(tr)), tr);
+  }
+  return map;
+}
+
+// row 形狀取自 collapseClaims 輸出子集:{line,dir,from,to,destIdx,run,arrEpoch,no,terminal}(即
+// worker.js trtcBoardPositionAnchors 組 9 欄位 rows 用的同一批 collapsed claims)。
+// bindings 形狀取自 trtc_state['trip_dyn'] 快照(bindTracksToTrips 回傳的 bindings 原樣)。
+// aliasByHwNo 形狀 Map<官方車號字串, trackId字串>(trtc_track_aliases,alias_type='hw_no')。
+export function joinBoardRowsToTrips({ tripSets, rows, bindings, aliasByHwNo = new Map(), windowSec = TRIP_BIND_VISITOR_JOIN_WINDOW_SEC }) {
+  const tripByFullKey = buildTripByFullKeyForJoin(tripSets);
+  const activeByFullKey = new Map(), activeByLineDir = new Map(), activeByTrackId = new Map();
+  for (const b of bindings || []) {
+    if (!b || b.done || !b.line || !b.tripKey || (Number(b.dir) !== 1 && Number(b.dir) !== 2)) continue;
+    const fullKey = tripBindKey(b.line, Number(b.dir), b.tripKey);
+    activeByFullKey.set(fullKey, b);
+    const gk = `${b.line}|${b.dir}`;
+    if (!activeByLineDir.has(gk)) activeByLineDir.set(gk, []);
+    activeByLineDir.get(gk).push(fullKey);
+    if (b.trackId != null) activeByTrackId.set(String(b.trackId), fullKey);
+  }
+
+  // 與 bindTracksToTrips Pass A(本檔 798-806)同構:算「這筆觀測若屬於 tr,發車時刻偏移多少秒」。
+  function rowShiftAgainstTrip(row, tr) {
+    const arrSec = trtcServiceSecOfEpoch(row.arrEpoch);
+    const depSec = row.terminal ? arrSec : arrSec - row.run;
+    let scheduledEvent;
+    if (row.terminal) {
+      if (tr[0] !== row.from) return null;
+      scheduledEvent = tr[1];
+    } else {
+      const k = tripLegIndex(tr, row.from, row.to);
+      if (k < 0) return null;
+      scheduledEvent = tr[(k - 1) * 2 + 1];
+    }
+    return depSec - scheduledEvent;
+  }
+
+  const trips = [];
+  for (const row of rows || []) {
+    if (!row || !row.line || (Number(row.dir) !== 1 && Number(row.dir) !== 2) || !Number.isFinite(Number(row.arrEpoch))) continue;
+    let matchedFullKey = null, matchedShift = null;
+    if (row.no) {
+      // 有官方車號:no→alias→binding,精確查表;line/dir 須與 binding 相符(防禦性:alias 誤帶跨線資料)。
+      const trackId = aliasByHwNo.get(String(row.no));
+      const fullKey = trackId != null ? activeByTrackId.get(String(trackId)) : null;
+      const binding = fullKey ? activeByFullKey.get(fullKey) : null;
+      if (binding && binding.line === row.line && Number(binding.dir) === Number(row.dir)) {
+        const tr = tripByFullKey.get(fullKey);
+        const shift = tr ? rowShiftAgainstTrip(row, tr) : null;
+        if (shift != null) { matchedFullKey = fullKey; matchedShift = shift; }
+      }
+    } else {
+      // 無號列:同 line+dir 底下,對每個已綁班次算 cost=|rowShift-lastShift|,取最小者且需 ≤windowSec。
+      const gk = `${row.line}|${row.dir}`;
+      let best = null;
+      for (const fullKey of activeByLineDir.get(gk) || []) {
+        const binding = activeByFullKey.get(fullKey);
+        const tr = tripByFullKey.get(fullKey);
+        if (!tr) continue;
+        const shift = rowShiftAgainstTrip(row, tr);
+        if (shift == null) continue;
+        const cost = Math.abs(shift - binding.lastShift);
+        if (cost > windowSec) continue;
+        if (!best || cost < best.cost) best = { fullKey, shift, cost };
+      }
+      if (best) { matchedFullKey = best.fullKey; matchedShift = best.shift; }
+    }
+    if (!matchedFullKey) continue;
+    const binding = activeByFullKey.get(matchedFullKey);
+    trips.push({ line: binding.line, dir: binding.dir, key: binding.tripKey, shift: matchedShift,
+      eta: { from: row.from, to: row.to, run: row.run, arrEpoch: row.arrEpoch } });
+  }
+  return trips;
 }

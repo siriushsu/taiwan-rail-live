@@ -1,7 +1,7 @@
 import {
   TRTC_LEDGER_SCHEMA, buildTrtcModel, buildLedgerFromRaw,
   trtcOperatingState, trtcServiceDay, resolveBoardRows, claimBoardRows, collapseClaims,
-  bindTracksToTrips, buildTripSetsByLineDir,
+  bindTracksToTrips, buildTripSetsByLineDir, joinBoardRowsToTrips,
 } from './scripts/trtc_board_ledger.mjs';
 
 // Cloudflare Worker 入口:靜態資產(assets binding)+ /api/tra-live 台鐵即時動態代理
@@ -816,7 +816,7 @@ async function trtcLive(request, env) {
       // 前端逐班校正只消費這份「物理位置錨點」。站名正規化、支線/終點消歧與
       // 倒數是否真能證明車在上一區間，全部復用 B1 已驗的純函式，不在前端重造一套。
       // 錨點沒有列車名冊欄位，更不會產生車；它只說「這裡有一筆可用位置證據」。
-      let boardPos = { at: null, rows: [], dropped: {} };
+      let boardPos = { at: null, rows: [], dropped: {}, dayType: null, trips: [] };
       try { boardPos = await trtcBoardPositionAnchors(env, tk); }
       catch (e) { console.error('[trtc board-pos] 錨點組裝失敗:', (e && e.stack) || String(e)); }
       // legacy 的 at/src/trains/board/cd 產生路徑與欄位順序不動；帳本預覽失敗一律
@@ -840,7 +840,8 @@ async function trtcLive(request, env) {
     // 把「上游掛掉」這個環境問題指成程式缺陷(Re-review-2 P-5)。
     let ledger = [];
     try { ledger = await trtcLedgerMaterialized(env, Math.floor(Date.now() / 1000)); } catch (e) {}
-    const res = jsonRes({ at: new Date().toISOString(), src: null, trains: [], board: [], boardPos: { at: null, rows: [], dropped: {} },
+    const res = jsonRes({ at: new Date().toISOString(), src: null, trains: [], board: [],
+      boardPos: { at: null, rows: [], dropped: {}, dayType: null, trips: [] },
       cd: { rows: 0, dropped: 0, dateDropped: 0, pathDropped: 0, pathDateDropped: 0, pathNoTrainNo: 0 }, ledger }, 200, 'public, s-maxage=15');
     await edge.put(cacheKey, res.clone());
     return res;
@@ -867,9 +868,9 @@ function trtcModelSources(env) {
   ]);
 }
 
-async function trtcLedgerModel(env) { // 帳本用:排除 Y(不佔 D1 寫入額度)
+async function trtcLedgerModel(env) { // 帳本用:含 Y(工項4起 tracks/bindings 一併寫入;events 仍排除,見 persistTrtcLedger)
   if (!trtcLedgerModelPromise) trtcLedgerModelPromise = trtcModelSources(env)
-    .then(([trtc, times, codes]) => buildTrtcModel(trtc, times, codes));
+    .then(([trtc, times, codes]) => buildTrtcModel(trtc, times, codes, { includeY: true }));
   return trtcLedgerModelPromise;
 }
 
@@ -948,6 +949,34 @@ async function persistTrtcTripBindingRound(env, day, nowEpoch, dayType, bindings
   return { bindingRows: touched.size };
 }
 
+// 訪客 join 用(工項5):只讀 trtc_state['trip_dyn'],day 不符或缺列就回 null——不做
+// loadTrtcTripBindingState 那種退化重建(那是給 cron 冷啟動用的健壯性;訪客路徑掉一輪只是這輪
+// 沒有 trips[],不值得多打一次 trtc_trip_bindings 全表查詢)。
+async function loadTrtcTripDynSnapshot(env, day) {
+  if (!await ensureTrtcLedger(env)) return null;
+  const db = env.TRTC_LEDGER;
+  const stateRow = await db.prepare(`SELECT v FROM trtc_state WHERE k='trip_dyn'`).first();
+  if (!stateRow || !stateRow.v) return null;
+  try {
+    const parsed = JSON.parse(stateRow.v);
+    if (parsed && parsed.day === day && Array.isArray(parsed.bindings)) {
+      return { dayType: parsed.dayType || null, bindings: parsed.bindings };
+    }
+  } catch (e) {
+    console.warn('[trtc board-pos] trip_dyn 解析失敗(訪客 join 這輪略過):', (e && e.message) || String(e));
+  }
+  return null;
+}
+
+// 訪客 join 用(工項5):hw_no 別名表,day 全表一次讀(低頻寫,見設計書§6 寫入量估計)。
+async function loadTrtcHwNoAliases(env, day) {
+  if (!await ensureTrtcLedger(env)) return new Map();
+  const db = env.TRTC_LEDGER;
+  const result = await db.prepare(`SELECT alias,track_id FROM trtc_track_aliases WHERE day=? AND alias_type='hw_no'`)
+    .bind(day).all();
+  return new Map((result.results || []).map(x => [String(x.alias), String(x.track_id)]));
+}
+
 async function ensureTrtcLedger(env) {
   if (!env || !env.TRTC_LEDGER) return false;
   if (!trtcLedgerSchemaReady) {
@@ -1019,6 +1048,20 @@ async function trtcBoardPositionAnchors(env, rows) {
   trtcBoardBranchHints = resolved.lineHints;
   const claimed = claimBoardRows(model, resolved.rows, nowEpoch, new Map());
   const collapsed = collapseClaims(claimed.claims);
+  // 訪客唯讀 join(工項5,設計書§7):trip_dyn(≤60秒舊 cron 綁定)× 這一輪新鮮 collapsed 列,worker
+  // 內完成,絕不寫 D1(單寫者=cron,無 isolate race)。任一讀取失敗或 trip_dyn 缺列一律降級成空
+  // trips[]/dayType:null,不拖垮既有 9 欄位 rows 輸出(rows 欄位原樣,見下方,過渡期雙軌)。
+  let trips = [], dayType = null;
+  try {
+    const [dyn, aliasByHwNo] = await Promise.all([loadTrtcTripDynSnapshot(env, day), loadTrtcHwNoAliases(env, day)]);
+    if (dyn) {
+      dayType = dyn.dayType;
+      const { tripSets } = await trtcTripSetsForDay(env, day);
+      trips = joinBoardRowsToTrips({ tripSets, rows: collapsed, bindings: dyn.bindings, aliasByHwNo });
+    }
+  } catch (e) {
+    console.error('[trtc board-pos] 訪客 join 失敗(降級成空 trips[]):', (e && e.stack) || String(e));
+  }
   return {
     at: nowEpoch,
     rows: collapsed.map(x => ({ line: x.line, dir: x.dir, from: x.from, to: x.to,
@@ -1027,6 +1070,7 @@ async function trtcBoardPositionAnchors(env, rows) {
       collapsed: claimed.claims.length - collapsed.length,
       branchHinted: resolved.branch.hinted, branchFallback: resolved.branch.fallback,
       branchConflicts: resolved.branch.conflicts },
+    dayType, trips,
   };
 }
 
@@ -1068,7 +1112,9 @@ function multiInsertStatements(db, table, columns, rows, chunkSize, suffix) {
 async function persistTrtcLedger(env, parts, nowEpoch) {
   if (!await ensureTrtcLedger(env)) return { events: 0, tracks: 0, aliases: 0 };
   const db = env.TRTC_LEDGER;
-  const eventRows = dedupeRows(parts.flatMap(x => ledgerEventRows(x.events)),
+  // Y(環狀線)裁示排除 events(設計書 §6.1:歷史事件分析價值低於寫入成本);tracks/aliases 不過濾——
+  // Y 的跨輪連續性需要 tracks,只有「逐站事件史」這張表刻意不收。
+  const eventRows = dedupeRows(parts.flatMap(x => ledgerEventRows(x.events.filter(e => e.line !== 'Y'))),
     x => `${x.day}|${x.line}|${x.dir}|${x.train_key}|${x.station_idx}|${x.kind}|${x.src}`);
   const trackRows = dedupeRows(parts.flatMap(x => ledgerTrackRows(x.trackUpdates)), x => `${x.day}|${x.track_id}`);
   const aliasRows = dedupeRows(parts.flatMap(x => x.aliasUpdates || []).map(x => ({
@@ -1207,7 +1253,8 @@ async function trtcLedgerScheduled(event, env) {
     `events ${stats.events}, tracks ${stats.tracks}, aliases ${stats.aliases}`);
   // 逐班綁定器(工項3):獨立 try/catch,不得拖垮上面已經成功寫入的帳本主流程(比照 hazardTask
   // 隔離寫法,worker.js scheduled() 內 hazardMonitorWithTimeout 的 catch)。用 includeY:true 的
-  // model(既有 trtcBoardModel)——本單 Y 尚無 claims 流入是預期現象,只是先接好介面(工項4的事)。
+  // model(既有 trtcBoardModel)——工項4起 trtcLedgerModel 也已 includeY:true,故 part1/part2.claims
+  // 現在會真的帶著 Y 的 claims 進來,Y 的 tracks/bindings 與其他八線同一條路徑處理。
   let bindResult = null;
   try {
     const [bindModel, { tripSets, dayKeys }, dayTypeTable, priorBindings] = await Promise.all([
