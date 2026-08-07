@@ -9,5 +9,8 @@
   "dependencies": {
     "playwright": "^1.61.1",
     "wrangler": "^4.111.0"
+  },
+  "overrides": {
+    "undici": "7.29.0"
   }
 }
