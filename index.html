@@ -12948,6 +12948,33 @@ function closeExplorePanel() {
 const TODAY_STATUS_TXT = { 0: '進站中', 1: '在站上', 2: '已離站' };
 function traStatusTxt(s) { return TODAY_STATUS_TXT[s] != null ? TODAY_STATUS_TXT[s] : String(s); } // 只認 0/1/2,其他碼顯示原樣不猜
 function traStnName(sid) { return (state.stnIdToName && state.stnIdToName[sid]) || sid; } // StationID→中文站名;查無回原碼
+// 站名 → stnInfoMap 的鍵。兩條規則:
+//  (a) 臺→台:stnInfoMap 的鍵一律用「台」(該檔自述),而班表兩種寫法混用
+//  (b) 剝尾端括號註記:班表「左營(舊城)」「新城 (太魯閣)」對應站碼表的「左營」「新城」
+//      安全性:stnInfoMap 245 個鍵沒有任何一個含括號,剝除不可能撞到別的站(已實測)
+//      不可剝「-環島」:台北-環島(1001) 與 台北(1000) 是不同站碼,是刻意的別名
+function traStnKey(name) {
+  return String(name).replace(/臺/g, '台').replace(/\s*\([^)]*\)\s*$/, '').trim();
+}
+// 這班車的「經過站碼 → 下一個停靠站索引」。涵蓋通過站,所以車經過任何小站都對得上。
+// 語意:staMap[X] =「車已離開 X 之後,下一個要停的站」;X 自己是停靠站時,值指向它的【後一個】。
+function buildStaMap(stops, stnInfoMap) {
+  const map = {}, idxOfStop = [];
+  let k = 0;
+  for (let i = 0; i < stops.length; i++) if (stops[i].stop !== false) idxOfStop[i] = k++;
+  let nextStopIdx = null;
+  for (let i = stops.length - 1; i >= 0; i--) {          // 由後往前掃,一路記住最近的停靠站
+    const info = stnInfoMap[traStnKey(stops[i].name)];
+    if (info && info.id && nextStopIdx !== null) map[info.id] = nextStopIdx;
+    if (stops[i].stop !== false) nextStopIdx = idxOfStop[i];
+  }
+  return map;
+}
+// 停靠站的站碼,與 stops 過濾後同序。後端用它解 status=0(車還沒到 X)⇒ 下一站是 X 自己。
+function buildStopCodes(stops, stnInfoMap) {
+  return stops.filter(s => s.stop !== false)
+    .map(s => { const i = stnInfoMap[traStnKey(s.name)]; return (i && i.id) || null; });
+}
 function traTrainType(no) { // 車種短標:不論目前哪個分頁都查台鐵時刻表系統;查不到留空不猜
   const sys = state.systems.find(s => s.id === 'tra_sched');
   const tr = sys && sys.data && (sys.data.trains || []).find(t => String(t.train) === String(no));
