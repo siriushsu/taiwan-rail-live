@@ -72,8 +72,11 @@ const MODES = {
   // 2026-08-07 深夜：build 26 Transporter 上傳被拒 -19232「套件版本必須高於先前上傳的版本：26」
   // ＝26 已被用掉（本表註解只記到 25，「撞已用號」閘門結構上擋不住，ASC 實況才是權威）；
   // 使用者指示改 27。
+  // 2026-08-08 凌晨：27 上傳撞 ITMS-90683——Capacitor 定位 plugin 的 binary 引用 Always 授權 API，
+  // Info.plist 卻只有 NSLocationWhenInUseUsageDescription；已補
+  // NSLocationAlwaysAndWhenInUseUsageDescription（照實寫「不會背景定位」），28 重出。
   feature: {
-    marketing: '1.4.1', build: '27', music: true,
+    marketing: '1.4.1', build: '28', music: true,
     why: '軌島 1.4.1：高鐵班表改每日自動連網更新、台鐵班表更新至 8/20、即時資料後端升級；production 資格，TestFlight Sandbox 通道維持關閉。',
   },
   // 2026-08-06：build 20、21、22 已上 TestFlight；22 專門驗收 Sandbox 購買後的
