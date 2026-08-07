@@ -48,7 +48,7 @@
 | `app/ios/App/App/App.entitlements` | 補 `aps-environment` | 修改 |
 | `app/ios/App/RailBoardWidget/RailBoardWidgetExtension.entitlements` | 補 `aps-environment` | 修改 |
 | `app/ios/App/App/RailLiveActivityPlugin.swift` | `pushType:.token`＋token 監聽與生命週期 | 修改 |
-| `app/ios/App/App/RailFollowAttributes.swift` | ContentState 加 `departedDate: Date?` | 修改 |
+| `app/ios/App/App/RailFollowAttributes.swift` | ContentState 加 `departedDate: Double?`（🔴修復輪次2：epoch 秒數非 `Date?`，見 Task 7） | 修改 |
 | `app/ios/App/RailBoardWidget/RailFollowActivity.swift` | 進度條＋numericText 轉場 | 修改 |
 | `app/src/native-bridge.mjs` | 暴露 `addListener` | 修改 |
 | `index.html` | `traStnKey` / `buildStaMap` / `buildStopCodes` / `laBind` / `laUnbind` | 修改 |
@@ -1042,6 +1042,11 @@ ok('N14 到站時刻已過 → 回 null', laArrivalIso(T0 + 600, 0, T0 + 601) ==
 ok('N15 誤點把到站推到未來 → 又回 ISO(不是永久 null)', typeof laArrivalIso(T0 + 600, 600, T0 + 700) === 'string', String(laArrivalIso(T0 + 600, 600, T0 + 700)));
 ```
 
+> 🔴 **修復輪次2 契約修訂**：上面 N13/N15 斷言「回 ISO 字串」是 Task 6 開發當下的原始設計，
+> 已在後續修復輪次改為 epoch 數字契約（原因見 design.md §5.1 修訂註記）。這段是歷史紀錄，
+> 不是目前真實測試——目前的函式改名為 `laArrivalEpoch`、回傳 epoch 秒數字或 `null`，
+> 實際斷言在 `scripts/verify_la_backend.mjs`。此處保留原文不逐條改寫，僅加此註記避免誤導。
+
 - [ ] **Step 2: 跑測試，確認失敗**
 
 ```bash
@@ -1090,6 +1095,10 @@ export function laArrivalIso(atSec, delaySec, nowSec) {
   return arrive > nowSec ? new Date(arrive * 1000).toISOString() : null;
 }
 ```
+
+> 🔴 **修復輪次2 契約修訂**：上面 `laArrivalIso` 回 ISO 字串是原始設計，已改為回 epoch 秒數字，
+> 函式也改名 `laArrivalEpoch`（見 `scripts/la_push_core.mjs`，理由與 design.md §5.1 同）。
+> 此處保留原文當歷史紀錄，不逐條改寫。
 
 `worker.js` 頂部的既有 import（第 2 行）下方加一行：
 
@@ -1283,6 +1292,9 @@ async function laPushAll(env, ctx, baseUrl) {
           nextStop: st.name,
           // st.at 已是絕對 epoch(前端換算好),後端零時區運算。
           // 到站時刻已過 ⇒ laArrivalIso 回 null,卡片只剩站名不畫假倒數。
+          // 🔴 修復輪次2 契約修訂:這兩行原本回 ISO 字串(toISOString()),已改為回 epoch 秒數字
+          // (laArrivalIso → laArrivalEpoch、departedDate 改直接送 prev.at + delaySec,不再包 new Date().toISOString())。
+          // 原因與現況見 design.md §5.1 修訂註記；此處保留原文當歷史紀錄,不逐條改寫。
           arrivalDate: laArrivalIso(st.at, delaySec, now),
           departedDate: prev ? new Date((prev.at + delaySec) * 1000).toISOString() : null,
           delaySec, terminus: stops[stops.length - 1].name,
@@ -1405,12 +1417,27 @@ JWT 快取 50 分鐘(Apple 規定 20-60 分鐘,每次重簽會被當濫用)。"
 
 - [ ] **Step 1: ContentState 加欄位**
 
+> 🔴 **修復輪次2 契約修訂**（原文 → 現在 → 為什麼；本步驟是 Task 7 最關鍵的一行，務必先看）
+>
+> - **原文**：`var departedDate: Date?`，後端送 ISO-8601 字串。
+> - **改成**：`var departedDate: Double?`（Unix epoch 秒數）；`arrivalDate`（既有欄位）
+>   同樣已是 `Double?`，不是 `Date?`——若你手上的 `RailFollowAttributes.swift` 現況還是
+>   `Date?`，那一併改。
+> - **為什麼**：Swift `JSONDecoder` 對 Live Activity content-state 只能用**預設**編碼策略
+>   （Apple WWDC23 session 10185，自訂策略「會導致更新失敗」）。預設 `.deferredToDate` 解碼
+>   單一數字時是當成 `timeIntervalSinceReferenceDate`（2001-01-01 零點），不是 1970 epoch、
+>   也不是 ISO-8601——`Date?` 欄位配 epoch 數字payload 不會報錯，但會**默默解成 2058 年**
+>   （倒數卡片顯示的日期會離譜地遠，肉眼一看不一定馬上聯想到是型別問題）。改用 `Double?`
+>   從根本避開這個歧義，`Date` 轉換留到 Step 2 的 view 層用明確的 `timeIntervalSince1970` 做。
+> - 詳細證據見 design.md §5.1。
+
 `RailFollowAttributes.swift` 的 `ContentState` 內，`arrivalDate` 下方加：
 
 ```swift
         // 進度條起點(上一站表定發車＋當前誤點)。🔴 必須是 Optional——
         // 非 Optional 欄位會讓「App 更新前開的卡」解不出來(Codable 對 Optional 走 decodeIfPresent)。
-        var departedDate: Date?
+        // 🔴 型別是 Double(epoch 秒數),不是 Date——見上方修訂註記,Date 轉換收斂到 Step 2 的 view 層。
+        var departedDate: Double?
 ```
 
 - [ ] **Step 2: Widget 加進度條與轉場**
@@ -1421,8 +1448,13 @@ JWT 快取 50 分鐘(Apple 規定 20-60 分鐘,每次重簽會被當濫用)。"
     // 距下一站的進度。兩端都有值才畫——系統會逐幀自走,不需要推播。
     // 🔴 ProgressView(timerInterval:) 與 Text(timerInterval:) 是【唯二】會自己動的元件;
     //    withAnimation/.repeatForever 等修飾子被系統忽略(ActivityKit 文件明文),跑馬燈做不到。
+    // 🔴 修復輪次2:入參從 Date? 改 Double?(epoch 秒,對應後端 Math.floor(epochMs/1000) 送的
+    //    Unix epoch)。Date 轉換收斂在這裡(唯一的 view 層),用 timeIntervalSince1970——
+    //    不要用 Date(timeIntervalSinceReferenceDate:),那是 2001 年零點,對應到錯誤的年份。
     @ViewBuilder
-    private func progress(_ from: Date?, _ to: Date?) -> some View {
+    private func progress(_ fromSec: Double?, _ toSec: Double?) -> some View {
+        let from = fromSec.map { Date(timeIntervalSince1970: $0) }
+        let to = toSec.map { Date(timeIntervalSince1970: $0) }
         if let from, let to, to > from, to > Date() {
             ProgressView(timerInterval: from...to, countsDown: false)
                 .labelsHidden()

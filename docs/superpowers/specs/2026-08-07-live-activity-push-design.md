@@ -171,7 +171,9 @@ authorization: bearer <ES256 JWT，用 p8 金鑰簽>
 1. 使用者停止跟車 → JS `laStop` → `POST /api/la/unbind`
 2. 車到終點 → 前端偵測（`nextStopInfo` 回 null）**＋** 後端偵測（`staMap` 走完）雙保險
    （鎖屏時前端不在，只靠前端會漏）
-3. APNs 回 `410 Unregistered` / `BadDeviceToken` → 後端自刪該列
+3. APNs 回 `410 Unregistered` / `BadDeviceToken` / `DeviceTokenNotForTopic` → 後端自刪該列
+   （🔴 修復輪次2：這三者都可能是單一設定錯誤——host 或 apns-topic 打錯——讓整批同時回報，
+   不是個別 token 失效；已加批次熔斷擋這種情況，見 §6）
 4. `expire_at`（開卡 + 8 小時）到期 → 停推清列
 
 ---
@@ -180,11 +182,27 @@ authorization: bearer <ES256 JWT，用 p8 金鑰簽>
 
 ### 5.1 ContentState（Widget 側）
 
+> 🔴 **修復輪次2 契約修訂**（原文 → 現在 → 為什麼；Task 7 讀這份規格前必看）
+>
+> - **原文**：`arrivalDate` / `departedDate` 是 `Date?`，後端送 `toISOString()` ISO-8601 字串。
+> - **改成**：Swift 端型別改 `Double?`（Unix epoch 秒數）；後端對應送純數字
+>   （`Math.floor(epochMs/1000)`），`Date` 轉換收斂到 SwiftUI view 層（見 `plan.md` Task 7 的
+>   `progress()` helper）。
+> - **為什麼**：Apple 官方（WWDC23 session 10185）明講 Live Activity 的 content-state 一律用
+>   `JSONDecoder`**預設**編碼策略解碼，自訂策略「會導致更新失敗」；而預設 `.deferredToDate`
+>   策略解碼單一數字時，是當成 `timeIntervalSinceReferenceDate`（2001-01-01 為零點），
+>   不是 ISO-8601、也不是 1970 epoch。Apple 開發者論壇有真實案例：字串誤餵進 `Date` 欄位在
+>   真機上以 `NSCocoaErrorDomain (4864)` 解碼崩潰，且伺服器端完全看不出來（送出當下仍是 200）。
+>   選數字契約可以從根本避開這整類「型別看起來對、解碼卻默默解錯」的風險。
+> - **影響範圍**：本節 struct、`plan.md` Task 7 的欄位宣告與 `progress()` helper，三處已同步。
+> - 🔴 **Task 6 與 Task 7 必須同批上線**——原因見 §10 新增那條。
+
 ```swift
 struct ContentState: Codable, Hashable {
     var nextStop: String
-    var arrivalDate: Date?      // nil = 算不出 ETA，不畫倒數
-    var departedDate: Date?     // 【新增】上一站表定發車 + 當前誤點，進度條起點
+    var arrivalDate: Double?    // Unix epoch 秒數，nil = 算不出 ETA，不畫倒數。
+                                 // 型別刻意不用 Date——見上方修訂註記。
+    var departedDate: Double?   // 【新增】上一站表定發車 + 當前誤點，進度條起點，同樣是 epoch 秒數。
     var delaySec: Int
     var terminus: String
 }
@@ -253,7 +271,8 @@ Plus 驗證用既有的 `checkPlusEntitlement()`（Firebase ID token → Revenue
 | `traLive` 掛掉 | offset 沿用 `last_delay`，**不歸零**（歸零會讓卡片跳） |
 | 車不在 feed（支線 92 站缺口） | 退回表定 + `last_delay` 推算，精度下降但仍前進 |
 | **到站時刻已過**（交會待避、臨時停車、資料延遲） | 推一發 `arrivalDate = nil` ⇒ 卡片只剩站名，不畫假倒數 |
-| APNs 回 410 / BadDeviceToken | 後端自刪該列，停止推送 |
+| APNs 回 410 / BadDeviceToken / DeviceTokenNotForTopic（**個別**幾個 token） | 後端自刪該列，停止推送 |
+| 🔴 同一 tick 內**大比例** token 同時回報上述永久失敗 reason（修復輪次2新增；懷疑是 host/topic 設定錯，不是個別 token 失效） | 批次熔斷：本輪不刪任何列，只記警告 log（含比例與總列數），等人工排查——避免一次設定錯誤掃空整張表 |
 
 ### 為什麼要有「到站時刻已過 → 收掉倒數」這條
 
@@ -360,6 +379,7 @@ WWDC23 另示範過「地圖圖釘平滑移動到新位置」——列車圖示�
 | 支線 92 站無即時觀測 | TDX 資料源硬天花板，見 §11 |
 | 非計畫交會待避無法預測 | 無資料源。已用「到站時刻已過 → 收掉倒數」降級，見 §6 |
 | 動態島僅 iPhone 14 Pro 以上 | Apple 硬體限制。**定價文案不可拿動態島當主視覺** |
+| 🔴 Task 6 與 Task 7 必須同批上線（修復輪次2新增） | Task 7 之前，後端已經在送 epoch 數字時，Swift 端若還是舊版 `Date?`，`.deferredToDate` 會把它解成 `timeIntervalSinceReferenceDate`（2001 年零點）⇒ 卡片顯示約 2058 年的倒數——不會解碼失敗、不會崩潰，**所以現象上看不出哪裡錯**，見 §5.1 修訂註記 |
 
 ---
 
