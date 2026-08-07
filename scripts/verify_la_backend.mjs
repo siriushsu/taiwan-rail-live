@@ -1,7 +1,7 @@
 // LA 後端驗收。本檔【不打正式站】,一律對本機 wrangler dev 跑。
 // 起 server 的指令見計畫 Task 4 Step 3;埠由呼叫端指定並傳進 LA_BASE。
 import { execFileSync } from 'node:child_process';
-import { laNextIdx, laSchedIdx, laArrivalIso, laJwt } from './la_push_core.mjs';
+import { laNextIdx, laSchedIdx, laArrivalEpoch, laJwt } from './la_push_core.mjs';
 
 // results/ok/abort 三個必須排在最前面——連 LA_BASE/LA_WT 都還沒驗證前就要能用,
 // 否則環境參數缺失那幾條 early-exit 沒有「總計」行可印(批次工具 grep 不到、真人也看不出腳本有跑過)。
@@ -211,14 +211,17 @@ ok('N11 表定推進也守單調閘門', laSchedIdx(SCH, 0, T0, 2) === 2, String
 ok('N12 全部過完 → 回 stops.length(呼叫端據此收卡)', laSchedIdx(SCH, 0, T0 + 9999, 0) === 3, String(laSchedIdx(SCH, 0, T0 + 9999, 0)));
 
 // ── 到站時刻已過 → arrivalDate = nil(設計書 §6 那條吃掉交會待避/停站不更新的規則) ──
-ok('N13 未到站 → 回 ISO 字串', laArrivalIso(T0 + 600, 0, T0) === new Date((T0 + 600) * 1000).toISOString(), String(laArrivalIso(T0 + 600, 0, T0)));
-ok('N14 到站時刻已過 → 回 null', laArrivalIso(T0 + 600, 0, T0 + 601) === null, String(laArrivalIso(T0 + 600, 0, T0 + 601)));
-ok('N15 誤點把到站推到未來 → 又回 ISO(不是永久 null)', typeof laArrivalIso(T0 + 600, 600, T0 + 700) === 'string', String(laArrivalIso(T0 + 600, 600, T0 + 700)));
+// 🔴 修復輪次1(資料契約變更):laArrivalIso 改名 laArrivalEpoch,回傳值從 ISO 字串改成
+// epoch 秒數字——Swift 端 JSONDecoder 預設 .deferredToDate 解的是 timeIntervalSinceReferenceDate
+// 不是 ISO 8601,詳見 la_push_core.mjs 該函式的註解。N13-N15 同步改成驗新契約。
+ok('N13 未到站 → 回 epoch 秒數字', laArrivalEpoch(T0 + 600, 0, T0) === T0 + 600, String(laArrivalEpoch(T0 + 600, 0, T0)));
+ok('N14 到站時刻已過 → 回 null', laArrivalEpoch(T0 + 600, 0, T0 + 601) === null, String(laArrivalEpoch(T0 + 600, 0, T0 + 601)));
+ok('N15 誤點把到站推到未來 → 又回數字(不是永久 null)', typeof laArrivalEpoch(T0 + 600, 600, T0 + 700) === 'number', String(laArrivalEpoch(T0 + 600, 600, T0 + 700)));
 
 // J 系列:APNs JWT。只驗結構與可解性,不驗 Apple 會不會接受(那要真金鑰,見 Step 6)。
 {
   // 測試用的 EC P-256 金鑰(僅供本檔驗結構,不是任何真實憑證)
-  const kp = await crypto.subtle.generateKey({ name: 'ECDSA', namedCurve: 'P-256' }, true, ['sign']);
+  const kp = await crypto.subtle.generateKey({ name: 'ECDSA', namedCurve: 'P-256' }, true, ['sign', 'verify']);
   const pkcs8 = await crypto.subtle.exportKey('pkcs8', kp.privateKey);
   const b64 = btoa(String.fromCharCode(...new Uint8Array(pkcs8))).replace(/(.{64})/g, '$1\n');
   const fakeEnv = { APNS_KEY_P8: `-----BEGIN PRIVATE KEY-----\n${b64}\n-----END PRIVATE KEY-----`, APNS_KEY_ID: 'ABC1234567', APNS_TEAM_ID: 'TEAM123456' };
@@ -228,6 +231,23 @@ ok('N15 誤點把到站推到未來 → 又回 ISO(不是永久 null)', typeof l
   ok('J1 JWT 三段結構', !!(h && p && s), `len=${String(jwt).length}`);
   ok('J2 header alg=ES256 且帶 kid', dec(h).alg === 'ES256' && dec(h).kid === 'ABC1234567', JSON.stringify(dec(h)));
   ok('J3 payload iss=TeamID 且 iat 是現在', dec(p).iss === 'TEAM123456' && Math.abs(dec(p).iat - Math.floor(Date.now() / 1000)) < 60, JSON.stringify(dec(p)));
+  // 🔴 修復輪次1(Important 7):J1-J3 只驗結構(三段、欄位),79 條斷言裡沒有一條真的驗過
+  // 簽章可否驗證——把 hash 算法偷改成 SHA-512、或把簽章編碼改成 DER,J1-J3 全部照樣綠,
+  // 但 Apple 會用 403 拒絕。用同一把金鑰對的 publicKey 實際 crypto.subtle.verify 一次,
+  // 且簽章位元組數要是 P-256 raw(IEEE P1363,64 bytes:r‖s)——DER 編碼長度不固定但恆不等 64,
+  // 這條同時卡住「編碼格式錯」與「算法錯」兩種突變。
+  const sigBytes = Uint8Array.from(atob(s.replace(/-/g, '+').replace(/_/g, '/')), c => c.charCodeAt(0));
+  ok('J4 簽章位元組數=64(P-256 raw r‖s,不是 DER)', sigBytes.length === 64, `len=${sigBytes.length}`);
+  const verified = await crypto.subtle.verify(
+    { name: 'ECDSA', hash: 'SHA-256' }, kp.publicKey, sigBytes, new TextEncoder().encode(`${h}.${p}`));
+  ok('J5 簽章可用對應公鑰驗證通過(SHA-256)', verified === true, String(verified));
+  // 🔴 修復輪次1(Important 4 根因,不是 worker.js 那條 403 重置——這裡驗的是快取本身):
+  // 換掉 APNS_KEY_ID/APNS_TEAM_ID 在同一個 50 分鐘快取窗內再呼叫 laJwt(),舊版拿到的是
+  // 舊快取的 token(快取沒有以 env 為鍵)。金鑰輪替後這會保證失敗 50 分鐘。
+  const jwt2 = await laJwt({ ...fakeEnv, APNS_KEY_ID: 'ROTATED9999' });
+  ok('J6(關鍵)換 KEY_ID 後在快取窗內仍拿到新簽的 JWT(快取以 KEY_ID/TEAM_ID 為鍵)',
+    jwt2 !== jwt && dec(String(jwt2).split('.')[0]).kid === 'ROTATED9999',
+    jwt2 === jwt ? '拿到舊快取!' : JSON.stringify(dec(String(jwt2).split('.')[0])));
 }
 
 summary();   // 走到這裡＝完整跑完,印不帶「中止」字樣的總計行

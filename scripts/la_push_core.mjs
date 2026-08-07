@@ -28,26 +28,37 @@ export function laSchedIdx(stops, delaySec, nowSec, lastIdx) {
 
 // 到站時刻 → 卡片上的 arrivalDate。【已過就回 null】,讓 Widget 只畫站名不畫假倒數。
 // 這一條同時吃掉交會待避、臨時停車、以及「車停在站上時 DelayTime 不更新」(CTC 是離站觸發)三種情況。
-export function laArrivalIso(atSec, delaySec, nowSec) {
+// 🔴 修復輪次1(裁定):回傳值是 epoch 秒數字,不是 ISO 字串。原因:Swift 端 JSONDecoder 預設
+// dateDecodingStrategy 是 .deferredToDate,委派給 Date 自己的 Decodable——那條路解的是單一
+// Double(timeIntervalSinceReferenceDate,2001 起算),不是 ISO 8601。送 ISO 字串會在裝置端解碼
+// 失敗(NSCocoaErrorDomain 4864),伺服器端完全看不到。前身叫 laArrivalIso,改名反映新契約
+// (舊名字仍留著會誤導——一個叫「Iso」的函式卻回數字)。
+export function laArrivalEpoch(atSec, delaySec, nowSec) {
   const arrive = atSec + delaySec;
-  return arrive > nowSec ? new Date(arrive * 1000).toISOString() : null;
+  return arrive > nowSec ? arrive : null;
 }
 
 // APNs 的 provider token(ES256 JWT)。Apple 規定至少 20 分鐘才可換新、最長 60 分鐘,
 // 所以快取 50 分鐘——每次都重簽會被 Apple 當濫用擋掉。
-let _laJwt = null, _laJwtAt = 0;
+// 🔴 修復輪次1(Important 4):快取鍵加上 KEY_ID/TEAM_ID——金鑰輪替時舊快取不會被誤用;
+// 另外提供 laJwtReset() 給 403 InvalidProviderToken 時強制作廢,不必等滿 50 分鐘。
+let _laJwt = null, _laJwtAt = 0, _laJwtKey = '';
 export async function laJwt(env) {
   const now = Math.floor(Date.now() / 1000);
-  if (_laJwt && now - _laJwtAt < 3000) return _laJwt;
+  const key = `${env.APNS_KEY_ID}:${env.APNS_TEAM_ID}`;
+  if (_laJwt && _laJwtKey === key && now - _laJwtAt < 3000) return _laJwt;
   const pem = String(env.APNS_KEY_P8).replace(/-----[^-]+-----/g, '').replace(/\s+/g, '');
   const der = Uint8Array.from(atob(pem), c => c.charCodeAt(0));
-  const key = await crypto.subtle.importKey('pkcs8', der, { name: 'ECDSA', namedCurve: 'P-256' }, false, ['sign']);
+  const cryptoKey = await crypto.subtle.importKey('pkcs8', der, { name: 'ECDSA', namedCurve: 'P-256' }, false, ['sign']);
   const b64u = o => btoa(typeof o === 'string' ? o : JSON.stringify(o)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
   const head = b64u({ alg: 'ES256', kid: String(env.APNS_KEY_ID) });
   const body = b64u({ iss: String(env.APNS_TEAM_ID), iat: now });
   const sig = await crypto.subtle.sign({ name: 'ECDSA', hash: 'SHA-256' },
-    key, new TextEncoder().encode(`${head}.${body}`));
+    cryptoKey, new TextEncoder().encode(`${head}.${body}`));
   const sigB64 = btoa(String.fromCharCode(...new Uint8Array(sig))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
-  _laJwt = `${head}.${body}.${sigB64}`; _laJwtAt = now;
+  _laJwt = `${head}.${body}.${sigB64}`; _laJwtAt = now; _laJwtKey = key;
   return _laJwt;
 }
+// APNs 403(InvalidProviderToken,通常是金鑰輪替或時鐘偏移)時呼叫:強制作廢快取,
+// 下一次 laJwt() 會無條件重簽,不必等滿 50 分鐘的自然快取期限。
+export function laJwtReset() { _laJwt = null; _laJwtAt = 0; _laJwtKey = ''; }

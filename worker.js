@@ -3,7 +3,7 @@ import {
   trtcOperatingState, trtcServiceDay, resolveBoardRows, claimBoardRows, collapseClaims,
   bindTracksToTrips, buildTripSetsByLineDir, joinBoardRowsToTrips,
 } from './scripts/trtc_board_ledger.mjs';
-import { laNextIdx, laSchedIdx, laArrivalIso, laJwt } from './scripts/la_push_core.mjs';
+import { laNextIdx, laSchedIdx, laArrivalEpoch, laJwt, laJwtReset } from './scripts/la_push_core.mjs';
 
 // Cloudflare Worker 入口:靜態資產(assets binding)+ /api/tra-live 台鐵即時動態代理
 // + /api/tra-alert 台鐵營運通阻公告 + /api/thsr-alert 高鐵營運狀態公告(颱風停駛等)
@@ -92,12 +92,15 @@ const jsonRes = (obj, status, cc) => new Response(JSON.stringify(obj), {
 
 async function traLive(request, env, ctx) {
   // 用量埋點:前景分鐘計數器(cam/z 由前端輪詢帶,cache 命中與否都要記到)。觀測絕不可影響服務,例外整段吞掉。
-  if (env.USAGE) {
+  // 🔴 修復輪次1(Important 6):cron(laPushAll)內部呼叫帶 _src=cron,不是真人前景使用,
+  // 不計入用量分析——否則每分鐘一筆合成的 cam='na' 假資料污染 railisland_usage(該 dataset
+  // 正是用來算前景分鐘與成本的)。
+  const reqUrl = new URL(request.url);
+  if (env.USAGE && reqUrl.searchParams.get('_src') !== 'cron') {
     try {
-      const u = new URL(request.url);
-      const camRaw = u.searchParams.get('cam');
+      const camRaw = reqUrl.searchParams.get('cam');
       const cam = ['follow', 'amb', 'idle', 'theater'].includes(camRaw) ? camRaw : 'na';
-      const z = parseInt(u.searchParams.get('z'), 10);
+      const z = parseInt(reqUrl.searchParams.get('z'), 10);
       const dev = /Mobile/.test(request.headers.get('user-agent') || '') ? 'm' : 'd';
       env.USAGE.writeDataPoint({ blobs: [cam, dev], doubles: [isNaN(z) ? 0 : z], indexes: [cam] });
     } catch (e) {}
@@ -2255,19 +2258,33 @@ async function laUnbind(request, env) {
 
 // 每分鐘掃一次所有未過期的交班,算出「現在該顯示哪一站」,變了才推。
 // 讀 traLive 走既有雙層快取(與訪客共用)⇒ 零新增 TDX 呼叫。
+// 🔴 修復輪次1(Critical 1):APNs 400 的 reason 有很多種,只有下面這三種代表「這個 token
+// 沒救了」才可以刪列。BadTopic/PayloadEmpty/BadMessageId 之類的 400 是我方設定或 payload
+// 出錯——那種錯誤對批次裡每一列都會發生,若照舊邏輯「410 或 400 就刪」,一個 tick 內就會把
+// 整張 la_bindings 清空且零 log(cron 仍顯示成功)。見設計書 §4.3、§6。
+const LA_PERM_FAIL_REASONS = new Set(['Unregistered', 'BadDeviceToken', 'DeviceTokenNotForTopic']);
 async function laPushAll(env, ctx, baseUrl) {
   if (!env.APNS_KEY_P8 || !env.DELAY_DB) return { sent: 0, dropped: 0 };   // 未設定就整支不動
   const now = Math.floor(Date.now() / 1000);
   await env.DELAY_DB.prepare('DELETE FROM la_bindings WHERE expire_at < ?').bind(now).run();
-  const rs = await env.DELAY_DB.prepare('SELECT * FROM la_bindings').all();
-  const rows = rs.results || [];
+  // 🔴 修復輪次1(Important 5):LIMIT 防 tick 重疊——每列至少 2 個 subrequest、序列往返
+  // APNs 每發約 100ms,約 600 列就會超過 cron 的 60 秒週期,tick 重疊會讓兩個 tick 讀到同一個
+  // last_idx 而重複推播。多要 1 筆用來判斷是否被截斷,截斷必須 log(本專案鐵則:沒有無聲的上限)。
+  const limit = Number(env.LA_ROW_LIMIT) || 500;
+  const rs = await env.DELAY_DB.prepare('SELECT * FROM la_bindings LIMIT ?').bind(limit + 1).all();
+  let rows = rs.results || [];
+  if (rows.length > limit) {
+    console.error(`[cron la-push] 列數觸頂:本輪 ${rows.length}>${limit},只處理前 ${limit} 列,其餘留到下一分鐘`);
+    rows = rows.slice(0, limit);
+  }
   if (!rows.length) return { sent: 0, dropped: 0 };
 
-  // 台鐵即時:整批共用一次
+  // 台鐵即時:整批共用一次。_src=cron 讓 traLive 知道這不是真人前景使用,不計入用量分析
+  // (修復輪次1 Important 6——定義處在 traLive 本體,見該函式開頭註解)。
   let live = {};
   if (rows.some(r => r.sys === 'tra_sched')) {
     try {
-      const r = await traLive(new Request(baseUrl + '/api/tra-live'), env, ctx);
+      const r = await traLive(new Request(baseUrl + '/api/tra-live?_src=cron'), env, ctx);
       const j = await r.json();
       for (const t of (j.trains || [])) live[String(t.no)] = t;
     } catch (e) { /* 上游掛掉:live 留空,下面一律走 last_delay 的 fallback */ }
@@ -2276,63 +2293,90 @@ async function laPushAll(env, ctx, baseUrl) {
   const jwt = await laJwt(env);
   let sent = 0, dropped = 0;
   for (const row of rows) {
-    const stops = JSON.parse(row.stops), staMap = JSON.parse(row.sta_map), stopCodes = JSON.parse(row.stop_codes);
-    const t = row.sys === 'tra_sched' ? live[String(row.train_no)] : null;
-    // 誤點:拿得到就用,拿不到沿用最後已知值(不歸零——歸零會讓卡片跳)
-    const delaySec = t ? (Number(t.delay) || 0) * 60 : row.last_delay;
-    // 有觀測就用觀測(承重牆 1);沒有(支線 92 站缺口、高鐵、上游掛掉)就走表定退路,
-    // 卡片【仍然前進】——凍住不動比慢一兩分鐘更糟。
-    const idx = t ? laNextIdx(String(t.sta), Number(t.status), staMap, stopCodes, row.last_idx)
-                  : laSchedIdx(stops, delaySec, now, row.last_idx);
-    if (idx >= stops.length) {                            // 走完全程 → 收卡
-      await env.DELAY_DB.prepare('DELETE FROM la_bindings WHERE token=?').bind(row.token).run();
-      continue;
-    }
-    // 🔴 idx < 0 是「剛 bind、TDX 還沒回報過這台車」,不是走完了。
-    //    把它併進上面那條會讓新卡在第一分鐘就被刪掉——不推也不收卡,下一分鐘再說。
-    if (idx < 0) continue;
-    if (idx === row.last_idx && delaySec === row.last_delay) continue;   // 沒變就不推
+    // 🔴 修復輪次1(Important 2):單列例外不得拖垮整批。fetch() 對 APNs 網路層 reject、
+    // 壞掉的 row.stops 都可能在這裡拋出——沒有這層防護,第 N 列一炸,N+1..最後全部本分鐘
+    // 不更新。這一列沒算 sent 也沒算 dropped,下一分鐘自然重試。
+    try {
+      // 🔴 修復輪次1(Important 1):at 可能因為舊資料或字串型 bind payload 而是字串——
+      // "1800000000" + 數字會做字串串接(結果變成天文數字的年份),且 laSchedIdx 內部
+      // stops[i].at+delaySec>nowSec 的比較恆真 ⇒ idx 卡死不動。在唯一的讀取點轉型一次,
+      // 下游(laSchedIdx、內容組裝)全部拿到乾淨數字,不必逐處補 Number()。
+      const stops = JSON.parse(row.stops).map(s => ({ ...s, at: Number(s.at) }));
+      const staMap = JSON.parse(row.sta_map), stopCodes = JSON.parse(row.stop_codes);
+      const t = row.sys === 'tra_sched' ? live[String(row.train_no)] : null;
+      // 誤點:拿得到就用,拿不到沿用最後已知值(不歸零——歸零會讓卡片跳)
+      const delaySec = t ? (Number(t.delay) || 0) * 60 : row.last_delay;
+      // 有觀測就用觀測(承重牆 1);沒有(支線 92 站缺口、高鐵、上游掛掉)就走表定退路,
+      // 卡片【仍然前進】——凍住不動比慢一兩分鐘更糟。
+      const idx = t ? laNextIdx(String(t.sta), Number(t.status), staMap, stopCodes, row.last_idx)
+                    : laSchedIdx(stops, delaySec, now, row.last_idx);
+      if (idx >= stops.length) {                            // 走完全程 → 收卡
+        await env.DELAY_DB.prepare('DELETE FROM la_bindings WHERE token=?').bind(row.token).run();
+        continue;
+      }
+      // 🔴 idx < 0 是「剛 bind、TDX 還沒回報過這台車」,不是走完了。
+      //    把它併進上面那條會讓新卡在第一分鐘就被刪掉——不推也不收卡,下一分鐘再說。
+      if (idx < 0) continue;
+      if (idx === row.last_idx && delaySec === row.last_delay) continue;   // 沒變就不推
 
-    const st = stops[idx];
-    const prev = idx > 0 ? stops[idx - 1] : null;
-    const body = {
-      aps: {
-        timestamp: now, event: 'update',
-        'content-state': {
-          nextStop: st.name,
-          // st.at 已是絕對 epoch(前端換算好),後端零時區運算。
-          // 到站時刻已過 ⇒ laArrivalIso 回 null,卡片只剩站名不畫假倒數。
-          arrivalDate: laArrivalIso(st.at, delaySec, now),
-          departedDate: prev ? new Date((prev.at + delaySec) * 1000).toISOString() : null,
-          delaySec, terminus: stops[stops.length - 1].name,
+      const st = stops[idx];
+      const prev = idx > 0 ? stops[idx - 1] : null;
+      const body = {
+        aps: {
+          timestamp: now, event: 'update',
+          'content-state': {
+            nextStop: st.name,
+            // st.at 已是絕對 epoch(前端換算好),後端零時區運算。
+            // 🔴 修復輪次1(資料契約變更):送 epoch 秒數字,不送 ISO 字串——Swift 端
+            // JSONDecoder 預設 dateDecodingStrategy 是 .deferredToDate,委派給 Date 自己的
+            // Decodable,解的是 timeIntervalSinceReferenceDate(2001 起算),不是 ISO 8601。
+            // 送字串會在裝置端解碼失敗(NSCocoaErrorDomain 4864)且伺服器端完全看不到。
+            // 到站時刻已過 ⇒ laArrivalEpoch 回 null,卡片只剩站名不畫假倒數。
+            arrivalDate: laArrivalEpoch(st.at, delaySec, now),
+            departedDate: prev ? prev.at + delaySec : null,
+            delaySec, terminus: stops[stops.length - 1].name,
+          },
         },
-      },
-    };
-    // 🔴 開發 build(entitlements aps-environment=development)拿到的是 sandbox token,
-    //    打 production host 一律回 400 BadDeviceToken。用 env 切,不要寫死。
-    const host = env.APNS_HOST || 'api.push.apple.com';
-    const res = await fetch(`https://${host}/3/device/${row.token}`, {
-      method: 'POST',
-      headers: {
-        authorization: 'bearer ' + jwt,
-        'apns-topic': 'tw.railisland.app.push-type.liveactivity',
-        'apns-push-type': 'liveactivity',
-        'apns-priority': '5',        // 5 不計入更新預算;不指定會是 10 且計入
-        'content-type': 'application/json',
-      },
-      body: JSON.stringify(body),
-    });
-    if (res.status === 410 || res.status === 400) {      // token 失效 → 清掉不再推
-      await env.DELAY_DB.prepare('DELETE FROM la_bindings WHERE token=?').bind(row.token).run();
-      dropped++; continue;
+      };
+      // 🔴 開發 build(entitlements aps-environment=development)拿到的是 sandbox token,
+      //    打 production host 一律回 400 BadDeviceToken。用 env 切,不要寫死。
+      const host = env.APNS_HOST || 'api.push.apple.com';
+      const res = await fetch(`https://${host}/3/device/${row.token}`, {
+        method: 'POST',
+        headers: {
+          authorization: 'bearer ' + jwt,
+          'apns-topic': 'tw.railisland.app.push-type.liveactivity',
+          'apns-push-type': 'liveactivity',
+          'apns-priority': '5',        // 5 不計入更新預算;不指定會是 10 且計入
+          'content-type': 'application/json',
+        },
+        body: JSON.stringify(body),
+      });
+      if (res.ok) {
+        await env.DELAY_DB.prepare('UPDATE la_bindings SET last_idx=?, last_delay=? WHERE token=?')
+          .bind(idx, delaySec, row.token).run();
+        sent++;
+        continue;
+      }
+      // 🔴 修復輪次1(Important 3):non-2xx 一律 log status+reason——舊版零 log,
+      // cron 仍顯示成功、營運端拿不到任何訊號(例如金鑰輪替後每分鐘全數失敗也看不出來)。
+      let reason = '';
+      try { reason = String((await res.json()).reason || ''); } catch (e) { /* body 非 JSON:reason 留空,走下面的保守分支 */ }
+      console.error(`[cron la-push] APNs 非 2xx: status=${res.status} reason=${reason || '(無法解析)'} token=${String(row.token).slice(0, 8)}…`);
+      // 🔴 修復輪次1(Important 4):403 InvalidProviderToken 代表這把 JWT 本身壞了
+      // (金鑰輪替/時鐘偏移),不是這個 token 的問題——不刪列,但要讓下一次 laJwt() 強制重簽,
+      // 否則會卡滿 50 分鐘的快取期限持續全軍覆沒。
+      if (res.status === 403) laJwtReset();
+      if (LA_PERM_FAIL_REASONS.has(reason)) {
+        await env.DELAY_DB.prepare('DELETE FROM la_bindings WHERE token=?').bind(row.token).run();
+        dropped++;
+      }
+      // 其餘(429/5xx/403/reason 不在上面名單的 400):不更新 last_idx,下一分鐘自然重試
+    } catch (e) {
+      console.error(`[cron la-push] 單列處理失敗(不影響其他列)token=${String(row.token).slice(0, 8)}… :`, (e && e.stack) || String(e));
     }
-    if (res.ok) {
-      await env.DELAY_DB.prepare('UPDATE la_bindings SET last_idx=?, last_delay=? WHERE token=?')
-        .bind(idx, delaySec, row.token).run();
-      sent++;
-    }
-    // 其餘(429／5xx)：不更新 last_idx,下一分鐘自然重試
   }
+  console.log(`[cron la-push] tick 完成: rows=${rows.length} sent=${sent} dropped=${dropped}`);
   return { sent, dropped };
 }
 
@@ -4102,7 +4146,9 @@ export const _trtcLedger = {
 // traLive 三個 IO)。workerd 的 fetch 會拒絕自簽 HTTPS 憑證,沒辦法用假伺服器讓 wrangler dev
 // 打;改用 getPlatformProxy 在 Node 端直接呼叫本函式,fetch 全域可監控/替換,繞過該限制,見
 // scripts/verify_la_push_loop.mjs。正式 router 不因此增加任何路徑。
-export const _la = { laPushAll };
+// traLive 一併導出(修復輪次1):驗 Important 6(cron 呼叫不可污染用量分析)需要一個「真人前景
+// 呼叫」的正向對照——不然「cron 沒寫用量」這個斷言測不出「本來就寫不進去」的假綠。
+export const _la = { laPushAll, traLive };
 // 純函式與端點/cron 導出,供離線回歸測試 import(scripts/verify_thsr_schedule.mjs)。
 // thsrConvertDaily/thsrBuildStationMap/thsrSelectServedDay/thsrKeyToMs 是純函式,可直接餵 fixture。
 // fetchThsrDaily/thsrStationMap/ingestThsrSchedule/thsrSchedule 會碰 D1/ASSETS/網路,測試要自備
