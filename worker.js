@@ -918,7 +918,9 @@ async function loadTrtcTripBindingState(env, day) {
   }));
 }
 
-// 寫入紀律(設計書 §6):trtc_trip_bindings 只在 events 有變動(bind/rebind/done)的那幾列 upsert;
+// 寫入紀律(設計書 §6):trtc_trip_bindings 只在 events 有變動(bind/rebind/done/reattach,v1.1新增
+// 認回)的那幾列 upsert——touched map 只認 events 的 (line,dir,tripKey),不分事件種類,故 reattach
+// 事件(track_id 換人、bound_epoch 延續)自動走同一條 upsert 路徑,無需另外分支;
 // trtc_state['trip_dyn'] 每輪整包覆寫 1 次(訪客 join 用途留給下一單,這裡先把管線接好)。
 async function persistTrtcTripBindingRound(env, day, nowEpoch, dayType, bindings, events) {
   if (!await ensureTrtcLedger(env)) return { bindingRows: 0 };
