@@ -3,28 +3,47 @@
 import { execFileSync } from 'node:child_process';
 import { laNextIdx, laSchedIdx, laArrivalIso } from './la_push_core.mjs';
 
+// results/ok/abort 三個必須排在最前面——連 LA_BASE/LA_WT 都還沒驗證前就要能用,
+// 否則環境參數缺失那幾條 early-exit 沒有「總計」行可印(批次工具 grep 不到、真人也看不出腳本有跑過)。
+const results = [];
+const ok = (n, p, d = '') => { results.push({ n, p }); console.log(`${p ? 'PASS' : 'FAIL'} ${n}${d ? ' — ' + d : ''}`); };
+// 中止但一律印「總計」行的統一出口。兩個讀者要同時滿足:
+// (a) 批次工具只 grep "總計" 認定腳本跑過一輪——中止也要有這行,不然這個維度會靜默零覆蓋;
+// (b) 真人要一眼看出這不是「完整跑完」的結果,不能被 FAIL 0 誤讀成全過——所以行內明寫「中止,未完成」。
+// exit code 用 2 跟「完整跑完但有 FAIL」的 1、「全過」的 0 分開,批次工具不必解析文字就能三態分流。
+function abort(reason) {
+  const bad = results.filter(r => !r.p).length;
+  console.error(reason);
+  console.log(`\n總計(中止,未完成) ${results.length} 項,FAIL ${bad} — 原因:${reason}`);
+  process.exit(2);
+}
+
 const BASE = process.env.LA_BASE;
 // 🔴 base 必須是 https(worker.js 有 http→https 301,純 http 會讓所有 /api/* 無限重導),
 //    且呼叫端要帶 NODE_TLS_REJECT_UNAUTHORIZED=0(本機自簽憑證)。起 server 的完整方式見計畫 Task 4 Step 3。
-if (!BASE) { console.error('請設 LA_BASE=https://127.0.0.1:<port>'); process.exit(2); }
-if (!BASE.startsWith('https://')) { console.error('LA_BASE 必須是 https,純 http 會被 301 無限重導'); process.exit(2); }
+if (!BASE) abort('請設 LA_BASE=https://127.0.0.1:<port>');
+if (!BASE.startsWith('https://')) abort('LA_BASE 必須是 https,純 http 會被 301 無限重導');
 // LA_WT:起 wrangler dev 那個乾淨 worktree 的絕對路徑——B14 要直查本機 D1(la_bindings 的
 // last_idx/last_delay 沒有對應的讀取端點),得在同一個 cwd 下用 wrangler d1 execute --local
 // 才能打到「這台正在跑的 server」用的那份 .wrangler/state/v3/d1。
 const WT = process.env.LA_WT;
-if (!WT) { console.error('請設 LA_WT=<起 wrangler dev 的乾淨 worktree 絕對路徑>'); process.exit(2); }
+if (!WT) abort('請設 LA_WT=<起 wrangler dev 的乾淨 worktree 絕對路徑>');
 function d1Exec(sql) {
-  const out = execFileSync('arch',
-    ['-arm64', 'node', './node_modules/wrangler/bin/wrangler.js', 'd1', 'execute', 'DELAY_DB', '--local', '--json', '--command', sql],
-    { cwd: WT, encoding: 'utf8' });
-  return JSON.parse(out);   // --json 讓 stdout 只有乾淨 JSON,banner/警告都在 stderr
+  try {
+    const out = execFileSync('arch',
+      ['-arm64', 'node', './node_modules/wrangler/bin/wrangler.js', 'd1', 'execute', 'DELAY_DB', '--local', '--json', '--command', sql],
+      { cwd: WT, encoding: 'utf8' });
+    return JSON.parse(out);   // --json 讓 stdout 只有乾淨 JSON,banner/警告都在 stderr
+  } catch (e) {
+    // wrangler 子行程失敗(非 0 exit)或 --json 輸出解析失敗,都收斂到同一個中止出口——
+    // 這是環境/基礎設施層失敗,不是某條產品行為斷言的 FAIL,沒有天然對應的斷言名稱可掛。
+    abort(`d1Exec 失敗(wrangler 子行程或 JSON 解析出錯):${String(e.message || e).split('\n')[0]}`);
+  }
 }
 function d1FirstRow(sql) {
   const res = d1Exec(sql);
   return res[0] && res[0].results && res[0].results[0];
 }
-const results = [];
-const ok = (n, p, d = '') => { results.push({ n, p }); console.log(`${p ? 'PASS' : 'FAIL'} ${n}${d ? ' — ' + d : ''}`); };
 const post = (path, body, hdr = {}) => fetch(BASE + path, {
   method: 'POST', headers: { 'content-type': 'application/json', ...hdr }, body: JSON.stringify(body),
 });
@@ -116,7 +135,7 @@ const VALID = {
   const preOk = !!pre && pre.last_idx === 7 && pre.last_delay === 180;
   ok('B14 前置:手動撥值 last_idx=7/last_delay=180 生效', preOk,
     pre ? `last_idx=${pre.last_idx} last_delay=${pre.last_delay}` : '(查無列,token 尚未綁定?)');
-  if (!preOk) { console.error('B14 前置狀態鋪設失敗,中止——後續的歸零斷言在此狀態下毫無意義'); process.exit(2); }
+  if (!preOk) abort('B14 前置狀態鋪設失敗,中止——後續的歸零斷言在此狀態下毫無意義');
 
   const r = await post('/api/la/bind', { ...VALID, trainNo: '999' }, AUTH);
   ok('B13 同 token 重複 bind 換車次 → 200', r.status === 200, `HTTP ${r.status}`);
