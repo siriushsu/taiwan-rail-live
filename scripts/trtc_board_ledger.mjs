@@ -641,7 +641,7 @@ export function buildLedgerFromRaw({ model, boardRows, hwRows, brRows, epochOf, 
 // 永不發明班表沒有的 tripKey、不含任何時間窗/保留秒數/信心分數這類存在性旋鈕——
 // 找不到合適班次就是 unbound(前端退回中位數,現行行為),不是「這班車消失了」。
 
-const TRIP_BIND_REF_WINDOW_SEC = 20 * 60;   // ref 只採「最近 20 分鐘內已綁」的班次(§5.1)
+export const TRIP_BIND_REF_WINDOW_SEC = 20 * 60; // ref 只採「最近 20 分鐘內已綁」的班次(§5.1);工項6影子量測需原樣覆用此窗寬,故導出
 const TRIP_BIND_MAX_EARLY_SEC = -90;        // 禁早發:提早超過 90 秒的候選不可綁
 const TRIP_BIND_COST_CAP_SEC = 600;         // cost=|shift-ref| 上限
 const TRIP_BIND_ABS_CAP_SEC = 1800;         // |shift| 絕對上限(雙保險,防 ref 本身跑掉)
