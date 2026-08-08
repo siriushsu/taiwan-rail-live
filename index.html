@@ -10347,16 +10347,14 @@ let _laLast = 0, _laKey = '', _laDead = false, _laListening = false, _laToken = 
 // 這樣這張表永不過期(鎖屏時前端也重傳不了),而 offset 是後端唯一的動態量。
 let _laBound = '';                     // 已交班的 key,避免同一台車重複 bind
 let _laEpoch = 0;                      // 每次 laUnbind() 遞增;讓飛行中的 laBind 認得出自己已經被取消(修復輪次1 Important 5)
-function laBind(token, key, tr) {
+async function laBind(token, key, tr) {
   // 把表定 arrSec(自服務日午夜起算)換成【絕對 epoch 秒】,後端就完全不必碰時區與服務日。
-  // 域校正比照 effTLive 的兩個分支,含環島車 loop 分支(修復輪次1 Important 1——原本只抄了
-  // effTLive 的非 loop 分支,00:00–08:00 這種 LOOP_DEP 前的窗口整段差一圈 loopSec);差別只在
-  // 這裡刻意不比照 effTLive 扣即時誤點——要換算的是【表定】時刻,不是「套過誤點」的現在,
-  // 誤點留給後端每分鐘自己算(issue 同 effTLive 的分工)。
-  const s = tr.stops, raw = state.simSec;
-  const t = tr.loop
-    ? s[0].arrSec + ((raw - s[0].arrSec) % tr.loopSec + tr.loopSec) % tr.loopSec
-    : (raw < s[0].arrSec && raw + 86400 <= s[s.length - 1].depSec + 3600) ? raw + 86400 : raw;
+  // 🔴 最終複審 P1:這裡原本逐字複製了 effT() 的兩個分支(已經漂移過兩次),改成直接呼叫。
+  // 語意選擇是刻意的:要換算的是【純表定】軸(effT,吃 state.simSec),不是扣過即時誤點的
+  // effTLive——誤點留給後端每分鐘自己算(issue 同 effTLive 的分工)。
+  // 🔴 只收編這一處。ridingNowSched() 與 trainSeg() 是刻意的近親(前者一律讀真實時鐘且無 loop
+  // 分支、後者的跨午夜條件刻意沒有 +3600 寬限),換成 effT() 會改變行為,不可一併收編。
+  const s = tr.stops, t = effT(tr);
   // 已過終點的判斷改走 effTLive,與 laPayload/全站台「跑完了沒」同一條時間軸(issue #14 那組;
   // 修復輪次1 Important 2)。純表定 t 在誤點車剛過表定終點、但實際還沒到站的窗口內會提早判定
   // 「已過終點」而永遠不交班——這裡只是取消交班的判斷,不影響 t 用於下面 originSec 的換算
@@ -10365,9 +10363,32 @@ function laBind(token, key, tr) {
   const originSec = Math.floor(Date.now() / 1000) - t;   // arrSec → epoch 的常數位移
   const stops = s.filter(x => x.stop !== false)
     .map(x => ({ name: x.name, at: Math.round(originSec + x.arrSec) }));
+  // 🔴 最終複審 C-1(Critical):這一發原本【沒有 Authorization header】⇒ 後端
+  // checkPlusEntitlement() 第一件事就是讀 Bearer,取不到直接 401 ⇒ 正式環境 D1 永遠是空表、
+  // cron 每分鐘掃 0 列,整條後端交班 100% 不生效,而且前後端都零訊號(下面 `if (!r.ok) return`
+  // 與 `.catch(()=>{})` 把它靜默吞掉)。兩套驗收都綠是因為後端測試一律走 LA_TEST_BEARER 旁路、
+  // 前端替身只斷言 URL 與 body 從不看 headers——缺口正好落在兩者的交界。
+  // 🔴 header 必須用既有的 plusApiHeaders(),不可手寫 Authorization:它會同時帶
+  // X-Rail-Plus-Sandbox-Build,少了那顆,sandbox／TestFlight 的購買者即使帶了 Bearer 仍會被判無資格。
+  const beforeEpoch = _laEpoch;
+  let headers;
+  try {
+    const a = state.account, user = a && a.user;
+    // 沒有身分就不送:後端只會回 401,發它等於白打(同 plusReconcileEntitlement 的既有慣例)。
+    // 走到這裡代表 liveActivityAllowed() 為真 ⇒ plusIsActive() 為真 ⇒ 依 plusRefresh() 的前提
+    // 必然有登入中的 Firebase user,所以這條早退實務上不該發生,是防禦性的。
+    if (!user) return;
+    const idToken = a.fb && a.fb.getIdToken ? await a.fb.getIdToken(user) : await user.getIdToken();
+    if (!idToken) return;
+    headers = Object.assign({ 'content-type': 'application/json' }, plusApiHeaders(idToken));
+  } catch (e) { return; }   // 取 token 失敗:與後端拒絕同一個結果(卡片維持 LA-0 行為),不是壞掉
+  // 🔴 取 token 是 async ⇒ 世代可能在這段期間就變了(使用者換車/停止跟車)。此時請求【還沒送出】,
+  // 直接不送即可,不必補送 unbind(伺服器上根本沒有這一列)。真正需要補償的是「送出之後才被取消」,
+  // 那條在下面的 myEpoch 比對;myEpoch 必須在【取 token 之後】才取樣,否則會把這一段也算進去。
+  if (beforeEpoch !== _laEpoch) return;
   const myEpoch = _laEpoch;              // 修復輪次1 Important 5:記住送出當下的世代,回應回來時比對
   fetch(apiUrl('api/la/bind'), {
-    method: 'POST', headers: { 'content-type': 'application/json' },
+    method: 'POST', headers,
     body: JSON.stringify({
       token, sys: String(tr.sys || ''), trainNo: String(tr.train || ''),
       stops, staMap: buildStaMap(tr.stops, state.stnInfoMap || {}),
@@ -10412,7 +10433,9 @@ function laSync(tr, force) {
       //    (與既有 start 回呼那條「比較新的那張卡不能被舊的失敗回呼清掉」同一個思路)
       if (key !== _laKey || !liveActivityAllowed()) return;
       _laToken = token;
-      if (state.followTrain) laBind(token, key, state.followTrain);
+      // laBind 現在是 async(要先取 Firebase ID token)⇒ 這裡是浮動 promise,補 catch 免得
+      // 任何非預期例外變成 unhandledRejection(舊版是同步呼叫,例外會直接落在這個 listener 裡)。
+      if (state.followTrain) Promise.resolve(laBind(token, key, state.followTrain)).catch(() => {});
     });
   }
   // 🔴 時光機/加速中一律不推卡片:鎖定畫面的倒數是以真實時鐘 1× 自走的,模擬時鐘不是
@@ -10445,6 +10468,18 @@ function laSync(tr, force) {
     }).catch(() => { if (_laKey === key) _laKey = ''; }); // 比較新的那張卡不能被舊的失敗回呼清掉
     return;
   }
+  // 🔴 最終複審 B-I1＋B-I2:交班成功之後【停止送本機 update】,讓後端獨佔卡片內容。
+  // 為什麼:本機這份 p.nextStop 一律是【推算】的(nextStopInfo(tr, effTLive(tr)) ＝表定＋誤點位移),
+  // 而後端是「有觀測用觀測、沒觀測才退表定」。前景每 ≤10 秒推一次,等於用推算的站名蓋掉後端
+  // 剛推的觀測站名;更糟的是後端的 last_idx 已經更新過 ⇒「沒變就不推」讓它不會再推同一站
+  // ⇒ 【錯的站名會黏住一整腿】,直接違反「站名來自觀測,不來自推算」。
+  // 同一個機制也讓 departedDate 恆為 nil(本機路徑不提供這個欄位),把後端剛推的值洗掉;
+  // 停送之後那個缺口自動消失,零新增欄位、零新增契約、零新增 Swift 解析碼。
+  // 已知代價(已接受):App 在前景時卡片刷新從 10 秒變成後端的 60 秒——比較新但可能是錯的,
+  // 輸給慢一點但是觀測到的。
+  // 恢復條件:_laBound 只在「bind 回 200」時被設成 key,而 laUnbind()(換車、停止跟車、
+  // laStop)一律先把它清空 ⇒ 交班失敗、被取消、換車之後本機 update 會自動恢復,卡片不會死。
+  if (_laBound === key) return;
   if (force) { _laLast = now; Promise.resolve(api.update(p)).catch(() => {}); return; } // 同一台車:只推不重開
   if (now - _laLast < 10000) return;          // 節流:倒數由系統自走,逐秒推是浪費
   _laLast = now; Promise.resolve(api.update(p)).catch(() => {});
