@@ -43,7 +43,12 @@ const server = createServer((req, res) => {
     res.statusCode = 200; res.setHeader('content-type', 'application/json');
     // 衛星情境要真的載到 Esri 影像:圖磚端點不驗 token 值(memory: esri-key-validation-trap),
     // 給一個假值就能拿到真影像——量的是「亮色面板疊在衛星照片上」這個最壞情境。
-    return res.end(url.pathname === '/api/basemap-token' ? '{"esri":"HARNESS-FAKE"}' : '{}');
+    if (url.pathname === '/api/basemap-token') return res.end('{"esri":"HARNESS-FAKE"}');
+    // 高鐵班表自 2026-08-07(9f05f2f)改以 apiUrl('api/thsr-schedule') 為主來源、靜態檔降級為 fallbackUrl。
+    // 空物件是 200 ⇒ fetchJSONAt 視同成功 ⇒ fallback 永不啟動 ⇒ applySchedSystems 迭代 undefined 的
+    // sys.data.trains 拋錯 ⇒ boot 停在 state.ready=true 之前 ⇒ waitForFunction 逾時。這裡吐打包的那份(同 schema)。
+    if (url.pathname === '/api/thsr-schedule') return res.end(readFileSync(path.join(ROOT, 'data/thsr_schedule_dense.json')));
+    return res.end('{}');
   }
   let fp = path.join(ROOT, decodeURIComponent(url.pathname));
   if (existsSync(fp) && statSync(fp).isDirectory()) fp = path.join(fp, 'index.html');
