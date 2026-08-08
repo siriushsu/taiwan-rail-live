@@ -5,7 +5,15 @@
 // sta/status 來自 TDX TrainLiveBoard,語意(Swagger 原文):
 //   TrainStationStatus = [0:'進站中', 1:'在站上', 2:'已離站']
 //   StationID =「列車目前所在之車站」,且【含通過不停靠站】
-export function laNextIdx(sta, status, staMap, stopCodes, lastIdx) {
+// 🔴 lastObsIdx(第 6 參,選填)=「最後一次【真的被觀測到】的索引」。單調閘門的地板改綁它,
+//    不綁 lastIdx。為什麼要分開:上游整批失效時 laSchedIdx 會拿表定把 lastIdx 往前推(卡片不能
+//    凍住,見使用者裁示),推過頭之後舊寫法的 Math.max(idx, lastIdx) 會讓觀測【永遠】拉不回來——
+//    錯的站名黏到列車真的追上為止,正是「顯示一件沒發生的事」。
+//    改綁 lastObsIdx 之後:(a) 全程都有觀測時 lastObsIdx === lastIdx,行為與舊寫法逐字相同;
+//    (b) 中間插過表定推算時,觀測可以把索引往回修,但【最低只能修回上一次真的觀測到的那一站】
+//    ⇒ 閘門原本要擋的「觀測自己來回跳」(觀測序列必須單調不減)一格都沒放進來。
+//    省略第 6 參時退回舊語意(地板＝lastIdx),既有的純函式驗收不受影響。
+export function laNextIdx(sta, status, staMap, stopCodes, lastIdx, lastObsIdx) {
   let idx;
   const own = stopCodes.indexOf(sta);
   // 進站中(0)或在站上(1)且該站是停靠站 ⇒ 車還沒離開它,卡片就顯示它。
@@ -13,8 +21,9 @@ export function laNextIdx(sta, status, staMap, stopCodes, lastIdx) {
   // 通過站不適用(own = -1),不論什麼 status 都走映射表。
   if ((status === 0 || status === 1) && own >= 0) idx = own;
   else idx = staMap[sta];
-  if (idx == null) return lastIdx;              // 認不出來就維持現狀,不亂跳
-  return Math.max(idx, lastIdx);                // 單調閘門:只進不退
+  if (idx == null) return lastIdx;              // 認不出來就維持現狀,不亂跳(此時沒有新觀測可用)
+  const floor = lastObsIdx == null ? lastIdx : lastObsIdx;
+  return Math.max(idx, floor);                  // 單調閘門:觀測序列只進不退(表定推過頭的部分可回收)
 }
 
 // 車不在即時 feed 時的退路(支線 92 站無觀測)。純表定推進:表定到站＋最後已知誤點已過 ⇒ 那站算過了。

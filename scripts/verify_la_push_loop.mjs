@@ -131,11 +131,14 @@ const BASE_URL = 'https://dummy.invalid';   // laPushAll 只用它組 Request UR
 async function delRow(token) { await env.DELAY_DB.prepare('DELETE FROM la_bindings WHERE token=?').bind(token).run(); }
 async function insRow(row) {
   await env.DELAY_DB.prepare(
-    'INSERT INTO la_bindings (token,uid,sys,train_no,stops,sta_map,stop_codes,last_idx,last_delay,bound_at,expire_at)' +
-    ' VALUES (?,?,?,?,?,?,?,?,?,?,?)'
+    // last_obs_idx(工項 B)預設 -1＝「還沒有任何觀測」,與 laBind 新綁的列一致;
+    // 要造「表定已經推過頭」的情境就顯式傳一個比 last_idx 小的值。
+    'INSERT INTO la_bindings (token,uid,sys,train_no,stops,sta_map,stop_codes,last_idx,last_obs_idx,last_delay,bound_at,expire_at)' +
+    ' VALUES (?,?,?,?,?,?,?,?,?,?,?,?)'
   ).bind(row.token, row.uid || 'u1', row.sys, row.train_no, JSON.stringify(row.stops),
     JSON.stringify(row.staMap || {}), JSON.stringify(row.stopCodes || []),
-    row.last_idx, row.last_delay, row.bound_at, row.expire_at).run();
+    row.last_idx, row.last_obs_idx == null ? -1 : row.last_obs_idx,
+    row.last_delay, row.bound_at, row.expire_at).run();
 }
 async function getRow(token) {
   const rs = await env.DELAY_DB.prepare('SELECT * FROM la_bindings WHERE token=?').bind(token).all();
@@ -1477,7 +1480,7 @@ const NOTICE_EXPECT = '即時資料中斷，位置為預估。實際動態請查
   await insRow({ token: tok('p36w'), sys: 'tra_sched', train_no: '561',
     stops: [{ name: 'A', at: warmBase + 600 }, { name: 'B', at: warmBase + 1200 }, { name: 'C', at: warmBase + 2040 }],
     staMap: { '5050': 0, '5000': 1, '5010': 2 }, stopCodes: ['5050', '5000', '5010'],
-    last_idx: -1, last_delay: 0, bound_at: warmBase, expire_at: warmBase + 3600 });
+    last_idx: -1, last_obs_idx: -1, last_delay: 0, bound_at: warmBase, expire_at: warmBase + 3600 });
   tdxBoard = [{ TrainNo: '561', DelayTime: 0, StationID: '5050', TrainStationStatus: 1 }];
   calls.length = 0; apnsNextStatus = 200; apnsNextReason = ''; apnsPerToken = {};
   const capWarm = await captureConsole(() => laPushAll(env, fakeCtx, BASE_URL));
@@ -1499,7 +1502,7 @@ const NOTICE_EXPECT = '即時資料中斷，位置為預估。實際動態請查
   await insRow({ token: T, sys: 'tra_sched', train_no: '561',
     stops: [{ name: 'A', at: base - 600 }, { name: 'B', at: base - 100 }, { name: 'C', at: base + 2040 }],
     staMap: { '5050': 0, '5000': 1, '5010': 2 }, stopCodes: ['5050', '5000', '5010'],
-    last_idx: 0, last_delay: 0, bound_at: base, expire_at: base + 3600 });
+    last_idx: 0, last_obs_idx: 0, last_delay: 0, bound_at: base, expire_at: base + 3600 });
   tdxBoard = null;                       // ⇒ TDX 回 502 ⇒ traLive 沿用舊快取回 200(關鍵!)
   calls.length = 0; apnsNextStatus = 200; apnsNextReason = ''; apnsPerToken = {};
   const cap36 = await captureConsole(() => laPushAll(env, fakeCtx, BASE_URL));
@@ -1511,6 +1514,86 @@ const NOTICE_EXPECT = '即時資料中斷，位置為預估。實際動態請查
     !!cs36 && cs36.notice === NOTICE_EXPECT, cs36 ? JSON.stringify(cs36.notice) : '(APNs 呼叫數不是 1)');
   ok('P36(關鍵)舊觀測不得被記成觀測:摘要 log 是 obs=0 sched=1',
     cap36.logLines.some(l => l.includes('tick 完成') && l.includes('obs=0 sched=1')), JSON.stringify(cap36.logLines));
+  const row36 = await getRow(T);
+  ok('P36(工項B 的另一半)表定推算【不得】寫 last_obs_idx:last_idx 前進到 2,last_obs_idx 仍是 0',
+    !!row36 && row36.last_idx === 2 && row36.last_obs_idx === 0,
+    row36 ? `last_idx=${row36.last_idx} last_obs_idx=${row36.last_obs_idx}` : '(查無列)');
+  await resetTable();
+}
+
+// P37(工項 B 關鍵):表定推過頭之後,觀測恢復要能把站序【往回】修。
+// 舊碼的單調閘門地板是 last_idx ⇒ Math.max(觀測, 推過頭的值) 恆等於推過頭的值
+// ⇒ 錯的站名黏到列車真的追上為止(斷線 95 分鐘 ⇒ 卡片可能整整一個多小時顯示沒發生的事)。
+{
+  const T = tok('p37');
+  await resetTable();
+  mockNowSec = H_BASE + 10000;
+  const base = mockNowSec;
+  const stops = [0, 1, 2, 3, 4].map(i => ({ name: 'S' + i, at: base + 600 + i * 600 }));
+  await insRow({ token: T, sys: 'tra_sched', train_no: '562', stops,
+    staMap: { C0: 1, C1: 2, C2: 3, C3: 4 }, stopCodes: ['C0', 'C1', 'C2', 'C3', 'C4'],
+    last_idx: 4, last_obs_idx: 1,        // 4＝斷線期間表定推過頭;1＝最後一次真的觀測到的站
+    last_delay: 0, bound_at: base, expire_at: base + 3600 });
+  tdxBoard = [{ TrainNo: '562', DelayTime: 0, StationID: 'C2', TrainStationStatus: 1 }];   // 真實位置:索引 2
+  calls.length = 0; apnsNextStatus = 200; apnsNextReason = ''; apnsPerToken = {};
+  const r37 = await laPushAll(env, fakeCtx, BASE_URL);
+  const cs37 = csOne(calls);
+  ok('P37(工項B 關鍵)觀測恢復後把表定推過頭的站序往回修:4 → 2(舊碼會卡在 4 不動)',
+    r37.sent === 1 && !!cs37 && cs37.nextStop === 'S2',
+    `sent=${r37.sent} nextStop=${cs37 ? cs37.nextStop : '(無 APNs 呼叫)'}`);
+  const row37 = await getRow(T);
+  ok('P37(工項B 關鍵)往回修之後 last_idx 與 last_obs_idx 一起落在 2(地板跟著觀測走)',
+    !!row37 && row37.last_idx === 2 && row37.last_obs_idx === 2,
+    row37 ? `last_idx=${row37.last_idx} last_obs_idx=${row37.last_obs_idx}` : '(查無列)');
+  await resetTable();
+}
+
+// P37b(工項 B 的守門,與 P37 同樣關鍵):閘門原本要擋的東西一格都不准放進來。
+// 上一個索引【本身就是觀測來的】(last_obs_idx === last_idx)時,行為必須與舊碼逐字相同:
+// 觀測回報較早的站 ⇒ 不動。這是「觀測序列單調不減」這條不變式的釘死者。
+{
+  const T = tok('p37b');
+  await resetTable();
+  mockNowSec = H_BASE + 11000;
+  const base = mockNowSec;
+  const stops = [0, 1, 2, 3, 4].map(i => ({ name: 'S' + i, at: base + 600 + i * 600 }));
+  await insRow({ token: T, sys: 'tra_sched', train_no: '563', stops,
+    staMap: { C0: 1, C1: 2, C2: 3, C3: 4 }, stopCodes: ['C0', 'C1', 'C2', 'C3', 'C4'],
+    last_idx: 4, last_obs_idx: 4,        // 4 是【觀測】來的 ⇒ 閘門全額生效
+    last_delay: 0, bound_at: base, expire_at: base + 3600 });
+  tdxBoard = [{ TrainNo: '563', DelayTime: 0, StationID: 'C2', TrainStationStatus: 1 }];   // 觀測抖動:回報較早的站
+  calls.length = 0; apnsNextStatus = 200; apnsNextReason = ''; apnsPerToken = {};
+  const r37b = await laPushAll(env, fakeCtx, BASE_URL);
+  ok('P37b(工項B 守門)上一個索引也是觀測來的時候,觀測回報較早的站【不倒退】⇒ 零 APNs',
+    r37b.sent === 0 && calls.filter(c => c.url.includes(APNS_FRAG)).length === 0,
+    `sent=${r37b.sent} apns=${calls.filter(c => c.url.includes(APNS_FRAG)).length}`);
+  const row37b = await getRow(T);
+  ok('P37b(工項B 守門)D1 的 last_idx 仍是 4,沒有被抖動拉低',
+    !!row37b && row37b.last_idx === 4 && row37b.last_obs_idx === 4,
+    row37b ? `last_idx=${row37b.last_idx} last_obs_idx=${row37b.last_obs_idx}` : '(查無列)');
+  await resetTable();
+}
+
+// P37c(工項 B 的地板):往回修有下限——最低只能修回【上一次真的觀測到】的那一站。
+// 這條把本輪選的做法(地板＝last_obs_idx)與「上一次是推算就整個放行」的做法分開:
+// 後者會讓一發落後的觀測把卡片一路拉回 S1,比推過頭更難看。
+{
+  const T = tok('p37c');
+  await resetTable();
+  mockNowSec = H_BASE + 12000;
+  const base = mockNowSec;
+  const stops = [0, 1, 2, 3, 4, 5].map(i => ({ name: 'S' + i, at: base + 600 + i * 600 }));
+  await insRow({ token: T, sys: 'tra_sched', train_no: '564', stops,
+    staMap: { C0: 1, C1: 2, C2: 3, C3: 4, C4: 5 }, stopCodes: ['C0', 'C1', 'C2', 'C3', 'C4', 'C5'],
+    last_idx: 5, last_obs_idx: 3,        // 5＝表定推過頭;3＝最後一次真的觀測到的站
+    last_delay: 0, bound_at: base, expire_at: base + 3600 });
+  tdxBoard = [{ TrainNo: '564', DelayTime: 0, StationID: 'C1', TrainStationStatus: 1 }];   // 落後的觀測:索引 1
+  calls.length = 0; apnsNextStatus = 200; apnsNextReason = ''; apnsPerToken = {};
+  const r37c = await laPushAll(env, fakeCtx, BASE_URL);
+  const cs37c = csOne(calls);
+  ok('P37c(工項B 地板)落後的觀測只能把站序修回 S3(最後一次真的觀測到的站),不是一路掉到 S1',
+    r37c.sent === 1 && !!cs37c && cs37c.nextStop === 'S3',
+    `sent=${r37c.sent} nextStop=${cs37c ? cs37c.nextStop : '(無 APNs 呼叫)'}`);
   await resetTable();
 }
 
@@ -1537,7 +1620,7 @@ const NOTICE_EXPECT = '即時資料中斷，位置為預估。實際動態請查
 // 實測某一發突變讓總計從 139 掉到 128,11 條斷言消失而沒有任何人報警。
 // 這條把「每一格都真的跑到了」變成具名斷言。改動本檔的斷言數時要一併更新這個常數。
 {
-  const EXPECT_TOTAL = 190;   // 不含本條;本條自己會讓總計 +1(2026-08-08 工項 A:181 → 190)
+  const EXPECT_TOTAL = 196;   // 不含本條;本條自己會讓總計 +1(2026-08-08 工項 A/B:181 → 196)
   ok(`COV 覆蓋率 gate:本輪斷言總數必須恰好等於預期 ${EXPECT_TOTAL}(區塊被跳過或條件式吞掉會讓分母無聲縮水)`,
     results.length === EXPECT_TOTAL, `actual=${results.length}`);
 }

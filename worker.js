@@ -2563,7 +2563,7 @@ async function laPushAll(env, ctx, baseUrl) {
       // useObs 就是「這一列這一輪到底能不能用觀測」的唯一判準,索引與 obs/sched 計數共用它。
       const schedFallbackBlocked = liveDown && row.sys === 'tra_sched' && !LA_SCHED_FALLBACK_ON_UPSTREAM_DOWN;
       const useObs = !!t && !liveDown;
-      const idx = useObs ? laNextIdx(String(t.sta), Number(t.status), staMap, stopCodes, row.last_idx)
+      const idx = useObs ? laNextIdx(String(t.sta), Number(t.status), staMap, stopCodes, row.last_idx, row.last_obs_idx)
                     : schedFallbackBlocked ? row.last_idx      // 凍住:與 last_idx 相同 ⇒ 走下面的「沒變就不推」
                     : laSchedIdx(stops, delaySec, now, row.last_idx);
       // 這一輪的站名是不是【推算】出來的?只有「上游整批失效而政策要求繼續前進」才算——
@@ -2627,8 +2627,11 @@ async function laPushAll(env, ctx, baseUrl) {
       });
       if (res.ok) {
         // 🔴 最終複審 A-I1:成功順手把 fail_streak 歸零(同一發 UPDATE,零額外成本)。
-        await env.DELAY_DB.prepare('UPDATE la_bindings SET last_idx=?, last_delay=?, fail_streak=0 WHERE token=?')
-          .bind(idx, delaySec, row.token).run();
+        // 🔴 工項 B:last_obs_idx 只在【這一輪真的用了觀測】時才推進——表定推算不得寫它,
+        // 否則單調閘門的地板會被推算值抬上去,觀測就再也修不回來(等同沒改)。
+        // 與 last_idx 同一發 UPDATE ⇒ 兩者永遠描述同一次決策,不會分岔。
+        await env.DELAY_DB.prepare('UPDATE la_bindings SET last_idx=?, last_delay=?, last_obs_idx=?, fail_streak=0 WHERE token=?')
+          .bind(idx, delaySec, useObs ? idx : row.last_obs_idx, row.token).run();
         sent++;
         if (useObs) sentObs++; else sentSched++;
         continue;

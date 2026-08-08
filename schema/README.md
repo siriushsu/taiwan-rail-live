@@ -8,6 +8,7 @@
 | `0002_bounty.sql` | ✅ **權威** | 懸賞四張表。正式庫的這四張表就是用它建的。 |
 | `0003_live_activity.sql` | ✅ **權威** | 跟車即時動態（Live Activity）的推播交班表 `la_bindings`。**尚未套到正式庫。** |
 | `0004_la_fail_streak.sql` | ✅ **權威** | 只給「已經套過舊版 0003」的環境補 `fail_streak` 欄位。**全新的庫套 0003 就夠，不要跑這支。** |
+| `0005_la_last_obs_idx.sql` | ✅ **權威** | 只給「已經套過舊版 0003」的環境補 `last_obs_idx` 欄位。**全新的庫套 0003 就夠，不要跑這支。** |
 
 ## 套用到正式庫
 
@@ -24,9 +25,15 @@ arch -arm64 node ./node_modules/wrangler/bin/wrangler.js d1 execute DELAY_DB --r
 且 cron 每分鐘噴一則 `[cron la-push] 失敗: ... no such table: la_bindings`。
 整個跟車即時動態功能完全不動，而前端看起來一切正常。
 
-🔴 **只有「已經用舊版 0003 建過表」的環境才要再套 0004**（本機 `.wrangler`、開發庫）。
+🔴 **只有「已經用舊版 0003 建過表」的環境才要再套 0004／0005**（本機 `.wrangler`、開發庫）。
 `CREATE TABLE IF NOT EXISTS` 不會替既有的表補欄位，少了 `fail_streak` 會讓 cron
 每分鐘噴 `no such column: fail_streak`。
+
+🔴 **0005 忘了套的症狀**：`SELECT *` 讀不到這一欄（`undefined`）⇒ `laNextIdx` 退回舊語意
+（地板＝`last_idx`，斷線恢復後站名修不回來）；而推播成功後那發
+`UPDATE … SET last_obs_idx=?` 會拋 `no such column: last_obs_idx`，落進 per-row 的
+try/catch ⇒ cron **每分鐘每列噴一則** `[cron la-push] 單列處理失敗`，且 `last_idx` 永遠
+不更新 ⇒ 同一張卡每分鐘重推一次。噴得很大聲，但要知道去哪裡看。
 
 ## 核對 0001 與正式庫
 
