@@ -15,16 +15,17 @@ const PORT = 5191;
 const MIME = { '.html': 'text/html', '.js': 'text/javascript', '.mjs': 'text/javascript', '.json': 'application/json', '.css': 'text/css', '.png': 'image/png', '.jpg': 'image/jpeg', '.svg': 'image/svg+xml', '.mp3': 'audio/mpeg', '.ico': 'image/x-icon', '.webmanifest': 'application/manifest+json' };
 const server = createServer((req, res) => {
   const url = new URL(req.url, 'http://x');
-  // 高鐵班表已改走 /api/thsr-schedule(commit 9f05f2f):真實端點只有兩種合法形狀——200 帶完整文件,
-  // 或(上游失敗時)404。下面通用的 /api/* 200 `{}` 是這支假伺服器自己造出來、現實中不存在的第三種
-  // 形狀——`{}` 是 truthy,index.html 的 fallbackUrl 退路只在 raw 為假值時才啟動,於是 resolveScheduleDay
-  // 原樣放行 `{}`、sys.data.trains 變成 undefined,開機時 for...of 直接丟 TypeError。這裡回真實靜態檔
-  // 內容,才是這條路徑成功時的忠實模擬。
-  if (url.pathname === '/api/thsr-schedule') {
+  // 高鐵班表自 2026-08-07(9f05f2f)改以 apiUrl('api/thsr-schedule') 為主來源、靜態檔降級為 fallbackUrl。
+  // 空物件是 200 ⇒ fetchJSONAt 視同成功 ⇒ fallback 永不啟動 ⇒ applySchedSystems 迭代 undefined 的
+  // sys.data.trains 拋錯 ⇒ boot 停在 state.ready=true 之前 ⇒ waitReady 逾時。這裡吐打包的那份(同 schema)。
+  if (url.pathname.startsWith('/api/')) {
     res.statusCode = 200; res.setHeader('content-type', 'application/json');
-    return res.end(readFileSync(path.join(ROOT, 'data/thsr_schedule_dense.json')));
+    if (url.pathname === '/api/thsr-schedule') return res.end(readFileSync(path.join(ROOT, 'data/thsr_schedule_dense.json')));
+    // 衛星圖層要有 token 才掛得上(satTokenState 非 'ready' 就一直維持一般地圖),空物件＝T6b 結構上不可能綠。
+    // 假 token 即可:T6b 只驗「掛的是不是 Esri 影像圖層」,不需要圖磚真的載得回來(同 verify_sat_retina 寫法)。
+    if (url.pathname === '/api/basemap-token') return res.end(JSON.stringify({ esri: 'FAKE_TEST_TOKEN_NOT_REAL' }));
+    return res.end('{}');
   }
-  if (url.pathname.startsWith('/api/')) { res.statusCode = 200; res.setHeader('content-type', 'application/json'); return res.end('{}'); }
   let fp = path.join(ROOT, decodeURIComponent(url.pathname));
   if (existsSync(fp) && statSync(fp).isDirectory()) fp = path.join(fp, 'index.html');
   if (!path.resolve(fp).startsWith(ROOT) || !existsSync(fp)) { res.statusCode = 404; return res.end('nf'); }
@@ -112,7 +113,9 @@ async function tileState(page) {
     const tiles = [...document.querySelectorAll('#map .leaflet-tile')];
     const srcs = tiles.map(t => t.src).filter(Boolean).sort();
     const want = state.mapDark ? 'dark' : (state.basemap === 'sat' ? 'sat' : 'light');
-    return { count: tiles.length, srcs, satMounted: !!(baseLayers.sat && map.hasLayer(baseLayers.sat)), wantMounted: !!(baseLayers[want] && map.hasLayer(baseLayers[want])), z: map.getZoom() };
+    // 掛著哪幾層要具名回報:衛星有 sat(retina)/satLQ 兩顆,只認其中一顆的判準會在門檻改變時假紅(見 T6b)。
+    const mountedKeys = Object.keys(baseLayers).filter(k => map.hasLayer(baseLayers[k]));
+    return { count: tiles.length, srcs, mountedKeys, satMounted: !!(baseLayers.sat && map.hasLayer(baseLayers.sat)), wantMounted: !!(baseLayers[want] && map.hasLayer(baseLayers[want])), z: map.getZoom() };
   });
 }
 
@@ -233,7 +236,13 @@ async function tileState(page) {
     const st = await tileState(b.page);
     const satSrc = st.srcs.some(s => /arcgisonline|World_Imagery/i.test(s));
     ok('chromium T6a 衛星模式呼吸中圖磚在場', st.count > 0, `tiles=${st.count}, z=${st.z}`);
-    ok('chromium T6b 掛的是衛星圖層(baseLayers.sat 現掛層 + tile src 為 Esri 影像)', st.satMounted && satSrc, `satMounted=${st.satMounted} 影像src=${satSrc}`);
+    // 原判準寫死「掛的必須是 baseLayers.sat」,但 retina 衛星後來變成 Plus 限定
+    // (satRetinaAllowed() = SAT_RETINA && plusIsActive(),index.html:6175),而本 fixture 不注入 Plus
+    // ⇒ 一律掛非 retina 的 baseLayers.satLQ,那一顆結構上永遠不可能掛上,判準過期而非產品回歸
+    // (實測:掛著=[satLQ]、Esri 影像 src=true,衛星模式本身是好的)。改判「掛著的底圖是衛星家族的其中一顆」
+    // ——這才是本條標題說的事;掛回 light/dark 仍會轉紅,牙齒沒掉。
+    const satFamily = st.mountedKeys.length === 1 && ['sat', 'satLQ'].includes(st.mountedKeys[0]);
+    ok('chromium T6b 掛的是衛星圖層(sat 或 satLQ 現掛層 + tile src 為 Esri 影像)', satFamily && satSrc, `掛著=[${st.mountedKeys}] 影像src=${satSrc}`);
     // 衛星模式縮放同樣兩層同步
     const anim2 = analyzeScales(await sampleScales(b.page, 90));
     ok('chromium T6c 衛星模式兩層 scale 同步且平滑', anim2.mismatch === 0 && anim2.smoothMax <= 0.01 && anim2.zAll13, `不相等幀=${anim2.mismatch} 2nd-diff=${r3(anim2.smoothMax)}`);

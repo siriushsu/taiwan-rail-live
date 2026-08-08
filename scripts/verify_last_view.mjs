@@ -43,16 +43,14 @@ const PORT = 5199;
 const MIME = { '.html': 'text/html', '.js': 'text/javascript', '.mjs': 'text/javascript', '.json': 'application/json', '.css': 'text/css', '.png': 'image/png', '.jpg': 'image/jpeg', '.svg': 'image/svg+xml', '.mp3': 'audio/mpeg', '.ico': 'image/x-icon', '.webmanifest': 'application/manifest+json' };
 const server = createServer((req, res) => {
   const url = new URL(req.url, 'http://x');
-  // 高鐵班表已改走 /api/thsr-schedule(commit 9f05f2f):真實端點只有兩種合法形狀——200 帶完整文件,
-  // 或(上游失敗時)404。下面通用的 /api/* 200 `{}` 是這支假伺服器自己造出來、現實中不存在的第三種
-  // 形狀——`{}` 是 truthy,index.html 的 fallbackUrl 退路只在 raw 為假值時才啟動,於是 resolveScheduleDay
-  // 原樣放行 `{}`、sys.data.trains 變成 undefined,開機時 for...of 直接丟 TypeError。這裡回真實靜態檔
-  // 內容,才是這條路徑成功時的忠實模擬。
-  if (url.pathname === '/api/thsr-schedule') {
+  // 高鐵班表自 2026-08-07(9f05f2f)改以 apiUrl('api/thsr-schedule') 為主來源、靜態檔降級為 fallbackUrl。
+  // 空物件是 200 ⇒ fetchJSONAt 視同成功 ⇒ fallback 永不啟動 ⇒ applySchedSystems 迭代 undefined 的
+  // sys.data.trains 拋錯 ⇒ boot 停在 state.ready=true 之前 ⇒ waitReady 逾時。這裡吐打包的那份(同 schema)。
+  if (url.pathname.startsWith('/api/')) {
     res.statusCode = 200; res.setHeader('content-type', 'application/json');
-    return res.end(readFileSync(path.join(ROOT, 'data/thsr_schedule_dense.json')));
+    if (url.pathname === '/api/thsr-schedule') return res.end(readFileSync(path.join(ROOT, 'data/thsr_schedule_dense.json')));
+    return res.end('{}');
   }
-  if (url.pathname.startsWith('/api/')) { res.statusCode = 200; res.setHeader('content-type', 'application/json'); return res.end('{}'); }
   let fp = path.join(ROOT, decodeURIComponent(url.pathname));
   if (existsSync(fp) && statSync(fp).isDirectory()) fp = path.join(fp, 'index.html');
   if (!path.resolve(fp).startsWith(ROOT) || !existsSync(fp)) { res.statusCode = 404; return res.end('nf'); }
@@ -112,9 +110,13 @@ const webkitB = await webkit.launch();
   await gotoReady(page);
   const group = await page.evaluate(() => state.group);
   const tabTxt = await page.evaluate(() => document.querySelector('#systems .gtab.active')?.textContent || null);
+  const tabTitle = await page.evaluate(() => document.querySelector('#systems .gtab.active')?.title || null);
   const lv1 = await rawLV(page);
   ok('A1 首訪預設群組=all(全台同框)', group === 'all', `實際=${group}`);
-  ok('A2 首訪頁籤文字=全台同框', tabTxt === '全台同框', `實際=${tabTxt}`);
+  // 頁籤顯示的是 GROUPS 的 short(一個字),全名放在 title(renderSystemsBar:`b.title = g.label`,index.html:9016)。
+  // 原判準拿 textContent 比全名「全台同框」,自從頁籤改成單字就一直紅——判準過期,不是產品回歸。
+  // 兩個都驗:短名是使用者看到的、全名是無障礙/滑過提示,任一漂移都該讓人知道。
+  ok('A2 首訪頁籤:短名=全、title=全台同框', tabTxt === '全' && tabTitle === '全台同框', `文字=${tabTxt} title=${tabTitle}`);
   ok('A3 首訪開機未操作即未寫入 last-view', lv1 === null, `實際=${lv1}`);
   await page.waitForTimeout(3000);
   const lv2 = await rawLV(page);
@@ -161,45 +163,78 @@ async function persistRestoreFlow(browser, label, { width = 1280, height = 800, 
   await gotoReady(page);
   const act = async (sel) => { if (touch) await page.locator(sel).tap(); else await page.click(sel); };
 
-  await act('#systems .gtab:text-is("北北桃")');
+  // 原本點的是「北北桃」(north)。GROUPS 改組後頁籤只剩 全／台／高／捷 四個,north 與 nat/south 一樣
+  // 「只為相容既有連結與記憶而留,不再出現在任何頁籤列」(index.html:8814)——所以那個選擇器再也選不到東西,
+  // 整支腳本卡在這裡拋例外。改點現行的 freq 群組「捷運與輕軌」(metro),它同樣含 tymc/sanying 兩個成員,
+  // 底下「取消勾選再 reload 還原」的流程原封不動。選 title 不選文字:頁籤文字是單字 short(捷),title 才是全名。
+  // (north 作為 localStorage 舊記憶的種子仍留在 C/E/G 段——那是刻意要驗的相容路徑,不要一起改掉。)
+  const GROUP_ID = 'metro', GROUP_LABEL = '捷運與輕軌', GROUP_SHORT = '捷';
+  // 兩種殼的群組頁籤住在不同地方:桌面是 #systems 那條系統列,手機 fs 是地圖頂浮動列 #topTabs
+  // (index.html:2422「手機 fs 常駐——左=軌島迷你牌,右=全/台/高/捷短標」);#systems 在 fs 下量到 0×0,
+  // 對它 tap 只會等到逾時。以 body.fs 分流——那正是產品自己用的那個開關,不另外用寬度猜。
+  const fsShell = await page.evaluate(() => document.body.classList.contains('fs'));
+  await act(`${fsShell ? '#topTabs' : '#systems'} .gtab[title="${GROUP_LABEL}"]`);
   await page.waitForTimeout(500);
-  await act('#systems .mem[data-id="tymc"]');
-  await page.waitForTimeout(150);
-  await act('#systems .mem[data-id="sanying"]');
-  await page.waitForTimeout(150);
+  // 取消勾選之前先問這個群組本來有哪些成員:期望值＝全體成員扣掉待會取消的兩個,不寫死清單
+  // (GROUPS 成員早晚會再增減,寫死就是下一次的假紅)。下面 expectSel 另有「非退化」檢查當正向對照。
+  const allMembers = await page.evaluate(id => ((typeof GROUPS !== 'undefined' && GROUPS.find(g => g.id === id)) || {}).members || [], GROUP_ID);
+  // 成員勾選是桌面限定:那 7 顆 .mem 只存在於 #systems,手機殼下整條 0×0,更多 sheet 也沒有 proxy 列
+  // (data-proxy 只代理 satBtn/musicBtn 那類單鈕)。手機這一輪因此只驗「群組＋視野」還原,
+  // 成員相關的期望值一併跟著殼走,不假裝手機也能改勾選。
+  if (!fsShell) {
+    await act('#systems .mem[data-id="tymc"]');
+    await page.waitForTimeout(150);
+    await act('#systems .mem[data-id="sanying"]');
+    await page.waitForTimeout(150);
+  }
   const target = { lat: 25.0330, lon: 121.5654, z: 14 };
   await page.evaluate((t) => map.setView([t.lat, t.lon], t.z, { animate: false }), target);
   await page.waitForTimeout(300);
 
   const savedRaw = await rawLV(page);
   let saved = null; try { saved = JSON.parse(savedRaw); } catch (e) {}
-  ok(`${label}0 操作後已寫入 last-view(g=north+目標座標+去掉tymc/sanying)`,
-    !!saved && saved.g === 'north' && near(saved.lat, target.lat, 0.001) && near(saved.lon, target.lon, 0.001) && saved.z === target.z &&
-    Array.isArray(saved.sel) && !saved.sel.includes('tymc') && !saved.sel.includes('sanying'),
+  const selDesc = fsShell ? '全體成員(手機無勾選入口)' : '去掉tymc/sanying';
+  ok(`${label}0 操作後已寫入 last-view(g=${GROUP_ID}+目標座標+${selDesc})`,
+    !!saved && saved.g === GROUP_ID && near(saved.lat, target.lat, 0.001) && near(saved.lon, target.lon, 0.001) && saved.z === target.z &&
+    Array.isArray(saved.sel) && (fsShell
+      ? saved.sel.includes('tymc') && saved.sel.includes('sanying')
+      : !saved.sel.includes('tymc') && !saved.sel.includes('sanying')),
     `實際=${savedRaw}`);
 
   await page.reload({ waitUntil: 'domcontentloaded' });
   await waitReady(page);
 
   const group = await page.evaluate(() => state.group);
-  const tabTxt = await page.evaluate(() => document.querySelector('#systems .gtab.active')?.textContent || null);
+  const tabTxt = await page.evaluate(fs => document.querySelector(`${fs ? '#topTabs' : '#systems'} .gtab.active`)?.textContent || null, fsShell);
   const cz = await centerOf(page);
   const sel = await page.evaluate(() => state.freqSel ? [...state.freqSel].sort() : null);
-  const memberUI = await page.evaluate(() => ({
-    tymc: document.querySelector('#systems .mem[data-id="tymc"]')?.classList.contains('on'),
-    sanying: document.querySelector('#systems .mem[data-id="sanying"]')?.classList.contains('on'),
-    mrt: document.querySelector('#systems .mem[data-id="mrt"]')?.classList.contains('on'),
-  }));
-  const expectSel = ['mrt', 'ntdlrt', 'ntalrt'].sort();
+  // 逐一讀該群組「每一個」成員的核取狀態,不只讀動到的那兩顆:漏讀的成員＝斷言的分母無聲縮水。
+  const memberUI = await page.evaluate(ms => Object.fromEntries(
+    ms.map(m => [m, document.querySelector(`#systems .mem[data-id="${m}"]`)?.classList.contains('on')])), allMembers);
+  const expectSel = (fsShell ? allMembers.slice() : allMembers.filter(m => m !== 'tymc' && m !== 'sanying')).sort();
 
-  ok(`${label}1 reload 後群組還原為 north(北北桃)`, group === 'north' && tabTxt === '北北桃', `group=${group} 頁籤=${tabTxt}`);
+  // 正向對照:expectSel 必須是「有內容、而且桌面那輪真的少掉兩個」的清單。少了這條,萬一 GROUPS 讀不到
+  // (改名/改結構),expectSel 會變成空陣列,而 state.freqSel 若也是空的就會兩邊相等、假綠收場。
+  ok(`${label}0b 期望集合非退化(取自 ${GROUP_ID} 成員${fsShell ? '全體' : '扣掉 tymc/sanying'})`,
+    expectSel.length >= 3 && expectSel.includes('mrt') && allMembers.includes('tymc') && allMembers.includes('sanying') &&
+    (fsShell ? expectSel.length === allMembers.length : expectSel.length === allMembers.length - 2),
+    `成員=${JSON.stringify(allMembers)} 期望=${JSON.stringify(expectSel)}`);
+  ok(`${label}1 reload 後群組還原為 ${GROUP_ID}(${GROUP_LABEL})`, group === GROUP_ID && tabTxt === GROUP_SHORT, `group=${group} 頁籤=${tabTxt}`);
   ok(`${label}2 reload 後地圖中心還原(誤差<0.01度)`, near(cz.lat, target.lat, 0.01) && near(cz.lng, target.lon, 0.01),
     `實際=lat${cz.lat},lng${cz.lng} 期望=lat${target.lat},lon${target.lon}`);
   ok(`${label}3 reload 後縮放倍率還原`, Math.round(cz.z) === target.z, `實際=${cz.z} 期望=${target.z}`);
-  ok(`${label}4 reload 後勾選系統集合還原(排除 tymc/sanying)`, JSON.stringify(sel) === JSON.stringify(expectSel),
+  ok(`${label}4 reload 後勾選系統集合還原(${selDesc})`, JSON.stringify(sel) === JSON.stringify(expectSel),
     `實際=${JSON.stringify(sel)} 期望=${JSON.stringify(expectSel)}`);
-  ok(`${label}5 reload 後成員核取 UI 亦反映還原狀態`, memberUI.tymc === false && memberUI.sanying === false && memberUI.mrt === true,
-    `實際=${JSON.stringify(memberUI)}`);
+  if (fsShell) {
+    // 手機 fs 殼把群組頁籤搬到 #topTabs,#systems 整塊(含 .mem 核取)被收成 0×0 不可及,
+    // 上面也就沒有取消勾選 tymc/sanying 這一步 ⇒ 這裡改驗「群組全體成員都還原成勾選」。
+    ok(`${label}5 reload 後成員核取 UI 亦反映還原狀態(手機殼:全體勾選)`,
+      allMembers.length > 0 && allMembers.every(m => memberUI[m] === true),
+      `實際=${JSON.stringify(memberUI)}`);
+  } else {
+    ok(`${label}5 reload 後成員核取 UI 亦反映還原狀態`, memberUI.tymc === false && memberUI.sanying === false && memberUI.mrt === true,
+      `實際=${JSON.stringify(memberUI)}`);
+  }
 
   await ctx.close();
 }

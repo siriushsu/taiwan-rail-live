@@ -21,16 +21,19 @@ const MIME = { '.html': 'text/html', '.js': 'text/javascript', '.mjs': 'text/jav
 function makeServer(indexOverride) {
   return createServer((req, res) => {
     const url = new URL(req.url, 'http://x');
-    // 高鐵班表已改走 /api/thsr-schedule(commit 9f05f2f):真實端點只有兩種合法形狀——200 帶完整文件,
-    // 或(上游失敗時)404。下面通用的 /api/* 200 `{}` 是這支假伺服器自己造出來、現實中不存在的第三種
-    // 形狀——`{}` 是 truthy,index.html 的 fallbackUrl 退路只在 raw 為假值時才啟動,於是 resolveScheduleDay
-    // 原樣放行 `{}`、sys.data.trains 變成 undefined,開機時 for...of 直接丟 TypeError。這裡回真實靜態檔
-    // 內容,才是這條路徑成功時的忠實模擬。
-    if (url.pathname === '/api/thsr-schedule') {
+    // 高鐵班表自 2026-08-07(9f05f2f)改以 apiUrl('api/thsr-schedule') 為主來源、靜態檔降級為 fallbackUrl。
+    // 空物件是 200 ⇒ fetchJSONAt 視同成功 ⇒ fallback 永不啟動 ⇒ applySchedSystems 迭代 undefined 的
+    // sys.data.trains 拋錯 ⇒ boot 停在 state.ready=true 之前 ⇒ waitReady 逾時。這裡吐打包的那份(同 schema)。
+    if (url.pathname.startsWith('/api/')) { // 其餘一律由 Playwright route() 蓋過,這裡只是保底
       res.statusCode = 200; res.setHeader('content-type', 'application/json');
-      return res.end(readFileSync(path.join(ROOT, 'data/thsr_schedule_dense.json')));
+      if (url.pathname === '/api/thsr-schedule') return res.end(readFileSync(path.join(ROOT, 'data/thsr_schedule_dense.json')));
+      // 衛星 token 也是「空物件≠成功」的一員:拿不到 esri 這個欄位就走 catch,satTokenState='failed',
+      // 而失敗處理會把 #satBtn 與抽屜那列 .ms-row[data-proxy="satBtn"] 直接 remove(index.html:17839-17840)
+      // ⇒ D 段「視覺零變化」對 msSat 兩邊都量到 null,報成「缺失」。假 token 即可(verify_sat_retina 早有先例),
+      // 圖磚請求本來就打不出去,這裡只是讓那顆鈕存在、量得到。
+      if (url.pathname === '/api/basemap-token') return res.end(JSON.stringify({ esri: 'FAKE_TEST_TOKEN_NOT_REAL' }));
+      return res.end('{}');
     }
-    if (url.pathname.startsWith('/api/')) { res.statusCode = 200; res.setHeader('content-type', 'application/json'); return res.end('{}'); } // 一律由 Playwright route() 蓋過,這裡只是保底
     let fp = (indexOverride && (url.pathname === '/' || url.pathname === '/index.html'))
       ? indexOverride
       : path.join(ROOT, decodeURIComponent(url.pathname));
@@ -147,20 +150,73 @@ async function partA(browser, engName) {
     }
 
     // A6:展開態(cexp)剛觸發,又是新的獨立 5s 自動收回計時,同樣併一次 evaluate 取完
+    //
+    // A6a 原判準是「.tod-wrap 命中框上下各 21px 都要命中」(v0718i 把透明 time input 撐成 ≥44px)。
+    // 2026-07-25 裁決之後那條已經不成立、而且**不該**成立:展開態第二列整列變成可拖的時刻尺,
+    // 讀數的 44px 命中框會蓋住尺讓它拖不動,所以手機展開態(index.html:2812-2814)與桌面(:392)
+    // 兩邊都刻意把它收回讀數本身大小;展開態真正的 ≥44 承載者是 .timerail 整列
+    // (index.html:2816 `body.cexp .timerail { height: 44px }`)。
+    // 判準因此改綁現行契約,而且不用 elementFromPoint 判「拖得動」——命中判準對祖先容器恆真,
+    // 答不了「做得到嗎」(拖曳守衛整個拿掉它照樣綠)。改成真的用滑鼠拖一次、量 state.simSec 有沒有動。
     if (afterOther && afterOther.cexp) {
       const snap2 = await page.evaluate(() => {
         const rectOf = (sel) => { const el = document.querySelector(sel); if (!el) return null; const r = el.getBoundingClientRect(); return { x: r.x, y: r.y, w: r.width, h: r.height }; };
         const hit = (x, y, sel) => { const el = document.elementFromPoint(x, y); const t = document.querySelector(sel); return !!(el && t && (el === t || t.contains(el))); };
-        const tod = rectOf('.tod-wrap'), sr = rectOf('.speedrail');
-        const out = { tod, sr };
-        if (tod) { const cx = tod.x + tod.w / 2, cy = tod.y + tod.h / 2; out.todHits = { center: hit(cx, cy, '.tod-wrap'), up: hit(cx, cy - 21, '.tod-wrap'), down: hit(cx, cy + 21, '.tod-wrap') }; }
+        const tod = rectOf('.tod-wrap'), sr = rectOf('.speedrail'), rail = rectOf('.timerail');
+        const out = { tod, sr, rail };
+        if (tod) {
+          const cx = tod.x + tod.w / 2, cy = tod.y + tod.h / 2;
+          const el = document.elementFromPoint(cx, cy), inp = document.getElementById('todPick');
+          // 命中「誰」之外還要問那顆現在可不可用:只比 id 會被「還在但已停用」整類退化穿過
+          out.todCenterIsPicker = !!(el && inp && el === inp);
+          out.todPickUsable = !!(inp && !inp.disabled && getComputedStyle(inp).pointerEvents !== 'none');
+        }
         if (sr) { const cx = sr.x + sr.w / 2, cy = sr.y + sr.h / 2; out.srHits = { center: hit(cx, cy, '.speedrail'), up: hit(cx, cy - 21, '.speedrail'), down: hit(cx, cy + 21, '.speedrail') }; }
         return out;
       });
-      ok(`${engName} A6a 展開態時刻控制熱區≥44`, !!(snap2.tod && snap2.todHits && Object.values(snap2.todHits).every(Boolean)), snap2.tod ? JSON.stringify({ tod: snap2.tod, hits: snap2.todHits }) : '.tod-wrap 不存在');
+
+      // 真拖曳:回傳這一拖造成的 simSec 位移(分鐘)。尺的契約是 1px=1 分鐘(index.html:18390-18392)。
+      const dragMinutes = async (x, y, dx) => {
+        const before = await page.evaluate(() => state.simSec);
+        await page.mouse.move(x, y);
+        await page.mouse.down();
+        await page.mouse.move(x + dx, y, { steps: 6 });
+        await page.mouse.up();
+        await page.waitForTimeout(80);
+        const after = await page.evaluate(() => state.simSec);
+        return Math.round((after - before) / 60);
+      };
+
+      const rail = snap2.rail, tod = snap2.tod;
+      if (rail && tod) {
+        const cy = rail.y + rail.h / 2;
+        // 兩個取樣點各在讀數的左、右外側(讀數住正中那格):單一 x 拖得動只證明那條線,
+        // 「只有最左 79px 拖得動」這種半殘狀態要靠兩端取樣才照得出來。
+        const xL = rail.x + rail.w * 0.12, xR = rail.x + rail.w * 0.88;
+        const clearOfTod = xL < tod.x - 4 && xR > tod.x + tod.w + 4;
+        const mL = clearOfTod ? await dragMinutes(xL, cy, 30) : null;   // 左段往右拖 30px = +30 分
+        const mR = clearOfTod ? await dragMinutes(xR, cy, -30) : null;  // 右段往左拖 30px = −30 分(拖回來,淨位移 0)
+        ok(`${engName} A6a1 展開態時刻尺整列高度≥44(≥44 的承載者是 .timerail,不是刻意收小的讀數)`,
+          rail.h >= 44, JSON.stringify({ rail, tod }));
+        ok(`${engName} A6a2 展開態時刻尺整列真的拖得動(左右兩段各拖 30px,simSec 隨之 ±30 分)`,
+          clearOfTod && mL !== null && mR !== null && Math.abs(mL - 30) <= 1 && Math.abs(mR + 30) <= 1,
+          JSON.stringify({ 取樣x: [Math.round(xL), Math.round(xR)], 讀數x: [Math.round(tod.x), Math.round(tod.x + tod.w)], 左拖分鐘: mL, 右拖分鐘: mR }));
+      } else {
+        ok(`${engName} A6a1 展開態時刻尺整列高度≥44(≥44 的承載者是 .timerail,不是刻意收小的讀數)`, false, '.timerail 或 .tod-wrap 不存在');
+        ok(`${engName} A6a2 展開態時刻尺整列真的拖得動(左右兩段各拖 30px,simSec 隨之 ±30 分)`, false, '.timerail 或 .tod-wrap 不存在');
+      }
+      // 讀數本身是尺上的例外區(index.html:18381 `closest('.tod-wrap') return`):點得到原生選時器、且在它上面拖不動尺。
+      let todDragMin = null;
+      if (tod) todDragMin = await dragMinutes(tod.x + tod.w / 2, tod.y + tod.h / 2, 30);
+      await page.evaluate(() => { const a = document.activeElement; if (a && a.blur) a.blur(); });
+      ok(`${engName} A6a3 展開態讀數仍走原生選時器(命中 #todPick、可用、且在讀數上拖不會動到時刻)`,
+        !!(tod && snap2.todCenterIsPicker && snap2.todPickUsable && todDragMin === 0),
+        JSON.stringify({ 命中選時器: snap2.todCenterIsPicker, 可用: snap2.todPickUsable, 讀數上拖曳分鐘: todDragMin }));
       ok(`${engName} A6b 展開態速度滑桿熱區≥44`, !!(snap2.sr && snap2.srHits && Object.values(snap2.srHits).every(Boolean)), snap2.sr ? JSON.stringify({ sr: snap2.sr, hits: snap2.srHits }) : '.speedrail 不存在');
     } else {
-      ok(`${engName} A6a 展開態時刻控制熱區≥44`, false, '膠囊未成功展開,略過');
+      ok(`${engName} A6a1 展開態時刻尺整列高度≥44(≥44 的承載者是 .timerail,不是刻意收小的讀數)`, false, '膠囊未成功展開,略過');
+      ok(`${engName} A6a2 展開態時刻尺整列真的拖得動(左右兩段各拖 30px,simSec 隨之 ±30 分)`, false, '膠囊未成功展開,略過');
+      ok(`${engName} A6a3 展開態讀數仍走原生選時器(命中 #todPick、可用、且在讀數上拖不會動到時刻)`, false, '膠囊未成功展開,略過');
       ok(`${engName} A6b 展開態速度滑桿熱區≥44`, false, '膠囊未成功展開,略過');
     }
 
