@@ -3385,6 +3385,7 @@
            內容 li 上限 8 條(li.grp 是標題不算)。 -->
       <ul class="foot-list foot-recent">
         <li class="grp">最近更新</li>
+        <li data-cl-of="lapush"><span class="d">8/8</span><span>跟車的鎖定畫面即時動態會自己換下一站了，App 沒開著也會更新（通行證功能）</span></li>
         <li data-cl-of="crossnight452"><span class="d">8/8</span><span>修正：週五深夜 452 次這類特定日開行的跨夜車，過了午夜就從地圖上消失（謝謝網友回報）</span></li>
         <li data-cl-of="thsrfreeseat"><span class="d">8/8</span><span>跟隨高鐵列車時，資訊卡新增「自由座車廂」提示：一排小方塊標出今天這班車自由座在第幾節，不必再猜（免費功能）</span></li>
         <li data-cl-of="mytrains"><span class="d">8/8</span><span>最愛面板新增「我的車」：收藏的台鐵列車集中列出近 30 天準點表現（通行證功能）</span></li>
@@ -3392,7 +3393,6 @@
         <li data-cl-of="thsrautosched"><span class="d">8/7</span><span>高鐵時刻表改為每天自動更新，加開與調整班次當天就會反映</span></li>
         <li data-cl-of="widgetdestination3"><span class="d">8/6</span><span>iPhone 小工具的目的站選單偶爾只顯示一下「載入中」就收起；現在即使起站連動稍晚送到，也會先列出完整車站，不必重複點選</span></li>
         <li data-cl-of="release140"><span class="d">8/6</span><span>軌島 1.4.0 準備上線：加入軌島帳號、通行證月票／年票、跨裝置同步、鎖定畫面即時動態與發車看板小工具，並修好分享連結、行程橫幅與小工具設定</span></li>
-        <li data-cl-of="widgetdestination2"><span class="d">8/6</span><span>iPhone 小工具剛更新、車站資料還在準備時，點「起站」或「目的站」可能讓設定畫面直接退出；現在會先用內建車站清單，不必等待</span></li>
       </ul>
       <!-- 第二層:完整歷史。刻意不掛 .foot-box 類名——placeFootBoxes() 用
            `.site-foot .foot-box` 搬移面板,巢狀同名會被當成另一個盒子一起搬走。 -->
@@ -3432,6 +3432,7 @@
         <li><span class="d">7/16</span><span>捷運準確度升級：六家捷運依官方到站看板即時校正，國定假日自動改跑假日班表</span></li>
         <li><span class="d">7/9</span><span>台鐵即時誤點上線——介接交通部 TDX 平臺每分鐘更新；7/11 起開站即真實時刻、捷運改逐班推演</span></li>
         <li class="grp">跟車、搜尋與車站看板</li>
+        <li data-cl="lapush"><span class="d">8/8</span><span>跟隨台鐵或高鐵列車時，鎖定畫面與動態島的即時動態改由伺服器每分鐘更新：螢幕關著、App 沒開著也會自己換到下一站。要換到哪一站依列車實際到離站的觀測決定，不是照時刻表推算；遇到即時資料中斷，卡片會註明目前位置為預估並提醒查詢官方動態。軌島通行證功能，一趟最長跟 12 小時</span></li>
         <li data-cl="thsrfreeseat"><span class="d">8/8</span><span>跟隨高鐵列車時，資訊卡新增自由座車廂提示：以車廂圖示＋文字標出今天這班車的自由座在哪幾節（例如「自由座 10–12 車」）。資料來源為交通部 TDX 高鐵每日自由座資訊，逐日更新；僅高鐵列車顯示，資料尚未到位或查無該車次時安靜不顯示</span></li>
         <li data-cl="afrtrainno"><span class="d">8/4</span><span>阿里山林鐵的 1、2 次跟台鐵環島之星是同一組車次號碼，點下去的介紹卡卻寫成「環島之星 萌旅號　全台唯一環島觀光列車…」；現在林鐵的車一律顯示自己的車種介紹（阿里山號），收藏與搜尋結果裡的名字也一併改正（謝謝網友回報）</span></li>
         <li><span class="d">7/30</span><span>搜尋今天已經跑完的車，現在會帶你回到它發車前，不再當場亂蓋完乘章（謝謝網友回報）</span></li>

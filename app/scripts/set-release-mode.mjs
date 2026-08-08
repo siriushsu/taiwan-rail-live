@@ -75,9 +75,14 @@ const MODES = {
   // 2026-08-08 凌晨：27 上傳撞 ITMS-90683——Capacitor 定位 plugin 的 binary 引用 Always 授權 API，
   // Info.plist 卻只有 NSLocationWhenInUseUsageDescription；已補
   // NSLocationAlwaysAndWhenInUseUsageDescription（照實寫「不會背景定位」），28 重出。
+  // 2026-08-08：28 的 IPA 已出（凌晨那顆），是否已上傳 ASC 未查證 ⇒ 直接跳 29 避開不確定性
+  // （撞已用號閘門結構上擋不住，ASC／Transporter 實況才是權威，26 與 27 都是這樣被打回來的）。
+  // lookup API 08-08 實查線上仍是 1.4.0 ⇒ marketing 維持 1.4.1（比線上大，安全）。
+  // 這一輪的內容：跟車即時動態改由後端推播（鎖屏／動態島會自己換下一站，不必開著 App），
+  // 外加併入的高鐵自由座車廂、最愛面板「我的車・準點」、探索面板「準點排行」。
   feature: {
-    marketing: '1.4.1', build: '28', music: true,
-    why: '軌島 1.4.1：高鐵班表改每日自動連網更新、台鐵班表更新至 8/20、即時資料後端升級；production 資格，TestFlight Sandbox 通道維持關閉。',
+    marketing: '1.4.1', build: '29', music: true,
+    why: '軌島 1.4.1：跟車即時動態改由後端推播（鎖屏自動換站）、高鐵自由座車廂、我的車・準點、準點排行；production 資格，TestFlight Sandbox 通道維持關閉。',
   },
   // 2026-08-06：build 20、21、22 已上 TestFlight；22 專門驗收 Sandbox 購買後的
   // 軌島通行證客端功能、雲端同步與伺服器付費牆。這顆不可選去正式送審；正式版必須另推 build 號，
