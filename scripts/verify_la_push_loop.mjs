@@ -1680,9 +1680,12 @@ const NOTICE_EXPECT = '即時資料中斷，位置為預估。實際動態請查
 // 單調閘門的地板會停在【上一台車】的索引,新車的第一發觀測被 Math.max 直接抬上去
 // ⇒ 卡片一開就跳到中途某一站。這條盯的是「新增狀態欄位卻忘了在重設點一起重設」這個形態。
 {
-  // 🔴 這一格與其他格不同:laBind 會【真的驗】token 格式(64 碼小寫 hex),
-  //    tok() 造出來的可讀標籤(含非 hex 字母)會被擋在 bad_token,端點根本不會跑到 UPSERT。
-  const T = 'bdbd' + '0'.repeat(60);
+  // 🔴 這一格與其他格不同:laBind 會【真的驗】token 格式,tok() 造出來的可讀標籤(含非 hex
+  //    字母)會被擋在 bad_token,端點根本不會跑到 UPSERT。
+  // 🔴 2026-08-08:原本這裡是 'bdbd'+'0'.repeat(60)——自己湊出剛好 64 碼、剛好滿足當時
+  //    (寫錯的)驗證規則的假 token。真實 ActivityKit token 是 80 bytes,於是這一格全綠了
+  //    一整輪,而正式環境每一發交班都被擋掉。用真實長度,不要用「剛好會過」的長度。
+  const T = 'bdbd' + '0'.repeat(156);   // 160 碼＝80 bytes,實機量到的長度
   await resetTable();
   mockNowSec = H_BASE + useSlot(13000, 'PBIND');
   const base = mockNowSec;
@@ -1721,6 +1724,45 @@ const NOTICE_EXPECT = '即時資料中斷，位置為預估。實際動態請查
   ok('PBIND(關鍵)換綁時三個狀態欄位一起歸零(last_idx／last_obs_idx=-1、last_delay／last_notice=0)——地板沒歸零的話新車一開卡就跳到第 5 站',
     !!rowB && rowB.last_idx === -1 && rowB.last_obs_idx === -1 && rowB.last_delay === 0 && Number(rowB.last_notice) === 0,
     rowB ? `last_idx=${rowB.last_idx} last_obs_idx=${rowB.last_obs_idx} last_delay=${rowB.last_delay} last_notice=${rowB.last_notice}` : '(查無列)');
+  await resetTable();
+}
+
+// PTOK(2026-08-08 實機取證):token【長度假設】本身。ActivityKit 的 push token 不是 32 bytes
+// 的 APNs device token——實機(iPhone 17 Pro／iOS 26)量到 80 bytes＝160 碼 hex。舊版寫死
+// /^[0-9a-f]{64}$/ ⇒ 正式環境每一發交班都回 bad_token、D1 永遠是空表、cron 每分鐘掃 0 列。
+// 上面 PBIND 那格是全檔唯一會跑到真 laBind 的地方,卻用自己湊的 64 碼假 token ⇒ 它全綠了
+// 一整輪也照不到這件事(判準與實作同源)。這一格的正向用【真實長度】,反向用四種必須被擋掉
+// 的形狀,讓上下界與偶數限制三個維度各自都有牙。
+{
+  await resetTable();
+  mockNowSec = H_BASE + useSlot(13500, 'PTOK');
+  const base = mockNowSec;
+  const bindEnv = Object.assign(Object.create(Object.getPrototypeOf(env) || Object.prototype), env);
+  bindEnv.LA_TEST_BEARER = 'ptok-local-test';       // 具名本機測試閘門(正式環境不設這顆 secret)
+  delete bindEnv.LA_LIMITER;                        // 限流替身在這個 harness 不存在,拿掉才是確定性的
+  const post = async token => (await worker._la.laBind(new Request('https://dummy.invalid/api/la/bind', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', Authorization: 'Bearer ptok-local-test' },
+    body: JSON.stringify({
+      token, sys: 'tra_sched', trainNo: '567',
+      stops: [{ name: 'Z0', at: base + 300 }, { name: 'Z1', at: base + 900 }],
+      stopCodes: ['E0', 'E1'], staMap: { E0: 1 },
+    }),
+  }), bindEnv)).status;
+  const real = 'ac'.repeat(80);                     // 160 碼＝80 bytes,實機量到的長度
+  const s160 = await post(real);
+  ok('PTOK(關鍵)真實長度的 ActivityKit token(80 bytes／160 碼 hex)必須被接受——寫死 64 碼時這條會紅,而那正是 2026-08-08 之前正式環境的實況',
+    s160 === 200, `status=${s160}`);
+  const rowT = await getRow(real);
+  ok('PTOK 正向對照:被接受的那顆真的落進 D1(只看 200 不算——端點可能在 UPSERT 之前就 return)',
+    !!rowT && rowT.train_no === '567', rowT ? `train_no=${rowT.train_no}` : '(查無列)');
+  const sShort = await post('ab'.repeat(31));       // 62 碼＝31 bytes,低於下界
+  const sOdd = await post('a'.repeat(65));          // 奇數個 hex,不可能是整數個 byte
+  const sUpper = await post('AC'.repeat(80));       // 大寫:APNs token 一律小寫,放行等於同一顆 token 有兩個鍵
+  const sHuge = await post('ab'.repeat(129));       // 258 碼＝129 bytes,超過上界(D1 單列保護)
+  ok('PTOK(反向)過短／奇數長度／大寫／超長四種形狀都必須擋在 bad_token——把上下界或偶數限制拿掉的突變會讓這條紅',
+    sShort === 400 && sOdd === 400 && sUpper === 400 && sHuge === 400,
+    `short=${sShort} odd=${sOdd} upper=${sUpper} huge=${sHuge}`);
   await resetTable();
 }
 
@@ -2081,7 +2123,7 @@ const csOfTok = (tk) => {
 // 實測某一發突變讓總計從 139 掉到 128,11 條斷言消失而沒有任何人報警。
 // 這條把「每一格都真的跑到了」變成具名斷言。改動本檔的斷言數時要一併更新這個常數。
 {
-  const EXPECT_TOTAL = 231;   // 不含本條;本條自己會讓總計 +1(2026-08-08 工項 A/B:181 → 199;複審修復輪次1:→ 218;輪次2(N-1/N-2＋三個把關):→ 231)
+  const EXPECT_TOTAL = 234;   // 不含本條;本條自己會讓總計 +1(2026-08-08 工項 A/B:181 → 199;複審修復輪次1:→ 218;輪次2(N-1/N-2＋三個把關):→ 231;PTOK token 長度三條:→ 234)
   ok(`COV 覆蓋率 gate:本輪斷言總數必須恰好等於預期 ${EXPECT_TOTAL}(區塊被跳過或條件式吞掉會讓分母無聲縮水)`,
     results.length === EXPECT_TOTAL, `actual=${results.length}`);
 }

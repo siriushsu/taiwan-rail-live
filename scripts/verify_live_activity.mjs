@@ -100,7 +100,11 @@ async function boot(browser, { bridge = true, plus = false, startResult = null, 
     window.__laBindCalls = [];
     // 修復輪次1 Important 8:替身原本不論 payload 長什麼樣一律回 200,契約壞掉也測不出來。
     // 補一個最小契約檢查器(不是 worker.js 全套規則,理由見報告)——挑最會被未來改壞的四條:
-    //  1) token 格式(64 碼小寫 hex)——bind/unbind 的鍵,錯了後端整包 400。
+    //  1) token 格式(偶數個小寫 hex、32–128 bytes)——bind/unbind 的鍵,錯了後端整包 400。
+    //     🔴 這一條原本寫死 64 碼,與 worker.js 當時的規則逐字同源。真實 ActivityKit token
+    //     是 80 bytes(160 碼),於是【正式環境每一發都 400,而這條斷言永遠是綠的】——替身
+    //     用的是自己造的假 token,測的是「前端有沒有照抄我抄錯的那條規則」。判準必須跟著
+    //     worker.js 的 LA_TOKEN_RE 走,不可再各寫一份。
     //  2) sys 在白名單(tra_sched/thsr_sched)——afr_sched 等未支援系統送出去必被拒,曾是真的踩過的坑。
     //  3) stopCodes.length===stops.length——兩處各自 filter(stop!==false)算出來的,兩處改動
     //     不同步就會悄悄不一致(laBind 與 buildStopCodes 是兩個獨立函式)。
@@ -110,7 +114,7 @@ async function boot(browser, { bridge = true, plus = false, startResult = null, 
     window.__laCheckBindContract = function (b) {
       if (!b || typeof b !== 'object') return ['body 不是物件'];
       const errs = [];
-      if (!/^[0-9a-f]{64}$/.test(String(b.token || ''))) errs.push('token 格式錯(非 64 碼小寫 hex)');
+      if (!/^(?:[0-9a-f]{2}){32,128}$/.test(String(b.token || ''))) errs.push('token 格式錯(非 32–128 bytes 的小寫 hex)');
       if (b.sys !== 'tra_sched' && b.sys !== 'thsr_sched') errs.push('sys 不在白名單(tra_sched/thsr_sched)');
       if (!Array.isArray(b.stops) || !b.stops.length) errs.push('stops 非陣列或為空');
       else if (!b.stops.every((s, i) => i === 0 || (typeof s.at === 'number' && s.at > b.stops[i - 1].at))) errs.push('stops[].at 未嚴格遞增');

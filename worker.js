@@ -2189,6 +2189,14 @@ async function stationEvents(request, env) {
 // ── 跟車即時動態:交班與註銷 ──
 // 🔴 最終複審 A-I5:同一個 uid 最多留幾列(見 laBind 尾端的修剪語句)。
 const LA_MAX_ROWS_PER_UID = 3;
+// 🔴 ActivityKit 的 push token【不是】32 bytes 的 APNs device token。實機(iPhone 17 Pro／
+// iOS 26)量到 80 bytes＝160 個 hex 字元。舊版寫死 /^[0-9a-f]{64}$/ ⇒ 正式環境每一發交班
+// 都回 bad_token、D1 永遠是空表、cron 每分鐘掃 0 列,整條後端交班對任何人都 100% 不生效。
+// 兩套驗收都照不到:後端測試唯一會跑到本函式的那格自己造了 'bdbd'+'0'.repeat(60) 的 64 碼
+// 假 token,前端替身又複製了同一條規則——判準與實作同源,一起錯。
+// Apple 未保證長度,故不改寫成另一個魔術數字,只鎖「偶數個小寫 hex、32–128 bytes」這個有界
+// 區間:下界保留原本的 32 bytes(舊 token 仍可用),上界 128 bytes 是 D1 單列的保護。
+const LA_TOKEN_RE = /^(?:[0-9a-f]{2}){32,128}$/;
 // 端點外部可打,限流擋在任何 D1 寫入之前(照本檔慣例,寫入型一律 failClosed=true)。
 async function laBind(request, env) {
   // 端點只收 POST(同 deleteAccountData 慣例)——API_POST_ALLOWED 只擋「非 GET/HEAD 且不在名單內」,
@@ -2198,7 +2206,7 @@ async function laBind(request, env) {
   let b;
   try { b = await request.json(); } catch (e) { return jsonRes({ error: 'bad_json' }, 400, 'no-store'); }
   if (!b) return jsonRes({ error: 'bad_json' }, 400, 'no-store');
-  if (!/^[0-9a-f]{64}$/.test(String(b.token || ''))) return jsonRes({ error: 'bad_token' }, 400, 'no-store');
+  if (!LA_TOKEN_RE.test(String(b.token || ''))) return jsonRes({ error: 'bad_token' }, 400, 'no-store');
   if (b.sys !== 'tra_sched' && b.sys !== 'thsr_sched') return jsonRes({ error: 'bad_sys' }, 400, 'no-store');
   if (!/^[0-9A-Za-z]{1,8}$/.test(String(b.trainNo || ''))) return jsonRes({ error: 'bad_train' }, 400, 'no-store');
   if (!Array.isArray(b.stops) || !b.stops.length || b.stops.length > 200) return jsonRes({ error: 'bad_stops' }, 400, 'no-store');
@@ -2268,7 +2276,7 @@ async function laUnbind(request, env) {
   try { b = await request.json(); } catch (e) { return jsonRes({ ok: true }, 200, 'no-store'); }
   // 冪等:不存在也回 200。註銷不另驗身分——APNs token 本身就是難以猜中的憑證,
   // 而誤刪的成本只是一張卡停止自動換站(退化成 LA-0 的前景行為),不是資料損失。
-  if (b && /^[0-9a-f]{64}$/.test(String(b.token || ''))) {
+  if (b && LA_TOKEN_RE.test(String(b.token || ''))) {
     try { await env.DELAY_DB.prepare('DELETE FROM la_bindings WHERE token=?').bind(String(b.token)).run(); }
     catch (e) { /* 表還沒建或 D1 暫時不可用:回 200,前端沒有可做的補救 */ }
   }
