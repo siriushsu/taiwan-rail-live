@@ -194,7 +194,10 @@ authorization: bearer <ES256 JWT，用 p8 金鑰簽>
 >   不是 ISO-8601、也不是 1970 epoch。Apple 開發者論壇有真實案例：字串誤餵進 `Date` 欄位在
 >   真機上以 `NSCocoaErrorDomain (4864)` 解碼崩潰，且伺服器端完全看不出來（送出當下仍是 200）。
 >   選數字契約可以從根本避開這整類「型別看起來對、解碼卻默默解錯」的風險。
-> - **影響範圍**：本節 struct、`plan.md` Task 7 的欄位宣告與 `progress()` helper，三處已同步。
+> - **影響範圍**：本節 struct、`plan.md` Task 7 的欄位宣告、`progress()` helper，
+>   以及**既有的** `countdown()` 與它的三個呼叫點（鎖定畫面／動態島 expanded／動態島
+>   compact，見 `RailFollowActivity.swift`）——這幾處都已同步（見 §6 那句訂正與
+>   `plan.md` Task 7 Step 2 的補充；修復輪次2 只顧到前三處，countdown() 是修復輪次3 補的）。
 > - 🔴 **Task 6 與 Task 7 必須同批上線**——原因見 §10 新增那條。
 
 ```swift
@@ -214,6 +217,14 @@ App 更新前開的卡解不出來」——那條對**非 Optional** 欄位成�
 
 > ⚠️ 這是對 Swift 語意的判斷，**不是實測**。實作時必須跨版本真機測一次：
 > 舊版開卡 → 換新版 Widget → 確認卡片沒變空白。
+
+> 🔴 **修復輪次3 補充**（釐清上面「只加 Optional 欄位」這條的適用範圍）：這條相容性論證
+> 只保護**真正新增的 key**（`departedDate`）——`decodeIfPresent` 處理的是「舊 payload 沒有
+> 這個 key」，跟數值的型別無關。**它不保護 `arrivalDate` 的型別變更**（`Date?`→`Double?`，
+> 見上方修訂註記）：這個 key 從以前就存在，不是「缺 key」的情況，風險是「舊版 Widget 拿
+> `.deferredToDate` 去解一個新格式的數字」——這正是本節上方修訂註記與 §10 新增那條在管的
+> 事，不是本段「只加 Optional 欄位」在管的事。兩段各自保護不同的風險，不要讀成同一件事
+> 的兩種講法。
 
 ### 5.2 bind payload
 
@@ -281,7 +292,13 @@ Plus 驗證用既有的 `checkPlusEntitlement()`（Firebase ID token → Revenue
 車卡在站上十分鐘，誤點數字可能一動不動，倒數卻顯示「還有 2 分鐘」。
 
 這一條規則同時吃掉交會待避、臨時停車、資料延遲所有「車比預期慢」的情況，不必分別處理。
-Widget 端不用改：`countdown()` 本來就寫著「`arrivalDate` 為 nil ⇒ 整列不畫」。
+
+> 🔴 **修復輪次3 訂正**（原文 → 更正 → 為什麼）：原文「Widget 端不用改」是錯的。
+> **降級語意**本身沒變——`arrivalDate` 為 nil ⇒ 整列不畫，這件事不受型別影響——但
+> `arrivalDate` 改型別（`Date?`→`Double?`，見 §5.1）後，**實作它的 Swift 程式碼要跟著改**：
+> `countdown()`（`RailFollowActivity.swift`）與它的三個呼叫點（鎖定畫面／動態島
+> expanded／compact）都要把入參改成 `Double?` 並在函式內轉換，否則型別不符會編譯不過。
+> 原句把「語意沒變」誤推成「程式碼不用動」。詳細改法見 `plan.md` Task 7 Step 2。
 
 ---
 

@@ -1000,6 +1000,8 @@ git show --numstat HEAD
   - `laNextIdx(sta, status, staMap, stopCodes, lastIdx) → number` — 有即時觀測時，該顯示第幾站
   - `laSchedIdx(stops, delaySec, nowSec, lastIdx) → number` — 沒有觀測時的表定退路
   - `laArrivalIso(atSec, delaySec, nowSec) → string | null` — 到站時刻，已過回 `null`
+    （🔴 修復輪次3：實際簽章已改 `laArrivalEpoch(atSec, delaySec, nowSec) → number | null`，
+    回 epoch 秒數字不是 ISO 字串，理由見 design.md §5.1）
 
 > **為什麼獨立成檔而不放 worker.js：** 測試要能 `import` 它直接測邏輯，而 `worker.js` 有 top-level import
 > 與 Worker-only 的相依，從 Node 直接 import 不可靠。專案既有做法就是這樣——`worker.js:2` 從
@@ -1420,9 +1422,11 @@ JWT 快取 50 分鐘(Apple 規定 20-60 分鐘,每次重簽會被當濫用)。"
 > 🔴 **修復輪次2 契約修訂**（原文 → 現在 → 為什麼；本步驟是 Task 7 最關鍵的一行，務必先看）
 >
 > - **原文**：`var departedDate: Date?`，後端送 ISO-8601 字串。
-> - **改成**：`var departedDate: Double?`（Unix epoch 秒數）；`arrivalDate`（既有欄位）
->   同樣已是 `Double?`，不是 `Date?`——若你手上的 `RailFollowAttributes.swift` 現況還是
->   `Date?`，那一併改。
+> - **改成**：`var departedDate: Double?`（Unix epoch 秒數）；**`arrivalDate`（既有欄位）也要
+>   從 `Date?` 改成 `Double?`**——這不是「早就改好了」，實測 `RailFollowAttributes.swift:10`
+>   現況就是 `var arrivalDate: Date?`（🔴 修復輪次3 訂正：上一版這裡誤寫成「同樣已是
+>   `Double?`」，是還沒核對實際檔案就下的錯誤斷言，這裡連同 `departedDate` 一起改，
+>   是兩個欄位一起 retype，不是新欄位不用管舊欄位）。
 > - **為什麼**：Swift `JSONDecoder` 對 Live Activity content-state 只能用**預設**編碼策略
 >   （Apple WWDC23 session 10185，自訂策略「會導致更新失敗」）。預設 `.deferredToDate` 解碼
 >   單一數字時是當成 `timeIntervalSinceReferenceDate`（2001-01-01 零點），不是 1970 epoch、
@@ -1461,6 +1465,26 @@ JWT 快取 50 分鐘(Apple 規定 20-60 分鐘,每次重簽會被當濫用)。"
         }
     }
 ```
+
+> 🔴 **修復輪次3 補充**：`RailFollowActivity.swift` 裡**既有**的 `countdown()`（本來就在，
+> 不是這個 Task 新增的）簽章也是 `Date?`，而 `arrivalDate` 的型別跟著 Step 1 一起改了
+> （見上方修訂註記）——這個函式與它的三個呼叫點（鎖定畫面、動態島 expanded、動態島
+> compact）**必須一起改，不動會編譯不過**。用同一個轉換模式：
+
+```swift
+    // 🔴 修復輪次3:入參從 Date? 改 Double?,理由與 progress() 相同(見上方)。
+    @ViewBuilder
+    private func countdown(_ dateSec: Double?, maxWidth: CGFloat) -> some View {
+        let date = dateSec.map { Date(timeIntervalSince1970: $0) }
+        if let date, date > Date() {
+            Text(timerInterval: Date()...date, countsDown: true)
+                .monospacedDigit().frame(maxWidth: maxWidth)
+        }
+    }
+```
+
+三個呼叫點（`countdown(context.state.arrivalDate, maxWidth: …)`）因為只是換上游型別、
+呼叫語法不變，不需要跟著改。
 
 鎖定畫面版面：`Text(context.state.nextStop).font(.headline)` 下方插入
 
