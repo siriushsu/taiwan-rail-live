@@ -10793,6 +10793,38 @@ function placeMobileNotice(el) {
   el.style.maxHeight = Math.max(64, botV - topV) + 'px';
   el.style.overflowY = 'auto';
 }
+// ── App 版本提示:純邏輯層 ─────────────────────────────────────────────────
+// 逐段比整數,不是字串比較。依據:線上曾出現版本字串 `1.02`,Apple 逐段比整數 ⇒ [1,2],
+// 字串比會把它判成小於 `1.1`,剛好判反(見 app/scripts/set-release-mode.mjs:34-38)。
+// 回傳 -1/0/1;任一邊解析不出純數字段 → null(＝不比較,呼叫端什麼都不顯示)。
+function cmpVer(a, b) {
+  const parse = s => {
+    if (typeof s !== 'string') return null;
+    const parts = s.trim().split('.');
+    if (!parts.length || parts.some(p => !/^\d+$/.test(p))) return null;
+    return parts.map(Number);
+  };
+  const x = parse(a), y = parse(b);
+  if (!x || !y) return null;
+  for (let i = 0, n = Math.max(x.length, y.length); i < n; i++) {
+    const d = (x[i] || 0) - (y[i] || 0);
+    if (d) return d < 0 ? -1 : 1;
+  }
+  return 0;
+}
+
+// 三個互斥狀態的判定。st = { seen, dismissed, whatsnewSeen }(全部可為 null)。
+// seen ＝上次開 App 時「手上這顆」的版本;它不存在(第一次裝)時刻意不顯示更新卡片,
+// 免得使用者第一次開就被迎面打一張。
+function appUpdateState(mine, latest, st) {
+  const none = { hasUpdate: false, showBanner: false, showWhatsNew: false };
+  const c = cmpVer(mine, latest);
+  if (c === null) return none;
+  if (c < 0) return { hasUpdate: true, showBanner: st.dismissed !== latest, showWhatsNew: false };
+  return { hasUpdate: false, showBanner: false,
+           showWhatsNew: !!st.seen && st.seen !== mine && st.whatsnewSeen !== mine };
+}
+
 function showToast(msg) {
   // #recordScreen(詳細面板)在 body 層(z2400)，全站 toast 卻在 .stage(z1000)的堆疊脈絡內——
   // 只有面板真的整片接管畫面時才會蓋住 #toasts，這時才需要繞道 #recHint(z2450,蓋得過黑幕)。
