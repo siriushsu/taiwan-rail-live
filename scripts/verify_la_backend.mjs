@@ -205,6 +205,10 @@ ok('N7 終點之後(映射無值)→維持現狀', nx('4340', 2, MAP, CODES, 2) 
 const T0 = 1_800_000_000;
 const SCH = [{ at: T0 + 600 }, { at: T0 + 1800 }, { at: T0 + 3600 }];
 ok('N8 表定推進:第一站還沒到 → idx 0', laSchedIdx(SCH, 0, T0, -1) === 0, String(laSchedIdx(SCH, 0, T0, -1)));
+// 🔴 最終複審 C1-Minor-1:N8/N9 取樣點各差 300 秒,`>` 寫成 `>=` 完全測不出來(兩條照樣綠)。
+// 這一條就站在邊界上:now 恰等於 at+delay ⇒ 依 `>` 的語意算「已過」,要前進到 idx 1。
+ok('N8b 表定推進邊界:now 恰等於第一站 at(±0 秒)⇒ 算已過,前進到 idx 1(`>` 改成 `>=` 會回 0)',
+   laSchedIdx(SCH, 0, T0 + 600, -1) === 1, String(laSchedIdx(SCH, 0, T0 + 600, -1)));
 ok('N9 表定推進:第一站已過 → 前進到 idx 1', laSchedIdx(SCH, 0, T0 + 900, 0) === 1, String(laSchedIdx(SCH, 0, T0 + 900, 0)));
 ok('N10 表定推進吃誤點:誤點 10 分 ⇒ 同一時刻仍在 idx 0', laSchedIdx(SCH, 600, T0 + 900, 0) === 0, String(laSchedIdx(SCH, 600, T0 + 900, 0)));
 ok('N11 表定推進也守單調閘門', laSchedIdx(SCH, 0, T0, 2) === 2, String(laSchedIdx(SCH, 0, T0, 2)));
@@ -216,6 +220,11 @@ ok('N12 全部過完 → 回 stops.length(呼叫端據此收卡)', laSchedIdx(SC
 // 不是 ISO 8601,詳見 la_push_core.mjs 該函式的註解。N13-N15 同步改成驗新契約。
 ok('N13 未到站 → 回 epoch 秒數字', laArrivalEpoch(T0 + 600, 0, T0) === T0 + 600, String(laArrivalEpoch(T0 + 600, 0, T0)));
 ok('N14 到站時刻已過 → 回 null', laArrivalEpoch(T0 + 600, 0, T0 + 601) === null, String(laArrivalEpoch(T0 + 600, 0, T0 + 601)));
+// 🔴 最終複審 C1-Minor-1:N13/N14 取樣點只差 1 秒卻各自離邊界 600/1 秒,`>` 寫成 `>=`
+// 仍然兩條全綠。N14b 站在邊界上,而且它與 N8b 必須是【同一個約定】——laSchedIdx 判「已過」
+// 的那一刻,laArrivalEpoch 就得回 null,否則卡片會出現「下一站已翻到 B、抵達時刻卻還印著 A 的」。
+ok('N14b 到站邊界:now 恰等於 at+delay(±0 秒)⇒ 回 null,與 N8b 同一個約定(`>=` 會回數字)',
+   laArrivalEpoch(T0 + 600, 0, T0 + 600) === null, String(laArrivalEpoch(T0 + 600, 0, T0 + 600)));
 ok('N15 誤點把到站推到未來 → 又回數字(不是永久 null)', typeof laArrivalEpoch(T0 + 600, 600, T0 + 700) === 'number', String(laArrivalEpoch(T0 + 600, 600, T0 + 700)));
 
 // J 系列:APNs JWT。只驗結構與可解性,不驗 Apple 會不會接受(那要真金鑰,見 Step 6)。

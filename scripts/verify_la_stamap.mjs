@@ -33,6 +33,36 @@ const base = `http://localhost:${server.address().port}/`;
 const results = [];
 const ok = (n, p, d = '') => { results.push({ n, p }); console.log(`${p ? 'PASS' : 'FAIL'} ${n}${d ? ' — ' + d : ''}`); };
 
+// ══════════ 中止保護(最終複審 C2-I4) ══════════
+// 🔴 這支腳本原本任何一步拋例外(最可能是下面那發 60 秒 waitForFunction 逾時,開機一改就會踩)
+//    都會直接以未捕捉的 rejection 死掉:一條 FAIL 都不印、總計行也不印,退出碼雖然非 0 但
+//    輸出長得像「還沒跑完」而不是「失敗」——本專案已經有過「非綠非紅」被當成綠的前例。
+//    這裡把三條中止路徑都收斂成「印出總計 + 明確 FAIL + 退出碼 1」。
+// EXPECT_TOTAL 同時是分母閘門:條件式區塊整批消失時,不會因為分母跟著縮水而看起來全綠。
+const EXPECT_TOTAL = 7;              // T1/T2/T3a/T3b/T3c/T4/T5
+let summarised = false;
+function summary() {
+  if (summarised) return;
+  summarised = true;
+  if (results.length !== EXPECT_TOTAL)
+    ok(`G1 斷言總數閘門:實跑 ${results.length} 條,預期 ${EXPECT_TOTAL} 條`, false);
+  const bad = results.filter(r => !r.p).length;
+  console.log(`\n總計 ${results.length} 項,FAIL ${bad}`);
+  process.exitCode = bad ? 1 : 0;
+}
+function fatal(why, e) {
+  ok(`G1 腳本中止(${why}):${e && e.message ? e.message : String(e)}`, false);
+  summary();
+  process.exit(1);
+}
+process.on('uncaughtException', e => fatal('uncaughtException', e));
+process.on('unhandledRejection', e => fatal('unhandledRejection', e));
+process.on('exit', () => {
+  if (summarised) return;
+  console.log(`\n🔴 腳本在跑完之前就結束了(已完成 ${results.length}/${EXPECT_TOTAL} 條)——這【不是】通過`);
+  process.exitCode = 1;
+});
+
 const browser = await chromium.launch();
 const page = await browser.newPage();
 await page.addInitScript(() => { try { localStorage.setItem('trainmap-howto-seen', '1'); } catch (e) {} });
@@ -115,6 +145,5 @@ ok('T5 stopCodes 同序同長且無 null', sc.len === sc.want && sc.nulls === 0,
    `${sc.len}/${sc.want}、null ${sc.nulls}、首筆 ${sc.first}`);
 
 await browser.close(); server.close();
-const bad = results.filter(r => !r.p).length;
-console.log(`\n總計 ${results.length} 項,FAIL ${bad}`);
-process.exit(bad ? 1 : 0);
+summary();
+process.exit(process.exitCode ? 1 : 0);

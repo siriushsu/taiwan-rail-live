@@ -108,7 +108,14 @@ try {
     : monotonic
       ? '✅ 每次 await fetch 之後時鐘都往前走(嚴格遞增)—— 牆鐘預算成立,上界宣稱有效'
       : '⚠️ 有推進但非嚴格遞增 —— 預算仍會觸發,但請看逐次數值判斷是否有粗顆粒'}`);
-  process.exitCode = allZero ? 1 : 0;
+  // 🔴 最終複審 C1-I3:退出碼原本只看 allZero ⇒ 兩種「量到的東西根本不算數」的情況會回 0(綠):
+  //   (a) stubHits !== N —— 迴圈沒有真的打滿 N 次(workerd 去重/合併子請求、或 stub 被別人打),
+  //       那 deltas 就不是「N 次 await fetch 之後的時鐘」,拿它下結論等於量錯對象;
+  //   (b) 非嚴格遞增 —— 時鐘有動但可能是粗顆粒/回跳,「牆鐘預算一定會觸發」這個結論沒被證到。
+  // 三者皆成立才算通過;任何一項不成立都回非 0,讓上游(CI/人)必須看一眼結論再決定。
+  const pass = !allZero && monotonic && stubHits === N;
+  if (!pass) console.log(`[probe] 🔴 退出碼非 0:allZero=${allZero} monotonic=${monotonic} stubHits=${stubHits}/${N}`);
+  process.exitCode = pass ? 0 : 1;
 } catch (e) {
   console.error('[probe] 失敗:', (e && e.stack) || String(e));
   process.exitCode = 2;
