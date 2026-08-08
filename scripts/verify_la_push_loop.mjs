@@ -711,6 +711,107 @@ for (const [tag, status] of [['p7a', 429], ['p7b', 500]]) {
   await delRow(T21c);
 }
 
+// ══════════════════════════════════════════════════════════════════
+// Group E(修復輪次3,獨立 re-review scoped 再審——C-1/C-2 是本輪新問題,不是輪次2漏項)
+// ══════════════════════════════════════════════════════════════════
+
+// P22(C-1,關鍵):熔斷分母原本是 rows.length(本輪掃到的列數),但「沒變就不推」的跳過路徑
+// 是主要路徑,真正打 APNs 的只是少數——分母用錯會讓熔斷在它唯一要防的情境(host/topic 打錯,
+// 真的打了的列全部失敗)算出偏低的比例,反而不觸發。8 列走跳過路徑(last_idx 已經等於這輪會
+// 算出的 idx,delaySec 對 thsr_sched 恆等於 last_delay,兩條件都「沒變」不會打 APNs)＋2 列
+// 真的推且回 BadDeviceToken,構造 attempted=2、rows.length=10 的落差:分母用 rows.length
+// 算出 2/10=20%(不觸發,錯),分母用 attempted 算出 2/2=100%(觸發,對)。
+// 這條測試在改分母之前必須是紅的(先寫、先看紅,再改分母——re-review 明確要求的順序)。
+{
+  const SKIP_N = 8, FAIL_N = 2;
+  const skipTokens = Array.from({ length: SKIP_N }, (_, i) => tok('p22skip' + i));
+  const failTokens = Array.from({ length: FAIL_N }, (_, i) => tok('p22fail' + i));
+  for (const t of [...skipTokens, ...failTokens]) await delRow(t);
+  mockNowSec = 1_800_000_000;
+  const mkStops = (n) => [{ name: n + '0', at: mockNowSec + 100 }, { name: n + '1', at: mockNowSec + 200 }];
+  // 跳過路徑:last_idx 直接設成這輪會算出的值(0)。thsr_sched 沒有即時觀測,delaySec 在
+  // laPushAll 內恆等於 row.last_delay——兩個「沒變」條件都滿足,連 APNs 都不會打。
+  for (let i = 0; i < SKIP_N; i++) {
+    await insRow({ token: skipTokens[i], sys: 'thsr_sched', train_no: '9p22s' + i, stops: mkStops('S' + i), last_idx: 0, last_delay: 0, bound_at: mockNowSec, expire_at: mockNowSec + 3600 + i });
+  }
+  // 真的推:last_idx=-1(剛綁定),這輪會算出 idx=0,與 last_idx 不同 → 觸發推播。
+  for (let i = 0; i < FAIL_N; i++) {
+    await insRow({ token: failTokens[i], sys: 'thsr_sched', train_no: '9p22f' + i, stops: mkStops('F' + i), last_idx: -1, last_delay: 0, bound_at: mockNowSec, expire_at: mockNowSec + 3700 + i });
+  }
+  calls.length = 0; apnsNextStatus = 200; apnsNextReason = ''; apnsPerToken = {};
+  for (const t of failTokens) apnsPerToken[t] = { status: 400, reason: 'BadDeviceToken' };
+  const { result: r22, errLines: errLines22 } = await captureConsole(() => laPushAll(env, fakeCtx, BASE_URL));
+  apnsPerToken = {};
+  const apnsCalls22 = calls.filter(c => c.url.includes(APNS_FRAG));
+  ok('P22 只有 2 列真的打了 APNs(8 列跳過路徑零呼叫)', apnsCalls22.length === FAIL_N, `count=${apnsCalls22.length}`);
+  ok('P22(關鍵)分母是「真的打了 APNs 的列數」不是「本輪掃到的列數」→ 2/2=100% 觸發熔斷,不刪',
+    r22.dropped === 0 && r22.heldBack === FAIL_N, JSON.stringify(r22));
+  const failRows22 = await Promise.all(failTokens.map(getRow));
+  ok('P22(關鍵)那 2 列沒被刪(熔斷擋下)', failRows22.every(r => r && r.last_idx === -1), JSON.stringify(failRows22.map(r => r && r.last_idx)));
+  ok('P22 熔斷 log 用 attempted 當分母顯示 2/2,不是 2/10', errLines22.some(l => l.includes('熔斷觸發') && l.includes('2/2') && l.includes('100%')), JSON.stringify(errLines22));
+  for (const t of [...skipTokens, ...failTokens]) await delRow(t);
+}
+
+// P23(C-2,關鍵):熔斷觸發後沒有退避,被扣住的列每分鐘全額重打(最壞情況 500 列 x ~100ms
+// 序列往返逼近 60 秒 cron 週期)。修法:連續永久失敗達 LA_BREAKER_STREAK_STOP(10)筆就提早
+// 停手,不再送剩餘列的 APNs。15 列全部真推、全部回同一種永久失敗 reason,證明單 tick 的
+// APNs 往返次數上界確實被壓到常數(10),不是仍然掃完全表(15)。
+// 🔴 token 命名注意:tok() 對短 tag 補零到 64 字元,若索引跨個位數/兩位數邊界(例如 tag
+// "1" 補零後與 tag "10" 補零後完全相同字串)會撞號、insRow 主鍵衝突——用 padStart(2,'0')
+// 固定寬度避開這個坑。
+{
+  const N = 15;
+  const tokens = Array.from({ length: N }, (_, i) => tok('p23n' + String(i).padStart(2, '0')));
+  for (const t of tokens) await delRow(t);
+  mockNowSec = 1_800_000_000;
+  for (let i = 0; i < N; i++) {
+    const stops = [{ name: 'A' + i, at: mockNowSec + 100 }, { name: 'B' + i, at: mockNowSec + 200 }];
+    await insRow({ token: tokens[i], sys: 'thsr_sched', train_no: '9p23n' + i, stops, last_idx: -1, last_delay: 0, bound_at: mockNowSec, expire_at: mockNowSec + 3600 + i });
+  }
+  calls.length = 0; apnsNextStatus = 400; apnsNextReason = 'BadDeviceToken'; apnsPerToken = {};
+  const { result: r23, errLines: errLines23 } = await captureConsole(() => laPushAll(env, fakeCtx, BASE_URL));
+  const apnsCalls23 = calls.filter(c => c.url.includes(APNS_FRAG));
+  ok('P23(關鍵)連續永久失敗達門檻(10)就提早停手,不會把 15 列全打完', apnsCalls23.length === 10, `count=${apnsCalls23.length}`);
+  ok('P23 sent=0(全部都失敗,沒有成功的)', r23.sent === 0, JSON.stringify(r23));
+  ok('P23(關鍵)heldBack=10,不是 15——熔斷擋下的剛好是提早停手前累積的那些', r23.heldBack === 10, JSON.stringify(r23));
+  ok('P23 dropped=0(熔斷觸發,不刪)', r23.dropped === 0, JSON.stringify(r23));
+  const rows23 = await Promise.all(tokens.map(getRow));
+  ok('P23(關鍵)前 10 列(被打過 APNs 那些)還在,沒被刪(熔斷擋下)', rows23.slice(0, 10).every(r => r && r.last_idx === -1), JSON.stringify(rows23.slice(0, 10).map(r => r && r.last_idx)));
+  ok('P23(關鍵)後 5 列完全沒被碰過(提早停手根本沒排到它們,配合上面 apnsCalls23===10 才是完整證據)', rows23.slice(10).every(r => r && r.last_idx === -1), JSON.stringify(rows23.slice(10).map(r => r && r.last_idx)));
+  ok('P23 熔斷 log 顯示 10/10=100%(分母是提早停手當下的 attempted,不是 15)', errLines23.some(l => l.includes('熔斷觸發') && l.includes('10/10') && l.includes('100%')), JSON.stringify(errLines23));
+  for (const t of tokens) await delRow(t);
+}
+
+// P24(C-2 延伸,證明早退看的是「連續」不是「累計」):9 列失敗 + 1 列成功(打斷連續)+
+// 之後全部失敗——如果早退邏輯正確地看「連續」失敗數,必須在成功之後重新從零累積到 10 才
+// 會早退,總共要打 9+1+10=20 發才停;如果誤植成單純的「累計」失敗數達 10 就早退(不管
+// 中間有沒有成功打斷),會在第 11 發(9 敗+1 成功+第 10 個敗)就早退。兩種結果差 9 發,
+// 不會混淆,足以單獨證明「連續」語意真的有實作,不是巧合碰到累計也對的情況。
+{
+  const N = 21;
+  const tokens = Array.from({ length: N }, (_, i) => tok('p24n' + String(i).padStart(2, '0')));
+  for (const t of tokens) await delRow(t);
+  mockNowSec = 1_800_000_000;
+  for (let i = 0; i < N; i++) {
+    const stops = [{ name: 'A' + i, at: mockNowSec + 100 }, { name: 'B' + i, at: mockNowSec + 200 }];
+    await insRow({ token: tokens[i], sys: 'thsr_sched', train_no: '9p24n' + i, stops, last_idx: -1, last_delay: 0, bound_at: mockNowSec, expire_at: mockNowSec + 3600 + i });
+  }
+  calls.length = 0; apnsPerToken = {};
+  // 第 10 列(index 9)成功,其餘全部 BadDeviceToken——用 apnsPerToken 逐列精準控制。
+  for (let i = 0; i < N; i++) {
+    apnsPerToken[tokens[i]] = i === 9 ? { status: 200, reason: '' } : { status: 400, reason: 'BadDeviceToken' };
+  }
+  const r24 = await laPushAll(env, fakeCtx, BASE_URL);
+  apnsPerToken = {};
+  const apnsCalls24 = calls.filter(c => c.url.includes(APNS_FRAG));
+  ok('P24(關鍵)連續失敗數被中間 1 次成功打斷,必須重新累積——20 發才停,不是 11 發(證明是「連續」不是「累計」)',
+    apnsCalls24.length === 20, `count=${apnsCalls24.length}`);
+  ok('P24 sent=1(那唯一一次成功)', r24.sent === 1, JSON.stringify(r24));
+  const row24mid = await getRow(tokens[9]);
+  ok('P24 第 10 列(成功那列)last_idx 被更新成 0', !!row24mid && row24mid.last_idx === 0, row24mid ? `last_idx=${row24mid.last_idx}` : '(查無列!)');
+  for (const t of tokens) await delRow(t);
+}
+
 await dispose();
 Date.now = realDateNow;
 globalThis.fetch = realFetch;
