@@ -1597,6 +1597,48 @@ const NOTICE_EXPECT = '即時資料中斷，位置為預估。實際動態請查
   await resetTable();
 }
 
+// PBIND(工項 B 的另一個必要條件):同一顆 device token 換綁另一台車時,last_obs_idx 必須
+// 與 last_idx 一起歸零。laBind 的 UPSERT 是全專案【唯一】會重設 last_idx 的地方;漏了這一欄,
+// 單調閘門的地板會停在【上一台車】的索引,新車的第一發觀測被 Math.max 直接抬上去
+// ⇒ 卡片一開就跳到中途某一站。這條盯的是「新增狀態欄位卻忘了在重設點一起重設」這個形態。
+{
+  // 🔴 這一格與其他格不同:laBind 會【真的驗】token 格式(64 碼小寫 hex),
+  //    tok() 造出來的可讀標籤(含非 hex 字母)會被擋在 bad_token,端點根本不會跑到 UPSERT。
+  const T = 'bdbd' + '0'.repeat(60);
+  await resetTable();
+  mockNowSec = H_BASE + 13000;
+  const base = mockNowSec;
+  // 先造出「上一台車已經跑到第 5 站」的狀態
+  await insRow({ token: T, sys: 'tra_sched', train_no: '565',
+    stops: [0, 1, 2, 3, 4, 5].map(i => ({ name: 'X' + i, at: base + i * 600 })),
+    staMap: { C0: 1 }, stopCodes: ['C0'],
+    last_idx: 5, last_obs_idx: 5, last_delay: 180, bound_at: base, expire_at: base + 3600 });
+  // 同一顆 token 換綁另一台車。走【真的 laBind 端點函式】,不是自己寫一發 SQL——
+  // 要驗的正是那句 UPSERT 的 DO UPDATE SET 有沒有把新欄位一起歸零。
+  const bindEnv = Object.assign(Object.create(Object.getPrototypeOf(env) || Object.prototype), env);
+  bindEnv.LA_TEST_BEARER = 'pbind-local-test';      // 具名本機測試閘門(正式環境不設這顆 secret)
+  delete bindEnv.LA_LIMITER;                        // 限流替身在這個 harness 不存在,拿掉才是確定性的
+  const bindRes = await worker._la.laBind(new Request('https://dummy.invalid/api/la/bind', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', Authorization: 'Bearer pbind-local-test' },
+    body: JSON.stringify({
+      token: T, sys: 'tra_sched', trainNo: '566',
+      stops: [{ name: 'Y0', at: base + 300 }, { name: 'Y1', at: base + 900 }],
+      stopCodes: ['D0', 'D1'], staMap: { D0: 1 },
+    }),
+  }), bindEnv);
+  const bindBody = await bindRes.clone().text();
+  ok('PBIND 前置(正向對照):換綁真的成功了(200),否則下面兩條在「端點根本沒跑」時也會通過',
+    bindRes.status === 200, `status=${bindRes.status} body=${bindBody}`);
+  const rowB = await getRow(T);
+  ok('PBIND 前置:換綁確實覆寫了這一列(train_no 565 → 566)',
+    !!rowB && rowB.train_no === '566', rowB ? `train_no=${rowB.train_no}` : '(查無列)');
+  ok('PBIND(關鍵)換綁時 last_obs_idx 與 last_idx 一起歸零成 -1——沒歸零的話新車一開卡就跳到第 5 站',
+    !!rowB && rowB.last_idx === -1 && rowB.last_obs_idx === -1 && rowB.last_delay === 0,
+    rowB ? `last_idx=${rowB.last_idx} last_obs_idx=${rowB.last_obs_idx} last_delay=${rowB.last_delay}` : '(查無列)');
+  await resetTable();
+}
+
 // PEXC(最終複審 C1-I2):全域尾閘。worker.js 的 per-row try/catch 會把任何例外變成一行 log
 // 就 continue、不改任何回傳計數 ⇒ 例外通道對既有斷言【結構性隱形】(實測:讓每一列都拋
 // TypeError,139 條照樣全綠)。這條把「沒有我沒預期到的例外」變成具名斷言。
@@ -1620,7 +1662,7 @@ const NOTICE_EXPECT = '即時資料中斷，位置為預估。實際動態請查
 // 實測某一發突變讓總計從 139 掉到 128,11 條斷言消失而沒有任何人報警。
 // 這條把「每一格都真的跑到了」變成具名斷言。改動本檔的斷言數時要一併更新這個常數。
 {
-  const EXPECT_TOTAL = 196;   // 不含本條;本條自己會讓總計 +1(2026-08-08 工項 A/B:181 → 196)
+  const EXPECT_TOTAL = 199;   // 不含本條;本條自己會讓總計 +1(2026-08-08 工項 A/B:181 → 199)
   ok(`COV 覆蓋率 gate:本輪斷言總數必須恰好等於預期 ${EXPECT_TOTAL}(區塊被跳過或條件式吞掉會讓分母無聲縮水)`,
     results.length === EXPECT_TOTAL, `actual=${results.length}`);
 }

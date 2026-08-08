@@ -2233,7 +2233,11 @@ async function laBind(request, env) {
       'INSERT INTO la_bindings (token,uid,sys,train_no,stops,sta_map,stop_codes,last_idx,last_delay,bound_at,expire_at)' +
       ' VALUES (?,?,?,?,?,?,?,-1,0,?,?) ON CONFLICT(token) DO UPDATE SET' +
       ' uid=excluded.uid, sys=excluded.sys, train_no=excluded.train_no, stops=excluded.stops,' +
-      ' sta_map=excluded.sta_map, stop_codes=excluded.stop_codes, last_idx=-1, last_delay=0,' +
+      // 🔴 last_obs_idx 必須與 last_idx 一起歸零:同一顆 device token 換綁另一台車時,
+      // 沒歸零的話單調閘門的地板還停在【上一台車】的索引 ⇒ 新車的第一發觀測會被
+      // Math.max 直接抬到那個索引 ⇒ 卡片一開就跳到中途某一站。
+      // 規矩:凡是重設 last_idx 的地方,都要一併重設 last_obs_idx(釘死者 PBIND)。
+      ' sta_map=excluded.sta_map, stop_codes=excluded.stop_codes, last_idx=-1, last_obs_idx=-1, last_delay=0,' +
       ' bound_at=excluded.bound_at, expire_at=excluded.expire_at'
     ).bind(String(b.token), uid, String(b.sys), String(b.trainNo),
       JSON.stringify(b.stops), JSON.stringify(b.staMap), JSON.stringify(b.stopCodes),
@@ -4477,7 +4481,7 @@ export const _trtcLedger = {
 // scripts/verify_la_push_loop.mjs。正式 router 不因此增加任何路徑。
 // traLive 一併導出(修復輪次1):驗 Important 6(cron 呼叫不可污染用量分析)需要一個「真人前景
 // 呼叫」的正向對照——不然「cron 沒寫用量」這個斷言測不出「本來就寫不進去」的假綠。
-export const _la = { laPushAll, traLive };
+export const _la = { laPushAll, traLive, laBind };
 // 純函式與端點/cron 導出,供離線回歸測試 import(scripts/verify_thsr_schedule.mjs)。
 // thsrConvertDaily/thsrBuildStationMap/thsrSelectServedDay/thsrKeyToMs 是純函式,可直接餵 fixture。
 // fetchThsrDaily/thsrStationMap/ingestThsrSchedule/thsrSchedule 會碰 D1/ASSETS/網路,測試要自備
