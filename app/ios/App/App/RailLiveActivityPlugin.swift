@@ -43,7 +43,7 @@ public final class RailLiveActivityPlugin: CAPPlugin, CAPBridgedPlugin {
         //    造出一個憑空捏造、而且真的在走的「還有 1 分鐘」——使用者無從分辨真假。
         return RailFollowAttributes.ContentState(
             nextStop: call.getString("nextStop") ?? "",
-            arrivalDate: date,
+            arrivalDate: date?.timeIntervalSince1970,
             delaySec: call.getInt("delaySec") ?? 0,
             terminus: call.getString("terminus") ?? ""
         )
