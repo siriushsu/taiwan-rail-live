@@ -10974,6 +10974,35 @@ function appUpdateRender(res) {
   }
 }
 
+// ── 評分邀請 ─────────────────────────────────────────────────────────────
+// Apple 一年只給 3 次系統彈窗,而且顯不顯示由 Apple 決定 ⇒ 節流要嚴,
+// 花在「剛裝好、還沒愛上」的人身上是純浪費。
+// 分工也是合規要求:Apple 明令按鈕不可直接觸發 requestReview(那是 call to action),
+// 所以自動的走系統 API、常駐入口走 ?action=write-review 深連結。
+const REVIEW_KEYS = { asked: 'trainmap-review-asked', done: 'trainmap-review-done' };
+const REVIEW_MIN_RIDES = 2, REVIEW_COOLDOWN = 90 * 86400000;
+const REVIEW_WRITE_URL = 'https://apps.apple.com/tw/app/id6792673516?action=write-review';
+
+// 純函式,好測。st = { asked: {ver, at}|null, done: boolean, ver: 目前版本 }
+function reviewShouldAsk(rideCount, now, st) {
+  if (st.done) return false;                                   // 已從常駐入口評過 → 永遠不再自動問
+  if (!(rideCount >= REVIEW_MIN_RIDES)) return false;          // 第一次完乘就問太急
+  if (!st.asked) return true;
+  if (st.asked.ver === st.ver) return false;                   // 同一版只問一次
+  return now - (st.asked.at || 0) >= REVIEW_COOLDOWN;
+}
+
+function maybeAskReview(delayMs, rideCount) {
+  const ver = window.RAIL_APP_VERSION;
+  if (typeof ver !== 'string' || !ver) return;                 // 網站版直接不做
+  const P = window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.RailReview;
+  if (!P || typeof P.requestReview !== 'function') return;
+  const st = { asked: appverRead(REVIEW_KEYS.asked), done: !!appverRead(REVIEW_KEYS.done), ver };
+  if (!reviewShouldAsk(rideCount, Date.now(), st)) return;
+  appverWrite(REVIEW_KEYS.asked, { ver, at: Date.now() });     // 🔴 先寫再呼叫,避免同一輪重複觸發
+  setTimeout(() => { try { P.requestReview(); } catch (e) {} }, delayMs);
+}
+
 function showToast(msg) {
   // #recordScreen(詳細面板)在 body 層(z2400)，全站 toast 卻在 .stage(z1000)的堆疊脈絡內——
   // 只有面板真的整片接管畫面時才會蓋住 #toasts，這時才需要繞道 #recHint(z2450,蓋得過黑幕)。
@@ -11019,6 +11048,8 @@ function announceCollections(tr, rides, prevColl, prevAch) {
   const ach = unlockedAchievements(rides);
   ACHIEVEMENTS.forEach(a => { if (ach.has(a.id) && !prevAch.has(a.id)) msgs.push(`成就解鎖　<b>${railIcon(a.icon, 'ri-toast-ic')} ${escHtml(a.name)}</b>`); });
   msgs.forEach((m, i) => setTimeout(() => showToast(m), i * 700));
+  // 等自己的「完乘達成 / 蓋章 / 成就解鎖」通知全部跑完再問,不跟它們搶畫面。
+  maybeAskReview(msgs.length * 700 + 2000, rides.length);
 }
 // 收集章(明星/圖鑑/支線)的候選車:同類今日所有班次。點擊時當場算,才能每次挑不同的一班。
 function dexCandidates(cat, id) {
@@ -16854,6 +16885,11 @@ function setupMapTools() {
     if (row.dataset.act === 'update') {   // 只有真的有新版才外開;沒新版時這列是 disabled 的資訊列
       const r = window.__appverLast;
       if (r && r.state.hasUpdate && r.latest && r.latest.url) window.open(r.latest.url, '_blank', 'noopener');
+      return;
+    }
+    if (row.dataset.act === 'rate') {
+      appverWrite(REVIEW_KEYS.done, true);   // 主動去評過就不再自動問
+      window.open(REVIEW_WRITE_URL, '_blank', 'noopener');
       return;
     }
     if (row.dataset.act === 'help') { setMore(false); openHelp(); return; }
