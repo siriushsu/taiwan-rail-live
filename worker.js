@@ -2278,16 +2278,28 @@ const LA_PERM_FAIL_REASONS = new Set(['Unregistered', 'BadDeviceToken', 'DeviceT
 // attempted 可能只有 3~5,於是【任何 2 個自然汰換的死 token 就是 40%~67%】⇒ 每分鐘誤觸發
 // 一次熔斷:正常回收被封死(那些 token 永遠不會成功,卻永遠刪不掉),還每分鐘噴一則假的
 // 「懷疑是設定錯誤」告警,把真告警淹掉。
-// 改法:比例在極小分母上沒有資訊量 ⇒ attempted < LA_BREAKER_MIN_ATTEMPTED 一律不做比例
+// 改法:比例在極小分母上沒有資訊量 ⇒ attempted < LA_BREAKER_MIN_ATTEMPTED 一律不做「比例」
 // 判定(照常刪)。門檻取 10 是統計的:以個別 token 約 7% 的自然失效率,「10 次嘗試裡至少
 // 5 次失敗」約 3×10⁻⁴;而系統性設錯(APNS_HOST/apns-topic 打錯)會讓每一列都失敗、比例趨近
 // 100%,兩者在 n>=10 就分得開了。原本的 LA_BREAKER_MIN_FAILS 被這條吸收(attempted>=10 且
 // 比例>=50% ⇒ 候選數必 >=5),留著會是一條永遠為真的死條件,故移除而不是並存。
-// 代價寫清楚:表小到 attempted < 10 時真的踩到設定錯誤,那幾列會被刪掉(使用者要重新跟車)。
-// 這是刻意的取捨——小樣本下「這幾個 token 真的沒救」與「設定錯了」在統計上無法區分,而
-// 「一律不刪」會讓小表的死 token 永遠清不掉;死 token 每天都有,設定錯誤是罕見事件。
+//
+// 🔴 修復輪次5(訂正輪次4 的過度收緊):上面那道 attempted>=10 是【平坦】的,它把
+// 「比例 >= 0.5」與「比例 == 1.0」當成同一件事一起關掉——於是 attempted 落在 3~9 且【全敗】
+// 時熔斷不觸發,整張小表當場被刪光,而那正是熔斷被創造出來要擋的場景(相對輪次3 是回歸)。
+// 時機也最不利:本功能還沒上線,初期綁定數必然遠低於每 tick 10 次嘗試 ⇒ 熔斷在它最可能派
+// 上用場的那幾週等於停用。
+// 「小樣本兩種原因無法區分」這個理由對 ratio==1.0 並不成立,而且與上面自己採用的統計標準
+// 自相矛盾:同樣以 7% 自然失效率,「4 次嘗試全敗」約 2.4×10⁻⁵,比被接受為門檻的 n=10 那個
+// 3×10⁻⁴ 更決定性。故補一條【正交】的 OR 條件:全敗(候選數 == attempted)且 attempted 至少
+// LA_BREAKER_ALL_FAIL_MIN 就觸發,與比例門檻各管各的。
+// 3 的取法:2 次全敗約 0.07²≈0.5%/tick(每天 1440 個 tick ⇒ 太常見),3 次全敗約 3.4×10⁻⁴,
+// 已與比例門檻同一個量級。attempted<=2 仍照常刪(P21c/P5/P6 那種單列汰換)。
+// 殘留代價:attempted<=2 時真的踩到設定錯誤,那一兩列會被刪掉。這一格保留原判——樣本只有
+// 一兩列時「這個 token 真的沒救」才是壓倒性常見的解釋,而且損失最多兩列。
 const LA_BREAKER_MIN_ATTEMPTED = 10;
 const LA_BREAKER_RATIO = 0.5;
+const LA_BREAKER_ALL_FAIL_MIN = 3;
 // 🔴 修復輪次4(取代輪次3 的「連續永久失敗數」早退):單 tick 的成本上界改用【牆鐘預算】。
 // 輪次3 用 consecutiveFails>=10 就 break 當停手訊號,等於要同一個計數器同時承擔兩個互斥
 // 職責——「像不像系統性設定錯誤」(需要語意訊號)與「封住單 tick 的成本」(需要與失敗樣態
@@ -2308,6 +2320,12 @@ const LA_BREAKER_RATIO = 0.5;
 // ⇒ attempted 保持有代表性 ⇒ 熔斷比例回到真實水準,(a) 的觸發鏈從根斷掉。
 // 另一層保險:熔斷觸發現在只擋「刪列」,不再連坐「推播」——健康列在同一個 tick 照樣收到推播。
 // 45 秒的取法:cron 週期 60 秒,留 15 秒餘裕給收尾的 D1 寫入與 tick 之間不重疊。
+// 🔴 修復輪次5(把假設關掉):這個預算成立的前提是「Workers 的 Date.now() 會在 await fetch()
+// 之後往前走」(runtime 為了緩解計時側通道,無 I/O 期間會凍住時鐘)。已在【真 workerd】實測:
+// `node scripts/probe_workerd_clock.mjs` ⇒ 20 次 fetch 的 Date.now()-t0 嚴格遞增、每步約等於
+// stub 的實際延遲。不是靠文件推斷——verify_la_push_loop.mjs 走 getPlatformProxy(在 Node 裡跑),
+// Node 的時鐘本來就一直在走,這個假設在那支腳本裡結構性測不出來(比照 workerd 不收
+// redirect:'error' 那次的教訓)。改動本預算機制前請重跑那支探針。
 const LA_TICK_BUDGET_MS = 45000;
 async function laPushAll(env, ctx, baseUrl) {
   if (!env.APNS_KEY_P8 || !env.DELAY_DB) {
@@ -2334,9 +2352,13 @@ async function laPushAll(env, ctx, baseUrl) {
   }
   // 🔴 修復輪次2(無聲失敗 c):原本 SELECT 無 ORDER BY,每個 tick 被截掉的都是同一批尾端列,
   // 那些卡片會凍到自己 expire_at 到期才被上面那行 DELETE 收掉——log 卻寫「留到下一分鐘」,
-  // 名實不符。改成 ORDER BY expire_at ASC:最快到期的列永遠排最前面、永遠不會被截斷;犧牲
-  // 的是最新綁定的列(expire_at 最晚,排最後)——它們最多是「這一輪還沒拿到第一次推播」,
-  // 佇列位置只會隨其他列到期/收卡而往前進,不會像舊版那樣被同一批永遠卡在尾端。
+  // 名實不符。改成 ORDER BY expire_at ASC:最快到期的列永遠排最前面、永遠不會被【LIMIT】
+  // 截掉;犧牲的是最新綁定的列(expire_at 最晚,排最後)——它們最多是「這一輪還沒拿到第一次
+  // 推播」,佇列位置只會隨其他列到期/收卡而往前進,不會像舊版那樣被同一批永遠卡在尾端。
+  // 🔴 修復輪次5(限定範圍):上一句的「永遠不會被截斷」只管【LIMIT 截斷這一層】。輪次4 之後
+  // 還有第二層截斷——牆鐘預算(見下方 rotate 與 LA_TICK_BUDGET_MS),而旋轉偏移會讓 index 0
+  // 在預算被吃滿時連續數十個 tick 排在服務窗外。實務上要約 450 個 attempted 才會踩到,
+  // 但這句話本身不再對「會不會被服務到」成立,只對「會不會進候選集合」成立。
   const rs = await env.DELAY_DB.prepare('SELECT * FROM la_bindings ORDER BY expire_at ASC LIMIT ?').bind(limit + 1).all();
   let rows = rs.results || [];
   if (rows.length > limit) {
@@ -2477,8 +2499,11 @@ async function laPushAll(env, ctx, baseUrl) {
   // (本輪從 D1 掃到的列數)——理由見上面 attempted 宣告處的註解。
   // 🔴 修復輪次4:小樣本安全閥從「候選數 >= 2」換成「attempted >= LA_BREAKER_MIN_ATTEMPTED」
   // ——比例在極小分母上沒有資訊量,理由見函式開頭常數註解。
+  // 🔴 修復輪次5:第二條是【正交】的全敗判定——ratio==1.0 不需要大樣本就已經決定性,
+  // 平坦的 attempted>=10 會把 3~9 列的小表在設定錯誤時整張刪光。理由見函式開頭常數註解。
   const breakerRatio = attempted ? permFailCandidates.length / attempted : 0;
-  const breakerTripped = attempted >= LA_BREAKER_MIN_ATTEMPTED && breakerRatio >= LA_BREAKER_RATIO;
+  const breakerTripped = (attempted >= LA_BREAKER_MIN_ATTEMPTED && breakerRatio >= LA_BREAKER_RATIO)
+                      || (attempted >= LA_BREAKER_ALL_FAIL_MIN && permFailCandidates.length === attempted);
   if (breakerTripped) {
     console.error(`[cron la-push] 熔斷觸發:本輪 ${permFailCandidates.length}/${attempted} 列(實際送出 APNs 請求的列數,${Math.round(breakerRatio * 100)}%)同時回報永久失敗 reason,懷疑是設定錯誤(APNS_HOST/apns-topic)而非個別 token 失效,本輪不刪任何列,請檢查設定(熔斷只擋刪列,健康的列本輪照樣收到推播)`);
   } else {
