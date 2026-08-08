@@ -2236,8 +2236,10 @@ async function laBind(request, env) {
       // 🔴 last_obs_idx 必須與 last_idx 一起歸零:同一顆 device token 換綁另一台車時,
       // 沒歸零的話單調閘門的地板還停在【上一台車】的索引 ⇒ 新車的第一發觀測會被
       // Math.max 直接抬到那個索引 ⇒ 卡片一開就跳到中途某一站。
-      // 規矩:凡是重設 last_idx 的地方,都要一併重設 last_obs_idx(釘死者 PBIND)。
-      ' sta_map=excluded.sta_map, stop_codes=excluded.stop_codes, last_idx=-1, last_obs_idx=-1, last_delay=0,' +
+      // 規矩:凡是重設 last_idx 的地方,都要一併重設 last_obs_idx【與 last_notice】(釘死者 PBIND)。
+      // last_notice 沒歸零的影響比另兩欄輕(下一輪必推、順手寫回 0 ⇒ 會自愈),但這一列的
+      // 「重設點要重設全部狀態欄位」是規矩本身,留一個例外就是留給下一個新欄位的坑。
+      ' sta_map=excluded.sta_map, stop_codes=excluded.stop_codes, last_idx=-1, last_obs_idx=-1, last_delay=0, last_notice=0,' +
       ' bound_at=excluded.bound_at, expire_at=excluded.expire_at'
     ).bind(String(b.token), uid, String(b.sys), String(b.trainNo),
       JSON.stringify(b.stops), JSON.stringify(b.staMap), JSON.stringify(b.stopCodes),
@@ -2606,7 +2608,19 @@ async function laPushAll(env, ctx, baseUrl) {
       // 這一欄必須改存字串或雜湊,否則「換一句話」不會觸發推播。
       const noticeFlag = notice ? 1 : 0;
       if (idx === row.last_idx && delaySec === row.last_delay
-          && noticeFlag === (Number(row.last_notice) || 0)) continue;   // 沒變就不推
+          && noticeFlag === (Number(row.last_notice) || 0)) {
+        // 🔴 複審 N-2:「卡片內容沒變」不等於「地板沒學到東西」。這一輪如果真的解出了觀測、
+        // 而且它比 last_obs_idx 更前面,地板就必須吸收它——否則下一發抖動觀測會拿一個過時的
+        // 低地板把卡片往回拉好幾站(實測:last_idx=5／last_obs_idx=1 時觀測解出 5 ⇒ 三項全等
+        // ⇒ 走這條 continue ⇒ 地板仍是 1 ⇒ 下一發抖動報第 2 站,max(2,1)=2,卡片 S5→S2)。
+        // 工項 B 講死的界線是「最低只回到【上一次真的觀測到】的那一站」,而上一次真的觀測到
+        // 的是第 5 站,不是第 1 站。穩態下 last_obs_idx === idx ⇒ 條件不成立 ⇒ 零額外寫入,
+        // 只有地板真的落後時才寫一次(而且不碰 last_idx／last_delay,不會攪動推播判定)。
+        if (obsResolved && idx > Number(row.last_obs_idx)) {
+          await env.DELAY_DB.prepare('UPDATE la_bindings SET last_obs_idx=? WHERE token=?').bind(idx, row.token).run();
+        }
+        continue;   // 沒變就不推
+      }
 
       attempted++;   // 🔴 修復輪次3(C-1):這一列真的要送 APNs 了(還沒送出,但已經決定要送)——
                       // 熔斷分母只算這裡遞增過的列,不算上面兩個 continue 跳過的。

@@ -185,6 +185,26 @@ async function insBatch(tokens, base) {
   ok('SCHEMA 本機 D1 的 la_bindings 欄位集合與 schema/0003＋0004/0005/0006 一致(套漏補丁會讓整批斷言以「沒推」假綠)',
     JSON.stringify(cols) === JSON.stringify(WANT),
     `實際=${JSON.stringify(cols)}${JSON.stringify(cols) === JSON.stringify(WANT) ? '' : ` 期望=${JSON.stringify(WANT)}`}`);
+
+  // 🔴 複審 N(把關2):上面那條看的永遠是【本機這顆用 ALTER 一路拼出來的庫】(欄位順序也是
+  // 補丁路徑的)。正式庫走的是另一條路——全新庫直接套 0003 建表。那條路徑從來沒有任何自動
+  // 檢查跑過:0003 與補丁檔日後只改其中一支(漂移)不會有東西轉紅,而症狀是【只在正式庫發生】
+  // 的「no such column」。這條直接讀 0003 的 CREATE TABLE 區塊解出欄位名,與同一份 WANT 對照。
+  // 分母閘門比照 PSWIFT:解出 0 欄(檔案搬家／regex 失配)也必須 FAIL,不可以因為空集合而假綠。
+  let sqlCols = [];
+  try {
+    const sql = readFileSync(`${WT}/schema/0003_live_activity.sql`, 'utf8');
+    const blk = sql.match(/CREATE\s+TABLE[^(]*la_bindings\s*\(([\s\S]*?)\n\);/i);
+    if (blk) {
+      const body = blk[1].split('\n').filter(l => !/^\s*--/.test(l)).join('\n');
+      sqlCols = [...body.matchAll(/^\s*([a-z_][a-z0-9_]*)\s+(?:TEXT|INTEGER)\b/gim)].map(x => x[1]);
+    }
+  } catch (e) { sqlCols = []; }
+  ok('SCHEMA 前置(分母閘門):從 schema/0003_live_activity.sql 的 CREATE TABLE 解得出欄位(解不出＝這條核對等於沒有)',
+    sqlCols.length >= 10, `解到 ${sqlCols.length} 個:${JSON.stringify(sqlCols)}`);
+  ok('SCHEMA(把關2)全新庫路徑:schema/0003 建表的欄位集合 === 同一份 WANT(0003 與補丁檔漂移只會在正式庫現形,本機那顆 ALTER 拼出來的庫照不到)',
+    JSON.stringify(sqlCols.slice().sort()) === JSON.stringify(WANT),
+    `0003=${JSON.stringify(sqlCols.slice().sort())}${JSON.stringify(sqlCols.slice().sort()) === JSON.stringify(WANT) ? '' : ` 期望=${JSON.stringify(WANT)}`}`);
 }
 
 // ══════════════════════════════════════════════════════════════════
@@ -215,6 +235,21 @@ ok('PSWIFT(跨行程契約)Swift ContentState 的屬性集合 === 後端 content
 const noticeDecl = (readFileSync(SWIFT_ATTRS_PATH, 'utf8').match(/^\s*var\s+notice\s*:.*$/m) || ['(全檔找不到 var notice 的宣告)'])[0].trim();
 ok('PSWIFT(跨行程契約)notice 在 Swift 側宣告成 Optional(String?)——非 Optional 會讓舊卡整包解碼失敗',
   /^var\s+notice\s*:\s*String\?$/.test(noticeDecl), noticeDecl);
+
+// ══════════════════════════════════════════════════════════════════
+// PNOTICE1(複審 N(把關1)):last_notice 只存布林(0/1),而布林只夠表達「目前全系統只有一句
+// 告知」。這條約束的形態是「未來有人新增第二句文案」,而寫在 schema 註解裡的警告只在那個人
+// 剛好讀到時才生效。照 PSWIFT 的手法直接讀 worker.js 原始碼數告知常數,把它變成機器核對:
+// 出現第二句 ⇒ 這裡當場紅,那個人會被擋下來,而不是靜默留下「換一句話不會觸發推播」的 bug。
+// (現況刻意【不】改成存字串或雜湊——只有一句話時那是替還沒發生的需求付結構成本。)
+// 分母閘門比照 PSWIFT:解出 0 個(檔案搬家／改名／regex 失配)也要 FAIL。
+// ══════════════════════════════════════════════════════════════════
+const noticeConsts = [...readFileSync(`${WT}/worker.js`, 'utf8')
+  .matchAll(/^const\s+(LA_NOTICE_[A-Z0-9_]+)\s*=/gm)].map(x => x[1]);
+ok('PNOTICE1 前置(分母閘門):從 worker.js 解得出告知文案常數(解不出＝這條把關等於沒有)',
+  noticeConsts.length >= 1, `解到 ${noticeConsts.length} 個:${JSON.stringify(noticeConsts)}`);
+ok('PNOTICE1(把關1)worker.js 的 LA_NOTICE_* 告知常數恰好 1 個——出現第二句文案時 last_notice 必須改存字串或雜湊,否則「換一句話」不會觸發推播(判定式比的是布林,兩句話都是 1)',
+  noticeConsts.length === 1, JSON.stringify(noticeConsts));
 
 // ══════════════════════════════════════════════════════════════════
 // Group A:thsr_sched(表定退路 laSchedIdx),不觸發 traLive/TDX
@@ -1180,11 +1215,35 @@ for (const [tag, status] of [['p7a', 429], ['p7b', 500]]) {
 // `Date.now() - memAt > 55e3` 恆假 ⇒ 這裡拿到的是別的區塊留下的舊看板,情境完全不成立。
 // 用絕對值起手就跟前面的區塊順序解耦(之後有人在中間插新區塊也不會靜默弄壞這一組)。
 const H_BASE = 1_800_010_000;
+
+// 🔴 複審 N(把關3):上面那段規矩(「Group H 之後時鐘只准往前」)原本【只靠人記得】,
+// 而檔案裡其實已經違反過一次——PEXC 用 H_BASE+8000,而它前一格 P41 已經跑到 H_BASE+17310,
+// 一次往回撥 9,310 秒;現在無害純粹因為 PEXC 是 thsr_sched、根本不呼叫 traLive。
+// 下一個人在後面插一格 tra_sched、看到「8000 這個號沒人用」順手拿去,就會靜默拿到別格
+// 留下的舊看板,而所有斷言照樣全綠(實測過:P40 第一版就是這樣 sent=0 的)。
+// useSlot 把那條規矩變成機器檢查,兩條都查:
+//   ① N 必須嚴格大於所有用過的 N —— 擋「號碼倒退」,診斷訊息直接指出撞到誰;
+//   ② H_BASE + N 不得小於【當下的 mockNowSec】—— 擋真正的危害本身(區塊內部還會用
+//      base+900 之類往前跑,光看 N 遞增看不出來 P39 其實已經跑到 16030)。
+// 只管 Group H 之後這一段:前面 22 處絕對重設回 1_800_000_000 一行都不用改(它們都遠小於
+// H_BASE,②恆成立),不會逼出既有情境重排時序。
+const usedSlots = new Map();     // N → 用它的區塊標籤
+function useSlot(n, label) {
+  for (const [prev, who] of usedSlots) {
+    if (n <= prev) abort(`[useSlot] ${label} 想用 H_BASE+${n},但 ${who} 已經用過 H_BASE+${prev}——` +
+      'Group H 之後的假時鐘只准往前走(traLive 的 isolate 快取鍵是 Date.now(),往回撥會靜默拿到別格留下的舊看板)。請改用更大的號碼。');
+  }
+  if (H_BASE + n < mockNowSec) abort(`[useSlot] ${label} 想把時鐘設到 H_BASE+${n},但上一格已經跑到 H_BASE+${mockNowSec - H_BASE}` +
+    '——區塊內部還會往前跑,光看號碼遞增看不出來。請改用更大的號碼。');
+  usedSlots.set(n, label);
+  return n;
+}
+
 // P30(關鍵):idx 不動、只有誤點變 —— 唯一能觸發推播的原因就是誤點。
 {
   const T = tok('p30');
   await resetTable();
-  mockNowSec = H_BASE;                                 // 遠晚於前面所有區塊,逼 traLive 重打假上游
+  mockNowSec = H_BASE + useSlot(0, 'P30');                                 // 遠晚於前面所有區塊,逼 traLive 重打假上游
   const base = mockNowSec;
   const stops = [{ name: '潮州', at: base + 600 }, { name: '屏東', at: base + 2040 }];
   await insRow({ token: T, sys: 'tra_sched', train_no: '556', stops,
@@ -1224,7 +1283,7 @@ const H_BASE = 1_800_010_000;
 {
   const T = tok('p30b');
   await resetTable();
-  mockNowSec = H_BASE + 1000;
+  mockNowSec = H_BASE + useSlot(1000, 'P30b');
   const base = mockNowSec;
   const stops = [{ name: '潮州', at: base + 600 }, { name: '屏東', at: base + 2040 }];
   await insRow({ token: T, sys: 'tra_sched', train_no: '557', stops,
@@ -1252,7 +1311,7 @@ const H_BASE = 1_800_010_000;
 {
   const T = tok('p30c');
   await resetTable();
-  mockNowSec = H_BASE + 2000;
+  mockNowSec = H_BASE + useSlot(2000, 'P30c');
   const base = mockNowSec;
   const stops = [{ name: '潮州', at: base + 600 }, { name: '屏東', at: base + 2040 }];
   await insRow({ token: T, sys: 'tra_sched', train_no: '558', stops,
@@ -1281,7 +1340,7 @@ const H_BASE = 1_800_010_000;
 // 這一格連跑 5 個 tick,前 4 輪必須被熔斷擋住(否則等於熔斷沒生效),第 5 輪必須真的刪掉。
 {
   await resetTable();
-  mockNowSec = H_BASE + 3000;
+  mockNowSec = H_BASE + useSlot(3000, 'P31');
   const base = mockNowSec;
   const toks = ['p31a', 'p31b', 'p31c'].map(tok);
   for (let i = 0; i < toks.length; i++) {
@@ -1319,7 +1378,7 @@ const H_BASE = 1_800_010_000;
 {
   const T = tok('p32');
   await resetTable();
-  mockNowSec = H_BASE + 4000;
+  mockNowSec = H_BASE + useSlot(4000, 'P32');
   const base = mockNowSec;
   await insRow({ token: T, sys: 'thsr_sched', train_no: '9i32',
     stops: [{ name: 'A', at: base + 100 }, { name: 'B', at: base + 200 }],
@@ -1343,7 +1402,7 @@ const H_BASE = 1_800_010_000;
 // 🔴 這一格吃的是【真實時鐘】(setTimeout),不是 mockNowSec ⇒ 會真的花掉約 LA_APNS_TIMEOUT_MS。
 {
   await resetTable();
-  mockNowSec = H_BASE + 5000;
+  mockNowSec = H_BASE + useSlot(5000, 'P33');
   const base = mockNowSec;
   const toks = ['p33a', 'p33b', 'p33c'].map(tok);
   for (let i = 0; i < toks.length; i++) {
@@ -1397,7 +1456,7 @@ const H_BASE = 1_800_010_000;
 {
   const T = tok('p34');
   await resetTable();
-  mockNowSec = H_BASE + 6000;
+  mockNowSec = H_BASE + useSlot(6000, 'P34');
   // ① 先暖一次快取:上游正常,看板的 UpdateTime＝現在
   await insRow({ token: tok('p34w'), sys: 'tra_sched', train_no: '560',
     stops: [{ name: '潮州', at: mockNowSec + 600 }, { name: '屏東', at: mockNowSec + 2040 }],
@@ -1438,7 +1497,7 @@ const H_BASE = 1_800_010_000;
 {
   const T = tok('p35');
   await resetTable();
-  mockNowSec = H_BASE + 7000;
+  mockNowSec = H_BASE + useSlot(7000, 'P35');
   const base = mockNowSec;
   await insRow({ token: T, sys: 'thsr_sched', train_no: '9i35',
     stops: [{ name: 'A', at: base + 100 }, { name: 'B', at: base + 200 }],
@@ -1493,7 +1552,7 @@ const NOTICE_EXPECT = '即時資料中斷，位置為預估。實際動態請查
 {
   const T = tok('p36');
   await resetTable();
-  mockNowSec = H_BASE + 9000;
+  mockNowSec = H_BASE + useSlot(9000, 'P36');
   // ① 暖快取:上游正常,看板裡就有 561,而且時刻是新鮮的
   const warmBase = mockNowSec;
   await insRow({ token: tok('p36w'), sys: 'tra_sched', train_no: '561',
@@ -1546,7 +1605,7 @@ const NOTICE_EXPECT = '即時資料中斷，位置為預估。實際動態請查
 {
   const T = tok('p37');
   await resetTable();
-  mockNowSec = H_BASE + 10000;
+  mockNowSec = H_BASE + useSlot(10000, 'P37');
   const base = mockNowSec;
   const stops = [0, 1, 2, 3, 4].map(i => ({ name: 'S' + i, at: base + 600 + i * 600 }));
   await insRow({ token: T, sys: 'tra_sched', train_no: '562', stops,
@@ -1573,7 +1632,7 @@ const NOTICE_EXPECT = '即時資料中斷，位置為預估。實際動態請查
 {
   const T = tok('p37b');
   await resetTable();
-  mockNowSec = H_BASE + 11000;
+  mockNowSec = H_BASE + useSlot(11000, 'P37b');
   const base = mockNowSec;
   const stops = [0, 1, 2, 3, 4].map(i => ({ name: 'S' + i, at: base + 600 + i * 600 }));
   await insRow({ token: T, sys: 'tra_sched', train_no: '563', stops,
@@ -1599,7 +1658,7 @@ const NOTICE_EXPECT = '即時資料中斷，位置為預估。實際動態請查
 {
   const T = tok('p37c');
   await resetTable();
-  mockNowSec = H_BASE + 12000;
+  mockNowSec = H_BASE + useSlot(12000, 'P37c');
   const base = mockNowSec;
   const stops = [0, 1, 2, 3, 4, 5].map(i => ({ name: 'S' + i, at: base + 600 + i * 600 }));
   await insRow({ token: T, sys: 'tra_sched', train_no: '564', stops,
@@ -1625,13 +1684,16 @@ const NOTICE_EXPECT = '即時資料中斷，位置為預估。實際動態請查
   //    tok() 造出來的可讀標籤(含非 hex 字母)會被擋在 bad_token,端點根本不會跑到 UPSERT。
   const T = 'bdbd' + '0'.repeat(60);
   await resetTable();
-  mockNowSec = H_BASE + 13000;
+  mockNowSec = H_BASE + useSlot(13000, 'PBIND');
   const base = mockNowSec;
-  // 先造出「上一台車已經跑到第 5 站」的狀態
+  // 先造出「上一台車已經跑到第 5 站、而且卡上正掛著斷線告知」的狀態。
+  // 🔴 每一個狀態欄位都必須設成【非預設值】,否則「漏了重設這一欄」的突變會因為
+  //    「本來就等於預設值」而看起來像通過(實測:last_notice 留在預設 0 時,
+  //    拿掉 UPSERT 裡的 last_notice=0 這一發突變紅集是 0 ——斷言等於沒有)。
   await insRow({ token: T, sys: 'tra_sched', train_no: '565',
     stops: [0, 1, 2, 3, 4, 5].map(i => ({ name: 'X' + i, at: base + i * 600 })),
     staMap: { C0: 1 }, stopCodes: ['C0'],
-    last_idx: 5, last_obs_idx: 5, last_delay: 180, bound_at: base, expire_at: base + 3600 });
+    last_idx: 5, last_obs_idx: 5, last_delay: 180, last_notice: 1, bound_at: base, expire_at: base + 3600 });
   // 同一顆 token 換綁另一台車。走【真的 laBind 端點函式】,不是自己寫一發 SQL——
   // 要驗的正是那句 UPSERT 的 DO UPDATE SET 有沒有把新欄位一起歸零。
   const bindEnv = Object.assign(Object.create(Object.getPrototypeOf(env) || Object.prototype), env);
@@ -1652,9 +1714,13 @@ const NOTICE_EXPECT = '即時資料中斷，位置為預估。實際動態請查
   const rowB = await getRow(T);
   ok('PBIND 前置:換綁確實覆寫了這一列(train_no 565 → 566)',
     !!rowB && rowB.train_no === '566', rowB ? `train_no=${rowB.train_no}` : '(查無列)');
-  ok('PBIND(關鍵)換綁時 last_obs_idx 與 last_idx 一起歸零成 -1——沒歸零的話新車一開卡就跳到第 5 站',
-    !!rowB && rowB.last_idx === -1 && rowB.last_obs_idx === -1 && rowB.last_delay === 0,
-    rowB ? `last_idx=${rowB.last_idx} last_obs_idx=${rowB.last_obs_idx} last_delay=${rowB.last_delay}` : '(查無列)');
+  // 🔴 複審 N-3:本條自述的目的就是盯「新增狀態欄位卻忘了在重設點一起重設」這個形態,
+  //    而本輪新增的 last_notice 正好是這個形態的下一個受害者(換綁後實測 last_notice=1 黏著)。
+  //    它的傷害比另兩欄輕(下一輪因 last_idx=-1 必推、順手寫回 0 ⇒ 會自愈),但把新欄位一併
+  //    納入斷言才是這條的意義——留一個例外就是留給下一個新欄位的坑。
+  ok('PBIND(關鍵)換綁時三個狀態欄位一起歸零(last_idx／last_obs_idx=-1、last_delay／last_notice=0)——地板沒歸零的話新車一開卡就跳到第 5 站',
+    !!rowB && rowB.last_idx === -1 && rowB.last_obs_idx === -1 && rowB.last_delay === 0 && Number(rowB.last_notice) === 0,
+    rowB ? `last_idx=${rowB.last_idx} last_obs_idx=${rowB.last_obs_idx} last_delay=${rowB.last_delay} last_notice=${rowB.last_notice}` : '(查無列)');
   await resetTable();
 }
 
@@ -1676,7 +1742,7 @@ const csOfTok = (tk) => {
 {
   const Ttra = tok('p36btra'), Tthsr = tok('p36bthsr');
   await resetTable();
-  mockNowSec = H_BASE + 14000;
+  mockNowSec = H_BASE + useSlot(14000, 'P36b');
   const warmBase = mockNowSec;
   await insRow({ token: tok('p36bw'), sys: 'tra_sched', train_no: '571',
     stops: [{ name: 'A', at: warmBase + 600 }, { name: 'B', at: warmBase + 1200 }],
@@ -1731,7 +1797,7 @@ const csOfTok = (tk) => {
 {
   const T = tok('p39');
   await resetTable();
-  mockNowSec = H_BASE + 15000;
+  mockNowSec = H_BASE + useSlot(15000, 'P39');
   const warmBase = mockNowSec, base = warmBase + 900;
   // 表定刻意安排成:斷線那一輪 laSchedIdx 會推到 3(前三站的表定時刻都已過)
   const stops = [
@@ -1798,7 +1864,7 @@ const csOfTok = (tk) => {
   // 🔴 必須晚於 P39 最後一輪(H_BASE+16030):假時鐘一旦往回走,traLive 的
   //    `Date.now() - memAt > 55e3` 恆假 ⇒ 拿到的是上一格留下的看板,情境完全不成立
   //    (見 H_BASE 的註解)。這裡刻意留 170 秒餘裕。
-  mockNowSec = H_BASE + 16200;
+  mockNowSec = H_BASE + useSlot(16200, 'P40');
   const base = mockNowSec;
   const stops = [0, 1, 2, 3, 4].map(i => ({ name: 'S' + i, at: base + 600 + i * 600 }));
   await insRow({ token: T, sys: 'tra_sched', train_no: '573', stops,
@@ -1835,7 +1901,7 @@ const csOfTok = (tk) => {
 {
   const Tlo = tok('p41lo'), Thi = tok('p41hi');
   await resetTable();
-  mockNowSec = H_BASE + 17000;
+  mockNowSec = H_BASE + useSlot(17000, 'P41');
   const warmBase = mockNowSec;
   await insRow({ token: tok('p41w'), sys: 'tra_sched', train_no: '572',
     stops: [{ name: 'W0', at: warmBase + 600 }, { name: 'W1', at: warmBase + 1200 }],
@@ -1884,10 +1950,15 @@ const csOfTok = (tk) => {
 // 就 continue、不改任何回傳計數 ⇒ 例外通道對既有斷言【結構性隱形】(實測:讓每一列都拋
 // TypeError,139 條照樣全綠)。這條把「沒有我沒預期到的例外」變成具名斷言。
 // 正向對照在 P14(網路層 reject 必須留下同一個訊號),兩者缺一這條就沒有牙。
+// 🔴 複審 N(把關3):這一格原本用 H_BASE+8000,比它前面的 P41(17000)早了 9,310 秒——
+// 檔案裡唯一一次違反「時鐘只准往前」的地方。當時無害純粹因為本格是 thsr_sched、不呼叫
+// traLive,但它留下一個「8000 這個號沒人用」的陷阱給下一個人。這裡選擇【改號搬到尾端】
+// 而不是加明示豁免:本格完全自足(自己 resetTable → 設鐘 → 插自己的列 → 斷言 → resetTable),
+// 改號零行為風險;留一個有理由的豁免等於在檔案裡留一個可以被 cargo-cult 的倒退先例。
 {
   const T = tok('pexc');
   await resetTable();
-  mockNowSec = H_BASE + 8000;
+  mockNowSec = H_BASE + useSlot(18000, 'PEXC');
   await insRow({ token: T, sys: 'thsr_sched', train_no: '9exc',
     stops: [{ name: 'A', at: mockNowSec + 100 }, { name: 'B', at: mockNowSec + 200 }],
     last_idx: -1, last_delay: 0, bound_at: mockNowSec, expire_at: mockNowSec + 3600 });
@@ -1898,12 +1969,119 @@ const csOfTok = (tk) => {
   await resetTable();
 }
 
+// P42(複審 N-1 關鍵):告知【出現】那一半原本零斷言。複審自設突變 MX(把判定式第三項的
+// `===` 改成 `>=`,語意＝「告知消失才推、出現不推」)跑出 219 項 FAIL 0——因為 P39 只驗消失,
+// 而 P36b／P41 的斷線輪 idx 都同時變了 ⇒ 判定式前兩項自己就會觸發,第三項全程搭便車。
+// 失效情境是常態不是邊角:列車大半時間在兩站之間跑(laSchedIdx 整段回同一索引),準點車
+// delay 又恆為 0 ⇒ 斷線開始那一輪前兩項本來就都沒變 ⇒ 退化成「斷線了卻不說」。
+{
+  const T = tok('p42');
+  await resetTable();
+  mockNowSec = H_BASE + useSlot(19000, 'P42');
+  const warmBase = mockNowSec;
+  // 暖 traLive 快取:UpdateTime = warmBase(之後把鐘推到 +900 就會判定成上游整批失效)
+  await insRow({ token: tok('p42w'), sys: 'tra_sched', train_no: '574',
+    stops: [{ name: 'W0', at: warmBase + 600 }, { name: 'W1', at: warmBase + 1200 }],
+    staMap: { C0: 0 }, stopCodes: ['C0', 'C1'],
+    last_idx: -1, last_delay: 0, bound_at: warmBase, expire_at: warmBase + 7200 });
+  tdxBoard = [{ TrainNo: '574', DelayTime: 0, StationID: 'C0', TrainStationStatus: 1 }];
+  calls.length = 0; apnsNextStatus = 200; apnsNextReason = ''; apnsPerToken = {};
+  await laPushAll(env, fakeCtx, BASE_URL);
+  await resetTable();
+
+  // 斷線那一輪:車在 S1→S2 之間(S1 表定已過、S2 還沒到)⇒ laSchedIdx 回 2 ＝ last_idx;
+  // 準點車 DelayTime 恆 0 ⇒ delaySec 0 ＝ last_delay。判定式前兩項【都沒變】,
+  // 唯一變的是告知從無到有 ⇒ 這一發推播只可能是第三項觸發的。
+  mockNowSec = warmBase + 900;
+  const base = mockNowSec;
+  await insRow({ token: T, sys: 'tra_sched', train_no: '574',
+    stops: [{ name: 'S0', at: base - 1200 }, { name: 'S1', at: base - 600 },
+      { name: 'S2', at: base + 900 }, { name: 'S3', at: base + 2400 }],
+    staMap: { C0: 0, C1: 1 }, stopCodes: ['C0', 'C1', 'C2', 'C3'],
+    last_idx: 2, last_obs_idx: 1, last_delay: 0, last_notice: 0,
+    bound_at: base, expire_at: base + 7200 });
+  tdxBoard = null;                                   // 上游打不通 ⇒ traLive 沿用舊快取回 200
+  calls.length = 0;
+  const cap42 = await captureConsole(() => laPushAll(env, fakeCtx, BASE_URL));
+  const cs42 = csOne(calls);
+  ok('P42 前置:這一輪【真的】被判定成上游斷線(否則下面驗到的不是「告知出現」)',
+    cap42.logLines.some(l => l.includes('tick 完成') && l.includes('traLiveDown')), JSON.stringify(cap42.logLines));
+  ok('P42(N-1 關鍵)斷線【開始】那一輪:站序與誤點都沒變(車在兩站之間＋準點車＝常態),仍必須推恰好一發把告知【掛上去】',
+    cap42.result.sent === 1 && !!cs42 && cs42.notice === NOTICE_EXPECT && cs42.nextStop === 'S2',
+    `sent=${cap42.result.sent} ${cs42 ? `nextStop=${cs42.nextStop} notice=${JSON.stringify(cs42.notice)}` : '(無 APNs 呼叫)'}`);
+  const row42 = await getRow(T);
+  ok('P42(N-1)掛上之後 D1 的 last_notice 寫成 1(下一輪才安靜得下來)',
+    !!row42 && Number(row42.last_notice) === 1,
+    row42 ? `last_notice=${row42.last_notice}` : '(查無列)');
+  // 🔴 正向對照:證明推播的原因【真的只有】告知——前兩項若其實變了,上面那條就只是搭便車,
+  //    跟 MX 全綠是同一種病。寫回的 last_idx／last_delay 必須逐字等於插入時的值。
+  ok('P42(N-1 正向對照)前兩項確實沒變:寫回的 last_idx 仍是 2、last_delay 仍是 0(它們若變了,這一格就證明不了是告知本身觸發推播)',
+    !!row42 && Number(row42.last_idx) === 2 && Number(row42.last_delay) === 0,
+    row42 ? `last_idx=${row42.last_idx} last_delay=${row42.last_delay}` : '(查無列)');
+  await resetTable();
+}
+
+// P43(複審 N-2 關鍵):地板原本只在「真的推了」的輪次前進——走「沒變就不推」那條 continue 的
+// 輪次,即使這一發觀測真的解出了索引,last_obs_idx 也不會吸收它。於是「上一次真的觀測到的
+// 那一站」與地板脫鉤,下一發抖動觀測會拿一個過時的低地板把卡片往回拉好幾站,
+// 直接打破工項 B 自己講死的界線。使用者看到的是鎖屏上列車倒退三站。
+{
+  const T = tok('p43'), Tctl = tok('p43ctl');
+  await resetTable();
+  mockNowSec = H_BASE + useSlot(20000, 'P43');
+  const base = mockNowSec;
+  const stops = [0, 1, 2, 3, 4, 5].map(i => ({ name: 'S' + i, at: base + 600 + i * 600 }));
+  const staMap = { C0: 0, C1: 1, C2: 2, C3: 3, C4: 4, C5: 5 };
+  const stopCodes = ['C0', 'C1', 'C2', 'C3', 'C4', 'C5'];
+  // last_idx=5 但 last_obs_idx=1:先前上游短暫不回報這班車、走表定推算推到第 5 站
+  //(那一段不是 liveDown ⇒ 不掛告知 ⇒ last_notice 仍是 0)。
+  await insRow({ token: T, sys: 'tra_sched', train_no: '575', stops, staMap, stopCodes,
+    last_idx: 5, last_obs_idx: 1, last_delay: 0, last_notice: 0,
+    bound_at: base, expire_at: base + 7200 });
+
+  // ① 觀測回來說 C5(索引 5)⇒ idx=5=last_idx、誤點 0=last_delay、無告知 ⇒ 三項全等 ⇒ 不推。
+  //    但這一發【是】真觀測,地板必須吸收它。
+  tdxBoard = [{ TrainNo: '575', DelayTime: 0, StationID: 'C5', TrainStationStatus: 1 }];
+  calls.length = 0; apnsNextStatus = 200; apnsNextReason = ''; apnsPerToken = {};
+  const r43a = await laPushAll(env, fakeCtx, BASE_URL);
+  ok('P43 前置:這一輪卡片內容確實沒變 ⇒ 零推播(修法不可以為了推進地板而變成每分鐘重推)',
+    r43a.sent === 0 && calls.filter(c => c.url.includes(APNS_FRAG)).length === 0,
+    `sent=${r43a.sent} apns=${calls.filter(c => c.url.includes(APNS_FRAG)).length}`);
+  const row43a = await getRow(T);
+  ok('P43(N-2 關鍵)跳過推播的那一輪,地板仍必須吸收這一發真觀測:last_obs_idx 由 1 前進到 5',
+    !!row43a && Number(row43a.last_obs_idx) === 5,
+    row43a ? `last_obs_idx=${row43a.last_obs_idx} last_idx=${row43a.last_idx}` : '(查無列)');
+
+  // ② 下一發【抖動】觀測報 C2(索引 2)。地板正確(5)時 max(2,5)=5 ⇒ 卡片不動;
+  //    地板停在 1 時 max(2,1)=2 ⇒ 卡片從 S5 倒退到 S2。
+  //    同 tick 併發正向對照 Tctl:地板【本來就真的】只到 1(沒吃到 ① 那一發),
+  //    同一塊看板必須把它拉回 S2——證明這塊看板是活的、機制真的會動,
+  //    上面那條的「沒動」不是因為 fixture 根本沒送到(心得29:判準要有正向對照)。
+  mockNowSec = base + 100;                            // >55 秒,逼 traLive 重打(仍遠小於 300 秒門檻)
+  await insRow({ token: Tctl, sys: 'tra_sched', train_no: '575', stops, staMap, stopCodes,
+    last_idx: 5, last_obs_idx: 1, last_delay: 0, last_notice: 0,
+    bound_at: base, expire_at: base + 7200 });
+  tdxBoard = [{ TrainNo: '575', DelayTime: 0, StationID: 'C2', TrainStationStatus: 1 }];
+  calls.length = 0;
+  const r43b = await laPushAll(env, fakeCtx, BASE_URL);
+  ok('P43(N-2 關鍵)地板吸收之後,抖動觀測拉不動卡片:這一列一發 APNs 都沒有(舊碼會推 S2＝鎖屏上列車倒退三站)',
+    csOfTok(T) === null, `本列 APNs 呼叫數=${calls.filter(c => c.url.includes(APNS_FRAG + T)).length}`);
+  const row43b = await getRow(T);
+  ok('P43(N-2)寫回的 last_idx 仍是 5(單調閘門守住,不是靠沒推才看起來沒退)',
+    !!row43b && Number(row43b.last_idx) === 5, row43b ? `last_idx=${row43b.last_idx}` : '(查無列)');
+  const cs43ctl = csOfTok(Tctl);
+  ok('P43(N-2 正向對照)同一塊抖動看板對【地板真的只到 1】的那一列確實生效(拉回 S2)——證明看板是活的,上面的「沒動」不是 fixture 沒送到',
+    !!cs43ctl && cs43ctl.nextStop === 'S2' && r43b.sent === 1,
+    `sent=${r43b.sent} ${cs43ctl ? `nextStop=${cs43ctl.nextStop}` : '(對照列無 APNs 呼叫)'}`);
+  await resetTable();
+}
+
 // 🔴 覆蓋率 gate(最終複審 C1-Minor-5,心得 37(d)):總斷言數本來只印在總計行、從無斷言。
 // 條件式區塊被跳過(例如「APNs 呼叫數不是 1」而該區塊沒寫 else 回填)會讓分母【無聲縮水】:
 // 實測某一發突變讓總計從 139 掉到 128,11 條斷言消失而沒有任何人報警。
 // 這條把「每一格都真的跑到了」變成具名斷言。改動本檔的斷言數時要一併更新這個常數。
 {
-  const EXPECT_TOTAL = 218;   // 不含本條;本條自己會讓總計 +1(2026-08-08 工項 A/B:181 → 199;複審修復輪次1:→ 218)
+  const EXPECT_TOTAL = 231;   // 不含本條;本條自己會讓總計 +1(2026-08-08 工項 A/B:181 → 199;複審修復輪次1:→ 218;輪次2(N-1/N-2＋三個把關):→ 231)
   ok(`COV 覆蓋率 gate:本輪斷言總數必須恰好等於預期 ${EXPECT_TOTAL}(區塊被跳過或條件式吞掉會讓分母無聲縮水)`,
     results.length === EXPECT_TOTAL, `actual=${results.length}`);
 }
