@@ -76,6 +76,44 @@ if (!destinationProvider.includes('if direct.isEmpty {')
     || !destinationProvider.includes('if let origin = intent?.origin {')) {
   throw new Error('目的站 provider 必須接住 nil dependency 與空直達站陣列，兩者都降級成完整站表');
 }
+
+// 2026-08-08 使用者第三次回報「起站選共站後，目的站點下去就跳出」。前兩輪把 nil dependency
+// 與空陣列的 .empty 都拔掉了，唯獨共站／我的地點那一支還留著一個「刻意」的 return .empty
+// ——那是 08-05 為了「停用這一格」寫的，但 iOS 對 .empty 的反應就是把選單收掉，使用者看到的
+// 就是打不開。渲染路徑（RailBoardWidget.swift 的 placeTimeline）在讀 destination 之前就早退，
+// 所以這一支照樣列完整站表不會有副作用。這條 gate 盯的是「這一支不准再回 .empty」。
+const compositeBranch = (() => {
+  const at = destinationProvider.indexOf('RailBoardStore.compositeKeyPrefix');
+  if (at < 0) {
+    throw new Error('目的站 provider 找不到共站／我的地點分支——判準對象不在了，先修判準再說');
+  }
+  const open = destinationProvider.indexOf('{', at);
+  if (open < 0) throw new Error('共站分支的大括號找不到');
+  let depth = 0;
+  for (let i = open; i < destinationProvider.length; i += 1) {
+    if (destinationProvider[i] === '{') depth += 1;
+    if (destinationProvider[i] === '}') {
+      depth -= 1;
+      if (depth === 0) return destinationProvider.slice(open, i + 1);
+    }
+  }
+  throw new Error('共站分支的大括號沒有配對成功');
+})();
+const returnsEmpty = (branch) => /return\s+\.empty/.test(branch);
+// 正向對照：同一個偵測器對「真的有 return .empty」的版本必須開火，否則這條 gate 是恆綠的。
+if (!returnsEmpty('{\n    return .empty\n}')) {
+  throw new Error('共站分支的 .empty 偵測器本身失效（正向對照沒開火）');
+}
+if (compositeBranch.length < 50) {
+  throw new Error(`共站分支只抽到 ${compositeBranch.length} 字元，抽取失敗而不是通過`);
+}
+if (returnsEmpty(compositeBranch)) {
+  throw new Error('共站／我的地點起站不可回 .empty——iOS 會直接把目的站選單收掉（使用者看到的是點了就跳出）');
+}
+if (!compositeBranch.includes('configurationStationOptions()')) {
+  throw new Error('共站／我的地點起站的目的站清單必須照樣給出完整站表');
+}
+console.log('【共站起站的目的站列】✅ 不回 .empty、照樣列完整站表（正向對照已開火）');
 console.log('【目的站選單契約】✅ 正常只列直達站；依賴值 nil、空陣列或讀檔錯誤皆降級成完整站表');
 
 const originProvider = extractDeclaration(
