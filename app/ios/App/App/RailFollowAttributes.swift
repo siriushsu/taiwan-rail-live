@@ -16,6 +16,13 @@ struct RailFollowAttributes: ActivityAttributes {
         // 終點站。目前四個版面(鎖定畫面／compact／minimal／expanded)都沒畫它——留著是因為
         // ContentState 是跨行程的編碼型別,事後加欄位會讓「App 更新前開的卡」解不出來;先佔位比較安全。
         var terminus: String
+        // 上游即時資料中斷時的告知(後端每分鐘決定;正常時是 nil)。
+        // 🔴 必須是 Optional:非 Optional 的新欄位會讓「App 更新前就開著的卡」整包解碼失敗
+        //    (Codable 對 Optional 走 decodeIfPresent),那不是這一欄變 nil,是整張卡不再更新。
+        // 🔴 刻意用字串不用布林:文案由後端寫,日後改字不必重出 App。
+        //    也刻意放在最後一個欄位——memberwise init 的參數順序即呼叫端契約,
+        //    RailLiveActivityPlugin.state(from:) 省略它(Optional var 預設 nil),插在中間會編不過。
+        var notice: String?
     }
     var trainNo: String           // 車次
     var kind: String              // 車種(自強/區間/…);建立後不變的放這裡

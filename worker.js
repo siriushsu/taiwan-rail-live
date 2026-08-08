@@ -2387,6 +2387,10 @@ const LA_SCHED_FALLBACK_ON_UPSTREAM_DOWN = true;
 // 🔴 最終複審 A-I3:tra-live 的觀測時刻距今超過這麼久,就當成「本輪沒有當下的觀測」。
 // TDX 的 TrainLiveBoard 正常每 1–2 分鐘更新一次,300 秒(5 分鐘)是明顯異常而非抖動。
 const LA_LIVE_STALE_SEC = 300;
+// 🔴 上游整批失效時掛在卡片上的告知(使用者逐字核可,不要改寫)。做成【後端送字串】而不是
+// 布林旗標,是為了日後改文案不必重出 App。ContentState 那一欄是 Optional:正常時送 null。
+// 動態島展開區的短標寫死在 Widget 裡(空間太小塞不下這一句),兩邊刻意不共用同一份字串。
+const LA_NOTICE_UPSTREAM_DOWN = '即時資料中斷，位置為預估。實際動態請查台鐵官網';
 // 🔴 最終複審 B-I3:走完全程的收卡推播。內容用終點站那一格,event:'end' ＋ dismissal-date=now
 // 讓 ActivityKit 立刻把鎖屏卡片收走(不送就會留到 8 小時 staleDate)。
 // 任何失敗都只 log 不拋——呼叫端無論如何都要刪列,不可以因為推播失敗就把列留著永遠重試。
@@ -2411,6 +2415,9 @@ async function laPushEnd(env, jwt, row, stops, delaySec, now) {
             arrivalDate: laArrivalEpoch(last.at, delaySec, now),
             departedDate: prev ? prev.at + delaySec : null,
             delaySec, terminus: last.name,
+            // 收卡當下卡片馬上被系統收走,沒有告知的餘地;但欄位集合必須與 update 那發一致
+            // (跨行程契約以「key 集合」為單位驗,見 verify_la_push_loop.mjs 的 CONTRACT_KEYS)。
+            notice: null,
           },
         },
       }),
@@ -2547,10 +2554,22 @@ async function laPushAll(env, ctx, baseUrl) {
       // 有觀測就用觀測(承重牆 1);沒有(支線 92 站缺口、高鐵)就走表定退路,卡片【仍然前進】。
       // 🔴 最終複審 A-I3:唯一的例外是「上游【整批】失效」——那不是「這台車沒有觀測資料」,
       // 政策旋鈕見 LA_SCHED_FALLBACK_ON_UPSTREAM_DOWN(這是它唯一的消費點)。
+      // 🔴 工項 A(2026-08-08)實作時查出的漏洞:liveDown 為真【不代表 t 是 undefined】。
+      // traLive 上游掛掉時走「沿用舊快取」退路回 200 ＋ 一份【舊的】看板,那份看板裡照樣有
+      // 這台車 ⇒ t 是 truthy ⇒ 舊碼走 laNextIdx、拿【舊觀測】算出與 last_idx 相同的索引
+      // ⇒「沒變就不推」⇒ 卡片整段斷線期間【凍住】,正面違反使用者裁示「不能讓火車凍住」,
+      // 而且 LA_SCHED_FALLBACK_ON_UPSTREAM_DOWN=true 這顆旋鈕在真實斷線形態下根本沒被走到。
+      // (既有的 P34 照不到,是因為它的舊快取裡剛好沒有那台車 ⇒ t 為 undefined。)
+      // useObs 就是「這一列這一輪到底能不能用觀測」的唯一判準,索引與 obs/sched 計數共用它。
       const schedFallbackBlocked = liveDown && row.sys === 'tra_sched' && !LA_SCHED_FALLBACK_ON_UPSTREAM_DOWN;
-      const idx = t ? laNextIdx(String(t.sta), Number(t.status), staMap, stopCodes, row.last_idx)
+      const useObs = !!t && !liveDown;
+      const idx = useObs ? laNextIdx(String(t.sta), Number(t.status), staMap, stopCodes, row.last_idx)
                     : schedFallbackBlocked ? row.last_idx      // 凍住:與 last_idx 相同 ⇒ 走下面的「沒變就不推」
                     : laSchedIdx(stops, delaySec, now, row.last_idx);
+      // 這一輪的站名是不是【推算】出來的?只有「上游整批失效而政策要求繼續前進」才算——
+      // 支線缺觀測、高鐵無即時資料同樣走表定,但那不是「即時資料中斷」,掛這句話是說謊。
+      // 與 schedFallbackBlocked 綁在同一組運算式,政策旋鈕改成 false(凍住)時這句話會自動消失。
+      const notice = (liveDown && row.sys === 'tra_sched' && !schedFallbackBlocked) ? LA_NOTICE_UPSTREAM_DOWN : null;
       if (idx >= stops.length) {                            // 走完全程 → 收卡
         // 🔴 最終複審 B-I3:舊碼只 DELETE 不送 end ⇒ 鎖屏卡片會留到 RailLiveActivityPlugin
         // 設的 8 小時 staleDate,使用者得自己滑掉。「背景跑到終點」是主線情境不是邊角:
@@ -2584,6 +2603,9 @@ async function laPushAll(env, ctx, baseUrl) {
             arrivalDate: laArrivalEpoch(st.at, delaySec, now),
             departedDate: prev ? prev.at + delaySec : null,
             delaySec, terminus: stops[stops.length - 1].name,
+            // 🔴 工項 A:上游整批失效時老實說「這個位置是推估的」。Swift 端是 Optional String,
+            // 正常時送 null(不是省略這個 key——欄位集合是跨行程契約的一部分)。
+            notice,
           },
         },
       };
@@ -2608,7 +2630,7 @@ async function laPushAll(env, ctx, baseUrl) {
         await env.DELAY_DB.prepare('UPDATE la_bindings SET last_idx=?, last_delay=?, fail_streak=0 WHERE token=?')
           .bind(idx, delaySec, row.token).run();
         sent++;
-        if (t) sentObs++; else sentSched++;
+        if (useObs) sentObs++; else sentSched++;
         continue;
       }
       // 🔴 最終複審 A-I1:任何非 2xx 都讓這一列的連續失敗數 +1(成功會歸零)。

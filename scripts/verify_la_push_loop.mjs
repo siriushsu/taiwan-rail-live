@@ -22,6 +22,7 @@
 // P13-P17 是新增的 Group C,逐項收 Important1/2/4/5/6(3 併入 P1log/P15、7 在
 // verify_la_backend.mjs 的 J4/J5——JWT 簽章邏輯的家在那邊)。
 import { getPlatformProxy } from 'wrangler';
+import { readFileSync } from 'node:fs';
 
 const results = [];
 const ok = (n, p, d = '') => { results.push({ n, p }); console.log(`${p ? 'PASS' : 'FAIL'} ${n}${d ? ' — ' + d : ''}`); };
@@ -165,6 +166,35 @@ async function insBatch(tokens, base) {
 }
 
 // ══════════════════════════════════════════════════════════════════
+// PSWIFT(跨行程契約):content-state 的欄位集合必須逐字等於 Swift ContentState 的屬性名。
+// 這條契約失效時【兩端都看不到】:裝置端 JSONDecoder 靜默失敗(整張卡不再更新)、伺服器端
+// APNs 照樣回 200。舊寫法是把 Swift 的欄位【手抄】成 CONTRACT_KEYS 常數,兩邊各改各的
+// 不會有人報警——這裡改成直接讀 Swift 原始碼解出屬性名,讓它變成機器核對的。
+// 分母閘門:解不出屬性(regex 失配、檔案搬家)一律 FAIL,不可以因為解出空集合而假綠。
+// ══════════════════════════════════════════════════════════════════
+const SWIFT_ATTRS_PATH = `${WT}/app/ios/App/App/RailFollowAttributes.swift`;
+let swiftProps = [];
+try {
+  const src = readFileSync(SWIFT_ATTRS_PATH, 'utf8');
+  // 只取 struct ContentState 的大括號區塊(下一個同縮排的 `}` 為止),避免掃到 Attributes 本身的欄位
+  const m = src.match(/struct\s+ContentState\s*:[^{]*\{([\s\S]*?)\n\s{4}\}/);
+  if (m) swiftProps = [...m[1].matchAll(/^\s*var\s+([A-Za-z_][A-Za-z0-9_]*)\s*:/gm)].map(x => x[1]);
+} catch (e) { swiftProps = []; }
+ok(`PSWIFT 前置(分母閘門):從 ${SWIFT_ATTRS_PATH.split('/').slice(-1)[0]} 解得出 ContentState 的屬性(解不出＝這條契約檢查等於沒有)`,
+  swiftProps.length >= 5, `解到 ${swiftProps.length} 個:${JSON.stringify(swiftProps)}`);
+// 期望值獨立寫死一份(心得29:判準不可與被測物同源)——Swift 側與 worker.js 側都要對上它,
+// 三方任何一方漂移都會現形,而不是「兩邊一起改壞、對照組跟著錯」。
+const CONTRACT_KEYS_EXPECT = ['arrivalDate', 'delaySec', 'departedDate', 'nextStop', 'terminus', 'notice'];
+const CONTRACT_KEYS_SORTED = CONTRACT_KEYS_EXPECT.slice().sort();
+ok('PSWIFT(跨行程契約)Swift ContentState 的屬性集合 === 後端 content-state 的契約欄位集合',
+  JSON.stringify(swiftProps.slice().sort()) === JSON.stringify(CONTRACT_KEYS_SORTED),
+  `swift=${JSON.stringify(swiftProps.slice().sort())} expect=${JSON.stringify(CONTRACT_KEYS_SORTED)}`);
+// notice 必須是 Optional:非 Optional 的新欄位會讓「App 更新前就開著的卡」整包解不出來。
+const noticeDecl = (readFileSync(SWIFT_ATTRS_PATH, 'utf8').match(/^\s*var\s+notice\s*:.*$/m) || ['(全檔找不到 var notice 的宣告)'])[0].trim();
+ok('PSWIFT(跨行程契約)notice 在 Swift 側宣告成 Optional(String?)——非 Optional 會讓舊卡整包解碼失敗',
+  /^var\s+notice\s*:\s*String\?$/.test(noticeDecl), noticeDecl);
+
+// ══════════════════════════════════════════════════════════════════
 // Group A:thsr_sched(表定退路 laSchedIdx),不觸發 traLive/TDX
 // ══════════════════════════════════════════════════════════════════
 {
@@ -197,9 +227,13 @@ async function insBatch(tokens, base) {
     // 🔴 修復輪次1(Important9):欄位集合照 Swift ContentState 契約獨立驗(design.md §5.1),
     // 不是照實作目前送什麼反推——這樣才抓得到「少送一個欄位」或「多送一個沒人要的欄位」。
     const csKeys = Object.keys(body.aps['content-state']).sort();
-    const CONTRACT_KEYS = ['arrivalDate', 'delaySec', 'departedDate', 'nextStop', 'terminus'].sort();
+    const CONTRACT_KEYS = CONTRACT_KEYS_SORTED;
     ok('P1(Important9)content-state 欄位集合與 Swift ContentState 契約完全一致(不多不少)',
       JSON.stringify(csKeys) === JSON.stringify(CONTRACT_KEYS), JSON.stringify(csKeys));
+    // 🔴 工項 A:notice 只在【上游整批失效的台鐵列】才可以有值。高鐵本來就沒有即時資料,
+    // 掛「即時資料中斷」是說謊。這條是「斷線才送」的反面守衛(正面在 P36)。
+    ok('P1(工項A 反向)高鐵列(無即時資料來源)的 notice 必須是 null,不可誤掛斷線告知',
+      body.aps['content-state'].notice === null, String(body.aps['content-state'].notice));
     // 🔴 修復輪次1(資料契約變更):arrivalDate/departedDate 改送 epoch 秒數字,不送 ISO 字串
     // ——Swift 端 JSONDecoder 預設 .deferredToDate 解的是 timeIntervalSinceReferenceDate,
     // 不是 ISO 8601。期望值獨立用算術算,不呼叫 laArrivalEpoch 自己(心得29:判準不可與被測物同源)。
@@ -217,6 +251,7 @@ async function insBatch(tokens, base) {
       'P1 apns-push-type=liveactivity', 'P1 apns-priority=5(不計入更新預算)',
       'P1 authorization 是 bearer+JWT(三段式)', 'P1 body.aps.content-state.nextStop = 南港(idx0)',
       'P1(Important9)content-state 欄位集合與 Swift ContentState 契約完全一致(不多不少)',
+      'P1(工項A 反向)高鐵列(無即時資料來源)的 notice 必須是 null,不可誤掛斷線告知',
       'P1 arrivalDate 是 epoch 秒數字且獨立算術核對(未過站)',
       'P1 departedDate=null(idx=0 無前一站)', 'P1 terminus=板橋(最後一站)'])
       ok(n, false, `(APNs 呼叫數=${apnsCalls1.length},結構性略過)`);
@@ -305,7 +340,7 @@ async function insBatch(tokens, base) {
       aps4['dismissal-date'] === mockNowSec, String(aps4['dismissal-date']));
     ok('P4(B-I3)收卡推播打的是這一列自己的 token', apnsCalls4[0].url.endsWith('/3/device/' + T), apnsCalls4[0].url);
     ok('P4(B-I3)收卡推播的 content-state 欄位集合仍符合 Swift 契約(不多不少)',
-      JSON.stringify(Object.keys(aps4['content-state']).sort()) === JSON.stringify(['arrivalDate', 'delaySec', 'departedDate', 'nextStop', 'terminus'].sort()),
+      JSON.stringify(Object.keys(aps4['content-state']).sort()) === JSON.stringify(CONTRACT_KEYS_SORTED),
       JSON.stringify(Object.keys(aps4['content-state']).sort()));
     ok('P4(B-I3)收卡推播的 nextStop＝終點站', aps4['content-state'].nextStop === stops[stops.length - 1].name, String(aps4['content-state'].nextStop));
   } else {
@@ -1415,6 +1450,70 @@ const H_BASE = 1_800_010_000;
   await resetTable();
 }
 
+// ══════════════════════════════════════════════════════════════════
+// Group I(2026-08-08 工項 A/B):上游斷線告知 ＋ 觀測回復時往回修站序
+// ══════════════════════════════════════════════════════════════════
+// 取 content-state 的小工具。刻意在「APNs 呼叫數不是 1」時回 null 而不是丟例外或靜默略過
+// ——回 null 會讓下面每一條斷言【變紅】,不會讓它們消失(心得37(d)/C1-Minor-5 家族)。
+const csOne = (list) => {
+  const c = list.filter(x => x.url.includes(APNS_FRAG));
+  if (c.length !== 1) return null;
+  try { return JSON.parse(c[0].init.body).aps['content-state']; } catch (e) { return null; }
+};
+const NOTICE_EXPECT = '即時資料中斷，位置為預估。實際動態請查台鐵官網';   // 使用者逐字核可,獨立寫死一份
+
+// P36(工項 A 關鍵 + 實作時查出的凍住漏洞):上游整批失效,而【舊快取裡有這台車】。
+// 🔴 這是真實斷線的形態,既有的 P34 照不到:P34 的舊快取裡剛好沒有那台車(t 為 undefined),
+//    所以它走到了表定推算;真實世界的舊看板是同一份看板,那台車一定在裡面 ⇒ t 是 truthy
+//    ⇒ 舊碼拿【舊觀測】算索引 ⇒ 算出跟 last_idx 一樣的值 ⇒「沒變就不推」⇒ 卡片整段
+//    斷線期間凍住,正面違反使用者裁示「不能讓火車凍住」。
+//    (實測的上游斷線:22 天內三次,全在週一早高峰,長 95／86／65 分鐘。)
+{
+  const T = tok('p36');
+  await resetTable();
+  mockNowSec = H_BASE + 9000;
+  // ① 暖快取:上游正常,看板裡就有 561,而且時刻是新鮮的
+  const warmBase = mockNowSec;
+  await insRow({ token: tok('p36w'), sys: 'tra_sched', train_no: '561',
+    stops: [{ name: 'A', at: warmBase + 600 }, { name: 'B', at: warmBase + 1200 }, { name: 'C', at: warmBase + 2040 }],
+    staMap: { '5050': 0, '5000': 1, '5010': 2 }, stopCodes: ['5050', '5000', '5010'],
+    last_idx: -1, last_delay: 0, bound_at: warmBase, expire_at: warmBase + 3600 });
+  tdxBoard = [{ TrainNo: '561', DelayTime: 0, StationID: '5050', TrainStationStatus: 1 }];
+  calls.length = 0; apnsNextStatus = 200; apnsNextReason = ''; apnsPerToken = {};
+  const capWarm = await captureConsole(() => laPushAll(env, fakeCtx, BASE_URL));
+  const csWarm = csOne(calls);
+  // 正向對照(工項 A 的反面):資料新鮮的台鐵列【必須】notice=null。少了這條,「斷線才送」
+  // 就分不出「真的只在斷線送」與「每一發都送」。
+  ok('P36 正向對照:上游正常＋資料新鮮的台鐵列,notice 必須是 null',
+    !!csWarm && csWarm.notice === null, csWarm ? `notice=${JSON.stringify(csWarm.notice)}` : '(APNs 呼叫數不是 1)');
+  ok('P36 正向對照:此時摘要 log 記成觀測(obs=1 sched=0)',
+    capWarm.logLines.some(l => l.includes('tick 完成') && l.includes('obs=1 sched=0')), JSON.stringify(capWarm.logLines));
+  await resetTable();
+
+  // ② 上游掛掉,時鐘前進超過 traLive 的 55 秒快取窗與 LA_LIVE_STALE_SEC(300 秒)
+  //    ⇒ traLive 沿用舊快取回 200 ＋【含 561 的舊看板】。
+  const base = warmBase + 900;
+  mockNowSec = base;
+  // 舊觀測說車在 5050(索引 0);表定則說現在該到索引 2(前兩站的表定時刻都已過)。
+  // 兩者刻意分岔,才分得出「用了舊觀測(凍住)」與「照表定前進」。
+  await insRow({ token: T, sys: 'tra_sched', train_no: '561',
+    stops: [{ name: 'A', at: base - 600 }, { name: 'B', at: base - 100 }, { name: 'C', at: base + 2040 }],
+    staMap: { '5050': 0, '5000': 1, '5010': 2 }, stopCodes: ['5050', '5000', '5010'],
+    last_idx: 0, last_delay: 0, bound_at: base, expire_at: base + 3600 });
+  tdxBoard = null;                       // ⇒ TDX 回 502 ⇒ traLive 沿用舊快取回 200(關鍵!)
+  calls.length = 0; apnsNextStatus = 200; apnsNextReason = ''; apnsPerToken = {};
+  const cap36 = await captureConsole(() => laPushAll(env, fakeCtx, BASE_URL));
+  const cs36 = csOne(calls);
+  ok('P36(關鍵)上游整批失效但舊看板裡仍有這台車時,卡片【不凍住】:照表定前進到 C(舊碼會停在舊觀測的 A)',
+    cap36.result.sent === 1 && !!cs36 && cs36.nextStop === 'C',
+    `sent=${cap36.result.sent} nextStop=${cs36 ? cs36.nextStop : '(無 APNs 呼叫)'}`);
+  ok('P36(關鍵)content-state 帶上使用者核可的斷線告知(逐字比對)',
+    !!cs36 && cs36.notice === NOTICE_EXPECT, cs36 ? JSON.stringify(cs36.notice) : '(APNs 呼叫數不是 1)');
+  ok('P36(關鍵)舊觀測不得被記成觀測:摘要 log 是 obs=0 sched=1',
+    cap36.logLines.some(l => l.includes('tick 完成') && l.includes('obs=0 sched=1')), JSON.stringify(cap36.logLines));
+  await resetTable();
+}
+
 // PEXC(最終複審 C1-I2):全域尾閘。worker.js 的 per-row try/catch 會把任何例外變成一行 log
 // 就 continue、不改任何回傳計數 ⇒ 例外通道對既有斷言【結構性隱形】(實測:讓每一列都拋
 // TypeError,139 條照樣全綠)。這條把「沒有我沒預期到的例外」變成具名斷言。
@@ -1438,7 +1537,7 @@ const H_BASE = 1_800_010_000;
 // 實測某一發突變讓總計從 139 掉到 128,11 條斷言消失而沒有任何人報警。
 // 這條把「每一格都真的跑到了」變成具名斷言。改動本檔的斷言數時要一併更新這個常數。
 {
-  const EXPECT_TOTAL = 181;   // 不含本條;本條自己會讓總計 +1
+  const EXPECT_TOTAL = 190;   // 不含本條;本條自己會讓總計 +1(2026-08-08 工項 A:181 → 190)
   ok(`COV 覆蓋率 gate:本輪斷言總數必須恰好等於預期 ${EXPECT_TOTAL}(區塊被跳過或條件式吞掉會讓分母無聲縮水)`,
     results.length === EXPECT_TOTAL, `actual=${results.length}`);
 }

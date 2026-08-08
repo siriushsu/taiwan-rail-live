@@ -37,6 +37,13 @@ struct RailFollowActivityWidget: Widget {
         }
     }
 
+    // 上游即時資料中斷的告知。空字串視同沒有——後端正常時送 null,但不要讓「送了空字串」
+    // 變成一行看不見的空白把版面撐開。
+    private func noticeText(_ raw: String?) -> String? {
+        guard let raw, !raw.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return nil }
+        return raw
+    }
+
     var body: some WidgetConfiguration {
         ActivityConfiguration(for: RailFollowAttributes.self) { context in
             // 鎖定畫面 / 橫幅
@@ -48,6 +55,15 @@ struct RailFollowActivityWidget: Widget {
                     progress(context.state.departedDate, context.state.arrivalDate)
                     Text(delayText(context.state.delaySec))
                         .font(.caption2).foregroundStyle(.secondary)
+                    // 🔴 文案整句由後端決定(改字不必重出 App)。橘色在鎖定畫面的深淺兩種底
+                    //    都讀得到,且與既有的 .secondary 灰明顯分得開;放在最後一列,站名與
+                    //    倒數的版面完全不動(橫幅高度自適應)。
+                    if let notice = noticeText(context.state.notice) {
+                        Text(notice)
+                            .font(.caption2).foregroundStyle(.orange)
+                            .lineLimit(2).minimumScaleFactor(0.85)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
                 }
                 Spacer()
                 countdown(context.state.arrivalDate, maxWidth: 88)
@@ -66,8 +82,16 @@ struct RailFollowActivityWidget: Widget {
                         .contentTransition(.numericText())
                 }
                 DynamicIslandExpandedRegion(.bottom) {
-                    Text("下一站 \(context.state.nextStop) · \(delayText(context.state.delaySec))")
-                        .font(.caption2)
+                    // 🔴 動態島塞不下後端那一整句(會爆版),這裡用寫死的短標。
+                    //    compact 與 minimal 刻意不動——那兩個版面連站名都只放得下兩三個字。
+                    VStack(alignment: .leading, spacing: 1) {
+                        Text("下一站 \(context.state.nextStop) · \(delayText(context.state.delaySec))")
+                            .font(.caption2)
+                        if noticeText(context.state.notice) != nil {
+                            Text("資料中斷・位置為預估")
+                                .font(.caption2).foregroundStyle(.orange).lineLimit(1)
+                        }
+                    }
                 }
             } compactLeading: {
                 Text(context.state.nextStop.prefix(2))
