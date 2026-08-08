@@ -6,14 +6,27 @@
 |---|---|---|
 | `0001_existing_reconstructed.sql` | ⚠️ **重建，未核對** | 既有三張表，從 `worker.js` 的查詢反推。只保證「夠測試用」，不保證等於正式庫。 |
 | `0002_bounty.sql` | ✅ **權威** | 懸賞四張表。正式庫的這四張表就是用它建的。 |
+| `0003_live_activity.sql` | ✅ **權威** | 跟車即時動態（Live Activity）的推播交班表 `la_bindings`。**尚未套到正式庫。** |
+| `0004_la_fail_streak.sql` | ✅ **權威** | 只給「已經套過舊版 0003」的環境補 `fail_streak` 欄位。**全新的庫套 0003 就夠，不要跑這支。** |
 
 ## 套用到正式庫
 
 ```bash
-npx wrangler d1 execute DELAY_DB --remote --file=schema/0002_bounty.sql
+arch -arm64 node ./node_modules/wrangler/bin/wrangler.js d1 execute DELAY_DB --remote --file=schema/0002_bounty.sql
+arch -arm64 node ./node_modules/wrangler/bin/wrangler.js d1 execute DELAY_DB --remote --file=schema/0003_live_activity.sql
 ```
 
-全部 `IF NOT EXISTS`，重跑無害。**這一步屬於上線批次，不在實作計畫的任何 task 裡。**
+（`npx wrangler` 在這台機器是壞的，一律用上面的完整寫法。）
+
+0001–0003 全部 `IF NOT EXISTS`，重跑無害。**這一步屬於上線批次，不在實作計畫的任何 task 裡。**
+
+🔴 **0003 忘了套的症狀**：`/api/la/bind` 回 503 `bind_failed`（客戶端靜默忽略），
+且 cron 每分鐘噴一則 `[cron la-push] 失敗: ... no such table: la_bindings`。
+整個跟車即時動態功能完全不動，而前端看起來一切正常。
+
+🔴 **只有「已經用舊版 0003 建過表」的環境才要再套 0004**（本機 `.wrangler`、開發庫）。
+`CREATE TABLE IF NOT EXISTS` 不會替既有的表補欄位，少了 `fail_streak` 會讓 cron
+每分鐘噴 `no such column: fail_streak`。
 
 ## 核對 0001 與正式庫
 

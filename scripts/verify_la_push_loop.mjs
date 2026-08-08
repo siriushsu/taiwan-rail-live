@@ -59,6 +59,9 @@ const calls = [];               // 每次 fetch 的紀錄:{dest,url,init}
 let apnsNextStatus = 200;       // 下一發 APNs 呼叫要回的狀態碼
 let apnsNextReason = '';        // 修復輪次1(Critical1):非 2xx 時的 body.reason,delPushAll 現在看這個決定要不要刪列
 let apnsRejectToken = null;     // 修復輪次1(Important2):設了就讓「打到這個 token」的那發 fetch 直接 reject(模擬網路層失敗)
+let apnsHangToken = null;       // 最終複審 A-I2:設了就讓「打到這個 token」的那發 fetch【永遠不 resolve】
+                                 // (模擬 APNs 端 stall/連線黑洞——Cloudflare 明文對單一 subrequest 沒有時間上限)。
+                                 // 與 apnsRejectToken 是兩種不同的失效:reject 會立刻回來,hang 不會。
 let apnsPerToken = {};          // 修復輪次2(批次熔斷):token → {status,reason} 覆寫,不在表裡的 token 走全域 apnsNextStatus/apnsNextReason——
                                  // 熔斷的「少數列失效、其餘成功」情境需要同一批裡不同列拿到不同回應,原本的全域兩個變數做不到。
 let apnsAdvanceMs = 0;          // 修復輪次4(牆鐘預算):每發一次 APNs 就把假時鐘往前推這麼多毫秒。
@@ -75,6 +78,7 @@ globalThis.fetch = async (url, init) => {
   if (u.includes(APNS_FRAG)) {
     if (apnsAdvanceMs) mockNowSec += apnsAdvanceMs / 1000;
     if (apnsRejectToken && u.includes(apnsRejectToken)) throw new Error('[verify_la_push_loop] 模擬 APNs 網路層 reject(Important2 測試)');
+    if (apnsHangToken && u.includes(apnsHangToken)) return new Promise(() => {});   // 永不 resolve(A-I2 測試)
     const overrideTok = Object.keys(apnsPerToken).find(t => u.includes(t));
     const status = overrideTok ? apnsPerToken[overrideTok].status : apnsNextStatus;
     const reason = overrideTok ? apnsPerToken[overrideTok].reason : apnsNextReason;
@@ -205,6 +209,17 @@ async function insBatch(tokens, base) {
       String(body.aps['content-state'].arrivalDate));
     ok('P1 departedDate=null(idx=0 無前一站)', body.aps['content-state'].departedDate === null, String(body.aps['content-state'].departedDate));
     ok('P1 terminus=板橋(最後一站)', body.aps['content-state'].terminus === '板橋', body.aps['content-state'].terminus);
+  } else {
+    // 🔴 最終複審 C1-Minor-5:這個條件式區塊原本【沒有 else】,APNs 呼叫數不是 1 的時候
+    // 裡面 10 條斷言(含守 Swift ContentState 欄位契約的那條)會【無聲消失】,總計行的分母
+    // 跟著縮水而沒有任何人報警。同形狀的 P3/P10/P13 本來就有回填,這裡補齊。
+    for (const n of ['P1 APNs URL 含 device token', 'P1 apns-topic 帶 liveactivity 後綴',
+      'P1 apns-push-type=liveactivity', 'P1 apns-priority=5(不計入更新預算)',
+      'P1 authorization 是 bearer+JWT(三段式)', 'P1 body.aps.content-state.nextStop = 南港(idx0)',
+      'P1(Important9)content-state 欄位集合與 Swift ContentState 契約完全一致(不多不少)',
+      'P1 arrivalDate 是 epoch 秒數字且獨立算術核對(未過站)',
+      'P1 departedDate=null(idx=0 無前一站)', 'P1 terminus=板橋(最後一站)'])
+      ok(n, false, `(APNs 呼叫數=${apnsCalls1.length},結構性略過)`);
   }
   const row1 = await getRow(T);
   ok('P1 推播成功後 D1 last_idx 更新成 0', !!row1 && row1.last_idx === 0 && row1.last_delay === 0, row1 ? `last_idx=${row1.last_idx}` : '(查無列)');
@@ -272,14 +287,51 @@ async function insBatch(tokens, base) {
       String(body.aps['content-state'].departedDate));
   } else ok('P3 APNs 呼叫次數應為 1(結構性略過後續細項)', false, `count=${apnsCalls3.length}`);
 
-  // P4:時間前進到全部站過完 → 應收卡(D1 刪列),不推播
+  // P4:時間前進到全部站過完 → 應收卡(D1 刪列)
+  // 🔴 最終複審 B-I3:收卡現在會先送一發 event:'end' 的推播再刪列。舊斷言「沒有 APNs 呼叫」
+  // 因此改成「恰好一發、而且是 end」——那一發正是修法的全部內容,不驗它等於沒驗。
+  // 「背景跑到終點」是主線情境:App 不在前景時前端那條收卡路徑根本不會執行,不送 end 的話
+  // 鎖屏卡片會留到 8 小時 staleDate。
   mockNowSec = stops[stops.length - 1].at + 999;
   calls.length = 0;
   const r4 = await laPushAll(env, fakeCtx, BASE_URL);
   ok('P4 全程走完不計入 sent/dropped', r4.sent === 0 && r4.dropped === 0, JSON.stringify(r4));
-  ok('P4 全程走完沒有 APNs 呼叫', calls.filter(c => c.url.includes(APNS_FRAG)).length === 0, String(calls.length));
+  const apnsCalls4 = calls.filter(c => c.url.includes(APNS_FRAG));
+  ok('P4(B-I3 關鍵)全程走完恰好送一發收卡推播', apnsCalls4.length === 1, `count=${apnsCalls4.length}`);
+  if (apnsCalls4.length === 1) {
+    const aps4 = JSON.parse(apnsCalls4[0].init.body).aps;
+    ok('P4(B-I3 關鍵)收卡推播 event=end(不是 update——update 收不掉鎖屏卡片)', aps4.event === 'end', String(aps4.event));
+    ok('P4(B-I3 關鍵)收卡推播帶 dismissal-date=now(不帶的話系統仍會留著卡片)',
+      aps4['dismissal-date'] === mockNowSec, String(aps4['dismissal-date']));
+    ok('P4(B-I3)收卡推播打的是這一列自己的 token', apnsCalls4[0].url.endsWith('/3/device/' + T), apnsCalls4[0].url);
+    ok('P4(B-I3)收卡推播的 content-state 欄位集合仍符合 Swift 契約(不多不少)',
+      JSON.stringify(Object.keys(aps4['content-state']).sort()) === JSON.stringify(['arrivalDate', 'delaySec', 'departedDate', 'nextStop', 'terminus'].sort()),
+      JSON.stringify(Object.keys(aps4['content-state']).sort()));
+    ok('P4(B-I3)收卡推播的 nextStop＝終點站', aps4['content-state'].nextStop === stops[stops.length - 1].name, String(aps4['content-state'].nextStop));
+  } else {
+    for (const n of ['P4(B-I3 關鍵)收卡推播 event=end(不是 update——update 收不掉鎖屏卡片)',
+      'P4(B-I3 關鍵)收卡推播帶 dismissal-date=now(不帶的話系統仍會留著卡片)',
+      'P4(B-I3)收卡推播打的是這一列自己的 token',
+      'P4(B-I3)收卡推播的 content-state 欄位集合仍符合 Swift 契約(不多不少)',
+      'P4(B-I3)收卡推播的 nextStop＝終點站']) ok(n, false, `(收卡推播數=${apnsCalls4.length},結構性略過)`);
+  }
   const row4 = await getRow(T);
   ok('P4 全程走完後 D1 列被刪除(收卡)', row4 === null, row4 ? JSON.stringify(row4) : '(已刪除)');
+  // 🔴 B-I3 的另一半:end 推播【失敗】時仍然要刪列——不可以因為推播失敗就把列留著永遠重試
+  // (那會變成另一個「每分鐘重推同一張卡」的來源,正是整套設計最想防的失效模式)。
+  {
+    const T4b = tok('p4b');
+    await delRow(T4b);
+    const st4b = [{ name: 'E0', at: mockNowSec + 100 }, { name: 'E1', at: mockNowSec + 200 }];
+    await insRow({ token: T4b, sys: 'thsr_sched', train_no: '9p4b', stops: st4b, last_idx: 1, last_delay: 0, bound_at: mockNowSec, expire_at: mockNowSec + 3600 });
+    mockNowSec = st4b[st4b.length - 1].at + 999;
+    calls.length = 0; apnsNextStatus = 500; apnsNextReason = 'InternalServerError';
+    const r4b = await laPushAll(env, fakeCtx, BASE_URL);
+    ok('P4b(B-I3 關鍵)end 推播失敗時仍然刪列(不可因推播失敗而留著永遠重試)',
+      (await getRow(T4b)) === null, JSON.stringify(r4b));
+    apnsNextStatus = 200; apnsNextReason = '';
+    await delRow(T4b);
+  }
 }
 
 // P5/P6(修復輪次1 Critical1 重寫):是否刪列現在看 body.reason,不是看 status——
@@ -377,6 +429,9 @@ for (const [tag, status] of [['p7a', 429], ['p7b', 500]]) {
   ok('P9 APNs 呼叫次數=1(不是 Tb 那列被誤推)', apnsCallsP9.length === 1, `count=${apnsCallsP9.length}`);
   if (apnsCallsP9.length === 1) {
     ok('P9 被推播的是 Ta 那列(狀態真的變了的那個)', apnsCallsP9[0].url.includes(Ta), apnsCallsP9[0].url);
+  } else {
+    // 🔴 最終複審 C1-Minor-5:補 else 回填,與 P1 同一個理由(分母不可無聲縮水)。
+    ok('P9 被推播的是 Ta 那列(狀態真的變了的那個)', false, `(APNs 呼叫數=${apnsCallsP9.length},結構性略過)`);
   }
   await delRow(Ta); await delRow(Tb);
 }
@@ -432,6 +487,31 @@ for (const [tag, status] of [['p7a', 429], ['p7b', 500]]) {
   const row11 = await getRow(T11);
   ok('P11(關鍵)剛 bind 未被 TDX 回報的車不會被誤刪', !!row11 && row11.last_idx === -1, row11 ? `last_idx=${row11.last_idx}` : '(查無列——若查無列代表復現了 brief 警告的那個 bug!)');
   await delRow(T11);
+
+  // P11b(最終複審 C1-I1 補強):P11 那格其實是被下一行的「沒變就不推」攔下的,對 `idx<0` 閘門
+  // 恆真(實測:把 worker.js 的 `if (idx < 0) continue;` 拿掉之後,原本 139 條全綠)。唯一真正
+  // 需要那道閘門的是【idx<0 而誤點有變】——此時「沒變就不推」的兩個條件不同時成立,會一路
+  // 掉到 stops[-1] 炸掉,而且 attempted 已經先 ++ 過 ⇒ 熔斷分母被一列根本沒送出請求的列灌水。
+  mockNowSec += 400;   // >55 秒,逼 traLive 重打
+  const T11b = tok('p11b');
+  await delRow(T11b);
+  const stops11b = [{ name: '潮州', at: mockNowSec + 600 }, { name: '屏東', at: mockNowSec + 2040 }];
+  await insRow({ token: T11b, sys: 'tra_sched', train_no: '888', stops: stops11b,
+    staMap: { '5050': 0 }, stopCodes: ['5050'], last_idx: -1, last_delay: 0,
+    bound_at: mockNowSec, expire_at: mockNowSec + 3600 });
+  tdxBoard = [{ TrainNo: '888', DelayTime: 5, StationID: '9999', TrainStationStatus: 2 }];
+  calls.length = 0; apnsNextStatus = 200; apnsNextReason = ''; apnsPerToken = {};
+  const { logLines: logB11, errLines: errB11 } = await captureConsole(() => laPushAll(env, fakeCtx, BASE_URL));
+  ok('P11b 前置:真的重打了 TDX(不是吃前一格的快取)', calls.some(c => c.url.includes(TDX_API_FRAG)), JSON.stringify(calls.map(c => c.url)));
+  ok('P11b(關鍵)idx<0 且誤點有變時仍不打 APNs(這一格「沒變就不推」攔不住)',
+    calls.filter(c => c.url.includes(APNS_FRAG)).length === 0, String(calls.filter(c => c.url.includes(APNS_FRAG)).length));
+  ok('P11b(關鍵)沒有留下單列例外 log——閘門若被拿掉,stops[-1].name 會當場 TypeError',
+    !errB11.some(l => l.includes('單列處理失敗')), JSON.stringify(errB11));
+  ok('P11b(關鍵)attempted 沒被這一列汙染(熔斷分母只能算真的送出過 APNs 的列)',
+    logB11.some(l => l.includes('tick 完成') && l.includes('attempted=0')), JSON.stringify(logB11));
+  const row11b = await getRow(T11b);
+  ok('P11b 列沒被刪', !!row11b && row11b.last_idx === -1, row11b ? String(row11b.last_idx) : '(查無列)');
+  await delRow(T11b);
 
   // P12:這班車根本不在本輪即時 feed 裡(不論成因是上游真的掛掉、還是 traLive 自己的
   // 「上游失敗但沿用舊快取」退路吐出一份不含這班車的舊資料——兩種成因對 laPushAll 是同一種
@@ -509,11 +589,19 @@ for (const [tag, status] of [['p7a', 429], ['p7b', 500]]) {
   await insRow({ token: Tb, sys: 'thsr_sched', train_no: '9p14b', stops: mk('B'), last_idx: -1, last_delay: 0, bound_at: mockNowSec, expire_at: mockNowSec + 3600 });
   await insRow({ token: Tc, sys: 'thsr_sched', train_no: '9p14c', stops: mk('C'), last_idx: -1, last_delay: 0, bound_at: mockNowSec, expire_at: mockNowSec + 3600 });
   calls.length = 0; apnsNextStatus = 200; apnsNextReason = ''; apnsRejectToken = Tb;
-  let r14 = null, r14err = null;
-  try { r14 = await laPushAll(env, fakeCtx, BASE_URL); } catch (e) { r14err = e; }
+  let r14 = null, r14err = null, errLines14 = [];
+  try {
+    const cap = await captureConsole(() => laPushAll(env, fakeCtx, BASE_URL));
+    r14 = cap.result; errLines14 = cap.errLines;
+  } catch (e) { r14err = e; }
   apnsRejectToken = null;
   ok('P14(關鍵)laPushAll 不因單列 reject 而整支拋出例外(per-row try/catch 有生效)',
     r14err === null, r14err ? String((r14err && r14err.stack) || r14err).split('\n')[0] : '(無例外)');
+  // 🔴 最終複審 C1-I2 的【正向對照】:證明「單列處理失敗」這個收集器真的抓得到東西。
+  // 沒有這一條的話,檔尾 PEXC 那條 `!errLines.some('單列處理失敗')` 會退化成又一個沒牙的
+  // `=== 0`(盲點形態 2:斷言某計數為 0 卻沒有同一支收集器的正向對照)。
+  ok('P14(正向對照)網路層 reject 確實留下一則「單列處理失敗」log——證明這個訊號抓得到',
+    errLines14.some(l => l.includes('單列處理失敗')), JSON.stringify(errLines14));
   if (r14) {
     ok('P14(關鍵)一列 reject 不影響其餘列的 sent 計數(sent=2,不是 0 或 1)', r14.sent === 2, JSON.stringify(r14));
     const rowA = await getRow(Ta), rowB = await getRow(Tb), rowC = await getRow(Tc);
@@ -1019,6 +1107,340 @@ for (const [tag, status] of [['p7a', 429], ['p7b', 500]]) {
   ok('P29 觸頂仍然留 log,且截斷的仍是 1 列', errLines29.some(l => l.includes('列數觸頂') && l.includes('5>4')), JSON.stringify(errLines29));
   ok('P29 sent=4(4 個候選都推播成功)', r29.sent === LIMIT, JSON.stringify(r29));
   await resetTable();
+}
+
+// ══════════════════════════════════════════════════════════════════
+// Group H(最終複審 C-2):誤點軸線。
+// 既有 139 條的 last_delay 一律 0、四個 TDX fixture 的 DelayTime 也全是 0 ⇒ worker.js 裡
+// 五處消費誤點的程式碼(單位換算 ×60、「沒變就不推」的誤點那一半、arrivalDate、departedDate、
+// 成功後寫回 last_delay)【六發突變全部紅集 0】。本組把「誤點」這條軸線釘住,
+// 它與 idx 是彼此獨立的更新觸發源,而「台鐵含誤點 offset」正是使用者定的核心規格。
+// ══════════════════════════════════════════════════════════════════
+
+// 🔴 Group H 起把假時鐘設成一個【絕對】的、必定晚於前面所有區塊的值。
+// 理由:前面很多區塊用 `mockNowSec = 1_800_000_000` 絕對重設、又有很多 `+= 100`,誰先誰後
+// 取決於區塊順序;而 traLive 的 isolate 記憶體快取鍵是 Date.now(),時鐘一旦【往回走】,
+// `Date.now() - memAt > 55e3` 恆假 ⇒ 這裡拿到的是別的區塊留下的舊看板,情境完全不成立。
+// 用絕對值起手就跟前面的區塊順序解耦(之後有人在中間插新區塊也不會靜默弄壞這一組)。
+const H_BASE = 1_800_010_000;
+// P30(關鍵):idx 不動、只有誤點變 —— 唯一能觸發推播的原因就是誤點。
+{
+  const T = tok('p30');
+  await resetTable();
+  mockNowSec = H_BASE;                                 // 遠晚於前面所有區塊,逼 traLive 重打假上游
+  const base = mockNowSec;
+  const stops = [{ name: '潮州', at: base + 600 }, { name: '屏東', at: base + 2040 }];
+  await insRow({ token: T, sys: 'tra_sched', train_no: '556', stops,
+    staMap: { '5050': 0, '5000': 1 }, stopCodes: ['5050', '5000'],
+    last_idx: 0, last_delay: 0, bound_at: base, expire_at: base + 3600 });
+  // 在站上(status1)且該站是停靠站 ⇒ own=0=last_idx ⇒ idx 不變;變的只有 DelayTime。
+  tdxBoard = [{ TrainNo: '556', DelayTime: 5, StationID: '5050', TrainStationStatus: 1 }];
+  calls.length = 0; apnsNextStatus = 200; apnsNextReason = ''; apnsPerToken = {};
+  const r30 = await laPushAll(env, fakeCtx, BASE_URL);
+  ok('P30(關鍵)idx 沒變但誤點變了 ⇒ 仍然要推(「沒變就不推」的誤點那一半)', r30.sent === 1, JSON.stringify(r30));
+  const c30 = calls.filter(c => c.url.includes(APNS_FRAG));
+  if (c30.length === 1) {
+    const cs = JSON.parse(c30[0].init.body).aps['content-state'];
+    // 期望值一律獨立算術,不呼叫 laArrivalEpoch 自己(心得29:判準不可與被測物同源)
+    ok('P30(關鍵)delaySec 是【秒】不是【分】:DelayTime=5 ⇒ 300', cs.delaySec === 300, String(cs.delaySec));
+    ok('P30(關鍵)arrivalDate 獨立算術核對＝表定＋誤點秒數', cs.arrivalDate === base + 600 + 300, String(cs.arrivalDate));
+  } else {
+    ok('P30(關鍵)delaySec 是【秒】不是【分】:DelayTime=5 ⇒ 300', false, `APNs 呼叫數=${c30.length}`);
+    ok('P30(關鍵)arrivalDate 獨立算術核對＝表定＋誤點秒數', false, `APNs 呼叫數=${c30.length}`);
+  }
+  const row30 = await getRow(T);
+  ok('P30(關鍵)成功後 last_delay 真的寫回 300——沒寫回的話每個 tick 都會重推同一張卡',
+    !!row30 && row30.last_delay === 300 && row30.last_idx === 0,
+    row30 ? `last_idx=${row30.last_idx} last_delay=${row30.last_delay}` : '(查無列)');
+  // 第二個 tick:誤點與站序都沒再變 ⇒ 必須安靜。這條是「last_delay 有沒有寫回」的直接後果,
+  // 也是本專案最怕的失效模式(每分鐘重推 ⇒ 吃滿牆鐘預算 ⇒ 餓死後面的列)的端到端證據。
+  mockNowSec += 100;
+  tdxBoard = [{ TrainNo: '556', DelayTime: 5, StationID: '5050', TrainStationStatus: 1 }];
+  calls.length = 0;
+  const r30b = await laPushAll(env, fakeCtx, BASE_URL);
+  ok('P30(關鍵)下一個 tick 誤點沒再變 ⇒ 零 APNs(不會每分鐘重推同一張卡)',
+    r30b.sent === 0 && calls.filter(c => c.url.includes(APNS_FRAG)).length === 0, JSON.stringify(r30b));
+  await resetTable();
+}
+
+// P30b:departedDate 也要吃誤點(idx>0 才有前一站,P30 那格 idx=0 照不到)。
+{
+  const T = tok('p30b');
+  await resetTable();
+  mockNowSec = H_BASE + 1000;
+  const base = mockNowSec;
+  const stops = [{ name: '潮州', at: base + 600 }, { name: '屏東', at: base + 2040 }];
+  await insRow({ token: T, sys: 'tra_sched', train_no: '557', stops,
+    staMap: { '5050': 0, '5000': 1 }, stopCodes: ['5050', '5000'],
+    last_idx: 0, last_delay: 0, bound_at: base, expire_at: base + 3600 });
+  tdxBoard = [{ TrainNo: '557', DelayTime: 3, StationID: '5000', TrainStationStatus: 0 }];  // 進站中屏東 ⇒ idx=1
+  calls.length = 0; apnsNextStatus = 200; apnsNextReason = ''; apnsPerToken = {};
+  const r = await laPushAll(env, fakeCtx, BASE_URL);
+  const c = calls.filter(x => x.url.includes(APNS_FRAG));
+  ok('P30b 前置:進站中屏東 ⇒ idx 前進到 1 並推播', r.sent === 1 && c.length === 1, JSON.stringify(r));
+  if (c.length === 1) {
+    const cs = JSON.parse(c[0].init.body).aps['content-state'];
+    ok('P30b(關鍵)departedDate 獨立算術核對＝前一站表定＋誤點秒數', cs.departedDate === base + 600 + 180, String(cs.departedDate));
+    ok('P30b nextStop=屏東', cs.nextStop === '屏東', String(cs.nextStop));
+  } else {
+    ok('P30b(關鍵)departedDate 獨立算術核對＝前一站表定＋誤點秒數', false, '(無 APNs 呼叫)');
+    ok('P30b nextStop=屏東', false, '(無 APNs 呼叫)');
+  }
+  await resetTable();
+}
+
+// P30c(最終複審 B-Minor):delaySec 是 ContentState 裡唯一的非 Optional 數值欄,Swift 的 Int
+// 解不了小數 ⇒ 餵一個小數進去會讓【整包 content-state 解碼失敗】(不是那一欄變 nil,是整張卡
+// 不更新)。TDX 目前給整數分,但這條契約不該靠上游的型別自律。
+{
+  const T = tok('p30c');
+  await resetTable();
+  mockNowSec = H_BASE + 2000;
+  const base = mockNowSec;
+  const stops = [{ name: '潮州', at: base + 600 }, { name: '屏東', at: base + 2040 }];
+  await insRow({ token: T, sys: 'tra_sched', train_no: '558', stops,
+    staMap: { '5050': 0, '5000': 1 }, stopCodes: ['5050', '5000'],
+    last_idx: 0, last_delay: 0, bound_at: base, expire_at: base + 3600 });
+  // 🔴 這個值必須讓「×60 之後仍然不是整數」才有分辨力:2.5 分 ×60 = 150 恰好是整數,
+  //    拿它當測資的話拿掉 Math.round 也照樣全綠(實測踩過)。2.51 分 ×60 = 150.6 ⇒ 四捨五入 151。
+  tdxBoard = [{ TrainNo: '558', DelayTime: 2.51, StationID: '5050', TrainStationStatus: 1 }];
+  calls.length = 0; apnsNextStatus = 200; apnsNextReason = ''; apnsPerToken = {};
+  await laPushAll(env, fakeCtx, BASE_URL);
+  const c = calls.filter(x => x.url.includes(APNS_FRAG));
+  if (c.length === 1) {
+    const cs = JSON.parse(c[0].init.body).aps['content-state'];
+    ok('P30c(B-Minor 關鍵)delaySec 一定是整數——小數會讓 Swift 整包 ContentState 解碼失敗',
+      Number.isInteger(cs.delaySec) && cs.delaySec === 151, String(cs.delaySec));
+  } else ok('P30c(B-Minor 關鍵)delaySec 一定是整數——小數會讓 Swift 整包 ContentState 解碼失敗', false, `APNs 呼叫數=${c.length}`);
+  await resetTable();
+}
+
+// ══════════════════════════════════════════════════════════════════
+// Group I(最終複審 A-I1～A-I4):後端四則 Important 修法各自的釘死者。
+// ══════════════════════════════════════════════════════════════════
+
+// P31(A-I1):熔斷的「全敗」規則在「本輪只有死 token 在嘗試」的 tick 會恆成立
+// ⇒ 舊碼下該被清掉的死 token 永遠清不掉。修法＝連續失敗輪數 >= LA_FAIL_STREAK_MAX(5) 就照刪。
+// 這一格連跑 5 個 tick,前 4 輪必須被熔斷擋住(否則等於熔斷沒生效),第 5 輪必須真的刪掉。
+{
+  await resetTable();
+  mockNowSec = H_BASE + 3000;
+  const base = mockNowSec;
+  const toks = ['p31a', 'p31b', 'p31c'].map(tok);
+  for (let i = 0; i < toks.length; i++) {
+    await insRow({ token: toks[i], sys: 'thsr_sched', train_no: '9i31' + i,
+      stops: [{ name: 'A' + i, at: base + 100 }, { name: 'B' + i, at: base + 200 }],
+      last_idx: -1, last_delay: 0, bound_at: base, expire_at: base + 3600 + i });
+  }
+  // 三列全數 BadDeviceToken ⇒ attempted=3=候選數 ⇒ 全敗分支必然觸發(LA_BREAKER_ALL_FAIL_MIN=3)
+  apnsNextStatus = 400; apnsNextReason = 'BadDeviceToken'; apnsPerToken = {}; apnsAdvanceMs = 0;
+  let survived = [];
+  for (let round = 1; round <= 4; round++) {
+    calls.length = 0;
+    const r = await laPushAll(env, fakeCtx, BASE_URL);
+    survived.push(`r${round}:dropped=${r.dropped},heldBack=${r.heldBack}`);
+  }
+  const stillThere = (await Promise.all(toks.map(getRow))).filter(Boolean).length;
+  ok('P31(A-I1 前置)前 4 輪全敗:熔斷確實擋住刪列,三列都還在——這是「熔斷有生效」的正向對照',
+    stillThere === 3, `${stillThere} 列還在 / ${JSON.stringify(survived)}`);
+  const rowStreak = await getRow(toks[0]);
+  ok('P31(A-I1 關鍵)fail_streak 真的每輪累加(4 輪後＝4)——不累加的話下面那條門檻永遠到不了',
+    !!rowStreak && rowStreak.fail_streak === 4, rowStreak ? `fail_streak=${rowStreak.fail_streak}` : '(查無列)');
+  calls.length = 0;
+  const { result: r5, errLines: err5 } = await captureConsole(() => laPushAll(env, fakeCtx, BASE_URL));
+  const left = (await Promise.all(toks.map(getRow))).filter(Boolean).length;
+  ok('P31(A-I1 關鍵)第 5 輪連續失敗達上限 ⇒ 死 token 終於被清掉(舊碼在這種 tick 永遠清不掉)',
+    left === 0 && r5.dropped === 3, `剩 ${left} 列 / ${JSON.stringify(r5)}`);
+  ok('P31(A-I1)熔斷仍然觸發、且告警文字改成陳述事實(帶連續失敗輪數),不是斷言「懷疑是設定錯誤」',
+    err5.some(l => l.includes('熔斷觸發') && l.includes('連續失敗輪數') && !l.includes('懷疑是設定錯誤')), JSON.stringify(err5));
+  apnsNextStatus = 200; apnsNextReason = '';
+  await resetTable();
+}
+
+// P32(A-I1 的另一半):成功推播要把 fail_streak 歸零。不歸零的話,一列偶發失敗幾次之後
+// 就會帶著高 streak 一路走,下次任何一次失敗都直接跳過熔斷保護被刪掉。
+{
+  const T = tok('p32');
+  await resetTable();
+  mockNowSec = H_BASE + 4000;
+  const base = mockNowSec;
+  await insRow({ token: T, sys: 'thsr_sched', train_no: '9i32',
+    stops: [{ name: 'A', at: base + 100 }, { name: 'B', at: base + 200 }],
+    last_idx: -1, last_delay: 0, bound_at: base, expire_at: base + 3600 });
+  await env.DELAY_DB.prepare('UPDATE la_bindings SET fail_streak=4 WHERE token=?').bind(T).run();
+  const pre32 = await getRow(T);
+  ok('P32 前置:手動把 fail_streak 撥成 4 生效(撥值失敗會讓下面的歸零斷言退化成同義反覆)',
+    !!pre32 && pre32.fail_streak === 4, pre32 ? `fail_streak=${pre32.fail_streak}` : '(查無列)');
+  calls.length = 0; apnsNextStatus = 200; apnsNextReason = '';
+  await laPushAll(env, fakeCtx, BASE_URL);
+  const post32 = await getRow(T);
+  ok('P32(A-I1 關鍵)推播成功後 fail_streak 歸零', !!post32 && post32.fail_streak === 0 && post32.last_idx === 0,
+    post32 ? `fail_streak=${post32.fail_streak} last_idx=${post32.last_idx}` : '(查無列)');
+  await resetTable();
+}
+
+// P33(A-I2):APNs fetch 沒有 timeout 的話,單一列可以把整個 tick 吊住(Cloudflare 明文
+// 「There is no set time limit on individual subrequests」)⇒ 45 秒預算不是上界,tick 會與
+// 下一分鐘的 tick 重疊而重複推播。這一格讓第二列的 fetch 永遠不 resolve,驗 laPushAll 仍
+// 在有限時間內跑完、而且第三列照樣被服務到。
+// 🔴 這一格吃的是【真實時鐘】(setTimeout),不是 mockNowSec ⇒ 會真的花掉約 LA_APNS_TIMEOUT_MS。
+{
+  await resetTable();
+  mockNowSec = H_BASE + 5000;
+  const base = mockNowSec;
+  const toks = ['p33a', 'p33b', 'p33c'].map(tok);
+  for (let i = 0; i < toks.length; i++) {
+    await insRow({ token: toks[i], sys: 'thsr_sched', train_no: '9i33' + i,
+      stops: [{ name: 'A' + i, at: base + 100 }, { name: 'B' + i, at: base + 200 }],
+      last_idx: -1, last_delay: 0, bound_at: base, expire_at: base + 3600 + i });
+  }
+  calls.length = 0; apnsNextStatus = 200; apnsNextReason = ''; apnsPerToken = {}; apnsHangToken = toks[1];
+  // 🔴 自帶看門狗:沒有逾時的話 laPushAll 會【永遠不 resolve】,這一格若直接 await 就會讓
+  // 整支腳本掛住 ⇒ 沒有總計行、非綠非紅,批次判讀會誤以為通過(本專案明確踩過的坑)。
+  // 用 race 把「掛住」轉成一條乾淨的 FAIL。看門狗要明顯大於 LA_APNS_TIMEOUT_MS(5 秒),
+  // 才不會把「逾時有生效但機器很慢」誤判成回歸。
+  const WATCHDOG_MS = 30_000;
+  // 🔴 這裡【不能】直接用 captureConsole 包住 race——captureConsole 是在自己的 finally 裡還原
+  // console 的,而看門狗贏的時候那個 finally 永遠不會執行 ⇒ 之後整支腳本的輸出全被吞進
+  // 那個陣列裡,變成「exit 1 但看不到任何 FAIL」的假象(實測踩到)。改成自己接管、自己在
+  // finally 還原,保證不論誰先回來 console 都會回到正常狀態。
+  const origLog33 = console.log, origErr33 = console.error;
+  const logLines33 = [], errLines33 = [];
+  let done33 = false, r33 = { sent: -1 }, wallMs = -1;
+  const wall0 = realDateNow();
+  try {
+    console.log = (...a) => { logLines33.push(a.map(String).join(' ')); };
+    console.error = (...a) => { errLines33.push(a.map(String).join(' ')); };
+    const race33 = await Promise.race([
+      laPushAll(env, fakeCtx, BASE_URL).then(x => ({ done: true, result: x })),
+      new Promise(res => setTimeout(() => res({ done: false }), WATCHDOG_MS)),
+    ]);
+    done33 = race33.done;
+    if (race33.done) r33 = race33.result;
+  } finally { console.log = origLog33; console.error = origErr33; wallMs = realDateNow() - wall0; }
+  apnsHangToken = null;
+  ok('P33(A-I2 關鍵)單列的 APNs 請求永遠不回應時,laPushAll 仍在有限時間內跑完(逾時真的有生效)',
+    done33 && wallMs < WATCHDOG_MS, done33 ? `牆鐘 ${wallMs}ms` : `看門狗 ${WATCHDOG_MS}ms 到期,laPushAll 仍未回來(＝單列可以吊住整個 tick)`);
+  const err33 = errLines33;
+  ok('P33(A-I2 關鍵)被吊住的那列之後的列仍然被服務到(整個 tick 沒有被單列吃掉)',
+    servedSet(calls).has(toks[2]) && r33.sent === 2, `sent=${r33.sent} served=${servedSet(calls).size}`);
+  ok('P33(A-I2)逾時被歸類成暫時性失敗:那一列留在表裡等下一分鐘重試,不刪列',
+    !!(await getRow(toks[1])), '(查無列＝被誤刪)');
+  ok('P33(A-I2)逾時留下可診斷的 log(訊息含 apns timeout)',
+    err33.some(l => l.includes('apns timeout')), JSON.stringify(err33));
+  await resetTable();
+}
+
+// P34(A-I3):traLive【整批】失效時,laPushAll 拿到的東西長什麼樣?
+// 🔴 查證後的真相(比複審報告更精確):traLive 上游掛掉【不會】回 502,也【不會】拋例外——
+// 它有「上游失敗但沿用舊快取」的退路,回的是 200 ＋一份【舊的】看板。所以舊碼看到的是
+// 「一份看起來正常的觀測資料」,所有台鐵列靜默從當下觀測退回舊觀測/表定推算,零 log。
+// 唯一分得出來的訊號是資料本身的觀測時刻(TDX 的 UpdateTime)。這一格就造那個情境:
+// 先讓一次成功的呼叫把快取暖起來,再讓上游掛掉並把時鐘往前推超過門檻,驗偵測與 log 都在。
+{
+  const T = tok('p34');
+  await resetTable();
+  mockNowSec = H_BASE + 6000;
+  // ① 先暖一次快取:上游正常,看板的 UpdateTime＝現在
+  await insRow({ token: tok('p34w'), sys: 'tra_sched', train_no: '560',
+    stops: [{ name: '潮州', at: mockNowSec + 600 }, { name: '屏東', at: mockNowSec + 2040 }],
+    staMap: { '5050': 0, '5000': 1 }, stopCodes: ['5050', '5000'],
+    last_idx: 0, last_delay: 0, bound_at: mockNowSec, expire_at: mockNowSec + 3600 });
+  tdxBoard = [{ TrainNo: '560', DelayTime: 0, StationID: '5050', TrainStationStatus: 1 }];
+  calls.length = 0; apnsNextStatus = 200; apnsNextReason = ''; apnsPerToken = {};
+  const cap34a = await captureConsole(() => laPushAll(env, fakeCtx, BASE_URL));
+  ok('P34 前置(正向對照):上游正常＋資料新鮮時,摘要 log 【不】標 traLiveDown——證明這個旗標不是恆真',
+    cap34a.logLines.some(l => l.includes('tick 完成') && !l.includes('traLiveDown')), JSON.stringify(cap34a.logLines));
+  ok('P34 前置:此時 tra-live 相關的 ERROR log 一則都沒有', !cap34a.errLines.some(l => l.includes('tra-live')), JSON.stringify(cap34a.errLines));
+  await resetTable();
+
+  // ② 上游掛掉,時鐘前進超過 traLive 的 55 秒快取窗與 LA_LIVE_STALE_SEC(300 秒)門檻
+  //    ⇒ traLive 重打上游失敗 ⇒ 走「沿用舊快取」退路回 200 ＋ 舊的 UpdateTime。
+  const base = mockNowSec + 900;
+  mockNowSec = base;
+  await insRow({ token: T, sys: 'tra_sched', train_no: '559',
+    stops: [{ name: '潮州', at: base - 100 }, { name: '屏東', at: base + 2040 }],
+    staMap: { '5050': 0, '5000': 1 }, stopCodes: ['5050', '5000'],
+    last_idx: -1, last_delay: 0, bound_at: base, expire_at: base + 3600 });
+  tdxBoard = null;                       // ⇒ TDX 回 502 ⇒ traLive 沿用舊快取回 200(關鍵!)
+  calls.length = 0; apnsNextStatus = 200; apnsNextReason = ''; apnsPerToken = {};
+  const { result: r34, logLines: log34, errLines: err34 } = await captureConsole(() => laPushAll(env, fakeCtx, BASE_URL));
+  ok('P34(A-I3 關鍵)上游整批失效(被舊快取頂著、HTTP 仍是 200)時留下可診斷的 ERROR log——舊碼零 log',
+    err34.some(l => l.includes('tra-live 資料過舊')), JSON.stringify(err34));
+  ok('P34(A-I3 關鍵)摘要 log 標記 traLiveDown,且把表定推算與觀測推播分開計數(sched=1 obs=0)',
+    log34.some(l => l.includes('tick 完成') && l.includes('traLiveDown') && l.includes('obs=0 sched=1')), JSON.stringify(log34));
+  ok('P34(A-I3)現行政策(LA_SCHED_FALLBACK_ON_UPSTREAM_DOWN=true)下卡片仍然前進',
+    r34.sent === 1, JSON.stringify(r34));
+  await resetTable();
+}
+
+// P35(A-I4):持續 403 時每個 tick 都 laJwtReset() ⇒ 每分鐘重簽一把 provider token,
+// 撞上 Apple「更新頻率不得高於每 20 分鐘」的硬限制(429 TooManyProviderTokenUpdates),
+// 把一個「改個設定就好」的故障延長成「改好之後還要等節流解除」。修法＝20 分鐘冷卻。
+// 前一格 P15 已經在本檔更早的位置觸發過一次 reset,所以這裡量的是【冷卻期內】的行為。
+{
+  const T = tok('p35');
+  await resetTable();
+  mockNowSec = H_BASE + 7000;
+  const base = mockNowSec;
+  await insRow({ token: T, sys: 'thsr_sched', train_no: '9i35',
+    stops: [{ name: 'A', at: base + 100 }, { name: 'B', at: base + 200 }],
+    last_idx: -1, last_delay: 0, bound_at: base, expire_at: base + 3600 });
+  // 連跑三輪 403。第 1 輪的 reset 是【合法的】(距上一次 reset 已超過 20 分鐘的模擬時間),
+  // 所以真正的判準是第 2、3 輪:冷卻生效時它們共用同一把 JWT;沒有冷卻的話每輪都重簽,
+  // 而 ECDSA 每次簽出來的位元組都不同(即使 header/payload 一字不差)⇒ 兩者一定分得出來。
+  const jwtOf = () => (calls.filter(c => c.url.includes(APNS_FRAG))[0] || {}).init?.headers?.authorization;
+  apnsNextStatus = 403; apnsNextReason = 'InvalidProviderToken';
+  calls.length = 0;
+  const cap35a = await captureConsole(() => laPushAll(env, fakeCtx, BASE_URL));
+  const jwtA = jwtOf();
+  calls.length = 0;
+  await captureConsole(() => laPushAll(env, fakeCtx, BASE_URL));
+  const jwtB = jwtOf();
+  calls.length = 0;
+  const cap35c = await captureConsole(() => laPushAll(env, fakeCtx, BASE_URL));
+  const jwtC = jwtOf();
+  ok('P35 前置:三輪都真的送出了 APNs 請求(才有 JWT 可比)',
+    [jwtA, jwtB, jwtC].every(x => typeof x === 'string' && x.startsWith('bearer ')),
+    [jwtA, jwtB, jwtC].map(x => String(x).slice(0, 14) + '…').join(' / '));
+  ok('P35 前置(正向對照):第 1 輪的 403 確實作廢了快取 ⇒ 第 2 輪拿到的是【新的】JWT',
+    jwtA !== jwtB, jwtA === jwtB ? '(兩輪同一把,代表 403 根本沒觸發重簽)' : '(已重簽)');
+  ok('P35(A-I4 關鍵)冷卻期內連續 403 的下一輪【沿用快取的 JWT】,不再每分鐘重簽(Apple 硬限制 20 分鐘)',
+    jwtB === jwtC, jwtB === jwtC ? '(同一把)' : '(又重簽了!)');
+  ok('P35(A-I4)冷卻期內留下一則說明用的 log(否則看不出「已停止重簽、正在等冷卻」)',
+    cap35c.errLines.some(l => l.includes('冷卻期')), JSON.stringify(cap35c.errLines));
+  ok('P35(A-I4)第一輪的 403 本身仍照舊留下 status+reason 的 log',
+    cap35a.errLines.some(l => l.includes('403') && l.includes('InvalidProviderToken')), JSON.stringify(cap35a.errLines));
+  apnsNextStatus = 200; apnsNextReason = '';
+  await resetTable();
+}
+
+// PEXC(最終複審 C1-I2):全域尾閘。worker.js 的 per-row try/catch 會把任何例外變成一行 log
+// 就 continue、不改任何回傳計數 ⇒ 例外通道對既有斷言【結構性隱形】(實測:讓每一列都拋
+// TypeError,139 條照樣全綠)。這條把「沒有我沒預期到的例外」變成具名斷言。
+// 正向對照在 P14(網路層 reject 必須留下同一個訊號),兩者缺一這條就沒有牙。
+{
+  const T = tok('pexc');
+  await resetTable();
+  mockNowSec = H_BASE + 8000;
+  await insRow({ token: T, sys: 'thsr_sched', train_no: '9exc',
+    stops: [{ name: 'A', at: mockNowSec + 100 }, { name: 'B', at: mockNowSec + 200 }],
+    last_idx: -1, last_delay: 0, bound_at: mockNowSec, expire_at: mockNowSec + 3600 });
+  calls.length = 0; apnsNextStatus = 200; apnsNextReason = ''; apnsPerToken = {}; apnsRejectToken = null;
+  const { errLines: errExc } = await captureConsole(() => laPushAll(env, fakeCtx, BASE_URL));
+  ok('PEXC(關鍵)正常情境零「單列處理失敗」——例外通道有具名 gate,不再隱形',
+    !errExc.some(l => l.includes('單列處理失敗')), JSON.stringify(errExc));
+  await resetTable();
+}
+
+// 🔴 覆蓋率 gate(最終複審 C1-Minor-5,心得 37(d)):總斷言數本來只印在總計行、從無斷言。
+// 條件式區塊被跳過(例如「APNs 呼叫數不是 1」而該區塊沒寫 else 回填)會讓分母【無聲縮水】:
+// 實測某一發突變讓總計從 139 掉到 128,11 條斷言消失而沒有任何人報警。
+// 這條把「每一格都真的跑到了」變成具名斷言。改動本檔的斷言數時要一併更新這個常數。
+{
+  const EXPECT_TOTAL = 181;   // 不含本條;本條自己會讓總計 +1
+  ok(`COV 覆蓋率 gate:本輪斷言總數必須恰好等於預期 ${EXPECT_TOTAL}(區塊被跳過或條件式吞掉會讓分母無聲縮水)`,
+    results.length === EXPECT_TOTAL, `actual=${results.length}`);
 }
 
 await dispose();

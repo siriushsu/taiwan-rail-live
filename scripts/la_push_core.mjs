@@ -43,6 +43,12 @@ export function laArrivalEpoch(atSec, delaySec, nowSec) {
 // 🔴 修復輪次1(Important 4):快取鍵加上 KEY_ID/TEAM_ID——金鑰輪替時舊快取不會被誤用;
 // 另外提供 laJwtReset() 給 403 InvalidProviderToken 時強制作廢,不必等滿 50 分鐘。
 let _laJwt = null, _laJwtAt = 0, _laJwtKey = '';
+// 🔴 最終複審 A-I4:Apple 明文要求 provider token 的更新頻率不得高於每 20 分鐘,否則回
+// 429 TooManyProviderTokenUpdates。持續 403(金鑰輪替、APNS_TEAM_ID/APNS_KEY_ID 設錯)時
+// 舊碼每個 tick 都 laJwtReset() ⇒ 每分鐘重簽一把 ⇒ 幾乎必然被 Apple 節流,把一個「改個設定
+// 就好」的故障變成「連改好之後也還要等節流解除」。冷卻期就是 Apple 那條 20 分鐘。
+const LA_JWT_RESET_COOLDOWN_MS = 20 * 60 * 1000;
+let _laJwtResetAt = 0;
 export async function laJwt(env) {
   const now = Math.floor(Date.now() / 1000);
   const key = `${env.APNS_KEY_ID}:${env.APNS_TEAM_ID}`;
@@ -61,4 +67,12 @@ export async function laJwt(env) {
 }
 // APNs 403(InvalidProviderToken,通常是金鑰輪替或時鐘偏移)時呼叫:強制作廢快取,
 // 下一次 laJwt() 會無條件重簽,不必等滿 50 分鐘的自然快取期限。
-export function laJwtReset() { _laJwt = null; _laJwtAt = 0; _laJwtKey = ''; }
+// 🔴 最終複審 A-I4:帶 20 分鐘冷卻(見上方常數)。回傳值表示「這次真的作廢了嗎」,
+// 呼叫端可據此決定要不要 log(在冷卻期內每分鐘噴一則「已重簽」是誤導的)。
+export function laJwtReset() {
+  const nowMs = Date.now();
+  if (_laJwtResetAt && nowMs - _laJwtResetAt < LA_JWT_RESET_COOLDOWN_MS) return false;
+  _laJwtResetAt = nowMs;
+  _laJwt = null; _laJwtAt = 0; _laJwtKey = '';
+  return true;
+}

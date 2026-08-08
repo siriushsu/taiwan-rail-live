@@ -2187,6 +2187,8 @@ async function stationEvents(request, env) {
 }
 
 // ── 跟車即時動態:交班與註銷 ──
+// 🔴 最終複審 A-I5:同一個 uid 最多留幾列(見 laBind 尾端的修剪語句)。
+const LA_MAX_ROWS_PER_UID = 3;
 // 端點外部可打,限流擋在任何 D1 寫入之前(照本檔慣例,寫入型一律 failClosed=true)。
 async function laBind(request, env) {
   // 端點只收 POST(同 deleteAccountData 慣例)——API_POST_ALLOWED 只擋「非 GET/HEAD 且不在名單內」,
@@ -2236,6 +2238,17 @@ async function laBind(request, env) {
     ).bind(String(b.token), uid, String(b.sys), String(b.trainNo),
       JSON.stringify(b.stops), JSON.stringify(b.staMap), JSON.stringify(b.stopCodes),
       now, now + 8 * 3600).run();
+    // 🔴 最終複審 A-I5:token 只驗格式(64 碼 hex)不驗真偽,且原本沒有 per-uid 上限——
+    // 一個有 Plus 資格的帳號用隨機 hex 反覆打這支端點就能灌滿 500 列的服務窗(限流是
+    // 20/分鐘/IP ⇒ 單 IP 每天 28,800 列),而且掃描是 ORDER BY expire_at ASC(等價 bound_at
+    // 升冪)⇒ 灌進去的舊列一律排在真人前面。二階效應更糟:那些假 token 全回 BadDeviceToken
+    // ⇒ 每 tick 全敗 ⇒ 熔斷觸發 ⇒ 一列都刪不掉(A-I1 的另一半),灌進去的列活滿 8 小時。
+    // 同一條上限也順手解掉「換車/強制關 App 造成的孤兒列」——比前端那條 laUnbind() 補償可靠。
+    // 留 3 列而不是 1 列:同一個帳號可能有 iPhone＋iPad 同時各開一張卡,砍到只剩一張會誤殺。
+    await env.DELAY_DB.prepare(
+      'DELETE FROM la_bindings WHERE uid=? AND token NOT IN' +
+      ' (SELECT token FROM la_bindings WHERE uid=? ORDER BY bound_at DESC, token DESC LIMIT ?)'
+    ).bind(uid, uid, LA_MAX_ROWS_PER_UID).run();
     return jsonRes({ ok: true }, 200, 'no-store');
   } catch (e) {
     return jsonRes({ error: 'bind_failed' }, 503, 'no-store');
@@ -2327,6 +2340,88 @@ const LA_BREAKER_ALL_FAIL_MIN = 3;
 // Node 的時鐘本來就一直在走,這個假設在那支腳本裡結構性測不出來(比照 workerd 不收
 // redirect:'error' 那次的教訓)。改動本預算機制前請重跑那支探針。
 const LA_TICK_BUDGET_MS = 45000;
+// 🔴 最終複審 A-I2:上面那個牆鐘預算只在【迴圈頂端】檢查,所以它不是上界——第 N 列在
+// t=44.9s 通過檢查後進入 await fetch(),之後就再也不檢查了。Cloudflare 官方文件明寫
+// 「There is no set time limit on individual subrequests」,APNs 那端一旦 stall(連線黑洞、
+// 對端不回 FIN),這個 await 可以吊到 cron 的 15 分鐘牆鐘上限 ⇒ (a) 本 tick 其餘列全部不推;
+// (b) 與下一分鐘的 tick 重疊,兩邊讀到同一個 last_idx ⇒ 重複推播(正是 LIMIT 想防的事情
+// 從另一個門進來);(c) 摘要 log 在迴圈之後,外部完全看不出異常。
+// 加上這個逾時之後,單 tick 的上界才真的是 45s + 一次 LA_APNS_TIMEOUT_MS。
+const LA_APNS_TIMEOUT_MS = 5000;
+// 寫法照同檔既有的 hazardMonitorWithTimeout(worker.js 前段),不自創:Promise.race + finally
+// 清 timer。注意它【不會】中止底下那發 fetch(Workers 沒有便宜的取消語意),它保證的是
+// 「laPushAll 這條迴圈不會被單一列吊住」——逾時的請求本身仍可能在背景完成,那沒有副作用
+// (成功與否都只影響 D1 寫入,而我們已經放棄這一列,下一分鐘自然重試)。
+function laFetchWithTimeout(url, init, timeoutMs = LA_APNS_TIMEOUT_MS) {
+  let timer;
+  return Promise.race([
+    fetch(url, init),
+    new Promise((_, reject) => { timer = setTimeout(() => reject(new Error('apns timeout')), timeoutMs); }),
+  ]).finally(() => clearTimeout(timer));
+}
+// 🔴 最終複審 A-I1(熔斷器的第 4 個洞):死 token 的列【每個 tick 都會進 attempted】
+// (推播失敗 ⇒ last_idx 不更新 ⇒ 下一 tick idx !== last_idx 恆成立 ⇒ 必然重入),而健康的列
+// 只在「換站或誤點值變了」才進 attempted。於是「本輪嘗試的全都是死 token」這種 tick 是常態
+// (表裡只有幾個 sandbox/已結束的 token、或凌晨只剩零星卡片)⇒ permFailCandidates.length
+// === attempted 恆成立 ⇒ 全敗分支恆觸發 ⇒ 【該被清掉的死 token 永遠清不掉】,而且每分鐘噴
+// 一則「懷疑是設定錯誤」的假告警,把真告警淹掉(告警不能只有一種形狀)。
+// 修法:區分「設定錯誤」與「token 自然死亡」的正確訊號不是單 tick 的比例,是【同一個 token
+// 連續失敗幾輪】——設定錯誤會在幾分鐘內被人修掉,死 token 不會自己活過來。熔斷仍然擋住
+// 「這一輪才第一次失敗」的列(保護真的設定錯誤),但連續失敗 >= LA_FAIL_STREAK_MAX 輪的列
+// 照刪。5 的取法:cron 每分鐘一次 ⇒ 5 分鐘;設定錯誤的修復窗口遠長於此的話,被刪掉的那些列
+// 本來也已經沒有卡片可推了(APNs 對它們連續五分鐘回 Unregistered/BadDeviceToken)。
+const LA_FAIL_STREAK_MAX = 5;
+// 🔴 最終複審 A-I3(需 owner 裁示的政策旋鈕,刻意獨立成一顆具名常數以便一行改掉)
+// 情境:traLive【整批】失效(TDX 掛掉/回 502)——不是「這台車沒有觀測資料」,是整輪台鐵列
+// 都拿不到觀測。兩個選項在這個情境下直接衝突:
+//   true (現況)＝退表定推算:卡片繼續前進,但站名從「觀測」偷偷變成「推算」,
+//        正面違反使用者的約束性決定「站名來自觀測,不來自推算」。
+//        最壞可見後果:實際誤點 30 分的車,卡片照表定往前跳 ⇒「還沒到宜蘭卻顯示羅東」。
+//   false      ＝凍住不動:站名停在最後一次觀測到的那一站,直到上游恢復。
+//        代價是卡片在上游故障期間看起來「壞掉了」(但它顯示的是最後一個【真的觀測到】的事實),
+//        且完全沒有「慢一兩分鐘」以外的錯誤資訊。
+// 這一顆維持 true(＝不改變現行行為),但無論如何都已補上 (a) 整批失效的偵測與 (b) 一則
+// 可診斷的 ERROR log ＋ 摘要 log 的 sentSched 計數,讓「這一分鐘的站名是猜的」變成可觀測量。
+// 要改政策只需把這顆改成 false;消費點只有一處(下面 idx 的三元式)。
+const LA_SCHED_FALLBACK_ON_UPSTREAM_DOWN = true;
+// 🔴 最終複審 A-I3:tra-live 的觀測時刻距今超過這麼久,就當成「本輪沒有當下的觀測」。
+// TDX 的 TrainLiveBoard 正常每 1–2 分鐘更新一次,300 秒(5 分鐘)是明顯異常而非抖動。
+const LA_LIVE_STALE_SEC = 300;
+// 🔴 最終複審 B-I3:走完全程的收卡推播。內容用終點站那一格,event:'end' ＋ dismissal-date=now
+// 讓 ActivityKit 立刻把鎖屏卡片收走(不送就會留到 8 小時 staleDate)。
+// 任何失敗都只 log 不拋——呼叫端無論如何都要刪列,不可以因為推播失敗就把列留著永遠重試。
+async function laPushEnd(env, jwt, row, stops, delaySec, now) {
+  try {
+    const last = stops[stops.length - 1], prev = stops.length > 1 ? stops[stops.length - 2] : null;
+    const host = env.APNS_HOST || 'api.push.apple.com';
+    const res = await laFetchWithTimeout(`https://${host}/3/device/${row.token}`, {
+      method: 'POST',
+      headers: {
+        authorization: 'bearer ' + jwt,
+        'apns-topic': 'tw.railisland.app.push-type.liveactivity',
+        'apns-push-type': 'liveactivity',
+        'apns-priority': '5',
+        'content-type': 'application/json',
+      },
+      body: JSON.stringify({
+        aps: {
+          timestamp: now, event: 'end', 'dismissal-date': now,
+          'content-state': {
+            nextStop: last.name,
+            arrivalDate: laArrivalEpoch(last.at, delaySec, now),
+            departedDate: prev ? prev.at + delaySec : null,
+            delaySec, terminus: last.name,
+          },
+        },
+      }),
+    });
+    if (!res.ok) console.error(`[cron la-push] 收卡 end 推播非 2xx(仍照常刪列): status=${res.status} token=${String(row.token).slice(0, 8)}…`);
+    return !!res.ok;
+  } catch (e) {
+    console.error(`[cron la-push] 收卡 end 推播失敗(仍照常刪列)token=${String(row.token).slice(0, 8)}… :`, String((e && e.message) || e));
+    return false;
+  }
+}
 async function laPushAll(env, ctx, baseUrl) {
   if (!env.APNS_KEY_P8 || !env.DELAY_DB) {
     // 🔴 修復輪次2(無聲失敗 a):未設定就整支不動,舊版零 log——tick 摘要 log 在這條
@@ -2377,17 +2472,43 @@ async function laPushAll(env, ctx, baseUrl) {
 
   // 台鐵即時:整批共用一次。_src=cron 讓 traLive 知道這不是真人前景使用,不計入用量分析
   // (修復輪次1 Important 6——定義處在 traLive 本體,見該函式開頭註解)。
-  let live = {};
+  // 🔴 最終複審 A-I3:traLive 故障時【不會拋例外】——它自己 catch 之後回 jsonRes({error}, 502),
+  // 所以下面那個 catch 根本不會執行,j.trains 是 undefined、live 停在 {},一則 log 都沒有,
+  // 而所有台鐵列靜默改走表定推算。要先把「上游整批失效」與「這台車沒有觀測資料」分開,
+  // 才有辦法談政策(見 LA_SCHED_FALLBACK_ON_UPSTREAM_DOWN)。
+  let live = {}, liveDown = false, liveAgeSec = null;
   if (rows.some(r => r.sys === 'tra_sched')) {
     try {
       const r = await traLive(new Request(baseUrl + '/api/tra-live?_src=cron'), env, ctx);
       const j = await r.json();
-      for (const t of (j.trains || [])) live[String(t.no)] = t;
-    } catch (e) { /* 上游掛掉:live 留空,下面一律走 last_delay 的 fallback */ }
+      if (!r.ok || !Array.isArray(j && j.trains)) {
+        liveDown = true;
+        console.error(`[cron la-push] tra-live 不可用(status=${r.status}),本輪台鐵列拿不到任何觀測資料,站名將退回表定推算`);
+      } else {
+        for (const t of j.trains) live[String(t.no)] = t;
+        // 🔴 最終複審 A-I3(第二層,查證後才發現的):traLive 上游失敗時【不會】回 502——它有
+        // 「上游失敗但沿用舊快取」的退路,回的是 200 ＋一份【舊的】TrainLiveBoards(worker.js
+        // 的 catch 分支:`if (mem) return jsonRes(mem, 200, …)`)。所以只看 status 抓不到整批
+        // 失效,唯一分得出來的訊號是資料本身的觀測時刻(mem.at ＝ TDX 的 UpdateTime)。
+        // 超過門檻就當成「本輪沒有當下的觀測」——站名會從觀測靜默變成推算,那正是要偵測的事。
+        const obsMs = j.at ? Date.parse(j.at) : NaN;
+        liveAgeSec = Number.isFinite(obsMs) ? Math.round(now - obsMs / 1000) : null;
+        if (liveAgeSec === null || liveAgeSec > LA_LIVE_STALE_SEC) {
+          liveDown = true;
+          console.error(`[cron la-push] tra-live 資料過舊(觀測時刻距今 ${liveAgeSec === null ? '(無法解析)' : liveAgeSec + ' 秒'},門檻 ${LA_LIVE_STALE_SEC} 秒)——上游很可能整批失效而由舊快取頂著,本輪台鐵列的站名不是當下的觀測`);
+        }
+      }
+    } catch (e) {
+      liveDown = true;
+      console.error('[cron la-push] tra-live 呼叫拋出例外,本輪台鐵列拿不到任何觀測資料:', (e && e.stack) || String(e));
+    }
   }
 
   const jwt = await laJwt(env);
   let sent = 0, dropped = 0;
+  // 🔴 最終複審 A-I3(第 2 件事):觀測驅動與表定驅動的推播在舊 log 上一字不差,營運端拿不到
+  // 「這一分鐘有幾張卡的站名是猜的」這個訊號。拆成兩個計數進摘要 log,讓表定推算佔比可觀測。
+  let sentObs = 0, sentSched = 0;
   // 🔴 修復輪次2(批次熔斷):不在迴圈內立刻刪列,先收集候選 token,等整批掃完才決定要不要
   // 真的刪——熔斷需要看過「這個 tick 到底有多少列同時觸發永久失敗」才能判斷,迴圈跑到一半
   // 沒有這個全局資訊。
@@ -2418,12 +2539,25 @@ async function laPushAll(env, ctx, baseUrl) {
       const staMap = JSON.parse(row.sta_map), stopCodes = JSON.parse(row.stop_codes);
       const t = row.sys === 'tra_sched' ? live[String(row.train_no)] : null;
       // 誤點:拿得到就用,拿不到沿用最後已知值(不歸零——歸零會讓卡片跳)
-      const delaySec = t ? (Number(t.delay) || 0) * 60 : row.last_delay;
-      // 有觀測就用觀測(承重牆 1);沒有(支線 92 站缺口、高鐵、上游掛掉)就走表定退路,
-      // 卡片【仍然前進】——凍住不動比慢一兩分鐘更糟。
+      // 🔴 最終複審 B-Minor:Math.round 不可省。delaySec 是 ContentState 裡【唯一的非 Optional
+      // 數值欄】,Swift 的 Int 解不了小數 ⇒ 餵一個小數進去會讓【整包 content-state 解碼失敗】
+      // (實測:`Number 180.5 is not representable in Swift`),不是那一欄變 nil,是整張卡不更新。
+      // TDX 的 DelayTime 目前是整數分,但這條契約不該靠上游的型別自律。
+      const delaySec = t ? Math.round((Number(t.delay) || 0) * 60) : row.last_delay;
+      // 有觀測就用觀測(承重牆 1);沒有(支線 92 站缺口、高鐵)就走表定退路,卡片【仍然前進】。
+      // 🔴 最終複審 A-I3:唯一的例外是「上游【整批】失效」——那不是「這台車沒有觀測資料」,
+      // 政策旋鈕見 LA_SCHED_FALLBACK_ON_UPSTREAM_DOWN(這是它唯一的消費點)。
+      const schedFallbackBlocked = liveDown && row.sys === 'tra_sched' && !LA_SCHED_FALLBACK_ON_UPSTREAM_DOWN;
       const idx = t ? laNextIdx(String(t.sta), Number(t.status), staMap, stopCodes, row.last_idx)
+                    : schedFallbackBlocked ? row.last_idx      // 凍住:與 last_idx 相同 ⇒ 走下面的「沒變就不推」
                     : laSchedIdx(stops, delaySec, now, row.last_idx);
       if (idx >= stops.length) {                            // 走完全程 → 收卡
+        // 🔴 最終複審 B-I3:舊碼只 DELETE 不送 end ⇒ 鎖屏卡片會留到 RailLiveActivityPlugin
+        // 設的 8 小時 staleDate,使用者得自己滑掉。「背景跑到終點」是主線情境不是邊角:
+        // App 不在前景時,前端那條「laPayload 回 null ⇒ laStop 收卡」根本沒機會執行。
+        // 送 end + dismissal-date 讓系統立刻收走。失敗也照樣刪列(冪等)——不可以因為推播
+        // 失敗就把列留著永遠重試,那會變成另一個每分鐘重推的來源。
+        await laPushEnd(env, jwt, row, stops, delaySec, now);
         await env.DELAY_DB.prepare('DELETE FROM la_bindings WHERE token=?').bind(row.token).run();
         continue;
       }
@@ -2456,7 +2590,9 @@ async function laPushAll(env, ctx, baseUrl) {
       // 🔴 開發 build(entitlements aps-environment=development)拿到的是 sandbox token,
       //    打 production host 一律回 400 BadDeviceToken。用 env 切,不要寫死。
       const host = env.APNS_HOST || 'api.push.apple.com';
-      const res = await fetch(`https://${host}/3/device/${row.token}`, {
+      // 🔴 最終複審 A-I2:逾時包在這裡,逾時的 rejection 會落到本列的 try/catch(＝暫時性失敗:
+      // 不刪列、不進 permFailCandidates、下一分鐘自然重試),與網路層 reject 走同一條路。
+      const res = await laFetchWithTimeout(`https://${host}/3/device/${row.token}`, {
         method: 'POST',
         headers: {
           authorization: 'bearer ' + jwt,
@@ -2468,11 +2604,18 @@ async function laPushAll(env, ctx, baseUrl) {
         body: JSON.stringify(body),
       });
       if (res.ok) {
-        await env.DELAY_DB.prepare('UPDATE la_bindings SET last_idx=?, last_delay=? WHERE token=?')
+        // 🔴 最終複審 A-I1:成功順手把 fail_streak 歸零(同一發 UPDATE,零額外成本)。
+        await env.DELAY_DB.prepare('UPDATE la_bindings SET last_idx=?, last_delay=?, fail_streak=0 WHERE token=?')
           .bind(idx, delaySec, row.token).run();
         sent++;
+        if (t) sentObs++; else sentSched++;
         continue;
       }
+      // 🔴 最終複審 A-I1:任何非 2xx 都讓這一列的連續失敗數 +1(成功會歸零)。
+      // 這是熔斷唯一能區分「設定錯誤(所有列都是第 1 次失敗)」與「死 token(同一列連續失敗
+      // 很多輪)」的訊號——單 tick 的比例做不到,見 LA_FAIL_STREAK_MAX 註解。
+      const failStreak = (Number(row.fail_streak) || 0) + 1;
+      await env.DELAY_DB.prepare('UPDATE la_bindings SET fail_streak=? WHERE token=?').bind(failStreak, row.token).run();
       // 🔴 修復輪次1(Important 3):non-2xx 一律 log status+reason——舊版零 log,
       // cron 仍顯示成功、營運端拿不到任何訊號(例如金鑰輪替後每分鐘全數失敗也看不出來)。
       let reason = '';
@@ -2481,11 +2624,15 @@ async function laPushAll(env, ctx, baseUrl) {
       // 🔴 修復輪次1(Important 4):403 InvalidProviderToken 代表這把 JWT 本身壞了
       // (金鑰輪替/時鐘偏移),不是這個 token 的問題——不刪列,但要讓下一次 laJwt() 強制重簽,
       // 否則會卡滿 50 分鐘的快取期限持續全軍覆沒。
-      if (res.status === 403) laJwtReset();
+      // 🔴 最終複審 A-I4:laJwtReset() 現在帶 20 分鐘冷卻(Apple 對 provider token 更新頻率的
+      // 硬限制),回 false 代表這一輪沿用快取——把它印出來,否則持續 403 時看不出「我方已經
+      // 停止重簽、正在等冷卻」與「重簽了但還是 403」的差別。
+      if (res.status === 403 && !laJwtReset()) console.error('[cron la-push] 403 但 provider token 仍在 20 分鐘冷卻期內,本輪沿用快取的 JWT(Apple 對更新頻率有硬限制)');
+      if (res.status === 429 && reason === 'TooManyProviderTokenUpdates') console.error('[cron la-push] Apple 回報 provider token 更新過快(TooManyProviderTokenUpdates)——重簽頻率必須低於每 20 分鐘一次');
       // 🔴 修復輪次2:先收集,不立刻刪——見迴圈外的批次熔斷判斷。
       // 🔴 修復輪次4:這裡【不再】有任何 break——失敗不得中止迴圈,否則 attempted 會被
       // 失敗樣態自己截斷、比例失真(見函式開頭 LA_TICK_BUDGET_MS 註解的 (a))。
-      if (LA_PERM_FAIL_REASONS.has(reason)) permFailCandidates.push(row.token);
+      if (LA_PERM_FAIL_REASONS.has(reason)) permFailCandidates.push({ token: row.token, streak: failStreak });
       // 其餘(429/5xx/403/reason 不在上面名單的 400):不更新 last_idx,下一分鐘自然重試
     } catch (e) {
       console.error(`[cron la-push] 單列處理失敗(不影響其他列)token=${String(row.token).slice(0, 8)}… :`, (e && e.stack) || String(e));
@@ -2504,16 +2651,27 @@ async function laPushAll(env, ctx, baseUrl) {
   const breakerRatio = attempted ? permFailCandidates.length / attempted : 0;
   const breakerTripped = (attempted >= LA_BREAKER_MIN_ATTEMPTED && breakerRatio >= LA_BREAKER_RATIO)
                       || (attempted >= LA_BREAKER_ALL_FAIL_MIN && permFailCandidates.length === attempted);
+  // 🔴 最終複審 A-I1:熔斷觸發時【不再】無條件保住全部候選——連續失敗 >= LA_FAIL_STREAK_MAX
+  // 輪的列照刪。理由:「本輪嘗試的全都是死 token」是常態 tick(死 token 每輪必進 attempted、
+  // 健康列只在換站時才進)⇒ 舊碼的全敗分支在那種 tick 恆成立 ⇒ 死 token 永遠清不掉。
+  // 連續失敗輪數是唯一能區分「設定錯誤」與「token 自然死亡」的訊號。
+  const toDelete = breakerTripped ? permFailCandidates.filter(c => c.streak >= LA_FAIL_STREAK_MAX) : permFailCandidates;
+  const heldBack = permFailCandidates.length - toDelete.length;
   if (breakerTripped) {
-    console.error(`[cron la-push] 熔斷觸發:本輪 ${permFailCandidates.length}/${attempted} 列(實際送出 APNs 請求的列數,${Math.round(breakerRatio * 100)}%)同時回報永久失敗 reason,懷疑是設定錯誤(APNS_HOST/apns-topic)而非個別 token 失效,本輪不刪任何列,請檢查設定(熔斷只擋刪列,健康的列本輪照樣收到推播)`);
-  } else {
-    for (const token of permFailCandidates) {
-      await env.DELAY_DB.prepare('DELETE FROM la_bindings WHERE token=?').bind(token).run();
-      dropped++;
-    }
+    // 🔴 最終複審 A-I1:告警文字從【斷言】(「懷疑是設定錯誤」)改成【事實】——舊文字在
+    // 「只剩幾個死 token 在嘗試」的常態 tick 每分鐘噴一次,與真的設定錯誤一字不差,
+    // 真出事時被淹掉(告警不能只有一種形狀)。要判斷是不是設定錯誤,看的是 heldBack 裡
+    // 「第一次失敗」的列多不多、以及它會不會持續好幾分鐘,那些數字現在都印出來了。
+    const streaks = permFailCandidates.map(c => c.streak);
+    console.error(`[cron la-push] 熔斷觸發:本輪 ${permFailCandidates.length}/${attempted} 列(實際送出 APNs 請求的列數,${Math.round(breakerRatio * 100)}%)回報永久失敗 reason,暫緩刪除其中 ${heldBack} 列(連續失敗輪數 ${JSON.stringify(streaks)},上限 ${LA_FAIL_STREAK_MAX});若這是設定錯誤(APNS_HOST/apns-topic),連續數輪後仍會逐列刪除,請盡快檢查設定(熔斷只擋刪列,健康的列本輪照樣收到推播)`);
   }
-  const heldBack = breakerTripped ? permFailCandidates.length : 0;
-  console.log(`[cron la-push] tick 完成: rows=${rows.length} attempted=${attempted} sent=${sent} dropped=${dropped}${heldBack ? ` heldBack=${heldBack}(熔斷)` : ''}${budgetExhausted ? ` budgetExhausted(未處理 ${notReached} 列)` : ''}`);
+  for (const c of toDelete) {
+    await env.DELAY_DB.prepare('DELETE FROM la_bindings WHERE token=?').bind(c.token).run();
+    dropped++;
+  }
+  // 🔴 最終複審 A-I3:sentObs/sentSched 讓「表定推算佔比」變成可觀測量;B-I4:把 APNs host
+  // 印出來,正式版拿到 sandbox token(或反過來)造成的全滅才分得出是環境錯配還是後端壞了。
+  console.log(`[cron la-push] tick 完成: rows=${rows.length} attempted=${attempted} sent=${sent}(obs=${sentObs} sched=${sentSched}) dropped=${dropped} host=${env.APNS_HOST || 'api.push.apple.com'}${liveDown ? ` traLiveDown(觀測資料距今 ${liveAgeSec === null ? '不明' : liveAgeSec + ' 秒'})` : ''}${heldBack ? ` heldBack=${heldBack}(熔斷)` : ''}${budgetExhausted ? ` budgetExhausted(未處理 ${notReached} 列)` : ''}`);
   return { sent, dropped, heldBack };
 }
 
@@ -4101,6 +4259,15 @@ export default {
       if (ctx && typeof ctx.waitUntil === 'function') ctx.waitUntil(laTask);
       try {
         const ledger = await trtcLedgerScheduled(event, env);
+        // 🔴 最終複審 A-I7:laPushAll 的存活時間本來只靠 ctx.waitUntil 撐著,而
+        // trtcLedgerScheduled 在北捷營運窗外(約 01:00–06:00)會立刻早退 ⇒ handler 約 0.1 秒
+        // 就 return。Cloudflare 文件對 cron 的 waitUntil 上限是矛盾的(scheduled handler 那頁
+        // 說等到 promise resolve、最多 15 分鐘;context/#waituntil 的 30 秒上限明文只寫給
+        // HTTP-triggered Workers)。若 30 秒也適用,45 秒的預算會在第 30 秒被靜默截斷,
+        // 連摘要 log 都印不出來。await 一下等於把存活時間交給 handler 自己的 promise
+        // (cron 牆鐘上限 15 分鐘,綽綽有餘),成本為零、不改回傳形狀。
+        // laTask 自帶 .catch ⇒ 這個 await 不可能改變 scheduled 的成功/失敗契約。
+        await laTask;
         return ledger; // 維持原本 scheduled 回傳 shape，避免帳本驗收/觀測端因加觸發器而變契約
       }
       catch (e) {
