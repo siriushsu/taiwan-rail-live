@@ -1189,6 +1189,31 @@
     font-family: "PingFang TC", "Noto Sans TC", sans-serif; font-size: 16px; line-height: 1;
   }
   .alert-banner .ab-close:hover { opacity: 1; }
+  /* App 版本提示橫幅:視覺照抄 .alert-banner,但獨立 class(理由見 DOM 處的註解)。
+     它不是警告是通知,所以用 paper/ink 而非 warn 色;z-index 讓在營運公告(705/706)之下。 */
+  .upd-banner {
+    position: absolute; top: 12px; right: 12px; z-index: 704;
+    max-width: min(440px, calc(100% - 24px));
+    display: flex; align-items: baseline; gap: 7px;
+    background: var(--paper); color: var(--ink);
+    border: 1.5px solid var(--line); border-radius: var(--r-m);
+    padding: 6px 12px 7px; font-size: 12.5px; font-weight: 700;
+  }
+  /* 🔴 display:flex 蓋得過 [hidden] 的 UA 規則,必須自己補這條(同 .ms-row 的既有教訓) */
+  .upd-banner[hidden] { display: none; }
+  .upd-banner .ub-title { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .upd-banner .ub-act {
+    flex: none; font-size: 11px; font-weight: 700; text-decoration: underline;
+    background: none; border: 0; padding: 0; color: inherit; cursor: pointer;
+    font-family: inherit; min-height: 24px;
+  }
+  .upd-banner .ub-close {
+    flex: none; align-self: center; margin: -3px -7px -3px 0;
+    width: 24px; height: 24px; padding: 0; display: flex; align-items: center; justify-content: center;
+    background: none; border: 0; cursor: pointer; color: var(--ink); opacity: .7;
+    font-family: "PingFang TC", "Noto Sans TC", sans-serif; font-size: 16px; line-height: 1;
+  }
+  .upd-banner .ub-close:hover { opacity: 1; }
   .alert-detail {
     position: absolute; top: 52px; right: 12px; z-index: 706;
     width: min(440px, calc(100% - 24px)); max-height: 60%; overflow-y: auto;
@@ -2851,7 +2876,7 @@
        縣市下拉(header 常駐)、關於段(placeFootBoxes 桌面把四個盒子搬回頁尾,這裡是空的) */
     .ms-row[data-act="flow"], .ms-row[data-act="cities"], #msCities,
     #msAboutSec, #msAbout, .ms-about-links { display: none !important; }
-    .alert-banner, .alert-detail, .xing-card, .board { right: 64px; }
+    .alert-banner, .alert-detail, .upd-banner, .xing-card, .board { right: 64px; }
     /* 音樂控制收合:帶內常駐只留 #musicBtn(♪ 音樂),#musicNextBtn＋#musicVol 移進 hover/focus 彈出面板 */
     #musicCtl { position: relative; }
     /* v0718m 修:原設計「帶上方 8px」absolute 上彈被 .controls 的 overflow-y:hidden 滾動盒裁掉(結構性不可見,雙引擎皆然);
@@ -3084,6 +3109,12 @@
     <div class="toasts" id="toasts"></div>
     <div class="alert-banner" id="alertBanner" hidden></div>
     <div class="alert-detail" id="alertDetail" hidden></div>
+    <!-- App 版本提示橫幅(只有 App 會顯示;網站的 RAIL_APP_VERSION 不存在,appUpdateInit 立刻 return)。
+         🔴 刻意**不掛** .alert-banner:(a) 那個 class 在手機被 display:none(手機的營運公告改走
+         頂列 .alert-chip),而手機正是 App 的主戰場;(b) `.alert-banner:not([hidden]) ~ X` 那三條
+         讓位規則(xing-card/xing-help/board)會被第二顆橫幅重複觸發。只照抄視覺,不共用 class。
+         手機的落點交給既有的 placeMobileNotice()(避開時鐘/列車資訊卡/常駐錄製列)。 -->
+    <div class="upd-banner" id="updBanner" hidden></div>
     <!-- 地圖動作列(隨機跟隨＋附近車站):手機並排成一列靠右,徽章列(top 58)整條讓給時鐘——原本隨機跟隨也在 58,
          401–415pt 機型(如 iPhone 16 Pro 402)徽章全字樣時只差 1px 就撞上(≤344 直接重疊)。
          桌面 display:contents 讓兩顆各自維持原本的絕對定位,零變化。
@@ -3757,6 +3788,16 @@
     <button class="ms-row" data-proxy="accountBtn" data-close="1" style="display:none"><span>帳號同步</span><span class="chev">›</span></button>
     <!-- 關於(Batch B 第五段):placeFootBoxes() 把 site-foot 的四個 <details class="foot-box">
          (更新紀錄/資料來源與授權/贊助/隱私與服務條款)搬進 #msAbout(桌面搬回 site-foot);末列複製回報問題＋版本 -->
+    <!-- 🔴 刻意放在 #msAboutSec 之前、不放進 #msAbout:index.html 的桌面 media query 對
+         #msAboutSec/#msAbout/.ms-about-links 下 display:none !important(桌面由 placeFootBoxes
+         把四個盒子搬回頁尾),放進去 iPad 寬度這兩列會整個消失。
+         也必須留在 #moreBody 內——派發器綁在它身上,搬出去點了就永遠沒反應。
+         由 appUpdateRender()/評分接線在 App 版才打開。
+         🔴 預設藏起來一律用 inline display:none,不可用 [hidden] 屬性——.ms-row 的
+         display:flex 蓋得過 [hidden](既有的 #recBtn 那列就是為此用 inline style)。 -->
+    <div class="ms-sec" id="msAppSec" style="display:none">軌島</div>
+    <button class="ms-row" data-act="update" style="display:none"><span>已是最新版</span><span class="chev">›</span></button>
+    <button class="ms-row" data-act="rate" data-close="1" style="display:none"><span>⭐ 給軌島評分</span><span class="chev">›</span></button>
     <div class="ms-sec" id="msAboutSec">關於</div>
     <div class="ms-about" id="msAbout"></div>
     <div class="ms-about-links">
@@ -8846,7 +8887,7 @@ function finishLoad(meta) {
   document.getElementById('alertDetail').hidden = true; // 換群組先收合上一群組展開中的公告詳情
   renderAlertBanner(); // 模式切換即刻換橫幅內容(sched=台鐵/高鐵、freq=捷運,用手上快取先畫)
   pollAlert();         // 營運通阻/狀態公告(sched 各系統端點、freq 走 api/metro-alert)
-  appUpdateInit();     // App 版本提示;網站版立刻 return null,不發任何請求。刻意不 await——絕不延後既有開機步驟
+  appUpdateInit().then(appUpdateRender);  // App 版本提示;網站版立刻 return null,不發任何請求。刻意不 await——絕不延後既有開機步驟
   pollTrtcLive();      // 北捷官方秒級倒數逐班校正(名冊仍只讀班表)
   pollMetroLive();     // 捷運即時校正(捷運分頁與全台同框、系統有 LiveBoard 源才會真的打;換線後 shift 隨新 line 物件重建)
   pollNtmLive();       // 新北捷即時校正(環狀線/淡海/安坑,官方列車動態)
@@ -10875,6 +10916,62 @@ async function appUpdateInit() {
   appverWrite(APPVER_KEYS.seen, mine);   // 🔴 必須在判定之後才寫,否則「剛更新完」永遠不成立
   window.__appverLast = { state, latest };   // 驗收用;不影響行為
   return window.__appverLast;
+}
+
+// 更新內容卡片。結構逐項照抄既有的 #helpModal(.takeout-dialog/.takeout-head/.takeout-body),
+// 不自創 class 名——.tk-box 那組只有 .bounty-modal 底下才有 CSS。
+// 掛 body 層:.stage 會建立 stacking context 把子孫 z-index 封頂(既有六顆 modal 就是為此)。
+function appUpdateOpenNotes(latest, title) {
+  if (!latest) return;
+  const old = document.getElementById('updNotes'); if (old) old.remove();
+  const wrap = document.createElement('div');
+  wrap.className = 'takeout-modal';
+  wrap.id = 'updNotes';
+  wrap.innerHTML = '<section class="takeout-dialog" role="dialog" aria-modal="true" aria-labelledby="updNotesTitle">'
+    + `<div class="takeout-head"><h2 id="updNotesTitle">${escHtml(title)}</h2>`
+    + '<button id="updNotesX" type="button" aria-label="關閉">×</button></div>'
+    + `<div class="takeout-body">${escHtml(latest.notes).replace(/\n/g, '<br>')}</div></section>`;
+  document.body.appendChild(wrap);
+  wrap.querySelector('#updNotesX').addEventListener('click', () => wrap.remove());
+}
+
+function appUpdateRender(res) {
+  if (!res) return;                       // 網站版:appUpdateInit 回 null,這裡什麼都不做
+  const { state, latest } = res;
+  // 「更多」面板那一段:App 版一律現身(評分那列在任何狀態都要在),更新那列依狀態換字。
+  const sec = document.getElementById('msAppSec');
+  const row = document.querySelector('.ms-row[data-act="update"]');
+  const rate = document.querySelector('.ms-row[data-act="rate"]');
+  if (sec) sec.style.display = '';
+  if (rate) rate.style.display = '';
+  if (row) {
+    row.style.display = '';
+    row.firstElementChild.textContent = state.hasUpdate
+      ? `⬆ 有新版可更新　${latest.v}` : `已是最新版　${window.RAIL_APP_VERSION}`;
+    row.classList.toggle('warnrow', state.hasUpdate);
+    row.disabled = !state.hasUpdate;
+  }
+  if (state.showBanner && latest) {
+    const b = document.getElementById('updBanner');
+    b.innerHTML = `<span class="ub-title">軌島 ${escHtml(latest.v)} 已經上架</span>`
+      + '<button class="ub-act" id="updBannerNotes" type="button">看更新內容</button>'
+      + '<button class="ub-act" id="updBannerGo" type="button">前往更新</button>'
+      + '<button class="ub-close" id="updBannerClose" type="button" aria-label="關閉">×</button>';
+    b.hidden = false;
+    b.querySelector('#updBannerNotes').addEventListener('click',
+      () => appUpdateOpenNotes(latest, `軌島 ${latest.v} 有什麼新的`));
+    b.querySelector('#updBannerGo').addEventListener('click',
+      () => window.open(latest.url, '_blank', 'noopener'));
+    b.querySelector('#updBannerClose').addEventListener('click', () => {
+      appverWrite(APPVER_KEYS.dismissed, latest.v);   // 同一版不再跳,換新版才會再出
+      b.hidden = true;
+    });
+    placeMobileNotice(b);   // 手機:避開時鐘/列車資訊卡/常駐錄製列(既有函式,別自己重寫一套)
+  }
+  if (state.showWhatsNew && latest) {
+    appUpdateOpenNotes(latest, `軌島 ${latest.v} 更新了什麼`);
+    appverWrite(APPVER_KEYS.whatsnew, window.RAIL_APP_VERSION);
+  }
 }
 
 function showToast(msg) {
@@ -16754,6 +16851,11 @@ function setupMapTools() {
     const chip = e.target.closest('#msCities button[data-city]'); // 縣市 chip:飛過去並關 sheet
     if (chip) { flyToCity(chip.dataset.city); setMore(false); return; }
     const row = e.target.closest('.ms-row'); if (!row) return;
+    if (row.dataset.act === 'update') {   // 只有真的有新版才外開;沒新版時這列是 disabled 的資訊列
+      const r = window.__appverLast;
+      if (r && r.state.hasUpdate && r.latest && r.latest.url) window.open(r.latest.url, '_blank', 'noopener');
+      return;
+    }
     if (row.dataset.act === 'help') { setMore(false); openHelp(); return; }
     if (row.dataset.act === 'track') { setMore(false); openTrackPanel(); return; }
     if (row.dataset.act === 'notify') { setMore(false); openLocalReminderOverview(); return; } // 已排提醒總覽

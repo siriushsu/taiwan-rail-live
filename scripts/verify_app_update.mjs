@@ -112,6 +112,101 @@ ok(!failState || failState.state.showBanner === false, '查詢失敗 → 不顯�
 ok(await appPage.evaluate(() => !!document.getElementById('map')), '🔴 查詢失敗不得擋住頁面（地圖仍在）');
 await appPage.close();
 
+console.log('\n【D】UI:橫幅、更多面板那一列、更新內容卡片');
+// 開「更多」面板:setMore 是閉包內的 const,不是全域 ⇒ 走真實入口(手機 #tabMore / 桌面 #toolsFab)
+async function appPageWith(mine, latest, opts = {}) {
+  const p = await browser.newPage();
+  p.on('pageerror', e => console.log('  ⚠ pageerror: ' + e.message));
+  await p.setViewportSize(opts.viewport || { width: 390, height: 844 });
+  await p.addInitScript(v => { window.RAIL_APP_VERSION = v; }, mine);
+  // 關掉首訪教學卡(#howtoWrap,z800):它會蓋住整個地圖區,elementFromPoint 全滅。
+  // 這也是真實情境——手上有舊版可更新的人,一定早就用過 App。
+  await p.addInitScript(() => { try { localStorage.setItem('trainmap-howto-seen', '1'); } catch (e) {} });
+  if (opts.seed) await p.addInitScript(s => {
+    Object.entries(s).forEach(([k, v]) => localStorage.setItem(k, JSON.stringify(v)));
+  }, opts.seed);
+  await p.route('**/itunes.apple.com/lookup**', route => route.fulfill({
+    status: 200, contentType: 'application/json',
+    body: JSON.stringify({ resultCount: 1, results: [{ version: latest,
+      releaseNotes: '測試更新說明<b>不可當標籤</b>\n第二行',
+      trackViewUrl: 'https://apps.apple.com/tw/app/id6792673516?uo=4' }] }),
+  }));
+  await p.goto(BASE + '/index.html', { waitUntil: 'domcontentloaded' });
+  await p.waitForFunction(() => window.__appverLast || null, { timeout: 20000 }).catch(() => {});
+  await p.waitForTimeout(600);
+  return p;
+}
+
+// D1 有新版 → 橫幅出現
+let p = await appPageWith('1.4.0', '1.4.1', { seed: { 'trainmap-appver-seen': '1.4.0' } });
+ok(await p.locator('#updBanner').isVisible().catch(() => false), 'D1 有新版 → #updBanner 可見');
+ok(((await p.locator('#updBanner').textContent().catch(() => '')) || '').includes('1.4.1'), 'D1 橫幅寫出新版號');
+await p.close();
+
+// D2 反向:版本相同時橫幅不得出現(只驗一邊等於沒驗)
+p = await appPageWith('1.4.1', '1.4.1', { seed: { 'trainmap-appver-seen': '1.4.1' } });
+ok(!(await p.locator('#updBanner').isVisible().catch(() => false)), '🔴 D2 版本相同 → 橫幅不出現');
+await p.close();
+
+// D3 剛更新完 → 更新內容卡片,且 releaseNotes 必須 escape
+p = await appPageWith('1.4.1', '1.4.1', { seed: { 'trainmap-appver-seen': '1.4.0' } });
+ok(await p.locator('#updNotes').isVisible().catch(() => false), 'D3 剛更新完 → 更新內容卡片出現');
+ok(((await p.locator('#updNotes').innerHTML().catch(() => '')) || '').includes('&lt;b&gt;'),
+   '🔴 D3 releaseNotes 必須 escape（不可被當成 HTML 標籤）');
+await p.close();
+
+// D4 「更多」那一列:真的點下去看發生什麼,不是只看它在哪
+p = await appPageWith('1.4.0', '1.4.1', { seed: { 'trainmap-appver-seen': '1.4.0' } });
+await p.locator('#tabMore').click().catch(() => {});
+await p.waitForTimeout(400);
+const row = p.locator('.ms-row[data-act="update"]');
+ok(await row.count() === 1, 'D4 「更多」面板有且只有一列 data-act=update');
+ok(((await row.textContent().catch(() => '')) || '').includes('1.4.1'), 'D4 那一列寫出新版號');
+// 面板是可捲的長清單,那一列在「軌島」段(靠近底部)⇒ 先捲進視野再命中測試,
+// 否則量到的是視窗外的座標(elementFromPoint 必回 null),那是測法錯不是產品錯。
+await row.scrollIntoViewIfNeeded().catch(() => {});
+await p.waitForTimeout(200);
+const box = await row.boundingBox().catch(() => null);
+ok(!!(box && box.width > 0 && box.height > 0), 'D4 那一列有非零 rect（0×0 互不相交是假綠）');
+const hit = box ? await p.evaluate(([x, y]) => {
+  const el = document.elementFromPoint(x, y);
+  return !!(el && el.closest('.ms-row[data-act="update"]'));
+}, [box.x + box.width / 2, box.y + box.height / 2]) : false;
+ok(hit, '🔴 D4 那一列的中心點真的命中自己（沒有被別的元素蓋住）');
+ok(await p.locator('#msAbout .ms-row[data-act="update"]').count() === 0,
+   '🔴 D4 那一列不可放在 #msAbout 內（桌面/iPad 會被 display:none 整個吃掉）');
+// 正向對照:那一列真的在派發器的作用範圍(#moreBody)內,否則點了永遠沒反應
+ok(await p.locator('#moreBody .ms-row[data-act="update"]').count() === 1,
+   '🔴 D4 那一列必須在 #moreBody 內（派發器綁在它身上）');
+await p.close();
+
+// D5 關掉橫幅 → 同版不再出現,但那一列還在(找得回來)
+p = await appPageWith('1.4.0', '1.4.1', { seed: { 'trainmap-appver-seen': '1.4.0' } });
+await p.locator('#updBannerClose').click().catch(() => {});
+await p.waitForTimeout(300);
+ok(!(await p.locator('#updBanner').isVisible().catch(() => false)), 'D5 按 ✕ 後橫幅收起');
+ok(await p.evaluate(() => localStorage.getItem('trainmap-appver-dismissed')) === '"1.4.1"',
+   'D5 關閉狀態記在 dismissed');
+await p.reload({ waitUntil: 'domcontentloaded' });
+await p.waitForTimeout(2500);
+ok(!(await p.locator('#updBanner').isVisible().catch(() => false)), 'D5 重開後同一版不再出現');
+ok(await p.locator('.ms-row[data-act="update"]').count() === 1, '🔴 D5 橫幅關掉後,「更多」那一列仍在（找得回來）');
+await p.close();
+
+// D6 網站版:兩列都不可見(平台閘門在 UI 層的證明)
+const siteP = await browser.newPage();
+siteP.on('pageerror', e => console.log('  ⚠ pageerror: ' + e.message));
+await siteP.setViewportSize({ width: 390, height: 844 });
+await siteP.addInitScript(() => { try { localStorage.setItem('trainmap-howto-seen', '1'); } catch (e) {} });
+await siteP.goto(BASE + '/index.html', { waitUntil: 'domcontentloaded' });
+await siteP.waitForTimeout(2500);
+await siteP.locator('#tabMore').click().catch(() => {});
+await siteP.waitForTimeout(400);
+ok(await siteP.locator('.ms-row[data-act="update"]:visible').count() === 0, 'D6 網站版看不到更新列');
+ok(await siteP.locator('.ms-row[data-act="rate"]:visible').count() === 0, 'D6 網站版看不到評分列');
+ok(!(await siteP.locator('#updBanner').isVisible().catch(() => false)), 'D6 網站版沒有橫幅');
+await siteP.close();
+
 await browser.close();
 console.log(`\n總計：${pass} 通過 / ${fail} 失敗`);
 process.exit(fail ? 1 : 0);
