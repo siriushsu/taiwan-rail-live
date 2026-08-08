@@ -3385,7 +3385,7 @@
            內容 li 上限 8 條(li.grp 是標題不算)。 -->
       <ul class="foot-list foot-recent">
         <li class="grp">最近更新</li>
-        <li data-cl-of="widgetdestination"><span class="d">8/8</span><span>iPhone 小工具起站選「共站」或「我的地點」後，「目的站」一點就關掉；現在可以正常打開</span></li>
+        <li data-cl-of="widgetdestination"><span class="d">8/8</span><span>iPhone 小工具起站選「共站」或「我的地點」後，「目的站」一點就關掉；已修好，下次 App 更新生效</span></li>
         <li data-cl-of="lapush"><span class="d">8/8</span><span>跟車的鎖定畫面即時動態會自己換下一站了，App 沒開著也會更新；停靠站內顯示「停靠中」，動態島展開還有進度條與車種顏色（通行證功能）</span></li>
         <li data-cl-of="crossnight452"><span class="d">8/8</span><span>修正：週五深夜 452 次這類特定日開行的跨夜車，過了午夜就從地圖上消失（謝謝網友回報）</span></li>
         <li data-cl-of="thsrfreeseat"><span class="d">8/8</span><span>跟隨高鐵列車時，資訊卡新增「自由座車廂」提示：一排小方塊標出今天這班車自由座在第幾節，不必再猜（免費功能）</span></li>
@@ -3475,7 +3475,7 @@
         <li><span class="d">7/13</span><span>收集章可以重複點，換搭不同班次回味</span></li>
         <li><span class="d">7/9</span><span>旅程護照與 16 枚成就徽章、「探」今日亮點面板上線</span></li>
         <li class="grp">手機與操作</li>
-        <li data-cl="widgetdestination"><span class="d">8/8</span><span>iPhone「發車看板」小工具，起站選「共站」或「我的地點」後點「目的站」，原本會閃退、後來變成一點就關掉；現在會照常列出車站，選了不影響看板，留空也行</span></li>
+        <li data-cl="widgetdestination"><span class="d">8/8</span><span>iPhone「發車看板」小工具，起站選「共站」或「我的地點」後點「目的站」，原本閃退、後來變成一點就關掉；下次 App 更新後會照常列出車站，選了不影響看板，留空也行</span></li>
         <li data-cl="widgetdestination3"><span class="d">8/6</span><span>iPhone 主畫面的「發車看板」小工具，目的站選單有時只會短暫顯示「載入中」便自動收起。原因是 iOS 開啟選單時可能稍晚才把已選起站交給小工具，或共享班表正好還在換版；現在這兩種空窗都會先列出內建的完整車站清單，資料齊全後仍會照起站只顯示有直達列車的車站</span></li>
         <li data-cl="widgetdestination2"><span class="d">8/6</span><span>iPhone 主畫面的「發車看板」小工具，App 剛更新、共享車站資料還在背景準備時，點「起站」就可能讓設定畫面直接退出；現在起站與目的站都有一份內建的輕量車站清單可立即使用，完整班表完成後會自動接手，目的站仍會照起站只列出有直達列車的車站</span></li>
         <li data-cl="sharelink"><span class="d">8/6</span><span>從 App 分享目前畫面或行程時，原本會把 App 內部的 capacitor://localhost 網址傳出去，其他人無法開啟；現在一律改成可直接開啟的 railisland.tw 公開連結</span></li>
@@ -3816,7 +3816,7 @@
 // 所以往後推到一個雙方都沒用過的號，辨識線上跑哪一版仍以內容 hash 為準。
 // 2026-08-08 合併:本分支到 v0807d、origin/main 到 v0808a,兩邊都用過的號一律跳過,
 // 推到雙方都沒用過的 v0808b(同上,辨識線上跑哪一版仍以內容 hash 為準)。
-const BUILD = 'v0808d';
+const BUILD = 'v0808e';
 // 成就徽章與車廂標記＝原本那些 emoji 的單色平面版（RailEmoji＝裁切過的 Noto Emoji 單色）。
 // 刻意保留 railIcon(name) 這個唯一入口:呼叫端一行都不用改,只有這裡決定畫法。
 // 🔴 ⚖ 與 ♾ 一律寫**不帶 VS16(U+FE0F)** 的碼位——帶了就強制彩色呈現,會蓋過 font-family
