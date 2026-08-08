@@ -8846,6 +8846,7 @@ function finishLoad(meta) {
   document.getElementById('alertDetail').hidden = true; // 換群組先收合上一群組展開中的公告詳情
   renderAlertBanner(); // 模式切換即刻換橫幅內容(sched=台鐵/高鐵、freq=捷運,用手上快取先畫)
   pollAlert();         // 營運通阻/狀態公告(sched 各系統端點、freq 走 api/metro-alert)
+  appUpdateInit();     // App 版本提示;網站版立刻 return null,不發任何請求。刻意不 await——絕不延後既有開機步驟
   pollTrtcLive();      // 北捷官方秒級倒數逐班校正(名冊仍只讀班表)
   pollMetroLive();     // 捷運即時校正(捷運分頁與全台同框、系統有 LiveBoard 源才會真的打;換線後 shift 隨新 line 物件重建)
   pollNtmLive();       // 新北捷即時校正(環狀線/淡海/安坑,官方列車動態)
@@ -10823,6 +10824,57 @@ function appUpdateState(mine, latest, st) {
   if (c < 0) return { hasUpdate: true, showBanner: st.dismissed !== latest, showWhatsNew: false };
   return { hasUpdate: false, showBanner: false,
            showWhatsNew: !!st.seen && st.seen !== mine && st.whatsnewSeen !== mine };
+}
+
+// ── App 版本提示:查詢層 ───────────────────────────────────────────────────
+// 資料源＝Apple 的公開 lookup(2026-08-09 實測 access-control-allow-origin: *,App 內可直接 fetch,
+// 不必自建後端)。同一份 releaseNotes 餵兩個用途:對舊版是「新版有什麼」,對剛更新的人是
+// 「你剛裝的這版有什麼」——語意兩邊都對,而且送審本來就會寫 What's New ⇒ 零額外維護。
+const APPVER_KEYS = {
+  cache: 'trainmap-appver-cache', seen: 'trainmap-appver-seen',
+  dismissed: 'trainmap-appver-dismissed', whatsnew: 'trainmap-appver-whatsnew',
+};
+const APPVER_LOOKUP = 'https://itunes.apple.com/lookup?bundleId=tw.railisland.app&country=tw';
+const APPVER_TTL = 12 * 3600 * 1000;
+
+function appverRead(key, fallback = null) {
+  try { const v = localStorage.getItem(key); return v === null ? fallback : JSON.parse(v); }
+  catch (e) { return fallback; }   // 壞值當「沒有」,不可讓一個壞鍵炸掉開機
+}
+function appverWrite(key, val) { try { localStorage.setItem(key, JSON.stringify(val)); } catch (e) {} }
+
+async function fetchLatestAppVersion() {
+  const c = appverRead(APPVER_KEYS.cache);
+  if (c && c.at && Date.now() - c.at < APPVER_TTL && c.v) return { v: c.v, notes: c.notes, url: c.url };
+  try {
+    const ctl = new AbortController();
+    const timer = setTimeout(() => ctl.abort(), 6000);
+    const res = await fetch(APPVER_LOOKUP, { signal: ctl.signal });
+    clearTimeout(timer);
+    if (!res.ok) return null;
+    const j = await res.json();
+    const r = j && j.resultCount ? j.results[0] : null;
+    if (!r || typeof r.version !== 'string') return null;
+    const out = { v: r.version, notes: String(r.releaseNotes || ''), url: String(r.trackViewUrl || '') };
+    appverWrite(APPVER_KEYS.cache, { ...out, at: Date.now() });
+    return out;
+  } catch (e) { return null; }     // 網路/逾時/JSON 壞掉一律靜默,不重試
+}
+
+// 開機呼叫一次。網站版(無 RAIL_APP_VERSION)整條路徑不進入——連請求都不發。
+async function appUpdateInit() {
+  const mine = window.RAIL_APP_VERSION;
+  if (typeof mine !== 'string' || !mine) return null;
+  const latest = await fetchLatestAppVersion();
+  const st = {
+    seen: appverRead(APPVER_KEYS.seen),
+    dismissed: appverRead(APPVER_KEYS.dismissed),
+    whatsnewSeen: appverRead(APPVER_KEYS.whatsnew),
+  };
+  const state = appUpdateState(mine, latest ? latest.v : null, st);
+  appverWrite(APPVER_KEYS.seen, mine);   // 🔴 必須在判定之後才寫,否則「剛更新完」永遠不成立
+  window.__appverLast = { state, latest };   // 驗收用;不影響行為
+  return window.__appverLast;
 }
 
 function showToast(msg) {

@@ -69,6 +69,49 @@ r = await S('1.4.1', null, { seen: '1.4.0', dismissed: null, whatsnewSeen: null 
 ok(!!r && r.hasUpdate === false && r.showBanner === false && r.showWhatsNew === false,
    '查詢失敗(latest 為 null) → 全部安靜');
 
+console.log('\n【C】查詢、快取與失敗靜默');
+// 網站版:不注入 RAIL_APP_VERSION ⇒ 連請求都不該發(平台閘門的正向證明)
+const siteReqs = [];
+page.on('request', r => { if (r.url().includes('itunes.apple.com')) siteReqs.push(r.url()); });
+await page.reload({ waitUntil: 'domcontentloaded' });
+await page.waitForTimeout(3000);
+ok(siteReqs.length === 0, '🔴 網站版(無 RAIL_APP_VERSION)完全不打 itunes.apple.com');
+
+const LOOKUP_OK = {
+  status: 200, contentType: 'application/json',
+  body: JSON.stringify({ resultCount: 1, results: [{ version: '1.4.1',
+    releaseNotes: '測試用更新說明\n第二行', trackViewUrl: 'https://apps.apple.com/tw/app/id6792673516?uo=4' }] }),
+};
+const appPage = await browser.newPage();
+appPage.on('pageerror', e => console.log('  ⚠ pageerror: ' + e.message));
+await appPage.addInitScript(() => { window.RAIL_APP_VERSION = '1.4.0'; });
+await appPage.route('**/itunes.apple.com/lookup**', route => route.fulfill(LOOKUP_OK));
+await appPage.goto(BASE + '/index.html', { waitUntil: 'domcontentloaded' });
+const got = await appPage.waitForFunction(() => window.__appverLast || null, { timeout: 20000 })
+  .then(h => h.jsonValue()).catch(() => null);
+ok(!!(got && got.latest && got.latest.v === '1.4.1'), 'App 版查得到線上版本 1.4.1');
+ok(!!(got && got.state.hasUpdate === true), '1.4.0 < 1.4.1 ⇒ hasUpdate');
+
+// 快取:第二次載入不應再發請求
+let secondReq = 0;
+appPage.on('request', r => { if (r.url().includes('itunes.apple.com')) secondReq++; });
+await appPage.reload({ waitUntil: 'domcontentloaded' });
+await appPage.waitForTimeout(3000);
+ok(secondReq === 0, '12 小時內第二次開 App 走快取,不重複請求');
+
+// 失敗靜默:清快取 + 讓端點 500
+await appPage.evaluate(() => Object.keys(localStorage)
+  .filter(k => k.startsWith('trainmap-appver')).forEach(k => localStorage.removeItem(k)));
+await appPage.unroute('**/itunes.apple.com/lookup**');
+await appPage.route('**/itunes.apple.com/lookup**', route => route.fulfill({ status: 500, body: '' }));
+await appPage.reload({ waitUntil: 'domcontentloaded' });
+await appPage.waitForTimeout(4000);
+const failState = await appPage.evaluate(() => window.__appverLast || null);
+ok(!!failState, '查詢失敗時 appUpdateInit 仍有回傳(不是整條炸掉)');
+ok(!failState || failState.state.showBanner === false, '查詢失敗 → 不顯示橫幅');
+ok(await appPage.evaluate(() => !!document.getElementById('map')), '🔴 查詢失敗不得擋住頁面（地圖仍在）');
+await appPage.close();
+
 await browser.close();
 console.log(`\n總計：${pass} 通過 / ${fail} 失敗`);
 process.exit(fail ? 1 : 0);
