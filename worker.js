@@ -2412,39 +2412,91 @@ const LA_NOTICE_UPSTREAM_DOWN = '即時資料中斷，位置為預估。實際�
 // 🔴 最終複審 B-I3:走完全程的收卡推播。內容用終點站那一格,event:'end' ＋ dismissal-date=now
 // 讓 ActivityKit 立刻把鎖屏卡片收走(不送就會留到 8 小時 staleDate)。
 // 任何失敗都只 log 不拋——呼叫端無論如何都要刪列,不可以因為推播失敗就把列留著永遠重試。
+// ══════════ APNs 雙環境（sandbox / production）══════════
+// 🔴 APNs 的兩個環境是【互相隔離】的:開發簽章的 build 拿到的是 sandbox token,
+//    TestFlight／App Store 拿到的是 production token,拿錯環境去打一律 400 BadDeviceToken。
+//    而同一張 la_bindings 會【同時】住著兩種來源的 token（我自己的實機直裝包 vs 商店版）,
+//    所以「用一個環境變數切」在上架之後必然錯一邊——這正是 2026-08-08 卡住的地方:
+//    APNS_HOST 指著 sandbox 讓實機測試活著,審查員與 TestFlight 測試者就一發都收不到。
+//    做法:每個 token 記住它打得通的環境,未知就先打預設、被 BadDeviceToken 退回來再試另一邊,
+//    成功就把答案寫進 la_bindings.apns_env ⇒ 每個 token 一生最多只多付一次請求。
+const LA_APNS_PROD = 'api.push.apple.com';
+const LA_APNS_SANDBOX = 'api.sandbox.push.apple.com';
+// 環境未知時先打哪一邊。APNS_HOST 刻意保留成「預設先試」而不是「寫死只打這個」——
+// 設著它也不會關掉退路,所以上架前【不必】為了正式環境去刪這顆 secret（刪了就回到
+// production 優先,對商店版少付一次請求;不刪也只是每個新 token 多一次而已）。
+function laApnsDefaultHost(env) {
+  const h = String((env && env.APNS_HOST) || '').trim();
+  return h || LA_APNS_PROD;
+}
+const laApnsOther = host => (host === LA_APNS_SANDBOX ? LA_APNS_PROD : LA_APNS_SANDBOX);
+const laApnsEnvName = host => (host === LA_APNS_SANDBOX ? 'sandbox' : 'prod');
+function laApnsHostOf(envName, env) {
+  if (envName === 'sandbox') return LA_APNS_SANDBOX;
+  if (envName === 'prod') return LA_APNS_PROD;
+  return laApnsDefaultHost(env);          // null／未知／髒值都走預設,不要在這裡猜
+}
+// 送一發。回傳 { ok, status, reason, host, envName }——reason 已經在這裡解析完,
+// 🔴 呼叫端【不可以】再對同一個 Response 呼叫 .json()（body 只能讀一次）。
+async function laApnsOnce(env, jwt, token, body, host) {
+  const res = await laFetchWithTimeout(`https://${host}/3/device/${token}`, {
+    method: 'POST',
+    headers: {
+      authorization: 'bearer ' + jwt,
+      'apns-topic': 'tw.railisland.app.push-type.liveactivity',
+      'apns-push-type': 'liveactivity',
+      'apns-priority': '5',        // 5 不計入更新預算;不指定會是 10 且計入
+      'content-type': 'application/json',
+    },
+    body: JSON.stringify(body),
+  });
+  let reason = '';
+  if (!res.ok) { try { reason = String((await res.json()).reason || ''); } catch (e) { /* body 非 JSON:reason 留空 */ } }
+  return { ok: !!res.ok, status: res.status, reason, host, envName: laApnsEnvName(host) };
+}
+const LA_APNS_ENV_KNOWN = new Set(['prod', 'sandbox']);
+async function laApnsSend(env, jwt, token, body, knownEnvName) {
+  const first = laApnsHostOf(knownEnvName, env);
+  const r1 = await laApnsOnce(env, jwt, token, body, first);
+  // 🔴 只有 BadDeviceToken 值得換環境重試——那正是「這顆 token 是另一個環境發的」的訊號。
+  //    其他 400（BadTopic…）、403（JWT 壞）、429、5xx 換個 host 也不會變好,重試只是把
+  //    請求量翻倍,而且會讓熔斷的分母失真。
+  if (!(r1.status === 400 && r1.reason === 'BadDeviceToken')) return { ...r1, retried: false };
+  // 🔴 環境【已知】就不換邊:一顆 token 的環境由建置它的那顆 build 的 entitlement 決定,
+  //    一輩子不會變,而這一欄只在推播【成功】之後才寫 ⇒ 寫進去的值是對的。所以已知環境還
+  //    回 BadDeviceToken＝這顆 token 真的死了（App 移除、Activity 已結束），照既有的
+  //    permFail 流程清掉才對。換邊重試只會:(a) 把每一列死 token 的成本永久翻倍——而死 token
+  //    正是失敗集合裡的多數;(b) 讓牆鐘預算能服務的列數在失敗多的 tick 直接砍半,healthy 的
+  //    列跟著被餓到。退路的成本因此被鎖死在「每顆 token 一生最多一次」。
+  if (LA_APNS_ENV_KNOWN.has(knownEnvName)) return { ...r1, retried: false };
+  const r2 = await laApnsOnce(env, jwt, token, body, laApnsOther(first));
+  // 🔴 第二發只有【成功】才採信。兩邊都打不通時回報第一發的結果:否則「這顆 token 真的死了」
+  //    會被記成第二個環境的錯,permFail 與熔斷的歸因整個偏掉（而且下一輪先試的環境會亂跳）。
+  return r2.ok ? { ...r2, retried: true } : { ...r1, retried: true };
+}
+
 async function laPushEnd(env, jwt, row, stops, delaySec, now) {
   try {
     const last = stops[stops.length - 1], prev = stops.length > 1 ? stops[stops.length - 2] : null;
-    const host = env.APNS_HOST || 'api.push.apple.com';
-    const res = await laFetchWithTimeout(`https://${host}/3/device/${row.token}`, {
-      method: 'POST',
-      headers: {
-        authorization: 'bearer ' + jwt,
-        'apns-topic': 'tw.railisland.app.push-type.liveactivity',
-        'apns-push-type': 'liveactivity',
-        'apns-priority': '5',
-        'content-type': 'application/json',
-      },
-      body: JSON.stringify({
-        aps: {
-          timestamp: now, event: 'end', 'dismissal-date': now,
-          'content-state': {
-            nextStop: last.name,
-            arrivalDate: laArrivalEpoch(last.at, delaySec, now),
-            departedDate: prev ? prev.at + delaySec : null,
-            delaySec, terminus: last.name,
-            // 收卡當下卡片馬上被系統收走,沒有告知的餘地;但欄位集合必須與 update 那發一致
-            // (跨行程契約以「key 集合」為單位驗,見 verify_la_push_loop.mjs 的 CONTRACT_KEYS)。
-            notice: null,
-            // 同上:收卡沒有「停靠中」可言,但 key 必須在。
-            stopping: false,
-            prevStop: prev ? prev.name : null,
-          },
+    const r = await laApnsSend(env, jwt, row.token, {
+      aps: {
+        timestamp: now, event: 'end', 'dismissal-date': now,
+        'content-state': {
+          nextStop: last.name,
+          arrivalDate: laArrivalEpoch(last.at, delaySec, now),
+          departedDate: prev ? prev.at + delaySec : null,
+          delaySec, terminus: last.name,
+          // 收卡當下卡片馬上被系統收走,沒有告知的餘地;但欄位集合必須與 update 那發一致
+          // (跨行程契約以「key 集合」為單位驗,見 verify_la_push_loop.mjs 的 CONTRACT_KEYS)。
+          notice: null,
+          // 同上:收卡沒有「停靠中」可言,但 key 必須在。
+          stopping: false,
+          prevStop: prev ? prev.name : null,
         },
-      }),
-    });
-    if (!res.ok) console.error(`[cron la-push] 收卡 end 推播非 2xx(仍照常刪列): status=${res.status} token=${String(row.token).slice(0, 8)}…`);
-    return !!res.ok;
+      },
+    }, row.apns_env);
+    if (!r.ok) console.error(`[cron la-push] 收卡 end 推播非 2xx(仍照常刪列): status=${r.status} reason=${r.reason || '(無)'} env=${r.envName} token=${String(row.token).slice(0, 8)}…`);
+    return r.ok;
   } catch (e) {
     console.error(`[cron la-push] 收卡 end 推播失敗(仍照常刪列)token=${String(row.token).slice(0, 8)}… :`, String((e && e.message) || e));
     return false;
@@ -2537,6 +2589,9 @@ async function laPushAll(env, ctx, baseUrl) {
   // 🔴 最終複審 A-I3(第 2 件事):觀測驅動與表定驅動的推播在舊 log 上一字不差,營運端拿不到
   // 「這一分鐘有幾張卡的站名是猜的」這個訊號。拆成兩個計數進摘要 log,讓表定推算佔比可觀測。
   let sentObs = 0, sentSched = 0;
+  // 走了 APNs 雙環境退路的列數。穩定狀態下應該趨近 0（每顆 token 只在第一次付一次）——
+  // 持續居高不下＝有列的 apns_env 一直寫不回去（例如那一發成功後 UPDATE 失敗），值得查。
+  let apnsRetried = 0;
   // 🔴 修復輪次2(批次熔斷):不在迴圈內立刻刪列,先收集候選 token,等整批掃完才決定要不要
   // 真的刪——熔斷需要看過「這個 tick 到底有多少列同時觸發永久失敗」才能判斷,迴圈跑到一半
   // 沒有這個全局資訊。
@@ -2678,28 +2733,23 @@ async function laPushAll(env, ctx, baseUrl) {
         },
       };
       // 🔴 開發 build(entitlements aps-environment=development)拿到的是 sandbox token,
-      //    打 production host 一律回 400 BadDeviceToken。用 env 切,不要寫死。
-      const host = env.APNS_HOST || 'api.push.apple.com';
-      // 🔴 最終複審 A-I2:逾時包在這裡,逾時的 rejection 會落到本列的 try/catch(＝暫時性失敗:
-      // 不刪列、不進 permFailCandidates、下一分鐘自然重試),與網路層 reject 走同一條路。
-      const res = await laFetchWithTimeout(`https://${host}/3/device/${row.token}`, {
-        method: 'POST',
-        headers: {
-          authorization: 'bearer ' + jwt,
-          'apns-topic': 'tw.railisland.app.push-type.liveactivity',
-          'apns-push-type': 'liveactivity',
-          'apns-priority': '5',        // 5 不計入更新預算;不指定會是 10 且計入
-          'content-type': 'application/json',
-        },
-        body: JSON.stringify(body),
-      });
-      if (res.ok) {
+      //    打 production host 一律回 400 BadDeviceToken——兩種 token 會同時住在這張表裡,
+      //    所以走 laApnsSend 的雙環境退路(見它上面那段註解),不是用一個 env 變數切。
+      // 🔴 最終複審 A-I2:逾時包在 laApnsOnce 裡,逾時的 rejection 會落到本列的 try/catch
+      // (＝暫時性失敗:不刪列、不進 permFailCandidates、下一分鐘自然重試),與網路層 reject 同路。
+      const r = await laApnsSend(env, jwt, row.token, body, row.apns_env);
+      if (r.retried) apnsRetried++;
+      if (r.ok) {
         // 🔴 最終複審 A-I1:成功順手把 fail_streak 歸零(同一發 UPDATE,零額外成本)。
         // 🔴 工項 B:last_obs_idx 只在【這一輪真的用了觀測】時才推進——表定推算不得寫它,
         // 否則單調閘門的地板會被推算值抬上去,觀測就再也修不回來(等同沒改)。
         // 與 last_idx 同一發 UPDATE ⇒ 兩者永遠描述同一次決策,不會分岔。
-        await env.DELAY_DB.prepare('UPDATE la_bindings SET last_idx=?, last_delay=?, last_obs_idx=?, last_notice=?, last_stopping=?, fail_streak=0 WHERE token=?')
-          .bind(idx, delaySec, obsResolved ? idx : row.last_obs_idx, noticeFlag, stoppingFlag, row.token).run();
+        // 🔴 apns_env 一併寫回(同一發 UPDATE,零額外成本):這一發【真的打通了】,所以它就是
+        // 這顆 token 的環境答案。下一輪起直接先打對的那邊,不必再付退路那一次請求。
+        // 值一律以「這次成功的環境」為準而不是「原本記的」——同一顆 token 的環境雖然不會變,
+        // 但寫死成「只在 null 時才寫」會讓修錯的值永遠黏著,沒有自癒路徑。
+        await env.DELAY_DB.prepare('UPDATE la_bindings SET last_idx=?, last_delay=?, last_obs_idx=?, last_notice=?, last_stopping=?, apns_env=?, fail_streak=0 WHERE token=?')
+          .bind(idx, delaySec, obsResolved ? idx : row.last_obs_idx, noticeFlag, stoppingFlag, r.envName, row.token).run();
         sent++;
         if (useObs) sentObs++; else sentSched++;
         continue;
@@ -2711,17 +2761,18 @@ async function laPushAll(env, ctx, baseUrl) {
       await env.DELAY_DB.prepare('UPDATE la_bindings SET fail_streak=? WHERE token=?').bind(failStreak, row.token).run();
       // 🔴 修復輪次1(Important 3):non-2xx 一律 log status+reason——舊版零 log,
       // cron 仍顯示成功、營運端拿不到任何訊號(例如金鑰輪替後每分鐘全數失敗也看不出來)。
-      let reason = '';
-      try { reason = String((await res.json()).reason || ''); } catch (e) { /* body 非 JSON:reason 留空,走下面的保守分支 */ }
-      console.error(`[cron la-push] APNs 非 2xx: status=${res.status} reason=${reason || '(無法解析)'} token=${String(row.token).slice(0, 8)}…`);
+      // 🔴 reason 由 laApnsSend 解析過（Response body 只能讀一次,不可以在這裡再 .json()）。
+      //    r 是「決定性的那一發」:退路成功時是第二發,兩邊都失敗時是第一發（見 laApnsSend）。
+      const reason = r.reason;
+      console.error(`[cron la-push] APNs 非 2xx: status=${r.status} reason=${reason || '(無法解析)'} env=${r.envName}${r.retried ? '(已試過另一個環境)' : ''} token=${String(row.token).slice(0, 8)}…`);
       // 🔴 修復輪次1(Important 4):403 InvalidProviderToken 代表這把 JWT 本身壞了
       // (金鑰輪替/時鐘偏移),不是這個 token 的問題——不刪列,但要讓下一次 laJwt() 強制重簽,
       // 否則會卡滿 50 分鐘的快取期限持續全軍覆沒。
       // 🔴 最終複審 A-I4:laJwtReset() 現在帶 20 分鐘冷卻(Apple 對 provider token 更新頻率的
       // 硬限制),回 false 代表這一輪沿用快取——把它印出來,否則持續 403 時看不出「我方已經
       // 停止重簽、正在等冷卻」與「重簽了但還是 403」的差別。
-      if (res.status === 403 && !laJwtReset()) console.error('[cron la-push] 403 但 provider token 仍在 20 分鐘冷卻期內,本輪沿用快取的 JWT(Apple 對更新頻率有硬限制)');
-      if (res.status === 429 && reason === 'TooManyProviderTokenUpdates') console.error('[cron la-push] Apple 回報 provider token 更新過快(TooManyProviderTokenUpdates)——重簽頻率必須低於每 20 分鐘一次');
+      if (r.status === 403 && !laJwtReset()) console.error('[cron la-push] 403 但 provider token 仍在 20 分鐘冷卻期內,本輪沿用快取的 JWT(Apple 對更新頻率有硬限制)');
+      if (r.status === 429 && reason === 'TooManyProviderTokenUpdates') console.error('[cron la-push] Apple 回報 provider token 更新過快(TooManyProviderTokenUpdates)——重簽頻率必須低於每 20 分鐘一次');
       // 🔴 修復輪次2:先收集,不立刻刪——見迴圈外的批次熔斷判斷。
       // 🔴 修復輪次4:這裡【不再】有任何 break——失敗不得中止迴圈,否則 attempted 會被
       // 失敗樣態自己截斷、比例失真(見函式開頭 LA_TICK_BUDGET_MS 註解的 (a))。
@@ -2764,7 +2815,7 @@ async function laPushAll(env, ctx, baseUrl) {
   }
   // 🔴 最終複審 A-I3:sentObs/sentSched 讓「表定推算佔比」變成可觀測量;B-I4:把 APNs host
   // 印出來,正式版拿到 sandbox token(或反過來)造成的全滅才分得出是環境錯配還是後端壞了。
-  console.log(`[cron la-push] tick 完成: rows=${rows.length} attempted=${attempted} sent=${sent}(obs=${sentObs} sched=${sentSched}) dropped=${dropped} host=${env.APNS_HOST || 'api.push.apple.com'}${liveDown ? ` traLiveDown(觀測資料距今 ${liveAgeSec === null ? '不明' : liveAgeSec + ' 秒'})` : ''}${heldBack ? ` heldBack=${heldBack}(熔斷)` : ''}${budgetExhausted ? ` budgetExhausted(未處理 ${notReached} 列)` : ''}`);
+  console.log(`[cron la-push] tick 完成: rows=${rows.length} attempted=${attempted} sent=${sent}(obs=${sentObs} sched=${sentSched}) dropped=${dropped} apnsDefault=${laApnsDefaultHost(env)}(環境未知時先試) apnsRetry=${apnsRetried}${liveDown ? ` traLiveDown(觀測資料距今 ${liveAgeSec === null ? '不明' : liveAgeSec + ' 秒'})` : ''}${heldBack ? ` heldBack=${heldBack}(熔斷)` : ''}${budgetExhausted ? ` budgetExhausted(未處理 ${notReached} 列)` : ''}`);
   return { sent, dropped, heldBack };
 }
 

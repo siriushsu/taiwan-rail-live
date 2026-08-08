@@ -65,6 +65,10 @@ let apnsHangToken = null;       // 最終複審 A-I2:設了就讓「打到這個
                                  // 與 apnsRejectToken 是兩種不同的失效:reject 會立刻回來,hang 不會。
 let apnsPerToken = {};          // 修復輪次2(批次熔斷):token → {status,reason} 覆寫,不在表裡的 token 走全域 apnsNextStatus/apnsNextReason——
                                  // 熔斷的「少數列失效、其餘成功」情境需要同一批裡不同列拿到不同回應,原本的全域兩個變數做不到。
+let apnsTokenEnv = {};          // 2026-08-08 雙環境退路:token → 'prod'|'sandbox'。
+                                 // 打【對】環境回 200、打錯回 400 BadDeviceToken——這正是真實 APNs 的行為,
+                                 // 也是這整條退路存在的理由。與 apnsPerToken 是互斥的兩種替身,
+                                 // 同一個 token 不要兩邊都設(這一張優先,設了就完全接管該 token 的回應)。
 let apnsAdvanceMs = 0;          // 修復輪次4(牆鐘預算):每發一次 APNs 就把假時鐘往前推這麼多毫秒。
                                  // laPushAll 的單 tick 成本上界改成「牆鐘預算」之後,要驗它就必須讓時間在迴圈中真的前進;
                                  // 刻意放在成功/失敗兩條路徑之前——真實世界的一次網路往返不管結果如何都要花時間,
@@ -80,6 +84,14 @@ globalThis.fetch = async (url, init) => {
     if (apnsAdvanceMs) mockNowSec += apnsAdvanceMs / 1000;
     if (apnsRejectToken && u.includes(apnsRejectToken)) throw new Error('[verify_la_push_loop] 模擬 APNs 網路層 reject(Important2 測試)');
     if (apnsHangToken && u.includes(apnsHangToken)) return new Promise(() => {});   // 永不 resolve(A-I2 測試)
+    // 雙環境替身(PENV):這顆 token 只在它自己那個環境通,打錯環境就是 400 BadDeviceToken。
+    const envTok = Object.keys(apnsTokenEnv).find(t => u.includes(t));
+    if (envTok) {
+      const got = u.includes('api.sandbox.push.apple.com') ? 'sandbox' : 'prod';
+      return got === apnsTokenEnv[envTok]
+        ? new Response(JSON.stringify({}), { status: 200 })
+        : new Response(JSON.stringify({ reason: 'BadDeviceToken' }), { status: 400 });
+    }
     const overrideTok = Object.keys(apnsPerToken).find(t => u.includes(t));
     const status = overrideTok ? apnsPerToken[overrideTok].status : apnsNextStatus;
     const reason = overrideTok ? apnsPerToken[overrideTok].reason : apnsNextReason;
@@ -134,13 +146,16 @@ async function insRow(row) {
     // last_obs_idx(工項 B)預設 -1＝「還沒有任何觀測」,last_notice(複審 C-1)預設 0＝
     // 「上一次送出去的卡沒有掛告知」,兩者都與 laBind 新綁的列一致;
     // 要造「表定已經推過頭」「上一輪掛過告知」的情境就顯式傳值。
-    'INSERT INTO la_bindings (token,uid,sys,train_no,stops,sta_map,stop_codes,last_idx,last_obs_idx,last_delay,last_notice,last_stopping,bound_at,expire_at)' +
-    ' VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)'
+    'INSERT INTO la_bindings (token,uid,sys,train_no,stops,sta_map,stop_codes,last_idx,last_obs_idx,last_delay,last_notice,last_stopping,apns_env,bound_at,expire_at)' +
+    ' VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)'
   ).bind(row.token, row.uid || 'u1', row.sys, row.train_no, JSON.stringify(row.stops),
     JSON.stringify(row.staMap || {}), JSON.stringify(row.stopCodes || []),
     row.last_idx, row.last_obs_idx == null ? -1 : row.last_obs_idx,
     row.last_delay, row.last_notice == null ? 0 : row.last_notice,
     row.last_stopping == null ? 0 : row.last_stopping,
+    // apns_env 預設 null＝「還不知道這顆 token 屬於哪個 APNs 環境」,與 laBind 新綁的列一致;
+    // 要造「已經問出來了」的情境就顯式傳 'prod'／'sandbox'（PENV 就是這樣做的）。
+    row.apns_env == null ? null : row.apns_env,
     row.bound_at, row.expire_at).run();
 }
 async function getRow(token) {
@@ -167,6 +182,10 @@ async function insBatch(tokens, base) {
       token: tokens[i], sys: 'thsr_sched', train_no: '9' + String(i).padStart(3, '0'),
       stops: [{ name: 'A' + i, at: base + 100 }, { name: 'B' + i, at: base + 200 }],
       last_idx: -1, last_delay: 0, bound_at: base, expire_at: base + 3600 + i,   // expire_at 遞增 ⇒ ORDER BY expire_at ASC 的順序＝陣列順序
+      // 🔴 apns_env 顯式給值＝模擬【穩態】:每一列都已經至少成功推過一次,環境問出來了。
+      //    這是熔斷/預算這一族要量的場景——「每個 attempted 列恰好一次往返」。留 null 的話
+      //    失敗的列會多走一次雙環境退路,量到的就不是預算本身而是退路的成本(PENV 專門在量那個)。
+      apns_env: 'prod',
     });
   }
 }
@@ -182,8 +201,8 @@ async function insBatch(tokens, base) {
   const rs = await env.DELAY_DB.prepare("SELECT name FROM pragma_table_info('la_bindings')").all();
   const cols = (rs.results || []).map(r => r.name).sort();
   const WANT = ['token', 'uid', 'sys', 'train_no', 'stops', 'sta_map', 'stop_codes',
-    'last_idx', 'last_obs_idx', 'last_delay', 'last_notice', 'last_stopping', 'fail_streak', 'bound_at', 'expire_at'].sort();
-  ok('SCHEMA 本機 D1 的 la_bindings 欄位集合與 schema/0003＋0004/0005/0006/0007 一致(套漏補丁會讓整批斷言以「沒推」假綠)',
+    'last_idx', 'last_obs_idx', 'last_delay', 'last_notice', 'last_stopping', 'apns_env', 'fail_streak', 'bound_at', 'expire_at'].sort();
+  ok('SCHEMA 本機 D1 的 la_bindings 欄位集合與 schema/0003＋0004/0005/0006/0007/0008 一致(套漏補丁會讓整批斷言以「沒推」假綠)',
     JSON.stringify(cols) === JSON.stringify(WANT),
     `實際=${JSON.stringify(cols)}${JSON.stringify(cols) === JSON.stringify(WANT) ? '' : ` 期望=${JSON.stringify(WANT)}`}`);
 
@@ -197,7 +216,7 @@ async function insBatch(tokens, base) {
   // 這條因此要重建【文件宣告的建庫程序】本身(0003 建表 ＋ 所有「全環境都要跑」的補丁),
   // 而不是只讀 0003——只讀 0003 會讓這條在規矩改變的當下變成必然紅,然後被人改成寫死實測值
   // (心得34:把環境條件寫成產品規格)。ALL_ENV_PATCHES 是唯一要維護的清單,漏登記就會紅。
-  const ALL_ENV_PATCHES = ['0007_la_last_stopping.sql'];
+  const ALL_ENV_PATCHES = ['0007_la_last_stopping.sql', '0008_la_apns_env.sql'];
   let sqlCols = [];
   try {
     const sql = readFileSync(`${WT}/schema/0003_live_activity.sql`, 'utf8');
@@ -972,15 +991,16 @@ for (const [tag, status] of [['p7a', 429], ['p7b', 500]]) {
   // 跳過路徑:last_idx 直接設成這輪會算出的值(0)。thsr_sched 沒有即時觀測,delaySec 在
   // laPushAll 內恆等於 row.last_delay——兩個「沒變」條件都滿足,連 APNs 都不會打。
   for (let i = 0; i < SKIP_N; i++) {
-    await insRow({ token: skipTokens[i], sys: 'thsr_sched', train_no: '9p22s' + i, stops: mkStops('S' + i), last_idx: 0, last_delay: 0, bound_at: mockNowSec, expire_at: mockNowSec + 3600 + i });
+    await insRow({ token: skipTokens[i], sys: 'thsr_sched', train_no: '9p22s' + i, stops: mkStops('S' + i), last_idx: 0, last_delay: 0, apns_env: 'prod', bound_at: mockNowSec, expire_at: mockNowSec + 3600 + i });
   }
   // 真的推:last_idx=-1(剛綁定),這輪會算出 idx=0,與 last_idx 不同 → 觸發推播。
   for (let i = 0; i < FAIL_N; i++) {
-    await insRow({ token: failTokens[i], sys: 'thsr_sched', train_no: '9p22f' + i, stops: mkStops('F' + i), last_idx: -1, last_delay: 0, bound_at: mockNowSec, expire_at: mockNowSec + 3700 + i });
+    // apns_env 顯式給值:見 insBatch 的註解——這一格量的是熔斷分母,不是雙環境退路的成本。
+    await insRow({ token: failTokens[i], sys: 'thsr_sched', train_no: '9p22f' + i, stops: mkStops('F' + i), last_idx: -1, last_delay: 0, apns_env: 'prod', bound_at: mockNowSec, expire_at: mockNowSec + 3700 + i });
   }
   // 也真的推、但會成功:把比例壓到 75%(≠全敗),判定才會落在【比例】那一條而不是全敗那一條。
   for (let i = 0; i < OK_N; i++) {
-    await insRow({ token: okTokens[i], sys: 'thsr_sched', train_no: '9p22k' + i, stops: mkStops('K' + i), last_idx: -1, last_delay: 0, bound_at: mockNowSec, expire_at: mockNowSec + 3800 + i });
+    await insRow({ token: okTokens[i], sys: 'thsr_sched', train_no: '9p22k' + i, stops: mkStops('K' + i), last_idx: -1, last_delay: 0, apns_env: 'prod', bound_at: mockNowSec, expire_at: mockNowSec + 3800 + i });
   }
   calls.length = 0; apnsNextStatus = 200; apnsNextReason = ''; apnsPerToken = {};
   for (const t of failTokens) apnsPerToken[t] = { status: 400, reason: 'BadDeviceToken' };
@@ -2196,12 +2216,106 @@ const csOfTok = (tk) => {
   await resetTable();
 }
 
+// PENV(2026-08-08):APNs 雙環境退路。APNs 的 sandbox 與 production 互相隔離,而這張表【同時】
+// 住著兩種來源的 token(開發直裝包 vs 商店版)⇒「用一個 env 變數切」在上架之後必然錯一邊
+// (實際卡住過:APNS_HOST 指 sandbox 讓實機測試活著,審查員與 TestFlight 一發都收不到)。
+// 這一格盯五件事:問得出來、記得住、記錯了會自癒、兩邊都不通時歸因正確、不該重試時不重試。
+// 🔴 ②(記得住)與 ⑤(不該重試時不重試)是這格的重點——沒有它們,退路就是「每顆 token 每分鐘
+//    都多打一次 APNs」,請求量直接翻倍,而且熔斷的分母會失真。
+{
+  const apnsOf = (tk) => calls.filter(c => c.url.includes(APNS_FRAG + tk)).map(c =>
+    c.url.includes('api.sandbox.push.apple.com') ? 'sandbox' : 'prod');
+  const mkRow = async (T, apns_env) => {
+    const base = mockNowSec;
+    const stops = [0, 1, 2, 3].map(i => ({ name: 'S' + i, at: base + 600 + i * 600 }));
+    await insRow({ token: T, sys: 'tra_sched', train_no: '901', stops,
+      staMap: { C0: 0, C1: 1, C2: 2, C3: 3 }, stopCodes: ['C0', 'C1', 'C2', 'C3'],
+      last_idx: -1, last_obs_idx: -1, last_delay: 0, apns_env,
+      bound_at: base, expire_at: base + 7200 });
+  };
+
+  // ① 環境未知(apns_env=NULL)＋這顆 token 其實只在 sandbox 通 ⇒ 先打預設(prod)、被
+  //    BadDeviceToken 退回來、改打 sandbox 成功。這是開發直裝包在正式設定下的情境。
+  const T1 = 'e1'.repeat(80);
+  await resetTable();
+  mockNowSec = H_BASE + useSlot(22000, 'PENV');
+  await mkRow(T1, null);
+  tdxBoard = null;                                   // 走表定推算即可,本格不驗站名
+  apnsTokenEnv = { [T1]: 'sandbox' }; apnsPerToken = {}; apnsNextStatus = 200; apnsNextReason = '';
+  calls.length = 0;
+  const e1 = await laPushAll(env, fakeCtx, BASE_URL);
+  ok('PENV①(問得出來)環境未知＋token 只在 sandbox 通 ⇒ 先打 prod 被 BadDeviceToken 退回,改打 sandbox 成功(順序也要對:預設先試 production)',
+    e1.sent === 1 && JSON.stringify(apnsOf(T1)) === JSON.stringify(['prod', 'sandbox']),
+    `sent=${e1.sent} 打的順序=${JSON.stringify(apnsOf(T1))}`);
+  const r1 = await getRow(T1);
+  ok('PENV②(記得住)成功那一發的環境要寫回 apns_env——沒寫回去的話每顆 token 每分鐘都多打一次,請求量直接翻倍',
+    r1 && r1.apns_env === 'sandbox', `apns_env=${JSON.stringify(r1 && r1.apns_env)}`);
+
+  // ②b 已知環境的下一輪:只打一發,而且打對邊。①證明了「兩發」是走得到的路徑 ⇒ 這條不是恆真。
+  mockNowSec += 100;
+  await env.DELAY_DB.prepare('UPDATE la_bindings SET last_idx=-1, last_obs_idx=-1 WHERE token=?').bind(T1).run();
+  calls.length = 0;
+  const e2 = await laPushAll(env, fakeCtx, BASE_URL);
+  ok('PENV③(只多付一次)apns_env 已知的下一輪只打一發、且直接打對邊(對照①的兩發:證明「一發」不是恆真)',
+    e2.sent === 1 && JSON.stringify(apnsOf(T1)) === JSON.stringify(['sandbox']),
+    `sent=${e2.sent} 打的順序=${JSON.stringify(apnsOf(T1))}`);
+
+  // ③ 環境【已知】就不換邊:那顆 token 的環境不會變,已知環境還回 BadDeviceToken＝token 真的死了。
+  //    換邊重試會把每一列死 token 的成本永久翻倍,而死 token 正是失敗集合裡的多數。
+  //    這一條是退路的成本上界——沒有它,退路就從「每顆 token 一生一次」變成「每列每分鐘一次」。
+  const T2 = 'e2'.repeat(80);
+  await resetTable();
+  mockNowSec = H_BASE + useSlot(22100, 'PENV3');
+  await mkRow(T2, 'prod');
+  apnsTokenEnv = { [T2]: 'sandbox' };          // 已知 prod,但替身說只有 sandbox 通 ⇒ 必失敗
+  calls.length = 0;
+  const e3 = await laPushAll(env, fakeCtx, BASE_URL);
+  const r3 = await getRow(T2);
+  ok('PENV④(成本上界)環境已知時 BadDeviceToken 不換邊——那是死 token 不是環境搞錯,換邊會讓每一列死 token 每分鐘都多付一發',
+    // 第三個條件盯的是「它真的被當成死 token 處理掉了」——不換邊之後,這一列必須落進既有的
+    // 永久失敗清理（刪列或熔斷暫緩），而不是原地每分鐘重試。留著才是最糟的結果:成本沒省到、
+    // 卡片也永遠不會好。
+    e3.sent === 0 && JSON.stringify(apnsOf(T2)) === JSON.stringify(['prod'])
+      && (!r3 || (Number(r3.fail_streak) || 0) >= 1),
+    `sent=${e3.sent} 打的順序=${JSON.stringify(apnsOf(T2))} 結果=${JSON.stringify(e3)} 列=${r3 ? `fail_streak=${r3.fail_streak} apns_env=${JSON.stringify(r3.apns_env)}` : '(已刪除)'}`);
+
+  // ④ 兩邊都不通(真的死 token):要打滿兩發,但歸因必須記【第一發】那個環境——
+  //    採信第二發的話,permFail 與熔斷會把錯算到另一個環境頭上,而且下一輪先試哪邊會亂跳。
+  const T3 = 'e3'.repeat(80);
+  await resetTable();
+  mockNowSec = H_BASE + useSlot(22200, 'PENV4');
+  await mkRow(T3, null);
+  apnsTokenEnv = {}; apnsPerToken = {}; apnsNextStatus = 400; apnsNextReason = 'BadDeviceToken';
+  calls.length = 0;
+  const cap4 = await captureConsole(() => laPushAll(env, fakeCtx, BASE_URL));
+  const r4 = await getRow(T3);
+  const line4 = cap4.errLines.find(l => l.includes('APNs 非 2xx'));
+  ok('PENV⑤(兩邊都不通)打滿兩發、apns_env 不被寫成任何值,且錯誤歸因記的是【第一發】的環境(採信第二發會讓熔斷與下一輪先試的邊都跟著亂)',
+    JSON.stringify(apnsOf(T3)) === JSON.stringify(['prod', 'sandbox'])
+      && (!r4 || r4.apns_env == null) && !!line4 && line4.includes('env=prod') && line4.includes('已試過另一個環境'),
+    `打的順序=${JSON.stringify(apnsOf(T3))} apns_env=${JSON.stringify(r4 && r4.apns_env)} log=${JSON.stringify(line4 || '(沒有非 2xx 的 log)')}`);
+
+  // ⑤ 不是 BadDeviceToken 就不換邊:429／5xx／403 換個 host 也不會變好,重試只是把請求翻倍。
+  const T4 = 'e4'.repeat(80);
+  await resetTable();
+  mockNowSec = H_BASE + useSlot(22300, 'PENV5');
+  await mkRow(T4, null);
+  apnsNextStatus = 429; apnsNextReason = 'TooManyRequests';
+  calls.length = 0;
+  await laPushAll(env, fakeCtx, BASE_URL);
+  ok('PENV⑥(不該重試時不重試)429 只打一發——換環境對它沒有幫助,無條件重試會讓請求量翻倍、熔斷分母失真',
+    JSON.stringify(apnsOf(T4)) === JSON.stringify(['prod']), `打的順序=${JSON.stringify(apnsOf(T4))}`);
+
+  apnsTokenEnv = {}; apnsNextStatus = 200; apnsNextReason = '';
+  await resetTable();
+}
+
 // 🔴 覆蓋率 gate(最終複審 C1-Minor-5,心得 37(d)):總斷言數本來只印在總計行、從無斷言。
 // 條件式區塊被跳過(例如「APNs 呼叫數不是 1」而該區塊沒寫 else 回填)會讓分母【無聲縮水】:
 // 實測某一發突變讓總計從 139 掉到 128,11 條斷言消失而沒有任何人報警。
 // 這條把「每一格都真的跑到了」變成具名斷言。改動本檔的斷言數時要一併更新這個常數。
 {
-  const EXPECT_TOTAL = 239;   // 不含本條;本條自己會讓總計 +1(2026-08-08 工項 A/B:181 → 199;複審修復輪次1:→ 218;輪次2(N-1/N-2＋三個把關):→ 231;PTOK token 長度三條:→ 234;PSTOP 停靠中五條:→ 239)
+  const EXPECT_TOTAL = 245;   // 不含本條;本條自己會讓總計 +1(2026-08-08 工項 A/B:181 → 199;複審修復輪次1:→ 218;輪次2(N-1/N-2＋三個把關):→ 231;PTOK token 長度三條:→ 234;PSTOP 停靠中五條:→ 239;PENV 雙環境退路六條:→ 245)
   ok(`COV 覆蓋率 gate:本輪斷言總數必須恰好等於預期 ${EXPECT_TOTAL}(區塊被跳過或條件式吞掉會讓分母無聲縮水)`,
     results.length === EXPECT_TOTAL, `actual=${results.length}`);
 }

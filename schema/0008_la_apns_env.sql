@@ -1,0 +1,16 @@
+-- 記住每顆 device token 打得通的 APNs 環境（'prod' / 'sandbox'）。
+--
+-- 為什麼要這一欄：APNs 的兩個環境是互相隔離的——開發簽章的 build 拿到 sandbox token，
+-- TestFlight／App Store 拿到 production token，拿錯環境去打一律 400 BadDeviceToken。
+-- 而這張表【同時】住著兩種來源的 token（自己的實機直裝包 vs 商店版），所以「用一個
+-- 環境變數切」在上架之後必然錯一邊。worker 改成：未知環境先打預設，被 BadDeviceToken
+-- 退回來就換另一邊重試，成功之後把答案寫進這一欄 ⇒ 每顆 token 一生最多只多付一次請求。
+--
+-- NULL＝還不知道（新綁的列一律如此），worker 會走退路把它問出來。
+-- 🔴 換綁另一台車時【不要】把它重設成 NULL：環境是「這個 App 安裝」的屬性，不是這趟行程的，
+--    重設只會讓每次換車都白付一次退路請求。（last_idx 那一族才需要跟著換車歸零。）
+--
+-- 🔴 這支要套到【所有】環境（本機 .wrangler、預覽、正式）。0003 的 CREATE TABLE 是
+--    2026-08-08 之前的形狀，那天起它已經進了正式庫，不可以再回頭改它——
+--    見 schema/README.md「曾有一個例外，2026-08-08 起已失效」。
+ALTER TABLE la_bindings ADD COLUMN apns_env TEXT;
