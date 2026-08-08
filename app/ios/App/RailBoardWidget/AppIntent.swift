@@ -124,19 +124,29 @@ struct DestinationOptionsProvider: DynamicOptionsProvider {
     var intent
 
     func results() async throws -> IntentItemCollection<String> {
-        // 共站／我的地點走的是「附近路線」時間軸，目的站參數不參與渲染。若讓我的地點
-        // 借最近車站列出目的站，使用者會選到一個實際不生效的設定；兩種地點鍵都在這裡
-        // 明確停用目的站，改由「只看這些」篩方向、車種或車次。
+        let destinations: [StationOption]
+        let promptLabel: LocalizedStringResource
         if let origin = intent?.origin,
            origin.hasPrefix(RailBoardStore.compositeKeyPrefix)
             || origin.hasPrefix("place|")
         {
-            return .empty
-        }
-
-        let destinations: [StationOption]
-        let promptLabel: LocalizedStringResource
-        if let origin = intent?.origin {
+            // 共站／我的地點走的是「附近路線」時間軸，目的站參數不參與渲染
+            // （`RailBoardWidget.swift:151` 的 placeTimeline 在第 159 行讀 configuration.destination
+            // 之前就早退）。
+            //
+            // 🔴 2026-08-07 使用者回報「起站選共站後，目的站一點就跳出去、打不開」：原本這裡回
+            // `.empty` 想把這一格「停用」，但上面第 119 行自己的註解就寫了——回 .empty 系統會直接
+            // 把選單收掉，那不是停用而是壞掉。改成照樣列出完整站表，並用 promptLabel 說明這格
+            // 不生效。選到什麼都不影響渲染（早退路徑根本不讀），而且存進去的仍是合法站鍵 ⇒
+            // 日後把起站改回一般車站時解得開，不會觸發 destinationLost 的「找不到這個車站」。
+            //
+            // 🔴 2026-08-08 使用者二度回報同一件事，原因不是修法錯而是**修正被擱在別的分支**：
+            // 上面那顆只 commit 在 `feat/railboard-widget`（軌島-小工具 那棵樹）的 7c5c9af，
+            // main 與 feat/la-push 都沒有 ⇒ 之後出的 27／28／29／31 全部照舊壞掉。
+            // 出 build 的線目前是 feat/la-push，只在小工具樹修等於沒修。
+            destinations = RailBoardStore.shared.configurationStationOptions()
+            promptLabel = "共站看板不看目的站，這格可留空"
+        } else if let origin = intent?.origin {
             do {
                 let direct = try RailBoardStore.shared.destinationOptions(from: origin)
                 if direct.isEmpty {
