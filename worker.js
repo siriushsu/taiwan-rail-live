@@ -2272,36 +2272,43 @@ const LA_PERM_FAIL_REASONS = new Set(['Unregistered', 'BadDeviceToken', 'DeviceT
 // 熔斷救不回「這一分鐘沒推播」(host/topic 真的打錯就是全滅),只保住「綁定本身還在」——
 // 設定修好後卡片自己接上,不必要求每個使用者重開 App 重新跟車。
 //
-// 門檻分兩層:(1) 候選刪除數 < LA_BREAKER_MIN_FAILS 一律不熔斷——只有 1 列同時失敗這件事,
-// 不管佔這個 tick 的比例多高,都不足以區分「這唯一一列真的壞了」與「系統性設錯」,熔斷在
-// 這裡沒有意義,反而會擋住正常的個別 token 汰換(小樣本安全閥)。(2) 達到門檻後才看比例是否
-// >= LA_BREAKER_RATIO——真正的設定錯誤會讓每一列打到 APNs 都以同一種 reason 失敗(比例趨近
-// 100%),個別 token 自然汰換在正常運作下不太可能佔到一半以上,除非表本身就很小(已被第 1 層
-// 排除)或幾乎全表同時過期(機率低,就算誤觸發,代價也只是那批列延後一兩個 tick 才被清掉)。
-const LA_BREAKER_MIN_FAILS = 2;
+// 🔴 修復輪次4(門檻重新校準):輪次3 把比例分母從 rows.length 換成 attempted 是對的,但舊
+// 門檻(候選數 >= 2 且比例 >= 50%)是針對舊分母寫的——它的理由「除非表本身就很小」在新分母
+// 下整個垮掉:高鐵那種「delaySec 恆等於 last_delay ⇒ 絕大多數列走跳過路徑」的 tick,
+// attempted 可能只有 3~5,於是【任何 2 個自然汰換的死 token 就是 40%~67%】⇒ 每分鐘誤觸發
+// 一次熔斷:正常回收被封死(那些 token 永遠不會成功,卻永遠刪不掉),還每分鐘噴一則假的
+// 「懷疑是設定錯誤」告警,把真告警淹掉。
+// 改法:比例在極小分母上沒有資訊量 ⇒ attempted < LA_BREAKER_MIN_ATTEMPTED 一律不做比例
+// 判定(照常刪)。門檻取 10 是統計的:以個別 token 約 7% 的自然失效率,「10 次嘗試裡至少
+// 5 次失敗」約 3×10⁻⁴;而系統性設錯(APNS_HOST/apns-topic 打錯)會讓每一列都失敗、比例趨近
+// 100%,兩者在 n>=10 就分得開了。原本的 LA_BREAKER_MIN_FAILS 被這條吸收(attempted>=10 且
+// 比例>=50% ⇒ 候選數必 >=5),留著會是一條永遠為真的死條件,故移除而不是並存。
+// 代價寫清楚:表小到 attempted < 10 時真的踩到設定錯誤,那幾列會被刪掉(使用者要重新跟車)。
+// 這是刻意的取捨——小樣本下「這幾個 token 真的沒救」與「設定錯了」在統計上無法區分,而
+// 「一律不刪」會讓小表的死 token 永遠清不掉;死 token 每天都有,設定錯誤是罕見事件。
+const LA_BREAKER_MIN_ATTEMPTED = 10;
 const LA_BREAKER_RATIO = 0.5;
-// 🔴 修復輪次3(C-2):熔斷觸發後不會自動退避——被擋下的列 last_idx 沒被更新,下一分鐘
-// idx 一樣「變了」,原樣再打一次,一路重複到 expire_at(最長 8 小時 ≈ 480 輪)。設定持續
-// 錯誤時,滿載 500 列 x 序列往返約 100ms ≈ 單 tick 50 秒,逼近 cron 的 60 秒週期。
-// 不引入新的持久化狀態(cron 呼叫之間不保證共用記憶體,D1 多一張表/欄位代價與收益不成比例)
-// ⇒ 迴圈內用「連續」永久失敗 reason 數當停手訊號:達到 LA_BREAKER_STREAK_STOP 就中止本輪
-// 剩下的推播(已經送出的仍然照熔斷判斷處理,不會多刪但也不會白算)。
-// 用「連續」而不是「比例」或「累計」提早停手,是刻意的:
-// - 累計比例(候選數/已嘗試數)在早退場景下高度依賴「哪些列先被掃到」——D1 掃描順序按
-//   expire_at 排序、與 token 本身好壞無關,若剛好 2 個真正壞掉的 token 排在最前面,前幾次
-//   嘗試比例會不成比例地高,提早誤判成系統性設錯,而且這個順序是每輪都固定的(expire_at
-//   不變),同一組 token 每次都會被誤判,不會隨機率自然收斂。
-// - 純累計失敗數(不看連不連續)在大表健康運作時也可能被觸發——7% 級的個別 token 自然
-//   汰換率,500 列裡累計到 10 個失敗並不罕見,但那不代表系統性設錯。
-// - 「連續」把兩者都避開:系統性設錯會讓每一次嘗試都失敗,從第一次起就是連續的,幾乎立刻
-//   達標;個別 token 自然汰換是散落的,中間會被成功攔腰打斷,幾乎不可能連續達標
-//   (以 7% 個別失效率估計,連續 10 次都不成功攔腰打斷的機率約 0.07^10 ≈ 3×10⁻¹²,
-//   500 列全表掃過去期望發生次數仍趨近於 0)。
-// 這個值不必也不能保護「設定錯誤但失敗穿插著零星成功」這種矛盾情境——那種情況下本來就
-// 不像系統性設錯,交給熔斷本身的最終比例判斷處理即可,早退只是省成本,不改變最終決定。
-// 最壞情況(從第一次嘗試起就每發都失敗)的上界:單 tick 最多 LA_BREAKER_STREAK_STOP 次
-// APNs 往返,不是 limit(500)——把持續設定錯誤時的單 tick 成本從 ~50 秒壓到 ~1 秒等級。
-const LA_BREAKER_STREAK_STOP = 10;
+// 🔴 修復輪次4(取代輪次3 的「連續永久失敗數」早退):單 tick 的成本上界改用【牆鐘預算】。
+// 輪次3 用 consecutiveFails>=10 就 break 當停手訊號,等於要同一個計數器同時承擔兩個互斥
+// 職責——「像不像系統性設定錯誤」(需要語意訊號)與「封住單 tick 的成本」(需要與失敗樣態
+// 無關的預算)。兩邊都不成立,而且第一個還比它要解決的問題更嚴重:
+//  (a) 早退把 attempted 截在很小的值 ⇒ 比例被推到接近 1.0 ⇒ 熔斷幾乎必然觸發 ⇒ 一列都不刪。
+//      那些列的 last_idx 永不更新,而掃描是 ORDER BY expire_at ASC(確定性排序),下一個 tick
+//      同一批又排最前、又早退、又熔斷 —— 自我複製的餓死迴圈,且三個放大機制讓它比直覺容易:
+//      成功的列當場更新 last_idx ⇒ 下一輪走跳過路徑不進 attempted,失敗的列永不更新 ⇒ 每輪
+//      必進,分母逐輪縮小、往觸發方向收斂;三個 continue 都不碰計數器 ⇒「連續」是對 attempted
+//      子序列而非表中相鄰列,中間夾著的健康列只要這分鐘沒換站就打不斷失敗串;而 production/
+//      sandbox token 並存(App Store 版與 Xcode 直裝版同時在用)那批 last_idx 恆為 -1、
+//      idx>=0 恆不等於 -1 ⇒ 每個 tick 必然重入、必然再失敗,湊滿 10 個不是機率問題。
+//      後果:死 token 清不掉,而且【排在它們後面的所有列每個 tick 都拿不到推播】——
+//      卡片在鎖屏上靜止不動,正是本功能要解決的問題本身。
+//  (b)「連續」會被成功打斷,而 sandbox/production 並存正是常態 ⇒「N 敗接 1 成功」的樣態下
+//      連續計數永遠到不了門檻,宣稱的上界(10)根本不成立,最壞退回接近 limit(500)。
+// 牆鐘預算一次解掉兩個:它與失敗樣態完全無關(上界成立),而且【不再因為失敗而提早中止】
+// ⇒ attempted 保持有代表性 ⇒ 熔斷比例回到真實水準,(a) 的觸發鏈從根斷掉。
+// 另一層保險:熔斷觸發現在只擋「刪列」,不再連坐「推播」——健康列在同一個 tick 照樣收到推播。
+// 45 秒的取法:cron 週期 60 秒,留 15 秒餘裕給收尾的 D1 寫入與 tick 之間不重疊。
+const LA_TICK_BUDGET_MS = 45000;
 async function laPushAll(env, ctx, baseUrl) {
   if (!env.APNS_KEY_P8 || !env.DELAY_DB) {
     // 🔴 修復輪次2(無聲失敗 a):未設定就整支不動,舊版零 log——tick 摘要 log 在這條
@@ -2309,7 +2316,8 @@ async function laPushAll(env, ctx, baseUrl) {
     console.error('[cron la-push] APNS_KEY_P8 或 DELAY_DB 未設定,cron 本輪整支跳過');
     return { sent: 0, dropped: 0, heldBack: 0 };   // 🔴 修復輪次3(nit):補 heldBack,回傳形狀與主路徑一致
   }
-  const now = Math.floor(Date.now() / 1000);
+  const tickStartMs = Date.now();   // 🔴 修復輪次4:牆鐘預算的起點,含 D1 與 traLive 的時間
+  const now = Math.floor(tickStartMs / 1000);
   await env.DELAY_DB.prepare('DELETE FROM la_bindings WHERE expire_at < ?').bind(now).run();
   // 🔴 修復輪次1(Important 5):LIMIT 防 tick 重疊——每列至少 2 個 subrequest、序列往返
   // APNs 每發約 100ms,約 600 列就會超過 cron 的 60 秒週期,tick 重疊會讓兩個 tick 讀到同一個
@@ -2336,6 +2344,14 @@ async function laPushAll(env, ctx, baseUrl) {
     rows = rows.slice(0, limit);
   }
   if (!rows.length) return { sent: 0, dropped: 0, heldBack: 0 };   // 🔴 修復輪次3(nit):同上
+  // 🔴 修復輪次4:牆鐘預算若被吃滿,被截掉的仍會是固定的那批尾端列(rows 已依 expire_at
+  // 確定性排序)。用時鐘導出的偏移旋轉【已取回的陣列】,讓每個 tick 從不同位置開始服務。
+  // 刻意不動 SQL:ORDER BY expire_at ASC LIMIT 決定「哪些列是候選」的保證(輪次2)必須原封
+  // 不動,旋轉只決定「這一 tick 先服務候選中的哪幾個」。cron 每分鐘一次 ⇒ 偏移每輪 +1,
+  // 把「尾端結構性永遠拿不到服務」換成「最多等 rows.length 輪」。預算沒被吃滿時每列都會
+  // 處理到,順序不影響任何結果。
+  const rotate = rows.length > 1 ? Math.floor(now / 60) % rows.length : 0;
+  if (rotate) rows = rows.slice(rotate).concat(rows.slice(0, rotate));
 
   // 台鐵即時:整批共用一次。_src=cron 讓 traLive 知道這不是真人前景使用,不計入用量分析
   // (修復輪次1 Important 6——定義處在 traLive 本體,見該函式開頭註解)。
@@ -2361,11 +2377,13 @@ async function laPushAll(env, ctx, baseUrl) {
   // 裡只有 20 列真的推,20 列全部失敗,rows.length 分母只算出 4%,永遠到不了 50% 門檻,
   // 熔斷形同虛設。attempted 只算「真的送出過 APNs 請求」的列數,才是正確的分母。
   let attempted = 0;
-  // 🔴 修復輪次3(C-2):見函式開頭 LA_BREAKER_STREAK_STOP 常數註解——連續永久失敗達門檻就
-  // 提早停手,不繼續打剩下的列。consecutiveFails 在「成功」時歸零,只累計「連續」的永久
-  // 失敗 reason,穿插一次成功就重新算起。
-  let consecutiveFails = 0, earlyExit = false;
-  for (const row of rows) {
+  // 🔴 修復輪次4(取代輪次3 的 consecutiveFails):見函式開頭 LA_TICK_BUDGET_MS 註解。
+  let budgetExhausted = false, notReached = 0;
+  for (let ri = 0; ri < rows.length; ri++) {
+    // 🔴 修復輪次4:唯一的 break。放在迴圈頂端(不是失敗分支裡)是這個修法的重點——
+    // 中止的條件只跟時間有關,與這一輪失敗了幾列、怎麼分布完全無關。
+    if (Date.now() - tickStartMs > LA_TICK_BUDGET_MS) { budgetExhausted = true; notReached = rows.length - ri; break; }
+    const row = rows[ri];
     // 🔴 修復輪次1(Important 2):單列例外不得拖垮整批。fetch() 對 APNs 網路層 reject、
     // 壞掉的 row.stops 都可能在這裡拋出——沒有這層防護,第 N 列一炸,N+1..最後全部本分鐘
     // 不更新。這一列沒算 sent 也沒算 dropped,下一分鐘自然重試。
@@ -2431,7 +2449,6 @@ async function laPushAll(env, ctx, baseUrl) {
         await env.DELAY_DB.prepare('UPDATE la_bindings SET last_idx=?, last_delay=? WHERE token=?')
           .bind(idx, delaySec, row.token).run();
         sent++;
-        consecutiveFails = 0;   // 🔴 修復輪次3(C-2):成功打斷連續失敗串,早退門檻重新算起
         continue;
       }
       // 🔴 修復輪次1(Important 3):non-2xx 一律 log status+reason——舊版零 log,
@@ -2444,29 +2461,26 @@ async function laPushAll(env, ctx, baseUrl) {
       // 否則會卡滿 50 分鐘的快取期限持續全軍覆沒。
       if (res.status === 403) laJwtReset();
       // 🔴 修復輪次2:先收集,不立刻刪——見迴圈外的批次熔斷判斷。
-      if (LA_PERM_FAIL_REASONS.has(reason)) {
-        permFailCandidates.push(row.token);
-        // 🔴 修復輪次3(C-2):連續永久失敗達門檻 → 提早停手,不再送剩餘列的 APNs。
-        // 一次都不刪(維持迴圈外原有的熔斷判斷邏輯),只是少打幾發沒必要的請求。
-        if (++consecutiveFails >= LA_BREAKER_STREAK_STOP) { earlyExit = true; break; }
-      } else {
-        consecutiveFails = 0;   // 其餘(429/5xx/403/reason 不在名單的 400):不是同一種訊號,打斷連續串
-      }
+      // 🔴 修復輪次4:這裡【不再】有任何 break——失敗不得中止迴圈,否則 attempted 會被
+      // 失敗樣態自己截斷、比例失真(見函式開頭 LA_TICK_BUDGET_MS 註解的 (a))。
+      if (LA_PERM_FAIL_REASONS.has(reason)) permFailCandidates.push(row.token);
       // 其餘(429/5xx/403/reason 不在上面名單的 400):不更新 last_idx,下一分鐘自然重試
     } catch (e) {
       console.error(`[cron la-push] 單列處理失敗(不影響其他列)token=${String(row.token).slice(0, 8)}… :`, (e && e.stack) || String(e));
-      consecutiveFails = 0;   // 🔴 修復輪次3(C-2):例外跟「這個 token 是不是同一種永久失敗」無關,打斷連續串
     }
   }
-  // 🔴 修復輪次2(批次熔斷):見函式開頭常數註解的門檻設計。候選數 < LA_BREAKER_MIN_FAILS
-  // 一律照刪(小樣本安全閥);達到門檻後看比例是否 >= LA_BREAKER_RATIO,才像是系統性設定
-  // 錯誤,不是個別 token 自然汰換。
+  if (budgetExhausted) {
+    console.error(`[cron la-push] 本輪預算用盡:已用 ${Math.round((Date.now() - tickStartMs) / 1000)} 秒(上限 ${LA_TICK_BUDGET_MS / 1000} 秒),rows=${rows.length} 中還有 ${notReached} 列本輪未處理,下一輪起始偏移會往前推 1(不會固定餓死同一批)`);
+  }
+  // 🔴 修復輪次2(批次熔斷):見函式開頭常數註解的門檻設計。
   // 🔴 修復輪次3(C-1):分母改用 attempted(真的打了 APNs 的列數),不是 rows.length
   // (本輪從 D1 掃到的列數)——理由見上面 attempted 宣告處的註解。
+  // 🔴 修復輪次4:小樣本安全閥從「候選數 >= 2」換成「attempted >= LA_BREAKER_MIN_ATTEMPTED」
+  // ——比例在極小分母上沒有資訊量,理由見函式開頭常數註解。
   const breakerRatio = attempted ? permFailCandidates.length / attempted : 0;
-  const breakerTripped = permFailCandidates.length >= LA_BREAKER_MIN_FAILS && breakerRatio >= LA_BREAKER_RATIO;
+  const breakerTripped = attempted >= LA_BREAKER_MIN_ATTEMPTED && breakerRatio >= LA_BREAKER_RATIO;
   if (breakerTripped) {
-    console.error(`[cron la-push] 熔斷觸發:本輪 ${permFailCandidates.length}/${attempted} 列(實際送出 APNs 請求的列數,${Math.round(breakerRatio * 100)}%)同時回報永久失敗 reason,懷疑是設定錯誤(APNS_HOST/apns-topic)而非個別 token 失效,本輪不刪任何列,請檢查設定${earlyExit ? `(修復輪次3:連續失敗達 ${LA_BREAKER_STREAK_STOP} 筆已提早停手,rows=${rows.length} 中還有列未嘗試)` : ''}`);
+    console.error(`[cron la-push] 熔斷觸發:本輪 ${permFailCandidates.length}/${attempted} 列(實際送出 APNs 請求的列數,${Math.round(breakerRatio * 100)}%)同時回報永久失敗 reason,懷疑是設定錯誤(APNS_HOST/apns-topic)而非個別 token 失效,本輪不刪任何列,請檢查設定(熔斷只擋刪列,健康的列本輪照樣收到推播)`);
   } else {
     for (const token of permFailCandidates) {
       await env.DELAY_DB.prepare('DELETE FROM la_bindings WHERE token=?').bind(token).run();
@@ -2474,7 +2488,7 @@ async function laPushAll(env, ctx, baseUrl) {
     }
   }
   const heldBack = breakerTripped ? permFailCandidates.length : 0;
-  console.log(`[cron la-push] tick 完成: rows=${rows.length} attempted=${attempted} sent=${sent} dropped=${dropped}${heldBack ? ` heldBack=${heldBack}(熔斷)` : ''}${earlyExit ? ' earlyExit(連續失敗提早停手)' : ''}`);
+  console.log(`[cron la-push] tick 完成: rows=${rows.length} attempted=${attempted} sent=${sent} dropped=${dropped}${heldBack ? ` heldBack=${heldBack}(熔斷)` : ''}${budgetExhausted ? ` budgetExhausted(未處理 ${notReached} 列)` : ''}`);
   return { sent, dropped, heldBack };
 }
 

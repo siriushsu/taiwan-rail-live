@@ -1466,10 +1466,19 @@ JWT 快取 50 分鐘(Apple 規定 20-60 分鐘,每次重簽會被當濫用)。"
     }
 ```
 
-> 🔴 **修復輪次3 補充**：`RailFollowActivity.swift` 裡**既有**的 `countdown()`（本來就在，
-> 不是這個 Task 新增的）簽章也是 `Date?`，而 `arrivalDate` 的型別跟著 Step 1 一起改了
-> （見上方修訂註記）——這個函式與它的三個呼叫點（鎖定畫面、動態島 expanded、動態島
-> compact）**必須一起改，不動會編譯不過**。用同一個轉換模式：
+> 🔴 **修復輪次3 補充**（🔴 **修復輪次4 訂正**，見下方註記）：`RailFollowActivity.swift` 裡
+> **既有**的 `countdown()`（本來就在，不是這個 Task 新增的）簽章也是 `Date?`，而 `arrivalDate`
+> 的型別跟著 Step 1 一起改了（見上方修訂註記）——**這個函式必須一起改，不動會編譯不過**。
+> 用同一個轉換模式：
+>
+> 🔴 **修復輪次4 訂正**：原文寫「這個函式**與它的三個呼叫點**（鎖定畫面、動態島 expanded、
+> 動態島 compact）必須一起改」，與本段程式碼下方那句「三個呼叫點……不需要跟著改」**直接
+> 打架**。以下方那句為準——**要改的只有 `countdown()` 函式本身，三個呼叫點一行都不必動**。
+> 查證：三個呼叫點現況是 `countdown(context.state.arrivalDate, maxWidth: 88 / 62 / 44)`
+> （`app/ios/App/RailBoardWidget/RailFollowActivity.swift:34`、`:45`、`:54`），參數是位置參數、
+> 呼叫語法不含型別；`ContentState.arrivalDate` 與 `countdown()` 的入參**同時**從 `Date?`
+> 改成 `Double?`，兩端仍然對得上，呼叫端原封不動即可編譯。這份計畫書是 Task 7 的需求來源，
+> 留著矛盾會讓下一個實作者去改三個其實不用動的地方。
 
 ```swift
     // 🔴 修復輪次3:入參從 Date? 改 Double?,理由與 progress() 相同(見上方)。
@@ -1484,7 +1493,7 @@ JWT 快取 50 分鐘(Apple 規定 20-60 分鐘,每次重簽會被當濫用)。"
 ```
 
 三個呼叫點（`countdown(context.state.arrivalDate, maxWidth: …)`）因為只是換上游型別、
-呼叫語法不變，不需要跟著改。
+呼叫語法不變，不需要跟著改。（🔴 修復輪次4：這句才是對的，上方修訂註記已訂正與它打架的那句。）
 
 鎖定畫面版面：`Text(context.state.nextStop).font(.headline)` 下方插入
 
