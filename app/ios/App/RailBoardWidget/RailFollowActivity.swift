@@ -63,6 +63,7 @@ struct RailFollowActivityWidget: Widget {
                 }
                 DynamicIslandExpandedRegion(.trailing) {
                     countdown(context.state.arrivalDate, maxWidth: 62).font(.caption)
+                        .contentTransition(.numericText())
                 }
                 DynamicIslandExpandedRegion(.bottom) {
                     Text("下一站 \(context.state.nextStop) · \(delayText(context.state.delaySec))")
