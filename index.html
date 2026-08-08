@@ -3385,7 +3385,7 @@
            內容 li 上限 8 條(li.grp 是標題不算)。 -->
       <ul class="foot-list foot-recent">
         <li class="grp">最近更新</li>
-        <li data-cl-of="lapush"><span class="d">8/8</span><span>跟車的鎖定畫面即時動態會自己換下一站了，App 沒開著也會更新（通行證功能）</span></li>
+        <li data-cl-of="lapush"><span class="d">8/8</span><span>跟車的鎖定畫面即時動態會自己換下一站了，App 沒開著也會更新；停靠站內顯示「停靠中」，動態島展開還有進度條與車種顏色（通行證功能）</span></li>
         <li data-cl-of="crossnight452"><span class="d">8/8</span><span>修正：週五深夜 452 次這類特定日開行的跨夜車，過了午夜就從地圖上消失（謝謝網友回報）</span></li>
         <li data-cl-of="thsrfreeseat"><span class="d">8/8</span><span>跟隨高鐵列車時，資訊卡新增「自由座車廂」提示：一排小方塊標出今天這班車自由座在第幾節，不必再猜（免費功能）</span></li>
         <li data-cl-of="mytrains"><span class="d">8/8</span><span>最愛面板新增「我的車」：收藏的台鐵列車集中列出近 30 天準點表現（通行證功能）</span></li>
@@ -3432,7 +3432,7 @@
         <li><span class="d">7/16</span><span>捷運準確度升級：六家捷運依官方到站看板即時校正，國定假日自動改跑假日班表</span></li>
         <li><span class="d">7/9</span><span>台鐵即時誤點上線——介接交通部 TDX 平臺每分鐘更新；7/11 起開站即真實時刻、捷運改逐班推演</span></li>
         <li class="grp">跟車、搜尋與車站看板</li>
-        <li data-cl="lapush"><span class="d">8/8</span><span>跟隨台鐵或高鐵列車時，鎖定畫面與動態島的即時動態改由伺服器每分鐘更新：螢幕關著、App 沒開著也會自己換到下一站。要換到哪一站依列車實際到離站的觀測決定，不是照時刻表推算；遇到即時資料中斷，卡片會註明目前位置為預估並提醒查詢官方動態。軌島通行證功能，一趟最長跟 12 小時</span></li>
+        <li data-cl="lapush"><span class="d">8/8</span><span>跟隨台鐵或高鐵列車時，鎖定畫面與動態島的即時動態改由伺服器每分鐘更新：螢幕關著、App 沒開著也會自己換到下一站。要換到哪一站依列車實際到離站的觀測決定，不是照時刻表推算；遇到即時資料中斷，卡片會註明目前位置為預估並提醒查詢官方動態。卡片本身也一併加強：列車停靠站內時會顯示「停靠中」而不是繼續倒數，長按動態島展開後會看到一條往下一站前進的進度條、車種與代表色（和地圖上那台車同一個顏色）、上一站與終點站。軌島通行證功能，一趟最長跟 12 小時</span></li>
         <li data-cl="thsrfreeseat"><span class="d">8/8</span><span>跟隨高鐵列車時，資訊卡新增自由座車廂提示：以車廂圖示＋文字標出今天這班車的自由座在哪幾節（例如「自由座 10–12 車」）。資料來源為交通部 TDX 高鐵每日自由座資訊，逐日更新；僅高鐵列車顯示，資料尚未到位或查無該車次時安靜不顯示</span></li>
         <li data-cl="afrtrainno"><span class="d">8/4</span><span>阿里山林鐵的 1、2 次跟台鐵環島之星是同一組車次號碼，點下去的介紹卡卻寫成「環島之星 萌旅號　全台唯一環島觀光列車…」；現在林鐵的車一律顯示自己的車種介紹（阿里山號），收藏與搜尋結果裡的名字也一併改正（謝謝網友回報）</span></li>
         <li><span class="d">7/30</span><span>搜尋今天已經跑完的車，現在會帶你回到它發車前，不再當場亂蓋完乘章（謝謝網友回報）</span></li>
@@ -10480,15 +10480,42 @@ function liveActivityAllowed() {
 // 下一站與倒數完全沿用跟隨面板那一套(updateFollowPanel):nextStopInfo() 回 {name, min, at},
 // min=距抵達分鐘數、at=表定時刻(秒)。Live Activity 只是把它算好的值搬過去,不另造演算法。
 function laPayload(tr) {
-  const info = nextStopInfo(tr, effTLive(tr)); if (!info) return null;
+  const t = effTLive(tr);
+  const info = nextStopInfo(tr, t); if (!info) return null;
   const last = tr.stops && tr.stops[tr.stops.length - 1];
+  // 停靠中:沿用跟隨面板那一套(dwellInfoOf ＋ 同一組門檻),不另造一套判準——面板寫著
+  // 「⏸ 停靠 嘉義」時卡片就該說停靠中,兩處各算各的比兩處都沒有更糟。
+  // 後端有 TDX 的 TrainStationStatus 可用(在站上=1),前景只有班表,兩邊語意刻意對齊。
+  const dw = dwellInfoOf(tr, t);
+  const dwelling = !!(dw && dw.st.stop !== false && dw.remain > 3 && dw.total >= 20);
+  // 🔴 停靠中要顯示【正停靠的那一站】。nextStopInfo 只看 arrSec,停站期間它已經跳到下一站了,
+  //    直接用會與後端(觀測到在站上就顯示該站)打架——同一張卡在前景/背景顯示不同的站。
+  const stops = tr.stops || [];
+  let i = dwelling ? dw.i : -1;
+  if (i < 0) for (let k = 0; k < stops.length; k++) {           // 與 nextStopInfo 同一條掃描,額外取回索引
+    if (stops[k].stop === false) continue;
+    if (stops[k].arrSec > t) { i = k; break; }
+  }
+  if (i < 0) return null;
+  let prev = null;
+  for (let k = i - 1; k >= 0; k--) if (stops[k].stop !== false) { prev = stops[k]; break; }
+  // 兩端都換算到「距現在幾秒」的同一條軸上(與既有 arrivalIso 的算法一致),進度條兩端才不會
+  // 各站在不同基準上。prev 落在過去 ⇒ 負值 ⇒ Widget 那頭就是進度條的左端。
+  // 🔴 左端取上一站的【發車】不是抵達:用抵達的話,車還停在上一站的那段停靠時間裡進度條就已經
+  //    在跑了,而且與後端(表定發車＋誤點)對不起來——同一張卡前景/背景會畫出不同的進度。
+  const nowMs = Date.now();
+  const iso = sec => new Date(nowMs + sec * 1000).toISOString();
   return {
     // tr.kind 目前恆為 undefined(四份班表共 2206 筆車次沒有一筆有這欄),實際一律落到 typeName。
     // 保留第一順位是防禦性寫法:哪天班表補上這欄,卡片會自動跟著跑,不必再改這裡。
     trainNo: String(tr.train || ''), kind: String(tr.kind || tr.typeName || ''),
     sys: String(tr.sys || ''),   // 🔴 車次不是唯一鍵:台鐵與捷運/高鐵真的有同號車。凡以車次為鍵一律帶系統別
-    nextStop: String(info.name || ''),
-    arrivalIso: new Date(Date.now() + Math.max(0, info.min) * 60000).toISOString(),
+    color: String(tr.color || ''),   // 車種代表色:與地圖上這台車同一個值,卡片才像同一台車
+    nextStop: String(stops[i].name || ''),
+    arrivalIso: iso(Math.max(0, stops[i].arrSec - t)),
+    departedIso: prev ? iso((prev.depSec != null ? prev.depSec : prev.arrSec) - t) : '',   // 空字串＝始發站,Widget 那頭不畫進度條
+    prevStop: prev ? String(prev.name) : '',
+    stopping: dwelling,
     delaySec: Math.round(liveDelaySec(tr) || 0),
     terminus: String((last && last.name) || ''),
   };

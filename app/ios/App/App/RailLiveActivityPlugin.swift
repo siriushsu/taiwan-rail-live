@@ -30,22 +30,30 @@ public final class RailLiveActivityPlugin: CAPPlugin, CAPBridgedPlugin {
 
     // 🔴 signature 提到 @available 型別 ⇒ 方法本身必須標 @available。
     //    原稿沒標,而 class 是對 iOS 15.0 編譯的 ⇒ 直接編不過(而且錯誤訊息指向型別不是這裡)。
+    // 🔴 解析不出來就是 nil。原稿在呼叫端用 `?? Date().addingTimeInterval(60)` 兜底,
+    //    那會在卡片上造出一個憑空捏造、而且真的在走的「還有 1 分鐘」——使用者無從分辨真假。
+    private static func epoch(_ raw: String?) -> Double? {
+        guard let raw, !raw.isEmpty else { return nil }
+        let iso = ISO8601DateFormatter()
+        iso.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        let d = iso.date(from: raw) ?? ISO8601DateFormatter().date(from: raw)
+        return d?.timeIntervalSince1970
+    }
+
     @available(iOS 17.6, *)
     private func state(from call: CAPPluginCall) -> RailFollowAttributes.ContentState {
-        let raw = call.getString("arrivalIso") ?? ""
-        var date: Date? = nil
-        if !raw.isEmpty {
-            let iso = ISO8601DateFormatter()
-            iso.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-            date = iso.date(from: raw) ?? ISO8601DateFormatter().date(from: raw)
-        }
-        // 🔴 解析不出來就是 nil。原稿的 `?? Date().addingTimeInterval(60)` 會在卡片上
-        //    造出一個憑空捏造、而且真的在走的「還有 1 分鐘」——使用者無從分辨真假。
+        // 🔴 notice 刻意不從這裡帶:那是後端在上游中斷時才寫的字串,前景有新鮮資料、
+        //    本來就不該掛那句話(省略 ⇒ Optional 預設 nil ⇒ 前景更新順帶把它清掉,正確)。
         return RailFollowAttributes.ContentState(
             nextStop: call.getString("nextStop") ?? "",
-            arrivalDate: date?.timeIntervalSince1970,
+            arrivalDate: Self.epoch(call.getString("arrivalIso")),
+            // 🔴 departedDate 原本【完全沒帶】⇒ 前景時進度條兩端缺一端,一格都畫不出來,
+            //    只有後端推播那條路才有進度條。前景與背景顯示不一致,使用者會以為壞了。
+            departedDate: Self.epoch(call.getString("departedIso")),
             delaySec: call.getInt("delaySec") ?? 0,
-            terminus: call.getString("terminus") ?? ""
+            terminus: call.getString("terminus") ?? "",
+            stopping: call.getBool("stopping"),
+            prevStop: call.getString("prevStop")
         )
     }
 
@@ -75,7 +83,10 @@ public final class RailLiveActivityPlugin: CAPPlugin, CAPBridgedPlugin {
         let attrs = RailFollowAttributes(
             trainNo: call.getString("trainNo") ?? "",
             kind: call.getString("kind") ?? "",
-            sys: call.getString("sys") ?? ""
+            sys: call.getString("sys") ?? "",
+            // 車種代表色。Attributes 只在 request 當下定版,之後的 update 改不了它——
+            // 但車種本來就不會中途變,這正是它該放在 Attributes 而不是 ContentState 的理由。
+            color: call.getString("color")
         )
         let st = state(from: call)
         enqueue {

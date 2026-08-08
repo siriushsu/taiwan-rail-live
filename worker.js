@@ -2247,7 +2247,11 @@ async function laBind(request, env) {
       // 規矩:凡是重設 last_idx 的地方,都要一併重設 last_obs_idx【與 last_notice】(釘死者 PBIND)。
       // last_notice 沒歸零的影響比另兩欄輕(下一輪必推、順手寫回 0 ⇒ 會自愈),但這一列的
       // 「重設點要重設全部狀態欄位」是規矩本身,留一個例外就是留給下一個新欄位的坑。
-      ' sta_map=excluded.sta_map, stop_codes=excluded.stop_codes, last_idx=-1, last_obs_idx=-1, last_delay=0, last_notice=0,' +
+      // 🔴 last_stopping 也在這裡歸零:同一顆 token 換綁另一台車時,舊車的「停靠中」若黏著,
+      // 新車第一輪若剛好也不在站上(stoppingFlag=0)⇒ 判定式那一項就【不】相等 ⇒ 反而會多推
+      // 一發(無害);真正的坑是反過來——新車一開卡就繼承舊車的停靠中標籤。規矩本身比個案重要
+      // (釘死者 PBIND):重設點要重設全部狀態欄位,留一個例外就是留給下一個新欄位的坑。
+      ' sta_map=excluded.sta_map, stop_codes=excluded.stop_codes, last_idx=-1, last_obs_idx=-1, last_delay=0, last_notice=0, last_stopping=0,' +
       ' bound_at=excluded.bound_at, expire_at=excluded.expire_at'
     ).bind(String(b.token), uid, String(b.sys), String(b.trainNo),
       JSON.stringify(b.stops), JSON.stringify(b.staMap), JSON.stringify(b.stopCodes),
@@ -2432,6 +2436,9 @@ async function laPushEnd(env, jwt, row, stops, delaySec, now) {
             // 收卡當下卡片馬上被系統收走,沒有告知的餘地;但欄位集合必須與 update 那發一致
             // (跨行程契約以「key 集合」為單位驗,見 verify_la_push_loop.mjs 的 CONTRACT_KEYS)。
             notice: null,
+            // 同上:收卡沒有「停靠中」可言,但 key 必須在。
+            stopping: false,
+            prevStop: prev ? prev.name : null,
           },
         },
       }),
@@ -2591,6 +2598,13 @@ async function laPushAll(env, ctx, baseUrl) {
       // 支線缺觀測、高鐵無即時資料同樣走表定,但那不是「即時資料中斷」,掛這句話是說謊。
       // 與 schedFallbackBlocked 綁在同一組運算式,政策旋鈕改成 false(凍住)時這句話會自動消失。
       const notice = (liveDown && row.sys === 'tra_sched' && !schedFallbackBlocked) ? LA_NOTICE_UPSTREAM_DOWN : null;
+      // 🔴 停靠中:TDX 說車【在站上】(status 1),而且那一站就是卡片現在顯示的這一站。
+      // 只認 1 不認 0:0 是「進站中」,車還在動,月台顯示器那時也還沒翻成停靠。
+      // 必須比對 own === idx 而不是只看 status——單調閘門可能把 idx 抬到觀測站之後
+      // (表定推過頭的回收窗),那時車雖然在某站上,卻不是卡片正在顯示的那一站,
+      // 標成停靠中就是「顯示一件沒發生在這張卡上的事」。
+      // 高鐵／支線 useObs 恆假 ⇒ 恆 false ⇒ 下面判定式那一項恆等,不會讓它們每分鐘重推。
+      const stopping = !!(useObs && Number(t.status) === 1 && stopCodes.indexOf(String(t.sta)) === idx);
       if (idx >= stops.length) {                            // 走完全程 → 收卡
         // 🔴 最終複審 B-I3:舊碼只 DELETE 不送 end ⇒ 鎖屏卡片會留到 RailLiveActivityPlugin
         // 設的 8 小時 staleDate,使用者得自己滑掉。「背景跑到終點」是主線情境不是邊角:
@@ -2615,8 +2629,13 @@ async function laPushAll(env, ctx, baseUrl) {
       // 🔴 存布林不存字串:目前只有一句告知,布林能忠實表達狀態。日後若出現第二句文案,
       // 這一欄必須改存字串或雜湊,否則「換一句話」不會觸發推播。
       const noticeFlag = notice ? 1 : 0;
+      // 🔴 停靠中的【亮起與熄滅】同樣是卡片內容的變化,必須進判定式(與 last_notice 同一種錯:
+      // 車停進站、開走時 idx 完全沒動,準點車 delay 又恆 0 ⇒ 缺了這一項,三項全等 ⇒ 零推播
+      // ⇒ 標籤永遠不會亮、亮了也永遠不會滅)。
+      const stoppingFlag = stopping ? 1 : 0;
       if (idx === row.last_idx && delaySec === row.last_delay
-          && noticeFlag === (Number(row.last_notice) || 0)) {
+          && noticeFlag === (Number(row.last_notice) || 0)
+          && stoppingFlag === (Number(row.last_stopping) || 0)) {
         // 🔴 複審 N-2:「卡片內容沒變」不等於「地板沒學到東西」。這一輪如果真的解出了觀測、
         // 而且它比 last_obs_idx 更前面,地板就必須吸收它——否則下一發抖動觀測會拿一個過時的
         // 低地板把卡片往回拉好幾站(實測:last_idx=5／last_obs_idx=1 時觀測解出 5 ⇒ 三項全等
@@ -2651,6 +2670,10 @@ async function laPushAll(env, ctx, baseUrl) {
             // 🔴 工項 A:上游整批失效時老實說「這個位置是推估的」。Swift 端是 Optional String,
             // 正常時送 null(不是省略這個 key——欄位集合是跨行程契約的一部分)。
             notice,
+            // 停靠中,以及進度條左端的上一站。兩者在 Swift 端都是 Optional,
+            // 但一律送(含 null)——欄位集合是跨行程契約的一部分,不可省略 key。
+            stopping,
+            prevStop: prev ? prev.name : null,
           },
         },
       };
@@ -2675,8 +2698,8 @@ async function laPushAll(env, ctx, baseUrl) {
         // 🔴 工項 B:last_obs_idx 只在【這一輪真的用了觀測】時才推進——表定推算不得寫它,
         // 否則單調閘門的地板會被推算值抬上去,觀測就再也修不回來(等同沒改)。
         // 與 last_idx 同一發 UPDATE ⇒ 兩者永遠描述同一次決策,不會分岔。
-        await env.DELAY_DB.prepare('UPDATE la_bindings SET last_idx=?, last_delay=?, last_obs_idx=?, last_notice=?, fail_streak=0 WHERE token=?')
-          .bind(idx, delaySec, obsResolved ? idx : row.last_obs_idx, noticeFlag, row.token).run();
+        await env.DELAY_DB.prepare('UPDATE la_bindings SET last_idx=?, last_delay=?, last_obs_idx=?, last_notice=?, last_stopping=?, fail_streak=0 WHERE token=?')
+          .bind(idx, delaySec, obsResolved ? idx : row.last_obs_idx, noticeFlag, stoppingFlag, row.token).run();
         sent++;
         if (useObs) sentObs++; else sentSched++;
         continue;

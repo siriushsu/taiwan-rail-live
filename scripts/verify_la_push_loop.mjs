@@ -134,12 +134,13 @@ async function insRow(row) {
     // last_obs_idx(工項 B)預設 -1＝「還沒有任何觀測」,last_notice(複審 C-1)預設 0＝
     // 「上一次送出去的卡沒有掛告知」,兩者都與 laBind 新綁的列一致;
     // 要造「表定已經推過頭」「上一輪掛過告知」的情境就顯式傳值。
-    'INSERT INTO la_bindings (token,uid,sys,train_no,stops,sta_map,stop_codes,last_idx,last_obs_idx,last_delay,last_notice,bound_at,expire_at)' +
-    ' VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)'
+    'INSERT INTO la_bindings (token,uid,sys,train_no,stops,sta_map,stop_codes,last_idx,last_obs_idx,last_delay,last_notice,last_stopping,bound_at,expire_at)' +
+    ' VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)'
   ).bind(row.token, row.uid || 'u1', row.sys, row.train_no, JSON.stringify(row.stops),
     JSON.stringify(row.staMap || {}), JSON.stringify(row.stopCodes || []),
     row.last_idx, row.last_obs_idx == null ? -1 : row.last_obs_idx,
     row.last_delay, row.last_notice == null ? 0 : row.last_notice,
+    row.last_stopping == null ? 0 : row.last_stopping,
     row.bound_at, row.expire_at).run();
 }
 async function getRow(token) {
@@ -181,8 +182,8 @@ async function insBatch(tokens, base) {
   const rs = await env.DELAY_DB.prepare("SELECT name FROM pragma_table_info('la_bindings')").all();
   const cols = (rs.results || []).map(r => r.name).sort();
   const WANT = ['token', 'uid', 'sys', 'train_no', 'stops', 'sta_map', 'stop_codes',
-    'last_idx', 'last_obs_idx', 'last_delay', 'last_notice', 'fail_streak', 'bound_at', 'expire_at'].sort();
-  ok('SCHEMA 本機 D1 的 la_bindings 欄位集合與 schema/0003＋0004/0005/0006 一致(套漏補丁會讓整批斷言以「沒推」假綠)',
+    'last_idx', 'last_obs_idx', 'last_delay', 'last_notice', 'last_stopping', 'fail_streak', 'bound_at', 'expire_at'].sort();
+  ok('SCHEMA 本機 D1 的 la_bindings 欄位集合與 schema/0003＋0004/0005/0006/0007 一致(套漏補丁會讓整批斷言以「沒推」假綠)',
     JSON.stringify(cols) === JSON.stringify(WANT),
     `實際=${JSON.stringify(cols)}${JSON.stringify(cols) === JSON.stringify(WANT) ? '' : ` 期望=${JSON.stringify(WANT)}`}`);
 
@@ -191,6 +192,12 @@ async function insBatch(tokens, base) {
   // 檢查跑過:0003 與補丁檔日後只改其中一支(漂移)不會有東西轉紅,而症狀是【只在正式庫發生】
   // 的「no such column」。這條直接讀 0003 的 CREATE TABLE 區塊解出欄位名,與同一份 WANT 對照。
   // 分母閘門比照 PSWIFT:解出 0 欄(檔案搬家／regex 失配)也必須 FAIL,不可以因為空集合而假綠。
+  // 🔴 2026-08-08 起「全新庫路徑」不再只是 0003:0003 已套上正式庫 ⇒ schema/README 那條
+  // 「建表腳本還沒上線時就地補欄位」的例外失效 ⇒ 0007 之後的欄位只存在於 ALTER 補丁裡。
+  // 這條因此要重建【文件宣告的建庫程序】本身(0003 建表 ＋ 所有「全環境都要跑」的補丁),
+  // 而不是只讀 0003——只讀 0003 會讓這條在規矩改變的當下變成必然紅,然後被人改成寫死實測值
+  // (心得34:把環境條件寫成產品規格)。ALL_ENV_PATCHES 是唯一要維護的清單,漏登記就會紅。
+  const ALL_ENV_PATCHES = ['0007_la_last_stopping.sql'];
   let sqlCols = [];
   try {
     const sql = readFileSync(`${WT}/schema/0003_live_activity.sql`, 'utf8');
@@ -199,12 +206,16 @@ async function insBatch(tokens, base) {
       const body = blk[1].split('\n').filter(l => !/^\s*--/.test(l)).join('\n');
       sqlCols = [...body.matchAll(/^\s*([a-z_][a-z0-9_]*)\s+(?:TEXT|INTEGER)\b/gim)].map(x => x[1]);
     }
+    for (const f of ALL_ENV_PATCHES) {
+      const p = readFileSync(`${WT}/schema/${f}`, 'utf8');
+      sqlCols.push(...[...p.matchAll(/ALTER\s+TABLE\s+la_bindings\s+ADD\s+COLUMN\s+([a-z_][a-z0-9_]*)/gi)].map(x => x[1]));
+    }
   } catch (e) { sqlCols = []; }
-  ok('SCHEMA 前置(分母閘門):從 schema/0003_live_activity.sql 的 CREATE TABLE 解得出欄位(解不出＝這條核對等於沒有)',
+  ok('SCHEMA 前置(分母閘門):從 schema/0003 的 CREATE TABLE ＋全環境補丁的 ADD COLUMN 解得出欄位(解不出＝這條核對等於沒有)',
     sqlCols.length >= 10, `解到 ${sqlCols.length} 個:${JSON.stringify(sqlCols)}`);
-  ok('SCHEMA(把關2)全新庫路徑:schema/0003 建表的欄位集合 === 同一份 WANT(0003 與補丁檔漂移只會在正式庫現形,本機那顆 ALTER 拼出來的庫照不到)',
+  ok('SCHEMA(把關2)全新庫路徑:schema/0003 建表 ＋ 全環境補丁(0007…)的欄位集合 === 同一份 WANT(建庫程序與補丁檔漂移只會在正式庫現形,本機那顆 ALTER 拼出來的庫照不到)',
     JSON.stringify(sqlCols.slice().sort()) === JSON.stringify(WANT),
-    `0003=${JSON.stringify(sqlCols.slice().sort())}${JSON.stringify(sqlCols.slice().sort()) === JSON.stringify(WANT) ? '' : ` 期望=${JSON.stringify(WANT)}`}`);
+    `建庫程序=${JSON.stringify(sqlCols.slice().sort())}${JSON.stringify(sqlCols.slice().sort()) === JSON.stringify(WANT) ? '' : ` 期望=${JSON.stringify(WANT)}`}`);
 }
 
 // ══════════════════════════════════════════════════════════════════
@@ -226,7 +237,8 @@ ok(`PSWIFT 前置(分母閘門):從 ${SWIFT_ATTRS_PATH.split('/').slice(-1)[0]} 
   swiftProps.length >= 5, `解到 ${swiftProps.length} 個:${JSON.stringify(swiftProps)}`);
 // 期望值獨立寫死一份(心得29:判準不可與被測物同源)——Swift 側與 worker.js 側都要對上它,
 // 三方任何一方漂移都會現形,而不是「兩邊一起改壞、對照組跟著錯」。
-const CONTRACT_KEYS_EXPECT = ['arrivalDate', 'delaySec', 'departedDate', 'nextStop', 'terminus', 'notice'];
+const CONTRACT_KEYS_EXPECT = ['arrivalDate', 'delaySec', 'departedDate', 'nextStop', 'terminus', 'notice',
+  'stopping', 'prevStop'];
 const CONTRACT_KEYS_SORTED = CONTRACT_KEYS_EXPECT.slice().sort();
 ok('PSWIFT(跨行程契約)Swift ContentState 的屬性集合 === 後端 content-state 的契約欄位集合',
   JSON.stringify(swiftProps.slice().sort()) === JSON.stringify(CONTRACT_KEYS_SORTED),
@@ -2081,9 +2093,14 @@ const csOfTok = (tk) => {
     last_idx: 5, last_obs_idx: 1, last_delay: 0, last_notice: 0,
     bound_at: base, expire_at: base + 7200 });
 
-  // ① 觀測回來說 C5(索引 5)⇒ idx=5=last_idx、誤點 0=last_delay、無告知 ⇒ 三項全等 ⇒ 不推。
+  // ① 觀測回來說 C5(索引 5)⇒ idx=5=last_idx、誤點 0=last_delay、無告知、非停靠 ⇒ 四項全等 ⇒ 不推。
   //    但這一發【是】真觀測,地板必須吸收它。
-  tdxBoard = [{ TrainNo: '575', DelayTime: 0, StationID: 'C5', TrainStationStatus: 1 }];
+  // 🔴 2026-08-08:status 原本寫 1(在站上)。「在站上」現在【就是卡片內容】(停靠中標籤),
+  //    這一格的前提「卡片內容確實沒變」會因此變成假的——不是實作錯,是 fixture 不小心把
+  //    一件會顯示出來的事寫進了「什麼都沒變」的情境。改用 2(已離站):laObsIdx 對非 0/1
+  //    走 staMap ⇒ 仍解出索引 5(地板吸收這件事一字不動),而停靠中維持 false。
+  //    停靠中本身的正反向驗證在 PSTOP,不混進這一格。
+  tdxBoard = [{ TrainNo: '575', DelayTime: 0, StationID: 'C5', TrainStationStatus: 2 }];
   calls.length = 0; apnsNextStatus = 200; apnsNextReason = ''; apnsPerToken = {};
   const r43a = await laPushAll(env, fakeCtx, BASE_URL);
   ok('P43 前置:這一輪卡片內容確實沒變 ⇒ 零推播(修法不可以為了推進地板而變成每分鐘重推)',
@@ -2103,7 +2120,7 @@ const csOfTok = (tk) => {
   await insRow({ token: Tctl, sys: 'tra_sched', train_no: '575', stops, staMap, stopCodes,
     last_idx: 5, last_obs_idx: 1, last_delay: 0, last_notice: 0,
     bound_at: base, expire_at: base + 7200 });
-  tdxBoard = [{ TrainNo: '575', DelayTime: 0, StationID: 'C2', TrainStationStatus: 1 }];
+  tdxBoard = [{ TrainNo: '575', DelayTime: 0, StationID: 'C2', TrainStationStatus: 2 }];   // 理由同 ①
   calls.length = 0;
   const r43b = await laPushAll(env, fakeCtx, BASE_URL);
   ok('P43(N-2 關鍵)地板吸收之後,抖動觀測拉不動卡片:這一列一發 APNs 都沒有(舊碼會推 S2＝鎖屏上列車倒退三站)',
@@ -2118,12 +2135,73 @@ const csOfTok = (tk) => {
   await resetTable();
 }
 
+// PSTOP(2026-08-08 使用者實機回報):停靠中。「車停在嘉義,卡片卻還寫著『下一站 嘉義』配一個
+// 不動的倒數」是使用者第一眼就注意到的缺陷。這一格盯四件事:亮得起來、不重推、熄得掉、不誤標。
+// 🔴「熄得掉」與 last_notice(schema 0006)是同一族的坑:車開走時站序/誤點/告知三項都沒變,
+//    判定式若不看 stopping 就是零推播 ⇒ 標籤黏在卡片上直到列車真的換站(自強號可達 20–40 分)。
+//    那一條是本格存在的主要理由——「亮得起來」很容易寫對,「熄得掉」才是會被漏掉的一半。
+{
+  const T = 'ac'.repeat(80);          // 真實長度的 ActivityKit token(見 PTOK)
+  await resetTable();
+  mockNowSec = H_BASE + useSlot(21000, 'PSTOP');
+  const base = mockNowSec;
+  const stops = [0, 1, 2, 3].map(i => ({ name: 'S' + i, at: base + 600 + i * 600 }));
+  const staMap = { C0: 0, C1: 1, C2: 2, C3: 3 };
+  const stopCodes = ['C0', 'C1', 'C2', 'C3'];
+  await insRow({ token: T, sys: 'tra_sched', train_no: '576', stops, staMap, stopCodes,
+    last_idx: -1, last_obs_idx: -1, last_delay: 0, last_notice: 0, last_stopping: 0,
+    bound_at: base, expire_at: base + 7200 });
+
+  // ① 在站上(status 1),而且 C1 就是卡片要顯示的那一站 ⇒ 停靠中
+  tdxBoard = [{ TrainNo: '576', DelayTime: 0, StationID: 'C1', TrainStationStatus: 1 }];
+  calls.length = 0; apnsNextStatus = 200; apnsNextReason = ''; apnsPerToken = {};
+  const s1 = await laPushAll(env, fakeCtx, BASE_URL);
+  const cs1 = csOfTok(T);
+  ok('PSTOP①(亮得起來)在站上(status 1)且就是卡片顯示的那一站 ⇒ content-state.stopping=true',
+    s1.sent === 1 && !!cs1 && cs1.stopping === true && cs1.nextStop === 'S1',
+    `sent=${s1.sent} ${cs1 ? `stopping=${cs1.stopping} nextStop=${cs1.nextStop}` : '(無 APNs 呼叫)'}`);
+  ok('PSTOP① prevStop 是上一個停靠站——進度條的左端,缺了它 Widget 那頭一格都畫不出來',
+    !!cs1 && cs1.prevStop === 'S0', cs1 ? `prevStop=${JSON.stringify(cs1.prevStop)}` : '(無 APNs 呼叫)');
+
+  // ② 狀態完全沒變的下一輪 ⇒ 零推播
+  mockNowSec = base + 100;            // >55 秒,逼 traLive 重打(仍遠小於 300 秒門檻)
+  calls.length = 0;
+  const s2 = await laPushAll(env, fakeCtx, BASE_URL);
+  ok('PSTOP②(不重推)狀態完全沒變的下一輪 ⇒ 零推播(last_stopping 沒寫回 D1 的話這裡會每分鐘重推一次)',
+    s2.sent === 0 && calls.filter(c => c.url.includes(APNS_FRAG)).length === 0,
+    `sent=${s2.sent} apns=${calls.filter(c => c.url.includes(APNS_FRAG)).length}`);
+
+  // ③ 開車(status 2)⇒ 標籤必須熄滅,而且【必須真的推一發】才熄得掉
+  mockNowSec = base + 200;
+  tdxBoard = [{ TrainNo: '576', DelayTime: 0, StationID: 'C1', TrainStationStatus: 2 }];
+  calls.length = 0;
+  const s3 = await laPushAll(env, fakeCtx, BASE_URL);
+  const cs3 = csOfTok(T);
+  ok('PSTOP③(熄得掉)開車後 stopping 轉 false 且真的推出去——站序/誤點/告知三項都沒變,判定式不看 stopping 就會零推播、標籤永遠黏在卡片上',
+    s3.sent === 1 && !!cs3 && cs3.stopping === false,
+    `sent=${s3.sent} ${cs3 ? `stopping=${cs3.stopping}` : '(無 APNs 呼叫)'}`);
+
+  // ④ 觀測站不是卡片正在顯示的那一站(單調閘門把 idx 抬高了)⇒ 車雖然在站上,也不可標成停靠中。
+  //    刻意讓誤點一起變,強迫這一輪真的推一發 ⇒ 能直接檢查 content-state,而不是靠「沒推」間接推論。
+  mockNowSec = base + 300;
+  await env.DELAY_DB.prepare('UPDATE la_bindings SET last_idx=?, last_obs_idx=?, last_stopping=0 WHERE token=?')
+    .bind(2, 2, T).run();
+  tdxBoard = [{ TrainNo: '576', DelayTime: 3, StationID: 'C1', TrainStationStatus: 1 }];
+  calls.length = 0;
+  const s4 = await laPushAll(env, fakeCtx, BASE_URL);
+  const cs4 = csOfTok(T);
+  ok('PSTOP④(不誤標)車在 C1 站上但卡片顯示的是 S2(單調閘門抬高了 idx)⇒ stopping 必須是 false,否則卡片會說「S2 停靠中」而車其實停在 S1',
+    s4.sent === 1 && !!cs4 && cs4.stopping === false && cs4.nextStop === 'S2',
+    `sent=${s4.sent} ${cs4 ? `stopping=${cs4.stopping} nextStop=${cs4.nextStop}` : '(無 APNs 呼叫)'}`);
+  await resetTable();
+}
+
 // 🔴 覆蓋率 gate(最終複審 C1-Minor-5,心得 37(d)):總斷言數本來只印在總計行、從無斷言。
 // 條件式區塊被跳過(例如「APNs 呼叫數不是 1」而該區塊沒寫 else 回填)會讓分母【無聲縮水】:
 // 實測某一發突變讓總計從 139 掉到 128,11 條斷言消失而沒有任何人報警。
 // 這條把「每一格都真的跑到了」變成具名斷言。改動本檔的斷言數時要一併更新這個常數。
 {
-  const EXPECT_TOTAL = 234;   // 不含本條;本條自己會讓總計 +1(2026-08-08 工項 A/B:181 → 199;複審修復輪次1:→ 218;輪次2(N-1/N-2＋三個把關):→ 231;PTOK token 長度三條:→ 234)
+  const EXPECT_TOTAL = 239;   // 不含本條;本條自己會讓總計 +1(2026-08-08 工項 A/B:181 → 199;複審修復輪次1:→ 218;輪次2(N-1/N-2＋三個把關):→ 231;PTOK token 長度三條:→ 234;PSTOP 停靠中五條:→ 239)
   ok(`COV 覆蓋率 gate:本輪斷言總數必須恰好等於預期 ${EXPECT_TOTAL}(區塊被跳過或條件式吞掉會讓分母無聲縮水)`,
     results.length === EXPECT_TOTAL, `actual=${results.length}`);
 }

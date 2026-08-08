@@ -229,11 +229,35 @@ const cr = await chromium.launch();
     JSON.stringify(seq) === JSON.stringify(['start', 'update']), JSON.stringify(seq));
   const p = st[0] ? st[0].p : null;
   ok('T1 payload.trainNo/sys 與實際跟隨的車相符', !!p && f && p.trainNo === f.no && p.sys === f.sys, JSON.stringify(p));
-  // 獨立來源交叉比對:#fpNext 是跟隨面板自己的渲染器寫的,不是本腳本重算的
-  const panelNext = await page.evaluate(() => document.getElementById('fpNext').textContent.trim());
-  ok('T1 payload.nextStop === 跟隨面板 #fpNext(獨立渲染器)', !!p && p.nextStop === panelNext, `payload=${p && p.nextStop} 面板=${panelNext}`);
+  // 獨立來源交叉比對:#fpNext／#fpStatus 都是跟隨面板自己的渲染器寫的,不是本腳本重算的。
+  // 🔴 抓到的是「此刻真的在跑的車」,它可能正好停靠在站內 ⇒ 卡片刻意顯示【正停靠的那一站】
+  //    (與後端觀測到在站上時的行為一致),而 #fpNext 指的是下一站,兩者本來就不該相等。
+  //    分支不是為了讓紅的變綠——停靠那半改比 #fpStatus(面板自己寫的「⏸ 停靠 X」),
+  //    並額外要求它與 #fpNext 不同,證明卡片是刻意換了一站而不是照抄面板。
+  //    停靠這條路走到的機率靠真實資料碰運氣,所以另有 T27 用撥時鐘的方式必定走到。
+  const panel1 = await page.evaluate(() => ({
+    next: document.getElementById('fpNext').textContent.trim(),
+    status: document.getElementById('fpStatus').textContent.trim(),
+  }));
+  if (p && p.stopping) {
+    ok('T1 停靠中:payload.nextStop === 面板 #fpStatus 的停靠站,且刻意不同於 #fpNext(獨立渲染器)',
+      panel1.status.includes(`停靠 ${p.nextStop}`) && p.nextStop !== panel1.next,
+      `payload=${p.nextStop} 面板狀態=「${panel1.status}」 面板下一站=${panel1.next}`);
+  } else {
+    ok('T1 行進中:payload.nextStop === 跟隨面板 #fpNext(獨立渲染器)',
+      !!p && p.nextStop === panel1.next, `payload=${p && p.nextStop} 面板=${panel1.next}`);
+  }
   const iso = p && Date.parse(p.arrivalIso);
-  ok('T1 arrivalIso 是未來且 3 小時內的合法時刻', !!iso && iso > Date.now() - 1000 && iso < Date.now() + 3 * 3600e3, String(p && p.arrivalIso));
+  if (p && p.stopping) {
+    // 🔴 停靠中不得送出未來時刻:Widget 在 stopping=true 時畫徽章不畫倒數,但「App 更新前開的卡」
+    //    解不出 stopping(Optional ⇒ nil ⇒ 當成 false)會回頭吃 arrivalDate——送未來值就會憑空長出
+    //    一個假倒數。前端把它鉗在 now(Math.max(0,…)),這條就是那個鉗子的牙。
+    ok('T1 停靠中:arrivalIso 是合法時刻且不在未來(舊版 App 不會畫出假倒數)',
+      !!iso && iso <= Date.now() + 1000 && iso > Date.now() - 3 * 3600e3, String(p.arrivalIso));
+  } else {
+    ok('T1 行進中:arrivalIso 是未來且 3 小時內的合法時刻',
+      !!iso && iso > Date.now() - 1000 && iso < Date.now() + 3 * 3600e3, String(p && p.arrivalIso));
+  }
   // 🔴 上面那條只驗「落在一個很寬的區間裡」,把 min*60000 誤寫成 min*1000 照樣會綠。
   //    這一條把 arrivalIso 換算回分鐘,與跟隨面板 #fpEta 自己算的 Math.round(info.min) 對帳
   //    (面板是獨立渲染器,不是本腳本重算的)——單位錯一個量級就會當場現形。
@@ -244,7 +268,12 @@ const cr = await chromium.launch();
     });
     const payMin = iso ? (iso - Date.now()) / 60000 : NaN;
     let pass, detail;
-    if (panel.bold) {
+    if (p && p.stopping) {
+      // 停靠中兩邊講的不是同一站(見上),分鐘數對帳不成立。改驗那個鉗子的算術面:
+      // arrivalIso 被鉗在「現在」⇒ 換算 ≈0 分;而面板顯示的是【另一站】的分鐘數。
+      pass = Math.abs(payMin) < 1 && p.nextStop !== panel1.next;
+      detail = `停靠中:payload=${payMin.toFixed(2)} 分(應≈0),面板「${panel.txt}」講的是 ${panel1.next}`;
+    } else if (panel.bold) {
       const pm = parseFloat(panel.bold);
       pass = Number.isFinite(pm) && Math.abs(payMin - pm) < 1;      // 面板取整,容差 1 分
       detail = `payload=${payMin.toFixed(2)} 分,面板=${pm} 分`;
@@ -1025,6 +1054,82 @@ const cr = await chromium.launch();
   await ctx.close();
 }
 
+// ══════════ T27：停靠中(撥時鐘必定走到,不靠真實資料碰運氣) ══════════
+// T1 的停靠分支要不要走到,取決於當下抓到的車剛好在不在站上——沒被走到的分支等於沒驗。
+// 這一組把時鐘撥進一段真實的停站窗裡,讓 laPayload 的停靠路徑必定執行,並附「跑行段」反向對照。
+{
+  const { ctx, page, errors } = await boot(cr, { plus: true });
+  const r = await page.evaluate(() => {
+    const cand = state.trains.filter(t => {
+      if (t.sys !== 'tra_sched' || t.loop) return false;
+      const s = t.stops;
+      return s && s.length >= 4;
+    });
+    for (const tr of cand) {
+      const s = tr.stops;
+      // 要有一站停 ≥30 秒(才進得了 dwellInfoOf 的門檻),且它的前一個停靠站也停 ≥30 秒——
+      // 前一站的停站時間就是 depSec 與 arrSec 的差,有了它,departedIso 取錯欄位才會被這條抓到。
+      for (let i = 2; i < s.length - 1; i++) {
+        if (s[i].stop === false || s[i].depSec - s[i].arrSec < 30) continue;
+        let pi = -1;
+        for (let k = i - 1; k >= 0; k--) if (s[k].stop !== false) { pi = k; break; }
+        if (pi < 0 || s[pi].depSec - s[pi].arrSec < 30) continue;
+        // effTLive 對 simSec 有一個固定偏移(誤點校正等),先量出來再反解要撥到哪
+        const off = effTLive(tr) - state.simSec;
+        const target = s[i].arrSec + Math.floor((s[i].depSec - s[i].arrSec) / 2);   // 停站窗正中央
+        state.simSec = target - off; state.clockAtNow = true;
+        const t = effTLive(tr);
+        const dw = dwellInfoOf(tr, t);
+        const nx = nextStopInfo(tr, t);
+        const t0 = Date.now();
+        const pay = laPayload(tr);                       // ← 真實產品函式
+        // 反向對照:同一台車撥到「兩站之間」的跑行段,停靠旗標必須熄掉(證明上面那條不是恆真)
+        const mid = Math.floor((s[i].depSec + s[i + 1].arrSec) / 2);
+        state.simSec = mid - off; state.clockAtNow = true;
+        const payRun = laPayload(tr);
+        return {
+          no: String(tr.train), t0,
+          dwelling: !!(dw && dw.i === i), dwellName: s[i].name, nextName: nx ? nx.name : null,
+          prevName: s[pi].name, prevDepSec: s[pi].depSec, prevArrSec: s[pi].arrSec, tAtCall: t,
+          pay, runStopping: payRun ? payRun.stopping : null, runName: payRun ? payRun.nextStop : null,
+        };
+      }
+    }
+    return null;
+  });
+  if (!r) {
+    ok('T27 停靠中', false, '找不到「連續兩站都停 ≥30 秒」的台鐵車 ⇒ 判準無法執行(視為未通過,勿當成綠燈)');
+    ok('T27 停靠中(其餘 5 條隨前置一併不成立)', false, '前置未成立');
+    ok('T27 停靠中', false, '前置未成立'); ok('T27 停靠中', false, '前置未成立');
+    ok('T27 停靠中', false, '前置未成立'); ok('T27 停靠中', false, '前置未成立');
+  } else {
+    ok('T27 前置:時鐘已撥進停站窗,產品自己的 dwellInfoOf 也認同(判準不與 laPayload 同源)',
+      r.dwelling === true, `車次=${r.no} 停靠站=${r.dwellName}`);
+    ok('T27 停靠中 ⇒ payload.stopping===true', !!r.pay && r.pay.stopping === true, JSON.stringify(r.pay));
+    // 🔴 這一條才是重點:nextStopInfo 在停站期間【已經跳到下一站】,直接用它卡片就會與後端
+    //    (觀測到在站上就顯示該站)打架。要求 nextStop 等於停靠站、且不等於 nextStopInfo 的站。
+    ok('T27 停靠中 ⇒ nextStop 是【正停靠的那一站】,不是 nextStopInfo 的下一站',
+      !!r.pay && r.pay.nextStop === r.dwellName && r.pay.nextStop !== r.nextName,
+      `payload=${r.pay && r.pay.nextStop} 停靠站=${r.dwellName} nextStopInfo=${r.nextName}`);
+    // departedIso 必須取上一站的【發車】。取成抵達會早 (depSec-arrSec) 秒——上面挑車時已要求
+    // 那個差 ≥30 秒,所以容差 5 秒的這條在取錯欄位時一定紅。
+    {
+      const gotDelta = r.pay ? (Date.parse(r.pay.departedIso) - r.t0) / 1000 : NaN;
+      const wantDep = r.prevDepSec - r.tAtCall, wantArr = r.prevArrSec - r.tAtCall;
+      ok('T27 departedIso 取上一站【發車】而非抵達(進度條左端;差的就是那段停站時間)',
+        Math.abs(gotDelta - wantDep) < 5 && Math.abs(gotDelta - wantArr) >= 25,
+        `got=${gotDelta.toFixed(1)}s 發車=${wantDep}s 抵達=${wantArr}s`);
+    }
+    ok('T27 prevStop === 前一個停靠站(進度條左端的站名)',
+      !!r.pay && r.pay.prevStop === r.prevName, `payload=${r.pay && r.pay.prevStop} 應為=${r.prevName}`);
+    ok('T27 反向對照:同一台車撥到跑行段 ⇒ stopping 熄掉、站名換成下一站(證明上面不是恆真)',
+      r.runStopping === false && r.runName !== r.dwellName,
+      `stopping=${r.runStopping} 站名=${r.runName}(停靠站=${r.dwellName})`);
+  }
+  ok('T27 無 JS 例外', errors.length === 0, errors.slice(0, 3).join(' | '));
+  await ctx.close();
+}
+
 await cr.close();
 
 // ══════════ T12：更新紀錄兩條 li 的四寬度幾何(WebKit) ══════════
@@ -1075,7 +1180,7 @@ server.close();
 // 用途:條件式區塊整批消失時,分母跟著變小、收尾只印「N/N PASS」⇒ 會被當成全綠。
 // 注意 T4 走「找不到撞號車對」那一支時只產 2 條(其中一條刻意記 FAIL),這道閘門會跟著紅——
 // 那是預期行為:資料裡沒有撞號車對時,那條判準本來就沒被執行,不該當成通過。
-const EXPECTED_COUNTS = { G0: 1, T0: 2, T1: 8, T2: 3, T3: 4, T4: 4, T5: 5, T6: 4, T7: 5, T8: 7, T9: 4, T10a: 5, T10b: 4, T11: 6, T12: 3, T14a: 1, T14b: 1, T14: 6, T15: 2, T16: 2, T17: 2, T18: 1, T19: 2, T20: 4, T21: 2, T22: 3, T23: 2, T24: 1, T25: 7, T25b: 2, T26: 5 };
+const EXPECTED_COUNTS = { G0: 1, T0: 2, T1: 8, T2: 3, T3: 4, T4: 4, T5: 5, T6: 4, T7: 5, T8: 7, T9: 4, T10a: 5, T10b: 4, T11: 6, T12: 3, T14a: 1, T14b: 1, T14: 6, T15: 2, T16: 2, T17: 2, T18: 1, T19: 2, T20: 4, T21: 2, T22: 3, T23: 2, T24: 1, T25: 7, T25b: 2, T26: 5, T27: 7 };
 const actualCounts = {};
 // `T\d+[ab]?`:T10a/T10b 是兩個獨立情境(可回復 vs 不可回復),分開記數才不會互相掩護。
 // T14a/T14b 同理各自獨立記數;T14c/d/e/f 沒有 a/b 字尾,一律落回裸「T14」桶(見上面正規式)。
