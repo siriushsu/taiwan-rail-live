@@ -194,6 +194,12 @@ struct RailFollowActivityWidget: Widget {
                                 .font(.system(size: 10)).foregroundStyle(.orange).lineLimit(1)
                         }
                     }
+                    // 🔴 展開版面的下緣是【圓角】,系統給的預設內距沒有替圓角讓路 ⇒ 最後一列會被
+                    //    切掉(實機 1.4.1(30) 實測:「基隆」左半不見、「往 花蓮」下緣被削掉一截)。
+                    //    往內縮＋留下緣間距,把最後一列推離圓角的切線;上面幾列本來就離角很遠,
+                    //    一起內縮只是讓整塊看起來對齊,不影響可讀性(那兩列的水平餘裕很多)。
+                    .padding(.horizontal, 12)
+                    .padding(.bottom, 6)
                 }
             } compactLeading: {
                 // 站名前兩字仍是這裡最有用的資訊(compact 是最常看到的狀態),只在前面補一顆
