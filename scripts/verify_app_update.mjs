@@ -207,6 +207,58 @@ ok(await siteP.locator('.ms-row[data-act="rate"]:visible').count() === 0, 'D6 �
 ok(!(await siteP.locator('#updBanner').isVisible().catch(() => false)), 'D6 網站版沒有橫幅');
 await siteP.close();
 
+console.log('\n【E】跨引擎 × 四寬度:橫幅不得與既有浮層相交');
+// 真實 id(2026-08-09 於本樹逐一 grep 確認):時鐘 #clock、跟隨資訊卡 #followPanel、
+// 行程追蹤橫幅 #followBar、GPS 校正常駐列 #recordBar、地圖動作列 .map-actions。
+const OVERLAYS = ['#clock', '#followPanel', '#followBar', '#recordBar', '.map-actions'];
+for (const [name, engine] of [['chromium', chromium], ['webkit', webkit]]) {
+  const br = name === 'chromium' ? browser : await engine.launch();
+  for (const w of [360, 390, 414, 768]) {
+    const q = await br.newPage();
+    q.on('pageerror', e => console.log(`  ⚠ ${name}/${w} pageerror: ` + e.message));
+    await q.setViewportSize({ width: w, height: 800 });
+    await q.addInitScript(() => {
+      window.RAIL_APP_VERSION = '1.4.0';
+      try {
+        localStorage.setItem('trainmap-howto-seen', '1');
+        localStorage.setItem('trainmap-appver-seen', '"1.4.0"');
+      } catch (e) {}
+    });
+    await q.route('**/itunes.apple.com/lookup**', r => r.fulfill({
+      status: 200, contentType: 'application/json',
+      body: JSON.stringify({ resultCount: 1, results: [{ version: '1.4.1', releaseNotes: 'x',
+        trackViewUrl: 'https://apps.apple.com/tw/app/id6792673516' }] }),
+    }));
+    await q.goto(BASE + '/index.html', { waitUntil: 'domcontentloaded' });
+    await q.waitForFunction(() => window.__appverLast || null, { timeout: 20000 }).catch(() => {});
+    await q.waitForTimeout(1200);
+    const res = await q.evaluate(sels => {
+      const b = document.getElementById('updBanner');
+      if (!b || b.hidden) return { compared: 0, bad: 'banner-missing' };
+      const r = b.getBoundingClientRect();
+      if (r.width === 0 || r.height === 0) return { compared: 0, bad: 'banner-zero-rect' };
+      const hits = []; const compared = [];
+      for (const sel of sels) {
+        const o = document.querySelector(sel);
+        if (!o || o.hidden || !o.offsetParent) continue;      // 沒掛上/隱藏的不算
+        const t = o.getBoundingClientRect();
+        if (t.width === 0 || t.height === 0) continue;        // 0×0 與任何東西都不相交,比了等於沒比
+        compared.push(sel);
+        if (!(r.right <= t.left || r.left >= t.right || r.bottom <= t.top || r.top >= t.bottom)) hits.push(sel);
+      }
+      return { compared: compared.length, comparedList: compared.join(','), bad: hits.join(','),
+               rect: `${Math.round(r.top)},${Math.round(r.left)} ${Math.round(r.width)}×${Math.round(r.height)}` };
+    }, OVERLAYS);
+    // 🔴 對照組要算「真的被比對到幾個」,不是「選擇器選得到幾個」——
+    // #followPanel/#followBar/#recordBar 在乾淨載入時是 0×0 且不可見,會被上面的過濾器跳過,
+    // 只數 querySelector 的話會得到 5 這個虛數,而零相交其實只是拿 2 個在比。
+    ok(res.compared >= 2, `${name} @${w}px 對照組:真的比對到 ${res.compared} 個浮層 [${res.comparedList || '無'}]（需 ≥2）`);
+    ok(res.bad === '', `${name} @${w}px 橫幅不與時鐘/資訊卡/追蹤列/錄製列/動作列相交（${res.bad || res.rect}）`);
+    await q.close();
+  }
+  if (name !== 'chromium') await br.close();
+}
+
 await browser.close();
 console.log(`\n總計：${pass} 通過 / ${fail} 失敗`);
 process.exit(fail ? 1 : 0);

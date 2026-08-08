@@ -3372,7 +3372,7 @@
 
   <footer class="site-foot">
     <details class="foot-box">
-      <summary><span>更新紀錄</span><span class="foot-sub">最後更新：2026/8/8</span></summary>
+      <summary><span>更新紀錄</span><span class="foot-sub">最後更新：2026/8/9</span></summary>
       <!-- 第一層是「最近更新」的檢視,不是正本:每一條都用 data-cl-of 指向第二層某條的 data-cl。
            要把一條擠出第一層之前,它的正本必須已經在第二層存在——2026-08-03 就踩過一次:8/1 的
            衛星計費那條只活在第一層(第二層只有一句夾在 7/25 條目裡、日期對不上的附帶說明),
@@ -3380,6 +3380,7 @@
            內容 li 上限 8 條(li.grp 是標題不算)。 -->
       <ul class="foot-list foot-recent">
         <li class="grp">最近更新</li>
+        <li data-cl-of="appupdatereview"><span class="d">8/9</span><span>App 有新版會主動告訴你，也可以直接給軌島評分</span></li>
         <li data-cl-of="crossnight452"><span class="d">8/8</span><span>修正：週五深夜 452 次這類特定日開行的跨夜車，過了午夜就從地圖上消失（謝謝網友回報）</span></li>
         <li data-cl-of="thsrautosched"><span class="d">8/7</span><span>高鐵時刻表改為每天自動更新，加開與調整班次當天就會反映</span></li>
         <li data-cl-of="widgetdestination3"><span class="d">8/6</span><span>iPhone 小工具的目的站選單偶爾只顯示一下「載入中」就收起；現在即使起站連動稍晚送到，也會先列出完整車站，不必重複點選</span></li>
@@ -3387,7 +3388,6 @@
         <li data-cl-of="widgetdestination2"><span class="d">8/6</span><span>iPhone 小工具剛更新、車站資料還在準備時，點「起站」或「目的站」可能讓設定畫面直接退出；現在會先用內建車站清單，不必等待</span></li>
         <li data-cl-of="sharelink"><span class="d">8/6</span><span>App 的「分享畫面」與「行程分享」不再傳出無法開啟的網址，改為可直接開啟的 railisland.tw 連結</span></li>
         <li data-cl-of="passproduction"><span class="d">8/6</span><span>正式版軌島通行證改用 App Store 正式月票與年票，測試版的展示進度不會出現在一般使用者護照</span></li>
-        <li data-cl-of="passrename"><span class="d">8/5</span><span>「軌島 Plus」更名為「軌島通行證」：訂閱方案改稱月票與年票，所有使用者都是島民</span></li>
       </ul>
       <!-- 第二層:完整歷史。刻意不掛 .foot-box 類名——placeFootBoxes() 用
            `.site-foot .foot-box` 搬移面板,巢狀同名會被當成另一個盒子一起搬走。 -->
@@ -3466,6 +3466,7 @@
         <li><span class="d">7/13</span><span>收集章可以重複點，換搭不同班次回味</span></li>
         <li><span class="d">7/9</span><span>旅程護照與 16 枚成就徽章、「探」今日亮點面板上線</span></li>
         <li class="grp">手機與操作</li>
+        <li data-cl="appupdatereview"><span class="d">8/9</span><span>iPhone／iPad 版新增更新提示：有新版可以下載時會主動告訴你，剛更新完則會看到「這一版做了什麼」；「更多」面板也多了給軌島評分的入口</span></li>
         <li data-cl="widgetdestination3"><span class="d">8/6</span><span>iPhone 主畫面的「發車看板」小工具，目的站選單有時只會短暫顯示「載入中」便自動收起。原因是 iOS 開啟選單時可能稍晚才把已選起站交給小工具，或共享班表正好還在換版；現在這兩種空窗都會先列出內建的完整車站清單，資料齊全後仍會照起站只顯示有直達列車的車站</span></li>
         <li data-cl="widgetdestination2"><span class="d">8/6</span><span>iPhone 主畫面的「發車看板」小工具，App 剛更新、共享車站資料還在背景準備時，點「起站」就可能讓設定畫面直接退出；現在起站與目的站都有一份內建的輕量車站清單可立即使用，完整班表完成後會自動接手，目的站仍會照起站只列出有直達列車的車站</span></li>
         <li data-cl="sharelink"><span class="d">8/6</span><span>從 App 分享目前畫面或行程時，原本會把 App 內部的 capacitor://localhost 網址傳出去，其他人無法開啟；現在一律改成可直接開啟的 railisland.tw 公開連結</span></li>
