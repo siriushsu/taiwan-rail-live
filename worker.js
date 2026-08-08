@@ -3,7 +3,7 @@ import {
   trtcOperatingState, trtcServiceDay, resolveBoardRows, claimBoardRows, collapseClaims,
   bindTracksToTrips, buildTripSetsByLineDir, joinBoardRowsToTrips,
 } from './scripts/trtc_board_ledger.mjs';
-import { laNextIdx, laSchedIdx, laArrivalEpoch, laJwt, laJwtReset } from './scripts/la_push_core.mjs';
+import { laNextIdx, laObsIdx, laSchedIdx, laArrivalEpoch, laJwt, laJwtReset } from './scripts/la_push_core.mjs';
 
 // Cloudflare Worker 入口:靜態資產(assets binding)+ /api/tra-live 台鐵即時動態代理
 // + /api/tra-alert 台鐵營運通阻公告 + /api/thsr-alert 高鐵營運狀態公告(颱風停駛等)
@@ -2570,6 +2570,13 @@ async function laPushAll(env, ctx, baseUrl) {
       const idx = useObs ? laNextIdx(String(t.sta), Number(t.status), staMap, stopCodes, row.last_idx, row.last_obs_idx)
                     : schedFallbackBlocked ? row.last_idx      // 凍住:與 last_idx 相同 ⇒ 走下面的「沒變就不推」
                     : laSchedIdx(stops, delaySec, now, row.last_idx);
+      // 🔴 複審 I-1:「這一輪有新鮮的看板」(useObs)不等於「這一發真的解出索引」。
+      // 站碼不在 staMap／stopCodes 裡時(通過站漏編、支線觀測缺口、終點之後)laNextIdx 回的是
+      // last_idx——那可能是斷線期間【表定推過頭】的值。只看 useObs 就把它寫進 last_obs_idx,
+      // 地板被毒化 ⇒ 之後真觀測再也拉不回來 ⇒ 工項 B 對這一趟永久失效。
+      // 地板只准由「真的解出來的觀測」推進;寫回的仍是 idx(＝max(觀測, 舊地板)),不是原始觀測值
+      // ——地板本身必須單調不減,否則就等於把閘門拆了。
+      const obsResolved = useObs && laObsIdx(String(t.sta), Number(t.status), staMap, stopCodes) != null;
       // 這一輪的站名是不是【推算】出來的?只有「上游整批失效而政策要求繼續前進」才算——
       // 支線缺觀測、高鐵無即時資料同樣走表定,但那不是「即時資料中斷」,掛這句話是說謊。
       // 與 schedFallbackBlocked 綁在同一組運算式,政策旋鈕改成 false(凍住)時這句話會自動消失。
@@ -2587,7 +2594,19 @@ async function laPushAll(env, ctx, baseUrl) {
       // 🔴 idx < 0 是「剛 bind、TDX 還沒回報過這台車」,不是走完了。
       //    把它併進上面那條會讓新卡在第一分鐘就被刪掉——不推也不收卡,下一分鐘再說。
       if (idx < 0) continue;
-      if (idx === row.last_idx && delaySec === row.last_delay) continue;   // 沒變就不推
+      // 🔴 複審 C-1:告知的【出現與消失】本身就是卡片內容的變化,必須進這條判定式,而且要有
+      // 一個欄位記住「上一次送出去的那張卡有沒有掛告知」。缺了它:上游恢復的那一輪,若真觀測
+      // 恰好等於表定猜的那一站、誤點又沒變(準點車全程 delay=0 ⇒ 常態),就零推播,卡片會
+      // 繼續宣稱「即時資料中斷…請查台鐵官網」直到列車真的換站(自強號跨站可達 20–40 分)。
+      // 同一條也修好對稱的另一半:斷線【開始】時告知不會遲到一個站間才出現。
+      // 🔴 為什麼不會讓高鐵／支線每分鐘重推:noticeFlag 對它們恆為 0,而 last_notice 的預設也是
+      // 0 ⇒ 這一項恆等、判定式退化成原本的兩項。刻意【不】用 last_obs_idx !== last_idx 之類的
+      // 代理旗標——那對高鐵／支線恆真(它們的 last_obs_idx 永遠停在 -1),會變成每分鐘重推。
+      // 🔴 存布林不存字串:目前只有一句告知,布林能忠實表達狀態。日後若出現第二句文案,
+      // 這一欄必須改存字串或雜湊,否則「換一句話」不會觸發推播。
+      const noticeFlag = notice ? 1 : 0;
+      if (idx === row.last_idx && delaySec === row.last_delay
+          && noticeFlag === (Number(row.last_notice) || 0)) continue;   // 沒變就不推
 
       attempted++;   // 🔴 修復輪次3(C-1):這一列真的要送 APNs 了(還沒送出,但已經決定要送)——
                       // 熔斷分母只算這裡遞增過的列,不算上面兩個 continue 跳過的。
@@ -2634,8 +2653,8 @@ async function laPushAll(env, ctx, baseUrl) {
         // 🔴 工項 B:last_obs_idx 只在【這一輪真的用了觀測】時才推進——表定推算不得寫它,
         // 否則單調閘門的地板會被推算值抬上去,觀測就再也修不回來(等同沒改)。
         // 與 last_idx 同一發 UPDATE ⇒ 兩者永遠描述同一次決策,不會分岔。
-        await env.DELAY_DB.prepare('UPDATE la_bindings SET last_idx=?, last_delay=?, last_obs_idx=?, fail_streak=0 WHERE token=?')
-          .bind(idx, delaySec, useObs ? idx : row.last_obs_idx, row.token).run();
+        await env.DELAY_DB.prepare('UPDATE la_bindings SET last_idx=?, last_delay=?, last_obs_idx=?, last_notice=?, fail_streak=0 WHERE token=?')
+          .bind(idx, delaySec, obsResolved ? idx : row.last_obs_idx, noticeFlag, row.token).run();
         sent++;
         if (useObs) sentObs++; else sentSched++;
         continue;

@@ -14,16 +14,25 @@
 //    ⇒ 閘門原本要擋的「觀測自己來回跳」(觀測序列必須單調不減)一格都沒放進來。
 //    省略第 6 參時退回舊語意(地板＝lastIdx),既有的純函式驗收不受影響。
 export function laNextIdx(sta, status, staMap, stopCodes, lastIdx, lastObsIdx) {
-  let idx;
-  const own = stopCodes.indexOf(sta);
-  // 進站中(0)或在站上(1)且該站是停靠站 ⇒ 車還沒離開它,卡片就顯示它。
-  // 這正是月台顯示器的語意:進站中「下一站 潮州」、停靠中仍是潮州、離站後才翻成屏東。
-  // 通過站不適用(own = -1),不論什麼 status 都走映射表。
-  if ((status === 0 || status === 1) && own >= 0) idx = own;
-  else idx = staMap[sta];
+  const idx = laObsIdx(sta, status, staMap, stopCodes);
   if (idx == null) return lastIdx;              // 認不出來就維持現狀,不亂跳(此時沒有新觀測可用)
   const floor = lastObsIdx == null ? lastIdx : lastObsIdx;
   return Math.max(idx, floor);                  // 單調閘門:觀測序列只進不退(表定推過頭的部分可回收)
+}
+
+// 🔴 複審 I-1:「這一發觀測解出了哪個索引」必須能單獨問到。laNextIdx 的回傳值把
+//    【認不出這個站碼】與【解出來了但被單調閘門擋下】壓成同一個值(都是 lastIdx),
+//    呼叫端分不出來 ⇒ 會把「表定推過頭的舊值」當成新觀測寫回地板(last_obs_idx),
+//    地板一被毒化,之後真觀測就再也拉不回來,工項 B 對那一趟永久失效。
+//    回 null＝這一發沒有可用的新觀測(不是「觀測說車在第 -1 站」)。
+// 進站中(0)或在站上(1)且該站是停靠站 ⇒ 車還沒離開它,卡片就顯示它。
+// 這正是月台顯示器的語意:進站中「下一站 潮州」、停靠中仍是潮州、離站後才翻成屏東。
+// 通過站不適用(own = -1),不論什麼 status 都走映射表。
+export function laObsIdx(sta, status, staMap, stopCodes) {
+  const own = stopCodes.indexOf(sta);
+  if ((status === 0 || status === 1) && own >= 0) return own;
+  const idx = staMap[sta];
+  return idx == null ? null : idx;
 }
 
 // 車不在即時 feed 時的退路(支線 92 站無觀測)。純表定推進:表定到站＋最後已知誤點已過 ⇒ 那站算過了。
