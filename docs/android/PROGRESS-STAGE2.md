@@ -139,3 +139,37 @@
 - 最終 Gradle 第一次因 shell 未設 keg-only JDK 的 `JAVA_HOME`，在 Gradle 啟動前回 `Unable to locate a Java Runtime`；以本輪固定的 JDK 21 與 Android SDK 單次環境重跑 `./gradlew assembleDebug`，`BUILD SUCCESSFUL in 36s`、245 tasks up-to-date。debug APK 為 17,455,919 bytes。
 - `git diff --check` exit 0。`app/release-policy.json` 與 `app/NATIVE_PRIVACY_AND_PERMISSIONS.md` 的 status 均無輸出；沒有修改或 staging。`app/node_modules` 仍是原 symlink，目標仍為 `/Users/xuxiang/Code/捷運小動畫/app/node_modules`；本輪沒有執行 npm install／npm ci／rm node_modules。
 - `cap sync` 曾把 symlink 的解析後實體路徑寫進 Android settings 與 iOS Podfile；兩者相對起始基線都是工具產物，已精確還原。Android Studio 自動建立的 `.idea` 與無效靜音 WebM／被最終重跑取代的截圖也已移除，不會進 commit。
+
+## G. Firebase Android 設定後的 Apple 登入／刪帳實測
+
+- 使用者已完成 Firebase Android App、`google-services.json` 與 Apple provider 正式設定；設定檔與帳號功能測試產物均為 ignored，未進版控、未複製到 iOS 資產。
+- Pixel 7／Android 15 實測 Apple 首次登入成功；點刪除帳號後的 Apple 重新驗證成功，Android Firebase provider 確實回傳可供撤銷的 `credential.accessToken`。`accountDelete()` 要等原生 `revokeAccessToken` resolve 才呼叫後端；本次已進入 `/api/account-delete`，故 Android 的 Apple 重驗與撤銷分支均已實測到。
+- 刪除最終失敗點在正式 Worker：從 App 內同一已驗證 session 重現得到 `HTTP 502`，回應精確為 `entitlement deletion failed`。前端因此沒有繼續刪 Firestore user docs 與 Firebase Auth user，帳號仍保留。Worker 在失敗前已先嘗試清 D1 與 RevenueCat，那兩段可能已完成；端點的 404 處理與清理操作為可重試設計，後端修正後應重跑整條刪帳。
+- 這個錯誤對應另一已有 commit `6a64ab691f8ad671e339a94931581c7aac8ba35b` 的 `deletePlusEntitlement()` 錯誤分支；該 commit 不是本工作樹 HEAD 的 ancestor，本輪未 cherry-pick、未碰其他工作樹。正式 Worker 日誌會記下 `google oauth <status>`、私鑰格式／憑證錯誤，或 `firestore entitlement delete <status>` 之一；必須取得這行才能在 IAM、service-account secret 與 Firestore DELETE 之間做事實判定。未取得前不繞過 API 單獨刪 Firebase user。
+- 診斷時發現 `app/capacitor.config.json` 的 `loggingBehavior: "production"` 並不是「只在開發版記錄」，而是正式版也會將 Capacitor plugin call/result 完整寫入 logcat，Firebase Authentication 回傳內容也會被序列化。已立即清空裝置 logcat，把設定改為 `none`，並在 `verify-release.mjs` 加入 fail-closed 閣門。
+- 修正後 `RAIL_ALLOW_SAFE_BUILD=1 npm run verify` exit 0；閣門的 `none` 正向與 `production` 負向樣本都通過。`npx cap copy android` 後重編 Debug APK，Gradle `BUILD SUCCESSFUL`；複蓋安裝後從 APK 讀回設定確認為 `none`，啟動 App 後只計數不輸出 payload 內容，`bridge_payload_log_lines=0`。診斷用 CDP forward、暫存探針與裝置日誌均已清除。
+- Cloudflare Observability 取得的精確根因為 `[plus-entitlement] account-delete entitlement deletion failed: google oauth 400`，證明還沒有走到 Firestore IAM，是 Google 拒絕 Worker 用 service-account JWT 換 token。使用者於 Worker Settings 的 Variables and Secrets 中，將 `FIRESTORE_PROJECT_ID`、`FIRESTORE_SERVICE_ACCOUNT_EMAIL`、`FIRESTORE_SERVICE_ACCOUNT_PRIVATE_KEY` 改為同一份 Firebase Admin service-account JSON 的對應欄位（私鑰為 Secret）並部署。
+- 設定修正後從 Android App 重跑同一條 Apple 重驗／撤銷／`account-delete`／Firebase user 刪除流程，使用者於 2026-08-05 確認「刪除成功」。Apple Android 撤銷與完整刪帳鏈由「後台阻斷」改列 PASS；未繞過後端單獨刪 Firebase user。
+
+## H. 正式授權底圖設定與 Android build（2026-08-09）
+
+- 使用者在工作樹根目錄的 ignored `.env` 填入 Android 專用 Stadia 與 Esri public client keys；檔案權限已收斂為 `0600`。`git check-ignore` 確認 `.env` 由 `.gitignore` 排除，並以精確值比對所有 `git ls-files`，兩把 key 的 tracked 命中數均為 0。未輸出 key 值。
+- 邊界已向使用者說明：`.env` 可避免把 key 提交到 Git，但 `prepare-web.mjs` 會把正式底圖 client key 注入 Android APK 的網頁資產，因此公開 APK 可被提取；仍須在 Stadia／Esri 後台限制用途與監控用量，不能把 client key 當 server secret。
+- 以 `RAIL_INCLUDE_LICENSED_BASEMAPS=1 npm run build` 建立正式底圖包。第一次因 sandbox 不允許 place-index 綁 `127.0.0.1` 而 `listen EPERM`，解除該限制後原命令 exit 0；沒有跳過 Esri 真 key／decoy liveness 檢查。輸出為 `v0804g`、134 files、41.0 MB、音樂關閉、線上底圖開啟。
+- `npx cap copy android` exit 0，只把這份生成資產同步進 Android；沒有同步或覆寫 iOS。獨立 `npm run verify` 第一次同樣被 sandbox 網路限制擋下，解除限制後原判準 exit 0，沒有用 skip 旗標放行。Gradle `assembleDebug` 以 JDK 21／Android SDK 完成，`BUILD SUCCESSFUL`、246 tasks。
+- debug APK 已安裝到既有 Pixel 7 API 35 AVD。AVD 冷啟後停在使用者設定的圖形鎖，Android user state 為 `RUNNING_LOCKED`；Package Manager 因 credential-encrypted storage 尚未解鎖而不解析 launcher Activity。診斷途中曾移除並乾淨重裝模擬器內的 `tw.railisland.app`，因此該 App 的模擬器本機資料已清除，Firebase／Cloudflare／iOS 與其他模擬器 App 未受影響。
+- 使用者解開既有圖形鎖後完成 Android WebView 畫面驗收。亮色 Stadia、暗色 Stadia、Esri 衛星各有 8/8 張當前 Leaflet 圖磚 `complete && naturalWidth > 0`；host 分別為 `tiles.stadiamaps.com`、`tiles.stadiamaps.com`、`ibasemaps-api.arcgis.com`，沒有輸出含 key／token 的完整 URL。三種授權署名與畫面相符，截圖為 `basemap-stadia-light.png`、`basemap-stadia-dark.png`、`basemap-esri-satellite.png`。
+- 另以 ADB 真實觸控點擊 `#tabMore` 中心，再點「衛星影像」列中心；`elementFromPoint` 事前分別命中正確控制，產品從衛星切回暗色 Stadia，sheet 行為與 8/8 圖磚重載通過。正式授權底圖由「build gate 通過、待畫面」改列 Android PASS。
+
+## I. 近期共享更新追趕稽核（2026-08-09）
+
+- 唯讀 refs 稽核：`feat/android-shell` 相對 `main` 為本分支 2 commits、`main` 164 commits；當前包仍是 `v0804g / Android 1.3.2 (1)`，`main` 已是 `v0808a / iOS 1.4.1 (28)`。另有 `feat/la-push` 到 `v0808e`，相對 `main` 為側分支 54 commits、`main` 1 commit。
+- Android 應追 `main` 的共享頁面、資料、Worker 契約、Plus／登入同步、分享、捷運運動與班表修正；iOS Widget／Live Activity／APNs／entitlements 不直接移植。`feat/la-push` 的共享 UI 新功能等它們進 `main` 再同步，不從側分支挑進 Android。
+- 正確後續是 merge `main` into `feat/android-shell`。唯讀 `git merge-tree` 的雙方同改路徑只有 `index.html` 與 `app/scripts/verify-release.mjs`，看起來可控；但本輪禁止 rebase／push，且共用 git metadata 目前不可寫，因此沒有啟動 merge 或用替代 git index 繞過。
+
+## J. 第三輪底圖 UI audit（2026-08-09）
+
+- 新增可重跑的 `docs/android/scripts/stage3-basemap-ui-audit.mjs`；它只記錄圖磚 hostname／載入數、授權署名與 UI 幾何，不保存完整圖磚 URL，因此不會把 `.env` key 寫進 JSON。結果為 `docs/android/shots/basemap-ui-audit.json`。
+- Pixel 7／API 35、412.19×839 CSS viewport，亮色／暗色／衛星三種模式各掃到 12 個可見產品控制。每種模式皆為 `overlapCount=0`、`centerHitFailures=[]`、`clippedControls=[]`；圖磚各 8/8 載入。
+- audit 如實以 exit 1 留下一項 UI 缺口：`#alertChip` 視覺與有效命中區約 38.29×36 CSS px，「全／台／高／捷」各約 43.28×36，五顆都未達 44×44。`#randBtn`／`#nearBtn` 的視覺框雖小於 44，但偽元素命中區量得至少 44 px；底部五個 tab 亦至少 44 px，故不列缺陷。
+- 本輪只稽核與記錄，沒有憑審查結果擅自改共享 `index.html`。修法應維持目前視覺尺寸與間距，只以偽元素或等效方式擴張五顆控制的 hit area，再用同一腳本重跑三種底圖。

@@ -10,6 +10,11 @@ const defaultOut = join(appRoot, 'www');
 const fail = message => { throw new Error(`App 發行檢查失敗：${message}`); };
 const assert = (condition, message) => { if (!condition) fail(message); };
 
+export function assertNativeBridgeLoggingDisabled(capacitorConfig) {
+  assert(capacitorConfig?.loggingBehavior === 'none',
+    'capacitor.config.json loggingBehavior 必須是 none——Firebase 原生登入結果含憑證，不可寫入 Android logcat');
+}
+
 // Stadia 官方要求的逐字署名(prepare-web 注入、本檔驗證,單一事實來源)
 export const STADIA_ATTRIBUTION = '&copy; <a href="https://stadiamaps.com/" target="_blank">Stadia Maps</a> &copy; <a href="https://openmaptiles.org/" target="_blank">OpenMapTiles</a> &copy; <a href="https://www.openstreetmap.org/copyright" target="_blank">OpenStreetMap</a>';
 
@@ -394,6 +399,12 @@ export async function verifyRelease({
     assert(/window\.RAIL_APPLE_LOGIN\s*=\s*true/.test(firebaseConfig),
       '帳號功能已開啟但 RAIL_APPLE_LOGIN 不是 true——半套登入（有 Google 無 Apple）會被 App Store 4.8 退件');
   }
+
+  // Capacitor 的 production logging 是「正式版也開啟」，Bridge 會把 plugin call/result
+  // 完整序列化到 logcat。FirebaseAuthentication 回傳含 access token 與 ID token，
+  // 因此不能只依賴「不手動 console.log」：發行閣門必須強制關閉原生橋接日誌。
+  const capacitorConfig = JSON.parse(await readFile(join(appRoot, 'capacitor.config.json'), 'utf8'));
+  assertNativeBridgeLoggingDisabled(capacitorConfig);
 
   const textExtensions = new Set(['.html', '.js', '.mjs', '.json', '.css', '.webmanifest', '.txt', '.md']);
   const suspiciousSecretPatterns = [
