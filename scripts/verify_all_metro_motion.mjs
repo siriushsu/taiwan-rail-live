@@ -19,7 +19,7 @@ const MIME = { '.html': 'text/html; charset=utf-8', '.json': 'application/json',
   '.mjs': 'application/javascript', '.css': 'text/css', '.png': 'image/png', '.svg': 'image/svg+xml', '.webp': 'image/webp' };
 
 const currentHtml = fs.readFileSync(path.join(ROOT, 'index.html'), 'utf8').replace(/\s+integrity="[^"]+"/g, '');
-const oldDefaultHtml = currentHtml.replace('    METRO_MOTION_PROFILE);',
+const oldDefaultHtml = currentHtml.replace('    metroMotion(ln));',
   '    (tr && ln._trtcTripMode ? TRTC_MOTION_PROFILE : null)); // MUTATION: 非北捷退回舊 0×／無界追回');
 if (oldDefaultHtml === currentHtml) throw new Error('全捷運 motion profile 突變沒有命中');
 

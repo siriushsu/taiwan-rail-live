@@ -3377,7 +3377,7 @@
 
   <footer class="site-foot">
     <details class="foot-box">
-      <summary><span>更新紀錄</span><span class="foot-sub">最後更新：2026/8/8</span></summary>
+      <summary><span>更新紀錄</span><span class="foot-sub">最後更新：2026/8/9</span></summary>
       <!-- 第一層是「最近更新」的檢視,不是正本:每一條都用 data-cl-of 指向第二層某條的 data-cl。
            要把一條擠出第一層之前,它的正本必須已經在第二層存在——2026-08-03 就踩過一次:8/1 的
            衛星計費那條只活在第一層(第二層只有一句夾在 7/25 條目裡、日期對不上的附帶說明),
@@ -3412,7 +3412,7 @@
         <li data-cl="mytrains"><span class="d">8/8</span><span>最愛面板新增「我的車・準點」：收藏的台鐵列車集中列出近 30 天最糟單日全程誤點、平均誤點與有紀錄天數，並標示是否上「準點排行」榜；點一列可看 90 天逐日履歷。集中比較是通行證功能，未訂閱會看到模糊預覽與訂閱入口</span></li>
         <li data-cl="punctualtrains"><span class="d">8/7</span><span>探索面板新增「準點排行」榜：近 30 天最準點的 10 班台鐵車，依單日最糟全程誤點排序，地圖上以綠色光環標示（比金色「今日之最」優先顯示）</span></li>
         <li data-cl="thsrautosched"><span class="d">8/7</span><span>高鐵班表改為伺服器每天自動抓取今天與明天的官方時刻表（含加開與停駛調整），不再依賴內建快照；官方資料暫時抓不到時自動退回內建班表，地圖不會空白</span></li>
-        <li data-cl="metromotion"><span class="d">8/5</span><span>所有捷運與輕軌共用平順運動模型：每站間用簡單的加速、巡航、減速曲線；淡海輕軌、安坑輕軌、機捷、高捷等收到新的即時校正時，速度也限制在正常推演的 0.25～2 倍，不再為了追資料停住或突然衝刺</span></li>
+        <li data-cl="metromotion"><span class="d">8/5</span><span>所有捷運與輕軌共用平順運動模型：每站間用加速、巡航、減速曲線，收到新的即時校正時速度也限制在正常推演的 0.25～2 倍，不再為了追資料停住或突然衝刺。8/9 修正：巡航與追趕兩件事會相乘，少數列車一度被畫得過快，現在已一併算進上限</span></li>
         <li data-cl="trtcpos"><span class="d">8/5</span><span>北捷列車有官方到站倒數時，現在直接用「站間行駛時間與剩餘秒數」算出列車在兩站之間的位置；班表仍是唯一車輛名冊，沒有可靠錨點時才回到原本的平順推估</span></li>
         <li data-cl="trtcmotion"><span class="d">8/5</span><span>北捷列車每次收到新的官方到站資料時，原本會為了校正位置先停住、再突然加速追趕；現在把差距分散到接下來的移動中慢慢吸收，兩站之間會持續前進，追趕速度也有上限</span></li>
         <li data-cl="orangebranch"><span class="d">8/4</span><span>橘線列車進入大橋頭以南的共線路段後，會延續它原本來自蘆洲或迴龍的支線身分，不再把往南勢角的蘆洲線列車誤算成新莊線；當日班表的車數不受影響</span></li>
@@ -4212,6 +4212,7 @@ const TW_DAYTYPE = {
 };
 function prepFreqTimes(ln) {
   ln._tt = null;
+  ln._metroRateCap = ln._metroMotion = null; // 追趕倍率是對這一天的 _tt 取最大值，換日型要重算
   if (!ln.times) return;
   const t = ln.times;
   let day;
@@ -4286,6 +4287,44 @@ function freqTrainPosAt(ln, tr, t) {
   const base = freqTrainBaseAt(ln, tr, t, rosterTime);
   return trtcHeadwayPosition(ln, tr, t, base.pos);
 }
+// 站間梯形 profile 的唯一取用入口（依線物件快取，避免每幀每車重解方程；
+// 不可行的極短段記 null 並維持原本等速安全回退）。速度上界也吃這一份，兩邊不會各自算出不同的段。
+function metroProfileFor(ln, ia, ib, moveT) {
+  if (!(moveT > 0)) return null;
+  if (!ln._metroProfiles) ln._metroProfiles = new Map();
+  const pk = ia + '>' + ib + '@' + moveT;
+  let profile = ln._metroProfiles.get(pk);
+  if (profile === undefined) {
+    const km = ln.hasShape ? Math.abs(ln.stations[ib].d - ln.stations[ia].d)
+      : haversineKm(ln.stations[ia], ln.stations[ib]);
+    profile = buildProfile(km, moveT, TRTC_BOARD_PERF.a, TRTC_BOARD_PERF.b, TRTC_BOARD_PERF.v) || null;
+    ln._metroProfiles.set(pk, profile);
+  }
+  return profile;
+}
+// 追趕倍率的複合上界。畫面速度＝**梯形瞬時速度 × 有效時間倍率**，而梯形的巡航速度本來就比
+// 該段平均快（實測各線最高 1.5 倍），兩者相乘之後 2 倍的追趕會畫成 3 倍：文湖線量到 125 km/h，
+// 各線理論上界 155–160 km/h。v0805c 把等速換成梯形時只保住了「有效時間」那一側的上界，
+// 沒有人管相乘的結果——本函式把倍率先除掉該線「巡航／平均」的最大值，讓乘完之後恆回到
+// 「不超過段內標稱速度的 TRTC_MOTION_MAX_RATE 倍」，也就是換梯形之前這個 2 倍原本的意思。
+// 沒有可行 profile 的線（極短段退等速）worst 維持 1 ⇒ 倍率原封不動。
+function metroRateCap(ln) {
+  if (ln._metroRateCap != null) return ln._metroRateCap;
+  let worst = 1;
+  for (const tr of ln._tt || []) {
+    for (let lo = 0; lo * 2 + 3 < tr.length; lo++) {
+      const ia = tr[lo * 2], ta = tr[lo * 2 + 1], ib = tr[lo * 2 + 2], tb = tr[lo * 2 + 3];
+      const span = tb - ta, run = runBetween(ln, ia, ib);
+      const moveT = run && run < span ? run : span;
+      const p = metroProfileFor(ln, ia, ib, moveT);
+      if (p && p.vc > 0 && p.L > 0) worst = Math.max(worst, p.vc / (p.L / moveT));
+    }
+  }
+  return ln._metroRateCap = Math.max(1, TRTC_MOTION_MAX_RATE / worst);
+}
+function metroMotion(ln) { // easedShift 每幀每車都吃，物件也一併快取不要每次新配
+  return ln._metroMotion || (ln._metroMotion = { minRate: TRTC_MOTION_MIN_RATE, maxRate: metroRateCap(ln) });
+}
 function freqTrainPosRaw(ln, tr, t) {
   const tm = freqTrainTime(tr, t);
   if (tm == null) return null;
@@ -4301,17 +4340,8 @@ function freqTrainPosRaw(ln, tr, t) {
   const elapsed = tm - ta;
   let f = Math.min(1, span > 0 ? elapsed / moveT : 1);
   // 所有捷運／輕軌的純班表站間都用同一個停→停梯形；live 校正只改查詢時間，不另造一套速度形狀。
-  // profile 依線物件快取，避免每幀每車重解方程；不可行的極短段記 null 並維持原本等速安全回退。
   if (f > 0 && f < 1 && moveT > 0) {
-    if (!ln._metroProfiles) ln._metroProfiles = new Map();
-    const pk = ia + '>' + ib + '@' + moveT;
-    let profile = ln._metroProfiles.get(pk);
-    if (profile === undefined) {
-      const km = ln.hasShape ? Math.abs(ln.stations[ib].d - ln.stations[ia].d)
-        : haversineKm(ln.stations[ia], ln.stations[ib]);
-      profile = buildProfile(km, moveT, TRTC_BOARD_PERF.a, TRTC_BOARD_PERF.b, TRTC_BOARD_PERF.v) || null;
-      ln._metroProfiles.set(pk, profile);
-    }
+    const profile = metroProfileFor(ln, ia, ib, moveT);
     if (profile) f = profTimeToProg(profile, elapsed);
   }
   return posBetweenStations(ln, ia, ib, f);
@@ -14741,7 +14771,9 @@ const _traGateEp = { on: false, ep: 0, at: 0 }, _metroGateEp = { on: false, ep: 
 const TRTC_MOTION_MIN_RATE = .25;
 const TRTC_MOTION_MAX_RATE = 2;
 const TRTC_MOTION_PROFILE = { minRate: TRTC_MOTION_MIN_RATE, maxRate: TRTC_MOTION_MAX_RATE };
-const METRO_MOTION_PROFILE = TRTC_MOTION_PROFILE;
+// 各線實際吃的是 metroMotion(ln)：同樣的 min/max，但 max 已先除掉該線梯形的巡航／平均倍率。
+// TRTC_MOTION_PROFILE 本身在出貨路徑上已無呼叫端，但 verify_all_metro_motion 的控制組要靠它
+// 組出「退回舊預設」的突變版本 —— 看到沒人用就刪掉的話，那支的突變會直接 throw。
 function gateEpoch(g, on) { if (on !== g.on) { g.on = on; if (on) { g.ep++; g.at = performance.now(); } } return g; }
 function easedShift(key, target, g, motion) {
   let e = _easedShift.get(key);
@@ -15000,7 +15032,7 @@ function metroShiftSec(ln, tr) { // 正=實際比表定晚跑(誤點);北捷逐�
   else { const fwd = tr[0] <= tr[tr.length - 2]; dch = fwd ? 'f' : 'b'; if (on && s) { const v = fwd ? s.f : s.b; target = v != null ? v : (s.all || 0); } }
   // key 須跨 rebuildFreqLines 穩定(line 物件會重建,不可用 ln 物件當 key);epoch 用全域時間軸 gate(逐線資料齡不算重啟)
   return easedShift(freqSysIdOf(ln) + ':' + ln.id + ':' + dch, target, gateEpoch(_metroGateEp, metroLiveGate()),
-    METRO_MOTION_PROFILE);
+    metroMotion(ln));
 }
 function freqSysIdOf(ln) { return ln._sys || (state.sys && state.sys.id); }
 function metroLivePool() { // 校正對象:各捷運分頁=state.lines;全台同框=裝飾捷運層(deco 也吃 _tt+simSec,同一套錨定直接適用)
