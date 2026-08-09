@@ -173,3 +173,32 @@
 - Pixel 7／API 35、412.19×839 CSS viewport，亮色／暗色／衛星三種模式各掃到 12 個可見產品控制。每種模式皆為 `overlapCount=0`、`centerHitFailures=[]`、`clippedControls=[]`；圖磚各 8/8 載入。
 - audit 如實以 exit 1 留下一項 UI 缺口：`#alertChip` 視覺與有效命中區約 38.29×36 CSS px，「全／台／高／捷」各約 43.28×36，五顆都未達 44×44。`#randBtn`／`#nearBtn` 的視覺框雖小於 44，但偽元素命中區量得至少 44 px；底部五個 tab 亦至少 44 px，故不列缺陷。
 - 本輪只稽核與記錄，沒有憑審查結果擅自改共享 `index.html`。修法應維持目前視覺尺寸與間距，只以偽元素或等效方式擴張五顆控制的 hit area，再用同一腳本重跑三種底圖。
+
+## K. 合併 main、Android 全鏈回歸與 44×44 修復（2026-08-09）
+
+### 提交與整合證據
+
+- 權限自檢對共用 `.git/worktrees/軌島-Android` 與 `.git/objects` 的精確 `.wtest` 建立／刪除均 exit 0；沒有使用替代 index 或碰其他 worktree。
+- 指定 9 檔提交為 `fa10d427b6648573c6602871c3c1886a015b81aa`。commit 前 `git diff --cached --numstat` 與 commit 後 `git show --numstat HEAD` 完全一致：`capacitor.config.json` 1/1、`verify-release.mjs` 11/0、`PLATFORM-GAPS.md` 17/5、`PROGRESS-STAGE2.md` 34/0、audit script 176/0、三張 PNG binary、audit JSON 788/0；未 stage `.idea/`。
+- `git merge --no-edit main` 零衝突，merge commit 為 `641d7ce91187de55169d5abdadb1862bd7c6660b`。語意閘門全通過：`index.html:6363` 保留 `const nativeAndroid = android && IS_NATIVE_APP`，`:6367` 保留「系統設定→應用程式→軌島」，舊 `if (iOS || nativeApp)` 不存在，`:2945` 為 iOS-only `music-volume-unavailable`，`:6141` 與 `:17041` 分別仍是 `IS_NATIVE_APP`、`state._setDropMode` 定義；`app/capacitor.config.json:6` 仍為 `loggingBehavior: "none"`。`verify-release.mjs` 同時保留 logcat fail-closed gate（`:13,487`）、Android native assets 同步檢查（`:446`），以及 main 的 `assertPlusSandboxOff`／`assertPlusSandboxTestBuild`（`:48,61`）。
+- main 帶入的發行錨點已過期，依使用者指定改成臺北時間 2026-08-10 12:00；commit `17caea05212a18277e18a86c2bfba20d7951b947`，`revenuecat-config.js` numstat 1/1。沒有同步或驗證 iOS 日期；本輪範圍經使用者再次確認為 Android-only。
+
+### Android 全鏈與版本
+
+- 合併前正式底圖產物為 `v0804g`；合併後 `RAIL_INCLUDE_LICENSED_BASEMAPS=1 npm run build` exit 0，輸出 `v0808a`、135 files、41.2 MB，接著 `npx cap copy android` exit 0。以 release verifier 的完整內容／政策閘門、但依 Android-only 範圍略過雙平台 native parity loop，檢查 exit 0；另以硬斷言逐一比對 `app/www` 與 `app/android/app/src/main/assets/public` 均為 `v0808a`，兩處都沒有 `v0804g`。
+- 原樣 `npm run verify` 會因未同步的 iOS native public 仍是 `v0804g` 而 fail closed；這不是 Android 失敗，也沒有為了讓指令變綠而覆寫 iOS。此偏離來自使用者明確指示「略過這同步，這邊只驗證 android」，故 Android 發行驗證改由上一項的完整 gates（略過 native 雙平台 loop）加 Android hard parity assertion 組成。
+- JDK 21／Android SDK 下 `./gradlew assembleDebug` exit 0，246 tasks；44×44 修改後又完整重跑 build、Android copy 與 Gradle，三段再次 exit 0，APK 已覆蓋安裝至 `RailIsland_API35_Pixel7`。
+
+### Pixel 7／API 35 回歸
+
+- 冷啟後 WebView 為 `v0808a`，`state.ready=true`；資料含 1,163 班列車，畫面可命中 190 個已渲染列車，狀態顯示「190 班奔跑中」，地圖、路網、canvas 均正常。
+- 修復前重跑 `stage3-basemap-ui-audit.mjs`：亮／暗 Stadia、Esri 衛星各 8/8 圖磚，署名正確，三模式均重疊 0、裁切 0、中心命中失敗 0；唯一 fail 是既知五顆小於 44 px 控件。
+- 定位同意路徑以 emulator GPS `121.5654,25.0330` 得到 5 m 精度並顯示附近 8 站；拒絕兩次後進入落釘模式，完整顯示「系統設定→應用程式→軌島→權限→位置允許；或用『釘』手動點位置」。測後已恢復 Fine／Coarse 權限。
+- 分享由產品入口實際開啟 Android chooser，公開網址與文字正確，Back 可返回 App。本地通知由原生 bridge 排程，pending queue 可見，背景後 `dumpsys notification --noredact` 確認 package `tw.railisland.app`、id `990001`、標題「軌島回歸測試」與指定內文；測後由產品 bridge cancel，pending 測試 id 為空。
+
+### 44×44 修復與行為證據
+
+- `index.html` 只替 `.topbar .alert-chip` 與 `.topbar .grouptabs .gtab` 加入 `position: relative`，再用以自身為 containing block 的 44×44 絕對定位 `::after` 擴熱區；沒有更動 padding、字級、gap、視覺框或版面。
+- 修復後底圖 audit exit 0：三種底圖各 12/12 當前圖磚、12 個控制，重疊／裁切／中心命中失敗皆 0，`effectiveBelow44Controls=[]`。完整結果在 `docs/android/shots/basemap-ui-audit.json`。
+- 新增可重跑的 `docs/android/scripts/stage3-topbar-hit-audit.mjs`。Pixel 7 真實 WebView 對五顆逐一做中心＋四邊 `elementFromPoint`，失敗 0；相鄰中線越界 0；再用 ADB 點每顆視覺框上方、但仍在擴張熱區內的點，click owner 均為自己。「全／台／高／捷」各切到自己的 group，`#alertChip` 實際打開公告詳情，action failure 0。結構化證據為 `docs/android/shots/topbar-44px-audit.json`。
+- 共享 UI 另以內建瀏覽器掃 360／375／414／768／1280。因當下正式資料沒有營運公告，前四個尺寸使用一次性的 `app/www` 本機副本注入單筆測試公告以顯示 `#alertChip`；副本與伺服器測後已刪除，來源與正式產物未修改。360／375／414／768 五顆都可見且有效 44×44，合計 100 個中心／四邊命中點失敗 0、重疊 0、裁切 0、與軌島牌重疊 0；1280 依既有桌面設計隱藏整組手機 topbar。證據為 `docs/android/shots/topbar-browser-width-audit.json`。

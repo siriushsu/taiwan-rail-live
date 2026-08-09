@@ -2399,19 +2399,29 @@
     .topbar .tb-plate, .topbar .grouptabs, .topbar .alert-chip { pointer-events: auto; }
     /* 短標分頁不做橫捲與遮罩(mock 遷移表明定停用);.topbar .grouptabs 特異性壓過通案手機 .grouptabs 的 mask/overflow */
     .topbar .grouptabs { margin: 0; flex-wrap: nowrap; overflow: visible; -webkit-mask-image: none; mask-image: none; }
-    .topbar .grouptabs .gtab { font-size: 13px; padding: 6px 14px; min-height: 36px; }
+    .topbar .grouptabs .gtab {
+      position: relative; /* ::after 熱區必須錨在各自按鈕，避免四顆一起蓋滿 .grouptabs */
+      font-size: 13px; padding: 6px 14px; min-height: 36px;
+    }
     /* 公告警示鈕:與短標分頁同高並肩的琥珀 pill,有公告才出現(JS 控 hidden)。
        margin-left:auto 吃掉軌島牌與分頁之間的空白 → 緊貼分頁左側;窄機(360pt)空白被吃完後才會開始
        壓縮,而 .tb-plate 是 flex:none、分頁是 nowrap,兩者都不縮,故 chip 自己 flex:none 也不縮——
        三者總寬超過可用寬時寧可溢出也不擠壞分頁(實測 360pt 仍有餘裕,見驗收 A1)。
        桌面完全走不到這裡(.topbar 整條 display:none),桌面是橫幅＋× 那條路。 */
     .topbar .alert-chip {
+      position: relative; /* 同頁籤：透明熱區只屬於公告鈕本體 */
       margin-left: auto; flex: none; display: flex; align-items: center; gap: 3px;
       min-height: 36px; padding: 6px 11px;
       font: inherit; font-size: 13px; font-weight: 800; cursor: pointer;
       background: var(--warn-bg); color: var(--warn-ink);
       border: 1.5px solid var(--warn-line); border-radius: var(--r-pill);
       box-shadow: var(--shadow-1);
+    }
+    /* 頂列五顆控制維持原視覺盒與排版，只把可點區擴到 44×44。相鄰頁籤的視覺 gap 為 6px，
+       擴張後仍不相交；公告鈕與頁籤間為 8px，也不會跨過彼此中線。 */
+    .topbar .alert-chip::after, .topbar .grouptabs .gtab::after {
+      content: ''; position: absolute; left: 50%; top: 50%;
+      width: 44px; height: 44px; transform: translate(-50%, -50%);
     }
     .topbar .alert-chip .ac-ico { font-size: 14px; line-height: 1; }
     .topbar .alert-chip .ac-n:empty { display: none; }

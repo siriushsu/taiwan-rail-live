@@ -19,21 +19,17 @@
 | 本地通知權限時機 | `native-bridge.mjs:50-67` 提供 check/request/schedule；`index.html:13104-13135,13199-13215` 先 check，只有使用者按儲存並通過 primer 後才 request | **已實測通過（Android 15／API 35）** | 首次為 `prompt`；實際拒絕回 `denied`，隨後 `prompt-with-rationale` 可重試並允許。產品 sheet 真觸控「設定提醒」先出 primer，確認後才出系統 prompt；允許後排程 2551 次提醒。另以 7 秒排程確認通知實際送達，cancel 後 pending 移除，測試提醒已清乾淨 | 中：Android 12 以下的直接 granted 分支本輪沒有對應映像，明確未覆蓋；`openSettings:null` 仍只有文字退路，非精確 alarm 在省電模式可能延遲 |
 | 原生分享 | iOS／Android 共用 Capacitor Share，原生失敗才退 Web Share／clipboard | **Android 已實測通過** | 畫面分享與 `?tripshare=1` 行程分享都開 Android Chooser；Back 取消都回 MainActivity。停用全部 9 個 text/plain handlers 後顯示系統 `No apps can perform this action.`，無 crash；隨後 handlers 已全數恢復 | 低：本輪驗證系統 preview／取消／零 targets，未把內容真正送進第三方 App，因此各 target 如何顯示 URL/text 仍由對方實作決定 |
 | 原生 WebView 的 in-app-browser 誤判 | `Capacitor.isNativePlatform()` 仍在外部瀏覽器偵測前排除原生殼 | **Android 已實測通過** | UA 雖含 Android `wv`，實測 `#iabHint.hidden=true`、按鈕數 0、rect 0×0，沒有逃生卡。一般 LINE／IG WebView 路徑本輪不在原生 APK 內模擬 | 低：若未來 bridge 注入時序改變需再回歸；目前首載正常 |
-| 正式授權底圖／主地圖觸控區 | App build 以 Stadia 亮／暗與 Esri 衛星取代網站底圖，切換仍走共享 `setBasemap()`／更多 sheet | **底圖通過；發現 5 顆小於 44 px 的觸控區** | Pixel 7／API 35 三種模式各有 8/8 張圖磚載入，署名、畫面與「更多→衛星影像」真實觸控切換均通過。三模式各掃 12 個主畫面控制：0 重疊、0 裁切、0 中心命中失敗；但 `#alertChip` 為 38.29×36 CSS px，「全／台／高／捷」各約 43.28×36，實際命中區同樣未達 44 px。後續應只擴張命中區，不改視覺尺寸 | 中：五顆頂部高頻控制在 Android 觸控上容錯較低；`#randBtn`／`#nearBtn` 已由偽元素擴張至至少 44 px，不列缺陷 |
+| 正式授權底圖／主地圖觸控區 | App build 以 Stadia 亮／暗與 Esri 衛星取代網站底圖，切換仍走共享 `setBasemap()`／更多 sheet | **底圖與 44×44 觸控區均已實測通過** | merge main 後 Pixel 7／API 35 的亮／暗 Stadia、Esri 衛星各 12/12 當前圖磚；署名、重疊、裁切、中心命中均通過。`#alertChip` 與「全／台／高／捷」保留原視覺尺寸，改用相對定位本體＋44×44 `::after` 擴張熱區。五顆各做中心＋四邊命中與視覺框外 ADB 真實觸控，群組各切自己的狀態、alertChip 開自己的公告；360／375／414／768 瀏覽器寬度亦無重疊、裁切或周邊牌面碰撞 | 低：目前涵蓋 Pixel 7 AVD 與 Chromium 跨寬度；相鄰熱區保留 5.5–6 px 間隙且中點不屬任何一顆，後續若改 topbar gap／字級需重跑 `stage3-topbar-hit-audit.mjs` |
 
 ## 下一階段優先順序
 
-1. 先把 `main` 的共享 App／網頁／資料更新合回 `feat/android-shell`，再做 Android 回歸；2026-08-09 稽核時 Android 分支比 `main` 少 164 commits，不能再以 `v0804g` 當出貨基線。
-2. 修正頂部 `#alertChip` 與「全／台／高／捷」五顆控制的有效命中區至少 44×44 CSS px；只擴張 hit area，維持目前視覺尺寸與間距，再重跑三底圖 audit。
-3. 優先處理本輪發現的橫向 IME 搜尋內容被鍵盤覆蓋；此缺陷已留證但依階段二邊界未修。
-4. Worker service-account 金鑰輪替後重跑 Android 刪帳回歸，防止 project id、client email 與 private key 來自不同 JSON。RevenueCat 購買恢復仍待正式 Android 設定。
-5. GPS 校正功能重新開旗標前補 OEM 實體機長時間背景／熄屏矩陣；通知另補 Android 12 以下與省電延遲矩陣。
+1. 優先處理本輪既存的橫向 IME 搜尋內容被鍵盤覆蓋；此缺陷已留證但本次明確不在 44×44 修復範圍。
+2. Worker service-account 金鑰輪替後重跑 Android 刪帳回歸，防止 project id、client email 與 private key 來自不同 JSON。RevenueCat 購買恢復仍待正式 Android 設定。
+3. GPS 校正功能重新開旗標前補 OEM 實體機長時間背景／熄屏矩陣；通知另補 Android 12 以下與省電延遲矩陣。
 
-## 2026-08-09 近期 iOS／網頁更新追趕稽核
+## 2026-08-09 近期共享更新追趕（已完成）
 
-- 當下 `feat/android-shell` 為 `v0804g`、Android `versionName 1.3.2`／`versionCode 1`；`main` 已到 `v0808a`，iOS 為 `1.4.1 (28)`。`git rev-list --left-right --count HEAD...main` 為 `2 164`，Android 分支已明顯落後，這次正式底圖 build 只可驗金鑰與殼層，不可視為候選出貨包。
-- Android 必須追的共享更新包括：Plus／RevenueCat 正式資格與 Firestore 同步競態修正、App 分享連結固定為 `railisland.tw`、捷運校正改為有界運動、高鐵班表每日連網更新、台鐵與 TDX 快照更新、北捷後端錨點，以及跨夜名冊修正。這些落在 `index.html`、`app/src/native-bridge.mjs`、App build scripts、資料檔與 Worker 契約，Android WebView 同樣會消費。
-- iOS Widget、Live Activity、Dynamic Island、APNs、entitlements 與 iOS 定位 plist 文案不是 Android 殼的直接缺檔，不可逐檔照搬。若產品要 Android 對等的鎖屏／持續跟車體驗，應另立 Android 通知／前景服務／Widget 的原生設計與權限評估。
-- `feat/la-push` 另比 `main` 多 54 commits，包含 APNs Live Activity 及「我的車・準點」、準點排行、高鐵自由座等共享前端。前者不移植；後三者待正式進 `main` 後再隨共享頁面同步，避免 Android 私自追未整合側分支。
-- 正確整合方向是把 `main` merge 進 `feat/android-shell` 並保留 Android 殼，不是 reset／切換到 `main`（`main` 本身沒有這個 Android 殼）。唯讀 `git merge-tree` 顯示雙方同改的路徑只有 `index.html` 與 `app/scripts/verify-release.mjs`；後者合併時必須同時保留本輪新增的 `loggingBehavior=none` 發行閘門，以及 Android native asset 同步檢查。
-- 本輪沒有執行 merge／rebase／push。工作樹尚有本輪四個 tracked 修改，且 staging 已被共用 git metadata 的 `index.lock: Operation not permitted` 阻擋；依派工鐵則不以替代 index、複製 commit 或碰其他工作樹繞過。待 git metadata 可寫後，先 commit 本輪修改並核對 numstat，再合 `main`、解兩個衝突、完整重建與回歸。
+- `main` 已以 merge commit `641d7ce91187de55169d5abdadb1862bd7c6660b` 合回 `feat/android-shell`，零文字衝突；Android 專屬定位文案、iOS-only 音量 class、`loggingBehavior=none` 與 logcat fail-closed gate 均通過合併後語意檢查。
+- Android 正式底圖 build 已由 `v0804g` 更新為 `v0808a`；`app/www` 與 Android native public assets 版本一致且都不含 `v0804g`。Pixel 7／API 35 的地圖列車、三底圖、定位同意／拒絕、分享、本地通知與 44×44 頂列觸控區均完成回歸。
+- 本次依使用者最終指示只驗 Android，不同步 iOS native public，也不編輯 iOS Widget、Live Activity、Dynamic Island、APNs、entitlements 或定位 plist；因此原樣雙平台 `npm run verify` 仍會對舊 iOS native assets fail closed，Android 以完整 release gates（略過雙平台 parity loop）加獨立 native assets 硬比對通過。
+- 未從 `feat/la-push` 或其他側分支挑入任何內容，未 rebase、reset 或 push，也未碰其他 worktree 的工作檔案。
