@@ -196,6 +196,29 @@ async function runEngine(name) {
     const categories = { a: [], b: [], c: [] }, series = Object.fromEntries([...witnessKeys].map(k => [k, []]));
     const backwards = [], stalled = [], overspeed = [], speedSamples = [], normalized = [], convergence = [], rosterFrames = [], infoParityFailures = [];
     const lineCeil = {}, lineNominalMax = {};
+    // 逐線追趕上界：腳本自己依「該線梯形巡航／平均的最大值」重算一次，再與實作的 metroRateCap 對照。
+    // 只共用 buildProfile 這個雙方都同意的物理原語；被測的規則（倍率要除掉那個比值）由腳本自己寫一遍。
+    // D 的容量會吃這個數，所以它本身必須有具名斷言把關——否則哪天上界塌成 1，容量變 0、D 反而永遠綠。
+    const lineRateCap = {}, rateCapAudit = [];
+    for (const ln of pool()) {
+      let worst = 1;
+      for (const tr of ln._tt) {
+        for (let lo = 0; lo * 2 + 3 < tr.length; lo++) {
+          const ia = tr[lo * 2], ta = tr[lo * 2 + 1], ib = tr[lo * 2 + 2], tb = tr[lo * 2 + 3];
+          const span = tb - ta, run = runBetween(ln, ia, ib);
+          const moveT = run && run < span ? run : span;
+          if (!(moveT > 0)) continue;
+          const km = ln.hasShape ? Math.abs(ln.stations[ib].d - ln.stations[ia].d) : haversineKm(ln.stations[ia], ln.stations[ib]);
+          const pr = buildProfile(km, moveT, TRTC_BOARD_PERF.a, TRTC_BOARD_PERF.b, TRTC_BOARD_PERF.v);
+          if (pr && pr.vc > 0 && pr.L > 0) worst = Math.max(worst, pr.vc / (pr.L / moveT));
+        }
+      }
+      const expect = Math.max(1, speedCeilMultiplier / worst);
+      const actual = typeof metroRateCap === 'function' ? metroRateCap(ln) : null;
+      lineRateCap[ln.id] = actual != null ? actual : expect;
+      rateCapAudit.push({ line: ln.id, expect: round(expect, 4), actual: actual == null ? null : round(actual, 4),
+        ok: actual != null && Math.abs(actual - expect) < 1e-9 && actual > 1 && actual <= speedCeilMultiplier + 1e-9 });
+    }
     let logicalPolls = 0, payloadIndex = 0;
     const start = payloads[0].at, end = payloads[payloads.length - 1].at + 15;
     const ingestPayload = (payload, epoch) => {
@@ -276,7 +299,13 @@ async function runEngine(name) {
           const impliedPos = freqTrainPosRaw(ln, tr, impliedTm), impliedSeg = segmentAt(ln, tr, impliedTm);
           const residualM = Math.abs(progress - progressOf(ln, tr, impliedPos, impliedSeg)) * 1000;
           const afterShiftSec = Math.abs(sh - p.target);
-          const capacitySec = p.initialSignedShiftSec > 0 ? 15 * (speedCeilMultiplier - 1) : 15 * (1 - speedFloorMultiplier);
+          // 一輪詢能吸收幾秒,取決於「這條線實際被允許的追趕倍率」。v0805c 之後畫面速度＝
+          // 梯形瞬時速度 × 有效時間倍率,模型於是把倍率先除掉該線「巡航／平均」的最大值
+          // (metroRateCap)。這裡若沿用寫死的 speedCeilMultiplier,就會把「上界本來就比較低」
+          // 誤報成「模型停住了」——實測差距 p90 恰好 10.028 秒 = 15 − 15×(1.33−1)。
+          // 逐線上界本身另有一條具名斷言把關(見下方「逐線追趕上界」),不會因為這裡改吃它而失去牙。
+          const capRate = lineRateCap[ln.id] != null ? lineRateCap[ln.id] : speedCeilMultiplier;
+          const capacitySec = p.initialSignedShiftSec > 0 ? 15 * (capRate - 1) : 15 * (1 - speedFloorMultiplier);
           const feasibleResidualSec = Math.max(0, p.initialShiftSec - capacitySec);
           convergence.push({ key, line: ln.id, own: p.own, initialM: round(p.initialM), after15M: round(residualM),
             ratio: p.initialM > .01 ? round(residualM / p.initialM, 4) : 0,
@@ -305,6 +334,7 @@ async function runEngine(name) {
       stalledCount: stalled.length, stalled: stalled.slice(0, 100),
       overspeedCount: overspeed.length, overspeed: overspeed.slice(0, 100),
       normalizedDist: distribution(normalized), convergence,
+      rateCapAudit,
       lineNominalMaxMps: Object.fromEntries(Object.entries(lineNominalMax).map(([k, v]) => [k, round(v * 1000, 3)])),
       lineCeilMps: Object.fromEntries(Object.entries(lineCeil).map(([k, v]) => [k, round(v, 3)])), rosterFrames, infoParityFailures };
   }, { payloads, speedFloorMultiplier: SPEED_FLOOR_MULTIPLIER, speedCeilMultiplier: SPEED_CEIL_MULTIPLIER });
@@ -352,6 +382,9 @@ try {
       `有誤差樣本=${conv.length}；沿線位置 ratio=${JSON.stringify(dist(conv.map(x => x.ratio)))}；` +
       `shift ratio=${JSON.stringify(dist(conv.map(x => x.shiftRatio)))}；可行殘差差距=${JSON.stringify(dist(conv.map(x => x.feasibleGapSec)))}；` +
       `after15m=${JSON.stringify(dist(conv.map(x => x.after15M)))}`);
+    check(r.rateCapAudit.length > 0 && r.rateCapAudit.every(x => x.ok),
+      `${engine} 逐線追趕上界＝${SPEED_CEIL_MULTIPLIER} ÷ 該線梯形「巡航／平均」最大值`,
+      JSON.stringify(r.rateCapAudit));
     check(r.infoParityFailures.length === 0, `${engine} 跟隨卡位置與地圖共用同一運動時間軸`, `差異=${r.infoParityFailures.length}`);
     check(r.logicalPolls >= 10 && r.observedSnapshots >= 10 && r.witnessKeys.length >= 3,
       `${engine} 覆蓋至少 10 輪、多線多車`, `polls=${r.logicalPolls}, snapshots=${r.observedSnapshots}, witnesses=${r.witnessKeys.length}`);
