@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-08-09T10:33:24.683Z",
+  "generatedAt": "2026-08-09T12:30:12.890Z",
   "results": [
     {
       "mode": "light",
@@ -11,8 +11,8 @@
       "attribution": "Leaflet | 臺灣輪廓：內政部, © Stadia Maps © OpenMapTiles © OpenStreetMap",
       "tilesByHost": {
         "tiles.stadiamaps.com": {
-          "total": 12,
-          "loaded": 12
+          "total": 8,
+          "loaded": 8
         }
       },
       "controls": [
@@ -237,8 +237,8 @@
       "expectedHost": "tiles.stadiamaps.com",
       "summary": {
         "modeMatches": true,
-        "tileTotal": 12,
-        "tileLoaded": 12,
+        "tileTotal": 8,
+        "tileLoaded": 8,
         "tilesPass": true,
         "controlCount": 12,
         "overlapCount": 0,
@@ -266,8 +266,8 @@
       "attribution": "Leaflet | 臺灣輪廓：內政部, © Stadia Maps © OpenMapTiles © OpenStreetMap",
       "tilesByHost": {
         "tiles.stadiamaps.com": {
-          "total": 12,
-          "loaded": 12
+          "total": 8,
+          "loaded": 8
         }
       },
       "controls": [
@@ -492,8 +492,8 @@
       "expectedHost": "tiles.stadiamaps.com",
       "summary": {
         "modeMatches": true,
-        "tileTotal": 12,
-        "tileLoaded": 12,
+        "tileTotal": 8,
+        "tileLoaded": 8,
         "tilesPass": true,
         "controlCount": 12,
         "overlapCount": 0,
@@ -521,8 +521,8 @@
       "attribution": "Leaflet | 臺灣輪廓：內政部, Tiles © Esri — Source: Esri, Maxar, Earthstar Geographics",
       "tilesByHost": {
         "ibasemaps-api.arcgis.com": {
-          "total": 12,
-          "loaded": 12
+          "total": 8,
+          "loaded": 8
         }
       },
       "controls": [
@@ -747,8 +747,8 @@
       "expectedHost": "ibasemaps-api.arcgis.com",
       "summary": {
         "modeMatches": true,
-        "tileTotal": 12,
-        "tileLoaded": 12,
+        "tileTotal": 8,
+        "tileLoaded": 8,
         "tilesPass": true,
         "controlCount": 12,
         "overlapCount": 0,

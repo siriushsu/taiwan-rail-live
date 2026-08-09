@@ -202,3 +202,43 @@
 - 修復後底圖 audit exit 0：三種底圖各 12/12 當前圖磚、12 個控制，重疊／裁切／中心命中失敗皆 0，`effectiveBelow44Controls=[]`。完整結果在 `docs/android/shots/basemap-ui-audit.json`。
 - 新增可重跑的 `docs/android/scripts/stage3-topbar-hit-audit.mjs`。Pixel 7 真實 WebView 對五顆逐一做中心＋四邊 `elementFromPoint`，失敗 0；相鄰中線越界 0；再用 ADB 點每顆視覺框上方、但仍在擴張熱區內的點，click owner 均為自己。「全／台／高／捷」各切到自己的 group，`#alertChip` 實際打開公告詳情，action failure 0。結構化證據為 `docs/android/shots/topbar-44px-audit.json`。
 - 共享 UI 另以內建瀏覽器掃 360／375／414／768／1280。因當下正式資料沒有營運公告，前四個尺寸使用一次性的 `app/www` 本機副本注入單筆測試公告以顯示 `#alertChip`；副本與伺服器測後已刪除，來源與正式產物未修改。360／375／414／768 五顆都可見且有效 44×44，合計 100 個中心／四邊命中點失敗 0、重疊 0、裁切 0、與軌島牌重疊 0；1280 依既有桌面設計隱藏整組手機 topbar。證據為 `docs/android/shots/topbar-browser-width-audit.json`。
+
+## L. 分支公開、release 簽章鏈與出貨查證（2026-08-09）
+
+### push 前第四道安全掃描
+
+- 掃描 `main...feat/android-shell` 的全部新增／修改 blob：104 個 blob，其中 47 個 binary，共 9,506,012 bytes；每個 blob 都由 ref 取出後以 binary-safe 方式掃描，未倚賴 `git diff` 是否能展開。
+- 樣式命中數：Google API key shape 0、JWT-like token 0、client-secret marker 0、GitHub PAT prefix 0、Google OAuth token prefix 0；ignored `.env` 內兩把 client key 的實值比對各 0，過程未輸出實值。
+- 私鑰 PEM header 樣式的唯一命中為 `app/scripts/verify-release.mjs:491` 的 detector regex 常量，位於 `suspiciousSecretPatterns` 陣列。依使用者主線裁定：同檔同行在公開 main 已存在，屬「偵測規則掃到偵測規則」；全檔私鑰常見 base64 block prefix 0 命中，沒有新增私鑰內容。此一精確同檔同行假陽性獲准放行，其他命中仍維持 fail closed。為免掃描紀錄本身成為下一次字串假陽性，本段不重印 detector 的完整 regex。
+- 目視檢查 `basemap-stadia-light.png`、`basemap-stadia-dark.png`、`basemap-esri-satellite.png`、`keyboard-search-landscape.png`：前三張只有地圖／列車／底圖署名，第四張只有 App 橫向搜尋與系統鍵盤；均無金鑰、帳號或設定頁敏感內容。
+
+### 分支 push 與版號／簽章設定 commit
+
+- `git push -u origin feat/android-shell` 成功，公開遠端 SHA 與當時本地 HEAD 均為 `0e862d93e13bb499a9142371d1fb84771019f7ab`；`git status -sb` 建立 `origin/feat/android-shell` tracking 且 ahead 0，`git ls-remote origin refs/heads/feat/android-shell` 回同一 SHA。
+- release 設定 commit 為 `c196f609689fd01a9e46685f0f849f44b88e710b`，numstat 與 staged 完全一致：`app/android/.gitignore` 3/3、`app/android/app/build.gradle` 20/1。版號改為 1.4.1，versionCode 維持 1；`key.properties` 存在才配置 release signing，缺檔時產 unsigned，沒有 debug fallback。
+- `.gitignore` 先涵蓋 `key.properties`、`*.jks`、`*.keystore`，才建立 ignored template。`git check-ignore -v` 命中，`git status --porcelain` 從未列出 `key.properties`；`.idea/` 仍未 stage。
+- keytool 與 `key.properties` 的密碼由使用者親自在 Terminal 輸入；Codex 未讀取、未接收、未輸出、未寫入 log 或 commit。第一把憑證的 CN 與 release gate 不符，舊 JKS 已可恢復地移到 Keys 目錄的 backup；使用者重新建立同路徑 JKS，固定 DN 的 CN 為 `railisland-upload`，其他 key.properties 設定不變。
+
+### Android release build、簽章與內容
+
+- `RAIL_INCLUDE_LICENSED_BASEMAPS=1 npm run build` exit 0：`v0808a`、135 files、41.2 MB、線上底圖開啟；`npx cap copy android` exit 0。
+- 依使用者明確 Android-only 範圍，release verifier 跑完整內容／政策 gates 但略過雙平台 native parity loop，exit 0；另以硬斷言確認 `app/www` 與 Android assets 同為 `v0808a`、byte-identical，兩處 `v0804g` 均 0。沒有同步或修改 iOS assets。
+- Gradle `bundleRelease` 與 `assembleRelease` 均 exit 0。重新建立正確 CN 的 JKS 後兩者再跑一次，`signReleaseBundle`／`packageRelease` 重新執行。AAB 13,690,942 bytes，APK 13,932,210 bytes。
+- APK `apksigner verify --print-certs` exit 0；DN 為 `CN=railisland-upload, OU=Mobile, O=軌島, L=台北, ST=台灣, C=TW`，SHA-256 certificate digest 為 `3836e4b4680ac9ec5ab4b10424a10bd5852dcfa7a06697bb985521f66ad58d21`。AAB `jarsigner -verify` exit 0 並回 `jar verified`；自簽憑證、無 timestamp 與 Zip/JarInputStream 差異為警告，沒有把警告隱藏或說成 CA 憑證。
+- `aapt dump badging`：package `tw.railisland.app`、versionName `1.4.1`、versionCode `1`。從 APK 單獨抽出的 `assets/public/revenuecat-config.js:26` 命中 `foundingLaunchAt: '2026-08-10T12:00:00+08:00'`。
+
+### 已簽章 release APK 實測
+
+- 實測裝置為 `RailIsland_API35_Pixel7`、API 35。先 `adb uninstall tw.railisland.app` 移除舊簽章版本，再安裝 release APK，兩者均 `Success`。
+- `am start -W` 為 `LaunchState: COLD`、`TotalTime: 506 ms`；首次畫面已在 Android 權限 prompt 後方渲染底圖。實際點選「使用 App 時允許」後關閉 onboarding，主畫面可見完整臺灣路網與列車，header 顯示 167 班奔跑中。
+- release Firebase logcat：`Device unlocked: initializing all Firebase APIs for app [DEFAULT]`、`FirebaseApp initialization successful`；無 `AndroidRuntime` crash，證明磁碟上的 ignored `google-services.json` 已參與 `processReleaseGoogleServices`，且 App 正常存活。
+- release 重跑 `stage3-basemap-ui-audit.mjs` exit 0：亮／暗 Stadia、Esri 衛星均 8/8；每模式 12 個控制，重疊 0、中心命中失敗 0、裁切 0、`effectiveBelow44Controls=[]`。更新證據為 `docs/android/shots/basemap-ui-audit.json`。
+- release 重跑 `stage3-topbar-hit-audit.mjs` exit 0：中心＋四邊失敗 0、有效熱區尺寸失敗 0、相鄰中線越界 0、五顆實際 action 失敗 0。更新證據為 `docs/android/shots/topbar-44px-audit.json`。
+
+### Android 通行證入口查證
+
+- 露出與控制鏈：`index.html:6188-6190` 原生恆開、`:7622` 工具列入口、`:7628-7630` 手機「更多」入口、`:7779-7788` 購買通道判斷、`app/src/native-bridge.mjs:80-86` 原生 adapter 建立條件、`index.html:8015-8074` 面板方案渲染。
+- 在同一顆 release 內分別真實 click 工具列入口與「更多」入口；兩者都正常開面板，沒有報錯、沒有靜默無反應、沒有跳 Web。runtime 為 `PLUS_ENABLED=true`、`plusProjectConfigured=true`、`plusConfigured=false`、`RAIL_NATIVE_PLUS_ADAPTER=false`。
+- 兩個面板實況相同：月票 0、年票 0、恢復購買 0；只有「已經在 App 訂閱了？登入以同步」。同時仍顯示「目前請在軌島 App 內訂閱」、App Store 取消訂閱與 iOS 動態島功能，屬 Android 出貨誤導風險。
+- 暫時 gate 的完整最小面應放在 `index.html:6188-6190`，對 Android 讓 `PLUS_ENABLED=false`；產品碼約 1–3 行，加 verifier 正負樣本／release UI 回歸總約 15–30 行、0.5 天。只藏 `:7665` 的槽位會漏掉帳號面板、誤點履歷、說明中心等入口，不建議。
+- 三條出貨路徑、剩餘工作、時程、政策依據與建議完整記於 `docs/android/SHIPPING-OPTIONS.md`；本輪依要求只查證，不修改 Plus 行為，也未上傳 Play Console。
