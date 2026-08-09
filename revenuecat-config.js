@@ -11,11 +11,16 @@
 //
 // foundingLaunchAt:創始會員資格判定的「上線錨點」——創始價視窗＝這個時刻起算固定 30 天
 // (裁示 2026-08-03,取代先前寫死在 index.html 的猜測日期)。ISO8601 時刻字串,建議台北時區
-// 午夜整點(如 '2026-09-01T00:00:00+08:00')。Plus 尚未開賣、上線日尚未決定,故意留 null——
-// 由發版流程在真正按下發版的當下填入實際日期,程式碼本身不留猜的日期。
-// App 發版閘門(app/scripts/verify-release.mjs)會擋下未設定/無法解析/早於本次 build 日期的值,
-// 不讓猜的或過期的日期溜上線。網站端沒有等效閘門(部署不經過 prepare-web.mjs),但 index.html
-// 的 foundingFrom() 對「未設定」有安全預設:一律不判定為創始會員,不會誤判成「沒設定=人人都是」。
+// 午夜整點(如 '2026-09-01T00:00:00+08:00')。
+// 三種合法值,語意不同、發版閘門待遇也不同:
+//   · ISO8601 字串 → 要辦創始期,窗從這個時刻起算 30 天(閘門要求它不得早於 build 當天)
+//   · false        → 明確裁示「這一版不辦創始期」(閘門放行)
+//   · null / 未設定 → 還沒決定(閘門擋下,不讓需要人為決定的值靠安全預設溜上線)
+// 🔴 2026-08-09 裁示:創始期取消——來不及在窗內上線。故填 false 而不是 null:null 代表
+// 「忘了填」,兩者若共用同一個值,這道閘門就再也分不出「決定不辦」與「忘了決定」。
+// 之後要恢復創始期,把這裡改回實際上線日的 ISO8601 字串即可,程式碼其他地方都不用動。
+// 網站端沒有等效閘門(部署不經過 prepare-web.mjs),但 index.html 的 foundingFrom() 對
+// 「解析不出時刻」有安全預設:一律不判定為創始會員,不會誤判成「沒設定=人人都是」。
 window.RAIL_REVENUECAT_CONFIG = window.RAIL_REVENUECAT_CONFIG || {
   entitlement: 'plus',
   offeringId: 'plus',
@@ -23,5 +28,5 @@ window.RAIL_REVENUECAT_CONFIG = window.RAIL_REVENUECAT_CONFIG || {
   // 2026-07-26：29 首 Suno 曲目核對完成（依據＝擁有人明示聲明全部生成於 Pro 訂閱期間，
   // 非逐首文件證據；證據強度與殘留待查項見 app/MUSIC_LICENSE_CHECKLIST.md）。
   musicRecordingLicensed: true,
-  foundingLaunchAt: '2026-08-08T12:00:00+08:00'
+  foundingLaunchAt: false
 };
