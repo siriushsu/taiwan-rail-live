@@ -1,8 +1,9 @@
 // 誤點履歷卡(Plus 頭牌 UI)行為驗證——Playwright 真引擎(chromium+webkit)+ 本機靜態伺服器。
 // 後端 /api/delay-history 尚未部署,一律以 page.route 攔截餵假資料(90 天,含誤點/準點/缺日)。
 // 依據的關鍵事實(從 index.html 讀出,本腳本未參與實作):
-//   · PLUS_ENABLED = ?plus=1(暗啟動);為真時 renderDelayRow 在準點列尾端掛 .fp-dhlink、
-//     並取消車次卡 #tcDelayHist 的 hidden。入口 gate 與準點列相同:tr.sys==='tra_sched' 且 delayStats.d>=5。
+//   · PLUS_ENABLED 2026-08-04 改回「原生 App 恆開、網站要 ?plus=1」(index.html:6059-6062);為真時
+//     renderDelayRow 在準點列尾端掛 .fp-dhlink、並取消車次卡 #tcDelayHist 的 hidden。入口 gate 與
+//     準點列相同:tr.sys==='tra_sched' 且 delayStats.d>=5,但準點列本身的顯示不吃 PLUS_ENABLED。
 //   · 統計列複用 state.delayStats[no] = {a 平均誤點, p 準點率%, d 樣本天數, m 最大誤點};由 /api/delay-stats 載入。
 //   · 卡片 #delayHistPanel(.board 家族):h3 sticky 內含 × 關閉鈕(v0717p);逐日長條 .dh-bars rect.dh-bar
 //     (fd≤5→.ok 綠 / >5→.hi 紅)、週幾 .dh-wd 七柱、資料標示 .dh-src。
@@ -12,10 +13,15 @@
 import { chromium, webkit } from 'playwright';
 import { createServer } from 'node:http';
 import { readFileSync, existsSync, statSync } from 'node:fs';
+import { createHash } from 'node:crypto';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+// G0 自檢(心得32:驗收腳本第一道 gate 要印出「驗的是哪一棵樹」):ROOT 由本檔自身路徑推導,
+// 不吃任何 --root／env 參數,結構上不會誤驗到別的 worktree;仍留一行可稽核紀錄。
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+console.log(`[G0] ROOT=${ROOT}`);
+console.log(`[G0] index.html md5=${createHash('md5').update(readFileSync(path.join(ROOT, 'index.html'))).digest('hex')}`);
 const SHOT_DIR = '/private/tmp/claude-501/-Users-xuxiang-Code------/7527b6c9-bef6-4caa-9ffe-60c4cba112b7/scratchpad';
 const PORT = 5219;
 const MIME = { '.html': 'text/html', '.js': 'text/javascript', '.mjs': 'text/javascript', '.json': 'application/json', '.css': 'text/css', '.png': 'image/png', '.jpg': 'image/jpeg', '.svg': 'image/svg+xml', '.mp3': 'audio/mpeg', '.ico': 'image/x-icon', '.webmanifest': 'application/manifest+json' };
@@ -122,21 +128,27 @@ async function routeApis(page, no, histMode) {
     return r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ train: no, days, _meta: { window_days: 90, n: days.length, date_range: dr, generated: GEN } }) });
   });
 }
-// boot + route + follow 一班台鐵車;flag=false 測預設迴歸(不加 ?plus=1)
+// boot + route + follow 一班台鐵車。2026-08-04 PLUS_ENABLED 改回只認 ?plus=1(部署不可分割,
+// 網站要先能在暗著的狀態下部署;index.html:6059-6062 的 IIFE)——預設帶 qs='?plus=1',讓本檔
+// 其餘各段(A/M/W/B/C/D/F/G)量到的都是「入口存在」那個狀態,不必逐一改呼叫點。唯一的例外是
+// 下面的 E 段:它就是要驗「不帶 qs 的真實訪客看到什麼」,呼叫時明式傳 qs:'' 覆寫這個預設值。
 async function bootFollowed(browser, opts = {}) {
-  const { width = 1280, height = 800, touch = false, theme = 'light', flag = true, histMode = 'full', tag = '?' } = opts;
+  const { width = 1280, height = 800, touch = false, theme = 'light', histMode = 'full', tag = '?', qs = '?plus=1' } = opts;
   const { ctx, page } = await newPage(browser, { width, height, touch, theme });
   const errs = attach(page, tag);
-  await page.goto(BASE + (flag ? '?plus=1' : ''), { waitUntil: 'domcontentloaded' });
+  await page.goto(BASE + qs, { waitUntil: 'domcontentloaded' });
   await waitReady(page);
   const no = await pickTra(page);
   if (no) { await routeApis(page, no, histMode); await page.evaluate(n => followTrainNo(n), no); }
   return { ctx, page, errs, no };
 }
+// 點不到／等不到一律吞掉例外往下走,讓後面的斷言以「量到什麼」具名轉紅——拋例外會中止整支腳本,
+// 只留一段堆疊,看不出還有什麼壞了(875fcf5 對 verify_plus_subscription 立的同一條原則)。
+// readCard() 對缺元素是 null-safe 的,所以卡片沒開時斷言拿到的是 hidden=true/空值,不是例外。
 async function openCardViaEntry(page) {
-  await page.waitForSelector('#fpDelay .fp-dhlink', { state: 'visible', timeout: 9000 });
-  await page.click('#fpDelay .fp-dhlink');
-  await page.waitForSelector('#delayHistPanel h3', { timeout: 6000 });
+  await page.waitForSelector('#fpDelay .fp-dhlink', { state: 'visible', timeout: 9000 }).catch(() => {});
+  await page.click('#fpDelay .fp-dhlink').catch(() => {});
+  await page.waitForSelector('#delayHistPanel h3', { timeout: 6000 }).catch(() => {});
 }
 
 const readCard = page => page.evaluate(() => {
@@ -169,12 +181,12 @@ async function fullFlow(browser, label, opts) {
   const { ctx, page, errs, no } = await bootFollowed(browser, { ...opts, histMode: 'full', tag: label });
   ok(`${label}0 找到台鐵車並跟隨`, !!no, `no=${no}`);
   // 等主入口出現(= delayStats 已載、renderDelayRow 已跑);此時次要入口(車次卡)同一 gate 也應解除 hidden
-  await page.waitForSelector('#fpDelay .fp-dhlink', { state: 'visible', timeout: 9000 });
+  await page.waitForSelector('#fpDelay .fp-dhlink', { state: 'visible', timeout: 9000 }).catch(() => {});
   const tcHidden = await page.evaluate(() => document.getElementById('tcDelayHist').hidden);
   ok(`${label}1 車次卡次要入口顯示(#tcDelayHist 非 hidden)`, tcHidden === false, `hidden=${tcHidden}`);
   await page.evaluate(() => { state.plus = { active: true }; }); // Plus 已訂閱 → 完整內容
   await openCardViaEntry(page);
-  await page.waitForSelector('#delayHistPanel .dh-bars', { timeout: 6000 });
+  await page.waitForSelector('#delayHistPanel .dh-bars', { timeout: 6000 }).catch(() => {});
   const c = await readCard(page);
   ok(`${label}2 卡片開啟(未隱藏)`, c.hidden === false);
   ok(`${label}3 統計列四值 = delayStats(平均2.4/準點82%/最大18/樣本26)`,
@@ -187,12 +199,12 @@ async function fullFlow(browser, label, opts) {
   ok(`${label}8 Plus active 無鎖層/CTA(完整內容)`, !c.hasLocked && !c.hasCta, `locked=${c.hasLocked} cta=${c.hasCta}`);
   ok(`${label}9 × 在 sticky h3 內(v0717p)`, c.closeInStickyH3);
   // × 可關
-  await page.click('#delayHistClose');
+  await page.click('#delayHistClose').catch(() => {});
   const closed = await page.evaluate(() => document.getElementById('delayHistPanel').hidden);
   ok(`${label}10 點 × 關閉卡片`, closed === true, `hidden=${closed}`);
   // 次要入口也能開卡
   await page.evaluate(() => document.getElementById('tcDelayHist').click());
-  await page.waitForSelector('#delayHistPanel .dh-bars', { timeout: 6000 });
+  await page.waitForSelector('#delayHistPanel .dh-bars', { timeout: 6000 }).catch(() => {});
   const via2 = await page.evaluate(() => !document.getElementById('delayHistPanel').hidden);
   ok(`${label}11 車次卡次要入口也能開卡`, via2 === true);
   ok(`${label}Z 本輪零 pageerror/console.error`, errs.length === 0, errs.slice(0, 3).join(' | '));
@@ -206,15 +218,15 @@ await fullFlow(webkitB, 'W(WebKit)', { width: 1280, height: 800 });
 {
   const { ctx, page, errs } = await bootFollowed(chromiumB, { tag: 'B', histMode: 'full' });
   await openCardViaEntry(page);
-  await page.waitForSelector('#delayHistPanel .dh-locked', { timeout: 6000 });
+  await page.waitForSelector('#delayHistPanel .dh-locked', { timeout: 6000 }).catch(() => {});
   const c = await readCard(page);
   ok('B1 未訂閱 → 圖表區有鎖層 .dh-locked', c.hasLocked, `locked=${c.hasLocked}`);
   ok('B2 鎖層 CSS filter 含 blur(模糊化)', /blur/.test(c.lockedBlur), `filter=${c.lockedBlur}`);
-  ok('B3 置中 CTA 鈕存在(訂閱 Plus 解鎖完整履歷)', c.hasCta && /訂閱 Plus 解鎖完整履歷/.test(c.text), `cta=${c.hasCta}`);
+  ok('B3 置中 CTA 鈕存在(訂閱通行證解鎖完整履歷)', c.hasCta && /訂閱通行證解鎖完整履歷/.test(c.text), `cta=${c.hasCta}`);
   ok('B4 未訂閱時統計列(teaser)仍可見', c.statVals.join(',') === ['2.4', '82%', '18', '26'].join(','), c.statVals.join(','));
   // 注入帳號+stub 商店 → 點 CTA 應開出 Plus modal
   await injectPlus(page, { mode: 'buy', subscribed: false });
-  await page.click('#delayHistPanel .dh-cta-btn');
+  await page.click('#delayHistPanel .dh-cta-btn').catch(() => {});
   await page.waitForSelector('#plusBody .plus-plan', { timeout: 6000 }).catch(() => {});
   const modal = await page.evaluate(() => ({ hidden: document.getElementById('plusModal').hidden, plans: document.querySelectorAll('#plusBody .plus-plan').length }));
   ok('B5 點 CTA 開出 Plus 訂閱視窗(plusGateOpen 首個接線點)', modal.hidden === false && modal.plans === 2, JSON.stringify(modal));
@@ -238,13 +250,24 @@ await stateFlow('C(空資料)', 'empty', c => {
   ok('C2 空資料態無長條/無鎖層', c.bars === 0 && !c.hasLocked, `bars=${c.bars}`);
 });
 await stateFlow('D(503)', '503', c => {
-  ok('D1 503 態顯示失敗訊息(含 503)', /暫時讀不到/.test(c.text) && /503/.test(c.text), c.msg);
+  // 原判準寫死措辭「暫時讀不到」,而 a40f63a(07-21)把文案改成「暫時無法載入」後就一直紅到今天
+  // ——那是判準過期,不是產品回歸(訊息在、狀態碼在、重試鈕在)。改綁「.dh-msg 這個元素帶出了
+  // 狀態碼」:元素是結構、503 是外部常數,兩者都不會因為改文案而漂移。比原判準更嚴(原本查整卡
+  // textContent,現在要求出現在失敗訊息元素裡)。措辭本身由 D2 之外的人工檢視負責。
+  ok('D1 503 態:.dh-msg 帶出狀態碼的失敗訊息(綁元素不綁措辭)', /503/.test(c.msg), `msg=${c.msg}`);
   ok('D2 503 態提供重試鈕', c.hasRetry, `retry=${c.hasRetry}`);
 });
 
-// ══════════════ E. 預設迴歸:無 ?plus=1 → 入口零存在、boot 零 error ══════════════
+// ══════════════ E. 開閘旗標迴歸:不帶任何 query string(＝真實網站訪客) → 入口對所有人不存在 ══════════════
+// 2026-08-04 改回「原生 App 恆開、網站要 ?plus=1」(部署不可分割,見 index.html PLUS_ENABLED
+// 旁的說明)。這一節原本驗的是「無 ?plus=1 ⇒ 入口零存在」,2026-08-02 開閘後那前提一度不成立
+// 而被改成反過來的斷言;現在旗標的行為又改回最初那個形狀,判準也跟著換回來——這不是走回頭路,
+// 是旗標本身的語意又變了(判準過期,不是產品回歸)。
+// E1/E2 驗「預設網址(無 qs)入口不存在」,E4 是正向對照:同一支收集器帶 ?plus=1 時必須真的抓得到
+// 入口,否則 E1/E2 的「0」可能只是選擇器打錯、腳本自己失明,不是產品真的關著。
+// 旗標若又被改回恆真(不分平台),E1/E2 會當場轉紅——這正是它現在守的東西。
 {
-  const { ctx, page, errs, no } = await bootFollowed(chromiumB, { tag: 'E', flag: false, histMode: 'full' });
+  const { ctx, page, errs, no } = await bootFollowed(chromiumB, { tag: 'E', histMode: 'full', qs: '' });
   await page.waitForSelector('#fpDelay:not([hidden])', { timeout: 9000 }).catch(() => {});
   const snap = await page.evaluate(() => ({
     fpDelayShown: !document.getElementById('fpDelay').hidden,
@@ -252,12 +275,25 @@ await stateFlow('D(503)', '503', c => {
     tcHidden: document.getElementById('tcDelayHist').hidden,
     panelHidden: document.getElementById('delayHistPanel').hidden,
   }));
-  ok('E0 準點列本身仍正常顯示(不受旗標影響)', snap.fpDelayShown === true, JSON.stringify(snap));
-  ok('E1 旗標關 → 主入口零存在(.fp-dhlink=0)', snap.dhLink === 0, `n=${snap.dhLink}`);
-  ok('E2 旗標關 → 次要入口保持 hidden', snap.tcHidden === true);
-  ok('E3 旗標關 → 卡片保持 hidden', snap.panelHidden === true);
+  ok('E0 準點列本身正常顯示(入口的前提條件:台鐵車+樣本足,不受 PLUS_ENABLED 影響)', snap.fpDelayShown === true, JSON.stringify(snap));
+  ok('E1 預設網址(無 ?plus=1,＝真實網站訪客) → 主入口不存在(.fp-dhlink=0)', snap.dhLink === 0, `n=${snap.dhLink}`);
+  ok('E2 預設網址 → 次要入口(車次卡)維持 hidden', snap.tcHidden === true, `tcHidden=${snap.tcHidden}`);
+  ok('E3 卡片預設關著(即使入口不存在,面板本身也不該被誤開)', snap.panelHidden === true);
   ok('E Z boot 零 pageerror/console.error', errs.length === 0, errs.slice(0, 4).join(' | '));
   await ctx.close();
+
+  // E4 正向對照:同一支收集器帶 ?plus=1 時,入口必須真的出現——證明 E1/E2 的「0」是產品行為,
+  // 不是收集器本身瞎眼(選擇器打錯、面板改名)。
+  const { ctx: ctx4, page: page4, errs: errs4 } = await bootFollowed(chromiumB, { tag: 'E4', histMode: 'full', qs: '?plus=1' });
+  await page4.waitForSelector('#fpDelay .fp-dhlink', { state: 'visible', timeout: 9000 }).catch(() => {});
+  const snap4 = await page4.evaluate(() => ({
+    dhLink: document.querySelectorAll('.fp-dhlink').length,
+    tcHidden: document.getElementById('tcDelayHist').hidden,
+  }));
+  ok('E4 正向對照:帶 ?plus=1 → 主入口存在(.fp-dhlink≥1)', snap4.dhLink >= 1, `n=${snap4.dhLink}`);
+  ok('E4 正向對照:帶 ?plus=1 → 次要入口(車次卡)不再是 hidden', snap4.tcHidden === false, `tcHidden=${snap4.tcHidden}`);
+  ok('E4 Z boot 零 pageerror/console.error', errs4.length === 0, errs4.slice(0, 4).join(' | '));
+  await ctx4.close();
 }
 
 // ══════════════ F. 寬度掃描:卡片開啟時與既有控件無相交(getBoundingClientRect) ══════════════
@@ -265,7 +301,7 @@ async function overlapAt(width, height, touch) {
   const { ctx, page, errs } = await bootFollowed(chromiumB, { width, height, touch, tag: `F${width}`, histMode: 'full' });
   await page.evaluate(() => { state.plus = { active: true }; });
   await openCardViaEntry(page);
-  await page.waitForSelector('#delayHistPanel .dh-bars', { timeout: 6000 });
+  await page.waitForSelector('#delayHistPanel .dh-bars', { timeout: 6000 }).catch(() => {});
   await page.waitForTimeout(650); // 讓 body.sheet-open 觸發的 .controls 淡出過渡(opacity .5s)走完再量
   const res = await page.evaluate(() => {
     const overlap = (a, b, eps = 0.5) => !(a.right <= b.left + eps || b.right <= a.left + eps || a.bottom <= b.top + eps || b.bottom <= a.top + eps);
@@ -304,22 +340,28 @@ async function shot(name, { width, height, touch, theme, locked = false }) {
   const { ctx, page } = await bootFollowed(chromiumB, { width, height, touch, theme, tag: `SHOT-${name}`, histMode: 'full' });
   if (!locked) await page.evaluate(() => { state.plus = { active: true }; });
   await openCardViaEntry(page);
-  await page.waitForSelector('#delayHistPanel .dh-bars', { timeout: 6000 });
+  await page.waitForSelector('#delayHistPanel .dh-bars', { timeout: 6000 }).catch(() => {});
   await page.waitForTimeout(300);
   const themeApplied = await page.evaluate(() => document.documentElement.getAttribute('data-theme'));
   const file = path.join(SHOT_DIR, `dh_${name}.png`);
-  await page.locator('#delayHistPanel').screenshot({ path: file });
-  console.log(`SHOT ${name} (data-theme=${themeApplied}) → ${file}`);
+  // 截不到就記下來交給 G2 具名報紅:面板沒開時 locator.screenshot 會 timeout 拋例外,
+  // 那會把整支腳本連同總計行一起帶走(＝複審 Minor a 指的那種「靜默跳過後面全部」)。
+  const shotOk = await page.locator('#delayHistPanel').screenshot({ path: file }).then(() => true, () => false);
+  console.log(`SHOT ${name} (data-theme=${themeApplied}) → ${file}${shotOk ? '' : ' (截圖失敗)'}`);
   await ctx.close();
-  return themeApplied;
+  return { theme: themeApplied, shotOk };
 }
 const tD1 = await shot('desktop_light', { width: 1280, height: 800, touch: false, theme: 'light' });
 const tD2 = await shot('desktop_dark', { width: 1280, height: 800, touch: false, theme: 'dark' });
 const tM1 = await shot('mobile_light', { width: 375, height: 812, touch: true, theme: 'light' });
 const tM2 = await shot('mobile_dark', { width: 375, height: 812, touch: true, theme: 'dark' });
-await shot('locked_light', { width: 1280, height: 800, touch: false, theme: 'light', locked: true });
-await shot('locked_mobile_dark', { width: 375, height: 812, touch: true, theme: 'dark', locked: true });
-ok('G1 亮/暗主題確實套用(截圖用)', tD1 === 'light' && tD2 === 'dark' && tM1 === 'light' && tM2 === 'dark', `${tD1}/${tD2}/${tM1}/${tM2}`);
+const tL1 = await shot('locked_light', { width: 1280, height: 800, touch: false, theme: 'light', locked: true });
+const tL2 = await shot('locked_mobile_dark', { width: 375, height: 812, touch: true, theme: 'dark', locked: true });
+const shots = [tD1, tD2, tM1, tM2, tL1, tL2];
+ok('G1 亮/暗主題確實套用(截圖用)', tD1.theme === 'light' && tD2.theme === 'dark' && tM1.theme === 'light' && tM2.theme === 'dark',
+  `${tD1.theme}/${tD2.theme}/${tM1.theme}/${tM2.theme}`);
+ok('G2 六張截圖都真的產出(截不到 = 面板根本沒開,不可以靜默放過)', shots.every(s => s.shotOk),
+  `成功 ${shots.filter(s => s.shotOk).length}/6`);
 
 // ══════════════ 收尾 ══════════════
 ok('K 全程 pageerror/console.error 為零', allErrors.length === 0, allErrors.slice(0, 8).join(' | '));

@@ -186,9 +186,11 @@ html = replaceHtmlRegion(html, 'status-link',
 // (5) 注入:第三方授權入口＋功能旗標＋RAIL_APP_CONFIG(授權圖磚與計量底圖的跟車 zoom 上限)
 const appConfig = includeLicensedBasemaps ? {
   followZoomCap: 16, // 計量底圖止血:跟車進場/導播 zoom 上限(index.html 的 FOLLOW_ZOOM_CAP/DIRECTOR_FOLLOW_Z 消費)
-  // 2026-07-29 關掉(與 index.html 的 SAT_RETINA_DEFAULT 同一輪)：Esri 圖磚配額眼看要用完。
+  // 2026-07-29 曾因圖磚配額吃緊整個關掉;2026-08-02 改成收斂給 Plus 訂閱者
+  // (index.html 的 satRetinaAllowed())——這裡只決定「這個平台建不建得出高解析層」，
+  // 不等於全體使用者都拿得到:非 Plus 一律降回標準解析，所以額度風險已由訂閱資格擋住。
   // 🔴 這個值一旦 build 進 App 就鎖死到下一次送審——網站改一行部署就生效，App 不行。
-  satRetina: false, // 衛星 Retina 高解析(index.html 的 SAT_RETINA 消費)。true → 圖磚請求量明顯增加、Retina 螢幕較銳利
+  satRetina: true, // 兩層都建;實際給不給高解析由 index.html 的 satRetinaAllowed()(訂閱資格)決定。額度吃緊時改 false＝全體降回標準解析
   // 衛星計費模式從「按張數」升級成「按 session」時，App 殼要自己跟 Esri 開 session（index.html 的
   // fetchSatSession 消費）。網站那把金鑰有 referrer 白名單所以得繞 Worker，App 這把沒有，
   // capacitor://localhost 實測可直接開（2026-08-01 正負對照驗過）。
@@ -200,9 +202,20 @@ const appConfig = includeLicensedBasemaps ? {
     sat: { url: `https://ibasemaps-api.arcgis.com/arcgis/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}?token=${esriApiKey}`, maxZoom: 19, attribution: 'Tiles &copy; Esri — Source: Esri, Maxar, Earthstar Geographics' }
   }
 } : null;
+// sandbox(TestFlight／模擬器／Xcode 直裝)購買的 Plus 資格要不要算數。預設 false——RevenueCat 的
+// entitlements.active 等同 activeInAnyEnvironment,不收斂就等於讓 sandbox 購買解鎖正式付費功能
+// (index.html 的 plusActiveFrom 有完整說明)。只有明確帶 RAIL_PLUS_SANDBOX_OK=1 建的內部測試版
+// 才會是 true,而 verify-release.mjs 的 assertPlusSandboxOff 會擋下把 true 打包進發行版
+// ⇒ 這是建置期的測試通道,不是使用者可切換的開關。無條件注入(值 true/false 都寫出來),
+// 讓發版閘門驗的是「明確是 false」而不是「字串剛好不存在」。
+const plusSandboxOk = process.env.RAIL_PLUS_SANDBOX_OK === '1';
+const plusSandboxBuild = String(process.env.RAIL_PLUS_SANDBOX_BUILD || '');
+if (plusSandboxOk && !/^[1-9]\d*$/.test(plusSandboxBuild)) {
+  throw new Error('RAIL_PLUS_SANDBOX_OK=1 時必須同時提供正整數 RAIL_PLUS_SANDBOX_BUILD，讓 Worker 能把測試通道限縮到指定 build');
+}
 html = html
   .replace('<span class="ver" id="buildVer"></span>', '<a href="third-party-notices.txt" target="_blank" rel="noopener" style="min-height:44px;display:inline-flex;align-items:center;padding:0 4px">第三方軟體授權</a>\n      <span class="ver" id="buildVer"></span>')
-  .replace('<script src="revenuecat-config.js"></script>', `<script src="revenuecat-config.js"></script>\n<script>window.RAIL_MUSIC_AVAILABLE=${includeLicensedMusic};window.RAIL_ONLINE_BASEMAPS_AVAILABLE=${includeLicensedBasemaps}${appConfig ? `;window.RAIL_APP_CONFIG=${JSON.stringify(appConfig)}` : ''}</script>\n<script src="native-bridge.js"></script>`);
+  .replace('<script src="revenuecat-config.js"></script>', `<script src="revenuecat-config.js"></script>\n<script>window.RAIL_MUSIC_AVAILABLE=${includeLicensedMusic};window.RAIL_ONLINE_BASEMAPS_AVAILABLE=${includeLicensedBasemaps};window.RAIL_PLUS_SANDBOX_OK=${plusSandboxOk};window.RAIL_PLUS_SANDBOX_BUILD=${plusSandboxOk ? JSON.stringify(plusSandboxBuild) : 'null'}${appConfig ? `;window.RAIL_APP_CONFIG=${JSON.stringify(appConfig)}` : ''}</script>\n<script src="native-bridge.js"></script>`);
 if (!html.includes('vendor/leaflet/leaflet.js') || !html.includes('native-bridge.js')) throw new Error('App index vendor/native bridge injection failed');
 if (/ko-fi|PayPal|111010691056|web-only-donation-log|贊助方式更新/i.test(html) || html.includes('id="donateCopy"') || html.includes('class="foot-box foot-donate"')) throw new Error('External donation content leaked into native App');
 if (/cartocdn\.com|arcgisonline\.com/i.test(html)) throw new Error('App index still contains unlicensed CARTO/Esri tile URLs');
@@ -212,6 +225,7 @@ await verifyRelease({
   out,
   expectLicensedMusic: includeLicensedMusic,
   expectLicensedBasemaps: includeLicensedBasemaps,
+  expectPlusSandboxBuild: plusSandboxOk ? plusSandboxBuild : null,
   // cap sync 在 build 之後才跑,此刻原生內嵌資產必然還是舊版;原生同步的比對留給獨立的 npm run verify。
   skipNativeSyncCheck: true
 });

@@ -1,0 +1,340 @@
+// 用 Firestore 規則模擬器實測 firestore.rules（不是讀規則檔用推論）。
+//
+// 跑法（java 是 keg-only，要自己進 PATH）：
+//   PATH="/usr/local/opt/openjdk/bin:$PATH" \
+//   node_modules/.bin/firebase emulators:exec --only firestore --project demo-rail \
+//     'node scripts/verify_firestore_rules.mjs'
+//
+// 專案 id 用 `demo-` 前綴 ⇒ 模擬器完全離線，不需要任何憑證，也絕不會碰到正式資料。
+import { readFileSync } from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { createHash } from 'node:crypto';
+import { initializeTestEnvironment, assertSucceeds, assertFails } from '@firebase/rules-unit-testing';
+import { doc, getDoc, setDoc, deleteDoc, serverTimestamp } from 'firebase/firestore';
+
+// 任何提早離開的路徑（例外、reject、逾時）都要印得出可辨識的一行——空輸出或裸 Node stack
+// trace 會被「grep 有沒有 FAIL」的判斷者（人或 CI）誤讀成全綠。這是本批次真的踩到的坑。
+function bail(line) {
+  console.log(line);
+  process.exit(1);
+}
+process.on('unhandledRejection', (reason) => {
+  bail(`FAIL unhandled rejection — ${reason && reason.message ? reason.message : String(reason)}`);
+});
+process.on('uncaughtException', (err) => {
+  bail(`FAIL uncaught exception — ${err && err.message ? err.message : String(err)}`);
+});
+
+const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+const RULES_PATH = path.join(ROOT, 'firestore.rules');
+const RULES = readFileSync(RULES_PATH, 'utf8');
+console.log(`[G0] ROOT=${ROOT}`);
+console.log(`[G0] firestore.rules md5=${createHash('md5').update(RULES).digest('hex')}`);
+
+// 預期會執行的斷言數。具名常數，刻意寫死——**不可**從下面的 pass/fail 計數自己推導，
+// 那樣「少跑幾條」永遠會自動通過，這道閘門就變成零資訊的裝飾品。
+const EXPECTED_CHECK_COUNT = 18;
+
+const HOST = '127.0.0.1';
+const PORT = Number(process.env.FIRESTORE_EMULATOR_PORT || (process.env.FIRESTORE_EMULATOR_HOST || '').split(':')[1] || 8080);
+
+// 啟動前先比對 env port 與 firebase.json：不一致就直接 FAIL 並把兩個值都印出來，不要等到
+// 連線逾時才發現——這正是本批次踩到的真實情境（用了 8579，firebase.json 宣告 8577）。
+const FIREBASE_JSON_PATH = path.join(ROOT, 'firebase.json');
+const firebaseJson = JSON.parse(readFileSync(FIREBASE_JSON_PATH, 'utf8'));
+const DECLARED_PORT = firebaseJson?.emulators?.firestore?.port;
+if (typeof DECLARED_PORT !== 'number') {
+  bail(`FAIL firebase.json 沒有宣告 emulators.firestore.port（path=${FIREBASE_JSON_PATH}）`);
+}
+if (PORT !== DECLARED_PORT) {
+  bail(`FAIL port 不一致 — env 解析出 FIRESTORE_EMULATOR_PORT=${PORT}，但 firebase.json 宣告 `
+    + `emulators.firestore.port=${DECLARED_PORT}（兩者必須相同，否則模擬器沒連上也不會有人發現）`);
+}
+
+// 連不上要大聲失敗：具名 timeout＋具名 catch。沒有這層時，模擬器沒起來只會是一則沒有
+// 「FAIL」字樣的裸 Node stack trace（見 Codex 2026-08-04 Minor 3）。
+const CONNECT_TIMEOUT_MS = 15_000;
+function withTimeout(promise, ms, label) {
+  let timer;
+  const timeout = new Promise((_, reject) => {
+    timer = setTimeout(() => reject(new Error(`${label} 逾時 ${ms}ms`)), ms);
+  });
+  return Promise.race([promise, timeout]).finally(() => clearTimeout(timer));
+}
+
+let testEnv;
+try {
+  testEnv = await withTimeout(
+    initializeTestEnvironment({
+      projectId: 'demo-rail',
+      firestore: { rules: RULES, host: HOST, port: PORT },
+    }),
+    CONNECT_TIMEOUT_MS,
+    `connect ${HOST}:${PORT}`,
+  );
+} catch (e) {
+  bail(`FAIL emulator connection ${HOST}:${PORT} — ${e && e.message ? e.message : String(e)}`);
+}
+
+let pass = 0, fail = 0;
+async function check(name, fn) {
+  try { await fn(); pass++; console.log(`PASS ${name}`); }
+  catch (e) { fail++; console.log(`FAIL ${name} — ${e && e.message ? e.message : String(e)}`); }
+}
+
+const UID_A = 'uid-a', UID_B = 'uid-b';
+// 合法的同步文件形狀，逐欄對齊 rules 的 hasOnly 白名單。
+const validDoc = (kind = 'favs', revision = 1) => ({
+  version: 1, kind, revision, clientUpdatedAt: Date.now(),
+  items: [], tombstones: [], updatedAt: serverTimestamp(),
+});
+
+const dataRef = (db, uid, kind = 'favs') => doc(db, 'users', uid, 'data', kind);
+const sandboxDataRef = (db, uid, kind = 'favs') => doc(db, 'sandboxUsers', uid, 'data', kind);
+const entitlementRef = (db, uid) => doc(db, 'entitlements', uid);
+const sandboxEntitlementRef = (db, uid) => doc(db, 'sandboxEntitlements', uid);
+const entitlementDoc = ({ active = true, activeUntilMs = Date.now() + 86_400_000 } = {}) => ({
+  active, activeUntilMs, updatedAtMs: Date.now(), source: 'plus-status',
+});
+
+async function seedEntitlement(uid, data = entitlementDoc()) {
+  await testEnv.withSecurityRulesDisabled(async context => {
+    await assertSucceeds(setDoc(entitlementRef(context.firestore(), uid), data));
+  });
+}
+
+async function seedSandboxEntitlement(uid, data = entitlementDoc()) {
+  await testEnv.withSecurityRulesDisabled(async context => {
+    await assertSucceeds(setDoc(sandboxEntitlementRef(context.firestore(), uid), data));
+  });
+}
+
+async function removeEntitlement(uid) {
+  await testEnv.withSecurityRulesDisabled(async context => {
+    await deleteDoc(entitlementRef(context.firestore(), uid));
+  });
+}
+
+async function seedData(uid, kind = 'favs') {
+  await testEnv.withSecurityRulesDisabled(async context => {
+    await assertSucceeds(setDoc(dataRef(context.firestore(), uid, kind), validDoc(kind)));
+  });
+}
+
+async function removeData(uid, kind = 'favs') {
+  await testEnv.withSecurityRulesDisabled(async context => {
+    await deleteDoc(dataRef(context.firestore(), uid, kind));
+  });
+}
+
+// ── 現行規則的既有保證（Task 8 收緊之後這些都不得退化）────────────────────────
+await check('R1 本人有有效資格時可以建立與更新自己的同步文件', async () => {
+  await seedEntitlement(UID_A);
+  const db = testEnv.authenticatedContext(UID_A).firestore();
+  await assertSucceeds(setDoc(dataRef(db, UID_A), validDoc()));
+  await assertSucceeds(setDoc(dataRef(db, UID_A), validDoc('favs', 2)));
+});
+
+await check('R2 本人無資格仍可以讀自己的同步文件', async () => {
+  const uid = 'r2-no-entitlement';
+  await removeEntitlement(uid);
+  await seedData(uid);
+  const db = testEnv.authenticatedContext(uid).firestore();
+  await assertSucceeds(getDoc(dataRef(db, uid)));
+});
+
+await check('R3 本人無資格仍可以刪自己的同步文件（帳號刪除要走這條）', async () => {
+  const uid = 'r3-no-entitlement';
+  await removeEntitlement(uid);
+  await seedData(uid);
+  const db = testEnv.authenticatedContext(uid).firestore();
+  await assertSucceeds(deleteDoc(dataRef(db, uid)));
+});
+
+await check('R4 別人的 uid 一律寫不了', async () => {
+  const uid = 'r4-owner';
+  await seedEntitlement(uid);
+  const intruderDb = testEnv.authenticatedContext(UID_B).firestore();
+  const ownerDb = testEnv.authenticatedContext(uid).firestore();
+  await removeData(uid);
+  await assertFails(setDoc(dataRef(intruderDb, uid), validDoc()));
+  await assertSucceeds(setDoc(dataRef(ownerDb, uid), validDoc()));
+  await assertFails(setDoc(dataRef(intruderDb, uid), validDoc('favs', 2)));
+  await assertSucceeds(setDoc(dataRef(ownerDb, uid), validDoc('favs', 2)));
+  await assertFails(deleteDoc(dataRef(intruderDb, uid)));
+  await assertSucceeds(deleteDoc(dataRef(ownerDb, uid)));
+});
+
+await check('R5 別人的 uid 一律讀不了', async () => {
+  const uid = 'r5-owner';
+  await seedEntitlement(uid);
+  await seedData(uid);
+  const intruderDb = testEnv.authenticatedContext(UID_B).firestore();
+  const ownerDb = testEnv.authenticatedContext(uid).firestore();
+  await assertFails(getDoc(dataRef(intruderDb, uid)));
+  await assertSucceeds(getDoc(dataRef(ownerDb, uid)));
+});
+
+await check('R6 未登入一律寫不了', async () => {
+  const uid = 'r6-owner';
+  await seedEntitlement(uid);
+  const unauthDb = testEnv.unauthenticatedContext().firestore();
+  const ownerDb = testEnv.authenticatedContext(uid).firestore();
+  await assertFails(setDoc(dataRef(unauthDb, uid), validDoc()));
+  await assertSucceeds(setDoc(dataRef(ownerDb, uid), validDoc()));
+});
+
+await check('R7 不在白名單的 kind 寫不了', async () => {
+  const uid = 'r7-owner';
+  await seedEntitlement(uid);
+  const db = testEnv.authenticatedContext(uid).firestore();
+  await assertFails(setDoc(dataRef(db, uid, 'secrets'), validDoc('secrets')));
+  await assertSucceeds(setDoc(dataRef(db, uid), validDoc()));
+});
+
+await check('R8 多帶一個欄位就寫不了（hasOnly 白名單有牙）', async () => {
+  const uid = 'r8-owner';
+  await seedEntitlement(uid);
+  const db = testEnv.authenticatedContext(uid).firestore();
+  await assertFails(setDoc(dataRef(db, uid), { ...validDoc(), evil: 1 }));
+  await assertSucceeds(setDoc(dataRef(db, uid), validDoc()));
+});
+
+await check('R9 entitlements 客戶端一律寫不了（只能由後端 Admin 憑證寫）', async () => {
+  const uid = 'r9-owner';
+  const db = testEnv.authenticatedContext(uid).firestore();
+  await assertFails(setDoc(entitlementRef(db, uid), entitlementDoc()));
+  await seedEntitlement(uid);
+});
+
+await check('R10 entitlements 本人讀得到', async () => {
+  await seedEntitlement(UID_A);
+  const db = testEnv.authenticatedContext(UID_A).firestore();
+  await assertSucceeds(getDoc(entitlementRef(db, UID_A)));
+});
+
+// ── Task 8：Plus 資格閘門。拒絕案例都在同一情境內附可寫的正向對照。──────────
+await check('E1 無資格文件時 create/update 都不可寫；有效資格對照可寫', async () => {
+  const uid = 'e1-missing';
+  const db = testEnv.authenticatedContext(uid).firestore();
+  await removeEntitlement(uid);
+  await removeData(uid);
+  await assertFails(setDoc(dataRef(db, uid), validDoc()));
+  await seedData(uid);
+  await assertFails(setDoc(dataRef(db, uid), validDoc('favs', 2)));
+
+  await seedEntitlement(uid);
+  await removeData(uid);
+  await assertSucceeds(setDoc(dataRef(db, uid), validDoc()));
+  await assertSucceeds(setDoc(dataRef(db, uid), validDoc('favs', 2)));
+});
+
+await check('E2 active:false 時 create/update 都不可寫；active:true 對照可寫', async () => {
+  const uid = 'e2-inactive';
+  const db = testEnv.authenticatedContext(uid).firestore();
+  // 🔴 到期時間**必須留在未來**（用預設值），不可以像以前那樣一起寫 0。
+  // 理由：規則是 `active == true && activeUntilMs > now` 的合取式。fixture 若把兩個條件
+  // 同時弄成假，那份文件會先被到期子句擋下，`active == true` 就不再是 load-bearing——
+  // 這條斷言宣稱在測 active，實際上測到的是到期。實測過：把 `active == true` 整行從
+  // firestore.rules 刪掉，全套仍然 14/14 全綠，E2 一聲不吭。
+  // （這是 6ddbf93 拿掉 `activeUntilMs == 0 ||` 之後才出現的副作用：在那之前 0 代表
+  //   「永不失效」＝到期子句為真，active 才是唯一擋得住的條件。）
+  // 只讓「被測的那一個條件」為假，其餘全部保持為真——合取式判準的通則。
+  await seedEntitlement(uid, entitlementDoc({ active: false }));
+  await removeData(uid);
+  await assertFails(setDoc(dataRef(db, uid), validDoc()));
+  await seedData(uid);
+  await assertFails(setDoc(dataRef(db, uid), validDoc('favs', 2)));
+
+  await seedEntitlement(uid);
+  await removeData(uid);
+  await assertSucceeds(setDoc(dataRef(db, uid), validDoc()));
+  await assertSucceeds(setDoc(dataRef(db, uid), validDoc('favs', 2)));
+});
+
+await check('E3 資格已過期時 create/update 都不可寫；未到期對照可寫', async () => {
+  const uid = 'e3-expired';
+  const db = testEnv.authenticatedContext(uid).firestore();
+  await seedEntitlement(uid, entitlementDoc({ activeUntilMs: Date.now() - 86_400_000 }));
+  await removeData(uid);
+  await assertFails(setDoc(dataRef(db, uid), validDoc()));
+  await seedData(uid);
+  await assertFails(setDoc(dataRef(db, uid), validDoc('favs', 2)));
+
+  await seedEntitlement(uid);
+  await removeData(uid);
+  await assertSucceeds(setDoc(dataRef(db, uid), validDoc()));
+  await assertSucceeds(setDoc(dataRef(db, uid), validDoc('favs', 2)));
+});
+
+// 🔴 2026-08-04:這條原本叫「activeUntilMs == 0 的終身資格可 create/update」,斷言方向與現在相反。
+// 那個「0＝終身」是從實作回推的假設,不是規格(RevenueCat 的 ends_at 為 null 是「無限期暫停」),
+// 敵意稽核 I-6 已經把它從 worker 那半邊拿掉——active 文件不再寫得出 0。判準卻還把規則這半邊的
+// 同一個誤讀釘住,等於用測試保護一個洞:任何讓 0 落地的回歸或外力寫入,都會被升級成永不失效的
+// 雲端寫入權,而且測試會說這是對的。方向改成「0 ⇒ 拒絕」。
+await check('E4 active 文件的 activeUntilMs == 0 ⇒ 拒絕（0 不是終身標記）；換成有界到期時間的對照可寫', async () => {
+  const uid = 'e4-zero-until';
+  const db = testEnv.authenticatedContext(uid).firestore();
+  await seedEntitlement(uid, entitlementDoc({ activeUntilMs: 0 }));
+  await removeData(uid);
+  await assertFails(setDoc(dataRef(db, uid), validDoc()));
+  await seedData(uid);
+  await assertFails(setDoc(dataRef(db, uid), validDoc('favs', 2)));
+
+  // 正向對照(照 E2／E3 的形狀):同一個 uid、同一份資料,只把 activeUntilMs 換成有界的未來時間
+  // ⇒ 可寫。少了這一段,上面兩發 assertFails 可能是別的原因造成的——拒絕永遠比放行容易誤中。
+  await seedEntitlement(uid);
+  await removeData(uid);
+  await assertSucceeds(setDoc(dataRef(db, uid), validDoc()));
+  await assertSucceeds(setDoc(dataRef(db, uid), validDoc('favs', 2)));
+});
+
+// ── build 21 TestFlight：Sandbox 資格與正式同步資料雙向隔離 ────────────────────────
+await check('S1 有效 Sandbox 資格只能寫 sandboxUsers，不能寫正式 users', async () => {
+  const uid = 's1-sandbox-only';
+  await seedSandboxEntitlement(uid);
+  const db = testEnv.authenticatedContext(uid).firestore();
+  await assertSucceeds(setDoc(sandboxDataRef(db, uid), validDoc()));
+  await assertFails(setDoc(dataRef(db, uid), validDoc()));
+});
+
+await check('S2 有效正式資格只能寫正式 users，不能寫 sandboxUsers', async () => {
+  const uid = 's2-production-only';
+  await seedEntitlement(uid);
+  const db = testEnv.authenticatedContext(uid).firestore();
+  await assertSucceeds(setDoc(dataRef(db, uid), validDoc()));
+  await assertFails(setDoc(sandboxDataRef(db, uid), validDoc()));
+});
+
+await check('S3 Sandbox 同步資料仍只允許本人讀寫，別人不可碰', async () => {
+  const uid = 's3-owner';
+  await seedSandboxEntitlement(uid);
+  const ownerDb = testEnv.authenticatedContext(uid).firestore();
+  const intruderDb = testEnv.authenticatedContext(UID_B).firestore();
+  await assertSucceeds(setDoc(sandboxDataRef(ownerDb, uid), validDoc()));
+  await assertSucceeds(getDoc(sandboxDataRef(ownerDb, uid)));
+  await assertFails(getDoc(sandboxDataRef(intruderDb, uid)));
+  await assertFails(setDoc(sandboxDataRef(intruderDb, uid), validDoc('favs', 2)));
+});
+
+await check('S4 sandboxEntitlements 本人可讀、客戶端一律不可寫', async () => {
+  const uid = 's4-entitlement';
+  await seedSandboxEntitlement(uid);
+  const db = testEnv.authenticatedContext(uid).firestore();
+  await assertSucceeds(getDoc(sandboxEntitlementRef(db, uid)));
+  await assertFails(setDoc(sandboxEntitlementRef(db, uid), entitlementDoc()));
+});
+
+await testEnv.cleanup();
+
+// executed count 閘門：實際跑過的斷言數必須等於預期條數，抓「少跑一條卻沒人發現」。
+const executed = pass + fail;
+if (executed !== EXPECTED_CHECK_COUNT) {
+  fail += 1;
+  console.log(`FAIL executed count ${executed} != expected ${EXPECTED_CHECK_COUNT}`
+    + `（有斷言沒被跑到——對照上面逐行 PASS/FAIL 找漏掉哪條）`);
+}
+
+console.log(`\n合計 ${pass} PASS / ${fail} FAIL`);
+process.exit(fail ? 1 : 0);

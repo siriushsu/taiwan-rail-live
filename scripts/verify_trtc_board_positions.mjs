@@ -8,10 +8,15 @@ import { chromium, webkit } from 'playwright';
 import { buildTrtcModel, resolveBoardRows, claimBoardRows, collapseClaims,
   branchLineHintsFromLedger } from './trtc_board_ledger.mjs';
 
-const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+const ROOT = path.resolve(process.env.TRTC_POS_ROOT || path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..'));
+const OUTPUT = path.resolve(process.env.TRTC_POS_OUTPUT || path.join(ROOT, 'tmp/verify_trtc_board_positions-output.json'));
+const PAGE_ROOT = path.resolve(process.env.TRTC_POS_PAGE_ROOT || ROOT);
+const PAGE_HTML = PAGE_ROOT === ROOT ? null : fs.readFileSync(path.join(PAGE_ROOT, 'index.html'), 'utf8');
 const FIXTURE_PORT = Number(process.env.TRTC_POS_FIXTURE_PORT || 43387);
 const WORKER_PORT = Number(process.env.TRTC_POS_WORKER_PORT || 43389);
 const INSPECTOR_PORT = Number(process.env.TRTC_POS_INSPECTOR_PORT || 43390);
+const PERSIST_DIR = process.env.TRTC_POS_PERSIST_DIR || fs.mkdtempSync('/tmp/railisland-trtc-pos-');
+const CLEAN_PERSIST_DIR = !process.env.TRTC_POS_PERSIST_DIR;
 const FIXTURE = `http://127.0.0.1:${FIXTURE_PORT}`;
 const BASE = `https://127.0.0.1:${WORKER_PORT}`;
 const SCREEN_BASELINE_REF = process.env.TRTC_SCREEN_BASELINE_REF || '45f0fc1';
@@ -125,6 +130,39 @@ async function waitFor(child, pattern, timeoutMs) {
   });
 }
 
+// 就緒＝**這台 server 對任何請求給得出一個 HTTP 回應**：不看狀態碼、不比對 wrangler 的 log 措辭。
+//
+// 🔴 2026-08-05：原本等 `/Ready on https:\/\/localhost/` **只等 30 秒**，於是這支長期在任何一條
+// 斷言跑到之前就 exit 1（覆蓋率＝0），症狀偽裝成「環境問題」。受控實驗（每 10 秒探一次）量到：
+// wrangler **立刻就 bind 好埠**（`lsof` 馬上看得到 LISTEN），但要**約 50 秒**才真的能服務，
+// 暖機期間單一發請求會卡 13～50 秒。真因就是等太短。
+//   · 我一度誤判成「這版 wrangler 不印 Ready on 了」——手動觀察只等 45 秒。它有印，只是很慢。
+//   · 每一發必須自帶 timeout：node 的 `fetch` 沒有預設 timeout，三發卡住就把整個 deadline 用光。
+//   · 刻意**不**把「非 503」當就緒條件——`/api/delay-stats` 在全新的本機 D1 上本來就回 503，
+//     那是環境條件不是暖機狀態，寫進就緒條件會讓這支永遠等不到（試過，是上一版的紅因）。
+// 總 deadline 給 300 秒：50 秒是機器閒置時的值，這台常有 2 個 session 併跑，實測會更久。
+async function waitForHttp(url, timeoutMs, child) {
+  const prev = process.env.NODE_TLS_REJECT_UNAUTHORIZED;
+  process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';                 // 本機 wrangler 是自簽憑證
+  try {
+    const deadline = Date.now() + timeoutMs;
+    let last = '(還沒送出任何請求)';
+    while (Date.now() < deadline) {
+      if (child && child.exitCode !== null) throw new Error(`server exited ${child.exitCode}`);
+      try {
+        const r = await fetch(url, { signal: AbortSignal.timeout(8000) });
+        await r.text();
+        return r.status;
+      } catch (e) { last = String((e && e.message) || e); }
+      await new Promise(res => setTimeout(res, 1000));
+    }
+    throw new Error(`server ready timeout：${timeoutMs}ms 內 ${url} 一個 HTTP 回應都沒給（最後一次：${last}）`);
+  } finally {
+    if (prev === undefined) delete process.env.NODE_TLS_REJECT_UNAUTHORIZED;
+    else process.env.NODE_TLS_REJECT_UNAUTHORIZED = prev;
+  }
+}
+
 const model = buildTrtcModel( // includeY 必須與 worker.js 的 trtcBoardModel 一致，否則本地錨點少一條線
   JSON.parse(fs.readFileSync(path.join(ROOT, 'data/trtc.json'))),
   JSON.parse(fs.readFileSync(path.join(ROOT, 'data/trtc_times.json'))),
@@ -200,7 +238,7 @@ function injectBrDelay(raw, seconds) {
 const LEAFLET_DIST = process.env.TRTC_LEAFLET_DIST || '/tmp/trtc-playwright-deps/node_modules/leaflet/dist';
 const leafletJs = fs.readFileSync(path.join(LEAFLET_DIST, 'leaflet.js'));
 const leafletCss = fs.readFileSync(path.join(LEAFLET_DIST, 'leaflet.css'));
-async function preparePage(page, documentHtml = null) {
+async function preparePage(page, documentHtml = PAGE_HTML) {
   await page.addInitScript(() => localStorage.setItem('trainmap-howto-seen', '1'));
   await page.route('**/*', async route => {
     const url = new URL(route.request().url());
@@ -278,10 +316,11 @@ async function run() {
     await waitFor(fixtureProc, /"ready":true/, 10000);
     workerProc = spawn('arch', ['-arm64', process.execPath, path.join(ROOT, 'node_modules/wrangler/bin/wrangler.js'),
       'dev', '--local-protocol', 'https', '--port', String(WORKER_PORT), '--inspector-port', String(INSPECTOR_PORT), '--test-scheduled',
+      '--persist-to', PERSIST_DIR,
       '--var', 'TRTC_API_USER:fixture-user', '--var', 'TRTC_API_PASS:fixture-pass',
       '--var', `TRTC_API_BASE:${FIXTURE}`, '--var', 'TRTC_BOARD_SAMPLE_DELAY_MS:0'],
       { cwd: ROOT, stdio: ['ignore', 'pipe', 'pipe'] });
-    await waitFor(workerProc, /Ready on https:\/\/localhost/, 30000);
+    await waitForHttp(`${BASE}/api/delay-stats`, 300000, workerProc);   // 這台實測閒置約 50 秒才能服務;兩個 session 併跑時更久
 
     browser = await chromium.launch({ headless: true });
     const context = await browser.newContext({ viewport: { width: 1280, height: 900 }, ignoreHTTPSErrors: true });
@@ -683,9 +722,10 @@ async function run() {
     if (workerProc && !workerProc.killed) workerProc.kill('SIGTERM');
     if (fixtureProc && !fixtureProc.killed) fixtureProc.kill('SIGTERM');
     await sleep(100);
+    if (CLEAN_PERSIST_DIR) fs.rmSync(PERSIST_DIR, { recursive: true, force: true });
     fs.mkdirSync(path.join(ROOT, 'tmp'), { recursive: true });
     output.failures = failures;
-    fs.writeFileSync(path.join(ROOT, 'tmp/verify_trtc_board_positions-output.json'), JSON.stringify(output, null, 2) + '\n');
+    fs.writeFileSync(OUTPUT, JSON.stringify(output, null, 2) + '\n');
   }
   if (failures) process.exitCode = 1;
 }
@@ -695,7 +735,7 @@ run().catch(error => {
   output.error = String(error && error.stack || error);
   output.failures = failures;
   fs.mkdirSync(path.join(ROOT, 'tmp'), { recursive: true });
-  fs.writeFileSync(path.join(ROOT, 'tmp/verify_trtc_board_positions-output.json'), JSON.stringify(output, null, 2) + '\n');
+  fs.writeFileSync(OUTPUT, JSON.stringify(output, null, 2) + '\n');
   console.error(output.error);
   process.exitCode = 1;
 });

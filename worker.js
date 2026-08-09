@@ -1,6 +1,7 @@
 import {
   TRTC_LEDGER_SCHEMA, buildTrtcModel, buildLedgerFromRaw,
   trtcOperatingState, trtcServiceDay, resolveBoardRows, claimBoardRows, collapseClaims,
+  bindTracksToTrips, buildTripSetsByLineDir, joinBoardRowsToTrips,
 } from './scripts/trtc_board_ledger.mjs';
 
 // Cloudflare Worker 入口:靜態資產(assets binding)+ /api/tra-live 台鐵即時動態代理
@@ -17,10 +18,55 @@ const ALERT_URL = 'https://tdx.transportdata.tw/api/basic/v3/Rail/TRA/Alert?%24f
 // 高鐵營運狀態:TDX 僅 v2 有 Rail/THSR/AlertInfo(v3 為 404),回頂層陣列,正常時單筆「全線營運正常(Normal)」
 const THSR_ALERT_URL = 'https://tdx.transportdata.tw/api/basic/v2/Rail/THSR/AlertInfo?%24format=JSON';
 
+// ══ 憑證 subrequest 的 redirect 政策(2026-08-04 敵意稽核 C-1)═══════════════════════════
+//
+// 🔴 2026-08-04 23:36 事故:這條政策原本寫 `redirect: 'error'`,上線後正式站所有打 TDX 的端點
+// 全部 502(tra-live／metro-live／三個 alert),十六分鐘後回滾。**Cloudflare Workers 的 fetch()
+// 根本不接受 'error'**,runtime 在呼叫當下就丟:
+//   Invalid redirect value, must be one of "follow" or "manual"
+//   ("error" won't be implemented since it does not make sense at the edge;
+//    use "manual" and check the response status code)
+// ——與上游回不回 30x 完全無關,每一發都炸。當時的判準 verify_plus_redirect_policy.mjs 全綠,
+// 因為它跑在本機 Node(Node 的 fetch **支援** 'error')且自己 mock 了「遇到 30x 才 reject」的
+// Workers 語意——判準的行為模型與實作出自同一個誤解,結構上測不出來。
+//
+// 現行政策:一律 `redirect: 'manual'`,**呼叫端負責把非 2xx 擋掉**(本檔 20 處全部有 `!x.ok`
+// 之類的全稱檢查;只認 `status === 401` 這種單點檢查是不夠的,擋不掉 302)。
+// 安全目標不變:manual 不跟隨 ⇒ Authorization 不會被送到 redirect 目的地。
+//
+// 凡是帶著 secret／ID token／JWT assertion／OAuth bearer 出門的 subrequest,一律明確寫
+// `redirect: 'manual'`。Cloudflare Workers 的 Request 文件逐字寫著:
+//   "If the response is a redirect and the redirect mode is set to `follow` (see below), then all
+//    headers will be forwarded to the redirect destination, even if the destination is a different
+//    hostname or domain. This includes sensitive headers like `Cookie`, `Authorization`, or any
+//    application-specific headers."
+//   "The default for a new `Request` object is `follow`."
+//   —— https://developers.cloudflare.com/workers/runtime-apis/request/
+// 也就是說:上游只要回一個跨網域 30x,我們的 Authorization 就會原封不動送到那個網域,而且這件事
+// 發生在**單一次 fetch() 內部**——resolveRcNextPage() 那種對 response body 做的白名單完全攔不到。
+//
+// 嚴重度的誠實定位:機制已由官方文件證實,但觸發要件是「上游(RevenueCat／Google／TDX)自己回一個
+// 跨網域 30x」,不是攻擊者當下可控的。這些端點都是 JSON API、正常從不 redirect,所以改成 'manual'
+// 幾乎零行為風險,而萬一真的發生就是 secret 全失守——代價極低、後果極大的縱深防禦。
+//
+// 不需要自己實作跳轉政策(逐跳解析、白名單比對 scheme/origin/path):沒有任何一支上游需要我們
+// 跟隨 redirect,所以 manual ＋「非 2xx 一律當失敗」就夠了,30x 直接走既有的錯誤路徑。
+// 不設的情形是**完全不帶憑證**的公開端點(本檔目前兩處:新北捷官網那支 ntmetroLive、NCDR 災害
+// 示警那支),那裡 redirect 不會外洩任何東西,而對方是別人的網站、日後改用 30x 導向新路徑是完全
+// 合理的事——不跟隨反而會在對方轉址那天讓那條資料源整個停擺。
+// 判準:scripts/verify_plus_redirect_policy.mjs(行為模擬 30x ＋ 原始碼掃描所有 fetch 呼叫點)
+// ＋ scripts/verify_worker_runtime_smoke.mjs(**在真 workerd 裡跑**——上面那個事故就是本機 Node
+// 與 workerd 行為不同造成的,只有真 runtime 答得出來)。
+
+// AUTH_URL 只在本機 --test-scheduled 驗證高鐵班表 cron 時經 env.TDX_AUTH_URL_OVERRIDE 覆寫,
+// 好讓整條 ingest 路徑(含拿 token)在本機也能指向 fixture server、零真上游;正式環境永遠不會
+// 設定這個變數(不在 wrangler.jsonc vars 裡),行為與改動前完全相同。
+function authUrl(env) { return (env && env.TDX_AUTH_URL_OVERRIDE) || AUTH_URL; }
+
 let tok = null, tokExp = 0;
 async function getToken(env) {
   if (tok && Date.now() < tokExp - 60e3) return tok;
-  const r = await fetch(AUTH_URL, {
+  const r = await fetch(authUrl(env), {
     method: 'POST',
     headers: { 'content-type': 'application/x-www-form-urlencoded' },
     body: new URLSearchParams({
@@ -28,6 +74,7 @@ async function getToken(env) {
       client_id: env.TDX_CLIENT_ID,
       client_secret: env.TDX_CLIENT_SECRET,
     }),
+    redirect: 'manual',
   });
   if (!r.ok) throw new Error('tdx auth ' + r.status);
   const d = await r.json();
@@ -60,7 +107,7 @@ async function traLive(request, env, ctx) {
   if (hit) return hit;
   try {
     if (!mem || Date.now() - memAt > 55e3) {
-      const r = await fetch(API_URL, { headers: { authorization: 'Bearer ' + await getToken(env) } });
+      const r = await fetch(API_URL, { headers: { authorization: 'Bearer ' + await getToken(env) }, redirect: 'manual' });
       if (r.status === 401) { tok = null; throw new Error('tdx 401'); }
       if (!r.ok) throw new Error('tdx api ' + r.status);
       const d = await r.json();
@@ -156,7 +203,7 @@ async function traAlert(request, env) {
   if (hit) return hit;
   try {
     if (!alertMem || Date.now() - alertMemAt > 110e3) {
-      const r = await fetch(ALERT_URL, { headers: { authorization: 'Bearer ' + await getToken(env) } });
+      const r = await fetch(ALERT_URL, { headers: { authorization: 'Bearer ' + await getToken(env) }, redirect: 'manual' });
       if (r.status === 401) { tok = null; throw new Error('tdx 401'); }
       if (!r.ok) throw new Error('tdx api ' + r.status);
       const d = await r.json();
@@ -191,7 +238,7 @@ async function thsrAlert(request, env) {
   if (hit) return hit;
   try {
     if (!thsrAlertMem || Date.now() - thsrAlertMemAt > 110e3) {
-      const r = await fetch(THSR_ALERT_URL, { headers: { authorization: 'Bearer ' + await getToken(env) } });
+      const r = await fetch(THSR_ALERT_URL, { headers: { authorization: 'Bearer ' + await getToken(env) }, redirect: 'manual' });
       if (r.status === 401) { tok = null; throw new Error('tdx 401'); }
       if (!r.ok) throw new Error('tdx api ' + r.status);
       const d = await r.json();
@@ -455,7 +502,7 @@ let tymcNewsMem = null, tymcNewsMemAt = 0;
 async function fetchTymcNewsAlerts(token) {
   if (tymcNewsMem && Date.now() - tymcNewsMemAt <= METRO_NEWS_TTL_MS) return tymcNewsMem;
   try {
-    const r = await fetch(TYMC_NEWS_URL, { headers: { authorization: 'Bearer ' + token } });
+    const r = await fetch(TYMC_NEWS_URL, { headers: { authorization: 'Bearer ' + token }, redirect: 'manual' });
     if (r.status === 401) { tok = null; throw new Error('tdx 401'); }
     if (!r.ok) throw new Error('tdx api ' + r.status);
     const d = await r.json();
@@ -481,7 +528,7 @@ async function metroAlert(request, env) {
         Promise.all(METRO_ALERT_OPS.map(async ({ op, sys, label }) => {
           try {
             const r = await fetch(`https://tdx.transportdata.tw/api/basic/v2/Rail/Metro/Alert/${op}?%24format=JSON`,
-              { headers: { authorization: 'Bearer ' + token } });
+              { headers: { authorization: 'Bearer ' + token }, redirect: 'manual' });
             if (r.status === 401) { tok = null; throw new Error('tdx 401'); }
             if (!r.ok) throw new Error('tdx api ' + r.status);
             const d = await r.json();
@@ -536,7 +583,7 @@ async function metroLive(request, env, sys) {
       const token = await getToken(env);
       const parts = await Promise.all(METRO_LIVE_OPS[sys].map(async op => {
         const r = await fetch(`https://tdx.transportdata.tw/api/basic/v2/Rail/Metro/LiveBoard/${op}?%24top=5000&%24format=JSON`,
-          { headers: { authorization: 'Bearer ' + token } });
+          { headers: { authorization: 'Bearer ' + token }, redirect: 'manual' });
         if (r.status === 401) { tok = null; throw new Error('tdx 401'); }
         if (!r.ok) throw new Error('tdx api ' + r.status);
         const d = await r.json();
@@ -614,7 +661,11 @@ function trtcParse(txt) {
 }
 async function trtcCall(url, method, env) {
   const cred = `<userName>${env.TRTC_API_USER}</userName><passWord>${env.TRTC_API_PASS}</passWord>`;
-  const r = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'text/xml; charset=utf-8' },
+  // redirect:'manual' —— 帳密就寫在 body 裡,而 Workers 的 fetch 預設 follow 會把 body 原樣
+  // 帶去跨網域的 30x 目的地。上游今天不回 30x(這條路徑已在正式站運作),所以這個值只在
+  // 「上游被劫持或設定跑掉」時才改變行為:30x 會落到下面那行 `!r.ok` 而 throw,
+  // 帳密不會被送出去。(不用 'error':Workers 的 fetch 不接受這個值,見檔頭事故紀錄。)
+  const r = await fetch(url, { method: 'POST', redirect: 'manual', headers: { 'Content-Type': 'text/xml; charset=utf-8' },
     body: TRTC_SOAP(`<${method} xmlns="http://tempuri.org/">${cred}</${method}>`) });
   if (!r.ok) throw new Error(method + ' ' + r.status);
   const d = trtcParse(await r.text());
@@ -770,7 +821,7 @@ async function trtcLive(request, env) {
       // 前端逐班校正只消費這份「物理位置錨點」。站名正規化、支線/終點消歧與
       // 倒數是否真能證明車在上一區間，全部復用 B1 已驗的純函式，不在前端重造一套。
       // 錨點沒有列車名冊欄位，更不會產生車；它只說「這裡有一筆可用位置證據」。
-      let boardPos = { at: null, rows: [], dropped: {} };
+      let boardPos = { at: null, rows: [], dropped: {}, dayType: null, trips: [] };
       try { boardPos = await trtcBoardPositionAnchors(env, tk); }
       catch (e) { console.error('[trtc board-pos] 錨點組裝失敗:', (e && e.stack) || String(e)); }
       // legacy 的 at/src/trains/board/cd 產生路徑與欄位順序不動；帳本預覽失敗一律
@@ -794,7 +845,8 @@ async function trtcLive(request, env) {
     // 把「上游掛掉」這個環境問題指成程式缺陷(Re-review-2 P-5)。
     let ledger = [];
     try { ledger = await trtcLedgerMaterialized(env, Math.floor(Date.now() / 1000)); } catch (e) {}
-    const res = jsonRes({ at: new Date().toISOString(), src: null, trains: [], board: [], boardPos: { at: null, rows: [], dropped: {} },
+    const res = jsonRes({ at: new Date().toISOString(), src: null, trains: [], board: [],
+      boardPos: { at: null, rows: [], dropped: {}, dayType: null, trips: [] },
       cd: { rows: 0, dropped: 0, dateDropped: 0, pathDropped: 0, pathDateDropped: 0, pathNoTrainNo: 0 }, ledger }, 200, 'public, s-maxage=15');
     await edge.put(cacheKey, res.clone());
     return res;
@@ -821,9 +873,9 @@ function trtcModelSources(env) {
   ]);
 }
 
-async function trtcLedgerModel(env) { // 帳本用:排除 Y(不佔 D1 寫入額度)
+async function trtcLedgerModel(env) { // 帳本用:含 Y(工項4起 tracks/bindings 一併寫入;events 仍排除,見 persistTrtcLedger)
   if (!trtcLedgerModelPromise) trtcLedgerModelPromise = trtcModelSources(env)
-    .then(([trtc, times, codes]) => buildTrtcModel(trtc, times, codes));
+    .then(([trtc, times, codes]) => buildTrtcModel(trtc, times, codes, { includeY: true }));
   return trtcLedgerModelPromise;
 }
 
@@ -831,6 +883,103 @@ async function trtcBoardModel(env) { // 前端位置錨點用:含 Y(同一份 Tr
   if (!trtcBoardModelPromise) trtcBoardModelPromise = trtcModelSources(env)
     .then(([trtc, times, codes]) => buildTrtcModel(trtc, times, codes, { includeY: true }));
   return trtcBoardModelPromise;
+}
+
+// ── 逐班綁定器(工項2-3):資產、D1 讀寫全在這裡,身分/shift 判斷全在 trtc_board_ledger.mjs ──
+let trtcDayTypeTablePromise = null;
+async function trtcDayTypeTable(env) { // data/tw_daytype.json:TW_DAYTYPE 的後端副本(前端本單不改)
+  if (!trtcDayTypeTablePromise) trtcDayTypeTablePromise = trtcLedgerAssetJson(env, 'data/tw_daytype.json');
+  return trtcDayTypeTablePromise;
+}
+
+let trtcTripSetsCache = null; // { day, tripSets, dayKeys } —— 一天只需重建一次,不隨每輪 cron 重算
+async function trtcTripSetsForDay(env, day) {
+  if (trtcTripSetsCache && trtcTripSetsCache.day === day) return trtcTripSetsCache;
+  const [[, times], dayTypeTable] = await Promise.all([trtcModelSources(env), trtcDayTypeTable(env)]);
+  trtcTripSetsCache = { day, ...buildTripSetsByLineDir(times, dayTypeTable, day) };
+  return trtcTripSetsCache;
+}
+
+// 冷啟動載回:優先讀 trtc_state['trip_dyn'](day 相符即整包還原,含 lastShift/badStreak 等動態延續
+// 狀態,round-trip 完全等價——見 R4);trip_dyn 缺或跨日才退化用 trtc_trip_bindings 重建身分
+// (動態欄位只能歸零,一輪內會自然回溫,不影響正確性只影響安全閥計數短暫重算)。
+async function loadTrtcTripBindingState(env, day) {
+  if (!await ensureTrtcLedger(env)) return [];
+  const db = env.TRTC_LEDGER;
+  const stateRow = await db.prepare(`SELECT v FROM trtc_state WHERE k='trip_dyn'`).first();
+  if (stateRow && stateRow.v) {
+    try {
+      const parsed = JSON.parse(stateRow.v);
+      if (parsed && parsed.day === day && Array.isArray(parsed.bindings)) return parsed.bindings;
+    } catch (e) {
+      console.warn('[trtc-binder] trip_dyn 解析失敗,改走冷啟動重建:', (e && e.message) || String(e));
+    }
+  }
+  const rows = await db.prepare(`SELECT line,dir,trip_key,track_id,bound_epoch,birth,done,rebinds
+      FROM trtc_trip_bindings WHERE day=?`).bind(day).all();
+  return (rows.results || []).map(r => ({
+    line: r.line, dir: Number(r.dir), tripKey: r.trip_key, trackId: r.track_id,
+    boundEpoch: Number(r.bound_epoch), birth: r.birth, done: !!r.done, rebinds: Number(r.rebinds) || 0,
+    lastShift: 0, lastTo: null, lastArrEpoch: null, badStreak: 0,
+  }));
+}
+
+// 寫入紀律(設計書 §6):trtc_trip_bindings 只在 events 有變動(bind/rebind/done/reattach,v1.1新增
+// 認回)的那幾列 upsert——touched map 只認 events 的 (line,dir,tripKey),不分事件種類,故 reattach
+// 事件(track_id 換人、bound_epoch 延續)自動走同一條 upsert 路徑,無需另外分支;
+// trtc_state['trip_dyn'] 每輪整包覆寫 1 次(訪客 join 用途留給下一單,這裡先把管線接好)。
+async function persistTrtcTripBindingRound(env, day, nowEpoch, dayType, bindings, events) {
+  if (!await ensureTrtcLedger(env)) return { bindingRows: 0 };
+  const db = env.TRTC_LEDGER;
+  const touched = new Map(); // "line|dir|tripKey" -> 最新 record
+  for (const ev of events || []) {
+    const key = `${ev.line}|${ev.dir}|${ev.tripKey}`;
+    if (touched.has(key)) continue;
+    const rec = bindings.find(b => b.line === ev.line && b.dir === ev.dir && b.tripKey === ev.tripKey);
+    if (rec) touched.set(key, rec);
+  }
+  const statements = [];
+  for (const rec of touched.values()) {
+    statements.push(db.prepare(`INSERT INTO trtc_trip_bindings
+        (day,line,dir,trip_key,track_id,bound_epoch,birth,done,rebinds) VALUES (?,?,?,?,?,?,?,?,?)
+        ON CONFLICT(day,line,dir,trip_key) DO UPDATE SET
+          track_id=excluded.track_id, bound_epoch=excluded.bound_epoch, birth=excluded.birth,
+          done=excluded.done, rebinds=excluded.rebinds`)
+      .bind(day, rec.line, rec.dir, rec.tripKey, rec.trackId, rec.boundEpoch, rec.birth, rec.done ? 1 : 0, rec.rebinds));
+  }
+  statements.push(db.prepare(`INSERT INTO trtc_state (k,v) VALUES ('trip_dyn',?)
+      ON CONFLICT(k) DO UPDATE SET v=excluded.v`)
+    .bind(JSON.stringify({ at: nowEpoch, day, dayType, bindings })));
+  await db.batch(statements);
+  return { bindingRows: touched.size };
+}
+
+// 訪客 join 用(工項5):只讀 trtc_state['trip_dyn'],day 不符或缺列就回 null——不做
+// loadTrtcTripBindingState 那種退化重建(那是給 cron 冷啟動用的健壯性;訪客路徑掉一輪只是這輪
+// 沒有 trips[],不值得多打一次 trtc_trip_bindings 全表查詢)。
+async function loadTrtcTripDynSnapshot(env, day) {
+  if (!await ensureTrtcLedger(env)) return null;
+  const db = env.TRTC_LEDGER;
+  const stateRow = await db.prepare(`SELECT v FROM trtc_state WHERE k='trip_dyn'`).first();
+  if (!stateRow || !stateRow.v) return null;
+  try {
+    const parsed = JSON.parse(stateRow.v);
+    if (parsed && parsed.day === day && Array.isArray(parsed.bindings)) {
+      return { dayType: parsed.dayType || null, bindings: parsed.bindings };
+    }
+  } catch (e) {
+    console.warn('[trtc board-pos] trip_dyn 解析失敗(訪客 join 這輪略過):', (e && e.message) || String(e));
+  }
+  return null;
+}
+
+// 訪客 join 用(工項5):hw_no 別名表,day 全表一次讀(低頻寫,見設計書§6 寫入量估計)。
+async function loadTrtcHwNoAliases(env, day) {
+  if (!await ensureTrtcLedger(env)) return new Map();
+  const db = env.TRTC_LEDGER;
+  const result = await db.prepare(`SELECT alias,track_id FROM trtc_track_aliases WHERE day=? AND alias_type='hw_no'`)
+    .bind(day).all();
+  return new Map((result.results || []).map(x => [String(x.alias), String(x.track_id)]));
 }
 
 async function ensureTrtcLedger(env) {
@@ -904,6 +1053,20 @@ async function trtcBoardPositionAnchors(env, rows) {
   trtcBoardBranchHints = resolved.lineHints;
   const claimed = claimBoardRows(model, resolved.rows, nowEpoch, new Map());
   const collapsed = collapseClaims(claimed.claims);
+  // 訪客唯讀 join(工項5,設計書§7):trip_dyn(≤60秒舊 cron 綁定)× 這一輪新鮮 collapsed 列,worker
+  // 內完成,絕不寫 D1(單寫者=cron,無 isolate race)。任一讀取失敗或 trip_dyn 缺列一律降級成空
+  // trips[]/dayType:null,不拖垮既有 9 欄位 rows 輸出(rows 欄位原樣,見下方,過渡期雙軌)。
+  let trips = [], dayType = null;
+  try {
+    const [dyn, aliasByHwNo] = await Promise.all([loadTrtcTripDynSnapshot(env, day), loadTrtcHwNoAliases(env, day)]);
+    if (dyn) {
+      dayType = dyn.dayType;
+      const { tripSets } = await trtcTripSetsForDay(env, day);
+      trips = joinBoardRowsToTrips({ tripSets, rows: collapsed, bindings: dyn.bindings, aliasByHwNo });
+    }
+  } catch (e) {
+    console.error('[trtc board-pos] 訪客 join 失敗(降級成空 trips[]):', (e && e.stack) || String(e));
+  }
   return {
     at: nowEpoch,
     rows: collapsed.map(x => ({ line: x.line, dir: x.dir, from: x.from, to: x.to,
@@ -912,6 +1075,7 @@ async function trtcBoardPositionAnchors(env, rows) {
       collapsed: claimed.claims.length - collapsed.length,
       branchHinted: resolved.branch.hinted, branchFallback: resolved.branch.fallback,
       branchConflicts: resolved.branch.conflicts },
+    dayType, trips,
   };
 }
 
@@ -953,7 +1117,9 @@ function multiInsertStatements(db, table, columns, rows, chunkSize, suffix) {
 async function persistTrtcLedger(env, parts, nowEpoch) {
   if (!await ensureTrtcLedger(env)) return { events: 0, tracks: 0, aliases: 0 };
   const db = env.TRTC_LEDGER;
-  const eventRows = dedupeRows(parts.flatMap(x => ledgerEventRows(x.events)),
+  // Y(環狀線)裁示排除 events(設計書 §6.1:歷史事件分析價值低於寫入成本);tracks/aliases 不過濾——
+  // Y 的跨輪連續性需要 tracks,只有「逐站事件史」這張表刻意不收。
+  const eventRows = dedupeRows(parts.flatMap(x => ledgerEventRows(x.events.filter(e => e.line !== 'Y'))),
     x => `${x.day}|${x.line}|${x.dir}|${x.train_key}|${x.station_idx}|${x.kind}|${x.src}`);
   const trackRows = dedupeRows(parts.flatMap(x => ledgerTrackRows(x.trackUpdates)), x => `${x.day}|${x.track_id}`);
   const aliasRows = dedupeRows(parts.flatMap(x => x.aliasUpdates || []).map(x => ({
@@ -1043,6 +1209,8 @@ async function pruneTrtcLedger(env, nowEpoch) {
     db.prepare('DELETE FROM trtc_events WHERE day<?').bind(cutoff),
     db.prepare('DELETE FROM trtc_tracks WHERE day<?').bind(cutoff),
     db.prepare('DELETE FROM trtc_track_aliases WHERE day<?').bind(cutoff),
+    db.prepare('DELETE FROM trtc_trip_bindings WHERE day<?').bind(cutoff),
+    // trtc_state 不用清:'trip_dyn' 是每輪整包覆寫的單列,不是逐日累積表。
   ]);
   const changes = results.reduce((n, r) => n + Number(r.meta && r.meta.changes || 0), 0);
   console.log(`[cron trtc-ledger] 清理 < ${cutoff}: ${changes} 列`);
@@ -1088,7 +1256,30 @@ async function trtcLedgerScheduled(event, env) {
   const stats = await persistTrtcLedger(env, [part1, part2], now2);
   console.log(`[cron trtc-ledger] ${day}: board ${board1.length}+${board2.length}, hwRaw ${hwRaw.length}, brRaw ${brRaw.length}, ` +
     `events ${stats.events}, tracks ${stats.tracks}, aliases ${stats.aliases}`);
-  return { skipped: false, day, stats, diagnostics: [part1.diagnostics, part2.diagnostics] };
+  // 逐班綁定器(工項3):獨立 try/catch,不得拖垮上面已經成功寫入的帳本主流程(比照 hazardTask
+  // 隔離寫法,worker.js scheduled() 內 hazardMonitorWithTimeout 的 catch)。用 includeY:true 的
+  // model(既有 trtcBoardModel)——工項4起 trtcLedgerModel 也已 includeY:true,故 part1/part2.claims
+  // 現在會真的帶著 Y 的 claims 進來,Y 的 tracks/bindings 與其他八線同一條路徑處理。
+  let bindResult = null;
+  try {
+    const [bindModel, { tripSets, dayKeys }, dayTypeTable, priorBindings] = await Promise.all([
+      trtcBoardModel(env), trtcTripSetsForDay(env, day), trtcDayTypeTable(env), loadTrtcTripBindingState(env, day),
+    ]);
+    const dayType = dayKeys.get('BL') || null;
+    const round1 = bindTracksToTrips({ model: bindModel, tripSets, dayType, tracks: part1.claims,
+      priorBindings, nowEpoch: now1, day });
+    const round2 = bindTracksToTrips({ model: bindModel, tripSets, dayType, tracks: part2.claims,
+      priorBindings: round1.bindings, nowEpoch: now2, day });
+    const persisted = await persistTrtcTripBindingRound(env, day, now2, dayType, round2.bindings,
+      [...round1.events, ...round2.events]);
+    bindResult = { audit: round2.audit, bindingRows: persisted.bindingRows, bound: round2.bindings.length };
+    console.log(`[cron trtc-binder] ${day}: bound ${round2.audit.bound}, unbound ${round2.audit.unbound}, ` +
+      `rebinds ${round2.audit.rebinds}, done ${round2.audit.done}, capped ${round2.audit.capped}, ` +
+      `legMiss ${round2.audit.legMiss}, active ${round2.bindings.length}, upserts ${persisted.bindingRows}`);
+  } catch (e) {
+    console.error('[cron trtc-binder] 失敗:', (e && e.stack) || String(e));
+  }
+  return { skipped: false, day, stats, bind: bindResult, diagnostics: [part1.diagnostics, part2.diagnostics] };
 }
 
 // 台鐵準點率統計(D1 唯讀查詢):資料由外部批次工作預先算好寫入 kv_blobs,Worker 只做單列查詢+
@@ -1173,6 +1364,587 @@ async function rateLimited(limiter, request, failClosed) {
   catch (e) { return !!failClosed; }
 }
 
+// RevenueCat 的環境值。⚠️ REST API(v1/v2)的 query 參數與 schema enum 是**小寫**
+// production/sandbox;**webhook** payload 是**大寫** PRODUCTION/SANDBOX。兩套慣例不同世代,
+// 絕不可拿同一個常數去比對兩邊——之後接 webhook 時要另外定義自己的大寫常數。
+const RC_ENV_PRODUCTION = 'production';
+const RC_ENV_SANDBOX = 'sandbox';
+// RevenueCat webhook 的環境值是大寫；REST 的 RC_ENV_PRODUCTION 是小寫。兩者不得共用，
+// 否則 sandbox 事件可能被誤認成正式環境，或正式 REST 訂閱全部被誤擋。
+const RC_WEBHOOK_ENV_PRODUCTION = 'PRODUCTION';
+const RC_WEBHOOK_ENV_SANDBOX = 'SANDBOX';
+// TRANSFER 是唯一「主體不是單一 app_user_id」的事件型別，見 webhookTargetUids() 的說明。
+const RC_WEBHOOK_TYPE_TRANSFER = 'TRANSFER';
+// build 21、22 是專供 TestFlight 做端到端 Sandbox 購買驗收的版本。前端只有在建置期明確打開
+// RAIL_PLUS_SANDBOX_OK 且把 build 號注入時才會帶這顆 header；正式 App 與網站不帶。
+// header 本身不是授權憑證——呼叫者仍須先通過 Firebase ID token，接著由 RevenueCat
+// Developer API 證明同一個 uid 真的有 gives_access 的 sandbox subscription。把 build 號釘死
+// 是縮小測試通道的操作範圍，不把可偽造的客端字串誤當成安全邊界。
+const PLUS_SANDBOX_TEST_HEADER = 'x-rail-plus-sandbox-build';
+const PLUS_SANDBOX_TEST_BUILDS = new Set(['21', '22']);
+const PLUS_ENTITLEMENT_COLLECTION = Object.freeze({
+  [RC_ENV_PRODUCTION]: 'entitlements',
+  [RC_ENV_SANDBOX]: 'sandboxEntitlements',
+});
+
+function plusEnvironment(value) {
+  return value === RC_ENV_SANDBOX ? RC_ENV_SANDBOX : RC_ENV_PRODUCTION;
+}
+
+function sandboxPlusRequested(request) {
+  return PLUS_SANDBOX_TEST_BUILDS.has(request.headers.get(PLUS_SANDBOX_TEST_HEADER));
+}
+
+const GOOGLE_OAUTH_TOKEN_URL = 'https://oauth2.googleapis.com/token';
+const GOOGLE_DATASTORE_SCOPE = 'https://www.googleapis.com/auth/datastore';
+const GOOGLE_JWT_LIFETIME_SECONDS = 3600;
+const FIRESTORE_TOKEN_REFRESH_SKEW_MS = 60e3;
+// 資格文件的寬限取 24 小時：足以吸收 webhook 短暫漏送與兩端時鐘偏移，又不會在訂閱
+// 真正到期後留下長期權限。退款／撤銷事件正常送達時仍會立即寫 active:false，不等寬限。
+const PLUS_ENTITLEMENT_GRACE_MS = 24 * 60 * 60 * 1000;
+
+let firestoreAccessToken = null;
+let firestoreAccessTokenExpiresAtMs = 0;
+let firestoreAccessTokenIssuer = '';
+
+function base64UrlBytes(bytes) {
+  let binary = '';
+  for (let i = 0; i < bytes.length; i += 1) binary += String.fromCharCode(bytes[i]);
+  return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '');
+}
+
+function base64UrlText(text) {
+  return base64UrlBytes(new TextEncoder().encode(text));
+}
+
+function serviceAccountPrivateKeyBytes(pem) {
+  if (typeof pem !== 'string') throw new Error('firestore private key missing');
+  // wrangler secret 可貼真正換行，也可能由密碼管理器帶成字面上的 \\n；兩種都接受。
+  const normalized = pem.replace(/\\n/g, '\n').trim();
+  const match = normalized.match(/^-----BEGIN PRIVATE KEY-----\s+([A-Za-z0-9+/=\s]+)\s+-----END PRIVATE KEY-----$/);
+  if (!match) throw new Error('firestore private key must be PKCS8');
+  const binary = atob(match[1].replace(/\s/g, ''));
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i += 1) bytes[i] = binary.charCodeAt(i);
+  return bytes;
+}
+
+async function createGoogleServiceAccountJwt(env, nowMs = Date.now()) {
+  const issuer = env.FIRESTORE_SERVICE_ACCOUNT_EMAIL;
+  if (!issuer || !env.FIRESTORE_SERVICE_ACCOUNT_PRIVATE_KEY) throw new Error('firestore credentials missing');
+  const issuedAt = Math.floor(nowMs / 1000);
+  const header = { alg: 'RS256', typ: 'JWT' };
+  const claims = {
+    iss: issuer,
+    scope: GOOGLE_DATASTORE_SCOPE,
+    aud: GOOGLE_OAUTH_TOKEN_URL,
+    iat: issuedAt,
+    exp: issuedAt + GOOGLE_JWT_LIFETIME_SECONDS,
+  };
+  const signingInput = `${base64UrlText(JSON.stringify(header))}.${base64UrlText(JSON.stringify(claims))}`;
+  const key = await crypto.subtle.importKey(
+    'pkcs8', serviceAccountPrivateKeyBytes(env.FIRESTORE_SERVICE_ACCOUNT_PRIVATE_KEY),
+    { name: 'RSASSA-PKCS1-v1_5', hash: 'SHA-256' }, false, ['sign']
+  );
+  const signature = await crypto.subtle.sign('RSASSA-PKCS1-v1_5', key, new TextEncoder().encode(signingInput));
+  return `${signingInput}.${base64UrlBytes(new Uint8Array(signature))}`;
+}
+
+function firestoreConfigured(env) {
+  return !!(env.FIRESTORE_PROJECT_ID && env.FIRESTORE_SERVICE_ACCOUNT_EMAIL && env.FIRESTORE_SERVICE_ACCOUNT_PRIVATE_KEY);
+}
+
+function resetFirestoreAccessTokenCache() {
+  firestoreAccessToken = null;
+  firestoreAccessTokenExpiresAtMs = 0;
+  firestoreAccessTokenIssuer = '';
+}
+
+async function getFirestoreAccessToken(env, nowMs = Date.now()) {
+  if (!firestoreConfigured(env)) throw new Error('firestore configuration missing');
+  const issuer = env.FIRESTORE_SERVICE_ACCOUNT_EMAIL;
+  if (firestoreAccessToken && firestoreAccessTokenIssuer === issuer
+      && nowMs < firestoreAccessTokenExpiresAtMs - FIRESTORE_TOKEN_REFRESH_SKEW_MS) {
+    return firestoreAccessToken;
+  }
+  const assertion = await createGoogleServiceAccountJwt(env, nowMs);
+  const response = await fetch(GOOGLE_OAUTH_TOKEN_URL, {
+    method: 'POST',
+    headers: { 'content-type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams({
+      grant_type: 'urn:ietf:params:oauth:grant-type:jwt-bearer',
+      assertion,
+    }),
+    redirect: 'manual',                                        // C-1:見檔頭「憑證 subrequest 的 redirect 政策」
+  });
+  if (!response.ok) throw new Error(`google oauth ${response.status}`);
+  const body = await response.json();
+  if (!body || typeof body.access_token !== 'string' || !body.access_token) throw new Error('google oauth malformed response');
+  const expiresIn = Number(body.expires_in);
+  const lifetimeMs = Number.isFinite(expiresIn) && expiresIn > 0
+    ? expiresIn * 1000 : GOOGLE_JWT_LIFETIME_SECONDS * 1000;
+  firestoreAccessToken = body.access_token;
+  firestoreAccessTokenExpiresAtMs = nowMs + lifetimeMs;
+  firestoreAccessTokenIssuer = issuer;
+  return firestoreAccessToken;
+}
+
+// /subscriptions 分頁參數。🔴 2026-08-03 複審 I-1(b)修正:官方規格 limit 預設只有 20(低於 1 或
+// 高於 100 會被 clamp,不是拒絕),且這支端點的 parameters 裡沒有 sort、規格也沒有任何「較新
+// 排前面」的排序保證——不能假設第一頁就包含使用者現在生效的那筆訂閱。一個訂閱紀錄超過一頁
+// 的老客戶,若現行有效的那筆剛好不在第一頁,原本「只讀第一頁」的寫法會把他判定為無資格。
+// RC_SUBS_LIMIT 直接拿規格允許的上限(一次拿最多,減少來回次數)。RC_SUBS_MAX_PAGES 是防禦性
+// 上限,不是預期會被真實客戶觸發的門檻——軌島 Plus 是單一 entitlement、單一產品的訂閱制,
+// 真實客戶的訂閱紀錄數(含歷年取消/續訂/換方案)落在個位數到十位數,5 頁 × 100 筆=最多掃
+// 500 筆,是任何真實使用者的數十倍安全餘裕;存在的目的純粹是避免上游一旦回傳異常的分頁鏈
+// (例如 next_page 一直不是 null)時陷入無界迴圈,不是為了服務會員到這個量級的客戶。
+const RC_SUBS_LIMIT = 100;
+const RC_SUBS_MAX_PAGES = 5;
+
+// RevenueCat API 的固定 origin。/subscriptions 的 next_page 一律要重新套用這個 origin,
+// 不可信任上游回傳值裡帶的 origin——理由見下面 resolveRcNextPage() 的完整說明。
+const RC_ORIGIN = 'https://api.revenuecat.com';
+
+// 把 /subscriptions 回應裡的 next_page 解析成絕對 URL;若解析後的 origin 不是 RC_ORIGIN,
+// 回傳 null(呼叫端必須拒絕跟隨,見 checkPlusEntitlement 的處理)。
+// 🔴 2026-08-03 複審修復輪 2 G-1+G-2 修正(上一輪 F-1 分頁修復本身有兩個洞):
+//  · G-1(Critical):上一輪的註解宣稱「next_page 本身就是完整 URL(規格原文)」——這句話不成立。
+//    官方 OpenAPI v2 的 ListSubscriptions.next_page,description 散文寫「URL」,但 example 逐字是
+//    `/v2/projects/proj1ab2c3d4/customers/.../subscriptions?starting_after=sub1a2b3c4d`,是相對
+//    路徑;整份規格裡 next_page 的 example 沒有一個是絕對 URL(散文是詮釋,example 才是規格
+//    真正錨定的東西)。舊寫法 `rcUrl = subs.next_page` 直接把相對路徑字串送進 fetch(),在正式
+//    環境 fetch 沒有隱含 base、會同步拋 TypeError——有效訂閱剛好落在第 2 頁的客戶,翻頁時就會
+//    被外層 catch 接住變 503(方向安全,但分頁修復對它自己要解決的情境完全沒生效)。
+//  · G-2(Important,安全):修 G-1 時**不能**天真寫成 `new URL(nextPage, RC_ORIGIN)`——若
+//    nextPage 剛好是絕對 URL(不論規格是否保證,上游一旦改變行為或這段回應被竄改),
+//    `new URL(絕對URL, base)` 會完全無視 base、直接採用該絕對 URL 自己的 origin,我們會把帶著
+//    Authorization: Bearer <secret key> 的請求送去上游回應裡任意指定的網址(等同資訊外洩的
+//    open redirect)。
+//  🔴 2026-08-03 複審修復輪 3 H-1 修正(G-2 當時選的修法本身還有一個洞):
+//  · H-1(Critical,安全):G-2 的寫法是「取解析後的 pathname+search,再用 new URL(那段字串,
+//    RC_ORIGIN) 重新套用 origin」——這是兩段式的字串手術,第二段解析有 protocol-relative
+//    繞法:若第一段解析出的 pathname 剛好以 `//` 開頭(例如 nextPage 寫成
+//    `RC_ORIGIN + '//evil.example.com/steal'`,這個字串本身的 origin 完全合法、看起來毫無
+//    可疑),第二段 `new URL('//host/path', base)` 會把開頭的 `//` 當成 network-path
+//    reference(protocol-relative URL)解析,host 就跟著換成 `//` 後面那段,secret key
+//    又送去 evil.example.com 了。教訓:**不要做字串拼接手術,只解析一次、直接比對 origin**——
+//    不相符就整個拒絕(不去嘗試「修正」外部 origin),這樣不論用什麼手法讓 next_page 的最終
+//    origin 不是 RC_ORIGIN,一律被擋下,不會有第二次字串解析的機會被鑽漏洞。
+//  🔴 2026-08-04 敵意稽核 I-5 修正(origin 白名單不等於資源連續性):
+//    只釘 origin 擋得住「換一台主機」,擋不住「同一台主機、換一個客戶」——
+//    `/v2/projects/<proj>/customers/<別人的 uid>/subscriptions` 的 origin 完全合法,跟過去
+//    拿回來的訂閱會被算成目前這個 uid 的資格(等於把別人的付款嫁接到這個 Firebase 帳號)。
+//    所以第二個參數 expectedPathname 是「這次查詢自己的 canonical endpoint」,必須逐字相等:
+//    分頁的定義就是「同一個資源的下一頁」,換了資源就不是分頁。查詢字串(starting_after 等)
+//    刻意不限制——那是上游的游標格式,不該由我們猜。
+//    維持單次解析、不做兩段式字串重解析(H-1 的教訓照舊)。
+function resolveRcNextPage(nextPage, expectedPathname) {
+  const parsed = new URL(nextPage, RC_ORIGIN);
+  if (parsed.origin !== RC_ORIGIN) return null;
+  if (parsed.pathname !== expectedPathname) return null;
+  return parsed.href;
+}
+
+// 只回型別名稱、不回值:這個字串會進 console.error,不可以夾帶 uid 或訂閱內容。
+function rcTypeName(v) {
+  if (v === null) return 'null';
+  if (Array.isArray(v)) return 'array';
+  return typeof v;
+}
+
+// 🔴 2026-08-04 敵意稽核 I-3／I-4／I-5:把「這個 200 到底符不符合官方 schema」獨立成一道閘,
+// 擺在任何業務判定之前。回 null＝形狀合規;回字串＝違反規格的具體原因,呼叫端一律升成可重試的
+// 503 且不寫資格文件——**絕不可折疊成「這個人確定沒有訂閱」或「已經翻到底了」**。
+// 依據(RevenueCat Developer API v2,ListSubscriptions／Subscription 欄位表):
+//   · `items  required  Array of objects`
+//   · `next_page  required  string or null`
+//   · Subscription 的 `customer_id  required`,而這支端點本身是 customer-scoped 的
+//   · Subscription 的 `entitlements` 為必填,其本身 required:[items, next_page, object, url]
+// 三個舊洞各自對應下面一段:
+//  · I-4:`items` 非陣列時舊版直接當成空陣列 ⇒ 髒 200 被靜默讀成「確定沒訂閱」,付費者被關掉
+//        還會被覆寫 inactive 文件;`next_page` 是 object／數字時舊版當成自然結尾 ⇒ 用不完整的
+//        頁集去算 activeUntilMs。
+//  · I-3:`entitlements` 存在但型別錯(items 是字串／null,或 entitlements 本身是 null／{})時,
+//        舊版把它與「欄位缺席」折疊成同一個 null,再被 `if (!ents) return true` 放行 ⇒ **多給資格**。
+//        「缺席才 fallback」是原本註解自己宣稱的契約,程式行為超出了那個範圍——本閘把三態分開:
+//        缺席→留給 subscriptionMatchesPlus 的既有 fallback;存在但形狀錯→malformed 503;
+//        存在且合規→照常比對 lookup_key。
+//  · I-5:customer-scoped 端點回了別人的 customer_id,是嚴重異常,直接 malformed 503,
+//        不是靜靜濾掉——濾掉會讓「上游回了不該回的東西」變成一次成功的空集合寫 inactive。
+// `entitlements` **真正缺席**刻意不算違規:那是既有的、寫在下面 subscriptionMatchesPlus 註解裡的
+// 防禦性決策(寧可放行也不要因為上游一次違規回應把所有付費者一次擋光),本輪不改變它。
+// `next_page` 缺席同樣視同 null:那是「已經到最後一頁」的自然表達,把它升成 503 會讓上游少帶一個
+// 終端欄位就變成全體付費者的服務中斷,而稽核要抓的是「present but wrong type」那一類。
+function rcSubscriptionsPageError(body, expectCustomerId) {
+  if (rcTypeName(body) !== 'object') return `list 回應不是 JSON 物件(${rcTypeName(body)})`;
+  if (!Array.isArray(body.items)) return `items 不是陣列(${rcTypeName(body.items)})`;
+  const nextPage = body.next_page;
+  if (nextPage !== null && nextPage !== undefined && (typeof nextPage !== 'string' || !nextPage))
+    return `next_page 既不是 null 也不是合法非空字串(${rcTypeName(nextPage)})`;
+  for (const sub of body.items) {
+    if (rcTypeName(sub) !== 'object') return `items 內含非物件成員(${rcTypeName(sub)})`;
+    if (sub.customer_id !== expectCustomerId)
+      return 'customer_id 與這次查詢的 customer 不一致(customer-scoped 端點不該回別人的訂閱)';
+    if (!Object.prototype.hasOwnProperty.call(sub, 'entitlements')) continue;   // 缺席 ⇒ 既有 fallback
+    const ents = sub.entitlements;
+    if (rcTypeName(ents) !== 'object') return `entitlements 存在但不是物件(${rcTypeName(ents)})`;
+    if (!Array.isArray(ents.items)) return `entitlements.items 存在但不是陣列(${rcTypeName(ents.items)})`;
+    for (const item of ents.items) {
+      if (rcTypeName(item) !== 'object') return `entitlements.items 內含非物件成員(${rcTypeName(item)})`;
+    }
+  }
+  return null;
+}
+
+// 從 GET /v2/.../customers/{id}/subscriptions 的回應判「這個客戶在指定環境有沒有 Plus 存取權」。
+// 三道條件全部要成立才算數:
+//  (1) gives_access === true——RevenueCat 官方規格明文:「To determine whether or not a subscription
+//      currently provides access to any associated entitlements, use the _gives_access_ field」,
+//      刻意不看 status(它的 enum 還會再長,而且 trialing/in_grace_period 這類要不要給存取權
+//      不該由我們重新推導一次)。
+//  (2) environment === 指定環境——Subscription 的 environment 是 top-level 必填欄位。
+//      **欄位不存在/不是指定環境一律不算**:不准「拿不到環境資訊就當成 production/sandbox」。
+//      我們同時在 query string 帶 ?environment=... 讓上游先濾一次,這裡是第二道——
+//      上游若哪天忽略了那個參數(改版、打錯字),本地這道仍然擋得住。
+//  (3) entitlements 裡有我們要的 lookup_key。Subscription 的巢狀 Entitlement 物件有 lookup_key
+//      (人類可讀的 'plus'),不是 active_entitlements 那個不透明的 entitlement_id,所以這裡終於
+//      比對得到具體 entitlement。
+//      🔴 2026-08-03 複審 I-2 修正:官方規格裡 entitlements 是 Subscription 的**必填**欄位
+//      (Subscription.required 含 entitlements;entitlements 本身 required:[items, next_page,
+//      object, url]),這支端點也沒有 expand 參數——「上游哪天改成要 expand 才展開巢狀物件」
+//      這個顧慮在現行規格下不成立。真正要分辨的是「缺席」與「明確回空陣列」兩件不同的事:
+//        · 缺席(ents 為 null,即上游違反自己規格沒帶這個必填欄位)⇒ 保留防禦性 fallback,
+//          視同「只看 gives_access」——這是規格外的異常情形,寧可放行也不要因為上游一個
+//          違規回應就把所有付費者一次擋光。
+//        · 明確回空陣列(entitlements.items 為 [])⇒ 語意就是「這筆訂閱不掛任何 entitlement」,
+//          正確答案是 false,不能跟缺席混為一談——混談等於多給資格,是複審抓到的唯一一處
+//          程式行為超出自己註解宣稱範圍的地方。
+//      🔴 2026-08-04 敵意稽核 I-3 修正:三態必須分開,不能壓成一個 null。
+//        · 缺席(連 property 都沒有)⇒ 上面那段既有的防禦性 fallback,視同只看 gives_access。
+//        · 存在且是規格形狀({items: [...]})⇒ 照常比對 lookup_key(空陣列 ⇒ false)。
+//        · 存在但不是規格形狀(items 是字串／null,或 entitlements 本身是 null／{})⇒ **false**。
+//          正常管線走不到這一支:rcSubscriptionsPageError() 已在上游把整次 200 判成 malformed
+//          回 503。這裡回 false 是第二道防線,語意是「型別混淆絕不可以擴大 fallback 的範圍」
+//          ——舊版把它折疊成 null 再 `if (!ents) return true`,那正是多給資格的那一行。
+function subscriptionMatchesPlus(sub, wantEntitlement, entitlementEnvironment = RC_ENV_PRODUCTION) {
+  if (!sub || typeof sub !== 'object' || sub.gives_access !== true) return false;
+  if (sub.environment !== plusEnvironment(entitlementEnvironment)) return false;
+  if (!Object.prototype.hasOwnProperty.call(sub, 'entitlements')) return true;   // 唯一的 fallback:真正缺席
+  const ents = sub.entitlements;
+  if (!ents || typeof ents !== 'object' || Array.isArray(ents) || !Array.isArray(ents.items)) return false;
+  return ents.items.some(e => e && e.lookup_key === wantEntitlement);
+}
+
+// 🔴 2026-08-04 敵意稽核 I-4:這支是**純篩選**,前提是 body 已經通過 rcSubscriptionsPageError()。
+// 舊版在這裡對非陣列 items 靜默退回 [],等於把「上游回了不符規格的髒 200」與「這個人確定沒有
+// 訂閱」合併成同一個答案(而後者會被寫成 active:false 的資格文件)。現在不合規的 body 直接拋錯,
+// 由呼叫端的 try 轉成可重試的 503——純篩選 helper 不准替 malformed 決定業務答案。
+function plusAccessSubscriptions(body, wantEntitlement, entitlementEnvironment = RC_ENV_PRODUCTION) {
+  if (!body || typeof body !== 'object' || !Array.isArray(body.items))
+    throw new TypeError('revenuecat list malformed: items 不是陣列');
+  return body.items.filter(sub => subscriptionMatchesPlus(sub, wantEntitlement, entitlementEnvironment));
+}
+
+function plusEntitledFromSubscriptions(body, wantEntitlement, entitlementEnvironment = RC_ENV_PRODUCTION) {
+  return plusAccessSubscriptions(body, wantEntitlement, entitlementEnvironment).length > 0;
+}
+
+// entitlements/{uid} 與 sandboxEntitlements/{uid} 共用固定契約：active(boolean)、activeUntilMs(number)、
+// updatedAtMs(number)、source(string)。activeUntilMs 是訂閱到期毫秒加上寬限。
+// inactive 文件寫 0，但 rules 會先要求 active===true，所以那個 0 不代表任何存取權。
+//
+// 🔴 2026-08-04 敵意稽核 I-6 修正：**active 文件不得再寫 activeUntilMs=0**。
+// 舊版只要任何一筆命中的訂閱解析不出到期時間（ends_at 與 current_period_ends_at 都是 null／
+// 缺欄位／型別錯），整份 active 文件就寫 0＝不設限，而測試把這個狀態命名成「終身型」。
+// 那個命名是從實作回推的假設，不是規格：RevenueCat Developer API v2 的 Subscription schema
+// 對 ends_at 的說明逐字是 "Can be null if the subscription is paused until an indefinite date."
+// ——null 的意思是「被無限期暫停」，**不是 lifetime marker**。於是一次上游異常就把「24 小時
+// 寬限」升級成永不失效的資格：退款／轉移／到期 webhook 只要漏送一次，沒有下一次
+// /api/plus-status 自癒就不會自然失效。
+//
+// 選的修法是「寫一個明確有界的短期狀態」，不是「回 503 不覆寫既有文件」。理由：
+//  · gives_access===true 是 RevenueCat 官方明文用來判「現在有沒有存取權」的欄位，這筆訂閱
+//    **現在確實給存取權**是已知事實；未知的只有「到什麼時候」。把已知事實丟掉回 503，會讓一個
+//    真的有付錢的人整支 Plus 不能用（而且 /api/plus-status 每次都 503，不會自癒）。
+//  · activeUntilMs 的角色是「這份快取文件可以被信任到什麼時候」，不是訂閱本身的到期日。
+//    到期日未知時，正確答案就是把快取窗縮到最短的既有安全窗＝一次寬限（24 小時），
+//    到期後任何一次前端查詢都會重新問 RevenueCat。損害因此有界，且沒有可用性代價。
+//  · 若日後真的推出 lifetime 產品，必須用明確的產品／entitlement allowlist 來辨識，
+//    絕不可以從「到期欄位是 null」反推——那正是這條稽核發現的錯誤推論本身。
+function plusEntitlementDocument(body, wantEntitlement, source, nowMs = Date.now(), entitlementEnvironment = RC_ENV_PRODUCTION) {
+  const access = plusAccessSubscriptions(body, wantEntitlement, entitlementEnvironment);
+  let activeUntilMs = 0;
+  if (access.length) {
+    const expirations = access.map(sub => {
+      // ends_at 是 RevenueCat 定義的最新一期預期結束；舊回應若沒有它，退回本期結束。
+      const end = Number.isFinite(sub.ends_at) ? sub.ends_at : sub.current_period_ends_at;
+      return Number.isFinite(end) && end > 0 ? end : 0;
+    });
+    const known = expirations.filter(ms => ms > 0);
+    activeUntilMs = known.length === expirations.length
+      ? Math.max(...known) + PLUS_ENTITLEMENT_GRACE_MS                 // 全部可解析：正常路徑
+      // 有解析不出來的到期時間：取「已知到期日」與「現在」的較晚者再加寬限。known 可能是空的，
+      // Math.max(nowMs) 就是 nowMs ⇒ 最短情形是「從現在起一次寬限」，永遠是有界的正數。
+      : Math.max(nowMs, ...known) + PLUS_ENTITLEMENT_GRACE_MS;
+  }
+  return { active: access.length > 0, activeUntilMs, updatedAtMs: nowMs, source };
+}
+
+function firestoreEntitlementPayload(doc) {
+  return {
+    fields: {
+      active: { booleanValue: doc.active },
+      activeUntilMs: { integerValue: String(doc.activeUntilMs) },
+      updatedAtMs: { integerValue: String(doc.updatedAtMs) },
+      source: { stringValue: doc.source },
+    },
+  };
+}
+
+function validFirestoreDocumentId(value) {
+  if (typeof value !== 'string' || !value || value === '.' || value === '..' || value.includes('/')) return false;
+  const bytes = new TextEncoder().encode(value).length;
+  return bytes <= 1500 && !/^__.*__$/.test(value);
+}
+
+// 讀回來的資格文件裡的 updatedAtMs。Firestore REST 把 int64 包成**字串**（integerValue），
+// 所以一定要自己轉數字。回 null 的語意是「這份文件排不出先後」（欄位缺席、型別不是我方寫的
+// integerValue、或轉不出有限數），呼叫端據此決定怎麼辦——不可以拿 0 代替 null，那會讓
+// 「讀不出時間戳」與「時間戳真的是 0」變成同一件事。
+function storedEntitlementUpdatedAtMs(document) {
+  const field = document && document.fields && document.fields.updatedAtMs;
+  if (!field || typeof field !== 'object' || typeof field.integerValue !== 'string') return null;
+  const value = Number(field.integerValue);
+  return Number.isFinite(value) ? value : null;
+}
+
+// 一次 CAS 最多試幾輪。**有上限**這件事本身就是「不可能活鎖」的證明（見下方邊界決定）。
+// 3 輪的依據：資格文件的 writer 只有兩個入口（/api/plus-status 與 /api/revenuecat-webhook），
+// Firestore 規則對正式／Sandbox 兩種資格文件都是 `allow write: if false`，沒有第三方 writer。
+const FIRESTORE_CAS_MAX_ATTEMPTS = 3;
+// 「文件在我讀完之後被別人動過」的所有表達方式。409／412 一望即知；Google API 也會用
+// 400（FAILED_PRECONDITION）／404（NOT_FOUND，文件在讀與寫之間被刪掉）表達同一件事，
+// 所以再看一次回應的 error.status，才不會把「衝突」誤判成不可重試的硬失敗。
+const FIRESTORE_CONFLICT_HTTP = new Set([409, 412]);
+const FIRESTORE_CONFLICT_REASONS = new Set(['ABORTED', 'ALREADY_EXISTS', 'FAILED_PRECONDITION', 'NOT_FOUND']);
+
+// ── 資格文件寫入：compare-and-set，舊真相不得覆蓋新真相 ──────────────────────────────
+// 🔴 2026-08-04 整合稽核 Important 1：/api/plus-status 與 RevenueCat webhook 各自獨立查真相，
+// 再對同一份資格文件做**無條件** PATCH。文件雖然帶著 updatedAtMs，寫入時卻沒有
+// compare-and-set／transaction／precondition，也沒有每 uid 的序列化，於是真正生效的是
+// 「最後抵達 Firestore 的請求」，不是「最新取得的 RevenueCat 真相」：
+//   1. 較早的 plus-status 查到有效訂閱（updatedAtMs 較小），它那發 Firestore 請求延遲；
+//   2. 退款 webhook 稍後重查到無資格，先寫入 active:false（updatedAtMs 較大）；
+//   3. 第 1 步那筆舊 PATCH 最後抵達，把文件反向覆寫回 active:true。
+// firestore.rules 只看 active 與 activeUntilMs，不看 updatedAtMs ⇒ 已退款的人可以繼續寫雲端
+// 資料，直到舊訂閱原到期日再加寬限（年訂剛開始就退款的話，殘留可接近一年）。反向排序同樣會
+// 出事：舊的 inactive 蓋掉新的「重新訂閱」⇒ 付費者被誤判成沒訂閱。兩個方向是同一個缺陷的兩面。
+//
+// 修法＝**讀 → 比 updatedAtMs → 帶 precondition 寫 → 衝突就重讀重判**。
+// Firestore REST v1 discovery document 對 Precondition 的逐字說明
+// （https://firestore.googleapis.com/$discovery/rest?version=v1，schemas.Precondition）：
+//   updateTime — "When set, the target document must exist and have been last updated at that
+//                 time. Timestamp must be microsecond aligned."
+//   exists     — "When set to `true`, the target document must exist. When set to `false`,
+//                 the target document must not exist."
+// documents.patch 把這兩個收成 query 參數 currentDocument.updateTime／currentDocument.exists。
+// 於是「我讀到的那一版就是我要覆寫的那一版」由 Firestore 自己保證（讀與寫之間有人插隊就 412／
+// 409），我方只需要負責「比我新的不要覆寫」。updateTime 一律**原樣回送**，不重新格式化——
+// 規格要求微秒對齊，自己解析再組回去只會製造對不上的機會。
+//
+// 為什麼不用 read-write transaction（beginTransaction → get → commit）：單一文件的 CAS 用
+// precondition 只要兩發請求，transaction 要三發，保證強度一樣（都是「讀到的版本沒被動過才寫」）。
+// 為什麼 precondition 一定要配「重讀再判斷」：只把 PATCH 加上重試等於沒修——重試送的還是那筆
+// 舊真相，它遲早會在某個沒有衝突的時刻寫成功，缺陷原封不動。衝突的語意是「文件已經變了」，
+// 唯一正確的反應是重讀、重新比 updatedAtMs，再決定要不要寫。
+//
+// 邊界決定：
+//  · 兩筆 updatedAtMs **相同**（同一毫秒）⇒ 寫（條件是 stored <= incoming）。同一毫秒的兩筆是
+//    一樣新的真相，誰贏都對；而且同一筆 webhook 事件被重送時仍寫得進去，不會卡住自癒。用 `<`
+//    的話，文件一旦被設成同一毫秒就永遠寫不進去。`<=` 唯一的風險是搭配**無限**重試時可能活鎖，
+//    而這裡的重試次數是常數上限，所以活鎖在結構上不可能發生。
+//  · 上限用完仍衝突 ⇒ **保留現況**、不強寫，並拋錯。此時文件是別人剛寫進去的、至少跟我一樣新，
+//    留著它比覆寫它安全（fail-closed 會把付費者關掉，是對付費者最傷的方向）。拋錯讓 webhook
+//    回 503 由 RevenueCat 重試（重試會重查當下真相），plus-status 則沿用既有的「寫入失敗不影響
+//    唯讀答案」隔離。
+//  · 現存文件讀不出合法 updatedAtMs（舊格式／被外力改壞）⇒ 視同排不出先後＝可以覆寫：我方這筆
+//    是剛查到的真相，一份無法排序的文件沒有「比較新」的立場。
+//  · 讀到 200 卻沒有 updateTime ⇒ 拋錯不寫。沒有 updateTime 就做不出 CAS，這時候硬寫等於把
+//    CAS 靜默降級回舊的無條件覆寫，正是這條稽核要修的東西。
+//  · 判定為「舊的，跳過」是**成功**不是失敗：正常回傳 { written:false, outcome:'skipped-older' }，
+//    webhook 因此回 200（不燒掉 RevenueCat 有限的重試次數），並留下一行明說「刻意跳過」的 log。
+async function writePlusEntitlement(uid, doc, env, nowMs = Date.now(), entitlementEnvironment = RC_ENV_PRODUCTION) {
+  if (!validFirestoreDocumentId(uid)) throw new Error('invalid entitlement uid');
+  const token = await getFirestoreAccessToken(env, nowMs);
+  const project = encodeURIComponent(env.FIRESTORE_PROJECT_ID);
+  const documentId = encodeURIComponent(uid);
+  const selectedEnvironment = plusEnvironment(entitlementEnvironment);
+  const collection = PLUS_ENTITLEMENT_COLLECTION[selectedEnvironment];
+  const url = `https://firestore.googleapis.com/v1/projects/${project}/databases/(default)/documents/${collection}/${documentId}`;
+  for (let attempt = 1; attempt <= FIRESTORE_CAS_MAX_ATTEMPTS; attempt += 1) {
+    // ── 讀：拿現存文件的 updateTime（precondition 用）與 updatedAtMs（新舊比較用）──
+    const current = await fetch(url, {
+      headers: { Authorization: `Bearer ${token}` },
+      redirect: 'manual',                                      // C-1:見檔頭「憑證 subrequest 的 redirect 政策」
+    });
+    let precondition;
+    if (current.status === 404) {
+      precondition = 'currentDocument.exists=false';          // 文件不存在 ⇒ 只有「還是不存在」才准建立
+    } else if (current.ok) {
+      const existing = await current.json();
+      const updateTime = existing && existing.updateTime;
+      if (typeof updateTime !== 'string' || !updateTime) throw new Error('firestore read missing updateTime');
+      const storedUpdatedAtMs = storedEntitlementUpdatedAtMs(existing);
+      if (storedUpdatedAtMs !== null && storedUpdatedAtMs > doc.updatedAtMs) {
+        // 刻意跳過，不是失敗：現存文件比這筆真相新。log 不含 uid／憑證（同 plus-status 的慣例）。
+        console.log(`[plus-entitlement] CAS 刻意跳過寫入：現存文件較新（stored=${storedUpdatedAtMs} incoming=${doc.updatedAtMs} source=${doc.source}）`);
+        return { written: false, outcome: 'skipped-older' };
+      }
+      precondition = `currentDocument.updateTime=${encodeURIComponent(updateTime)}`;
+    } else {
+      throw new Error(`firestore read ${current.status}`);
+    }
+    // ── 寫：precondition 保證覆寫的就是剛剛讀到的那一版 ──
+    const response = await fetch(`${url}?${precondition}`, {
+      method: 'PATCH',
+      headers: { Authorization: `Bearer ${token}`, 'content-type': 'application/json' },
+      body: JSON.stringify(firestoreEntitlementPayload(doc)),
+      redirect: 'manual',                                      // C-1:見檔頭「憑證 subrequest 的 redirect 政策」
+    });
+    if (response.ok) return { written: true, outcome: precondition.startsWith('currentDocument.exists') ? 'created' : 'updated' };
+    let reason = '';
+    try {
+      const failure = await response.json();
+      reason = (failure && failure.error && failure.error.status) || '';
+    } catch (e) {}
+    const conflict = FIRESTORE_CONFLICT_HTTP.has(response.status)
+      || ((response.status === 400 || response.status === 404) && FIRESTORE_CONFLICT_REASONS.has(reason));
+    if (!conflict) throw new Error(`firestore write ${response.status}`);
+    console.log(`[plus-entitlement] CAS 衝突，重讀後重新判斷（attempt=${attempt} status=${response.status} reason=${reason || '未提供'} source=${doc.source}）`);
+  }
+  throw new Error('firestore write conflict unresolved');
+}
+
+// /api/plus-status 與 webhook 共用唯一一條 RevenueCat 讀取路徑：limit=100、逐頁累積所有
+// 符合資格的 subscription，且每一個 next_page 都由 resolveRcNextPage() 釘死 origin ＋ canonical
+// pathname（I-5）。為了讓 activeUntilMs 能取到所有頁的最晚到期日，命中後不提早回傳，會翻到自然
+// 結尾。每一頁在做任何業務判定之前都先過 rcSubscriptionsPageError()（I-3／I-4／I-5）：
+// 不符官方 schema 的 200 一律升成可重試的 503，絕不折疊成「確定沒訂閱」或「已翻到底」。
+async function fetchRevenueCatSubscriptions(uid, env, wantEntitlement, entitlementEnvironment = RC_ENV_PRODUCTION) {
+  const matches = [];
+  const selectedEnvironment = plusEnvironment(entitlementEnvironment);
+  // canonical endpoint：既是第一發請求的路徑，也是 I-5 用來認「下一頁還是不是同一個資源」的錨。
+  const canonicalPath = `/v2/projects/${encodeURIComponent(env.REVENUECAT_PROJECT_ID)}/customers/${encodeURIComponent(uid)}/subscriptions`;
+  let rcUrl = `${RC_ORIGIN}${canonicalPath}?environment=${selectedEnvironment}&limit=${RC_SUBS_LIMIT}`;
+  for (let page = 0; page < RC_SUBS_MAX_PAGES; page++) {
+    const rc = await fetch(rcUrl, {
+      headers: { Authorization: `Bearer ${env.REVENUECAT_V2_SECRET_KEY}`, Accept: 'application/json' },
+      redirect: 'manual',                                      // C-1:見檔頭「憑證 subrequest 的 redirect 政策」
+    });
+    if (rc.status === 404) {
+      // 🔴 2026-08-04 敵意稽核 I-1 修正:404 只有在**第一頁**才可能是「這個 customer 不存在」。
+      // 舊版不分頁次一律回空集合,於是「第 1 頁證明了有效訂閱、第 2 頁 404」會把已累積的命中
+      // 整個清掉,付費者被判無資格,plus-status 還會覆寫 active:false 的資格文件——而這正好違反
+      // 這支函式其他分支已經遵守的原則:已有命中但集合不完整 ⇒ 503,不拿不完整集合寫文件。
+      // 後續頁的 404 語意是「分頁游標失效／上游狀態改變」＝這次查詢失敗,不是「沒買過」。
+      if (page > 0 || matches.length) {
+        console.error(`[plus] subscriptions 第 ${page + 1} 頁回 404(分頁失敗,不是 customer 不存在),已累積命中 ${matches.length} 筆,回 503 不清空`);
+        return { ok: false, status: 503, error: 'entitlement_unavailable' };
+      }
+      let param = null;
+      try { const body404 = await rc.json(); param = body404 && body404.param; } catch (e) {}
+      if (param === 'project_id') {
+        console.error('[plus] 上游 404 指出 project_id 有問題(REVENUECAT_PROJECT_ID 疑似設定錯誤),回 503 而非誤判為未訂閱');
+        return { ok: false, status: 503, error: 'entitlement_unavailable' };
+      }
+      return { ok: true, subscriptions: { items: [] } };
+    }
+    if (!rc.ok) return { ok: false, status: 503, error: 'entitlement_unavailable' };
+    const subs = await rc.json();
+    // 🔴 I-3／I-4／I-5:業務判定之前先驗 schema。不合規＝可重試的 503,不得寫任何資格文件。
+    const shapeError = rcSubscriptionsPageError(subs, uid);
+    if (shapeError) {
+      console.error(`[plus] subscriptions 第 ${page + 1} 頁不符官方 schema,判為 malformed 回 503(不寫資格文件):${shapeError}`);
+      return { ok: false, status: 503, error: 'entitlement_unavailable' };
+    }
+    matches.push(...plusAccessSubscriptions(subs, wantEntitlement, selectedEnvironment));
+
+    // 走到這裡 next_page 只可能是 null／缺席（＝翻到底）或合法非空字串（＝還有下一頁）。
+    if (subs.next_page === null || subs.next_page === undefined) {
+      return { ok: true, subscriptions: { items: matches } };
+    }
+    const resolvedNextPage = resolveRcNextPage(subs.next_page, canonicalPath);
+    if (!resolvedNextPage) {
+      console.error(`[plus] next_page 解析後不是「同一個 customer 的 subscriptions 端點」(origin 或 pathname 不符),拒絕跟隨、停止翻頁:${subs.next_page}`);
+      // 沒有命中時維持既有的 403 安全方向；若已有命中，activeUntilMs 可能還有後頁資料，
+      // 改回可診斷、可重試的 503，不能拿不完整集合寫出看似成功的資格文件。
+      return matches.length
+        ? { ok: false, status: 503, error: 'entitlement_unavailable' }
+        : { ok: true, subscriptions: { items: [] } };
+    }
+    rcUrl = resolvedNextPage;
+  }
+  // 翻頁上限用完仍有 next_page。無命中維持現行安全方向；已有命中則不能用不完整集合計算
+  // activeUntilMs，回 503 讓 observability 與客戶端都看得出「查不完整」，不靜默寫錯文件。
+  if (matches.length) {
+    console.error('[plus] subscriptions 翻頁達安全上限且已有資格命中,activeUntilMs 無法完整計算,回 503');
+    return { ok: false, status: 503, error: 'entitlement_unavailable' };
+  }
+  return { ok: true, subscriptions: { items: [] } };
+}
+
+// 驗證 Firebase ID token → RevenueCat 訂閱存取權,供任何 Plus 付費牆端點共用。
+// 原本抽自 delayHistory 的既有驗證邏輯(2026-08-02 抽 helper);2026-08-03 收斂環境:
+// 舊版打 /active_entitlements 並用 items.length>0 判定,**那支端點在協定層面就分辨不出環境**——
+// 官方 OpenAPI v2 的 CustomerEntitlement 只有 object/entitlement_id/expires_at 三個欄位而且標了
+// additionalProperties:false(規格明文禁止出現其他欄位),所以 sandbox 購買會被當成正式 Plus。
+// 改打 /subscriptions:它有 environment query 參數,回應的 Subscription 也有 top-level 必填的
+// environment 與 gives_access 兩個欄位(判定細節見 plusEntitledFromSubscriptions)。
+// secret 未設定→fail-closed 503(不放行任何人)。驗證範式抄自 deleteAccountData(同一組 env secret)。
+// 正常請求只查 production。只有 build 21／22 TestFlight 明確帶測試 header 時，才會在 production
+// 沒資格後回退查 sandbox；兩邊仍各由 environment query 與逐筆 environment 欄位雙重收斂。
+// 成功與明確無資格都會附上 uid、選中的環境與跨頁累積的命中 subscriptions，供資格文件使用；
+// 呼叫端自行決定 403(not_entitled)要不要原樣回傳，或(如 /api/plus-status)改寫成 200 {active:false}。
+async function checkPlusEntitlement(request, env) {
+  if (!env.FIREBASE_WEB_API_KEY || !env.REVENUECAT_PROJECT_ID || !env.REVENUECAT_V2_SECRET_KEY)
+    return { ok: false, status: 503, error: 'entitlement_unavailable' };
+  const authHeader = request.headers.get('Authorization') || '';
+  const authMatch = authHeader.match(/^Bearer\s+(.+)$/i), idToken = authMatch && authMatch[1];
+  if (!idToken || idToken.length > 4096) return { ok: false, status: 401, error: 'unauthorized' };
+  try {
+    const lookup = await fetch(`https://identitytoolkit.googleapis.com/v1/accounts:lookup?key=${encodeURIComponent(env.FIREBASE_WEB_API_KEY)}`, {
+      method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ idToken }),
+      redirect: 'manual',                                      // C-1:見檔頭「憑證 subrequest 的 redirect 政策」
+    });
+    if (!lookup.ok) return { ok: false, status: 401, error: 'unauthorized' };
+    const identity = await lookup.json(), uid = identity && identity.users && identity.users[0] && identity.users[0].localId;
+    if (!uid || typeof uid !== 'string') return { ok: false, status: 401, error: 'unauthorized' };
+    // entitlement 的 lookup_key 與前端 revenuecat-config.js 的 entitlement 同一個值('plus');
+    // 不是 secret,給 env 覆寫只是為了不把它寫死在兩個地方。
+    const wantEntitlement = env.REVENUECAT_ENTITLEMENT || 'plus';
+    const productionTruth = await fetchRevenueCatSubscriptions(uid, env, wantEntitlement, RC_ENV_PRODUCTION);
+    if (!productionTruth.ok) return productionTruth;
+    let entitlementEnvironment = RC_ENV_PRODUCTION;
+    let truth = productionTruth;
+    if (!plusEntitledFromSubscriptions(productionTruth.subscriptions, wantEntitlement, RC_ENV_PRODUCTION)
+        && sandboxPlusRequested(request)) {
+      const sandboxTruth = await fetchRevenueCatSubscriptions(uid, env, wantEntitlement, RC_ENV_SANDBOX);
+      if (!sandboxTruth.ok) return sandboxTruth;
+      entitlementEnvironment = RC_ENV_SANDBOX;
+      truth = sandboxTruth;
+    }
+    // subscriptions 是跨頁累積後「所有符合資格的命中集合」，不是任一頁的原始 body；
+    // plus-status 與 webhook 都用這份集合計算 activeUntilMs，避免有效訂閱在後頁時寫錯。
+    const subscriptions = truth.subscriptions;
+    const common = { uid, subscriptions, entitlementEnvironment, productionSubscriptions: productionTruth.subscriptions };
+    if (!plusEntitledFromSubscriptions(subscriptions, wantEntitlement, entitlementEnvironment))
+      return { ok: false, status: 403, error: 'not_entitled', ...common };
+    return { ok: true, ...common };
+  } catch (e) {
+    return { ok: false, status: 503, error: 'entitlement_unavailable' };                         // 網路/解析暫時性錯誤:可重試
+  }
+}
+
 async function delayHistory(request, env) {
   const train = new URL(request.url).searchParams.get('train') || '';
   if (!isValidTrainNo(train)) return jsonRes({ error: 'bad train' }, 400, 'no-store');
@@ -1182,34 +1954,8 @@ async function delayHistory(request, env) {
   // ── Plus 付費牆:誤點履歷是 Plus 頭牌功能,先驗 Firebase ID token + RevenueCat entitlement ──
   // 此閘一定要在下方 edge.match 之前:授權後的 200 資料會寫進 train-keyed 共享邊緣快取;閘若放在
   // match 之後,無 token 的人也能從共享快取讀到,付費牆漏底。401/403/503 一律 no-store,不入共享快取。
-  // 驗證範式抄自 deleteAccountData(同一組 env secret)。secret 未設定→fail-closed 503(不放行任何人)。
-  if (!env.FIREBASE_WEB_API_KEY || !env.REVENUECAT_PROJECT_ID || !env.REVENUECAT_V2_SECRET_KEY)
-    return jsonRes({ error: 'entitlement_unavailable' }, 503, 'no-store');
-  const authHeader = request.headers.get('Authorization') || '';
-  const authMatch = authHeader.match(/^Bearer\s+(.+)$/i), idToken = authMatch && authMatch[1];
-  if (!idToken || idToken.length > 4096) return jsonRes({ error: 'unauthorized' }, 401, 'no-store');
-  try {
-    const lookup = await fetch(`https://identitytoolkit.googleapis.com/v1/accounts:lookup?key=${encodeURIComponent(env.FIREBASE_WEB_API_KEY)}`, {
-      method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ idToken }),
-    });
-    if (!lookup.ok) return jsonRes({ error: 'unauthorized' }, 401, 'no-store');
-    const identity = await lookup.json(), uid = identity && identity.users && identity.users[0] && identity.users[0].localId;
-    if (!uid || typeof uid !== 'string') return jsonRes({ error: 'unauthorized' }, 401, 'no-store');
-    // 軌島 Plus 是單一 entitlement 產品,故「有任何 active entitlement=有 Plus」。若日後新增第二種
-    // entitlement tier,這裡要改成比對特定 entitlement——注意 RevenueCat v2 的
-    // active_entitlements.items[].entitlement_id 是內部不透明 id(entl...),不是 dashboard 設的
-    // lookup_key(plus);屆時需先用 GET /v2/projects/{pid}/entitlements 把 lookup_key 解析成內部 id 再比對。
-    const rc = await fetch(`https://api.revenuecat.com/v2/projects/${encodeURIComponent(env.REVENUECAT_PROJECT_ID)}/customers/${encodeURIComponent(uid)}/active_entitlements`, {
-      headers: { Authorization: `Bearer ${env.REVENUECAT_V2_SECRET_KEY}`, Accept: 'application/json' },
-    });
-    if (rc.status === 404) return jsonRes({ error: 'not_entitled' }, 403, 'no-store');       // 此 uid 從未在 RevenueCat 出現=沒買過
-    if (!rc.ok) return jsonRes({ error: 'entitlement_unavailable' }, 503, 'no-store');        // 上游暫時性錯誤:不當有資格、也不永久拒絕,讓前端可重試
-    const ent = await rc.json();
-    const entitled = Array.isArray(ent.items) && ent.items.length > 0;
-    if (!entitled) return jsonRes({ error: 'not_entitled' }, 403, 'no-store');
-  } catch (e) {
-    return jsonRes({ error: 'entitlement_unavailable' }, 503, 'no-store');                    // 網路/解析暫時性錯誤:可重試
-  }
+  const check = await checkPlusEntitlement(request, env);
+  if (!check.ok) return jsonRes({ error: check.error }, check.status, 'no-store');
   // 快取鍵手動把 train 併進 URL 字串(同 stationEvents 慣例)——caches.default 精確比對傳入的
   // Request URL,鍵若只用不帶 query 的路徑,不同車次會互相污染快取。train 已白名單化,免 encode。
   const cacheKey = new Request(new URL('/api/delay-history?train=' + train, request.url), { method: 'GET' });
@@ -1232,6 +1978,184 @@ async function delayHistory(request, env) {
     return res;
   } catch (e) {
     return jsonRes({ error: 'not_ready' }, 503, 'public, s-maxage=60');
+  }
+}
+
+// GET /api/plus-status  Authorization: Bearer <Firebase ID token>
+// → 200 {active:boolean, cloudSyncReady:boolean}｜401 無 token｜503 上游或 RevenueCat secret 未設(fail-closed)
+// 回應仍是 RevenueCat 真相的唯讀答案；查到真相後另外自癒寫入 Firestore。寫入失敗只記錄診斷，
+// 不得把已查到的答案改成 503。no-store,不進共享 edge 快取(每個 uid 的答案不同)。無 web billing key 的
+// 平台(RAIL_REVENUECAT_CONFIG 只設 iosApiKey)plusConfigured() 恆 false、不初始化 billing SDK,
+// 這支端點就是那些平台查詢既有資格的唯一管道:純查詢,不發起購買、不改變資格。
+//
+// 🔴 2026-08-04 批二-B(整合稽核 Important 2／3):回應的兩個欄位是**兩個獨立的真相**，不可混用。
+//   · active         ＝ RevenueCat 說這個人有沒有有效訂閱。決定純客端功能(Takeout 匯入／行程分享／
+//                      衛星 Retina／Live Activity)。買完當下就知道。
+//   · cloudSyncReady ＝ 所選環境的資格文件**在這次請求中確認落地了**。production 讀
+//                      /entitlements/{uid}，Sandbox 讀 /sandboxEntitlements/{uid}；只有它為真，
+//                      對應 users／sandboxUsers 的雲端同步才寫得進去。
+// 兩者會分家的真實情境正是這條稽核要修的東西:剛買完的人 active 已經是 true(客戶端立刻認為自己
+// 是 Plus 而開始同步)，資格文件卻還沒寫好 ⇒ rules 一律擋 ⇒ 同步收到 permission-denied。這支端點
+// 本身就是資格文件的 writer，所以「呼叫它」＝「主動讓文件落地」，回應等於一次握手的結果。
+// cloudSyncReady 的判定刻意嚴格，只有兩個條件同時成立才回 true:
+//   (a) 這次 CAS 真的寫進去了(outcome 'created'／'updated'，written===true)；
+//   (b) 寫進去的那份文件本身是 active(active:false 的文件照樣被 rules 擋，宣稱 ready 等於說謊)。
+// 'skipped-older'(現存文件比這筆真相新)刻意算 **false**:我方沒有寫、也沒有讀回它的內容，
+// 無從斷言它是 active——回 false 讓客戶端下一次握手重試(下一次的 updatedAtMs 更大，必然寫得進去)，
+// 這個方向的錯只會多一次往返，反方向的錯(謊稱 ready)會讓客戶端拿註定被擋的交易去撞牆。
+// 寫入拋錯(Firestore 故障／service account 未設定)也是 false，同一個理由。
+async function plusStatus(request, env) {
+  // 與 delayHistory 共用同一組上游(Firebase+RevenueCat)、同一顆限流器:節流要在呼叫之前,理由同 delayHistory。
+  if (await rateLimited(env.AUTH_LIMITER, request)) return jsonRes({ error: 'rate_limited' }, 429, 'no-store');
+  const check = await checkPlusEntitlement(request, env);
+  // not_entitled(403)在這支端點不是錯誤,是正常答案的一種:「查得到、資格是 false」要跟「查不到」
+  // (503)分開,否則 RevenueCat 短暫故障會被前端誤讀成「沒訂閱」而把付費者的功能整批關掉。
+  if (!check.ok && check.status !== 403) return jsonRes({ error: check.error }, check.status, 'no-store');
+  let cloudSyncReady = false;
+  if (check.uid && check.subscriptions && check.productionSubscriptions) {
+    const wantEntitlement = env.REVENUECAT_ENTITLEMENT || 'plus';
+    // nowMs 明確傳進去,好讓下面的 cloudSyncReady 跟這份文件用同一個時鐘判斷到期(不要各自 Date.now())。
+    const nowMs = Date.now();
+    const selectedEnvironment = plusEnvironment(check.entitlementEnvironment);
+    // 正式文件永遠由正式真相自癒；TestFlight 回退到 sandbox 時再另外寫 sandboxEntitlements。
+    // 兩份文件分開，sandbox webhook／到期不可能覆蓋正式購買資格。
+    const productionDoc = plusEntitlementDocument(
+      check.productionSubscriptions, wantEntitlement, 'plus-status', nowMs, RC_ENV_PRODUCTION
+    );
+    try {
+      const productionWrite = await writePlusEntitlement(check.uid, productionDoc, env, nowMs, RC_ENV_PRODUCTION);
+      let selectedDoc = productionDoc, selectedWrite = productionWrite;
+      if (selectedEnvironment === RC_ENV_SANDBOX) {
+        selectedDoc = plusEntitlementDocument(
+          check.subscriptions, wantEntitlement, 'plus-status', nowMs, RC_ENV_SANDBOX
+        );
+        selectedWrite = await writePlusEntitlement(check.uid, selectedDoc, env, nowMs, RC_ENV_SANDBOX);
+      }
+      // 🔴 2026-08-04 最終複審 I-1:這個條件必須與 firestore.rules 的 hasActiveEntitlement() **逐項對齊**
+      // ——規則是 `active == true && activeUntilMs > 現在`,少一項就是對一份規則保證會拒絕的文件宣稱 ready。
+      // 漏掉到期那半會怎麼出事:RevenueCat 在帳單重試／寬限期仍可能回 gives_access:true 而 ends_at 已經
+      // 過去(plusAccessSubscriptions 只看 gives_access／environment／lookup_key,不看到期),此時
+      // plusEntitlementDocument 產出的正是「active:true 但 activeUntilMs 已過去」。實測探針:
+      // ends_at 為四天前 ⇒ doc.activeUntilMs 距現在 -72 小時,rules 拒絕、舊條件卻回 ready:true。
+      // 代價不是多一次往返:前端的 plusMarkCloudSyncReady() 是**單向閂**(只有 accountForgetIdentity
+      // 會歸零),誤設之後就不再握手,legacyKinds 也永遠收不回來 ⇒ 等寬限期過去、資格恢復正常之後,
+      // 那個 session 每次同步仍靜默少傳 stations,直到重新整理。那正是批二-B 宣稱已經切掉的尾巴。
+      cloudSyncReady = selectedDoc.active === true && selectedDoc.activeUntilMs > nowMs
+        && !!(selectedWrite && selectedWrite.written);
+    } catch (e) {
+      // 不含 uid／憑證，只留下路徑與錯誤類型，讓 Worker observability 能診斷設定或上游故障。
+      console.error('[plus-entitlement] plus-status Firestore write failed:', String(e && e.message || e));
+    }
+  }
+  return jsonRes({
+    active: check.ok,
+    cloudSyncReady,
+    environment: check.ok ? plusEnvironment(check.entitlementEnvironment) : null,
+  }, 200, 'no-store');
+}
+
+async function constantTimeHeaderEqual(actual, expected) {
+  const encoder = new TextEncoder();
+  const [a, b] = await Promise.all([
+    crypto.subtle.digest('SHA-256', encoder.encode(actual)),
+    crypto.subtle.digest('SHA-256', encoder.encode(expected)),
+  ]);
+  const aa = new Uint8Array(a), bb = new Uint8Array(b);
+  let different = 0;
+  for (let i = 0; i < aa.length; i += 1) different |= aa[i] ^ bb[i];
+  return different === 0;
+}
+
+// 一個 webhook 事件到底要為「哪些 uid」重查真相並寫資格文件。
+//
+// 🔴 2026-08-04 敵意稽核 I-2 修正：舊版無條件把 event.app_user_id 當唯一主體，缺席即 400，
+// 於是**每一筆 TRANSFER 事件都必定 400**——TRANSFER 不是 subscriber-identity 形狀的事件，
+// 它用 transferred_from[]／transferred_to[] 表示轉出與轉入雙方。RevenueCat 官方
+// Event Types and Fields 把 TRANSFER 的 Applicable fields 列為「Common fields · Transfer」，
+// 欄位表把 transferred_from、transferred_to 都標成 Always，而 app_user_id 不在其中：
+// https://www.revenuecat.com/docs/integrations/webhooks/event-types-and-fields#transfer
+// 後果是轉入者拿不到 active:true（要等自己呼叫 /api/plus-status 才自癒）、轉出者的舊資格文件
+// 也不會即時改成 inactive；而且非 200 會被重試，官方只重試有限次數（up to 5 times）就放棄，
+// 等於把重試額度燒在一個永遠不會成功的形狀上。
+//
+// 這裡只做最小正確處理：把「事件主體是誰」抽成一個函式，TRANSFER 取兩個陣列的聯集並去重。
+// 寫入時仍然一律用 fetchRevenueCatSubscriptions() 重查**正式環境**真相，不從事件內容推演資格——
+// 所以雙方各自寫到的都是當下的真相，順序與重複送達都不影響結果（冪等）。
+function webhookTargetUids(event) {
+  if (!event || typeof event !== 'object') return [];
+  if (event.type === RC_WEBHOOK_TYPE_TRANSFER) {
+    const uids = [];
+    for (const list of [event.transferred_from, event.transferred_to]) {
+      if (!Array.isArray(list)) continue;
+      for (const uid of list) {
+        if (validFirestoreDocumentId(uid) && !uids.includes(uid)) uids.push(uid);
+      }
+    }
+    return uids;
+  }
+  return validFirestoreDocumentId(event.app_user_id) ? [event.app_user_id] : [];
+}
+
+// POST /api/revenuecat-webhook
+// RevenueCat dashboard 設定的 Authorization 完整值必須與 REVENUECAT_WEBHOOK_AUTH secret 完全相同。
+// webhook 本身只當喚醒訊號：事件一律用 fetchRevenueCatSubscriptions() 重查完整分頁真相再寫，
+// 退款、撤銷、到期不靠本地事件型別表推演。production 與 sandbox 寫入不同 collection，
+// 所以測試交易可以完整驗收續訂／到期，又不會蓋掉正式資格。
+async function revenueCatWebhook(request, env) {
+  if (request.method !== 'POST') {
+    const response = jsonRes({ error: 'method not allowed' }, 405, 'no-store');
+    response.headers.set('Allow', 'POST, OPTIONS');
+    return response;
+  }
+  if (!env.REVENUECAT_WEBHOOK_AUTH) return jsonRes({ error: 'webhook_unavailable' }, 503, 'no-store');
+  const authorized = await constantTimeHeaderEqual(
+    request.headers.get('Authorization') || '', env.REVENUECAT_WEBHOOK_AUTH
+  );
+  if (!authorized) return jsonRes({ error: 'unauthorized' }, 401, 'no-store');
+  // 這是會寫 Firestore 的端點，限流器服務拋例外時 fail closed；binding 未設定的離線測試仍放行。
+  if (await rateLimited(env.AUTH_LIMITER, request, true)) return jsonRes({ error: 'rate_limited' }, 429, 'no-store');
+
+  let payload;
+  try { payload = await request.json(); }
+  catch (e) { return jsonRes({ error: 'bad_request' }, 400, 'no-store'); }
+  const event = payload && payload.event;
+  const uids = webhookTargetUids(event);
+  if (!event || !uids.length) return jsonRes({ error: 'bad_request' }, 400, 'no-store');
+  // 🔴 I-2：environment 對 TRANSFER 只是「Sometimes」欄位，拿它當硬閘等於把每一筆不帶
+  // environment 的轉移都擋成 400（並燒掉有限的重試次數）。TRANSFER 缺席時放行是安全的——
+  // environment 缺席時無法知道是哪一邊的轉移，所以兩邊都各自重查並寫進隔離 collection；
+  // 每一支查詢仍同時靠 environment query 與逐筆 environment 比對收斂，不會互相混入。
+  // 其他事件型別維持原本的嚴格閘：它們的 environment 是必填，缺席就是不該接受的形狀。
+  if (event.environment !== RC_WEBHOOK_ENV_PRODUCTION && event.environment !== RC_WEBHOOK_ENV_SANDBOX
+      && !(event.type === RC_WEBHOOK_TYPE_TRANSFER && event.environment === undefined))
+    return jsonRes({ error: 'bad_request' }, 400, 'no-store');
+  if (!env.REVENUECAT_PROJECT_ID || !env.REVENUECAT_V2_SECRET_KEY || !firestoreConfigured(env))
+    return jsonRes({ error: 'entitlement_unavailable' }, 503, 'no-store');
+
+  try {
+    const wantEntitlement = env.REVENUECAT_ENTITLEMENT || 'plus';
+    const entitlementEnvironments = event.environment === RC_WEBHOOK_ENV_SANDBOX
+      ? [RC_ENV_SANDBOX]
+      : event.environment === RC_WEBHOOK_ENV_PRODUCTION
+        ? [RC_ENV_PRODUCTION]
+        : [RC_ENV_PRODUCTION, RC_ENV_SANDBOX];
+    // 逐一處理（TRANSFER 會有兩個 uid）。任何一個失敗就整支回 503 讓 RevenueCat 重試；
+    // 重試安全，因為每次都是重查當下真相再覆寫，不是套用事件內容。
+    for (const targetUid of uids) {
+      for (const entitlementEnvironment of entitlementEnvironments) {
+        const truth = await fetchRevenueCatSubscriptions(targetUid, env, wantEntitlement, entitlementEnvironment);
+        if (!truth.ok) throw new Error(`revenuecat subscriptions ${truth.status}`);
+        const nowMs = Date.now();
+        const doc = plusEntitlementDocument(
+          truth.subscriptions, wantEntitlement, 'revenuecat-webhook', nowMs, entitlementEnvironment
+        );
+        await writePlusEntitlement(targetUid, doc, env, nowMs, entitlementEnvironment);
+      }
+    }
+    return jsonRes({ ok: true }, 200, 'no-store');
+  } catch (e) {
+    console.error('[plus-entitlement] revenuecat-webhook sync failed:', String(e && e.message || e));
+    return jsonRes({ error: 'entitlement_write_failed' }, 503, 'no-store');
   }
 }
 
@@ -1329,7 +2253,7 @@ async function basemapSession(request, env) {
     const r = await fetch(
       'https://basemapstyles-api.arcgis.com/arcgis/rest/services/styles/v2/sessions/start'
       + '?styleFamily=arcgis&token=' + encodeURIComponent(env.ESRI_WEB_TOKEN),
-      { headers: { referer: 'https://railisland.tw/' } });
+      { headers: { referer: 'https://railisland.tw/' }, redirect: 'manual' });   // C-1:見檔頭 redirect 政策
     const d = await r.json();
     // 失敗一律回 502 不回顯上游 body——那裡面可能帶著我們送出去的 token 片段。
     if (!r.ok || !d || !d.sessionToken) return jsonRes({ error: 'upstream' }, 502, 'no-store');
@@ -1340,7 +2264,39 @@ async function basemapSession(request, env) {
   }
 }
 
-// 刪除帳號時清除「我們這邊」的伺服器資料：RevenueCat customer ＋ D1 的懸賞校正旅程資料。
+// 刪帳號時一併刪除這個 uid 的正式與 Sandbox 資格文件——2026-08-04 整合稽核 Important 4：
+// 舊版 /api/account-delete 只刪 RevenueCat customer 與 D1 校正資料，entitlements/{uid} 留著不動。
+// 兩個問題：(1) 揭露不實——條款／隱私政策承諾刪除帳號會清掉軌島保存的資料，這份文件卻繼續存在；
+// (2) 資格殘留——文件本身就是雲端同步的付費牆憑據（firestore.rules 的 hasActiveEntitlement()
+// 直接讀它），帳號已經不存在，不該再留一份「這個 uid 有權寫雲端資料」的文件。
+//
+// 用單純 DELETE、不做 CAS：writePlusEntitlement() 的 compare-and-set 解的是「兩個 writer 各自在
+// 不同時間點查到不同真相，互相覆蓋」；這裡只有一個動作（刪除），沒有「舊真相」可比，硬套 CAS
+// 只是白多一次 GET。200（真的刪到）與 404（本來就不存在）都是「現在沒有這份文件」這個目標狀態，
+// 兩者都算成功——冪等是這支函式存在的理由。故意不去查證 Firestore 對「刪除不存在的文件」實際會
+// 回 200 還是 404：兩種都接受，不必依賴對第三方行為的假設。
+//
+// 這裡不呼叫、也不修改 writePlusEntitlement／checkPlusEntitlement／plusStatus／
+// revenueCatWebhook——那一帶是另一個並行批次的地界，此函式只透過 getFirestoreAccessToken／
+// firestoreConfigured／validFirestoreDocumentId 這幾支底層工具函式，不動它們的邏輯。
+async function deletePlusEntitlement(uid, env, nowMs = Date.now(), entitlementEnvironment = RC_ENV_PRODUCTION) {
+  if (!validFirestoreDocumentId(uid)) throw new Error('invalid entitlement uid');
+  const token = await getFirestoreAccessToken(env, nowMs);
+  const project = encodeURIComponent(env.FIRESTORE_PROJECT_ID);
+  const documentId = encodeURIComponent(uid);
+  const collection = PLUS_ENTITLEMENT_COLLECTION[plusEnvironment(entitlementEnvironment)];
+  const url = `https://firestore.googleapis.com/v1/projects/${project}/databases/(default)/documents/${collection}/${documentId}`;
+  const response = await fetch(url, {
+    method: 'DELETE',
+    headers: { Authorization: `Bearer ${token}` },
+    redirect: 'manual',                                        // C-1:見檔頭「憑證 subrequest 的 redirect 政策」
+  });
+  if (response.ok || response.status === 404) return { deleted: true };
+  throw new Error(`firestore entitlement delete ${response.status}`);
+}
+
+// 刪除帳號時清除「我們這邊」的伺服器資料：RevenueCat customer ＋ D1 的懸賞校正旅程資料
+// ＋資格文件（見上方 deletePlusEntitlement）。
 // Secret API key 只能存在 Worker runtime；先以 Firebase Auth REST lookup 驗證呼叫者的 ID token，
 // 再只刪除該 token 自己的 uid，不接受前端傳 customer id／actor，避免知道別人 uid 就能刪除對方資料。
 //
@@ -1367,6 +2323,7 @@ async function deleteAccountData(request, env) {
   try {
     const lookup = await fetch(`https://identitytoolkit.googleapis.com/v1/accounts:lookup?key=${encodeURIComponent(env.FIREBASE_WEB_API_KEY)}`, {
       method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ idToken }),
+      redirect: 'manual',                                      // C-1:見檔頭「憑證 subrequest 的 redirect 政策」
     });
     if (!lookup.ok) return jsonRes({ error: 'unauthorized' }, 401, 'no-store');
     const identity = await lookup.json(), uid = identity && identity.users && identity.users[0] && identity.users[0].localId;
@@ -1380,9 +2337,36 @@ async function deleteAccountData(request, env) {
     if (env.REVENUECAT_PROJECT_ID && env.REVENUECAT_V2_SECRET_KEY) {
       const rc = await fetch(`https://api.revenuecat.com/v2/projects/${encodeURIComponent(env.REVENUECAT_PROJECT_ID)}/customers/${encodeURIComponent(uid)}`, {
         method: 'DELETE', headers: { Authorization: `Bearer ${env.REVENUECAT_V2_SECRET_KEY}`, Accept: 'application/json' },
+        redirect: 'manual',                                    // C-1:見檔頭「憑證 subrequest 的 redirect 政策」
       });
       // 從未開過購買頁的帳號可能沒有 RevenueCat customer；404 代表已達成「沒有資料可刪」。
       if (!(rc.ok || rc.status === 404)) return jsonRes({ error: 'purchase profile deletion failed' }, 502, 'no-store');
+    }
+    // 🔴 2026-08-04 整合稽核 Important 4（批二-C）：刪除資格文件，見上方 deletePlusEntitlement()
+    // 完整說明。刻意排在 RevenueCat customer 刪除之後、回應之前——這裡要交代的是刪除之後的競態：
+    // 一則在途的 RevenueCat webhook，或使用者裝置上還沒死透的 /api/plus-status 呼叫（Firebase
+    // Auth 帳號要等到這支端點回應後、前端才會呼叫 deleteUser()，見 index.html accountDelete()
+    // 的呼叫順序；已核發的 ID token 在那之後通常還會再活約一小時），都可能在我們刪掉這份文件之後
+    // 重新查一次 RevenueCat 並把文件寫回去（那兩條路徑不屬於這個批次的地界，不能改）。這個競態
+    // 結構上無法完全關閉：關閉需要 plus-status／webhook 知道「這個 uid 剛被刪過帳號」，但它們的
+    // 契約就是「重查即時真相」，加一個那樣的旁路等於改了不該碰的邏輯。
+    // 兩種先後順序裡選「先刪 RevenueCat customer、後刪資格文件」：此時若真的撞上競態重新查
+    // RevenueCat，查到的會是「這個 customer 已經不存在」——fetchRevenueCatSubscriptions() 對第 1
+    // 頁 404 的既有處理是視同無訂閱——最壞只會重新寫出一份 active:false 的文件（揭露上不乾淨，
+    // 但不是可以拿來當付費憑據的文件）；顛倒過來的話，競態抓到的會是真的還在生效的訂閱，可能
+    // 重新寫出 active:true，那份文件從此不會再被這支端點碰第二次。
+    // 未設定 Firestore 時跳過、不當錯誤：沒有 service account 就不可能有任何 writer 寫出過資格
+    // 文件，道理與上面「未設定 RevenueCat＝沒有購買資料可刪」相同。真的失敗（非 404）則整支回錯
+    // 並記 log——刪除失敗不能被靜默吞掉，寧可讓使用者以為要重按一次，也不要回報「已刪除」卻留著
+    // 一份還能通過 firestore.rules 資格檢查的文件。
+    if (firestoreConfigured(env)) {
+      try {
+        await deletePlusEntitlement(uid, env, Date.now(), RC_ENV_PRODUCTION);
+        await deletePlusEntitlement(uid, env, Date.now(), RC_ENV_SANDBOX);
+      } catch (e) {
+        console.error('[plus-entitlement] account-delete entitlement deletion failed:', String(e && e.message || e));
+        return jsonRes({ error: 'entitlement deletion failed' }, 502, 'no-store');
+      }
     }
     return jsonRes({ ok: true, deleted: purged }, 200, 'no-store');
   } catch (e) {
@@ -1400,13 +2384,13 @@ const SEC_HEADERS = {
 const APP_ORIGINS = new Set(['capacitor://localhost', 'https://localhost']);
 // 非 GET 的白名單。🔴 這道門是刻意關死的:預設所有 /api/* 只收 GET/HEAD,要開洞就逐條加進來,
 // 不可以改成「全部放行」——擋掉的是「隨手對唯讀端點打 POST」這類探測,而那正是最便宜的防線。
-const API_POST_ALLOWED = new Set(['/api/account-delete', '/api/bounty-claim', '/api/bounty-submit', '/api/bounty-merge']);
+const API_POST_ALLOWED = new Set(['/api/account-delete', '/api/bounty-claim', '/api/bounty-submit', '/api/bounty-merge', '/api/revenuecat-webhook']);
 // /api 端點白名單——只給流量埋點的 blob 用(不是路由閘門,路由在 fetch 裡)。不在名單內一律記成
 // 'other',否則隨便打 /api/<亂數> 就能把 blob 基數炸開。新增端點時要一起加進來。
 const API_ENDPOINTS = new Set([
   'tra-live', 'tra-alert', 'thsr-alert', 'metro-alert', 'hazard-alert', 'metro-live', 'ntmetro-live', 'trtc-live',
-  'delay-stats', 'delay-history', 'station-events', 'today-board', 'basemap-token', 'basemap-session', 'account-delete',
-  'bounty-board', 'bounty-claim', 'bounty-submit', 'bounty-me', 'bounty-merge',
+  'delay-stats', 'delay-history', 'thsr-schedule', 'station-events', 'today-board', 'basemap-token', 'basemap-session', 'account-delete',
+  'bounty-board', 'bounty-claim', 'bounty-submit', 'bounty-me', 'bounty-merge', 'plus-status', 'revenuecat-webhook',
 ]);
 
 function addAppCors(headers, origin) {
@@ -1466,6 +2450,7 @@ async function firebaseUid(env, idToken) {
   try {
     const lookup = await fetch(`https://identitytoolkit.googleapis.com/v1/accounts:lookup?key=${encodeURIComponent(env.FIREBASE_WEB_API_KEY)}`, {
       method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ idToken }),
+      redirect: 'manual',                                      // C-1:見檔頭「憑證 subrequest 的 redirect 政策」
     });
     if (!lookup.ok) return null;
     const identity = await lookup.json();
@@ -2478,8 +3463,8 @@ function buildBlob(rows, generatedIso) {
 async function fetchDelayDay(token, dayIso) {
   const url = `${HIST_DELAY_URL}?Dates=${dayIso}&%24top=1000000&%24format=JSONL`;
   const headers = { authorization: 'Bearer ' + token, accept: 'application/json, text/plain, */*' };
-  let r = await fetch(url, { headers });
-  if (r.status === 429) { await sleep(5000); r = await fetch(url, { headers }); }
+  let r = await fetch(url, { headers, redirect: 'manual' });   // C-1:見檔頭「憑證 subrequest 的 redirect 政策」
+  if (r.status === 429) { await sleep(5000); r = await fetch(url, { headers, redirect: 'manual' }); }
   if (r.status === 401) { tok = null; throw new Error('tdx 401 historical'); }
   if (!r.ok) throw new Error('tdx historical ' + r.status + ' for ' + dayIso);
   return await r.text();
@@ -2553,6 +3538,195 @@ async function ingestDelayHistory(env) {
   return { written, dbMax };
 }
 
+// ── 高鐵未來班表 cron(scheduled handler)+ /api/thsr-schedule ──────────────────
+// 現行 data/thsr_schedule_dense.json 是 2026-07-09 單日快照(commit 076b43c 之後從未更新),
+// 前端過期偵測對它是 no-op(無 dates 欄位)。改為 cron 每日抓 TDX「今天＋明天」逐日時刻表
+// (抓明天是為了補「00:00 到 cron 執行前」的空窗:昨天抓的『明天』就是今天)存入 D1 blob,
+// /api/thsr-schedule 唯讀吐回今日文件;靜態檔降級為前端 fetch 失敗時的最後退路。
+// 12 站座標表不重新投影幾何(那需要 THSR_Shape.json,cron 沒有那份輸入):直接借用現行
+// data/thsr_schedule_dense.json 裡已經投影好的站名→座標(12 站固定不變,見 thsrBuildStationMap)。
+const THSR_SCHED_BLOB_KEY = 'thsr_sched';
+const THSR_SCHED_KEEP_DAYS = 3;   // days 物件最多保留幾個日鍵(依 YYYYMMDD 字串序留最新)
+const THSR_COLOR = '#E85D0D';     // 高鐵企業橘,與 scripts/build_thsr_schedule.mjs 一致
+
+// "HH:MM" 或 "HH:MM:SS" → 午夜起算秒(語意同 build_thsr_schedule.mjs 的 hmsToSec)
+function thsrHmsToSec(t) {
+  const p = String(t).split(':').map(Number);
+  return p[0] * 3600 + p[1] * 60 + (p[2] || 0);
+}
+
+// 從現行(或任何同 schema 的)dense 文件抽出「站名→座標」映射(純函式)。
+// 12 站固定不變,不需要重新對線投影;stationMap 值只留 {lat,lon},同名取第一次出現。
+function thsrBuildStationMap(doc) {
+  const map = new Map();
+  for (const t of (doc && doc.trains) || []) {
+    for (const s of (t && t.stops) || []) {
+      if (s && s.name && !map.has(s.name)) map.set(s.name, { lat: s.lat, lon: s.lon });
+    }
+  }
+  return map;
+}
+
+// TDX Rail/THSR/DailyTimetable/TrainDate/{date} 原始回應(daily,陣列) → dense 文件(純函式,
+// 供離線測試,不碰網路/D1)。與現行 build_thsr_schedule.mjs 的差異:不做弧長投影/單調性檢查
+// (那需要路線幾何,cron 沒有那份輸入),改以「站名是否都在 stationMap 內」把關——只要有一站
+// 不在 12 站映射內,整班跳過(不逐站過濾,避免半殘路線),計數進回傳的 meta.skipped。
+function thsrConvertDaily(daily, dateIso, stationMap) {
+  const trains = [];
+  const skipped = [];
+  const list = Array.isArray(daily) ? daily : [];
+  for (const rec of list) {
+    const info = (rec && rec.DailyTrainInfo) || {};
+    const trainNo = info.TrainNo;
+    const seq = ((rec && rec.StopTimes) || []).slice().sort((a, b) => a.StopSequence - b.StopSequence);
+    if (seq.length < 2) { skipped.push({ train: trainNo, reason: 'too_few_stops' }); continue; }
+    const names = seq.map(s => s.StationName && s.StationName.Zh_tw);
+    const unknown = [...new Set(names.filter(n => !n || !stationMap.has(n)))];
+    if (unknown.length) { skipped.push({ train: trainNo, reason: 'unknown_station', stations: unknown }); continue; }
+    const sched = [];
+    let prev = -1;
+    for (const s of seq) {
+      const name = s.StationName.Zh_tw;
+      const coord = stationMap.get(name);
+      let arr = thsrHmsToSec(s.ArrivalTime || s.DepartureTime);
+      let dep = thsrHmsToSec(s.DepartureTime || s.ArrivalTime);
+      while (arr < prev) arr += 86400;   // 跨午夜遞增修正,語意同 build_thsr_schedule.mjs
+      while (dep < arr) dep += 86400;
+      sched.push({ name, lat: coord.lat, lon: coord.lon, arr, dep });
+      prev = dep;
+    }
+    if (sched.length < 2) { skipped.push({ train: trainNo, reason: 'too_few_stops' }); continue; }
+    trains.push({
+      train: trainNo, typeName: '高鐵', carName: '高鐵', color: THSR_COLOR,
+      stops: sched.map((x, i) => ({ name: x.name, lat: x.lat, lon: x.lon, order: i + 1, arrSec: x.arr, depSec: x.dep, stop: true })),
+    });
+  }
+  const dateKey = String(dateIso).replace(/-/g, '');
+  const doc = {
+    system: '高鐵時刻表',
+    date: dateKey,
+    source_notes: `時刻表來源:交通部 TDX Rail/THSR/DailyTimetable/TrainDate(${dateKey} 當日逐車次,含加開/停駛);站點座標沿用既有路線幾何投影(data/thsr_schedule_dense.json)`,
+    types: [{ key: '高鐵', color: THSR_COLOR }],
+    trains,
+  };
+  return { doc, meta: { total: list.length, converted: trains.length, skipped } };
+}
+
+// 日鍵(YYYYMMDD)→ UTC 午夜 ms,供「找最接近今天的既有日鍵」算日曆距離(跨月/跨年也正確;
+// 純數字相減在 20260131→20260201 這種邊界會算錯,不能用)。
+function thsrKeyToMs(key) {
+  const s = String(key);
+  return Date.parse(`${s.slice(0, 4)}-${s.slice(4, 6)}-${s.slice(6, 8)}T00:00:00Z`);
+}
+
+// 依台北「今天」日鍵在 blob.days 裡選要吐回的文件(純函式,供離線測試,不碰網路/D1/快取)。
+// 有今天就吐今天原樣(不加 served_date);沒有就取日曆距離最近的既有日鍵,文件補 served_date。
+// days 為空回 null,呼叫端據此回 404。
+function thsrSelectServedDay(days, todayKey) {
+  const keys = Object.keys(days || {});
+  if (!keys.length) return null;
+  if (Object.prototype.hasOwnProperty.call(days, todayKey)) return { key: todayKey, doc: days[todayKey] };
+  const todayMs = thsrKeyToMs(todayKey);
+  keys.sort((a, b) => Math.abs(thsrKeyToMs(a) - todayMs) - Math.abs(thsrKeyToMs(b) - todayMs));
+  const key = keys[0];
+  return { key, doc: { ...days[key], served_date: key } };
+}
+
+// TDX 端點 URL。env.THSR_SCHEDULE_BASE_URL_OVERRIDE 只在本機 --test-scheduled 驗證時經
+// wrangler --var 注入,指向本機 fixture server;正式環境永遠未設定,行為即硬編網址,零變化。
+const THSR_SCHEDULE_URL_BASE = 'https://tdx.transportdata.tw/api/basic/v2/Rail/THSR/DailyTimetable/TrainDate';
+function thsrScheduleUrl(env, dateIso) {
+  const base = (env && env.THSR_SCHEDULE_BASE_URL_OVERRIDE) || THSR_SCHEDULE_URL_BASE;
+  return `${base}/${dateIso}?%24format=JSON`;
+}
+async function fetchThsrDaily(env, token, dateIso) {
+  const url = thsrScheduleUrl(env, dateIso);
+  const r = await fetch(url, { headers: { authorization: 'Bearer ' + token, accept: 'application/json' }, redirect: 'manual' });
+  if (r.status === 401) { tok = null; throw new Error('tdx 401 thsr-schedule'); }
+  if (!r.ok) throw new Error('tdx thsr-schedule ' + r.status + ' for ' + dateIso);
+  return await r.json();
+}
+
+let thsrStationMapMem = null;
+async function thsrStationMap(env) {
+  if (thsrStationMapMem) return thsrStationMapMem;
+  const r = await env.ASSETS.fetch(new Request('https://railisland.tw/data/thsr_schedule_dense.json'));
+  if (!r.ok) throw new Error('thsr_schedule_dense unavailable: ' + r.status);
+  thsrStationMapMem = thsrBuildStationMap(await r.json());
+  return thsrStationMapMem;
+}
+
+// scheduled handler 的高鐵班表 ingest:抓「今天＋明天」,轉換失敗的那天保留既有值(console.warn),
+// 兩天都失敗就整體不覆寫既有 blob(冪等,下次 cron 續補)。days 只留最新 THSR_SCHED_KEEP_DAYS 個
+// 日鍵;skip 統計放進 blob 的 _meta(不進 denseDoc 本體,denseDoc 頂層鍵須與現行靜態檔完全一致)。
+async function ingestThsrSchedule(env) {
+  const db = env.DELAY_DB;
+  const today = twToday();
+  const tomorrow = addDays(today, 1);
+  const stationMap = await thsrStationMap(env);
+
+  let days = {}, metas = {};
+  try {
+    const row = await db.prepare('SELECT v FROM kv_blobs WHERE k=?').bind(THSR_SCHED_BLOB_KEY).first();
+    if (row && row.v) {
+      const parsed = JSON.parse(row.v);
+      if (parsed && parsed.days && typeof parsed.days === 'object') days = { ...parsed.days };
+      if (parsed && parsed._meta && typeof parsed._meta === 'object') metas = { ...parsed._meta };
+    }
+  } catch (e) { console.warn('[cron thsr-sched] 讀既有 blob 失敗,視為空:', (e && e.message) || String(e)); }
+
+  const results = {};
+  let token = null;
+  for (const dateIso of [today, tomorrow]) {
+    try {
+      if (!token) token = await getToken(env);
+      const daily = await fetchThsrDaily(env, token, dateIso);
+      const { doc, meta } = thsrConvertDaily(daily, dateIso, stationMap);
+      const dayKey = dateIso.replace(/-/g, '');
+      days[dayKey] = doc;
+      metas[dayKey] = { total: meta.total, converted: meta.converted, skipped: meta.skipped };
+      results[dateIso] = { ok: true, total: meta.total, converted: meta.converted, skipped: meta.skipped.length };
+    } catch (e) {
+      results[dateIso] = { ok: false, error: String((e && e.message) || e) };
+      console.warn(`[cron thsr-sched] ${dateIso} 抓取/轉換失敗,保留既有值:`, results[dateIso].error);
+    }
+  }
+
+  if (!Object.values(results).some(r => r.ok)) {
+    console.warn('[cron thsr-sched] 今天與明天皆失敗,不覆寫既有 blob:', JSON.stringify(results));
+    return { results, written: false };
+  }
+
+  const keys = Object.keys(days).sort();   // YYYYMMDD 字串序=時間序,見 thsrKeyToMs 註解
+  while (keys.length > THSR_SCHED_KEEP_DAYS) { const drop = keys.shift(); delete days[drop]; delete metas[drop]; }
+
+  const json = JSON.stringify({ fetchedAt: new Date().toISOString(), days, _meta: metas });
+  await db.prepare("INSERT OR REPLACE INTO kv_blobs(k,v,updated) VALUES(?,?,datetime('now'))").bind(THSR_SCHED_BLOB_KEY, json).run();
+  console.log(`[cron thsr-sched] 完成: ${JSON.stringify(results)}, 保留日鍵 ${JSON.stringify(Object.keys(days))}, bytes=${json.length}`);
+  return { results, written: true, dayKeys: Object.keys(days) };
+}
+
+// /api/thsr-schedule:唯讀吐回台北「今天」的高鐵班表(cron 寫好的 D1 blob)。無今天退最近日鍵
+// (見 thsrSelectServedDay),blob 不存在或空一律 404 not_ready——前端 fetchJSON 對非 2xx 回 null,
+// 會自動退到 SYS_DEFS.thsr_sched 的 fallbackUrl(打包靜態檔),不需要在這裡特別處理降級文案。
+async function thsrSchedule(request, env) {
+  const cacheKey = new Request(new URL('/api/thsr-schedule', request.url), { method: 'GET' });
+  const edge = caches.default;
+  const hit = await edge.match(cacheKey);
+  if (hit) return hit;
+  let row;
+  try { row = await env.DELAY_DB.prepare('SELECT v FROM kv_blobs WHERE k=?').bind(THSR_SCHED_BLOB_KEY).first(); }
+  catch (e) { return jsonRes({ error: 'not_ready' }, 404, 'public, s-maxage=60'); }
+  if (!row || !row.v) return jsonRes({ error: 'not_ready' }, 404, 'public, s-maxage=60');
+  let blob;
+  try { blob = JSON.parse(row.v); } catch (e) { return jsonRes({ error: 'not_ready' }, 404, 'public, s-maxage=60'); }
+  const picked = thsrSelectServedDay((blob && blob.days) || {}, twToday().replace(/-/g, ''));
+  if (!picked) return jsonRes({ error: 'not_ready' }, 404, 'public, s-maxage=60');
+  const res = jsonRes(picked.doc, 200, 'public, s-maxage=300, stale-while-revalidate=3600');
+  await edge.put(cacheKey, res.clone());
+  return res;
+}
+
 // 逐站事件保留期:刪掉台北今日往前 STATION_EVENT_KEEP_DAYS 天以外的舊列(重用 addDays/twToday)。
 // 獨立於 delay ingest——放進 scheduled 的 finally,ingest 成功或失敗(rethrow)都會執行;本函式失敗
 // 只由呼叫端 console.error、不 rethrow,不動既有「ingest 失敗要 rethrow」的語意。
@@ -2603,6 +3777,14 @@ export default {
       // 逐站事件保留期清理:獨立 try/catch,不影響上面 ingest 的成功/失敗(rethrow)語意;finally 確保 ingest 失敗也會跑
       try { await pruneStationEvents(env); }
       catch (e) { console.error('[cron station-events] 清理失敗:', (e && e.stack) || String(e)); }
+      // 高鐵未來班表 ingest:獨立 try/catch,不影響上面台鐵 ingest 的成功/失敗(rethrow)語意,
+      // 也不被它拖垮(擺在 finally,ingestDelayHistory 失敗一樣會跑到這裡)。
+      try {
+        const rt = await ingestThsrSchedule(env);
+        console.log(`[cron thsr-sched] scheduled 完成: written=${rt.written}`);
+      } catch (e) {
+        console.error('[cron thsr-sched] 失敗:', (e && e.stack) || String(e));
+      }
       // 懸賞估值只掛第二班(台北 12:15)。掛兩班等於每天重算兩次估值,而 L2 是以「天」為單位的,
       // 多跑一次只是多花 D1 寫入。挑第二班是因為第一班要先讓 ingestDelayHistory 把前一日的
       // 誤點資料寫進來——驗證閘的第二重要對那份資料。獨立 try/catch,不影響上面 ingest 的 rethrow 語意。
@@ -2646,7 +3828,9 @@ export default {
       if (APP_ORIGINS.has(origin)) {
         addAppCors(h, origin);
         h.set('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-        h.set('Access-Control-Allow-Headers', 'Authorization, Content-Type');
+        // TestFlight 的資格握手會帶 build allowlist header；漏掉它時瀏覽器只送 OPTIONS，
+        // 真正的 /api/plus-status GET 會在 CORS 預檢階段被擋，Sandbox 資格文件永遠無法落地。
+        h.set('Access-Control-Allow-Headers', 'Authorization, Content-Type, X-Rail-Plus-Sandbox-Build');
         h.set('Access-Control-Max-Age', '86400');
       }
       return new Response(null, { status: APP_ORIGINS.has(origin) ? 204 : 403, headers: h });
@@ -2672,12 +3856,15 @@ export default {
     }
     else if (url.pathname === '/api/trtc-live') { res = await trtcLive(request, env); }
     else if (url.pathname === '/api/delay-stats') res = await delayStats(request, env);
+    else if (url.pathname === '/api/thsr-schedule') res = await thsrSchedule(request, env);
     else if (url.pathname === '/api/delay-history') res = await delayHistory(request, env);
     else if (url.pathname === '/api/station-events') res = await stationEvents(request, env);
     else if (url.pathname === '/api/today-board') res = await todayBoard(request, env);
     else if (url.pathname === '/api/basemap-token') res = await basemapToken(request, env);
     else if (url.pathname === '/api/basemap-session') res = await basemapSession(request, env);
     else if (url.pathname === '/api/account-delete') res = await deleteAccountData(request, env);
+    else if (url.pathname === '/api/plus-status') res = await plusStatus(request, env);
+    else if (url.pathname === '/api/revenuecat-webhook') res = await revenueCatWebhook(request, env);
     else if (url.pathname === '/api/bounty-board') res = await bountyBoard(request, env);
     else if (url.pathname === '/api/bounty-claim') res = await bountyClaim(request, env);
     else if (url.pathname === '/api/bounty-submit') res = await bountySubmit(request, env);
@@ -2704,9 +3891,29 @@ export const _hazard = { ncdrTimeMs, normalizeNcdrHazards, hazardAlert, hazardMo
 export const _stationEvents = { diffTrains, twDayFromMemAt };
 // 純函式導出,供離線回歸測試 import:誤點履歷視窗計算、車次驗證與回應組裝。
 export const _delayHistory = { delayHistoryWindow, buildDelayHistoryBody, isValidTrainNo };
+// 供離線回歸測試 import:Plus 資格的環境收斂(scripts/verify_plus_entitlement_env.mjs)。
+// plusEntitledFromSubscriptions 是純函式;checkPlusEntitlement/plusStatus 不是,測試要自備
+// env 替身與 fetch 替身——導出它們的目的正是要能數「打的是哪一支端點、帶了什麼 query」。
+// 刻意不導出 RC_ENV_PRODUCTION:測試的正/反樣本一律用自己寫死的 'production'/'sandbox' 字面值,
+// 與實作共用同一個常數的話,那個常數被改壞時兩邊會一起改壞而全綠(判準不得與實作同源)。
+// resolveRcNextPage／rcSubscriptionsPageError／webhookTargetUids 是 2026-08-04 稽核修復新增的
+// 三支純函式閘門（I-5／I-3+I-4+I-5／I-2）。導出的理由與上面同一條：這些是安全判定的核心，
+// 判準要能對它們做「一族機械窮舉的對抗性輸入」，而不是只從端到端行為間接觀察。
+export const _plus = {
+  checkPlusEntitlement, plusEntitledFromSubscriptions, plusEntitlementDocument, firestoreEntitlementPayload,
+  createGoogleServiceAccountJwt, getFirestoreAccessToken, resetFirestoreAccessTokenCache,
+  writePlusEntitlement, plusStatus, revenueCatWebhook,
+  resolveRcNextPage, rcSubscriptionsPageError, webhookTargetUids, subscriptionMatchesPlus,
+  sandboxPlusRequested, fetchRevenueCatSubscriptions,
+};
 // 供離線回歸測試 import:驗「節流擋在 outbound fetch 之前」。這兩個不是純函式,測試得自備
 // env 替身與 fetch 替身;導出的目的就是讓測試能數「被擋掉時到底有沒有打上游」。
 export const _rateLimit = { rateLimited, delayHistory, deleteAccountData, basemapSession };
+// 供離線回歸測試 import（scripts/verify_plus_firestore_gate.mjs 第 11 節、
+// scripts/verify_plus_data_claims.mjs B7）：刪帳號一併刪除資格文件。與上面的 _rateLimit 分開
+// 導出——那組服務的是「節流擋在 fetch 前」這個窄用途，這裡要驗的是刪除本身的語意（真的送出
+// 刪除請求、404 冪等、失敗會讓整支回錯）。
+export const _accountDelete = { deleteAccountData, deletePlusEntitlement };
 // 純函式與端點處理器導出，供離線回歸測試 import（scripts/verify_bounty_*.mjs）。
 // 端點也導出的理由同 _rateLimit：這些不是純函式，測試要自備 env 替身才驗得到「節流有沒有擋在
 // D1 寫入之前」「回應裡有沒有夾帶 reject_code」這類只在編排層才成立的性質。
@@ -2728,4 +3935,12 @@ export const _trtc = { trtcParse, trtcEpoch, dedupeLatest, trtcCall, trtcApiUrl,
 export const _trtcLedger = {
   trtcBoardEpoch, trtcLedgerContext, persistTrtcLedger, trtcLedgerPreview,
   trtcLedgerMaterialized, trtcLedgerNowEpoch, pruneTrtcLedger, trtcLedgerScheduled,
+};
+// 純函式與端點/cron 導出,供離線回歸測試 import(scripts/verify_thsr_schedule.mjs)。
+// thsrConvertDaily/thsrBuildStationMap/thsrSelectServedDay/thsrKeyToMs 是純函式,可直接餵 fixture。
+// fetchThsrDaily/thsrStationMap/ingestThsrSchedule/thsrSchedule 會碰 D1/ASSETS/網路,測試要自備
+// env 替身(env.DELAY_DB、env.ASSETS、env.TDX_AUTH_URL_OVERRIDE、env.THSR_SCHEDULE_BASE_URL_OVERRIDE)。
+export const _thsr = {
+  thsrConvertDaily, thsrBuildStationMap, thsrSelectServedDay, thsrKeyToMs, thsrScheduleUrl,
+  fetchThsrDaily, thsrStationMap, ingestThsrSchedule, thsrSchedule, authUrl,
 };

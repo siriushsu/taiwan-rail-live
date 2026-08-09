@@ -1,7 +1,8 @@
 // 把 iOS 專案切到某一種發行模式，然後一路建置到發行閘門通過。
 //
 //   node app/scripts/set-release-mode.mjs hotfix    → 1.0.1 (build 12)，無音樂
-//   node app/scripts/set-release-mode.mjs feature   → 1.0.2 (build 13)，含音樂
+//   node app/scripts/set-release-mode.mjs feature   → 正式發行模式，Sandbox 資格關閉
+//   node app/scripts/set-release-mode.mjs testflight → TestFlight 測試模式，Sandbox 購買可完整解鎖
 //
 // build 號為什麼從 11 跳到 12：11 已經被一顆「忘了跑 patch-archive-os、帶著 beta macOS
 // 標記」的 archive 上傳掉了。build 號在同一個版本內不可重複，所以往前跳一號。
@@ -46,8 +47,9 @@ const MODES = {
   // pbxproj 早在 `45ab9aa` 就推到 16（小工具的重算閘門只吃 build 號，改 Swift 不推格
   // 會讓修正在既有裝置上看起來沒生效），這裡是把表補齊，否則單調遞增閘門會擋下整個 build。
   // 2026-08-01：build 16（v0731b）使用者已上傳 ASC ⇒ 那個號燒掉了，這一輪從 17 起。
-  // 這一輪是為了 Esri 衛星改成「時段計費」而緊急重出的——App 佔衛星圖磚用量的 60%，
-  // 網站端改完只吃得到另外 40%，不重出 build 帳單降不下來。
+  // 這一輪是為了 Esri 衛星改成「時段計費」而緊急重出的——衛星圖磚用量的大頭在 App 端，
+  // 只改網站吃不到那一塊，不重出 build 省不下來。
+  // （原文寫了我方各端用量佔比的實測數字，比照 `793c142` 移出公開 repo：機制留著、數字不留。）
   // lookup API 08-01 實查線上仍是 `1.02` ⇒ `1.3.0` 仍安全（沒有改 marketing 的理由）。
   // 2026-08-04：走 1.3.1 (18)。線上 lookup API 實查回 `1.3.0`（08-02 上架，就是 build 17 那顆），
   // 建新版本項目必須大於它 ⇒ marketing 進到 1.3.1；build 17 已上傳燒掉 ⇒ 從 18 起。
@@ -56,10 +58,33 @@ const MODES = {
   // 不是送審。build 從 19 起；marketing 進到 1.3.2 而不是沿用 1.3.1——1.3.1 那個版本項目
   // 正在送審中，同一個版本項目底下再多一顆 build，會讓「哪一顆該送審」變成可誤按的選擇，
   // 而這顆的送審文件（What's New／審查備註）並沒有對齊北捷的內容。
+  // 2026-08-06：build 20、21、22 都已上傳；23 是軌島通行證第一顆正式送審包。
+  // 24 改以 1.4.0 承接這次帳號、通行證、Live Activity、雲端同步與小工具的大改版；
+  // 25 再補進目的站依賴值稍晚送到時，選單短暫載入後自行收起的真機修正。仍必須走 feature 模式，
+  // 讓 assertPlusSandboxOff 證明 Sandbox 測試通道與 build 標記都已移除。
+  // 2026-08-07 深夜：1.4.0 已於今晨上架（lookup API 實查 version=1.4.0）。這一輪收本日
+  // main（24e9c2c／網頁 v0807a）的三批修正：高鐵班表改每日自動連網更新（App 打
+  // railisland.tw 的 /api/thsr-schedule，CORS 已實測放行 capacitor origin；抓不到自動退回
+  // 內建快照）、台鐵 14 天班表重抓（涵蓋到 08-20）、北捷逐班綁定後端影子期（App 吃
+  // /api/trtc-live 自動受益，前端不切換）。build 25 是否已上傳 ASC 未查證，直接跳 26
+  // 避開不確定性；marketing 進 1.4.1（1.4.0 已上架，建新版本項目必須大於它）。
+  // foundingLaunchAt（2026-08-08T12:00+08:00）原封沿用，不因這顆 build 改動。
+  // 2026-08-07 深夜：build 26 Transporter 上傳被拒 -19232「套件版本必須高於先前上傳的版本：26」
+  // ＝26 已被用掉（本表註解只記到 25，「撞已用號」閘門結構上擋不住，ASC 實況才是權威）；
+  // 使用者指示改 27。
+  // 2026-08-08 凌晨：27 上傳撞 ITMS-90683——Capacitor 定位 plugin 的 binary 引用 Always 授權 API，
+  // Info.plist 卻只有 NSLocationWhenInUseUsageDescription；已補
+  // NSLocationAlwaysAndWhenInUseUsageDescription（照實寫「不會背景定位」），28 重出。
   feature: {
-    marketing: '1.3.2', build: '19', music: true,
-    why: '北捷帳本後端上線後的前端版（TestFlight 試用）：北捷逐車位置改走自家帳本錨點。'
-       + '另含 1.3.1 那批的班表到期自救、林鐵 1、2 次被誤認成台鐵環島之星的修正。',
+    marketing: '1.4.1', build: '28', music: true,
+    why: '軌島 1.4.1：高鐵班表改每日自動連網更新、台鐵班表更新至 8/20、即時資料後端升級；production 資格，TestFlight Sandbox 通道維持關閉。',
+  },
+  // 2026-08-06：build 20、21、22 已上 TestFlight；22 專門驗收 Sandbox 購買後的
+  // 軌島通行證客端功能、雲端同步與伺服器付費牆。這顆不可選去正式送審；正式版必須另推 build 號，
+  // 回到 feature 模式並由 assertPlusSandboxOff 驗證測試通道確實關閉。
+  testflight: {
+    marketing: '1.3.2', build: '22', music: true, plusSandboxBuild: '22',
+    why: 'TestFlight 軌島通行證端到端測試版：Sandbox 月票／年票完成後，完整開放通行證與雲端功能驗收。',
   },
 };
 
@@ -106,11 +131,19 @@ if (gotM.length !== 1 || gotM[0] !== cfg.marketing || gotB.length !== 1 || gotB[
 console.log(`\n▸ 模式：${mode}  ${cfg.why}`);
 console.log(`  版號 ${before.m} (${before.b}) → ${cfg.marketing} (${cfg.build})`);
 console.log(`  音樂 ${cfg.music ? '開啟（154MB 級）' : '關閉（與線上 build 8 一致）'}\n`);
+if (cfg.plusSandboxBuild) console.log(`  Plus Sandbox 開啟（僅 TestFlight build ${cfg.plusSandboxBuild}；不可送正式審查）\n`);
 
 // 線上底圖兩個模式都要開——那是 App 的基本功能，不是新增項目。
 const env = { ...process.env, LANG: 'en_US.UTF-8', RAIL_INCLUDE_LICENSED_BASEMAPS: '1', RAIL_REQUIRE_NATIVE: '1' };
 if (cfg.music) env.RAIL_INCLUDE_LICENSED_MUSIC = '1';
 else delete env.RAIL_INCLUDE_LICENSED_MUSIC;
+if (cfg.plusSandboxBuild) {
+  env.RAIL_PLUS_SANDBOX_OK = '1';
+  env.RAIL_PLUS_SANDBOX_BUILD = cfg.plusSandboxBuild;
+} else {
+  delete env.RAIL_PLUS_SANDBOX_OK;
+  delete env.RAIL_PLUS_SANDBOX_BUILD;
+}
 
 const run = (cmd, args) => execFileSync(cmd, args, { cwd: appRoot, env, stdio: 'inherit' });
 run('npm', ['run', 'sync']);

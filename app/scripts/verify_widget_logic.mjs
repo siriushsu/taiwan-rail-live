@@ -47,6 +47,90 @@ function extractDeclaration(source, header, label = header) {
 
 const writerSource = readFileSync(writerPath, 'utf8');
 const dataSource = readFileSync(join(widgetDir, 'RailBoardData.swift'), 'utf8');
+const intentSource = readFileSync(join(widgetDir, 'AppIntent.swift'), 'utf8');
+const fallbackBuilderPath = join(here, 'build_widget_station_fallback.mjs');
+
+// 2026-08-06 真機回報：App 更新後共享班表尚未建立時，起站／目的站 provider 把讀檔錯誤
+// 丟回 AppIntents，iOS 會關掉整張 Widget 設定頁；第二輪真機又抓到依賴值短暫為 nil、或
+// 起站鍵暫時解析成空陣列時，目的站回 .empty 也會讓選單「載入一下就收起」。兩列都必須能
+// 改讀 bundle 內建站表；目的站在共享資料正常時仍保留「只列直達站」的起站連動。
+const destinationProvider = extractDeclaration(
+  intentSource,
+  'struct DestinationOptionsProvider: DynamicOptionsProvider',
+  'DestinationOptionsProvider',
+);
+if (!destinationProvider.includes('RailBoardStore.shared.configurationStationOptions()')) {
+  throw new Error('目的站 provider 讀不到共享班表時必須退回內建車站清單');
+}
+if (!destinationProvider.includes('@IntentParameterDependency<ConfigurationAppIntent>(\\.$origin)')) {
+  throw new Error('目的站 provider 應保留依起站只列直達站的既有行為');
+}
+if (!destinationProvider.includes('destinationOptions(from: origin)')
+    || !destinationProvider.includes('catch {')) {
+  throw new Error('目的站 provider 必須在直達站讀取失敗時接住錯誤並降級');
+}
+if (/guard\s+let\s+origin\s*=\s*intent\?\.origin\s+else\s*\{\s*return\s+\.empty/s.test(destinationProvider)) {
+  throw new Error('目的站 provider 不可在起站依賴值短暫為 nil 時回 .empty');
+}
+if (!destinationProvider.includes('if direct.isEmpty {')
+    || !destinationProvider.includes('if let origin = intent?.origin {')) {
+  throw new Error('目的站 provider 必須接住 nil dependency 與空直達站陣列，兩者都降級成完整站表');
+}
+
+// 2026-08-08 使用者第三次回報「起站選共站後，目的站點下去就跳出」。前兩輪把 nil dependency
+// 與空陣列的 .empty 都拔掉了，唯獨共站／我的地點那一支還留著一個「刻意」的 return .empty
+// ——那是 08-05 為了「停用這一格」寫的，但 iOS 對 .empty 的反應就是把選單收掉，使用者看到的
+// 就是打不開。渲染路徑（RailBoardWidget.swift 的 placeTimeline）在讀 destination 之前就早退，
+// 所以這一支照樣列完整站表不會有副作用。這條 gate 盯的是「這一支不准再回 .empty」。
+const compositeBranch = (() => {
+  const at = destinationProvider.indexOf('RailBoardStore.compositeKeyPrefix');
+  if (at < 0) {
+    throw new Error('目的站 provider 找不到共站／我的地點分支——判準對象不在了，先修判準再說');
+  }
+  const open = destinationProvider.indexOf('{', at);
+  if (open < 0) throw new Error('共站分支的大括號找不到');
+  let depth = 0;
+  for (let i = open; i < destinationProvider.length; i += 1) {
+    if (destinationProvider[i] === '{') depth += 1;
+    if (destinationProvider[i] === '}') {
+      depth -= 1;
+      if (depth === 0) return destinationProvider.slice(open, i + 1);
+    }
+  }
+  throw new Error('共站分支的大括號沒有配對成功');
+})();
+const returnsEmpty = (branch) => /return\s+\.empty/.test(branch);
+// 正向對照：同一個偵測器對「真的有 return .empty」的版本必須開火，否則這條 gate 是恆綠的。
+if (!returnsEmpty('{\n    return .empty\n}')) {
+  throw new Error('共站分支的 .empty 偵測器本身失效（正向對照沒開火）');
+}
+if (compositeBranch.length < 50) {
+  throw new Error(`共站分支只抽到 ${compositeBranch.length} 字元，抽取失敗而不是通過`);
+}
+if (returnsEmpty(compositeBranch)) {
+  throw new Error('共站／我的地點起站不可回 .empty——iOS 會直接把目的站選單收掉（使用者看到的是點了就跳出）');
+}
+if (!compositeBranch.includes('configurationStationOptions()')) {
+  throw new Error('共站／我的地點起站的目的站清單必須照樣給出完整站表');
+}
+console.log('【共站起站的目的站列】✅ 不回 .empty、照樣列完整站表（正向對照已開火）');
+console.log('【目的站選單契約】✅ 正常只列直達站；依賴值 nil、空陣列或讀檔錯誤皆降級成完整站表');
+
+const originProvider = extractDeclaration(
+  intentSource,
+  'struct OriginOptionsProvider: DynamicOptionsProvider',
+  'OriginOptionsProvider',
+);
+for (const [label, provider] of [
+  ['起站', originProvider],
+  ['目的站', destinationProvider],
+]) {
+  if (!provider.includes('configurationStationOptions()')) {
+    throw new Error(`${label} provider 必須使用不丟錯的設定專用車站目錄`);
+  }
+}
+console.log('【起訖站容錯契約】✅ 共享班表準備中也不會把讀檔錯誤丟回 AppIntents');
+execFileSync(process.execPath, [fallbackBuilderPath, '--check'], { stdio: 'inherit' });
 
 const pieces = [
   extractDeclaration(writerSource, 'struct Station: Decodable, Hashable'),

@@ -37,6 +37,36 @@ export async function readReleasePolicy() {
   return JSON.parse(await readFile(join(appRoot, 'release-policy.json'), 'utf8'));
 }
 
+// 發行版不得允許 sandbox 資格。背景:RevenueCat 的 entitlements.active 等同 activeInAnyEnvironment
+// (SDK doc comment),所以 index.html 的 plusActiveFrom 用建置期注入的 window.RAIL_PLUS_SANDBOX_OK
+// 把 sandbox 購買擋在正式 build 之外;那個旗標只給「要實測購買流程」的內部版打開
+// (RAIL_PLUS_SANDBOX_OK=1 npm run build)。這道閘門就是「內部版上不了架」的那把鎖——沒有它,
+// 那個建置旗標就只是一個沒人看守的後門。
+// 判準刻意是「必須明確寫著 false」而不是「不得出現 true」:注入整段被拿掉時,後者會沉默放行
+// (constraint 10 的沉默不是證據)。抽成獨立導出函式是為了能單元測試——餵合成 HTML 就驗得到
+// 紅/綠,不必先建出一整包 www(見 scripts/verify_plus_entitlement_env.mjs)。
+export function assertPlusSandboxOff(html) {
+  assert(/window\.RAIL_PLUS_SANDBOX_OK=(true|false)/.test(html),
+    '發行包缺少 window.RAIL_PLUS_SANDBOX_OK 注入——sandbox 資格閘門的建置旗標不見了,'
+    + '請確認 app/scripts/prepare-web.mjs 仍在注入這個值');
+  assert(!/window\.RAIL_PLUS_SANDBOX_OK=true/.test(html),
+    '發行包把 sandbox 資格打開了(window.RAIL_PLUS_SANDBOX_OK=true)——TestFlight/模擬器的 sandbox 購買'
+    + '會解鎖正式付費功能。這個旗標只給內部測試版用,送審/上架的 build 請不要帶 RAIL_PLUS_SANDBOX_OK=1');
+  assert(/window\.RAIL_PLUS_SANDBOX_BUILD=null/.test(html),
+    '正式發行包仍帶著 RAIL_PLUS_SANDBOX_BUILD——即使 SANDBOX_OK=false 也拒絕留下含糊的測試通道標記');
+}
+
+// TestFlight 內部測試包也要有自己的 fail-closed 閘門：只有 boolean=true 不夠，還必須把這次
+// 明確核准的 build 號逐字打進包內。正式 verify 不傳 expect 值，仍走上面的嚴格關閉檢查。
+export function assertPlusSandboxTestBuild(html, expectedBuild) {
+  const build = String(expectedBuild || '');
+  assert(/^[1-9]\d*$/.test(build), 'TestFlight Sandbox build 號必須是正整數');
+  assert(/window\.RAIL_PLUS_SANDBOX_OK=true/.test(html),
+    'TestFlight Sandbox 包沒有注入 window.RAIL_PLUS_SANDBOX_OK=true——購買後只會看到價格、不會解鎖');
+  assert(html.includes(`window.RAIL_PLUS_SANDBOX_BUILD=${JSON.stringify(build)}`),
+    `TestFlight Sandbox 包的測試通道 build 標記不是 ${build}`);
+}
+
 export async function assertLicensedBuildAllowed({ includeLicensedMusic, includeLicensedBasemaps }) {
   const policy = await readReleasePolicy();
   if (includeLicensedMusic) {
@@ -198,6 +228,8 @@ export async function verifyRelease({
   out = defaultOut,
   expectLicensedMusic,
   expectLicensedBasemaps,
+  expectPlusSandboxBuild = process.env.RAIL_PLUS_SANDBOX_OK === '1'
+    ? String(process.env.RAIL_PLUS_SANDBOX_BUILD || '') : null,
   skipNativeSyncCheck = false
 } = {}) {
   const output = resolve(out);
@@ -205,6 +237,38 @@ export async function verifyRelease({
   const relativeFiles = files.map(file => relative(output, file).replaceAll('\\', '/'));
   const indexPath = join(output, 'index.html');
   const html = await readFile(indexPath, 'utf8');
+
+  // ── 創始會員截止時刻的「上線錨點」(B-4,2026-08-03 裁示)───────────────────────
+  // 創始價視窗＝上線錨點時刻起算固定 30 天。上線錨點由 revenuecat-config.js 的
+  // window.RAIL_REVENUECAT_CONFIG.foundingLaunchAt 提供(見該檔註解),程式碼本身不留猜的
+  // 日期。index.html 端「未設定」有安全預設(foundingFrom() 一律回傳 false,沒人是創始
+  // 會員)——但那個安全預設是給網站用的(網站部署不經過這支腳本,沒有等效閘門);App 一旦
+  // 送審就無法即時改,所以這裡是唯一會把「忘了填」或「填了過去式舊值」擋成 build 失敗的地方,
+  // 不讓需要人為決定的值靠「安全預設」矇混過關溜上線。
+  const revenuecatSource = await readFile(join(output, 'revenuecat-config.js'), 'utf8');
+  const foundingLaunchAtMatch = revenuecatSource.match(/foundingLaunchAt\s*:\s*(null|'([^']*)'|"([^"]*)")/);
+  assert(foundingLaunchAtMatch,
+    'revenuecat-config.js 找不到 foundingLaunchAt 欄位——請在該檔 window.RAIL_REVENUECAT_CONFIG 補上 '
+    + "foundingLaunchAt(ISO8601 時刻字串,建議台北時區午夜整點,例如 '2026-09-01T00:00:00+08:00')");
+  const foundingLaunchAtRaw = foundingLaunchAtMatch[1] === 'null'
+    ? null
+    : (foundingLaunchAtMatch[2] !== undefined ? foundingLaunchAtMatch[2] : foundingLaunchAtMatch[3]);
+  assert(foundingLaunchAtRaw !== null && foundingLaunchAtRaw !== '',
+    `revenuecat-config.js 的 foundingLaunchAt 尚未設定(目前是${foundingLaunchAtRaw === null ? ' null' : '空字串'})——`
+    + '這是發版流程要在按下發版當下才決定的值,請把實際上線日期填進 revenuecat-config.js 的 '
+    + 'window.RAIL_REVENUECAT_CONFIG.foundingLaunchAt 後重新建置');
+  const foundingLaunchAtMs = Date.parse(foundingLaunchAtRaw);
+  assert(Number.isFinite(foundingLaunchAtMs),
+    `revenuecat-config.js 的 foundingLaunchAt 不是可解析的日期(目前值：${foundingLaunchAtRaw})——`
+    + '請改成 ISO8601 時刻字串並修正 revenuecat-config.js 的 window.RAIL_REVENUECAT_CONFIG.foundingLaunchAt');
+  // 用台北時區的「今天 00:00」當比較基準(不比對時分秒),避免同一個日曆日內因為 build 執行的
+  // 時刻不同而誤判成「早於本次 build」。
+  const buildDayTaipei = new Intl.DateTimeFormat('sv-SE', { timeZone: 'Asia/Taipei' }).format(new Date());
+  const buildDayStartMs = Date.parse(`${buildDayTaipei}T00:00:00+08:00`);
+  assert(foundingLaunchAtMs >= buildDayStartMs,
+    `revenuecat-config.js 的 foundingLaunchAt(${foundingLaunchAtRaw})早於本次 build 的日期(${buildDayTaipei})——`
+    + '上線日看起來還停在過去,請到 revenuecat-config.js 確認/更新 window.RAIL_REVENUECAT_CONFIG.foundingLaunchAt');
+
   const musicEnabled = html.includes('window.RAIL_MUSIC_AVAILABLE=true');
   const basemapsEnabled = html.includes('window.RAIL_ONLINE_BASEMAPS_AVAILABLE=true');
 
@@ -214,6 +278,9 @@ export async function verifyRelease({
   if (expectLicensedBasemaps !== undefined) {
     assert(basemapsEnabled === expectLicensedBasemaps, '線上底圖旗標與本次 build 模式不一致');
   }
+
+  if (expectPlusSandboxBuild !== null) assertPlusSandboxTestBuild(html, expectPlusSandboxBuild);
+  else assertPlusSandboxOff(html);
 
   await assertLicensedBuildAllowed({
     includeLicensedMusic: musicEnabled,
@@ -295,7 +362,12 @@ export async function verifyRelease({
       '暗色底圖不是含 api_key 的 Stadia alidade_smooth_dark');
     const satTokenMatch = html.match(/ibasemaps-api\.arcgis\.com\/arcgis\/rest\/services\/World_Imagery\/MapServer\/tile\/\{z\}\/\{y\}\/\{x\}\?token=([^'"\s]+)/);
     assert(satTokenMatch, '衛星底圖必須是含 token 的授權 Esri ibasemaps');
-    assert(!html.includes("plusGateOpen('satellite'"), 'App 第一版衛星免費，不可殘留 Plus 付費閘');
+    // 2026-08-02:衛星本體維持免費(satLine 那條顧),但高解析(Retina)是 Plus。
+    // 這條反過來要求資格函式存在——移除它等於把付費層靜默送掉。
+    assert(/function satRetinaAllowed\s*\(/.test(html),
+      '衛星高解析的資格判定 satRetinaAllowed() 消失——Retina 會變成全體免費');
+    assert(/const wantLQ = [^;]*satRetinaAllowed\(\)/.test(html),
+      'setBasemap 的選層條件沒有消費 satRetinaAllowed()——資格判定形同虛設');
     // 原本是逐字比對整行 `const sat = online && state.basemap === 'sat';`，但那樣任何無關的條件
     // （2026-07-26 加的 token 就緒判斷）也會誤擋。改成檢查意圖：判斷式裡不得出現付費條件。
     const satLine = (html.match(/const sat = online && state\.basemap === 'sat'[^;\n]*;/) || [])[0];
@@ -394,10 +466,18 @@ export async function verifyRelease({
 
   // 半套登入 gate（STORE_SUBMISSION_CHECKLIST 步驟 4）：帳號開了但 Sign in with Apple 沒開
   // ＝App Store Guideline 4.8 退件主因。檢查對象是重建後的 www/，舊副本綠燈不算數。
-  if (/const ACCOUNT_ENABLED = true/.test(html)) {
-    const firebaseConfig = await readFile(join(output, 'firebase-config.js'), 'utf8');
+  // 🔴 判準不綁 ACCOUNT_ENABLED(2026-08-02 判準過期修正):2026-07-21 起帳號實際入口是
+  // plusOpen→accountEnsureInit,ACCOUNT_ENABLED 只決定帳號鈕要不要 eager 顯示在主畫面——
+  // ACCOUNT_ENABLED=false 時 Google 登入鈕仍可能經由購買流程或 ?account=delete 深連結被畫出來
+  // (index.html 的 accountConfigured() 本身就與 ACCOUNT_ENABLED 無關)。舊判準綁 ACCOUNT_ENABLED
+  // 的後果不是誤紅,是永遠不跑(ACCOUNT_ENABLED 現在恆 false)——半套登入的防線形同不存在。
+  // 改綁 firebase-config.js 是否配置齊全(accountConfigured() 的靜態等價條件),才是登入鈕
+  // 實際會不會被畫出來的真正判準。
+  const firebaseConfig = await readFile(join(output, 'firebase-config.js'), 'utf8');
+  const firebaseConfigured = /apiKey\s*:/.test(firebaseConfig) && /authDomain\s*:/.test(firebaseConfig) && /projectId\s*:/.test(firebaseConfig);
+  if (firebaseConfigured) {
     assert(/window\.RAIL_APPLE_LOGIN\s*=\s*true/.test(firebaseConfig),
-      '帳號功能已開啟但 RAIL_APPLE_LOGIN 不是 true——半套登入（有 Google 無 Apple）會被 App Store 4.8 退件');
+      '登入鈕可能被畫出(Firebase 已配置)但 RAIL_APPLE_LOGIN 不是 true——半套登入（有 Google 無 Apple）會被 App Store 4.8 退件');
   }
 
   // Capacitor 的 production logging 是「正式版也開啟」，Bridge 會把 plugin call/result

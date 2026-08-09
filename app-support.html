@@ -21,7 +21,7 @@
 <main>
   <div class="brand">軌島 · RAIL ISLAND</div>
   <h1>App 支援與使用說明</h1>
-  <p class="lead">軌島把台鐵、高鐵、捷運與輕軌依時刻表畫在同一張台灣地圖上。核心地圖不需登入；帳號用於跨裝置同步與恢復 Plus 購買資格。</p>
+  <p class="lead">軌島把台鐵、高鐵、捷運與輕軌依時刻表畫在同一張台灣地圖上。核心地圖不需登入；帳號用於在通行證有效期間跨裝置同步，以及恢復通行證購買資格。</p>
 
   <div class="actions">
     <a class="action" href="https://github.com/siriushsu/taiwan-rail-live/issues/new">回報問題或建議</a>
@@ -39,6 +39,10 @@
     <p>App 內建台灣輪廓、軌道與時刻表資料，可在沒有線上圖磚時維持台灣形狀與列車動畫。即時誤點、營運公告、線上底圖、登入同步及購買驗證仍需要網路。</p>
   </details>
   <details>
+    <summary>App 一開啟就會連到 Firebase 嗎？</summary>
+    <p>iOS App 啟動時會先初始化 Firebase 登入元件並掛上登入狀態監聽器，但這不等於登入。若你尚未登入且本機沒有可還原的 Firebase 登入狀態，初始化本身不會向 Google／Firebase 發出網路請求，也不會建立或傳送 Firebase 使用者識別碼；要等你選擇 Google 或 Apple 登入時，Firebase Authentication 才會開始連線及處理帳號資料。地圖、列車動態、底圖等基本功能仍會連線到軌島 API、Cloudflare 或底圖供應商，完整說明請見<a href="./privacy.html">隱私權政策</a>。</p>
+  </details>
+  <details>
     <summary>為什麼定位功能沒有反應？</summary>
     <p>請到 iOS 或 Android 系統設定確認已允許軌島在使用期間取得位置。定位只用於裝置內計算附近鐵道與列車；不授權時仍可使用「落釘」手動選擇位置。</p>
   </details>
@@ -46,38 +50,47 @@
     <summary>如何匯入 Google Maps 已儲存清單？</summary>
     <ol>
       <li>從 Google Takeout 匯出 Maps／已儲存地點資料。</li>
-      <li>登入軌島帳號並解鎖 Plus。</li>
+      <li>登入軌島帳號並啟用通行證。</li>
       <li>選擇 Takeout ZIP、CSV、JSON 或 GeoJSON，預覽後確認匯入。</li>
     </ol>
-    <p>原始檔案只在裝置內解析；只有確認匯入的台灣地點會加入軌島收藏並依登入狀態同步。</p>
+    <p>原始檔案只在裝置內解析；只有確認匯入的台灣地點會加入軌島收藏，並在通行證有效且登入時同步。</p>
   </details>
 
-  <h2>帳號與 Plus</h2>
+  <h2>帳號與軌島通行證</h2>
+  <!-- 這裡提到工具列/「更多」抽屜列鈕的實際文字時,一律要用 data-uilabel 屬性的 span 標記包住
+       （作法比照下面「可以購買 Plus 嗎？」那句已經在用的寫法)——scripts/verify_plus_features.mjs
+       的 T8 只驗有這樣標記過的子字串是否對得上 index.html accountBtnSlot() 真的會渲染出來的
+       字串,沒標記的文字不會被驗到(2026-08-03 複審 Important 2)。新增/修改指路文案時記得照著做,
+       否則這頁又會變回「沒人守」的狀態。 -->
   <details>
-    <summary>現在可以購買 Plus 嗎？</summary>
-    <p>還不行。目前上架的版本完全免費、不需登入，也沒有任何 App 內購買項目。</p>
+    <summary>現在可以訂閱軌島通行證嗎？</summary>
+    <p>可以。手機請點畫面下方「更多」裡的「<span data-uilabel>軌島通行證</span>」；電腦請點工具列的「<span data-uilabel>通行證</span>」——若這台裝置已登入或曾經登入過，該按鈕會改顯示「<span data-uilabel>帳號同步</span>」（電腦則是「<span data-uilabel>帳號</span>」），請先點進去，再點「查看通行證」。選擇月票或年票即可透過 App Store 完成訂閱；目前僅支援 iOS App 內購買。</p>
   </details>
   <details>
-    <summary>Plus 是訂閱嗎？</summary>
-    <p>是。軌島 Plus 開放後會是自動續訂訂閱，提供月訂與年訂兩種週期，在你取消前會依商店規則自動續期扣款。實際價格由 App Store、Google Play 或網站付款畫面顯示，完整條款見<a href="./terms.html">服務條款</a>。</p>
+    <summary>月票與年票是訂閱嗎？</summary>
+    <p>是。軌島通行證是 App 數位功能的自動續訂方案，提供月票與年票兩種週期，在你取消前會依商店規則自動續期扣款，不是實際乘車票券。實際價格由 App Store 付款畫面顯示，完整條款見<a href="./terms.html">服務條款</a>。</p>
   </details>
   <details>
     <summary>已購買卻仍顯示未解鎖</summary>
     <ol>
       <li>確認登入的是原購買時連結的同一個軌島帳號。</li>
-      <li>開啟「軌島帳號」→「查看 Plus」→「恢復購買」。</li>
-      <li>確認裝置可連線，且 App Store／Google Play 使用原購買商店帳號。</li>
+      <li>手機點畫面下方「更多」裡的「<span data-uilabel>軌島通行證</span>」，電腦點工具列的「<span data-uilabel>通行證</span>」；若該按鈕顯示「<span data-uilabel>帳號同步</span>」／「<span data-uilabel>帳號</span>」，請先點進去，再點「查看通行證」→「恢復購買」。</li>
+      <li>確認裝置可連線，且 App Store 使用原購買時的商店帳號。</li>
     </ol>
     <p>請勿在公開 Issue 張貼完整收據。若仍無法恢復，回報時只需提供平台、App 版本、發生時間與錯誤畫面中不含個資的部分。</p>
   </details>
   <details>
+    <summary>停止訂閱後，同步資料會怎樣？</summary>
+    <p>沒有有效通行證資格時，在目前裝置新增或修改的最愛地點、最愛列車、最愛車站與完乘紀錄會先留在該裝置，不會寫入雲端。若你以前同步過，原有雲端副本不會因停止訂閱，或因到期、退款等原因失去資格而自動刪除；再次取得有效資格後可繼續同步，也可在軌島帳號面板刪除帳號與同步資料。</p>
+  </details>
+  <details>
     <summary>如何刪除帳號與同步資料？</summary>
-    <p>在 App 或網站開啟「軌島帳號」，選擇「刪除帳號與同步資料」並重新驗證身分。即使已移除 App，也可使用下方網頁入口。</p>
+    <p>無論通行證資格是否仍有效，都可在 App 或網站開啟「軌島帳號」，選擇「刪除帳號與同步資料」並重新驗證身分。即使已移除 App，也可使用下方網頁入口。</p>
     <p><a href="./account-deletion.html">前往帳號刪除說明</a></p>
   </details>
 
   <h2>錄影與分享</h2>
-  <p>錄影檔在裝置內產生，軌島不會自動上傳。背景音樂只有在目前版本已取得相應授權且帳號具有 Plus 資格時才會寫入影片；否則影片仍可正常輸出但不含音樂。</p>
+  <p>若特定版本開放裝置內畫面錄影功能，錄影檔會在裝置內產生，軌島不會自動上傳；背景音樂只有在已取得相應授權且帳號具有通行證資格時才會寫入影片，否則影片仍可正常輸出但不含音樂。（目前版本尚未開放畫面錄影功能。）</p>
 
   <h2>問題回報建議資訊</h2>
   <ul>

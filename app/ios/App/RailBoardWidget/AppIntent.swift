@@ -83,7 +83,8 @@ func compositeSection() -> IntentItemSection<String>? {
 @available(iOS 17.0, *)
 struct OriginOptionsProvider: DynamicOptionsProvider {
     func results() async throws -> IntentItemCollection<String> {
-        let stations = try RailBoardStore.shared.stationOptions()
+        let stations = RailBoardStore.shared.configurationStationOptions()
+        guard !stations.isEmpty else { return .empty }
         // 順序：自己存的地點 → 共站 → 依縣市排的全部車站。前兩段是「一次看到附近全部路線」，
         // 第三段才是傳統的單一系統發車看板。
         let leading = [placeSection(stations), compositeSection()].compactMap { $0 }
@@ -113,31 +114,75 @@ struct OriginOptionsProvider: DynamicOptionsProvider {
 // 「目的站區域」也列進來（不管是跟 origin 一起兩個、或只留區域一個），設定畫面的「目的站」
 // 那一列就整列點不動——點下去連 extension 都不會被喚醒（系統紀錄零活動），因為 AppIntents
 // 判定依賴沒被滿足就直接停用那一列。改成 AppEnum＋預設值、把值存進設定再重開也一樣不動。
-// 起站那格能用是因為它「不依賴任何參數、照樣列全部」，目的站沒有這個退路。
+// 2026-08-06 又找到兩種「載入一下就收起來」：App 更新後完整班表還在背景建立時，這裡可能
+// ①讀檔丟錯，或 ②iOS 暫時還沒把 origin dependency 交進來／舊鍵一時對不到而得到空陣列。
+// 任何一種若回 .empty，系統都會直接把目的站選單收掉。直達站連動本身保留；只有依賴值或
+// 共享資料尚未就緒時才暫列內建的完整站表，讓使用者永遠有東西可選。
 @available(iOS 17.0, *)
 struct DestinationOptionsProvider: DynamicOptionsProvider {
     @IntentParameterDependency<ConfigurationAppIntent>(\.$origin)
     var intent
 
     func results() async throws -> IntentItemCollection<String> {
-        guard let origin = intent?.origin else {
-            return .empty
+        let destinations: [StationOption]
+        let promptLabel: LocalizedStringResource
+        if let origin = intent?.origin,
+           origin.hasPrefix(RailBoardStore.compositeKeyPrefix)
+            || origin.hasPrefix("place|")
+        {
+            // 共站／我的地點走的是「附近路線」時間軸，目的站參數不參與渲染
+            // （`RailBoardWidget.swift:151` 的 placeTimeline 在第 159 行讀 configuration.destination
+            // 之前就早退）。
+            //
+            // 🔴 2026-08-07 使用者回報「起站選共站後，目的站一點就跳出去、打不開」：原本這裡回
+            // `.empty` 想把這一格「停用」，但上面第 119 行自己的註解就寫了——回 .empty 系統會直接
+            // 把選單收掉，那不是停用而是壞掉。改成照樣列出完整站表，並用 promptLabel 說明這格
+            // 不生效。選到什麼都不影響渲染（早退路徑根本不讀），而且存進去的仍是合法站鍵 ⇒
+            // 日後把起站改回一般車站時解得開，不會觸發 destinationLost 的「找不到這個車站」。
+            //
+            // 🔴 2026-08-08 使用者二度回報同一件事，原因不是修法錯而是**修正被擱在別的分支**：
+            // 上面那顆只 commit 在 `feat/railboard-widget`（軌島-小工具 那棵樹）的 7c5c9af，
+            // main 與 feat/la-push 都沒有 ⇒ 之後出的 27／28／29／31 全部照舊壞掉。
+            // 出 build 的線目前是 feat/la-push，只在小工具樹修等於沒修。
+            destinations = RailBoardStore.shared.configurationStationOptions()
+            promptLabel = "共站看板不看目的站，這格可留空"
+        } else if let origin = intent?.origin {
+            do {
+                let direct = try RailBoardStore.shared.destinationOptions(from: origin)
+                if direct.isEmpty {
+                    // 起站鍵剛寫入、共享 stations/board 還沒換成同一代時，解析會回空陣列而
+                    // 不是丟錯。空集合交給 AppIntents 會讓目的站選單立即收起，照樣要降級。
+                    destinations = RailBoardStore.shared.configurationStationOptions()
+                    promptLabel = "班表準備中，先列出全部車站"
+                } else {
+                    destinations = direct
+                    promptLabel = "只顯示有直達列車的車站"
+                }
+            } catch {
+                // App 更新／首次開啟的完整班表尚未發布時，先用 bundle 內建目錄讓設定繼續。
+                // 不可把錯誤丟回 AppIntents：iOS 會直接關掉整張小工具設定頁。
+                destinations = RailBoardStore.shared.configurationStationOptions()
+                promptLabel = "班表準備中，先列出全部車站"
+            }
+        } else {
+            // IntentParameterDependency 的 wrappedValue 契約本來就是 optional；真機在開啟
+            // 選單的第一拍可能先給 nil，下一拍才帶入已選起站。這一拍不能回 .empty。
+            destinations = RailBoardStore.shared.configurationStationOptions()
+            promptLabel = "正在讀取起站，先列出全部車站"
         }
+        guard !destinations.isEmpty else { return .empty }
 
-        let destinations = try RailBoardStore.shared.destinationOptions(from: origin)
         let places = placeSection(destinations)
         guard let sections = stationRegionSections(destinations) else {
-            var fallbackSections = [
-                IntentItemSection(items: destinations.map(\.intentItem))
-            ]
+            var fallbackSections = [IntentItemSection(items: destinations.map(\.intentItem))]
             if let places { fallbackSections.insert(places, at: 0) }
             return IntentItemCollection(
-                promptLabel: "只顯示有直達列車的車站",
+                promptLabel: promptLabel,
                 sections: fallbackSections
             )
         }
         return IntentItemCollection(
-            promptLabel: "只顯示有直達列車的車站",
+            promptLabel: promptLabel,
             sections: places.map { [$0] + sections } ?? sections
         )
     }
@@ -227,7 +272,7 @@ extension PlaceStationOption {
 struct ConfigurationAppIntent: WidgetConfigurationIntent {
     static var title: LocalizedStringResource { "發車看板" }
     static var description: IntentDescription {
-        IntentDescription("起訖站清單依縣市由北到南分段，最上面可以直接選你在軌島存過的地點。目的站可留空，以查看所有停靠、終到與通過列車。")
+        IntentDescription("起訖站清單依縣市由北到南分段，最上面可以直接選你在軌島存過的地點。目的站可留空，以查看所有停靠、終到與通過列車；起站選共站或我的地點時，請用「只看這些」依方向、車種或車次篩選。")
     }
 
     @Parameter(title: "起站", optionsProvider: OriginOptionsProvider())

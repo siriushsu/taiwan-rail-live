@@ -1006,6 +1006,17 @@
   .passport.closed .ph-sub, .passport.closed .ph-body { display: none; }
   .passport .ph-stats { flex: 1 1 100%; order: 2; font-size: 12.5px; color: var(--muted); font-variant-numeric: tabular-nums; }
   .passport .ph-stats b { color: var(--red); }
+  /* margin-top 與 .ph-sec 的 13px 一致(不是憑空發明的值):.ph-body 沒有自己的 padding/border,
+     它的第一個子元素的 margin-top 會「穿透」collapse 成 .ph-head 與內容之間的間距——徽章是新的
+     第一個子元素,若沿用 brief 原給的 margin-top:0,會把這段既有間距吃掉,徽章因此貼著護照標題列,
+     與其它每個分節(明星列車/車種圖鑑…)的既有節奏不一致(對照組實測:有徽章 0px vs 無徽章 13px)。 */
+  .ph-founding { display:flex; align-items:center; gap:10px; margin:13px 0 10px; padding:9px 12px;
+                 border:1px solid var(--line); border-radius:var(--r-m); background:var(--bg-stage); }
+  .ph-founding .pf-mark { flex:none; width:30px; height:30px; border-radius:var(--r-pill); display:grid; place-items:center;
+                          font-weight:900; font-size:15px; color:var(--paper); background:var(--gold); }
+  .ph-founding .pf-txt { display:flex; flex-direction:column; line-height:1.35; }
+  .ph-founding .pf-txt b { font-size:13.5px; color:var(--ink-strong); }
+  .ph-founding .pf-txt i { font-style:normal; font-size:11.5px; color:var(--faint); }
   /* .ph-* 家族(Batch B):新增 #ridePanel 一起匹配,護照 sheet 與桌面 #passport 共用同一套骨架;
      .passport 分支不變=桌面零變化 */
   .passport .ph-sec, #ridePanel .ph-sec {
@@ -2111,6 +2122,16 @@
   .takeout-row a, .takeout-row button { color: var(--navy); font: inherit; font-weight: 700; }
   .takeout-row a { display: inline-flex; align-items: center; min-height: 44px; }
   .takeout-row button { min-height: 44px; padding: 5px 9px; border: 1px solid var(--line); border-radius: 6px; background: var(--bg-stage); cursor: pointer; }
+  .takeout-bulk {
+    display: flex; align-items: center; gap: 10px; min-height: 52px; box-sizing: border-box;
+    margin: 7px 0 4px; padding: 7px 10px; border: 1.5px solid var(--navy); border-radius: 9px;
+    background: var(--bg-stage); color: var(--ink); cursor: pointer;
+  }
+  .takeout-bulk input { flex: none; width: 20px; height: 20px; margin: 0; }
+  .takeout-bulk span { min-width: 0; }
+  .takeout-bulk b, .takeout-bulk small { display: block; }
+  .takeout-bulk b { color: var(--navy); font-size: 12.5px; }
+  .takeout-bulk small { margin-top: 2px; color: var(--faint); font-size: 11px; line-height: 1.45; }
   .takeout-more { color: var(--faint); font-size: 11px; margin-top: 5px; }
   .takeout-actions {
     display: flex; justify-content: flex-end; gap: 8px; padding: 10px 14px;
@@ -2194,6 +2215,7 @@
     color: var(--ink); font: inherit; font-weight: 700; cursor: pointer;
   }
   .account-login button:hover, .account-user-actions button:hover { background: var(--bg-stage); }
+  .account-user-actions button:disabled { opacity: .5; cursor: default; }
   .account-login .apple { background: #101010; border-color: #101010; color: #fff; }
   .account-login .apple:hover { background: #1c1c1c; }
   .account-profile { display: flex; align-items: center; gap: 11px; padding: 10px 13px; border: 1.5px solid var(--line); border-radius: 10px; background: var(--bg-stage); }
@@ -2435,6 +2457,11 @@
     .badge { top: calc(58px + env(safe-area-inset-top, 0px)); left: 10px; gap: 9px; padding: 5px 11px 6px; }
     .badge .clock { font-size: 17px; }
     .badge .count { font-size: 12px; }
+    /* 行程連結的追蹤橫幅原本固定 top:56，會整片壓住這列時鐘。接收行程時先把非必要的
+       地圖動作列收起，橫幅排到時鐘下方；關閉橫幅後 body.trip-open 移除，兩者自然復原。 */
+    body.trip-open .map-actions { opacity: 0; pointer-events: none; }
+    body.trip-open .trip-banner { top: calc(118px + env(safe-area-inset-top, 0px)); }
+    body.trip-open .trip-banner ~ .dwell-plate { top: calc(251px + env(safe-area-inset-top, 0px)); }
     /* ≤400px 窄機:尖峰跟隨時 LIVE＋看板校正＋三位數班次會把徽章撐到壓住全畫面鈕——
        「看板校正」縮成純脈動藍點(400px 以上字樣不變) */
     @media (max-width: 400px) {
@@ -3311,17 +3338,22 @@
 
   <footer class="site-foot">
     <details class="foot-box">
-      <summary><span>更新紀錄</span><span class="foot-sub">最後更新：2026/8/4</span></summary>
+      <summary><span>更新紀錄</span><span class="foot-sub">最後更新：2026/8/8</span></summary>
+      <!-- 第一層是「最近更新」的檢視,不是正本:每一條都用 data-cl-of 指向第二層某條的 data-cl。
+           要把一條擠出第一層之前,它的正本必須已經在第二層存在——2026-08-03 就踩過一次:8/1 的
+           衛星計費那條只活在第一層(第二層只有一句夾在 7/25 條目裡、日期對不上的附帶說明),
+           被擠掉時等於刪掉那次變更唯一一筆可辨識的對外紀錄。CL1／CL2 兩條判準守這件事。
+           內容 li 上限 8 條(li.grp 是標題不算)。 -->
       <ul class="foot-list foot-recent">
         <li class="grp">最近更新</li>
-        <li data-cl-of="orangebranch"><span class="d">8/4</span><span>橘線列車進共線段後會延續蘆洲／迴龍的支線身分，不再誤算成新莊線</span></li>
-        <li data-cl-of="hazardwatch"><span class="d">8/4</span><span>颱風、地震等示警生效時，軌島立即重查各家官方營運公告並持續複查</span></li>
-        <li data-cl-of="appdata"><span class="d">8/4</span><span>App 的台鐵班表過期後會自動上網補最新的，不必等改版</span></li>
-        <li data-cl-of="afrtrainno"><span class="d">8/4</span><span>阿里山林鐵 1、2 次的介紹被寫成台鐵環島之星，現在改回阿里山號（謝謝網友回報）</span></li>
-        <li data-cl-of="brheadway"><span class="d">8/4</span><span>文湖線班距改吃八萬筆到站實測重算——畫面原本少了約三成的車</span></li>
-        <li data-cl-of="yboard"><span class="d">8/4</span><span>環狀線也改吃官方到站倒數逐班校正；沒對到的班次改用全線平均誤點量</span></li>
-        <li data-cl-of="trtcboard"><span class="d">8/3</span><span>北捷列車位置改為逐班跟著官方秒級到站倒數校正，不會憑空多車或少車</span></li>
-        <li data-cl-of="inapphint"><span class="d">8/3</span><span>從 LINE、FB 開軌島時，提示卡蓋住播放鍵與跟車小卡，現在會讓開了</span></li>
+        <li data-cl-of="crossnight452"><span class="d">8/8</span><span>修正：週五深夜 452 次這類特定日開行的跨夜車，過了午夜就從地圖上消失（謝謝網友回報）</span></li>
+        <li data-cl-of="thsrautosched"><span class="d">8/7</span><span>高鐵時刻表改為每天自動更新，加開與調整班次當天就會反映</span></li>
+        <li data-cl-of="widgetdestination3"><span class="d">8/6</span><span>iPhone 小工具的目的站選單偶爾只顯示一下「載入中」就收起；現在即使起站連動稍晚送到，也會先列出完整車站，不必重複點選</span></li>
+        <li data-cl-of="release140"><span class="d">8/6</span><span>軌島 1.4.0 準備上線：加入軌島帳號、通行證月票／年票、跨裝置同步、鎖定畫面即時動態與發車看板小工具，並修好分享連結、行程橫幅與小工具設定</span></li>
+        <li data-cl-of="widgetdestination2"><span class="d">8/6</span><span>iPhone 小工具剛更新、車站資料還在準備時，點「起站」或「目的站」可能讓設定畫面直接退出；現在會先用內建車站清單，不必等待</span></li>
+        <li data-cl-of="sharelink"><span class="d">8/6</span><span>App 的「分享畫面」與「行程分享」不再傳出無法開啟的網址，改為可直接開啟的 railisland.tw 連結</span></li>
+        <li data-cl-of="passproduction"><span class="d">8/6</span><span>正式版軌島通行證改用 App Store 正式月票與年票，測試版的展示進度不會出現在一般使用者護照</span></li>
+        <li data-cl-of="passrename"><span class="d">8/5</span><span>「軌島 Plus」更名為「軌島通行證」：訂閱方案改稱月票與年票，所有使用者都是島民</span></li>
       </ul>
       <!-- 第二層:完整歷史。刻意不掛 .foot-box 類名——placeFootBoxes() 用
            `.site-foot .foot-box` 搬移面板,巢狀同名會被當成另一個盒子一起搬走。 -->
@@ -3337,6 +3369,11 @@
         <li><span class="d">7/10</span><span>高鐵、桃園機捷、淡海輕軌、安坑輕軌加入路網</span></li>
         <li><span class="d">7/10</span><span>環島觀光列車一分為二：往東「山海號」、往西「平原號」</span></li>
         <li class="grp">即時動態與誤點</li>
+        <li data-cl="crossnight452"><span class="d">8/8</span><span>只在特定日開行的跨夜車（如週五深夜 452 次）過午夜就從地圖消失，未開行日清晨反而多畫一班；現在把昨天發車仍在路上的班接回名冊，幽靈班一併擋掉（謝謝網友回報）</span></li>
+        <li data-cl="thsrautosched"><span class="d">8/7</span><span>高鐵班表改為伺服器每天自動抓取今天與明天的官方時刻表（含加開與停駛調整），不再依賴內建快照；官方資料暫時抓不到時自動退回內建班表，地圖不會空白</span></li>
+        <li data-cl="metromotion"><span class="d">8/5</span><span>所有捷運與輕軌共用平順運動模型：每站間用簡單的加速、巡航、減速曲線；淡海輕軌、安坑輕軌、機捷、高捷等收到新的即時校正時，速度也限制在正常推演的 0.25～2 倍，不再為了追資料停住或突然衝刺</span></li>
+        <li data-cl="trtcpos"><span class="d">8/5</span><span>北捷列車有官方到站倒數時，現在直接用「站間行駛時間與剩餘秒數」算出列車在兩站之間的位置；班表仍是唯一車輛名冊，沒有可靠錨點時才回到原本的平順推估</span></li>
+        <li data-cl="trtcmotion"><span class="d">8/5</span><span>北捷列車每次收到新的官方到站資料時，原本會為了校正位置先停住、再突然加速追趕；現在把差距分散到接下來的移動中慢慢吸收，兩站之間會持續前進，追趕速度也有上限</span></li>
         <li data-cl="orangebranch"><span class="d">8/4</span><span>橘線列車進入大橋頭以南的共線路段後，會延續它原本來自蘆洲或迴龍的支線身分，不再把往南勢角的蘆洲線列車誤算成新莊線；當日班表的車數不受影響</span></li>
         <li data-cl="hazardwatch"><span class="d">8/4</span><span>颱風、地震、雷雨、豪雨等示警生效時，軌島會立即重查台鐵、高鐵與捷運的官方營運公告並持續複查。示警本身不代表停駛，也不會讓地圖上的車消失；以各營運單位公告為準</span></li>
         <li data-cl="brheadway"><span class="d">8/4</span><span>文湖線車數修正：官方沒有公開逐班時刻，我們原本照公告的班距範圍取中間值推算，實測發現全時段都比實際疏，畫面上少了約三成的車；改用累積八萬筆到站觀測的實際班距重算</span></li>
@@ -3374,11 +3411,15 @@
         <li><span class="d">7/11</span><span>新增「群車」視角：不跟單一列車，看整片列車交錯；改連續慢速巡航永不停頓</span></li>
         <li><span class="d">7/9</span><span>沉浸放空升級：真・全螢幕、「簡」極簡沉浸、經過特殊車站自動跳站介紹</span></li>
         <li class="grp">平交道與儲存地點</li>
+        <li data-cl="takeout-preview"><span class="d">8/3</span><span>匯入 Google Maps 「已儲存」清單時，預設只會匯入預覽裡看得到、能逐筆取消的地點；若清單超過手機順暢預覽的筆數，會另外列出「也匯入其餘 N 個未預覽地點」，只有主動勾選才會一起納入</span></li>
+        <li data-cl="takeout"><span class="d">8/2</span><span>訂閱軌島通行證後，可以在 App 裡把 Google Maps 的「已儲存」清單匯入成軌島的最愛地點：從 Google Takeout 匯出的 ZIP（或解壓後的 CSV／JSON／GeoJSON）直接選檔，會先列出讀到的地點讓你勾選，確認後才寫入，只收台灣範圍內的地點。檔案全程只在你的裝置裡解析，不會上傳</span></li>
         <li><span class="d">7/22</span><span>「附近火車」更名為「儲存地點」：可以命名（家、公司…），存過的會進「我的最愛」</span></li>
         <li><span class="d">7/14</span><span>平交道位置依官方資料，可能與現場實際位置略有落差</span></li>
         <li><span class="d">7/13</span><span>新增「附近火車」：地圖上落一根釘，查周邊 60 分鐘內會通過的車次</span></li>
         <li><span class="d">7/12</span><span>新增平交道功能：點一下查接下來會通過的列車（7/13 補上貨運線 21 處）</span></li>
         <li class="grp">收藏、護照與成就</li>
+        <li data-cl="favtrainkey"><span class="d">8/3</span><span>台鐵與高鐵有些車次號碼相同，過去收藏其中一班會蓋掉另一班，移除時也會兩班一起消失；現在最愛列車會連同鐵路系統分開辨認，同號車可以各自收藏與移除</span></li>
+        <li data-cl="founding"><span class="d">8/4</span><span>在創始期間訂閱通行證的島民，App 的旅程護照最上方會多一枚「創始島民」徽章，之後才訂閱的不會有；徽章跟著訂閱資格走，退訂或登出就一起收起來</span></li>
         <li><span class="d">7/30</span><span>搜尋一班今天已經跑完（或還沒發車）的車，時鐘會確實停在它發車前，不再過一秒就彈回現在——那正是原本會莫名跳出「完乘達成」的原因（謝謝網友回報）</span></li>
         <li><span class="d">7/29</span><span>收集章改成依名字長短自動配版：長名會縮小字級、必要時多折一行，「EMU3000 新自強號」「區間車（通勤電聯車）」這些再也不會被圓框切掉</span></li>
         <li><span class="d">7/26</span><span>旅程護照多了「車站收集」：完乘過的起訖站自動成章，人到月台再按「附近車站」裡的蓋章鈕，就升級成到訪章；同一座站去過越多次，章上的數字越大</span></li>
@@ -3391,7 +3432,13 @@
         <li><span class="d">7/13</span><span>收集章可以重複點，換搭不同班次回味</span></li>
         <li><span class="d">7/9</span><span>旅程護照與 16 枚成就徽章、「探」今日亮點面板上線</span></li>
         <li class="grp">手機與操作</li>
+        <li data-cl="widgetdestination3"><span class="d">8/6</span><span>iPhone 主畫面的「發車看板」小工具，目的站選單有時只會短暫顯示「載入中」便自動收起。原因是 iOS 開啟選單時可能稍晚才把已選起站交給小工具，或共享班表正好還在換版；現在這兩種空窗都會先列出內建的完整車站清單，資料齊全後仍會照起站只顯示有直達列車的車站</span></li>
+        <li data-cl="widgetdestination2"><span class="d">8/6</span><span>iPhone 主畫面的「發車看板」小工具，App 剛更新、共享車站資料還在背景準備時，點「起站」就可能讓設定畫面直接退出；現在起站與目的站都有一份內建的輕量車站清單可立即使用，完整班表完成後會自動接手，目的站仍會照起站只列出有直達列車的車站</span></li>
+        <li data-cl="sharelink"><span class="d">8/6</span><span>從 App 分享目前畫面或行程時，原本會把 App 內部的 capacitor://localhost 網址傳出去，其他人無法開啟；現在一律改成可直接開啟的 railisland.tw 公開連結</span></li>
+        <li data-cl="widgetdestination"><span class="d">8/5</span><span>iPhone 主畫面的「發車看板」小工具，起站選了「共站」或「我的地點」之後，再點「目的站」會讓設定畫面閃退；現在這兩種起站不再開啟不適用的目的站清單，請改用「只看這些」依方向、車種或車次篩選</span></li>
+        <li data-cl="moresheet"><span class="d">8/4</span><span>電腦版把頁面往下捲之後再開「更多」，選單會被推出畫面上緣，最上面幾列看不到也點不到，得先關掉、把右邊捲軸拉回最上面才正常；現在不論捲到哪裡開，選單都會完整留在畫面裡</span></li>
         <li data-cl="inapphint"><span class="d">8/3</span><span>在 LINE、Facebook、Threads 裡開軌島時，底下「用瀏覽器開啟」的提示卡壓住播放／暫停鍵和跟車小卡（連小卡的關閉鈕都點不到）；現在提示卡會讓開，小卡也跟著往上排</span></li>
+        <li data-cl="liveactivity"><span class="d">8/2</span><span>在 App 裡訂閱通行證後跟車，鎖定畫面與動態島會顯示這班車的下一站、到站時間與誤點；倒數自己會走，換一班車就換一張，停止跟車或跟到終點會自動收起來。需要 iOS 17.6 以上；App 退到背景比較久時，誤點數字會停在最後一次更新的值</span></li>
         <li><span class="d">7/30</span><span>車站看板與跟車面板可以調高度了：手機拉一下（或點一下）面板上緣的把手，在小／中／大之間切換。原本「大」只是上限、內容短的時候三段一樣高，拉了像沒作用；現在「大」有保證高度，車站看板也會跟著多列幾班車</span></li>
         <li><span class="d">7/30</span><span>新增 iPhone 主畫面小工具「發車看板」：長按桌面加入後選一個起站（可以再加目的站），桌面就會列出接下來幾班車；還能「只看這些」，例如只留自強號、或只盯自己每天搭的那幾班。選起站不必再整份 250 站下拉：清單依縣市分段，由北到南排</span></li>
         <li><span class="d">7/30</span><span>小工具的起站與目的站選單最上面多了一段「我的地點」：你在軌島存過的地點（家、公司…）會直接列出來，點一下就帶到離它最近的台鐵或高鐵站，不用自己記那一站叫什麼；選好之後桌面標題顯示的是「家 → 公司」，不是站名。日後把「家」重存到別的地方，桌面會自己跟到新位置的最近車站，不必回設定畫面重選；把地點改名或刪掉也不會壞，只是標題退回顯示車站名。附近 5 公里內沒有車站的地點不會出現，最多列 20 筆，自己存的排在 Google 地圖匯入的前面。台鐵與高鐵同一棟的車站（台北、板橋、南港、左營…）會選班次比較多的那一邊。這一段只有 iPhone 版 App 才有</span></li>
@@ -3410,17 +3457,25 @@
         <li><span class="d">7/21</span><span>手機大改版：打開就是全螢幕地圖，面板都住進底部；新增「捷」分頁，北中高捷運一張圖同框</span></li>
         <li><span class="d">7/13</span><span>新增「省電」模式（手機預設開啟）：降到 30fps；手機一次只開一個面板</span></li>
         <li class="grp">外觀與品牌</li>
+        <li data-cl="satretina"><span class="d">8/2</span><span>在 App 裡訂閱通行證後，衛星底圖會換成高解析度圖磚，在 Retina 螢幕上更銳利；沒訂閱的人維持標準解析度，畫面內容一樣</span></li>
+        <li data-cl="satbilling"><span class="d">8/1</span><span>衛星底圖換成比較省的計費方式：計費從「看了幾張圖磚」改成「看得夠多才算一次時段費」，看到的畫面完全一樣，只是我們付給圖資供應商的錢少很多</span></li>
         <li><span class="d">7/30</span><span>外觀設定新增「面板半透明」開關（預設關閉）：打開後車站看板、跟車小卡、跟隨面板會透出底下的地圖並加上模糊，關掉就回到原本的實心底。半透明時原本偏淡的次要文字會自動加深一階，疊在路網上仍然看得清楚；跟車小卡收合成一條（只剩車號與時速）時維持實心底，不跟著透明。7/30 再補一輪（透明度與模糊程度都沒動）：字外圍加了一圈紙色描邊，疊在衛星影像或密集路網上也不會融進背景；全程速度曲線加粗、加一層淡底板，暗色主題的線色改亮，看得出哪一段跑得快；手機的「列車」面板縮到最小那段也維持實心底</span></li>
         <li><span class="d">7/28</span><span>全站圖示換成軌島自製單色線稿，亮暗主題下都更一致清楚</span></li>
         <li><span class="d">7/28</span><span>全站圖示改用軌島自製的單色線稿與單色字形（介面圖示、成就徽章、車廂標記都在內），亮暗主題與各家瀏覽器下長相一致，不再交給各系統自己的 emoji 決定</span></li>
         <li><span class="d">7/27</span><span>切到「高」時左邊牌子下面的那行字改成「台灣高鐵即時軌跡」，先前一直沿用台鐵的字串</span></li>
-        <li><span class="d">7/25</span><span>衛星底圖改接 Esri 官方授權服務端點；7/24 起在高解析度螢幕上更清晰銳利，7/29 為控制圖資用量改回標準解析度；8/1 改成「看得夠多才算一次時段費」的計費方式，畫面完全一樣，圖資成本大幅下降</span></li>
+        <li><span class="d">7/25</span><span>衛星底圖改接 Esri 官方授權服務端點；7/24 起在高解析度螢幕上更清晰銳利，7/29 為控制圖資用量改回標準解析度</span></li>
         <li><span class="d">7/22</span><span>縮放時墊底的離線輪廓圖配色貼齊底圖，消除快速縮放的色差閃爍</span></li>
         <li><span class="d">7/16</span><span>整站外觀大改版「琺瑯 2.0」，並支援亮／暗自動切換</span></li>
         <li><span class="d">7/10</span><span>網站更名「軌島」，正式網址 railisland.tw 上線；品牌定裝：懸掛式站名牌 header 與新版標誌</span></li>
         <li><span class="d">7/10</span><span>夜間與衛星模式視覺升級；「軌」軌道顯示三段切換：自動／淡化／隱藏</span></li>
         <li><span class="d">7/9</span><span>站名移到軌道側邊不再互相壓住；雙欄版面：搜尋／最愛／旅程收集移到右側欄</span></li>
         <li class="grp">分享與個人化</li>
+        <li data-cl="release140"><span class="d">8/6</span><span>iPhone／iPad 版升級至 1.4.0：加入軌島帳號、通行證月票與年票、收藏與完乘紀錄跨裝置同步、跟車鎖定畫面與動態島即時動態，以及可自訂起訖站的發車看板小工具；也一併修好 App 分享連結、行程追蹤橫幅蓋住時鐘與小工具設定穩定性</span></li>
+        <li data-cl="passproduction"><span class="d">8/6</span><span>App 的軌島通行證改用 App Store 正式訂閱：月票與年票購買後會開啟進階功能與雲端同步；TestFlight 的展示進度不會出現在正式版</span></li>
+        <li data-cl="passrename"><span class="d">8/5</span><span>「軌島 Plus」正式更名為「軌島通行證」，兩種自動續訂方案改稱月票與年票；每個使用者都是島民，通行證是 App 數位功能訂閱，不是實際乘車票券</span></li>
+        <li data-cl="plussandboxtest"><span class="d">8/5</span><span>TestFlight 測試版的 App Store 測試訂閱現在會完整開啟通行證：訂閱月票或年票後，可以實際驗收 Google 清單匯入、衛星高解析、Live Activity、誤點履歷與跨裝置同步；恢復購買後的同步資格驗證也不再被 App 連線預檢或伺服器寫入設定擋住。測試訂閱與同步資料都和正式購買分開，不會真的扣款或改動正式資格</span></li>
+        <li data-cl="sync"><span class="d">8/4</span><span>訂閱軌島通行證後可以用軌島帳號登入（Google 或 Apple）：收藏的地點、最愛車站與完乘記錄會在手機和電腦之間自動同步，換裝置也不必從頭來過</span></li>
+        <li data-cl="tripshare"><span class="d">8/4</span><span>訂閱通行證後可以分享「行程」：把正在跟的班次和目的站打包成一條連結傳給朋友，對方點開就看得到車跑到哪、還剩幾站、幾點到；分享的是班次，不是你的定位</span></li>
         <li><span class="d">7/24</span><span>可把常看的地點設為預設啟動視野；探索面板新增「觀光列車圖鑑」</span></li>
         <li><span class="d">7/18</span><span>下次打開就回到上次看的地方：位置、縮放與路網頁籤都會記住，不需註冊登入</span></li>
         <li><span class="d">7/13</span><span>新增「分享畫面」：把地圖位置、時間與路網打包成一條連結</span></li>
@@ -3430,21 +3485,21 @@
         <!-- APP_STRIP_END donation-log -->
         <li class="grp">資料校正</li>
         <li data-cl="appdata"><span class="d">8/4</span><span>App 內建的班表是送審當下的快照，之後原本得等下次改版才會更新——台鐵官方只公布未來 14 天，用完就會對不上連假加班車與臨時改點；三鶯線、各捷運線改點也一樣。現在 App 開機會比對一份很小的資料清單，只有真的變動過的檔案才重新下載，沒變的一個都不抓；抓不到就用內建那份，不會比原本差</span></li>
-        <li><span class="d">8/1</span><span>台鐵快車在不停靠的小站之間跑到哪裡，推估得更準了。有網友拿碼錶站在彰化與花壇之間實地量了十幾班車，回報「車普遍比畫面上早經過」，自強號差到快兩分鐘。追查後發現不是推估方式的問題，而是我們在校正資料時把花壇這類「到站看板顯示時間比較長」的車站整批當成不可信而丟掉了，那幾站只好套用全線的平均值。現在改成看各站自己的顯示習慣，這些站的實測資料重新派上用場（謝謝網友回報，也謝謝那個早上）</span></li>
+        <li data-cl="traobs"><span class="d">8/1</span><span>台鐵快車在不停靠的小站之間跑到哪裡，推估得更準了。有網友拿碼錶站在彰化與花壇之間實地量了十幾班車，回報「車普遍比畫面上早經過」，自強號差到快兩分鐘。追查後發現不是推估方式的問題，而是我們在校正資料時把花壇這類「到站看板顯示時間比較長」的車站整批當成不可信而丟掉了，那幾站只好套用全線的平均值。現在改成看各站自己的顯示習慣，這些站的實測資料重新派上用場（謝謝網友回報，也謝謝那個早上）</span></li>
         <li><span class="d">7/29</span><span>刪除軌島帳號時，會一併刪掉你上傳過的 GPS 校正旅程資料與累積的貢獻點數，包含這台裝置以匿名身分傳的那些；隱私權政策也補上了這類資料保存多久、要怎麼刪除</span></li>
         <li><span class="d">7/29</span><span>圖磚還沒載入時墊底的台灣海陸輪廓換成內政部公開的縣市界線：舊資料比實際海岸線偏了一到三公里，東部海線好幾站看起來像在海上（謝謝網友回報）</span></li>
         <li><span class="d">7/25</span><span>台鐵快車經過不停靠小站時的位置改用改點後的實際到站紀錄校正</span></li>
         <li><span class="d">7/24</span><span>台鐵列車站間位置改用官方里程推算（山線／海線長度也一併校正）</span></li>
         <li><span class="d">7/24</span><span>台鐵班表改為每天使用當日官方時刻，週末限定的加班車會在正確的日子出現</span></li>
         <li><span class="d">7/21</span><span>修正桃園機捷南下停靠站對調：普通車過長庚站站停、直達車只停新北產業</span></li>
-        <li><span class="d">8/1</span><span>三鶯線營運時段兩度跟改：7/18 先修成實際的每天 10:00–20:00（在那之前，非營運時間會跑出根本不存在的列車）；8/1 官方把試營運延長為 08:00–22:00，早上 8:00–8:30 的班距也跟著改成六分鐘</span></li>
+        <li data-cl="sanying"><span class="d">8/1</span><span>三鶯線營運時段兩度跟改：7/18 先修成實際的每天 10:00–20:00（在那之前，非營運時間會跑出根本不存在的列車）；8/1 官方把試營運延長為 08:00–22:00，早上 8:00–8:30 的班距也跟著改成六分鐘</span></li>
         <li><span class="d">7/18</span><span>平溪、深澳、集集、內灣線車種改為 DR1000 柴油客車（這幾段沒有電化）</span></li>
         <li><span class="d">7/17</span><span>安坑輕軌「台北小城」站位修正；144、146 次車種更正為 EMU3000</span></li>
         <li><span class="d">7/11</span><span>山線改走現行路線，不再誤用 1998 年的舊山線線形；成追線經成功站不再繞行</span></li>
         <li class="grp">曾經上線、後來拿掉</li>
         <li><span class="d"></span><span><b>GPS 校正旅程與收集地圖</b>：7/28 上線、7/29 暫時收起繼續打磨——先把心力放在別的改進上。你在這台裝置上的乘車紀錄、護照印章與站章都不受影響，之後開回來時校正貢獻也還在</span></li>
         <li><span class="d"></span><span><b>站內錄影（Beta）</b>：7/10 上線、7/17 因地圖圖資的版權條款下架——想錄畫面請改用手機或電腦內建的螢幕錄影功能</span></li>
-        <li><span class="d"></span><span><b>軌島帳號（跨裝置同步）</b>：7/16 上線、7/17 暫時收起整備。你在這台裝置上的收藏與完乘紀錄、以及先前已同步到雲端的資料都保留；已建立帳號的人仍可從「刪除軌島帳號」頁面自助刪除</span></li>
+        <li><span class="d"></span><span><b>軌島帳號（跨裝置同步）</b>：7/16 上線、7/17 暫時收起整備，隨軌島通行證重新開放——訂閱通行證並登入的人現在可以同步收藏與完乘紀錄。你在這台裝置上的收藏與完乘紀錄、以及先前已同步到雲端的資料都保留；已建立帳號的人仍可從「刪除軌島帳號」頁面自助刪除</span></li>
         <li><span class="d"></span><span><b>定位我</b>：定位功能目前停用中，7/18 把手機「更多」選單裡點了沒反應的入口一併拔掉</span></li>
         <li class="grp">起點</li>
         <li><span class="d">7/8</span><span>初版上線：台鐵全日時刻表動畫＋北捷／高捷（含輕軌）／中捷班距模擬</span></li>
@@ -3536,7 +3591,7 @@
 </div>
 <div class="takeout-modal plus-modal" id="plusModal" hidden>
   <section class="takeout-dialog plus-dialog" role="dialog" aria-modal="true" aria-labelledby="plusTitle">
-    <div class="takeout-head"><h2 id="plusTitle">軌島 Plus</h2><button id="plusX" type="button" aria-label="關閉">×</button></div>
+    <div class="takeout-head"><h2 id="plusTitle">軌島通行證</h2><button id="plusX" type="button" aria-label="關閉">×</button></div>
     <div class="takeout-body" id="plusBody"><p class="account-intro">正在讀取購買資格…</p></div>
   </section>
 </div>
@@ -3692,7 +3747,7 @@
     <button class="ms-row" data-proxy="recBtn" data-close="1" style="display:none"><span>⏺ 錄影 Beta</span><span class="chev">›</span></button>
     <div class="ms-sec">分享與資料</div>
     <button class="ms-row" data-proxy="shareBtn" data-close="1"><span>↗ 分享畫面</span><span class="chev">›</span></button>
-    <button class="ms-row" data-proxy="importBtn" data-close="1"><span>Google 清單匯入</span><span class="chev">›</span></button>
+    <button class="ms-row" data-proxy="importBtn" data-close="1" style="display:none"><span>Google 清單匯入</span><span class="chev">›</span></button>
     <!-- 帳號同步下架(ACCOUNT_ENABLED=false):比照 #accountBtn 先 inline 藏,不靠 setupAccountUi 才移除。
          它有兩條走不到移除的路——setupMapTools 前段一拋(2026-07-26 實測過),以及 accountConfigured()
          為假時的提前 return;兩條都會留成「點了靜默無反應」的死列。還原點在 accountEnsureInit -->
@@ -3716,7 +3771,7 @@
 // 🔴 BUILD 字串會跨並行分支撞號（心得 16）：07-28 兩條線各自遞增又各自部署過——
 // origin/main 這條用到 v0728b，正式站那條用到 v0728f。本次三方合併把兩條線統一，
 // 所以往後推到一個雙方都沒用過的號，辨識線上跑哪一版仍以內容 hash 為準。
-const BUILD = 'v0804g';
+const BUILD = 'v0808a';
 // 成就徽章與車廂標記＝原本那些 emoji 的單色平面版（RailEmoji＝裁切過的 Noto Emoji 單色）。
 // 刻意保留 railIcon(name) 這個唯一入口:呼叫端一行都不用改,只有這裡決定畫法。
 // 🔴 ⚖ 與 ♾ 一律寫**不帶 VS16(U+FE0F)** 的碼位——帶了就強制彩色呈現,會蓋過 font-family
@@ -4147,10 +4202,14 @@ function runBetween(ln, a, b) {
 }
 function posBetweenStations(ln, ia, ib, f) {
   if (ln.hasShape) {
-    const da = ln.stations[ia].d, db = ln.stations[ib].d;
+    // TDX 站點里程與 shape 弧長各自四捨五入，端點偶爾會超出線形數公尺（淡水 +1.99m）。
+    // 先夾端點再內插；若等內插後才由 posAlongShape 夾，離站初段會原地吃掉這段差值，看成停一下才走。
+    const shapeLen = ln.cum[ln.cum.length - 1];
+    const da = Math.max(0, Math.min(shapeLen, ln.stations[ia].d));
+    const db = Math.max(0, Math.min(shapeLen, ln.stations[ib].d));
     let d;
     if (ln.loop) {
-      const L = ln.loopLen || ln.cum[ln.cum.length - 1];
+      const L = ln.loopLen || shapeLen;
       const fwd = ((db - da) % L + L) % L, bwd = ((da - db) % L + L) % L;
       d = fwd <= bwd ? da + fwd * f : da - bwd * f;
       d = ((d % L) + L) % L;
@@ -4161,13 +4220,26 @@ function posBetweenStations(ln, ia, ib, f) {
   return { lat: A.lat + (B.lat - A.lat) * f, lon: A.lon + (B.lon - A.lon) * f };
 }
 // 對外入口套即時校正回撥(比照台鐵 trainPos 的 liveDelaySec 語意);內層 raw 給已自行回撥的呼叫端
+function freqTrainBaseAt(ln, tr, t, rosterTime) {
+  if (rosterTime == null) rosterTime = freqTrainTime(tr, t);
+  if (rosterTime == null) return { pos: null, anchored: null, tm: null, sh: 0 };
+  const sh = metroShiftSec(ln, tr);
+  const shifted = Math.max(tr[1], Math.min(tr[tr.length - 1], rosterTime - sh));
+  const fallback = freqTrainPosRaw(ln, tr, shifted), anchored0 = trtcBoardPosition(ln, tr, t);
+  // 倒數若與目前平順位置差太遠，代表是稀疏／過站／錯配資料；不能為了追準度把車瞬移。
+  // 25m 內才接手（z16 約十餘 px 以下），否則讓既有 0.25×–2× 模型繼續靠近並於後續畫格再判斷。
+  const anchored = anchored0 && fallback && haversineKm(anchored0.pos, fallback) <= .025 ? anchored0 : null;
+  return { pos: anchored ? anchored.pos : fallback, anchored, tm: shifted, sh };
+}
 function freqTrainPosAt(ln, tr, t) {
   // 車的存在區間只由班表決定：即時校正只能在這個區間內移動它，
   // 不能因為誤點就讓車提前出生、晚點消失或在起點前被 freqTrainPosRaw 濾掉。
   const rosterTime = freqTrainTime(tr, t);
   if (rosterTime == null) return null;
-  const shifted = Math.max(tr[1], Math.min(tr[tr.length - 1], rosterTime - metroShiftSec(ln, tr)));
-  return freqTrainPosRaw(ln, tr, shifted);
+  // 北捷有逐班實體錨點時直接吃「這一站到下一站」的位置，不先換算成整班 shift 再追。
+  // 名冊 gate 已在上面通過；錨點只決定名冊內這班此刻畫在哪，不會建車或延長生命。
+  const base = freqTrainBaseAt(ln, tr, t, rosterTime);
+  return trtcHeadwayPosition(ln, tr, t, base.pos);
 }
 function freqTrainPosRaw(ln, tr, t) {
   const tm = freqTrainTime(tr, t);
@@ -4180,8 +4252,23 @@ function freqTrainPosRaw(ln, tr, t) {
   const ib = tr[lo * 2 + 2], tb = tr[lo * 2 + 3];
   const span = tb - ta;
   const run = runBetween(ln, ia, ib);
-  const moveT = run && run < span ? run : span; // 先行駛後停站;缺行駛秒整段線性
-  const f = Math.min(1, span > 0 ? (tm - ta) / moveT : 1);
+  const moveT = run && run < span ? run : span; // 有段秒就先行駛後停站；缺段秒則用兩站表定間隔跑完整段
+  const elapsed = tm - ta;
+  let f = Math.min(1, span > 0 ? elapsed / moveT : 1);
+  // 所有捷運／輕軌的純班表站間都用同一個停→停梯形；live 校正只改查詢時間，不另造一套速度形狀。
+  // profile 依線物件快取，避免每幀每車重解方程；不可行的極短段記 null 並維持原本等速安全回退。
+  if (f > 0 && f < 1 && moveT > 0) {
+    if (!ln._metroProfiles) ln._metroProfiles = new Map();
+    const pk = ia + '>' + ib + '@' + moveT;
+    let profile = ln._metroProfiles.get(pk);
+    if (profile === undefined) {
+      const km = ln.hasShape ? Math.abs(ln.stations[ib].d - ln.stations[ia].d)
+        : haversineKm(ln.stations[ia], ln.stations[ib]);
+      profile = buildProfile(km, moveT, TRTC_BOARD_PERF.a, TRTC_BOARD_PERF.b, TRTC_BOARD_PERF.v) || null;
+      ln._metroProfiles.set(pk, profile);
+    }
+    if (profile) f = profTimeToProg(profile, elapsed);
+  }
   return posBetweenStations(ln, ia, ib, f);
 }
 // 跟隨資訊卡:目前位置+下一停靠站(名稱與時刻)+終點;nextSec 加回校正量=預期實際到離站時刻
@@ -4189,13 +4276,13 @@ function freqTrainInfoAt(ln, tr, t) {
   const rosterTime = freqTrainTime(tr, t);
   const n = tr.length;
   if (rosterTime == null) return { pos: null, done: t > tr[n - 1] || (t < tr[1] && t + 86400 > tr[n - 1]) };
-  const sh = metroShiftSec(ln, tr);
-  const tm = Math.max(tr[1], Math.min(tr[n - 1], rosterTime - sh));
-  const pos = freqTrainPosRaw(ln, tr, tm);
+  const base = freqTrainBaseAt(ln, tr, t, rosterTime), sh = base.sh, tm = base.tm;
+  const anchored = base.anchored, pos = trtcHeadwayPosition(ln, tr, t, base.pos);
   let ni = n - 2;
   for (let i = 1; i < n; i += 2) if (tr[i] > tm) { ni = i - 1; break; }
   const term = ln.stations[tr[n - 2]];
-  return { pos, nextName: (ln.stations[tr[ni]] || {}).name || '', nextSec: tr[ni + 1] + sh,
+  return { pos, nextName: anchored ? ((ln.stations[anchored.to] || {}).name || '') : ((ln.stations[tr[ni]] || {}).name || ''),
+    nextSec: anchored ? anchored.arrSec : tr[ni + 1] + sh,
     termName: ln.loop ? null : (term ? term.name : ''), loop: !!ln.loop };
 }
 
@@ -4409,6 +4496,25 @@ function assignRunProfiles(s, perf, obs) {
   }
 }
 
+// 跨午夜時間軸的唯一判定(2026-08-08,452 事件):「t 要不要 +86400 解讀成前一日發車的班」集中在這裡。
+// 三種身分三種答案:
+// ・_prevNight(逐日名冊從昨天借進來的跨夜班):貼著現在(clockAtNow)恆解讀為昨天那班——清晨接續
+//   回來,跑完後擠出行程窗外(今天沒有這班,不得晚上再開一次);時光機/重播已離開「現在」,保留
+//   未包裝解讀,搜尋這種已跑完的班會自動回放昨夜出發段(setFollow 的拉回發車分支)。
+// ・_noPrevWrap(逐日名冊裡「昨天沒開」的班):清晨不得接續成昨天的班——昨天根本沒開,接了就是畫
+//   出不存在的幽靈班(452 在開行日清晨的鏡像 bug)。只在名冊仍是今天的名冊時生效(_rosterDay 比對
+//   state.wallDay):頁面開著跨夜沒重載時名冊整份是昨天的,+86400 接續是合法的「名冊日」解讀。
+// ・其他(每日班、高鐵/林鐵等無日期資料、過期 bundle 退回):維持原條件,行為零變化。
+function schedWrapT(s, t, grace) {
+  if (s._prevNight) {
+    if (t + 86400 <= s[s.length - 1].depSec + grace) return t + 86400;
+    return state.clockAtNow ? t + 86400 : t;
+  }
+  if (t < s[0].arrSec && t + 86400 <= s[s.length - 1].depSec + grace
+      && !(s._noPrevWrap && s._rosterDay === state.wallDay)) return t + 86400;
+  return t;
+}
+
 // 「此刻走到 stops 的哪一段」抽成獨立函式:除了畫位置,前後車耦合(#17)也要問同一件事,
 // 而且要的是「哪條線形、沿線第幾公里」這種可比較的一維座標,不是經緯度。兩邊共用同一次掃描,
 // 每幀就不必為了算前後關係再走一遍 stops。回傳 null=此刻不在跑。
@@ -4416,8 +4522,8 @@ function assignRunProfiles(s, perf, obs) {
 function trainSeg(tr, t) {
   if (tr.loop) t = tr.stops[0].arrSec + ((t - tr.stops[0].arrSec) % tr.loopSec + tr.loopSec) % tr.loopSec; // 環島車:任何時刻都映回本圈
   const s = tr.stops, n = s.length;
-  // 跨午夜車次(時刻編碼 >86400):simSec 歸零後把前一日班次接續回來
-  if (t < s[0].arrSec && t + 86400 <= s[n - 1].depSec) t += 86400;
+  // 跨午夜車次(時刻編碼 >86400):simSec 歸零後把前一日班次接續回來(判定集中在 schedWrapT)
+  t = schedWrapT(s, t, 0);
   if (t < s[0].arrSec || t > s[n - 1].depSec) return null;
   for (let i = 0; i < n; i++) {
     if (t >= s[i].arrSec && t <= s[i].depSec) {
@@ -6000,6 +6106,11 @@ const FOLLOW_ZOOM_CAP = APP_CFG.followZoomCap || Infinity; // App 計量底圖(S
 // 要復原就把這行改回 true（App 端還要一併改 prepare-web.mjs 的 satRetina，兩處是分開的）。
 const SAT_RETINA_DEFAULT = false;
 const SAT_RETINA = APP_CFG.satRetina ?? SAT_RETINA_DEFAULT;
+// 衛星高解析(Retina)＝Plus。SAT_RETINA 保留為「這個平台建不建得出高解析層」的總開關
+// (Esri 額度止血用),資格判定另外走 satRetinaAllowed()——兩者是 AND。
+function satRetinaAllowed() {
+  return SAT_RETINA && plusIsActive();
+}
 function followEntryZoom() { return Math.min(Math.max(map.getZoom(), 13), FOLLOW_ZOOM_CAP); } // 跟車進場:至少拉近到 13,App 再套上限
 const LOCATE_ENABLED = !!window.RAIL_NATIVE_GEOLOCATION;
 const NOTIFY_LOCAL_ENABLED = !!window.RAIL_NATIVE_LOCALNOTIFY;
@@ -6030,8 +6141,8 @@ const IS_NATIVE_APP = (() => {
 const DEMO_AS_APP = (() => { try { return new URLSearchParams(location.search).get('demo') === 'bounty'; } catch (e) { return false; } })();
 const PHYSICAL_COLLECT_ENABLED = IS_NATIVE_APP || DEMO_AS_APP;
 // 2026-07-29 懸賞(GPS 校正旅程)暫時下架:護照的「校正貢獻」整節、懸賞板、錄一趟、說明中心那三節
-// 全部不出現;實作與後端一行都沒動,改成恆 true 即復活。?bounty=1 當次點亮(比照 PLUS_ENABLED 的
-// ?plus=1),驗收腳本靠它繼續驗實作;?demo=bounty 也算——備援站看設計的既有路徑不能被這個旗標切斷。
+// 全部不出現;實作與後端一行都沒動,改成恆 true 即復活。?bounty=1 當次點亮(比照 TRIP_SHARE_ENABLED 的
+// ?tripshare=1),驗收腳本靠它繼續驗實作;?demo=bounty 也算——備援站看設計的既有路徑不能被這個旗標切斷。
 // 「當次」＝這個分頁的這一輪,不是這一次導頁:boot 的 clearFollow() 會 replaceState 把整條 query
 // 抹掉(見 share-link 契約),所以純讀 location.search 的旗標一重新整理就掉——實測 reload 後
 // bounty/collectmap 都變回 false,連「錄製中重新整理接得回來」這種測試都驗不成。記在 sessionStorage,
@@ -6047,12 +6158,25 @@ const BOUNTY_ENABLED = (() => { try {
 // 收集地圖同批下架。它其實不碰 GPS(資料來自既有乘車記錄),所以給它自己的旗標:要單獨復活只動這一行。
 const COLLECT_MAP_ENABLED = flagOnce('collectmap');
 const RECORDING_ENABLED = false; // 2026-07-17 錄影暫時下架(整備中):所有入口隱藏、實作全保留;改 true 即復活(工具列鈕+更多抽屜列+Plus 文案)
-const ACCOUNT_ENABLED = false; // 2026-07-17 帳號同步轉收費前暫時下架:入口全藏、不載 Firebase SDK、實作全保留;僅 ?account=delete 深連結(account-deletion.html)留給既有帳號刪資料;改 true 即復活
-// Plus 功能總閘(暗啟動):網站預設關、?plus=1 當次點亮供測試(比照 TRIP_SHARE_ENABLED)；上架公告批次改 true。
-// Capacitor 原生殼恆開(App 載入無 URL 參數,訂閱本來就是 App 功能;bridge 在頁面腳本前注入,判定可靠)。
-// 目前接「誤點履歷」頭牌卡的入口與卡片(見 openDelayHist/renderDelayHist);訂閱入口另受 plusConfigured 與 RevenueCat 設定控制。
+const ACCOUNT_ENABLED = false; // 此旗標只控制帳號 UI 要不要 eager 初始化:false=帳號鈕預設隱藏、不對訪客載 Firebase。
+// 購買鏈不需要它——有購買通道的平台由 plusOpen() 先 accountEnsureInit() 延遲初始化,無購買通道的平台
+// (網站)由 Plus 面板內的「登入以同步」CTA 觸發。true 會讓 setupAccountUi()(互斥二選一)
+// 選中 eager 分支,把帳號鈕放回所有人主畫面、對每個訪客載 Firebase。
+// Plus 功能總閘:**原生 App 恆開、網站要 ?plus=1**。它只決定「Plus 觸發面存不存在」——
+// 「誤點履歷」頭牌卡的入口與卡片(見 openDelayHist/renderDelayHist)、以及工具列的 Plus 面板入口(見 setupAccountUi)。
+//
+// 2026-08-04 從「兩邊都恆開」改回這個形式,原因是**部署不可分割**:wrangler 的 assets.directory
+// 是 ".",部署 Worker 就等於同時把前端推上正式站,沒有只上 API 不上前端的做法。而 Plus 的購買通道
+// 只存在於 App 內(網站沒有 Web Billing key,見下一段),網站若先恆開就是「看得到買不到」。
+// 改成原生恆開之後,網站可以先部署讓 Worker 的 Plus 寫入路徑上線(一般使用者在網站上完全看不到 Plus),
+// 這樣 Plus 版 App build 才驗得了「sandbox 購買 → /entitlements/{uid} 落地」這條只有真實環境答得出來的鏈。
+// **上線當天要做的**:把這裡改回恆真,並把更新紀錄 Plus 三條(sync/tripshare/founding)放回第一層。
+//
+// ⚠️ 恆開不等於這個平台賣得成:能否發起購買由 plusConfigured() 判定(網站沒有 Web Billing key ⇒ 恆假,
+// 面板停在「請在 App 內訂閱」,不出現任何購買鈕)。未訂閱者在網站看到的是 teaser/upsell 面,
+// 90 天逐日資料本身由 worker.js 的 checkPlusEntitlement() 伺服器端強制,不靠這支前端旗標。
 const PLUS_ENABLED = (() => { try {
-  // if (window.Capacitor && Capacitor.isNativePlatform && Capacitor.isNativePlatform()) return true; // 第一版純免費先上，Plus（誤點履歷頭牌卡＋訂閱入口）暫時下架；1.1 開 Plus 時恢復此行原生恆開
+  if (window.Capacitor && Capacitor.isNativePlatform && Capacitor.isNativePlatform()) return true;
   return new URLSearchParams(location.search).get('plus') === '1';
 } catch (e) { return false; } })();
 // 放空閒置達此秒數→劇場模式:切離線海陸底層(零圖磚)、相機停在全群組視角,列車/音樂/完乘全照常,只是不再抓圖磚。
@@ -6068,6 +6192,16 @@ const FORCE_BREATH = (() => { try { return new URLSearchParams(location.search).
 // 行程分享(暗啟動):v1 建置完成、旗標關閉出貨,訂閱上線才開(比照 RECORDING_ENABLED 模式)。只鎖「發起端」入口;
 // 接收端 ?trip= 解碼永遠作用(payload 本來就公開,不鎖)。?tripshare=1 當次開發起端測試(比照 ?breath=1,僅該次頁面生效)。
 const TRIP_SHARE_ENABLED = (() => { try { return new URLSearchParams(location.search).get('tripshare') === '1'; } catch (e) { return false; } })();
+// 行程分享發起端＝Plus。這支只管「鈕要不要出現」,不等於放行——
+// ?tripshare=1 是開發測試通道,它點亮入口讓版面看得到,但按下去仍會被 plusGateOpen 攔去訂閱。
+// 兩段式(顯示 vs 放行)是刻意的:URL 參數可以被轉貼,不能讓它變成公開後門。
+// 接收端 ?trip= 的解碼沒有資格閘門,不受這裡影響。
+function tripShareVisible() {
+  // 止血旗標關閉時連鈕都不長:plusOpen() 現在自己會擋,發起端入口若還在,?tripshare=1 這條開發通道
+  // 就會留下一顆按了靜默無反應的死鈕。與 openDelayHist 的 `!PLUS_ENABLED → return`、
+  // setupAccountUi 的 `btn.remove()` 同一套慣例——旗標關掉是「功能不可達」,不是「功能免費」。
+  return PLUS_ENABLED && (TRIP_SHARE_ENABLED || plusIsActive());
+}
 // ?demo=collect／off:備援站確認設計用的示範收集資料開關。**必須在這裡就讀進來**——
 // boot 途中 clearFollow() 會 `history.replaceState(null,'',location.pathname)` 把 query string 抹掉,
 // 等到 setupCollectDemo 才讀就已經是空的(實測線上站正是如此,本機因載入快剛好躲過)。
@@ -6346,14 +6480,22 @@ function renderNearbyStations() {
 // 實際貼上的 segLn 線集合」——保證 id 對得上、也天然只吸到真有車在跑的線(不吸空的貨運線)。
 // ── 可同步的使用者資料層 ──────────────────────────────────────────────────────
 // pins/favs/rides 原本各自是 localStorage 陣列；這裡升級成帶逐筆更新時間與 tombstone 的
-// versioned envelope，供未來帳號跨裝置同步／備份匯入共用。舊 key 持續雙寫，部署回退時
-// 舊版仍讀得到；成就由 rides 推導，不另存。裝置偏好（主題、音量等）刻意不納入同步。
+// versioned envelope，供未來帳號跨裝置同步／備份匯入共用。成就由 rides 推導，不另存。
+// 裝置偏好（主題、音量等）刻意不納入同步。
+// 🔴 2026-08-04 複審 Important 6 更正:「舊 key 持續雙寫」只對匿名分區成立——已登入帳號的
+// 資料改依 uid 分區(見 :6580 userDataWrite 的 if (!uid) 分支),不再雙寫舊版共用 key。
+// 這代表 Task 6 之後若整包回退到更早的部署,已登入帳號在回退當下的資料看不到(退回部署當下
+// 舊版讀到的共用 key 內容),這一點已記入上線交接清單(task-6-report.md 修復輪1)。
 const USER_DATA_KEY = 'trainmap-user-data-v1';
 const USER_DATA_VERSION = 1;
 const USER_DATA_COLLECTIONS = ['pins', 'favs', 'rides', 'stations'];
 const USER_DATA_LEGACY = { pins: 'trainmap-pins', favs: 'trainmap-favs', rides: 'trainmap-rides', stations: 'trainmap-fav-stations' };
 const USER_DATA_PIN_LIMIT = 800;
 const USER_DATA_TOMBSTONE_LIMIT = 2000;
+// 小偏移寬限採 5 分鐘：需求明列「幾秒～幾分鐘」不應被誤夾，並取 Microsoft Learn 所列
+// 「Maximum tolerance for computer clock synchronization ... 5 minutes」作分鐘級上界：
+// https://learn.microsoft.com/en-us/previous-versions/windows/it-pro/windows-server-2012-r2-and-2012/jj852172(v=ws.11)
+const USER_DATA_CLOCK_SKEW_GRACE_MS = 5 * 60 * 1000;
 function userDataNow() { return Date.now(); }
 function userDataDeviceId() {
   try {
@@ -6435,7 +6577,9 @@ function userDataCleanValue(kind, value) {
 }
 function userDataItemId(kind, v) {
   if (kind === 'pins') return Number(v.lat).toFixed(6) + ',' + Number(v.lon).toFixed(6);
-  if (kind === 'favs') return String(v.train);
+  // 舊最愛沒有 sys；比照本檔 rides 的逐字既有慣例「v.sys = String(v.sys || 'tra_sched')」，
+  // 一律視為台鐵 tra_sched，既有收藏才有穩定歸屬。
+  if (kind === 'favs') return String(v.sys || 'tra_sched') + '|' + String(v.train);
   if (kind === 'stations') return String(v.sys) + '|' + String(v.name); // 同站從分頁或同框收藏都算同一筆(捷運 sys 一律 'metro')
   // checkins/segments:value 裡的 k 就是本機儲存鍵(站名或路段鍵),直接拿來當 id——
   // 沒有這條分支,兩個 kind 都會落到下面的 rides fallback,v.train/v.date 恆為 undefined,
@@ -6444,20 +6588,56 @@ function userDataItemId(kind, v) {
   if (kind === 'checkins' || kind === 'segments') return String(v.k);
   return String(v.sys || 'tra_sched') + '|' + String(v.train) + '|' + String(v.date);
 }
-function userDataNormalizeCollection(kind, src) {
+// 最愛列車 id 從「車次」升級為「系統|車次」。items 可由 value.sys 重算；舊 tombstone
+// 只剩車次、已無法反推原系統，故同樣依本檔 rides 的逐字慣例
+//「v.sys = String(v.sys || 'tra_sched')」歸到 tra_sched。保留原 updatedAt /
+// deletedAt，不讓一次格式遷移被同步誤判成較新的新增或刪除。回傳 changed 供本機只寫回一次。
+function userDataMigrateFavCollection(src) {
+  const collection = src && typeof src === 'object' ? userDataJsonClone(src) : { items: [], tombstones: [] };
+  if (!Array.isArray(collection.items)) collection.items = [];
+  if (!Array.isArray(collection.tombstones)) collection.tombstones = [];
+  let changed = false;
+  for (const rec of collection.items) {
+    if (!rec || !rec.value || typeof rec.value !== 'object') continue;
+    const train = String(rec.value.train == null ? '' : rec.value.train).trim();
+    if (!train) continue;
+    const sys = String(rec.value.sys || 'tra_sched');
+    if (rec.value.sys !== sys) { rec.value.sys = sys; changed = true; }
+    const id = sys + '|' + train;
+    if (rec.id !== id) { rec.id = id; changed = true; }
+  }
+  for (const rec of collection.tombstones) {
+    if (!rec || typeof rec.id !== 'string' || rec.id.includes('|')) continue;
+    rec.id = 'tra_sched|' + rec.id;
+    changed = true;
+  }
+  return { collection, changed };
+}
+function userDataResolveTimestamp(raw, clock) {
+  const at = Number(raw) || 0;
+  if (!clock || !Number.isFinite(clock.serverAt) || clock.serverAt <= 0) return at;
+  const futureLimit = clock.serverAt + USER_DATA_CLOCK_SKEW_GRACE_MS;
+  if (at <= futureLimit) return at;
+  // clientUpdatedAt 與 serverTimestamp 是同一次 Firestore 寫入的兩個時刻；只有明顯超前時才用
+  // 兩者差值校正。舊資料若缺 clientUpdatedAt，仍至少夾到可信伺服器時間的寬限上界。
+  const clientAt = Number(clock.clientAt) || 0;
+  const ahead = clientAt - clock.serverAt;
+  return Math.max(0, Math.min(ahead > USER_DATA_CLOCK_SKEW_GRACE_MS ? at - ahead : at, futureLimit));
+}
+function userDataNormalizeCollection(kind, src, clock) {
   const byId = new Map(), deleted = new Map();
   const items = src && Array.isArray(src.items) ? src.items : [];
   const tombstones = src && Array.isArray(src.tombstones) ? src.tombstones : [];
   for (const rec of items) {
     const v = userDataCleanValue(kind, rec && rec.value);
     if (!v) continue;
-    const id = userDataItemId(kind, v), at = Number(rec.updatedAt) || 0;
+    const id = userDataItemId(kind, v), at = userDataResolveTimestamp(rec.updatedAt, clock);
     const old = byId.get(id);
     if (!old || at >= old.updatedAt) byId.set(id, { id, value: v, updatedAt: at });
   }
   for (const rec of tombstones) {
     if (!rec || typeof rec.id !== 'string') continue;
-    const at = Number(rec.deletedAt) || 0;
+    const at = userDataResolveTimestamp(rec.deletedAt, clock);
     if (at >= (deleted.get(rec.id) || 0)) deleted.set(rec.id, at);
   }
   for (const [id, at] of deleted) {
@@ -6476,7 +6656,10 @@ function userDataNormalizeEnvelope(src) {
   out.deviceId = typeof src.deviceId === 'string' ? src.deviceId : out.deviceId;
   out.revision = Math.max(0, Number(src.revision) || 0);
   out.updatedAt = Number(src.updatedAt) || 0;
-  USER_DATA_COLLECTIONS.forEach(k => { out.collections[k] = userDataNormalizeCollection(k, src.collections[k]); });
+  USER_DATA_COLLECTIONS.forEach(k => {
+    const col = k === 'favs' ? userDataMigrateFavCollection(src.collections[k]).collection : src.collections[k];
+    out.collections[k] = userDataNormalizeCollection(k, col);
+  });
   return out;
 }
 function userDataMigrateLegacy() {
@@ -6489,22 +6672,102 @@ function userDataMigrateLegacy() {
       seen.add(id); out.collections[kind].items.push({ id, value, updatedAt: at });
     }
   });
+  out.collections.favs = userDataMigrateFavCollection(out.collections.favs).collection;
   out.revision = 1; out.updatedAt = at;
   try { localStorage.setItem(USER_DATA_KEY, JSON.stringify(out)); } catch (e) {}
   return out;
 }
-function userDataRead() {
+// C-2 修復(登出競態污染下一帳號)第三件事:本機 envelope 依 uid 分區。未登入(uid 為 null)
+// 沿用原本共用的 USER_DATA_KEY——匿名訪客的行為完全不變,不需要遷移。已登入時每個帳號各自
+// 一把 key,不同帳號的本機資料不再共用同一份——這樣即使某次同步的回寫時序出錯(見
+// accountSyncTxn 的世代複查這道獨立防線),頂多弄髒自己的分區,不會把資料寫進別人的分區或
+// 匿名分區。
+// 🔴 2026-08-04 複審 Critical 1 修復輪1:ACCOUNT_UID_KEY('trainmap-account-uid')是「這台裝置
+// 上一次成功驗證身分的 uid」,在 onAuthStateChanged 拿到 user 的當下就寫(見 :7231 的
+// localStorage.setItem(ACCOUNT_UID_KEY, user.uid)),不等同步成功——原本 userDataActiveUid()
+// 只讀 state.account.user.uid,但 state.account 要嘛
+// 尚未建立(非訂閱者且非回訪者,setupAccountUi 完全不會呼叫 accountEnsureInit,見 accountReturning
+// 下方說明)、要嘛已建立但 onAuthStateChanged 的非同步 callback 還沒解出來(等 accountLoadModules
+// 從 CDN 載完 SDK 才會觸發)——這兩種情況下 userDataActiveUid() 會誤判成 null(匿名),導致
+// 「使用者自認已登入、實際寫進匿名分區」這個更嚴重的方向:那筆資料以後從正確的 uid 分區讀,
+// 永遠讀不到,且會被匿名訪客與日後登入的其他帳號看到。加這把不依賴同步成功、也不依賴
+// state.account 是否已建立的 key 當 fallback,讓 userDataActiveUid() 在 boot 最早期、甚至
+// Firebase 都還沒載完之前,就能正確解析出「這台裝置上次是誰」。
+const ACCOUNT_UID_KEY = 'trainmap-account-uid';
+function userDataActiveUid() {
   try {
-    const raw = localStorage.getItem(USER_DATA_KEY);
-    if (raw) { const out = userDataNormalizeEnvelope(JSON.parse(raw)); if (out) return out; }
+    if (state.account && state.account.user) return state.account.user.uid || null;
+    return localStorage.getItem(ACCOUNT_UID_KEY) || null;
+  } catch (e) { return null; }
+}
+function userDataStorageKey(uid) { return uid ? USER_DATA_KEY + ':uid:' + uid : USER_DATA_KEY; }
+// 帳號分區在本機第一次被讀取(這個 uid 還沒有自己的分區 key)時的遷移入口——不能因為改用
+// 分區 key,就讓「裝置上既有的本機資料」憑空消失(Task 6 驗收條件)。
+// 規則:這台裝置記錄的上一次驗證身分的 uid(ACCOUNT_LAST_UID_KEY)若不存在,或正好就是這個 uid
+// 自己,代表共用 key 裡的資料本來就該歸這個帳號所有,原樣繼承(同時維持「第一次登入把裝置上
+// 既有的匿名收藏併入雲端」的既有行為);上一次驗證身分是別的 uid 時,共用 key 裡的資料屬於
+// 那個帳號,不可轉交給新登入的人——這個分區改從空白 envelope 開始(那個帳號自己的資料仍完好
+// 留在雲端,不會遺失;殘留在共用 key 裡的舊資料本身是否可能是「更早一次競態留下的髒資料」,
+// 見 Task 6 報告的討論)。遷移結果立即寫回分區 key:下次呼叫 userDataRead 會直接命中分區 key、
+// 不會重跑這裡,「跑兩次」因此天然冪等。
+// 🔴 2026-08-04 複審 Important 1 修復輪1:原本這裡讀的是 trainmap-last-sync-uid(只在同步
+// 成功時才寫,見 accountSyncTxn),對從未成功同步過的人(所有非訂閱者——他們的同步本來就被
+// plusIsActive() 閘門擋下,見 accountSyncNow)這把 key 永遠不存在,這道安全網形同虛設。
+// 🔴 2026-08-04 複審 Important 2 重新設計 R4 時發現的第二個洞:一開始改讀 ACCOUNT_UID_KEY 還不夠
+// ——ACCOUNT_UID_KEY 在登出時必須被清掉(accountForgetIdentity,見下方說明,理由是防止「下一個匿名
+// 訪客」被 userDataActiveUid() 的 fallback 誤判成前一個帳號),但這代表如果拿同一把 key 做這裡的
+// 陌生人判斷,任何人登出後,下一個登入的人(不論是不是同一人)都會看到 lastUid 已被清成不存在,
+// 落回「繼承」分支——陌生人防護在真實的登出之後形同失效(2026-08-04 複審實測:先匿名寫一筆→
+// 登入 A→A 真的登出→登入 B,B 會看到 A 留下的裝置資料)。兩個判斷的生命週期天生衝突,拆成
+// 兩把獨立的 key:ACCOUNT_UID_KEY 服務 fallback(必須在登出時清空),ACCOUNT_LAST_UID_KEY 服務
+// 這裡的陌生人判斷(見下方,刻意在 accountForgetIdentity 保留不清)。
+const ACCOUNT_LAST_UID_KEY = 'trainmap-account-last-uid';
+function userDataMigrateAccountPartition(uid) {
+  let lastUid = null;
+  try { lastUid = localStorage.getItem(ACCOUNT_LAST_UID_KEY); } catch (e) {}
+  const out = (!lastUid || lastUid === uid) ? userDataRead(null) : userDataEmpty();
+  try { localStorage.setItem(userDataStorageKey(uid), JSON.stringify(out)); } catch (e) {}
+  return out;
+}
+// uid 省略(undefined)時預設讀寫「目前使用中的分區」(未登入=匿名共用 key,已登入=該帳號自己
+// 的分區)——userDataLoadCollection/userDataSaveCollection/RailIslandUserData 等既有呼叫端完全
+// 不必跟著改,自動依登入狀態切換分區。accountSyncTxn 會明確傳入 myUid(而不是依賴這個預設),
+// 確保同一次同步從頭到尾對著同一個分區,不受同步途中身分變動影響。
+function userDataRead(uid) {
+  if (uid === undefined) uid = userDataActiveUid();
+  try {
+    const raw = localStorage.getItem(userDataStorageKey(uid));
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      // T9 的最愛 canonical key 遷移(系統別|車次)要跟著分區走:讀哪個分區就遷移哪個分區。
+      const favMigration = userDataMigrateFavCollection(parsed && parsed.collections && parsed.collections.favs);
+      const out = userDataNormalizeEnvelope(parsed);
+      if (out) {
+        if (favMigration.changed) {
+          // 不增 revision／不改時間戳：這只是同一筆資料換 canonical key，不是一次使用者編輯。
+          // 寫回失敗不影響本次已讀出的 out；不能因此掉到下方 migration，反而拿舊陣列蓋資料。
+          try {
+            localStorage.setItem(userDataStorageKey(uid), JSON.stringify(out));
+            // legacy 陣列雙寫只保留給匿名分區(與 userDataWrite 的 if (!uid) 分支同一條規則)——
+            // 已登入帳號的資料絕不能流進這組全裝置共用的 key。
+            if (!uid) localStorage.setItem(USER_DATA_LEGACY.favs, JSON.stringify(out.collections.favs.items.map(x => x.value)));
+          } catch (e) {}
+        }
+        return out;
+      }
+    }
   } catch (e) {}
+  if (uid) return userDataMigrateAccountPartition(uid);
   return userDataMigrateLegacy();
 }
-function userDataWrite(data) {
+function userDataWrite(data, uid) {
+  if (uid === undefined) uid = userDataActiveUid();
   const out = userDataNormalizeEnvelope(data); if (!out) return false;
   try {
-    localStorage.setItem(USER_DATA_KEY, JSON.stringify(out));
-    USER_DATA_COLLECTIONS.forEach(kind => {
+    localStorage.setItem(userDataStorageKey(uid), JSON.stringify(out));
+    // legacy 陣列雙寫只保留給匿名分區(部署回退時的相容性,見上方檔頭說明)——已登入帳號的資料
+    // 絕不能流進這組全裝置共用的 key,那正是分區想避免的「不同帳號共用一個 key」。
+    if (!uid) USER_DATA_COLLECTIONS.forEach(kind => {
       localStorage.setItem(USER_DATA_LEGACY[kind], JSON.stringify(out.collections[kind].items.map(x => x.value)));
     });
     return true;
@@ -6733,7 +6996,7 @@ function takeoutOpen() {
 }
 function takeoutSelectedCount() {
   const r = state.takeoutResult;
-  return r ? r.resolved.filter(x => x.selected !== false).length : 0;
+  return r ? r.resolved.filter(x => x.selected === true).length : 0;
 }
 function takeoutSafeHref(value, fallback) {
   // 空值直接回 fallback:否則 new URL('', location.href) 會解析成本頁網址(https,truthy),
@@ -6750,17 +7013,23 @@ function takeoutSyncConfirm() {
 function takeoutRenderPreview() {
   const box = document.getElementById('takeoutPreview'), r = state.takeoutResult;
   if (!box || !r) { if (box) box.innerHTML = ''; takeoutSyncConfirm(); return; }
-  r.resolved.forEach(x => { if (x.selected == null) x.selected = true; });
   const shownResolved = r.resolved.slice(0, 200), shownIncomplete = r.incomplete.slice(0, 100);
+  if (r.includeUnshown == null) r.includeUnshown = false;
+  r.resolved.forEach((x, i) => {
+    if (i >= shownResolved.length) x.selected = r.includeUnshown;
+    else if (x.selected == null) x.selected = true;
+  });
   const rowName = item => `<span class="name"><b>${escHtml(item.title)}</b><small>${escHtml(item.list || item.sourceFile || '')}</small></span>`;
   let html = `<div class="takeout-summary"><span class="ok">可匯入 ${r.resolved.length}</span>` +
     `<span class="warn">需定位 ${r.incomplete.length}</span><span>海外略過 ${r.outside.length}</span></div>`;
   html += `<div class="takeout-more">跨裝置同步最多保存 ${USER_DATA_PIN_LIMIT} 個地點；超過時會保留既有收藏並略過多出的新地點。</div>`;
   if (shownResolved.length) {
-    html += `<section class="takeout-sec"><h3>可匯入台灣地點</h3>` + shownResolved.map((item, i) =>
+    const unshownCount = r.resolved.length - shownResolved.length;
+    html += `<section class="takeout-sec"><h3>可匯入台灣地點</h3>` +
+      (unshownCount ? `<label class="takeout-bulk"><input class="takeout-include-unshown" type="checkbox" ${r.includeUnshown ? 'checked' : ''}><span><b>也匯入其餘 ${unshownCount} 個未預覽地點</b><small>為避免手機卡頓，這些地點不逐筆顯示；勾選後會全部納入。</small></span></label>` : '') + shownResolved.map((item, i) =>
       `<label class="takeout-row"><input class="takeout-check" type="checkbox" data-i="${i}" ${item.selected !== false ? 'checked' : ''}>${rowName(item)}` +
       `<a href="${escHtml(takeoutSafeHref(item.url, `https://www.google.com/maps/search/?api=1&query=${item.coord.lat},${item.coord.lon}`))}" target="_blank" rel="noopener">查看</a></label>`).join('') +
-      (r.resolved.length > shownResolved.length ? `<div class="takeout-more">另有 ${r.resolved.length - shownResolved.length} 筆已選取，為避免手機卡頓不逐筆列出。</div>` : '') + `</section>`;
+      (unshownCount ? `<div class="takeout-more">其餘 ${unshownCount} 筆預設不匯入；可用上方選項一次納入。</div>` : '') + `</section>`;
   }
   if (shownIncomplete.length) {
     html += `<section class="takeout-sec"><h3>需要人工定位</h3>` + shownIncomplete.map((item, i) =>
@@ -6778,8 +7047,13 @@ function takeoutStartManual(index) {
 }
 function setupTakeoutUi() {
   const btn = document.getElementById('importBtn'), modal = document.getElementById('takeoutModal');
-  if (!btn || !modal || !(TAKEOUT_PROTOTYPE || (accountConfigured() && plusConfigured()))) return;
+  const row = document.querySelector('.ms-row[data-proxy="importBtn"]');
+  // 入口不長出來時抽屜列也要一起走(比照 recBtn):留一列點了靜默無反應比沒有更糟(v0718i 對 recBtn/accountBtn 的同一教訓)
+  if (!btn || !modal || !(TAKEOUT_PROTOTYPE || (accountConfigured() && plusConfigured()))) { if (row) row.remove(); return; }
   btn.style.display = '';
+  if (row) row.style.display = ''; // 抽屜列 HTML 預設 inline none。注意:這一格是中間態,不是最終可見性
+  // ——抽屜每次打開時 syncMoreSheet() 都會依代理鈕(#importBtn)重算它,所以這裡設什麼都會被覆寫。
+  // 真正決定使用者看不看得到那一列的是代理鈕的可見性;留這一行只是讓兩者在開啟前就一致。
   btn.onclick = () => { if (plusConfigured()) plusRequire('takeout', takeoutOpen); else takeoutOpen(); };
   const close = () => { state.takeoutPick = null; takeoutClose(); };
   document.getElementById('takeoutX').onclick = close;
@@ -6800,6 +7074,12 @@ function setupTakeoutUi() {
     }
   };
   document.getElementById('takeoutPreview').onchange = e => {
+    const bulk = e.target.closest('.takeout-include-unshown');
+    if (bulk && state.takeoutResult) {
+      state.takeoutResult.includeUnshown = bulk.checked;
+      state.takeoutResult.resolved.slice(200).forEach(item => { item.selected = bulk.checked; });
+      takeoutSyncConfirm(); return;
+    }
     const c = e.target.closest('.takeout-check'); if (!c || !state.takeoutResult) return;
     const item = state.takeoutResult.resolved[+c.dataset.i]; if (item) item.selected = c.checked;
     takeoutSyncConfirm();
@@ -6808,7 +7088,7 @@ function setupTakeoutUi() {
     const b = e.target.closest('.takeout-locate'); if (b) takeoutStartManual(+b.dataset.i);
   };
   document.getElementById('takeoutConfirm').onclick = () => {
-    const items = state.takeoutResult ? state.takeoutResult.resolved.filter(x => x.selected !== false) : [];
+    const items = state.takeoutResult ? state.takeoutResult.resolved.filter(x => x.selected === true) : [];
     try {
       const out = takeoutApply(items); takeoutClose();
       showToast(`已匯入 ${out.added} 個新地點${out.updated ? `，更新 ${out.updated} 個既有地點` : ''}${out.skipped ? `；${out.skipped} 個因收藏已滿略過` : ''}`);
@@ -6852,24 +7132,43 @@ function accountRender() {
   if (a.error) body.innerHTML = `<p class="account-intro">登入與同步目前無法使用。</p><div class="account-error">${escHtml(a.error)}</div>`;
   else if (!a.ready) body.innerHTML = '<p class="account-intro">正在讀取登入狀態…</p>';
   else if (!a.user) body.innerHTML =
-    `<p class="account-intro">登入後會同步「最愛地點、最愛車站、最愛列車、完乘紀錄」。主題、音量與省電等裝置偏好不會同步；目前裝置上的訪客資料會在首次登入時合併進帳號。</p>` +
+    // 🔴 2026-08-04 批二-D(整合稽核 I-5):原本這句無條件承諾「訪客資料會在首次登入時合併進帳號」——
+    // 但 userDataMigrateAccountPartition() 只在「這台裝置沒登入過其他帳號,或上一個登入的正是這個
+    // 帳號」時才繼承匿名資料;上一個驗證過身分的是別的帳號時,新登入會拿到空白分區,訪客資料不會
+    // 併入。那不是資料遺失(仍留在匿名 key,見 ACCOUNT_LAST_UID_KEY 上方說明),但原文案讓使用者
+    // 以為「一定會併」,實際上會以為資料被刪了。改成如實描述兩種情況,並確保沒有話會被反過來
+    // 誤讀成「絕不會併」。
+    // 🔴 措辭是「還記著別的帳號」而不是「先前登入過別的帳號」,兩者在【刪除帳號】那條路徑上會分岔:
+    // accountClearLocal() 刪帳號時會清掉 ACCOUNT_LAST_UID_KEY(判準 R12f 正是在驗那之後累積的匿名
+    // 收藏會被帶進重新註冊的新帳號)。那時「先前登入過別的帳號」為真、資料卻確實會併入 ⇒ 用登入史
+    // 描述就是一句不實陳述(方向雖安全——說不併卻併了、資料從不遺失——但仍是說謊)。真正決定行為的
+    // 是「這台裝置現在還記不記得別的帳號」,照它寫,兩條路徑就都成立。
+    `<p class="account-intro">登入後會同步「最愛地點、最愛車站、最愛列車、完乘紀錄」。主題、音量與省電等裝置偏好不會同步。若這台裝置沒有記著別的帳號，首次登入時會把裝置上的訪客資料併入帳號；若這台裝置還記著上一個登入的別的帳號，訪客資料不會自動併入，但仍留在裝置上，不會遺失。</p>` +
     `<div class="account-login"><button type="button" data-login="google">使用 Google 登入</button>${window.RAIL_APPLE_LOGIN === true ? '<button class="apple" type="button" data-login="apple">使用 Apple 登入</button>' : ''}</div>` +
+    // 不想登入的人要回得去 Plus 面板(這張畫面常常是從 Plus 面板的登入 CTA 過來的)。
+    // 只在沒有購買通道的平台畫:有購買通道的平台 plusOpen() 未登入時本來就會把人送回這張登入畫面,畫了等於原地打轉。
+    (plusProjectConfigured() && !plusConfigured() ? `<div class="account-user-actions"><button class="wide" type="button" data-action="plus">先看看軌島通行證有什麼</button></div>` : '') +
     `<div class="account-note">Google 登入只用於軌島帳號，不會因此取得 Google Maps 已儲存清單；清單匯入仍需使用 Google Takeout。</div>`;
   else {
     const u = a.user, photo = takeoutSafeHref(u.photoURL, '');
     const avatar = photo ? `<img src="${escHtml(photo)}" alt="">` : escHtml(accountDisplayName(u).slice(0, 1).toUpperCase());
-    const sync = a.syncing ? '正在合併這台裝置與雲端資料…' : (a.lastSync ? `上次同步：${new Date(a.lastSync).toLocaleString('zh-TW')}` : '尚未完成第一次同步');
-    const plus = state.plus && state.plus.active ? '訂閱中' : '未訂閱';
+    const subscribed = plusIsActive();
+    const sync = !subscribed ? '訂閱軌島通行證才會同步' : (a.syncing ? '正在合併這台裝置與雲端資料…' : (a.lastSync ? `上次同步：${new Date(a.lastSync).toLocaleString('zh-TW')}` : '尚未完成第一次同步'));
+    const plus = subscribed ? '訂閱中' : '未訂閱';
     // Plus 狀態列與入口以 plusProjectConfigured()(整個 RevenueCat project 是否有 Plus)為準,而非
     // plusConfigured()(此平台能否發起付款)——讓網站即使沒設 Web Billing key 也能查看訂閱狀態與
     // 「請在 App 內訂閱」說明;真正發起付款仍受 plusConfigured() 控管(見 plusOpen 內的 plusRefresh 閘)。
     body.innerHTML = `<div class="account-profile"><span class="account-avatar">${avatar}</span><span><b>${escHtml(accountDisplayName(u))}</b><small>${escHtml(u.email || 'Apple 隱藏電子郵件')}</small></span></div>` +
       `<div class="account-syncbox"><b>跨裝置同步</b><span>${escHtml(sync)}</span></div>` +
-      (plusProjectConfigured() ? `<div class="account-syncbox"><b>軌島 Plus</b><span>${plus}</span></div>` : '') +
-      `<div class="account-user-actions">${plusProjectConfigured() ? '<button class="wide" type="button" data-action="plus">查看 Plus</button>' : ''}<button type="button" data-action="sync" ${a.syncing ? 'disabled' : ''}>立即同步</button><button type="button" data-action="logout">登出</button>` +
+      (plusProjectConfigured() ? `<div class="account-syncbox"><b>軌島通行證</b><span>${plus}</span></div>` : '') +
+      `<div class="account-user-actions">${plusProjectConfigured() ? '<button class="wide" type="button" data-action="plus">查看通行證</button>' : ''}<button type="button" data-action="sync" ${(a.syncing || !subscribed) ? 'disabled' : ''}>立即同步</button><button type="button" data-action="logout">登出</button>` +
       `<button class="wide danger" type="button" data-action="delete">刪除帳號與同步資料</button></div>` +
       (a.actionError ? `<div class="account-error">${escHtml(a.actionError)}</div>` : '') +
-      `<div class="account-note">登出會先完成最後同步，再從這台裝置移除私人收藏，避免下一個登入者看到或合併你的資料。</div>`;
+      // 2026-08-04 複審輪2 Important 4:登出已改成「只換身分、不動資料」(見 accountEndSession),
+      // 這句原本寫「從這台裝置移除私人收藏」就不再準確。「下一個登入者看不到、不會被合併」仍然
+      // 成立,但靠的是本機資料依 uid 分區＋陌生人判斷,不是靠銷毀。要真的清除裝置上的收藏只有
+      // 刪除帳號一條路,文案直接把那個入口指出來。
+      `<div class="account-note">登出會先完成最後同步，再把畫面切回訪客狀態。你的收藏留在這台裝置上，同一個帳號登入就會回來；換別人登入看不到，也不會被合併。要一併清除這台裝置上的收藏，請用下方的「刪除帳號與同步資料」。</div>`;
   }
 }
 function accountCloudEnvelope(docs) {
@@ -6877,23 +7176,93 @@ function accountCloudEnvelope(docs) {
   USER_DATA_COLLECTIONS.forEach(kind => {
     const d = docs[kind];
     if (!d) return;
-    out.collections[kind] = userDataNormalizeCollection(kind, d);
+    const serverAt = d.updatedAt && typeof d.updatedAt.toMillis === 'function' ? Number(d.updatedAt.toMillis()) || 0 : 0;
+    const clientAt = Number(d.clientUpdatedAt) || 0;
+    out.collections[kind] = userDataNormalizeCollection(kind, d, serverAt ? { serverAt, clientAt } : null);
     out.revision = Math.max(out.revision, Number(d.revision) || 0);
-    const t = d.clientUpdatedAt || (d.updatedAt && typeof d.updatedAt.toMillis === 'function' ? d.updatedAt.toMillis() : 0);
+    const t = serverAt || clientAt;
     out.updatedAt = Math.max(out.updatedAt, Number(t) || 0);
   });
   return out;
 }
+// C-2 修復(登出競態讓前一帳號快照寫回、污染下一帳號)——三件事的其中兩件在這裡:
+// 1. 登出序列化:a.loggingOut 由 accountSignOut() 設定,擋掉登出流程期間任何非登出的新同步
+//    排程(見 accountScheduleSync);這裡遇到「已有同步在跑」時,非登出呼叫維持原行為直接放棄,
+//    但登出呼叫改成等它做完、再自己補做最後一次——不能讓 a.syncing 讓最後同步被靜默跳過
+//    (這正是原本的根因:accountSignOut 呼叫 accountSyncNow('logout') 時若恰好撞上另一個進行中
+//    的同步,原本會被 a.syncing 擋下直接回 false,當時的 accountClearLocal 隨即清空本機(輪2 起
+//    登出已不再清資料,見 accountEndSession;這裡描述的是當初的根因),那個進行中的
+//    同步事後才把它擷取的舊快照寫回剛清空的本機)。
+// 2. 登入世代複查(見 accountSyncTxn 尾端):每次同步在開始時記下當時的世代(a.gen,
+//    accountForgetIdentity 每次登出/刪除帳號都會前進)與 uid,Firestore 交易解決後、寫回本機前重新
+//    比對——身分已變(登出,或被其他清空本機的路徑如 accountDelete 搶先)就丟棄這次結果,不寫
+//    本機。這是比序列化更底層的安全網:即使未來有其他呼叫路徑在同步進行中清空本機而沒有像
+//    accountSignOut 一樣等待,晚到的寫入依然不會復活成資料。
+// 實際讀寫改用 accountSyncTxn 內明確傳遞的 myUid(userDataRead/userDataWrite 的第二參數),
+// 不用中途可能已經變動的 a.user.uid,同一次同步從頭到尾都對著同一個本機分區。
 async function accountSyncNow(reason) {
   const a = state.account;
-  if (!a || !a.user || !a.db || a.syncing) return false;
+  if (!a || !a.user || !a.db) return false;
+  // 2026-08-04 複審 Important 5:accountDelete() 進行期間(見該函式開頭設 a.syncSuspended 處)
+  // 一律不受理任何同步,不像 a.loggingOut 留了 'logout' 例外——reauth 的 popup/原生登入視窗到
+  // deleteDoc 迴圈之間有多個 await,切出去再切回來會觸發 visibilitychange -> accountSyncNow
+  // ('foreground'),若放行,會在剛刪掉的 Firestore 文件之後把它們重建;deleteUser 照樣成功,
+  // 結果帳號沒了,但含地圖釘選座標的個資變孤兒文件留在 Firestore。
+  if (a.syncSuspended) return false;
+  // 注意:這裡刻意每處都重寫 reason.startsWith('logout'),不抽成共用變數——
+  // verify_plus_features.mjs 的 T1[雲端同步] 對下面這行(`if (!reason.startsWith('logout') &&
+  // !plusIsActive()) return false;`)做逐字 regex 比對,抽成變數會讓那行字面消失、判準假紅
+  // (2026-08-03 C-2 修復輪實測踩到,見該檔該項註解)。
+  if (a.loggingOut && !reason.startsWith('logout')) return false;
+  if (a.syncing) {
+    if (!reason.startsWith('logout')) return false;
+    try { await a.syncPromise; } catch (e) {}
+    if (!a.user) return false; // 等待期間身分已經清空(理論上不會發生,accountSignOut 本身在等這支函式,多一層防呆)
+  }
+  // 雲端同步受 Plus 資格閘門控管(用戶端判定)。logout 是刻意的例外——
+  // 2026-08-04 複審輪2 Important 4:登出本身已經不清本機資料了(見 accountEndSession),這道例外
+  // 因此不再是「不讓最後一次回寫完成就等於吃掉使用者的東西」的必要條件,而是「登出前把手上的
+  // 變更送上雲端」的最後機會——刻意保留(對訂閱者是正確行為,且下一行的字面被 verify_plus_features
+  // 的 T1 逐字比對,不可改動)。
+  // 用 startsWith 不用 !==:重試(見 accountSyncTxn 的 permission-denied 分支)會把 reason 接上
+  // '-legacy' 後綴——重試現在改在 accountSyncTxn 內部進行、不再回頭經過這道閘門,但 reason
+  // 字串維持同一套 startsWith 判斷原則,避免未來有人在這裡加判斷時重蹈舊坑(寫死 !== 'logout'
+  // 會讓重試被閘門誤擋、而 accountSignOut 照樣清本機 ⇒ 真的掉資料)。
+  if (!reason.startsWith('logout') && !plusIsActive()) return false;
+  const myGen = a.gen, myUid = a.user.uid;
   a.syncing = true; a.actionError = ''; accountRender();
+  const task = accountSyncTxn(reason, myGen, myUid);
+  a.syncPromise = task;
+  try { return await task; }
+  finally { if (a.syncPromise === task) { a.syncing = false; a.syncPromise = null; } accountRender(); }
+}
+// 2026-08-04 複審 Critical 1/Important 1:三個呼叫端(同步成功、登出/刪除帳號清本機、
+// onAuthStateChanged 拿到 user)原本各自維護一份 render 清單,容易顧此失彼——accountSyncTxn
+// 原本 6 支、accountClearLocal 只有 4 支(少了 renderFavPanel/renderRidePanel)、
+// onAuthStateChanged 過去索性一支都沒有(這正是非訂閱者登入後畫面不重繪的根因之一)。統一成
+// 單一清單,新增消費者以後只要改這裡一處;多呼叫幾支本來就沒資料變動的 render 是冪等的,無害。
+function userDataRenderAll() {
+  if (typeof renderSavedPins === 'function') renderSavedPins();
+  if (typeof renderFavs === 'function') renderFavs();
+  if (typeof renderFavPanel === 'function') renderFavPanel();
+  if (typeof renderFavStationMarkers === 'function') renderFavStationMarkers();
+  if (typeof renderRidePanel === 'function') renderRidePanel();
+  if (typeof renderPassport === 'function') renderPassport();
+}
+// accountSyncNow 拆出來的實際交易邏輯——獨立成函式是為了讓 permission-denied 的重試
+// (見下方 catch)只重跑交易本身,不重新經過外層的 a.syncing/a.loggingOut/plusIsActive() 閘門。
+// retried:這一發是不是「上一發失敗之後的重試」。批二-B 用它把資格落地握手鎖成**每次同步最多一次**
+// ——兩條重試路徑(握手後全量重試、退回舊清單重試)都傳 true,重試再失敗時不會又打一次
+// /api/plus-status。外層 accountSyncNow 只傳三個參數(undefined ⇒ 第一發),不必跟著改。
+async function accountSyncTxn(reason, myGen, myUid, retried) {
+  const a = state.account;
   try {
     // Firestore rules 尚未放行新 collection 時,整筆交易會 permission-denied——退回舊清單重試,
     // 別讓新收藏類型上線的時間差中斷既有同步(stations 資料仍留在本機,rules 部署後重整即恢復上傳)
     const kinds = a.legacyKinds ? USER_DATA_COLLECTIONS.filter(k => k !== 'stations') : USER_DATA_COLLECTIONS;
-    const refs = Object.fromEntries(kinds.map(kind => [kind, a.fb.doc(a.db, 'users', a.user.uid, 'data', kind)]));
-    const local = userDataRead();
+    const syncCollection = plusSyncCollection();
+    const refs = Object.fromEntries(kinds.map(kind => [kind, a.fb.doc(a.db, syncCollection, myUid, 'data', kind)]));
+    const local = userDataRead(myUid);
     const merged = await a.fb.runTransaction(a.db, async tx => {
       const docs = {};
       for (const kind of kinds) { const snap = await tx.get(refs[kind]); docs[kind] = snap.exists() ? snap.data() : null; }
@@ -6905,27 +7274,62 @@ async function accountSyncNow(reason) {
       });
       return out;
     });
-    if (!userDataWrite(merged)) throw new Error('瀏覽器儲存空間不足，無法保存同步結果');
+    // C-2 登入世代複查:交易解決後,身分是否還跟發起這次同步時一樣?變了(登出,或本機已被其他
+    // 路徑搶先清空)就丟棄這次結果,不寫回本機——這是修復「前一帳號快照寫回、污染下一帳號」的
+    // 關鍵一步,見本函式呼叫端 accountSyncNow 頂端的說明。
+    if (a.gen !== myGen || !a.user || a.user.uid !== myUid) return false;
+    if (!userDataWrite(merged, myUid)) throw new Error('瀏覽器儲存空間不足，無法保存同步結果');
     userDataNotify('remote');
     a.lastSync = Date.now();
-    try { localStorage.setItem('trainmap-last-sync-uid', a.user.uid); } catch (e) {}
-    if (typeof renderSavedPins === 'function') renderSavedPins();
-    if (typeof renderFavs === 'function') renderFavs();
-    if (typeof renderFavPanel === 'function') renderFavPanel();
-    if (typeof renderFavStationMarkers === 'function') renderFavStationMarkers();
-    if (typeof renderRidePanel === 'function') renderRidePanel();
-    if (typeof renderPassport === 'function') renderPassport();
+    try { localStorage.setItem('trainmap-last-sync-uid', myUid); } catch (e) {}
+    userDataRenderAll();
     return true;
   } catch (e) {
-    if (!a.legacyKinds && e && e.code === 'permission-denied') {
-      a.legacyKinds = true; a.syncing = false; // 新 collection 被 rules 擋下 → 本 session 改用舊清單同步
-      return accountSyncNow(reason + '-legacy');
+    const denied = !!(e && e.code === 'permission-denied');
+    // 2026-08-04 Task 8:收緊 rules 之後,permission-denied 有兩個成因,而下面那條重試只治其中一個。
+    //   (a) 新 collection 還沒被 rules 放行 —— 退回舊清單重試有意義。
+    //   (b) 這個人沒有有效 Plus 資格 —— 四個 kind 全被擋,退回舊清單重試一樣會被擋。
+    // 不分辨的話,唯一走得到這裡的非訂閱者路徑(登出例外)會:多打一次註定失敗的交易、而且把
+    // a.legacyKinds 永久設成 true(整個 session 不會重置)⇒ 他若在同一個 session 內買了 Plus,
+    // 之後每次同步都靜默少傳 stations,直到重新整理才恢復。用 plusIsActive() 分辨:
+    // 有資格才可能是 (a)。這是用戶端的成因判斷,不是資格閘門——真正的裁決者仍是 rules。
+    // 🔴 2026-08-04 批二-B(整合稽核 Important 2／3):Task 8 分出的成因 (a) 其實還要再分一層,
+    // 而且新的那一層才是剛付完錢的人真正會遇到的:
+    //   (a1) /entitlements/{uid} 資格文件還沒落地 —— 買完當下 RevenueCat 已經說有資格(plusIsActive()
+    //        為真、純客端功能全開),但 rules 讀的那份文件要等 webhook 或一次主動握手才寫得進去,
+    //        在那之前**四個 kind 全部**被擋。退回舊清單重試對這個成因完全無效(少傳一個 kind 不會
+    //        讓 rules 改口),而且會把 a.legacyKinds 這面 session 級旗標永久設起來 ⇒ 文件之後真的
+    //        落地了,他每次同步仍然靜默少傳 stations,直到重新整理。
+    //   (a2) 新 collection 還沒被 rules 放行 —— 這個才是退回舊清單真正在治的東西。
+    // 分辨方式不是猜,是**去問**:plusReconcileEntitlement() 打一次 /api/plus-status,那條路徑本身
+    // 就會用 service account 寫資格文件,回應直接告訴我們文件此刻在不在(見該函式與 worker.js
+    // plusStatus 的說明)。握手成功 ⇒ 成因是 (a1),把降級收回來(plusMarkCloudSyncReady 內清掉
+    // legacyKinds)並**全量**重試,降級期間沒上去的 stations 就在這一次補上去。
+    // 握手不成功(上游故障/文件仍未落地)⇒ 不硬撐,落到下面既有的 (a2) 路徑,行為與批二-B 之前一樣。
+    // `!plusCloudSyncReady()` 讓握手在一次同步裡最多只發生一次:文件已確認落地卻仍被擋,那就真的
+    // 是 (a2),再握手一次也不會有新資訊。整條路徑的交易次數因此有上限(原始 1 + 握手後重試 1 +
+    // 舊清單重試 1),不會變成對著註定失敗的 rules 洗版。
+    if (denied && plusIsActive() && !plusCloudSyncReady() && !retried) {
+      const landed = await plusReconcileEntitlement();
+      // 握手期間有多個 await,身分可能已經變了——比照本函式尾端的世代複查,對不上就別再發交易。
+      if (a.gen !== myGen || !a.user || a.user.uid !== myUid) return false;
+      if (landed) return accountSyncTxn(reason + '-reconciled', myGen, myUid, true);
     }
+    if (!a.legacyKinds && denied && plusIsActive()) {
+      a.legacyKinds = true; // 新 collection 被 rules 擋下 → 本 session 改用舊清單同步
+      return accountSyncTxn(reason + '-legacy', myGen, myUid, true);
+    }
+    // 沒有資格而被擋是設計本身(條款與隱私政策都寫明「無有效資格時新變更留在裝置、不寫雲端」),
+    // 不是故障:登出已經不清本機資料(見 accountEndSession),東西一筆都沒少。報「同步失敗」只會
+    // 讓一個什麼都沒失去的人以為出事了。其餘錯誤照舊回報。
+    if (denied && !plusIsActive()) { a.actionError = ''; return false; }
     a.actionError = '同步失敗：' + (e && e.message ? e.message : String(e)); return false;
-  } finally { a.syncing = false; accountRender(); }
+  }
 }
 function accountScheduleSync() {
-  const a = state.account; if (!a || !a.user) return;
+  // 2026-08-04 複審 Important 5:a.syncSuspended 比照 a.loggingOut 同一道理擋新排程——
+  // accountDelete() 進行期間(見該函式開頭設旗標處)也不該有新的 debounce timer 冒出來。
+  const a = state.account; if (!a || !a.user || a.loggingOut || a.syncSuspended) return; // C-2:登出/刪除帳號流程開始後不再受理新排程(避免新 timer 在清空本機後才觸發同步、把資料寫回去)
   clearTimeout(a.syncTimer); a.syncTimer = setTimeout(() => accountSyncNow('local-change'), 1200);
 }
 function accountNativeCredential(providerName, result) {
@@ -6952,22 +7356,78 @@ async function accountSignIn(providerName) {
     }
   } catch (e) { a.actionError = '登入失敗：' + (e && e.message ? e.message : String(e)); accountRender(); }
 }
-function accountClearLocal() {
-  const empty = userDataEmpty(); empty.revision = 0; empty.updatedAt = userDataNow(); userDataWrite(empty);
-  if (state.plus) { state.plus.active = false; state.plus.pkgMonthly = null; state.plus.pkgAnnual = null; state.plus.mgmtUrl = ''; state.plus.adapter = null; state.plus.afterUnlock = null; }
+// 🔴 2026-08-04 複審輪2 Important 1＋4:登出與刪除帳號原本共用同一支 accountClearLocal(uid),
+// 但兩者該清的範圍其實相反,同一套清法對兩邊都錯:
+//   · 對登出「清太多」——它把空 envelope 寫進 :uid:<uid> 分區,登入期間新增/修改的東西當場銷毀。
+//     非訂閱者的登入同步恆被 plusIsActive() 閘門擋下(見 accountSyncNow),雲端拿不回來 ⇒ 永久消失。
+//     Task 8 收緊 firestore.rules 之後連登出那次回寫也會被伺服器擋下,傷害範圍再擴大。
+//   · 對刪除帳號「清太少」——Task 6 分區化之後 userDataWrite 的 legacy 雙寫被限縮在 if (!uid) 分支,
+//     uid 為真時只有那個分區被寫空,共用匿名 key 與四個 legacy 陣列動都沒動;登入前存的釘選(含
+//     經緯度)因此仍留在裝置上,重新整理就回到畫面,牴觸 privacy.html / account-deletion.html
+//     「清除目前裝置內的私人收藏」的明文承諾。
+// 拆成三支,讓「忘掉身分」與「清除資料」是兩件可以分別選用的事:
+//   accountForgetIdentity() 兩者共用:這台裝置不再有已驗證身分(世代前進、Plus 狀態、身分 key)。
+//                                    刻意完全不碰收藏資料。
+//   accountEndSession()     登出:只忘掉身分。收藏原封不動留在該帳號自己的分區裡,同一個帳號
+//                                 再登入就回得來;分區本身(加上 ACCOUNT_LAST_UID_KEY 的陌生人
+//                                 判斷)已經保證「下一個登入的別人看不到、也不會被合併」,不必
+//                                 再靠銷毀資料達成——見帳號面板那句說明文案。
+//   accountClearLocal(uid)  刪除帳號:忘掉身分,並真的清除這台裝置上的私人收藏(該帳號分區＋
+//                                    共用匿名 key＋四個 legacy 陣列,三處缺一就是承諾跳票)。
+function accountForgetIdentity() {
+  if (state.account) state.account.gen = (state.account.gen || 0) + 1; // C-2 世代前進:仍在途的舊同步之後複查世代會發現對不上,結果被丟棄不寫本機(見 accountSyncTxn)
+  // 批二-B:cloudSyncReady(資格文件落地)綁在「這個身分」上,身分沒了就不再成立——下一個登入的人
+  // 必須自己重新握手一次,不能繼承上一個人的落地結論。
+  if (state.plus) { state.plus.active = false; state.plus.entitlementEnvironment = ''; state.plus.founding = false; state.plus.pkgMonthly = null; state.plus.pkgAnnual = null; state.plus.mgmtUrl = ''; state.plus.adapter = null; state.plus.afterUnlock = null; state.plus.cloudSyncReady = false; state.plus.cloudSyncPromise = null; }
+  // ↑ cloudSyncPromise 也要清(最終複審 Minor 2):它是「同一時間只准一發握手在飛」的去重槽,
+  //   留著的話換人之後 plusReconcileEntitlement() 會 return 上一個身分的在途 promise,那發的世代
+  //   複查必然回 false ⇒ 新使用者白白失敗一輪握手。清掉只是丟棄槽位,在飛的那發自己會照常收尾。
   if (window.RAIL_NATIVE_PLUS_ADAPTER && window.RAIL_NATIVE_PLUS_ADAPTER.clearUser) window.RAIL_NATIVE_PLUS_ADAPTER.clearUser().catch(() => {});
+  // C-4:登出解除 CustomerInfo 更新 listener,避免舊使用者的推播繼續打在剛登出/換人的 state 上。
+  // 🔴 2026-08-04 批二-E:接住這個 promise 並回傳(既有兩個呼叫端 accountEndSession/accountClearLocal
+  // 都不 await,行為不變——fire-and-forget 依舊);onAuthStateChanged 的 session 失效分支需要確定
+  // listener 真的解除完成才能判斷「拆乾淨了」,故讓它可以被 await。
+  const teardown = plusTeardownListener().catch(() => {});
   state.plusPending = null;
   try { localStorage.removeItem('trainmap-last-sync-uid'); } catch (e) {}
-  if (typeof renderSavedPins === 'function') renderSavedPins();
-  if (typeof renderFavs === 'function') renderFavs();
-  if (typeof renderFavStationMarkers === 'function') renderFavStationMarkers();
-  if (typeof renderPassport === 'function') renderPassport();
+  // 2026-08-04 複審 Critical 1:ACCOUNT_UID_KEY 也要在登出/刪除帳號時清掉,否則下一個匿名訪客
+  // 或下一個登入的別人會被 userDataActiveUid() 的 fallback 誤判成上一個已登入的帳號。
+  try { localStorage.removeItem(ACCOUNT_UID_KEY); } catch (e) {}
+  // 注意:ACCOUNT_LAST_UID_KEY 刻意不在這裡清掉(見該常數上方 Important 2 說明)——它服務
+  // userDataMigrateAccountPartition 的陌生人判斷,必須撐過登出才擋得住「這台裝置下一個登入的
+  // 別人」,清掉的話等於每次登出都讓陌生人防護重新歸零。
+  return teardown;
+}
+function accountEndSession() { accountForgetIdentity(); userDataRenderAll(); } // 登出:身分沒了,資料留著
+// uid 由呼叫端明確傳入(刪除帳號當下的 state.account.user 可能已經被 onAuthStateChanged 提前清成
+// null——不能靠這裡重新去問「現在是誰」),否則會清錯分區(清到匿名分區,而不是剛被刪除那個帳號
+// 自己的分區)。
+function accountClearLocal(uid) {
+  accountForgetIdentity();
+  const blank = () => { const e = userDataEmpty(); e.revision = 0; e.updatedAt = userDataNow(); return e; };
+  userDataWrite(blank(), uid);  // 這個帳號自己的分區
+  userDataWrite(blank(), null); // 共用匿名 key ＋ 四個 legacy 陣列(走 userDataWrite 的 if (!uid) 分支)
+  // 2026-08-04 複審 Minor:LAST_UID 在登出時刻意留著(擋下一個登入的別人),但帳號已經刪掉時
+  // 它指向一個不存在的 uid——同一個人重新註冊會拿到新 uid,陌生人判斷因而把他當外人:他在
+  // 刪帳號之後、重新註冊之前以匿名身分累積的收藏不會被帶進新帳號。刪除是不可逆的終點,
+  // 這台裝置已經沒有「上一個已驗證身分」可言,清掉才是誠實的狀態。
+  try { localStorage.removeItem(ACCOUNT_LAST_UID_KEY); } catch (e) {}
+  userDataRenderAll();
 }
 async function accountSignOut() {
   const a = state.account; if (!a || !a.auth) return;
-  await accountSyncNow('logout');
-  try { await a.fb.signOut(a.auth); accountClearLocal(); accountClose(); }
-  catch (e) { a.actionError = '登出失敗：' + (e && e.message ? e.message : String(e)); accountRender(); }
+  const uid = a.user && a.user.uid; // 登出前先記下 uid,不依賴屆時的 state.account.user(signOut 完成後 onAuthStateChanged 可能已經把它設回 null)
+  // 2026-08-04 複審 Minor 1:a.user 已是 null 時(還沒登入,或已經在登出中)uid 會是 null——
+  // 沒有已驗證身分卻按登出,整條流程都不該跑:它會真的去 signOut()、把 Plus 狀態與 CustomerInfo
+  // listener 一起拆掉(見 accountForgetIdentity)。輪2 起登出已不再清任何本機資料,但這道守衛
+  // 仍然是「沒有身分就不該有登出副作用」的唯一防線。
+  if (!uid) return;
+  a.loggingOut = true; clearTimeout(a.syncTimer); a.syncTimer = 0; // C-2 登出序列化:先擋新排程(accountScheduleSync 會看 a.loggingOut)、清掉還沒觸發的 debounce timer
+  try {
+    await accountSyncNow('logout'); // 一定會做完最後一次同步,不會被 a.syncing 靜默跳過(見 accountSyncNow 內對 isLogout 的等待邏輯)
+    try { await a.fb.signOut(a.auth); accountEndSession(); accountClose(); }
+    catch (e) { a.actionError = '登出失敗：' + (e && e.message ? e.message : String(e)); accountRender(); }
+  } finally { a.loggingOut = false; }
 }
 // 刪除伺服器端的帳號資料：RevenueCat customer ＋ D1 的懸賞校正旅程資料（worker 的
 // /api/account-delete 兩件一起做）。
@@ -6990,6 +7450,18 @@ async function accountDeleteServerData(user) {
 async function accountDelete() {
   const a = state.account, u = a && a.user; if (!a || !u) return;
   if (!confirm('確定要永久刪除軌島帳號、雲端收藏與完乘紀錄？這個動作無法復原。')) return;
+  // 2026-08-04 複審 Important 5:比照 accountSignOut 的 a.loggingOut,從這裡到刪除流程結束
+  // (無論成功或失敗)為止一律不受理任何同步(見 accountSyncNow/accountScheduleSync 的
+  // a.syncSuspended 檢查)。旗標刻意取語意中性的名字,不沿用 a.loggingOut——這裡是刪帳號,不是
+  // 登出,兩件事各自的觸發/復原時機不同,不應該共用同一把旗標。
+  a.syncSuspended = true; clearTimeout(a.syncTimer); a.syncTimer = 0;
+  // 🔴 2026-08-04 複審輪2 Important 3:a.syncSuspended 只擋得住「新發起」的同步,擋不住「已在途」
+  // 的那一筆——它早就進了 Firestore 交易,tx.set 會在下面 deleteDoc 迴圈跑完之後才提交,把剛刪掉
+  // 的四份文件原地重建(accountSyncTxn 尾端的世代複查只擋本機回寫,tx.set 在交易內早已發生,擋不到
+  // 雲端那一半;deleteUser 之後 ID token 仍有效約一小時,rules 的 request.auth.uid 照樣放行)。
+  // accountSignOut() 靠 accountSyncNow('logout') 內的 await a.syncPromise 等在途同步,這裡補上對稱
+  // 的一行,否則刪帳號與登出的保護程度不對稱。
+  if (a.syncing) { try { await a.syncPromise; } catch (e) {} }
   a.actionError = ''; accountRender();
   try {
     const providerId = u.providerData && u.providerData[0] && u.providerData[0].providerId;
@@ -7013,9 +7485,12 @@ async function accountDelete() {
       else throw new Error('Apple 重新登入沒有回傳可撤銷的授權憑證');
     }
     await accountDeleteServerData(u);
-    for (const kind of USER_DATA_COLLECTIONS) await a.fb.deleteDoc(a.fb.doc(a.db, 'users', u.uid, 'data', kind));
-    await a.fb.deleteUser(u); accountClearLocal(); accountClose(); showToast('軌島帳號與同步資料已刪除');
+    for (const collection of ['users', 'sandboxUsers']) {
+      for (const kind of USER_DATA_COLLECTIONS) await a.fb.deleteDoc(a.fb.doc(a.db, collection, u.uid, 'data', kind));
+    }
+    await a.fb.deleteUser(u); accountClearLocal(u.uid); accountClose(); showToast('軌島帳號與同步資料已刪除');
   } catch (e) { a.actionError = '刪除失敗：' + (e && e.message ? e.message : String(e)); accountRender(); }
+  finally { a.syncSuspended = false; }
 }
 // 帳號系統延遲初始化:免費層匿名(不載 Firebase、不建 state.account),只有需要登入時(購買 Plus,或
 // ?account=delete 深連結,或帳號全面啟用 ACCOUNT_ENABLED)才呼叫。冪等——以 accountEnsureInit._p 為旗標,
@@ -7023,12 +7498,9 @@ async function accountDelete() {
 function accountEnsureInit() {
   if (accountEnsureInit._p) return accountEnsureInit._p;
   accountEnsureInit._p = (async () => {
-    const btn = document.getElementById('accountBtn'), modal = document.getElementById('accountModal');
+    const modal = document.getElementById('accountModal');
     let accountIntent = new URLSearchParams(location.search).get('account');
-    if (btn) { // 免費層延遲初始化時鈕已被 setupAccountUi 移除→null,跳過
-      btn.style.display = ''; btn.onclick = accountOpen;
-      const row = document.querySelector('.ms-row[data-proxy="accountBtn"]'); if (row) row.style.display = ''; // 抽屜列 HTML 預設 inline none,這裡是唯一的露出點(eager 與 Plus 延遲初始化都走這)
-    }
+    accountBtnSlot(accountSlotMode()); // 帳號系統初始化不等於這個人有帳號:身分交給 accountSlotMode 判(見該函式)。這也是回訪／已登入者槽位的唯一露出點
     const accountX = document.getElementById('accountX'); if (accountX) accountX.onclick = accountClose;
     if (modal) {
       modal.addEventListener('click', e => { if (e.target === modal) accountClose(); });
@@ -7043,7 +7515,7 @@ function accountEnsureInit() {
       else if (action && action.dataset.action === 'logout') accountSignOut();
       else if (action && action.dataset.action === 'delete') accountDelete();
     };
-    state.account = { ready: false, user: null, syncing: false, lastSync: 0, actionError: '', error: '', syncTimer: 0 };
+    state.account = { ready: false, user: null, syncing: false, lastSync: 0, actionError: '', error: '', syncTimer: 0, gen: 0, loggingOut: false, syncSuspended: false, syncPromise: null };
     accountRender();
     try {
       const fb = await accountLoadModules(), app = fb.initializeApp(window.RAIL_FIREBASE_CONFIG);
@@ -7054,37 +7526,243 @@ function accountEnsureInit() {
         : fb.getAuth(app);
       Object.assign(state.account, { fb, app, auth, db: fb.getFirestore(app) });
       fb.onAuthStateChanged(state.account.auth, async user => {
+        state.account.gen = (state.account.gen || 0) + 1; // C-2:每次身分變動(登入/登出/session 還原)世代前進,讓仍在途的舊同步之後複查世代能發現對不上(見 accountSyncTxn)
+        // 🔴 2026-08-04 批二-E:在覆寫 state.account.user 之前先留一份「這次事件發生前是誰」——下面
+        // else 分支要用它分辨這次 null 是不是一次真的「從有身分變成沒有」,見該分支內說明。
+        const previousUid = state.account.user && state.account.user.uid;
         state.account.user = user; state.account.ready = true; state.account.actionError = ''; accountRender();
+        if (user) accountBtnSlot('account'); // 登入完成才把槽位換成帳號入口(帳號面板這時才有登出/同步/刪帳號可做);登出態刻意不翻,見 accountSlotMode
         if (accountIntent === 'delete') { accountIntent = ''; accountOpen(); }
         if (user) {
+          // 2026-08-04 複審 Critical 1:這兩件事不能等 plusRefresh()/accountSyncNow('login') 才做
+          // ——非訂閱者的同步恆被 plusIsActive() 閘門擋下(見 accountSyncNow),若掛在同步成功
+          // 之後,非訂閱者登入後永遠不會重繪、也永遠不會建立 ACCOUNT_UID_KEY 讓下次開機的
+          // fallback 生效(見 userDataActiveUid)。user 在這裡已是驗證過的真值,無條件先重繪一次
+          // ,讓開機期間可能用 fallback 分區讀到的畫面換成 state.account.user 已就緒後真正該看到
+          // 的分區。順序刻意先 render 後寫 key:userDataMigrateAccountPartition 判斷「陌生人或
+          // 同一人」要用的是「這次登入之前」裝置記錄的 uid;若先寫再 render,遷移讀到的會是剛
+          // 寫進去的這次 uid 本身,永遠判成同一人,Important 1 想擋的陌生人繼承就形同虛設。
+          // ACCOUNT_LAST_UID_KEY 同一時機一起寫(見該常數上方 Important 2 說明——這把 key 不會被
+          // accountForgetIdentity 清掉,陌生人判斷才不會在真實登出之後失效)。
+          userDataRenderAll();
+          try { localStorage.setItem(ACCOUNT_UID_KEY, user.uid); localStorage.setItem(ACCOUNT_LAST_UID_KEY, user.uid); } catch (e) {}
+          await plusRefresh(); // 先確認資格再決定要不要同步;plusRefresh 自帶 !plusConfigured() 早退,不會在無購買通道的平台亂初始化 SDK
           await accountSyncNow('login');
           const pending = state.plusPending;
           if (pending) { state.plusPending = null; plusOpen(pending.source, pending.onGranted); }
+        } else {
+          // 🔴 2026-08-04 複審輪2 Important 2:user 為 null 時原本什麼都不做,於是程式分不出
+          // 「auth 還沒解析」(fallback 該生效)與「auth 解析結果就是沒登入」(fallback 不該生效)
+          // ——兩者在 userDataActiveUid() 眼裡都只是 state.account.user 為 falsy。伺服器端讓 session
+          // 失效時(refresh token 被撤銷、帳號在別台被刪、憑證失效)會走到這裡而 accountSignOut()
+          // 從未被呼叫,ACCOUNT_UID_KEY 原封不動留著 ⇒ 畫面已回到未登入態,userDataActiveUid() 卻
+          // 仍解析成上一個帳號:那個人的私人收藏還看得到、還能編輯,之後這台裝置的匿名使用也全部
+          // 寫進他的分區。而且使用者自己救不了——登出鈕只在 a.user 為真時才畫(見 accountRender),
+          // 卡住之後連清掉它的入口都沒有。
+          // auth 明確說「沒有身分」就把身分痕跡清掉,讓 ACCOUNT_UID_KEY 的不變式維持成立:
+          // 這把 key 存在 ⟺ 這台裝置有一個已驗證的身分。
+          // 🔴 2026-08-04 批二-E(整合稽核 Minor 1):上面這段輪2 當時只清了 uid fallback key,沒有
+          // 真的拆掉 Plus 身分——refresh token 被撤銷/帳號在別台被刪/session 在伺服器端失效,都會
+          // 走到這裡而 accountSignOut() 從未被呼叫,plusIsActive() 仍是 true、plusRequire() 仍會放行
+          // granted callback,畫面已經換成訪客,同一台裝置的匿名使用者卻仍拿得到純客端付費功能
+          // (Takeout 匯入/行程分享/衛星 Retina/Live Activity)。伺服器與 Firestore 規則本身仍安全
+          // (雲端寫入要資格文件),但這是「付費牆在客戶端漏了一半」。
+          // previousUid(上面覆寫前留的值)是判斷「這是不是一次真轉換」的唯一依據:
+          //   · previousUid 為真 ⇒ 這個 session 剛才確實有一個已驗證身分,這次 null 是它消失了——
+          //     不論是 accountSignOut() 觸發還是伺服器端讓 session 失效,都要執行與登出同一套
+          //     Plus 身分 teardown(accountForgetIdentity——世代前進、state.plus 歸零、native adapter
+          //     clearUser()、CustomerInfo listener 解除)。await 是必要的:plusTeardownListener()
+          //     真的解除掛在原生 adapter 上的 listener 是非同步操作,這次回呼要在做完之後才算數,
+          //     不能讓它停在路上就宣稱「拆乾淨了」。
+          //   · previousUid 為 falsy ⇒ 這是這個 session 第一次收到 auth 的解析結果、而結果是「沒有
+          //     登入」(冷啟動——ACCOUNT_UID_KEY 可能還留著上次的 fallback 值,但那只是磁碟上的
+          //     痕跡,這個 session 的記憶體裡從來沒有一個已驗證身分可拆)。這種情況不該觸發
+          //     native adapter 的 clearUser() 或拆 CustomerInfo listener——對本來就是訪客的人做這些
+          //     副作用沒有意義,也不該讓從未註冊過的 listener 平白被拆一次。
+          // accountForgetIdentity() 刻意完全不碰收藏資料(本機分區依 uid 留著,同一個帳號回來還在)
+          // 也刻意不清 ACCOUNT_LAST_UID_KEY(陌生人判斷要撐過這次事件,只有刪除帳號才清)。
+          if (previousUid) await accountForgetIdentity();
+          try { localStorage.removeItem(ACCOUNT_UID_KEY); } catch (e) {}
+          userDataRenderAll(); // 畫面立刻換回匿名分區,不留著上一個帳號的私人收藏在螢幕上
         }
       });
     } catch (e) { state.account.ready = true; state.account.error = e && e.message ? e.message : String(e); accountRender(); }
     window.addEventListener('rail-user-data-changed', e => { if (!e.detail || e.detail.source === 'local') accountScheduleSync(); });
-    document.addEventListener('visibilitychange', () => { if (!document.hidden && state.account && state.account.user) accountSyncNow('foreground'); });
+    // C-4:回前景不能只同步資料、不查資格——退費/撤銷後,若 CustomerInfo 更新 listener 沒收到通知
+    // (例如 App 被系統整個砍掉重開、或推播恰好錯過),回前景至少會補查一次。plusRefresh() 自己有
+    // p.loading 早退與 !plusConfigured() 分流,故意不 await——與同一行原本就有的
+    // accountSyncNow('foreground') 一樣是 fire-and-forget,不讓這個事件處理常式被卡住。
+    document.addEventListener('visibilitychange', () => { if (!document.hidden && state.account && state.account.user) { accountSyncNow('foreground'); plusRefresh(); } });
   })();
   return accountEnsureInit._p;
+}
+// #accountBtn(工具列)與 .ms-row[data-proxy="accountBtn"](「更多」抽屜列)是同一個槽位的兩個入口
+// ——抽屜列的點擊是 btn.click() 轉發過去的,所以只要換掉這顆鈕的 onclick,兩邊行為必然一致。
+// 這個槽位有兩種身分:'plus'(免費層匿名訪客——按下去開訂閱面板,不碰 Firebase)與
+// 'account'(帳號系統已初始化——按下去開帳號面板)。標籤/title/onclick 三件必須一起換,
+// 抽成一支就不會只改到其中一處(留下「寫著 Plus 但開帳號」的鈕)。
+function accountBtnSlot(mode) {
+  const btn = document.getElementById('accountBtn'); // 免費層且 Plus 關閉時整顆被移除→null,跳過
+  const plus = mode === 'plus';
+  if (btn) {
+    const ti = btn.querySelector('.ti'), tl = btn.querySelector('.tl');
+    if (ti) ti.textContent = plus ? '＋' : '帳';
+    if (tl) tl.textContent = plus ? '通行證' : '帳號';
+    btn.title = plus ? '軌島通行證：訂閱內容與登入同步' : '登入與跨裝置同步';
+    btn.onclick = plus ? () => plusOpen('toolbar') : accountOpen;
+    btn.style.display = '';
+  }
+  // 抽屜列 HTML 預設 inline none。這是「這條路上」把它從 none 還原的地方(eager／Plus 延遲初始化／
+  // 免費層 Plus 入口都走這),但**不是**最終可見性:抽屜每次打開時 syncMoreSheet() 會依代理鈕
+  // (#accountBtn)重算這一格。所以驗「使用者看不看得到那一列」要在抽屜打開之後量,不能量這一格。
+  const row = document.querySelector('.ms-row[data-proxy="accountBtn"]');
+  if (row) {
+    const label = row.querySelector('span'); if (label) label.textContent = plus ? '軌島通行證' : '帳號同步';
+    row.style.display = '';
+  }
+}
+// 這台裝置上有沒有帳號足跡:登入過就會留下 ACCOUNT_UID_KEY(2026-08-04 複審 Important 1 前是
+// last-sync-uid,見下方函式內註解)。setupAccountUi 的 returning 與槽位身分共用這一支,免得
+// 兩處各判一次而漂移。
+function accountReturning() {
+  // 2026-08-04 複審 Important 1:原本讀 trainmap-last-sync-uid(只在同步成功時才寫)——非訂閱者
+  // 的同步恆被 plusIsActive() 閘門擋下,這把 key 永遠不存在,setupAccountUi() 因此永遠不會為
+  // 回訪的非訂閱者呼叫 accountEnsureInit(),開機所有用戶端資格判斷都會誤判成「沒登入過」。改讀
+  // ACCOUNT_UID_KEY(只要驗證過身分就寫,不論訂閱與否,見 userDataActiveUid 上方說明)。
+  try { return !!localStorage.getItem(ACCOUNT_UID_KEY); } catch (e) { return false; }
+}
+// 槽位現在該是哪個身分。判準是「這個人跟帳號的關係」,不是「帳號系統初始化過沒有」——
+// 用後者的話,匿名訪客只要按過一次 Plus 面板裡的登入 CTA(那顆會 accountEnsureInit),槽位就
+// 永久翻成帳號入口;他若在登入畫面反悔(或登入失敗、popup 被擋),就再也回不到 Plus 面板了
+// ——手機更嚴重,抽屜列是唯一入口。已登入者仍然拿到帳號入口(登出/同步/刪帳號都只在那裡)。
+function accountSlotMode() {
+  if (state.account && state.account.user) return 'account';
+  if (!PLUS_ENABLED) return 'account';
+  return accountReturning() ? 'account' : 'plus'; // 登入過的裝置維持帳號入口;它的登出態另有回 Plus 的鈕(見 accountRender)
 }
 async function setupAccountUi() {
   const btn = document.getElementById('accountBtn'), modal = document.getElementById('accountModal');
   if (!btn || !modal || !accountConfigured()) return;
   const accountIntent = new URLSearchParams(location.search).get('account');
-  if (ACCOUNT_ENABLED || accountIntent === 'delete') { // 帳號全面啟用 或 刪帳號深連結:照舊 eager 初始化(顯示入口鈕、載 Firebase、監聽登入)
+  // 登入過的人(本機還留著 last-sync-uid)開機就初始化,否則付費者冷啟動時所有用戶端閘門都會
+  // 誤判他沒資格。從沒登入過的免費層仍然完全匿名:不載 Firebase、不建 state.account。
+  const returning = accountReturning();
+  if (ACCOUNT_ENABLED || accountIntent === 'delete' || returning) {
     await accountEnsureInit(); return;
   }
-  // 免費層匿名:移除帳號入口鈕與抽屜列,不載 Firebase、不建 state.account;購買 Plus 時才由 plusOpen→accountEnsureInit 延遲初始化
+  // 免費層匿名:不載 Firebase、不建 state.account。Plus 開閘後這個槽位改當 Plus 面板入口——
+  // 剛在 App 訂閱、第一次用瀏覽器開站的人沒有 last-sync-uid,若整顆移除他就沒有任何入口可以登入同步。
+  // 按下去只 plusOpen()(純渲染,不碰帳號系統);要登入得再按面板內的 data-plus="login",匿名保證留在那一步。
+  if (PLUS_ENABLED) { accountBtnSlot('plus'); return; }
+  // Plus 也關閉時才回到「整顆移除」——留著一顆點了沒有任何去處的鈕比沒有更糟。
   btn.remove(); const row = document.querySelector('.ms-row[data-proxy="accountBtn"]'); if (row) row.remove();
 }
 
 // ── 訂閱制 Plus（RevenueCat 月/年訂閱 → plus entitlement） ────────────────────────
+// Plus 資格的唯一判定式。刻意抽成具名函式而不是內聯——它讓「這個 repo 裡總共有哪幾道 Plus 閘門」
+// 變成一次 grep 就答得完的問題,而不是要人肉掃六個不同的寫法。
+// 例外:plusRender()/plusRefresh()/plusPurchase()/plusRestore() 內部有幾處直接讀 `p.active`
+// (p===state.plus)——那些是訂閱視窗渲染自己的狀態(選哪個文案分支)或剛寫完 p.active 後緊接著算
+// p.founding,不是在替某個「功能」把關,不算閘門,故意不改用 plusIsActive()。
+function plusIsActive() { return !!(state.plus && state.plus.active); }
+// 🔴 2026-08-04 批二-B(整合稽核 Important 2／3):Plus 有**兩個獨立的真相**,把它們當同一件事
+// 正是「剛付完錢的人收藏站點不會上雲、而且不會收到任何錯誤」的根因。
+//   plusIsActive()       ＝ 帳務上有沒有資格(RevenueCat 說了算)。管的是純客端功能:Takeout 匯入、
+//                          行程分享、衛星 Retina、Live Activity。買完當下就知道。
+//   plusCloudSyncReady() ＝ Firestore 的 /entitlements/{uid} 資格文件有沒有真的落地(伺服器說了算,
+//                          由 /api/plus-status 的 cloudSyncReady 欄位確認)。管的是雲端同步——
+//                          firestore.rules 讀的就是那份文件,它沒落地時**四個 kind 全部**被擋。
+// 買完之後 active 立刻為真、文件卻要等 webhook 或一次主動握手才落地,中間那段時間兩者必然分家;
+// 兩個狀態各自可查,誰管誰一眼就看得出來,才不會再有人用其中一個去推論另一個。
+function plusCloudSyncReady() { return !!(state.plus && state.plus.cloudSyncReady); }
+// 「確認落地」的唯一入口。之所以要是一支函式而不是散在各處的賦值:落地這件事同時代表
+// **之前所有基於「被 rules 擋」而做的降級都失去依據**——a.legacyKinds(退回舊清單、少傳 stations)
+// 是 session 級旗標且永不重置,不在這裡一起收回來,使用者就會在資格已經生效之後,每次同步仍然
+// 靜默少傳 stations 直到他重新整理為止(Task 8 的 commit 訊息明說這條尾巴不在該次範圍內)。
+function plusMarkCloudSyncReady() {
+  const p = plusState();
+  p.cloudSyncReady = true;
+  if (state.account) state.account.legacyKinds = false; // 收回降級;下一次同步是全量,補傳降級期間沒上去的 stations
+  return true;
+}
+// 資格落地握手:主動打一次 /api/plus-status,讓 Worker 用 service account 把 /entitlements/{uid}
+// 寫進去,並用它的回應確認「這一刻文件真的在那裡」。**這條路徑本身就是 writer**,所以它不是輪詢
+// 等待,而是一次會改變世界的請求——這也是為什麼重試策略可以這麼保守:
+//   · 一次呼叫就結案。Worker 是 `await writePlusEntitlement(...)` 之後才回應的,回 cloudSyncReady:true
+//     時文件已經寫進 Firestore 了,沒有「再等一下就會好」的中間態可以輪詢。
+//   · 失敗(401／503／網路錯／CAS 跳過)不在原地重試,不排 timer、不遞增退避。原因是失敗的成因都
+//     不是「時間不夠」:上游故障要等它自己好,而下一次自然觸發(下一輪同步、回前景 visibilitychange、
+//     再一次購買/恢復購買)本來就會再握手一次。在這裡加輪詢只會對一個已經在故障的上游洗版。
+//   · p.cloudSyncReady 為真就直接回 true,不再打——握手成功是不需要重做的事實。
+//   · 同一時間只允許一發在飛(p.cloudSyncPromise),理由同 plusRefresh() 的 p.loading 守衛:
+//     回應亂序覆寫狀態比多等一次還糟。
+// 拿不到 ID token 時(尚未登入、或 SDK 還沒備妥)直接回 false 不發請求:沒有身分的請求後端只會回
+// 401,發它等於白打一發並在 console 留下噪音。
+async function plusReconcileEntitlement() {
+  const a = state.account, user = a && a.user;
+  if (!user) return false;
+  const p = plusState();
+  if (p.cloudSyncReady) return true;
+  if (p.cloudSyncPromise) return p.cloudSyncPromise;
+  const getToken = a.fb && a.fb.getIdToken ? () => a.fb.getIdToken(user)
+    : (typeof user.getIdToken === 'function' ? () => user.getIdToken() : null);
+  if (!getToken) return false;
+  const myGen = a.gen, myUid = user.uid;
+  const task = (async () => {
+    try {
+      const token = await getToken();
+      const res = await fetch(apiUrl('api/plus-status'), { cache: 'no-store', headers: plusApiHeaders(token) });
+      if (!res.ok) return false;
+      const data = await res.json();
+      // 握手期間身分可能已經變了(登出/換人/session 失效)——比照 accountSyncTxn 的世代複查,
+      // 對不上就整份丟棄,不把上一個帳號的資格狀態寫到現在這個人身上。
+      const now = state.account;
+      if (!now || now.gen !== myGen || !now.user || now.user.uid !== myUid) return false;
+      if (data && typeof data.active === 'boolean') {
+        p.active = data.active;
+        plusSetEnvironment(p, p.active && data.environment === 'sandbox' && PLUS_SANDBOX_OK
+          ? 'sandbox' : (p.active ? 'production' : ''));
+      }
+      if (data && data.cloudSyncReady === true) return plusMarkCloudSyncReady();
+      return false;
+    } catch (e) { return false; }
+    finally { p.cloudSyncPromise = null; }
+  })();
+  p.cloudSyncPromise = task;
+  return task;
+}
 const REVENUECAT_WEB_VERSION = '1.47.3';
 const REVENUECAT_WEB_URL = `https://cdn.jsdelivr.net/npm/@revenuecat/purchases-js@${REVENUECAT_WEB_VERSION}/dist/Purchases.umd.js`;
 const REVENUECAT_WEB_SRI = 'sha384-uxK23EQfDmI/oo6YmVrqk+9HhGysN0x/nGR3rCt/WWke/GFeWKQDTigtWvgCEZrF';
 function plusConfig() { return window.RAIL_REVENUECAT_CONFIG || {}; }
+// 創始會員＝在創始價期間開始訂閱過的人。判定用訂閱起始時刻,不是當下時刻。
+// originalPurchaseDate 是這個 entitlement「第一次」被購買的日期,斷訂後再訂也不會變,
+// 故意不用會隨每次續訂/重新訂閱更新的 latestPurchaseDate。
+// 創始價視窗＝「上線錨點時刻」起算固定 30 天(裁示 2026-08-03)。上線錨點由
+// revenuecat-config.js 的 foundingLaunchAt 提供,發版流程按下發版當下才決定填入——程式碼
+// 本身不留猜的日期,App 發版閘門(app/scripts/verify-release.mjs)會擋下未設定/無法解析/
+// 早於本次 build 日期的值,不讓猜的日期溜上線。
+// FOUNDING_LAUNCH_MS 解析失敗(未設定)時為 NaN,FOUNDING_UNTIL_MS 也隨之為 NaN——下面
+// foundingFrom() 對此有明確的安全預設(一律回傳 false),不會誤判成「沒設定＝人人都是創始會員」。
+const FOUNDING_LAUNCH_MS = Date.parse(plusConfig().foundingLaunchAt || '');
+const FOUNDING_UNTIL_MS = Number.isFinite(FOUNDING_LAUNCH_MS) ? FOUNDING_LAUNCH_MS + 30 * 86400000 : NaN;
+function foundingFrom(info) {
+  try {
+    if (!Number.isFinite(FOUNDING_UNTIL_MS)) return false; // 上線錨點未設定/不可解析 ⇒ 安全預設:沒人是創始會員(見上方常數宣告的說明)
+    const ent = info && info.entitlements && info.entitlements.active && info.entitlements.active[plusConfig().entitlement || 'plus'];
+    const t = ent && (ent.originalPurchaseDate || ent.latestPurchaseDate);
+    // Date.parse(t):原生(Capacitor)adapter 回傳 ISO8601 字串,沒問題。web billing adapter
+    // (@revenuecat/purchases-js)的同名欄位是 Date 物件——Date.parse(Date 物件) 靠隱式 toString()
+    // 各引擎實務可行但不是規格保證,接上該 adapter 時改 new Date(t).getTime() 更穩。
+    return !!t && Date.parse(t) < FOUNDING_UNTIL_MS;
+  } catch (e) { return false; }
+}
 function plusProjectConfigured() {
+  // PLUS_ENABLED 是止血旗標:關掉時「Plus 觸發面存不存在」的答案一律是「不存在」,這一支也不例外。
+  // 少了這道閘,關旗標反而會「打開」帳號面板登出態那顆入口鈕——它的條件是
+  // `plusProjectConfigured() && !plusConfigured()`,而 plusConfigured() 第一行就吃 PLUS_ENABLED ⇒
+  // 旗標一關 !plusConfigured() 反轉成 true(實測:原生殼登出態的入口鈕由不存在變成存在)。
+  if (!PLUS_ENABLED) return false;
   const c = plusConfig();
   return !!(window.RAIL_NATIVE_PLUS_ADAPTER || window.RAIL_PLUS_TEST_ADAPTER || (c.entitlement && (c.webApiKey || c.iosApiKey || c.androidApiKey)));
 }
@@ -7112,9 +7790,62 @@ function plusLoadWebSdk() {
   });
   return plusLoadWebSdk._p;
 }
+// sandbox 資格要不要算數,由「這份 build 是不是刻意允許 sandbox」決定,不是由使用者決定。
+// 值由 App 殼建置期注入(app/scripts/prepare-web.mjs 讀環境變數 RAIL_PLUS_SANDBOX_OK=1),
+// 網站與任何沒帶這個環境變數的 build 都拿不到這個 key ⇒ 恆 false(fail-closed)。
+// 發版閘門(app/scripts/verify-release.mjs 的 assertPlusSandboxOff)會擋下把 true 打包進發行版,
+// 所以它不是「使用者可切換的開關」,是一條只能在建置機器上打開、且過不了發版檢查的測試通道。
+// ⚠️ 代價要講清楚:TestFlight 與 App Store 是同一顆 binary,因此「能測購買流程的 build」與
+//   「能送審的 build」必須是兩次建置——要在裝置/模擬器/TestFlight 實測 sandbox 購買就帶
+//   RAIL_PLUS_SANDBOX_OK=1 建一份專用內部版；正式送審要另升 build，關閉旗標並通過正式閘門。
+const PLUS_SANDBOX_OK = window.RAIL_PLUS_SANDBOX_OK === true;
+// Sandbox 後端通道也要由同一份 build 明確提出；網站與正式 App 沒有 build 標記，永遠只查正式資格。
+// 這顆 header 不是憑證，Worker 仍會驗 Firebase ID token 並向 RevenueCat 重查同 uid 的訂閱真相。
+const PLUS_SANDBOX_BUILD = PLUS_SANDBOX_OK && /^\d+$/.test(String(window.RAIL_PLUS_SANDBOX_BUILD || ''))
+  ? String(window.RAIL_PLUS_SANDBOX_BUILD) : '';
+function plusApiHeaders(token) {
+  const headers = { Authorization: 'Bearer ' + token };
+  if (PLUS_SANDBOX_BUILD) headers['X-Rail-Plus-Sandbox-Build'] = PLUS_SANDBOX_BUILD;
+  return headers;
+}
+// Plus 資格的唯一判定式(所有消費者——plusRefresh/plusPurchase/plusRestore——都走這裡)。
+// 環境收斂:RevenueCat 的 entitlements.active **等同 activeInAnyEnvironment**(SDK 自己的 doc
+// comment:app/ios/App/Pods/RevenueCat/Sources/Purchasing/EntitlementInfos.swift 的
+// 「- Warning: this is equivalent to ``activeInAnyEnvironment``」),所以 sandbox/TestFlight 購買
+// 也會出現在裡面——只看 key 在不在,等於讓 sandbox 購買解鎖正式付費功能與雲端同步。
+// 為什麼不直接改用 activeInCurrentEnvironment(原生 SDK 有,而且正是為此而生):**Capacitor plugin
+// 沒有把它橋到 JS**——app/node_modules/@revenuecat/purchases-typescript-internal-esm/dist/
+// customerInfo.d.ts 的 PurchasesEntitlementInfos 只有 all / active / verification 三個欄位。
+// JS 這一側拿得到的環境訊號只剩每筆 entitlement 自帶的 isSandbox(同檔 PurchasesEntitlementInfo:
+// 「False if this entitlement is unlocked via a production purchase」),故在此自行收斂。
+// 欄位不存在時(Web Billing SDK、測試 adapter)維持既有行為——那些路徑沒有 sandbox 這個概念,
+// 把「查不到 isSandbox」當成 sandbox 會讓網站端的資格整批消失。
 function plusActiveFrom(info) {
   const active = info && info.entitlements && info.entitlements.active;
-  return !!(active && Object.prototype.hasOwnProperty.call(active, plusConfig().entitlement || 'plus'));
+  const key = plusConfig().entitlement || 'plus';
+  if (!(active && Object.prototype.hasOwnProperty.call(active, key))) return false;
+  const ent = active[key];
+  return PLUS_SANDBOX_OK || !(ent && ent.isSandbox === true);
+}
+function plusEnvironmentFrom(info) {
+  if (!plusActiveFrom(info)) return '';
+  const active = info && info.entitlements && info.entitlements.active;
+  const ent = active && active[plusConfig().entitlement || 'plus'];
+  return PLUS_SANDBOX_OK && ent && ent.isSandbox === true ? 'sandbox' : 'production';
+}
+function plusSetEnvironment(p, environment) {
+  const next = environment === 'sandbox' ? 'sandbox' : (environment === 'production' ? 'production' : '');
+  if (p.entitlementEnvironment !== next) {
+    // cloudSyncReady 只證明「當時那個環境」的資格文件已落地；環境切換後不可沿用舊結論，
+    // 否則會拿 production 的 ready 去寫 sandboxUsers（或反向），接著被 rules 拒絕卻不再握手。
+    p.cloudSyncReady = false;
+    p.cloudSyncPromise = null;
+  }
+  p.entitlementEnvironment = next;
+  return next;
+}
+function plusSyncCollection() {
+  return state.plus && state.plus.entitlementEnvironment === 'sandbox' ? 'sandboxUsers' : 'users';
 }
 function plusPackagePrice(pkg) {
   const p = pkg && (pkg.webBillingProduct || pkg.product || pkg.storeProduct) || {};
@@ -7130,8 +7861,8 @@ function plusPickPackage(pkgs, kind) {
   return hit('packageType') || hit('identifier') || null;
 }
 async function plusAdapterFor(uid) {
-  if (window.RAIL_NATIVE_PLUS_ADAPTER) { await window.RAIL_NATIVE_PLUS_ADAPTER.setUser(uid); return window.RAIL_NATIVE_PLUS_ADAPTER; }
-  if (window.RAIL_PLUS_TEST_ADAPTER) { await window.RAIL_PLUS_TEST_ADAPTER.setUser(uid); return window.RAIL_PLUS_TEST_ADAPTER; }
+  if (window.RAIL_NATIVE_PLUS_ADAPTER) { await window.RAIL_NATIVE_PLUS_ADAPTER.setUser(uid); await plusEnsureListener(window.RAIL_NATIVE_PLUS_ADAPTER); return window.RAIL_NATIVE_PLUS_ADAPTER; }
+  if (window.RAIL_PLUS_TEST_ADAPTER) { await window.RAIL_PLUS_TEST_ADAPTER.setUser(uid); await plusEnsureListener(window.RAIL_PLUS_TEST_ADAPTER); return window.RAIL_PLUS_TEST_ADAPTER; }
   const ns = await plusLoadWebSdk(), Ctor = ns.Purchases;
   if (!plusAdapterFor._purchases) plusAdapterFor._purchases = Ctor.configure({ apiKey: plusConfig().webApiKey, appUserId: uid });
   else if (plusAdapterFor._purchases.getAppUserId() !== uid) await plusAdapterFor._purchases.changeUser(uid);
@@ -7142,16 +7873,104 @@ async function plusAdapterFor(uid) {
     getOfferings: () => p.getOfferings(),
     purchase: (pkg, email) => p.purchase({ rcPackage: pkg, customerEmail: email || undefined }),
     restore: () => p.getCustomerInfo(),
+    // 不接 addCustomerInfoUpdateListener passthrough:目前沒有查證過的證據顯示這支動態載入的
+    // Web SDK(REVENUECAT_WEB_URL,不在 node_modules 裡、型別宣告無從查起)真的有同名方法——
+    // plusEnsureListener() 本來就用 typeof 判斷特性存在與否,沒有這個方法就靜靜跳過,不影響資格
+    // 判定本身(見該函式註解)。網站目前也沒有設定 webApiKey,這個分支實務上不會被走到。
   };
 }
+// ═══ C-4 止血(退費/撤銷/到期後,資格靠快取撐著、沒人去重新驗證):CustomerInfo 更新 listener ═══
+// 只有原生 adapter(或刻意模擬它的測試 adapter)具備 addCustomerInfoUpdateListener 時才註冊——
+// 沒有這個方法就靜靜跳過(typeof 特性偵測,不是每個平台的必要條件)。
+// 冪等:plusListenerAdapter 記錄「目前掛在哪一個 adapter 物件上」,同一顆 adapter(原生殼/測試
+// adapter 都是全域單例,物件參考不會變)重複呼叫不重複掛,只有第一次真的呼叫 SDK 的註冊 API。
+let plusListenerId = null, plusListenerAdapter = null;
+async function plusEnsureListener(adapter) {
+  if (!adapter || typeof adapter.addCustomerInfoUpdateListener !== 'function') return;
+  if (plusListenerId && plusListenerAdapter === adapter) return; // 已經掛在同一顆 adapter 上,冪等早退
+  await plusTeardownListener(); // 防禦性:adapter 换成別的物件時,先解除掛在舊物件上的那個
+  // 🔴 2026-08-04 Codex 稽核 M-1:記下註冊當下的身分。解除 listener 是非同步的(而且
+  // accountForgetIdentity() 兩個既有呼叫端都不 await),原生端已經派送出去的 callback 仍可能在
+  // 解除完成之後才抵達;plusApplyCustomerInfo() 寫的正是被就地改寫過的同一顆 state.plus,
+  // 沒有這道複查就會把剛拆掉的資格推回去。
+  const acc0 = state.account || {};
+  const regGen = acc0.gen, regUid = acc0.user && acc0.user.uid;
+  try {
+    const id = await adapter.addCustomerInfoUpdateListener((info, err) => {
+      // 🔴C-4 Important-1 修復:這裡不是「SDK 主動推播必為真值」的單純情境——Capacitor keep-alive
+      // callback 的失敗路徑逐字是 `storedCall.callback(null, result.error)`(見
+      // app/node_modules/@capacitor/ios/Capacitor/Capacitor/assets/native-bridge.js:962-966),
+      // Android 端 `addCustomerInfoUpdateListener` 開頭就有 `rejectIfNotConfigured(call)`
+      // (app/node_modules/@revenuecat/purchases-capacitor/android/.../PurchasesPlugin.kt:191-192),
+      // 原生端一 reject 就會落在這條 (null, error) 路徑上。err 有值,或 info 不成形(例如沒有
+      // entitlements),都是「原生端出錯/沒答案」,不是「查不到資格」——同 plusRefresh() 的
+      // Promise.allSettled 錯誤分流、plusRevalidateBeforeAction() 的 catch 同一個原則:只有拿到
+      // 明確答案才收回資格,查不到就完全不動 state.plus。
+      if (err || !info || !info.entitlements) return;
+      // Codex 稽核 M-1:註冊之後身分變了 ⇒ 這份推播講的是上一個人,丟掉。
+      const a2 = state.account;
+      if (!a2 || a2.gen !== regGen || !a2.user || a2.user.uid !== regUid) return;
+      plusApplyCustomerInfo(info);
+      if (state.basemap === 'sat') setBasemap(); // 資格變動→衛星解析度跟著換,同 plusRefresh/plusPurchase 既有做法
+      accountRender(); plusRender();
+    });
+    // C-4 Minor-2 修復:cap.toNative 內部失敗(bridge 尚未就緒/例外)會回傳 null 當 callbackId
+    // (app/node_modules/@capacitor/ios/Capacitor/Capacitor/assets/native-bridge.js:928),falsy id
+    // 不代表「已註冊」,不落地追蹤變數——否則 plusListenerAdapter 會殘留一個看似掛著的 adapter
+    // 參考,卻配一個 null id,下次 plusEnsureListener 的冪等檢查與 plusTeardownListener 的清理
+    // 都要靠這兩個變數互相一致才會正確運作。
+    if (!id) return;
+    plusListenerId = id; plusListenerAdapter = adapter;
+  } catch (e) { /* 註冊失敗:兩個追蹤變數維持 teardown 後的 null,下次呼叫(如下次 plusRefresh)會重試 */ }
+}
+// 登出時解除註冊(accountForgetIdentity 呼叫),避免舊使用者的推播繼續打在剛登出/換人的 state 上。
+async function plusTeardownListener() {
+  const adapter = plusListenerAdapter, id = plusListenerId;
+  plusListenerId = null; plusListenerAdapter = null;
+  if (!adapter || !id || typeof adapter.removeCustomerInfoUpdateListener !== 'function') return;
+  try { await adapter.removeCustomerInfoUpdateListener(id); } catch (e) {}
+}
+// 套用一份新的 CustomerInfo 到 state.plus(active/founding/mgmtUrl)。只給本任務新增的兩個消費者
+// 用(上面的 listener 回呼、下面付費操作前的 plusRevalidateBeforeAction),刻意不去動
+// plusRefresh()/plusPurchase()/plusRestore() 既有三處的欄位寫入(維持三處原本逐行不同的樣子):
+// 實際試過把 plusPurchase/plusRestore 改成呼叫這支共用函式,雖然計算結果不變,但
+// verify_founding_seal.mjs 的 G4.0/G4.2 是對 plusRestore() 原始碼字面做 regex 掃描
+// (斷言 `p.founding = p.active && foundingFrom(info)` 這幾個字面上還在該函式本文裡),字面消失
+// 就從 118/118 掉到 116/118——這正是「判準证明的是字串、不是行為」的活教材,故保留三處原樣,
+// 只讓新增的兩個消費者共用這支函式。
+function plusApplyCustomerInfo(info) {
+  const p = plusState();
+  p.active = plusActiveFrom(info);
+  plusSetEnvironment(p, plusEnvironmentFrom(info));
+  p.founding = p.active && foundingFrom(info);
+  p.mgmtUrl = (info && info.managementURL) || p.mgmtUrl || '';
+  return p.active;
+}
+// 重要付費操作(購買/恢復購買)前重新驗證資格(C-4 第 3 點):adapter 若支援,先取一次目前的
+// CustomerInfo 套用進 state,避免在退費/撤銷後的舊快取上疊加購買判斷。失敗(網路錯誤等)不阻擋
+// 原本的購買/恢復流程,也不把資格改成 false——同 plusRefresh() 既有的「查不到就維持現狀」顧慮。
+async function plusRevalidateBeforeAction(adapter) {
+  if (!adapter || typeof adapter.getCustomerInfo !== 'function') return;
+  try {
+    plusApplyCustomerInfo(await adapter.getCustomerInfo());
+    if (state.basemap === 'sat') setBasemap();
+  } catch (e) {}
+}
 function plusState() {
-  if (!state.plus) state.plus = { active: false, loading: false, error: '', pkgMonthly: null, pkgAnnual: null, mgmtUrl: '', adapter: null, afterUnlock: null };
+  // cloudSyncReady/cloudSyncPromise 是批二-B 新增的第二個狀態(資格文件落地),與 active(帳務資格)
+  // 刻意分開存放,見 plusCloudSyncReady() 上方說明。
+  if (!state.plus) state.plus = { active: false, entitlementEnvironment: '', founding: false, loading: false, error: '', pkgMonthly: null, pkgAnnual: null, mgmtUrl: '', adapter: null, afterUnlock: null, cloudSyncReady: false, cloudSyncPromise: null };
   return state.plus;
 }
 async function plusOpen(source, onGranted) {
+  if (!PLUS_ENABLED) return; // 止血旗標關閉時整張面板不可達:入口鈕都撤掉了,但深連結與既有呼叫點仍摸得到這支,故在此再擋一次
   const p = plusState();
   if (typeof onGranted === 'function') p.afterUnlock = onGranted;
-  if (!state.account || !state.account.user) {
+  // 未登入時依「這個平台賣不賣得成」分流:
+  // ・有購買通道(App):訂閱資格要綁軌島帳號才能跨裝置恢復 ⇒ 維持先登入再開面板。
+  // ・無購買通道(網站):只展示不賣,直接開面板讓人看得到內容與「請在 App 內訂閱」;
+  //   登入改由面板內的 data-plus="login" CTA 觸發(plusLoginForSync),在那之前完全不碰 Firebase。
+  if ((!state.account || !state.account.user) && plusConfigured()) {
     state.plusPending = { source: source || 'account', onGranted };
     await accountEnsureInit(); // 免費層匿名→購買才延遲載入帳號系統(Firebase);登入後 onAuthStateChanged 讀 plusPending 回接本函式
     accountOpen(); showToast('請先登入軌島帳號，訂閱資格才能跨裝置使用'); return;
@@ -7164,52 +7983,78 @@ async function plusOpen(source, onGranted) {
   if (plusConfigured()) plusRefresh();
 }
 function plusClose() { const m = document.getElementById('plusModal'); if (m) m.hidden = true; }
+// 無購買通道的平台(網站)專用:Plus 面板內的「已經在 App 訂閱了？登入以同步」。
+// 這裡才是帳號系統的初始化點——免費層訪客在按下它之前完全不載 Firebase、不建 state.account。
+// 留 plusPending 讓登入完成後 onAuthStateChanged 把人帶回 Plus 面板,那時 plusRefresh() 已
+// 打過 /api/plus-status,看到的是「Plus 已啟用」而不是同一張推銷畫面。
+async function plusLoginForSync() {
+  const p = plusState();
+  state.plusPending = { source: p.source || 'plus-login' };
+  plusClose(); // 兩個對話框都在 body 層,不先關會疊在一起
+  await accountEnsureInit();
+  accountOpen();
+}
 function plusFinishPending() {
   const p = state.plus;
   if (!p || !p.active || typeof p.afterUnlock !== 'function') return false;
   const next = p.afterUnlock; p.afterUnlock = null;
-  plusClose(); showToast('軌島 Plus 已啟用');
+  plusClose(); showToast('軌島通行證已啟用');
   setTimeout(next, 0);
   return true;
 }
 function plusRender() {
   const body = document.getElementById('plusBody'), p = state.plus; if (!body || !p) return;
-  const hero = `<div class="plus-hero"><span class="plus-mark">＋</span><h3>軌島 Plus 訂閱</h3><p>以月訂或年訂支持軌島持續運作。同一個軌島帳號可在網站與 App 使用與恢復訂閱資格。</p></div>`;
-  // 定案 Plus 功能清單(此順序);① 誤點歷史圖表為頭牌放第一。價格一律取自商店回傳,此處不列任何價格。
+  const hero = `<div class="plus-hero"><span class="plus-mark">票</span><h3>軌島通行證</h3><p>選一張適合你的票，開啟進階功能，也支持軌島繼續運轉。</p></div>`;
+  // Plus 功能清單。技術契約:清單與資格判定必須一致——每一項都要對映到一個真的資格判定,
+  // 由 verify_plus_features.mjs 機械稽核(見該檔 REQUIRED 對映表)。價格一律取自商店回傳,
+  // 此處不列任何價格。① 的措辭只涵蓋 /api/delay-history(90 天逐日,有 Plus 閘門)獨有的部分——
+  // /api/delay-stats(30 天彙總)零資格檢查、無閘門,不在此清單的涵蓋範圍內。
+  // 創始會員徽章有到期日(FOUNDING_UNTIL_MS,見上方 foundingFrom() 旁的說明):過了那天才訂閱的人
+  // 永遠拿不到,清單不能無條件宣傳——到期後這一項直接從陣列消失,不留半吊子的「限期」措辭。
   const feats = [
-    '<b>每班車的誤點履歷與統計圖表</b>',
-    '收藏跨裝置雲端同步',
-    '衛星底圖',
-    'App 進階定位與 Live Activity',
-    '創始會員徽章',
+    '<b>台鐵列車的誤點履歷（逐日紀錄，回溯 90 天）</b>',
+    '收藏與完乘記錄跨裝置雲端同步',
+    '行程分享：把你在哪班車上分享給朋友',
+    // App 限定:入口(setupTakeoutUi)掛在 plusConfigured() 上,網站沒有 Web Billing key ⇒ 恆假 ⇒ 鈕不出現。
+    // 2026-08-03 實測(網站 importBtnVisible=false／模擬原生殼=true)確認,不是從程式碼推論。
+    '在 App 匯入 Google Maps 已儲存清單，成為軌島的最愛地點',
+    // App 限定:網站的 SAT_RETINA_DEFAULT 為 false ⇒ satRetinaAllowed() 在網站恆假,措辭必須標明平台。
+    'App 非跟車時的衛星高解析圖磚（支援 Retina 螢幕）',
+    '跟車時在鎖定畫面與動態島顯示即時動態（iOS 17.6 以上）',
+    ...(Date.now() < FOUNDING_UNTIL_MS ? ['App 旅程護照的創始島民徽章'] : []),
   ].map(t => `<div class="plus-feature"><span>✓</span>${t}</div>`).join('');
   const features = `<div class="plus-features">${feats}</div>` +
-    '<p class="plus-trust">列車位置、誤點資訊與系統覆蓋永遠免費——Plus 不影響準確度。</p>';
+    '<p class="plus-trust">列車位置、誤點資訊與系統覆蓋現在免費提供——通行證不影響準確度。</p>';
   // 訂閱法務列(Apple 3.1.2):自動續訂說明 + 隱私權政策/使用條款連結(兩檔都在站台根目錄)。
   const legal = '<div class="plus-legal">' +
-    '<p>訂閱到期前會依商店規則自動續訂扣款；你可以隨時在 App Store／Google Play 或帳號的訂閱設定中取消，取消後於當期結束時停止續訂。</p>' +
+    '<p>月票與年票都是自動續訂方案；你可以隨時在 App Store 的訂閱設定中取消，取消後於當期結束時停止續訂。</p>' +
+    '<p>軌島通行證是 App 數位功能訂閱，不是實際乘車票券。</p>' +
     '<p><a href="privacy.html" target="_blank" rel="noopener">隱私權政策</a> · <a href="terms.html" target="_blank" rel="noopener">使用條款</a></p></div>';
   if (p.active) {
     // 已訂閱:管理訂閱在原生殼走商店訂閱管理深連結(customerInfo.managementURL);web 無 portal 時給說明文字。
     const manage = p.mgmtUrl
       ? `<a class="plus-manage" href="${escHtml(p.mgmtUrl)}" target="_blank" rel="noopener">管理訂閱</a>`
-      : '<p class="account-note">訂閱管理請至 App Store／Google Play 的訂閱設定。</p>';
+      : '<p class="account-note">訂閱管理請至 App Store 的訂閱設定。</p>';
     body.innerHTML = hero + features +
-      '<div class="plus-owned">Plus 已啟用</div>' + manage +
+      '<div class="plus-owned">通行證已啟用</div>' + manage +
       '<button class="plus-restore" type="button" data-plus="restore">恢復購買</button>' + legal;
     return;
   }
   if (p.loading) { body.innerHTML = hero + features + '<p class="account-intro">正在讀取方案與訂閱資格…</p>'; return; }
   if (!plusConfigured()) {
     // 此平台沒有購買通道(如網站未設定 Web Billing key):請在 App 內訂閱,而非給死板的 disabled 鈕。
+    // 未登入時多給一顆登入 CTA:剛在 App 訂閱的人到網站要靠它把資格接過來(/api/plus-status)。
+    // 這顆是免費層匿名的最後一道門——按下去才 accountEnsureInit(),在那之前這個畫面零 Firebase。
+    const loginCta = (state.account && state.account.user) ? '' :
+      '<button class="plus-restore" type="button" data-plus="login">已經在 App 訂閱了？登入以同步</button>';
     body.innerHTML = hero + features +
-      '<p class="account-note">目前請在軌島 App 內訂閱；訂閱後同一個軌島帳號在網站也會自動生效。</p>' + legal;
+      '<p class="account-note">目前請在軌島 App 內訂閱；訂閱後同一個軌島帳號在網站也會自動生效。</p>' + loginCta + legal;
     return;
   }
   const plan = (pkg, kind, primary) => pkg
     ? `<button class="plus-plan${primary ? ' plus-plan-primary' : ''}" type="button" data-plus="buy" data-pkg="${kind}">` +
       (primary ? '<span class="plus-plan-badge">最划算</span>' : '') +
-      `<span class="plus-plan-name">${kind === 'annual' ? '年訂閱' : '月訂閱'}</span>` +
+      `<span class="plus-plan-name">${kind === 'annual' ? '訂閱年票' : '訂閱月票'}</span>` +
       `<span class="plus-plan-price">${escHtml(plusPackagePrice(pkg))}</span></button>`
     : '';
   const plans = plan(p.pkgAnnual, 'annual', true) + plan(p.pkgMonthly, 'month', false);
@@ -7219,18 +8064,90 @@ function plusRender() {
     '<button class="plus-restore" type="button" data-plus="restore">已訂閱？恢復購買</button>' + legal;
 }
 async function plusRefresh() {
-  const p = state.plus, user = state.account && state.account.user; if (!p || !user || p.loading) return false;
-  if (!plusConfigured()) { p.error = ''; plusRender(); return false; } // 此平台無購買通道:不初始化任何 billing SDK
+  // 🔴C-4 前提修復:原本這裡讀 state.plus(可能是 undefined)而不是 plusState()——冷啟動的回訪
+  // 使用者從沒開過 Plus 面板,state.plus 從未被任何呼叫初始化過,accountEnsureInit() 登入當下
+  // 那次 await plusRefresh() 會被 !p 擋下直接 return false,連 plusState() 都沒機會跑,資格永遠
+  // 沒查過(實測驗證,見 verify_plus_refresh_lifecycle.mjs 第 1 節)。plusOpen()/plusRestore() 都已經
+  // 用 plusState() 才沒踩到;這裡補齊同一個模式。既有呼叫端(state.plus 早已存在)行為不變——
+  // plusState() 對已存在的 state.plus 只是原樣回傳,不會重建。
+  const user = state.account && state.account.user; if (!user) return false;
+  const p = plusState(); if (p.loading) return false;
+  if (!plusConfigured()) {
+    // 此平台無購買通道(網站沒有 Web Billing key,RAIL_REVENUECAT_CONFIG 只設 iosApiKey):不初始化任何
+    // billing SDK,只打 /api/plus-status 查詢既有資格(唯讀,不發起購買)。
+    // 🔴C-4 Minor-1 修復:這條分支原本全程沒有設 p.loading——網站上 plusConfigured() 恆假,C-4 新加的
+    // visibilitychange(accountEnsureInit() 內)每次回前景都會 fire-and-forget 呼叫 plusRefresh(),
+    // 快速反覆切換前景會同時有多個 fetch 在飛,回應可能亂序覆寫 p.active。補上 p.loading 讓函式頂端
+    // 既有的 `if (p.loading) return false;` 早退守衛生效:同一時間只允許一個請求在飛,後到的觸發
+    // 直接跳過(不排隊、不重試),下一次回前景再重新查一次——結構上不可能有兩個回應競爭寫入 p.active。
+    // 🔴 2026-08-04 最終複審 I-2:p.loading 只擋得住「同一個身分的多發請求」,擋不住「請求在飛的
+    // 途中身分變了」——登出、session 被伺服器端失效、換人登入,都會在這一發回應抵達前發生,而
+    // p.loading 在那之後才被 finally 放掉。沒有世代複查的話,遲到的回應會把已經拆掉的 Plus 身分
+    // 復活:實測(卡住回應、期間登出)登出後 {active:false,ready:false},遲到回應抵達後變成
+    // {active:true,ready:true,user:false} ⇒ 訪客的 plusRequire() 放行純客端付費功能(批二-E 要關的
+    // 洞的另一條入口);更糟的是 cloudSyncReady 也被復活,下一個登入的人 plusReconcileEntitlement()
+    // 會直接早退回 true、完全不握手,違反 accountForgetIdentity() 明文宣告的「不繼承上一個人的
+    // 落地結論」。照 plusReconcileEntitlement 與 accountSyncTxn 同一套寫法留世代與 uid。
+    const myGen = state.account.gen, myUid = user.uid;
+    p.loading = true; p.error = ''; plusRender();
+    try {
+      const token = state.account.fb.getIdToken ? await state.account.fb.getIdToken(user) : await user.getIdToken();
+      const res = await fetch(apiUrl('api/plus-status'), { cache: 'no-store', headers: plusApiHeaders(token) });
+      // 身分在途中變了 ⇒ 這個答案是上一個人的,整包丟掉(不早退,讓 finally 與收尾的 render 照常跑)。
+      const a2 = state.account;
+      const stale = a2.gen !== myGen || !a2.user || a2.user.uid !== myUid;
+      if (!stale && res.ok) {
+        const data = await res.json();
+        // 只有 200 才是「後端給了確定答案」:true 給資格、false 收回資格。非 200(503/401)是「查不出來」,
+        // 一律維持現狀——把上游短暫故障誤讀成「沒訂閱」會讓付費者的功能整批閃爍消失(同一顧慮見
+        // worker.js /api/plus-status 註解,那裡就是為了讓前端能分辨才把 403 轉成 200 {active:false})。
+        if (data && typeof data.active === 'boolean') {
+          p.active = data.active;
+          plusSetEnvironment(p, p.active && data.environment === 'sandbox' && PLUS_SANDBOX_OK
+            ? 'sandbox' : (p.active ? 'production' : ''));
+        }
+        // 批二-B:這條分支打的就是資格文件的 writer,所以它同時也是一次免費的握手——多讀一個欄位
+        // 就好,不另外發請求(verify_plus_refresh_lifecycle 的 L12/L13 在數這條路徑發幾發請求)。
+        // 只認明確的 true:欄位缺席(舊版 Worker)或 false 一律維持現狀,不把「這次沒確認到」當成
+        // 「確定沒落地」——與上一行「非 200 是查不出來」同一套顧慮。
+        if (data && data.cloudSyncReady === true) plusMarkCloudSyncReady();
+      }
+    } catch (e) {
+    } finally { p.loading = false; }
+    accountRender(); plusRender();
+    return p.active;
+  }
   p.loading = true; p.error = ''; plusRender();
   try {
     p.adapter = await plusAdapterFor(user.uid);
-    const [info, offerings] = await Promise.all([p.adapter.getCustomerInfo(), p.adapter.getOfferings()]);
-    p.active = plusActiveFrom(info);
-    p.mgmtUrl = (info && info.managementURL) || '';
-    const offering = plusConfig().offeringId && offerings.all ? offerings.all[plusConfig().offeringId] : offerings.current;
-    const pkgs = offering && offering.availablePackages || [];
-    p.pkgAnnual = plusPickPackage(pkgs, 'annual');
-    p.pkgMonthly = plusPickPackage(pkgs, 'month');
+    // 資格與方案清單刻意**分開結算**(allSettled 而不是 all):兩者綁在同一個 Promise.all 時,
+    // 方案清單(getOfferings)一失敗就整個掉進 catch,連讀成功的資格都不會被寫進 p.active——
+    // 付費者被當成未啟用、付費功能整批消失。這正是 !plusConfigured() 那條分支早就寫下的同一個
+    // 顧慮(見上方「非 200 是查不出來,一律維持現狀」),只是這條路徑漏了。
+    const [infoR, offeringsR] = await Promise.allSettled([p.adapter.getCustomerInfo(), p.adapter.getOfferings()]);
+    const errMsg = (e) => (e && e.message ? e.message : String(e));
+    if (infoR.status === 'fulfilled') {
+      const info = infoR.value;
+      p.active = plusActiveFrom(info);
+      plusSetEnvironment(p, plusEnvironmentFrom(info));
+      p.founding = p.active && foundingFrom(info);
+      p.mgmtUrl = (info && info.managementURL) || '';
+      if (state.basemap === 'sat') setBasemap(); // 資格變動→衛星解析度跟著換,不必等使用者重切底圖
+    } else {
+      // 資格讀不出來≠沒訂閱:維持現狀(p.active/p.founding/p.mgmtUrl 一律不動),只把錯誤講出來。
+      p.error = '無法讀取 Plus：' + errMsg(infoR.reason);
+    }
+    if (offeringsR.status === 'fulfilled') {
+      const offerings = offeringsR.value;
+      const offering = plusConfig().offeringId && offerings.all ? offerings.all[plusConfig().offeringId] : offerings.current;
+      const pkgs = offering && offering.availablePackages || [];
+      p.pkgAnnual = plusPickPackage(pkgs, 'annual');
+      p.pkgMonthly = plusPickPackage(pkgs, 'month');
+    } else {
+      // 方案清單讀不到:只影響「買得到什麼」這一半,不影響資格。清成 null 讓 plusRender() 落到
+      // 既有的「目前無法取得訂閱方案，請稍後再試。」;已訂閱者看到的仍是「Plus 已啟用」。
+      p.pkgAnnual = null; p.pkgMonthly = null;
+    }
     accountRender(); plusFinishPending(); return p.active;
   } catch (e) { p.error = '無法讀取 Plus：' + (e && e.message ? e.message : String(e)); return false; }
   finally { p.loading = false; plusRender(); }
@@ -7239,15 +8156,46 @@ async function plusPurchase(kind) {
   const p = state.plus, user = state.account && state.account.user;
   const pkg = p && (kind === 'month' ? p.pkgMonthly : p.pkgAnnual);
   if (!p || !p.adapter || !pkg || !user || p.loading) return;
+  // 🔴 2026-08-04 Codex 稽核 M-1:付款表單可能開著好幾分鐘,期間使用者可能登出或換人。
+  // accountForgetIdentity() 是**就地**改寫 state.plus(見該函式那行),而這裡的 p 正是同一顆
+  // 物件 ⇒ await 之後的 `p.active = ...` 會把已經拆掉的 Plus 身分整個復活,連帶讓下一個在這台
+  // 裝置登入的人繼承前一個人付費買到的資格。p.loading 擋不住這種:它擋的是「同一個身分的多發
+  // 請求」,不是「請求在飛的途中身分變了」——與最終複審 I-2 是同一個洞的另一條入口。
+  const myGen = state.account.gen, myUid = user.uid;
   p.loading = true; p.error = ''; plusRender();
   try {
+    // C-4 Minor-3 修復:原本這行呼叫在 try 外(p.loading=true 之後、try{ 之前)——目前不會拋,
+    // 但日後有人在這個空隙加一行會拋例外的程式碼,p.loading 就會永久卡 true,把 refresh/purchase/
+    // restore 三個入口一起鎖死(因為三者共用同一顆 state.plus)。移進 try 內,照 plusRestore() 既有寫法。
+    await plusRevalidateBeforeAction(p.adapter); // C-4:購買前重新驗證資格,見該函式註解
     const result = await p.adapter.purchase(pkg, user.email || '');
+    // 身分在付款途中變了 ⇒ 這筆購買不屬於「現在坐在這台裝置前的人」。交易本身沒有損失
+    // (RevenueCat 記著,原使用者下次登入 plusRefresh() 或按恢復購買就會拿到),但絕不可套用到
+    // 現在的 state 上,也不可對現在的人宣告「已啟用」或解鎖 afterUnlock。finally 照常放掉
+    // p.loading 並重繪,所以這裡直接早退是安全的。
+    const a2 = state.account;
+    if (!a2 || a2.gen !== myGen || !a2.user || a2.user.uid !== myUid) return;
     const info = result && (result.customerInfo || result);
     p.active = plusActiveFrom(info);
+    plusSetEnvironment(p, plusEnvironmentFrom(info));
+    p.founding = p.active && foundingFrom(info);
     p.mgmtUrl = (info && info.managementURL) || p.mgmtUrl || '';
     if (!p.active) throw new Error('付款完成但尚未取得訂閱資格，請按「恢復購買」');
+    if (state.basemap === 'sat') setBasemap(); // 資格變動→衛星解析度跟著換,不必等使用者重切底圖
+    // 🔴 2026-08-04 批二-B:買完立刻做資格落地握手,不要等使用者第一次同步撞上 permission-denied
+    // 才補救(那是稽核 Important 2／3 描述的實際症狀)。/api/plus-status 這條路徑本身就會用
+    // service account 寫 /entitlements/{uid},所以這一發是「主動讓文件落地並確認」,不是查詢。
+    // 落地了就補一次全量同步:購買之前這個人的所有本機變更都被資格閘門擋著沒上雲(見
+    // accountSyncNow 的閘門),這一次才是它們第一次有機會上去。握手失敗不擋購買流程——資格已經
+    // 生效、純客端功能照常開,雲端同步會在下一次自然觸發時再握手一次(見 accountSyncTxn 的 catch)。
+    // 🔴 最終複審 I-4:這裡刻意**不 await**。上一段已經寫明「握手失敗不擋購買流程」,但 await
+    // 讓它擋了:這一發要串 Firebase lookup → RevenueCat(可能多頁)→ OAuth → Firestore GET → PATCH
+    // (最多 3 輪 CAS),而且沒有逾時。上游任一環卡住 ⇒ 錢已經付了,使用者卻只看到轉不停的面板、
+    // 沒有成功提示、afterUnlock 不觸發,而 refresh／purchase／restore 共用的 p.loading 全鎖死。
+    // 改成 fire-and-forget:成功提示與解鎖立刻發生,落地了再補同步。
+    plusReconcileEntitlement().then(ok => { if (ok) accountSyncNow('entitlement'); }).catch(() => {});
     accountRender();
-    if (!plusFinishPending()) { plusClose(); showToast('軌島 Plus 已啟用'); }
+    if (!plusFinishPending()) { plusClose(); showToast('軌島通行證已啟用'); }
   } catch (e) {
     const cancelled = e && (e.userCancelled || e.errorCode === 'UserCancelledError');
     if (!cancelled) p.error = '訂閱未完成：' + (e && e.message ? e.message : String(e));
@@ -7256,27 +8204,43 @@ async function plusPurchase(kind) {
 async function plusRestore() {
   const p = plusState(), user = state.account && state.account.user; if (!user || p.loading) return;
   if (!plusConfigured()) { p.error = ''; plusRender(); return; } // 此平台無購買通道:不初始化 billing SDK
+  const myGen = state.account.gen, myUid = user.uid; // Codex 稽核 M-1:理由同 plusPurchase()
   p.loading = true; p.error = ''; plusRender();
   try {
     p.adapter = p.adapter || await plusAdapterFor(user.uid);
+    await plusRevalidateBeforeAction(p.adapter); // C-4:恢復購買前重新驗證資格,見該函式註解
     const result = await p.adapter.restore();
+    // 身分在途中變了 ⇒ 整包丟掉,不套用、不宣告、不解鎖(理由與早退安全性同 plusPurchase())。
+    const a2 = state.account;
+    if (!a2 || a2.gen !== myGen || !a2.user || a2.user.uid !== myUid) return;
     const info = result && (result.customerInfo || result);
-    p.active = plusActiveFrom(info); p.mgmtUrl = (info && info.managementURL) || p.mgmtUrl || ''; accountRender();
+    p.active = plusActiveFrom(info);
+    plusSetEnvironment(p, plusEnvironmentFrom(info));
+    p.founding = p.active && foundingFrom(info);
+    p.mgmtUrl = (info && info.managementURL) || p.mgmtUrl || ''; accountRender();
     if (p.active) {
-      if (!plusFinishPending()) { plusClose(); showToast('已恢復訂閱資格'); }
-    } else p.error = '這個帳號目前沒有可恢復的 Plus 訂閱資格。';
+      // 批二-B:恢復購買與購買同一個道理——資格是在別台買的,這台裝置的資格文件可能從來沒被
+      // 寫過(webhook 只會為購買當下的 uid 寫一次)。同樣先握手再補一次全量同步,見 plusPurchase()。
+      // 🔴 最終複審 I-4:這裡刻意**不 await**。上一段已經寫明「握手失敗不擋購買流程」,但 await
+    // 讓它擋了:這一發要串 Firebase lookup → RevenueCat(可能多頁)→ OAuth → Firestore GET → PATCH
+    // (最多 3 輪 CAS),而且沒有逾時。上游任一環卡住 ⇒ 錢已經付了,使用者卻只看到轉不停的面板、
+    // 沒有成功提示、afterUnlock 不觸發,而 refresh／purchase／restore 共用的 p.loading 全鎖死。
+    // 改成 fire-and-forget:成功提示與解鎖立刻發生,落地了再補同步。
+    plusReconcileEntitlement().then(ok => { if (ok) accountSyncNow('entitlement'); }).catch(() => {});
+      if (!plusFinishPending()) { plusClose(); showToast('已恢復通行證資格'); }
+    } else p.error = '這個帳號目前沒有可恢復的通行證資格。';
   } catch (e) { p.error = '無法恢復訂閱：' + (e && e.message ? e.message : String(e)); }
   finally { p.loading = false; plusRender(); }
 }
 async function plusRequire(source, onGranted) {
-  if (state.plus && state.plus.active) { if (typeof onGranted === 'function') onGranted(); return true; }
+  if (plusIsActive()) { if (typeof onGranted === 'function') onGranted(); return true; }
   if (!plusConfigured()) return false;
   plusOpen(source, onGranted);
   return false;
 }
 // Plus 功能總閘 helper(上架批次接功能用;目前刻意不接任何現有功能):已訂閱直接放行,否則開訂閱視窗。
 function plusGateOpen(source, onGranted) {
-  if (state.plus && state.plus.active) { if (typeof onGranted === 'function') onGranted(); return; }
+  if (plusIsActive()) { if (typeof onGranted === 'function') onGranted(); return; }
   plusOpen(source, onGranted);
 }
 function setupPlusUi() {
@@ -7288,6 +8252,7 @@ function setupPlusUi() {
     const b = e.target.closest('[data-plus]'); if (!b) return;
     if (b.dataset.plus === 'buy') plusPurchase(b.dataset.pkg || 'annual');
     else if (b.dataset.plus === 'restore') plusRestore();
+    else if (b.dataset.plus === 'login') plusLoginForSync(); // 無購買通道的平台才畫得出這顆(見 plusRender)
     else plusRefresh();
   };
 }
@@ -7572,7 +8537,7 @@ function tick(now) {
   state._rideClock = (state._rideClock || 0) + dt;
   if (state._rideClock >= 2) { state._rideClock = 0; ridingTick(); }
   state._liveClock = (state._liveClock || 0) + dt;
-  if (state._liveClock >= 1) { state._liveClock = 0; updateLiveBadge(); updateMetroBadge(); if (state.liveMode && !state.director) liveClockTick(); else if (state.director) directorClockTick(); else clockDriftGuard(); } // 導播現在也是 1× 貼真實時刻,只是用不含深夜重播替代的簡化版;兩徽章同秒刷,快轉跨門檻時同步轉推估
+  if (state._liveClock >= 1) { state._liveClock = 0; state.wallDay = todayStr(); updateLiveBadge(); updateMetroBadge(); if (state.liveMode && !state.director) liveClockTick(); else if (state.director) directorClockTick(); else clockDriftGuard(); } // 導播現在也是 1× 貼真實時刻,只是用不含深夜重播替代的簡化版;兩徽章同秒刷,快轉跨門檻時同步轉推估
   // 省電三板斧(繪製節流,不動上面的時間積分):
   // (1) 分頁隱藏停繪——時間照積分,只是不畫;錄影中例外(recCompose 每幀從主畫布拷貝,停繪會凍結成靜止幀)
   // (2) 待機時 draw 節流到 ~30fps;跟隨/幽靈車跟隨/放空/錄影/剛互動(1.5s 內)維持顯示器全速,體驗優先
@@ -7755,7 +8720,7 @@ const API_BASE = window.RAIL_API_BASE || '';
 const apiUrl = path => API_BASE ? new URL(path, API_BASE).href : path;
 const SYS_DEFS = [
   { id: 'tra_sched', label: '台鐵', url: './data/tra_schedule_dense.json', mode: 'sched', live: apiUrl('api/tra-live'), alert: apiUrl('api/tra-alert'), special: true, track: './data/tra.json' },
-  { id: 'thsr_sched', label: '高鐵', url: './data/thsr_schedule_dense.json', mode: 'sched', alert: apiUrl('api/thsr-alert'), track: './data/thsr_track.json' },
+  { id: 'thsr_sched', label: '高鐵', url: apiUrl('api/thsr-schedule'), fallbackUrl: './data/thsr_schedule_dense.json', mode: 'sched', alert: apiUrl('api/thsr-alert'), track: './data/thsr_track.json' },
   // 阿里山林鐵:TDX 只有 v3/Rail/AFR(v2 全 404),且無 DailyTrainTimetable/TrainLiveBoard/Alert
   // → 定期時刻表(每日相同)、無即時誤點、無官方公告介接,故不帶 live/alert/special
   { id: 'afr_sched', label: '阿里山林鐵', url: './data/afr_schedule_dense.json', mode: 'sched', track: './data/afr.json' },
@@ -8252,8 +9217,7 @@ function findTrain(q, sysId) {
 function effT(tr) {
   const s = tr.stops;
   if (tr.loop) return s[0].arrSec + ((state.simSec - s[0].arrSec) % tr.loopSec + tr.loopSec) % tr.loopSec; // 環島車:映回本圈
-  return (state.simSec < s[0].arrSec && state.simSec + 86400 <= s[s.length - 1].depSec + 3600)
-    ? state.simSec + 86400 : state.simSec;
+  return schedWrapT(s, state.simSec, 3600);
 }
 // 套過即時校正的有效時間:與 trainPos 走同一條時間軸(先扣誤點、再做跨午夜接續,順序與 trainPos 一致)。
 // 凡「這班車現在跑到班表的哪一秒」——行程邊界(發車前/抵達後)、下一站、停靠倒數、進度、速度曲線游標
@@ -8264,7 +9228,7 @@ function effT(tr) {
 function effTLive(tr) {
   const s = tr.stops, t = state.simSec - liveDelaySec(tr);
   if (tr.loop) return s[0].arrSec + ((t - s[0].arrSec) % tr.loopSec + tr.loopSec) % tr.loopSec;
-  return (t < s[0].arrSec && t + 86400 <= s[s.length - 1].depSec + 3600) ? t + 86400 : t;
+  return schedWrapT(s, t, 3600);
 }
 
 // 站台帶(琺瑯 2.0)常駐 stage 下緣,不再隨跟隨搬移 DOM;保留空殼給 setFollow/clearFollow 既有呼叫點
@@ -8358,7 +9322,7 @@ function clearFollow() {
   // 使用者中途重新整理就會讀到空 query string、PHYSICAL_COLLECT_ENABLED 現場重新求值變 false,
   // 掉回一般網頁(明天備援站實測正是這條路)。這裡是所有 clearFollow() 呼叫的共同出口，修在這裡
   // 才能連開機那一次也護到，不是只護住錄製流程那一條呼叫路徑。其餘 query 參數
-  // (?theater=/?breath=/?tripshare=/?plus=)都只是一次性測試開關，消失不影響功能，不需要一起保留。
+  // (?theater=/?breath=/?tripshare=)都只是一次性測試開關，消失不影響功能，不需要一起保留。
   try { if (!document.fullscreenElement) history.replaceState(null, '', location.pathname + (DEMO_AS_APP ? '?demo=bounty' : '')); } catch (e) {}
   const fb = document.getElementById('followBar');
   if (fb) { fb.hidden = true; fb.className = 'followbar'; fb.innerHTML = ''; }
@@ -8370,6 +9334,7 @@ function clearFollow() {
   if (state._trip) { state._trip = null; renderTripBanner(); }
   closeTripSharePanel();
   placeTrainCard(); // followTrain 已清空 → 還原資訊卡到地圖下方
+  laSync(null); // 跟車即時動態:停止跟車就收卡片(updateFollowPanel 開頭早退,走不到它結尾那一處)
   placeControls(false);
   (state._placeFsOverlays || (() => {}))(document.body.classList.contains('fs'));
 }
@@ -9166,7 +10131,7 @@ function musicRamp(to, ms, thenPause) { // 音量漸變(50ms 一階)
     if (i >= steps) { clearInterval(state.music._fade); if (thenPause) a.pause(); }
   }, 50);
 }
-function musicMixEntitled() { return REC_MUSIC_PROTOTYPE || !!(musicRecordingLicensed() && state.plus && state.plus.active); }
+function musicMixEntitled() { return REC_MUSIC_PROTOTYPE || (musicRecordingLicensed() && plusIsActive()); }
 function musicEnsureMix(force) {
   const m = state.music; if (!m || m.mixDest || (!force && !musicMixEntitled())) return m && m.mixDest;
   try {
@@ -9349,11 +10314,14 @@ function renderTrainCard(tr) {
 // ── 最愛列車(localStorage) ──
 function loadFavs() { return userDataLoadCollection('favs'); }
 function saveFavs(f) { userDataSaveCollection('favs', f); }
-function isFav(no) { return loadFavs().some(f => f.train === String(no)); }
+function favTrainSys(f) { return String(f && f.sys || 'tra_sched'); }
+function favTrainKey(no, sys) { return userDataItemId('favs', { train: String(no), sys }); }
+function favItemKey(f) { return favTrainKey(f.train, favTrainSys(f)); }
+function isFav(no, sys) { const key = favTrainKey(no, sys); return loadFavs().some(f => favItemKey(f) === key); }
 function updateStar() {
   const b = document.getElementById('tcStar'), tr = state.followTrain;
   if (!tr) return;
-  const on = isFav(tr.train);
+  const on = isFav(tr.train, tr.sys);
   b.innerHTML = railIcon('ui-favorite', on ? 'ri-icon--fill' : '');
   b.classList.toggle('on', on);
   b.title = on ? '移除最愛' : '加入最愛';
@@ -9361,17 +10329,82 @@ function updateStar() {
 function toggleFav(tr) {
   if (!tr) return;
   const no = String(tr.train);
+  const key = favTrainKey(no, tr.sys);
   let favs = loadFavs();
-  if (favs.some(f => f.train === no)) favs = favs.filter(f => f.train !== no);
+  if (favs.some(f => favItemKey(f) === key)) favs = favs.filter(f => favItemKey(f) !== key);
   else {
     const spd = specialOf(tr);
     const sp = (spd && spd.named) || SPECIAL_TRAINS[no];
     const stops = tr.stops;
-    // sys 一起存(issue #16 重號):舊紀錄沒這欄→undefined→退回舊的「誰先找到算誰」,向下相容。
+    // sys 一起存(issue #16 重號)；舊紀錄沒這欄時由 favTrainSys 依資料遷移慣例視為 tra_sched。
     // favs 的 userDataCleanValue 是就地正規化 train/label,不像 pins/stations 會重建物件,所以額外欄位存得住。
     favs.push({ train: no, sys: tr.sys, label: `${sp ? sp.name : tr.typeName}　${stops[0].name}→${stops[stops.length - 1].name}` });
   }
   saveFavs(favs); renderFavs(); renderFavPanel(); updateStar();
+}
+// ── 跟車即時動態(Live Activity)＝Plus 且原生殼才有 ──
+// 純客端:App 在前景時推更新,進背景後倒數由系統自走、誤點數字停在最後一次的值(LA-0 的已知邊界)。
+const LIVE_ACTIVITY_ENABLED = !!window.RAIL_NATIVE_LIVEACTIVITY;
+function liveActivityAllowed() {
+  return LIVE_ACTIVITY_ENABLED && plusIsActive();
+}
+// 下一站與倒數完全沿用跟隨面板那一套(updateFollowPanel):nextStopInfo() 回 {name, min, at},
+// min=距抵達分鐘數、at=表定時刻(秒)。Live Activity 只是把它算好的值搬過去,不另造演算法。
+function laPayload(tr) {
+  const info = nextStopInfo(tr, effTLive(tr)); if (!info) return null;
+  const last = tr.stops && tr.stops[tr.stops.length - 1];
+  return {
+    // tr.kind 目前恆為 undefined(四份班表共 2206 筆車次沒有一筆有這欄),實際一律落到 typeName。
+    // 保留第一順位是防禦性寫法:哪天班表補上這欄,卡片會自動跟著跑,不必再改這裡。
+    trainNo: String(tr.train || ''), kind: String(tr.kind || tr.typeName || ''),
+    sys: String(tr.sys || ''),   // 🔴 車次不是唯一鍵:台鐵與捷運/高鐵真的有同號車。凡以車次為鍵一律帶系統別
+    nextStop: String(info.name || ''),
+    arrivalIso: new Date(Date.now() + Math.max(0, info.min) * 60000).toISOString(),
+    delaySec: Math.round(liveDelaySec(tr) || 0),
+    terminus: String((last && last.name) || ''),
+  };
+}
+let _laLast = 0, _laKey = '', _laDead = false;
+// 收卡。🔴 沒開過卡(_laKey 空)就不送:未訂閱者跟車時這裡每秒都會被走到一次,無條件送等於
+// 每秒過一次橋做白工。開機掃孤兒住在原生端的 load(),與這一發 end 無關,少送不會漏掉孤兒。
+function laStop(api) {
+  if (_laKey) Promise.resolve(api.end()).catch(() => {});
+  _laLast = 0; _laKey = '';
+}
+function laSync(tr, force) {
+  if (!LIVE_ACTIVITY_ENABLED || _laDead) return;
+  const api = window.RAIL_NATIVE_LIVEACTIVITY;
+  // 🔴 時光機/加速中一律不推卡片:鎖定畫面的倒數是以真實時鐘 1× 自走的,模擬時鐘不是
+  //    ——護照灰章重播撥回發車前並轉 30×,搜尋「今天已跑完/還沒發車」的車也會撥時鐘(setFollow
+  //    兩個分支都清 clockAtNow),推出去就是一個憑空捏造、而且真的在走的倒數,使用者無從分辨真假。
+  //    判準與 clockDriftGuard 同一組(跟著現在＋播放中＋1×＋沒在拖時刻尺)。
+  const liveClock = state.clockAtNow && state.playing && state.speedMult === 1 && !state._scrubTime;
+  if (!tr || !liveActivityAllowed() || !liveClock) { laStop(api); return; }
+  const p = laPayload(tr);
+  if (!p) { laStop(api); return; } // info 為 null＝已抵達終點,收卡片
+  const now = Date.now();
+  // 🔴 用「這是哪一台車」決定開新卡,不是用 force。force 只代表「立刻推一次別等節流」。
+  //    原稿的 `if (force || !_laLast) api.start(p)` 會依呼叫順序而定:若 updateFollowPanel
+  //    先跑(_laLast=0 ⇒ start),followTrainNo 的 force 再跑一次 start ⇒ 同一台車開兩張卡。
+  const key = p.sys + '#' + p.trainNo;
+  if (key !== _laKey) {                       // 首次、換車,或上一發 start 失敗後的重試
+    // 上一發 start 失敗會把 _laKey 清掉但保留 _laLast ⇒ 這裡擋住「每秒重試一次」的洗版;
+    // 換車時 _laKey 非空,不受這道節流影響,照樣立刻開新卡。
+    if (!_laKey && now - _laLast < 10000) return;
+    _laKey = key; _laLast = now;
+    // 🔴 原生端有三條「resolve 而不是 reject」的失敗路徑(裝置低於 17.6／使用者在系統設定
+    //    關掉即時動態／Activity.request 丟錯)。不看回傳就等於:_laKey 已寫入 ⇒ 之後只走 update
+    //    ⇒ 每發都回 noactivity ⇒ 這台車直到換車前永遠不會有卡片,而且零診斷零重試。
+    Promise.resolve(api.start(p)).then(r => {
+      if (r && r.ok) return;
+      if (r && r.why === 'ios<17.6') _laDead = true;      // 這台裝置本來就不支援,重試只是浪費
+      if (_laKey === key) _laKey = '';                    // 其餘:清鍵,節流窗到期後自然重試
+    }).catch(() => { if (_laKey === key) _laKey = ''; }); // 比較新的那張卡不能被舊的失敗回呼清掉
+    return;
+  }
+  if (force) { _laLast = now; Promise.resolve(api.update(p)).catch(() => {}); return; } // 同一台車:只推不重開
+  if (now - _laLast < 10000) return;          // 節流:倒數由系統自走,逐秒推是浪費
+  _laLast = now; Promise.resolve(api.update(p)).catch(() => {});
 }
 // 跟隨指定車次;在捷運頁會先切回時刻表系統(預設台鐵)。opts.fromStart:護照灰章用,從發車開始固定倍速看完才算完乘
 // opts.sys:呼叫端知道這班車屬於哪個時刻表系統時一定要傳(issue #16 重號)。傳了就三處都認它——
@@ -9395,10 +10428,12 @@ function followTrainNo(no, opts) {
   if (tr) {
     const ts = document.getElementById('trainSearch'); if (ts) ts.value = no;
     setFollow(tr, false, false, opts);
+    laSync(tr, true); // 跟車即時動態:成功跟上就立刻推一次,不等 updateFollowPanel 的節流
   } else showSearchMiss(no + '（今日無此班次）');
 }
-function removeFav(no) {
-  saveFavs(loadFavs().filter(x => x.train !== no));
+function removeFav(no, sys) {
+  const key = favTrainKey(no, sys);
+  saveFavs(loadFavs().filter(x => favItemKey(x) !== key));
   renderFavs(); renderFavPanel();
   if (state.followTrain) updateStar();
 }
@@ -9499,8 +10534,8 @@ function renderFavs() {
     el.className = 'favchip';
     el.innerHTML = `<b>${escHtml(f.train)}</b><span>${escHtml(f.label)}</span><span class="rm" title="移除">×</span>`;
     el.onclick = e => {
-      if (e.target.classList.contains('rm')) { removeFav(f.train); return; }
-      followTrainNo(f.train, { sys: f.sys });
+      if (e.target.classList.contains('rm')) { removeFav(f.train, favTrainSys(f)); return; }
+      followTrainNo(f.train, { sys: favTrainSys(f) });
     };
     box.appendChild(el);
   });
@@ -9521,10 +10556,11 @@ function renderFavPanel() {
     (favs.length
       ? (stns.length ? `<div class="sec">列車</div>` : '') + favs.map(f => {
           const no = escHtml(f.train);
-          return `<div class="row fv" data-no="${no}" data-sys="${escHtml(f.sys || '')}"><span class="dot" style="background:#d2a12a"></span>` +
+          const sys = favTrainSys(f), reminderSys = sys === 'thsr_sched' ? 'thsr' : (sys === 'tra_sched' ? 'tra' : '');
+          return `<div class="row fv" data-no="${no}" data-sys="${escHtml(sys)}"><span class="dot" style="background:#d2a12a"></span>` +
             `<b>${no}</b><span class="dest">${escHtml(f.label)}</span>` +
-            (NOTIFY_LOCAL_ENABLED && findLocalReminderTrain(f.train) ? `<button class="fv-notify" type="button" data-notify-no="${no}" aria-label="管理到站提醒">${railIcon('ui-notify')}</button>` : '') +
-            `<span class="rm" data-no="${no}" title="移除">×</span></div>`;
+            (NOTIFY_LOCAL_ENABLED && findLocalReminderTrain(f.train, reminderSys) ? `<button class="fv-notify" type="button" data-notify-no="${no}" data-notify-sys="${reminderSys}" aria-label="管理到站提醒">${railIcon('ui-notify')}</button>` : '') +
+            `<span class="rm" data-no="${no}" data-sys="${escHtml(sys)}" title="移除">×</span></div>`;
         }).join('')
       : '') +
     (pins.length
@@ -9609,6 +10645,7 @@ function renderRidePanel() {
     `<h3>旅程護照<button class="close" id="rideClose">×</button></h3>` +
     `<div class="ride-stats">章 <b>${collGot}</b> · 站 <b>${stationCollection(rides).size}</b> · 成就 <b>${achN}</b> · 完乘 <b>${rides.length}</b></div>` +
     `<div class="sub">從發車一路跟到終點就蓋一枚完乘章（調速可以・跳時間不算）· 灰色的章點了帶你搭一趟</div>` +
+    buildFoundingSeal() +
     buildStamps(rides) +
     buildStationStamps(rides) +
     buildLineBars() +
@@ -10211,7 +11248,7 @@ function ridingTrainOf(r) {
 // 跨午夜映射比照 effT;誤點則把真實時間換算回表定時間軸(車誤點 10 分 → 現在等於表定的 10 分前)。
 function ridingNowSched(tr) {
   const s = tr.stops, real = nowSecOfDay(activeTz());
-  const t = (real < s[0].arrSec && real + 86400 <= s[s.length - 1].depSec + 3600) ? real + 86400 : real;
+  const t = schedWrapT(s, real, 3600);
   return t - Math.round(liveDelaySec(tr));
 }
 function ridingArrivedIdx(tr, schedNow) { // 表定已抵達的最後一站;還沒發車回 -1
@@ -11755,6 +12792,16 @@ function buildRideRows(rides, mode) {
     `<div class="ph-row"><span class="datestamp">${escHtml((r.date || '').slice(5).replace(/-/g, '.'))}</span><b>${escHtml(r.train)}</b>` +
     `<span class="k">${escHtml(r.kind)}</span><span class="r">${escHtml(r.from)}→${escHtml(r.to)}</span><span class="km">${escHtml(r.km)} km</span></div>`).join('');
 }
+// 創始會員徽章:只有創始期間訂閱的人看得到,放護照最上方(它不是靠跑車跑出來的,與收集章分開)
+function buildFoundingSeal() {
+  // active 也要檢查:founding 只在寫入當下與 active 一起判定(p.founding = p.active && foundingFrom(info)),
+  // 但兩者是分開的欄位——像 accountForgetIdentity() 這種只重置 active 卻忘了同步清 founding 的路徑,
+  // 不依賴寫入點永遠同步,守門直接兩個都看——兩個條件都在這一行自帶 null-safety,不外包給呼叫順序
+  // 或 plusIsActive() 的內部短路(那個短路仍然存在、仍然安全,但讀這一行不該需要先去查它怎麼實作)。
+  if (!plusIsActive() || !(state.plus && state.plus.founding)) return '';
+  return '<div class="ph-founding"><span class="pf-mark">創</span>' +
+    '<span class="pf-txt"><b>創始島民</b><i>謝謝你在最早的時候就決定支持軌島</i></span></div>';
+}
 function renderPassport() {
   const el = document.getElementById('passport');
   if (state.mode !== 'sched') { el.hidden = true; el.innerHTML = ''; return; }
@@ -11763,7 +12810,7 @@ function renderPassport() {
   const longest = rides.reduce((a, r) => Math.max(a, Number(r.km) || 0), 0);
   // Batch B:收集章/成就/完乘列改走共用 builder(輸出與舊版逐字相同,桌面護照零變化)
   const rideSort = getRideSortMode();
-  const stamps = buildStamps(rides) + buildStationStamps(rides) + buildLineBars() + buildCorrectSection() + buildAchv(rides, 'seal');
+  const stamps = buildFoundingSeal() + buildStamps(rides) + buildStationStamps(rides) + buildLineBars() + buildCorrectSection() + buildAchv(rides, 'seal');
   const stnCount = stationCollection(rides).size;
   const list = buildRideRows(rides, rideSort);
   // 排序切換鈕:有記錄才顯示(空清單沒東西可排);選中狀態直接烤進 HTML,不用另外 sync
@@ -12246,7 +13293,7 @@ async function fetchDelayHistory(no) {
   try {
     const a = state.account, user = a && a.user;
     const token = user ? (a.fb && a.fb.getIdToken ? await a.fb.getIdToken(user) : await user.getIdToken()) : null;
-    if (token) headers = { Authorization: 'Bearer ' + token };
+    if (token) headers = plusApiHeaders(token);
   } catch (e) { /* 取 token 失敗:當未登入照常送 */ }
   fetch(apiUrl('api/delay-history?train=' + encodeURIComponent(no)), headers ? { cache: 'no-store', headers } : { cache: 'no-store' })
     .then(r => r.ok ? r.json() : Promise.reject(r.status))
@@ -12317,8 +13364,8 @@ function renderDelayHist() {
     // 付費牆:未登入(401)或無訂閱資格(403)——引導登入並訂閱 Plus。data-dh-cta 沿用既有 plusGateOpen 回路;
     // 用 dh-msg + dh-cta-btn(皆非絕對定位),不套 .dh-cta(inset:0 絕對定位需 .dh-lock 相對容器,無圖表可鎖)。
     body = statRow +
-      `<div class="dh-msg">登入並訂閱 Plus 後，可看每班車近 90 天逐日與週幾誤點履歷。</div>` +
-      `<button class="dh-cta-btn" data-dh-cta="1">訂閱 Plus 解鎖完整履歷</button>`;
+      `<div class="dh-msg">登入並訂閱通行證後，可看台鐵列車近 90 天逐日與週幾誤點履歷。</div>` +
+      `<button class="dh-cta-btn" data-dh-cta="1">訂閱通行證解鎖完整履歷</button>`;
   } else if (rec.error) {
     body = statRow + `<div class="dh-msg">暫時無法載入誤點履歷${rec.status ? '（' + rec.status + '）' : ''}，稍後再試。</div>` +
       `<button class="dh-retry" data-dh-retry="1">重新整理</button>`;
@@ -12332,14 +13379,14 @@ function renderDelayHist() {
         `<div class="dh-sec">各週幾平均誤點</div>${dhWeekday(days)}`;
       const range = (meta.date_range && meta.date_range.length === 2) ? `${meta.date_range[0]} ～ ${meta.date_range[1]}` : '';
       const src = `<div class="dh-src">資料：交通部TDX運輸資料流通服務平臺・軌島每日彙整${range ? '<br>統計區間 ' + range : ''}</div>`;
-      if (state.plus && state.plus.active) {
+      if (plusIsActive()) {
         body = statRow + charts + src;
       } else {
         // 未訂閱:圖表區模糊+置中 CTA;統計列與資料標示仍可見當 teaser
         body = statRow +
           `<div class="dh-lock"><div class="dh-locked">${charts}</div>` +
           `<div class="dh-cta"><div class="dh-cta-txt">解鎖 90 天逐日與週幾誤點統計</div>` +
-          `<button class="dh-cta-btn" data-dh-cta="1">訂閱 Plus 解鎖完整履歷</button></div></div>` + src;
+          `<button class="dh-cta-btn" data-dh-cta="1">訂閱通行證解鎖完整履歷</button></div></div>` + src;
       }
     }
   }
@@ -12389,7 +13436,7 @@ function showFollowPanel(tr) {
   fp.hidden = false;
   // 行程分享發起入口:暗啟動旗標開 + 台鐵/高鐵一般班次(捷運 v1 不做、環島觀光列車無固定目的站→不顯)
   const tsBtn = document.getElementById('fpTripShare');
-  if (tsBtn) tsBtn.hidden = !(TRIP_SHARE_ENABLED && !tr.loop && !!tripSysCode(tr.sys));
+  if (tsBtn) tsBtn.hidden = !(tripShareVisible() && !tr.loop && !!tripSysCode(tr.sys));
   const notifyBtn = document.getElementById('fpNotify');
   if (notifyBtn) notifyBtn.style.display = NOTIFY_LOCAL_ENABLED && !!reminderSysOf(tr) ? '' : 'none';
   if (state._followTrainPrev !== tr) { state._followTrainPrev = tr; closeRideBox(); } // 換一班車就收起選單,不要沿用上一班的站
@@ -12514,6 +13561,7 @@ function updateFollowPanel(tr) {
       });
     }
   }
+  laSync(tr, false); // 跟車即時動態:本函式每秒被叫,節流交給 laSync
 }
 
 function renderFollowBar(msg) {
@@ -13283,14 +14331,19 @@ async function setupLocalNotifications() {
 
 // ── 即時校正共用漸變層:偏移目標任何變化(門檻進出/每分鐘資料更新/開機首拉)都平滑收斂,消除硬切跳位。
 //    advance-on-query:查詢時就地推進,dt 上限 0.1s(未被查詢期間等同凍結,回前景/回視野再滑,不會瞬跳)。
-//    v0718g 不倒退鉗制:偏移「上升」(誤點變大)速率鉗在模擬時間流速→畫面位置凍結等時刻表追上
-//    (像真實列車臨停),不再向後滑;「下降」(追回/退場)照舊 τ=1s 約 3 秒前滑。
+//    預設維持 v0718g:偏移上升鉗在模擬時間流速(位置不倒退)、下降 τ=1s 追回。
+//    所有捷運 live 校正都傳 motion profile:兩方向都用模擬時間速率限制,把誤差以 0.25–2× 段內標稱速度吸收；
+//    target 更新當下 adv=0,所以位置連續,站間也不會因校正完全停住或暴衝。台鐵不走此 profile。
 //    epoch=校正剛(重新)啟用(開機首拉/回看歸來):該瞬間 5 秒窗內首見或跨 epoch 的 entry 直接對齊目標,
 //    不做數十分鐘的凍結慢追;epoch 之中途才冒出的誤點(0→1)才走凍結追上。
 const _easedShift = new Map(); // key → {cur, at, sim, ep}
 const _traGateEp = { on: false, ep: 0, at: 0 }, _metroGateEp = { on: false, ep: 0, at: 0 };
+const TRTC_MOTION_MIN_RATE = .25;
+const TRTC_MOTION_MAX_RATE = 2;
+const TRTC_MOTION_PROFILE = { minRate: TRTC_MOTION_MIN_RATE, maxRate: TRTC_MOTION_MAX_RATE };
+const METRO_MOTION_PROFILE = TRTC_MOTION_PROFILE;
 function gateEpoch(g, on) { if (on !== g.on) { g.on = on; if (on) { g.ep++; g.at = performance.now(); } } return g; }
-function easedShift(key, target, g) {
+function easedShift(key, target, g, motion) {
   let e = _easedShift.get(key);
   const n = performance.now();
   if (!e) {
@@ -13304,9 +14357,16 @@ function easedShift(key, target, g) {
   if (g && e.ep !== g.ep) { e.ep = g.ep; e.sim = state.simSec; e.cur = target; return e.cur; } // 校正重啟=重新同步
   const sim = state.simSec, adv = Math.max(0, sim - (e.sim != null ? e.sim : sim)); // 倒轉/跨午夜視為 0
   e.sim = sim;
-  if (target > e.cur) e.cur = Math.min(target, e.cur + adv); // 上升鉗制:位置恆不倒退
+  if (motion) {
+    const rise = adv * Math.max(0, 1 - motion.minRate); // shift 增速≤(1-min)× ⇒ 有效時間仍以 min× 前進
+    const fall = adv * Math.max(0, motion.maxRate - 1); // shift 減速≤(max-1)× ⇒ 有效時間最多 max× 前進
+    if (target > e.cur) e.cur = Math.min(target, e.cur + rise);
+    else                e.cur = Math.max(target, e.cur - fall);
+  } else if (target > e.cur) e.cur = Math.min(target, e.cur + adv); // 上升鉗制:位置恆不倒退
   else e.cur += (target - e.cur) * (1 - Math.exp(-dt)); // τ=1s,約 3 秒收斂
-  if (!target && Math.abs(e.cur) < .25) { _easedShift.delete(key); return 0; } // 已滑回表定(<0.25s)=清 entry 回 fast path
+  // 有界模式不能用 <0.25s 直接歸零：例如 -0.20→0 的清理跳步會讓有效時間短暫倒退。
+  // motion 的 min/max 本來就會精確夾到 target=0，等真的到 0 再刪；舊模式維持既有死區。
+  if (!target && (motion ? e.cur === 0 : Math.abs(e.cur) < .25)) { _easedShift.delete(key); return 0; }
   return e.cur;
 }
 
@@ -13462,6 +14522,72 @@ function metroFresh(ln) { // 新鮮 tier(校正中):資料 5 分內且模擬時�
 function freqTripKey(ln, tr) { // 線物件 rebuild 後仍穩定;同線同秒起訖若真重複,末站+末秒仍能消歧
   return freqSysIdOf(ln) + ':' + ln.id + ':' + tr[0] + '@' + tr[1] + '>' + tr[tr.length - 2] + '@' + tr[tr.length - 1];
 }
+const TRTC_BOARD_PERF = { a: 3.6, b: 4.3, v: 80 }; // km/h/s、km/h：各捷運站間共用的簡單停→停梯形
+const TRTC_BOARD_MIN_GAP_KM = .02; // 防穿越用的視覺下限；若原本更近就沿用原距離，不把車憑空拉開
+function trtcBoardFraction(rec, simSec) {
+  const start = rec.arrSec - rec.run, elapsed = Math.max(0, Math.min(rec.run, simSec - start));
+  return rec.profile ? profTimeToProg(rec.profile, elapsed) : elapsed / rec.run;
+}
+function trtcBoardPosition(ln, tr, simSec) {
+  const board = ln && ln._trtcBoard, rec = board && board.positions && board.positions.get(tr);
+  if (!rec || !metroLiveOn(ln) || !(rec.run > 0)) return null;
+  const start = rec.arrSec - rec.run, dwell = Number(ln.stations[rec.to] && ln.stations[rec.to].dwell) || 25;
+  if (simSec < start || simSec > rec.arrSec + dwell) return null;
+  const f = trtcBoardFraction(rec, simSec);
+  return { pos: posBetweenStations(ln, rec.from, rec.to, f), from: rec.from, to: rec.to,
+    run: rec.run, arrSec: rec.arrSec, progress: f, moving: f > 0 && f < 1 };
+}
+// 同方向列車各自吃自己的 15 秒倒數，但不能因此改寫兩車原有的前後關係。
+// applyTrtcBoard 會在換入新 snapshot 前記住相鄰車距與前後順序；兩車仍各自照倒數／梯形推進，
+// 車距可自然增減，只有推算結果要穿越時才擋住。約束沿線一維里程，不拿經緯度直線距離猜前後。
+function trtcHeadwayPosition(ln, tr, simSec, pos) {
+  const board = ln && ln._trtcBoard, link = board && board.headways && board.headways.get(tr);
+  const rec = board && board.positions && board.positions.get(tr), leadRec = link && board.positions.get(link.lead);
+  if (!pos || !link || !rec || !leadRec || !ln.hasShape ||
+      rec.from !== leadRec.from || rec.to !== leadRec.to) return pos;
+  const leadBase = freqTrainBaseAt(ln, link.lead, simSec), leadPos = leadBase.pos;
+  if (!leadPos) return pos;
+  const rearD = projectOntoShape(ln, pos.lat, pos.lon).d, leadD = projectOntoShape(ln, leadPos.lat, leadPos.lon).d;
+  const dir = Math.sign(ln.stations[rec.to].d - ln.stations[rec.from].d) || 1;
+  // 原距離只提供初始條件與順序，不是永久固定值；固定舊距離會讓正常跟車變成長時間爬行。
+  // 若原本已近於 20m，維持原距離即可，絕不為了視覺好看把後車往回拉。
+  const wanted = Math.max(.001, Math.min(TRTC_BOARD_MIN_GAP_KM, link.km));
+  if (rearD == null || leadD == null || (leadD - rearD) * dir >= wanted) return pos;
+  const total = ln.cum[ln.cum.length - 1], limitedD = Math.max(0, Math.min(total, leadD - dir * wanted));
+  return posAlongShape(ln, limitedD);
+}
+
+function snapshotTrtcHeadways(lines, nowSec) {
+  const out = new Map();
+  for (const ln of lines) {
+    const board = ln._trtcBoard;
+    if (!ln.hasShape || !board || !board.positions) continue;
+    const groups = new Map();
+    // 只讀上一份看板已經存好的絕對站間位置，不重跑 freqTrainPosAt／metroShiftSec；
+    // 量車距本身不能反過來推進 eased 狀態，否則驗收器與畫面會因「多讀一次」得到不同答案。
+    for (const [tr, rec] of board.positions) {
+      const start = rec.arrSec - rec.run, dwell = Number(ln.stations[rec.to] && ln.stations[rec.to].dwell) || 25;
+      if (nowSec < start || nowSec > rec.arrSec + dwell) continue;
+      const f = trtcBoardFraction(rec, nowSec);
+      const d = ln.stations[rec.from].d + (ln.stations[rec.to].d - ln.stations[rec.from].d) * f;
+      const dir = Math.sign(ln.stations[rec.to].d - ln.stations[rec.from].d) || 1;
+      // 只有上一畫格真的同在一個站間才算一組；不能把「全線相鄰但隔著車站」的兩班硬綁。
+      const groupKey = dir + '|' + rec.from + '>' + rec.to;
+      let a = groups.get(groupKey); if (!a) groups.set(groupKey, a = []);
+      a.push({ tr, d, dir });
+    }
+    const links = new Map();
+    for (const a of groups.values()) {
+      a.sort((x, y) => (y.d - x.d) * x.dir); // 由前往後；里程遞增／遞減兩方向共用
+      for (let i = 1; i < a.length; i++) {
+        const km = (a[i - 1].d - a[i].d) * a[i].dir;
+        if (km > 0) links.set(a[i].tr, { lead: a[i - 1].tr, km });
+      }
+    }
+    out.set(ln, links);
+  }
+  return out;
+}
 function metroShiftSec(ln, tr) { // 正=實際比表定晚跑(誤點);北捷逐班,其他現行資料源維持逐線;經 easedShift 平滑進出
   const s = ln._liveShift, on = metroLiveOn(ln);
   let target = 0, dch; // 方向字元 f/b/a:eased 偏移逐線逐方向共用(非逐車)
@@ -13473,7 +14599,8 @@ function metroShiftSec(ln, tr) { // 正=實際比表定晚跑(誤點);北捷逐�
   } else if (ln.loop || !tr) { dch = 'a'; if (on && s) target = s.all || 0; }
   else { const fwd = tr[0] <= tr[tr.length - 2]; dch = fwd ? 'f' : 'b'; if (on && s) { const v = fwd ? s.f : s.b; target = v != null ? v : (s.all || 0); } }
   // key 須跨 rebuildFreqLines 穩定(line 物件會重建,不可用 ln 物件當 key);epoch 用全域時間軸 gate(逐線資料齡不算重啟)
-  return easedShift(freqSysIdOf(ln) + ':' + ln.id + ':' + dch, target, gateEpoch(_metroGateEp, metroLiveGate()));
+  return easedShift(freqSysIdOf(ln) + ':' + ln.id + ':' + dch, target, gateEpoch(_metroGateEp, metroLiveGate()),
+    METRO_MOTION_PROFILE);
 }
 function freqSysIdOf(ln) { return ln._sys || (state.sys && state.sys.id); }
 function metroLivePool() { // 校正對象:各捷運分頁=state.lines;全台同框=裝飾捷運層(deco 也吃 _tt+simSec,同一套錨定直接適用)
@@ -13557,6 +14684,9 @@ function applyTrtcBoard(rows, observedEpoch) {
   if (_trtcNoTripDay !== serviceDay) { _trtcNoTripDay = serviceDay; _trtcNoTrip.clear(); }
   const mine = metroLivePool().filter(ln => isTrtcBoardLine(ln) && ln._tt && ln._tt.length);
   const byId = new Map(mine.map(ln => [ln.id, ln]));
+  // 換入新 15 秒 snapshot 前，先從上一畫格記住同線同向相鄰車的沿線距離與前後身分。
+  // 新倒數仍讓兩車各自推進；只有推算結果要反轉順序時才以這份舊畫面約束後車。
+  const previousHeadways = snapshotTrtcHeadways(mine, nowSec);
   // 每份成功 snapshot 都完整取代上份：當輪沒認到的班次只退回班表位置。
   for (const ln of mine) {
     ln._trtcTripMode = true; // 失敗退場時仍查同一個 easedShift trip key，才會滑回表定而非硬跳
@@ -13632,11 +14762,18 @@ function applyTrtcBoard(rows, observedEpoch) {
   }
   const final = accepted.filter(e => !rejected.has(e)), perLine = new Map();
   for (const e of final) {
-    let rec = perLine.get(e.ln); if (!rec) perLine.set(e.ln, rec = { shifts: new Map(), values: [] });
+    let rec = perLine.get(e.ln); if (!rec) perLine.set(e.ln, rec = { shifts: new Map(), positions: new Map(), headways: previousHeadways.get(e.ln) || new Map(), values: [] });
     rec.shifts.set(e.tr, Math.round(e.shift)); rec.values.push(e.shift);
+    // 已到站／過站才收到的倒數不能拿來瞬移；只有「現在仍在這個站間」的正倒數可直接定位。
+    if (e.run > 0 && e.from !== e.to && e.arrSec > nowSec && e.arrSec - nowSec <= e.run) {
+      const km = e.ln.hasShape ? Math.abs(e.ln.stations[e.to].d - e.ln.stations[e.from].d)
+        : haversineKm(e.ln.stations[e.from], e.ln.stations[e.to]);
+      rec.positions.set(e.tr, { from: e.from, to: e.to, run: e.run, arrSec: e.arrSec,
+        profile: buildProfile(km, e.run, TRTC_BOARD_PERF.a, TRTC_BOARD_PERF.b, TRTC_BOARD_PERF.v) });
+    }
     if (e.no) _trtcNoTrip.set(e.ln.id + '|' + e.dir + '|' + e.no, e.tripKey);
   }
-  for (const [ln, rec] of perLine) ln._trtcBoard = { shifts: rec.shifts,
+  for (const [ln, rec] of perLine) ln._trtcBoard = { shifts: rec.shifts, positions: rec.positions, headways: rec.headways,
     all: Math.round(trtcMedian(rec.values) || 0), at: observedEpoch * 1000, n: rec.shifts.size, rows: rows.length };
   // 逐線異常偵測(地震/雷雨/颱風造成的重大調度要看得出來,好去找官方公告)。
   // 對應既有三訊號:acc=逐班校正量樣本、rej=有實體錨點卻接不上任何名冊班次的列(看板與時刻表脫節)、
@@ -14904,6 +16041,32 @@ function resolveScheduleDay(data) {
   }
   const idxs = data.dates[key] || [];
   const trains = idxs.map(i => data.trains[i]).filter(Boolean);
+  // 跨午夜名冊補接(2026-08-08,452 事件):逐日名冊只收「今天發車」的班,昨天發車、過了午夜仍在
+  // 路上的班(如週五深夜的 452)一過 00:00 就整車消失——trainSeg 的 +86400 接續只救得到名冊裡的車。
+  // 借法:昨天名單有、今天名單沒有、時刻超過 86400 的班,以淺 clone 借進今天名冊(stops 陣列另
+  // slice 一份標 _prevNight,班表元素仍共用,enrich 的速度曲線只算一份);schedWrapT 對這種班恆以
+  // 「昨天那班」解讀。同時把「昨天有沒有開」記在今天每班的 stops 上(_noPrevWrap+_rosterDay),
+  // 擋反向幽靈:只在特定日開行的跨夜班,開行日清晨會被 +86400 誤接成「昨晚那班」——昨晚根本沒開。
+  // 昨天不在資料窗內(prevIdxs 為 undefined,如過期 bundle 退回同週幾)⇒ 兩者都不動,維持原行為。
+  const prevKey = new Date(Date.parse(key + 'T00:00:00Z') - 86400000).toISOString().slice(0, 10);
+  const prevIdxs = data.dates[prevKey];
+  if (prevIdxs) {
+    const prevSet = new Set(prevIdxs), todaySet = new Set(idxs);
+    for (const i of idxs) {
+      const tr = data.trains[i];
+      if (tr && tr.stops) { tr.stops._noPrevWrap = !prevSet.has(i); tr.stops._rosterDay = key; }
+    }
+    for (const i of prevIdxs) {
+      const tr = data.trains[i];
+      if (!tr || todaySet.has(i) || tr.loop || !tr.stops || !tr.stops.length) continue;
+      const last = tr.stops[tr.stops.length - 1];
+      if (!(Math.max(last.arrSec, last.depSec) > 86400)) continue; // 昨天之內就跑完的班,借了也畫不到
+      const stops = tr.stops.slice();
+      stops._prevNight = true;
+      trains.push({ ...tr, stops });
+    }
+  }
+  state.wallDay = today; // schedWrapT 據此判斷「名冊是否仍是今天的名冊」;之後每秒 tick 持續刷新
   return { ...data, trains, date: key, _schedDay: key, _schedStale: stale };
 }
 
@@ -15033,8 +16196,9 @@ function setBasemap() {
   const sat = online && state.basemap === 'sat' && satTokenState === 'ready'; // token 未到位前先維持一般地圖,不送無 token 的圖磚請求
   stage.classList.toggle('sat', sat);
   stage.classList.toggle('dark', state.mapDark && !sat);
-  // 跟車中鏡頭連續平移,detectRetina 版衛星圖磚量 4 倍會讓載入變慢,改用無 detectRetina 的 satLQ
-  const want = sat ? (state.followTrain && baseLayers.satLQ ? 'satLQ' : 'sat') : (state.mapDark ? 'dark' : 'light');
+  // 跟車中鏡頭連續平移一律用標準解析(圖磚量 4 倍會拖慢載入),非 Plus 也一律標準解析。
+  const wantLQ = !!baseLayers.satLQ && (state.followTrain || !satRetinaAllowed());
+  const want = sat ? (wantLQ ? 'satLQ' : 'sat') : (state.mapDark ? 'dark' : 'light');
   for (const k in baseLayers) {
     if (k === want) { if (!map.hasLayer(baseLayers[k])) baseLayers[k].addTo(map); }
     else if (map.hasLayer(baseLayers[k])) map.removeLayer(baseLayers[k]);
@@ -15139,7 +16303,9 @@ const HELP_GROUPS = [
       steps: ['底部「亮點」或工具列的「探」', '點任一列車看介紹卡', '有班次的可以直接跟車'], try: 'explore' },
     { key: 'today', ic: '今', nm: '今日台鐵動態與誤點履歷',
       one: '今天全台鐵每班車誤點多少、每一站怎麼延誤，一次看完。',
-      steps: ['「更多」→ 今日台鐵動態', '點任一班次看逐站歷程', '跟台鐵車時，卡片上的「誤點履歷 ›」可看這班車過去 90 天的準點率'],
+      // 「誤點履歷 ›」入口對所有人存在,但卡片裡只有 30 天彙總是免費的,90 天逐日與週幾圖要 Plus
+      // (伺服器端 checkPlusEntitlement 強制)。措辭與 terms.html／Plus 面板的「回溯 90 天的逐日紀錄」一致。
+      steps: ['「更多」→ 今日台鐵動態', '點任一班次看逐站歷程', '跟台鐵車時，卡片上的「誤點履歷 ›」可看這班車近 30 天的準點統計；回溯 90 天的逐日紀錄與週幾圖需要軌島通行證'],
       tip: '誤點資料每分鐘更新，來源是交通部 TDX。', try: 'today' },
   ]},
   { key: 'b', name: '我的', open: false, secs: [
@@ -15150,7 +16316,8 @@ const HELP_GROUPS = [
     { key: 'pin', ic: '釘', nm: '儲存地點', tg: 'pinBtn',
       one: '把家、公司、拍車點存下來，看有哪些火車會經過那裡。',
       steps: ['「更多」→ 打開「儲存地點」', '點地圖上任一位置', '取個名字存起來', '之後點那個釘，看接下來經過的列車與倒數'],
-      tip: '也可以從 Google Maps 的「已儲存」清單匯入；檔案只在這台裝置解析，不會上傳。', try: 'pin' },
+      // 匯入入口掛在 plusConfigured() 上(App 才有購買通道) ⇒ 是 App 限定的 Plus 功能,不可寫成無條件可用
+      tip: '也可以在 App 內從 Google Maps 的「已儲存」清單匯入（需軌島通行證）；檔案只在這台裝置解析，不會上傳。', try: 'pin' },
     { key: 'fav', ic: '', nm: '最愛', one: '常看的車次與車站收起來，下次直接從「最愛」進去。',
       steps: ['跟車卡或看板標題的收藏鈕點一下收藏', '從底部「最愛」看全部', '再點一次取消收藏'], try: 'fav' },
     { key: 'ride', ic: '<span class="seal na" style="width:26px;height:26px;padding:0"><b style="font-size:7px">章</b></span>', nm: '旅程護照與完乘章',
@@ -15198,6 +16365,15 @@ const HELP_GROUPS = [
       one: '全台 415 處台鐵平交道，看接下來哪班車會通過。',
       steps: ['「更多」→ 打開「平交道記號」', '把地圖拉近就看得到記號', '點任一平交道，看接下來通過的列車與倒數'],
       tip: '遮斷機通常提前 30–60 秒動作，請以現場號誌為準。', try: 'xing' },
+    // 訂閱是新功能,依專案慣例必須有一節;avail 掛 PLUS_ENABLED,旗標關掉整節自動消失(不教一個按不到的東西)。
+    // 內容與 terms.html／plusRender() 的功能清單同一套措辭——說明中心也是付款決定點之一,兩邊講不一樣就是不實宣稱。
+    { key: 'plus', ic: '票', nm: '軌島通行證與跨裝置同步', avail: () => PLUS_ENABLED,
+      one: '訂閱制的加值內容。列車位置、誤點資訊與系統覆蓋現在免費提供，不受訂閱影響。',
+      steps: ['桌面按工具列的「通行證」、手機從「更多」→「軌島通行證」，看裡面有哪些內容',
+        '訂閱在軌島 App 內完成，網站不收費',
+        '在網站用同一個軌島帳號登入，App 訂的資格就會生效（面板裡的「已經在 App 訂閱了？登入以同步」）'],
+      tip: '通行證內容：台鐵列車的誤點履歷（回溯 90 天的逐日紀錄）、收藏與完乘紀錄跨裝置雲端同步、行程分享、在 App 匯入 Google Maps 已儲存清單、App 非跟車時的衛星高解析圖磚，以及 iOS 17.6 以上可用的跟車鎖定畫面與動態島即時動態。',
+      try: 'plus' },
   ]},
   { key: 'c', name: '模式與外觀', open: false, secs: [
     { key: 'ambient', ic: '◌', nm: '放空模式', one: '全畫面自動導演，不用操作，掛著看就好。',
@@ -15250,6 +16426,9 @@ const HELP_TRY = {
   // 懸賞板沒有自己的 id 鈕（唯一入口是護照那列的 data-act="bountyboard"），所以走 run 代等價動作。
   // bountyrec 這節也指到這裡：真的按下「開始錄製」會叫起 GPS 錄一趟，有副作用，不能當「試一次」。
   bounty: { run: () => openBountyBoard(), toast: '這是懸賞板——右上角的 × 可以關掉' },
+  // 刻意不代點 #accountBtn:那個槽位在回訪/已登入者身上是「帳號」入口,代點會開出帳號面板而不是 Plus 面板
+  // (同一顆鈕兩種身分,見 accountSlotMode)。走等價動作直接開面板,比照 bounty。
+  plus: { ok: () => PLUS_ENABLED, run: () => plusOpen('help') },
   share: { id: 'shareBtn' },
 };
 // 離畫面中心最近的車站(「試一次」開看板用):複用附近車站那套候選(當前檢視看得到的站,共構站各留一筆)
@@ -15416,7 +16595,15 @@ function setupMapTools() {
     const W = 340;
     sheet.style.left = Math.max(12, Math.min(r.left, window.innerWidth - W - 12)) + 'px';
     sheet.style.right = 'auto';
-    sheet.style.bottom = Math.round(window.innerHeight - r.top + 8) + 'px'; // 鈕正上方 8px
+    // 目標是貼在鈕正上方 8px。但帶(.controls)是 position:absolute、會隨頁面捲動離開視窗,
+    // 捲下去之後鈕的 r.top 變小甚至為負 ⇒ 這個 bottom 變大 ⇒ 面板整個被推出視窗上緣
+    // (2026-08-04 回報:先拉捲軸再開「更多」看不到選單上方,要關掉、捲回頂端、重開才行)。
+    // 所以比照 left 也 clamp:面板上緣至少留 12px 在視窗內——寧可不貼齊鈕,也不能看不見。
+    // 面板是 fixed,量高度要在它已顯示之後;setMore() 先 toggle body.tools-open 再呼叫本函式。
+    const H = sheet.getBoundingClientRect().height;
+    sheet.style.bottom = Math.round(
+      Math.max(12, Math.min(window.innerHeight - r.top + 8, window.innerHeight - H - 12))
+    ) + 'px';
   }
   const setMore = on => {
     document.body.classList.toggle('tools-open', on);
@@ -16373,8 +17560,9 @@ async function boot() {
     baseLayers[k] = L.tileLayer(t.url, opt);
     // 跟車鏡頭連續平移時 detectRetina 的 4 倍圖磚量會讓載入明顯變慢,跟車中改用這份無 detectRetina 版本
     // (setBasemap 依 state.followTrain 二選一;detectRetina 是 Leaflet 建構時就烘進 zoomOffset,無法動態切換單一圖層,故養兩份)
-    // SAT_RETINA 關閉時 sat 本身就是低解析度,不再養第二份(setBasemap 的 want 有 baseLayers.satLQ 存在性守門)
-    if (k === 'sat' && SAT_RETINA) baseLayers.satLQ = L.tileLayer(t.url, { ...opt, detectRetina: false });
+    // 衛星兩層並存:sat=detectRetina(高解析,Plus 專屬)、satLQ=標準解析(免費層與跟車時用)。
+    // 兩層都建才切得動——資格是 runtime 才知道的(要等 plusRefresh),不能在建層時決定。
+    if (k === 'sat') baseLayers.satLQ = L.tileLayer(t.url, { ...opt, detectRetina: false });
   }
   // 衛星計費模式的掛勾:數圖磚、跨門檻換 session、效期快到續一顆(見 satTileLoaded 上方長註解)
   if (baseLayers.sat) {
@@ -16550,7 +17738,9 @@ async function boot() {
   await initDataFreshness();
 
   for (const d of SYS_DEFS) {
-    let day = resolveScheduleDay(await fetchJSON(d.url)); // 多日班表→挑台北營運日當日子集;舊格式原樣通過
+    let raw = await fetchJSON(d.url);
+    if (!raw && d.fallbackUrl) raw = await fetchJSON(d.fallbackUrl); // API 失敗(非 2xx/網路錯)退回打包靜態檔,目前僅高鐵設有 fallbackUrl
+    let day = resolveScheduleDay(raw);                    // 多日班表→挑台北營運日當日子集;舊格式原樣通過
     day = await refreshStaleSchedule(d, day);             // 保險:清單機制沒生效時,台鐵這一份仍會自救
     if (day) state.systems.push({ ...d, data: day });
   }
@@ -16715,9 +17905,11 @@ function toggleDefaultPlace(key) {
   renderFavPanel();
 }
 
+// 對外分享一律用正式公開站。原生 App 的 location 是 capacitor://localhost，傳出去無法由一般瀏覽器開啟。
+const PUBLIC_SHARE_BASE = 'https://railisland.tw/';
 // 分享目前畫面:正在跟車→沿用 ?train= 深連結;否則打包 地點+縮放+路網+時間。手機叫原生分享面板,桌面複製連結。
 function buildShareUrl() {
-  const base = location.origin + location.pathname;
+  const base = PUBLIC_SHARE_BASE;
   const t = fmtHM(state.simSec);
   if (state.followTrain && state.followId) return base + '?train=' + encodeURIComponent(state.followId) + '&t=' + t;
   const c = map.getCenter();
@@ -16766,7 +17958,7 @@ function buildTripUrl(tr, destName) {
   const from = tripFromStation(tr);
   const segs = [code, String(tr.train), encodeURIComponent(destName), tripOpsDate()];
   if (from) segs.push(encodeURIComponent(from));
-  return location.origin + location.pathname + '?trip=' + segs.join('.');
+  return PUBLIC_SHARE_BASE + '?trip=' + segs.join('.');
 }
 function parseTripParam(raw) {
   if (!raw) return null;
@@ -16844,9 +18036,11 @@ function applyTripLink(tp) {
 function renderTripBanner() {
   const el = document.getElementById('tripBanner'); if (!el) return;
   const trip = state._trip;
-  if (!trip || state._tripClosed) { el.hidden = true; return; }
+  const open = !!(trip && !state._tripClosed);
+  el.hidden = !open;
+  document.body.classList.toggle('trip-open', open);
+  if (!open) return;
   const stEl = document.getElementById('tripState'), rtEl = document.getElementById('tripRoute'), etaEl = document.getElementById('tripEta');
-  el.hidden = false;
   if (trip.err) {
     stEl.className = 'tb-state ended';
     stEl.textContent = trip.err === 'notfound' ? '查無班次' : '行程已結束';
@@ -16874,8 +18068,11 @@ function renderTripBanner() {
       + (dlMin > 0 ? ` <span class="lateTag">誤點 ${dlMin} 分</span>` : '');
   }
 }
-function closeTripBanner() { state._tripClosed = true; document.getElementById('tripBanner').hidden = true; } // 關橫幅不退跟車
-document.getElementById('fpTripShare').onclick = (e) => { e.stopPropagation(); openTripSharePanel(); };
+function closeTripBanner() { state._tripClosed = true; renderTripBanner(); } // 關橫幅不退跟車；同時還原手機上方動作列
+document.getElementById('fpTripShare').onclick = (e) => {
+  e.stopPropagation();
+  plusGateOpen('trip-share', () => openTripSharePanel()); // 非 Plus→導去訂閱;已訂閱→直接開面板
+};
 // #fpRide 網頁端開機會被 updateRideBtn 整顆 remove()(平台分界,見該函式開頭的
 // PHYSICAL_COLLECT_ENABLED 分支);這裡是 top-level 綁定,若執行當下它已經不在,原本會直接
 // 拋錯讓這行之後所有 top-level 綁定全滅。目前所有 updateRideBtn 呼叫點都在非同步路徑,不會
@@ -17016,9 +18213,9 @@ document.getElementById('todayBtn').onclick = () => {
 };
 document.getElementById('favPanel').onclick = e => {
   const nb = e.target.closest('.fv-notify');
-  if (nb) { e.stopPropagation(); openLocalReminderSheet(findLocalReminderTrain(nb.dataset.notifyNo), 'favorite'); return; }
+  if (nb) { e.stopPropagation(); openLocalReminderSheet(findLocalReminderTrain(nb.dataset.notifyNo, nb.dataset.notifySys), 'favorite'); return; }
   const rm = e.target.closest('.rm');
-  if (rm) { rm.dataset.pin ? removePinByKey(rm.dataset.pin) : (rm.dataset.stkey ? removeFavStation(rm.dataset.stkey) : removeFav(rm.dataset.no)); return; }
+  if (rm) { rm.dataset.pin ? removePinByKey(rm.dataset.pin) : (rm.dataset.stkey ? removeFavStation(rm.dataset.stkey) : removeFav(rm.dataset.no, rm.dataset.sys)); return; }
   const db = e.target.closest('.fv-default');
   if (db) { e.stopPropagation(); toggleDefaultPlace(db.dataset.defpin); return; } // 設為/取消預設啟動地點(不觸發整列的「飛過去」)
   const pr = e.target.closest('.row.fvpin');

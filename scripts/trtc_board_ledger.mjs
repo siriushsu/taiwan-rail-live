@@ -35,6 +35,20 @@ export const TRTC_LEDGER_SCHEMA = [
     first_seen_epoch INTEGER NOT NULL, last_seen_epoch INTEGER NOT NULL,
     PRIMARY KEY(day, alias_type, alias)
   )`,
+  // 逐班綁定(工項1-3):關係表低頻寫(只在 bind/rebind/done 時 upsert,不含 lastShift 等每輪都變的欄位—
+  // 那些動態延續狀態改放 trtc_state['trip_dyn'],見下一表)。
+  `CREATE TABLE IF NOT EXISTS trtc_trip_bindings (
+    day TEXT NOT NULL, line TEXT NOT NULL, dir INTEGER NOT NULL,
+    trip_key TEXT NOT NULL,
+    track_id TEXT NOT NULL,
+    bound_epoch INTEGER NOT NULL, birth TEXT NOT NULL,
+    done INTEGER DEFAULT 0, rebinds INTEGER DEFAULT 0,
+    PRIMARY KEY(day, line, dir, trip_key)
+  )`,
+  // 動態單列:每輪整包覆寫(訪客 join 與冷啟動重建都讀這裡,不需要 prune—恆 1 列)。
+  `CREATE TABLE IF NOT EXISTS trtc_state (
+    k TEXT PRIMARY KEY, v TEXT
+  )`,
 ];
 
 export function normStationName(value) {
@@ -109,9 +123,10 @@ function timetableRuns(timesLine, stations) {
   return new Map([...buckets].map(([key, values]) => [key, median(values)]));
 }
 
-// opts.includeY:環狀線 Y 屬新北捷,D1 帳本刻意不收(寫入額度只留給北捷八線)。
-// 但 TrackInfo 本來就夾帶 Y 的倒數列,拿來當前端位置錨點不需要多打一次上游、也不多寫一筆帳本,
-// 所以「產錨點」這條路徑單獨用 includeY:true 建模,帳本路徑維持預設排除。
+// opts.includeY:環狀線 Y 屬新北捷。呼叫端(worker.js trtcLedgerModel/trtcBoardModel)工項4起
+// 兩者皆傳 includeY:true——Y 的 tracks/bindings 與其他八線同一條路徑處理,只有 events 表在
+// D1 寫入層(persistTrtcLedger)另外過濾排除(設計書 §6.1,寫入額度考量)。opts 預設 false
+// 只留給「刻意不含 Y」的呼叫端(如本檔的單元測試)使用。
 export function buildTrtcModel(trtc, times, codes, opts = {}) {
   const lines = new Map();
   const stationNameIndex = new Map();
@@ -618,4 +633,448 @@ export function buildLedgerFromRaw({ model, boardRows, hwRows, brRows, epochOf, 
   const assigned = assignLedgerFrame({ model, claims, cars, priorTracks, aliases, day, nowEpoch, calibrations });
   return { ...assigned, diagnostics: { resolved: resolved.rows.length, claims: claims.length,
     unclaimed: claimed.unclaimed.length, dropped: resolved.dropped } };
+}
+
+// ═══ 逐班綁定器(工項1):track(已有跨輪身分)→ 當日班表班次(tripKey)的黏性配對 ═══
+// 分層鐵則(memory train-spawn-vanish-invariants §六):名冊恆由班表(tripSets)決定;
+// 本模組只回答「這個 trackId 現在對應班表上的哪一班、shift 多少」,永不生車滅車、
+// 永不發明班表沒有的 tripKey、不含任何時間窗/保留秒數/信心分數這類存在性旋鈕——
+// 找不到合適班次就是 unbound(前端退回中位數,現行行為),不是「這班車消失了」。
+
+export const TRIP_BIND_REF_WINDOW_SEC = 20 * 60; // ref 只採「最近 20 分鐘內已綁」的班次(§5.1);工項6影子量測需原樣覆用此窗寬,故導出
+const TRIP_BIND_MAX_EARLY_SEC = -90;        // 禁早發:提早超過 90 秒的候選不可綁
+const TRIP_BIND_COST_CAP_SEC = 600;         // cost=|shift-ref| 上限
+const TRIP_BIND_ABS_CAP_SEC = 1800;         // |shift| 絕對上限(雙保險,防 ref 本身跑掉)
+const TRIP_BIND_BAD_STREAK_LIMIT = 4;       // 安全閥:連續幾輪 cost 超標才解綁重配(§5.2)
+const TRIP_BIND_DONE_GRACE_SEC = 120;       // 收班寬限(§5.3)
+const TRIP_BIND_RECLAIM_COST_CAP_SEC = 180; // 認回:cost=|shift-lastShift| 上限(§5.3,v1.1)
+
+// 與前端 freqTripKey 後綴同構(index.html:14499-14501):line/dir 由呼叫端欄位攜帶,這裡只回線內局部鍵。
+export function tripKeyOf(tr) {
+  return `${tr[0]}@${tr[1]}>${tr[tr.length - 2]}@${tr[tr.length - 1]}`;
+}
+// 站序遞增(起點索引<終點索引)為 dir=2,遞減為 dir=1——同 resolveBoardRows 既有慣例(dir = destIdx>stationIdx?2:1)。
+export function tripDirOf(tr) { return tr[0] < tr[tr.length - 2] ? 2 : 1; }
+
+// port 自前端 freqTrainTime(index.html:14182-14186):跨午夜正規化,秒值可 >86400。
+function tripTimeAt(tr, t) {
+  const n = tr.length;
+  if (t < tr[1] && t + 86400 <= tr[n - 1]) t += 86400;
+  return (t < tr[1] || t > tr[n - 1]) ? null : t;
+}
+export function tripRosterActive(tr, nowSec) { return tripTimeAt(tr, nowSec) != null; }
+// port 自前端 trtcTripPair(index.html:14623-14626):(from,to) 是否為 tr 內連續一段,回傳段序 k(否則 -1)。
+export function tripLegIndex(tr, from, to) {
+  for (let k = 1; k < tr.length / 2; k++) if (tr[(k - 1) * 2] === from && tr[k * 2] === to) return k;
+  return -1;
+}
+
+// 與前端 trtcServiceSec(index.html:14643-14648)同構的後端獨立實作:台北 00:00-04:00 仍算前一營運日,
+// 秒值相應 +86400,好讓跨夜班次與 tr 陣列的秒值維持同一單調座標系可直接比較。
+export function trtcServiceSecOfEpoch(epochSec) {
+  const p = taipeiParts(epochSec);
+  const sec = p.hour * 3600 + p.minute * 60 + p.second;
+  return p.hour < 4 ? sec + 86400 : sec;
+}
+
+// 與前端 prepFreqTimes(index.html:4169-4179)逐行同構:輸入單線 { days, sets, holiday }(來自
+// data/trtc_times.json)與 dayTypeTable(data/tw_daytype.json,TW_DAYTYPE 的後端副本——前端本單不改,
+// 兩份手抄本留給下一單換源時統一),回傳 sets 的鍵('週日'/'平日'/'週六'等)。查無日型走一般星期幾規則。
+export function trtcDayKeyForLine(lineTimes, dayTypeTable, serviceDay) {
+  if (!lineTimes) return null;
+  const dt = dayTypeTable && dayTypeTable[serviceDay];
+  if (dt === 1) return lineTimes.holiday || (lineTimes.days && lineTimes.days[0]) || null;
+  if (dt === 2) return (lineTimes.days && lineTimes.days[1]) || null;
+  return lineTimes.days ? lineTimes.days[new Date(`${serviceDay}T00:00:00Z`).getUTCDay()] : null;
+}
+
+// 逐線選定當日班表後,依每班自己的站序方向拆成 "${line}|${dir}" 桶——候選池以 line+dir
+// 分組是綁定演算法的基本單位(§5.1)。各線 days/holiday 實測並不完全相同(3 種組合共存於
+// data/trtc_times.json,2026-08-07 查證),故日型選擇必須逐線各自解析,不可只算一次全域值。
+export function buildTripSetsByLineDir(times, dayTypeTable, serviceDay) {
+  const tripSets = new Map(), dayKeys = new Map();
+  for (const [lineId, rec] of Object.entries((times && times.lines) || {})) {
+    const dayKey = trtcDayKeyForLine(rec, dayTypeTable, serviceDay);
+    dayKeys.set(lineId, dayKey);
+    for (const tr of (dayKey && rec.sets && rec.sets[dayKey]) || []) {
+      const gk = `${lineId}|${tripDirOf(tr)}`;
+      if (!tripSets.has(gk)) tripSets.set(gk, []);
+      tripSets.get(gk).push(tr);
+    }
+  }
+  return { tripSets, dayKeys };
+}
+
+function tripBindKey(line, dir, tripKey) { return `${line}|${dir}|${tripKey}`; }
+
+// 純函式核心。輸入:
+//   model      - buildTrtcModel(...,{includeY:true}) 的那顆(既有 trtcBoardModel,工項4起
+//                trtcLedgerModel 也用這個 opts);Y 與其他八線同一條路徑處理,無特判。
+//   tripSets   - buildTripSetsByLineDir(...).tripSets,Map<"line|dir", trip[]>。
+//   dayType    - 呼叫端選定的日型標籤,本函式不用它做綁定判斷(候選是否 roster-active 已經
+//                由 tripSets+nowEpoch 完全決定),只原樣帶進 audit 供上層/前端一致性檢查用。
+//   tracks     - 這一輪的物理觀測,形狀取自 buildLedgerFromRaw(...).claims 的欄位子集:
+//                { trackId, line, dir(1|2), from, to, destIdx, arrEpoch, run, terminal }。
+//   priorBindings - 上一輪(或冷啟動重建)的 bindings 陣列,形狀與本函式回傳的 bindings 相同,
+//                可整包原樣傳回下一輪(reducer 模式:nextState = bindTracksToTrips(prevState, ...))。
+//   nowEpoch/day - 本輪基準時刻與營運日。
+// 輸出 { bindings, events, audit }。
+export function bindTracksToTrips({ model, tripSets, dayType, tracks, priorBindings, nowEpoch, day }) {
+  const nowSec = trtcServiceSecOfEpoch(nowEpoch);
+  const audit = { bound: 0, unbound: 0, rebinds: 0, capped: 0, done: 0, legMiss: 0, malformed: 0, reattach: 0 };
+  const events = [];
+
+  // 1) 展開 prior 狀態成可變工作副本。
+  const records = new Map(); // fullKey -> record
+  for (const p of priorBindings || []) {
+    if (!p || !p.line || !p.tripKey || (Number(p.dir) !== 1 && Number(p.dir) !== 2)) continue;
+    records.set(tripBindKey(p.line, Number(p.dir), p.tripKey), {
+      line: p.line, dir: Number(p.dir), tripKey: p.tripKey,
+      trackId: p.trackId != null ? String(p.trackId) : null,
+      boundEpoch: Number.isFinite(Number(p.boundEpoch)) ? Number(p.boundEpoch) : nowEpoch,
+      birth: p.birth === 'seed' ? 'seed' : 'terminal',
+      lastShift: Number.isFinite(Number(p.lastShift)) ? Number(p.lastShift) : 0,
+      lastTo: Number.isFinite(Number(p.lastTo)) ? Number(p.lastTo) : null,
+      lastArrEpoch: Number.isFinite(Number(p.lastArrEpoch)) ? Number(p.lastArrEpoch) : null,
+      badStreak: Number.isFinite(Number(p.badStreak)) ? Number(p.badStreak) : 0,
+      done: !!p.done,
+      rebinds: Number.isFinite(Number(p.rebinds)) ? Number(p.rebinds) : 0,
+    });
+  }
+
+  // 2) trackId -> fullKey,僅現役(非 done)綁定;一個 trackId 同時只服役一個 tripKey。
+  const trackToFullKey = new Map();
+  for (const [fullKey, rec] of records) if (!rec.done && rec.trackId) trackToFullKey.set(rec.trackId, fullKey);
+
+  // 3) fullKey -> 今天的 tr 陣列,供沿用中的綁定續算用。
+  const tripByFullKey = new Map();
+  for (const [gk, trips] of tripSets || []) {
+    const sep = gk.lastIndexOf('|'); const line = gk.slice(0, sep), dir = Number(gk.slice(sep + 1));
+    for (const tr of trips) tripByFullKey.set(tripBindKey(line, dir, tripKeyOf(tr)), tr);
+  }
+
+  // 4) 這一輪的觀測分成「沿用中」與「全新」兩批。
+  const stickyTracks = [], freshTracks = [], seenTrackIds = new Set();
+  for (const t of tracks || []) {
+    const trackId = t && t.trackId != null ? String(t.trackId) : null;
+    const line = t && t.line, dir = Number(t && t.dir);
+    const destIdx = Number(t && t.destIdx), from = Number(t && t.from), to = Number(t && t.to);
+    const arrEpoch = Number(t && t.arrEpoch), run = Number(t && t.run) || 0, terminal = !!(t && t.terminal);
+    if (!trackId || !line || (dir !== 1 && dir !== 2) || !Number.isInteger(destIdx) ||
+        !Number.isInteger(from) || !Number.isInteger(to) || !Number.isFinite(arrEpoch) ||
+        (!terminal && !(run > 0))) { audit.malformed++; continue; }
+    if (model && model.lines && model.lines.has(line)) {
+      const n = model.lines.get(line).stations.length;
+      if (destIdx < 0 || destIdx >= n || from < 0 || from >= n || to < 0 || to >= n) { audit.malformed++; continue; }
+    }
+    if (seenTrackIds.has(trackId)) continue; // 同輪同 trackId 只取第一筆(防上游異常重複)
+    seenTrackIds.add(trackId);
+    // tr[] 陣列的座標系是「服務日秒數」(可 >86400),不是原始 epoch;shift 必須在同一座標系下
+    // 相減才有意義(同構前端 etaSec=trtcServiceSec(arrEpoch) 再減 scheduledEvent 的做法)。
+    // depSec 用 arrSec 直接減 run(單一轉換點),不對 depEpoch 另外獨立轉換——避開 04:00 服務日
+    // 切點理論上的不連續(儘管營運時段 05:40-01:20 實務上不會有 claim 落在切點附近)。
+    const arrSec = trtcServiceSecOfEpoch(arrEpoch);
+    const depSec = terminal ? arrSec : arrSec - run;
+    const claim = { trackId, line, dir, from, to, destIdx, arrEpoch, arrSec, depSec, terminal };
+    (trackToFullKey.has(trackId) ? stickyTracks : freshTracks).push(claim);
+  }
+
+  const evictedRebinds = new Map(); // trackId -> 離開前那個 tripKey 累積的 rebinds(供新綁定接續累加)
+
+  // 5) Pass A,沿用中的綁定:目的地不符 ⇒ 標記驅逐(§5.2「dest 改變」);找不到 leg ⇒ 整輪跳過不動它
+  //    (legMiss,防禦性:正常不應觸發);否則就地更新 shift/lastTo/lastArrEpoch——此時還不判安全閥,
+  //    因為 ref 要等這一輪全部沿用值更新完才算得出來。
+  const updatedFullKeys = new Set(); // 這輪真的重算過 shift 的 fullKey,才需要跑安全閥判斷
+  for (const claim of stickyTracks) {
+    const fullKey = trackToFullKey.get(claim.trackId);
+    const rec = records.get(fullKey);
+    const tr = tripByFullKey.get(fullKey);
+    if (!rec || !tr) { freshTracks.push(claim); continue; } // 防禦:priorBindings 與 tripSets 對不上(誤餵跨日資料)
+    if (claim.destIdx !== tr[tr.length - 2]) {
+      evictedRebinds.set(claim.trackId, rec.rebinds);
+      records.delete(fullKey);
+      freshTracks.push(claim);
+      continue;
+    }
+    let scheduledEvent;
+    if (claim.terminal) {
+      if (tr[0] !== claim.from) { audit.legMiss++; continue; }
+      scheduledEvent = tr[1];
+    } else {
+      const k = tripLegIndex(tr, claim.from, claim.to);
+      if (k < 0) { audit.legMiss++; continue; }
+      scheduledEvent = tr[(k - 1) * 2 + 1];
+    }
+    rec.lastShift = claim.depSec - scheduledEvent;
+    rec.lastTo = claim.to;
+    rec.lastArrEpoch = claim.arrEpoch;
+    rec._reachedEnd = !claim.terminal && claim.to === tr[tr.length - 2] && claim.arrEpoch <= nowEpoch;
+    updatedFullKeys.add(fullKey);
+  }
+
+  // 6) ref:依 line+dir 分組,採「boundEpoch 落在最近 20 分鐘內」且非 done 的紀錄之 lastShift 中位數。
+  const refByGroup = new Map();
+  {
+    const byGroup = new Map();
+    for (const rec of records.values()) {
+      if (rec.done || nowEpoch - rec.boundEpoch > TRIP_BIND_REF_WINDOW_SEC) continue;
+      const gk = `${rec.line}|${rec.dir}`;
+      if (!byGroup.has(gk)) byGroup.set(gk, []);
+      byGroup.get(gk).push(rec.lastShift);
+    }
+    for (const [gk, values] of byGroup) refByGroup.set(gk, median(values) || 0);
+  }
+
+  // 7) 安全閥:只對這輪真的重算過 shift 的沿用中綁定判斷(§5.2)。連續 4 輪 cost 超標才解綁,
+  //    條件刻意窄——寬了就回到每輪重猜(這正是本設計要根治的現行 bug)。
+  for (const fullKey of updatedFullKeys) {
+    const rec = records.get(fullKey); if (!rec) continue;
+    const ref = refByGroup.get(`${rec.line}|${rec.dir}`) || 0;
+    if (Math.abs(rec.lastShift - ref) > TRIP_BIND_COST_CAP_SEC) {
+      rec.badStreak++;
+      if (rec.badStreak >= TRIP_BIND_BAD_STREAK_LIMIT) {
+        evictedRebinds.set(rec.trackId, rec.rebinds);
+        records.delete(fullKey);
+        const claim = stickyTracks.find(c => c.trackId === rec.trackId);
+        if (claim) freshTracks.push(claim);
+      }
+    } else {
+      rec.badStreak = 0;
+    }
+  }
+
+  // 8) 無反轉約束(§5.1(b),v1.2改):候選(tr,shift)與同(line,dir)班表序相鄰的「活躍」綁定
+  //    比較修正後**發車**時刻(tr[1]+各自 shift),只查緊鄰前後兩班,該班未綁或已收班則不構成約束。
+  //    取代 v1.0 的「前驅單調水位線」——語料實測水位線會把終點折返靜默重生的車永久擋死
+  //    (unbound 67.8%,98.2% 有合理候選卻被水位/連鎖佔用擋掉;水位線把「出生順序」當成
+  //    「發車順序」,兩者在 track 折返/碎裂重生時脫鉤)。FIFO 的目的是時序不反轉,不是出生序單調。
+  //    v1.1 曾比較「修正後末站時刻」,短程/長程班交錯發車時(如 R 線北投/淡水)不同路線長度的
+  //    末站時刻不可比,系統性誤判假反轉(語料實測 21.3% 相鄰班次對 destIdx 不同,cost=11 的
+  //    近乎完美匹配被短程鄰班擋下)。改比「修正後發車時刻」:同 (line,dir) 班次同起點
+  //    (分支已拆獨立線 id),發車序即物理進入共線段的 FIFO 序,跨目的地天生可比,且仍保留
+  //    跨目的地真反轉偵測能力(這是不採 destIdx 分組方案的原因——分組會連這個能力一併失去)。
+  const scheduleNeighbors = new Map(); // fullKey -> { prevKey, nextKey }(依 tr[1] 班表序)
+  for (const [gk, trips] of tripSets || []) {
+    const sep = gk.lastIndexOf('|'); const line = gk.slice(0, sep), dir = Number(gk.slice(sep + 1));
+    const sorted = [...trips].sort((a, b) => a[1] - b[1]);
+    for (let i = 0; i < sorted.length; i++) {
+      const fullKey = tripBindKey(line, dir, tripKeyOf(sorted[i]));
+      scheduleNeighbors.set(fullKey, {
+        prevKey: i > 0 ? tripBindKey(line, dir, tripKeyOf(sorted[i - 1])) : null,
+        nextKey: i < sorted.length - 1 ? tripBindKey(line, dir, tripKeyOf(sorted[i + 1])) : null,
+      });
+    }
+  }
+  function violatesNoReversal(fullKey, tr, shift) {
+    const nb = scheduleNeighbors.get(fullKey);
+    if (!nb) return false;
+    const candDep = tr[1] + shift;
+    if (nb.prevKey) {
+      const prevRec = records.get(nb.prevKey);
+      const prevTr = prevRec && !prevRec.done && tripByFullKey.get(nb.prevKey);
+      if (prevTr && prevTr[1] + prevRec.lastShift > candDep) return true;
+    }
+    if (nb.nextKey) {
+      const nextRec = records.get(nb.nextKey);
+      const nextTr = nextRec && !nextRec.done && tripByFullKey.get(nb.nextKey);
+      if (nextTr && nextTr[1] + nextRec.lastShift < candDep) return true;
+    }
+    return false;
+  }
+
+  // 9) 認回 reclaim(§5.3,v1.1新增):出生綁定之前,先讓「已綁但這輪沒收到更新」的班次
+  //    (line+dir+dest 相同、cost=|shift-lastShift|≤180s 取最小者)優先認回新 track——
+  //    track_id 更新、boundEpoch 延續、badStreak 歸零(新連續性起點),不走出生的
+  //    ref-relative cost/cap,但仍過 (8) 無反轉檢查。處理「同一班次中途斷連、track 換 id
+  //    重現」(Y 的 synth 碎裂、CW alias 斷檔、終點折返靜默後在路線中段以新 id 重見)。
+  const reclaimEdges = [];
+  for (const claim of freshTracks) {
+    for (const [fullKey, rec] of records) {
+      if (rec.done || updatedFullKeys.has(fullKey)) continue; // 本輪仍在回報中的不算「失聯」
+      if (rec.line !== claim.line || rec.dir !== claim.dir) continue;
+      const tr = tripByFullKey.get(fullKey); if (!tr || tr[tr.length - 2] !== claim.destIdx) continue;
+      let scheduledEvent;
+      if (claim.terminal) {
+        if (tr[0] !== claim.from) continue;
+        scheduledEvent = tr[1];
+      } else {
+        const k = tripLegIndex(tr, claim.from, claim.to);
+        if (k < 0) continue;
+        scheduledEvent = tr[(k - 1) * 2 + 1];
+      }
+      const shift = claim.depSec - scheduledEvent;
+      const cost = Math.abs(shift - rec.lastShift);
+      if (cost > TRIP_BIND_RECLAIM_COST_CAP_SEC) continue;
+      if (violatesNoReversal(fullKey, tr, shift)) continue; // (8) 無反轉檢查仍要過
+      reclaimEdges.push({ claim, fullKey, tr, shift, cost });
+    }
+  }
+  reclaimEdges.sort((a, b) => a.cost - b.cost);
+  const reclaimedTracks = new Set(), reclaimedKeys = new Set();
+  for (const e of reclaimEdges) {
+    if (reclaimedTracks.has(e.claim.trackId) || reclaimedKeys.has(e.fullKey)) continue;
+    if (violatesNoReversal(e.fullKey, e.tr, e.shift)) continue; // 同輪較早認回可能已改變鄰居活躍狀態,重驗
+    reclaimedTracks.add(e.claim.trackId); reclaimedKeys.add(e.fullKey);
+    const rec = records.get(e.fullKey);
+    rec.trackId = e.claim.trackId; rec.lastShift = e.shift; rec.lastTo = e.claim.to;
+    rec.lastArrEpoch = e.claim.arrEpoch; rec.badStreak = 0;
+    rec._reachedEnd = !e.claim.terminal && e.claim.to === e.tr[e.tr.length - 2] && e.claim.arrEpoch <= nowEpoch;
+    updatedFullKeys.add(e.fullKey);
+    events.push({ type: 'reattach', day, line: rec.line, dir: rec.dir, tripKey: rec.tripKey,
+      trackId: e.claim.trackId, epoch: nowEpoch });
+    audit.reattach++;
+  }
+  const birthTracks = reclaimedTracks.size ? freshTracks.filter(c => !reclaimedTracks.has(c.trackId)) : freshTracks;
+
+  // 10) 出生綁定(§5.1):候選池排除已佔用(records 現存的所有 fullKey,含剛認回的)。
+  const occupiedTripKeys = new Set(records.keys());
+  const edges = [];
+  for (const claim of birthTracks) {
+    const gk = `${claim.line}|${claim.dir}`;
+    const ref = refByGroup.get(gk) || 0;
+    for (const tr of (tripSets && tripSets.get(gk)) || []) {
+      if (!tripRosterActive(tr, nowSec) || tr[tr.length - 2] !== claim.destIdx) continue;
+      const fullKey = tripBindKey(claim.line, claim.dir, tripKeyOf(tr));
+      if (occupiedTripKeys.has(fullKey)) continue;
+      let scheduledEvent;
+      if (claim.terminal) {
+        if (tr[0] !== claim.from) continue;
+        scheduledEvent = tr[1];
+      } else {
+        const k = tripLegIndex(tr, claim.from, claim.to);
+        if (k < 0) continue;
+        scheduledEvent = tr[(k - 1) * 2 + 1];
+      }
+      const shift = claim.depSec - scheduledEvent;
+      if (shift < TRIP_BIND_MAX_EARLY_SEC) continue; // (a) 禁早發
+      if (violatesNoReversal(fullKey, tr, shift)) continue; // (b) 無反轉約束
+      const cost = Math.abs(shift - ref);
+      if (cost > TRIP_BIND_COST_CAP_SEC || Math.abs(shift) > TRIP_BIND_ABS_CAP_SEC) { audit.capped++; continue; } // (c) cap
+      edges.push({ claim, tr, fullKey, shift, cost });
+    }
+  }
+  edges.sort((a, b) => a.cost - b.cost);
+  const usedTracks = new Set(), usedTripKeys = new Set(occupiedTripKeys);
+  for (const e of edges) {
+    if (usedTracks.has(e.claim.trackId) || usedTripKeys.has(e.fullKey)) continue;
+    if (violatesNoReversal(e.fullKey, e.tr, e.shift)) continue; // 同輪較早出生可能已改變鄰居活躍狀態,重驗
+    usedTracks.add(e.claim.trackId); usedTripKeys.add(e.fullKey);
+    const priorRebinds = evictedRebinds.get(e.claim.trackId);
+    records.set(e.fullKey, {
+      line: e.claim.line, dir: e.claim.dir, tripKey: tripKeyOf(e.tr), trackId: e.claim.trackId,
+      boundEpoch: nowEpoch, birth: e.claim.terminal ? 'terminal' : 'seed',
+      lastShift: e.shift, lastTo: e.claim.to, lastArrEpoch: e.claim.arrEpoch, badStreak: 0,
+      done: false, rebinds: priorRebinds != null ? priorRebinds + 1 : 0,
+    });
+    events.push({ type: 'bind', day, line: e.claim.line, dir: e.claim.dir, tripKey: tripKeyOf(e.tr),
+      trackId: e.claim.trackId, epoch: nowEpoch, birth: e.claim.terminal ? 'terminal' : 'seed' });
+    audit.bound++;
+    if (priorRebinds != null) audit.rebinds++;
+  }
+  audit.unbound += birthTracks.filter(c => !usedTracks.has(c.trackId)).length;
+
+  // 11) 收班判定(§5.3):對所有存活(非 done)紀錄跑一次,涵蓋沉默(本輪沒有沿用列的失聯 track)
+  //    與剛出生的兩種情況。「觀測到達終點」或「修正後末站時刻已過+120s 寬限」任一成立即收班。
+  for (const [fullKey, rec] of records) {
+    if (rec.done) continue;
+    const tr = tripByFullKey.get(tripBindKey(rec.line, rec.dir, rec.tripKey));
+    if (!tr) continue;
+    const reachedEnd = updatedFullKeys.has(fullKey) && !!rec._reachedEnd;
+    const scheduleGraceOver = nowSec >= tr[tr.length - 1] + rec.lastShift + TRIP_BIND_DONE_GRACE_SEC;
+    if (reachedEnd || scheduleGraceOver) {
+      rec.done = true;
+      events.push({ type: 'done', day, line: rec.line, dir: rec.dir, tripKey: rec.tripKey,
+        trackId: rec.trackId, epoch: nowEpoch });
+      audit.done++;
+    }
+  }
+
+  const bindings = [...records.values()].map(({ _reachedEnd, ...rest }) => rest);
+  return { bindings, events, audit: { ...audit, dayType } };
+}
+
+// ═══ 訪客唯讀 join(工項5):15秒新鮮看板列 × ≤60秒舊 cron 綁定快照,worker 內完成,絕不寫 D1 ═══
+// 設計書 §7:有官方車號的列 no→alias→binding,精確查表(識別靠車號,不設容忍窗);無號列沿用
+// 現行候選掃描結構,但 cost 換成 |rowShift-binding.lastShift|、僅限已綁班次、窗 45s(BR 尖峰頭距
+// 132s > 2×45s,相鄰班次不可混淆)。join 不到就丟棄該列(不產 trip 校正),存在性零影響。
+export const TRIP_BIND_VISITOR_JOIN_WINDOW_SEC = 45;
+
+function buildTripByFullKeyForJoin(tripSets) { // 與 bindTracksToTrips 內部同名區塊同構(本檔:749-753)
+  const map = new Map();
+  for (const [gk, trips] of tripSets || []) {
+    const sep = gk.lastIndexOf('|'); const line = gk.slice(0, sep), dir = Number(gk.slice(sep + 1));
+    for (const tr of trips) map.set(tripBindKey(line, dir, tripKeyOf(tr)), tr);
+  }
+  return map;
+}
+
+// row 形狀取自 collapseClaims 輸出子集:{line,dir,from,to,destIdx,run,arrEpoch,no,terminal}(即
+// worker.js trtcBoardPositionAnchors 組 9 欄位 rows 用的同一批 collapsed claims)。
+// bindings 形狀取自 trtc_state['trip_dyn'] 快照(bindTracksToTrips 回傳的 bindings 原樣)。
+// aliasByHwNo 形狀 Map<官方車號字串, trackId字串>(trtc_track_aliases,alias_type='hw_no')。
+export function joinBoardRowsToTrips({ tripSets, rows, bindings, aliasByHwNo = new Map(), windowSec = TRIP_BIND_VISITOR_JOIN_WINDOW_SEC }) {
+  const tripByFullKey = buildTripByFullKeyForJoin(tripSets);
+  const activeByFullKey = new Map(), activeByLineDir = new Map(), activeByTrackId = new Map();
+  for (const b of bindings || []) {
+    if (!b || b.done || !b.line || !b.tripKey || (Number(b.dir) !== 1 && Number(b.dir) !== 2)) continue;
+    const fullKey = tripBindKey(b.line, Number(b.dir), b.tripKey);
+    activeByFullKey.set(fullKey, b);
+    const gk = `${b.line}|${b.dir}`;
+    if (!activeByLineDir.has(gk)) activeByLineDir.set(gk, []);
+    activeByLineDir.get(gk).push(fullKey);
+    if (b.trackId != null) activeByTrackId.set(String(b.trackId), fullKey);
+  }
+
+  // 與 bindTracksToTrips Pass A(本檔 798-806)同構:算「這筆觀測若屬於 tr,發車時刻偏移多少秒」。
+  function rowShiftAgainstTrip(row, tr) {
+    const arrSec = trtcServiceSecOfEpoch(row.arrEpoch);
+    const depSec = row.terminal ? arrSec : arrSec - row.run;
+    let scheduledEvent;
+    if (row.terminal) {
+      if (tr[0] !== row.from) return null;
+      scheduledEvent = tr[1];
+    } else {
+      const k = tripLegIndex(tr, row.from, row.to);
+      if (k < 0) return null;
+      scheduledEvent = tr[(k - 1) * 2 + 1];
+    }
+    return depSec - scheduledEvent;
+  }
+
+  const trips = [];
+  for (const row of rows || []) {
+    if (!row || !row.line || (Number(row.dir) !== 1 && Number(row.dir) !== 2) || !Number.isFinite(Number(row.arrEpoch))) continue;
+    let matchedFullKey = null, matchedShift = null;
+    if (row.no) {
+      // 有官方車號:no→alias→binding,精確查表;line/dir 須與 binding 相符(防禦性:alias 誤帶跨線資料)。
+      const trackId = aliasByHwNo.get(String(row.no));
+      const fullKey = trackId != null ? activeByTrackId.get(String(trackId)) : null;
+      const binding = fullKey ? activeByFullKey.get(fullKey) : null;
+      if (binding && binding.line === row.line && Number(binding.dir) === Number(row.dir)) {
+        const tr = tripByFullKey.get(fullKey);
+        const shift = tr ? rowShiftAgainstTrip(row, tr) : null;
+        if (shift != null) { matchedFullKey = fullKey; matchedShift = shift; }
+      }
+    } else {
+      // 無號列:同 line+dir 底下,對每個已綁班次算 cost=|rowShift-lastShift|,取最小者且需 ≤windowSec。
+      const gk = `${row.line}|${row.dir}`;
+      let best = null;
+      for (const fullKey of activeByLineDir.get(gk) || []) {
+        const binding = activeByFullKey.get(fullKey);
+        const tr = tripByFullKey.get(fullKey);
+        if (!tr) continue;
+        const shift = rowShiftAgainstTrip(row, tr);
+        if (shift == null) continue;
+        const cost = Math.abs(shift - binding.lastShift);
+        if (cost > windowSec) continue;
+        if (!best || cost < best.cost) best = { fullKey, shift, cost };
+      }
+      if (best) { matchedFullKey = best.fullKey; matchedShift = best.shift; }
+    }
+    if (!matchedFullKey) continue;
+    const binding = activeByFullKey.get(matchedFullKey);
+    trips.push({ line: binding.line, dir: binding.dir, key: binding.tripKey, shift: matchedShift,
+      eta: { from: row.from, to: row.to, run: row.run, arrEpoch: row.arrEpoch } });
+  }
+  return trips;
 }

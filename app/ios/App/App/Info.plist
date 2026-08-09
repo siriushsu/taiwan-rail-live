@@ -22,6 +22,9 @@
 	<string>$(CURRENT_PROJECT_VERSION)</string>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
+	<!-- 跟車即時動態（Live Activity）：少了這把 Activity.request() 會直接丟 ActivityAuthorizationError -->
+	<key>NSSupportsLiveActivities</key>
+	<true/>
 	<!-- 軌島只用 HTTPS 標準加密（屬出口管制豁免）；宣告 false 讓送審不再詢問加密合規，也不需上傳加密文件 -->
 	<key>ITSAppUsesNonExemptEncryption</key>
 	<false/>
@@ -37,16 +40,12 @@
 			</array>
 		</dict>
 	</array>
-	<!-- 2026-07-29 改寫:舊字串寫「位置只在裝置上使用,不會上傳」,在「校正旅程」上線後
-	     變成不實陳述——座標本身確實不離開手機(伺服器端 hasGeoKeys 收到含座標的 payload 直接 400),
-	     但由座標換算出的沿線里程/時間/速度/精度會連同裝置識別碼上傳。purpose string 烤在 binary 裡,
-	     事後才發現要重出一顆 build,所以這裡把三種用途與「上傳什麼」一次寫清楚。
-	     與 privacy.html 第 3 節、app/APP_REVIEW_NOTES_v1_FREE.md 必須三份一致,改一份就要三份同輪改。 -->
+	<!-- 1.4.0 只宣告目前實際開放的前景定位用途。校正旅程尚未開放，不寫進系統權限提示；
+	     若日後重新開放，必須同輪更新這裡、privacy.html 第 3 節與 App Review Notes。 -->
 	<key>NSLocationWhenInUseUsageDescription</key>
-	<string>軌島用你的位置做三件事：開啟時把地圖停在你所在的地方、列出附近的車站與行駛中的列車，以及在你主動接下「校正旅程」後，於乘車途中記錄位置來校正列車位置推估。座標不會離開這支手機——校正旅程只上傳換算後的沿線里程、時間、速度與定位精度。</string>
-	<!-- @capacitor/geolocation 8.2.0 依賴的 iOS library 要求此 key;軌島不請求 Always 權限、不開背景定位 capability -->
+	<string>軌島會在開啟時將地圖移到你附近，並在你使用「附近車站」時列出周邊車站與列車。系統定位取得的原始座標只在裝置內使用，不會上傳；拒絕授權仍可手動探索地圖。</string>
 	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
-	<string>軌島用你的位置做三件事：開啟時把地圖停在你所在的地方、列出附近的車站與行駛中的列車，以及在你主動接下「校正旅程」後，於乘車途中記錄位置來校正列車位置推估。座標不會離開這支手機——校正旅程只上傳換算後的沿線里程、時間、速度與定位精度。</string>
+	<string>軌島只在你使用 App 時取得位置：開啟時將地圖移到你附近，並在「附近車站」列出周邊車站與列車。App 不會在背景持續定位，也不會主動要求「永遠允許」；原始座標只在裝置內使用，不會上傳，拒絕授權仍可手動探索地圖。</string>
 	<key>UILaunchStoryboardName</key>
 	<string>LaunchScreen</string>
 	<key>UIMainStoryboardFile</key>
