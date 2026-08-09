@@ -17,7 +17,14 @@ const PORT = 5193;
 const MIME = { '.html': 'text/html', '.js': 'text/javascript', '.mjs': 'text/javascript', '.json': 'application/json', '.css': 'text/css', '.png': 'image/png', '.jpg': 'image/jpeg', '.svg': 'image/svg+xml', '.mp3': 'audio/mpeg', '.ico': 'image/x-icon', '.webmanifest': 'application/manifest+json' };
 const server = createServer((req, res) => {
   const url = new URL(req.url, 'http://x');
-  if (url.pathname.startsWith('/api/')) { res.statusCode = 200; res.setHeader('content-type', 'application/json'); return res.end('{}'); }
+  // 高鐵班表自 2026-08-07(9f05f2f)改以 apiUrl('api/thsr-schedule') 為主來源、靜態檔降級為 fallbackUrl。
+  // 空物件是 200 ⇒ fetchJSONAt 視同成功 ⇒ fallback 永不啟動 ⇒ applySchedSystems 迭代 undefined 的
+  // sys.data.trains 拋錯 ⇒ boot 停在 state.ready=true 之前 ⇒ waitReady 逾時。這裡吐打包的那份(同 schema)。
+  if (url.pathname.startsWith('/api/')) {
+    res.statusCode = 200; res.setHeader('content-type', 'application/json');
+    if (url.pathname === '/api/thsr-schedule') return res.end(readFileSync(path.join(ROOT, 'data/thsr_schedule_dense.json')));
+    return res.end('{}');
+  }
   let fp = path.join(ROOT, decodeURIComponent(url.pathname));
   if (existsSync(fp) && statSync(fp).isDirectory()) fp = path.join(fp, 'index.html');
   if (!path.resolve(fp).startsWith(ROOT) || !existsSync(fp)) { res.statusCode = 404; return res.end('nf'); }
@@ -182,11 +189,19 @@ const boxOverlap = (a, b) => a && b && a.vis !== false && b.vis !== false &&
   await browser.close();
 }
 
-// ══════════════ C. 手機掃描:360/375/414/768 × chromium+webkit,不溢出+觸控 tap ══════════════
-const WIDTHS = [360, 375, 414, 768];
+// ══════════════ C. 窄視窗掃描:901/1024/1280 × chromium+webkit,不溢出+觸控 tap ══════════════
+// 本段原本掃 360/375/414/768,但那四個寬度全都 ≤900 ⇒ body 掛上 fs 手機殼,而 fs 把桌面護照整個關掉
+// (index.html:1365 `body.fs .passport { display: none }`),排序控制就住在 #passport 裡面。
+// 更根本的是:手機護照走的是另一條渲染路徑 #ridePanel,它自 2026-07-21(25b646c 手機改版 Batch B)起
+// 就刻意不出排序鈕(index.html:10820「手機不做排序鈕,固定日期最新在前」)。所以原本那四個寬度量到的
+// 一律是 0×0——「存在且可見」結構上不可能綠,而「未超出/不相交」這類否定式斷言反而因為兩個框都是
+// 0×0 而全部假綠(這正是它們沒能早點抓到問題的原因)。
+// 改法:(1) 掃描移到控制真的存在的區間,最窄取剛脫離手機殼的 901,那才是它會被擠爆的臨界寬度;
+//       (2) 手機那側改驗「依設計就不該有排序鈕」,並附正向對照免得零又是假綠(見 D 段)。
+const WIDTHS = [901, 1024, 1280];
 for (const [engName, engine] of [['chromium', chromium], ['webkit', webkit]]) {
   const browser = await engine.launch();
-  console.log(`\n═══ C. ${engName} 手機掃描(360/375/414/768) ═══`);
+  console.log(`\n═══ C. ${engName} 窄視窗掃描(901/1024/1280) ═══`);
   for (const width of WIDTHS) {
     const { ctx, page } = await bootPage(browser, { width, height: 800, touch: true });
 
@@ -196,9 +211,12 @@ for (const [engName, engine] of [['chromium', chromium], ['webkit', webkit]]) {
       vw: window.innerWidth,
       scrollW: document.documentElement.scrollWidth,
     }));
-    ok(`${engName} C-${width} 排序控制存在且可見`, !!(segR && segR.vis), JSON.stringify(segR));
-    ok(`${engName} C-${width} 排序控制右緣未超出視窗`, !!(segR && segR.right <= geo.vw + 1), `right=${segR && segR.right} vw=${geo.vw}`);
-    ok(`${engName} C-${width} 排序控制右緣未超出護照卡片`, !!(segR && passR && segR.right <= passR.right + 1), `segRight=${segR && segR.right} cardRight=${passR && passR.right}`);
+    // 下面每一條否定式斷言都要先掛「量得到而且可見」這個前提:0×0 的框永遠不超出、也永遠不與人相交,
+    // 少了這個前提,面板整個沒開的情況會以全綠收場(2026-08-08 就是這樣讓 C 段紅不起來)。
+    const segVis = !!(segR && segR.vis);
+    ok(`${engName} C-${width} 排序控制存在且可見`, segVis, JSON.stringify(segR));
+    ok(`${engName} C-${width} 排序控制右緣未超出視窗`, segVis && segR.right <= geo.vw + 1, `vis=${segVis} right=${segR && segR.right} vw=${geo.vw}`);
+    ok(`${engName} C-${width} 排序控制右緣未超出護照卡片`, segVis && !!passR && passR.vis && segR.right <= passR.right + 1, `vis=${segVis} segRight=${segR && segR.right} cardRight=${passR && passR.right}`);
     ok(`${engName} C-${width} 頁面無橫向捲動`, geo.scrollW - geo.vw <= 1, `scrollW=${geo.scrollW} vw=${geo.vw}`);
 
     // 與相鄰控件(上:成就徽章區塊、下:完乘記錄列表)不相交
@@ -207,8 +225,8 @@ for (const [engName, engine] of [['chromium', chromium], ['webkit', webkit]]) {
       const r = el => { if (!el) return null; const b = el.getBoundingClientRect(); return { x: b.x, y: b.y, w: b.width, h: b.height, vis: b.width > 0 && b.height > 0 }; };
       return { prev: r(sec && sec.previousElementSibling), next: r(sec && sec.nextElementSibling) };
     });
-    ok(`${engName} C-${width} 排序控制與上方成就徽章不相交`, !boxOverlap(segR, neigh.prev), JSON.stringify({ seg: segR, prev: neigh.prev }));
-    ok(`${engName} C-${width} 排序控制與下方完乘列表不相交`, !boxOverlap(segR, neigh.next), JSON.stringify({ seg: segR, next: neigh.next }));
+    ok(`${engName} C-${width} 排序控制與上方成就徽章不相交`, segVis && !!neigh.prev && neigh.prev.vis && !boxOverlap(segR, neigh.prev), JSON.stringify({ seg: segR, prev: neigh.prev }));
+    ok(`${engName} C-${width} 排序控制與下方完乘列表不相交`, segVis && !!neigh.next && neigh.next.vis && !boxOverlap(segR, neigh.next), JSON.stringify({ seg: segR, next: neigh.next }));
 
     // 觸控 tap 切到 kind 模式,驗證生效(狀態+DOM 順序)
     await page.locator('#phSortSeg button[data-v="kind"]').tap();
@@ -220,6 +238,41 @@ for (const [engName, engine] of [['chromium', chromium], ['webkit', webkit]]) {
     ok(`${engName} C-${width} 觸控 tap 切換生效(按鈕高亮)`, tapOn === true);
     ok(`${engName} C-${width} 觸控 tap 後順序正確(kind 模式)`, JSON.stringify(tapRows) === JSON.stringify(expectKind), JSON.stringify(tapRows));
 
+    await ctx.close();
+  }
+  await browser.close();
+}
+
+// ══════════════ D. 手機側:依設計就沒有排序鈕(360/375/414/768 × chromium+webkit) ══════════════
+// 這是 C 段搬家後留下的另一半:≤900 走 fs 手機殼,護照改由 #ridePanel 渲染,固定「日期最新在前」、
+// 刻意不出排序鈕(index.html:10820)。把它寫成正式判準,以後有人把排序鈕加進手機版、或反過來把
+// 桌面那顆誤刪,都會在這裡轉紅,而不是像先前那樣以 0×0 全綠收場。
+// D2/D3 是 D1 那個「零」的正向對照:sheet 真的開了、完乘列表真的有列——否則「找不到排序鈕」
+// 只是因為面板根本沒開(同一支收集器要能同時證明「該有的有」與「不該有的沒有」)。
+for (const [engName, engine] of [['chromium', chromium], ['webkit', webkit]]) {
+  const browser = await engine.launch();
+  console.log(`\n═══ D. ${engName} 手機側:護照 sheet 無排序鈕(360/375/414/768) ═══`);
+  for (const width of [360, 375, 414, 768]) {
+    const { ctx, page } = await bootPage(browser, { width, height: 800, touch: true });
+    // 走使用者真正的入口:底部分頁「護照」(內部轉呼叫 rideBtn.click() → openRidePanel(),
+    // 同 verify_founding_seal 的寫法);localStorage 的 trainmap-passport-open 只管桌面卡片展開,開不了 sheet。
+    await page.tap('#tabRide');
+    await page.waitForTimeout(350);
+    const m = await page.evaluate(() => {
+      const rp = document.getElementById('ridePanel');
+      const vis = el => { if (!el || el.hidden) return false; const b = el.getBoundingClientRect(); return b.width > 0 && b.height > 0; };
+      return {
+        fsShell: document.body.classList.contains('fs'),
+        panelOpen: vis(rp),
+        rows: rp ? rp.querySelectorAll('.ph-row').length : -1,
+        sortInSheet: rp ? rp.querySelectorAll('.ph-sort, [data-v]').length : -1,
+        desktopPassportShown: vis(document.getElementById('passport')),
+      };
+    });
+    ok(`${engName} D-${width} 手機殼生效(body.fs)且桌面 #passport 不顯示`, m.fsShell === true && m.desktopPassportShown === false, JSON.stringify(m));
+    ok(`${engName} D-${width} 正向對照:點護照分頁後 sheet 真的開了`, m.panelOpen === true, `panelOpen=${m.panelOpen}`);
+    ok(`${engName} D-${width} 正向對照:sheet 內完乘列表有列(${RIDES.length} 筆)`, m.rows === RIDES.length, `rows=${m.rows}`);
+    ok(`${engName} D-${width} 手機護照 sheet 依設計無排序鈕`, m.sortInSheet === 0, `sortInSheet=${m.sortInSheet}`);
     await ctx.close();
   }
   await browser.close();
