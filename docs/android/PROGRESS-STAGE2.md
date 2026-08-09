@@ -242,3 +242,32 @@
 - 兩個面板實況相同：月票 0、年票 0、恢復購買 0；只有「已經在 App 訂閱了？登入以同步」。同時仍顯示「目前請在軌島 App 內訂閱」、App Store 取消訂閱與 iOS 動態島功能，屬 Android 出貨誤導風險。
 - 暫時 gate 的完整最小面應放在 `index.html:6188-6190`，對 Android 讓 `PLUS_ENABLED=false`；產品碼約 1–3 行，加 verifier 正負樣本／release UI 回歸總約 15–30 行、0.5 天。只藏 `:7665` 的槽位會漏掉帳號面板、誤點履歷、說明中心等入口，不建議。
 - 三條出貨路徑、剩餘工作、時程、政策依據與建議完整記於 `docs/android/SHIPPING-OPTIONS.md`；本輪依要求只查證，不修改 Plus 行為，也未上傳 Play Console。
+
+## M. Android 通行證 gate、internal testing 產物與 Play AVD（2026-08-09）
+
+### gate 形狀與三平台對照
+
+- `index.html:6188-6192` 在既有 `PLUS_ENABLED` initializer 最前只新增一行 Android-native early return：`IS_NATIVE_APP` 與既有 Capacitor `getPlatform()` 同時判定 Android才回 `false`；後面的 iOS native `return true` 與 Web `?plus=1` 分支逐字不動。沒有另造平台偵測，也沒有修改網站更新紀錄。
+- 新增 `app/scripts/verify-android-plus-gate.mjs`，以頁面載入時就存在的真實 initializer 驗證：Android native `false`、iOS native `true`；Chromium 與 WebKit desktop UA 都是 `?plus=1 → true`、無參數 `→ false`。另以 gate 前 commit 起本機 server 實際比對 Chromium 頁面，兩種 query 的入口可見性前後一致；iOS 僅完成靜態路徑審查，真機驗證明確留給 iOS session。
+- 原始 `RailIsland_API35_Pixel7` 上的 signed release runtime audit：`platform=android`、`IS_NATIVE_APP=true`、`PLUS_ENABLED=false`；工具列與「更多」兩個通行證入口不存在，說明中心通行證節數 0，誤點履歷付費 CTA 0。免費 30 天摘要仍顯示「近30天平均誤點 2分・準點 90%（30天）」；`state.ready=true`、列車 1,163、Leaflet 地圖存在。結構化結果：`docs/android/shots/stage4-android-plus-gate-audit.json`。
+
+### 突變紅綠對與 verifier
+
+- 暫時從 source 與 Android release assets 移除 gate（未 commit）後，source verifier exit 1；同一顆 release runtime 轉為 `PLUS_ENABLED=true`，工具列／更多入口、說明中心通行證節、誤點履歷付費入口全部重新出現，stage4 audit exit 1。證明斷言瞄到真實產品入口，不是只找靜態字串。
+- 還原 gate 後，正樣本全部轉綠；負樣本 `negativeRejected=true`，且移除 gate 的 initializer 對 Android 算得 `true`。`verify-release.mjs` 加入逐字形狀 gate，要求新增行只出現一次；`RAIL_VERIFY_NATIVE=android` 僅把既有 native parity loop 限定到 Android，預設仍是 `all`，不會掩蓋一般雙平台驗證。
+
+### release、Android 回歸與 44×44
+
+- Android-only 完整鏈為 `RAIL_INCLUDE_LICENSED_BASEMAPS=1 npm run build`、`npx cap copy android`、`RAIL_VERIFY_NATIVE=android npm run verify`、Gradle `bundleRelease`／`assembleRelease`，均 exit 0。原樣 `npm run verify` 仍會對未同步的 iOS `v0804g` fail closed；這項 iOS native parity 依使用者裁定留給 iOS session，沒有改寫或同步 iOS 檔案。
+- release badging 維持 `tw.railisland.app`／`versionName=1.4.1`／`versionCode=1`；APK/AAB 使用 `CN=railisland-upload` 的同一憑證簽署，APK `apksigner verify` 與 AAB `jarsigner -verify` 通過。APK 內 `revenuecat-config.js` 的 founding anchor 仍為 `2026-08-10T12:00:00+08:00`。
+- fresh uninstall/install release APK 後 cold launch 正常；Firebase `[DEFAULT]` 初始化成功、無 AndroidRuntime crash。stage4 gate audit 綠；stage3 三底圖亮／暗／衛星各 8/8、重疊 0、裁切 0、中心命中失敗 0、`effectiveBelow44Controls=[]`。首次安裝 onboarding 會遮住 audit，真實關閉 onboarding 後重跑通過，沒有把 overlay 遮擋誤判成產品退化。
+
+### Play Store AVD
+
+- 保留原本 `RailIsland_API35_Pixel7`（`google_apis`）供 gate 回歸；另下載 `system-images;android-35;google_apis_playstore;arm64-v8a`，以 Pixel 7 profile 建立 `RailIsland_API35_Pixel7_Play`，兩顆 AVD 並存。
+- 新 AVD config 為 `PlayStore.enabled=yes`、`abi.type=arm64-v8a`、`hw.device.name=pixel_7`、Play Store image path。headless 開機後 `sys.boot_completed=1`，Package Manager 回 `com.android.vending` 位於 `/product/priv-app/Phonesky/Phonesky.apk`；確認 Play Store app 存在後已關機。
+- 沒有登入 Google 帳號，也沒有接觸任何帳密。待 AAB 由使用者上傳 Play Console 後，再由使用者親自在這顆模擬器登入 tester Google 帳號，才能驗 Play Store opt-in／商店簽署／下載安裝鏈。
+
+### Data safety 對照
+
+- `docs/android/PLAY-DATA-SAFETY.md` 依 source manifest、release merged manifest、Firebase／定位／本地通知／分享／Cloudflare 實際資料流逐題列出可填答案。線上授權底圖會收到定位後的圖磚區域與 IP，因此沒有沿用舊安全 build 的「位置完全不離開裝置」結論；Stadia／Esri／Cloudflare／Firebase 是否全符合 Play service-provider sharing 例外，明確標「待使用者確認」。

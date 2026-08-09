@@ -6186,6 +6186,7 @@ const ACCOUNT_ENABLED = false; // 此旗標只控制帳號 UI 要不要 eager �
 // 面板停在「請在 App 內訂閱」,不出現任何購買鈕)。未訂閱者在網站看到的是 teaser/upsell 面,
 // 90 天逐日資料本身由 worker.js 的 checkPlusEntitlement() 伺服器端強制,不靠這支前端旗標。
 const PLUS_ENABLED = (() => { try {
+  if (IS_NATIVE_APP && window.Capacitor?.getPlatform?.() === 'android') return false;
   if (window.Capacitor && Capacitor.isNativePlatform && Capacitor.isNativePlatform()) return true;
   return new URLSearchParams(location.search).get('plus') === '1';
 } catch (e) { return false; } })();

@@ -67,6 +67,24 @@ export function assertPlusSandboxTestBuild(html, expectedBuild) {
     `TestFlight Sandbox 包的測試通道 build 標記不是 ${build}`);
 }
 
+export const ANDROID_PLUS_GATE_LINE =
+  "  if (IS_NATIVE_APP && window.Capacitor?.getPlatform?.() === 'android') return false;";
+
+export function assertAndroidPlusGate(html) {
+  const exactInitializer = [
+    'const PLUS_ENABLED = (() => { try {',
+    ANDROID_PLUS_GATE_LINE,
+    '  if (window.Capacitor && Capacitor.isNativePlatform && Capacitor.isNativePlatform()) return true;',
+    "  return new URLSearchParams(location.search).get('plus') === '1';",
+    '} catch (e) { return false; } })();',
+  ].join('\n');
+  assert(html.includes(exactInitializer),
+    'PLUS_ENABLED 必須先對原生 Android fail closed，再逐字保留既有 iOS 原生與 Web ?plus=1 分支；'
+    + '不得只藏單一入口或重寫共享判定式');
+  assert(html.split(ANDROID_PLUS_GATE_LINE).length === 2,
+    'Android 通行證平台 gate 必須且只能出現一次');
+}
+
 export async function assertLicensedBuildAllowed({ includeLicensedMusic, includeLicensedBasemaps }) {
   const policy = await readReleasePolicy();
   if (includeLicensedMusic) {
@@ -281,6 +299,7 @@ export async function verifyRelease({
 
   if (expectPlusSandboxBuild !== null) assertPlusSandboxTestBuild(html, expectPlusSandboxBuild);
   else assertPlusSandboxOff(html);
+  assertAndroidPlusGate(html);
 
   await assertLicensedBuildAllowed({
     includeLicensedMusic: musicEnabled,
@@ -443,11 +462,14 @@ export async function verifyRelease({
   // 原生內嵌資產一致性：iOS／Android 打包的 public/ 必須與 app/www 同版。
   // build 結尾呼叫時 cap sync 尚未跑,故 skipNativeSyncCheck=true;獨立 npm run verify 才做此比對。
   if (!skipNativeSyncCheck) {
+    const nativeTarget = String(process.env.RAIL_VERIFY_NATIVE || 'all').toLowerCase();
+    assert(['all', 'ios', 'android'].includes(nativeTarget),
+      'RAIL_VERIFY_NATIVE 只接受 all、ios 或 android');
     const nativeIndexes = [
-      ['iOS', join(appRoot, 'ios/App/App/public/index.html')],
-      ['Android', join(appRoot, 'android/app/src/main/assets/public/index.html')]
-    ];
-    for (const [label, nativeIndex] of nativeIndexes) {
+      ['ios', 'iOS', join(appRoot, 'ios/App/App/public/index.html')],
+      ['android', 'Android', join(appRoot, 'android/app/src/main/assets/public/index.html')]
+    ].filter(([platform]) => nativeTarget === 'all' || nativeTarget === platform);
+    for (const [, label, nativeIndex] of nativeIndexes) {
       let nativeHtml;
       try { nativeHtml = await readFile(nativeIndex, 'utf8'); }
       catch {
