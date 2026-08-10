@@ -3377,7 +3377,7 @@
 
   <footer class="site-foot">
     <details class="foot-box">
-      <summary><span>更新紀錄</span><span class="foot-sub">最後更新：2026/8/9</span></summary>
+      <summary><span>更新紀錄</span><span class="foot-sub">最後更新：2026/8/10</span></summary>
       <!-- 第一層是「最近更新」的檢視,不是正本:每一條都用 data-cl-of 指向第二層某條的 data-cl。
            要把一條擠出第一層之前,它的正本必須已經在第二層存在——2026-08-03 就踩過一次:8/1 的
            衛星計費那條只活在第一層(第二層只有一句夾在 7/25 條目裡、日期對不上的附帶說明),
@@ -3385,6 +3385,7 @@
            內容 li 上限 8 條(li.grp 是標題不算)。 -->
       <ul class="foot-list foot-recent">
         <li class="grp">最近更新</li>
+        <li data-cl-of="bgmusic"><span class="d">8/10</span><span>App 收起後背景音樂繼續播放，鎖定畫面與動態島可暫停繼續；下次 App 更新生效</span></li>
         <li data-cl-of="widgetdestination"><span class="d">8/8</span><span>iPhone 小工具起站選「共站」或「我的地點」後，「目的站」一點就關掉；已修好，下次 App 更新生效</span></li>
         <li data-cl-of="lapush"><span class="d">8/8</span><span>跟車的鎖定畫面即時動態會自己換下一站了，App 沒開著也會更新；停靠站內顯示「停靠中」，動態島展開還有進度條與車種顏色（通行證功能）</span></li>
         <li data-cl-of="crossnight452"><span class="d">8/8</span><span>修正：週五深夜 452 次這類特定日開行的跨夜車，過了午夜就從地圖上消失（謝謝網友回報）</span></li>
@@ -3392,7 +3393,6 @@
         <li data-cl-of="mytrains"><span class="d">8/8</span><span>最愛面板新增「我的車」：收藏的台鐵列車集中列出近 30 天準點表現（通行證功能）</span></li>
         <li data-cl-of="punctualtrains"><span class="d">8/7</span><span>探索面板新增「準點排行」榜：近30天最準點的10班台鐵車，依誤點排序</span></li>
         <li data-cl-of="thsrautosched"><span class="d">8/7</span><span>高鐵時刻表改為每天自動更新，加開與調整班次當天就會反映</span></li>
-        <li data-cl-of="widgetdestination3"><span class="d">8/6</span><span>iPhone 小工具的目的站選單偶爾只顯示一下「載入中」就收起；現在即使起站連動稍晚送到，也會先列出完整車站，不必重複點選</span></li>
       </ul>
       <!-- 第二層:完整歷史。刻意不掛 .foot-box 類名——placeFootBoxes() 用
            `.site-foot .foot-box` 搬移面板,巢狀同名會被當成另一個盒子一起搬走。 -->
@@ -3475,6 +3475,7 @@
         <li><span class="d">7/13</span><span>收集章可以重複點，換搭不同班次回味</span></li>
         <li><span class="d">7/9</span><span>旅程護照與 16 枚成就徽章、「探」今日亮點面板上線</span></li>
         <li class="grp">手機與操作</li>
+        <li data-cl="bgmusic"><span class="d">8/10</span><span>App 收起或鎖定螢幕後，背景音樂繼續播放不再中斷；鎖定畫面與動態島可暫停、繼續。此前收起 App 音樂會停，要點動態島的播放圖示才恢復。下次 App 更新生效</span></li>
         <li data-cl="widgetdestination"><span class="d">8/8</span><span>iPhone「發車看板」小工具，起站選「共站」或「我的地點」後點「目的站」，原本閃退、後來變成一點就關掉；下次 App 更新後會照常列出車站，選了不影響看板，留空也行</span></li>
         <li data-cl="widgetdestination3"><span class="d">8/6</span><span>iPhone 主畫面的「發車看板」小工具，目的站選單有時只會短暫顯示「載入中」便自動收起。原因是 iOS 開啟選單時可能稍晚才把已選起站交給小工具，或共享班表正好還在換版；現在這兩種空窗都會先列出內建的完整車站清單，資料齊全後仍會照起站只顯示有直達列車的車站</span></li>
         <li data-cl="widgetdestination2"><span class="d">8/6</span><span>iPhone 主畫面的「發車看板」小工具，App 剛更新、共享車站資料還在背景準備時，點「起站」就可能讓設定畫面直接退出；現在起站與目的站都有一份內建的輕量車站清單可立即使用，完整班表完成後會自動接手，目的站仍會照起站只列出有直達列車的車站</span></li>
@@ -10164,6 +10165,16 @@ function initMusic() {
     if (++m._fails >= m.list.length) return;
     musicNext();
   });
+  // iOS App 背景續播:即使 Info.plist 已宣告 UIBackgroundModes audio,收進背景/鎖定螢幕的瞬間
+  // WKWebView 仍會把 <audio> 暫停一次;只在「暫停緊跟著背景化」的 1.5 秒窗內補一次 play() 讓它續播。
+  // 窗外的暫停（鎖定畫面/動態島的暫停鍵、來電、拔耳機）一律尊重，不搶回來。
+  document.addEventListener('visibilitychange', () => { if (document.hidden) state.music._hiddenAt = performance.now(); });
+  audio.addEventListener('pause', () => {
+    const m = state.music;
+    if (!document.hidden || !m.enabled || !m.audio.src || m.audio.ended) return;
+    if (performance.now() - (m._hiddenAt || -1e9) > 1500) return;
+    m.audio.play().catch(() => {});
+  });
   const vs = document.getElementById('musicVol');
   const ctl = document.getElementById('musicCtl');
   if (!available) { ctl.hidden = true; vs.disabled = true; }
@@ -10222,7 +10233,9 @@ function musicRamp(to, ms, thenPause) { // 音量漸變(50ms 一階)
     if (i >= steps) { clearInterval(state.music._fade); if (thenPause) a.pause(); }
   }, 50);
 }
-function musicMixEntitled() { return REC_MUSIC_PROTOTYPE || (musicRecordingLicensed() && plusIsActive()); }
+// 錄影下架期間絕不建混音（即使授權旗標與通行證都真）:iOS 進背景會暫停 AudioContext，
+// 音樂一旦繞進混音圖，背景續播就變成「在播但無聲」;錄影復活時這裡自動跟著 RECORDING_ENABLED 回來。
+function musicMixEntitled() { return REC_MUSIC_PROTOTYPE || (RECORDING_ENABLED && musicRecordingLicensed() && plusIsActive()); }
 function musicEnsureMix(force) {
   const m = state.music; if (!m || m.mixDest || (!force && !musicMixEntitled())) return m && m.mixDest;
   try {
