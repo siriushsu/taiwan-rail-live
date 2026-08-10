@@ -966,7 +966,13 @@
     font-variant-numeric: tabular-nums;
   }
   .traincard .tc-st:hover { background: var(--bg-stage); }
-  .traincard .tc-st .n { flex: 1; }
+  .traincard .tc-st .n { flex: 1; min-width: 0; }
+  .traincard .tc-st > span:not(.n) { flex: none; }
+  .traincard .tc-xfer {
+    display: inline-block; margin-left: 6px; color: var(--red); font-size: 10px;
+    line-height: 1.2; font-weight: 800; white-space: nowrap; vertical-align: 1px;
+  }
+  .traincard .tc-xfer-short { display: none; }
   .traincard .tc-st.hd { font-weight: 800; color: var(--faint); border-top: 0; cursor: default; font-size: 11px; letter-spacing: 1px; }
   .traincard .tc-st.hd:hover { background: none; }
   .traincard .tc-st.past { opacity: .45; }
@@ -2360,6 +2366,8 @@
 
   /* ── 手機／平板直式殼(議題1主案:上限 640→900;iPad 直式 768 改拿 tab bar＋「更多」抽屜＋速度膠囊,不再吃桌面帶) ── */
   @media (max-width: 900px) {
+    .traincard .tc-xfer-wide { display: none; }
+    .traincard .tc-xfer-short { display: inline; }
     /* 底錨面板統一避讓基準:fixed tab bar 實高(58px)＋iOS 安全區(有瀏海才 >0);所有貼底表面以此為基準讓位,
        改一處全體同步。原本各自寫死的 66/64/68px 就是 58+讓位間距,改成 var+間距後計算值不變(桌面 var 未定義故不影響)。 */
     :root { --tabbar-clear: calc(52px + max(env(safe-area-inset-bottom, 0px) - 6px, 0px)); } /* 與 .tabbar height 同式(v0721f 收斂) */
@@ -3385,6 +3393,7 @@
            內容 li 上限 8 條(li.grp 是標題不算)。 -->
       <ul class="foot-list foot-recent">
         <li class="grp">最近更新</li>
+        <li data-cl-of="stationtransfer"><span class="d">8/10</span><span>跟車展開停靠時刻表時，轉乘站會標出可換乘的鐵道路線；手機以精簡「轉」標記顯示，點住可看完整路線</span></li>
         <li data-cl-of="nearfollowmutex"><span class="d">8/10</span><span>修正：開啟「附近車站」與「隨機跟隨」時會自動關閉另一個模式，地圖鏡頭不再互相拉扯</span></li>
         <li data-cl-of="widgetdestination"><span class="d">8/8</span><span>iPhone 小工具起站選「共站」或「我的地點」後，「目的站」一點就關掉；已修好，下次 App 更新生效</span></li>
         <li data-cl-of="lapush"><span class="d">8/8</span><span>跟車的鎖定畫面即時動態會自己換下一站了，App 沒開著也會更新；停靠站內顯示「停靠中」，動態島展開還有進度條與車種顏色（通行證功能）</span></li>
@@ -3392,7 +3401,6 @@
         <li data-cl-of="thsrfreeseat"><span class="d">8/8</span><span>跟隨高鐵列車時，資訊卡新增「自由座車廂」提示：一排小方塊標出今天這班車自由座在第幾節，不必再猜（免費功能）</span></li>
         <li data-cl-of="mytrains"><span class="d">8/8</span><span>最愛面板新增「我的車」：收藏的台鐵列車集中列出近 30 天準點表現（通行證功能）</span></li>
         <li data-cl-of="punctualtrains"><span class="d">8/7</span><span>探索面板新增「準點排行」榜：近30天最準點的10班台鐵車，依誤點排序</span></li>
-        <li data-cl-of="thsrautosched"><span class="d">8/7</span><span>高鐵時刻表改為每天自動更新，加開與調整班次當天就會反映</span></li>
       </ul>
       <!-- 第二層:完整歷史。刻意不掛 .foot-box 類名——placeFootBoxes() 用
            `.site-foot .foot-box` 搬移面板,巢狀同名會被當成另一個盒子一起搬走。 -->
@@ -3400,6 +3408,7 @@
         <summary>完整更新歷史（依主題分類）</summary>
         <ul class="foot-list">
         <li class="grp">路網與車站</li>
+        <li data-cl="stationtransfer"><span class="d">8/10</span><span>跟車資訊卡的停靠時刻表新增轉乘提示：共站資料由站名與車站座標交叉核對，電腦顯示可轉路線，手機收成精簡「轉」標記並保留完整說明</span></li>
         <li><span class="d">7/19</span><span>阿里山林鐵上線：21 站、四條路線，繞獨立山螺旋、第一分道之字形折返；祝山觀日列車依當天日出推算</span></li>
         <li><span class="d">7/19</span><span>台糖五分車改用景點標記：五處觀光園區標上地圖——糖鐵沒有公開班表，不模擬行駛</span></li>
         <li><span class="d">7/13</span><span>預設視圖改為「全台同框」</span></li>
@@ -3872,6 +3881,7 @@ const ZOOM_OUT_LEVELS = 1;
 const state = {
   systems: [], sysId: null, data: null, speed: 36, mode: 'freq',
   lines: [], visible: new Set(), trains: [], schedStations: [], types: [],
+  stationTransfers: null, stationTransferAnchors: [], stationTransferGroups: new Map(), stationTransferBySystemName: new Map(),
   playing: true, speedMult: 1, hour: 8, simSec: 8 * 3600, // 開機即 1× 真實時刻(2026-07-11 使用者裁決,舊示意預設 50×)
   dpr: 1, powerSave: false, t0: 0, elapsed: 0, ready: false, // powerSave:省電模式(相機置中+繪製統一降 30fps,手機預設開),見 tick 節流
 
@@ -10449,6 +10459,79 @@ function renderFreeSeat(tr) {
   paintFreeSeat(tr);
 }
 
+// 靜態轉乘表索引。配對本身已由 scripts/build_station_transfers.mjs 用各來源站碼、有限站名規則＋座標建好；
+// 前端只用「時刻表系統＋正規化站名」接回同系統 anchor，座標只作同名歧義／來源漂移的上界檢查。
+const TRANSFER_SCHED_SYSTEM = { tra_sched: 'TRA', thsr_sched: 'THSR', afr_sched: 'AFR' };
+const TRANSFER_ROUTE_FALLBACK = { 'THSR:THSR': '高鐵', 'SANYING:LB': '三鶯線' };
+function transferStationName(name) {
+  return String(name || '').normalize('NFKC').replace(/臺/g, '台').replace(/^(高鐵|台鐵)/, '')
+    .replace(/火車站$/, '').replace(/車站$/, '').replace(/站$/, '').trim();
+}
+function initStationTransfers(data) {
+  state.stationTransfers = data && data.schemaVersion === 1 ? data : null;
+  state.stationTransferAnchors = [];
+  state.stationTransferGroups = new Map();
+  state.stationTransferBySystemName = new Map();
+  if (!state.stationTransfers) return;
+  for (const group of state.stationTransfers.transferStations || []) state.stationTransferGroups.set(group.id, group);
+  for (const [key, station] of Object.entries(state.stationTransfers.stations || {})) {
+    if (!Array.isArray(station.position) || station.position.length !== 2) continue;
+    const anchor = { key, station, lat: station.position[0], lon: station.position[1] };
+    state.stationTransferAnchors.push(anchor);
+    const nameKey = station.system + '|' + station.normalizedName;
+    if (!state.stationTransferBySystemName.has(nameKey)) state.stationTransferBySystemName.set(nameKey, []);
+    state.stationTransferBySystemName.get(nameKey).push(anchor);
+  }
+}
+function transferAnchorForStop(sourceSystem, stop) {
+  const data = state.stationTransfers;
+  if (!data || !sourceSystem || !stop || !Number.isFinite(stop.lat) || !Number.isFinite(stop.lon)) return null;
+  const candidates = state.stationTransferBySystemName.get(sourceSystem + '|' + transferStationName(stop.name)) || [];
+  const maxKm = Number(data.criteria && data.criteria.maxDistanceM) / 1000;
+  let best = null;
+  for (const anchor of candidates) {
+    const km = haversineKm(stop, anchor);
+    if (Number.isFinite(maxKm) && km < maxKm && (!best || km < best.km)) best = { anchor, km };
+  }
+  return best && best.anchor;
+}
+function transferRoutesForStop(tr, stop) {
+  const data = state.stationTransfers;
+  if (!data || !tr || !stop) return [];
+  const sourceSystem = TRANSFER_SCHED_SYSTEM[tr && tr.sys] || null;
+  const anchor = transferAnchorForStop(sourceSystem, stop);
+  if (!anchor) return [];
+  const station = anchor.station;
+  const group = station.transferId && state.stationTransferGroups.get(station.transferId);
+  const routeKeys = group ? group.routes : station.routes;
+  // 同系統多線站不能整個 system 排除：用前後相鄰站和本站共同的 route 判定本班正在走的線，
+  // 只隱藏那些 route；其餘同系統支線仍是有效轉乘。時刻表已加密通過站，快車跳站也有相鄰節點可判。
+  const currentRoutes = new Set();
+  const stopIndex = Array.isArray(tr.stops) ? tr.stops.indexOf(stop) : -1;
+  if (stopIndex >= 0) for (const i of [stopIndex - 1, stopIndex + 1]) {
+    if (i < 0 || i >= tr.stops.length) continue;
+    const adjacent = transferAnchorForStop(sourceSystem, tr.stops[i]);
+    if (!adjacent) continue;
+    for (const routeKey of station.routes || []) if (adjacent.station.routes.includes(routeKey)) currentRoutes.add(routeKey);
+  }
+  if (!currentRoutes.size) for (const routeKey of station.routes || []) currentRoutes.add(routeKey);
+  const out = [];
+  for (const routeKey of routeKeys || []) {
+    const route = data.routes && data.routes[routeKey];
+    if (!route || currentRoutes.has(routeKey)) continue;
+    const label = route.name || TRANSFER_ROUTE_FALLBACK[routeKey] || route.lineId;
+    if (label && !out.some(item => item.key === routeKey)) out.push({ key: routeKey, label });
+  }
+  return out;
+}
+function transferHintHtml(tr, stop) {
+  const routes = transferRoutesForStop(tr, stop);
+  if (!routes.length) return '';
+  const text = '可轉 ' + routes.map(route => route.label).join('、');
+  return `<span class="tc-xfer" title="${escHtml(text)}" aria-label="${escHtml(text)}">` +
+    `<span class="tc-xfer-wide">${escHtml(text)}</span><span class="tc-xfer-short">轉 ${routes.length}</span></span>`;
+}
+
 // 地圖下方的列車資訊卡:介紹+服務標記,旅程日誌由 renderFollowEvents 填
 function renderTrainCard(tr) {
   const it = trainIntro(tr);
@@ -10470,7 +10553,7 @@ function renderTrainCard(tr) {
   document.getElementById('tcStops').innerHTML =
     '<div class="tc-st hd"><span class="n">停靠站</span><span>到</span><span>開</span></div>' +
     tr.stops.map((s, i) => ({ s, i })).filter(x => x.s.stop !== false).map(x =>
-      `<div class="tc-st" data-i="${x.i}"><span class="n">${x.s.name}</span>` +
+      `<div class="tc-st" data-i="${x.i}"><span class="n">${escHtml(x.s.name)}${transferHintHtml(tr, x.s)}</span>` +
       `<span>${fmtHM(x.s.arrSec % 86400)}</span><span>${fmtHM(x.s.depSec % 86400)}</span></div>`).join('');
   state._tcCurIdx = null;
   updateStar();
@@ -18192,6 +18275,8 @@ async function boot() {
   addSunriseTrains(); // 要在 _track 載完後(站座標取自軌道資料,與其餘班表同源)、任何 loadSystem 之前
   // 捷運/輕軌逐班時刻(*_times.json,build_metro_times.mjs 產);缺檔時該系統退回班距均勻撒車
   for (const s of state.systems) if (s.times) s._times = await fetchJSON(s.times);
+  // 純靜態共站表；沒有 runtime 外部 API，缺檔時只是不顯示轉乘提示。
+  initStationTransfers(await fetchJSON('./data/station_transfers.json'));
   // 站等資料(特等/一等/…),缺檔就全走停靠班次數啟發式
   state.stnClassMap = await fetchJSON('./data/tra_station_class.json') || {};
   // 台鐵各站地址(TDX Rail/TRA/Station);key 為「台」正規化站名,feature 欄之後補
