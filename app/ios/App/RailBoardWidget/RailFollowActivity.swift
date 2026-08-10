@@ -221,7 +221,10 @@ struct RailFollowActivityWidget: Widget {
                     }
                 }
             } minimal: {
-                Text(context.attributes.trainNo.prefix(3))
+                // 被其他活動(背景音樂的「正在播放」等)擠到最小時,最有用的是下一站不是車次——
+                // 使用者實測抱怨的就是這格(2026-08-10「下一站直接看不到了」)。站名空缺才退回車次。
+                Text(context.state.nextStop.isEmpty ? context.attributes.trainNo.prefix(3)
+                                                    : context.state.nextStop.prefix(2))
             }
         }
     }
