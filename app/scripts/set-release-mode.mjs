@@ -102,8 +102,11 @@ const MODES = {
   //    才是重點」）；音樂圓外觀是系統畫的動不了、鎖屏完全合併做不到，皆已對使用者說明。
   // 2026-08-10 之四：build 36＝MediaSession 曲目資訊——鎖定畫面/控制中心封面全用軌島 icon
   //    （favicon-512/192）、曲名=檔名去副檔名；只設 metadata 不接 action handler。
+  // 2026-08-10 之五：build 37＝音樂隱形化（使用者裁示「不要音樂了，放列車動態就好」）——
+  //    AppDelegate 設 AVAudioSession mixWithOthers，音樂不掛系統「正在播放」，跟車獨占動態島；
+  //    鎖屏播放卡消失（36 的曲名/封面隨之無處顯示，metadata 程式保留給 web/Android）。
   feature: {
-    marketing: '1.4.1', build: '36', music: true,
+    marketing: '1.4.1', build: '37', music: true,
     why: '軌島 1.4.1：App 收起與鎖屏後背景音樂續播、跟車即時動態改由後端推播（鎖屏自動換站）＋卡片強化（停靠中、進度條、車種顏色、上一站與終點站）、高鐵自由座車廂、我的車・準點、準點排行；production 資格，TestFlight Sandbox 通道維持關閉。',
   },
   // 2026-08-06：build 20、21、22 已上 TestFlight；22 專門驗收 Sandbox 購買後的

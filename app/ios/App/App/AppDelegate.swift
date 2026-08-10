@@ -1,4 +1,5 @@
 import UIKit
+import AVFoundation
 import Capacitor
 import FirebaseCore
 
@@ -26,6 +27,11 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
             fatalError("GoogleService-Info.plist 缺失：release build 必須帶入 Firebase Console 下載的正式 plist（見 app/STORE_SUBMISSION_CHECKLIST.md）")
             #endif
         }
+        // 音樂隱形化（2026-08-10 裁示）：mixWithOthers 讓網頁 <audio> 不註冊系統「正在播放」，
+        // 動態島與鎖定畫面不出現音樂卡，跟車 Live Activity 獨占動態島。
+        // 代價（使用者已知情）：鎖定畫面無播放控制、不會中斷其他 App 的聲音。
+        // 只設 category 不 setActive——啟動就 setActive 會無故打斷別家正在播的音訊。
+        try? AVAudioSession.sharedInstance().setCategory(.playback, mode: .default, options: [.mixWithOthers])
         RailBoardScheduleWriter.refreshIfNeeded(application: application)
         return true
     }
