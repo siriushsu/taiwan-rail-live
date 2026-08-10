@@ -2965,7 +2965,8 @@
   var nativeApp = typeof window.RAIL_ONLINE_BASEMAPS_AVAILABLE !== 'undefined'
     || Object.keys(window).some(function (k) { return /^RAIL_NATIVE_/.test(k) && !!window[k]; });
   try { nativeApp = nativeApp || !!(window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform()); } catch (e) {}
-  if (iOS || nativeApp) document.body.classList.add('music-volume-unavailable');
+  // iOS 的 <audio>.volume 唯讀 ⇒ 藏音量滑桿;但 App 走原生播放器(RailAudioPlugin)時音量可控,滑桿回歸
+  if ((iOS || nativeApp) && !window.RAIL_NATIVE_AUDIO) document.body.classList.add('music-volume-unavailable');
 } catch (e) {} })();
 </script>
 <div class="wrap">
@@ -3385,7 +3386,7 @@
            內容 li 上限 8 條(li.grp 是標題不算)。 -->
       <ul class="foot-list foot-recent">
         <li class="grp">最近更新</li>
-        <li data-cl-of="bgmusic"><span class="d">8/10</span><span>App 收起後背景音樂繼續播放，跟車時動態島完整顯示下一站與倒數；下次 App 更新生效</span></li>
+        <li data-cl-of="bgmusic"><span class="d">8/10</span><span>App 收起後背景音樂繼續播放；跟車時音樂讓位，動態島完整顯示下一站與倒數；下次 App 更新生效</span></li>
         <li data-cl-of="widgetdestination"><span class="d">8/8</span><span>iPhone 小工具起站選「共站」或「我的地點」後，「目的站」一點就關掉；已修好，下次 App 更新生效</span></li>
         <li data-cl-of="lapush"><span class="d">8/8</span><span>跟車的鎖定畫面即時動態會自己換下一站了，App 沒開著也會更新；停靠站內顯示「停靠中」，動態島展開還有進度條與車種顏色（通行證功能）</span></li>
         <li data-cl-of="crossnight452"><span class="d">8/8</span><span>修正：週五深夜 452 次這類特定日開行的跨夜車，過了午夜就從地圖上消失（謝謝網友回報）</span></li>
@@ -3475,7 +3476,7 @@
         <li><span class="d">7/13</span><span>收集章可以重複點，換搭不同班次回味</span></li>
         <li><span class="d">7/9</span><span>旅程護照與 16 枚成就徽章、「探」今日亮點面板上線</span></li>
         <li class="grp">手機與操作</li>
-        <li data-cl="bgmusic"><span class="d">8/10</span><span>App 收起或鎖定螢幕後，背景音樂繼續播放不再中斷（此前收起 App 音樂會停）。音樂播放不佔用動態島與鎖定畫面——跟車時動態島完整顯示下一站與到站倒數，不再與音樂互相擠壓；音樂的暫停與換首在 App 內操作。下次 App 更新生效</span></li>
+        <li data-cl="bgmusic"><span class="d">8/10</span><span>App 收起或鎖定螢幕後，背景音樂繼續播放不再中斷（此前收起 App 音樂會停）。跟車時音樂讓位：動態島與鎖定畫面只顯示列車動態，完整呈現下一站與到站倒數；沒跟車時鎖定畫面照常有播放卡，顯示曲名與軌島圖示、可暫停與換首。App 內音樂音量滑桿同時修復。下次 App 更新生效</span></li>
         <li data-cl="widgetdestination"><span class="d">8/8</span><span>iPhone「發車看板」小工具，起站選「共站」或「我的地點」後點「目的站」，原本閃退、後來變成一點就關掉；下次 App 更新後會照常列出車站，選了不影響看板，留空也行</span></li>
         <li data-cl="widgetdestination3"><span class="d">8/6</span><span>iPhone 主畫面的「發車看板」小工具，目的站選單有時只會短暫顯示「載入中」便自動收起。原因是 iOS 開啟選單時可能稍晚才把已選起站交給小工具，或共享班表正好還在換版；現在這兩種空窗都會先列出內建的完整車站清單，資料齊全後仍會照起站只顯示有直達列車的車站</span></li>
         <li data-cl="widgetdestination2"><span class="d">8/6</span><span>iPhone 主畫面的「發車看板」小工具，App 剛更新、共享車站資料還在背景準備時，點「起站」就可能讓設定畫面直接退出；現在起站與目的站都有一份內建的輕量車站清單可立即使用，完整班表完成後會自動接手，目的站仍會照起站只列出有直達列車的車站</span></li>
@@ -3819,7 +3820,7 @@
 // 推到雙方都沒用過的 v0808b(同上,辨識線上跑哪一版仍以內容 hash 為準)。
 // 2026-08-09 三方合併(線上實況 feat/la-push＋origin/main 的創始錨點＋捷運速度上界修正):
 // 線上跑的是 v0808e,內容不同的兩顆絕不可共用同一個號,故推 v0809a。
-const BUILD = 'v0810e';
+const BUILD = 'v0810f';
 // 成就徽章與車廂標記＝原本那些 emoji 的單色平面版（RailEmoji＝裁切過的 Noto Emoji 單色）。
 // 刻意保留 railIcon(name) 這個唯一入口:呼叫端一行都不用改,只有這裡決定畫法。
 // 🔴 ⚖ 與 ♾ 一律寫**不帶 VS16(U+FE0F)** 的碼位——帶了就強制彩色呈現,會蓋過 font-family
@@ -10149,10 +10150,50 @@ function loadMusicPref() {
 function saveMusicPref() {
   try { localStorage.setItem('trainmap-music', JSON.stringify({ enabled: state.music.enabled, vol: state.music.vol })); } catch (e) {}
 }
+// iOS App 原生播放代理（build 38）:模仿本模組用到的 HTMLAudioElement 表面
+// (src/volume/play/pause/paused/事件)，實際播放走 RailAudioPlugin(AVPlayer)。
+// 為什麼:WKWebView 的 <audio> 一播就註冊系統「正在播放」，跟車並存時動態島被壓成兩顆小圓，
+// 且 App 層 session 設定會被 WebKit 蓋掉(build 37 實測)——只有原生層拿得到島位決定權。
+// 佇列與自動接下一首由原生持有(背景時 WKWebView 的 JS 可能被凍結，ended→next 交給 JS 會斷炊)，
+// 因此這裡永不派發 'ended'——免得 JS 與原生各前進一次、一次跳兩首。
+function makeNativeMusicShim(na) {
+  const ls = {};
+  const fire = t => (ls[t] || []).forEach(f => { try { f(); } catch (e) {} });
+  const shim = {
+    preload: 'none', ended: false, _paused: true, _vol: 0, _pend: -1, _src: '',
+    get paused() { return shim._paused; },
+    get src() { return shim._src; }, set src(v) { shim._src = v; },
+    get volume() { return shim._vol; },
+    set volume(v) { shim._vol = v; na.setVolume(v).catch(() => {}); },
+    addEventListener(t, f) { (ls[t] = ls[t] || []).push(f); },
+    setTrack(i, list) {
+      shim._pend = i;
+      shim._src = MUSIC_DIR + list[i];
+      na.setQueue({ tracks: list.map(f => ({ src: MUSIC_DIR + f, title: f.replace(/\.mp3$/i, '') })) }).catch(() => {});
+    },
+    play() {
+      const p = shim._pend >= 0 ? na.play({ index: shim._pend }) : na.resume();
+      shim._pend = -1;
+      return p;
+    },
+    pause() { na.pause().catch(() => {}); },
+  };
+  na.addListener('track', e => {
+    const m = state.music;
+    if (m && e && typeof e.index === 'number') m.idx = e.index; // 原生自動接下一首時回頭同步 JS 指針
+    shim._paused = false; fire('playing');
+  });
+  na.addListener('state', e => {
+    shim._paused = !(e && e.playing);
+    fire(shim._paused ? 'pause' : 'playing');
+  });
+  na.addListener('trackError', () => fire('error'));
+  return shim;
+}
 function initMusic() {
   const available = musicAvailable();
   const pref = available ? loadMusicPref() : { enabled: false, vol: 0.5 };
-  const audio = new Audio();
+  const audio = window.RAIL_NATIVE_AUDIO ? makeNativeMusicShim(window.RAIL_NATIVE_AUDIO) : new Audio();
   audio.preload = 'none';
   audio.volume = 0;
   // 錄影混音延後到 Plus 使用者播放音樂或開始錄影時才建立，一般訪客不多載一個 AudioContext。
@@ -10212,6 +10253,7 @@ function updateMusicBtn() {
 function musicLoadCur() {
   const m = state.music;
   if (!m.list.length) return;
+  if (m.audio.setTrack) { m.audio.setTrack(m.idx, m.list); musicSetMeta(); return; } // 原生路:整份佇列交給原生
   m.audio.src = encodeURI(MUSIC_DIR + m.list[m.idx]);
   musicSetMeta();
 }
@@ -16845,7 +16887,7 @@ const HELP_GROUPS = [
       steps: ['按「放空模式」', '用「視角」切換：跟車＝跟著一班車跑；群車＝鏡頭停在當下最忙的路段看列車交錯', '動一下畫面就回到手動'],
       tip: '久沒動會進「劇場模式」把介面淡掉，動一下就回來。', try: 'ambient' },
     { key: 'music', ic: '♪', nm: '背景音樂', tg: 'musicBtn', needs: 'musicBtn', one: '掛著看車時的背景音樂，可以換首。',
-      steps: ['「更多」→ 背景音樂', '「換首」跳下一首', 'App 版收起或鎖定螢幕也繼續播（暫停與換首在 App 內操作）'], try: 'music' },
+      steps: ['「更多」→ 背景音樂', '「換首」跳下一首', 'App 版收起或鎖定螢幕也繼續播；跟車時鎖定畫面讓位給列車動態，其餘時候可在鎖定畫面暫停／換首'], try: 'music' },
     { key: 'sat', ic: '衛', nm: '衛星影像', tg: 'satBtn', needs: 'satBtn', one: '把底圖換成衛星照片，看得到實際的軌道與站場。',
       steps: ['「更多」→ 衛星影像'], tip: '拉太近時衛星影像可能還沒有那麼清晰的圖資。', try: 'sat' },
     { key: 'theme', ic: '◐', nm: '外觀：亮／暗／自動', one: '自動＝跟著系統的深色模式走。', seg: true },

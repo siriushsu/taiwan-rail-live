@@ -68,6 +68,8 @@ public final class RailLiveActivityPlugin: CAPPlugin, CAPBridgedPlugin {
         for act in Activity<RailFollowAttributes>.activities {
             await act.end(nil, dismissalPolicy: .immediate)
         }
+        // 告知音樂端「跟車讓位」結束：RailAudioPlugin 據此把播放卡掛回鎖定畫面。
+        NotificationCenter.default.post(name: Notification.Name("railFollowChanged"), object: nil, userInfo: ["active": false])
     }
 
     override public func load() {
@@ -98,6 +100,8 @@ public final class RailLiveActivityPlugin: CAPPlugin, CAPBridgedPlugin {
                     pushType: .token          // 🔴 少了這個參數就拿不到 token,卡片只能靠前景更新
                 )
                 self.current = act
+                // 跟車卡上島了:通知音樂端讓位(收播放卡、轉混音模式),跟車獨占動態島。
+                NotificationCenter.default.post(name: Notification.Name("railFollowChanged"), object: nil, userInfo: ["active": true])
                 // pushTokenUpdates 是 AsyncSequence,token 會【多次】輪替,不是拿一次就結束。
                 // 這條 Task 的生命週期綁在 endAll()——換車時先 cancel,否則舊卡的 token 會被當成新卡的送上去。
                 let key = call.getString("key") ?? ""

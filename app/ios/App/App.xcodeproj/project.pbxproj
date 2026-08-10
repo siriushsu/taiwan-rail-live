@@ -11,6 +11,7 @@
 		50379B232058CBB4000EE86E /* capacitor.config.json in Resources */ = {isa = PBXBuildFile; fileRef = 50379B222058CBB4000EE86E /* capacitor.config.json */; };
 		504EC3081FED79650016851F /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 504EC3071FED79650016851F /* AppDelegate.swift */; };
 		56F5C629301B0000003C7FE0 /* RailPlacesPlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = 56F5C628301B0000003C7FE0 /* RailPlacesPlugin.swift */; };
+		56F5C62F301B0000003C7FE0 /* RailAudioPlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = 56F5C62E301B0000003C7FE0 /* RailAudioPlugin.swift */; };
 		56F5C631301C0000003C7FE0 /* RailFollowAttributes.swift in Sources */ = {isa = PBXBuildFile; fileRef = 56F5C630301C0000003C7FE0 /* RailFollowAttributes.swift */; };
 		56F5C632301C0000003C7FE0 /* RailFollowAttributes.swift in Sources */ = {isa = PBXBuildFile; fileRef = 56F5C630301C0000003C7FE0 /* RailFollowAttributes.swift */; };
 		56F5C634301D0000003C7FE0 /* RailLiveActivityPlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = 56F5C633301D0000003C7FE0 /* RailLiveActivityPlugin.swift */; };
@@ -56,6 +57,7 @@
 		504EC3041FED79650016851F /* App.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = App.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		504EC3071FED79650016851F /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
 		56F5C628301B0000003C7FE0 /* RailPlacesPlugin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RailPlacesPlugin.swift; sourceTree = "<group>"; };
+		56F5C62E301B0000003C7FE0 /* RailAudioPlugin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RailAudioPlugin.swift; sourceTree = "<group>"; };
 		56F5C630301C0000003C7FE0 /* RailFollowAttributes.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RailFollowAttributes.swift; sourceTree = "<group>"; };
 		56F5C633301D0000003C7FE0 /* RailLiveActivityPlugin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RailLiveActivityPlugin.swift; sourceTree = "<group>"; };
 		56F5C626301A0000003C7FE0 /* RailBoardScheduleWriter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RailBoardScheduleWriter.swift; sourceTree = "<group>"; };
@@ -146,6 +148,7 @@
 				50379B222058CBB4000EE86E /* capacitor.config.json */,
 				504EC3071FED79650016851F /* AppDelegate.swift */,
 				56F5C628301B0000003C7FE0 /* RailPlacesPlugin.swift */,
+				56F5C62E301B0000003C7FE0 /* RailAudioPlugin.swift */,
 				56F5C626301A0000003C7FE0 /* RailBoardScheduleWriter.swift */,
 				56F5C630301C0000003C7FE0 /* RailFollowAttributes.swift */,
 				56F5C633301D0000003C7FE0 /* RailLiveActivityPlugin.swift */,
@@ -323,6 +326,7 @@
 			files = (
 				504EC3081FED79650016851F /* AppDelegate.swift in Sources */,
 				56F5C629301B0000003C7FE0 /* RailPlacesPlugin.swift in Sources */,
+				56F5C62F301B0000003C7FE0 /* RailAudioPlugin.swift in Sources */,
 				56F5C627301A0000003C7FE0 /* RailBoardScheduleWriter.swift in Sources */,
 				56F5C631301C0000003C7FE0 /* RailFollowAttributes.swift in Sources */,
 				56F5C634301D0000003C7FE0 /* RailLiveActivityPlugin.swift in Sources */,
@@ -495,7 +499,7 @@
 				CODE_SIGN_ENTITLEMENTS = App/App.entitlements;
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 37;
+				CURRENT_PROJECT_VERSION = 38;
 				DEVELOPMENT_TEAM = UCD3GAKML6;
 				ENABLE_USER_SCRIPT_SANDBOXING = NO;
 				INFOPLIST_FILE = App/Info.plist;
@@ -523,7 +527,7 @@
 				CODE_SIGN_ENTITLEMENTS = App/App.entitlements;
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 37;
+				CURRENT_PROJECT_VERSION = 38;
 				DEVELOPMENT_TEAM = UCD3GAKML6;
 				ENABLE_USER_SCRIPT_SANDBOXING = NO;
 				INFOPLIST_FILE = App/Info.plist;
@@ -552,7 +556,7 @@
 				CODE_SIGN_ENTITLEMENTS = RailBoardWidgetExtension.entitlements;
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 37;
+				CURRENT_PROJECT_VERSION = 38;
 				DEVELOPMENT_TEAM = UCD3GAKML6;
 				GCC_C_LANGUAGE_STANDARD = gnu17;
 				GENERATE_INFOPLIST_FILE = YES;
@@ -592,7 +596,7 @@
 				CODE_SIGN_ENTITLEMENTS = RailBoardWidgetExtension.entitlements;
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 37;
+				CURRENT_PROJECT_VERSION = 38;
 				DEVELOPMENT_TEAM = UCD3GAKML6;
 				GCC_C_LANGUAGE_STANDARD = gnu17;
 				GENERATE_INFOPLIST_FILE = YES;
