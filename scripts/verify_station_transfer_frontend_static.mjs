@@ -12,6 +12,9 @@ const html = readFileSync(path.join(ROOT, 'index.html'), 'utf8');
 const transfers = JSON.parse(readFileSync(path.join(ROOT, 'data/station_transfers.json'), 'utf8'));
 const tra = JSON.parse(readFileSync(path.join(ROOT, 'data/tra_schedule_dense.json'), 'utf8'));
 const thsr = JSON.parse(readFileSync(path.join(ROOT, 'data/thsr_schedule_dense.json'), 'utf8'));
+const afr = JSON.parse(readFileSync(path.join(ROOT, 'data/afr_schedule_dense.json'), 'utf8'));
+const trtc = JSON.parse(readFileSync(path.join(ROOT, 'data/trtc.json'), 'utf8'));
+const tmrt = JSON.parse(readFileSync(path.join(ROOT, 'data/tmrt.json'), 'utf8'));
 
 const results = [];
 const check = (name, fn) => {
@@ -121,6 +124,80 @@ check('實際抽取前端查表函式：臺北跨系統與三貂嶺同系統支�
   assert.deepEqual(forMetro({ id: 'BL' }), new Set(['THSR:THSR', 'TRA:WL', 'TRTC:R', 'TYMC:A']), '只給 lineId 時應只扣板南線');
   // 兩個都對不上時寧可多列一條，不可整組落空
   assert.deepEqual(forMetro({ name: '不存在線', id: 'ZZ' }), new Set(['THSR:THSR', 'TRA:WL', 'TRTC:BL', 'TRTC:R', 'TYMC:A']), '對不上時應全列，不是全空');
+
+  // ── 以下四組是 2026-08-10 獨立審查抓到的實際缺陷，期望值由資料獨立推導，不是抄實作當時的輸出 ──
+
+  // (1) 看板的錨點必須是「這個站自己那個系統」那一顆。台鐵板橋離高鐵錨點比自家近，用最近錨點會排掉高鐵、
+  //     反而把自己的西部幹線列成轉乘；台鐵高雄同理會排掉高捷。用 app 自己的站點座標，不是轉乘資料的座標
+  //     （拿受測資料當車站座標＝距離自己恆為 0，那個綠燈是零資訊）。
+  const appStop = (data, name) => {
+    let found = null;
+    const walk = (node, depth) => {
+      if (found || depth > 4 || !node || typeof node !== 'object') return;
+      if (Array.isArray(node)) { for (const item of node) walk(item, depth + 1); return; }
+      if (node.name === name && Number.isFinite(node.lat) && Number.isFinite(node.lon)) { found = { name, lat: node.lat, lon: node.lon }; return; }
+      for (const key of Object.keys(node)) walk(node[key], depth + 1);
+    };
+    walk(data, 0);
+    assert(found, `找不到 ${name} 的 app 站點座標`);
+    return found;
+  };
+  const boardAt = (data, name, sys) => new Set(context.__transferApi
+    .transferRoutesAtStation({ ...appStop(data, name), sys }).map(route => route.key));
+  const banqiao = boardAt(tra, '板橋', 'tra_sched');
+  assert(banqiao.has('THSR:THSR'), `台鐵板橋看板必須列出高鐵（實際：${[...banqiao].join('、') || '(空)'}）`);
+  assert(![...banqiao].some(key => key.startsWith('TRA:')), `台鐵板橋看板不得把台鐵自己的線列成轉乘（實際：${[...banqiao].join('、')}）`);
+  const kaohsiung = boardAt(tra, '高雄', 'tra_sched');
+  assert(kaohsiung.has('KRTC:R'), `台鐵高雄看板必須列出高捷紅線（實際：${[...kaohsiung].join('、') || '(空)'}）`);
+  assert(![...kaohsiung].some(key => key.startsWith('TRA:')), `台鐵高雄看板不得列出台鐵自己的線（實際：${[...kaohsiung].join('、')}）`);
+
+  // (2) 捷運卡不得把「正在搭的那條線」標成轉乘。app 線 ID 與官方線 ID 對不上的兩族：
+  //     台中 TG vs TMRT:G、北捷支線 O_LUZHOU vs TRTC:O。判準是「本線的 route key 不得出現」，
+  //     不是「輸出等於某個字串」——後者會隨轉乘資料增修而過期。
+  const lineOf = (data, id) => {
+    const lines = Array.isArray(data) ? data : (data.lines || []);
+    const line = lines.find(item => item.id === id);
+    assert(line, `找不到線 ${id}`);
+    return line;
+  };
+  const ridingSelf = (line, stationName, ownRouteKey) => {
+    const stop = (line.stations || []).find(item => item.name.replace(/臺/g, '台') === stationName);
+    assert(stop, `線 ${line.id} 上找不到站 ${stationName}`);
+    return new Set(context.__transferApi.transferRoutesForMetro(line, stop).map(route => route.key)).has(ownRouteKey);
+  };
+  assert(!ridingSelf(lineOf(tmrt, 'TG'), '北屯總站', 'TMRT:G'), '台中綠線在北屯總站不得顯示「轉 烏日文心北屯線」（就是正在搭的那條）');
+  assert(!ridingSelf(lineOf(trtc, 'O_LUZHOU'), '蘆洲', 'TRTC:O'), '北捷蘆洲支線在蘆洲不得把中和新蘆線標成轉乘');
+  assert(!ridingSelf(lineOf(trtc, 'O_XINZHUANG'), '迴龍', 'TRTC:O'), '北捷新莊支線在迴龍不得把中和新蘆線標成轉乘');
+
+  // (3) 本線推斷不得吃「通過站」。阿里山林鐵車次 5／8 是唯二的全程本線車，密化路徑會通過神木
+  //     （神木在轉乘資料裡只屬神木線），拿它當證據會把本線判成神木線 ⇒ 卡片反過來叫使用者「轉本線」。
+  const afrTrains = Array.isArray(afr) ? afr : (afr.trains || []);
+  for (const no of ['5', '8']) {
+    const train = afrTrains.find(item => String(item.no ?? item.train ?? item.trainNo) === no);
+    assert(train, `找不到林鐵車次 ${no}`);
+    const stop = (train.stops || []).find(item => item.name.replace(/臺/g, '台') === '阿里山');
+    assert(stop, `車次 ${no} 沒有阿里山停靠`);
+    const keys = new Set(context.__transferApi.transferRoutesForStop({ sys: 'afr_sched', stops: train.stops }, stop).map(route => route.key));
+    assert(!keys.has('AFR:1'), `車次 ${no} 正在跑本線，不得把本線列成轉乘（實際：${[...keys].join('、') || '(空)'}）`);
+    assert(keys.has('AFR:3'), `車次 ${no} 應列出真正可轉的神木線（實際：${[...keys].join('、') || '(空)'}）`);
+  }
+});
+
+// 三個顯示實例必須全部接線。上一輪就是因為只驗了 fpXfer、fcXfer 沒被量到，才讓捷運卡溢出 111px
+// 一路綠燈出貨；這條是「分母不准無聲縮水」的具名斷言，加第四個落點時它會逼你一起加判準。
+check('轉乘標三個顯示實例全部接線（fpXfer／fcXfer／tcLiveXfer）', () => {
+  const wired = [...html.matchAll(/setTransferTag\('([^']+)'/g)].map(match => match[1]);
+  const expected = ['fpXfer', 'fcXfer', 'tcLiveXfer'];
+  for (const id of expected) {
+    assert(wired.includes(id), `${id} 沒有任何 setTransferTag 呼叫（實際接線：${wired.join('、')}）`);
+    assert(html.includes(`id="${id}"`), `${id} 沒有對應的 DOM 節點`);
+  }
+  assert.deepEqual(new Set(wired), new Set(expected),
+    `接線的落點與預期不符——多出來的要補判準、少掉的是回歸（實際：${wired.join('、')}）`);
+  // 手機開列車 sheet 時跟隨小卡整張被藏起來，所以 sheet 自己那列一定要有標，否則提示會消失
+  assert.match(html, /body\.train-open \.follow-panel \{ display: none; \}/);
+  const liveRow = /<div class="tc-live" id="tcLive"[\s\S]*?<\/div>/.exec(html)?.[0] || '';
+  assert(liveRow.includes('id="tcLiveXfer"'), '轉乘標必須放在 sheet 的 tc-live 遙測列裡');
 });
 
 check('具名台鐵臺北案例由 TRA 本身節點得到四條跨系統轉乘路線', () => {

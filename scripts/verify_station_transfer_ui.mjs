@@ -211,6 +211,7 @@ try {
               hittable: !!hit && (hit === el || el.contains(hit)),
             };
           };
+          window.__xferMeasure = measure; // 後面量手機 sheet 那顆標時重用，避免兩份會各自漂移的量測器
           const out = { measuredTags: [] };
           // 台鐵跟隨卡：撥時鐘到抵達台北前（直接寫 simSec 必配 clockAtNow=false，否則亂蓋完乘章）
           const tr = state.followTrain;
@@ -281,6 +282,33 @@ try {
         ok(`${engineName} ${width} 舊落點已移除（停靠表 ${legacy.rows} 列、殘留 ${legacy.leftovers} 個）`,
           legacy.rows > 0 && legacy.leftovers === 0, JSON.stringify(legacy));
         ok(`${engineName} ${width} 停靠表無水平溢出`, legacy.stopsOverflow <= 1, JSON.stringify(legacy));
+
+        // ── 落點 B 的第三個顯示實例：手機開了列車 sheet，body.train-open 會把整張跟隨小卡（連同 #fpXfer）
+        // 藏掉，sheet 自帶的遙測列必須接手顯示轉乘標，否則使用者的感受是「剛剛看到的提示不見了」。
+        // 這正是上一輪漏掉 #fcXfer 的同一類缺口，所以這裡也用同一顆量測器、對「卡片內距盒」量溢出。
+        const sheetTag = await page.evaluate(() => {
+          const tr = state.followTrain;
+          if (!tr) return { measured: false, why: '沒有跟隨中的車' };
+          const i = tr.stops.findIndex(s => s.stop !== false && (s.name === '臺北' || s.name === '台北'));
+          if (i <= 0) return { measured: false, why: '台北不是中途站' };
+          state.simSec = tr.stops[i].arrSec - 120;
+          state.clockAtNow = false; // 直接寫 simSec 必配這行，否則亂蓋完乘章（專案鐵則）
+          updateFollowPanel(tr);
+          const r = window.__xferMeasure('tcLiveXfer', 'trainCard', ['tcLiveNext', 'tcLiveDelay', 'tcLiveSpd']);
+          return { ...r, next: document.getElementById('tcLiveNext').textContent, cardHidden: document.getElementById('followPanel').hidden || getComputedStyle(document.getElementById('followPanel')).display === 'none' };
+        });
+        ok(`${engineName} ${width} B sheet：跟隨小卡確實被藏起來（所以這顆標不可省）`, !!sheetTag.cardHidden, JSON.stringify(sheetTag));
+        ok(`${engineName} ${width} B sheet：轉乘標量得到、可見、列完整清單`,
+          sheetTag.measured && sheetTag.visible && /^轉 /.test(sheetTag.text || '')
+          && (sheetTag.text.match(/、/g) || []).length === 3, JSON.stringify(sheetTag));
+        ok(`${engineName} ${width} B sheet：不壓到下一站／誤點／時速、不撐破列車卡`,
+          sheetTag.insideCard && sheetTag.apartFromSiblings && sheetTag.cardOverflow <= 1, JSON.stringify(sheetTag));
+        ok(`${engineName} ${width} B sheet：座標可實際命中`, !!sheetTag.hittable, JSON.stringify(sheetTag));
+        // 手機的具名覆蓋率斷言：三個顯示實例一個都不能少。分母縮水只印在 detail 等於沒 gate——
+        // 上一輪 149/149 全綠就是因為第二個實例從來沒被量到（使用者截圖才抓到）。
+        ok(`${engineName} ${width} B 三個顯示實例都量到了（fpXfer＋fcXfer＋tcLiveXfer）`,
+          nextTag.measuredTags.length === 2 && sheetTag.measured === true,
+          `卡片量到:${nextTag.measuredTags.join('、') || '(空)'}｜sheet:${sheetTag.measured ? 'tcLiveXfer' : '(沒量到 ' + (sheetTag.why || '') + ')'}`);
 
         const controlScan = await page.evaluate(() => {
           const all = [...document.querySelectorAll('button,a,input,select,textarea,[role="button"],.tc-st[data-i]')];
