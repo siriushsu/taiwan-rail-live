@@ -182,40 +182,95 @@ try {
         // ── 落點 B：跟隨卡的「下一站」（回答「要不要在這站下車換車」）──
         // 要讓下一站正好是台北，得把時鐘撥到抵達台北前。直接寫 state.simSec 必須同時 clockAtNow=false，
         // 否則會亂蓋完乘章（專案鐵則）。
+        // 兩張卡都要量。v0810b 只量了台鐵那張（`.fp-next` 本來就有 flex-wrap 所以永遠不溢出），
+        // 捷運那張 `.fc-next` 沒有 wrap、卡片又是固定 220px，整條標凸出卡片外——使用者截圖抓到的，
+        // 149/149 全綠卻一格都沒照到。溢出一律對「卡片的內距盒」量，不是對面板 rect（那不會被撐大）。
         const nextTag = await page.evaluate(() => {
           closeBoard();
-          const tr = state.followTrain;
-          if (!tr) return { found: false, why: '沒有跟隨中的車' };
-          const i = tr.stops.findIndex(s => s.stop !== false && (s.name === '臺北' || s.name === '台北'));
-          if (i <= 0) return { found: false, why: '台北不是這班車的中途站', train: tr.train };
-          state.simSec = tr.stops[i].arrSec - 120;
-          state.clockAtNow = false;
-          updateFollowPanel(tr);
-          const el = document.getElementById('fpXfer');
-          const nb = document.getElementById('fpNext').getBoundingClientRect();
-          const eb = document.getElementById('fpEta').getBoundingClientRect();
-          const fb = document.getElementById('followPanel').getBoundingClientRect();
-          const xb = el.getBoundingClientRect();
-          const hit = document.elementFromPoint(xb.x + xb.width / 2, xb.y + xb.height / 2);
-          const apart = (a, b) => a.right <= b.left + 1 || b.right <= a.left + 1 || a.bottom <= b.top + 1 || b.bottom <= a.top + 1;
-          return {
-            found: true, next: document.getElementById('fpNext').textContent,
-            hidden: el.hidden, text: el.textContent, title: el.title,
-            visible: !el.hidden && xb.width > 0 && xb.height > 0,
-            insidePanel: xb.left >= fb.left - 1 && xb.right <= fb.right + 1 && xb.top >= fb.top - 1 && xb.bottom <= fb.bottom + 1,
-            apartFromName: apart(xb, nb), apartFromEta: apart(xb, eb),
-            hittable: !!hit && (hit === el || el.contains(hit)),
-            docOverflow: document.documentElement.scrollWidth - innerWidth,
+          const padBox = card => {
+            const r = card.getBoundingClientRect(), cs = getComputedStyle(card);
+            const bl = parseFloat(cs.borderLeftWidth) + parseFloat(cs.paddingLeft);
+            const br = parseFloat(cs.borderRightWidth) + parseFloat(cs.paddingRight);
+            return { left: r.left + bl, right: r.right - br, top: r.top, bottom: r.bottom };
           };
+          const apart = (a, b) => a.right <= b.left + 1 || b.right <= a.left + 1 || a.bottom <= b.top + 1 || b.bottom <= a.top + 1;
+          const measure = (tagId, cardId, siblings) => {
+            const el = document.getElementById(tagId), card = document.getElementById(cardId);
+            if (!el || !card || el.hidden) return { measured: false, hidden: el && el.hidden };
+            const xb = el.getBoundingClientRect(), pb = padBox(card);
+            const hit = document.elementFromPoint(xb.x + xb.width / 2, xb.y + xb.height / 2);
+            return {
+              measured: true, text: el.textContent,
+              visible: xb.width > 0 && xb.height > 0,
+              insideCard: xb.left >= pb.left - 1 && xb.right <= pb.right + 1 && xb.top >= pb.top - 1 && xb.bottom <= pb.bottom + 1,
+              cardOverflow: card.scrollWidth - card.clientWidth,
+              apartFromSiblings: siblings.every(id => {
+                const s = document.getElementById(id);
+                return !s || s.getBoundingClientRect().width === 0 || apart(xb, s.getBoundingClientRect());
+              }),
+              hittable: !!hit && (hit === el || el.contains(hit)),
+            };
+          };
+          const out = { measuredTags: [] };
+          // 台鐵跟隨卡：撥時鐘到抵達台北前（直接寫 simSec 必配 clockAtNow=false，否則亂蓋完乘章）
+          const tr = state.followTrain;
+          if (tr) {
+            const i = tr.stops.findIndex(s => s.stop !== false && (s.name === '臺北' || s.name === '台北'));
+            if (i > 0) {
+              state.simSec = tr.stops[i].arrSec - 120;
+              state.clockAtNow = false;
+              updateFollowPanel(tr);
+              out.fpNext = document.getElementById('fpNext').textContent;
+              out.fp = measure('fpXfer', 'followPanel', ['fpNext', 'fpEta']);
+              if (out.fp.measured) out.measuredTags.push('fpXfer');
+            } else out.fpNext = '(台北不是中途站)';
+          }
+          // 捷運跟隨卡：真的起跟一條北捷線，再用最長的那個站名（台北車站，四條轉乘）逼出最壞版面。
+          // 下一站是誰由模擬時鐘決定，沒有辦法從外面指定，所以這裡直接餵 updateFreqCard——
+          // 它就是產生使用者那張截圖的同一條 render 路徑。
+          // 捷運跟隨卡。要切到 mrt 系統（state.mode 從 sched 變 freq）才有 state.lines。
+          // 下一站是誰由模擬時鐘決定、從外面控不了，而要驗的是最壞版面（台北車站＝四條轉乘），
+          // 所以直接設 freqFollow＋開卡再餵 updateFreqCard——它就是產生使用者那張溢出截圖的同一條 render 路徑。
+          // 用 applyFreqFollow 不行：k=0 的幽靈車當下不存在，updateFreqFollowCamera 會把卡收掉。
+          loadSystem(state.systems.find(s => s.id === 'mrt'));
+          const ln = (state.lines || []).find(l => l.id === 'BL');
+          if (ln) {
+            state.freqFollow = { ln, k: 0 };
+            document.getElementById('freqCard').hidden = false;
+            updateFreqCard({ nextName: '台北車站', nextSec: 63060, loop: false, termName: '南港展覽館' });
+            out.line = ln.name;
+            out.fcNext = document.getElementById('fcNext').textContent;
+            out.fc = measure('fcXfer', 'freqCard', ['fcNext']);
+            if (out.fc.measured) out.measuredTags.push('fcXfer');
+          } else out.line = '(北捷板南線不在 state.lines)';
+          out.docOverflow = document.documentElement.scrollWidth - innerWidth;
+          return out;
         });
-        ok(`${engineName} ${width} B 下一站是台北時標出現`, nextTag.found && /台北|臺北/.test(nextTag.next || '') && nextTag.visible, JSON.stringify(nextTag));
-        ok(`${engineName} ${width} B 短版收成兩條＋N，完整清單在 tooltip`,
-          /^轉 [^ ]+、[^ ]+ \+\d+$/.test(nextTag.text || '') && /^可轉 .+、.+、.+/.test(nextTag.title || ''), JSON.stringify(nextTag));
-        ok(`${engineName} ${width} B 不壓到站名與到站時刻、不溢出面板`,
-          nextTag.apartFromName && nextTag.apartFromEta && nextTag.insidePanel && nextTag.docOverflow <= 1, JSON.stringify(nextTag));
-        ok(`${engineName} ${width} B 座標可實際命中`, nextTag.hittable, JSON.stringify(nextTag));
+        // 具名覆蓋率斷言：兩顆標都要真的被量到。少一顆就是分母縮水，不准只印在 detail。
+        ok(`${engineName} ${width} B 兩張卡的標都量到了（fpXfer＋fcXfer）`,
+          nextTag.measuredTags.length === 2 && nextTag.measuredTags.includes('fpXfer') && nextTag.measuredTags.includes('fcXfer'),
+          `實際量到:${nextTag.measuredTags.join('、') || '(空)'} | ${JSON.stringify(nextTag).slice(0, 400)}`);
+        ok(`${engineName} ${width} B 台鐵卡：下一站台北時標出現且列完整清單`,
+          /台北|臺北/.test(nextTag.fpNext || '') && nextTag.fp && nextTag.fp.visible
+          && /^轉 /.test(nextTag.fp.text || '') && (nextTag.fp.text.match(/、/g) || []).length === 3, JSON.stringify(nextTag.fp));
+        ok(`${engineName} ${width} B 台鐵卡：不壓到站名與到站時刻、不撐破卡片`,
+          nextTag.fp && nextTag.fp.insideCard && nextTag.fp.apartFromSiblings && nextTag.fp.cardOverflow <= 1, JSON.stringify(nextTag.fp));
+        ok(`${engineName} ${width} B 台鐵卡：座標可實際命中`, !!(nextTag.fp && nextTag.fp.hittable), JSON.stringify(nextTag.fp));
+        ok(`${engineName} ${width} B 捷運卡：標出現且列完整清單`,
+          nextTag.fc && nextTag.fc.visible && /^轉 /.test(nextTag.fc.text || '') && (nextTag.fc.text.match(/、/g) || []).length >= 1, JSON.stringify(nextTag));
+        ok(`${engineName} ${width} B 捷運卡：不壓到站名、不撐破 220px 卡片`,
+          nextTag.fc && nextTag.fc.insideCard && nextTag.fc.apartFromSiblings && nextTag.fc.cardOverflow <= 1, JSON.stringify(nextTag.fc));
+        ok(`${engineName} ${width} B 捷運卡：座標可實際命中`, !!(nextTag.fc && nextTag.fc.hittable), JSON.stringify(nextTag.fc));
+        ok(`${engineName} ${width} B 兩張卡都不造成頁面橫向溢出`, nextTag.docOverflow <= 1, JSON.stringify({ docOverflow: nextTag.docOverflow }));
 
         // 舊落點（資訊卡逐站停靠表）必須真的清乾淨——留著就是使用者抱怨的那份噪音。
+        // 上一段切去了 mrt 系統，這裡要切回台鐵並重新跟上，才點得開列車 sheet。
+        await page.evaluate(() => {
+          loadSystem(state.systems.find(s => s.id === 'tra_sched'));
+          const tr = state.trains.find(t => t.sys === 'tra_sched' && t.stops.some(s => s.name === '臺北' || s.name === '台北'));
+          if (tr) setFollow(tr, false, true);
+        });
+        await page.waitForFunction(() => !document.getElementById('followPanel').hidden);
         await page.tap('#fpDest');
         await page.waitForFunction(() => document.body.classList.contains('train-open') && !document.getElementById('tcStops').hidden);
         const legacy = await page.evaluate(() => ({
@@ -312,8 +367,29 @@ try {
             // 桌面看板不該讓這一列自己捲出去(側欄寬度固定,長清單要換行不是溢出)
             out.boardOverflow = document.getElementById('board').scrollWidth - document.getElementById('board').clientWidth;
           }
-          // 落點 B
+          // 落點 B——兩張卡都要量，溢出對「卡片內距盒」量（面板 rect 不會被撐大，量它等於沒量）
           closeBoard();
+          const padBox = card => {
+            const r = card.getBoundingClientRect(), cs = getComputedStyle(card);
+            return {
+              left: r.left + parseFloat(cs.borderLeftWidth) + parseFloat(cs.paddingLeft),
+              right: r.right - parseFloat(cs.borderRightWidth) - parseFloat(cs.paddingRight),
+              top: r.top, bottom: r.bottom,
+            };
+          };
+          const measure = (tagId, cardId) => {
+            const el = document.getElementById(tagId), card = document.getElementById(cardId);
+            if (!el || !card || el.hidden) return { measured: false };
+            const xb = el.getBoundingClientRect(), pb = padBox(card);
+            const hit = document.elementFromPoint(xb.x + xb.width / 2, xb.y + xb.height / 2);
+            return {
+              measured: true, text: el.textContent, visible: xb.width > 0 && xb.height > 0,
+              insideCard: xb.left >= pb.left - 1 && xb.right <= pb.right + 1 && xb.top >= pb.top - 1 && xb.bottom <= pb.bottom + 1,
+              cardOverflow: card.scrollWidth - card.clientWidth,
+              hittable: !!hit && (hit === el || el.contains(hit)),
+            };
+          };
+          out.measuredTags = [];
           const tr = state.followTrain;
           if (tr) {
             const i = tr.stops.findIndex(s => s.stop !== false && (s.name === '臺北' || s.name === '台北'));
@@ -321,17 +397,20 @@ try {
               state.simSec = tr.stops[i].arrSec - 120;
               state.clockAtNow = false; // 直接寫 simSec 必配這行,否則亂蓋完乘章
               updateFollowPanel(tr);
-              const el = document.getElementById('fpXfer');
-              const xb = el.getBoundingClientRect(), fb = document.getElementById('followPanel').getBoundingClientRect();
-              const eb = document.getElementById('fpEta').getBoundingClientRect();
-              const hit = document.elementFromPoint(xb.x + xb.width / 2, xb.y + xb.height / 2);
               out.next = document.getElementById('fpNext').textContent;
-              out.tagText = el.textContent; out.tagTitle = el.title;
-              out.tagVisible = !el.hidden && xb.width > 0 && xb.height > 0;
-              out.tagInside = xb.left >= fb.left - 1 && xb.right <= fb.right + 1 && xb.top >= fb.top - 1 && xb.bottom <= fb.bottom + 1;
-              out.tagApartFromEta = xb.right <= eb.left + 1 || eb.right <= xb.left + 1 || xb.bottom <= eb.top + 1 || eb.bottom <= xb.top + 1;
-              out.tagHittable = !!hit && (hit === el || el.contains(hit));
+              out.fp = measure('fpXfer', 'followPanel');
+              if (out.fp.measured) out.measuredTags.push('fpXfer');
             } else out.next = '(台北不是中途站)';
+          }
+          loadSystem(state.systems.find(s => s.id === 'mrt'));
+          const ln = (state.lines || []).find(l => l.id === 'BL');
+          if (ln) {
+            state.freqFollow = { ln, k: 0 };
+            document.getElementById('freqCard').hidden = false;
+            updateFreqCard({ nextName: '台北車站', nextSec: 63060, loop: false, termName: '南港展覽館' });
+            out.fcText = document.getElementById('fcNext').textContent;
+            out.fc = measure('fcXfer', 'freqCard');
+            if (out.fc.measured) out.measuredTags.push('fcXfer');
           }
           out.docOverflow = document.documentElement.scrollWidth - innerWidth;
           return out;
@@ -340,10 +419,15 @@ try {
           /^可轉乘.+/.test(wide.boardText || '') && /高鐵/.test(wide.boardText || '') && !/西部幹線/.test(wide.boardText || ''), JSON.stringify(wide));
         ok(`${engineName} 1280 A 可見、在站況區內、可命中、不撐破側欄`,
           wide.boardVisible && wide.boardInside && wide.boardHittable && wide.boardOverflow <= 1, JSON.stringify(wide));
-        ok(`${engineName} 1280 B 下一站標出現且內容正確`,
-          /台北|臺北/.test(wide.next || '') && wide.tagVisible && /^轉 [^ ]+、[^ ]+ \+\d+$/.test(wide.tagText || '') && /^可轉 .+、.+、.+/.test(wide.tagTitle || ''), JSON.stringify(wide));
-        ok(`${engineName} 1280 B 在面板內、不壓到到站時刻、可命中`,
-          wide.tagInside && wide.tagApartFromEta && wide.tagHittable, JSON.stringify(wide));
+        ok(`${engineName} 1280 B 兩張卡的標都量到了（fpXfer＋fcXfer）`,
+          (wide.measuredTags || []).length === 2, `實際量到:${(wide.measuredTags || []).join('、') || '(空)'}`);
+        ok(`${engineName} 1280 B 台鐵卡：下一站台北時標出現且列完整清單`,
+          /台北|臺北/.test(wide.next || '') && wide.fp && wide.fp.visible
+          && /^轉 /.test(wide.fp.text || '') && (wide.fp.text.match(/、/g) || []).length === 3, JSON.stringify(wide.fp));
+        ok(`${engineName} 1280 B 台鐵卡：在卡片內、可命中、不撐破`,
+          wide.fp && wide.fp.insideCard && wide.fp.hittable && wide.fp.cardOverflow <= 1, JSON.stringify(wide.fp));
+        ok(`${engineName} 1280 B 捷運卡：在 220px 卡片內、可命中、不撐破`,
+          wide.fc && wide.fc.visible && wide.fc.insideCard && wide.fc.hittable && wide.fc.cardOverflow <= 1, JSON.stringify(wide.fc));
         ok(`${engineName} 1280 無水平溢出`, wide.docOverflow <= 1, JSON.stringify(wide));
         ok(`${engineName} 1280 無 pageerror`, pageErrors.length === 0, pageErrors.slice(0, 3).join(' | '));
         await ctx.close();
