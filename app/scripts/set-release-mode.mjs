@@ -108,8 +108,10 @@ const MODES = {
   //    跟車中 mixWithOthers＋清 NowPlaying（跟車獨占動態島），沒跟車正常播放卡
   //    （曲名＋軌島封面＋暫停/換首）；佇列與自動接下一首在原生層（背景 JS 凍結也走得動）；
   //    App 內音量滑桿隨之修復（AVPlayer.volume 可控，music-volume-unavailable 解除）。
+  // 2026-08-10 之七：build 39＝38 的一行修復——RailAudioPlugin 沒在 RailBridgeViewController
+  //    .capacitorDidLoad() 註冊（App 內自製 plugin 不自動發現），音樂全滅；補 registerPluginInstance。
   feature: {
-    marketing: '1.4.1', build: '38', music: true,
+    marketing: '1.4.1', build: '39', music: true,
     why: '軌島 1.4.1：App 收起與鎖屏後背景音樂續播、跟車即時動態改由後端推播（鎖屏自動換站）＋卡片強化（停靠中、進度條、車種顏色、上一站與終點站）、高鐵自由座車廂、我的車・準點、準點排行；production 資格，TestFlight Sandbox 通道維持關閉。',
   },
   // 2026-08-06：build 20、21、22 已上 TestFlight；22 專門驗收 Sandbox 購買後的
