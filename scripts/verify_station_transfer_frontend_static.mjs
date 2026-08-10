@@ -31,8 +31,14 @@ check('index.html inline JavaScript 語法可解析', () => {
 });
 
 check('BUILD／更新紀錄／本地資料載入接線齊全', () => {
-  assert.match(html, /const BUILD = 'v0810a'/);
-  assert.match(html, /最後更新：2026\/8\/10/);
+  // 不釘死版本字串：釘死的話每改一次就要跟著調一次，調到後來就沒人在意它了（而且它擋不住任何真缺陷）。
+  // 要驗的是「版本戳記與最後更新日互相對得上」這個結構性事實。
+  const build = /const BUILD = '(v(\d{2})(\d{2})[a-z]?)'/.exec(html);
+  assert(build, 'BUILD 不存在或格式不是 vMMDD[a-z]');
+  const updated = /最後更新：(\d{4})\/(\d{1,2})\/(\d{1,2})/.exec(html);
+  assert(updated, '找不到「最後更新」日期');
+  assert.equal(`${String(+updated[2]).padStart(2, '0')}${String(+updated[3]).padStart(2, '0')}`, build[2] + build[3],
+    `BUILD ${build[1]} 與最後更新 ${updated[0]} 不同一天——改了版本卻忘了更新日期（或反過來）`);
   assert.match(html, /data-cl-of="stationtransfer"/);
   assert.match(html, /data-cl="stationtransfer"/);
   assert.match(html, /fetchJSON\('\.\/data\/station_transfers\.json'\)/);
@@ -81,13 +87,14 @@ check('前端台鐵與其他時刻系統共用「系統＋站名索引」查表�
 });
 
 check('實際抽取前端查表函式：臺北跨系統與三貂嶺同系統支線都能回傳', () => {
-  const source = /\/\/ 靜態轉乘表索引。[\s\S]*?(?=function transferHintHtml)/.exec(html)?.[0];
+  // 邊界取到 transferMetaHtml 之前：它以後的函式要 escHtml／document，在 vm 裡跑不起來。
+  const source = /\/\/ 靜態轉乘表索引。[\s\S]*?(?=function transferMetaHtml)/.exec(html)?.[0];
   assert(source, '找不到前端轉乘函式區塊');
   const context = {
     state: {},
     haversineKm: distanceKm,
   };
-  vm.runInNewContext(`${source}\nglobalThis.__transferApi = { initStationTransfers, transferRoutesForStop };`, context, { filename: 'station-transfer-logic.js' });
+  vm.runInNewContext(`${source}\nglobalThis.__transferApi = { initStationTransfers, transferRoutesForStop, transferRoutesAtStation, transferRoutesForMetro };`, context, { filename: 'station-transfer-logic.js' });
   context.__transferApi.initStationTransfers(transfers);
   const stationStop = key => {
     const station = transfers.stations[key];
@@ -99,6 +106,21 @@ check('實際抽取前端查表函式：臺北跨系統與三貂嶺同系統支�
   const sandiaolingStops = [stationStop('TRA:7320'), stationStop('TRA:7330'), stationStop('TRA:7350')];
   const sandiaolingRoutes = Array.from(context.__transferApi.transferRoutesForStop({ sys: 'tra_sched', stops: sandiaolingStops }, sandiaolingStops[1]), route => route.key);
   assert.deepEqual(sandiaolingRoutes, ['TRA:PX']);
+
+  // ── 落點 A 用的 transferRoutesAtStation：只列別的系統（同系統的線由看板自己的班次清單回答）──
+  const atStation = key => new Set(context.__transferApi.transferRoutesAtStation(stationStop(key)).map(route => route.key));
+  assert.deepEqual(atStation('TRA:1000'), new Set(['THSR:THSR', 'TRTC:BL', 'TRTC:R', 'TYMC:A']), '台鐵台北看板應列四條跨系統');
+  // 同一個站體、換成北捷節點：兩條北捷線都要被扣掉（板南線與淡水信義線都在該站的班次清單裡）
+  assert.deepEqual(atStation('TRTC:BL12'), new Set(['THSR:THSR', 'TRA:WL', 'TYMC:A']), '北捷台北看板不該再列北捷自己的線');
+
+  // ── 落點 B（捷運）用的 transferRoutesForMetro：只扣「正在搭的那條線」，同系統其他線是有效轉乘 ──
+  // 這是與看板相反的取捨：人在板南線車上時，淡水信義線正是他要的答案。
+  const forMetro = ln => new Set(context.__transferApi.transferRoutesForMetro(ln, stationStop('TRTC:BL12')).map(route => route.key));
+  // 兩個排除分支各自要有專屬判準，否則其中一支壞掉會被另一支蓋住：先驗只給線名、再驗只給 id。
+  assert.deepEqual(forMetro({ name: '板南線' }), new Set(['THSR:THSR', 'TRA:WL', 'TRTC:R', 'TYMC:A']), '只給線名時應只扣板南線');
+  assert.deepEqual(forMetro({ id: 'BL' }), new Set(['THSR:THSR', 'TRA:WL', 'TRTC:R', 'TYMC:A']), '只給 lineId 時應只扣板南線');
+  // 兩個都對不上時寧可多列一條，不可整組落空
+  assert.deepEqual(forMetro({ name: '不存在線', id: 'ZZ' }), new Set(['THSR:THSR', 'TRA:WL', 'TRTC:BL', 'TRTC:R', 'TYMC:A']), '對不上時應全列，不是全空');
 });
 
 check('具名台鐵臺北案例由 TRA 本身節點得到四條跨系統轉乘路線', () => {
@@ -128,10 +150,21 @@ check('台鐵異名共構與同系統多線都已寫進轉乘表', () => {
   }
 });
 
-check('手機精簡標記與桌面完整標記 CSS 都存在', () => {
-  assert.match(html, /\.tc-xfer-short \{ display: none; \}/);
-  assert.match(html, /@media \(max-width: 900px\)[\s\S]*?\.tc-xfer-wide \{ display: none; \}/);
-  assert.match(html, /<span class="tc-xfer-short">轉 \$\{routes\.length\}<\/span>/);
+check('兩個落點的接線都在，舊落點已拆乾淨', () => {
+  // 落點 A：看板站況區。stnMetaHtml 是兩條看板路徑（台鐵/高鐵、捷運/林鐵）共用的同一個函式，
+  // 所以只要驗它有叫 transferMetaHtml，四個系統就都吃得到。
+  assert.match(html, /function stnMetaHtml\(st\)[\s\S]{0,900}?transferMetaHtml\(st\)/);
+  assert.equal((html.match(/stnMetaHtml\(st\)/g) || []).length, 3, '看板路徑數（1 個定義＋2 個呼叫）變了，共用前提要重新確認');
+  assert.match(html, /\.board \.stnMeta \.xfer \{/);
+  // 落點 B：兩張跟隨卡的「下一站」各有一顆標，且都真的被填。
+  for (const id of ['fpXfer', 'fcXfer']) {
+    assert.match(html, new RegExp(`<span class="xfer-tag" id="${id}" hidden></span>`), `${id} 靜態節點不見了`);
+    assert.match(html, new RegExp(`setTransferTag\\('${id}'`), `${id} 沒有任何填值端`);
+  }
+  assert.match(html, /\.xfer-tag \{/);
+  // 舊落點（資訊卡逐站停靠表）：CSS、DOM、呼叫端一個都不准留。
+  assert.doesNotMatch(html, /tc-xfer/);
+  assert.doesNotMatch(html, /transferHintHtml/);
 });
 
 const failures = results.filter(result => !result.pass);

@@ -147,38 +147,85 @@ try {
         });
         ok(`${engineName} ${width} 具名台鐵案例可跟隨`, !!(picked && picked.sys === 'tra_sched'), JSON.stringify(picked));
 
-        // 真的用 touch tap 點跟隨卡，走手機使用者展開列車 sheet 的入口。
-        await page.tap('#fpDest');
-        await page.waitForFunction(() => document.body.classList.contains('train-open') && !document.getElementById('tcStops').hidden);
-        const transfer = await page.evaluate(() => {
-          const rows = [...document.querySelectorAll('#tcStops .tc-st[data-i]')];
-          const row = rows.find(item => {
-            const stop = state.followTrain && state.followTrain.stops[+item.dataset.i];
-            return stop && (stop.name === '臺北' || stop.name === '台北');
-          });
-          if (!row) return { found: false };
-          row.scrollIntoView({ block: 'center' });
-          const badge = row.querySelector('.tc-xfer');
-          if (!badge) return { found: false, row: row.textContent };
-          const n = row.querySelector('.n'), times = [...row.querySelectorAll(':scope > span:not(.n)')];
-          const rb = row.getBoundingClientRect(), nb = n.getBoundingClientRect(), bb = badge.getBoundingClientRect();
-          const firstTime = times[0] && times[0].getBoundingClientRect();
-          const hit = document.elementFromPoint(bb.x + bb.width / 2, bb.y + bb.height / 2);
+        // ── 落點 A：車站看板的站況區（回答「這站是什麼」）──
+        // 站物件一律取 app 自己的索引（helpNearestStation），不自組。轉乘查找的真正過濾器是
+        // criteria.maxDistanceM 的座標閘門，餵一顆只有站名沒有座標的假物件，會結構性地永遠查無而假紅。
+        const board = await page.evaluate(() => {
+          map.setView([25.0478, 121.5170], 15); // 台北車站
+          const st = helpNearestStation();
+          if (!st) return { found: false, why: 'helpNearestStation 在台北車站視野回空' };
+          openBoard(st);
+          const meta = document.querySelector('#board .stnMeta');
+          const xfer = meta && meta.querySelector('.xfer');
+          if (!xfer) return { found: false, station: st.name, meta: meta ? meta.textContent.slice(0, 80) : '(無 stnMeta)' };
+          xfer.scrollIntoView({ block: 'center' });
+          const xb = xfer.getBoundingClientRect(), mb = meta.getBoundingClientRect();
+          const bd = document.getElementById('board');
+          const hit = document.elementFromPoint(xb.x + xb.width / 2, xb.y + xb.height / 2);
           return {
-            found: true, title: badge.title, short: badge.querySelector('.tc-xfer-short')?.textContent,
-            badgeVisible: bb.width > 0 && bb.height > 0,
-            badgeInsideRow: bb.left >= rb.left - 1 && bb.right <= rb.right + 1 && bb.top >= rb.top - 1 && bb.bottom <= rb.bottom + 1,
-            nameBeforeTime: !firstTime || nb.right <= firstTime.left + 1,
-            hittable: !!hit && (hit === badge || badge.contains(hit)),
+            found: true, station: st.name, text: xfer.textContent,
+            visible: xb.width > 0 && xb.height > 0 && getComputedStyle(xfer).display !== 'none' && getComputedStyle(xfer).visibility !== 'hidden',
+            insideMeta: xb.left >= mb.left - 1 && xb.right <= mb.right + 1,
+            hittable: !!hit && (hit === xfer || xfer.contains(hit)),
             docOverflow: document.documentElement.scrollWidth - innerWidth,
-            cardOverflow: document.getElementById('trainCard').scrollWidth - document.getElementById('trainCard').clientWidth,
-            stopsOverflow: document.getElementById('tcStops').scrollWidth - document.getElementById('tcStops').clientWidth,
+            boardOverflow: bd.scrollWidth - bd.clientWidth,
           };
         });
-        ok(`${engineName} ${width} 轉乘標記＋完整 tooltip`, transfer.found && /^可轉 .+/.test(transfer.title || '') && /^轉 \d+$/.test(transfer.short || ''), JSON.stringify(transfer));
-        ok(`${engineName} ${width} 標記不壓到站名列／到開時刻`, transfer.badgeVisible && transfer.badgeInsideRow && transfer.nameBeforeTime, JSON.stringify(transfer));
-        ok(`${engineName} ${width} 標記座標可實際命中`, transfer.hittable, JSON.stringify(transfer));
-        ok(`${engineName} ${width} 無水平溢出`, transfer.docOverflow <= 1 && transfer.cardOverflow <= 1 && transfer.stopsOverflow <= 1, JSON.stringify(transfer));
+        ok(`${engineName} ${width} A 看板站況區有轉乘列`, board.found && /^可轉乘.+/.test(board.text || ''), JSON.stringify(board));
+        // 內容判準來自 data/station_transfers.json 的實際共站群（台北 TRA:1000 → 高鐵＋板南線＋淡水信義線＋機捷），
+        // 不是「有東西就算過」；同系統的線由看板自己的班次清單回答，所以台鐵線不該出現在這一列。
+        ok(`${engineName} ${width} A 列的是別的系統（含高鐵與北捷、不含自己那條台鐵線）`,
+          /高鐵/.test(board.text || '') && /(板南線|淡水信義線)/.test(board.text || '') && !/西部幹線/.test(board.text || ''), JSON.stringify(board));
+        ok(`${engineName} ${width} A 可見、在站況區內、座標可命中`, board.visible && board.insideMeta && board.hittable, JSON.stringify(board));
+        ok(`${engineName} ${width} A 無水平溢出`, board.docOverflow <= 1 && board.boardOverflow <= 1, JSON.stringify(board));
+
+        // ── 落點 B：跟隨卡的「下一站」（回答「要不要在這站下車換車」）──
+        // 要讓下一站正好是台北，得把時鐘撥到抵達台北前。直接寫 state.simSec 必須同時 clockAtNow=false，
+        // 否則會亂蓋完乘章（專案鐵則）。
+        const nextTag = await page.evaluate(() => {
+          closeBoard();
+          const tr = state.followTrain;
+          if (!tr) return { found: false, why: '沒有跟隨中的車' };
+          const i = tr.stops.findIndex(s => s.stop !== false && (s.name === '臺北' || s.name === '台北'));
+          if (i <= 0) return { found: false, why: '台北不是這班車的中途站', train: tr.train };
+          state.simSec = tr.stops[i].arrSec - 120;
+          state.clockAtNow = false;
+          updateFollowPanel(tr);
+          const el = document.getElementById('fpXfer');
+          const nb = document.getElementById('fpNext').getBoundingClientRect();
+          const eb = document.getElementById('fpEta').getBoundingClientRect();
+          const fb = document.getElementById('followPanel').getBoundingClientRect();
+          const xb = el.getBoundingClientRect();
+          const hit = document.elementFromPoint(xb.x + xb.width / 2, xb.y + xb.height / 2);
+          const apart = (a, b) => a.right <= b.left + 1 || b.right <= a.left + 1 || a.bottom <= b.top + 1 || b.bottom <= a.top + 1;
+          return {
+            found: true, next: document.getElementById('fpNext').textContent,
+            hidden: el.hidden, text: el.textContent, title: el.title,
+            visible: !el.hidden && xb.width > 0 && xb.height > 0,
+            insidePanel: xb.left >= fb.left - 1 && xb.right <= fb.right + 1 && xb.top >= fb.top - 1 && xb.bottom <= fb.bottom + 1,
+            apartFromName: apart(xb, nb), apartFromEta: apart(xb, eb),
+            hittable: !!hit && (hit === el || el.contains(hit)),
+            docOverflow: document.documentElement.scrollWidth - innerWidth,
+          };
+        });
+        ok(`${engineName} ${width} B 下一站是台北時標出現`, nextTag.found && /台北|臺北/.test(nextTag.next || '') && nextTag.visible, JSON.stringify(nextTag));
+        ok(`${engineName} ${width} B 短版收成兩條＋N，完整清單在 tooltip`,
+          /^轉 [^ ]+、[^ ]+ \+\d+$/.test(nextTag.text || '') && /^可轉 .+、.+、.+/.test(nextTag.title || ''), JSON.stringify(nextTag));
+        ok(`${engineName} ${width} B 不壓到站名與到站時刻、不溢出面板`,
+          nextTag.apartFromName && nextTag.apartFromEta && nextTag.insidePanel && nextTag.docOverflow <= 1, JSON.stringify(nextTag));
+        ok(`${engineName} ${width} B 座標可實際命中`, nextTag.hittable, JSON.stringify(nextTag));
+
+        // 舊落點（資訊卡逐站停靠表）必須真的清乾淨——留著就是使用者抱怨的那份噪音。
+        await page.tap('#fpDest');
+        await page.waitForFunction(() => document.body.classList.contains('train-open') && !document.getElementById('tcStops').hidden);
+        const legacy = await page.evaluate(() => ({
+          rows: document.querySelectorAll('#tcStops .tc-st[data-i]').length,
+          leftovers: document.querySelectorAll('#tcStops .tc-xfer, #tcStops .tc-xfer-wide, #tcStops .tc-xfer-short').length,
+          stopsOverflow: document.getElementById('tcStops').scrollWidth - document.getElementById('tcStops').clientWidth,
+        }));
+        ok(`${engineName} ${width} 舊落點已移除（停靠表 ${legacy.rows} 列、殘留 ${legacy.leftovers} 個）`,
+          legacy.rows > 0 && legacy.leftovers === 0, JSON.stringify(legacy));
+        ok(`${engineName} ${width} 停靠表無水平溢出`, legacy.stopsOverflow <= 1, JSON.stringify(legacy));
 
         const controlScan = await page.evaluate(() => {
           const all = [...document.querySelectorAll('button,a,input,select,textarea,[role="button"],.tc-st[data-i]')];
@@ -215,9 +262,8 @@ try {
         await ctx.close();
       }
 
-      // 桌面完整標記。上面四個寬度全部 ≤900px，統統落在手機媒體查詢裡，
-      // `.tc-xfer-wide` 一次都沒被渲染過——而它才是主要顯示形態（手機那顆「轉 N」是收合版）。
-      // 靜態 gate 只驗得到「兩條 CSS 規則都在」，驗不到「桌面實際畫出完整路線名」，所以這裡補一輪真桌面。
+      // 桌面一輪。上面四個寬度全部 ≤900px，統統落在手機媒體查詢裡——桌面的看板是側欄、
+      // 跟隨卡的位置與可用寬度都不同，兩個落點都得在真桌面再量一次，靜態 gate 驗不到這些。
       {
         const ctx = await browser.newContext({ viewport: { width: 1280, height: 800 } });
         await ctx.addInitScript(() => {
@@ -247,36 +293,58 @@ try {
             && train.stops.some(stop => stop.name === '板橋'));
           followTrainNo(tr.train, { sys: tr.sys });
         });
-        // 桌面的列車卡本來就展開，`train-open` 是手機 sheet 專用的類名；停靠表另外由 #tcTT 收合，
-        // 所以這裡走桌面使用者真正的入口——點展開鈕，不是點手機那顆目的地。
-        await page.click('#tcTT');
-        await page.waitForFunction(() => !document.getElementById('tcStops').hidden);
         const wide = await page.evaluate(() => {
-          const rows = [...document.querySelectorAll('#tcStops .tc-st[data-i]')];
-          const row = rows.find(item => {
-            const stop = state.followTrain && state.followTrain.stops[+item.dataset.i];
-            return stop && (stop.name === '臺北' || stop.name === '台北');
-          });
-          if (!row) return { found: false };
-          row.scrollIntoView({ block: 'center' });
-          const badge = row.querySelector('.tc-xfer');
-          if (!badge) return { found: false, row: row.textContent };
-          const w = badge.querySelector('.tc-xfer-wide'), s = badge.querySelector('.tc-xfer-short');
-          const wr = w.getBoundingClientRect(), sr = s.getBoundingClientRect();
-          const rb = row.getBoundingClientRect(), bb = badge.getBoundingClientRect();
-          const times = [...row.querySelectorAll(':scope > span:not(.n)')];
-          const firstTime = times[0] && times[0].getBoundingClientRect();
-          return {
-            found: true, wideText: w.textContent, wideShown: getComputedStyle(w).display !== 'none' && wr.width > 0 && wr.height > 0,
-            shortHidden: getComputedStyle(s).display === 'none' && sr.width === 0,
-            badgeInsideRow: bb.left >= rb.left - 1 && bb.right <= rb.right + 1 && bb.top >= rb.top - 1 && bb.bottom <= rb.bottom + 1,
-            nameBeforeTime: !firstTime || bb.right <= firstTime.left + 1,
-            docOverflow: document.documentElement.scrollWidth - innerWidth,
-            stopsOverflow: document.getElementById('tcStops').scrollWidth - document.getElementById('tcStops').clientWidth,
-          };
+          const out = {};
+          // 落點 A
+          map.setView([25.0478, 121.5170], 15);
+          const st = helpNearestStation();
+          out.station = st && st.name;
+          if (st) openBoard(st);
+          const meta = document.querySelector('#board .stnMeta');
+          const xfer = meta && meta.querySelector('.xfer');
+          if (xfer) {
+            const xb = xfer.getBoundingClientRect(), mb = meta.getBoundingClientRect();
+            const hit = document.elementFromPoint(xb.x + xb.width / 2, xb.y + xb.height / 2);
+            out.boardText = xfer.textContent;
+            out.boardVisible = xb.width > 0 && xb.height > 0 && getComputedStyle(xfer).display !== 'none';
+            out.boardInside = xb.left >= mb.left - 1 && xb.right <= mb.right + 1;
+            out.boardHittable = !!hit && (hit === xfer || xfer.contains(hit));
+            // 桌面看板不該讓這一列自己捲出去(側欄寬度固定,長清單要換行不是溢出)
+            out.boardOverflow = document.getElementById('board').scrollWidth - document.getElementById('board').clientWidth;
+          }
+          // 落點 B
+          closeBoard();
+          const tr = state.followTrain;
+          if (tr) {
+            const i = tr.stops.findIndex(s => s.stop !== false && (s.name === '臺北' || s.name === '台北'));
+            if (i > 0) {
+              state.simSec = tr.stops[i].arrSec - 120;
+              state.clockAtNow = false; // 直接寫 simSec 必配這行,否則亂蓋完乘章
+              updateFollowPanel(tr);
+              const el = document.getElementById('fpXfer');
+              const xb = el.getBoundingClientRect(), fb = document.getElementById('followPanel').getBoundingClientRect();
+              const eb = document.getElementById('fpEta').getBoundingClientRect();
+              const hit = document.elementFromPoint(xb.x + xb.width / 2, xb.y + xb.height / 2);
+              out.next = document.getElementById('fpNext').textContent;
+              out.tagText = el.textContent; out.tagTitle = el.title;
+              out.tagVisible = !el.hidden && xb.width > 0 && xb.height > 0;
+              out.tagInside = xb.left >= fb.left - 1 && xb.right <= fb.right + 1 && xb.top >= fb.top - 1 && xb.bottom <= fb.bottom + 1;
+              out.tagApartFromEta = xb.right <= eb.left + 1 || eb.right <= xb.left + 1 || xb.bottom <= eb.top + 1 || eb.bottom <= xb.top + 1;
+              out.tagHittable = !!hit && (hit === el || el.contains(hit));
+            } else out.next = '(台北不是中途站)';
+          }
+          out.docOverflow = document.documentElement.scrollWidth - innerWidth;
+          return out;
         });
-        ok(`${engineName} 1280 桌面顯示完整路線名（非收合版）`, wide.found && wide.wideShown && wide.shortHidden && /^可轉 .+、.+/.test(wide.wideText || ''), JSON.stringify(wide));
-        ok(`${engineName} 1280 完整標記不壓到到開時刻／不撐破版面`, wide.found && wide.badgeInsideRow && wide.nameBeforeTime && wide.docOverflow <= 1 && wide.stopsOverflow <= 1, JSON.stringify(wide));
+        ok(`${engineName} 1280 A 看板轉乘列內容正確`,
+          /^可轉乘.+/.test(wide.boardText || '') && /高鐵/.test(wide.boardText || '') && !/西部幹線/.test(wide.boardText || ''), JSON.stringify(wide));
+        ok(`${engineName} 1280 A 可見、在站況區內、可命中、不撐破側欄`,
+          wide.boardVisible && wide.boardInside && wide.boardHittable && wide.boardOverflow <= 1, JSON.stringify(wide));
+        ok(`${engineName} 1280 B 下一站標出現且內容正確`,
+          /台北|臺北/.test(wide.next || '') && wide.tagVisible && /^轉 [^ ]+、[^ ]+ \+\d+$/.test(wide.tagText || '') && /^可轉 .+、.+、.+/.test(wide.tagTitle || ''), JSON.stringify(wide));
+        ok(`${engineName} 1280 B 在面板內、不壓到到站時刻、可命中`,
+          wide.tagInside && wide.tagApartFromEta && wide.tagHittable, JSON.stringify(wide));
+        ok(`${engineName} 1280 無水平溢出`, wide.docOverflow <= 1, JSON.stringify(wide));
         ok(`${engineName} 1280 無 pageerror`, pageErrors.length === 0, pageErrors.slice(0, 3).join(' | '));
         await ctx.close();
       }
