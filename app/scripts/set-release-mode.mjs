@@ -93,9 +93,12 @@ const MODES = {
   //    .empty 就把選單直接收掉)。修正現已進 feat/la-push(`69a65a5`)與 main(`ff408ae`),
   //    ⇒ 進 build 32,而且必須從含 `69a65a5` 的 tip 出,否則這個修正又會漏掉第五顆 build。
   //    marketing 維持 1.4.1(線上仍是 1.4.0)。
+  // 2026-08-10：build 33＝背景音樂續播（Info.plist 宣告 UIBackgroundModes audio＋錄影混音閘門
+  //    加 RECORDING_ENABLED＋背景化 1.5 秒窗補播），基底改用含 v0809a 速度上界修正的
+  //    preview/speed-ceiling-0809 一線（32 從 9c6718c 出、沒有那顆修正）。
   feature: {
-    marketing: '1.4.1', build: '32', music: true,
-    why: '軌島 1.4.1：跟車即時動態改由後端推播（鎖屏自動換站）＋卡片強化（停靠中、進度條、車種顏色、上一站與終點站）、高鐵自由座車廂、我的車・準點、準點排行；production 資格，TestFlight Sandbox 通道維持關閉。',
+    marketing: '1.4.1', build: '33', music: true,
+    why: '軌島 1.4.1：App 收起與鎖屏後背景音樂續播、跟車即時動態改由後端推播（鎖屏自動換站）＋卡片強化（停靠中、進度條、車種顏色、上一站與終點站）、高鐵自由座車廂、我的車・準點、準點排行；production 資格，TestFlight Sandbox 通道維持關閉。',
   },
   // 2026-08-06：build 20、21、22 已上 TestFlight；22 專門驗收 Sandbox 購買後的
   // 軌島通行證客端功能、雲端同步與伺服器付費牆。這顆不可選去正式送審；正式版必須另推 build 號，
