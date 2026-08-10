@@ -3341,7 +3341,7 @@
 
   <footer class="site-foot">
     <details class="foot-box">
-      <summary><span>更新紀錄</span><span class="foot-sub">最後更新：2026/8/8</span></summary>
+      <summary><span>更新紀錄</span><span class="foot-sub">最後更新：2026/8/10</span></summary>
       <!-- 第一層是「最近更新」的檢視,不是正本:每一條都用 data-cl-of 指向第二層某條的 data-cl。
            要把一條擠出第一層之前,它的正本必須已經在第二層存在——2026-08-03 就踩過一次:8/1 的
            衛星計費那條只活在第一層(第二層只有一句夾在 7/25 條目裡、日期對不上的附帶說明),
@@ -3349,6 +3349,7 @@
            內容 li 上限 8 條(li.grp 是標題不算)。 -->
       <ul class="foot-list foot-recent">
         <li class="grp">最近更新</li>
+        <li data-cl-of="nearfollowmutex"><span class="d">8/10</span><span>修正：開啟「附近車站」與「隨機跟隨」時會自動關閉另一個模式，地圖鏡頭不再互相拉扯</span></li>
         <li data-cl-of="crossnight452"><span class="d">8/8</span><span>修正：週五深夜 452 次這類特定日開行的跨夜車，過了午夜就從地圖上消失（謝謝網友回報）</span></li>
         <li data-cl-of="thsrautosched"><span class="d">8/7</span><span>高鐵時刻表改為每天自動更新，加開與調整班次當天就會反映</span></li>
         <li data-cl-of="widgetdestination3"><span class="d">8/6</span><span>iPhone 小工具的目的站選單偶爾只顯示一下「載入中」就收起；現在即使起站連動稍晚送到，也會先列出完整車站，不必重複點選</span></li>
@@ -3356,7 +3357,6 @@
         <li data-cl-of="widgetdestination2"><span class="d">8/6</span><span>iPhone 小工具剛更新、車站資料還在準備時，點「起站」或「目的站」可能讓設定畫面直接退出；現在會先用內建車站清單，不必等待</span></li>
         <li data-cl-of="sharelink"><span class="d">8/6</span><span>App 的「分享畫面」與「行程分享」不再傳出無法開啟的網址，改為可直接開啟的 railisland.tw 連結</span></li>
         <li data-cl-of="passproduction"><span class="d">8/6</span><span>正式版軌島通行證改用 App Store 正式月票與年票，測試版的展示進度不會出現在一般使用者護照</span></li>
-        <li data-cl-of="passrename"><span class="d">8/5</span><span>「軌島 Plus」更名為「軌島通行證」：訂閱方案改稱月票與年票，所有使用者都是島民</span></li>
       </ul>
       <!-- 第二層:完整歷史。刻意不掛 .foot-box 類名——placeFootBoxes() 用
            `.site-foot .foot-box` 搬移面板,巢狀同名會被當成另一個盒子一起搬走。 -->
@@ -3394,6 +3394,7 @@
         <li><span class="d">7/16</span><span>捷運準確度升級：六家捷運依官方到站看板即時校正，國定假日自動改跑假日班表</span></li>
         <li><span class="d">7/9</span><span>台鐵即時誤點上線——介接交通部 TDX 平臺每分鐘更新；7/11 起開站即真實時刻、捷運改逐班推演</span></li>
         <li class="grp">跟車、搜尋與車站看板</li>
+        <li data-cl="nearfollowmutex"><span class="d">8/10</span><span>「附近車站」與「隨機跟隨」同時開著時，兩邊都會搶地圖鏡頭；現在開其中一個會先收掉另一個</span></li>
         <li data-cl="afrtrainno"><span class="d">8/4</span><span>阿里山林鐵的 1、2 次跟台鐵環島之星是同一組車次號碼，點下去的介紹卡卻寫成「環島之星 萌旅號　全台唯一環島觀光列車…」；現在林鐵的車一律顯示自己的車種介紹（阿里山號），收藏與搜尋結果裡的名字也一併改正（謝謝網友回報）</span></li>
         <li><span class="d">7/30</span><span>搜尋今天已經跑完的車，現在會帶你回到它發車前，不再當場亂蓋完乘章（謝謝網友回報）</span></li>
         <li><span class="d">7/29</span><span>台鐵、高鐵、林鐵有不少重複的車次號碼（1238、1241、1、2…），在高鐵或林鐵畫面點下去卻跟到台鐵的同號車；現在點哪個系統就跟哪個系統（謝謝網友回報）</span></li>
@@ -3774,7 +3775,7 @@
 // 🔴 BUILD 字串會跨並行分支撞號（心得 16）：07-28 兩條線各自遞增又各自部署過——
 // origin/main 這條用到 v0728b，正式站那條用到 v0728f。本次三方合併把兩條線統一，
 // 所以往後推到一個雙方都沒用過的號，辨識線上跑哪一版仍以內容 hash 為準。
-const BUILD = 'v0808a';
+const BUILD = 'v0810a';
 // 成就徽章與車廂標記＝原本那些 emoji 的單色平面版（RailEmoji＝裁切過的 Noto Emoji 單色）。
 // 刻意保留 railIcon(name) 這個唯一入口:呼叫端一行都不用改,只有這裡決定畫法。
 // 🔴 ⚖ 與 ♾ 一律寫**不帶 VS16(U+FE0F)** 的碼位——帶了就強制彩色呈現,會蓋過 font-family
@@ -6372,6 +6373,11 @@ async function onLocated(lat, lon, accM) {
   try { map.flyTo(t, 15, { duration: .8 }); } catch (e) { map.setView(t, 15); }
 }
 function openNearbyStations(lat, lon, acc) {
+  // 互斥的單一入口:清單真的要開了才收掉跟隨/放空。刻意不放在 showNearby() 開頭——
+  // 那裡在「沒有位置就去 locateMe()」的早退之前,權限被拒時會白白殺掉使用者正在跟的車。
+  // onLocated() 走的是另一條路徑,它自己已經先清過一次,這裡重複執行被守衛擋掉,無副作用。
+  if (state.autoTour) setAutoTour(false);
+  if (state.followTrain || state.followId || state.freqFollow) clearFollow();
   soloPanel('near');
   closeBoard(); closeCrossingCard(); closePinCard(); closeSugarCard();
   // acc(公尺)給單站打卡判定用:地下站精度動輒數百公尺,沒有它就沒辦法決定要不要放行(見 checkinJudge)
@@ -9517,6 +9523,7 @@ function fadeSwitchMetro(pick) {
   }, 800);
 }
 function setAutoTour(on) {
+  if (on) closeNearbyStations();
   if (on && state.mode !== 'sched') {
     const s = state.systems.find(x => x.mode === 'sched');
     if (!s) return;
