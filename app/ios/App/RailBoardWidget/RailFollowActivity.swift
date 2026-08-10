@@ -221,10 +221,26 @@ struct RailFollowActivityWidget: Widget {
                     }
                 }
             } minimal: {
-                // 被其他活動(背景音樂的「正在播放」等)擠到最小時,最有用的是下一站不是車次——
-                // 使用者實測抱怨的就是這格(2026-08-10「下一站直接看不到了」)。站名空缺才退回車次。
-                Text(context.state.nextStop.isEmpty ? context.attributes.trainNo.prefix(3)
-                                                    : context.state.nextStop.prefix(2))
+                // 被其他活動(背景音樂的「正在播放」等)擠到最小時的取捨(2026-08-10 使用者裁示):
+                // 「車站倒數才是重點」——上行站名兩字、下行到站倒數(自走,不吃推播頻率);
+                // 停靠中換綠色「停靠」;站名空缺才退回車次。倒數沒有 ETA 時整行不畫,只剩站名。
+                let stopping = context.state.stopping ?? false
+                VStack(spacing: 0) {
+                    Text(context.state.nextStop.isEmpty ? context.attributes.trainNo.prefix(3)
+                                                        : context.state.nextStop.prefix(2))
+                        .font(.system(size: 9, weight: .semibold))
+                    if stopping {
+                        Text("停靠")
+                            .font(.system(size: 8, weight: .bold))
+                            .foregroundStyle(Color(.sRGB, red: 0.29, green: 0.87, blue: 0.50))
+                    } else {
+                        countdown(context.state.arrivalDate, maxWidth: 38)
+                            .font(.system(size: 9))
+                            .contentTransition(.numericText())
+                    }
+                }
+                .lineLimit(1)
+                .minimumScaleFactor(0.7)
             }
         }
     }
