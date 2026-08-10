@@ -96,8 +96,10 @@ const MODES = {
   // 2026-08-10：build 33＝背景音樂續播（Info.plist 宣告 UIBackgroundModes audio＋錄影混音閘門
   //    加 RECORDING_ENABLED＋背景化 1.5 秒窗補播），基底改用含 v0809a 速度上界修正的
   //    preview/speed-ceiling-0809 一線（32 從 9c6718c 出、沒有那顆修正）。
+  // 2026-08-10 之二：build 34＝跟車 LA minimal 小圓改顯示下一站（與背景音樂並存被系統縮到
+  //    最小時，車次號沒資訊量——使用者實測「下一站直接看不到了」）；殺 App 卡片殘留裁示維持現狀。
   feature: {
-    marketing: '1.4.1', build: '33', music: true,
+    marketing: '1.4.1', build: '34', music: true,
     why: '軌島 1.4.1：App 收起與鎖屏後背景音樂續播、跟車即時動態改由後端推播（鎖屏自動換站）＋卡片強化（停靠中、進度條、車種顏色、上一站與終點站）、高鐵自由座車廂、我的車・準點、準點排行；production 資格，TestFlight Sandbox 通道維持關閉。',
   },
   // 2026-08-06：build 20、21、22 已上 TestFlight；22 專門驗收 Sandbox 購買後的
