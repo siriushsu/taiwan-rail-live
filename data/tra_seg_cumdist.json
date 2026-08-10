@@ -1,0 +1,2331 @@
+{
+  "_meta": {
+    "schemaVersion": 1,
+    "generatedAt": "2026-08-10T09:09:10.411Z",
+    "source": "TDX v3 Rail/TRA/StationOfLine",
+    "sourceFiles": [
+      "data/tra_station_of_line.json",
+      "data/tra.json"
+    ],
+    "sourceFetchedAt": "2026-07-24T13:34:20Z",
+    "sourceTdxUpdateTime": "2026-07-24T04:18:19+08:00",
+    "unit": "km",
+    "lineCount": 16,
+    "segmentCount": 244,
+    "stationNormalization": "對齊 index.html traStnKey：臺→台、剝尾端半形括號註記、trim",
+    "keyFormat": "<local line id>|<normalized from station>|<normalized to station>",
+    "inclusion": "只收本地線相鄰站在 TDX StationOfLine 同一條官方線內兩端都有 CumulativeDistance 的區間"
+  },
+  "lines": {
+    "縱貫線北段": {
+      "name": "縱貫線北段（基隆–竹南）",
+      "segmentCount": 35,
+      "totalKm": 125.3,
+      "segments": [
+        {
+          "from": "基隆",
+          "to": "三坑",
+          "km": 1.5,
+          "sourceLineId": "WL",
+          "sourceFromStationId": "0900",
+          "sourceToStationId": "0910"
+        },
+        {
+          "from": "三坑",
+          "to": "八堵",
+          "km": 2.4,
+          "sourceLineId": "WL",
+          "sourceFromStationId": "0910",
+          "sourceToStationId": "0920"
+        },
+        {
+          "from": "八堵",
+          "to": "七堵",
+          "km": 2.3,
+          "sourceLineId": "WL",
+          "sourceFromStationId": "0920",
+          "sourceToStationId": "0930"
+        },
+        {
+          "from": "七堵",
+          "to": "百福",
+          "km": 2.7,
+          "sourceLineId": "WL",
+          "sourceFromStationId": "0930",
+          "sourceToStationId": "0940"
+        },
+        {
+          "from": "百福",
+          "to": "五堵",
+          "km": 3,
+          "sourceLineId": "WL",
+          "sourceFromStationId": "0940",
+          "sourceToStationId": "0950"
+        },
+        {
+          "from": "五堵",
+          "to": "汐止",
+          "km": 1.4,
+          "sourceLineId": "WL",
+          "sourceFromStationId": "0950",
+          "sourceToStationId": "0960"
+        },
+        {
+          "from": "汐止",
+          "to": "汐科",
+          "km": 1.3,
+          "sourceLineId": "WL",
+          "sourceFromStationId": "0960",
+          "sourceToStationId": "0970"
+        },
+        {
+          "from": "汐科",
+          "to": "南港",
+          "km": 4.7,
+          "sourceLineId": "WL",
+          "sourceFromStationId": "0970",
+          "sourceToStationId": "0980"
+        },
+        {
+          "from": "南港",
+          "to": "松山",
+          "km": 2.8,
+          "sourceLineId": "WL",
+          "sourceFromStationId": "0980",
+          "sourceToStationId": "0990"
+        },
+        {
+          "from": "松山",
+          "to": "台北",
+          "km": 6.4,
+          "sourceLineId": "WL",
+          "sourceFromStationId": "0990",
+          "sourceToStationId": "1000"
+        },
+        {
+          "from": "台北",
+          "to": "萬華",
+          "km": 2.8,
+          "sourceLineId": "WL",
+          "sourceFromStationId": "1000",
+          "sourceToStationId": "1010"
+        },
+        {
+          "from": "萬華",
+          "to": "板橋",
+          "km": 4.4,
+          "sourceLineId": "WL",
+          "sourceFromStationId": "1010",
+          "sourceToStationId": "1020"
+        },
+        {
+          "from": "板橋",
+          "to": "浮洲",
+          "km": 2.4,
+          "sourceLineId": "WL",
+          "sourceFromStationId": "1020",
+          "sourceToStationId": "1030"
+        },
+        {
+          "from": "浮洲",
+          "to": "樹林",
+          "km": 3,
+          "sourceLineId": "WL",
+          "sourceFromStationId": "1030",
+          "sourceToStationId": "1040"
+        },
+        {
+          "from": "樹林",
+          "to": "南樹林",
+          "km": 2,
+          "sourceLineId": "WL",
+          "sourceFromStationId": "1040",
+          "sourceToStationId": "1050"
+        },
+        {
+          "from": "南樹林",
+          "to": "山佳",
+          "km": 1.9,
+          "sourceLineId": "WL",
+          "sourceFromStationId": "1050",
+          "sourceToStationId": "1060"
+        },
+        {
+          "from": "山佳",
+          "to": "鶯歌",
+          "km": 4.4,
+          "sourceLineId": "WL",
+          "sourceFromStationId": "1060",
+          "sourceToStationId": "1070"
+        },
+        {
+          "from": "鶯歌",
+          "to": "鳳鳴",
+          "km": 5,
+          "sourceLineId": "WL",
+          "sourceFromStationId": "1070",
+          "sourceToStationId": "1075"
+        },
+        {
+          "from": "鳳鳴",
+          "to": "桃園",
+          "km": 3.2,
+          "sourceLineId": "WL",
+          "sourceFromStationId": "1075",
+          "sourceToStationId": "1080"
+        },
+        {
+          "from": "桃園",
+          "to": "內壢",
+          "km": 5.9,
+          "sourceLineId": "WL",
+          "sourceFromStationId": "1080",
+          "sourceToStationId": "1090"
+        },
+        {
+          "from": "內壢",
+          "to": "中壢",
+          "km": 4,
+          "sourceLineId": "WL",
+          "sourceFromStationId": "1090",
+          "sourceToStationId": "1100"
+        },
+        {
+          "from": "中壢",
+          "to": "埔心",
+          "km": 5.8,
+          "sourceLineId": "WL",
+          "sourceFromStationId": "1100",
+          "sourceToStationId": "1110"
+        },
+        {
+          "from": "埔心",
+          "to": "楊梅",
+          "km": 4,
+          "sourceLineId": "WL",
+          "sourceFromStationId": "1110",
+          "sourceToStationId": "1120"
+        },
+        {
+          "from": "楊梅",
+          "to": "富岡",
+          "km": 6.8,
+          "sourceLineId": "WL",
+          "sourceFromStationId": "1120",
+          "sourceToStationId": "1130"
+        },
+        {
+          "from": "富岡",
+          "to": "新富",
+          "km": 1.7,
+          "sourceLineId": "WL",
+          "sourceFromStationId": "1130",
+          "sourceToStationId": "1140"
+        },
+        {
+          "from": "新富",
+          "to": "北湖",
+          "km": 1.5,
+          "sourceLineId": "WL",
+          "sourceFromStationId": "1140",
+          "sourceToStationId": "1150"
+        },
+        {
+          "from": "北湖",
+          "to": "湖口",
+          "km": 2.5,
+          "sourceLineId": "WL",
+          "sourceFromStationId": "1150",
+          "sourceToStationId": "1160"
+        },
+        {
+          "from": "湖口",
+          "to": "新豐",
+          "km": 6.2,
+          "sourceLineId": "WL",
+          "sourceFromStationId": "1160",
+          "sourceToStationId": "1170"
+        },
+        {
+          "from": "新豐",
+          "to": "竹北",
+          "km": 4.8,
+          "sourceLineId": "WL",
+          "sourceFromStationId": "1170",
+          "sourceToStationId": "1180"
+        },
+        {
+          "from": "竹北",
+          "to": "北新竹",
+          "km": 4.4,
+          "sourceLineId": "WL",
+          "sourceFromStationId": "1180",
+          "sourceToStationId": "1190"
+        },
+        {
+          "from": "北新竹",
+          "to": "新竹",
+          "km": 1.4,
+          "sourceLineId": "WL",
+          "sourceFromStationId": "1190",
+          "sourceToStationId": "1210"
+        },
+        {
+          "from": "新竹",
+          "to": "三姓橋",
+          "km": 4.8,
+          "sourceLineId": "WL",
+          "sourceFromStationId": "1210",
+          "sourceToStationId": "1220"
+        },
+        {
+          "from": "三姓橋",
+          "to": "香山",
+          "km": 3.2,
+          "sourceLineId": "WL",
+          "sourceFromStationId": "1220",
+          "sourceToStationId": "1230"
+        },
+        {
+          "from": "香山",
+          "to": "崎頂",
+          "km": 6.2,
+          "sourceLineId": "WL",
+          "sourceFromStationId": "1230",
+          "sourceToStationId": "1240"
+        },
+        {
+          "from": "崎頂",
+          "to": "竹南",
+          "km": 4.5,
+          "sourceLineId": "WL",
+          "sourceFromStationId": "1240",
+          "sourceToStationId": "1250"
+        }
+      ]
+    },
+    "山線": {
+      "name": "山線（竹南–彰化）",
+      "segmentCount": 22,
+      "totalKm": 85.6,
+      "segments": [
+        {
+          "from": "竹南",
+          "to": "造橋",
+          "km": 5.4,
+          "sourceLineId": "WL",
+          "sourceFromStationId": "1250",
+          "sourceToStationId": "3140"
+        },
+        {
+          "from": "造橋",
+          "to": "豐富",
+          "km": 5.9,
+          "sourceLineId": "WL",
+          "sourceFromStationId": "3140",
+          "sourceToStationId": "3150"
+        },
+        {
+          "from": "豐富",
+          "to": "苗栗",
+          "km": 4,
+          "sourceLineId": "WL",
+          "sourceFromStationId": "3150",
+          "sourceToStationId": "3160"
+        },
+        {
+          "from": "苗栗",
+          "to": "南勢",
+          "km": 6.6,
+          "sourceLineId": "WL",
+          "sourceFromStationId": "3160",
+          "sourceToStationId": "3170"
+        },
+        {
+          "from": "南勢",
+          "to": "銅鑼",
+          "km": 4.2,
+          "sourceLineId": "WL",
+          "sourceFromStationId": "3170",
+          "sourceToStationId": "3180"
+        },
+        {
+          "from": "銅鑼",
+          "to": "三義",
+          "km": 7.4,
+          "sourceLineId": "WL",
+          "sourceFromStationId": "3180",
+          "sourceToStationId": "3190"
+        },
+        {
+          "from": "三義",
+          "to": "泰安",
+          "km": 10.9,
+          "sourceLineId": "WL",
+          "sourceFromStationId": "3190",
+          "sourceToStationId": "3210"
+        },
+        {
+          "from": "泰安",
+          "to": "后里",
+          "km": 2.6,
+          "sourceLineId": "WL",
+          "sourceFromStationId": "3210",
+          "sourceToStationId": "3220"
+        },
+        {
+          "from": "后里",
+          "to": "豐原",
+          "km": 6.7,
+          "sourceLineId": "WL",
+          "sourceFromStationId": "3220",
+          "sourceToStationId": "3230"
+        },
+        {
+          "from": "豐原",
+          "to": "栗林",
+          "km": 2.6,
+          "sourceLineId": "WL",
+          "sourceFromStationId": "3230",
+          "sourceToStationId": "3240"
+        },
+        {
+          "from": "栗林",
+          "to": "潭子",
+          "km": 2.5,
+          "sourceLineId": "WL",
+          "sourceFromStationId": "3240",
+          "sourceToStationId": "3250"
+        },
+        {
+          "from": "潭子",
+          "to": "頭家厝",
+          "km": 1.9,
+          "sourceLineId": "WL",
+          "sourceFromStationId": "3250",
+          "sourceToStationId": "3260"
+        },
+        {
+          "from": "頭家厝",
+          "to": "松竹",
+          "km": 1.7,
+          "sourceLineId": "WL",
+          "sourceFromStationId": "3260",
+          "sourceToStationId": "3270"
+        },
+        {
+          "from": "松竹",
+          "to": "太原",
+          "km": 1.8,
+          "sourceLineId": "WL",
+          "sourceFromStationId": "3270",
+          "sourceToStationId": "3280"
+        },
+        {
+          "from": "太原",
+          "to": "精武",
+          "km": 1.7,
+          "sourceLineId": "WL",
+          "sourceFromStationId": "3280",
+          "sourceToStationId": "3290"
+        },
+        {
+          "from": "精武",
+          "to": "台中",
+          "km": 1.9,
+          "sourceLineId": "WL",
+          "sourceFromStationId": "3290",
+          "sourceToStationId": "3300"
+        },
+        {
+          "from": "台中",
+          "to": "五權",
+          "km": 2.2,
+          "sourceLineId": "WL",
+          "sourceFromStationId": "3300",
+          "sourceToStationId": "3310"
+        },
+        {
+          "from": "五權",
+          "to": "大慶",
+          "km": 2.1,
+          "sourceLineId": "WL",
+          "sourceFromStationId": "3310",
+          "sourceToStationId": "3320"
+        },
+        {
+          "from": "大慶",
+          "to": "烏日",
+          "km": 3.1,
+          "sourceLineId": "WL",
+          "sourceFromStationId": "3320",
+          "sourceToStationId": "3330"
+        },
+        {
+          "from": "烏日",
+          "to": "新烏日",
+          "km": 0.9,
+          "sourceLineId": "WL",
+          "sourceFromStationId": "3330",
+          "sourceToStationId": "3340"
+        },
+        {
+          "from": "新烏日",
+          "to": "成功",
+          "km": 2.4,
+          "sourceLineId": "WL",
+          "sourceFromStationId": "3340",
+          "sourceToStationId": "3350"
+        },
+        {
+          "from": "成功",
+          "to": "彰化",
+          "km": 7.1,
+          "sourceLineId": "WL",
+          "sourceFromStationId": "3350",
+          "sourceToStationId": "3360"
+        }
+      ]
+    },
+    "海線": {
+      "name": "海線（竹南–彰化）",
+      "segmentCount": 17,
+      "totalKm": 90.3,
+      "segments": [
+        {
+          "from": "竹南",
+          "to": "談文",
+          "km": 4.5,
+          "sourceLineId": "WL-C",
+          "sourceFromStationId": "1250",
+          "sourceToStationId": "2110"
+        },
+        {
+          "from": "談文",
+          "to": "大山",
+          "km": 6.8,
+          "sourceLineId": "WL-C",
+          "sourceFromStationId": "2110",
+          "sourceToStationId": "2120"
+        },
+        {
+          "from": "大山",
+          "to": "後龍",
+          "km": 3.7,
+          "sourceLineId": "WL-C",
+          "sourceFromStationId": "2120",
+          "sourceToStationId": "2130"
+        },
+        {
+          "from": "後龍",
+          "to": "龍港",
+          "km": 3.6,
+          "sourceLineId": "WL-C",
+          "sourceFromStationId": "2130",
+          "sourceToStationId": "2140"
+        },
+        {
+          "from": "龍港",
+          "to": "白沙屯",
+          "km": 8.1,
+          "sourceLineId": "WL-C",
+          "sourceFromStationId": "2140",
+          "sourceToStationId": "2150"
+        },
+        {
+          "from": "白沙屯",
+          "to": "新埔",
+          "km": 3.1,
+          "sourceLineId": "WL-C",
+          "sourceFromStationId": "2150",
+          "sourceToStationId": "2160"
+        },
+        {
+          "from": "新埔",
+          "to": "通霄",
+          "km": 5.8,
+          "sourceLineId": "WL-C",
+          "sourceFromStationId": "2160",
+          "sourceToStationId": "2170"
+        },
+        {
+          "from": "通霄",
+          "to": "苑裡",
+          "km": 6.1,
+          "sourceLineId": "WL-C",
+          "sourceFromStationId": "2170",
+          "sourceToStationId": "2180"
+        },
+        {
+          "from": "苑裡",
+          "to": "日南",
+          "km": 7.7,
+          "sourceLineId": "WL-C",
+          "sourceFromStationId": "2180",
+          "sourceToStationId": "2190"
+        },
+        {
+          "from": "日南",
+          "to": "大甲",
+          "km": 4.7,
+          "sourceLineId": "WL-C",
+          "sourceFromStationId": "2190",
+          "sourceToStationId": "2200"
+        },
+        {
+          "from": "大甲",
+          "to": "台中港",
+          "km": 5.2,
+          "sourceLineId": "WL-C",
+          "sourceFromStationId": "2200",
+          "sourceToStationId": "2210"
+        },
+        {
+          "from": "台中港",
+          "to": "清水",
+          "km": 6,
+          "sourceLineId": "WL-C",
+          "sourceFromStationId": "2210",
+          "sourceToStationId": "2220"
+        },
+        {
+          "from": "清水",
+          "to": "沙鹿",
+          "km": 3.2,
+          "sourceLineId": "WL-C",
+          "sourceFromStationId": "2220",
+          "sourceToStationId": "2230"
+        },
+        {
+          "from": "沙鹿",
+          "to": "龍井",
+          "km": 4.6,
+          "sourceLineId": "WL-C",
+          "sourceFromStationId": "2230",
+          "sourceToStationId": "2240"
+        },
+        {
+          "from": "龍井",
+          "to": "大肚",
+          "km": 5,
+          "sourceLineId": "WL-C",
+          "sourceFromStationId": "2240",
+          "sourceToStationId": "2250"
+        },
+        {
+          "from": "大肚",
+          "to": "追分",
+          "km": 5,
+          "sourceLineId": "WL-C",
+          "sourceFromStationId": "2250",
+          "sourceToStationId": "2260"
+        },
+        {
+          "from": "追分",
+          "to": "彰化",
+          "km": 7.2,
+          "sourceLineId": "WL-C",
+          "sourceFromStationId": "2260",
+          "sourceToStationId": "3360"
+        }
+      ]
+    },
+    "縱貫線南段": {
+      "name": "縱貫線南段（彰化–高雄）",
+      "segmentCount": 45,
+      "totalKm": 189,
+      "segments": [
+        {
+          "from": "彰化",
+          "to": "花壇",
+          "km": 6.6,
+          "sourceLineId": "WL",
+          "sourceFromStationId": "3360",
+          "sourceToStationId": "3370"
+        },
+        {
+          "from": "花壇",
+          "to": "大村",
+          "km": 4.6,
+          "sourceLineId": "WL",
+          "sourceFromStationId": "3370",
+          "sourceToStationId": "3380"
+        },
+        {
+          "from": "大村",
+          "to": "員林",
+          "km": 3.5,
+          "sourceLineId": "WL",
+          "sourceFromStationId": "3380",
+          "sourceToStationId": "3390"
+        },
+        {
+          "from": "員林",
+          "to": "永靖",
+          "km": 3.5,
+          "sourceLineId": "WL",
+          "sourceFromStationId": "3390",
+          "sourceToStationId": "3400"
+        },
+        {
+          "from": "永靖",
+          "to": "社頭",
+          "km": 3.7,
+          "sourceLineId": "WL",
+          "sourceFromStationId": "3400",
+          "sourceToStationId": "3410"
+        },
+        {
+          "from": "社頭",
+          "to": "田中",
+          "km": 4.3,
+          "sourceLineId": "WL",
+          "sourceFromStationId": "3410",
+          "sourceToStationId": "3420"
+        },
+        {
+          "from": "田中",
+          "to": "二水",
+          "km": 5.8,
+          "sourceLineId": "WL",
+          "sourceFromStationId": "3420",
+          "sourceToStationId": "3430"
+        },
+        {
+          "from": "二水",
+          "to": "林內",
+          "km": 8.1,
+          "sourceLineId": "WL",
+          "sourceFromStationId": "3430",
+          "sourceToStationId": "3450"
+        },
+        {
+          "from": "林內",
+          "to": "石榴",
+          "km": 4.8,
+          "sourceLineId": "WL",
+          "sourceFromStationId": "3450",
+          "sourceToStationId": "3460"
+        },
+        {
+          "from": "石榴",
+          "to": "斗六",
+          "km": 4.8,
+          "sourceLineId": "WL",
+          "sourceFromStationId": "3460",
+          "sourceToStationId": "3470"
+        },
+        {
+          "from": "斗六",
+          "to": "斗南",
+          "km": 7.6,
+          "sourceLineId": "WL",
+          "sourceFromStationId": "3470",
+          "sourceToStationId": "3480"
+        },
+        {
+          "from": "斗南",
+          "to": "石龜",
+          "km": 3.9,
+          "sourceLineId": "WL",
+          "sourceFromStationId": "3480",
+          "sourceToStationId": "3490"
+        },
+        {
+          "from": "石龜",
+          "to": "大林",
+          "km": 4.6,
+          "sourceLineId": "WL",
+          "sourceFromStationId": "3490",
+          "sourceToStationId": "4050"
+        },
+        {
+          "from": "大林",
+          "to": "民雄",
+          "km": 5.8,
+          "sourceLineId": "WL",
+          "sourceFromStationId": "4050",
+          "sourceToStationId": "4060"
+        },
+        {
+          "from": "民雄",
+          "to": "嘉北",
+          "km": 6.7,
+          "sourceLineId": "WL",
+          "sourceFromStationId": "4060",
+          "sourceToStationId": "4070"
+        },
+        {
+          "from": "嘉北",
+          "to": "嘉義",
+          "km": 2.6,
+          "sourceLineId": "WL",
+          "sourceFromStationId": "4070",
+          "sourceToStationId": "4080"
+        },
+        {
+          "from": "嘉義",
+          "to": "水上",
+          "km": 6.6,
+          "sourceLineId": "WL",
+          "sourceFromStationId": "4080",
+          "sourceToStationId": "4090"
+        },
+        {
+          "from": "水上",
+          "to": "南靖",
+          "km": 2.6,
+          "sourceLineId": "WL",
+          "sourceFromStationId": "4090",
+          "sourceToStationId": "4100"
+        },
+        {
+          "from": "南靖",
+          "to": "後壁",
+          "km": 6,
+          "sourceLineId": "WL",
+          "sourceFromStationId": "4100",
+          "sourceToStationId": "4110"
+        },
+        {
+          "from": "後壁",
+          "to": "新營",
+          "km": 7.7,
+          "sourceLineId": "WL",
+          "sourceFromStationId": "4110",
+          "sourceToStationId": "4120"
+        },
+        {
+          "from": "新營",
+          "to": "柳營",
+          "km": 3.3,
+          "sourceLineId": "WL",
+          "sourceFromStationId": "4120",
+          "sourceToStationId": "4130"
+        },
+        {
+          "from": "柳營",
+          "to": "林鳳營",
+          "km": 3.9,
+          "sourceLineId": "WL",
+          "sourceFromStationId": "4130",
+          "sourceToStationId": "4140"
+        },
+        {
+          "from": "林鳳營",
+          "to": "隆田",
+          "km": 5.5,
+          "sourceLineId": "WL",
+          "sourceFromStationId": "4140",
+          "sourceToStationId": "4150"
+        },
+        {
+          "from": "隆田",
+          "to": "拔林",
+          "km": 2.2,
+          "sourceLineId": "WL",
+          "sourceFromStationId": "4150",
+          "sourceToStationId": "4160"
+        },
+        {
+          "from": "拔林",
+          "to": "善化",
+          "km": 4.6,
+          "sourceLineId": "WL",
+          "sourceFromStationId": "4160",
+          "sourceToStationId": "4170"
+        },
+        {
+          "from": "善化",
+          "to": "南科",
+          "km": 2.9,
+          "sourceLineId": "WL",
+          "sourceFromStationId": "4170",
+          "sourceToStationId": "4180"
+        },
+        {
+          "from": "南科",
+          "to": "新市",
+          "km": 4.7,
+          "sourceLineId": "WL",
+          "sourceFromStationId": "4180",
+          "sourceToStationId": "4190"
+        },
+        {
+          "from": "新市",
+          "to": "永康",
+          "km": 5,
+          "sourceLineId": "WL",
+          "sourceFromStationId": "4190",
+          "sourceToStationId": "4200"
+        },
+        {
+          "from": "永康",
+          "to": "大橋",
+          "km": 3.7,
+          "sourceLineId": "WL",
+          "sourceFromStationId": "4200",
+          "sourceToStationId": "4210"
+        },
+        {
+          "from": "大橋",
+          "to": "台南",
+          "km": 2.7,
+          "sourceLineId": "WL",
+          "sourceFromStationId": "4210",
+          "sourceToStationId": "4220"
+        },
+        {
+          "from": "台南",
+          "to": "保安",
+          "km": 7.6,
+          "sourceLineId": "WL",
+          "sourceFromStationId": "4220",
+          "sourceToStationId": "4250"
+        },
+        {
+          "from": "保安",
+          "to": "仁德",
+          "km": 1.4,
+          "sourceLineId": "WL",
+          "sourceFromStationId": "4250",
+          "sourceToStationId": "4260"
+        },
+        {
+          "from": "仁德",
+          "to": "中洲",
+          "km": 2.5,
+          "sourceLineId": "WL",
+          "sourceFromStationId": "4260",
+          "sourceToStationId": "4270"
+        },
+        {
+          "from": "中洲",
+          "to": "大湖",
+          "km": 2.9,
+          "sourceLineId": "WL",
+          "sourceFromStationId": "4270",
+          "sourceToStationId": "4290"
+        },
+        {
+          "from": "大湖",
+          "to": "路竹",
+          "km": 3,
+          "sourceLineId": "WL",
+          "sourceFromStationId": "4290",
+          "sourceToStationId": "4300"
+        },
+        {
+          "from": "路竹",
+          "to": "岡山",
+          "km": 7.8,
+          "sourceLineId": "WL",
+          "sourceFromStationId": "4300",
+          "sourceToStationId": "4310"
+        },
+        {
+          "from": "岡山",
+          "to": "橋頭",
+          "km": 3.6,
+          "sourceLineId": "WL",
+          "sourceFromStationId": "4310",
+          "sourceToStationId": "4320"
+        },
+        {
+          "from": "橋頭",
+          "to": "楠梓",
+          "km": 4.2,
+          "sourceLineId": "WL",
+          "sourceFromStationId": "4320",
+          "sourceToStationId": "4330"
+        },
+        {
+          "from": "楠梓",
+          "to": "新左營",
+          "km": 5.1,
+          "sourceLineId": "WL",
+          "sourceFromStationId": "4330",
+          "sourceToStationId": "4340"
+        },
+        {
+          "from": "新左營",
+          "to": "左營",
+          "km": 2,
+          "sourceLineId": "WL",
+          "sourceFromStationId": "4340",
+          "sourceToStationId": "4350"
+        },
+        {
+          "from": "左營",
+          "to": "內惟",
+          "km": 1.1,
+          "sourceLineId": "WL",
+          "sourceFromStationId": "4350",
+          "sourceToStationId": "4360"
+        },
+        {
+          "from": "內惟",
+          "to": "美術館",
+          "km": 1.7,
+          "sourceLineId": "WL",
+          "sourceFromStationId": "4360",
+          "sourceToStationId": "4370"
+        },
+        {
+          "from": "美術館",
+          "to": "鼓山",
+          "km": 1.2,
+          "sourceLineId": "WL",
+          "sourceFromStationId": "4370",
+          "sourceToStationId": "4380"
+        },
+        {
+          "from": "鼓山",
+          "to": "三塊厝",
+          "km": 1.7,
+          "sourceLineId": "WL",
+          "sourceFromStationId": "4380",
+          "sourceToStationId": "4390"
+        },
+        {
+          "from": "三塊厝",
+          "to": "高雄",
+          "km": 0.9,
+          "sourceLineId": "WL",
+          "sourceFromStationId": "4390",
+          "sourceToStationId": "4400"
+        }
+      ]
+    },
+    "屏東線": {
+      "name": "屏東線（高雄–枋寮）",
+      "segmentCount": 20,
+      "totalKm": 61.2,
+      "segments": [
+        {
+          "from": "高雄",
+          "to": "民族",
+          "km": 1.3,
+          "sourceLineId": "WL",
+          "sourceFromStationId": "4400",
+          "sourceToStationId": "4410"
+        },
+        {
+          "from": "民族",
+          "to": "科工館",
+          "km": 1.1,
+          "sourceLineId": "WL",
+          "sourceFromStationId": "4410",
+          "sourceToStationId": "4420"
+        },
+        {
+          "from": "科工館",
+          "to": "正義",
+          "km": 1.8,
+          "sourceLineId": "WL",
+          "sourceFromStationId": "4420",
+          "sourceToStationId": "4430"
+        },
+        {
+          "from": "正義",
+          "to": "鳳山",
+          "km": 1.3,
+          "sourceLineId": "WL",
+          "sourceFromStationId": "4430",
+          "sourceToStationId": "4440"
+        },
+        {
+          "from": "鳳山",
+          "to": "後庄",
+          "km": 3.9,
+          "sourceLineId": "WL",
+          "sourceFromStationId": "4440",
+          "sourceToStationId": "4450"
+        },
+        {
+          "from": "後庄",
+          "to": "九曲堂",
+          "km": 4.2,
+          "sourceLineId": "WL",
+          "sourceFromStationId": "4450",
+          "sourceToStationId": "4460"
+        },
+        {
+          "from": "九曲堂",
+          "to": "六塊厝",
+          "km": 5,
+          "sourceLineId": "WL",
+          "sourceFromStationId": "4460",
+          "sourceToStationId": "4470"
+        },
+        {
+          "from": "六塊厝",
+          "to": "屏東",
+          "km": 2.3,
+          "sourceLineId": "WL",
+          "sourceFromStationId": "4470",
+          "sourceToStationId": "5000"
+        },
+        {
+          "from": "屏東",
+          "to": "歸來",
+          "km": 2.6,
+          "sourceLineId": "SL",
+          "sourceFromStationId": "5000",
+          "sourceToStationId": "5010"
+        },
+        {
+          "from": "歸來",
+          "to": "麟洛",
+          "km": 2.3,
+          "sourceLineId": "SL",
+          "sourceFromStationId": "5010",
+          "sourceToStationId": "5020"
+        },
+        {
+          "from": "麟洛",
+          "to": "西勢",
+          "km": 2.4,
+          "sourceLineId": "SL",
+          "sourceFromStationId": "5020",
+          "sourceToStationId": "5030"
+        },
+        {
+          "from": "西勢",
+          "to": "竹田",
+          "km": 3.7,
+          "sourceLineId": "SL",
+          "sourceFromStationId": "5030",
+          "sourceToStationId": "5040"
+        },
+        {
+          "from": "竹田",
+          "to": "潮州",
+          "km": 4,
+          "sourceLineId": "SL",
+          "sourceFromStationId": "5040",
+          "sourceToStationId": "5050"
+        },
+        {
+          "from": "潮州",
+          "to": "崁頂",
+          "km": 4.9,
+          "sourceLineId": "SL",
+          "sourceFromStationId": "5050",
+          "sourceToStationId": "5060"
+        },
+        {
+          "from": "崁頂",
+          "to": "南州",
+          "km": 2.4,
+          "sourceLineId": "SL",
+          "sourceFromStationId": "5060",
+          "sourceToStationId": "5070"
+        },
+        {
+          "from": "南州",
+          "to": "鎮安",
+          "km": 3.8,
+          "sourceLineId": "SL",
+          "sourceFromStationId": "5070",
+          "sourceToStationId": "5080"
+        },
+        {
+          "from": "鎮安",
+          "to": "林邊",
+          "km": 3.1,
+          "sourceLineId": "SL",
+          "sourceFromStationId": "5080",
+          "sourceToStationId": "5090"
+        },
+        {
+          "from": "林邊",
+          "to": "佳冬",
+          "km": 3.9,
+          "sourceLineId": "SL",
+          "sourceFromStationId": "5090",
+          "sourceToStationId": "5100"
+        },
+        {
+          "from": "佳冬",
+          "to": "東海",
+          "km": 3.1,
+          "sourceLineId": "SL",
+          "sourceFromStationId": "5100",
+          "sourceToStationId": "5110"
+        },
+        {
+          "from": "東海",
+          "to": "枋寮",
+          "km": 4.1,
+          "sourceLineId": "SL",
+          "sourceFromStationId": "5110",
+          "sourceToStationId": "5120"
+        }
+      ]
+    },
+    "南迴線": {
+      "name": "南迴線（枋寮–臺東）",
+      "segmentCount": 11,
+      "totalKm": 98.1,
+      "segments": [
+        {
+          "from": "枋寮",
+          "to": "加祿",
+          "km": 5.3,
+          "sourceLineId": "SL",
+          "sourceFromStationId": "5120",
+          "sourceToStationId": "5130"
+        },
+        {
+          "from": "加祿",
+          "to": "內獅",
+          "km": 3.5,
+          "sourceLineId": "SL",
+          "sourceFromStationId": "5130",
+          "sourceToStationId": "5140"
+        },
+        {
+          "from": "內獅",
+          "to": "枋山",
+          "km": 4.8,
+          "sourceLineId": "SL",
+          "sourceFromStationId": "5140",
+          "sourceToStationId": "5160"
+        },
+        {
+          "from": "枋山",
+          "to": "枋野",
+          "km": 6.9,
+          "sourceLineId": "SL",
+          "sourceFromStationId": "5160",
+          "sourceToStationId": "5170"
+        },
+        {
+          "from": "枋野",
+          "to": "大武",
+          "km": 23.3,
+          "sourceLineId": "SL",
+          "sourceFromStationId": "5170",
+          "sourceToStationId": "5190"
+        },
+        {
+          "from": "大武",
+          "to": "瀧溪",
+          "km": 11.7,
+          "sourceLineId": "SL",
+          "sourceFromStationId": "5190",
+          "sourceToStationId": "5200"
+        },
+        {
+          "from": "瀧溪",
+          "to": "金崙",
+          "km": 8.4,
+          "sourceLineId": "SL",
+          "sourceFromStationId": "5200",
+          "sourceToStationId": "5210"
+        },
+        {
+          "from": "金崙",
+          "to": "太麻里",
+          "km": 10.9,
+          "sourceLineId": "SL",
+          "sourceFromStationId": "5210",
+          "sourceToStationId": "5220"
+        },
+        {
+          "from": "太麻里",
+          "to": "知本",
+          "km": 11.7,
+          "sourceLineId": "SL",
+          "sourceFromStationId": "5220",
+          "sourceToStationId": "5230"
+        },
+        {
+          "from": "知本",
+          "to": "康樂",
+          "km": 7.1,
+          "sourceLineId": "SL",
+          "sourceFromStationId": "5230",
+          "sourceToStationId": "5240"
+        },
+        {
+          "from": "康樂",
+          "to": "台東",
+          "km": 4.5,
+          "sourceLineId": "SL",
+          "sourceFromStationId": "5240",
+          "sourceToStationId": "6000"
+        }
+      ]
+    },
+    "臺東線": {
+      "name": "臺東線（臺東–花蓮）",
+      "segmentCount": 26,
+      "totalKm": 150.9,
+      "segments": [
+        {
+          "from": "台東",
+          "to": "山里",
+          "km": 8.2,
+          "sourceLineId": "EL",
+          "sourceFromStationId": "6000",
+          "sourceToStationId": "6010"
+        },
+        {
+          "from": "山里",
+          "to": "鹿野",
+          "km": 6.1,
+          "sourceLineId": "EL",
+          "sourceFromStationId": "6010",
+          "sourceToStationId": "6020"
+        },
+        {
+          "from": "鹿野",
+          "to": "瑞源",
+          "km": 5.5,
+          "sourceLineId": "EL",
+          "sourceFromStationId": "6020",
+          "sourceToStationId": "6030"
+        },
+        {
+          "from": "瑞源",
+          "to": "瑞和",
+          "km": 2.7,
+          "sourceLineId": "EL",
+          "sourceFromStationId": "6030",
+          "sourceToStationId": "6040"
+        },
+        {
+          "from": "瑞和",
+          "to": "關山",
+          "km": 7.5,
+          "sourceLineId": "EL",
+          "sourceFromStationId": "6040",
+          "sourceToStationId": "6050"
+        },
+        {
+          "from": "關山",
+          "to": "海端",
+          "km": 6.5,
+          "sourceLineId": "EL",
+          "sourceFromStationId": "6050",
+          "sourceToStationId": "6060"
+        },
+        {
+          "from": "海端",
+          "to": "池上",
+          "km": 5.7,
+          "sourceLineId": "EL",
+          "sourceFromStationId": "6060",
+          "sourceToStationId": "6070"
+        },
+        {
+          "from": "池上",
+          "to": "富里",
+          "km": 6.8,
+          "sourceLineId": "EL",
+          "sourceFromStationId": "6070",
+          "sourceToStationId": "6080"
+        },
+        {
+          "from": "富里",
+          "to": "東竹",
+          "km": 6.1,
+          "sourceLineId": "EL",
+          "sourceFromStationId": "6080",
+          "sourceToStationId": "6090"
+        },
+        {
+          "from": "東竹",
+          "to": "東里",
+          "km": 6,
+          "sourceLineId": "EL",
+          "sourceFromStationId": "6090",
+          "sourceToStationId": "6100"
+        },
+        {
+          "from": "東里",
+          "to": "玉里",
+          "km": 6.8,
+          "sourceLineId": "EL",
+          "sourceFromStationId": "6100",
+          "sourceToStationId": "6110"
+        },
+        {
+          "from": "玉里",
+          "to": "三民",
+          "km": 10.8,
+          "sourceLineId": "EL",
+          "sourceFromStationId": "6110",
+          "sourceToStationId": "6120"
+        },
+        {
+          "from": "三民",
+          "to": "瑞穗",
+          "km": 9.4,
+          "sourceLineId": "EL",
+          "sourceFromStationId": "6120",
+          "sourceToStationId": "6130"
+        },
+        {
+          "from": "瑞穗",
+          "to": "富源",
+          "km": 9.1,
+          "sourceLineId": "EL",
+          "sourceFromStationId": "6130",
+          "sourceToStationId": "6140"
+        },
+        {
+          "from": "富源",
+          "to": "大富",
+          "km": 3.2,
+          "sourceLineId": "EL",
+          "sourceFromStationId": "6140",
+          "sourceToStationId": "6150"
+        },
+        {
+          "from": "大富",
+          "to": "光復",
+          "km": 7.5,
+          "sourceLineId": "EL",
+          "sourceFromStationId": "6150",
+          "sourceToStationId": "6160"
+        },
+        {
+          "from": "光復",
+          "to": "萬榮",
+          "km": 5.6,
+          "sourceLineId": "EL",
+          "sourceFromStationId": "6160",
+          "sourceToStationId": "6170"
+        },
+        {
+          "from": "萬榮",
+          "to": "鳳林",
+          "km": 4.9,
+          "sourceLineId": "EL",
+          "sourceFromStationId": "6170",
+          "sourceToStationId": "6180"
+        },
+        {
+          "from": "鳳林",
+          "to": "南平",
+          "km": 4.2,
+          "sourceLineId": "EL",
+          "sourceFromStationId": "6180",
+          "sourceToStationId": "6190"
+        },
+        {
+          "from": "南平",
+          "to": "林榮新光",
+          "km": 2.2,
+          "sourceLineId": "EL",
+          "sourceFromStationId": "6190",
+          "sourceToStationId": "6200"
+        },
+        {
+          "from": "林榮新光",
+          "to": "豐田",
+          "km": 6.2,
+          "sourceLineId": "EL",
+          "sourceFromStationId": "6200",
+          "sourceToStationId": "6210"
+        },
+        {
+          "from": "豐田",
+          "to": "壽豐",
+          "km": 2.8,
+          "sourceLineId": "EL",
+          "sourceFromStationId": "6210",
+          "sourceToStationId": "6220"
+        },
+        {
+          "from": "壽豐",
+          "to": "平和",
+          "km": 1.8,
+          "sourceLineId": "EL",
+          "sourceFromStationId": "6220",
+          "sourceToStationId": "6230"
+        },
+        {
+          "from": "平和",
+          "to": "志學",
+          "km": 3,
+          "sourceLineId": "EL",
+          "sourceFromStationId": "6230",
+          "sourceToStationId": "6240"
+        },
+        {
+          "from": "志學",
+          "to": "吉安",
+          "km": 8.8,
+          "sourceLineId": "EL",
+          "sourceFromStationId": "6240",
+          "sourceToStationId": "6250"
+        },
+        {
+          "from": "吉安",
+          "to": "花蓮",
+          "km": 3.5,
+          "sourceLineId": "EL",
+          "sourceFromStationId": "6250",
+          "sourceToStationId": "7000"
+        }
+      ]
+    },
+    "北迴線": {
+      "name": "北迴線（花蓮–蘇澳新）",
+      "segmentCount": 12,
+      "totalKm": 79.5,
+      "segments": [
+        {
+          "from": "花蓮",
+          "to": "北埔",
+          "km": 4.6,
+          "sourceLineId": "EL",
+          "sourceFromStationId": "7000",
+          "sourceToStationId": "7010"
+        },
+        {
+          "from": "北埔",
+          "to": "景美",
+          "km": 6.5,
+          "sourceLineId": "EL",
+          "sourceFromStationId": "7010",
+          "sourceToStationId": "7020"
+        },
+        {
+          "from": "景美",
+          "to": "新城",
+          "km": 5.3,
+          "sourceLineId": "EL",
+          "sourceFromStationId": "7020",
+          "sourceToStationId": "7030"
+        },
+        {
+          "from": "新城",
+          "to": "崇德",
+          "km": 5.3,
+          "sourceLineId": "EL",
+          "sourceFromStationId": "7030",
+          "sourceToStationId": "7040"
+        },
+        {
+          "from": "崇德",
+          "to": "和仁",
+          "km": 10,
+          "sourceLineId": "EL",
+          "sourceFromStationId": "7040",
+          "sourceToStationId": "7050"
+        },
+        {
+          "from": "和仁",
+          "to": "和平",
+          "km": 7.9,
+          "sourceLineId": "EL",
+          "sourceFromStationId": "7050",
+          "sourceToStationId": "7060"
+        },
+        {
+          "from": "和平",
+          "to": "漢本",
+          "km": 4.4,
+          "sourceLineId": "EL",
+          "sourceFromStationId": "7060",
+          "sourceToStationId": "7070"
+        },
+        {
+          "from": "漢本",
+          "to": "武塔",
+          "km": 12.9,
+          "sourceLineId": "EL",
+          "sourceFromStationId": "7070",
+          "sourceToStationId": "7080"
+        },
+        {
+          "from": "武塔",
+          "to": "南澳",
+          "km": 3.7,
+          "sourceLineId": "EL",
+          "sourceFromStationId": "7080",
+          "sourceToStationId": "7090"
+        },
+        {
+          "from": "南澳",
+          "to": "東澳",
+          "km": 8,
+          "sourceLineId": "EL",
+          "sourceFromStationId": "7090",
+          "sourceToStationId": "7100"
+        },
+        {
+          "from": "東澳",
+          "to": "永樂",
+          "km": 5.7,
+          "sourceLineId": "EL",
+          "sourceFromStationId": "7100",
+          "sourceToStationId": "7110"
+        },
+        {
+          "from": "永樂",
+          "to": "蘇澳新",
+          "km": 5.2,
+          "sourceLineId": "EL",
+          "sourceFromStationId": "7110",
+          "sourceToStationId": "7130"
+        }
+      ]
+    },
+    "宜蘭線": {
+      "name": "宜蘭線（蘇澳–八堵）",
+      "segmentCount": 26,
+      "totalKm": 93.5,
+      "segments": [
+        {
+          "from": "蘇澳",
+          "to": "蘇澳新",
+          "km": 3.3,
+          "sourceLineId": "SU",
+          "sourceFromStationId": "7120",
+          "sourceToStationId": "7130"
+        },
+        {
+          "from": "蘇澳新",
+          "to": "新馬",
+          "km": 0.9,
+          "sourceLineId": "EL",
+          "sourceFromStationId": "7130",
+          "sourceToStationId": "7140"
+        },
+        {
+          "from": "新馬",
+          "to": "冬山",
+          "km": 4.2,
+          "sourceLineId": "EL",
+          "sourceFromStationId": "7140",
+          "sourceToStationId": "7150"
+        },
+        {
+          "from": "冬山",
+          "to": "羅東",
+          "km": 5,
+          "sourceLineId": "EL",
+          "sourceFromStationId": "7150",
+          "sourceToStationId": "7160"
+        },
+        {
+          "from": "羅東",
+          "to": "中里",
+          "km": 1.8,
+          "sourceLineId": "EL",
+          "sourceFromStationId": "7160",
+          "sourceToStationId": "7170"
+        },
+        {
+          "from": "中里",
+          "to": "二結",
+          "km": 1.2,
+          "sourceLineId": "EL",
+          "sourceFromStationId": "7170",
+          "sourceToStationId": "7180"
+        },
+        {
+          "from": "二結",
+          "to": "宜蘭",
+          "km": 5.8,
+          "sourceLineId": "EL",
+          "sourceFromStationId": "7180",
+          "sourceToStationId": "7190"
+        },
+        {
+          "from": "宜蘭",
+          "to": "四城",
+          "km": 3.7,
+          "sourceLineId": "EL",
+          "sourceFromStationId": "7190",
+          "sourceToStationId": "7200"
+        },
+        {
+          "from": "四城",
+          "to": "礁溪",
+          "km": 4.7,
+          "sourceLineId": "EL",
+          "sourceFromStationId": "7200",
+          "sourceToStationId": "7210"
+        },
+        {
+          "from": "礁溪",
+          "to": "頂埔",
+          "km": 4.1,
+          "sourceLineId": "EL",
+          "sourceFromStationId": "7210",
+          "sourceToStationId": "7220"
+        },
+        {
+          "from": "頂埔",
+          "to": "頭城",
+          "km": 2.2,
+          "sourceLineId": "EL",
+          "sourceFromStationId": "7220",
+          "sourceToStationId": "7230"
+        },
+        {
+          "from": "頭城",
+          "to": "外澳",
+          "km": 3.7,
+          "sourceLineId": "EL",
+          "sourceFromStationId": "7230",
+          "sourceToStationId": "7240"
+        },
+        {
+          "from": "外澳",
+          "to": "龜山",
+          "km": 3.5,
+          "sourceLineId": "EL",
+          "sourceFromStationId": "7240",
+          "sourceToStationId": "7250"
+        },
+        {
+          "from": "龜山",
+          "to": "大溪",
+          "km": 4.6,
+          "sourceLineId": "EL",
+          "sourceFromStationId": "7250",
+          "sourceToStationId": "7260"
+        },
+        {
+          "from": "大溪",
+          "to": "大里",
+          "km": 4.7,
+          "sourceLineId": "EL",
+          "sourceFromStationId": "7260",
+          "sourceToStationId": "7270"
+        },
+        {
+          "from": "大里",
+          "to": "石城",
+          "km": 2.7,
+          "sourceLineId": "EL",
+          "sourceFromStationId": "7270",
+          "sourceToStationId": "7280"
+        },
+        {
+          "from": "石城",
+          "to": "福隆",
+          "km": 5.4,
+          "sourceLineId": "EL",
+          "sourceFromStationId": "7280",
+          "sourceToStationId": "7290"
+        },
+        {
+          "from": "福隆",
+          "to": "貢寮",
+          "km": 3.8,
+          "sourceLineId": "EL",
+          "sourceFromStationId": "7290",
+          "sourceToStationId": "7300"
+        },
+        {
+          "from": "貢寮",
+          "to": "雙溪",
+          "km": 5.3,
+          "sourceLineId": "EL",
+          "sourceFromStationId": "7300",
+          "sourceToStationId": "7310"
+        },
+        {
+          "from": "雙溪",
+          "to": "牡丹",
+          "km": 3.4,
+          "sourceLineId": "EL",
+          "sourceFromStationId": "7310",
+          "sourceToStationId": "7320"
+        },
+        {
+          "from": "牡丹",
+          "to": "三貂嶺",
+          "km": 3.5,
+          "sourceLineId": "EL",
+          "sourceFromStationId": "7320",
+          "sourceToStationId": "7330"
+        },
+        {
+          "from": "三貂嶺",
+          "to": "猴硐",
+          "km": 2.5,
+          "sourceLineId": "EL",
+          "sourceFromStationId": "7330",
+          "sourceToStationId": "7350"
+        },
+        {
+          "from": "猴硐",
+          "to": "瑞芳",
+          "km": 4.6,
+          "sourceLineId": "EL",
+          "sourceFromStationId": "7350",
+          "sourceToStationId": "7360"
+        },
+        {
+          "from": "瑞芳",
+          "to": "四腳亭",
+          "km": 5,
+          "sourceLineId": "EL",
+          "sourceFromStationId": "7360",
+          "sourceToStationId": "7380"
+        },
+        {
+          "from": "四腳亭",
+          "to": "暖暖",
+          "km": 2.3,
+          "sourceLineId": "EL",
+          "sourceFromStationId": "7380",
+          "sourceToStationId": "7390"
+        },
+        {
+          "from": "暖暖",
+          "to": "八堵",
+          "km": 1.6,
+          "sourceLineId": "EL",
+          "sourceFromStationId": "7390",
+          "sourceToStationId": "0920"
+        }
+      ]
+    },
+    "NEIWAN": {
+      "name": "內灣線（新竹–內灣）",
+      "segmentCount": 12,
+      "totalKm": 27.9,
+      "segments": [
+        {
+          "from": "新竹",
+          "to": "北新竹",
+          "km": 1.4,
+          "sourceLineId": "WL",
+          "sourceFromStationId": "1210",
+          "sourceToStationId": "1190"
+        },
+        {
+          "from": "北新竹",
+          "to": "千甲",
+          "km": 2.2,
+          "sourceLineId": "NW",
+          "sourceFromStationId": "1190",
+          "sourceToStationId": "1191"
+        },
+        {
+          "from": "千甲",
+          "to": "新莊",
+          "km": 3,
+          "sourceLineId": "NW",
+          "sourceFromStationId": "1191",
+          "sourceToStationId": "1192"
+        },
+        {
+          "from": "新莊",
+          "to": "竹中",
+          "km": 1.3,
+          "sourceLineId": "NW",
+          "sourceFromStationId": "1192",
+          "sourceToStationId": "1193"
+        },
+        {
+          "from": "竹中",
+          "to": "上員",
+          "km": 2.7,
+          "sourceLineId": "NW",
+          "sourceFromStationId": "1193",
+          "sourceToStationId": "1201"
+        },
+        {
+          "from": "上員",
+          "to": "榮華",
+          "km": 4.4,
+          "sourceLineId": "NW",
+          "sourceFromStationId": "1201",
+          "sourceToStationId": "1202"
+        },
+        {
+          "from": "榮華",
+          "to": "竹東",
+          "km": 1.6,
+          "sourceLineId": "NW",
+          "sourceFromStationId": "1202",
+          "sourceToStationId": "1203"
+        },
+        {
+          "from": "竹東",
+          "to": "橫山",
+          "km": 3.5,
+          "sourceLineId": "NW",
+          "sourceFromStationId": "1203",
+          "sourceToStationId": "1204"
+        },
+        {
+          "from": "橫山",
+          "to": "九讚頭",
+          "km": 2,
+          "sourceLineId": "NW",
+          "sourceFromStationId": "1204",
+          "sourceToStationId": "1205"
+        },
+        {
+          "from": "九讚頭",
+          "to": "合興",
+          "km": 2.2,
+          "sourceLineId": "NW",
+          "sourceFromStationId": "1205",
+          "sourceToStationId": "1206"
+        },
+        {
+          "from": "合興",
+          "to": "富貴",
+          "km": 1.4,
+          "sourceLineId": "NW",
+          "sourceFromStationId": "1206",
+          "sourceToStationId": "1207"
+        },
+        {
+          "from": "富貴",
+          "to": "內灣",
+          "km": 2.2,
+          "sourceLineId": "NW",
+          "sourceFromStationId": "1207",
+          "sourceToStationId": "1208"
+        }
+      ]
+    },
+    "LIUJIA": {
+      "name": "六家線（竹中–六家）",
+      "segmentCount": 1,
+      "totalKm": 3.1,
+      "segments": [
+        {
+          "from": "竹中",
+          "to": "六家",
+          "km": 3.1,
+          "sourceLineId": "LJ",
+          "sourceFromStationId": "1193",
+          "sourceToStationId": "1194"
+        }
+      ]
+    },
+    "PINGXI": {
+      "name": "平溪線（三貂嶺–菁桐）",
+      "segmentCount": 6,
+      "totalKm": 12.9,
+      "segments": [
+        {
+          "from": "三貂嶺",
+          "to": "大華",
+          "km": 3.6,
+          "sourceLineId": "PX",
+          "sourceFromStationId": "7330",
+          "sourceToStationId": "7331"
+        },
+        {
+          "from": "大華",
+          "to": "十分",
+          "km": 2.8,
+          "sourceLineId": "PX",
+          "sourceFromStationId": "7331",
+          "sourceToStationId": "7332"
+        },
+        {
+          "from": "十分",
+          "to": "望古",
+          "km": 1.7,
+          "sourceLineId": "PX",
+          "sourceFromStationId": "7332",
+          "sourceToStationId": "7333"
+        },
+        {
+          "from": "望古",
+          "to": "嶺腳",
+          "km": 2.1,
+          "sourceLineId": "PX",
+          "sourceFromStationId": "7333",
+          "sourceToStationId": "7334"
+        },
+        {
+          "from": "嶺腳",
+          "to": "平溪",
+          "km": 1,
+          "sourceLineId": "PX",
+          "sourceFromStationId": "7334",
+          "sourceToStationId": "7335"
+        },
+        {
+          "from": "平溪",
+          "to": "菁桐",
+          "km": 1.7,
+          "sourceLineId": "PX",
+          "sourceFromStationId": "7335",
+          "sourceToStationId": "7336"
+        }
+      ]
+    },
+    "SHENAO": {
+      "name": "深澳線（瑞芳–八斗子）",
+      "segmentCount": 2,
+      "totalKm": 4.7,
+      "segments": [
+        {
+          "from": "瑞芳",
+          "to": "海科館",
+          "km": 4.3,
+          "sourceLineId": "SA",
+          "sourceFromStationId": "7360",
+          "sourceToStationId": "7361"
+        },
+        {
+          "from": "海科館",
+          "to": "八斗子",
+          "km": 0.4,
+          "sourceLineId": "SA",
+          "sourceFromStationId": "7361",
+          "sourceToStationId": "7362"
+        }
+      ]
+    },
+    "JIJI": {
+      "name": "集集線（二水–車埕）",
+      "segmentCount": 6,
+      "totalKm": 29.6,
+      "segments": [
+        {
+          "from": "二水",
+          "to": "源泉",
+          "km": 3,
+          "sourceLineId": "JJ",
+          "sourceFromStationId": "3430",
+          "sourceToStationId": "3431"
+        },
+        {
+          "from": "源泉",
+          "to": "濁水",
+          "km": 7.8,
+          "sourceLineId": "JJ",
+          "sourceFromStationId": "3431",
+          "sourceToStationId": "3432"
+        },
+        {
+          "from": "濁水",
+          "to": "龍泉",
+          "km": 4.9,
+          "sourceLineId": "JJ",
+          "sourceFromStationId": "3432",
+          "sourceToStationId": "3433"
+        },
+        {
+          "from": "龍泉",
+          "to": "集集",
+          "km": 4.3,
+          "sourceLineId": "JJ",
+          "sourceFromStationId": "3433",
+          "sourceToStationId": "3434"
+        },
+        {
+          "from": "集集",
+          "to": "水里",
+          "km": 7.4,
+          "sourceLineId": "JJ",
+          "sourceFromStationId": "3434",
+          "sourceToStationId": "3435"
+        },
+        {
+          "from": "水里",
+          "to": "車埕",
+          "km": 2.2,
+          "sourceLineId": "JJ",
+          "sourceFromStationId": "3435",
+          "sourceToStationId": "3436"
+        }
+      ]
+    },
+    "SHALUN": {
+      "name": "沙崙線（中洲–沙崙）",
+      "segmentCount": 2,
+      "totalKm": 5.7,
+      "segments": [
+        {
+          "from": "中洲",
+          "to": "長榮大學",
+          "km": 2.6,
+          "sourceLineId": "SH",
+          "sourceFromStationId": "4270",
+          "sourceToStationId": "4271"
+        },
+        {
+          "from": "長榮大學",
+          "to": "沙崙",
+          "km": 3.1,
+          "sourceLineId": "SH",
+          "sourceFromStationId": "4271",
+          "sourceToStationId": "4272"
+        }
+      ]
+    },
+    "chengzhui": {
+      "name": "成追線（追分–成功）",
+      "segmentCount": 1,
+      "totalKm": 2.2,
+      "segments": [
+        {
+          "from": "追分",
+          "to": "成功",
+          "km": 2.2,
+          "sourceLineId": "CZ",
+          "sourceFromStationId": "2260",
+          "sourceToStationId": "3350"
+        }
+      ]
+    }
+  },
+  "lookup": {
+    "縱貫線北段|基隆|三坑": 1.5,
+    "縱貫線北段|三坑|八堵": 2.4,
+    "縱貫線北段|八堵|七堵": 2.3,
+    "縱貫線北段|七堵|百福": 2.7,
+    "縱貫線北段|百福|五堵": 3,
+    "縱貫線北段|五堵|汐止": 1.4,
+    "縱貫線北段|汐止|汐科": 1.3,
+    "縱貫線北段|汐科|南港": 4.7,
+    "縱貫線北段|南港|松山": 2.8,
+    "縱貫線北段|松山|台北": 6.4,
+    "縱貫線北段|台北|萬華": 2.8,
+    "縱貫線北段|萬華|板橋": 4.4,
+    "縱貫線北段|板橋|浮洲": 2.4,
+    "縱貫線北段|浮洲|樹林": 3,
+    "縱貫線北段|樹林|南樹林": 2,
+    "縱貫線北段|南樹林|山佳": 1.9,
+    "縱貫線北段|山佳|鶯歌": 4.4,
+    "縱貫線北段|鶯歌|鳳鳴": 5,
+    "縱貫線北段|鳳鳴|桃園": 3.2,
+    "縱貫線北段|桃園|內壢": 5.9,
+    "縱貫線北段|內壢|中壢": 4,
+    "縱貫線北段|中壢|埔心": 5.8,
+    "縱貫線北段|埔心|楊梅": 4,
+    "縱貫線北段|楊梅|富岡": 6.8,
+    "縱貫線北段|富岡|新富": 1.7,
+    "縱貫線北段|新富|北湖": 1.5,
+    "縱貫線北段|北湖|湖口": 2.5,
+    "縱貫線北段|湖口|新豐": 6.2,
+    "縱貫線北段|新豐|竹北": 4.8,
+    "縱貫線北段|竹北|北新竹": 4.4,
+    "縱貫線北段|北新竹|新竹": 1.4,
+    "縱貫線北段|新竹|三姓橋": 4.8,
+    "縱貫線北段|三姓橋|香山": 3.2,
+    "縱貫線北段|香山|崎頂": 6.2,
+    "縱貫線北段|崎頂|竹南": 4.5,
+    "山線|竹南|造橋": 5.4,
+    "山線|造橋|豐富": 5.9,
+    "山線|豐富|苗栗": 4,
+    "山線|苗栗|南勢": 6.6,
+    "山線|南勢|銅鑼": 4.2,
+    "山線|銅鑼|三義": 7.4,
+    "山線|三義|泰安": 10.9,
+    "山線|泰安|后里": 2.6,
+    "山線|后里|豐原": 6.7,
+    "山線|豐原|栗林": 2.6,
+    "山線|栗林|潭子": 2.5,
+    "山線|潭子|頭家厝": 1.9,
+    "山線|頭家厝|松竹": 1.7,
+    "山線|松竹|太原": 1.8,
+    "山線|太原|精武": 1.7,
+    "山線|精武|台中": 1.9,
+    "山線|台中|五權": 2.2,
+    "山線|五權|大慶": 2.1,
+    "山線|大慶|烏日": 3.1,
+    "山線|烏日|新烏日": 0.9,
+    "山線|新烏日|成功": 2.4,
+    "山線|成功|彰化": 7.1,
+    "海線|竹南|談文": 4.5,
+    "海線|談文|大山": 6.8,
+    "海線|大山|後龍": 3.7,
+    "海線|後龍|龍港": 3.6,
+    "海線|龍港|白沙屯": 8.1,
+    "海線|白沙屯|新埔": 3.1,
+    "海線|新埔|通霄": 5.8,
+    "海線|通霄|苑裡": 6.1,
+    "海線|苑裡|日南": 7.7,
+    "海線|日南|大甲": 4.7,
+    "海線|大甲|台中港": 5.2,
+    "海線|台中港|清水": 6,
+    "海線|清水|沙鹿": 3.2,
+    "海線|沙鹿|龍井": 4.6,
+    "海線|龍井|大肚": 5,
+    "海線|大肚|追分": 5,
+    "海線|追分|彰化": 7.2,
+    "縱貫線南段|彰化|花壇": 6.6,
+    "縱貫線南段|花壇|大村": 4.6,
+    "縱貫線南段|大村|員林": 3.5,
+    "縱貫線南段|員林|永靖": 3.5,
+    "縱貫線南段|永靖|社頭": 3.7,
+    "縱貫線南段|社頭|田中": 4.3,
+    "縱貫線南段|田中|二水": 5.8,
+    "縱貫線南段|二水|林內": 8.1,
+    "縱貫線南段|林內|石榴": 4.8,
+    "縱貫線南段|石榴|斗六": 4.8,
+    "縱貫線南段|斗六|斗南": 7.6,
+    "縱貫線南段|斗南|石龜": 3.9,
+    "縱貫線南段|石龜|大林": 4.6,
+    "縱貫線南段|大林|民雄": 5.8,
+    "縱貫線南段|民雄|嘉北": 6.7,
+    "縱貫線南段|嘉北|嘉義": 2.6,
+    "縱貫線南段|嘉義|水上": 6.6,
+    "縱貫線南段|水上|南靖": 2.6,
+    "縱貫線南段|南靖|後壁": 6,
+    "縱貫線南段|後壁|新營": 7.7,
+    "縱貫線南段|新營|柳營": 3.3,
+    "縱貫線南段|柳營|林鳳營": 3.9,
+    "縱貫線南段|林鳳營|隆田": 5.5,
+    "縱貫線南段|隆田|拔林": 2.2,
+    "縱貫線南段|拔林|善化": 4.6,
+    "縱貫線南段|善化|南科": 2.9,
+    "縱貫線南段|南科|新市": 4.7,
+    "縱貫線南段|新市|永康": 5,
+    "縱貫線南段|永康|大橋": 3.7,
+    "縱貫線南段|大橋|台南": 2.7,
+    "縱貫線南段|台南|保安": 7.6,
+    "縱貫線南段|保安|仁德": 1.4,
+    "縱貫線南段|仁德|中洲": 2.5,
+    "縱貫線南段|中洲|大湖": 2.9,
+    "縱貫線南段|大湖|路竹": 3,
+    "縱貫線南段|路竹|岡山": 7.8,
+    "縱貫線南段|岡山|橋頭": 3.6,
+    "縱貫線南段|橋頭|楠梓": 4.2,
+    "縱貫線南段|楠梓|新左營": 5.1,
+    "縱貫線南段|新左營|左營": 2,
+    "縱貫線南段|左營|內惟": 1.1,
+    "縱貫線南段|內惟|美術館": 1.7,
+    "縱貫線南段|美術館|鼓山": 1.2,
+    "縱貫線南段|鼓山|三塊厝": 1.7,
+    "縱貫線南段|三塊厝|高雄": 0.9,
+    "屏東線|高雄|民族": 1.3,
+    "屏東線|民族|科工館": 1.1,
+    "屏東線|科工館|正義": 1.8,
+    "屏東線|正義|鳳山": 1.3,
+    "屏東線|鳳山|後庄": 3.9,
+    "屏東線|後庄|九曲堂": 4.2,
+    "屏東線|九曲堂|六塊厝": 5,
+    "屏東線|六塊厝|屏東": 2.3,
+    "屏東線|屏東|歸來": 2.6,
+    "屏東線|歸來|麟洛": 2.3,
+    "屏東線|麟洛|西勢": 2.4,
+    "屏東線|西勢|竹田": 3.7,
+    "屏東線|竹田|潮州": 4,
+    "屏東線|潮州|崁頂": 4.9,
+    "屏東線|崁頂|南州": 2.4,
+    "屏東線|南州|鎮安": 3.8,
+    "屏東線|鎮安|林邊": 3.1,
+    "屏東線|林邊|佳冬": 3.9,
+    "屏東線|佳冬|東海": 3.1,
+    "屏東線|東海|枋寮": 4.1,
+    "南迴線|枋寮|加祿": 5.3,
+    "南迴線|加祿|內獅": 3.5,
+    "南迴線|內獅|枋山": 4.8,
+    "南迴線|枋山|枋野": 6.9,
+    "南迴線|枋野|大武": 23.3,
+    "南迴線|大武|瀧溪": 11.7,
+    "南迴線|瀧溪|金崙": 8.4,
+    "南迴線|金崙|太麻里": 10.9,
+    "南迴線|太麻里|知本": 11.7,
+    "南迴線|知本|康樂": 7.1,
+    "南迴線|康樂|台東": 4.5,
+    "臺東線|台東|山里": 8.2,
+    "臺東線|山里|鹿野": 6.1,
+    "臺東線|鹿野|瑞源": 5.5,
+    "臺東線|瑞源|瑞和": 2.7,
+    "臺東線|瑞和|關山": 7.5,
+    "臺東線|關山|海端": 6.5,
+    "臺東線|海端|池上": 5.7,
+    "臺東線|池上|富里": 6.8,
+    "臺東線|富里|東竹": 6.1,
+    "臺東線|東竹|東里": 6,
+    "臺東線|東里|玉里": 6.8,
+    "臺東線|玉里|三民": 10.8,
+    "臺東線|三民|瑞穗": 9.4,
+    "臺東線|瑞穗|富源": 9.1,
+    "臺東線|富源|大富": 3.2,
+    "臺東線|大富|光復": 7.5,
+    "臺東線|光復|萬榮": 5.6,
+    "臺東線|萬榮|鳳林": 4.9,
+    "臺東線|鳳林|南平": 4.2,
+    "臺東線|南平|林榮新光": 2.2,
+    "臺東線|林榮新光|豐田": 6.2,
+    "臺東線|豐田|壽豐": 2.8,
+    "臺東線|壽豐|平和": 1.8,
+    "臺東線|平和|志學": 3,
+    "臺東線|志學|吉安": 8.8,
+    "臺東線|吉安|花蓮": 3.5,
+    "北迴線|花蓮|北埔": 4.6,
+    "北迴線|北埔|景美": 6.5,
+    "北迴線|景美|新城": 5.3,
+    "北迴線|新城|崇德": 5.3,
+    "北迴線|崇德|和仁": 10,
+    "北迴線|和仁|和平": 7.9,
+    "北迴線|和平|漢本": 4.4,
+    "北迴線|漢本|武塔": 12.9,
+    "北迴線|武塔|南澳": 3.7,
+    "北迴線|南澳|東澳": 8,
+    "北迴線|東澳|永樂": 5.7,
+    "北迴線|永樂|蘇澳新": 5.2,
+    "宜蘭線|蘇澳|蘇澳新": 3.3,
+    "宜蘭線|蘇澳新|新馬": 0.9,
+    "宜蘭線|新馬|冬山": 4.2,
+    "宜蘭線|冬山|羅東": 5,
+    "宜蘭線|羅東|中里": 1.8,
+    "宜蘭線|中里|二結": 1.2,
+    "宜蘭線|二結|宜蘭": 5.8,
+    "宜蘭線|宜蘭|四城": 3.7,
+    "宜蘭線|四城|礁溪": 4.7,
+    "宜蘭線|礁溪|頂埔": 4.1,
+    "宜蘭線|頂埔|頭城": 2.2,
+    "宜蘭線|頭城|外澳": 3.7,
+    "宜蘭線|外澳|龜山": 3.5,
+    "宜蘭線|龜山|大溪": 4.6,
+    "宜蘭線|大溪|大里": 4.7,
+    "宜蘭線|大里|石城": 2.7,
+    "宜蘭線|石城|福隆": 5.4,
+    "宜蘭線|福隆|貢寮": 3.8,
+    "宜蘭線|貢寮|雙溪": 5.3,
+    "宜蘭線|雙溪|牡丹": 3.4,
+    "宜蘭線|牡丹|三貂嶺": 3.5,
+    "宜蘭線|三貂嶺|猴硐": 2.5,
+    "宜蘭線|猴硐|瑞芳": 4.6,
+    "宜蘭線|瑞芳|四腳亭": 5,
+    "宜蘭線|四腳亭|暖暖": 2.3,
+    "宜蘭線|暖暖|八堵": 1.6,
+    "NEIWAN|新竹|北新竹": 1.4,
+    "NEIWAN|北新竹|千甲": 2.2,
+    "NEIWAN|千甲|新莊": 3,
+    "NEIWAN|新莊|竹中": 1.3,
+    "NEIWAN|竹中|上員": 2.7,
+    "NEIWAN|上員|榮華": 4.4,
+    "NEIWAN|榮華|竹東": 1.6,
+    "NEIWAN|竹東|橫山": 3.5,
+    "NEIWAN|橫山|九讚頭": 2,
+    "NEIWAN|九讚頭|合興": 2.2,
+    "NEIWAN|合興|富貴": 1.4,
+    "NEIWAN|富貴|內灣": 2.2,
+    "LIUJIA|竹中|六家": 3.1,
+    "PINGXI|三貂嶺|大華": 3.6,
+    "PINGXI|大華|十分": 2.8,
+    "PINGXI|十分|望古": 1.7,
+    "PINGXI|望古|嶺腳": 2.1,
+    "PINGXI|嶺腳|平溪": 1,
+    "PINGXI|平溪|菁桐": 1.7,
+    "SHENAO|瑞芳|海科館": 4.3,
+    "SHENAO|海科館|八斗子": 0.4,
+    "JIJI|二水|源泉": 3,
+    "JIJI|源泉|濁水": 7.8,
+    "JIJI|濁水|龍泉": 4.9,
+    "JIJI|龍泉|集集": 4.3,
+    "JIJI|集集|水里": 7.4,
+    "JIJI|水里|車埕": 2.2,
+    "SHALUN|中洲|長榮大學": 2.6,
+    "SHALUN|長榮大學|沙崙": 3.1,
+    "chengzhui|追分|成功": 2.2
+  }
+}
