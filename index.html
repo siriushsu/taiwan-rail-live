@@ -39,6 +39,11 @@
      ============================================================ */
   :root{
     color-scheme:light;
+    /* 橫放時動態島／瀏海吃掉左右各一條(14 Pro 起 59pt、X 世代 44pt)。直向時兩者都是 0，
+       所以加了也不動任何直向與桌面版面。包成變數而不是各處直接寫 env()：驗收要能把它覆寫成
+       59px 來模擬實機(Playwright 設不了 env())，而「值真的來自 env()」由原始碼斷言 L15c 把守。 */
+    --sa-l: env(safe-area-inset-left, 0px);
+    --sa-r: env(safe-area-inset-right, 0px);
     /* 面 */
     --paper:#FFFDF6;            /* 卡片底（兩種暖白已合併，#FFF8EC 廢止） */
     --paper-tr:rgba(255,253,246,.97);
@@ -1779,7 +1784,7 @@
   #searchDrop .sd-named .sd-note { margin-top: 8px; color: var(--faint); font-size: 11px; }
   /* 亮點 sheet 骨架(Batch B):#note 遷入的註腳桌面不顯示(桌面另有頁尾 .note) */
   #explorePanel .exp-note { margin: 8px -14px 0; padding: 10px 14px 12px; border-top: 1.5px dashed var(--line-dash); font-size: 10.5px; line-height: 1.7; color: var(--faint); }
-  @media (min-width: 901px) { #explorePanel .exp-note { display: none; } }
+  @media (min-width: 901px) and (min-height: 501px) { #explorePanel .exp-note { display: none; } }
   .board .empty { color: var(--faint); font-size: 13px; padding: 8px 0; }
   .board .stnMeta { margin: 1px 0 8px; padding-bottom: 8px; border-bottom: 1.5px dashed var(--line-dash); }
   .board .stnMeta .addr { font-size: 12px; color: var(--muted); line-height: 1.5; }
@@ -2400,8 +2405,13 @@
     }
   }
 
-  /* ── 手機／平板直式殼(議題1主案:上限 640→900;iPad 直式 768 改拿 tab bar＋「更多」抽屜＋速度膠囊,不再吃桌面帶) ── */
-  @media (max-width: 900px) {
+  /* ── 手機／平板直式殼(議題1主案:上限 640→900;iPad 直式 768 改拿 tab bar＋「更多」抽屜＋速度膠囊,不再吃桌面帶) ──
+     2026-08-11 加上 (max-height: 500px):iPhone Pro Max **橫放**的邏輯寬度是 932/956,超過 900 ⇒ 原本掉出
+     這個殼、改走桌面長頁版面,而桌面版面把內容縱向堆疊(header 就 283px),總高約 1023px 塞進 430px 的視窗
+     ⇒ 地圖容器有一半在視窗外、跟車時列車算在 y≈522 根本沒進畫面,站台帶與列車資訊卡也一起在視窗外。
+     判準改成「寬度窄 **或** 高度矮」:矮視窗本來就放不下桌面長頁,一律走手機殼才是對的形態。
+     🔴 與 JS 的 MOBILE_MQ 必須逐字同式(三處:此處、開機 inline script、MOBILE_MQ 常數)。 */
+  @media (max-width: 900px), (max-height: 500px) {
     /* 底錨面板統一避讓基準:fixed tab bar 實高(58px)＋iOS 安全區(有瀏海才 >0);所有貼底表面以此為基準讓位,
        改一處全體同步。原本各自寫死的 66/64/68px 就是 58+讓位間距,改成 var+間距後計算值不變(桌面 var 未定義故不影響)。 */
     :root { --tabbar-clear: calc(52px + max(env(safe-area-inset-bottom, 0px) - 6px, 0px)); } /* 與 .tabbar height 同式(v0721f 收斂) */
@@ -2895,8 +2905,134 @@
     .howto-wrap { padding: 26px 14px 14px; }
   }
 
-  /* ── 桌面(≥901):tab bar/更多 sheet 不出現;桌面帶把音樂控制收成 ♪ 圖示鈕＋彈出面板(議題1主案,省~110px→帶內容壓進~1220px,1280 不裁);右上角橫幅/詳情/平交道卡/看板讓開 #fsFab ── */
-  @media (min-width: 901px) {
+  /* ── 橫式(矮視窗):底部 sheet 改「右側欄」──────────────────────────────────────────
+     2026-08-11。App 一直允許 iPhone 橫放(Info.plist 的 UISupportedInterfaceOrientations),但整套手機殼
+     是照直向的高瘦視窗設計的,橫放時三個缺陷同時引爆,而三個都是**同一個結構前提垮掉**:垂直空間不夠。
+       ① 底部 sheet 高度是視窗高的 46%,橫放 393 高 ⇒ sheet 181px、露出的地圖只剩 152px,
+          踩不過 mapInsets() 的 MIN_MAP_STRIP(160) 那道閘門 ⇒ 讓位機制整個關掉 ⇒ 跟車時列車被面板蓋住。
+          (門檻 160 是照直向 800+ 的視窗調的;露出量 = 0.54h − 60,要 ≥160 需要 h ≥ 407。)
+       ② 跟隨小卡的 sheet-open 讓位量 46%+58+24,在 393 高的視窗 = 257px ⇒ 小卡被推到 y=8,
+          整片壓在頂部分頁列與時鐘徽章上(實測 #topbar∩#followPanel=174×42、命中測試上層是小卡)。
+       ③ 三段高(30/46/88%)在矮視窗全都太扁,88% 更是連地圖都不剩。
+     修法不是把 sheet 壓扁,是**換一個軸**:面板靠右成側欄、讓出左半給地圖,讓位從垂直改水平。
+     這樣 ①② 一起消失(地圖有滿高、小卡不必往上讓),③ 也不再需要(高度由上下錨撐出)。
+     🔴 條件用 orientation 而不是只用 max-height:窄又矮的視窗(例如 400×430)是直向,塞不下側欄,
+        那種形態該維持底部 sheet。iPad 橫放(1024×768)高度充足、不match,維持現狀不受本區塊影響。 */
+  @media (orientation: landscape) and (max-height: 500px) {
+    /* 側欄寬度的單一事實來源:面板自己、以及所有要讓開它的東西(動作列…)都讀這一個變數,
+       改一處全體同步。寫死兩次遲早分岔——randBtn 疊上側欄就是第一版沒共用時當場踩到的。 */
+    :root { --rail-w: min(340px, 42vw); }
+    /* sheet 家族全體:上下錨撐滿高、靠右、讓出左半。寬度用 min() 讓 667 這種窄橫向也留得住地圖。
+       選擇器帶 body.fs 是為了贏過手機殼區塊裡的 `body.fs .board`(0,2,0);矮視窗一律是 fs。 */
+    body.fs .board, body.fs #nearCard, body.fs #searchPanel, body.fs .traincard.tc-sheet,
+    body.fs .board.expand, body.fs .board.sheet-small,
+    body.fs #nearCard.expand, body.fs #nearCard.sheet-small,
+    body.fs .traincard.tc-sheet.expand, body.fs .traincard.tc-sheet.sheet-small {
+      top: calc(52px + env(safe-area-inset-top, 0px));
+      bottom: calc(var(--tabbar-clear) + 8px);
+      left: auto; right: calc(8px + var(--sa-r));
+      width: var(--rail-w); max-width: none;
+      max-height: none; min-height: 0;
+      border-radius: 12px;
+    }
+    /* 抓把與三段高不適用(高度固定、內容自己捲)——比照 #searchPanel 上錨版的既有先例。
+       JS 側由 sheetHasSizeSteps() 一併回 false,兩邊都要,否則點標題列會變成「只改 body class、看不出差別」。 */
+    body.fs .board::before, body.fs #nearCard::before, body.fs .traincard.tc-sheet::before { display: none; }
+    body.fs .board h3, body.fs #nearCard .xc-head, body.fs .traincard.tc-sheet .tc-head { padding-top: 10px; }
+    /* 小段收起內文的規則在側欄不該生效(側欄沒有段高) */
+    body.fs .traincard.tc-sheet.sheet-small .tc-body,
+    body.fs .traincard.tc-sheet.sheet-small .tc-freeseat,
+    body.fs .traincard.tc-sheet.sheet-small .tc-dhlink,
+    body.fs .traincard.tc-sheet.sheet-small .tc-sparkwrap,
+    body.fs .traincard.tc-sheet.sheet-small .tc-stops { display: block; }
+
+    /* 缺陷②:面板不在底部了,跟隨小卡不必往上讓——那個 46% 的讓位量正是把它推去壓住頂列的元凶。
+       維持它平時的底錨位置即可(側欄在右、小卡在左,兩者本來就不相交)。 */
+    body.fs.sheet-open .follow-panel, body.fs.sheet-open .freq-card {
+      bottom: calc(var(--tabbar-clear) + 2px) !important;
+    }
+    /* 小卡在矮視窗要限高,否則長車種名折行會把它頂到分頁列(頂列底緣約 50 + 安全區) */
+    body.fs .follow-panel, body.fs .freq-card {
+      max-height: calc(100dvh - var(--tabbar-clear) - 64px - env(safe-area-inset-top, 0px));
+      overflow-y: auto;
+    }
+    /* 停靠時「小卡讓位淡出給 dwellPlate」(上面 dwell-show 那條)在側欄形態下**仍然要保留**。
+       曾經以為前提失效(小卡在左下、站名牌讓開到側欄左緣)而加了豁免,判準當場打臉:852×393 實測
+       兩者疊 176×12px——矮視窗把小卡的底錨位置頂得夠高,還是會撞。既有的資訊優先序是對的,不要動它。 */
+
+    /* 「隨機跟隨／換一班」在矮視窗會疊到兩個東西:右上的跟隨鎖鈕(Leaflet topright control,實測 44×7~44×25)
+       以及側欄。兩者都在右邊 ⇒ 動作列整條讓到「側欄左緣再往左」,結構上就不可能再撞
+       (讓開量讀 --rail-w,側欄寬度一改這裡自動跟上;鎖鈕 44 寬也在側欄右側範圍內,一併讓掉)。 */
+    body.fs .map-actions { right: calc(var(--rail-w) + 20px + var(--sa-r)); }
+    /* 沒開面板時側欄不在,動作列只要讓開跟隨鎖。
+       🔴 這裡原本寫死 60px——那是照「鎖定時的 44px 小方鈕」量的,而解鎖後它會變成 72px 的
+       「回到列車」膠囊(文字鈕,寬度跟著文案走),於是實測疊 22×12px(使用者 2026-08-11 橫放回報)。
+       改讀 --lockctl-clear：placeFsOverlays() 每次重排時量「鎖鈕左緣離 stage 右緣多遠」寫進來,
+       鎖／解鎖、文案改長、鈕藏起來(clear=0)全都自動跟上,不會再有第二個過期的魔術數字。 */
+    body.fs:not(.sheet-open):not(.train-open) .map-actions {
+      right: calc(var(--lockctl-clear, 60px) + 12px + var(--sa-r));
+    }
+
+    /* ── 動態島:橫放時左右各一條安全區,手機殼的水平錨點全部讓開 ──────────────────
+       全檔原本 env(safe-area-inset-left/right) 使用次數 = 0（直向用不到、橫放從沒驗過）。
+       實測 852×393 注入 59px 後有 7 個元件踩進去:頂列、時鐘、分頁列按鈕、停靠站名牌、
+       跟隨小卡、跟隨鎖、側欄。地圖本身**刻意不讓**——它該滿版鋪到螢幕邊緣,被島遮住一角無妨,
+       不能讀的是文字與按鈕。變數為 0 時下列每一條都退化成原值,直向與桌面逐值不變。 */
+    body.fs .topbar { left: calc(10px + var(--sa-l)); right: calc(10px + var(--sa-r)); }
+    .badge { left: calc(10px + var(--sa-l)); }
+    .tabbar { padding-left: calc(4px + var(--sa-l)); padding-right: calc(4px + var(--sa-r)); }
+    body.fs .follow-panel, body.fs .freq-card { left: calc(8px + var(--sa-l)); }
+    .leaflet-right .leaflet-control { margin-right: calc(10px + var(--sa-r)); }
+    body.fs .controls { left: calc(12px + var(--sa-l)); right: calc(12px + var(--sa-r)); }
+
+    /* ── 停靠站名牌:直向那套「左右各 8px 整寬」在矮視窗吃掉 98% 寬(使用者回報「站牌太大」)──
+       改成寬度隨內容(站名最長四字)並整體降一級字。停靠時地圖仍是主角。
+       🔴 縮窄之後不能還放左上角:矮視窗把跟隨小卡頂到 y127(placeFsOverlays 的讓位),
+          原本 836px 寬的整寬版是「兩側都露出來」才看得到,縮到 129px 就整個躲進小卡後面
+          (小卡不透明、且淡出契約只在另有面板開著時生效)——縮小反而變成看不見。
+          改成在「露出的地圖」裡水平置中:沿用 body.live 那套 translateX(-50%) 的既有慣例,
+          左邊給小卡、右邊給動作列與側欄,三者結構上互不重疊。 */
+    body.fs { --rail-occupy: 0px; }
+    body.fs.sheet-open, body.fs.train-open { --rail-occupy: calc(var(--rail-w) + 16px + var(--sa-r)); }
+    body.fs .dwell-plate {
+      left: calc(var(--sa-l) + (100% - var(--sa-l) - var(--rail-occupy)) / 2); right: auto;
+      width: max-content; max-width: min(320px, 42vw); min-width: 0;
+      transform: translateX(-50%) translateY(-5px);
+    }
+    body.fs .dwell-plate.show { transform: translateX(-50%); }
+    body.fs .dwell-plate b { font-size: 18px; letter-spacing: 6px; text-indent: 6px; padding: 6px 14px 5px; }
+    body.fs .dwell-plate .dp-strip { padding: 3px 10px 4px; gap: 10px; }
+    body.fs .dwell-plate .side { font-size: 11px; }
+    body.fs .dwell-plate .side .arr { font-size: 10px; }
+    body.fs .dwell-plate .side .km { font-size: 9.5px; }
+    body.fs .dwell-plate .dp-intro { font-size: 11px; line-height: 1.45; padding: 5px 12px 6px; -webkit-line-clamp: 1; }
+
+    /* 🔴 側欄是「右邊多了一塊不透明的東西」,所有**整寬或右錨**的浮層都會鑽到它底下。
+       這是結構性的一族,不是個案:只修被測到的那一個,下次換個狀態(有公告、停靠中、平交道接近)
+       又會冒出一個。手機殼裡右緣貼 8px 的全部在此一次讓開,讓開量同樣讀 --rail-w。
+       只在 sheet 開著時讓(側欄不在時它們該用回全寬),train-open 是「列車」sheet 的旗標、
+       它不在 SHEET_PANEL_IDS 裡所以 body.sheet-open 涵蓋不到,要另外列。
+       (#dwellPlate 曾是驗收實際抓到的那個:停靠站名牌整寬 8px→8px,一停站就壓在側欄下;
+        08-11 使用者回報「站牌太大」後它改成左錨窄版,結構上已在左半邊,不再需要也不再吃這條
+        ——`right` 對「left+width 都設了」的盒子是無效宣告,留著只會誤導。) */
+    body.fs.sheet-open .alert-detail, body.fs.train-open .alert-detail,
+    body.fs.sheet-open .alert-banner, body.fs.train-open .alert-banner,
+    body.fs.sheet-open .xing-card, body.fs.train-open .xing-card,
+    body.fs.sheet-open .xing-help, body.fs.train-open .xing-help,
+    body.fs.sheet-open .controls, body.fs.train-open .controls {
+      right: calc(var(--rail-w) + 16px + var(--sa-r));
+    }
+    body.fs.sheet-open .alert-detail, body.fs.train-open .alert-detail { width: auto; left: 8px; }
+    /* 側欄開著時不需要「大段淡出頂部常駐元件」那組規則(那是 88% 佔滿畫面時的讓位)。
+       body.sheet-full 在側欄下不會被**掛上**(sheetHasSizeSteps 回 false),但那只保證「在橫式裡開面板」;
+       直向拉到大段再轉橫是另一條路——class 已經掛著,要靠 resize 掛點重跑 updateSheetOpenClass() 清掉
+       (見該處註解)。純 CSS 解不掉:側欄的媒體查詢無法否定 body 上已存在的 class。 */
+  }
+
+  /* ── 桌面(≥901 且高度夠):tab bar/更多 sheet 不出現;桌面帶把音樂控制收成 ♪ 圖示鈕＋彈出面板(議題1主案,省~110px→帶內容壓進~1220px,1280 不裁);右上角橫幅/詳情/平交道卡/看板讓開 #fsFab ──
+     🔴 (min-height: 501px) 是上面那個殼斷點的**互補條件**,兩者必須恰好互斥:少了它,Pro Max 橫放(932×430)
+     會同時吃到兩個區塊——手機殼給了 tab bar,這裡的 `.tabbar{display:none !important}` 又把它整個藏掉。 */
+  @media (min-width: 901px) and (min-height: 501px) {
     .tabbar, .more-scrim { display: none !important; }
     /* ── 「更多」抽屜桌面版(v0725g):同一份 sheet、同一套代理邏輯,只換形狀——手機是全寬底部抽屜,
        桌面改成錨在帶上 ☰ 鈕正上方的 340px 面板(實際 left/bottom 由 positionMoreSheet 貼齊鈕)。
@@ -3000,7 +3136,8 @@
 <script>
 /* 首繪前套用手機殼、面板偏好與平台能力 class，避免解析完整份大檔前短暫閃出不該有的控制。 */
 (function () { try {
-  if (matchMedia('(max-width: 900px)').matches) document.body.classList.add('fs');
+  /* 與 CSS 殼斷點、JS 的 MOBILE_MQ 三處逐字同式（矮視窗也走手機殼——Pro Max 橫放 932×430 就是靠這條） */
+  if (matchMedia('(max-width: 900px), (max-height: 500px)').matches) document.body.classList.add('fs');
   if (localStorage.getItem('trainmap-panel-translucent') === '1') document.body.classList.add('panel-translucent');
   var ua = navigator.userAgent || '';
   var iOS = /iPhone|iPad|iPod/.test(ua) || (/Macintosh/.test(ua) && 'ontouchend' in document);
@@ -3429,7 +3566,7 @@
 
   <footer class="site-foot">
     <details class="foot-box">
-      <summary><span>更新紀錄</span><span class="foot-sub">最後更新：2026/8/10</span></summary>
+      <summary><span>更新紀錄</span><span class="foot-sub">最後更新：2026/8/11</span></summary>
       <!-- 第一層是「最近更新」的檢視,不是正本:每一條都用 data-cl-of 指向第二層某條的 data-cl。
            要把一條擠出第一層之前,它的正本必須已經在第二層存在——2026-08-03 就踩過一次:8/1 的
            衛星計費那條只活在第一層(第二層只有一句夾在 7/25 條目裡、日期對不上的附帶說明),
@@ -3437,6 +3574,7 @@
            內容 li 上限 8 條(li.grp 是標題不算)。 -->
       <ul class="foot-list foot-recent">
         <li class="grp">最近更新</li>
+        <li data-cl-of="landscape"><span class="d">8/11</span><span>手機橫著拿也能用了：面板改成靠右側邊欄，跟車時列車不再被蓋住（謝謝網友回報）</span></li>
         <li data-cl-of="stationtransfer"><span class="d">8/10</span><span>點任何一個車站看板，都會告訴你這站可以轉乘哪些別的鐵道系統；跟車時「下一站」旁邊也會提醒能換哪幾條線</span></li>
         <li data-cl-of="nearfollowmutex"><span class="d">8/10</span><span>開「附近車站」或「隨機跟隨」時會自動收起另一個，地圖鏡頭只聽一邊的</span></li>
         <li data-cl-of="bgmusic"><span class="d">8/10</span><span>App 收起後背景音樂繼續播放；跟車時音樂讓位，動態島完整顯示下一站與倒數；下次 App 更新生效</span></li>
@@ -3444,7 +3582,6 @@
         <li data-cl-of="widgetdestination"><span class="d">8/8</span><span>iPhone 小工具起站選「共站」或「我的地點」後，「目的站」一點就關掉；已修好，下次 App 更新生效</span></li>
         <li data-cl-of="lapush"><span class="d">8/8</span><span>跟車的鎖定畫面即時動態會自己換下一站了，App 沒開著也會更新；停靠站內顯示「停靠中」，動態島展開還有進度條與車種顏色（通行證功能）</span></li>
         <li data-cl-of="crossnight452"><span class="d">8/8</span><span>修正：週五深夜 452 次這類特定日開行的跨夜車，過了午夜就從地圖上消失（謝謝網友回報）</span></li>
-        <li data-cl-of="thsrfreeseat"><span class="d">8/8</span><span>跟隨高鐵列車時，資訊卡新增「自由座車廂」提示：一排小方塊標出今天這班車自由座在第幾節，不必再猜（免費功能）</span></li>
       </ul>
       <!-- 第二層:完整歷史。刻意不掛 .foot-box 類名——placeFootBoxes() 用
            `.site-foot .foot-box` 搬移面板,巢狀同名會被當成另一個盒子一起搬走。 -->
@@ -3529,6 +3666,7 @@
         <li><span class="d">7/13</span><span>收集章可以重複點，換搭不同班次回味</span></li>
         <li><span class="d">7/9</span><span>旅程護照與 16 枚成就徽章、「探」今日亮點面板上線</span></li>
         <li class="grp">手機與操作</li>
+        <li data-cl="landscape"><span class="d">8/11</span><span>手機橫著拿也能用了（謝謝網友回報）：原本橫放時跟車，列車會被下方的資訊面板整個蓋住，跟車小卡還會壓到上面的分頁列；Pro Max 這類寬螢幕機型橫放更是連地圖都只剩一條、車根本不在畫面裡。現在橫放時各種面板改成靠右的側邊欄，地圖留在左半邊，跟著的列車一直在看得到的地方。順手也修好了「開著面板時全台視角會偏到面板底下」——不管橫放直放，台灣都會置中在露出來的那半邊地圖上。橫放時也不再被瀏海／動態島吃掉字：頂列、時鐘、分頁列、跟車小卡、停靠站名牌全部讓開安全區</span></li>
         <li data-cl="bgmusic"><span class="d">8/10</span><span>App 收起或鎖定螢幕後，背景音樂繼續播放不再中斷（此前收起 App 音樂會停）。跟車時音樂讓位：動態島與鎖定畫面只顯示列車動態，完整呈現下一站與到站倒數；沒跟車時鎖定畫面照常有播放卡，顯示曲名與軌島圖示、可暫停與換首。下次 App 更新生效</span></li>
         <li data-cl="appupdatereview"><span class="d">8/9</span><span>iPhone／iPad 版新增更新提示：有新版可以下載時會主動告訴你，剛更新完則會看到「這一版做了什麼」；「更多」面板也多了給軌島評分的入口</span></li>
         <li data-cl="widgetdestination"><span class="d">8/8</span><span>iPhone「發車看板」小工具，起站選「共站」或「我的地點」後點「目的站」，原本閃退、後來變成一點就關掉；下次 App 更新後會照常列出車站，選了不影響看板，留空也行</span></li>
@@ -3886,9 +4024,9 @@
 // 線上跑的是 v0808e,內容不同的兩顆絕不可共用同一個號,故推 v0809a。
 // 2026-08-10 這批(互斥＋轉乘)的基準刻意取「線上實況 472c848」而不是 main——main 落後線上約 70 顆,
 // 從 main 出貨會把 LA 推播、速度上界、準點三功能整包退掉(心得 16 的原病灶)。推 v0810a。
-// 2026-08-11 App 1.4.2(43) 的出貨合併(la-push 的音樂/動態島＋origin/main 的批次A＋更新提示與評分):
-// la-push 到 v0810j、main 到 v0810e,兩邊都燒過的號一律跳過,推雙方都沒用過的 v0811a。
-const BUILD = 'v0811a';
+// 2026-08-11 App 1.4.2(44) 的出貨合併(1.4.2(43) 的內容＋origin/main 的橫式版面修正):
+// 43 用 v0811a、正式站用 v0811c,兩邊都燒過的號一律跳過,推 v0811d。
+const BUILD = 'v0811d';
 // 成就徽章與車廂標記＝原本那些 emoji 的單色平面版（RailEmoji＝裁切過的 Noto Emoji 單色）。
 // 刻意保留 railIcon(name) 這個唯一入口:呼叫端一行都不用改,只有這裡決定畫法。
 // 🔴 ⚖ 與 ♾ 一律寫**不帶 VS16(U+FE0F)** 的碼位——帶了就強制彩色呈現,會蓋過 font-family
@@ -3917,7 +4055,10 @@ function railIcon(name, className) {
 const TRACK_AUDIT = new URLSearchParams(location.search).get('audit') === 'tracks';
 // 手機/平板直式「殼」斷點(議題1:640→900,iPad 直式改拿 tabbar＋更多抽屜):與 CSS @media 同步,版面類判斷一律用此常數。
 // 注意:裝置等級判斷(keepBuffer/powerSave 預設)刻意不用此常數、維持 640——iPad 不該因為改拿 tabbar 就被當低階裝置。
-const MOBILE_MQ = '(max-width: 900px)';
+// 2026-08-11 加上 (max-height: 500px):矮視窗(iPhone Pro Max 橫放 932×430/956×440)寬度超過 900,
+// 原本會掉出手機殼去走桌面長頁版面 ⇒ 內容總高約 1023px 塞進 430px 的視窗、列車直接在畫面外。
+// 🔴 CSS 那兩處(殼斷點與其互補的 min-width:901px 桌面塊)、開機 inline script,三者必須同式。
+const MOBILE_MQ = '(max-width: 900px), (max-height: 500px)';
 // 手機直式窄畫面或原生 App:地圖框住台灣時上下左右各留約「一個台灣」的空間(使用者要求),不頂邊透氣。
 // 桌機寬螢幕本就有大片水平邊距(台灣直式、螢幕橫式),維持原樣免得台灣被縮太小。原生 App(任何裝置)一律給邊距。
 function railWantsTaiwanMargin() {
@@ -14513,29 +14654,70 @@ function showSearchMiss(q) {
 // 附近車站卡更慘,中心埋在卡內 274px。這不是「面板太大」,是相機釘錯位置:面板再縮小,只要主體還釘在
 // 50%,46% 的 sheet 就一定切到它。對策=算出底部被遮多少,把「要傳給 setView 的中心」往下推一半,
 // 主體就落在露出來那塊的正中央。**新增任何相機呼叫都應該走 focusCenter(),不要直接傳原始座標。**
-const MIN_MAP_STRIP = 160; // 露出來的地圖低於這個高度就不取景(88% 全展開時沒地圖可看,硬移只是亂跳)
-function mapInsets() {
-  // 桌面面板是右上角浮動卡,不擋地圖中央 → 恆 0,行為與改動前逐像素相同
-  if (!window.matchMedia(MOBILE_MQ).matches) return { top: 0, bottom: 0 };
-  const el = typeof activeSheetEl === 'function' ? activeSheetEl() : null;
-  if (!el || el.hidden) return { top: 0, bottom: 0 };
-  const mc = map.getContainer().getBoundingClientRect(), r = el.getBoundingClientRect();
-  if (!r.height) return { top: 0, bottom: 0 };
-  const bottom = Math.max(0, mc.bottom - r.top); // 面板頂緣以下的地圖全視為看不到
-  if (mc.height - bottom < MIN_MAP_STRIP) return { top: 0, bottom: 0 };
-  return { top: 0, bottom };
+// 露出來的地圖低於這個尺寸就不取景(整個被面板蓋掉時沒地圖可看,硬移只是亂跳)。
+// 直向量高度、橫向側欄量寬度,同一個門檻兩軸共用。
+const MIN_MAP_STRIP = 160;
+// 面板是不是「右側欄」形態(橫式矮視窗)。CSS 那條 @media 的 JS 對應——兩邊必須同式,
+// 否則會出現「CSS 已經把面板挪到右邊,JS 還在算底部遮蔽」這種左右手打架。
+function sheetIsSideRail() {
+  return !!(window.matchMedia && window.matchMedia('(orientation: landscape) and (max-height: 500px)').matches);
 }
-// 目前施加在鏡頭上的「讓位位移」(px,往上推多少)。**這是唯一事實來源**:
-// state._focusShiftPx。凡動到它就要同時真的移動鏡頭,凡移動鏡頭讓位就要更新它。
-function focusShiftPx() { return (mapInsets().bottom - mapInsets().top) / 2; }
-// 把「想看的點」換算成「要下給 setView/flyTo 的中心」。z 省略=用當下縮放
+function mapInsets() {
+  const NONE = { top: 0, bottom: 0, left: 0, right: 0 };
+  // 桌面面板是右上角浮動卡,不擋地圖中央 → 恆 0,行為與改動前逐像素相同
+  if (!window.matchMedia(MOBILE_MQ).matches) return NONE;
+  const el = typeof activeSheetEl === 'function' ? activeSheetEl() : null;
+  if (!el || el.hidden) return NONE;
+  const mc = map.getContainer().getBoundingClientRect(), r = el.getBoundingClientRect();
+  if (!r.height || !r.width) return NONE;
+  if (sheetIsSideRail()) {
+    // 側欄:面板左緣以右的地圖全視為看不到
+    const right = Math.max(0, mc.right - r.left);
+    if (mc.width - right < MIN_MAP_STRIP) return NONE;
+    return { top: 0, bottom: 0, left: 0, right };
+  }
+  const bottom = Math.max(0, mc.bottom - r.top); // 面板頂緣以下的地圖全視為看不到
+  if (mc.height - bottom < MIN_MAP_STRIP) return NONE;
+  return { top: 0, bottom, left: 0, right: 0 };
+}
+// 目前施加在鏡頭上的「讓位位移」(px)。**這是唯一事實來源**:state._focusShift={x,y}。
+// 凡動到它就要同時真的移動鏡頭,凡移動鏡頭讓位就要更新它。
+// 2026-08-11 從單一數字擴成兩軸:橫式側欄讓的是水平方向(見 mapInsets)。
+function focusShift() {
+  const i = mapInsets();
+  return { x: (i.right - i.left) / 2, y: (i.bottom - i.top) / 2 };
+}
+function focusShiftHave() { return state._focusShift || { x: 0, y: 0 }; }
+// 把「想看的點」換算成「要下給 setView/flyTo 的中心」。z 省略=用當下縮放。
+// 🔴 位移後的中心若超出 maxBounds,Leaflet 的 _limitCenter 會把它夾回來——夾回來就等於沒讓位,
+//    而 state._focusShift 卻已經記成「讓了」,帳面與實況脫節,之後的差量記帳全部歪掉。
+//    (2026-08-11 實測:375 寬直向開機取到 zoom 6,讓位 217px ≈ 4.8° 緯度,一推就超界、
+//     相機一步都沒動,而列車仍被面板蓋住——這是缺陷 D。橫式的水平讓位同樣會中,故一併處理。)
+//    對策:算完就問 Leaflet 夾不夾,夾了就把「實際做得到的位移」回寫成事實來源,帳面永遠等於實況。
+function focusApplyLimit(target, zz, want) {
+  let got = want;
+  try {
+    const mb = map.options.maxBounds;
+    if (mb) {
+      const lim = map._limitCenter(target, zz, L.latLngBounds(mb));
+      if (lim && (Math.abs(lim.lat - target.lat) > 1e-9 || Math.abs(lim.lng - target.lng) > 1e-9)) {
+        // 夾住了:用夾完的中心反推「真正生效的位移」,而不是硬記想要的那個
+        const pw = map.project(target, zz), pg = map.project(lim, zz);
+        got = { x: want.x - (pw.x - pg.x), y: want.y - (pw.y - pg.y) };
+        target = lim;
+      }
+    }
+  } catch (e) {}
+  state._focusShift = got;
+  return target;
+}
 function focusCenter(lat, lon, z) {
-  const dy = focusShiftPx();
-  state._focusShiftPx = dy; // 這個中心一下去,視野就處於位移 dy 的狀態
-  if (!dy) return L.latLng(lat, lon);
+  const want = focusShift();
   const zz = (z == null ? map.getZoom() : z);
+  if (!want.x && !want.y) { state._focusShift = { x: 0, y: 0 }; return L.latLng(lat, lon); }
   const p = map.project([lat, lon], zz);
-  return map.unproject(L.point(p.x, p.y + dy), zz);
+  const t = map.unproject(L.point(p.x + want.x, p.y + want.y), zz);
+  return focusApplyLimit(t, zz, want);
 }
 // 面板開/關/換段高:只補「位移量的差」,不去猜使用者在看誰。
 // 用相對 panBy 而不是絕對 setView 是刻意的——Leaflet 對小位移的 setView(animate:false) 走 _rawPanBy,
@@ -14544,13 +14726,16 @@ function focusCenter(lat, lon, z) {
 function reframeFocus() {
   if (camBlocked() || state._zoomAnim) return;
   if (state.followTrain || state.freqFollow || state.ambient) return; // 那些模式每幀自己走 recenterTo,會自動套上新位移
-  const want = focusShiftPx(), have = state._focusShiftPx || 0;
-  const d = Math.round(want - have);
-  if (!d) return; // 桌面恆走這條(面板是右上浮動卡、insets 恆 0),行為與改動前逐像素相同
-  state._focusShiftPx = want;
+  const want = focusShift(), have = focusShiftHave();
+  const dx = Math.round(want.x - (have.x || 0)), dy = Math.round(want.y - (have.y || 0));
+  if (!dx && !dy) return; // 桌面恆走這條(面板是右上浮動卡、insets 恆 0),行為與改動前逐像素相同
+  // 記帳前先問「這段位移做得到嗎」:maxBounds 會夾(見 focusCenter 的說明),夾了還記成做到就會帳實不符
+  const before = map.getCenter();
   state._autoPan = true;
-  map.panBy([0, d], { animate: false }); // 刻意不補間:圖磚層與列車 canvas 是兩層,動畫期間會脫鉤(v0713u 的教訓)
+  map.panBy([dx, dy], { animate: false }); // 刻意不補間:圖磚層與列車 canvas 是兩層,動畫期間會脫鉤(v0713u 的教訓)
   state._autoPan = false;
+  const z = map.getZoom(), pb = map.project(before, z), pa = map.project(map.getCenter(), z);
+  state._focusShift = { x: (have.x || 0) + (pa.x - pb.x), y: (have.y || 0) + (pa.y - pb.y) };
 }
 
 function recenterTo(lat, lon) {
@@ -14700,6 +14885,9 @@ function updateFollowLockUI() {
   b.title = state.followLock
     ? '跟隨鎖定中：地圖固定列車置中——點擊或直接拖曳地圖解鎖，可自由瀏覽'
     : '自由瀏覽中：點擊回到列車，恢復置中跟隨';
+  // 鈕在這裡從 44px 方鈕變成 72px 膠囊(或反過來),而動作列的讓開量讀的就是它的寬度。
+  // ResizeObserver 沒觀察這顆(它觀察的是小卡／站台帶／提示),不在這裡重排就會停在上一個寬度。
+  if (state._placeFsOverlays) state._placeFsOverlays();
 }
 
 // ── per-system 時區支援(海外城市) ──
@@ -16269,7 +16457,10 @@ try {
   const saved = localStorage.getItem(SHEET_SIZE_KEY);
   if (SHEET_SIZES.includes(saved)) sheetSizePref = saved;
 } catch (e) {}
-function sheetHasSizeSteps(el) { return !!(el && el.id !== 'searchPanel'); }
+// 三段高只在「底部 sheet」形態才有意義。兩個例外:
+//   #searchPanel 是上錨面板(高度由上下錨撐出,見其 CSS 註解);
+//   橫式側欄同理——高度撐滿、沒有段可換,留著只會變成「點標題只改 body class、看不出差別」的怪行為。
+function sheetHasSizeSteps(el) { return !!(el && el.id !== 'searchPanel') && !sheetIsSideRail(); }
 function sheetSizeOf(el) {
   return el.classList.contains('expand') ? 'large' : el.classList.contains('sheet-small') ? 'small' : 'medium';
 }
@@ -17699,6 +17890,12 @@ function setupMapTools() {
     // 跟隨鎖(Leaflet 右下控制角)台鐵與捷運兩種跟車都會顯示,抬升條件因此不可綁 followVisible——
     // 綁著的話捷運跟車 + 膠囊展開(cexp)時鎖鈕 44×44 整顆壓在膠囊的「現在」鈕上。
     if (lc) lc.style.marginBottom = (lift != null && (followVisible || freqVisible)) ? (lift - 10) + 'px' : '';
+    // 動作列(隨機跟隨／附近車站)在橫式要讓開跟隨鎖,而鎖鈕**寬度會變**:鎖定＝44px 小方鈕、
+    // 解鎖＝「回到列車」文字膠囊 72px。原本 CSS 寫死 60px(照 44 那顆量的)⇒ 解鎖後疊 22×12px。
+    // 這裡量「鎖鈕左緣離 stage 右緣多遠」＝動作列該讓開的量,鈕藏起來時是 0。
+    const lcv = lc && lc.getBoundingClientRect();
+    document.documentElement.style.setProperty('--lockctl-clear',
+      (lcv && lcv.width > 0.5 ? Math.max(0, Math.round(stR.right - lcv.left)) : 0) + 'px');
   }
   // 跟隨開始/結束時由 setFollow/clearFollow 經 state._placeFsOverlays 明確重排
   state._placeFsOverlays = placeFsOverlays;
@@ -17794,12 +17991,15 @@ function setupMapTools() {
     };
     state._fsCapsuleSync(true); // 膠囊改為手機常駐:開站就初始化 slim 態
   })();
-  let wasMobileShell = window.matchMedia(MOBILE_MQ).matches;
+  let wasMobileShell = window.matchMedia(MOBILE_MQ).matches, wasSideRail = sheetIsSideRail();
   window.addEventListener('resize', () => {
     // 只在真正跨越 900 斷界時同步全螢幕殼；Fullscreen API 本身造成的桌面 resize 不得退出。
     const mob = window.matchMedia(MOBILE_MQ).matches;
     const crossedMobileShell = mob !== wasMobileShell;
     wasMobileShell = mob;
+    const rail = sheetIsSideRail();
+    const crossedSideRail = rail !== wasSideRail;
+    wasSideRail = rail;
     if (crossedMobileShell) {
       if (mob) { if (!document.body.classList.contains('fs')) setFs(true); }
       else if (!state.liveMode && !document.fullscreenElement && document.body.classList.contains('fs')) setFs(false);
@@ -17809,6 +18009,14 @@ function setupMapTools() {
     placeFsOverlays(); if (state._fsCapsuleSync) state._fsCapsuleSync(false);
     // Batch B:跨界把搜尋列/頁尾盒搬回正確的家;離開手機時把走勢圖搬回原位、收起縣市 chip
     placeSearch(); placeFootBoxes();
+    // 轉向跨越「底部 sheet ↔ 右側欄」時,sheet 的兩個前提整組翻面:三段高在側欄下沒有意義
+    // (sheetHasSizeSteps 依 sheetIsSideRail),讓位軸也從垂直換成水平。這兩件事的唯一掛點是
+    // updateSheetOpenClass(),而 resize 從來沒走過它 ⇒ 直向拉到大段(段高偏好跨 session 持久化,
+    // 使用者按一下就留著)再轉橫,body.sheet-full 會帶著進側欄態,把頂列/站名牌/隨機跟隨/時鐘/
+    // 跟隨小卡整組淡出並關掉指標事件——而側欄其實只佔右邊四成,於是地圖上方一片空白且什麼都點不到
+    // (2026-08-11 獨立驗收雙引擎實測:分組頁籤 page.tap 逾時)。跨手機殼斷點時同理要重算。
+    // 放在版面函式之後:它尾端的 reframeFocus() 量的是面板當下的 rect,要等搬完家才準。
+    if (crossedSideRail || crossedMobileShell) updateSheetOpenClass();
     if (!mob) { collapseMsFlow(); const g = document.getElementById('msCities'); if (g) g.hidden = true; }
   });
   // Batch B:開站即建縣市 chip、把搜尋列與頁尾盒放到當前斷點該在的家
@@ -18250,6 +18458,26 @@ async function boot() {
     if (state._fenceOn) map.setMaxBounds(state._panFence); // 平移硬牆=活動範圍(硬牆恆開,見 syncPanFence)
   }
   state._applyTaiwanFloor = applyTaiwanFloor; // 頂層 loadAllGroup 擷取真實開場 zoom 後,回呼此閉包函式校正地板
+  // 🔴 maxBounds 的語意是「使用者**看得到**的範圍不要跑出台灣」。Leaflet 原生拿「整個容器」當可視框去夾,
+  //    於是被面板遮住的那塊(直向的底部 sheet、橫式的右側欄)也被要求塞進框內——結果把台灣釘死在
+  //    容器正中央,而容器正中央正好在面板底下。全島視角時視窗又比框大 ⇒ 相機一格都不能平移,
+  //    讓位機制(mapInsets→focusCenter→reframeFocus)想推也推不動。
+  //    使用者 2026-08-11 親自指出:橫放開著面板時台灣整個偏右貼著側欄;375 寬直向也是同一個根。
+  //    修法＝把夾限用的可視框換成「露出來的那塊」,Leaflet 自己的 _rebound 在框比可視區大時會取中點,
+  //    於是台灣自動置中於露出區。無面板時(insets 全 0)原封走原生路徑,桌面與乾淨態逐值不變。
+  const _limitCenterOrig = map._limitCenter;
+  map._limitCenter = function (center, zoom, bounds) {
+    if (!bounds) return center;
+    // Leaflet 升級若拿掉這兩個私有 API,不要靜默退化——留下旗標讓驗收抓得到(見 verify_landscape L12)
+    if (typeof this._getBoundsOffset !== 'function') { state._limitCenterDegraded = true; return _limitCenterOrig.call(this, center, zoom, bounds); }
+    let i; try { i = mapInsets(); } catch (e) { i = null; }
+    if (!i || (!i.top && !i.bottom && !i.left && !i.right)) return _limitCenterOrig.call(this, center, zoom, bounds);
+    const c = this.project(center, zoom), h = this.getSize().divideBy(2);
+    const vb = new L.Bounds(c.subtract(h).add(L.point(i.left, i.top)), c.add(h).subtract(L.point(i.right, i.bottom)));
+    const off = this._getBoundsOffset(vb, bounds, zoom);
+    if (Math.abs(off.x) <= 1 && Math.abs(off.y) <= 1) return center;
+    return this.unproject(c.add(off), zoom);
+  };
   map.options.maxBoundsViscosity = 1.0;  // 硬牆:拖不出活動範圍邊界(但範圍已放大,日常平移不會頂到)
   state._fenceOn = true;
   applyTaiwanFloor();                     // 一次算好 minZoom 地板＋平移硬牆(活動範圍)
