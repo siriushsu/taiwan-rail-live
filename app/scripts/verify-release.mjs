@@ -241,28 +241,38 @@ export async function verifyRelease({
   // 送審就無法即時改,所以這裡是唯一會把「忘了填」或「填了過去式舊值」擋成 build 失敗的地方,
   // 不讓需要人為決定的值靠「安全預設」矇混過關溜上線。
   const revenuecatSource = await readFile(join(output, 'revenuecat-config.js'), 'utf8');
-  const foundingLaunchAtMatch = revenuecatSource.match(/foundingLaunchAt\s*:\s*(null|'([^']*)'|"([^"]*)")/);
+  const foundingLaunchAtMatch = revenuecatSource.match(/foundingLaunchAt\s*:\s*(null|false|'([^']*)'|"([^"]*)")/);
   assert(foundingLaunchAtMatch,
     'revenuecat-config.js 找不到 foundingLaunchAt 欄位——請在該檔 window.RAIL_REVENUECAT_CONFIG 補上 '
-    + "foundingLaunchAt(ISO8601 時刻字串,建議台北時區午夜整點,例如 '2026-09-01T00:00:00+08:00')");
-  const foundingLaunchAtRaw = foundingLaunchAtMatch[1] === 'null'
-    ? null
-    : (foundingLaunchAtMatch[2] !== undefined ? foundingLaunchAtMatch[2] : foundingLaunchAtMatch[3]);
-  assert(foundingLaunchAtRaw !== null && foundingLaunchAtRaw !== '',
-    `revenuecat-config.js 的 foundingLaunchAt 尚未設定(目前是${foundingLaunchAtRaw === null ? ' null' : '空字串'})——`
-    + '這是發版流程要在按下發版當下才決定的值,請把實際上線日期填進 revenuecat-config.js 的 '
-    + 'window.RAIL_REVENUECAT_CONFIG.foundingLaunchAt 後重新建置');
-  const foundingLaunchAtMs = Date.parse(foundingLaunchAtRaw);
-  assert(Number.isFinite(foundingLaunchAtMs),
-    `revenuecat-config.js 的 foundingLaunchAt 不是可解析的日期(目前值：${foundingLaunchAtRaw})——`
-    + '請改成 ISO8601 時刻字串並修正 revenuecat-config.js 的 window.RAIL_REVENUECAT_CONFIG.foundingLaunchAt');
-  // 用台北時區的「今天 00:00」當比較基準(不比對時分秒),避免同一個日曆日內因為 build 執行的
-  // 時刻不同而誤判成「早於本次 build」。
-  const buildDayTaipei = new Intl.DateTimeFormat('sv-SE', { timeZone: 'Asia/Taipei' }).format(new Date());
-  const buildDayStartMs = Date.parse(`${buildDayTaipei}T00:00:00+08:00`);
-  assert(foundingLaunchAtMs >= buildDayStartMs,
-    `revenuecat-config.js 的 foundingLaunchAt(${foundingLaunchAtRaw})早於本次 build 的日期(${buildDayTaipei})——`
-    + '上線日看起來還停在過去,請到 revenuecat-config.js 確認/更新 window.RAIL_REVENUECAT_CONFIG.foundingLaunchAt');
+    + "foundingLaunchAt(ISO8601 時刻字串,建議台北時區午夜整點,例如 '2026-09-01T00:00:00+08:00';"
+    + '這一版不辦創始期就填 false)');
+  // false ＝「明確裁示這一版不辦創始期」(2026-08-09)。刻意與 null 分開:null 是「還沒決定」,
+  // 兩者若共用同一個值,這道閘門就再也分不出「決定不辦」與「忘了決定」——而它存在的唯一理由
+  // 正是後者。false 直接放行,不必也不該再比對日期(沒有窗,自然沒有「早於 build 日」可言);
+  // index.html 的 FOUNDING_LAUNCH_MS 對它解析出 NaN,foundingFrom() 一律回 false ⇒ 沒人是創始會員。
+  if (foundingLaunchAtMatch[1] === 'false') {
+    console.log('  · foundingLaunchAt=false：本版不辦創始期（明確裁示,非「忘了填」）');
+  } else {
+    const foundingLaunchAtRaw = foundingLaunchAtMatch[1] === 'null'
+      ? null
+      : (foundingLaunchAtMatch[2] !== undefined ? foundingLaunchAtMatch[2] : foundingLaunchAtMatch[3]);
+    assert(foundingLaunchAtRaw !== null && foundingLaunchAtRaw !== '',
+      `revenuecat-config.js 的 foundingLaunchAt 尚未設定(目前是${foundingLaunchAtRaw === null ? ' null' : '空字串'})——`
+      + '這是發版流程要在按下發版當下才決定的值,請把實際上線日期填進 revenuecat-config.js 的 '
+      + 'window.RAIL_REVENUECAT_CONFIG.foundingLaunchAt 後重新建置');
+    const foundingLaunchAtMs = Date.parse(foundingLaunchAtRaw);
+    assert(Number.isFinite(foundingLaunchAtMs),
+      `revenuecat-config.js 的 foundingLaunchAt 不是可解析的日期(目前值：${foundingLaunchAtRaw})——`
+      + '請改成 ISO8601 時刻字串並修正 revenuecat-config.js 的 window.RAIL_REVENUECAT_CONFIG.foundingLaunchAt');
+    // 用台北時區的「今天 00:00」當比較基準(不比對時分秒),避免同一個日曆日內因為 build 執行的
+    // 時刻不同而誤判成「早於本次 build」。
+    const buildDayTaipei = new Intl.DateTimeFormat('sv-SE', { timeZone: 'Asia/Taipei' }).format(new Date());
+    const buildDayStartMs = Date.parse(`${buildDayTaipei}T00:00:00+08:00`);
+    assert(foundingLaunchAtMs >= buildDayStartMs,
+      `revenuecat-config.js 的 foundingLaunchAt(${foundingLaunchAtRaw})早於本次 build 的日期(${buildDayTaipei})——`
+      + '上線日看起來還停在過去,請到 revenuecat-config.js 確認/更新 window.RAIL_REVENUECAT_CONFIG.foundingLaunchAt;'
+      + '若這一版不打算辦創始期,把它改成 false');
+  }
 
   const musicEnabled = html.includes('window.RAIL_MUSIC_AVAILABLE=true');
   const basemapsEnabled = html.includes('window.RAIL_ONLINE_BASEMAPS_AVAILABLE=true');
@@ -273,6 +283,13 @@ export async function verifyRelease({
   if (expectLicensedBasemaps !== undefined) {
     assert(basemapsEnabled === expectLicensedBasemaps, '線上底圖旗標與本次 build 模式不一致');
   }
+
+  // 版本號對**所有** build 模式都必須注入(不是只有授權底圖 build)——App 內的更新提示與評分
+  // 全靠它判斷「手上這顆是哪一版」。刻意寫在模式分支之外:放進安全 build 的條件裡就漏掉另一半。
+  const appVerMatch = /window\.RAIL_APP_VERSION="([^"]+)"/.exec(html);
+  assert(appVerMatch, '所有 build 都必須注入 window.RAIL_APP_VERSION（更新提示與評分靠它判版本）');
+  assert(/^\d+(\.\d+)*$/.test(appVerMatch[1]),
+    `RAIL_APP_VERSION 格式無法解析：${appVerMatch[1]}——版本比較會直接放棄,提示永遠不出現`);
 
   if (expectPlusSandboxBuild !== null) assertPlusSandboxTestBuild(html, expectPlusSandboxBuild);
   else assertPlusSandboxOff(html);
