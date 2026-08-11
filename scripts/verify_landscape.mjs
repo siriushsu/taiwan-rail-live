@@ -31,6 +31,13 @@
 //   resize 不重跑 updateSheetOpenClass → 直向大段轉橫後頂列點不到、讓位軸不對帳（L10／L10b）
 //   停靠時小卡不淡出              → 852×393 實測與站名牌疊 176×12px（L2c）
 //   拿掉 _limitCenter 覆寫        → 台灣被夾回容器中央：橫式偏 174px、直向偏 195.8px（L12）
+//   動作列讓開量退回寫死 60px     → 解鎖後的「回到列車」膠囊又疊上去 22×12（L13b）
+//   站名牌退回整寬                → 吃掉露出地圖 98% 寬（L14b，順帶 L14d/L15 也紅）
+//   站名牌縮小但放回左上角        → **只有 L14d 紅**（L14b/L14c 全綠）：量體與可見度是兩個相反方向的
+//                                  要求，只驗量體就會把可見度做壞——這正是本批第一版真的做出來的缺陷
+//   拿掉 .topbar 的水平讓開       → 它回到動態島帶裡（L15）
+//   --sa-l/--sa-r 改成常數 0px    → **只有 L15c 紅**（L15 全綠，因為驗收自己注入的 inline 值蓋過它）
+//                                  ：模擬式判準驗不到「值真的來自 env()」，所以那條原始碼斷言不可省
 // 控制組（只加一行註解）必須全綠——沒有控制組就不知道紅的是不是自己以為的那件事。
 import { chromium, webkit } from 'playwright';
 import { createServer } from 'node:http';
@@ -753,6 +760,181 @@ async function centeringSuite(browser, eng) {
 }
 
 // ─────────────────────────────────────────────────────────────
+// L13–L15：使用者 2026-08-11 橫放實機回報的三件事
+//   E 解鎖後的「回到列車」膠囊 72px 寬，而動作列的讓開量是照「鎖定時的 44px 小方鈕」寫死的 60px
+//     ⇒ 實測疊 22×12px。這是心得 28 那族：只驗了乾淨態（剛跟車＝鎖著），沒驗「使用者拖過地圖之後」。
+//   F 停靠站名牌沿用直向的「左右各 8px 整寬」寫法，在 393 高的視窗吃掉 98% 寬。
+//   G 橫放時動態島吃掉左右各 59px，而全檔 env(safe-area-inset-left/right) 使用次數 = 0。
+//     模擬法：覆寫 --sa-l／--sa-r 兩個變數（實作用它們包住 env()）。這只驗得到「版面有讀這兩個值」，
+//     驗不到「值真的來自 env()」——後者另用一條原始碼斷言把守（G3），兩條缺一不可。
+// ─────────────────────────────────────────────────────────────
+const ISLAND = 59; // iPhone 14 Pro 起橫放的左右安全區(pt)。iPhone X 世代是 44，取大的當判準。
+
+// 必須待在動態島安全區外的 UI。'SHEET' 是當下那張面板（側欄），由 activeSheetEl() 取。
+const ISLAND_SEL = [
+  ['頂列', '.topbar'], ['時鐘', '#clock'], ['分頁列按鈕', '.tabbar button'],
+  ['停靠站名牌', '#dwellPlate'], ['跟隨小卡', '.follow-panel'], ['跟隨鎖', '.follow-lock-ctl'],
+  ['動作列', '.map-actions'], ['站台帶', '.controls'], ['側欄', 'SHEET'],
+];
+
+const ISLAND_PROBE = ({ sels, inset }) => {
+  const W = innerWidth, out = [], seen = [];
+  const vis = el => {
+    if (!el) return false;
+    const cs = getComputedStyle(el);
+    return cs.display !== 'none' && cs.visibility !== 'hidden' && +cs.opacity > .05 && el.getBoundingClientRect().width > 0.5;
+  };
+  for (const [name, sel] of sels) {
+    let els;
+    if (sel === 'SHEET') { const e = typeof activeSheetEl === 'function' ? activeSheetEl() : null; els = e && !e.hidden ? [e] : []; }
+    else els = [...document.querySelectorAll(sel)];
+    els = els.filter(vis);
+    if (!els.length) continue;
+    seen.push(name);
+    for (const el of els) {
+      const r = el.getBoundingClientRect();
+      const l = inset - r.left, rr = r.right - (W - inset);
+      if (l > 0.5 || rr > 0.5) { out.push(`${name}${l > 0.5 ? ` 左壓${Math.round(l)}` : ''}${rr > 0.5 ? ` 右壓${Math.round(rr)}` : ''}`); break; }
+    }
+  }
+  return { bad: out, seen };
+};
+
+// 「回到列車」與動作列：量相交，並且兩顆都要真的按得到（心得 33：驗按鈕是驗點它會發生什麼）
+const LOCK_PROBE = () => {
+  const lb = document.getElementById('followLockBtn'), ma = document.querySelector('.map-actions');
+  const rb = document.getElementById('randBtn');
+  if (!lb || !ma) return { err: 'missing' };
+  const L = lb.getBoundingClientRect(), M = ma.getBoundingClientRect();
+  const w = Math.min(L.right, M.right) - Math.max(L.left, M.left), h = Math.min(L.bottom, M.bottom) - Math.max(L.top, M.top);
+  const owns = (el, root) => { for (let e = el; e; e = e.parentElement) if (e === root) return true; return false; };
+  const at = (r, root) => owns(document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2), root);
+  return {
+    unlocked: lb.classList.contains('unlocked'), label: (lb.textContent || '').trim(),
+    lockW: Math.round(L.width),
+    hit: (w > 0.5 && h > 0.5) ? `${Math.round(w)}×${Math.round(h)}` : null,
+    lockTappable: at(L, lb), randTappable: rb && !rb.hidden ? at(rb.getBoundingClientRect(), rb) : null,
+  };
+};
+
+// 停靠站名牌：把時鐘撥進跟隨列車的某個停靠窗，量它相對「露出的地圖」有多大
+const DWELL_PROBE = async () => {
+  const tr = state.followTrain; if (!tr) return { err: 'no-follow' };
+  let hit = false;
+  for (const st of tr.stops) {
+    if (st.arrSec != null && st.depSec != null && st.depSec > st.arrSec + 20) {
+      state.simSec = st.arrSec + Math.floor((st.depSec - st.arrSec) / 2);
+      state.clockAtNow = false; // 記憶 clock-jump-must-clear-clockatnow：直接寫 simSec 必同時清
+      hit = true; break;
+    }
+  }
+  if (!hit) return { err: 'no-dwell-window' };
+  await new Promise(r => setTimeout(r, 1300)); // > .45s 淡入
+  const dp = document.getElementById('dwellPlate'); const r = dp.getBoundingClientRect();
+  const el = typeof activeSheetEl === 'function' ? activeSheetEl() : null;
+  const railL = el && !el.hidden ? el.getBoundingClientRect().left : innerWidth;
+  // 🔴 縮小之後還要「看得見」。第一版把它縮到 129px 卻留在左上角,結果整個躲進跟隨小卡後面
+  //    ——小卡不透明,而「停靠時小卡淡出」那條契約只在另有面板開著(body.sheet-open)時生效。
+  //    量體判準完全照不到這件事:寬高比越小越綠,而越小越容易被蓋掉。所以要另量遮蔽。
+  //    dwellPlate 是 pointer-events:none,elementFromPoint 會直接穿過去 ⇒ 只能用矩形相交,
+  //    且只跟「當下真的看得到的」遮蔽者比(淡出中的小卡不算遮蔽)。
+  const boxes = [];
+  for (const sel of ['.follow-panel', '.freq-card', '.map-actions', '.controls']) {
+    for (const el of document.querySelectorAll(sel)) {
+      const cs = getComputedStyle(el);
+      if (cs.display === 'none' || cs.visibility === 'hidden' || +cs.opacity <= .05) continue;
+      const b2 = el.getBoundingClientRect(); if (b2.width < 0.5) continue;
+      const w = Math.min(r.right, b2.right) - Math.max(r.left, b2.left);
+      const h = Math.min(r.bottom, b2.bottom) - Math.max(r.top, b2.top);
+      if (w > 0.5 && h > 0.5) boxes.push(`${sel} ${Math.round(w)}×${Math.round(h)}`);
+    }
+  }
+  const el2 = typeof activeSheetEl === 'function' ? activeSheetEl() : null;
+  if (el2 && !el2.hidden) {
+    const b3 = el2.getBoundingClientRect();
+    const w = Math.min(r.right, b3.right) - Math.max(r.left, b3.left);
+    const h = Math.min(r.bottom, b3.bottom) - Math.max(r.top, b3.top);
+    if (w > 0.5 && h > 0.5) boxes.push(`側欄 ${Math.round(w)}×${Math.round(h)}`);
+  }
+  return {
+    show: dp.classList.contains('show') && +getComputedStyle(dp).opacity > .5,
+    w: Math.round(r.width), h: Math.round(r.height),
+    露出地圖寬: Math.round(railL), 視窗高: innerHeight,
+    寬佔比: +(r.width / railL).toFixed(2), 高佔比: +(r.height / innerHeight).toFixed(2),
+    被蓋: boxes,
+  };
+};
+
+async function deviceSuite(browser, eng) {
+  const seenAll = new Set();
+  for (const S of LANDSCAPE) {
+    const b = await boot(browser, S, { follow: true });
+    if (!b) { ok(`L13 ${eng}/${S.tag} 環境：有行駛中的台鐵車可跟`, false, '深夜無車＝環境條件，不是產品回歸'); continue; }
+    const { ctx, page } = b;
+
+    // ── E：走使用者的實際操作序（拖曳地圖→自動解鎖→膠囊變寬），不是直接改 class ──
+    await page.mouse.move(Math.round(S.w * 0.3), Math.round(S.h * 0.5));
+    await page.mouse.down();
+    await page.mouse.move(Math.round(S.w * 0.22), Math.round(S.h * 0.62), { steps: 8 });
+    await page.mouse.move(Math.round(S.w * 0.18), Math.round(S.h * 0.66), { steps: 6 });
+    await page.mouse.up();
+    await page.waitForTimeout(700);
+    const L = await page.evaluate(LOCK_PROBE);
+    // 前置閘門：沒真的解鎖的話，下面那條「不相交」是恆真的假綠（心得 17）
+    ok(`L13 ${eng}/${S.tag} 前置：拖曳地圖真的解了鎖`, L.unlocked === true && L.label === '回到列車',
+      `unlocked=${L.unlocked}／文字=${JSON.stringify(L.label)}／膠囊寬=${L.lockW}`);
+    ok(`L13b ${eng}/${S.tag} 「回到列車」與動作列不相交`, !L.hit, L.hit ? `疊 ${L.hit}（膠囊 ${L.lockW}px 寬）` : `膠囊 ${L.lockW}px 寬，讓開了`);
+    ok(`L13c ${eng}/${S.tag} 兩顆都按得到`, L.lockTappable === true && L.randTappable !== false,
+      `回到列車=${L.lockTappable}／隨機跟隨=${L.randTappable}`);
+
+    // ── F：停靠站名牌的量體 ──
+    const D = await page.evaluate(DWELL_PROBE);
+    if (D.err) ok(`L14 ${eng}/${S.tag} 前置：跟隨車有停靠窗可量`, false, D.err);
+    else {
+      ok(`L14 ${eng}/${S.tag} 前置：站名牌真的亮著`, D.show === true, JSON.stringify(D));
+      // 判準寫意圖不寫 px（心得 35）：停靠時地圖仍是主角 ⇒ 站名牌不得吃掉露出地圖的一半寬、
+      // 也不得吃掉視窗的四分之一高。兩個分母都是當下量到的，不是手打常數。
+      ok(`L14b ${eng}/${S.tag} 站名牌不吃掉露出地圖的一半寬`, D.寬佔比 <= 0.5,
+        `${D.w}px／露出 ${D.露出地圖寬}px＝${(D.寬佔比 * 100).toFixed(0)}%`);
+      ok(`L14c ${eng}/${S.tag} 站名牌不吃掉視窗的四分之一高`, D.高佔比 <= 0.25,
+        `${D.h}px／${D.視窗高}px＝${(D.高佔比 * 100).toFixed(0)}%`);
+      // 縮小與看得見是**兩個相反方向**的要求，只驗其中一個必然會把另一個做壞（第一版就是）
+      ok(`L14d ${eng}/${S.tag} 站名牌沒有被別的可見元件蓋住`, D.被蓋.length === 0, D.被蓋.join('／') || '無遮蔽');
+    }
+
+    // ── G：動態島。停靠態（站名牌＋小卡＋跟隨鎖都在）先量一次 ──
+    await page.evaluate(i => {
+      document.documentElement.style.setProperty('--sa-l', i + 'px');
+      document.documentElement.style.setProperty('--sa-r', i + 'px');
+    }, ISLAND);
+    await page.waitForTimeout(400);
+    const g1 = await page.evaluate(ISLAND_PROBE, { sels: ISLAND_SEL, inset: ISLAND });
+    // 再開一張面板量側欄那一側
+    await openPanel(page, PANELS[1]);
+    await page.waitForTimeout(500);
+    const g2 = await page.evaluate(ISLAND_PROBE, { sels: ISLAND_SEL, inset: ISLAND });
+    [...g1.seen, ...g2.seen].forEach(n => seenAll.add(n));
+    const bad = [...new Set([...g1.bad, ...g2.bad])];
+    ok(`L15 ${eng}/${S.tag} 注入動態島安全區後沒有 UI 進到那兩條帶裡`, bad.length === 0, bad.join('／') || `${g1.seen.length}+${g2.seen.length} 個元件全部讓開了`);
+
+    await ctx.close();
+  }
+  // 分母要有具名斷言（心得 37d）：清單裡有元件從頭到尾沒被量到＝那條判準的覆蓋是假的
+  const never = ISLAND_SEL.map(([n]) => n).filter(n => !seenAll.has(n));
+  ok(`L15b ${eng} 動態島清單每一項都真的被量到`, never.length === 0, never.length ? `從沒量到：${never.join('、')}` : `${ISLAND_SEL.length}/${ISLAND_SEL.length}`);
+}
+
+// G3：原始碼斷言——那兩個變數必須是 env() 包出來的。
+// 只有 L15 的話，把 --sa-l 寫成常數 0px 也會全綠（注入時被測試自己覆寫掉），實機上完全沒作用。
+{
+  const src = readFileSync(path.join(ROOT, 'index.html'), 'utf8');
+  const hasL = /--sa-l:\s*env\(\s*safe-area-inset-left/.test(src);
+  const hasR = /--sa-r:\s*env\(\s*safe-area-inset-right/.test(src);
+  ok('L15c 原始碼：--sa-l／--sa-r 由 env(safe-area-inset-left/right) 定義', hasL && hasR,
+    `--sa-l=${hasL}／--sa-r=${hasR}`);
+}
+
+// ─────────────────────────────────────────────────────────────
 // L6／L7：iPad 橫向與桌面「對改動前逐值零變化」
 // 心得 31：比幾何前把即時狀態旗標釘死（班次數文字、LIVE 徽章、尖峰徽章都會改寬度）
 // ─────────────────────────────────────────────────────────────
@@ -802,6 +984,7 @@ for (const [eng, B] of (QUICK ? [['chromium', chromium]] : [['chromium', chromiu
   await landscapeSuite(browser, eng);
   await rotationSuite(browser, eng); // QUICK 也跑：這組是獨立驗收抓到的真缺陷，突變測試一定要涵蓋
   await centeringSuite(browser, eng); // QUICK 也跑：使用者親自指出的置中缺陷
+  await deviceSuite(browser, eng);    // QUICK 也跑：使用者橫放實機回報的三缺陷
   if (!QUICK) { await portraitSuite(browser, eng); await zeroRegressionSuite(browser, eng); }
   await browser.close();
 }
