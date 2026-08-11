@@ -271,3 +271,34 @@
 ### Data safety 對照
 
 - `docs/android/PLAY-DATA-SAFETY.md` 依 source manifest、release merged manifest、Firebase／定位／本地通知／分享／Cloudflare 實際資料流逐題列出可填答案。線上授權底圖會收到定位後的圖磚區域與 IP，因此沒有沿用舊安全 build 的「位置完全不離開裝置」結論；Stadia／Esri／Cloudflare／Firebase 是否全符合 Play service-provider sharing 例外，明確標「待使用者確認」。
+
+## N. Play internal v1 散佈鏈與含音樂 v2 重建（2026-08-11）
+
+### Play internal v1 散佈鏈
+
+- `RailIsland_API35_Pixel7_Play` 已由使用者親自在系統內登入 tester Google 帳號並完成 internal testing 加入；實際有效入口是 Play Console 產生的 `/apps/internaltest/...` 連結，不是通用的 `/apps/testing/tw.railisland.app`。帳號層級的加入動作由使用者完成，Codex 未接觸帳密。
+- Play Store 安裝後，`pm list packages -i tw.railisland.app` 回 `installer=com.android.vending`；從裝置拉回的 split base APK badging 為 `tw.railisland.app`／`versionName=1.4.1`／`versionCode=1`。
+- Play 版憑證 DN 為 `CN=Android, OU=Android, O=Google Inc., L=Mountain View, ST=California, C=US`，SHA-256 為 `a8cb843c5f74c9fe3843fd6f2547948a745af60e0695f5714178e6f4419408c6`；它與 upload key 的 `3836e4b4680ac9ec5ab4b10424a10bd5852dcfa7a06697bb985521f66ad58d21` 不同，證明 Play App Signing 重簽鏈已生效。
+- Play v1 APK 仍保留 `foundingLaunchAt: '2026-08-10T12:00:00+08:00'`，但 `window.RAIL_MUSIC_AVAILABLE=false` 且 MP3 數量為 0。裝置媒體音量 15/15、未靜音，因此「放不出音樂」不是模擬器音量問題；根因是該顆只用 `RAIL_INCLUDE_LICENSED_BASEMAPS=1 npm run build`，沒有啟用授權音樂打包。
+
+### v2 修正與 fail-closed 發版閘門
+
+- Android `versionCode` 由 1 升為 2，`versionName` 維持 1.4.1；這讓 Play Console 能接受同一版名的修正版。沒有修改 applicationId，也沒有同步或編輯 iOS。
+- 正式上線錨點已在 2026-08-10 生效，`revenuecat-config.js` 明示 `foundingLaunchPublished: true`。`verify-release.mjs` 把錨點判定抽成可測 helper：已發布的過去錨點可供 hotfix／重建沿用；未發布的過去錨點仍 fail closed；標為已發布但尚未到時刻的未來錨點也 fail closed。解析前先剝除 `//` 註解，避免範例中的 `null` 被誤認成實際設定。
+- 突變樣本結果：實際設定 GREEN、註解陷阱 GREEN、已發布過去值 GREEN、未發布過去值 RED、未發布未來值 GREEN、已發布未來值 RED；測試 exit 0。
+- 授權音樂證據清單在 Android worktree 原先不存在；從 `/Users/xuxiang/Code/捷運小動畫/app/MUSIC_LICENSE_CHECKLIST.md` 唯讀複製同一份本機檔案後，兩端 SHA-256 都是 `5f637a86d2bd6ae341000e4f917c215213041392f678ccd4a2eedcec35308529`。Android worktree 的清單由 `.gitignore` 排除，未 stage、未 commit；沒有修改來源 worktree。
+
+### v2 全鏈、簽章與內容
+
+- `npm run build:release` exit 0：`v0808a`、164 files、144.0 MB、音樂開啟、線上底圖開啟；`npx cap copy android` exit 0。`RAIL_VERIFY_NATIVE=android npm run verify` exit 0，訊息同為 `v0808a`／164 files／144.0 MB／音樂開啟／線上底圖開啟。
+- 原樣 `npm run verify` 仍因未同步的 iOS native public 是 `v0804g` 而 fail closed；依本輪 Android-only 裁定沒有修改 iOS，Android native parity 由上一項明確限定 Android 的 verifier 驗收。
+- JDK 21 與既有 Android SDK 下，Gradle `bundleRelease`、`assembleRelease` 均 exit 0。AAB 為 `app/android/app/build/outputs/bundle/release/app-release.aab`，121,068,606 bytes，SHA-256 `bea1d637d4c4e6f5db475dd33def3235942b47bb27f3fcd6dc14912642b9c4e8`；APK 為 `app/android/app/build/outputs/apk/release/app-release.apk`，121,706,645 bytes，SHA-256 `4741172dc8676a224ce4510614c01a53a9c65c41106bb34c4f9d6957df7b9485`。
+- APK `apksigner verify --print-certs` 通過，AAB `jarsigner -verify` 回 `jar verified`；兩者皆為 upload certificate `CN=railisland-upload`、SHA-256 `3836e4b4680ac9ec5ab4b10424a10bd5852dcfa7a06697bb985521f66ad58d21`。AAB 的自簽／無 timestamp／Zip 警告如實保留，沒有誤報為 CA 簽章。
+- APK badging 為 `tw.railisland.app`／`versionName=1.4.1`／`versionCode=2`。APK 與 AAB 各含 29 個 MP3、各含 `window.RAIL_MUSIC_AVAILABLE=true`，並保留 `foundingLaunchAt: '2026-08-10T12:00:00+08:00'`；APK 的 `v0808a` 命中 1、`v0804g` 命中 0。
+
+### v2 本機 release 實測與待完成項
+
+- 先移除 Play v1，再以 ADB 安裝 upload-key 簽署的 v2 release APK；最後一次重建後覆蓋安裝並 cold launch，`LaunchState=COLD`、`TotalTime=427 ms`，地圖、路網與列車正常渲染，主畫面約 146–151 班奔跑中。
+- 實際開啟「更多→背景音樂」並觸控開關後，AudioManager 的 focus owner 為 `tw.railisland.app`，usage 為 `USAGE_MEDIA`；AAudio player 為 `state:started`、`mutedState:none`。這證明 v2 不只是含有 MP3，WebView 也確實啟動播放。
+- 本機 v2 的 `installer=null` 是 ADB 安裝的預期結果，不能代替 Play 散佈鏈驗證。新 AAB 尚未由使用者上傳 Play Console；上傳 versionCode 2、Play 完成處理後，仍須移除本機 upload-key APK，再由 Play Store 安裝 v2，重驗 `installer=com.android.vending`、Play 重簽憑證、錨點、通行證 gate、三底圖與 44×44 最小集。
+- v2 修改只涉及 Android 版號、發版 verifier 與設定錨點的已發布狀態，未改共享 UI／CSS；本輪 release 沒有 WebView DevTools socket，因此沒有把先前的 stage3 DOM audit 冒充成 v2 fresh audit。Apple 登入需要輸入密碼，依第五輪規則跳過；Firebase Google 登入／登出與 Play v2 重簽後核心回歸仍待新 AAB 上傳後完成。
