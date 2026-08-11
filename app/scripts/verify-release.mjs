@@ -265,13 +265,28 @@ export async function verifyRelease({
       `revenuecat-config.js 的 foundingLaunchAt 不是可解析的日期(目前值：${foundingLaunchAtRaw})——`
       + '請改成 ISO8601 時刻字串並修正 revenuecat-config.js 的 window.RAIL_REVENUECAT_CONFIG.foundingLaunchAt');
     // 用台北時區的「今天 00:00」當比較基準(不比對時分秒),避免同一個日曆日內因為 build 執行的
-    // 時刻不同而誤判成「早於本次 build」。
+    // 時刻不同而誤判。
     const buildDayTaipei = new Intl.DateTimeFormat('sv-SE', { timeZone: 'Asia/Taipei' }).format(new Date());
     const buildDayStartMs = Date.parse(`${buildDayTaipei}T00:00:00+08:00`);
-    assert(foundingLaunchAtMs >= buildDayStartMs,
-      `revenuecat-config.js 的 foundingLaunchAt(${foundingLaunchAtRaw})早於本次 build 的日期(${buildDayTaipei})——`
-      + '上線日看起來還停在過去,請到 revenuecat-config.js 確認/更新 window.RAIL_REVENUECAT_CONFIG.foundingLaunchAt;'
-      + '若這一版不打算辦創始期,把它改成 false');
+    // 🔴 2026-08-11 改判準。原本這裡斷言「錨點不得早於 build 當天」——那是在「先訂上線日、
+    // 再出 build」的世界寫的。8/10 12:00 窗一開跑,之後每一顆 build 的日期都必然晚於錨點,
+    // 原判準會把整個窗期內的出貨全部擋死(1.4.2(43) 就是第一顆撞上的),而那些 build 完全合法。
+    // 它真正要防的從來不是「錨點在過去」,而是「一個沒人在看的過期日期溜上線」——那件事的特徵
+    // 是**窗已經關了、程式碼卻還宣稱在辦創始期**。故改成：build 當天必須落在窗內。
+    // 窗長不手打,從 index.html 的 FOUNDING_UNTIL_MS 讀回來(判準的數字要跟受測物同源,心得 35);
+    // 讀不到就 FAIL,不准退回猜一個預設值——窗長改寫法時這道閘門必須跟著被迫更新。
+    const windowDaysMatch = html.match(/FOUNDING_LAUNCH_MS\s*\+\s*(\d+)\s*\*\s*86400000/);
+    assert(windowDaysMatch,
+      'index.html 找不到創始期窗長的定義(FOUNDING_LAUNCH_MS + N * 86400000)——窗長改寫法時,'
+      + '這道閘門要跟著改;它刻意不設預設值,免得判準與程式碼各說各話');
+    const windowDays = Number(windowDaysMatch[1]);
+    const foundingUntilMs = foundingLaunchAtMs + windowDays * 86400000;
+    assert(buildDayStartMs < foundingUntilMs,
+      `revenuecat-config.js 的 foundingLaunchAt(${foundingLaunchAtRaw})起算 ${windowDays} 天的創始期視窗,`
+      + `在本次 build 的日期(${buildDayTaipei})之前就已經結束——程式碼還宣稱在辦創始期,但窗早就關了。`
+      + '請更新 window.RAIL_REVENUECAT_CONFIG.foundingLaunchAt;若這一版不打算辦創始期,把它改成 false');
+    const daysLeft = Math.ceil((foundingUntilMs - buildDayStartMs) / 86400000);
+    console.log(`  · foundingLaunchAt=${foundingLaunchAtRaw}（窗 ${windowDays} 天，本次 build 當天起還剩 ${daysLeft} 天）`);
   }
 
   const musicEnabled = html.includes('window.RAIL_MUSIC_AVAILABLE=true');
@@ -473,6 +488,45 @@ export async function verifyRelease({
       const nativeBuild = extractBuild(nativeHtml);
       assert(nativeBuild === wwwBuild,
         `${label} 內嵌資產版本不一致：${relative(repoRoot, nativeIndex)} 為 ${nativeBuild},app/www 為 ${wwwBuild};請執行 npm run sync（build + cap sync）`);
+    }
+  }
+
+  // 🔴 自製原生 plugin 必須在 capacitorDidLoad() 註冊,否則 JS 端 registerPlugin('X') 的呼叫
+  // 全部靜默拒絕——功能整條死掉,而 build 照樣 SUCCEEDED、沒有任何紅字。這個坑已經踩過兩次
+  // (build 38 音樂全滅＝RailAudioPlugin 漏註冊;1.4.2 的評分＝RailReviewPlugin 漏註冊),
+  // 而 RailPlacesPlugin.swift 裡就寫著警告註解仍然再犯 ⇒ 靠人記得是不夠的,改成機械判準。
+  // 判的是「宣告出來的每一顆都被註冊」(是什麼/怎麼配對),不是「有幾顆」——新增 plugin 不必改這裡。
+  {
+    const iosSrcDir = join(appRoot, 'ios/App/App');
+    let swiftFiles = [];
+    try { swiftFiles = (await readdir(iosSrcDir)).filter(name => name.endsWith('.swift')); }
+    catch { swiftFiles = []; }
+    if (!swiftFiles.length) {
+      assert(!process.env.RAIL_REQUIRE_NATIVE,
+        `iOS 原生原始碼不存在（${relative(repoRoot, iosSrcDir)}）——無法檢查自製 plugin 註冊,不可發行`);
+    } else {
+      const swiftSource = (await Promise.all(
+        swiftFiles.map(name => readFile(join(iosSrcDir, name), 'utf8'))
+      )).join('\n');
+      // 只要求「繼承串裡有 CAPBridgedPlugin」,不綁協定順序也不綁還列了哪些協定——
+      // 綁死 `: CAPPlugin, CAPBridgedPlugin` 的話,新 plugin 只要把兩個協定寫反就整顆隱形,
+      // 而其餘三顆仍在 ⇒ 分母守衛不會響、漏註冊照樣溜過去(突變測試就是這樣抓到的)。
+      // \b 是必要的:少了它,CAPBridgedPluginX 之類的改名也會被當成命中。
+      const declared = [...swiftSource.matchAll(/class\s+(\w+)\s*:[^{\n]*\bCAPBridgedPlugin\b/g)]
+        .map(match => match[1]);
+      // 分母守衛：宣告一顆都抓不到＝正則跟不上寫法改動,此時 missing 必為空、下面那條會假綠。
+      assert(declared.length > 0,
+        `${relative(repoRoot, iosSrcDir)} 裡找不到任何 CAPBridgedPlugin 宣告——`
+        + '要嘛自製 plugin 真的一顆都不剩了,要嘛這道閘門的比對寫法已經跟不上原始碼,請先確認是哪一種');
+      const registered = new Set(
+        [...swiftSource.matchAll(/registerPluginInstance\(\s*(\w+)\s*\(/g)].map(match => match[1])
+      );
+      const missing = declared.filter(name => !registered.has(name));
+      assert(missing.length === 0,
+        `自製原生 plugin 宣告了卻沒有註冊：${missing.join('、')}——請在 RailBridgeViewController`
+        + '.capacitorDidLoad() 補 bridge?.registerPluginInstance(該類別());少了它,JS 端對應的功能會'
+        + '整條靜默失效,而 build 仍然會 SUCCEEDED(build 38 音樂全滅就是這個)');
+      console.log(`  · 自製原生 plugin ${declared.length} 顆全部已註冊：${declared.join('、')}`);
     }
   }
 
