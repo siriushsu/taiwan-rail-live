@@ -14,6 +14,20 @@
 //
 // 🔴 零回歸基準取「改動前的 commit」另起同一支 server 的 /baseline.html（心得 23：
 //    不可拿改後狀態自比）。BASE_REF 預設 ad63246，可用環境變數覆寫。
+//
+// ── 這些判準是怎麼被證明「有牙」的（下次改側欄相關程式碼前先看這段） ──
+// 做法：把改壞的 index.html 放進一個獨立目錄（其餘資源 symlink 借用），用同一支腳本 QUICK 跑。
+//   🔴 腳本本身要用**複製**不能用 symlink：Node 會把 import.meta.url 解析成真實路徑，
+//      ROOT 直接指回工作樹 ⇒ 六輪突變全部在測原始檔、全綠、零資訊（心得 32 的驗錯目標）。
+//      跑之前先斷言「G0 印出的受測 md5 == 突變檔的 md5」，這道 gate 當場就會抓到。
+// 已驗證會轉紅的突變（括號內是抓到它的判準）：
+//   側欄選擇器拿掉 #nearCard      → 它退回底部 sheet、只露 152px 地圖，讓位整組關掉（L4）
+//   sheetHasSizeSteps 拿掉側欄閘  → 側欄又有三段高，點標題列就掛 sheet-full、頂列整組淡出（L10）
+//   tab bar 第一顆 pointer-events:none → 搜尋分頁再也點不開（L11 逐顆真觸控＋覆蓋率）
+//   側欄整組 opacity:.35          → 地圖透出來、字讀不了，而 rect 完全沒變（L4b／L10 可讀性）
+//   resize 不重跑 updateSheetOpenClass → 直向大段轉橫後頂列點不到、讓位軸不對帳（L10／L10b）
+//   停靠時小卡不淡出              → 852×393 實測與站名牌疊 176×12px（L2c）
+// 控制組（只加一行註解）必須 116/116 全綠——沒有控制組就不知道紅的是不是自己以為的那件事。
 import { chromium, webkit } from 'playwright';
 import { createServer } from 'node:http';
 import { readFileSync, existsSync, statSync } from 'node:fs';
@@ -91,17 +105,43 @@ const PORTRAIT = [
 ];
 // 面板覆蓋率的分母：每一個都要真的被測到（心得 37d：覆蓋率要有具名斷言，不能只印在 detail）
 const PANELS = [
-  { key: 'explore', fn: 'openExplorePanel', label: '亮點' },
-  { key: 'fav', fn: 'openFavPanel', label: '最愛' },
-  { key: 'ride', fn: 'openRidePanel', label: '護照' },
-  { key: 'search', fn: 'openSearchPanel', label: '搜尋' },
+  { key: 'explore', label: '亮點', call: 'openExplorePanel()' },
+  { key: 'fav', label: '最愛', call: 'openFavPanel()' },
+  { key: 'ride', label: '護照', call: 'openRidePanel()' },
+  { key: 'search', label: '搜尋', call: 'openSearchPanel()' },
+  // 🔴 獨立驗收（2026-08-11）抓到的分母缺口：這兩個同樣是 SHEET_PANEL_IDS 成員、同樣吃側欄那組規則，
+  //    只因為「開啟方式要帶參數」而從來沒被開起來量過形態。實測後果：把 #nearCard 從側欄選擇器拿掉，
+  //    舊分母下整套 374/374 全綠，但它退回底部 sheet 只露出 152px 地圖（< MIN_MAP_STRIP 160）
+  //    ⇒ mapInsets() 回全 0 ⇒ 讓位機制整組關掉＝這批要修的缺陷 A 原地復活。
+  { key: 'near', label: '附近車站', call: 'openNearbyStations(25.0478, 121.5170, 50)', clearsFollow: true },
+  { key: 'board', label: '車站看板', call: 'openBoard(state.schedStations[0])' },
 ];
+// 開啟方式一律走真的入口函式（不是直接改 hidden）——形態是那些函式連同 updateSheetOpenClass 一起決定的
+const openPanel = (page, P) => page.evaluate(src => {
+  try { (0, eval)(src); return 'ok'; } catch (e) { return 'err:' + e.message; }
+}, P.call);
 
-async function boot(browser, { w, h, tag }, { url = BASE, follow = true } = {}) {
+// 挑一班行駛中的台鐵車來跟。抽成具名探針：clearsFollow 的面板（附近車站會依設計清掉跟隨）
+// 測完要能把跟隨接回來，否則面板的先後順序會變成隱形的前置條件（後面每一項都沒車可量）。
+const PICK_FOLLOW = async () => {
+  let tries = 0;
+  while ((!state.trains || !state.trains.some(t => t.sys === 'tra_sched')) && tries < 80) { await new Promise(r => setTimeout(r, 60)); tries++; }
+  for (const tr of (state.trains || [])) {
+    if (tr.sys !== 'tra_sched' || tr.loop || !tr.train) continue;
+    const s = tr.stops, eff = (typeof effT === 'function') ? effT(tr) : 0;
+    if (s && eff > s[0].depSec + 120 && eff < s[s.length - 1].arrSec - 180) { setFollow(tr, false, true); return String(tr.train); }
+  }
+  return null;
+};
+
+async function boot(browser, { w, h, tag }, { url = BASE, follow = true, sheetSize = null } = {}) {
   const ctx = await browser.newContext({ viewport: { width: w, height: h }, hasTouch: true, isMobile: true });
-  await ctx.addInitScript(() => {
-    try { localStorage.setItem('trainmap-howto-seen', '1'); localStorage.setItem('trainmap-appearance', 'light'); } catch (e) {}
-  });
+  await ctx.addInitScript(sz => {
+    try {
+      localStorage.setItem('trainmap-howto-seen', '1'); localStorage.setItem('trainmap-appearance', 'light');
+      if (sz) localStorage.setItem('trainmap-sheet-size', sz);
+    } catch (e) {}
+  }, sheetSize);
   const page = await ctx.newPage();
   page.on('pageerror', e => errors.push(`[${tag}] pageerror: ${e}`));
   page.on('console', m => { if (m.type() === 'error' && !/Failed to load resource/.test(m.text())) errors.push(`[${tag}] console.error: ${m.text()}`); });
@@ -109,16 +149,7 @@ async function boot(browser, { w, h, tag }, { url = BASE, follow = true } = {}) 
   await page.waitForFunction(() => { try { return typeof state !== 'undefined' && state.ready === true; } catch (e) { return false; } }, null, { timeout: 45000 });
   await page.waitForTimeout(300);
   if (follow) {
-    const no = await page.evaluate(async () => {
-      let tries = 0;
-      while ((!state.trains || !state.trains.some(t => t.sys === 'tra_sched')) && tries < 80) { await new Promise(r => setTimeout(r, 60)); tries++; }
-      for (const tr of (state.trains || [])) {
-        if (tr.sys !== 'tra_sched' || tr.loop || !tr.train) continue;
-        const s = tr.stops, eff = (typeof effT === 'function') ? effT(tr) : 0;
-        if (s && eff > s[0].depSec + 120 && eff < s[s.length - 1].arrSec - 180) { setFollow(tr, false, true); return String(tr.train); }
-      }
-      return null;
-    });
+    const no = await page.evaluate(PICK_FOLLOW);
     if (!no) { await ctx.close(); return null; } // 沒有行駛中的台鐵車（深夜）＝環境條件，讓呼叫端明說
     await page.waitForTimeout(800);
   }
@@ -139,6 +170,19 @@ const TRAIN_PROBE = () => {
   return {
     cx: +cx.toFixed(0), cy: +cy.toFixed(0), inVP, onMap,
     hit: hit ? (hit.id ? '#' + hit.id : (hit.className?.toString?.().slice(0, 28) || hit.tagName)) : null,
+  };
+};
+
+// 面板形態：寫成關係（讓出多少給地圖、佔多高、貼哪一邊）而不是 width:360px，
+// 公式改了判準才不會跟著一起瞎（心得 29/35）。
+const SIDE_RAIL_PROBE = () => {
+  const el = activeSheetEl(); if (!el || el.hidden) return { err: 'no-sheet' };
+  const r = el.getBoundingClientRect(), mc = map.getContainer().getBoundingClientRect();
+  return {
+    id: el.id,
+    leftFreeRatio: +((r.left - mc.left) / mc.width).toFixed(3), // 左邊留給地圖的比例
+    heightRatio: +(r.height / mc.height).toFixed(3),
+    rightAnchored: Math.abs(mc.right - r.right) < 24,
   };
 };
 
@@ -197,12 +241,46 @@ async function landscapeSuite(browser, eng) {
     const clean = await page.evaluate(TRAIN_PROBE);
     ok(`L1 ${eng}/${S.tag} 無面板·列車看得見`, clean.onMap === true, JSON.stringify(clean));
 
-    let covered = 0;
+    let coveredForm = 0, coveredTrain = 0;
     for (const P of PANELS) {
-      const opened = await page.evaluate(fn => { try { window[fn](); return 'ok'; } catch (e) { return 'err:' + e.message; } }, P.fn);
+      const opened = await openPanel(page, P);
       if (opened !== 'ok') { ok(`L1 ${eng}/${S.tag} ${P.label}·開得起來`, false, opened); continue; }
       await page.waitForTimeout(650);
-      covered++;
+      coveredForm++;
+
+      // 🔴 側欄必須讀得懂：整片面板被 opacity 淡掉（地圖整片透出來、字看不清）時，
+      //    rect 完全沒變、命中測試照樣命中、相交掃描的 vis() 門檻（0.05）也照樣算它可見
+      //    ⇒ 舊判準對「側欄變半透明」零鑑別力（獨立驗收的 G4 突變 374/374 全綠）。
+      //    這裡只管「有沒有被 opacity 淡掉」；使用者明示的半透明契約（背景 alpha .30 + blur 3px）
+      //    走 background-color，交給 L10 的「與直向形態同值」相對判準，不在這裡寫死數字。
+      const readable = await page.evaluate(() => {
+        const el = activeSheetEl(); if (!el || el.hidden) return { err: 'no-sheet' };
+        let eff = 1;
+        for (let e = el; e && e !== document.documentElement; e = e.parentElement) eff *= parseFloat(getComputedStyle(e).opacity) || 0;
+        const r = el.getBoundingClientRect();
+        const hit = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
+        let onSelf = false;
+        for (let e = hit; e; e = e.parentElement) if (e === el) { onSelf = true; break; }
+        return { id: el.id, eff: +eff.toFixed(3), onSelf };
+      });
+      ok(`L4b ${eng}/${S.tag} ${P.label}·側欄沒被淡掉且擋得住底下`,
+        !readable.err && readable.eff >= 0.99 && readable.onSelf === true, JSON.stringify(readable));
+
+      if (P.clearsFollow) {
+        // 依設計：開附近車站會清掉跟隨（openNearbyStations 內的互斥入口）。
+        // 這類面板的形態／相交／可讀性照驗，列車那組判準不適用——但分母要分開具名，不能混在一起蓋掉。
+        const o0 = await page.evaluate(OVERLAP_PROBE, OVERLAY_SEL);
+        ok(`L2 ${eng}/${S.tag} ${P.label}·浮層不相交`, o0.inter.length === 0, o0.inter.join(' | '));
+        const side0 = await page.evaluate(SIDE_RAIL_PROBE);
+        ok(`L4 ${eng}/${S.tag} ${P.label}·面板是右側欄`,
+          !side0.err && side0.leftFreeRatio >= 0.4 && side0.heightRatio >= 0.6 && side0.rightAnchored, JSON.stringify(side0));
+        await page.evaluate(() => { soloPanel(null); updateSheetOpenClass(); });
+        const back = await page.evaluate(PICK_FOLLOW);
+        ok(`L0 ${eng}/${S.tag} ${P.label}·測完接回跟隨`, !!back, back ? `車次 ${back}` : '接不回來→後面每一項都會沒車可量');
+        await page.waitForTimeout(500);
+        continue;
+      }
+      coveredTrain++;
 
       const t = await page.evaluate(TRAIN_PROBE);
       ok(`L1 ${eng}/${S.tag} ${P.label}·列車看得見`, t.onMap === true, JSON.stringify(t));
@@ -241,16 +319,7 @@ async function landscapeSuite(browser, eng) {
 
       // L4：橫式的面板必須是「右側欄」——讓出左半給地圖、且撐到接近滿高。
       // 寫成關係（讓出多少、佔多高）而不是 width:360px，公式改了判準才不會一起瞎。
-      const side = await page.evaluate(() => {
-        const el = activeSheetEl(); if (!el || el.hidden) return { err: 'no-sheet' };
-        const r = el.getBoundingClientRect(), mc = map.getContainer().getBoundingClientRect();
-        return {
-          id: el.id,
-          leftFreeRatio: +((r.left - mc.left) / mc.width).toFixed(3), // 左邊留給地圖的比例
-          heightRatio: +(r.height / mc.height).toFixed(3),
-          rightAnchored: Math.abs(mc.right - r.right) < 24,
-        };
-      });
+      const side = await page.evaluate(SIDE_RAIL_PROBE);
       ok(`L4 ${eng}/${S.tag} ${P.label}·面板是右側欄`,
         !side.err && side.leftFreeRatio >= 0.4 && side.heightRatio >= 0.6 && side.rightAnchored,
         JSON.stringify(side));
@@ -258,7 +327,39 @@ async function landscapeSuite(browser, eng) {
       await page.evaluate(() => { soloPanel(null); updateSheetOpenClass(); });
       await page.waitForTimeout(250);
     }
-    ok(`L9 ${eng}/${S.tag} 面板覆蓋率`, covered === PANELS.length, `${covered}/${PANELS.length} 真的被測到`);
+    // 兩個分母分開具名：形態這組每一顆都要驗到；列車那組只對「不會清掉跟隨」的面板成立。
+    // 合成一個分母的話，只要有人把某顆面板改成會清跟隨，列車判準就會無聲少掉一顆而畫面照樣全綠。
+    const trainable = PANELS.filter(p => !p.clearsFollow).length;
+    ok(`L9 ${eng}/${S.tag} 面板形態覆蓋率`, coveredForm === PANELS.length, `${coveredForm}/${PANELS.length} 真的被開起來量過`);
+    ok(`L9 ${eng}/${S.tag} 列車判準覆蓋率`, coveredTrain === trainable, `${coveredTrain}/${trainable}（附近車站依設計會清跟隨，不計入）`);
+
+    // L11：tab bar 五顆逐一真觸控（心得 37b/c）。舊判準只對 tab bar **正中央**做一次命中測試，
+    // 實測命中的是「最愛」那顆 ⇒ 對「其中一顆死掉」零鑑別力：把第一顆設成 pointer-events:none，
+    // 舊分母下 374/374 全綠，實際上搜尋分頁再也點不開。這裡逐顆 tap 並斷言它真的做了該做的事。
+    await page.evaluate(() => { soloPanel(null); if (document.body.classList.contains('tools-open')) document.getElementById('moreClose').click(); updateSheetOpenClass(); });
+    await page.waitForTimeout(250);
+    const TABS = [
+      { id: 'tabSearch', want: 'searchPanel', label: '搜尋' },
+      { id: 'tabExplore', want: 'explorePanel', label: '亮點' },
+      { id: 'tabFav', want: 'favPanel', label: '最愛' },
+      { id: 'tabRide', want: 'ridePanel', label: '護照' },
+      { id: 'tabMore', want: null, label: '更多' },
+    ];
+    let tabHit = 0;
+    for (const T of TABS) {
+      let tapped = true;
+      try { await page.tap('#' + T.id, { timeout: 3000 }); } catch (e) { tapped = false; }
+      await page.waitForTimeout(450);
+      const acted = await page.evaluate(w => w ? !document.getElementById(w).hidden : document.body.classList.contains('tools-open'), T.want);
+      ok(`L11 ${eng}/${S.tag} tab「${T.label}」真觸控有反應`, tapped && acted, `tap=${tapped} 開了=${acted}`);
+      if (tapped && acted) tabHit++;
+      await page.evaluate(() => { soloPanel(null); if (document.body.classList.contains('tools-open')) document.getElementById('moreClose').click(); updateSheetOpenClass(); });
+      await page.waitForTimeout(200);
+    }
+    ok(`L9 ${eng}/${S.tag} tab bar 覆蓋率`, tabHit === TABS.length, `${tabHit}/${TABS.length} 逐顆真觸控驗過`);
+    const refollow = await page.evaluate(PICK_FOLLOW);
+    ok(`L0 ${eng}/${S.tag} tab 測完接回跟隨`, !!refollow, refollow ? `車次 ${refollow}` : '接不回來');
+    await page.waitForTimeout(500);
 
     // L2b：整寬／右錨的浮層會鑽到側欄底下——這是結構性的一族，不能只驗「剛好出現的那一個」。
     // 驗收第一版就是碰運氣抓到 #dwellPlate（剛好有車停靠），換個時間點就照不到（分母靠運氣＝沒有分母）。
@@ -290,6 +391,36 @@ async function landscapeSuite(browser, eng) {
       clash.map(c => `${c.name}疊${c.ox}×${c.oy}`).join(' ') || `逐一驗過 ${found.map(o => o.name).join('/')}`);
     ok(`L9 ${eng}/${S.tag} 整寬浮層覆蓋率`, found.length >= 5,
       `${found.length}/6 找得到並量到（缺的：${wideOverlays.filter(o => o.missing).map(o => o.name).join(',') || '無'}）`);
+
+    // L2c：列車正在停靠站（body.dwell-show）。這個狀態純粹看跑的當下有沒有車在停站，
+    // 靠運氣量不到——第一版就是這樣間歇性地紅過一次然後又自己消失（分母靠運氣＝沒有分母）。
+    // 判準寫使用者看得到的性質：「站名牌與跟隨小卡不會同時搶同一塊畫面」。
+    // 實現方式有兩種都可以（既有做法是讓小卡淡出，另一種是排開到不相交），所以判準不綁實現，
+    // 但也因此不能只驗其中一種——先問淡了沒，沒淡就必須真的不相交。
+    // （這條判準立起來的當天就打臉了一個「前提已失效」的假設：我一度以為側欄形態下兩者不再相交
+    //   而加了豁免，852×393 實測仍疊 176×12px。判準比推論可靠。）
+    const dwell = await page.evaluate(() => {
+      const dp = document.getElementById('dwellPlate'), fp = document.getElementById('followPanel');
+      if (!fp || fp.hidden) return { err: 'no-follow-panel' };
+      const prevHidden = dp.hidden, prevVis = dp.style.visibility, prevHtml = dp.innerHTML;
+      dp.hidden = false; dp.style.visibility = 'hidden'; // 量幾何不改畫面
+      if (!dp.textContent.trim()) dp.textContent = '停靠中 臺北'; // 空的話 rect 會是 0，相交判準就沒牙
+      document.body.classList.add('dwell-show');
+      let eff = 1; for (let e = fp; e && e !== document.documentElement; e = e.parentElement) eff *= parseFloat(getComputedStyle(e).opacity) || 0;
+      const a = fp.getBoundingClientRect(), b = dp.getBoundingClientRect();
+      const ox = Math.min(a.right, b.right) - Math.max(a.left, b.left);
+      const oy = Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top);
+      const out = { eff: +eff.toFixed(2), pe: getComputedStyle(fp).pointerEvents,
+        plate: [Math.round(b.x), Math.round(b.y), Math.round(b.width), Math.round(b.height)],
+        overlap: ox > 2 && oy > 2, ox: Math.round(ox), oy: Math.round(oy) };
+      document.body.classList.remove('dwell-show');
+      dp.hidden = prevHidden; dp.style.visibility = prevVis; dp.innerHTML = prevHtml;
+      return out;
+    });
+    const faded = !dwell.err && (dwell.eff < 0.05 || dwell.pe === 'none');
+    ok(`L2c ${eng}/${S.tag} 停靠中·站名牌與跟隨小卡不互搶畫面`,
+      !dwell.err && (faded || dwell.overlap === false),
+      `走「${faded ? '小卡淡出讓位' : '排開到不相交'}」 ${JSON.stringify(dwell)}`);
     await page.evaluate(() => { soloPanel(null); updateSheetOpenClass(); });
     await page.waitForTimeout(250);
 
@@ -338,7 +469,7 @@ async function portraitSuite(browser, eng) {
     const { ctx, page } = b;
     ok(`L5 ${eng}/${S.tag} 直向仍走手機殼`, await page.evaluate(() => document.body.classList.contains('fs')), '');
     for (const P of [PANELS[0], PANELS[2]]) {
-      await page.evaluate(fn => window[fn](), P.fn);
+      await openPanel(page, P);
       await page.waitForTimeout(650);
       const t = await page.evaluate(TRAIN_PROBE);
       // 🔴 條件式判準（心得 34：把期望值改成實測值之前，先做能分辨的實驗）。
@@ -393,6 +524,154 @@ async function portraitSuite(browser, eng) {
 }
 
 // ─────────────────────────────────────────────────────────────
+// L10：轉向（直↔橫）之後的形態對帳
+//
+// 🔴 這組是獨立驗收（2026-08-11，未參與實作的 agent）抓到的真缺陷所立的判準。
+//    症狀：在直向把面板拉到大段（`trainmap-sheet-size` 是**跨 session 持久化的偏好**，
+//    使用者按一下就會留著）之後轉成橫向，`body.sheet-full` 沒有被重算。側欄形態下面板只佔 40% 寬，
+//    但 sheet-full 那組規則照樣把整條頂列、站名牌、隨機跟隨鈕、時鐘徽章、跟隨小卡淡出並關掉指標事件
+//    ⇒ 地圖上方一片空白、分組頁籤真的點不到（雙引擎 page.tap 逾時）。
+//    根因：resize 監聽只在跨越手機殼斷點時做事，從不重跑 updateSheetOpenClass()——
+//    而 sheetHasSizeSteps() 依 sheetIsSideRail()，也就是「轉向」正好會讓它的前提整組翻面。
+// 🔴 判準寫「使用者做得到什麼」不寫 class 名：既驗 body.sheet-full 這個直接原因，
+//    也驗它的可見後果（常駐控件的有效 opacity／指標事件／真觸控），兩層都在才抓得住換一種寫法的回歸。
+// 🔴 大段是實驗組、中段是控制組：修好前中段本來就該全綠（沒有 sheet-full），
+//    兩組都紅代表判準抓到的是別的東西（心得 35b：沒有控制組就不知道紅的是不是自己以為的那件事）。
+// ─────────────────────────────────────────────────────────────
+// 🔴 選擇器要選到「手機殼裡的那一顆」：`.grouptabs` 全頁有兩組（桌面 header 一組、手機 topbar 一組，
+//    共 8 顆 gtab），手機殼下桌面那組的 rect 是 0×0。第一版判準選到桌面那顆，於是對「頂列被淡出」
+//    這件事完全沒有牙（它根本不在 .topbar 裡、不吃 sheet-full 規則），還讓 tap 永遠逾時。
+const CHROME_SEL = [['分組頁籤', '.topbar .grouptabs'], ['站名牌', '.tb-plate'], ['隨機跟隨', '#randBtn'], ['時鐘', '#clock'], ['跟隨小卡', '#followPanel']];
+const GTAB_SEL = '.topbar .grouptabs .gtab';
+const CHROME_PROBE = () => {
+  const eff = el => { let o = 1; for (let e = el; e && e !== document.documentElement; e = e.parentElement) o *= parseFloat(getComputedStyle(e).opacity) || 0; return o; };
+  const out = { __sheetFull: document.body.classList.contains('sheet-full') };
+  for (const [name, sel] of [['分組頁籤', '.topbar .grouptabs'], ['站名牌', '.tb-plate'], ['隨機跟隨', '#randBtn'], ['時鐘', '#clock'], ['跟隨小卡', '#followPanel']]) {
+    const el = document.querySelector(sel);
+    if (!el || el.hidden || getComputedStyle(el).display === 'none') { out[name] = null; continue; }
+    out[name] = { eff: +eff(el).toFixed(3), pe: getComputedStyle(el).pointerEvents };
+  }
+  const el = activeSheetEl();
+  if (el && !el.hidden) {
+    let eo = 1; for (let e = el; e && e !== document.documentElement; e = e.parentElement) eo *= parseFloat(getComputedStyle(e).opacity) || 0;
+    const bg = getComputedStyle(el).backgroundColor, m = bg.match(/rgba?\(([^)]+)\)/);
+    const parts = m ? m[1].split(',').map(s => parseFloat(s)) : [];
+    out.__panel = { id: el.id, eff: +eo.toFixed(3), alpha: parts.length >= 4 ? parts[3] : 1,
+      wRatio: +(el.getBoundingClientRect().width / innerWidth).toFixed(2) };
+  } else out.__panel = null;
+  return out;
+};
+// 🔴 相對判準：拿「同一次執行的直向乾淨態」當基準，只問「有沒有比原本更差」。
+//    絕對判準（pe !== 'none'）會誤判——`#clock` 是徽章不是按鈕，它的 pointer-events 本來就是 none
+//    （讓點擊穿透到地圖），寫死 pe 要求會把既有設計判成缺陷（心得 34：紅有三種互斥原因，
+//    這是「判準過期」偽裝成「產品回歸」）。退化的定義只有兩種：本來看得到的變淡了、本來點得到的變不能點。
+const degraded = (base, now) => CHROME_SEL.map(([k]) => [k, base[k], now[k]])
+  .filter(([, b, n]) => b && (!n || n.eff < b.eff - 0.01 || (b.pe !== 'none' && n.pe === 'none')))
+  .map(([k, b, n]) => n ? `${k}(opacity ${b.eff}→${n.eff}／pe ${b.pe}→${n.pe})` : `${k}(整個不見了)`);
+
+async function rotationSuite(browser, eng) {
+  // 🔴 基準必須是「同一個形態下的常態」＝橫式側欄開著面板時，本來就該看得到／點得到什麼。
+  //    不能拿直向的任何狀態當基準：直向底部 sheet 蓋住下半，跟隨小卡讓位淡出是**設計**，
+  //    拿它比會把正常行為算成退化；而 large 的直向態自己就是淡出的，拿它當基準又會把 F1 一起放行。
+  //    也不能在受測頁面上「關掉面板再開」來取基準——那等於替它跑了一次 updateSheetOpenClass，
+  //    正好把要測的殘留洗掉（基準的取得方式不得干擾受測狀態，心得 29 的同族）。
+  let railBase = null;
+  {
+    const lb = await boot(browser, { w: 852, h: 393, tag: '橫式常態基準' });
+    if (lb) {
+      await lb.page.tap('#tabExplore');
+      await lb.page.waitForTimeout(750);
+      railBase = await lb.page.evaluate(CHROME_PROBE);
+      ok(`L10 ${eng} 橫式常態基準·面板開著且不掛 sheet-full`, !!railBase.__panel && railBase.__sheetFull === false, JSON.stringify({ full: railBase.__sheetFull, panel: railBase.__panel }));
+      await lb.ctx.close();
+    } else ok(`L10 ${eng} 橫式常態基準`, false, '深夜無台鐵車＝環境條件');
+  }
+  for (const sz of ['large', 'medium']) {
+    const b = await boot(browser, { w: 393, h: 852, tag: `直→橫(${sz})` }, { sheetSize: sz });
+    if (!b) { ok(`L10 ${eng}/${sz} 取得行駛中列車`, false, '深夜無台鐵車＝環境條件'); continue; }
+    const { ctx, page } = b;
+    // 全程走使用者做得到的動作：點 tab bar 開面板，然後轉向。不碰任何內部 API。
+    await page.tap('#tabExplore');
+    await page.waitForTimeout(750);
+    const pre = await page.evaluate(CHROME_PROBE);
+    ok(`L10 ${eng}/${sz} 直向前置·面板開著且段高是 ${sz}`,
+      !!pre.__panel && pre.__sheetFull === (sz === 'large'), JSON.stringify({ full: pre.__sheetFull, panel: pre.__panel }));
+
+    await page.setViewportSize({ width: 852, height: 393 });
+    await page.waitForTimeout(900);
+    const post = await page.evaluate(CHROME_PROBE);
+    ok(`L10 ${eng}/${sz} 轉橫後不再掛 body.sheet-full`, post.__sheetFull === false, JSON.stringify({ full: post.__sheetFull, panel: post.__panel }));
+    ok(`L10 ${eng}/${sz} 轉橫後常駐控件沒有比橫式常態差`, !railBase || degraded(railBase, post).length === 0,
+      (railBase ? degraded(railBase, post).join(' ') : '無基準') || `對橫式常態逐一比過：${CHROME_SEL.map(s => s[0]).join('/')}`);
+
+    // 側欄可讀性：相對於同一顆面板在直向底部 sheet 形態的值（不寫死數字——
+    // 使用者明示的半透明契約走 background alpha .30，寫死 ≥0.95 會把那個契約判成缺陷）
+    ok(`L10 ${eng}/${sz} 側欄可讀性不低於直向形態`,
+      !!post.__panel && !!pre.__panel && post.__panel.eff >= pre.__panel.eff - 0.01 && post.__panel.alpha >= pre.__panel.alpha - 0.01,
+      JSON.stringify({ 直向: pre.__panel, 橫向: post.__panel }));
+
+    // 轉回直向：形態與段高偏好都要回來（單向修好、反向卡住也是缺陷）
+    await page.setViewportSize({ width: 393, height: 852 });
+    await page.waitForTimeout(900);
+    const back = await page.evaluate(() => {
+      const el = activeSheetEl(); if (!el || el.hidden) return { err: 'no-sheet' };
+      const r = el.getBoundingClientRect(), mc = map.getContainer().getBoundingClientRect();
+      return { id: el.id, wRatio: +(r.width / mc.width).toFixed(2), bottomAnchored: Math.abs(mc.bottom - r.bottom) < 120,
+        size: el.classList.contains('expand') ? 'large' : el.classList.contains('sheet-small') ? 'small' : 'medium' };
+    });
+    ok(`L10 ${eng}/${sz} 轉回直向·回到底部 sheet 且段高偏好還在`,
+      !back.err && back.wRatio > 0.85 && back.bottomAnchored && back.size === sz, JSON.stringify(back));
+
+    // 真觸控收尾（換組會關掉面板，所以放在所有形態斷言之後）：分組頁籤按下去要真的換組。
+    // 心得 37a：命中測試對祖先容器恆真，答不了「做得到嗎」——只有真的按一次並看它改變狀態才算數。
+    await page.setViewportSize({ width: 852, height: 393 });
+    await page.waitForTimeout(900);
+    let tapped = true, switched = false;
+    try {
+      const idx = await page.evaluate(sel => [...document.querySelectorAll(sel)].findIndex(g => !g.classList.contains('active')), GTAB_SEL);
+      if (idx < 0) tapped = false;
+      else {
+        await page.tap(`${GTAB_SEL} >> nth=${idx}`, { timeout: 3000 });
+        await page.waitForTimeout(500);
+        switched = await page.evaluate(([sel, i]) => [...document.querySelectorAll(sel)][i].classList.contains('active'), [GTAB_SEL, idx]);
+      }
+    } catch (e) { tapped = false; }
+    ok(`L10 ${eng}/${sz} 來回轉兩次後分組頁籤真的按得動`, tapped && switched, `tap=${tapped} 換組了=${switched}`);
+    await ctx.close();
+  }
+
+  // L10b：讓位軸向的對帳。跟車／放空每幀都會重新取景所以會自癒，**沒在跟車**時才看得到——
+  // 轉向後讓位軸從垂直換成水平，若沒有重跑一次差量記帳，鏡頭會停在舊的垂直位移上。
+  // 🔴 真值取「固定地理點實際渲染在哪」，不問實作自己的帳本 state._focusShift（心得 29：判準不得與實作同源）。
+  const b2 = await boot(browser, { w: 393, h: 852, tag: '轉向讓位對帳' }, { follow: false });
+  const { ctx: c2, page: p2 } = b2;
+  const ANCHOR = [24.5, 121.0]; // 台灣中部：zoom 9 下四周都還在 maxBounds 內，不會被夾（缺陷 D 的干擾排除）
+  await p2.evaluate(a => { state._autoPan = true; map.setView(a, 9, { animate: false }); state._autoPan = false; }, ANCHOR);
+  await p2.waitForTimeout(400);
+  const OFFSET = a => {
+    const cp = map.latLngToContainerPoint(a), mc = map.getContainer().getBoundingClientRect();
+    const i = mapInsets();
+    return { offX: +(cp.x - mc.width / 2).toFixed(0), offY: +(cp.y - mc.height / 2).toFixed(0),
+      wantX: +((i.right - i.left) / 2).toFixed(0), wantY: +((i.bottom - i.top) / 2).toFixed(0) };
+  };
+  const o0 = await p2.evaluate(OFFSET, ANCHOR);
+  ok(`L10b ${eng} 起手·錨點在容器正中央`, Math.abs(o0.offX) <= 4 && Math.abs(o0.offY) <= 4, JSON.stringify(o0));
+  await p2.tap('#tabExplore');
+  await p2.waitForTimeout(800);
+  const o1 = await p2.evaluate(OFFSET, ANCHOR);
+  ok(`L10b ${eng} 直向開面板·鏡頭往上讓（錨點下移量 = 想讓的量）`,
+    o1.wantY > 40 && Math.abs(-o1.offY - o1.wantY) <= 8, JSON.stringify(o1));
+  await p2.setViewportSize({ width: 852, height: 393 });
+  await p2.waitForTimeout(900);
+  const o2 = await p2.evaluate(OFFSET, ANCHOR);
+  // 轉橫後：讓位改成水平（錨點左移 wantX），垂直那份必須被退掉（offY 回到 0）
+  ok(`L10b ${eng} 轉橫後·讓位軸真的從垂直換成水平`,
+    o2.wantX > 40 && o2.wantY === 0 && Math.abs(-o2.offX - o2.wantX) <= 8 && Math.abs(o2.offY) <= 8,
+    JSON.stringify(o2));
+  await c2.close();
+}
+
+// ─────────────────────────────────────────────────────────────
 // L6／L7：iPad 橫向與桌面「對改動前逐值零變化」
 // 心得 31：比幾何前把即時狀態旗標釘死（班次數文字、LIVE 徽章、尖峰徽章都會改寬度）
 // ─────────────────────────────────────────────────────────────
@@ -440,6 +719,7 @@ if (QUICK) { LANDSCAPE.splice(0, LANDSCAPE.length, { w: 852, h: 393, tag: '16橫
 for (const [eng, B] of (QUICK ? [['chromium', chromium]] : [['chromium', chromium], ['webkit', webkit]])) {
   const browser = await B.launch();
   await landscapeSuite(browser, eng);
+  await rotationSuite(browser, eng); // QUICK 也跑：這組是獨立驗收抓到的真缺陷，突變測試一定要涵蓋
   if (!QUICK) { await portraitSuite(browser, eng); await zeroRegressionSuite(browser, eng); }
   await browser.close();
 }
