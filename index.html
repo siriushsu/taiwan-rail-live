@@ -3588,7 +3588,7 @@
         <li><span class="d">7/13</span><span>收集章可以重複點，換搭不同班次回味</span></li>
         <li><span class="d">7/9</span><span>旅程護照與 16 枚成就徽章、「探」今日亮點面板上線</span></li>
         <li class="grp">手機與操作</li>
-        <li data-cl="landscape"><span class="d">8/11</span><span>手機橫著拿也能用了（謝謝網友回報）：原本橫放時跟車，列車會被下方的資訊面板整個蓋住，跟車小卡還會壓到上面的分頁列；Pro Max 這類寬螢幕機型橫放更是連地圖都只剩一條、車根本不在畫面裡。現在橫放時各種面板改成靠右的側邊欄，地圖留在左半邊，跟著的列車一直在看得到的地方</span></li>
+        <li data-cl="landscape"><span class="d">8/11</span><span>手機橫著拿也能用了（謝謝網友回報）：原本橫放時跟車，列車會被下方的資訊面板整個蓋住，跟車小卡還會壓到上面的分頁列；Pro Max 這類寬螢幕機型橫放更是連地圖都只剩一條、車根本不在畫面裡。現在橫放時各種面板改成靠右的側邊欄，地圖留在左半邊，跟著的列車一直在看得到的地方。順手也修好了「開著面板時全台視角會偏到面板底下」——不管橫放直放，台灣都會置中在露出來的那半邊地圖上</span></li>
         <li data-cl="widgetdestination"><span class="d">8/8</span><span>iPhone「發車看板」小工具，起站選「共站」或「我的地點」後點「目的站」，原本閃退、後來變成一點就關掉；下次 App 更新後會照常列出車站，選了不影響看板，留空也行</span></li>
         <li data-cl="widgetdestination3"><span class="d">8/6</span><span>iPhone 主畫面的「發車看板」小工具，目的站選單有時只會短暫顯示「載入中」便自動收起。原因是 iOS 開啟選單時可能稍晚才把已選起站交給小工具，或共享班表正好還在換版；現在這兩種空窗都會先列出內建的完整車站清單，資料齊全後仍會照起站只顯示有直達列車的車站</span></li>
         <li data-cl="widgetdestination2"><span class="d">8/6</span><span>iPhone 主畫面的「發車看板」小工具，App 剛更新、共享車站資料還在背景準備時，點「起站」就可能讓設定畫面直接退出；現在起站與目的站都有一份內建的輕量車站清單可立即使用，完整班表完成後會自動接手，目的站仍會照起站只列出有直達列車的車站</span></li>
@@ -18105,6 +18105,26 @@ async function boot() {
     if (state._fenceOn) map.setMaxBounds(state._panFence); // 平移硬牆=活動範圍(硬牆恆開,見 syncPanFence)
   }
   state._applyTaiwanFloor = applyTaiwanFloor; // 頂層 loadAllGroup 擷取真實開場 zoom 後,回呼此閉包函式校正地板
+  // 🔴 maxBounds 的語意是「使用者**看得到**的範圍不要跑出台灣」。Leaflet 原生拿「整個容器」當可視框去夾,
+  //    於是被面板遮住的那塊(直向的底部 sheet、橫式的右側欄)也被要求塞進框內——結果把台灣釘死在
+  //    容器正中央,而容器正中央正好在面板底下。全島視角時視窗又比框大 ⇒ 相機一格都不能平移,
+  //    讓位機制(mapInsets→focusCenter→reframeFocus)想推也推不動。
+  //    使用者 2026-08-11 親自指出:橫放開著面板時台灣整個偏右貼著側欄;375 寬直向也是同一個根。
+  //    修法＝把夾限用的可視框換成「露出來的那塊」,Leaflet 自己的 _rebound 在框比可視區大時會取中點,
+  //    於是台灣自動置中於露出區。無面板時(insets 全 0)原封走原生路徑,桌面與乾淨態逐值不變。
+  const _limitCenterOrig = map._limitCenter;
+  map._limitCenter = function (center, zoom, bounds) {
+    if (!bounds) return center;
+    // Leaflet 升級若拿掉這兩個私有 API,不要靜默退化——留下旗標讓驗收抓得到(見 verify_landscape L12)
+    if (typeof this._getBoundsOffset !== 'function') { state._limitCenterDegraded = true; return _limitCenterOrig.call(this, center, zoom, bounds); }
+    let i; try { i = mapInsets(); } catch (e) { i = null; }
+    if (!i || (!i.top && !i.bottom && !i.left && !i.right)) return _limitCenterOrig.call(this, center, zoom, bounds);
+    const c = this.project(center, zoom), h = this.getSize().divideBy(2);
+    const vb = new L.Bounds(c.subtract(h).add(L.point(i.left, i.top)), c.add(h).subtract(L.point(i.right, i.bottom)));
+    const off = this._getBoundsOffset(vb, bounds, zoom);
+    if (Math.abs(off.x) <= 1 && Math.abs(off.y) <= 1) return center;
+    return this.unproject(c.add(off), zoom);
+  };
   map.options.maxBoundsViscosity = 1.0;  // 硬牆:拖不出活動範圍邊界(但範圍已放大,日常平移不會頂到)
   state._fenceOn = true;
   applyTaiwanFloor();                     // 一次算好 minZoom 地板＋平移硬牆(活動範圍)

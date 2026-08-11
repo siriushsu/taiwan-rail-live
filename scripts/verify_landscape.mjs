@@ -6,6 +6,9 @@
 //   B 寬 >900 的 Pro Max 橫放掉出手機殼判定 → 走桌面長頁版面 → 列車真的在視窗外
 //   C 跟隨小卡的「往上讓 46%」在矮視窗把卡推到頂端 → 壓住分頁列與時鐘徽章
 //   D 讓位位移被 maxBounds 夾限吃掉（375 寬直向 zoom 6 實測 ΔLat 4.82°，相機一步都沒動）
+//     → 使用者 08-11 親自指認的「台灣沒有置中」就是 D 的可見形態：Leaflet 拿**整個容器**當可視框
+//       去夾 maxBounds，於是把台灣釘在容器正中央，而容器正中央正好在面板底下。修法＝夾限改用
+//       「露出來的那塊」（index.html 的 map._limitCenter 覆寫），無面板時原封走原生路徑。
 //
 // 🔴 判準刻意寫「行為」不寫「幾 px」（judgment 心得 35）：
 //    「列車看得到」＝ elementFromPoint 命中地圖容器的子孫，不是「shift 等於某個數字」；
@@ -27,7 +30,8 @@
 //   側欄整組 opacity:.35          → 地圖透出來、字讀不了，而 rect 完全沒變（L4b／L10 可讀性）
 //   resize 不重跑 updateSheetOpenClass → 直向大段轉橫後頂列點不到、讓位軸不對帳（L10／L10b）
 //   停靠時小卡不淡出              → 852×393 實測與站名牌疊 176×12px（L2c）
-// 控制組（只加一行註解）必須 116/116 全綠——沒有控制組就不知道紅的是不是自己以為的那件事。
+//   拿掉 _limitCenter 覆寫        → 台灣被夾回容器中央：橫式偏 174px、直向偏 195.8px（L12）
+// 控制組（只加一行註解）必須全綠——沒有控制組就不知道紅的是不是自己以為的那件事。
 import { chromium, webkit } from 'playwright';
 import { createServer } from 'node:http';
 import { readFileSync, existsSync, statSync } from 'node:fs';
@@ -217,6 +221,19 @@ const OVERLAP_PROBE = (SELS) => {
   return { inter, off, names: items.map(i => i.n) };
 };
 
+// 相交掃描要量「穩定態」：`.dwell-plate` 用 opacity + **0.45s transition** 淡出，而 `dwell-show`
+// 旗標是瞬間移除的 ⇒ 列車離站那半秒，站名牌還在淡出、跟隨小卡已經淡回來，橫式的矮視窗裡兩者
+// 幾何上真的會交疊（實測 176×30）。那是交叉淡入淡出的過場，不是版面缺陷。
+// 但也不能直接放寬判準——所以做法是：發現相交就等**超過最長 transition**再量一次，以第二次為準。
+// 真缺陷等再久也還在（這個等待對它零影響），只有轉場中的假陽性會消失。
+async function settledOverlap(page) {
+  const first = await page.evaluate(OVERLAP_PROBE, OVERLAY_SEL);
+  if (!first.inter.length && !first.off.length) return { ...first, reMeasured: false };
+  await page.waitForTimeout(600); // > .45s（.dwell-plate 的 opacity transition）
+  const second = await page.evaluate(OVERLAP_PROBE, OVERLAY_SEL);
+  return { ...second, reMeasured: true };
+}
+
 // ─────────────────────────────────────────────────────────────
 // L1／L2／L4：橫式跟車 × 逐一開面板
 // ─────────────────────────────────────────────────────────────
@@ -269,7 +286,7 @@ async function landscapeSuite(browser, eng) {
       if (P.clearsFollow) {
         // 依設計：開附近車站會清掉跟隨（openNearbyStations 內的互斥入口）。
         // 這類面板的形態／相交／可讀性照驗，列車那組判準不適用——但分母要分開具名，不能混在一起蓋掉。
-        const o0 = await page.evaluate(OVERLAP_PROBE, OVERLAY_SEL);
+        const o0 = await settledOverlap(page);
         ok(`L2 ${eng}/${S.tag} ${P.label}·浮層不相交`, o0.inter.length === 0, o0.inter.join(' | '));
         const side0 = await page.evaluate(SIDE_RAIL_PROBE);
         ok(`L4 ${eng}/${S.tag} ${P.label}·面板是右側欄`,
@@ -313,8 +330,8 @@ async function landscapeSuite(browser, eng) {
       ok(`L1b ${eng}/${S.tag} ${P.label}·放大後列車在露出區正中央`,
         !centered.err && centered.offX <= 24 && centered.offY <= 24, JSON.stringify(centered));
 
-      const o = await page.evaluate(OVERLAP_PROBE, OVERLAY_SEL);
-      ok(`L2 ${eng}/${S.tag} ${P.label}·浮層不相交`, o.inter.length === 0, o.inter.join(' | '));
+      const o = await settledOverlap(page);
+      ok(`L2 ${eng}/${S.tag} ${P.label}·浮層不相交`, o.inter.length === 0, o.inter.join(' | ') + (o.reMeasured ? '（已等轉場穩定後重量）' : ''));
       ok(`L2 ${eng}/${S.tag} ${P.label}·浮層不出視窗`, o.off.length === 0, o.off.join(' '));
 
       // L4：橫式的面板必須是「右側欄」——讓出左半給地圖、且撐到接近滿高。
@@ -434,7 +451,7 @@ async function landscapeSuite(browser, eng) {
       await page.waitForTimeout(650);
       const t = await page.evaluate(TRAIN_PROBE);
       ok(`L1 ${eng}/${S.tag} 列車sheet·列車看得見`, t.onMap === true, JSON.stringify(t));
-      const o = await page.evaluate(OVERLAP_PROBE, OVERLAY_SEL);
+      const o = await settledOverlap(page);
       ok(`L2 ${eng}/${S.tag} 列車sheet·浮層不相交`, o.inter.length === 0, o.inter.join(' | '));
     } else ok(`L1 ${eng}/${S.tag} 列車sheet·開得起來`, false, tcOpen);
 
@@ -473,12 +490,12 @@ async function portraitSuite(browser, eng) {
       await page.waitForTimeout(650);
       const t = await page.evaluate(TRAIN_PROBE);
       // 🔴 條件式判準（心得 34：把期望值改成實測值之前，先做能分辨的實驗）。
-      // 375 寬直向開機取到 zoom 6，那個尺度下 812px 的視窗在緯度上已經跟整個 maxBounds 一樣高
-      // ⇒ Leaflet 的 _limitCenter 把中心釘死，**地圖在垂直方向一格都動不了**，讓位在物理上不可能達成。
-      // 那不是回歸也不是判準過期，是「這個縮放下做不到」的環境條件（缺陷 D，需要獨立決策：
-      // 改開機縮放？開面板時改成重新框景而不是平移？兩者都會動到全站行為，不在本批次範圍）。
-      // 所以判準寫成：**能讓位的就必須看得見；讓不動的，至少帳面要等於實況**（帳實不符會讓
-      // 後續所有差量記帳一起歪掉，那才是會擴散的傷害）。
+      // 原本 375 寬直向開機取到 zoom 6，812px 的視窗在緯度上比整個 maxBounds 還高
+      // ⇒ Leaflet 的 _limitCenter 把中心釘死、讓位在物理上做不到（曾標為「缺陷 D」）。
+      // 2026-08-11 已從語意層修掉：夾限的可視框改成「露出來的那塊」而不是整個容器，
+      // 於是 812px 的視窗被面板遮掉一半之後，剩下的 400px 遠小於 maxBounds ⇒ 又能自由平移了。
+      // clamped 分支因此**應該恆為 0**，但刻意保留：它是「夾死又回來了」的哨兵，
+      // 真的走進去時至少要保證帳面等於實況（帳實不符會讓後續所有差量記帳一起歪掉）。
       // 🔴 這個探針**必須量渲染出來的幾何**，不能問實作自己的帳本（state._focusShift），
       //    也不能從「已經讓位過的中心」再推一次——第一版就是那樣寫的，於是 393×852／414×896
       //    這些本來讓位成功的尺寸被判成「不可行」而跳過主判準，300/300 裡混了假綠（分母無聲縮水）。
@@ -518,9 +535,10 @@ async function portraitSuite(browser, eng) {
     }
     await ctx.close();
   }
-  // 375 寬那顆（缺陷 D）走 clamped、其餘兩顆必須走主判準；分佈一變就是有東西悄悄跳過主判準了
-  ok(`L9 ${eng} 直向條件式判準的分支分佈`, branchCount.visible === 4 && branchCount.clamped === 2,
-    `列車看得見=${branchCount.visible}（期望 4：393/414 各兩個面板）、maxBounds夾死=${branchCount.clamped}（期望 2：375 兩個面板）`);
+  // 三個尺寸 × 兩個面板全部都要走主判準；clamped 是「夾死回來了」的哨兵，走進去就是回歸。
+  // （這條斷言本身就是缺陷 D 修好的證據：修之前 375 那兩個必然落在 clamped。）
+  ok(`L9 ${eng} 直向條件式判準的分支分佈`, branchCount.visible === 6 && branchCount.clamped === 0,
+    `列車看得見=${branchCount.visible}（期望 6：375/393/414 各兩個面板）、maxBounds夾死=${branchCount.clamped}（期望 0）`);
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -672,6 +690,69 @@ async function rotationSuite(browser, eng) {
 }
 
 // ─────────────────────────────────────────────────────────────
+// L12：全島視角下，台灣要置中於「露出來的那塊地圖」
+//
+// 🔴 使用者 2026-08-11 親自指出：橫放開著面板時，台灣整個偏右貼著側欄。
+//    根因＝maxBounds 的夾限用「整個容器」當可視範圍，於是被面板蓋住的那塊也被要求塞在框內，
+//    結果把台灣釘在容器正中央；而容器正中央在側欄底下。全島視角（開機 zoom）時視窗比
+//    maxBounds 還大 ⇒ 相機完全不能平移 ⇒ 讓位機制想推也推不動（就是原本標為「缺陷 D」的那個）。
+// 🔴 真值來源刻意不碰實作：maxBounds 是設定值（外部常數），露出區從**面板與容器的實際 rect**
+//    推出來（面板貼右且撐滿高＝側欄遮右，否則＝底部 sheet 遮下），完全不呼叫 mapInsets()／
+//    sheetIsSideRail()。判準與實作同源會一起瞎（心得 29）。
+// 🔴 不跟車：跟車時鏡頭跟著列車走，「台灣在哪」由列車決定，量了沒有意義。
+//    這一組量的是開機那個全島視角，也就是使用者截圖裡的那個狀態。
+// ─────────────────────────────────────────────────────────────
+// 🔴 相對判準：不問「台灣中心應該在哪個絕對座標」，只問「開面板前後，它在**看得到的那塊**裡的
+//    相對位置有沒有變」。這樣就不必為兩件事訂容差——(a) maxBounds 是平移硬牆不是台灣本身、
+//    (b) `getCenter()` 取的是經緯度中點，而 Mercator 下緯度中點不等於像素中點（實測 zoom6→7
+//    偏差 5→10px 剛好倍增＝固定的世界像素量，正是這個效應）。前後同一種量法，誤差自動抵銷。
+const CENTER_PROBE = () => {
+  const mb = map.options.maxBounds; if (!mb) return { err: 'no-maxbounds' };
+  const b = L.latLngBounds(mb), z = map.getZoom();
+  const p1 = map.project(b.getNorthWest(), z), p2 = map.project(b.getSouthEast(), z);
+  const cp = map.latLngToContainerPoint(map.unproject(L.point((p1.x + p2.x) / 2, (p1.y + p2.y) / 2), z));
+  const mc = map.getContainer().getBoundingClientRect();
+  const el = typeof activeSheetEl === 'function' ? activeSheetEl() : null;
+  let visMidX = mc.width / 2, visMidY = mc.height / 2, isRail = null;
+  if (el && !el.hidden) {
+    // 形態從 rect 推，不問實作：撐滿高又只佔窄幅一欄＝右側欄，其餘＝底部 sheet
+    const pr = el.getBoundingClientRect();
+    isRail = (pr.height / mc.height) > 0.6 && (pr.width / mc.width) < 0.6;
+    visMidX = isRail ? (pr.left - mc.left) / 2 : mc.width / 2;
+    visMidY = isRail ? mc.height / 2 : (pr.top - mc.top) / 2;
+  }
+  return { isRail, zoom: z, degraded: !!state._limitCenterDegraded,
+    dx: +(cp.x - visMidX).toFixed(1), dy: +(cp.y - visMidY).toFixed(1) };
+};
+async function centeringSuite(browser, eng) {
+  const SIZES = QUICK ? [{ w: 852, h: 393, tag: '16橫' }, { w: 375, h: 812, tag: '13mini直' }]
+    : [{ w: 667, h: 375, tag: 'SE3橫' }, { w: 852, h: 393, tag: '16橫' }, { w: 932, h: 430, tag: 'ProMax橫' },
+       { w: 375, h: 812, tag: '13mini直' }, { w: 393, h: 852, tag: '16直' }, { w: 414, h: 896, tag: '11直' }];
+  let rail = 0, sheet = 0;
+  for (const S of SIZES) {
+    const b = await boot(browser, S, { follow: false });
+    const { ctx, page } = b;
+    const before = await page.evaluate(CENTER_PROBE); // 無面板：露出區＝整個容器
+    await page.tap('#tabExplore');
+    await page.waitForTimeout(900);
+    const r = await page.evaluate(CENTER_PROBE);
+    // degraded 是「Leaflet 升級把私有 API 拿掉了」的旗標：那會讓夾限靜默退回原生行為、
+    // 缺陷悄悄回來。把它併進同一條斷言，退化就是紅，不會只剩一個沒人看的 detail。
+    const shiftX = r.dx - before.dx, shiftY = r.dy - before.dy;
+    ok(`L12 ${eng}/${S.tag} 全島視角·開面板前後台灣在可視區的位置不變`,
+      !r.err && !before.err && r.degraded === false && Math.abs(shiftX) <= 4 && Math.abs(shiftY) <= 4,
+      `位移 x${shiftX.toFixed(1)} y${shiftY.toFixed(1)}；無面板=${JSON.stringify(before)} 開面板=${JSON.stringify(r)}`);
+    if (!r.err) (r.isRail ? rail++ : sheet++);
+    await ctx.close();
+  }
+  // 形態分佈具名把關：橫的必須全走側欄、直的必須全走底部 sheet，
+  // 否則「兩種形態各驗過」是假的（心得 37d：條件式判準的分支分佈要有具名斷言）
+  const wantRail = SIZES.filter(s => s.w > s.h).length;
+  ok(`L9 ${eng} 置中判準的形態分佈`, rail === wantRail && sheet === SIZES.length - wantRail,
+    `側欄=${rail}（期望 ${wantRail}）、底部sheet=${sheet}（期望 ${SIZES.length - wantRail}）`);
+}
+
+// ─────────────────────────────────────────────────────────────
 // L6／L7：iPad 橫向與桌面「對改動前逐值零變化」
 // 心得 31：比幾何前把即時狀態旗標釘死（班次數文字、LIVE 徽章、尖峰徽章都會改寬度）
 // ─────────────────────────────────────────────────────────────
@@ -720,6 +801,7 @@ for (const [eng, B] of (QUICK ? [['chromium', chromium]] : [['chromium', chromiu
   const browser = await B.launch();
   await landscapeSuite(browser, eng);
   await rotationSuite(browser, eng); // QUICK 也跑：這組是獨立驗收抓到的真缺陷，突變測試一定要涵蓋
+  await centeringSuite(browser, eng); // QUICK 也跑：使用者親自指出的置中缺陷
   if (!QUICK) { await portraitSuite(browser, eng); await zeroRegressionSuite(browser, eng); }
   await browser.close();
 }
