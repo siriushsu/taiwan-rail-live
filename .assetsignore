@@ -18,6 +18,9 @@ r.json
 .cache
 # 逐節點診斷檔(內部除錯用,前端不讀)
 data/*_diag.json
+# 站間距稽核報告(561KB、20311 行的內部分析,前端不讀;產物是 data/tra_seg_cumdist.json,
+# 那份要留著公開——真接上位置推估時前端要讀得到)。2026-08-10 併入時補這條。
+data/seg_distance_audit.json
 wrangler.jsonc
 worker.js
 node_modules

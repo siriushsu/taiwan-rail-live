@@ -919,7 +919,7 @@
     margin-left: auto; background: none; border: 1px solid var(--line); border-radius: 6px;
     color: var(--faint); font-size: 10px; font-weight: 700; padding: 2px 6px; cursor: pointer; flex: none;
   }
-  .freq-card .fc-next { display: flex; align-items: baseline; gap: 8px; margin-top: 7px; }
+  .freq-card .fc-next { display: flex; align-items: baseline; gap: 8px; row-gap: 4px; flex-wrap: wrap; margin-top: 7px; }
   .freq-card .fc-next .lbl { font-size: 11px; color: var(--faint); font-weight: 800; letter-spacing: 2px; flex: none; }
   .freq-card .fc-next .stn { font-size: 16px; font-weight: 900; color: var(--ink-strong); letter-spacing: 1px; }
   .freq-card .fc-status { margin-top: 6px; font-size: 11px; color: var(--faint); font-weight: 600; }
@@ -966,7 +966,22 @@
     font-variant-numeric: tabular-nums;
   }
   .traincard .tc-st:hover { background: var(--bg-stage); }
-  .traincard .tc-st .n { flex: 1; }
+  .traincard .tc-st .n { flex: 1; min-width: 0; }
+  .traincard .tc-st > span:not(.n) { flex: none; }
+  /* 轉乘標。落點只有兩處:車站看板的站況區(回答「這站是什麼」),與跟隨/搭乘卡的下一站
+     (回答「要不要在這站下車換車」——唯一會改變行動的時刻)。v0810 之前掛在資訊卡的逐站停靠表每一列,
+     使用者回報「不顯眼、不知何時會需要用到」:轉乘是車站的屬性不是某班車某一站的屬性,
+     擺在那份桌面預設收合的清單裡等於同一件事重複四十次,埋兩層又是噪音。
+     兩張卡都很窄(跟隨 240px、捷運 220px,扣內距只剩 214/194),而路線名可以長到「轉 高鐵、西部幹線
+     （山線）、淡水信義線、機場捷運」——所以標**內部可換行**、外面的列也要 flex-wrap，讓它擠不下時
+     自己掉到下一行，而不是撐破卡片(v0810b 使用者截圖抓到捷運卡整條凸出去)。
+     刻意**不收成「+N」再靠點擊展開**：那等於把資訊藏在一個沒有回饋的紅框後面，
+     手機叫不出 title、使用者也試不出點下去會怎樣——正是「不知道何時會用到」的翻版。全列出來。 */
+  .xfer-tag {
+    flex: 0 1 auto; min-width: 0; max-width: 100%;
+    font-size: 11px; font-weight: 800; color: var(--red); white-space: normal; overflow-wrap: anywhere;
+    padding: 1px 5px; border: 1.5px solid var(--red); border-radius: 6px; line-height: 1.5;
+  }
   .traincard .tc-st.hd { font-weight: 800; color: var(--faint); border-top: 0; cursor: default; font-size: 11px; letter-spacing: 1px; }
   .traincard .tc-st.hd:hover { background: none; }
   .traincard .tc-st.past { opacity: .45; }
@@ -1744,6 +1759,8 @@
   .board .stnMeta { margin: 1px 0 8px; padding-bottom: 8px; border-bottom: 1.5px dashed var(--line-dash); }
   .board .stnMeta .addr { font-size: 12px; color: var(--muted); line-height: 1.5; }
   .board .stnMeta .feat { font-size: 12px; color: var(--muted); line-height: 1.5; margin-top: 3px; }
+  .board .stnMeta .xfer { font-size: 12px; color: var(--red); font-weight: 700; line-height: 1.5; margin-top: 3px; }
+  .board .stnMeta .xfer .k { color: var(--faint); font-weight: 800; letter-spacing: 1px; margin-right: 5px; }
   .board .stnMeta .mapLink {
     display: inline-flex; align-items: center; gap: 3px; margin-top: 6px;
     font-size: 12px; font-weight: 700; color: var(--navy); text-decoration: none;
@@ -3151,6 +3168,7 @@
       <div class="fp-next">
         <span class="lbl">下一站</span>
         <span class="stn" id="fpNext"></span>
+        <span class="xfer-tag" id="fpXfer" hidden></span>
         <span class="eta" id="fpEta"></span>
       </div>
       <div class="fp-prog">
@@ -3181,6 +3199,7 @@
       <div class="fc-next">
         <span class="lbl">下一站</span>
         <span class="stn" id="fcNext"></span>
+        <span class="xfer-tag" id="fcXfer" hidden></span>
       </div>
       <div class="fc-status" id="fcStatus"></div>
     </div>
@@ -3336,6 +3355,7 @@
       <div class="tc-live" id="tcLive" hidden>
         <span class="num tl-spd" id="tcLiveSpd"></span>
         <span class="tl-next" id="tcLiveNext"></span>
+        <span class="xfer-tag" id="tcLiveXfer" hidden></span>
         <span class="tl-delay" id="tcLiveDelay"></span>
       </div>
     </div>
@@ -3386,14 +3406,14 @@
            內容 li 上限 8 條(li.grp 是標題不算)。 -->
       <ul class="foot-list foot-recent">
         <li class="grp">最近更新</li>
+        <li data-cl-of="stationtransfer"><span class="d">8/10</span><span>點任何一個車站看板，都會告訴你這站可以轉乘哪些別的鐵道系統；跟車時「下一站」旁邊也會提醒能換哪幾條線</span></li>
+        <li data-cl-of="nearfollowmutex"><span class="d">8/10</span><span>開「附近車站」或「隨機跟隨」時會自動收起另一個，地圖鏡頭只聽一邊的</span></li>
         <li data-cl-of="bgmusic"><span class="d">8/10</span><span>App 收起後背景音樂繼續播放；跟車時音樂讓位，動態島完整顯示下一站與倒數；下次 App 更新生效</span></li>
         <li data-cl-of="widgetdestination"><span class="d">8/8</span><span>iPhone 小工具起站選「共站」或「我的地點」後，「目的站」一點就關掉；已修好，下次 App 更新生效</span></li>
         <li data-cl-of="lapush"><span class="d">8/8</span><span>跟車的鎖定畫面即時動態會自己換下一站了，App 沒開著也會更新；停靠站內顯示「停靠中」，動態島展開還有進度條與車種顏色（通行證功能）</span></li>
         <li data-cl-of="crossnight452"><span class="d">8/8</span><span>修正：週五深夜 452 次這類特定日開行的跨夜車，過了午夜就從地圖上消失（謝謝網友回報）</span></li>
         <li data-cl-of="thsrfreeseat"><span class="d">8/8</span><span>跟隨高鐵列車時，資訊卡新增「自由座車廂」提示：一排小方塊標出今天這班車自由座在第幾節，不必再猜（免費功能）</span></li>
         <li data-cl-of="mytrains"><span class="d">8/8</span><span>最愛面板新增「我的車」：收藏的台鐵列車集中列出近 30 天準點表現（通行證功能）</span></li>
-        <li data-cl-of="punctualtrains"><span class="d">8/7</span><span>探索面板新增「準點排行」榜：近30天最準點的10班台鐵車，依誤點排序</span></li>
-        <li data-cl-of="thsrautosched"><span class="d">8/7</span><span>高鐵時刻表改為每天自動更新，加開與調整班次當天就會反映</span></li>
       </ul>
       <!-- 第二層:完整歷史。刻意不掛 .foot-box 類名——placeFootBoxes() 用
            `.site-foot .foot-box` 搬移面板,巢狀同名會被當成另一個盒子一起搬走。 -->
@@ -3401,6 +3421,7 @@
         <summary>完整更新歷史（依主題分類）</summary>
         <ul class="foot-list">
         <li class="grp">路網與車站</li>
+        <li data-cl="stationtransfer"><span class="d">8/10</span><span>轉乘提示放到兩個真的用得上的地方：一是車站看板的站況區，點台鐵、高鐵、捷運、林鐵任何一站都看得到這站能換哪些系統；二是跟隨與搭乘卡的「下一站」旁邊，快到站、要決定換不換車時就在眼前。手機點開列車卡之後也看得到。共站資料由站名與車站座標交叉核對，路線名完整列出，卡片放不下會自己換行</span></li>
         <li><span class="d">7/19</span><span>阿里山林鐵上線：21 站、四條路線，繞獨立山螺旋、第一分道之字形折返；祝山觀日列車依當天日出推算</span></li>
         <li><span class="d">7/19</span><span>台糖五分車改用景點標記：五處觀光園區標上地圖——糖鐵沒有公開班表，不模擬行駛</span></li>
         <li><span class="d">7/13</span><span>預設視圖改為「全台同框」</span></li>
@@ -3433,6 +3454,7 @@
         <li><span class="d">7/16</span><span>捷運準確度升級：六家捷運依官方到站看板即時校正，國定假日自動改跑假日班表</span></li>
         <li><span class="d">7/9</span><span>台鐵即時誤點上線——介接交通部 TDX 平臺每分鐘更新；7/11 起開站即真實時刻、捷運改逐班推演</span></li>
         <li class="grp">跟車、搜尋與車站看板</li>
+        <li data-cl="nearfollowmutex"><span class="d">8/10</span><span>開「附近車站」或「隨機跟隨」時，會自動收起另一個，地圖鏡頭只聽一邊的，不會兩邊互搶</span></li>
         <li data-cl="lapush"><span class="d">8/8</span><span>跟隨台鐵或高鐵列車時，鎖定畫面與動態島的即時動態改由伺服器每分鐘更新：螢幕關著、App 沒開著也會自己換到下一站。要換到哪一站依列車實際到離站的觀測決定，不是照時刻表推算；遇到即時資料中斷，卡片會註明目前位置為預估並提醒查詢官方動態。卡片本身也一併加強：列車停靠站內時會顯示「停靠中」而不是繼續倒數，長按動態島展開後會看到一條往下一站前進的進度條、車種與代表色（和地圖上那台車同一個顏色）、上一站與終點站。軌島通行證功能，一趟最長跟 12 小時</span></li>
         <li data-cl="thsrfreeseat"><span class="d">8/8</span><span>跟隨高鐵列車時，資訊卡新增自由座車廂提示：以車廂圖示＋文字標出今天這班車的自由座在哪幾節（例如「自由座 10–12 車」）。資料來源為交通部 TDX 高鐵每日自由座資訊，逐日更新；僅高鐵列車顯示，資料尚未到位或查無該車次時安靜不顯示</span></li>
         <li data-cl="afrtrainno"><span class="d">8/4</span><span>阿里山林鐵的 1、2 次跟台鐵環島之星是同一組車次號碼，點下去的介紹卡卻寫成「環島之星 萌旅號　全台唯一環島觀光列車…」；現在林鐵的車一律顯示自己的車種介紹（阿里山號），收藏與搜尋結果裡的名字也一併改正（謝謝網友回報）</span></li>
@@ -3820,7 +3842,11 @@
 // 推到雙方都沒用過的 v0808b(同上,辨識線上跑哪一版仍以內容 hash 為準)。
 // 2026-08-09 三方合併(線上實況 feat/la-push＋origin/main 的創始錨點＋捷運速度上界修正):
 // 線上跑的是 v0808e,內容不同的兩顆絕不可共用同一個號,故推 v0809a。
-const BUILD = 'v0810j';
+// 2026-08-10 這批(互斥＋轉乘)的基準刻意取「線上實況 472c848」而不是 main——main 落後線上約 70 顆,
+// 從 main 出貨會把 LA 推播、速度上界、準點三功能整包退掉(心得 16 的原病灶)。推 v0810a。
+// 2026-08-11 App 1.4.2(43) 的出貨合併(la-push 的音樂/動態島＋origin/main 的批次A＋更新提示與評分):
+// la-push 到 v0810j、main 到 v0810e,兩邊都燒過的號一律跳過,推雙方都沒用過的 v0811a。
+const BUILD = 'v0811a';
 // 成就徽章與車廂標記＝原本那些 emoji 的單色平面版（RailEmoji＝裁切過的 Noto Emoji 單色）。
 // 刻意保留 railIcon(name) 這個唯一入口:呼叫端一行都不用改,只有這裡決定畫法。
 // 🔴 ⚖ 與 ♾ 一律寫**不帶 VS16(U+FE0F)** 的碼位——帶了就強制彩色呈現,會蓋過 font-family
@@ -3871,6 +3897,7 @@ const ZOOM_OUT_LEVELS = 1;
 const state = {
   systems: [], sysId: null, data: null, speed: 36, mode: 'freq',
   lines: [], visible: new Set(), trains: [], schedStations: [], types: [],
+  stationTransfers: null, stationTransferAnchors: [], stationTransferGroups: new Map(), stationTransferBySystemName: new Map(),
   playing: true, speedMult: 1, hour: 8, simSec: 8 * 3600, // 開機即 1× 真實時刻(2026-07-11 使用者裁決,舊示意預設 50×)
   dpr: 1, powerSave: false, t0: 0, elapsed: 0, ready: false, // powerSave:省電模式(相機置中+繪製統一降 30fps,手機預設開),見 tick 節流
 
@@ -5222,6 +5249,9 @@ function updateFreqCard(info) {
   // 實際時刻班次附下一站發車時刻(HH:MM);班距幽靈車只有站名
   document.getElementById('fcNext').textContent = (info.nextName || '—') +
     (info.nextSec != null ? '(' + fmtHM(info.nextSec % 86400) + ')' : '');
+  // 轉乘標。捷運卡只有站名沒有站物件,照 renderFreqBoard 的做法用「臺→台」正規化回頭查 ln.stations 取座標。
+  const nk = String(info.nextName || '').replace(/臺/g, '台');
+  setTransferTag('fcXfer', nk ? transferRoutesForMetro(ln, (ln.stations || []).find(s => s.name.replace(/臺/g, '台') === nk)) : null);
   // 資料等級誠實標示:即時校正中/時刻表推演/班距推算;營運異常公告時降級為僅供參考
   const st = document.getElementById('fcStatus');
   let txt, cls = '';
@@ -6468,6 +6498,11 @@ async function onLocated(lat, lon, accM) {
   try { map.flyTo(t, 15, { duration: .8 }); } catch (e) { map.setView(t, 15); }
 }
 function openNearbyStations(lat, lon, acc) {
+  // 互斥的單一入口:清單真的要開了才收掉跟隨/放空。刻意不放在 showNearby() 開頭——
+  // 那裡在「沒有位置就去 locateMe()」的早退之前,權限被拒時會白白殺掉使用者正在跟的車。
+  // onLocated() 走的是另一條路徑,它自己已經先清過一次,這裡重複執行被守衛擋掉,無副作用。
+  if (state.autoTour) setAutoTour(false);
+  if (state.followTrain || state.followId || state.freqFollow) clearFollow();
   soloPanel('near');
   closeBoard(); closeCrossingCard(); closePinCard(); closeSugarCard();
   // acc(公尺)給單站打卡判定用:地下站精度動輒數百公尺,沒有它就沒辦法決定要不要放行(見 checkinJudge)
@@ -9613,6 +9648,7 @@ function fadeSwitchMetro(pick) {
   }, 800);
 }
 function setAutoTour(on) {
+  if (on) closeNearbyStations();
   if (on && state.mode !== 'sched') {
     const s = state.systems.find(x => x.mode === 'sched');
     if (!s) return;
@@ -10513,6 +10549,166 @@ function renderFreeSeat(tr) {
   paintFreeSeat(tr);
 }
 
+// 靜態轉乘表索引。配對本身已由 scripts/build_station_transfers.mjs 用各來源站碼、有限站名規則＋座標建好；
+// 前端只用「時刻表系統＋正規化站名」接回同系統 anchor，座標只作同名歧義／來源漂移的上界檢查。
+const TRANSFER_SCHED_SYSTEM = { tra_sched: 'TRA', thsr_sched: 'THSR', afr_sched: 'AFR' };
+const TRANSFER_ROUTE_FALLBACK = { 'THSR:THSR': '高鐵', 'SANYING:LB': '三鶯線' };
+function transferStationName(name) {
+  return String(name || '').normalize('NFKC').replace(/臺/g, '台').replace(/^(高鐵|台鐵)/, '')
+    .replace(/火車站$/, '').replace(/車站$/, '').replace(/站$/, '').trim();
+}
+function initStationTransfers(data) {
+  state.stationTransfers = data && data.schemaVersion === 1 ? data : null;
+  state.stationTransferAnchors = [];
+  state.stationTransferGroups = new Map();
+  state.stationTransferBySystemName = new Map();
+  if (!state.stationTransfers) return;
+  for (const group of state.stationTransfers.transferStations || []) state.stationTransferGroups.set(group.id, group);
+  for (const [key, station] of Object.entries(state.stationTransfers.stations || {})) {
+    if (!Array.isArray(station.position) || station.position.length !== 2) continue;
+    const anchor = { key, station, lat: station.position[0], lon: station.position[1] };
+    state.stationTransferAnchors.push(anchor);
+    const nameKey = station.system + '|' + station.normalizedName;
+    if (!state.stationTransferBySystemName.has(nameKey)) state.stationTransferBySystemName.set(nameKey, []);
+    state.stationTransferBySystemName.get(nameKey).push(anchor);
+  }
+}
+function transferAnchorForStop(sourceSystem, stop) {
+  const data = state.stationTransfers;
+  if (!data || !sourceSystem || !stop || !Number.isFinite(stop.lat) || !Number.isFinite(stop.lon)) return null;
+  const candidates = state.stationTransferBySystemName.get(sourceSystem + '|' + transferStationName(stop.name)) || [];
+  const maxKm = Number(data.criteria && data.criteria.maxDistanceM) / 1000;
+  let best = null;
+  for (const anchor of candidates) {
+    const km = haversineKm(stop, anchor);
+    if (Number.isFinite(maxKm) && km < maxKm && (!best || km < best.km)) best = { anchor, km };
+  }
+  return best && best.anchor;
+}
+// 從 idx 往 dir 走,找第一個「能用來判定本班在哪條線」的鄰站。兩種站不能用:
+// (1) 通過站(stop === false)——密化路徑會穿過支線車站,拿它當本線證據會把本線判成支線
+//     (阿里山林鐵車次 5/8 通過神木,神木在轉乘資料裡只屬神木線 ⇒ 本線被誤判,卡片反過來叫使用者「轉本線」)。
+// (2) 查不到錨點的站——多數小站不在轉乘資料裡;只看緊鄰那一站的話,支線終點站永遠推不出自己在哪條線
+//     (台中綠線北屯總站、北捷蘆洲/迴龍 ⇒ 本線沒被排除,卡片顯示「轉 你正在搭的那條線」)。
+function transferAdjacentAnchor(list, idx, dir, resolve) {
+  if (!Array.isArray(list)) return null;
+  for (let i = idx + dir; i >= 0 && i < list.length; i += dir) {
+    const s = list[i];
+    if (!s || s.stop === false) continue;
+    const anchor = resolve(s);
+    if (anchor) return anchor;
+  }
+  return null;
+}
+function transferRoutesForStop(tr, stop) {
+  const data = state.stationTransfers;
+  if (!data || !tr || !stop) return [];
+  const sourceSystem = TRANSFER_SCHED_SYSTEM[tr && tr.sys] || null;
+  const anchor = transferAnchorForStop(sourceSystem, stop);
+  if (!anchor) return [];
+  const station = anchor.station;
+  const group = station.transferId && state.stationTransferGroups.get(station.transferId);
+  const routeKeys = group ? group.routes : station.routes;
+  // 同系統多線站不能整個 system 排除：用前後相鄰站和本站共同的 route 判定本班正在走的線，
+  // 只隱藏那些 route；其餘同系統支線仍是有效轉乘。時刻表已加密通過站，快車跳站也有相鄰節點可判。
+  const currentRoutes = new Set();
+  const stopIndex = Array.isArray(tr.stops) ? tr.stops.indexOf(stop) : -1;
+  if (stopIndex >= 0) for (const dir of [-1, 1]) {
+    const adjacent = transferAdjacentAnchor(tr.stops, stopIndex, dir, s => transferAnchorForStop(sourceSystem, s));
+    if (!adjacent) continue;
+    for (const routeKey of station.routes || []) if (adjacent.station.routes.includes(routeKey)) currentRoutes.add(routeKey);
+  }
+  if (!currentRoutes.size) for (const routeKey of station.routes || []) currentRoutes.add(routeKey);
+  const out = [];
+  for (const routeKey of routeKeys || []) {
+    const route = data.routes && data.routes[routeKey];
+    if (!route || currentRoutes.has(routeKey)) continue;
+    const label = route.name || TRANSFER_ROUTE_FALLBACK[routeKey] || route.lineId;
+    if (label && !out.some(item => item.key === routeKey)) out.push({ key: routeKey, label });
+  }
+  return out;
+}
+// 系統無關的錨點查找。車站看板與捷運跟隨卡都沒有「來源系統」可用(看板的 st.sys 是 tra_sched/deco 這類,
+// 捷運卡只有 ln),所以不能用 transferAnchorForStop。座標閘門(criteria.maxDistanceM)才是真正的過濾器——
+// 光比站名會把北門串進台北群,見 scripts/build_station_transfers.mjs 的 450 公尺註解。
+function transferAnchorNear(stop) {
+  const data = state.stationTransfers;
+  if (!data || !stop || !Number.isFinite(stop.lat) || !Number.isFinite(stop.lon)) return null;
+  const key = transferStationName(stop.name);
+  const maxKm = Number(data.criteria && data.criteria.maxDistanceM) / 1000;
+  if (!key || !Number.isFinite(maxKm)) return null;
+  let best = null;
+  for (const anchor of state.stationTransferAnchors) {
+    if (anchor.station.normalizedName !== key) continue;
+    const km = haversineKm(stop, anchor);
+    if (km < maxKm && (!best || km < best.km)) best = { anchor, km };
+  }
+  return best && best.anchor;
+}
+// 共站群裡的路線,扣掉 skip 判定為真的那些。三個落點的差別只在「什麼算是已經被回答過的」:
+// 看板已列出同系統所有路線的班次,跟車時已知自己在哪條線上。
+function transferRoutesAt(anchor, skip) {
+  const data = state.stationTransfers;
+  if (!data || !anchor) return [];
+  const station = anchor.station;
+  const group = station.transferId && state.stationTransferGroups.get(station.transferId);
+  const out = [];
+  for (const routeKey of (group ? group.routes : station.routes) || []) {
+    const route = data.routes && data.routes[routeKey];
+    if (!route || skip(routeKey, route, station)) continue;
+    const label = route.name || TRANSFER_ROUTE_FALLBACK[routeKey] || route.lineId;
+    if (label && !out.some(item => item.key === routeKey)) out.push({ key: routeKey, label });
+  }
+  return out;
+}
+// 車站看板用:只列別的系統。同系統的線由看板自己的班次清單回答(renderFreqBoard 會把該站每一條線都上板),
+// 再列一次就是重複。
+// 錨點必須是「這個站自己那個系統」的那一顆,否則排錯系統:台鐵板橋離高鐵錨點 56m、比自家 TRA 錨點近,
+// 於是排掉高鐵、把自己的西部幹線列成轉乘;台鐵高雄同理選到 23m 的高捷錨點,紅線整個消失。
+// 只有 sched 系統(台鐵/高鐵/林鐵)有可靠的 st.sys → 系統代碼對照;捷運/輕軌的 st.sys 一個 app 系統對多個
+// 營運機構(mrt 含環狀線、krtc 含高雄輕軌),而實測那些站本來就都選到自己那顆,故維持系統無關查找。
+function transferRoutesAtStation(st) {
+  const sysCode = TRANSFER_SCHED_SYSTEM[st && st.sys] || null;
+  const anchor = (sysCode && transferAnchorForStop(sysCode, st)) || transferAnchorNear(st);
+  return transferRoutesAt(anchor, (key, route, station) => route.system === station.system);
+}
+// 捷運跟隨卡用:只扣掉正在搭的這條線。先比官方線名,再退回比 lineId 尾碼;
+// 兩者都對不上時寧可多列一條(頂多重複),也不要漏掉真正的轉乘。
+function transferRoutesForMetro(ln, stop) {
+  const anchor = transferAnchorNear(stop);
+  if (!anchor) return [];
+  // 先靠「本線上另一個也在轉乘資料裡的站」推本線(與台鐵那條路徑同一套邏輯):app 線 ID 與官方線 ID
+  // 常對不上(台中 TG vs TMRT:G、北捷支線 O_LUZHOU vs TRTC:O),光比名稱/ID 會漏排,結果把正在搭的線
+  // 標成轉乘。名稱/ID 比對留著當補強,兩條都對不上時寧可多列一條也不要漏掉真正的轉乘。
+  const sts = (ln && ln.stations) || [];
+  const idx = sts.indexOf(stop);
+  const current = new Set();
+  if (idx >= 0) for (const dir of [-1, 1]) {
+    const adjacent = transferAdjacentAnchor(sts, idx, dir, s => transferAnchorNear(s));
+    if (!adjacent) continue;
+    for (const routeKey of anchor.station.routes || []) if (adjacent.station.routes.includes(routeKey)) current.add(routeKey);
+  }
+  const lnName = String((ln && ln.name) || ''), lnId = String((ln && ln.id) || '');
+  return transferRoutesAt(anchor, (key, route) => current.has(key)
+    || (!!route.name && route.name === lnName) || (!!lnId && key.endsWith(':' + lnId)));
+}
+// 看板站況區的一行。這裡有版面,列完整清單。
+function transferMetaHtml(st) {
+  const routes = transferRoutesAtStation(st);
+  if (!routes.length) return '';
+  return `<div class="xfer"><span class="k">可轉乘</span>${escHtml(routes.map(r => r.label).join('、'))}</div>`;
+}
+// 跟隨/搭乘卡「下一站」後面的小標。**列完整清單**,不收成「+N」——收起來就得靠點擊或 title 展開,
+// 而手機叫不出 title、紅框又沒有任何點擊回饋,使用者只會覺得「這東西點不動也看不懂」(v0810b 回報)。
+// 卡片窄由 CSS 換行吸收,不由這裡截字。沒有轉乘就整顆收起來:標有框線與內距,留空殼會多一個空框。
+function setTransferTag(id, routes) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  if (!routes || !routes.length) { el.hidden = true; el.textContent = ''; return; }
+  el.textContent = '轉 ' + routes.map(r => r.label).join('、');
+  el.hidden = false;
+}
+
 // 地圖下方的列車資訊卡:介紹+服務標記,旅程日誌由 renderFollowEvents 填
 function renderTrainCard(tr) {
   const it = trainIntro(tr);
@@ -10534,7 +10730,7 @@ function renderTrainCard(tr) {
   document.getElementById('tcStops').innerHTML =
     '<div class="tc-st hd"><span class="n">停靠站</span><span>到</span><span>開</span></div>' +
     tr.stops.map((s, i) => ({ s, i })).filter(x => x.s.stop !== false).map(x =>
-      `<div class="tc-st" data-i="${x.i}"><span class="n">${x.s.name}</span>` +
+      `<div class="tc-st" data-i="${x.i}"><span class="n">${escHtml(x.s.name)}</span>` +
       `<span>${fmtHM(x.s.arrSec % 86400)}</span><span>${fmtHM(x.s.depSec % 86400)}</span></div>`).join('');
   state._tcCurIdx = null;
   updateStar();
@@ -13745,7 +13941,7 @@ function nextStopInfo(tr, t) {
   const s = tr.stops;
   for (let i = 0; i < s.length; i++) {
     if (s[i].stop === false) continue;          // 略過通過不停的站
-    if (s[i].arrSec > t) return { name: s[i].name, at: s[i].arrSec % 86400, min: (s[i].arrSec - t) / 60 };
+    if (s[i].arrSec > t) return { name: s[i].name, at: s[i].arrSec % 86400, min: (s[i].arrSec - t) / 60, stop: s[i] };
   }
   return null;
 }
@@ -13961,6 +14157,9 @@ function updateFollowPanel(tr) {
   const info = nextStopInfo(tr, effTLive(tr));
   if (info) {
     nx.textContent = info.name;
+    // 轉乘標:這是唯一會改變行動的時刻——要不要在這站下車換車。用 transferRoutesForStop 而非
+    // transferRoutesAtStation,因為它會拿前後相鄰站判掉「本班正在走的線」,同系統支線仍算有效轉乘。
+    setTransferTag('fpXfer', transferRoutesForStop(tr, info.stop));
     const mm = Math.round(info.min);
     // info.at 是表定時刻;有誤點時顯示估計實際時刻
     // 標籤值以真實目前誤點優先(v0718g 不倒退鉗制期間 eased 偏移會暫時落後真值,只拿它算預估時刻);
@@ -13970,6 +14169,7 @@ function updateFollowPanel(tr) {
       (tag ? ` <span class="lateTag">${tag}</span>` : '');
   } else {
     nx.textContent = '—'; eta.textContent = '已抵達終點';
+    setTransferTag('fpXfer', null);
   }
   // 停靠倒數(通過不停的站不顯示)
   const stEl = document.getElementById('fpStatus');
@@ -14038,6 +14238,9 @@ function updateFollowPanel(tr) {
       const ln = document.getElementById('tcLiveNext');
       const mmL = info ? Math.round(info.min) : 0;
       ln.textContent = info ? (mmL < 1 ? '即將進站 · ' + info.name : info.name + ' · ' + mmL + ' 分') : '已抵達終點';
+      // 轉乘標:sheet 開啟時 body.train-open 把整張跟隨小卡(連同 #fpXfer)藏起來,這裡不補就等於
+      // 「手機點開列車卡,剛剛看到的轉乘提示消失了」。第三個顯示實例,與 fpXfer/fcXfer 同一組契約。
+      setTransferTag('tcLiveXfer', info && info.stop ? transferRoutesForStop(tr, info.stop) : null);
       const ld = document.getElementById('tcLiveDelay');
       if (realDl > 0) { ld.textContent = (liveActive() ? '誤點' : '目前誤點') + ' ' + realDl + ' 分'; ld.className = 'tl-delay lateTag'; }
       else if (dlMin > 0) { ld.textContent = '誤點 ' + dlMin + ' 分'; ld.className = 'tl-delay lateTag'; }
@@ -16211,6 +16414,7 @@ function stnMetaHtml(st) {
   return `<div class="stnMeta">` +
     (info && info.address ? `<div class="addr">${info.address}</div>` : '') +
     (info && info.feature ? `<div class="feat">${info.feature}</div>` : '') +
+    transferMetaHtml(st) + // 轉乘與地址／特色同類:都是「這個站是什麼」,兩條看板路徑共用本函式故一改全系統生效
     `<a class="mapLink" href="${href}" target="_blank" rel="noopener">在 Google 地圖開啟 ↗</a>` +
     `</div>`;
 }
@@ -18256,6 +18460,8 @@ async function boot() {
   addSunriseTrains(); // 要在 _track 載完後(站座標取自軌道資料,與其餘班表同源)、任何 loadSystem 之前
   // 捷運/輕軌逐班時刻(*_times.json,build_metro_times.mjs 產);缺檔時該系統退回班距均勻撒車
   for (const s of state.systems) if (s.times) s._times = await fetchJSON(s.times);
+  // 純靜態共站表；沒有 runtime 外部 API，缺檔時只是不顯示轉乘提示。
+  initStationTransfers(await fetchJSON('./data/station_transfers.json'));
   // 站等資料(特等/一等/…),缺檔就全走停靠班次數啟發式
   state.stnClassMap = await fetchJSON('./data/tra_station_class.json') || {};
   // 台鐵各站地址(TDX Rail/TRA/Station);key 為「台」正規化站名,feature 欄之後補
