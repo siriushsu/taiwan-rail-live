@@ -243,6 +243,42 @@ async function run(browser, engine) {
     }
     await ctx.close();
   }
+
+  // K. 今日亮點點系統級活動(anchor.kind:'system' ⇒ eventStation() 依定義恆回 null,不受哪個分頁載入影響)
+  //    → 解析不到站的 else 分支:不切分頁、不開站看板、不關今日亮點面板,只呼叫 window.open。
+  //    不用 in-window-metro(大安森林公園)當「解析不到」樣本:sched 模式下 eventStation 還會掃裝飾層,
+  //    全台同框開著時它可能真的解析得到,不是可靠的陰性樣本。
+  {
+    const { ctx, pg } = await openPage(browser);
+    await pg.evaluate(() => openExplorePanel());
+    await awaitEvents(pg);
+    // window.open 換成記錄呼叫的替身,回傳 null 模擬被瀏覽器擋掉,避免真的開新分頁
+    await pg.evaluate(() => { window.__openCalls = []; window.open = (...a) => { window.__openCalls.push(a); return null; }; });
+    const before = await pg.evaluate(() => ({
+      group: state.group,
+      board: state.boardStation ? state.boardStation.name : null,
+      panelOpen: !document.getElementById('explorePanel').hidden,
+    }));
+    const sel = '#expBody .row[data-ev="sys-level"]';
+    const exists = await pg.$(sel);
+    chk(`${engine} K0 找得到系統級活動那一列`, !!exists);
+    if (exists) {
+      await pg.click(sel);
+      await pg.waitForTimeout(300);
+      const after = await pg.evaluate(() => ({
+        group: state.group,
+        board: state.boardStation ? state.boardStation.name : null,
+        panelOpen: !document.getElementById('explorePanel').hidden,
+        opens: window.__openCalls,
+      }));
+      chk(`${engine} K1 沒有切分頁`, after.group === before.group, `before=${before.group} after=${after.group}`);
+      chk(`${engine} K2 沒有開站看板`, after.board === before.board, `before=${before.board} after=${after.board}`);
+      chk(`${engine} K3 今日亮點面板仍開著`, after.panelOpen === before.panelOpen, `before=${before.panelOpen} after=${after.panelOpen}`);
+      const evUrl = FIXTURE.events.find(x => x.id === 'sys-level').url;
+      chk(`${engine} K4 window.open 被呼叫且網址正確`, after.opens.length >= 1 && after.opens[0][0] === evUrl, JSON.stringify(after.opens));
+    }
+    await ctx.close();
+  }
 }
 
 const cr = await chromium.launch();
