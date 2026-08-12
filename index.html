@@ -13682,7 +13682,7 @@ function renderExplorePanel() {
   const punctual = punctualTrainList();
   const noteTxt = (document.getElementById('note') || {}).textContent || ''; // #note 遷入亮點 sheet 註腳(重開即新文案)
   document.getElementById('expBody').innerHTML =
-    `<div class="sub">從 ${state.trains.length} 班車裡挑出來的 · 點列車跟隨、點活動看詳情</div>` +
+    `<div class="sub">從 ${state.trains.length} 班車裡挑出來的 · 點列車跟隨、點活動飛到那一站</div>` +
     (hl.special.length ? `<div class="sec">特別列車出沒中</div>` + hl.special.map(hlRow).join('') : '') +
     eventSecHtml() +
     (hl.best.length ? `<div class="sec">今日之最</div>` + hl.best.map(hlRow).join('') : '') +
@@ -13701,10 +13701,11 @@ function renderExplorePanel() {
     if (ev0) {
       const ev = activeEvents().find(x => x.id === ev0.dataset.ev);
       if (!ev) return;
-      const st = eventStation(ev);
-      // 解析得到就飛過去開板;解析不到(例如在台鐵分頁點北捷活動)給原文連結,不自動切分頁
-      if (st) { closeExplorePanel(); openBoard(st); map.panTo(focusCenter(st.lat, st.lon)); }
-      else if (ev.url) window.open(ev.url, '_blank', 'noopener');
+      const st = eventStation(ev), u = evUrl(ev);
+      // 解析得到就飛過去開板(openBoard 自己會關本面板);解析不到(例如在台鐵分頁點北捷活動)
+      // 給原文連結,不自動切分頁
+      if (st) { openBoard(st); map.panTo(focusCenter(st.lat, st.lon)); }
+      else if (u) window.open(u, '_blank', 'noopener');
       return;
     }
     const gr = e.target.closest('.row[data-guide]');
@@ -16574,14 +16575,27 @@ function evDayShift(isoDay, days) {
   d.setUTCDate(d.getUTCDate() + days);
   return d.toISOString().slice(0, 10);
 }
+// 日期欄位守門。資料是每日半自動策展的,少補一個零(2026-8-15)、寫成「即日起」都是自然手滑,
+// 而 evDayShift() 對這些輸入會拋 RangeError——在 activeEvents() 的 filter 裡拋等於整份清單
+// (連同今日亮點面板)跟著一起空掉,所以壞的那一筆要在進 evDayShift 之前就被濾掉。
+// 正則擋非 ISO 寫法(2026/08/15、暑假期間),Date.parse 再擋月/日超界(2026-13-01、2026-08-32),
+// 回寫比對擋「格式對但日子不存在」——2026-02-29 不會被 Date 判為無效,會被靜靜滾成 03-01。
+function evValidDay(s) {
+  if (typeof s !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(s)) return false;
+  const t = Date.parse(s + 'T00:00:00Z');
+  return !Number.isNaN(t) && new Date(t).toISOString().slice(0, 10) === s;
+}
+// 原文連結白名單。escHtml 擋得住 HTML 注入但擋不住 javascript:,而這條管線是
+// 「LLM 讀營運商公告產草稿 → 使用者只看標題裁示」,url 不會被逐條看過。
+// 非 http(s) 一律當作沒有連結處理(不渲染成 <a>、也不 window.open)。
+const evUrl = ev => { const u = String((ev && ev.url) || ''); return /^https?:\/\//i.test(u) ? u : ''; };
 // 時間窗:開始前 EVENT_LEAD_DAYS 天 ~ 結束當天。「今天」錨定台北,不看裝置時鐘。
 function activeEvents() {
   const today = todayStr('Asia/Taipei');
   return (_events || []).filter(ev =>
-    ev && ev.start && ev.end && ev.end >= today && evDayShift(ev.start, -EVENT_LEAD_DAYS) <= today
+    ev && evValidDay(ev.start) && evValidDay(ev.end) && ev.end >= today && evDayShift(ev.start, -EVENT_LEAD_DAYS) <= today
   ).sort((a, b) => (a.start < b.start ? -1 : a.start > b.start ? 1 : (a.id < b.id ? -1 : 1)));
 }
-const EV_METRO_SYS = (GROUPS.find(g => g.id === 'metro') || { members: [] }).members; // 從 GROUPS 推導,不另寫死一份
 function evWhen(ev) {
   const t = todayStr('Asia/Taipei');
   const f = s => s.slice(5).replace('-', '/');
@@ -16595,55 +16609,86 @@ function evWhere(ev) {
   const sys = (state.systems.find(x => x.id === a.sys) || {}).label || '';
   return sys || '沿線';
 }
-// 解析成當前檢視開得了板的站物件;開不了回 null(比照 favStationHere:不強求、不切分頁)
+// 同名站是不是同一顆:共構/轉乘的同名站實測最遠 412 公尺(北捷↔機捷 台北車站),不同城市的
+// 同名站最近 135 公里(北捷↔中捷 市政府)——2 公里落在兩者中間,兩側都有數十倍餘裕。
+const EV_SAME_STATION_KM = 2;
+// 這一站由哪幾家業者服務。捷運側的 st.sys 是合成值('freq'/'deco'),答不出「哪一家」,得回線物件查:
+// freqSysIdOf() 同時吃多系統路徑(rebuildFreqLines/buildDecoLines 標的 ln._sys)與單系統路徑
+// (loadSystem 沒標,退回 state.sys.id)。座標閘門少不得——光比站名,台中的市政府會跟台北的
+// 市政府串成同一顆(同 transferAnchorNear() 的判斷:座標才是真正的過濾器)。
+function evStationSysIds(st) {
+  const k = st.name.replace(/臺/g, '台');
+  const ids = new Set();
+  for (const ln of ((st.sys === 'deco' ? state.decoLines : state.lines) || [])) {
+    const s = (ln.stations || []).find(x => x.name.replace(/臺/g, '台') === k);
+    if (!s || haversineKm(st, s) > EV_SAME_STATION_KM) continue;
+    const id = freqSysIdOf(ln);
+    if (id) ids.add(id);
+  }
+  return ids;
+}
+// 解析成當前檢視開得了板的站物件;開不了回 null(比照 favStationHere:不強求、不切分頁)。
+// 捷運側逐線比 freqSysIdOf():同名跨系統站(市政府 台北/台中)要飛對城市那一顆。
 function eventStation(ev) {
   const a = ev.anchor || {};
   if (a.kind !== 'station' || !a.name) return null;
   const k = a.name.replace(/臺/g, '台');
+  const pick = ln => (ln.stations || []).find(x => x.name.replace(/臺/g, '台') === k);
   if (state.mode === 'sched') {
     const hit = state.schedStations.find(s => s.sys === a.sys && s.name.replace(/臺/g, '台') === k);
     if (hit) return hit;
     if (state.deco) for (const ln of (state.decoLines || [])) { // 全台同框:捷運站在裝飾層
-      const s = (ln.stations || []).find(x => x.name.replace(/臺/g, '台') === k);
+      if (freqSysIdOf(ln) !== a.sys) continue;
+      const s = pick(ln);
       if (s) return { name: s.name, lat: s.lat, lon: s.lon, sys: 'deco' };
     }
     return null;
   }
   for (const ln of (state.lines || [])) {
-    const s = (ln.stations || []).find(x => x.name.replace(/臺/g, '台') === k);
+    if (freqSysIdOf(ln) !== a.sys) continue;
+    const s = pick(ln);
     if (s) return { name: s.name, lat: s.lat, lon: s.lon, sys: 'freq' };
   }
   return null;
 }
-// 綁在這一站的活動。只認 kind==='station';共構站(台北/板橋)靠 sys 分家,台鐵板不掛捷運的活動。
+// 綁在這一站的活動。只認 kind==='station';共構站(台北/板橋)靠 sys 分家,台鐵板不掛捷運的活動,
+// 捷運各家之間則靠 evStationSysIds() 分家(台中的市政府活動不會掛到台北的市政府看板)。
 function eventsAtStation(st) {
   const k = st.name.replace(/臺/g, '台');
   const metroSide = st.sys === 'freq' || st.sys === 'deco';
+  const sysIds = metroSide ? evStationSysIds(st) : null;
   return activeEvents().filter(ev => {
     const a = ev.anchor || {};
     if (a.kind !== 'station' || !a.name) return false;
     if (a.name.replace(/臺/g, '台') !== k) return false;
-    return metroSide ? EV_METRO_SYS.includes(a.sys) : a.sys === st.sys;
+    return metroSide ? sysIds.has(a.sys) : a.sys === st.sys;
   });
 }
-// 車站看板用:沒有活動一律回空字串(不留容器)
+// 車站看板用:沒有活動一律回空字串(不留容器)。
+// 有官方原文才渲染成 <a>——沒有可去的地方就不掛連結(href="" 會開出本頁的複製分頁),
+// 右側指向外部的「›」也一併不給。
 function eventRowsHtml(st) {
   const evs = eventsAtStation(st);
   if (!evs.length) return '';
-  return `<div class="ev-rows">` + evs.map(ev =>
-    `<a class="ev-row" href="${escHtml(ev.url || '')}" target="_blank" rel="noopener">` +
-    `<span class="ev-when">${escHtml(evWhen(ev))}</span>` +
-    `<b>${escHtml(ev.title)}</b>` +
-    (ev.note ? `<span class="ev-note">${escHtml(ev.note)}</span>` : '') +
-    (ev.source === 'partner' ? `<span class="ev-tag">合作</span>` : '') +
-    `<span class="ev-go">›</span></a>`).join('') + `</div>`;
+  return `<div class="ev-rows">` + evs.map(ev => {
+    const u = evUrl(ev);
+    const inner = `<span class="ev-when">${escHtml(evWhen(ev))}</span>` +
+      `<b>${escHtml(ev.title)}</b>` +
+      (ev.note ? `<span class="ev-note">${escHtml(ev.note)}</span>` : '') +
+      (ev.source === 'partner' ? `<span class="ev-tag">合作</span>` : '');
+    return u
+      ? `<a class="ev-row" href="${escHtml(u)}" target="_blank" rel="noopener">${inner}<span class="ev-go">›</span></a>`
+      : `<div class="ev-row">${inner}</div>`;
+  }).join('') + `</div>`;
 }
-// 今日亮點用:一節,沒有活動回空字串
+// 今日亮點用:一節,沒有活動回空字串。
+// 點得動的才給 data-ev(CSS 的 cursor:pointer 與 click 路徑都認這個屬性):解析不到站、
+// 又沒有官方原文的那一筆點下去無事可做,就不要裝成可以點(與看板那側同一條線)。
 function eventSecHtml() {
   const evs = activeEvents();
   if (!evs.length) return '';
   return `<div class="sec">近期活動</div>` + evs.map(ev =>
-    `<div class="row" data-ev="${escHtml(ev.id)}" title="${escHtml(ev.title)}">` +
+    `<div class="row"${(eventStation(ev) || evUrl(ev)) ? ` data-ev="${escHtml(ev.id)}"` : ''} title="${escHtml(ev.title)}">` +
     `<b>${escHtml(ev.title)}</b>` +
     `<span class="dest">${escHtml(evWhere(ev))}${ev.source === 'partner' ? ' · 合作' : ''}</span>` +
     `<span class="min">${escHtml(evWhen(ev))}</span></div>`).join('');
