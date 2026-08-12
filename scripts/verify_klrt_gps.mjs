@@ -28,9 +28,12 @@ const PORT = Number(process.env.VPORT || 45871);
 // ── Step 0:自檢驗的是誰(心得 32:驗收腳本第一道 gate 是「我在驗什麼」)
 const md5 = f => execFileSync('md5', ['-q', f]).toString().trim();
 console.log('驗證目標 ', ROOT + '/index.html', md5(ROOT + '/index.html'));
-const baseHtml = execFileSync('git', ['-C', ROOT, 'show', 'HEAD:index.html'], { maxBuffer: 64 << 20 }).toString();
+// 基準預設 HEAD(功能還沒 commit 的階段);功能一旦進了 HEAD 就要指到功能之前的 ref,
+// 否則兩邊相同、下面那道 gate 會讓這支腳本從此再也跑不起來。VBASE=origin/main 即可。
+const BASE = process.env.VBASE || 'HEAD';
+const baseHtml = execFileSync('git', ['-C', ROOT, 'show', BASE + ':index.html'], { maxBuffer: 64 << 20 }).toString();
 fs.writeFileSync(ROOT + '/baseline.html', baseHtml);
-console.log('基準(HEAD)', md5(ROOT + '/baseline.html'));
+console.log(`基準(${BASE})`, md5(ROOT + '/baseline.html'), execFileSync('git', ['-C', ROOT, 'rev-parse', '--short', BASE]).toString().trim());
 if (md5(ROOT + '/index.html') === md5(ROOT + '/baseline.html')) { console.log('FAIL: 新版與基準相同=沒有改動,驗了也沒意義'); process.exit(1); }
 const newSrc = fs.readFileSync(ROOT + '/index.html', 'utf8');
 for (const need of ['applyKlrtPos', 'pollKlrtPos', 'klrtGpsLive', '_gpsShifts'])
