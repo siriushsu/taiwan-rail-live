@@ -55,9 +55,28 @@ async function openPage(browser, { events = FIXTURE, w = 1280, h = 800 } = {}) {
   return { ctx, pg };
 }
 
-// 直接開某站的看板(繞過地圖點擊,那是另一件事的測試)
+// 等活動資料真的載完:ensureEvents() 是非同步的,fetch 回來才在 .then 裡把 _events 填好、
+// 若面板還開著才補畫一次(見 index.html ensureEvents 定義)。openStationBoard() 呼叫的 openBoard()
+// 會同步觸發 ensureEvents() 但不等它,兩者之間有個實測約 30-40ms 的窗口,openStationBoard() 一
+// 返回就查 DOM 會不穩定命中這個窗口(fix round 1 的根因)。
+// 用裸 _events 不是 window._events —— classic script 的頂層 let/const 不會掛到 window
+// (Task 1 對 state 已踩過同一坑,見 openPage() 的寫法)。
+// 404 情境已讀 index.html 源碼確認(非假設):fetchJSONAt() 對非 200 一律回傳 null(不會拋例外),
+// ensureEvents() 的 .then 拿到 null 仍會把 _events 設成 []而不是留在 null,所以這個等待條件在
+// 404 時一樣會成立,不會卡到 timeout。
+async function awaitEvents(pg) {
+  await pg.waitForFunction(() => typeof _events !== 'undefined' && _events !== null, null, { timeout: 10000 });
+}
+
+// 直接開某站的看板(繞過地圖點擊,那是另一件事的測試)。openBoard() 會觸發 ensureEvents(),
+// 這裡順便等它載完,呼叫端不必自己補等待。
+// 🔴 這裡刻意不在 openExplorePanel() 之後也呼叫 awaitEvents——目前 renderExplorePanel()
+// 完全沒有呼叫 ensureEvents()(接上今日亮點是 Task 3 的範圍,尚未實作;grep index.html 確認
+// ensureEvents 只有一個呼叫點,在 renderBoard() 內)。若在 openExplorePanel() 後面也等 _events,
+// 凡是該 test block 從未呼叫過 openStationBoard() 的情境(Section E/F 正是如此),_events 永遠
+// 不會離開 null,會卡滿 10 秒 timeout 甚至讓整支腳本因未捕捉的 rejection 中止、不印總計行。
 async function openStationBoard(pg, sysId, name) {
-  return pg.evaluate(([sysId, name]) => {
+  const ok = await pg.evaluate(([sysId, name]) => {
     const k = name.replace(/臺/g, '台');
     let st = null;
     if (state.mode === 'sched') st = state.schedStations.find(s => s.sys === sysId && s.name.replace(/臺/g, '台') === k) || null;
@@ -72,6 +91,8 @@ async function openStationBoard(pg, sysId, name) {
     openBoard(st);
     return true;
   }, [sysId, name]);
+  if (ok) await awaitEvents(pg);
+  return ok;
 }
 
 async function run(browser, engine) {
