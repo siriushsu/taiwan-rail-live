@@ -681,8 +681,23 @@ async function landscapeSuite(browser, eng) {
       const targets = ['dwellPlate', 'alertDetail', 'alertBanner'];
       const bySel = ['.xing-card', '.xing-help', '.controls'];
       const out = [];
-      const measure = (name, el) => {
+      const measure = (name, el, fadeContract) => {
         if (!el) { out.push({ name, missing: true }); return; }
+        // 站名牌的側欄契約=「側欄開著時整顆淡出」(body.fs.sheet-open .dwell-plate{opacity:0},
+        // 特定度蓋過 .show)——不是幾何避讓:它寬度 max-content 吃站名長度,窄機走廊(SE3 只剩
+        // 75px)幾何判就是牆鐘函數(同 CSS 兩樹一綠一紅=內容不同)。這裡強制 .show 讀 computed
+        // opacity,抑制規則在=判準過(使用者看不到相交),規則被拔=紅——兩向都是確定性的。
+        if (fadeContract) {
+          const hadShow = el.classList.contains('show');
+          const prevTr = el.style.transition;
+          el.style.transition = 'none'; // 站名牌有 opacity .45s 過渡:不關掉的話,拔規則的突變在同步讀值時仍是過渡中的 ~0=假綠
+          el.classList.add('show');
+          const op = parseFloat(getComputedStyle(el).opacity);
+          if (!hadShow) el.classList.remove('show');
+          el.style.transition = prevTr;
+          out.push({ name, ox: 0, oy: 0, overlaps: op >= 0.05, w: 0, fadeOp: +op.toFixed(2) });
+          return;
+        }
         const prevHidden = el.hidden, prevDisplay = el.style.display, prevVis = el.style.visibility;
         el.hidden = false; el.style.display = 'block'; el.style.visibility = 'hidden'; // 量幾何不改畫面
         const r = el.getBoundingClientRect();
@@ -691,14 +706,15 @@ async function landscapeSuite(browser, eng) {
         out.push({ name, ox: Math.round(ox), oy: Math.round(oy), overlaps: ox > 2 && oy > 2, w: Math.round(r.width) });
         el.hidden = prevHidden; el.style.display = prevDisplay; el.style.visibility = prevVis;
       };
-      for (const id of targets) measure('#' + id, document.getElementById(id));
+      for (const id of targets) measure('#' + id, document.getElementById(id), id === 'dwellPlate');
       for (const sel of bySel) measure(sel, document.querySelector(sel));
       return out;
     });
     const found = wideOverlays.filter(o => !o.missing);
     const clash = found.filter(o => o.overlaps);
     ok(`L2b ${eng}/${S.tag} 整寬浮層不鑽進側欄底下`, clash.length === 0,
-      clash.map(c => `${c.name}疊${c.ox}×${c.oy}`).join(' ') || `逐一驗過 ${found.map(o => o.name).join('/')}`);
+      clash.map(c => c.fadeOp != null ? `${c.name}未淡出op=${c.fadeOp}(側欄開著契約=整顆淡出)` : `${c.name}疊${c.ox}×${c.oy}`).join(' ')
+        || `逐一驗過 ${found.map(o => o.name).join('/')}`);
     ok(`L9 ${eng}/${S.tag} 整寬浮層覆蓋率`, found.length >= 5,
       `${found.length}/6 找得到並量到（缺的：${wideOverlays.filter(o => o.missing).map(o => o.name).join(',') || '無'}）`);
 
