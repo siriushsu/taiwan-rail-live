@@ -2751,7 +2751,7 @@
        規則自動失效還原(這些 chip 無其他狀態改 opacity,不殘留)。topbar 內 gtab/plate 另關 pointer-events(它們有
        pointer-events:auto,雖已被 sheet 蓋住仍防萬一穿透點擊)。 */
     body.sheet-full .follow-panel, body.sheet-full .freq-card,
-    body.sheet-full .badge, body.sheet-full #randBtn, body.sheet-full #nearBtn,
+    body.sheet-full .badge, body.sheet-full .map-actions,
     body.sheet-full .topbar, body.sheet-full .dwell-plate { opacity: 0; pointer-events: none; }
     body.sheet-full .topbar .tb-plate, body.sheet-full .topbar .grouptabs { pointer-events: none; }
     /* 跟車中 dwellPlate(停靠站名牌)＝當下最重要資訊,固定釘在畫面上方;另一張 sheet(護照/看板)只展開到 46% peek 時,
@@ -2859,27 +2859,52 @@
     body.ambient .follow-panel .fp-head b { font-size: 13px; }
     body.ambient .follow-panel .fp-head .spd b { font-size: 15px; }
     body.ambient .follow-panel .fp-next .stn { font-size: 14px; white-space: nowrap; }
-    /* ── 地圖動作列(手機):隨機跟隨＋附近車站並排成一列靠右,自己佔 top:100 那條(高 33 → 底 133)。
-       徽章列(58~92)整條讓給時鐘徽章:徽章在 401–415pt 機型會顯示全字樣「看板校正」撐到 290px,
-       右邊再放鈕只剩 1px(≤344 直接重疊)。2026-07-30 起公告橫幅在手機已退場(改頂列 .alert-chip),
-       這一列不再需要為它下移,永遠佔 100 那條;頂列鈕點開的詳情面板仍是整寬覆蓋,此時整列退場
-       (淡出而非 display:none,免得回來時閃動)。 ── */
+    /* ── 右緣工具欄(§04c-P 裁決,直式與橫式共用同一個元件):⇄ 換一班/隨機跟隨 → ◎ 附近車站 →
+       🔒跟隨鎖,44×44 垂直一疊、icon-only、右錨。原本兩顆帶字膠囊橫躺地圖中上方＋鎖鈕孤懸右緣
+       中段=「四個東西三種尺寸三條基準線」(§04c D2/D3);收成一欄後只剩一條右緣基準線,寬度不再
+       跟著字數浮動。跟隨鎖由 placeControlRail() 從 Leaflet 控制角搬進來(桌面搬回去)。
+       首次進場 2 秒與長按的標籤 chip 由 setupToolRail() 生成。 ── */
     .map-actions {
-      display: flex; align-items: flex-start; gap: 8px;
-      position: absolute; right: 10px; top: calc(100px + env(safe-area-inset-top, 0px)); z-index: 620;
+      display: flex; flex-direction: column; align-items: flex-end; gap: 8px;
+      position: absolute; right: calc(10px + var(--sa-r, 0px)); top: calc(100px + env(safe-area-inset-top, 0px)); z-index: 620;
     }
     .alert-detail:not([hidden]) ~ .map-actions { opacity: 0; pointer-events: none; }
-    /* 兩顆鈕交回一般流排版(桌面的絕對定位值全部歸零),外觀值不動。
-       ⚠️ position 用 relative 不用 static:兩顆鈕的 ::after 觸控熱區是 absolute + width:100%,
-       static 會讓熱區的 containing block 變成 .map-actions(它是 absolute),於是兩顆的熱區都撐成
-       整條列 210px、DOM 較後的 nearBtn 整個蓋掉 randBtn ——「隨機跟隨」怎麼點都開成「附近車站」
-       (2026-07-26 上線後驗收在 App 與 ?geomock 實測到,網站因為 nearBtn 被 remove 而倖免)。
-       relative 沒有位移(四個方位仍 auto)、排版逐像素不變,只是把熱區的錨點還給按鈕自己。 */
+    /* ⚠️ position 用 relative 不用 static:鈕的 ::after 觸控熱區是 absolute + width:100%,
+       static 會讓熱區的 containing block 變成 .map-actions(它是 absolute),熱區撐成整欄、
+       DOM 較後的鈕整個蓋掉前一顆(2026-07-26 上線後在 App 實測到)。relative 四方位 auto=零位移。 */
     #randBtn, body.fs #randBtn, #nearBtn, body.fs #nearBtn {
       position: relative; left: auto; right: auto; top: auto; bottom: auto; transform: none;
-      font-size: 13px; padding: 6px 13px;
+      width: 44px; height: 44px; padding: 0; justify-content: center; border-radius: 12px;
+      font-size: 13px;
     }
     #randBtn:hover, #nearBtn:hover { transform: none; }
+    #randBtn svg { width: 17px; height: 17px; }
+    #nearBtn .nb-ico { font-size: 19px; }
+    /* icon-only:標籤長度不該決定版面寬度(§04c-P);語意仍在 title 與長按/首次的標籤 chip */
+    #randBtn #randLbl, #nearBtn .nb-lbl { display: none; }
+    /* 主動作=實心紅(§04c-P);隨機巡航進行中(active)加內圈亮環區別 */
+    #randBtn { background: var(--red); color: #fff8ec; border-color: var(--red-deep); box-shadow: var(--shadow-red); }
+    #randBtn.active { box-shadow: var(--shadow-red), inset 0 0 0 2px rgba(255,248,236,.85); }
+    /* 跟隨鎖進工具欄:鎖定=44 方鈕、解鎖=「回到列車」向左長成膠囊——容器 align-items:flex-end
+       ⇒ 右對齊、上面兩顆不動,位置記憶不被破壞(§04c Q4)。 */
+    .map-actions #followLockBtn {
+      width: 44px; height: 44px; padding: 0; flex: none; position: relative;
+      display: flex; align-items: center; justify-content: center;
+      font: inherit; font-size: 13px; font-weight: 700; cursor: pointer;
+      background: var(--paper); color: var(--navy);
+      border: 1.5px solid var(--line); border-radius: 12px; box-shadow: var(--shadow-1);
+    }
+    .map-actions #followLockBtn .ri-icon { width: 20px; height: 20px; display: block; }
+    .map-actions #followLockBtn.unlocked {
+      width: auto; padding: 0 14px; white-space: nowrap;
+      background: var(--red); color: #fff8ec; border-color: var(--red-deep); box-shadow: var(--shadow-red);
+    }
+    /* 標籤 chip(首次進場 2 秒＋長按):錨在按鈕左緣外側 */
+    .map-actions .mt-tip {
+      position: absolute; right: calc(100% + 8px); top: 50%; transform: translateY(-50%);
+      background: var(--navy); color: #fff8ec; font-size: 12px; font-weight: 700;
+      padding: 4px 9px; border-radius: 7px; white-space: nowrap; pointer-events: none; z-index: 5;
+    }
     /* 首訪卡手機貼齊 mock */
     .howto-wrap { padding: 26px 14px 14px; }
   }
@@ -2925,31 +2950,56 @@
     body.fs .traincard.tc-sheet.sheet-small .tc-sparkwrap,
     body.fs .traincard.tc-sheet.sheet-small .tc-stops { display: block; }
 
-    /* 缺陷②:面板不在底部了,跟隨小卡不必往上讓——那個 46% 的讓位量正是把它推去壓住頂列的元凶。
-       維持它平時的底錨位置即可(側欄在右、小卡在左,兩者本來就不相交)。 */
-    body.fs.sheet-open .follow-panel, body.fs.sheet-open .freq-card {
-      bottom: calc(var(--tabbar-clear) + 2px) !important;
+    /* ── 跟隨欄(§04c Q3/D1 正解):上下錨定的左側欄——高度是版面給的常數,內容再長也只是捲動
+       變長,「max-height 依內容撐開」的寫法在橫式禁止回歸。三段=頭 sticky 頂(車次/車種/速度)、
+       中段自捲、「我上車了」sticky 底。收合=既有 fp-min(220×44 一行),狀態記 localStorage
+       (trainmap-fprail-min,fpClose/openTrainSheet 維護)。
+       bottom 帶 !important:蓋過直向殼 sheet-open 讓位規則;placeFsOverlays 在側欄形態不寫 inline
+       bottom(見該處 sideRail 閘),CSS 是唯一權威。 */
+    body.fs .follow-panel {
+      left: calc(10px + var(--sa-l)); right: auto;
+      top: calc(52px + env(safe-area-inset-top, 0px));
+      bottom: calc(var(--tabbar-clear) + 8px) !important;
+      width: 220px; max-height: none;
+      overflow-y: auto; overscroll-behavior: contain;
+      padding: 0 11px;
     }
-    /* 小卡在矮視窗要限高,否則長車種名折行會把它頂到分頁列(頂列底緣約 50 + 安全區) */
-    body.fs .follow-panel, body.fs .freq-card {
+    /* 🔴 fp-min 那條把 display 設成 flex,特異性(0,3,1)蓋得過 UA 的 [hidden]{display:none}——
+       hidden 的面板會被硬畫出來。這裡明確接回;非 fp-min 那條刻意不碰 display,不用列 */
+    body.fs .follow-panel[hidden] { display: none !important; }
+    body.fs .follow-panel .fp-head {
+      position: sticky; top: 0; z-index: 2;
+      margin: 0 -11px; padding: 10px 11px 8px;
+      background: rgba(255, 253, 247, .85);
+      border-bottom: 1px solid var(--line-faint);
+    }
+    body.fs .follow-panel .fp-ride {
+      position: sticky; bottom: 6px; z-index: 2;
+      box-shadow: 0 0 0 5px rgba(255, 253, 247, .85);
+      background: var(--paper);
+    }
+    /* 收合膠囊:220×44 一行(§04c L3),錨點與寬度不動、只改高度——展開/收合相機中線才不跳 */
+    body.fs .follow-panel.fp-min {
+      bottom: auto !important; width: 220px; height: 44px;
+      display: flex; align-items: center; overflow: hidden; padding: 0 11px;
+    }
+    body.fs .follow-panel.fp-min .fp-head {
+      position: static; margin: 0; padding: 0; border: 0; background: none; flex: 1;
+    }
+    /* 捷運跟車卡維持左下小卡(§04c 只重排台鐵/高鐵跟隨欄):沿用限高與 sheet-open 底錨 */
+    body.fs.sheet-open .freq-card { bottom: calc(var(--tabbar-clear) + 2px) !important; }
+    body.fs .freq-card {
       max-height: calc(100dvh - var(--tabbar-clear) - 64px - env(safe-area-inset-top, 0px));
       overflow-y: auto;
     }
     /* 停靠時「小卡讓位淡出給 dwellPlate」(上面 dwell-show 那條)在側欄形態下**仍然要保留**。
-       曾經以為前提失效(小卡在左下、站名牌讓開到側欄左緣)而加了豁免,判準當場打臉:852×393 實測
-       兩者疊 176×12px——矮視窗把小卡的底錨位置頂得夠高,還是會撞。既有的資訊優先序是對的,不要動它。 */
+       曾經以為前提失效而加了豁免,判準當場打臉:852×393 實測兩者疊 176×12px。 */
 
-    /* 「隨機跟隨／換一班」在矮視窗會疊到兩個東西:右上的跟隨鎖鈕(Leaflet topright control,實測 44×7~44×25)
-       以及側欄。兩者都在右邊 ⇒ 動作列整條讓到「側欄左緣再往左」,結構上就不可能再撞
-       (讓開量讀 --rail-w,側欄寬度一改這裡自動跟上;鎖鈕 44 寬也在側欄右側範圍內,一併讓掉)。 */
-    body.fs .map-actions { right: calc(var(--rail-w) + 20px + var(--sa-r)); }
-    /* 沒開面板時側欄不在,動作列只要讓開跟隨鎖。
-       🔴 這裡原本寫死 60px——那是照「鎖定時的 44px 小方鈕」量的,而解鎖後它會變成 72px 的
-       「回到列車」膠囊(文字鈕,寬度跟著文案走),於是實測疊 22×12px(使用者 2026-08-11 橫放回報)。
-       改讀 --lockctl-clear：placeFsOverlays() 每次重排時量「鎖鈕左緣離 stage 右緣多遠」寫進來,
-       鎖／解鎖、文案改長、鈕藏起來(clear=0)全都自動跟上,不會再有第二個過期的魔術數字。 */
-    body.fs:not(.sheet-open):not(.train-open) .map-actions {
-      right: calc(var(--lockctl-clear, 60px) + 12px + var(--sa-r));
+    /* 工具堆(§04c 合約5):頂列下方右錨;面板側欄開著時整疊左移讓位,讓開量讀 --rail-w
+       單一事實來源,transition 180ms。跟隨鎖已在欄內,原 --lockctl-clear 機制整組退役。 */
+    body.fs .map-actions { top: calc(56px + env(safe-area-inset-top, 0px)); transition: right .18s ease; }
+    body.fs.sheet-open .map-actions, body.fs.train-open .map-actions {
+      right: calc(var(--rail-w) + 18px + var(--sa-r));
     }
 
     /* ── 動態島:橫放時左右各一條安全區,手機殼的水平錨點全部讓開 ──────────────────
@@ -2958,9 +3008,8 @@
        跟隨小卡、跟隨鎖、側欄。地圖本身**刻意不讓**——它該滿版鋪到螢幕邊緣,被島遮住一角無妨,
        不能讀的是文字與按鈕。變數為 0 時下列每一條都退化成原值,直向與桌面逐值不變。 */
     body.fs .topbar { left: calc(10px + var(--sa-l)); right: calc(10px + var(--sa-r)); }
-    .badge { left: calc(10px + var(--sa-l)); }
     .tabbar { padding-left: calc(4px + var(--sa-l)); padding-right: calc(4px + var(--sa-r)); }
-    body.fs .follow-panel, body.fs .freq-card { left: calc(8px + var(--sa-l)); }
+    body.fs .freq-card { left: calc(8px + var(--sa-l)); }
     .leaflet-right .leaflet-control { margin-right: calc(10px + var(--sa-r)); }
     body.fs .controls { left: calc(12px + var(--sa-l)); right: calc(12px + var(--sa-r)); }
 
@@ -2971,10 +3020,14 @@
           (小卡不透明、且淡出契約只在另有面板開著時生效)——縮小反而變成看不見。
           改成在「露出的地圖」裡水平置中:沿用 body.live 那套 translateX(-50%) 的既有慣例,
           左邊給小卡、右邊給動作列與側欄,三者結構上互不重疊。 */
-    body.fs { --rail-occupy: 0px; }
+    /* §04c 契約8:中線=[跟隨欄右緣+8, 側欄左緣−8] 的中點。左界 --land-lb 讀 body.follow-on
+       (syncFollowOnClass 維護:跟隨欄展開才掛;收合 fp-min=中線重算回視窗左緣),
+       右界 --rail-occupy 讀 sheet 開闔。兩顆變數各自獨立,四種組合都對。 */
+    body.fs { --rail-occupy: 0px; --land-lb: var(--sa-l); }
     body.fs.sheet-open, body.fs.train-open { --rail-occupy: calc(var(--rail-w) + 16px + var(--sa-r)); }
+    body.fs.follow-on { --land-lb: calc(238px + var(--sa-l)); } /* 10(欄左)+220(欄寬)+8(間距) */
     body.fs .dwell-plate {
-      left: calc(var(--sa-l) + (100% - var(--sa-l) - var(--rail-occupy)) / 2); right: auto;
+      left: calc(var(--land-lb) + (100% - var(--land-lb) - var(--rail-occupy)) / 2); right: auto;
       width: max-content; max-width: min(320px, 42vw); min-width: 0;
       transform: translateX(-50%) translateY(-5px);
     }
@@ -3006,6 +3059,43 @@
        body.sheet-full 在側欄下不會被**掛上**(sheetHasSizeSteps 回 false),但那只保證「在橫式裡開面板」;
        直向拉到大段再轉橫是另一條路——class 已經掛著,要靠 resize 掛點重跑 updateSheetOpenClass() 清掉
        (見該處註解)。純 CSS 解不掉:側欄的媒體查詢無法否定 body 上已存在的 class。 */
+
+    /* ── §04c 契約3:時鐘徽章併入頂列(placeBadge 搬 DOM,這裡只管樣式) ──
+       position:static 讓它加入頂列 flex;margin-right:auto 把「牌+徽章」釘成左群、頁籤留右
+       (頂列是 space-between,公告鈕不在時 auto margin 才是唯一決定權)。
+       原本獨立卡的紙底/描邊/陰影全卸掉——頂列裡它是資訊列的一節,不是第二張卡。 */
+    .topbar .badge {
+      position: static; flex: none; align-self: center; margin-right: auto;
+      gap: 8px; padding: 0 0 0 4px;
+      background: none; border: 0; box-shadow: none;
+    }
+    .topbar .badge .clock { font-size: 17px; }
+    .topbar .badge .count { font-size: 12px; }
+
+    /* ── §04c 契約9:搜尋橫放形態 .search-land——右半全高,輸入框釘頂,結果自捲。
+       橫放鍵盤 ~190–210px,440 高只剩 230–250 可用:側欄槽的 340px 寬塞不下有意義的結果列,
+       整組換右半版面。左半地圖留著只為方向感(相機已由 recenterTo 的 search-open 閘暫停)。 */
+    body.fs #searchPanel {
+      width: max(420px, 50vw); max-width: none;
+      top: env(safe-area-inset-top, 0px);
+      bottom: 0; right: var(--sa-r); border-radius: 12px 0 0 12px;
+    }
+    /* 鍵盤期間 tab bar 隱藏(省 52px、避開鍵盤上緣);頂列壓暗降級成背景,搜尋是唯一主角 */
+    body.fs.search-open .tabbar { display: none; }
+    body.fs.search-open .topbar { opacity: .35; }
+  }
+
+  /* ── §04c 契約3:橫式窄機收斂——寬度不夠時按「資訊密度」遞減,一次摘一件:
+     先摘尖峰/時刻表模擬徽章,再摘「N 班奔跑中」,最後摘軌島牌的基隆–高雄副標。
+     三條門檻獨立於主橫式塊:只在「徽章已併入頂列」的前提下才有意義,條件同式再加寬度上限。 */
+  @media (orientation: landscape) and (max-height: 500px) and (max-width: 899px) {
+    .topbar .badge .peak { display: none; }
+  }
+  @media (orientation: landscape) and (max-height: 500px) and (max-width: 819px) {
+    .topbar .badge .count { display: none; }
+  }
+  @media (orientation: landscape) and (max-height: 500px) and (max-width: 739px) {
+    .topbar .tb-plate .plate-foot { display: none; }
   }
 
   /* ── 桌面(≥901 且高度夠):tab bar/更多 sheet 不出現;桌面帶把音樂控制收成 ♪ 圖示鈕＋彈出面板(議題1主案,省~110px→帶內容壓進~1220px,1280 不裁);右上角橫幅/詳情/平交道卡/看板讓開 #fsFab ──
@@ -3279,7 +3369,7 @@
          .alert-detail ~ .map-actions 淡出。附近車站只有原生 App 有(見 LOCATE_ENABLED),網站/PWA 整顆移除。 -->
     <div class="map-actions" id="mapActions">
       <button id="randBtn" title="隨機跟隨列車——再按一次換一班（小卡 × 結束）" hidden><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="16 3 21 3 21 8"/><line x1="4" y1="20" x2="21" y2="3"/><polyline points="21 16 21 21 16 21"/><line x1="15" y1="15" x2="21" y2="21"/><line x1="4" y1="4" x2="9" y2="9"/></svg><span id="randLbl">隨機跟隨</span></button>
-      <button id="nearBtn" title="附近車站——我附近有哪些車站，最近的車什麼時候到" hidden><span class="nb-ico" aria-hidden="true">◎</span>附近車站</button>
+      <button id="nearBtn" title="附近車站——我附近有哪些車站，最近的車什麼時候到" hidden><span class="nb-ico" aria-hidden="true">◎</span><span class="nb-lbl">附近車站</span></button>
     </div>
     <!-- 行程分享接收端橫幅(?trip= 解碼成功後顯示;三態:追蹤中/已到達/行程已結束) -->
     <div class="trip-banner" id="tripBanner" hidden>
@@ -14194,7 +14284,7 @@ function closeDelayHist() {
 }
 function showFollowPanel(tr) {
   const fp = document.getElementById('followPanel');
-  if (state.mode !== 'sched' || !tr) { fp.hidden = true; closeRideBox(); return; }
+  if (state.mode !== 'sched' || !tr) { fp.hidden = true; closeRideBox(); syncFollowOnClass(); return; }
   document.getElementById('fpDot').style.background = tr.color;
   document.getElementById('fpTrain').textContent = tr.train;
   const it = renderTrainCard(tr);
@@ -14206,6 +14296,7 @@ function showFollowPanel(tr) {
   renderDelayRow(); // 有快取即即時顯示;無則先隱藏,由 ensureDelayStats 到貨後補
   if (tr.sys === 'tra_sched') ensureDelayStats(); // 只有台鐵才觸發載入,跟高鐵不打這支 API
   fp.hidden = false;
+  syncFollowOnClass(); // §04c:跟隨欄現身,站名牌中線與露出地圖跟著換
   // 行程分享發起入口:暗啟動旗標開 + 台鐵/高鐵一般班次(捷運 v1 不做、環島觀光列車無固定目的站→不顯)
   const tsBtn = document.getElementById('fpTripShare');
   if (tsBtn) tsBtn.hidden = !(tripShareVisible() && !tr.loop && !!tripSysCode(tr.sys));
@@ -14371,31 +14462,85 @@ function showSearchMiss(q) {
 // 附近車站卡更慘,中心埋在卡內 274px。這不是「面板太大」,是相機釘錯位置:面板再縮小,只要主體還釘在
 // 50%,46% 的 sheet 就一定切到它。對策=算出底部被遮多少,把「要傳給 setView 的中心」往下推一半,
 // 主體就落在露出來那塊的正中央。**新增任何相機呼叫都應該走 focusCenter(),不要直接傳原始座標。**
-// 露出來的地圖低於這個尺寸就不取景(整個被面板蓋掉時沒地圖可看,硬移只是亂跳)。
-// 直向量高度、橫向側欄量寬度,同一個門檻兩軸共用。
-const MIN_MAP_STRIP = 160;
+// 露出來的地圖某一軸低於這個尺寸就放棄那一軸的讓位(沒地圖可看時硬移只是亂跳)。
+// §04c 起降到 64:設計明定 88% 大段只剩 ~100px 露出時「仍以該區中心為準」,原 160 會把它整個關掉。
+const MIN_MAP_STRIP = 64;
 // 面板是不是「右側欄」形態(橫式矮視窗)。CSS 那條 @media 的 JS 對應——兩邊必須同式,
 // 否則會出現「CSS 已經把面板挪到右邊,JS 還在算底部遮蔽」這種左右手打架。
 function sheetIsSideRail() {
   return !!(window.matchMedia && window.matchMedia('(orientation: landscape) and (max-height: 500px)').matches);
 }
+// §04c「露出地圖」:四邊各自從**當下可見的 HUD 元素實測 rect** 推出,不寫死常數。
+// 每個元素歸屬固定的一邊(不是「最大空矩形」):上=頂列/時鐘徽章;下=底部 sheet、收合速度膠囊、
+// tab bar;左=跟隨欄/跟車小卡(展開時;§04c-P:小卡佔左下一整塊,只往上讓不夠);右=側欄與工具欄。
+// 工具欄一律以「右緣起算常態寬 44」計——「回到列車」膠囊把 rect 拉寬是暫態,契約明定不得因它再推相機,
+// 否則每次鎖/解鎖畫面都抽動一下。
+// rect 量測每幀跑太貴(getBoundingClientRect 強制 layout),80ms 快取;版面事件(sheet 開關/段高、
+// 跟隨欄收合、resize、工具增減)呼叫 invalidateMapInsets() 立即失效,重算永遠拿得到當下真相。
+let _miCache = null, _miAt = 0;
+function invalidateMapInsets() { _miCache = null; }
 function mapInsets() {
+  const now = performance.now();
+  if (_miCache && now - _miAt < 80) return _miCache;
+  _miAt = now;
+  return (_miCache = computeMapInsets());
+}
+function computeMapInsets() {
   const NONE = { top: 0, bottom: 0, left: 0, right: 0 };
   // 桌面面板是右上角浮動卡,不擋地圖中央 → 恆 0,行為與改動前逐像素相同
   if (!window.matchMedia(MOBILE_MQ).matches) return NONE;
-  const el = typeof activeSheetEl === 'function' ? activeSheetEl() : null;
-  if (!el || el.hidden) return NONE;
-  const mc = map.getContainer().getBoundingClientRect(), r = el.getBoundingClientRect();
-  if (!r.height || !r.width) return NONE;
-  if (sheetIsSideRail()) {
-    // 側欄:面板左緣以右的地圖全視為看不到
-    const right = Math.max(0, mc.right - r.left);
-    if (mc.width - right < MIN_MAP_STRIP) return NONE;
-    return { top: 0, bottom: 0, left: 0, right };
+  const body = document.body;
+  // 直播/放空是乾淨 HUD(頂列/工具欄全藏),沿用整容器置中
+  if (body.classList.contains('live') || body.classList.contains('ambient')) return NONE;
+  const mc = map.getContainer().getBoundingClientRect();
+  if (!mc.width || !mc.height) return NONE;
+  // 🔴 不用 offsetParent 判可見:.tabbar 是 position:fixed,offsetParent 恆 null 會被誤判成不在
+  const vis = (el) => {
+    if (!el || el.hidden || !el.getClientRects().length) return false;
+    const cs = getComputedStyle(el);
+    return cs.visibility !== 'hidden' && +cs.opacity >= 0.5;
+  };
+  let top = 0, bottom = 0, left = 0, right = 0;
+  // 上界:頂列與時鐘徽章底緣 +8(直式徽章獨立、橫式已併入頂列——兩者都量、取較低者,不用管誰裝誰)
+  for (const el of [document.getElementById('topbar'), document.querySelector('.badge')]) {
+    if (vis(el)) top = Math.max(top, el.getBoundingClientRect().bottom - mc.top + 8);
   }
-  const bottom = Math.max(0, mc.bottom - r.top); // 面板頂緣以下的地圖全視為看不到
-  if (mc.height - bottom < MIN_MAP_STRIP) return NONE;
-  return { top: 0, bottom, left: 0, right: 0 };
+  // 右界:工具欄(換一班/附近車站/跟隨鎖)。橫式 sheet 開著時整疊左移,rect 右緣跟著動,這裡自動吃到
+  const ma = document.getElementById('mapActions');
+  if (ma && [...ma.children].some(vis)) {
+    const r = ma.getBoundingClientRect();
+    if (r.width > 0.5) right = Math.max(right, mc.right - r.right + 44 + 8);
+  }
+  // 下界/右界:目前開著的 sheet(直向=底部抽屜,橫式=右側欄)
+  const sheet = typeof activeSheetEl === 'function' ? activeSheetEl() : null;
+  const sideRail = sheetIsSideRail();
+  if (vis(sheet)) {
+    const r = sheet.getBoundingClientRect();
+    if (r.width > 0.5 && r.height > 0.5) {
+      if (sideRail) right = Math.max(right, mc.right - r.left + 8);
+      else bottom = Math.max(bottom, mc.bottom - r.top + 8);
+    }
+  }
+  // 左界:跟隨欄(橫式)與跟車小卡(直式)展開時;收合成速度膠囊時直式改記下界、
+  // 橫式 220×44 貼頂不佔高(§04c 契約 8:收合時中線重算=左界回到視窗左緣)
+  for (const el of [document.getElementById('followPanel'), document.getElementById('freqCard')]) {
+    if (!vis(el)) continue;
+    const r = el.getBoundingClientRect();
+    if (!(r.width > 0.5 && r.height > 0.5)) continue;
+    const min = el.classList.contains('fp-min');
+    if (sideRail) { if (!min) left = Math.max(left, r.right - mc.left + 8); }
+    else if (min) bottom = Math.max(bottom, mc.bottom - r.top + 8);
+    else left = Math.max(left, r.right - mc.left + 8);
+  }
+  // 下界兜底:tab bar(手機殼常駐)——什麼面板都沒開時至少讓開它
+  const tb = document.querySelector('.tabbar');
+  if (vis(tb)) bottom = Math.max(bottom, mc.bottom - tb.getBoundingClientRect().top + 8);
+  top = Math.max(0, top); bottom = Math.max(0, bottom); left = Math.max(0, left); right = Math.max(0, right);
+  // 閘門改成逐軸:一軸被吃光不該連累另一軸(88% 大段垂直只剩 ~100px,水平還是好好的)
+  if (mc.height - top - bottom < MIN_MAP_STRIP) { top = 0; bottom = 0; }
+  if (mc.width - left - right < MIN_MAP_STRIP) { left = 0; right = 0; }
+  if (!top && !bottom && !left && !right) return NONE;
+  return { top, bottom, left, right };
 }
 // 目前施加在鏡頭上的「讓位位移」(px)。**這是唯一事實來源**:state._focusShift={x,y}。
 // 凡動到它就要同時真的移動鏡頭,凡移動鏡頭讓位就要更新它。
@@ -14428,8 +14573,11 @@ function focusApplyLimit(target, zz, want) {
   state._focusShift = got;
   return target;
 }
-function focusCenter(lat, lon, z) {
-  const want = focusShift();
+function focusCenter(lat, lon, z, extra) {
+  const s = focusShift();
+  // extra=§04c 前瞻偏移(跟車專用):一樣進 _focusShift 記帳——解除跟隨後 reframeFocus 的
+  // want(只含讓位)對上 have(讓位+前瞻),差量自動把前瞻退掉,不需要任何專屬清理碼
+  const want = { x: s.x + (extra ? extra.x : 0), y: s.y + (extra ? extra.y : 0) };
   const zz = (z == null ? map.getZoom() : z);
   if (!want.x && !want.y) { state._focusShift = { x: 0, y: 0 }; return L.latLng(lat, lon); }
   const p = map.project([lat, lon], zz);
@@ -14455,13 +14603,14 @@ function reframeFocus() {
   state._focusShift = { x: (have.x || 0) + (pa.x - pb.x), y: (have.y || 0) + (pa.y - pb.y) };
 }
 
-function recenterTo(lat, lon) {
+function recenterTo(lat, lon, extra) {
   if (camBlocked()) return; // 劇場/背景分頁:跟隨鏡頭不置中(成本防線,勿移除)
   if (state._zoomAnim) return; // 縮放動畫視窗內不搶相機:setView(animate:false) 會中斷 Leaflet 的縮放補間;動畫一結束(≤250ms)下一幀自然補回置中
+  if (document.body.classList.contains('search-open')) return; // §04c 契約9:搜尋打字中不搶相機(關閉面板即恢復)
   // 每幀把列車釘在畫面「可視窗」中心(面板遮住的部分不算,見 focusCenter)。曾用「次像素平移」(移動 mapPane
   // 消階梯鋸齒),但 mapPane(圖磚)與獨立的列車/軌道 canvas 圖層在真機幀率下會脫鉤→整條路線跟著車移動/抖動
   // (v0713r 引入),已移除,回歸穩定整數像素置中。
-  const t = focusCenter(lat, lon);
+  const t = focusCenter(lat, lon, null, extra);
   const c = map.getCenter();
   if (Math.abs(c.lat - t.lat) < 1e-6 && Math.abs(c.lng - t.lng) < 1e-6) return; // 中心已到位(停站/暫停)免重複 setView
   state._autoPan = true; // 標記「這是跟隨鏡頭不是使用者拖曳」——tap-pick 選單靠它分辨,別誤收(見 closeTapPickOnUserMove)
@@ -14537,6 +14686,30 @@ function setFollowStatus(s, msg) {
   if (state.followStatus === s) return;
   state.followStatus = s; renderFollowBar(msg);
 }
+// §04c 前瞻偏移:置中點沿**行進方向**再偏「露出矩形短邊的 15%」,前方路線多露一段。
+// 方向跟著車走(北上=偏上、南下=偏下),用「45 模擬秒後的位置」估計,不寫死。
+// 手機殼限定:桌面露出矩形=整容器,前瞻會讓列車肉眼可見地偏離既有置中(桌面零回歸原則)。
+function followAheadPx(tr, pos) {
+  if (!window.matchMedia(MOBILE_MQ).matches) return null;
+  const nxt = trainPos(tr, state.simSec + 45);
+  const z = map.getZoom();
+  let dx = 0, dy = 0;
+  if (nxt) {
+    const a = map.project([pos.lat, pos.lon], z), b = map.project([nxt.lat, nxt.lon], z);
+    dx = b.x - a.x; dy = b.y - a.y;
+  }
+  const len = Math.hypot(dx, dy);
+  if (len < 1e-6) {
+    // 停靠中/終點前方向未定:沿用同一班車上一幀的方向,免得停站瞬間鏡頭彈回又彈出
+    const last = state._aheadLast;
+    return last && last.tr === tr ? { x: last.x, y: last.y } : null;
+  }
+  const i = mapInsets(), sz = map.getSize();
+  const m = 0.15 * Math.max(0, Math.min(sz.x - i.left - i.right, sz.y - i.top - i.bottom));
+  const out = { tr, x: dx / len * m, y: dy / len * m };
+  state._aheadLast = out;
+  return { x: out.x, y: out.y };
+}
 function updateFollowCamera() {
   const tr = state.followTrain; if (!tr) return;
   if (state._transition) { updateFollowPanel(tr); return; } // flyTo 轉場中不搶鏡頭
@@ -14566,7 +14739,7 @@ function updateFollowCamera() {
   const pos = trainPos(tr, state.simSec);
   if (!pos) { const f = tr.stops[0]; if (state.followLock) recenterTo(f.lat, f.lon); setFollowStatus('pre', '尚未發車'); return; }
   setFollowStatus('run', '');
-  if (state.followLock) recenterTo(pos.lat, pos.lon);
+  if (state.followLock) recenterTo(pos.lat, pos.lon, followAheadPx(tr, pos));
   updateFollowPanel(tr);
 }
 
@@ -14590,21 +14763,36 @@ function setFollowLock(on) {
   }
   updateFollowLockUI();
 }
+// §04c 契約8:站名牌/速度膠囊的水平中線=[跟隨欄右緣+8, 側欄左緣−8] 的中點。
+// 「跟隨欄在不在」用 body class 讓 CSS 讀得到;收合 fp-min=中線重算(class 拿掉、左界回到視窗左緣)。
+function syncFollowOnClass() {
+  const fp = document.getElementById('followPanel');
+  document.body.classList.toggle('follow-on',
+    !!state.followTrain && !!fp && !fp.hidden && !fp.classList.contains('fp-min'));
+}
 function updateFollowLockUI() {
   const b = document.getElementById('followLockBtn');
   if (!b) return;
   // 放空模式藏 UI(鈕藏了解鎖鎖不回,鏡頭會漂走);隨機跟隨仍跟單車,保留鎖頭讓使用者能解鎖瀏覽/點回置中
   const show = (!!state.followTrain || !!state.freqFollow) && !document.body.classList.contains('ambient');
-  b.parentNode.style.display = show ? '' : 'none';
+  // 鈕的家隨斷點搬(placeControlRail):手機在 #mapActions 工具欄——藏整個 parentNode 會把
+  // 換一班/附近車站一起藏掉,只能藏鈕自己;桌面仍在 Leaflet 控制角,照舊藏容器(免留空槽佔版位)。
+  if (b.parentNode && b.parentNode.id === 'mapActions') { b.style.display = show ? '' : 'none'; }
+  else if (b.parentNode) { b.parentNode.style.display = show ? '' : 'none'; b.style.display = ''; }
   b.classList.toggle('unlocked', !state.followLock);
   b.innerHTML = state.followLock ? railIcon('ui-follow-lock') : '回到列車';
   b.setAttribute('aria-label', state.followLock ? '解除跟隨鎖定' : '回到列車');
   b.title = state.followLock
     ? '跟隨鎖定中：地圖固定列車置中——點擊或直接拖曳地圖解鎖，可自由瀏覽'
     : '自由瀏覽中：點擊回到列車，恢復置中跟隨';
-  // 鈕在這裡從 44px 方鈕變成 72px 膠囊(或反過來),而動作列的讓開量讀的就是它的寬度。
-  // ResizeObserver 沒觀察這顆(它觀察的是小卡／站台帶／提示),不在這裡重排就會停在上一個寬度。
+  syncFollowOnClass();
+  // 工具欄成員增減/鎖鈕變膠囊都改變版面;露出地圖快取一併失效(右界以常態寬計,值多半不變,但成員增減會變)
+  invalidateMapInsets();
+  // 鈕在這裡從 44px 方鈕變成膠囊(或反過來)會改變工具欄高度;讓位家具要跟著重排。
+  // ResizeObserver 沒觀察這顆(它觀察的是小卡/站台帶/提示),不在這裡重排就會停在上一個寬度。
   if (state._placeFsOverlays) state._placeFsOverlays();
+  // 首次進入跟車:工具欄 icon-only 的標籤補償(各顯示 2 秒,localStorage 記一次性)
+  if (show && state._railTipsOnce) state._railTipsOnce();
 }
 
 // ── per-system 時區支援(海外城市) ──
@@ -16199,6 +16387,9 @@ function updateSheetOpenClass() {
   if (sizedAct) applySheetSize(sizedAct, sheetSizePref);
   // 契約③:只有大段 88% 掛 sheet-full；小／中段都不可讓頂部常駐元件退場。
   document.body.classList.toggle('sheet-full', !!(sizedAct && sheetSizeOf(sizedAct) === 'large'));
+  // §04c 契約9:搜尋面板開著=打字中,相機暫停搶置中(recenterTo 讀這顆 class);橫式另有 .search-land 版面
+  document.body.classList.toggle('search-open', !!(act && act.id === 'searchPanel'));
+  invalidateMapInsets(); // 面板開關/換段高=露出地圖變了,量測快取立即失效(下一行 reframeFocus 要拿新值)
   // 手機 tab bar 選中態跟著面板走:有開面板亮該 tab,全關(或「列車」sheet=看地圖)一顆都不亮
   const tabOf = { tabSearch: 'searchPanel', tabExplore: 'explorePanel', tabFav: 'favPanel', tabRide: 'ridePanel' };
   for (const tid in tabOf) {
@@ -16220,6 +16411,8 @@ function openTrainSheet() {
   soloPanel('train'); // 關掉其他 sheet(保留自己)
   const tc = document.getElementById('trainCard');
   document.getElementById('followPanel').classList.remove('fp-min'); // 收合小卡態也一致地開 sheet
+  try { localStorage.setItem('trainmap-fprail-min', '0'); } catch (e) {} // 點膠囊=展開意圖,§04c 記憶跟著清
+  syncFollowOnClass();
   tc.classList.add('tc-sheet');
   document.body.classList.add('train-open');
   setStopsOpen(true); // sheet 內「停靠時刻」常駐展開(桌面靠 tcTT 切換的兩鈕在 sheet 態隱藏)
@@ -17069,6 +17262,74 @@ function placeFootBoxes() {
   if (window.matchMedia(MOBILE_MQ).matches) { for (const { box } of _footHomes) if (box.parentNode !== about) about.appendChild(box); }
   else for (const { box, anchor } of _footHomes) if (box.parentNode !== anchor.parentNode || box.previousSibling !== anchor) anchor.parentNode.insertBefore(box, anchor.nextSibling);
 }
+// §04c:跟隨鎖手機搬進右緣工具欄(#mapActions,與換一班/附近車站同一疊),桌面搬回 Leaflet
+// 右下控制角(錨點註記記住老家,比照 placeSearch)。搬完要重跑 updateFollowLockUI:顯示/隱藏的
+// 載體跟著家換(欄內藏鈕自己、控制角藏容器),不重算會出現「鈕搬走了、老家容器還開著空槽」。
+let _lockHomeAnchor = null;
+function placeControlRail() {
+  const b = document.getElementById('followLockBtn');
+  if (!b) return;
+  if (!_lockHomeAnchor) { _lockHomeAnchor = document.createComment('lock-home'); b.parentNode.insertBefore(_lockHomeAnchor, b); }
+  const rail = document.getElementById('mapActions');
+  if (window.matchMedia(MOBILE_MQ).matches) {
+    if (b.parentNode !== rail) { rail.appendChild(b); updateFollowLockUI(); }
+  } else if (b.parentNode !== _lockHomeAnchor.parentNode || b.previousSibling !== _lockHomeAnchor) {
+    _lockHomeAnchor.parentNode.insertBefore(b, _lockHomeAnchor.nextSibling);
+    updateFollowLockUI();
+  }
+}
+// §04c 契約3:橫式時鐘徽章併入頂列(排在軌島牌之後、公告鈕之前的 flex 子項);直式/桌面搬回 .stage 原位
+let _badgeHomeAnchor = null;
+function placeBadge() {
+  const badge = document.querySelector('.badge');
+  const bar = document.getElementById('topbar');
+  if (!badge || !bar) return;
+  if (!_badgeHomeAnchor) { _badgeHomeAnchor = document.createComment('badge-home'); badge.parentNode.insertBefore(_badgeHomeAnchor, badge); }
+  // 直播例外:live 的頂列整條 display:none,徽章搬進去會跟著消失,而 live 恰恰要大字時鐘——留在老家
+  if (sheetIsSideRail() && !document.body.classList.contains('live')) {
+    if (badge.parentNode !== bar) bar.insertBefore(badge, document.getElementById('alertChip'));
+  } else if (badge.parentNode !== _badgeHomeAnchor.parentNode || badge.previousSibling !== _badgeHomeAnchor) {
+    _badgeHomeAnchor.parentNode.insertBefore(badge, _badgeHomeAnchor.nextSibling);
+  }
+  invalidateMapInsets(); // 徽章換家=上界量法換(獨立徽章 vs 併入頂列),露出地圖重算
+}
+// §04c:工具欄 icon-only 的標籤補償——首次進入跟車各顯示 2 秒(localStorage 記一次性);長按任一顆再現
+function setupToolRail() {
+  const rail = document.getElementById('mapActions');
+  if (!rail) return;
+  const tipOf = (btn) => btn.id === 'randBtn' ? ((document.getElementById('randLbl') || {}).textContent || '隨機跟隨')
+    : btn.id === 'nearBtn' ? '附近車站'
+    : (btn.getAttribute('aria-label') || '');
+  const showTip = (btn, ms) => {
+    if (!window.matchMedia(MOBILE_MQ).matches) return;
+    let t = btn.querySelector('.mt-tip');
+    if (!t) { t = document.createElement('span'); t.className = 'mt-tip'; btn.appendChild(t); }
+    t.textContent = tipOf(btn);
+    clearTimeout(t._hideT);
+    t._hideT = setTimeout(() => t.remove(), ms);
+  };
+  state._railTipsOnce = () => {
+    if (state._railTipDone) return;
+    state._railTipDone = true;
+    try {
+      if (localStorage.getItem('trainmap-railtip1')) return;
+      localStorage.setItem('trainmap-railtip1', '1');
+    } catch (e) { return; }
+    for (const btn of rail.querySelectorAll('button')) {
+      if (btn.hidden || btn.style.display === 'none' || !btn.getClientRects().length) continue;
+      showTip(btn, 2000);
+    }
+  };
+  let holdT = null;
+  rail.addEventListener('touchstart', (e) => {
+    const btn = e.target.closest('button'); if (!btn) return;
+    clearTimeout(holdT);
+    holdT = setTimeout(() => showTip(btn, 1600), 500);
+  }, { passive: true });
+  const cancelHold = () => clearTimeout(holdT);
+  rail.addEventListener('touchend', cancelHold, { passive: true });
+  rail.addEventListener('touchmove', cancelHold, { passive: true });
+}
 // 縣市 chip grid:更多 sheet「縣市快速移動」的 17 縣市按鈕(CITY_LIST 動態建一次)
 function buildMsCities() {
   const box = document.getElementById('msCities');
@@ -17543,7 +17804,7 @@ function setupMapTools() {
   setupHelp(); // 使用說明中心的四個入口與 ?help=1(要排在 setupHowto 之後:兩張卡不疊,help 開了就收首訪卡)
   // 手機:下緣家具由下往上排成三層——tab bar → 速度膠囊 → 逃生提示 → 跟車卡,每層讓開它下面那層。
   // 桌面帶常駐 stage 下緣、跟隨卡 CSS 固定 bottom 86px 在帶上方,不需 JS 重排。
-  const FS_TOP_KEEP = ['.topbar', '.badge', '#randBtn', '#nearBtn', '#tripClose'];
+  const FS_TOP_KEEP = ['.topbar', '.badge', '.map-actions', '#tripClose'];
   function placeFsOverlays() {
     const isMobile = window.matchMedia(MOBILE_MQ).matches;
     const fp = document.getElementById('followPanel');
@@ -17557,7 +17818,9 @@ function setupMapTools() {
     const stR = document.querySelector('.stage').getBoundingClientRect();
     const shellOk = isMobile && !document.body.classList.contains('ambient') && !document.body.classList.contains('live');
     const immersive = document.body.classList.contains('immersive');
-    const followVisible = state.followTrain && !fp.hidden && !immersive;
+    // 側欄形態的跟隨欄是上下錨定(CSS 唯一權威,bottom 帶 !important),不參與底部讓位的抬升記帳;
+    // 這裡把它當「不在」,尾端的歸零寫入(空字串)順便清掉直向時代殘留的 inline bottom
+    const followVisible = state.followTrain && !fp.hidden && !immersive && !sheetIsSideRail();
     const freqVisible = !!(state.freqFollow && fc && !fc.hidden && !immersive);
     // ── 第一層:逃生提示(#iabHint)讓開膠囊 ──
     // 提示 CSS 釘死 bottom:74px,而收合(slim)膠囊的頂端比提示的下緣還高 26–29px ⇒ 提示(z713)
@@ -17594,15 +17857,10 @@ function setupMapTools() {
     }
     fp.style.bottom = (lift != null && followVisible) ? lift + 'px' : '';
     if (fc) fc.style.bottom = (lift != null && freqVisible) ? lift + 'px' : '';
-    // 跟隨鎖(Leaflet 右下控制角)台鐵與捷運兩種跟車都會顯示,抬升條件因此不可綁 followVisible——
-    // 綁著的話捷運跟車 + 膠囊展開(cexp)時鎖鈕 44×44 整顆壓在膠囊的「現在」鈕上。
-    if (lc) lc.style.marginBottom = (lift != null && (followVisible || freqVisible)) ? (lift - 10) + 'px' : '';
-    // 動作列(隨機跟隨／附近車站)在橫式要讓開跟隨鎖,而鎖鈕**寬度會變**:鎖定＝44px 小方鈕、
-    // 解鎖＝「回到列車」文字膠囊 72px。原本 CSS 寫死 60px(照 44 那顆量的)⇒ 解鎖後疊 22×12px。
-    // 這裡量「鎖鈕左緣離 stage 右緣多遠」＝動作列該讓開的量,鈕藏起來時是 0。
-    const lcv = lc && lc.getBoundingClientRect();
-    document.documentElement.style.setProperty('--lockctl-clear',
-      (lcv && lcv.width > 0.5 ? Math.max(0, Math.round(stR.right - lcv.left)) : 0) + 'px');
+    // 跟隨鎖 §04c 起手機住進 #mapActions 工具欄(placeControlRail),Leaflet 右下控制角只剩桌面在用;
+    // 桌面 lift 恆 null,原本的 marginBottom 抬升與 --lockctl-clear 量測整組退役(消費它的 CSS 已移除)。
+    if (lc) lc.style.marginBottom = '';
+    invalidateMapInsets(); // 家具重排完=露出地圖可能變了(工具欄位移/小卡抬升),快取失效
   }
   // 跟隨開始/結束時由 setFollow/clearFollow 經 state._placeFsOverlays 明確重排
   state._placeFsOverlays = placeFsOverlays;
@@ -17618,10 +17876,13 @@ function setupMapTools() {
     const ro = new ResizeObserver(() => {
       if (pending) return;
       pending = true;
-      requestAnimationFrame(() => { pending = false; placeFsOverlays(); });
+      // reframeFocus:§04c 露出地圖吃這些元素的實測 rect,尺寸變了非跟隨態也要補位移差
+      // (跟隨態每幀 recenterTo 自己會吃到新值);差量記帳重複呼叫安全,無變化時是 no-op
+      requestAnimationFrame(() => { pending = false; placeFsOverlays(); reframeFocus(); });
     });
     for (const el of [document.querySelector('.controls'), document.getElementById('iabHint'),
-                      document.getElementById('followPanel'), document.getElementById('freqCard')]) if (el) ro.observe(el);
+                      document.getElementById('followPanel'), document.getElementById('freqCard'),
+                      document.getElementById('mapActions')]) if (el) ro.observe(el);
   }
   function setFs(on) {
     // 手機殼(≤900)不可退出全螢幕:地圖就是 App 本體。以「當下寬度」判斷,離開視窄後(resize 到桌面)才放行 setFs(false)。
@@ -17715,7 +17976,8 @@ function setupMapTools() {
     }
     placeFsOverlays(); if (state._fsCapsuleSync) state._fsCapsuleSync(false);
     // Batch B:跨界把搜尋列/頁尾盒搬回正確的家;離開手機時把走勢圖搬回原位、收起縣市 chip
-    placeSearch(); placeFootBoxes();
+    // §04c:跟隨鎖與時鐘徽章也是「搬家族」——鎖跨手機斷點、徽章跨側欄斷點
+    placeSearch(); placeFootBoxes(); placeControlRail(); placeBadge();
     // 轉向跨越「底部 sheet ↔ 右側欄」時,sheet 的兩個前提整組翻面:三段高在側欄下沒有意義
     // (sheetHasSizeSteps 依 sheetIsSideRail),讓位軸也從垂直換成水平。這兩件事的唯一掛點是
     // updateSheetOpenClass(),而 resize 從來沒走過它 ⇒ 直向拉到大段(段高偏好跨 session 持久化,
@@ -17727,7 +17989,8 @@ function setupMapTools() {
     if (!mob) { collapseMsFlow(); const g = document.getElementById('msCities'); if (g) g.hidden = true; }
   });
   // Batch B:開站即建縣市 chip、把搜尋列與頁尾盒放到當前斷點該在的家
-  buildMsCities(); placeSearch(); placeFootBoxes();
+  // (§04c 徽章開站也就定位;跟隨鎖此刻還沒建——lockCtl.addTo 之後那裡自己會補一次 placeControlRail)
+  buildMsCities(); placeSearch(); placeFootBoxes(); placeBadge(); setupToolRail();
   // 真全螢幕被使用者(Esc/F11/系統手勢)退掉時,同步收掉 CSS 全畫面狀態並重排地圖。
   // Safari 例外:真機探針實錄(2026-07-21)進場成功後 ~2.4s fullscreenElement 無故變 null(全程無按鍵、無我方呼叫)——
   // 非我方主動退出且距進場<5s 視為瀏覽器抽風,保留 CSS 版全畫面(=requestFullscreen 失敗的既有退路),不連動退出。
@@ -18384,6 +18647,7 @@ async function boot() {
   const zc = map.zoomControl.getContainer();
   zc.parentNode.insertBefore(lockCtl.getContainer(), zc);
   document.getElementById('followLockBtn').onclick = () => setFollowLock(!state.followLock);
+  placeControlRail(); // §04c:手機把鎖鈕搬進 #mapActions 工具欄(鈕剛建好,這是最早能搬的時點)
   updateFollowLockUI(); // 初始未跟隨 → 收起
   // 拖曳地圖=解鎖(Google 導航式);縮放不解鎖
   // 放空模式不解鎖:鈕是藏的,解了鎖沒辦法鎖回,鏡頭會永久漂走;隨機跟隨鈕有顯示,可解鎖也可點回置中
@@ -19048,7 +19312,14 @@ if (donateCopyBtn) donateCopyBtn.onclick = () =>
     });
 // APP_STRIP_END donation-handler
 // ×＝收起資訊卡(跟隨不中斷);膠囊本體展開;「結束」才真的取消跟隨
-document.getElementById('fpClose').onclick = (e) => { e.stopPropagation(); document.getElementById('followPanel').classList.add('fp-min'); }; // stopPropagation:不然冒泡到面板的「點膠囊展開」馬上又被展開
+// 收合狀態跨 session 記憶(§04c 契約4):收合寫 1、展開清掉;開站時還原(見下方 boot 還原行)
+document.getElementById('fpClose').onclick = (e) => {
+  e.stopPropagation(); // 不然冒泡到面板的「點膠囊展開」馬上又被展開
+  document.getElementById('followPanel').classList.add('fp-min');
+  try { localStorage.setItem('trainmap-fprail-min', '1'); } catch (err) {}
+  syncFollowOnClass(); invalidateMapInsets();
+};
+try { if (localStorage.getItem('trainmap-fprail-min') === '1') document.getElementById('followPanel').classList.add('fp-min'); } catch (err) {}
 document.getElementById('fpEnd').onclick = (e) => { e.stopPropagation(); setAutoTour(false); clearFollow(); };
 document.getElementById('fcEnd').onclick = (e) => { e.stopPropagation(); clearFreqFollow(); };
 document.getElementById('followPanel').addEventListener('click', (e) => {
@@ -19058,7 +19329,11 @@ document.getElementById('followPanel').addEventListener('click', (e) => {
   if (window.matchMedia(MOBILE_MQ).matches && document.body.classList.contains('fs') && state.followTrain
       && !document.body.classList.contains('live') && !document.body.classList.contains('ambient')
       && !e.target.closest('.fp-end, .fp-close, .fp-tripshare, .fp-notify')) { openTrainSheet(); return; }
-  if (fp.classList.contains('fp-min') && !e.target.closest('.fp-end')) fp.classList.remove('fp-min');
+  if (fp.classList.contains('fp-min') && !e.target.closest('.fp-end')) {
+    fp.classList.remove('fp-min');
+    try { localStorage.setItem('trainmap-fprail-min', '0'); } catch (err) {}
+    syncFollowOnClass(); invalidateMapInsets();
+  }
 });
 document.getElementById('tcStar').onclick = (e) => { e.stopPropagation(); toggleFav(state.followTrain); }; // stopPropagation:sheet 態不觸發標題列 toggle
 document.getElementById('tcSheetClose').onclick = (e) => { e.stopPropagation(); closeTrainSheet(); }; // ✕ 收「列車」sheet(跟車不中斷,小卡回來)
