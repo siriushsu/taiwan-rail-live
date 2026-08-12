@@ -172,6 +172,15 @@ const PICK_FOLLOW = async () => {
       const s = tr.stops, eff = (typeof effT === 'function') ? effT(tr) : 0;
       if (!s || eff <= s[0].depSec + 120 || eff >= s[s.length - 1].arrSec - 180) continue;
       if (strict && s.some(st => eff >= st.arrSec - 120 && eff <= st.depSec + 30)) continue;
+      if (strict) {
+        // 邊界車出局:貼近 maxBounds 的車讓直式相機走「夾限」分支——合法行為,但 L9 的
+        // 分布判準(看得見=6/夾死=0)就掛在牆鐘上(0812 21:52 webkit 抽到 2 台邊界車假紅)。
+        // 0.12° ≈ z13 半視窗的三倍餘裕;嚴格輪抽不到才退回,寧可夾限也不能沒車可跟。
+        const p = (typeof trainPos === 'function') ? trainPos(tr, state.simSec) : null;
+        const mb = map.options.maxBounds ? L.latLngBounds(map.options.maxBounds) : null;
+        if (p && mb && (p.lat - mb.getSouth() < 0.12 || mb.getNorth() - p.lat < 0.12
+          || p.lon - mb.getWest() < 0.12 || mb.getEast() - p.lon < 0.12)) continue;
+      }
       setFollow(tr, false, true); return String(tr.train);
     }
     return null;
@@ -190,7 +199,10 @@ async function boot(browser, { w, h, tag }, { url = BASE, follow = true, sheetSi
   const page = await ctx.newPage();
   page.on('pageerror', e => errors.push(`[${tag}] pageerror: ${e}`));
   page.on('console', m => { if (m.type() === 'error' && !/Failed to load resource/.test(m.text())) errors.push(`[${tag}] console.error: ${m.text()}`); });
-  await page.goto(url, { waitUntil: 'domcontentloaded' });
+  // goto 90s+一次重試:webkit 對 1.4MB 單檔頁的首次載入在機器有載時偶發 >30s(0812 兩輪
+  // 各在不同 suite 撞到,零 FAIL 純 goto 逾時=環境不是產品;預設 30s 會讓整支腳本 uncaught 崩潰)
+  try { await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 90000 }); }
+  catch (e) { await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 90000 }); }
   await page.waitForFunction(() => { try { return typeof state !== 'undefined' && state.ready === true; } catch (e) { return false; } }, null, { timeout: 45000 });
   await page.waitForTimeout(300);
   await page.evaluate(INSTALL_EXPOSED); // 判準側的露出地圖真值(對照組頁面也裝:同一把尺量兩邊)
@@ -797,43 +809,99 @@ async function fix0812Suite(browser, eng) {
   const b = await boot(browser, { w: 852, h: 393, tag: '16橫' });
   if (!b) { ok(`F0 ${eng} 取得行駛中列車`, false, '深夜無台鐵車＝環境條件'); return; }
   const { ctx, page } = b;
-  // F1 更多抽屜:模擬動態島——--sa-l 是 env(safe-area-inset-left) 的 :root 別名(Playwright 給不了
-  // env 真值,蓋別名層即可讓所有讀 var(--sa-l) 的規則吃到真機實值 59px)。F2 順帶讀 text-size-adjust。
-  const more = await page.evaluate(() => {
-    document.documentElement.style.setProperty('--sa-l', '59px');
-    document.body.classList.add('tools-open');
-    const el = document.querySelector('.more-sheet');
-    const r = el.getBoundingClientRect();
-    const row = el.querySelector('.ms-row');
-    const fs = row ? parseFloat(getComputedStyle(row).fontSize) : 0;
-    const rootCs = getComputedStyle(document.documentElement);
-    const adj = (rootCs.getPropertyValue('-webkit-text-size-adjust') || rootCs.getPropertyValue('text-size-adjust') || '').trim();
-    document.body.classList.remove('tools-open');
-    document.documentElement.style.removeProperty('--sa-l');
-    return { left: +r.left.toFixed(1), w: Math.round(r.width), fs, adj };
-  });
-  ok(`F1 ${eng}/16橫 更多抽屜讓開動態島(左緣≥59)+限寬置中`, more.left >= 59 && more.w <= 481 && more.fs <= 14.5, JSON.stringify(more));
+  // F1 更多抽屜:模擬動態島——--sa-l/--sa-r 是 env(safe-area-inset-*) 的 :root 別名(Playwright 給
+  // 不了 env 真值,蓋別名層即可)。橫放兩種握持方向動態島各在一側,兩側都要驗(Codex 複審:只驗
+  // 左島=右島越界/偏心全放行);置中=左右留白差 ≤8px。F2 順帶讀 text-size-adjust。
+  let adjVal = '';
+  for (const isl of [{ sal: 59, sar: 0, tag: '左島' }, { sal: 0, sar: 59, tag: '右島' }]) {
+    const m1 = await page.evaluate(cfg => {
+      document.documentElement.style.setProperty('--sa-l', cfg.sal + 'px');
+      document.documentElement.style.setProperty('--sa-r', cfg.sar + 'px');
+      document.body.classList.add('tools-open');
+      const el = document.querySelector('.more-sheet');
+      const r = el.getBoundingClientRect();
+      const row = el.querySelector('.ms-row');
+      const fs = row ? parseFloat(getComputedStyle(row).fontSize) : 0;
+      const rootCs = getComputedStyle(document.documentElement);
+      const adj = (rootCs.getPropertyValue('-webkit-text-size-adjust') || rootCs.getPropertyValue('text-size-adjust') || '').trim();
+      const vw = window.innerWidth;
+      document.body.classList.remove('tools-open');
+      document.documentElement.style.removeProperty('--sa-l');
+      document.documentElement.style.removeProperty('--sa-r');
+      const safeL = Math.max(16, cfg.sal), safeR = vw - Math.max(16, cfg.sar);
+      return { left: +r.left.toFixed(1), right: +r.right.toFixed(1), w: Math.round(r.width), fs, adj, vw,
+        safeL, safeR, skew: +((r.left - safeL) - (safeR - r.right)).toFixed(1) };
+    }, isl);
+    adjVal = m1.adj;
+    ok(`F1 ${eng}/16橫/${isl.tag} 更多抽屜讓開安全區+限寬+置中(歪斜≤8px)`,
+      m1.left >= m1.safeL - 0.5 && m1.right <= m1.safeR + 0.5 && m1.w <= 481 && m1.fs <= 14.5 && Math.abs(m1.skew) <= 8,
+      JSON.stringify(m1));
+  }
   // 桌面 WebKit 不支援 iOS 專屬的 text autosizing 屬性(computed 讀空),chromium 讀得到 100%
-  ok(`F2 ${eng} text-size-adjust=100%(治實機橫放字級膨脹)`, more.adj === '100%' || (eng === 'webkit' && more.adj === ''), `adj=${more.adj || '(空)'}`);
-  // F3 相機自癒:癱瘓主置中路徑(recenterTo 頂層 function=可改綁)+把相機丟遠+降 zoom 11
-  // (=實機 flyTo 半路死的終態),3.5s 門檻後看門狗須強制貼車並回跟車 zoom(≥13)。
-  const heal = await page.evaluate(async () => {
+  ok(`F2 ${eng} text-size-adjust=100%(治實機橫放字級膨脹)`, adjVal === '100%' || (eng === 'webkit' && adjVal === ''), `adj=${adjVal || '(空)'}`);
+  // F3 相機自癒 v2 三情境(Codex 複審:v1 讀累計值+只測健康路徑=假綠入口;改記前後差 delta):
+  // (a) 手勢持續中按兵不動(負對照),手勢一停立即開火——驗 _gestureAt 禁救閘的兩側;
+  // (b) _zoomAnim 卡死(>5s):v1 把它抄成前置閘=永不開火(實機正是這型),v2 須開火+清旗標;
+  // (c) _transition 卡死:updateFollowCamera 開頭 triage 清旗標+撤遮幕,recenterTo 同幀接手。
+  const f3a = await page.evaluate(async () => {
     const tr = state.followTrain; if (!tr) return { err: 'no-follow' };
     window.__origRecenter = recenterTo;
-    recenterTo = () => {};
+    recenterTo = () => {}; // 癱瘓主置中路徑:能救回來的只剩自癒
     const p = trainPos(tr, state.simSec);
+    const rs0 = state._camRescues || 0;
     map.setView([p.lat + 0.4, p.lon - 0.4], 11, { animate: false });
-    state._interactAt = 0; // setView 觸發 move→markInteract,清掉才不會把「程式移鏡頭」當成使用者互動
+    const iv = setInterval(() => { state._gestureAt = performance.now(); }, 400); // 模擬使用者持續操作
     await new Promise(r => setTimeout(r, 4300));
+    clearInterval(iv);
+    const held = (state._camRescues || 0) - rs0;
+    state._gestureAt = 0; // 手勢停止(禁救期已過):離屏計時早已滿,下一拍就該開火
+    await new Promise(r => setTimeout(r, 1600));
+    const fired = (state._camRescues || 0) - rs0;
     const p2 = trainPos(tr, state.simSec) || p;
     const cp = map.latLngToContainerPoint([p2.lat, p2.lon]);
     const sz = map.getSize();
     recenterTo = window.__origRecenter;
-    return { rescues: state._camRescues || 0, z: +map.getZoom().toFixed(1),
+    return { held, fired, z: +map.getZoom().toFixed(1),
       inView: cp.x >= 0 && cp.x <= sz.x && cp.y >= 0 && cp.y <= sz.y };
   });
-  ok(`F3 ${eng}/16橫 相機自癒:主路徑癱瘓+鏡頭丟遠後 3.5s 內強制貼車回 zoom≥13`,
-    !heal.err && heal.rescues >= 1 && heal.inView && heal.z >= 13, JSON.stringify(heal));
+  ok(`F3a ${eng}/16橫 自癒:手勢持續中按兵不動(0 次),手勢停止即開火貼車 z≥13`,
+    !f3a.err && f3a.held === 0 && f3a.fired >= 1 && f3a.inView && f3a.z >= 13, JSON.stringify(f3a));
+  const f3b = await page.evaluate(async () => {
+    const tr = state.followTrain; if (!tr) return { err: 'no-follow' };
+    const p = trainPos(tr, state.simSec);
+    const rs0 = state._camRescues || 0;
+    // 模擬縮放旗標卡死:recenterTo 被它天然否決(函式開頭 return),zoomAnimFrame 可能逐幀丟例外
+    // ——相機段(9039)在 draw 分支(9064)之前,自癒仍會跑到;這正是實機凍結的擬真形態。
+    // 🔴 注旗標必須在 setView 之後:setView 改 zoom 會發 zoomend→endZoomAnim 把假旗標清掉
+    // (首輪突變在 v1 上量到 za:false 才揭穿——先 setView 的版本連 v2 都會假紅)
+    map.setView([p.lat + 0.4, p.lon - 0.4], 11, { animate: false });
+    state._zoomAnim = true; state._zaAt = performance.now() - 6000; state._zaCal = null; state._zaCalPend = null;
+    state._gestureAt = 0;
+    await new Promise(r => setTimeout(r, 4300));
+    const p2 = trainPos(tr, state.simSec) || p;
+    const cp = map.latLngToContainerPoint([p2.lat, p2.lon]);
+    const sz = map.getSize();
+    return { d: (state._camRescues || 0) - rs0, za: !!state._zoomAnim, z: +map.getZoom().toFixed(1),
+      inView: cp.x >= 0 && cp.x <= sz.x && cp.y >= 0 && cp.y <= sz.y };
+  });
+  ok(`F3b ${eng}/16橫 自癒:_zoomAnim 卡死(>5s)不再否決——開火貼車+旗標清除`,
+    !f3b.err && f3b.d >= 1 && !f3b.za && f3b.inView && f3b.z >= 13, JSON.stringify(f3b));
+  const f3c = await page.evaluate(async () => {
+    const tr = state.followTrain; if (!tr) return { err: 'no-follow' };
+    const p = trainPos(tr, state.simSec);
+    state._transition = true; state._traAt = performance.now() - 6000;
+    document.getElementById('veil').style.opacity = 1;
+    map.setView([p.lat + 0.4, p.lon - 0.4], 11, { animate: false });
+    state._gestureAt = 0;
+    await new Promise(r => setTimeout(r, 1600)); // veil 過渡 .7s+首拍 triage,留一倍餘裕
+    const p2 = trainPos(tr, state.simSec) || p;
+    const cp = map.latLngToContainerPoint([p2.lat, p2.lon]);
+    const sz = map.getSize();
+    return { tra: !!state._transition, veil: getComputedStyle(document.getElementById('veil')).opacity,
+      inView: cp.x >= 0 && cp.x <= sz.x && cp.y >= 0 && cp.y <= sz.y };
+  });
+  ok(`F3c ${eng}/16橫 轉場旗標卡死(>5s):triage 清旗標+撤遮幕+跟隨鏡頭同幀接手`,
+    !f3c.err && !f3c.tra && parseFloat(f3c.veil) < 0.05 && f3c.inView, JSON.stringify(f3c));
   await ctx.close();
   // F4 直式對照組:更多維持全寬底抽屜——橫式收斂規則不得外漏到直式
   const ctx2 = await browser.newContext({ viewport: { width: 393, height: 852 }, hasTouch: true, isMobile: true });
@@ -1354,6 +1422,10 @@ async function deviceSuite(browser, eng) {
 // 心得 31：比幾何前把即時狀態旗標釘死（班次數文字、LIVE 徽章、尖峰徽章都會改寬度）
 // ─────────────────────────────────────────────────────────────
 const FREEZE = () => {
+  // 先綁空 syncTimeUI 再釘值——否則下一幀 tick 就把 #clock 改回即時值(釘了等於沒釘)。
+  // iPad直 的時鐘住在寬度 auto 的 .controls,分鐘數字比例寬('1'比'4'窄)⇒兩頁渲染差幾秒
+  // 就差 3px 假紅(0812 solo 輪 122→119 歸因至此;頂列版時鐘定寬所以從沒炸過)。
+  try { window.syncTimeUI = () => {}; } catch (e) {}
   const c = document.getElementById('clock'); if (c) c.textContent = '00:00';
   for (const id of ['liveBadge', 'peak', 'replayBadge', 'metroBadge']) {
     const el = document.getElementById(id); if (el) el.style.display = 'none';
