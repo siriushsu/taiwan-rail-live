@@ -172,6 +172,15 @@ const PICK_FOLLOW = async () => {
       const s = tr.stops, eff = (typeof effT === 'function') ? effT(tr) : 0;
       if (!s || eff <= s[0].depSec + 120 || eff >= s[s.length - 1].arrSec - 180) continue;
       if (strict && s.some(st => eff >= st.arrSec - 120 && eff <= st.depSec + 30)) continue;
+      if (strict) {
+        // 邊界車出局:貼近 maxBounds 的車讓直式相機走「夾限」分支——合法行為,但 L9 的
+        // 分布判準(看得見=6/夾死=0)就掛在牆鐘上(0812 21:52 webkit 抽到 2 台邊界車假紅)。
+        // 0.12° ≈ z13 半視窗的三倍餘裕;嚴格輪抽不到才退回,寧可夾限也不能沒車可跟。
+        const p = (typeof trainPos === 'function') ? trainPos(tr, state.simSec) : null;
+        const mb = map.options.maxBounds ? L.latLngBounds(map.options.maxBounds) : null;
+        if (p && mb && (p.lat - mb.getSouth() < 0.12 || mb.getNorth() - p.lat < 0.12
+          || p.lon - mb.getWest() < 0.12 || mb.getEast() - p.lon < 0.12)) continue;
+      }
       setFollow(tr, false, true); return String(tr.train);
     }
     return null;
