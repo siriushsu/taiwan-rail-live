@@ -4200,7 +4200,7 @@
 // 2026-08-12 併入 main 的停靠站表頭對齊:正式站已燒 v0812a、本分支內容又與它不同,照例跳號推 v0812b。
 // 2026-08-12 §04c 橫式重排併入 App 線(release debefb7＋2cc7f14):v0812b 與網站預覽的 v0812c
 // 都燒過、本合併內容與兩者皆不同,照例跳號推 v0812d。
-const BUILD = 'v0812k'; // 帳本:a=events/krtc/speedcal b=release44 c=land04c網頁預覽 d=App45 e=山嵐 f=App46 g=land04c網頁 h=輕軌正式站 i=App47初版 j=land04c網頁四修 k=App47定版(Codex複審修訂:自癒不被卡死旗標否決+手勢時戳+診斷條rf/wd/dD/st/e/w)
+const BUILD = 'v0813a'; // 帳本 0813:a=App48(旋轉後 Leaflet 尺寸過期自癒,診斷條加 sh) b=land04c網頁同修;0812:a=events/krtc/speedcal b=release44 c=land04c網頁預覽 d=App45 e=山嵐 f=App46 g=land04c網頁 h=輕軌正式站 i=App47初版 j=land04c網頁四修 k=App47定版(Codex複審修訂:自癒不被卡死旗標否決+手勢時戳+診斷條rf/wd/dD/st/e/w)
 // 成就徽章與車廂標記＝原本那些 emoji 的單色平面版（RailEmoji＝裁切過的 Noto Emoji 單色）。
 // 刻意保留 railIcon(name) 這個唯一入口:呼叫端一行都不用改,只有這裡決定畫法。
 // 🔴 ⚖ 與 ♾ 一律寫**不帶 VS16(U+FE0F)** 的碼位——帶了就強制彩色呈現,會蓋過 font-family
@@ -9011,6 +9011,8 @@ function tickCore(now) {
     }
   }
   updateBlockHolds(); // 後車不穿越前車:算完 simSec 之後、任何人問位置之前先更新阻擋回撥(相機與繪製都吃 trainPos)
+  // 版面尺寸守衛(見 syncMapSizeIfStale):必須在相機與繪製之前,否則本幀仍以過期尺寸算座標
+  if (now - (state._szChkAt || 0) >= 200) { state._szChkAt = now; syncMapSizeIfStale(); }
   if (state.director && state.playing) directorTick(now); // 導播相位機:跟車段↔群車段循環(先於 autoTour,可能切換 autoTour 開關)
   if (state.autoTour && state.mode === 'sched' && state.playing) {
     const ftr = state.followTrain;
@@ -14865,6 +14867,26 @@ function showSearchMiss(q) {
 // 露出來的地圖某一軸低於這個尺寸就放棄那一軸的讓位(沒地圖可看時硬移只是亂跳)。
 // §04c 起降到 64:設計明定 88% 大段只剩 ~100px 露出時「仍以該區中心為準」,原 160 會把它整個關掉。
 const MIN_MAP_STRIP = 64;
+// ── 版面尺寸守衛:Leaflet 的尺寸快取會過期(2026-08-13 使用者實機旋轉回報,已重現) ─────────────
+// iOS 轉向是**動畫**的:resize 事件送達時容器往往還是舊尺寸,Leaflet 在那一幀把舊值寫進 _size
+// 後就再也不重讀(getSize 只在 _sizeChanged 為真時重量,而只有 invalidateSize 會把它設真)。
+// 於是整個系統活在過期座標系裡,而且三個症狀同一個根:
+//   (1) setView 用**舊的半尺寸**算像素原點 ⇒ 相機把車瞄到實體螢幕外(使用者:按了隨機跟車看不到車);
+//   (2) 相機自癒的「車在不在露出矩形內」用同一個舊尺寸 ⇒ 判定為在場 ⇒ 永不開火(診斷條 rs 恆 0);
+//   (3) reproject 用它配畫布緩衝區 ⇒ 軌道與車牌畫進已經不覆蓋螢幕的那塊(使用者:軌道也看不到)。
+// 對策沿用自癒的哲學——量結果不猜時序:每 200ms 比對 Leaflet 尺寸與容器實測尺寸,不一致就重量。
+// invalidateSize 會發 move/resize,既有接線(map.on('move zoom resize', reproject))自動重投影配畫布。
+function syncMapSizeIfStale() {
+  if (!map) return false;
+  const el = map.getContainer(), cw = el.clientWidth, ch = el.clientHeight;
+  if (!cw || !ch) return false; // 容器暫時沒有版面(隱藏/未掛載):不是過期,不要動
+  const sz = map.getSize();
+  if (sz.x === cw && sz.y === ch) return false;
+  state._sizeHeals = (state._sizeHeals || 0) + 1; // 診斷條 sh 欄
+  map.invalidateSize({ debounceMoveend: true });  // 與 Leaflet trackResize 同式
+  invalidateMapInsets();                          // 容器變了=露出矩形也變,量測快取同步失效
+  return true;
+}
 // 面板是不是「右側欄」形態(橫式矮視窗)。CSS 那條 @media 的 JS 對應——兩邊必須同式,
 // 否則會出現「CSS 已經把面板挪到右邊,JS 還在算底部遮蔽」這種左右手打架。
 function sheetIsSideRail() {
@@ -18217,7 +18239,7 @@ function setupMapTools() {
         }
         // 欄位鍵(截圖判讀用):rf=原生rAF心跳距今ms(看門狗補幀不算) wd=看門狗補幀數 dD=上次完繪距今
         // st=本幀階段(t=core起點/d=進draw/i=完繪) z=zoom L=跟隨鎖 T=_transition Z=_zoomAnim
-        // of=車距露出中心px rs=自癒數 e=tick例外數 w=頁面例外數 h=hidden;尾端附第一筆例外文字
+        // of=車距露出中心px rs=自癒數 sh=版面尺寸過期修復數 e=tick例外數 w=頁面例外數 h=hidden
         const errs = state._tickErrs || [];
         return BUILD + ' rf' + Math.round(now - (state._rafAlive || 0))
           + ' wd' + (state._wdN || 0)
@@ -18226,7 +18248,8 @@ function setupMapTools() {
           + ' z' + map.getZoom().toFixed(1)
           + ' L' + (state.followLock ? 1 : 0) + ' T' + (state._transition ? 1 : 0)
           + ' Z' + (state._zoomAnim ? 1 : 0) + ' of' + off
-          + ' rs' + (state._camRescues || 0) + ' e' + errs.length + ' w' + (state._weN || 0)
+          + ' rs' + (state._camRescues || 0) + ' sh' + (state._sizeHeals || 0)
+          + ' e' + errs.length + ' w' + (state._weN || 0)
           + ' h' + (document.hidden ? 1 : 0)
           + (errs.length ? ' ' + String(errs[0]).slice(0, 34) : (state._weFirst ? ' ' + state._weFirst.slice(0, 34) : ''));
       } catch (e) { return 'diag err: ' + String(e).slice(0, 60); }

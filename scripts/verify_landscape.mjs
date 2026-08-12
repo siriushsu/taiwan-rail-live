@@ -919,6 +919,75 @@ async function fix0812Suite(browser, eng) {
   await ctx2.close();
 }
 
+
+// ─────────────────────────────────────────────────────────────
+// F5：旋轉版面延遲 → Leaflet 尺寸過期自癒（獨立套件：深夜也要跑得到，不掛在 F0 取車之下）
+// ─────────────────────────────────────────────────────────────
+async function sizeGuardSuite(browser, eng) {
+  // ── F5 版面尺寸過期自癒（2026-08-13 使用者實機回報「按隨機跟車後直橫都看不到軌道與車」的根因）──
+  // iOS 轉向是**動畫**的：resize 事件送達時容器往往還是舊尺寸 ⇒ Leaflet 在那一幀把舊值寫進 _size
+  // 後就再也不重讀（getSize 只在 _sizeChanged 為真時重量）⇒ 整套系統活在過期座標系：
+  //   setView 用舊半尺寸算像素原點（車被瞄到實體螢幕外）、相機自癒的在場判定用同一個舊尺寸
+  //   （判定為在場 ⇒ 永不開火，實機診斷條 rs 恆 0）、reproject 用它配畫布（軌道畫進不再覆蓋螢幕那塊）。
+  // 擬真手法：先把版面釘死成舊尺寸再改視窗 ⇒ 所有 resize 監聽者（含 Leaflet trackResize）量到舊值，
+  // 之後無聲放開版面（不再發 resize）——這就是實機旋轉動畫的時序。
+  // 🔴 判準只認**物理事實**（Leaflet 尺寸=容器實測、畫布=容器實測×dpr、車點落在實體容器內）。
+  //    不看 of/rs：那兩個值在過期座標系裡會自洽地說謊——修法前實測 of=1（「完美置中」）而車在螢幕外。
+  const ctx3 = await browser.newContext({ viewport: { width: 402, height: 874 }, hasTouch: true, isMobile: false });
+  await ctx3.addInitScript(() => { try { localStorage.setItem('trainmap-howto-seen', '1'); localStorage.setItem('trainmap-appearance', 'light'); } catch (e) {} });
+  const pg3 = await ctx3.newPage();
+  await pg3.goto(BASE, { waitUntil: 'domcontentloaded', timeout: 90000 });
+  await pg3.waitForFunction(() => { try { return typeof state !== 'undefined' && state.ready === true; } catch (e) { return false; } }, null, { timeout: 45000 });
+  await pg3.waitForTimeout(600);
+  // 真按鈕路徑：此前所有判準都直呼 setFollow，randBtn→setAutoTour→nextTourTrain 這條從沒被走過
+  // （使用者按的正是這顆）。抽到的車若不在行進中（深夜/剛發車）才退回 PICK_FOLLOW，確保後面量得到車點。
+  const f5btn = await pg3.evaluate(async () => {
+    const b = document.getElementById('randBtn'); if (b) b.click();
+    await new Promise(r => setTimeout(r, 1600));
+    const tr = state.followTrain;
+    return (tr && trainPos(tr, state.simSec)) ? String(tr.train) : null;
+  });
+  const f5pick = f5btn || await pg3.evaluate(PICK_FOLLOW);
+  await pg3.waitForTimeout(1200);
+  const SIZE_PROBE = () => {
+    const el = map.getContainer(), sz = map.getSize(), cv = document.getElementById('overlay');
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    const tr = state.followTrain, p = tr ? trainPos(tr, state.simSec) : null;
+    const cp = p ? map.latLngToContainerPoint([p.lat, p.lon]) : null;
+    return {
+      cw: el.clientWidth, ch: el.clientHeight, szx: sz.x, szy: sz.y, cvw: cv.width, cvh: cv.height,
+      wantW: Math.round(el.clientWidth * dpr), wantH: Math.round(el.clientHeight * dpr),
+      inPhys: cp ? (cp.x >= 0 && cp.x <= el.clientWidth && cp.y >= 0 && cp.y <= el.clientHeight) : null,
+      heals: state._sizeHeals || 0,
+    };
+  };
+  const f5base = await pg3.evaluate(SIZE_PROBE);
+  await pg3.evaluate(() => {
+    const s = document.createElement('style'); s.id = '__lag';
+    s.textContent = 'html,body{width:402px !important;height:874px !important;overflow:hidden !important}'
+      + '.stage{width:402px !important;height:874px !important}';
+    document.head.appendChild(s);
+  });
+  await pg3.setViewportSize({ width: 874, height: 402 });
+  await pg3.waitForTimeout(900); // 讓 resize 監聽者全部量到「舊尺寸」
+  await pg3.evaluate(() => { const s = document.getElementById('__lag'); if (s) s.remove(); });
+  await pg3.waitForTimeout(1500); // 守衛每 200ms 量一次，留七倍餘裕
+  const f5 = await pg3.evaluate(SIZE_PROBE);
+  ok(`F5 ${eng}/旋轉版面延遲 尺寸自癒：Leaflet 尺寸=容器＋畫布重配＋車落在實體畫面內`,
+    !!f5pick && f5.szx === f5.cw && f5.szy === f5.ch && f5.cvw === f5.wantW && f5.cvh === f5.wantH
+    && f5.inPhys === true && f5.heals > f5base.heals,
+    JSON.stringify({ pick: f5pick, viaRandBtn: !!f5btn, base: f5base, after: f5 }));
+  // F5b 負面側：守衛不得空轉。尺寸本來就同步時每 200ms 都 invalidateSize＋reproject＝把整張圖
+  // 每秒重投影五次（效能災難，且 reproject 會重配畫布清空當幀）。量「穩定後計數不再增加」。
+  const f5b1 = await pg3.evaluate(SIZE_PROBE);
+  await pg3.waitForTimeout(1300);
+  const f5b2 = await pg3.evaluate(SIZE_PROBE);
+  ok(`F5b ${eng}/尺寸同步時守衛零空轉（不重複 invalidateSize）`,
+    f5b2.heals === f5b1.heals && f5b2.szx === f5b2.cw && f5b2.szy === f5b2.ch,
+    JSON.stringify({ h1: f5b1.heals, h2: f5b2.heals, sz: `${f5b2.szx}x${f5b2.szy}`, cc: `${f5b2.cw}x${f5b2.ch}` }));
+  await ctx3.close();
+}
+
 // ─────────────────────────────────────────────────────────────
 // L5：直向零回歸（含缺陷 D 的 375 寬）
 // ─────────────────────────────────────────────────────────────
@@ -1522,6 +1591,7 @@ for (const [eng, B] of (QUICK ? [['chromium', chromium]] : [['chromium', chromiu
   const browser = await B.launch();
   await landscapeSuite(browser, eng);
   await fix0812Suite(browser, eng); // QUICK 也跑:0812 實機退回三修(更多撞島/字級膨脹/相機自癒)
+  await sizeGuardSuite(browser, eng); // QUICK 也跑:0813 旋轉版面延遲→尺寸過期自癒(F5/F5b)
   await rotationSuite(browser, eng); // QUICK 也跑：這組是獨立驗收抓到的真缺陷，突變測試一定要涵蓋
   await centeringSuite(browser, eng); // QUICK 也跑：使用者親自指出的置中缺陷
   await deviceSuite(browser, eng);    // QUICK 也跑：使用者橫放實機回報的三缺陷
