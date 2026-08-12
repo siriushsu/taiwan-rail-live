@@ -682,7 +682,10 @@ async function klrtPosition(request, env) {
     await edge.put(cacheKey, res.clone());
     return res;
   } catch (e) {
-    if (stale) return jsonRes(stale.data, 200, 'public, s-maxage=15');
+    // 🔴 舊資料只在「還算新」的期間頂替,不可無限期回舊的:前端看到 src 有值就會採用,
+    //    上游長時間掛掉會讓 C 線一直用陳舊 GPS,而 LiveBoard 被 klrtGpsLive 擋著永遠接不了手。
+    //    超過 3 分鐘就讓它走下面的軟失敗(src:null),前端才會放行 LiveBoard。
+    if (stale && Date.now() - stale.at < 180e3) return jsonRes(stale.data, 200, 'public, s-maxage=15');
     // 軟失敗:200+src:null(前端 no-op、退回時刻表推演),並負向快取 15s 免得上游越掛我們打越兇
     const res = jsonRes({ at: new Date().toISOString(), src: null, rows: [] }, 200, 'public, s-maxage=15');
     await edge.put(cacheKey, res.clone());

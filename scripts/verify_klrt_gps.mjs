@@ -47,7 +47,16 @@ const tk = (await (await fetch('https://tdx.transportdata.tw/auth/realms/TDXConn
   method: 'POST', headers: { 'content-type': 'application/x-www-form-urlencoded' },
   body: new URLSearchParams({ grant_type: 'client_credentials', client_id: env.TDX_CLIENT_ID, client_secret: env.TDX_CLIENT_SECRET }),
 })).json()).access_token;
-const tdx = async u => (await (await fetch(u, { headers: { authorization: 'Bearer ' + tk } })).json());
+// 429 要退避重試:TDX 限流被誤讀成「對照組拿不到資料」會變成假 FAIL(環境條件偽裝成產品回歸)
+const tdx = async (u, tries = 5) => {
+  for (let i = 0; i < tries; i++) {
+    const r = await fetch(u, { headers: { authorization: 'Bearer ' + tk } });
+    if (r.status === 200) return r.json();
+    if (r.status !== 429) throw new Error(u.split('/').pop().split('?')[0] + ' → HTTP ' + r.status);
+    await new Promise(s => setTimeout(s, 3000 * (i + 1)));
+  }
+  throw new Error(u.split('/').pop().split('?')[0] + ' → 429 重試耗盡');
+};
 // 🔴 C 線的營運代碼是 KLRT 不是 KRTC(worker 的 METRO_LIVE_OPS.krtc 是兩家一起抓);
 //    只抓 KRTC 會讓 board 臂拿到 0 列、悄悄退化成純班表=無效對照組
 const [live, bKrtc, bKlrt] = await Promise.all([
@@ -89,8 +98,24 @@ await new Promise(r => srv.listen(PORT, '127.0.0.1', r));
 
 const browser = await chromium.launch();
 
+// 🔴 LiveBoard 的 EstimateTime 是**相對倒數**,不是絕對時刻。原版在留出等待「之前」抓一次 board,
+//    等 90 秒後才餵給頁面、還蓋上當下的 at 時戳 ⇒ 每個倒數都憑空多了 90 秒以上(而且逐臂累加),
+//    board 對照臂被系統性灌上約 90 秒懲罰(≒1500 公尺),整組比較對 gps 臂有利。
+//    改成每一臂開跑前重抓 ⇒ 每臂的 board 新鮮度都與正式站相當。
+async function freshBoard() {
+  const [k, l] = await Promise.all([
+    tdx('https://tdx.transportdata.tw/api/basic/v2/Rail/Metro/LiveBoard/KRTC?%24top=5000&%24format=JSON'),
+    tdx('https://tdx.transportdata.tw/api/basic/v2/Rail/Metro/LiveBoard/KLRT?%24top=5000&%24format=JSON'),
+  ]);
+  const rows = [...(Array.isArray(k) ? k : []).map(bdRow('KRTC')), ...(Array.isArray(l) ? l : []).map(bdRow('KLRT'))];
+  const c = rows.filter(r => r.op === 'KLRT').length;
+  if (c < 5) throw new Error('board 重抓後 C 線只有 ' + c + ' 列,對照組無效');
+  return rows;
+}
+
 // arm: { page:'index.html'|'baseline.html', klrt:'real'|'null'|'500', metro:boolean }
 async function runArm(name, arm) {
+  const armBoard = arm.metro ? await freshBoard() : [];      // 每臂各自新鮮,不用留出前那份
   const ctx = await browser.newContext({ viewport: { width: 1280, height: 900 } });
   const page = await ctx.newPage();
   const errs = []; page.on('pageerror', e => errs.push(String(e)));
@@ -104,7 +129,7 @@ async function runArm(name, arm) {
   await page.route('**/api/metro-live*', async r => {
     hits.metro++;
     if (!arm.metro) return r.fulfill({ status: 404, contentType: 'application/json', body: '{}' });
-    r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ at: new Date().toISOString(), rows: boardRows }) });
+    r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ at: new Date().toISOString(), rows: armBoard }) });
   });
   for (const p of ['**/api/metro-alert*', '**/api/hazard-alert*', '**/api/plus-status*', '**/api/bounty-board*', '**/api/today-board*', '**/api/trtc-live*', '**/api/ntmetro-live*'])
     await page.route(p, r => r.fulfill({ status: 404, contentType: 'application/json', body: '{}' }));
@@ -229,3 +254,64 @@ for (const r of results) {
 }
 srv.close(); await browser.close();
 fs.unlinkSync(ROOT + '/baseline.html');
+
+// ════════ 具名斷言 ════════
+// 🔴 原版到上面就結束了:四臂全部 ERROR、gps 根本沒生效、gps 比 board 還差,通通 exit 0。
+//    「印在輸出裡」不是 gate——會看的人只有當下在看的人。以下每一條都要有名字、都要能讓它紅。
+const checks = [];
+// soft=true：既存問題哨兵——會印 FAIL、但不擋這批（這批沒把它弄糟就不該被它擋住）
+const chk = (name, ok, detail, soft) => { checks.push({ name, ok: !!ok, detail, soft: !!soft }); };
+const R = n => results.find(r => r.name.startsWith(n));
+const med = r => { const a = r.pairs.map(p => p.m).filter(x => x != null).sort((x, y) => x - y); return a.length ? a[a.length >> 1] : null; };
+
+chk('四個對照臂全部跑完（沒有 ERROR）', results.every(r => !r.error),
+  results.filter(r => r.error).map(r => r.name + ':' + r.error).join(' / '));
+
+if (results.every(r => !r.error)) {
+  const off = R('off'), board = R('board'), gps = R('gps'), dead = R('dead');
+
+  chk('gps 臂真的吃到 GPS（src=klrt）', gps.shift && gps.shift.src === 'klrt',
+    'src=' + (gps.shift && gps.shift.src));
+  chk('board 臂沒有誤吃 GPS', !(board.shift && board.shift.src === 'klrt'),
+    'src=' + (board.shift && board.shift.src));
+  chk('dead 臂（GPS 掛）退回 LiveBoard、不是退成沒校正',
+    dead.shift && dead.shift.src !== 'klrt' && dead.liveOn && Math.abs(dead.applied) > 0,
+    'src=' + (dead.shift && dead.shift.src) + ' applied=' + dead.applied + 's liveOn=' + dead.liveOn);
+  chk('off 臂真的沒有校正（對照組有效）', !off.liveOn && off.applied === 0,
+    'liveOn=' + off.liveOn + ' applied=' + off.applied);
+
+  // 名冊不變式:四臂在線車數必須一致——校正只該動位置,不該讓車冒出來或不見
+  const acts = results.map(r => r.active);
+  chk('名冊不變式:四臂在線車數一致（校正不得增減列車）', new Set(acts).size === 1,
+    '各臂在線車數 ' + acts.join('/'));
+  // 未配對＝GPS 說有這台車、但畫面上同方向找不到對應。這支腳本是**回歸閘門**,問的是
+  // 「這批有沒有把事情弄糟」,所以判準是「不比基準版差」。絕對值若 >0 是既存問題
+  // (班表名冊比實際少車),要另案處理——但那不是這批造成的,不該擋這批。
+  const baseUnm = board.pairs.filter(p => p.unmatched).length;   // board 臂＝基準版(baseline.html)
+  chk('未配對數不比基準版差（回歸閘門）', gps.pairs.filter(p => p.unmatched).length <= baseUnm,
+    'gps ' + gps.pairs.filter(p => p.unmatched).length + ' vs 基準 ' + baseUnm);
+  chk('⚠️ 既存問題哨兵:未配對=0（紅了不擋這批,但要記錄）', baseUnm === 0,
+    'GPS 回報 ' + gpsEval.length + ' 台、畫面 ' + gps.active + ' 台,同方向配不到的有 ' + baseUnm + ' 台', true);
+  chk('零 pageerror', results.every(r => r.errs.length === 0),
+    results.map(r => r.name.trim() + ':' + r.errs.length).join(' '));
+  chk('每臂都真的被打過對應的 API', results.every(r => r.hits.metro > 0) && gps.hits.klrt > 0,
+    results.map(r => r.name.trim() + ' klrt=' + r.hits.klrt + ' metro=' + r.hits.metro).join(' | '));
+
+  // 🔴 效果斷言——這才是這批要不要上的判準。沒有這條,功能整個失效也會全綠。
+  const mg = med(gps), mb = med(board), mo = med(off);
+  chk('效果:gps 中位誤差優於現行 LiveBoard', mg != null && mb != null && mg < mb,
+    `gps ${mg}m vs board ${mb}m`);
+  chk('效果:gps 中位誤差優於純班表（有校正比沒校正好）', mg != null && mo != null && mg < mo,
+    `gps ${mg}m vs off ${mo}m`);
+  // 神諭是「任何線級位移的理論最佳」。逐班的價值就在能突破它;突破不了就不值得多這套機制。
+  const orc = gps.oracle && gps.oracle.err;
+  chk('效果:gps 突破線級位移的理論最佳（神諭）', orc == null || (mg != null && mg < orc),
+    `gps ${mg}m vs 神諭 ${orc}m`);
+}
+
+console.log('\n════ 判定 ════');
+for (const c of checks) console.log(`${c.ok ? 'PASS' : (c.soft ? 'WARN' : 'FAIL')}  ${c.name}${c.detail ? '   〔' + c.detail + '〕' : ''}`);
+const bad = checks.filter(c => !c.ok && !c.soft).length;
+const warn = checks.filter(c => !c.ok && c.soft).length;
+console.log(`\n總計 ${checks.length} 項,FAIL ${bad} 項,WARN(既存問題,不擋這批) ${warn} 項`);
+process.exit(bad ? 1 : 0);

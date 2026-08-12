@@ -15991,7 +15991,10 @@ function liveShiftSink(src) {
 function isKlrtGpsLine(ln) { return freqSysIdOf(ln) === 'krtc' && ln.id === 'C'; }
 // GPS 現正生效中?——只有這時才把 LiveBoard 擋在 C 線外。GPS 上游掛掉/過期就放行,
 // 讓 LiveBoard 接回來當第二層退路(否則輕軌會從「有校正」直接掉到「完全沒校正」)。
-function klrtGpsLive(ln) { return isKlrtGpsLine(ln) && !!ln._gpsShifts && metroLiveOn(ln) && !!(ln._liveShift && ln._liveShift.src === 'klrt'); }
+// 🔴 這裡用 metroFresh(5 分)不是 metroLiveOn(30 分):這個判斷會把 C 線擋在 LiveBoard 之外,
+//    門檻放到 30 分等於 GPS 溫掛(上游回舊資料)時整整半小時沒有任何來源在校正 C 線。
+//    不新鮮就放行 LiveBoard 接手,metroShiftSec 的 src==='klrt' 檢查會讓過期的逐班表同時失效。
+function klrtGpsLive(ln) { return isKlrtGpsLine(ln) && !!ln._gpsShifts && metroFresh(ln) && !!(ln._liveShift && ln._liveShift.src === 'klrt'); }
 // 輕軌:逐車 GPS → 逐班時間偏移。
 // 🔴 這裡刻意**不**走 nearestArrDiff 那套(新北捷/高捷用的「預測到站時刻 vs 班表事件」):
 //    那套要自己用 segs[].run 把「位置」反推成「還要多久到站」,而 freqTrainPosRaw 實際用的是
@@ -16003,7 +16006,7 @@ function klrtGpsLive(ln) { return isKlrtGpsLine(ln) && !!ln._gpsShifts && metroL
 //    理論最佳殘差就有 142 公尺;唯有逐班才吃得到 GPS 的真精度。
 const KLRT_MAX_SHIFT = 900;      // 反解範圍(秒);超出視為配錯車
 const KLRT_PAIR_MAX_KM = 1.5;    // 配對距離上限:C 線同向 6 台、平均間隔 3.7km,1.5km 內才敢說是同一台
-function applyKlrtPos(rows) {
+function applyKlrtPos(rows, dataAt) {
   if (!Array.isArray(rows) || !rows.length) return;
   const ln = metroLivePool().find(l => isKlrtGpsLine(l) && l._tt && l._tt.length);
   if (!ln || !ln.hasShape || !ln.segs || !ln._tt.length) return;
@@ -16042,8 +16045,14 @@ function applyKlrtPos(rows) {
       return c.o.dir > 0 ? x : -x;                                     // >0 = 模型跑在 GPS 前面
     };
     let lo = -KLRT_MAX_SHIFT, hi = KLRT_MAX_SHIFT;
-    if ((signedGap(lo) ?? 0) < 0 || (signedGap(hi) ?? 0) > 0) continue; // 端點不夾住解=這班配不上,不猜
-    for (let k = 0; k < 24; k++) { const m = (lo + hi) / 2; const g = signedGap(m); if (g == null) break; if (g > 0) lo = m; else hi = m; }
+    // 🔴 缺值(班次在該平移時刻還沒發車/已到終點)一律放棄這個候選,不可當成 0——
+    //    `?? 0` 會讓守衛誤放行,而迴圈中途 break 會把「當下的括弧中點」當答案:
+    //    480 秒的短班次實測可把正確的 s=0 算成 -450s(≈7.6 公里),而且 |s|<899 的上界擋不住。
+    const gLo = signedGap(lo), gHi = signedGap(hi);
+    if (gLo == null || gHi == null || gLo < 0 || gHi > 0) continue;    // 端點缺值或不夾住解=這班配不上,不猜
+    let broke = false;
+    for (let k = 0; k < 24; k++) { const m = (lo + hi) / 2; const g = signedGap(m); if (g == null) { broke = true; break; } if (g > 0) lo = m; else hi = m; }
+    if (broke) continue;                                               // 中途缺值=括弧內有不可解區間,整個候選放棄
     const s = Math.round((lo + hi) / 2);
     if (Math.abs(s) > KLRT_MAX_SHIFT - 1) continue;
     usedO.add(c.o); usedT.add(c.tr);
@@ -16053,7 +16062,9 @@ function applyKlrtPos(rows) {
   const vals = [...shifts.values()].sort((a, b) => a - b);
   const all = vals[vals.length >> 1];
   ln._gpsShifts = shifts;                                              // 逐班(metroShiftSec 優先吃)
-  ln._liveShift = { f: null, b: null, all, at: Date.now(), n: shifts.size, src: 'klrt' }; // 配不到的班次退這個中位數
+  // 🔴 at 必須是**資料自己的時刻**不是收到的時刻:worker 上游掛掉時會無限期回最後一份好資料
+  //    (src 仍是 'tdx'),若每次都蓋成 now,metroLiveOn/metroFresh 的資料齡永遠不會到期 ⇒
+    ln._liveShift = { f: null, b: null, all, at: dataAt || Date.now(), n: shifts.size, src: 'klrt' }; // 配不到的班次退這個中位數
   evalLineAnomaly(ln, vals, 0, 0);
 }
 async function pollKlrtPos() {
@@ -16065,7 +16076,11 @@ async function pollKlrtPos() {
     const r = await fetch(apiUrl('api/klrt-position'), { cache: 'no-store' });
     if (!r.ok) throw new Error(r.status);
     const d = await r.json();
-    if (d && d.src) applyKlrtPos(d.rows);   // src:null=上游軟失敗,保留舊 shift
+    // 上游溫掛時 worker 會回最後一份好資料(src 仍為 'tdx'),所以要自己看資料齡:
+    // 太舊就不套用,讓既有 shift 自然過期、LiveBoard 接手(硬失敗走 src:null 那條)。
+    const at = d && d.at ? Date.parse(d.at) : NaN;
+    const age = Number.isFinite(at) ? Date.now() - at : Infinity;
+    if (d && d.src && age < 180e3) applyKlrtPos(d.rows, Number.isFinite(at) ? at : null);
   } catch (e) { /* 失敗保留舊 shift */ }
   updateMetroBadge();
   renderAlertBanner();
