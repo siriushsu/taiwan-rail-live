@@ -15,7 +15,7 @@
 - [x] 合併 `release/app-1.4.2`，依派工原則解衝突並在 commit 前完成 Android verify。
 - [x] 完成 Android 更新提示、評分入口、版號與 iOS-only 功能缺席適配。
 - [x] 建立含授權底圖與授權音樂的 web/native 產物及 release AAB/APK。
-- [ ] 完成模擬器直向、橫向、通行證、評分跳轉、背景音樂與版號端到端驗收。
+- [x] 完成模擬器直向、橫向、通行證、評分跳轉、背景音樂與版號端到端驗收。
 - [x] 核對產物 SHA-256、staged stat 與 commit numstat。
 
 ## 合併與平台適配（已提交）
@@ -72,12 +72,52 @@
 - `jarsigner -verify` AAB exit 0 且輸出 `jar verified.`；警告為 upload 自簽憑證鏈／無 timestamp 與 JDK 對 AAB zip 結構的一致性提醒。APK 的 `apksigner verify` 亦 exit 0，signer 憑證 SHA-256 已核對。
 - AAB／APK 各含 29 個 `.mp3`；APK 內 `index.html` 的 BUILD `v0812a`、`RAIL_MUSIC_ENABLED=true`、`RAIL_BASEMAPS_ENABLED=true` 均各命中一次，且 `app/www/index.html` 與 Android assets 逐 byte 相同。
 
-## 分辨實驗：模擬器無法啟動 App
+## 分辨實驗：既有 AVD 鎖定與可見 E2E 環境
 
-- 使用指定 `RailIsland_API35_Pixel7` 冷開後安裝 release APK 成功，package manager 讀到 `versionCode=3`；但以 launcher intent 啟動時回 activity not found。
-- 補做分辨實驗：APK manifest 與 `dumpsys package` 的 resolver table 都確實有 exported launcher `tw.railisland.app/.MainActivity`；問題不是 manifest／合併回歸。模擬器 user 0 實際狀態是 `RUNNING_LOCKED`、credential-encrypted data 尚未掛載，畫面停在使用者既有的九宮格圖形鎖；這與 `docs/android/PROGRESS-STAGE2.md` 既有紀錄相同。
-- 標準 wake、swipe、`KEYCODE_MENU` 與 `wm dismiss-keyguard` 均無法繞過使用者圖形鎖；不猜密碼、不擅自 `-wipe-data`。鎖屏證據：`docs/android/shots/v3-emulator-locked.png`。
-- 因此下列真機 E2E **尚未驗收，不宣稱成功**：冷啟動地圖／列車、更多選單與 Play 商店跳轉、通行證入口全滅、模擬器橫放跟車／列車卡、背景音樂有聲。需要使用者解鎖該 AVD（或明示允許清除 AVD data）後才能續跑。
+- 使用指定 `RailIsland_API35_Pixel7` 冷開後安裝 release APK 成功，package manager 讀到 `versionCode=3`；原 userdata 的 user 0 實際狀態為 `RUNNING_LOCKED`，credential-encrypted data 尚未掛載。APK manifest 與 `dumpsys package` resolver table 均確實有 exported launcher `tw.railisland.app/.MainActivity`，因此不是 manifest／合併回歸。
+- 保留原 AVD userdata／snapshot 不動，改用同一 Pixel 7／API 35 system image，將全新隔離 userdata 放在本工作樹 `.tmp-avd-v3/`；啟動後 17.762 秒進入 `RUNNING_UNLOCKED`，畫面可見且不需盲操作。
+- release APK 安裝成功後由 launcher intent 冷啟動：`Status: ok`、`LaunchState: COLD`、`Activity: tw.railisland.app/.MainActivity`、`TotalTime: 651 ms`、`WaitTime: 654 ms`。首次原生定位權限提示以畫面上可見的「使用應用程式時」按鈕實際點擊，onboarding 的「不再顯示」亦以畫面位置實點。
+- 直式主畫面已實跑確認：底圖、全台路網、站點與列車均正常可見，時鐘顯示 `LIVE`，畫面當下為 `159 班奔跑中`，底部五個導覽入口可見。證據：`docs/android/shots/v3-portrait-main.png`。
+- 既有黑色鎖屏證據保留於 `docs/android/shots/v3-emulator-locked.png`，用來記錄原環境條件；後續 E2E 全部在上述隔離、可見、已解鎖環境執行。
+
+## 模擬器 E2E：更多選單與 Android App 區
+
+- 依 `#tabMore` 的真實 `getBoundingClientRect()` 校正實體點位後，以 ADB 觸控實點開啟；`document.elementsFromPoint()` 顯示抽屜在頁籤、遮罩與地圖之上。software GPU 首次未立即合成 fixed layer，送出無破壞性的選單鍵觸發 redraw 後，畫面確實可見完整「更多」抽屜；不以 DOM 狀態冒充肉眼證據。抽屜頂部證據：`docs/android/shots/v3-more-redraw.png`。
+- 在可見抽屜內實際向上滑動三次，`#moreBody.scrollTop=695.238`；畫面可見「軌島」段與紅色粗體「給軌島評分」，字樣無 emoji。Android 更新列仍存在於 DOM 供其他平台共用，但實得 `display:none`、矩形 `0×0`；PLUS 的更多入口已不存在。證據：`docs/android/shots/v3-more-rate.png`。
+- 在畫面上實際點擊「給軌島評分」後，Android `ActivityTaskManager` 收到 `android.intent.action.VIEW`，完整 URI 為 `https://play.google.com/store/apps/details?id=tw.railisland.app`，前景由軌島切至 Chrome；不是 App Store URL。全新 userdata 的 Chrome 首次啟動先顯示歡迎頁，點選可見的「不使用帳戶」後，`dumpsys activity` 再次顯示相同完整 Play URL，Chrome 網址列亦為 `play.google.com`。Play 網頁回報 requested URL 找不到，判定為 v3 尚未上 internal testing 前的外部商店狀態，不改產品 URL／期望值。證據：`docs/android/shots/v3-rating-result.png`、`docs/android/shots/v3-rating-play.png`。
+
+## 模擬器 E2E：Android PLUS fail-closed
+
+- 對 release APK 的實際 WebView 執行既有 `stage4-android-plus-gate-audit.mjs`，exit 0、`failures=[]`。實得 `platform=android`、`IS_NATIVE_APP=true`、`PLUS_ENABLED=false`。
+- 兩個通行證入口皆已從 DOM 移除：工具列 `#accountBtn exists=false`、更多列 `data-proxy=accountBtn exists=false`；使用說明的 PLUS section 可用數為 0；全頁可見付費誤點 CTA 數為 0。
+- 以真實台鐵班次建立 30 天誤點摘要的命中測試仍可開啟免費資訊：文字為「近30天平均誤點 2分・準點 90%（30天）」；付費連結數 0、列車卡付費入口 hidden。免費地圖／Leaflet 存活，runtime 當下有 1,116 班列車。完整機上報告：`docs/android/shots/v3-android-plus-gate-audit.json`。
+
+## 模擬器 E2E：橫式跟車與列車卡
+
+- 以 Android 系統 rotation 將實機 WebView 由直式旋轉為 `landscape-primary`，實得 CSS viewport `863×360`、`body.fs=true`；乾淨態可見全台地圖、路線、列車、完整 topbar 與五顆 tab，證據：`docs/android/shots/v3-landscape-clean.png`。
+- 在橫式畫面上實際點擊「隨機跟隨」，成功跟到台鐵 `121` 次（非測具直接塞 state）；跟隨卡顯示 EMU3000 新自強號、速度、下一站與 30 天準點摘要。列車實際 viewport 座標 `(431,180)`，該點 `elementFromPoint` 命中 `#map`，不是被浮層蓋住；證據：`docs/android/shots/v3-landscape-follow.png`。
+- 再於畫面實際點擊跟隨卡，`body` 進入 `train-open sheet-open`，列車卡成為右側欄：rect `left=515.2, top=52, width=340, height=248`，地圖左側露出比例 `0.597`、高度比例 `0.689`、右緣錨定成功。跟隨列車移至 `(257,180)`，與露出地圖中心 `(257.6,180)` 相差不到 1px，兩點 `elementFromPoint` 都命中 `#map`。
+- 同一穩定態逐一量 topbar、clock、「換一班」、followPanel、trainCard，兩兩相交清單為空；列車卡與頂列／時鐘／動作列均未重疊。可見畫面證據：`docs/android/shots/v3-landscape-train-card.png`。
+
+## 模擬器 E2E：背景音樂開／關與實際輸出
+
+- 轉回直式後實點「更多」，在抽屜內實際滑到「♪ 背景音樂」。第一次點位未補 Android status bar 的實體像素偏移，實際切到上一列「省電模式」；音樂仍為 `paused=true/currentTime=0`，因此不算通過。補做分辨實驗，以 WebView rect 中心加狀態列偏移校正實體點位，沒有改產品或放寬期望值。
+- 校正後實點同一可見音樂列，產品開始播放 release APK 內的授權曲目 `Untitled-2.mp3`：`src=https://localhost/suno musics/Untitled-2.mp3`、duration `102.384s`、volume `0.5`、readyState `4`、`paused=false`。播放時間由 `22.740s` 前進到 `57.558s`，工具列 `#musicBtn.playing=true`、更多列 toggle 為 `on`；可見證據：`docs/android/shots/v3-music-playing.png`。
+- Android `AudioFlinger` 同時顯示 notification client `tw.railisland.app` PID `4532`／UID `10207`，track `56` 為 active，48kHz、輸出路由 `AUDIO_DEVICE_OUT_SPEAKER`；HAL signal power 連續為非靜音值（約 `-55` 至 `-70 dB`），不是只有 UI 狀態。原始證據：`docs/android/shots/v3-music-audioflinger.txt`。
+- 再次實點同一音樂列並等待 800ms 淡出後，實得 `enabled=false`、`paused=true`、volume `0`、按鈕 playing=false、更多列 toggle 關閉；可見證據：`docs/android/shots/v3-music-stopped.png`。背景音樂開／關兩向均已實跑。
+
+## 模擬器 E2E：版號、更新 UI 與 crash 收尾
+
+- `dumpsys package tw.railisland.app` 實得 `versionCode=3 minSdk=24 targetSdk=36`、`versionName=1.4.2`；WebView 實得 `platform=android`、`RAIL_APP_VERSION=1.4.2`、BUILD `v0812a`。與 AAB manifest 的直接 dump 結果一致。
+- Android App 更新 state 實得 `hasUpdate=false`、`showBanner=false`、`showWhatsNew=false`、`showUpdateRow=false`、`latest=null`；全頁唯一 update candidate 是共用的更多列，但 computed `display:none`、不可見，未找到更新橫幅。
+- E2E 完成後以 `logcat` 掃 `FATAL EXCEPTION`、`AndroidRuntime`、軌島 process crash 與 Chromium crash，無命中。平台收尾報告：`docs/android/shots/v3-platform-audit.json`；橫式與音訊結構化報告分別為 `v3-landscape-audit.json`、`v3-music-audit.json`。
+
+## 最終結論與已知外部條件
+
+- internal testing v3 的 web／native 內容、平台降級、release build、簽章、版號與要求的真機 E2E 均已完成。App Store 更新來源沒有在 Android 上發 request／露出 UI；評分只送 Google Play URL；iOS-only 原生功能在 Android 安靜缺席。
+- Google Play 網頁目前對 `tw.railisland.app` 回 requested URL 找不到；完整 Android VIEW intent 與網址列已證明產品送出的 package URL 正確，判定為 v3 尚未上傳 internal testing 前的商店外部狀態。本輪鐵則禁止 push，派工也沒有授權代為操作 Play Console，因此不將外部頁面尚未可見誤改成產品 URL。
+- software GPU 模擬器第一次顯示 fixed「更多」抽屜時，DOM／命中狀態已切換但合成畫面延遲；無破壞性的 Android menu key 觸發 redraw 後，抽屜與後續滑動、開關、側欄都能正常實際顯示。這項記為模擬器合成環境條件；產品行為另有實畫面、ADB 觸控與 elementFromPoint 三重證據。
+- E2E 完成後已關閉本輪隔離模擬器，並只清除本工作樹內由本輪建立的 `.tmp-avd-v3/`；原本有圖形鎖的 AVD userdata／snapshot 未修改。三張未被引用、且只代表校正過程的中間圖（`v3-current.png`、未重繪的 `v3-more.png`、誤點前的 `v3-music-off.png`）已移除，正式證據集保留 5.4 MB。
 
 ## Git 稽核
 
