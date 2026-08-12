@@ -3037,6 +3037,28 @@
     body.fs.sheet-open .map-actions, body.fs.train-open .map-actions {
       right: calc(var(--rail-w) + 18px + var(--sa-r));
     }
+    /* §04c 契約7+mock:72:頂列是玻璃帶——.30 半透明+blur 3px(使用者凍結值,與面板家族同組),
+       徽章/時鐘/班數靠這條帶才有可讀底,不是各自上卡(2026-08-12 實機回報:衛星圖上裸字不可讀)。 */
+    /* 盒幾何鐵則:玻璃帶不准長高長寬——下方 52 起是側欄、56 起是工具堆,帶底緣必須停在 48。
+       描邊用 outline(-1px 內縮)不用 border、垂直 padding 為 0,盒尺寸與無玻璃帶時逐 px 相同;
+       只留 padding-left 8 給軌島牌呼吸(右端 tabs 靠 space-between 貼右緣=與工具堆同一右錨)。 */
+    body.fs .topbar {
+      background: var(--panel-glass);
+      -webkit-backdrop-filter: blur(3px) saturate(1.08);
+      backdrop-filter: blur(3px) saturate(1.08);
+      outline: 1px solid var(--line-faint); outline-offset: -1px;
+      border-radius: 10px;
+      padding: 0 0 0 8px; align-items: center;
+    }
+    /* mock 右上幾何:公告 26 圓鈕、短標 44×28/gap 6；工具堆維持 44×44/gap 8，三者共用右錨。 */
+    .topbar .alert-chip, .topbar .grouptabs { align-self: center; }
+    .topbar .alert-chip {
+      width: 26px; min-width: 26px; height: 26px; min-height: 26px;
+      padding: 0; gap: 0; justify-content: center; border-radius: 50%; box-shadow: none;
+    }
+    .topbar .alert-chip .ac-n { display: none; }
+    .topbar .grouptabs { gap: 6px; }
+    .topbar .grouptabs .gtab { width: 44px; height: 28px; min-height: 28px; padding: 0; }
 
     /* ── 動態島:橫放時左右各一條安全區,手機殼的水平錨點全部讓開 ──────────────────
        全檔原本 env(safe-area-inset-left/right) 使用次數 = 0（直向用不到、橫放從沒驗過）。
@@ -3104,7 +3126,7 @@
     /* ── §04c 契約3:時鐘徽章併入頂列(placeBadge 搬 DOM,這裡只管樣式) ──
        position:static 讓它加入頂列 flex;margin-right:auto 把「牌+徽章」釘成左群、頁籤留右
        (頂列是 space-between,公告鈕不在時 auto margin 才是唯一決定權)。
-       原本獨立卡的紙底/描邊/陰影全卸掉——頂列裡它是資訊列的一節,不是第二張卡。 */
+       原本獨立卡的紙底/描邊/陰影全卸掉——可讀底由頂列玻璃帶提供(契約7),它是資訊列的一節,不是第二張卡。 */
     .topbar .badge {
       position: static; flex: none; align-self: center; margin-right: auto;
       gap: 8px; padding: 0 0 0 4px;
@@ -4144,7 +4166,7 @@
 // 2026-08-12 併入 main 的停靠站表頭對齊:正式站已燒 v0812a、本分支內容又與它不同,照例跳號推 v0812b。
 // 2026-08-12 §04c 橫式重排併入 App 線(release debefb7＋2cc7f14):v0812b 與網站預覽的 v0812c
 // 都燒過、本合併內容與兩者皆不同,照例跳號推 v0812d。
-const BUILD = 'v0812d';
+const BUILD = 'v0812f'; // 帳本:a=events/krtc/speedcal b=release44 c=land04c網頁預覽 d=App build45 e=山嵐 f=App build46(頂列玻璃帶+右上幾何+tick韌性殼)
 // 成就徽章與車廂標記＝原本那些 emoji 的單色平面版（RailEmoji＝裁切過的 Noto Emoji 單色）。
 // 刻意保留 railIcon(name) 這個唯一入口:呼叫端一行都不用改,只有這裡決定畫法。
 // 🔴 ⚖ 與 ♾ 一律寫**不帶 VS16(U+FE0F)** 的碼位——帶了就強制彩色呈現,會蓋過 font-family
@@ -8903,7 +8925,32 @@ function draw() {
   ctx.globalAlpha = 1; ctx.textAlign = 'start'; ctx.textBaseline = 'alphabetic';
 }
 
+// ── tick 韌性殼(2026-08-12):單次例外或引擎凍結 rAF,都不准永久殺死主迴圈 ──────────
+// 實機(TestFlight 45,iOS beta)回報:跟隨中整個動態層凍結——flyTo 卡在半路、列車全部消失、
+// DOM 時鐘(setInterval)照走=rAF 鏈死亡的典型症狀;模擬器與桌面引擎皆無法重現。
+// 原結構 rAF 重掛在 tick 最尾端,body 內任何一次 throw 即永久斷鏈。殼的三件事:
+// 心跳時戳、吞例外(前 5 筆進 state._tickErrs 供診斷)、armTick 去重掛鏈(_rafPending,
+// 看門狗手動補幀時不會疊出第二條鏈;引擎解凍時佇列裡也只有一個 callback)。
+function armTick() {
+  if (state._rafPending) return;
+  state._rafPending = true;
+  requestAnimationFrame(ts => { state._rafPending = false; tick(ts); });
+}
 function tick(now) {
+  state._rafAlive = performance.now();
+  try { tickCore(now); } catch (e) {
+    const errs = state._tickErrs || (state._tickErrs = []);
+    // 只記前 5 筆、log 跟著記錄走——例外若持續存在,每幀都 console.error 會自己把主線程拖垮
+    if (errs.length < 5) { errs.push(String((e && e.stack) || e).slice(0, 300)); console.error('tick 例外(迴圈續跑):', e); }
+  }
+  armTick();
+}
+// 看門狗:rAF 心跳斷逾 2.5s(且頁面可見、app 已就緒)就手動補一幀——例外斷鏈下一拍即復活;
+// 引擎凍結 rAF 則降級為每 2s 一幀的慢動態(時間積分照走,dt 自然=2s),解凍自動回全速。
+setInterval(() => {
+  if (state.ready && !document.hidden && performance.now() - (state._rafAlive || 0) > 2500) tick(performance.now());
+}, 2000);
+function tickCore(now) {
   if (!state.t0) state.t0 = now;
   const dt = (now - state.t0) / 1000; state.t0 = now;
   // _scrubTime=正在拖時刻尺:暫停時間積分,免得拖曳與播放互相拉扯(放手即自動續播,state.playing 不動)
@@ -8982,8 +9029,7 @@ function tick(now) {
       if (fullRate || now - (state._drawAt || 0) >= 30) { state._drawAt = now; draw(); } // 30ms 門檻→~30fps(略低於 33 免 60Hz 誤跳成 20fps)
     }
   }
-  requestAnimationFrame(tick);
-}
+} // 掛鏈由韌性殼 tick()/armTick() 負責,core 不自掛(斷鏈自癒的前提)
 
 function buildToggles() {
   const box = document.getElementById('lineToggles');
