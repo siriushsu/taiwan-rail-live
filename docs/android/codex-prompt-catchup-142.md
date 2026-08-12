@@ -15,7 +15,7 @@
 ## 現況
 
 - 本樹：分支 `feat/android-shell`，HEAD `746642b`（internal testing v2，versionCode 2 / versionName 1.4.1，已上傳 Play）。工作樹乾淨（`.idea/` 未追蹤，忽略它、不要 commit）。
-- 合併來源：**本 repo 的分支 `release/app-1.4.2`，commit `abf5f70`**（不需要網路，`git merge release/app-1.4.2` 即可；該分支在另一棵樹 checked out，merge 只讀不動它）。內容＝origin/main 全部（含 8/11 橫式側欄版面五連發）＋ iOS 1.4.2 App 批次（背景音樂原生化、App 更新提示與評分入口、動態島）＋ 8/12 的「更多選單移除 emoji」修正。
+- 合併來源：**本 repo 的分支 `release/app-1.4.2`，commit `debefb7`**（不需要網路，`git merge release/app-1.4.2` 即可；該分支在另一棵樹 checked out，merge 只讀不動它）。內容＝origin/main 全部（含 8/11 橫式側欄版面五連發、8/12 停靠站表頭「到／開」對齊）＋ iOS 1.4.2 App 批次（背景音樂原生化、App 更新提示與評分入口、動態島）＋ 8/12 的「更多選單移除 emoji」修正。
 - Android 落後這條線約 80 顆 main commit，這輪就是把 web 層內容整批追上，並做 Android 平台適配後出 v3。
 
 ## 目標與動機
