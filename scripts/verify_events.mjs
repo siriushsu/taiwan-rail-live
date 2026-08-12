@@ -153,6 +153,7 @@ async function run(browser, engine) {
   {
     const { ctx, pg } = await openPage(browser);
     await pg.evaluate(() => openExplorePanel());
+    await awaitEvents(pg);
     const secs = await pg.$$eval('#expBody .sec', ns => ns.map(n => n.textContent.trim()));
     chk(`${engine} E1 今日亮點有「近期活動」節`, secs.includes('近期活動'), JSON.stringify(secs));
     const titles = await pg.$$eval('#expBody .row[data-ev] b', ns => ns.map(n => n.textContent.trim()));
@@ -168,6 +169,7 @@ async function run(browser, engine) {
   {
     const { ctx, pg } = await openPage(browser);
     await pg.evaluate(() => openExplorePanel());
+    await awaitEvents(pg);
     const sel = '#expBody .row[data-ev="in-window-tra"]';
     const exists = await pg.$(sel);
     chk(`${engine} F0 找得到台鐵活動那一列`, !!exists);
@@ -184,6 +186,7 @@ async function run(browser, engine) {
   {
     const { ctx, pg } = await openPage(browser, { events: { updated: shift(0), events: [] } });
     await pg.evaluate(() => openExplorePanel());
+    await awaitEvents(pg);
     const secs = await pg.$$eval('#expBody .sec', ns => ns.map(n => n.textContent.trim()));
     chk(`${engine} G1 空陣列不產生活動節`, !secs.includes('近期活動'), JSON.stringify(secs));
     await openStationBoard(pg, 'tra_sched', '花蓮');
@@ -196,6 +199,7 @@ async function run(browser, engine) {
   {
     const { ctx, pg } = await openPage(browser, { events: null });
     await pg.evaluate(() => openExplorePanel());
+    await awaitEvents(pg); // 404 也會 resolve(見 awaitEvents 上方註解),不會卡 timeout
     // 查 #expBody 必須搶在 openStationBoard 之前:openBoard() 內部會呼叫 closeExplorePanel(),
     // 後者會清空 #expBody(el.innerHTML=''),晚查一步 secs 恆為 0,H1 不管實作對錯都測不出東西。
     const secs = await pg.$$eval('#expBody .sec', ns => ns.length);

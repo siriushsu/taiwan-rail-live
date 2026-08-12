@@ -3572,6 +3572,7 @@
         <summary>完整更新歷史（依主題分類）</summary>
         <ul class="foot-list">
         <li class="grp">路網與車站</li>
+        <li data-cl="stationevents"><span class="d">8/12</span><span>車站看板新增「近期活動」，列出跟這一站有關的活動；「探」今日亮點也整理了一份總覽清單，點一下活動列會直接飛過去開那一站的看板，沒有對應特定車站的活動則改開官方原始連結</span></li>
         <li data-cl="stationtransfer"><span class="d">8/10</span><span>轉乘提示放到兩個真的用得上的地方：一是車站看板的站況區，點台鐵、高鐵、捷運、林鐵任何一站都看得到這站能換哪些系統；二是跟隨與搭乘卡的「下一站」旁邊，快到站、要決定換不換車時就在眼前。手機點開列車卡之後也看得到。共站資料由站名與車站座標交叉核對，路線名完整列出，卡片放不下會自己換行</span></li>
         <li><span class="d">7/19</span><span>阿里山林鐵上線：21 站、四條路線，繞獨立山螺旋、第一分道之字形折返；祝山觀日列車依當天日出推算</span></li>
         <li><span class="d">7/19</span><span>台糖五分車改用景點標記：五處觀光園區標上地圖——糖鐵沒有公開班表，不模擬行駛</span></li>
@@ -13675,13 +13676,15 @@ function renderExplorePanel() {
   const el = document.getElementById('explorePanel');
   if (el.hidden) return;
   ensurePunctualData(); // 保險再觸發一次(已載入/載入中會早退),比照 openDelayHist 同款寫法
+  ensureEvents();       // 同款:載到之後會自己再叫一次 renderExplorePanel
   const hl = computeHighlights();
   const guides = exploreGuideTrains();
   const punctual = punctualTrainList();
   const noteTxt = (document.getElementById('note') || {}).textContent || ''; // #note 遷入亮點 sheet 註腳(重開即新文案)
   document.getElementById('expBody').innerHTML =
-    `<div class="sub">從 ${state.trains.length} 班車裡挑出來的 · 點一列跟隨</div>` +
+    `<div class="sub">從 ${state.trains.length} 班車裡挑出來的 · 點列車跟隨、點活動看詳情</div>` +
     (hl.special.length ? `<div class="sec">特別列車出沒中</div>` + hl.special.map(hlRow).join('') : '') +
+    eventSecHtml() +
     (hl.best.length ? `<div class="sec">今日之最</div>` + hl.best.map(hlRow).join('') : '') +
     (hl.branches.length ? `<div class="sec">支線小火車</div>` + hl.branches.map(hlRow).join('') : '') +
     (punctual.length ? `<div class="sec">準點排行</div>` + punctual.map(punctualRow).join('') +
@@ -13694,6 +13697,16 @@ function renderExplorePanel() {
   el.querySelector('#exploreClose').onclick = closeExplorePanel;
   el.onclick = e => {
     if (e.target.closest('.close')) return;
+    const ev0 = e.target.closest('.row[data-ev]');
+    if (ev0) {
+      const ev = activeEvents().find(x => x.id === ev0.dataset.ev);
+      if (!ev) return;
+      const st = eventStation(ev);
+      // 解析得到就飛過去開板;解析不到(例如在台鐵分頁點北捷活動)給原文連結,不自動切分頁
+      if (st) { closeExplorePanel(); openBoard(st); map.panTo(focusCenter(st.lat, st.lon)); }
+      else if (ev.url) window.open(ev.url, '_blank', 'noopener');
+      return;
+    }
     const gr = e.target.closest('.row[data-guide]');
     if (gr) { const n = exploreGuideTrains()[+gr.dataset.guide]; if (n) renderNamedIntro(n); return; } // 圖鑑列:開介紹卡(不跟隨、不收藏)
     const row = e.target.closest('.row[data-no]');
