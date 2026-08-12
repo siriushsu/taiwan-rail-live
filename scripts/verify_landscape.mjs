@@ -421,24 +421,32 @@ async function landscapeSuite(browser, eng) {
     if (nc.foot !== 'missing' && (S.w <= 739) !== (nc.foot === 'none')) ncBad.push(`foot=${nc.foot}`);
     ok(`L3c ${eng}/${S.tag} 窄機收斂順序(899峰/819班/739副標)`, ncBad.length === 0, ncBad.join('、') || JSON.stringify(nc));
 
-    // L3d:頂列資訊不能裸字浮在地圖上——設計契約7=玻璃帶(.30 半透明+blur 3px,mock:72)。
-    // 判準綁設計值不綁實作:容器或徽章其一 alpha ≥ 0.25(玻璃 .30 過、實色 1 過、裸透明 0 紅),
-    // 且頂列容器要有 backdrop blur(玻璃帶的另一半;純加深底色而沒模糊≠契約 7)。
+    // L3d:頂列可讀底跟「面板半透明」開關走(2026-08-12 實機退回恆玻璃版:開關關著、衛星圖上
+    // 字看不清)。兩態都驗:預設(關)=實心 alpha≥.9 且無 blur;開=玻璃 alpha .2–.45+blur+字圈 halo
+    // (使用者凍結值 .30/3px)。讀值前關 transition(拔規則的突變別在過渡起點讀到舊值=假綠)。
     const badgeBg = await page.evaluate(() => {
-      const alpha = el => {
-        if (!el) return 0;
-        const color = getComputedStyle(el).backgroundColor;
+      const bar = document.getElementById('topbar');
+      if (!bar) return { err: 'no-topbar' };
+      const alpha = color => {
         if (!color || color === 'transparent') return 0;
         const n = color.match(/[\d.]+/g)?.map(Number) || [];
         return color.startsWith('rgba') || color.includes('/') ? (n[3] ?? 0) : 1;
       };
-      const b = document.querySelector('.topbar .badge'), bar = document.getElementById('topbar');
-      const cs = bar ? getComputedStyle(bar) : null;
-      const blur = cs ? (cs.backdropFilter || cs.webkitBackdropFilter || 'none') : 'none';
-      return { badge: alpha(b), container: alpha(bar), blur };
+      const read = () => {
+        const cs = getComputedStyle(bar);
+        return { a: +alpha(cs.backgroundColor).toFixed(2), blur: cs.backdropFilter || cs.webkitBackdropFilter || 'none', halo: cs.textShadow };
+      };
+      const prevTr = bar.style.transition; bar.style.transition = 'none';
+      const solid = read();
+      document.body.classList.add('panel-translucent');
+      const glass = read();
+      document.body.classList.remove('panel-translucent');
+      bar.style.transition = prevTr;
+      return { solid: { a: solid.a, blur: solid.blur }, glass: { a: glass.a, blur: glass.blur, halo: glass.halo !== 'none' } };
     });
-    ok(`L3d ${eng}/${S.tag} 跟車態頂列有可讀玻璃底(alpha≥.25+blur)`,
-      Math.max(badgeBg.badge, badgeBg.container) >= 0.25 && /blur/.test(badgeBg.blur),
+    ok(`L3d ${eng}/${S.tag} 頂列可讀底兩態(關=實心無blur/開=玻璃+blur+halo)`,
+      !badgeBg.err && badgeBg.solid.a >= 0.9 && !/blur\(/.test(badgeBg.solid.blur)
+        && badgeBg.glass.a >= 0.2 && badgeBg.glass.a <= 0.45 && /blur\(/.test(badgeBg.glass.blur) && badgeBg.glass.halo,
       JSON.stringify(badgeBg));
 
     // L3e:把資料條件控制的公告鈕暫時顯示後，只量三組真實 rect；不讀定位公式或呼叫實作函式。
@@ -780,6 +788,67 @@ async function landscapeSuite(browser, eng) {
 
     await ctx.close();
   }
+}
+
+// ─────────────────────────────────────────────────────────────
+// F：0812 實機退回三修(build47)——更多抽屜撞動態島/實機字級膨脹/跟隨相機卡死
+// ─────────────────────────────────────────────────────────────
+async function fix0812Suite(browser, eng) {
+  const b = await boot(browser, { w: 852, h: 393, tag: '16橫' });
+  if (!b) { ok(`F0 ${eng} 取得行駛中列車`, false, '深夜無台鐵車＝環境條件'); return; }
+  const { ctx, page } = b;
+  // F1 更多抽屜:模擬動態島——--sa-l 是 env(safe-area-inset-left) 的 :root 別名(Playwright 給不了
+  // env 真值,蓋別名層即可讓所有讀 var(--sa-l) 的規則吃到真機實值 59px)。F2 順帶讀 text-size-adjust。
+  const more = await page.evaluate(() => {
+    document.documentElement.style.setProperty('--sa-l', '59px');
+    document.body.classList.add('tools-open');
+    const el = document.querySelector('.more-sheet');
+    const r = el.getBoundingClientRect();
+    const row = el.querySelector('.ms-row');
+    const fs = row ? parseFloat(getComputedStyle(row).fontSize) : 0;
+    const rootCs = getComputedStyle(document.documentElement);
+    const adj = (rootCs.getPropertyValue('-webkit-text-size-adjust') || rootCs.getPropertyValue('text-size-adjust') || '').trim();
+    document.body.classList.remove('tools-open');
+    document.documentElement.style.removeProperty('--sa-l');
+    return { left: +r.left.toFixed(1), w: Math.round(r.width), fs, adj };
+  });
+  ok(`F1 ${eng}/16橫 更多抽屜讓開動態島(左緣≥59)+限寬置中`, more.left >= 59 && more.w <= 481 && more.fs <= 14.5, JSON.stringify(more));
+  // 桌面 WebKit 不支援 iOS 專屬的 text autosizing 屬性(computed 讀空),chromium 讀得到 100%
+  ok(`F2 ${eng} text-size-adjust=100%(治實機橫放字級膨脹)`, more.adj === '100%' || (eng === 'webkit' && more.adj === ''), `adj=${more.adj || '(空)'}`);
+  // F3 相機自癒:癱瘓主置中路徑(recenterTo 頂層 function=可改綁)+把相機丟遠+降 zoom 11
+  // (=實機 flyTo 半路死的終態),3.5s 門檻後看門狗須強制貼車並回跟車 zoom(≥13)。
+  const heal = await page.evaluate(async () => {
+    const tr = state.followTrain; if (!tr) return { err: 'no-follow' };
+    window.__origRecenter = recenterTo;
+    recenterTo = () => {};
+    const p = trainPos(tr, state.simSec);
+    map.setView([p.lat + 0.4, p.lon - 0.4], 11, { animate: false });
+    state._interactAt = 0; // setView 觸發 move→markInteract,清掉才不會把「程式移鏡頭」當成使用者互動
+    await new Promise(r => setTimeout(r, 4300));
+    const p2 = trainPos(tr, state.simSec) || p;
+    const cp = map.latLngToContainerPoint([p2.lat, p2.lon]);
+    const sz = map.getSize();
+    recenterTo = window.__origRecenter;
+    return { rescues: state._camRescues || 0, z: +map.getZoom().toFixed(1),
+      inView: cp.x >= 0 && cp.x <= sz.x && cp.y >= 0 && cp.y <= sz.y };
+  });
+  ok(`F3 ${eng}/16橫 相機自癒:主路徑癱瘓+鏡頭丟遠後 3.5s 內強制貼車回 zoom≥13`,
+    !heal.err && heal.rescues >= 1 && heal.inView && heal.z >= 13, JSON.stringify(heal));
+  await ctx.close();
+  // F4 直式對照組:更多維持全寬底抽屜——橫式收斂規則不得外漏到直式
+  const ctx2 = await browser.newContext({ viewport: { width: 393, height: 852 }, hasTouch: true, isMobile: true });
+  await ctx2.addInitScript(() => { try { localStorage.setItem('trainmap-howto-seen', '1'); localStorage.setItem('trainmap-appearance', 'light'); } catch (e) {} });
+  const pg2 = await ctx2.newPage();
+  await pg2.goto(BASE, { waitUntil: 'domcontentloaded' });
+  await pg2.waitForFunction(() => { try { return typeof state !== 'undefined' && state.ready === true; } catch (e) { return false; } }, null, { timeout: 45000 });
+  const p4 = await pg2.evaluate(() => {
+    document.body.classList.add('tools-open');
+    const r = document.querySelector('.more-sheet').getBoundingClientRect();
+    document.body.classList.remove('tools-open');
+    return { left: +r.left.toFixed(1), w: Math.round(r.width), vw: window.innerWidth };
+  });
+  ok(`F4 ${eng}/16直 更多維持全寬底抽屜(橫式規則零外漏)`, p4.left <= 2 && p4.w >= p4.vw * 0.98, JSON.stringify(p4));
+  await ctx2.close();
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -1380,6 +1449,7 @@ if (QUICK) { LANDSCAPE.splice(0, LANDSCAPE.length, { w: 852, h: 393, tag: '16橫
 for (const [eng, B] of (QUICK ? [['chromium', chromium]] : [['chromium', chromium], ['webkit', webkit]])) {
   const browser = await B.launch();
   await landscapeSuite(browser, eng);
+  await fix0812Suite(browser, eng); // QUICK 也跑:0812 實機退回三修(更多撞島/字級膨脹/相機自癒)
   await rotationSuite(browser, eng); // QUICK 也跑：這組是獨立驗收抓到的真缺陷，突變測試一定要涵蓋
   await centeringSuite(browser, eng); // QUICK 也跑：使用者親自指出的置中缺陷
   await deviceSuite(browser, eng);    // QUICK 也跑：使用者橫放實機回報的三缺陷

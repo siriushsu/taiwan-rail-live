@@ -119,6 +119,9 @@
   .ri-icon use { pointer-events: none; }
   [hidden] { display: none !important; } /* .search/.followbar 的 display:flex 會蓋掉 hidden,強制優先 */
   html { overscroll-behavior: none; } /* Capacitor 殼:禁 WebView 橡皮筋回彈(滾到底整頁拉動/抖動);瀏覽器端同樣受益 */
+  /* iOS WebKit 橫放會自動放大字級(text autosizing,實機才觸發、桌面引擎不會)——全檔字級都是設計值,
+     不給引擎二次縮放(2026-08-12 實機 build46:橫式更多選單整份字被放大)。 */
+  html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
   body {
     margin: 0;
     /* viewport-fit=cover 後滿版到瀏海:流式佈局整體下移避讓動態島;無瀏海環境 env=0 零變化(底部 tabbar/sheet 各自帶 env 不經 body) */
@@ -2399,6 +2402,13 @@
   .more-sheet .ms-row .rate-cta { color: var(--red); font-weight: 800; }
   .more-sheet .ms-note { margin: 10px 14px 0; font-size: 10.5px; color: var(--faint); flex: none; }
   .more-scrim { position: fixed; inset: 0; z-index: 1105; background: rgba(30,44,64,.26); display: none; }
+  /* 診斷條(setDiagStrip):左下角單行小字,壓過一切但不吃指標;等寬數字方便逐秒比對截圖 */
+  #diagStrip {
+    position: fixed; left: calc(4px + var(--sa-l)); bottom: calc(2px + env(safe-area-inset-bottom, 0px));
+    z-index: 3000; pointer-events: none;
+    font: 600 10px/1.4 ui-monospace, Menlo, monospace; letter-spacing: 0;
+    color: var(--ink); background: var(--paper-tr); border-radius: 4px; padding: 1px 5px;
+  }
   body.tools-open .more-sheet, body.tools-open .more-scrim { display: flex; }
   body.tools-open .more-scrim { display: block; }
 
@@ -3037,19 +3047,29 @@
     body.fs.sheet-open .map-actions, body.fs.train-open .map-actions {
       right: calc(var(--rail-w) + 18px + var(--sa-r));
     }
-    /* §04c 契約7+mock:72:頂列是玻璃帶——.30 半透明+blur 3px(使用者凍結值,與面板家族同組),
-       徽章/時鐘/班數靠這條帶才有可讀底,不是各自上卡(2026-08-12 實機回報:衛星圖上裸字不可讀)。 */
-    /* 盒幾何鐵則:玻璃帶不准長高長寬——下方 52 起是側欄、56 起是工具堆,帶底緣必須停在 48。
-       描邊用 outline(-1px 內縮)不用 border、垂直 padding 為 0,盒尺寸與無玻璃帶時逐 px 相同;
+    /* §04c 契約7:頂列可讀底——徽章/時鐘/班數靠整條帶才有底,不是各自上卡。
+       🔴 帶的透明度跟「面板半透明」開關走,與面板家族同一契約(2026-08-12 實機退回:開關關著
+       仍恆 .30 玻璃,衛星圖上字看不清)——預設=實心紙面 --paper-tr;開了才是 .30+blur 3px
+       (使用者凍結值)加字外圈 halo,規則形狀比照 body.panel-translucent 面板家族。 */
+    /* 盒幾何鐵則:帶不准長高長寬——下方 52 起是側欄、56 起是工具堆,帶底緣必須停在 48。
+       描邊用 outline(-1px 內縮)不用 border、垂直 padding 為 0,盒尺寸與無帶時逐 px 相同;
        只留 padding-left 8 給軌島牌呼吸(右端 tabs 靠 space-between 貼右緣=與工具堆同一右錨)。 */
     body.fs .topbar {
-      background: var(--panel-glass);
-      -webkit-backdrop-filter: blur(3px) saturate(1.08);
-      backdrop-filter: blur(3px) saturate(1.08);
+      background: var(--paper-tr);
       outline: 1px solid var(--line-faint); outline-offset: -1px;
       border-radius: 10px;
       padding: 0 0 0 8px; align-items: center;
     }
+    body.fs.panel-translucent .topbar {
+      background: var(--panel-glass);
+      -webkit-backdrop-filter: blur(3px) saturate(1.08);
+      backdrop-filter: blur(3px) saturate(1.08);
+      text-shadow: 0 0 2px var(--glass-halo), 0 0 5px var(--glass-halo);
+    }
+    /* button 不繼承 text-shadow(UA 歸零),halo 要明確接回;自帶不透明底的(軌島牌/群組頁籤/公告圓鈕)不吃 */
+    body.fs.panel-translucent .topbar button { text-shadow: inherit; }
+    body.fs.panel-translucent .topbar .plate, body.fs.panel-translucent .topbar .plate *,
+    body.fs.panel-translucent .topbar .gtab, body.fs.panel-translucent .topbar .alert-chip { text-shadow: none; }
     /* mock 右上幾何:公告 26 圓鈕、短標 44×28/gap 6；工具堆維持 44×44/gap 8，三者共用右錨。 */
     .topbar .alert-chip, .topbar .grouptabs { align-self: center; }
     .topbar .alert-chip {
@@ -3059,6 +3079,16 @@
     .topbar .alert-chip .ac-n { display: none; }
     .topbar .grouptabs { gap: 6px; }
     .topbar .grouptabs .gtab { width: 44px; height: 28px; min-height: 28px; padding: 0; }
+    /* 「更多」抽屜橫放收斂(2026-08-12 實機退回:left/right 0 的全寬底抽屜直接壓進動態島):
+       左右各讓出安全區(--sa-l/--sa-r=env 別名,橫放時動態島就在其中一側)、限寬置中成對話框形,
+       高度收斂留出頂列。列高/字級沿用手機值(48px 觸控目標;字太大的真因是 text-size-adjust,見 html)。 */
+    body.fs .more-sheet {
+      left: max(16px, var(--sa-l)); right: max(16px, var(--sa-r));
+      max-width: 480px; margin: 0 auto;
+      max-height: calc(100dvh - 64px);
+      border: 1.5px solid var(--navy); border-bottom: 0;
+      border-radius: 12px 12px 0 0;
+    }
 
     /* ── 動態島:橫放時左右各一條安全區,手機殼的水平錨點全部讓開 ──────────────────
        全檔原本 env(safe-area-inset-left/right) 使用次數 = 0（直向用不到、橫放從沒驗過）。
@@ -4091,6 +4121,8 @@
     <div class="ms-sec">地圖顯示</div>
     <div class="ms-row" data-act="theme"><span>◐ 外觀</span><span class="seg" id="msThemeSeg"><button data-v="light">亮</button><button data-v="dark">暗</button><button data-v="auto">自動</button></span></div>
     <button class="ms-row" data-act="panelOpacity"><span>面板半透明</span><span class="toggle" data-tg="panelOpacity"></span></button>
+    <!-- 實機取證(TestFlight 試用期):左下角小字條顯示 rAF/相機/旗標即時狀態,截圖即可回報;正式上架前評估拔除 -->
+    <button class="ms-row" data-act="diagStrip"><span>診斷資訊</span><span class="toggle" data-tg="diagStrip"></span></button>
     <button class="ms-row" data-proxy="satBtn"><span>衛星影像</span><span class="toggle" data-tg="satBtn"></span></button>
     <button class="ms-row" data-act="track"><span>軌道與路線</span><span class="chev">›</span></button>
     <button class="ms-row" data-proxy="xingBtn"><span>平交道記號</span><span class="toggle" data-tg="xingBtn"></span></button>
@@ -4166,7 +4198,7 @@
 // 2026-08-12 併入 main 的停靠站表頭對齊:正式站已燒 v0812a、本分支內容又與它不同,照例跳號推 v0812b。
 // 2026-08-12 §04c 橫式重排併入 App 線(release debefb7＋2cc7f14):v0812b 與網站預覽的 v0812c
 // 都燒過、本合併內容與兩者皆不同,照例跳號推 v0812d。
-const BUILD = 'v0812f'; // 帳本:a=events/krtc/speedcal b=release44 c=land04c網頁預覽 d=App build45 e=山嵐 f=App build46(頂列玻璃帶+右上幾何+tick韌性殼)
+const BUILD = 'v0812i'; // 帳本:a=events/krtc/speedcal b=release44 c=land04c網頁預覽 d=App45 e=山嵐 f=App46 g=land04c網頁 h=輕軌正式站 i=App build47(頂列跟半透明開關+更多橫式收斂+text-size-adjust+相機自癒+診斷條)
 // 成就徽章與車廂標記＝原本那些 emoji 的單色平面版（RailEmoji＝裁切過的 Noto Emoji 單色）。
 // 刻意保留 railIcon(name) 這個唯一入口:呼叫端一行都不用改,只有這裡決定畫法。
 // 🔴 ⚖ 與 ♾ 一律寫**不帶 VS16(U+FE0F)** 的碼位——帶了就強制彩色呈現,會蓋過 font-family
@@ -15120,6 +15152,28 @@ function updateFollowCamera() {
   if (!pos) { const f = tr.stops[0]; if (state.followLock) recenterTo(f.lat, f.lon); setFollowStatus('pre', '尚未發車'); return; }
   setFollowStatus('run', '');
   if (state.followLock) recenterTo(pos.lat, pos.lon, followAheadPx(tr, pos));
+  // 相機自癒(2026-08-12 實機 build46 仍「跟隨中車不在畫面」):recenterTo 的任一道閘卡住
+  // (轉場旗標、縮放凍結、Leaflet flyTo 半路死在凍結的 rAF 上)都會讓鏡頭永遠停在別處,而每道閘
+  // 單看都「合法」。這裡不猜原因,直接量結果:鎖定跟隨中,車的容器點連續 3.5s 落在露出矩形外
+  // (含 25% 邊距)→ 強制 setView 貼車,順帶把卡在中途的 zoom 拉回跟車級(followEntryZoom 至少 13)。
+  // 使用者互動 2s 內/搜尋打字/縮放動畫/合法轉場中不出手;計數器 _camRescues 供診斷條讀。
+  if (state.followLock && !state._zoomAnim && !state._transition && !camBlocked()
+      && !document.body.classList.contains('search-open')) {
+    const cp = map.latLngToContainerPoint([pos.lat, pos.lon]);
+    const sz = map.getSize(), ins = mapInsets();
+    const exL = ins.left, exT = ins.top, exR = sz.x - ins.right, exB = sz.y - ins.bottom;
+    const mX = Math.max(40, (exR - exL) * 0.25), mY = Math.max(40, (exB - exT) * 0.25);
+    const off = cp.x < exL - mX || cp.x > exR + mX || cp.y < exT - mY || cp.y > exB + mY;
+    const nowMs = performance.now();
+    if (!off) state._camOffAt = 0;
+    else if (!state._camOffAt) state._camOffAt = nowMs;
+    else if (nowMs - state._camOffAt > 3500 && nowMs - (state._interactAt || 0) > 2000) {
+      state._camOffAt = 0; state._camRescues = (state._camRescues || 0) + 1;
+      state._autoPan = true;
+      map.setView(focusCenter(pos.lat, pos.lon, followEntryZoom(), followAheadPx(tr, pos)), followEntryZoom(), { animate: false });
+      state._autoPan = false;
+    }
+  }
   updateFollowPanel(tr);
 }
 
@@ -18116,8 +18170,44 @@ function setupMapTools() {
     document.body.classList.toggle('panel-translucent', state.panelTranslucent);
     try { localStorage.setItem('trainmap-panel-translucent', state.panelTranslucent ? '1' : '0'); } catch (e) {}
   }
+  // 診斷條(2026-08-12,實機取證):自帶 setInterval 驅動——實機的 rAF 凍結家族連主迴圈都靠
+  // 看門狗救,診斷條若掛在 tick 上就會跟著病人一起死,量不到病況。localStorage 記憶,重啟仍在。
+  function setDiagStrip(on) {
+    state.diagStrip = !!on;
+    try { localStorage.setItem('trainmap-diagstrip', on ? '1' : '0'); } catch (e) {}
+    let el = document.getElementById('diagStrip');
+    if (!on) { clearInterval(state._diagT); if (el) el.remove(); return; }
+    if (!el) { el = document.createElement('div'); el.id = 'diagStrip'; document.body.appendChild(el); }
+    clearInterval(state._diagT);
+    const fmt = () => {
+      try {
+        const now = performance.now();
+        const tr = state.followTrain;
+        let off = '-';
+        if (tr) {
+          const p = trainPos(tr, state.simSec);
+          if (p) {
+            const cp = map.latLngToContainerPoint([p.lat, p.lon]);
+            const sz = map.getSize(), ins = mapInsets();
+            const cx = (ins.left + sz.x - ins.right) / 2, cy = (ins.top + sz.y - ins.bottom) / 2;
+            off = Math.round(Math.hypot(cp.x - cx, cp.y - cy));
+          }
+        }
+        return BUILD + ' rafD' + Math.round(now - (state._rafAlive || 0))
+          + ' drw' + Math.round(now - (state._drawAt || 0))
+          + ' z' + map.getZoom().toFixed(1)
+          + ' lock' + (state.followLock ? 1 : 0) + ' tra' + (state._transition ? 1 : 0)
+          + ' za' + (state._zoomAnim ? 1 : 0) + ' off' + off
+          + ' rsc' + (state._camRescues || 0) + ' err' + ((state._tickErrs || []).length);
+      } catch (e) { return 'diag err: ' + String(e).slice(0, 60); }
+    };
+    el.textContent = fmt();
+    state._diagT = setInterval(() => { const d = document.getElementById('diagStrip'); if (d) d.textContent = fmt(); }, 1000);
+  }
+  try { if (localStorage.getItem('trainmap-diagstrip') === '1') setDiagStrip(true); } catch (e) {}
   const MS_STATE = {
     panelOpacity: () => !!state.panelTranslucent,
+    diagStrip: () => !!state.diagStrip,
     satBtn: () => state.basemap === 'sat',
     xingBtn: () => !!state.xingOn,
     introBtn: () => !!state.stnIntro,
@@ -18165,6 +18255,7 @@ function setupMapTools() {
     if (row.dataset.act === 'track') { setMore(false); openTrackPanel(); return; }
     if (row.dataset.act === 'notify') { setMore(false); openLocalReminderOverview(); return; } // 已排提醒總覽
     if (row.dataset.act === 'panelOpacity') { setPanelTranslucent(!state.panelTranslucent); syncMoreSheet(); return; }
+    if (row.dataset.act === 'diagStrip') { setDiagStrip(!state.diagStrip); syncMoreSheet(); return; }
 
     if (row.dataset.act === 'cities') { buildMsCities(); const g = document.getElementById('msCities'); const ch = row.querySelector('.chev'); g.hidden = !g.hidden; if (ch) ch.textContent = g.hidden ? '›' : '⌄'; return; }
     if (row.dataset.act === 'flow') { toggleMsFlow(); return; }
