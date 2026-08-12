@@ -12,15 +12,15 @@
 
 ## 待完成
 
-- [x] 合併 `release/app-1.4.2`，依派工原則解衝突並在 commit 前完成 Android verify。（merge commit 尚待下方 staged-stat 稽核）
+- [x] 合併 `release/app-1.4.2`，依派工原則解衝突並在 commit 前完成 Android verify。
 - [x] 完成 Android 更新提示、評分入口、版號與 iOS-only 功能缺席適配。
 - [x] 建立含授權底圖與授權音樂的 web/native 產物及 release AAB/APK。
 - [ ] 完成模擬器直向、橫向、通行證、評分跳轉、背景音樂與版號端到端驗收。
-- [ ] 核對產物 SHA-256、staged stat 與 commit numstat。
+- [x] 核對產物 SHA-256、staged stat 與 commit numstat。
 
-## 合併與平台適配（未提交）
+## 合併與平台適配（已提交）
 
-- 已以 `git merge --no-commit --no-ff release/app-1.4.2` 開始合併；來源解析值為 `abf5f703fa6805f7070a229306a5f6bdbb50d232`。目前仍保留 merge state，尚未 commit。
+- 已以 `git merge --no-commit --no-ff release/app-1.4.2` 合併來源 `abf5f703fa6805f7070a229306a5f6bdbb50d232`，並在所有 commit 前 gates 通過後建立 merge commit `61ae608833780bfc6944cf3a97e259ac9c641bf3`；未 push。
 - 三個衝突已逐段處理：
   - `index.html`：採 release 的原生背景音樂首繪判斷；`PLUS_ENABLED` 仍逐字保留 Android fail-closed 早退行。
   - `app/scripts/verify-release.mjs`：保留 Android 的 `assertAndroidPlusGate`、production logging gate 與 `RAIL_VERIFY_NATIVE` 單平台 parity；併入 release 的 `RAIL_APP_VERSION` 注入斷言與所有 iOS 自製 plugin 註冊 gate。
@@ -78,3 +78,9 @@
 - 補做分辨實驗：APK manifest 與 `dumpsys package` 的 resolver table 都確實有 exported launcher `tw.railisland.app/.MainActivity`；問題不是 manifest／合併回歸。模擬器 user 0 實際狀態是 `RUNNING_LOCKED`、credential-encrypted data 尚未掛載，畫面停在使用者既有的九宮格圖形鎖；這與 `docs/android/PROGRESS-STAGE2.md` 既有紀錄相同。
 - 標準 wake、swipe、`KEYCODE_MENU` 與 `wm dismiss-keyguard` 均無法繞過使用者圖形鎖；不猜密碼、不擅自 `-wipe-data`。鎖屏證據：`docs/android/shots/v3-emulator-locked.png`。
 - 因此下列真機 E2E **尚未驗收，不宣稱成功**：冷啟動地圖／列車、更多選單與 Play 商店跳轉、通行證入口全滅、模擬器橫放跟車／列車卡、背景音樂有聲。需要使用者解鎖該 AVD（或明示允許清除 AVD data）後才能續跑。
+
+## Git 稽核
+
+- merge commit 前 `git diff --cached --check` exit 0、無 unmerged path；`git diff --cached --stat` 為 88 files changed、50,023 insertions、267 deletions。既存 `.idea/` 仍是唯一未納入的起始未追蹤項目。
+- 依派工規則使用不帶 pathspec 的 `git commit -m ...`；commit 後 `git show --numstat HEAD` 列出同一批 88 files。另將 commit 相對第一父的完整 numstat 與 commit 前 cached numstat 排序逐行比對，`PRE_CHARS=3474`、`POST_CHARS=3474`、`FIRST_PARENT_NUMSTAT_MATCH=true`，無多收或漏收。
+- 全程未 push、未 rebase、未改寫歷史、未切換分支，也未納入本機 secret／policy 檔。
