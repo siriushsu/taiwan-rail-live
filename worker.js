@@ -840,7 +840,7 @@ async function trtcLive(request, env) {
         // 讓「NowDateTime 這個上游欄位開始壞掉」不會偽裝成「這班車本來就不在 board 上」。
         if (base == null) { boardDateDropped++; continue; }
         board.push({ name: String(r.StationName || ''), dest: String(r.DestinationName || ''),
-                     eta: base + sec, no: String(r.TrainNumber || '') });
+                     eta: base + sec, at: base, no: String(r.TrainNumber || '') });
       }
       const trains = [];
       for (const r of hw) {

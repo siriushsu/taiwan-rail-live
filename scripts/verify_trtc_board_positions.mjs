@@ -332,6 +332,10 @@ async function run() {
     const integrated = await page.evaluate(() => ({ ...state._trtcBoardAudit, assignments: undefined }));
     check(integrated.rows > 0 && integrated.matched > 0, '前後端 boardPos payload 已接通',
       `rows=${integrated.rows}, matched=${integrated.matched}, roster=${integrated.roster}`);
+    // `_trtcBoardAudit` 會在 poll 的 finally（把 `_trtcPolling` 清回 false）之前先出現。
+    // 若立刻寫 true，舊 poll 的 finally 可能再把它蓋回 false，15 秒 timer 便會闖入逐槽回放、
+    // 讓最後 snapshot／fallback 樣本偶發改變。先等整輪真正收尾，再鎖住後續 polling。
+    await page.waitForFunction(() => !_trtcPolling, null, { timeout: 30000 });
     await page.evaluate(() => { _trtcPolling = true; }); // 後續逐槽由測試明確注入，避免 15 秒輪詢改動 fixture call 順序
     await page.evaluate(() => { _lineAnom.clear(); _trtcNoTrip.clear(); _easedShift.clear(); });
 
@@ -705,14 +709,19 @@ async function run() {
     // 同理要自檢「掃到的真的是本次新程式碼」，否則基準漂掉時同樣是假綠（心得 32）。
     const diff = execFileSync('git', ['diff', '--unified=0', 'origin/main', '--', 'index.html', 'worker.js'], { cwd: ROOT, encoding: 'utf8' });
     const added = diff.split('\n').filter(x => x.startsWith('+') && !x.startsWith('+++')).join('\n');
-    const scansNewCode = /applyTrtcBoard/.test(added) && /trtcBoardPositionAnchors/.test(added);
+    // 這支驗收會在後續功能分支重跑；承重牆可能已進 origin/main，不能再要求它「恰好是本次新增行」。
+    // 新增行仍用來掃禁用旋鈕；承重牆存在性改掃目前完整工作樹，commit 後也不會假紅。
+    const currentSources = fs.readFileSync(path.join(ROOT, 'index.html'), 'utf8') + '\n' +
+      fs.readFileSync(path.join(ROOT, 'worker.js'), 'utf8');
+    const scansRequiredCode = /function applyTrtcBoard\s*\(/.test(currentSources) &&
+      /function trtcBoardPositionAnchors\s*\(/.test(currentSources);
     const forbidden = /last_seen|confidence|retention|retainSec|staleSec|windowSec|保留秒數|過舊門檻|信心分數/g;
     const parallel = /tr\._board|boardTrainPos|drawBoardGhost|boardLineOn/g;
     const staticHits = [...added.matchAll(forbidden), ...added.matchAll(parallel)].map(x => x[0]);
     const mutatedHits = [...(added + '\nconst last_seen = 1;\ntr._board = [];').matchAll(forbidden),
       ...(added + '\nconst last_seen = 1;\ntr._board = [];').matchAll(parallel)].map(x => x[0]);
-    check(scansNewCode && staticHits.length === 0 && mutatedHits.length >= 2, '無存在性旋鈕／無平行車陣列（附靜態突變）',
-      `掃到本次新程式碼=${scansNewCode}（added ${added.split('\n').filter(Boolean).length} 行）, ` +
+    check(scansRequiredCode && staticHits.length === 0 && mutatedHits.length >= 2, '無存在性旋鈕／無平行車陣列（附靜態突變）',
+      `掃到現行承重牆=${scansRequiredCode}（本分支 added ${added.split('\n').filter(Boolean).length} 行）, ` +
       `hits=${JSON.stringify(staticHits)}, mutationHits=${JSON.stringify(mutatedHits)}`);
 
     await mobileMatrix(chromium, 'Chromium');
