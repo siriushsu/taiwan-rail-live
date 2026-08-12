@@ -1694,13 +1694,14 @@
   .board .row[data-no]:hover, .board .row[data-rand]:hover, .board .row[data-li]:hover, .board .row[data-guide]:hover, .board .row[data-ev]:hover { background: var(--bg-stage); }
   /* 活動列(車站看板):整列是連往官方原文的 <a>,故不用 .row 的 JS 點擊路徑 */
   .board .ev-rows { margin: 6px 0 2px; }
-  .board .ev-row { display: flex; align-items: baseline; gap: 7px; padding: 6px 8px; margin-bottom: 4px;
+  .board .ev-row { display: flex; flex-wrap: wrap; align-items: baseline; gap: 3px 7px; padding: 6px 8px; margin-bottom: 4px;
     border-radius: 6px; background: var(--bg-stage); border: 1px solid var(--line-faint);
     font-size: 12.5px; color: inherit; text-decoration: none; }
   .board .ev-row:hover { border-color: var(--line-dash); }
   .board .ev-when { flex: none; font-weight: 700; color: var(--ink-strong); }
   .board .ev-row b { flex: none; }
-  .board .ev-note { flex: 1; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  /* 備註擠不下就整條換行,不要被壓成 0 寬:桌面看板比手機窄,flex:1 會讓它先犧牲(實測剩 4px) */
+  .board .ev-note { flex: 1 1 7em; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .board .ev-tag { flex: none; padding: 0 5px; border-radius: 4px; background: var(--line-faint); font-size: 10.5px; }
   .board .ev-go { flex: none; margin-left: auto; color: var(--faint); }
   /* 觀光列車圖鑑列(無固定車次的山嵐/鳴日/環島之星…):純介紹入口,右側標「圖鑑」淺底徽章 */

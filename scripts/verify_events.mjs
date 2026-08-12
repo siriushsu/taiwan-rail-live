@@ -31,7 +31,9 @@ const FIXTURE = {
   events: [
     { id: 'in-window-metro', source: 'official', title: '窗內捷運活動', start: shift(1), end: shift(3),
       anchor: { kind: 'station', sys: 'mrt', name: '大安森林公園' }, url: 'https://example.invalid/a' },
-    { id: 'in-window-tra', source: 'official', title: '窗內台鐵活動', start: shift(0), end: shift(2),
+    // note 長度取真實策展條目的量級(「站內陽光大廳」六字);沒有 note 的 fixture 會讓 .ev-note
+    // 整條渲染路徑從未被執行 —— 桌面把它壓成 4px 那個缺陷就是這樣躲過 152 項的。
+    { id: 'in-window-tra', source: 'official', title: '窗內台鐵活動', note: '站內陽光大廳', start: shift(0), end: shift(2),
       anchor: { kind: 'station', sys: 'tra_sched', name: '花蓮' }, url: 'https://example.invalid/b' },
     { id: 'ended', source: 'official', title: '已結束活動', start: shift(-9), end: shift(-1),
       anchor: { kind: 'station', sys: 'tra_sched', name: '花蓮' }, url: 'https://example.invalid/c' },
@@ -348,6 +350,23 @@ async function run(browser, engine) {
     chk(`${engine} J${w}-3 真的觸控點一次會開到官方原文`, opened === evOf('in-window-tra').url, String(opened));
     await ctx.close();
   } catch (e) { chk(`${engine} J${w}! 這一節整節跑完不拋例外`, false, String((e && e.message) || e).split('\n')[0].slice(0, 160)); }
+
+  // O. 備註在每個寬度都讀得完整。判準寫「文字有沒有被截掉」(scrollWidth vs clientWidth)而不是
+  //    「寬度要幾 px」——門檻從內容自己推導,換文案、換字級都不必回頭改測試(心得 35)。
+  //    必含桌面寬:缺陷只在桌面(看板面板 248px 比手機 342px 窄),只掃手機四寬照樣是全綠。
+  for (const w of [360, 375, 414, 768, 1024, 1280]) try {
+    const { ctx, pg } = await openPage(browser, { w, h: 812 });
+    await openStationBoard(pg, 'tra_sched', '花蓮');
+    const r = await pg.evaluate(() => {
+      const n = document.querySelector('#board .ev-note');
+      if (!n) return null;
+      return { txt: n.textContent.trim(), clipped: n.scrollWidth > n.clientWidth + 1,
+               w: Math.round(n.getBoundingClientRect().width) };
+    });
+    chk(`${engine} O${w}-1 活動列有備註元素`, !!r, 'null');
+    if (r) chk(`${engine} O${w}-2 備註沒有被截斷`, !r.clipped && r.txt === '站內陽光大廳', `寬=${r.w} 截斷=${r.clipped} 文字=${r.txt}`);
+    await ctx.close();
+  } catch (e) { chk(`${engine} O${w}! 這一節整節跑完不拋例外`, false, String((e && e.message) || e).split('\n')[0].slice(0, 160)); }
 
   // L. 跨系統同名站(捷運分頁):兩則活動站名一模一樣、只有 anchor.sys 不同 ⇒ name 比對擋不掉,
   //    sys 比對真的會被執行到。兩側都驗:對的那家看得到、錯的那家看不到。
