@@ -1413,6 +1413,10 @@ async function deviceSuite(browser, eng) {
 // 心得 31：比幾何前把即時狀態旗標釘死（班次數文字、LIVE 徽章、尖峰徽章都會改寬度）
 // ─────────────────────────────────────────────────────────────
 const FREEZE = () => {
+  // 先綁空 syncTimeUI 再釘值——否則下一幀 tick 就把 #clock 改回即時值(釘了等於沒釘)。
+  // iPad直 的時鐘住在寬度 auto 的 .controls,分鐘數字比例寬('1'比'4'窄)⇒兩頁渲染差幾秒
+  // 就差 3px 假紅(0812 solo 輪 122→119 歸因至此;頂列版時鐘定寬所以從沒炸過)。
+  try { window.syncTimeUI = () => {}; } catch (e) {}
   const c = document.getElementById('clock'); if (c) c.textContent = '00:00';
   for (const id of ['liveBadge', 'peak', 'replayBadge', 'metroBadge']) {
     const el = document.getElementById(id); if (el) el.style.display = 'none';
