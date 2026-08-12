@@ -647,6 +647,49 @@ async function ntmetroLive(request, env, sys) {
   }
 }
 
+// ── 高雄輕軌真 GPS(TDX LivePosition) ──
+// 全台捷運只有 KLRT 這一家給逐車經緯度(TRTC/KRTC/TYMC 一律 HTTP 400,訊息逐字
+// `RailSystem: 'XXX' is not accepted but KLRT`)。前端把它投影到線形、換算成到站剩餘秒,
+// 精度遠勝 LiveBoard 的整數分鐘倒數。TTL 25s/20s:上游 UpdateInterval 30 秒、GPS 時戳落後
+// 26–45 秒,價值就在新鮮度,不能沿用 metro-live 那個 115s。
+// 回傳形狀與 LiveBoard 不同:是物件 { LivePositions:[...] } 不是裸陣列。
+let klrtPosMem = null; // { data, at }
+async function klrtPosition(request, env) {
+  const cacheKey = new Request(new URL('/api/klrt-position', request.url), { method: 'GET' });
+  const edge = caches.default;
+  const hit = await edge.match(cacheKey);
+  if (hit) return hit;
+  const stale = klrtPosMem;
+  try {
+    if (!stale || Date.now() - stale.at > 25e3) {
+      const token = await getToken(env);
+      const r = await fetch('https://tdx.transportdata.tw/api/basic/v2/Rail/Metro/LivePosition/KLRT?%24format=JSON',
+        { headers: { authorization: 'Bearer ' + token }, redirect: 'manual' }); // 🔴 絕不可用 'error'(見檔頭 08-04 事故)
+      if (r.status === 401) { tok = null; throw new Error('tdx 401'); }
+      if (!r.ok) throw new Error('tdx api ' + r.status);
+      const d = await r.json();
+      const rows = (d && Array.isArray(d.LivePositions) ? d.LivePositions : []).map(x => ({
+        t: String(x.TripID),                 // 逐車追蹤用;非時刻表班次
+        dir: x.Direction,                    // 0=沿線里程遞增 / 1=遞減(前端已對投影實測)
+        lat: x.TrainPosition && x.TrainPosition.PositionLat,
+        lon: x.TrainPosition && x.TrainPosition.PositionLon,
+        sp: x.Speed, az: x.Azimuth, st: x.TrainStatus,
+        gt: x.GPSTime,                       // 判資料齡用
+      })).filter(x => Number.isFinite(x.lat) && Number.isFinite(x.lon));
+      klrtPosMem = { data: { at: new Date().toISOString(), src: 'tdx', up: d && d.UpdateTime, rows }, at: Date.now() };
+    }
+    const res = jsonRes(klrtPosMem.data, 200, 'public, s-maxage=20, stale-while-revalidate=60');
+    await edge.put(cacheKey, res.clone());
+    return res;
+  } catch (e) {
+    if (stale) return jsonRes(stale.data, 200, 'public, s-maxage=15');
+    // 軟失敗:200+src:null(前端 no-op、退回時刻表推演),並負向快取 15s 免得上游越掛我們打越兇
+    const res = jsonRes({ at: new Date().toISOString(), src: null, rows: [] }, 200, 'public, s-maxage=15');
+    await edge.put(cacheKey, res.clone());
+    return res;
+  }
+}
+
 // ── 北捷官方會員 API 代理(逐車位置) ──
 // 帳密只在 Worker:這套認證把帳密明文放 request body,前端直連＝公開帳密(repo 是 PUBLIC)。
 // 三支並行:CarWeight(高運量逐車) / CarWeightBR(文湖線逐車) / TrackInfo(終點與未來路徑)。
@@ -3026,6 +3069,7 @@ const API_POST_ALLOWED = new Set(['/api/account-delete', '/api/bounty-claim', '/
 // 'other',否則隨便打 /api/<亂數> 就能把 blob 基數炸開。新增端點時要一起加進來。
 const API_ENDPOINTS = new Set([
   'tra-live', 'tra-alert', 'thsr-alert', 'metro-alert', 'hazard-alert', 'metro-live', 'ntmetro-live', 'trtc-live',
+  'klrt-position',
   'delay-stats', 'delay-history', 'thsr-schedule', 'thsr-freeseat', 'station-events', 'today-board', 'basemap-token', 'basemap-session', 'account-delete',
   'bounty-board', 'bounty-claim', 'bounty-submit', 'bounty-me', 'bounty-merge', 'plus-status', 'revenuecat-webhook',
   'la/bind', 'la/unbind',
@@ -4572,6 +4616,7 @@ export default {
       res = NTM_LIVE_SYS.has(sys) ? await ntmetroLive(request, env, sys) : jsonRes({ error: 'bad sys' }, 400, 'no-store');
     }
     else if (url.pathname === '/api/trtc-live') { res = await trtcLive(request, env); }
+    else if (url.pathname === '/api/klrt-position') { res = await klrtPosition(request, env); }
     else if (url.pathname === '/api/delay-stats') res = await delayStats(request, env);
     else if (url.pathname === '/api/thsr-schedule') res = await thsrSchedule(request, env);
     else if (url.pathname === '/api/thsr-freeseat') res = await thsrFreeSeat(request, env);

@@ -3546,6 +3546,7 @@
            內容 li 上限 8 條(li.grp 是標題不算)。 -->
       <ul class="foot-list foot-recent">
         <li class="grp">最近更新</li>
+        <li data-cl-of="klrtgps"><span class="d">8/12</span><span>高雄環狀輕軌的車改用官方衛星定位逐班校正，每台車各自對準自己的班次，位置比原本準了一截</span></li>
         <li data-cl-of="tcstopsalign"><span class="d">8/12</span><span>列車資訊卡的停靠站時刻表：表頭「到／開」對齊下方的時刻欄了</span></li>
         <li data-cl-of="landscape"><span class="d">8/11</span><span>手機橫著拿也能用了：面板改成靠右側邊欄，跟車時列車不再被蓋住（謝謝網友回報）</span></li>
         <li data-cl-of="stationtransfer"><span class="d">8/10</span><span>點任何一個車站看板，都會告訴你這站可以轉乘哪些別的鐵道系統；跟車時「下一站」旁邊也會提醒能換哪幾條線</span></li>
@@ -3553,7 +3554,6 @@
         <li data-cl-of="widgetdestination"><span class="d">8/8</span><span>iPhone 小工具起站選「共站」或「我的地點」後，「目的站」一點就關掉；已修好，下次 App 更新生效</span></li>
         <li data-cl-of="lapush"><span class="d">8/8</span><span>跟車的鎖定畫面即時動態會自己換下一站了，App 沒開著也會更新；停靠站內顯示「停靠中」，動態島展開還有進度條與車種顏色（通行證功能）</span></li>
         <li data-cl-of="crossnight452"><span class="d">8/8</span><span>修正：週五深夜 452 次這類特定日開行的跨夜車，過了午夜就從地圖上消失（謝謝網友回報）</span></li>
-        <li data-cl-of="thsrfreeseat"><span class="d">8/8</span><span>跟隨高鐵列車時，資訊卡新增「自由座車廂」提示：一排小方塊標出今天這班車自由座在第幾節，不必再猜（免費功能）</span></li>
       </ul>
       <!-- 第二層:完整歷史。刻意不掛 .foot-box 類名——placeFootBoxes() 用
            `.site-foot .foot-box` 搬移面板,巢狀同名會被當成另一個盒子一起搬走。 -->
@@ -3570,6 +3570,7 @@
         <li><span class="d">7/10</span><span>高鐵、桃園機捷、淡海輕軌、安坑輕軌加入路網</span></li>
         <li><span class="d">7/10</span><span>環島觀光列車一分為二：往東「山海號」、往西「平原號」</span></li>
         <li class="grp">即時動態與誤點</li>
+        <li data-cl="klrtgps"><span class="d">8/12</span><span>高雄環狀輕軌改用官方衛星定位逐班校正：它是全台唯一提供每台車即時經緯度的捷運系統，現在每台車各自對到自己的班次、各自算自己的誤點，不再全線共用一個平均值。實測畫面位置與官方定位的差距中位數從 185 公尺降到 127 公尺，偏最多的那些車從 861 公尺收到 289 公尺。班表仍是唯一車輛名冊，定位資料收不到時自動退回原本的到站看板校正，車不會消失</span></li>
         <li data-cl="crossnight452"><span class="d">8/8</span><span>只在特定日開行的跨夜車（如週五深夜 452 次）過午夜就從地圖消失，未開行日清晨反而多畫一班；現在把昨天發車仍在路上的班接回名冊，幽靈班一併擋掉（謝謝網友回報）</span></li>
         <li data-cl="mytrains"><span class="d">8/8</span><span>最愛面板新增「我的車・準點」：收藏的台鐵列車集中列出近 30 天最糟單日全程誤點、平均誤點與有紀錄天數，並標示是否上「準點排行」榜；點一列可看 90 天逐日履歷。集中比較是通行證功能，未訂閱會看到模糊預覽與訂閱入口</span></li>
         <li data-cl="punctualtrains"><span class="d">8/7</span><span>探索面板新增「準點排行」榜：近 30 天最準點的 10 班台鐵車，依單日最糟全程誤點排序，地圖上以綠色光環標示（比金色「今日之最」優先顯示）</span></li>
@@ -5401,12 +5402,15 @@ function updateFreqCard(info) {
   else if (anomalyOf(ln)) { txt = '偵測到營運異常跡象（本站推定），位置僅供參考'; cls = 'warn'; }
   else if (f.tr && metroLiveOn(ln)) {
     const sh = metroShiftSec(ln, f.tr);
-    const ntm = ln._liveShift && ln._liveShift.src === 'ntm';
+    // 來源誠實分級:衛星定位(輕軌真 GPS)>列車動態(新北捷/高捷逐車)>到站看板(TDX 整數分鐘倒數)
+    const src = (ln._liveShift && ln._liveShift.src) || '';
     const trtc = !!ln._trtcBoard;
+    const kind = src === 'klrt' ? '列車衛星定位' : src === 'ntm' ? '列車動態' : '到站看板';
+    const kindShort = src === 'klrt' ? '衛星定位' : src === 'ntm' ? '列車動態' : '看板';
     const dc = Math.abs(sh) >= 90 ? '（較表定約' + (sh > 0 ? '慢' : '快') + Math.round(Math.abs(sh) / 60) + ' 分)' : '';
     txt = metroFresh(ln) // fresh=校正中用現行文案;非 fresh(高倍速投射/資料稍舊)改「推估」措辭
-      ? (trtc ? '● 位置已依北捷官方秒級倒數逐車校正' : '● 已依官方' + (ntm ? '列車動態' : '到站看板') + '校正') + dc
-      : '● 依稍早官方' + (ntm ? '列車動態' : '看板') + '資料推估' + dc;
+      ? (trtc ? '● 位置已依北捷官方秒級倒數逐車校正' : '● 已依官方' + kind + '校正') + dc
+      : '● 依稍早官方' + kindShort + '資料推估' + dc;
     if (trtc && ln.times && ln.times.estimated) txt += '；班次名冊仍依官方班距推算';
     cls = 'on';
   } else if (ln.times && ln.times.estimated) txt = '依官方班距推算（未公告逐班時刻），位置為示意';
@@ -9122,6 +9126,7 @@ function finishLoad(meta) {
   pollTrtcLive();      // 北捷官方秒級倒數逐班校正(名冊仍只讀班表)
   pollMetroLive();     // 捷運即時校正(捷運分頁與全台同框、系統有 LiveBoard 源才會真的打;換線後 shift 隨新 line 物件重建)
   pollNtmLive();       // 新北捷即時校正(環狀線/淡海/安坑,官方列車動態)
+  pollKlrtPos();       // 高雄環狀輕軌真 GPS 逐班校正
   updateSchedTools();  // 捷運模式隱藏台鐵專屬工具鈕
   refreshBadge();
   updateCount();
@@ -9374,6 +9379,7 @@ function toggleFreqMember(id) {
   pollTrtcLive();  // rebuildFreqLines 產生全新 line 物件,北捷逐班 shift 需重新拉
   pollMetroLive(); // 其他捷運的 _liveShift 同樣需重新拉
   pollNtmLive();
+  pollKlrtPos();
   saveLastView(); // 勾選不移動地圖→不發 moveend,得自己記一次
 }
 
@@ -15424,6 +15430,12 @@ function metroShiftSec(ln, tr) { // 正=實際比表定晚跑(誤點);北捷逐�
     // 這班有認到就吃自己的錨點,沒認到退回全線中位數(不是 0):同一時刻整條線多半一起誤點,
     // 給 0 等於宣告「這班準點」,會讓沒被看板認到的車與旁邊認到的車對不齊。
     if (ln._trtcBoard && on) { const v = ln._trtcBoard.shifts.get(tr); target = v != null ? v : ln._trtcBoard.all; }
+  } else if (tr && on && ln._gpsShifts && s && s.src === 'klrt') {
+    // 輕軌 GPS 逐班:配到 GPS 的班次用自己的偏移,沒配到的退全線中位數(不是 0——同一時刻多半一起誤點)。
+    // easedShift 的 key 帶 trip 維度,才不會讓所有班次共用一條緩動而互相拉扯。
+    const v = ln._gpsShifts.get(freqTripKey(ln, tr));
+    dch = 'trip:' + freqTripKey(ln, tr);
+    target = v != null ? v : ((s && s.all) || 0);
   } else if (ln.loop || !tr) { dch = 'a'; if (on && s) target = s.all || 0; }
   else { const fwd = tr[0] <= tr[tr.length - 2]; dch = fwd ? 'f' : 'b'; if (on && s) { const v = fwd ? s.f : s.b; target = v != null ? v : (s.all || 0); } }
   // key 須跨 rebuildFreqLines 穩定(line 物件會重建,不可用 ln 物件當 key);epoch 用全域時間軸 gate(逐線資料齡不算重啟)
@@ -15650,7 +15662,10 @@ async function pollTrtcLive() {
 
 function applyMetroLive(sysId, rows) {
   const nowSec = nowSecOfDay(), nowAbs = Date.now();
-  const mine = metroLivePool().filter(ln => freqSysIdOf(ln) === sysId && ln._tt && ln._tt.length);
+  // C 線(高雄環狀輕軌)在真 GPS 生效期間排除:兩條來源同時寫 _liveShift 會互相蓋掉
+  // (比照 pollNtmLive 對 Y 線的 isTrtcBoardLine 排除)。GPS 一失效就放行,LiveBoard 是退路。
+  // 同系統的紅橘線沒有 GPS,任何時候都走 LiveBoard。
+  const mine = metroLivePool().filter(ln => freqSysIdOf(ln) === sysId && ln._tt && ln._tt.length && !klrtGpsLive(ln));
   for (const ln of mine) {
     if (!ln._evIdx || ln._evIdxTT !== ln._tt) {
       ln._nameIdx = new Map(ln.stations.map((s, i) => [s.name, i]));
@@ -15758,7 +15773,7 @@ setInterval(pollTrtcLive, 15e3); // 北捷上游實測約 15 秒換值,與 Worke
 // 徽章刷新走 draw 的 1 秒 tick(與台鐵 LIVE 同步),資料過期/時間旅行/快轉跨門檻都會即時轉態
 document.addEventListener('visibilitychange', () => {
   if (document.hidden) clearTrtcBoard();
-  else { pollTrtcLive(); pollMetroLive(); pollNtmLive(); }
+  else { pollTrtcLive(); pollMetroLive(); pollNtmLive(); pollKlrtPos(); }
 });
 
 // ── 新北捷即時校正(官方列車動態 trainstatus.ntmetro.com.tw,經 /api/ntmetro-live 代理,約每分鐘) ──
@@ -15868,6 +15883,156 @@ async function pollNtmLive() {
   renderAlertBanner(); // 線級異常變更即時反映到橫幅
 }
 setInterval(pollNtmLive, 60e3);
+
+// ── 高雄環狀輕軌真 GPS 逐班校正(/api/klrt-position,約每分鐘) ─────────────────────────
+// KLRT 是全台捷運唯一提供逐車經緯度的系統(TRTC/KRTC/TYMC 打 LivePosition 一律 400)。
+// 名冊仍只讀班表:GPS 只決定「既有班次實際在哪」,上游掛掉退回時刻表推演,車不會消失。
+//
+// 為什麼是逐班而不是逐線平移(2026-08-12 對正式站實測,留出快照評分):
+//   純班表 185m / 現行 LiveBoard 線級 266m / **任何**線級位移的理論最佳(神諭掃描)170m /
+//   本作法逐班 155m,p90 更從 861m 收到 314m。C 線班表只精確到「分」(span-run 全是 60 的倍數),
+//   線級單一位移的殘差下限就卡在那裡,唯有逐班吃得到 GPS 的真精度。
+//
+// ⚠️ 高捷紅橘線刻意不接官網那支逐車 feed:實測(15 分鐘 91 個 tick)它是**粗略動畫**不是真追蹤
+//   ——45%(54/119)的換站根本沒有「站間」狀態、翻頁點佔全程比例散在 0.26–0.93,
+//   相位不穩定到無法校正,接上去只會把現行 LiveBoard 校正換成一個帶偏差的版本。紅橘線維持 LiveBoard。
+// 環線方向感知事件索引:buildArrIdx 對 loop 一律 dir=0,順逆兩向的事件會混進同一桶
+// (C 線班表實測 84 順 84 逆、當下在線 6+6),拿 GPS 的方向去比對混桶會配到對向車。
+// 這裡改以「班表自己的站序步進」判方向,索引形狀與 nearestArrDiff 的鍵完全相容。
+function loopArrIdx(ln) {
+  const idx = new Map(), n = ln.stations.length;
+  for (const tr of ln._tt) {
+    if (tr.length < 4) continue;
+    const dir = ((((tr[2] - tr[0]) % n) + n) % n) === 1 ? 1 : -1; // 環上 +1=順(里程遞增)
+    for (let k = 0; k < tr.length; k += 2) {
+      const key = tr[k] * 4 + (dir + 1);
+      let a = idx.get(key); if (!a) idx.set(key, a = []);
+      a.push(tr[k + 1]);
+    }
+  }
+  for (const a of idx.values()) a.sort((x, y) => x - y);
+  return idx;
+}
+// 🔴 取樣時刻一律錨在「這筆資料自己的時戳」,不是 now。上游時戳落後 17–45 秒(實測)且會浮動,
+// 拿 now 當基準等於把資料齡整包算進誤點裡——實測會讓 C 線 shift 從 ~50s 灌水到 95s(整整多畫 300 公尺)。
+// klrt: ISO 8601 帶時區位移;krtc: yyyyMMddHHmmss 台北牆鐘。解不出來就回 null,由呼叫端退回 now。
+function feedSecOfDay(gt) {
+  if (!gt) return null;
+  const s = String(gt);
+  const m = s.match(/^(\d{4})(\d{2})(\d{2})(\d{2})(\d{2})(\d{2})$/); // 高捷:純數字台北牆鐘
+  if (m) return (+m[4]) * 3600 + (+m[5]) * 60 + (+m[6]);
+  const ms = Date.parse(s);                                          // TDX:ISO 帶 +08:00
+  if (!Number.isFinite(ms)) return null;
+  return ((Math.floor(ms / 1000) + tzOffsetSec('Asia/Taipei')) % 86400 + 86400) % 86400;
+}
+// 取樣收集器:與 applyNtmLive 的 add/med 同語意,抽出來給兩個新來源共用(applyNtmLive 本身不動)
+function liveShiftSink(src) {
+  const perLine = new Map(), anomStat = new Map();
+  return {
+    add(ln, si, dir, t, idx) { // t=官方預期該站該方向停靠事件時刻(秒);idx 可覆寫(環線用方向感知索引)
+      const diff = nearestArrDiff(idx || ln._evIdx, si, dir, t);
+      if (diff == null) return;                     // 無對應事件:非樣本
+      if (Math.abs(diff) > 600) { let s = anomStat.get(ln); if (!s) anomStat.set(ln, s = { rej: 0 }); s.rej++; return; } // ±10 分外=脫節
+      let rec = perLine.get(ln); if (!rec) perLine.set(ln, rec = { f: [], b: [], all: [] });
+      (dir > 0 ? rec.f : rec.b).push(diff);
+      rec.all.push(diff);
+    },
+    commit(lines) {
+      const med = a => { if (a.length < 3) return null; const s = a.slice().sort((x, y) => x - y); return Math.round(s[s.length >> 1]); };
+      const nowAbs = Date.now();
+      for (const [ln, rec] of perLine) {
+        const all = med(rec.all);
+        if (all == null) continue;                  // 樣本不足:保留舊 shift,>30 分未更新由 metroLiveOn 自動停用
+        ln._liveShift = { f: med(rec.f), b: med(rec.b), all, at: nowAbs, n: rec.all.length, src };
+      }
+      for (const ln of lines) { const rec = perLine.get(ln), s = anomStat.get(ln); evalLineAnomaly(ln, rec ? rec.all : [], s ? s.rej : 0, 0); }
+    },
+  };
+}
+// 該線是否為「吃真 GPS」的輕軌線(唯一判斷點,LiveBoard 排除與輪詢閘門共用同一個定義)
+function isKlrtGpsLine(ln) { return freqSysIdOf(ln) === 'krtc' && ln.id === 'C'; }
+// GPS 現正生效中?——只有這時才把 LiveBoard 擋在 C 線外。GPS 上游掛掉/過期就放行,
+// 讓 LiveBoard 接回來當第二層退路(否則輕軌會從「有校正」直接掉到「完全沒校正」)。
+function klrtGpsLive(ln) { return isKlrtGpsLine(ln) && !!ln._gpsShifts && metroLiveOn(ln) && !!(ln._liveShift && ln._liveShift.src === 'klrt'); }
+// 輕軌:逐車 GPS → 逐班時間偏移。
+// 🔴 這裡刻意**不**走 nearestArrDiff 那套(新北捷/高捷用的「預測到站時刻 vs 班表事件」):
+//    那套要自己用 segs[].run 把「位置」反推成「還要多久到站」,而 freqTrainPosRaw 實際用的是
+//    moveT = (run < span ? run : span)——C 線實測 73.6% 的段落走 span 而非 run,兩者差到 ±120 秒
+//    ⇒ 反推出來的剩餘時間系統性偏掉,實測讓 shift 從神諭的 35 秒灌水到 70 秒(多畫 200 公尺)。
+//    改成**直接對模型本身二分反解**:找出 s 使 freqTrainPosRaw(ln, tr, t-s) 落在 GPS 位置上。
+//    模型內部怎麼算(span/run/梯形/停站)全部自動一致,不必再鏡射它的公式(心得 29 的同源陷阱反面用法)。
+// 逐班而非逐線的理由:C 線班表只精確到「分」(實測 span-run 全是 60 的倍數),線級單一位移的
+//    理論最佳殘差就有 142 公尺;唯有逐班才吃得到 GPS 的真精度。
+const KLRT_MAX_SHIFT = 900;      // 反解範圍(秒);超出視為配錯車
+const KLRT_PAIR_MAX_KM = 1.5;    // 配對距離上限:C 線同向 6 台、平均間隔 3.7km,1.5km 內才敢說是同一台
+function applyKlrtPos(rows) {
+  if (!Array.isArray(rows) || !rows.length) return;
+  const ln = metroLivePool().find(l => isKlrtGpsLine(l) && l._tt && l._tt.length);
+  if (!ln || !ln.hasShape || !ln.segs || !ln._tt.length) return;
+  const n = ln.stations.length, L = ln.loopLen || ln.cum[ln.cum.length - 1];
+  const wrap = d => { const x = ((d % L) + L) % L; return Math.min(x, L - x); };
+  const trDir = tr => ((((tr[2] - tr[0]) % n) + n) % n) === 1 ? 1 : -1; // 環線:靠站序步進判方向
+  const arcOf = (tr, t) => { const p = freqTrainPosRaw(ln, tr, t); return p ? projectOntoShape(ln, p.lat, p.lon).d : null; };
+  const obs = [];
+  for (const r of rows) {
+    const dir = r.dir === 0 ? 1 : r.dir === 1 ? -1 : 0;                // 實測 0=里程遞增 1=遞減
+    if (!dir) continue;
+    const pr = projectOntoShape(ln, r.lat, r.lon);
+    if (!pr || pr.d == null || pr.perpKm > 0.15) continue;             // 離線太遠=雜訊(實測最大垂距 8.4m)
+    const t = feedSecOfDay(r.gt);                                      // 🔴 錨在資料自己的時戳,不是 now
+    if (t == null) continue;
+    obs.push({ dir, d: pr.d, t });
+  }
+  if (!obs.length) return;
+  // 一對一貪婪配對(未套偏移的位置最近者先配):誤差量級 ~300m 遠小於 3.7km 車距,配錯的風險低,
+  // 且配不上的一律丟掉——名冊永遠來自班表,絕不因為 GPS 有車就生一台出來。
+  const cand = [];
+  for (const o of obs) for (const tr of ln._tt) {
+    if (trDir(tr) !== o.dir) continue;
+    const a = arcOf(tr, o.t); if (a == null) continue;                 // 未發車/已到終點=此刻沒有這班
+    const gap = wrap(a - o.d);
+    if (gap <= KLRT_PAIR_MAX_KM) cand.push({ o, tr, gap });
+  }
+  cand.sort((x, y) => x.gap - y.gap);
+  const usedO = new Set(), usedT = new Set(), shifts = new Map();
+  for (const c of cand) {
+    if (usedO.has(c.o) || usedT.has(c.tr)) continue;
+    // 二分反解 s:s 增加=模型時間往回=車往後退。以「沿行進方向的有號距離」單調性收斂。
+    const signedGap = s => {
+      const a = arcOf(c.tr, c.o.t - s); if (a == null) return null;
+      let x = ((a - c.o.d) % L + L) % L; if (x > L / 2) x -= L;
+      return c.o.dir > 0 ? x : -x;                                     // >0 = 模型跑在 GPS 前面
+    };
+    let lo = -KLRT_MAX_SHIFT, hi = KLRT_MAX_SHIFT;
+    if ((signedGap(lo) ?? 0) < 0 || (signedGap(hi) ?? 0) > 0) continue; // 端點不夾住解=這班配不上,不猜
+    for (let k = 0; k < 24; k++) { const m = (lo + hi) / 2; const g = signedGap(m); if (g == null) break; if (g > 0) lo = m; else hi = m; }
+    const s = Math.round((lo + hi) / 2);
+    if (Math.abs(s) > KLRT_MAX_SHIFT - 1) continue;
+    usedO.add(c.o); usedT.add(c.tr);
+    shifts.set(freqTripKey(ln, c.tr), s);
+  }
+  if (shifts.size < 3) return;                                         // 樣本太少:保留舊值,不用兩三台車代表全線
+  const vals = [...shifts.values()].sort((a, b) => a - b);
+  const all = vals[vals.length >> 1];
+  ln._gpsShifts = shifts;                                              // 逐班(metroShiftSec 優先吃)
+  ln._liveShift = { f: null, b: null, all, at: Date.now(), n: shifts.size, src: 'klrt' }; // 配不到的班次退這個中位數
+  evalLineAnomaly(ln, vals, 0, 0);
+}
+async function pollKlrtPos() {
+  const pool = metroLivePool();
+  if (document.hidden || !pool.length) return;
+  if (Math.abs(state.simSec - nowSecOfDay()) > 120) return; // 時間旅行中不打 API 也不校正
+  if (!pool.some(isKlrtGpsLine)) return;
+  try {
+    const r = await fetch(apiUrl('api/klrt-position'), { cache: 'no-store' });
+    if (!r.ok) throw new Error(r.status);
+    const d = await r.json();
+    if (d && d.src) applyKlrtPos(d.rows);   // src:null=上游軟失敗,保留舊 shift
+  } catch (e) { /* 失敗保留舊 shift */ }
+  updateMetroBadge();
+  renderAlertBanner();
+}
+setInterval(pollKlrtPos, 60e3);
 
 // ── 營運通阻/狀態公告(每 5 分鐘輪詢):sched=台鐵/高鐵各自端點;freq=捷運五家聚合 api/metro-alert ──
 // 只轉述官方公告不推定個別班次:正常條目 status:1 濾除,其餘當異常帶出
