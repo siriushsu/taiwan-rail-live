@@ -972,7 +972,11 @@
   }
   .traincard .tc-st:hover { background: var(--bg-stage); }
   .traincard .tc-st .n { flex: 1; min-width: 0; }
-  .traincard .tc-st > span:not(.n) { flex: none; }
+  /* 到/開兩欄:表頭列與資料列是各自獨立的 flex row,欄寬吃內容的話,表頭「到」(單字寬)
+     會懸在兩個時刻欄中間(2026-08-12 使用者回報)。兩種列都給同一個固定寬＋右對齊,
+     欄位才會跨列對齊;36px 蓋得住 tabular-nums 的「00:00」。 */
+  .traincard .tc-st > span:not(.n) { flex: none; width: 36px; text-align: right; }
+  .traincard .tc-st.hd > span:not(.n) { letter-spacing: 0; } /* 尾字的 letter-spacing 會讓右緣縮 1px,拿掉才對得齊 */
   /* 轉乘標。落點只有兩處:車站看板的站況區(回答「這站是什麼」),與跟隨/搭乘卡的下一站
      (回答「要不要在這站下車換車」——唯一會改變行動的時刻)。v0810 之前掛在資訊卡的逐站停靠表每一列,
      使用者回報「不顯眼、不知何時會需要用到」:轉乘是車站的屬性不是某班車某一站的屬性,
@@ -3534,7 +3538,7 @@
 
   <footer class="site-foot">
     <details class="foot-box">
-      <summary><span>更新紀錄</span><span class="foot-sub">最後更新：2026/8/11</span></summary>
+      <summary><span>更新紀錄</span><span class="foot-sub">最後更新：2026/8/12</span></summary>
       <!-- 第一層是「最近更新」的檢視,不是正本:每一條都用 data-cl-of 指向第二層某條的 data-cl。
            要把一條擠出第一層之前,它的正本必須已經在第二層存在——2026-08-03 就踩過一次:8/1 的
            衛星計費那條只活在第一層(第二層只有一句夾在 7/25 條目裡、日期對不上的附帶說明),
@@ -3542,6 +3546,7 @@
            內容 li 上限 8 條(li.grp 是標題不算)。 -->
       <ul class="foot-list foot-recent">
         <li class="grp">最近更新</li>
+        <li data-cl-of="tcstopsalign"><span class="d">8/12</span><span>列車資訊卡的停靠站時刻表：表頭「到／開」對齊下方的時刻欄了</span></li>
         <li data-cl-of="landscape"><span class="d">8/11</span><span>手機橫著拿也能用了：面板改成靠右側邊欄，跟車時列車不再被蓋住（謝謝網友回報）</span></li>
         <li data-cl-of="stationtransfer"><span class="d">8/10</span><span>點任何一個車站看板，都會告訴你這站可以轉乘哪些別的鐵道系統；跟車時「下一站」旁邊也會提醒能換哪幾條線</span></li>
         <li data-cl-of="nearfollowmutex"><span class="d">8/10</span><span>開「附近車站」或「隨機跟隨」時會自動收起另一個，地圖鏡頭只聽一邊的</span></li>
@@ -3549,7 +3554,6 @@
         <li data-cl-of="lapush"><span class="d">8/8</span><span>跟車的鎖定畫面即時動態會自己換下一站了，App 沒開著也會更新；停靠站內顯示「停靠中」，動態島展開還有進度條與車種顏色（通行證功能）</span></li>
         <li data-cl-of="crossnight452"><span class="d">8/8</span><span>修正：週五深夜 452 次這類特定日開行的跨夜車，過了午夜就從地圖上消失（謝謝網友回報）</span></li>
         <li data-cl-of="thsrfreeseat"><span class="d">8/8</span><span>跟隨高鐵列車時，資訊卡新增「自由座車廂」提示：一排小方塊標出今天這班車自由座在第幾節，不必再猜（免費功能）</span></li>
-        <li data-cl-of="mytrains"><span class="d">8/8</span><span>最愛面板新增「我的車」：收藏的台鐵列車集中列出近 30 天準點表現（通行證功能）</span></li>
       </ul>
       <!-- 第二層:完整歷史。刻意不掛 .foot-box 類名——placeFootBoxes() 用
            `.site-foot .foot-box` 搬移面板,巢狀同名會被當成另一個盒子一起搬走。 -->
@@ -3590,6 +3594,7 @@
         <li><span class="d">7/16</span><span>捷運準確度升級：六家捷運依官方到站看板即時校正，國定假日自動改跑假日班表</span></li>
         <li><span class="d">7/9</span><span>台鐵即時誤點上線——介接交通部 TDX 平臺每分鐘更新；7/11 起開站即真實時刻、捷運改逐班推演</span></li>
         <li class="grp">跟車、搜尋與車站看板</li>
+        <li data-cl="tcstopsalign"><span class="d">8/12</span><span>列車資訊卡的停靠站時刻表，表頭「到」「開」原本懸在兩個時刻欄中間、沒有對齊，現在跨列對齊了（謝謝網友回報）</span></li>
         <li data-cl="nearfollowmutex"><span class="d">8/10</span><span>開「附近車站」或「隨機跟隨」時，會自動收起另一個，地圖鏡頭只聽一邊的，不會兩邊互搶</span></li>
         <li data-cl="lapush"><span class="d">8/8</span><span>跟隨台鐵或高鐵列車時，鎖定畫面與動態島的即時動態改由伺服器每分鐘更新：螢幕關著、App 沒開著也會自己換到下一站。要換到哪一站依列車實際到離站的觀測決定，不是照時刻表推算；遇到即時資料中斷，卡片會註明目前位置為預估並提醒查詢官方動態。卡片本身也一併加強：列車停靠站內時會顯示「停靠中」而不是繼續倒數，長按動態島展開後會看到一條往下一站前進的進度條、車種與代表色（和地圖上那台車同一個顏色）、上一站與終點站。軌島通行證功能，一趟最長跟 12 小時</span></li>
         <li data-cl="thsrfreeseat"><span class="d">8/8</span><span>跟隨高鐵列車時，資訊卡新增自由座車廂提示：以車廂圖示＋文字標出今天這班車的自由座在哪幾節（例如「自由座 10–12 車」）。資料來源為交通部 TDX 高鐵每日自由座資訊，逐日更新；僅高鐵列車顯示，資料尚未到位或查無該車次時安靜不顯示</span></li>
@@ -3980,7 +3985,7 @@
 // 線上跑的是 v0808e,內容不同的兩顆絕不可共用同一個號,故推 v0809a。
 // 2026-08-10 這批(互斥＋轉乘)的基準刻意取「線上實況 472c848」而不是 main——main 落後線上約 70 顆,
 // 從 main 出貨會把 LA 推播、速度上界、準點三功能整包退掉(心得 16 的原病灶)。推 v0810a。
-const BUILD = 'v0811c';
+const BUILD = 'v0812a';
 // 成就徽章與車廂標記＝原本那些 emoji 的單色平面版（RailEmoji＝裁切過的 Noto Emoji 單色）。
 // 刻意保留 railIcon(name) 這個唯一入口:呼叫端一行都不用改,只有這裡決定畫法。
 // 🔴 ⚖ 與 ♾ 一律寫**不帶 VS16(U+FE0F)** 的碼位——帶了就強制彩色呈現,會蓋過 font-family
