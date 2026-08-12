@@ -16,19 +16,31 @@
 //
 // 斷言刻意避開會腐化的字面值：BUILD 只驗格式 /v\d{4}[a-z]/，不 assert 具體版號與更新紀錄日期。
 
+import { readFileSync } from 'node:fs';
+
 let pw;
 try { pw = await import('playwright'); }
 catch { pw = await import(process.env.PLAYWRIGHT_MJS ?? '/Users/xuxiang/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/node_modules/playwright/index.mjs'); }
 const { chromium } = pw;
 
 const BASE = process.env.NOTIFY_BASE || 'http://127.0.0.1:5178/';
+// 高鐵班表自 2026-08-07 改以 apiUrl('api/thsr-schedule') 為主來源、靜態檔降級為 fallbackUrl。
+// 下面 boot() 那條 **/api/** 的全攔 route 會把它也一起吃掉,而 `[]` 是 200 ⇒ fetchJSONAt
+// 視同成功 ⇒ fallback 永不啟動 ⇒ applySchedSystems 迭代 undefined 的 sys.data.trains 拋錯
+// ⇒ __state.ready 永遠不為真 ⇒ 15 個案例全部倒在同一個 waitForFunction 逾時。
+// 這裡吐打包的那份(同 schema)。readFileSync 直接吃 URL 物件,不經過會被 percent-encode 的 pathname。
+const THSR_SCHED = readFileSync(new URL('../data/thsr_schedule_dense.json', import.meta.url));
 const STORAGE_KEY = 'trainmap-local-reminders-v1';
 const assert = (ok, msg) => { if (!ok) throw new Error(msg); };
 const results = {}; // caseName -> 'PASS' | 'FAIL: ...'
 const detail = {};
 
 async function boot(page, query = '') {
-  await page.route('**/api/**', route => route.fulfill({ status: 200, contentType: 'application/json', body: '[]' }));
+  await page.route('**/api/**', route => {
+    if (new URL(route.request().url()).pathname.endsWith('/api/thsr-schedule'))
+      return route.fulfill({ status: 200, contentType: 'application/json', body: THSR_SCHED });
+    return route.fulfill({ status: 200, contentType: 'application/json', body: '[]' });
+  });
   await page.goto(BASE + query, { waitUntil: 'domcontentloaded', timeout: 60000 });
   await page.waitForFunction(() => window.__state && window.__state.ready, null, { timeout: 60000 });
   if (await page.locator('#howtoWrap').isVisible()) await page.locator('#howtoSkip').click();

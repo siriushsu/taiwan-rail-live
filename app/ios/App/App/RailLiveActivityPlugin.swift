@@ -1,6 +1,8 @@
 import ActivityKit
 import Capacitor
 import Foundation
+import StoreKit
+import UIKit
 
 @objc(RailLiveActivityPlugin)
 public final class RailLiveActivityPlugin: CAPPlugin, CAPBridgedPlugin {
@@ -16,6 +18,7 @@ public final class RailLiveActivityPlugin: CAPPlugin, CAPBridgedPlugin {
     // 避免整個 class 被 @available 綁死(class 本身要對 iOS 15.0 編得過)。
     private var current: Any?
     private var chain: Task<Void, Never>?
+    private var tokenTask: Task<Void, Never>?
 
     // 🔴 把所有 ActivityKit 動作排成一條序列。原稿的 end 是 fire-and-forget 的 Task,
     //    換車時「舊卡的 end」與「新卡的 request」會交錯 ⇒ 兩張卡並存,或新卡被舊卡的 end 收掉。
@@ -29,22 +32,30 @@ public final class RailLiveActivityPlugin: CAPPlugin, CAPBridgedPlugin {
 
     // 🔴 signature 提到 @available 型別 ⇒ 方法本身必須標 @available。
     //    原稿沒標,而 class 是對 iOS 15.0 編譯的 ⇒ 直接編不過(而且錯誤訊息指向型別不是這裡)。
+    // 🔴 解析不出來就是 nil。原稿在呼叫端用 `?? Date().addingTimeInterval(60)` 兜底,
+    //    那會在卡片上造出一個憑空捏造、而且真的在走的「還有 1 分鐘」——使用者無從分辨真假。
+    private static func epoch(_ raw: String?) -> Double? {
+        guard let raw, !raw.isEmpty else { return nil }
+        let iso = ISO8601DateFormatter()
+        iso.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        let d = iso.date(from: raw) ?? ISO8601DateFormatter().date(from: raw)
+        return d?.timeIntervalSince1970
+    }
+
     @available(iOS 17.6, *)
     private func state(from call: CAPPluginCall) -> RailFollowAttributes.ContentState {
-        let raw = call.getString("arrivalIso") ?? ""
-        var date: Date? = nil
-        if !raw.isEmpty {
-            let iso = ISO8601DateFormatter()
-            iso.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-            date = iso.date(from: raw) ?? ISO8601DateFormatter().date(from: raw)
-        }
-        // 🔴 解析不出來就是 nil。原稿的 `?? Date().addingTimeInterval(60)` 會在卡片上
-        //    造出一個憑空捏造、而且真的在走的「還有 1 分鐘」——使用者無從分辨真假。
+        // 🔴 notice 刻意不從這裡帶:那是後端在上游中斷時才寫的字串,前景有新鮮資料、
+        //    本來就不該掛那句話(省略 ⇒ Optional 預設 nil ⇒ 前景更新順帶把它清掉,正確)。
         return RailFollowAttributes.ContentState(
             nextStop: call.getString("nextStop") ?? "",
-            arrivalDate: date,
+            arrivalDate: Self.epoch(call.getString("arrivalIso")),
+            // 🔴 departedDate 原本【完全沒帶】⇒ 前景時進度條兩端缺一端,一格都畫不出來,
+            //    只有後端推播那條路才有進度條。前景與背景顯示不一致,使用者會以為壞了。
+            departedDate: Self.epoch(call.getString("departedIso")),
             delaySec: call.getInt("delaySec") ?? 0,
-            terminus: call.getString("terminus") ?? ""
+            terminus: call.getString("terminus") ?? "",
+            stopping: call.getBool("stopping"),
+            prevStop: call.getString("prevStop")
         )
     }
 
@@ -54,10 +65,13 @@ public final class RailLiveActivityPlugin: CAPPlugin, CAPBridgedPlugin {
     @available(iOS 17.6, *)
     @MainActor
     private func endAll() async {
+        tokenTask?.cancel(); tokenTask = nil
         current = nil
         for act in Activity<RailFollowAttributes>.activities {
             await act.end(nil, dismissalPolicy: .immediate)
         }
+        // 告知音樂端「跟車讓位」結束：RailAudioPlugin 據此把播放卡掛回鎖定畫面。
+        NotificationCenter.default.post(name: Notification.Name("railFollowChanged"), object: nil, userInfo: ["active": false])
     }
 
     override public func load() {
@@ -73,16 +87,32 @@ public final class RailLiveActivityPlugin: CAPPlugin, CAPBridgedPlugin {
         let attrs = RailFollowAttributes(
             trainNo: call.getString("trainNo") ?? "",
             kind: call.getString("kind") ?? "",
-            sys: call.getString("sys") ?? ""
+            sys: call.getString("sys") ?? "",
+            // 車種代表色。Attributes 只在 request 當下定版,之後的 update 改不了它——
+            // 但車種本來就不會中途變,這正是它該放在 Attributes 而不是 ContentState 的理由。
+            color: call.getString("color")
         )
         let st = state(from: call)
         enqueue {
             await self.endAll()   // 🔴 await:舊卡確實收掉之後才開新的
             do {
-                self.current = try Activity.request(
+                let act = try Activity.request(
                     attributes: attrs,
-                    content: .init(state: st, staleDate: Date().addingTimeInterval(8 * 3600))
+                    content: .init(state: st, staleDate: Date().addingTimeInterval(8 * 3600)),
+                    pushType: .token          // 🔴 少了這個參數就拿不到 token,卡片只能靠前景更新
                 )
+                self.current = act
+                // 跟車卡上島了:通知音樂端讓位(收播放卡、轉混音模式),跟車獨占動態島。
+                NotificationCenter.default.post(name: Notification.Name("railFollowChanged"), object: nil, userInfo: ["active": true])
+                // pushTokenUpdates 是 AsyncSequence,token 會【多次】輪替,不是拿一次就結束。
+                // 這條 Task 的生命週期綁在 endAll()——換車時先 cancel,否則舊卡的 token 會被當成新卡的送上去。
+                let key = call.getString("key") ?? ""
+                self.tokenTask = Task { @MainActor in
+                    for await data in act.pushTokenUpdates {
+                        let hex = data.map { String(format: "%02x", $0) }.joined()
+                        self.notifyListeners("pushToken", data: ["token": hex, "key": key])
+                    }
+                }
                 call.resolve(["ok": true])
             } catch {
                 call.resolve(["ok": false, "why": error.localizedDescription])
@@ -109,5 +139,40 @@ public final class RailLiveActivityPlugin: CAPPlugin, CAPBridgedPlugin {
     @objc func end(_ call: CAPPluginCall) {
         guard #available(iOS 17.6, *) else { call.resolve(["ok": true]); return }
         enqueue { await self.endAll(); call.resolve(["ok": true]) }
+    }
+}
+
+// ── 評分邀請 ────────────────────────────────────────────────────────────────
+// 🔴 刻意寫在這個檔案裡、不另開 .swift：往 App/ 加新檔而沒手改 project.pbxproj，
+// 檔案不會被編進去而 build 照樣 SUCCEEDED（小工具那顆修正就是這樣連漏四顆 build）。
+// Capacitor 靠 Objective-C runtime 掃描註冊 plugin，與檔名無關，同檔多 class 完全成立。
+//
+// 只負責「請求」——顯不顯示由 Apple 決定（一年最多 3 次，且不保證出現），
+// 我們收不到結果回報，所以 resolve 的 requested 只代表「我們請求過了」。
+// 節流全部做在 JS 端（index.html 的 reviewShouldAsk）。
+@objc(RailReviewPlugin)
+public final class RailReviewPlugin: CAPPlugin, CAPBridgedPlugin {
+    public let identifier = "RailReviewPlugin"
+    public let jsName = "RailReview"
+    public let pluginMethods: [CAPPluginMethod] = [
+        CAPPluginMethod(name: "requestReview", returnType: CAPPluginReturnPromise),
+    ]
+
+    @objc func requestReview(_ call: CAPPluginCall) {
+        DispatchQueue.main.async {
+            guard let scene = UIApplication.shared.connectedScenes
+                .first(where: { $0.activationState == .foregroundActive }) as? UIWindowScene else {
+                call.resolve(["requested": false])
+                return
+            }
+            if #available(iOS 18.0, *) {
+                AppStore.requestReview(in: scene)
+            } else if #available(iOS 16.0, *) {
+                SKStoreReviewController.requestReview(in: scene)
+            } else {
+                SKStoreReviewController.requestReview()
+            }
+            call.resolve(["requested": true])
+        }
     }
 }

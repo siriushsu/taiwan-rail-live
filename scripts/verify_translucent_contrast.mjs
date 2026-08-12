@@ -39,11 +39,25 @@ console.log(`\n== 目標 ==\n目錄 ${ROOT}\nindex.html md5 ${diskMd5}\n`);
 const MIME = { '.html': 'text/html', '.js': 'text/javascript', '.mjs': 'text/javascript', '.json': 'application/json', '.css': 'text/css', '.png': 'image/png', '.jpg': 'image/jpeg', '.svg': 'image/svg+xml', '.mp3': 'audio/mpeg', '.ico': 'image/x-icon', '.webmanifest': 'application/manifest+json' };
 const server = createServer((req, res) => {
   const url = new URL(req.url, 'http://x');
+  // 高鐵班表已改走 /api/thsr-schedule(commit 9f05f2f):真實端點只有兩種合法形狀——200 帶完整文件,
+  // 或(上游失敗時)404。下面通用的 /api/* 200 `{}` 是這支假伺服器自己造出來、現實中不存在的第三種
+  // 形狀——`{}` 是 truthy,index.html 的 fallbackUrl 退路只在 raw 為假值時才啟動,於是 resolveScheduleDay
+  // 原樣放行 `{}`、sys.data.trains 變成 undefined,開機時 for...of 直接丟 TypeError。這裡回真實靜態檔
+  // 內容,才是這條路徑成功時的忠實模擬。
+  if (url.pathname === '/api/thsr-schedule') {
+    res.statusCode = 200; res.setHeader('content-type', 'application/json');
+    return res.end(readFileSync(path.join(ROOT, 'data/thsr_schedule_dense.json')));
+  }
   if (url.pathname.startsWith('/api/')) {
     res.statusCode = 200; res.setHeader('content-type', 'application/json');
     // 衛星情境要真的載到 Esri 影像:圖磚端點不驗 token 值(memory: esri-key-validation-trap),
     // 給一個假值就能拿到真影像——量的是「亮色面板疊在衛星照片上」這個最壞情境。
-    return res.end(url.pathname === '/api/basemap-token' ? '{"esri":"HARNESS-FAKE"}' : '{}');
+    if (url.pathname === '/api/basemap-token') return res.end('{"esri":"HARNESS-FAKE"}');
+    // 高鐵班表自 2026-08-07(9f05f2f)改以 apiUrl('api/thsr-schedule') 為主來源、靜態檔降級為 fallbackUrl。
+    // 空物件是 200 ⇒ fetchJSONAt 視同成功 ⇒ fallback 永不啟動 ⇒ applySchedSystems 迭代 undefined 的
+    // sys.data.trains 拋錯 ⇒ boot 停在 state.ready=true 之前 ⇒ waitForFunction 逾時。這裡吐打包的那份(同 schema)。
+    if (url.pathname === '/api/thsr-schedule') return res.end(readFileSync(path.join(ROOT, 'data/thsr_schedule_dense.json')));
+    return res.end('{}');
   }
   let fp = path.join(ROOT, decodeURIComponent(url.pathname));
   if (existsSync(fp) && statSync(fp).isDirectory()) fp = path.join(fp, 'index.html');
@@ -436,7 +450,16 @@ async function runScenario(browser, engine, sc) {
   // ── G4 收合到最小的列車資訊要恢復不透明 ──
   const mins = await page.evaluate(() => {
     const res = {};
-    const fp = document.getElementById('followPanel');
+    // 自己把要量的狀態建起來,不吃上一輪的殘留:N14 之後「附近車站」會 clearFollow() 把跟隨面板收掉,
+    // 而後面的 pass 不會把它帶回來 ⇒ 殘留式取樣會讓整組 G4 靜默消失(迴圈跑 0 次不會有任何斷言變紅)。
+    let fp = document.getElementById('followPanel');
+    if (!fp || fp.hidden) {
+      try {
+        const tr = (state.trains || []).find(t => t.sys === 'tra_sched') || (state.trains || [])[0];
+        if (tr) followTrainNo(tr.train, { sys: tr.sys });
+      } catch { /* 建不起來就讓下面的覆蓋斷言紅,不要靜默跳過 */ }
+      fp = document.getElementById('followPanel');
+    }
     if (fp && !fp.hidden) {
       const had = fp.classList.contains('fp-min');
       fp.classList.add('fp-min');
@@ -454,6 +477,10 @@ async function runScenario(browser, engine, sc) {
     }
     return res;
   });
+  // 分母要有人把關:mins 是空的時候下面的迴圈跑 0 次,整組 G4 會靜默消失而總計仍然全綠
+  // ——2026-08-10 就這樣丟過 14 個檢查(附近車站排在最後 ⇒ clearFollow() 把跟隨面板收掉)。
+  ok(`G4 ${label} 收合態取樣有涵蓋到跟隨面板`, Object.prototype.hasOwnProperty.call(mins, 'fpMin'),
+    `實際取到:${Object.keys(mins).join('、') || '(空——跟隨面板不在畫面上,pass 順序或面板互斥規則改過了)'}`);
   for (const [k, v] of Object.entries(mins)) {
     const c = (v.bg.match(/rgba?\(([^)]+)\)/) || [])[1];
     const a = c ? (c.split(/[\s,/]+/).filter(Boolean).map(Number)[3] ?? 1) : 0;
@@ -463,16 +490,24 @@ async function runScenario(browser, engine, sc) {
   // ── G5 關掉開關要回到原本的樣子 ──
   const off = await page.evaluate(() => {
     document.body.classList.remove('panel-translucent');
-    const el = document.querySelector('.follow-panel:not([hidden])') || document.querySelector('.board:not([hidden])');
+    // 自己開一個面板再量,不依賴「最後一輪剛好留下什麼」。那個隱含相依只要 pass 順序或面板互斥
+    // 規則一改就整批崩掉——2026-08-10 的 N14 互斥(開附近車站會清掉跟隨)就踩到:最後畫面上一個
+    // 可量的面板都不剩,原本的 getComputedStyle(null) 會拋例外把整支腳本中止,連總計行都印不出來,
+    // 失敗長得像「這支腳本不存在」。找不到就回 null 讓 G5 判 FAIL。
+    try { openBoard({ name: '台北', sys: 'tra_sched' }); } catch { /* 開不起來就走下面的 fallback */ }
+    const el = document.querySelector('.board:not([hidden])') || document.querySelector('.follow-panel:not([hidden])')
+      || document.querySelector('#nearCard:not([hidden])');
+    if (!el) return null;
     const cs = getComputedStyle(el);
     return { bg: cs.backgroundColor, bd: cs.backdropFilter || cs.webkitBackdropFilter, shadow: cs.textShadow,
       muted: cs.getPropertyValue('--muted').trim(), faint: cs.getPropertyValue('--faint').trim(),
       line: cs.getPropertyValue('--line').trim(), lineDash: cs.getPropertyValue('--line-dash').trim() };
   });
-  const oa = (off.bg.match(/rgba?\(([^)]+)\)/) || [])[1];
+  const oa = off ? (off.bg.match(/rgba?\(([^)]+)\)/) || [])[1] : null;
   const offAlpha = oa ? (oa.split(/[\s,/]+/).filter(Boolean).map(Number)[3] ?? 1) : 0;
-  ok(`G5 ${label} 關掉半透明後回實色、無 halo`, offAlpha >= 0.9 && (!off.bd || off.bd === 'none') && (off.shadow === 'none' || !off.shadow),
-    `bg=${off.bg} backdrop=${off.bd} shadow=${off.shadow} muted=${off.muted} faint=${off.faint} line=${off.line}`);
+  ok(`G5 ${label} 關掉半透明後回實色、無 halo`, !!off && offAlpha >= 0.9 && (!off.bd || off.bd === 'none') && (off.shadow === 'none' || !off.shadow),
+    off ? `bg=${off.bg} backdrop=${off.bd} shadow=${off.shadow} muted=${off.muted} faint=${off.faint} line=${off.line}`
+      : '最後一輪跑完沒有任何可量的面板留在畫面上(.follow-panel/.board/#nearCard 都不在)');
 
   ok(`G6 ${label} 無 JS 錯誤`, errs.length === 0, errs.slice(0, 2).join(' | '));
   await ctx.close();
@@ -483,8 +518,20 @@ async function runScenario(browser, engine, sc) {
 // 已知覆蓋缺口:七個半透明面板裡的 .freq-card(捷運跟隨小卡)沒有納入自動量測——
 // 在無網路 fixture 下開不起來(setFreqFollow 需要實際的捷運班表物件)。它與 .follow-panel
 // 共用同一組面板層規則(外圈、色票升階),風險同級但未被實測,不當作已驗。
+// N14(2026-08-10)之後「附近車站」與跟隨 UI 是互斥的:openNearbyStations() 會 clearFollow(),
+// 把列車卡連同速度曲線一起收掉——這是刻意的產品行為(verify_map_action_mutex 正面斷言「小卡消失」),
+// 不是回歸。所以原本那個「traincard 與 nearCard 同時開著再量速度曲線」的情境已經不可能成立。
+// 拆成兩輪:速度曲線在不開 nearCard 的那一輪量,nearCard 自己一輪。七個面板的覆蓋率不變,
+// 只是不再假設它們能同框——判準綁的是「每個面板都被量到」,不是「它們同時開著」。
 const DESKTOP_PASSES = [
-  { name: '全開', steps: ['traincard', 'board', 'nearCard', 'xingCard', 'xingHelp'], spark: true },
+  // nearCard 單獨一輪(與下面手機版同形):它與跟隨互斥,又會被平交道卡的 soloPanel('crossing') 收掉,
+  // 跟任何其他面板同框都量不到東西。
+  // N14(2026-08-10)之後「附近車站」與跟隨 UI 互斥:openNearbyStations() 會 clearFollow(),
+  // 把列車卡連同速度曲線一起收掉——刻意的產品行為(verify_map_action_mutex 正面斷言「小卡消失」),
+  // 所以原本「traincard 與 nearCard 同框再量速度曲線」的情境已不可能成立,拆成兩輪。
+  // pass 順序不再是載重結構:G4／G5 都改成自己把要量的狀態建起來,不吃上一輪的殘留。
+  { name: '全開', steps: ['traincard', 'board', 'xingCard', 'xingHelp'], spark: true },
+  { name: '附近車站', steps: ['nearCard'], spark: false },
 ];
 const MOBILE_PASSES = [
   { name: '列車sheet', steps: ['trainSheet'], spark: true },

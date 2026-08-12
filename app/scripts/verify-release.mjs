@@ -85,42 +85,6 @@ export function assertAndroidPlusGate(html) {
     'Android 通行證平台 gate 必須且只能出現一次');
 }
 
-export function assertFoundingLaunchAnchor(revenuecatSource, now = new Date()) {
-  // 設定檔上方有格式範例與說明；先移除行註解，避免 regex 把範例的 null 當成實際設定。
-  const executableSource = revenuecatSource.replace(/\/\/.*$/gm, '');
-  const foundingLaunchAtMatch = executableSource.match(/foundingLaunchAt\s*:\s*(null|'([^']*)'|"([^"]*)")/);
-  assert(foundingLaunchAtMatch,
-    'revenuecat-config.js 找不到 foundingLaunchAt 欄位——請在該檔 window.RAIL_REVENUECAT_CONFIG 補上 '
-    + "foundingLaunchAt(ISO8601 時刻字串,建議台北時區午夜整點,例如 '2026-09-01T00:00:00+08:00')");
-  const foundingLaunchAtRaw = foundingLaunchAtMatch[1] === 'null'
-    ? null
-    : (foundingLaunchAtMatch[2] !== undefined ? foundingLaunchAtMatch[2] : foundingLaunchAtMatch[3]);
-  assert(foundingLaunchAtRaw !== null && foundingLaunchAtRaw !== '',
-    `revenuecat-config.js 的 foundingLaunchAt 尚未設定(目前是${foundingLaunchAtRaw === null ? ' null' : '空字串'})——`
-    + '這是發版流程要在按下發版當下才決定的值,請把實際上線日期填進 revenuecat-config.js 的 '
-    + 'window.RAIL_REVENUECAT_CONFIG.foundingLaunchAt 後重新建置');
-  const foundingLaunchAtMs = Date.parse(foundingLaunchAtRaw);
-  assert(Number.isFinite(foundingLaunchAtMs),
-    `revenuecat-config.js 的 foundingLaunchAt 不是可解析的日期(目前值：${foundingLaunchAtRaw})——`
-    + '請改成 ISO8601 時刻字串並修正 revenuecat-config.js 的 window.RAIL_REVENUECAT_CONFIG.foundingLaunchAt');
-
-  const publishedMatch = executableSource.match(/foundingLaunchPublished\s*:\s*(true|false)/);
-  const published = publishedMatch?.[1] === 'true';
-  const nowMs = now.getTime();
-  assert(!published || foundingLaunchAtMs <= nowMs,
-    `revenuecat-config.js 把 foundingLaunchAt(${foundingLaunchAtRaw})標成已發布,但該時刻尚未到——`
-    + '請把 foundingLaunchPublished 改回 false,不要提前放行過去日期重建閘門');
-
-  // 未發布時維持原本的 fail-closed 判準：錨點不得早於 build 當天。正式上線後則必須明示
-  // foundingLaunchPublished:true，才能在 hotfix／重建時沿用已生效的固定錨點。
-  const buildDayTaipei = new Intl.DateTimeFormat('sv-SE', { timeZone: 'Asia/Taipei' }).format(now);
-  const buildDayStartMs = Date.parse(`${buildDayTaipei}T00:00:00+08:00`);
-  assert(foundingLaunchAtMs >= buildDayStartMs || published,
-    `revenuecat-config.js 的 foundingLaunchAt(${foundingLaunchAtRaw})早於本次 build 的日期(${buildDayTaipei}),`
-    + '且 foundingLaunchPublished 未明確設為 true——若錨點已正式生效,請先確認正式站／商店後再標記已發布;'
-    + '否則請更新尚未發布的上線日期');
-}
-
 export async function assertLicensedBuildAllowed({ includeLicensedMusic, includeLicensedBasemaps }) {
   const policy = await readReleasePolicy();
   if (includeLicensedMusic) {
@@ -300,7 +264,53 @@ export async function verifyRelease({
   // 送審就無法即時改,所以這裡是唯一會把「忘了填」或「填了過去式舊值」擋成 build 失敗的地方,
   // 不讓需要人為決定的值靠「安全預設」矇混過關溜上線。
   const revenuecatSource = await readFile(join(output, 'revenuecat-config.js'), 'utf8');
-  assertFoundingLaunchAnchor(revenuecatSource);
+  const foundingLaunchAtMatch = revenuecatSource.match(/foundingLaunchAt\s*:\s*(null|false|'([^']*)'|"([^"]*)")/);
+  assert(foundingLaunchAtMatch,
+    'revenuecat-config.js 找不到 foundingLaunchAt 欄位——請在該檔 window.RAIL_REVENUECAT_CONFIG 補上 '
+    + "foundingLaunchAt(ISO8601 時刻字串,建議台北時區午夜整點,例如 '2026-09-01T00:00:00+08:00';"
+    + '這一版不辦創始期就填 false)');
+  // false ＝「明確裁示這一版不辦創始期」(2026-08-09)。刻意與 null 分開:null 是「還沒決定」,
+  // 兩者若共用同一個值,這道閘門就再也分不出「決定不辦」與「忘了決定」——而它存在的唯一理由
+  // 正是後者。false 直接放行,不必也不該再比對日期(沒有窗,自然沒有「早於 build 日」可言);
+  // index.html 的 FOUNDING_LAUNCH_MS 對它解析出 NaN,foundingFrom() 一律回 false ⇒ 沒人是創始會員。
+  if (foundingLaunchAtMatch[1] === 'false') {
+    console.log('  · foundingLaunchAt=false：本版不辦創始期（明確裁示,非「忘了填」）');
+  } else {
+    const foundingLaunchAtRaw = foundingLaunchAtMatch[1] === 'null'
+      ? null
+      : (foundingLaunchAtMatch[2] !== undefined ? foundingLaunchAtMatch[2] : foundingLaunchAtMatch[3]);
+    assert(foundingLaunchAtRaw !== null && foundingLaunchAtRaw !== '',
+      `revenuecat-config.js 的 foundingLaunchAt 尚未設定(目前是${foundingLaunchAtRaw === null ? ' null' : '空字串'})——`
+      + '這是發版流程要在按下發版當下才決定的值,請把實際上線日期填進 revenuecat-config.js 的 '
+      + 'window.RAIL_REVENUECAT_CONFIG.foundingLaunchAt 後重新建置');
+    const foundingLaunchAtMs = Date.parse(foundingLaunchAtRaw);
+    assert(Number.isFinite(foundingLaunchAtMs),
+      `revenuecat-config.js 的 foundingLaunchAt 不是可解析的日期(目前值：${foundingLaunchAtRaw})——`
+      + '請改成 ISO8601 時刻字串並修正 revenuecat-config.js 的 window.RAIL_REVENUECAT_CONFIG.foundingLaunchAt');
+    // 用台北時區的「今天 00:00」當比較基準(不比對時分秒),避免同一個日曆日內因為 build 執行的
+    // 時刻不同而誤判。
+    const buildDayTaipei = new Intl.DateTimeFormat('sv-SE', { timeZone: 'Asia/Taipei' }).format(new Date());
+    const buildDayStartMs = Date.parse(`${buildDayTaipei}T00:00:00+08:00`);
+    // 🔴 2026-08-11 改判準。原本這裡斷言「錨點不得早於 build 當天」——那是在「先訂上線日、
+    // 再出 build」的世界寫的。8/10 12:00 窗一開跑,之後每一顆 build 的日期都必然晚於錨點,
+    // 原判準會把整個窗期內的出貨全部擋死(1.4.2(43) 就是第一顆撞上的),而那些 build 完全合法。
+    // 它真正要防的從來不是「錨點在過去」,而是「一個沒人在看的過期日期溜上線」——那件事的特徵
+    // 是**窗已經關了、程式碼卻還宣稱在辦創始期**。故改成：build 當天必須落在窗內。
+    // 窗長不手打,從 index.html 的 FOUNDING_UNTIL_MS 讀回來(判準的數字要跟受測物同源,心得 35);
+    // 讀不到就 FAIL,不准退回猜一個預設值——窗長改寫法時這道閘門必須跟著被迫更新。
+    const windowDaysMatch = html.match(/FOUNDING_LAUNCH_MS\s*\+\s*(\d+)\s*\*\s*86400000/);
+    assert(windowDaysMatch,
+      'index.html 找不到創始期窗長的定義(FOUNDING_LAUNCH_MS + N * 86400000)——窗長改寫法時,'
+      + '這道閘門要跟著改;它刻意不設預設值,免得判準與程式碼各說各話');
+    const windowDays = Number(windowDaysMatch[1]);
+    const foundingUntilMs = foundingLaunchAtMs + windowDays * 86400000;
+    assert(buildDayStartMs < foundingUntilMs,
+      `revenuecat-config.js 的 foundingLaunchAt(${foundingLaunchAtRaw})起算 ${windowDays} 天的創始期視窗,`
+      + `在本次 build 的日期(${buildDayTaipei})之前就已經結束——程式碼還宣稱在辦創始期,但窗早就關了。`
+      + '請更新 window.RAIL_REVENUECAT_CONFIG.foundingLaunchAt;若這一版不打算辦創始期,把它改成 false');
+    const daysLeft = Math.ceil((foundingUntilMs - buildDayStartMs) / 86400000);
+    console.log(`  · foundingLaunchAt=${foundingLaunchAtRaw}（窗 ${windowDays} 天，本次 build 當天起還剩 ${daysLeft} 天）`);
+  }
 
   const musicEnabled = html.includes('window.RAIL_MUSIC_AVAILABLE=true');
   const basemapsEnabled = html.includes('window.RAIL_ONLINE_BASEMAPS_AVAILABLE=true');
@@ -311,6 +321,13 @@ export async function verifyRelease({
   if (expectLicensedBasemaps !== undefined) {
     assert(basemapsEnabled === expectLicensedBasemaps, '線上底圖旗標與本次 build 模式不一致');
   }
+
+  // 版本號對**所有** build 模式都必須注入(不是只有授權底圖 build)——App 內的更新提示與評分
+  // 全靠它判斷「手上這顆是哪一版」。刻意寫在模式分支之外:放進安全 build 的條件裡就漏掉另一半。
+  const appVerMatch = /window\.RAIL_APP_VERSION="([^"]+)"/.exec(html);
+  assert(appVerMatch, '所有 build 都必須注入 window.RAIL_APP_VERSION（更新提示與評分靠它判版本）');
+  assert(/^\d+(\.\d+)*$/.test(appVerMatch[1]),
+    `RAIL_APP_VERSION 格式無法解析：${appVerMatch[1]}——版本比較會直接放棄,提示永遠不出現`);
 
   if (expectPlusSandboxBuild !== null) assertPlusSandboxTestBuild(html, expectPlusSandboxBuild);
   else assertPlusSandboxOff(html);
@@ -498,6 +515,45 @@ export async function verifyRelease({
       const nativeBuild = extractBuild(nativeHtml);
       assert(nativeBuild === wwwBuild,
         `${label} 內嵌資產版本不一致：${relative(repoRoot, nativeIndex)} 為 ${nativeBuild},app/www 為 ${wwwBuild};請執行 npm run sync（build + cap sync）`);
+    }
+  }
+
+  // 🔴 自製原生 plugin 必須在 capacitorDidLoad() 註冊,否則 JS 端 registerPlugin('X') 的呼叫
+  // 全部靜默拒絕——功能整條死掉,而 build 照樣 SUCCEEDED、沒有任何紅字。這個坑已經踩過兩次
+  // (build 38 音樂全滅＝RailAudioPlugin 漏註冊;1.4.2 的評分＝RailReviewPlugin 漏註冊),
+  // 而 RailPlacesPlugin.swift 裡就寫著警告註解仍然再犯 ⇒ 靠人記得是不夠的,改成機械判準。
+  // 判的是「宣告出來的每一顆都被註冊」(是什麼/怎麼配對),不是「有幾顆」——新增 plugin 不必改這裡。
+  {
+    const iosSrcDir = join(appRoot, 'ios/App/App');
+    let swiftFiles = [];
+    try { swiftFiles = (await readdir(iosSrcDir)).filter(name => name.endsWith('.swift')); }
+    catch { swiftFiles = []; }
+    if (!swiftFiles.length) {
+      assert(!process.env.RAIL_REQUIRE_NATIVE,
+        `iOS 原生原始碼不存在（${relative(repoRoot, iosSrcDir)}）——無法檢查自製 plugin 註冊,不可發行`);
+    } else {
+      const swiftSource = (await Promise.all(
+        swiftFiles.map(name => readFile(join(iosSrcDir, name), 'utf8'))
+      )).join('\n');
+      // 只要求「繼承串裡有 CAPBridgedPlugin」,不綁協定順序也不綁還列了哪些協定——
+      // 綁死 `: CAPPlugin, CAPBridgedPlugin` 的話,新 plugin 只要把兩個協定寫反就整顆隱形,
+      // 而其餘三顆仍在 ⇒ 分母守衛不會響、漏註冊照樣溜過去(突變測試就是這樣抓到的)。
+      // \b 是必要的:少了它,CAPBridgedPluginX 之類的改名也會被當成命中。
+      const declared = [...swiftSource.matchAll(/class\s+(\w+)\s*:[^{\n]*\bCAPBridgedPlugin\b/g)]
+        .map(match => match[1]);
+      // 分母守衛：宣告一顆都抓不到＝正則跟不上寫法改動,此時 missing 必為空、下面那條會假綠。
+      assert(declared.length > 0,
+        `${relative(repoRoot, iosSrcDir)} 裡找不到任何 CAPBridgedPlugin 宣告——`
+        + '要嘛自製 plugin 真的一顆都不剩了,要嘛這道閘門的比對寫法已經跟不上原始碼,請先確認是哪一種');
+      const registered = new Set(
+        [...swiftSource.matchAll(/registerPluginInstance\(\s*(\w+)\s*\(/g)].map(match => match[1])
+      );
+      const missing = declared.filter(name => !registered.has(name));
+      assert(missing.length === 0,
+        `自製原生 plugin 宣告了卻沒有註冊：${missing.join('、')}——請在 RailBridgeViewController`
+        + '.capacitorDidLoad() 補 bridge?.registerPluginInstance(該類別());少了它,JS 端對應的功能會'
+        + '整條靜默失效,而 build 仍然會 SUCCEEDED(build 38 音樂全滅就是這個)');
+      console.log(`  · 自製原生 plugin ${declared.length} 顆全部已註冊：${declared.join('、')}`);
     }
   }
 

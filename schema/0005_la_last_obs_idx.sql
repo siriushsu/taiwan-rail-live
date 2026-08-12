@@ -1,0 +1,13 @@
+-- 只給【已經套過舊版 0003】的環境補欄位用(本機 .wrangler、開發庫)。
+-- 全新的庫直接套 0003 就已經含這一欄,不需要也不應該再跑這支。
+--
+-- 為什麼要這一欄:laNextIdx 的單調閘門(索引只進不退)原本以 last_idx 當地板。上游 TDX
+-- TrainLiveBoard 整批失效時,卡片改用表定推算繼續前進(使用者裁示:「不能讓火車凍住」),
+-- 而表定推算會把 last_idx 往前推;若推過頭,觀測恢復之後 Math.max(idx, last_idx) 會讓
+-- 真實觀測【永遠】拉不回來——錯的站名一路黏到列車真的追上為止(實測的上游斷線長達 95 分鐘)。
+-- 把地板換成「最後一次真的觀測到的索引」就同時成立兩件事:表定推過頭的部分可以被觀測回收,
+-- 而觀測序列本身仍然單調不減(閘門原本要擋的觀測抖動一格都沒放進來)。
+--
+-- SQLite 沒有 ADD COLUMN IF NOT EXISTS:重跑會回「duplicate column name: last_obs_idx」,
+-- 那是預期中的無害錯誤,代表欄位已經在了。
+ALTER TABLE la_bindings ADD COLUMN last_obs_idx INTEGER NOT NULL DEFAULT -1;

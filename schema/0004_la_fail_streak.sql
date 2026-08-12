@@ -1,0 +1,11 @@
+-- 只給【已經套過舊版 0003】的環境補欄位用(本機 .wrangler、開發庫)。
+-- 全新的庫直接套 0003 就已經含這一欄,不需要也不應該再跑這支。
+--
+-- 為什麼要這一欄:批次熔斷原本用「本輪永久失敗數 == 本輪嘗試數」判系統性設定錯誤,但死
+-- token 每個 tick 都會重試、健康的列只在換站或誤點變動時才會嘗試 ⇒「本輪嘗試的全都是死
+-- token」是常態 tick ⇒ 全敗規則恆成立 ⇒ 死 token 永遠清不掉,還每分鐘噴一則假告警。
+-- 連續失敗輪數才是能區分「設定錯誤」與「token 自然死亡」的訊號(worker.js LA_FAIL_STREAK_MAX)。
+--
+-- SQLite 沒有 ADD COLUMN IF NOT EXISTS:重跑會回「duplicate column name: fail_streak」,
+-- 那是預期中的無害錯誤,代表欄位已經在了。
+ALTER TABLE la_bindings ADD COLUMN fail_streak INTEGER NOT NULL DEFAULT 0;

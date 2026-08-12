@@ -26,6 +26,9 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
             fatalError("GoogleService-Info.plist 缺失：release build 必須帶入 Firebase Console 下載的正式 plist（見 app/STORE_SUBMISSION_CHECKLIST.md）")
             #endif
         }
+        // 音訊 session 由 RailAudioPlugin 全權管理（分時：跟車讓位/正常播放卡）。
+        // build 37 在這裡設全域 mixWithOthers 實測無效——WKWebView 播 <audio> 時 WebKit
+        // 用自己的 session 蓋掉 App 層設定；音樂因此改走原生 AVPlayer（build 38）。
         RailBoardScheduleWriter.refreshIfNeeded(application: application)
         return true
     }

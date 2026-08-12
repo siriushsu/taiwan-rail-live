@@ -148,6 +148,7 @@ const R = await page.evaluate(({ delays, STEP, STILL_KMH, STATION_M, PAIR_NEAR_K
     flipOpenCapped: 0, flipOpenReal: 0,          // 開放路段對調中：撞 hold 上限的（已宣告邊界）／不可歸因的（真違規）
     overcap: 0, overcapMax: 0, overcapHeld: 0, overcapHeldDiag: [],                   // 畫面速度超過車種極速的取樣數
     aheadOfRaw: 0, aheadMaxM: 0,                 // 畫面位置跑到純表定位置前面的次數（不該有）
+    projAmbiguous: 0,                            // 弦幾乎垂直於航向（彎道），投影正負號無意義而不判的次數
     heldSamples: 0, heldStopped: 0, heldStoppedOpen: 0, frozeMaxSec: 0, frozeWorst: null,
     heldNoLeader: 0, heldOnsets: 0, heldLeaderVanished: 0, heldMaxM: 0,
     flipStillPairs: {}, flipOpenM: [], flipOpenLag: [], flipLeaderSpeeds: [], flipStationM: [], heldStopM: [],
@@ -232,9 +233,18 @@ const R = await page.evaluate(({ delays, STEP, STILL_KMH, STATION_M, PAIR_NEAR_K
         // 環島車的 trainSeg 會把時間映回本圈,落後夠多時 shown 會落在「上一圈」,前後投影沒有意義 → 排除。
         if (rec.mv && !tr.loop && rec.lagM > 5 && rec.lagM < PROJ_MAX_KM * 1000) {
           const toRaw = vec(shown, raw), mvn = Math.hypot(rec.mv.x, rec.mv.y);
-          if (mvn > 1e-9) {
-            const proj = (toRaw.x * rec.mv.x + toRaw.y * rec.mv.y) / mvn;
-            if (proj < 0) { out.aheadOfRaw++; out.aheadMaxM = Math.max(out.aheadMaxM, rec.lagM); }
+          const chord = Math.hypot(toRaw.x, toRaw.y);
+          if (mvn > 1e-9 && chord > 1e-12) {
+            // 弦與航向的夾角餘弦。+1＝純表定位置在正前方（正常落後）；-1＝真的跑到前面去了。
+            // 0 附近＝弦與航向垂直，投影的正負號沒有意義：PROJ_MAX_KM 那道 1 km 的閘門擋不住
+            // 「距離夠近但軌道很彎」——宜蘭線髮夾彎在 60 秒（約 2.2 km）內轉了 130 度，
+            // 落後 954 m 的車量到 cos=-0.011（夾角 90.6 度）＝只有 11 m 的假超前。
+            // 所以判準改問「弦真的指向後方嗎」（偏離航線反向 60 度以內），不收捨入級的負值。
+            const cos = (toRaw.x * rec.mv.x + toRaw.y * rec.mv.y) / (mvn * chord);
+            if (cos < -0.5) {
+              out.aheadOfRaw++;
+              out.aheadMaxM = Math.max(out.aheadMaxM, -cos * rec.lagM);   // 真正的超前分量，不是總間距
+            } else if (cos < 0) out.projAmbiguous++;
           }
         } else if (rec.lagM >= PROJ_MAX_KM * 1000 || (tr.loop && rec.lagM > 5)) out.projSkipped++;
       }
@@ -386,7 +396,8 @@ check('T3 不瞬移（畫面速度超標不得由夾持造成）',
 
 check('T4 不憑空前進（畫面位置恆不在純表定位置前方）',
   R.aheadOfRaw === 0,
-  R.aheadOfRaw === 0 ? '零次' : `${R.aheadOfRaw} 次，最大 ${Math.round(R.aheadMaxM)} m`);
+  (R.aheadOfRaw === 0 ? '零次' : `${R.aheadOfRaw} 次，最大超前分量 ${Math.round(R.aheadMaxM)} m`) +
+  `；彎道上弦垂直於航向而不判 ${R.projAmbiguous} 次，太遠／環島而不判 ${R.projSkipped} 次`);
 
 check('T6 開始被擋的那一刻，前面一定有同線同向的鄰居',
   R.heldNoLeader === 0,

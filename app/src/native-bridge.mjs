@@ -25,6 +25,19 @@ if (native) {
       start: p => RailLiveActivity.start(p),
       update: p => RailLiveActivity.update(p),
       end: () => RailLiveActivity.end(),
+      addListener: (ev, cb) => RailLiveActivity.addListener(ev, cb),
+    };
+
+    // 原生背景音樂（RailAudioPlugin）：佇列與自動接下一首在原生層，
+    // 跟車時讓位（收播放卡）、平時鎖定畫面有播放卡。index.html 以 shim 對接（makeNativeMusicShim）。
+    const RailAudio = registerPlugin('RailAudio');
+    window.RAIL_NATIVE_AUDIO = {
+      setQueue: p => RailAudio.setQueue(p),
+      play: p => RailAudio.play(p),
+      resume: () => RailAudio.resume(),
+      pause: () => RailAudio.pause(),
+      setVolume: v => RailAudio.setVolume({ v }),
+      addListener: (ev, cb) => RailAudio.addListener(ev, cb),
     };
   }
 

@@ -2,13 +2,16 @@
 
 import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import vm from 'node:vm';
 import {
   ANDROID_PLUS_GATE_LINE,
   assertAndroidPlusGate,
 } from './verify-release.mjs';
 
-const target = resolve(process.argv[2] || new URL('../www/index.html', import.meta.url).pathname);
+// URL.pathname 會把中文 worktree 名保留成 %E8...；交給 fs 後會變成不存在的字面路徑。
+// fileURLToPath 才是跨平台且會正確解碼的 file: URL → 本機路徑轉換。
+const target = resolve(process.argv[2] || fileURLToPath(new URL('../www/index.html', import.meta.url)));
 const html = await readFile(target, 'utf8');
 
 const initializerMatch = html.match(/const PLUS_ENABLED = \(\(\) => \{ try \{[\s\S]*?\} catch \(e\) \{ return false; \} \}\)\(\);/);
