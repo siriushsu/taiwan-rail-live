@@ -2408,6 +2408,8 @@
     z-index: 3000; pointer-events: none;
     font: 600 10px/1.4 ui-monospace, Menlo, monospace; letter-spacing: 0;
     color: var(--ink); background: var(--paper-tr); border-radius: 4px; padding: 1px 5px;
+    /* 鎖單行:直式 393px 折兩行會壓到 tab bar(核心數值排前面,截掉的只會是尾端例外文字) */
+    white-space: nowrap; max-width: calc(100vw - 8px); overflow: hidden;
   }
   body.tools-open .more-sheet, body.tools-open .more-scrim { display: flex; }
   body.tools-open .more-scrim { display: block; }
@@ -4198,7 +4200,7 @@
 // 2026-08-12 併入 main 的停靠站表頭對齊:正式站已燒 v0812a、本分支內容又與它不同,照例跳號推 v0812b。
 // 2026-08-12 §04c 橫式重排併入 App 線(release debefb7＋2cc7f14):v0812b 與網站預覽的 v0812c
 // 都燒過、本合併內容與兩者皆不同,照例跳號推 v0812d。
-const BUILD = 'v0812i'; // 帳本:a=events/krtc/speedcal b=release44 c=land04c網頁預覽 d=App45 e=山嵐 f=App46 g=land04c網頁 h=輕軌正式站 i=App build47(頂列跟半透明開關+更多橫式收斂+text-size-adjust+相機自癒+診斷條)
+const BUILD = 'v0812k'; // 帳本:a=events/krtc/speedcal b=release44 c=land04c網頁預覽 d=App45 e=山嵐 f=App46 g=land04c網頁 h=輕軌正式站 i=App47初版 j=land04c網頁四修 k=App47定版(Codex複審修訂:自癒不被卡死旗標否決+手勢時戳+診斷條rf/wd/dD/st/e/w)
 // 成就徽章與車廂標記＝原本那些 emoji 的單色平面版（RailEmoji＝裁切過的 Noto Emoji 單色）。
 // 刻意保留 railIcon(name) 這個唯一入口:呼叫端一行都不用改,只有這裡決定畫法。
 // 🔴 ⚖ 與 ♾ 一律寫**不帶 VS16(U+FE0F)** 的碼位——帶了就強制彩色呈現,會蓋過 font-family
@@ -8958,18 +8960,20 @@ function draw() {
 }
 
 // ── tick 韌性殼(2026-08-12):單次例外或引擎凍結 rAF,都不准永久殺死主迴圈 ──────────
-// 實機(TestFlight 45,iOS beta)回報:跟隨中整個動態層凍結——flyTo 卡在半路、列車全部消失、
-// DOM 時鐘(setInterval)照走=rAF 鏈死亡的典型症狀;模擬器與桌面引擎皆無法重現。
+// 實機(TestFlight 45,iOS beta)回報:跟隨中整個動態層凍結——相機卡在中途、列車全部消失。
+// (更正:頂部時鐘是 tickCore 前段 syncTimeUI 更新的,「時鐘照走」只證明 tick 有跑到那行,
+//  單靠它分不出「timer 活/rAF 死」——分辨靠診斷條的 rf/wd 兩欄。)
 // 原結構 rAF 重掛在 tick 最尾端,body 內任何一次 throw 即永久斷鏈。殼的三件事:
 // 心跳時戳、吞例外(前 5 筆進 state._tickErrs 供診斷)、armTick 去重掛鏈(_rafPending,
 // 看門狗手動補幀時不會疊出第二條鏈;引擎解凍時佇列裡也只有一個 callback)。
 function armTick() {
   if (state._rafPending) return;
   state._rafPending = true;
-  requestAnimationFrame(ts => { state._rafPending = false; tick(ts); });
+  // 心跳只在真 rAF callback 蓋章,看門狗補幀不蓋——否則 rf 分不清原生心跳與補幀,而且
+  // 補幀把心跳「救活」會讓看門狗降回 ~4s 一幀;不蓋章=凍結期間穩定每 2s 一幀
+  requestAnimationFrame(ts => { state._rafPending = false; state._rafAlive = performance.now(); tick(ts); });
 }
 function tick(now) {
-  state._rafAlive = performance.now();
   try { tickCore(now); } catch (e) {
     const errs = state._tickErrs || (state._tickErrs = []);
     // 只記前 5 筆、log 跟著記錄走——例外若持續存在,每幀都 console.error 會自己把主線程拖垮
@@ -8980,9 +8984,15 @@ function tick(now) {
 // 看門狗:rAF 心跳斷逾 2.5s(且頁面可見、app 已就緒)就手動補一幀——例外斷鏈下一拍即復活;
 // 引擎凍結 rAF 則降級為每 2s 一幀的慢動態(時間積分照走,dt 自然=2s),解凍自動回全速。
 setInterval(() => {
-  if (state.ready && !document.hidden && performance.now() - (state._rafAlive || 0) > 2500) tick(performance.now());
+  if (state.ready && !document.hidden && performance.now() - (state._rafAlive || 0) > 2500) {
+    state._wdN = (state._wdN || 0) + 1; tick(performance.now());
+  }
 }, 2000);
+// 頁面級例外守望(診斷條 w 欄):tick 之外的例外(事件 handler/Promise)也要看得見
+window.addEventListener('error', e => { state._weN = (state._weN || 0) + 1; if (!state._weFirst) state._weFirst = String(e.message || e.error || '').slice(0, 48); });
+window.addEventListener('unhandledrejection', e => { state._weN = (state._weN || 0) + 1; if (!state._weFirst) state._weFirst = 'P:' + String((e.reason && e.reason.message) || e.reason || '').slice(0, 46); });
 function tickCore(now) {
+  state._stg = 't'; // 診斷條 st 欄:本幀走到哪(t=core 起點,d=進 draw,i=本幀完繪)
   if (!state.t0) state.t0 = now;
   const dt = (now - state.t0) / 1000; state.t0 = now;
   // _scrubTime=正在拖時刻尺:暫停時間積分,免得拖曳與播放互相拉扯(放手即自動續播,state.playing 不動)
@@ -9054,11 +9064,11 @@ function tickCore(now) {
   if ((!document.hidden || REC.on) && state._zoomAnim) { zoomAnimFrame(); }
   else if (!document.hidden || REC.on) {
     if (psActive) {
-      if (renderNow) { state._drawAt = now; draw(); } // 省電:跟隨也降到 ~30fps;相機與繪製同一個 renderNow 閘,列車不會與底圖錯位
+      if (renderNow) { state._drawAt = now; state._stg = 'd'; draw(); state._drawDoneAt = now; state._stg = 'i'; } // 省電:跟隨也降到 ~30fps;相機與繪製同一個 renderNow 閘,列車不會與底圖錯位
     } else {
       const fullRate = state.followTrain || state.freqFollow || state.ambient || REC.on ||
                        (now - (state._interactAt || 0) < 1500);
-      if (fullRate || now - (state._drawAt || 0) >= 30) { state._drawAt = now; draw(); } // 30ms 門檻→~30fps(略低於 33 免 60Hz 誤跳成 20fps)
+      if (fullRate || now - (state._drawAt || 0) >= 30) { state._drawAt = now; state._stg = 'd'; draw(); state._drawDoneAt = now; state._stg = 'i'; } // 30ms 門檻→~30fps(略低於 33 免 60Hz 誤跳成 20fps)
     }
   }
 } // 掛鏈由韌性殼 tick()/armTick() 負責,core 不自掛(斷鏈自癒的前提)
@@ -9762,6 +9772,7 @@ function setFollow(tr, isAuto, noJump, opts) {
   if (state.ambient && state.ambientStyle === 'hotspot') hotspotStop(); // 群車放空中點車=接手跟隨,導演讓位(取消跟隨即恢復)
   closeBoard(); // 不管從哪裡選到車(看板列/地圖點車/搜尋/最愛),車站看板一律收掉
   state.followTrain = tr; state.followId = tr.train;
+  state._camOffAt = 0; // 換車歸零離屏累計,免得舊車的離屏時間觸發對新車的誤救
   setBasemap(); // 衛星模式下跟車鏡頭連續平移改用低解析度圖磚(見 setBasemap 內 satLQ 註解)
   syncPanFence(); // 台鐵/高鐵起跟:確保平移硬牆維持開啟(跟車不再解牆,見 syncPanFence 註解;冪等)
   // 深連結帶模擬時間:對方打開時車在同一位置
@@ -10002,7 +10013,7 @@ function ambientJumpToMetro(pick) {
 // 放空模式換車:淡出 → 直接切到下一班 → 淡入(不拉高俯瞰)
 function fadeSwitch(tr) {
   const veil = document.getElementById('veil');
-  state._transition = true;
+  state._transition = true; state._traAt = performance.now();
   state._tourNext += 1600; // 轉場 ~1.6s 不計入跟隨時間
   veil.style.opacity = 1;
   setTimeout(() => {
@@ -10016,7 +10027,7 @@ function fadeSwitch(tr) {
 // 放空模式換捷運幽靈車:結構同 fadeSwitch,套 freqFollow 而非 followTrain
 function fadeSwitchMetro(pick) {
   const veil = document.getElementById('veil');
-  state._transition = true;
+  state._transition = true; state._traAt = performance.now();
   state._tourNext += 1600;
   veil.style.opacity = 1;
   setTimeout(() => {
@@ -10264,7 +10275,7 @@ function hotspotTick(now) {
 // 換熱區:淡出 → 跳到新熱區 → 淡入(沿用換車遮罩)
 function hotFadeTo(sc) {
   const veil = document.getElementById('veil');
-  state._transition = true;
+  state._transition = true; state._traAt = performance.now();
   state._hotNext += 1600; // 轉場 ~1.6s 不吃這一幕的時間
   veil.style.opacity = 1;
   setTimeout(() => {
@@ -10441,7 +10452,7 @@ function enterTheater() {
   // 淡出→瞬跳→淡入(沿用換幕遮罩)。**必須瞬跳,不可用 flyToBounds**:帶著圖磚層飛越多個 zoom 會沿途每一級各載一輪,
   // 正好燒掉這個模式要省的東西(舊版能用 flyToBounds 是因為它先把圖磚層整個移除了)。
   const veil = document.getElementById('veil');
-  state._transition = true;
+  state._transition = true; state._traAt = performance.now();
   if (veil) veil.style.opacity = 1;
   setTimeout(() => {
     if (!state._theater) { if (veil) veil.style.opacity = 0; state._transition = false; return; } // 淡出途中被互動叫醒
@@ -15124,7 +15135,14 @@ function followAheadPx(tr, pos) {
 }
 function updateFollowCamera() {
   const tr = state.followTrain; if (!tr) return;
-  if (state._transition) { updateFollowPanel(tr); return; } // flyTo 轉場中不搶鏡頭
+  if (state._transition) {
+    // 合法轉場(fadeSwitch ~1.6s/城市飛行 ~2.4s)不搶鏡頭;但這旗標靠 setTimeout 鏈清除,
+    // callback 一旦丟例外旗標永久卡真=跟隨相機整條死(實機 build46 症狀吻合)。超過 5s
+    // 視為卡死:清旗標+撤遮幕,落回正常跟隨路徑(recenterTo/自癒接手)。
+    if (performance.now() - (state._traAt || 0) <= 5000) { updateFollowPanel(tr); return; }
+    state._transition = false;
+    try { const v = document.getElementById('veil'); if (v) v.style.opacity = 0; } catch (e) {}
+  }
   const first = tr.stops[0], last = tr.stops[tr.stops.length - 1];
   if (tr.loop) {
     // 山海/平原號永不到站:完乘改為「連續跟滿一整輪來回」(同規則:調速可以、跳時間歸零重計)
@@ -15152,26 +15170,30 @@ function updateFollowCamera() {
   if (!pos) { const f = tr.stops[0]; if (state.followLock) recenterTo(f.lat, f.lon); setFollowStatus('pre', '尚未發車'); return; }
   setFollowStatus('run', '');
   if (state.followLock) recenterTo(pos.lat, pos.lon, followAheadPx(tr, pos));
-  // 相機自癒(2026-08-12 實機 build46 仍「跟隨中車不在畫面」):recenterTo 的任一道閘卡住
-  // (轉場旗標、縮放凍結、Leaflet flyTo 半路死在凍結的 rAF 上)都會讓鏡頭永遠停在別處,而每道閘
-  // 單看都「合法」。這裡不猜原因,直接量結果:鎖定跟隨中,車的容器點連續 3.5s 落在露出矩形外
-  // (含 25% 邊距)→ 強制 setView 貼車,順帶把卡在中途的 zoom 拉回跟車級(followEntryZoom 至少 13)。
-  // 使用者互動 2s 內/搜尋打字/縮放動畫/合法轉場中不出手;計數器 _camRescues 供診斷條讀。
-  if (state.followLock && !state._zoomAnim && !state._transition && !camBlocked()
-      && !document.body.classList.contains('search-open')) {
+  // 相機自癒 v2(2026-08-12 Codex 複審修訂):量結果不猜原因——鎖定跟隨中,車的容器點連續
+  // 3.5s 落在露出矩形外(16px 容差;v1 的 25% 邊距會把被側欄蓋住的車誤判成「在場」)→ 強制
+  // setView 貼車,zoom 拉回跟車級(followEntryZoom 至少 13)。v1 把 _zoomAnim/_transition 抄成
+  // 前置閘=旗標卡死時自癒跟著死(正是它要救的病);v2 改判「旗標年齡」:合法壽命內(縮放
+  // ~430ms)禮讓,超過 5s 視為卡死,連旗標一起清(_transition 的卡死已在本函式開頭處理)。
+  // 手勢判定用 _gestureAt(只認真實輸入;_interactAt 會被程式 setView 每幀刷新,拿它當禁救
+  // 條件=跟車平移永遠壓著自癒)。計數器 _camRescues 供診斷條 rs 欄。
+  if (state.followLock && !camBlocked() && !document.body.classList.contains('search-open')) {
+    const nowMs = performance.now();
+    const zaStuck = state._zoomAnim && nowMs - (state._zaAt || 0) > 5000;
+    const animBusy = state._zoomAnim && !zaStuck;
     const cp = map.latLngToContainerPoint([pos.lat, pos.lon]);
     const sz = map.getSize(), ins = mapInsets();
-    const exL = ins.left, exT = ins.top, exR = sz.x - ins.right, exB = sz.y - ins.bottom;
-    const mX = Math.max(40, (exR - exL) * 0.25), mY = Math.max(40, (exB - exT) * 0.25);
-    const off = cp.x < exL - mX || cp.x > exR + mX || cp.y < exT - mY || cp.y > exB + mY;
-    const nowMs = performance.now();
+    const m = 16;
+    const off = cp.x < ins.left - m || cp.x > sz.x - ins.right + m || cp.y < ins.top - m || cp.y > sz.y - ins.bottom + m;
     if (!off) state._camOffAt = 0;
     else if (!state._camOffAt) state._camOffAt = nowMs;
-    else if (nowMs - state._camOffAt > 3500 && nowMs - (state._interactAt || 0) > 2000) {
+    else if (!animBusy && nowMs - state._camOffAt > 3500 && nowMs - (state._gestureAt || 0) > 2000) {
       state._camOffAt = 0; state._camRescues = (state._camRescues || 0) + 1;
+      if (zaStuck) { try { map.stop(); } catch (e) {} if (state._endZoomAnim) state._endZoomAnim(); }
       state._autoPan = true;
-      map.setView(focusCenter(pos.lat, pos.lon, followEntryZoom(), followAheadPx(tr, pos)), followEntryZoom(), { animate: false });
-      state._autoPan = false;
+      try {
+        map.setView(focusCenter(pos.lat, pos.lon, followEntryZoom(), followAheadPx(tr, pos)), followEntryZoom(), { animate: false });
+      } finally { state._autoPan = false; }
     }
   }
   updateFollowPanel(tr);
@@ -18193,12 +18215,20 @@ function setupMapTools() {
             off = Math.round(Math.hypot(cp.x - cx, cp.y - cy));
           }
         }
-        return BUILD + ' rafD' + Math.round(now - (state._rafAlive || 0))
-          + ' drw' + Math.round(now - (state._drawAt || 0))
+        // 欄位鍵(截圖判讀用):rf=原生rAF心跳距今ms(看門狗補幀不算) wd=看門狗補幀數 dD=上次完繪距今
+        // st=本幀階段(t=core起點/d=進draw/i=完繪) z=zoom L=跟隨鎖 T=_transition Z=_zoomAnim
+        // of=車距露出中心px rs=自癒數 e=tick例外數 w=頁面例外數 h=hidden;尾端附第一筆例外文字
+        const errs = state._tickErrs || [];
+        return BUILD + ' rf' + Math.round(now - (state._rafAlive || 0))
+          + ' wd' + (state._wdN || 0)
+          + ' dD' + Math.round(now - (state._drawDoneAt || 0))
+          + ' st' + (state._stg || '-')
           + ' z' + map.getZoom().toFixed(1)
-          + ' lock' + (state.followLock ? 1 : 0) + ' tra' + (state._transition ? 1 : 0)
-          + ' za' + (state._zoomAnim ? 1 : 0) + ' off' + off
-          + ' rsc' + (state._camRescues || 0) + ' err' + ((state._tickErrs || []).length);
+          + ' L' + (state.followLock ? 1 : 0) + ' T' + (state._transition ? 1 : 0)
+          + ' Z' + (state._zoomAnim ? 1 : 0) + ' of' + off
+          + ' rs' + (state._camRescues || 0) + ' e' + errs.length + ' w' + (state._weN || 0)
+          + ' h' + (document.hidden ? 1 : 0)
+          + (errs.length ? ' ' + String(errs[0]).slice(0, 34) : (state._weFirst ? ' ' + state._weFirst.slice(0, 34) : ''));
       } catch (e) { return 'diag err: ' + String(e).slice(0, 60); }
     };
     el.textContent = fmt();
@@ -19290,7 +19320,7 @@ async function boot() {
     if (!cv) return;
     if (!state._zoomAnim) {
       if (!state._zaCalPend) return; // zoomstart 標定不到(無圖磚):放棄同步
-      state._zoomAnim = true; state._zaCal = state._zaCalPend;
+      state._zoomAnim = true; state._zaAt = performance.now(); state._zaCal = state._zaCalPend;
     }
     // 保險 timer 每次 zoomanim 重掛:連續縮放 retarget 逐次延展 deadline(zoomend 萬一沒送達時解凍,冪等)
     clearTimeout(state._zaTimer); state._zaTimer = setTimeout(endZoomAnim, ZOOM_ANIM_MS + 90);
@@ -19303,12 +19333,20 @@ async function boot() {
   }
   map.on('zoomanim', onZoomAnim);
   map.on('zoomend', endZoomAnim);
+  state._endZoomAnim = endZoomAnim; // 相機自癒清卡死縮放旗標用(閉包內函式,經 state 外借)
   // 省電:互動時標記時戳,tick 據此維持全速 1.5s(見 tick 節流)。map 'move'/'zoom' 覆蓋整段拖曳/縮放
   // (滑鼠拖曳中只有 pointermove 不重發,靠 map move 續命);pointerdown/wheel/touch 覆蓋點擊與觸控起手
   const markInteract = () => { state._interactAt = performance.now(); };
   map.on('movestart move zoomstart zoom dragstart', markInteract);
   ['pointerdown', 'wheel', 'touchstart', 'touchmove'].forEach(ev =>
     document.addEventListener(ev, markInteract, { passive: true }));
+  // 相機自癒的手勢時戳:只掛 document 端輸入事件(程式 setView 不會觸發這些)。map 的
+  // move/zoom 系列被跟隨鏡頭每幀刷新,對「使用者正在操作嗎」是被汙染的訊號——省電節流
+  // (_interactAt)維持原語意不動,自癒另立這支乾淨的。
+  const markGesture = () => { state._gestureAt = performance.now(); };
+  ['pointerdown', 'wheel', 'touchstart', 'touchmove'].forEach(ev =>
+    document.addEventListener(ev, markGesture, { passive: true }));
+  map.on('dragstart', markGesture);
   // 呼吸幕被使用者縮放(滾輪/捏合/雙擊)接管的兜底:zoomstart 已交還,zoomend 再確保一次(冪等)。
   // 自家逐幀呼吸只施加 CSS scale、不動 Leaflet zoom,故此 handler 不會被自家觸發(且有 _hotCam 保險)。
   map.on('zoomend', () => {
