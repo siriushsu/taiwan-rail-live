@@ -190,7 +190,10 @@ async function boot(browser, { w, h, tag }, { url = BASE, follow = true, sheetSi
   const page = await ctx.newPage();
   page.on('pageerror', e => errors.push(`[${tag}] pageerror: ${e}`));
   page.on('console', m => { if (m.type() === 'error' && !/Failed to load resource/.test(m.text())) errors.push(`[${tag}] console.error: ${m.text()}`); });
-  await page.goto(url, { waitUntil: 'domcontentloaded' });
+  // goto 90s+一次重試:webkit 對 1.4MB 單檔頁的首次載入在機器有載時偶發 >30s(0812 兩輪
+  // 各在不同 suite 撞到,零 FAIL 純 goto 逾時=環境不是產品;預設 30s 會讓整支腳本 uncaught 崩潰)
+  try { await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 90000 }); }
+  catch (e) { await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 90000 }); }
   await page.waitForFunction(() => { try { return typeof state !== 'undefined' && state.ready === true; } catch (e) { return false; } }, null, { timeout: 45000 });
   await page.waitForTimeout(300);
   await page.evaluate(INSTALL_EXPOSED); // 判準側的露出地圖真值(對照組頁面也裝:同一把尺量兩邊)
