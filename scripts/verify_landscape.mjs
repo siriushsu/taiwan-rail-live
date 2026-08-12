@@ -162,12 +162,21 @@ const openPanel = (page, P) => page.evaluate(src => {
 const PICK_FOLLOW = async () => {
   let tries = 0;
   while ((!state.trains || !state.trains.some(t => t.sys === 'tra_sched')) && tries < 80) { await new Promise(r => setTimeout(r, 60)); tries++; }
-  for (const tr of (state.trains || [])) {
-    if (tr.sys !== 'tra_sched' || tr.loop || !tr.train) continue;
-    const s = tr.stops, eff = (typeof effT === 'function') ? effT(tr) : 0;
-    if (s && eff > s[0].depSec + 120 && eff < s[s.length - 1].arrSec - 180) { setFollow(tr, false, true); return String(tr.train); }
-  }
-  return null;
+  // 兩輪抽車:嚴格輪只抽「行進中且離任何停站窗都遠」的車——停站中/進站前 2 分/離站後 30 秒
+  // 的車,量測窗內會停站或方向記憶還在轉場,把 L9 行進多數與 L1b 前瞻方向變成掛在牆鐘上的
+  // 判準(站站停時段實測 moving=28/dwell=38 假紅)。一台都抽不到才退回舊準則:
+  // 寧可抽到站邊車,也不能沒車可跟(沒跟隨=後面整頁判準全滅)。
+  const cand = (strict) => {
+    for (const tr of (state.trains || [])) {
+      if (tr.sys !== 'tra_sched' || tr.loop || !tr.train) continue;
+      const s = tr.stops, eff = (typeof effT === 'function') ? effT(tr) : 0;
+      if (!s || eff <= s[0].depSec + 120 || eff >= s[s.length - 1].arrSec - 180) continue;
+      if (strict && s.some(st => eff >= st.arrSec - 120 && eff <= st.depSec + 30)) continue;
+      setFollow(tr, false, true); return String(tr.train);
+    }
+    return null;
+  };
+  return cand(true) || cand(false);
 };
 
 async function boot(browser, { w, h, tag }, { url = BASE, follow = true, sheetSize = null } = {}) {
@@ -412,19 +421,67 @@ async function landscapeSuite(browser, eng) {
     if (nc.foot !== 'missing' && (S.w <= 739) !== (nc.foot === 'none')) ncBad.push(`foot=${nc.foot}`);
     ok(`L3c ${eng}/${S.tag} 窄機收斂順序(899峰/819班/739副標)`, ncBad.length === 0, ncBad.join('、') || JSON.stringify(nc));
 
-    // L4c/L4d(合約11+契約4):跟隨欄上下錨定——高=頂列下緣+8 到 tabbar 上緣−8,**與內容量無關**
-    // (突變證齒:拿掉 bottom 錨改回內容撐高 → botGap 爆掉);三段結構=釘頂欄頭/自捲身/釘底行動列。
+    // L3d:頂列資訊不能裸字浮在地圖上——設計契約7=玻璃帶(.30 半透明+blur 3px,mock:72)。
+    // 判準綁設計值不綁實作:容器或徽章其一 alpha ≥ 0.25(玻璃 .30 過、實色 1 過、裸透明 0 紅),
+    // 且頂列容器要有 backdrop blur(玻璃帶的另一半;純加深底色而沒模糊≠契約 7)。
+    const badgeBg = await page.evaluate(() => {
+      const alpha = el => {
+        if (!el) return 0;
+        const color = getComputedStyle(el).backgroundColor;
+        if (!color || color === 'transparent') return 0;
+        const n = color.match(/[\d.]+/g)?.map(Number) || [];
+        return color.startsWith('rgba') || color.includes('/') ? (n[3] ?? 0) : 1;
+      };
+      const b = document.querySelector('.topbar .badge'), bar = document.getElementById('topbar');
+      const cs = bar ? getComputedStyle(bar) : null;
+      const blur = cs ? (cs.backdropFilter || cs.webkitBackdropFilter || 'none') : 'none';
+      return { badge: alpha(b), container: alpha(bar), blur };
+    });
+    ok(`L3d ${eng}/${S.tag} 跟車態頂列有可讀玻璃底(alpha≥.25+blur)`,
+      Math.max(badgeBg.badge, badgeBg.container) >= 0.25 && /blur/.test(badgeBg.blur),
+      JSON.stringify(badgeBg));
+
+    // L3e:把資料條件控制的公告鈕暫時顯示後，只量三組真實 rect；不讀定位公式或呼叫實作函式。
+    const topRight = await page.evaluate(() => {
+      const chip = document.getElementById('alertChip'), tabs = document.getElementById('topTabs');
+      const visible = el => !!el && !el.hidden && el.getClientRects().length > 0 && getComputedStyle(el).display !== 'none';
+      const firstTool = [...document.querySelectorAll('#mapActions > button')].find(visible);
+      if (!chip || !tabs || !firstTool) return { err: 'missing-top-right-control' };
+      const wasHidden = chip.hidden; chip.hidden = false;
+      const rect = el => {
+        const r = el.getBoundingClientRect();
+        return { left: r.left, top: r.top, right: r.right, bottom: r.bottom };
+      };
+      const rs = { alert: rect(chip), tabs: rect(tabs), tool: rect(firstTool) };
+      chip.hidden = wasHidden;
+      const overlaps = (a, b) => Math.min(a.right, b.right) > Math.max(a.left, b.left)
+        && Math.min(a.bottom, b.bottom) > Math.max(a.top, b.top);
+      const bad = [['alert', 'tabs'], ['alert', 'tool'], ['tabs', 'tool']]
+        .filter(([a, b]) => overlaps(rs[a], rs[b])).map(p => p.join('∩'));
+      return { bad, rightError: +Math.abs(rs.tool.right - rs.tabs.right).toFixed(2), rects: rs };
+    });
+    ok(`L3e ${eng}/${S.tag} 公告/群組/工具堆互不重疊且右緣對齊`,
+      !topRight.err && topRight.bad.length === 0 && topRight.rightError <= 8, JSON.stringify(topRight));
+
+    // L4c/L4d(合約11+契約4):跟隨欄上下錨定——欄頂=固定錨 58(契約4「頂列底+8」在設計時
+    // 以頂列實高 49.8 定值,CSS 註解明載;mock 的 56 是照 mock 頂列 40 算的同一規則)。
+    // 錨是常數**與頂列當下內容高無關**——窄機收斂讓 SE3 頂列縮到底緣 36,欄頂不跟著浮動,
+    // 只驗不被頂列壓到(top ≥ tbBottom);Playwright 無安全區,env(sa-top)=0。
+    // 欄底=tabbar 上緣−8;(突變證齒:拿掉 bottom 錨改回內容撐高 → botGap 爆掉);
+    // 三段結構=釘頂欄頭/自捲身/釘底行動列。
     const railGeo = await page.evaluate(() => {
       const fp = document.getElementById('followPanel'); if (!fp || fp.hidden) return { err: 'no-fp' };
       const r = fp.getBoundingClientRect();
       const tR = document.getElementById('topbar').getBoundingClientRect();
       const bar = document.querySelector('.tabbar').getBoundingClientRect();
       const head = fp.querySelector('.fp-head'), ride = fp.querySelector('.fp-ride');
-      return { w: Math.round(r.width), topGap: +(r.top - tR.bottom).toFixed(1), botGap: +(bar.top - r.bottom).toFixed(1),
+      return { w: Math.round(r.width), top: +r.top.toFixed(1), tbBottom: +tR.bottom.toFixed(1),
+        botGap: +(bar.top - r.bottom).toFixed(1),
         headSticky: head ? getComputedStyle(head).position : null, rideSticky: ride ? getComputedStyle(ride).position : null };
     });
     ok(`L4c ${eng}/${S.tag} 跟隨欄上下錨定 220 寬,高度與內容無關`,
-      !railGeo.err && railGeo.w === 220 && railGeo.topGap >= 6 && railGeo.topGap <= 14 && railGeo.botGap >= 6 && railGeo.botGap <= 14,
+      !railGeo.err && railGeo.w === 220 && Math.abs(railGeo.top - 58) <= 1.5 && railGeo.top >= railGeo.tbBottom
+        && railGeo.botGap >= 6 && railGeo.botGap <= 14,
       JSON.stringify(railGeo));
     // 釘底行動列(.fp-ride「我上車了」)是 App 限定,網頁 build 開機就把整顆移除(pwa-app-roadmap)
     // ——網頁環境驗得到的是「若存在必 sticky」;App 側的存在性由 App 驗收管
@@ -624,8 +681,23 @@ async function landscapeSuite(browser, eng) {
       const targets = ['dwellPlate', 'alertDetail', 'alertBanner'];
       const bySel = ['.xing-card', '.xing-help', '.controls'];
       const out = [];
-      const measure = (name, el) => {
+      const measure = (name, el, fadeContract) => {
         if (!el) { out.push({ name, missing: true }); return; }
+        // 站名牌的側欄契約=「側欄開著時整顆淡出」(body.fs.sheet-open .dwell-plate{opacity:0},
+        // 特定度蓋過 .show)——不是幾何避讓:它寬度 max-content 吃站名長度,窄機走廊(SE3 只剩
+        // 75px)幾何判就是牆鐘函數(同 CSS 兩樹一綠一紅=內容不同)。這裡強制 .show 讀 computed
+        // opacity,抑制規則在=判準過(使用者看不到相交),規則被拔=紅——兩向都是確定性的。
+        if (fadeContract) {
+          const hadShow = el.classList.contains('show');
+          const prevTr = el.style.transition;
+          el.style.transition = 'none'; // 站名牌有 opacity .45s 過渡:不關掉的話,拔規則的突變在同步讀值時仍是過渡中的 ~0=假綠
+          el.classList.add('show');
+          const op = parseFloat(getComputedStyle(el).opacity);
+          if (!hadShow) el.classList.remove('show');
+          el.style.transition = prevTr;
+          out.push({ name, ox: 0, oy: 0, overlaps: op >= 0.05, w: 0, fadeOp: +op.toFixed(2) });
+          return;
+        }
         const prevHidden = el.hidden, prevDisplay = el.style.display, prevVis = el.style.visibility;
         el.hidden = false; el.style.display = 'block'; el.style.visibility = 'hidden'; // 量幾何不改畫面
         const r = el.getBoundingClientRect();
@@ -634,14 +706,15 @@ async function landscapeSuite(browser, eng) {
         out.push({ name, ox: Math.round(ox), oy: Math.round(oy), overlaps: ox > 2 && oy > 2, w: Math.round(r.width) });
         el.hidden = prevHidden; el.style.display = prevDisplay; el.style.visibility = prevVis;
       };
-      for (const id of targets) measure('#' + id, document.getElementById(id));
+      for (const id of targets) measure('#' + id, document.getElementById(id), id === 'dwellPlate');
       for (const sel of bySel) measure(sel, document.querySelector(sel));
       return out;
     });
     const found = wideOverlays.filter(o => !o.missing);
     const clash = found.filter(o => o.overlaps);
     ok(`L2b ${eng}/${S.tag} 整寬浮層不鑽進側欄底下`, clash.length === 0,
-      clash.map(c => `${c.name}疊${c.ox}×${c.oy}`).join(' ') || `逐一驗過 ${found.map(o => o.name).join('/')}`);
+      clash.map(c => c.fadeOp != null ? `${c.name}未淡出op=${c.fadeOp}(側欄開著契約=整顆淡出)` : `${c.name}疊${c.ox}×${c.oy}`).join(' ')
+        || `逐一驗過 ${found.map(o => o.name).join('/')}`);
     ok(`L9 ${eng}/${S.tag} 整寬浮層覆蓋率`, found.length >= 5,
       `${found.length}/6 找得到並量到（缺的：${wideOverlays.filter(o => o.missing).map(o => o.name).join(',') || '無'}）`);
 
