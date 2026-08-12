@@ -175,9 +175,11 @@ async function run(browser, engine) {
   {
     const { ctx, pg } = await openPage(browser, { events: null });
     await pg.evaluate(() => openExplorePanel());
-    await openStationBoard(pg, 'tra_sched', '花蓮');
+    // 查 #expBody 必須搶在 openStationBoard 之前:openBoard() 內部會呼叫 closeExplorePanel(),
+    // 後者會清空 #expBody(el.innerHTML=''),晚查一步 secs 恆為 0,H1 不管實作對錯都測不出東西。
     const secs = await pg.$$eval('#expBody .sec', ns => ns.length);
     chk(`${engine} H1 404 時今日亮點照常有內容`, secs > 0, `節數 ${secs}`);
+    await openStationBoard(pg, 'tra_sched', '花蓮');
     chk(`${engine} H2 404 時無未捕捉錯誤`, pg._errs.length === 0, pg._errs.join(' | '));
     await ctx.close();
   }
