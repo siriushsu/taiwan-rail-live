@@ -21,7 +21,7 @@
 ## 合併與平台適配（已提交）
 
 - 已以 `git merge --no-commit --no-ff release/app-1.4.2` 合併來源 `abf5f703fa6805f7070a229306a5f6bdbb50d232`，並在所有 commit 前 gates 通過後建立 merge commit `61ae608833780bfc6944cf3a97e259ac9c641bf3`；未 push。
-- E2E 證據 commit 後，本樹的已追蹤派工書由另一筆 commit `2d74e01` 將合併來源更新為 `debefb707b5785abc8ff7678d6e6a1111d150508`（原 `abf5f70` 的後繼，新增停靠站時刻表表頭對齊）。依最新派工補做第二次 `--no-commit --no-ff` merge；衝突僅在最近更新條目與 BUILD，同時保留 Android 1.4.2／停靠站兩條，最近清單維持八條。正式站與舊 Android 內容都曾使用 `v0812a`，聯集內容因此推為 `v0812b`，避免 BUILD 撞號。以下 build／產物／E2E 的舊數據將在補 merge 驗證後更新，不沿用舊 APK 冒充最新 v3。
+- E2E 證據 commit 後，本樹的已追蹤派工書由另一筆 commit `2d74e01` 將合併來源更新為 `debefb707b5785abc8ff7678d6e6a1111d150508`（原 `abf5f70` 的後繼，新增停靠站時刻表表頭對齊）。依最新派工補做第二次 `--no-commit --no-ff` merge；衝突僅在最近更新條目與 BUILD，同時保留 Android 1.4.2／停靠站兩條，最近清單維持八條。正式站與舊 Android 內容都曾使用 `v0812a`，聯集內容因此推為 `v0812b`，避免 BUILD 撞號。全套 build／驗收通過後建立 merge commit `31243193d965782213803fa3e023658abb64daa8`，第二父即 `debefb7`；未 push。
 - 解衝突後 Android PLUS gate 先通過；`verify_app_update.mjs`／`verify_app_review.mjs` 首次重量都在連 `localhost:5399` 時 `ECONNREFUSED`，尚未進入產品斷言。判定為既有驗收 server 未啟動的環境條件，先啟動測具指定 server 再原樣重量，不更動任何期望值。
 - 啟動 server 後更新／評分產品斷言均開始轉綠；另建停靠站對齊 audit 的第一版因等待整站 `state.ready` 45 秒逾時，尚未量欄位。該修正只涉及列車卡 CSS／DOM 幾何，不應把即時資料與 API 當隱形前置，故改用本樹真實 index.html 的原生 `#trainCard/#tcStops/.tc-st` DOM 與 CSS 注入六筆代表時刻；同一探針再暫時移除 36px 規則，要求反向突變必須量到至少 10px 錯位，避免假綠。
 - 改成 DOM 幾何後第一次仍在 `waitForSelector` 逾時；進度標記定位到 locator 已找到 63 次，但因 `#tcStops` 產品預設 hidden，而 Playwright 預設等待 visible，測具尚未走到下一步自行展開。修正只把前置改為等待 `state:'attached'`，欄寬、右緣差值與負向突變門檻不變。
@@ -33,11 +33,11 @@
   - `app/scripts/verify-release.mjs`：保留 Android 的 `assertAndroidPlusGate`、production logging gate 與 `RAIL_VERIFY_NATIVE` 單平台 parity；併入 release 的 `RAIL_APP_VERSION` 注入斷言與所有 iOS 自製 plugin 註冊 gate。
   - 創始期判準採 8/11 release 新規則：先以 `false`／`null` 區分「明確不辦」與「尚未決定」，有錨點時檢查 build 日仍落在 30 天視窗內。舊的 `foundingLaunchPublished` helper 已移除，避免保留一條與新判準矛盾的死程式。
   - `revenuecat-config.js` 採 release 真相：`foundingLaunchAt: '2026-08-10T12:00:00+08:00'`，不保留已被新判準淘汰的 `foundingLaunchPublished` 欄位。
-- Android 平台適配已落碼、待瀏覽器與模擬器驗證：
+- Android 平台適配已落碼並完成瀏覽器與模擬器驗證：
   - `appUpdateInit()` 在 `Capacitor.getPlatform()==='android'` 時於 Apple lookup 前短路，仍回傳只用來打開「軌島」段與評分列的 UI state；更新列與更新橫幅保持隱藏。
   - 評分列依平台選 URL；Android 指向 `https://play.google.com/store/apps/details?id=tw.railisland.app`。`maybeAskReview()` 對 Android 明確 no-op，本批沒有新增 Play In-App Review plugin。
   - Android 版號已改為 `versionCode 3`、`versionName "1.4.2"`；`minifyEnabled false` 未動。
-  - BUILD 推為 `v0812a`，更新紀錄新增 8/12 Android 1.4.2 條目；近期清單仍維持八條。
+  - 第一次合併 BUILD 為 `v0812a`；來源追加停靠站對齊後最終 BUILD 推為 `v0812b`，更新紀錄同時保留 8/12 Android 1.4.2 與停靠站表頭條目，近期清單仍維持八條。
   - `scripts/verify_app_update.mjs` 與 `scripts/verify_app_review.mjs` 已新增 Android 正負向斷言（Apple request=0、更新 UI 隱藏、評分列可見且紅粗體無 emoji、Play URL、原生邀請 no-op）。
 
 ## 分辨實驗：Android PLUS gate 的中文 worktree 路徑
@@ -126,7 +126,7 @@
 - 以 ADB 在可見主畫面實點「隨機跟隨」，真實跟到 5899 藍皮普快；再實點跟隨卡開列車 sheet、實際上滑。直式停靠表頭與七筆站資料清楚出現在畫面，結構量測表頭／資料的「到／開」欄寬全為 36px、最大右緣差 0px、可見 8 列。證據：`docs/android/shots/v3-v0812b-train-stops.png`、`v3-v0812b-tc-stops-audit.json`。
 - 以 Android 系統 rotation 把同一跟車態轉為橫式，實得 `landscape-primary`、WebView `863×360`；列車卡為右側欄 `left=515.238, top=52, width=340, height=248`。於可見側欄再實際上滑，停靠表頭與資料列出現；最大右緣差仍 0px、全欄 36px、畫面可見 7 列。證據：`docs/android/shots/v3-v0812b-landscape-stops.png`、`v3-v0812b-landscape-stops-audit.json`。
 - 最終 E2E 後掃描 5,000 行 logcat 的 `FATAL EXCEPTION`／AndroidRuntime FATAL／Fatal signal／本 package crash_dump，無命中。
-- `dumpsys package tw.railisland.app` 實得 `versionCode=3 minSdk=24 targetSdk=36`、`versionName=1.4.2`；WebView 實得 `platform=android`、`RAIL_APP_VERSION=1.4.2`、BUILD `v0812a`。與 AAB manifest 的直接 dump 結果一致。
+- 第一次 `v0812a` E2E 的 `dumpsys package tw.railisland.app` 實得 `versionCode=3 minSdk=24 targetSdk=36`、`versionName=1.4.2`；最終 `v0812b` 已另以 package manager、WebView 與 AAB bundletool 三方重驗同一版號（詳見本節前四點），不以第一次 APK 冒充最終產物。
 - Android App 更新 state 實得 `hasUpdate=false`、`showBanner=false`、`showWhatsNew=false`、`showUpdateRow=false`、`latest=null`；全頁唯一 update candidate 是共用的更多列，但 computed `display:none`、不可見，未找到更新橫幅。
 - E2E 完成後以 `logcat` 掃 `FATAL EXCEPTION`、`AndroidRuntime`、軌島 process crash 與 Chromium crash，無命中。平台收尾報告：`docs/android/shots/v3-platform-audit.json`；橫式與音訊結構化報告分別為 `v3-landscape-audit.json`、`v3-music-audit.json`。
 
@@ -139,7 +139,7 @@
 
 ## Git 稽核
 
-- 第二次補 merge 的 commit 前 `git diff --cached --check` exit 0、無 unmerged path；最終 staged 清單預期為 10 files、844 insertions、4 deletions（含三張二進位實跑截圖），`.idea/` 仍排除。commit 後再以第一父 `git show --numstat` 與 commit 前 cached numstat 逐字比對；若不符依派工規則 soft reset 重來。
+- 第二次補 merge 的 commit 前 `git diff --cached --check` exit 0、無 unmerged path；最終 staged 清單為 10 files、844 insertions、4 deletions（含三張二進位實跑截圖），`.idea/` 排除。依規則用不帶 pathspec 的 `git commit -m ...` 建立 `31243193d965782213803fa3e023658abb64daa8`；兩個 parent 為 `944ee23` 與 `debefb7`。commit 後第一父 numstat 與 commit 前 cached numstat 逐字一致（皆 484 bytes，`cmp` exit 0），無多收或漏收。
 - merge commit 前 `git diff --cached --check` exit 0、無 unmerged path；`git diff --cached --stat` 為 88 files changed、50,023 insertions、267 deletions。既存 `.idea/` 仍是唯一未納入的起始未追蹤項目。
 - 依派工規則使用不帶 pathspec 的 `git commit -m ...`；commit 後 `git show --numstat HEAD` 列出同一批 88 files。另將 commit 相對第一父的完整 numstat 與 commit 前 cached numstat 排序逐行比對，`PRE_CHARS=3474`、`POST_CHARS=3474`、`FIRST_PARENT_NUMSTAT_MATCH=true`，無多收或漏收。
 - 全程未 push、未 rebase、未改寫歷史、未切換分支，也未納入本機 secret／policy 檔。
