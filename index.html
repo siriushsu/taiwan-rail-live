@@ -1690,8 +1690,19 @@
   .board .sub { color: var(--faint); font-size: 11px; margin-bottom: 7px; }
   .board .row { display: flex; align-items: baseline; gap: 8px; padding: 6px 0; border-top: 1px dashed var(--line-faint); font-size: 13px; }
   .board .row:first-of-type { border-top: 0; }
-  .board .row[data-no], .board .row[data-rand], .board .row[data-li], .board .row[data-guide] { cursor: pointer; }
-  .board .row[data-no]:hover, .board .row[data-rand]:hover, .board .row[data-li]:hover, .board .row[data-guide]:hover { background: var(--bg-stage); }
+  .board .row[data-no], .board .row[data-rand], .board .row[data-li], .board .row[data-guide], .board .row[data-ev] { cursor: pointer; }
+  .board .row[data-no]:hover, .board .row[data-rand]:hover, .board .row[data-li]:hover, .board .row[data-guide]:hover, .board .row[data-ev]:hover { background: var(--bg-stage); }
+  /* 活動列(車站看板):整列是連往官方原文的 <a>,故不用 .row 的 JS 點擊路徑 */
+  .board .ev-rows { margin: 6px 0 2px; }
+  .board .ev-row { display: flex; align-items: baseline; gap: 7px; padding: 6px 8px; margin-bottom: 4px;
+    border-radius: 6px; background: var(--bg-stage); border: 1px solid var(--line-faint);
+    font-size: 12.5px; color: inherit; text-decoration: none; }
+  .board .ev-row:hover { border-color: var(--line-dash); }
+  .board .ev-when { flex: none; font-weight: 700; color: var(--ink-strong); }
+  .board .ev-row b { flex: none; }
+  .board .ev-note { flex: 1; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .board .ev-tag { flex: none; padding: 0 5px; border-radius: 4px; background: var(--line-faint); font-size: 10.5px; }
+  .board .ev-go { flex: none; margin-left: auto; color: var(--faint); }
   /* 觀光列車圖鑑列(無固定車次的山嵐/鳴日/環島之星…):純介紹入口,右側標「圖鑑」淺底徽章 */
   #explorePanel .row[data-guide] .gchip { flex: none; margin-left: auto; padding: 0 7px 1px; font-size: 10.5px; font-weight: 700;
     letter-spacing: 1px; line-height: 1.5; color: var(--navy); border: 1px solid var(--line); border-radius: 999px; white-space: nowrap; }
@@ -16526,6 +16537,103 @@ function stnInfo(name) {
   const m = state.stnInfoMap || {};
   const n = name.replace(/臺/g, '台');
   return m[n] || m[n.replace(/[（(].*$/, '').trim()] || null;
+}
+// ── 活動公告(data/events.json):每日巡檢策展、掛車站看板與今日亮點 ──
+// 🔴 走 apiUrl 不走 './data/':initDataFreshness 的過期判定對「bundle 裡沒有的鍵」不納入,
+//    這個新檔在已上架 App 裡會永遠 404,只有絕對網址拿得到(見設計書〈App bundle 快照〉)。
+const EVENT_LEAD_DAYS = 14; // 活動開始前幾天起顯示
+let _events = null, _eventsLoading = false;
+function ensureEvents() {
+  if (_events || _eventsLoading) return;
+  _eventsLoading = true;
+  fetchJSONAt(apiUrl('data/events.json')).then(j => {
+    _eventsLoading = false;
+    _events = (j && Array.isArray(j.events)) ? j.events : [];
+    if (!_events.length) return;
+    // 第一次開面板時資料還在路上,載到了要補畫一次,否則永遠看不到活動
+    if (state.boardStation) renderBoard();
+    const ep = document.getElementById('explorePanel');
+    if (ep && !ep.hidden) renderExplorePanel();
+  });
+}
+function evDayShift(isoDay, days) {
+  const d = new Date(isoDay + 'T00:00:00Z');
+  d.setUTCDate(d.getUTCDate() + days);
+  return d.toISOString().slice(0, 10);
+}
+// 時間窗:開始前 EVENT_LEAD_DAYS 天 ~ 結束當天。「今天」錨定台北,不看裝置時鐘。
+function activeEvents() {
+  const today = todayStr('Asia/Taipei');
+  return (_events || []).filter(ev =>
+    ev && ev.start && ev.end && ev.end >= today && evDayShift(ev.start, -EVENT_LEAD_DAYS) <= today
+  ).sort((a, b) => (a.start < b.start ? -1 : a.start > b.start ? 1 : (a.id < b.id ? -1 : 1)));
+}
+const EV_METRO_SYS = (GROUPS.find(g => g.id === 'metro') || { members: [] }).members; // 從 GROUPS 推導,不另寫死一份
+function evWhen(ev) {
+  const t = todayStr('Asia/Taipei');
+  const f = s => s.slice(5).replace('-', '/');
+  if (ev.start > t) return f(ev.start) + ' 起';
+  if (ev.endGuess) return '進行中'; // 推估值不得寫得像官方資訊
+  return ev.start === ev.end ? f(ev.start) : f(ev.start) + '–' + f(ev.end);
+}
+function evWhere(ev) {
+  const a = ev.anchor || {};
+  if (a.kind === 'station' && a.name) return a.name + '站';
+  const sys = (state.systems.find(x => x.id === a.sys) || {}).label || '';
+  return sys || '沿線';
+}
+// 解析成當前檢視開得了板的站物件;開不了回 null(比照 favStationHere:不強求、不切分頁)
+function eventStation(ev) {
+  const a = ev.anchor || {};
+  if (a.kind !== 'station' || !a.name) return null;
+  const k = a.name.replace(/臺/g, '台');
+  if (state.mode === 'sched') {
+    const hit = state.schedStations.find(s => s.sys === a.sys && s.name.replace(/臺/g, '台') === k);
+    if (hit) return hit;
+    if (state.deco) for (const ln of (state.decoLines || [])) { // 全台同框:捷運站在裝飾層
+      const s = (ln.stations || []).find(x => x.name.replace(/臺/g, '台') === k);
+      if (s) return { name: s.name, lat: s.lat, lon: s.lon, sys: 'deco' };
+    }
+    return null;
+  }
+  for (const ln of (state.lines || [])) {
+    const s = (ln.stations || []).find(x => x.name.replace(/臺/g, '台') === k);
+    if (s) return { name: s.name, lat: s.lat, lon: s.lon, sys: 'freq' };
+  }
+  return null;
+}
+// 綁在這一站的活動。只認 kind==='station';共構站(台北/板橋)靠 sys 分家,台鐵板不掛捷運的活動。
+function eventsAtStation(st) {
+  const k = st.name.replace(/臺/g, '台');
+  const metroSide = st.sys === 'freq' || st.sys === 'deco';
+  return activeEvents().filter(ev => {
+    const a = ev.anchor || {};
+    if (a.kind !== 'station' || !a.name) return false;
+    if (a.name.replace(/臺/g, '台') !== k) return false;
+    return metroSide ? EV_METRO_SYS.includes(a.sys) : a.sys === st.sys;
+  });
+}
+// 車站看板用:沒有活動一律回空字串(不留容器)
+function eventRowsHtml(st) {
+  const evs = eventsAtStation(st);
+  if (!evs.length) return '';
+  return `<div class="ev-rows">` + evs.map(ev =>
+    `<a class="ev-row" href="${escHtml(ev.url || '')}" target="_blank" rel="noopener">` +
+    `<span class="ev-when">${escHtml(evWhen(ev))}</span>` +
+    `<b>${escHtml(ev.title)}</b>` +
+    (ev.note ? `<span class="ev-note">${escHtml(ev.note)}</span>` : '') +
+    (ev.source === 'partner' ? `<span class="ev-tag">合作</span>` : '') +
+    `<span class="ev-go">›</span></a>`).join('') + `</div>`;
+}
+// 今日亮點用:一節,沒有活動回空字串
+function eventSecHtml() {
+  const evs = activeEvents();
+  if (!evs.length) return '';
+  return `<div class="sec">近期活動</div>` + evs.map(ev =>
+    `<div class="row" data-ev="${escHtml(ev.id)}" title="${escHtml(ev.title)}">` +
+    `<b>${escHtml(ev.title)}</b>` +
+    `<span class="dest">${escHtml(evWhere(ev))}${ev.source === 'partner' ? ' · 合作' : ''}</span>` +
+    `<span class="min">${escHtml(evWhen(ev))}</span></div>`).join('');
 }
 function stnMetaHtml(st) {
   const info = st.sys === 'tra_sched' ? stnInfo(st.name) : null; // 車站地址/特色資料庫僅台鐵;高鐵站只給地圖連結

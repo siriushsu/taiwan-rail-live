@@ -1,0 +1,15 @@
+{
+  "updated": "2026-08-12",
+  "events": [
+    {
+      "id": "trtc-20260811-pokemon10",
+      "source": "official",
+      "title": "Pokémon GO 10 週年特展",
+      "note": "大安森林公園站出口旁",
+      "start": "2026-08-15",
+      "end": "2026-08-17",
+      "anchor": { "kind": "station", "sys": "mrt", "name": "大安森林公園" },
+      "url": "https://www.metro.taipei/"
+    }
+  ]
+}
