@@ -4013,7 +4013,9 @@ function trtcOfficialRosterEnabled(search) {
 }
 // URL 開關必須在開機初始就固定；clearFollow() 會整理 query string，不可在後面重讀。
 const OFFICIAL_ROSTER_ENABLED = trtcOfficialRosterEnabled(location.search);
-const TRTC_OFFICIAL_ROSTER_MAX_AGE_SEC = 45; // 100 輪語料實測 max=28.441s；門檻待使用者裁示
+// 100 輪語料實測資料齡 max=28.441s；15s 會誤退 75/100 輪、20s 誤退 7/100，30/45/60s 均 0/100。
+// 2026-08-13 使用者裁示採 30 秒（只比觀測 max 多 1.6 秒，是 0 誤退裡最緊的一檔）。
+const TRTC_OFFICIAL_ROSTER_MAX_AGE_SEC = 30;
 // 成就徽章與車廂標記＝原本那些 emoji 的單色平面版（RailEmoji＝裁切過的 Noto Emoji 單色）。
 // 刻意保留 railIcon(name) 這個唯一入口:呼叫端一行都不用改,只有這裡決定畫法。
 // 🔴 ⚖ 與 ♾ 一律寫**不帶 VS16(U+FE0F)** 的碼位——帶了就強制彩色呈現,會蓋過 font-family
@@ -5333,8 +5335,16 @@ function recomputeTrains() {
 }
 
 const _trtcOfficialDirSlots = new Map();
+// 🔴 官方名冊只在「時鐘貼著現在」時當名冊——它的位置全部錨在牆鐘（arrEpoch 是絕對 epoch），
+// 時光機／快轉／拖時刻尺一旦離開現在，北捷就會跟同畫面其他系統走在兩條時間軸上。
+// 判準沿用看板層既有的 trtcOfficialBoardRealNow()，不另發明一套「算不算現在」。
+// 這是 train-spawn-vanish-invariants §三-2 降級階梯（時間旅行→退回表定）在本路徑的實作。
+function trtcOfficialRosterLive(nowEpoch) {
+  return trtcOfficialBoardRealNow() && trtcOfficialRosterActive(state.trtcOfficialRoster,
+    OFFICIAL_ROSTER_ENABLED, nowEpoch == null ? Date.now() / 1000 : nowEpoch); // ROSTER_FRONTEND_LIVE
+}
 function trtcOfficialItemsForLine(ln, nowEpoch) {
-  if (!isTrtcBoardLine(ln)) return null;
+  if (!isTrtcBoardLine(ln) || !trtcOfficialRosterLive(nowEpoch)) return null;
   return trtcOfficialRenderItems(ln, state.trtcOfficialRoster,
     nowEpoch == null ? Date.now() / 1000 : nowEpoch, OFFICIAL_ROSTER_ENABLED);
 }
@@ -5523,17 +5533,14 @@ function trtcOfficialLineForId(lineId) {
   return null;
 }
 function trtcOfficialFollowRecord(follow, nowEpoch) {
-  if (!follow || follow.vehicleId == null ||
-      !trtcOfficialRosterActive(state.trtcOfficialRoster, OFFICIAL_ROSTER_ENABLED,
-        nowEpoch == null ? Date.now() / 1000 : nowEpoch)) return null;
+  if (!follow || follow.vehicleId == null || !trtcOfficialRosterLive(nowEpoch)) return null;
   const vehicle = state.trtcOfficialRoster.vehicles.find(item =>
     String(item.vehicleId) === String(follow.vehicleId) && String(item.line) === String(follow.lineId));
   const ln = vehicle && trtcOfficialLineForId(follow.lineId);
   return vehicle && ln ? { vehicle, ln } : null;
 }
 function trtcOfficialHitFromTimetable(hit) {
-  if (!hit || !hit.tr || !isTrtcBoardLine(hit.ln) ||
-      !trtcOfficialRosterActive(state.trtcOfficialRoster, OFFICIAL_ROSTER_ENABLED, Date.now() / 1000)) return hit;
+  if (!hit || !hit.tr || !isTrtcBoardLine(hit.ln) || !trtcOfficialRosterLive()) return hit;
   const localKey = trtcLocalTripKey(hit.tr);
   const matches = state.trtcOfficialRoster.vehicles.filter(vehicle => !vehicle.extension &&
     String(vehicle.line) === String(hit.ln.id) && String(vehicle.tripKey || '') === localKey);
@@ -9041,7 +9048,7 @@ function tick(now) {
   if (state._liveClock >= 1) {
     state._liveClock = 0; state.wallDay = todayStr();
     if (OFFICIAL_ROSTER_ENABLED) {
-      const active = trtcOfficialRosterActive(state.trtcOfficialRoster, true, Date.now() / 1000);
+      const active = trtcOfficialRosterLive();
       if (state._trtcOfficialCountActive !== active) { state._trtcOfficialCountActive = active; updateCount(); }
     }
     updateLiveBadge(); updateMetroBadge(); refreshTrtcOfficialBoardCountdown();
@@ -9578,7 +9585,7 @@ function loadFreqGroup(g, sel, keepView) {
   syncTimeUI();
   document.getElementById('note').innerHTML = escHtml(
     (OFFICIAL_ROSTER_ENABLED
-      ? '北捷列車依官方即時名冊與到站時刻顯示；官方資料中斷或超過 45 秒未更新時，才整體退回班表備案。' +
+      ? '北捷列車依官方即時名冊與到站時刻顯示；官方資料中斷或超過 30 秒未更新時，才整體退回班表備案。' +
         '高捷、高雄輕軌與機捷依 TDX 官方到站看板，新北捷運（淡海・安坑）依官方列車動態即時校正——其餘系統依官方時刻表推演' +
         '（台中捷運、三鶯線無公開逐班時刻，為班距推算）。'
       : '捷運／輕軌列車依當日實際時刻表（平日／假日／國定假日班表）推演，' +
@@ -9709,7 +9716,7 @@ function loadAllGroup(g, keepView) {
   document.getElementById('note').innerHTML = escHtml(
     '全台鐵道同框 — 台鐵、高鐵依當日真實時刻表運行（共 ' + state.trains.length + ' 車次，台鐵回到現在時刻自動套用即時誤點）；' +
     (OFFICIAL_ROSTER_ENABLED
-      ? '北捷依官方即時名冊與到站時刻顯示（中斷或超過 45 秒未更新才退回班表）；' +
+      ? '北捷依官方即時名冊與到站時刻顯示（中斷或超過 30 秒未更新才退回班表）；' +
         '其餘捷運與輕軌依當日時刻表推演，營運時段依各自官方即時資訊校正（台中捷運、三鶯線為班距推算）。'
       : '捷運與各輕軌亦依當日時刻表推演；北捷依官方秒級到站倒數逐班校正位置，高捷、高雄輕軌、機捷與新北捷運營運時段依各自官方即時資訊校正（台中捷運、三鶯線、文湖線為班距推算）。') +
     '點任一列車皆可跟隨（放大到看得見捷運車號牌即可點），點車站看班次。') +
@@ -16546,25 +16553,6 @@ function applyTrtcBoard(rows, observedEpoch, trips) {
 }
 
 let _trtcPolling = false;
-async function pollTrtcOfficialRosterAwayFromSimulation() {
-  _trtcPolling = true;
-  const ac = new AbortController(), giveUp = setTimeout(() => ac.abort(), 8000);
-  try {
-    const r = await fetch(apiUrl('api/trtc-live'), { cache: 'no-store', signal: ac.signal });
-    if (!r.ok) throw new Error(r.status);
-    const d = await r.json();
-    if (d && d.boardPos) applyTrtcOfficialRoster(d.boardPos);
-    else trtcOfficialRosterOutage('missing-boardPos');
-    clearTrtcBoard();
-  } catch (e) {
-    trtcOfficialRosterOutage('fetch-error');
-    clearTrtcBoard();
-  } finally {
-    clearTimeout(giveUp); _trtcPolling = false;
-  }
-  updateCount();
-  updateMetroBadge();
-}
 async function pollTrtcLive() {
   const pool = metroLivePool();
   if (_trtcPolling || document.hidden || !pool.some(isTrtcBoardLine)) return;
@@ -16572,7 +16560,10 @@ async function pollTrtcLive() {
   let wallDelta = rawWallDelta;
   if (wallDelta > 43200) wallDelta -= 86400; else if (wallDelta < -43200) wallDelta += 86400;
   if (Math.abs(wallDelta) > 120) {
-    if (OFFICIAL_ROSTER_ENABLED) await pollTrtcOfficialRosterAwayFromSimulation();
+    // 時光機／拖時刻尺：官方名冊整體退場，北捷交還班表引擎（渲染端另有 trtcOfficialRosterLive
+    // 即時把關，這裡是連抓都不抓，避免拿牆鐘資料去畫一個不在現在的畫面）。
+    if (OFFICIAL_ROSTER_ENABLED && state.trtcOfficialRoster &&
+        state.trtcOfficialRoster.feedMode !== 'outage') trtcOfficialRosterOutage('time-travel');
     return;
   }
   _trtcPolling = true;
@@ -16592,7 +16583,7 @@ async function pollTrtcLive() {
     } catch (e) { /* 顯示層失敗不影響動畫層 */ }
     // 動畫承重牆維持改動前的 raw 時差 gate：跨午夜時舊版會整函式早退，這批只准讓官方看板
     // 繼續抓取，不得順便開始套／清 boardPos，否則「只改顯示」契約會被破壞。
-    if (Math.abs(rawWallDelta) <= 120 || OFFICIAL_ROSTER_ENABLED) try {
+    if (Math.abs(rawWallDelta) <= 120) try {
       const validBoardPos = !!(d && d.src === 'trtc' && d.boardPos &&
         Array.isArray(d.boardPos.rows) && Number.isFinite(Number(d.boardPos.at)));
       // eligibility 不能在 fetch 前用舊日 _tt 決定。App 長開跨 04:00 時，Worker 已切新
@@ -16619,7 +16610,7 @@ async function pollTrtcLive() {
   } catch (e) {
     // fetch/json 失敗時同樣以當下名冊判斷；不引用 inner try 的區塊變數，
     // 否則真正的網路錯誤會被 ReferenceError 遮掉。
-    if ((Math.abs(rawWallDelta) <= 120 || OFFICIAL_ROSTER_ENABLED) &&
+    if (Math.abs(rawWallDelta) <= 120 &&
         metroLivePool().some(ln => isTrtcBoardLine(ln) && (OFFICIAL_ROSTER_ENABLED || ln._tt))) {
       if (OFFICIAL_ROSTER_ENABLED) trtcOfficialRosterOutage('fetch-error');
       clearTrtcBoard();
@@ -16719,14 +16710,14 @@ function updateMetroBadge() {
   if (OFFICIAL_ROSTER_ENABLED) {
     const roster = state.trtcOfficialRoster;
     if (!roster) { el.hidden = true; return; }
-    const official = trtcOfficialRosterActive(roster, true, Date.now() / 1000);
+    const official = trtcOfficialRosterLive();
     el.hidden = false;
     el.classList.remove('anom');
     el.classList.toggle('est', !official);
     el.textContent = official ? '官方即時' : '班表備案';
     el.title = official
       ? `畫面名冊與到站時刻來自北捷即時資料，共 ${roster.vehicles.length} 台`
-      : '北捷即時名冊中斷或超過 45 秒未更新，目前整體使用班表備案';
+      : '北捷即時名冊中斷、時鐘離開「現在」，或超過 30 秒未更新，目前整體使用班表備案';
     return;
   }
   const pool = metroLivePool();

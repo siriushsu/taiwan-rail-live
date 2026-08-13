@@ -109,6 +109,7 @@ const MUTATION_PLAN = {
   'M-E 第三形忽略 vehicleId': ['E'],
   'M-E2 snapshot 刷新改用物件參照': ['E'],
   'M-E3 疊車只留陣列第一台': ['E'],
+  'M-E4 跟隨路徑拿掉時光機把關': ['E'],
   'M-F 可互動控件上蓋遮擋層': ['F'],
 };
 console.log('【Mutation 預期（執行前先宣告）】');
@@ -332,9 +333,15 @@ function hitRuntime(functionSource = extractFunction(INDEX, 'freqTrainsAt'), sea
   return context.__run({ x: 102, y: 100 });
 }
 function followRuntime(functionSource = extractFunction(INDEX, 'trtcOfficialFollowRecord')) {
+  // 🔴 trtcOfficialFollowRecord 現在要過時光機把關。這裡刻意「帶進真的 trtcOfficialRosterLive
+  // 原始碼、只把葉子述詞 trtcOfficialBoardRealNow 做成可控旗標」——不要整顆 stub 成 true，
+  // 否則把關被拆掉時這支照樣綠（心得：stub 前提會過期／判準要打在受測物本身）。
   const bundle = `${extractFunction(INDEX, 'trtcOfficialRosterActive')}
     ${extractConst(INDEX, 'TRTC_OFFICIAL_ROSTER_MAX_AGE_SEC')}
     const OFFICIAL_ROSTER_ENABLED = true;
+    let __realNow = true;
+    function trtcOfficialBoardRealNow() { return __realNow; }
+    ${extractFunction(INDEX, 'trtcOfficialRosterLive')}
     const line = { id: 'BL' };
     function trtcOfficialLineForId(lineId) { return String(lineId) === 'BL' ? line : null; }
     ${functionSource}
@@ -348,8 +355,15 @@ function followRuntime(functionSource = extractFunction(INDEX, 'trtcOfficialFoll
       const refreshed = trtcOfficialFollowRecord(follow, 1005);
       state.trtcOfficialRoster = { feedMode:'official', sourceRevision:1002, vehicles:[] };
       const gone = trtcOfficialFollowRecord(follow, 1005);
+      // 時鐘離開「現在」時，跟隨也必須交還班表（同一份資料、只翻這顆旗標）。
+      state.trtcOfficialRoster = { feedMode:'official', sourceRevision:1000,
+        vehicles:[{vehicleId:'stable', line:'BL', arrEpoch:1010}] };
+      __realNow = false;
+      const travelled = trtcOfficialFollowRecord(follow, 1005);
+      __realNow = true;
+      const backAtNow = trtcOfficialFollowRecord(follow, 1005);
       return { first:first && first.vehicle.arrEpoch, refreshed:refreshed && refreshed.vehicle.arrEpoch,
-        gone:gone == null };
+        gone:gone == null, gated:travelled == null, backAtNow:backAtNow != null };
     };`;
   compileGuard(bundle, 'follow-runtime');
   const context = { state: {}, Date, Math, Number, String, Array };
@@ -370,7 +384,8 @@ function identityRuntimeAudit(hitSource, followSource) {
   return { pass: officialHits.length === 2 && officialHits.map(item => item.vehicleId).join(',') === 'v-a,v-b' &&
       legacyHits.length === 1 && legacyHits[0].vehicleId == null &&
       JSON.stringify(otherWithFlag) === JSON.stringify(otherWithoutFlag) && otherWithFlag.length === 1 &&
-      follow.first === 1010 && follow.refreshed === 1020 && follow.gone,
+      follow.first === 1010 && follow.refreshed === 1020 && follow.gone &&
+      follow.gated && follow.backAtNow,
     officialHits: officialHits.map(item => item.vehicleId), legacyHits: legacyHits.length,
     otherSystemFlagOn:otherWithFlag.length, otherSystemFlagOff:otherWithoutFlag.length, follow };
 }
@@ -604,6 +619,13 @@ const mE3 = mutationIndexFunction('freqTrainsAt', 'return hits.sort(', 'return h
 const mE3Audit = identityRuntimeAudit(mE3.fn, undefined);
 mutationCheck('M-E3 疊車只留陣列第一台', MUTATION_PLAN['M-E3 疊車只留陣列第一台'],
   baseline.gates, { ...baseline.gates, E: baseline.gates.E && mE3Audit.pass });
+// 使用者裁示②（2026-08-13）：時鐘離開「現在」時官方名冊整體退場。這一發證明 E 真的在守它，
+// 而不是靠 sandbox 把 trtcOfficialBoardRealNow stub 成 true 混過去。
+const mE4 = mutationIndexFunction('trtcOfficialFollowRecord',
+  '!trtcOfficialRosterLive(nowEpoch)', 'false', 'M-E4');
+const mE4Audit = identityRuntimeAudit(undefined, mE4.fn);
+mutationCheck('M-E4 跟隨路徑拿掉時光機把關', MUTATION_PLAN['M-E4 跟隨路徑拿掉時光機把關'],
+  baseline.gates, { ...baseline.gates, E: baseline.gates.E && mE4Audit.pass });
 
 function makeStaticServer() {
   const mime = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript', '.mjs': 'text/javascript',

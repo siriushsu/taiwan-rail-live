@@ -1411,17 +1411,17 @@ const pollOldTimetableGateMutantHtml = mutateFunctionInHtml(CURRENT_HTML, 'pollT
   const oldAnimationEligible = pool.some(ln => isTrtcBoardLine(ln) && ln._tt && ln._tt.length);`,
     'poll 恢復 fetch 前舊名冊資格');
   out = replaceRequired(out,
-    'if (Math.abs(rawWallDelta) <= 120 || OFFICIAL_ROSTER_ENABLED) try {',
-    'if (oldAnimationEligible && (Math.abs(rawWallDelta) <= 120 || OFFICIAL_ROSTER_ENABLED)) try {',
+    'if (Math.abs(rawWallDelta) <= 120) try {',
+    'if (oldAnimationEligible && Math.abs(rawWallDelta) <= 120) try {',
     'poll 恢復舊名冊整段擋住 apply/prepare');
   return out;
 }, 'poll 用舊 _tt 先擋住新日型 prepare');
 
 const pollOuterCatchScopeMutantHtml = mutateFunctionInHtml(CURRENT_HTML, 'pollTrtcLive', source =>
   replaceRequired(source,
-    `if ((Math.abs(rawWallDelta) <= 120 || OFFICIAL_ROSTER_ENABLED) &&
+    `if (Math.abs(rawWallDelta) <= 120 &&
         metroLivePool().some(ln => isTrtcBoardLine(ln) && (OFFICIAL_ROSTER_ENABLED || ln._tt))) {`,
-    `if (animationEligible && (Math.abs(rawWallDelta) <= 120 || OFFICIAL_ROSTER_ENABLED)) {`,
+    `if (animationEligible && Math.abs(rawWallDelta) <= 120) {`,
     'network catch 引用 inner animationEligible'), 'network catch 引用 inner animationEligible');
 
 const headwayMemoMutantHtml = mutateFunctionInHtml(CURRENT_HTML, 'trtcHeadwayMemoSlot', () =>
