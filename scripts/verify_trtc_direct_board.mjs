@@ -128,8 +128,16 @@ check(!/state\.(?:_trtcBoard|_liveShift|_gpsShifts|_tt|bindings)\s*=/.test(direc
   '官方直出函式不寫動畫校正、班表或 bindings');
 check(/state\.trtcOfficialBoard\s*=/.test(extractFunction(INDEX, 'applyTrtcOfficialBoard')),
   '官方資料只落在獨立 state.trtcOfficialBoard');
+// App 分支的斷鏈自癒韌性殼把每幀主體搬進 tickCore()，tick() 只剩掛鏈；
+// 判準綁死函式「名字」會在那邊照不到主體而假紅（實測 App 分支 150/151，
+// 唯一紅的就是這條，而該分支的 1 秒區塊完整無缺）。改成認主體所在的那支：
+// 有 tickCore 就驗它，沒有就驗 tick——兩者都屬既有 UI tick 鏈，不是新 timer
+// （「不另開 timer」由下面兩條 setInterval 斷言各自把關）。
+// extractFunction 找不到會直接 throw（不是回 falsy），所以要先探在不在，
+// 不能用 `a || b`——那樣在沒有 tickCore 的網站分支會整支中止。
+const uiTickSource = extractFunction(INDEX, /\bfunction tickCore\s*\(/.test(INDEX) ? 'tickCore' : 'tick');
 check(/if \(state\._liveClock >= 1\) \{[\s\S]{0,800}state\._liveClock = 0;[\s\S]{0,800}refreshTrtcOfficialBoardCountdown\(\)/
-    .test(extractFunction(INDEX, 'tick')),
+    .test(uiTickSource),
   '倒數掛在既有 1 秒 UI tick');
 check((INDEX.match(/setInterval\(pollTrtcLive/g) || []).length === 1,
   '北捷輪詢仍只有既有單一 15 秒 timer');
