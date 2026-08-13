@@ -3734,6 +3734,8 @@
         <li><span class="d">台鐵</span><span>台鐵官方 OpenData（ods.railway.gov.tw）——每日時刻表、車站基本資料、車種代碼表，依「政府資料開放授權條款」使用</span></li>
         <li><span class="d">捷運</span><span>交通部 TDX 運輸資料流通服務——北捷／機捷／新北捷（淡海・安坑・三鶯）／中捷／高捷（含輕軌）的路線幾何、站序、逐班時刻表與班距資料</span></li>
         <li><span class="d">即時</span><span>台鐵即時誤點與車站地址介接交通部 TDX 平臺（TrainLiveBoard／Station，每分鐘更新）</span></li>
+        <li><span class="d">北捷</span><span>臺北捷運各線與環狀線的秒級到站倒數取自臺北大眾捷運股份有限公司「臺北捷運 API」（會員申請制），依「政府資料開放授權條款」使用</span></li>
+        <li><span class="d">新北捷</span><span>淡海輕軌・安坑輕軌的即時列車動態引用自新北大眾捷運股份有限公司官網「列車動態」公開頁面，著作權屬該公司所有</span></li>
         <li><span class="d">軌道</span><span>台鐵軌道及阿里山林鐵的 TDX 缺口補線取自 © OpenStreetMap 貢獻者（ODbL），經 Overpass／OSM API</span></li>
         <li><span class="d">底圖</span><span><!-- APP_REPLACE_START basemap-credit（App 換 Stadia/Esri 授權版文字，prepare-web.mjs 替換） -->CARTO basemaps（© OpenStreetMap）、Esri World Imagery（衛星影像）與內政部「直轄市、縣市界線」（離線海陸輪廓，政府資料開放授權條款第1版）<!-- APP_REPLACE_END basemap-credit --></span></li>
         <!-- APP_REPLACE_START status-link:App 包內沒有 status.html 且其相對 API 呼叫在本機來源不通,App build 換成正式站絕對網址外開 -->
@@ -4001,14 +4003,17 @@
 // 從 main 出貨會把 LA 推播、速度上界、準點三功能整包退掉(心得 16 的原病灶)。推 v0810a。
 // 2026-08-12 並行協調:land04c 用掉 v0812c/d、活動公告那批已上正式站用掉 v0812f。
 // 本批(輕軌 GPS)原本掛 v0812e 但從未上線,併入 origin/main 後內容已不同,不可沿用 ⇒ 推 v0812g。
-const BUILD = 'v0812h'; // 帳本:a=events/krtc/speedcal b=release44 c=land04c預覽 d=App45 e=山嵐 f=App46 g=land04c三修 h=輕軌逐班GPS上線
+// 2026-08-13 併入 origin/main（授權標示修正）：BUILD 取線上現行的 v0813c。
+// 🔴 本批（官方名冊，旗標預設關）內容與 v0813c 不同——真要升正式站前必須另推新號，
+//    不可讓兩份不同內容共用同一個號（心得 16：辨識線上版本只能靠內容 hash）。
+const BUILD = 'v0813c'; // a,b=land04c(並行分支已用掉) c=資料源標示補北捷全名與新北捷
 function trtcOfficialRosterEnabled(search) {
   try { return new URLSearchParams(search == null ? location.search : search).get('officialroster') === '1'; }
   catch (e) { return false; }
 }
 // URL 開關必須在開機初始就固定；clearFollow() 會整理 query string，不可在後面重讀。
 const OFFICIAL_ROSTER_ENABLED = trtcOfficialRosterEnabled(location.search);
-const TRTC_OFFICIAL_ROSTER_MAX_AGE_SEC = 45; // 100 輪語料實測 max=28.441s；2026-08-13 使用者裁示採 45s
+const TRTC_OFFICIAL_ROSTER_MAX_AGE_SEC = 45; // 100 輪語料實測 max=28.441s；門檻待使用者裁示
 // 成就徽章與車廂標記＝原本那些 emoji 的單色平面版（RailEmoji＝裁切過的 Noto Emoji 單色）。
 // 刻意保留 railIcon(name) 這個唯一入口:呼叫端一行都不用改,只有這裡決定畫法。
 // 🔴 ⚖ 與 ♾ 一律寫**不帶 VS16(U+FE0F)** 的碼位——帶了就強制彩色呈現,會蓋過 font-family
