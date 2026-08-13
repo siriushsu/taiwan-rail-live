@@ -405,6 +405,38 @@ async function replay(root, label, engineName, port, htmlOverride = null, captur
         }
         state.simSec = savedSim; _mlGate = savedGate; _mlGateAt = savedGateAt;
       }
+      // 舊語料回放只有 rows，會走 legacy applyTrtcBoard，本身不會建立 officialEndpoint。
+      // 另造一個真實瀏覽器 witness：官方錨點與班表位置明確超過 25m，現行版
+      // 必須取錨點；「所有錨點重新受 25m gate」的 mutation 則必須退回班表位置。
+      let officialEndpointGateWitness = { supported: false, pickedOfficial: false, separationM: null };
+      if (typeof trtcEndpointPositionValue === 'function') {
+        const ln = pool().find(x => x.hasShape && x.stations && x.stations.length >= 2);
+        if (ln) {
+          const savedBoard = ln._trtcBoard, savedTripMode = ln._trtcTripMode;
+          const savedSim = state.simSec, savedGate = _mlGate, savedGateAt = _mlGateAt;
+          const from = 0, to = 1, sim = 43200, run = 120;
+          const tr = [from, sim, to, sim + run];
+          const targetD = Math.max(0, Math.min(ln.cum[ln.cum.length - 1], ln.stations[to].d));
+          const officialPos = posAlongShape(ln, targetD);
+          const motion = { endpoint: true, from, to, run, arrSec: sim + run, startSec: sim,
+            moveSec: sim, endSec: sim + run, releaseSec: sim + run,
+            startPos: officialPos, targetPos: officialPos, startD: targetD, targetD };
+          try {
+            ln._trtcTripMode = true; state.simSec = sim; _mlGate = true; _mlGateAt = Date.now();
+            ln._trtcBoard = { at: Date.now(), all: 0, shifts: new Map([[tr, 0]]),
+              positions: new Map([[tr, motion]]), headways: new Map() };
+            const fallback = freqTrainPosRaw(ln, tr, sim);
+            const picked = freqTrainBaseAt(ln, tr, sim, sim);
+            const separationM = fallback ? haversineKm(fallback, officialPos) * 1000 : null;
+            officialEndpointGateWitness = { supported: true, line: ln.id,
+              separationM: round(separationM), pickedOfficial: !!(picked && picked.anchored &&
+                picked.anchored.officialEndpoint && picked.pos && haversineKm(picked.pos, officialPos) * 1000 <= .05) };
+          } finally {
+            ln._trtcBoard = savedBoard; ln._trtcTripMode = savedTripMode;
+            state.simSec = savedSim; _mlGate = savedGate; _mlGateAt = savedGateAt;
+          }
+        }
+      }
       return { accuracy: accuracySummary, accuracyLinear: accuracyLinearSummary, accuracyRecords: accuracy.all, accuracyExamples: {
         steady: accuracy.steady.slice().sort((a, b) => b.errorM - a.errorM).slice(0, 20),
         correcting: accuracy.correcting.slice().sort((a, b) => b.errorM - a.errorM).slice(0, 20),
@@ -415,7 +447,7 @@ async function replay(root, label, engineName, port, htmlOverride = null, captur
       pollCorrectionJumps: { meters: distribution(pollCorrectionJumps.map(x => x.meters)),
         largest: pollCorrectionJumps.slice().sort((a, b) => b.meters - a.meters)[0] || null },
       ordering: { comparisons: orderComparisons, violations: orderViolations.slice(0, 100), headwayChecks },
-      rosterFrames, anchorTrace, captureFrames };
+      officialEndpointGateWitness, rosterFrames, anchorTrace, captureFrames };
     }, { payloads, selectedKeys: SELECTED_KEYS, floor: FLOOR, ceil: CEIL, satEps: SAT_EPS,
       correctingEpsSec: CORRECTING_EPS_SEC, captureSpec });
     result.pageErrors = pageErrors;
@@ -432,10 +464,12 @@ const currentHtml = fs.readFileSync(path.join(NEW_ROOT, 'index.html'), 'utf8');
 const firstHtml = execFileSync('git', ['show', `${FIRST_COMMIT}:index.html`], { cwd: NEW_ROOT, encoding: 'utf8', maxBuffer: 8 * 1024 * 1024 });
 const positionOffHtml = currentHtml.replace('function trtcBoardPosition(ln, tr, simSec) {',
   'function trtcBoardPosition(ln, tr, simSec) {\n  return null; // ROUND2_MUTATION: 關掉倒數直算位置，退回 shift 模型');
-const unguardedSnapHtml = currentHtml.replace(
-  'const anchored = anchored0 && fallback && haversineKm(anchored0.pos, fallback) <= .025 ? anchored0 : null;',
-  'const anchored = anchored0 && fallback ? anchored0 : null; // ROUND2_MUTATION: 無視平順接手門檻，倒數位置直接瞬移接管');
-if (positionOffHtml === currentHtml || unguardedSnapHtml === currentHtml) throw new Error('ROUND2_MUTATION 注入失敗，原始碼標記已變更');
+const official25mGateHtml = currentHtml.replace(
+  'const anchored = anchored0 && (anchored0.officialEndpoint ||\n' +
+  '    (fallback && haversineKm(anchored0.pos, fallback) <= .025)) ? anchored0 : null;',
+  'const anchored = anchored0 && fallback && haversineKm(anchored0.pos, fallback) <= .025 ? anchored0 : null; ' +
+  '// ROUND2_MUTATION: 拿掉 officialEndpoint bypass，所有錨點重新受25m gate');
+if (positionOffHtml === currentHtml || official25mGateHtml === currentHtml) throw new Error('ROUND2_MUTATION 注入失敗，原始碼標記已變更');
 
 const output = { corpus: CORPUS, firstCommit: FIRST_COMMIT, truth: {
   description: '每個已配對實體錨點以 arrSec-run 為上站出發、arrSec 為下站到達；主口徑用獨立實作的 3.6/4.3 km/h/s、80km/h 停→停梯形換算沿線里程。只取 observedEpoch 之後且仍在該段內的秒。',
@@ -501,15 +535,19 @@ for (const engine of ENGINES) {
     detail: `comparisons=${records.second.ordering.comparisons}, violations=${records.second.ordering.violations.length}` });
 }
 
-for (const [name, html] of Object.entries({ position_off: positionOffHtml, unguarded_snap: unguardedSnapHtml }))
+for (const [name, html] of Object.entries({ position_off: positionOffHtml, official_25m_gate: official25mGateHtml }))
   output.mutations[name] = await replay(NEW_ROOT, `mutation_${name}`, 'chromium', port++, html);
 const secondC = output.models.second_chromium, firstC = output.models.first_chromium;
 for (const [name, rec] of Object.entries(output.mutations)) {
   const accuracyRed = (rec.accuracy.all.p90 || 0) > (secondC.accuracy.all.p90 || 0) + 50;
   const floorRed = (rec.saturation.floor.durationSec.max || 0) > (secondC.saturation.floor.durationSec.max || 0) + 30;
   const jumpRed = (rec.pollCorrectionJumps.meters.p90 || 0) > (secondC.pollCorrectionJumps.meters.p90 || 0) + 50;
-  output.assertions.push({ pass: accuracyRed || floorRed || jumpRed, expectedFailure: true,
-    label: `語意突變 ${name} 會被倒數直算位置驗收抓紅`, detail: `allP90=${rec.accuracy.all.p90}, second=${secondC.accuracy.all.p90}; floorMax=${rec.saturation.floor.durationSec.max}, second=${secondC.saturation.floor.durationSec.max}; pollJumpP90=${rec.pollCorrectionJumps.meters.p90}, second=${secondC.pollCorrectionJumps.meters.p90}` });
+  const gateRed = name === 'official_25m_gate' &&
+    secondC.officialEndpointGateWitness && secondC.officialEndpointGateWitness.separationM > 25 &&
+    secondC.officialEndpointGateWitness.pickedOfficial && rec.officialEndpointGateWitness &&
+    !rec.officialEndpointGateWitness.pickedOfficial;
+  output.assertions.push({ pass: accuracyRed || floorRed || jumpRed || gateRed, expectedFailure: true,
+    label: `語意突變 ${name} 會被倒數直算位置驗收抓紅`, detail: `allP90=${rec.accuracy.all.p90}, second=${secondC.accuracy.all.p90}; floorMax=${rec.saturation.floor.durationSec.max}, second=${secondC.saturation.floor.durationSec.max}; pollJumpP90=${rec.pollCorrectionJumps.meters.p90}, second=${secondC.pollCorrectionJumps.meters.p90}; endpointGate=${JSON.stringify(rec.officialEndpointGateWitness)}, production=${JSON.stringify(secondC.officialEndpointGateWitness)}` });
 }
 const selectedSpeedMax = rec => Math.max(...Object.values(rec.curves).flatMap(x => x.points.map(p => p.normalizedSpeed).filter(Number.isFinite)));
 output.control = { baselineRedAgainstMotionFix: {

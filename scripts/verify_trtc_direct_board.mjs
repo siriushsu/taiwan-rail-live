@@ -13,7 +13,9 @@ import { chromium, webkit } from 'playwright';
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const INDEX = fs.readFileSync(path.join(ROOT, 'index.html'), 'utf8');
 const WORKER = fs.readFileSync(path.join(ROOT, 'worker.js'), 'utf8');
-const BASE_COMMIT = process.env.TRTC_DIRECT_BASE || '9643da3';
+// f8a79ae 是「官方到站倒數與動畫校正脫鉤」正式基線。本批允許改動畫 motion，
+// 但官方看板核心必須維持這顆的成果；不可再拿 motion 的 byte diff 當退件條件。
+const BASE_COMMIT = process.env.TRTC_DIRECT_BASE || 'f8a79ae';
 const BASE_INDEX = execFileSync('git', ['show', `${BASE_COMMIT}:index.html`], {
   cwd: ROOT, encoding: 'utf8', maxBuffer: 4 * 1024 * 1024,
 });
@@ -68,16 +70,13 @@ function extractConst(source, name) {
   return m[0];
 }
 
-// ── 1. 原始碼結構與不可變動畫名冊 ────────────────────────────────────────
-const frozenFunctions = [
-  'freqTrainTime', 'freqTrainBaseAt', 'freqTrainPosAt', 'metroMotion', 'easedShift',
-  'trtcBoardFraction', 'trtcBoardPosition', 'trtcHeadwayPosition', 'snapshotTrtcHeadways',
-  'clearTrtcBoard', 'applyTrtcBoard', 'metroShiftSec',
-];
+// ── 1. 原始碼結構與凍結邊界 ────────────────────────────────────────────────
+// 名冊／easing 承重牆仍不准動；其餘九個 motion 函式是本批明示可改區，改以語意 gate 驗收。
+const frozenFunctions = ['freqTrainTime', 'metroMotion', 'easedShift'];
 let frozenExact = 0;
 for (const name of frozenFunctions) {
   const current = extractFunction(INDEX, name), before = extractFunction(BASE_INDEX, name);
-  if (check(current === before, `動畫既有函式 byte-exact 未改：${name}`, `${sha(current)} / ${sha(before)}`)) frozenExact++;
+  if (check(current === before, `名冊承重函式對 f8a79ae byte-exact：${name}`, `${sha(current)} / ${sha(before)}`)) frozenExact++;
 }
 result.metrics.frozenFunctionsExact = `${frozenExact}/${frozenFunctions.length}`;
 mutation('動畫名冊函式任何一 byte 改動都會被抓到',
@@ -86,11 +85,43 @@ mutation('動畫名冊函式任何一 byte 改動都會被抓到',
 
 const directFunctionNames = [
   'trtcOfficialStationName', 'trtcOfficialRowFresh', 'trtcOfficialBoardRealNow',
-  'trtcOfficialCountdownText', 'applyTrtcOfficialBoard', 'trtcOfficialStationLines',
-  'trtcOfficialLineCandidates', 'trtcOfficialTripJoin', 'trtcOfficialBoardView',
-  'renderTrtcOfficialFreqBoard', 'refreshTrtcOfficialBoardCountdown',
+  'trtcOfficialCountdownText', 'applyTrtcOfficialBoard', 'clearTrtcOfficialBoard',
+  'trtcOfficialAbsoluteHM', 'trtcOfficialStationLines', 'trtcOfficialLineCandidates',
+  'trtcOfficialScheduledArrival', 'trtcOfficialTripJoin', 'trtcOfficialLegacyGroups',
+  'trtcOfficialBoardView', 'renderTrtcOfficialFreqBoard',
+  'refreshTrtcOfficialBoardCountdown', 'renderFreqBoard',
 ];
 const directSource = directFunctionNames.map(name => extractFunction(INDEX, name)).join('\n');
+const directBaselineSource = directFunctionNames.map(name => extractFunction(BASE_INDEX, name)).join('\n');
+const directConstants = ['TRTC_OFFICIAL_BOARD_MAX_AGE_MS', 'TRTC_OFFICIAL_BOARD_FUTURE_SKEW_MS',
+  'TRTC_OFFICIAL_BOARD_ARRIVING_GRACE_SEC'];
+check(directSource === directBaselineSource && directConstants.every(name => extractConst(INDEX, name) === extractConst(BASE_INDEX, name)),
+  '官方看板核心／renderer 對 f8a79ae byte-exact', `${sha(directSource)} / ${sha(directBaselineSource)}`);
+
+const legalMotionFunctions = ['freqTrainBaseAt', 'freqTrainPosAt', 'trtcBoardFraction', 'trtcBoardPosition',
+  'trtcHeadwayPosition', 'snapshotTrtcHeadways', 'clearTrtcBoard', 'applyTrtcBoard', 'metroShiftSec'];
+const legalMotionSource = legalMotionFunctions.map(name => extractFunction(INDEX, name)).join('\n');
+check(legalMotionFunctions.every(name => extractFunction(INDEX, name) !== extractFunction(BASE_INDEX, name)),
+  '本批九個合法 motion 變更由 semantic gate 接手，不再誤判 byte diff');
+check(!/state\.trtcOfficialBoard|applyTrtcOfficialBoard|clearTrtcOfficialBoard/.test(legalMotionSource),
+  '合法 motion 變更不讀寫官方看板 state／生命週期');
+check(!/(?:\.push|\.splice|\.pop|\.shift|\.unshift)\s*\([^)]*\).*\b_tt\b|\b_tt\s*=/.test(legalMotionSource),
+  '合法 motion 變更不改寫班表名冊 _tt');
+check(!/document\.|renderTrtcOfficialFreqBoard|refreshTrtcOfficialBoardCountdown/.test(legalMotionSource),
+  '合法 motion 變更不碰官方看板 DOM／renderer');
+const headwaySource = extractFunction(INDEX, 'trtcHeadwayPosition');
+check(!/state\.trtcOfficialBoard|applyTrtcOfficialBoard|clearTrtcOfficialBoard|document\.|\b_tt\s*=/.test(headwaySource),
+  'trtcHeadwayPosition 不讀寫 official state／DOM／班表名冊');
+const snapshotSource = extractFunction(INDEX, 'snapshotTrtcHeadways');
+check(!/\b(?:freqTrainPosAt|metroShiftSec|easedShift)\s*\(/.test(snapshotSource),
+  'snapshotTrtcHeadways 仍為只讀，不因驗收讀取推進 motion/eased 狀態');
+const officialPresentationSource = ['trtcOfficialStationName', 'trtcOfficialRowFresh', 'trtcOfficialCountdownText',
+  'applyTrtcOfficialBoard', 'trtcOfficialAbsoluteHM', 'renderTrtcOfficialFreqBoard',
+  'refreshTrtcOfficialBoardCountdown'].map(name => extractFunction(INDEX, name)).join('\n');
+check(!/\b(?:freqTrainBaseAt|freqTrainPosAt|trtcBoardPosition|trtcBoardFraction|trtcHeadwayPosition|snapshotTrtcHeadways|clearTrtcBoard|applyTrtcBoard|metroShiftSec)\s*\(/.test(officialPresentationSource),
+  '官方 row 的 ETA／倒數／renderer 不呼叫本批合法 motion 函式');
+check(/try\s*\{\s*groups\.push\(\.\.\.trtcOfficialLegacyGroups\([\s\S]*?catch\s*\(e\)/.test(extractFunction(INDEX, 'trtcOfficialBoardView')),
+  '缺方向 legacy motion fallback 有例外隔離，失敗不阻斷已建好的官方列');
 check(!/\b(?:easedShift|trtcHeadwayPosition|TRTC_BOARD_MAX_POSITION_ERROR_M)\b/.test(directSource),
   '官方直出函式不依賴 easedShift／站間位置／25m gate');
 check(!/state\.(?:_trtcBoard|_liveShift|_gpsShifts|_tt|bindings)\s*=/.test(directSource),
@@ -401,7 +432,8 @@ mutation('舊 late-skip 會在純 official 開板仍推進 easedShift',
 
 // ── 3. poll 的 board / boardPos 兩條錯誤域獨立 ─────────────────────────────
 const pollContext = { console, AbortController, setTimeout, clearTimeout, document: { hidden: false },
-  __payload: null, __fetchError: null, __calls: {}, __nowSec:43200, __pool:[{isTrtc:true,_tt:[1]}],
+  __payload: null, __fetchError: null, __calls: {}, __nowSec:43200,
+  __pool:[{isTrtc:true,_tt:[1],_ttServiceDay:'2026-08-13',times:{__testTT:[1]}}],
   __state: { simSec: 43200, boardStation: { name: 'X' } } };
 vm.createContext(pollContext);
 vm.runInContext(`
@@ -412,6 +444,17 @@ vm.runInContext(`
   function nowSecOfDay(){ return globalThis.__nowSec; }
   function apiUrl(x){ return x; }
   function hit(k){ globalThis.__calls[k] = (globalThis.__calls[k] || 0) + 1; }
+  ${extractFunction(INDEX, 'trtcServiceDayOfEpoch')}
+  // poll 只需要驗「切日後重算 eligibility」與兩條錯誤域；真正 prepFreqTimes 的日型
+  // 選擇另由 ontime 專測承擔。這個 spy 明確模擬：有 times 的舊日空表可重建，
+  // 沒有 times 的線維持 _tt=null，不能被測試假造出動畫名冊。
+  function trtcPreparePhysicalServiceDay(serviceDay){
+    hit('dayPrepare');
+    for(const ln of metroLivePool()){
+      if(!isTrtcBoardLine(ln)||!ln.times||ln._ttServiceDay===serviceDay) continue;
+      hit('ttRebuild'); ln._ttServiceDay=serviceDay; ln._tt=ln.times.__testTT||[];
+    }
+  }
   async function fetch(){ if(globalThis.__fetchError) throw globalThis.__fetchError; return { ok:true, json:async()=>globalThis.__payload }; }
   function applyTrtcOfficialBoard(){ hit('boardApply'); if(globalThis.__calls.throwBoard) throw Error('board'); return globalThis.__calls.boardResult===false?null:{}; }
   function clearTrtcOfficialBoard(){ hit('boardClear'); }
@@ -425,14 +468,16 @@ vm.runInContext(`
 async function pollCase(payload, calls = {}, fetchError = null, opts = {}) {
   pollContext.__payload = payload; pollContext.__calls = { ...calls }; pollContext.__fetchError = fetchError;
   pollContext.__nowSec = opts.nowSec ?? 43200; pollContext.__state.simSec = opts.simSec ?? 43200;
-  pollContext.__pool = opts.pool ?? [{isTrtc:true,_tt:[1]}];
+  pollContext.__pool = opts.pool ?? [{isTrtc:true,_tt:[1],_ttServiceDay:'2026-08-13',times:{__testTT:[1]}}];
   await pollContext.runPoll();
   return { ...pollContext.__calls };
 }
 let calls = await pollCase({ src: 'trtc', board: [freshRow], boardPos: { at: baseEpoch, rows: 'bad' } });
 check(calls.boardApply === 1 && calls.render === 1 && calls.posClear === 1 && !calls.boardClear, 'valid board 會重畫；boardPos 壞掉不清官方直出 board');
-calls = await pollCase({ src: 'trtc', board: 'bad', boardPos: { at: baseEpoch, rows: [] } });
-check(!calls.boardApply && !calls.boardClear && calls.posApply === 1, 'board 壞掉保留到逐列過期且不妨礙 boardPos');
+calls = await pollCase({ src: 'trtc', board: 'bad', boardPos: { at: baseEpoch, rows: [] } }, {}, null,
+  {pool:[{isTrtc:true,_tt:null,_ttServiceDay:'2026-08-12',times:{__testTT:[1]}}]});
+check(!calls.boardApply && !calls.boardClear && calls.dayPrepare === 1 && calls.ttRebuild === 1 && calls.posApply === 1,
+  'board 壞掉保留到逐列過期且不妨礙 boardPos');
 calls = await pollCase({ src: 'trtc', board: [freshRow], boardPos: { at: baseEpoch, rows: [] } }, { throwBoard: 1 });
 check(calls.posApply === 1, 'board apply 丟例外仍會執行 boardPos');
 calls = await pollCase({ src: 'trtc', board: [freshRow], boardPos: { at: baseEpoch, rows: [] } }, { throwPos: 1 });
@@ -455,8 +500,8 @@ check(calls.boardApply === 1 && !calls.posApply && !calls.posClear,
   '跨午夜只解鎖 official fetch；動畫 rawWallDelta gate 完全不動');
 mutation('跨午夜若順便套 boardPos 會被抓到', calls.boardApply === 1 && !calls.posApply, false);
 calls = await pollCase({src:'trtc',board:[freshRow],boardPos:{at:baseEpoch,rows:[]}}, {}, null,
-  {pool:[{isTrtc:true,_tt:null}]});
-check(calls.boardApply === 1 && !calls.posApply && !calls.posClear,
+  {pool:[{isTrtc:true,_tt:null,_ttServiceDay:'2026-08-12',times:null}]});
+check(calls.boardApply === 1 && calls.dayPrepare === 1 && !calls.ttRebuild && !calls.posApply && !calls.posClear,
   'TRTC 線尚無 _tt 仍可抓 official；動畫不套也不清');
 mutation('無 _tt 若仍觸碰動畫校正會被抓到', calls.boardApply === 1 && !calls.posApply && !calls.posClear, false);
 

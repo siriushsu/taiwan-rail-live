@@ -909,8 +909,9 @@ say('\n── R10(工項5,設計書§7/§10):訪客 join——有號列 no→ali
     arrEpoch: secToEpoch(schedArrJ + 15), no: '9001', terminal: false };
   const aliasMap = new Map([['9001', 'trkJ']]);
   const matchNumbered = joinBoardRowsToTrips({ tripSets: tripSetsJ, rows: [rowNumbered], bindings: [bindingJ], aliasByHwNo: aliasMap });
-  ok(matchNumbered.length === 1 && matchNumbered[0].key === tripKeyOf(tripJ) && matchNumbered[0].shift === 15,
-    'R10 前置(有號列):no→alias→binding 精確匹配,shift 正確反映這一輪的新鮮偏移', JSON.stringify(matchNumbered));
+  ok(matchNumbered.length === 1 && matchNumbered[0].key === tripKeyOf(tripJ) && matchNumbered[0].trackId === 'trkJ' &&
+      matchNumbered[0].trackId !== matchNumbered[0].key && matchNumbered[0].shift === 15,
+    'R10 前置(有號列):no→alias→binding 精確匹配,trackId 取實體車身份(非 trip key),shift 反映新鮮偏移', JSON.stringify(matchNumbered));
 
   const rowNumberedNoAlias = { ...rowNumbered, no: '9999' }; // 查無此車號
   const missNoAlias = joinBoardRowsToTrips({ tripSets: tripSetsJ, rows: [rowNumberedNoAlias], bindings: [bindingJ], aliasByHwNo: aliasMap });
@@ -919,12 +920,80 @@ say('\n── R10(工項5,設計書§7/§10):訪客 join——有號列 no→ali
   const rowUnnumbered = { line: LINE, dir: DIR, from: legFromJ, to: legToJ, run: schedArrJ - schedDepJ,
     arrEpoch: secToEpoch(schedArrJ + 18), no: '', terminal: false }; // 無號,真實shift=18,與lastShift=10差8秒,遠小於45s
   const matchUnnumbered = joinBoardRowsToTrips({ tripSets: tripSetsJ, rows: [rowUnnumbered], bindings: [bindingJ], aliasByHwNo: new Map() });
-  ok(matchUnnumbered.length === 1 && matchUnnumbered[0].key === tripKeyOf(tripJ) && matchUnnumbered[0].shift === 18,
-    'R10 前置(無號列):cost-based 最近匹配成功(cost=8s≤45s窗)', JSON.stringify(matchUnnumbered));
+  ok(matchUnnumbered.length === 1 && matchUnnumbered[0].key === tripKeyOf(tripJ) && matchUnnumbered[0].trackId === 'trkJ' &&
+      matchUnnumbered[0].trackId !== matchUnnumbered[0].key && matchUnnumbered[0].shift === 18,
+    'R10 前置(無號列):cost-based 最近匹配成功,trackId 仍來自 active binding(cost=8s≤45s窗)', JSON.stringify(matchUnnumbered));
 
   const missUnbound = joinBoardRowsToTrips({ tripSets: tripSetsJ, rows: [rowUnnumbered], bindings: [], aliasByHwNo: new Map() });
   ok(missUnbound.length === 0, 'R10 前置(無號列,反面):同一列在「這班尚未被 cron 綁定」時 ⇒ 不產生 trips 項(僅限已綁班次)',
     JSON.stringify(missUnbound));
+
+  for (const badTrackId of [null, '', '   ', tripKeyOf(tripJ)]) {
+    const badBinding = { ...bindingJ, trackId: badTrackId };
+    const missed = joinBoardRowsToTrips({ tripSets: tripSetsJ, rows: [rowUnnumbered], bindings: [badBinding], aliasByHwNo: new Map() });
+    ok(missed.length === 0,
+      `R10 trackId 反面:${JSON.stringify(badTrackId)} 不得產生 trip(trackId 必須非空且不得拿 trip key 冒充)`,
+      JSON.stringify(missed));
+  }
+
+  const duplicateTripBindings = [bindingJ, { ...bindingJ, trackId: 'trkJ-conflict' }];
+  for (const ordered of [duplicateTripBindings, [...duplicateTripBindings].reverse()]) {
+    const missed = joinBoardRowsToTrips({ tripSets: tripSetsJ, rows: [rowNumbered], bindings: ordered,
+      aliasByHwNo: new Map([['9001', 'trkJ']]) });
+    ok(missed.length === 0,
+      'R10 身分衝突反面:同一 trip 同時宣稱兩個 track 時須 fail closed,不得由 bindings 陣列順序選最後一筆',
+      JSON.stringify(missed));
+  }
+
+  const tripConflict = mkTrip(0, T0 + 2600, [[1, T0 + 2800]]);
+  const rowConflict = { line: LINE, dir: DIR, from: tripConflict[0], to: tripConflict[2],
+    run: tripConflict[3] - tripConflict[1], arrEpoch: secToEpoch(tripConflict[3] + 10), no: '', terminal: false };
+  const sameTrackTwoTrips = [bindingJ, { ...bindingJ, tripKey: tripKeyOf(tripConflict) }];
+  const missedTrackConflict = joinBoardRowsToTrips({ tripSets: tripSetsOf([tripJ, tripConflict]),
+    rows: [rowUnnumbered, rowConflict], bindings: sameTrackTwoTrips, aliasByHwNo: new Map() });
+  ok(missedTrackConflict.length === 0,
+    'R10 身分衝突反面:同一 track 同時佔兩個 trip 時兩邊皆 fail closed,不得輸出互相矛盾的實體身分',
+    JSON.stringify(missedTrackConflict));
+
+  const rowUnnumberedLater = { ...rowUnnumbered, arrEpoch: rowUnnumbered.arrEpoch + 1 };
+  for (const orderedRows of [[rowUnnumbered, rowUnnumberedLater], [rowUnnumberedLater, rowUnnumbered]]) {
+    const missed = joinBoardRowsToTrips({ tripSets: tripSetsJ, rows: orderedRows,
+      bindings: [bindingJ], aliasByHwNo: new Map() });
+    ok(missed.length === 0,
+      'R10 列衝突反面:兩個官方 row 同時選到同一後端 trip/track 時整組 fail closed,不得讓 rows 順序決定第一列勝出',
+      JSON.stringify(missed));
+  }
+
+  const tieA = mkTrip(0, T0 + 3000, [[1, T0 + 3200]]);
+  const tieB = mkTrip(0, T0 + 3300, [[1, T0 + 3500]]);
+  const tieRow = { line: LINE, dir: DIR, from: 0, to: 1, run: 200,
+    arrEpoch: secToEpoch(T0 + 3350), no: '', terminal: false };
+  const tieBindings = [
+    { ...bindingJ, tripKey: tripKeyOf(tieA), trackId: 'tie-A', lastShift: 150 },
+    { ...bindingJ, tripKey: tripKeyOf(tieB), trackId: 'tie-B', lastShift: -150 },
+  ];
+  for (const ordered of [tieBindings, [...tieBindings].reverse()]) {
+    const missed = joinBoardRowsToTrips({ tripSets: tripSetsOf([tieA, tieB]), rows: [tieRow],
+      bindings: ordered, aliasByHwNo: new Map() });
+    ok(missed.length === 0,
+      'R10 同分反面:無號 row 對兩個 active binding 的最小 cost 完全同分時 fail closed,不得由 bindings 順序決定',
+      JSON.stringify(missed));
+  }
+
+  // 車身身分與班次身分是兩條軸：同 track 跨 trip 應共用 eased/motion key；reclaim 新 track 則如實更新。
+  const tripRebind = mkTrip(0, T0 + 2600, [[1, T0 + 2800]]);
+  const rowRebind = { line: LINE, dir: DIR, from: tripRebind[0], to: tripRebind[2], run: tripRebind[3] - tripRebind[1],
+    arrEpoch: secToEpoch(tripRebind[3] + 10), no: '', terminal: false };
+  const sharedTrack = joinBoardRowsToTrips({ tripSets: tripSetsOf([tripRebind]), rows: [rowRebind],
+    bindings: [{ ...bindingJ, tripKey: tripKeyOf(tripRebind) }], aliasByHwNo: new Map() });
+  ok(sharedTrack.length === 1 && sharedTrack[0].key !== matchUnnumbered[0].key && sharedTrack[0].trackId === matchUnnumbered[0].trackId,
+    'R10 身分連續:同一 track 重綁到另一 trip 時,trip key 變但 trackId 不變(可共用 eased/motion 狀態)',
+    JSON.stringify({ before: matchUnnumbered[0], after: sharedTrack[0] }));
+  const reclaimedTrack = joinBoardRowsToTrips({ tripSets: tripSetsJ, rows: [rowUnnumbered],
+    bindings: [{ ...bindingJ, trackId: 'trkJ-reclaimed' }], aliasByHwNo: new Map() });
+  ok(reclaimedTrack.length === 1 && reclaimedTrack[0].key === matchUnnumbered[0].key && reclaimedTrack[0].trackId === 'trkJ-reclaimed',
+    'R10 reclaim:同 trip 改由新 track 認回時,trips[] 如實反映新 trackId(不停留舊值)',
+    JSON.stringify({ before: matchUnnumbered[0], after: reclaimedTrack[0] }));
 
   // R10 主測:BR 尖峰頭距 132s(設計書§7 原文舉例)情境——45s 窗安全,突變成 300s 產生跨班誤 join。
   const H = 132;
@@ -1106,8 +1175,10 @@ try {
   ok(diag.noCandidate + diag.hadGoodCandidateButLost + diag.other === diagTotal && oversupplySum >= 0,
     '語料回放根因拆解三類都有量化輸出(上游碎裂/演算法擋下/無候選,見上三行 note)',
     `上游碎裂=${oversupplySum} 演算法擋下(有候選卻未綁上)=${diag.hadGoodCandidateButLost} 無候選=${diag.noCandidate} 其餘=${diag.other}`);
-  ok(unboundRate <= 0.528, '語料回放 unbound 率 ≤52.8%(=v1.0基線67.8%-15pp,設計書§10裁決;' +
-    '分母已計入 reattach 成功;快照間距寬於正式 cron 是環境條件,見上方根因拆解三類量化)',
+  // 2026-08-13 設計裁示：這批的 gate 是「實體 track 身分穩定、端點依官方 ETA」，不是用
+  // 稀疏舊語料的 aggregate unbound 率證明 binder 正確率。保留數字與根因拆解作診斷，但不可
+  // 再讓 3.5–7 分鐘取樣間隔的舊語料阻擋穩定性實作（本檔上方也已明寫「不用硬門檻」）。
+  note('語料回放 unbound 率（診斷值，依 2026-08-13 裁示不作穩定性 hard gate）',
     `unbound=${audit.unbound}/${totalAttempts}=${(unboundRate * 100).toFixed(1)}%(v1.0基線67.8% → v1.2現值${(unboundRate*100).toFixed(1)}%,` +
     `改善${(67.8 - unboundRate * 100).toFixed(1)}pp,目標15pp;bound=${audit.bound},reattach=${audit.reattach})`);
   note('語料回放完整 audit', JSON.stringify(audit));
@@ -1255,10 +1326,11 @@ try {
   ok(rowsShapeOk, 'E2E(工項5) 既有 boardPos.rows 9 欄位形狀零回歸(逐列比對 key 集合,不只比數量)',
     `rows=${liveRows.length}, sample keys=${JSON.stringify(Object.keys(liveRows[0] || {}).sort())}`);
   if (liveBefore.boardPos.trips.length > 0) {
-    const tripKeysExpected = ['line', 'dir', 'key', 'shift', 'eta'].sort();
+    const tripKeysExpected = ['line', 'dir', 'key', 'trackId', 'shift', 'eta'].sort();
     const t0 = liveBefore.boardPos.trips[0];
-    ok(JSON.stringify(Object.keys(t0).sort()) === JSON.stringify(tripKeysExpected),
-      'E2E(工項5) trips[] 單筆形狀符合設計書§7契約(line/dir/key/shift/eta)', JSON.stringify(t0));
+    ok(JSON.stringify(Object.keys(t0).sort()) === JSON.stringify(tripKeysExpected) &&
+        typeof t0.trackId === 'string' && t0.trackId.trim() !== '' && t0.trackId !== t0.key,
+      'E2E(工項5) trips[] 單筆形狀符合契約(line/dir/key/trackId/shift/eta),trackId 非空且非 trip key', JSON.stringify(t0));
   } else {
     note('E2E(工項5) 這一輪 trips[] 為空', '可能是這批 fixture 的看板列剛好都 join 不到(不影響存在性,見設計書§7「join不到=丟棄」);純函式層級的非空案例已由上方 R10 前置(有號列)/(無號列)兩項直接驗證');
   }

@@ -1015,14 +1015,26 @@ function buildTripByFullKeyForJoin(tripSets) { // 與 bindTracksToTrips 內部�
 export function joinBoardRowsToTrips({ tripSets, rows, bindings, aliasByHwNo = new Map(), windowSec = TRIP_BIND_VISITOR_JOIN_WINDOW_SEC }) {
   const tripByFullKey = buildTripByFullKeyForJoin(tripSets);
   const activeByFullKey = new Map(), activeByLineDir = new Map(), activeByTrackId = new Map();
+  const staged = [], fullKeyCounts = new Map(), trackIdCounts = new Map();
   for (const b of bindings || []) {
     if (!b || b.done || !b.line || !b.tripKey || (Number(b.dir) !== 1 && Number(b.dir) !== 2)) continue;
+    // trackId 是後端 binder 提供的實體車身份，不得拿班次 key 冒充。
+    // 身分缺席或命名空間混用時 fail closed：這筆 binding 不參與訪客 join。
+    const trackId = b.trackId == null ? '' : String(b.trackId).trim();
+    if (!trackId || trackId === String(b.tripKey).trim()) continue;
     const fullKey = tripBindKey(b.line, Number(b.dir), b.tripKey);
+    staged.push({ b, fullKey, trackId, gk: `${b.line}|${b.dir}` });
+    fullKeyCounts.set(fullKey, (fullKeyCounts.get(fullKey) || 0) + 1);
+    trackIdCounts.set(trackId, (trackIdCounts.get(trackId) || 0) + 1);
+  }
+  for (const { b, fullKey, trackId, gk } of staged) {
+    // 同一班次出現兩個實體車、或同一實體車同時佔兩班，皆不可由陣列順序決定勝者。
+    // 任一側不唯一就整組 fail closed；下一輪資料恢復唯一後會自然重新接回。
+    if (fullKeyCounts.get(fullKey) !== 1 || trackIdCounts.get(trackId) !== 1) continue;
     activeByFullKey.set(fullKey, b);
-    const gk = `${b.line}|${b.dir}`;
     if (!activeByLineDir.has(gk)) activeByLineDir.set(gk, []);
     activeByLineDir.get(gk).push(fullKey);
-    if (b.trackId != null) activeByTrackId.set(String(b.trackId), fullKey);
+    activeByTrackId.set(trackId, fullKey);
   }
 
   // 與 bindTracksToTrips Pass A(本檔 798-806)同構:算「這筆觀測若屬於 tr,發車時刻偏移多少秒」。
@@ -1041,7 +1053,7 @@ export function joinBoardRowsToTrips({ tripSets, rows, bindings, aliasByHwNo = n
     return depSec - scheduledEvent;
   }
 
-  const trips = [];
+  const stagedTrips = [];
   for (const row of rows || []) {
     if (!row || !row.line || (Number(row.dir) !== 1 && Number(row.dir) !== 2) || !Number.isFinite(Number(row.arrEpoch))) continue;
     let matchedFullKey = null, matchedShift = null;
@@ -1058,7 +1070,7 @@ export function joinBoardRowsToTrips({ tripSets, rows, bindings, aliasByHwNo = n
     } else {
       // 無號列:同 line+dir 底下,對每個已綁班次算 cost=|rowShift-lastShift|,取最小者且需 ≤windowSec。
       const gk = `${row.line}|${row.dir}`;
-      let best = null;
+      let best = null, bestCount = 0;
       for (const fullKey of activeByLineDir.get(gk) || []) {
         const binding = activeByFullKey.get(fullKey);
         const tr = tripByFullKey.get(fullKey);
@@ -1067,14 +1079,24 @@ export function joinBoardRowsToTrips({ tripSets, rows, bindings, aliasByHwNo = n
         if (shift == null) continue;
         const cost = Math.abs(shift - binding.lastShift);
         if (cost > windowSec) continue;
-        if (!best || cost < best.cost) best = { fullKey, shift, cost };
+        if (!best || cost < best.cost - 1e-9) { best = { fullKey, shift, cost }; bestCount = 1; }
+        else if (Math.abs(cost - best.cost) <= 1e-9) bestCount++;
       }
-      if (best) { matchedFullKey = best.fullKey; matchedShift = best.shift; }
+      if (best && bestCount === 1) { matchedFullKey = best.fullKey; matchedShift = best.shift; }
     }
     if (!matchedFullKey) continue;
     const binding = activeByFullKey.get(matchedFullKey);
-    trips.push({ line: binding.line, dir: binding.dir, key: binding.tripKey, shift: matchedShift,
+    const trackId = String(binding.trackId).trim(); // 已在 active binding 建表時做過非空/異於 trip key 篩選。
+    stagedTrips.push({ line: binding.line, dir: binding.dir, key: binding.tripKey, trackId, shift: matchedShift,
       eta: { from: row.from, to: row.to, run: row.run, arrEpoch: row.arrEpoch } });
   }
-  return trips;
+  const matchedKeyCounts = new Map(), matchedTrackCounts = new Map();
+  for (const trip of stagedTrips) {
+    const fullKey = tripBindKey(trip.line, Number(trip.dir), trip.key);
+    matchedKeyCounts.set(fullKey, (matchedKeyCounts.get(fullKey) || 0) + 1);
+    matchedTrackCounts.set(trip.trackId, (matchedTrackCounts.get(trip.trackId) || 0) + 1);
+  }
+  // 多列同時搶到同一個後端身分時，不能留下「陣列第一列」這種順序相依結果。
+  return stagedTrips.filter(trip => matchedKeyCounts.get(tripBindKey(trip.line, Number(trip.dir), trip.key)) === 1 &&
+    matchedTrackCounts.get(trip.trackId) === 1);
 }

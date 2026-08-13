@@ -4400,13 +4400,14 @@ const TW_DAYTYPE = {
   '2027-04-06': 1, '2027-04-30': 1, '2027-05-01': 1, '2027-06-09': 1, '2027-09-15': 1, '2027-09-28': 1,
   '2027-10-10': 1, '2027-10-11': 1, '2027-10-25': 1, '2027-12-24': 1, '2027-12-25': 1, '2027-12-31': 1,
 };
-function prepFreqTimes(ln) {
+function prepFreqTimes(ln, serviceDayOverride) {
   ln._tt = null;
   ln._metroRateCap = ln._metroMotion = null; // 追趕倍率是對這一天的 _tt 取最大值，換日型要重算
+  const serviceDay = String(serviceDayOverride || taipeiServiceDayStr());
+  ln._ttServiceDay = serviceDay;
   if (!ln.times) return;
   const t = ln.times;
   let day;
-  const serviceDay = taipeiServiceDayStr();
   const dt = TW_DAYTYPE[serviceDay];
   if (dt === 1) day = t.holiday || (t.days && t.days[0]);
   else if (dt === 2) day = t.days && t.days[1];
@@ -4462,9 +4463,11 @@ function freqTrainBaseAt(ln, tr, t, rosterTime) {
   const sh = metroShiftSec(ln, tr);
   const shifted = Math.max(tr[1], Math.min(tr[tr.length - 1], rosterTime - sh));
   const fallback = freqTrainPosRaw(ln, tr, shifted), anchored0 = trtcBoardPosition(ln, tr, t);
-  // 倒數若與目前平順位置差太遠，代表是稀疏／過站／錯配資料；不能為了追準度把車瞬移。
-  // 25m 內才接手（z16 約十餘 px 以下），否則讓既有 0.25×–2× 模型繼續靠近並於後續畫格再判斷。
-  const anchored = anchored0 && fallback && haversineKm(anchored0.pos, fallback) <= .025 ? anchored0 : null;
+  // Backend trip 錨點已在 snapshot 換入時從「上一畫格實際位置」建成連續軌跡，不能再拿它與
+  // 班表位置做 25m gate：誤點越大，兩者本來就越遠；舊 gate 會恰好在最需要官方資料時丟掉它。
+  // Legacy fallback（boardPos.trips 缺席）仍保留原 25m 防錯配閘門。
+  const anchored = anchored0 && (anchored0.officialEndpoint ||
+    (fallback && haversineKm(anchored0.pos, fallback) <= .025)) ? anchored0 : null;
   return { pos: anchored ? anchored.pos : fallback, anchored, tm: shifted, sh };
 }
 function freqTrainPosAt(ln, tr, t) {
@@ -4472,10 +4475,24 @@ function freqTrainPosAt(ln, tr, t) {
   // 不能因為誤點就讓車提前出生、晚點消失或在起點前被 freqTrainPosRaw 濾掉。
   const rosterTime = freqTrainTime(tr, t);
   if (rosterTime == null) return null;
+  // 同一畫格會被畫車、跟隨相機與方向箭頭重複查詢。headway 是遞迴的 lead chain，
+  // 若每次都重算會在尖峰名冊變 O(n²)。每份 board 對同一 simSec 的最終位置只算一次；
+  // cache 保留 current / t-8 等最近四個時刻，新 snapshot 換 board 物件時自然整包作廢。
+  const cached = trtcHeadwayMemoRead(ln && ln._trtcBoard, tr, t, metroLiveOn(ln));
+  if (cached.hit) {
+    if (Math.abs(Number(t) - Number(state.simSec)) < 1e-6) trtcRememberRenderedPosition(ln, tr, t, cached.pos);
+    return cached.pos;
+  }
   // 北捷有逐班實體錨點時直接吃「這一站到下一站」的位置，不先換算成整班 shift 再追。
   // 名冊 gate 已在上面通過；錨點只決定名冊內這班此刻畫在哪，不會建車或延長生命。
   const base = freqTrainBaseAt(ln, tr, t, rosterTime);
-  return trtcHeadwayPosition(ln, tr, t, base.pos);
+  // 官方端點仍須過同一個一維順序 gate；官方↔官方只守「不交換」(零額外視覺間距)，
+  // 所以正常 deadline 不會被推離站點，只有互相矛盾、真的會超車的兩筆才標成不可達。
+  const pos = trtcHeadwayPosition(ln, tr, t, base.pos);
+  // 方向箭頭會緊接著查 t-8 秒切線；歷史／預測查詢不能覆寫「本畫格真的畫在哪裡」。
+  // 只記 state.simSec 的 current-frame 查詢，下一輪 snapshot 才不會從八秒前倒退接手。
+  if (Math.abs(Number(t) - Number(state.simSec)) < 1e-6) trtcRememberRenderedPosition(ln, tr, t, pos);
+  return pos;
 }
 // 站間梯形 profile 的唯一取用入口（依線物件快取，避免每幀每車重解方程；
 // 不可行的極短段記 null 並維持原本等速安全回退）。速度上界也吃這一份，兩邊不會各自算出不同的段。
@@ -15387,37 +15404,282 @@ function freqTripKey(ln, tr) { // 線物件 rebuild 後仍穩定;同線同秒起
 }
 const TRTC_BOARD_PERF = { a: 3.6, b: 4.3, v: 80 }; // km/h/s、km/h：各捷運站間共用的簡單停→停梯形
 const TRTC_BOARD_MIN_GAP_KM = .02; // 防穿越用的視覺下限；若原本更近就沿用原距離，不把車憑空拉開
+// 後端 binder 的 trackId 是「實體車」身分，trip key 則只是這台車目前佔用的班表班次。
+// 兩份表刻意放在 line 物件外：切換分頁／全台同框會重建 line 物件，實體身分與畫面連續性不能跟著消失。
+const _trtcPhysicalByTrip = new Map(); // freqTripKey → serviceDay|trackId
+const _trtcTripByPhysical = new Map(); // serviceDay|trackId → 目前唯一佔用的 freqTripKey
+const _trtcEndpointByTrack = new Map(); // serviceDay|trackId → 最近一段官方端點 motion
+const _trtcLastRendered = new Map(); // serviceDay|trackId(或 trip fallback) → 最後真的畫出的座標
+let _trtcPhysicalServiceDay = null;
+function trtcLocalTripKey(tr) {
+  return tr[0] + '@' + tr[1] + '>' + tr[tr.length - 2] + '@' + tr[tr.length - 1];
+}
+function trtcMotionTrackKey(ln, tr) {
+  return _trtcPhysicalByTrip.get(freqTripKey(ln, tr)) || null;
+}
+function trtcRenderedMotionKey(ln, tr) {
+  return trtcMotionTrackKey(ln, tr) || ('trip|' + freqTripKey(ln, tr));
+}
+function trtcEasedMotionKey(ln, tr, physicalKey) {
+  const dch = physicalKey ? 'track:' + physicalKey : 'trip:' + freqTripKey(ln, tr);
+  return freqSysIdOf(ln) + ':' + ln.id + ':' + dch;
+}
+function trtcBindPhysicalIdentity(ln, tr, serviceDay, trackId) {
+  const clean = String(trackId == null ? '' : trackId).trim();
+  if (!clean) return null;
+  const tripKey = freqTripKey(ln, tr), physicalKey = serviceDay + '|' + clean;
+  const previous = _trtcPhysicalByTrip.get(tripKey) || null;
+  const newEasedKey = trtcEasedMotionKey(ln, tr, physicalKey);
+  const oldEasedKey = trtcEasedMotionKey(ln, tr, previous);
+  if (!_easedShift.has(newEasedKey)) {
+    const legacyEasedKey = trtcEasedMotionKey(ln, tr, null);
+    const prior = _easedShift.get(oldEasedKey) || _easedShift.get(legacyEasedKey);
+    if (prior) _easedShift.set(newEasedKey, { ...prior }); // reclaim／初次切 track key 都從當前值接續，不從0重爬
+  }
+  const legacyRenderedKey = previous || ('trip|' + tripKey);
+  if (!_trtcLastRendered.has(physicalKey) && _trtcLastRendered.has(legacyRenderedKey))
+    _trtcLastRendered.set(physicalKey, _trtcLastRendered.get(legacyRenderedKey));
+  const formerTrip = _trtcTripByPhysical.get(physicalKey);
+  if (formerTrip && formerTrip !== tripKey && _trtcPhysicalByTrip.get(formerTrip) === physicalKey)
+    _trtcPhysicalByTrip.delete(formerTrip);
+  if (previous && previous !== physicalKey && _trtcTripByPhysical.get(previous) === tripKey) {
+    _trtcTripByPhysical.delete(previous);
+    _trtcEndpointByTrack.delete(previous);
+    _trtcLastRendered.delete(previous);
+    _easedShift.delete(oldEasedKey);
+  }
+  _trtcPhysicalByTrip.set(tripKey, physicalKey);
+  _trtcTripByPhysical.set(physicalKey, tripKey);
+  return physicalKey;
+}
+function trtcMotionServiceSec(simSec, arrSec) {
+  let sec = Number(simSec);
+  if (!Number.isFinite(sec) || !Number.isFinite(Number(arrSec))) return null;
+  while (sec - arrSec > 43200) sec -= 86400;
+  while (arrSec - sec > 43200) sec += 86400;
+  return sec;
+}
+function trtcProjectShapeRange(ln, lat, lon, loD, hiD) {
+  if (!ln || !ln.hasShape || !Number.isFinite(lat) || !Number.isFinite(lon)) return null;
+  ensureCum(ln);
+  const lo = Math.max(0, Math.min(loD, hiD)), hi = Math.min(ln.cum[ln.cum.length - 1], Math.max(loD, hiD));
+  if (!(hi >= lo)) return null;
+  const kx = Math.cos(lat * Math.PI / 180) * 111.32, ky = 111.32;
+  let bestD = null, bestKm = Infinity;
+  for (let i = 0; i < ln.shape.length - 1; i++) {
+    const ca = ln.cum[i], cb = ln.cum[i + 1];
+    if (cb < lo || ca > hi || !(cb > ca)) continue;
+    const da = Math.max(ca, lo), db = Math.min(cb, hi);
+    const fa = (da - ca) / (cb - ca), fb = (db - ca) / (cb - ca);
+    const p0 = ln.shape[i], p1 = ln.shape[i + 1];
+    const alat = p0[0] + (p1[0] - p0[0]) * fa, alon = p0[1] + (p1[1] - p0[1]) * fa;
+    const blat = p0[0] + (p1[0] - p0[0]) * fb, blon = p0[1] + (p1[1] - p0[1]) * fb;
+    const ax = (alon - lon) * kx, ay = (alat - lat) * ky;
+    const bx = (blon - lon) * kx, by = (blat - lat) * ky;
+    const vx = bx - ax, vy = by - ay, l2 = vx * vx + vy * vy;
+    const f = l2 > 0 ? Math.max(0, Math.min(1, -(ax * vx + ay * vy) / l2)) : 0;
+    const km = Math.hypot(ax + vx * f, ay + vy * f);
+    if (km < bestKm) { bestKm = km; bestD = da + (db - da) * f; }
+  }
+  return Number.isFinite(bestD) ? { d: bestD, perpKm: bestKm } : null;
+}
+function trtcBuildEndpointMotion(ln, tr, edge, physicalKey, nowSec) {
+  const target = ln.stations[edge.to];
+  if (!target || !(edge.run > 0) || edge.from === edge.to) return null;
+  const sec = trtcMotionServiceSec(nowSec, edge.arrSec);
+  if (sec == null || !(edge.arrSec > sec)) return null; // 到站／過站列只供 shift；不可倒走或瞬移回站
+  // 動畫的軌道座標以 shape 上 station.d 為準；官方的「到站」是到這個軌道端點，而非原始站點
+  // 經緯度（兩者可因各自四捨五入差數公尺）。全程留在同一幾何域，端點也不會最後一格橫跳。
+  const targetD0 = ln.hasShape ? Math.max(0, Math.min(ln.cum[ln.cum.length - 1], target.d)) : null;
+  const targetPos = ln.hasShape ? posAlongShape(ln, targetD0) : { lat: target.lat, lon: target.lon };
+  let startPos = null, inheritedD = null;
+  // 下一份 15 秒 snapshot 必須從「上一畫格真的畫在哪裡」接手。上一個 endpoint 的解析位置
+  // 可能剛被 headway gate 往後限位；若先讀 previousMotion，會把未限位位置帶進新輪而瞬間穿車。
+  const last = _trtcLastRendered.get(physicalKey) || _trtcLastRendered.get('trip|' + freqTripKey(ln, tr));
+  const lastSec = last ? trtcMotionServiceSec(last.simSec, edge.arrSec) : null;
+  // lastRendered 只代表「上一個真正畫出的畫格」。隱藏路線／全台同框 offLine
+  // 可能幾分鐘都沒畫；這時要從前一份 motion 在當下時刻的位置接手，不能每15秒
+  // 又從舊畫格重跑。一秒容差覆蓋省電幀率與 fetch callback 排程，不會把隱藏期間當新鮮。
+  if (last && last.line === ln.id && last.pos && lastSec != null && Math.abs(lastSec - sec) <= 1)
+    startPos = { ...last.pos };
+  const previousMotion = ln._trtcBoard && ln._trtcBoard.positions && ln._trtcBoard.positions.get(tr);
+  if (!startPos && previousMotion && previousMotion.endpoint) {
+    startPos = trtcEndpointPositionValue(ln, previousMotion, sec);
+    const pf = trtcEndpointFraction(previousMotion, sec);
+    inheritedD = previousMotion.startD + (previousMotion.targetD - previousMotion.startD) * pf;
+  }
+  const prior = _trtcEndpointByTrack.get(physicalKey);
+  if (!startPos && prior && prior.line === ln.id) {
+    startPos = trtcEndpointPositionValue(ln, prior, sec);
+    const pf = trtcEndpointFraction(prior, sec);
+    inheritedD = prior.startD + (prior.targetD - prior.startD) * pf;
+  }
+  if (!startPos) {
+    // 初次接線沒有「上一畫格」可接，只能以本來就要畫出的班表＋eased 位置為連續起點；
+    // 不能直接跳到官方段內位置。這只讀 eased 狀態一次，後續每幀沿 endpoint motion 走。
+    const sh = metroShiftSec(ln, tr);
+    const tm = Math.max(tr[1], Math.min(tr[tr.length - 1], sec - sh));
+    startPos = freqTrainPosRaw(ln, tr, tm);
+  }
+  if (!startPos) return null;
+  let startD = Number.isFinite(inheritedD) ? inheritedD : 0;
+  const fromD = ln.hasShape ? Math.max(0, Math.min(ln.cum[ln.cum.length - 1], ln.stations[edge.from].d)) : 0;
+  const expectedDir = ln.hasShape ? Math.sign(targetD0 - fromD) : Math.sign(edge.to - edge.from);
+  if (ln.hasShape) {
+    const span = Math.max(.05, Math.abs(targetD0 - fromD));
+    const projected = Number.isFinite(inheritedD) ? null : trtcProjectShapeRange(ln, startPos.lat, startPos.lon,
+      Math.min(fromD, targetD0) - span, Math.max(fromD, targetD0) + span);
+    if (!Number.isFinite(inheritedD)) {
+      if (!projected || !Number.isFinite(projected.d)) return null;
+      if (projected.perpKm > .002) return { endpoint: false, rejected: 'offShape', clamped: 'offShape', unreachable: true };
+      startD = projected.d;
+    }
+    // 從上一畫格同一條 shape 的投影里程接手；不走兩站經緯度 chord，彎道也不離軌。
+    startPos = posAlongShape(ln, startD);
+  }
+  const targetD = ln.hasShape ? targetD0 : haversineKm(startPos, targetPos);
+  if (!Number.isFinite(startD) || !Number.isFinite(targetD)) return null;
+  const remainingKm = ln.hasShape ? Math.abs(targetD - startD) : haversineKm(startPos, targetPos);
+  const nominalKm = ln.hasShape ? Math.abs(targetD - fromD) : haversineKm(ln.stations[edge.from], targetPos);
+  if (!(remainingKm >= 0) || !(nominalKm > 0) || !expectedDir ||
+      (ln.hasShape && (startD - targetD) * expectedDir > .001))
+    return { endpoint: false, rejected: 'pastTarget', clamped: 'pastTarget', unreachable: true };
+  const remainSec = edge.arrSec - sec;
+  const nominalSpeedKmSec = nominalKm / edge.run;
+  const requiredRate = remainingKm / remainSec / nominalSpeedKmSec;
+  // 2×是追趕倍率的上界，80 km/h 同時是北捷產品線速的視覺上界；取較小者。
+  // 需求速度再高也不偷 snap，而是如實標 high/unreachable 並計入 audit。
+  const visualMaxRate = Math.max(TRTC_MOTION_MIN_RATE, Math.min(TRTC_MOTION_MAX_RATE,
+    (TRTC_BOARD_PERF.v / 3600) / nominalSpeedKmSec));
+  const rate = Math.max(TRTC_MOTION_MIN_RATE, Math.min(visualMaxRate, requiredRate));
+  const clamped = requiredRate < TRTC_MOTION_MIN_RATE ? 'low' : requiredRate > visualMaxRate ? 'high' : null;
+  const speedKmSec = nominalSpeedKmSec * rate;
+  const travelSec = remainingKm > 0 ? remainingKm / speedKmSec : 0;
+  // 夾限就是硬上界：全程直接以0.25×或 min(2×, 80 km/h) 走，不用停等／snap 偷繞。
+  // 因此 low 會提早、high 會遲到，兩者都明確標 unreachable，交由 audit 誠實揭露。
+  const moveSec = sec, endSec = moveSec + travelSec;
+  const rec = { line: ln.id, trackId: physicalKey, endpoint: true, startPos, targetPos, startD, targetD,
+    from: edge.from, to: edge.to, run: edge.run, arrSec: edge.arrSec, startSec: sec, moveSec, endSec,
+    rate, requiredRate, maxRate: visualMaxRate, clamped, unreachable: Math.abs(endSec - edge.arrSec) > 1e-6 };
+  _trtcEndpointByTrack.set(physicalKey, rec);
+  return rec;
+}
+function trtcEndpointFraction(rec, simSec) {
+  const sec = trtcMotionServiceSec(simSec, rec.arrSec);
+  if (sec == null) return 0;
+  if (sec <= rec.moveSec) return 0;
+  if (sec >= rec.endSec) return 1;
+  return Math.max(0, Math.min(1, (sec - rec.moveSec) / (rec.endSec - rec.moveSec)));
+}
+function trtcEndpointPositionValue(ln, rec, simSec) {
+  const f = trtcEndpointFraction(rec, simSec);
+  if (ln.hasShape && Number.isFinite(rec.startD) && Number.isFinite(rec.targetD))
+    return posAlongShape(ln, rec.startD + (rec.targetD - rec.startD) * f);
+  const a = rec.startPos, b = rec.targetPos; if (!a || !b) return null;
+  return { lat: a.lat + (b.lat - a.lat) * f, lon: a.lon + (b.lon - a.lon) * f };
+}
+function trtcRememberRenderedPosition(ln, tr, simSec, pos) {
+  if (!pos || !ln || !tr || !isTrtcBoardLine(ln)) return;
+  _trtcLastRendered.set(trtcRenderedMotionKey(ln, tr), {
+    line: ln.id, simSec: Number(simSec), pos: { lat: Number(pos.lat), lon: Number(pos.lon) },
+  });
+}
 function trtcBoardFraction(rec, simSec) {
+  if (rec && rec.endpoint) return trtcEndpointFraction(rec, simSec);
   const start = rec.arrSec - rec.run, elapsed = Math.max(0, Math.min(rec.run, simSec - start));
   return rec.profile ? profTimeToProg(rec.profile, elapsed) : elapsed / rec.run;
 }
 function trtcBoardPosition(ln, tr, simSec) {
   const board = ln && ln._trtcBoard, rec = board && board.positions && board.positions.get(tr);
   if (!rec || !metroLiveOn(ln) || !(rec.run > 0)) return null;
-  const start = rec.arrSec - rec.run, dwell = Number(ln.stations[rec.to] && ln.stations[rec.to].dwell) || 25;
-  if (simSec < start || simSec > rec.arrSec + dwell) return null;
+  const sec = rec.endpoint ? trtcMotionServiceSec(simSec, rec.arrSec) : simSec;
+  const start = rec.endpoint ? rec.startSec : rec.arrSec - rec.run;
+  const end = rec.endpoint ? (Number.isFinite(rec.releaseSec) ? rec.releaseSec : Math.max(rec.arrSec, rec.endSec)) : rec.arrSec;
+  const dwell = rec.endpoint ? 0 : (Number(ln.stations[rec.to] && ln.stations[rec.to].dwell) || 25);
+  if (sec == null || sec < start || sec > end + dwell) return null;
   const f = trtcBoardFraction(rec, simSec);
-  return { pos: posBetweenStations(ln, rec.from, rec.to, f), from: rec.from, to: rec.to,
-    run: rec.run, arrSec: rec.arrSec, progress: f, moving: f > 0 && f < 1 };
+  return { pos: rec.endpoint ? trtcEndpointPositionValue(ln, rec, simSec) : posBetweenStations(ln, rec.from, rec.to, f),
+    from: rec.from, to: rec.to, run: rec.run, arrSec: rec.arrSec, progress: f,
+    moving: f > 0 && f < 1, officialEndpoint: !!rec.endpoint,
+    clamped: rec.clamped || null, arriveSec: rec.endSec != null ? rec.endSec : rec.arrSec };
+}
+function trtcHeadwayMemoSlot(board, simSec, create = true, liveState = null) {
+  const sec = Number(simSec);
+  if (!board || !Number.isFinite(sec)) return null;
+  // 同一 simSec 在暫停畫面上可能跨過 live freshness 邊界。cache 不能讓已過期的
+  // endpoint 因時鐘沒往前就永久留住；live/stale 狀態切換時整包失效，位置重算。
+  if (liveState != null && board._headwayMemoLive !== !!liveState) {
+    if (!create) return null;
+    board._headwayMemo = new Map();
+    board._headwayMemoLive = !!liveState;
+  }
+  let slots = board._headwayMemo;
+  if (!(slots instanceof Map)) {
+    if (!create) return null;
+    slots = board._headwayMemo = new Map();
+  }
+  let slot = slots.get(sec);
+  if (!slot && create) {
+    slot = { positions: new Map(), resolving: new Set() };
+    slots.set(sec, slot);
+    while (slots.size > 4) slots.delete(slots.keys().next().value);
+  }
+  return slot || null;
+}
+function trtcHeadwayMemoRead(board, tr, simSec, liveState) {
+  const slot = trtcHeadwayMemoSlot(board, simSec, false, liveState);
+  return slot && slot.positions.has(tr) ? { hit: true, pos: slot.positions.get(tr) } : { hit: false, pos: null };
 }
 // 同方向列車各自吃自己的 15 秒倒數，但不能因此改寫兩車原有的前後關係。
 // applyTrtcBoard 會在換入新 snapshot 前記住相鄰車距與前後順序；兩車仍各自照倒數／梯形推進，
 // 車距可自然增減，只有推算結果要穿越時才擋住。約束沿線一維里程，不拿經緯度直線距離猜前後。
-function trtcHeadwayPosition(ln, tr, simSec, pos) {
+function trtcHeadwayPosition(ln, tr, simSec, pos, seen) {
   const board = ln && ln._trtcBoard, link = board && board.headways && board.headways.get(tr);
   const rec = board && board.positions && board.positions.get(tr), leadRec = link && board.positions.get(link.lead);
-  if (!pos || !link || !rec || !leadRec || !ln.hasShape ||
-      rec.from !== leadRec.from || rec.to !== leadRec.to) return pos;
-  const leadBase = freqTrainBaseAt(ln, link.lead, simSec), leadPos = leadBase.pos;
-  if (!leadPos) return pos;
-  const rearD = projectOntoShape(ln, pos.lat, pos.lon).d, leadD = projectOntoShape(ln, leadPos.lat, leadPos.lon).d;
-  const dir = Math.sign(ln.stations[rec.to].d - ln.stations[rec.from].d) || 1;
-  // 原距離只提供初始條件與順序，不是永久固定值；固定舊距離會讓正常跟車變成長時間爬行。
-  // 若原本已近於 20m，維持原距離即可，絕不為了視覺好看把後車往回拉。
-  const wanted = Math.max(.001, Math.min(TRTC_BOARD_MIN_GAP_KM, link.km));
-  if (rearD == null || leadD == null || (leadD - rearD) * dir >= wanted) return pos;
-  const total = ln.cum[ln.cum.length - 1], limitedD = Math.max(0, Math.min(total, leadD - dir * wanted));
-  return posAlongShape(ln, limitedD);
+  const memo = trtcHeadwayMemoSlot(board, simSec, true, metroLiveOn(ln));
+  if (memo && memo.positions.has(tr)) return memo.positions.get(tr);
+  if (!pos || !link || !ln.hasShape) {
+    if (memo) memo.positions.set(tr, pos);
+    return pos;
+  }
+  if (!seen) seen = new Set();
+  if (seen.has(tr) || (memo && memo.resolving.has(tr))) return pos;
+  seen.add(tr);
+  if (memo) memo.resolving.add(tr);
+  let result = pos;
+  try {
+    let leadPos;
+    if (memo && memo.positions.has(link.lead)) leadPos = memo.positions.get(link.lead);
+    else {
+      const leadBase = freqTrainBaseAt(ln, link.lead, simSec);
+      leadPos = trtcHeadwayPosition(ln, link.lead, simSec, leadBase.pos, seen);
+    }
+    if (leadPos) {
+      const rearD = projectOntoShape(ln, pos.lat, pos.lon).d, leadD = projectOntoShape(ln, leadPos.lat, leadPos.lon).d;
+      const dir = rec
+        ? (Math.sign(ln.stations[rec.to].d - ln.stations[rec.from].d) || 1)
+        : (Math.sign(ln.stations[tr[tr.length - 2]].d - ln.stations[tr[0]].d) || 1);
+      // 原距離只提供初始條件與順序，不是永久固定值；固定舊距離會讓正常跟車變成長時間爬行。
+      // 若原本已近於 20m，維持原距離即可，絕不為了視覺好看把後車往回拉。
+      const wanted = rec && rec.endpoint && leadRec && leadRec.endpoint
+        ? 0 : Math.max(.001, Math.min(TRTC_BOARD_MIN_GAP_KM, Math.max(0, link.km)));
+      if (rearD != null && leadD != null && (leadD - rearD) * dir < wanted) {
+        const total = ln.cum[ln.cum.length - 1], limitedD = Math.max(0, Math.min(total, leadD - dir * wanted));
+        if (rec && rec.endpoint && !rec.orderLimited && Math.abs(Number(simSec) - Number(state.simSec)) < 1e-6) {
+          rec.orderLimited = true; rec.unreachable = true;
+          if (state._trtcBoardAudit) state._trtcBoardAudit.runtimeOrderLimited =
+            (state._trtcBoardAudit.runtimeOrderLimited || 0) + 1;
+        }
+        result = posAlongShape(ln, limitedD);
+      }
+    }
+  } finally {
+    if (memo) {
+      memo.resolving.delete(tr);
+      memo.positions.set(tr, result);
+    }
+  }
+  return result;
 }
 
 function snapshotTrtcHeadways(lines, nowSec) {
@@ -15429,10 +15691,15 @@ function snapshotTrtcHeadways(lines, nowSec) {
     // 只讀上一份看板已經存好的絕對站間位置，不重跑 freqTrainPosAt／metroShiftSec；
     // 量車距本身不能反過來推進 eased 狀態，否則驗收器與畫面會因「多讀一次」得到不同答案。
     for (const [tr, rec] of board.positions) {
-      const start = rec.arrSec - rec.run, dwell = Number(ln.stations[rec.to] && ln.stations[rec.to].dwell) || 25;
-      if (nowSec < start || nowSec > rec.arrSec + dwell) continue;
+      const sec = rec.endpoint ? trtcMotionServiceSec(nowSec, rec.arrSec) : nowSec;
+      const start = rec.endpoint ? rec.startSec : rec.arrSec - rec.run;
+      const end = rec.endpoint ? (Number.isFinite(rec.releaseSec) ? rec.releaseSec : rec.endSec) : rec.arrSec;
+      const dwell = rec.endpoint ? 0 : (Number(ln.stations[rec.to] && ln.stations[rec.to].dwell) || 25);
+      if (sec == null || sec < start || sec > end + dwell) continue;
       const f = trtcBoardFraction(rec, nowSec);
-      const d = ln.stations[rec.from].d + (ln.stations[rec.to].d - ln.stations[rec.from].d) * f;
+      const d = rec.endpoint && Number.isFinite(rec.startD) && Number.isFinite(rec.targetD)
+        ? rec.startD + (rec.targetD - rec.startD) * f
+        : ln.stations[rec.from].d + (ln.stations[rec.to].d - ln.stations[rec.from].d) * f;
       const dir = Math.sign(ln.stations[rec.to].d - ln.stations[rec.from].d) || 1;
       // 只有上一畫格真的同在一個站間才算一組；不能把「全線相鄰但隔著車站」的兩班硬綁。
       const groupKey = dir + '|' + rec.from + '>' + rec.to;
@@ -15451,11 +15718,50 @@ function snapshotTrtcHeadways(lines, nowSec) {
   }
   return out;
 }
+function trtcHeadwayLinksForMotions(perLine, simSec) {
+  const out = new Map();
+  for (const [ln, rec] of perLine) {
+    if (!ln.hasShape) { out.set(ln, new Map()); continue; }
+    const groups = new Map();
+    // 防穿越的鄰車母體必須是整份班表名冊，不可只看有官方 endpoint 的子集；否則一台
+    // matched 後車仍可越過一台本輪沒有 row 的正常班表前車。順序用班表此刻的沿線里程，
+    // 間距起點則優先用畫面最後實際位置，兩者各司其職。
+    for (const tr of ln._tt || []) {
+      const rosterTime = freqTrainTime(tr, simSec); if (rosterTime == null) continue;
+      const scheduledPos = freqTrainPosRaw(ln, tr, rosterTime); if (!scheduledPos) continue;
+      const scheduledD = projectOntoShape(ln, scheduledPos.lat, scheduledPos.lon).d;
+      const motion = rec.positions.get(tr), physicalKey = trtcMotionTrackKey(ln, tr);
+      const last = (physicalKey && _trtcLastRendered.get(physicalKey)) ||
+        _trtcLastRendered.get('trip|' + freqTripKey(ln, tr));
+      let actualD = motion && Number.isFinite(motion.startD) ? motion.startD : null;
+      if (last && last.line === ln.id && last.pos) actualD = projectOntoShape(ln, last.pos.lat, last.pos.lon).d;
+      if (!Number.isFinite(actualD)) actualD = scheduledD;
+      const dir = Math.sign(ln.stations[tr[tr.length - 2]].d - ln.stations[tr[0]].d);
+      if (!dir || !Number.isFinite(scheduledD) || !Number.isFinite(actualD)) continue;
+      let a = groups.get(dir); if (!a) groups.set(dir, a = []);
+      a.push({ tr, scheduledD, actualD, dir, endpoint: !!(motion && motion.endpoint) });
+    }
+    const links = new Map();
+    for (const a of groups.values()) {
+      // 一個 endpoint 可能把它後方第一台班表車限位；該車再成為下一台的 lead，整條 roster
+      // chain 都要連著。只在整個方向完全沒有 endpoint 時略過，不能於「兩台都 unmatched」處斷鏈。
+      if (!a.some(x => x.endpoint)) continue;
+      a.sort((x, y) => (y.scheduledD - x.scheduledD) * x.dir || x.tr[1] - y.tr[1]);
+      for (let i = 1; i < a.length; i++) {
+        const km = (a[i - 1].actualD - a[i].actualD) * a[i].dir;
+        links.set(a[i].tr, { lead: a[i - 1].tr, km: Math.max(0, km) });
+      }
+    }
+    out.set(ln, links);
+  }
+  return out;
+}
 function metroShiftSec(ln, tr) { // 正=實際比表定晚跑(誤點);北捷逐班,其他現行資料源維持逐線;經 easedShift 平滑進出
   const s = ln._liveShift, on = metroLiveOn(ln);
   let target = 0, dch; // 方向字元 f/b/a:eased 偏移逐線逐方向共用(非逐車)
   if (tr && ln._trtcTripMode) {
-    dch = 'trip:' + freqTripKey(ln, tr);
+    const physicalKey = trtcMotionTrackKey(ln, tr);
+    dch = physicalKey ? 'track:' + physicalKey : 'trip:' + freqTripKey(ln, tr);
     // 這班有認到就吃自己的錨點,沒認到退回全線中位數(不是 0):同一時刻整條線多半一起誤點,
     // 給 0 等於宣告「這班準點」,會讓沒被看板認到的車與旁邊認到的車對不齊。
     if (ln._trtcBoard && on) { const v = ln._trtcBoard.shifts.get(tr); target = v != null ? v : ln._trtcBoard.all; }
@@ -15520,7 +15826,22 @@ function trtcRosterActive(tr, t) { return freqTrainTime(tr, t) != null; }
 function clearTrtcBoard() {
   for (const ln of metroLivePool()) if (isTrtcBoardLine(ln)) {
     ln._trtcTripMode = true;
-    delete ln._trtcBoard;
+    // feed 整批中斷／短暫 fetch 失敗時，已開始的官方端點軌跡仍跑到該站；不可中途硬切回班表。
+    // 不延長班表名冊，也不投射新的 station；最後一段結束後 trtcBoardPosition 自然失效。
+    const old = ln._trtcBoard, keepPos = new Map(), keepShift = new Map(), keepTracks = new Map();
+    if (old && old.positions) for (const [tr, rec] of old.positions) {
+      if (!rec || !rec.endpoint || !trtcRosterActive(tr, state.simSec)) continue;
+      const sec = trtcMotionServiceSec(state.simSec, rec.arrSec);
+      const releaseSec = Number.isFinite(rec.releaseSec) ? rec.releaseSec : rec.endSec;
+      if (sec == null || sec > releaseSec) continue;
+      keepPos.set(tr, rec);
+      if (old.shifts && old.shifts.has(tr)) keepShift.set(tr, old.shifts.get(tr));
+      if (old.tracks && old.tracks.has(tr)) keepTracks.set(tr, old.tracks.get(tr));
+    }
+    if (keepPos.size) ln._trtcBoard = { shifts: keepShift, positions: keepPos, tracks: keepTracks,
+      headways: old.headways || new Map(), all: old.all || 0, at: Date.now(), n: keepPos.size,
+      rows: 0, backend: true, carry: true };
+    else delete ln._trtcBoard;
     delete ln._liveShift;
   }
 }
@@ -15595,12 +15916,13 @@ function clearTrtcOfficialBoard() {
 // 那個長度的誤報率才 10.4%（9 條線期望 0.9 條開火，實測 0 條完全合理）。
 // 要重做的話門檻必須「看幅度不看名次」（如 median − k×MAD），而 k 要多大得用離峰語料定，
 // 現在沒有那份資料。⇒ 大批停駛改由官方公告（NCDR 天災觸發 + 掃官網）承擔，不自己推定。
-function applyTrtcBoard(rows, observedEpoch) {
+function applyTrtcBoardLegacy(rows, observedEpoch) {
   const nowSec = trtcServiceSec(observedEpoch), serviceDay = trtcServiceDayOfEpoch(observedEpoch);
   if (!Array.isArray(rows) || nowSec == null || !serviceDay) { clearTrtcBoard(); return null; }
   if (_trtcNoTripDay !== serviceDay) { _trtcNoTripDay = serviceDay; _trtcNoTrip.clear(); }
   const mine = metroLivePool().filter(ln => isTrtcBoardLine(ln) && ln._tt && ln._tt.length);
   const byId = new Map(mine.map(ln => [ln.id, ln]));
+  const oldBoards = new Map(mine.map(ln => [ln, ln._trtcBoard]));
   // 換入新 15 秒 snapshot 前，先從上一畫格記住同線同向相鄰車的沿線距離與前後身分。
   // 新倒數仍讓兩車各自推進；只有推算結果要反轉順序時才以這份舊畫面約束後車。
   const previousHeadways = snapshotTrtcHeadways(mine, nowSec);
@@ -15679,7 +16001,7 @@ function applyTrtcBoard(rows, observedEpoch) {
   }
   const final = accepted.filter(e => !rejected.has(e)), perLine = new Map();
   for (const e of final) {
-    let rec = perLine.get(e.ln); if (!rec) perLine.set(e.ln, rec = { shifts: new Map(), positions: new Map(), headways: previousHeadways.get(e.ln) || new Map(), values: [] });
+    let rec = perLine.get(e.ln); if (!rec) perLine.set(e.ln, rec = { shifts: new Map(), positions: new Map(), tracks: new Map(), headways: previousHeadways.get(e.ln) || new Map(), values: [] });
     rec.shifts.set(e.tr, Math.round(e.shift)); rec.values.push(e.shift);
     // 已到站／過站才收到的倒數不能拿來瞬移；只有「現在仍在這個站間」的正倒數可直接定位。
     if (e.run > 0 && e.from !== e.to && e.arrSec > nowSec && e.arrSec - nowSec <= e.run) {
@@ -15690,8 +16012,30 @@ function applyTrtcBoard(rows, observedEpoch) {
     }
     if (e.no) _trtcNoTrip.set(e.ln.id + '|' + e.dir + '|' + e.no, e.tripKey);
   }
-  for (const [ln, rec] of perLine) ln._trtcBoard = { shifts: rec.shifts, positions: rec.positions, headways: rec.headways,
-    all: Math.round(trtcMedian(rec.values) || 0), at: observedEpoch * 1000, n: rec.shifts.size, rows: rows.length };
+  // `trips=[]` 是 binder 暫時缺席，不是把已經開始的官方軌跡攔腰砍掉的授權。legacy 可接手
+  // 其他班次，但舊 endpoint 要跑到 release；同一畫格因此仍從上一個實際位置連續前進。
+  for (const ln of mine) {
+    const old = oldBoards.get(ln); if (!old || !old.positions) continue;
+    for (const [tr, motion] of old.positions) {
+      if (!motion || !motion.endpoint || !trtcRosterActive(tr, state.simSec)) continue;
+      const sec = trtcMotionServiceSec(state.simSec, motion.arrSec);
+      const releaseSec = Number.isFinite(motion.releaseSec) ? motion.releaseSec : motion.endSec;
+      if (sec == null || sec > releaseSec) continue;
+      let rec = perLine.get(ln);
+      if (!rec) perLine.set(ln, rec = { shifts: new Map(), positions: new Map(), tracks: new Map(),
+        headways: old.headways || previousHeadways.get(ln) || new Map(), values: [] });
+      else if (old.headways) rec.headways = old.headways;
+      rec.positions.set(tr, motion);
+      if (old.shifts && old.shifts.has(tr)) {
+        const shift = old.shifts.get(tr); rec.shifts.set(tr, shift); rec.values.push(shift);
+      }
+      const physicalKey = trtcMotionTrackKey(ln, tr);
+      if (physicalKey) rec.tracks.set(tr, physicalKey);
+    }
+  }
+  for (const [ln, rec] of perLine) ln._trtcBoard = { shifts: rec.shifts, positions: rec.positions, tracks: rec.tracks,
+    headways: rec.headways, all: Math.round(trtcMedian(rec.values) || 0), at: observedEpoch * 1000,
+    n: rec.shifts.size, rows: rows.length, carry: [...rec.positions.values()].some(x => x && x.endpoint) };
   // 逐線異常偵測(地震/雷雨/颱風造成的重大調度要看得出來,好去找官方公告)。
   // 對應既有三訊號:acc=逐班校正量樣本、rej=有實體錨點卻接不上任何名冊班次的列(看板與時刻表脫節)、
   // st2=0(TrackInfo 無「交管不停」欄位)。閘門與 TDX 路徑共用,不另立門檻。
@@ -15719,11 +16063,205 @@ function applyTrtcBoard(rows, observedEpoch) {
   return audit;
 }
 
+function trtcBoardTuple(line, dir, eta) {
+  if (!eta || line == null || String(line).trim() === '' || dir == null || String(dir).trim() === '') return null;
+  const raw = [eta.from, eta.to, eta.run, eta.arrEpoch];
+  if (raw.some(v => v == null || String(v).trim() === '')) return null;
+  const d = Number(dir), from = Number(raw[0]), to = Number(raw[1]), run = Number(raw[2]), arrEpoch = Number(raw[3]);
+  if ((d !== 1 && d !== 2) || !Number.isInteger(from) || !Number.isInteger(to) ||
+      !Number.isFinite(run) || run < 0 || !Number.isFinite(arrEpoch)) return null;
+  return String(line) + '|' + d + '|' + from + '|' + to + '|' + run + '|' + arrEpoch;
+}
+function trtcBackendTripForLine(ln, payloadTrip) {
+  const key = String(payloadTrip && payloadTrip.key || '').trim();
+  if (!key || !ln || !ln._tt) return null;
+  const hits = ln._tt.filter(tr => trtcLocalTripKey(tr) === key);
+  if (hits.length !== 1) return null;
+  const tr = hits[0], dir = tr[0] < tr[tr.length - 2] ? 2 : 1;
+  return Number(payloadTrip.dir) === dir ? tr : null;
+}
+function trtcBackendScheduledEvent(tr, eta, terminal) {
+  if (terminal) return tr[0] === eta.from ? tr[1] : null;
+  const k = trtcTripPair(tr, eta.from, eta.to);
+  return k >= 0 && eta.run > 0 ? tr[(k - 1) * 2 + 1] + eta.run : null;
+}
+function trtcBackendRawArrivalSec(ln, tr, eta, terminal) {
+  if (terminal) return tr[0] === eta.from ? tr[1] : null;
+  const k = trtcTripPair(tr, eta.from, eta.to);
+  if (k < 0) return null;
+  const ta = tr[(k - 1) * 2 + 1], tb = tr[k * 2 + 1], span = tb - ta;
+  const run = runBetween(ln, eta.from, eta.to), moveT = run && run < span ? run : span;
+  return moveT > 0 ? ta + moveT : null;
+}
+function trtcPreparePhysicalServiceDay(serviceDay) {
+  if (!serviceDay) return;
+  // App 可能長開跨過 04:00：Worker 已用新營運日選 trips.key，前端也必須在同一輪
+  // 重選平／假日 _tt，否則 backend key 會整天對不上，直到重載頁面才恢復。
+  // state.lines 與 decoLines 是兩套獨立 line 物件，兩邊都要更新；去重只防同物件重複重建。
+  const timetableLines = [], seenLines = new Set();
+  for (const pool of [state.lines, state.decoLines, metroLivePool()]) for (const ln of (pool || [])) {
+    if (seenLines.has(ln)) continue;
+    seenLines.add(ln);
+    if (isTrtcBoardLine(ln) && ln.times && ln._ttServiceDay !== serviceDay) timetableLines.push(ln);
+  }
+  let followedOldTimetable = false;
+  for (const ln of timetableLines) {
+    if (state.freqFollow && state.freqFollow.ln === ln) followedOldTimetable = true;
+    prepFreqTimes(ln, serviceDay);
+    delete ln._evIdx; delete ln._evIdxTT;
+  }
+  if (followedOldTimetable) clearFreqFollow();
+  if (_trtcPhysicalServiceDay === serviceDay) return;
+  const priorDay = _trtcPhysicalServiceDay;
+  if (priorDay) for (const key of [..._easedShift.keys()]) {
+    const value = String(key);
+    // track channel 自帶營運日；legacy trip channel 沒帶日期但北捷班表 key 每日重用，也必須在
+    // 04:00 一起清掉，否則隔日初次 bind 會從昨日 :trip: 值複製舊誤點。只清 mrt 九線。
+    if (value.includes(':track:' + priorDay + '|') ||
+        (value.startsWith('mrt:') && value.includes(':trip:mrt:'))) _easedShift.delete(key);
+  }
+  _trtcPhysicalServiceDay = serviceDay;
+  _trtcPhysicalByTrip.clear(); _trtcTripByPhysical.clear();
+  _trtcEndpointByTrack.clear(); _trtcLastRendered.clear();
+  // ln._trtcBoard 本身也含前一日 endpoint；服務秒每日重用，若只清 maps，隔日同一時刻
+  // legacy carry 可能把昨日 motion 當成今天仍在跑。換營運日必須先清 correction，名冊仍由 _tt 重建。
+  for (const ln of seenLines) if (isTrtcBoardLine(ln)) delete ln._trtcBoard;
+}
+// 正常路徑只消費 cron binder 已決定好的 boardPos.trips：tuple 對回同輪 row，再以 backend trip key
+// 精確查班表。任一步不唯一就 fail closed；不回頭做前端時間窗猜測。trips 缺／空時才走 legacy fallback。
+function applyTrtcBoard(rows, observedEpoch, trips) {
+  const observedSec = trtcServiceSec(observedEpoch), serviceDay = trtcServiceDayOfEpoch(observedEpoch);
+  trtcPreparePhysicalServiceDay(serviceDay); // 即使 04:00 後首輪 trips 暫空，也不能沿用前一營運日 track/eased
+  if (!Array.isArray(trips) || !trips.length) return applyTrtcBoardLegacy(rows, observedEpoch);
+  if (!Array.isArray(rows) || observedSec == null || !serviceDay) { clearTrtcBoard(); return null; }
+  // backend 模式不消費 legacy winner 黏著；先清掉，避免日內短暫降級時拿數小時前的猜測續配。
+  _trtcNoTripDay = serviceDay; _trtcNoTrip.clear();
+  const mine = metroLivePool().filter(ln => isTrtcBoardLine(ln) && ln._tt && ln._tt.length);
+  const byId = new Map(mine.map(ln => [ln.id, ln]));
+  const motionSec = Number(state.simSec);
+  const oldBoards = new Map(mine.map(ln => [ln, ln._trtcBoard]));
+  const rowByTuple = new Map(), tripTupleCount = new Map();
+  for (const row of rows) {
+    const tuple = trtcBoardTuple(row && row.line, row && row.dir, row);
+    if (!tuple) continue;
+    let a = rowByTuple.get(tuple); if (!a) rowByTuple.set(tuple, a = []);
+    a.push(row);
+  }
+  for (const p of trips) {
+    const tuple = trtcBoardTuple(p && p.line, p && p.dir, p && p.eta);
+    if (tuple) tripTupleCount.set(tuple, (tripTupleCount.get(tuple) || 0) + 1);
+  }
+  const backendTripCounts = new Map(), payloadTrackCounts = new Map();
+  for (const p of trips) {
+    const line = String(p && p.line || ''), dir = Number(p && p.dir), key = String(p && p.key || '').trim();
+    const trackId = String(p && p.trackId != null ? p.trackId : '').trim();
+    if (line && (dir === 1 || dir === 2) && key) {
+      const id = line + '|' + dir + '|' + key;
+      backendTripCounts.set(id, (backendTripCounts.get(id) || 0) + 1);
+    }
+    if (trackId) payloadTrackCounts.set(trackId, (payloadTrackCounts.get(trackId) || 0) + 1);
+  }
+  const perLine = new Map(), assignments = [];
+  const stat = { malformed: 0, tupleMiss: 0, tupleAmbiguous: 0, tripKeyMiss: 0, rosterMiss: 0,
+    duplicateTrip: 0, clampedLow: 0, clampedHigh: 0, pastTarget: 0, offShape: 0, unreachable: 0 };
+  for (const p of trips) {
+    const tuple = trtcBoardTuple(p && p.line, p && p.dir, p && p.eta);
+    const trackId = String(p && p.trackId != null ? p.trackId : '').trim();
+    const shift = Number(p && p.shift), ln = byId.get(String(p && p.line || ''));
+    if (!tuple || !trackId || !Number.isFinite(shift) || !ln) { stat.malformed++; continue; }
+    const rowHits = rowByTuple.get(tuple) || [];
+    if (!rowHits.length) { stat.tupleMiss++; continue; }
+    if (rowHits.length !== 1 || tripTupleCount.get(tuple) !== 1) { stat.tupleAmbiguous++; continue; }
+    const tr = trtcBackendTripForLine(ln, p);
+    if (!tr) { stat.tripKeyMiss++; continue; }
+    const backendId = String(p.line) + '|' + Number(p.dir) + '|' + String(p.key).trim();
+    if (backendTripCounts.get(backendId) !== 1 || payloadTrackCounts.get(trackId) !== 1) {
+      stat.duplicateTrip++; continue;
+    }
+    if (!trtcRosterActive(tr, motionSec)) { stat.rosterMiss++; continue; }
+    const row = rowHits[0], rawDest = row && row.dest;
+    if (rawDest == null || String(rawDest).trim() === '' || !Number.isInteger(Number(rawDest))) { stat.malformed++; continue; }
+    const eta = { from: Number(p.eta.from), to: Number(p.eta.to), run: Number(p.eta.run),
+      arrEpoch: Number(p.eta.arrEpoch) };
+    const scheduledEvent = trtcBackendScheduledEvent(tr, eta, !!row.terminal);
+    const rawArrivalSec = trtcBackendRawArrivalSec(ln, tr, eta, !!row.terminal);
+    const arrSec = trtcServiceSec(eta.arrEpoch);
+    if (scheduledEvent == null || rawArrivalSec == null || arrSec == null || tr[tr.length - 2] !== Number(rawDest)) {
+      stat.tripKeyMiss++; continue;
+    }
+    const physicalKey = trtcBindPhysicalIdentity(ln, tr, serviceDay, trackId);
+    if (!physicalKey) { stat.malformed++; continue; }
+    let rec = perLine.get(ln);
+    if (!rec) perLine.set(ln, rec = { shifts: new Map(), positions: new Map(), values: [], tracks: new Map() });
+    const edge = { from: eta.from, to: eta.to, run: eta.run, arrSec, shift };
+    const motion = trtcBuildEndpointMotion(ln, tr, edge, physicalKey, motionSec);
+    const handoffSec = motion && motion.endpoint && motion.clamped === 'high' ? motion.endSec : arrSec;
+    const visualShift = handoffSec - rawArrivalSec;
+    rec.shifts.set(tr, Math.round(visualShift)); rec.values.push(visualShift); rec.tracks.set(tr, physicalKey);
+    if (motion && motion.endpoint) {
+      motion.releaseSec = Math.max(motion.endSec, handoffSec);
+      rec.positions.set(tr, motion);
+      if (motion.clamped === 'low') stat.clampedLow++;
+      else if (motion.clamped === 'high') stat.clampedHigh++;
+      // endpoint path 遮住畫面期間可直接把同一 physical eased channel 對齊 backend shift；
+      // visualShift 精確對齊 freqTrainPosRaw 真正到站的秒值；release 下一格自然從同一站出發。
+      const ek = trtcEasedMotionKey(ln, tr, physicalKey), old = _easedShift.get(ek);
+      if (old) { old.cur = visualShift; old.sim = motionSec; old.at = performance.now(); }
+      else _easedShift.set(ek, { cur: visualShift, at: performance.now(), sim: motionSec, ep: _metroGateEp.ep });
+    }
+    if (motion && motion.clamped === 'pastTarget') stat.pastTarget++;
+    if (motion && motion.clamped === 'offShape') stat.offShape++;
+    if (motion && motion.unreachable) stat.unreachable++;
+    assignments.push({ line: ln.id, dir: Number(p.dir), tripKey: freqTripKey(ln, tr), backendKey: p.key,
+      trackId, from: eta.from, to: eta.to, run: eta.run, arrSec, scheduledEvent,
+      backendShift: Math.round(shift), shift: Math.round(visualShift), endpoint: !!(motion && motion.endpoint),
+      clamped: motion && motion.clamped, unreachable: !!(motion && motion.unreachable), endSec: motion && motion.endSec });
+  }
+  // 某車這輪暫缺列時，不把已經開始的端點軌跡攔腰砍掉；跑到已承諾的站後再自然回班表。
+  for (const ln of mine) {
+    let rec = perLine.get(ln); const old = oldBoards.get(ln);
+    if (!old || !old.positions) continue;
+    for (const [tr, motion] of old.positions) {
+      if (!motion || !motion.endpoint || (rec && rec.positions.has(tr))) continue;
+      const physicalKey = trtcMotionTrackKey(ln, tr), sec = trtcMotionServiceSec(motionSec, motion.arrSec);
+      const releaseSec = Number.isFinite(motion.releaseSec) ? motion.releaseSec : motion.endSec;
+      if (!physicalKey || sec == null || sec > releaseSec || !trtcRosterActive(tr, motionSec)) continue;
+      if (!rec) perLine.set(ln, rec = { shifts: new Map(), positions: new Map(), values: [], tracks: new Map() });
+      rec.positions.set(tr, motion); rec.tracks.set(tr, physicalKey);
+      const oldShift = old.shifts && old.shifts.get(tr);
+      if (oldShift != null) { rec.shifts.set(tr, oldShift); rec.values.push(oldShift); }
+    }
+  }
+  const headways = trtcHeadwayLinksForMotions(perLine, motionSec);
+  for (const ln of mine) {
+    ln._trtcTripMode = true; delete ln._liveShift;
+    const rec = perLine.get(ln);
+    if (!rec) { delete ln._trtcBoard; continue; }
+    ln._trtcBoard = { shifts: rec.shifts, positions: rec.positions, tracks: rec.tracks,
+      headways: headways.get(ln) || new Map(), all: Math.round(trtcMedian(rec.values) || 0),
+      at: observedEpoch * 1000, n: rec.shifts.size, rows: rows.length, backend: true };
+  }
+  const audit = {
+    mode: 'backend', rows: rows.length, trips: trips.length, matched: assignments.length,
+    roster: mine.reduce((n, ln) => n + ln._tt.filter(tr => trtcRosterActive(tr, motionSec)).length, 0),
+    ...stat,
+    clampRate: assignments.length ? (stat.clampedLow + stat.clampedHigh + stat.pastTarget) / assignments.length : 0,
+    assignments,
+    byLine: Object.fromEntries(mine.map(ln => [ln.id, {
+      roster: ln._tt.filter(tr => trtcRosterActive(tr, motionSec)).length,
+      matched: assignments.filter(x => x.line === ln.id).length,
+      clamped: assignments.filter(x => x.line === ln.id && x.clamped).length,
+      unreachable: assignments.filter(x => x.line === ln.id && x.unreachable).length,
+    }])),
+  };
+  state._trtcBoardAudit = audit;
+  return audit;
+}
+
 let _trtcPolling = false;
 async function pollTrtcLive() {
   const pool = metroLivePool();
   if (_trtcPolling || document.hidden || !pool.some(isTrtcBoardLine)) return;
-  const animationEligible = pool.some(ln => isTrtcBoardLine(ln) && ln._tt);
   const rawWallDelta = state.simSec - nowSecOfDay();
   let wallDelta = rawWallDelta;
   if (wallDelta > 43200) wallDelta -= 86400; else if (wallDelta < -43200) wallDelta += 86400;
@@ -15745,15 +16283,28 @@ async function pollTrtcLive() {
     } catch (e) { /* 顯示層失敗不影響動畫層 */ }
     // 動畫承重牆維持改動前的 raw 時差 gate：跨午夜時舊版會整函式早退，這批只准讓官方看板
     // 繼續抓取，不得順便開始套／清 boardPos，否則「只改顯示」契約會被破壞。
-    if (animationEligible && Math.abs(rawWallDelta) <= 120) try {
-      if (d && d.src === 'trtc' && d.boardPos && Array.isArray(d.boardPos.rows) && Number.isFinite(Number(d.boardPos.at)))
-        applyTrtcBoard(d.boardPos.rows, Number(d.boardPos.at));
-      else clearTrtcBoard();
+    if (Math.abs(rawWallDelta) <= 120) try {
+      const validBoardPos = !!(d && d.src === 'trtc' && d.boardPos &&
+        Array.isArray(d.boardPos.rows) && Number.isFinite(Number(d.boardPos.at)));
+      // eligibility 不能在 fetch 前用舊日 _tt 決定。App 長開跨 04:00 時，Worker 已切新
+      // service day，舊日型可能恰好是空表；若先 return，新日班表永遠沒機會重建。
+      // 先以同一 payload 的 source-at 切日，再問新名冊是否可用，避免本機時鐘與快取跨日競態。
+      if (validBoardPos) trtcPreparePhysicalServiceDay(trtcServiceDayOfEpoch(Number(d.boardPos.at)));
+      const animationEligible = metroLivePool().some(ln => isTrtcBoardLine(ln) && ln._tt);
+      if (animationEligible) {
+        if (validBoardPos) applyTrtcBoard(d.boardPos.rows, Number(d.boardPos.at), d.boardPos.trips);
+        else clearTrtcBoard();
+      }
     } catch (e) { clearTrtcBoard(); }
     if (boardTouched && state.boardStation) {
       try { renderBoard(); } catch (e) { /* 看板 DOM 壞掉也不得回頭清動畫校正 */ }
     }
-  } catch (e) { if (animationEligible && Math.abs(rawWallDelta) <= 120) clearTrtcBoard(); }
+  } catch (e) {
+    // fetch/json 失敗時同樣以當下名冊判斷；不引用 inner try 的區塊變數，
+    // 否則真正的網路錯誤會被 ReferenceError 遮掉。
+    if (Math.abs(rawWallDelta) <= 120 &&
+        metroLivePool().some(ln => isTrtcBoardLine(ln) && ln._tt)) clearTrtcBoard();
+  }
   finally { clearTimeout(giveUp); _trtcPolling = false; }
   updateMetroBadge();
 }
