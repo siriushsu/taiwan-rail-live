@@ -970,7 +970,7 @@ async function loadTrtcTripBindingState(env, day) {
   return (rows.results || []).map(r => ({
     line: r.line, dir: Number(r.dir), tripKey: r.trip_key, trackId: r.track_id,
     boundEpoch: Number(r.bound_epoch), birth: r.birth, done: !!r.done, rebinds: Number(r.rebinds) || 0,
-    lastShift: 0, lastTo: null, lastArrEpoch: null, badStreak: 0,
+    lastShift: 0, lastTo: null, lastArrEpoch: null, lastSeenEpoch: null, reachedEndEpoch: null, badStreak: 0,
   }));
 }
 

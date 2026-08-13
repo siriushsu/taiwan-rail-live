@@ -647,6 +647,7 @@ const TRIP_BIND_COST_CAP_SEC = 600;         // cost=|shift-ref| 上限
 const TRIP_BIND_ABS_CAP_SEC = 1800;         // |shift| 絕對上限(雙保險,防 ref 本身跑掉)
 const TRIP_BIND_BAD_STREAK_LIMIT = 4;       // 安全閥:連續幾輪 cost 超標才解綁重配(§5.2)
 const TRIP_BIND_DONE_GRACE_SEC = 120;       // 收班寬限(§5.3)
+export const TRIP_BIND_FEED_SILENCE_SEC = 3 * 60; // 官方 feed 沉默滿 3 分鐘後才可收班(§5.3)
 const TRIP_BIND_RECLAIM_COST_CAP_SEC = 180; // 認回:cost=|shift-lastShift| 上限(§5.3,v1.1)
 
 // 與前端 freqTripKey 後綴同構(index.html:14499-14501):line/dir 由呼叫端欄位攜帶,這裡只回線內局部鍵。
@@ -736,6 +737,12 @@ export function bindTracksToTrips({ model, tripSets, dayType, tracks, priorBindi
       lastShift: Number.isFinite(Number(p.lastShift)) ? Number(p.lastShift) : 0,
       lastTo: Number.isFinite(Number(p.lastTo)) ? Number(p.lastTo) : null,
       lastArrEpoch: Number.isFinite(Number(p.lastArrEpoch)) ? Number(p.lastArrEpoch) : null,
+      // 舊 trip_dyn／關係表 fallback 沒有 liveness 欄位時，從本輪重新給完整沉默窗；不可把
+      // lastArrEpoch 當觀測時間（它是看板預報的到站 epoch）。fast path 後續會原樣 round-trip。
+      lastSeenEpoch: p.lastSeenEpoch != null && Number.isFinite(Number(p.lastSeenEpoch))
+        ? Number(p.lastSeenEpoch) : nowEpoch,
+      reachedEndEpoch: p.reachedEndEpoch != null && Number.isFinite(Number(p.reachedEndEpoch))
+        ? Number(p.reachedEndEpoch) : null,
       badStreak: Number.isFinite(Number(p.badStreak)) ? Number(p.badStreak) : 0,
       done: !!p.done,
       rebinds: Number.isFinite(Number(p.rebinds)) ? Number(p.rebinds) : 0,
@@ -781,10 +788,12 @@ export function bindTracksToTrips({ model, tripSets, dayType, tracks, priorBindi
 
   const evictedRebinds = new Map(); // trackId -> 離開前那個 tripKey 累積的 rebinds(供新綁定接續累加)
 
-  // 5) Pass A,沿用中的綁定:目的地不符 ⇒ 標記驅逐(§5.2「dest 改變」);找不到 leg ⇒ 整輪跳過不動它
+  // 5) Pass A,沿用中的綁定:目的地不符 ⇒ 標記驅逐(§5.2「dest 改變」);找不到 leg ⇒
+  //    不更新 shift，但同線同向官方 feed 仍算活著，不得因此被收班或被 reclaim 取代
   //    (legMiss,防禦性:正常不應觸發);否則就地更新 shift/lastTo/lastArrEpoch——此時還不判安全閥,
   //    因為 ref 要等這一輪全部沿用值更新完才算得出來。
   const updatedFullKeys = new Set(); // 這輪真的重算過 shift 的 fullKey,才需要跑安全閥判斷
+  const observedFullKeys = new Set(); // 同線同向本輪仍被官方 feed 看見；legMiss 也算 liveness
   for (const claim of stickyTracks) {
     const fullKey = trackToFullKey.get(claim.trackId);
     const rec = records.get(fullKey);
@@ -792,9 +801,15 @@ export function bindTracksToTrips({ model, tripSets, dayType, tracks, priorBindi
     if (!rec || !tr) { freshTracks.push(claim); continue; } // 防禦:priorBindings 與 tripSets 對不上(誤餵跨日資料)
     if (claim.destIdx !== tr[tr.length - 2]) {
       evictedRebinds.set(claim.trackId, rec.rebinds);
+      // BINDER_HANDOFF_BEGIN：verify_binder_done.mjs 以此既有交棒區塊做 mutation control。
       records.delete(fullKey);
       freshTracks.push(claim);
+      // BINDER_HANDOFF_END
       continue;
+    }
+    if (claim.line === rec.line && claim.dir === rec.dir) {
+      rec.lastSeenEpoch = nowEpoch;
+      observedFullKeys.add(fullKey);
     }
     let scheduledEvent;
     if (claim.terminal) {
@@ -808,7 +823,8 @@ export function bindTracksToTrips({ model, tripSets, dayType, tracks, priorBindi
     rec.lastShift = claim.depSec - scheduledEvent;
     rec.lastTo = claim.to;
     rec.lastArrEpoch = claim.arrEpoch;
-    rec._reachedEnd = !claim.terminal && claim.to === tr[tr.length - 2] && claim.arrEpoch <= nowEpoch;
+    rec.reachedEndEpoch = !claim.terminal && claim.to === tr[tr.length - 2] && claim.arrEpoch <= nowEpoch
+      ? nowEpoch : null;
     updatedFullKeys.add(fullKey);
   }
 
@@ -890,7 +906,7 @@ export function bindTracksToTrips({ model, tripSets, dayType, tracks, priorBindi
   const reclaimEdges = [];
   for (const claim of freshTracks) {
     for (const [fullKey, rec] of records) {
-      if (rec.done || updatedFullKeys.has(fullKey)) continue; // 本輪仍在回報中的不算「失聯」
+      if (rec.done || observedFullKeys.has(fullKey)) continue; // legMiss 也代表本輪仍被 feed 看見
       if (rec.line !== claim.line || rec.dir !== claim.dir) continue;
       const tr = tripByFullKey.get(fullKey); if (!tr || tr[tr.length - 2] !== claim.destIdx) continue;
       let scheduledEvent;
@@ -917,8 +933,9 @@ export function bindTracksToTrips({ model, tripSets, dayType, tracks, priorBindi
     reclaimedTracks.add(e.claim.trackId); reclaimedKeys.add(e.fullKey);
     const rec = records.get(e.fullKey);
     rec.trackId = e.claim.trackId; rec.lastShift = e.shift; rec.lastTo = e.claim.to;
-    rec.lastArrEpoch = e.claim.arrEpoch; rec.badStreak = 0;
-    rec._reachedEnd = !e.claim.terminal && e.claim.to === e.tr[e.tr.length - 2] && e.claim.arrEpoch <= nowEpoch;
+    rec.lastArrEpoch = e.claim.arrEpoch; rec.lastSeenEpoch = nowEpoch; rec.badStreak = 0;
+    rec.reachedEndEpoch = !e.claim.terminal && e.claim.to === e.tr[e.tr.length - 2] && e.claim.arrEpoch <= nowEpoch
+      ? nowEpoch : null;
     updatedFullKeys.add(e.fullKey);
     events.push({ type: 'reattach', day, line: rec.line, dir: rec.dir, tripKey: rec.tripKey,
       trackId: e.claim.trackId, epoch: nowEpoch });
@@ -964,6 +981,9 @@ export function bindTracksToTrips({ model, tripSets, dayType, tracks, priorBindi
       line: e.claim.line, dir: e.claim.dir, tripKey: tripKeyOf(e.tr), trackId: e.claim.trackId,
       boundEpoch: nowEpoch, birth: e.claim.terminal ? 'terminal' : 'seed',
       lastShift: e.shift, lastTo: e.claim.to, lastArrEpoch: e.claim.arrEpoch, badStreak: 0,
+      lastSeenEpoch: nowEpoch,
+      reachedEndEpoch: !e.claim.terminal && e.claim.to === e.tr[e.tr.length - 2] && e.claim.arrEpoch <= nowEpoch
+        ? nowEpoch : null,
       done: false, rebinds: priorRebinds != null ? priorRebinds + 1 : 0,
     });
     events.push({ type: 'bind', day, line: e.claim.line, dir: e.claim.dir, tripKey: tripKeyOf(e.tr),
@@ -973,23 +993,29 @@ export function bindTracksToTrips({ model, tripSets, dayType, tracks, priorBindi
   }
   audit.unbound += birthTracks.filter(c => !usedTracks.has(c.trackId)).length;
 
-  // 11) 收班判定(§5.3):對所有存活(非 done)紀錄跑一次,涵蓋沉默(本輪沒有沿用列的失聯 track)
-  //    與剛出生的兩種情況。「觀測到達終點」或「修正後末站時刻已過+120s 寬限」任一成立即收班。
+  // 11) 收班判定(§5.3):到達終點／修正後末站時刻+120s 只是候選；官方 feed 同線同向仍在
+  //    回報時必須否決。候選在 feed 沉默滿 3 分鐘後才收班，既不提早收工也不無限延命。
+  //    reachedEndEpoch 必須跨輪保存，不能再用回傳前會消失的暫存欄位。
+  // BINDER_DONE_GUARD_BEGIN：verify_binder_done.mjs 以此區塊做 mutation control。
   for (const [fullKey, rec] of records) {
     if (rec.done) continue;
     const tr = tripByFullKey.get(tripBindKey(rec.line, rec.dir, rec.tripKey));
     if (!tr) continue;
-    const reachedEnd = updatedFullKeys.has(fullKey) && !!rec._reachedEnd;
+    const reachedEnd = rec.reachedEndEpoch != null;
     const scheduleGraceOver = nowSec >= tr[tr.length - 1] + rec.lastShift + TRIP_BIND_DONE_GRACE_SEC;
-    if (reachedEnd || scheduleGraceOver) {
+    const feedSilent = nowEpoch - rec.lastSeenEpoch >= TRIP_BIND_FEED_SILENCE_SEC;
+    if ((reachedEnd || scheduleGraceOver) && feedSilent) {
       rec.done = true;
-      events.push({ type: 'done', day, line: rec.line, dir: rec.dir, tripKey: rec.tripKey,
+      const reason = reachedEnd && scheduleGraceOver ? 'reachedEnd+scheduleGraceOver'
+        : reachedEnd ? 'reachedEnd' : 'scheduleGraceOver';
+      events.push({ type: 'done', reason, day, line: rec.line, dir: rec.dir, tripKey: rec.tripKey,
         trackId: rec.trackId, epoch: nowEpoch });
       audit.done++;
     }
   }
+  // BINDER_DONE_GUARD_END
 
-  const bindings = [...records.values()].map(({ _reachedEnd, ...rest }) => rest);
+  const bindings = [...records.values()];
   return { bindings, events, audit: { ...audit, dayType } };
 }
 
