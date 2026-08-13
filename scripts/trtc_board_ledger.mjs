@@ -1090,13 +1090,43 @@ export function joinBoardRowsToTrips({ tripSets, rows, bindings, aliasByHwNo = n
     stagedTrips.push({ line: binding.line, dir: binding.dir, key: binding.tripKey, trackId, shift: matchedShift,
       eta: { from: row.from, to: row.to, run: row.run, arrEpoch: row.arrEpoch } });
   }
-  const matchedKeyCounts = new Map(), matchedTrackCounts = new Map();
-  for (const trip of stagedTrips) {
+  // 同一台車同時出現在多站看板是正常情況；每個合法的 trip/track 身分只留最近一筆到站約束。
+  // 先用雙向關係區分「同一身分的多列預報」與真正一對多損壞，再以完整內容作固定次序決勝。
+  const fullKeysByTrackId = new Map(), trackIdsByFullKey = new Map();
+  const stagedWithFullKey = stagedTrips.map(trip => {
     const fullKey = tripBindKey(trip.line, Number(trip.dir), trip.key);
-    matchedKeyCounts.set(fullKey, (matchedKeyCounts.get(fullKey) || 0) + 1);
-    matchedTrackCounts.set(trip.trackId, (matchedTrackCounts.get(trip.trackId) || 0) + 1);
+    if (!fullKeysByTrackId.has(trip.trackId)) fullKeysByTrackId.set(trip.trackId, new Set());
+    fullKeysByTrackId.get(trip.trackId).add(fullKey);
+    if (!trackIdsByFullKey.has(fullKey)) trackIdsByFullKey.set(fullKey, new Set());
+    trackIdsByFullKey.get(fullKey).add(trip.trackId);
+    return { trip, fullKey };
+  });
+  function compareJoinPick(a, b) {
+    // 最早到站的列最接近列車當下位置，對動畫是最即時的官方約束；其餘欄位只負責完全同時時的
+    // total-order tie-break。排序鍵全由列內容組成，所以 rows 洗牌不會改變勝者。
+    const epochDiff = Number(a.eta.arrEpoch) - Number(b.eta.arrEpoch);
+    if (epochDiff) return epochDiff;
+    const stableKey = trip => JSON.stringify([trip.line, Number(trip.dir), trip.key, trip.trackId, trip.shift,
+      trip.eta.from, trip.eta.to, trip.eta.run, trip.eta.arrEpoch]);
+    const ak = stableKey(a), bk = stableKey(b);
+    return ak < bk ? -1 : ak > bk ? 1 : 0;
   }
-  // 多列同時搶到同一個後端身分時，不能留下「陣列第一列」這種順序相依結果。
-  return stagedTrips.filter(trip => matchedKeyCounts.get(tripBindKey(trip.line, Number(trip.dir), trip.key)) === 1 &&
-    matchedTrackCounts.get(trip.trackId) === 1);
+
+  // JOIN_DEDUPE_BEGIN：verify_join_parity.mjs 以此區塊做 mutation control。
+  const winnerByIdentity = new Map();
+  for (const { trip, fullKey } of stagedWithFullKey) {
+    // track→多 trip 或 trip→多 track 才是身分資料損壞；同一 pair 的多個站點列可安全決勝。
+    if (fullKeysByTrackId.get(trip.trackId).size !== 1 || trackIdsByFullKey.get(fullKey).size !== 1) continue;
+    const identity = `${fullKey}\u0000${trip.trackId}`;
+    const prior = winnerByIdentity.get(identity);
+    if (!prior || compareJoinPick(trip, prior) < 0) winnerByIdentity.set(identity, trip);
+  }
+  const winners = [...winnerByIdentity.values()];
+  winners.sort((a, b) => {
+    const ak = `${tripBindKey(a.line, Number(a.dir), a.key)}\u0000${a.trackId}`;
+    const bk = `${tripBindKey(b.line, Number(b.dir), b.key)}\u0000${b.trackId}`;
+    return ak < bk ? -1 : ak > bk ? 1 : compareJoinPick(a, b);
+  });
+  return winners;
+  // JOIN_DEDUPE_END
 }

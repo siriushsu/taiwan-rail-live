@@ -957,11 +957,11 @@ say('\n── R10(工項5,設計書§7/§10):訪客 join——有號列 no→ali
 
   const rowUnnumberedLater = { ...rowUnnumbered, arrEpoch: rowUnnumbered.arrEpoch + 1 };
   for (const orderedRows of [[rowUnnumbered, rowUnnumberedLater], [rowUnnumberedLater, rowUnnumbered]]) {
-    const missed = joinBoardRowsToTrips({ tripSets: tripSetsJ, rows: orderedRows,
+    const picked = joinBoardRowsToTrips({ tripSets: tripSetsJ, rows: orderedRows,
       bindings: [bindingJ], aliasByHwNo: new Map() });
-    ok(missed.length === 0,
-      'R10 列衝突反面:兩個官方 row 同時選到同一後端 trip/track 時整組 fail closed,不得讓 rows 順序決定第一列勝出',
-      JSON.stringify(missed));
+    ok(picked.length === 1 && picked[0].eta.arrEpoch === rowUnnumbered.arrEpoch,
+      'R10 多站預報:同一 trip/track 的兩個官方 row 決定性保留最早到站列,不得由 rows 順序決定勝者',
+      JSON.stringify(picked));
   }
 
   const tieA = mkTrip(0, T0 + 3000, [[1, T0 + 3200]]);
