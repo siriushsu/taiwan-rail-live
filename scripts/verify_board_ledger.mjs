@@ -293,12 +293,17 @@ async function run() {
     jsonCurl(`${FIXTURE}/__config?slot=s02&advance=1`, ['-X', 'POST']);
     const after = jsonCurl(`${BASE}/api/trtc-live`);
     const stableKeys = ['src', 'trains', 'board', 'cd'];
-    const legacyHashes = Object.fromEntries(stableKeys.map(k => [k, sha256(JSON.stringify(after[k]))]));
+    // board 本批只允許新增逐列 source `at`；投影掉新欄位後，舊欄位仍須與既有 golden byte-identical。
+    const legacyBoard = after.board.map(({ at, ...row }) => row);
+    const legacyHashes = Object.fromEntries(stableKeys.map(k => [k,
+      sha256(JSON.stringify(k === 'board' ? legacyBoard : after[k]))]));
     const equal = stableKeys.every(k => legacyHashes[k] === LEGACY_GOLDEN_SHA256[k]);
     ok(equal && Array.isArray(after.ledger) && after.ledger.length > 0, 'V1 舊輸出凍結',
       `${stableKeys.join('/')} SHA-256 相符；ledger=${after.ledger.length}`);
-    const mutant = structuredClone(after); mutant.board[0].eta++;
-    ok(sha256(JSON.stringify(mutant.board)) !== LEGACY_GOLDEN_SHA256.board,
+    ok(after.board.length > 0 && after.board.every(row => Number.isFinite(row.at) && row.eta >= row.at),
+      'V1 官方看板逐列來源時刻', `rows=${after.board.length}，at/eta 有效`);
+    const mutantBoard = structuredClone(legacyBoard); mutantBoard[0].eta++;
+    ok(sha256(JSON.stringify(mutantBoard)) !== LEGACY_GOLDEN_SHA256.board,
       'V1 正向對照（改一個舊欄位）', 'board SHA-256 轉紅');
     note('V1 at 欄位', '`at` 本來就是 Worker 回應當下的 new Date().toISOString()，兩次執行不可能 byte-equal；已驗型別與 ISO 格式，未假報 byte-equal');
 

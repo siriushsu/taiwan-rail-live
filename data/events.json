@@ -1,0 +1,15 @@
+{
+  "updated": "2026-08-12",
+  "events": [
+    {
+      "id": "trtc-20260811-pokemon10",
+      "source": "official",
+      "title": "Pokémon GO 10 週年特展",
+      "note": "站內陽光大廳",
+      "start": "2026-08-15",
+      "end": "2026-09-13",
+      "anchor": { "kind": "station", "sys": "mrt", "name": "大安森林公園" },
+      "url": "https://pokemongo.com/zh-Hant/news/2026daanpark"
+    }
+  ]
+}

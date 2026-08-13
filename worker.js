@@ -1,8 +1,9 @@
 import {
   TRTC_LEDGER_SCHEMA, buildTrtcModel, buildLedgerFromRaw,
   trtcOperatingState, trtcServiceDay, resolveBoardRows, claimBoardRows, collapseClaims,
-  bindTracksToTrips, buildTripSetsByLineDir, joinBoardRowsToTrips,
+  bindTracksToTrips, buildTripSetsByLineDir, joinBoardRowsToTrips, planTrtcTripBindingPersistence,
 } from './scripts/trtc_board_ledger.mjs';
+import { reduceOfficialRoster } from './scripts/trtc_official_roster.mjs';
 import { laNextIdx, laObsIdx, laSchedIdx, laArrivalEpoch, laJwt, laJwtReset } from './scripts/la_push_core.mjs';
 
 // Cloudflare Worker 入口:靜態資產(assets binding)+ /api/tra-live 台鐵即時動態代理
@@ -612,9 +613,9 @@ async function metroLive(request, env, sys) {
 }
 
 // ── 新北捷官網列車動態代理(trainstatus.ntmetro.com.tw,免金鑰) ──
-// 環狀線=逐車軌道區間佔用、淡海/安坑=逐站到站倒數。未文件化端點:去函詢問使用同意中(2026-07 起),
-// 對方拒絕即移除本段;失敗前端自動退回時刻表推演,零損害。快取後全站對上游=每端點約 55s 一次,
-// 遠低於其官網單一訪客的 10s 輪詢負載。
+// 環狀線=逐車軌道區間佔用、淡海/安坑=逐站到站倒數。未文件化端點、無開放資料授權條款:
+// 尚未取得使用同意,如經對方表示反對即移除本段;失敗前端自動退回時刻表推演,零損害。
+// 快取後全站對上游=每端點約 55s 一次,遠低於其官網單一訪客的 10s 輪詢負載。
 // Set 而非物件字面量:物件的 in/[] 查表吃原型鏈(sys='constructor'/'__proto__'/'toString' 會誤判 truthy),
 // Set.has() 只認自身成員,擋掉用原型成員名繞過白名單、把本 proxy 打成對新北捷官網的未快取放大代理。
 const NTM_LIVE_SYS = new Set(['circular', 'danhai', 'ankeng']);
@@ -647,10 +648,56 @@ async function ntmetroLive(request, env, sys) {
   }
 }
 
+// ── 高雄輕軌真 GPS(TDX LivePosition) ──
+// 全台捷運只有 KLRT 這一家給逐車經緯度(TRTC/KRTC/TYMC 一律 HTTP 400,訊息逐字
+// `RailSystem: 'XXX' is not accepted but KLRT`)。前端把它投影到線形、換算成到站剩餘秒,
+// 精度遠勝 LiveBoard 的整數分鐘倒數。TTL 25s/20s:上游 UpdateInterval 30 秒、GPS 時戳落後
+// 26–45 秒,價值就在新鮮度,不能沿用 metro-live 那個 115s。
+// 回傳形狀與 LiveBoard 不同:是物件 { LivePositions:[...] } 不是裸陣列。
+let klrtPosMem = null; // { data, at }
+async function klrtPosition(request, env) {
+  const cacheKey = new Request(new URL('/api/klrt-position', request.url), { method: 'GET' });
+  const edge = caches.default;
+  const hit = await edge.match(cacheKey);
+  if (hit) return hit;
+  const stale = klrtPosMem;
+  try {
+    if (!stale || Date.now() - stale.at > 25e3) {
+      const token = await getToken(env);
+      const r = await fetch('https://tdx.transportdata.tw/api/basic/v2/Rail/Metro/LivePosition/KLRT?%24format=JSON',
+        { headers: { authorization: 'Bearer ' + token }, redirect: 'manual' }); // 🔴 絕不可用 'error'(見檔頭 08-04 事故)
+      if (r.status === 401) { tok = null; throw new Error('tdx 401'); }
+      if (!r.ok) throw new Error('tdx api ' + r.status);
+      const d = await r.json();
+      const rows = (d && Array.isArray(d.LivePositions) ? d.LivePositions : []).map(x => ({
+        t: String(x.TripID),                 // 逐車追蹤用;非時刻表班次
+        dir: x.Direction,                    // 0=沿線里程遞增 / 1=遞減(前端已對投影實測)
+        lat: x.TrainPosition && x.TrainPosition.PositionLat,
+        lon: x.TrainPosition && x.TrainPosition.PositionLon,
+        sp: x.Speed, az: x.Azimuth, st: x.TrainStatus,
+        gt: x.GPSTime,                       // 判資料齡用
+      })).filter(x => Number.isFinite(x.lat) && Number.isFinite(x.lon));
+      klrtPosMem = { data: { at: new Date().toISOString(), src: 'tdx', up: d && d.UpdateTime, rows }, at: Date.now() };
+    }
+    const res = jsonRes(klrtPosMem.data, 200, 'public, s-maxage=20, stale-while-revalidate=60');
+    await edge.put(cacheKey, res.clone());
+    return res;
+  } catch (e) {
+    // 🔴 舊資料只在「還算新」的期間頂替,不可無限期回舊的:前端看到 src 有值就會採用,
+    //    上游長時間掛掉會讓 C 線一直用陳舊 GPS,而 LiveBoard 被 klrtGpsLive 擋著永遠接不了手。
+    //    超過 3 分鐘就讓它走下面的軟失敗(src:null),前端才會放行 LiveBoard。
+    if (stale && Date.now() - stale.at < 180e3) return jsonRes(stale.data, 200, 'public, s-maxage=15');
+    // 軟失敗:200+src:null(前端 no-op、退回時刻表推演),並負向快取 15s 免得上游越掛我們打越兇
+    const res = jsonRes({ at: new Date().toISOString(), src: null, rows: [] }, 200, 'public, s-maxage=15');
+    await edge.put(cacheKey, res.clone());
+    return res;
+  }
+}
+
 // ── 北捷官方會員 API 代理(逐車位置) ──
 // 帳密只在 Worker:這套認證把帳密明文放 request body,前端直連＝公開帳密(repo 是 PUBLIC)。
-// 三支並行:CarWeight(高運量逐車) / CarWeightBR(文湖線逐車) / TrackInfo(終點與未來路徑)。
-// TrackInfo 掛掉只退化成「無未來路徑」,不讓整包失敗。TTL 15s 配合上游更新頻率
+// 三支並行:TrackInfo 是官方列車名冊本體；CarWeight(高運量) / CarWeightBR(文湖線)
+// 只提供 legacy 逐車與擁擠度裝飾。TTL 15s 配合上游更新頻率
 // (實測 NowDateTime 每 15 秒換值;現制 /api/metro-live 的 115s 對逐車太久,車 2 分鐘就過一站)。
 const TRTC_SOAP = (inner) =>
   `<?xml version="1.0" encoding="utf-8"?><soap:Envelope xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/"><soap:Body>${inner}</soap:Body></soap:Envelope>`;
@@ -727,16 +774,26 @@ async function trtcLive(request, env) {
   const stale = trtcMem;
   try {
     if (trtcMemoStale(stale, Date.now())) {
-      // 三支各自吞錯:任一支當輪打不到不該拖垮其他支(文湖線抖一下不該讓高運量 69 台一起熄燈)。
-      // TrackInfo 是加值(終點＋未來路徑),掛掉只退化成「無未來路徑」。
-      const [hwRaw, brRaw, tk] = await Promise.all([
+      // 在發出三支上游 request 前取 acquisition order；慢回的舊 request 不得因完成較晚
+      // 反過來覆蓋較晚開始、已成功寫入的 fresh official frame。
+      const officialRequestStartedAt = Date.now();
+      // 三支各自保留成敗：CarWeight 任一支抖動不拖垮 TrackInfo 官方名冊；反過來
+      // TrackInfo 失敗也不能被 CarWeight 的位置列偽裝成仍有官方存在性資料。
+      const [hwRaw, brRaw, tkResult] = await Promise.all([
         trtcCall(trtcApiUrl(env, 'CarWeight'), 'getCarWeightByInfoEx', env).catch(() => []),
         trtcCall(trtcApiUrl(env, 'CarWeightBR'), 'getCarWeightBRInfo', env).catch(() => []),
-        trtcCall(trtcApiUrl(env, 'TrackInfo'), 'getTrackInfo', env).catch(() => []),
+        // TrackInfo 是官方名冊本體；必須保留「成功但合法空列」與「請求失敗」的差別，
+        // 不能都壓成 [] 後讓前端猜某線是不是該拿班表補車。
+        trtcCall(trtcApiUrl(env, 'TrackInfo'), 'getTrackInfo', env)
+          .then(rows => ({ ok: true, rows: Array.isArray(rows) ? rows : [] }))
+          .catch(error => ({ ok: false, rows: [], error: (error && error.message) || String(error) })),
       ]);
-      // hw 與 br 只有一支空 ⇒ 該系統當輪沒車(或暫時打不到),另一支照常輸出;
-      // 兩支都空才算整體真的掛了,走下面 catch 的降級路徑。
-      if (hwRaw.length === 0 && brRaw.length === 0) throw new Error('trtc hw/br 全空,上游疑似全掛');
+      const tk = tkResult.rows;
+      // official-first：TrackInfo 成功（包含合法空列）就是可發布的權威名冊；CarWeight
+      // 只供 legacy trains／擁擠度裝飾，兩支同時空也不可把官方名冊拖成 outage。
+      if (!tkResult.ok && hwRaw.length === 0 && brRaw.length === 0) {
+        throw new Error('trtc TrackInfo/hw/br 全部失敗');
+      }
       const hw = dedupeLatest(hwRaw, 'utime');
       const br = dedupeLatest(brRaw, 'UpdateTime');
       // 車次 → { dest, path[] }。TrackInfo 一台車在前方數站各一筆。
@@ -794,7 +851,7 @@ async function trtcLive(request, env) {
         // 讓「NowDateTime 這個上游欄位開始壞掉」不會偽裝成「這班車本來就不在 board 上」。
         if (base == null) { boardDateDropped++; continue; }
         board.push({ name: String(r.StationName || ''), dest: String(r.DestinationName || ''),
-                     eta: base + sec, no: String(r.TrainNumber || '') });
+                     eta: base + sec, at: base, no: String(r.TrainNumber || '') });
       }
       const trains = [];
       for (const r of hw) {
@@ -822,12 +879,18 @@ async function trtcLive(request, env) {
         trains: trains.filter(t => t.at != null && /^[A-Z]+\d+$/.test(t.stn) && (t.dir === 1 || t.dir === 2)),
         board, cd: { rows: tk.length, dropped: cdDropped, dateDropped: boardDateDropped,
           pathDropped: pathCdDropped, pathDateDropped, pathNoTrainNo, carsRejected } };
-      // 前端逐班校正只消費這份「物理位置錨點」。站名正規化、支線/終點消歧與
-      // 倒數是否真能證明車在上一區間，全部復用 B1 已驗的純函式，不在前端重造一套。
-      // 錨點沒有列車名冊欄位，更不會產生車；它只說「這裡有一筆可用位置證據」。
-      let boardPos = { at: null, rows: [], dropped: {}, dayType: null, trips: [] };
-      try { boardPos = await trtcBoardPositionAnchors(env, tk); }
-      catch (e) { console.error('[trtc board-pos] 錨點組裝失敗:', (e && e.stack) || String(e)); }
+      // TrackInfo collapsed rows 同時是位置錨點與唯一官方名冊；站名正規化、支線／終點消歧、
+      // 身分延續皆在 Worker 完成。trip join 只附標籤，不決定任何車的存在。
+      let boardPos = { at: null, feedMode: tkResult.ok ? 'official' : 'outage', rows: [], extensions: [],
+        vehicles: [], dropped: {}, dayType: null, trips: [] };
+      try { boardPos = await trtcBoardPositionAnchors(env, tk, tkResult.ok ? 'official' : 'outage',
+        officialRequestStartedAt); }
+      catch (e) {
+        console.error('[trtc board-pos] 錨點組裝失敗:', (e && e.stack) || String(e));
+        // TrackInfo 成功但我方組裝失敗不是「官方成功空列」；明確切 outage，讓消費端
+        // 整體走班表備案，不能把程式錯誤偽裝成 authoritative empty frame。
+        boardPos = trtcOfficialOutagePayload();
+      }
       // legacy 的 at/src/trains/board/cd 產生路徑與欄位順序不動；帳本預覽失敗一律
       // 回空陣列，不能拖垮原本逐車 API。
       let ledger = [];
@@ -841,7 +904,11 @@ async function trtcLive(request, env) {
   } catch (e) {
     // stale 快取設 5 分鐘齡限:TTL 15s 的資料若因上游持續掛掉而擺到 5 分鐘還沒更新,
     // 列車實際位置可能已經跑出 2-3 站,繼續標成 src:'trtc' 送出去是主動誤導,不如降級成 null。
-    if (stale && Date.now() - stale.at < 5 * 60e3) return jsonRes(stale.data, 200, 'public, s-maxage=15');
+    if (stale && Date.now() - stale.at < 5 * 60e3) {
+      // legacy trains 可短暫沿用，但 official feed 當輪 unavailable 就必須整體回 schedule fallback；
+      // 絕不能把 stale official roster 冒充成仍可決定列車存在性的 fresh TrackInfo。
+      return jsonRes({ ...stale.data, boardPos: trtcOfficialOutagePayload() }, 200, 'public, s-maxage=15');
+    }
     // 軟失敗:回 200+src:null(前端 applyTrtcLive 對 null 直接 no-op,退回時刻表＋現制看板校正)。
     // 負向結果也快取 15s,免得上游持續掛時每個請求 1:1 重打上游。不帶 error 字串進 body。
     // board 不帶(降級時看板前端直接退回 _tt 路徑,不需要空陣列以外的形狀)。
@@ -850,7 +917,7 @@ async function trtcLive(request, env) {
     let ledger = [];
     try { ledger = await trtcLedgerMaterialized(env, Math.floor(Date.now() / 1000)); } catch (e) {}
     const res = jsonRes({ at: new Date().toISOString(), src: null, trains: [], board: [],
-      boardPos: { at: null, rows: [], dropped: {}, dayType: null, trips: [] },
+      boardPos: trtcOfficialOutagePayload(),
       cd: { rows: 0, dropped: 0, dateDropped: 0, pathDropped: 0, pathDateDropped: 0, pathNoTrainNo: 0 }, ledger }, 200, 'public, s-maxage=15');
     await edge.put(cacheKey, res.clone());
     return res;
@@ -897,6 +964,9 @@ async function trtcDayTypeTable(env) { // data/tw_daytype.json:TW_DAYTYPE 的後
 }
 
 let trtcTripSetsCache = null; // { day, tripSets, dayKeys } —— 一天只需重建一次,不隨每輪 cron 重算
+let trtcTripBindingReconciledDay = null; // 舊版 zombie 低頻表對帳：每營運日只全表掃一次
+// 沿用本檔其他 D1 大批寫入的 80 句保守上限；大型移轉分批，marker 只在最後一批寫入。
+const TRTC_TRIP_BINDING_BATCH_SIZE = 80;
 async function trtcTripSetsForDay(env, day) {
   if (trtcTripSetsCache && trtcTripSetsCache.day === day) return trtcTripSetsCache;
   const [[, times], dayTypeTable] = await Promise.all([trtcModelSources(env), trtcDayTypeTable(env)]);
@@ -908,42 +978,65 @@ async function trtcTripSetsForDay(env, day) {
 // 狀態,round-trip 完全等價——見 R4);trip_dyn 缺或跨日才退化用 trtc_trip_bindings 重建身分
 // (動態欄位只能歸零,一輪內會自然回溫,不影響正確性只影響安全閥計數短暫重算)。
 async function loadTrtcTripBindingState(env, day) {
-  if (!await ensureTrtcLedger(env)) return [];
+  if (!await ensureTrtcLedger(env)) return { bindings: [], source: 'unavailable' };
   const db = env.TRTC_LEDGER;
   const stateRow = await db.prepare(`SELECT v FROM trtc_state WHERE k='trip_dyn'`).first();
   if (stateRow && stateRow.v) {
     try {
       const parsed = JSON.parse(stateRow.v);
-      if (parsed && parsed.day === day && Array.isArray(parsed.bindings)) return parsed.bindings;
+      if (parsed && parsed.day === day && Array.isArray(parsed.bindings)) {
+        return { bindings: parsed.bindings, source: 'trip_dyn' };
+      }
     } catch (e) {
       console.warn('[trtc-binder] trip_dyn 解析失敗,改走冷啟動重建:', (e && e.message) || String(e));
     }
   }
+  // 第一次修復前的關係表可能含有舊版驅逐時沒刪掉的 zombie。若當下連
+  // trip_dyn 也遺失，兩者無法從關係表自身分辨；在本版對帳 marker 建立前必須
+  // fail closed，不把舊 active row 當權威。當輪將由新鮮 claims 重建，persist 再全量種回
+  // 乾淨關係表與 marker。之後 trip_dyn 再遺失才會走下方可信 fallback。
+  const marker = await db.prepare(`SELECT v FROM trtc_state WHERE k='trip_binding_reconcile_v1'`).first();
+  if (!marker || marker.v !== day) return { bindings: [], source: 'legacy-untrusted' };
+  trtcTripBindingReconciledDay = day;
   const rows = await db.prepare(`SELECT line,dir,trip_key,track_id,bound_epoch,birth,done,rebinds
       FROM trtc_trip_bindings WHERE day=?`).bind(day).all();
-  return (rows.results || []).map(r => ({
+  return { source: 'relation', bindings: (rows.results || []).map(r => ({
     line: r.line, dir: Number(r.dir), tripKey: r.trip_key, trackId: r.track_id,
     boundEpoch: Number(r.bound_epoch), birth: r.birth, done: !!r.done, rebinds: Number(r.rebinds) || 0,
-    lastShift: 0, lastTo: null, lastArrEpoch: null, badStreak: 0,
-  }));
+    lastShift: 0, lastTo: null, lastArrEpoch: null, lastSeenEpoch: null, reachedEndEpoch: null, badStreak: 0,
+  })) };
 }
 
-// 寫入紀律(設計書 §6):trtc_trip_bindings 只在 events 有變動(bind/rebind/done/reattach,v1.1新增
-// 認回)的那幾列 upsert——touched map 只認 events 的 (line,dir,tripKey),不分事件種類,故 reattach
-// 事件(track_id 換人、bound_epoch 延續)自動走同一條 upsert 路徑,無需另外分支;
+// 寫入紀律(設計書 §6):events 觸及的關係列依本輪最終狀態處理——final binding 存在
+// 就 upsert；目的地改變／安全閥驅逐後 final binding 不存在就 physical delete，避免冷啟動
+// fallback 復活舊列。reattach/done 仍走原 upsert 路徑；同輪先 evict 後重生同 key 則 final wins。
 // trtc_state['trip_dyn'] 每輪整包覆寫 1 次(訪客 join 用途留給下一單,這裡先把管線接好)。
-async function persistTrtcTripBindingRound(env, day, nowEpoch, dayType, bindings, events) {
-  if (!await ensureTrtcLedger(env)) return { bindingRows: 0 };
+async function persistTrtcTripBindingRound(env, day, nowEpoch, dayType, round1, round2) {
+  if (!await ensureTrtcLedger(env)) return { bindingRows: 0, bindingDeletes: 0, reconciledRows: 0 };
   const db = env.TRTC_LEDGER;
-  const touched = new Map(); // "line|dir|tripKey" -> 最新 record
-  for (const ev of events || []) {
-    const key = `${ev.line}|${ev.dir}|${ev.tripKey}`;
-    if (touched.has(key)) continue;
-    const rec = bindings.find(b => b.line === ev.line && b.dir === ev.dir && b.tripKey === ev.tripKey);
-    if (rec) touched.set(key, rec);
+  const bindings = (round2 && round2.bindings) || [];
+  // round1 驅逐後，round2 可能已沒有這個 key；合併兩 pass 事件是 persistence 函式自身
+  // 的契約，不讓呼叫端漏傳 round1 就靜默復發 zombie。
+  const events = [...((round1 && round1.events) || []), ...((round2 && round2.events) || [])];
+  // 連同當日低頻關係表對帳，一併清掉部署前舊版已留下、但新版不會再發
+  // evict event 的 zombie。用 trtc_state marker 保證每營運日只全表掃一次；新 isolate 會從
+  // D1 marker 恢復，不會因記憶體 cache 失效重複掃數百列。後續新驅逐仍靠 event 當輪刪除。
+  let relationalBindings = null, reconciliation = false;
+  if (trtcTripBindingReconciledDay !== day) {
+    const marker = await db.prepare(`SELECT v FROM trtc_state WHERE k='trip_binding_reconcile_v1'`).first();
+    if (marker && marker.v === day) {
+      trtcTripBindingReconciledDay = day;
+    } else {
+      const relational = await db.prepare(`SELECT line,dir,trip_key,track_id,bound_epoch,birth,done,rebinds
+          FROM trtc_trip_bindings WHERE day=?`)
+        .bind(day).all();
+      relationalBindings = relational.results || [];
+      reconciliation = true;
+    }
   }
+  const plan = planTrtcTripBindingPersistence(bindings, events, relationalBindings, reconciliation);
   const statements = [];
-  for (const rec of touched.values()) {
+  for (const rec of plan.upserts) {
     statements.push(db.prepare(`INSERT INTO trtc_trip_bindings
         (day,line,dir,trip_key,track_id,bound_epoch,birth,done,rebinds) VALUES (?,?,?,?,?,?,?,?,?)
         ON CONFLICT(day,line,dir,trip_key) DO UPDATE SET
@@ -951,11 +1044,35 @@ async function persistTrtcTripBindingRound(env, day, nowEpoch, dayType, bindings
           done=excluded.done, rebinds=excluded.rebinds`)
       .bind(day, rec.line, rec.dir, rec.tripKey, rec.trackId, rec.boundEpoch, rec.birth, rec.done ? 1 : 0, rec.rebinds));
   }
-  statements.push(db.prepare(`INSERT INTO trtc_state (k,v) VALUES ('trip_dyn',?)
+  for (const rec of plan.deletes) {
+    statements.push(db.prepare(`DELETE FROM trtc_trip_bindings
+        WHERE day=? AND line=? AND dir=? AND trip_key=?`)
+      .bind(day, rec.line, rec.dir, rec.tripKey));
+  }
+  const stateStatements = [db.prepare(`INSERT INTO trtc_state (k,v) VALUES ('trip_dyn',?)
       ON CONFLICT(k) DO UPDATE SET v=excluded.v`)
-    .bind(JSON.stringify({ at: nowEpoch, day, dayType, bindings })));
-  await db.batch(statements);
-  return { bindingRows: touched.size };
+    .bind(JSON.stringify({ at: nowEpoch, day, dayType, bindings }))];
+  if (reconciliation) stateStatements.push(db.prepare(`INSERT INTO trtc_state (k,v)
+      VALUES ('trip_binding_reconcile_v1',?) ON CONFLICT(k) DO UPDATE SET v=excluded.v`).bind(day));
+  let batches = 0;
+  if (statements.length + stateStatements.length <= TRTC_TRIP_BINDING_BATCH_SIZE) {
+    await db.batch([...statements, ...stateStatements]); batches++;
+  } else {
+    // 任何大型分批寫（不只首次 migration）都先讓 fallback marker 失效。否則日內 marker 已存在時
+    // 第二批失敗，半套 relation 仍會被當成可信。最後再把 trip_dyn+marker 同批恢復。
+    await db.batch([db.prepare(`DELETE FROM trtc_state WHERE k='trip_binding_reconcile_v1'`)]); batches++;
+    trtcTripBindingReconciledDay = null;
+    for (let i = 0; i < statements.length; i += TRTC_TRIP_BINDING_BATCH_SIZE) {
+      await db.batch(statements.slice(i, i + TRTC_TRIP_BINDING_BATCH_SIZE)); batches++;
+    }
+    if (!reconciliation) stateStatements.push(db.prepare(`INSERT INTO trtc_state (k,v)
+      VALUES ('trip_binding_reconcile_v1',?) ON CONFLICT(k) DO UPDATE SET v=excluded.v`).bind(day));
+    await db.batch(stateStatements); batches++;
+    trtcTripBindingReconciledDay = day;
+  }
+  if (reconciliation) trtcTripBindingReconciledDay = day;
+  return { bindingRows: plan.upserts.length, bindingDeletes: plan.deletes.length,
+    reconciledRows: relationalBindings ? relationalBindings.length : 0, batches };
 }
 
 // 訪客 join 用(工項5):只讀 trtc_state['trip_dyn'],day 不符或缺列就回 null——不做
@@ -1036,7 +1153,176 @@ async function loadTrtcBoardBranchHints(env, day) {
   return new Map((result.results || []).map(x => [String(x.alias), String(x.line)]));
 }
 
-async function trtcBoardPositionAnchors(env, rows) {
+const TRTC_OFFICIAL_ROSTER_KEY = 'official_roster_v1';
+const TRTC_OFFICIAL_CAS_RETRIES = 4;
+
+// TrackInfo 正常列以官方 NowDateTime 當 revision；合法空列沒有可用的官方時刻，才採
+// 本輪 acquisition 秒。revision 只負責拒絕較舊 frame；同 revision 仍須再比 sourceFrameKey，因為合法
+// 空列或上游同秒修訂都可能與上一份內容不同，不能只靠秒數把 fresh rows 誤當成重播。
+function trtcOfficialSourceRevision(rows, nowEpoch = Math.floor(Date.now() / 1000)) {
+  const epoch = trtcBoardEpoch(rows, null);
+  return epoch == null ? Math.floor(Number(nowEpoch)) : epoch;
+}
+
+function trtcOfficialFrameKey(rows) {
+  const canonical = (rows || []).map(row => JSON.stringify([
+    String(row && row.line || ''), Number(row && row.dir), Number(row && row.from), Number(row && row.to),
+    Number(row && (row.dest ?? row.destIdx)), Number(row && row.run), Number(row && row.arrEpoch),
+    String(row && row.no || ''), row && row.terminal ? 1 : 0,
+  ])).sort();
+  // 保留完整 canonical frame 而非短雜湊，讓相等判斷沒有碰撞造成漏車的可能。
+  return JSON.stringify(canonical);
+}
+
+function trtcOfficialFrameOrder(rows, frameKey = trtcOfficialFrameKey(rows)) {
+  const count = Array.isArray(rows) ? rows.length : 0;
+  // 只用在 acquisition timestamp 完全相同的極端 tie：合法 empty 優先清 ghost；
+  // 非空 frame 先取列較完整者，再以 canonical bytes 決勝，確保所有 PoP 同一答案。
+  return `${count === 0 ? '2' : '1'}:${String(count).padStart(8, '0')}:${frameKey}`;
+}
+
+function trtcOfficialOutagePayload() {
+  return { at: null, feedMode: 'outage', rosterStateSource: 'outage', degraded: true,
+    rows: [], extensions: [], vehicles: [], dropped: {}, dayType: null, trips: [] };
+}
+
+function trtcOfficialRevision(value) {
+  const number = Number(value);
+  return Number.isFinite(number) ? number : -Infinity;
+}
+
+function trtcOfficialStateFromText(text) {
+  if (!text) return null;
+  try {
+    const parsed = JSON.parse(text);
+    return parsed && parsed.schema === 1 && Array.isArray(parsed.vehicles) ? parsed : null;
+  } catch (e) { return null; }
+}
+
+function trtcOfficialRowsFromRoster(roster) {
+  return (roster && Array.isArray(roster.vehicles) ? roster.vehicles : [])
+    .filter(vehicle => vehicle && !vehicle.extension)
+    .map(vehicle => ({
+      vehicleId: String(vehicle.vehicleId), line: vehicle.line, dir: Number(vehicle.dir),
+      from: Number(vehicle.from), to: Number(vehicle.to), dest: Number(vehicle.dest),
+      run: Number(vehicle.run), arrEpoch: Number(vehicle.arrEpoch), no: vehicle.officialNo || '',
+      terminal: !!vehicle.terminal,
+    }));
+}
+
+function trtcOfficialRowsForJoin(rosterRows) {
+  return (rosterRows || []).map(row => ({ ...row, destIdx: Number(row.dest) }));
+}
+
+function trtcOfficialRosterSnapshot(model, rows, prior, day, nowEpoch, sourceRevision,
+  sourceFrameKey = trtcOfficialFrameKey(rows)) {
+  const roster = reduceOfficialRoster({ model, rows, prior, day, nowEpoch, sourceRevision });
+  // rows 也進同一 CAS blob：若較舊 PoP 輸給較新的 D1 revision，回應必須採較新 snapshot
+  // 自己的 row↔vehicleId 對應，不能把舊 request rows 與新 roster 混成不存在的組合。
+  return { ...roster, sourceFrameKey, sourceFrameOrder: trtcOfficialFrameOrder(rows, sourceFrameKey),
+    rows: trtcOfficialRowsFromRoster(roster) };
+}
+
+function trtcD1Changes(result) {
+  return Number(result && result.meta && result.meta.changes) || Number(result && result.changes) || 0;
+}
+
+async function trtcReadOfficialRoster(db) {
+  const row = await db.prepare('SELECT v FROM trtc_state WHERE k=?').bind(TRTC_OFFICIAL_ROSTER_KEY).first();
+  return { text: row && row.v ? String(row.v) : null, state: trtcOfficialStateFromText(row && row.v) };
+}
+
+// 單列 optimistic CAS：較新的 revision／acquisition order 直接讀回；同 frame 的較晚
+// observation 仍更新 freshness barrier，避免其後夾入遲到的異 frame。
+// UPDATE 把讀到的舊 v 放進 WHERE；INSERT 用 DO NOTHING，兩種 race 都有限重試。
+async function trtcPersistOfficialRoster({ env, model, rows, day, nowEpoch, sourceRevision,
+  sourceObservedEpoch = nowEpoch,
+  retries = TRTC_OFFICIAL_CAS_RETRIES }) {
+  const sourceFrameKey = trtcOfficialFrameKey(rows);
+  const sourceFrameOrder = trtcOfficialFrameOrder(rows, sourceFrameKey);
+  const observedRevision = trtcOfficialRevision(sourceObservedEpoch);
+  let db;
+  try {
+    if (!await ensureTrtcLedger(env)) {
+      return { roster: trtcOfficialRosterSnapshot(model, rows, null, day, nowEpoch, sourceRevision, sourceFrameKey),
+        rosterStateSource: 'deterministic-read-only', degraded: true, writes: 0 };
+    }
+    db = env.TRTC_LEDGER;
+    for (let attempt = 0; attempt < retries; attempt++) {
+      const current = await trtcReadOfficialRoster(db);
+      const currentRevision = current.state && trtcOfficialRevision(current.state.sourceRevision);
+      if (current.state && currentRevision > trtcOfficialRevision(sourceRevision)) {
+        return { roster: current.state, rosterStateSource: 'd1-current', degraded: false, writes: 0 };
+      }
+      if (current.state && currentRevision === trtcOfficialRevision(sourceRevision) &&
+          trtcOfficialRevision(current.state.sourceObservedEpoch) > observedRevision) {
+        return { roster: current.state, rosterStateSource: 'd1-current', degraded: false, writes: 0 };
+      }
+      if (current.state && currentRevision === trtcOfficialRevision(sourceRevision) &&
+          trtcOfficialRevision(current.state.sourceObservedEpoch) === observedRevision &&
+          String(current.state.sourceFrameOrder || '') >= sourceFrameOrder) {
+        return { roster: current.state, rosterStateSource: 'd1-current', degraded: false, writes: 0 };
+      }
+      const next = trtcOfficialRosterSnapshot(model, rows, current.state, day, nowEpoch, sourceRevision,
+        sourceFrameKey);
+      next.sourceObservedEpoch = sourceObservedEpoch;
+      const text = JSON.stringify(next);
+      let result;
+      if (current.text == null) {
+        result = await db.prepare('INSERT INTO trtc_state (k,v) VALUES (?,?) ON CONFLICT(k) DO NOTHING')
+          .bind(TRTC_OFFICIAL_ROSTER_KEY, text).run();
+      } else {
+        result = await db.prepare('UPDATE trtc_state SET v=? WHERE k=? AND v=?')
+          .bind(text, TRTC_OFFICIAL_ROSTER_KEY, current.text).run();
+      }
+      if (trtcD1Changes(result) > 0) {
+        return { roster: next, rosterStateSource: 'd1-cas-write', degraded: false, writes: 1 };
+      }
+    }
+    // 最後一次競爭若已被同 revision／更新 revision 寫入，照樣採權威 D1；否則保留 rows，
+    // 但明確標成 read-only degraded，不因 CAS 熱點讓官方列整批消失。
+    const latest = await trtcReadOfficialRoster(db);
+    const latestRevision = latest.state && trtcOfficialRevision(latest.state.sourceRevision);
+    if (latest.state && (latestRevision > trtcOfficialRevision(sourceRevision) ||
+        (latestRevision === trtcOfficialRevision(sourceRevision) &&
+          trtcOfficialRevision(latest.state.sourceObservedEpoch) > observedRevision) ||
+        (latestRevision === trtcOfficialRevision(sourceRevision) &&
+          trtcOfficialRevision(latest.state.sourceObservedEpoch) === observedRevision &&
+          String(latest.state.sourceFrameOrder || '') >= sourceFrameOrder))) {
+      return { roster: latest.state, rosterStateSource: 'd1-current-after-conflict', degraded: false, writes: 0 };
+    }
+    return { roster: trtcOfficialRosterSnapshot(model, rows, latest.state, day, nowEpoch, sourceRevision,
+      sourceFrameKey),
+      rosterStateSource: 'cas-conflict-read-only', degraded: true, writes: 0 };
+  } catch (error) {
+    console.warn('[trtc official roster] D1 不可用，改走 deterministic read-only:',
+      (error && error.message) || String(error));
+    return { roster: trtcOfficialRosterSnapshot(model, rows, null, day, nowEpoch, sourceRevision, sourceFrameKey),
+      rosterStateSource: 'd1-error-read-only', degraded: true, writes: 0 };
+  }
+}
+
+function trtcOfficialTripDecorations({ tripSets, rosterRows, bindings, aliasByHwNo }) {
+  const candidates = [];
+  for (const row of rosterRows || []) {
+    // 每筆 official row 單獨 join，vehicleId 由同一筆 row 直接帶入；不靠兩個不同陣列的順序。
+    const matches = joinBoardRowsToTrips({ tripSets, rows: [{ ...row, destIdx: row.dest }],
+      bindings, aliasByHwNo });
+    if (matches.length === 1) candidates.push({ vehicleId: String(row.vehicleId), tripKey: String(matches[0].key) });
+  }
+  const vehicleCounts = new Map(), tripCounts = new Map();
+  for (const candidate of candidates) {
+    vehicleCounts.set(candidate.vehicleId, (vehicleCounts.get(candidate.vehicleId) || 0) + 1);
+    tripCounts.set(candidate.tripKey, (tripCounts.get(candidate.tripKey) || 0) + 1);
+  }
+  // 同一 trip 若撞到 duplicate occurrence／多列，全部 fail closed；tripKey 永遠只作裝飾。
+  return new Map(candidates.filter(candidate => vehicleCounts.get(candidate.vehicleId) === 1 &&
+    tripCounts.get(candidate.tripKey) === 1).map(candidate => [candidate.vehicleId, candidate.tripKey]));
+}
+
+async function trtcBoardPositionAnchors(env, rows, feedMode = 'official',
+  sourceObservedEpoch = Date.now()) {
+  if (feedMode !== 'official') return trtcOfficialOutagePayload();
   const nowEpoch = trtcBoardEpoch(rows, Math.floor(Date.now() / 1000));
   const day = trtcServiceDay(nowEpoch);
   if (trtcBoardBranchHintDay !== day) {
@@ -1057,24 +1343,42 @@ async function trtcBoardPositionAnchors(env, rows) {
   trtcBoardBranchHints = resolved.lineHints;
   const claimed = claimBoardRows(model, resolved.rows, nowEpoch, new Map());
   const collapsed = collapseClaims(claimed.claims);
+  const sourceRevision = trtcOfficialSourceRevision(rows, nowEpoch);
+  const official = await trtcPersistOfficialRoster({ env, model, rows: collapsed, day, nowEpoch, sourceRevision,
+    sourceObservedEpoch });
+  const officialRows = official.roster.rows || trtcOfficialRowsFromRoster(official.roster);
   // 訪客唯讀 join(工項5,設計書§7):trip_dyn(≤60秒舊 cron 綁定)× 這一輪新鮮 collapsed 列,worker
   // 內完成,絕不寫 D1(單寫者=cron,無 isolate race)。任一讀取失敗或 trip_dyn 缺列一律降級成空
   // trips[]/dayType:null,不拖垮既有 9 欄位 rows 輸出(rows 欄位原樣,見下方,過渡期雙軌)。
-  let trips = [], dayType = null;
+  let trips = [], dayType = null, tripSets = null, dyn = null, aliasByHwNo = new Map();
   try {
-    const [dyn, aliasByHwNo] = await Promise.all([loadTrtcTripDynSnapshot(env, day), loadTrtcHwNoAliases(env, day)]);
+    [dyn, aliasByHwNo] = await Promise.all([loadTrtcTripDynSnapshot(env, day), loadTrtcHwNoAliases(env, day)]);
     if (dyn) {
       dayType = dyn.dayType;
-      const { tripSets } = await trtcTripSetsForDay(env, day);
-      trips = joinBoardRowsToTrips({ tripSets, rows: collapsed, bindings: dyn.bindings, aliasByHwNo });
+      ({ tripSets } = await trtcTripSetsForDay(env, day));
+      // CAS 可能回傳另一個 PoP 已寫入的較新 official snapshot；相容 trips[] 與新 vehicle
+      // 裝飾都必須以同一份 officialRows join，不能混用本 request 的較舊 collapsed。
+      trips = joinBoardRowsToTrips({ tripSets, rows: trtcOfficialRowsForJoin(officialRows),
+        bindings: dyn.bindings, aliasByHwNo });
     }
   } catch (e) {
     console.error('[trtc board-pos] 訪客 join 失敗(降級成空 trips[]):', (e && e.stack) || String(e));
   }
+  const tripByVehicleId = tripSets && dyn ? trtcOfficialTripDecorations({ tripSets, rosterRows: officialRows,
+    bindings: dyn.bindings, aliasByHwNo }) : new Map();
+  const vehicles = official.roster.vehicles.map(vehicle => {
+    const tripKey = tripByVehicleId.get(String(vehicle.vehicleId));
+    return tripKey == null ? vehicle : { ...vehicle, tripKey };
+  });
   return {
-    at: nowEpoch,
-    rows: collapsed.map(x => ({ line: x.line, dir: x.dir, from: x.from, to: x.to,
-      dest: x.destIdx, run: x.run, arrEpoch: x.arrEpoch, no: x.no || '', terminal: !!x.terminal })),
+    at: official.roster.nowEpoch,
+    feedMode,
+    sourceRevision: official.roster.sourceRevision,
+    rosterStateSource: official.rosterStateSource,
+    degraded: official.degraded,
+    rows: officialRows,
+    extensions: vehicles.filter(vehicle => vehicle.extension),
+    vehicles,
     dropped: { ...resolved.dropped, unclaimed: claimed.unclaimed.length,
       collapsed: claimed.claims.length - collapsed.length,
       branchHinted: resolved.branch.hinted, branchFallback: resolved.branch.fallback,
@@ -1266,20 +1570,23 @@ async function trtcLedgerScheduled(event, env) {
   // 現在會真的帶著 Y 的 claims 進來,Y 的 tracks/bindings 與其他八線同一條路徑處理。
   let bindResult = null;
   try {
-    const [bindModel, { tripSets, dayKeys }, dayTypeTable, priorBindings] = await Promise.all([
+    const [bindModel, { tripSets, dayKeys }, dayTypeTable, priorState] = await Promise.all([
       trtcBoardModel(env), trtcTripSetsForDay(env, day), trtcDayTypeTable(env), loadTrtcTripBindingState(env, day),
     ]);
     const dayType = dayKeys.get('BL') || null;
     const round1 = bindTracksToTrips({ model: bindModel, tripSets, dayType, tracks: part1.claims,
-      priorBindings, nowEpoch: now1, day });
+      priorBindings: priorState.bindings, nowEpoch: now1, day });
     const round2 = bindTracksToTrips({ model: bindModel, tripSets, dayType, tracks: part2.claims,
       priorBindings: round1.bindings, nowEpoch: now2, day });
-    const persisted = await persistTrtcTripBindingRound(env, day, now2, dayType, round2.bindings,
-      [...round1.events, ...round2.events]);
-    bindResult = { audit: round2.audit, bindingRows: persisted.bindingRows, bound: round2.bindings.length };
+    const persisted = await persistTrtcTripBindingRound(env, day, now2, dayType, round1, round2);
+    bindResult = { audit: round2.audit, bindingRows: persisted.bindingRows,
+      bindingDeletes: persisted.bindingDeletes, reconciledRows: persisted.reconciledRows,
+      stateSource: priorState.source,
+      bound: round2.bindings.length };
     console.log(`[cron trtc-binder] ${day}: bound ${round2.audit.bound}, unbound ${round2.audit.unbound}, ` +
       `rebinds ${round2.audit.rebinds}, done ${round2.audit.done}, capped ${round2.audit.capped}, ` +
-      `legMiss ${round2.audit.legMiss}, active ${round2.bindings.length}, upserts ${persisted.bindingRows}`);
+      `legMiss ${round2.audit.legMiss}, active ${round2.bindings.length}, upserts ${persisted.bindingRows}, ` +
+      `deletes ${persisted.bindingDeletes}, reconciled ${persisted.reconciledRows}`);
   } catch (e) {
     console.error('[cron trtc-binder] 失敗:', (e && e.stack) || String(e));
   }
@@ -3026,6 +3333,7 @@ const API_POST_ALLOWED = new Set(['/api/account-delete', '/api/bounty-claim', '/
 // 'other',否則隨便打 /api/<亂數> 就能把 blob 基數炸開。新增端點時要一起加進來。
 const API_ENDPOINTS = new Set([
   'tra-live', 'tra-alert', 'thsr-alert', 'metro-alert', 'hazard-alert', 'metro-live', 'ntmetro-live', 'trtc-live',
+  'klrt-position',
   'delay-stats', 'delay-history', 'thsr-schedule', 'thsr-freeseat', 'station-events', 'today-board', 'basemap-token', 'basemap-session', 'account-delete',
   'bounty-board', 'bounty-claim', 'bounty-submit', 'bounty-me', 'bounty-merge', 'plus-status', 'revenuecat-webhook',
   'la/bind', 'la/unbind',
@@ -4572,6 +4880,7 @@ export default {
       res = NTM_LIVE_SYS.has(sys) ? await ntmetroLive(request, env, sys) : jsonRes({ error: 'bad sys' }, 400, 'no-store');
     }
     else if (url.pathname === '/api/trtc-live') { res = await trtcLive(request, env); }
+    else if (url.pathname === '/api/klrt-position') { res = await klrtPosition(request, env); }
     else if (url.pathname === '/api/delay-stats') res = await delayStats(request, env);
     else if (url.pathname === '/api/thsr-schedule') res = await thsrSchedule(request, env);
     else if (url.pathname === '/api/thsr-freeseat') res = await thsrFreeSeat(request, env);
@@ -4655,6 +4964,12 @@ export const _trtc = { trtcParse, trtcEpoch, dedupeLatest, trtcCall, trtcApiUrl,
 export const _trtcLedger = {
   trtcBoardEpoch, trtcLedgerContext, persistTrtcLedger, trtcLedgerPreview,
   trtcLedgerMaterialized, trtcLedgerNowEpoch, pruneTrtcLedger, trtcLedgerScheduled,
+  loadTrtcTripBindingState, persistTrtcTripBindingRound,
+  trtcOfficialSourceRevision, trtcOfficialFrameKey, trtcOfficialFrameOrder,
+  trtcOfficialStateFromText, trtcOfficialRowsFromRoster,
+  trtcOfficialRowsForJoin,
+  trtcOfficialRosterSnapshot, trtcReadOfficialRoster, trtcPersistOfficialRoster,
+  trtcOfficialOutagePayload, trtcOfficialTripDecorations, trtcBoardPositionAnchors,
 };
 // laPushAll 導出(task-6)：這條迴圈是全功能唯一沒有純函式測試覆蓋的部分(呼叫 D1／APNs／
 // traLive 三個 IO)。workerd 的 fetch 會拒絕自簽 HTTPS 憑證,沒辦法用假伺服器讓 wrangler dev
