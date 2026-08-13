@@ -11,10 +11,12 @@ import { buildTrtcModel, resolveBoardRows, claimBoardRows, collapseClaims } from
 
 const HERE = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const NEW_ROOT = path.resolve(process.env.TRTC_ROUND2_NEW_ROOT || HERE);
-const BASE_ROOT = path.resolve(process.env.TRTC_ROUND2_BASE_ROOT || '/Users/xuxiang/Code/軌島-北捷運動-基準');
+// 原驗收基準樹是 bf2dd6f 的直接父節點；以 commit ref 保留同一個比較對象，
+// 不再綁定一棵會被清理的外部 worktree。
+const BASE_COMMIT = process.env.TRTC_ROUND2_BASE_COMMIT || 'bf2dd6f^';
 const FIRST_COMMIT = process.env.TRTC_ROUND2_FIRST_COMMIT || 'e3d4bac';
 const CORPUS = process.env.TRTC_FIXTURE_DIR || '/Users/xuxiang/Code/軌島-語料/trtc-peak-0803';
-const OUTPUT = path.resolve(process.env.TRTC_ROUND2_OUTPUT || path.join(HERE, 'CODEX-北捷運動-第二輪.json'));
+const OUTPUT = path.resolve(process.env.TRTC_ROUND2_OUTPUT || path.join(HERE, 'tmp', 'CODEX-北捷運動-第二輪.json'));
 const ENGINES = (process.env.ENGINES || 'chromium,webkit').split(',').filter(Boolean);
 const PORT0 = Number(process.env.TRTC_ROUND2_PORT || 6420);
 const SELECTED_KEYS = [
@@ -38,6 +40,19 @@ const percentile = (values, p) => {
 };
 const dist = values => ({ count: values.length, p50: percentile(values, .5), p90: percentile(values, .9),
   p99: percentile(values, .99), max: percentile(values, 1) });
+const readCommitFile = (ref, file) => {
+  try {
+    return execFileSync('git', ['show', `${ref}:${file}`], {
+      cwd: NEW_ROOT,
+      encoding: 'utf8',
+      maxBuffer: 8 * 1024 * 1024,
+      stdio: ['ignore', 'pipe', 'pipe'],
+    });
+  } catch (error) {
+    const detail = String(error?.stderr || error?.message || error).trim();
+    throw new Error(`無法從 repo 讀取 ${ref}:${file}${detail ? `\n${detail}` : ''}`);
+  }
+};
 
 const ledgerModel = buildTrtcModel(
   JSON.parse(fs.readFileSync(path.join(NEW_ROOT, 'data/trtc.json'))),
@@ -461,7 +476,10 @@ async function replay(root, label, engineName, port, htmlOverride = null, captur
 }
 
 const currentHtml = fs.readFileSync(path.join(NEW_ROOT, 'index.html'), 'utf8');
-const firstHtml = execFileSync('git', ['show', `${FIRST_COMMIT}:index.html`], { cwd: NEW_ROOT, encoding: 'utf8', maxBuffer: 8 * 1024 * 1024 });
+// 基準與第一輪都直接讀 repo 內 commit，不建立、也不依賴外部 worktree。
+// 三欄共用 NEW_ROOT 的資料與靜態資產，差異只來自 index.html 內的運動模型。
+const baselineHtml = readCommitFile(BASE_COMMIT, 'index.html');
+const firstHtml = readCommitFile(FIRST_COMMIT, 'index.html');
 const positionOffHtml = currentHtml.replace('function trtcBoardPosition(ln, tr, simSec) {',
   'function trtcBoardPosition(ln, tr, simSec) {\n  return null; // ROUND2_MUTATION: 關掉倒數直算位置，退回 shift 模型');
 const official25mGateHtml = currentHtml.replace(
@@ -471,7 +489,7 @@ const official25mGateHtml = currentHtml.replace(
   '// ROUND2_MUTATION: 拿掉 officialEndpoint bypass，所有錨點重新受25m gate');
 if (positionOffHtml === currentHtml || official25mGateHtml === currentHtml) throw new Error('ROUND2_MUTATION 注入失敗，原始碼標記已變更');
 
-const output = { corpus: CORPUS, firstCommit: FIRST_COMMIT, truth: {
+const output = { corpus: CORPUS, baselineCommit: BASE_COMMIT, firstCommit: FIRST_COMMIT, truth: {
   description: '每個已配對實體錨點以 arrSec-run 為上站出發、arrSec 為下站到達；主口徑用獨立實作的 3.6/4.3 km/h/s、80km/h 停→停梯形換算沿線里程。只取 observedEpoch 之後且仍在該段內的秒。',
   retainedOldGate: '同一批樣本另保留線性站間真值（原 §1 判準），輸出在 accuracyLinear 與 commonLinearTruthPhaseByFirstModel；沒有為了讓梯形版本變綠而刪除舊結果。',
   independentBecause: '真值不呼叫產品的 buildProfile、profTimeToProg、freqTrainPosRaw，也不讀 eased/raw shift；只用官方絕對到站時刻、錨點 from/to、官方或班表段秒與軌道里程，並在驗收腳本內獨立解梯形方程。tripKey 僅確認實體錨點配到哪班。',
@@ -509,7 +527,7 @@ const phasePartition = (partition, records, field = 'errorM') => {
 let port = PORT0;
 for (const engine of ENGINES) {
   const records = {
-    baseline: output.models[`baseline_${engine}`] = await replay(BASE_ROOT, 'baseline', engine, port++, null, engine === 'chromium' ? CAPTURE_SPEC : null),
+    baseline: output.models[`baseline_${engine}`] = await replay(NEW_ROOT, 'baseline', engine, port++, baselineHtml, engine === 'chromium' ? CAPTURE_SPEC : null),
     first: output.models[`first_${engine}`] = await replay(NEW_ROOT, 'first', engine, port++, firstHtml, engine === 'chromium' ? CAPTURE_SPEC : null),
     second: output.models[`second_${engine}`] = await replay(NEW_ROOT, 'second', engine, port++, currentHtml, engine === 'chromium' ? CAPTURE_SPEC : null),
   };
@@ -554,13 +572,14 @@ output.control = { baselineRedAgainstMotionFix: {
   pass: selectedSpeedMax(output.models.baseline_chromium) > 2.02 && selectedSpeedMax(firstC) <= 2.02,
   baselineSelectedMaxSpeed: selectedSpeedMax(output.models.baseline_chromium),
   firstSelectedMaxSpeed: selectedSpeedMax(firstC), secondSelectedMaxSpeed: selectedSpeedMax(secondC),
-  note: '基準樹在事先選定的大跳樣本必須超過 2×，第一輪必須守住 2×；完整 A–D 控制另由 verify_trtc_motion.mjs 重跑。' } };
+  note: '基準 commit 在事先選定的大跳樣本必須超過 2×，第一輪必須守住 2×；完整 A–D 控制另由 verify_trtc_motion.mjs 重跑。' } };
 
 for (const rec of [...Object.values(output.models), ...Object.values(output.mutations)]) {
   delete rec.sampleIds; delete rec.accuracyRecords;
   rec.rosterFrames = rec.rosterFrames.map(frame => ({ slot: frame.slot, epoch: frame.epoch, count: frame.keys.length,
     keyHash: sha256(frame.keys.join('\n')) }));
 }
+fs.mkdirSync(path.dirname(OUTPUT), { recursive: true });
 fs.writeFileSync(OUTPUT, JSON.stringify(output, null, 2) + '\n');
 for (const a of output.assertions) console.log(`${a.pass ? '✅' : '❌'} ${a.label}：${a.detail}`);
 for (const [name, rec] of Object.entries(output.models))

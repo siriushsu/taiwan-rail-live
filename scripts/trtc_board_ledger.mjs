@@ -722,7 +722,8 @@ function tripBindKey(line, dir, tripKey) { return `${line}|${dir}|${tripKey}`; }
 // 輸出 { bindings, events, audit }。
 export function bindTracksToTrips({ model, tripSets, dayType, tracks, priorBindings, nowEpoch, day }) {
   const nowSec = trtcServiceSecOfEpoch(nowEpoch);
-  const audit = { bound: 0, unbound: 0, rebinds: 0, capped: 0, done: 0, legMiss: 0, malformed: 0, reattach: 0 };
+  const audit = { bound: 0, unbound: 0, rebinds: 0, capped: 0, done: 0, legMiss: 0, malformed: 0,
+    reattach: 0, evictedDest: 0, evictedSafety: 0 };
   const events = [];
 
   // 1) 展開 prior 狀態成可變工作副本。
@@ -802,6 +803,9 @@ export function bindTracksToTrips({ model, tripSets, dayType, tracks, priorBindi
     if (claim.destIdx !== tr[tr.length - 2]) {
       evictedRebinds.set(claim.trackId, rec.rebinds);
       // BINDER_HANDOFF_BEGIN：verify_binder_done.mjs 以此既有交棒區塊做 mutation control。
+      events.push({ type: 'evict', reason: 'destMismatch', day, line: rec.line, dir: rec.dir,
+        tripKey: rec.tripKey, trackId: rec.trackId, epoch: nowEpoch });
+      audit.evictedDest++;
       records.delete(fullKey);
       freshTracks.push(claim);
       // BINDER_HANDOFF_END
@@ -850,6 +854,9 @@ export function bindTracksToTrips({ model, tripSets, dayType, tracks, priorBindi
       rec.badStreak++;
       if (rec.badStreak >= TRIP_BIND_BAD_STREAK_LIMIT) {
         evictedRebinds.set(rec.trackId, rec.rebinds);
+        events.push({ type: 'evict', reason: 'badStreak', day, line: rec.line, dir: rec.dir,
+          tripKey: rec.tripKey, trackId: rec.trackId, epoch: nowEpoch });
+        audit.evictedSafety++;
         records.delete(fullKey);
         const claim = stickyTracks.find(c => c.trackId === rec.trackId);
         if (claim) freshTracks.push(claim);
@@ -1017,6 +1024,52 @@ export function bindTracksToTrips({ model, tripSets, dayType, tracks, priorBindi
 
   const bindings = [...records.values()];
   return { bindings, events, audit: { ...audit, dayType } };
+}
+
+// 關係表是「目前狀態」的低頻 fallback，不是事件歷史。因此每輪依 events 觸及的 key
+// 與最終 bindings 做 final-state 規劃：最終還在就 UPSERT，已被驅逐就 DELETE。同輪先驅逐後
+// 重生同一 tripKey 時，最終 record 勝出，不會被前一個 evict event 誤刪。
+export function planTrtcTripBindingPersistence(bindings, events, relationalBindings = null, reconcileAll = false) {
+  const finalByKey = new Map();
+  for (const rec of bindings || []) {
+    if (!rec || !rec.line || !rec.tripKey || (Number(rec.dir) !== 1 && Number(rec.dir) !== 2)) continue;
+    finalByKey.set(tripBindKey(rec.line, Number(rec.dir), rec.tripKey), rec);
+  }
+  const touched = new Map();
+  for (const ev of events || []) {
+    if (!ev || !ev.line || !ev.tripKey || (Number(ev.dir) !== 1 && Number(ev.dir) !== 2)) continue;
+    const dir = Number(ev.dir);
+    touched.set(tripBindKey(ev.line, dir, ev.tripKey), { line: ev.line, dir, tripKey: ev.tripKey });
+  }
+  // 部署當天可能已有舊版「只刪記憶體、沒刪關係表」留下的 zombie。每輪寫入前把低頻表
+  // 與最終 trip_dyn 對帳：關係表還在、final binding 已不在的 key 也要刪。這不依賴新版
+  // evict event，因此修復上線前已存在的 zombie；只比對同一 service day 的查詢結果。
+  const relationalByKey = new Map();
+  for (const rec of relationalBindings || []) {
+    const line = rec && rec.line, dir = Number(rec && rec.dir);
+    const tripKey = rec && (rec.tripKey ?? rec.trip_key);
+    if (!line || !tripKey || (dir !== 1 && dir !== 2)) continue;
+    const key = tripBindKey(line, dir, tripKey);
+    relationalByKey.set(key, rec);
+    if (!finalByKey.has(key)) touched.set(key, { line, dir, tripKey });
+  }
+  // 新版對帳 marker 尚未建立時，不只刪 DB-only zombie，也要把權威 final state
+  // 全數寫回。完成後關係表才能成為 trip_dyn 遺失時可信的 fallback。
+  if (reconcileAll) for (const [key, rec] of finalByKey) {
+    const old = relationalByKey.get(key);
+    const same = old && String(old.trackId ?? old.track_id) === String(rec.trackId) &&
+      Number(old.boundEpoch ?? old.bound_epoch) === Number(rec.boundEpoch) &&
+      String(old.birth) === String(rec.birth) && !!Number(old.done) === !!rec.done &&
+      Number(old.rebinds || 0) === Number(rec.rebinds || 0);
+    if (!same) touched.set(key, { line: rec.line, dir: Number(rec.dir), tripKey: rec.tripKey });
+  }
+  const upserts = [], deletes = [];
+  for (const [key, identity] of touched) {
+    const rec = finalByKey.get(key);
+    if (rec) upserts.push(rec);
+    else deletes.push(identity);
+  }
+  return { upserts, deletes };
 }
 
 // ═══ 訪客唯讀 join(工項5):15秒新鮮看板列 × ≤60秒舊 cron 綁定快照,worker 內完成,絕不寫 D1 ═══

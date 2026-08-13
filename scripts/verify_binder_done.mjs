@@ -9,8 +9,10 @@ import * as fixedLedger from './trtc_board_ledger.mjs';
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const LEDGER_PATH = path.join(ROOT, 'scripts/trtc_board_ledger.mjs');
 const ROUNDS_PATH = path.join(ROOT, 'tmp/binder-fixtures/rounds');
+const CAPTURE_PATH = path.join(ROOT, 'tmp/binder-fixtures/capture.sh');
 const TIMES = readJson(path.join(ROOT, 'data/trtc_times.json'));
 const DAY_TYPES = readJson(path.join(ROOT, 'data/tw_daytype.json'));
+const MIN_DISTINCT_DYN_AT = 8; // 擷取驗收契約：少於 8 個 cron 版本不足以觀察身分轉換。
 const BASE_EPOCH = Date.UTC(2026, 7, 13, 0, 0, 0) / 1000; // 台北 08:00，serviceSec=28800
 
 function readJson(file) { return JSON.parse(fs.readFileSync(file, 'utf8')); }
@@ -40,13 +42,105 @@ function activeDuplicates(bindings) {
   };
 }
 
-const ids = [...new Set(fs.readdirSync(ROUNDS_PATH).map(file => file.slice(0, 2)))].sort();
-const rounds = ids.map(id => {
+function declaredFixtureRoundIds() {
+  const source = fs.readFileSync(CAPTURE_PATH, 'utf8');
+  const match = source.match(/seq\s+-w\s+(\d+)\s+(\d+)/);
+  if (!match) throw new Error(`無法從 ${CAPTURE_PATH} 解析擷取輪次 manifest`);
+  const first = Number(match[1]), last = Number(match[2]);
+  const width = Math.max(match[1].length, match[2].length);
+  return Array.from({ length: last - first + 1 }, (_, index) => String(first + index).padStart(width, '0'));
+}
+
+function validateFixtureTriplets(expectedIds) {
+  const files = new Set(fs.readdirSync(ROUNDS_PATH));
+  const missing = expectedIds.flatMap(id => ['dyn', 'alias', 'live']
+    .map(kind => `${id}_${kind}.json`).filter(file => !files.has(file)));
+  if (missing.length) throw new Error(`fixture manifest 缺檔: ${missing.join(', ')}`);
+}
+
+const ids = declaredFixtureRoundIds();
+validateFixtureTriplets(ids);
+const manifestRounds = ids.map(id => {
   const dyn = JSON.parse(readD1(path.join(ROUNDS_PATH, `${id}_dyn.json`))[0].results[0].v);
   const aliases = new Map((readD1(path.join(ROUNDS_PATH, `${id}_alias.json`))[0].results || [])
     .map(row => [String(row.alias), String(row.track_id)]));
   return { id, dyn, aliases, live: readJson(path.join(ROUNDS_PATH, `${id}_live.json`)) };
 });
+const rounds = manifestRounds;
+
+function sampleBindingIdentity(binding) {
+  return [binding.line, Number(binding.dir), binding.tripKey, String(binding.trackId || '')].join('\0');
+}
+
+function normalizedSampleLastArrEpoch(binding) {
+  return binding.lastArrEpoch != null && Number.isFinite(Number(binding.lastArrEpoch))
+    ? Number(binding.lastArrEpoch) : null;
+}
+
+function eligibleSampleRows(roundSubset) {
+  const byLine = {};
+  for (const round of roundSubset) for (const row of round.live.boardPos.rows || []) {
+    if (Number(row.from) === Number(row.to) && Number(row.run) === 0) continue;
+    if (Number(row.arrEpoch) - Number(round.live.boardPos.at) < -5) continue;
+    addCount(byLine, row.line);
+  }
+  return byLine;
+}
+
+function fixtureSampleProfile(roundSubset) {
+  const dynByAt = new Map();
+  for (const round of roundSubset) {
+    const at = Number(round.dyn.at);
+    if (!dynByAt.has(at)) dynByAt.set(at, round.dyn);
+  }
+  const snapshots = [...dynByAt.values()].sort((a, b) => Number(a.at) - Number(b.at));
+  const trueUpdatesByLine = {};
+  for (let index = 1; index < snapshots.length; index++) {
+    const beforeByIdentity = new Map((snapshots[index - 1].bindings || [])
+      .filter(binding => binding && !binding.done)
+      .map(binding => [sampleBindingIdentity(binding), binding]));
+    for (const after of snapshots[index].bindings || []) {
+      if (!after || after.done) continue;
+      const before = beforeByIdentity.get(sampleBindingIdentity(after));
+      if (!before || normalizedSampleLastArrEpoch(before) === normalizedSampleLastArrEpoch(after)) continue;
+      addCount(trueUpdatesByLine, after.line);
+    }
+  }
+  return { rounds: roundSubset.length, distinctDynAt: snapshots.length,
+    eligibleRowsByLine: eligibleSampleRows(roundSubset), trueUpdatesByLine };
+}
+
+function gateZ(roundSubset, minimum) {
+  const actual = fixtureSampleProfile(roundSubset), shortfalls = [];
+  if (actual.rounds < minimum.rounds) shortfalls.push({ metric: 'rounds', actual: actual.rounds, minimum: minimum.rounds });
+  if (actual.distinctDynAt < minimum.distinctDynAt) {
+    shortfalls.push({ metric: 'distinctDynAt', actual: actual.distinctDynAt, minimum: minimum.distinctDynAt });
+  }
+  for (const [line, required] of Object.entries(minimum.eligibleRowsByLine)) {
+    const observed = actual.eligibleRowsByLine[line] || 0;
+    if (observed < required) shortfalls.push({ metric: `eligibleRows.${line}`, actual: observed, minimum: required });
+  }
+  for (const [line, required] of Object.entries(minimum.trueUpdatesByLine)) {
+    const observed = actual.trueUpdatesByLine[line] || 0;
+    if (observed < required) shortfalls.push({ metric: `trueUpdates.${line}`, actual: observed, minimum: required });
+  }
+  return { pass: shortfalls.length === 0, actual, minimum, shortfalls };
+}
+
+function sampleMinimumFromManifest(manifestRoundSubset) {
+  const profile = fixtureSampleProfile(manifestRoundSubset);
+  if (profile.distinctDynAt < MIN_DISTINCT_DYN_AT) {
+    throw new Error(`fixture 只有 ${profile.distinctDynAt} 個相異 dyn.at，低於擷取契約 ${MIN_DISTINCT_DYN_AT}`);
+  }
+  return { ...profile, rounds: declaredFixtureRoundIds().length };
+}
+
+function threeRoundMutationHitsEverySampleDimension(result, minimum) {
+  const metrics = new Set(result.shortfalls.map(item => item.metric));
+  return !result.pass && metrics.has('rounds') && metrics.has('distinctDynAt') &&
+    Object.keys(minimum.eligibleRowsByLine).every(line => metrics.has(`eligibleRows.${line}`)) &&
+    Object.keys(minimum.trueUpdatesByLine).every(line => metrics.has(`trueUpdates.${line}`));
+}
 
 function tripMapFor(mod, day) {
   const { tripSets } = mod.buildTripSetsByLineDir(TIMES, DAY_TYPES, day);
@@ -232,6 +326,7 @@ console.log('M-C1 出生時允許同 track 綁多 trip：C 紅；A、B、D 綠�
 console.log('M-C2 輸出時允許同 trip 帶兩個 track：C 紅；A、B、D 綠。');
 console.log('M-D 阻斷目的地改變時的驅逐／再出生：D 紅；A、B、C 綠。');
 console.log('M-E 把 legMiss 觀測誤當失聯、容許 reclaim：A 紅；B、C、D 綠。');
+console.log('M-Z 只餵 manifest 前 3 輪：Z 的輪數、dyn.at、每條有樣本線 eligible rows 與每條有真更新線的下限全部轉紅。');
 
 const noVetoLedger = await mutatedModule('no-veto', source =>
   replaceOnce(source, DONE_GUARD_RE, NO_VETO_BLOCK, 'no-veto'));
@@ -490,6 +585,9 @@ function syntheticCoverage(mod) {
 }
 
 const fixtures = measureFixtures(fixedLedger);
+const sampleMinimumZ = sampleMinimumFromManifest(manifestRounds);
+const sampleZ = gateZ(rounds, sampleMinimumZ);
+const sampleZThreeRoundMutation = gateZ(rounds.slice(0, 3), sampleMinimumZ);
 const modules = { fixed: fixedLedger, noVeto: noVetoLedger, neverDone: neverDoneLedger,
   duplicateTrack: duplicateLedger, duplicateTrip: duplicateTripLedger,
   brokenHandoff: brokenHandoffLedger, legMissReclaim: legMissReclaimLedger };
@@ -506,6 +604,13 @@ const expected = {
 };
 
 let failures = 0;
+console.log('\n【Z 樣本量下限（從 capture manifest 與完整 fixture 結構推導）】');
+console.log(`${sampleZ.pass ? '✅' : '❌'} baseline ${JSON.stringify(sampleZ)}`);
+if (!sampleZ.pass) failures++;
+const sampleZMutationRed = threeRoundMutationHitsEverySampleDimension(sampleZThreeRoundMutation,
+  sampleMinimumZ);
+console.log(`${sampleZMutationRed ? '✅' : '❌'} M-Z 預期 Z 轉紅 ${JSON.stringify(sampleZThreeRoundMutation)}`);
+if (!sampleZMutationRed) failures++;
 console.log('\n【Fixture 基線】');
 console.log(JSON.stringify(fixtures, null, 2));
 console.log('\n【A–D 與 mutation matrix】');
@@ -537,5 +642,5 @@ console.log(JSON.stringify({
   syntheticBefore, syntheticAfter,
 }, null, 2));
 
-console.log(`\n${failures ? `FAIL ${failures}` : 'PASS'}: binder done A–E 與 mutation controls`);
+console.log(`\n${failures ? `FAIL ${failures}` : 'PASS'}: binder done Z、A–E 與 mutation controls`);
 process.exitCode = failures ? 1 : 0;

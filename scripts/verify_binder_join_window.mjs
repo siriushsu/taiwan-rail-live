@@ -16,10 +16,13 @@ import {
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const ROUNDS_PATH = path.join(ROOT, 'tmp/binder-fixtures/rounds');
+const CAPTURE_PATH = path.join(ROOT, 'tmp/binder-fixtures/capture.sh');
 const TIMES = readJson(path.join(ROOT, 'data/trtc_times.json'));
 const DAY_TYPES = readJson(path.join(ROOT, 'data/tw_daytype.json'));
 const TARGET_LINES = ['BR', 'Y', 'BL', 'R'];
 const LIVE_WINDOW_GRACE_SEC = 5;
+const MIN_DISTINCT_DYN_AT = 8; // 擷取驗收契約：少於 8 個 cron 版本不足以觀察身分轉換。
+const REFERENCE_REPLAY_ROUNDS = 16; // 題面外部真值的固定重播範圍，不得隨分母縮水。
 
 function readJson(file) { return JSON.parse(fs.readFileSync(file, 'utf8')); }
 function readD1(file) {
@@ -55,14 +58,92 @@ function normalizedLastArrEpoch(binding) {
     ? Number(binding.lastArrEpoch) : null;
 }
 
-const roundIds = [...new Set(fs.readdirSync(ROUNDS_PATH).map(file => file.slice(0, 2)))].sort();
-const rounds = roundIds.map(id => {
+function declaredFixtureRoundIds() {
+  const source = fs.readFileSync(CAPTURE_PATH, 'utf8');
+  const match = source.match(/seq\s+-w\s+(\d+)\s+(\d+)/);
+  if (!match) throw new Error(`無法從 ${CAPTURE_PATH} 解析擷取輪次 manifest`);
+  const first = Number(match[1]), last = Number(match[2]);
+  const width = Math.max(match[1].length, match[2].length);
+  return Array.from({ length: last - first + 1 }, (_, index) => String(first + index).padStart(width, '0'));
+}
+
+function validateFixtureTriplets(expectedIds) {
+  const files = new Set(fs.readdirSync(ROUNDS_PATH));
+  const missing = expectedIds.flatMap(id => ['dyn', 'alias', 'live']
+    .map(kind => `${id}_${kind}.json`).filter(file => !files.has(file)));
+  if (missing.length) throw new Error(`fixture manifest 缺檔: ${missing.join(', ')}`);
+}
+
+const roundIds = declaredFixtureRoundIds();
+validateFixtureTriplets(roundIds);
+const manifestRounds = roundIds.map(id => {
   const dyn = JSON.parse(readD1(path.join(ROUNDS_PATH, `${id}_dyn.json`))[0].results[0].v);
   const aliases = new Map((readD1(path.join(ROUNDS_PATH, `${id}_alias.json`))[0].results || [])
     .map(row => [String(row.alias), String(row.track_id)]));
   const live = readJson(path.join(ROUNDS_PATH, `${id}_live.json`));
   return { id, dyn, aliases, live, boardAt: Number(live.boardPos.at) };
 }).sort((a, b) => a.boardAt - b.boardAt || a.id.localeCompare(b.id));
+const rounds = manifestRounds;
+
+function fixtureSampleProfile(roundSubset) {
+  const eligibleRowsByLine = {}, dynByAt = new Map();
+  for (const round of roundSubset) {
+    const at = Number(round.dyn.at);
+    if (!dynByAt.has(at)) dynByAt.set(at, round.dyn);
+    for (const row of round.live.boardPos.rows || []) {
+      if (Number(row.from) === Number(row.to) && Number(row.run) === 0) continue;
+      if (Number(row.arrEpoch) - round.boardAt < -5) continue;
+      eligibleRowsByLine[row.line] = (eligibleRowsByLine[row.line] || 0) + 1;
+    }
+  }
+  const snapshots = [...dynByAt.values()].sort((a, b) => Number(a.at) - Number(b.at));
+  const trueUpdatesByLine = {};
+  for (let index = 1; index < snapshots.length; index++) {
+    const beforeByIdentity = new Map((snapshots[index - 1].bindings || [])
+      .filter(binding => binding && !binding.done)
+      .map(binding => [exactIdentity(binding), binding]));
+    for (const after of snapshots[index].bindings || []) {
+      if (!after || after.done) continue;
+      const before = beforeByIdentity.get(exactIdentity(after));
+      if (!before || normalizedLastArrEpoch(before) === normalizedLastArrEpoch(after)) continue;
+      trueUpdatesByLine[after.line] = (trueUpdatesByLine[after.line] || 0) + 1;
+    }
+  }
+  return { rounds: roundSubset.length, distinctDynAt: snapshots.length,
+    eligibleRowsByLine, trueUpdatesByLine };
+}
+
+function gateZ(roundSubset, minimum) {
+  const actual = fixtureSampleProfile(roundSubset), shortfalls = [];
+  if (actual.rounds < minimum.rounds) shortfalls.push({ metric: 'rounds', actual: actual.rounds, minimum: minimum.rounds });
+  if (actual.distinctDynAt < minimum.distinctDynAt) {
+    shortfalls.push({ metric: 'distinctDynAt', actual: actual.distinctDynAt, minimum: minimum.distinctDynAt });
+  }
+  for (const [line, required] of Object.entries(minimum.eligibleRowsByLine)) {
+    const observed = actual.eligibleRowsByLine[line] || 0;
+    if (observed < required) shortfalls.push({ metric: `eligibleRows.${line}`, actual: observed, minimum: required });
+  }
+  for (const [line, required] of Object.entries(minimum.trueUpdatesByLine)) {
+    const observed = actual.trueUpdatesByLine[line] || 0;
+    if (observed < required) shortfalls.push({ metric: `trueUpdates.${line}`, actual: observed, minimum: required });
+  }
+  return { pass: shortfalls.length === 0, actual, minimum, shortfalls };
+}
+
+function sampleMinimumFromManifest(manifestRoundSubset) {
+  const profile = fixtureSampleProfile(manifestRoundSubset);
+  if (profile.distinctDynAt < MIN_DISTINCT_DYN_AT) {
+    throw new Error(`fixture 只有 ${profile.distinctDynAt} 個相異 dyn.at，低於擷取契約 ${MIN_DISTINCT_DYN_AT}`);
+  }
+  return { ...profile, rounds: declaredFixtureRoundIds().length };
+}
+
+function threeRoundMutationHitsEverySampleDimension(result, minimum) {
+  const metrics = new Set(result.shortfalls.map(item => item.metric));
+  return !result.pass && metrics.has('rounds') && metrics.has('distinctDynAt') &&
+    Object.keys(minimum.eligibleRowsByLine).every(line => metrics.has(`eligibleRows.${line}`)) &&
+    Object.keys(minimum.trueUpdatesByLine).every(line => metrics.has(`trueUpdates.${line}`));
+}
 
 function uniqueDynSnapshots() {
   const byAt = new Map();
@@ -637,8 +718,13 @@ console.log('M-MIDSTATE 忽略 round1 newborn 缺中間態：fail-closed ref con
 console.log('M-SHIFT 把未更新的持久 state 算成 shift 更新：同一 fixture partition 轉紅。');
 console.log('M-HEADWAY 跨固定站流相減 ETA：同一 fixture stream identity 轉紅。');
 console.log('M-SCHED-WINDOW 納入捕捉窗外班表：同一 fixture 時間窗不變量轉紅。');
+console.log('M-Z 只餵 manifest／題面重播前 3 輪：Z 的輪數、dyn.at、每條有樣本線 eligible rows、每條有真更新線與 16 輪題面範圍下限全部轉紅。');
 
-const g16 = classifyG(rounds.slice(0, 16));
+const sampleMinimumZ = sampleMinimumFromManifest(manifestRounds);
+const sampleZ = gateZ(rounds, sampleMinimumZ);
+const sampleZThreeRoundMutation = gateZ(rounds.slice(0, 3), sampleMinimumZ);
+const g16 = classifyG(rounds.slice(0, REFERENCE_REPLAY_ROUNDS));
+const g16ThreeRoundMutation = classifyG(rounds.slice(0, 3));
 const g20 = classifyG(rounds);
 const shiftShape = measureShiftShape();
 const birthRefs = measureBirthRefs();
@@ -646,6 +732,7 @@ const headways = measureHeadways();
 const coverage = currentCoverage();
 
 const gates = {
+  Z: sampleZ.pass && g16.rounds === REFERENCE_REPLAY_ROUNDS,
   G: isVerdictB(g20) && g20.bins['<60'] > 0 && g20.bins['60-180'] > 0 &&
     (g20.byLine.BR?.total || 0) > 0 && (g20.byLine.Y?.total || 0) > 0,
   REF: assertBirthRefs(birthRefs) && syntheticBirthDetectorGate(false) && syntheticAmbiguityGate(false) &&
@@ -654,6 +741,8 @@ const gates = {
   HEADWAY: assertHeadways(headways),
 };
 const mutations = {
+  'M-Z': threeRoundMutationHitsEverySampleDimension(sampleZThreeRoundMutation, sampleMinimumZ) &&
+    g16ThreeRoundMutation.rounds < REFERENCE_REPLAY_ROUNDS,
   'M-G': !isVerdictB(classifyG(rounds, Infinity)),
   'M-BIRTH': !syntheticBirthDetectorGate(true),
   'M-REF': !assertBirthRefs(measureBirthRefs({ includeSamePassBirth: true })),
@@ -665,13 +754,20 @@ const mutations = {
 };
 let failures = 0;
 for (const [name, pass] of Object.entries(gates)) {
-  console.log(`${pass ? '✅' : '❌'} A.${name} baseline`);
+  console.log(`${pass ? '✅' : '❌'} ${name === 'Z' ? 'Z' : `A.${name}`} baseline`);
   if (!pass) failures++;
 }
 for (const [name, red] of Object.entries(mutations)) {
   console.log(`${red ? '✅' : '❌'} ${name} 預期 gate 轉紅`);
   if (!red) failures++;
 }
+
+console.log('\n【Z 樣本量下限（從 capture manifest 與完整 fixture 結構推導）】');
+console.log(JSON.stringify({ baseline: sampleZ,
+  referenceReplay: { actualRounds: g16.rounds, minimumRounds: REFERENCE_REPLAY_ROUNDS },
+  threeRoundMutation: sampleZThreeRoundMutation,
+  threeRoundReferenceReplay: { actualRounds: g16ThreeRoundMutation.rounds,
+    minimumRounds: REFERENCE_REPLAY_ROUNDS } }, null, 2));
 
 console.log('\n【A1 甲／乙 minCost 分辨】');
 console.log(JSON.stringify({ first16: g16, all20: g20 }, null, 2));
@@ -686,5 +782,5 @@ console.log(JSON.stringify(coverage, null, 2));
 console.log(`\n【裁示停點】${g20.verdict}；${isVerdictB(g20)
   ? '本腳本未修改 45 秒窗、binder、班表或前端，B–E 尚未進入。'
   : '不得無條件宣告乙，需回報本批差異。'}`);
-console.log(`\n${failures ? `FAIL ${failures}` : 'PASS'}: 派工②第一步診斷與 mutation controls`);
+console.log(`\n${failures ? `FAIL ${failures}` : 'PASS'}: 派工② Z、第一步診斷與 mutation controls`);
 process.exitCode = failures ? 1 : 0;

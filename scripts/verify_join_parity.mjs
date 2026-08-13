@@ -10,9 +10,11 @@ import * as originLedger from '../tmp/binder-fixtures/old_ledger.mjs';
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const LEDGER_PATH = path.join(ROOT, 'scripts/trtc_board_ledger.mjs');
 const ROUNDS_PATH = path.join(ROOT, 'tmp/binder-fixtures/rounds');
+const CAPTURE_PATH = path.join(ROOT, 'tmp/binder-fixtures/capture.sh');
 const TIMES = readJson(path.join(ROOT, 'data/trtc_times.json'));
 const DAY_TYPES = readJson(path.join(ROOT, 'data/tw_daytype.json'));
 const SHUFFLES_PER_ROUND = 24;
+const MIN_DISTINCT_DYN_AT = 8; // 擷取驗收契約：少於 8 個 cron 版本不足以觀察身分轉換。
 
 function readJson(file) { return JSON.parse(fs.readFileSync(file, 'utf8')); }
 function readD1(file) {
@@ -54,8 +56,25 @@ function shuffled(values, seed) {
   return out;
 }
 
-const roundIds = [...new Set(fs.readdirSync(ROUNDS_PATH).map(file => file.slice(0, 2)))].sort();
-const rounds = roundIds.map(id => {
+function declaredFixtureRoundIds() {
+  const source = fs.readFileSync(CAPTURE_PATH, 'utf8');
+  const match = source.match(/seq\s+-w\s+(\d+)\s+(\d+)/);
+  if (!match) throw new Error(`無法從 ${CAPTURE_PATH} 解析擷取輪次 manifest`);
+  const first = Number(match[1]), last = Number(match[2]);
+  const width = Math.max(match[1].length, match[2].length);
+  return Array.from({ length: last - first + 1 }, (_, index) => String(first + index).padStart(width, '0'));
+}
+
+function validateFixtureTriplets(expectedIds) {
+  const files = new Set(fs.readdirSync(ROUNDS_PATH));
+  const missing = expectedIds.flatMap(id => ['dyn', 'alias', 'live']
+    .map(kind => `${id}_${kind}.json`).filter(file => !files.has(file)));
+  if (missing.length) throw new Error(`fixture manifest 缺檔: ${missing.join(', ')}`);
+}
+
+const roundIds = declaredFixtureRoundIds();
+validateFixtureTriplets(roundIds);
+const manifestRounds = roundIds.map(id => {
   const dynResult = readD1(path.join(ROUNDS_PATH, `${id}_dyn.json`));
   const aliasResult = readD1(path.join(ROUNDS_PATH, `${id}_alias.json`));
   const dyn = JSON.parse(dynResult[0].results[0].v);
@@ -64,6 +83,76 @@ const rounds = roundIds.map(id => {
     .map(row => [String(row.alias), String(row.track_id)]));
   return { id, dyn, live, aliasByHwNo };
 });
+const rounds = manifestRounds;
+
+function sampleBindingIdentity(binding) {
+  return [binding.line, Number(binding.dir), binding.tripKey, String(binding.trackId || '')].join('\0');
+}
+
+function normalizedSampleLastArrEpoch(binding) {
+  return binding.lastArrEpoch != null && Number.isFinite(Number(binding.lastArrEpoch))
+    ? Number(binding.lastArrEpoch) : null;
+}
+
+function fixtureSampleProfile(roundSubset) {
+  const eligibleRowsByLine = {}, dynByAt = new Map();
+  for (const round of roundSubset) {
+    const at = Number(round.dyn.at);
+    if (!dynByAt.has(at)) dynByAt.set(at, round.dyn);
+    for (const row of round.live.boardPos.rows || []) {
+      if (Number(row.from) === Number(row.to) && Number(row.run) === 0) continue;
+      if (Number(row.arrEpoch) - Number(round.live.boardPos.at) < -5) continue;
+      eligibleRowsByLine[row.line] = (eligibleRowsByLine[row.line] || 0) + 1;
+    }
+  }
+  const snapshots = [...dynByAt.values()].sort((a, b) => Number(a.at) - Number(b.at));
+  const trueUpdatesByLine = {};
+  for (let index = 1; index < snapshots.length; index++) {
+    const beforeByIdentity = new Map((snapshots[index - 1].bindings || [])
+      .filter(binding => binding && !binding.done)
+      .map(binding => [sampleBindingIdentity(binding), binding]));
+    for (const after of snapshots[index].bindings || []) {
+      if (!after || after.done) continue;
+      const before = beforeByIdentity.get(sampleBindingIdentity(after));
+      if (!before || normalizedSampleLastArrEpoch(before) === normalizedSampleLastArrEpoch(after)) continue;
+      trueUpdatesByLine[after.line] = (trueUpdatesByLine[after.line] || 0) + 1;
+    }
+  }
+  return { rounds: roundSubset.length, distinctDynAt: snapshots.length,
+    eligibleRowsByLine, trueUpdatesByLine };
+}
+
+function gateZ(roundSubset, minimum) {
+  const actual = fixtureSampleProfile(roundSubset), shortfalls = [];
+  if (actual.rounds < minimum.rounds) shortfalls.push({ metric: 'rounds', actual: actual.rounds, minimum: minimum.rounds });
+  if (actual.distinctDynAt < minimum.distinctDynAt) {
+    shortfalls.push({ metric: 'distinctDynAt', actual: actual.distinctDynAt, minimum: minimum.distinctDynAt });
+  }
+  for (const [line, required] of Object.entries(minimum.eligibleRowsByLine)) {
+    const observed = actual.eligibleRowsByLine[line] || 0;
+    if (observed < required) shortfalls.push({ metric: `eligibleRows.${line}`, actual: observed, minimum: required });
+  }
+  for (const [line, required] of Object.entries(minimum.trueUpdatesByLine)) {
+    const observed = actual.trueUpdatesByLine[line] || 0;
+    if (observed < required) shortfalls.push({ metric: `trueUpdates.${line}`, actual: observed, minimum: required });
+  }
+  return { pass: shortfalls.length === 0, actual, minimum, shortfalls };
+}
+
+function sampleMinimumFromManifest(manifestRoundSubset) {
+  const profile = fixtureSampleProfile(manifestRoundSubset);
+  if (profile.distinctDynAt < MIN_DISTINCT_DYN_AT) {
+    throw new Error(`fixture 只有 ${profile.distinctDynAt} 個相異 dyn.at，低於擷取契約 ${MIN_DISTINCT_DYN_AT}`);
+  }
+  return { ...profile, rounds: declaredFixtureRoundIds().length };
+}
+
+function threeRoundMutationHitsEverySampleDimension(result, minimum) {
+  const metrics = new Set(result.shortfalls.map(item => item.metric));
+  return !result.pass && metrics.has('rounds') && metrics.has('distinctDynAt') &&
+    Object.keys(minimum.eligibleRowsByLine).every(line => metrics.has(`eligibleRows.${line}`)) &&
+    Object.keys(minimum.trueUpdatesByLine).every(line => metrics.has(`trueUpdates.${line}`));
+}
 
 function joinRound(mod, round, rows = round.live.boardPos.rows) {
   const { tripSets } = mod.buildTripSetsByLineDir(TIMES, DAY_TYPES, round.dyn.day);
@@ -119,6 +208,7 @@ console.log('M-A 末段改回「重複全丟」：A 只在 production 的可比�
 console.log('M-B 改成「rows 第一列勝出」：B 洗牌後至少一輪逐筆輸出不同。');
 console.log('M-C 直接允許重複：C 的 trackId／tripKey 至少一側出現重複。');
 console.log('M-D 拆掉 binding 與末段一對多防線：D 損壞輸入不再回傳空陣列。');
+console.log('M-Z 只餵 manifest／可比輪前 3 輪：Z 的輪數、dyn.at、每條有樣本線 eligible rows、每條有真更新線與 A 可比輪下限全部轉紅。');
 
 const dropAllLedger = await mutatedModule('drop-all', source =>
   replaceOnce(source, DEDUPE_RE, DROP_ALL_BLOCK, 'drop-all'));
@@ -162,11 +252,11 @@ for (const round of rounds) {
   targetIdsByRound.set(round.id, new Set([...productionIds].filter(id => unambiguousIds.has(id))));
 }
 
-function gateA(mod) {
+function gateA(mod, selectedRoundIds = faithfulRoundIds, minimumComparableRounds = faithfulRoundIds.size) {
   let sample = 0, onlyProduction = 0, onlyReplay = 0, selectedTupleOutsideProduction = 0, exactRounds = 0;
   const details = [];
   for (const round of rounds) {
-    if (!faithfulRoundIds.has(round.id)) continue;
+    if (!selectedRoundIds.has(round.id)) continue;
     const production = round.live.boardPos.trips || [];
     const target = targetIdsByRound.get(round.id);
     const productionIds = new Set(production.map(fullKey));
@@ -181,8 +271,11 @@ function gateA(mod) {
     if (!missing && !extra && !foreignTuple) exactRounds++;
     if (missing || extra || foreignTuple) details.push({ id: round.id, missing, extra, foreignTuple });
   }
-  return { pass: onlyProduction === 0 && onlyReplay === 0 && selectedTupleOutsideProduction === 0,
-    sample, rounds: faithfulRoundIds.size, exactRounds, onlyProduction, onlyReplay,
+  const comparableSamplePass = selectedRoundIds.size >= minimumComparableRounds;
+  return { pass: comparableSamplePass && onlyProduction === 0 && onlyReplay === 0 &&
+      selectedTupleOutsideProduction === 0,
+    sample, rounds: selectedRoundIds.size, minimumComparableRounds, comparableSamplePass,
+    exactRounds, onlyProduction, onlyReplay,
     selectedTupleOutsideProduction, details };
 }
 
@@ -267,9 +360,22 @@ function lineRates(mod, faithfulOnly = true) {
   return Object.fromEntries([...byLine].sort(([a], [b]) => a < b ? -1 : a > b ? 1 : 0));
 }
 
-const baseline = { A: gateA(fixedLedger), B: gateB(fixedLedger), C: gateC(fixedLedger), D: gateD(fixedLedger) };
+const sampleMinimumZ = sampleMinimumFromManifest(manifestRounds);
+const minimumComparableRoundsZ = faithfulRoundIds.size;
+const comparableBaselineZ = gateA(fixedLedger, faithfulRoundIds, minimumComparableRoundsZ);
+const rawSampleZ = gateZ(rounds, sampleMinimumZ);
+const sampleZ = { ...rawSampleZ, pass: rawSampleZ.pass && comparableBaselineZ.comparableSamplePass,
+  comparableRounds: comparableBaselineZ.rounds, minimumComparableRounds: minimumComparableRoundsZ };
+const sampleZThreeRoundMutation = gateZ(rounds.slice(0, 3), sampleMinimumZ);
+const threeComparableRoundIds = new Set([...faithfulRoundIds].slice(0, 3));
+const comparableZThreeRoundMutation = gateA(fixedLedger, threeComparableRoundIds, minimumComparableRoundsZ);
+const baseline = { Z: sampleZ, A: gateA(fixedLedger), B: gateB(fixedLedger), C: gateC(fixedLedger), D: gateD(fixedLedger) };
 const before = { A: gateA(dropAllLedger), B: gateB(dropAllLedger), C: gateC(dropAllLedger), D: gateD(dropAllLedger) };
 const mutations = {
+  'M-Z': { expectedRed: 'Z', gates: { Z: { ...sampleZThreeRoundMutation,
+    comparable: comparableZThreeRoundMutation,
+    pass: !(threeRoundMutationHitsEverySampleDimension(sampleZThreeRoundMutation, sampleMinimumZ) &&
+      !comparableZThreeRoundMutation.comparableSamplePass) } } },
   'M-A': { expectedRed: 'A', gates: { A: gateA(dropAllLedger) } },
   'M-B': { expectedRed: 'B', gates: { B: gateB(firstRowLedger) } },
   'M-C': { expectedRed: 'C', gates: { C: gateC(allowDuplicatesLedger) } },
@@ -277,7 +383,7 @@ const mutations = {
 };
 
 let failures = 0;
-console.log('\n【A–D baseline】');
+console.log('\n【Z、A–D baseline】');
 for (const [gate, result] of Object.entries(baseline)) {
   console.log(`${result.pass ? '✅' : '❌'} ${gate} ${JSON.stringify(result)}`);
   if (!result.pass) failures++;
@@ -300,5 +406,5 @@ console.log('\n【逐線接上率原始數據（僅 old replay 與 production tu
 console.log(JSON.stringify({ before: lineRates(dropAllLedger), after: lineRates(fixedLedger),
   originMain: lineRates(originLedger) }, null, 2));
 
-console.log(`\n${failures ? `FAIL ${failures}` : 'PASS'}: join parity A–D 與 mutation controls`);
+console.log(`\n${failures ? `FAIL ${failures}` : 'PASS'}: join parity Z、A–D 與 mutation controls`);
 process.exitCode = failures ? 1 : 0;
