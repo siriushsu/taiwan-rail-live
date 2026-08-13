@@ -372,14 +372,15 @@ function followRuntime(functionSource = extractFunction(INDEX, 'trtcOfficialFoll
 }
 function identityRuntimeAudit(hitSource, followSource) {
   const officialHits = hitRuntime(hitSource, '?officialroster=1');
-  const legacyHits = hitRuntime(hitSource, '');
+  // 旗標預設已開，「舊行為」要明寫 ?officialroster=0 才驅動得出來（空字串現在＝開）。
+  const legacyHits = hitRuntime(hitSource, '?officialroster=0');
   const otherLine = { id:'A', _sys:'tymc' }, otherHits = [
     { x:101, y:100, ln:otherLine, k:1 }, { x:103, y:100, ln:otherLine, k:2 },
     // 同一幅全台畫面遠處有北捷 official，不得影響這個 cp 的機捷 legacy 命中。
     { x:300, y:300, halfW:20, halfH:8, ln:{id:'BL'}, vehicleId:'far-official' },
   ];
   const otherWithFlag = hitRuntime(hitSource, '?officialroster=1', otherHits);
-  const otherWithoutFlag = hitRuntime(hitSource, '', otherHits);
+  const otherWithoutFlag = hitRuntime(hitSource, '?officialroster=0', otherHits);
   const follow = followRuntime(followSource);
   return { pass: officialHits.length === 2 && officialHits.map(item => item.vehicleId).join(',') === 'v-a,v-b' &&
       legacyHits.length === 1 && legacyHits[0].vehicleId == null &&
@@ -444,7 +445,10 @@ function evaluateGates(api) {
   const active = api.trtcOfficialRosterActive;
   const a = FLAG_OFF_SOURCE.pass && FLAG_OFF_RUNTIME.pass && INTEGRATION_SOURCE.rosterPass && INGEST_RUNTIME.pass &&
     PEAK_FRONTEND.pass &&
-    api.trtcOfficialRosterEnabled('?officialroster=1') && !api.trtcOfficialRosterEnabled('') &&
+    // 2026-08-13 上線後預設開啟：不帶參數＝開，只有明寫 ?officialroster=0 才退回班表路徑。
+    // 三個都要驗——少了中間那條，把預設改回關也不會轉紅。
+    api.trtcOfficialRosterEnabled('?officialroster=1') && api.trtcOfficialRosterEnabled('') &&
+    !api.trtcOfficialRosterEnabled('?officialroster=0') &&
     active(BOARD, true, NOW) && !active({ ...BOARD, feedMode: 'outage' }, true, NOW) &&
     active(BOARD, true, BOARD.sourceRevision + api.maxAge) &&
     !active(BOARD, true, BOARD.sourceRevision + api.maxAge + 1 / 1000) && !active(BOARD, false, NOW) &&
@@ -514,7 +518,7 @@ const baselineApi = buildProductApi();
 const PEAK_FRONTEND = peakFrontendAudit(baselineApi);
 const baseline = evaluateGates(baselineApi);
 console.log('\n【A–E 產品真函式】');
-check(baseline.gates.A, 'A 名冊翻面／旗標關閉／outage／45s age gate／正反對照',
+check(baseline.gates.A, 'A 名冊翻面／旗標關閉／outage／age gate／正反對照',
   JSON.stringify(baseline.metrics));
 check(FLAG_OFF_SOURCE.pass, 'A 旗標關閉保留舊 18px nearest-one 命中與身分邊界',
   JSON.stringify(FLAG_OFF_SOURCE));
@@ -796,7 +800,7 @@ async function browserMatrix(baseUrl) {
           const hit = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
           const caught = !(hit === target || target.contains(hit)); cover.remove(); return caught;
         });
-        await page.goto(baseUrl, { waitUntil: 'domcontentloaded' });
+        await page.goto(`${baseUrl}?officialroster=0`, { waitUntil: 'domcontentloaded' });
         await page.waitForFunction(() => typeof state !== 'undefined' && state.ready === true, null, { timeout: 60000 });
         const flagOff = await page.evaluate(() => ({
           enabled: typeof OFFICIAL_ROSTER_ENABLED !== 'undefined' && OFFICIAL_ROSTER_ENABLED === true,

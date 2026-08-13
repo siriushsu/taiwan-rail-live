@@ -163,7 +163,11 @@ async function prepare(page, port) {
     if (u.hostname === '127.0.0.1' || u.hostname === 'localhost') return route.continue();
     return route.abort('blockedbyclient');
   });
-  await page.goto(`http://127.0.0.1:${port}/index.html`, { waitUntil: 'domcontentloaded', timeout: 30000 });
+  // 🔴 ?officialroster=0 是刻意的，不要拿掉：本支驗的是「班表＋看板 shift」這條**備案**路徑
+  // （applyTrtcBoard／endpoint／headway memo）。2026-08-13 官方名冊改為預設開啟後，不帶參數
+  // 會走官方即時路徑，這裡的 applied/endpointApplied 就結構上不可能成立（實測 2 條假紅）。
+  // 旗標開的那條路徑由 verify_official_roster_frontend 的 B 段（到站時刻＝官方 arrEpoch）覆蓋。
+  await page.goto(`http://127.0.0.1:${port}/index.html?officialroster=0`, { waitUntil: 'domcontentloaded', timeout: 30000 });
   await page.waitForFunction(() => state.systems.some(s => s.id === 'mrt' && s.data && s._times), null, { timeout: 30000 });
 }
 
