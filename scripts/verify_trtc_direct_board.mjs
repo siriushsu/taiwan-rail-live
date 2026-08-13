@@ -128,7 +128,8 @@ check(!/state\.(?:_trtcBoard|_liveShift|_gpsShifts|_tt|bindings)\s*=/.test(direc
   '官方直出函式不寫動畫校正、班表或 bindings');
 check(/state\.trtcOfficialBoard\s*=/.test(extractFunction(INDEX, 'applyTrtcOfficialBoard')),
   '官方資料只落在獨立 state.trtcOfficialBoard');
-check(/refreshTrtcOfficialBoardCountdown\(\)/.test(INDEX.match(/if \(state\._liveClock >= 1\)[^\n]+/u)?.[0] || ''),
+check(/if \(state\._liveClock >= 1\) \{[\s\S]{0,800}state\._liveClock = 0;[\s\S]{0,800}refreshTrtcOfficialBoardCountdown\(\)/
+    .test(extractFunction(INDEX, 'tick')),
   '倒數掛在既有 1 秒 UI tick');
 check((INDEX.match(/setInterval\(pollTrtcLive/g) || []).length === 1,
   '北捷輪詢仍只有既有單一 15 秒 timer');
@@ -439,6 +440,7 @@ vm.createContext(pollContext);
 vm.runInContext(`
   const state = globalThis.__state;
   let _trtcPolling = false;
+  const OFFICIAL_ROSTER_ENABLED = false;
   function metroLivePool(){ return globalThis.__pool; }
   function isTrtcBoardLine(ln){ return !!ln.isTrtc; }
   function nowSecOfDay(){ return globalThis.__nowSec; }
@@ -460,7 +462,10 @@ vm.runInContext(`
   function clearTrtcOfficialBoard(){ hit('boardClear'); }
   function applyTrtcBoard(){ hit('posApply'); if(globalThis.__calls.throwPos) throw Error('pos'); }
   function clearTrtcBoard(){ hit('posClear'); }
+  function applyTrtcOfficialRoster(){ hit('rosterApply'); }
+  function trtcOfficialRosterOutage(){ hit('rosterOutage'); }
   function renderBoard(){ hit('render'); }
+  function updateCount(){ hit('count'); }
   function updateMetroBadge(){ hit('badge'); }
   async ${extractFunction(INDEX, 'pollTrtcLive')}
   globalThis.runPoll = pollTrtcLive;

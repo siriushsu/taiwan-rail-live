@@ -1312,7 +1312,7 @@ try {
     continuing.slice(0, 3).map(c => `${c.key}:${c.b1.boundEpoch}->${c.b2.boundEpoch}`).join('; '));
 
   // ═══ 工項5 端到端:訪客路徑 join(復用本輪已跑起來的 server/D1,round2 剛寫入的 trip_dyn/aliases) ═══
-  say('\n── 工項5端到端:GET /api/trtc-live 的 boardPos.trips——新欄位接上;既有9欄位rows零回歸;訪客路徑零寫入 ──');
+  say('\n── 工項5端到端:GET /api/trtc-live 的 boardPos.trips——新欄位接上;rows 必要欄位零回歸;訪客路徑不寫 trip binder 狀態 ──');
   const liveBefore = jsonCurl(`${BASE}/api/trtc-live`);
   ok(!!liveBefore.boardPos && Array.isArray(liveBefore.boardPos.trips),
     'E2E(工項5) boardPos.trips 為陣列(新欄位已接上實際 API 回應)',
@@ -1322,9 +1322,22 @@ try {
     `dayType=${JSON.stringify(liveBefore.boardPos && liveBefore.boardPos.dayType)}`);
   const rowKeys9 = ['line', 'dir', 'from', 'to', 'dest', 'run', 'arrEpoch', 'no', 'terminal'].sort();
   const liveRows = (liveBefore.boardPos && liveBefore.boardPos.rows) || [];
-  const rowsShapeOk = liveRows.length > 0 && liveRows.every(r => JSON.stringify(Object.keys(r).sort()) === JSON.stringify(rowKeys9));
-  ok(rowsShapeOk, 'E2E(工項5) 既有 boardPos.rows 9 欄位形狀零回歸(逐列比對 key 集合,不只比數量)',
+  const hasRequiredBoardRowKeys = row => !!row && typeof row === 'object' &&
+    rowKeys9.every(key => Object.prototype.hasOwnProperty.call(row, key));
+  const rowsShapeOk = liveRows.length > 0 && liveRows.every(hasRequiredBoardRowKeys);
+  ok(rowsShapeOk, 'E2E(工項5) boardPos.rows 逐列必含相容 9 欄(容許 vehicleId 等純增量欄位)',
     `rows=${liveRows.length}, sample keys=${JSON.stringify(Object.keys(liveRows[0] || {}).sort())}`);
+  // 正向對照：未來新增欄位不得讓相容 gate 誤紅。Mutation 預期：只從合法 row 拿掉
+  // required `arrEpoch` 時，hasRequiredBoardRowKeys 必須轉 false，證明 subset gate 不是無條件放行。
+  const futureExtraRow = liveRows[0] ? { ...liveRows[0], futureCompatibleField: 'additive-ok' } : null;
+  ok(!!futureExtraRow && hasRequiredBoardRowKeys(futureExtraRow),
+    'E2E(工項5) 正向對照:額外純增量欄位仍通過 required-key subset gate',
+    `keys=${JSON.stringify(Object.keys(futureExtraRow || {}).sort())}`);
+  const missingArrEpochRow = liveRows[0] ? { ...liveRows[0] } : null;
+  if (missingArrEpochRow) delete missingArrEpochRow.arrEpoch;
+  ok(!!missingArrEpochRow && !hasRequiredBoardRowKeys(missingArrEpochRow),
+    'E2E(工項5) mutation control:拿掉 required arrEpoch 必須被 subset gate 抓到',
+    `keys=${JSON.stringify(Object.keys(missingArrEpochRow || {}).sort())}`);
   if (liveBefore.boardPos.trips.length > 0) {
     const tripKeysExpected = ['line', 'dir', 'key', 'trackId', 'shift', 'eta'].sort();
     const t0 = liveBefore.boardPos.trips[0];
@@ -1335,7 +1348,8 @@ try {
     note('E2E(工項5) 這一輪 trips[] 為空', '可能是這批 fixture 的看板列剛好都 join 不到(不影響存在性,見設計書§7「join不到=丟棄」);純函式層級的非空案例已由上方 R10 前置(有號列)/(無號列)兩項直接驗證');
   }
 
-  // 單寫者鐵則:訪客路徑(GET /api/trtc-live)連打 3 次,trtc_trip_bindings 列數與 trip_dyn 內容必須完全不變。
+  // trip binder 單寫者鐵則:訪客路徑(GET /api/trtc-live)連打 3 次,trtc_trip_bindings 列數與
+  // trip_dyn 內容必須完全不變。訪客路徑會另行寫 official_roster_v1，不得誤宣稱整體 D1 零寫入。
   db = findLedgerDb(dbDir);
   const beforeBindingsCount = db.prepare('SELECT COUNT(*) AS n FROM trtc_trip_bindings').get().n;
   const beforeStateJson = db.prepare(`SELECT v FROM trtc_state WHERE k='trip_dyn'`).get().v;
@@ -1347,7 +1361,7 @@ try {
   const afterStateJson = db.prepare(`SELECT v FROM trtc_state WHERE k='trip_dyn'`).get().v;
   db.close();
   ok(afterBindingsCount === beforeBindingsCount && afterStateJson === beforeStateJson,
-    'E2E(工項5) 單寫者鐵則:連打3次 /api/trtc-live(訪客路徑)後,trtc_trip_bindings 列數與 trtc_state[trip_dyn] 內容完全不變(訪客路徑零寫入)',
+    'E2E(工項5) trip binder 單寫者鐵則:連打3次 /api/trtc-live 後,trtc_trip_bindings 與 trtc_state[trip_dyn] 完全不變',
     `bindings ${beforeBindingsCount}->${afterBindingsCount}; state不變=${afterStateJson === beforeStateJson}`);
 
   // 認回延續性(v1.1,機會性偵測):同 (line,dir,tripKey)、boundEpoch 不變、但 trackId 換了⇒真實語料
