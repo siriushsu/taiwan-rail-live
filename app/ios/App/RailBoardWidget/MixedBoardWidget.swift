@@ -259,10 +259,14 @@ private struct MixedRailSection: View {
                         Capsule()
                             .fill(Color(hex: line.color))
                             .frame(width: 14, height: 6)
+                        // 08-14 真機回饋:比照捷運半邊的欄位紀律——車種+車次是變寬文字
+                        // (高鐵 0690 vs 區間車 1280),不給固定槽的話「往Ｘ」起點逐列參差。
                         Text("\(row.trainType) \(row.trainNumber)")
                             .font(.system(size: 13, weight: .medium))
                             .foregroundStyle(trainColor(row.trainType, in: snapshot))
                             .lineLimit(1)
+                            .minimumScaleFactor(0.85)
+                            .frame(width: 88, alignment: .leading)
                         Text("往 \(row.destinationName)")
                             .font(.system(size: 12.5))
                             .foregroundStyle(.secondary)
