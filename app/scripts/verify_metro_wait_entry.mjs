@@ -127,6 +127,22 @@ async function boot(browser, { withPlugin = true, startResult = { ok: true }, in
 const calls = (page, m) => page.evaluate(mm => (window.__waitCalls || []).filter(c => !mm || c.m === mm), m);
 const clearCalls = page => page.evaluate(() => { window.__waitCalls = []; });
 
+// 2026-08-14 方向選單上線後,多方向站點 #boardWait 會先開選單而不是直接 start——
+// 本套件的既有情境要的是「最快一班」路徑(=舊行為):點鈕後若選單出現就點「最快一班」。
+// 選單自身的行為(方向過濾/取消/單方向直開)由 verify_metro_wait_picker.mjs 專門驗,這裡不重複。
+async function clickWaitThroughPicker(page) {
+  await page.click('#boardWait');
+  await page.waitForTimeout(200);
+  const pickerOpen = await page.evaluate(() => {
+    const m = document.getElementById('metroWaitPicker');
+    return !!m && !m.hidden;
+  });
+  if (pickerOpen) {
+    await page.click('#metroWaitPickerChoices .metro-wait-choice[data-wait-choice="all"]');
+    await page.waitForTimeout(150);
+  }
+}
+
 // pollTrtcLive() 內建 _trtcPolling 進行中鎖:每次 selectGroup 都會經 finishLoad() 觸發一次
 // fire-and-forget 的自動輪詢,用「當時」的 trtcLiveOverride——常是我們還沒來得及設定新值前的
 // 舊值(可能是上一個測試留下的別站資料,也可能是預設空板)。若我們緊接著手動呼叫 pollTrtcLive()
@@ -220,8 +236,7 @@ const cr = await chromium.launch();
   await openFreqStation(page, '十四張');
   await page.waitForTimeout(150);
   await clearCalls(page);
-  await page.click('#boardWait');
-  await page.waitForTimeout(150);
+  await clickWaitThroughPicker(page);
   const st = await calls(page, 'start');
   ok('C 點鈕 → start 恰好 1 次', st.length === 1, `start=${st.length}`);
   const p = st[0] && st[0].p;
@@ -256,8 +271,7 @@ const cr = await chromium.launch();
       && state.trtcOfficialBoard.crowdByDest['大坪林站']))) break;
   }
   await clearCalls(page);
-  await page.click('#boardWait');
-  await page.waitForTimeout(150);
+  await clickWaitThroughPicker(page);
   const st2 = await calls(page, 'start');
   const p2 = st2[0] && st2[0].p;
   const expCrowd = p2 && ({ '大坪林站': [1, 2, 3, 2], '新北產業園區站': [3, 3, 2, 1] })[p2.nextDest];
@@ -276,8 +290,8 @@ const cr = await chromium.launch();
   await openFreqStation(page, '哈瑪星');
   await page.waitForTimeout(150);
   await clearCalls(page);
-  const clicked = await page.evaluate(() => { const b = document.getElementById('boardWait'); if (!b) return false; b.click(); return true; });
-  await page.waitForTimeout(150);
+  const clicked = await page.evaluate(() => !!document.getElementById('boardWait'));
+  if (clicked) await clickWaitThroughPicker(page);
   const st = await calls(page, 'start');
   ok('D-krtc 前置:鈕存在且點得到', clicked, '');
   ok('D-krtc start 恰好 1 次', st.length === 1, `start=${st.length}`);
@@ -296,8 +310,8 @@ const cr = await chromium.launch();
   await openFreqStation(page, '三重站');
   await page.waitForTimeout(150);
   await clearCalls(page);
-  const clicked = await page.evaluate(() => { const b = document.getElementById('boardWait'); if (!b) return false; b.click(); return true; });
-  await page.waitForTimeout(150);
+  const clicked = await page.evaluate(() => !!document.getElementById('boardWait'));
+  if (clicked) await clickWaitThroughPicker(page);
   const st = await calls(page, 'start');
   ok('D-tymc 前置:鈕存在且點得到', clicked, '');
   ok('D-tymc start 恰好 1 次', st.length === 1, `start=${st.length}`);
@@ -376,8 +390,7 @@ const cr = await chromium.launch();
   const yHasBtn = await page.evaluate(() => !!document.getElementById('boardWait'));
   ok('F 環狀線站(十四張)有等車鈕', yHasBtn, `hasBtn=${yHasBtn}`);
   await clearCalls(page);
-  await page.click('#boardWait');
-  await page.waitForTimeout(150);
+  await clickWaitThroughPicker(page);
   const st = await calls(page, 'start');
   ok('F 環狀線站 payload.sys==="trtc"', st.length === 1 && st[0].p.sys === 'trtc', JSON.stringify(st[0] && st[0].p));
   ok('F 無 JS 例外', errors.length === 0, errors.slice(0, 3).join(' | '));
@@ -409,8 +422,7 @@ const cr = await chromium.launch();
   await openFreqStation(page, '哈瑪星');
   await page.waitForTimeout(150);
   await clearCalls(page);
-  await page.click('#boardWait');
-  await page.waitForTimeout(150);
+  await clickWaitThroughPicker(page);
   const st2 = await calls(page, 'start');
   ok('G 正向對照:有資料的站點鈕真的記到 start(≥1)', st2.length >= 1, `start=${st2.length}`);
   ok('G 無 JS 例外', errors.length === 0, errors.slice(0, 3).join(' | '));

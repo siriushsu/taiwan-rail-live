@@ -2130,6 +2130,18 @@
   .takeout-head button { border: 0; background: transparent; color: var(--on-navy); font-size: 24px; line-height: 1; cursor: pointer; min-width: 44px; min-height: 44px; }
   .takeout-body { padding: 14px 16px; overflow-y: auto; overscroll-behavior: contain; }
   .takeout-help { margin: 0 0 10px; color: var(--muted); font-size: 12px; line-height: 1.6; }
+  .metro-wait-picker-dialog { width: min(460px, 100%); }
+  .metro-wait-picker-body { display: grid; gap: 8px; }
+  .metro-wait-choice {
+    width: 100%; min-height: 48px; display: flex; align-items: center; gap: 6px; padding: 9px 12px;
+    border: 1.5px solid var(--line); border-radius: 9px; background: var(--paper); color: var(--ink);
+    font: inherit; font-size: 13px; font-weight: 800; text-align: left; cursor: pointer;
+  }
+  .metro-wait-choice:hover { border-color: var(--navy); background: var(--bg-stage); }
+  .metro-wait-choice.on { border-color: var(--navy); background: var(--navy); color: var(--on-navy); }
+  .metro-wait-choice-label { flex: 1; min-width: 0; }
+  .metro-wait-choice-dash { color: currentColor; opacity: .55; }
+  .metro-wait-choice-time { flex: none; font-family: var(--mono); font-variant-numeric: tabular-nums; }
   .pinname-input { width: 100%; box-sizing: border-box; padding: 10px 12px; border: 1px solid var(--line); border-radius: 8px; font: inherit; font-size: 15px; color: var(--ink-strong); background: var(--paper); }
   .pinname-input:focus { outline: none; border-color: var(--navy); }
   .takeout-file {
@@ -3925,6 +3937,14 @@
       <div class="notify-primer-actions"><button class="yes" id="notifyPrimerYes" type="button">好，提醒我</button><button class="later" id="notifyPrimerLater" type="button">先不要</button></div>
     </section>
   </div>
+</div>
+<!-- 「在這站等」方向選單：沿用 takeout-modal 家族且直接掛 body，避免手機 .stage 的 z-index 封頂。 -->
+<div class="takeout-modal metro-wait-picker" id="metroWaitPicker" hidden>
+  <section class="takeout-dialog metro-wait-picker-dialog" role="dialog" aria-modal="true" aria-labelledby="metroWaitPickerTitle">
+    <div class="takeout-head"><h2 id="metroWaitPickerTitle">選擇等車方向</h2><button id="metroWaitPickerX" type="button" aria-label="關閉">×</button></div>
+    <div class="takeout-body metro-wait-picker-body" id="metroWaitPickerChoices"></div>
+    <div class="takeout-actions"><button class="cancel" id="metroWaitPickerCancel" type="button">取消</button></div>
+  </section>
 </div>
 <div class="takeout-modal pinname-modal" id="pinNameModal" hidden>
   <section class="takeout-dialog pinname-dialog" role="dialog" aria-modal="true" aria-labelledby="pinNameTitle">
@@ -18687,13 +18707,14 @@ function bindMetroWaitBoard(el, st, sys, lines, isDeco) {
   btn.onclick = e => {
     e.stopPropagation();
     const on = !!(state.metroWait && state.metroWait.sys === sys && state.metroWait.station === st.name);
-    if (on) metroWaitStop(); else metroWaitStartFor(sys, st, lines, isDeco);
+    if (on) metroWaitStop(); else metroWaitStartFromBoard(sys, st, lines, isDeco, btn);
   };
 }
-// 北捷(含環狀線):回傳 {rows:[{dest,eta,lineLabel,color}...最多2],dataAt} 或 null。
+// 北捷(含環狀線):回傳 {rows:[{dest,eta,lineLabel,color}...],dataAt} 或 null。
 // 資料來源鐵則——直接重算「看板當下顯示的那份官方資料」(與 renderTrtcOfficialFreqBoard 完全同一個
 // 函式 trtcOfficialBoardView,同一種排序),只取 kind==='official' 的列(legacy 列是排入同板的
-// 其他方向班表推算,不是官方,不可送)。eta/at 本身已是 epoch 秒,不需 ms→s 換算(見 trtcOfficialRowFresh)。
+// 其他方向班表推算,不是官方,不可送)。方向選單要先依 dest 過濾再取前兩班,故 bundle 保留完整排序列;
+// 真正送入 metroWaitPayload 前才截兩列。eta/at 本身已是 epoch 秒,不需 ms→s 換算(見 trtcOfficialRowFresh)。
 function metroWaitTrtcBundle(st, lines, isDeco) {
   const view = trtcOfficialBoardView(st, lines, isDeco);
   if (!view) return null;
@@ -18714,7 +18735,7 @@ function metroWaitTrtcBundle(st, lines, isDeco) {
   rows.sort((a, b) => a.eta - b.eta);
   const dataAt = state.trtcOfficialBoard && Number.isFinite(state.trtcOfficialBoard.sourceAt)
     ? Math.round(state.trtcOfficialBoard.sourceAt) : Math.round(Date.now() / 1000);
-  return { rows: rows.slice(0, 2), dataAt };
+  return { rows, dataAt };
 }
 // 站名→線物件(跨 state.systems/state.lines/state.decoLines 找),取 lineLabel 對應色碼用。
 // 比照既有 trtcOfficialRosterGeometryLine 的找法(index.html 附近),krtc/tymc 沒有等價函式故新寫。
@@ -18729,10 +18750,10 @@ function metroWaitFindLine(id) {
   }
   return null;
 }
-// 高捷/機捷:回傳 {rows:[{dest,minutes,lineLabel,color}...最多2],dataAt} 或 null。
+// 高捷/機捷:回傳 {rows:[{dest,minutes,lineLabel,color}...],dataAt} 或 null。
 // 讀 pollMetroLive 保留的最近一次原始回應(state._metroLiveRaw,不另發 fetch——資料來源鐵則),
 // 只採 st===0(正常營運)且 e 非 null 的列(與既有 applyMetroLive 的樣本口徑一致);
-// 資料過舊(>150 秒)視同沒有官方資訊。
+// 資料過舊(>150 秒)視同沒有官方資訊;同北捷 bundle 保留完整排序列供方向選單先過濾。
 function metroWaitLiveBundle(sys, st) {
   const raw = state._metroLiveRaw && state._metroLiveRaw[sys];
   if (!raw || !Array.isArray(raw.rows)) return null;
@@ -18751,7 +18772,7 @@ function metroWaitLiveBundle(sys, st) {
   }
   if (!rows.length) return null;
   rows.sort((a, b) => a.minutes - b.minutes);
-  return { rows: rows.slice(0, 2), dataAt };
+  return { rows, dataAt };
 }
 // 組原生 plugin 的 start() payload。精度誠實鐵則:trtc 只送 nextEta/secondEta(絕對 epoch 秒)、
 // nextMinutes/secondMinutes 恆 null;krtc/tymc 相反——絕不把分鐘換算成 eta、絕不拿分鐘冒充秒級。
@@ -18775,9 +18796,8 @@ function metroWaitPayload(sys, st, bundle) {
     notice: null,
   };
 }
-async function metroWaitStartFor(sys, st, lines, isDeco) {
-  const p = window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.RailMetroWait;
-  if (!p) return; // 旗標關按鈕不會出現,這裡只是防禦
+// 讀一份可開卡的官方 bundle。手點與深連結共用同一套冷啟動補抓,差別只在手點拿到資料後可能開方向選單。
+async function metroWaitReadBundle(sys, st, lines, isDeco) {
   const readBundle = () => sys === 'trtc' ? metroWaitTrtcBundle(st, lines, isDeco) : metroWaitLiveBundle(sys, st);
   let bundle = readBundle();
   // 小工具深連結冷開 App 時,輪詢常常還沒跑完第一輪——「還沒到」不是「沒有」,直接 toast
@@ -18788,8 +18808,55 @@ async function metroWaitStartFor(sys, st, lines, isDeco) {
     try { await (sys === 'trtc' ? pollTrtcLive() : pollMetroLive()); } catch (e) {}
     if (!(bundle = readBundle())) { await new Promise(r => setTimeout(r, 1200)); bundle = readBundle(); }
   }
+  return bundle;
+}
+let metroWaitPickerDraft = null;
+function metroWaitClosePicker(restoreFocus = true) {
+  const modal = document.getElementById('metroWaitPicker');
+  const opener = metroWaitPickerDraft && metroWaitPickerDraft.opener;
+  if (modal) modal.hidden = true;
+  metroWaitPickerDraft = null;
+  if (restoreFocus && opener && opener.isConnected) { try { opener.focus(); } catch (e) {} }
+}
+function metroWaitChoiceTime(sys, row) {
+  return sys === 'trtc' ? trtcOfficialAbsoluteHM(row.eta) : Number(row.minutes) + ' 分';
+}
+function metroWaitOpenPicker(sys, st, lines, isDeco, bundle, opener) {
+  const modal = document.getElementById('metroWaitPicker'), choices = document.getElementById('metroWaitPickerChoices');
+  if (!modal || !choices) return;
+  const seen = new Set(), directions = [];
+  for (const row of bundle.rows) {
+    if (seen.has(row.dest)) continue;
+    seen.add(row.dest); directions.push({ dest: row.dest, row });
+  }
+  metroWaitPickerDraft = { sys, st, lines, isDeco, bundle, opener, directions };
+  choices.innerHTML = '<button class="metro-wait-choice on" type="button" data-wait-choice="all" aria-label="最快一班，全部方向">' +
+    '<span class="metro-wait-choice-label">最快一班（全部方向）</span></button>' + directions.map((d, i) =>
+      '<button class="metro-wait-choice" type="button" data-wait-choice="' + i + '">' +
+        '<span class="metro-wait-choice-label">往' + escHtml(d.dest) + '</span>' +
+        '<span class="metro-wait-choice-dash">——</span>' +
+        '<span class="metro-wait-choice-time">' + escHtml(metroWaitChoiceTime(sys, d.row)) + '</span>' +
+      '</button>').join('');
+  modal.hidden = false;
+  requestAnimationFrame(() => { const first = choices.querySelector('.metro-wait-choice'); if (first) first.focus(); });
+}
+async function metroWaitStartFromBoard(sys, st, lines, isDeco, opener) {
+  if (!metroWaitEnabled()) return;
+  const bundle = await metroWaitReadBundle(sys, st, lines, isDeco);
   if (!bundle) { showToast('這一站現在沒有官方班次資訊'); return; }
-  const payload = metroWaitPayload(sys, st, bundle);
+  const directions = new Set(bundle.rows.map(row => row.dest));
+  if (directions.size <= 1) { metroWaitStartFor(sys, st, lines, isDeco, null, bundle); return; }
+  metroWaitOpenPicker(sys, st, lines, isDeco, bundle, opener);
+}
+// dest===null 是「最快一班(全部方向)」與深連結的既有路徑;指定 dest 時必須先過濾再取兩班。
+async function metroWaitStartFor(sys, st, lines, isDeco, dest = null, sourceBundle = null) {
+  const p = window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.RailMetroWait;
+  if (!p) return; // 旗標關按鈕不會出現,這裡只是防禦
+  const bundle = sourceBundle || await metroWaitReadBundle(sys, st, lines, isDeco);
+  if (!bundle) { showToast('這一站現在沒有官方班次資訊'); return; }
+  const rows = (dest == null ? bundle.rows : bundle.rows.filter(row => row.dest === dest)).slice(0, 2);
+  if (!rows.length) { showToast('這一站現在沒有官方班次資訊'); return; }
+  const payload = metroWaitPayload(sys, st, { rows, dataAt: bundle.dataAt });
   let res;
   try { res = await p.start(payload); } catch (e) { res = { ok: false, why: String((e && e.message) || e) }; }
   if (res && res.ok) state.metroWait = { sys, station: st.name };
@@ -21237,6 +21304,29 @@ document.getElementById('favPanel').onclick = e => {
   const row = e.target.closest('.row.fv');
   if (row) { closeFavPanel(); followTrainNo(row.dataset.no, { sys: row.dataset.sys }); }
 };
+// 「在這站等」方向選單接線(選項立即開卡;取消/關閉/Esc/點背景都只收選單)。
+(function () {
+  const modal = document.getElementById('metroWaitPicker'), choices = document.getElementById('metroWaitPickerChoices');
+  if (!modal || !choices) return;
+  const close = () => metroWaitClosePicker();
+  document.getElementById('metroWaitPickerX').onclick = close;
+  document.getElementById('metroWaitPickerCancel').onclick = close;
+  choices.onclick = e => {
+    const btn = e.target.closest('.metro-wait-choice');
+    const draft = metroWaitPickerDraft;
+    if (!btn || !draft) return;
+    let dest = null;
+    if (btn.dataset.waitChoice !== 'all') {
+      const direction = draft.directions[Number(btn.dataset.waitChoice)];
+      if (!direction) return;
+      dest = direction.dest;
+    }
+    metroWaitClosePicker();
+    metroWaitStartFor(draft.sys, draft.st, draft.lines, draft.isDeco, dest, draft.bundle);
+  };
+  modal.addEventListener('click', e => { if (e.target === modal) close(); });
+  document.addEventListener('keydown', e => { if (e.key === 'Escape' && !modal.hidden) close(); });
+})();
 // 命名地點對話框接線(儲存/取消/關閉/Enter 存/Esc 關/點背景關)
 document.getElementById('pinNameSave').onclick = confirmPinName;
 document.getElementById('pinNameCancel').onclick = closePinNameDialog;
