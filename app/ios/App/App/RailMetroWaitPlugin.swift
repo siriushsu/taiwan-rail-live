@@ -3,7 +3,7 @@ import Capacitor
 import Foundation
 
 // 捷運等車卡:全手動開卡(使用者裁示)——零推播、零定位。倒數靠 Text(timerInterval:) 自走,
-// staleDate 到期系統自己標灰,App 不在背景做任何事。
+// staleDate=下一班到站整點,isStale 翻真=view 畫「進站」,App 不在背景做任何事。
 @objc(RailMetroWaitPlugin)
 public final class RailMetroWaitPlugin: CAPPlugin, CAPBridgedPlugin {
     public let identifier = "RailMetroWaitPlugin"
@@ -91,9 +91,11 @@ public final class RailMetroWaitPlugin: CAPPlugin, CAPBridgedPlugin {
         enqueue {
             await self.endAll()   // 🔴 await:等車卡最多一張,換站=舊卡確實收掉才開新的
             do {
-                // staleDate:下一班到站後 90 秒。到期系統自己標灰,不必推播、不假裝還新鮮。
-                let stale = st.nextEta.map { Date(timeIntervalSince1970: $0 + 90) }
-                    ?? Date().addingTimeInterval(Double((st.nextMinutes ?? 5) * 60 + 90))
+                // staleDate:下一班【到站整點】。isStale 翻真=「列車進站」狀態(view 有分支),
+                // 不是「資料過期」——真機回饋(08-14):倒數歸零後停在 0:00 的殭屍卡不夠實用,
+                // 到點就把語意翻成進站,次班倒數(絕對時刻)在 stale 後仍自走。
+                let stale = st.nextEta.map { Date(timeIntervalSince1970: $0) }
+                    ?? Date().addingTimeInterval(Double((st.nextMinutes ?? 5) * 60))
                 let act = try Activity.request(
                     attributes: attrs,
                     content: .init(state: st, staleDate: stale),

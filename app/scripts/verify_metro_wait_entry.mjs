@@ -34,10 +34,11 @@ const tymcRaw = FIX('tymc-live.json');
 // 保留列與列之間的相對秒差(離峰/離站順序不變),讓 trtcOfficialRowFresh 的 45 秒新鮮度窗通得過。
 function freshenTrtc(raw, filterName) {
   const rows = (raw.board || []).filter(r => !filterName || r.name === filterName);
-  if (!rows.length) return { board: [], src: 'trtc' };
+  if (!rows.length) return { board: [], src: 'trtc', trains: raw.trains || [] };
   const capturedAt = Math.max(...rows.map(r => Number(r.at)));
   const shift = Math.floor(Date.now() / 1000) - capturedAt + 3; // 落在擷取時刻之後 3 秒=現在附近
-  return { board: rows.map(r => ({ ...r, eta: Number(r.eta) + shift, at: Number(r.at) + shift })), src: 'trtc' };
+  // trains 原樣帶過(擁擠度 join 只讀 dest/cars,不讀時間欄——不需要平移)。
+  return { board: rows.map(r => ({ ...r, eta: Number(r.eta) + shift, at: Number(r.at) + shift })), src: 'trtc', trains: raw.trains || [] };
 }
 // krtc/tymc 的 e 是相對分鐘,不受時間平移影響;只需把頂層 at 換成「現在」讓 dataAt 新鮮度過關。
 function freshenLive(raw, excludeStation) {
@@ -230,7 +231,7 @@ const cr = await chromium.launch();
   ok('C payload.nextMinutes===null(精度誠實鐵則)', !!p && p.nextMinutes === null, `nextMinutes=${p && p.nextMinutes}`);
   ok('C payload.nextDest 非空', !!p && typeof p.nextDest === 'string' && p.nextDest.length > 0, JSON.stringify(p && p.nextDest));
   ok('C payload.dataAt 為秒級 epoch', !!p && p.dataAt > 1.7e9 && p.dataAt < 2.1e9, `dataAt=${p && p.dataAt}`);
-  ok('C payload.crowd===null(全站無此資料源,不准造)', !!p && p.crowd === null, `crowd=${JSON.stringify(p && p.crowd)}`);
+  ok('C payload.crowd===null(環狀線實錄 trains 無可 join 的 cars——負對照,不准造)', !!p && p.crowd === null, `crowd=${JSON.stringify(p && p.crowd)}`);
   const btnAfterStart = await page.evaluate(() => document.getElementById('boardWait').textContent.trim());
   ok('C start 成功後文案變「取消等車」', btnAfterStart === '取消等車', `text=${btnAfterStart}`);
   await clearCalls(page);
@@ -240,6 +241,29 @@ const cr = await chromium.launch();
   ok('C 同站再點 → stop 恰好 1 次', sp.length === 1, `stop=${sp.length}`);
   const btnAfterStop = await page.evaluate(() => document.getElementById('boardWait').textContent.trim());
   ok('C stop 後文案回「在這站等」', btnAfterStop === '在這站等', `text=${btnAfterStop}`);
+  // C2 正對照(08-14 擁擠度接通):同站同鈕,這次 override 帶兩個方向各一台有 cars 的車
+  // (合成 harness 資料,只為打穿 join 路徑;實錄 Y 線 feed 本來就沒有 cars)。
+  // 兩方向都給值 ⇒ 不必假設哪個方向先到,斷言綁「nextDest 對應的那台車的 cars 原值」。
+  trtcLiveOverride = { ...freshenTrtc(trtcYRaw),
+    trains: [{ no: '901', dest: '大坪林站', cars: [1, 2, 3, 2] },
+             { no: '902', dest: '新北產業園區站', cars: [3, 3, 2, 1] }] };
+  // pollTrtcLive 有 _trtcPolling 防重入鎖(見 ensureTrtcBoardLanded 的踩坑註解)——
+  // 等「crowdByDest 真的落地」這個可觀察內容,不等固定毫秒數。
+  for (let i = 0; i < 10; i++) {
+    await page.evaluate(() => pollTrtcLive());
+    await page.waitForTimeout(80);
+    if (await page.evaluate(() => !!(state.trtcOfficialBoard && state.trtcOfficialBoard.crowdByDest
+      && state.trtcOfficialBoard.crowdByDest['大坪林站']))) break;
+  }
+  await clearCalls(page);
+  await page.click('#boardWait');
+  await page.waitForTimeout(150);
+  const st2 = await calls(page, 'start');
+  const p2 = st2[0] && st2[0].p;
+  const expCrowd = p2 && ({ '大坪林站': [1, 2, 3, 2], '新北產業園區站': [3, 3, 2, 1] })[p2.nextDest];
+  ok('C2 正對照:payload.crowd 深等於 nextDest 對應車的 cars',
+    !!p2 && JSON.stringify(p2.crowd) === JSON.stringify(expCrowd || null),
+    `nextDest=${p2 && p2.nextDest} crowd=${JSON.stringify(p2 && p2.crowd)} exp=${JSON.stringify(expCrowd)}`);
   ok('C 無 JS 例外', errors.length === 0, errors.slice(0, 3).join(' | '));
   await ctx.close();
 }
@@ -312,6 +336,26 @@ const cr = await chromium.launch();
   const st = await calls(page, 'start');
   ok('E waitOpen 後 start 被呼叫(≥1)', st.length >= 1, `start=${st.length}`);
   ok('E start payload.sys==="trtc"', st.length >= 1 && st[st.length - 1].p.sys === 'trtc', JSON.stringify(st[st.length - 1] && st[st.length - 1].p));
+  // E-crowd(08-14「小工具能顯示擠不擠,app 內也要能」):台北車站官方板——實錄 trains 只 join 得到
+  // 板南線兩個終點(南港展覽館站 cars=[1,1,1,1,1,1]、亞東醫院站),淡水信義線各列必須沒有 bars。
+  // 同一塊板上正負並存,證明「有資料才畫、沒資料不畫」不是全開或全關。
+  const crowdDom = await page.evaluate(() => {
+    const out = {};
+    for (const row of document.querySelectorAll('#board .row[data-trtc-eta]')) {
+      const b = row.querySelector('b');
+      const c = row.querySelector('.crowd');
+      const first = c && c.querySelector('i');
+      out[b ? b.textContent.trim() : '?'] = {
+        bars: c ? c.querySelectorAll('i').length : 0,
+        color: first ? getComputedStyle(first).backgroundColor : null,
+      };
+    }
+    return out;
+  });
+  const rowSp = crowdDom['往 南港展覽館站'], rowTamsui = crowdDom['往 淡水站'];
+  ok('E-crowd 往南港展覽館站列有 6 格 bars(實錄 206 車 6 節)', !!rowSp && rowSp.bars === 6, JSON.stringify(crowdDom));
+  ok('E-crowd bars 首格色=舒適綠 #4acc73(與小工具同色票)', !!rowSp && rowSp.color === 'rgb(74, 204, 115)', `color=${rowSp && rowSp.color}`);
+  ok('E-crowd 往淡水站列 0 格(同板負對照:官方沒給就不畫)', !!rowTamsui && rowTamsui.bars === 0, JSON.stringify(rowTamsui));
   ok('E 無 JS 例外', errors.length === 0, errors.slice(0, 3).join(' | '));
   await ctx.close();
 }

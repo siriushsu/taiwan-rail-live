@@ -1712,6 +1712,8 @@
   .board .row .dest { flex: 1; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .board .row .t, .board .row .min { font-variant-numeric: tabular-nums; }
   .board .row .t { font-weight: 800; color: var(--ink-strong); }
+  .board .row .crowd { display: inline-flex; gap: 2px; flex: none; align-self: center; }
+  .board .row .crowd i { width: 5px; height: 10px; border-radius: 1.5px; }
   .board .row .min { color: var(--navy); font-weight: 700; min-width: 44px; text-align: right; }
   /* 車站看板右上角 ☆／× :兩顆吃同一組尺寸與置中,不靠字級與 UA padding 對齊。
      舊寫法各自 top:8px 切「上緣」,但 .close 沒設 padding 而吃到瀏覽器 UA 預設按鈕 padding
@@ -16478,7 +16480,19 @@ function trtcOfficialCountdownText(etaEpoch, nowEpoch = Date.now() / 1000) {
   const sec = Math.max(0, Math.ceil(left));
   return Math.floor(sec / 60) + ':' + String(sec % 60).padStart(2, '0');
 }
-function applyTrtcOfficialBoard(rows, receivedAt = Date.now()) {
+// 官方擁擠度等級→色。分級語意由官方定義,我們只上色不重新分級;
+// 色票與小工具 MetroPalette.crowd 同值(sRGB 換算 hex),兩個介面要長一樣。
+function trtcOfficialCrowdColor(v) {
+  return v <= 1 ? '#4acc73' : v === 2 ? '#f2bf33' : v === 3 ? '#f07d33' : '#d94040';
+}
+function trtcOfficialCrowdHtml(dest) {
+  const cars = state.trtcOfficialBoard && state.trtcOfficialBoard.crowdByDest &&
+    state.trtcOfficialBoard.crowdByDest[dest];
+  if (!Array.isArray(cars) || !cars.length) return '';
+  return '<span class="crowd" title="車廂擁擠度（北捷官方）">' +
+    cars.map(v => `<i style="background:${trtcOfficialCrowdColor(Number(v))}"></i>`).join('') + '</span>';
+}
+function applyTrtcOfficialBoard(rows, receivedAt = Date.now(), trains = null) {
   const clean = [];
   for (const row of Array.isArray(rows) ? rows : []) {
     const rawEta = row && row.eta, rawAt = row && row.at;
@@ -16489,8 +16503,22 @@ function applyTrtcOfficialBoard(rows, receivedAt = Date.now()) {
     clean.push({ name, dest, eta, at, no: String(row && row.no || '') });
   }
   if (!clean.length) return null; // nonempty 但全壞＝本輪無可採資料；呼叫端保留上一份到逐列超齡
+  // 車廂擁擠度:同一 payload 的 trains[].cars(官方逐節資料,只有北捷高運量/文湖有)。
+  // join 語意與小工具 MetroBoardModel.crowdFor 完全同一套——同終點、有 cars 的第一台;
+  // 兩個介面(桌面小工具 vs App 看板)看到的必須是同一份,改 join 要兩邊一起改。
+  // 官方沒給就是沒有(文湖線 trains 無 dest 可 join,恆缺),不補、不猜。
+  const crowdByDest = {};
+  for (const t of Array.isArray(trains) ? trains : []) {
+    const dest = t && typeof t.dest === 'string' ? t.dest : '';
+    if (!dest || crowdByDest[dest]) continue;
+    const cars = t.cars;
+    if (Array.isArray(cars) && cars.length && cars.every(v => Number.isFinite(Number(v)))) {
+      crowdByDest[dest] = cars.map(Number);
+    }
+  }
   state.trtcOfficialBoard = {
     rows: clean,
+    crowdByDest,
     sourceAt: Math.max(...clean.map(row => row.at)),
     receivedAt: Number(receivedAt),
   };
@@ -16874,7 +16902,7 @@ async function pollTrtcLive() {
     let boardTouched = false;
     try {
       if (d && Array.isArray(d.board) && (!d.board.length || d.src === 'trtc')) {
-        if (d.board.length) boardTouched = !!applyTrtcOfficialBoard(d.board);
+        if (d.board.length) boardTouched = !!applyTrtcOfficialBoard(d.board, Date.now(), d.trains);
         else { clearTrtcOfficialBoard(); boardTouched = true; }
       }
       // missing／malformed 視同這一路暫時失敗：保留舊資料到每列自己的 at 超齡；明確 [] 才立即退回班表。
@@ -18448,6 +18476,7 @@ function renderTrtcOfficialFreqBoard(el, st, lines, isDeco, view) {
       const linkNote = join ? '' : ' · 未連結動畫';
       return `<div class="row" data-trtc-eta="${rec.row.eta}" data-trtc-at="${rec.row.at}"${followAttrs}><span class="dot" style="background:${rec.ambiguousLine ? '#8fa8c6' : group.ln.color}"></span>` +
         `<b>往 ${escHtml(group.destName)}</b><span class="dest">${escHtml(genericLine + linkNote)}</span>` +
+        trtcOfficialCrowdHtml(rec.row.dest) +
         `<span class="t">${trtcOfficialAbsoluteHM(rec.row.eta)}</span><span class="min">${trtcOfficialCountdownText(rec.row.eta, view.nowMs / 1000)}</span></div>`;
     }).join('');
     return group.rows.map(row => {
@@ -18719,10 +18748,13 @@ function metroWaitLiveBundle(sys, st) {
 }
 // 組原生 plugin 的 start() payload。精度誠實鐵則:trtc 只送 nextEta/secondEta(絕對 epoch 秒)、
 // nextMinutes/secondMinutes 恆 null;krtc/tymc 相反——絕不把分鐘換算成 eta、絕不拿分鐘冒充秒級。
-// crowd:網頁面沒有每節車廂擁擠度資料源(全檔查無),恆送 null,不准造。
+// crowd:與看板同一份 crowdByDest(applyTrtcOfficialBoard 的 join,語意同小工具 crowdFor);
+// krtc/tymc 官方沒有逐節資料,恆 null,不准造。
 function metroWaitPayload(sys, st, bundle) {
   const isTrtc = sys === 'trtc';
   const a = bundle.rows[0], b = bundle.rows[1] || null;
+  const crowd = isTrtc && state.trtcOfficialBoard && state.trtcOfficialBoard.crowdByDest
+    ? state.trtcOfficialBoard.crowdByDest[a.dest] || null : null;
   return {
     sys, station: st.name, lineLabel: a.lineLabel, color: a.color,
     nextEta: isTrtc ? a.eta : null,
@@ -18731,7 +18763,7 @@ function metroWaitPayload(sys, st, bundle) {
     secondEta: b && isTrtc ? b.eta : null,
     secondMinutes: b && !isTrtc ? b.minutes : null,
     secondDest: b ? b.dest : null,
-    crowd: null,
+    crowd,
     dataAt: bundle.dataAt,
     notice: null,
   };

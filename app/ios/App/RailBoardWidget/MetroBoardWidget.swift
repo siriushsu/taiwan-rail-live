@@ -26,7 +26,21 @@ struct MetroBoardProvider: AppIntentTimelineProvider {
         let e = await entry(for: configuration)
         // 官方視野約 12 分鐘。刷新間隔壓在視野內,讓「下一次刷新之前資料還有效」。
         // 系統不保證照做——所以版面一律顯示資料時刻,不假裝即時。
-        return Timeline(entries: [e], policy: .after(Date().addingTimeInterval(10 * 60)))
+        // 🔴 真機回饋(08-14):單一 entry ⇒ 倒數走完【全卡僵在 0:00】直到下次刷新。
+        //    WidgetKit 的 timeline 可以預排未來 entries(Live Activity 做不到的,這裡做得到):
+        //    每個到站時刻+1s 排一個 entry;view 依 entry.date 把已到點的列改顯示「進站」。
+        //    只排前 8 個到站點——entries 太多會吃 timeline 預算,8 個已覆蓋整個資料視野。
+        var entries = [e]
+        if let rows = e.snapshot?.rows {
+            let now = Date().timeIntervalSince1970
+            let etas = Set(rows.compactMap(\.etaEpoch).filter { $0 > now }).sorted().prefix(8)
+            entries += etas.map { t in
+                MetroEntry(date: Date(timeIntervalSince1970: t + 1), title: e.title,
+                           lineColor: e.lineColor, snapshot: e.snapshot, precision: e.precision,
+                           lastTrain: e.lastTrain, failed: e.failed, deepLink: e.deepLink)
+            }
+        }
+        return Timeline(entries: entries, policy: .after(Date().addingTimeInterval(10 * 60)))
     }
 
     private func entry(for cfg: MetroBoardIntent) async -> MetroEntry {
@@ -160,7 +174,8 @@ struct MetroBoardView: View {
             if let snap = entry.snapshot, !snap.rows.isEmpty {
                 ForEach(Array(snap.rows.prefix(rowLimit).enumerated()), id: \.offset) { _, r in
                     MetroRowView(row: r, precision: entry.precision,
-                                 showCrowd: family != .systemSmall)
+                                 showCrowd: family != .systemSmall,
+                                 entryDate: entry.date)
                 }
             } else {
                 Text(entry.snapshot?.stale == true ? "官方目前沒有這一站的班次資訊" : "沒有資料")
@@ -187,20 +202,28 @@ struct MetroRowView: View {
     let row: MetroRow
     let precision: String
     let showCrowd: Bool
+    var entryDate: Date = Date()
 
     var body: some View {
         HStack(spacing: 6) {
             Text("往 \(row.dest)").font(.system(size: 13)).lineLimit(1)
             Spacer(minLength: 4)
             if precision == "sec", let eta = row.etaEpoch {
-                // 北捷是絕對時刻 ⇒ 交給系統自走,刷新之間也是對的。
-                // 🔴 range 起點必須 clamp:模型層濾掉 eta<=now 用的是「entry 建立時」的 now,
-                //    body 實際被封存(archive)可能晚幾秒;ClosedRange 下界大於上界會當場 crash。
-                //    到期後 timerInterval 自己會停在 0:00,顯示語意不變。
-                let end = Date(timeIntervalSince1970: eta)
-                Text(timerInterval: min(Date(), end)...end, countsDown: true)
-                    .monospacedDigit().font(.system(size: 14, design: .rounded))
-                    .frame(maxWidth: 56)
+                // 🔴 真機回饋(08-14):倒數歸零後停在 0:00 是殭屍——已到點的列改顯示「進站」。
+                //    判準用 entry.date(timeline 在每個到站時刻+1s 預排了 entry),
+                //    不用 Date()(封存時刻,不會隨時間重算)。
+                if eta <= entryDate.timeIntervalSince1970 + 1 {
+                    Text("進站").font(.system(size: 13, weight: .semibold))
+                        .foregroundStyle(Color(.sRGB, red: 0.29, green: 0.87, blue: 0.50))
+                } else {
+                    // 北捷是絕對時刻 ⇒ 交給系統自走,刷新之間也是對的。
+                    // 🔴 range 起點必須 clamp:模型層濾掉 eta<=now 用的是「entry 建立時」的 now,
+                    //    body 實際被封存(archive)可能晚幾秒;ClosedRange 下界大於上界會當場 crash。
+                    let end = Date(timeIntervalSince1970: eta)
+                    Text(timerInterval: min(Date(), end)...end, countsDown: true)
+                        .monospacedDigit().font(.system(size: 14, design: .rounded))
+                        .frame(maxWidth: 56)
+                }
             } else if let m = row.minutes {
                 // 🔴 官方只給整數分鐘 ⇒ 顯示「約 N 分」的靜態文字,不換算成秒、不自走。
                 Text("約 \(m) 分").monospacedDigit().font(.system(size: 14, design: .rounded))
