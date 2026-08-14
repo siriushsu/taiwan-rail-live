@@ -389,21 +389,26 @@ for (const engineName of ['chromium', 'webkit']) {
   const html = readFileSync(path.join(ROOT, 'index.html'), 'utf8');
   const foot = (html.match(/<ul class="foot-list foot-recent">([\s\S]*?)<\/ul>/) || [, ''])[1];
   const ofIds = [...foot.matchAll(/data-cl-of="([^"]+)"/g)].map(m => m[1]);
-  ok('I1 首層(最近更新)≤8 條', ofIds.length <= 8, `實際 ${ofIds.length} 條`);
-  ok('I2 首層有本次「mytrains」條目', ofIds.includes('mytrains'), '');
   const allClIds = [...html.matchAll(/data-cl="([^"]+)"/g)].map(m => m[1]);
-  ok('I3 第二層有「mytrains」正本', allClIds.includes('mytrains'), '');
+  ok('I1 首層(最近更新)≤8 條', ofIds.length <= 8, `實際 ${ofIds.length} 條`);
+  // 🔴 2026-08-14 改判準:原本另有一條「I2 首層有本次 mytrains 條目」。首層(.foot-recent)是「最近更新」
+  //    的滾動檢視,硬上限 8 條(CL2),新功能一進榜舊的就會被合法擠出去——CL1 明文允許,只要正本還在
+  //    第二層。綁「我的功能在第一層」等於保證幾批更新之後永久假紅,已一併移除(同批也修了
+  //    verify_punctual.mjs 的 G2,比照 verify_live_activity.mjs 2026-08-04)。真正該保證的事是正本在
+  //    第二層恰好一條,即下面這條;首層自身的結構完整性由 I1(≤8 條)與 I4(每條都找得到正本)覆蓋。
+  const canonCount = allClIds.filter(id => id === 'mytrains').length;
+  ok('I2 第二層有「mytrains」正本(恰好一條)', canonCount === 1, `實際 ${canonCount} 條`);
   const dupes = [...new Set(allClIds.filter((id, i) => allClIds.indexOf(id) !== i))];
-  ok('I4 第二層 data-cl id 不重複', dupes.length === 0, dupes.join('、'));
+  ok('I3 第二層 data-cl id 不重複', dupes.length === 0, dupes.join('、'));
   const missing = ofIds.filter(id => !allClIds.includes(id));
-  ok('I5 首層每條都找得到第二層正本', missing.length === 0, missing.join('、'));
+  ok('I4 首層每條都找得到第二層正本', missing.length === 0, missing.join('、'));
   // 判準寫「有沒有相對基準遞增」,不寫死當下那個字串——BUILD 每次出貨都會動,寫死等於替下一個
   // session 埋一顆必然假紅的地雷(心得 35:判準要從當下量到的東西推導,不要手打常數)。
   // verify_punctual.mjs 的 A0 原本就是寫死的,已在同一批一併改成這個作法。
   const buildMatch = html.match(/const BUILD = '([^']+)'/);
   const baseBuild = (execSync('git show 24e9c2c:index.html', { cwd: ROOT, encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 })
     .match(/const BUILD = '([^']+)'/) || [])[1] || null;
-  ok('I6 BUILD 相對基準已遞增', !!buildMatch && !!baseBuild && buildMatch[1] !== baseBuild,
+  ok('I5 BUILD 相對基準已遞增', !!buildMatch && !!baseBuild && buildMatch[1] !== baseBuild,
     `${baseBuild} → ${buildMatch ? buildMatch[1] : '找不到 BUILD'}`);
 }
 
