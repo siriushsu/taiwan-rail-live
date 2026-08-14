@@ -8,7 +8,9 @@ import { fileURLToPath } from 'node:url';
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 const OUT = join(ROOT, 'app/ios/App/RailBoardWidget/MetroWidgetData.json');
 
-// 只收「官方有站牌倒數」的系統。環狀線／淡海／安坑只有軌道佔用、中捷無公開介接,刻意不列。
+// 只收「官方有站牌倒數」的系統。淡海／安坑只有軌道佔用(沒有 rows)、中捷無公開介接,刻意不列。
+// 🔴 環狀線【有】站牌倒數,而且已經在 trtc 裡(它是 data/trtc.json 的 Y 線)——2026-08-14 更正:
+//    初版寫「環狀線只有軌道佔用」是量錯端點(量了 /api/ntmetro-live?sys=circular)。
 const SYS = [
   // 🔴 `data/trtc.json` 的 9 條線包含環狀線 Y——它由新北捷運公司營運,首末班在 NTMC 那份,
   //    只讀 TRTC 那份會讓 Y 的 14 站全部沒有方向與末班車(而且其中 4 站會因為站名與北捷站

@@ -49,6 +49,20 @@ ok('B5 岡山車站有末班車鍵(canonical 的真判準)', lastKeys('krtc', '�
 for (const s of D.systems) ok(`B6-${s.id} 首末班列全部配得上`, (D.dropped?.[s.id] ?? -1) === 0,
    `dropped=${D.dropped?.[s.id]}`);
 
+// B7. 🔴 B4/B5 只抽兩站,B6 只測「有出現但配不上」——兩者都測不到 canonical() 變成「來者不拒」
+//     (突變成無條件去尾時它永不回 null ⇒ dropped 恆 0,末班鍵卻寫成了「台北車」這種不存在的站)。
+//     這條把分母補成全體:末班表每個鍵的站名與終點名都必須是該系統的合法站名。
+{
+  const namesOf = Object.fromEntries(D.systems.map(s =>
+    [s.id, new Set(s.lines.flatMap(l => l.stations.map(st => st.name)))]));
+  const bad = Object.keys(D.lastTrain).filter(k => {
+    const [sys, st, dest] = k.split('|');
+    return !namesOf[sys] || !namesOf[sys].has(st) || !namesOf[sys].has(dest);
+  });
+  ok('B7 末班表每個鍵的站名與終點都是合法站名', bad.length === 0,
+     `${bad.length} 筆非法, 前 5: ${JSON.stringify(bad.slice(0, 5))}`);
+}
+
 // C. 別名表對凍結樣本要 100% 覆蓋——別名表存在的唯一理由就是這件事
 for (const [sys, file] of [['trtc', 'trtc-live.json'], ['krtc', 'krtc-live.json'], ['tymc', 'tymc-live.json']]) {
   const raw = JSON.parse(readFileSync(join(ROOT, 'app/fixtures/metro', file), 'utf8'));
@@ -85,6 +99,17 @@ for (const r of fl.slice(0, 400)) {
      `${D.lastTrain[key]} vs ${r.LastTrainTime}`);
 }
 ok('E0 真的抽到 3 筆', sampled === 3, `sampled=${sampled}`);
+
+// E4. 🔴 環狀線的末班班表在 NTMC 那份(它由新北捷運公司營運),上面 E1–E3 只讀 TRTC 那份 ⇒
+//     Y 線的末班值一條都沒被驗過。少了 NTMC 時 Y 站仍會從 board[] 拿到方向 ⇒ D-trtc 照樣綠,
+//     所以這條是「NTMC 真的有被讀進來且逐字照抄」的唯一 gate。
+{
+  const ny = JSON.parse(readFileSync(join(ROOT, 'data/tdx/NTMC_FirstLastTimetable.json'), 'utf8'));
+  const r = ny.find(x => x.StationName?.Zh_tw && x.DestinationStationName?.Zh_tw && x.LastTrainTime);
+  const key = r && `trtc|${r.StationName.Zh_tw}|${r.DestinationStationName.Zh_tw}`;
+  ok('E4 環狀線末班逐字相符(NTMC 來源)', !!r && D.lastTrain[key] === r.LastTrainTime,
+     `${key} → ${D.lastTrain?.[key]} vs ${r?.LastTrainTime}`);
+}
 
 console.log(`\n總計 PASS=${pass} FAIL=${fail}`);
 process.exit(fail ? 1 : 0);
