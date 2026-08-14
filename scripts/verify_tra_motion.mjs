@@ -49,7 +49,10 @@ for (const eng of ENGINES) {
     // liveActive() 退場、或列車追回誤點），量偏移量怎麼下降、以及地圖上實際移動了多遠。
     const MAXRATE = 2;                    // 外部契約常數：有效時間最多以 2× 前進
     const DELAY_MIN = 10;                 // 注入 10 分鐘誤點
-    const out = { rateBad: [], pausedBad: [], capBad: [], jumpBad: [], samples: 0, fell: 0, onTimeEntry: null, onTimeVal: null };
+    const STEP = 2;                       // 每步 2 模擬秒（第〇段與第二段共用）
+    const FULL = DELAY_MIN * 60;          // 600 秒＝滿載誤點
+    const out = { rateBad: [], pausedBad: [], capBad: [], jumpBad: [], shiftJumpBad: [], heldJump: [],
+      riseBad: [], riseSeen: 0, heldN: 0, samples: 0, fell: 0, onTimeEntry: null, onTimeVal: null };
 
     const cand = state.trains.filter(t => t.sys === 'tra_sched' && t.stops && t.stops.length > 3 && !t.loop);
     const inRun = cand.filter(t => {
@@ -58,11 +61,35 @@ for (const eng of ENGINES) {
     const use = (inRun.length ? inRun : cand).slice(0, 20);
     const onTime = cand.find(t => !use.includes(t));
 
-    state.live = { map: new Map(use.map(t => [String(t.train), DELAY_MIN])), at: Date.now(), delayed: use.length, srcAt: '' };
+    // 先用一半的誤點建 entry。easedShift 對「首見」會 snap 到 target（初次同步），所以「上升」
+    // 這件事在建 entry 那一步結構上量不到；要量必須讓 entry 已存在、gate 一路不斷線，只把 target 拉高。
+    state.live = { map: new Map(use.map(t => [String(t.train), DELAY_MIN / 2])), at: Date.now(), delayed: use.length, srcAt: '' };
     state.playing = false;                // 由本腳本自己推進 simSec，不讓 tick 插手
+    use.forEach(t => liveDelaySec(t));    // 建 entry
 
-    // 先讓偏移層收斂到「有誤點」的穩態（模擬時間推進，讓 rise 支把 cur 拉到 600）
-    for (let i = 0; i < 400; i++) { state.simSec += 2; use.forEach(t => liveDelaySec(t)); await new Promise(r => requestAnimationFrame(r)); }
+    // ── 第〇段：把 target 拉到 600，量「誤點正在加大」這一半的上升速率。
+    //
+    // 🔴 這是本批次唯一安全宣稱的閘門：`minRate: 0` 讓 rise = adv×(1−0) = adv，與改動前的
+    //   無 motion 上升分支逐字等價 ⇒ 準點的車與「誤點正在加大」的車行為零變化。沒有這條，
+    //   後人「順手把 minRate 對齊北捷的 .25」不會有任何東西轉紅（實測突變 M3 六項全綠），
+    //   而那會讓所有誤點加大中的車在畫面上被拖慢。
+    //   判準非同源：期望值 STEP 來自「有效時間以 1× 前進」這個外部契約，不讀 TRA_MOTION_PROFILE。
+    state.live.map = new Map(use.map(t => [String(t.train), DELAY_MIN]));
+    let prevRise = use.map(t => liveDelaySec(t));
+    for (let i = 0; i < 400; i++) {
+      state.simSec += STEP;
+      await new Promise(r => requestAnimationFrame(r));
+      const nowRise = use.map(t => liveDelaySec(t));
+      use.forEach((t, j) => {
+        const d = nowRise[j] - prevRise[j];
+        // 只看兩端都還沒貼到 target 的步：貼到 600 的那一步被 Math.min 夾成部分上升，不是速率樣本
+        if (prevRise[j] < FULL - 1e-6 && nowRise[j] < FULL - 1e-6 && d > 1e-9) {
+          out.riseSeen++;
+          if (Math.abs(d - STEP) > 1e-6) out.riseBad.push({ train: String(t.train), d: +d.toFixed(6), want: STEP });
+        }
+      });
+      prevRise = nowRise;
+    }
 
     // ── 第一段：暫停（adv=0）。偏移量不得自己變動，車在地圖上也不得移動。
     //
@@ -72,28 +99,44 @@ for (const eng of ENGINES) {
     //   除以模擬秒的判準結構上照不到它，只撿得到收斂完的尾巴。使用者眼睛看到的是「車突然
     //   跳了一段」，對應的物理事實是：**模擬時間沒前進，車就不准移動**。這條沒有容差、
     //   不含任何本計畫改出來的量，是最乾淨的非同源判準。
+    // 🔴 位移要分兩條路徑量，因為 trainPos = trainPosAt(t − liveDelaySec − blockHoldSec)：
+    //   偏移（本批次的受測物）與 #17 阻擋的車距棘輪，兩者都會在模擬時間凍結時動。棘輪在
+    //   dSim=0 時改用「每幀固定 1.111 公尺」的步長且完全不鉗（既有行為，非本輪造成），所以
+    //   只量全量位移的話：取樣裡剛好有被擋的車 ⇒ 假紅，剛好沒有 ⇒ 假綠（實測 9 次只中 1 次，
+    //   分野就是 blockHoldSize 是不是 0）。B2a 剔掉阻擋單獨量偏移，B2b 量全量但只對「沒被擋」
+    //   的車開火，並把被擋的記在 #17 帳上。
     state.live = { map: new Map(), at: Date.now(), delayed: 0, srcAt: '' };   // 釋放
     const before = use.map(t => liveDelaySec(t));
     const posBefore = use.map(t => trainPos(t, state.simSec));
+    const posNHBefore = use.map(t => trainPosAt(t, state.simSec - liveDelaySec(t)));  // 剔掉 blockHoldSec
+    const heldBefore = use.map(t => blockHoldSec(t));
     const simBefore = state.simSec;
     for (let i = 0; i < 40; i++) await new Promise(r => requestAnimationFrame(r));  // 真實時間過了約 0.7 秒，模擬時間 0
     const after = use.map(t => liveDelaySec(t));
     const posAfter = use.map(t => trainPos(t, state.simSec));
+    const posNHAfter = use.map(t => trainPosAt(t, state.simSec - liveDelaySec(t)));
+    const heldAfter = use.map(t => blockHoldSec(t));
     out.simMoved = state.simSec - simBefore;   // 必須是 0，否則這段的「暫停」前提不成立
+    out.heldN = heldBefore.filter((h, i) => h > 0 || heldAfter[i] > 0).length;
     use.forEach((t, i) => {
       if (Math.abs(after[i] - before[i]) > 1e-6)
         out.pausedBad.push({ train: String(t.train), before: +before[i].toFixed(3), after: +after[i].toFixed(3) });
+      const held = heldBefore[i] > 0 || heldAfter[i] > 0;
+      if (posNHBefore[i] && posNHAfter[i]) {   // B2a：偏移路徑單獨量，零容差
+        const m = haversineKm(posNHBefore[i], posNHAfter[i]) * 1000;
+        if (m > 1) out.shiftJumpBad.push({ train: String(t.train), m: Math.round(m) });
+      }
       const a = posBefore[i], b = posAfter[i];
-      if (a && b) {
+      if (a && b) {                             // B2b：全量位移，依有沒有被擋分流
         const m = haversineKm(a, b) * 1000;
-        if (m > 1) out.jumpBad.push({ train: String(t.train), m: Math.round(m) });
+        if (m > 1) (held ? out.heldJump : out.jumpBad)
+          .push({ train: String(t.train), m: Math.round(m), dHold: +(heldAfter[i] - heldBefore[i]).toFixed(3) });
       }
     });
 
     // ── 第二段：模擬時間逐步前進，量 shift 的下降速率與地圖位移
     let prevShift = use.map(t => liveDelaySec(t));
     let prevPos = use.map(t => trainPos(t, state.simSec));
-    const STEP = 2;                        // 每步 2 模擬秒
     for (let k = 0; k < 200; k++) {
       state.simSec += STEP;
       await new Promise(r => requestAnimationFrame(r));
@@ -121,7 +164,11 @@ for (const eng of ENGINES) {
     }
     out.rateBad.sort((x, y) => y.drop - x.drop); out.rateBad = out.rateBad.slice(0, 6);
     out.capBad.sort((x, y) => y.kmh - x.kmh); out.capBad = out.capBad.slice(0, 6);
+    // 先記真數再截斷（計畫給的原始碼就是先 slice 再讀 .length，害首跑把 12 班 236 格印成 8/8）
     out.jumpBad.sort((x, y) => y.m - x.m); out.jumpN = out.jumpBad.length; out.jumpBad = out.jumpBad.slice(0, 6);
+    out.shiftJumpBad.sort((x, y) => y.m - x.m); out.shiftJumpN = out.shiftJumpBad.length; out.shiftJumpBad = out.shiftJumpBad.slice(0, 6);
+    out.heldJump.sort((x, y) => y.m - x.m); out.heldJumpN = out.heldJump.length; out.heldJump = out.heldJump.slice(0, 6);
+    out.riseN = out.riseBad.length; out.riseBad = out.riseBad.slice(0, 6);
     out.pausedBad = out.pausedBad.slice(0, 6);
 
     // ── 準點控制組：不得建立 entry、值恆為 0
@@ -139,11 +186,18 @@ for (const eng of ENGINES) {
     r.pausedBad.length === 0 ? '暫停 0.7 秒真實時間，所有受測車偏移量逐值不變'
       : `${r.pausedBad.length} 台在暫停中自己走了：${JSON.stringify(r.pausedBad.slice(0, 3))}`);
 
-  check(`[${eng}] B2 模擬時間沒前進，車就不得在地圖上移動（使用者看到的「瞬移」本體）`,
-    r.jumpBad.length === 0 && r.simMoved === 0,
-    r.simMoved !== 0 ? `前提不成立：這段模擬時間走了 ${r.simMoved} 秒，B2 無效`
-      : r.jumpBad.length === 0 ? '暫停 0.7 秒真實時間，所有受測車位移 ≤1 公尺'
-        : `${r.jumpN} 台在模擬時間 0 前進時被畫著移動，最遠 ${r.jumpBad[0].m} 公尺：${JSON.stringify(r.jumpBad.slice(0, 3))}`);
+  check(`[${eng}] B2a 模擬時間沒前進時，**偏移路徑**不得讓車在地圖上移動（使用者看到的「瞬移」本體）`,
+    r.shiftJumpN === 0 && r.simMoved === 0,
+    r.simMoved !== 0 ? `前提不成立：這段模擬時間走了 ${r.simMoved} 秒，B2a 無效`
+      : r.shiftJumpN === 0 ? '暫停 0.7 秒真實時間，剔掉 #17 阻擋後所有受測車位移 ≤1 公尺'
+        : `${r.shiftJumpN} 台在模擬時間 0 前進時被偏移畫著移動，最遠 ${r.shiftJumpBad[0].m} 公尺：${JSON.stringify(r.shiftJumpBad.slice(0, 3))}`);
+
+  check(`[${eng}] B2b 全量位移：**沒被 #17 擋住**的車在模擬時間 0 前進時一律不得移動`,
+    r.jumpN === 0 && r.simMoved === 0,
+    r.simMoved !== 0 ? `前提不成立：這段模擬時間走了 ${r.simMoved} 秒，B2b 無效`
+      : `取樣 ${r.heldN} 台被擋 / 共 ${r.jumpN + r.heldJumpN + 0} 台有位移；未被擋而移動 ${r.jumpN} 台`
+        + (r.heldJumpN ? `；被擋而移動 ${r.heldJumpN} 台（記在 #17 車距棘輪帳上，非本批次）最遠 ${r.heldJump[0].m} 公尺` : '')
+        + (r.jumpN ? `：${JSON.stringify(r.jumpBad.slice(0, 3))}` : ''));
 
   check(`[${eng}] C 畫面速度不得超過 車種極速 × 2`,
     r.capBad.length === 0,
@@ -152,6 +206,12 @@ for (const eng of ENGINES) {
 
   check(`[${eng}] D 分母閘門：觀察窗內偏移量真的在下降（否則 A/C 是以「什麼都沒發生」假綠）`,
     r.fell > 0, `${r.fell}/${r.samples} 個取樣偏移量下降中`);
+
+  check(`[${eng}] F 上升側零變化：誤點加大時，偏移量必須恰以 1× 模擬時間前進（minRate 的閘門）`,
+    r.riseN === 0 && r.riseSeen > 0,
+    r.riseSeen === 0 ? '分母為零：觀察窗內沒有任何一步是「還沒貼到 target 的上升」，F 無效'
+      : r.riseN === 0 ? `${r.riseSeen} 個上升取樣全數恰為 ${2} 秒/步（＝adv，與改動前的無 motion 分支等價）`
+        : `${r.riseN}/${r.riseSeen} 個上升取樣偏離 adv；例：${JSON.stringify(r.riseBad.slice(0, 3))}`);
 
   check(`[${eng}] E 準點控制組：零誤點的車不得建立漸變條目，值恆為 0`,
     r.onTimeVal === 0 && r.onTimeEntry === false,

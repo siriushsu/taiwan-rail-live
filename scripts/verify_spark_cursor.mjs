@@ -92,6 +92,72 @@ check('B 曲線每一格＝純表定軸同一時刻的實際位移速度',
 check('C 分母閘門：受測車真的帶著誤點（否則 A/B 在零誤點下恆綠）',
   r.delaySeen > 60, `最大偏移 ${Math.round(r.delaySeen)} 秒`);
 
+// ── 游標半場。A/B 只驗曲線；曲線對了不代表游標對——曲線的 x 軸是純表定軸，游標的引數必須是
+//    effTLive（已扣誤點）。把三個呼叫端的 effTLive 換成 effT，A/B/C 三項全綠而游標實際偏掉
+//    面板寬度的 8.55%（140 格差 12 格、同一時刻讀成 28 而非 63 km/h）。所以這裡兩層都驗：
+//    D 攔真正的呼叫端看它傳什麼進來，E 直接讀畫布像素看那一豎畫在哪（心得 24：computed 值
+//    不算數，浮動元件要像素證據）。
+const cu = await page.evaluate(async () => {
+  const out = { spy: [], err: '' };
+  try {
+    const hw = document.getElementById('howtoWrap'); if (hw) hw.remove(); // 首訪教學卡會蓋住面板
+    state.playing = false;          // 凍住模擬時鐘，呼叫端傳的 t 才能與稍後讀的 effTLive 逐值比對
+    // 只挑「此刻真的在跑」的車：setFollow 對未發車的班會撥鐘（丁批次的跨午夜例外），會動 effTLive
+    const running = state.trains.filter(t => t.sys === 'tra_sched' && t.stops && t.stops.length > 5 && !t.loop
+      && state.simSec > t.stops[0].depSec + 300 && state.simSec < t.stops[t.stops.length - 1].arrSec - 300);
+    out.runningN = running.length;
+    const tr = running[0]; if (!tr) return out;
+    out.train = String(tr.train);
+    const DELAY_MIN = 10, key = (tr.sys || 'tra_sched') + ':' + tr.train;
+    state.live = { map: new Map([[String(tr.train), DELAY_MIN]]), at: Date.now(), delayed: 1, srcAt: '' };
+    _easedShift.set(key, { cur: DELAY_MIN * 60, at: performance.now(), sim: state.simSec, ep: _traGateEp.ep });
+    tr._spdProf = null;
+
+    const orig = window.drawSpark;  // 頂層 function 宣告 ⇒ 掛在 window 上，未限定的呼叫會走這裡
+    window.drawSpark = function (t2, t) { out.spy.push({ train: String(t2.train), t }); return orig.apply(this, arguments); };
+    setFollow(tr);
+    await new Promise(r => setTimeout(r, 400));   // 呼叫端有一個 setTimeout(...,0) 與每秒重畫
+    window.drawSpark = orig;
+
+    out.effTLive = effTLive(tr); out.effT = effT(tr); out.shift = liveDelaySec(tr);
+    const { t0, t1 } = speedProfile(tr);
+    out.wantFrac = (out.effTLive - t0) / (t1 - t0);
+    out.wrongFrac = (out.effT - t0) / (t1 - t0);   // 用錯軸（effT）游標會落在這裡
+    out.spyBad = out.spy.filter(s => Math.abs(s.t - out.effTLive) > 1).length;
+
+    const el = document.getElementById('tcSpark');
+    const cs = getComputedStyle(el);
+    const rgb = (cs.getPropertyValue('--spark-cursor').trim() || '#d23c2a').replace('#', '').match(/../g).map(x => parseInt(x, 16));
+    const img = el.getContext('2d').getImageData(0, 0, el.width, el.height).data;
+    let best = -1, bestN = 0;
+    for (let x = 0; x < el.width; x++) {          // 游標是一整豎，取同色像素最多的那一行
+      let n = 0;
+      for (let y = 2; y < el.height; y++) {
+        const p = (y * el.width + x) * 4;
+        if (img[p + 3] > 200 && Math.abs(img[p] - rgb[0]) < 24 && Math.abs(img[p + 1] - rgb[1]) < 24 && Math.abs(img[p + 2] - rgb[2]) < 24) n++;
+      }
+      if (n > bestN) { bestN = n; best = x; }
+    }
+    out.pxRun = bestN; out.canvasW = el.width;
+    out.gotFrac = bestN >= 3 ? best / (el.width - 1) : null;   // 找不到夠長的豎線＝游標沒畫出來
+  } catch (e) { out.err = String(e && e.message || e); }
+  return out;
+});
+
+check('D 游標的引數必須是「已扣誤點」的時間軸（真正的呼叫端傳什麼就驗什麼）',
+  !cu.err && cu.spy.length > 0 && cu.spyBad === 0 && Math.abs(cu.effT - cu.effTLive) > 60,
+  cu.err ? `例外：${cu.err}`
+    : cu.spy.length === 0 ? `分母為零：跟隨面板沒觸發任何一次重畫（在跑的車 ${cu.runningN} 班），D 無效`
+      : Math.abs(cu.effT - cu.effTLive) <= 60 ? `分母不足：effT 與 effTLive 只差 ${Math.round(cu.effT - cu.effTLive)} 秒，兩軸分不開`
+        : cu.spyBad === 0 ? `${cu.spy.length} 次重畫全數傳 effTLive（=${Math.round(cu.effTLive)}），與 effT（=${Math.round(cu.effT)}）差 ${Math.round(cu.shift)} 秒`
+          : `${cu.spyBad}/${cu.spy.length} 次重畫傳的不是 effTLive；例：${JSON.stringify(cu.spy.slice(0, 3))}`);
+
+check('E 游標像素真的畫在誤點後的位置（讀畫布，不是讀變數）',
+  cu.gotFrac != null && Math.abs(cu.gotFrac - cu.wantFrac) <= 0.01 && Math.abs(cu.wantFrac - cu.wrongFrac) > 0.02,
+  cu.gotFrac == null ? `畫布上找不到游標豎線（最長同色 ${cu.pxRun} 像素），E 無效`
+    : Math.abs(cu.wantFrac - cu.wrongFrac) <= 0.02 ? `分母不足：正確位置與錯誤位置只差 ${(Math.abs(cu.wantFrac - cu.wrongFrac) * 100).toFixed(2)}% 面板寬，分不開`
+      : `游標在 ${(cu.gotFrac * 100).toFixed(2)}%，應在 ${(cu.wantFrac * 100).toFixed(2)}%（用錯軸會落在 ${(cu.wrongFrac * 100).toFixed(2)}%，差 ${(Math.abs(cu.wantFrac - cu.wrongFrac) * 100).toFixed(2)}% 面板寬）`);
+
 await browser.close();
 const bad = results.filter(x => !x.pass).length;
 console.log(`\n合計 ${results.length - bad} PASS / ${bad} FAIL`);

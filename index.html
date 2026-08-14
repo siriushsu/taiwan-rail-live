@@ -15787,6 +15787,9 @@ const TRTC_MOTION_PROFILE = { minRate: TRTC_MOTION_MIN_RATE, maxRate: TRTC_MOTIO
 // 上升分支逐字等價 ⇒ 準點的車與「誤點正在加大」的車行為零變化;真正被約束的只有「誤點被釋放」
 // 這一段——改動前它走 τ=1s 的指數收斂,而且吃的是真實時間 dt 不是模擬時間 adv,於是連暫停
 // (adv=0)都照樣移動,600 秒的誤點會在 3 秒多內畫完,換算數萬 km/h。
+// 「逐字等價」有一個例外:下面死區的判別式由 |cur|<.25 改成 cur===0(見該行註解)。只在 target===0
+// 時觸發,所以誤點加大的那一半不受影響;受影響的只有負偏移(早到車)滑回 0 的最後 0.25 秒,新行為
+// 是走到精確 0 才刪 entry,比舊的少一個 0.25 秒跳步。閘門在 verify_tra_motion 的 F(上升側恰 1×)。
 const TRA_MOTION_MAX_RATE = 2;   // 有效時間最多以 2× 前進 ⇒ 追回誤點時畫面最多跑標稱速度的 2 倍
 const TRA_MOTION_PROFILE = { minRate: 0, maxRate: TRA_MOTION_MAX_RATE };
 // 各線實際吃的是 metroMotion(ln)：同樣的 min/max，但 max 已先除掉該線梯形的巡航／平均倍率。
