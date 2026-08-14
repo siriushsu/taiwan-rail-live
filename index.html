@@ -10070,7 +10070,13 @@ function setFollow(tr, isAuto, noJump, opts) {
   // 換車先清:上一班的跨午夜例外不得殘留。跨午夜班一律標記,**不綁在下面兩個撥鐘分支裡**——
   // 「先拖時刻尺到發車後(車已在跑)、才點跟隨」時兩個分支都不觸發,但那條路徑照樣會播過 00:00,
   // 缺陷⑤會原樣重現(2026-08-14 驗收實測 0/31,與修法前一模一樣)。
-  state.followWrapStops = Math.max(last.arrSec, last.depSec) > 86400 ? tr.stops : null;
+  // 🔴 但標記必須等到「這班在不在跑」判完才寫入(見下面 wrapMark):否則 effTLive 會讀到本函式
+  //   兩行前自己剛設的旗標 ⇒ 清晨點跟隨時 schedWrapT 回傳 t+86400 ⇒ 判定「正在跑」⇒ 不撥鐘回
+  //   發車,當場畫出一班昨晚根本沒開的幽靈車(2026-08-14 驗收實測:清晨 6 個時點全中、台鐵車數 +1)。
+  //   setFollow 不得拿自己剛寫下的答案當輸入。
+  const wrapMark = Math.max(last.arrSec, last.depSec) > 86400 ? tr.stops : null;
+  state.followWrapStops = null;
+  const running = tr.loop || !(effTLive(tr) < first.depSec - 60 || effTLive(tr) > last.arrSec);
   // 下面兩個分支都是刻意撥時鐘(時光機),所以必須同時離開「跟著現在」的狀態:clockDriftGuard 每秒
   // 會把「還貼著現在」的時鐘拉回真實時刻,而它刻意不走 setSimSec(那會清掉 clockAtNow),所以也不會
   // 被 followTimeJumped 攔。撥了時鐘卻沒清旗標 ⇒ 1 秒內時鐘跳回現在,而完乘資格快照 followStartEff
@@ -10085,12 +10091,13 @@ function setFollow(tr, isAuto, noJump, opts) {
     if (!state._followSpeedSaved) { state._preFollowSpd = state.speedMult; state._followSpeedSaved = true; }
     setSpeed(30);
     if (!state.playing) togglePlay();
-  } else if (!tr.loop && (effTLive(tr) < first.depSec - 60 || effTLive(tr) > last.arrSec)) {
-    // 環島車永遠在跑,不需要把時間拉回發車
+  } else if (!running) {
+    // 環島車永遠在跑,不需要把時間拉回發車(已併進 running)
     state.simSec = Math.max(0, first.depSec - 20) % 86400;
     state.clockAtNow = false;
     syncTimeUI();
   }
+  state.followWrapStops = wrapMark; // 兩個撥鐘分支都判完才標記,理由見上面
   if (!noJump) {
     const pos = trainPos(tr, state.simSec) || { lat: first.lat, lon: first.lon };
     map.setView([pos.lat, pos.lon], followEntryZoom(), { animate: false });

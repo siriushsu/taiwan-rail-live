@@ -239,6 +239,31 @@ for (const eng of ENGINES) {
         : A2.gaps.length === 0 ? `${A2.total} 點全程有座標（windBack=false, clockAtNow=${A2.clockAtNow}, followTimeJumped=${A2.jumped}）`
           : `只畫出 ${A2.drawn}/${A2.total}，消失於 秒/日 ${A2.gaps[0]}–${A2.gaps[A2.gaps.length - 1]}`);
 
+  // C6：「人在開行日清晨、才去搜尋這班車來跟隨」——兩件事必須同時成立，只驗其一都會被另一半的
+  //     修法穿過：(a) 跟隨前那個時刻不得畫出這班（幽靈班），(b) setFollow 必須把時鐘撥回發車
+  //     （時光機生效＝`index.html` 那個 else 分支的明示設計）。
+  //     🔴 這條專門擋「setFollow 讀到自己剛設的旗標」：標記若在判斷「這班在不在跑」之前寫入，
+  //        effTLive 會回傳已包裝的 t+86400 ⇒ 判定正在跑 ⇒ 不撥鐘，且當場畫出幽靈車。
+  const C6 = await page.evaluate(({ trainNo, secs }) => {
+    const tr = state.trains.find(t => t.sys === 'tra_sched' && String(t.train) === trainNo);
+    const out = [];
+    for (const sec of secs) {
+      clearFollow();
+      setSimSec(sec);                                   // 使用者拖時刻尺到開行日清晨（此時沒在跟隨）
+      const ghostBefore = !!trainPos(tr, sec);          // (a) 此刻不得畫出這班
+      setFollow(tr, false, true);
+      out.push({ at: sec, ghostBefore, wound: state.simSec !== sec, landed: state.simSec });
+    }
+    return out;
+  }, { trainNo: guarded[0].train, secs: earlyMorning.slice(0, 6) });
+  const C6ghost = C6.filter(r => r.ghostBefore), C6stuck = C6.filter(r => !r.wound);
+  check(`[${eng}] C6 清晨才搜尋這班來跟隨：跟隨前不得有幽靈車，跟隨後時鐘必須撥回發車`,
+    C6.length > 0 && C6ghost.length === 0 && C6stuck.length === 0,
+    C6.length === 0 ? '沒有取樣點'
+      : C6ghost.length ? `${C6ghost.length}/${C6.length} 個時點在跟隨前就畫出幽靈車（秒/日 ${C6ghost.map(r => r.at).join(',')}）`
+        : C6stuck.length ? `${C6stuck.length}/${C6.length} 個時點 setFollow 沒撥鐘（停在 ${C6stuck.map(r => r.landed).join(',')}）——時光機沒生效，車會直接消失`
+          : `${C6.length} 個清晨時點全部：跟隨前無幽靈車、跟隨後撥回 ${C6[0].landed}`);
+
   await browser.close();
 }
 
