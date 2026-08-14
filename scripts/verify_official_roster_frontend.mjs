@@ -60,10 +60,10 @@ const UNIT_FUNCTIONS = [
   'trtcOfficialRosterEnabled', 'trtcOfficialRosterActive', 'trtcOfficialRosterForLine',
   'trtcOfficialCoastCycle', 'trtcOfficialCoastPosition', 'trtcOfficialDeparturePosition',
   'trtcOfficialTimelinePosition', 'trtcOfficialVehiclePosition', 'trtcOfficialPositionProgress',
-  'trtcOfficialPositionAtProgress', 'trtcOfficialSegmentSeconds', 'trtcOfficialForwardLimit',
+  'trtcOfficialMotionStep', 'trtcOfficialPositionAtProgress', 'trtcOfficialSegmentSeconds', 'trtcOfficialForwardLimit',
   'trtcOfficialDirectionPrevious', 'trtcOfficialDirectionAnchor',
   'trtcOfficialDisplayPosition', 'trtcOfficialVehicleInfo',
-  'trtcOfficialRenderItems', 'trtcOfficialVehicleGlyph', 'trtcOfficialSameTarget',
+  'trtcOfficialRenderItems', 'trtcOfficialVehicleGlyph', 'trtcOfficialSameTarget', 'dirAngOf',
 ];
 
 function buildUnitApi(overrides = {}, label = 'unit') {
@@ -205,24 +205,37 @@ function evaluateUnit(api) {
     { ...coastVehicle, vehicleId: 'coast-r', dir: 1, dest: 0, from: 9, to: 8 }, 3660);
   const G = long && long.lat > LINE.stations[7].lat && long.lat < LINE.stations[8].lat &&
     done === null && reverseCoast && reverseCoast.lat < LINE.stations[2].lat;
-  const forwardPrevious = api.trtcOfficialDirectionPrevious(LINE, timelineVehicle, half);
-  const reversePrevious = api.trtcOfficialDirectionPrevious(LINE, reverseVehicle, reverseHalf);
+  // 錄影重現：位置明確走 0→1／4→3，但身分 dir 故意放成相反方向。箭頭必須信這一幀
+  // 的實際 motionFrom→motionTo，不能再被落後一輪的 dir 或上一段 EMA 帶反。
+  const wrongDirForward = { ...timelineVehicle, dir:1 };
+  const wrongDirReverse = { ...reverseVehicle, dir:2 };
+  const forwardPrevious = api.trtcOfficialDirectionPrevious(LINE, wrongDirForward, half);
+  const reversePrevious = api.trtcOfficialDirectionPrevious(LINE, wrongDirReverse, reverseHalf);
   const projection = { project:([lat, lon]) => ({ x:lon * 37, y:-lat * 29 }) };
   const cp = { x:100, y:80 };
   const forwardAnchor = api.trtcOfficialDirectionAnchor(projection, cp, half, forwardPrevious);
   const reverseAnchor = api.trtcOfficialDirectionAnchor(projection, cp, reverseHalf, reversePrevious);
   const anchorLength = anchor => anchor && Math.hypot(cp.x - anchor.x, cp.y - anchor.y);
+  const officialDraw = extractFunction(INDEX, 'drawTrtcOfficialVehicle');
   const I = forwardPrevious && reversePrevious && forwardAnchor && reverseAnchor &&
-    api.trtcOfficialPositionProgress(LINE, timelineVehicle, forwardPrevious) <
-      api.trtcOfficialPositionProgress(LINE, timelineVehicle, half) &&
-    api.trtcOfficialPositionProgress(LINE, reverseVehicle, reversePrevious) <
-      api.trtcOfficialPositionProgress(LINE, reverseVehicle, reverseHalf) &&
+    forwardPrevious.lat < half.lat && reversePrevious.lat > reverseHalf.lat &&
+    api.trtcOfficialPositionProgress(LINE, wrongDirForward, forwardPrevious) <
+      api.trtcOfficialPositionProgress(LINE, wrongDirForward, half) &&
+    api.trtcOfficialPositionProgress(LINE, wrongDirReverse, reversePrevious) <
+      api.trtcOfficialPositionProgress(LINE, wrongDirReverse, reverseHalf) &&
     Math.abs(anchorLength(forwardAnchor) - 8) < 1e-9 &&
     Math.abs(anchorLength(reverseAnchor) - 8) < 1e-9 &&
-    extractFunction(INDEX, 'drawTrtcOfficialVehicle')
-      .includes('trtcOfficialDirectionAnchor(map, cp, item.pos, previous)') &&
-    !extractFunction(INDEX, 'drawTrtcOfficialVehicle').includes('map.latLngToContainerPoint([previous.lat');
-  return { A, B, C, D, E, G, I };
+    officialDraw.includes('trtcOfficialDirectionAnchor(map, cp, item.pos, previous)') &&
+    officialDraw.includes('Math.atan2(cp.y - cpB.y, cp.x - cpB.x)') &&
+    !officialDraw.includes('dirAngOf(') && !officialDraw.includes('map.latLngToContainerPoint([previous.lat');
+
+  const stale = { _dirAng:0 }, turnCp = { x:0, y:0 }, turnBehind = { x:1, y:-10 };
+  const rawTurn = Math.atan2(10, -1), snapped = api.dirAngOf(stale, turnCp, turnBehind);
+  const gentle = { _dirAng:0 }, gentleRaw = Math.PI / 4;
+  const smoothed = api.dirAngOf(gentle, turnCp, { x:-10, y:-10 });
+  const J = Math.abs(snapped - rawTurn) < 1e-12 && smoothed > 0 && smoothed < gentleRaw &&
+    Math.cos(snapped - rawTurn) > 0;
+  return { A, B, C, D, E, G, I, J };
 }
 
 function buildIngestApi(holdOverride = null, label = 'ingest') {
@@ -303,7 +316,7 @@ await mutation('終點站仍停著不退場', 'B', 'trtcOfficialTimelinePosition
   'if (destination && now >= destination.arrEpoch) return { handled: true, pos: null };',
   'if (false) return { handled: true, pos: null };');
 await mutation('ETA 回修時位置跟著倒退', 'B', 'trtcOfficialDisplayPosition',
-  'const pos = progress < prior.progress - 1e-9 ? { ...raw, lat: prior.pos.lat, lon: prior.pos.lon,\n      fraction: prior.pos.fraction, atStation: prior.pos.atStation } : raw;',
+  'const pos = progress < prior.progress - 1e-9 ? { ...raw, lat: prior.pos.lat, lon: prior.pos.lon,\n      fraction: prior.pos.fraction, atStation: prior.pos.atStation,\n      motionFrom: prior.pos.motionFrom, motionTo: prior.pos.motionTo } : raw;',
   'const pos = raw;');
 await mutation('同一畫格第二個讀者繞過防倒退', 'B', 'trtcOfficialDisplayPosition',
   'if (!prior || now < prior.epoch) {',
@@ -330,8 +343,14 @@ await mutation('vehicleId 相同就忽略路線', 'E', 'trtcOfficialSameTarget',
   "String(followLine || '') === String(followLine || '')");
 await mutation('官方箭頭改指向路線前方而不是後方', 'I', 'trtcOfficialDirectionPrevious',
   'progress - delta, pos', 'progress + delta, pos');
+await mutation('官方箭頭重新只信可能落後的 dir', 'I', 'trtcOfficialMotionStep',
+  'if (Number.isInteger(from) && Number.isInteger(to) && from !== to) return Math.sign(to - from);',
+  'if (Number.isInteger(from) && Number.isInteger(to) && from !== to) return Number(vehicle && vehicle.dir) === 2 ? 1 : -1;');
 await mutation('箭頭向量重新受目前倍率像素大小影響', 'I', 'trtcOfficialDirectionAnchor',
   'const scale = 8 / distance;', 'const scale = 0.01;');
+await mutation('共用箭頭在轉彎後仍慢慢朝車尾平滑', 'J', 'dirAngOf',
+  'ang = Math.cos(d) <= 0 ? raw : ang + d * 0.08;',
+  'ang = Math.abs(d) > 2.1 ? raw : ang + d * 0.08;');
 
 const holdOriginal = extractFunction(INDEX, 'trtcOfficialRosterHold');
 const holdMutant = replaceExactly(holdOriginal,
@@ -422,40 +441,41 @@ async function browserMatrix(baseUrl) {
               Date.now() / 1000, true) || []).length, 0);
           const brLine = pools.find(item => item.id === 'BR');
           const oldTag = drawTag, oldDot = drawDot, oldArrow = drawArrowAt, tagLabels = [];
-          let dotCalls = 0, directionAngle = null, directionError = null;
+          let dotCalls = 0, directionAngles = [], directionErrors = [];
           try {
             drawTag = (_point, label) => tagLabels.push(label);
             drawDot = () => { dotCalls++; };
-            drawArrowAt = (_point, angle) => { directionAngle = angle; };
+            drawArrowAt = (_point, angle) => { directionAngles.push(angle); };
             drawTrtcOfficialVehicle(brLine, {
               pos:{ lat:brLine.stations[0].lat, lon:brLine.stations[0].lon },
               officialNo:'', vehicleId:'browser-br-fallback', vehicle:{ dir:2 }
             }, true, () => true, false, Date.now() / 1000);
             const fallbackLabels = [...tagLabels], fallbackDots = dotCalls;
-            const rLine = pools.find(item => item.id === 'R');
-            const directionPos = { ...posBetweenStations(rLine, 0, 1, .5),
-              fraction:.5, coastTo:1, atStation:false };
-            const directionVehicle = { vehicleId:'browser-direction-134', dir:2, to:1 };
-            _trtcOfficialDirSlots.delete(directionVehicle.vehicleId);
-            drawTrtcOfficialVehicle(rLine, { pos:directionPos, officialNo:'134',
-              vehicleId:directionVehicle.vehicleId, vehicle:directionVehicle },
-            true, () => true, false, Date.now() / 1000);
-            const directionPrevious = trtcOfficialDirectionPrevious(rLine, directionVehicle, directionPos);
-            const projectedNow = map.project([directionPos.lat, directionPos.lon], 18);
-            const projectedBefore = map.project([directionPrevious.lat, directionPrevious.lon], 18);
-            const expected = Math.atan2(projectedNow.y - projectedBefore.y,
-              projectedNow.x - projectedBefore.x);
-            if (Number.isFinite(directionAngle)) {
-              let delta = directionAngle - expected;
+            // 直接用錄影中的 BR 萬芳醫院(3)↔辛亥(4)實際幾何跑兩個方向，並故意把 dir
+            // 都寫反。箭頭只能服從本畫格 motionFrom→motionTo，兩向都不可被身分欄位帶反。
+            for (const [from, to, wrongDir, id] of [[3,4,1,'north'], [4,3,2,'south']]) {
+              const directionPos = { ...posBetweenStations(brLine, from, to, .5),
+                fraction:.5, motionFrom:from, motionTo:to, coastTo:to, atStation:false };
+              const directionVehicle = { vehicleId:`browser-direction-${id}`, dir:wrongDir, from, to };
+              drawTrtcOfficialVehicle(brLine, { pos:directionPos, officialNo:'',
+                vehicleId:directionVehicle.vehicleId, vehicle:directionVehicle },
+              true, () => true, false, Date.now() / 1000);
+              const directionPrevious = trtcOfficialDirectionPrevious(brLine, directionVehicle, directionPos);
+              const projectedNow = map.project([directionPos.lat, directionPos.lon], 18);
+              const projectedBefore = map.project([directionPrevious.lat, directionPrevious.lon], 18);
+              const expected = Math.atan2(projectedNow.y - projectedBefore.y,
+                projectedNow.x - projectedBefore.x);
+              const directionAngle = directionAngles[directionAngles.length - 1];
+              let delta = Number(directionAngle) - expected;
               while (delta > Math.PI) delta -= 2 * Math.PI;
               while (delta < -Math.PI) delta += 2 * Math.PI;
-              directionError = Math.abs(delta);
+              directionErrors.push(Math.abs(delta));
             }
             tagLabels.splice(0, tagLabels.length, ...fallbackLabels); dotCalls = fallbackDots;
           } finally { drawTag = oldTag; drawDot = oldDot; drawArrowAt = oldArrow; }
           return { before, after, monotonic, rendered, roster:state.trtcOfficialRoster.vehicles.length,
             fallbackTag:{ tagLabels, dotCalls, halfWidth:trtcOfficialTagHalfWidth('BR'),
-              directionAngle, directionError, zoom:map.getZoom() } };
+              directionAngles, directionErrors, zoom:map.getZoom() } };
         });
         const tapTarget = await page.evaluate(() => [...document.querySelectorAll('button[id],a[id],[role=button][id]')]
           .find(element => { const style = getComputedStyle(element), rect = element.getBoundingClientRect();
@@ -511,9 +531,10 @@ try {
       result.deadline.before < 1 && result.deadline.after?.fraction === 1 && result.deadline.after.exact &&
       result.deadline.monotonic && result.deadline.fallbackTag?.tagLabels?.join(',') === 'BR' &&
       result.deadline.fallbackTag.dotCalls === 0 && result.deadline.fallbackTag.halfWidth > 6 &&
-      Number.isFinite(result.deadline.fallbackTag.directionAngle) &&
-      result.deadline.fallbackTag.directionError < 1e-9,
-    `${result.engine} ${result.width}px：4/4 車可畫、BR 橢圓牌、低倍率 134 箭頭正向、真 rAF 準時到站、位置單調、零 pageerror`,
+      result.deadline.fallbackTag.directionAngles.length === 2 &&
+      result.deadline.fallbackTag.directionErrors.length === 2 &&
+      result.deadline.fallbackTag.directionErrors.every(error => error < 1e-9),
+    `${result.engine} ${result.width}px：4/4 車可畫、BR 橢圓牌、萬芳醫院↔辛亥兩向箭頭正向、真 rAF 準時到站、位置單調、零 pageerror`,
     JSON.stringify({ errors:result.errors.slice(0,2), deadline:result.deadline }));
     check(result.layout.scrollWidth <= result.layout.clientWidth && !result.layout.misses.length &&
       !result.layout.collisions.length,
