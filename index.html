@@ -4020,9 +4020,18 @@ function trtcOfficialRosterEnabled(search) {
 }
 // URL 開關必須在開機初始就固定；clearFollow() 會整理 query string，不可在後面重讀。
 const OFFICIAL_ROSTER_ENABLED = trtcOfficialRosterEnabled(location.search);
-// 100 輪語料實測資料齡 max=28.441s；15s 會誤退 75/100 輪、20s 誤退 7/100，30/45/60s 均 0/100。
-// 2026-08-13 使用者裁示採 30 秒（只比觀測 max 多 1.6 秒，是 0 誤退裡最緊的一檔）。
-const TRTC_OFFICIAL_ROSTER_MAX_AGE_SEC = 30;
+// 🔴 2026-08-14 改：資料齡不再是「整批停用」的開關，是「推算上限」。
+// 舊值 30 秒是照 100 輪語料的 max=28.441s 訂的，正式站早尖峰實測 30 輪就有 2 輪超過
+// （max 32.9s）⇒ 那兩輪整條北捷所有車同時消失。使用者裁示：有訊號就一直推算下去，
+// 車子不准在中間消失。所以改成「最後一筆官方資訊之後最多續推 10 分鐘」，
+// 期間車子照自己的節奏到站、停站、開往下一站；超過才交還班表。
+const TRTC_OFFICIAL_COAST_MAX_SEC = 600;
+const TRTC_OFFICIAL_ROSTER_MAX_AGE_SEC = TRTC_OFFICIAL_COAST_MAX_SEC;
+// 續推時每一段的節奏：優先用這台車自己相鄰兩筆官方到站的間隔（含停站），
+// 沒有 history 才退回 run＋停站常數。停站時間夾在 [15s, 半個週期]，避免 run 與 span
+// 互相矛盾時（實測有 run=109s 但 span=90s 的列）算出負的行駛時間。
+const TRTC_OFFICIAL_COAST_DWELL_MIN_SEC = 15;
+const TRTC_OFFICIAL_COAST_DWELL_DEFAULT_SEC = 25;
 // 成就徽章與車廂標記＝原本那些 emoji 的單色平面版（RailEmoji＝裁切過的 Noto Emoji 單色）。
 // 刻意保留 railIcon(name) 這個唯一入口:呼叫端一行都不用改,只有這裡決定畫法。
 // 🔴 ⚖ 與 ♾ 一律寫**不帶 VS16(U+FE0F)** 的碼位——帶了就強制彩色呈現,會蓋過 font-family
@@ -4493,6 +4502,48 @@ function trtcOfficialRosterForLine(boardPos, lineId) {
   if (!boardPos || !Array.isArray(boardPos.vehicles)) return [];
   return boardPos.vehicles.filter(vehicle => vehicle && String(vehicle.line) === String(lineId));
 }
+// 這台車自己的行進節奏：相鄰兩筆官方到站的間隔（含停站）＝一個「站到站週期」。
+// 沒有 history（首次出現）才退回 run＋停站常數。停站夾在 [15s, 半個週期]——實測有
+// run=109s 但 span=90s 的列（run 來自模型、span 來自官方兩次到站），不夾會算出負的行駛時間。
+function trtcOfficialCoastCycle(vehicle, run) {
+  const history = Array.isArray(vehicle && vehicle.history) ? vehicle.history : [];
+  const own = history.length >= 2
+    ? Number(history[history.length - 1].arrEpoch) - Number(history[history.length - 2].arrEpoch) : NaN;
+  const cycle = Number.isFinite(own) && own > 0 && own <= TRTC_OFFICIAL_COAST_MAX_SEC
+    ? own : run + TRTC_OFFICIAL_COAST_DWELL_DEFAULT_SEC;
+  const dwell = Math.min(Math.max(cycle - run, TRTC_OFFICIAL_COAST_DWELL_MIN_SEC), cycle / 2);
+  return { cycle, dwell, travel: cycle - dwell };
+}
+// 官方最後一筆到站之後，車不會停在那裡等下一批資料——照自己的節奏停站、發車、
+// 準時開到下一站，一路推到終點站為止。這是「有訊號就一直推算下去，車子不准在中間
+// 消失」的實作；只有超過 TRTC_OFFICIAL_COAST_MAX_SEC（上游真的斷了）才回 null 交還班表。
+function trtcOfficialCoastPosition(ln, vehicle, now, from, to, run, arrEpoch) {
+  const B = ln.stations[to];
+  const elapsed = now - arrEpoch;
+  if (!(elapsed >= 0)) return null;
+  if (elapsed > TRTC_OFFICIAL_COAST_MAX_SEC) return null; // OFFICIAL_COAST_HORIZON
+  const atTo = { lat: B.lat, lon: B.lon, fraction: 1, atStation: true, coastTo: to, coastArrEpoch: arrEpoch };
+  const step = to > from ? 1 : -1;
+  const dest = Number(vehicle && vehicle.dest);
+  const legsLeft = Number.isInteger(dest) ? (dest - to) * step : 0;
+  const { cycle, dwell, travel } = trtcOfficialCoastCycle(vehicle, run);
+  if (!(legsLeft > 0) || !(cycle > 0) || !(travel > 0)) return atTo;
+  const done = Math.floor(elapsed / cycle);
+  if (done >= legsLeft) { // 已推到終點站，停在那裡等退場
+    const D = ln.stations[dest];
+    return D ? { lat: D.lat, lon: D.lon, fraction: 1, atStation: true,
+      coastTo: dest, coastArrEpoch: arrEpoch + legsLeft * cycle } : atTo;
+  }
+  const here = to + done * step, next = here + step;
+  const P = ln.stations[here], Q = ln.stations[next];
+  if (!P || !Q) return atTo;
+  const phase = elapsed - done * cycle, nextArr = arrEpoch + (done + 1) * cycle;
+  if (phase < dwell) return { lat: P.lat, lon: P.lon, fraction: 1, atStation: true,
+    coastTo: here, coastArrEpoch: arrEpoch + done * cycle };
+  const fraction = Math.max(0, Math.min(1, (phase - dwell) / travel));
+  const pos = posBetweenStations(ln, here, next, fraction);
+  return pos ? { ...pos, fraction, atStation: false, coastTo: next, coastArrEpoch: nextArr } : atTo;
+}
 function trtcOfficialVehiclePosition(ln, vehicle, nowEpoch) {
   if (!ln || !Array.isArray(ln.stations) || !vehicle) return null;
   const from = Number(vehicle.from), to = Number(vehicle.to), run = Number(vehicle.run);
@@ -4509,7 +4560,7 @@ function trtcOfficialVehiclePosition(ln, vehicle, nowEpoch) {
   if (!(depEpoch < arrEpoch)) return null; // OFFICIAL_POSITION_AXIS_GUARD
   // 端點直接回傳站點原值，不用 A+(B-A)*1；arrEpoch 當格必須 bit-exact 抵達 to。
   if (now <= depEpoch) return { lat: A.lat, lon: A.lon, fraction: 0, atStation: true };
-  if (now >= arrEpoch) return { lat: B.lat, lon: B.lon, fraction: 1, atStation: true }; // ROSTER_FRONTEND_POSITION
+  if (now >= arrEpoch) return trtcOfficialCoastPosition(ln, vehicle, now, from, to, run, arrEpoch); // ROSTER_FRONTEND_POSITION
   const fraction = Math.max(0, Math.min(1, (now - depEpoch) / (arrEpoch - depEpoch)));
   const pos = posBetweenStations(ln, from, to, fraction);
   return pos ? { ...pos, fraction, atStation: false } : null;
@@ -4517,9 +4568,12 @@ function trtcOfficialVehiclePosition(ln, vehicle, nowEpoch) {
 function trtcOfficialVehicleInfo(ln, vehicle, nowEpoch) {
   const pos = trtcOfficialVehiclePosition(ln, vehicle, nowEpoch);
   if (!pos) return { pos: null, done: false, ln, vehicle };
-  const next = ln.stations[Number(vehicle.to)], term = ln.stations[Number(vehicle.dest)];
+  // 續推中要跟著往前報「下一站」與倒數，否則車已經過了兩站、面板還停在官方最後那一站。
+  const toIdx = Number.isInteger(pos.coastTo) ? pos.coastTo : Number(vehicle.to);
+  const arrAt = Number.isFinite(pos.coastArrEpoch) ? pos.coastArrEpoch : Number(vehicle.arrEpoch);
+  const next = ln.stations[toIdx], term = ln.stations[Number(vehicle.dest)];
   return { pos, ln, vehicle, loop: false, nextName: next ? next.name : '', termName: term ? term.name : '',
-    nextSec: trtcServiceSec(Number(vehicle.arrEpoch)), officialNo: String(vehicle.officialNo || ''), done: false };
+    nextSec: trtcServiceSec(arrAt), officialNo: String(vehicle.officialNo || ''), done: false };
 }
 function trtcOfficialRenderItems(ln, boardPos, nowEpoch, enabled) {
   if (!trtcOfficialRosterActive(boardPos, enabled, nowEpoch)) return null;

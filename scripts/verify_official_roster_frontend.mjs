@@ -98,8 +98,12 @@ const MUTATION_PLAN = {
   'M-A7 允許移動列零秒時間軸': ['A'],
   'M-A8 官方旗標波及非北捷命中': ['A'],
   'M-A9 允許 null 冒充數值': ['A'],
-  'M-B arrEpoch 延後 30 秒才到站': ['B'],
+  'M-B arrEpoch 延後 30 秒才到站': ['B', 'G'],
   'M-B2 位置公式接受零秒時間軸': ['B'],
+  'M-G1 續推卡在原站不前進': ['G'],
+  'M-G2 續推衝過終點站': ['G'],
+  'M-G3 續推沒有上限': ['G'],
+  'M-G4 續推停站時間可為負': ['G'],
   'M-C 沒車號就不畫': ['A', 'C', 'D'],
   'M-C2 無號車錯畫成空白車牌': ['C'],
   'M-C3 renderer 不用 glyph 分流': ['C'],
@@ -127,12 +131,18 @@ function buildProductApi(overrides = {}, label = 'baseline') {
   const bundle = `
     ${sourceOf('trtcOfficialRosterEnabled')}
     ${extractConst(INDEX, 'OFFICIAL_ROSTER_ENABLED')}
+    ${extractConst(INDEX, 'TRTC_OFFICIAL_COAST_MAX_SEC')}
     ${extractConst(INDEX, 'TRTC_OFFICIAL_ROSTER_MAX_AGE_SEC')}
+    ${extractConst(INDEX, 'TRTC_OFFICIAL_COAST_DWELL_MIN_SEC')}
+    ${extractConst(INDEX, 'TRTC_OFFICIAL_COAST_DWELL_DEFAULT_SEC')}
     ${extractFunction(INDEX, 'posAlongShape')}
     ${extractFunction(INDEX, 'posBetweenStations')}
     ${extractFunction(INDEX, 'trtcServiceSec')}
+    ${sourceOf('trtcOfficialCoastCycle')}
+    ${sourceOf('trtcOfficialCoastPosition')}
     ${PRODUCT_FUNCTIONS.filter(name => name !== 'trtcOfficialRosterEnabled').map(sourceOf).join('\n')}
-    globalThis.__api = { ${PRODUCT_FUNCTIONS.join(',')}, maxAge: TRTC_OFFICIAL_ROSTER_MAX_AGE_SEC };
+    globalThis.__api = { ${PRODUCT_FUNCTIONS.join(',')}, trtcOfficialCoastCycle, trtcOfficialCoastPosition,
+      maxAge: TRTC_OFFICIAL_ROSTER_MAX_AGE_SEC, coastMax: TRTC_OFFICIAL_COAST_MAX_SEC };
   `;
   compileGuard(bundle, label);
   const context = { URLSearchParams, location: { search: '?officialroster=1' }, Date, Math };
@@ -177,6 +187,73 @@ const VEHICLES = [
 const NOW = 1010;
 const BOARD = { at: 1000, sourceRevision: 1000, feedMode: 'official', rows: [],
   vehicles: VEHICLES, extensions: VEHICLES.filter(vehicle => vehicle.extension) };
+
+// ── G 續推（coasting）fixture ──────────────────────────────────────────────
+// 使用者裁示：有官方訊號就一直推算下去，車不准在中間消失——到站→停站→出發→維持速度→
+// 準時到下一站。判準只用「站點座標」與「手算的時刻常數」，不重跑實作的公式（心得 29）。
+const CO = { id: 'CO', hasShape: false, stations: [
+  { name: '續0', lat: 25.0, lon: 121.0 }, { name: '續1', lat: 25.1, lon: 121.1 },
+  { name: '續2', lat: 25.2, lon: 121.2 }, { name: '續3', lat: 25.3, lon: 121.3 },
+  { name: '續4', lat: 25.4, lon: 121.4 }, { name: '續5', lat: 25.5, lon: 121.5 },
+] };
+// 官方最後一筆＝2000 秒到「續1」；自己 history 相鄰兩筆差 100 秒 ⇒ 週期 100（停 20、跑 80），
+// 終點站「續4」還有 3 段。以下每個時刻的期望站別都是照這組常數手算的。
+const COAST = { vehicleId: 'v-coast', line: 'CO', dir: 2, dest: 4, from: 0, to: 1, run: 80,
+  arrEpoch: 2000, officialNo: 'C01', terminal: false, extension: false,
+  history: [{ to: 0, arrEpoch: 1900 }, { to: 1, arrEpoch: 2000 }] };
+const COAST_REVERSE = { ...COAST, vehicleId: 'v-coast-rev', dir: 1, dest: 1, from: 5, to: 4, run: 70,
+  history: [{ to: 5, arrEpoch: 1910 }, { to: 4, arrEpoch: 2000 }] };      // 週期 90（停 20、跑 70）
+const COAST_NOHIST = { ...COAST, vehicleId: 'v-coast-nohist', history: undefined }; // 退回 run+25=105
+const COAST_RUNOVER = { ...COAST, vehicleId: 'v-coast-runover', run: 109 };  // run 比週期長（實測有）
+const COAST_TERMINAL = { ...COAST, vehicleId: 'v-coast-term', dest: 1 };    // 官方最後一筆就是終點站
+function coastAudit(api) {
+  const P = (vehicle, now) => api.trtcOfficialVehiclePosition(CO, vehicle, now);
+  const same = (pos, k) => !!pos && pos.lat === CO.stations[k].lat && pos.lon === CO.stations[k].lon;
+  const failed = [];
+  const want = (ok, label) => { if (!ok) failed.push(label); return ok; };
+
+  const arrive = P(COAST, 2000);                       // ① 到站當格仍要 bit-exact 停在 to
+  want(same(arrive, 1) && arrive.fraction === 1 && arrive.atStation === true && arrive.coastTo === 1, '到站當格');
+  const dwell = P(COAST, 2010);                        // ② 停站 20 秒內留在原站
+  want(same(dwell, 1) && dwell.atStation === true && dwell.coastTo === 1, '停站中');
+  const depart = P(COAST, 2020), half = P(COAST, 2060);// ③ 停滿就開走、④ 中點在兩站正中央
+  want(same(depart, 1) && depart.atStation === false && depart.coastTo === 2, '出發瞬間');
+  want(half && half.atStation === false && half.coastTo === 2 && half.coastArrEpoch === 2100 &&
+    Math.abs(half.lat - 25.15) < 1e-9 && Math.abs(half.lon - 121.15) < 1e-9, '行駛中點');
+  const next1 = P(COAST, 2100), next2 = P(COAST, 2200);// ⑤ 準時到下一站、再下一站
+  want(same(next1, 2) && next1.atStation === true && next1.coastArrEpoch === 2100, '準時到續2');
+  want(same(next2, 3) && next2.atStation === true && next2.coastArrEpoch === 2200, '準時到續3');
+  const term = P(COAST, 2300), beyond = P(COAST, 2560);// ⑥ 到終點站停住，不衝過頭
+  want(same(term, 4) && same(beyond, 4), '終點站停住');
+  want(P(COAST, 2000 + api.coastMax) !== null &&      // ⑦ 只有超過續推上限才交還班表
+    P(COAST, 2000 + api.coastMax + 1) === null, '續推上限');
+  let mono = true, prev = -Infinity;                   // ⑧ 逐秒單調前進（緯度沿線遞增，外部性質）
+  for (let t = 2000; t <= 2300; t++) {
+    const pos = P(COAST, t);
+    if (!pos || pos.lat < prev - 1e-9) { mono = false; break; }
+    prev = pos.lat;
+  }
+  want(mono, '單調不倒退');
+  const rev1 = P(COAST_REVERSE, 2090), rev2 = P(COAST_REVERSE, 2180); // ⑨ 反方向同樣成立
+  want(same(rev1, 3) && rev1.coastArrEpoch === 2090 && same(rev2, 2), '反方向準時到站');
+  let monoRev = true; prev = Infinity;
+  for (let t = 2000; t <= 2270; t++) {
+    const pos = P(COAST_REVERSE, t);
+    if (!pos || pos.lat > prev + 1e-9) { monoRev = false; break; }
+    prev = pos.lat;
+  }
+  want(monoRev, '反方向單調');
+  want(same(P(COAST_NOHIST, 2105), 2), 'history 缺席退路');            // ⑩ 沒 history 退回 run+25
+  const runOver = [P(COAST_RUNOVER, 2010), P(COAST_RUNOVER, 2050), P(COAST_RUNOVER, 2100)];
+  want(runOver.every(Boolean) && same(runOver[0], 1) && runOver[0].atStation === true &&
+    runOver[1].atStation === false && same(runOver[2], 2), 'run 大於週期');  // ⑪ 不准算出負的停站
+  want([P(COAST_TERMINAL, 2000), P(COAST_TERMINAL, 2300)]
+    .every(pos => same(pos, 1) && pos.atStation === true), '終點站車不動');   // ⑫ 不倒退不消失
+  const info = api.trtcOfficialVehicleInfo(CO, COAST, 2100);           // ⑬ 面板要跟著續推前進
+  want(info && info.nextName === '續2' && info.pos, '面板跟著前進');
+
+  return { pass: failed.length === 0, failed };
+}
 
 function buildIngestApi(overrides = {}, label = 'ingest-baseline', lines = [BL, XBT]) {
   const sourceOf = name => overrides[name] || extractFunction(INDEX, name);
@@ -337,6 +414,7 @@ function followRuntime(functionSource = extractFunction(INDEX, 'trtcOfficialFoll
   // 原始碼、只把葉子述詞 trtcOfficialBoardRealNow 做成可控旗標」——不要整顆 stub 成 true，
   // 否則把關被拆掉時這支照樣綠（心得：stub 前提會過期／判準要打在受測物本身）。
   const bundle = `${extractFunction(INDEX, 'trtcOfficialRosterActive')}
+    ${extractConst(INDEX, 'TRTC_OFFICIAL_COAST_MAX_SEC')}
     ${extractConst(INDEX, 'TRTC_OFFICIAL_ROSTER_MAX_AGE_SEC')}
     const OFFICIAL_ROSTER_ENABLED = true;
     let __realNow = true;
@@ -506,7 +584,8 @@ function evaluateGates(api) {
     api.trtcOfficialSameTarget({ ln: BL, k: 3 }, { ln: BL, k: 3 }) &&
     !api.trtcOfficialSameTarget({ ln: BL, k: 3 }, { ln: BL, k: 4 });
 
-  return { gates: { A: !!a, B: !!b, C: !!c, D: !!d, E: !!e }, metrics: {
+  const coast = coastAudit(api);
+  return { gates: { A: !!a, B: !!b, C: !!c, D: !!d, E: !!e, G: coast.pass }, coast, metrics: {
     rosterVehicles: VEHICLES.length, rendered: all.length, numbered: all.filter(item => item.officialNo).length,
     anonymous: all.filter(item => !item.officialNo).length, extensions: all.filter(item => item.extension).length,
     xbtStopped: shuttle ? 1 : 0, originStopped: origin ? 1 : 0, ingest:INGEST_RUNTIME,
@@ -533,6 +612,8 @@ check(baseline.gates.C, 'C officialNo 只是選配標籤，無號車仍在名冊
 check(baseline.gates.D, 'D extension／兩站接駁線停站車／起點停站車皆有畫',
   JSON.stringify({ extensions: baseline.metrics.extensions, xbtStopped: baseline.metrics.xbtStopped,
     originStopped: baseline.metrics.originStopped }));
+check(baseline.gates.G, 'G 訊號後續推：到站→停站→出發→準時到下一站→終點停住，全程不倒退不消失',
+  JSON.stringify({ coastMaxSec: baselineApi.coastMax, failed: baseline.coast.failed }));
 check(baseline.gates.E, 'E 第三形 vehicleId+line 與舊 {ln,tr}/{ln,k} 互不混用');
 check(IDENTITY_SOURCE.pass, 'E 跟隨／完乘／行程分享／跨系統撞號／疊車命中五項身分契約',
   JSON.stringify(IDENTITY_SOURCE));
@@ -559,6 +640,15 @@ const mutantApis = {
   'M-D3 濾掉起點停站車': mutationApi('trtcOfficialVehiclePosition',
     'if (from === to) return { lat: A.lat, lon: A.lon, fraction: 1, atStation: true };',
     "if (from === to && ln.id === 'BL') return null;\n  if (from === to) return { lat: A.lat, lon: A.lon, fraction: 1, atStation: true };", 'M-D3'),
+  'M-G1 續推卡在原站不前進': mutationApi('trtcOfficialCoastPosition',
+    'const done = Math.floor(elapsed / cycle)', 'const done = 0', 'M-G1'),
+  'M-G2 續推衝過終點站': mutationApi('trtcOfficialCoastPosition',
+    'if (done >= legsLeft)', 'if (false)', 'M-G2'),
+  'M-G3 續推沒有上限': mutationApi('trtcOfficialCoastPosition',
+    'if (elapsed > TRTC_OFFICIAL_COAST_MAX_SEC) return null;', 'if (false) return null;', 'M-G3'),
+  'M-G4 續推停站時間可為負': mutationApi('trtcOfficialCoastCycle',
+    'Math.min(Math.max(cycle - run, TRTC_OFFICIAL_COAST_DWELL_MIN_SEC), cycle / 2)',
+    'cycle - run', 'M-G4'),
   'M-E 第三形忽略 vehicleId': mutationApi('trtcOfficialSameTarget',
     "String(follow.vehicleId) === String(hit.vehicleId || '')", 'String(follow.vehicleId) === String(follow.vehicleId)', 'M-E'),
 };
