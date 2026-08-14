@@ -106,11 +106,23 @@ const cu = await page.evaluate(async () => {
   try {
     const hw = document.getElementById('howtoWrap'); if (hw) hw.remove(); // 首訪教學卡會蓋住面板
     state.playing = false;          // 凍住模擬時鐘，呼叫端傳的 t 才能與稍後讀的 effTLive 逐值比對
+    // 🔴 撥鐘錨定 08:00 平日尖峰(2026-08-15):深夜實跑時「此刻在跑」的只剩跨午夜車,
+    //   它們的 depSec 停在昨天的座標系,下面的裸比較一班都收不到 ⇒ D 分母為零假紅
+    //   (實測 554/452/281 全數被濾掉——當下唯一在跑的車恰好就是這個過濾式收不到的那一類)。
+    //   本支驗的是游標「軸」的對錯,不是深夜名冊;錨定到車多的時刻即可,判準本身不變。
+    //   直接寫 simSec 必須同時 clockAtNow=false(撥時鐘必清 clockAtNow 契約,否則亂蓋完乘章)。
+    state.simSec = 8 * 3600; state.clockAtNow = false;
     // 只挑「此刻真的在跑」的車：setFollow 對未發車的班會撥鐘（丁批次的跨午夜例外），會動 effTLive
     const running = state.trains.filter(t => t.sys === 'tra_sched' && t.stops && t.stops.length > 5 && !t.loop
       && state.simSec > t.stops[0].depSec + 300 && state.simSec < t.stops[t.stops.length - 1].arrSec - 300);
     out.runningN = running.length;
-    const tr = running[0]; if (!tr) return out;
+    // 🔴 選車判準:E 要求正確/錯誤位置差 >2% 面板寬,而偏移固定 600 秒(DELAY_MIN=10)
+    //   ⇒ 分得開的條件=旅程 (t1-t0) ≤ 600/0.03(取 3% 留餘裕)。盲取 running[0] 踩過
+    //   長途車 600 秒只佔 1.27% 面板寬的紅。真的一班都不合格就退回 running[0],
+    //   讓 E 的「分母不足」訊息如實亮出來,不硬湊門檻。
+    const tr = running.find(t => { const p = speedProfile(t); return (p.t1 - p.t0) <= 600 / 0.03; })
+      || running[0];
+    if (!tr) return out;
     out.train = String(tr.train);
     const DELAY_MIN = 10, key = (tr.sys || 'tra_sched') + ':' + tr.train;
     state.live = { map: new Map([[String(tr.train), DELAY_MIN]]), at: Date.now(), delayed: 1, srcAt: '' };

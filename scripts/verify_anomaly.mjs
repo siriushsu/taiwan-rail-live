@@ -34,6 +34,10 @@ await ctx.addInitScript(() => { localStorage.setItem('trainmap-howto-seen', '1')
 const page = await ctx.newPage();
 const pageErrors = [], consoleErrors = [];
 page.on('pageerror', e => pageErrors.push(String(e)));
+// 🔴 只擋 tra-live(其餘走真網路):本腳本注入 state.live 假誤點,頁面自己的
+//   setInterval(pollLive, 60e3) 會用真資料把注入值整顆洗掉——同族假紅的根因與擋法
+//   照 verify_tra_motion(acbb7c3);pollLive 有 try/catch,abort 不會產生 pageerror。
+await page.route('**/*tra-live*', r => r.abort());
 page.on('console', m => { if (m.type() === 'error') consoleErrors.push(m.text()); });
 
 await page.goto(URLROOT, { waitUntil: 'domcontentloaded' });
@@ -85,7 +89,19 @@ const OVER = [900, 900, 900, 900, 900, 900];                   // 全部 +15 分
     return { anom: anomalyOf(fake), badgeText: b.textContent, badgeAnom: b.classList.contains('anom'), bannerHidden: ban.hidden, bannerHtml: ban.innerHTML };
   }, { BIMODAL });
   ok('S2 雙峰連 2 次:進異常 kind=spread', !!(r.anom && r.anom.kind === 'spread'), JSON.stringify(r.anom));
-  ok('S2 徽章轉「異常推定」', /異常推定/.test(r.badgeText) && r.badgeAnom, r.badgeText);
+  // 🔴 判準過期修正(2026-08-15):OFFICIAL_ROSTER_ENABLED(08-14 官方名冊,預設開)後,
+  //   #metroBadge 由名冊分支整個接管(官方即時/官方續推/班表備案),「異常推定」只剩
+  //   kill-switch(?officialroster=0)路徑可達;名冊模式下徽章描述的是北捷名冊狀態、
+  //   與注入的假線無關,異常的使用者可見面=下一條的橫幅斷言。兩個世界各留有牙的判準:
+  //   旗標開→徽章必須仍是名冊三態之一且不得掛 anom(異常不干擾名冊徽章);
+  //   旗標關→維持原判準(kill-switch 路徑的異常徽章仍受測)。
+  {
+    const flagOn = await page.evaluate(() => OFFICIAL_ROSTER_ENABLED);
+    ok(flagOn ? 'S2 名冊模式:徽章維持名冊三態、不被異常干擾' : 'S2 徽章轉「異常推定」',
+       flagOn ? (/官方即時|官方續推|班表備案/.test(r.badgeText) && !r.badgeAnom)
+              : (/異常推定/.test(r.badgeText) && r.badgeAnom),
+       r.badgeText);
+  }
   ok('S2 橫幅顯示「疑似營運異常」', !r.bannerHidden && /疑似營運異常/.test(r.bannerHtml), r.bannerHtml.slice(0, 90));
 }
 
