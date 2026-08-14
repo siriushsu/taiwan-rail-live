@@ -3558,14 +3558,14 @@
            內容 li 上限 8 條(li.grp 是標題不算)。 -->
       <ul class="foot-list foot-recent">
         <li class="grp">最近更新</li>
-        <li data-cl-of="trtcarrowtruth"><span class="d">8/14</span><span>方向箭頭會直接跟著車子這一刻實際行駛的站間路段；即使方向資料剛好延遲或急彎後角度更新，也不會再出現車往前、箭頭卻朝後的畫面</span></li>
-        <li data-cl-of="trtcphysicalspeed"><span class="d">8/14</span><span>文湖線不再為了追上新倒數而突然衝刺：每次更新只能依該站間的實際行車秒數前進，也不會把相鄰列車誤接成同一台</span></li>
-        <li data-cl-of="trtcoutagehold"><span class="d">8/14</span><span>新開頁面剛好遇到北捷資料短暫讀不到時，現在會接回已知的官方列車與車次繼續跑，不再整批退回無車次的班表畫面</span></li>
-        <li data-cl-of="trtcdirection"><span class="d">8/14</span><span>台北捷運的車與箭頭改用同一條行車路徑；縮小或放大地圖都會立即指向正確方向，畫面短暫停頓後也不會往回跳</span></li>
-        <li data-cl-of="trtcidentityguard"><span class="d">8/14</span><span>台北捷運再加一道防跳車：每台車都要有官方站牌的出生紀錄；已認到的車次號不會因下一站暫時空白而消失，只有真的讀到不同號碼才退回路線代號</span></li>
-        <li data-cl-of="trtcvehiclelife"><span class="d">8/14</span><span>台北捷運的車從起點出現後，會沿每一站的官方到站時間一路認到終點；短暫讀不到或時間修正時不再消失、重生或往回跳，文湖線也恢復 BR 橢圓車牌</span></li>
-        <li data-cl-of="trtcofficialroster"><span class="d">8/13</span><span>台北捷運改用官方即時資訊決定車子在哪，依車站看板的時刻到站，不再對不上班表就消失</span></li>
+        <li data-cl-of="trtcofficialroster"><span class="d">8/14</span><span>台北捷運列車改以官方站牌倒數逐班追蹤：從發車到終點依各站時間顯示位置，同一班車在多站的資訊會自動合併，車次與方向跟著實際行程；文湖線沒有車次時顯示 BR 路線牌。</span></li>
         <li data-cl-of="klrtgps"><span class="d">8/12</span><span>高雄環狀輕軌改用官方衛星定位逐班校正，每台車各自對準自己的班次（謝謝網友提供資訊）</span></li>
+        <li data-cl-of="tcstopsalign"><span class="d">8/12</span><span>列車資訊卡的停靠站時刻表：表頭「到／開」對齊下方的時刻欄了</span></li>
+        <li data-cl-of="landscape"><span class="d">8/11</span><span>手機橫著拿也能用了：面板改成靠右側邊欄，跟車時列車不再被蓋住（謝謝網友回報）</span></li>
+        <li data-cl-of="stationtransfer"><span class="d">8/10</span><span>點任何一個車站看板，都會告訴你這站可以轉乘哪些別的鐵道系統；跟車時「下一站」旁邊也會提醒能換哪幾條線</span></li>
+        <li data-cl-of="nearfollowmutex"><span class="d">8/10</span><span>開「附近車站」或「隨機跟隨」時會自動收起另一個，地圖鏡頭只聽一邊的</span></li>
+        <li data-cl-of="widgetdestination"><span class="d">8/8</span><span>iPhone 小工具起站選「共站」或「我的地點」後，「目的站」一點就關掉；已修好，下次 App 更新生效</span></li>
+        <li data-cl-of="lapush"><span class="d">8/8</span><span>跟車的鎖定畫面即時動態會自己換下一站了，App 沒開著也會更新；停靠站內顯示「停靠中」，動態島展開還有進度條與車種顏色（通行證功能）</span></li>
       </ul>
       <!-- 第二層:完整歷史。刻意不掛 .foot-box 類名——placeFootBoxes() 用
            `.site-foot .foot-box` 搬移面板,巢狀同名會被當成另一個盒子一起搬走。 -->
@@ -3583,13 +3583,7 @@
         <li><span class="d">7/10</span><span>高鐵、桃園機捷、淡海輕軌、安坑輕軌加入路網</span></li>
         <li><span class="d">7/10</span><span>環島觀光列車一分為二：往東「山海號」、往西「平原號」</span></li>
         <li class="grp">即時動態與誤點</li>
-        <li data-cl="trtcarrowtruth"><span class="d">8/14</span><span>修正文湖線仍可能出現車子往前、箭頭卻朝後：每個顯示位置現在都帶著這一刻實際採用的站間起訖，位置進度與箭頭只認這段路徑，不再相信可能晚一輪的方向欄位；北捷官方車也取消跨畫格角度延遲。其他系統的共用箭頭若舊角度已落到新移動方向的反面，會立即轉正，不會為了平滑而繼續指向車尾。</span></li>
-        <li data-cl="trtcphysicalspeed"><span class="d">8/14</span><span>修正文湖線少數列車會一路超車、數十秒飛過多站：無車號列車跨輪接續時，現在先比對重疊的逐站到站時間，並以實際經過秒數核對是否真的跑得完該段；15 秒輪詢不會再被當成前進一站。畫面也移除每 10 秒追一站及到站期限強制吸附的舊規則，無論 ETA 修訂或頁面停頓，都不得快過該站間的實際行車秒數。舊版已產生的錯誤身分與超短週期不再沿用。</span></li>
-        <li data-cl="trtcoutagehold"><span class="d">8/14</span><span>修正新開頁面剛好遇到北捷 TrackInfo 短暫讀取失敗時，畫面會整批退回班表備案、所有官方車次同時消失；現在改為讀回已經由官方站牌建立的持久名冊，各車沿原本逐站時間續推到終點，已認到的車次也會保留。狀態徽章會標成「官方續推」，資料恢復後自動回到「官方即時」。</span></li>
-        <li data-cl="trtcdirection"><span class="d">8/14</span><span>修正台北捷運列車偶爾看似倒著跑：車牌位置與方向箭頭現在共用目前顯示位置的路線切線；箭頭向量不再受地圖倍率影響，縮小時不會卡在上一段的方向、也不用放大才轉正。畫面若短暫停頓，恢復後仍守住原本已走到的位置，不因官方時間修訂往回跳。</span></li>
-        <li data-cl="trtcidentityguard"><span class="d">8/14</span><span>修正環狀線同一班車在相鄰站的倒數曾被畫成兩台，以及車次號可能拉著列車瞬間跳到遠方：每台車都必須保留第一次出現在官方站牌的出生紀錄，班表與推算不能憑空生車；沒有車次號時，現在會依沿線官方到站時間的先後分出每一班。已認到的車次號若下一站暫時空白會沿用原號，只有真的出現另一個不同號碼才退回 Y、BR 等路線代號；不換號也不改變原本位置。</span></li>
-        <li data-cl="trtcvehiclelife"><span class="d">8/14</span><span>台北捷運的每台車改成從起點倒數出現時建立身分，同一台車在多站看板的時間會合在一起，沿官方逐站到站時間一路跑到終點；短暫讀不到、車次沒配上或到站時間修正都不會讓車消失、重生或往回跳。小碧潭與新北投支線因官方只提供起點倒數，另以單段行車時間跑到對端後收車；文湖線沒有官方車次號時仍保留 BR 橢圓車牌。</span></li>
-        <li data-cl="trtcofficialroster"><span class="d">8/13</span><span>台北捷運改以官方即時資訊決定地圖上有哪些車：車子依車站看板的官方時刻到站，認不出車次的也照樣顯示，不再因配不到班表而消失。</span></li>
+        <li data-cl="trtcofficialroster"><span class="d">8/14</span><span>台北捷運列車改以官方站牌倒數逐班追蹤：從發車到終點依各站時間顯示位置，同一班車在多站的資訊會自動合併，車次與方向跟著實際行程；文湖線沒有車次時顯示 BR 路線牌。</span></li>
         <li data-cl="klrtgps"><span class="d">8/12</span><span>高雄環狀輕軌改用官方衛星定位逐班校正：它是全台唯一提供每台車即時經緯度的捷運系統，現在每台車各自對到自己的班次、各自算自己的誤點，不再全線共用一個平均值。五輪獨立實測，畫面位置與官方定位的差距中位數約是原本的一半。班表仍是唯一車輛名冊，定位資料收不到時自動退回原本的到站看板校正，車不會消失（謝謝網友提供資訊）</span></li>
         <li data-cl="crossnight452"><span class="d">8/8</span><span>只在特定日開行的跨夜車（如週五深夜 452 次）過午夜就從地圖消失，未開行日清晨反而多畫一班；現在把昨天發車仍在路上的班接回名冊，幽靈班一併擋掉（謝謝網友回報）</span></li>
         <li data-cl="mytrains"><span class="d">8/8</span><span>最愛面板新增「我的車・準點」：收藏的台鐵列車集中列出近 30 天最糟單日全程誤點、平均誤點與有紀錄天數，並標示是否上「準點排行」榜；點一列可看 90 天逐日履歷。集中比較是通行證功能，未訂閱會看到模糊預覽與訂閱入口</span></li>
@@ -4022,7 +4016,8 @@
 // v0814f：後續站牌車次號暫時空白時沿用原號；只有不同非空號才鎖退，並以 roster v3 清除舊錯誤狀態。
 // v0814h：BR 跨輪按逐站時間接車，顯示速度永不超過實際站間秒；清除舊飛車名冊。
 // v0814i：位置與箭頭共用當下 motionFrom→motionTo；官方箭頭不留舊角度，共用箭頭不得朝車尾。
-const BUILD = 'v0814i';
+// v0814j：正式出貨前把北捷這一批功能合併成一條面向訪客的更新紀錄。
+const BUILD = 'v0814j';
 // 2026-08-13 起預設開啟（使用者親試預覽後裁示上線）：北捷畫車依官方即時名冊，班表只是備案。
 // 保留 ?officialroster=0 當逃生口——要退回班表路徑不必回滾部署，加個參數即可對照。
 // 🔴 這個函式會被 verify_official_roster_frontend 抽出來丟進 VM 單獨執行——
