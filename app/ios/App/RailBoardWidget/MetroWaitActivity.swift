@@ -55,7 +55,8 @@ struct MetroWaitActivityWidget: Widget {
             //    視覺要自己畫。staleDate=下一班到站整點(真機回饋 08-14):
             //    isStale=「列車進站」不是「資料過期」——倒數換成綠字「進站」,
             //    次班列【保留】(絕對時刻的倒數在 stale 後照樣自走,還有用),
-            //    只淡化說明文字提醒後續要回 App 重開(零推播卡不會自己續班次)。
+            //    說明文字則依 state.pushed 分兩種:接上推播的卡會自己接下一班,
+            //    沒接上的要回 App 重開(見下方那段註解)。
             VStack(alignment: .leading, spacing: 5) {
                 HStack(spacing: 5) {
                     if let c = tint(ctx.attributes.color) {
@@ -86,7 +87,13 @@ struct MetroWaitActivityWidget: Widget {
                     }
                 }
                 if ctx.isStale {
-                    Text("卡片不會自己接下一班，要看後續請回軌島重開")
+                    // 🔴 這句話有兩種版本,不可以只留一種:接上伺服器推播的卡會自己換下一班,
+                    //    沒接上的(綁定失敗、沒網路、伺服器拒收)不會。state.pushed 只有在
+                    //    伺服器真的推過一發之後才是 true——它證明的正是「推播這條路是通的」,
+                    //    比任何客端旗標都可靠(客端只知道自己送出了綁定,不知道有沒有生效)。
+                    Text(ctx.state.pushed == true
+                         ? "下一班會自動接上"
+                         : "卡片不會自己接下一班，要看後續請回軌島重開")
                         .font(.caption2).foregroundStyle(.secondary)
                 }
                 if let n = ctx.state.notice, !n.trimmingCharacters(in: .whitespaces).isEmpty {

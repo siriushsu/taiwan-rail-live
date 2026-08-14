@@ -3653,7 +3653,7 @@
         <li><span class="d">7/16</span><span>捷運準確度升級：六家捷運依官方到站看板即時校正，國定假日自動改跑假日班表</span></li>
         <li><span class="d">7/9</span><span>台鐵即時誤點上線——介接交通部 TDX 平臺每分鐘更新；7/11 起開站即真實時刻、捷運改逐班推演</span></li>
         <li class="grp">跟車、搜尋與車站看板</li>
-        <li data-cl="metrowaitcard"><span class="d">8/14</span><span>iPhone 捷運車站看板新增「在這站等車」：下一班倒數放上鎖定畫面與動態島，班次照官方即時資訊，北捷、高捷、機捷都支援；桌面也有新的捷運小工具可一點直達開卡，下次 App 更新生效</span></li>
+        <li data-cl="metrowaitcard"><span class="d">8/14</span><span>iPhone 捷運車站看板新增「在這站等車」：下一班倒數放上鎖定畫面與動態島，班次照官方即時資訊，車進站了自動換下一班、追蹤時間到了自動收起；北捷、高捷、機捷都支援，桌面也有捷運小工具可一點直達開卡，下次 App 更新生效</span></li>
         <li data-cl="tcstopsalign"><span class="d">8/12</span><span>列車資訊卡的停靠站時刻表，表頭「到」「開」原本懸在兩個時刻欄中間、沒有對齊，現在跨列對齊了（謝謝網友回報）</span></li>
         <li data-cl="nearfollowmutex"><span class="d">8/10</span><span>開「附近車站」或「隨機跟隨」時，會自動收起另一個，地圖鏡頭只聽一邊的，不會兩邊互搶</span></li>
         <li data-cl="lapush"><span class="d">8/8</span><span>跟隨台鐵或高鐵列車時，鎖定畫面與動態島的即時動態改由伺服器每分鐘更新：螢幕關著、App 沒開著也會自己換到下一站。要換到哪一站依列車實際到離站的觀測決定，不是照時刻表推算；遇到即時資料中斷，卡片會註明目前位置為預估並提醒查詢官方動態。卡片本身也一併加強：列車停靠站內時會顯示「停靠中」而不是繼續倒數，長按動態島展開後會看到一條往下一站前進的進度條、車種與代表色（和地圖上那台車同一個顏色）、上一站與終點站。軌島通行證功能，一趟最長跟 12 小時</span></li>
@@ -18901,17 +18901,84 @@ async function metroWaitStartFor(sys, st, lines, isDeco, dest = null, sourceBund
   if (!rows.length) { showToast('這一站現在沒有官方班次資訊'); return; }
   const payload = metroWaitPayload(sys, st, { rows, dataAt: bundle.dataAt });
   payload.durationMin = durationMin;
+  // dest 一併送給原生只是為了原樣回傳給 JS 的 waitPushToken 比對?不是——原生不需要它。
+  // 真正需要它的是【伺服器】,而它從 state.metroWait 拿(見 metroWaitBind)。這裡不送。
+  // key:認出「等一下回來的那顆 token 屬於哪一張卡」。換站很快時舊卡的 token 可能晚到,
+  // 沒有 key 就會把舊 token 交上去、伺服器推到一張已經被收掉的卡(RailLiveActivityPlugin 走過)。
+  const key = sys + '|' + st.name + '|' + (dest == null ? '' : dest) + '|' + Date.now();
+  metroWaitUnbind();          // 換站:先註銷上一張卡的交班(原生 start 會自動收掉舊卡)
+  _mwKey = key;               // 🔴 必須在 p.start() 之前設好:token 可能比 start 的 resolve 先回來
+  payload.key = key;
   let res;
   try { res = await p.start(payload); } catch (e) { res = { ok: false, why: String((e && e.message) || e) }; }
-  if (res && res.ok) state.metroWait = { sys, station: st.name, endAt: Math.round(Date.now() / 1000) + durationMin * 60 };
-  else showToast(res && res.why === 'disabled' ? '請到 iOS 設定開啟「即時動態」才能顯示等車卡' : '開卡失敗，請稍後再試');
+  if (res && res.ok) {
+    // endAt 以原生回傳的為準(卡片上真的印著的那個值);舊殼沒回這一欄時才自己算。
+    const endAt = Number(res.endAt) || Math.round(Date.now() / 1000) + durationMin * 60;
+    state.metroWait = { sys, station: st.name, dest, endAt };
+    // token 先到、bind 那時因為 state 還沒設好而早退的情況,在這裡補打一次。
+    if (_mwPendingToken.key === key) metroWaitBind(_mwPendingToken.token, key);
+  } else {
+    _mwKey = '';              // 開卡失敗:清掉 key,晚到的 token 不會被當成有效卡交班
+    showToast(res && res.why === 'disabled' ? '請到 iOS 設定開啟「即時動態」才能顯示等車卡' : '開卡失敗，請稍後再試');
+  }
   refreshMetroWaitButton();
 }
 async function metroWaitStop() {
   const p = window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.RailMetroWait;
   state.metroWait = null; // 換站直接呼叫 start 即可(原生端保證單卡,自動收舊卡);這裡只服務使用者主動按「結束追蹤」
+  metroWaitUnbind();      // 伺服器那一列要一起清掉,否則它會繼續推給一張已經不存在的卡
   refreshMetroWaitButton();
   if (p) { try { await p.stop(); } catch (e) {} }
+}
+// ── 推播交班:把 token 交給伺服器,之後由它每分鐘接續班次、追蹤時段到點推 end 收卡 ──────
+// 🔴 這整段是【純附加能力】:任何一步失敗(沒網路、伺服器拒收、根本沒拿到 token)都只讓卡片
+//    退回原本的零推播行為——倒數照樣自走,只是不會自己接下一班。之所以敢讓它靜默退化,是因為
+//    卡片上那句說明綁在 ContentState.pushed(只有伺服器真的推過才是 true),退化時它會如實
+//    寫「卡片不會自己接下一班」,不會變成騙人(這是靜默退化與靜默 gate 的差別)。
+let _mwEpoch = 0;   // 每次收卡/換站遞增。飛行中的 bind 回來時比對,認得出自己已經被取消
+let _mwToken = '';  // 目前已交班的 token(收卡時要拿它送 unbind)
+let _mwKey = '';    // 目前這張卡的 key,與原生 waitPushToken 事件帶回來的比對
+// 🔴 token 與 state.metroWait 誰先到沒有保證:notifyListeners(retainUntilConsumed) 讓事件可能
+//    在 p.start() 的 resolve 之前就進來,那時 endAt 還不知道、bind 送不出去。先存起來,
+//    start 拿到回應後再補打一次(兩條路徑都會走到 metroWaitBind,它自己擋重複)。
+let _mwPendingToken = { key: '', token: '' };
+function metroWaitUnbindToken(token) {
+  if (!token) return;
+  fetch(apiUrl('api/metro-wait/unbind'), {
+    method: 'POST', headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ token }),
+  }).catch(() => {});   // 失敗靜默:伺服器那一列最遲會在 expire_at 被 cron 清掉
+}
+function metroWaitUnbind() {
+  _mwEpoch++;                       // 先讓飛行中的 bind 過期,再送註銷(順序與 laUnbind 一致)
+  const token = _mwToken;
+  _mwToken = ''; _mwKey = ''; _mwPendingToken = { key: '', token: '' };
+  metroWaitUnbindToken(token);
+}
+async function metroWaitBind(token, key) {
+  const s = state.metroWait;
+  if (!token || key !== _mwKey || !s || !s.endAt) return;  // 舊卡的 token、或 state 還沒設好
+  if (_mwToken === token) return;                          // 已經交過班,不重打
+  const myEpoch = _mwEpoch;
+  try {
+    const r = await fetch(apiUrl('api/metro-wait/bind'), {
+      method: 'POST', headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        token, sys: s.sys, station: s.station,
+        // null＝「最快一班(全部方向)」。伺服器每分鐘要重做一次前端開卡時做過的方向過濾,
+        // 所以這個條件必須持久化,不能只活在開卡那一瞬間的 JS 變數裡。
+        dest: s.dest == null ? null : String(s.dest),
+        // 🔴 用原生回傳的 endAt(卡片上真的印著的那個值),不自己重算——見 plugin 那條註解。
+        endAt: s.endAt,
+      }),
+    });
+    if (!r.ok) return;                 // 後端拒絕:不標記已交班,收卡時也就不會多送一發 unbind
+    if (myEpoch !== _mwEpoch) {        // 回應回來之前卡已經收掉:伺服器那列現在是孤兒,補一發清掉
+      metroWaitUnbindToken(token);     // (這裡是唯一還記得住這顆 token 的地方,_mwToken 已被清空)
+      return;
+    }
+    _mwToken = token;
+  } catch (e) { /* 失敗靜默:卡片維持零推播行為 */ }
 }
 // 與原生對帳:「結束」鈕(LiveActivityIntent)與鎖屏左滑清除都發生在 JS 看不到的地方,
 // 回前景與每分鐘各對一次,讓看板鈕文案跟真實卡況一致;追蹤時段走完而 App 剛好活著就順手收卡
@@ -18922,10 +18989,20 @@ async function metroWaitSyncFromNative() {
   let res;
   try { res = await p.status(); } catch (e) { return; }
   if (!res || !res.active) {
+    // 卡片已經不在了(使用者按了卡上的「結束」、鎖屏左滑清除、或伺服器推 end 收掉)。
+    // 前兩者都發生在 JS 看不到的地方,伺服器那一列會變成孤兒 ⇒ 這裡順手註銷。
+    // 第三種情況伺服器自己已經刪過列,unbind 是冪等的,重複送無害。
+    if (_mwToken) metroWaitUnbind();
     if (state.metroWait) { state.metroWait = null; refreshMetroWaitButton(); }
     return;
   }
-  state.metroWait = { sys: res.sys, station: res.station, endAt: Number(res.endAt) || null };
+  // dest 不在原生的 status 回傳裡(它不進 attributes),同一張卡就沿用記憶中的值;
+  // 站或系統換了(或 App 重啟後根本沒有記憶)才歸 null。這一欄只服務「重新交班」,
+  // 而重新交班只會發生在新卡上,所以歸 null 不會讓既有的卡跑錯方向。
+  const prevWait = state.metroWait;
+  const sameCard = !!(prevWait && prevWait.sys === res.sys && prevWait.station === res.station);
+  state.metroWait = { sys: res.sys, station: res.station,
+    dest: sameCard ? prevWait.dest : null, endAt: Number(res.endAt) || null };
   if (state.metroWait.endAt && Date.now() / 1000 > state.metroWait.endAt) { metroWaitStop(); return; }
   refreshMetroWaitButton();
 }
@@ -18990,6 +19067,15 @@ function ensureMetroWaitListener() {
       map.panTo(focusCenter(st.lat, st.lon));
       metroWaitStartFor(sys, st, state.lines, state.deco);
     } catch (e) { console.error('waitOpen 深連結處理失敗', e); }
+  });
+  // 推播 token:原生拿到就送過來(可能【多次】輪替,不是一次就結束)。先存起來再嘗試交班——
+  // 這個事件可能比 p.start() 的 resolve 更早到,那時 state.metroWait 還沒設好、endAt 還不知道,
+  // metroWaitBind 會早退,由 metroWaitStartFor 拿到回應後用 _mwPendingToken 補打。
+  p.addListener('waitPushToken', evt => {
+    const token = evt && evt.token, key = evt && evt.key;
+    if (!token || key !== _mwKey) return;   // 舊卡的 token 晚到:丟掉,不可以交上去
+    _mwPendingToken = { key, token };
+    Promise.resolve(metroWaitBind(token, key)).catch(() => {});
   });
   document.addEventListener('visibilitychange', () => { if (!document.hidden) metroWaitSyncFromNative(); });
   setInterval(metroWaitSyncFromNative, 60000);

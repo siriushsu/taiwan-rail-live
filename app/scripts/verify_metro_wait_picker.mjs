@@ -231,9 +231,15 @@ const cr = await chromium.launch();
   await waitForStarts(page);
   const started = await calls(page, 'start');
   const actual = started[0] && started[0].p;
+  // key 是每次開卡現生的關聯 id(內含 Date.now()),用來把稍後才回來的 pushToken 認回這張卡;
+  // 它【必然】每次都不同,而 expected 走的是 metroWaitPayload() 本體(不含 key)⇒ 逐欄比對前先剝掉,
+  // 另立 B3b 專驗它的契約。不剝的話這條會變成「永遠紅」的假紅(判準綁在會漂移的量上)。
+  const actualNoKey = actual ? (({ key, ...rest }) => rest)(actual) : actual;
   ok('B1 前置:fixture 落地且台北車站看板開啟', prep.landed && prep.opened, JSON.stringify(prep));
   ok('B2 最快一班 start 恰 1 次', started.length === 1, `start=${started.length}`);
-  ok('B3 最快一班 payload 與既有全方向前兩班逐欄相同', JSON.stringify(actual) === JSON.stringify(expected), `actual=${JSON.stringify(actual)} expected=${JSON.stringify(expected)}`);
+  ok('B3 最快一班 payload 與既有全方向前兩班逐欄相同(key 除外)', JSON.stringify(actualNoKey) === JSON.stringify(expected), `actual=${JSON.stringify(actualNoKey)} expected=${JSON.stringify(expected)}`);
+  ok('B3b payload 帶 key,格式為 sys|station|dest|時戳(推播綁定要靠它認回這張卡;缺了就永遠綁不上)',
+     !!actual && typeof actual.key === 'string' && new RegExp(`^trtc\\|台北車站\\|\\|\\d{13}$`).test(actual.key), `key=${actual && actual.key}`);
   ok('B4 無 JS 例外', errors.length === 0, errors.slice(0, 3).join(' | '));
   await ctx.close();
 }
@@ -373,6 +379,7 @@ if (failN > 0) {
 // M12 B1：pollTrtcLive 成功回應後略過 state.trtcOfficialBoard 落地        → B1。
 // M13 B2：最快一班 click handler return                                  → B2。
 // M14 B3：最快一班分支改送 directions[0].dest                            → B3。
+// M14b B3b：metroWaitStartFor 組 payload 時不塞 key（推播綁定認不回卡）    → B3b。
 // M15 B4：最快一班分支 start 後 queueMicrotask(() => { throw Error('mut-B') }) → B4。
 // M16 C1：pollTrtcLive 成功回應後略過 state.trtcOfficialBoard 落地        → C1。
 // M17 C2：metroWaitOpenPicker 的 multi 判定改恆 true(單方向也畫方向列)    → C2。

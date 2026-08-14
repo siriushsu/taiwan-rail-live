@@ -2,8 +2,12 @@ import ActivityKit
 import Capacitor
 import Foundation
 
-// 捷運等車卡:全手動開卡(使用者裁示)——零推播、零定位。倒數靠 Text(timerInterval:) 自走,
-// staleDate=下一班到站整點,isStale 翻真=view 畫「進站」,App 不在背景做任何事。
+// 捷運等車卡:全手動開卡(使用者裁示)——零定位。倒數靠 Text(timerInterval:) 自走,
+// staleDate=下一班到站整點,isStale 翻真=view 畫「進站」。
+// 🔴 2026-08-14 推播鏈:開卡改成 pushType: .token,拿到的 token 交給 JS 去 /api/metro-wait/bind,
+//    之後由伺服器每分鐘接續班次、時段到點推 end 收卡。綁定失敗(沒網路、伺服器拒收)時整張卡
+//    退回原本的零推播行為——倒數照樣自走,只是不會自己接下一班,而視圖會照 state.pushed
+//    如實說明是哪一種。App 本身仍然不在背景做任何事。
 @objc(RailMetroWaitPlugin)
 public final class RailMetroWaitPlugin: CAPPlugin, CAPBridgedPlugin {
     public let identifier = "RailMetroWaitPlugin"
@@ -55,11 +59,18 @@ public final class RailMetroWaitPlugin: CAPPlugin, CAPBridgedPlugin {
         }
     }
 
+    // pushTokenUpdates 的監看 Task。生命週期綁在 endAll()——換站時先 cancel,
+    // 否則舊卡的 token 會在新卡開好之後才回來、被 JS 當成新卡的 token 送去綁定
+    // (照抄 RailLiveActivityPlugin 走過的同一條血路)。
+    private var tokenTask: Task<Void, Never>?
+
     // 掃掉所有等車卡——用 Activity<>.activities 而不是自存 handle,連「App 被系統終止後
     // 遺留」的孤兒一起涵蓋(handle 不跨行程存活)。
     @available(iOS 17.6, *)
     @MainActor
     private func endAll() async {
+        tokenTask?.cancel()
+        tokenTask = nil
         for act in Activity<MetroWaitAttributes>.activities {
             await act.end(nil, dismissalPolicy: .immediate)
         }
@@ -72,15 +83,19 @@ public final class RailMetroWaitPlugin: CAPPlugin, CAPBridgedPlugin {
             call.resolve(["ok": false, "why": "disabled"]); return
         }
         // 追蹤時長(30/60/90 分,選單選的;深連結不經選單=預設 30)。endAt 進 attributes,
-        // 視圖印「追蹤至 HH:mm」;到點自動收卡零推播階段由 JS 回前景/每分鐘兜底(metroWaitSyncFromNative),
-        // 推播鏈上線後改由伺服器準時收。
+        // 視圖印「追蹤至 HH:mm」;到點自動收卡由伺服器推 end 準時收,JS 的
+        // metroWaitSyncFromNative 仍保留當兜底(綁定失敗或推播全滅時的退路)。
         let durationMin = call.getInt("durationMin") ?? 30
+        // 🔴 endAt 只在這裡算一次,並且【原值回傳給 JS】——JS 交班時必須送這個值上去,
+        //    不可以自己再算一次。兩邊各算會差幾百毫秒到幾秒,卡片印的「追蹤至 HH:mm」與
+        //    伺服器收卡的時刻就會對不上,而使用者只看得到前者。
+        let endAt = Date().timeIntervalSince1970 + Double(durationMin) * 60
         let attrs = MetroWaitAttributes(
             sys: call.getString("sys") ?? "",
             station: call.getString("station") ?? "",
             lineLabel: call.getString("lineLabel") ?? "",
             color: call.getString("color"),
-            endAt: Date().timeIntervalSince1970 + Double(durationMin) * 60)
+            endAt: endAt)
         var st = MetroWaitAttributes.ContentState()
         // 🔴 精度誠實:北捷帶 nextEta(官方絕對時刻,epoch 秒),分鐘級系統帶 nextMinutes。
         //    JS 端負責二選一;這裡照收不換算——分鐘換算成 eta 就是在畫假倒數。
@@ -105,8 +120,21 @@ public final class RailMetroWaitPlugin: CAPPlugin, CAPBridgedPlugin {
                 let act = try Activity.request(
                     attributes: attrs,
                     content: .init(state: st, staleDate: stale),
-                    pushType: nil)          // 🔴 零推播:全手動開卡,倒數自走
-                call.resolve(["ok": true, "id": act.id])
+                    // 🔴 少了 .token 就拿不到 push token,伺服器永遠接不了手(卡片仍能開,
+                    //    只是停在開卡當下那一班——那正是推播鏈之前的行為)。
+                    pushType: .token)
+                // pushTokenUpdates 是 AsyncSequence,token 會【多次】輪替,不是拿一次就結束。
+                // key 由 JS 帶進來、原樣回傳:JS 靠它認出「這顆 token 屬於我現在這張卡」,
+                // 換站很快時舊卡的 token 可能比新卡的先/後回來(RailLiveActivityPlugin 的同一條血路)。
+                let key = call.getString("key") ?? ""
+                self.tokenTask = Task { @MainActor in
+                    for await data in act.pushTokenUpdates {
+                        let hex = data.map { String(format: "%02x", $0) }.joined()
+                        self.notifyListeners("waitPushToken", data: ["token": hex, "key": key],
+                                             retainUntilConsumed: true)
+                    }
+                }
+                call.resolve(["ok": true, "id": act.id, "endAt": endAt])
             } catch {
                 call.resolve(["ok": false, "why": error.localizedDescription])
             }

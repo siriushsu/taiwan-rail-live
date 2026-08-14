@@ -20,6 +20,13 @@ struct MetroWaitAttributes: ActivityAttributes {
         var crowd: [Int]?           // 每節車廂鬆緊,官方沒給就 nil
         var dataAt: Double?         // 這批資料的時刻
         var notice: String?         // 整句文案由 App 開卡時寫入,改字不必重出 App
+        // 🔴 pushed:這張卡有沒有伺服器在餵。唯一的消費點是 stale 時那句說明——
+        //    沒接上推播的卡到站後必須老實說「不會自己接下一班」(零推播的事實),
+        //    接上了還說那句話就是說謊。App 開卡時【不寫】(nil＝還不知道,綁定是開卡之後
+        //    才由 pushTokenUpdates 非同步完成的),伺服器每一發推播都送 true。
+        //    三態刻意保留 nil:nil 與 false 的差別是「還沒接上」與「確定沒有」,
+        //    目前視圖把兩者當同一件事,但語意不可先合併掉。
+        var pushed: Bool?
     }
     var sys: String                 // trtc / krtc / tymc
     var station: String             // 正規化站名
