@@ -141,7 +141,15 @@ function chainRoute(stns, dir, stats, dbg) {
 // routeSpecs 項可帶:destIs(只收此終點的記錄)、only(只收這些 StationID)、
 // as(虛擬路線名:跨 RouteID 合併記錄,治淡海回程幹線被亂拆在 V-1/V-2/空編號)、
 // stitchTo(本組鏈尾接到目標組的中途始發鏈,治藍海支線頭與幹線分家)、noDestOk(不計缺終點)、
-// requireFirst(只留從此站發起的鏈:幹線記錄混含多線班次時,擋掉對方線造成的幻影中途始發車)。
+// requireFirst(只留從此站發起的鏈:幹線記錄混含多線班次時,擋掉對方線造成的幻影中途始發車)、
+// destByPattern/originByPattern(StoppingPatternID → 該停靠模式的官方端點 StationID):
+//   StoppingPatternID 只在同一個 RouteID 內唯一;覆寫不得掛在 routeId:'*' 或帶 as: 的合併 spec 上
+//   (反例:TYMC A-2/dir0 也使用 SP2,且其記錄級終點是 A13),否則會跨路線誤命中。
+//   TDX 的 DestinationStaionID 是**記錄級**標籤,一筆記錄裡混著多種停靠模式時它只會是其中一種
+//   (機捷 A-1 的 SP1 普通車與 SP5 直達車共用 DestinationStaionID=A22),拿它當直達車的終點
+//   就會南下少補一站(鏈尾 A18 到記錄級終點 A22 是四步,被補終點的三步門檻擋掉,於是連正確的
+//   終點 A21 都沒補上;A18→A21 其實只有三步,在窗內)、北上憑空多一站
+//   (起點回推規則往前補了 A22,而官方 A22 的直達車欄位整欄都是「-」)。
 function buildLineTimes(line, routeSpecs, sttCache, stnNameCache, notes, allStop) {
   const ctx = lineCtx(line);
   const groups = new Map();
@@ -180,8 +188,14 @@ function buildLineTimes(line, routeSpecs, sttCache, stnNameCache, notes, allStop
           continue;
         }
         const gname = spec.as || routeId;
-        const key = [gname, spec.as ? '' : rec.Direction, dest, days, nh ? 'H' : '', pat].join('|');
-        if (!groups.has(key)) groups.set(key, { routeId: gname, dir: rec.Direction ?? 0, dest, days, nh, tag: rec.ServiceDay.ServiceTag, spec, stns: new Map(),
+        // 記錄級的 dest 對混模式記錄不成立 → 該停靠模式有官方端點就以它為準(見 destByPattern 註解)
+        const destId = spec.destByPattern && spec.destByPattern[pat];
+        const patternDest = destId && stnName.get(destId);
+        if (destId && !patternDest)
+          console.warn(`  ⚠ ${line.id} ${routeId}/${pat || "''"}: destByPattern 站號 ${destId} 查不到站名`);
+        const groupDest = patternDest || dest;
+        const key = [gname, spec.as ? '' : rec.Direction, groupDest, days, nh ? 'H' : '', pat].join('|');
+        if (!groups.has(key)) groups.set(key, { routeId: gname, dir: rec.Direction ?? 0, dest: groupDest, days, nh, tag: rec.ServiceDay.ServiceTag, pat, spec, stns: new Map(),
           reqFirstIdx: spec.requireFirst ? ctx.idxOf.get(stnName.get(spec.requireFirst)) : null });
         const g = groups.get(key);
         const idx = ctx.idxOf.get(name);
@@ -191,6 +205,15 @@ function buildLineTimes(line, routeSpecs, sttCache, stnNameCache, notes, allStop
         } else g.stns.set(idx, { idx, deps });
       }
     }
+  }
+  // pattern 端點覆寫若完全沒對到任何實際 group,上游 pattern 改名時必須明確告警
+  for (const spec of routeSpecs) for (const field of ['destByPattern', 'originByPattern']) {
+    const byPattern = spec[field];
+    if (!byPattern) continue;
+    const declared = Object.keys(byPattern);
+    const actual = [...new Set([...groups.values()].filter(g => g.spec === spec).map(g => g.pat))];
+    if (!actual.some(pat => Object.prototype.hasOwnProperty.call(byPattern, pat)))
+      console.warn(`  ⚠ ${line.id} ${spec.routeId} ${field}: 覆寫從未命中;宣告 pattern=${declared.join(',') || '(無)'},實際 pattern=${actual.map(pat => pat || "''").join(',') || '(無)'}`);
   }
   // 異常偵測(只警告不動手):某站班距中位數孤立地低於同組其他站 → 疑似重複互疊的髒記錄
   for (const g of groups.values()) {
@@ -311,7 +334,16 @@ function buildLineTimes(line, routeSpecs, sttCache, stnNameCache, notes, allStop
     // 起點站整份缺記錄(如環狀線大坪林)→ 對「從第一個有記錄站發車」的鏈回推始發
     if (!line.loop && destIdx != null && stns.length) {
       const firstIdx = stns[0].idx;
-      const originIdx = asc ? firstIdx - 1 : firstIdx + 1;
+      // 該停靠模式有官方起點就用它;沒有才退回「往前補一站」的通用推測。機捷 SP2 北上直達車的
+      // 官方起點是 A21 環北,而 A21 本來就在這個 group 裡 ⇒ 下面的 !g.stns.has(originIdx) 會擋掉
+      // 回推,不再憑空生出 A22 老街溪(官方 A22 的直達車欄整欄都是「-」)。
+      const originId = g.spec.originByPattern && g.spec.originByPattern[g.pat];
+      const originIdx = originId
+        ? ctx.idxOf.get(stnNameCache(g.spec.op).get(originId))
+        : (asc ? firstIdx - 1 : firstIdx + 1);
+      // 與 destByPattern 同一組防呆:站號查不到就會靜默退化成「完全不回推」,不叫的話看不出來
+      if (originId && originIdx == null)
+        console.warn(`  ⚠ ${line.id} ${g.routeId}/${g.pat || "''"}: originByPattern 站號 ${originId} 在此線查不到站序`);
       if (originIdx >= 0 && originIdx < ctx.n && !g.stns.has(originIdx)) {
         let fixed = 0;
         for (const c of chains) {
@@ -484,7 +516,13 @@ const SYSTEMS = [
     } },
   { file: 'data/tymc.json', out: 'data/tymc_times.json', allStop: false, // 直達車合法跳站
     src: '桃園機場捷運各站時刻表:交通部TDX運輸資料流通服務(2026-07-16 抓取);普通車與直達車皆依實際時刻',
-    lines: { A: [{ op: 'TYMC', routeId: 'A-1' }, { op: 'TYMC', routeId: 'A-2' }, { op: 'TYMC', routeId: 'A-3' }] } },
+    lines: { A: [
+      // SP5=南下直達、SP2=北上直達,兩者都與 SP1 普通車共用同一筆記錄的 DestinationStaionID=A22。
+      // 官方(tymetro.com.tw 各站時刻表)：直達車兩端是 A1 台北車站 ↔ A21 環北,不到 A22 老街溪。
+      { op: 'TYMC', routeId: 'A-1', destByPattern: { SP5: 'A21' }, originByPattern: { SP2: 'A21' } },
+      { op: 'TYMC', routeId: 'A-2' },
+      { op: 'TYMC', routeId: 'A-3' },
+    ] } },
   { file: 'data/ntdlrt.json', out: 'data/ntdlrt_times.json', allStop: false,
     src: '淡海輕軌各站時刻表:交通部TDX運輸資料流通服務(2026-07-16 抓取);綠山線/藍海線各依實際時刻',
     // 線檔已拆綠山線(V)/藍海線(VB)兩條實際營運線(分岔在濱海沙崙),各自站序連續。
