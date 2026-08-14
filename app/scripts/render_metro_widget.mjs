@@ -26,6 +26,8 @@
 //                            測「板面空白訊息＋末班列」同時出現時版面不會破(這是本 task
 //                            標題「含末班車列」的招牌情境,三個一般樣本的時間點都在下午,
 //                            湊不出末班窗,必須刻意撥時鐘才看得到)
+//   metro-small-auto.png     systemSmall ,十四張＋auto 徽章——測「自動」徽章在最窄卡不擠爆標頭
+//   metro-small-auto-fail.png systemSmall,自動選站解析失敗的 autoHint 空狀態(定位指引文案)
 
 import { execFileSync } from 'node:child_process';
 import { copyFileSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
@@ -215,6 +217,18 @@ let lastCallNow = dayAfterCapture.timeIntervalSince1970
 let taipeiLateSnap = snap(kind: "trtc", station: "台北車站", now: lastCallNow, fixture: "${trtcFixture}", sys: "trtc")
 let taipeiLateEntry = makeEntry(sys: "trtc", station: "台北車站", snapshot: taipeiLateSnap, now: lastCallNow)
 
+// 自動選站的兩個新視覺狀態(2026-08-15 批次):
+// (1) 解析成功=正常看板+「自動」小徽章——用最窄的 small 卡驗徽章不會把站名/時戳擠爆;
+let szAutoEntry = MetroEntry(date: szEntry.date, title: szEntry.title, lineColor: szEntry.lineColor,
+                             snapshot: szEntry.snapshot, precision: szEntry.precision,
+                             lastTrain: szEntry.lastTrain, failed: szEntry.failed,
+                             deepLink: szEntry.deepLink, auto: true)
+// (2) 解析失敗=autoHint 空狀態(文案與 MetroBoardProvider.entry(for:) 的字面值一致,
+//     這裡是視覺驗證不是邏輯來源;真源頭在 MetroBoardWidget.swift 的 auto 分支)。
+let autoFailEntry = MetroEntry(date: Date(), title: "自動選站", lineColor: nil, snapshot: nil,
+                               precision: "sec", lastTrain: nil, failed: false,
+                               autoHint: "開啟 App 一次，或到「設定 › 軌島」允許取用位置")
+
 @MainActor
 func render<V: View>(_ view: V, family: WidgetFamily, width: CGFloat, height: CGFloat, to path: String) {
     // 🔴 \\.widgetFamily 對外只是唯讀 KeyPath(WidgetKit 只讓真的小工具宿主寫它),
@@ -258,6 +272,10 @@ struct Harness {
                width: 364, height: 382, to: outDir + "/metro-large.png")
         render(MetroBoardView(entry: taipeiLateEntry), family: .systemMedium,
                width: 364, height: 170, to: outDir + "/metro-medium-lastcall.png")
+        render(MetroBoardView(entry: szAutoEntry), family: .systemSmall,
+               width: 170, height: 170, to: outDir + "/metro-small-auto.png")
+        render(MetroBoardView(entry: autoFailEntry), family: .systemSmall,
+               width: 170, height: 170, to: outDir + "/metro-small-auto-fail.png")
     }
 }
 `;

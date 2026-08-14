@@ -10,6 +10,8 @@ struct MetroEntry: TimelineEntry {
     let lastTrain: String?     // "23:58",不在末班窗內時 nil
     let failed: Bool           // 這一輪抓取失敗,畫的是上次的資料
     var deepLink: URL? = nil   // 點小工具 → App 開這一站的等車卡(railisland://metro-wait)
+    var auto: Bool = false     // 這一站是「自動(最近的站)」解析出來的,標頭掛小徽章
+    var autoHint: String? = nil // 自動選站解析失敗時的空狀態指引(蓋過通用的「沒有資料」)
 }
 
 struct MetroBoardProvider: AppIntentTimelineProvider {
@@ -42,7 +44,8 @@ struct MetroBoardProvider: AppIntentTimelineProvider {
             entries += bounds.map { t in
                 MetroEntry(date: Date(timeIntervalSince1970: t), title: e.title,
                            lineColor: e.lineColor, snapshot: e.snapshot, precision: e.precision,
-                           lastTrain: e.lastTrain, failed: e.failed, deepLink: e.deepLink)
+                           lastTrain: e.lastTrain, failed: e.failed, deepLink: e.deepLink,
+                           auto: e.auto, autoHint: e.autoHint)
             }
         }
         // 🔴 刷新策略(真機回饋 08-14 第五輪:「只剩一兩班看起來像沒車」):有預排邊界時用 .atEnd
@@ -56,12 +59,29 @@ struct MetroBoardProvider: AppIntentTimelineProvider {
 
     private func entry(for cfg: MetroBoardIntent) async -> MetroEntry {
         let catalog = MetroWidgetCatalog.shared
-        let parts = (cfg.station ?? "").split(separator: "|", maxSplits: 1).map(String.init)
-        guard parts.count == 2, let sys = catalog.systems.first(where: { $0.id == parts[0] }) else {
+        // 「自動(最近的站)」:先解析成具體的 sys|station 再續走原流程。
+        // 🔴 這個分支必須在 sys 查表之前——混合大卡把 metroStation 原值拆出來的 sys 會是
+        //    "auto",查表必落空;方向格是為手選站挑的,對自動解析出來的站不一定成立,一併忽略。
+        var isAuto = false
+        var sysID: String?, stationName: String?
+        if cfg.station == MetroNearest.sentinel {
+            isAuto = true
+            if let hit = await MetroNearest.resolve(catalog: catalog) {
+                sysID = hit.sys; stationName = hit.station
+            } else {
+                return MetroEntry(date: Date(), title: "自動選站", lineColor: nil, snapshot: nil,
+                                  precision: "sec", lastTrain: nil, failed: false,
+                                  autoHint: "開啟 App 一次，或到「設定 › 軌島」允許取用位置")
+            }
+        } else {
+            let parts = (cfg.station ?? "").split(separator: "|", maxSplits: 1).map(String.init)
+            if parts.count == 2 { sysID = parts[0]; stationName = parts[1] }
+        }
+        guard let sid = sysID, let station = stationName,
+              let sys = catalog.systems.first(where: { $0.id == sid }) else {
             return MetroEntry(date: Date(), title: "請選擇車站", lineColor: nil, snapshot: nil,
                               precision: "sec", lastTrain: nil, failed: false)
         }
-        let station = parts[1]
         let alias = catalog.alias[sys.id] ?? [:]
         let now = Date().timeIntervalSince1970
         var snap: MetroSnapshot?
@@ -77,7 +97,7 @@ struct MetroBoardProvider: AppIntentTimelineProvider {
             snap = MetroFetcher.cached(sys: sys.id, station: station)
             failed = true
         }
-        let filtered = cfg.dir.flatMap { d in
+        let filtered = (isAuto ? nil : cfg.dir).flatMap { d in
             snap.map { MetroSnapshot(station: $0.station, dataAt: $0.dataAt,
                                      rows: $0.rows.filter { $0.dest == d }, stale: $0.stale) }
         } ?? snap
@@ -87,7 +107,8 @@ struct MetroBoardProvider: AppIntentTimelineProvider {
                           lastTrain: MetroLastTrain.within60min(catalog: catalog, sys: sys.id,
                                                                station: station, now: now),
                           failed: failed,
-                          deepLink: Self.deepLink(sys: sys.id, station: station))
+                          deepLink: Self.deepLink(sys: sys.id, station: station),
+                          auto: isAuto)
     }
 
     // 🔴 站名是中文:URL(string:) 對非 ASCII 插值會回 nil ⇒ 深連結整條靜默死掉。
@@ -175,6 +196,12 @@ struct MetroBoardView: View {
             HStack(spacing: 5) {
                 if let c = entry.lineColor { Circle().fill(c).frame(width: 8, height: 8) }
                 Text(entry.title).font(.headline).lineLimit(1)
+                if entry.auto {
+                    // 自動解析出來的站掛小徽章,跟手選站區分(文字徽章,UI 控件不用 emoji)。
+                    Text("自動").font(.system(size: 9)).foregroundStyle(.secondary)
+                        .padding(.horizontal, 4).padding(.vertical, 1)
+                        .background(Capsule().fill(.quaternary))
+                }
                 Spacer(minLength: 4)
                 // 🔴 資料時刻永遠顯示。WidgetKit 不保證刷新頻率,不標時刻就是在假裝即時。
                 Text(stampText).font(.caption2).foregroundStyle(.secondary)
@@ -193,7 +220,8 @@ struct MetroBoardView: View {
                 // 下一次刷新——這不是「官方沒班次」,寫成那樣會被讀成末班已過(真機回饋 08-14)。
                 Text("資料過舊，打開軌島即更新").font(.caption).foregroundStyle(.secondary)
             } else {
-                Text(entry.snapshot != nil ? "官方目前沒有這一站的班次資訊" : "沒有資料")
+                // autoHint:自動選站解析失敗的指引(定位權限/從沒定位過),比通用文案可行動。
+                Text(entry.autoHint ?? (entry.snapshot != nil ? "官方目前沒有這一站的班次資訊" : "沒有資料"))
                     .font(.caption).foregroundStyle(.secondary)
             }
             Spacer(minLength: 0)

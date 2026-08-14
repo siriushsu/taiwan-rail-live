@@ -63,7 +63,9 @@ struct MetroStationOptionsProvider: DynamicOptionsProvider {
         //    (typecheck 實測:trailing closure passed to parameter of type
         //    '[IntentItemSection<String>]' that does not accept a closure)。出貨的發車看板
         //    同樣全部走 .map 組陣列這條路,不用這層 builder DSL。
-        return ItemCollection(sections: use.map { s in
+        // 「自動(最近的站)」恆在最上,不受系統格過濾——它跨系統解析,選了它系統格就無作用
+        //    (entry() 的 auto 分支在 sys 查表之前,方向格也一併忽略)。
+        return ItemCollection(sections: [MetroNearest.optionSection()] + use.map { s in
             IntentItemSection(LocalizedStringResource(stringLiteral: s.label), items: s.stationNames.map {
                 IntentItem<String>("\(s.id)|\($0)", title: LocalizedStringResource(stringLiteral: $0))
             })
@@ -96,6 +98,7 @@ struct MetroDirectionOptionsProvider: DynamicOptionsProvider {
 struct MetroWidgetCatalog {
     struct System { let id: String; let label: String; let precision: String; let crowd: Bool
                     let stationNames: [String]; let destinations: [String] }
+    struct Coord { let lat: Double; let lon: Double }
     let systems: [System]
     let alias: [String: [String: String]]
     let lastTrain: [String: String]
@@ -103,6 +106,8 @@ struct MetroWidgetCatalog {
     /// 只能在這裡(struct 本體)宣告,extension 放不了 stored property;
     /// 真正的查詢方法 `lineColorHex` 放在 MetroBoardWidget.swift 的 extension。
     let lineColors: [String: String]
+    /// "<sys>|<站名>" → 站座標(自動選站的最近站計算用)。同站多線座標相同,取第一筆。
+    let coords: [String: Coord]
 
     static let shared: MetroWidgetCatalog = load()
 
@@ -112,17 +117,25 @@ struct MetroWidgetCatalog {
               let obj = try? JSONSerialization.jsonObject(with: raw) as? [String: Any] else {
             // 🔴 讀不到就回空目錄,讓 provider 走「照樣給選項」那條(空 systems 時 use 也是空,
             //    ItemCollection 會是空的——這是唯一真的沒東西可列的情況,與 .empty 的語意不同)。
-            return MetroWidgetCatalog(systems: [], alias: [:], lastTrain: [:], lineColors: [:])
+            return MetroWidgetCatalog(systems: [], alias: [:], lastTrain: [:], lineColors: [:], coords: [:])
         }
         var out: [System] = []
         var colors: [String: String] = [:]
+        var coords: [String: Coord] = [:]
         for s in (obj["systems"] as? [[String: Any]] ?? []) {
             let sysID = s["id"] as? String ?? ""
             let lines = s["lines"] as? [[String: Any]] ?? []
             let stations = lines.flatMap { $0["stations"] as? [[String: Any]] ?? [] }
             var names: [String] = [], dests: Set<String> = []
             for st in stations {
-                if let n = st["name"] as? String, !names.contains(n) { names.append(n) }
+                if let n = st["name"] as? String {
+                    if !names.contains(n) { names.append(n) }
+                    // 容錯讀:缺座標的站只是進不了最近站計算,不讓整個目錄載入失敗。
+                    if let la = st["lat"] as? Double, let lo = st["lon"] as? Double {
+                        let key = "\(sysID)|\(n)"
+                        if coords[key] == nil { coords[key] = Coord(lat: la, lon: lo) }
+                    }
+                }
                 for d in (st["dests"] as? [String] ?? []) { dests.insert(d) }
             }
             out.append(System(id: sysID, label: s["label"] as? String ?? "",
@@ -141,6 +154,6 @@ struct MetroWidgetCatalog {
         return MetroWidgetCatalog(systems: out,
                                   alias: obj["alias"] as? [String: [String: String]] ?? [:],
                                   lastTrain: obj["lastTrain"] as? [String: String] ?? [:],
-                                  lineColors: colors)
+                                  lineColors: colors, coords: coords)
     }
 }

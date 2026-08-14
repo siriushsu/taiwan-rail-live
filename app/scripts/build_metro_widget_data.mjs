@@ -65,7 +65,9 @@ for (const s of SYS) {
     id: s.id, label: s.label, precision: s.precision, crowd: s.crowd,
     lines: geo.lines.map(l => ({
       id: l.id, name: l.name, color: l.color,
-      stations: l.stations.map(st => ({ name: st.name, dests: [...(destsOf.get(st.name) || [])].sort() })),
+      // lat/lon 照抄 geo 檔字面值(自動選站的最近站計算用),不重算不取捨。
+      stations: l.stations.map(st => ({ name: st.name, lat: st.lat, lon: st.lon,
+                                        dests: [...(destsOf.get(st.name) || [])].sort() })),
     })),
   });
   console.log(`${s.id}: ${known.size} 站, 別名 ${Object.keys(alias).length} 筆, 末班 ` +

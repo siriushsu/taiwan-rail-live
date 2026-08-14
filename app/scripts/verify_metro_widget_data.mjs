@@ -111,5 +111,26 @@ ok('E0 真的抽到 3 筆', sampled === 3, `sampled=${sampled}`);
      `${key} → ${D.lastTrain?.[key]} vs ${r?.LastTrainTime}`);
 }
 
+// F. 站座標——自動選站(最近站)的基礎。兩條判準刻意不同源(心得 29):
+//    F1 判「照抄」:對全體站(不抽樣)與來源 geo 檔逐值相等。與產生器同源(都讀 geo 檔),
+//       抓得到產生器的加工/漏抄,抓不到 geo 檔自己壞掉。
+//    F2 判「合理」:座標落在台灣框(外部地理常數,與 geo 檔無關)——lat/lon 對調時
+//       lat 會變成 ~121 出框必紅,geo 檔整欄壞掉也在這裡現形。
+{
+  const GEO = { trtc: 'data/trtc.json', krtc: 'data/krtc.json', tymc: 'data/tymc.json' };
+  for (const s of D.systems) {
+    const src = JSON.parse(readFileSync(join(ROOT, GEO[s.id]), 'utf8'));
+    const srcBy = new Map(src.lines.flatMap(l => l.stations.map(st => [`${l.id}|${st.name}`, st])));
+    const badEq = [], badBox = [];
+    for (const l of s.lines) for (const st of l.stations) {
+      const o = srcBy.get(`${l.id}|${st.name}`);
+      if (!o || st.lat !== o.lat || st.lon !== o.lon) badEq.push(`${l.id}|${st.name}`);
+      if (!(st.lat >= 21.5 && st.lat <= 25.5 && st.lon >= 119.5 && st.lon <= 122.2)) badBox.push(st.name);
+    }
+    ok(`F1-${s.id} 站座標逐字等於來源 geo 檔`, badEq.length === 0, JSON.stringify(badEq.slice(0, 5)));
+    ok(`F2-${s.id} 站座標落在台灣框`, badBox.length === 0, JSON.stringify(badBox.slice(0, 5)));
+  }
+}
+
 console.log(`\n總計 PASS=${pass} FAIL=${fail}`);
 process.exit(fail ? 1 : 0);

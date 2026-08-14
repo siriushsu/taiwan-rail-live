@@ -20,10 +20,11 @@ struct MixedBoardIntent: AppIntent, WidgetConfigurationIntent {
 }
 
 /// 混合卡把系統 id 收在車站值裡（sys|station），所以不需要另一格系統參數或依賴。
+/// 「自動（最近的站）」哨兵值同樣收得下——entry() 的 auto 分支在 sys 查表之前。
 struct MixedMetroStationOptionsProvider: DynamicOptionsProvider {
     func results() async throws -> ItemCollection<String> {
         let catalog = MetroWidgetCatalog.shared
-        return ItemCollection(sections: catalog.systems.map { system in
+        return ItemCollection(sections: [MetroNearest.optionSection()] + catalog.systems.map { system in
             IntentItemSection(
                 LocalizedStringResource(stringLiteral: system.label),
                 items: system.stationNames.map { station in
