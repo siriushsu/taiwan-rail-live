@@ -25,13 +25,29 @@ ok('A4 機捷精度=min 且無擁擠度', sysById.tymc?.precision === 'min' && s
 ok('A5 沒有官方站牌倒數的系統不得出現',
    !D.systems.some(s => ['ntmc', 'tmrt', 'ntdlrt', 'ntalrt'].includes(s.id)));
 
-// B. 別名規則的具名案例——這兩個站是「無條件去尾」會壞掉的證據
+// B. 別名表覆蓋兩種寫法(這三條【不】測 canonical(),見下方 B4/B5——
+//    別名表結尾有一圈 alias[n]=n; alias[n+'站']=n 的補齊,這三條會被它滿足)
 ok('B1 台北車站別名指向自己', D.alias.trtc['台北車站'] === '台北車站',
    JSON.stringify(D.alias.trtc['台北車站']));
 ok('B2 松山機場站去尾', D.alias.trtc['松山機場站'] === '松山機場',
    JSON.stringify(D.alias.trtc['松山機場站']));
 ok('B3 高捷岡山車站別名指向自己', D.alias.krtc['岡山車站'] === '岡山車站',
    JSON.stringify(D.alias.krtc['岡山車站']));
+
+// 🔴 B4/B5 才是 canonical() 真正的判準:它決定首末班表那一側的 join 配不配得上。
+//    無條件去尾時「台北車站」→「台北車」、「岡山車站」→「岡山車」,兩者都不在站名集合裡
+//    ⇒ 整站的末班車鍵歸零(實測 4→0 與 1→0)。這兩條是 2026-08-14 補的:
+//    原本只有 B1–B3,而突變測試證明它們在 canonical() 壞掉時照樣全綠。
+const lastKeys = (sys, st) => Object.keys(D.lastTrain).filter(k => k.startsWith(`${sys}|${st}|`)).length;
+ok('B4 台北車站有末班車鍵(canonical 的真判準)', lastKeys('trtc', '台北車站') > 0,
+   `鍵數=${lastKeys('trtc', '台北車站')}`);
+ok('B5 岡山車站有末班車鍵(canonical 的真判準)', lastKeys('krtc', '岡山車站') > 0,
+   `鍵數=${lastKeys('krtc', '岡山車站')}`);
+
+// B6. 首末班表沒有任何一列配不上站名集合。產生器原本只把這個數字印在 console,
+//     沒有斷言在守 ⇒ 分母會無聲縮水。現在它寫進產物,這裡當 gate。
+for (const s of D.systems) ok(`B6-${s.id} 首末班列全部配得上`, (D.dropped?.[s.id] ?? -1) === 0,
+   `dropped=${D.dropped?.[s.id]}`);
 
 // C. 別名表對凍結樣本要 100% 覆蓋——別名表存在的唯一理由就是這件事
 for (const [sys, file] of [['trtc', 'trtc-live.json'], ['krtc', 'krtc-live.json'], ['tymc', 'tymc-live.json']]) {

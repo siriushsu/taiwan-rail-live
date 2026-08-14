@@ -10,8 +10,12 @@ const OUT = join(ROOT, 'app/ios/App/RailBoardWidget/MetroWidgetData.json');
 
 // 只收「官方有站牌倒數」的系統。環狀線／淡海／安坑只有軌道佔用、中捷無公開介接,刻意不列。
 const SYS = [
+  // 🔴 `data/trtc.json` 的 9 條線包含環狀線 Y——它由新北捷運公司營運,首末班在 NTMC 那份,
+  //    只讀 TRTC 那份會讓 Y 的 14 站全部沒有方向與末班車(而且其中 4 站會因為站名與北捷站
+  //    相同而配到別條線的終點,那是錯資料不是缺資料)。Y 的站牌 ETA 確實存在,就在 trtc-live
+  //    的 board[] 裡(dest ＝新北產業園區站／大坪林站,實測 22 筆涵蓋 13/14 站)。
   { id: 'trtc', label: '臺北捷運', geo: 'data/trtc.json', precision: 'sec', crowd: true,
-    fl: ['data/tdx/TRTC_FirstLastTimetable.json'] },
+    fl: ['data/tdx/TRTC_FirstLastTimetable.json', 'data/tdx/NTMC_FirstLastTimetable.json'] },
   { id: 'krtc', label: '高雄捷運', geo: 'data/krtc.json', precision: 'min', crowd: false,
     fl: ['data/tdx/KRTC_FirstLastTimetable.json', 'data/tdx/KLRT_FirstLastTimetable.json'] },
   { id: 'tymc', label: '桃園機場捷運', geo: 'data/tymc.json', precision: 'min', crowd: false,
@@ -28,7 +32,7 @@ function canonical(liveName, known) {
   return null;
 }
 
-const out = { version: 1, builtAt: new Date().toISOString(), systems: [], alias: {}, lastTrain: {} };
+const out = { version: 1, builtAt: new Date().toISOString(), systems: [], alias: {}, lastTrain: {}, dropped: {} };
 
 for (const s of SYS) {
   const geo = read(s.geo);
@@ -52,6 +56,8 @@ for (const s of SYS) {
   // 即時回應用的是帶「站」的名字,而首末班表不一定兩種都出現過 ⇒ 兩種寫法都補進別名表。
   for (const n of known) { alias[n] = n; alias[n + '站'] = n; }
 
+  // 🔴 配不上的列數要寫進產物,不能只印 console——驗收才 gate 得到它(否則分母會無聲縮水)。
+  out.dropped[s.id] = dropped.length;
   out.alias[s.id] = alias;
   out.systems.push({
     id: s.id, label: s.label, precision: s.precision, crowd: s.crowd,
