@@ -15,6 +15,8 @@ import { fileURLToPath } from 'url';
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = process.env.ROOT || path.resolve(HERE, '..');
 
+console.log('[機捷直達車 gate] 目標目錄:', ROOT);
+
 const SOUTH_EXPRESS = [0, 2, 7, 11, 12, 17, 20];
 const NORTH_EXPRESS = [20, 17, 12, 11, 7, 2, 0];
 const TAIPEI = 0, HSR = 17, HUANBEI = 20, LAOJIEXI = 21;
