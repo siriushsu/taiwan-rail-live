@@ -113,6 +113,13 @@ const anonymousFirst = await api.trtcPersistOfficialRoster(args(anonymousA, [row
 const anonymousSecond = await api.trtcPersistOfficialRoster(args(anonymousB, [row(1, 2, 140)], 115, 115));
 check(anonymousSecond.roster.rows[0].vehicleId === anonymousFirst.roster.rows[0].vehicleId,
   '匿名車身分也能靠 D1 跨 isolate 延續');
+const numberShared = new Map(), numberA = new FakeD1(numberShared), numberB = new FakeD1(numberShared);
+const numberFirst = await api.trtcPersistOfficialRoster(args(numberA, [row(0, 1, 120, '134')], 100, 100));
+const numberBlank = await api.trtcPersistOfficialRoster(args(numberB, [row(1, 2, 140, '')], 115, 115));
+check(numberBlank.roster.vehicles[0].vehicleId === numberFirst.roster.vehicles[0].vehicleId &&
+  numberBlank.roster.vehicles[0].officialNo === '134' &&
+  numberBlank.roster.vehicles[0].officialNoLockedOut === false,
+  '共享 D1 跨輪站牌空白仍保留已認到的 134');
 
 const writesBeforeSameRevision = dbB.writes;
 const sameRevision = await api.trtcPersistOfficialRoster(args(dbB, [row(1, 2, 140, '101')], 115, 115));
@@ -170,7 +177,7 @@ check(barrierRefresh.writes === 1 && barrierLate.roster.rows[0].no === 'BARRIER'
 
 const newer = api.trtcOfficialRosterSnapshot(model, [row(2, 3, 160, '101')], second.roster,
   '2026-08-13', 130, 130);
-shared.set('official_roster_v2', JSON.stringify(newer));
+shared.set('official_roster_v3', JSON.stringify(newer));
 const beforeRollback = dbB.writes;
 const olderRequest = await api.trtcPersistOfficialRoster(args(dbB, [row(1, 2, 145, '101')], 120, 120));
 check(olderRequest.roster.sourceRevision === 130 && dbB.writes === beforeRollback,
@@ -245,7 +252,7 @@ function sourceAudit(source) {
   return {
     reducerImport: /import \{ reduceOfficialRoster \}/.test(source),
     officialFeedGate: /feedMode !== 'official'/.test(source),
-    stateKey: /official_roster_v2/.test(source),
+    stateKey: /official_roster_v3/.test(source),
     optimisticCas: /UPDATE trtc_state SET v=\? WHERE k=\? AND v=\?/.test(source),
     frameFingerprint: /const sourceFrameKey = trtcOfficialFrameKey\(rows\);/.test(source),
     observedOrder: /current\.state\.sourceObservedEpoch\) > observedRevision/.test(source),
@@ -265,7 +272,7 @@ check(Object.values(baselineSourceAudit).every(Boolean),
 const sourceMutations = [
   ['reducerImport', "import { reduceOfficialRoster }", 'import { reduceOfficialRosterDisabled }'],
   ['officialFeedGate', "feedMode !== 'official'", "feedMode === 'official'"],
-  ['stateKey', 'official_roster_v2', 'official_roster_DISABLED'],
+  ['stateKey', 'official_roster_v3', 'official_roster_DISABLED'],
   ['optimisticCas', 'WHERE k=? AND v=?', 'WHERE k=?'],
   ['frameFingerprint', 'const sourceFrameKey = trtcOfficialFrameKey(rows);',
     "const sourceFrameKey = 'disabled';"],

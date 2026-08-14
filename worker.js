@@ -1154,9 +1154,9 @@ async function loadTrtcBoardBranchHints(env, day) {
   return new Map((result.results || []).map(x => [String(x.alias), String(x.line)]));
 }
 
-// v2 刻意換 key：v1 曾用車號跨距離硬配對，也可能已留下重複／跳站身分。
-// 新規則上線時必須從當下官方時間線乾淨建冊，不能把錯誤身分帶進來。
-const TRTC_OFFICIAL_ROSTER_KEY = 'official_roster_v2';
+// v3 刻意換 key：v2 曾把後續站牌暫時沒帶車次號誤判成號碼衝突，已把許多正確號碼永久鎖退。
+// 新規則上線時必須從當下官方時間線乾淨建冊，不能讓錯誤的 locked-out 狀態繼續流入畫面。
+const TRTC_OFFICIAL_ROSTER_KEY = 'official_roster_v3';
 const TRTC_OFFICIAL_CAS_RETRIES = 4;
 
 // TrackInfo 正常列以官方 NowDateTime 當 revision；合法空列沒有可用的官方時刻，才採
@@ -1200,7 +1200,7 @@ function trtcOfficialStateFromText(text) {
   if (!text) return null;
   try {
     const parsed = JSON.parse(text);
-    return parsed && parsed.schema === 2 && Array.isArray(parsed.vehicles) ? parsed : null;
+    return parsed && parsed.schema === 3 && Array.isArray(parsed.vehicles) ? parsed : null;
   } catch (e) { return null; }
 }
 

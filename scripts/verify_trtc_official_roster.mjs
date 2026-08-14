@@ -236,6 +236,20 @@ function scenarioNumberJumpProtection(reduce) {
   return { id, first, conflict, farOnly, later };
 }
 
+function scenarioIntermittentNumber(reduce) {
+  const first = reduce(args([
+    row({ dir:2, from:0, to:1, dest:4, arrEpoch:15600, no:'134' }),
+  ], null, 15540, 'number-gap-1'));
+  const id = first.vehicles[0].vehicleId;
+  const blank = reduce(args([
+    row({ dir:2, from:1, to:2, dest:4, arrEpoch:15680, no:'' }),
+  ], first, 15601, 'number-gap-2'));
+  const restored = reduce(args([
+    row({ dir:2, from:2, to:3, dest:4, arrEpoch:15760, no:'134' }),
+  ], blank, 15681, 'number-gap-3'));
+  return { id, first, blank, restored };
+}
+
 function scenarioAnonymousFleetContinuity(reduce, dir) {
   const model = { lines: new Map([['BR', line(10, 75)]]) };
   const forward = dir === 2;
@@ -379,6 +393,15 @@ function evaluate(reduce) {
     numberJump.farOnly.diagnostics.rejectedNumberJumpDetails?.[0]?.priorTo === 2 &&
     numberJump.farOnly.diagnostics.rejectedNumberJumpDetails?.[0]?.currentTo === 19);
 
+  let intermittentNumber;
+  try { intermittentNumber = scenarioIntermittentNumber(reduce); } catch { intermittentNumber = null; }
+  assess('已認到的 134 遇到後續站牌空白仍保留原號碼', () => intermittentNumber &&
+    byId(intermittentNumber.blank, intermittentNumber.id)?.officialNo === '134' &&
+    byId(intermittentNumber.blank, intermittentNumber.id)?.officialNoLockedOut === false &&
+    byId(intermittentNumber.restored, intermittentNumber.id)?.officialNo === '134' &&
+    byId(intermittentNumber.restored, intermittentNumber.id)?.officialNoLockedOut === false &&
+    intermittentNumber.blank.diagnostics.numberConflicts === 0);
+
   for (const dir of [1, 2]) {
     let fleet;
     try { fleet = scenarioAnonymousFleetContinuity(reduce, dir); } catch { fleet = null; }
@@ -444,6 +467,10 @@ async function mutatedReducer(kind) {
     source = replaceExactly(source,
       '  return { officialNo: null, officialNoLockedOut: true };',
       '  return { officialNo: current || null, officialNoLockedOut: false };', kind);
+  } else if (kind === 'drop-number-on-blank') {
+    source = replaceExactly(source,
+      '  if (!current) return { officialNo: prior, officialNoLockedOut: false };',
+      '  if (!current) return { officialNo: null, officialNoLockedOut: true };', kind);
   } else if (kind === 'keep-carried-number') {
     source = replaceExactly(source,
       '    ...(numberContradicted ? { officialNo: null, officialNoLockedOut: true } : {}) };',
@@ -550,6 +577,7 @@ const mutations = [
   ['站間列配不到就另生新車', 'birth-mid-route', '營運中配不到的站間列不得另生新車'],
   ['同號可跨站瞬移', 'allow-number-jump', '官方號碼不得把 403 在 15 秒內從永安市場拖到丹鳳'],
   ['號碼衝突時直接換號', 'replace-number', '同一 ID 的號碼衝突就永久退回路線代號'],
+  ['後續站牌空白就清掉已認到號碼', 'drop-number-on-blank', '已認到的 134 遇到後續站牌空白仍保留原號碼'],
   ['遠方同號被拒後仍保留舊牌', 'keep-carried-number', '當輪只剩遠方同號時不生幽靈，舊車沿原時間線保留但退牌'],
   ['移除官方出生證據', 'erase-birth-evidence', '每台車都有可稽核的官方站牌出生證據'],
 ];

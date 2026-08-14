@@ -3,7 +3,7 @@
 // 這裡刻意不讀班表，也不接受 tripKey。每一筆 collapseClaims() 輸出的 row 都是一台
 // 當輪應顯示的車；班表車次若日後能辨認，只能在本名冊之外附加標籤，不能決定車的存在。
 
-export const OFFICIAL_ROSTER_SCHEMA = 2;
+export const OFFICIAL_ROSTER_SCHEMA = 3;
 export const OFFICIAL_COAST_DWELL_DEFAULT_SEC = 25;
 
 function finite(value, label) {
@@ -278,8 +278,11 @@ function officialNumberState(row, base) {
   if (base.officialNoLockedOut) return { officialNo: null, officialNoLockedOut: true };
   const prior = String(base.officialNo || '');
   if (!prior) return { officialNo: current || null, officialNoLockedOut: false };
+  // 官方不同站／不同輪不一定都帶車次號。空白不是反證：既然這台車已經由位置延續接回，
+  // 就保留第一次認到的號碼；只有另一個「非空且不同」的號碼才代表標籤真的矛盾。
+  if (!current) return { officialNo: prior, officialNoLockedOut: false };
   if (current === prior) return { officialNo: prior, officialNoLockedOut: false };
-  // 同一 vehicleId 的號碼一旦變動／消失，代表標籤已不可信：永久退回路線縮寫，
+  // 同一 vehicleId 的非空號碼一旦變動，代表標籤已不可信：永久退回路線縮寫，
   // 不換成新號，更不能為保住舊號而把車接去遠方另一筆同號 row。
   return { officialNo: null, officialNoLockedOut: true };
 }
