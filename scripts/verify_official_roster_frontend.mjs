@@ -104,6 +104,8 @@ const MUTATION_PLAN = {
   'M-G2 續推衝過終點站': ['G'],
   'M-G3 續推沒有上限': ['G'],
   'M-G4 續推停站時間可為負': ['G'],
+  'M-H1 讀取失敗又整包清空': ['H'],
+  'M-H2 hold 順手把名冊換成 outage': ['H'],
   'M-C 沒車號就不畫': ['A', 'C', 'D'],
   'M-C2 無號車錯畫成空白車牌': ['C'],
   'M-C3 renderer 不用 glyph 分流': ['C'],
@@ -386,8 +388,12 @@ function integrationSourceAudit(source = INDEX) {
     drawFreq: /official !== null/.test(drawFreq) && /drawTrtcOfficialVehicle/.test(drawFreq),
     drawDeco: /official !== null/.test(drawDeco) && /drawTrtcOfficialVehicle/.test(drawDeco),
     count: /official !== null\) n \+= official\.length/.test(count),
+    // 2026-08-14 判準更新：讀取失敗以前要求「整包清空」，那正是使用者裁示要廢掉的行為
+    //（實測 14 次輪詢 2 次讀不到＝整條線的車同時消失）。改成必須走 hold；
+    // 這條線的完整契約（三個理由都走 hold、都不漏回 outage、時光機仍是 outage、
+    // 且 hold 真的一個位元都沒動名冊）由 H 閘門承接，比舊的單一字串嚴格。
     poll: /applyTrtcOfficialRoster\(d\.boardPos\)/.test(poll) &&
-      /trtcOfficialRosterOutage\('fetch-error'\)/.test(poll),
+      /trtcOfficialRosterHold\('fetch-error'\)/.test(poll),
   };
   const glyph = /trtcOfficialVehicleGlyph\(item\.officialNo\)/.test(renderer) &&
     /glyph\.kind === 'tag'/.test(renderer) && /else drawDot\(cp, ln\.color\)/.test(renderer);
@@ -513,6 +519,43 @@ function flagOffRuntimeAudit(functionSource = extractFunction(INDEX, 'freqTrains
 }
 const FLAG_OFF_RUNTIME = flagOffRuntimeAudit();
 
+// ── H 讀取失敗不得清空名冊 ────────────────────────────────────────────────
+// 實測正式站 14 次輪詢有 2 次整包讀不到，舊碼一律 outage ⇒ 整條線的車同時消失、
+// 跟車也被 clearFreqFollow 清掉。使用者裁示：車子怎麼可能會不見。
+const HOLD_REASONS = ["'fetch-error'", "'missing-boardPos'", "'frontend-apply-error'"];
+function holdRuntime(holdSource = extractFunction(INDEX, 'trtcOfficialRosterHold')) {
+  const bundle = `${extractFunction(INDEX, 'trtcOfficialRosterOutage')}
+    let cleared = 0;
+    function clearFreqFollow() { cleared++; }
+    const state = {};
+    ${holdSource}
+    globalThis.__run = () => {
+      const vehicles = [{ vehicleId: 'a', line: 'BL', arrEpoch: 1010 }];
+      const roster = { feedMode: 'official', sourceRevision: 1000, vehicles };
+      state.trtcOfficialRoster = roster; state.freqFollow = { lineId: 'BL', vehicleId: 'a' };
+      trtcOfficialRosterHold('fetch-error');
+      const kept = state.trtcOfficialRoster === roster && state.trtcOfficialRoster.vehicles === vehicles &&
+        state.trtcOfficialRoster.feedMode === 'official' && state.freqFollow != null && cleared === 0;
+      // 名冊本來就沒有／已經 outage 時，hold 不得偽裝成還有資料
+      state.trtcOfficialRoster = null;
+      trtcOfficialRosterHold('fetch-error');
+      const emptyStaysOutage = !!state.trtcOfficialRoster && state.trtcOfficialRoster.feedMode === 'outage';
+      return { kept, emptyStaysOutage };
+    };`;
+  compileGuard(bundle, 'hold');
+  const context = { Date };
+  vm.createContext(context);
+  vm.runInContext(bundle, context, { filename: 'hold.product.js' });
+  return context.__run();
+}
+function holdSourceAudit(poll = extractFunction(INDEX, 'pollTrtcLive')) {
+  // 三個「讀取失敗」的理由一律走 hold；時光機那條是刻意的交還，必須維持 outage。
+  const routed = HOLD_REASONS.filter(reason => poll.includes(`trtcOfficialRosterHold(${reason})`));
+  const leaked = HOLD_REASONS.filter(reason => poll.includes(`trtcOfficialRosterOutage(${reason})`));
+  const timeTravel = poll.includes("trtcOfficialRosterOutage('time-travel')");
+  return { pass: routed.length === HOLD_REASONS.length && !leaked.length && timeTravel,
+    routed: routed.length, leaked, timeTravel };
+}
 function evaluateGates(api) {
   const render = (line, board = BOARD, now = NOW, enabled = true) =>
     api.trtcOfficialRenderItems(line, board, now, enabled);
@@ -585,7 +628,9 @@ function evaluateGates(api) {
     !api.trtcOfficialSameTarget({ ln: BL, k: 3 }, { ln: BL, k: 4 });
 
   const coast = coastAudit(api);
-  return { gates: { A: !!a, B: !!b, C: !!c, D: !!d, E: !!e, G: coast.pass }, coast, metrics: {
+  const hold = api.holdOverride || HOLD;
+  return { gates: { A: !!a, B: !!b, C: !!c, D: !!d, E: !!e, G: coast.pass,
+    H: !!(hold.runtime.kept && hold.runtime.emptyStaysOutage && hold.source.pass) }, coast, hold, metrics: {
     rosterVehicles: VEHICLES.length, rendered: all.length, numbered: all.filter(item => item.officialNo).length,
     anonymous: all.filter(item => !item.officialNo).length, extensions: all.filter(item => item.extension).length,
     xbtStopped: shuttle ? 1 : 0, originStopped: origin ? 1 : 0, ingest:INGEST_RUNTIME,
@@ -593,6 +638,7 @@ function evaluateGates(api) {
   } };
 }
 
+const HOLD = { runtime: holdRuntime(), source: holdSourceAudit() };
 const baselineApi = buildProductApi();
 const PEAK_FRONTEND = peakFrontendAudit(baselineApi);
 const baseline = evaluateGates(baselineApi);
@@ -614,6 +660,8 @@ check(baseline.gates.D, 'D extension／兩站接駁線停站車／起點停站�
     originStopped: baseline.metrics.originStopped }));
 check(baseline.gates.G, 'G 訊號後續推：到站→停站→出發→準時到下一站→終點停住，全程不倒退不消失',
   JSON.stringify({ coastMaxSec: baselineApi.coastMax, failed: baseline.coast.failed }));
+check(baseline.gates.H, 'H 讀取失敗（fetch／缺 boardPos／套用例外）沿用上一份名冊，不清空也不斷跟車',
+  JSON.stringify({ ...HOLD.runtime, ...HOLD.source }));
 check(baseline.gates.E, 'E 第三形 vehicleId+line 與舊 {ln,tr}/{ln,k} 互不混用');
 check(IDENTITY_SOURCE.pass, 'E 跟隨／完乘／行程分享／跨系統撞號／疊車命中五項身分契約',
   JSON.stringify(IDENTITY_SOURCE));
@@ -698,6 +746,19 @@ const mB2 = mutationApi('trtcOfficialVehiclePosition',
   'if (!(depEpoch < arrEpoch)) return null;', 'if (!(depEpoch <= arrEpoch)) return null;', 'M-B2');
 mutationCheck('M-B2 位置公式接受零秒時間軸', MUTATION_PLAN['M-B2 位置公式接受零秒時間軸'],
   baseline.gates, evaluateGates(mB2).gates);
+// pollTrtcLive 是 async，extractFunction 從 `function` 起算 ⇒ 不能用 mutationIndexFunction
+// 的 `(${mutant})` 包法編譯（await 會語法錯）；這裡自己補回 async 再做編譯守衛。
+const mH1 = replaceExactly(extractFunction(INDEX, 'pollTrtcLive'),
+  "trtcOfficialRosterHold('fetch-error')", "trtcOfficialRosterOutage('fetch-error')", 'M-H1');
+compileGuard(`(async ${mH1})`, 'M-H1');
+mutationCheck('M-H1 讀取失敗又整包清空', MUTATION_PLAN['M-H1 讀取失敗又整包清空'], baseline.gates,
+  { ...baseline.gates, H: !!(HOLD.runtime.kept && HOLD.runtime.emptyStaysOutage && holdSourceAudit(mH1).pass) });
+const mH2 = mutationIndexFunction('trtcOfficialRosterHold',
+  'state.trtcOfficialRosterHold = { reason, epoch: Date.now() / 1000 };',
+  "state.trtcOfficialRoster = { feedMode: 'outage', vehicles: [] };", 'M-H2');
+const mH2Runtime = holdRuntime(mH2.fn);
+mutationCheck('M-H2 hold 順手把名冊換成 outage', MUTATION_PLAN['M-H2 hold 順手把名冊換成 outage'],
+  baseline.gates, { ...baseline.gates, H: !!(mH2Runtime.kept && mH2Runtime.emptyStaysOutage && HOLD.source.pass) });
 const mC3 = mutationIndexFunction('drawTrtcOfficialVehicle',
   'const glyph = trtcOfficialVehicleGlyph(item.officialNo), label = glyph.label;',
   "const glyph = { kind: 'tag', label: String(item.officialNo || '') }, label = glyph.label;", 'M-C3');

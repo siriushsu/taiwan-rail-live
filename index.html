@@ -16195,6 +16195,17 @@ function trtcOfficialRosterOutage(reason, sourceRevision) {
   if (state.freqFollow && state.freqFollow.vehicleId != null) clearFreqFollow();
   return false;
 }
+// 🔴 讀取失敗（網路斷、這次 payload 沒帶 boardPos、套用時丟例外）不是「車不在那邊」的證據。
+// 使用者裁示：「車子怎麼可能會不見，我們不做判定。」實測正式站 14 次輪詢有 2 次整包讀不到，
+// 舊碼一律 trtcOfficialRosterOutage ⇒ 整條線的車同時消失、而且連跟車都被 clearFreqFollow 清掉。
+// 改成沿用上一份名冊、位置交給前端續推；真正的到期只由 trtcOfficialRosterActive 的
+// TRTC_OFFICIAL_COAST_MAX_SEC 一處決定（名冊物件本身一個位元都不動）。
+function trtcOfficialRosterHold(reason) { // ROSTER_FRONTEND_READ_HOLD
+  const roster = state.trtcOfficialRoster;
+  if (!roster || roster.feedMode !== 'official') return trtcOfficialRosterOutage(reason);
+  state.trtcOfficialRosterHold = { reason, epoch: Date.now() / 1000 };
+  return false;
+}
 function applyTrtcOfficialRoster(boardPos) {
   if (!OFFICIAL_ROSTER_ENABLED) return false;
   if (!boardPos || boardPos.feedMode !== 'official') {
@@ -16656,13 +16667,13 @@ async function pollTrtcLive() {
       if (animationEligible) {
         if (OFFICIAL_ROSTER_ENABLED) {
           if (d && d.boardPos) applyTrtcOfficialRoster(d.boardPos);
-          else trtcOfficialRosterOutage('missing-boardPos');
+          else trtcOfficialRosterHold('missing-boardPos');
           clearTrtcBoard(); // 官方名冊不吃舊 trip shift；outage 時原班表路徑也由乾淨基線接手。
         } else if (validBoardPos) applyTrtcBoard(d.boardPos.rows, Number(d.boardPos.at), d.boardPos.trips);
         else clearTrtcBoard();
       }
     } catch (e) {
-      if (OFFICIAL_ROSTER_ENABLED) trtcOfficialRosterOutage('frontend-apply-error');
+      if (OFFICIAL_ROSTER_ENABLED) trtcOfficialRosterHold('frontend-apply-error');
       clearTrtcBoard();
     }
     if (boardTouched && state.boardStation) {
@@ -16673,7 +16684,7 @@ async function pollTrtcLive() {
     // 否則真正的網路錯誤會被 ReferenceError 遮掉。
     if (Math.abs(rawWallDelta) <= 120 &&
         metroLivePool().some(ln => isTrtcBoardLine(ln) && (OFFICIAL_ROSTER_ENABLED || ln._tt))) {
-      if (OFFICIAL_ROSTER_ENABLED) trtcOfficialRosterOutage('fetch-error');
+      if (OFFICIAL_ROSTER_ENABLED) trtcOfficialRosterHold('fetch-error');
       clearTrtcBoard();
     }
   }
