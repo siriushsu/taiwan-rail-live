@@ -39,6 +39,13 @@ for (const eng of ENGINES) {
   const browser = await pw[eng].launch();
   const page = await browser.newPage();
   page.on('pageerror', e => console.error('PAGEERROR', e.message));
+  // 🔴 只擋 tra-live 這一支(其餘資源走真網路,照 repo 其他 22 支的慣例):本腳本整段靠
+  //   「注入 state.live 的假誤點」量偏移量升降,而頁面自己有 setInterval(pollLive, 60e3)
+  //   (index.html:16025)會把 state.live 整顆換掉。真輪詢一落進量測窗,注入的誤點被洗掉 ⇒
+  //   偏移量在「上升段」就開始回落、跑完早已歸零 ⇒ 第二段一次都不下降 ⇒ D 分母歸零假紅。
+  //   落不落得進窗內是 boot 時序的確定性函數(實測:同一分鐘 origin/main 綠、多跑一批 boot
+  //   工作的分支三次全紅;擋掉這支之後兩邊逐值等同),所以不是機率問題,不能靠重跑繞過。
+  await page.route('**/*tra-live*', r => r.abort());
   await page.goto(`http://127.0.0.1:${PORT}/index.html`, { waitUntil: 'domcontentloaded' });
   await page.waitForFunction(
     () => typeof state !== 'undefined' && state.trains && state.trains.some(t => t.sys === 'tra_sched' && t.stops && t.stops.length),
