@@ -220,7 +220,9 @@ const cr = await chromium.launch();
   const prep = await openTrtcFixtureStation(page, trtcMainRaw, '台北車站', '台北車站');
   const expected = await page.evaluate(() => {
     const bundle = metroWaitTrtcBundle(state.boardStation, state.lines, state.deco);
-    return metroWaitPayload('trtc', state.boardStation, { rows: bundle.rows.slice(0, 2), dataAt: bundle.dataAt });
+    const p = metroWaitPayload('trtc', state.boardStation, { rows: bundle.rows.slice(0, 2), dataAt: bundle.dataAt });
+    p.durationMin = 30; // 追蹤改版:不動時長段=預設 30
+    return p;
   });
   await clearCalls(page);
   await page.click('#boardWait');
@@ -236,18 +238,31 @@ const cr = await chromium.launch();
   await ctx.close();
 }
 
-// ══════════ C：trtc-live-y 只留單一 dest——不彈選單、直接 start ══════════
+// ══════════ C：trtc-live-y 只留單一 dest——選單仍開(時長必經手),方向段落收起、單顆「開始追蹤」 ══════════
 {
   const { ctx, page, errors } = await boot(cr);
   const prep = await openTrtcFixtureStation(page, trtcYRaw, '十四張站', '十四張', '大坪林站');
   await clearCalls(page);
   await page.click('#boardWait');
+  await waitForPicker(page);
+  const single = await page.evaluate(() => ({
+    starts: (window.__waitCalls || []).filter(c => c.m === 'start').length,
+    options: [...document.querySelectorAll('#metroWaitPickerChoices .metro-wait-choice')].map(b => b.textContent.trim()),
+    secDirHidden: document.getElementById('metroWaitPickerSecDir').hidden,
+    durDefault: [...document.querySelectorAll('#metroWaitDurs .metro-wait-dur')]
+      .filter(b => b.classList.contains('on')).map(b => b.dataset.waitDur).join(','),
+  }));
+  ok('C1 前置:單方向 fixture 落地且十四張看板開啟', prep.landed && prep.opened, JSON.stringify(prep));
+  ok('C2 單方向站選單仍開:單顆「開始追蹤 往…」、方向段落隱藏、尚未 start', single.starts === 0 &&
+    single.options.length === 1 && /^開始追蹤 往大坪林站/.test(single.options[0]) && single.secDirHidden === true,
+    JSON.stringify(single));
+  ok('C2b 時長段預設 30 高亮', single.durDefault === '30', `on=${single.durDefault}`);
+  await page.click('#metroWaitPickerChoices .metro-wait-choice[data-wait-choice="all"]');
   await waitForStarts(page);
   const started = await calls(page, 'start');
-  const hidden = await page.evaluate(() => document.getElementById('metroWaitPicker').hidden === true);
-  ok('C1 前置:單方向 fixture 落地且十四張看板開啟', prep.landed && prep.opened, JSON.stringify(prep));
-  ok('C2 單方向站不彈選單並直接 start 恰 1 次', hidden && started.length === 1, `hidden=${hidden} start=${started.length}`);
-  ok('C3 單方向 payload.nextDest 為唯一方向', started[0] && started[0].p.nextDest === '大坪林站', JSON.stringify(started[0] && started[0].p));
+  ok('C3 點「開始追蹤」後 start 恰 1 次且 nextDest 為唯一方向、durationMin=30',
+    started.length === 1 && started[0].p.nextDest === '大坪林站' && started[0].p.durationMin === 30,
+    JSON.stringify(started[0] && started[0].p));
   ok('C4 無 JS 例外', errors.length === 0, errors.slice(0, 3).join(' | '));
   await ctx.close();
 }
@@ -266,6 +281,7 @@ const cr = await chromium.launch();
   }));
   ok('D1 前置:多方向 fixture 落地且台北車站可開啟', prep.landed && prep.opened, JSON.stringify(prep));
   ok('D2 waitOpen 多方向站不彈選單並直接 start 恰 1 次', stateAfter.pickerHidden && started.length === 1, `state=${JSON.stringify(stateAfter)} start=${started.length}`);
+  ok('D2b waitOpen 不經選單 durationMin=預設 30', started[0] && started[0].p.durationMin === 30, `durationMin=${started[0] && started[0].p.durationMin}`);
   ok('D3 waitOpen 仍開啟台北車站看板', stateAfter.board === '台北車站', JSON.stringify(stateAfter));
   ok('D4 無 JS 例外', errors.length === 0, errors.slice(0, 3).join(' | '));
   await ctx.close();
@@ -286,7 +302,7 @@ const cr = await chromium.launch();
     buttonText: document.getElementById('boardWait').textContent.trim(),
   }));
   ok('E1 前置:多方向 fixture 落地且台北車站看板開啟', prep.landed && prep.opened, JSON.stringify(prep));
-  ok('E2 取消後選單關閉、start=0、鈕文案不變', cancelled.hidden && cancelled.starts === 0 && cancelled.buttonText === '在這站等', JSON.stringify(cancelled));
+  ok('E2 取消後選單關閉、start=0、鈕文案不變', cancelled.hidden && cancelled.starts === 0 && cancelled.buttonText === '追蹤這站', JSON.stringify(cancelled));
 
   await clearCalls(page);
   await page.click('#boardWait');
@@ -296,6 +312,37 @@ const cr = await chromium.launch();
   const positive = await calls(page, 'start');
   ok('E3 正向對照:同站同鈕選最快一班會 start 恰 1 次', positive.length === 1, `start=${positive.length}`);
   ok('E4 無 JS 例外', errors.length === 0, errors.slice(0, 3).join(' | '));
+  await ctx.close();
+}
+
+// ══════════ F：時長段(08-14 追蹤改版)——點 60 換高亮、選方向後 payload 帶 60;重開選單回預設 30 ══════════
+{
+  const { ctx, page, errors } = await boot(cr);
+  const prep = await openTrtcFixtureStation(page, trtcMainRaw, '台北車站', '台北車站');
+  await clearCalls(page);
+  await page.click('#boardWait');
+  await waitForPicker(page);
+  await page.click('#metroWaitDurs .metro-wait-dur[data-wait-dur="60"]');
+  const durState = await page.evaluate(() => ({
+    on: [...document.querySelectorAll('#metroWaitDurs .metro-wait-dur')]
+      .filter(b => b.classList.contains('on')).map(b => b.dataset.waitDur).join(','),
+    pickerStillOpen: !document.getElementById('metroWaitPicker').hidden,
+  }));
+  ok('F1 前置:多方向 fixture 落地且台北車站看板開啟', prep.landed && prep.opened, JSON.stringify(prep));
+  ok('F2 點 60 分鐘:高亮唯一移到 60、選單不關', durState.on === '60' && durState.pickerStillOpen, JSON.stringify(durState));
+  await page.getByRole('button', { name: /最快一班/ }).click();
+  await waitForStarts(page);
+  const started = await calls(page, 'start');
+  ok('F3 選最快一班後 payload.durationMin=60', started.length === 1 && started[0].p.durationMin === 60, JSON.stringify(started[0] && started[0].p && { durationMin: started[0].p.durationMin }));
+  // 重開選單:時長回預設 30(上一次的 60 不沿用)。F3 後鈕是「結束追蹤」(再點=stop 不開單),先收卡。
+  await page.evaluate(() => metroWaitStop());
+  await page.waitForTimeout(120);
+  await page.click('#boardWait');
+  await waitForPicker(page);
+  const reopened = await page.evaluate(() => [...document.querySelectorAll('#metroWaitDurs .metro-wait-dur')]
+    .filter(b => b.classList.contains('on')).map(b => b.dataset.waitDur).join(','));
+  ok('F4 重開選單時長回預設 30', reopened === '30', `on=${reopened}`);
+  ok('F5 無 JS 例外', errors.length === 0, errors.slice(0, 3).join(' | '));
   await ctx.close();
 }
 
@@ -328,9 +375,12 @@ if (failN > 0) {
 // M14 B3：最快一班分支改送 directions[0].dest                            → B3。
 // M15 B4：最快一班分支 start 後 queueMicrotask(() => { throw Error('mut-B') }) → B4。
 // M16 C1：pollTrtcLive 成功回應後略過 state.trtcOfficialBoard 落地        → C1。
-// M17 C2：directions.size <= 1 改成 directions.size < 1                  → C2。
-// M18 C3：單方向直開時傳入 dest='不存在方向'                              → C2、C3。
-// M19 C4：單方向直開後 queueMicrotask(() => { throw Error('mut-C') })      → C4。
+// M17 C2：metroWaitOpenPicker 的 multi 判定改恆 true(單方向也畫方向列)    → C2。
+// M18 C3：單方向分支的 data-wait-choice 改成 '0'(all 路徑斷線)            → C3(waitForStarts 逾時)。
+// M19 C4：單方向 start 後 queueMicrotask(() => { throw Error('mut-C') })    → C4。
+// M28 C2b/F4：metroWaitOpenPicker 不重設 durationMin/高亮(沿用上次)       → F4(先跑 F3 選 60);C2b 單跑不紅,故 F4 是主判準。
+// M29 F2：durs.onclick 不換高亮只改 draft                                 → F2。
+// M30 F3：metroWaitStartFor 忽略 durationMin 參數恆送 30                   → F3。
 // M20 D1：pollTrtcLive 成功回應後略過 state.trtcOfficialBoard 落地        → D1。
 // M21 D2：ensureMetroWaitListener 改呼叫 metroWaitStartFromBoard           → D2。
 // M22 D3：ensureMetroWaitListener 刪掉 openBoard(st)                       → D3。

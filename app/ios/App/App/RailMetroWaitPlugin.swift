@@ -11,6 +11,7 @@ public final class RailMetroWaitPlugin: CAPPlugin, CAPBridgedPlugin {
     public let pluginMethods: [CAPPluginMethod] = [
         CAPPluginMethod(name: "start", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "stop", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "status", returnType: CAPPluginReturnPromise),
     ]
 
     // ── 深連結轉運(小工具 railisland://metro-wait?sys=…&station=…) ──
@@ -70,11 +71,16 @@ public final class RailMetroWaitPlugin: CAPPlugin, CAPBridgedPlugin {
         guard ActivityAuthorizationInfo().areActivitiesEnabled else {
             call.resolve(["ok": false, "why": "disabled"]); return
         }
+        // 追蹤時長(30/60/90 分,選單選的;深連結不經選單=預設 30)。endAt 進 attributes,
+        // 視圖印「追蹤至 HH:mm」;到點自動收卡零推播階段由 JS 回前景/每分鐘兜底(metroWaitSyncFromNative),
+        // 推播鏈上線後改由伺服器準時收。
+        let durationMin = call.getInt("durationMin") ?? 30
         let attrs = MetroWaitAttributes(
             sys: call.getString("sys") ?? "",
             station: call.getString("station") ?? "",
             lineLabel: call.getString("lineLabel") ?? "",
-            color: call.getString("color"))
+            color: call.getString("color"),
+            endAt: Date().timeIntervalSince1970 + Double(durationMin) * 60)
         var st = MetroWaitAttributes.ContentState()
         // 🔴 精度誠實:北捷帶 nextEta(官方絕對時刻,epoch 秒),分鐘級系統帶 nextMinutes。
         //    JS 端負責二選一;這裡照收不換算——分鐘換算成 eta 就是在畫假倒數。
@@ -110,5 +116,19 @@ public final class RailMetroWaitPlugin: CAPPlugin, CAPBridgedPlugin {
     @objc func stop(_ call: CAPPluginCall) {
         guard #available(iOS 17.6, *) else { call.resolve(["ok": true]); return }
         enqueue { await self.endAll(); call.resolve(["ok": true]) }
+    }
+
+    // JS 回前景對帳用:「結束」鈕(LiveActivityIntent)與鎖屏左滑清除都不經 JS,
+    // 看板鈕的「追蹤這站/結束追蹤」文案要跟真實卡況對齊,只能來這裡問。
+    @objc func status(_ call: CAPPluginCall) {
+        guard #available(iOS 17.6, *) else { call.resolve(["active": false]); return }
+        enqueue {
+            guard let act = Activity<MetroWaitAttributes>.activities.first else {
+                call.resolve(["active": false]); return
+            }
+            var data: [String: Any] = ["active": true, "sys": act.attributes.sys, "station": act.attributes.station]
+            if let endAt = act.attributes.endAt { data["endAt"] = endAt }
+            call.resolve(data)
+        }
     }
 }

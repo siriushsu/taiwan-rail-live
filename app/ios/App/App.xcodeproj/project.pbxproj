@@ -15,6 +15,8 @@
 		56F5C632301C0000003C7FE0 /* RailFollowAttributes.swift in Sources */ = {isa = PBXBuildFile; fileRef = 56F5C630301C0000003C7FE0 /* RailFollowAttributes.swift */; };
 		56F5C641301E0000003C7FE0 /* MetroWaitAttributes.swift in Sources */ = {isa = PBXBuildFile; fileRef = 56F5C640301E0000003C7FE0 /* MetroWaitAttributes.swift */; };
 		56F5C642301E0000003C7FE0 /* MetroWaitAttributes.swift in Sources */ = {isa = PBXBuildFile; fileRef = 56F5C640301E0000003C7FE0 /* MetroWaitAttributes.swift */; };
+		56F5C651301E0000003C7FE0 /* MetroWaitEndIntent.swift in Sources */ = {isa = PBXBuildFile; fileRef = 56F5C650301E0000003C7FE0 /* MetroWaitEndIntent.swift */; };
+		56F5C652301E0000003C7FE0 /* MetroWaitEndIntent.swift in Sources */ = {isa = PBXBuildFile; fileRef = 56F5C650301E0000003C7FE0 /* MetroWaitEndIntent.swift */; };
 		56F5C634301D0000003C7FE0 /* RailLiveActivityPlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = 56F5C633301D0000003C7FE0 /* RailLiveActivityPlugin.swift */; };
 		56F5C644301F0000003C7FE0 /* RailMetroWaitPlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = 56F5C643301F0000003C7FE0 /* RailMetroWaitPlugin.swift */; };
 		56F5C627301A0000003C7FE0 /* RailBoardScheduleWriter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 56F5C626301A0000003C7FE0 /* RailBoardScheduleWriter.swift */; };
@@ -62,6 +64,7 @@
 		56F5C643301F0000003C7FE0 /* RailMetroWaitPlugin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RailMetroWaitPlugin.swift; sourceTree = "<group>"; };
 		56F5C630301C0000003C7FE0 /* RailFollowAttributes.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RailFollowAttributes.swift; sourceTree = "<group>"; };
 		56F5C640301E0000003C7FE0 /* MetroWaitAttributes.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MetroWaitAttributes.swift; sourceTree = "<group>"; };
+		56F5C650301E0000003C7FE0 /* MetroWaitEndIntent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MetroWaitEndIntent.swift; sourceTree = "<group>"; };
 		56F5C633301D0000003C7FE0 /* RailLiveActivityPlugin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RailLiveActivityPlugin.swift; sourceTree = "<group>"; };
 		56F5C626301A0000003C7FE0 /* RailBoardScheduleWriter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RailBoardScheduleWriter.swift; sourceTree = "<group>"; };
 		504EC30C1FED79650016851F /* Base */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; name = Base; path = Base.lproj/Main.storyboard; sourceTree = "<group>"; };
@@ -154,6 +157,7 @@
 				56F5C626301A0000003C7FE0 /* RailBoardScheduleWriter.swift */,
 				56F5C630301C0000003C7FE0 /* RailFollowAttributes.swift */,
 				56F5C640301E0000003C7FE0 /* MetroWaitAttributes.swift */,
+				56F5C650301E0000003C7FE0 /* MetroWaitEndIntent.swift */,
 				56F5C633301D0000003C7FE0 /* RailLiveActivityPlugin.swift */,
 				56F5C643301F0000003C7FE0 /* RailMetroWaitPlugin.swift */,
 				504EC30B1FED79650016851F /* Main.storyboard */,
@@ -333,6 +337,7 @@
 				56F5C627301A0000003C7FE0 /* RailBoardScheduleWriter.swift in Sources */,
 				56F5C631301C0000003C7FE0 /* RailFollowAttributes.swift in Sources */,
 				56F5C641301E0000003C7FE0 /* MetroWaitAttributes.swift in Sources */,
+				56F5C651301E0000003C7FE0 /* MetroWaitEndIntent.swift in Sources */,
 				56F5C634301D0000003C7FE0 /* RailLiveActivityPlugin.swift in Sources */,
 				56F5C644301F0000003C7FE0 /* RailMetroWaitPlugin.swift in Sources */,
 			);
@@ -344,6 +349,7 @@
 			files = (
 				56F5C632301C0000003C7FE0 /* RailFollowAttributes.swift in Sources */,
 				56F5C642301E0000003C7FE0 /* MetroWaitAttributes.swift in Sources */,
+				56F5C652301E0000003C7FE0 /* MetroWaitEndIntent.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

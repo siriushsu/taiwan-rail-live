@@ -127,9 +127,10 @@ async function boot(browser, { withPlugin = true, startResult = { ok: true }, in
 const calls = (page, m) => page.evaluate(mm => (window.__waitCalls || []).filter(c => !mm || c.m === mm), m);
 const clearCalls = page => page.evaluate(() => { window.__waitCalls = []; });
 
-// 2026-08-14 方向選單上線後,多方向站點 #boardWait 會先開選單而不是直接 start——
-// 本套件的既有情境要的是「最快一班」路徑(=舊行為):點鈕後若選單出現就點「最快一班」。
-// 選單自身的行為(方向過濾/取消/單方向直開)由 verify_metro_wait_picker.mjs 專門驗,這裡不重複。
+// 2026-08-14 追蹤改版後,#boardWait 一律先開選單(時長 30/60/90 必經手,單方向也不例外)——
+// 本套件的既有情境要的是「最快一班/開始追蹤」路徑:點鈕後選單出現就點 data-wait-choice="all"
+// (多方向=最快一班鈕、單方向=開始追蹤鈕,同一個 data 值)。
+// 選單自身的行為(方向過濾/時長/取消)由 verify_metro_wait_picker.mjs 專門驗,這裡不重複。
 async function clickWaitThroughPicker(page) {
   await page.click('#boardWait');
   await page.waitForTimeout(200);
@@ -223,7 +224,7 @@ const cr = await chromium.launch();
   });
   ok('B 等車鈕存在', info.has, JSON.stringify(info));
   ok('B 等車鈕在 sticky h3 內(v0717p 鐵則)', info.inH3, JSON.stringify(info));
-  ok('B 初始文案為「在這站等」', info.text === '在這站等', `text=${info.text}`);
+  ok('B 初始文案為「追蹤這站」', info.text === '追蹤這站', `text=${info.text}`);
   ok('B 無 JS 例外', errors.length === 0, errors.slice(0, 3).join(' | '));
   await ctx.close();
 }
@@ -247,15 +248,16 @@ const cr = await chromium.launch();
   ok('C payload.nextDest 非空', !!p && typeof p.nextDest === 'string' && p.nextDest.length > 0, JSON.stringify(p && p.nextDest));
   ok('C payload.dataAt 為秒級 epoch', !!p && p.dataAt > 1.7e9 && p.dataAt < 2.1e9, `dataAt=${p && p.dataAt}`);
   ok('C payload.crowd===null(環狀線實錄 trains 無可 join 的 cars——負對照,不准造)', !!p && p.crowd === null, `crowd=${JSON.stringify(p && p.crowd)}`);
+  ok('C payload.durationMin 不經時長段=預設 30', !!p && p.durationMin === 30, `durationMin=${p && p.durationMin}`);
   const btnAfterStart = await page.evaluate(() => document.getElementById('boardWait').textContent.trim());
-  ok('C start 成功後文案變「取消等車」', btnAfterStart === '取消等車', `text=${btnAfterStart}`);
+  ok('C start 成功後文案變「結束追蹤」', btnAfterStart === '結束追蹤', `text=${btnAfterStart}`);
   await clearCalls(page);
   await page.click('#boardWait');
   await page.waitForTimeout(150);
   const sp = await calls(page, 'stop');
   ok('C 同站再點 → stop 恰好 1 次', sp.length === 1, `stop=${sp.length}`);
   const btnAfterStop = await page.evaluate(() => document.getElementById('boardWait').textContent.trim());
-  ok('C stop 後文案回「在這站等」', btnAfterStop === '在這站等', `text=${btnAfterStop}`);
+  ok('C stop 後文案回「追蹤這站」', btnAfterStop === '追蹤這站', `text=${btnAfterStop}`);
   // C2 正對照(08-14 擁擠度接通):同站同鈕,這次 override 帶兩個方向各一台有 cars 的車
   // (合成 harness 資料,只為打穿 join 路徑;實錄 Y 線 feed 本來就沒有 cars)。
   // 兩方向都給值 ⇒ 不必假設哪個方向先到,斷言綁「nextDest 對應的那台車的 cars 原值」。

@@ -1,4 +1,5 @@
 import ActivityKit
+import AppIntents
 import SwiftUI
 import WidgetKit
 
@@ -94,6 +95,19 @@ struct MetroWaitActivityWidget: Widget {
                 if let n = ctx.state.notice, !n.trimmingCharacters(in: .whitespaces).isEmpty {
                     Text(n).font(.caption2).foregroundStyle(.orange).lineLimit(2)
                 }
+                HStack(spacing: 6) {
+                    if let endAt = ctx.attributes.endAt {
+                        Text("追蹤至 \(Date(timeIntervalSince1970: endAt), style: .time)")
+                            .font(.caption2).foregroundStyle(.secondary)
+                    }
+                    Spacer(minLength: 6)
+                    // 「結束」鈕:LiveActivityIntent 當場收卡不開 App(08-14 使用者回饋:
+                    // 非得回車站看板才能關太難找)。鎖屏本來就能左滑清除,這顆給找不到滑的人。
+                    Button(intent: MetroWaitEndIntent()) {
+                        Text("結束").font(.system(size: 12, weight: .semibold))
+                    }
+                    .buttonStyle(.bordered).controlSize(.mini).tint(.secondary)
+                }
             }
             // 🔴 水平邊距不能省:鎖屏 Live Activity 的內容區沒有系統預設 margins,
             //    模擬器實測「往/再下一班」兩行左緣直接被卡片圓角裁掉半個字。
@@ -125,6 +139,10 @@ struct MetroWaitActivityWidget: Widget {
                         Text("往 \(islandDest(ctx) ?? "—")").font(.caption2)
                         Spacer()
                         if !ctx.isStale { crowdBar(ctx.state.crowd) } // 擁擠度屬首班,首班走了就不掛著
+                        Button(intent: MetroWaitEndIntent()) {
+                            Text("結束").font(.system(size: 11, weight: .semibold))
+                        }
+                        .buttonStyle(.bordered).controlSize(.mini).tint(.secondary)
                     }
                 }
             } compactLeading: {
