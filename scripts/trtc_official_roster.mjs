@@ -3,10 +3,8 @@
 // 這裡刻意不讀班表，也不接受 tripKey。每一筆 collapseClaims() 輸出的 row 都是一台
 // 當輪應顯示的車；班表車次若日後能辨認，只能在本名冊之外附加標籤，不能決定車的存在。
 
-export const OFFICIAL_ROSTER_SCHEMA = 1;
-export const TERMINAL_OCCURRENCE_ROLLOVER_SEC = 90;
-export const EXTENSION_REAPPEAR_ETA_TOLERANCE_SEC = 30;
-export const OFFICIAL_OWN_SPAN_MAX_SEC = 600;
+export const OFFICIAL_ROSTER_SCHEMA = 4;
+export const OFFICIAL_COAST_DWELL_DEFAULT_SEC = 25;
 
 function finite(value, label) {
   const number = Number(value);
@@ -42,7 +40,28 @@ function normalizeRow(model, raw) {
   const sourceNo = String(raw.no || '').trim();
   const step = dir === 2 ? 1 : -1;
   if (!terminal && to !== from + step) throw new TypeError('official roster 非停站 row 必須是相鄰區間');
-  return { line, dir, from, to, dest, run, arrEpoch, terminal, sourceNo };
+  const ownSegment = { from, to, depEpoch: terminal ? arrEpoch : arrEpoch - run, arrEpoch, terminal };
+  const rawTimeline = Array.isArray(raw.timeline) && raw.timeline.length ? [...raw.timeline, ownSegment] : [ownSegment];
+  const timelineByLeg = new Map();
+  for (const item of rawTimeline) {
+    const eventFrom = finite(item && item.from, 'timeline.from');
+    const eventTo = finite(item && item.to, 'timeline.to');
+    const eventDep = finite(item && item.depEpoch, 'timeline.depEpoch');
+    const eventArr = finite(item && item.arrEpoch, 'timeline.arrEpoch');
+    const eventTerminal = Boolean(item && item.terminal) || eventFrom === eventTo;
+    if (!Number.isInteger(eventFrom) || !Number.isInteger(eventTo) || eventFrom < 0 || eventFrom >= count ||
+        eventTo < 0 || eventTo >= count || (!eventTerminal && eventTo !== eventFrom + step) ||
+        (eventTerminal ? eventDep !== eventArr : !(eventDep < eventArr))) {
+      throw new TypeError('official roster timeline 形狀不合法');
+    }
+    const segment = { from: eventFrom, to: eventTo, depEpoch: eventDep, arrEpoch: eventArr,
+      terminal: eventTerminal };
+    const key = `${eventFrom}>${eventTo}`, old = timelineByLeg.get(key);
+    if (!old || segment.arrEpoch > old.arrEpoch) timelineByLeg.set(key, segment);
+  }
+  const timeline = [...timelineByLeg.values()].sort((a, b) =>
+    step * (a.to - b.to) || a.arrEpoch - b.arrEpoch);
+  return { line, dir, from, to, dest, run, arrEpoch, terminal, sourceNo, timeline };
 }
 
 function routePosition(item) {
@@ -51,7 +70,8 @@ function routePosition(item) {
 
 function rowKey(row) {
   return JSON.stringify([row.line, row.dir, row.dest, routePosition(row), row.from, row.to,
-    row.arrEpoch, row.run, row.terminal ? 1 : 0, row.sourceNo]);
+    row.arrEpoch, row.run, row.terminal ? 1 : 0, row.sourceNo,
+    row.timeline.map(item => [item.from, item.to, item.depEpoch, item.arrEpoch, item.terminal ? 1 : 0])]);
 }
 
 function compareRows(a, b) {
@@ -74,17 +94,12 @@ function canonicalRows(model, rows) {
   return normalized.sort(compareRows);
 }
 
-function groupKey(item) { return `${item.line}|${Number(item.dir)}|${Number(item.dest)}`; }
+// 一台車從起點到終點只有一個身分。官方修訂終點標示時，不得因 dest 換群而重發 ID。
+function groupKey(item) { return `${item.line}|${Number(item.dir)}`; }
 
 function previousVehicles(prior, day) {
   if (!prior || String(prior.day || '') !== String(day)) return [];
   return Array.isArray(prior.vehicles) ? prior.vehicles.filter(Boolean) : [];
-}
-
-function previousAliases(prior, day) {
-  if (!prior || String(prior.day || '') !== String(day) || !Array.isArray(prior.aliases)) return new Map();
-  return new Map(prior.aliases.filter(x => x && x.no && x.vehicleId)
-    .map(x => [String(x.no), String(x.vehicleId)]));
 }
 
 function initialSequence(prior, day) {
@@ -105,23 +120,68 @@ function allocateVehicleId(state) {
 
 function terminalOccurrenceRolled(prior, current, nowEpoch) {
   if (!prior.terminal || !current.terminal || Number(prior.from) !== Number(current.from)) return false;
-  // 同一個起點停站預報的 ETA 可小幅校正；舊 occurrence 已到期且 ETA 跳到下一班時才換 ID。
-  return Number(prior.arrEpoch) <= nowEpoch &&
-    Number(current.arrEpoch) - Number(prior.arrEpoch) > TERMINAL_OCCURRENCE_ROLLOVER_SEC;
+  // 舊車的發車時刻已過，而同方向起點又出現一個未來倒數，這就是另一趟新發車。
+  // 不用任意秒數門檻：同一筆仍停在過去的舊資料可接回，真正的未來倒數才出生。
+  return Number(prior.arrEpoch) <= nowEpoch && Number(current.arrEpoch) > nowEpoch;
 }
 
-function matchFeasible(prior, current, nowEpoch) {
-  const priorNo = String(prior.officialNo || '');
-  const currentNo = String(current.displayNo || '');
-  if (priorNo && currentNo && priorNo !== currentNo) return false;
+function physicallyReachable(model, prior, current, nowEpoch) {
+  const before = Number(prior.routePosition ?? routePosition(prior));
+  const after = routePosition(current), advance = after - before;
+  // 官方 ETA 回修最多容許退一站，交給前端單調顯示水位吸收；更遠的反向跳接不是同一台車。
+  if (advance < -1) return false;
+  if (advance <= 0) return true;
+  // 無車號線的分組邊界每 15 秒可能改變；只靠路線順序會把下一班的倒數接到前車，
+  // 實測 BR 因此產生 3、7、16 秒就「抵達下一站」的假 history。相鄰站的官方到站 epoch
+  // 差必須至少容得下實際路段行車秒；不符就是另一台車，不能拿來讓原車飛馳。
+  const step = Number(current.dir) === 2 ? 1 : -1;
+  let station = Number(prior.to), required = 0;
+  for (let moved = 0; moved < advance; moved++) {
+    const next = station + step;
+    const run = segmentRun(model, current.line, station, next);
+    if (!(run > 0)) return false;
+    required += run;
+    station = next;
+  }
+  const observed = Number(prior.observedEpoch);
+  if (!Number.isFinite(observed)) return false;
+  const elapsed = Math.max(0, Number(nowEpoch) - observed);
+  // ETA 本身可能在兩輪之間修早幾秒；用真正經過的觀測秒補上這段修訂誤差。兩者相加仍跑不完
+  // 該段才是不可能配對。這不是固定容忍門檻，輪詢 15 秒就只多 15 秒，不能放大成一整站。
+  if (Number(current.arrEpoch) - Number(prior.arrEpoch) + elapsed < required) return false;
+  // target station 第二格起，除了到站時軸要可達，觀測之間也必須真的已經跑完中間段。
+  if (advance <= 1) return true;
+  return elapsed >= required - segmentRun(model, current.line, Number(prior.to), Number(prior.to) + step);
+}
+
+function matchFeasible(model, prior, current, nowEpoch) {
   if (terminalOccurrenceRolled(prior, current, nowEpoch)) return false;
-  // 同向車只能沿站序前進；這條硬約束讓新增起點車與離開終點車不會造成整排換號。
-  return routePosition(current) + 1e-9 >= Number(prior.routePosition ?? routePosition(prior));
+  // 新的起點倒數是新一趟，不得吸走已經離站的舊車；舊起點倒數則可接到它離站後的第一段。
+  if (current.terminal && !prior.terminal) return false;
+  // 車號只作標籤，絕不能凌駕物理可達距離把永安市場的車拖到丹鳳。
+  return physicallyReachable(model, prior, current, nowEpoch);
+}
+
+function timelineContinuity(prior, current) {
+  const previous = new Map((Array.isArray(prior && prior.timeline) ? prior.timeline : []).map(item =>
+    [`${Number(item.from)}>${Number(item.to)}`, Number(item.arrEpoch)]));
+  let best = Infinity;
+  for (const item of Array.isArray(current && current.timeline) ? current.timeline : []) {
+    const old = previous.get(`${Number(item.from)}>${Number(item.to)}`);
+    if (Number.isFinite(old) && Number.isFinite(Number(item.arrEpoch)))
+      best = Math.min(best, Math.abs(Number(item.arrEpoch) - old));
+  }
+  return Number.isFinite(best) ? best : null;
 }
 
 function pairCost(prior, current) {
   const position = routePosition(current) - Number(prior.routePosition ?? routePosition(prior));
-  return position * 100000 + Math.abs(Number(current.arrEpoch) - Number(prior.arrEpoch));
+  const destination = Number(current.dest) === Number(prior.dest) ? 0 : 1000;
+  // 無車號時，前後兩輪重疊的逐站 ETA 是比「現在排在第幾台」更強的身分證據。
+  // 同一車通常只修幾秒，相鄰另一車則差一個班距；先比 overlap，才比位置。
+  const continuity = timelineContinuity(prior, current);
+  return (continuity == null ? 1e9 : continuity * 1e6) + Math.abs(position) * 100000 + destination +
+    Math.abs(Number(current.arrEpoch) - Number(prior.arrEpoch));
 }
 
 function betterAlignment(a, b) {
@@ -134,7 +194,7 @@ function betterAlignment(a, b) {
 }
 
 // 最大配對數優先、成本次之的保序 DP。輸入排序與配對都只有資料內容參與，與 rows 原順序無關。
-function alignOrdered(current, prior, nowEpoch) {
+function alignOrdered(current, prior, nowEpoch, model) {
   const memo = new Map();
   const solve = (i, j) => {
     const key = `${i}|${j}`;
@@ -144,7 +204,7 @@ function alignOrdered(current, prior, nowEpoch) {
       memo.set(key, empty); return empty;
     }
     let best = betterAlignment(solve(i + 1, j), solve(i, j + 1));
-    if (matchFeasible(prior[j], current[i], nowEpoch)) {
+    if (matchFeasible(model, prior[j], current[i], nowEpoch)) {
       const tail = solve(i + 1, j + 1);
       best = betterAlignment(best, { count: tail.count + 1, cost: tail.cost + pairCost(prior[j], current[i]),
         pairs: [[i, j], ...tail.pairs] });
@@ -169,43 +229,121 @@ function historyWith(row, base) {
   return history.slice(-2);
 }
 
-function officialVehicle(row, vehicleId, base, sourceRevision, nowEpoch) {
+function timelineWith(row, base) {
+  const byLeg = new Map();
+  if (base && base.line === row.line && Number(base.dir) === row.dir && Array.isArray(base.timeline)) {
+    for (const item of base.timeline) byLeg.set(`${Number(item.from)}>${Number(item.to)}`, {
+      from: Number(item.from), to: Number(item.to), depEpoch: Number(item.depEpoch),
+      arrEpoch: Number(item.arrEpoch), terminal: !!item.terminal,
+    });
+  }
+  for (const item of row.timeline) byLeg.set(`${item.from}>${item.to}`, { ...item });
+  const step = row.dir === 2 ? 1 : -1;
+  return [...byLeg.values()].filter(item =>
+    step * (Number(item.to) - Number(row.dest)) <= 0 &&
+    step * (Number(item.from) - Number(row.dest)) <= 0)
+    .sort((a, b) => step * (Number(a.to) - Number(b.to)) || Number(a.arrEpoch) - Number(b.arrEpoch));
+}
+
+function segmentRun(model, lineId, from, to) {
+  const line = model && model.lines instanceof Map ? model.lines.get(lineId) : model && model.lines && model.lines[lineId];
+  const value = line && line.runs instanceof Map ? line.runs.get(`${from}>${to}`) : null;
+  const run = Number(value);
+  return Number.isFinite(run) && run > 0 ? run : null;
+}
+
+function coastTiming(model, row, history, timeline) {
+  const step = Number(row.dir) === 2 ? 1 : -1;
+  const legs = (Number(row.dest) - Number(row.to)) * step;
+  if (!(legs >= 0)) return { coastCycle: null, departureRun: null, retireEpoch: null };
+  const officialArrivals = (timeline || []).filter(item => !item.terminal)
+    .sort((a, b) => step * (Number(a.to) - Number(b.to)) || Number(a.arrEpoch) - Number(b.arrEpoch));
+  const own = officialArrivals.length >= 2
+    ? Number(officialArrivals.at(-1).arrEpoch) - Number(officialArrivals.at(-2).arrEpoch)
+    : history.length >= 2
+      ? Number(history.at(-1).arrEpoch) - Number(history.at(-2).arrEpoch) : NaN;
+  const last = history.at(-1), beforeLast = history.at(-2);
+  const physicalFloor = beforeLast && last
+    ? segmentRun(model, row.line, Number(beforeLast.to), Number(last.to)) : Number(row.run);
+  // 實測舊的無號配對曾產生 1–20 秒一站的假 cycle。官方 epoch 可以修訂，但不能
+  // 凌駕於這段路線的實際行車秒；否則續推與退場時間都會被壓成飛車速度。
+  const measuredCycle = Number.isFinite(own) && own > 0
+    ? Math.max(own, Number(physicalFloor) > 0 ? Number(physicalFloor) : 0)
+    : Number(row.run) + OFFICIAL_COAST_DWELL_DEFAULT_SEC;
+  const exactDestination = (timeline || []).filter(item => !item.terminal && Number(item.to) === Number(row.dest))
+    .sort((a, b) => Number(b.arrEpoch) - Number(a.arrEpoch))[0];
+  const exactRetireEpoch = exactDestination ? Number(exactDestination.arrEpoch) : null;
+  if (row.terminal && Number(row.from) === Number(row.to)) {
+    const next = Number(row.to) + step;
+    const exactFirst = (timeline || []).find(item => !item.terminal && Number(item.from) === Number(row.to) &&
+      Number(item.to) === next);
+    const departureRun = exactFirst
+      ? Number(exactFirst.arrEpoch) - Number(exactFirst.depEpoch)
+      : segmentRun(model, row.line, Number(row.to), next);
+    if (!(departureRun > 0)) return { coastCycle: null, departureRun: null, retireEpoch: null };
+    const coastCycle = measuredCycle > 0 ? measuredCycle : departureRun + OFFICIAL_COAST_DWELL_DEFAULT_SEC;
+    const count = stationCount(model, row.line);
+    // 一段式路線永遠等不到對端到站列，才使用唯一明示的 segment fallback。
+    const retireEpoch = Number.isFinite(exactRetireEpoch) ? exactRetireEpoch :
+      (/_XBT$/.test(row.line) || count <= 2 ? Number(row.arrEpoch) + departureRun : null);
+    return { coastCycle, departureRun, retireEpoch };
+  }
+  const coastCycle = measuredCycle;
+  const penultimate = Number(row.dest) - step;
+  const penultimateEvent = officialArrivals.filter(item => Number(item.to) === penultimate)
+    .sort((a, b) => Number(b.arrEpoch) - Number(a.arrEpoch))[0];
+  // 一般路線終點站不回報到站倒數：抵達倒數第二站後，才用這台車自己的最近官方站間週期
+  // 補唯一最後一段。這不是缺訊 timeout，也不拿整條班表推存在；XBT 則走上面的單段專用分支。
+  const inferredTerminal = penultimateEvent && coastCycle > 0
+    ? Number(penultimateEvent.arrEpoch) + coastCycle : null;
+  return { coastCycle, departureRun: null,
+    retireEpoch: Number.isFinite(exactRetireEpoch) ? exactRetireEpoch : inferredTerminal };
+}
+
+function officialNumberState(row, base) {
+  const current = String(row.displayNo || '');
+  if (!base) return { officialNo: current || null, officialNoLockedOut: false };
+  if (base.officialNoLockedOut) return { officialNo: null, officialNoLockedOut: true };
+  const prior = String(base.officialNo || '');
+  if (!prior) return { officialNo: current || null, officialNoLockedOut: false };
+  // 官方不同站／不同輪不一定都帶車次號。空白不是反證：既然這台車已經由位置延續接回，
+  // 就保留第一次認到的號碼；只有另一個「非空且不同」的號碼才代表標籤真的矛盾。
+  if (!current) return { officialNo: prior, officialNoLockedOut: false };
+  if (current === prior) return { officialNo: prior, officialNoLockedOut: false };
+  // 同一 vehicleId 的非空號碼一旦變動，代表標籤已不可信：永久退回路線縮寫，
+  // 不換成新號，更不能為保住舊號而把車接去遠方另一筆同號 row。
+  return { officialNo: null, officialNoLockedOut: true };
+}
+
+function officialVehicle(model, row, vehicleId, base, sourceRevision, nowEpoch) {
+  const history = historyWith(row, base);
+  const timeline = timelineWith(row, base);
+  const timing = coastTiming(model, row, history, timeline);
+  const numberState = officialNumberState(row, base);
+  const birthEvidence = base && base.birthEvidence || {
+    source: 'official-board', sourceRevision, observedEpoch: nowEpoch,
+    line: row.line, dir: row.dir, from: row.from, to: row.to, arrEpoch: row.arrEpoch,
+  };
   return {
     vehicleId, line: row.line, dir: row.dir, dest: row.dest, from: row.from, to: row.to,
     run: row.run, arrEpoch: row.arrEpoch, terminal: row.terminal,
-    officialNo: row.displayNo || null, source: 'official', extension: false,
-    sourceRevision, observedEpoch: nowEpoch, routePosition: routePosition(row),
-    history: historyWith(row, base),
+    ...numberState, source: 'official', extension: false,
+    sourceRevision, observedEpoch: nowEpoch, routePosition: routePosition(row), birthEvidence,
+    history, timeline, ...timing,
   };
 }
 
-function isTwoStationShuttle(line, count) {
-  return /_XBT$/.test(line) || count <= 2;
-}
-
-function finalExtension(model, vehicle, nowEpoch, sourceRevision) {
-  const count = stationCount(model, vehicle.line);
-  if (isTwoStationShuttle(vehicle.line, count)) return null;
-  const step = Number(vehicle.dir) === 2 ? 1 : -1;
-  const terminal = Number(vehicle.dir) === 2 ? count - 1 : 0;
-  const penultimate = terminal - step;
-  if (Number(vehicle.to) !== penultimate || Number(vehicle.from) !== penultimate - step) return null;
-  const history = Array.isArray(vehicle.history) ? vehicle.history : [];
-  if (history.length < 2) return null;
-  const previous = history.at(-2), last = history.at(-1);
-  if (Number(last.to) !== Number(previous.to) + step || Number(last.to) !== penultimate) return null;
-  // 缺少終點看板時，唯一允許的補段：只複用同一台車自己最近兩個相鄰官方到站 epoch。
-  const ownLastSpan = Number(last.arrEpoch) - Number(previous.arrEpoch);
-  // 與官方事件校準既有結構界線相同；超過10分鐘多半已串到下一班，寧可不補末段。
-  if (!(ownLastSpan > 0 && ownLastSpan <= OFFICIAL_OWN_SPAN_MAX_SEC)) return null;
-  const depEpoch = Number(last.arrEpoch), arrEpoch = depEpoch + ownLastSpan;
-  if (nowEpoch >= arrEpoch) return null;
-  return {
-    ...vehicle, from: penultimate, to: terminal, run: ownLastSpan, depEpoch, arrEpoch,
-    terminal: false, source: 'official-derived-own-last-span', extension: true,
-    sourceRevision, observedEpoch: Number(vehicle.observedEpoch), routePosition: Number(vehicle.dir) === 2 ? terminal : -terminal,
-    ownLastSpan,
-  };
+function carriedVehicle(model, vehicle, sourceRevision, nowEpoch, numberContradicted = false) {
+  const timing = vehicle.retireEpoch != null && Number.isFinite(Number(vehicle.retireEpoch))
+    ? { coastCycle: Number(vehicle.coastCycle), departureRun: vehicle.departureRun == null
+      ? null : Number(vehicle.departureRun), retireEpoch: Number(vehicle.retireEpoch) }
+    : coastTiming(model, vehicle, Array.isArray(vehicle.history) ? vehicle.history : [],
+      Array.isArray(vehicle.timeline) ? vehicle.timeline : []);
+  // 這是「到已知終點」的時刻，不是資料齡或缺訊 timeout。
+  if (timing.retireEpoch != null && Number.isFinite(Number(timing.retireEpoch)) &&
+      nowEpoch >= Number(timing.retireEpoch)) return null;
+  return { ...vehicle, ...timing, sourceRevision, extension: false, carried: true,
+    ...(numberContradicted ? { officialNo: null, officialNoLockedOut: true } : {}) };
 }
 
 function compareVehicles(a, b) {
@@ -214,29 +352,12 @@ function compareVehicles(a, b) {
     Number(a.extension) - Number(b.extension) || String(a.vehicleId).localeCompare(String(b.vehicleId));
 }
 
-function matchingPriorVehicle(vehicle, currentGroup) {
-  if (!vehicle.extension) return vehicle;
-  const history = Array.isArray(vehicle.history) ? vehicle.history : [];
-  if (history.length < 2) return null;
-  const previous = history.at(-2), last = history.at(-1);
-  const step = Number(vehicle.dir) === 2 ? 1 : -1;
-  if (Number(last.to) !== Number(previous.to) + step) return null;
-  // 只把「同一筆官方預報的小幅 ETA 修訂」視為短暫重現；下一班的 headway 不得被
-  // 上一班 extension 收回。30秒是 feed 輪距，且只用於 continuity，不改官方 deadline。
-  if (!(currentGroup || []).some(item => Number(item.row.from) === Number(previous.to) &&
-      Number(item.row.to) === Number(last.to) &&
-      Math.abs(Number(item.row.arrEpoch) - Number(last.arrEpoch)) <= EXTENSION_REAPPEAR_ETA_TOLERANCE_SEC)) return null;
-  // extension 的 from/to 已是推導末段；matching 必須還原成最後一筆真正官方區間。
-  return { ...vehicle, extension: false, from: Number(previous.to), to: Number(last.to),
-    arrEpoch: Number(last.arrEpoch), terminal: false,
-    routePosition: Number(vehicle.dir) === 2 ? Number(last.to) : -Number(last.to) };
-}
-
 /**
  * 將一輪 collapseClaims() rows 化成官方名冊。
  *
- * prior 必須是上一輪本函式回傳值；回傳 vehicles 就是當輪官方車列，加上可逐筆說明的終點末段。
- * model 只讀路線站序長度，完全不讀 runs／班表時間。
+ * prior 必須是上一輪本函式回傳值。一旦由官方倒數建立 vehicleId，
+ * 後續快照只更新它；當輪沒有 row 也沿已知時間軸保留，到已知終點才收車。
+ * model 只讀路線站序與一段路程缺少到站時刻時所需的段秒，不以班表決定車的存在。
  */
 export function reduceOfficialRoster({ model, rows, prior = null, day, nowEpoch, sourceRevision }) {
   const normalizedDay = String(day || '').trim();
@@ -244,82 +365,117 @@ export function reduceOfficialRoster({ model, rows, prior = null, day, nowEpoch,
   if (!normalizedDay) throw new TypeError('official roster day 不可為空');
   const current = canonicalRows(model, rows);
   const priorVehicles = previousVehicles(prior, normalizedDay);
-  const aliases = previousAliases(prior, normalizedDay);
+  const coldStart = !prior || String(prior.day || '') !== normalizedDay;
   const noCounts = new Map();
-  for (const row of current) if (row.sourceNo) noCounts.set(row.sourceNo, (noCounts.get(row.sourceNo) || 0) + 1);
-  for (const row of current) row.displayNo = row.sourceNo && noCounts.get(row.sourceNo) === 1 ? row.sourceNo : '';
+  const noKey = row => `${row.line}|${Number(row.dir)}|${String(row.sourceNo || row.officialNo || '')}`;
+  for (const row of current) if (row.sourceNo) noCounts.set(noKey(row), (noCounts.get(noKey(row)) || 0) + 1);
+  for (const row of current) row.displayNo = row.sourceNo && noCounts.get(noKey(row)) === 1 ? row.sourceNo : '';
 
   const state = { day: normalizedDay, nextSequence: initialSequence(prior, normalizedDay),
-    reservedIds: new Set([...aliases.values(), ...priorVehicles.map(x => String(x.vehicleId || '')).filter(Boolean)]) };
+    reservedIds: new Set(priorVehicles.map(x => String(x.vehicleId || '')).filter(Boolean)) };
   const assigned = new Map(), usedIds = new Set(), priorById = new Map(priorVehicles.map(x => [String(x.vehicleId), x]));
+  const numberContradictions = new Map();
   let hardNoMatches = 0;
 
-  // 官方 no 是硬 alias；同輪 no 重複則只保留車、標籤 fail closed，不讓兩列共用一個身分。
+  // 官方 no 只在同線、同方向、同一趟生命週期內是硬 alias。到終點收車後，
+  // 反方向倒數必須建新 ID，不得因實體車折返而把舊方向身分復活。
   for (let index = 0; index < current.length; index++) {
     const row = current[index];
     if (!row.displayNo) continue;
-    const vehicleId = aliases.get(row.displayNo);
-    if (!vehicleId || usedIds.has(vehicleId)) continue;
+    const sameNumber = priorVehicles.filter(vehicle => !usedIds.has(String(vehicle.vehicleId)) &&
+      vehicle.line === row.line && Number(vehicle.dir) === Number(row.dir) &&
+      String(vehicle.officialNo || '') === row.displayNo);
+    for (const vehicle of sameNumber) {
+      if (!physicallyReachable(model, vehicle, row, epoch)) {
+        const vehicleId = String(vehicle.vehicleId);
+        numberContradictions.set(vehicleId, { vehicleId, line: row.line, dir: row.dir, no: row.displayNo,
+          priorFrom: Number(vehicle.from), priorTo: Number(vehicle.to), currentFrom: row.from, currentTo: row.to,
+          priorObservedEpoch: Number(vehicle.observedEpoch), nowEpoch: epoch });
+      }
+    }
+    const candidates = sameNumber.filter(vehicle => matchFeasible(model, vehicle, row, epoch));
+    if (candidates.length !== 1) continue;
+    const vehicleId = String(candidates[0].vehicleId);
     assigned.set(index, vehicleId); usedIds.add(vehicleId); hardNoMatches++;
   }
 
   const groupNames = new Set();
   current.forEach((row, index) => { if (!assigned.has(index)) groupNames.add(groupKey(row)); });
   for (const key of [...groupNames].sort()) {
-    const currentGroup = current.map((row, index) => ({ row, index })).filter(x => !assigned.has(x.index) && groupKey(x.row) === key)
-      .sort((a, b) => compareRows(a.row, b.row));
-    const priorGroup = priorVehicles.map(vehicle => matchingPriorVehicle(vehicle, currentGroup))
+    const currentGroup = current.map((row, index) => ({ row, index }))
+      .filter(x => !assigned.has(x.index) && groupKey(x.row) === key)
+      .sort((a, b) => routePosition(a.row) - routePosition(b.row) || compareRows(a.row, b.row));
+    const priorGroup = priorVehicles
       .filter(x => x && !usedIds.has(String(x.vehicleId)) && groupKey(x) === key)
       .sort((a, b) => Number(a.routePosition ?? routePosition(a)) - Number(b.routePosition ?? routePosition(b)) ||
         Number(a.arrEpoch) - Number(b.arrEpoch) || String(a.vehicleId).localeCompare(String(b.vehicleId)));
-    for (const [ci, pi] of alignOrdered(currentGroup.map(x => x.row), priorGroup, epoch)) {
+    for (const [ci, pi] of alignOrdered(currentGroup.map(x => x.row), priorGroup, epoch, model)) {
       const vehicleId = String(priorGroup[pi].vehicleId);
       assigned.set(currentGroup[ci].index, vehicleId); usedIds.add(vehicleId);
     }
   }
 
-  let births = 0;
+  let births = 0, ignoredObservations = 0;
   for (let index = 0; index < current.length; index++) {
     if (assigned.has(index)) continue;
+    // 正常營運時只有起點倒數能生車；半途站間列只能更新既有 ID，配不到也不得複製一台。
+    // 唯一例外是當日狀態完全不存在的冷啟動，讓部署／D1 初建時可一次接回線上既有車。
+    if (!coldStart && !current[index].terminal) { ignoredObservations++; continue; }
     const vehicleId = allocateVehicleId(state);
     assigned.set(index, vehicleId); usedIds.add(vehicleId); births++;
   }
 
   const vehicles = [];
+  let completed = 0, accepted = 0, numberConflicts = 0;
   for (let index = 0; index < current.length; index++) {
-    const row = current[index], vehicleId = assigned.get(index), base = priorById.get(vehicleId) || null;
-    const vehicle = officialVehicle(row, vehicleId, base, sourceRevision, epoch);
+    const row = current[index], vehicleId = assigned.get(index);
+    if (!vehicleId) continue;
+    accepted++;
+    const base = priorById.get(vehicleId) || null;
+    const vehicle = officialVehicle(model, row, vehicleId, base, sourceRevision, epoch);
+    if (base && base.officialNo && vehicle.officialNoLockedOut && !vehicle.officialNo) numberConflicts++;
+    if (vehicle.retireEpoch != null && Number.isFinite(Number(vehicle.retireEpoch)) &&
+        epoch >= Number(vehicle.retireEpoch)) {
+      completed++; continue;
+    }
     vehicles.push(vehicle);
-    if (row.displayNo) aliases.set(row.displayNo, vehicleId);
   }
 
-  let extensions = 0, exits = 0;
+  let carried = 0, exits = 0, carriedNumberConflicts = 0;
   for (const old of priorVehicles.slice().sort(compareVehicles)) {
     if (!old.vehicleId || usedIds.has(String(old.vehicleId))) continue;
-    let extension = null;
-    if (old.extension) {
-      if (epoch < Number(old.arrEpoch)) extension = { ...old, sourceRevision };
-    } else {
-      extension = finalExtension(model, old, epoch, sourceRevision);
+    const contradicted = numberContradictions.has(String(old.vehicleId));
+    const alive = carriedVehicle(model, old, sourceRevision, epoch, contradicted);
+    if (alive) {
+      vehicles.push(alive); usedIds.add(String(alive.vehicleId)); carried++;
+      if (contradicted && old.officialNo) { carriedNumberConflicts++; numberConflicts++; }
     }
-    if (extension) { vehicles.push(extension); usedIds.add(String(extension.vehicleId)); extensions++; }
     else exits++;
   }
 
   vehicles.sort(compareVehicles);
-  if (vehicles.length !== current.length + extensions) throw new Error('official roster 名冊基數不守恆');
+  if (vehicles.length !== accepted - completed + carried) throw new Error('official roster 名冊基數不守恆');
   const ids = vehicles.map(x => String(x.vehicleId));
   if (new Set(ids).size !== ids.length) throw new Error('official roster 同輪 vehicleId 重複');
   if (vehicles.some(x => x.tripKey != null || x.scheduleKey != null)) throw new Error('official roster 不得混入班表身分');
+  if (vehicles.some(x => !x.birthEvidence || x.birthEvidence.source !== 'official-board')) {
+    throw new Error('official roster 每台車都必須能追溯到官方站牌出生列');
+  }
 
   return {
     schema: OFFICIAL_ROSTER_SCHEMA, day: normalizedDay, nowEpoch: epoch, sourceRevision,
     nextSequence: state.nextSequence, vehicles,
-    aliases: [...aliases].map(([no, vehicleId]) => ({ no, vehicleId }))
-      .sort((a, b) => a.no.localeCompare(b.no) || a.vehicleId.localeCompare(b.vehicleId)),
+    aliases: vehicles.filter(vehicle => vehicle.officialNo).map(vehicle => ({ line: vehicle.line,
+      dir: Number(vehicle.dir), no: String(vehicle.officialNo), vehicleId: String(vehicle.vehicleId) }))
+      .sort((a, b) => a.line.localeCompare(b.line) || a.dir - b.dir || a.no.localeCompare(b.no) ||
+        a.vehicleId.localeCompare(b.vehicleId)),
     diagnostics: {
-      rows: current.length, extensions, births, matches: current.length - births,
-      hardNoMatches, exits, duplicateOfficialNos: [...noCounts.values()].filter(count => count > 1).length,
+      rows: current.length, accepted, ignoredObservations, extensions: 0, carried, completed, births,
+      matches: accepted - births, hardNoMatches, exits, numberConflicts, carriedNumberConflicts,
+      rejectedNumberJumps: numberContradictions.size,
+      rejectedNumberJumpDetails: [...numberContradictions.values()].sort((a, b) =>
+        a.line.localeCompare(b.line) || a.dir - b.dir || a.vehicleId.localeCompare(b.vehicleId)),
+      duplicateOfficialNos: [...noCounts.values()].filter(count => count > 1).length,
     },
   };
 }

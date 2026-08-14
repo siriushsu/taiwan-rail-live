@@ -253,24 +253,87 @@ export function runSeconds(model, lineId, dir, from, to, calibrations) {
 
 export function claimBoardRows(model, resolvedRows, nowEpoch, calibrations) {
   const claims = [], unclaimed = [];
-  for (const row of resolvedRows || []) {
+  const claimOne = (row, allowBehind = false) => {
     const step = row.dir === 2 ? 1 : -1;
     const from = row.stationIdx - step;
     const line = model.lines.get(row.line);
-    if (!line) continue;
+    if (!line) return null;
     if (from < 0 || from >= line.stations.length) {
-      claims.push({ ...row, from: row.stationIdx, to: row.stationIdx, run: 0, progress: 0,
-        ix: row.stationIdx, terminal: true, eventClaims: [] });
-      continue;
+      return { ...row, from: row.stationIdx, to: row.stationIdx, run: 0, depEpoch: row.arrEpoch,
+        progress: 0, ix: row.stationIdx, terminal: true, eventClaims: [] };
     }
     const run = runSeconds(model, row.line, row.dir, from, row.stationIdx, calibrations);
-    if (!(run > 0)) { unclaimed.push({ row, reason: 'no_run' }); continue; }
+    if (!(run > 0)) { unclaimed.push({ row, reason: 'no_run' }); return null; }
     const dwell = line.stations[from].dwell || DEFAULT_DWELL_SEC;
     const remain = row.arrEpoch - nowEpoch;
-    if (remain >= run + dwell) { unclaimed.push({ row, reason: 'behind', remain, threshold: run + dwell }); continue; }
+    if (!allowBehind && remain >= run + dwell) {
+      unclaimed.push({ row, reason: 'behind', remain, threshold: run + dwell }); return null;
+    }
     const progress = Math.max(0, Math.min(1, 1 - remain / run));
-    claims.push({ ...row, from, to: row.stationIdx, run, progress,
-      ix: from + step * progress, terminal: false, eventClaims: [] });
+    return { ...row, from, to: row.stationIdx, run, depEpoch: row.arrEpoch - run, progress,
+      ix: from + step * progress, terminal: false, eventClaims: [] };
+  };
+
+  // 有官方車號的列仍由 collapseClaims() 以 no 精確合成；它們只需要留下最靠近列車
+  // 當下位置的 claim，其餘逐站時間會由 attachOfficialTimelines() 依同一 no 全數接回。
+  const anonymousGroups = new Map();
+  const numberedStreams = new Set((resolvedRows || []).filter(row => row.no)
+    .map(row => `${row.line}|${Number(row.dir)}|${Number(row.destIdx)}`));
+  for (const row of resolvedRows || []) {
+    if (row.no) {
+      const claim = claimOne(row, false);
+      if (claim) claims.push(claim);
+      continue;
+    }
+    const key = `${row.line}|${Number(row.dir)}|${Number(row.destIdx)}`;
+    // 紅／橘等有車號的 stream 偶爾只漏一列 TrainNumber；那是同一股資料的標籤缺口，
+    // 不能把整股改套無號線分群，否則會擾動既有 ledger 配對。只有整股完全無號（Y／BR）
+    // 才使用下方逐站 epoch 規則。
+    if (numberedStreams.has(key)) {
+      const claim = claimOne(row, false);
+      if (claim) claims.push(claim);
+      continue;
+    }
+    if (!anonymousGroups.has(key)) anonymousGroups.set(key, []);
+    anonymousGroups.get(key).push(row);
+  }
+
+  // 文湖線／環狀線沒有 TrainNumber。官方在每站只給「下一班」倒數；沿行進方向看，
+  // 同一台車的到站 epoch 必須逐站遞增，epoch 回落就是下一台車的邊界。直接用這條
+  // 官方逐站時間不變式分群，不能再拿「倒數是否小於本地估計的一段 run」各站獨立生車；
+  // 後者在環狀線橋和—中和等段秒估計偏長時，會把同一台車畫成相鄰兩台。
+  for (const group of anonymousGroups.values()) {
+    if (!group.length) continue;
+    const dir = Number(group[0].dir), step = dir === 2 ? 1 : -1;
+    group.sort((a, b) => step * (Number(a.stationIdx) - Number(b.stationIdx)) ||
+      Number(a.arrEpoch) - Number(b.arrEpoch) || Number(a.baseEpoch) - Number(b.baseEpoch));
+    const partitions = [];
+    for (const row of group) {
+      const block = partitions.at(-1), previous = block && block.at(-1);
+      const forward = previous && step * (Number(row.stationIdx) - Number(previous.stationIdx)) > 0;
+      if (!previous || !forward || Number(row.arrEpoch) <= Number(previous.arrEpoch)) partitions.push([row]);
+      else block.push(row);
+    }
+    for (const block of partitions) {
+      const events = block.map(row => claimOne(row, true)).filter(Boolean);
+      if (!events.length) continue;
+      // 兩站到站時間都已知時，下一段發車＝上一站到站＋停站；第一段才退回本地 run。
+      // 這讓動畫真正依官方逐站時間走，不受舊班表段秒誤差拉出第二台車。
+      for (let i = 1; i < events.length; i++) {
+        const previous = events[i - 1], current = events[i];
+        if (Number(previous.to) !== Number(current.from)) continue;
+        const line = model.lines.get(current.line);
+        const dwell = previous.terminal ? 0 : (line.stations[Number(previous.to)].dwell || DEFAULT_DWELL_SEC);
+        const depEpoch = Number(previous.arrEpoch) + dwell;
+        if (depEpoch < Number(current.arrEpoch)) {
+          current.depEpoch = depEpoch;
+          current.run = Number(current.arrEpoch) - depEpoch;
+        }
+      }
+      const representative = events[0];
+      claims.push({ ...representative, eventClaims: events.map(event => ({ ...event, eventClaims: [] })),
+        timelinePartitioned: true });
+    }
   }
   return { claims, unclaimed };
 }
@@ -285,7 +348,8 @@ export function collapseClaims(claims) {
   const out = [];
   for (const group of grouped.values()) {
     group.sort((a, b) => (a.dir === 2 ? 1 : -1) * (a.ix - b.ix));
-    const deleted = new Set(), events = group.map(c => [c]);
+    const deleted = new Set(), events = group.map(c =>
+      Array.isArray(c.eventClaims) && c.eventClaims.length ? c.eventClaims.map(x => ({ ...x })) : [c]);
     const byNo = new Map();
     group.forEach((c, i) => { if (c.no) { if (!byNo.has(c.no)) byNo.set(c.no, []); byNo.get(c.no).push(i); } });
     for (const indices of byNo.values()) {
@@ -299,6 +363,9 @@ export function collapseClaims(claims) {
         const a = group[i], b = group[j];
         if ((a.dir === 2 ? 1 : -1) * (b.ix - a.ix) > 0.6) break;
         if (a.no && b.no) continue;
+        // 無號線已由完整逐站 epoch 的單調區段分群；不得再用舊的近站門檻把下一班
+        // 起點倒數吞進前車，或把同一區段拆回兩台。
+        if (a.timelinePartitioned || b.timelinePartitioned) continue;
         const hit = (a.to === b.from && a.progress >= 0.94 && b.progress <= 0.25) ||
           (a.terminal && b.from === a.to && b.progress <= 0.25);
         if (!hit) continue;
@@ -308,6 +375,61 @@ export function collapseClaims(claims) {
     group.forEach((claim, i) => { if (!deleted.has(i)) out.push({ ...claim, eventClaims: events[i] }); });
   }
   return out;
+}
+
+// 同一官方車號會同時出現在前方多個站牌倒數；它們是同一輛車的逐站時間軸，不能各自生車。
+// collapsedClaims 決定「這輪有幾輛車」，resolvedRows 只補上同車未來各站的官方 dep/arr，
+// 絕不單獨增加名冊列。無車號列仍只採 collapseClaims 已能相鄰合併的 eventClaims。
+export function attachOfficialTimelines(model, collapsedClaims, resolvedRows, calibrations = new Map()) {
+  const numbered = new Map();
+  for (const raw of resolvedRows || []) {
+    if (!raw || !raw.no || !model.lines.has(raw.line)) continue;
+    const key = `${raw.line}|${Number(raw.dir)}|${String(raw.no)}`;
+    if (!numbered.has(key)) numbered.set(key, []);
+    numbered.get(key).push(raw);
+  }
+  const segmentOf = raw => {
+    const line = model.lines.get(raw.line), dir = Number(raw.dir), step = dir === 2 ? 1 : -1;
+    const to = Number(raw.stationIdx ?? raw.to), arrEpoch = Number(raw.arrEpoch);
+    if (!line || (dir !== 1 && dir !== 2) || !Number.isInteger(to) || !Number.isFinite(arrEpoch)) return null;
+    const from = raw.terminal ? Number(raw.from) : to - step;
+    if (raw.terminal || from < 0 || from >= line.stations.length) {
+      return { from: to, to, depEpoch: arrEpoch, arrEpoch, terminal: true };
+    }
+    const run = Number(raw.run) > 0 ? Number(raw.run) : runSeconds(model, raw.line, dir, from, to, calibrations);
+    if (!(run > 0)) return null;
+    const explicitDep = Number(raw.depEpoch);
+    return { from, to, depEpoch: Number.isFinite(explicitDep) && explicitDep < arrEpoch ? explicitDep : arrEpoch - run,
+      arrEpoch, terminal: false };
+  };
+  return (collapsedClaims || []).map(claim => {
+    const key = claim.no ? `${claim.line}|${Number(claim.dir)}|${String(claim.no)}` : null;
+    const sources = key && numbered.has(key)
+      ? numbered.get(key)
+      : (Array.isArray(claim.eventClaims) && claim.eventClaims.length ? claim.eventClaims : [claim]);
+    const segments = sources.map(segmentOf).filter(Boolean).sort((a, b) =>
+      (Number(claim.dir) === 2 ? 1 : -1) * (Number(a.to) - Number(b.to)) ||
+      Number(a.arrEpoch) - Number(b.arrEpoch));
+    for (let i = 1; i < segments.length; i++) {
+      const previous = segments[i - 1], current = segments[i];
+      if (Number(previous.to) !== Number(current.from)) continue;
+      const line = model.lines.get(claim.line);
+      const dwell = previous.terminal ? 0 : (line.stations[Number(previous.to)].dwell || DEFAULT_DWELL_SEC);
+      const depEpoch = Number(previous.arrEpoch) + dwell;
+      if (depEpoch < Number(current.arrEpoch)) current.depEpoch = depEpoch;
+    }
+    const byLeg = new Map();
+    for (const segment of segments) {
+      const leg = `${segment.from}>${segment.to}`;
+      const old = byLeg.get(leg);
+      // 同車、同站若上游意外重複，選較新的 ETA；排序與原陣列順序無關。
+      if (!old || Number(segment.arrEpoch) > Number(old.arrEpoch)) byLeg.set(leg, segment);
+    }
+    const timeline = [...byLeg.values()].sort((a, b) =>
+      (Number(claim.dir) === 2 ? 1 : -1) * (Number(a.to) - Number(b.to)) ||
+      Number(a.arrEpoch) - Number(b.arrEpoch));
+    return { ...claim, timeline };
+  });
 }
 
 function chooseCodePosition(model, code, priorLine) {
