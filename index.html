@@ -4095,6 +4095,7 @@ const state = {
   dpr: 1, powerSave: false, t0: 0, elapsed: 0, ready: false, // powerSave:省電模式(相機置中+繪製統一降 30fps,手機預設開),見 tick 節流
 
   followTrain: null, followId: null,
+  followWrapStops: null, // setFollow 刻意回放的跨午夜 stops；只供 schedWrapT 解開該班的 _noPrevWrap
   freqFollow: null, // 捷運跟隨三形:{ln,tr}／{ln,k}／{official:true,lineId,vehicleId}；獨立於 followTrain
   followLock: true, // 跟隨鎖:true=每幀置中;拖曳地圖自動解鎖(Google 導航式),按「回到列車」恢復
   mapDark: false, basemap: 'map', trackData: null, offlineLand: null,
@@ -5134,6 +5135,10 @@ function assignRunProfiles(s, perf, obs) {
 // ・_noPrevWrap(逐日名冊裡「昨天沒開」的班):清晨不得接續成昨天的班——昨天根本沒開,接了就是畫
 //   出不存在的幽靈班(452 在開行日清晨的鏡像 bug)。只在名冊仍是今天的名冊時生效(_rosterDay 比對
 //   state.wallDay):頁面開著跨夜沒重載時名冊整份是昨天的,+86400 接續是合法的「名冊日」解讀。
+//   唯一例外:setFollow 已把同一份 stops 刻意撥回發車前、且時鐘已離開「現在」的重播——晚上點跟隨
+//   一班還沒發車的跨夜班(452 23:57 發車),動的是模擬時鐘,真實日期還是名冊日,守衛會在模擬時鐘
+//   走過 00:00 時把正在重播的車也一起擋掉。simSec 沒有日期,兩種情境的 t 完全同值,唯一能區辨的
+//   就是「這是不是使用者刻意要求回放的那一份 stops」。
 // ・其他(每日班、高鐵/林鐵等無日期資料、過期 bundle 退回):維持原條件,行為零變化。
 function schedWrapT(s, t, grace) {
   if (s._prevNight) {
@@ -5141,7 +5146,8 @@ function schedWrapT(s, t, grace) {
     return state.clockAtNow ? t + 86400 : t;
   }
   if (t < s[0].arrSec && t + 86400 <= s[s.length - 1].depSec + grace
-      && !(s._noPrevWrap && s._rosterDay === state.wallDay)) return t + 86400;
+      && !(s._noPrevWrap && s._rosterDay === state.wallDay
+        && !(state.followWrapStops === s && !state.clockAtNow))) return t + 86400;
   return t;
 }
 
@@ -10059,6 +10065,7 @@ function setFollow(tr, isAuto, noJump, opts) {
   // 真全螢幕中不寫網址列:Safari 對 fullscreen 中的 replaceState 會踢出全螢幕,且全螢幕本來就看不到網址列
   try { if (!document.fullscreenElement) history.replaceState(null, '', '?train=' + encodeURIComponent(tr.train) + '&t=' + fmtHM(state.simSec)); } catch (e) {}
   const first = tr.stops[0], last = tr.stops[tr.stops.length - 1];
+  state.followWrapStops = null; // 換車先清:上一班的跨午夜例外不得殘留
   // 下面兩個分支都是刻意撥時鐘(時光機),所以必須同時離開「跟著現在」的狀態:clockDriftGuard 每秒
   // 會把「還貼著現在」的時鐘拉回真實時刻,而它刻意不走 setSimSec(那會清掉 clockAtNow),所以也不會
   // 被 followTimeJumped 攔。撥了時鐘卻沒清旗標 ⇒ 1 秒內時鐘跳回現在,而完乘資格快照 followStartEff
@@ -10069,6 +10076,7 @@ function setFollow(tr, isAuto, noJump, opts) {
     // 護照灰章重播:強制從發車前 20 秒開始、固定倍速看完全程才算完乘(防秒蓋章)
     state.simSec = Math.max(0, first.depSec - 20) % 86400;
     state.clockAtNow = false;
+    if (Math.max(last.arrSec, last.depSec) > 86400) state.followWrapStops = tr.stops; // 跨午夜班:重播走過 00:00 時解開守衛
     syncTimeUI();
     if (!state._followSpeedSaved) { state._preFollowSpd = state.speedMult; state._followSpeedSaved = true; }
     setSpeed(30);
@@ -10077,6 +10085,7 @@ function setFollow(tr, isAuto, noJump, opts) {
     // 環島車永遠在跑,不需要把時間拉回發車
     state.simSec = Math.max(0, first.depSec - 20) % 86400;
     state.clockAtNow = false;
+    if (Math.max(last.arrSec, last.depSec) > 86400) state.followWrapStops = tr.stops; // 同上
     syncTimeUI();
   }
   if (!noJump) {
@@ -10107,6 +10116,7 @@ function clearFollow() {
   clearFreqFollow(); // 換系統/群組/進放空都經過這裡 → 一併清掉捷運幽靈車跟隨
   restoreFollowSpeed(); // 中途取消跟隨也要還原 fromStart 重播強制的速度
   state.followTrain = null; state.followId = null; state.followStatus = null;
+  state.followWrapStops = null;
   setBasemap(); // 停跟:衛星模式換回高解析度圖磚
   syncPanFence(); // 台鐵/高鐵停跟:恢復台灣平移硬牆(setMaxBounds 會即刻把邊緣視野拉回框內)
   state._routePts = null;
@@ -17635,6 +17645,7 @@ document.addEventListener('visibilitychange', () => { if (!document.hidden) poll
 pollHazard();
 
 function jumpToNow() {
+  state.followWrapStops = null; // 回到「現在」=離開重播:例外不得殘留,否則捲到開行日清晨會冒出昨晚不存在的班
   if (state.mode === 'sched') {
     setSimSec(nowSecOfDay(activeTz())); // 海外群組:回到該群當地的現在時刻
     setSpeed(1); // 「現在」=回到真實狀態:1× 才不會馬上漂走,誤點修正得以持續套用
