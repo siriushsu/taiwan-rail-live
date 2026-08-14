@@ -86,6 +86,10 @@ struct MetroWidgetCatalog {
     let systems: [System]
     let alias: [String: [String: String]]
     let lastTrain: [String: String]
+    /// "<sys>|<站名>" → 該站所屬路線的色票(hex)。同站多線取第一條——顏色只是識別,不是資料。
+    /// 只能在這裡(struct 本體)宣告,extension 放不了 stored property;
+    /// 真正的查詢方法 `lineColorHex` 放在 MetroBoardWidget.swift 的 extension。
+    let lineColors: [String: String]
 
     static let shared: MetroWidgetCatalog = load()
 
@@ -95,10 +99,12 @@ struct MetroWidgetCatalog {
               let obj = try? JSONSerialization.jsonObject(with: raw) as? [String: Any] else {
             // 🔴 讀不到就回空目錄,讓 provider 走「照樣給選項」那條(空 systems 時 use 也是空,
             //    ItemCollection 會是空的——這是唯一真的沒東西可列的情況,與 .empty 的語意不同)。
-            return MetroWidgetCatalog(systems: [], alias: [:], lastTrain: [:])
+            return MetroWidgetCatalog(systems: [], alias: [:], lastTrain: [:], lineColors: [:])
         }
         var out: [System] = []
+        var colors: [String: String] = [:]
         for s in (obj["systems"] as? [[String: Any]] ?? []) {
+            let sysID = s["id"] as? String ?? ""
             let lines = s["lines"] as? [[String: Any]] ?? []
             let stations = lines.flatMap { $0["stations"] as? [[String: Any]] ?? [] }
             var names: [String] = [], dests: Set<String> = []
@@ -106,13 +112,22 @@ struct MetroWidgetCatalog {
                 if let n = st["name"] as? String, !names.contains(n) { names.append(n) }
                 for d in (st["dests"] as? [String] ?? []) { dests.insert(d) }
             }
-            out.append(System(id: s["id"] as? String ?? "", label: s["label"] as? String ?? "",
+            out.append(System(id: sysID, label: s["label"] as? String ?? "",
                               precision: s["precision"] as? String ?? "min",
                               crowd: s["crowd"] as? Bool ?? false,
                               stationNames: names, destinations: dests.sorted()))
+            for line in lines {
+                guard let color = line["color"] as? String else { continue }
+                for st in (line["stations"] as? [[String: Any]] ?? []) {
+                    guard let n = st["name"] as? String else { continue }
+                    let key = "\(sysID)|\(n)"
+                    if colors[key] == nil { colors[key] = color }
+                }
+            }
         }
         return MetroWidgetCatalog(systems: out,
                                   alias: obj["alias"] as? [String: [String: String]] ?? [:],
-                                  lastTrain: obj["lastTrain"] as? [String: String] ?? [:])
+                                  lastTrain: obj["lastTrain"] as? [String: String] ?? [:],
+                                  lineColors: colors)
     }
 }

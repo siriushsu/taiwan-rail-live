@@ -13,5 +13,6 @@ struct RailBoardWidgetBundle: WidgetBundle {
     var body: some Widget {
         RailBoardWidget()
         RailFollowActivityWidget()
+        MetroBoardWidget()
     }
 }
