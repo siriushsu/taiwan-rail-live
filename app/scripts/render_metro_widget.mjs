@@ -142,6 +142,20 @@ func makeEntry(sys: String, station: String, snapshot: MetroSnapshot?, now: Doub
                failed: false)
 }
 
+// 🔴 算繪專用的整體時間平移:Text(timerInterval:) 讀的是【真實牆鐘】,凍結樣本的 eta 全在
+//    過去 ⇒ 倒數一律顯示 0:00——那是倒數的【最窄形】,「12:44」這種寬形的溢版風險完全
+//    驗不到(2026-08-14 主對話收貨時抓到的盲區)。修法:把每列 etaEpoch 統一加上
+//    (真實現在 − 樣本 now),等於把整份快照平移到現在——每列的【剩餘秒數】與樣本擷取
+//    當下逐秒相同,不是手捏 rows;dataAt 保持樣本值,「HH:mm 更新」照樣顯示資料時刻。
+func shiftedToWallClock(_ s: MetroSnapshot, sampleNow: Double) -> MetroSnapshot {
+    let delta = Date().timeIntervalSince1970 - sampleNow
+    return MetroSnapshot(station: s.station, dataAt: s.dataAt,
+                         rows: s.rows.map { MetroRow(dest: $0.dest,
+                                                     etaEpoch: $0.etaEpoch.map { $0 + delta },
+                                                     minutes: $0.minutes, crowd: $0.crowd) },
+                         stale: s.stale)
+}
+
 // 🔴 now 一律從樣本自己的 eta 推,不用真實現在——樣本是 2026-08-14 下午擷取的凍結快照,
 //    真實現在早就晚於裡面所有 eta,若用 Date() 全部班次會被模型層濾成「過站」而畫面空白。
 //    算法與 app/scripts/verify_metro_board_logic.mjs 的 NOW／yNow 逐字相同(最早 eta - 60)。
@@ -156,11 +170,15 @@ let taipeiNow = minEta("${trtcFixture}") - 60
 let yNow = minEta("${yFixture}") - 60
 
 // 台北車站(北捷,trains[] 裡 203/208 兩班配得到擁擠度)
-let taipeiSnap = snap(kind: "trtc", station: "台北車站", now: taipeiNow, fixture: "${trtcFixture}", sys: "trtc")
+let taipeiSnap = shiftedToWallClock(
+    snap(kind: "trtc", station: "台北車站", now: taipeiNow, fixture: "${trtcFixture}", sys: "trtc"),
+    sampleNow: taipeiNow)
 let taipeiEntry = makeEntry(sys: "trtc", station: "台北車站", snapshot: taipeiSnap, now: taipeiNow)
 
 // 十四張(環狀線 Y 線,官方對這條線沒有車廂擁擠度)
-let szSnap = snap(kind: "trtc", station: "十四張", now: yNow, fixture: "${yFixture}", sys: "trtc")
+let szSnap = shiftedToWallClock(
+    snap(kind: "trtc", station: "十四張", now: yNow, fixture: "${yFixture}", sys: "trtc"),
+    sampleNow: yNow)
 let szEntry = makeEntry(sys: "trtc", station: "十四張", snapshot: szSnap, now: yNow)
 
 // 哈瑪星(高捷,官方只給整數分鐘;樣本裡兩線各有一組同分鐘並列 e=12)
