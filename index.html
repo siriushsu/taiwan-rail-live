@@ -1737,6 +1737,17 @@
   .board.has-notify h3 { padding-right: 78px; } /* 三顆鈕(×/☆/🔔)時多留右側空間,避免長站名壓到鈴鐺 */
   .board .close:hover, .board .board-star:hover, .board .board-notify:hover { opacity: 1; }
   .board .board-star.on { color: #ffd977; opacity: 1; }
+  /* 捷運等車卡入口(Task 6):文字 pill,h3 內另起一行(不像 close/star 用絕對定位插槽——
+     .board 桌面寬僅 280px,硬塞第三顆同款圖示鈕會擠壓長站名),故不影響 h3 padding-right。 */
+  .board .board-wait {
+    display: block; margin: 4px 0 0; padding: 3px 10px;
+    font: 800 11.5px/1.6 inherit; letter-spacing: .5px;
+    width: fit-content; max-width: 100%;
+    background: rgba(255,255,255,.16); border: 1px solid var(--on-navy); border-radius: 999px;
+    color: var(--on-navy); opacity: .92; cursor: pointer;
+  }
+  .board .board-wait:hover { opacity: 1; background: rgba(255,255,255,.26); }
+  .board .board-wait.on { background: #ffd977; border-color: #ffd977; color: var(--navy); opacity: 1; }
   /* 最愛車站的地圖 ★ 記號(掛站點上方一點;點了直接開該站看板) */
   .favst-ico { width: 16px; height: 16px; text-align: center; color: #d9a62e; cursor: pointer; }
   .favst-ico .ri-icon { width: 15px; height: 15px; display: block; margin: 0 auto; filter: drop-shadow(0 0 2px #fff8ec) drop-shadow(0 1px 1px rgba(20,26,40,.55)); }
@@ -4114,6 +4125,8 @@ const state = {
   collectMap: false, // 收集地圖:全路網轉灰、只有搭過的區間亮起(純檢視,不動任何收集資料),見 setCollectMap
   collectBounty: false, // 收集地圖的懸賞層:我校正過的段用特殊色(規格 §8「換一層資料即可」)
   recording: null,   // 錄製中的校正旅程;非 null 代表正在錄,見 startBountyRecording
+  metroWait: null,   // 捷運等車卡(Live Activity 手動入口)開卡中的目標:{sys,station} 或 null,見 metroWaitStartFor
+  _metroLiveRaw: {}, // pollMetroLive 最近一次原始回應快取:sys → {at,rows,receivedAt},供等車卡取官方分鐘(不另發 fetch)
 };
 let map, cv, ctx;
 let baseLayers = {}; // light / dark / sat Leaflet 圖層
@@ -16966,6 +16979,9 @@ async function pollMetroLive() {
       if (!r.ok) throw new Error(r.status);
       const d = await r.json();
       if (Array.isArray(d.rows)) applyMetroLive(id, d.rows);
+      // 等車卡(Task 6)沿用同一次輪詢的原始回應(不另發 fetch);applyMetroLive 只取 shift 中位數,
+      // 逐列 dest/分鐘會被丟棄,這裡另存一份供開卡取值。
+      if (Array.isArray(d.rows)) state._metroLiveRaw[id] = { at: d.at, rows: d.rows, receivedAt: Date.now() };
     } catch (e) { /* 失敗保留舊 shift */ }
   }));
   updateMetroBadge();
@@ -18446,7 +18462,10 @@ function renderTrtcOfficialFreqBoard(el, st, lines, isDeco, view) {
     if (ln.stations.some(s => trtcOfficialStationName(s.name) === trtcOfficialStationName(st.name))) sysNames.push(ln._sysLabel);
   });
   const canFollow = view.groups.some(group => group.kind === 'legacy' ? group.rows.length : group.rows.some(rec => rec.join));
+  // 進得了這個 render function 本身就代表本站有 mrt/trtc 官方板覆蓋(trtcOfficialBoardView 的
+  // stationLines 檢查已保證),等車卡固定 sys='trtc',不必再查一次 metroWaitSysForStation。
   el.innerHTML = `<h3>${escHtml(st.name)}${sysNames.map(n => `<span class="sys-chip">${escHtml(n)}</span>`).join('')}` +
+    metroWaitBoardHtml(st, 'trtc') +
     `<button class="board-star${fav ? ' on' : ''}" id="boardStar" title="${fav ? '移除最愛車站' : '加入最愛車站'}" aria-label="${fav ? '移除最愛車站' : '加入最愛車站'}">${railIcon('ui-favorite', fav ? 'ri-icon--fill' : '')}</button>` +
     `<button class="close" id="boardClose">×</button></h3>` + stnMetaHtml(st) + eventRowsHtml(st) +
     `<div class="sub">北捷班次直接顯示官方即時倒數 · ${canFollow ? '可點選的班次可跟隨動畫' : '目前班次未連結動畫'}${hasEstimated ? '（其他系統部分路線為班距推算）' : ''}</div>` +
@@ -18455,6 +18474,7 @@ function renderTrtcOfficialFreqBoard(el, st, lines, isDeco, view) {
   updateSheetOpenClass();
   el.querySelector('#boardClose').onclick = closeBoard;
   el.querySelector('#boardStar').onclick = () => toggleFavStation(st);
+  bindMetroWaitBoard(el, st, 'trtc', lines, isDeco);
   el.onpointerdown = event => {
     const row = event.target.closest('.row[data-li]');
     el._trtcDown = row ? { key: row.dataset.li + '/' + row.dataset.ci, gen: el._trtcRenderGen } : null;
@@ -18544,7 +18564,12 @@ function renderFreqBoard(el, st, lines, isDeco) {
     if ((!isDeco && !state.visible.has(ln.id)) || !ln.stations || !ln._sysLabel || sysNames.includes(ln._sysLabel)) return;
     if (ln.stations.some(s => s.name.replace(/臺/g, '台') === key)) sysNames.push(ln._sysLabel);
   });
+  // 這條路徑也涵蓋 mrt 站尚未有官方板資料可用時(時光機/剛開機還沒拉到)的結構性覆蓋——
+  // metroWaitSysForStation 只看站是否落在有官方即時資訊的系統上,不看當下資料有沒有,鈕仍會出現,
+  // 沒資料時點下去由 metroWaitStartFor 自己 toast(資料來源鐵則)。
+  const waitSys = metroWaitSysForStation(st, lines, isDeco);
   el.innerHTML = `<h3>${escHtml(st.name)}${sysNames.map(n => `<span class="sys-chip">${n}</span>`).join('')}` +
+    metroWaitBoardHtml(st, waitSys) +
     `<button class="board-star${fav ? ' on' : ''}" id="boardStar" title="${fav ? '移除最愛車站' : '加入最愛車站'}" aria-label="${fav ? '移除最愛車站' : '加入最愛車站'}">${railIcon('ui-favorite', fav ? 'ri-icon--fill' : '')}</button>` +
     `<button class="close" id="boardClose">×</button></h3>` + stnMetaHtml(st) + eventRowsHtml(st) +
     `<div class="sub">接下來的班車 · ${hasLive ? (allFresh ? '已依官方即時資訊校正' : '依稍早官方資料推估') : '依官方當日時刻表'} · 點班次跟隨${hasEstimated ? '（部分路線為班距推算）' : ''}</div>` +
@@ -18553,6 +18578,7 @@ function renderFreqBoard(el, st, lines, isDeco) {
   updateSheetOpenClass();
   el.querySelector('#boardClose').onclick = closeBoard;
   el.querySelector('#boardStar').onclick = () => toggleFavStation(st);
+  bindMetroWaitBoard(el, st, waitSys, lines, isDeco);
   // 點任一班次列 → 關看板、跟隨該班;防抖比照台鐵看板(pointerdown 先記,看板每 20 模擬秒重繪,click 補撈不到的列)。
   el.onpointerdown = e => {
     const row = e.target.closest('.row[data-li]');
@@ -18568,6 +18594,236 @@ function renderFreqBoard(el, st, lines, isDeco) {
     const trip = ln && ln._tt && ln._tt[ci];
     if (ln && trip) { closeBoard(); setFreqFollow({ ln, tr: trip }); }
   };
+}
+
+// ── 捷運等車卡(Live Activity 手動入口,Task 6):看板 h3「在這站等」鈕、開卡資料組裝、深連結接收 ──
+// 原生 plugin 契約(window.Capacitor.Plugins.RailMetroWait)見
+// .superpowers/sdd/2026-08-14-捷運小工具與等車卡/task-6-brief.md,JS 側只做三件事:
+//  (1) 判斷這一站長不長鈕、長哪個 sys 的鈕(2) 點鈕時把「看板當下顯示的那份官方資料」組成 payload
+//  呼叫 start/stop (3) 接原生殼點小工具回傳的 waitOpen 深連結。
+// 旗標刻意寫成函式、每次重讀,不比照 LIVE_ACTIVITY_ENABLED/NOTIFY_LOCAL_ENABLED 凍結成 const:
+// 那兩個既有旗標是原生殼在頁面腳本執行「前」就注入 window.RAIL_NATIVE_*,而本功能是真正的
+// Capacitor 自製 plugin(window.Capacitor.Plugins.RailMetroWait),註冊時機沒有同等時序保證;
+// 看板每 20 模擬秒重繪(renderBoard),函式版最慢 20 秒內會自動補上按鈕,不需要額外輪詢。
+function metroWaitEnabled() {
+  try { return !!(window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.RailMetroWait); }
+  catch (e) { return false; }
+}
+// 這一站落在哪個「有官方即時到站資訊」的系統上;trtc/krtc/tymc 一律用「本站名稱逐字相符
+// (僅 臺→台,不额外去尾站/車站)」比對 lines 裡的靜態站名——兩側都來自同一份 web 靜態資料,
+// 不需要、也不可以套用 trtcOfficialStationName() 那種為了比對「TDX 官方看板列」才要做的激進
+// 去尾正規化。去尾在這裡會把不同系統的巧合同名站誤判成同一站:機捷「三重站」去尾後與中和新蘆線
+// 「三重」(mrt,本身無尾碼)撞成同一個 key,但兩者是完全不同的物理站——實測踩到:openFreqStation
+// 開對了 tymc 的「三重站」board,這裡卻因撞名回了 'trtc',導致點下去被導去 metroWaitTrtcBundle
+// 而非 metroWaitLiveBundle('tymc',...),已用 tmp 診斷腳本逐步確認根因。台北車站等 mrt/tymc
+// 真共站站名兩側本來就是逐字相同(不靠去尾),故此處改嚴格比對不影響既有共站鈕的 trtc 優先行為。
+function metroWaitSysForStation(st, lines, isDeco) {
+  const nameKey = st.name.replace(/臺/g, '台');
+  for (const ln of lines || []) {
+    if ((!isDeco && !state.visible.has(ln.id)) || !ln.stations) continue;
+    if (!isTrtcBoardLine(ln)) continue;
+    if (ln.stations.some(s => s.name.replace(/臺/g, '台') === nameKey)) return 'trtc';
+  }
+  for (const ln of lines || []) {
+    if ((!isDeco && !state.visible.has(ln.id)) || !ln.stations) continue;
+    const sys = freqSysIdOf(ln);
+    if ((sys === 'krtc' || sys === 'tymc') && ln.stations.some(s => s.name.replace(/臺/g, '台') === nameKey)) return sys;
+  }
+  return null;
+}
+// 兩處看板 h3 共用的按鈕 HTML(v0717p 鐵則:必須在 sticky h3 內)。旗標關/這站沒有任何長鈕系統
+// 時整串不輸出(不用 locateBtn 那種 inline 藏法——看板本來就是每次動態重繪)。
+// 純文字 pill、h3 內另起一行(display:block,見 CSS):.board 桌面寬僅 280px,close/star 兩顆
+// 22px 圖示鈕已吃掉大半 h3 右側,硬塞第三顆同款絕對定位鈕會擠壓長站名;文字鈕另起一行不佔用
+// 既有插槽、不需再調 h3 padding-right。
+function metroWaitBoardHtml(st, sys) {
+  if (!sys || !metroWaitEnabled()) return '';
+  const on = !!(state.metroWait && state.metroWait.sys === sys && state.metroWait.station === st.name);
+  return `<button class="board-wait${on ? ' on' : ''}" id="boardWait" type="button" data-sys="${escHtml(sys)}">` +
+    `${on ? '取消等車' : '在這站等'}</button>`;
+}
+// 綁按鈕 click。stopPropagation 比照 boardNotify:h3 內本來就不在 .row[data-li] 上,容器層的
+// 通用列點擊 handler 靠 pointerdown 先清 _downKey 已經不會誤吃,這裡多一道防禦與既有寫法一致。
+function bindMetroWaitBoard(el, st, sys, lines, isDeco) {
+  const btn = el.querySelector('#boardWait');
+  if (!btn) return;
+  btn.onclick = e => {
+    e.stopPropagation();
+    const on = !!(state.metroWait && state.metroWait.sys === sys && state.metroWait.station === st.name);
+    if (on) metroWaitStop(); else metroWaitStartFor(sys, st, lines, isDeco);
+  };
+}
+// 北捷(含環狀線):回傳 {rows:[{dest,eta,lineLabel,color}...最多2],dataAt} 或 null。
+// 資料來源鐵則——直接重算「看板當下顯示的那份官方資料」(與 renderTrtcOfficialFreqBoard 完全同一個
+// 函式 trtcOfficialBoardView,同一種排序),只取 kind==='official' 的列(legacy 列是排入同板的
+// 其他方向班表推算,不是官方,不可送)。eta/at 本身已是 epoch 秒,不需 ms→s 換算(見 trtcOfficialRowFresh)。
+function metroWaitTrtcBundle(st, lines, isDeco) {
+  const view = trtcOfficialBoardView(st, lines, isDeco);
+  if (!view) return null;
+  const rows = [];
+  for (const group of view.groups) {
+    if (group.kind !== 'official') continue;
+    for (const rec of group.rows) {
+      const ln = rec.display && rec.display.ln;
+      rows.push({
+        dest: String(rec.row.dest || ''),
+        eta: Math.round(Number(rec.row.eta)),
+        lineLabel: ln ? String(ln.id) : null,
+        color: ln && ln.color ? ln.color : null,
+      });
+    }
+  }
+  if (!rows.length) return null;
+  rows.sort((a, b) => a.eta - b.eta);
+  const dataAt = state.trtcOfficialBoard && Number.isFinite(state.trtcOfficialBoard.sourceAt)
+    ? Math.round(state.trtcOfficialBoard.sourceAt) : Math.round(Date.now() / 1000);
+  return { rows: rows.slice(0, 2), dataAt };
+}
+// 站名→線物件(跨 state.systems/state.lines/state.decoLines 找),取 lineLabel 對應色碼用。
+// 比照既有 trtcOfficialRosterGeometryLine 的找法(index.html 附近),krtc/tymc 沒有等價函式故新寫。
+function metroWaitFindLine(id) {
+  for (const sys of state.systems || []) {
+    const found = sys.data && Array.isArray(sys.data.lines) && sys.data.lines.find(l => l && l.id === id);
+    if (found) return found;
+  }
+  for (const pool of [state.lines, state.decoLines]) {
+    const found = (pool || []).find(l => l && l.id === id);
+    if (found) return found;
+  }
+  return null;
+}
+// 高捷/機捷:回傳 {rows:[{dest,minutes,lineLabel,color}...最多2],dataAt} 或 null。
+// 讀 pollMetroLive 保留的最近一次原始回應(state._metroLiveRaw,不另發 fetch——資料來源鐵則),
+// 只採 st===0(正常營運)且 e 非 null 的列(與既有 applyMetroLive 的樣本口徑一致);
+// 資料過舊(>150 秒)視同沒有官方資訊。
+function metroWaitLiveBundle(sys, st) {
+  const raw = state._metroLiveRaw && state._metroLiveRaw[sys];
+  if (!raw || !Array.isArray(raw.rows)) return null;
+  const parsedAt = Date.parse(raw.at);
+  const dataAt = Number.isFinite(parsedAt) ? Math.round(parsedAt / 1000) : Math.round((raw.receivedAt || 0) / 1000);
+  if (!Number.isFinite(dataAt) || Date.now() / 1000 - dataAt > 150) return null;
+  const key = st.name.replace(/臺/g, '台');
+  const rows = [];
+  for (const row of raw.rows) {
+    if (row.st !== 0 || row.e == null) continue;
+    if (String(row.s || '').replace(/臺/g, '台') !== key) continue;
+    const mapped = (METRO_LIVE_LINES[row.op] || {})[row.l];
+    const lineId = mapped && mapped[0] || null;
+    const ln = lineId ? metroWaitFindLine(lineId) : null;
+    rows.push({ dest: String(row.d || ''), minutes: Number(row.e), lineLabel: lineId, color: ln && ln.color ? ln.color : null });
+  }
+  if (!rows.length) return null;
+  rows.sort((a, b) => a.minutes - b.minutes);
+  return { rows: rows.slice(0, 2), dataAt };
+}
+// 組原生 plugin 的 start() payload。精度誠實鐵則:trtc 只送 nextEta/secondEta(絕對 epoch 秒)、
+// nextMinutes/secondMinutes 恆 null;krtc/tymc 相反——絕不把分鐘換算成 eta、絕不拿分鐘冒充秒級。
+// crowd:網頁面沒有每節車廂擁擠度資料源(全檔查無),恆送 null,不准造。
+function metroWaitPayload(sys, st, bundle) {
+  const isTrtc = sys === 'trtc';
+  const a = bundle.rows[0], b = bundle.rows[1] || null;
+  return {
+    sys, station: st.name, lineLabel: a.lineLabel, color: a.color,
+    nextEta: isTrtc ? a.eta : null,
+    nextMinutes: isTrtc ? null : a.minutes,
+    nextDest: a.dest,
+    secondEta: b && isTrtc ? b.eta : null,
+    secondMinutes: b && !isTrtc ? b.minutes : null,
+    secondDest: b ? b.dest : null,
+    crowd: null,
+    dataAt: bundle.dataAt,
+    notice: null,
+  };
+}
+async function metroWaitStartFor(sys, st, lines, isDeco) {
+  const p = window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.RailMetroWait;
+  if (!p) return; // 旗標關按鈕不會出現,這裡只是防禦
+  const readBundle = () => sys === 'trtc' ? metroWaitTrtcBundle(st, lines, isDeco) : metroWaitLiveBundle(sys, st);
+  let bundle = readBundle();
+  // 小工具深連結冷開 App 時,輪詢常常還沒跑完第一輪——「還沒到」不是「沒有」,直接 toast
+  // 「沒有官方班次資訊」是誤導(模擬器實測:點小工具進來十之八九先吃這一發)。補救=觸發既有
+  // 輪詢再重讀,最多三輪(同一條管線,不另建 fetch)。注意兩支 poll 都有防重入/document.hidden
+  // 閘,await 到的可能是 no-op ⇒ 不能只信一次 await,要「等一拍→重讀」的有界重試。
+  for (let i = 0; i < 3 && !bundle; i++) {
+    try { await (sys === 'trtc' ? pollTrtcLive() : pollMetroLive()); } catch (e) {}
+    if (!(bundle = readBundle())) { await new Promise(r => setTimeout(r, 1200)); bundle = readBundle(); }
+  }
+  if (!bundle) { showToast('這一站現在沒有官方班次資訊'); return; }
+  const payload = metroWaitPayload(sys, st, bundle);
+  let res;
+  try { res = await p.start(payload); } catch (e) { res = { ok: false, why: String((e && e.message) || e) }; }
+  if (res && res.ok) state.metroWait = { sys, station: st.name };
+  else showToast(res && res.why === 'disabled' ? '請到 iOS 設定開啟「即時動態」才能顯示等車卡' : '開卡失敗，請稍後再試');
+  refreshMetroWaitButton();
+}
+async function metroWaitStop() {
+  const p = window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.RailMetroWait;
+  state.metroWait = null; // 換站直接呼叫 start 即可(原生端保證單卡,自動收舊卡);這裡只服務使用者主動按「取消等車」
+  refreshMetroWaitButton();
+  if (p) { try { await p.stop(); } catch (e) {} }
+}
+// 開卡/收卡是跨語言呼叫,不能等下一次 20 模擬秒的看板重繪才回饋——比照 toggleFavStation 對
+// #boardStar 的即時 DOM 補丁,但用 state.boardStation(目前真正開著的板)而非閉包捕捉的 st 判斷
+// 「開/關」,避免非同步呼叫尚未回來、使用者已切到別站時把文案套錯站。
+function refreshMetroWaitButton() {
+  const btn = document.getElementById('boardWait');
+  if (!btn) return;
+  const sys = btn.dataset.sys;
+  const cur = state.boardStation;
+  const on = !!(state.metroWait && cur && state.metroWait.sys === sys && state.metroWait.station === cur.name);
+  btn.textContent = on ? '取消等車' : '在這站等';
+  btn.classList.toggle('on', on);
+}
+// 站名(小工具端正規化字串)→ web 站物件{name,lat,lon,sys},給 waitOpen 深連結與地圖置中用。
+// 先在目前已載入的池子找(使用者可能剛好就在合適的分頁,不必打斷);找不到才切到「捷運與輕軌」
+// 群組(mrt/krtc/tymc 三個系統的共同集合,見 GROUPS 的 metro 群組)再找一次。全部落空回 null。
+function metroWaitFindStation(name) {
+  const key = String(name || '').replace(/臺/g, '台');
+  if (!key) return null;
+  const search = pool => {
+    for (const ln of pool || []) for (const s of ln.stations || []) {
+      if (s.name.replace(/臺/g, '台') === key) return s;
+    }
+    return null;
+  };
+  let hit = state.mode !== 'sched' ? search(state.deco ? state.decoLines : state.lines) : null;
+  if (!hit) {
+    const g = GROUPS.find(x => x.id === 'metro');
+    if (g && state.systems.length) { selectGroup(g); hit = search(state.lines); }
+  }
+  return hit ? { name: hit.name, lat: hit.lat, lon: hit.lon, sys: state.deco ? 'deco' : 'freq' } : null;
+}
+let _metroWaitListening = false;
+// waitOpen:小工具點進來的深連結,boot 時掛(僅原生殼有此 plugin)。station 是小工具端的正規化站名,
+// 對回 web 站物件用既有 replace(/臺/g,'台') 寬鬆比對;對不回就 toast 說明並只切到捷運群組地圖,
+// 不拋例外炸 boot——這裡外層包 try/catch 是最後一道防線。
+function ensureMetroWaitListener() {
+  if (_metroWaitListening) return;
+  const p = window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.RailMetroWait;
+  if (!p || !p.addListener) return;
+  _metroWaitListening = true;
+  p.addListener('waitOpen', async evt => {
+    try {
+      // 🔴 冷啟動閘門:retainUntilConsumed 讓這個事件在 listener 掛上的「瞬間」就進來,
+      //    而此刻 boot 的資料載入/首繪還要好幾秒——太早動作,開的看板會被首繪蓋掉、
+      //    poll 也因 document.hidden/系統未載而三輪全空(模擬器冷啟動實測:板沒開、卡沒開)。
+      //    判準用 boot 完成旗標 state.ready(不可用 state.lines——sched 群組它恆空,會卡滿 20 秒),
+      //    再多一拍讓首繪落定;超時(20s)就照常執行,不吞事件。
+      for (let i = 0; i < 66 && (document.hidden || !state.ready); i++) {
+        await new Promise(r => setTimeout(r, 300));
+      }
+      await new Promise(r => setTimeout(r, 600));
+      const sys = evt && evt.sys, station = evt && evt.station;
+      const st = metroWaitFindStation(station);
+      if (!st) {
+        showToast('找不到「' + escHtml(String(station || '')) + '」，請手動搜尋車站');
+        return;
+      }
+      openBoard(st);
+      map.panTo(focusCenter(st.lat, st.lon));
+      metroWaitStartFor(sys, st, state.lines, state.deco);
+    } catch (e) { console.error('waitOpen 深連結處理失敗', e); }
+  });
 }
 
 // ── 尖峰流量分析 ──
@@ -19923,6 +20179,7 @@ async function boot() {
   // 開機自動定位(原生 App)要盡早發起,才能與底下整串資料載入並行、把等待藏起來。
   // 不 await:定位回不回得來、幾秒回來都不該卡住開機;結果晚點在落點決定處接。
   startBootGeo();
+  ensureMetroWaitListener(); // 捷運等車卡(Task 6)深連結監聽,boot 時掛(僅原生殼有此 plugin,web/PWA 無操作)
   cv = document.getElementById('overlay'); ctx = cv.getContext('2d');
   // zoomAnimation:true —— 縮放走 Leaflet 250ms CSS 平滑補間(舊圖磚縮放到位、新圖磚淡入),不再「瞬間跳格→
   // 舊圖磚被丟、新圖磚還沒到→畫面消失一下下」(TestFlight 回報)。overlay 畫布在 Leaflet pane 體系外、以

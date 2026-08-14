@@ -39,6 +39,15 @@
 				<string>com.googleusercontent.apps.415549765868-gscdv9songgu0aa4p1sqanllqb6s4dbe</string>
 			</array>
 		</dict>
+		<!-- 捷運小工具深連結（railisland://metro-wait），由 AppDelegate 交 RailMetroWaitPlugin 轉運 -->
+		<dict>
+			<key>CFBundleURLName</key>
+			<string>railisland-deeplink</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>railisland</string>
+			</array>
+		</dict>
 	</array>
 	<!-- 1.4.0 只宣告目前實際開放的前景定位用途。校正旅程尚未開放，不寫進系統權限提示；
 	     若日後重新開放，必須同輪更新這裡、privacy.html 第 3 節與 App Review Notes。 -->

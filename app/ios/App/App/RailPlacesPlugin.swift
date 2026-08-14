@@ -8,6 +8,7 @@ public final class RailBridgeViewController: CAPBridgeViewController {
     public override func capacitorDidLoad() {
         bridge?.registerPluginInstance(RailPlacesPlugin())
         bridge?.registerPluginInstance(RailLiveActivityPlugin())
+        bridge?.registerPluginInstance(RailMetroWaitPlugin())
     }
 }
 

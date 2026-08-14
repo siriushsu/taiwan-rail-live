@@ -44,6 +44,9 @@ struct MetroWaitActivityWidget: Widget {
     var body: some WidgetConfiguration {
         ActivityConfiguration(for: MetroWaitAttributes.self) { ctx in
             // ── 鎖定畫面 ──
+            // 🔴 staleDate 到期【不會】自動變灰:ActivityKit 只把 ctx.isStale 翻成 true,
+            //    視覺降級要自己畫。不畫的話全手動卡(零推播)過期後會永遠掛著 0:00,
+            //    看起來像「列車永遠進站中」——比沒有卡更糟。整卡降不透明度＋倒數換成文字。
             VStack(alignment: .leading, spacing: 5) {
                 HStack(spacing: 5) {
                     if let c = tint(ctx.attributes.color) {
@@ -52,14 +55,18 @@ struct MetroWaitActivityWidget: Widget {
                     Text(ctx.attributes.lineLabel).font(.caption).fontWeight(.semibold)
                     Text(ctx.attributes.station).font(.headline)
                     Spacer(minLength: 6)
-                    countdown(eta: ctx.state.nextEta, minutes: ctx.state.nextMinutes, size: 22)
+                    if ctx.isStale {
+                        Text("資料已過期").font(.caption).foregroundStyle(.secondary)
+                    } else {
+                        countdown(eta: ctx.state.nextEta, minutes: ctx.state.nextMinutes, size: 22)
+                    }
                 }
                 HStack(spacing: 6) {
                     Text("往 \(ctx.state.nextDest ?? "—")").font(.caption)
                     Spacer(minLength: 6)
                     crowdBar(ctx.state.crowd)
                 }
-                if ctx.state.secondEta != nil || ctx.state.secondMinutes != nil {
+                if !ctx.isStale, ctx.state.secondEta != nil || ctx.state.secondMinutes != nil {
                     HStack(spacing: 6) {
                         Text("再下一班 往 \(ctx.state.secondDest ?? "—")")
                             .font(.caption2).foregroundStyle(.secondary)
@@ -68,11 +75,18 @@ struct MetroWaitActivityWidget: Widget {
                             .foregroundStyle(.secondary)
                     }
                 }
+                if ctx.isStale {
+                    Text("回到軌島重新開卡，才會有新的班次資訊").font(.caption2).foregroundStyle(.secondary)
+                }
                 if let n = ctx.state.notice, !n.trimmingCharacters(in: .whitespaces).isEmpty {
                     Text(n).font(.caption2).foregroundStyle(.orange).lineLimit(2)
                 }
             }
-            .padding(.vertical, 2)
+            .opacity(ctx.isStale ? 0.55 : 1)
+            // 🔴 水平邊距不能省:鎖屏 Live Activity 的內容區沒有系統預設 margins,
+            //    模擬器實測「往/再下一班」兩行左緣直接被卡片圓角裁掉半個字。
+            .padding(.horizontal, 14)
+            .padding(.vertical, 8)
         } dynamicIsland: { ctx in
             DynamicIsland {
                 DynamicIslandExpandedRegion(.leading) {
@@ -82,7 +96,11 @@ struct MetroWaitActivityWidget: Widget {
                     }
                 }
                 DynamicIslandExpandedRegion(.trailing) {
-                    countdown(eta: ctx.state.nextEta, minutes: ctx.state.nextMinutes, size: 18)
+                    if ctx.isStale {
+                        Text("已過期").font(.caption).foregroundStyle(.secondary)
+                    } else {
+                        countdown(eta: ctx.state.nextEta, minutes: ctx.state.nextMinutes, size: 18)
+                    }
                 }
                 DynamicIslandExpandedRegion(.bottom) {
                     HStack {
@@ -94,11 +112,19 @@ struct MetroWaitActivityWidget: Widget {
             } compactLeading: {
                 if let c = tint(ctx.attributes.color) { Circle().fill(c).frame(width: 8, height: 8) }
             } compactTrailing: {
-                countdown(eta: ctx.state.nextEta, minutes: ctx.state.nextMinutes, size: 13)
-                    .frame(maxWidth: 44)
+                if ctx.isStale {
+                    Text("—").font(.system(size: 13)).foregroundStyle(.secondary)
+                } else {
+                    countdown(eta: ctx.state.nextEta, minutes: ctx.state.nextMinutes, size: 13)
+                        .frame(maxWidth: 44)
+                }
             } minimal: {
-                countdown(eta: ctx.state.nextEta, minutes: ctx.state.nextMinutes, size: 12)
-                    .frame(maxWidth: 32)
+                if ctx.isStale {
+                    Text("—").font(.system(size: 12)).foregroundStyle(.secondary)
+                } else {
+                    countdown(eta: ctx.state.nextEta, minutes: ctx.state.nextMinutes, size: 12)
+                        .frame(maxWidth: 32)
+                }
             }
         }
     }

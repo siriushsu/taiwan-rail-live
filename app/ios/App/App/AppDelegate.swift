@@ -53,6 +53,10 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     }
 
     func application(_ app: UIApplication, open url: URL, options: [UIApplication.OpenURLOptionsKey: Any] = [:]) -> Bool {
+        // 捷運小工具深連結(railisland://metro-wait):本專案沒裝 @capacitor/app,
+        // appUrlOpen 沒人聽,由自家 plugin 轉運;不是我們的 scheme 才交回 Capacitor
+        // (google-signin 等既有流程要照走)。
+        if RailMetroWaitPlugin.handleOpen(url: url) { return true }
         // Called when the app was launched with a url. Feel free to add additional processing here,
         // but if you want the App API to support tracking app url opens, make sure to keep this call
         return ApplicationDelegateProxy.shared.application(app, open: url, options: options)

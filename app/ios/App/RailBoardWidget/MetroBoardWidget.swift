@@ -9,6 +9,7 @@ struct MetroEntry: TimelineEntry {
     let precision: String      // "sec" | "min"
     let lastTrain: String?     // "23:58",不在末班窗內時 nil
     let failed: Bool           // 這一輪抓取失敗,畫的是上次的資料
+    var deepLink: URL? = nil   // 點小工具 → App 開這一站的等車卡(railisland://metro-wait)
 }
 
 struct MetroBoardProvider: AppIntentTimelineProvider {
@@ -60,7 +61,19 @@ struct MetroBoardProvider: AppIntentTimelineProvider {
                           snapshot: filtered, precision: sys.precision,
                           lastTrain: MetroLastTrain.within60min(catalog: catalog, sys: sys.id,
                                                                station: station, now: now),
-                          failed: failed)
+                          failed: failed,
+                          deepLink: Self.deepLink(sys: sys.id, station: station))
+    }
+
+    // 🔴 站名是中文:URL(string:) 對非 ASCII 插值會回 nil ⇒ 深連結整條靜默死掉。
+    //    一律走 URLComponents 讓它做 percent-encoding。
+    private static func deepLink(sys: String, station: String) -> URL? {
+        var c = URLComponents()
+        c.scheme = "railisland"
+        c.host = "metro-wait"
+        c.queryItems = [URLQueryItem(name: "sys", value: sys),
+                        URLQueryItem(name: "station", value: station)]
+        return c.url
     }
 }
 
@@ -156,6 +169,9 @@ struct MetroBoardView: View {
             Spacer(minLength: 0)
         }
         .padding(.horizontal, 2)
+        // 點小工具 → App 直開這一站的等車卡。未選站時 deepLink 為 nil,widgetURL(nil) 就是
+        // 預設行為(單純開 App),不必分支。
+        .widgetURL(entry.deepLink)
     }
 
     private var stampText: String {
