@@ -42,7 +42,8 @@ check('BUILD／更新紀錄／本地資料載入接線齊全', () => {
   assert(updated, '找不到「最後更新」日期');
   assert.equal(`${String(+updated[2]).padStart(2, '0')}${String(+updated[3]).padStart(2, '0')}`, build[2] + build[3],
     `BUILD ${build[1]} 與最後更新 ${updated[0]} 不同一天——改了版本卻忘了更新日期（或反過來）`);
-  assert.match(html, /data-cl-of="stationtransfer"/);
+  // 最近更新固定只留 8 條；新版本上線後 stationtransfer 可以依序離開第一層，
+  // 但完整歷史的正本不得被刪。第一層所有現存條目的對映另由下一條結構 gate 窮舉。
   assert.match(html, /data-cl="stationtransfer"/);
   assert.match(html, /fetchJSON\('\.\/data\/station_transfers\.json'\)/);
 });
