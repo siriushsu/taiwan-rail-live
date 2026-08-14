@@ -3569,6 +3569,7 @@
            內容 li 上限 8 條(li.grp 是標題不算)。 -->
       <ul class="foot-list foot-recent">
         <li class="grp">最近更新</li>
+        <li data-cl-of="metrowaitcard"><span class="d">8/14</span><span>iPhone 新增捷運等車卡與捷運小工具：鎖定畫面倒數下一班，北捷、高捷、機捷；下次 App 更新生效</span></li>
         <li data-cl-of="trtcofficialroster"><span class="d">8/14</span><span>台北捷運列車改以官方站牌倒數逐班追蹤：從發車到終點依各站時間顯示位置，同一班車在多站的資訊會自動合併，車次與方向跟著實際行程；文湖線沒有車次時顯示 BR 路線牌。</span></li>
         <li data-cl-of="klrtgps"><span class="d">8/12</span><span>高雄環狀輕軌改用官方衛星定位逐班校正，每台車各自對準自己的班次（謝謝網友提供資訊）</span></li>
         <li data-cl-of="tcstopsalign"><span class="d">8/12</span><span>列車資訊卡的停靠站時刻表：表頭「到／開」對齊下方的時刻欄了</span></li>
@@ -3576,7 +3577,6 @@
         <li data-cl-of="stationtransfer"><span class="d">8/10</span><span>點任何一個車站看板，都會告訴你這站可以轉乘哪些別的鐵道系統；跟車時「下一站」旁邊也會提醒能換哪幾條線</span></li>
         <li data-cl-of="nearfollowmutex"><span class="d">8/10</span><span>開「附近車站」或「隨機跟隨」時會自動收起另一個，地圖鏡頭只聽一邊的</span></li>
         <li data-cl-of="widgetdestination"><span class="d">8/8</span><span>iPhone 小工具起站選「共站」或「我的地點」後，「目的站」一點就關掉；已修好，下次 App 更新生效</span></li>
-        <li data-cl-of="lapush"><span class="d">8/8</span><span>跟車的鎖定畫面即時動態會自己換下一站了，App 沒開著也會更新；停靠站內顯示「停靠中」，動態島展開還有進度條與車種顏色（通行證功能）</span></li>
       </ul>
       <!-- 第二層:完整歷史。刻意不掛 .foot-box 類名——placeFootBoxes() 用
            `.site-foot .foot-box` 搬移面板,巢狀同名會被當成另一個盒子一起搬走。 -->
@@ -3620,6 +3620,7 @@
         <li><span class="d">7/16</span><span>捷運準確度升級：六家捷運依官方到站看板即時校正，國定假日自動改跑假日班表</span></li>
         <li><span class="d">7/9</span><span>台鐵即時誤點上線——介接交通部 TDX 平臺每分鐘更新；7/11 起開站即真實時刻、捷運改逐班推演</span></li>
         <li class="grp">跟車、搜尋與車站看板</li>
+        <li data-cl="metrowaitcard"><span class="d">8/14</span><span>iPhone 捷運車站看板新增「在這站等車」：下一班倒數放上鎖定畫面與動態島，班次照官方即時資訊，北捷、高捷、機捷都支援；桌面也有新的捷運小工具可一點直達開卡，下次 App 更新生效</span></li>
         <li data-cl="tcstopsalign"><span class="d">8/12</span><span>列車資訊卡的停靠站時刻表，表頭「到」「開」原本懸在兩個時刻欄中間、沒有對齊，現在跨列對齊了（謝謝網友回報）</span></li>
         <li data-cl="nearfollowmutex"><span class="d">8/10</span><span>開「附近車站」或「隨機跟隨」時，會自動收起另一個，地圖鏡頭只聽一邊的，不會兩邊互搶</span></li>
         <li data-cl="lapush"><span class="d">8/8</span><span>跟隨台鐵或高鐵列車時，鎖定畫面與動態島的即時動態改由伺服器每分鐘更新：螢幕關著、App 沒開著也會自己換到下一站。要換到哪一站依列車實際到離站的觀測決定，不是照時刻表推算；遇到即時資料中斷，卡片會註明目前位置為預估並提醒查詢官方動態。卡片本身也一併加強：列車停靠站內時會顯示「停靠中」而不是繼續倒數，長按動態島展開後會看到一條往下一站前進的進度條、車種與代表色（和地圖上那台車同一個顏色）、上一站與終點站。軌島通行證功能，一趟最長跟 12 小時</span></li>
