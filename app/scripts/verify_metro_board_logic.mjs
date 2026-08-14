@@ -66,7 +66,22 @@ ok('T2 北捷到站時刻逐欄等於官方 eta',
    gotTaipei.rows.every((r, i) => r.etaEpoch === expTaipei[i]?.etaEpoch),
    JSON.stringify(gotTaipei.rows.map(r => r.etaEpoch)));
 ok('T3 北捷不得出現分鐘欄', gotTaipei.rows.every(r => r.minutes === undefined));
-ok('T4 已過站的列不得出現', gotTaipei.rows.every(r => r.etaEpoch > NOW));
+
+// 🔴 T4 家族:上面那個 NOW 取的是全檔案最早 eta 再減 60 秒 ⇒ 樣本裡【沒有】任何已過站的列,
+//    所以「已過站的不得出現」在那個時刻是恆真的,把 Swift 的 eta>now 濾掉也不會轉紅(空過)。
+//    要驗這件事必須把時鐘撥到台北車站班次的【中間】,讓真的有幾列落在過去。
+const tpEtas = trtcRaw.board.filter(b => b.name === '台北車站').map(b => b.eta).sort((a, b) => a - b);
+const MID = tpEtas[Math.floor(tpEtas.length / 2)];
+const expFuture = trtcRaw.board.filter(b => b.name === '台北車站' && b.eta > MID).sort(byEta);
+const gotMid = run('trtc', '台北車站', MID, 'trtc-live.json', 'trtc');
+ok('T4a 正向對照:這個時刻真的有列該被濾掉(否則 T4b 是空過)',
+   expFuture.length > 0 && expFuture.length < tpEtas.length,
+   `未來 ${expFuture.length} / 全部 ${tpEtas.length}`);
+ok('T4b 已過站的列不得出現(列數與內容都要對)',
+   gotMid.rows.length === expFuture.length &&
+   gotMid.rows.every((r, i) => r.etaEpoch === expFuture[i].eta) &&
+   gotMid.rows.every(r => r.etaEpoch > MID),
+   `got ${gotMid.rows.length} 列 ${JSON.stringify(gotMid.rows.map(r => r.etaEpoch))} vs exp ${JSON.stringify(expFuture.map(b => b.eta))}`);
 
 // ── 帶「站」的官方站名要能查到 ──
 const gotSongshan = run('trtc', '松山機場', NOW, 'trtc-live.json', 'trtc');
@@ -107,6 +122,13 @@ for (const [sys, file, station] of [['krtc', 'krtc-live.json', null], ['tymc', '
   ok(`M-${sys}2 🔴 不得出現絕對時刻(那是假精度)`, got.rows.every(r => r.etaEpoch === undefined),
      JSON.stringify(got.rows.map(r => r.etaEpoch)));
   ok(`M-${sys}3 🔴 不得出現擁擠度(這個系統官方沒有)`, got.rows.every(r => r.crowd === undefined));
+  // 🔴 stale 在 minuteSystem 這條路徑原本零覆蓋——把它寫死 false 一樣全綠。
+  //    兩側都要驗:有列時必須是 false,查不到的站必須是 true 且不留列。
+  ok(`M-${sys}4 有列時 stale=false`, got.rows.length > 0 && got.stale === false,
+     `rows=${got.rows.length} stale=${got.stale}`);
+  const none = run('min', '__不存在的站__', Date.now() / 1000, file, sys);
+  ok(`M-${sys}5 查不到的站 stale=true 且不留列`, none.stale === true && none.rows.length === 0,
+     `rows=${none.rows.length} stale=${none.stale}`);
 }
 
 // ── 官方視野以外要標 stale,不是繼續倒數 ──
