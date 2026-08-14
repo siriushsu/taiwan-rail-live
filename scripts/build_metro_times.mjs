@@ -341,6 +341,9 @@ function buildLineTimes(line, routeSpecs, sttCache, stnNameCache, notes, allStop
       const originIdx = originId
         ? ctx.idxOf.get(stnNameCache(g.spec.op).get(originId))
         : (asc ? firstIdx - 1 : firstIdx + 1);
+      // 與 destByPattern 同一組防呆:站號查不到就會靜默退化成「完全不回推」,不叫的話看不出來
+      if (originId && originIdx == null)
+        console.warn(`  ⚠ ${line.id} ${g.routeId}/${g.pat || "''"}: originByPattern 站號 ${originId} 在此線查不到站序`);
       if (originIdx >= 0 && originIdx < ctx.n && !g.stns.has(originIdx)) {
         let fixed = 0;
         for (const c of chains) {
