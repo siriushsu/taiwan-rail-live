@@ -14539,9 +14539,11 @@ function speedProfile(tr) {
   for (let i = 0; i < N; i++) {
     const t = t0 + (t1 - t0) * i / (N - 1);
     // 整趟曲線是「時刻表＋動力學」的性質,取樣一次就快取整趟——若讀含阻擋的位置,一次暫時的
-    // 阻擋(#17)會被烤進這條快取曲線,之後整個 session 都對不上。故走純表定軸,只保留既有的誤點回撥。
-    const dl = liveDelaySec(tr);
-    const a = trainPosAt(tr, t - dl), b = trainPosAt(tr, Math.min(t + 30, t1) - dl);
+    // 阻擋(#17)會被烤進這條快取曲線,之後整個 session 都對不上。故走純表定軸。
+    // 🔴 這裡不得再扣 liveDelaySec:曲線的 x 軸是純表定軸(t 從 t0 到 t1),而 drawSpark 的游標
+    // 吃的是 effTLive(tr),effTLive 已經扣過一次誤點 ⇒ 取樣時再扣一次就是扣兩次,且會被永久
+    // 快取進 tr._spdProf,錯多少取決於曲線是在誤點多少的時候建起來的。
+    const a = trainPosAt(tr, t), b = trainPosAt(tr, Math.min(t + 30, t1));
     v.push(a && b ? Math.min(haversineKm(a, b) / 30 * 3600, speedCapOf(tr)) : 0);  // 同 fpSpd:車種極速為硬上限
   }
   return (tr._spdProf = { v, t0, t1, max: Math.max(60, Math.ceil(Math.max(...v) / 20) * 20) });
