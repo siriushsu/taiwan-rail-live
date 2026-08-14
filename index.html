@@ -3558,6 +3558,7 @@
            內容 li 上限 8 條(li.grp 是標題不算)。 -->
       <ul class="foot-list foot-recent">
         <li class="grp">最近更新</li>
+        <li data-cl-of="checkinplatform"><span class="d">8/14</span><span>月台特別長的車站（例如汐科），現在站在月台任何一端都蓋得到章（謝謝網友回報）</span></li>
         <li data-cl-of="trtcofficialroster"><span class="d">8/14</span><span>台北捷運列車改以官方站牌倒數逐班追蹤：從發車到終點依各站時間顯示位置，同一班車在多站的資訊會自動合併，車次與方向跟著實際行程；文湖線沒有車次時顯示 BR 路線牌。</span></li>
         <li data-cl-of="klrtgps"><span class="d">8/12</span><span>高雄環狀輕軌改用官方衛星定位逐班校正，每台車各自對準自己的班次（謝謝網友提供資訊）</span></li>
         <li data-cl-of="tcstopsalign"><span class="d">8/12</span><span>列車資訊卡的停靠站時刻表：表頭「到／開」對齊下方的時刻欄了</span></li>
@@ -3565,7 +3566,6 @@
         <li data-cl-of="stationtransfer"><span class="d">8/10</span><span>點任何一個車站看板，都會告訴你這站可以轉乘哪些別的鐵道系統；跟車時「下一站」旁邊也會提醒能換哪幾條線</span></li>
         <li data-cl-of="nearfollowmutex"><span class="d">8/10</span><span>開「附近車站」或「隨機跟隨」時會自動收起另一個，地圖鏡頭只聽一邊的</span></li>
         <li data-cl-of="widgetdestination"><span class="d">8/8</span><span>iPhone 小工具起站選「共站」或「我的地點」後，「目的站」一點就關掉；已修好，下次 App 更新生效</span></li>
-        <li data-cl-of="lapush"><span class="d">8/8</span><span>跟車的鎖定畫面即時動態會自己換下一站了，App 沒開著也會更新；停靠站內顯示「停靠中」，動態島展開還有進度條與車種顏色（通行證功能）</span></li>
       </ul>
       <!-- 第二層:完整歷史。刻意不掛 .foot-box 類名——placeFootBoxes() 用
            `.site-foot .foot-box` 搬移面板,巢狀同名會被當成另一個盒子一起搬走。 -->
@@ -3640,6 +3640,7 @@
         <li><span class="d">7/13</span><span>新增「附近火車」：地圖上落一根釘，查周邊 60 分鐘內會通過的車次</span></li>
         <li><span class="d">7/12</span><span>新增平交道功能：點一下查接下來會通過的列車（7/13 補上貨運線 21 處）</span></li>
         <li class="grp">收藏、護照與成就</li>
+        <li data-cl="checkinplatform"><span class="d">8/14</span><span>單站蓋章改用月台範圍判定：像汐科這種月台特別長的車站，以前站在月台中段或另一端都按不下去，現在整條月台上任何位置都蓋得到章（謝謝網友回報）</span></li>
         <li data-cl="favtrainkey"><span class="d">8/3</span><span>台鐵與高鐵有些車次號碼相同，過去收藏其中一班會蓋掉另一班，移除時也會兩班一起消失；現在最愛列車會連同鐵路系統分開辨認，同號車可以各自收藏與移除</span></li>
         <li data-cl="founding"><span class="d">8/4</span><span>在創始期間訂閱通行證的島民，App 的旅程護照最上方會多一枚「創始島民」徽章，之後才訂閱的不會有；徽章跟著訂閱資格走，退訂或登出就一起收起來</span></li>
         <li><span class="d">7/30</span><span>搜尋一班今天已經跑完（或還沒發車）的車，時鐘會確實停在它發車前，不再過一秒就彈回現在——那正是原本會莫名跳出「完乘達成」的原因（謝謝網友回報）</span></li>
@@ -12268,13 +12269,41 @@ function checkinRadiusFor(st) {
   const t = stationTierMap().get(favStationKey(st));
   return CHECKIN_RADIUS_M[t == null ? 4 : t] || CHECKIN_RADIUS_M[4];
 }
+// ── 月台幾何(data/tra_platforms.json,來源 OSM;issue #28) ──────────────────
+// 站等半徑量的是「這座站大概多大」,量不到「月台往哪個方向延伸多長」。汐科月台實長 338m,
+// 而我們登記的站點座標落在月台東端外 141m 處 ⇒ 180m 的圈只涵蓋月台最東邊約 40m,
+// 站在月台上九成的位置都打不到卡。把半徑調大不是解(汐科要開到 480m,而汐科↔汐止只隔 921m)。
+// 改判「到月台線段的距離」:長月台自然涵蓋,鄰站不互吃(197 站兩兩實測,120m 容忍下零重疊)。
+const CHECKIN_PLATFORM_M = 120; // 橫向容忍;多座月台並排最寬的板橋實測 62m,留一倍餘裕
+function checkinPlatformSeg(st) {
+  const m = state.stnPlatforms;
+  if (!m || st.sys !== 'tra_sched') return null; // 目前只有台鐵有這份幾何,其餘系統照舊走站等半徑
+  // 刻意不做「台/臺」正規化:這份檔的鍵直接取自 data/tra.json,與班表同源、逐字對得上
+  // (verify_checkin_platform 的 A5 就在守這件事)。加了 fallback 只會讓日後真的漂移時靜默查不到。
+  return m[st.name] || null;
+}
+// 點到線段的最短距離(公尺)。站區尺度直接用以該點為原點的本地平面投影就夠準。
+function distToSegM(p, seg) {
+  const kx = 111320 * Math.cos(p.lat * Math.PI / 180), ky = 110540;
+  const ax = (seg[0][1] - p.lon) * kx, ay = (seg[0][0] - p.lat) * ky;
+  const bx = (seg[1][1] - p.lon) * kx, by = (seg[1][0] - p.lat) * ky;
+  const dx = bx - ax, dy = by - ay, L2 = dx * dx + dy * dy;
+  const t = L2 === 0 ? 0 : Math.max(0, Math.min(1, (-ax * dx - ay * dy) / L2));
+  return Math.hypot(ax + t * dx, ay + t * dy);
+}
 // 判定寬鬆(章是給自己的);判不過只講距離,不警告不封鎖(設計書§5)
 function checkinJudge(st) {
   const loc = state.meLoc;
   if (!loc) return { ok: false, why: 'noloc' };
-  const distM = haversineKm(loc, { lat: st.lat, lon: st.lon }) * 1000;
   const acc = Math.max(0, loc.acc || 0);
-  const r = checkinRadiusFor(st);
+  let distM = haversineKm(loc, { lat: st.lat, lon: st.lon }) * 1000, r = checkinRadiusFor(st);
+  const seg = checkinPlatformSeg(st);
+  if (seg) {
+    // 兩塊區域取聯集(誰比較接近通過就用誰的數字回報):月台線段解長月台,站等半徑保住站前廣場
+    // 與地下街出口。聯集 ⇒ 這份新資料只會讓更多地方打得到卡,不會讓原本打得到的變成打不到。
+    const dSeg = distToSegM(loc, seg);
+    if (dSeg - CHECKIN_PLATFORM_M < distM - r) { distM = dSeg; r = CHECKIN_PLATFORM_M; }
+  }
   return { ok: distM <= r + Math.min(acc, CHECKIN_ACC_SLACK_M), why: '', distM, r, low: acc > CHECKIN_LOW_ACC_M };
 }
 function checkinEntry(st) { return loadCheckins().st[checkinKey(st)] || null; }
@@ -20464,6 +20493,9 @@ async function boot() {
   state.stnClassMap = await fetchJSON('./data/tra_station_class.json') || {};
   // 台鐵各站地址(TDX Rail/TRA/Station);key 為「台」正規化站名,feature 欄之後補
   state.stnInfoMap = await fetchJSON('./data/tra_station_info.json') || {};
+  // 台鐵各站月台幾何(scripts/fetch_tra_platforms.mjs 由 OSM 產):單站打卡判「人在不在這座站」用。
+  // 缺檔 → checkinJudge 全數退回站等半徑,行為與 2026-08-14 之前完全相同。
+  state.stnPlatforms = (await fetchJSON('./data/tra_platforms.json'))?.stations || null;
   // StationID → 站名反查表(stnInfoMap 是站名→資訊,方向相反):今日台鐵動態的 sta 欄位是 StationID,靠這張表轉中文站名
   state.stnIdToName = {};
   for (const s of Object.values(state.stnInfoMap)) if (s && s.id) state.stnIdToName[s.id] = s.name;
