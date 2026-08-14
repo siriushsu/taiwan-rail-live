@@ -6,9 +6,13 @@ import WidgetKit
 @objc(RailBridgeViewController)
 public final class RailBridgeViewController: CAPBridgeViewController {
     public override func capacitorDidLoad() {
+        // 🔴 App 內自製 plugin 不會被自動發現，每一顆都要在這裡手動註冊——
+        // 少了這行,JS 端 registerPlugin('X') 的每個呼叫都靜默拒絕(build 38 音樂全滅的根因)。
         bridge?.registerPluginInstance(RailPlacesPlugin())
         bridge?.registerPluginInstance(RailLiveActivityPlugin())
         bridge?.registerPluginInstance(RailMetroWaitPlugin())
+        bridge?.registerPluginInstance(RailAudioPlugin())
+        bridge?.registerPluginInstance(RailReviewPlugin())
     }
 }
 

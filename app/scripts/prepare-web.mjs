@@ -213,9 +213,21 @@ const plusSandboxBuild = String(process.env.RAIL_PLUS_SANDBOX_BUILD || '');
 if (plusSandboxOk && !/^[1-9]\d*$/.test(plusSandboxBuild)) {
   throw new Error('RAIL_PLUS_SANDBOX_OK=1 時必須同時提供正整數 RAIL_PLUS_SANDBOX_BUILD，讓 Worker 能把測試通道限縮到指定 build');
 }
+// App 版本號:直接讀 pbxproj 的 MARKETING_VERSION——那是真正會被打進這顆 build 的值。
+// 刻意不讀 set-release-mode.mjs 的 MODES 表:那只是「打算寫成什麼」,有人手改 pbxproj 時兩者會不一致。
+// App 與 widget 兩個 target 的值必須相同,不同就是版號沒推乾淨,當場擋下。
+// 🔴 無條件注入,不可放進下面 appConfig 的三元——那個物件只在授權底圖 build 才有,
+// 而安全 build 是受支援的產出模式(verify-release 還斷言安全 build 裡不存在 RAIL_APP_CONFIG),
+// 放錯地方＝安全 build 出來的 App 版本提示與評分整套靜默消失。
+const pbxSrc = await readFile(join(appRoot, 'ios/App/App.xcodeproj/project.pbxproj'), 'utf8');
+const pbxVers = [...new Set([...pbxSrc.matchAll(/MARKETING_VERSION = ([^;]+);/g)].map(m => m[1].trim()))];
+if (pbxVers.length !== 1) throw new Error(`pbxproj 的 MARKETING_VERSION 不唯一：${pbxVers.join(' / ')}`);
+if (!/^\d+(\.\d+)*$/.test(pbxVers[0])) throw new Error(`MARKETING_VERSION 格式無法解析：${pbxVers[0]}`);
+const appVersion = pbxVers[0];
+
 html = html
   .replace('<span class="ver" id="buildVer"></span>', '<a href="third-party-notices.txt" target="_blank" rel="noopener" style="min-height:44px;display:inline-flex;align-items:center;padding:0 4px">第三方軟體授權</a>\n      <span class="ver" id="buildVer"></span>')
-  .replace('<script src="revenuecat-config.js"></script>', `<script src="revenuecat-config.js"></script>\n<script>window.RAIL_MUSIC_AVAILABLE=${includeLicensedMusic};window.RAIL_ONLINE_BASEMAPS_AVAILABLE=${includeLicensedBasemaps};window.RAIL_PLUS_SANDBOX_OK=${plusSandboxOk};window.RAIL_PLUS_SANDBOX_BUILD=${plusSandboxOk ? JSON.stringify(plusSandboxBuild) : 'null'}${appConfig ? `;window.RAIL_APP_CONFIG=${JSON.stringify(appConfig)}` : ''}</script>\n<script src="native-bridge.js"></script>`);
+  .replace('<script src="revenuecat-config.js"></script>', `<script src="revenuecat-config.js"></script>\n<script>window.RAIL_MUSIC_AVAILABLE=${includeLicensedMusic};window.RAIL_ONLINE_BASEMAPS_AVAILABLE=${includeLicensedBasemaps};window.RAIL_APP_VERSION=${JSON.stringify(appVersion)};window.RAIL_PLUS_SANDBOX_OK=${plusSandboxOk};window.RAIL_PLUS_SANDBOX_BUILD=${plusSandboxOk ? JSON.stringify(plusSandboxBuild) : 'null'}${appConfig ? `;window.RAIL_APP_CONFIG=${JSON.stringify(appConfig)}` : ''}</script>\n<script src="native-bridge.js"></script>`);
 if (!html.includes('vendor/leaflet/leaflet.js') || !html.includes('native-bridge.js')) throw new Error('App index vendor/native bridge injection failed');
 if (/ko-fi|PayPal|111010691056|web-only-donation-log|贊助方式更新/i.test(html) || html.includes('id="donateCopy"') || html.includes('class="foot-box foot-donate"')) throw new Error('External donation content leaked into native App');
 if (/cartocdn\.com|arcgisonline\.com/i.test(html)) throw new Error('App index still contains unlicensed CARTO/Esri tile URLs');
