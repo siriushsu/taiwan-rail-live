@@ -1714,6 +1714,8 @@
   .board .row .t { font-weight: 800; color: var(--ink-strong); }
   .board .row .crowd { display: inline-flex; gap: 2px; flex: none; align-self: center; }
   .board .row .crowd i { width: 5px; height: 10px; border-radius: 1.5px; }
+  /* 手機寬度下,擁擠度格＋「未連結動畫」註記擠不下同一列——藏註記(title 與 aria-disabled 仍在) */
+  @media (max-width: 900px) { .board .row.has-crowd .linknote { display: none; } }
   .board .row .min { color: var(--navy); font-weight: 700; min-width: 44px; text-align: right; }
   /* 車站看板右上角 ☆／× :兩顆吃同一組尺寸與置中,不靠字級與 UA padding 對齊。
      舊寫法各自 top:8px 切「上緣」,但 .close 沒設 padding 而吃到瀏覽器 UA 預設按鈕 padding
@@ -18465,18 +18467,23 @@ function renderTrtcOfficialFreqBoard(el, st, lines, isDeco, view) {
   el._downKey = null; // 不讓 legacy 看板先前的 pointerdown 穿越到官方列
   const hasEstimated = view.groups.some(g => g.kind === 'legacy' && g.ln.times && g.ln.times.estimated);
   const body = view.groups.map(group => {
-    const lineLabel = (group.ln._sysLabel ? group.ln._sysLabel + ' ' : '') + (group.ln.name || group.ln.abbr || '');
+    // 標籤只寫線名不掛系統前綴(08-14 使用者:擁擠度格進來後「台北捷運」四個字把空間吃掉,
+    // 線名本身已足夠辨識)——這裡是北捷官方板,線名(淡水信義線/安坑輕軌/機場捷運)不會歧義。
+    const lineLabel = group.ln.name || group.ln.abbr || group.ln._sysLabel || '';
     if (group.kind === 'official') return group.rows.map(rec => {
       const join = rec.join;
       const followAttrs = join ? ` data-li="${join.li}" data-ci="${join.ci}" title="跟隨 往${escHtml(group.destName)} 班次"`
         : ' aria-disabled="true" title="官方到站時間；目前無法唯一對應動畫班次"';
       const genericLine = rec.ambiguousLine
-        ? (group.ln._sysLabel || '北捷') + (rec.candidates.length && rec.candidates.every(x => x.ln.id.startsWith('O_')) ? ' 中和新蘆線' : '')
+        ? (rec.candidates.length && rec.candidates.every(x => x.ln.id.startsWith('O_')) ? '中和新蘆線' : (group.ln._sysLabel || '北捷'))
         : lineLabel;
-      const linkNote = join ? '' : ' · 未連結動畫';
-      return `<div class="row" data-trtc-eta="${rec.row.eta}" data-trtc-at="${rec.row.at}"${followAttrs}><span class="dot" style="background:${rec.ambiguousLine ? '#8fa8c6' : group.ln.color}"></span>` +
-        `<b>往 ${escHtml(group.destName)}</b><span class="dest">${escHtml(genericLine + linkNote)}</span>` +
-        trtcOfficialCrowdHtml(rec.row.dest) +
+      // 註記獨立成 span:手機寬度＋擁擠度格＋註記三者擠不下(375px 實測溢 51px),
+      // CSS 只在「窄螢幕且該列有 bars」時藏註記;桌面與無 bars 列照舊(title 仍在)。
+      const linkNote = join ? '' : '<span class="linknote"> · 未連結動畫</span>';
+      const crowdHtml = trtcOfficialCrowdHtml(rec.row.dest);
+      return `<div class="row${crowdHtml ? ' has-crowd' : ''}" data-trtc-eta="${rec.row.eta}" data-trtc-at="${rec.row.at}"${followAttrs}><span class="dot" style="background:${rec.ambiguousLine ? '#8fa8c6' : group.ln.color}"></span>` +
+        `<b>往 ${escHtml(group.destName)}</b><span class="dest">${escHtml(genericLine)}${linkNote}</span>` +
+        crowdHtml +
         `<span class="t">${trtcOfficialAbsoluteHM(rec.row.eta)}</span><span class="min">${trtcOfficialCountdownText(rec.row.eta, view.nowMs / 1000)}</span></div>`;
     }).join('');
     return group.rows.map(row => {

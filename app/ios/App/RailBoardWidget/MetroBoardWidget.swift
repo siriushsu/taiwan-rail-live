@@ -27,15 +27,18 @@ struct MetroBoardProvider: AppIntentTimelineProvider {
         // 官方視野約 12 分鐘。刷新間隔壓在視野內,讓「下一次刷新之前資料還有效」。
         // 系統不保證照做——所以版面一律顯示資料時刻,不假裝即時。
         // 🔴 真機回饋(08-14):單一 entry ⇒ 倒數走完【全卡僵在 0:00】直到下次刷新。
-        //    WidgetKit 的 timeline 可以預排未來 entries(Live Activity 做不到的,這裡做得到):
-        //    每個到站時刻+1s 排一個 entry;view 依 entry.date 把已到點的列改顯示「進站」。
-        //    只排前 8 個到站點——entries 太多會吃 timeline 預算,8 個已覆蓋整個資料視野。
+        //    WidgetKit 的 timeline 可以預排未來 entries(Live Activity 做不到的,這裡做得到)。
+        //    每個到站時刻排【兩個】邊界:eta+1(該列換「進站」)、eta+31(該列退場)——
+        //    第二輪真機回饋:只排 +1 的話已到的車永遠掛著「進站」,整排都是進站。
+        //    30 秒停留與 App 看板 TRTC_OFFICIAL_BOARD_ARRIVING_GRACE_SEC 同值。
+        //    etas 不濾掉已過去的:剛到 10 秒的車還要它的 +31 退場邊界。只取前 8 個到站點。
         var entries = [e]
         if let rows = e.snapshot?.rows {
             let now = Date().timeIntervalSince1970
-            let etas = Set(rows.compactMap(\.etaEpoch).filter { $0 > now }).sorted().prefix(8)
-            entries += etas.map { t in
-                MetroEntry(date: Date(timeIntervalSince1970: t + 1), title: e.title,
+            let etas = Set(rows.compactMap(\.etaEpoch)).sorted().prefix(8)
+            let bounds = Set(etas.flatMap { [$0 + 1, $0 + 31] }.filter { $0 > now }).sorted()
+            entries += bounds.map { t in
+                MetroEntry(date: Date(timeIntervalSince1970: t), title: e.title,
                            lineColor: e.lineColor, snapshot: e.snapshot, precision: e.precision,
                            lastTrain: e.lastTrain, failed: e.failed, deepLink: e.deepLink)
             }
@@ -171,14 +174,14 @@ struct MetroBoardView: View {
             if let last = entry.lastTrain {
                 Text("末班 \(last)").font(.caption2).foregroundStyle(.orange).lineLimit(1)
             }
-            if let snap = entry.snapshot, !snap.rows.isEmpty {
-                ForEach(Array(snap.rows.prefix(rowLimit).enumerated()), id: \.offset) { _, r in
+            if !visibleRows.isEmpty {
+                ForEach(Array(visibleRows.prefix(rowLimit).enumerated()), id: \.offset) { _, r in
                     MetroRowView(row: r, precision: entry.precision,
                                  showCrowd: family != .systemSmall,
                                  entryDate: entry.date)
                 }
             } else {
-                Text(entry.snapshot?.stale == true ? "官方目前沒有這一站的班次資訊" : "沒有資料")
+                Text(entry.snapshot != nil ? "官方目前沒有這一站的班次資訊" : "沒有資料")
                     .font(.caption).foregroundStyle(.secondary)
             }
             Spacer(minLength: 0)
@@ -187,6 +190,13 @@ struct MetroBoardView: View {
         // 點小工具 → App 直開這一站的等車卡。未選站時 deepLink 為 nil,widgetURL(nil) 就是
         // 預設行為(單純開 App),不必分支。
         .widgetURL(entry.deepLink)
+    }
+
+    /// 依 entry 時刻過濾:到站超過 30 秒的列整列退場(timeline 在 eta+31 有預排邊界 entry)。
+    /// 分鐘級(etaEpoch nil)不過濾——沒有絕對時刻可判,列到下次刷新為止。
+    private var visibleRows: [MetroRow] {
+        guard let rows = entry.snapshot?.rows else { return [] }
+        return rows.filter { $0.etaEpoch == nil || $0.etaEpoch! + 30 > entry.date.timeIntervalSince1970 }
     }
 
     private var stampText: String {
@@ -212,9 +222,12 @@ struct MetroRowView: View {
                 // 🔴 真機回饋(08-14):倒數歸零後停在 0:00 是殭屍——已到點的列改顯示「進站」。
                 //    判準用 entry.date(timeline 在每個到站時刻+1s 預排了 entry),
                 //    不用 Date()(封存時刻,不會隨時間重算)。
+                // 🔴 進站字樣與倒數共用同一個 56pt trailing 槽——真機回饋(08-14 第三輪):
+                //    倒數有 frame、進站沒有 ⇒ 兩種列的右緣對不齊。
                 if eta <= entryDate.timeIntervalSince1970 + 1 {
                     Text("進站").font(.system(size: 13, weight: .semibold))
                         .foregroundStyle(Color(.sRGB, red: 0.29, green: 0.87, blue: 0.50))
+                        .frame(maxWidth: 56, alignment: .trailing)
                 } else {
                     // 北捷是絕對時刻 ⇒ 交給系統自走,刷新之間也是對的。
                     // 🔴 range 起點必須 clamp:模型層濾掉 eta<=now 用的是「entry 建立時」的 now,
@@ -222,7 +235,8 @@ struct MetroRowView: View {
                     let end = Date(timeIntervalSince1970: eta)
                     Text(timerInterval: min(Date(), end)...end, countsDown: true)
                         .monospacedDigit().font(.system(size: 14, design: .rounded))
-                        .frame(maxWidth: 56)
+                        .multilineTextAlignment(.trailing)
+                        .frame(maxWidth: 56, alignment: .trailing)
                 }
             } else if let m = row.minutes {
                 // 🔴 官方只給整數分鐘 ⇒ 顯示「約 N 分」的靜態文字,不換算成秒、不自走。
