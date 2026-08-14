@@ -205,15 +205,22 @@ struct MetroRowView: View {
                 // 🔴 官方只給整數分鐘 ⇒ 顯示「約 N 分」的靜態文字,不換算成秒、不自走。
                 Text("約 \(m) 分").monospacedDigit().font(.system(size: 14, design: .rounded))
             }
-            if showCrowd, let c = row.crowd, !c.isEmpty {
+            if showCrowd {
+                // 使用者真機回饋(08-14):同一張卡混到沒有擁擠度的線(北捷卡的文湖線)時,
+                // 那一列的時間被推到最右、跟其他列的時間欄對不齊。
+                // ⇒ 擁擠區固定寬佔位:沒資料的列維持【透明空白】(不畫灰格,
+                //    灰格會被讀成「量到了但沒人」),但佔住等寬讓每列時間縱向對齊。
                 HStack(spacing: 1.5) {
-                    ForEach(Array(c.enumerated()), id: \.offset) { _, v in
-                        RoundedRectangle(cornerRadius: 1.5)
-                            .fill(MetroPalette.crowd(v)).frame(width: 5, height: 9)
+                    if let c = row.crowd, !c.isEmpty {
+                        ForEach(Array(c.enumerated()), id: \.offset) { _, v in
+                            RoundedRectangle(cornerRadius: 1.5)
+                                .fill(MetroPalette.crowd(v)).frame(width: 5, height: 9)
+                        }
                     }
                 }
+                .frame(width: 38, alignment: .trailing)
             }
-            // 沒有 crowd 的系統整段不畫——不放灰色空格,空格會被讀成「量到了但沒人」。
+            // showCrowd=false 的整卡(高捷/機捷)全卡都沒有擁擠欄,時間本來就對齊,不佔位。
         }
     }
 }

@@ -17,7 +17,9 @@ struct MetroBoardIntent: AppIntent, WidgetConfigurationIntent {
     /// 定價未決(見設計書 §7)——要改成「免費一站」就把這裡改成 1，其餘程式碼不必動。
     static let freeStationLimit: Int? = nil
 
-    @Parameter(title: "系統")
+    // 🔴 真機實測(08-14):String 參數【沒掛 optionsProvider 就是自由輸入框】——
+    //    使用者看到空白格要自己打字。三格每一格都要有 provider,少一個就漏一格。
+    @Parameter(title: "系統", optionsProvider: MetroSystemOptionsProvider())
     var sys: String?
 
     @Parameter(title: "車站", optionsProvider: MetroStationOptionsProvider())
@@ -29,6 +31,17 @@ struct MetroBoardIntent: AppIntent, WidgetConfigurationIntent {
     // 🔴 刻意【不定義】parameterSummary——定義了它,沒被列進 Summary 的參數那一格
     //    會被整格藏起來(原規劃稿只列 station/dir,「系統」格就消失了)。
     //    出貨的發車看板同樣不定義,三格全部預設顯示(AppIntent.swift:278-286)。
+}
+
+struct MetroSystemOptionsProvider: DynamicOptionsProvider {
+    // 值=系統 id(station provider 的依賴用 id 過濾、看板 entry 也吃 id),顯示=中文全名。
+    func results() async throws -> ItemCollection<String> {
+        ItemCollection(sections: [
+            IntentItemSection("捷運系統", items: MetroWidgetCatalog.shared.systems.map {
+                IntentItem<String>($0.id, title: LocalizedStringResource(stringLiteral: $0.label))
+            })
+        ])
+    }
 }
 
 struct MetroStationOptionsProvider: DynamicOptionsProvider {

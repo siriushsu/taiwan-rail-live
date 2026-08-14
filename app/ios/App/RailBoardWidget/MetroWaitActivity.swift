@@ -110,7 +110,15 @@ struct MetroWaitActivityWidget: Widget {
                     }
                 }
             } compactLeading: {
-                if let c = tint(ctx.attributes.color) { Circle().fill(c).frame(width: 8, height: 8) }
+                // 使用者實機回饋:動態島平常(compact)不顯示方向,等車情報就少了最關鍵的一半。
+                // compact 區寬度由系統硬裁,長站名(南港展覽館)會截尾——有開頭仍比沒有好。
+                HStack(spacing: 3) {
+                    if let c = tint(ctx.attributes.color) { Circle().fill(c).frame(width: 8, height: 8) }
+                    if let d = ctx.state.nextDest, !d.isEmpty {
+                        Text("往\(d)").font(.system(size: 12, weight: .medium)).lineLimit(1)
+                            .frame(maxWidth: 60)
+                    }
+                }
             } compactTrailing: {
                 if ctx.isStale {
                     Text("—").font(.system(size: 13)).foregroundStyle(.secondary)
