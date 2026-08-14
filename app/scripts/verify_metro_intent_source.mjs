@@ -13,15 +13,22 @@ const ok = (n, c, d = '') => { c ? (pass++, console.log(`  PASS ${n}`)) : (fail+
 if (!existsSync(SRC)) { console.log(`FAIL 原始碼不存在: ${SRC}`); process.exit(1); }
 const src = readFileSync(SRC, 'utf8');
 
+// 🔴 判準只看程式碼,不看註解——Direction provider 的說明註解裡就有「\.$station」與
+//    「intent?.station」,不剝掉會同時污染 declared 與 readFields:L3p 對零依賴的 provider
+//    誤觸發還只是小事,最壞情況是未來真的在那裡讀了沒宣告的參數,declared 裡來自註解的
+//    名字會把違規遮成合法——判準在它該開火的那一型上失明。
+//    (本檔沒有含 // 的字串常值;若未來加了,這個逐行去尾要改成語法感知的剝法。)
+const code = src.split('\n').map(l => l.replace(/\/\/.*$/, '')).join('\n');
+
 // 1. 不准用 AppEntity(這個 extension 註冊 AppEntity 一律失敗,兩個參數會被還原成 nil)
 //    conformance 清單裡「, AppEntity」也要抓,不只「: AppEntity」。
-ok('L1 沒有 AppEntity', !/[:,]\s*AppEntity\b/.test(src));
+ok('L1 沒有 AppEntity', !/[:,]\s*AppEntity\b/.test(code));
 
 // 2. 🔴 每個 @IntentParameterDependency 只准綁【一個】keypath——綁兩個那一列整列點不動
 //    (已出貨的發車看板 AppIntent.swift:113-116 與 193-195 兩處實測)。
 //    注意:限制是「每個依賴一個 keypath」,不是「全檔最多一個依賴」——出貨檔就有兩個
 //    provider 各帶一個依賴,都正常。本檔另有設計約定 L2b。
-const depDecls = [...src.matchAll(/@IntentParameterDependency<[^>]*>\(([^)]*)\)/g)];
+const depDecls = [...code.matchAll(/@IntentParameterDependency<[^>]*>\(([^)]*)\)/g)];
 for (const [i, m] of depDecls.entries()) {
   const n = (m[1].match(/\\\.\$/g) || []).length;
   ok(`L2a-${i} 依賴只綁一個 keypath`, n === 1, `綁了 ${n} 個: ${m[1]}`);
@@ -35,7 +42,7 @@ ok('L2b 全檔恰一個依賴且綁 sys', depDecls.length === 1 && /\\\.\$sys\b/
 //    抽出每個 OptionsProvider 的大括號區塊,比對它宣告的依賴 keyPath 與它讀到的 intent 欄位。
 //    🔴 依賴變數必須照出貨慣例命名 intent(AppIntent.swift:124/202)——L3p 鎖住這個約定,
 //    改名會讓這裡的 regex 咬不到、L3 變空過。
-for (const m of src.matchAll(/struct\s+(\w*OptionsProvider)\b[\s\S]*?\n\}/g)) {
+for (const m of code.matchAll(/struct\s+(\w*OptionsProvider)\b[\s\S]*?\n\}/g)) {
   const block = m[0], name = m[1];
   const declared = new Set([...block.matchAll(/\\\.\$(\w+)/g)].map(x => x[1]));
   const readFields = new Set([...block.matchAll(/\bintent\??\.(\w+)/g)].map(x => x[1]));
@@ -46,10 +53,10 @@ for (const m of src.matchAll(/struct\s+(\w*OptionsProvider)\b[\s\S]*?\n\}/g)) {
   // 4. 任何 provider 都不准回 .empty(選單會被系統整個收掉,AppIntent.swift:137-141 實測)
   ok(`L4-${name} 不回 .empty`, !/return\s+\.empty/.test(block));
 }
-ok('L0 真的有抽到 provider', /OptionsProvider/.test(src));
+ok('L0 真的有抽到 provider', /OptionsProvider/.test(code));
 
 // 5. 免費站數常數存在且預設全免費(定價未決,預設值不得擅自改成收費)
-ok('L5 免費站數常數存在', /freeStationLimit\s*:\s*Int\?\s*=\s*nil/.test(src),
+ok('L5 免費站數常數存在', /freeStationLimit\s*:\s*Int\?\s*=\s*nil/.test(code),
    (src.match(/freeStationLimit.*/) || ['(找不到)'])[0]);
 
 // 6. 🔴 不准定義 parameterSummary——定義了它,沒被列進 Summary 的參數那一格會被整格
@@ -60,7 +67,7 @@ ok('L5 免費站數常數存在', /freeStationLimit\s*:\s*Int\?\s*=\s*nil/.test(
 //    這段說明性註解也判定為「有定義」,對自己給的參考碼假紅。改成比對宣告語法(涵蓋
 //    `var parameterSummary` 與 `static var parameterSummary`,因為後者以子字串涵蓋前者),
 //    真的加回宣告(Step 6 的突變)一樣抓得到,只是不再誤判單純提及這個名字的說明文字。
-ok('L6 沒有 parameterSummary', !/\bvar\s+parameterSummary\b/.test(src),
+ok('L6 沒有 parameterSummary', !/\bvar\s+parameterSummary\b/.test(code),
    (src.match(/.*parameterSummary.*/) || ['(找不到)'])[0]);
 
 console.log(`\n總計 PASS=${pass} FAIL=${fail}`);
