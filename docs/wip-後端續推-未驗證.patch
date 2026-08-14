@@ -1,0 +1,84 @@
+diff --git a/scripts/trtc_official_roster.mjs b/scripts/trtc_official_roster.mjs
+index 2373ab5..b150de0 100644
+--- a/scripts/trtc_official_roster.mjs
++++ b/scripts/trtc_official_roster.mjs
+@@ -7,6 +7,10 @@ export const OFFICIAL_ROSTER_SCHEMA = 1;
+ export const TERMINAL_OCCURRENCE_ROLLOVER_SEC = 90;
+ export const EXTENSION_REAPPEAR_ETA_TOLERANCE_SEC = 30;
+ export const OFFICIAL_OWN_SPAN_MAX_SEC = 600;
++// 🔴 2026-08-14 使用者裁示：「我們不要去判斷車子在不在，車子有官方數據就是在。」
++// 這一輪官方沒報到某台車，不是它不見了——沿用最後一筆官方資訊繼續掛在名冊上，
++// 位置交給前端續推（同一個 600 秒，前端 TRTC_OFFICIAL_COAST_MAX_SEC 超過就畫不出來）。
++export const OFFICIAL_CARRY_MAX_SEC = 600;
+ 
+ function finite(value, label) {
+   const number = Number(value);
+@@ -278,6 +282,26 @@ export function reduceOfficialRoster({ model, rows, prior = null, day, nowEpoch,
+     }
+   }
+ 
++  // 🔴 使用者裁示：「我們從他早上一發車就認得他。」官方把終點站改標（短程車↔全程車）會讓
++  // groupKey 的 dest 換掉、整台車被重新發號——同一台車換了編號，畫面上就是舊的不見、新的冒出來。
++  // 第二輪配對只看 line|dir，把改標的那些接回原本的 vehicleId；配對規則（車號硬約束、
++  // 只能沿站序前進）完全沿用第一輪，沒有放寬。
++  const laneNames = new Set();
++  current.forEach((row, index) => { if (!assigned.has(index)) laneNames.add(`${row.line}|${Number(row.dir)}`); });
++  for (const key of [...laneNames].sort()) {
++    const currentLane = current.map((row, index) => ({ row, index }))
++      .filter(x => !assigned.has(x.index) && `${x.row.line}|${Number(x.row.dir)}` === key)
++      .sort((a, b) => compareRows(a.row, b.row));
++    const priorLane = priorVehicles.map(vehicle => matchingPriorVehicle(vehicle, currentLane))
++      .filter(x => x && !usedIds.has(String(x.vehicleId)) && `${x.line}|${Number(x.dir)}` === key)
++      .sort((a, b) => Number(a.routePosition ?? routePosition(a)) - Number(b.routePosition ?? routePosition(b)) ||
++        Number(a.arrEpoch) - Number(b.arrEpoch) || String(a.vehicleId).localeCompare(String(b.vehicleId)));
++    for (const [ci, pi] of alignOrdered(currentLane.map(x => x.row), priorLane, epoch)) {
++      const vehicleId = String(priorLane[pi].vehicleId);
++      assigned.set(currentLane[ci].index, vehicleId); usedIds.add(vehicleId);
++    }
++  }
++
+   let births = 0;
+   for (let index = 0; index < current.length; index++) {
+     if (assigned.has(index)) continue;
+@@ -293,7 +317,7 @@ export function reduceOfficialRoster({ model, rows, prior = null, day, nowEpoch,
+     if (row.displayNo) aliases.set(row.displayNo, vehicleId);
+   }
+ 
+-  let extensions = 0, exits = 0;
++  let extensions = 0, exits = 0, carried = 0;
+   for (const old of priorVehicles.slice().sort(compareVehicles)) {
+     if (!old.vehicleId || usedIds.has(String(old.vehicleId))) continue;
+     let extension = null;
+@@ -302,12 +326,20 @@ export function reduceOfficialRoster({ model, rows, prior = null, day, nowEpoch,
+     } else {
+       extension = finalExtension(model, old, epoch, sourceRevision);
+     }
+-    if (extension) { vehicles.push(extension); usedIds.add(String(extension.vehicleId)); extensions++; }
+-    else exits++;
++    if (extension) { vehicles.push(extension); usedIds.add(String(extension.vehicleId)); extensions++; continue; }
++    // 🔴 有官方數據就是在，不做判定。只有兩種情況拿掉：
++    //   ① 到終點站——跑完了，本來就該收掉；
++    //   ② 續推已超過前端畫得出來的上限——留著也是畫不出來的鬼。
++    if (Number(old.to) !== Number(old.dest) &&
++        epoch - Number(old.arrEpoch) <= OFFICIAL_CARRY_MAX_SEC) {
++      const alive = { ...old, sourceRevision, carried: true,
++        carriedSince: Number.isFinite(Number(old.carriedSince)) ? Number(old.carriedSince) : epoch };
++      vehicles.push(alive); usedIds.add(String(alive.vehicleId)); carried++;
++    } else exits++;
+   }
+ 
+   vehicles.sort(compareVehicles);
+-  if (vehicles.length !== current.length + extensions) throw new Error('official roster 名冊基數不守恆');
++  if (vehicles.length !== current.length + extensions + carried) throw new Error('official roster 名冊基數不守恆');
+   const ids = vehicles.map(x => String(x.vehicleId));
+   if (new Set(ids).size !== ids.length) throw new Error('official roster 同輪 vehicleId 重複');
+   if (vehicles.some(x => x.tripKey != null || x.scheduleKey != null)) throw new Error('official roster 不得混入班表身分');
+@@ -318,7 +350,7 @@ export function reduceOfficialRoster({ model, rows, prior = null, day, nowEpoch,
+     aliases: [...aliases].map(([no, vehicleId]) => ({ no, vehicleId }))
+       .sort((a, b) => a.no.localeCompare(b.no) || a.vehicleId.localeCompare(b.vehicleId)),
+     diagnostics: {
+-      rows: current.length, extensions, births, matches: current.length - births,
++      rows: current.length, extensions, carried, births, matches: current.length - births,
+       hardNoMatches, exits, duplicateOfficialNos: [...noCounts.values()].filter(count => count > 1).length,
+     },
+   };
