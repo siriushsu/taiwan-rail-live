@@ -34,8 +34,27 @@ const MAX_DEV_M = 100;                          // 頂點對代表線段的偏�
 const MIRRORS = [
   'https://overpass-api.de/api/interpreter',
   'https://overpass.kumi.systems/api/interpreter',
+  'https://maps.mail.ru/osm/tools/overpass/api/interpreter',
 ];
-const QUERY = `[out:json][timeout:180];\nway["railway"="platform"](${BBOX});\nout geom;`;
+// 第一段抓「畫得出形狀的月台」。public_transport=platform 要一起抓：OSM 有些站只標了這個、
+// 沒標 railway=platform，只查後者會漏掉（2026-08-14 第一版就漏了）。
+const QUERY = `[out:json][timeout:240];
+(way["railway"="platform"](${BBOX});
+ way["public_transport"="platform"](${BBOX});
+ way["railway"="platform_edge"](${BBOX});
+);
+out geom;`;
+// 第二段：沒有任何月台多邊形的站，改用列車停車點（stop_position／railway=stop）＋站等中位月台長
+// 推一條線段出來。實測 44 座缺幾何的站裡有 43 座有停車點，且停車點離我們登記的站點座標
+// 多半 ≤20m ⇒ 它至少把「站點座標歪掉」這件事修掉（岡山 68m、車埕 35m、三塊厝 25m）。
+const QUERY_STOPS = `[out:json][timeout:240];
+(node["public_transport"="stop_position"]["train"="yes"](${BBOX});
+ node["railway"="stop"](${BBOX});
+);
+out;`;
+// 各站等的「實測月台長中位數」，用來給沒有幾何的站推長度。這五個數字不是拍的，是本腳本
+// 第一段量到的 197 座真實月台按站等取中位（tier 0/1/2/3/4）。資料重抓時會一起重算並印出來。
+const EST_HALF_FALLBACK = [378, 330, 307, 270, 188];
 
 const R = 6371000;
 const rad = d => d * Math.PI / 180;
@@ -73,20 +92,28 @@ const distTrackM = p => {
 };
 
 // ── Overpass ────────────────────────────────────────────────────────────────
-let elements = null;
-for (const url of MIRRORS) {
-  try {
-    const res = await fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'User-Agent': 'railisland/1.0 (+https://railisland.tw)' },
-      body: new URLSearchParams({ data: QUERY }),
-    });
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    elements = (await res.json()).elements || [];
-    console.log(`overpass ok: ${url} → ${elements.length} ways`);
-    break;
-  } catch (e) { console.log(`overpass fail: ${url} — ${e.message}`); }
-}
+// 鏡像很常 504／連不上（實測一輪裡三個鏡像可以全掛），所以是「多輪 × 多鏡像 ＋ 退避」。
+// 抓不到就整支中止、絕不覆蓋既有檔案——半套資料悄悄上線比抓不到嚴重得多。
+const overpass = async (q, label) => {
+  for (let round = 0; round < 4; round++) {
+    for (const url of MIRRORS) {
+      try {
+        const res = await fetch(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'User-Agent': 'railisland/1.0 (+https://railisland.tw)' },
+          body: new URLSearchParams({ data: q }),
+        });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const j = await res.json();
+        console.log(`overpass ok（${label}）: ${url} → ${(j.elements || []).length} 筆`);
+        return j.elements || [];
+      } catch (e) { console.log(`overpass fail（${label}）: ${url} — ${e.message}`); }
+    }
+    await new Promise(r => setTimeout(r, 15000 * (round + 1)));
+  }
+  return null;
+};
+const elements = await overpass(QUERY, '月台');
 if (!elements) { console.error('所有 Overpass 鏡像都失敗，不覆蓋既有檔案'); process.exit(1); }
 
 // ── 指派月台 → 車站 ─────────────────────────────────────────────────────────
@@ -131,6 +158,92 @@ if (worst.dev > MAX_DEV_M) {
   process.exit(1);
 }
 
+// ── 第二段：沒有月台多邊形的站，用停車點＋站等中位月台長推 ────────────────────
+// 為什麼要推：留著不管的話那些站仍在用「可能歪掉的站點座標＋站等半徑」，
+// 而使用者要的是全台可用（懸賞任務會踩到這些站）。推出來的東西標成 derived，
+// 前端一樣走「與站等半徑取聯集」⇒ 只會多給不會少給，估錯的代價有上界。
+const cls = (() => { try { return JSON.parse(readFileSync('data/tra_station_class.json', 'utf8')); } catch (e) { return {}; } })();
+const CLS_TIER = { 特等: 0, 一等: 1, 二等: 2, 三等: 3 };
+const tierOf = n => { const c = cls[n] || cls[n.replace(/台/g, '臺')]; return c ? (CLS_TIER[c] ?? 4) : 4; };
+// 中位數直接從「這一輪實測到的月台」算，不寫死：資料重抓時自己跟著更新。
+// 樣本 < 6 的站等退回 EST_HALF_FALLBACK（tier 0 只有四座，中位數不穩）。
+const estLen = [0, 1, 2, 3, 4].map(t => {
+  const a = Object.entries(out).filter(([n]) => tierOf(n) === t)
+    .map(([, s]) => havM(s[0], s[1])).sort((x, y) => x - y);
+  return a.length >= 6 ? Math.round(a[a.length >> 1]) : EST_HALF_FALLBACK[t];
+});
+console.log(`站等中位月台長（推估用）：${estLen.map((v, i) => `tier${i}=${v}m`).join(' ')}`);
+
+const stopEls = await overpass(QUERY_STOPS, '停車點');
+if (!stopEls) { console.error('停車點抓不到，不覆蓋既有檔案'); process.exit(1); }
+
+// 沿線形走 dist 公尺，回傳終點。
+// 🔴 一定要「走到一半就內插」，不可以直接停在下一個頂點：台鐵線形的頂點間距很不平均
+// （直線段動輒數百公尺一個點），停在頂點會讓推出來的月台長度暴衝——第一版就這樣，
+// tier4 該是 188m 的段量出來 244～1149m。
+const lerp = (a, b, t) => [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t];
+const walk = (shape, i, dir, dist) => {
+  let acc = 0, k = i;
+  for (;;) {
+    const nk = k + dir;
+    if (nk < 0 || nk >= shape.length) return shape[k];        // 走到線尾就到此為止
+    const d = havM(shape[k], shape[nk]);
+    if (acc + d >= dist) return lerp(shape[k], shape[nk], (dist - acc) / d);
+    acc += d; k = nk;
+  }
+};
+const derived = {};
+const noStop = [];
+for (const [name, c] of stations) {
+  if (out[name]) continue;
+  // 只收「貼著台鐵線形」的停車點：高鐵／捷運共站時它們的停車點也在附近，不濾會被拉走
+  const stops = stopEls.map(n => [n.lat, n.lon])
+    .filter(p => havM(c, p) <= 400 && distTrackM(p) <= TRACK_NEAR_M);
+  if (!stops.length) { noStop.push(name); continue; }
+  const ctr = [stops.reduce((s, p) => s + p[0], 0) / stops.length, stops.reduce((s, p) => s + p[1], 0) / stops.length];
+  // 找最近的線形頂點（哪一條線、第幾點），從那裡往兩邊各走半個月台長
+  let best = { d: Infinity, shape: null, i: -1 };
+  for (const ln of tra.lines) for (let i = 0; i < ln.shape.length; i++) {
+    const d = havM(ctr, ln.shape[i]);
+    if (d < best.d) best = { d, shape: ln.shape, i };
+  }
+  if (!best.shape || best.d > TRACK_NEAR_M * 2) { noStop.push(name); continue; }
+  const half = estLen[tierOf(name)] / 2;
+  const a = walk(best.shape, best.i, -1, half), b = walk(best.shape, best.i, +1, half);
+  if (havM(a, b) < 20) { noStop.push(name); continue; }
+  const r5 = v => Math.round(v * 1e5) / 1e5;
+  derived[name] = [[r5(a[0]), r5(a[1])], [r5(b[0]), r5(b[1])]];
+}
+
+// ── 自我把關：任何一站的線段都不可以伸進別站的判定範圍 ─────────────────────
+// （前端橫向容忍 120m ⇒ 兩條線段靠得比 240m 近就可能互相涵蓋。推估的那些先被撤掉，
+//   實測的留著；實測還撞在一起的話是資料本身有問題，直接 fail 不出檔。）
+const LATERAL_M = 120;
+const segDistM = (s1, s2) => {
+  const o = s1[0];
+  return Math.min(distSegM(s2[0], s1[0], s1[1], o), distSegM(s2[1], s1[0], s1[1], o),
+    distSegM(s1[0], s2[0], s2[1], o), distSegM(s1[1], s2[0], s2[1], o));
+};
+const dropped = [];
+// 🔴 每一輪都要用「當下還活著的集合」比對：拿一份開頭拍的快照去比，會把已經被撤掉的那條
+// 又算成一次衝突，於是同一對站兩邊都被撤（第一版就這樣，北湖／湖口、善化／南科 四座全滅）。
+for (const n of Object.keys(derived)) {
+  for (const [m, t] of Object.entries({ ...out, ...derived })) {
+    if (m === n) continue;
+    if (segDistM(derived[n], t) <= LATERAL_M * 2) { delete derived[n]; dropped.push(`${n}(撞${m})`); break; }
+  }
+}
+{
+  const names = Object.keys(out);
+  const clash = [];
+  for (let i = 0; i < names.length; i++) for (let j = i + 1; j < names.length; j++)
+    if (segDistM(out[names[i]], out[names[j]]) <= LATERAL_M * 2) clash.push(`${names[i]}↔${names[j]}`);
+  if (clash.length) {
+    console.error(`實測月台線段互相涵蓋：${clash.join('、')} ⇒ 資料有問題，不寫檔`);
+    process.exit(1);
+  }
+}
+
 // 站名對不上班表的話前端一輩子查不到，出檔前先講
 const schedNames = new Set();
 try {
@@ -138,22 +251,26 @@ try {
     for (const s of tr.stops) schedNames.add(s.name);
 } catch (e) { console.log('（讀不到 tra_schedule_dense.json，跳過站名對照）'); }
 if (schedNames.size) {
-  const orphan = Object.keys(out).filter(n => !schedNames.has(n));
+  const orphan = [...Object.keys(out), ...Object.keys(derived)].filter(n => !schedNames.has(n));
   console.log(`站名對不上班表的：${orphan.length ? orphan.join('、') : '(無)'}`);
 }
 
 const doc = {
-  source: 'OpenStreetMap contributors — way[railway=platform]，經 Overpass API 取得',
+  source: 'OpenStreetMap contributors — way[railway=platform／public_transport=platform／railway=platform_edge] 與 node[stop_position／railway=stop]，經 Overpass API 取得',
   license: 'ODbL 1.0（https://www.openstreetmap.org/copyright）',
-  note: '每站一條「代表線段」＝該站區所有月台頂點中相距最遠的兩點；共站站區（如台北的高鐵月台）刻意保留。前端把它當「人在不在這座站」的判定基準，見 index.html 的 checkinJudge。',
+  note: 'stations＝實測：該站區所有月台頂點中相距最遠的兩點（共站站區如台北的高鐵月台刻意保留）。derived＝推估：OSM 沒有月台多邊形的站，取列車停車點沿路線走「該站等的中位月台長」推出來的線段。前端把兩者都當「人在不在這座站」的判定基準，並與站等半徑取聯集，見 index.html 的 checkinJudge。',
   built_at: new Date().toISOString(),
   bbox: BBOX,
-  filters: { trackNearM: TRACK_NEAR_M, stationNearM: STATION_NEAR_M },
+  filters: { trackNearM: TRACK_NEAR_M, stationNearM: STATION_NEAR_M, lateralM: LATERAL_M },
   maxSegmentDevM: Math.round(worst.dev),
+  estLenByTier: estLen,
   stations: out,
+  derived,
 };
 writeFileSync(OUT, JSON.stringify(doc), 'utf8');
-console.log(`月台 way ${elements.length} → 貼台鐵線形 ${nearTrack} → 指派到 ${Object.keys(out).length} 站`);
+console.log(`月台 way ${elements.length} → 貼台鐵線形 ${nearTrack} → 實測 ${Object.keys(out).length} 站`);
 console.log(`頂點對線段最大偏差 ${worst.dev.toFixed(0)}m（${worst.name}）`);
-console.log(`沒有月台幾何、維持站等半徑的站：${[...stations.keys()].filter(n => !out[n]).length} 座`);
+console.log(`停車點推估補上 ${Object.keys(derived).length} 站${dropped.length ? `；撤掉會與鄰站互相涵蓋的 ${dropped.length} 座：${dropped.join('、')}` : ''}`);
+const left = [...stations.keys()].filter(n => !out[n] && !derived[n]);
+console.log(`仍無幾何、維持站等半徑的：${left.length} 座${left.length ? `（${left.join('、')}）` : ''}`);
 console.log(`wrote ${OUT}`);

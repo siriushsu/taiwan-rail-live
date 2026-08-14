@@ -43,6 +43,14 @@ const ok = (n, p, msg = '') => { R.push({ n, p }); console.log(`${p ? '  ok ' : 
 }
 
 const disk = JSON.parse(readFileSync(path.join(ROOT, 'data/tra_platforms.json'), 'utf8'));
+const diskAll = { ...disk.stations, ...disk.derived };   // 前端把兩者合併使用
+const cls = JSON.parse(readFileSync(path.join(ROOT, 'data/tra_station_class.json'), 'utf8'));
+const CLS_TIER = { 特等: 0, 一等: 1, 二等: 2, 三等: 3 };
+const tierOf = n => { const c = cls[n] || cls[n.replace(/台/g, '臺')]; return c ? (CLS_TIER[c] ?? 4) : 4; };
+const R_EARTH = 6371000, rad = d => d * Math.PI / 180;
+const havM = (a, b) => { const dLat = rad(b[0] - a[0]), dLon = rad(b[1] - a[1]);
+  const x = Math.sin(dLat / 2) ** 2 + Math.cos(rad(a[0])) * Math.cos(rad(b[0])) * Math.sin(dLon / 2) ** 2;
+  return 2 * R_EARTH * Math.asin(Math.sqrt(x)); };
 const browser = await (ENGINE === 'webkit' ? webkit : chromium).launch();
 console.log(`引擎：${ENGINE}`);
 const ctx = await browser.newContext({ viewport: { width: 1440, height: 900 } });
@@ -84,10 +92,12 @@ try {
 // ── A 資料檔本身 ────────────────────────────────────────────────────────────
 const loaded = await page.evaluate(() => state.stnPlatforms);
 ok('A1 前端真的載到月台幾何', !!loaded && Object.keys(loaded).length > 100, `${loaded ? Object.keys(loaded).length : 0} 站`);
-ok('A2 磁碟檔與前端載到的站數一致', Object.keys(disk.stations).length === Object.keys(loaded || {}).length);
+ok('A2 磁碟檔（實測＋推估）與前端載到的站數一致',
+  Object.keys(diskAll).length === Object.keys(loaded || {}).length,
+  `實測 ${Object.keys(disk.stations).length} ＋ 推估 ${Object.keys(disk.derived || {}).length} = ${Object.keys(diskAll).length}`);
 ok('A3 汐科在資料裡', !!(loaded && loaded['汐科']));
 {
-  const bad = Object.entries(disk.stations).filter(([, s]) =>
+  const bad = Object.entries(diskAll).filter(([, s]) =>
     !Array.isArray(s) || s.length !== 2 || s.some(p => !Array.isArray(p) || p.length !== 2
       || p[0] < 21.5 || p[0] > 25.5 || p[1] < 119.5 || p[1] > 122.5));
   ok('A4 每站都是「台灣範圍內的兩點線段」', bad.length === 0, bad.slice(0, 3).map(b => b[0]).join('、'));
@@ -101,6 +111,30 @@ ok('A3 汐科在資料裡', !!(loaded && loaded['汐科']));
   ok('A5 每個鍵都對得上班表站名', miss.length === 0, miss.slice(0, 5).join('、'));
 }
 
+{
+  // 推估段的長度必須恰好是「該站等的中位月台長」（走到線尾被截斷只會更短，不可能更長）。
+  // 這條在守一個真的踩過的 bug：沿線形走的時候若不內插、直接停在下一個頂點，台鐵線形的
+  // 稀疏直線段會讓 188m 的段暴衝成 1149m —— 那等於在鄰站之間撒出一大片誤判區。
+  const bad = Object.entries(disk.derived || {}).map(([n, s]) => {
+    const len = havM(s[0], s[1]), want = disk.estLenByTier[tierOf(n)];
+    return (len > want + 3 || len < 20) ? `${n} ${Math.round(len)}m>${want}m` : null;
+  }).filter(Boolean);
+  ok(`A6 推估段長度 ≤ 該站等的中位月台長＋座標取位誤差（${Object.keys(disk.derived || {}).length} 座）`,
+    bad.length === 0, bad.slice(0, 5).join('、'));
+}
+{
+  // 推估段是「拿別站的中位數套上來」，它的中心點必須真的在該站附近，否則就是套錯站
+  const bad = Object.entries(disk.derived || {}).map(([n, s]) => {
+    const st = (JSON.parse(readFileSync(path.join(ROOT, 'data/tra.json'), 'utf8')).lines
+      .flatMap(l => l.stations || []).find(x => x.name === n));
+    if (!st) return `${n} 查無站點`;
+    const mid = [(s[0][0] + s[1][0]) / 2, (s[0][1] + s[1][1]) / 2];
+    const d = havM([st.lat, st.lon], mid);
+    return d > 150 ? `${n} 中心離站點 ${Math.round(d)}m` : null;
+  }).filter(Boolean);
+  ok('A7 推估段的中心點就在該站站點附近（≤150m）', bad.length === 0, bad.slice(0, 5).join('、'));
+}
+
 // 頁面內共用的小工具：依站名取 schedStations 的站物件、對某座標判定
 await page.evaluate(() => {
   window.__stOf = n => state.schedStations.find(s => s.sys === 'tra_sched' && s.name === n);
@@ -112,6 +146,23 @@ await page.evaluate(() => {
   };
   window.__mid = seg => [(seg[0][0] + seg[1][0]) / 2, (seg[0][1] + seg[1][1]) / 2];
 });
+
+{
+  // 別名站（座標完全相同、班表裡兩個名字）：幾何只會掛在其中一個名下，另一個名字也必須查得到，
+  // 否則同一座月台會有一半的入口退回站等半徑。三對實測：臺北/臺北-環島、新城/新城 (太魯閣)、左營/左營(舊城)
+  const res = await page.evaluate(() => {
+    const out = [];
+    for (const st of state.schedStations.filter(s => s.sys === 'tra_sched')) {
+      const alias = checkinAliasMap(), pre = st.sys + '|';
+      const canon = alias.get(pre + st.name) || st.name;
+      const group = [...alias].filter(([k, v]) => v === canon && k.startsWith(pre)).map(([k]) => k.slice(pre.length));
+      const groupHas = [st.name, canon, ...group].some(n => state.stnPlatforms[n]);
+      if (groupHas && !checkinPlatformSeg(st)) out.push(st.name);
+    }
+    return out;
+  });
+  ok('A8 別名站也查得到同一座月台的幾何（臺北-環島／新城／左營）', res.length === 0, res.join('、'));
+}
 
 // ── B 汐科：月台上任一處都要打得到卡 ───────────────────────────────────────
 const xike = disk.stations['汐科'];
@@ -185,8 +236,11 @@ for (const [m, want] of [[40, true], [200, false]]) {
 {
   // 沒有月台幾何的 44 座：行為必須與改動前一致（站等半徑內過、半徑＋50m 外不過）
   const res = await page.evaluate(() => {
-    const P = state.stnPlatforms, inside = [], outside = [];
-    for (const st of state.schedStations.filter(s => s.sys === 'tra_sched' && !P[s.name])) {
+    // 用 checkinPlatformSeg() 判「有沒有幾何」而不是直接查鍵：別名站查得到同一座月台，
+    // 用鍵去數會把它們誤算成沒幾何（那正是 A8 在守的事）
+    const noGeo = state.schedStations.filter(s => s.sys === 'tra_sched' && !checkinPlatformSeg(s));
+    const inside = [], outside = [];
+    for (const st of noGeo) {
       const r = checkinRadiusFor(st);
       state.meLoc = { lat: st.lat, lon: st.lon, acc: 0 };
       if (!checkinJudge(st).ok) inside.push(st.name);
@@ -194,10 +248,11 @@ for (const [m, want] of [[40, true], [200, false]]) {
       state.meLoc = { lat: st.lat + (r + 50) / 110540, lon: st.lon, acc: 0 };
       if (checkinJudge(st).ok) outside.push(st.name);
     }
-    return { n: state.schedStations.filter(s => s.sys === 'tra_sched' && !P[s.name]).length, inside, outside };
+    return { n: noGeo.length, inside, outside, names: noGeo.map(s => s.name) };
   });
-  ok(`D2 無月台幾何的 ${res.n} 座站：半徑內過`, res.inside.length === 0, res.inside.slice(0, 5).join('、'));
-  ok(`D2b 無月台幾何的 ${res.n} 座站：半徑+50m 外不過`, res.outside.length === 0, res.outside.slice(0, 5).join('、'));
+  ok(`D2 仍無月台幾何的 ${res.n} 座站：半徑內過`, res.inside.length === 0, res.inside.slice(0, 5).join('、'));
+  ok(`D2b 仍無月台幾何的 ${res.n} 座站：半徑+50m 外不過`, res.outside.length === 0, res.outside.slice(0, 5).join('、'));
+  console.log(`       （仍無幾何：${res.names.join('、')}）`);
 }
 
 // ── E 核心那條真的來自新資料（把資料拔掉必須全紅） ─────────────────────────

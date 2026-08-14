@@ -3640,7 +3640,7 @@
         <li><span class="d">7/13</span><span>新增「附近火車」：地圖上落一根釘，查周邊 60 分鐘內會通過的車次</span></li>
         <li><span class="d">7/12</span><span>新增平交道功能：點一下查接下來會通過的列車（7/13 補上貨運線 21 處）</span></li>
         <li class="grp">收藏、護照與成就</li>
-        <li data-cl="checkinplatform"><span class="d">8/14</span><span>單站蓋章改用月台範圍判定：像汐科這種月台特別長的車站，以前站在月台中段或另一端都按不下去，現在整條月台上任何位置都蓋得到章（謝謝網友回報）</span></li>
+        <li data-cl="checkinplatform"><span class="d">8/14</span><span>單站蓋章改用月台範圍判定：像汐科這種月台特別長的車站，以前站在月台中段或另一端都按不下去，現在整條月台上任何位置都蓋得到章。全台鐵 241 座車站裡有 239 座換上各自的月台範圍（謝謝網友回報）</span></li>
         <li data-cl="favtrainkey"><span class="d">8/3</span><span>台鐵與高鐵有些車次號碼相同，過去收藏其中一班會蓋掉另一班，移除時也會兩班一起消失；現在最愛列車會連同鐵路系統分開辨認，同號車可以各自收藏與移除</span></li>
         <li data-cl="founding"><span class="d">8/4</span><span>在創始期間訂閱通行證的島民，App 的旅程護照最上方會多一枚「創始島民」徽章，之後才訂閱的不會有；徽章跟著訂閱資格走，退訂或登出就一起收起來</span></li>
         <li><span class="d">7/30</span><span>搜尋一班今天已經跑完（或還沒發車）的車，時鐘會確實停在它發車前，不再過一秒就彈回現在——那正是原本會莫名跳出「完乘達成」的原因（謝謝網友回報）</span></li>
@@ -12280,7 +12280,15 @@ function checkinPlatformSeg(st) {
   if (!m || st.sys !== 'tra_sched') return null; // 目前只有台鐵有這份幾何,其餘系統照舊走站等半徑
   // 刻意不做「台/臺」正規化:這份檔的鍵直接取自 data/tra.json,與班表同源、逐字對得上
   // (verify_checkin_platform 的 A5 就在守這件事)。加了 fallback 只會讓日後真的漂移時靜默查不到。
-  return m[st.name] || null;
+  if (m[st.name]) return m[st.name];
+  // 但別名站要接:同一座月台在班表裡有兩個名字(臺北/臺北-環島、新城/新城 (太魯閣)、
+  // 左營/左營(舊城)),幾何只掛在其中一個名下。用既有的「座標完全相同就分群」別名表回頭找
+  // 同群的其他名字——不能只查 canonical,因為 canonical 挑的是站等較小的那個,不一定是
+  // 有幾何的那個(新城 的 canonical 是「新城」,幾何卻掛在「新城 (太魯閣)」)。
+  const alias = checkinAliasMap(), pre = st.sys + '|', canon = alias.get(pre + st.name) || st.name;
+  if (m[canon]) return m[canon];
+  for (const [k, v] of alias) if (v === canon && k.startsWith(pre) && m[k.slice(pre.length)]) return m[k.slice(pre.length)];
+  return null;
 }
 // 點到線段的最短距離(公尺)。站區尺度直接用以該點為原點的本地平面投影就夠準。
 function distToSegM(p, seg) {
@@ -20495,7 +20503,10 @@ async function boot() {
   state.stnInfoMap = await fetchJSON('./data/tra_station_info.json') || {};
   // 台鐵各站月台幾何(scripts/fetch_tra_platforms.mjs 由 OSM 產):單站打卡判「人在不在這座站」用。
   // 缺檔 → checkinJudge 全數退回站等半徑,行為與 2026-08-14 之前完全相同。
-  state.stnPlatforms = (await fetchJSON('./data/tra_platforms.json'))?.stations || null;
+  // stations＝OSM 實測到的月台幾何;derived＝OSM 沒畫月台的站,用列車停車點沿路線走「該站等的
+  // 中位月台長」推出來的。判定不分兩者——反正都與站等半徑取聯集,推歪的代價有上界(只會多給章)。
+  const pf = await fetchJSON('./data/tra_platforms.json');
+  state.stnPlatforms = pf ? { ...pf.stations, ...pf.derived } : null;
   // StationID → 站名反查表(stnInfoMap 是站名→資訊,方向相反):今日台鐵動態的 sta 欄位是 StationID,靠這張表轉中文站名
   state.stnIdToName = {};
   for (const s of Object.values(state.stnInfoMap)) if (s && s.id) state.stnIdToName[s.id] = s.name;
