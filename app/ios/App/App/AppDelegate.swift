@@ -1,6 +1,7 @@
 import UIKit
 import Capacitor
 import FirebaseCore
+import WidgetKit
 
 @UIApplicationMain
 class AppDelegate: UIResponder, UIApplicationDelegate {
@@ -45,7 +46,11 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     }
 
     func applicationDidBecomeActive(_ application: UIApplication) {
-        // Restart any tasks that were paused (or not yet started) while the application was inactive. If the application was previously in the background, optionally refresh the user interface.
+        // 捷運看板小工具的資料視野只有 ~12 分鐘,WidgetKit 又不保證照 policy 刷新——
+        // 真機回饋(08-14):視野走完後小工具長時間掛著「沒有班次資訊」＋舊時戳。
+        // 使用者開 App 就是最強的刷新訊號:每次回前景都叫小工具重抓一輪(這個 reload
+        // 不吃 WidgetKit 的排程預算)。只刷捷運看板,不碰發車看板(它有自己的管線)。
+        WidgetCenter.shared.reloadTimelines(ofKind: "MetroBoardWidget")
     }
 
     func applicationWillTerminate(_ application: UIApplication) {

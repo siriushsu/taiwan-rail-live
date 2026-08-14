@@ -180,6 +180,10 @@ struct MetroBoardView: View {
                                  showCrowd: family != .systemSmall,
                                  entryDate: entry.date)
                 }
+            } else if entry.snapshot?.rows.isEmpty == false {
+                // 有資料但全被「到站+30秒退場」濾光=資料視野(≈12分鐘)用完了,WidgetKit 還沒給
+                // 下一次刷新——這不是「官方沒班次」,寫成那樣會被讀成末班已過(真機回饋 08-14)。
+                Text("資料過舊，打開軌島即更新").font(.caption).foregroundStyle(.secondary)
             } else {
                 Text(entry.snapshot != nil ? "官方目前沒有這一站的班次資訊" : "沒有資料")
                     .font(.caption).foregroundStyle(.secondary)

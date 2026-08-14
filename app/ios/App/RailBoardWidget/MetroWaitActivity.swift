@@ -20,6 +20,15 @@ struct MetroWaitActivityWidget: Widget {
         }
     }
 
+    /// 島上顯示的方向:未 stale=首班;stale(首班已到)且有次班=次班——與倒數的駁接邏輯同步,
+    /// 方向和時間必須指同一班車,不然「往北投 4:29」其實是往淡水的次班就成了假資訊。
+    private func islandDest(_ ctx: ActivityViewContext<MetroWaitAttributes>) -> String? {
+        if ctx.isStale, ctx.state.secondEta != nil || ctx.state.secondMinutes != nil {
+            return ctx.state.secondDest ?? ctx.state.nextDest
+        }
+        return ctx.state.nextDest
+    }
+
     private func tint(_ hex: String?) -> Color? {
         guard var s = hex, !s.isEmpty else { return nil }
         if s.hasPrefix("#") { s.removeFirst() }
@@ -99,7 +108,12 @@ struct MetroWaitActivityWidget: Widget {
                     }
                 }
                 DynamicIslandExpandedRegion(.trailing) {
-                    if ctx.isStale {
+                    // 🔴 stale(首班已到)後島上不能凍在「進站」——零推播卡永遠不會再 update,
+                    //    真機回饋(08-14 第四輪)凍住被讀成「功能失效」。次班是絕對時刻,
+                    //    倒數自走還有效 ⇒ stale 後整個島改駁次班;沒有次班才顯示靜態「進站」。
+                    if ctx.isStale, ctx.state.secondEta != nil || ctx.state.secondMinutes != nil {
+                        countdown(eta: ctx.state.secondEta, minutes: ctx.state.secondMinutes, size: 18)
+                    } else if ctx.isStale {
                         Text("進站").font(.system(size: 16, weight: .semibold))
                             .foregroundStyle(Color(.sRGB, red: 0.29, green: 0.87, blue: 0.50))
                     } else {
@@ -108,9 +122,9 @@ struct MetroWaitActivityWidget: Widget {
                 }
                 DynamicIslandExpandedRegion(.bottom) {
                     HStack {
-                        Text("往 \(ctx.state.nextDest ?? "—")").font(.caption2)
+                        Text("往 \(islandDest(ctx) ?? "—")").font(.caption2)
                         Spacer()
-                        crowdBar(ctx.state.crowd)
+                        if !ctx.isStale { crowdBar(ctx.state.crowd) } // 擁擠度屬首班,首班走了就不掛著
                     }
                 }
             } compactLeading: {
@@ -118,13 +132,16 @@ struct MetroWaitActivityWidget: Widget {
                 // compact 區寬度由系統硬裁,長站名(南港展覽館)會截尾——有開頭仍比沒有好。
                 HStack(spacing: 3) {
                     if let c = tint(ctx.attributes.color) { Circle().fill(c).frame(width: 8, height: 8) }
-                    if let d = ctx.state.nextDest, !d.isEmpty {
+                    if let d = islandDest(ctx), !d.isEmpty {
                         Text("往\(d)").font(.system(size: 12, weight: .medium)).lineLimit(1)
                             .frame(maxWidth: 60)
                     }
                 }
             } compactTrailing: {
-                if ctx.isStale {
+                if ctx.isStale, ctx.state.secondEta != nil || ctx.state.secondMinutes != nil {
+                    countdown(eta: ctx.state.secondEta, minutes: ctx.state.secondMinutes, size: 13)
+                        .frame(maxWidth: 44)
+                } else if ctx.isStale {
                     Text("進站").font(.system(size: 13, weight: .semibold))
                         .foregroundStyle(Color(.sRGB, red: 0.29, green: 0.87, blue: 0.50))
                 } else {
@@ -132,7 +149,10 @@ struct MetroWaitActivityWidget: Widget {
                         .frame(maxWidth: 44)
                 }
             } minimal: {
-                if ctx.isStale {
+                if ctx.isStale, ctx.state.secondEta != nil || ctx.state.secondMinutes != nil {
+                    countdown(eta: ctx.state.secondEta, minutes: ctx.state.secondMinutes, size: 12)
+                        .frame(maxWidth: 32)
+                } else if ctx.isStale {
                     Text("進站").font(.system(size: 11, weight: .semibold))
                         .foregroundStyle(Color(.sRGB, red: 0.29, green: 0.87, blue: 0.50))
                 } else {
