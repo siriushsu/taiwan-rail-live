@@ -64,16 +64,44 @@ for (const eng of ENGINES) {
     return { rosterDay: state.wallDay, cands };
   });
 
-  const guarded = setup.cands.filter(c => c.noPrevWrap);
-  const control = setup.cands.filter(c => !c.noPrevWrap);
+  let guarded = setup.cands.filter(c => c.noPrevWrap);
+  let control = setup.cands.filter(c => !c.noPrevWrap);
   console.log(`[${eng}] 名冊日 ${setup.rosterDay}；跨午夜班 ${setup.cands.length}，其中 _noPrevWrap ${guarded.length}、對照 ${control.length}`);
 
-  if (!guarded.length) {
-    console.error('中止：今天的名冊裡沒有「跨午夜且昨天沒開」的班，這支腳本今天驗不到東西。' +
-      '換一天跑（2026-08-14 有 452），或以固定語料重跑。中止不等於通過。');
-    await browser.close();
-    process.exit(2);
+  // 午夜之後的取樣點（秒/日 0..600，每 20 秒一點）——重播中的車此時仍在路上
+  const afterMidnight = Array.from({ length: 31 }, (_, i) => i * 20);
+  // 清晨取樣點（03:00 起每分鐘，共 13 點）——用來驗幽靈班仍被擋
+  const earlyMorning = Array.from({ length: 13 }, (_, i) => 10800 + i * 60);
+
+  // 合成語料：`_noPrevWrap` 是**逐日名冊**的性質,2026-08-14 只有 452 一班,換一天很可能一班都沒有
+  //   ⇒ 這支會 exit 2 中止,等於沒有長期回歸能力（兩輪驗收都提了這件事）。
+  //   自然語料不足時,就把一班跨午夜的對照車在頁面內標成 `_noPrevWrap`（頁面每次跑都是全新載入,
+  //   不會污染任何檔案）——守衛判的就是這兩個欄位,標了之後它對守衛而言與真的 452 無法區分。
+  //   FORCE_FIXTURE=1 可強制走這條路徑：**否則這段退路永遠不會被執行,等於未測試的程式碼**。
+  const FORCE_FIXTURE = process.env.FORCE_FIXTURE === '1';
+  if (!guarded.length || FORCE_FIXTURE) {
+    const need = 86400 + afterMidnight[afterMidnight.length - 1];  // 門檻由取樣窗推導,不手打常數
+    const donor = control.find(c => c.lastArr >= need);           // 午夜後要撐過整個取樣窗,A 才不是空過
+    if (!donor) {
+      console.error(`中止：今天沒有任何跨午夜班撐過取樣窗（需終到 ≥ ${need}），無法合成語料。中止不等於通過。`);
+      await browser.close();
+      process.exit(2);
+    }
+    const ok = await page.evaluate(({ trainNo, rosterDay }) => {
+      const tr = state.trains.find(t => t.sys === 'tra_sched' && String(t.train) === trainNo);
+      if (!tr) return false;
+      tr.stops._noPrevWrap = true; tr.stops._rosterDay = rosterDay;   // 守衛只看這兩個欄位
+      return tr.stops._noPrevWrap === true && tr.stops._rosterDay === rosterDay;
+    }, { trainNo: donor.train, rosterDay: setup.rosterDay });
+    if (!ok) { console.error('中止：合成語料寫入失敗。中止不等於通過。'); await browser.close(); process.exit(2); }
+    guarded = [{ ...donor, noPrevWrap: true, synthetic: true }];
+    control = control.filter(c => c.train !== donor.train);
+    console.log(`[${eng}] ⚠ 使用合成語料：把對照班 ${donor.train} 標成 _noPrevWrap（原因：` +
+      (FORCE_FIXTURE ? 'FORCE_FIXTURE=1 強制走退路' : '今天名冊沒有自然的 _noPrevWrap 跨夜班') + '）');
   }
+  check(`[${eng}] G1 語料閘門：有可測的「跨午夜且昨天沒開」的班，且有對照班`,
+    guarded.length > 0 && control.length > 0,
+    `受測 ${guarded.map(c => c.train + (c.synthetic ? '(合成)' : '')).join(',')}；對照 ${control.length} 班`);
 
   // 走使用者的真實路徑：setFollow 進去，讓它自己撥鐘，再逐點推進模擬時鐘掃過午夜。
   //
@@ -81,9 +109,14 @@ for (const eng of ENGINES) {
   // 已經到終點的車本來就該被收走（使用者裁示「到終點站車子就拿掉」），那不是缺陷。
   // 首輪就踩到：對照班 1283 終到 86880（00:08），固定窗的 500–600 六個點全落在它到站之後，
   // 讓 B 假紅。判準改成「只驗它還在路上的那些點」——窗長由 lastArr 算出來，不是手打的常數。
-  const followSweep = (trainNo, secs, lastArr) => page.evaluate(({ trainNo, secs, lastArr }) => {
+  const followSweep = (trainNo, secs, lastArr, dep) => page.evaluate(({ trainNo, secs, lastArr, dep }) => {
     const tr = state.trains.find(t => t.sys === 'tra_sched' && String(t.train) === trainNo);
     if (!tr) return null;
+    // 先把時鐘放到「這班還沒發車」——這是缺陷⑤的原始情境（使用者晚上點跟隨一班還沒發車的跨夜班）。
+    // 🔴 不做這件事的話，判準會隨「跑測試的當下是幾點」而變：452 現在還沒發車所以撥鐘分支會觸發，
+    //    但 23:59 之後跑同一支就變成「車已在跑」⇒ 不撥鐘 ⇒ A 假紅。合成語料時更明顯（捐贈者
+    //    多半早就發車了）。窗由班表推導，不依賴真實時鐘。
+    setSimSec(Math.max(0, dep - 600) % 86400);
     setFollow(tr, false, true);                    // noJump=true：不要動地圖，只要它撥鐘
     const inRun = secs.filter(sec => sec + 86400 <= lastArr);   // 午夜後仍在路上的取樣點
     const rec = { train: trainNo, afterFollowSim: state.simSec, clockAtNow: state.clockAtNow,
@@ -94,15 +127,11 @@ for (const eng of ENGINES) {
       if (trainPos(tr, sec)) rec.drawn++; else rec.gaps.push(sec);
     }
     return rec;
-  }, { trainNo, secs, lastArr });
+  }, { trainNo, secs, lastArr, dep });
 
-  // 午夜之後的取樣點（秒/日 0..600，每 20 秒一點）——重播中的車此時仍在路上
-  const afterMidnight = Array.from({ length: 31 }, (_, i) => i * 20);
-  // 清晨取樣點（03:00 起每分鐘，共 13 點）——用來驗幽靈班仍被擋
-  const earlyMorning = Array.from({ length: 13 }, (_, i) => 10800 + i * 60);
 
   const A = [];
-  for (const c of guarded) A.push(await followSweep(c.train, afterMidnight, c.lastArr));
+  for (const c of guarded) A.push(await followSweep(c.train, afterMidnight, c.lastArr, c.dep));
   // A0 分母閘門：窗長為 0 的話 A 是空過的全稱斷言（沒有任何點被驗到）
   const Athin = A.filter(r => !r || r.total < 1);
   check(`[${eng}] A0 分母閘門：每一班受測車在午夜後都還有取樣點（否則 A 是空過）`,
@@ -118,7 +147,7 @@ for (const eng of ENGINES) {
 
   const Bset = control.slice(0, 3);
   const B = [];
-  for (const c of Bset) B.push(await followSweep(c.train, afterMidnight, c.lastArr));
+  for (const c of Bset) B.push(await followSweep(c.train, afterMidnight, c.lastArr, c.dep));
   const Bthin = B.filter(r => !r || r.total < 1);
   check(`[${eng}] B0 分母閘門：對照班在午夜後也還有取樣點（否則 B 是空過）`,
     Bset.length > 0 && Bthin.length === 0,
