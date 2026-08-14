@@ -21,13 +21,10 @@ struct MetroWaitActivityWidget: Widget {
         }
     }
 
-    /// 島上顯示的方向:未 stale=首班;stale(首班已到)且有次班=次班——與倒數的駁接邏輯同步,
-    /// 方向和時間必須指同一班車,不然「往北投 4:29」其實是往淡水的次班就成了假資訊。
+    /// 島上顯示的方向:恆為首班——到站後島上顯示「進站」,指的就是首班。
+    /// 08-14 第六輪裁示起不再駁次班(次班倒數留在鎖屏,那裡的 timer 自走不需系統重繪)。
     private func islandDest(_ ctx: ActivityViewContext<MetroWaitAttributes>) -> String? {
-        if ctx.isStale, ctx.state.secondEta != nil || ctx.state.secondMinutes != nil {
-            return ctx.state.secondDest ?? ctx.state.nextDest
-        }
-        return ctx.state.nextDest
+        ctx.state.nextDest
     }
 
     private func tint(_ hex: String?) -> Color? {
@@ -122,12 +119,10 @@ struct MetroWaitActivityWidget: Widget {
                     }
                 }
                 DynamicIslandExpandedRegion(.trailing) {
-                    // 🔴 stale(首班已到)後島上不能凍在「進站」——零推播卡永遠不會再 update,
-                    //    真機回饋(08-14 第四輪)凍住被讀成「功能失效」。次班是絕對時刻,
-                    //    倒數自走還有效 ⇒ stale 後整個島改駁次班;沒有次班才顯示靜態「進站」。
-                    if ctx.isStale, ctx.state.secondEta != nil || ctx.state.secondMinutes != nil {
-                        countdown(eta: ctx.state.secondEta, minutes: ctx.state.secondMinutes, size: 18)
-                    } else if ctx.isStale {
+                    // 08-14 第六輪裁示:到站(isStale)一律翻靜態綠「進站」,不駁次班倒數——
+                    // 駁次班在「次班也到站」後會凍在 0:00(staleDate 只有首班那一次重繪,
+                    // 次班到站沒有第二次),凍 0:00 比停在「進站」更糟。次班資訊鎖屏還在。
+                    if ctx.isStale {
                         Text("進站").font(.system(size: 16, weight: .semibold))
                             .foregroundStyle(Color(.sRGB, red: 0.29, green: 0.87, blue: 0.50))
                     } else {
@@ -156,10 +151,7 @@ struct MetroWaitActivityWidget: Widget {
                     }
                 }
             } compactTrailing: {
-                if ctx.isStale, ctx.state.secondEta != nil || ctx.state.secondMinutes != nil {
-                    countdown(eta: ctx.state.secondEta, minutes: ctx.state.secondMinutes, size: 13)
-                        .frame(maxWidth: 44)
-                } else if ctx.isStale {
+                if ctx.isStale {
                     Text("進站").font(.system(size: 13, weight: .semibold))
                         .foregroundStyle(Color(.sRGB, red: 0.29, green: 0.87, blue: 0.50))
                 } else {
@@ -167,10 +159,7 @@ struct MetroWaitActivityWidget: Widget {
                         .frame(maxWidth: 44)
                 }
             } minimal: {
-                if ctx.isStale, ctx.state.secondEta != nil || ctx.state.secondMinutes != nil {
-                    countdown(eta: ctx.state.secondEta, minutes: ctx.state.secondMinutes, size: 12)
-                        .frame(maxWidth: 32)
-                } else if ctx.isStale {
+                if ctx.isStale {
                     Text("進站").font(.system(size: 11, weight: .semibold))
                         .foregroundStyle(Color(.sRGB, red: 0.29, green: 0.87, blue: 0.50))
                 } else {
