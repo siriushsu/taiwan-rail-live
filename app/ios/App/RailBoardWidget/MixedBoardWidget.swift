@@ -3,8 +3,10 @@ import SwiftUI
 import WidgetKit
 
 struct MixedBoardIntent: AppIntent, WidgetConfigurationIntent {
-    static var title: LocalizedStringResource = "轉乘發車看板"
-    static var description = IntentDescription("同時查看台鐵或高鐵發車資訊與捷運等車資訊。")
+    // 08-14 真機回饋:不叫「轉乘」——真轉乘要知道「我這班車幾點到這站」,這張卡給的是
+    // 兩張即時看板並排(鐵路發車＋捷運進站),名字不可以承諾它沒做的事。
+    static var title: LocalizedStringResource = "鐵路＋捷運看板"
+    static var description = IntentDescription("同一張卡查看台鐵／高鐵發車與捷運進站倒數。")
 
     // String 參數每格都掛 optionsProvider；設定頁沿用系統預設的完整參數列表。
     @Parameter(title: "台鐵／高鐵起站", optionsProvider: OriginOptionsProvider())
@@ -172,7 +174,7 @@ struct MixedBoardEntryView: View {
     let entry: MixedBoardEntry
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 7) {
+        VStack(alignment: .leading, spacing: 8) {
             MixedRailSection(entry: entry.rail, displayDate: entry.date)
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
 
@@ -181,8 +183,10 @@ struct MixedBoardEntryView: View {
             MixedMetroSection(entry: entry.metro, displayDate: entry.date)
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         }
-        .padding(.horizontal, 14)
-        .padding(.vertical, 12)
+        .padding(.horizontal, 16)
+        // 08-14 真機回饋:contentMarginsDisabled 下上緣只留 12pt,首行貼著圓角——頂部要多讓。
+        .padding(.top, 18)
+        .padding(.bottom, 12)
         .widgetURL(entry.metro.deepLink)
         .containerBackground(for: .widget) {
             Color(uiColor: .systemBackground)
@@ -237,7 +241,9 @@ private struct MixedRailSection: View {
     }
 
     private func place(_ snapshot: PlaceBoardSnapshot) -> some View {
-        VStack(alignment: .leading, spacing: 4) {
+        // 08-14 真機回饋:大卡空間夠,字要放大——這一段是混合卡自己的列渲染,
+        // 字級直接抬,不動共用的 MediumTrainRow(那是 medium 卡的)。
+        VStack(alignment: .leading, spacing: 5) {
             header(
                 title: snapshot.title,
                 stamp: "\(RailBoardClock.updateTimeString(snapshot.generatedAt)) 更新"
@@ -245,29 +251,29 @@ private struct MixedRailSection: View {
 
             ForEach(Array(snapshot.lines.prefix(2))) { line in
                 ForEach(line.rows.prefix(snapshot.lines.count == 1 ? 3 : 2)) { row in
-                    HStack(spacing: 5) {
+                    HStack(spacing: 6) {
                         Text(row.scheduledTime)
-                            .font(.system(size: 13, weight: .semibold))
+                            .font(.system(size: 16, weight: .semibold))
                             .monospacedDigit()
-                            .frame(width: 40, alignment: .leading)
+                            .frame(width: 50, alignment: .leading)
                         Capsule()
                             .fill(Color(hex: line.color))
-                            .frame(width: 12, height: 5)
+                            .frame(width: 14, height: 6)
                         Text("\(row.trainType) \(row.trainNumber)")
-                            .font(.system(size: 11, weight: .medium))
+                            .font(.system(size: 13, weight: .medium))
                             .foregroundStyle(trainColor(row.trainType, in: snapshot))
                             .lineLimit(1)
                         Text("往 \(row.destinationName)")
-                            .font(.system(size: 10))
+                            .font(.system(size: 12.5))
                             .foregroundStyle(.secondary)
                             .lineLimit(1)
                         Spacer(minLength: 2)
                         Text(row.scheduledDate, style: .relative)
-                            .font(.system(size: 10, weight: .semibold))
+                            .font(.system(size: 12, weight: .semibold))
                             .monospacedDigit()
                             .lineLimit(1)
                     }
-                    .frame(minHeight: 22)
+                    .frame(minHeight: 26)
                 }
             }
             Spacer(minLength: 0)
@@ -281,11 +287,11 @@ private struct MixedRailSection: View {
     private func header(title: String, stamp: String) -> some View {
         HStack(spacing: 8) {
             Text(title)
-                .font(.system(size: 13, weight: .semibold))
+                .font(.system(size: 16, weight: .semibold))
                 .lineLimit(1)
             Spacer(minLength: 4)
             Text(stamp)
-                .font(.system(size: 10))
+                .font(.system(size: 11.5))
                 .foregroundStyle(.secondary)
                 .monospacedDigit()
                 .fixedSize()
@@ -298,17 +304,17 @@ private struct MixedMetroSection: View {
     let displayDate: Date
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 5) {
+        VStack(alignment: .leading, spacing: 6) {
             HStack(spacing: 5) {
                 if let color = entry.lineColor {
-                    Circle().fill(color).frame(width: 8, height: 8)
+                    Circle().fill(color).frame(width: 9, height: 9)
                 }
                 Text(entry.title)
-                    .font(.system(size: 13, weight: .semibold))
+                    .font(.system(size: 16, weight: .semibold))
                     .lineLimit(1)
                 Spacer(minLength: 4)
                 Text(stampText)
-                    .font(.system(size: 10))
+                    .font(.system(size: 11.5))
                     .foregroundStyle(.secondary)
                     .monospacedDigit()
                     .fixedSize()
@@ -316,14 +322,14 @@ private struct MixedMetroSection: View {
 
             if let lastTrain = entry.lastTrain {
                 Text("末班 \(lastTrain)")
-                    .font(.caption2)
+                    .font(.caption)
                     .foregroundStyle(.orange)
                     .lineLimit(1)
             }
 
             if visibleRows.isEmpty {
                 Text(entry.snapshot != nil ? "官方目前沒有這一站的班次資訊" : "沒有資料")
-                    .font(.caption)
+                    .font(.callout)
                     .foregroundStyle(.secondary)
             } else {
                 ForEach(Array(visibleRows.prefix(3).enumerated()), id: \.offset) { _, row in
@@ -331,7 +337,8 @@ private struct MixedMetroSection: View {
                         row: row,
                         precision: entry.precision,
                         showCrowd: true,
-                        entryDate: displayDate
+                        entryDate: displayDate,
+                        fontScale: 1.2   // 大卡等比放大;槽寬跟著縮放,對齊不破(見 MetroRowView)
                     )
                 }
             }
@@ -364,8 +371,8 @@ struct MixedBoardWidget: Widget {
         ) { entry in
             MixedBoardEntryView(entry: entry)
         }
-        .configurationDisplayName("轉乘發車看板")
-        .description("同時查看台鐵或高鐵發車資訊與捷運下一班。")
+        .configurationDisplayName("鐵路＋捷運看板")
+        .description("同一張卡看台鐵／高鐵發車與捷運進站倒數。")
         .supportedFamilies([.systemLarge])
         .contentMarginsDisabled()
     }

@@ -225,10 +225,13 @@ struct MetroRowView: View {
     let precision: String
     let showCrowd: Bool
     var entryDate: Date = Date()
+    // 混合大卡(systemLarge)整列等比放大用;預設 1=北捷卡原樣(既有呼叫端零變化)。
+    // 字級與槽寬(56pt trailing 槽、38pt 擁擠欄)一起縮放,對齊鐵則才不會在放大後破掉。
+    var fontScale: CGFloat = 1
 
     var body: some View {
         HStack(spacing: 6) {
-            Text("往 \(row.dest)").font(.system(size: 13)).lineLimit(1)
+            Text("往 \(row.dest)").font(.system(size: 13 * fontScale)).lineLimit(1)
             Spacer(minLength: 4)
             if precision == "sec", let eta = row.etaEpoch {
                 // 🔴 真機回饋(08-14):倒數歸零後停在 0:00 是殭屍——已到點的列改顯示「進站」。
@@ -237,22 +240,22 @@ struct MetroRowView: View {
                 // 🔴 進站字樣與倒數共用同一個 56pt trailing 槽——真機回饋(08-14 第三輪):
                 //    倒數有 frame、進站沒有 ⇒ 兩種列的右緣對不齊。
                 if eta <= entryDate.timeIntervalSince1970 + 1 {
-                    Text("進站").font(.system(size: 13, weight: .semibold))
+                    Text("進站").font(.system(size: 13 * fontScale, weight: .semibold))
                         .foregroundStyle(Color(.sRGB, red: 0.29, green: 0.87, blue: 0.50))
-                        .frame(maxWidth: 56, alignment: .trailing)
+                        .frame(maxWidth: 56 * fontScale, alignment: .trailing)
                 } else {
                     // 北捷是絕對時刻 ⇒ 交給系統自走,刷新之間也是對的。
                     // 🔴 range 起點必須 clamp:模型層濾掉 eta<=now 用的是「entry 建立時」的 now,
                     //    body 實際被封存(archive)可能晚幾秒;ClosedRange 下界大於上界會當場 crash。
                     let end = Date(timeIntervalSince1970: eta)
                     Text(timerInterval: min(Date(), end)...end, countsDown: true)
-                        .monospacedDigit().font(.system(size: 14, design: .rounded))
+                        .monospacedDigit().font(.system(size: 14 * fontScale, design: .rounded))
                         .multilineTextAlignment(.trailing)
-                        .frame(maxWidth: 56, alignment: .trailing)
+                        .frame(maxWidth: 56 * fontScale, alignment: .trailing)
                 }
             } else if let m = row.minutes {
                 // 🔴 官方只給整數分鐘 ⇒ 顯示「約 N 分」的靜態文字,不換算成秒、不自走。
-                Text("約 \(m) 分").monospacedDigit().font(.system(size: 14, design: .rounded))
+                Text("約 \(m) 分").monospacedDigit().font(.system(size: 14 * fontScale, design: .rounded))
             }
             if showCrowd {
                 // 使用者真機回饋(08-14):同一張卡混到沒有擁擠度的線(北捷卡的文湖線)時,
@@ -263,11 +266,11 @@ struct MetroRowView: View {
                     if let c = row.crowd, !c.isEmpty {
                         ForEach(Array(c.enumerated()), id: \.offset) { _, v in
                             RoundedRectangle(cornerRadius: 1.5)
-                                .fill(MetroPalette.crowd(v)).frame(width: 5, height: 9)
+                                .fill(MetroPalette.crowd(v)).frame(width: 5 * fontScale, height: 9 * fontScale)
                         }
                     }
                 }
-                .frame(width: 38, alignment: .trailing)
+                .frame(width: 38 * fontScale, alignment: .trailing)
             }
             // showCrowd=false 的整卡(高捷/機捷)全卡都沒有擁擠欄,時間本來就對齊,不佔位。
         }
