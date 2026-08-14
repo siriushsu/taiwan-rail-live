@@ -3558,7 +3558,7 @@
            內容 li 上限 8 條(li.grp 是標題不算)。 -->
       <ul class="foot-list foot-recent">
         <li class="grp">最近更新</li>
-        <li data-cl-of="trtcvehiclelife"><span class="d">8/14</span><span>台北捷運的車從起點出現後，會沿每一站的官方到站時間一路認到終點；短暫讀不到或時間修正時不再消失、重生或往回跳</span></li>
+        <li data-cl-of="trtcvehiclelife"><span class="d">8/14</span><span>台北捷運的車從起點出現後，會沿每一站的官方到站時間一路認到終點；短暫讀不到或時間修正時不再消失、重生或往回跳，文湖線也恢復 BR 橢圓車牌</span></li>
         <li data-cl-of="trtcofficialroster"><span class="d">8/13</span><span>台北捷運改用官方即時資訊決定車子在哪，依車站看板的時刻到站，不再對不上班表就消失</span></li>
         <li data-cl-of="klrtgps"><span class="d">8/12</span><span>高雄環狀輕軌改用官方衛星定位逐班校正，每台車各自對準自己的班次（謝謝網友提供資訊）</span></li>
         <li data-cl-of="tcstopsalign"><span class="d">8/12</span><span>列車資訊卡的停靠站時刻表：表頭「到／開」對齊下方的時刻欄了</span></li>
@@ -3583,7 +3583,7 @@
         <li><span class="d">7/10</span><span>高鐵、桃園機捷、淡海輕軌、安坑輕軌加入路網</span></li>
         <li><span class="d">7/10</span><span>環島觀光列車一分為二：往東「山海號」、往西「平原號」</span></li>
         <li class="grp">即時動態與誤點</li>
-        <li data-cl="trtcvehiclelife"><span class="d">8/14</span><span>台北捷運的每台車改成從起點倒數出現時建立身分，同一台車在多站看板的時間會合在一起，沿官方逐站到站時間一路跑到終點；短暫讀不到、車次沒配上或到站時間修正都不會讓車消失、重生或往回跳。小碧潭與新北投支線因官方只提供起點倒數，另以單段行車時間跑到對端後收車。</span></li>
+        <li data-cl="trtcvehiclelife"><span class="d">8/14</span><span>台北捷運的每台車改成從起點倒數出現時建立身分，同一台車在多站看板的時間會合在一起，沿官方逐站到站時間一路跑到終點；短暫讀不到、車次沒配上或到站時間修正都不會讓車消失、重生或往回跳。小碧潭與新北投支線因官方只提供起點倒數，另以單段行車時間跑到對端後收車；文湖線沒有官方車次號時仍保留 BR 橢圓車牌。</span></li>
         <li data-cl="trtcofficialroster"><span class="d">8/13</span><span>台北捷運改以官方即時資訊決定地圖上有哪些車：車子依車站看板的官方時刻到站，認不出車次的也照樣顯示，不再因配不到班表而消失。</span></li>
         <li data-cl="klrtgps"><span class="d">8/12</span><span>高雄環狀輕軌改用官方衛星定位逐班校正：它是全台唯一提供每台車即時經緯度的捷運系統，現在每台車各自對到自己的班次、各自算自己的誤點，不再全線共用一個平均值。五輪獨立實測，畫面位置與官方定位的差距中位數約是原本的一半。班表仍是唯一車輛名冊，定位資料收不到時自動退回原本的到站看板校正，車不會消失（謝謝網友提供資訊）</span></li>
         <li data-cl="crossnight452"><span class="d">8/8</span><span>只在特定日開行的跨夜車（如週五深夜 452 次）過午夜就從地圖消失，未開行日清晨反而多畫一班；現在把昨天發車仍在路上的班接回名冊，幽靈班一併擋掉（謝謝網友回報）</span></li>
@@ -4011,7 +4011,8 @@
 // 🔴 2026-08-13 訂正：官方名冊那批升正式站時我沿用了 v0813c，但那個號屬於「資料源標示」
 //    那份內容——兩份不同內容共用同一個號，正式站就只能靠 md5 辨識。本輪推 v0813d 收掉。
 // 2026-08-14 北捷官方車生命週期重整：從起點沿逐站 timeline 到終點，缺訊不刪車，顯示進度不倒退。
-const BUILD = 'v0814a';
+// v0814b：沒有官方 TrainNumber 的文湖線等列車恢復原本的路線縮寫橢圓牌，不降成小圓點。
+const BUILD = 'v0814b';
 // 2026-08-13 起預設開啟（使用者親試預覽後裁示上線）：北捷畫車依官方即時名冊，班表只是備案。
 // 保留 ?officialroster=0 當逃生口——要退回班表路徑不必回滾部署，加個參數即可對照。
 // 🔴 這個函式會被 verify_official_roster_frontend 抽出來丟進 VM 單獨執行——
@@ -4698,9 +4699,11 @@ function trtcOfficialRenderItems(ln, boardPos, nowEpoch, enabled) {
     extension: !!vehicle.extension, pos: trtcOfficialDisplayPosition(ln, vehicle, nowEpoch),
   })).filter(item => item.vehicleId && item.pos); // ROSTER_FRONTEND_RENDER
 }
-function trtcOfficialVehicleGlyph(officialNo) {
-  const label = String(officialNo || '');
-  return label ? { kind: 'tag', label } : { kind: 'dot', label: '' }; // ROSTER_FRONTEND_GLYPH
+function trtcOfficialVehicleGlyph(officialNo, lineAbbr) {
+  const official = String(officialNo || ''), fallback = String(lineAbbr || '');
+  const label = official || fallback;
+  return label ? { kind: 'tag', label, official: !!official }
+    : { kind: 'dot', label: '', official: false }; // ROSTER_FRONTEND_GLYPH
 }
 function trtcOfficialSameTarget(follow, hit) {
   if (!follow || !hit) return false;
@@ -5532,7 +5535,9 @@ function trtcOfficialTagHalfWidth(label) {
 }
 function drawTrtcOfficialVehicle(ln, item, showTrain, inView, collectHit, nowEpoch) {
   const cp = map.latLngToContainerPoint([item.pos.lat, item.pos.lon]);
-  const glyph = trtcOfficialVehicleGlyph(item.officialNo), label = glyph.label;
+  // officialNo 是北捷 TrackInfo.TrainNumber；文湖線該欄恆空，沿用舊版 ln.abbr 橢圓牌（BR），
+  // 不把內部 vehicleId 畫給使用者，也不拿無法可靠對站牌的 CarWeight 編號冒充車次。
+  const glyph = trtcOfficialVehicleGlyph(item.officialNo, ln.abbr), label = glyph.label;
   if (trtcOfficialSameTarget(state.freqFollow, { ln, vehicleId: item.vehicleId })) drawFreqRing(cp, ln.color);
   if (showTrain && inView(cp) && glyph.kind === 'tag') drawTag(cp, label, ln.color, textColorFor(ln.color));
   else drawDot(cp, ln.color);

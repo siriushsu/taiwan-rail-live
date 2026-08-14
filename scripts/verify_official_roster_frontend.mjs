@@ -87,7 +87,7 @@ function buildUnitApi(overrides = {}, label = 'unit') {
 }
 
 function unitLine(id = 'L', count = 10, run = 60) {
-  return { id, hasShape: false,
+  return { id, abbr:id, hasShape: false,
     stations: Array.from({ length: count }, (_, i) => ({ name: `${id}${i}`, lat: 25 + i / 100, lon: 121 + i / 100 })),
     segs: Array.from({ length: count - 1 }, () => ({ run })) };
 }
@@ -163,8 +163,11 @@ function evaluateUnit(api) {
   const rendered = api.trtcOfficialRenderItems(LINE, board, 1030, true) || [];
   const numbered = rendered.find(item => item.vehicleId === 'timeline');
   const anonymous = rendered.find(item => item.vehicleId === 'anonymous');
-  const C = rendered.length === 2 && api.trtcOfficialVehicleGlyph(numbered?.officialNo).kind === 'tag' &&
-    api.trtcOfficialVehicleGlyph(anonymous?.officialNo).kind === 'dot';
+  const numberedGlyph = api.trtcOfficialVehicleGlyph(numbered?.officialNo, LINE.abbr);
+  const anonymousGlyph = api.trtcOfficialVehicleGlyph(anonymous?.officialNo, LINE.abbr);
+  const C = rendered.length === 2 && numberedGlyph.kind === 'tag' && numberedGlyph.label === '201' &&
+    numberedGlyph.official === true && anonymousGlyph.kind === 'tag' && anonymousGlyph.label === 'L' &&
+    anonymousGlyph.official === false;
 
   const xBefore = api.trtcOfficialVehiclePosition(XBT, xbtVehicle, 1990);
   const xHalf = api.trtcOfficialVehiclePosition(XBT, xbtVehicle, 2060);
@@ -278,6 +281,9 @@ await mutation('移除 XBT 單段 fallback', 'D', 'trtcOfficialDeparturePosition
 await mutation('無官方車次就不畫', 'C', 'trtcOfficialRenderItems',
   '.filter(item => item.vehicleId && item.pos);',
   '.filter(item => item.vehicleId && item.pos && item.officialNo);');
+await mutation('無官方車次就把橢圓牌降成圓點', 'C', 'trtcOfficialVehicleGlyph',
+  "const official = String(officialNo || ''), fallback = String(lineAbbr || '');",
+  "const official = String(officialNo || ''), fallback = '';");
 await mutation('vehicleId 相同就忽略路線', 'E', 'trtcOfficialSameTarget',
   "String(followLine || '') === String(hitLine || '')",
   "String(followLine || '') === String(followLine || '')");
@@ -365,7 +371,19 @@ async function browserMatrix(baseUrl) {
           const rendered = [...new Map(pools.filter(isTrtcBoardLine).map(line => [line.id, line])).values()]
             .reduce((sum, line) => sum + (trtcOfficialRenderItems(line, state.trtcOfficialRoster,
               Date.now() / 1000, true) || []).length, 0);
-          return { before, after, monotonic, rendered, roster:state.trtcOfficialRoster.vehicles.length };
+          const brLine = pools.find(item => item.id === 'BR');
+          const oldTag = drawTag, oldDot = drawDot, tagLabels = [];
+          let dotCalls = 0;
+          try {
+            drawTag = (_point, label) => tagLabels.push(label);
+            drawDot = () => { dotCalls++; };
+            drawTrtcOfficialVehicle(brLine, {
+              pos:{ lat:brLine.stations[0].lat, lon:brLine.stations[0].lon },
+              officialNo:'', vehicleId:'browser-br-fallback', vehicle:{ dir:2 }
+            }, true, () => true, false, Date.now() / 1000);
+          } finally { drawTag = oldTag; drawDot = oldDot; }
+          return { before, after, monotonic, rendered, roster:state.trtcOfficialRoster.vehicles.length,
+            fallbackTag:{ tagLabels, dotCalls, halfWidth:trtcOfficialTagHalfWidth('BR') } };
         });
         const tapTarget = await page.evaluate(() => [...document.querySelectorAll('button[id],a[id],[role=button][id]')]
           .find(element => { const style = getComputedStyle(element), rect = element.getBoundingClientRect();
@@ -419,8 +437,9 @@ try {
   for (const result of rows) {
     check(result.errors.length === 0 && result.deadline.roster === 4 && result.deadline.rendered === 4 &&
       result.deadline.before < 1 && result.deadline.after?.fraction === 1 && result.deadline.after.exact &&
-      result.deadline.monotonic,
-    `${result.engine} ${result.width}px：4/4 車可畫、真 rAF 準時到站、位置單調、零 pageerror`,
+      result.deadline.monotonic && result.deadline.fallbackTag?.tagLabels?.join(',') === 'BR' &&
+      result.deadline.fallbackTag.dotCalls === 0 && result.deadline.fallbackTag.halfWidth > 6,
+    `${result.engine} ${result.width}px：4/4 車可畫、BR 橢圓牌、真 rAF 準時到站、位置單調、零 pageerror`,
     JSON.stringify({ errors:result.errors.slice(0,2), deadline:result.deadline }));
     check(result.layout.scrollWidth <= result.layout.clientWidth && !result.layout.misses.length &&
       !result.layout.collisions.length,
