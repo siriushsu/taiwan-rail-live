@@ -163,18 +163,81 @@ for (const eng of ENGINES) {
     C2.drawn === 0, C2.drawn === 0 ? `${C2.train} 在清晨 ${C2.total} 點全數無座標` : `${C2.train} 仍畫出 ${C2.drawn}/${C2.total}`);
 
   // C3：先跟隨 452、再改跟隨別班，舊車的例外必須失效
+  //
+  // 🔴 這裡刻意「不」把 clockAtNow 設回 true（2026-08-14 驗收發現）：設了的話 `!clockAtNow`
+  //    單獨就足以關掉例外，這條就完全驗不到 followWrapStops 的物件身分比對——實測把身分比對
+  //    整個拿掉（只留 !clockAtNow）時本檔仍 7 PASS / 0 FAIL，等於核心機制零覆蓋。
+  //    改跟隨別班之後 clockAtNow 本來就仍是 false，直接掃才是真的在驗「換車有沒有換掉例外」。
   const C3 = await page.evaluate(({ trainNo, otherNo, secs }) => {
     const tr = state.trains.find(t => t.sys === 'tra_sched' && String(t.train) === trainNo);
     const other = state.trains.find(t => t.sys === 'tra_sched' && String(t.train) === otherNo);
     setFollow(tr, false, true);
     setFollow(other, false, true);
-    state.clockAtNow = true;
-    const rec = { train: trainNo, drawn: 0, total: 0 };
+    const rec = { train: trainNo, drawn: 0, total: 0, clockAtNow: state.clockAtNow, jumped: state.followTimeJumped };
     for (const sec of secs) { state.simSec = sec; rec.total++; if (trainPos(tr, sec)) rec.drawn++; }
     return rec;
   }, { trainNo: guarded[0].train, otherNo: (control[0] || guarded[0]).train, secs: earlyMorning });
-  check(`[${eng}] C3 反向：改跟隨別班後，前一班的例外必須失效`,
-    C3.drawn === 0, C3.drawn === 0 ? `${C3.train} 在清晨 ${C3.total} 點全數無座標` : `${C3.train} 仍畫出 ${C3.drawn}/${C3.total}`);
+  check(`[${eng}] C3 反向：改跟隨別班後，前一班的例外必須失效（且非靠 clockAtNow 關掉）`,
+    C3.drawn === 0 && C3.clockAtNow === false,
+    C3.clockAtNow !== false ? `前提不成立：clockAtNow=${C3.clockAtNow}，這條退化成只驗 !clockAtNow`
+      : C3.drawn === 0 ? `${C3.train} 在清晨 ${C3.total} 點全數無座標（clockAtNow=false ⇒ 真的在驗身分比對）`
+        : `${C3.train} 仍畫出 ${C3.drawn}/${C3.total}`);
+
+  // C4：跟隨中拖時刻尺到開行日清晨（followTimeJumped 路徑）——例外必須關掉，不得冒出幽靈班
+  const C4 = await page.evaluate(({ trainNo, secs }) => {
+    const tr = state.trains.find(t => t.sys === 'tra_sched' && String(t.train) === trainNo);
+    clearFollow();
+    setFollow(tr, false, true);
+    const rec = { train: trainNo, drawn: 0, total: 0, jumped: null, clockAtNow: null };
+    for (const sec of secs) { setSimSec(sec); rec.total++; if (trainPos(tr, state.simSec)) rec.drawn++; }
+    rec.jumped = state.followTimeJumped; rec.clockAtNow = state.clockAtNow;
+    return rec;
+  }, { trainNo: guarded[0].train, secs: earlyMorning });
+  check(`[${eng}] C4 反向：跟隨中拖時刻尺到開行日清晨，不得畫出昨晚不存在的班`,
+    C4.drawn === 0 && C4.jumped === true,
+    C4.jumped !== true ? `前提不成立：followTimeJumped=${C4.jumped}（setSimSec 應該要設它）`
+      : C4.drawn === 0 ? `${C4.train} 在清晨 ${C4.total} 點全數無座標（followTimeJumped=true、clockAtNow=${C4.clockAtNow}）`
+        : `${C4.train} 竟畫出 ${C4.drawn}/${C4.total}——重播的例外洩漏到「看完再往回拖」`);
+
+  // C5：clearFollow 之後例外必須消失（時鐘仍不在「現在」，所以不能靠 clockAtNow 擋）
+  const C5 = await page.evaluate(({ trainNo, secs }) => {
+    const tr = state.trains.find(t => t.sys === 'tra_sched' && String(t.train) === trainNo);
+    setFollow(tr, false, true);
+    clearFollow();
+    const rec = { train: trainNo, drawn: 0, total: 0, clockAtNow: state.clockAtNow };
+    for (const sec of secs) { state.simSec = sec; rec.total++; if (trainPos(tr, sec)) rec.drawn++; }
+    return rec;
+  }, { trainNo: guarded[0].train, secs: earlyMorning });
+  check(`[${eng}] C5 反向：取消跟隨後例外必須消失（且非靠 clockAtNow 關掉）`,
+    C5.drawn === 0 && C5.clockAtNow === false,
+    C5.clockAtNow !== false ? `前提不成立：clockAtNow=${C5.clockAtNow}，這條退化成只驗 !clockAtNow`
+      : C5.drawn === 0 ? `${C5.train} 在清晨 ${C5.total} 點全數無座標（clockAtNow=false ⇒ 真的在驗 clearFollow 的清除）`
+        : `${C5.train} 仍畫出 ${C5.drawn}/${C5.total}`);
+
+  // A2：使用者的另一條路徑——先拖時刻尺到發車後(車已在跑)再點跟隨。
+  //     setFollow 的兩個撥鐘分支都不會觸發，缺陷⑤在這條路徑上會原樣重現。
+  const A2 = await page.evaluate(({ trainNo, secs, lastArr }) => {
+    const tr = state.trains.find(t => t.sys === 'tra_sched' && String(t.train) === trainNo);
+    if (!tr) return null;
+    clearFollow();
+    const at = Math.max(0, tr.stops[0].depSec + 60) % 86400;   // 發車後 1 分鐘＝車已在跑
+    setSimSec(at);
+    const simBefore = state.simSec;
+    setFollow(tr, false, true);
+    const rec = { train: trainNo, lastArr, drawn: 0, total: 0, gaps: [],
+      windBack: state.simSec !== simBefore,          // 必須是 false，否則走的是已被 A 覆蓋的那條路
+      clockAtNow: state.clockAtNow, jumped: state.followTimeJumped };
+    for (const sec of secs.filter(s => s + 86400 <= lastArr)) {
+      state.simSec = sec; rec.total++; if (trainPos(tr, sec)) rec.drawn++; else rec.gaps.push(sec);
+    }
+    return rec;
+  }, { trainNo: guarded[0].train, secs: afterMidnight, lastArr: guarded[0].lastArr });
+  check(`[${eng}] A2 「拖時刻尺到車已在跑、才點跟隨」也要能播過午夜（撥鐘分支不觸發的路徑）`,
+    A2 && A2.total > 0 && A2.gaps.length === 0 && A2.windBack === false,
+    !A2 ? '找不到受測車' : A2.total === 0 ? '窗長 0，這條是空過'
+      : A2.windBack ? `前提不成立：setFollow 撥了鐘（走到 A 已覆蓋的分支），這條沒驗到新路徑`
+        : A2.gaps.length === 0 ? `${A2.total} 點全程有座標（windBack=false, clockAtNow=${A2.clockAtNow}, followTimeJumped=${A2.jumped}）`
+          : `只畫出 ${A2.drawn}/${A2.total}，消失於 秒/日 ${A2.gaps[0]}–${A2.gaps[A2.gaps.length - 1]}`);
 
   await browser.close();
 }

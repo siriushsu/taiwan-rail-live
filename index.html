@@ -5135,10 +5135,12 @@ function assignRunProfiles(s, perf, obs) {
 // ・_noPrevWrap(逐日名冊裡「昨天沒開」的班):清晨不得接續成昨天的班——昨天根本沒開,接了就是畫
 //   出不存在的幽靈班(452 在開行日清晨的鏡像 bug)。只在名冊仍是今天的名冊時生效(_rosterDay 比對
 //   state.wallDay):頁面開著跨夜沒重載時名冊整份是昨天的,+86400 接續是合法的「名冊日」解讀。
-//   唯一例外:setFollow 已把同一份 stops 刻意撥回發車前、且時鐘已離開「現在」的重播——晚上點跟隨
-//   一班還沒發車的跨夜班(452 23:57 發車),動的是模擬時鐘,真實日期還是名冊日,守衛會在模擬時鐘
-//   走過 00:00 時把正在重播的車也一起擋掉。simSec 沒有日期,兩種情境的 t 完全同值,唯一能區辨的
-//   就是「這是不是使用者刻意要求回放的那一份 stops」。
+//   唯一例外:使用者正在跟隨的**就是這一份 stops**、時鐘已離開「現在」、而且跟隨開始後沒有再
+//   顯式跳過時間(followTimeJumped)。晚上點跟隨一班跨夜班(452 23:57 發車),動的是模擬時鐘,
+//   真實日期還是名冊日,守衛會在模擬時鐘走過 00:00 時把正在重播的車也一起擋掉。simSec 沒有日期,
+//   幽靈班與重播兩種情境的 t 完全同值,唯一能區辨的就是「這是不是使用者要求跟隨的那一份 stops」。
+//   三個條件各擋一種洩漏:身分比對擋「換車後舊車變幽靈」與「別班沾光」;clockAtNow 擋「時鐘貼著
+//   現在」;followTimeJumped 擋「看完重播再往回拖到開行日清晨」——後者實測會畫出 13/13 幽靈點。
 // ・其他(每日班、高鐵/林鐵等無日期資料、過期 bundle 退回):維持原條件,行為零變化。
 function schedWrapT(s, t, grace) {
   if (s._prevNight) {
@@ -5147,7 +5149,7 @@ function schedWrapT(s, t, grace) {
   }
   if (t < s[0].arrSec && t + 86400 <= s[s.length - 1].depSec + grace
       && !(s._noPrevWrap && s._rosterDay === state.wallDay
-        && !(state.followWrapStops === s && !state.clockAtNow))) return t + 86400;
+        && !(state.followWrapStops === s && !state.clockAtNow && !state.followTimeJumped))) return t + 86400;
   return t;
 }
 
@@ -10065,7 +10067,10 @@ function setFollow(tr, isAuto, noJump, opts) {
   // 真全螢幕中不寫網址列:Safari 對 fullscreen 中的 replaceState 會踢出全螢幕,且全螢幕本來就看不到網址列
   try { if (!document.fullscreenElement) history.replaceState(null, '', '?train=' + encodeURIComponent(tr.train) + '&t=' + fmtHM(state.simSec)); } catch (e) {}
   const first = tr.stops[0], last = tr.stops[tr.stops.length - 1];
-  state.followWrapStops = null; // 換車先清:上一班的跨午夜例外不得殘留
+  // 換車先清:上一班的跨午夜例外不得殘留。跨午夜班一律標記,**不綁在下面兩個撥鐘分支裡**——
+  // 「先拖時刻尺到發車後(車已在跑)、才點跟隨」時兩個分支都不觸發,但那條路徑照樣會播過 00:00,
+  // 缺陷⑤會原樣重現(2026-08-14 驗收實測 0/31,與修法前一模一樣)。
+  state.followWrapStops = Math.max(last.arrSec, last.depSec) > 86400 ? tr.stops : null;
   // 下面兩個分支都是刻意撥時鐘(時光機),所以必須同時離開「跟著現在」的狀態:clockDriftGuard 每秒
   // 會把「還貼著現在」的時鐘拉回真實時刻,而它刻意不走 setSimSec(那會清掉 clockAtNow),所以也不會
   // 被 followTimeJumped 攔。撥了時鐘卻沒清旗標 ⇒ 1 秒內時鐘跳回現在,而完乘資格快照 followStartEff
@@ -10076,7 +10081,6 @@ function setFollow(tr, isAuto, noJump, opts) {
     // 護照灰章重播:強制從發車前 20 秒開始、固定倍速看完全程才算完乘(防秒蓋章)
     state.simSec = Math.max(0, first.depSec - 20) % 86400;
     state.clockAtNow = false;
-    if (Math.max(last.arrSec, last.depSec) > 86400) state.followWrapStops = tr.stops; // 跨午夜班:重播走過 00:00 時解開守衛
     syncTimeUI();
     if (!state._followSpeedSaved) { state._preFollowSpd = state.speedMult; state._followSpeedSaved = true; }
     setSpeed(30);
@@ -10085,7 +10089,6 @@ function setFollow(tr, isAuto, noJump, opts) {
     // 環島車永遠在跑,不需要把時間拉回發車
     state.simSec = Math.max(0, first.depSec - 20) % 86400;
     state.clockAtNow = false;
-    if (Math.max(last.arrSec, last.depSec) > 86400) state.followWrapStops = tr.stops; // 同上
     syncTimeUI();
   }
   if (!noJump) {
