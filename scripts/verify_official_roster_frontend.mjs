@@ -60,7 +60,8 @@ const UNIT_FUNCTIONS = [
   'trtcOfficialRosterEnabled', 'trtcOfficialRosterActive', 'trtcOfficialRosterForLine',
   'trtcOfficialCoastCycle', 'trtcOfficialCoastPosition', 'trtcOfficialDeparturePosition',
   'trtcOfficialTimelinePosition', 'trtcOfficialVehiclePosition', 'trtcOfficialPositionProgress',
-  'trtcOfficialPositionAtProgress', 'trtcOfficialDirectionPrevious', 'trtcOfficialDirectionAnchor',
+  'trtcOfficialPositionAtProgress', 'trtcOfficialSegmentSeconds', 'trtcOfficialForwardLimit',
+  'trtcOfficialDirectionPrevious', 'trtcOfficialDirectionAnchor',
   'trtcOfficialDisplayPosition', 'trtcOfficialVehicleInfo',
   'trtcOfficialRenderItems', 'trtcOfficialVehicleGlyph', 'trtcOfficialSameTarget',
 ];
@@ -157,6 +158,12 @@ function evaluateUnit(api) {
     { from:0,to:1,depEpoch:1000,arrEpoch:1035,terminal:false } ] };
   const eased = api.trtcOfficialDisplayPosition(LINE, revisedForward, 1030.2);
   const deadlineShown = api.trtcOfficialDisplayPosition(LINE, revisedForward, 1035);
+  api.displayCache.clear();
+  api.trtcOfficialDisplayPosition(LINE, reverseVehicle, 1030);
+  const reverseRevisedForward = { ...reverseVehicle, timeline:[
+    { from:4,to:3,depEpoch:1000,arrEpoch:1035,terminal:false } ] };
+  const reverseEased = api.trtcOfficialDisplayPosition(LINE, reverseRevisedForward, 1030.2);
+  const reverseDeadlineShown = api.trtcOfficialDisplayPosition(LINE, reverseRevisedForward, 1035);
   const B = sameStation(before, LINE, 0) && half && Math.abs(half.fraction - .5) < 1e-9 &&
     sameStation(at1, LINE, 1) && at1.atStation && sameStation(dwell, LINE, 1) &&
     sameStation(at2, LINE, 2) && reverseHalf && Math.abs(reverseHalf.fraction - .5) < 1e-9 &&
@@ -165,8 +172,11 @@ function evaluateUnit(api) {
     heldAgain && heldAgain.lat === held.lat && heldAgain.lon === held.lon && heldAgain.coastArrEpoch === 1150 &&
     beforeLongFrame && afterLongFrame && afterLongFrame.lat === beforeLongFrame.lat &&
       afterLongFrame.lon === beforeLongFrame.lon &&
-    eased && eased.fraction < .55 &&
-    deadlineShown && sameStation(deadlineShown, LINE, 1);
+    eased && eased.fraction > .5 && eased.fraction < .51 &&
+    deadlineShown && deadlineShown.fraction > eased.fraction && deadlineShown.fraction < .6 &&
+    reverseEased && reverseEased.fraction > .5 && reverseEased.fraction < .51 &&
+    reverseDeadlineShown && reverseDeadlineShown.fraction > reverseEased.fraction &&
+      reverseDeadlineShown.fraction < .6;
 
   const rendered = api.trtcOfficialRenderItems(LINE, board, 1030, true) || [];
   const numbered = rendered.find(item => item.vehicleId === 'timeline');
@@ -301,6 +311,9 @@ await mutation('同一畫格第二個讀者繞過防倒退', 'B', 'trtcOfficialD
 await mutation('畫面停頓超過五秒就退回修訂後方', 'B', 'trtcOfficialDisplayPosition',
   'if (!prior || now < prior.epoch) {',
   'if (!prior || now < prior.epoch || now - prior.epoch > 5) {');
+await mutation('每十秒追一站並在 deadline 瞬移到站', 'B', 'trtcOfficialDisplayPosition',
+  'const shown = Math.min(progress, trtcOfficialForwardLimit(ln, vehicle, prior.progress, dt));',
+  'let shown = Math.min(progress, prior.progress + 0.1 * dt);\n  if (raw.atStation) shown = progress;');
 await mutation('續推超過任意秒數就消失', 'G', 'trtcOfficialCoastPosition',
   'const elapsed = now - arrEpoch;', 'const elapsed = now - arrEpoch;\n  if (elapsed > 600) return null;');
 await mutation('移除 XBT 單段 fallback', 'D', 'trtcOfficialDeparturePosition',
@@ -380,9 +393,13 @@ async function browserMatrix(baseUrl) {
         await page.waitForFunction(() => typeof state !== 'undefined' && state.ready === true, null, { timeout:60000 });
         await page.waitForFunction(() => state.trtcOfficialRoster?.feedMode === 'official', null, { timeout:30000 });
         const deadline = await page.evaluate(async () => {
-          const vehicle = state.trtcOfficialRoster.vehicles.find(item => item.vehicleId === 'browser-number');
+          const liveVehicle = state.trtcOfficialRoster.vehicles.find(item => item.vehicleId === 'browser-number');
+          // 用獨立 ID 測試，避免地圖自己的 draw() 同時以正式路線段秒更新同一 display cache。
+          const vehicle = { ...liveVehicle, vehicleId:'browser-deadline-test' };
           const pools = [...(state.lines || []), ...(state.decoLines || [])];
           const line = pools.find(item => item.id === 'BL');
+          const motionLine = { ...line, segs:line.segs.map((segment, index) =>
+            index === 0 ? { ...segment, run:.14 } : segment) };
           const now = Date.now() / 1000, arrEpoch = now + .14;
           vehicle.from = 0; vehicle.to = 1; vehicle.dest = 22; vehicle.run = .14; vehicle.arrEpoch = arrEpoch;
           vehicle.timeline = [{ from:0, to:1, depEpoch:now, arrEpoch, terminal:false }];
@@ -390,7 +407,7 @@ async function browserMatrix(baseUrl) {
           let before = null, after = null, previous = -1, monotonic = true;
           await new Promise(resolve => {
             const sample = () => {
-              const epoch = Date.now() / 1000, pos = trtcOfficialDisplayPosition(line, vehicle, epoch);
+              const epoch = Date.now() / 1000, pos = trtcOfficialDisplayPosition(motionLine, vehicle, epoch);
               if (pos && pos.fraction < previous - 1e-9) monotonic = false;
               if (pos) previous = pos.fraction;
               if (epoch < arrEpoch) before = pos && pos.fraction;

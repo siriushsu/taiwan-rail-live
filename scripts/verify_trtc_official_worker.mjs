@@ -13,7 +13,8 @@ function check(pass, label, detail = '') {
   console.log(`${pass ? '✅' : '❌'} ${label}${detail ? `：${detail}` : ''}`);
 }
 
-const model = { lines: new Map([['BL', { stations: [{}, {}, {}, {}] }]]) };
+const model = { lines: new Map([['BL', { stations: [{}, {}, {}, {}],
+  runs:new Map([['0>1',20],['1>0',20],['1>2',20],['2>1',20],['2>3',20],['3>2',20]]) }]]) };
 const row = (from, to, arrEpoch, no = '') => ({
   line: 'BL', dir: 2, from, to, destIdx: 3, run: from === to ? 0 : 20,
   arrEpoch, no, terminal: from === to,
@@ -93,6 +94,15 @@ check(empty.roster.vehicles.length === 0 && !empty.degraded, '官方成功空列
 check(noPriorOutage.feedMode === 'outage' && noPriorOutage.rows.length === 0 &&
   noPriorOutage.vehicles.length === 0 && noPriorOutage.extensions.length === 0,
   '從未取得官方名冊時，TrackInfo failure 才能退回班表');
+const legacyShared = new Map([['official_roster_v3', JSON.stringify({ schema:3, day:'2026-08-13',
+  nowEpoch:100, sourceRevision:100, vehicles:[{ vehicleId:'legacy-flying-br', line:'BR', coastCycle:3 }] })]]);
+const legacyDb = new FakeD1(legacyShared);
+const legacyOutage = await api.trtcBoardPositionAnchors({ TRTC_LEDGER:legacyDb }, [], 'outage');
+const cleanV4 = await api.trtcPersistOfficialRoster(args(legacyDb, [row(0, 1, 120, '134')], 100, 100));
+check(legacyOutage.feedMode === 'outage' && legacyOutage.vehicles.length === 0 &&
+  cleanV4.roster.schema === 4 && cleanV4.roster.vehicles.every(vehicle => vehicle.vehicleId !== 'legacy-flying-br') &&
+  legacyShared.has('official_roster_v3') && legacyShared.has('official_roster_v4'),
+  'v3 飛車名冊完全不讀，v4 從當下官方列乾淨建立');
 const heldDb = new FakeD1();
 const heldSeed = await api.trtcPersistOfficialRoster(args(heldDb, [row(0, 1, 120, '134')], 100, 100));
 const heldWrites = heldDb.writes;
@@ -189,7 +199,7 @@ check(barrierRefresh.writes === 1 && barrierLate.roster.rows[0].no === 'BARRIER'
 
 const newer = api.trtcOfficialRosterSnapshot(model, [row(2, 3, 160, '101')], second.roster,
   '2026-08-13', 130, 130);
-shared.set('official_roster_v3', JSON.stringify(newer));
+shared.set('official_roster_v4', JSON.stringify(newer));
 const beforeRollback = dbB.writes;
 const olderRequest = await api.trtcPersistOfficialRoster(args(dbB, [row(1, 2, 145, '101')], 120, 120));
 check(olderRequest.roster.sourceRevision === 130 && dbB.writes === beforeRollback,
@@ -264,7 +274,7 @@ function sourceAudit(source) {
   return {
     reducerImport: /import \{ reduceOfficialRoster \}/.test(source),
     officialFeedGate: /feedMode !== 'official'/.test(source),
-    stateKey: /official_roster_v3/.test(source),
+    stateKey: /official_roster_v4/.test(source),
     optimisticCas: /UPDATE trtc_state SET v=\? WHERE k=\? AND v=\?/.test(source),
     frameFingerprint: /const sourceFrameKey = trtcOfficialFrameKey\(rows\);/.test(source),
     observedOrder: /current\.state\.sourceObservedEpoch\) > observedRevision/.test(source),
@@ -284,7 +294,7 @@ check(Object.values(baselineSourceAudit).every(Boolean),
 const sourceMutations = [
   ['reducerImport', "import { reduceOfficialRoster }", 'import { reduceOfficialRosterDisabled }'],
   ['officialFeedGate', "feedMode !== 'official'", "feedMode === 'official'"],
-  ['stateKey', 'official_roster_v3', 'official_roster_DISABLED'],
+  ['stateKey', 'official_roster_v4', 'official_roster_DISABLED'],
   ['optimisticCas', 'WHERE k=? AND v=?', 'WHERE k=?'],
   ['frameFingerprint', 'const sourceFrameKey = trtcOfficialFrameKey(rows);',
     "const sourceFrameKey = 'disabled';"],

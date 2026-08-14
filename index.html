@@ -3558,6 +3558,7 @@
            內容 li 上限 8 條(li.grp 是標題不算)。 -->
       <ul class="foot-list foot-recent">
         <li class="grp">最近更新</li>
+        <li data-cl-of="trtcphysicalspeed"><span class="d">8/14</span><span>文湖線不再為了追上新倒數而突然衝刺：每次更新只能依該站間的實際行車秒數前進，也不會把相鄰列車誤接成同一台</span></li>
         <li data-cl-of="trtcoutagehold"><span class="d">8/14</span><span>新開頁面剛好遇到北捷資料短暫讀不到時，現在會接回已知的官方列車與車次繼續跑，不再整批退回無車次的班表畫面</span></li>
         <li data-cl-of="trtcdirection"><span class="d">8/14</span><span>台北捷運的車與箭頭改用同一條行車路徑；縮小或放大地圖都會立即指向正確方向，畫面短暫停頓後也不會往回跳</span></li>
         <li data-cl-of="trtcidentityguard"><span class="d">8/14</span><span>台北捷運再加一道防跳車：每台車都要有官方站牌的出生紀錄；已認到的車次號不會因下一站暫時空白而消失，只有真的讀到不同號碼才退回路線代號</span></li>
@@ -3565,7 +3566,6 @@
         <li data-cl-of="trtcofficialroster"><span class="d">8/13</span><span>台北捷運改用官方即時資訊決定車子在哪，依車站看板的時刻到站，不再對不上班表就消失</span></li>
         <li data-cl-of="klrtgps"><span class="d">8/12</span><span>高雄環狀輕軌改用官方衛星定位逐班校正，每台車各自對準自己的班次（謝謝網友提供資訊）</span></li>
         <li data-cl-of="tcstopsalign"><span class="d">8/12</span><span>列車資訊卡的停靠站時刻表：表頭「到／開」對齊下方的時刻欄了</span></li>
-        <li data-cl-of="landscape"><span class="d">8/11</span><span>手機橫著拿也能用了：面板改成靠右側邊欄，跟車時列車不再被蓋住（謝謝網友回報）</span></li>
       </ul>
       <!-- 第二層:完整歷史。刻意不掛 .foot-box 類名——placeFootBoxes() 用
            `.site-foot .foot-box` 搬移面板,巢狀同名會被當成另一個盒子一起搬走。 -->
@@ -3583,6 +3583,7 @@
         <li><span class="d">7/10</span><span>高鐵、桃園機捷、淡海輕軌、安坑輕軌加入路網</span></li>
         <li><span class="d">7/10</span><span>環島觀光列車一分為二：往東「山海號」、往西「平原號」</span></li>
         <li class="grp">即時動態與誤點</li>
+        <li data-cl="trtcphysicalspeed"><span class="d">8/14</span><span>修正文湖線少數列車會一路超車、數十秒飛過多站：無車號列車跨輪接續時，現在先比對重疊的逐站到站時間，並以實際經過秒數核對是否真的跑得完該段；15 秒輪詢不會再被當成前進一站。畫面也移除每 10 秒追一站及到站期限強制吸附的舊規則，無論 ETA 修訂或頁面停頓，都不得快過該站間的實際行車秒數。舊版已產生的錯誤身分與超短週期不再沿用。</span></li>
         <li data-cl="trtcoutagehold"><span class="d">8/14</span><span>修正新開頁面剛好遇到北捷 TrackInfo 短暫讀取失敗時，畫面會整批退回班表備案、所有官方車次同時消失；現在改為讀回已經由官方站牌建立的持久名冊，各車沿原本逐站時間續推到終點，已認到的車次也會保留。狀態徽章會標成「官方續推」，資料恢復後自動回到「官方即時」。</span></li>
         <li data-cl="trtcdirection"><span class="d">8/14</span><span>修正台北捷運列車偶爾看似倒著跑：車牌位置與方向箭頭現在共用目前顯示位置的路線切線；箭頭向量不再受地圖倍率影響，縮小時不會卡在上一段的方向、也不用放大才轉正。畫面若短暫停頓，恢復後仍守住原本已走到的位置，不因官方時間修訂往回跳。</span></li>
         <li data-cl="trtcidentityguard"><span class="d">8/14</span><span>修正環狀線同一班車在相鄰站的倒數曾被畫成兩台，以及車次號可能拉著列車瞬間跳到遠方：每台車都必須保留第一次出現在官方站牌的出生紀錄，班表與推算不能憑空生車；沒有車次號時，現在會依沿線官方到站時間的先後分出每一班。已認到的車次號若下一站暫時空白會沿用原號，只有真的出現另一個不同號碼才退回 Y、BR 等路線代號；不換號也不改變原本位置。</span></li>
@@ -4018,8 +4019,8 @@
 // v0814d：官方車的方向箭頭與防倒退車牌共用同一條顯示路徑，不再因 ETA 修訂反指。
 // v0814e：箭頭改用固定投影向量，不受目前縮放像素門檻影響；長畫格停頓後也不准倒退重設。
 // v0814f：後續站牌車次號暫時空白時沿用原號；只有不同非空號才鎖退，並以 roster v3 清除舊錯誤狀態。
-// v0814g：TrackInfo 短暫失敗時，新開頁面也會讀回 D1 已知官方名冊與車次續推。
-const BUILD = 'v0814g';
+// v0814h：BR 跨輪按逐站時間接車，顯示速度永不超過實際站間秒；清除舊飛車名冊。
+const BUILD = 'v0814h';
 // 2026-08-13 起預設開啟（使用者親試預覽後裁示上線）：北捷畫車依官方即時名冊，班表只是備案。
 // 保留 ?officialroster=0 當逃生口——要退回班表路徑不必回滾部署，加個參數即可對照。
 // 🔴 這個函式會被 verify_official_roster_frontend 抽出來丟進 VM 單獨執行——
@@ -4652,6 +4653,42 @@ function trtcOfficialPositionAtProgress(ln, vehicle, progress, raw) {
   const pos = posBetweenStations(ln, from, to, fraction);
   return pos ? { ...raw, ...pos, fraction, atStation: false } : raw;
 }
+// 顯示層的物理上限只取官方路線段秒與這台車該段 timeline；兩者若不同取較慢者。
+// TrackInfo 每 15 秒更新一次只是在修訂目標位置，絕不是允許一輪前進一站的速度單位。
+function trtcOfficialSegmentSeconds(ln, vehicle, from, to) {
+  const candidates = [Number(runBetween(ln, from, to))];
+  if (Number(vehicle && vehicle.from) === from && Number(vehicle && vehicle.to) === to)
+    candidates.push(Number(vehicle.run));
+  for (const item of Array.isArray(vehicle && vehicle.timeline) ? vehicle.timeline : []) {
+    if (Number(item.from) !== from || Number(item.to) !== to) continue;
+    candidates.push(Number(item.arrEpoch) - Number(item.depEpoch));
+  }
+  const valid = candidates.filter(value => Number.isFinite(value) && value > 0);
+  return valid.length ? Math.max(...valid) : null;
+}
+function trtcOfficialForwardLimit(ln, vehicle, startProgress, elapsedSeconds) {
+  let progress = Number(startProgress), remaining = Math.max(0, Number(elapsedSeconds));
+  if (!Number.isFinite(progress) || !Number.isFinite(remaining)) return progress;
+  const step = Number(vehicle && vehicle.dir) === 2 ? 1 : -1;
+  const count = ln && Array.isArray(ln.stations) ? ln.stations.length : 0;
+  for (let guard = 0; guard <= count && remaining > 1e-9; guard++) {
+    const physical = progress / step;
+    const rounded = Math.round(physical);
+    const from = Math.abs(physical - rounded) < 1e-9
+      ? rounded : step > 0 ? Math.floor(physical) : Math.ceil(physical);
+    const to = from + step;
+    if (!ln.stations[from] || !ln.stations[to]) break;
+    const seconds = trtcOfficialSegmentSeconds(ln, vehicle, from, to);
+    if (!(seconds > 0)) break;
+    const segmentStart = step * from;
+    const completed = Math.max(0, Math.min(1, progress - segmentStart));
+    const advance = Math.min(1 - completed, remaining / seconds);
+    if (!(advance > 0)) break;
+    progress += advance;
+    remaining -= advance * seconds;
+  }
+  return progress;
+}
 // 官方車箭頭只看「目前顯示位置沿該方向的路線切線」。車牌已用顯示水位防倒退，箭頭若再拿
 // 本輪原始 ETA 回看 8 秒，ETA 修訂時就會和車牌分屬兩條時間軸，出現箭頭反向。這裡取規格化
 // route progress 的後方小距離；起點沒有後方時，用前方點鏡射出同方向向量。
@@ -4687,9 +4724,8 @@ function trtcOfficialDirectionAnchor(mapRef, cp, current, previous) {
   const scale = 8 / distance;
   return { x:Number(cp.x) - dx * scale, y:Number(cp.y) - dy * scale };
 }
-// ETA 修訂只改官方 deadline，不准讓同一 vehicleId 在畫面倒退。往前修時依剩餘 deadline
-// 平滑追上；到站當格以準時為優先。分頁睡眠／時鐘跳動超過 5 秒只准向前重對齊；若新 ETA
-// 落在已顯示位置後方仍原地守住，不能因一次長畫格把防倒退水位清掉。
+// ETA 修訂只改目標，不准讓同一 vehicleId 在畫面倒退，也不准為了追 ETA 而超速。
+// 每一畫格最多只能按實際站間秒數往前；分頁睡眠、輪詢間隔與到站 deadline 都不能繞過。
 function trtcOfficialDisplayPosition(ln, vehicle, nowEpoch) {
   const now = Number(nowEpoch), raw = trtcOfficialVehiclePosition(ln, vehicle, now);
   const key = `${ln && ln.id}|${vehicle && vehicle.vehicleId}`;
@@ -4711,18 +4747,7 @@ function trtcOfficialDisplayPosition(ln, vehicle, nowEpoch) {
     return pos;
   }
   const dt = now - prior.epoch;
-  if (dt > 5) {
-    _trtcOfficialDisplay.set(key, { epoch: now, progress, pos: raw });
-    return raw;
-  }
-  let maxRate = 0.1; // 最多 10 秒追一站；正常官方速度遠低於此值，不會被改形。
-  const deadline = Number(raw.coastArrEpoch), target = Number(raw.coastTo);
-  const step = Number(vehicle.dir) === 2 ? 1 : -1;
-  if (Number.isFinite(deadline) && deadline > now && Number.isInteger(target)) {
-    maxRate = Math.max(maxRate, (step * target - prior.progress) / (deadline - now));
-  }
-  let shown = Math.min(progress, prior.progress + Math.max(0, maxRate) * dt);
-  if (raw.atStation && Number.isFinite(deadline) && now >= deadline) shown = progress;
+  const shown = Math.min(progress, trtcOfficialForwardLimit(ln, vehicle, prior.progress, dt));
   const pos = trtcOfficialPositionAtProgress(ln, vehicle, shown, raw);
   _trtcOfficialDisplay.set(key, { epoch: now, progress: shown, pos });
   return pos;

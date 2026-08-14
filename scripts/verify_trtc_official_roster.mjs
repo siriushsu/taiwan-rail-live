@@ -177,6 +177,29 @@ function scenarioScheduleIndependent(reduce) {
   return { a2, b2 };
 }
 
+function scenarioShortAdjacentReject(reduce, dir) {
+  const model = { lines: new Map([['BR', line(10, 75)]]) };
+  const forward = dir === 2, firstTo = forward ? 2 : 7, secondTo = firstTo + (forward ? 1 : -1);
+  const dest = forward ? 9 : 0;
+  const first = reduce(args([row({ line:'BR', dir, from:firstTo + (forward ? -1 : 1), to:firstTo,
+    dest, arrEpoch:17000, run:75 })], null, 16950, `br-short-${dir}-1`, model));
+  const id = first.vehicles[0].vehicleId;
+  // 15 秒後若下一站的到站 epoch 也只多 15 秒，這是分組邊界把下一班接錯，不是本車超速。
+  const second = reduce(args([row({ line:'BR', dir, from:firstTo, to:secondTo,
+    dest, arrEpoch:17015, run:75 })], first, 16965, `br-short-${dir}-2`, model));
+  return { id, second };
+}
+
+function scenarioShortCycleFloor(reduce) {
+  const model = { lines:new Map([['BR', line(10, 75)]]) };
+  const state = reduce(args([row({ line:'BR', dir:2, from:1, to:2, dest:9, arrEpoch:18010, run:75,
+    timeline:[
+      { from:0, to:1, depEpoch:17925, arrEpoch:18000, terminal:false },
+      { from:1, to:2, depEpoch:18000, arrEpoch:18010, terminal:false },
+    ] })], null, 17990, 'br-short-cycle', model));
+  return state.vehicles[0];
+}
+
 function scenarioDuplicateRows(reduce) {
   const duplicate = row({ dir: 2, from: 0, to: 1, dest: 4, arrEpoch: 12000, no: 'DUP' });
   return reduce(args([{ ...duplicate }, { ...duplicate }], null, 11900, 'duplicate'));
@@ -348,9 +371,22 @@ function evaluate(reduce) {
 
   let schedule;
   try { schedule = scenarioScheduleIndependent(reduce); } catch { schedule = null; }
-  assess('已有兩站官方時間後不受段秒模型改變', () => schedule &&
-    schedule.a2.vehicles[0].coastCycle === 80 && schedule.b2.vehicles[0].coastCycle === 80 &&
-    schedule.a2.vehicles[0].retireEpoch === schedule.b2.vehicles[0].retireEpoch);
+  assess('跨輪相鄰站時間不得短於該段官方行車秒', () => schedule &&
+    schedule.a2.vehicles[0].coastCycle === 80 && schedule.a2.diagnostics.ignoredObservations === 0 &&
+    schedule.b2.vehicles[0].to === 1 && schedule.b2.vehicles[0].carried === true &&
+    schedule.b2.diagnostics.ignoredObservations === 1);
+
+  for (const dir of [1, 2]) {
+    let short;
+    try { short = scenarioShortAdjacentReject(reduce, dir); } catch { short = null; }
+    assess(`BR 方向${dir}十五秒內不得把同一 ID 推進一站`, () => short &&
+      byId(short.second, short.id)?.to === (dir === 2 ? 2 : 7) &&
+      byId(short.second, short.id)?.carried === true && short.second.diagnostics.ignoredObservations === 1);
+  }
+  let shortCycle;
+  try { shortCycle = scenarioShortCycleFloor(reduce); } catch { shortCycle = null; }
+  assess('異常逐站 timeline 也不得產生短於段秒的續推週期', () => shortCycle &&
+    shortCycle.coastCycle === 75);
 
   let duplicate;
   try { duplicate = scenarioDuplicateRows(reduce); } catch { duplicate = null; }
@@ -479,6 +515,14 @@ async function mutatedReducer(kind) {
     source = replaceExactly(source,
       "source: 'official-board', sourceRevision, observedEpoch: nowEpoch,",
       "source: 'unverified', sourceRevision, observedEpoch: nowEpoch,", kind);
+  } else if (kind === 'allow-short-adjacent') {
+    source = replaceExactly(source,
+      '  if (Number(current.arrEpoch) - Number(prior.arrEpoch) + elapsed < required) return false;',
+      '  if (false) return false;', kind);
+  } else if (kind === 'allow-short-cycle') {
+    source = replaceExactly(source,
+      '? Math.max(own, Number(physicalFloor) > 0 ? Number(physicalFloor) : 0)',
+      '? own', kind);
   } else throw new Error(`未知 mutation ${kind}`);
   const url = `data:text/javascript;base64,${Buffer.from(`${source}\n//# sourceURL=trtc-roster-${kind}.mjs`).toString('base64')}`;
   return (await import(url)).reduceOfficialRoster;
@@ -494,6 +538,8 @@ function peakReplay(reduce) {
     loadJson('data/trtc_codes.json'), { includeY: true });
   let prior = null, rows = 0, maxVehicles = 0, births = 0, carried = 0, completed = 0;
   let shuffleMismatches = 0, duplicateRounds = 0, crossDirectionChanges = 0, resurrected = 0;
+  let impossibleAdvances = 0, shortCoastCycles = 0;
+  const impossibleAdvanceExamples = [];
   const directionById = new Map(), retired = new Set();
   let previousIds = new Set();
   const feed = new Map();
@@ -518,12 +564,36 @@ function peakReplay(reduce) {
     if (!uniqueIds(state)) duplicateRounds++;
     const ids = new Set(state.vehicles.map(vehicle => vehicle.vehicleId));
     for (const id of previousIds) if (!ids.has(id)) retired.add(id);
+    const priorById = new Map((prior?.vehicles || []).map(vehicle => [vehicle.vehicleId, vehicle]));
     for (const vehicle of state.vehicles) {
       if (retired.has(vehicle.vehicleId) && !previousIds.has(vehicle.vehicleId)) resurrected++;
       const signature = `${vehicle.line}|${vehicle.dir}`;
       if (directionById.has(vehicle.vehicleId) && directionById.get(vehicle.vehicleId) !== signature)
         crossDirectionChanges++;
       directionById.set(vehicle.vehicleId, signature);
+      const before = priorById.get(vehicle.vehicleId);
+      const advance = before ? Number(vehicle.routePosition) - Number(before.routePosition) : 0;
+      if (before && advance > 0) {
+        const step = Number(vehicle.dir) === 2 ? 1 : -1;
+        let station = Number(before.to), required = 0;
+        for (let moved = 0; moved < advance; moved++) {
+          const next = station + step;
+          const run = model.lines.get(vehicle.line)?.runs?.get(`${station}>${next}`);
+          if (!(Number(run) > 0)) { required = NaN; break; }
+          required += Number(run); station = next;
+        }
+        const allowance = Number(vehicle.arrEpoch) - Number(before.arrEpoch) +
+          Math.max(0, Number(state.nowEpoch) - Number(before.observedEpoch));
+        if (Number.isFinite(required) && allowance < required) {
+          impossibleAdvances++;
+          if (impossibleAdvanceExamples.length < 8) impossibleAdvanceExamples.push({ line:vehicle.line,
+            dir:vehicle.dir, from:Number(before.to), to:Number(vehicle.to), allowance, required,
+            id:vehicle.vehicleId });
+        }
+      }
+      const actual = model.lines.get(vehicle.line)?.runs?.get(`${Number(vehicle.from)}>${Number(vehicle.to)}`);
+      if (Number(actual) > 0 && Number(vehicle.coastCycle) > 0 && Number(vehicle.coastCycle) < Number(actual))
+        shortCoastCycles++;
     }
     for (const value of current) {
       const key = `${value.line}|${value.dir}`;
@@ -539,7 +609,8 @@ function peakReplay(reduce) {
     prior = state;
   }
   return { rounds: rounds.length, rows, maxVehicles, births, carried, completed, shuffleMismatches,
-    duplicateRounds, crossDirectionChanges, resurrected, streams: feed.size,
+    duplicateRounds, crossDirectionChanges, resurrected, impossibleAdvances, shortCoastCycles,
+    impossibleAdvanceExamples, streams: feed.size,
     xbt: Object.fromEntries([...feed].filter(([key]) => /_XBT\|/.test(key))) };
 }
 
@@ -580,6 +651,8 @@ const mutations = [
   ['後續站牌空白就清掉已認到號碼', 'drop-number-on-blank', '已認到的 134 遇到後續站牌空白仍保留原號碼'],
   ['遠方同號被拒後仍保留舊牌', 'keep-carried-number', '當輪只剩遠方同號時不生幽靈，舊車沿原時間線保留但退牌'],
   ['移除官方出生證據', 'erase-birth-evidence', '每台車都有可稽核的官方站牌出生證據'],
+  ['容許十五秒內推進一站', 'allow-short-adjacent', 'BR 方向2十五秒內不得把同一 ID 推進一站'],
+  ['續推週期可短於實際段秒', 'allow-short-cycle', '異常逐站 timeline 也不得產生短於段秒的續推週期'],
 ];
 console.log('\nMutation control：');
 for (const [label, kind, expectedRed] of mutations) {
@@ -599,6 +672,9 @@ check(replay && replay.shuffleMismatches === 0, '每輪 rows 逆序結果完全�
 check(replay && replay.duplicateRounds === 0, '每輪 vehicleId 唯一', replay && `bad=${replay.duplicateRounds}`);
 check(replay && replay.crossDirectionChanges === 0, '任何 ID 都不跨方向', replay && `bad=${replay.crossDirectionChanges}`);
 check(replay && replay.resurrected === 0, '已退場 ID 不復活', replay && `bad=${replay.resurrected}`);
+check(replay && replay.impossibleAdvances === 0 && replay.shortCoastCycles === 0,
+  '任何跨輪推進都要通過實際經過秒＋段秒，續推週期不得超速', replay &&
+    `advance=${replay.impossibleAdvances},coast=${replay.shortCoastCycles},examples=${JSON.stringify(replay.impossibleAdvanceExamples)}`);
 check(replay && Object.keys(replay.xbt).length === 4 &&
   Object.values(replay.xbt).every(shape => shape.moving === 0 && shape.stopped > 0),
   'XBT 四個方向官方語料只有起點倒數、沒有對端到站時間', replay && JSON.stringify(replay.xbt));

@@ -3,7 +3,7 @@
 // 這裡刻意不讀班表，也不接受 tripKey。每一筆 collapseClaims() 輸出的 row 都是一台
 // 當輪應顯示的車；班表車次若日後能辨認，只能在本名冊之外附加標籤，不能決定車的存在。
 
-export const OFFICIAL_ROSTER_SCHEMA = 3;
+export const OFFICIAL_ROSTER_SCHEMA = 4;
 export const OFFICIAL_COAST_DWELL_DEFAULT_SEC = 25;
 
 function finite(value, label) {
@@ -130,21 +130,28 @@ function physicallyReachable(model, prior, current, nowEpoch) {
   const after = routePosition(current), advance = after - before;
   // 官方 ETA 回修最多容許退一站，交給前端單調顯示水位吸收；更遠的反向跳接不是同一台車。
   if (advance < -1) return false;
-  // target station 前進一格可能剛好發生在兩輪交界；第二格起至少要真的跑完中間各段。
-  if (advance <= 1) return true;
-  const observed = Number(prior.observedEpoch);
-  if (!Number.isFinite(observed)) return false;
-  const elapsed = Math.max(0, Number(nowEpoch) - observed);
+  if (advance <= 0) return true;
+  // 無車號線的分組邊界每 15 秒可能改變；只靠路線順序會把下一班的倒數接到前車，
+  // 實測 BR 因此產生 3、7、16 秒就「抵達下一站」的假 history。相鄰站的官方到站 epoch
+  // 差必須至少容得下實際路段行車秒；不符就是另一台車，不能拿來讓原車飛馳。
   const step = Number(current.dir) === 2 ? 1 : -1;
   let station = Number(prior.to), required = 0;
-  for (let moved = 1; moved < advance; moved++) {
+  for (let moved = 0; moved < advance; moved++) {
     const next = station + step;
     const run = segmentRun(model, current.line, station, next);
     if (!(run > 0)) return false;
     required += run;
     station = next;
   }
-  return elapsed >= required;
+  const observed = Number(prior.observedEpoch);
+  if (!Number.isFinite(observed)) return false;
+  const elapsed = Math.max(0, Number(nowEpoch) - observed);
+  // ETA 本身可能在兩輪之間修早幾秒；用真正經過的觀測秒補上這段修訂誤差。兩者相加仍跑不完
+  // 該段才是不可能配對。這不是固定容忍門檻，輪詢 15 秒就只多 15 秒，不能放大成一整站。
+  if (Number(current.arrEpoch) - Number(prior.arrEpoch) + elapsed < required) return false;
+  // target station 第二格起，除了到站時軸要可達，觀測之間也必須真的已經跑完中間段。
+  if (advance <= 1) return true;
+  return elapsed >= required - segmentRun(model, current.line, Number(prior.to), Number(prior.to) + step);
 }
 
 function matchFeasible(model, prior, current, nowEpoch) {
@@ -155,10 +162,25 @@ function matchFeasible(model, prior, current, nowEpoch) {
   return physicallyReachable(model, prior, current, nowEpoch);
 }
 
+function timelineContinuity(prior, current) {
+  const previous = new Map((Array.isArray(prior && prior.timeline) ? prior.timeline : []).map(item =>
+    [`${Number(item.from)}>${Number(item.to)}`, Number(item.arrEpoch)]));
+  let best = Infinity;
+  for (const item of Array.isArray(current && current.timeline) ? current.timeline : []) {
+    const old = previous.get(`${Number(item.from)}>${Number(item.to)}`);
+    if (Number.isFinite(old) && Number.isFinite(Number(item.arrEpoch)))
+      best = Math.min(best, Math.abs(Number(item.arrEpoch) - old));
+  }
+  return Number.isFinite(best) ? best : null;
+}
+
 function pairCost(prior, current) {
   const position = routePosition(current) - Number(prior.routePosition ?? routePosition(prior));
   const destination = Number(current.dest) === Number(prior.dest) ? 0 : 1000;
-  return Math.abs(position) * 100000 + destination +
+  // 無車號時，前後兩輪重疊的逐站 ETA 是比「現在排在第幾台」更強的身分證據。
+  // 同一車通常只修幾秒，相鄰另一車則差一個班距；先比 overlap，才比位置。
+  const continuity = timelineContinuity(prior, current);
+  return (continuity == null ? 1e9 : continuity * 1e6) + Math.abs(position) * 100000 + destination +
     Math.abs(Number(current.arrEpoch) - Number(prior.arrEpoch));
 }
 
@@ -240,8 +262,14 @@ function coastTiming(model, row, history, timeline) {
     ? Number(officialArrivals.at(-1).arrEpoch) - Number(officialArrivals.at(-2).arrEpoch)
     : history.length >= 2
       ? Number(history.at(-1).arrEpoch) - Number(history.at(-2).arrEpoch) : NaN;
+  const last = history.at(-1), beforeLast = history.at(-2);
+  const physicalFloor = beforeLast && last
+    ? segmentRun(model, row.line, Number(beforeLast.to), Number(last.to)) : Number(row.run);
+  // 實測舊的無號配對曾產生 1–20 秒一站的假 cycle。官方 epoch 可以修訂，但不能
+  // 凌駕於這段路線的實際行車秒；否則續推與退場時間都會被壓成飛車速度。
   const measuredCycle = Number.isFinite(own) && own > 0
-    ? own : Number(row.run) + OFFICIAL_COAST_DWELL_DEFAULT_SEC;
+    ? Math.max(own, Number(physicalFloor) > 0 ? Number(physicalFloor) : 0)
+    : Number(row.run) + OFFICIAL_COAST_DWELL_DEFAULT_SEC;
   const exactDestination = (timeline || []).filter(item => !item.terminal && Number(item.to) === Number(row.dest))
     .sort((a, b) => Number(b.arrEpoch) - Number(a.arrEpoch))[0];
   const exactRetireEpoch = exactDestination ? Number(exactDestination.arrEpoch) : null;
