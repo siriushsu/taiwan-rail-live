@@ -15769,7 +15769,8 @@ async function setupLocalNotifications() {
 //    advance-on-query:查詢時就地推進,dt 上限 0.1s(未被查詢期間等同凍結,回前景/回視野再滑,不會瞬跳)。
 //    預設維持 v0718g:偏移上升鉗在模擬時間流速(位置不倒退)、下降 τ=1s 追回。
 //    所有捷運 live 校正都傳 motion profile:兩方向都用模擬時間速率限制,把誤差以 0.25–2× 段內標稱速度吸收；
-//    target 更新當下 adv=0,所以位置連續,站間也不會因校正完全停住或暴衝。台鐵不走此 profile。
+//    target 更新當下 adv=0,所以位置連續,站間也不會因校正完全停住或暴衝。台鐵也走此分支,但
+//    minRate=0(只鉗下降、上升維持原本的「位置恆不倒退」),見 TRA_MOTION_PROFILE。
 //    epoch=校正剛(重新)啟用(開機首拉/回看歸來):該瞬間 5 秒窗內首見或跨 epoch 的 entry 直接對齊目標,
 //    不做數十分鐘的凍結慢追;epoch 之中途才冒出的誤點(0→1)才走凍結追上。
 const _easedShift = new Map(); // key → {cur, at, sim, ep}
@@ -15777,6 +15778,12 @@ const _traGateEp = { on: false, ep: 0, at: 0 }, _metroGateEp = { on: false, ep: 
 const TRTC_MOTION_MIN_RATE = .25;
 const TRTC_MOTION_MAX_RATE = 2;
 const TRTC_MOTION_PROFILE = { minRate: TRTC_MOTION_MIN_RATE, maxRate: TRTC_MOTION_MAX_RATE };
+// 台鐵側:只鉗下降(追回誤點),不鉗上升。minRate=0 讓 rise=adv*(1-0)=adv,與改動前的無 motion
+// 上升分支逐字等價 ⇒ 準點的車與「誤點正在加大」的車行為零變化;真正被約束的只有「誤點被釋放」
+// 這一段——改動前它走 τ=1s 的指數收斂,而且吃的是真實時間 dt 不是模擬時間 adv,於是連暫停
+// (adv=0)都照樣移動,600 秒的誤點會在 3 秒多內畫完,換算數萬 km/h。
+const TRA_MOTION_MAX_RATE = 2;   // 有效時間最多以 2× 前進 ⇒ 追回誤點時畫面最多跑標稱速度的 2 倍
+const TRA_MOTION_PROFILE = { minRate: 0, maxRate: TRA_MOTION_MAX_RATE };
 // 各線實際吃的是 metroMotion(ln)：同樣的 min/max，但 max 已先除掉該線梯形的巡航／平均倍率。
 // TRTC_MOTION_PROFILE 本身在出貨路徑上已無呼叫端，但 verify_all_metro_motion 的控制組要靠它
 // 組出「退回舊預設」的突變版本 —— 看到沒人用就刪掉的話，那支的突變會直接 throw。
@@ -15880,7 +15887,7 @@ function liveDelaySec(tr) {
   // 兩班共用同一個漸變條目——easedShift 有狀態,條目存在時不看 target 是誰傳的,於是林鐵那班讀到台鐵的
   // 誤點被推走(實測 730m),它自己的 target=0 又反過來把條目往 0 拉,兩班互相拉扯(台鐵誤點也跟著失真)。
   // 比照下方 metroShiftSec 的鍵作法。tr.sys 是穩定字串 id,跨 rebuild 不變。
-  return easedShift((tr.sys || 'tra_sched') + ':' + tr.train, target, gateEpoch(_traGateEp, on)); // 退場也經漸變滑出,不在門檻關閉時提前 return 0
+  return easedShift((tr.sys || 'tra_sched') + ':' + tr.train, target, gateEpoch(_traGateEp, on), TRA_MOTION_PROFILE); // 退場也經漸變滑出,不在門檻關閉時提前 return 0
 }
 async function pollLive() {
   const ls = state.schedSystems && state.schedSystems.find(s => s.live);
