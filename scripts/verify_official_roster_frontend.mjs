@@ -58,7 +58,8 @@ function replaceExactly(source, before, after, label) {
 
 const UNIT_FUNCTIONS = [
   'trtcOfficialRosterEnabled', 'trtcOfficialRosterActive', 'trtcOfficialRosterForLine',
-  'trtcOfficialCoastCycle', 'trtcOfficialCoastPosition', 'trtcOfficialDeparturePosition',
+  'trtcOfficialCoastCycle', 'trtcOfficialCoastByCycle', 'trtcOfficialCoastPosition',
+  'trtcOfficialDeparturePosition',
   'trtcOfficialTimelinePosition', 'trtcOfficialVehiclePosition', 'trtcOfficialPositionProgress',
   'trtcOfficialMotionStep', 'trtcOfficialPositionAtProgress', 'trtcOfficialSegmentSeconds', 'trtcOfficialForwardLimit',
   'trtcOfficialDirectionPrevious', 'trtcOfficialDirectionAnchor',
@@ -73,6 +74,9 @@ function buildUnitApi(overrides = {}, label = 'unit') {
     ${extractConst(INDEX, 'OFFICIAL_ROSTER_ENABLED')}
     ${extractConst(INDEX, 'TRTC_OFFICIAL_COAST_DWELL_MIN_SEC')}
     ${extractConst(INDEX, 'TRTC_OFFICIAL_COAST_DWELL_DEFAULT_SEC')}
+    ${extractConst(INDEX, 'TRTC_OFFICIAL_COAST_DWELL_SEC')}
+    ${extractConst(INDEX, 'TRTC_OFFICIAL_RESYNC_MIN_COAST_SEC')}
+    ${extractConst(INDEX, '_trtcOfficialResync')}
     ${extractConst(INDEX, '_trtcOfficialDisplay')}
     ${extractFunction(INDEX, 'runBetween')}
     ${extractFunction(INDEX, 'posAlongShape')}
@@ -203,7 +207,14 @@ function evaluateUnit(api) {
   const done = api.trtcOfficialVehiclePosition(LINE, coastVehicle, 3800);
   const reverseCoast = api.trtcOfficialVehiclePosition(LINE,
     { ...coastVehicle, vehicleId: 'coast-r', dir: 1, dest: 0, from: 9, to: 8 }, 3660);
-  const G = long && long.lat > LINE.stations[7].lat && long.lat < LINE.stations[8].lat &&
+  // 續推節奏＝「該線每段自己的固定行車秒 ＋ 固定停站秒」，與這台車自己的 history 無關
+  //（2026-08-15 斷訊修正）。期望站號直接從契約推導，不寫死——寫死的話下次調停站秒
+  // 又會變成一個會被推翻的魔術數字（心得 35）。
+  const coastDwell = Number(extractConst(INDEX, 'TRTC_OFFICIAL_COAST_DWELL_SEC').match(/=\s*(\d+)/)[1]);
+  const coastCycleSec = 60 + coastDwell;            // unitLine 的固定段秒是 60
+  const legsDone = Math.floor((3660 - coastVehicle.arrEpoch) / coastCycleSec);
+  const hereIdx = coastVehicle.to + legsDone;
+  const G = long && long.lat > LINE.stations[hereIdx].lat && long.lat < LINE.stations[hereIdx + 1].lat &&
     done === null && reverseCoast && reverseCoast.lat < LINE.stations[2].lat;
   // 錄影重現：位置明確走 0→1／4→3，但身分 dir 故意放成相反方向。箭頭必須信這一幀
   // 的實際 motionFrom→motionTo，不能再被落後一輪的 dir 或上一段 EMA 帶反。

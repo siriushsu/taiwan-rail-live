@@ -1688,6 +1688,9 @@
     border-radius: 999px; vertical-align: 1px; white-space: nowrap;
   }
   .board .sub { color: var(--faint); font-size: 11px; margin-bottom: 7px; }
+  /* 官方即時中斷:倒數這時候是推估的,必須比 .sub 更搶眼——.sub 是 --faint 的小字,使用者不會看 */
+  .board .sub.stale { color: var(--warn-ink); background: var(--warn-bg); border: 1px solid var(--warn-line);
+    border-radius: 7px; padding: 6px 8px; font-size: 12px; font-weight: 700; line-height: 1.45; }
   .board .row { display: flex; align-items: baseline; gap: 8px; padding: 6px 0; border-top: 1px dashed var(--line-faint); font-size: 13px; }
   .board .row:first-of-type { border-top: 0; }
   .board .row[data-no], .board .row[data-rand], .board .row[data-li], .board .row[data-guide], .board .row[data-ev] { cursor: pointer; }
@@ -3602,6 +3605,7 @@
            內容 li 上限 8 條(li.grp 是標題不算)。 -->
       <ul class="foot-list foot-recent">
         <li class="grp">最近更新</li>
+        <li data-cl-of="trtcoutage"><span class="d">8/15</span><span>台北捷運官方即時資料中斷時，現在會明白告訴你「北捷訊號中斷，列車位置與車站倒數都可能不準」；中斷期間的推估改照各站之間的固定行車時間走，不會再有車擠在一起互相超車；資料恢復時畫面會對回官方位置，並說明為什麼有些車會往前跳或往後退</span></li>
         <li data-cl-of="metrowaitcard"><span class="d">8/14</span><span>iPhone 新增捷運等車卡與捷運小工具：鎖定畫面倒數下一班，北捷、高捷、機捷；下次 App 更新生效</span></li>
         <li data-cl-of="tymcexpress"><span class="d">8/14</span><span>機場捷運直達車路線修正：南下會開到環北站，北上不再多出老街溪站</span></li>
         <li data-cl-of="linecomplete"><span class="d">8/14</span><span>縱貫線北段完乘率卡在 99% 已修好，不用重搭就會自動補滿（謝謝網友回報）</span></li>
@@ -3628,6 +3632,7 @@
         <li><span class="d">7/10</span><span>高鐵、桃園機捷、淡海輕軌、安坑輕軌加入路網</span></li>
         <li><span class="d">7/10</span><span>環島觀光列車一分為二：往東「山海號」、往西「平原號」</span></li>
         <li class="grp">即時動態與誤點</li>
+        <li data-cl="trtcoutage"><span class="d">8/15</span><span>台北捷運官方即時資料中斷時，畫面原本完全不說（8/15 早上斷了約半小時）：列車各自照最後量到的速度往前推，兩班車擠在一起、甚至互相超車，車站倒數則整個找不到車。現在三件事一起改了——中斷一發生，頂端就會跳出提示告訴你是北捷訊號中斷、列車位置與車站倒數都可能不準，捷運徽章與車站看板上也會標示；中斷期間的推估改成照每段站與站之間的固定行車時間走，全線同一個節奏，不會再有車超過前面那班；官方資料恢復時，畫面會重新對齊官方位置，部分列車會因此往前跳或往後退，並跳出訊息說明為什麼會跳。環狀線走的是新北捷運另一條資料線路，兩邊各自判斷，一邊斷不會誤報另一邊</span></li>
         <li data-cl="trtcofficialroster"><span class="d">8/14</span><span>台北捷運列車改以官方站牌倒數逐班追蹤：從發車到終點依各站時間顯示位置，同一班車在多站的資訊會自動合併，車次與方向跟著實際行程；文湖線沒有車次時顯示 BR 路線牌。</span></li>
         <li data-cl="tradelaycatchup"><span class="d">8/14</span><span>台鐵列車追回誤點時，畫面上會瞬間往前跳一大段（實測最遠 3.6 公里，連把時間暫停住都照跳）；現在改成邊跑邊追，追趕期間最多用兩倍速前進，一筆十分鐘的誤點分散在十分鐘內吸收完。準點的車、以及誤點還在擴大的車，行為完全不變。卡片上的時速仍以該車種的最高速度為上限（謝謝網友回報）</span></li>
         <li data-cl="klrtgps"><span class="d">8/12</span><span>高雄環狀輕軌改用官方衛星定位逐班校正：它是全台唯一提供每台車即時經緯度的捷運系統，現在每台車各自對到自己的班次、各自算自己的誤點，不再全線共用一個平均值。五輪獨立實測，畫面位置與官方定位的差距中位數約是原本的一半。班表仍是唯一車輛名冊，定位資料收不到時自動退回原本的到站看板校正，車不會消失（謝謝網友提供資訊）</span></li>
@@ -4086,7 +4091,9 @@
 // v0814h：BR 跨輪按逐站時間接車，顯示速度永不超過實際站間秒；清除舊飛車名冊。
 // v0814i：位置與箭頭共用當下 motionFrom→motionTo；官方箭頭不留舊角度，共用箭頭不得朝車尾。
 // v0814j：正式出貨前把北捷這一批功能合併成一條面向訪客的更新紀錄。
-const BUILD = 'v0814j';
+// v0815a：官方看板斷線（08-15 實斷 33 分鐘）三修——續推改吃各段固定行車秒、斷線提示上畫面、
+//         回歸時允許對回官方位置並跳訊息說明。
+const BUILD = 'v0815a';
 // 2026-08-13 起預設開啟（使用者親試預覽後裁示上線）：北捷畫車依官方即時名冊，班表只是備案。
 // 保留 ?officialroster=0 當逃生口——要退回班表路徑不必回滾部署，加個參數即可對照。
 // 🔴 這個函式會被 verify_official_roster_frontend 抽出來丟進 VM 單獨執行——
@@ -4104,6 +4111,9 @@ const OFFICIAL_ROSTER_ENABLED = trtcOfficialRosterEnabled(location.search);
 // 互相矛盾時（實測有 run=109s 但 span=90s 的列）算出負的行駛時間。
 const TRTC_OFFICIAL_COAST_DWELL_MIN_SEC = 15;
 const TRTC_OFFICIAL_COAST_DWELL_DEFAULT_SEC = 25;
+// 續推（官方時間軸用完之後）的固定停站秒。搭配「該線各段自己的固定行車秒」使用，
+// 見 trtcOfficialCoastPosition：斷線期間全線一致的節奏才不會把車距推到互相超車。
+const TRTC_OFFICIAL_COAST_DWELL_SEC = 25;
 // 成就徽章與車廂標記＝原本那些 emoji 的單色平面版（RailEmoji＝裁切過的 Noto Emoji 單色）。
 // 刻意保留 railIcon(name) 這個唯一入口:呼叫端一行都不用改,只有這裡決定畫法。
 // 🔴 ⚖ 與 ♾ 一律寫**不帶 VS16(U+FE0F)** 的碼位——帶了就強制彩色呈現,會蓋過 font-family
@@ -4577,6 +4587,48 @@ function trtcOfficialRosterForLine(boardPos, lineId) {
   if (!boardPos || !Array.isArray(boardPos.vehicles)) return [];
   return boardPos.vehicles.filter(vehicle => vehicle && String(vehicle.line) === String(lineId));
 }
+// 官方看板中斷多久了。後端沒有送 held 旗標（2026-08-15 斷線 33 分鐘期間 boardPos.held 全程 undefined），
+// 所以資料齡一律由前端自己從名冊的 observedEpoch 算。
+// 🔴 逐「上游」各自算，不把各家混成一個數字——環狀線走新北捷另一支上游，北捷斷 33 分鐘的當下環狀線是
+//    0 秒，混算會讓它的新鮮度把北捷的中斷整個蓋掉（[[pooling-hides-subgroup-structure]]）。
+// 🔴 分組單位是「上游」不是「線」：一條線的車可能全部續推過終點被收掉而在名冊裡消失，逐線算會讓中斷
+//    最嚴重的那條線反而不算中斷；同一家只要還有任何一台車，就足以量出這家的資料齡。
+const TRTC_FEED_STALE_SEC = 180;   // 官方正常 15～60 秒一輪；3 分鐘沒動就是真的斷了
+const TRTC_FEED_GROUPS = [
+  { label: '臺北捷運', lines: ['BR', 'R', 'R_XBT', 'G', 'G_XBT', 'O_XINZHUANG', 'O_LUZHOU', 'BL'] },
+  { label: '環狀線', lines: ['Y'] },
+];
+// 認不得的線代號自成一組（不併進別家、也不丟掉），將來加線時最壞只是標題少一個好聽的名字
+function trtcFeedGroupOf(lineId) {
+  const id = String(lineId);
+  return TRTC_FEED_GROUPS.find(g => g.lines.includes(id)) || { label: id, lines: [id] };
+}
+function trtcOfficialStaleFeeds(roster, nowEpoch) {
+  const vehicles = roster && Array.isArray(roster.vehicles) ? roster.vehicles : null;
+  if (!vehicles || !vehicles.length || !Number.isFinite(Number(nowEpoch))) return [];
+  const groups = new Map();
+  for (const v of vehicles) {
+    const obs = Number(v && v.observedEpoch);
+    if (!Number.isFinite(obs)) continue;
+    const g = trtcFeedGroupOf(v.line);
+    const cur = groups.get(g.label) || { label: g.label, lines: new Set(), newest: -Infinity };
+    cur.lines.add(String(v.line));
+    if (obs > cur.newest) cur.newest = obs;
+    groups.set(g.label, cur);
+  }
+  const out = [];
+  for (const g of groups.values()) {
+    const ageSec = Number(nowEpoch) - g.newest;
+    if (ageSec >= TRTC_FEED_STALE_SEC) out.push({ label: g.label, lines: [...g.lines], ageSec });
+  }
+  return out;
+}
+// 這條線現在是不是續推中(回中斷組別,沒中斷回 null)。給跟隨小卡／看板／徽章共用同一套判準。
+function trtcOfficialStaleFor(lineId) {
+  return trtcOfficialStaleFeeds(state.trtcOfficialRoster, Date.now() / 1000)
+    .find(f => f.lines.includes(String(lineId))) || null;
+}
+function trtcStaleMins(stale) { return Math.max(1, Math.round(Number(stale && stale.ageSec) / 60)); }
 // 這台車自己的行進節奏：相鄰兩筆官方到站的間隔（含停站）＝一個「站到站週期」。
 // 沒有 history（首次出現）才退回 run＋停站常數。停站夾在 [15s, 半個週期]——實測有
 // run=109s 但 span=90s 的列（run 來自模型、span 來自官方兩次到站），不夾會算出負的行駛時間。
@@ -4594,14 +4646,13 @@ function trtcOfficialCoastCycle(vehicle, run) {
   const dwell = Math.min(Math.max(cycle - run, TRTC_OFFICIAL_COAST_DWELL_MIN_SEC), cycle / 2);
   return { cycle, dwell, travel: cycle - dwell };
 }
-// 官方最後一筆到站之後，車不會停在那裡等下一批資料——照自己的節奏停站、發車、
-// 準時開到下一站，一路推到終點站為止。這是「有訊號就一直推算下去，車子不准在中間
-// 消失」的實作。沒有缺訊 timeout；抵達這趟已知 dest 就回 null 收車。
-function trtcOfficialCoastPosition(ln, vehicle, now, from, to, run, arrEpoch) {
+// 退路：該線沒有固定段秒時（環狀線 Y 的 segs 為空），才用「這台車自己的週期」等速續推。
+// 🔴 不是預設路徑——它會讓同一條線上的車各跑各的，見 trtcOfficialCoastPosition 的說明。
+function trtcOfficialCoastByCycle(ln, vehicle, now, from, to, run, arrEpoch) {
   const B = ln.stations[to];
   const elapsed = now - arrEpoch;
   if (!(elapsed >= 0)) return null;
-  const atTo = { lat: B.lat, lon: B.lon, fraction: 1, atStation: true,
+  const atTo = { lat: B.lat, lon: B.lon, fraction: 1, atStation: true, coasted: true,
     motionFrom: from, motionTo: to, coastTo: to, coastArrEpoch: arrEpoch };
   const step = to > from ? 1 : -1;
   const dest = Number(vehicle && vehicle.dest);
@@ -4615,13 +4666,62 @@ function trtcOfficialCoastPosition(ln, vehicle, now, from, to, run, arrEpoch) {
   const P = ln.stations[here], Q = ln.stations[next];
   if (!P || !Q) return atTo;
   const phase = elapsed - done * cycle, nextArr = arrEpoch + (done + 1) * cycle;
-  if (phase < dwell) return { lat: P.lat, lon: P.lon, fraction: 1, atStation: true,
+  if (phase < dwell) return { lat: P.lat, lon: P.lon, fraction: 1, atStation: true, coasted: true,
     motionFrom: here - step, motionTo: here,
     coastTo: here, coastArrEpoch: arrEpoch + done * cycle };
   const fraction = Math.max(0, Math.min(1, (phase - dwell) / travel));
   const pos = posBetweenStations(ln, here, next, fraction);
-  return pos ? { ...pos, fraction, atStation: false, motionFrom: here, motionTo: next,
+  return pos ? { ...pos, fraction, atStation: false, coasted: true, motionFrom: here, motionTo: next,
     coastTo: next, coastArrEpoch: nextArr } : atTo;
+}
+// 官方最後一筆到站之後，車不會停在那裡等下一批資料——停站、發車、準時開到下一站，
+// 一路推到終點站為止。這是「有訊號就一直推算下去，車子不准在中間消失」的實作。
+// 沒有缺訊 timeout；抵達這趟已知 dest 就回 null 收車。
+//
+// 🔴 節奏一律用「該線每一段自己的固定行車秒」＋固定停站秒，不用這台車最後一段量到的速度
+// 去推完剩下全程（2026-08-15 北捷斷線 33 分鐘的教訓，語料在 fixtures/trtc-outage-20260815）：
+// 各車的 coastCycle 實測散布在 1～1681 秒/站，停在終點站的車還會退化成 25 秒/站掃過整條線。
+// 同線各車節奏不同 ⇒ 20 分鐘就把車距推到互相超車（214 是 192 秒/站、217 是 100 秒/站，
+// 晚 7 分半發車的 217 反而超到 214 前面，兩台擠在國父紀念館前後一站）。
+// 用固定段秒後全線同節奏，車距結構在整段斷線期間維持不變。
+function trtcOfficialCoastPosition(ln, vehicle, now, from, to, run, arrEpoch) {
+  const B = ln.stations[to];
+  if (!B) return null;
+  const elapsed = now - arrEpoch;
+  if (!(elapsed >= 0)) return null;
+  const atTo = { lat: B.lat, lon: B.lon, fraction: 1, atStation: true, coasted: true,
+    motionFrom: from, motionTo: to, coastTo: to, coastArrEpoch: arrEpoch };
+  const step = to > from ? 1 : -1;
+  const dest = Number(vehicle && vehicle.dest);
+  const legsLeft = Number.isInteger(dest) ? (dest - to) * step : 0;
+  if (!(legsLeft > 0)) return null;
+  // 先把剩下每一段的固定行車秒取齊；任何一段取不到就整趟退回 per-vehicle 週期，
+  // 不要走到一半換算法（半段固定、半段自訂會在交界處造成跳躍）。
+  const legSecs = [];
+  for (let leg = 0, i = to; leg < legsLeft; leg++, i += step) {
+    const sec = runBetween(ln, i, i + step);
+    if (!(sec > 0)) { legSecs.length = 0; break; }
+    legSecs.push(sec);
+  }
+  if (!legSecs.length) return trtcOfficialCoastByCycle(ln, vehicle, now, from, to, run, arrEpoch);
+  let arrivedAt = arrEpoch, here = to;
+  for (let leg = 0; leg < legsLeft; leg++) {
+    const next = here + step, P = ln.stations[here], Q = ln.stations[next];
+    if (!P || !Q) return atTo;
+    const legSec = legSecs[leg];
+    const departure = arrivedAt + TRTC_OFFICIAL_COAST_DWELL_SEC;
+    if (now < departure) return { lat: P.lat, lon: P.lon, fraction: 1, atStation: true, coasted: true,
+      motionFrom: here - step, motionTo: here, coastTo: here, coastArrEpoch: arrivedAt };
+    const arrival = departure + legSec;
+    if (now < arrival) {
+      const fraction = Math.max(0, Math.min(1, (now - departure) / legSec));
+      const pos = posBetweenStations(ln, here, next, fraction);
+      return pos ? { ...pos, fraction, atStation: false, coasted: true, motionFrom: here, motionTo: next,
+        coastTo: next, coastArrEpoch: arrival } : atTo;
+    }
+    arrivedAt = arrival; here = next;
+  }
+  return null; // 推到這趟已知終點 ⇒ 收車
 }
 // 起點倒數給的是「發車時刻」，不是下一站到站時刻。發車後的第一段使用該線段秒；
 // G_XBT/R_XBT 只有一段且官方沒有給對端到站時刻，也只在這個專用分支使用段秒 fallback。
@@ -4705,6 +4805,27 @@ function trtcOfficialVehiclePosition(ln, vehicle, nowEpoch) {
   return pos ? { ...pos, fraction, atStation: false, motionFrom: from, motionTo: to } : null;
 }
 const _trtcOfficialDisplay = new Map();
+// 續推持續超過這麼久才算「長時間斷訊」，回歸時才允許倒退／跳動（見 trtcOfficialDisplayPosition）。
+// 官方看板正常是 15～60 秒一輪，這裡取 5 分鐘：短暫缺幾輪的偏差本來就小，不值得讓畫面跳。
+const TRTC_OFFICIAL_RESYNC_MIN_COAST_SEC = 300;
+// 斷訊回歸事件（由 trtcOfficialDisplayPosition 記錄、UI 每秒 tick 消費後跳訊息）。
+// 刻意不在位置函式裡直接呼叫 showToast——那會讓純函式驗收得連 DOM 一起搬進沙盒。
+const _trtcOfficialResync = { at: 0, outageSec: 0, count: 0, notifiedAt: 0 };
+// 使用者要求：允許倒退／跳動，但一定要跳訊息說明為什麼。
+// 等 2 秒才發：一輪資料回來時整批車會在同一個 tick 內各自回歸，馬上發會先報一台、
+// 數字還在長；靜置 2 秒代表這波回歸收完了，一次報完整的台數。
+const TRTC_RESYNC_TOAST_SETTLE_SEC = 2;
+function trtcOfficialResyncTick(nowEpoch) {
+  const r = _trtcOfficialResync, now = Number.isFinite(Number(nowEpoch)) ? Number(nowEpoch) : Date.now() / 1000;
+  if (!(r.at > r.notifiedAt) || now - r.at < TRTC_RESYNC_TOAST_SETTLE_SEC) return null;
+  const mins = Math.max(1, Math.round(r.outageSec / 60)), count = r.count;
+  r.notifiedAt = r.at; r.outageSec = 0; r.count = 0;
+  const msg = `官方訊號恢復　北捷即時資料中斷約 <b>${mins} 分鐘</b>後恢復，`
+    + `<b>${count} 台</b>列車已重新對齊官方位置——中斷期間畫面上的位置是推估的，`
+    + `所以這些車會往前跳或往後退。`;
+  showToast(msg);
+  return { mins, count, msg };
+}
 // dir 是名冊身分欄位，可能在重配或舊資料接回時落後一輪；畫面位置已經知道自己正走哪一段，
 // 所以位置軸與箭頭一律先採 motionFrom→motionTo。這使錯誤 dir 不能再把正向移動解讀成反向。
 function trtcOfficialMotionStep(vehicle, pos) {
@@ -4819,24 +4940,46 @@ function trtcOfficialDisplayPosition(ln, vehicle, nowEpoch) {
   const progress = trtcOfficialPositionProgress(ln, vehicle, raw);
   if (!Number.isFinite(progress) || !Number.isFinite(now)) return raw;
   const prior = _trtcOfficialDisplay.get(key);
+  const coasted = !!raw.coasted;
+  // 這台車從哪一刻開始進入續推（用來判斷「長時間斷訊」；不是續推就沒有起點）
+  const coastSince = coasted
+    ? (prior && prior.coasted && Number.isFinite(Number(prior.coastSince)) ? prior.coastSince : now)
+    : null;
   if (!prior || now < prior.epoch) {
-    _trtcOfficialDisplay.set(key, { epoch: now, progress, pos: raw });
+    _trtcOfficialDisplay.set(key, { epoch: now, progress, pos: raw, coasted, coastSince });
     return raw;
   }
   // 同一畫格會被地圖 renderer 與跟隨資訊各讀一次；第二個讀者必須拿到同一個顯示位置。
   if (now === prior.epoch) return prior.pos;
+  // 🔴 長時間斷訊回歸（2026-08-15 使用者裁示）：續推位置是我們自己的推估，不是官方事實。
+  // 上一幀還在續推、這一幀官方時間軸已經回來，且續推已經持續夠久 ⇒ 直接改採官方位置並重設
+  // 基準，**允許倒退、允許跳動**，不受「不倒退」護欄約束；同時記下事件讓 UI 跳訊息說明原因。
+  // 不這樣做的話，斷訊期間被推過頭的車會被護欄永久凍在錯的位置上直到退場（33 分鐘斷訊實例）。
+  // 「不倒退」管的是官方 ETA 後修，不該拿來擋官方資料本身；短暫缺一兩輪不走這條路，
+  // 因為那時偏差本來就小，跳一下反而比較刺眼。
+  if (prior.coasted && !coasted) {
+    const coastedFor = now - (Number.isFinite(Number(prior.coastSince)) ? Number(prior.coastSince) : now);
+    if (coastedFor >= TRTC_OFFICIAL_RESYNC_MIN_COAST_SEC) {
+      _trtcOfficialResync.at = now;
+      _trtcOfficialResync.outageSec = Math.max(Number(_trtcOfficialResync.outageSec) || 0, coastedFor);
+      _trtcOfficialResync.count = (Number(_trtcOfficialResync.count) || 0) + 1;
+      _trtcOfficialDisplay.set(key, { epoch: now, progress, pos: raw, coasted, coastSince });
+      return raw;
+    }
+  }
   if (progress <= prior.progress + 1e-9) {
     // 只凍結座標與進度；coastTo/coastArrEpoch 等官方時間欄位仍採本輪最新修訂。
     const pos = progress < prior.progress - 1e-9 ? { ...raw, lat: prior.pos.lat, lon: prior.pos.lon,
       fraction: prior.pos.fraction, atStation: prior.pos.atStation,
       motionFrom: prior.pos.motionFrom, motionTo: prior.pos.motionTo } : raw;
-    _trtcOfficialDisplay.set(key, { epoch: now, progress: Math.max(progress, prior.progress), pos });
+    _trtcOfficialDisplay.set(key, { epoch: now, progress: Math.max(progress, prior.progress),
+      pos, coasted, coastSince });
     return pos;
   }
   const dt = now - prior.epoch;
   const shown = Math.min(progress, trtcOfficialForwardLimit(ln, vehicle, prior.progress, dt));
   const pos = trtcOfficialPositionAtProgress(ln, vehicle, shown, raw);
-  _trtcOfficialDisplay.set(key, { epoch: now, progress: shown, pos });
+  _trtcOfficialDisplay.set(key, { epoch: now, progress: shown, pos, coasted, coastSince });
   return pos;
 }
 function trtcOfficialVehicleInfo(ln, vehicle, nowEpoch) {
@@ -5940,9 +6083,12 @@ function updateFreqCard(info) {
   // 資料等級誠實標示:即時校正中/時刻表推演/班距推算;營運異常公告時降級為僅供參考
   const st = document.getElementById('fcStatus');
   let txt, cls = '';
+  // 官方訊號中斷時這張卡不能還寫「依北捷官方秒級資料」——那正是使用者盯著看的那一行
+  const fStale = f.vehicleId != null ? trtcOfficialStaleFor(ln.id) : null;
   if (metroAlertFor(ln)) { txt = f.vehicleId != null
-    ? '營運異常公告中；到站時刻仍依官方即時資料'
+    ? (fStale ? '營運異常公告中；官方訊號亦中斷，位置與時刻皆為推估' : '營運異常公告中；到站時刻仍依官方即時資料')
     : '營運異常公告中，位置僅供參考'; cls = 'warn'; }
+  else if (fStale) { txt = `官方訊號中斷 ${trtcStaleMins(fStale)} 分鐘；位置與到站時刻皆為推估，僅供參考`; cls = 'warn'; }
   else if (f.vehicleId != null) { txt = '● 官方即時名冊；到站時刻依北捷官方秒級資料'; cls = 'on'; }
   else if (anomalyOf(ln)) { txt = '偵測到營運異常跡象（本站推定），位置僅供參考'; cls = 'warn'; }
   else if (f.tr && metroLiveOn(ln)) {
@@ -9401,6 +9547,7 @@ function tick(now) {
       if (state._trtcOfficialCountActive !== active) { state._trtcOfficialCountActive = active; updateCount(); }
     }
     updateLiveBadge(); updateMetroBadge(); refreshTrtcOfficialBoardCountdown();
+    if (OFFICIAL_ROSTER_ENABLED) trtcOfficialResyncTick(Date.now() / 1000); // 斷訊回歸 → 跳訊息說明為何跳動
     if (state.liveMode && !state.director) liveClockTick(); else if (state.director) directorClockTick(); else clockDriftGuard();
   } // 導播現在也是 1× 貼真實時刻,只是用不含深夜重播替代的簡化版;兩徽章同秒刷,快轉跨門檻時同步轉推估
   // 省電三板斧(繪製節流,不動上面的時間積分):
@@ -17190,13 +17337,18 @@ function updateMetroBadge() {
     if (!roster) { el.hidden = true; return; }
     const official = trtcOfficialRosterLive();
     el.hidden = false;
-    const held = official && !!roster.held;
-    el.classList.remove('anom');
+    // 🔴 續推狀態一律自己從名冊的 observedEpoch 算，不讀 roster.held——後端從來沒送過那個旗標，
+    //    2026-08-15 斷線 33 分鐘期間這顆徽章因此全程顯示「官方即時」，是整起事件最誤導人的一處。
+    const stale = official ? trtcOfficialStaleFeeds(roster, Date.now() / 1000) : [];
+    const held = stale.length > 0;
+    const mins = held ? Math.max(1, Math.round(Math.max(...stale.map(f => f.ageSec)) / 60)) : 0;
+    el.classList.toggle('anom', held); // 警示色:續推不是正常狀態,不能長得跟「資料稍舊」一樣
     el.classList.toggle('est', !official || held);
-    el.textContent = official ? (held ? '官方續推' : '官方即時') : '班表備案';
+    el.textContent = official ? (held ? `官方中斷 ${mins} 分` : '官方即時') : '班表備案';
     el.title = official
       ? (held
-        ? `北捷即時資料暫時讀不到，已知 ${roster.vehicles.length} 台列車沿原官方逐站時間繼續到終點`
+        ? `${stale.map(f => f.label).join('、')}即時資料已 ${mins} 分鐘沒有更新；`
+          + `畫面上 ${roster.vehicles.length} 台列車是依各站之間的固定行車時間往前推估的，位置與車站倒數都可能不準`
         : `畫面名冊與到站時刻來自北捷即時資料，共 ${roster.vehicles.length} 台`)
       : '尚未取得北捷即時名冊，或時鐘已離開「現在」，目前使用班表備案';
     return;
@@ -17691,6 +17843,28 @@ function selfAnomalyEntries() {
   }
   return out;
 }
+// 官方即時訊號中斷 → 這條講的是「畫面上的東西現在有多可信」，不是營運公告，所以排在最前面當頭條：
+// 2026-08-15 06:27～07:00 北捷斷 33 分鐘，位置被推到互相超車、車站倒數整個找不到車，而當時畫面上
+// 沒有任何一處告訴使用者發生了什麼。這條就是補這個洞（使用者要求：要更明顯，且要講清楚位置與倒數都不準）。
+function trtcOutageEntries() {
+  const feeds = trtcOfficialStaleFeeds(state.trtcOfficialRoster, Date.now() / 1000);
+  if (!feeds.length) return [];
+  // 只報畫面上真的看得到的線——台鐵分頁沒開全台同框時，捷運根本沒畫，報了只是雜訊
+  const visible = new Set();
+  if (state.mode === 'sched') { if (state.deco) for (const ln of (state.decoLines || [])) visible.add(ln.id); }
+  else {
+    const vis = state.freqSel || new Set(state.sysId ? [state.sysId] : []);
+    for (const ln of (state.lines || [])) if (vis.has(freqSysIdOf(ln))) visible.add(ln.id);
+  }
+  const hit = feeds.filter(f => f.lines.some(id => visible.has(id)));
+  if (!hit.length) return [];
+  const mins = Math.max(1, Math.round(Math.max(...hit.map(f => f.ageSec)) / 60));
+  return [{ self: true, outage: true, sig: 'trtc-outage', // 簽章刻意不含分鐘數,見 alertSig
+    title: hit.map(f => f.label).join('、') + `即時訊號中斷 ${mins} 分鐘：列車位置與車站倒數都可能不準`,
+    desc: `官方到站看板已經 ${mins} 分鐘沒有送出新資料。這段期間畫面上的列車是依各站之間的固定行車時間往前推估的，`
+      + `車站倒數也可能找不到車或停住不動——都可能與實際不符，但這不代表列車停駛。`
+      + `官方資料恢復後畫面會重新對齊官方位置，部分列車會因此往前跳或往後退。此為本站自動偵測，非官方公告。` }];
+}
 // 外部災害只是一個「去檢查」的理由，不是鐵路異常證據；文字必須把兩者分清楚。
 function hazardWatchEntries() {
   const watch = state.hazardWatch, list = watch && Array.isArray(watch.list) ? watch.list : [];
@@ -17716,7 +17890,9 @@ function activeAlertList() {
     const vis = state.freqSel || new Set(state.sysId ? [state.sysId] : []);
     official = ((state.metroAlert && state.metroAlert.list) || []).filter(a => !a.sys || vis.has(a.sys));
   }
-  return official.concat(hazardWatchEntries(), selfAnomalyEntries());
+  // 訊號中斷排在官方公告之前：橫幅只顯示 list[0] 的標題，而「你現在看到的位置是推估的」比任何
+  // 一則通阻公告更急著讓使用者知道——公告過期了還在，推估錯位是此刻正在誤導人。
+  return trtcOutageEntries().concat(official, hazardWatchEntries(), selfAnomalyEntries());
 }
 // 公告的常駐入口有兩種形態(2026-07-30 使用者回報後改版):
 //   桌面 = 右上角橫幅,可按 × 收起,同一批公告本次瀏覽不再跳出(換新公告會再出現)
@@ -17727,7 +17903,9 @@ function activeAlertList() {
 //    `.alert-banner:not([hidden]) ~ X`(xing-card/xing-help/board)特異度 0,3,0 會洩進手機、壓過手機
 //    base 的 0,1,0,而 display:none 的元素 `:not([hidden])` 照樣成立。設 hidden 那條鏈才會整條失效。
 // 已讀簽章用 sessionStorage(不是 localStorage):公告是當下狀況,關掉的意思是「這次看夠了」,不是永久靜音。
-function alertSig(list) { return list.map(a => (a.title || '') + '|' + (a.sig || a.start || '')).join('§'); }
+// 自帶 sig 的條目以 sig 為準、不看標題:訊號中斷那條的標題含分鐘數(每分鐘都在變),用標題當簽章會讓
+// 使用者按掉之後每分鐘又彈一次。沒有 sig 的官方公告維持原本「標題+起始時間」的簽章。
+function alertSig(list) { return list.map(a => a.sig ? '§sig:' + a.sig : (a.title || '') + '|' + (a.start || '')).join('§'); }
 function alertDismissed(list) {
   try { return list.length > 0 && sessionStorage.getItem('trainmap-alert-dismissed') === alertSig(list); } catch (e) { return false; }
 }
@@ -18753,10 +18931,25 @@ function renderFreqBoard(el, st, lines, isDeco) {
   // metroWaitSysForStation 只看站是否落在有官方即時資訊的系統上,不看當下資料有沒有,鈕仍會出現,
   // 沒資料時點下去由 metroWaitStartFor 自己 toast(資料來源鐵則)。
   const waitSys = metroWaitSysForStation(st, lines, isDeco);
+  // 這張看板涵蓋哪些線(站名逐字相符,與 sysNames 同一套判準)——訊號中斷提示只在真的踩到的線上顯示。
+  // 🔴 倒數本身就是受害者:2026-08-15 北捷斷線期間看板整個找不到車,而看板上一個字都沒提為什麼。
+  const boardLineIds = new Set();
+  lines.forEach(ln => {
+    if ((!isDeco && !state.visible.has(ln.id)) || !ln.stations) return;
+    if (ln.stations.some(s => s.name.replace(/臺/g, '台') === key)) boardLineIds.add(ln.id);
+  });
+  const staleHere = trtcOfficialStaleFeeds(state.trtcOfficialRoster, Date.now() / 1000)
+    .filter(f => f.lines.some(id => boardLineIds.has(id)));
+  const staleNote = staleHere.length
+    ? `<div class="sub stale">⚠ ${escHtml(staleHere.map(f => f.label).join('、'))}即時訊號中斷 `
+      + `${Math.max(1, Math.round(Math.max(...staleHere.map(f => f.ageSec)) / 60))} 分鐘：`
+      + `以下倒數與地圖上的列車位置都是依各站之間的固定行車時間推估的，可能與實際不符，也可能整段空著。`
+      + `這不代表列車停駛，請以月台看板為準。</div>`
+    : '';
   el.innerHTML = `<h3>${escHtml(st.name)}${sysNames.map(n => `<span class="sys-chip">${n}</span>`).join('')}` +
     metroWaitBoardHtml(st, waitSys) +
     `<button class="board-star${fav ? ' on' : ''}" id="boardStar" title="${fav ? '移除最愛車站' : '加入最愛車站'}" aria-label="${fav ? '移除最愛車站' : '加入最愛車站'}">${railIcon('ui-favorite', fav ? 'ri-icon--fill' : '')}</button>` +
-    `<button class="close" id="boardClose">×</button></h3>` + stnMetaHtml(st) + eventRowsHtml(st) +
+    `<button class="close" id="boardClose">×</button></h3>` + stnMetaHtml(st) + eventRowsHtml(st) + staleNote +
     `<div class="sub">接下來的班車 · ${hasLive ? (allFresh ? '已依官方即時資訊校正' : '依稍早官方資料推估') : '依官方當日時刻表'} · 點班次跟隨${hasEstimated ? '（部分路線為班距推算）' : ''}</div>` +
     (body || '<div class="empty">此時段無停靠班次</div>');
   el.hidden = false;
