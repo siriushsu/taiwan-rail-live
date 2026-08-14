@@ -1,0 +1,105 @@
+import ActivityKit
+import SwiftUI
+import WidgetKit
+
+@available(iOS 17.6, *)
+struct MetroWaitActivityWidget: Widget {
+    // 倒數:北捷有絕對時刻 ⇒ Text(timerInterval:) 自走;分鐘級系統只印靜態「約 N 分」。
+    // 🔴 Text(timerInterval:) 與 ProgressView(timerInterval:) 是唯二會自己動的元件,
+    //    withAnimation／.repeatForever 等修飾子被 ActivityKit 明文忽略。
+    // 🔴 range 起點 clamp:eta 若在封存當下已過(更新晚到),ClosedRange 下界大於上界會
+    //    當場 crash;min() 之後 timerInterval 自己停在 0:00,語意不變。
+    @ViewBuilder
+    private func countdown(eta: Double?, minutes: Int?, size: CGFloat) -> some View {
+        if let eta {
+            let end = Date(timeIntervalSince1970: eta)
+            Text(timerInterval: min(Date(), end)...end, countsDown: true)
+                .monospacedDigit().font(.system(size: size, design: .rounded))
+        } else if let minutes {
+            Text("約 \(minutes) 分").monospacedDigit().font(.system(size: size, design: .rounded))
+        }
+    }
+
+    private func tint(_ hex: String?) -> Color? {
+        guard var s = hex, !s.isEmpty else { return nil }
+        if s.hasPrefix("#") { s.removeFirst() }
+        guard s.count == 6, let v = UInt32(s, radix: 16) else { return nil }
+        return Color(.sRGB, red: Double((v >> 16) & 0xFF) / 255,
+                            green: Double((v >> 8) & 0xFF) / 255, blue: Double(v & 0xFF) / 255)
+    }
+
+    @ViewBuilder
+    private func crowdBar(_ c: [Int]?) -> some View {
+        if let c, !c.isEmpty {
+            HStack(spacing: 2) {
+                ForEach(Array(c.enumerated()), id: \.offset) { _, v in
+                    RoundedRectangle(cornerRadius: 2).fill(MetroPalette.crowd(v))
+                        .frame(width: 7, height: 11)
+                }
+            }
+        }
+        // 官方沒給就整段不畫——灰色空格會被讀成「量到了但沒人」。
+    }
+
+    var body: some WidgetConfiguration {
+        ActivityConfiguration(for: MetroWaitAttributes.self) { ctx in
+            // ── 鎖定畫面 ──
+            VStack(alignment: .leading, spacing: 5) {
+                HStack(spacing: 5) {
+                    if let c = tint(ctx.attributes.color) {
+                        Circle().fill(c).frame(width: 9, height: 9)
+                    }
+                    Text(ctx.attributes.lineLabel).font(.caption).fontWeight(.semibold)
+                    Text(ctx.attributes.station).font(.headline)
+                    Spacer(minLength: 6)
+                    countdown(eta: ctx.state.nextEta, minutes: ctx.state.nextMinutes, size: 22)
+                }
+                HStack(spacing: 6) {
+                    Text("往 \(ctx.state.nextDest ?? "—")").font(.caption)
+                    Spacer(minLength: 6)
+                    crowdBar(ctx.state.crowd)
+                }
+                if ctx.state.secondEta != nil || ctx.state.secondMinutes != nil {
+                    HStack(spacing: 6) {
+                        Text("再下一班 往 \(ctx.state.secondDest ?? "—")")
+                            .font(.caption2).foregroundStyle(.secondary)
+                        Spacer(minLength: 6)
+                        countdown(eta: ctx.state.secondEta, minutes: ctx.state.secondMinutes, size: 13)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+                if let n = ctx.state.notice, !n.trimmingCharacters(in: .whitespaces).isEmpty {
+                    Text(n).font(.caption2).foregroundStyle(.orange).lineLimit(2)
+                }
+            }
+            .padding(.vertical, 2)
+        } dynamicIsland: { ctx in
+            DynamicIsland {
+                DynamicIslandExpandedRegion(.leading) {
+                    HStack(spacing: 4) {
+                        if let c = tint(ctx.attributes.color) { Circle().fill(c).frame(width: 8, height: 8) }
+                        Text(ctx.attributes.station).font(.caption).lineLimit(1)
+                    }
+                }
+                DynamicIslandExpandedRegion(.trailing) {
+                    countdown(eta: ctx.state.nextEta, minutes: ctx.state.nextMinutes, size: 18)
+                }
+                DynamicIslandExpandedRegion(.bottom) {
+                    HStack {
+                        Text("往 \(ctx.state.nextDest ?? "—")").font(.caption2)
+                        Spacer()
+                        crowdBar(ctx.state.crowd)
+                    }
+                }
+            } compactLeading: {
+                if let c = tint(ctx.attributes.color) { Circle().fill(c).frame(width: 8, height: 8) }
+            } compactTrailing: {
+                countdown(eta: ctx.state.nextEta, minutes: ctx.state.nextMinutes, size: 13)
+                    .frame(maxWidth: 44)
+            } minimal: {
+                countdown(eta: ctx.state.nextEta, minutes: ctx.state.nextMinutes, size: 12)
+                    .frame(maxWidth: 32)
+            }
+        }
+    }
+}
