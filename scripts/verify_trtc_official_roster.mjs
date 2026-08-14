@@ -1,356 +1,283 @@
 #!/usr/bin/env node
-// 「官方即時優先」名冊的純合成驗收；不打網路、不讀班表、不起 listener。
+// 北捷官方名冊生命週期驗收：倒數出生、同方向沿用 ID、到已知終點收車、反向另生新 ID。
+// 純合成測試不打網路、不讀班表；尖峰 replay 只讀已保存的官方語料。
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
-import { buildTrtcModel } from './trtc_board_ledger.mjs';
+import { buildTrtcModel, collapseClaims, attachOfficialTimelines } from './trtc_board_ledger.mjs';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
-const SOURCE_PATH = path.join(HERE, 'trtc_official_roster.mjs');
 const ROOT = path.resolve(HERE, '..');
+const SOURCE_PATH = path.join(HERE, 'trtc_official_roster.mjs');
+const INDEX_PATH = path.join(ROOT, 'index.html');
 const PEAK_DIR = path.join(ROOT, 'tmp/binder-fixtures/rounds-peak');
 const DAY = '2026-08-13';
 
-const mutationPlan = [
-  ['M1 station-minute ID', ['canonicalShuffle', 'rowCardinality', 'uniqueIds', 'opaqueSequentialIds',
-    'bothDirections', 'freshNoSchedule', 'hardAliasStable', 'anonymousOrderStable', 'unmatchedCurrentBorn',
-    'unmatchedPriorExited', 'duplicateRowsGuard']],
-  ['M2 丟掉未配 current', ['canonicalShuffle', 'rowCardinality', 'uniqueIds', 'opaqueSequentialIds',
-    'bothDirections', 'freshNoSchedule', 'hardAliasStable', 'anonymousOrderStable', 'unmatchedCurrentBorn',
-    'unmatchedPriorExited', 'lastExtensionOwnSpan', 'extensionOnce', 'extensionReappearanceSingle',
-    'extensionNextTrainDistinct', 'noEvidenceNoExtension', 'boundedOwnSpan',
-    'scheduleIndependent', 'xbtZeroMotion', 'terminalRolloverNewId', 'duplicateRowsGuard']],
-  ['M3 保留未配 prior ghost', ['hardAliasStable', 'anonymousOrderStable', 'unmatchedCurrentBorn',
-    'unmatchedPriorExited', 'lastExtensionOwnSpan', 'extensionOnce', 'extensionReappearanceSingle',
-    'extensionNextTrainDistinct', 'noEvidenceNoExtension', 'boundedOwnSpan',
-    'scheduleIndependent', 'xbtZeroMotion', 'terminalRolloverNewId']],
-  ['M4 拿掉 ID duplicate guard', ['canonicalShuffle', 'rowCardinality', 'uniqueIds', 'opaqueSequentialIds',
-    'bothDirections', 'freshNoSchedule', 'hardAliasStable', 'anonymousOrderStable', 'unmatchedCurrentBorn',
-    'unmatchedPriorExited', 'xbtZeroMotion', 'terminalRolloverNewId', 'duplicateRowsGuard']],
-  ['M5 改用 schedule duration 補末段', ['lastExtensionOwnSpan', 'extensionOnce',
-    'extensionReappearanceSingle', 'extensionNextTrainDistinct', 'scheduleIndependent']],
-  ['M6 讓 XBT 停站列產生 motion', ['xbtZeroMotion']],
-  ['M7 extension 後 row 重現卻另生 ID', ['extensionReappearanceSingle']],
-  ['M8 extension 吃掉下一班', ['extensionNextTrainDistinct']],
-  ['M9 允許無界 own span', ['boundedOwnSpan']],
-];
-
-console.log('Mutation control 預期（先寫再跑）：');
-for (const [name, labels] of mutationPlan) console.log(`- ${name} 應轉紅：${labels.join('、')}`);
-console.log('');
-
-function line(stations, scheduleRun = 777) {
+function line(stations, segmentSeconds = 60) {
   const runs = new Map();
   for (let i = 0; i + 1 < stations; i++) {
-    runs.set(`${i}>${i + 1}`, scheduleRun);
-    runs.set(`${i + 1}>${i}`, scheduleRun);
+    runs.set(`${i}>${i + 1}`, segmentSeconds);
+    runs.set(`${i + 1}>${i}`, segmentSeconds);
   }
   return { stations: Array.from({ length: stations }, (_, i) => ({ name: String(i) })), runs };
 }
 
-function model(scheduleRun = 777) {
+function fixtureModel(segmentSeconds = 60) {
   return { lines: new Map([
-    ['L', line(5, scheduleRun)],
-    ['G_XBT', line(2, scheduleRun)],
-    ['R_XBT', line(2, scheduleRun)],
+    ['L', line(5, segmentSeconds)],
+    ['G_XBT', line(2, segmentSeconds)],
+    ['R_XBT', line(2, segmentSeconds)],
   ]) };
 }
 
-function row({ line: lineId = 'L', dir, from, to, dest, arrEpoch, no = '', terminal = false, run = 60 }) {
-  return { line: lineId, dir, from, to, dest, run: terminal ? 0 : run, arrEpoch, no, terminal };
+function row({ line: lineId = 'L', dir, from, to, dest, arrEpoch, no = '', terminal = false, run = 60,
+  timeline = null }) {
+  return { line: lineId, dir, from, to, dest, arrEpoch, no, terminal, run: terminal ? 0 : run,
+    ...(timeline ? { timeline } : {}) };
 }
 
-function reduceArgs(rows, prior, nowEpoch, revision, sourceModel = model()) {
-  return { model: sourceModel, rows, prior, day: DAY, nowEpoch, sourceRevision: revision };
+function args(rows, prior, nowEpoch, sourceRevision, model = fixtureModel()) {
+  return { model, rows, prior, day: DAY, nowEpoch, sourceRevision };
 }
 
-function publicShape(state) {
-  return JSON.stringify(state);
-}
-
-function vehicleAt(state, predicate) { return state.vehicles.find(predicate); }
-function idsUnique(state) {
-  const ids = state.vehicles.map(x => x.vehicleId);
+function same(value) { return JSON.stringify(value); }
+function byId(state, id) { return state.vehicles.find(vehicle => vehicle.vehicleId === id); }
+function uniqueIds(state) {
+  const ids = state.vehicles.map(vehicle => vehicle.vehicleId);
   return ids.length === new Set(ids).size;
 }
 
-function loadJson(relative) {
-  return JSON.parse(fs.readFileSync(path.join(ROOT, relative), 'utf8'));
-}
-
-function peakReplay(reduce) {
-  const ids = fs.readdirSync(PEAK_DIR).map(name => name.match(/^(\d+)_live\.json$/)?.[1])
-    .filter(Boolean).sort();
-  const sourceModel = buildTrtcModel(loadJson('data/trtc.json'), loadJson('data/trtc_times.json'),
-    loadJson('data/trtc_codes.json'), { includeY: true });
-  let prior = null, priorIds = new Set(), rows = 0, extensionObservations = 0, maxExtensions = 0,
-    maxExtensionRun = 0,
-    shuffleMismatches = 0, orderedPairComparisons = 0, orderInversions = 0;
-  const byLine = new Map(), byDir = new Map(), extensionByLine = new Map();
-  const continuityByLine = new Map(), feedStructure = new Map();
-  for (let roundIndex = 0; roundIndex < ids.length; roundIndex++) {
-    const id = ids[roundIndex];
-    const live = JSON.parse(fs.readFileSync(path.join(PEAK_DIR, `${id}_live.json`), 'utf8'));
-    const current = live.boardPos?.rows || [], at = Number(live.boardPos?.at);
-    const args = { model: sourceModel, rows: current, prior, day: DAY, nowEpoch: at, sourceRevision: `${id}:${at}` };
-    const state = reduce(args);
-    const shuffled = reduce({ ...args, rows: [...current].reverse() });
-    if (publicShape(state) !== publicShape(shuffled)) shuffleMismatches++;
-    const extensions = state.vehicles.filter(vehicle => vehicle.extension);
-    if (state.vehicles.length !== current.length + extensions.length || !idsUnique(state)) {
-      throw new Error(`peak ${id} official roster cardinality/identity 不守恆`);
-    }
-    rows += current.length; extensionObservations += extensions.length;
-    maxExtensions = Math.max(maxExtensions, extensions.length);
-    for (const extension of extensions) maxExtensionRun = Math.max(maxExtensionRun, Number(extension.run));
-    for (const rowValue of current) {
-      byLine.set(rowValue.line, (byLine.get(rowValue.line) || 0) + 1);
-      const key = `${rowValue.line}|${Number(rowValue.dir)}`;
-      byDir.set(key, (byDir.get(key) || 0) + 1);
-      if (!feedStructure.has(key)) feedStructure.set(key,
-        { rows: 0, previousToTerminal: 0, finalLeg: 0, originStopped: 0, moving: 0, stopped: 0 });
-      const shape = feedStructure.get(key), count = sourceModel.lines.get(rowValue.line).stations.length;
-      shape.rows++;
-      if (Number(rowValue.from) !== Number(rowValue.to)) shape.moving++; else shape.stopped++;
-      if (Number(rowValue.dir) === 1) {
-        if (Number(rowValue.from) === 2 && Number(rowValue.to) === 1) shape.previousToTerminal++;
-        if (Number(rowValue.from) === 1 && Number(rowValue.to) === 0) shape.finalLeg++;
-        if (Number(rowValue.from) === count - 1 && Number(rowValue.to) === count - 1 && Number(rowValue.run) === 0)
-          shape.originStopped++;
-      } else {
-        if (Number(rowValue.from) === count - 3 && Number(rowValue.to) === count - 2) shape.previousToTerminal++;
-        if (Number(rowValue.from) === count - 2 && Number(rowValue.to) === count - 1) shape.finalLeg++;
-        if (Number(rowValue.from) === 0 && Number(rowValue.to) === 0 && Number(rowValue.run) === 0)
-          shape.originStopped++;
-      }
-    }
-    for (const vehicle of state.vehicles.filter(vehicle => !vehicle.extension)) {
-      if (!continuityByLine.has(vehicle.line)) continuityByLine.set(vehicle.line,
-        { initial: 0, continued: 0, newAfterInitial: 0 });
-      const rec = continuityByLine.get(vehicle.line);
-      if (roundIndex === 0) rec.initial++;
-      else if (priorIds.has(vehicle.vehicleId)) rec.continued++;
-      else rec.newAfterInitial++;
-    }
-    if (prior) {
-      const group = values => {
-        const groups = new Map();
-        for (const vehicle of values.filter(vehicle => !vehicle.extension)) {
-          const key = `${vehicle.line}|${Number(vehicle.dir)}|${Number(vehicle.dest)}`;
-          if (!groups.has(key)) groups.set(key, []);
-          groups.get(key).push(vehicle);
-        }
-        for (const list of groups.values()) list.sort((a, b) => Number(a.routePosition) - Number(b.routePosition) ||
-          Number(a.arrEpoch) - Number(b.arrEpoch) || String(a.vehicleId).localeCompare(String(b.vehicleId)));
-        return groups;
-      };
-      const beforeGroups = group(prior.vehicles), afterGroups = group(state.vehicles);
-      for (const [key, after] of afterGroups) {
-        const before = beforeGroups.get(key) || [], beforeIndex = new Map(before.map((vehicle, index) => [vehicle.vehicleId, index]));
-        const common = after.map(vehicle => beforeIndex.get(vehicle.vehicleId)).filter(index => index != null);
-        for (let i = 0; i < common.length; i++) for (let j = i + 1; j < common.length; j++) {
-          orderedPairComparisons++;
-          if (common[i] > common[j]) orderInversions++;
-        }
-      }
-    }
-    for (const vehicle of extensions) extensionByLine.set(vehicle.line,
-      (extensionByLine.get(vehicle.line) || 0) + 1);
-    priorIds = new Set(state.vehicles.map(vehicle => vehicle.vehicleId));
-    prior = state;
-  }
-  return { rounds: ids.length, rows, extensionObservations, maxExtensions, maxExtensionRun, shuffleMismatches,
-    orderedPairComparisons, orderInversions,
-    lines: Object.fromEntries([...byLine].sort()), directions: Object.fromEntries([...byDir].sort()),
-    continuityByLine: Object.fromEntries([...continuityByLine].sort()),
-    feedStructure: Object.fromEntries([...feedStructure].sort()),
-    extensionByLine: Object.fromEntries([...extensionByLine].sort()),
-    xbtExtensions: (extensionByLine.get('G_XBT') || 0) + (extensionByLine.get('R_XBT') || 0) };
-}
-
-function scenarioFresh(reduce) {
+function scenarioDeterminism(reduce) {
   const rows = [
-    row({ dir: 2, from: 0, to: 1, dest: 4, arrEpoch: 1040 }),
-    row({ dir: 2, from: 1, to: 2, dest: 4, arrEpoch: 1050, no: 'H-7' }),
-    row({ dir: 2, from: 0, to: 0, dest: 4, arrEpoch: 1080, terminal: true }),
-    row({ dir: 1, from: 4, to: 3, dest: 0, arrEpoch: 1045 }),
-    row({ dir: 1, from: 3, to: 2, dest: 0, arrEpoch: 1060 }),
+    row({ dir: 2, from: 0, to: 0, dest: 4, arrEpoch: 1000, terminal: true }),
+    row({ dir: 2, from: 1, to: 2, dest: 4, arrEpoch: 1040, no: '201' }),
+    row({ dir: 1, from: 4, to: 3, dest: 0, arrEpoch: 1050, no: '101' }),
+    row({ dir: 1, from: 2, to: 1, dest: 0, arrEpoch: 1060 }),
   ];
-  const normal = reduce(reduceArgs(rows, null, 1000, 'fresh'));
-  const shuffled = reduce(reduceArgs([rows[3], rows[0], rows[4], rows[2], rows[1]], null, 1000, 'fresh'));
-  return { rows, normal, shuffled };
+  const normal = reduce(args(rows, null, 900, 'deterministic'));
+  const reversed = reduce(args([...rows].reverse(), null, 900, 'deterministic'));
+  return { rows, normal, reversed };
 }
 
-function scenarioContinuity(reduce) {
-  const firstRows = [
-    row({ dir: 2, from: 0, to: 0, dest: 4, arrEpoch: 1080, terminal: true }), // A
-    row({ dir: 2, from: 1, to: 2, dest: 4, arrEpoch: 1050 }),               // B
-    row({ dir: 2, from: 2, to: 3, dest: 4, arrEpoch: 1070, no: 'H-7' }),    // hard no
-    row({ dir: 1, from: 4, to: 4, dest: 0, arrEpoch: 1085, terminal: true }), // C
-    row({ dir: 1, from: 3, to: 2, dest: 0, arrEpoch: 1055 }),               // D
-    row({ dir: 2, from: 0, to: 1, dest: 3, arrEpoch: 1040 }),               // 應立即退出的 ghost 候選
-  ];
-  const first = reduce(reduceArgs(firstRows, null, 1000, 'continuity-1'));
-  const id = {
-    a: vehicleAt(first, x => x.dir === 2 && x.dest === 4 && x.terminal).vehicleId,
-    b: vehicleAt(first, x => x.dir === 2 && x.dest === 4 && x.from === 1 && x.to === 2).vehicleId,
-    hard: vehicleAt(first, x => x.officialNo === 'H-7').vehicleId,
-    c: vehicleAt(first, x => x.dir === 1 && x.terminal).vehicleId,
-    d: vehicleAt(first, x => x.dir === 1 && !x.terminal).vehicleId,
-    ghost: vehicleAt(first, x => x.dest === 3).vehicleId,
-  };
-  const secondRows = [
-    row({ dir: 2, from: 0, to: 1, dest: 4, arrEpoch: 1090 }),
-    row({ dir: 2, from: 2, to: 3, dest: 4, arrEpoch: 1110 }),
-    row({ dir: 2, from: 0, to: 0, dest: 4, arrEpoch: 1300, terminal: true }), // ETA rollover，立即 birth
-    row({ dir: 1, from: 4, to: 3, dest: 0, arrEpoch: 1095 }),
-    row({ dir: 1, from: 2, to: 1, dest: 0, arrEpoch: 1115 }),
-    // 即使跨方向與位置，硬 no 仍優先認回同一身分。
-    row({ dir: 1, from: 4, to: 3, dest: 0, arrEpoch: 1120, no: 'H-7' }),
-  ];
-  const second = reduce(reduceArgs(secondRows, first, 1100, 'continuity-2'));
-  return { firstRows, secondRows, first, second, id };
+function scenarioLifecycle(reduce) {
+  const born = reduce(args([
+    row({ dir: 2, from: 0, to: 0, dest: 4, arrEpoch: 1000, terminal: true }),
+  ], null, 900, 'life-1'));
+  const id = born.vehicles[0].vehicleId;
+  const departureCorrected = reduce(args([
+    row({ dir: 2, from: 0, to: 0, dest: 4, arrEpoch: 1005, terminal: true }),
+  ], born, 950, 'life-2'));
+  const firstStation = reduce(args([
+    row({ dir: 2, from: 0, to: 1, dest: 4, arrEpoch: 1065 }),
+  ], departureCorrected, 1010, 'life-3'));
+  const secondStationAndDestCorrection = reduce(args([
+    row({ dir: 2, from: 1, to: 2, dest: 3, arrEpoch: 1125,
+      timeline: [{ from: 2, to: 3, depEpoch: 1150, arrEpoch: 1185, terminal: false }] }),
+  ], firstStation, 1070, 'life-4'));
+  const carried = reduce(args([], secondStationAndDestCorrection, 1179, 'life-5'));
+  const completed = reduce(args([], carried, 1185, 'life-6'));
+  return { id, born, departureCorrected, firstStation, secondStationAndDestCorrection, carried, completed };
 }
 
-function scenarioExtension(reduce, sourceModel = model()) {
-  const d2a = reduce(reduceArgs([
-    row({ dir: 2, from: 1, to: 2, dest: 4, arrEpoch: 2050 }),
-  ], null, 2000, 'ext-d2-1', sourceModel));
-  const d2b = reduce(reduceArgs([
-    row({ dir: 2, from: 2, to: 3, dest: 4, arrEpoch: 2110 }),
-  ], d2a, 2030, 'ext-d2-2', sourceModel));
-  const d2c = reduce(reduceArgs([], d2b, 2060, 'ext-d2-3', sourceModel));
-  const d2d = reduce(reduceArgs([], d2c, 2090, 'ext-d2-4', sourceModel));
-  const d2e = reduce(reduceArgs([], d2d, 2170, 'ext-d2-5', sourceModel));
-  const d2Reappeared = reduce(reduceArgs([
-    row({ dir: 2, from: 2, to: 3, dest: 4, arrEpoch: 2112 }),
-  ], d2c, 2070, 'ext-d2-reappear', sourceModel));
-  const d2Reextended = reduce(reduceArgs([], d2Reappeared, 2080, 'ext-d2-reextend', sourceModel));
-  const d2NextTrain = reduce(reduceArgs([
-    row({ dir: 2, from: 2, to: 3, dest: 4, arrEpoch: 2350 }),
-  ], d2c, 2070, 'ext-d2-next-train', sourceModel));
-
-  const d1a = reduce(reduceArgs([
-    row({ dir: 1, from: 3, to: 2, dest: 0, arrEpoch: 2050 }),
-  ], null, 2000, 'ext-d1-1', sourceModel));
-  const d1b = reduce(reduceArgs([
-    row({ dir: 1, from: 2, to: 1, dest: 0, arrEpoch: 2120 }),
-  ], d1a, 2030, 'ext-d1-2', sourceModel));
-  const d1c = reduce(reduceArgs([], d1b, 2060, 'ext-d1-3', sourceModel));
-
-  const noEvidence = reduce(reduceArgs([
-    row({ dir: 2, from: 2, to: 3, dest: 4, arrEpoch: 2050 }),
-  ], null, 2000, 'no-evidence-1', sourceModel));
-  const noEvidenceGone = reduce(reduceArgs([], noEvidence, 2030, 'no-evidence-2', sourceModel));
-  const longA = reduce(reduceArgs([
-    row({ dir: 2, from: 1, to: 2, dest: 4, arrEpoch: 2050 }),
-  ], null, 2000, 'long-1', sourceModel));
-  const longB = reduce(reduceArgs([
-    row({ dir: 2, from: 2, to: 3, dest: 4, arrEpoch: 2651 }),
-  ], longA, 2030, 'long-2', sourceModel));
-  const longGone = reduce(reduceArgs([], longB, 2040, 'long-3', sourceModel));
-  return { d2a, d2b, d2c, d2d, d2e, d2Reappeared, d2Reextended, d2NextTrain,
-    d1a, d1b, d1c, noEvidence, noEvidenceGone, longA, longB, longGone };
+function scenarioEtaRollback(reduce) {
+  const first = reduce(args([
+    row({ dir: 2, from: 1, to: 2, dest: 4, arrEpoch: 2100 }),
+  ], null, 2000, 'rollback-1'));
+  const id = first.vehicles[0].vehicleId;
+  const correctedBack = reduce(args([
+    row({ dir: 2, from: 0, to: 1, dest: 4, arrEpoch: 2130 }),
+  ], first, 2015, 'rollback-2'));
+  return { id, first, correctedBack };
 }
 
-function scenarioXbt(reduce) {
-  const firstRows = [
-    row({ line: 'G_XBT', dir: 2, from: 0, to: 0, dest: 1, arrEpoch: 3020, terminal: true }),
-    row({ line: 'R_XBT', dir: 1, from: 1, to: 1, dest: 0, arrEpoch: 3025, terminal: true }),
-  ];
-  const first = reduce(reduceArgs(firstRows, null, 3000, 'xbt-1'));
-  const secondRows = [
-    row({ line: 'G_XBT', dir: 2, from: 0, to: 0, dest: 1, arrEpoch: 3022, terminal: true }),
-    row({ line: 'R_XBT', dir: 1, from: 1, to: 1, dest: 0, arrEpoch: 3027, terminal: true }),
-  ];
-  const second = reduce(reduceArgs(secondRows, first, 3010, 'xbt-2'));
-  const rolloverRows = [
-    row({ line: 'G_XBT', dir: 2, from: 0, to: 0, dest: 1, arrEpoch: 3400, terminal: true }),
-    row({ line: 'R_XBT', dir: 1, from: 1, to: 1, dest: 0, arrEpoch: 3410, terminal: true }),
-  ];
-  const rollover = reduce(reduceArgs(rolloverRows, second, 3200, 'xbt-3'));
-  const gone = reduce(reduceArgs([], rollover, 3230, 'xbt-4'));
-  return { first, second, rollover, gone };
+function scenarioLongOfficialInterval(reduce) {
+  const first = reduce(args([
+    row({ dir: 2, from: 0, to: 1, dest: 4, arrEpoch: 3000 }),
+  ], null, 2900, 'long-1'));
+  const second = reduce(args([
+    row({ dir: 2, from: 1, to: 2, dest: 4, arrEpoch: 4000, timeline: [
+      { from: 2, to: 3, depEpoch: 4500, arrEpoch: 5000, terminal: false },
+      { from: 3, to: 4, depEpoch: 5500, arrEpoch: 6000, terminal: false },
+    ] }),
+  ], first, 3001, 'long-2'));
+  const id = second.vehicles[0].vehicleId;
+  const silentButEnroute = reduce(args([], second, 3702, 'long-3'));
+  const completed = reduce(args([], silentButEnroute, 6000, 'long-4'));
+  return { id, second, silentButEnroute, completed };
 }
 
-function scenarioDuplicates(reduce) {
-  const duplicateAnonymous = row({ dir: 2, from: 0, to: 1, dest: 4, arrEpoch: 4040 });
-  const duplicateNo = row({ dir: 1, from: 4, to: 3, dest: 0, arrEpoch: 4050, no: 'DUP' });
-  const rows = [{ ...duplicateAnonymous }, { ...duplicateAnonymous }, { ...duplicateNo }, { ...duplicateNo }];
-  return { rows, state: reduce(reduceArgs(rows, null, 4000, 'duplicates')) };
+function scenarioNewDepartureAndReverse(reduce) {
+  const old = reduce(args([
+    row({ dir: 2, from: 0, to: 0, dest: 4, arrEpoch: 7000, terminal: true, no: '777' }),
+  ], null, 6900, 'turn-1'));
+  const oldId = old.vehicles[0].vehicleId;
+  const oldEnrouteAndNextDeparture = reduce(args([
+    row({ dir: 2, from: 0, to: 0, dest: 4, arrEpoch: 7300, terminal: true, no: '777' }),
+  ], old, 7010, 'turn-2'));
+  const sameDirectionNew = oldEnrouteAndNextDeparture.vehicles.find(vehicle =>
+    vehicle.terminal && vehicle.vehicleId !== oldId);
+
+  const crossDirectionWhileOldActive = reduce(args([
+    row({ dir: 1, from: 4, to: 4, dest: 0, arrEpoch: 7350, terminal: true, no: '777' }),
+  ], old, 7010, 'turn-3'));
+  const reverse = crossDirectionWhileOldActive.vehicles.find(vehicle => vehicle.dir === 1);
+  return { oldId, oldEnrouteAndNextDeparture, sameDirectionNew, crossDirectionWhileOldActive, reverse };
+}
+
+function scenarioTerminal(reduce) {
+  const approaching = reduce(args([
+    row({ dir: 2, from: 3, to: 4, dest: 4, arrEpoch: 8050, no: '888' }),
+  ], null, 8000, 'terminal-1'));
+  const id = approaching.vehicles[0].vehicleId;
+  const before = reduce(args([], approaching, 8049, 'terminal-2'));
+  const at = reduce(args([], before, 8050, 'terminal-3'));
+  const reverse = reduce(args([
+    row({ dir: 1, from: 4, to: 4, dest: 0, arrEpoch: 8100, terminal: true, no: '888' }),
+  ], at, 8060, 'terminal-4'));
+  return { id, before, at, reverse };
+}
+
+function scenarioXbt(reduce, lineId, dir) {
+  const origin = dir === 2 ? 0 : 1, dest = dir === 2 ? 1 : 0;
+  const born = reduce(args([
+    row({ line: lineId, dir, from: origin, to: origin, dest, arrEpoch: 9000,
+      terminal: true, no: 'X1' }),
+  ], null, 8900, `${lineId}-${dir}-1`, fixtureModel(120)));
+  const id = born.vehicles[0].vehicleId;
+  const enroute = reduce(args([], born, 9119, `${lineId}-${dir}-2`, fixtureModel(120)));
+  const arrived = reduce(args([], enroute, 9120, `${lineId}-${dir}-3`, fixtureModel(120)));
+  const reverseDir = dir === 2 ? 1 : 2;
+  const reverseOrigin = dest;
+  const reverse = reduce(args([
+    row({ line: lineId, dir: reverseDir, from: reverseOrigin, to: reverseOrigin, dest: origin,
+      arrEpoch: 9200, terminal: true, no: 'X1' }),
+  ], arrived, 9130, `${lineId}-${dir}-4`, fixtureModel(120)));
+  return { id, born, enroute, arrived, reverse };
+}
+
+function scenarioMultipleBoards(reduce) {
+  const base = { line: 'L', dir: 2, destIdx: 4, no: '201', terminal: false, run: 60, baseEpoch: 10000 };
+  const claims = [
+    { ...base, from: 0, to: 1, arrEpoch: 10060, progress: 0.8, ix: 0.8, eventClaims: [] },
+    { ...base, from: 1, to: 2, arrEpoch: 10120, progress: 0.1, ix: 1.1, eventClaims: [] },
+  ];
+  const collapsed = collapseClaims(claims);
+  const attached = attachOfficialTimelines(fixtureModel(), collapsed, claims);
+  const state = reduce(args(attached, null, 10000, 'multiple-boards'));
+  return { claims, collapsed, attached, state };
+}
+
+function scenarioScheduleIndependent(reduce) {
+  const rows1 = [row({ dir: 2, from: 0, to: 1, dest: 4, arrEpoch: 11000 })];
+  const rows2 = [row({ dir: 2, from: 1, to: 2, dest: 4, arrEpoch: 11080 })];
+  const a1 = reduce(args(rows1, null, 10900, 'schedule-1', fixtureModel(60)));
+  const a2 = reduce(args(rows2, a1, 11001, 'schedule-2', fixtureModel(60)));
+  const b1 = reduce(args(rows1, null, 10900, 'schedule-1', fixtureModel(600)));
+  const b2 = reduce(args(rows2, b1, 11001, 'schedule-2', fixtureModel(600)));
+  return { a2, b2 };
+}
+
+function scenarioDuplicateRows(reduce) {
+  const duplicate = row({ dir: 2, from: 0, to: 1, dest: 4, arrEpoch: 12000, no: 'DUP' });
+  return reduce(args([{ ...duplicate }, { ...duplicate }], null, 11900, 'duplicate'));
+}
+
+function scenarioNoMidRouteBirth(reduce) {
+  const prior = reduce(args([
+    row({ dir: 2, from: 0, to: 0, dest: 4, arrEpoch: 13000, terminal: true, no: 'A' }),
+  ], null, 12900, 'mid-route-1'));
+  const id = prior.vehicles[0].vehicleId;
+  const next = reduce(args([
+    row({ dir: 2, from: 2, to: 3, dest: 4, arrEpoch: 13100, no: 'B' }),
+  ], prior, 12910, 'mid-route-2'));
+  return { id, next };
 }
 
 function evaluate(reduce) {
-  const results = {};
+  const result = {};
   const assess = (name, fn) => {
-    try { results[name] = Boolean(fn()); }
-    catch (error) { results[name] = false; }
+    try { result[name] = Boolean(fn()); } catch { result[name] = false; }
   };
 
-  let fresh;
-  try { fresh = scenarioFresh(reduce); } catch { fresh = null; }
-  assess('canonicalShuffle', () => fresh && publicShape(fresh.normal) === publicShape(fresh.shuffled));
-  assess('rowCardinality', () => fresh && fresh.normal.vehicles.length === fresh.rows.length &&
-    fresh.normal.diagnostics.rows === fresh.rows.length && fresh.normal.diagnostics.extensions === 0);
-  assess('uniqueIds', () => fresh && idsUnique(fresh.normal));
-  assess('opaqueSequentialIds', () => fresh && fresh.normal.vehicles.every(x => /^ov:2026-08-13:[0-9a-z]{6}$/.test(x.vehicleId)) &&
-    !fresh.normal.vehicles.some(x => x.vehicleId.includes(x.line) || x.vehicleId.includes(`:${x.to}:`)));
-  assess('bothDirections', () => fresh && [1, 2].every(dir => fresh.normal.vehicles.some(x => x.dir === dir)));
-  assess('freshNoSchedule', () => fresh && fresh.normal.vehicles.every(x => x.source === 'official' && !x.extension &&
-    x.tripKey == null && x.scheduleKey == null));
+  let deterministic;
+  try { deterministic = scenarioDeterminism(reduce); } catch { deterministic = null; }
+  assess('輸入順序不影響名冊', () => deterministic && same(deterministic.normal) === same(deterministic.reversed));
+  assess('冷啟動每列都有唯一 ID', () => deterministic &&
+    deterministic.normal.vehicles.length === deterministic.rows.length && uniqueIds(deterministic.normal));
+  assess('兩個方向都建立列車', () => deterministic && [1, 2].every(dir =>
+    deterministic.normal.vehicles.some(vehicle => vehicle.dir === dir)));
+  assess('官方車次只作顯示', () => deterministic &&
+    deterministic.normal.vehicles.filter(vehicle => vehicle.officialNo).length === 2 &&
+    deterministic.normal.vehicles.every(vehicle => vehicle.tripKey == null && vehicle.scheduleKey == null));
 
-  let continuity;
-  try { continuity = scenarioContinuity(reduce); } catch { continuity = null; }
-  assess('hardAliasStable', () => continuity && vehicleAt(continuity.second, x => x.officialNo === 'H-7').vehicleId === continuity.id.hard);
-  assess('anonymousOrderStable', () => continuity &&
-    vehicleAt(continuity.second, x => x.dir === 2 && x.from === 0 && x.to === 1).vehicleId === continuity.id.a &&
-    vehicleAt(continuity.second, x => x.dir === 2 && x.from === 2 && x.to === 3 && !x.officialNo).vehicleId === continuity.id.b &&
-    vehicleAt(continuity.second, x => x.dir === 1 && x.from === 4 && x.to === 3 && !x.officialNo).vehicleId === continuity.id.c &&
-    vehicleAt(continuity.second, x => x.dir === 1 && x.from === 2 && x.to === 1).vehicleId === continuity.id.d);
-  assess('unmatchedCurrentBorn', () => continuity && continuity.second.diagnostics.births === 1 &&
-    !new Set(continuity.first.vehicles.map(x => x.vehicleId)).has(
-      vehicleAt(continuity.second, x => x.dir === 2 && x.terminal).vehicleId));
-  assess('unmatchedPriorExited', () => continuity && !continuity.second.vehicles.some(x => x.vehicleId === continuity.id.ghost));
+  let life;
+  try { life = scenarioLifecycle(reduce); } catch { life = null; }
+  assess('發車到逐站更新始終沿用同一 ID', () => life &&
+    [life.departureCorrected, life.firstStation, life.secondStationAndDestCorrection, life.carried]
+      .every(state => byId(state, life.id)));
+  assess('終點標示修訂不重發 ID', () => life &&
+    byId(life.secondStationAndDestCorrection, life.id)?.dest === 3);
+  assess('當輪沒有資料仍沿既有時間軸保留', () => life &&
+    byId(life.carried, life.id)?.carried === true);
+  assess('抵達已知終點才收車', () => life && !byId(life.completed, life.id));
 
-  let extension, extensionOtherSchedule;
-  try { extension = scenarioExtension(reduce, model(777)); } catch { extension = null; }
-  try { extensionOtherSchedule = scenarioExtension(reduce, model(333)); } catch { extensionOtherSchedule = null; }
-  assess('lastExtensionOwnSpan', () => extension && extension.d2c.vehicles.length === 1 &&
-    extension.d2c.vehicles[0].extension && extension.d2c.vehicles[0].run === 60 &&
-    extension.d2c.vehicles[0].arrEpoch === 2170 && extension.d2c.vehicles[0].source === 'official-derived-own-last-span' &&
-    extension.d1c.vehicles.length === 1 && extension.d1c.vehicles[0].run === 70 && extension.d1c.vehicles[0].to === 0);
-  assess('extensionOnce', () => extension && extension.d2d.vehicles.length === 1 &&
-    extension.d2d.vehicles[0].arrEpoch === extension.d2c.vehicles[0].arrEpoch && extension.d2e.vehicles.length === 0);
-  assess('extensionReappearanceSingle', () => extension && extension.d2Reappeared.vehicles.length === 1 &&
-    !extension.d2Reappeared.vehicles[0].extension &&
-    extension.d2Reappeared.vehicles[0].vehicleId === extension.d2c.vehicles[0].vehicleId &&
-    extension.d2Reextended.vehicles.length === 1 && extension.d2Reextended.vehicles[0].extension &&
-    extension.d2Reextended.vehicles[0].vehicleId === extension.d2c.vehicles[0].vehicleId);
-  assess('extensionNextTrainDistinct', () => extension && extension.d2NextTrain.vehicles.length === 2 &&
-    extension.d2NextTrain.vehicles.some(vehicle => vehicle.extension &&
-      vehicle.vehicleId === extension.d2c.vehicles[0].vehicleId && vehicle.run === 60) &&
-    extension.d2NextTrain.vehicles.some(vehicle => !vehicle.extension &&
-      vehicle.vehicleId !== extension.d2c.vehicles[0].vehicleId));
-  assess('noEvidenceNoExtension', () => extension && extension.noEvidenceGone.vehicles.length === 0);
-  assess('boundedOwnSpan', () => extension && extension.longGone.vehicles.length === 0);
-  assess('scheduleIndependent', () => extension && extensionOtherSchedule &&
-    extension.d2c.vehicles[0].run === extensionOtherSchedule.d2c.vehicles[0].run &&
-    extension.d2c.vehicles[0].arrEpoch === extensionOtherSchedule.d2c.vehicles[0].arrEpoch);
+  let rollback;
+  try { rollback = scenarioEtaRollback(reduce); } catch { rollback = null; }
+  assess('ETA 回修一站仍是同一 ID', () => rollback &&
+    byId(rollback.correctedBack, rollback.id)?.from === 0);
 
-  let xbt;
-  try { xbt = scenarioXbt(reduce); } catch { xbt = null; }
-  assess('xbtZeroMotion', () => xbt && [xbt.first, xbt.second, xbt.rollover].every(state =>
-    state.vehicles.every(x => x.from === x.to && x.run === 0 && !x.extension)) && xbt.gone.vehicles.length === 0);
-  assess('terminalRolloverNewId', () => xbt && xbt.first.vehicles.every(first =>
-    xbt.second.vehicles.some(second => second.line === first.line && second.vehicleId === first.vehicleId)) &&
-    xbt.rollover.vehicles.every(next => !xbt.second.vehicles.some(old => old.vehicleId === next.vehicleId)));
+  let long;
+  try { long = scenarioLongOfficialInterval(reduce); } catch { long = null; }
+  assess('長時間缺訊不得先於官方終點時刻刪車', () => long &&
+    byId(long.silentButEnroute, long.id)?.carried === true);
+  assess('再久也只按終點時刻收車', () => long && !byId(long.completed, long.id));
 
-  let duplicates;
-  try { duplicates = scenarioDuplicates(reduce); } catch { duplicates = null; }
-  assess('duplicateRowsGuard', () => duplicates && duplicates.state.vehicles.length === duplicates.rows.length &&
-    idsUnique(duplicates.state) && duplicates.state.diagnostics.duplicateOfficialNos === 1 &&
-    duplicates.state.vehicles.filter(x => x.officialNo).length === 0);
-  return results;
+  let turn;
+  try { turn = scenarioNewDepartureAndReverse(reduce); } catch { turn = null; }
+  assess('同方向下一個起點倒數建立新 ID', () => turn && turn.sameDirectionNew &&
+    turn.sameDirectionNew.vehicleId !== turn.oldId && byId(turn.oldEnrouteAndNextDeparture, turn.oldId));
+  assess('同車號跨方向也必須建立新 ID', () => turn && turn.reverse &&
+    turn.reverse.vehicleId !== turn.oldId && byId(turn.crossDirectionWhileOldActive, turn.oldId));
+
+  let terminal;
+  try { terminal = scenarioTerminal(reduce); } catch { terminal = null; }
+  assess('終點到達前一秒仍在', () => terminal && byId(terminal.before, terminal.id));
+  assess('終點到達當秒退場', () => terminal && !byId(terminal.at, terminal.id));
+  assess('折返只在反向倒數出現後另生新車', () => terminal && terminal.reverse.vehicles.length === 1 &&
+    terminal.reverse.vehicles[0].dir === 1 && terminal.reverse.vehicles[0].vehicleId !== terminal.id);
+
+  for (const lineId of ['G_XBT', 'R_XBT']) for (const dir of [1, 2]) {
+    let xbt;
+    try { xbt = scenarioXbt(reduce, lineId, dir); } catch { xbt = null; }
+    assess(`${lineId} 方向${dir}用單段秒移動後收車`, () => xbt &&
+      byId(xbt.enroute, xbt.id) && !byId(xbt.arrived, xbt.id));
+    assess(`${lineId} 方向${dir}反向倒數另生 ID`, () => xbt && xbt.reverse.vehicles.length === 1 &&
+      xbt.reverse.vehicles[0].vehicleId !== xbt.id);
+  }
+
+  let boards;
+  try { boards = scenarioMultipleBoards(reduce); } catch { boards = null; }
+  assess('同車出現在多站倒數先合成一輛', () => boards && boards.collapsed.length === 1 &&
+    boards.collapsed[0].eventClaims.length === 2 && boards.attached[0].timeline.length === 2 &&
+    boards.state.vehicles.length === 1);
+
+  let schedule;
+  try { schedule = scenarioScheduleIndependent(reduce); } catch { schedule = null; }
+  assess('已有兩站官方時間後不受段秒模型改變', () => schedule &&
+    schedule.a2.vehicles[0].coastCycle === 80 && schedule.b2.vehicles[0].coastCycle === 80 &&
+    schedule.a2.vehicles[0].retireEpoch === schedule.b2.vehicles[0].retireEpoch);
+
+  let duplicate;
+  try { duplicate = scenarioDuplicateRows(reduce); } catch { duplicate = null; }
+  assess('異常重複列也不產生重複 ID', () => duplicate && duplicate.vehicles.length === 2 &&
+    uniqueIds(duplicate) && duplicate.vehicles.every(vehicle => !vehicle.officialNo));
+
+  let midRoute;
+  try { midRoute = scenarioNoMidRouteBirth(reduce); } catch { midRoute = null; }
+  assess('營運中配不到的站間列不得另生新車', () => midRoute && midRoute.next.vehicles.length === 1 &&
+    byId(midRoute.next, midRoute.id)?.carried === true && midRoute.next.diagnostics.ignoredObservations === 1 &&
+    midRoute.next.diagnostics.births === 0);
+  return result;
 }
 
 function replaceExactly(source, from, to, label) {
@@ -361,46 +288,104 @@ function replaceExactly(source, from, to, label) {
 
 async function mutatedReducer(kind) {
   let source = fs.readFileSync(SOURCE_PATH, 'utf8');
-  if (kind === 'station-minute') {
+  if (kind === 'drop-carried') {
     source = replaceExactly(source,
-      'const vehicleId = allocateVehicleId(state);\n    assigned.set(index, vehicleId); usedIds.add(vehicleId); births++;',
-      'const rowForId = current[index];\n    const vehicleId = `ov:${state.day}:${rowForId.line}:${rowForId.to}:${Math.floor(rowForId.arrEpoch / 60)}`;\n    assigned.set(index, vehicleId); usedIds.add(vehicleId); births++;', kind);
-  } else if (kind === 'drop-current') {
+      'if (alive) { vehicles.push(alive); usedIds.add(String(alive.vehicleId)); carried++; }\n    else exits++;',
+      'if (alive) { exits++; }\n    else exits++;', kind);
+  } else if (kind === 'silence-limit') {
     source = replaceExactly(source,
-      'const vehicleId = allocateVehicleId(state);\n    assigned.set(index, vehicleId); usedIds.add(vehicleId); births++;',
-      'const vehicleId = null;\n    births++;', kind);
+      '// 這是「到已知終點」的時刻，不是資料齡或缺訊 timeout。',
+      'if (nowEpoch - Number(vehicle.observedEpoch) > 600) return null;\n  // mutation: 以缺訊時間刪車', kind);
+  } else if (kind === 'dest-group') {
     source = replaceExactly(source,
-      'const row = current[index], vehicleId = assigned.get(index), base = priorById.get(vehicleId) || null;\n    const vehicle = officialVehicle(row, vehicleId, base, sourceRevision, epoch);\n    vehicles.push(vehicle);',
-      'const row = current[index], vehicleId = assigned.get(index), base = priorById.get(vehicleId) || null;\n    if (!vehicleId) continue;\n    const vehicle = officialVehicle(row, vehicleId, base, sourceRevision, epoch);\n    vehicles.push(vehicle);', kind);
-  } else if (kind === 'keep-ghost') {
-    source = replaceExactly(source, 'else exits++;',
-      'else { vehicles.push({ ...old, sourceRevision }); usedIds.add(String(old.vehicleId)); }', kind);
+      'function groupKey(item) { return `${item.line}|${Number(item.dir)}`; }',
+      'function groupKey(item) { return `${item.line}|${Number(item.dir)}|${Number(item.dest)}`; }', kind);
+  } else if (kind === 'forward-only') {
+    source = replaceExactly(source,
+      '  // ETA 可能把同車回修一站。位置方向只能當配對成本，不能當「這台車不存在」的硬判定。\n  return true;',
+      '  if (routePosition(current) < Number(prior.routePosition ?? routePosition(prior))) return false;\n  return true;', kind);
+  } else if (kind === 'global-no') {
+    source = replaceExactly(source,
+      'vehicle.line === row.line && Number(vehicle.dir) === Number(row.dir) &&\n      String(vehicle.officialNo || \'\') === row.displayNo',
+      'String(vehicle.officialNo || \'\') === row.displayNo', kind);
+  } else if (kind === 'keep-terminal') {
+    source = replaceExactly(source,
+      'if (timing.retireEpoch != null && Number.isFinite(Number(timing.retireEpoch)) &&\n      nowEpoch >= Number(timing.retireEpoch)) return null;',
+      'if (false && timing.retireEpoch != null && Number.isFinite(Number(timing.retireEpoch)) &&\n      nowEpoch >= Number(timing.retireEpoch)) return null;', kind);
+  } else if (kind === 'no-xbt-fallback') {
+    source = replaceExactly(source,
+      'function segmentRun(model, lineId, from, to) {\n  const line =',
+      "function segmentRun(model, lineId, from, to) {\n  if (/_XBT$/.test(lineId)) return null;\n  const line =", kind);
   } else if (kind === 'duplicate-id') {
-    source = replaceExactly(source, 'const vehicleId = allocateVehicleId(state);',
-      'const vehicleId = births === 0 ? allocateVehicleId(state) : [...usedIds][0];', kind);
-  } else if (kind === 'schedule-duration') {
     source = replaceExactly(source,
-      'const ownLastSpan = Number(last.arrEpoch) - Number(previous.arrEpoch);',
-      'const ownLastSpan = Number((model.lines instanceof Map ? model.lines.get(vehicle.line) : model.lines[vehicle.line])?.runs?.get?.(`${vehicle.from}>${vehicle.to}`)) || 1;', kind);
-  } else if (kind === 'xbt-motion') {
+      'const vehicleId = allocateVehicleId(state);\n    assigned.set(index, vehicleId); usedIds.add(vehicleId); births++;',
+      'const vehicleId = births ? [...usedIds][0] : allocateVehicleId(state);\n    assigned.set(index, vehicleId); usedIds.add(vehicleId); births++;', kind);
+  } else if (kind === 'birth-mid-route') {
     source = replaceExactly(source,
-      'run: row.run, arrEpoch: row.arrEpoch, terminal: row.terminal,',
-      "run: /_XBT$/.test(row.line) ? 60 : row.run, arrEpoch: row.arrEpoch, terminal: row.terminal,", kind);
-  } else if (kind === 'exclude-extension-reentry') {
-    source = replaceExactly(source,
-      'const priorGroup = priorVehicles.map(vehicle => matchingPriorVehicle(vehicle, currentGroup))\n      .filter(x => x && !usedIds.has(String(x.vehicleId)) && groupKey(x) === key)',
-      'const priorGroup = priorVehicles.filter(x => !x.extension)\n      .filter(x => x && !usedIds.has(String(x.vehicleId)) && groupKey(x) === key)', kind);
-  } else if (kind === 'extension-eats-next') {
-    source = replaceExactly(source,
-      'Math.abs(Number(item.row.arrEpoch) - Number(last.arrEpoch)) <= EXTENSION_REAPPEAR_ETA_TOLERANCE_SEC',
-      'true', kind);
-  } else if (kind === 'unbounded-own-span') {
-    source = replaceExactly(source,
-      'ownLastSpan > 0 && ownLastSpan <= OFFICIAL_OWN_SPAN_MAX_SEC',
-      'ownLastSpan > 0', kind);
+      'if (!coldStart && !current[index].terminal) { ignoredObservations++; continue; }',
+      'if (false && !coldStart && !current[index].terminal) { ignoredObservations++; continue; }', kind);
   } else throw new Error(`未知 mutation ${kind}`);
-  const url = `data:text/javascript;base64,${Buffer.from(`${source}\n//# sourceURL=trtc_official_roster-${kind}.mjs`).toString('base64')}`;
+  const url = `data:text/javascript;base64,${Buffer.from(`${source}\n//# sourceURL=trtc-roster-${kind}.mjs`).toString('base64')}`;
   return (await import(url)).reduceOfficialRoster;
+}
+
+function loadJson(relative) { return JSON.parse(fs.readFileSync(path.join(ROOT, relative), 'utf8')); }
+
+function peakReplay(reduce) {
+  if (!fs.existsSync(PEAK_DIR)) return null;
+  const rounds = fs.readdirSync(PEAK_DIR).map(name => name.match(/^(\d+)_live\.json$/)?.[1])
+    .filter(Boolean).sort();
+  const model = buildTrtcModel(loadJson('data/trtc.json'), loadJson('data/trtc_times.json'),
+    loadJson('data/trtc_codes.json'), { includeY: true });
+  let prior = null, rows = 0, maxVehicles = 0, births = 0, carried = 0, completed = 0;
+  let shuffleMismatches = 0, duplicateRounds = 0, crossDirectionChanges = 0, resurrected = 0;
+  const directionById = new Map(), retired = new Set();
+  let previousIds = new Set();
+  const feed = new Map();
+  const normalizeName = value => String(value || '').replace(/站$/, '').replace(/臺/g, '台');
+  const lineStationIndex = new Map([...model.lines].map(([lineId, line]) => [lineId,
+    new Map(line.stations.map((station, index) => [normalizeName(station.name), index]))]));
+  for (const round of rounds) {
+    const live = loadJson(`tmp/binder-fixtures/rounds-peak/${round}_live.json`);
+    const rawCurrent = live.boardPos?.rows || [], at = Number(live.boardPos?.at);
+    const identityByNo = new Map(rawCurrent.filter(value => value.no).map(value => [String(value.no), value]));
+    const resolved = (live.board || []).map(value => {
+      const identity = identityByNo.get(String(value.no || ''));
+      const stationIdx = identity && lineStationIndex.get(identity.line)?.get(normalizeName(value.name));
+      return identity && Number.isInteger(stationIdx) ? { line: identity.line, dir: Number(identity.dir),
+        stationIdx, arrEpoch: Number(value.eta), no: String(value.no) } : null;
+    }).filter(Boolean);
+    const current = attachOfficialTimelines(model, rawCurrent, resolved, new Map());
+    const call = { model, rows: current, prior, day: DAY, nowEpoch: at, sourceRevision: `${round}:${at}` };
+    const state = reduce(call);
+    const shuffled = reduce({ ...call, rows: [...current].reverse() });
+    if (same(state) !== same(shuffled)) shuffleMismatches++;
+    if (!uniqueIds(state)) duplicateRounds++;
+    const ids = new Set(state.vehicles.map(vehicle => vehicle.vehicleId));
+    for (const id of previousIds) if (!ids.has(id)) retired.add(id);
+    for (const vehicle of state.vehicles) {
+      if (retired.has(vehicle.vehicleId) && !previousIds.has(vehicle.vehicleId)) resurrected++;
+      const signature = `${vehicle.line}|${vehicle.dir}`;
+      if (directionById.has(vehicle.vehicleId) && directionById.get(vehicle.vehicleId) !== signature)
+        crossDirectionChanges++;
+      directionById.set(vehicle.vehicleId, signature);
+    }
+    for (const value of current) {
+      const key = `${value.line}|${value.dir}`;
+      if (!feed.has(key)) feed.set(key, { moving: 0, stopped: 0 });
+      feed.get(key)[Number(value.from) === Number(value.to) ? 'stopped' : 'moving']++;
+    }
+    rows += current.length;
+    maxVehicles = Math.max(maxVehicles, state.vehicles.length);
+    births += state.diagnostics.births;
+    carried += state.diagnostics.carried;
+    completed += state.diagnostics.completed + state.diagnostics.exits;
+    previousIds = ids;
+    prior = state;
+  }
+  return { rounds: rounds.length, rows, maxVehicles, births, carried, completed, shuffleMismatches,
+    duplicateRounds, crossDirectionChanges, resurrected, streams: feed.size,
+    xbt: Object.fromEntries([...feed].filter(([key]) => /_XBT\|/.test(key))) };
 }
 
 let failures = 0;
@@ -411,57 +396,55 @@ function check(pass, label, detail = '') {
 
 const { reduceOfficialRoster } = await import(pathToFileURL(SOURCE_PATH));
 const baseline = evaluate(reduceOfficialRoster);
-console.log('正式實作：');
+console.log('正式生命週期契約：');
 for (const [label, pass] of Object.entries(baseline)) check(pass, label);
 
+const forbidden = [
+  ['後端缺訊秒數上限常數', 'OFFICIAL_CARRY_MAX_SEC'],
+  ['後端舊續推秒數上限常數', 'OFFICIAL_OWN_SPAN_MAX_SEC'],
+  ['前端缺訊秒數上限常數', 'TRTC_OFFICIAL_COAST_MAX_SEC'],
+  ['前端名冊資料齡上限常數', 'TRTC_OFFICIAL_ROSTER_MAX_AGE_SEC'],
+  ['舊驗收「配不到就退場」名稱', 'unmatchedPriorExited'],
+];
+const productSource = fs.readFileSync(SOURCE_PATH, 'utf8') + '\n' + fs.readFileSync(INDEX_PATH, 'utf8');
+console.log('\n錯誤規則清除 gate：');
+for (const [label, needle] of forbidden) check(!productSource.includes(needle), label);
+
 const mutations = [
-  ['M1 station-minute ID', 'station-minute'],
-  ['M2 丟掉未配 current', 'drop-current'],
-  ['M3 保留未配 prior ghost', 'keep-ghost'],
-  ['M4 拿掉 ID duplicate guard', 'duplicate-id'],
-  ['M5 改用 schedule duration 補末段', 'schedule-duration'],
-  ['M6 讓 XBT 停站列產生 motion', 'xbt-motion'],
-  ['M7 extension 後 row 重現卻另生 ID', 'exclude-extension-reentry'],
-  ['M8 extension 吃掉下一班', 'extension-eats-next'],
-  ['M9 允許無界 own span', 'unbounded-own-span'],
+  ['刪掉當輪未配到的既有車', 'drop-carried', '當輪沒有資料仍沿既有時間軸保留'],
+  ['加入缺訊秒數刪車', 'silence-limit', '長時間缺訊不得先於官方終點時刻刪車'],
+  ['把終點納入身分群組', 'dest-group', '終點標示修訂不重發 ID'],
+  ['ETA 只能向前', 'forward-only', 'ETA 回修一站仍是同一 ID'],
+  ['官方車號跨方向共用 ID', 'global-no', '同車號跨方向也必須建立新 ID'],
+  ['抵達終點仍保留', 'keep-terminal', '終點到達當秒退場'],
+  ['移除 XBT 單段 fallback', 'no-xbt-fallback', 'G_XBT 方向2用單段秒移動後收車'],
+  ['重複分配 vehicleId', 'duplicate-id', '異常重複列也不產生重複 ID'],
+  ['站間列配不到就另生新車', 'birth-mid-route', '營運中配不到的站間列不得另生新車'],
 ];
 console.log('\nMutation control：');
-for (let index = 0; index < mutations.length; index++) {
-  const [name, kind] = mutations[index], expected = mutationPlan[index][1];
-  let observed;
-  try { observed = evaluate(await mutatedReducer(kind)); }
-  catch (error) {
-    check(false, `${name} mutation 必須成功載入並執行`, String(error && error.message || error));
-    continue;
+for (const [label, kind, expectedRed] of mutations) {
+  try {
+    const observed = evaluate(await mutatedReducer(kind));
+    check(observed[expectedRed] === false, `${label} 會被具名契約攔下`, expectedRed);
+  } catch (error) {
+    check(false, `${label} mutation 可執行`, String(error && error.message || error));
   }
-  const red = Object.entries(observed).filter(([, pass]) => !pass).map(([label]) => label);
-  check(JSON.stringify(red) === JSON.stringify(expected), `${name} 只在事先列出的子項轉紅`,
-    `紅燈=${red.join(',')}`);
 }
 
 const replay = peakReplay(reduceOfficialRoster);
-check(replay.rounds === 80 && replay.rows > 0 && Object.keys(replay.lines).length === 9 &&
-  Object.keys(replay.directions).length === 18,
-  '尖峰全線語料完整', `${replay.rounds}輪/${replay.rows}列/${Object.keys(replay.lines).length}線`);
-check(replay.shuffleMismatches === 0, '尖峰全80輪 rows 逆序後逐筆輸出不變', `diff=${replay.shuffleMismatches}`);
-check(replay.orderedPairComparisons > 0 && replay.orderInversions === 0,
-  '尖峰全線跨輪共同身分保序', `pairs=${replay.orderedPairComparisons},inversions=${replay.orderInversions}`);
-const normalFeed = Object.entries(replay.feedStructure).filter(([key]) => !/_XBT\|/.test(key));
-const shuttleFeed = Object.entries(replay.feedStructure).filter(([key]) => /_XBT\|/.test(key));
-check(normalFeed.length === 14 && normalFeed.every(([, shape]) => shape.previousToTerminal > 0 && shape.finalLeg === 0 &&
-  shape.originStopped > 0),
-  '七條一般線兩向皆看得到起點，且只缺最後一段', `streams=${normalFeed.length}`);
-check(shuttleFeed.length === 4 && shuttleFeed.every(([, shape]) => shape.moving === 0 && shape.stopped > 0),
-  '兩條 XBT 四方向只有停站列、零行進區間', `streams=${shuttleFeed.length}`);
-check(replay.xbtExtensions === 0, 'G_XBT/R_XBT 尖峰語料不生任何末段移動',
-  `extensions=${replay.xbtExtensions}`);
-check(replay.maxExtensionRun > 0 && replay.maxExtensionRun <= 600,
-  '尖峰末段 own span 保持有界', `maxRun=${replay.maxExtensionRun}s`);
-fs.mkdirSync(path.join(ROOT, 'tmp'), { recursive: true });
-fs.writeFileSync(path.join(ROOT, 'tmp/verify_trtc_official_roster.json'),
-  JSON.stringify({ baseline, replay }, null, 2) + '\n');
+console.log('\n保存的尖峰官方語料：');
+check(replay && replay.rounds === 80 && replay.rows > 0 && replay.streams === 18,
+  '80 輪／九線雙向語料完整', replay && `${replay.rounds}輪/${replay.rows}列/${replay.streams}流`);
+check(replay && replay.shuffleMismatches === 0, '每輪 rows 逆序結果完全一致', replay && `diff=${replay.shuffleMismatches}`);
+check(replay && replay.duplicateRounds === 0, '每輪 vehicleId 唯一', replay && `bad=${replay.duplicateRounds}`);
+check(replay && replay.crossDirectionChanges === 0, '任何 ID 都不跨方向', replay && `bad=${replay.crossDirectionChanges}`);
+check(replay && replay.resurrected === 0, '已退場 ID 不復活', replay && `bad=${replay.resurrected}`);
+check(replay && Object.keys(replay.xbt).length === 4 &&
+  Object.values(replay.xbt).every(shape => shape.moving === 0 && shape.stopped > 0),
+  'XBT 四個方向官方語料只有起點倒數、沒有對端到站時間', replay && JSON.stringify(replay.xbt));
 
 const passed = Object.values(baseline).filter(Boolean).length;
-console.log(`\nofficial roster：${passed}/${Object.keys(baseline).length} 結構判準通過；9/9 mutation controls 命中；` +
-  `peak ${replay.rounds}輪/${replay.rows}列，extension observations=${replay.extensionObservations}。`);
+console.log(`\nofficial roster：${passed}/${Object.keys(baseline).length} 契約通過；` +
+  `${mutations.length}/${mutations.length} mutation 已執行；peak max=${replay && replay.maxVehicles}、` +
+  `births=${replay && replay.births}、carried=${replay && replay.carried}、completed=${replay && replay.completed}。`);
 if (failures) process.exit(1);

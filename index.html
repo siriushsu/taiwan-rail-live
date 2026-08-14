@@ -3550,7 +3550,7 @@
 
   <footer class="site-foot">
     <details class="foot-box">
-      <summary><span>更新紀錄</span><span class="foot-sub">最後更新：2026/8/13</span></summary>
+      <summary><span>更新紀錄</span><span class="foot-sub">最後更新：2026/8/14</span></summary>
       <!-- 第一層是「最近更新」的檢視,不是正本:每一條都用 data-cl-of 指向第二層某條的 data-cl。
            要把一條擠出第一層之前,它的正本必須已經在第二層存在——2026-08-03 就踩過一次:8/1 的
            衛星計費那條只活在第一層(第二層只有一句夾在 7/25 條目裡、日期對不上的附帶說明),
@@ -3558,6 +3558,7 @@
            內容 li 上限 8 條(li.grp 是標題不算)。 -->
       <ul class="foot-list foot-recent">
         <li class="grp">最近更新</li>
+        <li data-cl-of="trtcvehiclelife"><span class="d">8/14</span><span>台北捷運的車從起點出現後，會沿每一站的官方到站時間一路認到終點；短暫讀不到或時間修正時不再消失、重生或往回跳</span></li>
         <li data-cl-of="trtcofficialroster"><span class="d">8/13</span><span>台北捷運改用官方即時資訊決定車子在哪，依車站看板的時刻到站，不再對不上班表就消失</span></li>
         <li data-cl-of="klrtgps"><span class="d">8/12</span><span>高雄環狀輕軌改用官方衛星定位逐班校正，每台車各自對準自己的班次（謝謝網友提供資訊）</span></li>
         <li data-cl-of="tcstopsalign"><span class="d">8/12</span><span>列車資訊卡的停靠站時刻表：表頭「到／開」對齊下方的時刻欄了</span></li>
@@ -3565,7 +3566,6 @@
         <li data-cl-of="stationtransfer"><span class="d">8/10</span><span>點任何一個車站看板，都會告訴你這站可以轉乘哪些別的鐵道系統；跟車時「下一站」旁邊也會提醒能換哪幾條線</span></li>
         <li data-cl-of="nearfollowmutex"><span class="d">8/10</span><span>開「附近車站」或「隨機跟隨」時會自動收起另一個，地圖鏡頭只聽一邊的</span></li>
         <li data-cl-of="widgetdestination"><span class="d">8/8</span><span>iPhone 小工具起站選「共站」或「我的地點」後，「目的站」一點就關掉；已修好，下次 App 更新生效</span></li>
-        <li data-cl-of="lapush"><span class="d">8/8</span><span>跟車的鎖定畫面即時動態會自己換下一站了，App 沒開著也會更新；停靠站內顯示「停靠中」，動態島展開還有進度條與車種顏色（通行證功能）</span></li>
       </ul>
       <!-- 第二層:完整歷史。刻意不掛 .foot-box 類名——placeFootBoxes() 用
            `.site-foot .foot-box` 搬移面板,巢狀同名會被當成另一個盒子一起搬走。 -->
@@ -3583,7 +3583,8 @@
         <li><span class="d">7/10</span><span>高鐵、桃園機捷、淡海輕軌、安坑輕軌加入路網</span></li>
         <li><span class="d">7/10</span><span>環島觀光列車一分為二：往東「山海號」、往西「平原號」</span></li>
         <li class="grp">即時動態與誤點</li>
-        <li data-cl="trtcofficialroster"><span class="d">8/13</span><span>台北捷運改以官方即時資訊決定地圖上有哪些車：車子依車站看板的官方時刻到站，認不出車次的也照樣顯示，不再因配不到班表而消失；官方資料中斷才退回時刻表推算。</span></li>
+        <li data-cl="trtcvehiclelife"><span class="d">8/14</span><span>台北捷運的每台車改成從起點倒數出現時建立身分，同一台車在多站看板的時間會合在一起，沿官方逐站到站時間一路跑到終點；短暫讀不到、車次沒配上或到站時間修正都不會讓車消失、重生或往回跳。小碧潭與新北投支線因官方只提供起點倒數，另以單段行車時間跑到對端後收車。</span></li>
+        <li data-cl="trtcofficialroster"><span class="d">8/13</span><span>台北捷運改以官方即時資訊決定地圖上有哪些車：車子依車站看板的官方時刻到站，認不出車次的也照樣顯示，不再因配不到班表而消失。</span></li>
         <li data-cl="klrtgps"><span class="d">8/12</span><span>高雄環狀輕軌改用官方衛星定位逐班校正：它是全台唯一提供每台車即時經緯度的捷運系統，現在每台車各自對到自己的班次、各自算自己的誤點，不再全線共用一個平均值。五輪獨立實測，畫面位置與官方定位的差距中位數約是原本的一半。班表仍是唯一車輛名冊，定位資料收不到時自動退回原本的到站看板校正，車不會消失（謝謝網友提供資訊）</span></li>
         <li data-cl="crossnight452"><span class="d">8/8</span><span>只在特定日開行的跨夜車（如週五深夜 452 次）過午夜就從地圖消失，未開行日清晨反而多畫一班；現在把昨天發車仍在路上的班接回名冊，幽靈班一併擋掉（謝謝網友回報）</span></li>
         <li data-cl="mytrains"><span class="d">8/8</span><span>最愛面板新增「我的車・準點」：收藏的台鐵列車集中列出近 30 天最糟單日全程誤點、平均誤點與有紀錄天數，並標示是否上「準點排行」榜；點一列可看 90 天逐日履歷。集中比較是通行證功能，未訂閱會看到模糊預覽與訂閱入口</span></li>
@@ -4009,7 +4010,8 @@
 //    不可讓兩份不同內容共用同一個號（心得 16：辨識線上版本只能靠內容 hash）。
 // 🔴 2026-08-13 訂正：官方名冊那批升正式站時我沿用了 v0813c，但那個號屬於「資料源標示」
 //    那份內容——兩份不同內容共用同一個號，正式站就只能靠 md5 辨識。本輪推 v0813d 收掉。
-const BUILD = 'v0813d'; // a,b=land04c(並行分支已用掉) c=資料源標示補北捷全名與新北捷 d=官方即時名冊預設開啟
+// 2026-08-14 北捷官方車生命週期重整：從起點沿逐站 timeline 到終點，缺訊不刪車，顯示進度不倒退。
+const BUILD = 'v0814a';
 // 2026-08-13 起預設開啟（使用者親試預覽後裁示上線）：北捷畫車依官方即時名冊，班表只是備案。
 // 保留 ?officialroster=0 當逃生口——要退回班表路徑不必回滾部署，加個參數即可對照。
 // 🔴 這個函式會被 verify_official_roster_frontend 抽出來丟進 VM 單獨執行——
@@ -4020,13 +4022,8 @@ function trtcOfficialRosterEnabled(search) {
 }
 // URL 開關必須在開機初始就固定；clearFollow() 會整理 query string，不可在後面重讀。
 const OFFICIAL_ROSTER_ENABLED = trtcOfficialRosterEnabled(location.search);
-// 🔴 2026-08-14 改：資料齡不再是「整批停用」的開關，是「推算上限」。
-// 舊值 30 秒是照 100 輪語料的 max=28.441s 訂的，正式站早尖峰實測 30 輪就有 2 輪超過
-// （max 32.9s）⇒ 那兩輪整條北捷所有車同時消失。使用者裁示：有訊號就一直推算下去，
-// 車子不准在中間消失。所以改成「最後一筆官方資訊之後最多續推 10 分鐘」，
-// 期間車子照自己的節奏到站、停站、開往下一站；超過才交還班表。
-const TRTC_OFFICIAL_COAST_MAX_SEC = 600;
-const TRTC_OFFICIAL_ROSTER_MAX_AGE_SEC = TRTC_OFFICIAL_COAST_MAX_SEC;
+// 🔴 2026-08-14 最終裁示：一台車取得官方倒數並分配 ID 後，沿已知每站時間跑到終點。
+// 沒有資料齡、600 秒或「太久沒消息」的退場判定；到已知 dest 才收車。
 // 續推時每一段的節奏：優先用這台車自己相鄰兩筆官方到站的間隔（含停站），
 // 沒有 history 才退回 run＋停站常數。停站時間夾在 [15s, 半個週期]，避免 run 與 span
 // 互相矛盾時（實測有 run=109s 但 span=90s 的列）算出負的行駛時間。
@@ -4496,7 +4493,7 @@ function trtcOfficialRosterActive(boardPos, enabled, nowEpoch) {
   const now = nowEpoch == null ? Date.now() / 1000 : Number(nowEpoch);
   const revision = Number(boardPos && boardPos.sourceRevision);
   return !!(on && boardPos && boardPos.feedMode === 'official' && Array.isArray(boardPos.vehicles) &&
-    Number.isFinite(now) && Number.isFinite(revision) && now - revision <= TRTC_OFFICIAL_ROSTER_MAX_AGE_SEC); // ROSTER_FRONTEND_ACTIVE
+    Number.isFinite(now) && Number.isFinite(revision)); // ROSTER_FRONTEND_ACTIVE
 }
 function trtcOfficialRosterForLine(boardPos, lineId) {
   if (!boardPos || !Array.isArray(boardPos.vehicles)) return [];
@@ -4506,34 +4503,35 @@ function trtcOfficialRosterForLine(boardPos, lineId) {
 // 沒有 history（首次出現）才退回 run＋停站常數。停站夾在 [15s, 半個週期]——實測有
 // run=109s 但 span=90s 的列（run 來自模型、span 來自官方兩次到站），不夾會算出負的行駛時間。
 function trtcOfficialCoastCycle(vehicle, run) {
+  const explicit = Number(vehicle && vehicle.coastCycle);
+  if (Number.isFinite(explicit) && explicit > 0) {
+    const dwell = Math.min(Math.max(explicit - run, TRTC_OFFICIAL_COAST_DWELL_MIN_SEC), explicit / 2);
+    return { cycle: explicit, dwell, travel: explicit - dwell };
+  }
   const history = Array.isArray(vehicle && vehicle.history) ? vehicle.history : [];
   const own = history.length >= 2
     ? Number(history[history.length - 1].arrEpoch) - Number(history[history.length - 2].arrEpoch) : NaN;
-  const cycle = Number.isFinite(own) && own > 0 && own <= TRTC_OFFICIAL_COAST_MAX_SEC
+  const cycle = Number.isFinite(own) && own > 0
     ? own : run + TRTC_OFFICIAL_COAST_DWELL_DEFAULT_SEC;
   const dwell = Math.min(Math.max(cycle - run, TRTC_OFFICIAL_COAST_DWELL_MIN_SEC), cycle / 2);
   return { cycle, dwell, travel: cycle - dwell };
 }
 // 官方最後一筆到站之後，車不會停在那裡等下一批資料——照自己的節奏停站、發車、
 // 準時開到下一站，一路推到終點站為止。這是「有訊號就一直推算下去，車子不准在中間
-// 消失」的實作；只有超過 TRTC_OFFICIAL_COAST_MAX_SEC（上游真的斷了）才回 null 交還班表。
+// 消失」的實作。沒有缺訊 timeout；抵達這趟已知 dest 就回 null 收車。
 function trtcOfficialCoastPosition(ln, vehicle, now, from, to, run, arrEpoch) {
   const B = ln.stations[to];
   const elapsed = now - arrEpoch;
   if (!(elapsed >= 0)) return null;
-  if (elapsed > TRTC_OFFICIAL_COAST_MAX_SEC) return null; // OFFICIAL_COAST_HORIZON
   const atTo = { lat: B.lat, lon: B.lon, fraction: 1, atStation: true, coastTo: to, coastArrEpoch: arrEpoch };
   const step = to > from ? 1 : -1;
   const dest = Number(vehicle && vehicle.dest);
   const legsLeft = Number.isInteger(dest) ? (dest - to) * step : 0;
   const { cycle, dwell, travel } = trtcOfficialCoastCycle(vehicle, run);
-  if (!(legsLeft > 0) || !(cycle > 0) || !(travel > 0)) return atTo;
+  if (!(legsLeft > 0)) return null;
+  if (!(cycle > 0) || !(travel > 0)) return atTo;
   const done = Math.floor(elapsed / cycle);
-  if (done >= legsLeft) { // 已推到終點站，停在那裡等退場
-    const D = ln.stations[dest];
-    return D ? { lat: D.lat, lon: D.lon, fraction: 1, atStation: true,
-      coastTo: dest, coastArrEpoch: arrEpoch + legsLeft * cycle } : atTo;
-  }
+  if (done >= legsLeft) return null;
   const here = to + done * step, next = here + step;
   const P = ln.stations[here], Q = ln.stations[next];
   if (!P || !Q) return atTo;
@@ -4544,6 +4542,59 @@ function trtcOfficialCoastPosition(ln, vehicle, now, from, to, run, arrEpoch) {
   const pos = posBetweenStations(ln, here, next, fraction);
   return pos ? { ...pos, fraction, atStation: false, coastTo: next, coastArrEpoch: nextArr } : atTo;
 }
+// 起點倒數給的是「發車時刻」，不是下一站到站時刻。發車後的第一段使用該線段秒；
+// G_XBT/R_XBT 只有一段且官方沒有給對端到站時刻，也只在這個專用分支使用段秒 fallback。
+function trtcOfficialDeparturePosition(ln, vehicle, now, origin, departureEpoch) {
+  const step = Number(vehicle && vehicle.dir) === 2 ? 1 : -1;
+  const next = origin + step, A = ln.stations[origin], B = ln.stations[next];
+  if (!A || !B) return null;
+  if (now < departureEpoch) return { lat: A.lat, lon: A.lon, fraction: 1, atStation: true,
+    coastTo: origin, coastArrEpoch: departureEpoch };
+  const explicit = Number(vehicle && vehicle.departureRun);
+  const departureRun = Number.isFinite(explicit) && explicit > 0 ? explicit : runBetween(ln, origin, next);
+  if (!(departureRun > 0)) return null;
+  const firstArrival = departureEpoch + departureRun;
+  if (now >= firstArrival) return trtcOfficialCoastPosition(ln, vehicle, now,
+    origin, next, departureRun, firstArrival);
+  const fraction = Math.max(0, Math.min(1, (now - departureEpoch) / departureRun));
+  const pos = posBetweenStations(ln, origin, next, fraction);
+  return pos ? { ...pos, fraction, atStation: false, coastTo: next, coastArrEpoch: firstArrival } : null;
+}
+// 同一官方車號在前方多站的倒數已由 Worker 合成 timeline。這裡只走那一條時間軸：
+// 每段依官方 dep/arr 插值、站間空檔停在站上；已知段用完才沿最後節奏續推。
+function trtcOfficialTimelinePosition(ln, vehicle, now) {
+  const timeline = Array.isArray(vehicle && vehicle.timeline) ? vehicle.timeline : [];
+  const moving = timeline.filter(item => item && !item.terminal && Number(item.from) !== Number(item.to) &&
+    Number.isFinite(Number(item.depEpoch)) && Number.isFinite(Number(item.arrEpoch)) &&
+    Number(item.depEpoch) < Number(item.arrEpoch)).map(item => ({ ...item,
+      from: Number(item.from), to: Number(item.to), depEpoch: Number(item.depEpoch), arrEpoch: Number(item.arrEpoch) }))
+    .sort((a, b) => a.depEpoch - b.depEpoch || a.arrEpoch - b.arrEpoch);
+  if (!moving.length) return { handled: false, pos: null };
+  const dest = Number(vehicle && vehicle.dest);
+  const destination = moving.filter(item => item.to === dest).sort((a, b) => b.arrEpoch - a.arrEpoch)[0];
+  if (destination && now >= destination.arrEpoch) return { handled: true, pos: null };
+  for (let i = 0; i < moving.length; i++) {
+    const segment = moving[i], A = ln.stations[segment.from], B = ln.stations[segment.to];
+    if (!A || !B) continue;
+    if (now < segment.depEpoch) {
+      const station = i ? ln.stations[moving[i - 1].to] : A;
+      return { handled: true, pos: station ? { lat: station.lat, lon: station.lon, fraction: 1,
+        atStation: true, coastTo: segment.to, coastArrEpoch: segment.arrEpoch } : null };
+    }
+    if (now <= segment.arrEpoch) {
+      if (now === segment.arrEpoch) return { handled: true, pos: { lat: B.lat, lon: B.lon, fraction: 1,
+        atStation: true, coastTo: segment.to, coastArrEpoch: segment.arrEpoch } };
+      const fraction = Math.max(0, Math.min(1,
+        (now - segment.depEpoch) / (segment.arrEpoch - segment.depEpoch)));
+      const pos = posBetweenStations(ln, segment.from, segment.to, fraction);
+      return { handled: true, pos: pos ? { ...pos, fraction, atStation: false,
+        coastTo: segment.to, coastArrEpoch: segment.arrEpoch } : null };
+    }
+  }
+  const last = moving[moving.length - 1];
+  return { handled: true, pos: trtcOfficialCoastPosition(ln, vehicle, now,
+    last.from, last.to, last.arrEpoch - last.depEpoch, last.arrEpoch) };
+}
 function trtcOfficialVehiclePosition(ln, vehicle, nowEpoch) {
   if (!ln || !Array.isArray(ln.stations) || !vehicle) return null;
   const from = Number(vehicle.from), to = Number(vehicle.to), run = Number(vehicle.run);
@@ -4553,7 +4604,9 @@ function trtcOfficialVehiclePosition(ln, vehicle, nowEpoch) {
       !Number.isFinite(arrEpoch) || !Number.isFinite(now)) return null;
   const A = ln.stations[from], B = ln.stations[to];
   if (!A || !B) return null;
-  if (from === to) return { lat: A.lat, lon: A.lon, fraction: 1, atStation: true };
+  const timeline = trtcOfficialTimelinePosition(ln, vehicle, now);
+  if (timeline.handled) return timeline.pos;
+  if (from === to) return trtcOfficialDeparturePosition(ln, vehicle, now, from, arrEpoch);
   if (!(run > 0)) return null;
   const explicitDep = vehicle.depEpoch == null ? NaN : Number(vehicle.depEpoch);
   const depEpoch = Number.isFinite(explicitDep) ? explicitDep : arrEpoch - run;
@@ -4565,9 +4618,72 @@ function trtcOfficialVehiclePosition(ln, vehicle, nowEpoch) {
   const pos = posBetweenStations(ln, from, to, fraction);
   return pos ? { ...pos, fraction, atStation: false } : null;
 }
+const _trtcOfficialDisplay = new Map();
+function trtcOfficialPositionProgress(ln, vehicle, pos) {
+  if (!ln || !vehicle || !pos) return null;
+  const step = Number(vehicle.dir) === 2 ? 1 : -1;
+  if (pos.atStation) {
+    const station = ln.stations.findIndex(item => item && item.lat === pos.lat && item.lon === pos.lon);
+    return station >= 0 ? step * station : null;
+  }
+  const to = Number.isInteger(pos.coastTo) ? Number(pos.coastTo) : Number(vehicle.to);
+  const from = to - step, fraction = Number(pos.fraction);
+  return Number.isInteger(from) && Number.isFinite(fraction) ? step * from + fraction : null;
+}
+function trtcOfficialPositionAtProgress(ln, vehicle, progress, raw) {
+  const step = Number(vehicle.dir) === 2 ? 1 : -1;
+  const physical = progress / step;
+  const rounded = Math.round(physical);
+  if (Math.abs(physical - rounded) < 1e-9 && ln.stations[rounded]) {
+    const station = ln.stations[rounded];
+    return { ...raw, lat: station.lat, lon: station.lon, fraction: 1, atStation: true };
+  }
+  const from = step > 0 ? Math.floor(physical) : Math.ceil(physical), to = from + step;
+  if (!ln.stations[from] || !ln.stations[to]) return raw;
+  const fraction = step > 0 ? physical - from : from - physical;
+  const pos = posBetweenStations(ln, from, to, fraction);
+  return pos ? { ...raw, ...pos, fraction, atStation: false } : raw;
+}
+// ETA 修訂只改官方 deadline，不准讓同一 vehicleId 在畫面倒退。往前修時依剩餘 deadline
+// 平滑追上；到站當格以準時為優先。分頁睡眠／時鐘跳動超過 5 秒直接重對齊，避免長時間追趕。
+function trtcOfficialDisplayPosition(ln, vehicle, nowEpoch) {
+  const now = Number(nowEpoch), raw = trtcOfficialVehiclePosition(ln, vehicle, now);
+  const key = `${ln && ln.id}|${vehicle && vehicle.vehicleId}`;
+  if (!raw) { _trtcOfficialDisplay.delete(key); return null; }
+  const progress = trtcOfficialPositionProgress(ln, vehicle, raw);
+  if (!Number.isFinite(progress) || !Number.isFinite(now)) return raw;
+  const prior = _trtcOfficialDisplay.get(key);
+  if (!prior || now < prior.epoch || now - prior.epoch > 5) {
+    _trtcOfficialDisplay.set(key, { epoch: now, progress, pos: raw });
+    return raw;
+  }
+  // 同一畫格會被地圖 renderer 與跟隨資訊各讀一次；第二個讀者必須拿到同一個顯示位置。
+  if (now === prior.epoch) return prior.pos;
+  if (progress <= prior.progress + 1e-9) {
+    // 只凍結座標與進度；coastTo/coastArrEpoch 等官方時間欄位仍採本輪最新修訂。
+    const pos = progress < prior.progress - 1e-9 ? { ...raw, lat: prior.pos.lat, lon: prior.pos.lon,
+      fraction: prior.pos.fraction, atStation: prior.pos.atStation } : raw;
+    _trtcOfficialDisplay.set(key, { epoch: now, progress: Math.max(progress, prior.progress), pos });
+    return pos;
+  }
+  const dt = now - prior.epoch;
+  let maxRate = 0.1; // 最多 10 秒追一站；正常官方速度遠低於此值，不會被改形。
+  const deadline = Number(raw.coastArrEpoch), target = Number(raw.coastTo);
+  const step = Number(vehicle.dir) === 2 ? 1 : -1;
+  if (Number.isFinite(deadline) && deadline > now && Number.isInteger(target)) {
+    maxRate = Math.max(maxRate, (step * target - prior.progress) / (deadline - now));
+  }
+  let shown = Math.min(progress, prior.progress + Math.max(0, maxRate) * dt);
+  if (raw.atStation && Number.isFinite(deadline) && now >= deadline) shown = progress;
+  const pos = trtcOfficialPositionAtProgress(ln, vehicle, shown, raw);
+  _trtcOfficialDisplay.set(key, { epoch: now, progress: shown, pos });
+  return pos;
+}
 function trtcOfficialVehicleInfo(ln, vehicle, nowEpoch) {
-  const pos = trtcOfficialVehiclePosition(ln, vehicle, nowEpoch);
-  if (!pos) return { pos: null, done: false, ln, vehicle };
+  const pos = trtcOfficialDisplayPosition(ln, vehicle, nowEpoch);
+  if (!pos) return { pos: null, done: vehicle && vehicle.retireEpoch != null &&
+    Number.isFinite(Number(vehicle.retireEpoch)) &&
+    Number(nowEpoch) >= Number(vehicle.retireEpoch), ln, vehicle };
   // 續推中要跟著往前報「下一站」與倒數，否則車已經過了兩站、面板還停在官方最後那一站。
   const toIdx = Number.isInteger(pos.coastTo) ? pos.coastTo : Number(vehicle.to);
   const arrAt = Number.isFinite(pos.coastArrEpoch) ? pos.coastArrEpoch : Number(vehicle.arrEpoch);
@@ -4579,7 +4695,7 @@ function trtcOfficialRenderItems(ln, boardPos, nowEpoch, enabled) {
   if (!trtcOfficialRosterActive(boardPos, enabled, nowEpoch)) return null;
   return trtcOfficialRosterForLine(boardPos, ln && ln.id).map(vehicle => ({
     vehicle, vehicleId: String(vehicle.vehicleId || ''), officialNo: String(vehicle.officialNo || ''),
-    extension: !!vehicle.extension, pos: trtcOfficialVehiclePosition(ln, vehicle, nowEpoch),
+    extension: !!vehicle.extension, pos: trtcOfficialDisplayPosition(ln, vehicle, nowEpoch),
   })).filter(item => item.vehicleId && item.pos); // ROSTER_FRONTEND_RENDER
 }
 function trtcOfficialVehicleGlyph(officialNo) {
@@ -9646,7 +9762,7 @@ function loadFreqGroup(g, sel, keepView) {
   syncTimeUI();
   document.getElementById('note').innerHTML = escHtml(
     (OFFICIAL_ROSTER_ENABLED
-      ? '北捷列車依官方即時名冊與到站時刻顯示；官方資料中斷或超過 30 秒未更新時，才整體退回班表備案。' +
+      ? '北捷列車依官方即時名冊與逐站到站時刻顯示；短暫資料中斷時，已出發的車仍沿最後已知時間跑到終點。' +
         '高捷、高雄輕軌與機捷依 TDX 官方到站看板，新北捷運（淡海・安坑）依官方列車動態即時校正——其餘系統依官方時刻表推演' +
         '（台中捷運、三鶯線無公開逐班時刻，為班距推算）。'
       : '捷運／輕軌列車依當日實際時刻表（平日／假日／國定假日班表）推演，' +
@@ -9777,7 +9893,7 @@ function loadAllGroup(g, keepView) {
   document.getElementById('note').innerHTML = escHtml(
     '全台鐵道同框 — 台鐵、高鐵依當日真實時刻表運行（共 ' + state.trains.length + ' 車次，台鐵回到現在時刻自動套用即時誤點）；' +
     (OFFICIAL_ROSTER_ENABLED
-      ? '北捷依官方即時名冊與到站時刻顯示（中斷或超過 30 秒未更新才退回班表）；' +
+      ? '北捷依官方即時名冊與逐站到站時刻顯示（短暫中斷時仍沿已知時間跑到終點）；' +
         '其餘捷運與輕軌依當日時刻表推演，營運時段依各自官方即時資訊校正（台中捷運、三鶯線為班距推算）。'
       : '捷運與各輕軌亦依當日時刻表推演；北捷依官方秒級到站倒數逐班校正位置，高捷、高雄輕軌、機捷與新北捷運營運時段依各自官方即時資訊校正（台中捷運、三鶯線、文湖線為班距推算）。') +
     '點任一列車皆可跟隨（放大到看得見捷運車號牌即可點），點車站看班次。') +
@@ -16101,9 +16217,9 @@ function nearestArrDiff(idx, si, dir, t) { // 官方預期到站時刻 t vs 最�
   return best ? best.diff : null;
 }
 
-// ── 北捷秒級看板→班表逐班位置校正 ──
-// 分層鐵則:班表 ln._tt 是唯一名冊;API 只能為名冊內的班次提供 shift。
-// 任何看板列配不到班表就丟掉,不建車、不延長生命、不保留「可能還在」的幽靈狀態。
+// ── 舊班表動畫的北捷秒級看板校正（只算 shift，不是官方車生命週期）──
+// 這裡配不到只代表該筆班表 shift 不採用；下方 official roster 才是即時官方車的唯一名冊。
+// 絕不可把這條校正支線的配對結果拿去新增、刪除或重新辨識 official vehicleId。
 function trtcMedian(values) {
   if (!values.length) return null;
   const a = values.slice().sort((x, y) => x - y);
@@ -16198,8 +16314,7 @@ function trtcOfficialRosterOutage(reason, sourceRevision) {
 // 🔴 讀取失敗（網路斷、這次 payload 沒帶 boardPos、套用時丟例外）不是「車不在那邊」的證據。
 // 使用者裁示：「車子怎麼可能會不見，我們不做判定。」實測正式站 14 次輪詢有 2 次整包讀不到，
 // 舊碼一律 trtcOfficialRosterOutage ⇒ 整條線的車同時消失、而且連跟車都被 clearFreqFollow 清掉。
-// 改成沿用上一份名冊、位置交給前端續推；真正的到期只由 trtcOfficialRosterActive 的
-// TRTC_OFFICIAL_COAST_MAX_SEC 一處決定（名冊物件本身一個位元都不動）。
+// 改成沿用上一份名冊、位置交給前端續推；沒有缺訊期限，抵達已知終點才由位置時間軸退場。
 function trtcOfficialRosterHold(reason) { // ROSTER_FRONTEND_READ_HOLD
   const roster = state.trtcOfficialRoster;
   if (!roster || roster.feedMode !== 'official') return trtcOfficialRosterOutage(reason);
@@ -16209,16 +16324,19 @@ function trtcOfficialRosterHold(reason) { // ROSTER_FRONTEND_READ_HOLD
 function applyTrtcOfficialRoster(boardPos) {
   if (!OFFICIAL_ROSTER_ENABLED) return false;
   if (!boardPos || boardPos.feedMode !== 'official') {
-    return trtcOfficialRosterOutage('feed-outage', boardPos && boardPos.sourceRevision);
+    return trtcOfficialRosterHold('feed-outage');
   }
-  if (!trtcOfficialRosterPayloadValid(boardPos)) return trtcOfficialRosterOutage('malformed', boardPos.sourceRevision);
+  if (!trtcOfficialRosterPayloadValid(boardPos)) return trtcOfficialRosterHold('malformed');
   const revision = Number(boardPos.sourceRevision), highWater = state.trtcOfficialRosterRevisionHighWater;
   if (highWater != null && Number.isFinite(Number(highWater)) && revision < Number(highWater)) // ROSTER_FRONTEND_REVISION_HIGH_WATER
-    return trtcOfficialRosterOutage('source-revision-regressed', revision);
+    return trtcOfficialRosterHold('source-revision-regressed');
   state.trtcOfficialRosterRevisionHighWater = revision;
   // payload 整包原子換入；不根據 tripKey 過濾，也不用上一幀補這一幀缺的官方車。
   state.trtcOfficialRoster = { at: Number(boardPos.at), feedMode: 'official', sourceRevision: revision,
     vehicles: boardPos.vehicles.map(vehicle => ({ ...vehicle })), receivedEpoch: Date.now() / 1000 };
+  const activeDisplay = new Set(state.trtcOfficialRoster.vehicles.map(vehicle =>
+    `${vehicle.line}|${vehicle.vehicleId}`));
+  for (const key of _trtcOfficialDisplay.keys()) if (!activeDisplay.has(key)) _trtcOfficialDisplay.delete(key);
   if (state.freqFollow && state.freqFollow.vehicleId != null &&
       !state.trtcOfficialRoster.vehicles.some(vehicle => String(vehicle.vehicleId) === String(state.freqFollow.vehicleId))) {
     clearFreqFollow(); showToast('列車已離開官方即時名冊');
@@ -16789,7 +16907,7 @@ function updateMetroBadge() {
     el.textContent = official ? '官方即時' : '班表備案';
     el.title = official
       ? `畫面名冊與到站時刻來自北捷即時資料，共 ${roster.vehicles.length} 台`
-      : '北捷即時名冊中斷、時鐘離開「現在」，或超過 30 秒未更新，目前整體使用班表備案';
+      : '尚未取得北捷即時名冊，或時鐘已離開「現在」，目前使用班表備案';
     return;
   }
   const pool = metroLivePool();

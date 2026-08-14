@@ -310,6 +310,50 @@ export function collapseClaims(claims) {
   return out;
 }
 
+// 同一官方車號會同時出現在前方多個站牌倒數；它們是同一輛車的逐站時間軸，不能各自生車。
+// collapsedClaims 決定「這輪有幾輛車」，resolvedRows 只補上同車未來各站的官方 dep/arr，
+// 絕不單獨增加名冊列。無車號列仍只採 collapseClaims 已能相鄰合併的 eventClaims。
+export function attachOfficialTimelines(model, collapsedClaims, resolvedRows, calibrations = new Map()) {
+  const numbered = new Map();
+  for (const raw of resolvedRows || []) {
+    if (!raw || !raw.no || !model.lines.has(raw.line)) continue;
+    const key = `${raw.line}|${Number(raw.dir)}|${String(raw.no)}`;
+    if (!numbered.has(key)) numbered.set(key, []);
+    numbered.get(key).push(raw);
+  }
+  const segmentOf = raw => {
+    const line = model.lines.get(raw.line), dir = Number(raw.dir), step = dir === 2 ? 1 : -1;
+    const to = Number(raw.stationIdx ?? raw.to), arrEpoch = Number(raw.arrEpoch);
+    if (!line || (dir !== 1 && dir !== 2) || !Number.isInteger(to) || !Number.isFinite(arrEpoch)) return null;
+    const from = raw.terminal ? Number(raw.from) : to - step;
+    if (raw.terminal || from < 0 || from >= line.stations.length) {
+      return { from: to, to, depEpoch: arrEpoch, arrEpoch, terminal: true };
+    }
+    const run = Number(raw.run) > 0 ? Number(raw.run) : runSeconds(model, raw.line, dir, from, to, calibrations);
+    if (!(run > 0)) return null;
+    return { from, to, depEpoch: arrEpoch - run, arrEpoch, terminal: false };
+  };
+  return (collapsedClaims || []).map(claim => {
+    const key = claim.no ? `${claim.line}|${Number(claim.dir)}|${String(claim.no)}` : null;
+    const sources = key && numbered.has(key)
+      ? numbered.get(key)
+      : (Array.isArray(claim.eventClaims) && claim.eventClaims.length ? claim.eventClaims : [claim]);
+    const byLeg = new Map();
+    for (const source of sources) {
+      const segment = segmentOf(source);
+      if (!segment) continue;
+      const leg = `${segment.from}>${segment.to}`;
+      const old = byLeg.get(leg);
+      // 同車、同站若上游意外重複，選較新的 ETA；排序與原陣列順序無關。
+      if (!old || Number(segment.arrEpoch) > Number(old.arrEpoch)) byLeg.set(leg, segment);
+    }
+    const timeline = [...byLeg.values()].sort((a, b) =>
+      (Number(claim.dir) === 2 ? 1 : -1) * (Number(a.to) - Number(b.to)) ||
+      Number(a.arrEpoch) - Number(b.arrEpoch));
+    return { ...claim, timeline };
+  });
+}
+
 function chooseCodePosition(model, code, priorLine) {
   const rec = model.codeMap.get(String(code || ''));
   if (!rec || !rec.on.length) return null;

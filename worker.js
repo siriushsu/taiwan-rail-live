@@ -1,6 +1,7 @@
 import {
   TRTC_LEDGER_SCHEMA, buildTrtcModel, buildLedgerFromRaw,
   trtcOperatingState, trtcServiceDay, resolveBoardRows, claimBoardRows, collapseClaims,
+  attachOfficialTimelines,
   bindTracksToTrips, buildTripSetsByLineDir, joinBoardRowsToTrips, planTrtcTripBindingPersistence,
 } from './scripts/trtc_board_ledger.mjs';
 import { reduceOfficialRoster } from './scripts/trtc_official_roster.mjs';
@@ -1169,6 +1170,8 @@ function trtcOfficialFrameKey(rows) {
     String(row && row.line || ''), Number(row && row.dir), Number(row && row.from), Number(row && row.to),
     Number(row && (row.dest ?? row.destIdx)), Number(row && row.run), Number(row && row.arrEpoch),
     String(row && row.no || ''), row && row.terminal ? 1 : 0,
+    (Array.isArray(row && row.timeline) ? row.timeline : []).map(item => [Number(item.from), Number(item.to),
+      Number(item.depEpoch), Number(item.arrEpoch), item.terminal ? 1 : 0]),
   ])).sort();
   // 保留完整 canonical frame 而非短雜湊，讓相等判斷沒有碰撞造成漏車的可能。
   return JSON.stringify(canonical);
@@ -1207,6 +1210,7 @@ function trtcOfficialRowsFromRoster(roster) {
       from: Number(vehicle.from), to: Number(vehicle.to), dest: Number(vehicle.dest),
       run: Number(vehicle.run), arrEpoch: Number(vehicle.arrEpoch), no: vehicle.officialNo || '',
       terminal: !!vehicle.terminal,
+      timeline: Array.isArray(vehicle.timeline) ? vehicle.timeline.map(item => ({ ...item })) : [],
     }));
 }
 
@@ -1342,7 +1346,7 @@ async function trtcBoardPositionAnchors(env, rows, feedMode = 'official',
   const resolved = resolveBoardRows(model, rows, trtcEpoch, trtcBoardBranchHints);
   trtcBoardBranchHints = resolved.lineHints;
   const claimed = claimBoardRows(model, resolved.rows, nowEpoch, new Map());
-  const collapsed = collapseClaims(claimed.claims);
+  const collapsed = attachOfficialTimelines(model, collapseClaims(claimed.claims), resolved.rows, new Map());
   const sourceRevision = trtcOfficialSourceRevision(rows, nowEpoch);
   const official = await trtcPersistOfficialRoster({ env, model, rows: collapsed, day, nowEpoch, sourceRevision,
     sourceObservedEpoch });

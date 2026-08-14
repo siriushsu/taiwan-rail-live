@@ -97,8 +97,10 @@ await api.trtcPersistOfficialRoster(args(revisionDb, [row(0, 1, 104, 'REV')], 10
 const generatedEmptyRevision = api.trtcOfficialSourceRevision([], 105);
 const generatedEmpty = await api.trtcPersistOfficialRoster(args(revisionDb, [], 105, generatedEmptyRevision,
   '2026-08-13', 105));
-check(generatedEmptyRevision === 105 && generatedEmpty.roster.rows.length === 0,
-  '合法空列用本輪秒產 revision，不會因15秒桶小於上一 frame 而留車');
+check(generatedEmptyRevision === 105 && generatedEmpty.roster.rows.length === 1 &&
+  generatedEmpty.roster.rows[0].vehicleId === generatedEmpty.roster.vehicles[0].vehicleId &&
+  generatedEmpty.roster.vehicles[0].carried === true,
+  '合法空列仍更新 revision，但已識別車沿時間軸保留');
 
 // 同一份共享 D1 模擬 isolate 重載；第二輪仍須沿用第一輪 vehicleId。
 const shared = new Map(), dbA = new FakeD1(shared), dbB = new FakeD1(shared);
@@ -120,20 +122,22 @@ check(dbB.writes === writesBeforeSameRevision && sameRevision.writes === 0 &&
 // revision 相同不代表 frame 相同：合法空列及上游同秒修訂都必須逐筆採用 fresh frame。
 const sameRevisionChanged = await api.trtcPersistOfficialRoster(args(dbB,
   [row(1, 2, 140, '101'), row(0, 1, 150, '202')], 115, 115));
-check(sameRevisionChanged.roster.rows.length === 2 && sameRevisionChanged.writes === 1,
-  '相同 revision 但內容改變仍以 fresh collapsed rows 覆寫');
+check(sameRevisionChanged.roster.rows.length === 1 && sameRevisionChanged.writes === 1 &&
+  sameRevisionChanged.roster.diagnostics.ignoredObservations === 1,
+  '相同 revision 仍採 fresh frame，但站間未配列不得另生新車');
 const sameRevisionEmpty = await api.trtcPersistOfficialRoster(args(dbB, [], 115, 115));
-check(sameRevisionEmpty.roster.rows.length === 0 &&
-  sameRevisionEmpty.roster.vehicles.every(vehicle => vehicle.extension) && sameRevisionEmpty.writes === 1,
-  '成功空 frame 在同 revision 清掉 official rows（只容許可證明的末段 extension）');
+check(sameRevisionEmpty.roster.rows.length === 1 && sameRevisionEmpty.roster.vehicles[0].carried === true &&
+  sameRevisionEmpty.writes === 1,
+  '成功空 frame 不得把尚未到終點的既有車清掉');
 const sameRevisionEmptyAgain = await api.trtcPersistOfficialRoster(args(dbB, [], 115, 115));
-check(sameRevisionEmptyAgain.writes === 0 && sameRevisionEmptyAgain.roster.rows.length === 0,
+check(sameRevisionEmptyAgain.writes === 0 && sameRevisionEmptyAgain.roster.rows.length === 1,
   '相同 revision、相同空 frame 才是零寫重播');
 const clearDb = new FakeD1();
 await api.trtcPersistOfficialRoster(args(clearDb, [row(0, 1, 120, 'CLEAR')], 100, 100));
 const cleared = await api.trtcPersistOfficialRoster(args(clearDb, [], 100, 100));
-check(cleared.roster.rows.length === 0 && cleared.roster.vehicles.length === 0,
-  '同 revision 非末段 nonempty→成功空列不殘留舊車');
+check(cleared.roster.rows.length === 1 && cleared.roster.vehicles.length === 1 &&
+  cleared.roster.vehicles[0].carried === true,
+  '同 revision 非空→空列仍保留未到終點的既有車');
 const raceDb = new FakeD1();
 await api.trtcPersistOfficialRoster(args(raceDb, [row(0, 1, 120, 'RACE')], 100, 100,
   '2026-08-13', 1000));
@@ -141,8 +145,9 @@ const raceEmpty = await api.trtcPersistOfficialRoster(args(raceDb, [], 100, 100,
   '2026-08-13', 1001));
 const raceLateOld = await api.trtcPersistOfficialRoster(args(raceDb, [row(0, 1, 120, 'RACE')], 100, 100,
   '2026-08-13', 1000));
-check(raceEmpty.roster.rows.length === 0 && raceLateOld.roster.rows.length === 0 && raceLateOld.writes === 0,
-  '同 revision 遲到的舊 nonempty frame 不得復活較晚成功空列');
+check(raceEmpty.roster.rows.length === 1 && raceLateOld.roster.rows.length === 1 && raceLateOld.writes === 0 &&
+  raceLateOld.roster.rows[0].vehicleId === raceEmpty.roster.rows[0].vehicleId,
+  '同 revision 遲到 frame 不得改寫較晚快照的既有車時間軸');
 const tiedDb = new FakeD1();
 await api.trtcPersistOfficialRoster(args(tiedDb, [row(0, 1, 120, 'TIE')], 100, 100,
   '2026-08-13', 1000));
@@ -150,8 +155,9 @@ const tiedEmpty = await api.trtcPersistOfficialRoster(args(tiedDb, [], 100, 100,
   '2026-08-13', 1000));
 const tiedLate = await api.trtcPersistOfficialRoster(args(tiedDb, [row(0, 1, 120, 'TIE')], 100, 100,
   '2026-08-13', 1000));
-check(tiedEmpty.roster.rows.length === 0 && tiedLate.roster.rows.length === 0 && tiedLate.writes === 0,
-  'acquisition 毫秒相同時 deterministic frame rank 防止 ping-pong／舊列復活');
+check(tiedEmpty.roster.rows.length === 1 && tiedLate.roster.rows.length === 1 && tiedLate.writes === 0 &&
+  tiedLate.roster.rows[0].vehicleId === tiedEmpty.roster.rows[0].vehicleId,
+  'acquisition 毫秒相同時 deterministic frame rank 防止時間軸 ping-pong');
 const freshnessBarrierDb = new FakeD1();
 await api.trtcPersistOfficialRoster(args(freshnessBarrierDb, [row(0, 1, 120, 'BARRIER')], 100, 100,
   '2026-08-13', 1000));
@@ -195,7 +201,7 @@ check(joinRows.length === readonlyA.roster.rows.length && joinRows.every((value,
   value.vehicleId === readonlyA.roster.rows[index].vehicleId && value.destIdx === readonlyA.roster.rows[index].dest),
   '相容 trips 與 vehicle 裝飾共用同一份 official snapshot rows');
 
-// 兩段自身觀測形成唯一末段 extension；vehicles 基數必須精確等於 rows + extensions。
+// 兩段自身觀測後，即使下一輪整包空也保留同一 ID；舊 extension 規則不得復活。
 const extDb = new FakeD1();
 await api.trtcPersistOfficialRoster(args(extDb, [row(0, 1, 120, 'X')], 100, 100));
 await api.trtcPersistOfficialRoster(args(extDb, [row(1, 2, 140, 'X')], 115, 115));
@@ -203,8 +209,9 @@ const extended = await api.trtcPersistOfficialRoster(args(extDb, [], 125, 125));
 const extRows = extended.roster.rows;
 const extVehicles = extended.roster.vehicles;
 const extensions = extVehicles.filter(x => x.extension);
-check(extVehicles.length === extRows.length + extensions.length && extensions.length === 1,
-  'vehicles cardinality = rows + 明列 extensions');
+check(extVehicles.length === 1 && extRows.length === 1 && extensions.length === 0 &&
+  extVehicles[0].carried === true,
+  '空輪沿同一 ID 保留，不另生 extension 車');
 
 // trip miss／歧義都只能少裝飾，不能使 vehicle 消失；唯一完整 row key 才附 tripKey。
 const rosterRows = readonlyA.roster.rows;
