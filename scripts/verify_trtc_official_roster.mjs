@@ -4,7 +4,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
-import { buildTrtcModel, collapseClaims, attachOfficialTimelines } from './trtc_board_ledger.mjs';
+import { buildTrtcModel, claimBoardRows, collapseClaims, attachOfficialTimelines } from './trtc_board_ledger.mjs';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(HERE, '..');
@@ -193,6 +193,49 @@ function scenarioNoMidRouteBirth(reduce) {
   return { id, next };
 }
 
+function scenarioAnonymousTimelinePartitions() {
+  const model = { lines: new Map([['L', line(8, 120)]]) };
+  // 重現 8/14 環狀線：7→6 的模型 run=75s、6→5 被舊班表高估為 275s；官方逐站
+  // 到站其實是 10082／10195，同一台車。舊門檻會把兩站各生一台，還把 10404 的
+  // 下一班起點倒數錯吞進第一台。
+  model.lines.get('L').runs.set('7>6', 75);
+  model.lines.get('L').runs.set('6>5', 275);
+  const raw = [
+    { line:'L', dir:1, stationIdx:7, destIdx:0, destName:'0', no:'', arrEpoch:10404,
+      baseEpoch:10000, sec:404, atStation:false },
+    { line:'L', dir:1, stationIdx:6, destIdx:0, destName:'0', no:'', arrEpoch:10082,
+      baseEpoch:10000, sec:82, atStation:false },
+    { line:'L', dir:1, stationIdx:5, destIdx:0, destName:'0', no:'', arrEpoch:10195,
+      baseEpoch:10000, sec:195, atStation:false },
+  ];
+  const claimed = claimBoardRows(model, [...raw].reverse(), 10000, new Map());
+  const collapsed = collapseClaims(claimed.claims);
+  const attached = attachOfficialTimelines(model, collapsed, raw, new Map());
+  return { claimed, collapsed, attached };
+}
+
+function scenarioNumberJumpProtection(reduce) {
+  const model = fixtureModel();
+  model.lines.set('L', line(21, 60));
+  const first = reduce(args([
+    row({ dir:2, from:1, to:2, dest:20, arrEpoch:15000, no:'403' }),
+  ], null, 14950, 'number-jump-1', model));
+  const id = first.vehicles[0].vehicleId;
+  // 15 秒後，同號 403 突然從永安市場（index 2）出現在丹鳳（index 19）；
+  // 真正相鄰的 row 號碼若變成 408，身分仍必須跟位置並清掉不可信標籤。
+  const conflict = reduce(args([
+    row({ dir:2, from:2, to:3, dest:20, arrEpoch:15060, no:'408' }),
+    row({ dir:2, from:18, to:19, dest:20, arrEpoch:15120, no:'403' }),
+  ], first, 14965, 'number-jump-2', model));
+  const farOnly = reduce(args([
+    row({ dir:2, from:18, to:19, dest:20, arrEpoch:15120, no:'403' }),
+  ], first, 14965, 'number-jump-far-only', model));
+  const later = reduce(args([
+    row({ dir:2, from:3, to:4, dest:20, arrEpoch:15140, no:'403' }),
+  ], conflict, 15030, 'number-jump-3', model));
+  return { id, first, conflict, farOnly, later };
+}
+
 function evaluate(reduce) {
   const result = {};
   const assess = (name, fn) => {
@@ -209,6 +252,9 @@ function evaluate(reduce) {
   assess('官方車次只作顯示', () => deterministic &&
     deterministic.normal.vehicles.filter(vehicle => vehicle.officialNo).length === 2 &&
     deterministic.normal.vehicles.every(vehicle => vehicle.tripKey == null && vehicle.scheduleKey == null));
+  assess('每台車都有可稽核的官方站牌出生證據', () => deterministic &&
+    deterministic.normal.vehicles.every(vehicle => vehicle.birthEvidence?.source === 'official-board' &&
+      vehicle.birthEvidence.sourceRevision === 'deterministic'));
 
   let life;
   try { life = scenarioLifecycle(reduce); } catch { life = null; }
@@ -277,6 +323,36 @@ function evaluate(reduce) {
   assess('營運中配不到的站間列不得另生新車', () => midRoute && midRoute.next.vehicles.length === 1 &&
     byId(midRoute.next, midRoute.id)?.carried === true && midRoute.next.diagnostics.ignoredObservations === 1 &&
     midRoute.next.diagnostics.births === 0);
+
+  let anonymous;
+  try { anonymous = scenarioAnonymousTimelinePartitions(); } catch { anonymous = null; }
+  assess('無車號逐站倒數按 epoch 單調區段合成，不產相鄰重複車', () => anonymous &&
+    anonymous.collapsed.length === 2 && anonymous.collapsed.filter(value => value.terminal).length === 1 &&
+    anonymous.collapsed.filter(value => !value.terminal).length === 1 &&
+    anonymous.collapsed.find(value => !value.terminal)?.eventClaims.length === 2 &&
+    anonymous.attached.find(value => !value.terminal)?.timeline.length === 2);
+  assess('兩站官方時間直接決定中間一段，不吃錯誤舊 run', () => anonymous &&
+    anonymous.attached.find(value => !value.terminal)?.timeline.find(value => value.from === 6 && value.to === 5)?.depEpoch === 10107);
+
+  let numberJump;
+  try { numberJump = scenarioNumberJumpProtection(reduce); } catch { numberJump = null; }
+  assess('官方號碼不得把 403 在 15 秒內從永安市場拖到丹鳳', () => numberJump &&
+    byId(numberJump.conflict, numberJump.id)?.to === 3 && numberJump.conflict.diagnostics.ignoredObservations === 1);
+  assess('同一 ID 的號碼衝突就永久退回路線代號', () => numberJump &&
+    byId(numberJump.conflict, numberJump.id)?.officialNo == null &&
+    byId(numberJump.conflict, numberJump.id)?.officialNoLockedOut === true &&
+    byId(numberJump.later, numberJump.id)?.officialNo == null &&
+    byId(numberJump.later, numberJump.id)?.officialNoLockedOut === true);
+  assess('當輪只剩遠方同號時不生幽靈，舊車沿原時間線保留但退牌', () => numberJump &&
+    numberJump.farOnly.vehicles.length === 1 &&
+    byId(numberJump.farOnly, numberJump.id)?.carried === true &&
+    byId(numberJump.farOnly, numberJump.id)?.to === 2 &&
+    byId(numberJump.farOnly, numberJump.id)?.officialNo == null &&
+    byId(numberJump.farOnly, numberJump.id)?.officialNoLockedOut === true &&
+    numberJump.farOnly.diagnostics.ignoredObservations === 1 &&
+    numberJump.farOnly.diagnostics.rejectedNumberJumps === 1 &&
+    numberJump.farOnly.diagnostics.rejectedNumberJumpDetails?.[0]?.priorTo === 2 &&
+    numberJump.farOnly.diagnostics.rejectedNumberJumpDetails?.[0]?.currentTo === 19);
   return result;
 }
 
@@ -290,8 +366,8 @@ async function mutatedReducer(kind) {
   let source = fs.readFileSync(SOURCE_PATH, 'utf8');
   if (kind === 'drop-carried') {
     source = replaceExactly(source,
-      'if (alive) { vehicles.push(alive); usedIds.add(String(alive.vehicleId)); carried++; }\n    else exits++;',
-      'if (alive) { exits++; }\n    else exits++;', kind);
+      'vehicles.push(alive); usedIds.add(String(alive.vehicleId)); carried++;',
+      'exits++;', kind);
   } else if (kind === 'silence-limit') {
     source = replaceExactly(source,
       '// 這是「到已知終點」的時刻，不是資料齡或缺訊 timeout。',
@@ -302,12 +378,15 @@ async function mutatedReducer(kind) {
       'function groupKey(item) { return `${item.line}|${Number(item.dir)}|${Number(item.dest)}`; }', kind);
   } else if (kind === 'forward-only') {
     source = replaceExactly(source,
-      '  // ETA 可能把同車回修一站。位置方向只能當配對成本，不能當「這台車不存在」的硬判定。\n  return true;',
-      '  if (routePosition(current) < Number(prior.routePosition ?? routePosition(prior))) return false;\n  return true;', kind);
+      '  if (advance < -1) return false;',
+      '  if (advance < 0) return false;', kind);
   } else if (kind === 'global-no') {
     source = replaceExactly(source,
       'vehicle.line === row.line && Number(vehicle.dir) === Number(row.dir) &&\n      String(vehicle.officialNo || \'\') === row.displayNo',
       'String(vehicle.officialNo || \'\') === row.displayNo', kind);
+    source = replaceExactly(source,
+      '  return physicallyReachable(model, prior, current, nowEpoch);',
+      '  return true;', kind);
   } else if (kind === 'keep-terminal') {
     source = replaceExactly(source,
       'if (timing.retireEpoch != null && Number.isFinite(Number(timing.retireEpoch)) &&\n      nowEpoch >= Number(timing.retireEpoch)) return null;',
@@ -324,6 +403,22 @@ async function mutatedReducer(kind) {
     source = replaceExactly(source,
       'if (!coldStart && !current[index].terminal) { ignoredObservations++; continue; }',
       'if (false && !coldStart && !current[index].terminal) { ignoredObservations++; continue; }', kind);
+  } else if (kind === 'allow-number-jump') {
+    source = replaceExactly(source,
+      '  return physicallyReachable(model, prior, current, nowEpoch);',
+      '  return true;', kind);
+  } else if (kind === 'replace-number') {
+    source = replaceExactly(source,
+      '  return { officialNo: null, officialNoLockedOut: true };',
+      '  return { officialNo: current || null, officialNoLockedOut: false };', kind);
+  } else if (kind === 'keep-carried-number') {
+    source = replaceExactly(source,
+      '    ...(numberContradicted ? { officialNo: null, officialNoLockedOut: true } : {}) };',
+      '    ...(numberContradicted ? {} : {}) };', kind);
+  } else if (kind === 'erase-birth-evidence') {
+    source = replaceExactly(source,
+      "source: 'official-board', sourceRevision, observedEpoch: nowEpoch,",
+      "source: 'unverified', sourceRevision, observedEpoch: nowEpoch,", kind);
   } else throw new Error(`未知 mutation ${kind}`);
   const url = `data:text/javascript;base64,${Buffer.from(`${source}\n//# sourceURL=trtc-roster-${kind}.mjs`).toString('base64')}`;
   return (await import(url)).reduceOfficialRoster;
@@ -420,6 +515,10 @@ const mutations = [
   ['移除 XBT 單段 fallback', 'no-xbt-fallback', 'G_XBT 方向2用單段秒移動後收車'],
   ['重複分配 vehicleId', 'duplicate-id', '異常重複列也不產生重複 ID'],
   ['站間列配不到就另生新車', 'birth-mid-route', '營運中配不到的站間列不得另生新車'],
+  ['同號可跨站瞬移', 'allow-number-jump', '官方號碼不得把 403 在 15 秒內從永安市場拖到丹鳳'],
+  ['號碼衝突時直接換號', 'replace-number', '同一 ID 的號碼衝突就永久退回路線代號'],
+  ['遠方同號被拒後仍保留舊牌', 'keep-carried-number', '當輪只剩遠方同號時不生幽靈，舊車沿原時間線保留但退牌'],
+  ['移除官方出生證據', 'erase-birth-evidence', '每台車都有可稽核的官方站牌出生證據'],
 ];
 console.log('\nMutation control：');
 for (const [label, kind, expectedRed] of mutations) {

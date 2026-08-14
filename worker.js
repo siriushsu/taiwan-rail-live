@@ -1154,7 +1154,9 @@ async function loadTrtcBoardBranchHints(env, day) {
   return new Map((result.results || []).map(x => [String(x.alias), String(x.line)]));
 }
 
-const TRTC_OFFICIAL_ROSTER_KEY = 'official_roster_v1';
+// v2 刻意換 key：v1 曾用車號跨距離硬配對，也可能已留下重複／跳站身分。
+// 新規則上線時必須從當下官方時間線乾淨建冊，不能把錯誤身分帶進來。
+const TRTC_OFFICIAL_ROSTER_KEY = 'official_roster_v2';
 const TRTC_OFFICIAL_CAS_RETRIES = 4;
 
 // TrackInfo 正常列以官方 NowDateTime 當 revision；合法空列沒有可用的官方時刻，才採
@@ -1198,7 +1200,7 @@ function trtcOfficialStateFromText(text) {
   if (!text) return null;
   try {
     const parsed = JSON.parse(text);
-    return parsed && parsed.schema === 1 && Array.isArray(parsed.vehicles) ? parsed : null;
+    return parsed && parsed.schema === 2 && Array.isArray(parsed.vehicles) ? parsed : null;
   } catch (e) { return null; }
 }
 
@@ -1374,6 +1376,14 @@ async function trtcBoardPositionAnchors(env, rows, feedMode = 'official',
     const tripKey = tripByVehicleId.get(String(vehicle.vehicleId));
     return tripKey == null ? vehicle : { ...vehicle, tripKey };
   });
+  const identityAudit = official.roster.diagnostics || {};
+  if (Number(identityAudit.rejectedNumberJumps) > 0 || Number(identityAudit.numberConflicts) > 0) {
+    console.warn('[trtc official roster] 車號身分矛盾已安全退牌:', JSON.stringify({
+      sourceRevision, rejectedNumberJumps: Number(identityAudit.rejectedNumberJumps) || 0,
+      numberConflicts: Number(identityAudit.numberConflicts) || 0,
+      details: identityAudit.rejectedNumberJumpDetails || [],
+    }));
+  }
   return {
     at: official.roster.nowEpoch,
     feedMode,
@@ -1382,7 +1392,7 @@ async function trtcBoardPositionAnchors(env, rows, feedMode = 'official',
     degraded: official.degraded,
     rows: officialRows,
     extensions: vehicles.filter(vehicle => vehicle.extension),
-    vehicles,
+    vehicles, identityAudit,
     dropped: { ...resolved.dropped, unclaimed: claimed.unclaimed.length,
       collapsed: claimed.claims.length - collapsed.length,
       branchHinted: resolved.branch.hinted, branchFallback: resolved.branch.fallback,

@@ -170,7 +170,7 @@ check(barrierRefresh.writes === 1 && barrierLate.roster.rows[0].no === 'BARRIER'
 
 const newer = api.trtcOfficialRosterSnapshot(model, [row(2, 3, 160, '101')], second.roster,
   '2026-08-13', 130, 130);
-shared.set('official_roster_v1', JSON.stringify(newer));
+shared.set('official_roster_v2', JSON.stringify(newer));
 const beforeRollback = dbB.writes;
 const olderRequest = await api.trtcPersistOfficialRoster(args(dbB, [row(1, 2, 145, '101')], 120, 120));
 check(olderRequest.roster.sourceRevision === 130 && dbB.writes === beforeRollback,
@@ -245,12 +245,13 @@ function sourceAudit(source) {
   return {
     reducerImport: /import \{ reduceOfficialRoster \}/.test(source),
     officialFeedGate: /feedMode !== 'official'/.test(source),
-    stateKey: /official_roster_v1/.test(source),
+    stateKey: /official_roster_v2/.test(source),
     optimisticCas: /UPDATE trtc_state SET v=\? WHERE k=\? AND v=\?/.test(source),
     frameFingerprint: /const sourceFrameKey = trtcOfficialFrameKey\(rows\);/.test(source),
     observedOrder: /current\.state\.sourceObservedEpoch\) > observedRevision/.test(source),
     frameTieOrder: /current\.state\.sourceFrameOrder \|\| ''\) >= sourceFrameOrder/.test(source),
     sameSnapshotJoin: /rows: trtcOfficialRowsForJoin\(officialRows\)/.test(source),
+    identityAudit: /vehicles, identityAudit,/.test(source),
     extensionsPayload: /extensions: vehicles\.filter\(vehicle => vehicle\.extension\)/.test(source),
     carWeightOptional: /!tkResult\.ok && hwRaw\.length === 0 && brRaw\.length === 0/.test(source),
     assemblyErrorOutage: /boardPos = trtcOfficialOutagePayload\(\)/.test(source),
@@ -264,13 +265,14 @@ check(Object.values(baselineSourceAudit).every(Boolean),
 const sourceMutations = [
   ['reducerImport', "import { reduceOfficialRoster }", 'import { reduceOfficialRosterDisabled }'],
   ['officialFeedGate', "feedMode !== 'official'", "feedMode === 'official'"],
-  ['stateKey', 'official_roster_v1', 'official_roster_DISABLED'],
+  ['stateKey', 'official_roster_v2', 'official_roster_DISABLED'],
   ['optimisticCas', 'WHERE k=? AND v=?', 'WHERE k=?'],
   ['frameFingerprint', 'const sourceFrameKey = trtcOfficialFrameKey(rows);',
     "const sourceFrameKey = 'disabled';"],
   ['observedOrder', 'trtcOfficialRevision(current.state.sourceObservedEpoch) > observedRevision', 'false'],
   ['frameTieOrder', "String(current.state.sourceFrameOrder || '') >= sourceFrameOrder", 'false'],
   ['sameSnapshotJoin', 'rows: trtcOfficialRowsForJoin(officialRows)', 'rows: collapsed'],
+  ['identityAudit', 'vehicles, identityAudit,', 'vehicles, identityAudit: {},'],
   ['extensionsPayload', 'extensions: vehicles.filter(vehicle => vehicle.extension)', 'extensions: []'],
   ['carWeightOptional', '!tkResult.ok && hwRaw.length === 0 && brRaw.length === 0',
     'hwRaw.length === 0 && brRaw.length === 0'],

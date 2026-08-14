@@ -3,7 +3,7 @@
 // 這裡刻意不讀班表，也不接受 tripKey。每一筆 collapseClaims() 輸出的 row 都是一台
 // 當輪應顯示的車；班表車次若日後能辨認，只能在本名冊之外附加標籤，不能決定車的存在。
 
-export const OFFICIAL_ROSTER_SCHEMA = 1;
+export const OFFICIAL_ROSTER_SCHEMA = 2;
 export const OFFICIAL_COAST_DWELL_DEFAULT_SEC = 25;
 
 function finite(value, label) {
@@ -125,15 +125,34 @@ function terminalOccurrenceRolled(prior, current, nowEpoch) {
   return Number(prior.arrEpoch) <= nowEpoch && Number(current.arrEpoch) > nowEpoch;
 }
 
-function matchFeasible(prior, current, nowEpoch) {
-  const priorNo = String(prior.officialNo || '');
-  const currentNo = String(current.displayNo || '');
-  if (priorNo && currentNo && priorNo !== currentNo) return false;
+function physicallyReachable(model, prior, current, nowEpoch) {
+  const before = Number(prior.routePosition ?? routePosition(prior));
+  const after = routePosition(current), advance = after - before;
+  // 官方 ETA 回修最多容許退一站，交給前端單調顯示水位吸收；更遠的反向跳接不是同一台車。
+  if (advance < -1) return false;
+  // target station 前進一格可能剛好發生在兩輪交界；第二格起至少要真的跑完中間各段。
+  if (advance <= 1) return true;
+  const observed = Number(prior.observedEpoch);
+  if (!Number.isFinite(observed)) return false;
+  const elapsed = Math.max(0, Number(nowEpoch) - observed);
+  const step = Number(current.dir) === 2 ? 1 : -1;
+  let station = Number(prior.to), required = 0;
+  for (let moved = 1; moved < advance; moved++) {
+    const next = station + step;
+    const run = segmentRun(model, current.line, station, next);
+    if (!(run > 0)) return false;
+    required += run;
+    station = next;
+  }
+  return elapsed >= required;
+}
+
+function matchFeasible(model, prior, current, nowEpoch) {
   if (terminalOccurrenceRolled(prior, current, nowEpoch)) return false;
   // 新的起點倒數是新一趟，不得吸走已經離站的舊車；舊起點倒數則可接到它離站後的第一段。
   if (current.terminal && !prior.terminal) return false;
-  // ETA 可能把同車回修一站。位置方向只能當配對成本，不能當「這台車不存在」的硬判定。
-  return true;
+  // 車號只作標籤，絕不能凌駕物理可達距離把永安市場的車拖到丹鳳。
+  return physicallyReachable(model, prior, current, nowEpoch);
 }
 
 function pairCost(prior, current) {
@@ -153,7 +172,7 @@ function betterAlignment(a, b) {
 }
 
 // 最大配對數優先、成本次之的保序 DP。輸入排序與配對都只有資料內容參與，與 rows 原順序無關。
-function alignOrdered(current, prior, nowEpoch) {
+function alignOrdered(current, prior, nowEpoch, model) {
   const memo = new Map();
   const solve = (i, j) => {
     const key = `${i}|${j}`;
@@ -163,7 +182,7 @@ function alignOrdered(current, prior, nowEpoch) {
       memo.set(key, empty); return empty;
     }
     let best = betterAlignment(solve(i + 1, j), solve(i, j + 1));
-    if (matchFeasible(prior[j], current[i], nowEpoch)) {
+    if (matchFeasible(model, prior[j], current[i], nowEpoch)) {
       const tail = solve(i + 1, j + 1);
       best = betterAlignment(best, { count: tail.count + 1, cost: tail.cost + pairCost(prior[j], current[i]),
         pairs: [[i, j], ...tail.pairs] });
@@ -253,20 +272,37 @@ function coastTiming(model, row, history, timeline) {
     retireEpoch: Number.isFinite(exactRetireEpoch) ? exactRetireEpoch : inferredTerminal };
 }
 
+function officialNumberState(row, base) {
+  const current = String(row.displayNo || '');
+  if (!base) return { officialNo: current || null, officialNoLockedOut: false };
+  if (base.officialNoLockedOut) return { officialNo: null, officialNoLockedOut: true };
+  const prior = String(base.officialNo || '');
+  if (!prior) return { officialNo: current || null, officialNoLockedOut: false };
+  if (current === prior) return { officialNo: prior, officialNoLockedOut: false };
+  // 同一 vehicleId 的號碼一旦變動／消失，代表標籤已不可信：永久退回路線縮寫，
+  // 不換成新號，更不能為保住舊號而把車接去遠方另一筆同號 row。
+  return { officialNo: null, officialNoLockedOut: true };
+}
+
 function officialVehicle(model, row, vehicleId, base, sourceRevision, nowEpoch) {
   const history = historyWith(row, base);
   const timeline = timelineWith(row, base);
   const timing = coastTiming(model, row, history, timeline);
+  const numberState = officialNumberState(row, base);
+  const birthEvidence = base && base.birthEvidence || {
+    source: 'official-board', sourceRevision, observedEpoch: nowEpoch,
+    line: row.line, dir: row.dir, from: row.from, to: row.to, arrEpoch: row.arrEpoch,
+  };
   return {
     vehicleId, line: row.line, dir: row.dir, dest: row.dest, from: row.from, to: row.to,
     run: row.run, arrEpoch: row.arrEpoch, terminal: row.terminal,
-    officialNo: row.displayNo || null, source: 'official', extension: false,
-    sourceRevision, observedEpoch: nowEpoch, routePosition: routePosition(row),
+    ...numberState, source: 'official', extension: false,
+    sourceRevision, observedEpoch: nowEpoch, routePosition: routePosition(row), birthEvidence,
     history, timeline, ...timing,
   };
 }
 
-function carriedVehicle(model, vehicle, sourceRevision, nowEpoch) {
+function carriedVehicle(model, vehicle, sourceRevision, nowEpoch, numberContradicted = false) {
   const timing = vehicle.retireEpoch != null && Number.isFinite(Number(vehicle.retireEpoch))
     ? { coastCycle: Number(vehicle.coastCycle), departureRun: vehicle.departureRun == null
       ? null : Number(vehicle.departureRun), retireEpoch: Number(vehicle.retireEpoch) }
@@ -275,7 +311,8 @@ function carriedVehicle(model, vehicle, sourceRevision, nowEpoch) {
   // 這是「到已知終點」的時刻，不是資料齡或缺訊 timeout。
   if (timing.retireEpoch != null && Number.isFinite(Number(timing.retireEpoch)) &&
       nowEpoch >= Number(timing.retireEpoch)) return null;
-  return { ...vehicle, ...timing, sourceRevision, extension: false, carried: true };
+  return { ...vehicle, ...timing, sourceRevision, extension: false, carried: true,
+    ...(numberContradicted ? { officialNo: null, officialNoLockedOut: true } : {}) };
 }
 
 function compareVehicles(a, b) {
@@ -306,6 +343,7 @@ export function reduceOfficialRoster({ model, rows, prior = null, day, nowEpoch,
   const state = { day: normalizedDay, nextSequence: initialSequence(prior, normalizedDay),
     reservedIds: new Set(priorVehicles.map(x => String(x.vehicleId || '')).filter(Boolean)) };
   const assigned = new Map(), usedIds = new Set(), priorById = new Map(priorVehicles.map(x => [String(x.vehicleId), x]));
+  const numberContradictions = new Map();
   let hardNoMatches = 0;
 
   // 官方 no 只在同線、同方向、同一趟生命週期內是硬 alias。到終點收車後，
@@ -313,9 +351,18 @@ export function reduceOfficialRoster({ model, rows, prior = null, day, nowEpoch,
   for (let index = 0; index < current.length; index++) {
     const row = current[index];
     if (!row.displayNo) continue;
-    const candidates = priorVehicles.filter(vehicle => !usedIds.has(String(vehicle.vehicleId)) &&
+    const sameNumber = priorVehicles.filter(vehicle => !usedIds.has(String(vehicle.vehicleId)) &&
       vehicle.line === row.line && Number(vehicle.dir) === Number(row.dir) &&
-      String(vehicle.officialNo || '') === row.displayNo && matchFeasible(vehicle, row, epoch));
+      String(vehicle.officialNo || '') === row.displayNo);
+    for (const vehicle of sameNumber) {
+      if (!physicallyReachable(model, vehicle, row, epoch)) {
+        const vehicleId = String(vehicle.vehicleId);
+        numberContradictions.set(vehicleId, { vehicleId, line: row.line, dir: row.dir, no: row.displayNo,
+          priorFrom: Number(vehicle.from), priorTo: Number(vehicle.to), currentFrom: row.from, currentTo: row.to,
+          priorObservedEpoch: Number(vehicle.observedEpoch), nowEpoch: epoch });
+      }
+    }
+    const candidates = sameNumber.filter(vehicle => matchFeasible(model, vehicle, row, epoch));
     if (candidates.length !== 1) continue;
     const vehicleId = String(candidates[0].vehicleId);
     assigned.set(index, vehicleId); usedIds.add(vehicleId); hardNoMatches++;
@@ -331,7 +378,7 @@ export function reduceOfficialRoster({ model, rows, prior = null, day, nowEpoch,
       .filter(x => x && !usedIds.has(String(x.vehicleId)) && groupKey(x) === key)
       .sort((a, b) => Number(a.routePosition ?? routePosition(a)) - Number(b.routePosition ?? routePosition(b)) ||
         Number(a.arrEpoch) - Number(b.arrEpoch) || String(a.vehicleId).localeCompare(String(b.vehicleId)));
-    for (const [ci, pi] of alignOrdered(currentGroup.map(x => x.row), priorGroup, epoch)) {
+    for (const [ci, pi] of alignOrdered(currentGroup.map(x => x.row), priorGroup, epoch, model)) {
       const vehicleId = String(priorGroup[pi].vehicleId);
       assigned.set(currentGroup[ci].index, vehicleId); usedIds.add(vehicleId);
     }
@@ -348,13 +395,14 @@ export function reduceOfficialRoster({ model, rows, prior = null, day, nowEpoch,
   }
 
   const vehicles = [];
-  let completed = 0, accepted = 0;
+  let completed = 0, accepted = 0, numberConflicts = 0;
   for (let index = 0; index < current.length; index++) {
     const row = current[index], vehicleId = assigned.get(index);
     if (!vehicleId) continue;
     accepted++;
     const base = priorById.get(vehicleId) || null;
     const vehicle = officialVehicle(model, row, vehicleId, base, sourceRevision, epoch);
+    if (base && base.officialNo && vehicle.officialNoLockedOut && !vehicle.officialNo) numberConflicts++;
     if (vehicle.retireEpoch != null && Number.isFinite(Number(vehicle.retireEpoch)) &&
         epoch >= Number(vehicle.retireEpoch)) {
       completed++; continue;
@@ -362,11 +410,15 @@ export function reduceOfficialRoster({ model, rows, prior = null, day, nowEpoch,
     vehicles.push(vehicle);
   }
 
-  let carried = 0, exits = 0;
+  let carried = 0, exits = 0, carriedNumberConflicts = 0;
   for (const old of priorVehicles.slice().sort(compareVehicles)) {
     if (!old.vehicleId || usedIds.has(String(old.vehicleId))) continue;
-    const alive = carriedVehicle(model, old, sourceRevision, epoch);
-    if (alive) { vehicles.push(alive); usedIds.add(String(alive.vehicleId)); carried++; }
+    const contradicted = numberContradictions.has(String(old.vehicleId));
+    const alive = carriedVehicle(model, old, sourceRevision, epoch, contradicted);
+    if (alive) {
+      vehicles.push(alive); usedIds.add(String(alive.vehicleId)); carried++;
+      if (contradicted && old.officialNo) { carriedNumberConflicts++; numberConflicts++; }
+    }
     else exits++;
   }
 
@@ -375,6 +427,9 @@ export function reduceOfficialRoster({ model, rows, prior = null, day, nowEpoch,
   const ids = vehicles.map(x => String(x.vehicleId));
   if (new Set(ids).size !== ids.length) throw new Error('official roster 同輪 vehicleId 重複');
   if (vehicles.some(x => x.tripKey != null || x.scheduleKey != null)) throw new Error('official roster 不得混入班表身分');
+  if (vehicles.some(x => !x.birthEvidence || x.birthEvidence.source !== 'official-board')) {
+    throw new Error('official roster 每台車都必須能追溯到官方站牌出生列');
+  }
 
   return {
     schema: OFFICIAL_ROSTER_SCHEMA, day: normalizedDay, nowEpoch: epoch, sourceRevision,
@@ -385,7 +440,10 @@ export function reduceOfficialRoster({ model, rows, prior = null, day, nowEpoch,
         a.vehicleId.localeCompare(b.vehicleId)),
     diagnostics: {
       rows: current.length, accepted, ignoredObservations, extensions: 0, carried, completed, births,
-      matches: accepted - births, hardNoMatches, exits,
+      matches: accepted - births, hardNoMatches, exits, numberConflicts, carriedNumberConflicts,
+      rejectedNumberJumps: numberContradictions.size,
+      rejectedNumberJumpDetails: [...numberContradictions.values()].sort((a, b) =>
+        a.line.localeCompare(b.line) || a.dir - b.dir || a.vehicleId.localeCompare(b.vehicleId)),
       duplicateOfficialNos: [...noCounts.values()].filter(count => count > 1).length,
     },
   };
