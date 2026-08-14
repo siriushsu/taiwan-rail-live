@@ -33,17 +33,25 @@ struct MetroBoardProvider: AppIntentTimelineProvider {
         //    30 秒停留與 App 看板 TRTC_OFFICIAL_BOARD_ARRIVING_GRACE_SEC 同值。
         //    etas 不濾掉已過去的:剛到 10 秒的車還要它的 +31 退場邊界。只取前 8 個到站點。
         var entries = [e]
+        var hasBounds = false
         if let rows = e.snapshot?.rows {
             let now = Date().timeIntervalSince1970
             let etas = Set(rows.compactMap(\.etaEpoch)).sorted().prefix(8)
             let bounds = Set(etas.flatMap { [$0 + 1, $0 + 31] }.filter { $0 > now }).sorted()
+            hasBounds = !bounds.isEmpty
             entries += bounds.map { t in
                 MetroEntry(date: Date(timeIntervalSince1970: t), title: e.title,
                            lineColor: e.lineColor, snapshot: e.snapshot, precision: e.precision,
                            lastTrain: e.lastTrain, failed: e.failed, deepLink: e.deepLink)
             }
         }
-        return Timeline(entries: entries, policy: .after(Date().addingTimeInterval(10 * 60)))
+        // 🔴 刷新策略(真機回饋 08-14 第五輪:「只剩一兩班看起來像沒車」):有預排邊界時用 .atEnd
+        //    ——資料視野走完的那一刻才向系統要下一輪,不提早浪費、也不晚於「畫面已空」;
+        //    固定 .after(10min) 會在視野只剩 2 分鐘時還傻等 8 分鐘。搭配三個免預算的刷新源:
+        //    開 App 即 reload(AppDelegate)、使用者正在看的小工具過期時系統常主動補抓、
+        //    (待做)定位變化觸發。分鐘級系統沒有邊界,維持 10 分鐘節奏。
+        return Timeline(entries: entries,
+                        policy: hasBounds ? .atEnd : .after(Date().addingTimeInterval(10 * 60)))
     }
 
     private func entry(for cfg: MetroBoardIntent) async -> MetroEntry {

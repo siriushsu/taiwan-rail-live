@@ -1712,10 +1712,12 @@
   .board .row .dest { flex: 1; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .board .row .t, .board .row .min { font-variant-numeric: tabular-nums; }
   .board .row .t { font-weight: 800; color: var(--ink-strong); }
-  .board .row .crowd { display: inline-flex; gap: 2px; flex: none; align-self: center; }
+  /* 官方板三固定欄:擁擠度 40px(含無資料透明佔位)、時刻、倒數 4em——列與列整欄對齊(08-14 第五輪) */
+  .board .row .crowd { display: inline-flex; gap: 2px; flex: none; align-self: center; width: 40px; justify-content: flex-end; }
   .board .row .crowd i { width: 5px; height: 10px; border-radius: 1.5px; }
-  /* 手機寬度下,擁擠度格＋「未連結動畫」註記擠不下同一列——藏註記(title 與 aria-disabled 仍在) */
-  @media (max-width: 900px) { .board .row.has-crowd .linknote { display: none; } }
+  .board[data-trtc-official="1"] .row .min { width: 4em; text-align: right; flex: none; }
+  /* 手機寬度下,固定佔位＋「未連結動畫」註記擠不下同一列——官方板一律藏註記(title 與 aria-disabled 仍在) */
+  @media (max-width: 900px) { .board[data-trtc-official="1"] .row .linknote { display: none; } }
   .board .row .min { color: var(--navy); font-weight: 700; min-width: 44px; text-align: right; }
   /* 車站看板右上角 ☆／× :兩顆吃同一組尺寸與置中,不靠字級與 UA padding 對齊。
      舊寫法各自 top:8px 切「上緣」,但 .close 沒設 padding 而吃到瀏覽器 UA 預設按鈕 padding
@@ -16510,7 +16512,9 @@ function trtcOfficialCrowdColor(v) {
 function trtcOfficialCrowdHtml(dest) {
   const cars = state.trtcOfficialBoard && state.trtcOfficialBoard.crowdByDest &&
     state.trtcOfficialBoard.crowdByDest[dest];
-  if (!Array.isArray(cars) || !cars.length) return '';
+  // 沒資料也回【透明佔位】不回空字串——使用者回饋(08-14 第五輪):有無 bars 的列時間欄要對齊,
+  // 佔位是唯一不畫假資料又能對齊的做法(同小工具 38pt 佔位的邏輯);寬度鎖在 CSS .crowd。
+  if (!Array.isArray(cars) || !cars.length) return '<span class="crowd" aria-hidden="true"></span>';
   return '<span class="crowd" title="車廂擁擠度（北捷官方）">' +
     cars.map(v => `<i style="background:${trtcOfficialCrowdColor(Number(v))}"></i>`).join('') + '</span>';
 }
