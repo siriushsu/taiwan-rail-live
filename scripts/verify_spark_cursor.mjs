@@ -20,7 +20,11 @@ const ROOT = process.env.ROOT || path.resolve(HERE, '..');
 const PORT = Number(process.env.PORT || 6400);
 const req = createRequire(fs.existsSync(path.join(ROOT, 'node_modules/playwright'))
   ? path.join(ROOT, 'package.json') : '/Users/xuxiang/Code/捷運小動畫/package.json');
-const { chromium } = req('playwright');
+// 單引擎一輪(整支是線性流程,不繞成迴圈);要雙引擎就跑兩次 ENGINE=chromium / ENGINE=webkit。
+// macOS／iOS 使用者預設 WebKit,而 E 判準讀的是畫布像素——headless chromium 對「有沒有畫出來」
+// 說過謊不只一次(心得 20/21),游標這一豎一定要在 WebKit 也真的量到。
+const ENGINE = process.env.ENGINE || 'chromium';
+const pw = req('playwright');
 
 const diskMd5 = createHash('md5').update(fs.readFileSync(path.join(ROOT, 'index.html'))).digest('hex');
 const servedMd5 = createHash('md5').update(Buffer.from(
@@ -31,7 +35,7 @@ if (diskMd5 !== servedMd5) { console.error('G0 FAIL：server 提供的不是目�
 const results = [];
 const check = (n, pass, detail) => { results.push({ n, pass }); console.log(`${pass ? 'PASS ' : 'FAIL '} ${n} — ${detail}`); };
 
-const browser = await chromium.launch();
+const browser = await pw[ENGINE].launch();
 const page = await browser.newPage();
 page.on('pageerror', e => console.error('PAGEERROR', e.message));
 await page.goto(`http://127.0.0.1:${PORT}/index.html`, { waitUntil: 'domcontentloaded' });
@@ -80,16 +84,16 @@ const r = await page.evaluate(() => {
   return out;
 });
 
-check('A 曲線與誤點無關：同一班車在零誤點與 10 分鐘誤點下逐值相同',
+check(`[${ENGINE}] A 曲線與誤點無關：同一班車在零誤點與 10 分鐘誤點下逐值相同`,
   r.driftN === 0,
   r.driftN === 0 ? `${12} 班逐格比對全數相同`
     : `${r.driftN} 班的曲線隨誤點而變；例：${JSON.stringify(r.drift.slice(0, 3))}`);
 
-check('B 曲線每一格＝純表定軸同一時刻的實際位移速度',
+check(`[${ENGINE}] B 曲線每一格＝純表定軸同一時刻的實際位移速度`,
   r.badN === 0,
   r.badN === 0 ? `比對 ${r.checked} 格全數相符` : `比對 ${r.checked} 格，${r.badN} 格不符；例：${JSON.stringify(r.bad.slice(0, 3))}`);
 
-check('C 分母閘門：受測車真的帶著誤點（否則 A/B 在零誤點下恆綠）',
+check(`[${ENGINE}] C 分母閘門：受測車真的帶著誤點（否則 A/B 在零誤點下恆綠）`,
   r.delaySeen > 60, `最大偏移 ${Math.round(r.delaySeen)} 秒`);
 
 // ── 游標半場。A/B 只驗曲線；曲線對了不代表游標對——曲線的 x 軸是純表定軸，游標的引數必須是
@@ -144,7 +148,7 @@ const cu = await page.evaluate(async () => {
   return out;
 });
 
-check('D 游標的引數必須是「已扣誤點」的時間軸（真正的呼叫端傳什麼就驗什麼）',
+check(`[${ENGINE}] D 游標的引數必須是「已扣誤點」的時間軸（真正的呼叫端傳什麼就驗什麼）`,
   !cu.err && cu.spy.length > 0 && cu.spyBad === 0 && Math.abs(cu.effT - cu.effTLive) > 60,
   cu.err ? `例外：${cu.err}`
     : cu.spy.length === 0 ? `分母為零：跟隨面板沒觸發任何一次重畫（在跑的車 ${cu.runningN} 班），D 無效`
@@ -152,7 +156,7 @@ check('D 游標的引數必須是「已扣誤點」的時間軸（真正的呼�
         : cu.spyBad === 0 ? `${cu.spy.length} 次重畫全數傳 effTLive（=${Math.round(cu.effTLive)}），與 effT（=${Math.round(cu.effT)}）差 ${Math.round(cu.shift)} 秒`
           : `${cu.spyBad}/${cu.spy.length} 次重畫傳的不是 effTLive；例：${JSON.stringify(cu.spy.slice(0, 3))}`);
 
-check('E 游標像素真的畫在誤點後的位置（讀畫布，不是讀變數）',
+check(`[${ENGINE}] E 游標像素真的畫在誤點後的位置（讀畫布，不是讀變數）`,
   cu.gotFrac != null && Math.abs(cu.gotFrac - cu.wantFrac) <= 0.01 && Math.abs(cu.wantFrac - cu.wrongFrac) > 0.02,
   cu.gotFrac == null ? `畫布上找不到游標豎線（最長同色 ${cu.pxRun} 像素），E 無效`
     : Math.abs(cu.wantFrac - cu.wrongFrac) <= 0.02 ? `分母不足：正確位置與錯誤位置只差 ${(Math.abs(cu.wantFrac - cu.wrongFrac) * 100).toFixed(2)}% 面板寬，分不開`
