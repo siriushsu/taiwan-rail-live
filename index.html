@@ -3559,13 +3559,13 @@
       <ul class="foot-list foot-recent">
         <li class="grp">最近更新</li>
         <li data-cl-of="tymcexpress"><span class="d">8/14</span><span>機場捷運直達車路線修正：南下會開到環北站，北上不再多出老街溪站</span></li>
+        <li data-cl-of="linecomplete"><span class="d">8/14</span><span>縱貫線北段完乘率卡在 99% 已修好，不用重搭就會自動補滿（謝謝網友回報）</span></li>
         <li data-cl-of="checkinplatform"><span class="d">8/14</span><span>月台特別長的車站（例如汐科），現在站在月台任何一端都蓋得到章（謝謝網友回報）</span></li>
         <li data-cl-of="trtcofficialroster"><span class="d">8/14</span><span>台北捷運列車改以官方站牌倒數逐班追蹤：從發車到終點依各站時間顯示位置，同一班車在多站的資訊會自動合併，車次與方向跟著實際行程；文湖線沒有車次時顯示 BR 路線牌。</span></li>
         <li data-cl-of="crossnightfollow"><span class="d">8/14</span><span>跟著跨午夜的深夜車（例如 452 次）重播時，車不會再於 00:00 整台消失了（謝謝網友回報）</span></li>
         <li data-cl-of="tradelaycatchup"><span class="d">8/14</span><span>台鐵列車追回誤點時不再瞬間往前跳一大段，改成邊跑邊追，最多兩倍速（謝謝網友回報）</span></li>
         <li data-cl-of="klrtgps"><span class="d">8/12</span><span>高雄環狀輕軌改用官方衛星定位逐班校正，每台車各自對準自己的班次（謝謝網友提供資訊）</span></li>
         <li data-cl-of="tcstopsalign"><span class="d">8/12</span><span>列車資訊卡的停靠站時刻表：表頭「到／開」對齊下方的時刻欄了</span></li>
-        <li data-cl-of="landscape"><span class="d">8/11</span><span>手機橫著拿也能用了：面板改成靠右側邊欄，跟車時列車不再被蓋住（謝謝網友回報）</span></li>
       </ul>
       <!-- 第二層:完整歷史。刻意不掛 .foot-box 類名——placeFootBoxes() 用
            `.site-foot .foot-box` 搬移面板,巢狀同名會被當成另一個盒子一起搬走。 -->
@@ -3644,6 +3644,7 @@
         <li><span class="d">7/13</span><span>新增「附近火車」：地圖上落一根釘，查周邊 60 分鐘內會通過的車次</span></li>
         <li><span class="d">7/12</span><span>新增平交道功能：點一下查接下來會通過的列車（7/13 補上貨運線 21 處）</span></li>
         <li class="grp">收藏、護照與成就</li>
+        <li data-cl="linecomplete"><span class="d">8/14</span><span>縱貫線北段完乘率卡在 99%：新竹–北新竹是與內灣線共用的同一段軌道，以前只算給其中一條線。現在兩條線都算得到，已收集的紀錄不用重搭就會自動補上（謝謝網友回報）</span></li>
         <li data-cl="checkinplatform"><span class="d">8/14</span><span>單站蓋章改用月台範圍判定：像汐科這種月台特別長的車站，以前站在月台中段或另一端都按不下去，現在整條月台上任何位置都蓋得到章。全台鐵 241 座車站裡有 239 座換上各自的月台範圍（謝謝網友回報）</span></li>
         <li data-cl="favtrainkey"><span class="d">8/3</span><span>台鐵與高鐵有些車次號碼相同，過去收藏其中一班會蓋掉另一班，移除時也會兩班一起消失；現在最愛列車會連同鐵路系統分開辨認，同號車可以各自收藏與移除</span></li>
         <li data-cl="founding"><span class="d">8/4</span><span>在創始期間訂閱通行證的島民，App 的旅程護照最上方會多一枚「創始島民」徽章，之後才訂閱的不會有；徽章跟著訂閱資格走，退訂或登出就一起收起來</span></li>
@@ -12383,9 +12384,33 @@ function segKey(sys, lnId, a, b) { return sys + '|' + lnId + '|' + (a < b ? a + 
 // {段鍵→總次數}(含沒驗到定位的)——護照、逐線完乘率、收集地圖都吃這個。
 // 回傳型別刻意維持 number:五個既有消費者(drawCollectSegs／unlockedAchievements／lineCompletion／
 // buildStationStamps／說明中心可用性判斷)都當數字用,改型別等於一次弄壞五個地方。
+// 共構軌道:同一組相鄰站對可能同時是兩條線的最細區間(實測全網只有新竹–北新竹一組,縱貫線北段
+// 與內灣線共用同一段實體軌道)。貼軌時一段只會判給其中一條線,另一條線的那一段就沒有任何真實
+// 列車蓋得到——縱貫線北段因此鎖死在 99%,搭幾次都一樣(唯一蓋得到的 8889 平原號是虛構班次,
+// 而且 loop 車在 startRiding 第一行就被擋掉,根本上不了車)。
+function sharedTrackGroups() {
+  const lines = state.trackLines || [];
+  if (!lines.length) return []; // 路網還沒載好:不快取,免得把空結果釘死在這個陣列身分上
+  if (state._shTrkSrc === lines && state._shTrk) return state._shTrk;
+  const byPair = new Map();
+  for (const rec of lineNetwork().values()) for (const s of rec.segs) {
+    const p = rec.sys + '|' + (s.a < s.b ? s.a + '|' + s.b : s.b + '|' + s.a);
+    let arr = byPair.get(p); if (!arr) byPair.set(p, arr = []);
+    arr.push(s.key);
+  }
+  state._shTrkSrc = lines;
+  return (state._shTrk = [...byPair.values()].filter(v => v.length > 1));
+}
 function segmentCollection() {
   const out = {};
   for (const [k, v] of Object.entries(loadCheckins().sg || {})) out[k] = Number(v && v.n) || 0;
+  // 同一段實體軌道走過就是走過,故讓共構的鍵互相認帳。刻意做在讀取端而不是寫入端:既有收集
+  // 立刻就對(不必重搭一次)、不改寫存檔也不推雲端;而且只補空鍵、不加總,成就用的 maxSeg 不受影響。
+  for (const keys of sharedTrackGroups()) {
+    let best = 0;
+    for (const k of keys) if (out[k] > best) best = out[k];
+    if (best) for (const k of keys) if (!out[k]) out[k] = best;
+  }
   return out;
 }
 // {段鍵→驗過定位的次數}——只有懸賞的分母吃這個。0 次的鍵直接不列,
