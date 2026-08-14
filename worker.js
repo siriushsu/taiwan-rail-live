@@ -888,9 +888,8 @@ async function trtcLive(request, env) {
         officialRequestStartedAt); }
       catch (e) {
         console.error('[trtc board-pos] 錨點組裝失敗:', (e && e.stack) || String(e));
-        // TrackInfo 成功但我方組裝失敗不是「官方成功空列」；明確切 outage，讓消費端
-        // 整體走班表備案，不能把程式錯誤偽裝成 authoritative empty frame。
-        boardPos = trtcOfficialOutagePayload();
+        // 我方組裝錯誤也不是刪掉上一份官方車的證據；保留 D1 已知名冊續推。
+        boardPos = await trtcOfficialHeldPayload(env, 'assembly-error');
       }
       // legacy 的 at/src/trains/board/cd 產生路徑與欄位順序不動；帳本預覽失敗一律
       // 回空陣列，不能拖垮原本逐車 API。
@@ -903,14 +902,13 @@ async function trtcLive(request, env) {
     await edge.put(cacheKey, res.clone());
     return res;
   } catch (e) {
-    // stale 快取設 5 分鐘齡限:TTL 15s 的資料若因上游持續掛掉而擺到 5 分鐘還沒更新,
-    // 列車實際位置可能已經跑出 2-3 站,繼續標成 src:'trtc' 送出去是主動誤導,不如降級成 null。
+    // 上游失敗只能讓 legacy 資訊降級，不能把已經從官方站牌建立的車全數清掉。
+    // 持久名冊沒有缺訊時限；位置由各車 timeline 續推並在已知終點退場。
+    const heldBoardPos = await trtcOfficialHeldPayload(env, 'upstream-error');
     if (stale && Date.now() - stale.at < 5 * 60e3) {
-      // legacy trains 可短暫沿用，但 official feed 當輪 unavailable 就必須整體回 schedule fallback；
-      // 絕不能把 stale official roster 冒充成仍可決定列車存在性的 fresh TrackInfo。
-      return jsonRes({ ...stale.data, boardPos: trtcOfficialOutagePayload() }, 200, 'public, s-maxage=15');
+      return jsonRes({ ...stale.data, boardPos: heldBoardPos }, 200, 'public, s-maxage=15');
     }
-    // 軟失敗:回 200+src:null(前端 applyTrtcLive 對 null 直接 no-op,退回時刻表＋現制看板校正)。
+    // 軟失敗:回 200+src:null，只讓 legacy trains／看板校正 no-op；boardPos 仍帶持久官方名冊。
     // 負向結果也快取 15s,免得上游持續掛時每個請求 1:1 重打上游。不帶 error 字串進 body。
     // board 不帶(降級時看板前端直接退回 _tt 路徑,不需要空陣列以外的形狀)。
     // cd 一併帶上(值為 0/0):少了它,驗收腳本的觀測性斷言會紅在「worker 沒回 cd 欄位」,
@@ -918,7 +916,7 @@ async function trtcLive(request, env) {
     let ledger = [];
     try { ledger = await trtcLedgerMaterialized(env, Math.floor(Date.now() / 1000)); } catch (e) {}
     const res = jsonRes({ at: new Date().toISOString(), src: null, trains: [], board: [],
-      boardPos: trtcOfficialOutagePayload(),
+      boardPos: heldBoardPos,
       cd: { rows: 0, dropped: 0, dateDropped: 0, pathDropped: 0, pathDateDropped: 0, pathNoTrainNo: 0 }, ledger }, 200, 'public, s-maxage=15');
     await edge.put(cacheKey, res.clone());
     return res;
@@ -1191,6 +1189,34 @@ function trtcOfficialOutagePayload() {
     rows: [], extensions: [], vehicles: [], dropped: {}, dayType: null, trips: [] };
 }
 
+// TrackInfo 當輪讀取失敗不是「車不存在」的證據。新開頁面沒有前端上一幀可 hold，若這裡仍回
+// outage，就會把 D1 裡已經從官方站牌建立、且仍在跑的整份名冊丟掉，畫面退回班表且所有官方
+// 車次同時消失。持久名冊就是跨 request／跨 isolate 的最後成功官方狀態；讀取失敗時只讀不寫，
+// 讓每台車依自己的 timeline 繼續到終點。沒有任意資料齡 timeout，終點退場仍由同一條時間軸決定。
+async function trtcOfficialHeldPayload(env, reason = 'feed-outage') {
+  try {
+    const db = env && env.TRTC_LEDGER;
+    if (!db) return trtcOfficialOutagePayload();
+    const held = await trtcReadOfficialRoster(db);
+    const roster = held && held.state;
+    if (!roster || !Array.isArray(roster.vehicles) || !Number.isFinite(Number(roster.sourceRevision)) ||
+        !Number.isFinite(Number(roster.nowEpoch))) return trtcOfficialOutagePayload();
+    const vehicles = roster.vehicles.map(vehicle => ({ ...vehicle }));
+    const rows = Array.isArray(roster.rows)
+      ? roster.rows.map(row => ({ ...row })) : trtcOfficialRowsFromRoster(roster);
+    return {
+      at: Number(roster.nowEpoch), feedMode: 'official', sourceRevision: Number(roster.sourceRevision),
+      rosterStateSource: 'd1-held-after-outage', degraded: true, held: true, holdReason: String(reason),
+      rows, extensions: vehicles.filter(vehicle => vehicle && vehicle.extension), vehicles,
+      identityAudit: roster.diagnostics || {}, dropped: {}, dayType: null, trips: [],
+    };
+  } catch (error) {
+    console.warn('[trtc official roster] 讀取持久名冊失敗，才退回班表:',
+      (error && error.message) || String(error));
+    return trtcOfficialOutagePayload();
+  }
+}
+
 function trtcOfficialRevision(value) {
   const number = Number(value);
   return Number.isFinite(number) ? number : -Infinity;
@@ -1328,7 +1354,7 @@ function trtcOfficialTripDecorations({ tripSets, rosterRows, bindings, aliasByHw
 
 async function trtcBoardPositionAnchors(env, rows, feedMode = 'official',
   sourceObservedEpoch = Date.now()) {
-  if (feedMode !== 'official') return trtcOfficialOutagePayload();
+  if (feedMode !== 'official') return trtcOfficialHeldPayload(env, 'trackinfo-outage');
   const nowEpoch = trtcBoardEpoch(rows, Math.floor(Date.now() / 1000));
   const day = trtcServiceDay(nowEpoch);
   if (trtcBoardBranchHintDay !== day) {
@@ -4983,7 +5009,7 @@ export const _trtcLedger = {
   trtcOfficialStateFromText, trtcOfficialRowsFromRoster,
   trtcOfficialRowsForJoin,
   trtcOfficialRosterSnapshot, trtcReadOfficialRoster, trtcPersistOfficialRoster,
-  trtcOfficialOutagePayload, trtcOfficialTripDecorations, trtcBoardPositionAnchors,
+  trtcOfficialOutagePayload, trtcOfficialHeldPayload, trtcOfficialTripDecorations, trtcBoardPositionAnchors,
 };
 // laPushAll 導出(task-6)：這條迴圈是全功能唯一沒有純函式測試覆蓋的部分(呼叫 D1／APNs／
 // traLive 三個 IO)。workerd 的 fetch 會拒絕自簽 HTTPS 憑證,沒辦法用假伺服器讓 wrangler dev

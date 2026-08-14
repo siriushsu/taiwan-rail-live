@@ -84,13 +84,25 @@ const args = (db, rows, nowEpoch, sourceRevision, day = '2026-08-13', sourceObse
 
 console.log('Worker official roster integration：');
 
-// 成功空列是 authoritative official snapshot；failure 則必須走 outage 空 payload，不能讀舊 D1。
+// 成功空列是 authoritative official snapshot；讀取 failure 則必須 hold D1 最後官方名冊。
 const emptyDb = new FakeD1();
 const empty = await api.trtcPersistOfficialRoster(args(emptyDb, [], 100, 90));
-const outage = await api.trtcBoardPositionAnchors({ TRTC_LEDGER: emptyDb }, [row(0, 1, 120)], 'outage');
+const noPriorOutage = await api.trtcBoardPositionAnchors({ TRTC_LEDGER: new FakeD1() },
+  [row(0, 1, 120)], 'outage');
 check(empty.roster.vehicles.length === 0 && !empty.degraded, '官方成功空列仍建立 official 名冊');
-check(outage.feedMode === 'outage' && outage.rows.length === 0 && outage.vehicles.length === 0 &&
-  outage.extensions.length === 0 && emptyDb.writes === 1, 'TrackInfo failure 明確 outage 且不混／不寫舊 official');
+check(noPriorOutage.feedMode === 'outage' && noPriorOutage.rows.length === 0 &&
+  noPriorOutage.vehicles.length === 0 && noPriorOutage.extensions.length === 0,
+  '從未取得官方名冊時，TrackInfo failure 才能退回班表');
+const heldDb = new FakeD1();
+const heldSeed = await api.trtcPersistOfficialRoster(args(heldDb, [row(0, 1, 120, '134')], 100, 100));
+const heldWrites = heldDb.writes;
+const heldOutage = await api.trtcBoardPositionAnchors({ TRTC_LEDGER: heldDb }, [], 'outage');
+check(heldOutage.feedMode === 'official' && heldOutage.held === true &&
+  heldOutage.rosterStateSource === 'd1-held-after-outage' && heldOutage.vehicles.length === 1 &&
+  heldOutage.vehicles[0].vehicleId === heldSeed.roster.vehicles[0].vehicleId &&
+  heldOutage.vehicles[0].officialNo === '134' && heldOutage.rows[0].no === '134' &&
+  heldDb.writes === heldWrites,
+  '新開頁面首輪 TrackInfo failure 仍讀回 D1 已知車與官方車次，只讀不寫');
 const revisionDb = new FakeD1();
 await api.trtcPersistOfficialRoster(args(revisionDb, [row(0, 1, 104, 'REV')], 104, 104,
   '2026-08-13', 104));
@@ -261,14 +273,14 @@ function sourceAudit(source) {
     identityAudit: /vehicles, identityAudit,/.test(source),
     extensionsPayload: /extensions: vehicles\.filter\(vehicle => vehicle\.extension\)/.test(source),
     carWeightOptional: /!tkResult\.ok && hwRaw\.length === 0 && brRaw\.length === 0/.test(source),
-    assemblyErrorOutage: /boardPos = trtcOfficialOutagePayload\(\)/.test(source),
-    staleOutage: /\.\.\.stale\.data, boardPos: trtcOfficialOutagePayload\(\)/.test(source),
+    assemblyErrorHold: /boardPos = await trtcOfficialHeldPayload\(env, 'assembly-error'\)/.test(source),
+    staleHold: /\.\.\.stale\.data, boardPos: heldBoardPos/.test(source),
   };
 }
 const source = fs.readFileSync(WORKER_PATH, 'utf8');
 const baselineSourceAudit = sourceAudit(source);
 check(Object.values(baselineSourceAudit).every(Boolean),
-  'source 正向控制：reducer／outage／CAS／frame／extensions 均接入產品碼');
+  'source 正向控制：reducer／缺訊 hold／CAS／frame／extensions 均接入產品碼');
 const sourceMutations = [
   ['reducerImport', "import { reduceOfficialRoster }", 'import { reduceOfficialRosterDisabled }'],
   ['officialFeedGate', "feedMode !== 'official'", "feedMode === 'official'"],
@@ -283,8 +295,8 @@ const sourceMutations = [
   ['extensionsPayload', 'extensions: vehicles.filter(vehicle => vehicle.extension)', 'extensions: []'],
   ['carWeightOptional', '!tkResult.ok && hwRaw.length === 0 && brRaw.length === 0',
     'hwRaw.length === 0 && brRaw.length === 0'],
-  ['assemblyErrorOutage', 'boardPos = trtcOfficialOutagePayload()', 'boardPos = boardPos'],
-  ['staleOutage', '...stale.data, boardPos: trtcOfficialOutagePayload()', '...stale.data'],
+  ['assemblyErrorHold', "boardPos = await trtcOfficialHeldPayload(env, 'assembly-error')", 'boardPos = boardPos'],
+  ['staleHold', '...stale.data, boardPos: heldBoardPos', '...stale.data'],
 ];
 for (const [target, from, to] of sourceMutations) {
   const mutant = source.replace(from, to);

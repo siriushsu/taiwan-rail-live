@@ -3558,6 +3558,7 @@
            內容 li 上限 8 條(li.grp 是標題不算)。 -->
       <ul class="foot-list foot-recent">
         <li class="grp">最近更新</li>
+        <li data-cl-of="trtcoutagehold"><span class="d">8/14</span><span>新開頁面剛好遇到北捷資料短暫讀不到時，現在會接回已知的官方列車與車次繼續跑，不再整批退回無車次的班表畫面</span></li>
         <li data-cl-of="trtcdirection"><span class="d">8/14</span><span>台北捷運的車與箭頭改用同一條行車路徑；縮小或放大地圖都會立即指向正確方向，畫面短暫停頓後也不會往回跳</span></li>
         <li data-cl-of="trtcidentityguard"><span class="d">8/14</span><span>台北捷運再加一道防跳車：每台車都要有官方站牌的出生紀錄；已認到的車次號不會因下一站暫時空白而消失，只有真的讀到不同號碼才退回路線代號</span></li>
         <li data-cl-of="trtcvehiclelife"><span class="d">8/14</span><span>台北捷運的車從起點出現後，會沿每一站的官方到站時間一路認到終點；短暫讀不到或時間修正時不再消失、重生或往回跳，文湖線也恢復 BR 橢圓車牌</span></li>
@@ -3565,7 +3566,6 @@
         <li data-cl-of="klrtgps"><span class="d">8/12</span><span>高雄環狀輕軌改用官方衛星定位逐班校正，每台車各自對準自己的班次（謝謝網友提供資訊）</span></li>
         <li data-cl-of="tcstopsalign"><span class="d">8/12</span><span>列車資訊卡的停靠站時刻表：表頭「到／開」對齊下方的時刻欄了</span></li>
         <li data-cl-of="landscape"><span class="d">8/11</span><span>手機橫著拿也能用了：面板改成靠右側邊欄，跟車時列車不再被蓋住（謝謝網友回報）</span></li>
-        <li data-cl-of="stationtransfer"><span class="d">8/10</span><span>點任何一個車站看板，都會告訴你這站可以轉乘哪些別的鐵道系統；跟車時「下一站」旁邊也會提醒能換哪幾條線</span></li>
       </ul>
       <!-- 第二層:完整歷史。刻意不掛 .foot-box 類名——placeFootBoxes() 用
            `.site-foot .foot-box` 搬移面板,巢狀同名會被當成另一個盒子一起搬走。 -->
@@ -3583,6 +3583,7 @@
         <li><span class="d">7/10</span><span>高鐵、桃園機捷、淡海輕軌、安坑輕軌加入路網</span></li>
         <li><span class="d">7/10</span><span>環島觀光列車一分為二：往東「山海號」、往西「平原號」</span></li>
         <li class="grp">即時動態與誤點</li>
+        <li data-cl="trtcoutagehold"><span class="d">8/14</span><span>修正新開頁面剛好遇到北捷 TrackInfo 短暫讀取失敗時，畫面會整批退回班表備案、所有官方車次同時消失；現在改為讀回已經由官方站牌建立的持久名冊，各車沿原本逐站時間續推到終點，已認到的車次也會保留。狀態徽章會標成「官方續推」，資料恢復後自動回到「官方即時」。</span></li>
         <li data-cl="trtcdirection"><span class="d">8/14</span><span>修正台北捷運列車偶爾看似倒著跑：車牌位置與方向箭頭現在共用目前顯示位置的路線切線；箭頭向量不再受地圖倍率影響，縮小時不會卡在上一段的方向、也不用放大才轉正。畫面若短暫停頓，恢復後仍守住原本已走到的位置，不因官方時間修訂往回跳。</span></li>
         <li data-cl="trtcidentityguard"><span class="d">8/14</span><span>修正環狀線同一班車在相鄰站的倒數曾被畫成兩台，以及車次號可能拉著列車瞬間跳到遠方：每台車都必須保留第一次出現在官方站牌的出生紀錄，班表與推算不能憑空生車；沒有車次號時，現在會依沿線官方到站時間的先後分出每一班。已認到的車次號若下一站暫時空白會沿用原號，只有真的出現另一個不同號碼才退回 Y、BR 等路線代號；不換號也不改變原本位置。</span></li>
         <li data-cl="trtcvehiclelife"><span class="d">8/14</span><span>台北捷運的每台車改成從起點倒數出現時建立身分，同一台車在多站看板的時間會合在一起，沿官方逐站到站時間一路跑到終點；短暫讀不到、車次沒配上或到站時間修正都不會讓車消失、重生或往回跳。小碧潭與新北投支線因官方只提供起點倒數，另以單段行車時間跑到對端後收車；文湖線沒有官方車次號時仍保留 BR 橢圓車牌。</span></li>
@@ -4017,7 +4018,8 @@
 // v0814d：官方車的方向箭頭與防倒退車牌共用同一條顯示路徑，不再因 ETA 修訂反指。
 // v0814e：箭頭改用固定投影向量，不受目前縮放像素門檻影響；長畫格停頓後也不准倒退重設。
 // v0814f：後續站牌車次號暫時空白時沿用原號；只有不同非空號才鎖退，並以 roster v3 清除舊錯誤狀態。
-const BUILD = 'v0814f';
+// v0814g：TrackInfo 短暫失敗時，新開頁面也會讀回 D1 已知官方名冊與車次續推。
+const BUILD = 'v0814g';
 // 2026-08-13 起預設開啟（使用者親試預覽後裁示上線）：北捷畫車依官方即時名冊，班表只是備案。
 // 保留 ?officialroster=0 當逃生口——要退回班表路徑不必回滾部署，加個參數即可對照。
 // 🔴 這個函式會被 verify_official_roster_frontend 抽出來丟進 VM 單獨執行——
@@ -16384,7 +16386,8 @@ function applyTrtcOfficialRoster(boardPos) {
   state.trtcOfficialRosterRevisionHighWater = revision;
   // payload 整包原子換入；不根據 tripKey 過濾，也不用上一幀補這一幀缺的官方車。
   state.trtcOfficialRoster = { at: Number(boardPos.at), feedMode: 'official', sourceRevision: revision,
-    vehicles: boardPos.vehicles.map(vehicle => ({ ...vehicle })), receivedEpoch: Date.now() / 1000 };
+    vehicles: boardPos.vehicles.map(vehicle => ({ ...vehicle })), receivedEpoch: Date.now() / 1000,
+    held: !!boardPos.held, holdReason: boardPos.holdReason ? String(boardPos.holdReason) : null };
   const activeDisplay = new Set(state.trtcOfficialRoster.vehicles.map(vehicle =>
     `${vehicle.line}|${vehicle.vehicleId}`));
   for (const key of _trtcOfficialDisplay.keys()) if (!activeDisplay.has(key)) _trtcOfficialDisplay.delete(key);
@@ -16953,11 +16956,14 @@ function updateMetroBadge() {
     if (!roster) { el.hidden = true; return; }
     const official = trtcOfficialRosterLive();
     el.hidden = false;
+    const held = official && !!roster.held;
     el.classList.remove('anom');
-    el.classList.toggle('est', !official);
-    el.textContent = official ? '官方即時' : '班表備案';
+    el.classList.toggle('est', !official || held);
+    el.textContent = official ? (held ? '官方續推' : '官方即時') : '班表備案';
     el.title = official
-      ? `畫面名冊與到站時刻來自北捷即時資料，共 ${roster.vehicles.length} 台`
+      ? (held
+        ? `北捷即時資料暫時讀不到，已知 ${roster.vehicles.length} 台列車沿原官方逐站時間繼續到終點`
+        : `畫面名冊與到站時刻來自北捷即時資料，共 ${roster.vehicles.length} 台`)
       : '尚未取得北捷即時名冊，或時鐘已離開「現在」，目前使用班表備案';
     return;
   }
