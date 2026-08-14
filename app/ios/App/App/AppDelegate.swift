@@ -49,8 +49,11 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         // 捷運看板小工具的資料視野只有 ~12 分鐘,WidgetKit 又不保證照 policy 刷新——
         // 真機回饋(08-14):視野走完後小工具長時間掛著「沒有班次資訊」＋舊時戳。
         // 使用者開 App 就是最強的刷新訊號:每次回前景都叫小工具重抓一輪(這個 reload
-        // 不吃 WidgetKit 的排程預算)。只刷捷運看板,不碰發車看板(它有自己的管線)。
-        WidgetCenter.shared.reloadTimelines(ofKind: "MetroBoardWidget")
+        // 不吃 WidgetKit 的排程預算)。
+        // 🔴 一律 reloadAllTimelines,不准指名 kind——真機回饋(08-14):只指名北捷小卡的
+        //    結果就是混合大卡(kind 不同)開 App 也不刷新;之後每加一張卡這裡就會再漏一張,
+        //    all 一次到位(發車看板吃 App Group 班表,回前景重讀同樣受益)。
+        WidgetCenter.shared.reloadAllTimelines()
     }
 
     func applicationWillTerminate(_ application: UIApplication) {
