@@ -60,7 +60,7 @@ const UNIT_FUNCTIONS = [
   'trtcOfficialRosterEnabled', 'trtcOfficialRosterActive', 'trtcOfficialRosterForLine',
   'trtcOfficialCoastCycle', 'trtcOfficialCoastPosition', 'trtcOfficialDeparturePosition',
   'trtcOfficialTimelinePosition', 'trtcOfficialVehiclePosition', 'trtcOfficialPositionProgress',
-  'trtcOfficialPositionAtProgress', 'trtcOfficialDisplayPosition', 'trtcOfficialVehicleInfo',
+  'trtcOfficialPositionAtProgress', 'trtcOfficialDirectionPrevious', 'trtcOfficialDisplayPosition', 'trtcOfficialVehicleInfo',
   'trtcOfficialRenderItems', 'trtcOfficialVehicleGlyph', 'trtcOfficialSameTarget',
 ];
 
@@ -187,7 +187,17 @@ function evaluateUnit(api) {
     { ...coastVehicle, vehicleId: 'coast-r', dir: 1, dest: 0, from: 9, to: 8 }, 3660);
   const G = long && long.lat > LINE.stations[7].lat && long.lat < LINE.stations[8].lat &&
     done === null && reverseCoast && reverseCoast.lat < LINE.stations[2].lat;
-  return { A, B, C, D, E, G };
+  const forwardPrevious = api.trtcOfficialDirectionPrevious(LINE, timelineVehicle, half);
+  const reversePrevious = api.trtcOfficialDirectionPrevious(LINE, reverseVehicle, reverseHalf);
+  const I = forwardPrevious && reversePrevious &&
+    api.trtcOfficialPositionProgress(LINE, timelineVehicle, forwardPrevious) <
+      api.trtcOfficialPositionProgress(LINE, timelineVehicle, half) &&
+    api.trtcOfficialPositionProgress(LINE, reverseVehicle, reversePrevious) <
+      api.trtcOfficialPositionProgress(LINE, reverseVehicle, reverseHalf) &&
+    extractFunction(INDEX, 'drawTrtcOfficialVehicle')
+      .includes('trtcOfficialDirectionPrevious(ln, item.vehicle, item.pos)') &&
+    !extractFunction(INDEX, 'drawTrtcOfficialVehicle').includes('nowEpoch - DIR_DT_SEC');
+  return { A, B, C, D, E, G, I };
 }
 
 function buildIngestApi(holdOverride = null, label = 'ingest') {
@@ -287,6 +297,8 @@ await mutation('無官方車次就把橢圓牌降成圓點', 'C', 'trtcOfficialV
 await mutation('vehicleId 相同就忽略路線', 'E', 'trtcOfficialSameTarget',
   "String(followLine || '') === String(hitLine || '')",
   "String(followLine || '') === String(followLine || '')");
+await mutation('官方箭頭改指向路線前方而不是後方', 'I', 'trtcOfficialDirectionPrevious',
+  'progress - delta, pos', 'progress + delta, pos');
 
 const holdOriginal = extractFunction(INDEX, 'trtcOfficialRosterHold');
 const holdMutant = replaceExactly(holdOriginal,

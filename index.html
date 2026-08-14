@@ -3558,6 +3558,7 @@
            內容 li 上限 8 條(li.grp 是標題不算)。 -->
       <ul class="foot-list foot-recent">
         <li class="grp">最近更新</li>
+        <li data-cl-of="trtcdirection"><span class="d">8/14</span><span>文湖線列車的位置與方向箭頭改用同一條行車路徑，官方到站時間修正時不再出現車往前、箭頭卻指向後方</span></li>
         <li data-cl-of="trtcidentityguard"><span class="d">8/14</span><span>台北捷運再加一道防跳車：每台車都要有官方站牌的出生紀錄；沒有車次號時會把同一班在各站的倒數合成一台，車次號若前後矛盾只會退回路線代號，不會把車拉到遠方</span></li>
         <li data-cl-of="trtcvehiclelife"><span class="d">8/14</span><span>台北捷運的車從起點出現後，會沿每一站的官方到站時間一路認到終點；短暫讀不到或時間修正時不再消失、重生或往回跳，文湖線也恢復 BR 橢圓車牌</span></li>
         <li data-cl-of="trtcofficialroster"><span class="d">8/13</span><span>台北捷運改用官方即時資訊決定車子在哪，依車站看板的時刻到站，不再對不上班表就消失</span></li>
@@ -3565,7 +3566,6 @@
         <li data-cl-of="tcstopsalign"><span class="d">8/12</span><span>列車資訊卡的停靠站時刻表：表頭「到／開」對齊下方的時刻欄了</span></li>
         <li data-cl-of="landscape"><span class="d">8/11</span><span>手機橫著拿也能用了：面板改成靠右側邊欄，跟車時列車不再被蓋住（謝謝網友回報）</span></li>
         <li data-cl-of="stationtransfer"><span class="d">8/10</span><span>點任何一個車站看板，都會告訴你這站可以轉乘哪些別的鐵道系統；跟車時「下一站」旁邊也會提醒能換哪幾條線</span></li>
-        <li data-cl-of="nearfollowmutex"><span class="d">8/10</span><span>開「附近車站」或「隨機跟隨」時會自動收起另一個，地圖鏡頭只聽一邊的</span></li>
       </ul>
       <!-- 第二層:完整歷史。刻意不掛 .foot-box 類名——placeFootBoxes() 用
            `.site-foot .foot-box` 搬移面板,巢狀同名會被當成另一個盒子一起搬走。 -->
@@ -3583,6 +3583,7 @@
         <li><span class="d">7/10</span><span>高鐵、桃園機捷、淡海輕軌、安坑輕軌加入路網</span></li>
         <li><span class="d">7/10</span><span>環島觀光列車一分為二：往東「山海號」、往西「平原號」</span></li>
         <li class="grp">即時動態與誤點</li>
+        <li data-cl="trtcdirection"><span class="d">8/14</span><span>修正文湖線列車偶爾看似倒著跑：車牌位置已會在官方到站時間修正時防止倒退，但方向箭頭曾另讀修正前的時間線，兩者可能互相矛盾；現在箭頭直接取車牌目前位置沿行車方向的路線切線，兩個方向都不會反指。</span></li>
         <li data-cl="trtcidentityguard"><span class="d">8/14</span><span>修正環狀線同一班車在相鄰站的倒數曾被畫成兩台，以及車次號前後變動時列車可能瞬間跳到遠方：每台車都必須保留第一次出現在官方站牌的出生紀錄，班表與推算不能憑空生車；沒有車次號時，現在會依沿線官方到站時間的先後分出每一班；已認到的車次號若後續矛盾，該車只會退回 Y、BR 等路線代號，不換號也不改變原本位置。</span></li>
         <li data-cl="trtcvehiclelife"><span class="d">8/14</span><span>台北捷運的每台車改成從起點倒數出現時建立身分，同一台車在多站看板的時間會合在一起，沿官方逐站到站時間一路跑到終點；短暫讀不到、車次沒配上或到站時間修正都不會讓車消失、重生或往回跳。小碧潭與新北投支線因官方只提供起點倒數，另以單段行車時間跑到對端後收車；文湖線沒有官方車次號時仍保留 BR 橢圓車牌。</span></li>
         <li data-cl="trtcofficialroster"><span class="d">8/13</span><span>台北捷運改以官方即時資訊決定地圖上有哪些車：車子依車站看板的官方時刻到站，認不出車次的也照樣顯示，不再因配不到班表而消失。</span></li>
@@ -4013,7 +4014,8 @@
 //    那份內容——兩份不同內容共用同一個號，正式站就只能靠 md5 辨識。本輪推 v0813d 收掉。
 // 2026-08-14 北捷官方車生命週期重整：從起點沿逐站 timeline 到終點，缺訊不刪車，顯示進度不倒退。
 // v0814c：無車號逐站倒數按官方到站 epoch 分車；車號衝突只退回路線牌，不准拖車跳站。
-const BUILD = 'v0814c';
+// v0814d：官方車的方向箭頭與防倒退車牌共用同一條顯示路徑，不再因 ETA 修訂反指。
+const BUILD = 'v0814d';
 // 2026-08-13 起預設開啟（使用者親試預覽後裁示上線）：北捷畫車依官方即時名冊，班表只是備案。
 // 保留 ?officialroster=0 當逃生口——要退回班表路徑不必回滾部署，加個參數即可對照。
 // 🔴 這個函式會被 verify_official_roster_frontend 抽出來丟進 VM 單獨執行——
@@ -4645,6 +4647,27 @@ function trtcOfficialPositionAtProgress(ln, vehicle, progress, raw) {
   const fraction = step > 0 ? physical - from : from - physical;
   const pos = posBetweenStations(ln, from, to, fraction);
   return pos ? { ...raw, ...pos, fraction, atStation: false } : raw;
+}
+// 官方車箭頭只看「目前顯示位置沿該方向的路線切線」。車牌已用顯示水位防倒退，箭頭若再拿
+// 本輪原始 ETA 回看 8 秒，ETA 修訂時就會和車牌分屬兩條時間軸，出現箭頭反向。這裡取規格化
+// route progress 的後方小距離；起點沒有後方時，用前方點鏡射出同方向向量。
+function trtcOfficialDirectionPrevious(ln, vehicle, pos) {
+  const progress = trtcOfficialPositionProgress(ln, vehicle, pos);
+  if (!Number.isFinite(progress)) return null;
+  for (const delta of [.02, .08, .2]) {
+    const behind = trtcOfficialPositionAtProgress(ln, vehicle, progress - delta, pos);
+    if (behind && (Math.abs(Number(behind.lat) - Number(pos.lat)) > 1e-10 ||
+        Math.abs(Number(behind.lon) - Number(pos.lon)) > 1e-10)) return behind;
+  }
+  for (const delta of [.02, .08, .2]) {
+    const ahead = trtcOfficialPositionAtProgress(ln, vehicle, progress + delta, pos);
+    if (ahead && (Math.abs(Number(ahead.lat) - Number(pos.lat)) > 1e-10 ||
+        Math.abs(Number(ahead.lon) - Number(pos.lon)) > 1e-10)) {
+      return { ...pos, lat: Number(pos.lat) * 2 - Number(ahead.lat),
+        lon: Number(pos.lon) * 2 - Number(ahead.lon), atStation: false };
+    }
+  }
+  return null;
 }
 // ETA 修訂只改官方 deadline，不准讓同一 vehicleId 在畫面倒退。往前修時依剩餘 deadline
 // 平滑追上；到站當格以準時為優先。分頁睡眠／時鐘跳動超過 5 秒直接重對齊，避免長時間追趕。
@@ -5544,7 +5567,7 @@ function drawTrtcOfficialVehicle(ln, item, showTrain, inView, collectHit, nowEpo
   else drawDot(cp, ln.color);
   const halfW = showTrain && label ? trtcOfficialTagHalfWidth(label) : 6;
   if (state.dirArrow && showTrain && inView(cp)) {
-    const previous = trtcOfficialVehiclePosition(ln, item.vehicle, nowEpoch - DIR_DT_SEC);
+    const previous = trtcOfficialDirectionPrevious(ln, item.vehicle, item.pos);
     const cpB = previous ? map.latLngToContainerPoint([previous.lat, previous.lon]) : null;
     let slot = _trtcOfficialDirSlots.get(item.vehicleId);
     if (!slot) _trtcOfficialDirSlots.set(item.vehicleId, slot = {});
@@ -6319,8 +6342,9 @@ function drawDot(p, color) {
   ctx.fillStyle = color; ctx.globalAlpha = 1; ctx.fill();
 }
 
-// 列車行進方向箭頭(state.dirArrow;車號牌前緣的小三角):方向由「回看 DIR_DT 秒的位置」→「現在位置」推得,
-// 與拖尾同一套「位置是模擬時間純函式」的作法,里程遞增/遞減方向都自然正確(不看排序索引)。
+// 列車行進方向箭頭(state.dirArrow;車號牌前緣的小三角):一般列車由「回看 DIR_DT 秒的位置」→
+//「現在位置」推得；北捷官方名冊則由目前顯示位置的路線切線提供同等的前後點，避免 ETA 修訂後反指。
+// 里程遞增/遞減方向都由幾何前後點自然決定，不看排序索引。
 // 牌永遠畫真實位置,箭頭只是加繪、不位移牌(專案鐵律)。填色=車色、外描=pal().tagOutline,亮暗/衛星皆清楚(同車號牌處理)。
 // 每幀熱路徑:不配置暫存物件(只多一次 trainPos+latLngToContainerPoint,與既有拖尾/命中同量級)。
 const DIR_DT_SEC = 8; // 回看秒數:取切線用,夠穩又不至於在轉彎處失真

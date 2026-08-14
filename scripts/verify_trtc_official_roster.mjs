@@ -236,6 +236,31 @@ function scenarioNumberJumpProtection(reduce) {
   return { id, first, conflict, farOnly, later };
 }
 
+function scenarioAnonymousFleetContinuity(reduce, dir) {
+  const model = { lines: new Map([['BR', line(10, 75)]]) };
+  const forward = dir === 2;
+  const firstTargets = forward ? [2, 5, 8] : [7, 4, 1];
+  const secondTargets = firstTargets.map(value => value + (forward ? 1 : -1));
+  const makeRows = (targets, baseEpoch) => targets.map((to, index) => row({
+    line: 'BR', dir, from: to + (forward ? -1 : 1), to,
+    dest: forward ? 9 : 0, arrEpoch: baseEpoch + index * 20, no: '', run: 75,
+  }));
+  const first = reduce(args(makeRows(firstTargets, 16075), null, 16000,
+    `br-anonymous-${dir}-1`, model));
+  const second = reduce(args(makeRows(secondTargets, 16150), first, 16020,
+    `br-anonymous-${dir}-2`, model));
+  const ordered = state => [...state.vehicles].sort((a, b) =>
+    Number(a.routePosition) - Number(b.routePosition));
+  const before = ordered(first), after = ordered(second);
+  return {
+    first, second,
+    sameOrder: before.length === 3 && after.length === 3 &&
+      before.every((vehicle, index) => vehicle.vehicleId === after[index]?.vehicleId),
+    advances: before.map((vehicle, index) =>
+      Number(after[index]?.routePosition) - Number(vehicle.routePosition)),
+  };
+}
+
 function evaluate(reduce) {
   const result = {};
   const assess = (name, fn) => {
@@ -353,6 +378,14 @@ function evaluate(reduce) {
     numberJump.farOnly.diagnostics.rejectedNumberJumps === 1 &&
     numberJump.farOnly.diagnostics.rejectedNumberJumpDetails?.[0]?.priorTo === 2 &&
     numberJump.farOnly.diagnostics.rejectedNumberJumpDetails?.[0]?.currentTo === 19);
+
+  for (const dir of [1, 2]) {
+    let fleet;
+    try { fleet = scenarioAnonymousFleetContinuity(reduce, dir); } catch { fleet = null; }
+    assess(`BR 無號三列方向${dir}跨輪各自接回原 ID、不交叉飛奔`, () => fleet &&
+      fleet.sameOrder && fleet.advances.every(value => value === 1) &&
+      fleet.second.diagnostics.births === 0 && fleet.second.diagnostics.ignoredObservations === 0);
+  }
   return result;
 }
 
