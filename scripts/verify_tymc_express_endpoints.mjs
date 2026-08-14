@@ -26,9 +26,10 @@ const line = JSON.parse(fs.readFileSync(path.join(ROOT, 'data/tymc.json'), 'utf8
 const times = JSON.parse(fs.readFileSync(path.join(ROOT, 'data/tymc_times.json'), 'utf8'));
 
 // 1/2：站序索引是本檔所有判準的地基，先驗它
-check('G1 站序索引：index 20＝環北站、index 21＝老街溪站',
-  line.stations[HUANBEI].name === '環北站' && line.stations[LAOJIEXI].name === '老街溪站',
-  `20=${line.stations[HUANBEI].name}、21=${line.stations[LAOJIEXI].name}`);
+check('G1 站序索引：index 0＝台北車站、index 17＝高鐵桃園站、index 20＝環北站、index 21＝老街溪站',
+  line.stations[TAIPEI].name === '台北車站' && line.stations[HSR].name === '高鐵桃園站' &&
+    line.stations[HUANBEI].name === '環北站' && line.stations[LAOJIEXI].name === '老街溪站',
+  `0=${line.stations[TAIPEI].name}、17=${line.stations[HSR].name}、20=${line.stations[HUANBEI].name}、21=${line.stations[LAOJIEXI].name}`);
 
 // 把產物攤平成 { days, stops: number[] } 的班次清單
 const trips = [];
@@ -55,9 +56,13 @@ check('A2 平日與假日各至少一班完整的北上直達車（環北→…�
   northFull.some(t => isWeekday(t.set)) && northFull.some(t => !isWeekday(t.set)),
   `共 ${northFull.length} 班完整符合 ${same(NORTH_EXPRESS)}；平日 ${northFull.filter(t => isWeekday(t.set)).length}、假日 ${northFull.filter(t => !isWeekday(t.set)).length}`);
 
-// 直達車的辨識特徵：不停 index 1（A2 三重）之類的中間站，且首站是台北車站或環北
+// 直達車「樣態」候選：南下從台北車站起、北上到台北車站止；兩者皆為最多 9 站且包含高鐵桃園。
+// 不用精確序列篩選，因 B 系列要抓的正是端點錯掉的班次，精確序列會先把違規班次濾掉。
 const southExpressish = trips.filter(t => t.stops[0] === TAIPEI && t.stops.length <= 9 && t.stops.includes(HSR));
 const northExpressish = trips.filter(t => t.stops[t.stops.length - 1] === TAIPEI && t.stops.length <= 9 && t.stops.includes(HSR));
+
+check('G3 南下直達車樣態分母閘門：真的解析出候選班次（這條若紅，B1／B2 的「零違規」全部是假綠）',
+  southExpressish.length > 0, `解析出 ${southExpressish.length} 班`);
 
 const stopShort = southExpressish.filter(t => t.stops[t.stops.length - 1] === HSR);
 check('B1 南下直達車不得終止於高鐵桃園（缺一站的原症狀）',
@@ -66,6 +71,9 @@ check('B1 南下直達車不得終止於高鐵桃園（缺一站的原症狀）'
 const stopLao = southExpressish.filter(t => t.stops.includes(LAOJIEXI));
 check('B2 南下直達車不得包含老街溪（門檻放寬到四步會補成這裡）',
   stopLao.length === 0, `包含 index 21 的有 ${stopLao.length} 班`);
+
+check('G4 北上直達車樣態分母閘門：真的解析出候選班次（這條若紅，B3／B4 的「零違規」全部是假綠）',
+  northExpressish.length > 0, `解析出 ${northExpressish.length} 班`);
 
 const startLao = northExpressish.filter(t => t.stops[0] === LAOJIEXI);
 check('B3 北上直達車不得以老街溪起頭（多一站的原症狀）',
