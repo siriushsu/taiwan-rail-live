@@ -23,6 +23,21 @@ export function assertAndroidMainActivityDoesNotPreInitWindow(mainActivity) {
     'Android MainActivity 不可手動呼叫 EdgeToEdge.enable()——會在 Capacitor 套用 NoActionBar 前初始化 launch theme，讓上下白帶回歸');
 }
 
+// Android WebView <140 的 env(safe-area-inset-*) 有已知錯誤；Capacitor 8 會把正確值注入
+// --safe-area-inset-*。所有版面只准從 --sa-* 別名取值，否則三鍵導覽／手勢條會再次蓋住貼底控制。
+export function assertAndroidSafeAreaCssContract(html) {
+  for (const [short, edge] of [['t', 'top'], ['r', 'right'], ['b', 'bottom'], ['l', 'left']]) {
+    const pattern = new RegExp(`--sa-${short}:\\s*var\\(--safe-area-inset-${edge},\\s*env\\(safe-area-inset-${edge},\\s*0px\\)\\)`);
+    assert(pattern.test(html),
+      `CSS --sa-${short} 必須優先讀 Capacitor --safe-area-inset-${edge}，再退回 env(safe-area-inset-${edge})`);
+  }
+  assert(/body\.ambient \.controls\s*\{[^}]*bottom:\s*calc\(8px \+ var\(--sa-b\)\)/s.test(html),
+    'Android 放空模式底部控制未避讓 --sa-b——系統導覽列會再次蓋住「離開放空」');
+  assert(/\.topbar \.grouptabs \.gtab\s*\{[^}]*width:\s*36px[^}]*height:\s*36px/s.test(html)
+      && /\.topbar \.alert-chip\s*\{[^}]*width:\s*36px[^}]*height:\s*36px/s.test(html),
+    'Android 手機頂列必須維持緊湊 36px 幾何——360dp＋營運公告時「捷」會被裁掉');
+}
+
 // Stadia 官方要求的逐字署名(prepare-web 注入、本檔驗證,單一事實來源)
 export const STADIA_ATTRIBUTION = '&copy; <a href="https://stadiamaps.com/" target="_blank">Stadia Maps</a> &copy; <a href="https://openmaptiles.org/" target="_blank">OpenMapTiles</a> &copy; <a href="https://www.openstreetmap.org/copyright" target="_blank">OpenStreetMap</a>';
 
@@ -486,6 +501,7 @@ export async function verifyRelease({
   const repoIndex = await readFile(join(repoRoot, 'index.html'), 'utf8');
   const repoBuild = extractBuild(repoIndex);
   assert(repoBuild, '根目錄 index.html 找不到 BUILD 版本戳記');
+  assertAndroidSafeAreaCssContract(repoIndex);
 
   // 金鑰不得寫死進公開 repo（稽核 2026-07-26）：2026-07-25 的 commit 5aab5c4 把網站用的 Esri
   // token 直接寫進 index.html，於是隨 public repo 推上 GitHub、也印在 railisland.tw 的網頁原始碼裡。
