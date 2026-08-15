@@ -188,14 +188,23 @@ check(tiedEmpty.roster.rows.length === 1 && tiedLate.roster.rows.length === 1 &&
   tiedLate.roster.rows[0].vehicleId === tiedEmpty.roster.rows[0].vehicleId,
   'acquisition 毫秒相同時 deterministic frame rank 防止時間軸 ping-pong');
 const freshnessBarrierDb = new FakeD1();
-await api.trtcPersistOfficialRoster(args(freshnessBarrierDb, [row(0, 1, 120, 'BARRIER')], 100, 100,
-  '2026-08-13', 1000));
+const barrierFirst = await api.trtcPersistOfficialRoster(args(freshnessBarrierDb,
+  [row(0, 1, 120, 'BARRIER')], 100, 100, '2026-08-13', 1000));
+// 第二次刻意帶較晚 nowEpoch（同 sourceRevision）：若 reducer 被重跑，observedEpoch 會變 104。
 const barrierRefresh = await api.trtcPersistOfficialRoster(args(freshnessBarrierDb,
-  [row(0, 1, 120, 'BARRIER')], 100, 100, '2026-08-13', 1002));
+  [row(0, 1, 120, 'BARRIER')], 104, 100, '2026-08-13', 1002));
 const barrierLate = await api.trtcPersistOfficialRoster(args(freshnessBarrierDb,
   [row(1, 2, 140, 'OTHER')], 100, 100, '2026-08-13', 1001));
 check(barrierRefresh.writes === 1 && barrierLate.roster.rows[0].no === 'BARRIER' && barrierLate.writes === 0,
   '同內容較晚觀測仍更新 freshness barrier，阻擋夾在中間的遲到異 frame');
+check(barrierRefresh.roster.sourceObservedEpoch === 1002 &&
+  barrierRefresh.roster.nowEpoch === barrierFirst.roster.nowEpoch &&
+  barrierRefresh.roster.nextSequence === barrierFirst.roster.nextSequence &&
+  barrierRefresh.roster.vehicles.length === 1 &&
+  barrierRefresh.roster.vehicles[0].vehicleId === barrierFirst.roster.vehicles[0].vehicleId &&
+  barrierRefresh.roster.vehicles[0].observedEpoch === barrierFirst.roster.vehicles[0].observedEpoch &&
+  JSON.stringify(barrierRefresh.roster.diagnostics) === JSON.stringify(barrierFirst.roster.diagnostics),
+  '同 frame 不重跑 reducer：只更新 barrier metadata，vehicles/nextSequence/diagnostics 原封不動');
 
 const newer = api.trtcOfficialRosterSnapshot(model, [row(2, 3, 160, '101')], second.roster,
   '2026-08-13', 130, 130);
@@ -210,7 +219,7 @@ check(nextDay.roster.day === '2026-08-14' && nextDay.roster.rows.length === 1 &&
   nextDay.roster.rows[0].vehicleId.includes('2026-08-14') && nextDay.roster.rows[0].vehicleId !== firstId,
   '營運日切換不沿用前一日 vehicleId／alias');
 
-// 無 D1 仍以 canonical 排序分配 deterministic IDs；duplicate occurrence 各有一車一 ID。
+// 無 D1 仍以 canonical 排序分配 deterministic IDs；完全相同的兩列合一（不製造第二個身分）。
 const dupRows = [row(0, 1, 120, 'DUP'), row(0, 1, 120, 'DUP'), row(1, 2, 140, '')];
 const readonlyA = await api.trtcPersistOfficialRoster(args(null, dupRows, 100, 100));
 const readonlyB = await api.trtcPersistOfficialRoster(args(null, [dupRows[2], dupRows[0], dupRows[1]], 100, 100));
@@ -219,8 +228,9 @@ check(readonlyA.degraded && readonlyA.rosterStateSource === 'deterministic-read-
   'D1 缺席明確標示 deterministic read-only degraded');
 check(JSON.stringify(canonical(readonlyA)) === JSON.stringify(canonical(readonlyB)),
   'rows shuffle 不改 canonical multiset 的 ID 對應');
-check(readonlyA.roster.rows.length === 3 && new Set(readonlyA.roster.rows.map(x => x.vehicleId)).size === 3,
-  'duplicate occurrence 仍維持一 row 一個唯一 vehicleId');
+check(readonlyA.roster.rows.length === 2 && new Set(readonlyA.roster.rows.map(x => x.vehicleId)).size === 2 &&
+  readonlyA.roster.diagnostics.duplicateRowsCollapsed === 1,
+  '完全相同的官方列合一：不可區分的證據不得變成兩台車');
 check(readonlyA.roster.rows.every(r => readonlyA.roster.vehicles.some(v => !v.extension &&
   v.vehicleId === r.vehicleId && v.line === r.line && v.dir === r.dir && v.from === r.from &&
   v.to === r.to && v.dest === r.dest && v.run === r.run && v.arrEpoch === r.arrEpoch)),

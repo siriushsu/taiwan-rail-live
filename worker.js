@@ -1259,6 +1259,27 @@ function trtcOfficialRosterSnapshot(model, rows, prior, day, nowEpoch, sourceRev
     rows: trtcOfficialRowsFromRoster(roster) };
 }
 
+// 同一 frame 不重跑 reducer：相同證據只能建立一次身分（2026-08-15 幽靈車根因之一——
+// 同 frame 較晚 observation 落到 snapshot 重放，每次重放都有再出生的機會）。
+// 較晚 observation 仍要寫進 freshness barrier 擋住其後夾入的遲到異 frame，
+// 但 vehicles/rows/nextSequence/diagnostics 一律原封不動，只更新 observation metadata。
+function trtcOfficialNextState(model, rows, priorState, day, nowEpoch, sourceRevision, sourceFrameKey,
+  sourceObservedEpoch) {
+  if (priorState && trtcOfficialRevision(priorState.sourceRevision) === trtcOfficialRevision(sourceRevision) &&
+      String(priorState.sourceFrameKey || '') === sourceFrameKey) {
+    return { ...priorState, sourceObservedEpoch };
+  }
+  const next = trtcOfficialRosterSnapshot(model, rows, priorState, day, nowEpoch, sourceRevision, sourceFrameKey);
+  next.sourceObservedEpoch = sourceObservedEpoch;
+  // 復原檢查哨兵：同一份出生證據對應多個活著的 ID＝幽靈車正在形成。只告警不改行為。
+  const dupSignatures = next.diagnostics && Number(next.diagnostics.duplicateBirthSignatures) || 0;
+  if (dupSignatures > 0) {
+    console.warn(`[trtc official roster] 幽靈車哨兵：${dupSignatures} 組出生證據對應多個 vehicleId` +
+      `（duplicateRowsCollapsed=${next.diagnostics && next.diagnostics.duplicateRowsCollapsed || 0}）`);
+  }
+  return next;
+}
+
 function trtcD1Changes(result) {
   return Number(result && result.meta && result.meta.changes) || Number(result && result.changes) || 0;
 }
@@ -1299,9 +1320,8 @@ async function trtcPersistOfficialRoster({ env, model, rows, day, nowEpoch, sour
           String(current.state.sourceFrameOrder || '') >= sourceFrameOrder) {
         return { roster: current.state, rosterStateSource: 'd1-current', degraded: false, writes: 0 };
       }
-      const next = trtcOfficialRosterSnapshot(model, rows, current.state, day, nowEpoch, sourceRevision,
-        sourceFrameKey);
-      next.sourceObservedEpoch = sourceObservedEpoch;
+      const next = trtcOfficialNextState(model, rows, current.state, day, nowEpoch, sourceRevision,
+        sourceFrameKey, sourceObservedEpoch);
       const text = JSON.stringify(next);
       let result;
       if (current.text == null) {
@@ -1327,8 +1347,8 @@ async function trtcPersistOfficialRoster({ env, model, rows, day, nowEpoch, sour
           String(latest.state.sourceFrameOrder || '') >= sourceFrameOrder))) {
       return { roster: latest.state, rosterStateSource: 'd1-current-after-conflict', degraded: false, writes: 0 };
     }
-    return { roster: trtcOfficialRosterSnapshot(model, rows, latest.state, day, nowEpoch, sourceRevision,
-      sourceFrameKey),
+    return { roster: trtcOfficialNextState(model, rows, latest.state, day, nowEpoch, sourceRevision,
+      sourceFrameKey, sourceObservedEpoch),
       rosterStateSource: 'cas-conflict-read-only', degraded: true, writes: 0 };
   } catch (error) {
     console.warn('[trtc official roster] D1 不可用，改走 deterministic read-only:',

@@ -85,13 +85,18 @@ function canonicalRows(model, rows) {
     const ak = rowKey(a), bk = rowKey(b);
     return ak < bk ? -1 : ak > bk ? 1 : 0;
   });
-  const occurrences = new Map();
+  // 完全相同的列合一（fail closed）：line/dir/起訖/dest/ETA/車號/timeline 全同的兩筆，
+  // 現有證據無法證明是兩個身分；各發一個 ID 就是 2026-08-15 斷訊恢復後幽靈車的來源之一。
+  // 顯示一台永遠比製造幽靈安全；合掉幾筆記進 duplicateRowsCollapsed 供哨兵監看。
+  const byKey = new Map();
+  let duplicateRowsCollapsed = 0;
   for (const row of normalized) {
     const key = rowKey(row);
-    row.occurrence = occurrences.get(key) || 0;
-    occurrences.set(key, row.occurrence + 1);
+    if (byKey.has(key)) { duplicateRowsCollapsed++; continue; }
+    row.occurrence = 0;
+    byKey.set(key, row);
   }
-  return normalized.sort(compareRows);
+  return { rows: [...byKey.values()].sort(compareRows), duplicateRowsCollapsed };
 }
 
 // 一台車從起點到終點只有一個身分。官方修訂終點標示時，不得因 dest 換群而重發 ID。
@@ -363,7 +368,7 @@ export function reduceOfficialRoster({ model, rows, prior = null, day, nowEpoch,
   const normalizedDay = String(day || '').trim();
   const epoch = finite(nowEpoch, 'nowEpoch');
   if (!normalizedDay) throw new TypeError('official roster day 不可為空');
-  const current = canonicalRows(model, rows);
+  const { rows: current, duplicateRowsCollapsed } = canonicalRows(model, rows);
   const priorVehicles = previousVehicles(prior, normalizedDay);
   const coldStart = !prior || String(prior.day || '') !== normalizedDay;
   const noCounts = new Map();
@@ -399,6 +404,10 @@ export function reduceOfficialRoster({ model, rows, prior = null, day, nowEpoch,
     assigned.set(index, vehicleId); usedIds.add(vehicleId); hardNoMatches++;
   }
 
+  // 🔴 2026-08-15 實測記錄：這裡曾加過一層「端點 occurrence 專用配對」（起點 pending ID
+  // 先於全線 DP 分配）。拿當日 40 輪真語料量測，它讓車數穩定多出 6 台、births 多 6 次——
+  // 貪婪搶 ID 會破壞下面 alignOrdered 的最大配對數最優解，反而製造幽靈車。已移除。
+  // 起點身分的延續由 alignOrdered 負責，實測冷啟動 40 輪車數 99–109、重複出生證據 0。
   const groupNames = new Set();
   current.forEach((row, index) => { if (!assigned.has(index)) groupNames.add(groupKey(row)); });
   for (const key of [...groupNames].sort()) {
@@ -461,6 +470,16 @@ export function reduceOfficialRoster({ model, rows, prior = null, day, nowEpoch,
   if (vehicles.some(x => !x.birthEvidence || x.birthEvidence.source !== 'official-board')) {
     throw new Error('official roster 每台車都必須能追溯到官方站牌出生列');
   }
+  // 復原檢查哨兵：同一份出生證據不得對應兩個活著的 ID。此值 >0 即是幽靈車正在形成，
+  // 只計數不改行為（嚴重度歸嚴重度、機率歸機率），worker 端據此告警。
+  const birthSignatures = new Map();
+  for (const vehicle of vehicles) {
+    const evidence = vehicle.birthEvidence;
+    const signature = [evidence.sourceRevision, evidence.line, evidence.dir, evidence.from,
+      evidence.to, evidence.arrEpoch, evidence.observedEpoch].join('|');
+    birthSignatures.set(signature, (birthSignatures.get(signature) || 0) + 1);
+  }
+  const duplicateBirthSignatures = [...birthSignatures.values()].filter(count => count > 1).length;
 
   return {
     schema: OFFICIAL_ROSTER_SCHEMA, day: normalizedDay, nowEpoch: epoch, sourceRevision,
@@ -476,6 +495,7 @@ export function reduceOfficialRoster({ model, rows, prior = null, day, nowEpoch,
       rejectedNumberJumpDetails: [...numberContradictions.values()].sort((a, b) =>
         a.line.localeCompare(b.line) || a.dir - b.dir || a.vehicleId.localeCompare(b.vehicleId)),
       duplicateOfficialNos: [...noCounts.values()].filter(count => count > 1).length,
+      duplicateRowsCollapsed, duplicateBirthSignatures,
     },
   };
 }
