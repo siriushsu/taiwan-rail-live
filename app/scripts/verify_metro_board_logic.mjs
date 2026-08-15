@@ -137,5 +137,56 @@ ok('S1 全部過期時 stale=true', late.stale === true);
 ok('S2 全部過期時不留任何列', late.rows.length === 0);
 ok('S3 未過期時 stale=false', gotTaipei.stale === false);
 
+// ── 🔴 資料時刻必須是「資料的時刻」,不是「我抓取的時刻」 ──
+// 2026-08-15 事故:dataAt 寫死成 now,於是任何一層快取(URLCache／CDN／SWR)送來的舊主體
+// 都被戳上當下時刻 ⇒ 卡上寫「14:34 更新」、內容卻是 13:25 的班次,每一站都空。
+// 全套 23 條判準沒有一條看得出來,因為沒有一條在問「這份資料多老」。
+// 判準不同源:期望值直接從 fixture 的 at 字串用 Date.parse 獨立算,不碰 Swift 那條路徑。
+// 🔴 每個情境的 now 都刻意離 at 很遠(數萬秒),寫死 now 的舊實作必轉紅——同源時「相等」是零資訊。
+for (const [kind, sys, file] of [['trtc', 'trtc', 'trtc-live.json'],
+                                 ['min', 'krtc', 'krtc-live.json'],
+                                 ['min', 'tymc', 'tymc-live.json']]) {
+  const raw = JSON.parse(readFileSync(join(ROOT, 'app/fixtures/metro', file), 'utf8'));
+  const expAt = Date.parse(raw.at) / 1000;
+  const st = kind === 'trtc' ? '台北車站' : DATA.alias[sys][raw.rows[0].s];
+  const NOW_FAR = expAt + 50000;           // 與 at 差 50000 秒:寫死 now 的話這條必紅
+  const got = run(kind, st, NOW_FAR, file, sys);
+  ok(`A-${sys}1 🔴 dataAt 取自回應自帶的 at,不是抓取時刻`,
+     Math.abs(got.dataAt - expAt) < 0.001,
+     `got ${got.dataAt} vs at ${expAt}(now 給的是 ${NOW_FAR})`);
+  ok(`A-${sys}2 正向對照:這個情境的 now 真的與 at 不同(否則上一條空過)`,
+     Math.abs(NOW_FAR - expAt) > 1, `now=${NOW_FAR} at=${expAt}`);
+}
+// 缺 at 的回應要退回抓取時刻,不能整份作廢(端點欄位若變動,寧可少一點資訊)。
+{
+  const raw = JSON.parse(readFileSync(join(ROOT, 'app/fixtures/metro/trtc-live.json'), 'utf8'));
+  delete raw.at;
+  const noAt = join(dir, 'no-at.json');
+  writeFileSync(noAt, JSON.stringify(raw));
+  writeFileSync(join(dir, 'alias.json'), JSON.stringify(DATA.alias.trtc));
+  const FALLBACK = 1700000000;
+  const got = JSON.parse(execFileSync(join(dir, 'harness'),
+    ['trtc', '台北車站', String(FALLBACK), join(dir, 'alias.json')],
+    { input: readFileSync(noAt) }).toString());
+  ok('A-fallback 缺 at 時退回抓取時刻(不得整份解析失敗)', got.dataAt === FALLBACK, `dataAt=${got.dataAt}`);
+}
+
+// ── 🔴 抓取必須關掉用戶端快取 ──
+// 端點回 `max-age=14400`(給瀏覽器離線退路用),而捷運看板的視野只有約 15 分鐘 ⇒
+// 只要沿用 URLSession 的預設政策,小工具就會拿到最多四小時前的同一份主體,每一站都是 0 班,
+// 而且 HTTP 層完全成功、看不出異狀(2026-08-15 事故的真兇)。網頁端三個消費者早就寫死
+// `cache: 'no-store'`,Swift 這側必須有等價防護。判準寫「是什麼」:接受停用快取的政策或
+// ephemeral session,不釘死某一行寫法。
+{
+  const src = readFileSync(join(ROOT, 'app/ios/App/RailBoardWidget/MetroBoardWidget.swift'), 'utf8')
+    .split('\n').map(l => l.replace(/\/\/.*$/, '')).join('\n');
+  const fetchBlock = src.match(/static func fetch\(sys: String\)[\s\S]*?\n    \}/)?.[0] ?? '';
+  ok('C0 真的抽到 fetch 區塊', fetchBlock.length > 0);
+  ok('C1 🔴 抓取必須停用用戶端快取(否則吃到端點的 max-age=14400)',
+     /cachePolicy\s*=\s*\.(reloadIgnoringLocalCacheData|reloadIgnoringLocalAndRemoteCacheData)/.test(fetchBlock)
+     || /URLSessionConfiguration\.ephemeral/.test(src),
+     fetchBlock.split('\n').filter(l => /cachePolicy|URLSession/.test(l)).join(' | ') || '(fetch 裡沒有任何快取政策)');
+}
+
 console.log(`\n總計 PASS=${pass} FAIL=${fail}`);
 process.exit(fail ? 1 : 0);

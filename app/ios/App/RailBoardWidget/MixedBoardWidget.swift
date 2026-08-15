@@ -333,7 +333,9 @@ private struct MixedMetroSection: View {
             }
 
             if visibleRows.isEmpty {
-                Text(entry.snapshot != nil ? "官方目前沒有這一站的班次資訊" : "沒有資料")
+                // 空白的原因分四種,判準與小卡同源(MetroBoardView.emptyText);混合卡以前只講
+                // 「官方沒有班次」,同一個誤導在這裡也要修掉。
+                Text(entry.emptyText(at: displayDate))
                     .font(.callout)
                     .foregroundStyle(.secondary)
             } else {

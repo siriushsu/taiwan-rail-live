@@ -17,6 +17,27 @@ struct MetroEntry: TimelineEntry {
     var passCTA: String? = nil
 }
 
+extension MetroEntry {
+    /// 這張卡畫的資料已經幾秒了。dataAt 取自官方回應自帶的時刻(MetroBoardModel.payloadTime),
+    /// 所以這是「資料的年紀」,不是「距離上次刷新多久」——後者對被快取餵舊主體的情況恆為 0。
+    func dataAge(at date: Date) -> Double? {
+        snapshot.map { date.timeIntervalSince1970 - $0.dataAt }
+    }
+
+    /// 🔴 空白看板的四種原因必須分得出來。以前「連不上」「資料過舊」「真的沒車」印同一句,
+    ///    使用者回報「沒有班次資訊」時,查修的人無從判斷是哪一種,只能從頭猜——2026-08-15
+    ///    小工具整天每一站都空白就卡在這裡,最後是靠把手機上的 URLCache 拉下來才定案。
+    ///    門檻取 180 秒:大於邊緣快取最長的 s-maxage(機捷 110 秒)並留餘裕,正常刷新不會誤觸;
+    ///    真被某層快取餵了舊主體時,畫面直說過舊,不再偽裝成「官方沒有班次」。
+    ///    小卡與混合大卡共用這一份,兩張卡的說法不會分岔。
+    func emptyText(at date: Date) -> String {
+        if failed { return "連不上官方資料，稍後自動再試" }
+        guard snapshot != nil else { return "沒有資料" }
+        if let age = dataAge(at: date), age > 180 { return "資料過舊，打開軌島即更新" }
+        return "官方目前沒有這一站的班次資訊"
+    }
+}
+
 struct MetroBoardProvider: AppIntentTimelineProvider {
     func placeholder(in context: Context) -> MetroEntry {
         MetroEntry(date: Date(), title: "台北車站", lineColor: .blue, snapshot: nil,
@@ -114,7 +135,10 @@ struct MetroBoardProvider: AppIntentTimelineProvider {
             snap = sys.precision == "sec"
                 ? try MetroBoardModel.trtc(json: data, station: station, alias: alias, now: now)
                 : try MetroBoardModel.minuteSystem(json: data, station: station, alias: alias, now: now)
-            MetroFetcher.cache(snap!, sys: sys.id, station: station)
+            // 🔴 只快取「真的有班次」的結果:零班次是合法但短暫的狀態(收班後、官方視野空窗),
+            //    把它寫進去會污染退路——之後每次抓取失敗都拿這份空的出來,畫面就永遠是
+            //    「官方目前沒有這一站的班次資訊」,而且看不出是失敗還是真的沒車。
+            if !(snap?.rows.isEmpty ?? true) { MetroFetcher.cache(snap!, sys: sys.id, station: station) }
         } catch {
             // 🔴 抓取失敗顯示上次成功的資料＋當時的時刻,不清空、不留白。
             snap = MetroFetcher.cached(sys: sys.id, station: station)
@@ -175,6 +199,12 @@ enum MetroFetcher {
         var req = URLRequest(url: url(sys: sys))
         // 小工具的刷新機會很少,寧可失敗得快也不要卡住整條 timeline。
         req.timeoutInterval = 8
+        // 🔴 端點回 `max-age=14400`(給瀏覽器離線退路用),但這是即時看板:用戶端只要拿到
+        //    一份四小時內的舊回應,裡面每一班的到站時刻都已經過去 ⇒ 每一站都空。
+        //    網頁自己那三個消費者早就寫死 `cache: 'no-store'`(index.html 的 trtc-live／
+        //    metro-live／ntmetro-live),Swift 這側漏了同一道防護,在此補齊。
+        //    邊緣快取(s-maxage=15)不受影響,伺服器負載不變。
+        req.cachePolicy = .reloadIgnoringLocalCacheData
         req.setValue("RailIsland-Widget", forHTTPHeaderField: "User-Agent")
         let (data, resp) = try await URLSession.shared.data(for: req)
         guard let http = resp as? HTTPURLResponse, http.statusCode == 200 else {
@@ -253,7 +283,7 @@ struct MetroBoardView: View {
                 Text(cta).font(.caption).foregroundStyle(.primary)
             } else {
                 // autoHint:自動選站解析失敗的指引(定位權限/從沒定位過),比通用文案可行動。
-                Text(entry.autoHint ?? (entry.snapshot != nil ? "官方目前沒有這一站的班次資訊" : "沒有資料"))
+                Text(entry.autoHint ?? entry.emptyText(at: entry.date))
                     .font(.caption).foregroundStyle(.secondary)
             }
             Spacer(minLength: 0)

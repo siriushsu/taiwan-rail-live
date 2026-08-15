@@ -33,6 +33,24 @@ public enum MetroBoardModel {
         struct Train: Decodable { let stn: String?; let dest: String?; let cars: [Int]? }
         let board: [BoardRow]
         let trains: [Train]?
+        /// 官方回應自帶的產生時刻(ISO8601)。三個端點都有。
+        let at: String?
+    }
+
+    /// 這批資料是「什麼時候產生的」——不是「我什麼時候抓的」。
+    /// 🔴 兩者混用會讓時刻戳變成謊言:任何一層快取(URLCache／CDN／stale-while-revalidate)
+    ///    送來的舊主體,都會被戳上當下時刻 ⇒ 畫面顯示「剛剛更新」、內容卻是幾小時前的班次,
+    ///    而且沒有任何判準看得出來。2026-08-15 小工具「每一站都沒有班次」整天沒被診斷出來,
+    ///    就是被這個假時刻擋住的(真兇是 URLCache 吃了端點的 max-age=14400)。
+    ///    解析不出來才退回抓取時刻——寧可少一點資訊,不要讓整份資料因為時戳格式變動而作廢。
+    private static func payloadTime(_ at: String?, fallback: Double) -> Double {
+        guard let at else { return fallback }
+        let f = ISO8601DateFormatter()
+        f.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        if let d = f.date(from: at) { return d.timeIntervalSince1970 }
+        f.formatOptions = [.withInternetDateTime]
+        if let d = f.date(from: at) { return d.timeIntervalSince1970 }
+        return fallback
     }
 
     public static func trtc(json: Data, station: String, alias: [String: String], now: Double) throws -> MetroSnapshot {
@@ -50,7 +68,8 @@ public enum MetroBoardModel {
             return MetroRow(dest: dest, etaEpoch: b.eta, minutes: nil,
                             crowd: crowdFor(dest: b.dest, trains: r.trains))
         }
-        return MetroSnapshot(station: station, dataAt: now, rows: rows, stale: rows.isEmpty)
+        return MetroSnapshot(station: station, dataAt: payloadTime(r.at, fallback: now),
+                             rows: rows, stale: rows.isEmpty)
     }
 
     /// 下一班的車廂擁擠度:官方 `trains[]` 裡往同一個終點、且還沒過本站的那一台。
@@ -65,6 +84,7 @@ public enum MetroBoardModel {
     private struct MinuteResponse: Decodable {
         struct Row: Decodable { let l: String?; let s: String; let d: String; let e: Int? }
         let rows: [Row]
+        let at: String?
     }
 
     public static func minuteSystem(json: Data, station: String, alias: [String: String], now: Double) throws -> MetroSnapshot {
@@ -78,6 +98,7 @@ public enum MetroBoardModel {
         let rows = mine.map {
             MetroRow(dest: alias[$0.d] ?? $0.d, etaEpoch: nil, minutes: $0.e, crowd: nil)
         }
-        return MetroSnapshot(station: station, dataAt: now, rows: rows, stale: rows.isEmpty)
+        return MetroSnapshot(station: station, dataAt: payloadTime(r.at, fallback: now),
+                             rows: rows, stale: rows.isEmpty)
     }
 }
