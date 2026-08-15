@@ -19,6 +19,19 @@ const HARNESS = `
 import Foundation
 let a = CommandLine.arguments
 let raw = FileHandle.standardInput.readDataToEndOfFile()
+// "line" 模式:直接逐案跑 resolveLine 這支純函式(stdin 是案例陣列,輸出同長度的結果陣列)。
+if a[1] == "line" {
+  let cases = try! JSONSerialization.jsonObject(with: raw) as! [[String: Any]]
+  let out: [Any] = cases.map {
+    MetroBoardModel.resolveLine(joined: $0["joined"] as? String, trainNo: $0["trainNo"] as? String,
+                                station: $0["station"] as? String ?? "",
+                                dest: $0["dest"] as? String ?? "",
+                                stationLines: $0["stationLines"] as? [String] ?? [],
+                                destLines: $0["destLines"] as? [String] ?? []) ?? NSNull()
+  }
+  FileHandle.standardOutput.write(try! JSONSerialization.data(withJSONObject: out))
+  exit(0)
+}
 let aliasData = try! Data(contentsOf: URL(fileURLWithPath: a[4]))
 let alias = try! JSONDecoder().decode([String: String].self, from: aliasData)
 let snap = a[1] == "trtc"
@@ -30,6 +43,7 @@ let rows = snap.rows.map { r -> [String: Any] in
   if let m = r.minutes { d["minutes"] = m }
   if let c = r.crowd { d["crowd"] = c }
   if let l = r.lineCode { d["lineCode"] = l }
+  if let n = r.trainNo { d["trainNo"] = n }
   return d
 }
 let out: [String: Any] = ["station": snap.station, "dataAt": snap.dataAt, "stale": snap.stale, "rows": rows]
@@ -193,6 +207,69 @@ for (const [kind, sys, file] of [['trtc', 'trtc', 'trtc-live.json'],
   ok('N2 🔴 對不到車的列一律不給線代碼(不准用站別或終點猜)',
      rows.every((b, i) => expCode(b) || got[i]?.lineCode === undefined),
      JSON.stringify(rows.map((b, i) => `${b.dest}:${got[i]?.lineCode}`)));
+  // 車號要原樣帶進 MetroRow(空字串收成 nil)——resolveLine 的第三層只有它可用。
+  ok('N4 車號逐列帶進 MetroRow(空字串收成 nil)',
+     rows.every((b, i) => got[i]?.trainNo === (b.no ? String(b.no) : undefined)),
+     JSON.stringify(rows.map((b, i) => `${b.dest}:${got[i]?.trainNo}vs${b.no}`)));
+}
+
+// ── 🔴 逐列線別的三層判定(resolveLine 純函式,逐案測) ──
+// 第三層「候選恰為 {BL,BR} 時,有車號＝板南、沒車號＝文湖」是正式站地圖同一條規則
+// (worker.js → scripts/trtc_board_ledger.mjs 的 pickBoardCandidate),不是這裡新發明的。
+// 判準不同源:候選集直接從 MetroWidgetData.json 的線站清單獨立算,不碰 Swift。
+{
+  const trtcSys = DATA.systems.find(s => s.id === 'trtc');
+  const linesAt = new Map();
+  for (const ln of trtcSys.lines) for (const st of ln.stations) {
+    if (!linesAt.has(st.name)) linesAt.set(st.name, []);
+    if (!linesAt.get(st.name).includes(ln.id)) linesAt.get(st.name).push(ln.id);
+  }
+  const at = n => linesAt.get(n) ?? [];
+  const runLine = cases => JSON.parse(execFileSync(join(dir, 'harness'), ['line'],
+    { input: JSON.stringify(cases) }).toString()).map(v => v === null ? null : v);
+  // L0 正向對照:下面幾條踩的是真實目錄形狀,不是我編出來的候選集。
+  ok('L0 目錄裡「忠孝復興／南港展覽館」真的同時屬於 BL 與 BR',
+     JSON.stringify([...at('忠孝復興')].sort()) === '["BL","BR"]' &&
+     JSON.stringify([...at('南港展覽館')].sort()) === '["BL","BR"]',
+     `忠孝復興=${JSON.stringify(at('忠孝復興'))} 南港展覽館=${JSON.stringify(at('南港展覽館'))}`);
+  ok('L0b 正向對照:板南線也有「單一候選」的站對(否則 L1 是空過)',
+     at('市政府').length === 1 && at('永寧').length === 1,
+     `市政府=${JSON.stringify(at('市政府'))} 永寧=${JSON.stringify(at('永寧'))}`);
+  const amb = { station: '忠孝復興', dest: '南港展覽館',
+                stationLines: at('忠孝復興'), destLines: at('南港展覽館') };
+  const single = { station: '市政府', dest: '永寧', stationLines: at('市政府'), destLines: at('永寧') };
+  // 台北車站→大安:紅線與板南線都經過台北車站,但大安只有紅線 ⇒ 交集單一(R)。
+  // 東門→大橋頭:橘線兩支(迴龍/蘆洲)都服務,兩解且【不是】{BL,BR} ⇒ 不准套第三層。
+  const orange = { station: '東門', dest: '大橋頭', stationLines: at('東門'), destLines: at('大橋頭') };
+  const [aNo, aYes, aJoined, sNo, oNo, oYes, selfSame] = runLine([
+    { ...amb, trainNo: null },                       // 沒車號的兩解列
+    { ...amb, trainNo: '217' },                      // 有車號的兩解列
+    { ...amb, trainNo: null, joined: 'BL' },         // join 得到答案時一律照 join
+    { ...single, trainNo: null },                    // 單一候選:沒車號照樣判得出來
+    { ...orange, trainNo: null },                    // 兩解但不是 {BL,BR}:沒車號不准猜
+    { ...orange, trainNo: '1234' },                  // 同上,有車號也不准猜
+    { station: '南港展覽館', dest: '南港展覽館', trainNo: null,
+      stationLines: at('南港展覽館'), destLines: at('南港展覽館') },
+  ]);
+  ok('L1 單一候選路線 ⇒ 就是它', sNo === at('市政府')[0], `got ${sNo}`);
+  ok('L2 🔴 {BL,BR} 兩解且沒車號 ⇒ 文湖線(官方對文湖線恆不給車次)', aNo === 'BR', `got ${aNo}`);
+  ok('L3 🔴 {BL,BR} 兩解且有車號 ⇒ 板南線', aYes === 'BL', `got ${aYes}`);
+  ok('L4 join 到的線代碼優先於任何推論', aJoined === 'BL', `got ${aJoined}`);
+  ok('L5 🔴 候選不是 {BL,BR} 的多解一律不猜(不准擴大成「沒車號就是文湖線」)',
+     oNo === null && oYes === null, `無車號 ${oNo} / 有車號 ${oYes}`);
+  ok('L6 終點等於本站的列不判線', selfSame === null, `got ${selfSame}`);
+  // L7 端到端:上面測的是純函式,這條確認 trtc() 解出來的 trainNo 真的能餵出同一個答案。
+  const ambRows = trtcRaw.board.filter(b => DATA.alias.trtc[b.name] === '忠孝復興' &&
+                                            DATA.alias.trtc[b.dest] === '南港展覽館');
+  ok('L7a 正向對照:fixture 真的有「忠孝復興→南港展覽館」且有無車號各一列',
+     ambRows.some(b => b.no) && ambRows.some(b => !b.no),
+     JSON.stringify(ambRows.map(b => b.no)));
+  const gotAmb = run('trtc', '忠孝復興', Math.min(...ambRows.map(b => b.eta)) - 60, 'trtc-live.json', 'trtc');
+  const e2e = runLine(gotAmb.rows.map(r => ({ ...amb, trainNo: r.trainNo ?? null, joined: r.lineCode ?? null })));
+  const expE2E = ambRows.sort(byEta).map(b => b.no ? 'BL' : 'BR');
+  ok('L7b 🔴 端到端:同一站兩列各自拿到自己的線別',
+     JSON.stringify(e2e) === JSON.stringify(expE2E),
+     `${JSON.stringify(e2e)} vs ${JSON.stringify(expE2E)}`);
 }
 // ── 🔴 擁擠度必須是【這一列自己那台車】的 ──
 // 舊實作用「終點」配車 ⇒ 同一個終點的所有列拿到同一台車的資料,實測 211 條可比對的列

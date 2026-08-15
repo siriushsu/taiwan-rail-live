@@ -226,8 +226,10 @@ enum MetroFetcher {
             if let e = r.etaEpoch { d["eta"] = e }
             if let m = r.minutes { d["min"] = m }
             if let c = r.crowd { d["crowd"] = c }
-            // 線代碼要一起存,否則抓取失敗改畫退路那份時每一列都掉色。
+            // 線代碼與車號要一起存,否則抓取失敗改畫退路那份時每一列都掉色
+            // (車號是「板南／文湖」那一種列唯一的判別依據,見 MetroBoardModel.resolveLine)。
             if let l = r.lineCode { d["line"] = l }
+            if let n = r.trainNo { d["no"] = n }
             return d
         }
         suite?.set(["at": s.dataAt, "rows": rows, "stale": s.stale], forKey: key(sys, station))
@@ -239,7 +241,7 @@ enum MetroFetcher {
         let rows = raw.map { r in
             MetroRow(dest: r["dest"] as? String ?? "", etaEpoch: r["eta"] as? Double,
                      minutes: r["min"] as? Int, crowd: r["crowd"] as? [Int],
-                     lineCode: r["line"] as? String)
+                     lineCode: r["line"] as? String, trainNo: r["no"] as? String)
         }
         // 🔴 Swift 的 memberwise init 必須照【宣告順序】給參數,不能重排:
         //    MetroSnapshot 是 station → dataAt → rows → stale。
@@ -279,7 +281,8 @@ struct MetroBoardView: View {
                                  entryDate: entry.date,
                                  lineColor: entry.sys.flatMap {
                                      MetroPalette.rowColor(sys: $0, station: entry.title,
-                                                           dest: r.dest, lineCode: r.lineCode)
+                                                           dest: r.dest, lineCode: r.lineCode,
+                                                           trainNo: r.trainNo)
                                  })
                 }
             } else if entry.snapshot?.rows.isEmpty == false {
@@ -412,18 +415,21 @@ enum MetroPalette {
         return parse(hexes[0])
     }
 
-    /// 單一班次的線色 = 同時服務【本站】與【該班次終點】的那條線。
-    /// 官方看板每一列沒有線別欄位(board 只有 name/dest/eta),所以只能從目錄推。
-    /// 用【色票集合】取交集而不是路線集合:中和新蘆線在目錄裡拆成迴龍/蘆洲兩支、共用同一個
-    /// 色票,用路線集合會判成多解(實測 300 種真實組合中有 11 種),用色票集合則收斂成唯一。
-    /// 仍不唯一就回 nil、那一列不畫點——實測只剩「忠孝復興→南港展覽館」一種(文湖與板南
-    /// 同時服務這兩站,目錄層面真的分不出來),寧可不畫也不猜。
-    static func rowColor(sys: String, station: String, dest: String, lineCode: String?) -> Color? {
-        // 第一順位:官方 trains[] 對回來的線代碼(逐列、權威)。
-        if let code = lineCode, let hex = lineHex(sys: sys, code: code) { return parse(hex) }
-        // 第二順位:官方沒給車號時(文湖線全部如此)用目錄推。
-        let here = MetroWidgetCatalog.shared.lineColorHexes(sys: sys, station: station)
-        let there = MetroWidgetCatalog.shared.lineColorHexes(sys: sys, station: dest)
+    /// 單一班次的線色。路線本身怎麼判在 `MetroBoardModel.resolveLine`(純函式,被驗收腳本
+    /// 逐案測);這裡只負責把線 id 換成色票,以及最後那層「路線分不出、但候選路線同色」的退路。
+    static func rowColor(sys: String, station: String, dest: String, lineCode: String?,
+                         trainNo: String?) -> Color? {
+        let cat = MetroWidgetCatalog.shared
+        if let code = MetroBoardModel.resolveLine(joined: lineCode, trainNo: trainNo,
+                                                  station: station, dest: dest,
+                                                  stationLines: cat.lineIDsAt(sys: sys, station: station),
+                                                  destLines: cat.lineIDsAt(sys: sys, station: dest)),
+           let hex = lineHex(sys: sys, code: code) { return parse(hex) }
+        // 退路:路線分不出唯一解,但候選路線【色票相同】時照樣上色——中和新蘆線在目錄裡
+        // 拆成迴龍/蘆洲兩支、共用同一個色票(實測 300 種真實組合中有 11 種是這樣)。
+        // 色票也不唯一就回 nil、那一列不畫點,寧可不畫也不猜。
+        let here = cat.lineColorHexes(sys: sys, station: station)
+        let there = cat.lineColorHexes(sys: sys, station: dest)
         let shared = here.filter(there.contains)
         guard shared.count == 1 else { return nil }
         return parse(shared[0])
@@ -470,4 +476,5 @@ enum MetroLastTrain {
 
 extension MetroWidgetCatalog {
     func lineColorHexes(sys: String, station: String) -> [String] { lineColors["\(sys)|\(station)"] ?? [] }
+    func lineIDsAt(sys: String, station: String) -> [String] { lineIDs["\(sys)|\(station)"] ?? [] }
 }

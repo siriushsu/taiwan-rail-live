@@ -20,10 +20,15 @@ public struct MetroRow: Equatable {
     ///    文湖線的車在官方 `trains[]` 裡「車號」其實是車廂編號("43,36")且 dest 為 null,
     ///    所以文湖線的看板列一律 join 不到 ⇒ 恆為 nil,由畫面層的目錄退路處理。
     public let lineCode: String?
+    /// 官方看板列自帶的車次(空字串一律收成 nil)。
+    /// 只給 `resolveLine` 分辨「板南線與文湖線同時服務同一組站與終點」的那一種列用,
+    /// 不作顯示用途——北捷的「車次」在文湖線其實是車廂編號,不是給人看的車次。
+    public let trainNo: String?
 
-    public init(dest: String, etaEpoch: Double?, minutes: Int?, crowd: [Int]?, lineCode: String? = nil) {
+    public init(dest: String, etaEpoch: Double?, minutes: Int?, crowd: [Int]?, lineCode: String? = nil,
+                trainNo: String? = nil) {
         self.dest = dest; self.etaEpoch = etaEpoch; self.minutes = minutes
-        self.crowd = crowd; self.lineCode = lineCode
+        self.crowd = crowd; self.lineCode = lineCode; self.trainNo = trainNo
     }
 }
 
@@ -93,10 +98,40 @@ public enum MetroBoardModel {
                             lineCode: train?.stn.flatMap { stn in
                                 let code = String(stn.prefix(while: { $0.isLetter }))
                                 return code.isEmpty ? nil : code
-                            })
+                            },
+                            trainNo: b.no.flatMap { $0.isEmpty ? nil : $0 })
         }
         return MetroSnapshot(station: station, dataAt: payloadTime(r.at, fallback: now),
                              rows: rows, stale: rows.isEmpty)
+    }
+
+    // MARK: - 逐列線別
+
+    /// 這一列到底屬於哪一條線。三層,由強到弱:
+    /// 1. `joined`——車號 join 官方 `trains[]` 得到的線代碼(見 `MetroRow.lineCode`),逐列權威。
+    /// 2. 同時服務【本站】與【該列終點】的路線只剩一條 ⇒ 就是它。
+    /// 3. 只剩「板南線＋文湖線」兩解時:官方 TrackInfo 只對高運量給車次,文湖線各列
+    ///    TrainNumber 恆為空字串 ⇒ 有車號＝BL、沒車號＝BR。
+    ///
+    /// 🔴 第 3 條**只在候選集恰為 {BL,BR} 時**成立,不准擴大成「沒車號就是文湖線」——
+    ///    板南線自己也有沒車號的列(2026-08-15 連取六輪、1523 列去重:板南 334 列中 15 列
+    ///    沒車號,4.5%,全部落在頂埔／永寧／土城／海山／南港／南港展覽館這些端點區)。
+    ///    無條件反推會把那些列畫成棕色。
+    /// 🔴 這條規則不是這裡發明的:正式站地圖的官方站牌解析器(worker.js 呼叫
+    ///    scripts/trtc_board_ledger.mjs 的 `pickBoardCandidate`)一直是這樣分的,更新紀錄 8/14
+    ///    也對外寫明「文湖線沒有車次時顯示 BR 路線牌」。小工具照抄同一條規則,才不會
+    ///    跟 App 畫出不同顏色。同一批實測:文湖線 248 列【零列】帶車號;{BL,BR} 兩解的
+    ///    12 列裡帶車號的全部 join 到 BL(BL14／BL12),零反例。
+    /// 全線只有「忠孝復興→南港展覽館」會落到第 3 條(BR 與 BL 只共用這兩站)。
+    public static func resolveLine(joined: String?, trainNo: String?, station: String, dest: String,
+                                   stationLines: [String], destLines: [String]) -> String? {
+        if let joined, !joined.isEmpty { return joined }
+        // 終點就是本站的列不談方向,也就分不出線;官方 feed 現況沒有這種列,防禦性擋掉。
+        guard station != dest else { return nil }
+        let shared = stationLines.filter(destLines.contains)
+        if shared.count == 1 { return shared[0] }
+        if Set(shared) == ["BL", "BR"] { return (trainNo?.isEmpty == false) ? "BL" : "BR" }
+        return nil
     }
 
     // MARK: - 高捷／機捷(整數分鐘)

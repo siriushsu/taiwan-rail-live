@@ -350,7 +350,8 @@ private struct MixedMetroSection: View {
                         fontScale: 1.2,  // 大卡等比放大;槽寬跟著縮放,對齊不破(見 MetroRowView)
                         lineColor: entry.sys.flatMap {
                             MetroPalette.rowColor(sys: $0, station: entry.title,
-                                                  dest: row.dest, lineCode: row.lineCode)
+                                                  dest: row.dest, lineCode: row.lineCode,
+                                                  trainNo: row.trainNo)
                         }
                     )
                 }
