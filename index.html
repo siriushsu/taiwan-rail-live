@@ -3755,7 +3755,7 @@
 
   <footer class="site-foot">
     <details class="foot-box">
-      <summary><span>更新紀錄</span><span class="foot-sub">最後更新：2026/8/14</span></summary>
+      <summary><span>更新紀錄</span><span class="foot-sub">最後更新：2026/8/15</span></summary>
       <!-- 第一層是「最近更新」的檢視,不是正本:每一條都用 data-cl-of 指向第二層某條的 data-cl。
            要把一條擠出第一層之前,它的正本必須已經在第二層存在——2026-08-03 就踩過一次:8/1 的
            衛星計費那條只活在第一層(第二層只有一句夾在 7/25 條目裡、日期對不上的附帶說明),
@@ -3763,6 +3763,7 @@
            內容 li 上限 8 條(li.grp 是標題不算)。 -->
       <ul class="foot-list foot-recent">
         <li class="grp">最近更新</li>
+        <li data-cl-of="androidbars"><span class="d">8/15</span><span>修正 Android App 上下多出白色空白，地圖重新貼齊手機畫面</span></li>
         <li data-cl-of="land04c"><span class="d">8/12</span><span>手機橫放版面重排：時鐘併進頂列、地圖按鈕收成右側一疊、跟車欄貼左緣上下展開；鏡頭改成對準「沒被面板蓋住的地圖」置中，還會朝行進方向多看一點，直放跟車也一樣</span></li>
         <li data-cl-of="trtcofficialroster"><span class="d">8/14</span><span>台北捷運列車改以官方站牌倒數逐班追蹤：從發車到終點依各站時間顯示位置，同一班車在多站的資訊會自動合併，車次與方向跟著實際行程；文湖線沒有車次時顯示 BR 路線牌。</span></li>
         <li data-cl-of="klrtgps"><span class="d">8/12</span><span>高雄環狀輕軌改用官方衛星定位逐班校正，每台車各自對準自己的班次（謝謝網友提供資訊）</span></li>
@@ -3770,7 +3771,6 @@
         <li data-cl-of="android142"><span class="d">8/12</span><span>Android 版追上 1.4.2：手機橫放版面、背景音樂與近期網站內容一併更新，「更多」也能直接前往 Play 商店評分</span></li>
         <li data-cl-of="stationtransfer"><span class="d">8/10</span><span>點任何一個車站看板，都會告訴你這站可以轉乘哪些別的鐵道系統；跟車時「下一站」旁邊也會提醒能換哪幾條線</span></li>
         <li data-cl-of="nearfollowmutex"><span class="d">8/10</span><span>開「附近車站」或「隨機跟隨」時會自動收起另一個，地圖鏡頭只聽一邊的</span></li>
-        <li data-cl-of="bgmusic"><span class="d">8/10</span><span>App 收起後背景音樂繼續播放；跟車時音樂讓位，動態島完整顯示下一站與倒數；下次 App 更新生效</span></li>
       </ul>
       <!-- 第二層:完整歷史。刻意不掛 .foot-box 類名——placeFootBoxes() 用
            `.site-foot .foot-box` 搬移面板,巢狀同名會被當成另一個盒子一起搬走。 -->
@@ -3859,6 +3859,7 @@
         <li><span class="d">7/13</span><span>收集章可以重複點，換搭不同班次回味</span></li>
         <li><span class="d">7/9</span><span>旅程護照與 16 枚成就徽章、「探」今日亮點面板上線</span></li>
         <li class="grp">手機與操作</li>
+        <li data-cl="androidbars"><span class="d">8/15</span><span>Android App 更新後，地圖上下曾多出兩塊白色空白；現在移除重複計算的手機安全區，地圖與底部導覽列會重新貼齊整個畫面</span></li>
         <li data-cl="land04c"><span class="d">8/12</span><span>手機橫放第二輪重排（接 8/11 的側邊欄）：時鐘徽章併進頂列、不再浮在地圖上；右下角的「回到列車、隨機跟隨、附近車站、跟隨鎖」收成貼右緣的一疊；跟車資訊欄固定在左側、上下貼齊螢幕，收合成小膠囊時不擋地圖；搜尋改成右半邊全高的面板，打字時鏡頭不會亂跑；停靠站名牌與速度膠囊對齊露出地圖的中線。跟車鏡頭全面改用「露出地圖」置中——把被面板、按鈕、資訊欄蓋住的部分扣掉，列車永遠在看得到的那塊地圖正中央，還會朝行進方向偏一點、提前看到前方路線。這套鏡頭直放也生效：面板展開、跟車小卡浮著時，列車不會再躲到卡片底下</span></li>
         <li data-cl="android142"><span class="d">8/12</span><span>Android 版更新到 1.4.2，內容追上 iPhone／iPad 版與網站近期更新：包含手機橫放時改用右側欄、背景音樂與新版車站／跟車功能。「更多」裡保留軌島評分入口，會前往 Google Play；Android 由 Play 商店負責更新，因此不會拿 iPhone 的 App Store 資料顯示錯誤的更新提示</span></li>
         <li data-cl="landscape"><span class="d">8/11</span><span>手機橫著拿也能用了（謝謝網友回報）：原本橫放時跟車，列車會被下方的資訊面板整個蓋住，跟車小卡還會壓到上面的分頁列；Pro Max 這類寬螢幕機型橫放更是連地圖都只剩一條、車根本不在畫面裡。現在橫放時各種面板改成靠右的側邊欄，地圖留在左半邊，跟著的列車一直在看得到的地方。順手也修好了「開著面板時全台視角會偏到面板底下」——不管橫放直放，台灣都會置中在露出來的那半邊地圖上。橫放時也不再被瀏海／動態島吃掉字：頂列、時鐘、分頁列、跟車小卡、停靠站名牌全部讓開安全區</span></li>
@@ -4239,7 +4240,8 @@
 // v0814i：位置與箭頭共用當下 motionFrom→motionTo；官方箭頭不留舊角度，共用箭頭不得朝車尾。
 // v0814j：正式出貨前把北捷這一批功能合併成一條面向訪客的更新紀錄。
 // v0814k：App 1.4.3 build 50／Android v5 合入網站 v0814j，保留 App 專屬橫放、背景音樂與更新提示。
-const BUILD = 'v0814k';
+// v0815c：Android v6 移除重複的 edge-to-edge，修正上下多出白色安全區。
+const BUILD = 'v0815c';
 // 2026-08-13 起預設開啟（使用者親試預覽後裁示上線）：北捷畫車依官方即時名冊，班表只是備案。
 // 保留 ?officialroster=0 當逃生口——要退回班表路徑不必回滾部署，加個參數即可對照。
 // 🔴 這個函式會被 verify_official_roster_frontend 抽出來丟進 VM 單獨執行——

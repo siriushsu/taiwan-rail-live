@@ -15,6 +15,14 @@ export function assertNativeBridgeLoggingDisabled(capacitorConfig) {
     'capacitor.config.json loggingBehavior 必須是 none——Firebase 原生登入結果含憑證，不可寫入 Android logcat');
 }
 
+// Android v5 曾在 MainActivity.super.onCreate() 之前呼叫 EdgeToEdge.enable()。那一步會提早把
+// SplashScreen theme 的 ActionBar 建出來；Capacitor BridgeActivity 隨後才切 NoActionBar 已經來不及，
+// WebView 因而被上下各擠出一塊系統底色。Capacitor 8 自帶 SystemBars/insets handling，殼不應再手動開一次。
+export function assertAndroidMainActivityDoesNotPreInitWindow(mainActivity) {
+  assert(!/\bEdgeToEdge\s*\.\s*enable\s*\(/.test(mainActivity),
+    'Android MainActivity 不可手動呼叫 EdgeToEdge.enable()——會在 Capacitor 套用 NoActionBar 前初始化 launch theme，讓上下白帶回歸');
+}
+
 // Stadia 官方要求的逐字署名(prepare-web 注入、本檔驗證,單一事實來源)
 export const STADIA_ATTRIBUTION = '&copy; <a href="https://stadiamaps.com/" target="_blank">Stadia Maps</a> &copy; <a href="https://openmaptiles.org/" target="_blank">OpenMapTiles</a> &copy; <a href="https://www.openstreetmap.org/copyright" target="_blank">OpenStreetMap</a>';
 
@@ -515,6 +523,16 @@ export async function verifyRelease({
       const nativeBuild = extractBuild(nativeHtml);
       assert(nativeBuild === wwwBuild,
         `${label} 內嵌資產版本不一致：${relative(repoRoot, nativeIndex)} 為 ${nativeBuild},app/www 為 ${wwwBuild};請執行 npm run sync（build + cap sync）`);
+    }
+    if (nativeTarget === 'all' || nativeTarget === 'android') {
+      const mainActivityPath = join(appRoot, 'android/app/src/main/java/tw/railisland/app/MainActivity.java');
+      let mainActivity = null;
+      try { mainActivity = await readFile(mainActivityPath, 'utf8'); }
+      catch {
+        assert(!process.env.RAIL_REQUIRE_NATIVE,
+          `Android MainActivity 不存在（${relative(repoRoot, mainActivityPath)}）——無法驗證 launch theme 不會重生 ActionBar`);
+      }
+      if (mainActivity !== null) assertAndroidMainActivityDoesNotPreInitWindow(mainActivity);
     }
   }
 
