@@ -75,15 +75,27 @@ const CASES = [
   ['免費+未選站 → 不擋', false, 1, false, null, ['trtc|板橋'], ['trtc|板橋']],
   ['免費+枚舉失敗 → fail-open', false, 1, false, 'trtc|中山', ['trtc|板橋'], []],
   ['免費+limit=2 第二站 → 佔名額', false, 2, false, 'trtc|中山', ['trtc|板橋'], ['trtc|板橋', 'trtc|中山']],
+  // 🔴 2026-08-16 新增:名額累積成兩筆的情境。舊 claim 在「換站」時只會被 configured 過濾掉、
+  //    不會從陣列裡刪除 ⇒ claimed 單調成長([甲] → 換到乙 → [甲,乙]);使用者日後只要再放一張卡
+  //    設回甲,兩筆 claim 同時復活、兩站都被判 allowed ＝ 免費拿到兩站。這條**不需要任何競態**,
+  //    從沒訂過通行證的人也做得到,而且可以重複操作到 N 站。裁示是「免費一站」,故期望模型
+  //    照裁示寫成「最多 limit 個名額算數」,與 Swift 實作是否這樣寫無關(心得 29:判準不得同源)。
+  ['免費+claim 累積兩筆:較早那筆 → 放行', false, 1, false, 'trtc|板橋', ['trtc|板橋', 'trtc|中山'], ['trtc|板橋', 'trtc|中山']],
+  ['免費+claim 累積兩筆:較晚那筆 → 擋', false, 1, false, 'trtc|中山', ['trtc|板橋', 'trtc|中山'], ['trtc|板橋', 'trtc|中山']],
+  ['免費+claim 累積三筆:第三筆 → 擋', false, 1, false, 'trtc|忠孝復興', ['trtc|板橋', 'trtc|中山', 'trtc|忠孝復興'], ['trtc|板橋', 'trtc|中山', 'trtc|忠孝復興']],
+  ['免費+limit=2 累積三筆:第三筆 → 擋', false, 2, false, 'trtc|忠孝復興', ['trtc|板橋', 'trtc|中山', 'trtc|忠孝復興'], ['trtc|板橋', 'trtc|中山', 'trtc|忠孝復興']],
 ];
 
 // 獨立期望模型:照裁示語意重寫,刻意不看 Swift 實作。
+// 🔴 裁示是「免費【一】站」⇒ 不論 claimed 陣列長成什麼樣,任何時刻最多只有 limit 個站鍵算數。
+//    這一行(prefix(limit))就是「一站」這三個字;少了它,模型會退化成 Swift 實作的鏡子,
+//    而鏡子照不出上面那三條累積情境(2026-08-16 前的版本正是如此,所以漏了整整一個洞)。
 function expected(plus, limit, isAuto, current, claimed, configured) {
   if (plus) return 'allowed';
   if (limit === null) return 'allowed';
   if (isAuto) return 'needPassAuto';
   if (!current) return 'allowed';
-  const live = claimed.filter(k => configured.includes(k));
+  const live = claimed.filter(k => configured.includes(k)).slice(0, limit);
   if (live.includes(current)) return 'allowed';
   if (live.length < limit) return 'claimFree';
   return 'needPassMulti';
