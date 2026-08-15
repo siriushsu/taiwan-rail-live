@@ -3800,7 +3800,7 @@
 
   <footer class="site-foot">
     <details class="foot-box">
-      <summary><span>更新紀錄</span><span class="foot-sub">最後更新：2026/8/15</span></summary>
+      <summary><span>更新紀錄</span><span class="foot-sub">最後更新：2026/8/16</span></summary>
       <!-- 第一層是「最近更新」的檢視,不是正本:每一條都用 data-cl-of 指向第二層某條的 data-cl。
            要把一條擠出第一層之前,它的正本必須已經在第二層存在——2026-08-03 就踩過一次:8/1 的
            衛星計費那條只活在第一層(第二層只有一句夾在 7/25 條目裡、日期對不上的附帶說明),
@@ -3808,6 +3808,7 @@
            內容 li 上限 8 條(li.grp 是標題不算)。 -->
       <ul class="foot-list foot-recent">
         <li class="grp">最近更新</li>
+        <li data-cl-of="zuoyingalias"><span class="d">8/16</span><span>台鐵左營站不再分成「左營」與「左營(舊城)」兩顆，看板正常顯示；新城站同步修正（謝謝網友回報）</span></li>
         <li data-cl-of="danhaifireworks"><span class="d">8/15</span><span>淡水漁人碼頭煙火的三個週日（8/16、8/23、8/30），淡海輕軌畫面依官方公告調整：傍晚起綠山線班距拉長、五點後崁頂那一段停駛，藍海線改跑密集班距</span></li>
         <li data-cl-of="trtcoutage"><span class="d">8/15</span><span>台北捷運訊號中斷時會明白告知位置與倒數不準，並修好位置愈跑愈偏、冒出無車號幽靈車的問題</span></li>
         <li data-cl-of="metrowaitcard"><span class="d">8/14</span><span>iPhone 新增捷運等車卡與捷運小工具：鎖定畫面倒數下一班，北捷、高捷、機捷；下次 App 更新生效</span></li>
@@ -3815,9 +3816,6 @@
         <li data-cl-of="linecomplete"><span class="d">8/14</span><span>縱貫線北段完乘率卡在 99% 已修好，不用重搭就會自動補滿（謝謝網友回報）</span></li>
         <li data-cl-of="checkinplatform"><span class="d">8/14</span><span>月台特別長的車站（例如汐科），現在站在月台任何一端都蓋得到章（謝謝網友回報）</span></li>
         <li data-cl-of="trtcofficialroster"><span class="d">8/14</span><span>台北捷運列車改以官方站牌倒數逐班追蹤：從發車到終點依各站時間顯示位置，同一班車在多站的資訊會自動合併，車次與方向跟著實際行程；文湖線沒有車次時顯示 BR 路線牌。</span></li>
-        <li data-cl-of="crossnightfollow"><span class="d">8/14</span><span>跟著跨午夜的深夜車（例如 452 次）重播時，車不會再於 00:00 整台消失了（謝謝網友回報）</span></li>
-        <li data-cl-of="tradelaycatchup"><span class="d">8/14</span><span>台鐵列車追回誤點時不再瞬間往前跳一大段，改成邊跑邊追，最多兩倍速（謝謝網友回報）</span></li>
-        <li data-cl-of="land04c"><span class="d">8/12</span><span>手機橫放版面重排：時鐘併進頂列、地圖按鈕收成右側一疊、跟車欄貼左緣上下展開；鏡頭改成對準「沒被面板蓋住的地圖」置中，還會朝行進方向多看一點，直放跟車也一樣</span></li>
       </ul>
       <!-- 第二層:完整歷史。刻意不掛 .foot-box 類名——placeFootBoxes() 用
            `.site-foot .foot-box` 搬移面板,巢狀同名會被當成另一個盒子一起搬走。 -->
@@ -3825,6 +3823,7 @@
         <summary>完整更新歷史（依主題分類）</summary>
         <ul class="foot-list">
         <li class="grp">路網與車站</li>
+        <li data-cl="zuoyingalias"><span class="d">8/16</span><span>台鐵左營站點開會跳出「左營」與「左營(舊城)」兩個選項，後者看板永遠沒班次——其實是同一座站；現在合併成一顆、看板正常。新城站同一問題一併修好（謝謝網友回報）</span></li>
         <li data-cl="tymcexpress"><span class="d">8/14</span><span>桃園機場捷運直達車的行駛區間修正：南下現在會一路開到底站環北，北上也從環北發車，不再多出一站老街溪</span></li>
         <li data-cl="stationevents"><span class="d">8/12</span><span>車站看板新增「近期活動」，列出跟這一站有關的活動；「探」今日亮點也整理了一份總覽清單，點一下活動列會直接飛過去開那一站的看板，沒有對應特定車站的活動則改開官方原始連結</span></li>
         <li data-cl="stationtransfer"><span class="d">8/10</span><span>轉乘提示放到兩個真的用得上的地方：一是車站看板的站況區，點台鐵、高鐵、捷運、林鐵任何一站都看得到這站能換哪些系統；二是跟隨與搭乘卡的「下一站」旁邊，快到站、要決定換不換車時就在眼前。手機點開列車卡之後也看得到。共站資料由站名與車站座標交叉核對，路線名完整列出，卡片放不下會自己換行</span></li>
@@ -4316,7 +4315,8 @@
 //         回歸時允許對回官方位置並跳訊息說明。
 // v0814k：App 1.4.3 build 50／Android v5 合入網站 v0814j，保留 App 專屬橫放、背景音樂與更新提示。
 // v0815f：北捷斷訊挽救(v0815e)與 App 1.4.4 線(v0815b)合批。
-const BUILD = 'v0815f';
+// v0816b：台鐵左營／新城通過站正名（同座標兩顆站合一）＋班表 14 天重抓，合入 v0815f 出貨線。
+const BUILD = 'v0816b';
 // 2026-08-13 起預設開啟（使用者親試預覽後裁示上線）：北捷畫車依官方即時名冊，班表只是備案。
 // 保留 ?officialroster=0 當逃生口——要退回班表路徑不必回滾部署，加個參數即可對照。
 // 🔴 這個函式會被 verify_official_roster_frontend 抽出來丟進 VM 單獨執行——
@@ -12995,6 +12995,8 @@ function migrateCheckins(o) {
 function saveCheckins(c) { try { localStorage.setItem(CHECKIN_KEY, JSON.stringify(c)); } catch (e) {} }
 // 同一座實體站在班表資料裡可能掛兩個名字(環島線分支、官方全稱),座標完全重合——實測 3 對:
 // 臺北/臺北-環島、左營/左營(舊城)、新城/新城 (太魯閣)(新左營在 1.5 公里外,是真的另一座站不會被併)。
+// 2026-08-16 起後兩對已在資料層正名(densify_schedule.py 通過站改用官方站名),班表裡只剩臺北/臺北-環島;
+// 舊版打卡紀錄仍可能存著「左營(舊城)」這個鍵,故本機制保留、不寫死名單。
 // 收集算的是「去過幾座站」,別名不併等於站在原地就多收一座。用「座標完全相同」分群自動併,
 // 不寫死名單(TDX 換版也不腐爛);取站等較高(tier 較小)者當正名,同級取較長的官方全稱。
 // ⚠只在收集層正規化,不動 schedStations 本身——那會連帶影響班表、看板與收藏車站。
@@ -13013,7 +13015,18 @@ function checkinAliasMap() {
   return m;
 }
 // 打卡/收集用的正名站名;鍵一律走 favStationKey(捷運不分 freq/deco 視角,同站只有一枚章)
-function checkinName(sys, name, alias) { return (alias || checkinAliasMap()).get(sys + '|' + name) || name; }
+function checkinName(sys, name, alias) {
+  const a = (alias || checkinAliasMap()).get(sys + '|' + name);
+  if (a) return a;
+  // 舊打卡紀錄可能還存著資料層正名前的台鐵括號別名(「左營(舊城)」——2026-08-16 前它是同座標的第二顆站,
+  // 而且是當時打卡的 canonical):現行站列查不到、去掉括號後查得到,就併回官方站名,升版後同一座站不會多出一枚章
+  if (sys === 'tra_sched' && /[（(]/.test(name)) {
+    const base = name.replace(/\s*[（(].*$/, '');
+    const sts = state.schedStations || [];
+    if (base && !sts.some(s => s.sys === sys && s.name === name) && sts.some(s => s.sys === sys && s.name === base)) return base;
+  }
+  return name;
+}
 function checkinKey(st, alias) { return favStationKey({ sys: st.sys, name: checkinName(st.sys, st.name, alias) }); }
 // ── 單站打卡:判定與寫入(設計書 §3 B 路徑、§5 判定容忍值) ────────────────────
 // 半徑依站等給:特等站站體橫跨數百公尺,招呼站只有一座月台。
@@ -13039,10 +13052,10 @@ function checkinPlatformSeg(st) {
   // 刻意不做「台/臺」正規化:這份檔的鍵直接取自 data/tra.json,與班表同源、逐字對得上
   // (verify_checkin_platform 的 A5 就在守這件事)。加了 fallback 只會讓日後真的漂移時靜默查不到。
   if (m[st.name]) return m[st.name];
-  // 但別名站要接:同一座月台在班表裡有兩個名字(臺北/臺北-環島、新城/新城 (太魯閣)、
-  // 左營/左營(舊城)),幾何只掛在其中一個名下。用既有的「座標完全相同就分群」別名表回頭找
-  // 同群的其他名字——不能只查 canonical,因為 canonical 挑的是站等較小的那個,不一定是
-  // 有幾何的那個(新城 的 canonical 是「新城」,幾何卻掛在「新城 (太魯閣)」)。
+  // 但別名站要接:同一座月台在班表裡有兩個名字(臺北/臺北-環島;2026-08-16 前還有新城/新城 (太魯閣)、
+  // 左營/左營(舊城),現已在資料層正名、幾何鍵也改用官方站名),幾何只掛在其中一個名下。
+  // 用既有的「座標完全相同就分群」別名表回頭找同群的其他名字——不能只查 canonical,
+  // 因為 canonical 挑的是站等較小的那個,不一定是有幾何的那個。
   const alias = checkinAliasMap(), pre = st.sys + '|', canon = alias.get(pre + st.name) || st.name;
   if (m[canon]) return m[canon];
   for (const [k, v] of alias) if (v === canon && k.startsWith(pre) && m[k.slice(pre.length)]) return m[k.slice(pre.length)];

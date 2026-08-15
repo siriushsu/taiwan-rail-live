@@ -15,6 +15,33 @@ PATH = "data/tra_schedule_dense.json"
 WARN_REMAINING_DAYS = 3   # 今天起涵蓋不足這麼多天就警告
 
 
+def phantom_pass_stations(data):
+    """幽靈通過站：只以「通過」(stop=false) 身分出現、從未當過停靠站的站名，卻與某個停靠站名
+    共用同一座標——這是 densify 把 tra.json 節點名（「左營(舊城)」）與班表站名（「左營」）當成
+    兩座站的症狀：前端會長出兩顆同座標的站、點站彈疊站選單、其中一顆看板永遠空
+    （2026-08-16 網友回報）。回傳 [(幽靈通過站名, 同座標的停靠站名), ...]。
+    只有停靠紀錄的別名（如台鐵官方站碼 1001「臺北-環島」）是真站，不在此列。"""
+    stop_names = set()
+    stop_by_coord = {}
+    pass_by_coord = {}
+    for t in data.get("trains", []):
+        for s in t.get("stops", []):
+            key = (s.get("lat"), s.get("lon"))
+            if s.get("stop") is False:
+                pass_by_coord.setdefault(key, set()).add(s["name"])
+            else:
+                stop_names.add(s["name"])
+                stop_by_coord.setdefault(key, set()).add(s["name"])
+    bad = set()
+    for key, names in pass_by_coord.items():
+        for n in names:
+            if n in stop_names:
+                continue
+            for sn in stop_by_coord.get(key, ()):
+                bad.add((n, sn))
+    return sorted(bad)
+
+
 def main():
     try:
         with open(PATH, encoding="utf-8") as f:
@@ -43,6 +70,15 @@ def main():
         d = datetime.datetime.strptime(k, "%Y-%m-%d").date()
         mark = "  ← 今天" if k == today_str else ""
         print(f"  {k}（週{wd[d.weekday()]}）：{len(dates[k])} 車次{mark}")
+
+    ghosts = phantom_pass_stations(data)
+    if ghosts:
+        print("\n[FAIL] 幽靈通過站（只當通過站的名字與停靠站同座標＝同一座站被拆成兩顆）：", file=sys.stderr)
+        for ghost, real in ghosts:
+            print(f"  通過站「{ghost}」 ↔ 停靠站「{real}」", file=sys.stderr)
+        print("  densify_schedule.py 補通過站時應改用班表（官方）站名；請重跑：npm run fetch-schedule", file=sys.stderr)
+        return 1
+    print("幽靈通過站：0")
 
     if today_str not in dates:
         print("\n[FAIL] 今天已超出班表涵蓋範圍，前端會退回同週幾最近日（行為不劣於單日快照，但已非當日真實班表）。"
