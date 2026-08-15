@@ -124,9 +124,14 @@ ok('A3 汐科在資料裡', !!(loaded && loaded['汐科']));
 }
 {
   // 推估段是「拿別站的中位數套上來」，它的中心點必須真的在該站附近，否則就是套錯站
+  // 鍵是班表官方站名（2026-08-16 起「左營(舊城)」→「左營」），tra.json 查不到就退回班表停靠站座標
+  // （densify 已把停靠站吸附到 tra.json 節點座標，兩者同點）
+  const traStations = JSON.parse(readFileSync(path.join(ROOT, 'data/tra.json'), 'utf8')).lines.flatMap(l => l.stations || []);
+  const schedStops = new Map();
+  for (const tr of JSON.parse(readFileSync(path.join(ROOT, 'data/tra_schedule_dense.json'), 'utf8')).trains)
+    for (const s of tr.stops) if (!schedStops.has(s.name)) schedStops.set(s.name, s);
   const bad = Object.entries(disk.derived || {}).map(([n, s]) => {
-    const st = (JSON.parse(readFileSync(path.join(ROOT, 'data/tra.json'), 'utf8')).lines
-      .flatMap(l => l.stations || []).find(x => x.name === n));
+    const st = traStations.find(x => x.name === n) || schedStops.get(n);
     if (!st) return `${n} 查無站點`;
     const mid = [(s[0][0] + s[1][0]) / 2, (s[0][1] + s[1][1]) / 2];
     const d = havM([st.lat, st.lon], mid);

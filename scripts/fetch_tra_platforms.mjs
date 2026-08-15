@@ -251,6 +251,18 @@ try {
     for (const s of tr.stops) schedNames.add(s.name);
 } catch (e) { console.log('（讀不到 tra_schedule_dense.json，跳過站名對照）'); }
 if (schedNames.size) {
+  // 正名：tra.json 手打站列的「左營(舊城)」「新城 (太魯閣)」在班表（台鐵 ODS 官方站名）是「左營」「新城」，
+  // densify_schedule.py 已把通過站改成官方名（2026-08-16，同座標兩顆站的網友回報），前端 checkinPlatformSeg
+  // 用班表站名查這份檔——鍵不跟著改就查不到（verify_checkin_platform A5）。去掉括號後對得上班表、
+  // 且該名字還沒有幾何時，鍵改用官方站名。
+  const base = n => { const i = Math.min(...[n.indexOf('('), n.indexOf('（')].filter(x => x >= 0)); return Number.isFinite(i) ? n.slice(0, i).trim() : n; };
+  const renamed = [];
+  for (const g of [out, derived]) for (const n of Object.keys(g)) {
+    if (schedNames.has(n)) continue;
+    const b = base(n);
+    if (b !== n && schedNames.has(b) && !out[b] && !derived[b]) { g[b] = g[n]; delete g[n]; renamed.push(`${n}→${b}`); }
+  }
+  console.log(`站名正名（改用班表官方站名）：${renamed.length ? renamed.join('、') : '(無)'}`);
   const orphan = [...Object.keys(out), ...Object.keys(derived)].filter(n => !schedNames.has(n));
   console.log(`站名對不上班表的：${orphan.length ? orphan.join('、') : '(無)'}`);
 }
