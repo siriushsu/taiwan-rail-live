@@ -122,6 +122,14 @@ const TOAST_REVIEWED = new Map([
   // rec 來自自家 /api/trtc-live 的 recovery 物件,但即使上游吐 HTML 字串,Number() 也會變 NaN
   // 而被 >0 擋掉。三處皆無字串路徑進 innerHTML;句中的 <b> 是刻意的粗體排版。
   [`msg,{wrap:true}`, '官方訊號恢復通知:三個插值(分鐘/台數/移除台數)全經 Number()/Math.* 收斂為數字,無字串來源'],
+  // 2026-08-16 登記:通行證提示批次的兩發說明型 toast(看板的小工具引導、衛星的高解析說明)。
+  // 這個指紋是**偵測器的已知假陽性**,不是「有插入但我判斷安全」:blankLiterals 把整段字面字串
+  // 換成 '',於是只剩選項物件 `{wrap:true}` 裡的識別字 `wrap` 被 toastHasInjection 認成插入。
+  // 這一格涵蓋的呼叫形狀是【單一字串字面值 ＋ {wrap:true}】,結構上不存在插入點:
+  //   · 若有人日後改成 showToast('前綴' + name, {wrap:true}),blankLiterals 後是 ''+name,{wrap:true}
+  //     ⇒ 指紋不同 ⇒ 仍會被擋下來(這一格【不會】順便放行拼接版本)。
+  //   · 若改成樣板字串帶插值,指紋也會帶著 ${...} 而不同,同樣擋得住。
+  [`'',{wrap:true}`, '純字面字串＋{wrap:true} 選項:指紋裡的 wrap 是選項名不是插值,無任何值進 innerHTML'],
   // 2026-08-14 登記:捷運等車卡(Task 6)。
   [`res&&res.why===''?'':''`, '等車卡開卡失敗:兩個寫死字串二選一(why===disabled 與否),無插入'],
   [`''+escHtml(String(station||''))+''`, '等車卡深連結找不到站:station 來自小工具深連結(外部輸入),已 escHtml 逸出;verify_metro_wait_entry.mjs H 組實測覆蓋'],

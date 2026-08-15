@@ -1797,6 +1797,16 @@
     background: rgba(255,255,255,.14); border-color: var(--on-navy);
     color: var(--on-navy); box-shadow: none;
   }
+  /* 小工具引導:唯一「站在月台上的人會看到捷運小工具存在」的位置(方案面板要先想到去開才看得到)。
+     刻意做成低調文字列而非第二顆 CTA——同一個 h3 裡兩顆金底鈕會互相搶,追蹤這站才是主動作。
+     h3 有不透明深藍底,故不吃 panel-translucent 的外圈(見上方排除清單 .board h3 *)。 */
+  .board .board-widget-tip {
+    display: block; width: 100%; margin: 0; padding: 3px 0 1px;
+    background: none; border: 0; text-align: center; cursor: pointer;
+    font: 700 11.5px/1.5 inherit; letter-spacing: .4px;
+    color: var(--on-navy); opacity: .72;
+  }
+  .board .board-widget-tip:hover { opacity: 1; }
   /* 最愛車站的地圖 ★ 記號(掛站點上方一點;點了直接開該站看板) */
   .favst-ico { width: 16px; height: 16px; text-align: center; color: #d9a62e; cursor: pointer; }
   .favst-ico .ri-icon { width: 15px; height: 15px; display: block; margin: 0 auto; filter: drop-shadow(0 0 2px #fff8ec) drop-shadow(0 1px 1px rgba(20,26,40,.55)); }
@@ -3581,6 +3591,8 @@
       <div class="fp-alert" id="fpAlert" hidden></div>
       <div class="fp-dest" id="fpDest"></div>
       <div class="fp-dest" id="fpDelay" hidden></div>
+      <!-- 跟車鎖定畫面／動態島的通行證入口(免費層原本完全看不到這個功能存在);由 renderLaCta 開合 -->
+      <div class="fp-dest" id="fpLaCta" hidden></div>
       <button class="fp-notify" id="fpNotify" style="display:none" type="button"><svg class="ri-icon" aria-hidden="true" focusable="false"><use href="#ri-ui-notify"></use></svg>提醒</button>
       <!-- 搭乘模式(兩點法):上車時就選好在哪站下車,系統才知道要蓋到哪一站為止——
            不選的話使用者忘了按下車,會一路蓋到終點,把沒搭的區間也算進收集 -->
@@ -3800,7 +3812,7 @@
 
   <footer class="site-foot">
     <details class="foot-box">
-      <summary><span>更新紀錄</span><span class="foot-sub">最後更新：2026/8/15</span></summary>
+      <summary><span>更新紀錄</span><span class="foot-sub">最後更新：2026/8/16</span></summary>
       <!-- 第一層是「最近更新」的檢視,不是正本:每一條都用 data-cl-of 指向第二層某條的 data-cl。
            要把一條擠出第一層之前,它的正本必須已經在第二層存在——2026-08-03 就踩過一次:8/1 的
            衛星計費那條只活在第一層(第二層只有一句夾在 7/25 條目裡、日期對不上的附帶說明),
@@ -3808,6 +3820,7 @@
            內容 li 上限 8 條(li.grp 是標題不算)。 -->
       <ul class="foot-list foot-recent">
         <li class="grp">最近更新</li>
+        <li data-cl-of="plusctas"><span class="d">8/16</span><span>衛星高解析與跟車鎖定畫面現在會直接說明屬於通行證，捷運站看板也多了小工具引導</span></li>
         <li data-cl-of="danhaifireworks"><span class="d">8/15</span><span>淡水漁人碼頭煙火的三個週日（8/16、8/23、8/30），淡海輕軌畫面依官方公告調整：傍晚起綠山線班距拉長、五點後崁頂那一段停駛，藍海線改跑密集班距</span></li>
         <li data-cl-of="trtcoutage"><span class="d">8/15</span><span>台北捷運訊號中斷時會明白告知位置與倒數不準，並修好位置愈跑愈偏、冒出無車號幽靈車的問題</span></li>
         <li data-cl-of="metrowaitcard"><span class="d">8/14</span><span>iPhone 新增捷運等車卡與捷運小工具：鎖定畫面倒數下一班，北捷、高捷、機捷；下次 App 更新生效</span></li>
@@ -3815,9 +3828,6 @@
         <li data-cl-of="linecomplete"><span class="d">8/14</span><span>縱貫線北段完乘率卡在 99% 已修好，不用重搭就會自動補滿（謝謝網友回報）</span></li>
         <li data-cl-of="checkinplatform"><span class="d">8/14</span><span>月台特別長的車站（例如汐科），現在站在月台任何一端都蓋得到章（謝謝網友回報）</span></li>
         <li data-cl-of="trtcofficialroster"><span class="d">8/14</span><span>台北捷運列車改以官方站牌倒數逐班追蹤：從發車到終點依各站時間顯示位置，同一班車在多站的資訊會自動合併，車次與方向跟著實際行程；文湖線沒有車次時顯示 BR 路線牌。</span></li>
-        <li data-cl-of="crossnightfollow"><span class="d">8/14</span><span>跟著跨午夜的深夜車（例如 452 次）重播時，車不會再於 00:00 整台消失了（謝謝網友回報）</span></li>
-        <li data-cl-of="tradelaycatchup"><span class="d">8/14</span><span>台鐵列車追回誤點時不再瞬間往前跳一大段，改成邊跑邊追，最多兩倍速（謝謝網友回報）</span></li>
-        <li data-cl-of="land04c"><span class="d">8/12</span><span>手機橫放版面重排：時鐘併進頂列、地圖按鈕收成右側一疊、跟車欄貼左緣上下展開；鏡頭改成對準「沒被面板蓋住的地圖」置中，還會朝行進方向多看一點，直放跟車也一樣</span></li>
       </ul>
       <!-- 第二層:完整歷史。刻意不掛 .foot-box 類名——placeFootBoxes() 用
            `.site-foot .foot-box` 搬移面板,巢狀同名會被當成另一個盒子一起搬走。 -->
@@ -3866,6 +3876,7 @@
         <li><span class="d">7/16</span><span>捷運準確度升級：六家捷運依官方到站看板即時校正，國定假日自動改跑假日班表</span></li>
         <li><span class="d">7/9</span><span>台鐵即時誤點上線——介接交通部 TDX 平臺每分鐘更新；7/11 起開站即真實時刻、捷運改逐班推演</span></li>
         <li class="grp">跟車、搜尋與車站看板</li>
+        <li data-cl="plusctas"><span class="d">8/16</span><span>通行證的內容改成在用得到的地方直接講：捷運站看板多了「放上主畫面」的小工具引導、跟車面板可把倒數放上鎖定畫面、切到衛星影像時會說明有更清楚的高解析版本</span></li>
         <li data-cl="metrowidgetpass"><span class="d">8/15</span><span>捷運小工具的方案定了：免費可以設定一個捷運站，想同時放好幾站、或用「自動（最近的站）」讓小工具跟著你移動換站，就需要軌島通行證。設定超過一站時，小工具上會直接寫清楚原因、點一下就能看方案，不會只給你一張空白卡。等車卡（鎖定畫面倒數）維持免費。下次 App 更新生效</span></li>
         <li data-cl="metrowaitcard"><span class="d">8/14</span><span>iPhone 捷運車站看板新增「在這站等車」：下一班倒數放上鎖定畫面與動態島，班次照官方即時資訊，車進站了自動換下一班、追蹤時間到了自動收起；北捷、高捷、機捷都支援，桌面也有捷運小工具可一點直達開卡，下次 App 更新生效</span></li>
         <li data-cl="sparkcursor"><span class="d">8/14</span><span>跟隨面板的速度曲線：誤點的車，游標會停在曲線上錯誤的位置，寫出來的當下時速跟車實際在跑的對不起來（誤點越久差越多）；現在游標對回真實位置了</span></li>
@@ -4316,7 +4327,7 @@
 //         回歸時允許對回官方位置並跳訊息說明。
 // v0814k：App 1.4.3 build 50／Android v5 合入網站 v0814j，保留 App 專屬橫放、背景音樂與更新提示。
 // v0815f：北捷斷訊挽救(v0815e)與 App 1.4.4 線(v0815b)合批。
-const BUILD = 'v0815f';
+const BUILD = 'v0816b'; // v0816a 已被 Android 分支(ce999af)用掉,跨分支撞號見心得16
 // 2026-08-13 起預設開啟（使用者親試預覽後裁示上線）：北捷畫車依官方即時名冊，班表只是備案。
 // 保留 ?officialroster=0 當逃生口——要退回班表路徑不必回滾部署，加個參數即可對照。
 // 🔴 這個函式會被 verify_official_roster_frontend 抽出來丟進 VM 單獨執行——
@@ -7328,6 +7339,20 @@ const SAT_RETINA = APP_CFG.satRetina ?? SAT_RETINA_DEFAULT;
 function satRetinaAllowed() {
   return SAT_RETINA && plusIsActive();
 }
+// 衛星高解析是通行證項目,但「不給用」的顯形只是圖看起來比較糊——免費層完全不知道有更清楚的
+// 版本存在(專案第二個「不給用也不說」的閘門,另一個是跟車鎖屏,見 renderLaCta)。只在真的有差別
+// 的情境講一次:這個平台建得出高解析層(SAT_RETINA;網站的預設值是 false ⇒ 網站恆不觸發)＋
+// 訂閱旗標開＋還沒訂閱＋剛切【進】衛星。一輩子講一次(localStorage),不是每次切都念——切底圖是
+// 高頻動作,念第二次就是騷擾。跟車中即使已訂閱也走標準解析(setBasemap 的 wantLQ),那是效能取捨
+// 不是資格問題,所以句子裡一併講清楚,免得訂了之後以為沒生效。
+function maybeSatPlusNotice() {
+  if (state.basemap !== 'sat' || !SAT_RETINA || !PLUS_ENABLED || plusIsActive()) return;
+  try {
+    if (localStorage.getItem('trainmap-satplus-seen') === '1') return;
+    localStorage.setItem('trainmap-satplus-seen', '1');
+  } catch (e) {}
+  showToast('衛星影像免費看。想看更清楚的高解析版本，可以在「軌島通行證」裡開通（手機從「更多」進去）；跟車移動時一律用標準解析度，讓圖磚跟得上。', { wrap: true });
+}
 function followEntryZoom() { return Math.min(Math.max(map.getZoom(), 13), FOLLOW_ZOOM_CAP); } // 跟車進場:至少拉近到 13,App 再套上限
 const LOCATE_ENABLED = !!window.RAIL_NATIVE_GEOLOCATION;
 const NOTIFY_LOCAL_ENABLED = !!window.RAIL_NATIVE_LOCALNOTIFY;
@@ -9239,6 +9264,10 @@ function plusRender() {
   // 永遠拿不到,清單不能無條件宣傳——到期後這一項直接從陣列消失,不留半吊子的「限期」措辭。
   const feats = [
     '<b>台鐵列車的誤點履歷（逐日紀錄，回溯 90 天）</b>',
+    // App 限定:小工具是 iOS extension,網站沒有這回事(措辭比照下面兩項標明平台)。
+    // 免費層可設一站(MetroBoardIntent.freeStationLimit),故措辭是「多站」與「自動選站」兩件事,
+    // 不可寫成「捷運小工具」——那會讓免費使用者以為連一站都要付費。
+    '<b>iPhone 捷運小工具放多站，或用「自動（最近的站）」跟著你移動換站</b>',
     '收藏與完乘記錄跨裝置雲端同步',
     '行程分享：把你在哪班車上分享給朋友',
     // App 限定:入口(setupTakeoutUi)掛在 plusConfigured() 上,網站沒有 Web Billing key ⇒ 恆假 ⇒ 鈕不出現。
@@ -15418,6 +15447,21 @@ function renderDelayRow() {
   el.title = `單日最大誤點 ${s.m} 分`;
   el.hidden = false;
 }
+// 跟車鎖定畫面/動態島的通行證入口。這個功能原本是**不給用也不說**:liveActivityAllowed() 直接
+// 回 false,免費層從頭到尾看不到它存在(方案面板有列,但要先想到去開那個面板才看得到)。
+// 樣式與點擊回路照抄 renderDelayRow 的 fp-dhlink——那是專案自己的正確範本(專案唯一「有付費牆
+// 也講清楚」的既有案例),不另造一套 CTA 樣式。
+// 顯示條件刻意收窄成「只在真的用得到的人面前出現」:正在跟車＋原生殼有這個能力(網站沒有鎖定
+// 畫面這回事,LIVE_ACTIVITY_ENABLED 由原生殼注入)＋訂閱旗標開＋還沒訂閱。已訂閱者不看廣告
+// (他們看到的是卡片本身)。裝置低於 iOS 17.6 這件事 JS 側事前不知道(原生 start() 回 ios<17.6
+// 才知道),那是開卡當下的既有處理,不在這條入口的判準裡。
+function renderLaCta() {
+  const el = document.getElementById('fpLaCta'); if (!el) return;
+  const show = !!(state.followTrain && PLUS_ENABLED && LIVE_ACTIVITY_ENABLED && !plusIsActive());
+  if (!show) { el.hidden = true; el.textContent = ''; return; }
+  el.innerHTML = '鎖定畫面顯示這班車的倒數<span class="fp-dhlink">通行證 ›</span>';
+  el.hidden = false;
+}
 
 // ── 誤點履歷卡(Plus 頭牌;後端 /api/delay-history?train= 回 {train,days:[{d,fd,md}],_meta}) ──
 // 統計列複用跟隨面板的 30 天聚合值(state.delayStats);逐日長條圖+週幾分布來自 90 天 days。
@@ -15573,6 +15617,7 @@ function showFollowPanel(tr) {
     ? '臺北 ⇄ 枋寮 永續來回 · 一輪 12 小時 · 永不到站'
     : `${first.name} → ${last.name} · 終點 ${fmtHM(last.arrSec % 86400)} 抵達`;
   renderDelayRow(); // 有快取即即時顯示;無則先隱藏,由 ensureDelayStats 到貨後補
+  renderLaCta();    // 同上一行的位置:換車/重開面板時重算(訂閱狀態變動由 plusApplyCustomerInfo 那條負責)
   if (tr.sys === 'tra_sched') ensureDelayStats(); // 只有台鐵才觸發載入,跟高鐵不打這支 API
   fp.hidden = false;
   syncFollowOnClass(); // §04c:跟隨欄現身,站名牌中線與露出地圖跟著換
@@ -19753,7 +19798,8 @@ function metroWaitBoardHtml(st, sys) {
   if (!sys || !metroWaitEnabled()) return '';
   const on = !!(state.metroWait && state.metroWait.sys === sys && state.metroWait.station === st.name);
   return `<button class="board-wait${on ? ' on' : ''}" id="boardWait" type="button" data-sys="${escHtml(sys)}">` +
-    `${on ? '結束追蹤' : '追蹤這站'}</button>`;
+    `${on ? '結束追蹤' : '追蹤這站'}</button>` +
+    `<button class="board-widget-tip" id="boardWidgetTip" type="button">放上主畫面 ›</button>`;
 }
 // 綁按鈕 click。stopPropagation 比照 boardNotify:h3 內本來就不在 .row[data-li] 上,容器層的
 // 通用列點擊 handler 靠 pointerdown 先清 _downKey 已經不會誤吃,這裡多一道防禦與既有寫法一致。
@@ -19764,6 +19810,14 @@ function bindMetroWaitBoard(el, st, sys, lines, isDeco) {
     e.stopPropagation();
     const on = !!(state.metroWait && state.metroWait.sys === sys && state.metroWait.station === st.name);
     if (on) metroWaitStop(); else metroWaitStartFromBoard(sys, st, lines, isDeco, btn);
+  };
+  // 小工具引導。刻意不寫成「長按 → ＋ →…」的逐步教學:加入小工具的入口在 iOS 18 從左上角「＋」
+  // 改成「編輯 ▸ 加入小工具」,寫死步驟會對一半使用者是錯的(本 App 最低支援 iOS 15)。
+  // 純字面字串,無任何插值——不進 verify-release 的 TOAST_REVIEWED 名單(那張表管的是動態插入)。
+  const tip = el.querySelector('#boardWidgetTip');
+  if (tip) tip.onclick = e => {
+    e.stopPropagation();
+    showToast('長按主畫面空白處進入編輯，加入小工具找「軌島」，選捷運小工具再挑車站，桌面就看得到下一班。免費可設一站；放多站或用「自動（最近的站）」跟著你移動換站，需要軌島通行證。', { wrap: true });
   };
 }
 // 北捷(含環狀線):回傳 {rows:[{dest,eta,lineLabel,color}...],dataAt} 或 null。
@@ -20645,7 +20699,7 @@ const HELP_GROUPS = [
       steps: ['桌面按工具列的「通行證」、手機從「更多」→「軌島通行證」，看裡面有哪些內容',
         '訂閱在軌島 App 內完成，網站不收費',
         '在網站用同一個軌島帳號登入，App 訂的資格就會生效（面板裡的「已經在 App 訂閱了？登入以同步」）'],
-      tip: '通行證內容：台鐵列車的誤點履歷（回溯 90 天的逐日紀錄）、收藏與完乘紀錄跨裝置雲端同步、行程分享、在 App 匯入 Google Maps 已儲存清單、App 非跟車時的衛星高解析圖磚，以及 iOS 17.6 以上可用的跟車鎖定畫面與動態島即時動態。',
+      tip: '通行證內容：台鐵列車的誤點履歷（回溯 90 天的逐日紀錄）、iPhone 桌面與鎖定畫面的捷運小工具放多站或用「自動（最近的站）」跟著你移動換站（免費可設定一站）、收藏與完乘紀錄跨裝置雲端同步、行程分享、在 App 匯入 Google Maps 已儲存清單、App 非跟車時的衛星高解析圖磚，以及 iOS 17.6 以上可用的跟車鎖定畫面與動態島即時動態。',
       try: 'plus' },
   ]},
   { key: 'c', name: '模式與外觀', open: false, secs: [
@@ -21321,6 +21375,7 @@ function setupMapTools() {
       state.basemap = state.basemap === 'sat' ? 'map' : 'sat';
       try { localStorage.setItem('trainmap-basemap', state.basemap); } catch (e) {}
       setBasemap();
+      maybeSatPlusNotice(); // 只掛在【點擊】上:setBasemap() 開機還原時也會跑,掛那裡等於一開 App 就跳
     };
   } else satBtn.style.display = 'none';
   // 軌道顯示三段(自動/淡化/隱藏)住進「軌道與路線」告示卡;「軌」鈕改為開關面板
@@ -22605,6 +22660,9 @@ document.getElementById('fpEnd').onclick = (e) => { e.stopPropagation(); setAuto
 document.getElementById('fcEnd').onclick = (e) => { e.stopPropagation(); clearFreqFollow(); };
 document.getElementById('followPanel').addEventListener('click', (e) => {
   const fp = e.currentTarget;
+  // 🔴 必須排在 .fp-dhlink 那條【前面】:跟車鎖屏 CTA 借用同一個 .fp-dhlink 樣式類(同一種
+  //    視覺語彙),不先攔就會被下一行當成「誤點履歷 ›」導去誤點履歷卡。
+  if (e.target.closest('#fpLaCta')) { e.stopPropagation(); plusGateOpen('live-activity', renderLaCta); return; }
   if (e.target.closest('.fp-dhlink')) { e.stopPropagation(); openDelayHist(state.followTrain); return; } // 準點列尾端「誤點履歷 ›」
   // 手機全畫面:點跟隨小卡(非結束/收合/分享鈕)→ 展開「列車」sheet(桌面走原 fp-min 展開;直播/放空不攔,維持既有行為)
   if (window.matchMedia(MOBILE_MQ).matches && document.body.classList.contains('fs') && state.followTrain
