@@ -60,7 +60,9 @@ const RECOVERED = loadFixture('recovered_0701');
 const TRTC_LINES = new Set(['BR', 'R', 'R_XBT', 'G', 'G_XBT', 'O_XINZHUANG', 'O_LUZHOU', 'BL']);
 // 幾種「上游新鮮度」情境。extraDelay 讓斷線再老 N 秒（測簽章穩定用）。
 function payloadFor(mode, extraDelay = 0) {
-  const base = mode === 'recovered' ? RECOVERED : OUTAGE;
+  // 🔴 前綴比對，不是等值：recovered-notice 也必須拿恢復後的語料當底。第一版寫成 === 'recovered'，
+  // 於是 recovered-notice 悄悄落回斷訊語料，害「恢復說明看得到」那條在錯的情境下變綠。
+  const base = mode.startsWith('recovered') ? RECOVERED : OUTAGE;
   const now = Date.now() / 1000;
   const shifted = shiftEpochs(base, now - Number(base.boardPos.at));
   const bp = shifted.boardPos;
@@ -69,6 +71,13 @@ function payloadFor(mode, extraDelay = 0) {
     for (const v of bp.vehicles) if (TRTC_LINES.has(v.line) && Number.isFinite(v.observedEpoch)) v.observedEpoch -= extraDelay;
   if (mode === 'y-only') { // 反混算對照：北捷全新鮮、只有環狀線斷
     for (const v of bp.vehicles) v.observedEpoch = TRTC_LINES.has(v.line) ? now : now - 1800;
+  }
+  // 訊號剛回來的那一輪：後端會多帶一份恢復記錄。數字全部取自 2026-08-15 真事故的實測結果
+  // （六條線斷 2011 秒、66 台裡接回 57 台、清掉 9 台），不自己編。
+  if (mode === 'recovered-notice') {
+    bp.recovery = { atEpoch: now, lines: ['BL', 'BR', 'G', 'O_LUZHOU', 'O_XINZHUANG', 'R'],
+      outageSec: 2011, partial: true, removed: 9, before: 77, after: 84,
+      confirmed: true, reason: 'trackinfo-outage' };
   }
   return shifted;
 }
@@ -235,13 +244,41 @@ async function runResync(browser, baseUrl) {
       document.getElementById('toasts').innerHTML = '';
       return n;
     });
-    await setFeed(baseUrl, page, 'recovered');
+    // 用「帶恢復記錄」的那一輪：2026-08-15 起訊號回來不只跳位置，還會少車，訊息必須講到少車。
+    await setFeed(baseUrl, page, 'recovered-notice');
     await page.waitForFunction(() => document.querySelectorAll('#toasts .toast').length > 0,
       null, { timeout: 20000 }).catch(() => {});
     const toast = await page.evaluate(() =>
       [...document.querySelectorAll('#toasts .toast')].map(t => (t.textContent || '').trim()));
+    // 🔴 textContent 有字不等於使用者看得到：.toast 預設 white-space:nowrap + text-overflow:ellipsis，
+    // 手機 390px 只顯示得下前 20 個字，整句說明會被 … 吃掉（2026-08-15 靠截圖才發現，
+    // 當時所有文字斷言都是綠的）。所以這裡量的是真實排版：有沒有橫向溢出、是不是被壓成一行。
+    const toastFit = await page.evaluate(() => {
+      const t = document.querySelector('#toasts .toast');
+      if (!t) return { found: false };
+      const line = parseFloat(getComputedStyle(t).lineHeight) || 20;
+      return { found: true, clipped: t.scrollWidth > t.clientWidth + 1,
+        lines: Math.round(t.clientHeight / line), chars: (t.textContent || '').length };
+    });
     const rec = await page.evaluate(() => ({ at: _trtcOfficialResync.at, notified: _trtcOfficialResync.notifiedAt }));
-    return { primed, toast, rec, errors };
+    // 恢復後的常駐說明：toast 幾秒就消失，斷線 33 分鐘後才打開頁面的人只剩這一條看得到。
+    const alertAfter = await readAlert(page);
+    // 指名去抓「恢復」那一列，不假設它排第一：排序改了也不能讓這條偷偷驗到別的公告。
+    const recoveryRow = await page.evaluate(() => {
+      const el = [...document.querySelectorAll('#alertDetail .ad-row')]
+        .find(row => /即時訊號已恢復/.test(row.textContent || ''));
+      if (!el) return { found: false };
+      const r = el.getBoundingClientRect();
+      const hit = document.elementFromPoint(Math.round(r.left + r.width / 2), Math.round(r.top + r.height / 2));
+      return { found: true, onScreen: r.width > 0 && r.height > 0 && r.top < innerHeight && r.bottom > 0,
+        hit: !!hit && (hit === el || el.contains(hit) || hit.contains(el)),
+        text: (el.textContent || '').trim().slice(0, 400) };
+    });
+    // 對照組：同一份恢復資料但後端沒帶恢復記錄 → 這條常駐說明必須不出現
+    await setFeed(baseUrl, page, 'recovered');
+    const alertPlain = await readAlert(page);
+    return { primed, toast, toastFit, rec, errors,
+      recoveryAlert: alertAfter.text, recoveryRow, plainAlert: alertPlain.text };
   } finally { await context.close(); }
 }
 
@@ -353,6 +390,19 @@ try {
   check(/官方訊號恢復/.test(toastText) && /分鐘/.test(toastText) && /台/.test(toastText),
     '回歸時跳出訊息說明「為什麼車會跳」', toastText.slice(0, 120) || '(沒有任何 toast)');
   check(rs.rec.at > 0 && rs.rec.notified === rs.rec.at, '訊息只發一次（notifiedAt 已對齊）', JSON.stringify(rs.rec));
+  // 2026-08-15 起訊號回來會少車（以官方名單為準）。少車比跳位置更容易被當成當機，訊息必須講到。
+  check(/9 台/.test(toastText) && /移除/.test(toastText) && /不代表.*停駛/.test(toastText),
+    '訊息同時講明「有 N 台推估列車被移除、不代表停駛」', toastText.slice(0, 200) || '(沒有任何 toast)');
+  check(rs.toastFit && rs.toastFit.found && rs.toastFit.clipped === false && rs.toastFit.lines >= 3,
+    '這則說明在手機 390px 上是整句排開的，沒有被單行截斷（文字斷言照不到這件事）',
+    JSON.stringify(rs.toastFit));
+  check(/即時訊號已恢復/.test(rs.recoveryAlert || '') && /重新對齊/.test(rs.recoveryAlert || '') &&
+    /9 台/.test(rs.recoveryAlert || '') && rs.recoveryRow && rs.recoveryRow.onScreen === true &&
+    rs.recoveryRow.hit === true,
+    'toast 消失後仍有一條看得到、點得到的常駐說明（斷線後才開頁面的人只剩這條）',
+    (rs.recoveryAlert || '(空)').slice(0, 120));
+  check(!/即時訊號已恢復/.test(rs.plainAlert || ''),
+    '對照組：後端沒帶恢復記錄時不得憑空冒出恢復說明', (rs.plainAlert || '(空)').slice(0, 80));
   check((rs.errors || []).length === 0, '回歸情境零 pageerror', JSON.stringify(rs.errors || []));
 
   console.log('\n== 按掉公告之後不准每分鐘再彈 ==');
@@ -379,7 +429,8 @@ try {
       apply: s => replaceExactly(s, 'eventRowsHtml(st) + staleNote +', 'eventRowsHtml(st) +', 'boardNote'),
       expect: '車站看板上的倒數警語真的看得到' },
     { name: '公告清單不帶訊號中斷條目',
-      apply: s => replaceExactly(s, 'return trtcOutageEntries().concat(official,', 'return [].concat(official,', 'alert'),
+      apply: s => replaceExactly(s, 'return trtcOutageEntries().concat(trtcRecoveryEntries(), official,',
+        'return [].concat(official,', 'alert'),
       expect: '⚠ 公告鈕真的出現在畫面上且點得到' },
     { name: '把兩家上游混成一組算新鮮度',
       apply: s => replaceExactly(s,
@@ -412,6 +463,25 @@ try {
   indexOverride = null;
   check(dz2.stillHidden === false, '突變「簽章含分鐘數」→「按掉不再彈」必須轉紅',
     `stillHidden=${dz2.stillHidden}`);
+
+  // 恢復通知的兩個介面各自單獨突變（它們只在 runResync 那條路徑上看得到）
+  indexOverride = replaceExactly(INDEX,
+    `+ (removed ? \`另有 <b>\${removed} 台</b>推估中的列車因為不在官方名單上而移除，這不代表它們停駛。\` : '');`,
+    `+ '';`, 'toastRemoved');
+  const mr1 = await runResync(chrome, baseUrl);
+  indexOverride = null;
+  const mr1Text = (mr1.toast || []).join(' / ');
+  check(!(/9 台/.test(mr1Text) && /移除/.test(mr1Text)),
+    '突變「訊息不提被移除的車」→「講明有 N 台被移除」必須轉紅', mr1Text.slice(0, 100) || '(無 toast)');
+
+  indexOverride = replaceExactly(INDEX,
+    'return trtcOutageEntries().concat(trtcRecoveryEntries(), official,',
+    'return trtcOutageEntries().concat(official,', 'recoveryEntry');
+  const mr2 = await runResync(chrome, baseUrl);
+  indexOverride = null;
+  check(!(mr2.recoveryRow && mr2.recoveryRow.found),
+    '突變「公告清單不帶恢復說明」→「常駐說明看得到」必須轉紅',
+    (mr2.recoveryAlert || '(空)').slice(0, 80));
 } finally {
   await chrome.close();
   if (webkitBrowser) await webkitBrowser.close();

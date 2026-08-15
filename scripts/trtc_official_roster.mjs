@@ -380,7 +380,8 @@ function compareVehicles(a, b) {
  * 後續快照只更新它；當輪沒有 row 也沿已知時間軸保留，到已知終點才收車。
  * model 只讀路線站序與一段路程缺少到站時刻時所需的段秒，不以班表決定車的存在。
  */
-export function reduceOfficialRoster({ model, rows, prior = null, day, nowEpoch, sourceRevision }) {
+export function reduceOfficialRoster({ model, rows, prior = null, day, nowEpoch, sourceRevision,
+  realignSec = 0 }) {
   const normalizedDay = String(day || '').trim();
   const epoch = finite(nowEpoch, 'nowEpoch');
   if (!normalizedDay) throw new TypeError('official roster day 不可為空');
@@ -391,6 +392,23 @@ export function reduceOfficialRoster({ model, rows, prior = null, day, nowEpoch,
   const noKey = row => `${row.line}|${Number(row.dir)}|${String(row.sourceNo || row.officialNo || '')}`;
   for (const row of current) if (row.sourceNo) noCounts.set(noKey(row), (noCounts.get(noKey(row)) || 0) + 1);
   for (const row of current) row.displayNo = row.sourceNo && noCounts.get(noKey(row)) === 1 ? row.sourceNo : '';
+
+  // 斷訊是**逐條路線**發生的：2026-08-15 06:27–07:00 只有環狀線（新北捷運自己的 feed）還在報，
+  // 北捷自家八條線同時歸零，而全域 sourceRevision 因為環狀線仍有列而全程正常前進——
+  // 只看全域落差的判準對那場真事故一次都不會觸發。所以逐線記「最後一次出現官方列的時刻」。
+  const priorSeen = prior && prior.feedSeen && typeof prior.feedSeen === 'object' ? prior.feedSeen : {};
+  const feedSeen = { ...priorSeen };
+  const linesWithRows = new Set(current.map(row => row.line));
+  // 訊號回來就以訊號為準（使用者裁示）：這條線消失夠久又回來了，它斷訊期間續推的位置是虛構的。
+  // 冷啟動沒有 prior 可比，從沒見過的線也不算「回來」。
+  const realignLines = new Set();
+  if (realignSec > 0 && !coldStart) {
+    for (const line of linesWithRows) {
+      const last = Number(priorSeen[line]);
+      if (Number.isFinite(last) && epoch - last >= realignSec) realignLines.add(line);
+    }
+  }
+  for (const line of linesWithRows) feedSeen[line] = epoch;
 
   const state = { day: normalizedDay, nextSequence: initialSequence(prior, normalizedDay),
     reservedIds: new Set(priorVehicles.map(x => String(x.vehicleId || '')).filter(Boolean)) };
@@ -451,17 +469,27 @@ export function reduceOfficialRoster({ model, rows, prior = null, day, nowEpoch,
     .filter(evidence => evidence && evidence.source === 'official-board')
     .map(birthSignature));
 
-  let births = 0, ignoredObservations = 0, replayBirthsBlocked = 0;
+  let births = 0, ignoredObservations = 0, replayBirthsBlocked = 0, recoveryBirths = 0;
   for (let index = 0; index < current.length; index++) {
     if (assigned.has(index)) continue;
     // 正常營運時只有起點倒數能生車；半途站間列只能更新既有 ID，配不到也不得複製一台。
     // 唯一例外是當日狀態完全不存在的冷啟動，讓部署／D1 初建時可一次接回線上既有車。
-    if (!coldStart && !current[index].terminal) { ignoredObservations++; continue; }
+    //
+    // 第二個例外＝剛從斷訊恢復的那幾條線（2026-08-15 實測：恢復輪有 11 筆官方站間列
+    // 配不到任何舊 ID，其中 9 筆還帶官方車號）。這條線上斷訊期間推估的車剛被上面清光，
+    // 這些列再被擋掉就是「官方有車、畫面沒車」，直接牴觸「車子有官方數據就是在」。
+    // 位置取自官方那一列本身，不是我們推估的。範圍只限 realignLines：正常輪照舊只認起點，
+    // 否則每輪十幾筆站間列都會生出重複的車。
+    const recoverable = !coldStart && realignLines.has(current[index].line);
+    if (!coldStart && !current[index].terminal && !recoverable) { ignoredObservations++; continue; }
     if (priorBirthSignatures.has(birthSignature(birthEvidenceFor(current[index], sourceRevision, epoch)))) {
       replayBirthsBlocked++; continue;
     }
     const vehicleId = allocateVehicleId(state);
     assigned.set(index, vehicleId); usedIds.add(vehicleId); births++;
+    // 只數「恢復例外放行的」那些：冷啟動本來就整批放行站間列，算進來會讓每天第一輪
+    // 看起來像剛從斷訊恢復（實測健康語料誤報 82 台）。
+    if (recoverable && !current[index].terminal) recoveryBirths++;
   }
 
   const vehicles = [];
@@ -480,9 +508,14 @@ export function reduceOfficialRoster({ model, rows, prior = null, day, nowEpoch,
     vehicles.push(vehicle);
   }
 
-  let carried = 0, exits = 0, carriedNumberConflicts = 0;
+  let carried = 0, exits = 0, carriedNumberConflicts = 0, realigned = 0;
   for (const old of priorVehicles.slice().sort(compareVehicles)) {
     if (!old.vehicleId || usedIds.has(String(old.vehicleId))) continue;
+    // 🔴 訊號回來就以訊號為準（2026-08-15 使用者裁示）：這條線斷訊期間續推出來的位置是虛構的，
+    // 官方名單沒有的車一律不留，畫面上不能有多的。判準是「這條線剛從長時間消失中回來」，
+    // 不是資料齡——那條規則仍然永久廢棄。只清剛回來的那幾條線：正常輪每輪都有十幾台真車
+    // 合法地暫時離板（實測 carried 10–17／121），誤殺它們才是災難。
+    if (realignLines.has(old.line)) { realigned++; continue; }
     const contradicted = numberContradictions.has(String(old.vehicleId));
     const alive = carriedVehicle(model, old, sourceRevision, epoch, contradicted);
     if (alive) {
@@ -494,6 +527,9 @@ export function reduceOfficialRoster({ model, rows, prior = null, day, nowEpoch,
 
   vehicles.sort(compareVehicles);
   if (vehicles.length !== accepted - completed + carried) throw new Error('official roster 名冊基數不守恆');
+  // 「剛回來的線不得留下未經官方確認的車」是結構不變量（realigned 與 carried 互斥分支），
+  // 資料無法觸發它，所以**不在這裡擲例外**——今天正是 reducer 擲例外每天丟掉 22/38 輪。
+  // 這條由 verify_trtc_outage_recovery.mjs 在測試期把關，執行期只把數字送出去讓人看得到。
   const ids = vehicles.map(x => String(x.vehicleId));
   if (new Set(ids).size !== ids.length) throw new Error('official roster 同輪 vehicleId 重複');
   if (vehicles.some(x => x.tripKey != null || x.scheduleKey != null)) throw new Error('official roster 不得混入班表身分');
@@ -512,14 +548,17 @@ export function reduceOfficialRoster({ model, rows, prior = null, day, nowEpoch,
 
   return {
     schema: OFFICIAL_ROSTER_SCHEMA, day: normalizedDay, nowEpoch: epoch, sourceRevision,
-    nextSequence: state.nextSequence, vehicles,
+    // 逐線最後見到官方列的時刻要跟著名冊一起持久化，否則每個 isolate 都從零開始記，
+    // 「這條線消失多久了」永遠算不出來。
+    nextSequence: state.nextSequence, feedSeen, vehicles,
     aliases: vehicles.filter(vehicle => vehicle.officialNo).map(vehicle => ({ line: vehicle.line,
       dir: Number(vehicle.dir), no: String(vehicle.officialNo), vehicleId: String(vehicle.vehicleId) }))
       .sort((a, b) => a.line.localeCompare(b.line) || a.dir - b.dir || a.no.localeCompare(b.no) ||
         a.vehicleId.localeCompare(b.vehicleId)),
     diagnostics: {
       rows: current.length, accepted, ignoredObservations, replayBirthsBlocked,
-      extensions: 0, carried, completed, births,
+      extensions: 0, carried, completed, births, realigned, recoveryBirths,
+      realignedLines: [...realignLines].sort(), linesWithRows: linesWithRows.size,
       matches: accepted - births, hardNoMatches, exits, numberConflicts, carriedNumberConflicts,
       rejectedNumberJumps: numberContradictions.size,
       rejectedNumberJumpDetails: [...numberContradictions.values()].sort((a, b) =>

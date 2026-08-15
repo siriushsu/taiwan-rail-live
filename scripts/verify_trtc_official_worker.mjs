@@ -26,7 +26,15 @@ class FakeD1 {
     this.writes = 0;
     this.updateAttempts = 0;
     this.conflictOnce = null;
+    // 逐 key 寫入計數：「TrackInfo failure 不得改寫名冊」講的是名冊那一把，
+    // 不是「整個資料庫一個位元組都不准動」——斷訊起點就必須在那條路徑上記下來。
+    this.writesByKey = new Map();
   }
+  note(key) {
+    this.writes++;
+    this.writesByKey.set(String(key), (this.writesByKey.get(String(key)) || 0) + 1);
+  }
+  writesTo(key) { return this.writesByKey.get(String(key)) || 0; }
   prepare(sql) {
     const db = this;
     return {
@@ -48,7 +56,7 @@ class FakeD1 {
         if (/INSERT INTO trtc_state \(k,v\).*DO NOTHING/s.test(sql)) {
           const [key, value] = this.args;
           if (db.shared.has(String(key))) return { meta: { changes: 0 } };
-          db.shared.set(String(key), String(value)); db.writes++;
+          db.shared.set(String(key), String(value)); db.note(key);
           return { meta: { changes: 1 } };
         }
         if (/UPDATE trtc_state SET v=\? WHERE k=\? AND v=\?/.test(sql)) {
@@ -60,8 +68,14 @@ class FakeD1 {
             return { meta: { changes: 0 } };
           }
           if (db.shared.get(String(key)) !== String(oldValue)) return { meta: { changes: 0 } };
-          db.shared.set(String(key), String(value)); db.writes++;
+          db.shared.set(String(key), String(value)); db.note(key);
           return { meta: { changes: 1 } };
+        }
+        if (/DELETE FROM trtc_state WHERE k=\?/.test(sql)) {
+          const [key] = this.args;
+          const had = db.shared.delete(String(key));
+          if (had) db.note(key);
+          return { meta: { changes: had ? 1 : 0 } };
         }
         throw new Error(`FakeD1 不支援 run: ${sql}`);
       },
@@ -105,14 +119,24 @@ check(legacyOutage.feedMode === 'outage' && legacyOutage.vehicles.length === 0 &
   'v3 飛車名冊完全不讀，v4 從當下官方列乾淨建立');
 const heldDb = new FakeD1();
 const heldSeed = await api.trtcPersistOfficialRoster(args(heldDb, [row(0, 1, 120, '134')], 100, 100));
-const heldWrites = heldDb.writes;
+const heldRosterWrites = heldDb.writesTo('official_roster_v4');
 const heldOutage = await api.trtcBoardPositionAnchors({ TRTC_LEDGER: heldDb }, [], 'outage');
 check(heldOutage.feedMode === 'official' && heldOutage.held === true &&
   heldOutage.rosterStateSource === 'd1-held-after-outage' && heldOutage.vehicles.length === 1 &&
   heldOutage.vehicles[0].vehicleId === heldSeed.roster.vehicles[0].vehicleId &&
   heldOutage.vehicles[0].officialNo === '134' && heldOutage.rows[0].no === '134' &&
-  heldDb.writes === heldWrites,
-  '新開頁面首輪 TrackInfo failure 仍讀回 D1 已知車與官方車次，只讀不寫');
+  heldDb.writesTo('official_roster_v4') === heldRosterWrites,
+  '新開頁面首輪 TrackInfo failure 仍讀回 D1 已知車與官方車次，名冊不被改寫');
+// 斷訊起點必須記在那條路徑上，而且同一場斷訊只記一次——靜默期間每個 request 都會走到這裡，
+// 覆蓋就會讓「斷了多久」被一路刷新成 0，恢復判定永遠不會成立。
+await api.trtcBoardPositionAnchors({ TRTC_LEDGER: heldDb }, [], 'outage');
+await api.trtcBoardPositionAnchors({ TRTC_LEDGER: heldDb }, [], 'outage');
+const outageNote = JSON.parse(heldDb.shared.get('official_outage_v1') || 'null');
+check(heldDb.writesTo('official_outage_v1') === 1 && outageNote &&
+  outageNote.lastGoodRevision === heldSeed.roster.sourceRevision &&
+  outageNote.vehicleCount === 1 && outageNote.reason === 'trackinfo-outage' &&
+  heldDb.writesTo('official_roster_v4') === heldRosterWrites,
+  '斷訊起點三輪靜默只記一次，且鎖在斷訊前最後一份好名冊的 revision');
 const revisionDb = new FakeD1();
 await api.trtcPersistOfficialRoster(args(revisionDb, [row(0, 1, 104, 'REV')], 104, 104,
   '2026-08-13', 104));
@@ -278,6 +302,29 @@ casDb.conflictOnce = api.trtcOfficialRosterSnapshot(model, [row(0, 1, 125, 'C')]
 const casResult = await api.trtcPersistOfficialRoster(args(casDb, [row(1, 2, 140, 'C')], 115, 115));
 check(casDb.updateAttempts === 2 && casResult.roster.sourceRevision === 115 && !casResult.degraded,
   'CAS 衝突有限重試後寫入新 revision');
+
+// 訊號回來的那一輪要能回答使用者「畫面為什麼跳」。斷訊起點在 held 路徑記下、恢復輪讀出來、
+// 寫入成功後清掉；通知本身要多活幾分鐘，晚點才開頁面的人也看得到。
+const recShared = new Map(), recDb = new FakeD1(recShared);
+await api.trtcPersistOfficialRoster(args(recDb, [row(0, 1, 120, 'RC')], 100, 100));
+await api.trtcBoardPositionAnchors({ TRTC_LEDGER: recDb }, [], 'outage');   // 靜默：記下斷訊起點
+const recResult = await api.trtcPersistOfficialRoster(args(recDb, [row(0, 1, 420, 'RC')], 400, 400));
+const recovery = recResult.roster.recovery;
+check(recovery && recovery.lines.join(',') === 'BL' && recovery.outageSec === 300 &&
+  recovery.confirmed === true && recovery.reason === 'trackinfo-outage' &&
+  recovery.atEpoch === 400 && !recShared.has('official_outage_v1'),
+  '恢復輪帶出通知素材（斷了多久、哪幾條線、確認過是上游斷訊），並清掉斷訊記錄',
+  recovery ? `lines=${recovery.lines.join(',')} outageSec=${recovery.outageSec} confirmed=${recovery.confirmed}` : '無 recovery');
+// 往後推的每一步都必須小於斷訊門檻，否則那個跳躍本身就是另一場斷訊、會產生新的通知
+// （第一版寫成一次跳 700 秒，測到的是「又斷一次」不是「通知過期」）。
+const recNext = await api.trtcPersistOfficialRoster(args(recDb, [row(0, 1, 580, 'RC')], 550, 550));
+let recLater = null;
+for (const epoch of [700, 850, 1000, 1050]) {
+  recLater = await api.trtcPersistOfficialRoster(args(recDb, [row(0, 1, epoch + 30, 'RC')], epoch, epoch));
+}
+check(recNext.roster.recovery && recNext.roster.recovery.atEpoch === 400 && !recLater.roster.recovery,
+  '通知在恢復後續帶數分鐘，超過保留期才消失',
+  `+150 秒仍在＝${!!recNext.roster.recovery}、+650 秒已消失＝${!recLater.roster.recovery}`);
 
 // 🔴 2026-08-15 幽靈車第二根因（對照組實測：修 assembly 之前就存在）。
 // 已套用過的 frame F 再次送出（同 revision、較晚 observation）→ 第一次嘗試只更新 barrier，

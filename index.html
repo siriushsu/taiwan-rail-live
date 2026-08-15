@@ -1356,6 +1356,14 @@
     opacity: 0; transform: translateY(-10px); transition: opacity .4s ease, transform .4s ease;
   }
   .toast.show { opacity: 1; transform: none; }
+  /* 說明型 toast（訊號恢復、位置為什麼會跳…）本來就是一整句話，單行截斷等於沒通知：
+     2026-08-15 實測手機 390px 只看得到前 20 個字、「有幾台被移除」整句被 … 吃掉。
+     這類改成可換行、靠左讀，一般的短提示（完乘、蓋章）維持原本的單行置中。 */
+  /* 寬度要明寫，而且基準不能用 %：欄狀 flex 的 align-items:center 讓容器與可換行的子項互相
+     shrink-to-fit（100% 解析回容器、容器又跟著內容縮），實測手機卡在 195px 寬、275px 高的窄長條。
+     改用視窗單位打斷這個循環：手機吃滿可用寬、桌面停在可讀行長。 */
+  .toast.wrap { white-space: normal; text-align: left; line-height: 1.55;
+    width: min(100vw - 24px, 420px); }
   .toast b { color: var(--ink-strong); }
   .toast .ri-icon { width: 14px; height: 14px; margin-right: 2px; vertical-align: -.18em; }
 
@@ -4092,7 +4100,7 @@
 // v0814j：正式出貨前把北捷這一批功能合併成一條面向訪客的更新紀錄。
 // v0815a：官方看板斷線（08-15 實斷 33 分鐘）三修——續推改吃各段固定行車秒、斷線提示上畫面、
 //         回歸時允許對回官方位置並跳訊息說明。
-const BUILD = 'v0815c';
+const BUILD = 'v0815d';
 // 2026-08-13 起預設開啟（使用者親試預覽後裁示上線）：北捷畫車依官方即時名冊，班表只是備案。
 // 保留 ?officialroster=0 當逃生口——要退回班表路徑不必回滾部署，加個參數即可對照。
 // 🔴 這個函式會被 verify_official_roster_frontend 抽出來丟進 VM 單獨執行——
@@ -4809,7 +4817,7 @@ const _trtcOfficialDisplay = new Map();
 const TRTC_OFFICIAL_RESYNC_MIN_COAST_SEC = 300;
 // 斷訊回歸事件（由 trtcOfficialDisplayPosition 記錄、UI 每秒 tick 消費後跳訊息）。
 // 刻意不在位置函式裡直接呼叫 showToast——那會讓純函式驗收得連 DOM 一起搬進沙盒。
-const _trtcOfficialResync = { at: 0, outageSec: 0, count: 0, notifiedAt: 0 };
+const _trtcOfficialResync = { at: 0, outageSec: 0, count: 0, notifiedAt: 0, removedFor: 0 };
 // 使用者要求：允許倒退／跳動，但一定要跳訊息說明為什麼。
 // 等 2 秒才發：一輪資料回來時整批車會在同一個 tick 內各自回歸，馬上發會先報一台、
 // 數字還在長；靜置 2 秒代表這波回歸收完了，一次報完整的台數。
@@ -4819,11 +4827,19 @@ function trtcOfficialResyncTick(nowEpoch) {
   if (!(r.at > r.notifiedAt) || now - r.at < TRTC_RESYNC_TOAST_SETTLE_SEC) return null;
   const mins = Math.max(1, Math.round(r.outageSec / 60)), count = r.count;
   r.notifiedAt = r.at; r.outageSec = 0; r.count = 0;
+  // 除了「跳位置」，2026-08-15 起還會**少車**：訊號回來時以官方名單為準，中斷期間推估出來、
+  // 官方回報後對不上任何一班的車會被移除（使用者裁示）。少車比跳位置更容易被當成當機，
+  // 所以同一則訊息就要講明。每次恢復只講一次——後端的恢復記錄會續帶十分鐘，不綁住就每輪都重報。
+  const rec = state.trtcOfficialRoster && state.trtcOfficialRoster.recovery;
+  const removed = rec && Number(rec.removed) > 0 && Number(rec.atEpoch) !== Number(r.removedFor)
+    ? Number(rec.removed) : 0;
+  if (removed) r.removedFor = Number(rec.atEpoch);
   const msg = `官方訊號恢復　北捷即時資料中斷約 <b>${mins} 分鐘</b>後恢復，`
     + `<b>${count} 台</b>列車已重新對齊官方位置——中斷期間畫面上的位置是推估的，`
-    + `所以這些車會往前跳或往後退。`;
-  showToast(msg);
-  return { mins, count, msg };
+    + `所以這些車會往前跳或往後退。`
+    + (removed ? `另有 <b>${removed} 台</b>推估中的列車因為不在官方名單上而移除，這不代表它們停駛。` : '');
+  showToast(msg, { wrap: true });   // 整句說明，不能被單行截斷（實測手機只看得到前 20 字）
+  return { mins, count, removed, msg };
 }
 // dir 是名冊身分欄位，可能在重配或舊資料接回時落後一輪；畫面位置已經知道自己正走哪一段，
 // 所以位置軸與箭頭一律先採 motionFrom→motionTo。這使錯誤 dir 不能再把正向移動解讀成反向。
@@ -12245,7 +12261,8 @@ function placeMobileNotice(el) {
   el.style.maxHeight = Math.max(64, botV - topV) + 'px';
   el.style.overflowY = 'auto';
 }
-function showToast(msg) {
+// wrap=true 給「一整句說明」用（訊號恢復之類）。預設維持單行截斷，短提示的版面不受影響。
+function showToast(msg, { wrap = false } = {}) {
   // #recordScreen(詳細面板)在 body 層(z2400)，全站 toast 卻在 .stage(z1000)的堆疊脈絡內——
   // 只有面板真的整片接管畫面時才會蓋住 #toasts，這時才需要繞道 #recHint(z2450,蓋得過黑幕)。
   // 🔴 規格覆審 2026-07-28：條件從單純的 state.recording 收窄成「還要面板真的開著」——錄製期
@@ -12272,7 +12289,7 @@ function showToast(msg) {
   const box = document.getElementById('toasts');
   if (!box) return;
   const el = document.createElement('div');
-  el.className = 'toast'; el.innerHTML = msg;
+  el.className = wrap ? 'toast wrap' : 'toast'; el.innerHTML = msg;
   box.appendChild(el);
   while (box.children.length > 3) box.firstChild.remove(); // 疊太多先擠掉最舊
   placeMobileNotice(box); // 手機:避開時鐘/列車資訊卡/常駐錄製列
@@ -16736,7 +16753,10 @@ function applyTrtcOfficialRoster(boardPos) {
   // payload 整包原子換入；不根據 tripKey 過濾，也不用上一幀補這一幀缺的官方車。
   state.trtcOfficialRoster = { at: Number(boardPos.at), feedMode: 'official', sourceRevision: revision,
     vehicles: boardPos.vehicles.map(vehicle => ({ ...vehicle })), receivedEpoch: Date.now() / 1000,
-    held: !!boardPos.held, holdReason: boardPos.holdReason ? String(boardPos.holdReason) : null };
+    held: !!boardPos.held, holdReason: boardPos.holdReason ? String(boardPos.holdReason) : null,
+    // 訊號回來的那一輪，後端會把「畫面為什麼跳」一起送過來（哪幾條線、斷多久、清掉幾台）。
+    // 這是使用者明示要的：可以直接拿掉推估的車，但要跳通知說明跳動來自官方訊號。
+    recovery: boardPos.recovery && typeof boardPos.recovery === 'object' ? { ...boardPos.recovery } : null };
   const activeDisplay = new Set(state.trtcOfficialRoster.vehicles.map(vehicle =>
     `${vehicle.line}|${vehicle.vehicleId}`));
   for (const key of _trtcOfficialDisplay.keys()) if (!activeDisplay.has(key)) _trtcOfficialDisplay.delete(key);
@@ -17864,6 +17884,35 @@ function trtcOutageEntries() {
       + `車站倒數也可能找不到車或停住不動——都可能與實際不符，但這不代表列車停駛。`
       + `官方資料恢復後畫面會重新對齊官方位置，部分列車會因此往前跳或往後退。此為本站自動偵測，非官方公告。` }];
 }
+// 訊號恢復的那一下畫面會跳：續推中的位置被官方名單取代，接不回去的推估車直接消失。
+// 使用者裁示（2026-08-15）：訊號回來就以訊號為準、不能留多的車，但**必須跳通知**讓人知道
+// 這次跳動來自官方訊號，而不是站掛了或列車停駛。素材由後端在恢復輪算好帶上來（boardPos.recovery），
+// 前端只負責挑出「畫面上真的看得到的線」並說人話。
+function trtcRecoveryEntries() {
+  const rec = state.trtcOfficialRoster && state.trtcOfficialRoster.recovery;
+  const lines = rec && Array.isArray(rec.lines) ? rec.lines.map(String) : [];
+  if (!lines.length) return [];
+  const visible = new Set();
+  if (state.mode === 'sched') { if (state.deco) for (const ln of (state.decoLines || [])) visible.add(ln.id); }
+  else {
+    const vis = state.freqSel || new Set(state.sysId ? [state.sysId] : []);
+    for (const ln of (state.lines || [])) if (vis.has(freqSysIdOf(ln))) visible.add(ln.id);
+  }
+  const hit = lines.filter(id => visible.has(id));
+  if (!hit.length) return [];
+  const labels = [...new Set(hit.map(id => trtcFeedGroupOf(id).label))];
+  const mins = Number.isFinite(Number(rec.outageSec)) ? Math.max(1, Math.round(Number(rec.outageSec) / 60)) : null;
+  const removed = Number(rec.removed) || 0;
+  return [{ self: true, recovery: true, sig: `trtc-recovery:${rec.atEpoch}`, // 簽章綁恢復時刻,同一次只提醒一次
+    title: `${labels.join('、')}即時訊號已恢復：畫面剛依官方名單重新對齊`,
+    desc: `${mins ? `中斷約 ${mins} 分鐘期間，` : '訊號中斷期間，'}畫面上的列車是依各站之間的固定行車時間往前推估的。`
+      + `官方資料一回來，軌島就改以官方名單為準重新對齊，因此列車位置會出現一次跳動`
+      + (removed > 0
+        ? `，並移除了 ${removed} 台官方名單上已經沒有的推估列車。這不代表那些車停駛或發生事故——`
+          + `它們只是在中斷期間被推估出來、官方資料回來後對不上任何一班車。`
+        : '。')
+      + `目前畫面已回到官方即時資料。` }];
+}
 // 外部災害只是一個「去檢查」的理由，不是鐵路異常證據；文字必須把兩者分清楚。
 function hazardWatchEntries() {
   const watch = state.hazardWatch, list = watch && Array.isArray(watch.list) ? watch.list : [];
@@ -17891,7 +17940,10 @@ function activeAlertList() {
   }
   // 訊號中斷排在官方公告之前：橫幅只顯示 list[0] 的標題，而「你現在看到的位置是推估的」比任何
   // 一則通阻公告更急著讓使用者知道——公告過期了還在，推估錯位是此刻正在誤導人。
-  return trtcOutageEntries().concat(official, hazardWatchEntries(), selfAnomalyEntries());
+  // 恢復通知排在進行中的中斷之後、官方公告之前：中斷正在誤導人最急，剛跳完的畫面次之，
+  // 兩者都比「過期了還掛著」的通阻公告更需要被先看到。
+  return trtcOutageEntries().concat(trtcRecoveryEntries(), official, hazardWatchEntries(),
+    selfAnomalyEntries());
 }
 // 公告的常駐入口有兩種形態(2026-07-30 使用者回報後改版):
 //   桌面 = 右上角橫幅,可按 × 收起,同一批公告本次瀏覽不再跳出(換新公告會再出現)
