@@ -113,6 +113,15 @@ const TOAST_REVIEWED = new Map([
   [`t.toast`, '使用說明「試一次」:t 必為 HELP_TRY 成員,其 toast 全是寫死字面字串,無插入'],
   ["j.why===''?'':`${st.name}${Math.round(j.distM)},(${j.r})`", '單站打卡:st.name 來自內建班表/路線資料;distM 是 haversineKm 計算值,r 是 CHECKIN_RADIUS_M 數字常數'],
   ['`${st.name}`', '單站打卡:st 只由 nearbyStationCandidates 的內建班表/路線車站產生,站名不可由使用者編輯'],
+  // 2026-08-15 登記:北捷官方訊號恢復通知(trtcOfficialResyncTick,index.html:5059,斷訊挽救批次)。
+  // msg 是本地變數,由三個插值組成、全部是數字:
+  //   mins    = Math.max(1, Math.round(r.outageSec / 60));r.outageSec 唯一寫入點是
+  //             `Math.max(Number(...) || 0, coastedFor)`(index.html:5197)⇒ 數字
+  //   count   = r.count,唯一寫入點是 `(Number(...) || 0) + 1`(index.html:5198)⇒ 數字
+  //   removed = Number(rec.removed),且被 `Number(rec.removed) > 0` 守著 ⇒ 有限正數
+  // rec 來自自家 /api/trtc-live 的 recovery 物件,但即使上游吐 HTML 字串,Number() 也會變 NaN
+  // 而被 >0 擋掉。三處皆無字串路徑進 innerHTML;句中的 <b> 是刻意的粗體排版。
+  [`msg,{wrap:true}`, '官方訊號恢復通知:三個插值(分鐘/台數/移除台數)全經 Number()/Math.* 收斂為數字,無字串來源'],
   // 2026-08-14 登記:捷運等車卡(Task 6)。
   [`res&&res.why===''?'':''`, '等車卡開卡失敗:兩個寫死字串二選一(why===disabled 與否),無插入'],
   [`''+escHtml(String(station||''))+''`, '等車卡深連結找不到站:station 來自小工具深連結(外部輸入),已 escHtml 逸出;verify_metro_wait_entry.mjs H 組實測覆蓋'],
