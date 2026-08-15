@@ -416,7 +416,7 @@ export function attachOfficialTimelines(model, collapsedClaims, resolvedRows, ca
       // 起點列的 depEpoch 依定義等於 arrEpoch（車還停在起點）。同一起點排兩班發車時，
       // 這裡曾把後一班的 dep 改寫成前一班的到站時刻，做出 dep<arr 的終點列，
       // reducer 當場擲「timeline 形狀不合法」整輪丟掉、退回 held。
-      // 2026-08-15 實測 38 個有效輪次中 20 輪因此丟失（holdReason=assembly-error）。
+      // 2026-08-15 實測 38 個有效輪次中 22 輪因此丟失（holdReason=assembly-error）。
       if (current.terminal) continue;
       const line = model.lines.get(claim.line);
       const dwell = previous.terminal ? 0 : (line.stations[Number(previous.to)].dwell || DEFAULT_DWELL_SEC);

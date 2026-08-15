@@ -1275,7 +1275,8 @@ function trtcOfficialNextState(model, rows, priorState, day, nowEpoch, sourceRev
   const dupSignatures = next.diagnostics && Number(next.diagnostics.duplicateBirthSignatures) || 0;
   if (dupSignatures > 0) {
     console.warn(`[trtc official roster] 幽靈車哨兵：${dupSignatures} 組出生證據對應多個 vehicleId` +
-      `（duplicateRowsCollapsed=${next.diagnostics && next.diagnostics.duplicateRowsCollapsed || 0}）`);
+      `（replayBirthsBlocked=${next.diagnostics && next.diagnostics.replayBirthsBlocked || 0}、` +
+      `duplicateRowsObserved=${next.diagnostics && next.diagnostics.duplicateRowsObserved || 0}）`);
   }
   return next;
 }

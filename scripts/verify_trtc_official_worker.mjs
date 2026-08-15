@@ -219,7 +219,7 @@ check(nextDay.roster.day === '2026-08-14' && nextDay.roster.rows.length === 1 &&
   nextDay.roster.rows[0].vehicleId.includes('2026-08-14') && nextDay.roster.rows[0].vehicleId !== firstId,
   '營運日切換不沿用前一日 vehicleId／alias');
 
-// 無 D1 仍以 canonical 排序分配 deterministic IDs；完全相同的兩列合一（不製造第二個身分）。
+// 無 D1 仍以 canonical 排序分配 deterministic IDs；完全相同的兩列＝兩台真車，各自一個身分。
 const dupRows = [row(0, 1, 120, 'DUP'), row(0, 1, 120, 'DUP'), row(1, 2, 140, '')];
 const readonlyA = await api.trtcPersistOfficialRoster(args(null, dupRows, 100, 100));
 const readonlyB = await api.trtcPersistOfficialRoster(args(null, [dupRows[2], dupRows[0], dupRows[1]], 100, 100));
@@ -228,9 +228,10 @@ check(readonlyA.degraded && readonlyA.rosterStateSource === 'deterministic-read-
   'D1 缺席明確標示 deterministic read-only degraded');
 check(JSON.stringify(canonical(readonlyA)) === JSON.stringify(canonical(readonlyB)),
   'rows shuffle 不改 canonical multiset 的 ID 對應');
-check(readonlyA.roster.rows.length === 2 && new Set(readonlyA.roster.rows.map(x => x.vehicleId)).size === 2 &&
-  readonlyA.roster.diagnostics.duplicateRowsCollapsed === 1,
-  '完全相同的官方列合一：不可區分的證據不得變成兩台車');
+check(readonlyA.roster.rows.length === 3 && new Set(readonlyA.roster.rows.map(x => x.vehicleId)).size === 3 &&
+  readonlyA.roster.diagnostics.duplicateRowsObserved === 1 &&
+  readonlyA.roster.diagnostics.duplicateBirthSignatures === 0,
+  '完全相同的官方列＝官方報了兩台車，一台都不准少畫');
 check(readonlyA.roster.rows.every(r => readonlyA.roster.vehicles.some(v => !v.extension &&
   v.vehicleId === r.vehicleId && v.line === r.line && v.dir === r.dir && v.from === r.from &&
   v.to === r.to && v.dest === r.dest && v.run === r.run && v.arrEpoch === r.arrEpoch)),
@@ -277,6 +278,31 @@ casDb.conflictOnce = api.trtcOfficialRosterSnapshot(model, [row(0, 1, 125, 'C')]
 const casResult = await api.trtcPersistOfficialRoster(args(casDb, [row(1, 2, 140, 'C')], 115, 115));
 check(casDb.updateAttempts === 2 && casResult.roster.sourceRevision === 115 && !casResult.degraded,
   'CAS 衝突有限重試後寫入新 revision');
+
+// 🔴 2026-08-15 幽靈車第二根因（對照組實測：修 assembly 之前就存在）。
+// 已套用過的 frame F 再次送出（同 revision、較晚 observation）→ 第一次嘗試只更新 barrier，
+// 但 CAS 輸給同 revision 的另一幀 G（G 是從 F 前進來的）→ 重試時 prior 換成 G、frameKey 不再相同，
+// 整份 F 被疊回已前進的名冊。原車已離開起點、配對判為不可行，同一份出生證據就會第二次生車。
+// 判準下在「車數與出生證據」而不是「有沒有重跑 reducer」——後者是實作細節，前者才是使用者看得到的。
+const replayShared = new Map(), replayDb = new FakeD1(replayShared);
+const replayFrame = [row(0, 0, 150, '')];
+const replaySeed = await api.trtcPersistOfficialRoster(args(replayDb, replayFrame, 100, 100, '2026-08-13', 1000));
+const advancedFrame = api.trtcOfficialRosterSnapshot(model, [row(0, 1, 170, '')], replaySeed.roster,
+  '2026-08-13', 100, 100);
+advancedFrame.sourceObservedEpoch = 1001;
+replayDb.conflictOnce = advancedFrame;
+const replayResult = await api.trtcPersistOfficialRoster(args(replayDb, replayFrame, 100, 100, '2026-08-13', 1002));
+const replaySignatures = new Map();
+for (const vehicle of replayResult.roster.vehicles) {
+  const e = vehicle.birthEvidence || {};
+  const key = [e.sourceRevision, e.line, e.dir, e.from, e.to, e.arrEpoch, e.observedEpoch, e.occurrence].join('|');
+  replaySignatures.set(key, (replaySignatures.get(key) || 0) + 1);
+}
+check(replayDb.updateAttempts === 2 && replaySeed.roster.vehicles.length === 1 &&
+  replayResult.roster.vehicles.length === 1 &&
+  [...replaySignatures.values()].every(count => count === 1),
+  'CAS 敗退後重放已套用的 frame，不得讓同一份出生證據再生一台',
+  `嘗試=${replayDb.updateAttempts}、車數 ${replaySeed.roster.vehicles.length}→${replayResult.roster.vehicles.length}`);
 
 // source-level 正向／mutation controls：避免 verifier 只測替身而產品編排根本沒接上。
 // 每個 mutation 都要只打紅自己的 wiring property，不能靠「整體 gate 反正已紅」假裝有牙。
