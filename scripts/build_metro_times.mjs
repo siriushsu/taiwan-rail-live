@@ -12,6 +12,7 @@
 import { readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { applySpecialOps } from './special_ops.mjs';
 
 const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
 const J = f => JSON.parse(readFileSync(path.join(ROOT, f), 'utf8'));
@@ -596,6 +597,7 @@ for (const sys of SYSTEMS) {
     console.log(`  ${s.lineId.padEnd(12)} ${Object.entries(r.sets).map(([k, v]) => `${k}:${v.length}班`).join(' ')}  (班距合成)`);
   }
   for (const n of notes) console.log(`  ℹ ${n}`);
+  applySpecialOps(out, sys.out, ROOT);
   writeFileSync(path.join(ROOT, sys.out), JSON.stringify(out));
   console.log(`  → ${sys.out} ${(JSON.stringify(out).length / 1024).toFixed(0)}KB`);
 }
