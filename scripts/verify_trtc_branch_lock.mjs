@@ -119,6 +119,20 @@ const updateFor = (frame, trackId) => frame.trackUpdates.find(u => u.trackId ===
     'F2 共線段 claim 不得把 track 的分支改寫掉',
     t1 ? `T1.line=${t1.line}` : 'T1 本輪未被改寫');
 
+  // F2b：分支歧義的權威定義是 pickBoardCandidate:188——「站在幹線上 **而且** 終點也在幹線上」。
+  // 終點是蘆洲／迴龍的列，boardCandidates 只會給一個候選，那是權威證據，即使車此刻還在幹線上
+  // 也必須能建立／更正分支。若連這種列一起鎖住，D1 既有的錯歸屬就會被凍成永久（比修法前更難自癒）。
+  // 正式站 08-16 07:4x 實測：幹線站 51 列中 24 列（47%）終點為蘆洲/迴龍。
+  const prior2b = [priorTrack({ id: 'T6', line: 'O_XINZHUANG', dir: 1, idx: 3, no: '436' })];
+  const frame2b = ledger.assignLedgerFrame({
+    model, claims: [makeClaim({ line: 'O_LUZHOU', dir: 2, to: 2, no: '436' })],
+    cars: [], priorTracks: prior2b, aliases: [alias('436', 'T6')], day: DAY, nowEpoch: NOW,
+  });
+  const t6 = updateFor(frame2b, 'T6');
+  check(t6 && t6.line === 'O_LUZHOU',
+    'F2b 幹線上但終點為分支端點的列＝權威證據，必須能更正分支',
+    t6 ? `T6.line=${t6.line}` : 'T6 未被更新（另鑄了？）');
+
   // 反向控制組：分支獨有段(idx15 先嗇宮，迴龍獨有)的觀測仍必須能建立／更新分支。
   const prior2 = [priorTrack({ id: 'T2', line: 'O_LUZHOU', dir: 1, idx: 12, no: '407' })];
   const frame2 = ledger.assignLedgerFrame({
@@ -130,29 +144,39 @@ const updateFor = (frame, trackId) => frame.trackUpdates.find(u => u.trackId ===
     frame2.trackUpdates.map(u => `${u.trackId}=${u.line}`).join(' '));
 }
 
-// ---- F3：同號跨分支不得接管別支的 track ----
+// ---- F3：分支保護不得因為「那一輪剛好有逐車資料」而失效 ----
+// 08-16 獨立複審抓到的盲點：前一版守衛把跨分支的 trackId 清成 null 之後，下一行的
+// `sameCar` 會原樣接回同一條 track、沒有再查一次分支——而正式站常態就是有 CarWeight。
+// 也就是那道守衛只在 `cars: []` 時成立，而驗收腳本自己傳的正是 `cars: []`（全綠卻沒有牙）。
+// 教訓寫成判準：每一條分支保護都要在「有／沒有逐車資料」兩種情況各跑一次。
 {
-  // T3 是蘆洲支的 436（在蘆洲獨有段 idx13）。本輪迴龍獨有段 idx15 也出現一筆 436
-  // ——那是不同的一趟。舊碼靠 aliasToTrack('hw_no:436') 直接接管 T3，把它整個搬到迴龍支。
-  const prior = [priorTrack({ id: 'T3', line: 'O_LUZHOU', dir: 1, idx: 13, no: '436' })];
-  const frame = ledger.assignLedgerFrame({
-    model, claims: [makeClaim({ line: 'O_XINZHUANG', dir: 1, to: 15, no: '436' })],
-    cars: [], priorTracks: prior, aliases: [alias('436', 'T3')], day: DAY, nowEpoch: NOW,
-  });
-  const t3 = updateFor(frame, 'T3');
-  check(!t3, 'F3 分支獨有段的同號 claim 不得接管別支既有 track（應另鑄）',
-    t3 ? `卻把 T3 搬成 ${t3.line}` : '已另鑄新 track');
-  check(frame.trackUpdates.length === 1 && frame.trackUpdates[0].line === 'O_XINZHUANG',
-    'F3 該 claim 仍要有自己的 track（不得整筆消失）',
-    frame.trackUpdates.map(u => `${u.trackId.slice(0, 28)}=${u.line}`).join(' '));
+  const carsFor = (no, line) => {
+    const rows = [{ TrainNumber: no, StationID: 'O05', CID: 1, utime: NOW,
+      Cart1L: 1, Cart2L: 1, Cart3L: 1, Cart4L: 1, Cart5L: 1, Cart6L: 1 }];
+    return ledger.normalizeCarRows(model, rows, [], epochOf, new Map([[`hw_no:${no}`, line]]));
+  };
+  check(carsFor('436', 'O_LUZHOU').length === 1,
+    'F3 前置：測試用的逐車列真的有被採用（否則兩種情況等價＝沒驗到）');
 
-  // 反向控制組：同分支同號本來就該接回原 track，不可因為修法而每輪重鑄。
+  for (const [label, cars] of [['無逐車資料', []], ['有逐車資料', carsFor('436', 'O_LUZHOU')]]) {
+    // 幹線歧義列（終點南勢角也在幹線上）不得改寫分支——兩種情況都必須成立。
+    const prior = [priorTrack({ id: 'T7', line: 'O_LUZHOU', dir: 1, idx: 12, no: '436' })];
+    const frame = ledger.assignLedgerFrame({
+      model, claims: [makeClaim({ line: 'O_XINZHUANG', dir: 1, to: 1, no: '436' })],
+      cars, priorTracks: prior, aliases: [alias('436', 'T7')], day: DAY, nowEpoch: NOW,
+    });
+    const t7 = updateFor(frame, 'T7');
+    check(!t7 || t7.line === 'O_LUZHOU', `F3 幹線歧義列不得改寫分支（${label}）`,
+      t7 ? `T7.line=${t7.line}` : 'T7 本輪未被改寫');
+  }
+
+  // 控制組：同分支同號仍接回原 track，不可每輪重鑄（identity churn）。
   const prior2 = [priorTrack({ id: 'T4', line: 'O_LUZHOU', dir: 1, idx: 13, no: '436' })];
   const frame2 = ledger.assignLedgerFrame({
     model, claims: [makeClaim({ line: 'O_LUZHOU', dir: 1, to: 12, no: '436' })],
     cars: [], priorTracks: prior2, aliases: [alias('436', 'T4')], day: DAY, nowEpoch: NOW,
   });
-  check(!!updateFor(frame2, 'T4'), 'F3 控制組：同分支同號仍接回原 track',
+  check(!!updateFor(frame2, 'T4'), 'F3 控制組：同分支同號仍接回原 track（不得 churn）',
     frame2.trackUpdates.map(u => u.trackId).join(' '));
 }
 
@@ -162,8 +186,11 @@ const updateFor = (frame, trackId) => frame.trackUpdates.find(u => u.trackId ===
   // 修好之後這條由 F2 保證：track.line 只能來自分支獨有段，於是它本來就是可信的證據。
   const onTrunk = priorTrack({ id: 'T5', line: 'O_XINZHUANG', dir: 1, idx: 3, no: '436' });
   const hints = ledger.branchLineHintsFromLedger([onTrunk], [alias('436', 'T5')]);
+  // 注意這條只驗「接線還在」：prior 的 line 是本測試自己給的，所以它證明不了那個值可信。
+  // 值的可信度由 F2／F2b 保證（只有分支獨有段或終點權威的證據寫得進去），不由這條保證。
   check(hints.get('436') === 'O_XINZHUANG',
-    '迴圈：hint 仍由 track.line 供應（F2 讓這個來源變成可信）', String(hints.get('436')));
+    '管線：branchLineHintsFromLedger 仍能經 alias 取到 track.line（僅驗接線）',
+    String(hints.get('436')));
 }
 
 console.log(`\n${failures ? '❌' : '✅'} 共 ${failures} 項未通過`);
