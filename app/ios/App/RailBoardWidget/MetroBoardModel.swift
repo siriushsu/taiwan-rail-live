@@ -13,6 +13,18 @@ public struct MetroRow: Equatable {
     public let minutes: Int?
     /// 每節車廂擁擠度。官方沒給就是 nil,不得補零、不得猜。
     public let crowd: [Int]?
+    /// 這一班所屬的官方路線代碼(BL/BR/R/G/O/Y)。
+    /// 來源:看板列的車號 join 官方 `trains[]`,取該車 `stn` 的字母前綴(如 "BL13" → "BL")。
+    /// 🔴 對不到就是 nil,不准用站別或終點去猜——轉乘站(忠孝復興同時有文湖線與板南線,
+    ///    兩者都開往南港展覽館)猜錯就是畫錯線色,那正是這個欄位要解決的問題。
+    ///    文湖線的車在官方 `trains[]` 裡「車號」其實是車廂編號("43,36")且 dest 為 null,
+    ///    所以文湖線的看板列一律 join 不到 ⇒ 恆為 nil,由畫面層的目錄退路處理。
+    public let lineCode: String?
+
+    public init(dest: String, etaEpoch: Double?, minutes: Int?, crowd: [Int]?, lineCode: String? = nil) {
+        self.dest = dest; self.etaEpoch = etaEpoch; self.minutes = minutes
+        self.crowd = crowd; self.lineCode = lineCode
+    }
 }
 
 public struct MetroSnapshot: Equatable {
@@ -29,8 +41,8 @@ public enum MetroBoardModel {
     // MARK: - 北捷(絕對 epoch)
 
     private struct TrtcResponse: Decodable {
-        struct BoardRow: Decodable { let name: String; let dest: String; let eta: Double }
-        struct Train: Decodable { let stn: String?; let dest: String?; let cars: [Int]? }
+        struct BoardRow: Decodable { let name: String; let dest: String; let eta: Double; let no: String? }
+        struct Train: Decodable { let no: String?; let stn: String?; let cars: [Int]? }
         let board: [BoardRow]
         let trains: [Train]?
         /// 官方回應自帶的產生時刻(ISO8601)。三個端點都有。
@@ -63,20 +75,28 @@ public enum MetroBoardModel {
             //    ⇒ 只比 eta 時,同時刻的並列在兩邊可能排出不同順序,逐列比對就會假紅。
             //    平手時再比原始 dest 字串(兩邊用同一個欄位、同一條規則)。
             .sorted { $0.eta == $1.eta ? $0.dest < $1.dest : $0.eta < $1.eta }
+        // 🔴 每一列都對回【它自己那台車】(車號 join 官方 `trains[]`),線色與擁擠度都從那台車取。
+        //    以前擁擠度是用「終點」配的——同一個終點的所有列都拿到同一台車的資料,實測 211 條
+        //    可比對的列裡有 140 條畫的是別台車的擁擠度(2026-08-15),違反本檔自己的規定。
+        //    線色同理:轉乘站(忠孝復興同時有文湖線與板南線,兩者都開往南港展覽館)用終點分不出來。
+        //    對不到車就兩者皆 nil——寧可不畫,也不要畫別台車的資料。
+        var trainByNo: [String: TrtcResponse.Train] = [:]
+        for t in r.trains ?? [] {
+            guard let no = t.no, !no.isEmpty, trainByNo[no] == nil else { continue }
+            trainByNo[no] = t
+        }
         let rows = mine.map { b -> MetroRow in
-            let dest = alias[b.dest] ?? b.dest
-            return MetroRow(dest: dest, etaEpoch: b.eta, minutes: nil,
-                            crowd: crowdFor(dest: b.dest, trains: r.trains))
+            let train = b.no.flatMap { $0.isEmpty ? nil : trainByNo[$0] }
+            let cars = train?.cars
+            return MetroRow(dest: alias[b.dest] ?? b.dest, etaEpoch: b.eta, minutes: nil,
+                            crowd: (cars?.isEmpty == false) ? cars : nil,
+                            lineCode: train?.stn.flatMap { stn in
+                                let code = String(stn.prefix(while: { $0.isLetter }))
+                                return code.isEmpty ? nil : code
+                            })
         }
         return MetroSnapshot(station: station, dataAt: payloadTime(r.at, fallback: now),
                              rows: rows, stale: rows.isEmpty)
-    }
-
-    /// 下一班的車廂擁擠度:官方 `trains[]` 裡往同一個終點、且還沒過本站的那一台。
-    /// 配不到就回 nil——寧可不畫,也不要畫一台別的車的擁擠度。
-    private static func crowdFor(dest: String, trains: [TrtcResponse.Train]?) -> [Int]? {
-        guard let trains else { return nil }
-        return trains.first { $0.dest == dest && ($0.cars?.isEmpty == false) }?.cars
     }
 
     // MARK: - 高捷／機捷(整數分鐘)

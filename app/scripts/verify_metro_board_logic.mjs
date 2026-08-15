@@ -29,6 +29,7 @@ let rows = snap.rows.map { r -> [String: Any] in
   if let e = r.etaEpoch { d["etaEpoch"] = e }
   if let m = r.minutes { d["minutes"] = m }
   if let c = r.crowd { d["crowd"] = c }
+  if let l = r.lineCode { d["lineCode"] = l }
   return d
 }
 let out: [String: Any] = ["station": snap.station, "dataAt": snap.dataAt, "stale": snap.stale, "rows": rows]
@@ -169,6 +170,63 @@ for (const [kind, sys, file] of [['trtc', 'trtc', 'trtc-live.json'],
     ['trtc', '台北車站', String(FALLBACK), join(dir, 'alias.json')],
     { input: readFileSync(noAt) }).toString());
   ok('A-fallback 缺 at 時退回抓取時刻(不得整份解析失敗)', got.dataAt === FALLBACK, `dataAt=${got.dataAt}`);
+}
+
+// ── 🔴 逐列線色的來源:官方車號 join,不准用站別/終點猜 ──
+// 真機回饋(08-15):台北車站標頭畫紅點、底下卻列著藍線(板南線)的班次——站別取「第一條線」
+// 等於隨機指定,轉乘站必錯。正解是每一列各自對回它真正的路線:看板列的車號 join 官方
+// `trains[]`,取該車 `stn` 的字母前綴(BL10 → BL)。
+// 判準不同源:期望值直接從 fixture 的 board.no / trains.stn 用 regex 獨立算,不碰 Swift。
+{
+  const trainByNo = new Map((trtcRaw.trains || []).filter(t => t.no).map(t => [String(t.no), t]));
+  const expCode = b => (b.no && trainByNo.get(String(b.no))?.stn?.match(/^[A-Za-z]+/)?.[0]) || null;
+  const rows = trtcRaw.board.filter(b => b.name === '台北車站' && b.eta > NOW).sort(byEta);
+  const joinable = rows.filter(b => expCode(b));
+  const orphan = rows.filter(b => !expCode(b));
+  // 🔴 正向對照:兩種列都要真的存在,否則下面兩條各自空過一半。
+  ok('N0 樣本同時含「對得到車」與「對不到車」的列',
+     joinable.length > 0 && orphan.length > 0, `對得到 ${joinable.length} / 對不到 ${orphan.length}`);
+  const got = gotTaipei.rows;
+  ok('N1 🔴 對得到車的列,線代碼＝該車 stn 的字母前綴',
+     rows.every((b, i) => !expCode(b) || got[i]?.lineCode === expCode(b)),
+     JSON.stringify(rows.map((b, i) => `${b.dest}:${got[i]?.lineCode}vs${expCode(b)}`)));
+  ok('N2 🔴 對不到車的列一律不給線代碼(不准用站別或終點猜)',
+     rows.every((b, i) => expCode(b) || got[i]?.lineCode === undefined),
+     JSON.stringify(rows.map((b, i) => `${b.dest}:${got[i]?.lineCode}`)));
+}
+// ── 🔴 擁擠度必須是【這一列自己那台車】的 ──
+// 舊實作用「終點」配車 ⇒ 同一個終點的所有列拿到同一台車的資料,實測 211 條可比對的列
+// 裡有 140 條畫的是別台車的擁擠度。判準不同源:期望值直接從 fixture 的 board.no / trains.cars 算。
+{
+  const trainByNo = new Map((trtcRaw.trains || []).filter(t => t.no).map(t => [String(t.no), t]));
+  const firstByDest = d => (trtcRaw.trains || []).find(t => t.dest === d && (t.cars || []).length);
+  const rows = trtcRaw.board.filter(b => b.name === '台北車站' && b.eta > NOW).sort(byEta);
+  const got = gotTaipei.rows;
+  // 🔴 正向對照:樣本裡「該車」與「同終點第一台」必須真的不同,否則 W1 兩種實作都會過(空過)。
+  const discriminating = rows.filter(b => {
+    const own = b.no && trainByNo.get(String(b.no))?.cars, alt = firstByDest(b.dest)?.cars;
+    return own && alt && JSON.stringify(own) !== JSON.stringify(alt);
+  });
+  ok('W0 樣本能分辨兩種配法(該車 vs 同終點第一台)', discriminating.length > 0,
+     `可分辨的列 ${discriminating.length}`);
+  ok('W1 🔴 擁擠度＝該列自己那台車的 cars',
+     rows.every((b, i) => {
+       const own = b.no ? trainByNo.get(String(b.no))?.cars : null;
+       return JSON.stringify(got[i]?.crowd) === JSON.stringify(own?.length ? own : undefined);
+     }),
+     JSON.stringify(rows.map((b, i) => `${b.dest}:${JSON.stringify(got[i]?.crowd)}`)));
+  ok('W2 🔴 對不到車的列不得借用別台車的擁擠度',
+     rows.every((b, i) => (b.no && trainByNo.has(String(b.no))) || got[i]?.crowd === undefined),
+     JSON.stringify(rows.map((b, i) => `${b.dest}:${JSON.stringify(got[i]?.crowd)}`)));
+}
+
+// 分鐘制系統官方沒有車號,不得無中生有。
+for (const [sys, file] of [['krtc', 'krtc-live.json'], ['tymc', 'tymc-live.json']]) {
+  const raw = JSON.parse(readFileSync(join(ROOT, 'app/fixtures/metro', file), 'utf8'));
+  const st = DATA.alias[sys][raw.rows[0].s];
+  const g = run('min', st, Date.now() / 1000, file, sys);
+  ok(`N3-${sys} 分鐘制不得有線代碼`, g.rows.every(r => r.lineCode === undefined),
+     JSON.stringify(g.rows.map(r => r.lineCode)));
 }
 
 // ── 🔴 抓取必須關掉用戶端快取 ──
