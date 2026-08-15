@@ -591,6 +591,11 @@ async function mutatedReducer(kind) {
     source = replaceExactly(source,
       '  return physicallyReachable(model, prior, current, nowEpoch);',
       '  return true;', kind);
+    // 2026-08-15 起加的「起點列終點不同不配」是第二層獨立守衛（同號跨方向的兩筆起點列終點必不同），
+    // 突變只拆前兩層時它會單獨擋下，看起來像斷言沒牙；三層一起拆才是在驗斷言本身。
+    source = replaceExactly(source,
+      '  if (prior.terminal && current.terminal && Number(prior.dest) !== Number(current.dest)) return false;',
+      '  if (false) return false;', kind);
   } else if (kind === 'keep-terminal') {
     source = replaceExactly(source,
       'if (timing.retireEpoch != null && Number.isFinite(Number(timing.retireEpoch)) &&\n      nowEpoch >= Number(timing.retireEpoch)) return null;',
@@ -629,8 +634,8 @@ async function mutatedReducer(kind) {
       "    evidence.observedEpoch, Number(evidence.occurrence) || 0].join('|');", kind);
   } else if (kind === 'birth-mid-route') {
     source = replaceExactly(source,
-      'if (!coldStart && !current[index].terminal) { ignoredObservations++; continue; }',
-      'if (false && !coldStart && !current[index].terminal) { ignoredObservations++; continue; }', kind);
+      'if (!coldStart && !current[index].terminal && !recoverable) { ignoredObservations++; continue; }',
+      'if (false && !coldStart && !current[index].terminal && !recoverable) { ignoredObservations++; continue; }', kind);
   } else if (kind === 'allow-number-jump') {
     source = replaceExactly(source,
       '  return physicallyReachable(model, prior, current, nowEpoch);',
@@ -674,7 +679,7 @@ function peakReplay(reduce) {
     loadJson('data/trtc_codes.json'), { includeY: true });
   let prior = null, rows = 0, maxVehicles = 0, births = 0, carried = 0, completed = 0;
   let shuffleMismatches = 0, duplicateRounds = 0, crossDirectionChanges = 0, resurrected = 0;
-  let impossibleAdvances = 0, shortCoastCycles = 0;
+  let impossibleAdvances = 0, shortCoastCycles = 0, originDepartures = 0;
   const impossibleAdvanceExamples = [];
   const directionById = new Map(), retired = new Set();
   let previousIds = new Set();
@@ -709,7 +714,11 @@ function peakReplay(reduce) {
       directionById.set(vehicle.vehicleId, signature);
       const before = priorById.get(vehicle.vehicleId);
       const advance = before ? Number(vehicle.routePosition) - Number(before.routePosition) : 0;
-      if (before && advance > 0) {
+      // 起點車前進到第一段不受段秒門檻約束（與 physicallyReachable 同一條例外）：起點列的 arrEpoch 是
+      // 「進站」時刻不是發車錨點，2026-08-15 語料實測 BL/G/O/R 第一段官方到站間隔普遍短於模型段秒（逐列比值 0.5–0.8）；
+      // 拿門檻擋它＝把真車釘死在起點、第一段身分被後方舊車搶走。這裡另外計數，讓數字看得見。
+      if (before && advance === 1 && before.terminal) originDepartures++;
+      if (before && advance > 0 && !(advance === 1 && before.terminal)) {
         const step = Number(vehicle.dir) === 2 ? 1 : -1;
         let station = Number(before.to), required = 0;
         for (let moved = 0; moved < advance; moved++) {
@@ -746,7 +755,7 @@ function peakReplay(reduce) {
   }
   return { rounds: rounds.length, rows, maxVehicles, births, carried, completed, shuffleMismatches,
     duplicateRounds, crossDirectionChanges, resurrected, impossibleAdvances, shortCoastCycles,
-    impossibleAdvanceExamples, streams: feed.size,
+    originDepartures, impossibleAdvanceExamples, streams: feed.size,
     xbt: Object.fromEntries([...feed].filter(([key]) => /_XBT\|/.test(key))) };
 }
 

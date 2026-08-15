@@ -23,7 +23,10 @@ const DAY = '2026-08-15';
 // 非寫數字不可時要寫「量到的那個值」並強制人來重新解釋）。這些值改動＝必須說明為什麼。
 const EXPECTED = {
   rounds: 40, assemblyError: 22, official: 16, outage: 2,
-  finalVehicles: 106, minVehicles: 99, maxVehicles: 109, births: 138,
+  // 2026-08-15 起點身分修法（ledger 同終點才合併＋起點列／第一段以時間軸自洽判同車；reducer 起點前進
+  // 一站一律可達、起點列終點不同不配、同位置 arr 遞減排）之前為 106／99–109／138：
+  // 少掉的 2 次出生＝起點被吃掉又翻回來的倒數不再重生、末輪少 2 台＝不再有釘死起點的舊 ID。
+  finalVehicles: 104, minVehicles: 99, maxVehicles: 107, births: 136,
   ghostDuplicateGroups: 5, ghostExtraVehicles: 9,
 };
 
@@ -67,7 +70,7 @@ async function loadPipeline({ ledgerMutation = null, rosterMutation = null } = {
     const collapsed = ledger.collapseClaims(claimed.claims);
     return { rows: ledger.attachOfficialTimelines(model, collapsed, resolved.rows, new Map()), nowEpoch };
   };
-  return { model, rowsOf, reduce: roster.reduceOfficialRoster,
+  return { model, rowsOf, reduce: roster.reduceOfficialRoster, ledger,
     cleanup: () => temps.forEach(file => { try { fs.unlinkSync(file); } catch {} }) };
 }
 
@@ -226,6 +229,23 @@ check(expectedIds.length >= 40, '斷訊樣本本身有效（有夠多不可能�
 check(missing.length === 0, '斷訊整輪無官方列時，不可能已抵達終點的車一台都沒少',
   `少了 ${missing.length} 台`);
 
+// ---- 6. 起點段守衛的正向對照：同一 claim 帶兩個起點段（當天正式站丟 22 輪的形狀）必須收得下 ----
+// 2026-08-15 起點身分修法後 collapseClaims 已不會再產生這個形狀，守衛退成縱深防禦；下方突變測試
+// 直接餵同一個輸入證明守衛仍有牙，這裡先證明「守衛在」的那一側是綠的（心得 35：突變要配控制組）。
+const guardTerminalClaim = arr => ({ line: 'BL', dir: 1, stationIdx: 22, destIdx: 0, no: '', from: 22, to: 22,
+  run: 0, depEpoch: arr, arrEpoch: arr, progress: 0, ix: 22, terminal: true, eventClaims: [] });
+const guardClaim = { ...guardTerminalClaim(sample.nowEpoch + 60),
+  eventClaims: [guardTerminalClaim(sample.nowEpoch + 60), guardTerminalClaim(sample.nowEpoch + 90)] };
+const [guardRow] = base.ledger.attachOfficialTimelines(base.model, [guardClaim], [], new Map());
+let guardAccepted = true;
+try {
+  base.reduce({ model: base.model, rows: [guardRow], prior: null, day: DAY,
+    nowEpoch: sample.nowEpoch, sourceRevision: String(sample.nowEpoch) });
+} catch { guardAccepted = false; }
+check(guardAccepted && (guardRow.timeline || []).every(seg => !seg.terminal || Number(seg.depEpoch) === Number(seg.arrEpoch)),
+  '同一 claim 帶兩個起點段時，起點段 dep 不被接鏈改寫、reducer 收得下（守衛在的正向對照）',
+  `終點段=${(guardRow.timeline || []).filter(seg => seg.terminal).length}、reducer 接受=${guardAccepted}`);
+
 // ---- 突變控制組：每條斷言都要有牙 ----
 console.log('\nMutation control：');
 function mustReplace(source, from, to, tag) {
@@ -238,7 +258,7 @@ const MUTATIONS = [
   ['接鏈改寫起點列 depEpoch（修法前的正式站行為）', {
     ledgerMutation: source => mustReplace(source, '      if (current.terminal) continue;',
       '      if (false) continue;', 'terminal-dep'),
-  }, 'replay', result => result.errors.length > 0],
+  }, 'terminal-dep'],
   ['把完全相同的兩列合一（會刪掉官方報上來的真車）', {
     rosterMutation: source => mustReplace(source,
       '  return { rows: normalized.sort(compareRows), duplicateRowsObserved };',
@@ -272,6 +292,23 @@ for (const [label, mutation, mode, predicate] of MUTATIONS) {
         ghostSignal(mutatedReplay.vehicles).groups > 0, `${label} 會被具名契約攔下`,
         `${mutatedAdvanced.vehicles.length} → ${mutatedReplay.vehicles.length} 台、` +
         `重複證據 ${ghostSignal(mutatedReplay.vehicles).groups} 組`);
+    } else if (mode === 'terminal-dep') {
+      // 2026-08-15 起點身分修法後，collapseClaims 不再把同一起點兩筆終點不同的倒數合成一筆，
+      // 40 輪語料已經產生不出「一個 claim 帶兩個起點段」的輸入（正式站當天丟 22 輪的那個形狀），
+      // 這道守衛退成縱深防禦。直接餵它當初會炸的形狀，確認守衛仍在：守衛在＝終點段 dep 一律等於 arr、
+      // reducer 收得下；突變掉＝第二個終點段的 dep 被改成前一段到站時刻，reducer 擲「timeline 形狀不合法」。
+      const first = sample.nowEpoch + 60, second = sample.nowEpoch + 90;
+      const terminalClaim = arr => ({ line: 'BL', dir: 1, stationIdx: 22, destIdx: 0, no: '', from: 22, to: 22,
+        run: 0, depEpoch: arr, arrEpoch: arr, progress: 0, ix: 22, terminal: true, eventClaims: [] });
+      const claim = { ...terminalClaim(first), eventClaims: [terminalClaim(first), terminalClaim(second)] };
+      const [row] = pipeline.ledger.attachOfficialTimelines(pipeline.model, [claim], [], new Map());
+      const rewritten = (row.timeline || []).some(seg => seg.terminal && Number(seg.depEpoch) !== Number(seg.arrEpoch));
+      let threw = false;
+      try {
+        pipeline.reduce({ model: pipeline.model, rows: [row], prior: null, day: DAY,
+          nowEpoch: sample.nowEpoch, sourceRevision: String(sample.nowEpoch) });
+      } catch { threw = true; }
+      check(rewritten && threw, `${label} 會被具名契約攔下`, `終點段 dep≠arr=${rewritten}、reducer 擲例外=${threw}`);
     } else if (mode === 'outage') {
       const mutated = pipeline.reduce({ model: pipeline.model, rows: [], prior: baseline.state, day: DAY,
         nowEpoch: outageEpoch, sourceRevision: String(outageEpoch) });

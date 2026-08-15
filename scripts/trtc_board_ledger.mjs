@@ -361,13 +361,24 @@ export function collapseClaims(claims) {
       for (let j = i + 1; j < group.length; j++) {
         if (deleted.has(j)) continue;
         const a = group[i], b = group[j];
-        if ((a.dir === 2 ? 1 : -1) * (b.ix - a.ix) > 0.6) break;
+        // 起點列（a.terminal）與它的第一段列可以隔到整段（見下方時間軸條件），不受 0.6 站近站窗限制。
+        if ((a.dir === 2 ? 1 : -1) * (b.ix - a.ix) > 0.6 && !a.terminal) break;
         if (a.no && b.no) continue;
         // 無號線已由完整逐站 epoch 的單調區段分群；不得再用舊的近站門檻把下一班
         // 起點倒數吞進前車，或把同一區段拆回兩台。
         if (a.timelinePartitioned || b.timelinePartitioned) continue;
+        // 官方站牌每站每個終點只報「下一班」：同一站兩筆不同終點的列＝兩台車（起點站天天如此：
+        // 頂埔／亞東醫院、新店／台電大樓…）。2026-08-15 實測：起點兩筆終點不同的倒數在這裡被合成
+        // 一筆（arr 取一班、timeline 取另一班的 chimera），被吃掉的那班在官方翻回來時又以新 ID 出生，
+        // 舊 ID 釘死在起點永不退場——畫面上同段擠三台、其中一台無號的幽靈車就是這樣來的。
+        if (Number(a.destIdx) !== Number(b.destIdx)) continue;
+        // 起點列（a）與第一段列（b）是同一台車的判準是時間軸自洽：一台車不可能比抵達起點更早抵達
+        // 下一站，所以 b.arr ≥ a.arr 才是同一台；b.arr < a.arr 是前一班已離站、a 是還沒進站的下一班。
+        // 舊判準 progress<=0.25 兩邊都錯：起點列的 arrEpoch 是「進站」時刻而非發車錨點、官方第一段
+        // 間隔又普遍短於模型段秒（08-15 語料 BL/G/O/R 逐列比值 0.5–0.8），progress 0.31 的同一台車被拆成兩筆；
+        // 而剛離站 25% 內的前一班反而會把下一班的未來倒數吞進去。
         const hit = (a.to === b.from && a.progress >= 0.94 && b.progress <= 0.25) ||
-          (a.terminal && b.from === a.to && b.progress <= 0.25);
+          (a.terminal && !b.terminal && b.from === a.to && Number(b.arrEpoch) >= Number(a.arrEpoch));
         if (!hit) continue;
         deleted.add(i); events[j].push(...events[i]); break; // 保留較前面的 b
       }

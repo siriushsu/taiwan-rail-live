@@ -155,6 +155,15 @@ function physicallyReachable(model, prior, current, nowEpoch) {
   // 官方 ETA 回修最多容許退一站，交給前端單調顯示水位吸收；更遠的反向跳接不是同一台車。
   if (advance < -1) return false;
   if (advance <= 0) return true;
+  // 起點列的 arrEpoch 是「列車進站」的當下（車停在月台、每輪都報 now），不是發車錨點；
+  // 官方第一段（起點→第一站）到站間隔因此普遍短於模型段秒（2026-08-15 語料實測 BL/G/O/R
+  // 逐列比值 0.5–0.8、中途段 p50 1.28；舊門檻會拒絕 15/20 次真實的起點→第一段接手）。
+  // 拿段秒門檻擋起點車接自己的第一段＝把真車永遠釘在起點（1 筆 timeline、永不退場，
+  // 前端沿線續推成幽靈），第一段身分反被後方舊車搶走。
+  // 起點車前進一站一律可達；同起點的新舊兩趟由 terminalOccurrenceRolled 分辨，
+  // 不同終點的第一段列由 pairCost 的終點項壓後（08-15／08-13 尖峰兩份語料實測起點→第一段
+  // 接手 31＋112 次，經本條放行而終點不同者 0 次）。
+  if (prior.terminal && advance === 1) return true;
   // 無車號線的分組邊界每 15 秒可能改變；只靠路線順序會把下一班的倒數接到前車，
   // 實測 BR 因此產生 3、7、16 秒就「抵達下一站」的假 history。相鄰站的官方到站 epoch
   // 差必須至少容得下實際路段行車秒；不符就是另一台車，不能拿來讓原車飛馳。
@@ -182,6 +191,10 @@ function matchFeasible(model, prior, current, nowEpoch) {
   if (terminalOccurrenceRolled(prior, current, nowEpoch)) return false;
   // 新的起點倒數是新一趟，不得吸走已經離站的舊車；舊起點倒數則可接到它離站後的第一段。
   if (current.terminal && !prior.terminal) return false;
+  // 起點站每個終點各報一班：兩筆終點不同的起點倒數是兩台車（頂埔／亞東醫院、新店／台電大樓…）。
+  // 沒有這條時，另一終點的列偶爾缺一輪，這台起點車就會被 DP 拿去配另一終點的倒數（同位置、
+  // 只差 1000 成本），下一輪原終點的列回來就得重新出生——多一台釘在起點的無號車。
+  if (prior.terminal && current.terminal && Number(prior.dest) !== Number(current.dest)) return false;
   // 車號只作標籤，絕不能凌駕物理可達距離把永安市場的車拖到丹鳳。
   return physicallyReachable(model, prior, current, nowEpoch);
 }
@@ -445,14 +458,20 @@ export function reduceOfficialRoster({ model, rows, prior = null, day, nowEpoch,
   // 實測冷啟動 40 輪車數 99–109、重複出生證據 0 組。
   const groupNames = new Set();
   current.forEach((row, index) => { if (!assigned.has(index)) groupNames.add(groupKey(row)); });
+  // 同一位置的多筆（起點站各終點的倒數、同一區段的兩台車）以到站時刻**遞減**排：愈早到站的排愈後、
+  // 緊鄰前方下一個位置。alignOrdered 是保序 DP——位置前進的那台必須是同位置群的最後一個，否則它的
+  // 第一段列會與留在原位的車「交叉」而配不到，只好另生新 ID、舊 ID 釘死在起點永不退場。
+  // 兩邊排序鍵必須一致：舊碼 rows 走 dest 序、名冊走 arr 遞增序，起點兩筆終點不同的倒數天天交叉
+  // （2026-08-15 實測：亞東 08:14:32 的車在兩輪間被 DP 丟掉重生一台）。
+  const laterFirst = (a, b) => Number(b.arrEpoch) - Number(a.arrEpoch);
   for (const key of [...groupNames].sort()) {
     const currentGroup = current.map((row, index) => ({ row, index }))
       .filter(x => !assigned.has(x.index) && groupKey(x.row) === key)
-      .sort((a, b) => routePosition(a.row) - routePosition(b.row) || compareRows(a.row, b.row));
+      .sort((a, b) => routePosition(a.row) - routePosition(b.row) || laterFirst(a.row, b.row) || compareRows(a.row, b.row));
     const priorGroup = priorVehicles
       .filter(x => x && !usedIds.has(String(x.vehicleId)) && groupKey(x) === key)
       .sort((a, b) => Number(a.routePosition ?? routePosition(a)) - Number(b.routePosition ?? routePosition(b)) ||
-        Number(a.arrEpoch) - Number(b.arrEpoch) || String(a.vehicleId).localeCompare(String(b.vehicleId)));
+        laterFirst(a, b) || String(a.vehicleId).localeCompare(String(b.vehicleId)));
     for (const [ci, pi] of alignOrdered(currentGroup.map(x => x.row), priorGroup, epoch, model)) {
       const vehicleId = String(priorGroup[pi].vehicleId);
       assigned.set(currentGroup[ci].index, vehicleId); usedIds.add(vehicleId);
