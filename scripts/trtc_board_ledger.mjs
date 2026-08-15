@@ -3,6 +3,12 @@
 export const DEFAULT_DWELL_SEC = 25;
 export const ALIGN_GAP_METERS = 1500;
 const O_TRUNK_MAX = 11;
+// 中和新蘆線的兩支在索引 0..O_TRUNK_MAX 共用同一段實體軌道（站名、座標完全相同），
+// 所以「這筆觀測屬於哪一支」在共線段上是資料本身答不出來的問題。分支歸屬一律只由
+// 分支獨有段（索引 > O_TRUNK_MAX）的觀測建立與變更，共線段的資料只能讀、不能寫。
+const O_BRANCH_LINES = new Set(['O_LUZHOU', 'O_XINZHUANG']);
+const onSharedTrunk = item => O_BRANCH_LINES.has(item.line) &&
+  Number(item.from) <= O_TRUNK_MAX && Number(item.to) <= O_TRUNK_MAX;
 
 export const TRTC_LEDGER_SCHEMA = [
   `CREATE TABLE IF NOT EXISTS trtc_events (
@@ -456,6 +462,12 @@ function chooseCodePosition(model, code, priorLine) {
     if (hit) return hit;
   }
   if (rec.on.length === 1) return rec.on[0];
+  // 共線段（南勢角…大橋頭）的站碼在蘆洲／迴龍兩支上都成立。這裡猜一支等於憑空造出分支歸屬，
+  // 而那個歸屬會經 nearestPrior → trackUpdates → branchLineHintsFromLedger 回頭決定下一輪
+  // 看板列該歸哪一支——猜錯一次就自我維持（2026-08-16 車號 436：D1 今日 55 條 O 線 track
+  // 只有它「鑄造分支≠現行 line」，畫面上就是景安—南勢角那對疊車）。沒有可信 priorLine 就不採用：
+  // 逐車資料只是身分／擁擠度來源，少一輪不影響列車存在性（存在性只由官方站牌決定）。
+  if (rec.on.filter(x => O_BRANCH_LINES.has(x.line)).length > 1) return null;
   const preferred = rec.on.find(x => !/_XBT$/.test(x.line) && x.line !== 'O_LUZHOU');
   return preferred || rec.on[0];
 }
@@ -630,11 +642,23 @@ export function assignLedgerFrame({ model, claims, cars, priorTracks = [], alias
     for (const claim of sortedClaims.filter(c => c.no)) {
       const akey = aliasKey('hw_no', claim.no);
       let trackId = aliasToTrack.get(akey);
+      // 同一個車號在一個服務日內會被不同分支的兩趟先後使用，而 alias 只以車號為鍵。直接接管
+      // 會把另一支那條 track（連同它黏著的 official_no）整個搬過來，原本那台於是車號衝突、
+      // 依契約第 6 條永久退牌，畫面上留下一台無號的 O 車，兩台還一起續推疊在共線段上。
+      // 只有「本 claim 站在分支獨有段」時才分辨得出這是不同的一趟——那就另鑄，不要接管。
+      const boundPrior = trackId ? priorById.get(trackId) : null;
+      const crossBranchTakeover = boundPrior && !onSharedTrunk(claim) &&
+        O_BRANCH_LINES.has(claim.line) && O_BRANCH_LINES.has(boundPrior.line) &&
+        boundPrior.line !== claim.line;
+      if (crossBranchTakeover) trackId = null;
       const sameCar = groupCars.find(c => c.aliasType === 'hw_no' && c.alias === claim.no);
       if (!trackId && sameCar) trackId = sameCar.trackId;
       if (!trackId) {
-        const p = nearestPrior(model, claim, priorTracks, usedPrior, ALIGN_GAP_METERS);
-        trackId = p ? String(p.track_id) : `trk:${day}:hw:${claim.no}`;
+        const p = crossBranchTakeover ? null
+          : nearestPrior(model, claim, priorTracks, usedPrior, ALIGN_GAP_METERS);
+        // 拒絕接管時不可退回 `trk:day:hw:no`——那個鍵不含分支，兩支同號會再度撞成同一條 track。
+        trackId = p ? String(p.track_id)
+          : (crossBranchTakeover ? synthId(day, claim) : `trk:${day}:hw:${claim.no}`);
       }
       claim.trackId = trackId; claim.officialNo = claim.no;
       aliasToTrack.set(akey, trackId); usedPrior.add(trackId);
@@ -695,7 +719,13 @@ export function assignLedgerFrame({ model, claims, cars, priorTracks = [], alias
       depEpoch: claim.terminal ? claim.arrEpoch : claim.arrEpoch - claim.run,
       crowd, evidence, ageSec: Math.max(0, nowEpoch - claim.baseEpoch) };
     frame.push(payload);
-    trackUpdates.push({ day, trackId: claim.trackId, line: claim.line, dir: claim.dir,
+    // 分支歸屬一趟一鎖：共線段的 claim 只是「這台車現在在幹線上」，證明不了它屬於哪一支。
+    // 讓它改寫 track.line 就等於讓下一輪的 branchLineHintsFromLedger 讀到自己上一輪的猜測，
+    // 整條鏈沒有任何獨立錨點（08-16 根因）。已有分支歸屬時保留，只有分支獨有段能改它。
+    const boundPrior = priorById.get(claim.trackId);
+    const trackLine = onSharedTrunk(claim) && boundPrior && O_BRANCH_LINES.has(boundPrior.line)
+      ? boundPrior.line : claim.line;
+    trackUpdates.push({ day, trackId: claim.trackId, line: trackLine, dir: claim.dir,
       stationIdx: claim.to, progress: claim.ix, officialNo: payload.no, crowd,
       evidence, evidenceEpoch: claim.baseEpoch, lastSeenEpoch: nowEpoch, payload });
   }
