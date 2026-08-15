@@ -1,5 +1,5 @@
 {
-  "updated": "2026-08-12",
+  "updated": "2026-08-15",
   "events": [
     {
       "id": "trtc-20260811-pokemon10",
@@ -10,6 +10,46 @@
       "end": "2026-09-13",
       "anchor": { "kind": "station", "sys": "mrt", "name": "大安森林公園" },
       "url": "https://pokemongo.com/zh-Hant/news/2026daanpark"
+    },
+    {
+      "id": "ntmetro-20260814-fireworks-0816",
+      "source": "official",
+      "title": "2026仲夏夜繽紛樂",
+      "note": "漁人碼頭週日夜間煙火，輕軌會加開藍海線疏運",
+      "start": "2026-08-16",
+      "end": "2026-08-16",
+      "anchor": { "kind": "station", "sys": "ntdlrt", "name": "淡水漁人碼頭" },
+      "url": "https://www.ntmetro.com.tw/basic/?mode=detail&node=890"
+    },
+    {
+      "id": "ntmetro-20260814-fireworks-0823",
+      "source": "official",
+      "title": "2026仲夏夜繽紛樂",
+      "note": "漁人碼頭週日夜間煙火，當晚同場加映民歌演唱會",
+      "start": "2026-08-23",
+      "end": "2026-08-23",
+      "anchor": { "kind": "station", "sys": "ntdlrt", "name": "淡水漁人碼頭" },
+      "url": "https://www.ntmetro.com.tw/basic/?mode=detail&node=890"
+    },
+    {
+      "id": "ntmetro-20260814-fireworks-0830",
+      "source": "official",
+      "title": "2026仲夏夜繽紛樂",
+      "note": "漁人碼頭週日夜間煙火，輕軌會加開藍海線疏運",
+      "start": "2026-08-30",
+      "end": "2026-08-30",
+      "anchor": { "kind": "station", "sys": "ntdlrt", "name": "淡水漁人碼頭" },
+      "url": "https://www.ntmetro.com.tw/basic/?mode=detail&node=890"
+    },
+    {
+      "id": "ntmetro-20260814-folksong",
+      "source": "official",
+      "title": "下一站，憶起唱民歌",
+      "note": "民歌演唱會在漁人碼頭開唱，以淡江大橋當背景",
+      "start": "2026-08-23",
+      "end": "2026-08-23",
+      "anchor": { "kind": "station", "sys": "ntdlrt", "name": "淡水漁人碼頭" },
+      "url": "https://www.ntmetro.com.tw/basic/?mode=detail&node=891"
     }
   ]
 }

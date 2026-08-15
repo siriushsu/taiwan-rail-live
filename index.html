@@ -3613,14 +3613,14 @@
            內容 li 上限 8 條(li.grp 是標題不算)。 -->
       <ul class="foot-list foot-recent">
         <li class="grp">最近更新</li>
-        <li data-cl-of="trtcoutage"><span class="d">8/15</span><span>台北捷運訊號中斷時會明白告知位置與倒數不準，並修好位置愈跑愈偏、冒出無車號幽靈車的問題或往後退</span></li>
+        <li data-cl-of="danhaifireworks"><span class="d">8/15</span><span>淡水漁人碼頭煙火的三個週日（8/16、8/23、8/30），淡海輕軌畫面依官方公告調整：傍晚起綠山線班距拉長、五點後崁頂那一段停駛，藍海線改跑密集班距</span></li>
+        <li data-cl-of="trtcoutage"><span class="d">8/15</span><span>台北捷運訊號中斷時會明白告知位置與倒數不準，並修好位置愈跑愈偏、冒出無車號幽靈車的問題</span></li>
         <li data-cl-of="metrowaitcard"><span class="d">8/14</span><span>iPhone 新增捷運等車卡與捷運小工具：鎖定畫面倒數下一班，北捷、高捷、機捷；下次 App 更新生效</span></li>
         <li data-cl-of="tymcexpress"><span class="d">8/14</span><span>機場捷運直達車路線修正：南下會開到環北站，北上不再多出老街溪站</span></li>
         <li data-cl-of="linecomplete"><span class="d">8/14</span><span>縱貫線北段完乘率卡在 99% 已修好，不用重搭就會自動補滿（謝謝網友回報）</span></li>
         <li data-cl-of="checkinplatform"><span class="d">8/14</span><span>月台特別長的車站（例如汐科），現在站在月台任何一端都蓋得到章（謝謝網友回報）</span></li>
         <li data-cl-of="trtcofficialroster"><span class="d">8/14</span><span>台北捷運列車改以官方站牌倒數逐班追蹤：從發車到終點依各站時間顯示位置，同一班車在多站的資訊會自動合併，車次與方向跟著實際行程；文湖線沒有車次時顯示 BR 路線牌。</span></li>
         <li data-cl-of="crossnightfollow"><span class="d">8/14</span><span>跟著跨午夜的深夜車（例如 452 次）重播時，車不會再於 00:00 整台消失了（謝謝網友回報）</span></li>
-        <li data-cl-of="tradelaycatchup"><span class="d">8/14</span><span>台鐵列車追回誤點時不再瞬間往前跳一大段，改成邊跑邊追，最多兩倍速（謝謝網友回報）</span></li>
       </ul>
       <!-- 第二層:完整歷史。刻意不掛 .foot-box 類名——placeFootBoxes() 用
            `.site-foot .foot-box` 搬移面板,巢狀同名會被當成另一個盒子一起搬走。 -->
@@ -3639,6 +3639,7 @@
         <li><span class="d">7/10</span><span>高鐵、桃園機捷、淡海輕軌、安坑輕軌加入路網</span></li>
         <li><span class="d">7/10</span><span>環島觀光列車一分為二：往東「山海號」、往西「平原號」</span></li>
         <li class="grp">即時動態與誤點</li>
+        <li data-cl="danhaifireworks"><span class="d">8/15</span><span>新北市在淡水漁人碼頭辦煙火的三個週日（8/16、8/23、8/30），淡海輕軌的畫面會照官方公告走：下午四點起綠山線改成每三十分鐘一班，五點起濱海沙崙到崁頂那一段停駛（官方另有免費接駁公車），車全部集中到藍海線跑三到六分鐘的密集班距。只有這三天這樣，其他日子照常</span></li>
         <li data-cl="trtcoutage"><span class="d">8/15</span><span>台北捷運官方即時資料中斷時，畫面原本完全不說（8/15 早上斷了約半小時）：列車各自照最後量到的速度往前推，兩班車擠在一起、甚至互相超車，車站倒數則整個找不到車。現在三件事一起改了——中斷一發生，頂端就會跳出提示告訴你是北捷訊號中斷、列車位置與車站倒數都可能不準，捷運徽章與車站看板上也會標示；中斷期間的推估改成照每段站與站之間的固定行車時間走，全線同一個節奏，不會再有車超過前面那班；官方資料恢復時，畫面會重新對齊官方位置，部分列車會因此往前跳或往後退，並跳出訊息說明為什麼會跳。環狀線走的是新北捷運另一條資料線路，兩邊各自判斷，一邊斷不會誤報另一邊。同一批還修好了一個更早的毛病：同一個起點同時排兩班發車時，我們會整輪讀不進官方資料而沿用上一份，位置因此愈跑愈偏，訊號恢復後還會冒出沒有車號的車跟著跑（謝謝網友回報）——現在讀得進來了，車數也回到正常</span></li>
         <li data-cl="trtcofficialroster"><span class="d">8/14</span><span>台北捷運列車改以官方站牌倒數逐班追蹤：從發車到終點依各站時間顯示位置，同一班車在多站的資訊會自動合併，車次與方向跟著實際行程；文湖線沒有車次時顯示 BR 路線牌。</span></li>
         <li data-cl="tradelaycatchup"><span class="d">8/14</span><span>台鐵列車追回誤點時，畫面上會瞬間往前跳一大段（實測最遠 3.6 公里，連把時間暫停住都照跳）；現在改成邊跑邊追，追趕期間最多用兩倍速前進，一筆十分鐘的誤點分散在十分鐘內吸收完。準點的車、以及誤點還在擴大的車，行為完全不變。卡片上的時速仍以該車種的最高速度為上限（謝謝網友回報）</span></li>
@@ -4536,6 +4537,8 @@ function prepFreqTimes(ln, serviceDayOverride) {
   if (dt === 1) day = t.holiday || (t.days && t.days[0]);
   else if (dt === 2) day = t.days && t.days[1];
   else day = t.days ? t.days[new Date(serviceDay + 'T00:00:00Z').getUTCDay()] : null; // 週幾以台北營運日為準(海外裝置勿用當地週幾)
+  // 臨時營運調整(data/special_ops.json → dates):特定日期的官方例外班表,優先於週幾/國定假日判定
+  if (t.dates && t.dates[serviceDay] && t.sets && t.sets[t.dates[serviceDay]]) day = t.dates[serviceDay];
   ln._tt = (day && t.sets && t.sets[day]) || [];
 }
 // 跨午夜正規化:班次秒值可 >86400,清晨檢視時把前一日跨午夜班接回來(比照 sched trainPos)

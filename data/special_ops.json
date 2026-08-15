@@ -1,0 +1,23 @@
+{
+  "_note": "臨時營運調整(特定日期的班表例外)。每筆必須附官方公告連結與原文引用;沒有官方原文的值不准填。過期條目請刪除。由 scripts/special_ops.mjs 在 build_metro_times.mjs 產出後套用,故重建班表不會洗掉。",
+  "ops": [
+    {
+      "id": "ntdlrt-2026-summer-fireworks",
+      "out": "data/ntdlrt_times.json",
+      "setName": "煙火疏運",
+      "base": "假日",
+      "dates": ["2026-08-16", "2026-08-23", "2026-08-30"],
+      "source": "https://www.ntmetro.com.tw/basic/?mode=detail&node=890",
+      "quote": "上述三日下午4時起,綠山線班距將調整為每30分鐘一班;下午5時起綠山線(V09至V11)暫停營運,全數列車將集中投入藍海線運轉,提供3至6分鐘的高密度班距服務",
+      "lines": {
+        "V": {
+          "thin": { "from": "16:00", "headwayMin": 30 },
+          "suspend": { "from": "17:00", "branchFrom": 9 }
+        },
+        "VB": {
+          "densify": { "from": "17:00", "headwaySec": 270 }
+        }
+      }
+    }
+  ]
+}
