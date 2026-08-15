@@ -1797,16 +1797,6 @@
     background: rgba(255,255,255,.14); border-color: var(--on-navy);
     color: var(--on-navy); box-shadow: none;
   }
-  /* 小工具引導:唯一「站在月台上的人會看到捷運小工具存在」的位置(方案面板要先想到去開才看得到)。
-     刻意做成低調文字列而非第二顆 CTA——同一個 h3 裡兩顆金底鈕會互相搶,追蹤這站才是主動作。
-     h3 有不透明深藍底,故不吃 panel-translucent 的外圈(見上方排除清單 .board h3 *)。 */
-  .board .board-widget-tip {
-    display: block; width: 100%; margin: 0; padding: 3px 0 1px;
-    background: none; border: 0; text-align: center; cursor: pointer;
-    font: 700 11.5px/1.5 inherit; letter-spacing: .4px;
-    color: var(--on-navy); opacity: .72;
-  }
-  .board .board-widget-tip:hover { opacity: 1; }
   /* 最愛車站的地圖 ★ 記號(掛站點上方一點;點了直接開該站看板) */
   .favst-ico { width: 16px; height: 16px; text-align: center; color: #d9a62e; cursor: pointer; }
   .favst-ico .ri-icon { width: 15px; height: 15px; display: block; margin: 0 auto; filter: drop-shadow(0 0 2px #fff8ec) drop-shadow(0 1px 1px rgba(20,26,40,.55)); }
@@ -3820,7 +3810,7 @@
            內容 li 上限 8 條(li.grp 是標題不算)。 -->
       <ul class="foot-list foot-recent">
         <li class="grp">最近更新</li>
-        <li data-cl-of="plusctas"><span class="d">8/16</span><span>衛星高解析與跟車鎖定畫面現在會直接說明屬於通行證，捷運站看板也多了小工具引導</span></li>
+        <li data-cl-of="plusctas"><span class="d">8/16</span><span>衛星高解析與跟車鎖定畫面現在會直接說明屬於通行證，使用說明也補上捷運小工具與等車卡</span></li>
         <li data-cl-of="danhaifireworks"><span class="d">8/15</span><span>淡水漁人碼頭煙火的三個週日（8/16、8/23、8/30），淡海輕軌畫面依官方公告調整：傍晚起綠山線班距拉長、五點後崁頂那一段停駛，藍海線改跑密集班距</span></li>
         <li data-cl-of="trtcoutage"><span class="d">8/15</span><span>台北捷運訊號中斷時會明白告知位置與倒數不準，並修好位置愈跑愈偏、冒出無車號幽靈車的問題</span></li>
         <li data-cl-of="metrowaitcard"><span class="d">8/14</span><span>iPhone 新增捷運等車卡與捷運小工具：鎖定畫面倒數下一班，北捷、高捷、機捷；下次 App 更新生效</span></li>
@@ -3876,7 +3866,7 @@
         <li><span class="d">7/16</span><span>捷運準確度升級：六家捷運依官方到站看板即時校正，國定假日自動改跑假日班表</span></li>
         <li><span class="d">7/9</span><span>台鐵即時誤點上線——介接交通部 TDX 平臺每分鐘更新；7/11 起開站即真實時刻、捷運改逐班推演</span></li>
         <li class="grp">跟車、搜尋與車站看板</li>
-        <li data-cl="plusctas"><span class="d">8/16</span><span>通行證的內容改成在用得到的地方直接講：捷運站看板多了「放上主畫面」的小工具引導、跟車面板可把倒數放上鎖定畫面、切到衛星影像時會說明有更清楚的高解析版本</span></li>
+        <li data-cl="plusctas"><span class="d">8/16</span><span>通行證的內容改成在用得到的地方直接講：跟車面板可把倒數放上鎖定畫面、切到衛星影像時會說明有更清楚的高解析版本；使用說明中心也補上「捷運小工具」與「在這站等車」兩節</span></li>
         <li data-cl="metrowidgetpass"><span class="d">8/15</span><span>捷運小工具的方案定了：免費可以設定一個捷運站，想同時放好幾站、或用「自動（最近的站）」讓小工具跟著你移動換站，就需要軌島通行證。設定超過一站時，小工具上會直接寫清楚原因、點一下就能看方案，不會只給你一張空白卡。等車卡（鎖定畫面倒數）維持免費。下次 App 更新生效</span></li>
         <li data-cl="metrowaitcard"><span class="d">8/14</span><span>iPhone 捷運車站看板新增「在這站等車」：下一班倒數放上鎖定畫面與動態島，班次照官方即時資訊，車進站了自動換下一班、追蹤時間到了自動收起；北捷、高捷、機捷都支援，桌面也有捷運小工具可一點直達開卡，下次 App 更新生效</span></li>
         <li data-cl="sparkcursor"><span class="d">8/14</span><span>跟隨面板的速度曲線：誤點的車，游標會停在曲線上錯誤的位置，寫出來的當下時速跟車實際在跑的對不起來（誤點越久差越多）；現在游標對回真實位置了</span></li>
@@ -4327,7 +4317,7 @@
 //         回歸時允許對回官方位置並跳訊息說明。
 // v0814k：App 1.4.3 build 50／Android v5 合入網站 v0814j，保留 App 專屬橫放、背景音樂與更新提示。
 // v0815f：北捷斷訊挽救(v0815e)與 App 1.4.4 線(v0815b)合批。
-const BUILD = 'v0816b'; // v0816a 已被 Android 分支(ce999af)用掉,跨分支撞號見心得16
+const BUILD = 'v0816d'; // a/b/c 都已被別的分支或本批前一輪用掉(逐 commit 掃過),跨分支撞號見心得16
 // 2026-08-13 起預設開啟（使用者親試預覽後裁示上線）：北捷畫車依官方即時名冊，班表只是備案。
 // 保留 ?officialroster=0 當逃生口——要退回班表路徑不必回滾部署，加個參數即可對照。
 // 🔴 這個函式會被 verify_official_roster_frontend 抽出來丟進 VM 單獨執行——
@@ -19791,15 +19781,11 @@ function metroWaitSysForStation(st, lines, isDeco) {
 }
 // 兩處看板 h3 共用的按鈕 HTML(v0717p 鐵則:必須在 sticky h3 內)。旗標關/這站沒有任何長鈕系統
 // 時整串不輸出(不用 locateBtn 那種 inline 藏法——看板本來就是每次動態重繪)。
-// 純文字 pill、h3 內另起一行(display:block,見 CSS):.board 桌面寬僅 280px,close/star 兩顆
-// 22px 圖示鈕已吃掉大半 h3 右側,硬塞第三顆同款絕對定位鈕會擠壓長站名;文字鈕另起一行不佔用
-// 既有插槽、不需再調 h3 padding-right。
 function metroWaitBoardHtml(st, sys) {
   if (!sys || !metroWaitEnabled()) return '';
   const on = !!(state.metroWait && state.metroWait.sys === sys && state.metroWait.station === st.name);
   return `<button class="board-wait${on ? ' on' : ''}" id="boardWait" type="button" data-sys="${escHtml(sys)}">` +
-    `${on ? '結束追蹤' : '追蹤這站'}</button>` +
-    `<button class="board-widget-tip" id="boardWidgetTip" type="button">放上主畫面 ›</button>`;
+    `${on ? '結束追蹤' : '追蹤這站'}</button>`;
 }
 // 綁按鈕 click。stopPropagation 比照 boardNotify:h3 內本來就不在 .row[data-li] 上,容器層的
 // 通用列點擊 handler 靠 pointerdown 先清 _downKey 已經不會誤吃,這裡多一道防禦與既有寫法一致。
@@ -19810,14 +19796,6 @@ function bindMetroWaitBoard(el, st, sys, lines, isDeco) {
     e.stopPropagation();
     const on = !!(state.metroWait && state.metroWait.sys === sys && state.metroWait.station === st.name);
     if (on) metroWaitStop(); else metroWaitStartFromBoard(sys, st, lines, isDeco, btn);
-  };
-  // 小工具引導。刻意不寫成「長按 → ＋ →…」的逐步教學:加入小工具的入口在 iOS 18 從左上角「＋」
-  // 改成「編輯 ▸ 加入小工具」,寫死步驟會對一半使用者是錯的(本 App 最低支援 iOS 15)。
-  // 純字面字串,無任何插值——不進 verify-release 的 TOAST_REVIEWED 名單(那張表管的是動態插入)。
-  const tip = el.querySelector('#boardWidgetTip');
-  if (tip) tip.onclick = e => {
-    e.stopPropagation();
-    showToast('長按主畫面空白處進入編輯，加入小工具找「軌島」，選捷運小工具再挑車站，桌面就看得到下一班。免費可設一站；放多站或用「自動（最近的站）」跟著你移動換站，需要軌島通行證。', { wrap: true });
   };
 }
 // 北捷(含環狀線):回傳 {rows:[{dest,eta,lineLabel,color}...],dataAt} 或 null。
@@ -20688,6 +20666,19 @@ const HELP_GROUPS = [
       one: '跟著車的時候可以排提醒，快到站前手機會響。',
       steps: ['先跟一班車', '卡片上的「提醒」選要提醒的站', '「更多」→「已排提醒」可以查看與取消'],
       tip: '提醒依時刻表與即時誤點推算，實際到站請以現場為準。', try: 'notify' },
+    // 小工具與等車卡拆兩節:使用者要問的是兩個不同的問題(桌面上那張卡怎麼來／在月台上等車怎麼用),
+    // 而且一個要出 App 去主畫面設定、一個在 App 內按一顆鈕。avail 都掛 metroWaitEnabled()——
+    // 小工具 extension 與 RailMetroWait plugin 同一顆 App 建置一起進來,舊版 App 與網頁端兩節都不長。
+    // 刻意不寫「長按 → ＋ → …」的逐步:加入小工具的入口在 iOS 18 從左上角「＋」改成「編輯 ▸ 加入小工具」,
+    // 寫死會對一半使用者是錯的(本 App 最低支援 iOS 15),故只講「加入小工具的入口」。
+    { key: 'metrowidget', ic: '桌', nm: '捷運小工具（主畫面／鎖定畫面）', badge: 'App', avail: () => metroWaitEnabled(),
+      one: '把捷運站放上主畫面或鎖定畫面，不開 App 就看得到下一班往哪裡、還有幾分鐘。',
+      steps: ['長按主畫面空白處進入編輯，從加入小工具的入口搜尋「軌島」', '選捷運小工具，再挑一個車站；鎖定畫面也放得下', '想放多站，或用「自動（最近的站）」讓它跟著你移動換站，需要軌島通行證（免費可設定一站）'],
+      tip: '還有一張「鐵路＋捷運看板」大卡，把台鐵、高鐵與捷運的發車資訊列在同一張。點小工具會直接開啟軌島到那一站。' },
+    { key: 'metrowait', ic: '候', nm: '在這站等車：鎖定畫面倒數', badge: 'App', avail: () => metroWaitEnabled(),
+      one: '在月台上等車時，把這一站的下一班倒數放上鎖定畫面與動態島，不用一直把 App 開著。',
+      steps: ['點北捷、高捷或機捷的車站打開看板', '按站名下方的「追蹤這站」，選方向與要追蹤多久（30／60／90 分鐘）', '車進站自動換成下一班，時間到自動收起'],
+      tip: '倒數依官方即時到站資訊更新。這項不需要通行證。', try: 'board' },
     { key: 'xing', ic: '平', nm: '平交道', tg: 'xingBtn',
       one: '全台 415 處台鐵平交道，看接下來哪班車會通過。',
       steps: ['「更多」→ 打開「平交道記號」', '把地圖拉近就看得到記號', '點任一平交道，看接下來通過的列車與倒數'],

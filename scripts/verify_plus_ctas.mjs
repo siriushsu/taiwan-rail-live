@@ -165,40 +165,73 @@ console.log(`[engines] ${ENGINES.map(e => e[0]).join(', ')}`);
 for (const [engName, launcher] of ENGINES) {
   const browser = await launcher.launch();
 
-  // ══════════ W:捷運站看板的小工具引導(#boardWidgetTip) ══════════
+  // ══════════ W:使用說明中心的「捷運小工具」與「在這站等車」兩節 ══════════
+  // 🔴 使用者裁示(2026-08-16):新功能的說明要寫進【原本的使用說明】,不是在看板底下自成一格
+  //    講單一功能——「這跟其他的不同」。故本組驗的是說明中心那兩節,並附一條反向斷言擋回頭路。
+  {
+    const { ctx, page, errors } = await boot(browser, { widget: true });
+    await page.evaluate(() => openHelp());
+    await page.waitForTimeout(150);
+    const opened = await page.evaluate(() => { const m = document.getElementById('helpModal'); return !!m && !m.hidden; });
+    ok(`[${engName}] W0 前置:使用說明中心開得起來`, opened === true, `opened=${opened}`);
+    // 存在≠看得到:兩節都落在預設【收合】的「我的」群組裡,要按開那一組才算真的到得了使用者面前
+    // (心得24:元素在 DOM 裡但被 display:none 的祖先蓋著,computed style 之外的斷言照不到)。
+    const inDom = await page.evaluate(() => ['metrowidget', 'metrowait'].map(k => !!document.querySelector(`.help-sec[data-sec="${k}"]`)));
+    ok(`[${engName}] W1 有小工具的 App 上,說明中心長出「捷運小工具」與「在這站等車」兩節`,
+      inDom[0] === true && inDom[1] === true, JSON.stringify(inDom));
+    const preVis = await page.isVisible('.help-sec[data-sec="metrowidget"]');
+    ok(`[${engName}] W1b 前置:那一組預設是收合的(下一條的展開才有意義)`, preVis === false, `preVis=${preVis}`);
+    await clickOk(page, '.help-grp:has(.help-sec[data-sec="metrowidget"]) .help-grph',
+      `[${engName}] W1c 那一組的標題真的按得開`);
+    await page.waitForTimeout(150);
+    const vis = await page.evaluate(() => ['metrowidget', 'metrowait'].map(k => {
+      const el = document.querySelector(`.help-sec[data-sec="${k}"]`);
+      if (!el) return false;
+      const r = el.getBoundingClientRect();
+      return r.width > 0 && r.height > 0;
+    }));
+    ok(`[${engName}] W1d 展開後兩節都真的看得到(有版面尺寸)`, vis[0] === true && vis[1] === true, JSON.stringify(vis));
+    const tx = await page.evaluate(() => {
+      const g = k => { const el = document.querySelector(`.help-sec[data-sec="${k}"]`); return el ? el.textContent : ''; };
+      return { w: g('metrowidget'), q: g('metrowait') };
+    });
+    // 四個關鍵字缺一不可:少了「自動（最近的站）」與「多站」,說明就沒有講到使用者裁示要強調的
+    // 那兩個功能;少了「通行證」變成宣傳一個他設定到一半才發現要付錢的東西;少了「免費可設定一站」
+    // 則會讓人以為整個小工具都要錢(免費層才是絕大多數人會遇到的)。
+    ok(`[${engName}] W2 小工具那節講到自動選站`, tx.w.includes('自動（最近的站）'), JSON.stringify(tx.w.slice(0, 120)));
+    ok(`[${engName}] W2b 講到多站`, tx.w.includes('多站'), JSON.stringify(tx.w.slice(0, 120)));
+    ok(`[${engName}] W2c 講到需要通行證`, tx.w.includes('通行證'), JSON.stringify(tx.w.slice(0, 120)));
+    ok(`[${engName}] W2d 講到免費可設定一站`, tx.w.includes('免費可設定一站'), JSON.stringify(tx.w.slice(0, 120)));
+    ok(`[${engName}] W2e 等車卡那節教得出怎麼開(「追蹤這站」)`, tx.q.includes('追蹤這站'), JSON.stringify(tx.q.slice(0, 120)));
+    ok(`[${engName}] W 無 JS 例外`, errors.length === 0, errors.slice(0, 3).join(' | '));
+    await ctx.close();
+  }
+  // 反向一:沒有小工具的環境(網站/舊版原生殼)兩節都不該長出來——不教一個按不到的功能
+  // (與 stncollect／riding／notify 同一條規則:avail 不成立整節不渲染)。
+  {
+    const { ctx, page, errors } = await boot(browser, { widget: false });
+    await page.evaluate(() => openHelp());
+    await page.waitForTimeout(150);
+    const inDom = await page.evaluate(() => ['metrowidget', 'metrowait'].map(k => !!document.querySelector(`.help-sec[data-sec="${k}"]`)));
+    ok(`[${engName}] W3 反向:沒有小工具的環境兩節都不出現`, inDom[0] === false && inDom[1] === false, JSON.stringify(inDom));
+    ok(`[${engName}] W3 無 JS 例外`, errors.length === 0, errors.slice(0, 3).join(' | '));
+    await ctx.close();
+  }
+  // 反向二(裁示的回頭路):看板底下不可以再自成一格說明小工具。用「文字裡出現不出現主畫面」
+  // 判而不是只比一個 id——換個 id 重做一次同樣的東西,只比 id 的斷言照樣是綠的。
   {
     const { ctx, page, errors } = await boot(browser, { widget: true });
     const opened = await openFreqStation(page, '十四張');
     await page.waitForTimeout(200);
-    ok(`[${engName}] W0 前置:開得了捷運站看板`, opened === true, `opened=${opened}`);
-    const exists = await page.evaluate(() => !!document.getElementById('boardWidgetTip'));
-    ok(`[${engName}] W1 有小工具的 App 上,捷運站看板出現「放上主畫面」引導`, exists === true, `exists=${exists}`);
-    await clearToasts(page);
-    await clickOk(page, '#boardWidgetTip', `[${engName}] W1b 引導鈕真的點得到(可見、可命中、收得到事件)`);
-    await page.waitForTimeout(120);
-    const t = await toastText(page);
-    // 三個關鍵字缺一不可:少了「自動（最近的站）」與「多站」,這個提示就沒有講到使用者裁示要
-    // 強調的那兩個功能;少了「通行證」,就變成宣傳一個他點下去才發現要付錢的東西。
-    ok(`[${engName}] W2 點下去真的出現提示,且講到自動選站`, t.includes('自動（最近的站）'), JSON.stringify(t.slice(0, 80)));
-    ok(`[${engName}] W2b 提示講到多站`, t.includes('多站'), JSON.stringify(t.slice(0, 80)));
-    ok(`[${engName}] W2c 提示講到需要通行證`, t.includes('通行證'), JSON.stringify(t.slice(0, 80)));
-    // 反向:這一顆不可以順手把「追蹤這站」按下去(它就在隔壁,共用同一個 h3 的點擊區)。
-    const started = await page.evaluate(() => ({
-      wait: state.metroWait, calls: (window.__waitCalls || []).filter(c => c.m === 'start').length,
-      boardOpen: !!document.getElementById('board') && !document.getElementById('board').hidden,
-    }));
-    ok(`[${engName}] W3 點引導不會誤觸「追蹤這站」(未開卡、看板仍開著)`,
-      !started.wait && started.calls === 0 && started.boardOpen, JSON.stringify(started));
-    ok(`[${engName}] W 無 JS 例外`, errors.length === 0, errors.slice(0, 3).join(' | '));
-    await ctx.close();
-  }
-  // 反向對照:沒有小工具的環境(網站/舊版原生殼)不該冒出這個引導——網站根本沒有主畫面小工具這回事。
-  {
-    const { ctx, page, errors } = await boot(browser, { widget: false });
-    await openFreqStation(page, '十四張');
-    await page.waitForTimeout(200);
-    const exists = await page.evaluate(() => !!document.getElementById('boardWidgetTip'));
-    ok(`[${engName}] W4 反向:沒有小工具的環境不出現引導`, exists === false, `exists=${exists}`);
+    ok(`[${engName}] W4 前置:開得了捷運站看板`, opened === true, `opened=${opened}`);
+    const board = await page.evaluate(() => {
+      const b = document.getElementById('board');
+      const h = b ? b.querySelector('h3') : null;
+      return { waitBtn: !!document.getElementById('boardWait'), h3: h ? h.textContent : null };
+    });
+    ok(`[${engName}] W4b 前置:看板本體的「追蹤這站」還在(這一組不是整片沒渲染)`, board.waitBtn === true, JSON.stringify(board));
+    ok(`[${engName}] W4 反向:看板標題區不另立一格講小工具(功能說明統一在使用說明中心)`,
+      typeof board.h3 === 'string' && !board.h3.includes('主畫面') && !board.h3.includes('小工具'), JSON.stringify(board));
     ok(`[${engName}] W4 無 JS 例外`, errors.length === 0, errors.slice(0, 3).join(' | '));
     await ctx.close();
   }
