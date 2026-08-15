@@ -205,6 +205,78 @@ function scenarioDuplicateRows(reduce) {
   return reduce(args([{ ...duplicate }, { ...duplicate }], null, 11900, 'duplicate'));
 }
 
+// 重放閘門的正面契約：worker 的 CAS 重試會把「已套用過的 frame」疊回已經前進的名冊
+// （2026-08-15 對照組實測，修 assembly 之前就存在）。此時原車已離開起點、配對判為不可行，
+// 同一份出生證據就會第二次生車。判準下在 reducer：同 revision、同一列重放，車數不得增加。
+function scenarioReplayAfterAdvance(reduce) {
+  const origin = row({ dir: 2, from: 0, to: 0, dest: 4, arrEpoch: 12000, terminal: true });
+  const born = reduce(args([{ ...origin }], null, 11900, 'rev-A'));
+  const advanced = reduce(args([row({ dir: 2, from: 0, to: 1, dest: 4, arrEpoch: 12060 })],
+    born, 11960, 'rev-A'));
+  // 舊 frame 重放：同 revision、同 nowEpoch，出生證據與 born 那台逐欄相同。
+  const replayed = reduce(args([{ ...origin }], advanced, 11900, 'rev-A'));
+  return { born, advanced, replayed };
+}
+
+// 反向控制組（閘門不得過寬）：刻意留在**同一個 revision／同一個 nowEpoch** 內——
+// 這正是 F/G 同秒兩幀的競爭窗，也是唯一能讓「簽章漏掉 arrEpoch」現形的形狀：
+// 此時起點換班只有 ETA 在變，簽章少了它，下一班真車就會被當成重放擋掉、畫面默默少一台。
+function scenarioNextOriginStillBirths(reduce) {
+  const origin = row({ dir: 2, from: 0, to: 0, dest: 4, arrEpoch: 12000, terminal: true });
+  const first = reduce(args([{ ...origin }], null, 11900, 'rev-A'));
+  const nextTrain = reduce(args([{ ...origin },
+    row({ dir: 2, from: 0, to: 0, dest: 4, arrEpoch: 12300, terminal: true })], first, 11900, 'rev-A'));
+  return { first, nextTrain };
+}
+
+// 合一修法的控制組：同起點但 ETA 不同的兩筆端點列是可區分的兩班發車，
+// 必須仍是兩個唯一 ID。沒有這一條，「全部合掉」也會綠。
+function scenarioDistinctOriginRows(reduce) {
+  return reduce(args([
+    row({ dir: 2, from: 0, to: 0, dest: 4, arrEpoch: 12000, terminal: true }),
+    row({ dir: 2, from: 0, to: 0, dest: 4, arrEpoch: 12240, terminal: true }),
+  ], null, 11900, 'distinct-origin'));
+}
+
+// 2026-08-15 幽靈車根因的正面契約：起點倒數的 ETA 每輪修訂（官方本來就會修），
+// 身分不得跟著換。舊版把端點 ID 讓給全線 DP，於是每輪的起點列都落到出生迴圈。
+// 線上實際形狀：起點停一台等發車，同時第一段上已有前一班在跑。舊版全線 DP 會把
+// 起點 ID 讓給那筆前進列（尤其 ETA 滑過 now 觸發 rollover 拒配時），起點列遂每輪再出生。
+function scenarioOriginEtaSlide(reduce) {
+  const originRow = arrEpoch => row({ dir: 2, from: 0, to: 0, dest: 4, arrEpoch, terminal: true });
+  const aheadRow = arrEpoch => row({ dir: 2, from: 0, to: 1, dest: 4, arrEpoch });
+  let state = reduce(args([originRow(12300), aheadRow(12060)], null, 12000, 'slide-0'));
+  const parked = state.vehicles.find(vehicle => vehicle.terminal);
+  const id = parked && parked.vehicleId;
+  const ids = new Set(state.vehicles.map(vehicle => vehicle.vehicleId));
+  let births = 0;
+  // 20 輪、每 15 秒一拍，起點 ETA 前後修訂並滑過 now（官方實際行為）；前車同步前進。
+  for (let round = 1; round <= 20; round++) {
+    const nowEpoch = 12000 + round * 15;
+    const arrEpoch = 12285 + (round % 4) * 15;
+    state = reduce(args([originRow(arrEpoch), aheadRow(12060 + Math.ceil(round / 4) * 60)],
+      state, nowEpoch, `slide-${round}`));
+    births += state.diagnostics.births;
+    state.vehicles.forEach(vehicle => ids.add(vehicle.vehicleId));
+  }
+  return { state, id, ids, births, parkedNow: state.vehicles.find(vehicle => vehicle.terminal) };
+}
+
+// 起點 pending ID 要由「第一段離站列」消耗；消耗後同起點的下一筆倒數才是新一班。
+function scenarioOriginHandoff(reduce) {
+  const parked = reduce(args([row({ dir: 2, from: 0, to: 0, dest: 4, arrEpoch: 12300, terminal: true })],
+    null, 12000, 'handoff-0'));
+  const id = parked.vehicles[0].vehicleId;
+  // 離站：第一段 0→1，同輪另有下一班的起點倒數 ⇒ 恰好 +1 台。
+  const departed = reduce(args([
+    row({ dir: 2, from: 0, to: 1, dest: 4, arrEpoch: 12360 }),
+    row({ dir: 2, from: 0, to: 0, dest: 4, arrEpoch: 12600, terminal: true }),
+  ], parked, 12310, 'handoff-1'));
+  const moved = departed.vehicles.find(vehicle => vehicle.vehicleId === id);
+  const next = departed.vehicles.find(vehicle => vehicle.vehicleId !== id);
+  return { id, departed, moved, next };
+}
+
 function scenarioNoMidRouteBirth(reduce) {
   const prior = reduce(args([
     row({ dir: 2, from: 0, to: 0, dest: 4, arrEpoch: 13000, terminal: true, no: 'A' }),
@@ -390,8 +462,48 @@ function evaluate(reduce) {
 
   let duplicate;
   try { duplicate = scenarioDuplicateRows(reduce); } catch { duplicate = null; }
-  assess('異常重複列也不產生重複 ID', () => duplicate && duplicate.vehicles.length === 2 &&
-    uniqueIds(duplicate) && duplicate.vehicles.every(vehicle => !vehicle.officialNo));
+  // 🔴 使用者裁示「車子有官方數據就是在」：官方送出兩筆列就是兩台車，一台都不准少畫。
+  // （2026-08-15 我一度把它們合一當成幽靈車防線，實測那會刪掉無車號路線的真車，已退回。）
+  // occurrence 讓兩筆的出生證據不同，重放閘門因此擋不到它們。
+  assess('完全相同的官方列＝兩台真車，各自一個身分', () => duplicate && duplicate.vehicles.length === 2 &&
+    uniqueIds(duplicate) && duplicate.diagnostics.duplicateRowsObserved === 1 &&
+    duplicate.diagnostics.replayBirthsBlocked === 0 &&
+    duplicate.diagnostics.duplicateBirthSignatures === 0 &&
+    new Set(duplicate.vehicles.map(v => Number(v.birthEvidence.occurrence))).size === 2);
+
+  let slide;
+  try { slide = scenarioOriginEtaSlide(reduce); } catch { slide = null; }
+  assess('起點倒數 ETA 逐輪修訂不得換 ID', () => slide && slide.ids.size === 2 &&
+    slide.births === 0 && slide.state.vehicles.length === 2 &&
+    slide.parkedNow && slide.parkedNow.vehicleId === slide.id);
+
+  let handoff;
+  try { handoff = scenarioOriginHandoff(reduce); } catch { handoff = null; }
+  assess('起點車被第一段官方列帶走後，下一班才輪到新 ID', () => handoff &&
+    handoff.departed.vehicles.length === 2 && handoff.departed.diagnostics.births === 1 &&
+    handoff.moved && Number(handoff.moved.to) === 1 && !handoff.moved.terminal &&
+    handoff.next && handoff.next.terminal && Number(handoff.next.arrEpoch) === 12600);
+
+  let replay;
+  try { replay = scenarioReplayAfterAdvance(reduce); } catch { replay = null; }
+  assess('同一份出生證據不得第二次生車', () => replay &&
+    replay.born.vehicles.length === 1 && replay.advanced.vehicles.length === 1 &&
+    replay.replayed.vehicles.length === 1 && replay.replayed.diagnostics.births === 0 &&
+    replay.replayed.diagnostics.replayBirthsBlocked === 1 &&
+    replay.replayed.diagnostics.duplicateBirthSignatures === 0);
+
+  let nextOrigin;
+  try { nextOrigin = scenarioNextOriginStillBirths(reduce); } catch { nextOrigin = null; }
+  assess('同 revision 內起點換下一班仍要生新車', () => nextOrigin &&
+    nextOrigin.nextTrain.vehicles.length === 2 && nextOrigin.nextTrain.diagnostics.births === 1 &&
+    nextOrigin.nextTrain.diagnostics.replayBirthsBlocked === 0 && uniqueIds(nextOrigin.nextTrain));
+
+  let distinctOrigin;
+  try { distinctOrigin = scenarioDistinctOriginRows(reduce); } catch { distinctOrigin = null; }
+  assess('同起點但 ETA 不同的兩班仍是兩個唯一 ID', () => distinctOrigin &&
+    distinctOrigin.vehicles.length === 2 && uniqueIds(distinctOrigin) &&
+    distinctOrigin.diagnostics.duplicateRowsObserved === 0 &&
+    distinctOrigin.diagnostics.births === 2);
 
   let midRoute;
   try { midRoute = scenarioNoMidRouteBirth(reduce); } catch { midRoute = null; }
@@ -479,6 +591,11 @@ async function mutatedReducer(kind) {
     source = replaceExactly(source,
       '  return physicallyReachable(model, prior, current, nowEpoch);',
       '  return true;', kind);
+    // 2026-08-15 起加的「起點列終點不同不配」是第二層獨立守衛（同號跨方向的兩筆起點列終點必不同），
+    // 突變只拆前兩層時它會單獨擋下，看起來像斷言沒牙；三層一起拆才是在驗斷言本身。
+    source = replaceExactly(source,
+      '  if (prior.terminal && current.terminal && Number(prior.dest) !== Number(current.dest)) return false;',
+      '  if (false) return false;', kind);
   } else if (kind === 'keep-terminal') {
     source = replaceExactly(source,
       'if (timing.retireEpoch != null && Number.isFinite(Number(timing.retireEpoch)) &&\n      nowEpoch >= Number(timing.retireEpoch)) return null;',
@@ -491,10 +608,34 @@ async function mutatedReducer(kind) {
     source = replaceExactly(source,
       'const vehicleId = allocateVehicleId(state);\n    assigned.set(index, vehicleId); usedIds.add(vehicleId); births++;',
       'const vehicleId = births ? [...usedIds][0] : allocateVehicleId(state);\n    assigned.set(index, vehicleId); usedIds.add(vehicleId); births++;', kind);
+  } else if (kind === 'collapse-identical-rows') {
+    // 把完全相同的兩列合一（2026-08-15 我真的這樣寫過）＝少畫一台官方報上來的真車。
+    source = replaceExactly(source,
+      '  return { rows: normalized.sort(compareRows), duplicateRowsObserved };',
+      '  const deduped = normalized.filter((row, index) =>\n' +
+      '    normalized.findIndex(other => rowKey(other) === rowKey(row)) === index);\n' +
+      '  return { rows: deduped.sort(compareRows), duplicateRowsObserved };', kind);
+  } else if (kind === 'evidence-without-occurrence') {
+    // 出生證據少了 occurrence：官方同時報的兩台無車號車證據相同，
+    // 重放閘門會把第二台真車誤擋成重放。這是「防幽靈」反過來刪真車的路。
+    source = replaceExactly(source,
+      "    occurrence: Number(row.occurrence) || 0 };",
+      '    occurrence: 0 };', kind);
+  } else if (kind === 'no-replay-gate') {
+    // 拿掉重放閘門：CAS 競爭下舊 frame 疊上新名冊時，同一份證據會第二次生車。
+    source = replaceExactly(source,
+      'if (priorBirthSignatures.has(birthSignature(birthEvidenceFor(current[index], sourceRevision, epoch)))) {',
+      'if (false) {', kind);
+  } else if (kind === 'replay-gate-ignores-eta') {
+    // 閘門過寬：簽章漏掉 arrEpoch ⇒ 同一個起點的下一班（ETA 不同）被當成重放擋掉，真車不見。
+    // 這是「防幽靈」反向失效的主要路徑，比拿掉閘門更難察覺（畫面只是少一台）。
+    source = replaceExactly(source,
+      "    evidence.arrEpoch, evidence.observedEpoch, Number(evidence.occurrence) || 0].join('|');",
+      "    evidence.observedEpoch, Number(evidence.occurrence) || 0].join('|');", kind);
   } else if (kind === 'birth-mid-route') {
     source = replaceExactly(source,
-      'if (!coldStart && !current[index].terminal) { ignoredObservations++; continue; }',
-      'if (false && !coldStart && !current[index].terminal) { ignoredObservations++; continue; }', kind);
+      'if (!coldStart && !current[index].terminal && !recoverable) { ignoredObservations++; continue; }',
+      'if (false && !coldStart && !current[index].terminal && !recoverable) { ignoredObservations++; continue; }', kind);
   } else if (kind === 'allow-number-jump') {
     source = replaceExactly(source,
       '  return physicallyReachable(model, prior, current, nowEpoch);',
@@ -538,7 +679,7 @@ function peakReplay(reduce) {
     loadJson('data/trtc_codes.json'), { includeY: true });
   let prior = null, rows = 0, maxVehicles = 0, births = 0, carried = 0, completed = 0;
   let shuffleMismatches = 0, duplicateRounds = 0, crossDirectionChanges = 0, resurrected = 0;
-  let impossibleAdvances = 0, shortCoastCycles = 0;
+  let impossibleAdvances = 0, shortCoastCycles = 0, originDepartures = 0;
   const impossibleAdvanceExamples = [];
   const directionById = new Map(), retired = new Set();
   let previousIds = new Set();
@@ -573,7 +714,11 @@ function peakReplay(reduce) {
       directionById.set(vehicle.vehicleId, signature);
       const before = priorById.get(vehicle.vehicleId);
       const advance = before ? Number(vehicle.routePosition) - Number(before.routePosition) : 0;
-      if (before && advance > 0) {
+      // 起點車前進到第一段不受段秒門檻約束（與 physicallyReachable 同一條例外）：起點列的 arrEpoch 是
+      // 「進站」時刻不是發車錨點，2026-08-15 語料實測 BL/G/O/R 第一段官方到站間隔普遍短於模型段秒（逐列比值 0.5–0.8）；
+      // 拿門檻擋它＝把真車釘死在起點、第一段身分被後方舊車搶走。這裡另外計數，讓數字看得見。
+      if (before && advance === 1 && before.terminal) originDepartures++;
+      if (before && advance > 0 && !(advance === 1 && before.terminal)) {
         const step = Number(vehicle.dir) === 2 ? 1 : -1;
         let station = Number(before.to), required = 0;
         for (let moved = 0; moved < advance; moved++) {
@@ -610,7 +755,7 @@ function peakReplay(reduce) {
   }
   return { rounds: rounds.length, rows, maxVehicles, births, carried, completed, shuffleMismatches,
     duplicateRounds, crossDirectionChanges, resurrected, impossibleAdvances, shortCoastCycles,
-    impossibleAdvanceExamples, streams: feed.size,
+    originDepartures, impossibleAdvanceExamples, streams: feed.size,
     xbt: Object.fromEntries([...feed].filter(([key]) => /_XBT\|/.test(key))) };
 }
 
@@ -644,7 +789,11 @@ const mutations = [
   ['官方車號跨方向共用 ID', 'global-no', '同車號跨方向也必須建立新 ID'],
   ['抵達終點仍保留', 'keep-terminal', '終點到達當秒退場'],
   ['移除 XBT 單段 fallback', 'no-xbt-fallback', 'G_XBT 方向2用單段秒移動後收車'],
-  ['重複分配 vehicleId', 'duplicate-id', '異常重複列也不產生重複 ID'],
+  ['重複分配 vehicleId', 'duplicate-id', '同起點但 ETA 不同的兩班仍是兩個唯一 ID'],
+  ['把完全相同的兩列合一', 'collapse-identical-rows', '完全相同的官方列＝兩台真車，各自一個身分'],
+  ['出生證據不帶 occurrence', 'evidence-without-occurrence', '完全相同的官方列＝兩台真車，各自一個身分'],
+  ['移除重放閘門', 'no-replay-gate', '同一份出生證據不得第二次生車'],
+  ['重放閘門簽章漏掉 ETA', 'replay-gate-ignores-eta', '同 revision 內起點換下一班仍要生新車'],
   ['站間列配不到就另生新車', 'birth-mid-route', '營運中配不到的站間列不得另生新車'],
   ['同號可跨站瞬移', 'allow-number-jump', '官方號碼不得把 403 在 15 秒內從永安市場拖到丹鳳'],
   ['號碼衝突時直接換號', 'replace-number', '同一 ID 的號碼衝突就永久退回路線代號'],

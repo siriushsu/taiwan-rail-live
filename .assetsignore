@@ -21,6 +21,9 @@ data/*_diag.json
 # 站間距稽核報告(561KB、20311 行的內部分析,前端不讀;產物是 data/tra_seg_cumdist.json,
 # 那份要留著公開——真接上位置推估時前端要讀得到)。2026-08-10 併入時補這條。
 data/seg_distance_audit.json
+# 驗收語料(保存的上游原始回應,如 2026-08-15 北捷斷線 40 輪共 11MB)。前端與 worker 都不讀,
+# 只有 scripts/verify_*.mjs 在本機重放時讀。理由同上面的 .cache：原始上游資料不對外散布。
+fixtures
 wrangler.jsonc
 worker.js
 node_modules

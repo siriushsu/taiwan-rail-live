@@ -85,13 +85,37 @@ function canonicalRows(model, rows) {
     const ak = rowKey(a), bk = rowKey(b);
     return ak < bk ? -1 : ak > bk ? 1 : 0;
   });
+  // 🔴 完全相同的兩筆官方列＝官方報了兩台車，不准合一——「車子有官方數據就是在」。
+  // 無車號路線（BR／Y）的起點列天天出現逐 byte 相同的兩筆，上游 collapseClaims() 也原樣送過來
+  // （2026-08-15 實測：raw 2 → resolved 2 → claims 2 → collapsed 2）。合一就是少畫一台真車。
+  // occurrence 讓它們成為可區分的身分，也讓 birthEvidence 帶得動鑑別子：
+  // 同一份證據被重放時認得出是舊車，官方同時報的兩台車則證據不同、各自出生。
   const occurrences = new Map();
+  let duplicateRowsObserved = 0;
   for (const row of normalized) {
     const key = rowKey(row);
     row.occurrence = occurrences.get(key) || 0;
+    if (row.occurrence > 0) duplicateRowsObserved++;
     occurrences.set(key, row.occurrence + 1);
   }
-  return normalized.sort(compareRows);
+  return { rows: normalized.sort(compareRows), duplicateRowsObserved };
+}
+
+// 出生證據＝「哪一份官方觀測建立了這個身分」。officialVehicle() 與重放閘門共用同一支，
+// 兩邊的簽章不可能漂移。occurrence 是必要欄位：少了它，官方同時報的兩台無車號車會共用
+// 同一份證據，重放閘門會把第二台真車誤擋成重放。
+function birthEvidenceFor(row, sourceRevision, nowEpoch) {
+  return { source: 'official-board', sourceRevision, observedEpoch: nowEpoch,
+    line: row.line, dir: row.dir, from: row.from, to: row.to, arrEpoch: row.arrEpoch,
+    occurrence: Number(row.occurrence) || 0 };
+}
+
+// sourceRevision 與 observedEpoch 在正式站是同一個值（兩者都由 trtcBoardEpoch(rows) 導出），
+// 所以真正在做鑑別的是 line/dir/起訖/arrEpoch/occurrence；那兩欄是同源冗餘，留著不花成本，
+// 但別誤以為它們各自被驗過——突變測試瞄準的是 arrEpoch（漏掉它會把下一班誤擋成重放）。
+function birthSignature(evidence) {
+  return [evidence.sourceRevision, evidence.line, evidence.dir, evidence.from, evidence.to,
+    evidence.arrEpoch, evidence.observedEpoch, Number(evidence.occurrence) || 0].join('|');
 }
 
 // 一台車從起點到終點只有一個身分。官方修訂終點標示時，不得因 dest 換群而重發 ID。
@@ -131,6 +155,15 @@ function physicallyReachable(model, prior, current, nowEpoch) {
   // 官方 ETA 回修最多容許退一站，交給前端單調顯示水位吸收；更遠的反向跳接不是同一台車。
   if (advance < -1) return false;
   if (advance <= 0) return true;
+  // 起點列的 arrEpoch 是「列車進站」的當下（車停在月台、每輪都報 now），不是發車錨點；
+  // 官方第一段（起點→第一站）到站間隔因此普遍短於模型段秒（2026-08-15 語料實測 BL/G/O/R
+  // 逐列比值 0.5–0.8、中途段 p50 1.28；舊門檻會拒絕 15/20 次真實的起點→第一段接手）。
+  // 拿段秒門檻擋起點車接自己的第一段＝把真車永遠釘在起點（1 筆 timeline、永不退場，
+  // 前端沿線續推成幽靈），第一段身分反被後方舊車搶走。
+  // 起點車前進一站一律可達；同起點的新舊兩趟由 terminalOccurrenceRolled 分辨，
+  // 不同終點的第一段列由 pairCost 的終點項壓後（08-15／08-13 尖峰兩份語料實測起點→第一段
+  // 接手 31＋112 次，經本條放行而終點不同者 0 次）。
+  if (prior.terminal && advance === 1) return true;
   // 無車號線的分組邊界每 15 秒可能改變；只靠路線順序會把下一班的倒數接到前車，
   // 實測 BR 因此產生 3、7、16 秒就「抵達下一站」的假 history。相鄰站的官方到站 epoch
   // 差必須至少容得下實際路段行車秒；不符就是另一台車，不能拿來讓原車飛馳。
@@ -158,6 +191,10 @@ function matchFeasible(model, prior, current, nowEpoch) {
   if (terminalOccurrenceRolled(prior, current, nowEpoch)) return false;
   // 新的起點倒數是新一趟，不得吸走已經離站的舊車；舊起點倒數則可接到它離站後的第一段。
   if (current.terminal && !prior.terminal) return false;
+  // 起點站每個終點各報一班：兩筆終點不同的起點倒數是兩台車（頂埔／亞東醫院、新店／台電大樓…）。
+  // 沒有這條時，另一終點的列偶爾缺一輪，這台起點車就會被 DP 拿去配另一終點的倒數（同位置、
+  // 只差 1000 成本），下一輪原終點的列回來就得重新出生——多一台釘在起點的無號車。
+  if (prior.terminal && current.terminal && Number(prior.dest) !== Number(current.dest)) return false;
   // 車號只作標籤，絕不能凌駕物理可達距離把永安市場的車拖到丹鳳。
   return physicallyReachable(model, prior, current, nowEpoch);
 }
@@ -320,10 +357,7 @@ function officialVehicle(model, row, vehicleId, base, sourceRevision, nowEpoch) 
   const timeline = timelineWith(row, base);
   const timing = coastTiming(model, row, history, timeline);
   const numberState = officialNumberState(row, base);
-  const birthEvidence = base && base.birthEvidence || {
-    source: 'official-board', sourceRevision, observedEpoch: nowEpoch,
-    line: row.line, dir: row.dir, from: row.from, to: row.to, arrEpoch: row.arrEpoch,
-  };
+  const birthEvidence = base && base.birthEvidence || birthEvidenceFor(row, sourceRevision, nowEpoch);
   return {
     vehicleId, line: row.line, dir: row.dir, dest: row.dest, from: row.from, to: row.to,
     run: row.run, arrEpoch: row.arrEpoch, terminal: row.terminal,
@@ -359,17 +393,35 @@ function compareVehicles(a, b) {
  * 後續快照只更新它；當輪沒有 row 也沿已知時間軸保留，到已知終點才收車。
  * model 只讀路線站序與一段路程缺少到站時刻時所需的段秒，不以班表決定車的存在。
  */
-export function reduceOfficialRoster({ model, rows, prior = null, day, nowEpoch, sourceRevision }) {
+export function reduceOfficialRoster({ model, rows, prior = null, day, nowEpoch, sourceRevision,
+  realignSec = 0 }) {
   const normalizedDay = String(day || '').trim();
   const epoch = finite(nowEpoch, 'nowEpoch');
   if (!normalizedDay) throw new TypeError('official roster day 不可為空');
-  const current = canonicalRows(model, rows);
+  const { rows: current, duplicateRowsObserved } = canonicalRows(model, rows);
   const priorVehicles = previousVehicles(prior, normalizedDay);
   const coldStart = !prior || String(prior.day || '') !== normalizedDay;
   const noCounts = new Map();
   const noKey = row => `${row.line}|${Number(row.dir)}|${String(row.sourceNo || row.officialNo || '')}`;
   for (const row of current) if (row.sourceNo) noCounts.set(noKey(row), (noCounts.get(noKey(row)) || 0) + 1);
   for (const row of current) row.displayNo = row.sourceNo && noCounts.get(noKey(row)) === 1 ? row.sourceNo : '';
+
+  // 斷訊是**逐條路線**發生的：2026-08-15 06:27–07:00 只有環狀線（新北捷運自己的 feed）還在報，
+  // 北捷自家八條線同時歸零，而全域 sourceRevision 因為環狀線仍有列而全程正常前進——
+  // 只看全域落差的判準對那場真事故一次都不會觸發。所以逐線記「最後一次出現官方列的時刻」。
+  const priorSeen = prior && prior.feedSeen && typeof prior.feedSeen === 'object' ? prior.feedSeen : {};
+  const feedSeen = { ...priorSeen };
+  const linesWithRows = new Set(current.map(row => row.line));
+  // 訊號回來就以訊號為準（使用者裁示）：這條線消失夠久又回來了，它斷訊期間續推的位置是虛構的。
+  // 冷啟動沒有 prior 可比，從沒見過的線也不算「回來」。
+  const realignLines = new Set();
+  if (realignSec > 0 && !coldStart) {
+    for (const line of linesWithRows) {
+      const last = Number(priorSeen[line]);
+      if (Number.isFinite(last) && epoch - last >= realignSec) realignLines.add(line);
+    }
+  }
+  for (const line of linesWithRows) feedSeen[line] = epoch;
 
   const state = { day: normalizedDay, nextSequence: initialSequence(prior, normalizedDay),
     reservedIds: new Set(priorVehicles.map(x => String(x.vehicleId || '')).filter(Boolean)) };
@@ -399,30 +451,64 @@ export function reduceOfficialRoster({ model, rows, prior = null, day, nowEpoch,
     assigned.set(index, vehicleId); usedIds.add(vehicleId); hardNoMatches++;
   }
 
+  // 🔴 2026-08-15 記錄：這裡曾加過一層「端點 occurrence 專用配對」（起點 pending ID 先於
+  // 全線 DP 分配），已移除、不要再加回來。貪婪先搶 ID 會讓下面 alignOrdered 的最優配對失效；
+  // 起點身分的延續本來就由 alignOrdered 負責（合成情境「起點倒數 ETA 逐輪修訂不得換 ID」
+  // 與「起點車被第一段官方列帶走後，下一班才輪到新 ID」是它的具名契約）。
+  // 實測冷啟動 40 輪車數 99–109、重複出生證據 0 組。
   const groupNames = new Set();
   current.forEach((row, index) => { if (!assigned.has(index)) groupNames.add(groupKey(row)); });
+  // 同一位置的多筆（起點站各終點的倒數、同一區段的兩台車）以到站時刻**遞減**排：愈早到站的排愈後、
+  // 緊鄰前方下一個位置。alignOrdered 是保序 DP——位置前進的那台必須是同位置群的最後一個，否則它的
+  // 第一段列會與留在原位的車「交叉」而配不到，只好另生新 ID、舊 ID 釘死在起點永不退場。
+  // 兩邊排序鍵必須一致：舊碼 rows 走 dest 序、名冊走 arr 遞增序，起點兩筆終點不同的倒數天天交叉
+  // （2026-08-15 實測：亞東 08:14:32 的車在兩輪間被 DP 丟掉重生一台）。
+  const laterFirst = (a, b) => Number(b.arrEpoch) - Number(a.arrEpoch);
   for (const key of [...groupNames].sort()) {
     const currentGroup = current.map((row, index) => ({ row, index }))
       .filter(x => !assigned.has(x.index) && groupKey(x.row) === key)
-      .sort((a, b) => routePosition(a.row) - routePosition(b.row) || compareRows(a.row, b.row));
+      .sort((a, b) => routePosition(a.row) - routePosition(b.row) || laterFirst(a.row, b.row) || compareRows(a.row, b.row));
     const priorGroup = priorVehicles
       .filter(x => x && !usedIds.has(String(x.vehicleId)) && groupKey(x) === key)
       .sort((a, b) => Number(a.routePosition ?? routePosition(a)) - Number(b.routePosition ?? routePosition(b)) ||
-        Number(a.arrEpoch) - Number(b.arrEpoch) || String(a.vehicleId).localeCompare(String(b.vehicleId)));
+        laterFirst(a, b) || String(a.vehicleId).localeCompare(String(b.vehicleId)));
     for (const [ci, pi] of alignOrdered(currentGroup.map(x => x.row), priorGroup, epoch, model)) {
       const vehicleId = String(priorGroup[pi].vehicleId);
       assigned.set(currentGroup[ci].index, vehicleId); usedIds.add(vehicleId);
     }
   }
 
-  let births = 0, ignoredObservations = 0;
+  // 🔴 同一份官方出生證據只能建立一次身分。worker 的 CAS 重試會把較早的 frame 疊在已經
+  // 前進過的名冊上（2026-08-15 對照組實測：修 assembly 之前就存在，不是新引入的）；此時原車
+  // 已離開起點、配對判為不可行，同一列就會第二次生車＝幽靈車。這道閘只認證據，
+  // 官方同時報的兩台車 occurrence 不同 ⇒ 證據不同 ⇒ 照樣各自出生，不受影響。
+  // 比對範圍含已退場的 prior：證據用掉就是用掉，車到終點收了更不該被重放復活。
+  const priorBirthSignatures = new Set(priorVehicles
+    .map(vehicle => vehicle && vehicle.birthEvidence)
+    .filter(evidence => evidence && evidence.source === 'official-board')
+    .map(birthSignature));
+
+  let births = 0, ignoredObservations = 0, replayBirthsBlocked = 0, recoveryBirths = 0;
   for (let index = 0; index < current.length; index++) {
     if (assigned.has(index)) continue;
     // 正常營運時只有起點倒數能生車；半途站間列只能更新既有 ID，配不到也不得複製一台。
     // 唯一例外是當日狀態完全不存在的冷啟動，讓部署／D1 初建時可一次接回線上既有車。
-    if (!coldStart && !current[index].terminal) { ignoredObservations++; continue; }
+    //
+    // 第二個例外＝剛從斷訊恢復的那幾條線（2026-08-15 實測：恢復輪有 11 筆官方站間列
+    // 配不到任何舊 ID，其中 9 筆還帶官方車號）。這條線上斷訊期間推估的車剛被上面清光，
+    // 這些列再被擋掉就是「官方有車、畫面沒車」，直接牴觸「車子有官方數據就是在」。
+    // 位置取自官方那一列本身，不是我們推估的。範圍只限 realignLines：正常輪照舊只認起點，
+    // 否則每輪十幾筆站間列都會生出重複的車。
+    const recoverable = !coldStart && realignLines.has(current[index].line);
+    if (!coldStart && !current[index].terminal && !recoverable) { ignoredObservations++; continue; }
+    if (priorBirthSignatures.has(birthSignature(birthEvidenceFor(current[index], sourceRevision, epoch)))) {
+      replayBirthsBlocked++; continue;
+    }
     const vehicleId = allocateVehicleId(state);
     assigned.set(index, vehicleId); usedIds.add(vehicleId); births++;
+    // 只數「恢復例外放行的」那些：冷啟動本來就整批放行站間列，算進來會讓每天第一輪
+    // 看起來像剛從斷訊恢復（實測健康語料誤報 82 台）。
+    if (recoverable && !current[index].terminal) recoveryBirths++;
   }
 
   const vehicles = [];
@@ -441,9 +527,14 @@ export function reduceOfficialRoster({ model, rows, prior = null, day, nowEpoch,
     vehicles.push(vehicle);
   }
 
-  let carried = 0, exits = 0, carriedNumberConflicts = 0;
+  let carried = 0, exits = 0, carriedNumberConflicts = 0, realigned = 0;
   for (const old of priorVehicles.slice().sort(compareVehicles)) {
     if (!old.vehicleId || usedIds.has(String(old.vehicleId))) continue;
+    // 🔴 訊號回來就以訊號為準（2026-08-15 使用者裁示）：這條線斷訊期間續推出來的位置是虛構的，
+    // 官方名單沒有的車一律不留，畫面上不能有多的。判準是「這條線剛從長時間消失中回來」，
+    // 不是資料齡——那條規則仍然永久廢棄。只清剛回來的那幾條線：正常輪每輪都有十幾台真車
+    // 合法地暫時離板（實測 carried 10–17／121），誤殺它們才是災難。
+    if (realignLines.has(old.line)) { realigned++; continue; }
     const contradicted = numberContradictions.has(String(old.vehicleId));
     const alive = carriedVehicle(model, old, sourceRevision, epoch, contradicted);
     if (alive) {
@@ -455,27 +546,44 @@ export function reduceOfficialRoster({ model, rows, prior = null, day, nowEpoch,
 
   vehicles.sort(compareVehicles);
   if (vehicles.length !== accepted - completed + carried) throw new Error('official roster 名冊基數不守恆');
+  // 「剛回來的線不得留下未經官方確認的車」是結構不變量（realigned 與 carried 互斥分支），
+  // 資料無法觸發它，所以**不在這裡擲例外**——今天正是 reducer 擲例外每天丟掉 22/38 輪。
+  // 這條由 verify_trtc_outage_recovery.mjs 在測試期把關，執行期只把數字送出去讓人看得到。
   const ids = vehicles.map(x => String(x.vehicleId));
   if (new Set(ids).size !== ids.length) throw new Error('official roster 同輪 vehicleId 重複');
   if (vehicles.some(x => x.tripKey != null || x.scheduleKey != null)) throw new Error('official roster 不得混入班表身分');
   if (vehicles.some(x => !x.birthEvidence || x.birthEvidence.source !== 'official-board')) {
     throw new Error('official roster 每台車都必須能追溯到官方站牌出生列');
   }
+  // 復原檢查哨兵：同一份出生證據不得對應兩個活著的 ID。上面的重放閘門補上之後這裡應恆為 0，
+  // 它就是那道閘的事後證明。**只計數不擲例外**——擲例外會整輪丟掉整份官方名冊，
+  // 那正是 2026-08-15 每天丟掉 22/38 輪的 assembly-error 失效模式，代價遠大於記一筆告警。
+  const birthSignatures = new Map();
+  for (const vehicle of vehicles) {
+    const signature = birthSignature(vehicle.birthEvidence);
+    birthSignatures.set(signature, (birthSignatures.get(signature) || 0) + 1);
+  }
+  const duplicateBirthSignatures = [...birthSignatures.values()].filter(count => count > 1).length;
 
   return {
     schema: OFFICIAL_ROSTER_SCHEMA, day: normalizedDay, nowEpoch: epoch, sourceRevision,
-    nextSequence: state.nextSequence, vehicles,
+    // 逐線最後見到官方列的時刻要跟著名冊一起持久化，否則每個 isolate 都從零開始記，
+    // 「這條線消失多久了」永遠算不出來。
+    nextSequence: state.nextSequence, feedSeen, vehicles,
     aliases: vehicles.filter(vehicle => vehicle.officialNo).map(vehicle => ({ line: vehicle.line,
       dir: Number(vehicle.dir), no: String(vehicle.officialNo), vehicleId: String(vehicle.vehicleId) }))
       .sort((a, b) => a.line.localeCompare(b.line) || a.dir - b.dir || a.no.localeCompare(b.no) ||
         a.vehicleId.localeCompare(b.vehicleId)),
     diagnostics: {
-      rows: current.length, accepted, ignoredObservations, extensions: 0, carried, completed, births,
+      rows: current.length, accepted, ignoredObservations, replayBirthsBlocked,
+      extensions: 0, carried, completed, births, realigned, recoveryBirths,
+      realignedLines: [...realignLines].sort(), linesWithRows: linesWithRows.size,
       matches: accepted - births, hardNoMatches, exits, numberConflicts, carriedNumberConflicts,
       rejectedNumberJumps: numberContradictions.size,
       rejectedNumberJumpDetails: [...numberContradictions.values()].sort((a, b) =>
         a.line.localeCompare(b.line) || a.dir - b.dir || a.vehicleId.localeCompare(b.vehicleId)),
       duplicateOfficialNos: [...noCounts.values()].filter(count => count > 1).length,
+      duplicateRowsObserved, duplicateBirthSignatures,
     },
   };
 }

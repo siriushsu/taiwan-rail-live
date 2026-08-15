@@ -105,8 +105,18 @@ const WAIT_BASE_COMMIT = process.env.TRTC_DIRECT_WAIT_BASE || 'acbb7c3';
 const WAIT_BASE_INDEX = execFileSync('git', ['show', `${WAIT_BASE_COMMIT}:index.html`], {
   cwd: ROOT, encoding: 'utf8', maxBuffer: 4 * 1024 * 1024,
 });
-const waitEraFunctionNames = ['applyTrtcOfficialBoard', 'renderTrtcOfficialFreqBoard', 'renderFreqBoard'];
-const stillFrozenNames = directFunctionNames.filter(name => !waitEraFunctionNames.includes(name));
+// 🔴 第三層(2026-08-15 斷線批次,蓄意、已審):renderFreqBoard 多了「即時訊號中斷」提示
+//   (使用者明示需求:斷線時要在看板上講清楚倒數為何可能不準)。實查該批次只動這一支——
+//   applyTrtcOfficialBoard 與 renderTrtcOfficialFreqBoard 對 acbb7c3 仍逐 byte 相同,
+//   故只把這一支往前釘到引入它的 9fcc0aa,另外兩支留在 acbb7c3,絆線覆蓋面不縮小。
+const OUTAGE_BASE_COMMIT = process.env.TRTC_DIRECT_OUTAGE_BASE || '9fcc0aa';
+const OUTAGE_BASE_INDEX = execFileSync('git', ['show', `${OUTAGE_BASE_COMMIT}:index.html`], {
+  cwd: ROOT, encoding: 'utf8', maxBuffer: 4 * 1024 * 1024,
+});
+const outageEraFunctionNames = ['renderFreqBoard'];
+const waitEraFunctionNames = ['applyTrtcOfficialBoard', 'renderTrtcOfficialFreqBoard'];
+const stillFrozenNames = directFunctionNames.filter(name =>
+  !waitEraFunctionNames.includes(name) && !outageEraFunctionNames.includes(name));
 const stillSource = stillFrozenNames.map(name => extractFunction(INDEX, name)).join('\n');
 const stillBaseline = stillFrozenNames.map(name => extractFunction(BASE_INDEX, name)).join('\n');
 check(stillSource === stillBaseline && directConstants.every(name => extractConst(INDEX, name) === extractConst(BASE_INDEX, name)),
@@ -114,7 +124,13 @@ check(stillSource === stillBaseline && directConstants.every(name => extractCons
 const waitSource = waitEraFunctionNames.map(name => extractFunction(INDEX, name)).join('\n');
 const waitBaseline = waitEraFunctionNames.map(name => extractFunction(WAIT_BASE_INDEX, name)).join('\n');
 check(waitSource === waitBaseline,
-  `等車卡時代三支 renderer 對 ${WAIT_BASE_COMMIT} byte-exact`, `${sha(waitSource)} / ${sha(waitBaseline)}`);
+  `等車卡時代 ${waitEraFunctionNames.length} 支 renderer 對 ${WAIT_BASE_COMMIT} byte-exact`,
+  `${sha(waitSource)} / ${sha(waitBaseline)}`);
+const outageSource = outageEraFunctionNames.map(name => extractFunction(INDEX, name)).join('\n');
+const outageBaseline = outageEraFunctionNames.map(name => extractFunction(OUTAGE_BASE_INDEX, name)).join('\n');
+check(outageSource === outageBaseline,
+  `斷線提示批次 ${outageEraFunctionNames.length} 支 renderer 對 ${OUTAGE_BASE_COMMIT} byte-exact`,
+  `${sha(outageSource)} / ${sha(outageBaseline)}`);
 
 const legalMotionFunctions = ['freqTrainBaseAt', 'freqTrainPosAt', 'trtcBoardFraction', 'trtcBoardPosition',
   'trtcHeadwayPosition', 'snapshotTrtcHeadways', 'clearTrtcBoard', 'applyTrtcBoard', 'metroShiftSec'];
@@ -543,6 +559,10 @@ const rendererFns = [
   'trtcOfficialBoardRealNow', 'trtcOfficialCountdownText', 'trtcOfficialAbsoluteHM',
   'trtcOfficialStationLines', 'trtcOfficialLineCandidates', 'trtcOfficialScheduledArrival',
   'trtcOfficialTripJoin', 'trtcOfficialLegacyGroups', 'trtcOfficialBoardView',
+  // 2026-08-15 斷線提示讓 renderFreqBoard 多依賴這兩支。抽真函式而不是塞 stub：
+  // 假的會讓「斷訊時看板長什麼樣」永遠測不到，抽真的則 fixture 沒有 roster ⇒ 回 []，
+  // legacy/baseline byte 比對語意不變，日後真要驗斷訊版面時也已經接好。
+  'trtcFeedGroupOf', 'trtcOfficialStaleFeeds',
   'renderTrtcOfficialFreqBoard', 'refreshTrtcOfficialBoardCountdown', 'renderFreqBoard',
 ];
 const currentRendererSource = rendererFns.map(name => extractFunction(INDEX, name)).join('\n');
@@ -554,6 +574,7 @@ const browserHarness = `
   ${extractConst(INDEX, 'TRTC_OFFICIAL_BOARD_MAX_AGE_MS')}
   ${extractConst(INDEX, 'TRTC_OFFICIAL_BOARD_FUTURE_SKEW_MS')}
   ${extractConst(INDEX, 'TRTC_OFFICIAL_BOARD_ARRIVING_GRACE_SEC')}
+  ${extractConst(INDEX, 'TRTC_FEED_STALE_SEC')}
   let __nowSec=43200, __shift=0, __follow=null, __close=0, __fullRenders=0;
   function nowSecOfDay(){ return __nowSec; }
   function isTrtcBoardLine(ln){ return !!ln.isTrtc; }

@@ -1160,6 +1160,15 @@ async function loadTrtcBoardBranchHints(env, day) {
 // 新規則必須從當下官方時間線乾淨建冊，不能讓錯誤的 ID／續推週期繼續流入畫面。
 const TRTC_OFFICIAL_ROSTER_KEY = 'official_roster_v4';
 const TRTC_OFFICIAL_CAS_RETRIES = 4;
+// 斷訊起點記錄。持久名冊本身就是「斷訊當下的車輛名單快照」（靜默期間沒有任何一輪會覆蓋它），
+// 這一把只補它答不出來的那件事：這段空白到底是「官方真的斷了」還是「只是沒人來查」。
+// 前者才能對使用者說中斷，後者只能說重新校正。
+const TRTC_OFFICIAL_OUTAGE_KEY = 'official_outage_v1';
+// 官方正常 15～60 秒一輪；3 分鐘沒動就是真的斷了——與前端 TRTC_FEED_STALE_SEC 同一個推導，
+// 刻意共用同一個數字，不另外發明門檻。落差小於它的空白屬正常跳拍，照舊 carry。
+const TRTC_OFFICIAL_REALIGN_SEC = 180;
+// 恢復通知在名冊裡帶多久。夠久讓斷訊後才開頁面的人也看得到跳動的原因，又不會久到變成常駐雜訊。
+const TRTC_OFFICIAL_RECOVERY_NOTICE_SEC = 600;
 
 // TrackInfo 正常列以官方 NowDateTime 當 revision；合法空列沒有可用的官方時刻，才採
 // 本輪 acquisition 秒。revision 只負責拒絕較舊 frame；同 revision 仍須再比 sourceFrameKey，因為合法
@@ -1205,12 +1214,16 @@ async function trtcOfficialHeldPayload(env, reason = 'feed-outage') {
     const roster = held && held.state;
     if (!roster || !Array.isArray(roster.vehicles) || !Number.isFinite(Number(roster.sourceRevision)) ||
         !Number.isFinite(Number(roster.nowEpoch))) return trtcOfficialOutagePayload();
+    // 這一輪確實是「官方沒給可用資料」，不是「沒人來查」——把起點記下來，恢復時才說得出
+    // 是中斷造成的跳動。名冊本身就是斷訊當下的車輛名單快照，靜默期間沒有任何一輪會覆蓋它。
+    await trtcNoteOfficialOutage(db, roster, reason);
     const vehicles = roster.vehicles.map(vehicle => ({ ...vehicle }));
     const rows = Array.isArray(roster.rows)
       ? roster.rows.map(row => ({ ...row })) : trtcOfficialRowsFromRoster(roster);
     return {
       at: Number(roster.nowEpoch), feedMode: 'official', sourceRevision: Number(roster.sourceRevision),
       rosterStateSource: 'd1-held-after-outage', degraded: true, held: true, holdReason: String(reason),
+      ...(roster.recovery ? { recovery: roster.recovery } : {}),
       rows, extensions: vehicles.filter(vehicle => vehicle && vehicle.extension), vehicles,
       identityAudit: roster.diagnostics || {}, dropped: {}, dayType: null, trips: [],
     };
@@ -1218,6 +1231,40 @@ async function trtcOfficialHeldPayload(env, reason = 'feed-outage') {
     console.warn('[trtc official roster] 讀取持久名冊失敗，才退回班表:',
       (error && error.message) || String(error));
     return trtcOfficialOutagePayload();
+  }
+}
+
+// 斷訊起點只記一次：靜默期間每個 request 都會走到 held 路徑，覆蓋就會讓「斷了多久」被一路
+// 刷新成 0，永遠等不到恢復判定。INSERT ... DO NOTHING 讓第一輪定案，清除點在恢復輪寫入成功之後。
+// 內容全部由名冊自身導出（不用 Date.now()），各 PoP 併發寫出的位元組才會一致。
+async function trtcNoteOfficialOutage(db, roster, reason) {
+  try {
+    await db.prepare('INSERT INTO trtc_state (k,v) VALUES (?,?) ON CONFLICT(k) DO NOTHING')
+      .bind(TRTC_OFFICIAL_OUTAGE_KEY, JSON.stringify({
+        reason: String(reason), lastGoodRevision: Number(roster.sourceRevision),
+        lastGoodEpoch: Number(roster.nowEpoch),
+        vehicleCount: Array.isArray(roster.vehicles) ? roster.vehicles.length : 0,
+      })).run();
+  } catch (error) {
+    console.warn('[trtc official roster] 記錄斷訊起點失敗（不影響出車）:',
+      (error && error.message) || String(error));
+  }
+}
+
+async function trtcReadOfficialOutage(db) {
+  try {
+    const row = await db.prepare('SELECT v FROM trtc_state WHERE k=?')
+      .bind(TRTC_OFFICIAL_OUTAGE_KEY).first();
+    if (!row || !row.v) return null;
+    const parsed = JSON.parse(String(row.v));
+    return parsed && Number.isFinite(Number(parsed.lastGoodRevision)) ? parsed : null;
+  } catch (error) { return null; }
+}
+
+async function trtcClearOfficialOutage(db) {
+  try { await db.prepare('DELETE FROM trtc_state WHERE k=?').bind(TRTC_OFFICIAL_OUTAGE_KEY).run(); }
+  catch (error) {
+    console.warn('[trtc official roster] 清除斷訊記錄失敗:', (error && error.message) || String(error));
   }
 }
 
@@ -1251,12 +1298,57 @@ function trtcOfficialRowsForJoin(rosterRows) {
 }
 
 function trtcOfficialRosterSnapshot(model, rows, prior, day, nowEpoch, sourceRevision,
-  sourceFrameKey = trtcOfficialFrameKey(rows)) {
-  const roster = reduceOfficialRoster({ model, rows, prior, day, nowEpoch, sourceRevision });
+  sourceFrameKey = trtcOfficialFrameKey(rows), realignSec = TRTC_OFFICIAL_REALIGN_SEC) {
+  const roster = reduceOfficialRoster({ model, rows, prior, day, nowEpoch, sourceRevision, realignSec });
   // rows 也進同一 CAS blob：若較舊 PoP 輸給較新的 D1 revision，回應必須採較新 snapshot
   // 自己的 row↔vehicleId 對應，不能把舊 request rows 與新 roster 混成不存在的組合。
   return { ...roster, sourceFrameKey, sourceFrameOrder: trtcOfficialFrameOrder(rows, sourceFrameKey),
     rows: trtcOfficialRowsFromRoster(roster) };
+}
+
+// 同一 frame 不重跑 reducer：相同證據只能建立一次身分（2026-08-15 幽靈車根因之一——
+// 同 frame 較晚 observation 落到 snapshot 重放，每次重放都有再出生的機會）。
+// 較晚 observation 仍要寫進 freshness barrier 擋住其後夾入的遲到異 frame，
+// 但 vehicles/rows/nextSequence/diagnostics 一律原封不動，只更新 observation metadata。
+function trtcOfficialNextState(model, rows, priorState, day, nowEpoch, sourceRevision, sourceFrameKey,
+  sourceObservedEpoch) {
+  if (priorState && trtcOfficialRevision(priorState.sourceRevision) === trtcOfficialRevision(sourceRevision) &&
+      String(priorState.sourceFrameKey || '') === sourceFrameKey) {
+    return { ...priorState, sourceObservedEpoch };
+  }
+  const next = trtcOfficialRosterSnapshot(model, rows, priorState, day, nowEpoch, sourceRevision, sourceFrameKey);
+  next.sourceObservedEpoch = sourceObservedEpoch;
+  const realignedLines = (next.diagnostics && next.diagnostics.realignedLines) || [];
+  if (realignedLines.length > 0) {
+    // 訊號回來的那一輪：把「為什麼畫面會跳」記在名冊裡帶給前端。
+    // partial＝同一輪還有別條線一直正常在報 ⇒ 一定是上游那幾條線斷了，不可能是「沒人來查」。
+    const priorSeen = priorState && priorState.feedSeen && typeof priorState.feedSeen === 'object'
+      ? priorState.feedSeen : {};
+    const lastSeen = realignedLines.map(line => Number(priorSeen[line]))
+      .filter(value => Number.isFinite(value));
+    next.recovery = {
+      atEpoch: Number(nowEpoch), lines: realignedLines.slice(),
+      outageSec: lastSeen.length ? Math.max(0, Number(nowEpoch) - Math.max(...lastSeen)) : null,
+      partial: realignedLines.length < (Number(next.diagnostics.linesWithRows) || realignedLines.length),
+      removed: Number(next.diagnostics.realigned) || 0, after: next.vehicles.length,
+      // 恢復輪同時會做兩件方向相反的事：清掉配不到的推估車、以及把官方此刻報的站間列補成車。
+      // 只回報前者會讓「車數怎麼變的」對不起來（實測 −9／+11）。
+      restored: Number(next.diagnostics.recoveryBirths) || 0,
+      before: Array.isArray(priorState && priorState.vehicles) ? priorState.vehicles.length : null,
+    };
+  } else if (priorState && priorState.recovery &&
+      Number(nowEpoch) - Number(priorState.recovery.atEpoch) <= TRTC_OFFICIAL_RECOVERY_NOTICE_SEC) {
+    // 通知要活過恢復後的那幾分鐘，否則只有「恰好在那一秒開著頁面的人」看得到跳動的解釋。
+    next.recovery = priorState.recovery;
+  }
+  // 復原檢查哨兵：同一份出生證據對應多個活著的 ID＝幽靈車正在形成。只告警不改行為。
+  const dupSignatures = next.diagnostics && Number(next.diagnostics.duplicateBirthSignatures) || 0;
+  if (dupSignatures > 0) {
+    console.warn(`[trtc official roster] 幽靈車哨兵：${dupSignatures} 組出生證據對應多個 vehicleId` +
+      `（replayBirthsBlocked=${next.diagnostics && next.diagnostics.replayBirthsBlocked || 0}、` +
+      `duplicateRowsObserved=${next.diagnostics && next.diagnostics.duplicateRowsObserved || 0}）`);
+  }
+  return next;
 }
 
 function trtcD1Changes(result) {
@@ -1299,9 +1391,16 @@ async function trtcPersistOfficialRoster({ env, model, rows, day, nowEpoch, sour
           String(current.state.sourceFrameOrder || '') >= sourceFrameOrder) {
         return { roster: current.state, rosterStateSource: 'd1-current', degraded: false, writes: 0 };
       }
-      const next = trtcOfficialRosterSnapshot(model, rows, current.state, day, nowEpoch, sourceRevision,
-        sourceFrameKey);
-      next.sourceObservedEpoch = sourceObservedEpoch;
+      const next = trtcOfficialNextState(model, rows, current.state, day, nowEpoch, sourceRevision,
+        sourceFrameKey, sourceObservedEpoch);
+      // 有線剛從長時間消失中回來才去讀斷訊記錄（罕見路徑），正常輪完全不碰它。
+      const realigned = !!(next.recovery && next.recovery.atEpoch === Number(nowEpoch) &&
+        Array.isArray(next.recovery.lines) && next.recovery.lines.length > 0);
+      if (realigned) {
+        const outageNote = await trtcReadOfficialOutage(db);
+        next.recovery.confirmed = !!outageNote || !!next.recovery.partial;
+        next.recovery.reason = outageNote && outageNote.reason ? String(outageNote.reason) : null;
+      }
       const text = JSON.stringify(next);
       let result;
       if (current.text == null) {
@@ -1312,6 +1411,8 @@ async function trtcPersistOfficialRoster({ env, model, rows, day, nowEpoch, sour
           .bind(text, TRTC_OFFICIAL_ROSTER_KEY, current.text).run();
       }
       if (trtcD1Changes(result) > 0) {
+        // 對齊完成才清斷訊記錄：清早了而 CAS 又輸掉，下一個 PoP 就會把同一場斷訊當成新的一場。
+        if (realigned) await trtcClearOfficialOutage(db);
         return { roster: next, rosterStateSource: 'd1-cas-write', degraded: false, writes: 1 };
       }
     }
@@ -1327,8 +1428,8 @@ async function trtcPersistOfficialRoster({ env, model, rows, day, nowEpoch, sour
           String(latest.state.sourceFrameOrder || '') >= sourceFrameOrder))) {
       return { roster: latest.state, rosterStateSource: 'd1-current-after-conflict', degraded: false, writes: 0 };
     }
-    return { roster: trtcOfficialRosterSnapshot(model, rows, latest.state, day, nowEpoch, sourceRevision,
-      sourceFrameKey),
+    return { roster: trtcOfficialNextState(model, rows, latest.state, day, nowEpoch, sourceRevision,
+      sourceFrameKey, sourceObservedEpoch),
       rosterStateSource: 'cas-conflict-read-only', degraded: true, writes: 0 };
   } catch (error) {
     console.warn('[trtc official roster] D1 不可用，改走 deterministic read-only:',
@@ -1420,6 +1521,9 @@ async function trtcBoardPositionAnchors(env, rows, feedMode = 'official',
     sourceRevision: official.roster.sourceRevision,
     rosterStateSource: official.rosterStateSource,
     degraded: official.degraded,
+    // 官方訊號回來後畫面會跳一次（推估中的車被官方名單取代）。帶著它讓前端說得出原因，
+    // 而不是讓使用者看到列車無故消失。恢復後仍會多帶幾分鐘，晚點開頁面的人也看得到。
+    ...(official.roster.recovery ? { recovery: official.roster.recovery } : {}),
     rows: officialRows,
     extensions: vehicles.filter(vehicle => vehicle.extension),
     vehicles, identityAudit,
