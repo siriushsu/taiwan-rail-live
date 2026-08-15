@@ -30,7 +30,7 @@ struct MetroWaitAttributes: ActivityAttributes {
     }
     var sys: String                 // trtc / krtc / tymc
     var station: String             // 正規化站名
-    var lineLabel: String           // 顯示用的線代號,如 "BL"
+    var lineLabel: String           // 顯示用的中文線名,如「中和新蘆線（迴龍）」(2026-08-15 用語統一,不給內部代碼)
     var color: String?              // 線路代表色 #RRGGBB;解不出來就不畫,絕不猜一個
     var endAt: Double?              // 追蹤時段終點(epoch 秒)=開卡時刻+durationMin。整段固定故放
                                     // attributes 不放 ContentState;同樣只准 Optional、只准加在最後

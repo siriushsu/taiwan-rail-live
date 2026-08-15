@@ -55,9 +55,18 @@ for (const m of code.matchAll(/struct\s+(\w*OptionsProvider)\b[\s\S]*?\n\}/g)) {
 }
 ok('L0 真的有抽到 provider', /OptionsProvider/.test(code));
 
-// 5. 免費站數常數存在且預設全免費(定價未決,預設值不得擅自改成收費)
-ok('L5 免費站數常數存在', /freeStationLimit\s*:\s*Int\?\s*=\s*nil/.test(code),
+// 5. 免費站數常數存在且是合法值。
+// 🔴 2026-08-15 改判準:原本釘死 `= nil`(定價未決時的當下實測值),定價一落地就假紅——
+//    心得 35「判準寫是什麼、不寫有幾個」。真正要守的兩件事:(a) 常數還在(它是唯一開關);
+//    (b) 若設了限制,同批必須有明講 CTA——後者由 verify_metro_plus_gate.mjs 的 S 組守,
+//    這裡只斷言「設了限制就必須有那支驗收在守」,避免有人把限制打開卻繞過 CTA 那條裁示。
+const limitMatch = code.match(/freeStationLimit\s*:\s*Int\?\s*=\s*(nil|\d+)/);
+ok('L5 免費站數常數存在且值合法', !!limitMatch,
    (src.match(/freeStationLimit.*/) || ['(找不到)'])[0]);
+if (limitMatch && limitMatch[1] !== 'nil') {
+  const gate = join(ROOT, 'app/scripts/verify_metro_plus_gate.mjs');
+  ok('L5b 有限制就必須有 CTA 驗收在守', existsSync(gate), `找不到 ${gate}`);
+}
 
 // 6. 🔴 不准定義 parameterSummary——定義了它,沒被列進 Summary 的參數那一格會被整格
 //    藏起來(原規劃稿只列 station/dir ⇒「系統」格消失)。出貨檔同樣不定義,三格全顯示。

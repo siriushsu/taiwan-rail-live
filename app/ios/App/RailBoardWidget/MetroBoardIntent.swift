@@ -13,9 +13,11 @@ struct MetroBoardIntent: AppIntent, WidgetConfigurationIntent {
     static var title: LocalizedStringResource = "捷運看板"
     static var description = IntentDescription("選一個捷運站，看下一班還有多久。")
 
-    /// 免費層可設定的車站數。nil ＝全免費(現行預設)。
-    /// 定價未決(見設計書 §7)——要改成「免費一站」就把這裡改成 1，其餘程式碼不必動。
-    static let freeStationLimit: Int? = nil
+    /// 免費層可設定的車站數。nil ＝全免費。
+    /// 🔴 2026-08-15 定價落地:改成 1(免費一站)。同批必須有明講的 CTA——
+    /// 判定在 MetroPlusGate/MetroPlusCore,擋下時卡上畫升級說明並可點進通行證面板,
+    /// 不做靜默空白卡(這個專案已經有三個「不給用也不說」的付費功能,不再加第四個)。
+    static let freeStationLimit: Int? = 1
 
     // 🔴 真機實測(08-14):String 參數【沒掛 optionsProvider 就是自由輸入框】——
     //    使用者看到空白格要自己打字。三格每一格都要有 provider,少一個就漏一格。

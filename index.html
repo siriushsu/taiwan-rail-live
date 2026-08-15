@@ -3851,6 +3851,7 @@
         <li><span class="d">7/16</span><span>捷運準確度升級：六家捷運依官方到站看板即時校正，國定假日自動改跑假日班表</span></li>
         <li><span class="d">7/9</span><span>台鐵即時誤點上線——介接交通部 TDX 平臺每分鐘更新；7/11 起開站即真實時刻、捷運改逐班推演</span></li>
         <li class="grp">跟車、搜尋與車站看板</li>
+        <li data-cl="metrowidgetpass"><span class="d">8/15</span><span>捷運小工具的方案定了：免費可以設定一個捷運站，想同時放好幾站、或用「自動（最近的站）」讓小工具跟著你移動換站，就需要軌島通行證。設定超過一站時，小工具上會直接寫清楚原因、點一下就能看方案，不會只給你一張空白卡。等車卡（鎖定畫面倒數）維持免費。下次 App 更新生效</span></li>
         <li data-cl="metrowaitcard"><span class="d">8/14</span><span>iPhone 捷運車站看板新增「在這站等車」：下一班倒數放上鎖定畫面與動態島，班次照官方即時資訊，車進站了自動換下一班、追蹤時間到了自動收起；北捷、高捷、機捷都支援，桌面也有捷運小工具可一點直達開卡，下次 App 更新生效</span></li>
         <li data-cl="sparkcursor"><span class="d">8/14</span><span>跟隨面板的速度曲線：誤點的車，游標會停在曲線上錯誤的位置，寫出來的當下時速跟車實際在跑的對不起來（誤點越久差越多）；現在游標對回真實位置了</span></li>
         <li data-cl="tcstopsalign"><span class="d">8/12</span><span>列車資訊卡的停靠站時刻表，表頭「到」「開」原本懸在兩個時刻欄中間、沒有對齊，現在跨列對齊了（謝謝網友回報）</span></li>
@@ -4297,7 +4298,7 @@
 // v0814i：位置與箭頭共用當下 motionFrom→motionTo；官方箭頭不留舊角度，共用箭頭不得朝車尾。
 // v0814j：正式出貨前把北捷這一批功能合併成一條面向訪客的更新紀錄。
 // v0814k：App 1.4.3 build 50／Android v5 合入網站 v0814j，保留 App 專屬橫放、背景音樂與更新提示。
-const BUILD = 'v0815a';
+const BUILD = 'v0815b';
 // 2026-08-13 起預設開啟（使用者親試預覽後裁示上線）：北捷畫車依官方即時名冊，班表只是備案。
 // 保留 ?officialroster=0 當逃生口——要退回班表路徑不必回滾部署，加個參數即可對照。
 // 🔴 這個函式會被 verify_official_roster_frontend 抽出來丟進 VM 單獨執行——
@@ -8992,7 +8993,17 @@ function plusApplyCustomerInfo(info) {
   plusSetEnvironment(p, plusEnvironmentFrom(info));
   p.founding = p.active && foundingFrom(info);
   p.mgmtUrl = (info && info.managementURL) || p.mgmtUrl || '';
+  metroWidgetSyncPlus(p.active);
   return p.active;
+}
+// 把通行證資格同步給捷運小工具(App Group)。這裡是所有資格路徑(購買/還原/refresh/登入)的匯流點,
+// 掛一處即全覆蓋。🔴 小工具 extension 讀不到 RevenueCat,不推就永遠停在免費層;非原生殼、
+// 舊版原生殼(沒有 setPlus)一律靜默略過——網站沒有小工具這回事。
+function metroWidgetSyncPlus(active) {
+  try {
+    const p = window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.RailMetroWait;
+    if (p && p.setPlus) Promise.resolve(p.setPlus({ active: !!active })).catch(() => {});
+  } catch (e) { /* 同步失敗不影響資格本身,下次資格變動再試 */ }
 }
 // 重要付費操作(購買/恢復購買)前重新驗證資格(C-4 第 3 點):adapter 若支援,先取一次目前的
 // CustomerInfo 套用進 state,避免在退費/撤銷後的舊快取上疊加購買判斷。失敗(網路錯誤等)不阻擋
@@ -19521,7 +19532,9 @@ function metroWaitTrtcBundle(st, lines, isDeco) {
       rows.push({
         dest: String(rec.row.dest || ''),
         eta: Math.round(Number(rec.row.eta)),
-        lineLabel: ln ? String(ln.id) : null,
+        // 🔴 用語統一(2026-08-15 使用者裁示):卡上只給中文線名,不給內部代碼——
+        //    ln.id 是幾何線 id(如 O_XINZHUANG),曾直接漏到鎖屏卡上。
+        lineLabel: ln ? String(ln.name || '') || null : null,
         color: ln && ln.color ? ln.color : null,
       });
     }
@@ -19563,7 +19576,8 @@ function metroWaitLiveBundle(sys, st) {
     const mapped = (METRO_LIVE_LINES[row.op] || {})[row.l];
     const lineId = mapped && mapped[0] || null;
     const ln = lineId ? metroWaitFindLine(lineId) : null;
-    rows.push({ dest: String(row.d || ''), minutes: Number(row.e), lineLabel: lineId, color: ln && ln.color ? ln.color : null });
+    // 同北捷 bundle:lineLabel 只給中文線名;查不到線物件寧可空白也不漏內部 id。
+    rows.push({ dest: String(row.d || ''), minutes: Number(row.e), lineLabel: ln ? String(ln.name || '') || null : null, color: ln && ln.color ? ln.color : null });
   }
   if (!rows.length) return null;
   rows.sort((a, b) => a.minutes - b.minutes);
@@ -19823,6 +19837,9 @@ function ensureMetroWaitListener() {
         await new Promise(r => setTimeout(r, 300));
       }
       await new Promise(r => setTimeout(r, 600));
+      // 通行證閘門的 CTA 卡(railisland://pass):沒有站可開,直接把人送到方案面板。
+      // 走與工具列同一個入口 plusOpen(),來源標成 widget 方便日後看轉換來自哪裡。
+      if (evt && evt.view === 'pass') { plusOpen('widget'); return; }
       const sys = evt && evt.sys, station = evt && evt.station;
       const st = metroWaitFindStation(station);
       if (!st) {

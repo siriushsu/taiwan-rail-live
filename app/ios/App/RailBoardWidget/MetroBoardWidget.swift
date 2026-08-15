@@ -12,6 +12,9 @@ struct MetroEntry: TimelineEntry {
     var deepLink: URL? = nil   // 點小工具 → App 開這一站的等車卡(railisland://metro-wait)
     var auto: Bool = false     // 這一站是「自動(最近的站)」解析出來的,標頭掛小徽章
     var autoHint: String? = nil // 自動選站解析失敗時的空狀態指引(蓋過通用的「沒有資料」)
+    // 通行證閘門擋下時的明講 CTA(2026-08-15)。🔴 這個專案已經有三個「不給用也不說」的付費
+    // 功能,這裡一律講清楚「為什麼看不到、去哪裡買」,不做靜默空白卡。
+    var passCTA: String? = nil
 }
 
 struct MetroBoardProvider: AppIntentTimelineProvider {
@@ -45,7 +48,7 @@ struct MetroBoardProvider: AppIntentTimelineProvider {
                 MetroEntry(date: Date(timeIntervalSince1970: t), title: e.title,
                            lineColor: e.lineColor, snapshot: e.snapshot, precision: e.precision,
                            lastTrain: e.lastTrain, failed: e.failed, deepLink: e.deepLink,
-                           auto: e.auto, autoHint: e.autoHint)
+                           auto: e.auto, autoHint: e.autoHint, passCTA: e.passCTA)
             }
         }
         // 🔴 刷新策略(真機回饋 08-14 第五輪:「只剩一兩班看起來像沒車」):有預排邊界時用 .atEnd
@@ -64,6 +67,26 @@ struct MetroBoardProvider: AppIntentTimelineProvider {
         //    "auto",查表必落空;方向格是為手選站挑的,對自動解析出來的站不一定成立,一併忽略。
         var isAuto = false
         var sysID: String?, stationName: String?
+        // 通行證閘門在【定位與抓取之前】:被擋下時不打官方 API、也不叫醒定位,
+        // 卡上直接畫明講的升級說明(deepLink 指向 App 的通行證頁,點卡就能買)。
+        let gate = await MetroPlusGate.evaluate(stationKey: cfg.station,
+                                                isAuto: cfg.station == MetroNearest.sentinel)
+        switch gate {
+        case .needPassAuto:
+            return MetroEntry(date: Date(), title: "自動選站", lineColor: nil, snapshot: nil,
+                              precision: "sec", lastTrain: nil, failed: false,
+                              deepLink: Self.passLink(), auto: true,
+                              passCTA: "自動選最近的站是通行證功能。點一下開啟軌島看方案，或改選一個固定車站。")
+        case .needPassMulti(let claimedName):
+            return MetroEntry(date: Date(), title: "再加一站", lineColor: nil, snapshot: nil,
+                              precision: "sec", lastTrain: nil, failed: false,
+                              deepLink: Self.passLink(),
+                              passCTA: claimedName.isEmpty
+                                ? "免費版可設定一站。點一下開啟軌島，用通行證解鎖多站。"
+                                : "免費版可設定一站（目前是「\(claimedName)」）。點一下開啟軌島，用通行證解鎖多站。")
+        case .allowed, .claimFree:
+            break
+        }
         if cfg.station == MetroNearest.sentinel {
             isAuto = true
             if let hit = await MetroNearest.resolve(catalog: catalog) {
@@ -113,6 +136,11 @@ struct MetroBoardProvider: AppIntentTimelineProvider {
 
     // 🔴 站名是中文:URL(string:) 對非 ASCII 插值會回 nil ⇒ 深連結整條靜默死掉。
     //    一律走 URLComponents 讓它做 percent-encoding。
+    // 被閘門擋下時點卡的去處:App 開通行證方案頁(railisland://pass)。與站別無關,故不帶參數。
+    private static func passLink() -> URL? {
+        var c = URLComponents(); c.scheme = "railisland"; c.host = "pass"; return c.url
+    }
+
     private static func deepLink(sys: String, station: String) -> URL? {
         var c = URLComponents()
         c.scheme = "railisland"
@@ -219,6 +247,10 @@ struct MetroBoardView: View {
                 // 有資料但全被「到站+30秒退場」濾光=資料視野(≈12分鐘)用完了,WidgetKit 還沒給
                 // 下一次刷新——這不是「官方沒班次」,寫成那樣會被讀成末班已過(真機回饋 08-14)。
                 Text("資料過舊，打開軌島即更新").font(.caption).foregroundStyle(.secondary)
+            } else if let cta = entry.passCTA {
+                // 通行證閘門:明講「為什麼看不到、點下去去哪」。用主色而非 secondary——
+                // 它是行動邀請不是錯誤訊息;小卡容得下三行,大卡更寬鬆,故不設 lineLimit。
+                Text(cta).font(.caption).foregroundStyle(.primary)
             } else {
                 // autoHint:自動選站解析失敗的指引(定位權限/從沒定位過),比通用文案可行動。
                 Text(entry.autoHint ?? (entry.snapshot != nil ? "官方目前沒有這一站的班次資訊" : "沒有資料"))
