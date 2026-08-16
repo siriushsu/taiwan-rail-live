@@ -555,9 +555,16 @@ for (const engineName of ['chromium', 'webkit']) {
   const html = readFileSync('index.html', 'utf8');
   const foot = (html.match(/<ul class="foot-list foot-recent">([\s\S]*?)<\/ul>/) || [, ''])[1];
   const ofIds = [...foot.matchAll(/data-cl-of="([^"]+)"/g)].map(m => m[1]);
-  ok('G1 首層(最近更新)≤8 條', ofIds.length <= 8, `實際 ${ofIds.length} 條`);
-  ok('G2 首層有本次「punctualtrains」條目', ofIds.includes('punctualtrains'), '');
   const allClIds = [...html.matchAll(/data-cl="([^"]+)"/g)].map(m => m[1]);
+  ok('G1 首層(最近更新)≤8 條', ofIds.length <= 8, `實際 ${ofIds.length} 條`);
+  // 🔴 2026-08-14 改判準:原本斷言「首層有本次 punctualtrains 條目」。首層(.foot-recent)是「最近更新」的
+  //    滾動檢視,硬上限 8 條(CL2),新功能一進榜舊的就會被合法擠出去——CL1 明文允許這件事,只要正本
+  //    還在第二層。所以「我的功能在第一層」是個會隨時間自然失效的量,綁它等於保證幾批更新之後永久假紅,
+  //    訓練大家忽略這支腳本的輸出(比照 verify_live_activity.mjs 2026-08-04 的同一次修正)。
+  //    改成綁真正該保證的事:正本在第二層恰好一條。首層自身的結構完整性已由 G1(≤8 條)與
+  //    G4(首層每條都找得到正本)覆蓋,不需要這條再管。
+  const canonCount = allClIds.filter(id => id === 'punctualtrains').length;
+  ok('G2 第二層有「punctualtrains」正本(恰好一條)', canonCount === 1, `實際 ${canonCount} 條`);
   const dupes = [...new Set(allClIds.filter((id, i) => allClIds.indexOf(id) !== i))];
   ok('G3 第二層 data-cl id 不重複', dupes.length === 0, dupes.join('、'));
   const missing = ofIds.filter(id => !allClIds.includes(id));

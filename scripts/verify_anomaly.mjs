@@ -34,6 +34,10 @@ await ctx.addInitScript(() => { localStorage.setItem('trainmap-howto-seen', '1')
 const page = await ctx.newPage();
 const pageErrors = [], consoleErrors = [];
 page.on('pageerror', e => pageErrors.push(String(e)));
+// 🔴 只擋 tra-live(其餘走真網路):本腳本注入 state.live 假誤點,頁面自己的
+//   setInterval(pollLive, 60e3) 會用真資料把注入值整顆洗掉——同族假紅的根因與擋法
+//   照 verify_tra_motion(acbb7c3);pollLive 有 try/catch,abort 不會產生 pageerror。
+await page.route('**/*tra-live*', r => r.abort());
 page.on('console', m => { if (m.type() === 'error') consoleErrors.push(m.text()); });
 
 await page.goto(URLROOT, { waitUntil: 'domcontentloaded' });
@@ -85,8 +89,33 @@ const OVER = [900, 900, 900, 900, 900, 900];                   // 全部 +15 分
     return { anom: anomalyOf(fake), badgeText: b.textContent, badgeAnom: b.classList.contains('anom'), bannerHidden: ban.hidden, bannerHtml: ban.innerHTML };
   }, { BIMODAL });
   ok('S2 雙峰連 2 次:進異常 kind=spread', !!(r.anom && r.anom.kind === 'spread'), JSON.stringify(r.anom));
-  ok('S2 徽章轉「異常推定」', /異常推定/.test(r.badgeText) && r.badgeAnom, r.badgeText);
+  // 🔴 判準修正(2026-08-16):名冊分支不再無條件接管——它與 pollTrtcLive 共用同一道群組閘門
+  //   (畫面上真的有北捷 board 線才走名冊)。08-15 那版寫成「名冊模式下徽章恆為名冊三態」,
+  //   等於把「切到『台』『高』、或『捷』只勾高捷時仍顯示北捷『官方即時』」這個缺陷寫進判準。
+  //   改成兩側都驗:本情境畫面上只有假線(沒有北捷)→ 舊路徑仍要有牙,異常必須顯形;
+  //   S2b 則是畫面上有北捷 → 名冊接管、異常不得干擾。旗標關的 kill-switch 路徑判準與此相同。
+  {
+    const flagOn = await page.evaluate(() => OFFICIAL_ROSTER_ENABLED);
+    ok('S2 畫面上沒有北捷:徽章轉「異常推定」', /異常推定/.test(r.badgeText) && r.badgeAnom,
+       `官方名冊旗標=${flagOn} 徽章=${r.badgeText}`);
+  }
   ok('S2 橫幅顯示「疑似營運異常」', !r.bannerHidden && /疑似營運異常/.test(r.bannerHtml), r.bannerHtml.slice(0, 90));
+}
+
+// 情境 2b:同一條異常假線,但畫面上「有北捷」——名冊分支照樣接管,異常不得把徽章搶走。
+// 這是 S2 的正向對照:兩條合起來才說得出「名冊接不接管由畫面上有沒有北捷決定」,少一條都只證明半邊。
+{
+  const r = await page.evaluate(({ BIMODAL }) => {
+    const sys = 'anom_s2b', fake = mkFake(sys);
+    const trtc = { id: 'BL', _sys: 'mrt', name: '板南線', color: '#0044cc', loop: false, stations: fake.stations, _tt: fake._tt };
+    state.mode = 'freq'; state.deco = false; state.decoLines = null; state.lines = [fake, trtc]; state.freqSel = new Set([sys, 'mrt']); state.sysId = sys;
+    feedMetro(sys, BIMODAL); feedMetro(sys, BIMODAL);
+    updateMetroBadge();
+    const b = document.getElementById('metroBadge');
+    return { anom: !!anomalyOf(fake), text: b.textContent, anomCls: b.classList.contains('anom'),
+      poolTrtc: metroLivePool().filter(isTrtcBoardLine).length };
+  }, { BIMODAL });
+  ok('S2b 畫面上有北捷:名冊接管、異常不干擾', r.anom && r.poolTrtc === 1 && !r.anomCls && /官方即時|官方中斷|班表備案/.test(r.text), JSON.stringify(r));
 }
 
 // 情境 3:超窗 rows 連 2 次 → 進異常(reject)

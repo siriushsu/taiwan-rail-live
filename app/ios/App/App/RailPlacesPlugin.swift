@@ -10,6 +10,7 @@ public final class RailBridgeViewController: CAPBridgeViewController {
         // 少了這行,JS 端 registerPlugin('X') 的每個呼叫都靜默拒絕(build 38 音樂全滅的根因)。
         bridge?.registerPluginInstance(RailPlacesPlugin())
         bridge?.registerPluginInstance(RailLiveActivityPlugin())
+        bridge?.registerPluginInstance(RailMetroWaitPlugin())
         bridge?.registerPluginInstance(RailAudioPlugin())
         bridge?.registerPluginInstance(RailReviewPlugin())
     }

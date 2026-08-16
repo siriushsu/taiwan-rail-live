@@ -3,6 +3,17 @@
 export const DEFAULT_DWELL_SEC = 25;
 export const ALIGN_GAP_METERS = 1500;
 const O_TRUNK_MAX = 11;
+// 中和新蘆線的兩支在索引 0..O_TRUNK_MAX 共用同一段實體軌道（站名、座標完全相同），所以
+// 「這筆觀測屬於哪一支」在共線段上是資料本身答不出來的問題。branchAmbiguous 回答的就是
+// 「這筆觀測有沒有資格『寫』分支歸屬」，歧義的權威定義取自 pickBoardCandidate——站在幹線上
+// **而且**終點也在幹線上，才真的分不出蘆洲／迴龍。終點是蘆洲／迴龍的列 boardCandidates 只會
+// 給一個候選，那是權威證據，即使車此刻人在幹線上也必須放行；一併鎖住會把既有的錯歸屬凍成
+// 永久（實測幹線站官方列有 47% 屬於這類）。destIdx 缺漏時保守視為歧義，避免資料異常時
+// 退回舊的回饋迴圈。
+const O_BRANCH_LINES = new Set(['O_LUZHOU', 'O_XINZHUANG']);
+const branchAmbiguous = item => O_BRANCH_LINES.has(item.line) &&
+  Number(item.from) <= O_TRUNK_MAX && Number(item.to) <= O_TRUNK_MAX &&
+  !(Number(item.destIdx) > O_TRUNK_MAX);
 
 export const TRTC_LEDGER_SCHEMA = [
   `CREATE TABLE IF NOT EXISTS trtc_events (
@@ -361,13 +372,24 @@ export function collapseClaims(claims) {
       for (let j = i + 1; j < group.length; j++) {
         if (deleted.has(j)) continue;
         const a = group[i], b = group[j];
-        if ((a.dir === 2 ? 1 : -1) * (b.ix - a.ix) > 0.6) break;
+        // 起點列（a.terminal）與它的第一段列可以隔到整段（見下方時間軸條件），不受 0.6 站近站窗限制。
+        if ((a.dir === 2 ? 1 : -1) * (b.ix - a.ix) > 0.6 && !a.terminal) break;
         if (a.no && b.no) continue;
         // 無號線已由完整逐站 epoch 的單調區段分群；不得再用舊的近站門檻把下一班
         // 起點倒數吞進前車，或把同一區段拆回兩台。
         if (a.timelinePartitioned || b.timelinePartitioned) continue;
+        // 官方站牌每站每個終點只報「下一班」：同一站兩筆不同終點的列＝兩台車（起點站天天如此：
+        // 頂埔／亞東醫院、新店／台電大樓…）。2026-08-15 實測：起點兩筆終點不同的倒數在這裡被合成
+        // 一筆（arr 取一班、timeline 取另一班的 chimera），被吃掉的那班在官方翻回來時又以新 ID 出生，
+        // 舊 ID 釘死在起點永不退場——畫面上同段擠三台、其中一台無號的幽靈車就是這樣來的。
+        if (Number(a.destIdx) !== Number(b.destIdx)) continue;
+        // 起點列（a）與第一段列（b）是同一台車的判準是時間軸自洽：一台車不可能比抵達起點更早抵達
+        // 下一站，所以 b.arr ≥ a.arr 才是同一台；b.arr < a.arr 是前一班已離站、a 是還沒進站的下一班。
+        // 舊判準 progress<=0.25 兩邊都錯：起點列的 arrEpoch 是「進站」時刻而非發車錨點、官方第一段
+        // 間隔又普遍短於模型段秒（08-15 語料 BL/G/O/R 逐列比值 0.5–0.8），progress 0.31 的同一台車被拆成兩筆；
+        // 而剛離站 25% 內的前一班反而會把下一班的未來倒數吞進去。
         const hit = (a.to === b.from && a.progress >= 0.94 && b.progress <= 0.25) ||
-          (a.terminal && b.from === a.to && b.progress <= 0.25);
+          (a.terminal && !b.terminal && b.from === a.to && Number(b.arrEpoch) >= Number(a.arrEpoch));
         if (!hit) continue;
         deleted.add(i); events[j].push(...events[i]); break; // 保留較前面的 b
       }
@@ -413,6 +435,11 @@ export function attachOfficialTimelines(model, collapsedClaims, resolvedRows, ca
     for (let i = 1; i < segments.length; i++) {
       const previous = segments[i - 1], current = segments[i];
       if (Number(previous.to) !== Number(current.from)) continue;
+      // 起點列的 depEpoch 依定義等於 arrEpoch（車還停在起點）。同一起點排兩班發車時，
+      // 這裡曾把後一班的 dep 改寫成前一班的到站時刻，做出 dep<arr 的終點列，
+      // reducer 當場擲「timeline 形狀不合法」整輪丟掉、退回 held。
+      // 2026-08-15 實測 38 個有效輪次中 22 輪因此丟失（holdReason=assembly-error）。
+      if (current.terminal) continue;
       const line = model.lines.get(claim.line);
       const dwell = previous.terminal ? 0 : (line.stations[Number(previous.to)].dwell || DEFAULT_DWELL_SEC);
       const depEpoch = Number(previous.arrEpoch) + dwell;
@@ -440,6 +467,12 @@ function chooseCodePosition(model, code, priorLine) {
     if (hit) return hit;
   }
   if (rec.on.length === 1) return rec.on[0];
+  // 共線段（南勢角…大橋頭）的站碼在蘆洲／迴龍兩支上都成立。這裡猜一支等於憑空造出分支歸屬，
+  // 而那個歸屬會經 nearestPrior → trackUpdates → branchLineHintsFromLedger 回頭決定下一輪
+  // 看板列該歸哪一支——猜錯一次就自我維持（2026-08-16 車號 436：D1 今日 55 條 O 線 track
+  // 只有它「鑄造分支≠現行 line」，畫面上就是景安—南勢角那對疊車）。沒有可信 priorLine 就不採用：
+  // 逐車資料只是身分／擁擠度來源，少一輪不影響列車存在性（存在性只由官方站牌決定）。
+  if (rec.on.filter(x => O_BRANCH_LINES.has(x.line)).length > 1) return null;
   const preferred = rec.on.find(x => !/_XBT$/.test(x.line) && x.line !== 'O_LUZHOU');
   return preferred || rec.on[0];
 }
@@ -614,6 +647,12 @@ export function assignLedgerFrame({ model, claims, cars, priorTracks = [], alias
     for (const claim of sortedClaims.filter(c => c.no)) {
       const akey = aliasKey('hw_no', claim.no);
       let trackId = aliasToTrack.get(akey);
+      // 這裡曾經加過「跨分支就拒絕接管、改鑄新 track」的守衛，08-16 複審後移除：它結構上不可能
+      // 生效，而且會製造新問題。三個理由都實跑驗過——(1) 下一行的 sameCar 會把剛清掉的舊 track
+      // 原樣接回來（正式站常態有逐車資料，等於守衛不存在）；(2) D1 的 alias upsert 只更新
+      // last_seen_epoch、不換 track_id，另鑄之後 alias 仍指舊 track，下輪再鑄＝每輪 identity churn；
+      // (3) synthId 不含車號，同分鐘兩台跨分支另鑄會撞成同一個 id。要真的做，得一起改 worker.js
+      // 的 alias 時效與 upsert，那是另一個批次。分支歸屬的保護改由 trackLine 那道（見下方）承擔。
       const sameCar = groupCars.find(c => c.aliasType === 'hw_no' && c.alias === claim.no);
       if (!trackId && sameCar) trackId = sameCar.trackId;
       if (!trackId) {
@@ -679,7 +718,14 @@ export function assignLedgerFrame({ model, claims, cars, priorTracks = [], alias
       depEpoch: claim.terminal ? claim.arrEpoch : claim.arrEpoch - claim.run,
       crowd, evidence, ageSec: Math.max(0, nowEpoch - claim.baseEpoch) };
     frame.push(payload);
-    trackUpdates.push({ day, trackId: claim.trackId, line: claim.line, dir: claim.dir,
+    // 分支歸屬一趟一鎖：站與終點都在幹線上的 claim 只是「這台車現在在幹線上」，證明不了它
+    // 屬於哪一支。讓它改寫 track.line 就等於讓下一輪的 branchLineHintsFromLedger 讀到自己
+    // 上一輪的猜測，整條鏈沒有任何獨立錨點（08-16 根因）。反之終點是蘆洲／迴龍的列帶著權威
+    // 證據，照常放行——否則既有的錯歸屬會被凍住，永遠等不到能更正它的那一筆。
+    const boundPrior = priorById.get(claim.trackId);
+    const trackLine = branchAmbiguous(claim) && boundPrior && O_BRANCH_LINES.has(boundPrior.line)
+      ? boundPrior.line : claim.line;
+    trackUpdates.push({ day, trackId: claim.trackId, line: trackLine, dir: claim.dir,
       stationIdx: claim.to, progress: claim.ix, officialNo: payload.no, crowd,
       evidence, evidenceEpoch: claim.baseEpoch, lastSeenEpoch: nowEpoch, payload });
   }

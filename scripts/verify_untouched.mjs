@@ -30,6 +30,10 @@ async function sample(port) {
   const page = await b.newPage();
   const errs = [];
   page.on('pageerror', e => errs.push(e.message));
+  // 🔴 只擋 tra-live(其餘走真網路):本腳本注入 state.live 假誤點,頁面自己的
+  //   setInterval(pollLive, 60e3) 會用真資料把注入值整顆洗掉——同族假紅的根因與擋法
+  //   照 verify_tra_motion(acbb7c3);pollLive 有 try/catch,abort 不會產生 pageerror。
+  await page.route('**/*tra-live*', r => r.abort());
   await page.goto(`http://127.0.0.1:${port}/index.html`, { waitUntil: 'domcontentloaded' });
   await page.waitForFunction('typeof state !== "undefined" && state.trains && state.trains.length > 300', null, { timeout: 180000 });
   const r = await page.evaluate(({ delays }) => {

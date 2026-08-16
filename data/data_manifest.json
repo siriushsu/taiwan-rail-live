@@ -8,7 +8,7 @@
  "data/ntalrt.json": "130c38e73866812210067323d224f76a",
  "data/ntalrt_times.json": "a92e0345ecc6b960b7689bdf7501bad9",
  "data/ntdlrt.json": "9dce13e83ef6ef72a5193e9b4b4575e4",
- "data/ntdlrt_times.json": "60dbebfb31bfa2c3f03d37bd5871f79e",
+ "data/ntdlrt_times.json": "2e4da0cbeb30271340c7467c6d62f38f",
  "data/sanying.json": "9fafa4c7119392c19e6e02e589b3ed7a",
  "data/sanying_times.json": "44d30c43df33629712370d96fd21133f",
  "data/station_transfers.json": "2b53e93bf04c8b94d86ba07301578c67",
@@ -18,13 +18,14 @@
  "data/tmrt.json": "22aa721e920844331398a0421eae0574",
  "data/tmrt_times.json": "65db0e5fc9207aedc94f6fc4805e552d",
  "data/tra.json": "a6611b805d8393b9f372d5fc6d7a6644",
- "data/tra_pass_obs.json": "d7be475187f09a4cd8d5f9add4a4df18",
- "data/tra_schedule_dense.json": "f3e9adcc4aa55e738e74a1b8ad6c564e",
+ "data/tra_pass_obs.json": "33d0f3deaf5384cfcbc505e8c6ab331b",
+ "data/tra_platforms.json": "7634a5761a1466026c455fbfed34b139",
+ "data/tra_schedule_dense.json": "67e5f38ad916f03b48252ca5040ada3b",
  "data/tra_special_trains.json": "9459957812780e87ee83b35828d8d0f2",
  "data/tra_station_class.json": "699165b04d8f70294b1d0d15e462d58c",
  "data/tra_station_info.json": "e9f9108b960c026c12b35ecbb6cdf9c3",
  "data/trtc.json": "13e4a1886ace58a469031e2c450d4ca4",
  "data/trtc_times.json": "3bd02628906db72dcc950fa8942bdd87",
  "data/tymc.json": "f38a0f61c1eb6b57a00853dfd3e41e78",
- "data/tymc_times.json": "708c1a62b33c0bbd3ad45db385f22977"
+ "data/tymc_times.json": "395beb1d892ed74771d0238e5b3f31fd"
 }

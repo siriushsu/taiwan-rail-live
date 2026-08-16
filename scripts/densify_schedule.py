@@ -216,6 +216,22 @@ def main():
     fallback_segments = 0
     total_segments = 0
 
+    # 通過站正名：tra.json 節點名是手打站列（「左營(舊城)」「新城 (太魯閣)」），班表停靠站用的是
+    # 台鐵 ODS 官方站名（「左營」「新城」）。兩者吸附到同一個節點座標後，若通過站沿用節點名，
+    # 前端以「系統|站名」去重就會長出兩顆同座標的站——點站彈疊站選單、「左營(舊城)」看板永遠空
+    # （2026-08-16 網友回報）。規則：節點名本身從未以停靠站身分出現、且恰有一個班表站名吸附到它
+    # → 通過站改用那個官方站名；多個站名吸到同一節點（臺北／臺北-環島）就維持節點名不猜。
+    stop_names = {s["name"] for t in sch["trains"] for s in t["stops"]}
+    node_stop_names = {}
+    for t in sch["trains"]:
+        for s in t["stops"]:
+            node_name, _d = nearest_node(s["lat"], s["lon"], node_coord, match_cache)
+            if node_name is not None and node_name not in stop_names:
+                node_stop_names.setdefault(node_name, set()).add(s["name"])
+    pass_alias = {n: next(iter(v)) for n, v in node_stop_names.items() if len(v) == 1}
+    alias_ambiguous = {n: sorted(v) for n, v in node_stop_names.items() if len(v) > 1}
+    print(f"pass-through alias={sorted(pass_alias.items())} ambiguous(kept)={alias_ambiguous}")
+
     out_trains = []
     for t in sch["trains"]:
         stops = t["stops"]
@@ -268,7 +284,7 @@ def main():
                             tsec = round(t0 + frac * (t1 - t0))
                             plat, plon = node_coord[path[i]]
                             new_stops.append({
-                                "name": path[i],
+                                "name": pass_alias.get(path[i], path[i]),
                                 "lat": plat,
                                 "lon": plon,
                                 "order": None,
@@ -308,6 +324,8 @@ def main():
         "depSec/arrSec 間內插；找不到路徑或站點對不上則保留原直線。"
         f" fallback 區段數={fallback_segments}/{total_segments}；"
         f"對不上 tra.json 節點的站名共 {len(unmatched_names)} 個：{sorted(unmatched_names)}。"
+        f" 通過站正名（tra.json 節點名從未當停靠站、且恰有一個班表官方站名吸附到該節點時，通過站改用官方站名，"
+        f"避免同座標長出兩顆站）：{sorted(pass_alias.items())}；多站名吸附到同一節點而保留節點名者：{alias_ambiguous}。"
         " 快車跳站校正 Phase 1（研究_快車跳站校正_2026-07-24.md）：Dijkstra 與內插的邊權重"
         "優先用 data/tra_station_of_line.json（TDX v3 Rail/TRA/StationOfLine 官方累計里程）"
         "取代 haversine 直線距離；"

@@ -23,6 +23,28 @@ export function assertAndroidMainActivityDoesNotPreInitWindow(mainActivity) {
     'Android MainActivity 不可手動呼叫 EdgeToEdge.enable()——會在 Capacitor 套用 NoActionBar 前初始化 launch theme，讓上下白帶回歸');
 }
 
+// Android v7 的定位契約：只宣告／請求模糊位置。enableHighAccuracy:false 只是取樣偏好，
+// 不能拿來代替權限 alias；所有一次性與連續定位都必須先明確請 coarseLocation，並在 bridge
+// 再把呼叫端傳進來的 true 壓回 false。iOS 維持既有精度與權限流程。
+export function assertAndroidCoarseLocationContract({ nativeBridgeSource, packagedBridge, androidManifest }) {
+  assert(androidManifest.includes('android.permission.ACCESS_COARSE_LOCATION'),
+    'Android manifest 必須宣告 ACCESS_COARSE_LOCATION');
+  assert(!androidManifest.includes('android.permission.ACCESS_FINE_LOCATION'),
+    'Android v7 只使用模糊位置，manifest 不可再宣告 ACCESS_FINE_LOCATION');
+  assert(/ANDROID_COARSE_LOCATION\s*=\s*Object\.freeze\(\{\s*permissions:\s*\['coarseLocation'\]\s*\}\)/s.test(nativeBridgeSource),
+    'Android 定位 bridge 必須把 coarseLocation 寫成唯一的權限請求 alias');
+  assert(/Geolocation\.requestPermissions\(ANDROID_COARSE_LOCATION\)/.test(nativeBridgeSource),
+    'Android 定位 bridge 沒有明確呼叫 Geolocation.requestPermissions(coarseLocation)');
+  assert(/platform\s*===\s*'android'[\s\S]*enableHighAccuracy:\s*false/.test(nativeBridgeSource),
+    'Android 定位 bridge 必須強制 enableHighAccuracy:false，不能讓其他入口再要求精確位置');
+  assert(/Geolocation\.getCurrentPosition\(androidGeoOptions\(options\)\)/.test(nativeBridgeSource),
+    '一次性定位沒有經過 Android 模糊精度收斂');
+  assert(/Geolocation\.watchPosition\(androidGeoOptions\(options\)/.test(nativeBridgeSource),
+    '連續定位沒有經過 Android 模糊精度收斂');
+  assert(packagedBridge.includes('coarseLocation'),
+    '打包後 native-bridge.js 不含 coarseLocation——原始碼修正沒有進入發行包');
+}
+
 // Android WebView <140 的 env(safe-area-inset-*) 有已知錯誤；Capacitor 8 會把正確值注入
 // --safe-area-inset-*。所有版面只准從 --sa-* 別名取值，否則三鍵導覽／手勢條會再次蓋住貼底控制。
 export function assertAndroidSafeAreaCssContract(html) {
@@ -159,6 +181,26 @@ const TOAST_REVIEWED = new Map([
   [`t.toast`, '使用說明「試一次」:t 必為 HELP_TRY 成員,其 toast 全是寫死字面字串,無插入'],
   ["j.why===''?'':`${st.name}${Math.round(j.distM)},(${j.r})`", '單站打卡:st.name 來自內建班表/路線資料;distM 是 haversineKm 計算值,r 是 CHECKIN_RADIUS_M 數字常數'],
   ['`${st.name}`', '單站打卡:st 只由 nearbyStationCandidates 的內建班表/路線車站產生,站名不可由使用者編輯'],
+  // 2026-08-15 登記:北捷官方訊號恢復通知(trtcOfficialResyncTick,index.html:5059,斷訊挽救批次)。
+  // msg 是本地變數,由三個插值組成、全部是數字:
+  //   mins    = Math.max(1, Math.round(r.outageSec / 60));r.outageSec 唯一寫入點是
+  //             `Math.max(Number(...) || 0, coastedFor)`(index.html:5197)⇒ 數字
+  //   count   = r.count,唯一寫入點是 `(Number(...) || 0) + 1`(index.html:5198)⇒ 數字
+  //   removed = Number(rec.removed),且被 `Number(rec.removed) > 0` 守著 ⇒ 有限正數
+  // rec 來自自家 /api/trtc-live 的 recovery 物件,但即使上游吐 HTML 字串,Number() 也會變 NaN
+  // 而被 >0 擋掉。三處皆無字串路徑進 innerHTML;句中的 <b> 是刻意的粗體排版。
+  [`msg,{wrap:true}`, '官方訊號恢復通知:三個插值(分鐘/台數/移除台數)全經 Number()/Math.* 收斂為數字,無字串來源'],
+  // 2026-08-16 登記:通行證提示批次的兩發說明型 toast(看板的小工具引導、衛星的高解析說明)。
+  // 這個指紋是**偵測器的已知假陽性**,不是「有插入但我判斷安全」:blankLiterals 把整段字面字串
+  // 換成 '',於是只剩選項物件 `{wrap:true}` 裡的識別字 `wrap` 被 toastHasInjection 認成插入。
+  // 這一格涵蓋的呼叫形狀是【單一字串字面值 ＋ {wrap:true}】,結構上不存在插入點:
+  //   · 若有人日後改成 showToast('前綴' + name, {wrap:true}),blankLiterals 後是 ''+name,{wrap:true}
+  //     ⇒ 指紋不同 ⇒ 仍會被擋下來(這一格【不會】順便放行拼接版本)。
+  //   · 若改成樣板字串帶插值,指紋也會帶著 ${...} 而不同,同樣擋得住。
+  [`'',{wrap:true}`, '純字面字串＋{wrap:true} 選項:指紋裡的 wrap 是選項名不是插值,無任何值進 innerHTML'],
+  // 2026-08-14 登記:捷運等車卡(Task 6)。
+  [`res&&res.why===''?'':''`, '等車卡開卡失敗:兩個寫死字串二選一(why===disabled 與否),無插入'],
+  [`''+escHtml(String(station||''))+''`, '等車卡深連結找不到站:station 來自小工具深連結(外部輸入),已 escHtml 逸出;verify_metro_wait_entry.mjs H 組實測覆蓋'],
   ['`${st.name}${e&&e.n>1?`(${escHtml(e.n)})`:\'\'}`', '單站打卡成功:站名來自內建資料;e.n 從 localStorage 重讀且寫入失敗時可能保留髒值,故已逸出'],
   ['`${st.name}${tr.stops[toIdx].name}`+(j.ok?\'\':\'\')', '開始搭乘:兩個站名都來自 state.trains 的內建班表停靠站;j.ok 只選擇兩個寫死字串'],
   ['`${escHtml(r.fromName)}${st.name}${n}`', '完成搭乘:r.fromName 從 localStorage 還原故已逸出;st.name 由內建班表重建,n 是索引相減後的數字'],
@@ -278,6 +320,10 @@ export async function verifyRelease({
   const relativeFiles = files.map(file => relative(output, file).replaceAll('\\', '/'));
   const indexPath = join(output, 'index.html');
   const html = await readFile(indexPath, 'utf8');
+  const nativeBridgeSource = await readFile(join(appRoot, 'src/native-bridge.mjs'), 'utf8');
+  const packagedBridge = await readFile(join(output, 'native-bridge.js'), 'utf8');
+  const androidManifest = await readFile(join(appRoot, 'android/app/src/main/AndroidManifest.xml'), 'utf8');
+  assertAndroidCoarseLocationContract({ nativeBridgeSource, packagedBridge, androidManifest });
 
   // ── 創始會員截止時刻的「上線錨點」(B-4,2026-08-03 裁示)───────────────────────
   // 創始價視窗＝上線錨點時刻起算固定 30 天。上線錨點由 revenuecat-config.js 的

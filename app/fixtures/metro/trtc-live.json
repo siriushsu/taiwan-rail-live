@@ -1,0 +1,953 @@
+{
+ "at": "2026-08-14T06:56:44.221Z",
+ "src": "trtc",
+ "board": [
+  {
+   "name": "松山機場站",
+   "dest": "南港展覽館站",
+   "eta": 1786690854,
+   "at": 1786690589,
+   "no": ""
+  },
+  {
+   "name": "松山機場站",
+   "dest": "動物園站",
+   "eta": 1786690589,
+   "at": 1786690589,
+   "no": ""
+  },
+  {
+   "name": "南港展覽館站",
+   "dest": "動物園站",
+   "eta": 1786690736,
+   "at": 1786690589,
+   "no": ""
+  },
+  {
+   "name": "台北車站",
+   "dest": "淡水站",
+   "eta": 1786690828,
+   "at": 1786690589,
+   "no": "103"
+  },
+  {
+   "name": "台北車站",
+   "dest": "北投站",
+   "eta": 1786691038,
+   "at": 1786690589,
+   "no": "138"
+  },
+  {
+   "name": "台北車站",
+   "dest": "象山站",
+   "eta": 1786690856,
+   "at": 1786690589,
+   "no": "108"
+  },
+  {
+   "name": "台北車站",
+   "dest": "大安站",
+   "eta": 1786690628,
+   "at": 1786690589,
+   "no": "132"
+  },
+  {
+   "name": "小碧潭站",
+   "dest": "七張站",
+   "eta": 1786691083,
+   "at": 1786690589,
+   "no": ""
+  },
+  {
+   "name": "台北車站",
+   "dest": "南港展覽館站",
+   "eta": 1786690765,
+   "at": 1786690589,
+   "no": "208"
+  },
+  {
+   "name": "南港展覽館站",
+   "dest": "頂埔站",
+   "eta": 1786691021,
+   "at": 1786690589,
+   "no": ""
+  },
+  {
+   "name": "台北車站",
+   "dest": "頂埔站",
+   "eta": 1786690589,
+   "at": 1786690589,
+   "no": "221"
+  },
+  {
+   "name": "南港展覽館站",
+   "dest": "亞東醫院站",
+   "eta": 1786690751,
+   "at": 1786690589,
+   "no": ""
+  },
+  {
+   "name": "台北車站",
+   "dest": "亞東醫院站",
+   "eta": 1786690921,
+   "at": 1786690589,
+   "no": "203"
+  },
+  {
+   "name": "忠孝復興站",
+   "dest": "南港展覽館站",
+   "eta": 1786690741,
+   "at": 1786690589,
+   "no": ""
+  },
+  {
+   "name": "忠孝復興站",
+   "dest": "南港展覽館站",
+   "eta": 1786690830,
+   "at": 1786690589,
+   "no": "217"
+  }
+ ],
+ "trains": [
+  {
+   "no": "201",
+   "sys": "hw",
+   "dir": 1,
+   "stn": "BL08",
+   "at": 1786690575,
+   "dest": "亞東醫院站",
+   "path": [
+    {
+     "name": "板橋",
+     "eta": 1786690663
+    },
+    {
+     "name": "府中",
+     "eta": 1786690754
+    }
+   ],
+   "cars": [
+    1,
+    1,
+    1,
+    2,
+    1,
+    2
+   ]
+  },
+  {
+   "no": "202",
+   "sys": "hw",
+   "dir": 1,
+   "stn": "BL11",
+   "at": 1786690560,
+   "dest": "亞東醫院站",
+   "path": [
+    {
+     "name": "龍山寺",
+     "eta": 1786690656
+    },
+    {
+     "name": "江子翠",
+     "eta": 1786690871
+    },
+    {
+     "name": "新埔",
+     "eta": 1786690966
+    }
+   ],
+   "cars": [
+    1,
+    2,
+    1,
+    2,
+    2,
+    1
+   ]
+  },
+  {
+   "no": "203",
+   "sys": "hw",
+   "dir": 1,
+   "stn": "BL16",
+   "at": 1786690529,
+   "dest": "亞東醫院站",
+   "path": [
+    {
+     "name": "忠孝復興",
+     "eta": 1786690589
+    },
+    {
+     "name": "忠孝新生",
+     "eta": 1786690714
+    },
+    {
+     "name": "善導寺",
+     "eta": 1786690831
+    },
+    {
+     "name": "台北車",
+     "eta": 1786690921
+    },
+    {
+     "name": "西門",
+     "eta": 1786691084
+    }
+   ],
+   "cars": [
+    1,
+    2,
+    2,
+    2,
+    2,
+    1
+   ]
+  },
+  {
+   "no": "204",
+   "sys": "hw",
+   "dir": 1,
+   "stn": "BL21",
+   "at": 1786690500,
+   "dest": "亞東醫院站",
+   "path": [
+    {
+     "name": "後山埤",
+     "eta": 1786690589
+    },
+    {
+     "name": "永春",
+     "eta": 1786690698
+    },
+    {
+     "name": "市政府",
+     "eta": 1786690800
+    },
+    {
+     "name": "國父紀念館",
+     "eta": 1786690905
+    },
+    {
+     "name": "忠孝敦化",
+     "eta": 1786690998
+    }
+   ],
+   "cars": [
+    1,
+    1,
+    1,
+    1,
+    1,
+    1
+   ]
+  },
+  {
+   "no": "205",
+   "sys": "hw",
+   "dir": 2,
+   "stn": "BL23",
+   "at": 1786690550,
+   "dest": "亞東醫院站",
+   "path": [
+    {
+     "name": "南港",
+     "eta": 1786690811
+    },
+    {
+     "name": "昆陽",
+     "eta": 1786690945
+    }
+   ],
+   "cars": [
+    1,
+    1,
+    1,
+    1,
+    1,
+    1
+   ]
+  },
+  {
+   "no": "206",
+   "sys": "hw",
+   "dir": 2,
+   "stn": "BL19",
+   "at": 1786690537,
+   "dest": "南港展覽館站",
+   "path": [
+    {
+     "name": "後山埤",
+     "eta": 1786690589
+    },
+    {
+     "name": "昆陽",
+     "eta": 1786690730
+    }
+   ],
+   "cars": [
+    1,
+    1,
+    1,
+    1,
+    1,
+    1
+   ]
+  },
+  {
+   "no": "207",
+   "sys": "hw",
+   "dir": 2,
+   "stn": "BL15",
+   "at": 1786690563,
+   "dest": "南港展覽館站",
+   "path": [
+    {
+     "name": "忠孝敦化",
+     "eta": 1786690654
+    },
+    {
+     "name": "國父紀念館",
+     "eta": 1786690748
+    }
+   ],
+   "cars": [
+    2,
+    3,
+    2,
+    2,
+    2,
+    2
+   ]
+  },
+  {
+   "no": "208",
+   "sys": "hw",
+   "dir": 2,
+   "stn": "BL10",
+   "at": 1786690503,
+   "dest": "南港展覽館站",
+   "path": [
+    {
+     "name": "西門",
+     "eta": 1786690589
+    },
+    {
+     "name": "台北車",
+     "eta": 1786690765
+    },
+    {
+     "name": "善導寺",
+     "eta": 1786690892
+    }
+   ],
+   "cars": [
+    1,
+    1,
+    1,
+    2,
+    2,
+    1
+   ]
+  }
+ ],
+ "boardPos": {
+  "at": 1786690424,
+  "rows": [
+   {
+    "vehicleId": "ov:2026-08-14:000085",
+    "line": "BL",
+    "dir": 1,
+    "from": 22,
+    "to": 21,
+    "dest": 0,
+    "run": 112,
+    "arrEpoch": 1786690539,
+    "no": "",
+    "terminal": false,
+    "timeline": [
+     {
+      "from": 22,
+      "to": 22,
+      "depEpoch": 1786690481,
+      "arrEpoch": 1786690481,
+      "terminal": true
+     },
+     {
+      "from": 22,
+      "to": 21,
+      "depEpoch": 1786690481,
+      "arrEpoch": 1786690539,
+      "terminal": false
+     }
+    ]
+   },
+   {
+    "vehicleId": "ov:2026-08-14:00007q",
+    "line": "BL",
+    "dir": 1,
+    "from": 18,
+    "to": 17,
+    "dest": 0,
+    "run": 87,
+    "arrEpoch": 1786690499,
+    "no": "222",
+    "terminal": false,
+    "timeline": [
+     {
+      "from": 22,
+      "to": 22,
+      "depEpoch": 1786689671,
+      "arrEpoch": 1786689671,
+      "terminal": true
+     },
+     {
+      "from": 22,
+      "to": 21,
+      "depEpoch": 1786689892,
+      "arrEpoch": 1786690004,
+      "terminal": false
+     },
+     {
+      "from": 21,
+      "to": 20,
+      "depEpoch": 1786690028,
+      "arrEpoch": 1786690138,
+      "terminal": false
+     },
+     {
+      "from": 20,
+      "to": 19,
+      "depEpoch": 1786690163,
+      "arrEpoch": 1786690272,
+      "terminal": false
+     },
+     {
+      "from": 19,
+      "to": 18,
+      "depEpoch": 1786690348,
+      "arrEpoch": 1786690424,
+      "terminal": false
+     },
+     {
+      "from": 18,
+      "to": 17,
+      "depEpoch": 1786690449,
+      "arrEpoch": 1786690499,
+      "terminal": false
+     },
+     {
+      "from": 17,
+      "to": 16,
+      "depEpoch": 1786690527,
+      "arrEpoch": 1786690624,
+      "terminal": false
+     },
+     {
+      "from": 16,
+      "to": 15,
+      "depEpoch": 1786690652,
+      "arrEpoch": 1786690717,
+      "terminal": false
+     },
+     {
+      "from": 15,
+      "to": 14,
+      "depEpoch": 1786690745,
+      "arrEpoch": 1786690807,
+      "terminal": false
+     },
+     {
+      "from": 14,
+      "to": 13,
+      "depEpoch": 1786690847,
+      "arrEpoch": 1786690935,
+      "terminal": false
+     }
+    ]
+   },
+   {
+    "vehicleId": "ov:2026-08-14:00005y",
+    "line": "BL",
+    "dir": 1,
+    "from": 10,
+    "to": 9,
+    "dest": 0,
+    "run": 110,
+    "arrEpoch": 1786690424,
+    "no": "",
+    "terminal": false,
+    "timeline": [
+     {
+      "from": 22,
+      "to": 22,
+      "depEpoch": 1786687511,
+      "arrEpoch": 1786687511,
+      "terminal": true
+     },
+     {
+      "from": 22,
+      "to": 21,
+      "depEpoch": 1786687505,
+      "arrEpoch": 1786687617,
+      "terminal": false
+     },
+     {
+      "from": 21,
+      "to": 20,
+      "depEpoch": 1786687614,
+      "arrEpoch": 1786687723,
+      "terminal": false
+     },
+     {
+      "from": 20,
+      "to": 19,
+      "depEpoch": 1786687748,
+      "arrEpoch": 1786687852,
+      "terminal": false
+     },
+     {
+      "from": 19,
+      "to": 18,
+      "depEpoch": 1786687881,
+      "arrEpoch": 1786687947,
+      "terminal": false
+     },
+     {
+      "from": 18,
+      "to": 17,
+      "depEpoch": 1786687972,
+      "arrEpoch": 1786688049,
+      "terminal": false
+     },
+     {
+      "from": 17,
+      "to": 16,
+      "depEpoch": 1786688077,
+      "arrEpoch": 1786688154,
+      "terminal": false
+     },
+     {
+      "from": 16,
+      "to": 15,
+      "depEpoch": 1786688192,
+      "arrEpoch": 1786688263,
+      "terminal": false
+     },
+     {
+      "from": 15,
+      "to": 14,
+      "depEpoch": 1786688291,
+      "arrEpoch": 1786688373,
+      "terminal": false
+     },
+     {
+      "from": 14,
+      "to": 13,
+      "depEpoch": 1786688713,
+      "arrEpoch": 1786688803,
+      "terminal": false
+     },
+     {
+      "from": 13,
+      "to": 12,
+      "depEpoch": 1786688843,
+      "arrEpoch": 1786688931,
+      "terminal": false
+     },
+     {
+      "from": 12,
+      "to": 11,
+      "depEpoch": 1786688956,
+      "arrEpoch": 1786689021,
+      "terminal": false
+     },
+     {
+      "from": 11,
+      "to": 10,
+      "depEpoch": 1786689063,
+      "arrEpoch": 1786689184,
+      "terminal": false
+     },
+     {
+      "from": 10,
+      "to": 9,
+      "depEpoch": 1786690314,
+      "arrEpoch": 1786690424,
+      "terminal": false
+     },
+     {
+      "from": 9,
+      "to": 8,
+      "depEpoch": 1786690453,
+      "arrEpoch": 1786690632,
+      "terminal": false
+     },
+     {
+      "from": 8,
+      "to": 7,
+      "depEpoch": 1786690660,
+      "arrEpoch": 1786690727,
+      "terminal": false
+     },
+     {
+      "from": 7,
+      "to": 6,
+      "depEpoch": 1786690755,
+      "arrEpoch": 1786690853,
+      "terminal": false
+     }
+    ]
+   },
+   {
+    "vehicleId": "ov:2026-08-14:000001",
+    "line": "BL",
+    "dir": 1,
+    "from": 7,
+    "to": 6,
+    "dest": 0,
+    "run": 107,
+    "arrEpoch": 1786685562,
+    "no": "",
+    "terminal": false,
+    "timeline": [
+     {
+      "from": 22,
+      "to": 22,
+      "depEpoch": 1786682382,
+      "arrEpoch": 1786682382,
+      "terminal": true
+     },
+     {
+      "from": 22,
+      "to": 21,
+      "depEpoch": 1786682382,
+      "arrEpoch": 1786682440,
+      "terminal": false
+     },
+     {
+      "from": 21,
+      "to": 20,
+      "depEpoch": 1786682751,
+      "arrEpoch": 1786682860,
+      "terminal": false
+     },
+     {
+      "from": 20,
+      "to": 19,
+      "depEpoch": 1786682885,
+      "arrEpoch": 1786682991,
+      "terminal": false
+     },
+     {
+      "from": 19,
+      "to": 18,
+      "depEpoch": 1786683020,
+      "arrEpoch": 1786683086,
+      "terminal": false
+     },
+     {
+      "from": 18,
+      "to": 17,
+      "depEpoch": 1786683111,
+      "arrEpoch": 1786683188,
+      "terminal": false
+     },
+     {
+      "from": 17,
+      "to": 16,
+      "depEpoch": 1786683216,
+      "arrEpoch": 1786683293,
+      "terminal": false
+     },
+     {
+      "from": 16,
+      "to": 15,
+      "depEpoch": 1786683359,
+      "arrEpoch": 1786683430,
+      "terminal": false
+     },
+     {
+      "from": 15,
+      "to": 14,
+      "depEpoch": 1786683458,
+      "arrEpoch": 1786683520,
+      "terminal": false
+     },
+     {
+      "from": 14,
+      "to": 13,
+      "depEpoch": 1786683560,
+      "arrEpoch": 1786683687,
+      "terminal": false
+     },
+     {
+      "from": 13,
+      "to": 12,
+      "depEpoch": 1786683727,
+      "arrEpoch": 1786683804,
+      "terminal": false
+     },
+     {
+      "from": 8,
+      "to": 7,
+      "depEpoch": 1786684448,
+      "arrEpoch": 1786684525,
+      "terminal": false
+     },
+     {
+      "from": 7,
+      "to": 6,
+      "depEpoch": 1786685455,
+      "arrEpoch": 1786685562,
+      "terminal": false
+     },
+     {
+      "from": 6,
+      "to": 5,
+      "depEpoch": 1786685590,
+      "arrEpoch": 1786685629,
+      "terminal": false
+     },
+     {
+      "from": 5,
+      "to": 4,
+      "depEpoch": 1786685657,
+      "arrEpoch": 1786685774,
+      "terminal": false
+     },
+     {
+      "from": 4,
+      "to": 3,
+      "depEpoch": 1786685800,
+      "arrEpoch": 1786685930,
+      "terminal": false
+     },
+     {
+      "from": 3,
+      "to": 2,
+      "depEpoch": 1786685363,
+      "arrEpoch": 1786685469,
+      "terminal": false
+     }
+    ]
+   },
+   {
+    "vehicleId": "ov:2026-08-14:000007",
+    "line": "BL",
+    "dir": 1,
+    "from": 7,
+    "to": 6,
+    "dest": 0,
+    "run": 107,
+    "arrEpoch": 1786686102,
+    "no": "",
+    "terminal": false,
+    "timeline": [
+     {
+      "from": 22,
+      "to": 22,
+      "depEpoch": 1786682921,
+      "arrEpoch": 1786682921,
+      "terminal": true
+     },
+     {
+      "from": 22,
+      "to": 21,
+      "depEpoch": 1786682921,
+      "arrEpoch": 1786682979,
+      "terminal": false
+     },
+     {
+      "from": 21,
+      "to": 20,
+      "depEpoch": 1786683314,
+      "arrEpoch": 1786683423,
+      "terminal": false
+     },
+     {
+      "from": 20,
+      "to": 19,
+      "depEpoch": 1786683448,
+      "arrEpoch": 1786683557,
+      "terminal": false
+     },
+     {
+      "from": 19,
+      "to": 18,
+      "depEpoch": 1786683586,
+      "arrEpoch": 1786683658,
+      "terminal": false
+     },
+     {
+      "from": 18,
+      "to": 17,
+      "depEpoch": 1786683683,
+      "arrEpoch": 1786683760,
+      "terminal": false
+     },
+     {
+      "from": 17,
+      "to": 16,
+      "depEpoch": 1786683788,
+      "arrEpoch": 1786683866,
+      "terminal": false
+     },
+     {
+      "from": 12,
+      "to": 11,
+      "depEpoch": 1786684415,
+      "arrEpoch": 1786684481,
+      "terminal": false
+     },
+     {
+      "from": 11,
+      "to": 10,
+      "depEpoch": 1786684523,
+      "arrEpoch": 1786684621,
+      "terminal": false
+     },
+     {
+      "from": 10,
+      "to": 9,
+      "depEpoch": 1786684656,
+      "arrEpoch": 1786684768,
+      "terminal": false
+     },
+     {
+      "from": 9,
+      "to": 8,
+      "depEpoch": 1786685370,
+      "arrEpoch": 1786685562,
+      "terminal": false
+     },
+     {
+      "from": 8,
+      "to": 7,
+      "depEpoch": 1786685590,
+      "arrEpoch": 1786685663,
+      "terminal": false
+     },
+     {
+      "from": 7,
+      "to": 6,
+      "depEpoch": 1786685995,
+      "arrEpoch": 1786686102,
+      "terminal": false
+     },
+     {
+      "from": 6,
+      "to": 5,
+      "depEpoch": 1786686130,
+      "arrEpoch": 1786686169,
+      "terminal": false
+     },
+     {
+      "from": 5,
+      "to": 4,
+      "depEpoch": 1786686197,
+      "arrEpoch": 1786686314,
+      "terminal": false
+     },
+     {
+      "from": 4,
+      "to": 3,
+      "depEpoch": 1786686340,
+      "arrEpoch": 1786686470,
+      "terminal": false
+     }
+    ]
+   },
+   {
+    "vehicleId": "ov:2026-08-14:000003",
+    "line": "BL",
+    "dir": 1,
+    "from": 6,
+    "to": 5,
+    "dest": 0,
+    "run": 67,
+    "arrEpoch": 1786683424,
+    "no": "",
+    "terminal": false,
+    "timeline": [
+     {
+      "from": 14,
+      "to": 13,
+      "depEpoch": 1786682230,
+      "arrEpoch": 1786682320,
+      "terminal": false
+     },
+     {
+      "from": 13,
+      "to": 12,
+      "depEpoch": 1786682360,
+      "arrEpoch": 1786682435,
+      "terminal": false
+     },
+     {
+      "from": 12,
+      "to": 11,
+      "depEpoch": 1786682460,
+      "arrEpoch": 1786682525,
+      "terminal": false
+     },
+     {
+      "from": 11,
+      "to": 10,
+      "depEpoch": 1786682567,
+      "arrEpoch": 1786682688,
+      "terminal": false
+     },
+     {
+      "from": 10,
+      "to": 9,
+      "depEpoch": 1786682750,
+      "arrEpoch": 1786682860,
+      "terminal": false
+     },
+     {
+      "from": 9,
+      "to": 8,
+      "depEpoch": 1786682889,
+      "arrEpoch": 1786683072,
+      "terminal": false
+     },
+     {
+      "from": 8,
+      "to": 7,
+      "depEpoch": 1786683100,
+      "arrEpoch": 1786683167,
+      "terminal": false
+     },
+     {
+      "from": 7,
+      "to": 6,
+      "depEpoch": 1786683195,
+      "arrEpoch": 1786683292,
+      "terminal": false
+     },
+     {
+      "from": 6,
+      "to": 5,
+      "depEpoch": 1786683357,
+      "arrEpoch": 1786683424,
+      "terminal": false
+     },
+     {
+      "from": 5,
+      "to": 4,
+      "depEpoch": 1786683452,
+      "arrEpoch": 1786683583,
+      "terminal": false
+     },
+     {
+      "from": 4,
+      "to": 3,
+      "depEpoch": 1786683609,
+      "arrEpoch": 1786683749,
+      "terminal": false
+     }
+    ]
+   }
+  ]
+ }
+}

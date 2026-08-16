@@ -1386,6 +1386,14 @@
     opacity: 0; transform: translateY(-10px); transition: opacity .4s ease, transform .4s ease;
   }
   .toast.show { opacity: 1; transform: none; }
+  /* 說明型 toast（訊號恢復、位置為什麼會跳…）本來就是一整句話，單行截斷等於沒通知：
+     2026-08-15 實測手機 390px 只看得到前 20 個字、「有幾台被移除」整句被 … 吃掉。
+     這類改成可換行、靠左讀，一般的短提示（完乘、蓋章）維持原本的單行置中。 */
+  /* 寬度要明寫，而且基準不能用 %：欄狀 flex 的 align-items:center 讓容器與可換行的子項互相
+     shrink-to-fit（100% 解析回容器、容器又跟著內容縮），實測手機卡在 195px 寬、275px 高的窄長條。
+     改用視窗單位打斷這個循環：手機吃滿可用寬、桌面停在可讀行長。 */
+  .toast.wrap { white-space: normal; text-align: left; line-height: 1.55;
+    width: min(100vw - 24px, 420px); }
   .toast b { color: var(--ink-strong); }
   .toast .ri-icon { width: 14px; height: 14px; margin-right: 2px; vertical-align: -.18em; }
 
@@ -1718,6 +1726,9 @@
     border-radius: 999px; vertical-align: 1px; white-space: nowrap;
   }
   .board .sub { color: var(--faint); font-size: 11px; margin-bottom: 7px; }
+  /* 官方即時中斷:倒數這時候是推估的,必須比 .sub 更搶眼——.sub 是 --faint 的小字,使用者不會看 */
+  .board .sub.stale { color: var(--warn-ink); background: var(--warn-bg); border: 1px solid var(--warn-line);
+    border-radius: 7px; padding: 6px 8px; font-size: 12px; font-weight: 700; line-height: 1.45; }
   .board .row { display: flex; align-items: baseline; gap: 8px; padding: 6px 0; border-top: 1px dashed var(--line-faint); font-size: 13px; }
   .board .row:first-of-type { border-top: 0; }
   .board .row[data-no], .board .row[data-rand], .board .row[data-li], .board .row[data-guide], .board .row[data-ev] { cursor: pointer; }
@@ -1742,6 +1753,12 @@
   .board .row .dest { flex: 1; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .board .row .t, .board .row .min { font-variant-numeric: tabular-nums; }
   .board .row .t { font-weight: 800; color: var(--ink-strong); }
+  /* 官方板三固定欄:擁擠度 40px(含無資料透明佔位)、時刻、倒數 4em——列與列整欄對齊(08-14 第五輪) */
+  .board .row .crowd { display: inline-flex; gap: 2px; flex: none; align-self: center; width: 40px; justify-content: flex-end; }
+  .board .row .crowd i { width: 5px; height: 10px; border-radius: 1.5px; }
+  .board[data-trtc-official="1"] .row .min { width: 4em; text-align: right; flex: none; }
+  /* 手機寬度下,固定佔位＋「未連結動畫」註記擠不下同一列——官方板一律藏註記(title 與 aria-disabled 仍在) */
+  @media (max-width: 900px) { .board[data-trtc-official="1"] .row .linknote { display: none; } }
   .board .row .min { color: var(--navy); font-weight: 700; min-width: 44px; text-align: right; }
   /* 車站看板右上角 ☆／× :兩顆吃同一組尺寸與置中,不靠字級與 UA padding 對齊。
      舊寫法各自 top:8px 切「上緣」,但 .close 沒設 padding 而吃到瀏覽器 UA 預設按鈕 padding
@@ -1767,6 +1784,21 @@
   .board.has-notify h3 { padding-right: 78px; } /* 三顆鈕(×/☆/🔔)時多留右側空間,避免長站名壓到鈴鐺 */
   .board .close:hover, .board .board-star:hover, .board .board-notify:hover { opacity: 1; }
   .board .board-star.on { color: #ffd977; opacity: 1; }
+  /* 捷運等車卡入口(Task 6):h3 內另起一行(不像 close/star 用絕對定位插槽——
+     .board 桌面寬僅 280px,硬塞第三顆同款圖示鈕會擠壓長站名),故不影響 h3 padding-right。
+     08-14 真機回饋「按鈕不明顯、不知道用途」——待機態改滿寬金底 CTA,追蹤中反轉成描邊。 */
+  .board .board-wait {
+    display: block; margin: 6px 0 2px; padding: 6px 12px;
+    font: 800 12.5px/1.5 inherit; letter-spacing: .6px;
+    width: 100%; max-width: 100%; text-align: center;
+    background: #ffd977; border: 1px solid #ffd977; border-radius: 9px;
+    color: var(--navy); cursor: pointer; box-shadow: 0 1px 4px rgba(10,16,30,.35);
+  }
+  .board .board-wait:hover { filter: brightness(1.05); }
+  .board .board-wait.on {
+    background: rgba(255,255,255,.14); border-color: var(--on-navy);
+    color: var(--on-navy); box-shadow: none;
+  }
   /* 最愛車站的地圖 ★ 記號(掛站點上方一點;點了直接開該站看板) */
   .favst-ico { width: 16px; height: 16px; text-align: center; color: #d9a62e; cursor: pointer; }
   .favst-ico .ri-icon { width: 15px; height: 15px; display: block; margin: 0 auto; filter: drop-shadow(0 0 2px #fff8ec) drop-shadow(0 1px 1px rgba(20,26,40,.55)); }
@@ -2145,6 +2177,29 @@
   .takeout-head button { border: 0; background: transparent; color: var(--on-navy); font-size: 24px; line-height: 1; cursor: pointer; min-width: 44px; min-height: 44px; }
   .takeout-body { padding: 14px 16px; overflow-y: auto; overscroll-behavior: contain; }
   .takeout-help { margin: 0 0 10px; color: var(--muted); font-size: 12px; line-height: 1.6; }
+  .metro-wait-picker-dialog { width: min(460px, 100%); }
+  .metro-wait-picker-body { display: grid; gap: 8px; }
+  .metro-wait-choice {
+    width: 100%; min-height: 48px; display: flex; align-items: center; gap: 6px; padding: 9px 12px;
+    border: 1.5px solid var(--line); border-radius: 9px; background: var(--paper); color: var(--ink);
+    font: inherit; font-size: 13px; font-weight: 800; text-align: left; cursor: pointer;
+  }
+  .metro-wait-choice:hover { border-color: var(--navy); background: var(--bg-stage); }
+  .metro-wait-choice.on { border-color: var(--navy); background: var(--navy); color: var(--on-navy); }
+  .metro-wait-choice-label { flex: 1; min-width: 0; }
+  .metro-wait-choice-dash { color: currentColor; opacity: .55; }
+  .metro-wait-choice-time { flex: none; font-family: var(--mono); font-variant-numeric: tabular-nums; }
+  .metro-wait-picker-hint { margin: 0; color: var(--muted); font-size: 12.5px; line-height: 1.6; }
+  .metro-wait-picker-sec { font-size: 12px; font-weight: 800; letter-spacing: .5px; color: var(--muted); margin: 2px 0 -2px; }
+  .metro-wait-durs { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+  .metro-wait-dur {
+    min-height: 40px; padding: 8px 0; border: 1.5px solid var(--line); border-radius: 9px;
+    background: var(--paper); color: var(--ink); font: inherit; font-size: 13px; font-weight: 800;
+    font-variant-numeric: tabular-nums; cursor: pointer;
+  }
+  .metro-wait-dur:hover { border-color: var(--navy); background: var(--bg-stage); }
+  .metro-wait-dur.on { border-color: var(--navy); background: var(--navy); color: var(--on-navy); }
+  .metro-wait-picker-choices { display: grid; gap: 8px; }
   .pinname-input { width: 100%; box-sizing: border-box; padding: 10px 12px; border: 1px solid var(--line); border-radius: 8px; font: inherit; font-size: 15px; color: var(--ink-strong); background: var(--paper); }
   .pinname-input:focus { outline: none; border-color: var(--navy); }
   .takeout-file {
@@ -3533,6 +3588,8 @@
       <div class="fp-alert" id="fpAlert" hidden></div>
       <div class="fp-dest" id="fpDest"></div>
       <div class="fp-dest" id="fpDelay" hidden></div>
+      <!-- 跟車鎖定畫面／動態島的通行證入口(免費層原本完全看不到這個功能存在);由 renderLaCta 開合 -->
+      <div class="fp-dest" id="fpLaCta" hidden></div>
       <button class="fp-notify" id="fpNotify" style="display:none" type="button"><svg class="ri-icon" aria-hidden="true" focusable="false"><use href="#ri-ui-notify"></use></svg>提醒</button>
       <!-- 搭乘模式(兩點法):上車時就選好在哪站下車,系統才知道要蓋到哪一站為止——
            不選的話使用者忘了按下車,會一路蓋到終點,把沒搭的區間也算進收集 -->
@@ -3760,14 +3817,14 @@
            內容 li 上限 8 條(li.grp 是標題不算)。 -->
       <ul class="foot-list foot-recent">
         <li class="grp">最近更新</li>
+        <li data-cl-of="androidcoarse"><span class="d">8/16</span><span>Android App 改成只詢問模糊位置，不再要求精確位置</span></li>
         <li data-cl-of="androidinsets"><span class="d">8/16</span><span>Android App 的放空模式底部按鈕不再被系統導覽列蓋住，窄螢幕的「全／台／高／捷」也會完整顯示</span></li>
+        <li data-cl-of="orangebranch"><span class="d">8/16</span><span>中和新蘆線共線段不再冒出重複列車與沒有車號的車</span></li>
+        <li data-cl-of="badgescope"><span class="d">8/16</span><span>「台」「高」不再顯示捷運的「官方即時」標示；捷運收班後改標「已收班」</span></li>
+        <li data-cl-of="zuoyingalias"><span class="d">8/16</span><span>台鐵左營站不再分成「左營」與「左營(舊城)」兩顆，看板正常顯示；新城站同步修正（謝謝網友回報）</span></li>
+        <li data-cl-of="plusctas"><span class="d">8/16</span><span>衛星高解析與跟車鎖定畫面現在會直接說明屬於通行證，使用說明也補上捷運小工具與等車卡</span></li>
         <li data-cl-of="androidbars"><span class="d">8/15</span><span>修正 Android App 上下多出白色空白，地圖重新貼齊手機畫面</span></li>
-        <li data-cl-of="land04c"><span class="d">8/12</span><span>手機橫放版面重排：時鐘併進頂列、地圖按鈕收成右側一疊、跟車欄貼左緣上下展開；鏡頭改成對準「沒被面板蓋住的地圖」置中，還會朝行進方向多看一點，直放跟車也一樣</span></li>
-        <li data-cl-of="trtcofficialroster"><span class="d">8/14</span><span>台北捷運列車改以官方站牌倒數逐班追蹤：從發車到終點依各站時間顯示位置，同一班車在多站的資訊會自動合併，車次與方向跟著實際行程；文湖線沒有車次時顯示 BR 路線牌。</span></li>
-        <li data-cl-of="klrtgps"><span class="d">8/12</span><span>高雄環狀輕軌改用官方衛星定位逐班校正，每台車各自對準自己的班次（謝謝網友提供資訊）</span></li>
-        <li data-cl-of="tcstopsalign"><span class="d">8/12</span><span>列車資訊卡的停靠站時刻表：表頭「到／開」對齊下方的時刻欄了</span></li>
-        <li data-cl-of="android142"><span class="d">8/12</span><span>Android 版追上 1.4.2：手機橫放版面、背景音樂與近期網站內容一併更新，「更多」也能直接前往 Play 商店評分</span></li>
-        <li data-cl-of="stationtransfer"><span class="d">8/10</span><span>點任何一個車站看板，都會告訴你這站可以轉乘哪些別的鐵道系統；跟車時「下一站」旁邊也會提醒能換哪幾條線</span></li>
+        <li data-cl-of="danhaifireworks"><span class="d">8/15</span><span>淡水漁人碼頭煙火的三個週日（8/16、8/23、8/30），淡海輕軌畫面依官方公告調整：傍晚起綠山線班距拉長、五點後崁頂那一段停駛，藍海線改跑密集班距</span></li>
       </ul>
       <!-- 第二層:完整歷史。刻意不掛 .foot-box 類名——placeFootBoxes() 用
            `.site-foot .foot-box` 搬移面板,巢狀同名會被當成另一個盒子一起搬走。 -->
@@ -3775,6 +3832,8 @@
         <summary>完整更新歷史（依主題分類）</summary>
         <ul class="foot-list">
         <li class="grp">路網與車站</li>
+        <li data-cl="zuoyingalias"><span class="d">8/16</span><span>台鐵左營站點開會跳出「左營」與「左營(舊城)」兩個選項，後者看板永遠沒班次——其實是同一座站；現在合併成一顆、看板正常。新城站同一問題一併修好（謝謝網友回報）</span></li>
+        <li data-cl="tymcexpress"><span class="d">8/14</span><span>桃園機場捷運直達車的行駛區間修正：南下現在會一路開到底站環北，北上也從環北發車，不再多出一站老街溪</span></li>
         <li data-cl="stationevents"><span class="d">8/12</span><span>車站看板新增「近期活動」，列出跟這一站有關的活動；「探」今日亮點也整理了一份總覽清單，點一下活動列會直接飛過去開那一站的看板，沒有對應特定車站的活動則改開官方原始連結</span></li>
         <li data-cl="stationtransfer"><span class="d">8/10</span><span>轉乘提示放到兩個真的用得上的地方：一是車站看板的站況區，點台鐵、高鐵、捷運、林鐵任何一站都看得到這站能換哪些系統；二是跟隨與搭乘卡的「下一站」旁邊，快到站、要決定換不換車時就在眼前。手機點開列車卡之後也看得到。共站資料由站名與車站座標交叉核對，路線名完整列出，卡片放不下會自己換行</span></li>
         <li><span class="d">7/19</span><span>阿里山林鐵上線：21 站、四條路線，繞獨立山螺旋、第一分道之字形折返；祝山觀日列車依當天日出推算</span></li>
@@ -3785,8 +3844,13 @@
         <li><span class="d">7/10</span><span>高鐵、桃園機捷、淡海輕軌、安坑輕軌加入路網</span></li>
         <li><span class="d">7/10</span><span>環島觀光列車一分為二：往東「山海號」、往西「平原號」</span></li>
         <li class="grp">即時動態與誤點</li>
+        <li data-cl="badgescope"><span class="d">8/16</span><span>時鐘旁的狀態標示修正：切到「台」「高」時不再顯示台北捷運的「官方即時」（那兩頁本來就沒有捷運）；捷運全部收班後，標示也從「離峰」改成「已收班」</span></li>
+        <li data-cl="danhaifireworks"><span class="d">8/15</span><span>新北市在淡水漁人碼頭辦煙火的三個週日（8/16、8/23、8/30），淡海輕軌的畫面會照官方公告走：下午四點起綠山線改成每三十分鐘一班，五點起濱海沙崙到崁頂那一段停駛（官方另有免費接駁公車），車全部集中到藍海線跑三到六分鐘的密集班距。只有這三天這樣，其他日子照常</span></li>
+        <li data-cl="trtcoutage"><span class="d">8/15</span><span>台北捷運官方即時資料中斷時，畫面原本完全不說（8/15 早上斷了約半小時）：列車各自照最後量到的速度往前推，兩班車擠在一起、甚至互相超車，車站倒數則整個找不到車。現在三件事一起改了——中斷一發生，頂端就會跳出提示告訴你是北捷訊號中斷、列車位置與車站倒數都可能不準，捷運徽章與車站看板上也會標示；中斷期間的推估改成照每段站與站之間的固定行車時間走，全線同一個節奏，不會再有車超過前面那班；官方資料恢復時，畫面會重新對齊官方位置，部分列車會因此往前跳或往後退，並跳出訊息說明為什麼會跳。環狀線走的是新北捷運另一條資料線路，兩邊各自判斷，一邊斷不會誤報另一邊。同一批還修好了一個更早的毛病：同一個起點同時排兩班發車時，我們會整輪讀不進官方資料而沿用上一份，位置因此愈跑愈偏，訊號恢復後還會冒出沒有車號的車跟著跑（謝謝網友回報）——現在讀得進來了，車數也回到正常。同一個起點同時有往兩個終點的班次時（例如板南線的頂埔與亞東醫院），也會被認成同一班而認錯車，留下沒有車號的幽靈車、車號在兩班之間跳——現在照終點分開認，發車後身分接得上第一站</span></li>
         <li data-cl="trtcofficialroster"><span class="d">8/14</span><span>台北捷運列車改以官方站牌倒數逐班追蹤：從發車到終點依各站時間顯示位置，同一班車在多站的資訊會自動合併，車次與方向跟著實際行程；文湖線沒有車次時顯示 BR 路線牌。</span></li>
+        <li data-cl="tradelaycatchup"><span class="d">8/14</span><span>台鐵列車追回誤點時，畫面上會瞬間往前跳一大段（實測最遠 3.6 公里，連把時間暫停住都照跳）；現在改成邊跑邊追，追趕期間最多用兩倍速前進，一筆十分鐘的誤點分散在十分鐘內吸收完。準點的車、以及誤點還在擴大的車，行為完全不變。卡片上的時速仍以該車種的最高速度為上限（謝謝網友回報）</span></li>
         <li data-cl="klrtgps"><span class="d">8/12</span><span>高雄環狀輕軌改用官方衛星定位逐班校正：它是全台唯一提供每台車即時經緯度的捷運系統，現在每台車各自對到自己的班次、各自算自己的誤點，不再全線共用一個平均值。五輪獨立實測，畫面位置與官方定位的差距中位數約是原本的一半。班表仍是唯一車輛名冊，定位資料收不到時自動退回原本的到站看板校正，車不會消失（謝謝網友提供資訊）</span></li>
+        <li data-cl="crossnightfollow"><span class="d">8/14</span><span>跟著跨午夜的深夜車（例如週五的 452 次）一路重播時，車會在 00:00 整台從地圖上消失、跟隨面板也跟著空掉；現在會一路跟到終點站。同一次修正也把反向的副作用擋掉了——未開行日的清晨不會因此多畫出一班昨晚根本沒開的車（謝謝網友回報）</span></li>
         <li data-cl="crossnight452"><span class="d">8/8</span><span>只在特定日開行的跨夜車（如週五深夜 452 次）過午夜就從地圖消失，未開行日清晨反而多畫一班；現在把昨天發車仍在路上的班接回名冊，幽靈班一併擋掉（謝謝網友回報）</span></li>
         <li data-cl="mytrains"><span class="d">8/8</span><span>最愛面板新增「我的車・準點」：收藏的台鐵列車集中列出近 30 天最糟單日全程誤點、平均誤點與有紀錄天數，並標示是否上「準點排行」榜；點一列可看 90 天逐日履歷。集中比較是通行證功能，未訂閱會看到模糊預覽與訂閱入口</span></li>
         <li data-cl="punctualtrains"><span class="d">8/7</span><span>探索面板新增「準點排行」榜：近 30 天最準點的 10 班台鐵車，依單日最糟全程誤點排序，地圖上以綠色光環標示（比金色「今日之最」優先顯示）</span></li>
@@ -3794,7 +3858,7 @@
         <li data-cl="metromotion"><span class="d">8/5</span><span>所有捷運與輕軌共用平順運動模型：每站間用加速、巡航、減速曲線，收到新的即時校正時速度也限制在正常推演的 0.25～2 倍，不再為了追資料停住或突然衝刺。8/9 修正：巡航與追趕兩件事會相乘，少數列車一度被畫得過快，現在已一併算進上限</span></li>
         <li data-cl="trtcpos"><span class="d">8/5</span><span>北捷列車有官方到站倒數時，現在直接用「站間行駛時間與剩餘秒數」算出列車在兩站之間的位置；班表仍是唯一車輛名冊，沒有可靠錨點時才回到原本的平順推估</span></li>
         <li data-cl="trtcmotion"><span class="d">8/5</span><span>北捷列車每次收到新的官方到站資料時，原本會為了校正位置先停住、再突然加速追趕；現在把差距分散到接下來的移動中慢慢吸收，兩站之間會持續前進，追趕速度也有上限</span></li>
-        <li data-cl="orangebranch"><span class="d">8/4</span><span>橘線列車進入大橋頭以南的共線路段後，會延續它原本來自蘆洲或迴龍的支線身分，不再把往南勢角的蘆洲線列車誤算成新莊線；當日班表的車數不受影響</span></li>
+        <li data-cl="orangebranch"><span class="d">8/16</span><span>橘線列車進入大橋頭以南的共線路段後，會延續它原本來自蘆洲或迴龍的支線身分，不再把往南勢角的蘆洲線列車誤算成新莊線；當日班表的車數不受影響。8/16 再修一輪：共線段上兩支的站名完全相同，同一班車有時會被兩邊各認一次，於是景安到南勢角那一小段會同時擠著四五台車，而且多半只顯示一個光禿禿的「O」沒有車號。現在支線身分只認得出分支的路段說了算（往蘆洲、往迴龍的班次由終點站直接判定），共線段上的資料不再回頭改寫它</span></li>
         <li data-cl="hazardwatch"><span class="d">8/4</span><span>颱風、地震、雷雨、豪雨等示警生效時，軌島會立即重查台鐵、高鐵與捷運的官方營運公告並持續複查。示警本身不代表停駛，也不會讓地圖上的車消失；以各營運單位公告為準</span></li>
         <li data-cl="brheadway"><span class="d">8/4</span><span>文湖線車數修正：官方沒有公開逐班時刻，我們原本照公告的班距範圍取中間值推算，實測發現全時段都比實際疏，畫面上少了約三成的車；改用累積八萬筆到站觀測的實際班距重算</span></li>
         <li data-cl="yboard"><span class="d">8/4</span><span>環狀線也改吃官方到站倒數逐班校正，位置跟著實際車況走；當下沒對到的班次改用全線平均誤點量，不再假裝準點</span></li>
@@ -3811,6 +3875,10 @@
         <li><span class="d">7/16</span><span>捷運準確度升級：六家捷運依官方到站看板即時校正，國定假日自動改跑假日班表</span></li>
         <li><span class="d">7/9</span><span>台鐵即時誤點上線——介接交通部 TDX 平臺每分鐘更新；7/11 起開站即真實時刻、捷運改逐班推演</span></li>
         <li class="grp">跟車、搜尋與車站看板</li>
+        <li data-cl="plusctas"><span class="d">8/16</span><span>通行證的內容改成在用得到的地方直接講：跟車面板可把倒數放上鎖定畫面、切到衛星影像時會說明有更清楚的高解析版本；使用說明中心也補上「捷運小工具」與「在這站等車」兩節</span></li>
+        <li data-cl="metrowidgetpass"><span class="d">8/15</span><span>捷運小工具的方案定了：免費可以設定一個捷運站，想同時放好幾站、或用「自動（最近的站）」讓小工具跟著你移動換站，就需要軌島通行證。設定超過一站時，小工具上會直接寫清楚原因、點一下就能看方案，不會只給你一張空白卡。等車卡（鎖定畫面倒數）維持免費。下次 App 更新生效</span></li>
+        <li data-cl="metrowaitcard"><span class="d">8/14</span><span>iPhone 捷運車站看板新增「在這站等車」：下一班倒數放上鎖定畫面與動態島，班次照官方即時資訊，車進站了自動換下一班、追蹤時間到了自動收起；北捷、高捷、機捷都支援，桌面也有捷運小工具可一點直達開卡，下次 App 更新生效</span></li>
+        <li data-cl="sparkcursor"><span class="d">8/14</span><span>跟隨面板的速度曲線：誤點的車，游標會停在曲線上錯誤的位置，寫出來的當下時速跟車實際在跑的對不起來（誤點越久差越多）；現在游標對回真實位置了</span></li>
         <li data-cl="tcstopsalign"><span class="d">8/12</span><span>列車資訊卡的停靠站時刻表，表頭「到」「開」原本懸在兩個時刻欄中間、沒有對齊，現在跨列對齊了（謝謝網友回報）</span></li>
         <li data-cl="nearfollowmutex"><span class="d">8/10</span><span>開「附近車站」或「隨機跟隨」時，會自動收起另一個，地圖鏡頭只聽一邊的，不會兩邊互搶</span></li>
         <li data-cl="lapush"><span class="d">8/8</span><span>跟隨台鐵或高鐵列車時，鎖定畫面與動態島的即時動態改由伺服器每分鐘更新：螢幕關著、App 沒開著也會自己換到下一站。要換到哪一站依列車實際到離站的觀測決定，不是照時刻表推算；遇到即時資料中斷，卡片會註明目前位置為預估並提醒查詢官方動態。卡片本身也一併加強：列車停靠站內時會顯示「停靠中」而不是繼續倒數，長按動態島展開後會看到一條往下一站前進的進度條、車種與代表色（和地圖上那台車同一個顏色）、上一站與終點站。軌島通行證功能，一趟最長跟 12 小時</span></li>
@@ -3842,6 +3910,8 @@
         <li><span class="d">7/13</span><span>新增「附近火車」：地圖上落一根釘，查周邊 60 分鐘內會通過的車次</span></li>
         <li><span class="d">7/12</span><span>新增平交道功能：點一下查接下來會通過的列車（7/13 補上貨運線 21 處）</span></li>
         <li class="grp">收藏、護照與成就</li>
+        <li data-cl="linecomplete"><span class="d">8/14</span><span>縱貫線北段完乘率卡在 99%：新竹–北新竹是與內灣線共用的同一段軌道，以前只算給其中一條線。現在兩條線都算得到，已收集的紀錄不用重搭就會自動補上（謝謝網友回報）</span></li>
+        <li data-cl="checkinplatform"><span class="d">8/14</span><span>單站蓋章改用月台範圍判定：像汐科這種月台特別長的車站，以前站在月台中段或另一端都按不下去，現在整條月台上任何位置都蓋得到章。全台鐵 241 座車站裡有 239 座換上各自的月台範圍（謝謝網友回報）</span></li>
         <li data-cl="favtrainkey"><span class="d">8/3</span><span>台鐵與高鐵有些車次號碼相同，過去收藏其中一班會蓋掉另一班，移除時也會兩班一起消失；現在最愛列車會連同鐵路系統分開辨認，同號車可以各自收藏與移除</span></li>
         <li data-cl="founding"><span class="d">8/4</span><span>在創始期間訂閱通行證的島民，App 的旅程護照最上方會多一枚「創始島民」徽章，之後才訂閱的不會有；徽章跟著訂閱資格走，退訂或登出就一起收起來</span></li>
         <li><span class="d">7/30</span><span>搜尋一班今天已經跑完（或還沒發車）的車，時鐘會確實停在它發車前，不再過一秒就彈回現在——那正是原本會莫名跳出「完乘達成」的原因（謝謝網友回報）</span></li>
@@ -3856,6 +3926,7 @@
         <li><span class="d">7/13</span><span>收集章可以重複點，換搭不同班次回味</span></li>
         <li><span class="d">7/9</span><span>旅程護照與 16 枚成就徽章、「探」今日亮點面板上線</span></li>
         <li class="grp">手機與操作</li>
+        <li data-cl="androidcoarse"><span class="d">8/16</span><span>Android App 的定位權限改成只詢問模糊位置，不再要求精確位置；附近車站、藍點與需要定位的操作仍可照常使用</span></li>
         <li data-cl="androidinsets"><span class="d">8/16</span><span>Android App 在部分手機使用手勢或三鍵導覽時，放空模式的「離開放空／視角」會被系統導覽列壓住；現在所有手機安全區都會照原生系統回報讓位。窄螢幕若同時有營運公告，頂部最右邊的「捷」也不會再被裁掉</span></li>
         <li data-cl="androidbars"><span class="d">8/15</span><span>Android App 更新後，地圖上下曾多出兩塊白色空白；現在移除重複計算的手機安全區，地圖與底部導覽列會重新貼齊整個畫面</span></li>
         <li data-cl="land04c"><span class="d">8/12</span><span>手機橫放第二輪重排（接 8/11 的側邊欄）：時鐘徽章併進頂列、不再浮在地圖上；右下角的「回到列車、隨機跟隨、附近車站、跟隨鎖」收成貼右緣的一疊；跟車資訊欄固定在左側、上下貼齊螢幕，收合成小膠囊時不擋地圖；搜尋改成右半邊全高的面板，打字時鏡頭不會亂跑；停靠站名牌與速度膠囊對齊露出地圖的中線。跟車鏡頭全面改用「露出地圖」置中——把被面板、按鈕、資訊欄蓋住的部分扣掉，列車永遠在看得到的那塊地圖正中央，還會朝行進方向偏一點、提前看到前方路線。這套鏡頭直放也生效：面板展開、跟車小卡浮著時，列車不會再躲到卡片底下</span></li>
@@ -4118,6 +4189,24 @@
     </section>
   </div>
 </div>
+<!-- 「在這站等」方向選單：沿用 takeout-modal 家族且直接掛 body，避免手機 .stage 的 z-index 封頂。 -->
+<div class="takeout-modal metro-wait-picker" id="metroWaitPicker" hidden>
+  <section class="takeout-dialog metro-wait-picker-dialog" role="dialog" aria-modal="true" aria-labelledby="metroWaitPickerTitle">
+    <div class="takeout-head"><h2 id="metroWaitPickerTitle">追蹤這站</h2><button id="metroWaitPickerX" type="button" aria-label="關閉">×</button></div>
+    <div class="takeout-body metro-wait-picker-body">
+      <p class="metro-wait-picker-hint">到站倒數會顯示在鎖定畫面與動態島，卡片上隨時可按「結束」收起。</p>
+      <div class="metro-wait-picker-sec">追蹤多久</div>
+      <div class="metro-wait-durs" id="metroWaitDurs">
+        <button class="metro-wait-dur on" type="button" data-wait-dur="30">30 分鐘</button>
+        <button class="metro-wait-dur" type="button" data-wait-dur="60">60 分鐘</button>
+        <button class="metro-wait-dur" type="button" data-wait-dur="90">90 分鐘</button>
+      </div>
+      <div class="metro-wait-picker-sec" id="metroWaitPickerSecDir">等哪個方向</div>
+      <div class="metro-wait-picker-choices" id="metroWaitPickerChoices"></div>
+    </div>
+    <div class="takeout-actions"><button class="cancel" id="metroWaitPickerCancel" type="button">取消</button></div>
+  </section>
+</div>
 <div class="takeout-modal pinname-modal" id="pinNameModal" hidden>
   <section class="takeout-dialog pinname-dialog" role="dialog" aria-modal="true" aria-labelledby="pinNameTitle">
     <div class="takeout-head"><h2 id="pinNameTitle">命名地點</h2><button id="pinNameX" type="button" aria-label="關閉">×</button></div>
@@ -4237,10 +4326,19 @@
 // v0814h：BR 跨輪按逐站時間接車，顯示速度永不超過實際站間秒；清除舊飛車名冊。
 // v0814i：位置與箭頭共用當下 motionFrom→motionTo；官方箭頭不留舊角度，共用箭頭不得朝車尾。
 // v0814j：正式出貨前把北捷這一批功能合併成一條面向訪客的更新紀錄。
+// v0815a：官方看板斷線（08-15 實斷 33 分鐘）三修——續推改吃各段固定行車秒、斷線提示上畫面、
+//         回歸時允許對回官方位置並跳訊息說明。
 // v0814k：App 1.4.3 build 50／Android v5 合入網站 v0814j，保留 App 專屬橫放、背景音樂與更新提示。
 // v0815c：Android v6 移除重複的 edge-to-edge，修正上下多出白色安全區。
 // v0816a：Android v7 接回 Capacitor 安全區，修正系統導覽列覆蓋與窄螢幕頂列裁切。
-const BUILD = 'v0816a';
+// v0815f：北捷斷訊挽救(v0815e)與 App 1.4.4 線(v0815b)合批。
+// v0816c：台鐵左營／新城通過站正名（同座標兩顆站合一）＋班表 14 天重抓，合入 v0815f 出貨線。
+//         （v0816b 讓給並行的 feat/metro-widget 分支，同號不同內容會害人辨識不出線上版本）
+// v0816e：小工具通行證閘門兩個洞＋四處付費提示＋小工具說明改寫（feat/metro-widget 線，build 61）。
+// v0816f：本批＝上面兩條線合併——北捷共線段分支歸屬鎖＋捷運徽章群組閘門，合入 build 61 的小工具線。
+//         a/b/c/d/e 都已被別的分支用掉，跨分支撞號見心得 16。
+// v0816g：Android v7 合入 v0816f，並把原生定位權限收斂為只請求模糊位置。
+const BUILD = 'v0816g';
 // 2026-08-13 起預設開啟（使用者親試預覽後裁示上線）：北捷畫車依官方即時名冊，班表只是備案。
 // 保留 ?officialroster=0 當逃生口——要退回班表路徑不必回滾部署，加個參數即可對照。
 // 🔴 這個函式會被 verify_official_roster_frontend 抽出來丟進 VM 單獨執行——
@@ -4258,6 +4356,9 @@ const OFFICIAL_ROSTER_ENABLED = trtcOfficialRosterEnabled(location.search);
 // 互相矛盾時（實測有 run=109s 但 span=90s 的列）算出負的行駛時間。
 const TRTC_OFFICIAL_COAST_DWELL_MIN_SEC = 15;
 const TRTC_OFFICIAL_COAST_DWELL_DEFAULT_SEC = 25;
+// 續推（官方時間軸用完之後）的固定停站秒。搭配「該線各段自己的固定行車秒」使用，
+// 見 trtcOfficialCoastPosition：斷線期間全線一致的節奏才不會把車距推到互相超車。
+const TRTC_OFFICIAL_COAST_DWELL_SEC = 25;
 // 成就徽章與車廂標記＝原本那些 emoji 的單色平面版（RailEmoji＝裁切過的 Noto Emoji 單色）。
 // 刻意保留 railIcon(name) 這個唯一入口:呼叫端一行都不用改,只有這裡決定畫法。
 // 🔴 ⚖ 與 ♾ 一律寫**不帶 VS16(U+FE0F)** 的碼位——帶了就強制彩色呈現,會蓋過 font-family
@@ -4316,6 +4417,7 @@ const state = {
   dpr: 1, powerSave: false, t0: 0, elapsed: 0, ready: false, // powerSave:省電模式(相機置中+繪製統一降 30fps,手機預設開),見 tick 節流
 
   followTrain: null, followId: null,
+  followWrapStops: null, // setFollow 刻意回放的跨午夜 stops；只供 schedWrapT 解開該班的 _noPrevWrap
   freqFollow: null, // 捷運跟隨三形:{ln,tr}／{ln,k}／{official:true,lineId,vehicleId}；獨立於 followTrain
   followLock: true, // 跟隨鎖:true=每幀置中;拖曳地圖自動解鎖(Google 導航式),按「回到列車」恢復
   mapDark: false, basemap: 'map', trackData: null, offlineLand: null,
@@ -4337,6 +4439,8 @@ const state = {
   collectMap: false, // 收集地圖:全路網轉灰、只有搭過的區間亮起(純檢視,不動任何收集資料),見 setCollectMap
   collectBounty: false, // 收集地圖的懸賞層:我校正過的段用特殊色(規格 §8「換一層資料即可」)
   recording: null,   // 錄製中的校正旅程;非 null 代表正在錄,見 startBountyRecording
+  metroWait: null,   // 捷運等車卡(Live Activity 手動入口)開卡中的目標:{sys,station} 或 null,見 metroWaitStartFor
+  _metroLiveRaw: {}, // pollMetroLive 最近一次原始回應快取:sys → {at,rows,receivedAt},供等車卡取官方分鐘(不另發 fetch)
 };
 let map, cv, ctx;
 let baseLayers = {}; // light / dark / sat Leaflet 圖層
@@ -4670,6 +4774,8 @@ function prepFreqTimes(ln, serviceDayOverride) {
   if (dt === 1) day = t.holiday || (t.days && t.days[0]);
   else if (dt === 2) day = t.days && t.days[1];
   else day = t.days ? t.days[new Date(serviceDay + 'T00:00:00Z').getUTCDay()] : null; // 週幾以台北營運日為準(海外裝置勿用當地週幾)
+  // 臨時營運調整(data/special_ops.json → dates):特定日期的官方例外班表,優先於週幾/國定假日判定
+  if (t.dates && t.dates[serviceDay] && t.sets && t.sets[t.dates[serviceDay]]) day = t.dates[serviceDay];
   ln._tt = (day && t.sets && t.sets[day]) || [];
 }
 // 跨午夜正規化:班次秒值可 >86400,清晨檢視時把前一日跨午夜班接回來(比照 sched trainPos)
@@ -4728,6 +4834,48 @@ function trtcOfficialRosterForLine(boardPos, lineId) {
   if (!boardPos || !Array.isArray(boardPos.vehicles)) return [];
   return boardPos.vehicles.filter(vehicle => vehicle && String(vehicle.line) === String(lineId));
 }
+// 官方看板中斷多久了。後端沒有送 held 旗標（2026-08-15 斷線 33 分鐘期間 boardPos.held 全程 undefined），
+// 所以資料齡一律由前端自己從名冊的 observedEpoch 算。
+// 🔴 逐「上游」各自算，不把各家混成一個數字——環狀線走新北捷另一支上游，北捷斷 33 分鐘的當下環狀線是
+//    0 秒，混算會讓它的新鮮度把北捷的中斷整個蓋掉（[[pooling-hides-subgroup-structure]]）。
+// 🔴 分組單位是「上游」不是「線」：一條線的車可能全部續推過終點被收掉而在名冊裡消失，逐線算會讓中斷
+//    最嚴重的那條線反而不算中斷；同一家只要還有任何一台車，就足以量出這家的資料齡。
+const TRTC_FEED_STALE_SEC = 180;   // 官方正常 15～60 秒一輪；3 分鐘沒動就是真的斷了
+const TRTC_FEED_GROUPS = [
+  { label: '臺北捷運', lines: ['BR', 'R', 'R_XBT', 'G', 'G_XBT', 'O_XINZHUANG', 'O_LUZHOU', 'BL'] },
+  { label: '環狀線', lines: ['Y'] },
+];
+// 認不得的線代號自成一組（不併進別家、也不丟掉），將來加線時最壞只是標題少一個好聽的名字
+function trtcFeedGroupOf(lineId) {
+  const id = String(lineId);
+  return TRTC_FEED_GROUPS.find(g => g.lines.includes(id)) || { label: id, lines: [id] };
+}
+function trtcOfficialStaleFeeds(roster, nowEpoch) {
+  const vehicles = roster && Array.isArray(roster.vehicles) ? roster.vehicles : null;
+  if (!vehicles || !vehicles.length || !Number.isFinite(Number(nowEpoch))) return [];
+  const groups = new Map();
+  for (const v of vehicles) {
+    const obs = Number(v && v.observedEpoch);
+    if (!Number.isFinite(obs)) continue;
+    const g = trtcFeedGroupOf(v.line);
+    const cur = groups.get(g.label) || { label: g.label, lines: new Set(), newest: -Infinity };
+    cur.lines.add(String(v.line));
+    if (obs > cur.newest) cur.newest = obs;
+    groups.set(g.label, cur);
+  }
+  const out = [];
+  for (const g of groups.values()) {
+    const ageSec = Number(nowEpoch) - g.newest;
+    if (ageSec >= TRTC_FEED_STALE_SEC) out.push({ label: g.label, lines: [...g.lines], ageSec });
+  }
+  return out;
+}
+// 這條線現在是不是續推中(回中斷組別,沒中斷回 null)。給跟隨小卡／看板／徽章共用同一套判準。
+function trtcOfficialStaleFor(lineId) {
+  return trtcOfficialStaleFeeds(state.trtcOfficialRoster, Date.now() / 1000)
+    .find(f => f.lines.includes(String(lineId))) || null;
+}
+function trtcStaleMins(stale) { return Math.max(1, Math.round(Number(stale && stale.ageSec) / 60)); }
 // 這台車自己的行進節奏：相鄰兩筆官方到站的間隔（含停站）＝一個「站到站週期」。
 // 沒有 history（首次出現）才退回 run＋停站常數。停站夾在 [15s, 半個週期]——實測有
 // run=109s 但 span=90s 的列（run 來自模型、span 來自官方兩次到站），不夾會算出負的行駛時間。
@@ -4745,14 +4893,13 @@ function trtcOfficialCoastCycle(vehicle, run) {
   const dwell = Math.min(Math.max(cycle - run, TRTC_OFFICIAL_COAST_DWELL_MIN_SEC), cycle / 2);
   return { cycle, dwell, travel: cycle - dwell };
 }
-// 官方最後一筆到站之後，車不會停在那裡等下一批資料——照自己的節奏停站、發車、
-// 準時開到下一站，一路推到終點站為止。這是「有訊號就一直推算下去，車子不准在中間
-// 消失」的實作。沒有缺訊 timeout；抵達這趟已知 dest 就回 null 收車。
-function trtcOfficialCoastPosition(ln, vehicle, now, from, to, run, arrEpoch) {
+// 退路：該線沒有固定段秒時（環狀線 Y 的 segs 為空），才用「這台車自己的週期」等速續推。
+// 🔴 不是預設路徑——它會讓同一條線上的車各跑各的，見 trtcOfficialCoastPosition 的說明。
+function trtcOfficialCoastByCycle(ln, vehicle, now, from, to, run, arrEpoch) {
   const B = ln.stations[to];
   const elapsed = now - arrEpoch;
   if (!(elapsed >= 0)) return null;
-  const atTo = { lat: B.lat, lon: B.lon, fraction: 1, atStation: true,
+  const atTo = { lat: B.lat, lon: B.lon, fraction: 1, atStation: true, coasted: true,
     motionFrom: from, motionTo: to, coastTo: to, coastArrEpoch: arrEpoch };
   const step = to > from ? 1 : -1;
   const dest = Number(vehicle && vehicle.dest);
@@ -4766,13 +4913,62 @@ function trtcOfficialCoastPosition(ln, vehicle, now, from, to, run, arrEpoch) {
   const P = ln.stations[here], Q = ln.stations[next];
   if (!P || !Q) return atTo;
   const phase = elapsed - done * cycle, nextArr = arrEpoch + (done + 1) * cycle;
-  if (phase < dwell) return { lat: P.lat, lon: P.lon, fraction: 1, atStation: true,
+  if (phase < dwell) return { lat: P.lat, lon: P.lon, fraction: 1, atStation: true, coasted: true,
     motionFrom: here - step, motionTo: here,
     coastTo: here, coastArrEpoch: arrEpoch + done * cycle };
   const fraction = Math.max(0, Math.min(1, (phase - dwell) / travel));
   const pos = posBetweenStations(ln, here, next, fraction);
-  return pos ? { ...pos, fraction, atStation: false, motionFrom: here, motionTo: next,
+  return pos ? { ...pos, fraction, atStation: false, coasted: true, motionFrom: here, motionTo: next,
     coastTo: next, coastArrEpoch: nextArr } : atTo;
+}
+// 官方最後一筆到站之後，車不會停在那裡等下一批資料——停站、發車、準時開到下一站，
+// 一路推到終點站為止。這是「有訊號就一直推算下去，車子不准在中間消失」的實作。
+// 沒有缺訊 timeout；抵達這趟已知 dest 就回 null 收車。
+//
+// 🔴 節奏一律用「該線每一段自己的固定行車秒」＋固定停站秒，不用這台車最後一段量到的速度
+// 去推完剩下全程（2026-08-15 北捷斷線 33 分鐘的教訓，語料在 fixtures/trtc-outage-20260815）：
+// 各車的 coastCycle 實測散布在 1～1681 秒/站，停在終點站的車還會退化成 25 秒/站掃過整條線。
+// 同線各車節奏不同 ⇒ 20 分鐘就把車距推到互相超車（214 是 192 秒/站、217 是 100 秒/站，
+// 晚 7 分半發車的 217 反而超到 214 前面，兩台擠在國父紀念館前後一站）。
+// 用固定段秒後全線同節奏，車距結構在整段斷線期間維持不變。
+function trtcOfficialCoastPosition(ln, vehicle, now, from, to, run, arrEpoch) {
+  const B = ln.stations[to];
+  if (!B) return null;
+  const elapsed = now - arrEpoch;
+  if (!(elapsed >= 0)) return null;
+  const atTo = { lat: B.lat, lon: B.lon, fraction: 1, atStation: true, coasted: true,
+    motionFrom: from, motionTo: to, coastTo: to, coastArrEpoch: arrEpoch };
+  const step = to > from ? 1 : -1;
+  const dest = Number(vehicle && vehicle.dest);
+  const legsLeft = Number.isInteger(dest) ? (dest - to) * step : 0;
+  if (!(legsLeft > 0)) return null;
+  // 先把剩下每一段的固定行車秒取齊；任何一段取不到就整趟退回 per-vehicle 週期，
+  // 不要走到一半換算法（半段固定、半段自訂會在交界處造成跳躍）。
+  const legSecs = [];
+  for (let leg = 0, i = to; leg < legsLeft; leg++, i += step) {
+    const sec = runBetween(ln, i, i + step);
+    if (!(sec > 0)) { legSecs.length = 0; break; }
+    legSecs.push(sec);
+  }
+  if (!legSecs.length) return trtcOfficialCoastByCycle(ln, vehicle, now, from, to, run, arrEpoch);
+  let arrivedAt = arrEpoch, here = to;
+  for (let leg = 0; leg < legsLeft; leg++) {
+    const next = here + step, P = ln.stations[here], Q = ln.stations[next];
+    if (!P || !Q) return atTo;
+    const legSec = legSecs[leg];
+    const departure = arrivedAt + TRTC_OFFICIAL_COAST_DWELL_SEC;
+    if (now < departure) return { lat: P.lat, lon: P.lon, fraction: 1, atStation: true, coasted: true,
+      motionFrom: here - step, motionTo: here, coastTo: here, coastArrEpoch: arrivedAt };
+    const arrival = departure + legSec;
+    if (now < arrival) {
+      const fraction = Math.max(0, Math.min(1, (now - departure) / legSec));
+      const pos = posBetweenStations(ln, here, next, fraction);
+      return pos ? { ...pos, fraction, atStation: false, coasted: true, motionFrom: here, motionTo: next,
+        coastTo: next, coastArrEpoch: arrival } : atTo;
+    }
+    arrivedAt = arrival; here = next;
+  }
+  return null; // 推到這趟已知終點 ⇒ 收車
 }
 // 起點倒數給的是「發車時刻」，不是下一站到站時刻。發車後的第一段使用該線段秒；
 // G_XBT/R_XBT 只有一段且官方沒有給對端到站時刻，也只在這個專用分支使用段秒 fallback。
@@ -4856,6 +5052,35 @@ function trtcOfficialVehiclePosition(ln, vehicle, nowEpoch) {
   return pos ? { ...pos, fraction, atStation: false, motionFrom: from, motionTo: to } : null;
 }
 const _trtcOfficialDisplay = new Map();
+// 續推持續超過這麼久才算「長時間斷訊」，回歸時才允許倒退／跳動（見 trtcOfficialDisplayPosition）。
+// 官方看板正常是 15～60 秒一輪，這裡取 5 分鐘：短暫缺幾輪的偏差本來就小，不值得讓畫面跳。
+const TRTC_OFFICIAL_RESYNC_MIN_COAST_SEC = 300;
+// 斷訊回歸事件（由 trtcOfficialDisplayPosition 記錄、UI 每秒 tick 消費後跳訊息）。
+// 刻意不在位置函式裡直接呼叫 showToast——那會讓純函式驗收得連 DOM 一起搬進沙盒。
+const _trtcOfficialResync = { at: 0, outageSec: 0, count: 0, notifiedAt: 0, removedFor: 0 };
+// 使用者要求：允許倒退／跳動，但一定要跳訊息說明為什麼。
+// 等 2 秒才發：一輪資料回來時整批車會在同一個 tick 內各自回歸，馬上發會先報一台、
+// 數字還在長；靜置 2 秒代表這波回歸收完了，一次報完整的台數。
+const TRTC_RESYNC_TOAST_SETTLE_SEC = 2;
+function trtcOfficialResyncTick(nowEpoch) {
+  const r = _trtcOfficialResync, now = Number.isFinite(Number(nowEpoch)) ? Number(nowEpoch) : Date.now() / 1000;
+  if (!(r.at > r.notifiedAt) || now - r.at < TRTC_RESYNC_TOAST_SETTLE_SEC) return null;
+  const mins = Math.max(1, Math.round(r.outageSec / 60)), count = r.count;
+  r.notifiedAt = r.at; r.outageSec = 0; r.count = 0;
+  // 除了「跳位置」，2026-08-15 起還會**少車**：訊號回來時以官方名單為準，中斷期間推估出來、
+  // 官方回報後對不上任何一班的車會被移除（使用者裁示）。少車比跳位置更容易被當成當機，
+  // 所以同一則訊息就要講明。每次恢復只講一次——後端的恢復記錄會續帶十分鐘，不綁住就每輪都重報。
+  const rec = state.trtcOfficialRoster && state.trtcOfficialRoster.recovery;
+  const removed = rec && Number(rec.removed) > 0 && Number(rec.atEpoch) !== Number(r.removedFor)
+    ? Number(rec.removed) : 0;
+  if (removed) r.removedFor = Number(rec.atEpoch);
+  const msg = `官方訊號恢復　北捷即時資料中斷約 <b>${mins} 分鐘</b>後恢復，`
+    + `<b>${count} 台</b>列車已重新對齊官方位置——中斷期間畫面上的位置是推估的，`
+    + `所以這些車會往前跳或往後退。`
+    + (removed ? `另有 <b>${removed} 台</b>推估中的列車因為不在官方名單上而移除，這不代表它們停駛。` : '');
+  showToast(msg, { wrap: true });   // 整句說明，不能被單行截斷（實測手機只看得到前 20 字）
+  return { mins, count, removed, msg };
+}
 // dir 是名冊身分欄位，可能在重配或舊資料接回時落後一輪；畫面位置已經知道自己正走哪一段，
 // 所以位置軸與箭頭一律先採 motionFrom→motionTo。這使錯誤 dir 不能再把正向移動解讀成反向。
 function trtcOfficialMotionStep(vehicle, pos) {
@@ -4970,24 +5195,46 @@ function trtcOfficialDisplayPosition(ln, vehicle, nowEpoch) {
   const progress = trtcOfficialPositionProgress(ln, vehicle, raw);
   if (!Number.isFinite(progress) || !Number.isFinite(now)) return raw;
   const prior = _trtcOfficialDisplay.get(key);
+  const coasted = !!raw.coasted;
+  // 這台車從哪一刻開始進入續推（用來判斷「長時間斷訊」；不是續推就沒有起點）
+  const coastSince = coasted
+    ? (prior && prior.coasted && Number.isFinite(Number(prior.coastSince)) ? prior.coastSince : now)
+    : null;
   if (!prior || now < prior.epoch) {
-    _trtcOfficialDisplay.set(key, { epoch: now, progress, pos: raw });
+    _trtcOfficialDisplay.set(key, { epoch: now, progress, pos: raw, coasted, coastSince });
     return raw;
   }
   // 同一畫格會被地圖 renderer 與跟隨資訊各讀一次；第二個讀者必須拿到同一個顯示位置。
   if (now === prior.epoch) return prior.pos;
+  // 🔴 長時間斷訊回歸（2026-08-15 使用者裁示）：續推位置是我們自己的推估，不是官方事實。
+  // 上一幀還在續推、這一幀官方時間軸已經回來，且續推已經持續夠久 ⇒ 直接改採官方位置並重設
+  // 基準，**允許倒退、允許跳動**，不受「不倒退」護欄約束；同時記下事件讓 UI 跳訊息說明原因。
+  // 不這樣做的話，斷訊期間被推過頭的車會被護欄永久凍在錯的位置上直到退場（33 分鐘斷訊實例）。
+  // 「不倒退」管的是官方 ETA 後修，不該拿來擋官方資料本身；短暫缺一兩輪不走這條路，
+  // 因為那時偏差本來就小，跳一下反而比較刺眼。
+  if (prior.coasted && !coasted) {
+    const coastedFor = now - (Number.isFinite(Number(prior.coastSince)) ? Number(prior.coastSince) : now);
+    if (coastedFor >= TRTC_OFFICIAL_RESYNC_MIN_COAST_SEC) {
+      _trtcOfficialResync.at = now;
+      _trtcOfficialResync.outageSec = Math.max(Number(_trtcOfficialResync.outageSec) || 0, coastedFor);
+      _trtcOfficialResync.count = (Number(_trtcOfficialResync.count) || 0) + 1;
+      _trtcOfficialDisplay.set(key, { epoch: now, progress, pos: raw, coasted, coastSince });
+      return raw;
+    }
+  }
   if (progress <= prior.progress + 1e-9) {
     // 只凍結座標與進度；coastTo/coastArrEpoch 等官方時間欄位仍採本輪最新修訂。
     const pos = progress < prior.progress - 1e-9 ? { ...raw, lat: prior.pos.lat, lon: prior.pos.lon,
       fraction: prior.pos.fraction, atStation: prior.pos.atStation,
       motionFrom: prior.pos.motionFrom, motionTo: prior.pos.motionTo } : raw;
-    _trtcOfficialDisplay.set(key, { epoch: now, progress: Math.max(progress, prior.progress), pos });
+    _trtcOfficialDisplay.set(key, { epoch: now, progress: Math.max(progress, prior.progress),
+      pos, coasted, coastSince });
     return pos;
   }
   const dt = now - prior.epoch;
   const shown = Math.min(progress, trtcOfficialForwardLimit(ln, vehicle, prior.progress, dt));
   const pos = trtcOfficialPositionAtProgress(ln, vehicle, shown, raw);
-  _trtcOfficialDisplay.set(key, { epoch: now, progress: shown, pos });
+  _trtcOfficialDisplay.set(key, { epoch: now, progress: shown, pos, coasted, coastSince });
   return pos;
 }
 function trtcOfficialVehicleInfo(ln, vehicle, nowEpoch) {
@@ -5355,6 +5602,12 @@ function assignRunProfiles(s, perf, obs) {
 // ・_noPrevWrap(逐日名冊裡「昨天沒開」的班):清晨不得接續成昨天的班——昨天根本沒開,接了就是畫
 //   出不存在的幽靈班(452 在開行日清晨的鏡像 bug)。只在名冊仍是今天的名冊時生效(_rosterDay 比對
 //   state.wallDay):頁面開著跨夜沒重載時名冊整份是昨天的,+86400 接續是合法的「名冊日」解讀。
+//   唯一例外:使用者正在跟隨的**就是這一份 stops**、時鐘已離開「現在」、而且跟隨開始後沒有再
+//   顯式跳過時間(followTimeJumped)。晚上點跟隨一班跨夜班(452 23:57 發車),動的是模擬時鐘,
+//   真實日期還是名冊日,守衛會在模擬時鐘走過 00:00 時把正在重播的車也一起擋掉。simSec 沒有日期,
+//   幽靈班與重播兩種情境的 t 完全同值,唯一能區辨的就是「這是不是使用者要求跟隨的那一份 stops」。
+//   三個條件各擋一種洩漏:身分比對擋「換車後舊車變幽靈」與「別班沾光」;clockAtNow 擋「時鐘貼著
+//   現在」;followTimeJumped 擋「看完重播再往回拖到開行日清晨」——後者實測會畫出 13/13 幽靈點。
 // ・其他(每日班、高鐵/林鐵等無日期資料、過期 bundle 退回):維持原條件,行為零變化。
 function schedWrapT(s, t, grace) {
   if (s._prevNight) {
@@ -5362,7 +5615,8 @@ function schedWrapT(s, t, grace) {
     return state.clockAtNow ? t + 86400 : t;
   }
   if (t < s[0].arrSec && t + 86400 <= s[s.length - 1].depSec + grace
-      && !(s._noPrevWrap && s._rosterDay === state.wallDay)) return t + 86400;
+      && !(s._noPrevWrap && s._rosterDay === state.wallDay
+        && !(state.followWrapStops === s && !state.clockAtNow && !state.followTimeJumped))) return t + 86400;
   return t;
 }
 
@@ -5863,7 +6117,9 @@ function drawTrtcOfficialVehicle(ln, item, showTrain, inView, collectHit, nowEpo
     ln, vehicleId: item.vehicleId, officialNo: label });
 }
 
-function updateCount() {
+// 目前畫面上真的在跑的班次數。updateCount 與「已收班」判定共用同一個數字——
+// 班距合成線收班後 ln.n 本來就是 0,故 n===0 等同「這個群組現在一台車都沒有」。
+function runningCount() {
   let n = 0;
   if (state.mode === 'sched') {
     for (const tr of state.trains) if (state.visible.has(tr.typeName) && trainPos(tr, state.simSec)) n++;
@@ -5880,7 +6136,11 @@ function updateCount() {
       else n += ln.n;
     });
   }
-  document.getElementById('count').textContent = `${n} 班奔跑中`;
+  return n;
+}
+
+function updateCount() {
+  document.getElementById('count').textContent = `${runningCount()} 班奔跑中`;
 }
 
 function drawFreq(w, h) {
@@ -6084,9 +6344,12 @@ function updateFreqCard(info) {
   // 資料等級誠實標示:即時校正中/時刻表推演/班距推算;營運異常公告時降級為僅供參考
   const st = document.getElementById('fcStatus');
   let txt, cls = '';
+  // 官方訊號中斷時這張卡不能還寫「依北捷官方秒級資料」——那正是使用者盯著看的那一行
+  const fStale = f.vehicleId != null ? trtcOfficialStaleFor(ln.id) : null;
   if (metroAlertFor(ln)) { txt = f.vehicleId != null
-    ? '營運異常公告中；到站時刻仍依官方即時資料'
+    ? (fStale ? '營運異常公告中；官方訊號亦中斷，位置與時刻皆為推估' : '營運異常公告中；到站時刻仍依官方即時資料')
     : '營運異常公告中，位置僅供參考'; cls = 'warn'; }
+  else if (fStale) { txt = `官方訊號中斷 ${trtcStaleMins(fStale)} 分鐘；位置與到站時刻皆為推估，僅供參考`; cls = 'warn'; }
   else if (f.vehicleId != null) { txt = '● 官方即時名冊；到站時刻依北捷官方秒級資料'; cls = 'on'; }
   else if (anomalyOf(ln)) { txt = '偵測到營運異常跡象（本站推定），位置僅供參考'; cls = 'warn'; }
   else if (f.tr && metroLiveOn(ln)) {
@@ -7092,6 +7355,20 @@ const SAT_RETINA = APP_CFG.satRetina ?? SAT_RETINA_DEFAULT;
 // (Esri 額度止血用),資格判定另外走 satRetinaAllowed()——兩者是 AND。
 function satRetinaAllowed() {
   return SAT_RETINA && plusIsActive();
+}
+// 衛星高解析是通行證項目,但「不給用」的顯形只是圖看起來比較糊——免費層完全不知道有更清楚的
+// 版本存在(專案第二個「不給用也不說」的閘門,另一個是跟車鎖屏,見 renderLaCta)。只在真的有差別
+// 的情境講一次:這個平台建得出高解析層(SAT_RETINA;網站的預設值是 false ⇒ 網站恆不觸發)＋
+// 訂閱旗標開＋還沒訂閱＋剛切【進】衛星。一輩子講一次(localStorage),不是每次切都念——切底圖是
+// 高頻動作,念第二次就是騷擾。跟車中即使已訂閱也走標準解析(setBasemap 的 wantLQ),那是效能取捨
+// 不是資格問題,所以句子裡一併講清楚,免得訂了之後以為沒生效。
+function maybeSatPlusNotice() {
+  if (state.basemap !== 'sat' || !SAT_RETINA || !PLUS_ENABLED || plusIsActive()) return;
+  try {
+    if (localStorage.getItem('trainmap-satplus-seen') === '1') return;
+    localStorage.setItem('trainmap-satplus-seen', '1');
+  } catch (e) {}
+  showToast('衛星影像免費看。想看更清楚的高解析版本，可以在「軌島通行證」裡開通（手機從「更多」進去）；跟車移動時一律用標準解析度，讓圖磚跟得上。', { wrap: true });
 }
 function followEntryZoom() { return Math.min(Math.max(map.getZoom(), 13), FOLLOW_ZOOM_CAP); } // 跟車進場:至少拉近到 13,App 再套上限
 const LOCATE_ENABLED = !!window.RAIL_NATIVE_GEOLOCATION;
@@ -8367,6 +8644,10 @@ function accountForgetIdentity() {
   // 批二-B:cloudSyncReady(資格文件落地)綁在「這個身分」上,身分沒了就不再成立——下一個登入的人
   // 必須自己重新握手一次,不能繼承上一個人的落地結論。
   if (state.plus) { state.plus.active = false; state.plus.entitlementEnvironment = ''; state.plus.founding = false; state.plus.pkgMonthly = null; state.plus.pkgAnnual = null; state.plus.mgmtUrl = ''; state.plus.adapter = null; state.plus.afterUnlock = null; state.plus.cloudSyncReady = false; state.plus.cloudSyncPromise = null; }
+  // 🔴 2026-08-16:身分沒了＝這台裝置的資格沒了,小工具那顆旗標必須跟著收回。漏了這一行就是
+  //    使用者回報的「登出後還是可以選擇最近的站、還是可以放好多站」——App 這側已經歸零,
+  //    App Group 那側卻停在 true(見 metroWidgetSyncPlus 上方說明)。
+  metroWidgetSyncPlus(false);
   // ↑ cloudSyncPromise 也要清(最終複審 Minor 2):它是「同一時間只准一發握手在飛」的去重槽,
   //   留著的話換人之後 plusReconcileEntitlement() 會 return 上一個身分的在途 promise,那發的世代
   //   複查必然回 false ⇒ 新使用者白白失敗一輪握手。清掉只是丟棄槽位,在飛的那發自己會照常收尾。
@@ -8570,6 +8851,11 @@ function accountEnsureInit() {
           // accountForgetIdentity() 刻意完全不碰收藏資料(本機分區依 uid 留著,同一個帳號回來還在)
           // 也刻意不清 ACCOUNT_LAST_UID_KEY(陌生人判斷要撐過這次事件,只有刪除帳號才清)。
           if (previousUid) await accountForgetIdentity();
+          // 🔴 2026-08-16「更新即關」的唯一保障:上面那行有 previousUid 守衛,所以「開 App 時就
+          //    已經是登出狀態」的人不會走到 accountForgetIdentity——只靠那條的話,他們裝了修好的
+          //    版本、旗標照樣停在舊的 true,漏洞跟著他們一輩子。auth 明確解出 null 就是一個
+          //    「明確答案」(不是「還沒解析」,那條走的是 user 為真的分支),照樣要推。
+          metroWidgetSyncPlus(false);
           try { localStorage.removeItem(ACCOUNT_UID_KEY); } catch (e) {}
           userDataRenderAll(); // 畫面立刻換回匿名分區,不留著上一個帳號的私人收藏在螢幕上
         }
@@ -8629,6 +8915,13 @@ function accountSlotMode() {
   return accountReturning() ? 'account' : 'plus'; // 登入過的裝置維持帳號入口;它的登出態另有回 Plus 的鈕(見 accountRender)
 }
 async function setupAccountUi() {
+  // 🔴 2026-08-16「更新即關」:這台裝置沒有已驗證身分(ACCOUNT_UID_KEY 不存在)就不可能有資格——
+  //    資格綁在帳號上,登出時 accountForgetIdentity 會把這把 key 一起清掉。這是一個【明確答案】,
+  //    要把小工具旗標收回來。放在這裡而不是 onAuthStateChanged 的 null 分支,是因為下面那條
+  //    returning 判斷會讓「已經是登出狀態」的人根本不初始化 Firebase ⇒ 那個 callback 永遠不會來,
+  //    只靠它的話,這些人裝了修好的版本、旗標照樣停在舊的 true(scripts/verify_metro_widget_plus_sync.mjs
+  //    的 M5 就是踩到這個才紅的)。已登入的訂閱者走 returning 分支,不經過這裡,不會有閃一下的問題。
+  if (!accountReturning()) metroWidgetSyncPlus(false);
   const btn = document.getElementById('accountBtn'), modal = document.getElementById('accountModal');
   if (!btn || !modal || !accountConfigured()) return;
   const accountIntent = new URLSearchParams(location.search).get('account');
@@ -8710,6 +9003,7 @@ async function plusReconcileEntitlement() {
         p.active = data.active;
         plusSetEnvironment(p, p.active && data.environment === 'sandbox' && PLUS_SANDBOX_OK
           ? 'sandbox' : (p.active ? 'production' : ''));
+        metroWidgetSyncPlus(p.active); // 2026-08-16:拿到明確答案就同步小工具旗標(見 metroWidgetSyncPlus)
       }
       if (data && data.cloudSyncReady === true) return plusMarkCloudSyncReady();
       return false;
@@ -8932,7 +9226,34 @@ function plusApplyCustomerInfo(info) {
   plusSetEnvironment(p, plusEnvironmentFrom(info));
   p.founding = p.active && foundingFrom(info);
   p.mgmtUrl = (info && info.managementURL) || p.mgmtUrl || '';
+  metroWidgetSyncPlus(p.active);
   return p.active;
+}
+// 把通行證資格同步給捷運小工具(App Group)。🔴 小工具 extension 讀不到 RevenueCat,這顆旗標是它
+// 判定的唯一輸入(MetroPlusCore.decide 第一行就是 `if plus { return .allowed }`);非原生殼、
+// 舊版原生殼(沒有 setPlus)一律靜默略過——網站沒有小工具這回事。
+//
+// 🔴 2026-08-16 使用者實機回報「登出後還是可以選擇最近的站,也可以同時放好多個小工具」的根因就在
+//    這裡:這支原本【只有一個呼叫端】(plusApplyCustomerInfo),而這一行上面那句註解卻寫著「所有
+//    資格路徑的匯流點,掛一處即全覆蓋」——那句話從寫下的那一刻就是錯的。真正會寫 state.plus.active
+//    的有七處,其中六處沒推:登出(accountForgetIdentity)、冷啟動就是訪客、到期/退費(plusRefresh
+//    拿到明確的 false)、plusReconcileEntitlement、購買、恢復購買。於是旗標是「寫進去就再也不會
+//    變回 false」,一顆過期的 true 同時解開自動選站與多站兩個閘門;反向也壞——買完到下次 listener
+//    推播之前,付了錢的人小工具還鎖著。
+//    現在改成:【凡是拿到「明確答案」的地方都推一次】,並在此memo 去重(回前景每次都 plusRefresh,
+//    值沒變就不該白打一發 IPC 連帶 reloadAllTimelines)。行為判準見
+//    scripts/verify_metro_widget_plus_sync.mjs——它量的是 setPlus 的呼叫序列,不是原始碼字面。
+let metroWidgetPlusPushed = null; // 上一次真的送出去的值;null＝這個 session 還沒推過
+function metroWidgetSyncPlus(active) {
+  try {
+    const want = !!active;
+    if (metroWidgetPlusPushed === want) return; // 值沒變:不重推,省掉 extension 的無謂重畫
+    const p = window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.RailMetroWait;
+    if (!(p && p.setPlus)) return; // 網站/舊殼:連 memo 都不要動,免得日後 plugin 才註冊上來卻被 memo 擋掉
+    metroWidgetPlusPushed = want;
+    // 推失敗要把 memo 退回去,否則這個 session 剩下的時間都會以為「已經推過了」而不再重試。
+    Promise.resolve(p.setPlus({ active: want })).catch(() => { if (metroWidgetPlusPushed === want) metroWidgetPlusPushed = null; });
+  } catch (e) { /* 同步失敗不影響資格本身,下次資格變動再試 */ }
 }
 // 重要付費操作(購買/恢復購買)前重新驗證資格(C-4 第 3 點):adapter 若支援,先取一次目前的
 // CustomerInfo 套用進 state,避免在退費/撤銷後的舊快取上疊加購買判斷。失敗(網路錯誤等)不阻擋
@@ -9001,6 +9322,10 @@ function plusRender() {
   // 永遠拿不到,清單不能無條件宣傳——到期後這一項直接從陣列消失,不留半吊子的「限期」措辭。
   const feats = [
     '<b>台鐵列車的誤點履歷（逐日紀錄，回溯 90 天）</b>',
+    // App 限定:小工具是 iOS extension,網站沒有這回事(措辭比照下面兩項標明平台)。
+    // 免費層可設一站(MetroBoardIntent.freeStationLimit),故措辭是「多站」與「自動選站」兩件事,
+    // 不可寫成「捷運小工具」——那會讓免費使用者以為連一站都要付費。
+    '<b>iPhone 捷運小工具放多站，或用「自動（最近的站）」跟著你移動換站</b>',
     '收藏與完乘記錄跨裝置雲端同步',
     '行程分享：把你在哪班車上分享給朋友',
     // App 限定:入口(setupTakeoutUi)掛在 plusConfigured() 上,網站沒有 Web Billing key ⇒ 恆假 ⇒ 鈕不出現。
@@ -9093,6 +9418,7 @@ async function plusRefresh() {
           p.active = data.active;
           plusSetEnvironment(p, p.active && data.environment === 'sandbox' && PLUS_SANDBOX_OK
             ? 'sandbox' : (p.active ? 'production' : ''));
+          metroWidgetSyncPlus(p.active); // 2026-08-16:拿到明確答案就同步小工具旗標(見 metroWidgetSyncPlus)
         }
         // 批二-B:這條分支打的就是資格文件的 writer,所以它同時也是一次免費的握手——多讀一個欄位
         // 就好,不另外發請求(verify_plus_refresh_lifecycle 的 L12/L13 在數這條路徑發幾發請求)。
@@ -9120,6 +9446,7 @@ async function plusRefresh() {
       plusSetEnvironment(p, plusEnvironmentFrom(info));
       p.founding = p.active && foundingFrom(info);
       p.mgmtUrl = (info && info.managementURL) || '';
+      metroWidgetSyncPlus(p.active); // 2026-08-16:拿到明確答案就同步小工具旗標(見 metroWidgetSyncPlus)
       if (state.basemap === 'sat') setBasemap(); // 資格變動→衛星解析度跟著換,不必等使用者重切底圖
     } else {
       // 資格讀不出來≠沒訂閱:維持現狀(p.active/p.founding/p.mgmtUrl 一律不動),只把錯誤講出來。
@@ -9168,6 +9495,7 @@ async function plusPurchase(kind) {
     plusSetEnvironment(p, plusEnvironmentFrom(info));
     p.founding = p.active && foundingFrom(info);
     p.mgmtUrl = (info && info.managementURL) || p.mgmtUrl || '';
+    metroWidgetSyncPlus(p.active); // 2026-08-16:買完就要解鎖小工具,不能等下一次 listener 推播(見 metroWidgetSyncPlus)
     if (!p.active) throw new Error('付款完成但尚未取得訂閱資格，請按「恢復購買」');
     if (state.basemap === 'sat') setBasemap(); // 資格變動→衛星解析度跟著換,不必等使用者重切底圖
     // 🔴 2026-08-04 批二-B:買完立刻做資格落地握手,不要等使用者第一次同步撞上 permission-denied
@@ -9206,6 +9534,7 @@ async function plusRestore() {
     plusSetEnvironment(p, plusEnvironmentFrom(info));
     p.founding = p.active && foundingFrom(info);
     p.mgmtUrl = (info && info.managementURL) || p.mgmtUrl || ''; accountRender();
+    metroWidgetSyncPlus(p.active); // 2026-08-16:恢復購買同理,見 plusPurchase 那行與 metroWidgetSyncPlus
     if (p.active) {
       // 批二-B:恢復購買與購買同一個道理——資格是在別台買的,這台裝置的資格文件可能從來沒被
       // 寫過(webhook 只會為購買當下的 uid 寫一次)。同樣先握手再補一次全量同步,見 plusPurchase()。
@@ -9587,6 +9916,9 @@ function tickCore(now) {
       if (state._trtcOfficialCountActive !== active) { state._trtcOfficialCountActive = active; updateCount(); }
     }
     updateLiveBadge(); updateMetroBadge(); refreshTrtcOfficialBoardCountdown();
+    // 捷運「已收班 ↔ 尖峰/離峰」在首班/末班當下就要換,不能等下一次整點才刷(refreshBadge 平時只在換小時觸發)
+    if (state.mode !== 'sched' && state.lines.length && (runningCount() > 0) !== !!state._freqRunning) { refreshBadge(); updateCount(); }
+    if (OFFICIAL_ROSTER_ENABLED) trtcOfficialResyncTick(Date.now() / 1000); // 斷訊回歸 → 跳訊息說明為何跳動
     if (state.liveMode && !state.director) liveClockTick(); else if (state.director) directorClockTick(); else clockDriftGuard();
   } // 導播現在也是 1× 貼真實時刻,只是用不含深夜重播替代的簡化版;兩徽章同秒刷,快轉跨門檻時同步轉推估
   // 省電三板斧(繪製節流,不動上面的時間積分):
@@ -9661,10 +9993,16 @@ function refreshBadge() {
     p.classList.add('sim'); p.style.background = ''; p.style.color = '';
   } else {
     clock.textContent = fmtHM(state.simSec);
-    const peak = isPeak(state.hour);
-    p.textContent = peak ? '尖峰' : '離峰';
-    p.classList.remove('sim'); // 捷運「尖峰」維持 hot() 紅(真尖峰語意)、離峰藍,皆 inline
-    peak ? hot() : cool();
+    // 收班時段標「已收班」:尖峰/離峰是時段標,一台車都沒有時寫「離峰」會被讀成「還在跑,只是班次少」。
+    // 判定用實際在跑的班次數(已含各系統營運時段),不是寫死時間;未勾選任何系統時 lines 為空,不算收班。
+    const closed = state.lines.length > 0 && runningCount() === 0;
+    state._freqRunning = !closed;
+    const peak = !closed && isPeak(state.hour);
+    p.textContent = closed ? '已收班' : peak ? '尖峰' : '離峰';
+    // 已收班=非營運,借「時刻表模擬」同一套灰藍靜態外觀(非即時/非警報);尖峰紅、離峰藍維持 inline
+    p.classList.toggle('sim', closed);
+    if (closed) { p.style.background = ''; p.style.color = ''; }
+    else peak ? hot() : cool();
   }
   updateLiveBadge(); // 模式切換即時同步 LIVE 徽章與標籤,不等 tick
 }
@@ -10323,6 +10661,16 @@ function setFollow(tr, isAuto, noJump, opts) {
   // 真全螢幕中不寫網址列:Safari 對 fullscreen 中的 replaceState 會踢出全螢幕,且全螢幕本來就看不到網址列
   try { if (!document.fullscreenElement) history.replaceState(null, '', '?train=' + encodeURIComponent(tr.train) + '&t=' + fmtHM(state.simSec)); } catch (e) {}
   const first = tr.stops[0], last = tr.stops[tr.stops.length - 1];
+  // 換車先清:上一班的跨午夜例外不得殘留。跨午夜班一律標記,**不綁在下面兩個撥鐘分支裡**——
+  // 「先拖時刻尺到發車後(車已在跑)、才點跟隨」時兩個分支都不觸發,但那條路徑照樣會播過 00:00,
+  // 缺陷⑤會原樣重現(2026-08-14 驗收實測 0/31,與修法前一模一樣)。
+  // 🔴 但標記必須等到「這班在不在跑」判完才寫入(見下面 wrapMark):否則 effTLive 會讀到本函式
+  //   兩行前自己剛設的旗標 ⇒ 清晨點跟隨時 schedWrapT 回傳 t+86400 ⇒ 判定「正在跑」⇒ 不撥鐘回
+  //   發車,當場畫出一班昨晚根本沒開的幽靈車(2026-08-14 驗收實測:清晨 6 個時點全中、台鐵車數 +1)。
+  //   setFollow 不得拿自己剛寫下的答案當輸入。
+  const wrapMark = Math.max(last.arrSec, last.depSec) > 86400 ? tr.stops : null;
+  state.followWrapStops = null;
+  const running = tr.loop || !(effTLive(tr) < first.depSec - 60 || effTLive(tr) > last.arrSec);
   // 下面兩個分支都是刻意撥時鐘(時光機),所以必須同時離開「跟著現在」的狀態:clockDriftGuard 每秒
   // 會把「還貼著現在」的時鐘拉回真實時刻,而它刻意不走 setSimSec(那會清掉 clockAtNow),所以也不會
   // 被 followTimeJumped 攔。撥了時鐘卻沒清旗標 ⇒ 1 秒內時鐘跳回現在,而完乘資格快照 followStartEff
@@ -10337,12 +10685,13 @@ function setFollow(tr, isAuto, noJump, opts) {
     if (!state._followSpeedSaved) { state._preFollowSpd = state.speedMult; state._followSpeedSaved = true; }
     setSpeed(30);
     if (!state.playing) togglePlay();
-  } else if (!tr.loop && (effTLive(tr) < first.depSec - 60 || effTLive(tr) > last.arrSec)) {
-    // 環島車永遠在跑,不需要把時間拉回發車
+  } else if (!running) {
+    // 環島車永遠在跑,不需要把時間拉回發車(已併進 running)
     state.simSec = Math.max(0, first.depSec - 20) % 86400;
     state.clockAtNow = false;
     syncTimeUI();
   }
+  state.followWrapStops = wrapMark; // 兩個撥鐘分支都判完才標記,理由見上面
   if (!noJump) {
     const pos = trainPos(tr, state.simSec) || { lat: first.lat, lon: first.lon };
     map.setView([pos.lat, pos.lon], followEntryZoom(), { animate: false });
@@ -10371,6 +10720,7 @@ function clearFollow() {
   clearFreqFollow(); // 換系統/群組/進放空都經過這裡 → 一併清掉捷運幽靈車跟隨
   restoreFollowSpeed(); // 中途取消跟隨也要還原 fromStart 重播強制的速度
   state.followTrain = null; state.followId = null; state.followStatus = null;
+  state.followWrapStops = null;
   setBasemap(); // 停跟:衛星模式換回高解析度圖磚
   syncPanFence(); // 台鐵/高鐵停跟:恢復台灣平移硬牆(setMaxBounds 會即刻把邊緣視野拉回框內)
   state._routePts = null;
@@ -12545,7 +12895,8 @@ function maybeAskReview(delayMs, rideCount) {
   setTimeout(() => { try { P.requestReview(); } catch (e) {} }, delayMs);
 }
 
-function showToast(msg) {
+// wrap=true 給「一整句說明」用（訊號恢復之類）。預設維持單行截斷，短提示的版面不受影響。
+function showToast(msg, { wrap = false } = {}) {
   // #recordScreen(詳細面板)在 body 層(z2400)，全站 toast 卻在 .stage(z1000)的堆疊脈絡內——
   // 只有面板真的整片接管畫面時才會蓋住 #toasts，這時才需要繞道 #recHint(z2450,蓋得過黑幕)。
   // 🔴 規格覆審 2026-07-28：條件從單純的 state.recording 收窄成「還要面板真的開著」——錄製期
@@ -12572,7 +12923,7 @@ function showToast(msg) {
   const box = document.getElementById('toasts');
   if (!box) return;
   const el = document.createElement('div');
-  el.className = 'toast'; el.innerHTML = msg;
+  el.className = wrap ? 'toast wrap' : 'toast'; el.innerHTML = msg;
   box.appendChild(el);
   while (box.children.length > 3) box.firstChild.remove(); // 疊太多先擠掉最舊
   placeMobileNotice(box); // 手機:避開時鐘/列車資訊卡/常駐錄製列
@@ -12775,6 +13126,8 @@ function migrateCheckins(o) {
 function saveCheckins(c) { try { localStorage.setItem(CHECKIN_KEY, JSON.stringify(c)); } catch (e) {} }
 // 同一座實體站在班表資料裡可能掛兩個名字(環島線分支、官方全稱),座標完全重合——實測 3 對:
 // 臺北/臺北-環島、左營/左營(舊城)、新城/新城 (太魯閣)(新左營在 1.5 公里外,是真的另一座站不會被併)。
+// 2026-08-16 起後兩對已在資料層正名(densify_schedule.py 通過站改用官方站名),班表裡只剩臺北/臺北-環島;
+// 舊版打卡紀錄仍可能存著「左營(舊城)」這個鍵,故本機制保留、不寫死名單。
 // 收集算的是「去過幾座站」,別名不併等於站在原地就多收一座。用「座標完全相同」分群自動併,
 // 不寫死名單(TDX 換版也不腐爛);取站等較高(tier 較小)者當正名,同級取較長的官方全稱。
 // ⚠只在收集層正規化,不動 schedStations 本身——那會連帶影響班表、看板與收藏車站。
@@ -12793,7 +13146,18 @@ function checkinAliasMap() {
   return m;
 }
 // 打卡/收集用的正名站名;鍵一律走 favStationKey(捷運不分 freq/deco 視角,同站只有一枚章)
-function checkinName(sys, name, alias) { return (alias || checkinAliasMap()).get(sys + '|' + name) || name; }
+function checkinName(sys, name, alias) {
+  const a = (alias || checkinAliasMap()).get(sys + '|' + name);
+  if (a) return a;
+  // 舊打卡紀錄可能還存著資料層正名前的台鐵括號別名(「左營(舊城)」——2026-08-16 前它是同座標的第二顆站,
+  // 而且是當時打卡的 canonical):現行站列查不到、去掉括號後查得到,就併回官方站名,升版後同一座站不會多出一枚章
+  if (sys === 'tra_sched' && /[（(]/.test(name)) {
+    const base = name.replace(/\s*[（(].*$/, '');
+    const sts = state.schedStations || [];
+    if (base && !sts.some(s => s.sys === sys && s.name === name) && sts.some(s => s.sys === sys && s.name === base)) return base;
+  }
+  return name;
+}
 function checkinKey(st, alias) { return favStationKey({ sys: st.sys, name: checkinName(st.sys, st.name, alias) }); }
 // ── 單站打卡:判定與寫入(設計書 §3 B 路徑、§5 判定容忍值) ────────────────────
 // 半徑依站等給:特等站站體橫跨數百公尺,招呼站只有一座月台。
@@ -12807,13 +13171,49 @@ function checkinRadiusFor(st) {
   const t = stationTierMap().get(favStationKey(st));
   return CHECKIN_RADIUS_M[t == null ? 4 : t] || CHECKIN_RADIUS_M[4];
 }
+// ── 月台幾何(data/tra_platforms.json,來源 OSM;issue #28) ──────────────────
+// 站等半徑量的是「這座站大概多大」,量不到「月台往哪個方向延伸多長」。汐科月台實長 338m,
+// 而我們登記的站點座標落在月台東端外 141m 處 ⇒ 180m 的圈只涵蓋月台最東邊約 40m,
+// 站在月台上九成的位置都打不到卡。把半徑調大不是解(汐科要開到 480m,而汐科↔汐止只隔 921m)。
+// 改判「到月台線段的距離」:長月台自然涵蓋,鄰站不互吃(197 站兩兩實測,120m 容忍下零重疊)。
+const CHECKIN_PLATFORM_M = 120; // 橫向容忍;多座月台並排最寬的板橋實測 62m,留一倍餘裕
+function checkinPlatformSeg(st) {
+  const m = state.stnPlatforms;
+  if (!m || st.sys !== 'tra_sched') return null; // 目前只有台鐵有這份幾何,其餘系統照舊走站等半徑
+  // 刻意不做「台/臺」正規化:這份檔的鍵直接取自 data/tra.json,與班表同源、逐字對得上
+  // (verify_checkin_platform 的 A5 就在守這件事)。加了 fallback 只會讓日後真的漂移時靜默查不到。
+  if (m[st.name]) return m[st.name];
+  // 但別名站要接:同一座月台在班表裡有兩個名字(臺北/臺北-環島;2026-08-16 前還有新城/新城 (太魯閣)、
+  // 左營/左營(舊城),現已在資料層正名、幾何鍵也改用官方站名),幾何只掛在其中一個名下。
+  // 用既有的「座標完全相同就分群」別名表回頭找同群的其他名字——不能只查 canonical,
+  // 因為 canonical 挑的是站等較小的那個,不一定是有幾何的那個。
+  const alias = checkinAliasMap(), pre = st.sys + '|', canon = alias.get(pre + st.name) || st.name;
+  if (m[canon]) return m[canon];
+  for (const [k, v] of alias) if (v === canon && k.startsWith(pre) && m[k.slice(pre.length)]) return m[k.slice(pre.length)];
+  return null;
+}
+// 點到線段的最短距離(公尺)。站區尺度直接用以該點為原點的本地平面投影就夠準。
+function distToSegM(p, seg) {
+  const kx = 111320 * Math.cos(p.lat * Math.PI / 180), ky = 110540;
+  const ax = (seg[0][1] - p.lon) * kx, ay = (seg[0][0] - p.lat) * ky;
+  const bx = (seg[1][1] - p.lon) * kx, by = (seg[1][0] - p.lat) * ky;
+  const dx = bx - ax, dy = by - ay, L2 = dx * dx + dy * dy;
+  const t = L2 === 0 ? 0 : Math.max(0, Math.min(1, (-ax * dx - ay * dy) / L2));
+  return Math.hypot(ax + t * dx, ay + t * dy);
+}
 // 判定寬鬆(章是給自己的);判不過只講距離,不警告不封鎖(設計書§5)
 function checkinJudge(st) {
   const loc = state.meLoc;
   if (!loc) return { ok: false, why: 'noloc' };
-  const distM = haversineKm(loc, { lat: st.lat, lon: st.lon }) * 1000;
   const acc = Math.max(0, loc.acc || 0);
-  const r = checkinRadiusFor(st);
+  let distM = haversineKm(loc, { lat: st.lat, lon: st.lon }) * 1000, r = checkinRadiusFor(st);
+  const seg = checkinPlatformSeg(st);
+  if (seg) {
+    // 兩塊區域取聯集(誰比較接近通過就用誰的數字回報):月台線段解長月台,站等半徑保住站前廣場
+    // 與地下街出口。聯集 ⇒ 這份新資料只會讓更多地方打得到卡,不會讓原本打得到的變成打不到。
+    const dSeg = distToSegM(loc, seg);
+    if (dSeg - CHECKIN_PLATFORM_M < distM - r) { distM = dSeg; r = CHECKIN_PLATFORM_M; }
+  }
   return { ok: distM <= r + Math.min(acc, CHECKIN_ACC_SLACK_M), why: '', distM, r, low: acc > CHECKIN_LOW_ACC_M };
 }
 function checkinEntry(st) { return loadCheckins().st[checkinKey(st)] || null; }
@@ -12861,9 +13261,33 @@ function segKey(sys, lnId, a, b) { return sys + '|' + lnId + '|' + (a < b ? a + 
 // {段鍵→總次數}(含沒驗到定位的)——護照、逐線完乘率、收集地圖都吃這個。
 // 回傳型別刻意維持 number:五個既有消費者(drawCollectSegs／unlockedAchievements／lineCompletion／
 // buildStationStamps／說明中心可用性判斷)都當數字用,改型別等於一次弄壞五個地方。
+// 共構軌道:同一組相鄰站對可能同時是兩條線的最細區間(實測全網只有新竹–北新竹一組,縱貫線北段
+// 與內灣線共用同一段實體軌道)。貼軌時一段只會判給其中一條線,另一條線的那一段就沒有任何真實
+// 列車蓋得到——縱貫線北段因此鎖死在 99%,搭幾次都一樣(唯一蓋得到的 8889 平原號是虛構班次,
+// 而且 loop 車在 startRiding 第一行就被擋掉,根本上不了車)。
+function sharedTrackGroups() {
+  const lines = state.trackLines || [];
+  if (!lines.length) return []; // 路網還沒載好:不快取,免得把空結果釘死在這個陣列身分上
+  if (state._shTrkSrc === lines && state._shTrk) return state._shTrk;
+  const byPair = new Map();
+  for (const rec of lineNetwork().values()) for (const s of rec.segs) {
+    const p = rec.sys + '|' + (s.a < s.b ? s.a + '|' + s.b : s.b + '|' + s.a);
+    let arr = byPair.get(p); if (!arr) byPair.set(p, arr = []);
+    arr.push(s.key);
+  }
+  state._shTrkSrc = lines;
+  return (state._shTrk = [...byPair.values()].filter(v => v.length > 1));
+}
 function segmentCollection() {
   const out = {};
   for (const [k, v] of Object.entries(loadCheckins().sg || {})) out[k] = Number(v && v.n) || 0;
+  // 同一段實體軌道走過就是走過,故讓共構的鍵互相認帳。刻意做在讀取端而不是寫入端:既有收集
+  // 立刻就對(不必重搭一次)、不改寫存檔也不推雲端;而且只補空鍵、不加總,成就用的 maxSeg 不受影響。
+  for (const keys of sharedTrackGroups()) {
+    let best = 0;
+    for (const k of keys) if (out[k] > best) best = out[k];
+    if (best) for (const k of keys) if (!out[k]) out[k] = best;
+  }
   return out;
 }
 // {段鍵→驗過定位的次數}——只有懸賞的分母吃這個。0 次的鍵直接不列,
@@ -15020,9 +15444,11 @@ function speedProfile(tr) {
   for (let i = 0; i < N; i++) {
     const t = t0 + (t1 - t0) * i / (N - 1);
     // 整趟曲線是「時刻表＋動力學」的性質,取樣一次就快取整趟——若讀含阻擋的位置,一次暫時的
-    // 阻擋(#17)會被烤進這條快取曲線,之後整個 session 都對不上。故走純表定軸,只保留既有的誤點回撥。
-    const dl = liveDelaySec(tr);
-    const a = trainPosAt(tr, t - dl), b = trainPosAt(tr, Math.min(t + 30, t1) - dl);
+    // 阻擋(#17)會被烤進這條快取曲線,之後整個 session 都對不上。故走純表定軸。
+    // 🔴 這裡不得再扣 liveDelaySec:曲線的 x 軸是純表定軸(t 從 t0 到 t1),而 drawSpark 的游標
+    // 吃的是 effTLive(tr),effTLive 已經扣過一次誤點 ⇒ 取樣時再扣一次就是扣兩次,且會被永久
+    // 快取進 tr._spdProf,錯多少取決於曲線是在誤點多少的時候建起來的。
+    const a = trainPosAt(tr, t), b = trainPosAt(tr, Math.min(t + 30, t1));
     v.push(a && b ? Math.min(haversineKm(a, b) / 30 * 3600, speedCapOf(tr)) : 0);  // 同 fpSpd:車種極速為硬上限
   }
   return (tr._spdProf = { v, t0, t1, max: Math.max(60, Math.ceil(Math.max(...v) / 20) * 20) });
@@ -15134,6 +15560,21 @@ function renderDelayRow() {
   el.innerHTML = `近30天平均誤點 ${a}分・準點 ${s.p}%（${s.d}天）` +
     (PLUS_ENABLED ? `<span class="fp-dhlink">誤點履歷 ›</span>` : '');
   el.title = `單日最大誤點 ${s.m} 分`;
+  el.hidden = false;
+}
+// 跟車鎖定畫面/動態島的通行證入口。這個功能原本是**不給用也不說**:liveActivityAllowed() 直接
+// 回 false,免費層從頭到尾看不到它存在(方案面板有列,但要先想到去開那個面板才看得到)。
+// 樣式與點擊回路照抄 renderDelayRow 的 fp-dhlink——那是專案自己的正確範本(專案唯一「有付費牆
+// 也講清楚」的既有案例),不另造一套 CTA 樣式。
+// 顯示條件刻意收窄成「只在真的用得到的人面前出現」:正在跟車＋原生殼有這個能力(網站沒有鎖定
+// 畫面這回事,LIVE_ACTIVITY_ENABLED 由原生殼注入)＋訂閱旗標開＋還沒訂閱。已訂閱者不看廣告
+// (他們看到的是卡片本身)。裝置低於 iOS 17.6 這件事 JS 側事前不知道(原生 start() 回 ios<17.6
+// 才知道),那是開卡當下的既有處理,不在這條入口的判準裡。
+function renderLaCta() {
+  const el = document.getElementById('fpLaCta'); if (!el) return;
+  const show = !!(state.followTrain && PLUS_ENABLED && LIVE_ACTIVITY_ENABLED && !plusIsActive());
+  if (!show) { el.hidden = true; el.textContent = ''; return; }
+  el.innerHTML = '鎖定畫面顯示這班車的倒數<span class="fp-dhlink">通行證 ›</span>';
   el.hidden = false;
 }
 
@@ -15291,6 +15732,7 @@ function showFollowPanel(tr) {
     ? '臺北 ⇄ 枋寮 永續來回 · 一輪 12 小時 · 永不到站'
     : `${first.name} → ${last.name} · 終點 ${fmtHM(last.arrSec % 86400)} 抵達`;
   renderDelayRow(); // 有快取即即時顯示;無則先隱藏,由 ensureDelayStats 到貨後補
+  renderLaCta();    // 同上一行的位置:換車/重開面板時重算(訂閱狀態變動由 plusApplyCustomerInfo 那條負責)
   if (tr.sys === 'tra_sched') ensureDelayStats(); // 只有台鐵才觸發載入,跟高鐵不打這支 API
   fp.hidden = false;
   syncFollowOnClass(); // §04c:跟隨欄現身,站名牌中線與露出地圖跟著換
@@ -16424,7 +16866,8 @@ async function setupLocalNotifications() {
 //    advance-on-query:查詢時就地推進,dt 上限 0.1s(未被查詢期間等同凍結,回前景/回視野再滑,不會瞬跳)。
 //    預設維持 v0718g:偏移上升鉗在模擬時間流速(位置不倒退)、下降 τ=1s 追回。
 //    所有捷運 live 校正都傳 motion profile:兩方向都用模擬時間速率限制,把誤差以 0.25–2× 段內標稱速度吸收；
-//    target 更新當下 adv=0,所以位置連續,站間也不會因校正完全停住或暴衝。台鐵不走此 profile。
+//    target 更新當下 adv=0,所以位置連續,站間也不會因校正完全停住或暴衝。台鐵也走此分支,但
+//    minRate=0(只鉗下降、上升維持原本的「位置恆不倒退」),見 TRA_MOTION_PROFILE。
 //    epoch=校正剛(重新)啟用(開機首拉/回看歸來):該瞬間 5 秒窗內首見或跨 epoch 的 entry 直接對齊目標,
 //    不做數十分鐘的凍結慢追;epoch 之中途才冒出的誤點(0→1)才走凍結追上。
 const _easedShift = new Map(); // key → {cur, at, sim, ep}
@@ -16432,6 +16875,15 @@ const _traGateEp = { on: false, ep: 0, at: 0 }, _metroGateEp = { on: false, ep: 
 const TRTC_MOTION_MIN_RATE = .25;
 const TRTC_MOTION_MAX_RATE = 2;
 const TRTC_MOTION_PROFILE = { minRate: TRTC_MOTION_MIN_RATE, maxRate: TRTC_MOTION_MAX_RATE };
+// 台鐵側:只鉗下降(追回誤點),不鉗上升。minRate=0 讓 rise=adv*(1-0)=adv,與改動前的無 motion
+// 上升分支逐字等價 ⇒ 準點的車與「誤點正在加大」的車行為零變化;真正被約束的只有「誤點被釋放」
+// 這一段——改動前它走 τ=1s 的指數收斂,而且吃的是真實時間 dt 不是模擬時間 adv,於是連暫停
+// (adv=0)都照樣移動,600 秒的誤點會在 3 秒多內畫完,換算數萬 km/h。
+// 「逐字等價」有一個例外:下面死區的判別式由 |cur|<.25 改成 cur===0(見該行註解)。只在 target===0
+// 時觸發,所以誤點加大的那一半不受影響;受影響的只有負偏移(早到車)滑回 0 的最後 0.25 秒,新行為
+// 是走到精確 0 才刪 entry,比舊的少一個 0.25 秒跳步。閘門在 verify_tra_motion 的 F(上升側恰 1×)。
+const TRA_MOTION_MAX_RATE = 2;   // 有效時間最多以 2× 前進 ⇒ 追回誤點時畫面最多跑標稱速度的 2 倍
+const TRA_MOTION_PROFILE = { minRate: 0, maxRate: TRA_MOTION_MAX_RATE };
 // 各線實際吃的是 metroMotion(ln)：同樣的 min/max，但 max 已先除掉該線梯形的巡航／平均倍率。
 // TRTC_MOTION_PROFILE 本身在出貨路徑上已無呼叫端，但 verify_all_metro_motion 的控制組要靠它
 // 組出「退回舊預設」的突變版本 —— 看到沒人用就刪掉的話，那支的突變會直接 throw。
@@ -16535,7 +16987,7 @@ function liveDelaySec(tr) {
   // 兩班共用同一個漸變條目——easedShift 有狀態,條目存在時不看 target 是誰傳的,於是林鐵那班讀到台鐵的
   // 誤點被推走(實測 730m),它自己的 target=0 又反過來把條目往 0 拉,兩班互相拉扯(台鐵誤點也跟著失真)。
   // 比照下方 metroShiftSec 的鍵作法。tr.sys 是穩定字串 id,跨 rebuild 不變。
-  return easedShift((tr.sys || 'tra_sched') + ':' + tr.train, target, gateEpoch(_traGateEp, on)); // 退場也經漸變滑出,不在門檻關閉時提前 return 0
+  return easedShift((tr.sys || 'tra_sched') + ':' + tr.train, target, gateEpoch(_traGateEp, on), TRA_MOTION_PROFILE); // 退場也經漸變滑出,不在門檻關閉時提前 return 0
 }
 async function pollLive() {
   const ls = state.schedSystems && state.schedSystems.find(s => s.live);
@@ -17140,7 +17592,10 @@ function applyTrtcOfficialRoster(boardPos) {
   // payload 整包原子換入；不根據 tripKey 過濾，也不用上一幀補這一幀缺的官方車。
   state.trtcOfficialRoster = { at: Number(boardPos.at), feedMode: 'official', sourceRevision: revision,
     vehicles: boardPos.vehicles.map(vehicle => ({ ...vehicle })), receivedEpoch: Date.now() / 1000,
-    held: !!boardPos.held, holdReason: boardPos.holdReason ? String(boardPos.holdReason) : null };
+    held: !!boardPos.held, holdReason: boardPos.holdReason ? String(boardPos.holdReason) : null,
+    // 訊號回來的那一輪，後端會把「畫面為什麼跳」一起送過來（哪幾條線、斷多久、清掉幾台）。
+    // 這是使用者明示要的：可以直接拿掉推估的車，但要跳通知說明跳動來自官方訊號。
+    recovery: boardPos.recovery && typeof boardPos.recovery === 'object' ? { ...boardPos.recovery } : null };
   const activeDisplay = new Set(state.trtcOfficialRoster.vehicles.map(vehicle =>
     `${vehicle.line}|${vehicle.vehicleId}`));
   for (const key of _trtcOfficialDisplay.keys()) if (!activeDisplay.has(key)) _trtcOfficialDisplay.delete(key);
@@ -17177,7 +17632,21 @@ function trtcOfficialCountdownText(etaEpoch, nowEpoch = Date.now() / 1000) {
   const sec = Math.max(0, Math.ceil(left));
   return Math.floor(sec / 60) + ':' + String(sec % 60).padStart(2, '0');
 }
-function applyTrtcOfficialBoard(rows, receivedAt = Date.now()) {
+// 官方擁擠度等級→色。分級語意由官方定義,我們只上色不重新分級;
+// 色票與小工具 MetroPalette.crowd 同值(sRGB 換算 hex),兩個介面要長一樣。
+function trtcOfficialCrowdColor(v) {
+  return v <= 1 ? '#4acc73' : v === 2 ? '#f2bf33' : v === 3 ? '#f07d33' : '#d94040';
+}
+function trtcOfficialCrowdHtml(dest) {
+  const cars = state.trtcOfficialBoard && state.trtcOfficialBoard.crowdByDest &&
+    state.trtcOfficialBoard.crowdByDest[dest];
+  // 沒資料也回【透明佔位】不回空字串——使用者回饋(08-14 第五輪):有無 bars 的列時間欄要對齊,
+  // 佔位是唯一不畫假資料又能對齊的做法(同小工具 38pt 佔位的邏輯);寬度鎖在 CSS .crowd。
+  if (!Array.isArray(cars) || !cars.length) return '<span class="crowd" aria-hidden="true"></span>';
+  return '<span class="crowd" title="車廂擁擠度（北捷官方）">' +
+    cars.map(v => `<i style="background:${trtcOfficialCrowdColor(Number(v))}"></i>`).join('') + '</span>';
+}
+function applyTrtcOfficialBoard(rows, receivedAt = Date.now(), trains = null) {
   const clean = [];
   for (const row of Array.isArray(rows) ? rows : []) {
     const rawEta = row && row.eta, rawAt = row && row.at;
@@ -17188,8 +17657,22 @@ function applyTrtcOfficialBoard(rows, receivedAt = Date.now()) {
     clean.push({ name, dest, eta, at, no: String(row && row.no || '') });
   }
   if (!clean.length) return null; // nonempty 但全壞＝本輪無可採資料；呼叫端保留上一份到逐列超齡
+  // 車廂擁擠度:同一 payload 的 trains[].cars(官方逐節資料,只有北捷高運量/文湖有)。
+  // join 語意與小工具 MetroBoardModel.crowdFor 完全同一套——同終點、有 cars 的第一台;
+  // 兩個介面(桌面小工具 vs App 看板)看到的必須是同一份,改 join 要兩邊一起改。
+  // 官方沒給就是沒有(文湖線 trains 無 dest 可 join,恆缺),不補、不猜。
+  const crowdByDest = {};
+  for (const t of Array.isArray(trains) ? trains : []) {
+    const dest = t && typeof t.dest === 'string' ? t.dest : '';
+    if (!dest || crowdByDest[dest]) continue;
+    const cars = t.cars;
+    if (Array.isArray(cars) && cars.length && cars.every(v => Number.isFinite(Number(v)))) {
+      crowdByDest[dest] = cars.map(Number);
+    }
+  }
   state.trtcOfficialBoard = {
     rows: clean,
+    crowdByDest,
     sourceAt: Math.max(...clean.map(row => row.at)),
     receivedAt: Number(receivedAt),
   };
@@ -17573,7 +18056,7 @@ async function pollTrtcLive() {
     let boardTouched = false;
     try {
       if (d && Array.isArray(d.board) && (!d.board.length || d.src === 'trtc')) {
-        if (d.board.length) boardTouched = !!applyTrtcOfficialBoard(d.board);
+        if (d.board.length) boardTouched = !!applyTrtcOfficialBoard(d.board, Date.now(), d.trains);
         else { clearTrtcOfficialBoard(); boardTouched = true; }
       }
       // missing／malformed 視同這一路暫時失敗：保留舊資料到每列自己的 at 超齡；明確 [] 才立即退回班表。
@@ -17679,6 +18162,9 @@ async function pollMetroLive() {
       if (!r.ok) throw new Error(r.status);
       const d = await r.json();
       if (Array.isArray(d.rows)) applyMetroLive(id, d.rows);
+      // 等車卡(Task 6)沿用同一次輪詢的原始回應(不另發 fetch);applyMetroLive 只取 shift 中位數,
+      // 逐列 dest/分鐘會被丟棄,這裡另存一份供開卡取值。
+      if (Array.isArray(d.rows)) state._metroLiveRaw[id] = { at: d.at, rows: d.rows, receivedAt: Date.now() };
     } catch (e) { /* 失敗保留舊 shift */ }
   }));
   updateMetroBadge();
@@ -17704,18 +18190,26 @@ function metroAlertFor(ln) {
 function updateMetroBadge() {
   const el = document.getElementById('metroBadge');
   if (!el) return;
-  if (OFFICIAL_ROSTER_ENABLED) {
+  // 🔴 名冊分支要與 pollTrtcLive 用同一道群組閘門:名冊會留在 state 裡跨群組存活,少了這道閘門,
+  //    切到「台」「高」(畫面上一條捷運都沒有)仍會顯示「官方即時」,北捷斷訊時甚至在高鐵分頁跳「官方中斷 N 分」。
+  //    閘門不成立時不是隱藏而是往下走舊路徑——「捷」只勾高捷時仍要看得到它自己的「看板校正」。
+  if (OFFICIAL_ROSTER_ENABLED && metroLivePool().some(isTrtcBoardLine)) {
     const roster = state.trtcOfficialRoster;
     if (!roster) { el.hidden = true; return; }
     const official = trtcOfficialRosterLive();
     el.hidden = false;
-    const held = official && !!roster.held;
-    el.classList.remove('anom');
+    // 🔴 續推狀態一律自己從名冊的 observedEpoch 算，不讀 roster.held——後端從來沒送過那個旗標，
+    //    2026-08-15 斷線 33 分鐘期間這顆徽章因此全程顯示「官方即時」，是整起事件最誤導人的一處。
+    const stale = official ? trtcOfficialStaleFeeds(roster, Date.now() / 1000) : [];
+    const held = stale.length > 0;
+    const mins = held ? Math.max(1, Math.round(Math.max(...stale.map(f => f.ageSec)) / 60)) : 0;
+    el.classList.toggle('anom', held); // 警示色:續推不是正常狀態,不能長得跟「資料稍舊」一樣
     el.classList.toggle('est', !official || held);
-    el.textContent = official ? (held ? '官方續推' : '官方即時') : '班表備案';
+    el.textContent = official ? (held ? `官方中斷 ${mins} 分` : '官方即時') : '班表備案';
     el.title = official
       ? (held
-        ? `北捷即時資料暫時讀不到，已知 ${roster.vehicles.length} 台列車沿原官方逐站時間繼續到終點`
+        ? `${stale.map(f => f.label).join('、')}即時資料已 ${mins} 分鐘沒有更新；`
+          + `畫面上 ${roster.vehicles.length} 台列車是依各站之間的固定行車時間往前推估的，位置與車站倒數都可能不準`
         : `畫面名冊與到站時刻來自北捷即時資料，共 ${roster.vehicles.length} 台`)
       : '尚未取得北捷即時名冊，或時鐘已離開「現在」，目前使用班表備案';
     return;
@@ -18210,6 +18704,57 @@ function selfAnomalyEntries() {
   }
   return out;
 }
+// 官方即時訊號中斷 → 這條講的是「畫面上的東西現在有多可信」，不是營運公告，所以排在最前面當頭條：
+// 2026-08-15 06:27～07:00 北捷斷 33 分鐘，位置被推到互相超車、車站倒數整個找不到車，而當時畫面上
+// 沒有任何一處告訴使用者發生了什麼。這條就是補這個洞（使用者要求：要更明顯，且要講清楚位置與倒數都不準）。
+function trtcOutageEntries() {
+  const feeds = trtcOfficialStaleFeeds(state.trtcOfficialRoster, Date.now() / 1000);
+  if (!feeds.length) return [];
+  // 只報畫面上真的看得到的線——台鐵分頁沒開全台同框時，捷運根本沒畫，報了只是雜訊
+  const visible = new Set();
+  if (state.mode === 'sched') { if (state.deco) for (const ln of (state.decoLines || [])) visible.add(ln.id); }
+  else {
+    const vis = state.freqSel || new Set(state.sysId ? [state.sysId] : []);
+    for (const ln of (state.lines || [])) if (vis.has(freqSysIdOf(ln))) visible.add(ln.id);
+  }
+  const hit = feeds.filter(f => f.lines.some(id => visible.has(id)));
+  if (!hit.length) return [];
+  const mins = Math.max(1, Math.round(Math.max(...hit.map(f => f.ageSec)) / 60));
+  return [{ self: true, outage: true, sig: 'trtc-outage', // 簽章刻意不含分鐘數,見 alertSig
+    title: hit.map(f => f.label).join('、') + `即時訊號中斷 ${mins} 分鐘：列車位置與車站倒數都可能不準`,
+    desc: `官方到站看板已經 ${mins} 分鐘沒有送出新資料。這段期間畫面上的列車是依各站之間的固定行車時間往前推估的，`
+      + `車站倒數也可能找不到車或停住不動——都可能與實際不符，但這不代表列車停駛。`
+      + `官方資料恢復後畫面會重新對齊官方位置，部分列車會因此往前跳或往後退。此為本站自動偵測，非官方公告。` }];
+}
+// 訊號恢復的那一下畫面會跳：續推中的位置被官方名單取代，接不回去的推估車直接消失。
+// 使用者裁示（2026-08-15）：訊號回來就以訊號為準、不能留多的車，但**必須跳通知**讓人知道
+// 這次跳動來自官方訊號，而不是站掛了或列車停駛。素材由後端在恢復輪算好帶上來（boardPos.recovery），
+// 前端只負責挑出「畫面上真的看得到的線」並說人話。
+function trtcRecoveryEntries() {
+  const rec = state.trtcOfficialRoster && state.trtcOfficialRoster.recovery;
+  const lines = rec && Array.isArray(rec.lines) ? rec.lines.map(String) : [];
+  if (!lines.length) return [];
+  const visible = new Set();
+  if (state.mode === 'sched') { if (state.deco) for (const ln of (state.decoLines || [])) visible.add(ln.id); }
+  else {
+    const vis = state.freqSel || new Set(state.sysId ? [state.sysId] : []);
+    for (const ln of (state.lines || [])) if (vis.has(freqSysIdOf(ln))) visible.add(ln.id);
+  }
+  const hit = lines.filter(id => visible.has(id));
+  if (!hit.length) return [];
+  const labels = [...new Set(hit.map(id => trtcFeedGroupOf(id).label))];
+  const mins = Number.isFinite(Number(rec.outageSec)) ? Math.max(1, Math.round(Number(rec.outageSec) / 60)) : null;
+  const removed = Number(rec.removed) || 0;
+  return [{ self: true, recovery: true, sig: `trtc-recovery:${rec.atEpoch}`, // 簽章綁恢復時刻,同一次只提醒一次
+    title: `${labels.join('、')}即時訊號已恢復：畫面剛依官方名單重新對齊`,
+    desc: `${mins ? `中斷約 ${mins} 分鐘期間，` : '訊號中斷期間，'}畫面上的列車是依各站之間的固定行車時間往前推估的。`
+      + `官方資料一回來，軌島就改以官方名單為準重新對齊，因此列車位置會出現一次跳動`
+      + (removed > 0
+        ? `，並移除了 ${removed} 台官方名單上已經沒有的推估列車。這不代表那些車停駛或發生事故——`
+          + `它們只是在中斷期間被推估出來、官方資料回來後對不上任何一班車。`
+        : '。')
+      + `目前畫面已回到官方即時資料。` }];
+}
 // 外部災害只是一個「去檢查」的理由，不是鐵路異常證據；文字必須把兩者分清楚。
 function hazardWatchEntries() {
   const watch = state.hazardWatch, list = watch && Array.isArray(watch.list) ? watch.list : [];
@@ -18235,7 +18780,12 @@ function activeAlertList() {
     const vis = state.freqSel || new Set(state.sysId ? [state.sysId] : []);
     official = ((state.metroAlert && state.metroAlert.list) || []).filter(a => !a.sys || vis.has(a.sys));
   }
-  return official.concat(hazardWatchEntries(), selfAnomalyEntries());
+  // 訊號中斷排在官方公告之前：橫幅只顯示 list[0] 的標題，而「你現在看到的位置是推估的」比任何
+  // 一則通阻公告更急著讓使用者知道——公告過期了還在，推估錯位是此刻正在誤導人。
+  // 恢復通知排在進行中的中斷之後、官方公告之前：中斷正在誤導人最急，剛跳完的畫面次之，
+  // 兩者都比「過期了還掛著」的通阻公告更需要被先看到。
+  return trtcOutageEntries().concat(trtcRecoveryEntries(), official, hazardWatchEntries(),
+    selfAnomalyEntries());
 }
 // 公告的常駐入口有兩種形態(2026-07-30 使用者回報後改版):
 //   桌面 = 右上角橫幅,可按 × 收起,同一批公告本次瀏覽不再跳出(換新公告會再出現)
@@ -18246,7 +18796,9 @@ function activeAlertList() {
 //    `.alert-banner:not([hidden]) ~ X`(xing-card/xing-help/board)特異度 0,3,0 會洩進手機、壓過手機
 //    base 的 0,1,0,而 display:none 的元素 `:not([hidden])` 照樣成立。設 hidden 那條鏈才會整條失效。
 // 已讀簽章用 sessionStorage(不是 localStorage):公告是當下狀況,關掉的意思是「這次看夠了」,不是永久靜音。
-function alertSig(list) { return list.map(a => (a.title || '') + '|' + (a.sig || a.start || '')).join('§'); }
+// 自帶 sig 的條目以 sig 為準、不看標題:訊號中斷那條的標題含分鐘數(每分鐘都在變),用標題當簽章會讓
+// 使用者按掉之後每分鐘又彈一次。沒有 sig 的官方公告維持原本「標題+起始時間」的簽章。
+function alertSig(list) { return list.map(a => a.sig ? '§sig:' + a.sig : (a.title || '') + '|' + (a.start || '')).join('§'); }
 function alertDismissed(list) {
   try { return list.length > 0 && sessionStorage.getItem('trainmap-alert-dismissed') === alertSig(list); } catch (e) { return false; }
 }
@@ -18310,6 +18862,7 @@ document.addEventListener('visibilitychange', () => { if (!document.hidden) poll
 pollHazard();
 
 function jumpToNow() {
+  state.followWrapStops = null; // 回到「現在」=離開重播:例外不得殘留,否則捲到開行日清晨會冒出昨晚不存在的班
   if (state.mode === 'sched') {
     setSimSec(nowSecOfDay(activeTz())); // 海外群組:回到該群當地的現在時刻
     setSpeed(1); // 「現在」=回到真實狀態:1× 才不會馬上漂走,誤點修正得以持續套用
@@ -19138,17 +19691,23 @@ function renderTrtcOfficialFreqBoard(el, st, lines, isDeco, view) {
   el._downKey = null; // 不讓 legacy 看板先前的 pointerdown 穿越到官方列
   const hasEstimated = view.groups.some(g => g.kind === 'legacy' && g.ln.times && g.ln.times.estimated);
   const body = view.groups.map(group => {
-    const lineLabel = (group.ln._sysLabel ? group.ln._sysLabel + ' ' : '') + (group.ln.name || group.ln.abbr || '');
+    // 標籤只寫線名不掛系統前綴(08-14 使用者:擁擠度格進來後「台北捷運」四個字把空間吃掉,
+    // 線名本身已足夠辨識)——這裡是北捷官方板,線名(淡水信義線/安坑輕軌/機場捷運)不會歧義。
+    const lineLabel = group.ln.name || group.ln.abbr || group.ln._sysLabel || '';
     if (group.kind === 'official') return group.rows.map(rec => {
       const join = rec.join;
       const followAttrs = join ? ` data-li="${join.li}" data-ci="${join.ci}" title="跟隨 往${escHtml(group.destName)} 班次"`
         : ' aria-disabled="true" title="官方到站時間；目前無法唯一對應動畫班次"';
       const genericLine = rec.ambiguousLine
-        ? (group.ln._sysLabel || '北捷') + (rec.candidates.length && rec.candidates.every(x => x.ln.id.startsWith('O_')) ? ' 中和新蘆線' : '')
+        ? (rec.candidates.length && rec.candidates.every(x => x.ln.id.startsWith('O_')) ? '中和新蘆線' : (group.ln._sysLabel || '北捷'))
         : lineLabel;
-      const linkNote = join ? '' : ' · 未連結動畫';
-      return `<div class="row" data-trtc-eta="${rec.row.eta}" data-trtc-at="${rec.row.at}"${followAttrs}><span class="dot" style="background:${rec.ambiguousLine ? '#8fa8c6' : group.ln.color}"></span>` +
-        `<b>往 ${escHtml(group.destName)}</b><span class="dest">${escHtml(genericLine + linkNote)}</span>` +
+      // 註記獨立成 span:手機寬度＋擁擠度格＋註記三者擠不下(375px 實測溢 51px),
+      // CSS 只在「窄螢幕且該列有 bars」時藏註記;桌面與無 bars 列照舊(title 仍在)。
+      const linkNote = join ? '' : '<span class="linknote"> · 未連結動畫</span>';
+      const crowdHtml = trtcOfficialCrowdHtml(rec.row.dest);
+      return `<div class="row${crowdHtml ? ' has-crowd' : ''}" data-trtc-eta="${rec.row.eta}" data-trtc-at="${rec.row.at}"${followAttrs}><span class="dot" style="background:${rec.ambiguousLine ? '#8fa8c6' : group.ln.color}"></span>` +
+        `<b>往 ${escHtml(group.destName)}</b><span class="dest">${escHtml(genericLine)}${linkNote}</span>` +
+        crowdHtml +
         `<span class="t">${trtcOfficialAbsoluteHM(rec.row.eta)}</span><span class="min">${trtcOfficialCountdownText(rec.row.eta, view.nowMs / 1000)}</span></div>`;
     }).join('');
     return group.rows.map(row => {
@@ -19164,7 +19723,10 @@ function renderTrtcOfficialFreqBoard(el, st, lines, isDeco, view) {
     if (ln.stations.some(s => trtcOfficialStationName(s.name) === trtcOfficialStationName(st.name))) sysNames.push(ln._sysLabel);
   });
   const canFollow = view.groups.some(group => group.kind === 'legacy' ? group.rows.length : group.rows.some(rec => rec.join));
+  // 進得了這個 render function 本身就代表本站有 mrt/trtc 官方板覆蓋(trtcOfficialBoardView 的
+  // stationLines 檢查已保證),等車卡固定 sys='trtc',不必再查一次 metroWaitSysForStation。
   el.innerHTML = `<h3>${escHtml(st.name)}${sysNames.map(n => `<span class="sys-chip">${escHtml(n)}</span>`).join('')}` +
+    metroWaitBoardHtml(st, 'trtc') +
     `<button class="board-star${fav ? ' on' : ''}" id="boardStar" title="${fav ? '移除最愛車站' : '加入最愛車站'}" aria-label="${fav ? '移除最愛車站' : '加入最愛車站'}">${railIcon('ui-favorite', fav ? 'ri-icon--fill' : '')}</button>` +
     `<button class="close" id="boardClose">×</button></h3>` + stnMetaHtml(st) + eventRowsHtml(st) +
     `<div class="sub">北捷班次直接顯示官方即時倒數 · ${canFollow ? '可點選的班次可跟隨動畫' : '目前班次未連結動畫'}${hasEstimated ? '（其他系統部分路線為班距推算）' : ''}</div>` +
@@ -19173,6 +19735,7 @@ function renderTrtcOfficialFreqBoard(el, st, lines, isDeco, view) {
   updateSheetOpenClass();
   el.querySelector('#boardClose').onclick = closeBoard;
   el.querySelector('#boardStar').onclick = () => toggleFavStation(st);
+  bindMetroWaitBoard(el, st, 'trtc', lines, isDeco);
   el.onpointerdown = event => {
     const row = event.target.closest('.row[data-li]');
     el._trtcDown = row ? { key: row.dataset.li + '/' + row.dataset.ci, gen: el._trtcRenderGen } : null;
@@ -19262,15 +19825,36 @@ function renderFreqBoard(el, st, lines, isDeco) {
     if ((!isDeco && !state.visible.has(ln.id)) || !ln.stations || !ln._sysLabel || sysNames.includes(ln._sysLabel)) return;
     if (ln.stations.some(s => s.name.replace(/臺/g, '台') === key)) sysNames.push(ln._sysLabel);
   });
+  // 這條路徑也涵蓋 mrt 站尚未有官方板資料可用時(時光機/剛開機還沒拉到)的結構性覆蓋——
+  // metroWaitSysForStation 只看站是否落在有官方即時資訊的系統上,不看當下資料有沒有,鈕仍會出現,
+  // 沒資料時點下去由 metroWaitStartFor 自己 toast(資料來源鐵則)。
+  const waitSys = metroWaitSysForStation(st, lines, isDeco);
+  // 這張看板涵蓋哪些線(站名逐字相符,與 sysNames 同一套判準)——訊號中斷提示只在真的踩到的線上顯示。
+  // 🔴 倒數本身就是受害者:2026-08-15 北捷斷線期間看板整個找不到車,而看板上一個字都沒提為什麼。
+  const boardLineIds = new Set();
+  lines.forEach(ln => {
+    if ((!isDeco && !state.visible.has(ln.id)) || !ln.stations) return;
+    if (ln.stations.some(s => s.name.replace(/臺/g, '台') === key)) boardLineIds.add(ln.id);
+  });
+  const staleHere = trtcOfficialStaleFeeds(state.trtcOfficialRoster, Date.now() / 1000)
+    .filter(f => f.lines.some(id => boardLineIds.has(id)));
+  const staleNote = staleHere.length
+    ? `<div class="sub stale">⚠ ${escHtml(staleHere.map(f => f.label).join('、'))}即時訊號中斷 `
+      + `${Math.max(1, Math.round(Math.max(...staleHere.map(f => f.ageSec)) / 60))} 分鐘：`
+      + `以下倒數與地圖上的列車位置都是依各站之間的固定行車時間推估的，可能與實際不符，也可能整段空著。`
+      + `這不代表列車停駛，請以月台看板為準。</div>`
+    : '';
   el.innerHTML = `<h3>${escHtml(st.name)}${sysNames.map(n => `<span class="sys-chip">${n}</span>`).join('')}` +
+    metroWaitBoardHtml(st, waitSys) +
     `<button class="board-star${fav ? ' on' : ''}" id="boardStar" title="${fav ? '移除最愛車站' : '加入最愛車站'}" aria-label="${fav ? '移除最愛車站' : '加入最愛車站'}">${railIcon('ui-favorite', fav ? 'ri-icon--fill' : '')}</button>` +
-    `<button class="close" id="boardClose">×</button></h3>` + stnMetaHtml(st) + eventRowsHtml(st) +
+    `<button class="close" id="boardClose">×</button></h3>` + stnMetaHtml(st) + eventRowsHtml(st) + staleNote +
     `<div class="sub">接下來的班車 · ${hasLive ? (allFresh ? '已依官方即時資訊校正' : '依稍早官方資料推估') : '依官方當日時刻表'} · 點班次跟隨${hasEstimated ? '（部分路線為班距推算）' : ''}</div>` +
     (body || '<div class="empty">此時段無停靠班次</div>');
   el.hidden = false;
   updateSheetOpenClass();
   el.querySelector('#boardClose').onclick = closeBoard;
   el.querySelector('#boardStar').onclick = () => toggleFavStation(st);
+  bindMetroWaitBoard(el, st, waitSys, lines, isDeco);
   // 點任一班次列 → 關看板、跟隨該班;防抖比照台鐵看板(pointerdown 先記,看板每 20 模擬秒重繪,click 補撈不到的列)。
   el.onpointerdown = e => {
     const row = e.target.closest('.row[data-li]');
@@ -19286,6 +19870,409 @@ function renderFreqBoard(el, st, lines, isDeco) {
     const trip = ln && ln._tt && ln._tt[ci];
     if (ln && trip) { closeBoard(); setFreqFollow({ ln, tr: trip }); }
   };
+}
+
+// ── 捷運等車卡(Live Activity 手動入口,Task 6):看板 h3「在這站等」鈕、開卡資料組裝、深連結接收 ──
+// 原生 plugin 契約(window.Capacitor.Plugins.RailMetroWait)見
+// .superpowers/sdd/2026-08-14-捷運小工具與等車卡/task-6-brief.md,JS 側只做三件事:
+//  (1) 判斷這一站長不長鈕、長哪個 sys 的鈕(2) 點鈕時把「看板當下顯示的那份官方資料」組成 payload
+//  呼叫 start/stop (3) 接原生殼點小工具回傳的 waitOpen 深連結。
+// 旗標刻意寫成函式、每次重讀,不比照 LIVE_ACTIVITY_ENABLED/NOTIFY_LOCAL_ENABLED 凍結成 const:
+// 那兩個既有旗標是原生殼在頁面腳本執行「前」就注入 window.RAIL_NATIVE_*,而本功能是真正的
+// Capacitor 自製 plugin(window.Capacitor.Plugins.RailMetroWait),註冊時機沒有同等時序保證;
+// 看板每 20 模擬秒重繪(renderBoard),函式版最慢 20 秒內會自動補上按鈕,不需要額外輪詢。
+function metroWaitEnabled() {
+  try { return !!(window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.RailMetroWait); }
+  catch (e) { return false; }
+}
+// 這一站落在哪個「有官方即時到站資訊」的系統上;trtc/krtc/tymc 一律用「本站名稱逐字相符
+// (僅 臺→台,不额外去尾站/車站)」比對 lines 裡的靜態站名——兩側都來自同一份 web 靜態資料,
+// 不需要、也不可以套用 trtcOfficialStationName() 那種為了比對「TDX 官方看板列」才要做的激進
+// 去尾正規化。去尾在這裡會把不同系統的巧合同名站誤判成同一站:機捷「三重站」去尾後與中和新蘆線
+// 「三重」(mrt,本身無尾碼)撞成同一個 key,但兩者是完全不同的物理站——實測踩到:openFreqStation
+// 開對了 tymc 的「三重站」board,這裡卻因撞名回了 'trtc',導致點下去被導去 metroWaitTrtcBundle
+// 而非 metroWaitLiveBundle('tymc',...),已用 tmp 診斷腳本逐步確認根因。台北車站等 mrt/tymc
+// 真共站站名兩側本來就是逐字相同(不靠去尾),故此處改嚴格比對不影響既有共站鈕的 trtc 優先行為。
+function metroWaitSysForStation(st, lines, isDeco) {
+  const nameKey = st.name.replace(/臺/g, '台');
+  for (const ln of lines || []) {
+    if ((!isDeco && !state.visible.has(ln.id)) || !ln.stations) continue;
+    if (!isTrtcBoardLine(ln)) continue;
+    if (ln.stations.some(s => s.name.replace(/臺/g, '台') === nameKey)) return 'trtc';
+  }
+  for (const ln of lines || []) {
+    if ((!isDeco && !state.visible.has(ln.id)) || !ln.stations) continue;
+    const sys = freqSysIdOf(ln);
+    if ((sys === 'krtc' || sys === 'tymc') && ln.stations.some(s => s.name.replace(/臺/g, '台') === nameKey)) return sys;
+  }
+  return null;
+}
+// 兩處看板 h3 共用的按鈕 HTML(v0717p 鐵則:必須在 sticky h3 內)。旗標關/這站沒有任何長鈕系統
+// 時整串不輸出(不用 locateBtn 那種 inline 藏法——看板本來就是每次動態重繪)。
+function metroWaitBoardHtml(st, sys) {
+  if (!sys || !metroWaitEnabled()) return '';
+  const on = !!(state.metroWait && state.metroWait.sys === sys && state.metroWait.station === st.name);
+  return `<button class="board-wait${on ? ' on' : ''}" id="boardWait" type="button" data-sys="${escHtml(sys)}">` +
+    `${on ? '結束追蹤' : '追蹤這站'}</button>`;
+}
+// 綁按鈕 click。stopPropagation 比照 boardNotify:h3 內本來就不在 .row[data-li] 上,容器層的
+// 通用列點擊 handler 靠 pointerdown 先清 _downKey 已經不會誤吃,這裡多一道防禦與既有寫法一致。
+function bindMetroWaitBoard(el, st, sys, lines, isDeco) {
+  const btn = el.querySelector('#boardWait');
+  if (!btn) return;
+  btn.onclick = e => {
+    e.stopPropagation();
+    const on = !!(state.metroWait && state.metroWait.sys === sys && state.metroWait.station === st.name);
+    if (on) metroWaitStop(); else metroWaitStartFromBoard(sys, st, lines, isDeco, btn);
+  };
+}
+// 北捷(含環狀線):回傳 {rows:[{dest,eta,lineLabel,color}...],dataAt} 或 null。
+// 資料來源鐵則——直接重算「看板當下顯示的那份官方資料」(與 renderTrtcOfficialFreqBoard 完全同一個
+// 函式 trtcOfficialBoardView,同一種排序),只取 kind==='official' 的列(legacy 列是排入同板的
+// 其他方向班表推算,不是官方,不可送)。方向選單要先依 dest 過濾再取前兩班,故 bundle 保留完整排序列;
+// 真正送入 metroWaitPayload 前才截兩列。eta/at 本身已是 epoch 秒,不需 ms→s 換算(見 trtcOfficialRowFresh)。
+function metroWaitTrtcBundle(st, lines, isDeco) {
+  const view = trtcOfficialBoardView(st, lines, isDeco);
+  if (!view) return null;
+  const rows = [];
+  for (const group of view.groups) {
+    if (group.kind !== 'official') continue;
+    for (const rec of group.rows) {
+      const ln = rec.display && rec.display.ln;
+      rows.push({
+        dest: String(rec.row.dest || ''),
+        eta: Math.round(Number(rec.row.eta)),
+        // 🔴 用語統一(2026-08-15 使用者裁示):卡上只給中文線名,不給內部代碼——
+        //    ln.id 是幾何線 id(如 O_XINZHUANG),曾直接漏到鎖屏卡上。
+        lineLabel: ln ? String(ln.name || '') || null : null,
+        color: ln && ln.color ? ln.color : null,
+      });
+    }
+  }
+  if (!rows.length) return null;
+  rows.sort((a, b) => a.eta - b.eta);
+  const dataAt = state.trtcOfficialBoard && Number.isFinite(state.trtcOfficialBoard.sourceAt)
+    ? Math.round(state.trtcOfficialBoard.sourceAt) : Math.round(Date.now() / 1000);
+  return { rows, dataAt };
+}
+// 站名→線物件(跨 state.systems/state.lines/state.decoLines 找),取 lineLabel 對應色碼用。
+// 比照既有 trtcOfficialRosterGeometryLine 的找法(index.html 附近),krtc/tymc 沒有等價函式故新寫。
+function metroWaitFindLine(id) {
+  for (const sys of state.systems || []) {
+    const found = sys.data && Array.isArray(sys.data.lines) && sys.data.lines.find(l => l && l.id === id);
+    if (found) return found;
+  }
+  for (const pool of [state.lines, state.decoLines]) {
+    const found = (pool || []).find(l => l && l.id === id);
+    if (found) return found;
+  }
+  return null;
+}
+// 高捷/機捷:回傳 {rows:[{dest,minutes,lineLabel,color}...],dataAt} 或 null。
+// 讀 pollMetroLive 保留的最近一次原始回應(state._metroLiveRaw,不另發 fetch——資料來源鐵則),
+// 只採 st===0(正常營運)且 e 非 null 的列(與既有 applyMetroLive 的樣本口徑一致);
+// 資料過舊(>150 秒)視同沒有官方資訊;同北捷 bundle 保留完整排序列供方向選單先過濾。
+function metroWaitLiveBundle(sys, st) {
+  const raw = state._metroLiveRaw && state._metroLiveRaw[sys];
+  if (!raw || !Array.isArray(raw.rows)) return null;
+  const parsedAt = Date.parse(raw.at);
+  const dataAt = Number.isFinite(parsedAt) ? Math.round(parsedAt / 1000) : Math.round((raw.receivedAt || 0) / 1000);
+  if (!Number.isFinite(dataAt) || Date.now() / 1000 - dataAt > 150) return null;
+  const key = st.name.replace(/臺/g, '台');
+  const rows = [];
+  for (const row of raw.rows) {
+    if (row.st !== 0 || row.e == null) continue;
+    if (String(row.s || '').replace(/臺/g, '台') !== key) continue;
+    const mapped = (METRO_LIVE_LINES[row.op] || {})[row.l];
+    const lineId = mapped && mapped[0] || null;
+    const ln = lineId ? metroWaitFindLine(lineId) : null;
+    // 同北捷 bundle:lineLabel 只給中文線名;查不到線物件寧可空白也不漏內部 id。
+    rows.push({ dest: String(row.d || ''), minutes: Number(row.e), lineLabel: ln ? String(ln.name || '') || null : null, color: ln && ln.color ? ln.color : null });
+  }
+  if (!rows.length) return null;
+  rows.sort((a, b) => a.minutes - b.minutes);
+  return { rows, dataAt };
+}
+// 組原生 plugin 的 start() payload。精度誠實鐵則:trtc 只送 nextEta/secondEta(絕對 epoch 秒)、
+// nextMinutes/secondMinutes 恆 null;krtc/tymc 相反——絕不把分鐘換算成 eta、絕不拿分鐘冒充秒級。
+// crowd:與看板同一份 crowdByDest(applyTrtcOfficialBoard 的 join,語意同小工具 crowdFor);
+// krtc/tymc 官方沒有逐節資料,恆 null,不准造。
+function metroWaitPayload(sys, st, bundle) {
+  const isTrtc = sys === 'trtc';
+  const a = bundle.rows[0], b = bundle.rows[1] || null;
+  const crowd = isTrtc && state.trtcOfficialBoard && state.trtcOfficialBoard.crowdByDest
+    ? state.trtcOfficialBoard.crowdByDest[a.dest] || null : null;
+  return {
+    sys, station: st.name, lineLabel: a.lineLabel, color: a.color,
+    nextEta: isTrtc ? a.eta : null,
+    nextMinutes: isTrtc ? null : a.minutes,
+    nextDest: a.dest,
+    secondEta: b && isTrtc ? b.eta : null,
+    secondMinutes: b && !isTrtc ? b.minutes : null,
+    secondDest: b ? b.dest : null,
+    crowd,
+    dataAt: bundle.dataAt,
+    notice: null,
+  };
+}
+// 讀一份可開卡的官方 bundle。手點與深連結共用同一套冷啟動補抓,差別只在手點拿到資料後可能開方向選單。
+async function metroWaitReadBundle(sys, st, lines, isDeco) {
+  const readBundle = () => sys === 'trtc' ? metroWaitTrtcBundle(st, lines, isDeco) : metroWaitLiveBundle(sys, st);
+  let bundle = readBundle();
+  // 小工具深連結冷開 App 時,輪詢常常還沒跑完第一輪——「還沒到」不是「沒有」,直接 toast
+  // 「沒有官方班次資訊」是誤導(模擬器實測:點小工具進來十之八九先吃這一發)。補救=觸發既有
+  // 輪詢再重讀,最多三輪(同一條管線,不另建 fetch)。注意兩支 poll 都有防重入/document.hidden
+  // 閘,await 到的可能是 no-op ⇒ 不能只信一次 await,要「等一拍→重讀」的有界重試。
+  for (let i = 0; i < 3 && !bundle; i++) {
+    try { await (sys === 'trtc' ? pollTrtcLive() : pollMetroLive()); } catch (e) {}
+    if (!(bundle = readBundle())) { await new Promise(r => setTimeout(r, 1200)); bundle = readBundle(); }
+  }
+  return bundle;
+}
+let metroWaitPickerDraft = null;
+function metroWaitClosePicker(restoreFocus = true) {
+  const modal = document.getElementById('metroWaitPicker');
+  const opener = metroWaitPickerDraft && metroWaitPickerDraft.opener;
+  if (modal) modal.hidden = true;
+  metroWaitPickerDraft = null;
+  if (restoreFocus && opener && opener.isConnected) { try { opener.focus(); } catch (e) {} }
+}
+function metroWaitChoiceTime(sys, row) {
+  return sys === 'trtc' ? trtcOfficialAbsoluteHM(row.eta) : Number(row.minutes) + ' 分';
+}
+function metroWaitOpenPicker(sys, st, lines, isDeco, bundle, opener) {
+  const modal = document.getElementById('metroWaitPicker'), choices = document.getElementById('metroWaitPickerChoices');
+  if (!modal || !choices) return;
+  const seen = new Set(), directions = [];
+  for (const row of bundle.rows) {
+    if (seen.has(row.dest)) continue;
+    seen.add(row.dest); directions.push({ dest: row.dest, row });
+  }
+  // 時長每次開單重設 30:上一次選 90 不默默沿用,選單重開就回預設,誤觸成本最低。
+  metroWaitPickerDraft = { sys, st, lines, isDeco, bundle, opener, directions, durationMin: 30 };
+  for (const b of document.querySelectorAll('#metroWaitDurs .metro-wait-dur')) {
+    b.classList.toggle('on', b.dataset.waitDur === '30');
+  }
+  // 單方向站(環狀線端點類)沒得選方向,但時長仍要選 ⇒ 方向段落整段收起,只剩一顆「開始追蹤」。
+  const multi = directions.length > 1;
+  const secDir = document.getElementById('metroWaitPickerSecDir');
+  if (secDir) secDir.hidden = !multi;
+  choices.innerHTML = multi
+    ? '<button class="metro-wait-choice on" type="button" data-wait-choice="all" aria-label="最快一班，全部方向">' +
+      '<span class="metro-wait-choice-label">最快一班（全部方向）</span></button>' + directions.map((d, i) =>
+        '<button class="metro-wait-choice" type="button" data-wait-choice="' + i + '">' +
+          '<span class="metro-wait-choice-label">往' + escHtml(d.dest) + '</span>' +
+          '<span class="metro-wait-choice-dash">——</span>' +
+          '<span class="metro-wait-choice-time">' + escHtml(metroWaitChoiceTime(sys, d.row)) + '</span>' +
+        '</button>').join('')
+    : '<button class="metro-wait-choice on" type="button" data-wait-choice="all">' +
+      '<span class="metro-wait-choice-label">開始追蹤 往' + escHtml(directions[0].dest) + '</span>' +
+      '<span class="metro-wait-choice-dash">——</span>' +
+      '<span class="metro-wait-choice-time">' + escHtml(metroWaitChoiceTime(sys, directions[0].row)) + '</span></button>';
+  modal.hidden = false;
+  requestAnimationFrame(() => { const first = choices.querySelector('.metro-wait-choice'); if (first) first.focus(); });
+}
+async function metroWaitStartFromBoard(sys, st, lines, isDeco, opener) {
+  if (!metroWaitEnabled()) return;
+  const bundle = await metroWaitReadBundle(sys, st, lines, isDeco);
+  if (!bundle) { showToast('這一站現在沒有官方班次資訊'); return; }
+  // 08-14 追蹤改版:一律開選單——時長(30/60/90)一定要經手,單方向只是把方向段落收起。
+  metroWaitOpenPicker(sys, st, lines, isDeco, bundle, opener);
+}
+// dest===null 是「最快一班(全部方向)」與深連結的既有路徑;指定 dest 時必須先過濾再取兩班。
+// durationMin:追蹤時長(30/60/90),深連結不經選單=預設 30。原生端據此算 endAt 印「追蹤至」;
+// 到點自動收卡在零推播階段由 metroWaitSyncFromNative 兜底,推播鏈上線後改由伺服器準時收。
+async function metroWaitStartFor(sys, st, lines, isDeco, dest = null, sourceBundle = null, durationMin = 30) {
+  const p = window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.RailMetroWait;
+  if (!p) return; // 旗標關按鈕不會出現,這裡只是防禦
+  const bundle = sourceBundle || await metroWaitReadBundle(sys, st, lines, isDeco);
+  if (!bundle) { showToast('這一站現在沒有官方班次資訊'); return; }
+  const rows = (dest == null ? bundle.rows : bundle.rows.filter(row => row.dest === dest)).slice(0, 2);
+  if (!rows.length) { showToast('這一站現在沒有官方班次資訊'); return; }
+  const payload = metroWaitPayload(sys, st, { rows, dataAt: bundle.dataAt });
+  payload.durationMin = durationMin;
+  // dest 一併送給原生只是為了原樣回傳給 JS 的 waitPushToken 比對?不是——原生不需要它。
+  // 真正需要它的是【伺服器】,而它從 state.metroWait 拿(見 metroWaitBind)。這裡不送。
+  // key:認出「等一下回來的那顆 token 屬於哪一張卡」。換站很快時舊卡的 token 可能晚到,
+  // 沒有 key 就會把舊 token 交上去、伺服器推到一張已經被收掉的卡(RailLiveActivityPlugin 走過)。
+  const key = sys + '|' + st.name + '|' + (dest == null ? '' : dest) + '|' + Date.now();
+  metroWaitUnbind();          // 換站:先註銷上一張卡的交班(原生 start 會自動收掉舊卡)
+  _mwKey = key;               // 🔴 必須在 p.start() 之前設好:token 可能比 start 的 resolve 先回來
+  payload.key = key;
+  let res;
+  try { res = await p.start(payload); } catch (e) { res = { ok: false, why: String((e && e.message) || e) }; }
+  if (res && res.ok) {
+    // endAt 以原生回傳的為準(卡片上真的印著的那個值);舊殼沒回這一欄時才自己算。
+    const endAt = Number(res.endAt) || Math.round(Date.now() / 1000) + durationMin * 60;
+    state.metroWait = { sys, station: st.name, dest, endAt };
+    // token 先到、bind 那時因為 state 還沒設好而早退的情況,在這裡補打一次。
+    if (_mwPendingToken.key === key) metroWaitBind(_mwPendingToken.token, key);
+  } else {
+    _mwKey = '';              // 開卡失敗:清掉 key,晚到的 token 不會被當成有效卡交班
+    showToast(res && res.why === 'disabled' ? '請到 iOS 設定開啟「即時動態」才能顯示等車卡' : '開卡失敗，請稍後再試');
+  }
+  refreshMetroWaitButton();
+}
+async function metroWaitStop() {
+  const p = window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.RailMetroWait;
+  state.metroWait = null; // 換站直接呼叫 start 即可(原生端保證單卡,自動收舊卡);這裡只服務使用者主動按「結束追蹤」
+  metroWaitUnbind();      // 伺服器那一列要一起清掉,否則它會繼續推給一張已經不存在的卡
+  refreshMetroWaitButton();
+  if (p) { try { await p.stop(); } catch (e) {} }
+}
+// ── 推播交班:把 token 交給伺服器,之後由它每分鐘接續班次、追蹤時段到點推 end 收卡 ──────
+// 🔴 這整段是【純附加能力】:任何一步失敗(沒網路、伺服器拒收、根本沒拿到 token)都只讓卡片
+//    退回原本的零推播行為——倒數照樣自走,只是不會自己接下一班。之所以敢讓它靜默退化,是因為
+//    卡片上那句說明綁在 ContentState.pushed(只有伺服器真的推過才是 true),退化時它會如實
+//    寫「卡片不會自己接下一班」,不會變成騙人(這是靜默退化與靜默 gate 的差別)。
+let _mwEpoch = 0;   // 每次收卡/換站遞增。飛行中的 bind 回來時比對,認得出自己已經被取消
+let _mwToken = '';  // 目前已交班的 token(收卡時要拿它送 unbind)
+let _mwKey = '';    // 目前這張卡的 key,與原生 waitPushToken 事件帶回來的比對
+// 🔴 token 與 state.metroWait 誰先到沒有保證:notifyListeners(retainUntilConsumed) 讓事件可能
+//    在 p.start() 的 resolve 之前就進來,那時 endAt 還不知道、bind 送不出去。先存起來,
+//    start 拿到回應後再補打一次(兩條路徑都會走到 metroWaitBind,它自己擋重複)。
+let _mwPendingToken = { key: '', token: '' };
+function metroWaitUnbindToken(token) {
+  if (!token) return;
+  fetch(apiUrl('api/metro-wait/unbind'), {
+    method: 'POST', headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ token }),
+  }).catch(() => {});   // 失敗靜默:伺服器那一列最遲會在 expire_at 被 cron 清掉
+}
+function metroWaitUnbind() {
+  _mwEpoch++;                       // 先讓飛行中的 bind 過期,再送註銷(順序與 laUnbind 一致)
+  const token = _mwToken;
+  _mwToken = ''; _mwKey = ''; _mwPendingToken = { key: '', token: '' };
+  metroWaitUnbindToken(token);
+}
+async function metroWaitBind(token, key) {
+  const s = state.metroWait;
+  if (!token || key !== _mwKey || !s || !s.endAt) return;  // 舊卡的 token、或 state 還沒設好
+  if (_mwToken === token) return;                          // 已經交過班,不重打
+  const myEpoch = _mwEpoch;
+  try {
+    const r = await fetch(apiUrl('api/metro-wait/bind'), {
+      method: 'POST', headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        token, sys: s.sys, station: s.station,
+        // null＝「最快一班(全部方向)」。伺服器每分鐘要重做一次前端開卡時做過的方向過濾,
+        // 所以這個條件必須持久化,不能只活在開卡那一瞬間的 JS 變數裡。
+        dest: s.dest == null ? null : String(s.dest),
+        // 🔴 用原生回傳的 endAt(卡片上真的印著的那個值),不自己重算——見 plugin 那條註解。
+        endAt: s.endAt,
+      }),
+    });
+    if (!r.ok) return;                 // 後端拒絕:不標記已交班,收卡時也就不會多送一發 unbind
+    if (myEpoch !== _mwEpoch) {        // 回應回來之前卡已經收掉:伺服器那列現在是孤兒,補一發清掉
+      metroWaitUnbindToken(token);     // (這裡是唯一還記得住這顆 token 的地方,_mwToken 已被清空)
+      return;
+    }
+    _mwToken = token;
+  } catch (e) { /* 失敗靜默:卡片維持零推播行為 */ }
+}
+// 與原生對帳:「結束」鈕(LiveActivityIntent)與鎖屏左滑清除都發生在 JS 看不到的地方,
+// 回前景與每分鐘各對一次,讓看板鈕文案跟真實卡況一致;追蹤時段走完而 App 剛好活著就順手收卡
+// (零推播階段的兜底——推播鏈上線後由伺服器到點準時收)。status 不存在(舊殼/測試 stub)就整段跳過。
+async function metroWaitSyncFromNative() {
+  const p = window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.RailMetroWait;
+  if (!p || !p.status) return;
+  let res;
+  try { res = await p.status(); } catch (e) { return; }
+  if (!res || !res.active) {
+    // 卡片已經不在了(使用者按了卡上的「結束」、鎖屏左滑清除、或伺服器推 end 收掉)。
+    // 前兩者都發生在 JS 看不到的地方,伺服器那一列會變成孤兒 ⇒ 這裡順手註銷。
+    // 第三種情況伺服器自己已經刪過列,unbind 是冪等的,重複送無害。
+    if (_mwToken) metroWaitUnbind();
+    if (state.metroWait) { state.metroWait = null; refreshMetroWaitButton(); }
+    return;
+  }
+  // dest 不在原生的 status 回傳裡(它不進 attributes),同一張卡就沿用記憶中的值;
+  // 站或系統換了(或 App 重啟後根本沒有記憶)才歸 null。這一欄只服務「重新交班」,
+  // 而重新交班只會發生在新卡上,所以歸 null 不會讓既有的卡跑錯方向。
+  const prevWait = state.metroWait;
+  const sameCard = !!(prevWait && prevWait.sys === res.sys && prevWait.station === res.station);
+  state.metroWait = { sys: res.sys, station: res.station,
+    dest: sameCard ? prevWait.dest : null, endAt: Number(res.endAt) || null };
+  if (state.metroWait.endAt && Date.now() / 1000 > state.metroWait.endAt) { metroWaitStop(); return; }
+  refreshMetroWaitButton();
+}
+// 開卡/收卡是跨語言呼叫,不能等下一次 20 模擬秒的看板重繪才回饋——比照 toggleFavStation 對
+// #boardStar 的即時 DOM 補丁,但用 state.boardStation(目前真正開著的板)而非閉包捕捉的 st 判斷
+// 「開/關」,避免非同步呼叫尚未回來、使用者已切到別站時把文案套錯站。
+function refreshMetroWaitButton() {
+  const btn = document.getElementById('boardWait');
+  if (!btn) return;
+  const sys = btn.dataset.sys;
+  const cur = state.boardStation;
+  const on = !!(state.metroWait && cur && state.metroWait.sys === sys && state.metroWait.station === cur.name);
+  btn.textContent = on ? '結束追蹤' : '追蹤這站';
+  btn.classList.toggle('on', on);
+}
+// 站名(小工具端正規化字串)→ web 站物件{name,lat,lon,sys},給 waitOpen 深連結與地圖置中用。
+// 先在目前已載入的池子找(使用者可能剛好就在合適的分頁,不必打斷);找不到才切到「捷運與輕軌」
+// 群組(mrt/krtc/tymc 三個系統的共同集合,見 GROUPS 的 metro 群組)再找一次。全部落空回 null。
+function metroWaitFindStation(name) {
+  const key = String(name || '').replace(/臺/g, '台');
+  if (!key) return null;
+  const search = pool => {
+    for (const ln of pool || []) for (const s of ln.stations || []) {
+      if (s.name.replace(/臺/g, '台') === key) return s;
+    }
+    return null;
+  };
+  let hit = state.mode !== 'sched' ? search(state.deco ? state.decoLines : state.lines) : null;
+  if (!hit) {
+    const g = GROUPS.find(x => x.id === 'metro');
+    if (g && state.systems.length) { selectGroup(g); hit = search(state.lines); }
+  }
+  return hit ? { name: hit.name, lat: hit.lat, lon: hit.lon, sys: state.deco ? 'deco' : 'freq' } : null;
+}
+let _metroWaitListening = false;
+// waitOpen:小工具點進來的深連結,boot 時掛(僅原生殼有此 plugin)。station 是小工具端的正規化站名,
+// 對回 web 站物件用既有 replace(/臺/g,'台') 寬鬆比對;對不回就 toast 說明並只切到捷運群組地圖,
+// 不拋例外炸 boot——這裡外層包 try/catch 是最後一道防線。
+function ensureMetroWaitListener() {
+  if (_metroWaitListening) return;
+  const p = window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.RailMetroWait;
+  if (!p || !p.addListener) return;
+  _metroWaitListening = true;
+  p.addListener('waitOpen', async evt => {
+    try {
+      // 🔴 冷啟動閘門:retainUntilConsumed 讓這個事件在 listener 掛上的「瞬間」就進來,
+      //    而此刻 boot 的資料載入/首繪還要好幾秒——太早動作,開的看板會被首繪蓋掉、
+      //    poll 也因 document.hidden/系統未載而三輪全空(模擬器冷啟動實測:板沒開、卡沒開)。
+      //    判準用 boot 完成旗標 state.ready(不可用 state.lines——sched 群組它恆空,會卡滿 20 秒),
+      //    再多一拍讓首繪落定;超時(20s)就照常執行,不吞事件。
+      for (let i = 0; i < 66 && (document.hidden || !state.ready); i++) {
+        await new Promise(r => setTimeout(r, 300));
+      }
+      await new Promise(r => setTimeout(r, 600));
+      // 通行證閘門的 CTA 卡(railisland://pass):沒有站可開,直接把人送到方案面板。
+      // 走與工具列同一個入口 plusOpen(),來源標成 widget 方便日後看轉換來自哪裡。
+      if (evt && evt.view === 'pass') { plusOpen('widget'); return; }
+      const sys = evt && evt.sys, station = evt && evt.station;
+      const st = metroWaitFindStation(station);
+      if (!st) {
+        showToast('找不到「' + escHtml(String(station || '')) + '」，請手動搜尋車站');
+        return;
+      }
+      openBoard(st);
+      map.panTo(focusCenter(st.lat, st.lon));
+      metroWaitStartFor(sys, st, state.lines, state.deco);
+    } catch (e) { console.error('waitOpen 深連結處理失敗', e); }
+  });
+  // 推播 token:原生拿到就送過來(可能【多次】輪替,不是一次就結束)。先存起來再嘗試交班——
+  // 這個事件可能比 p.start() 的 resolve 更早到,那時 state.metroWait 還沒設好、endAt 還不知道,
+  // metroWaitBind 會早退,由 metroWaitStartFor 拿到回應後用 _mwPendingToken 補打。
+  p.addListener('waitPushToken', evt => {
+    const token = evt && evt.token, key = evt && evt.key;
+    if (!token || key !== _mwKey) return;   // 舊卡的 token 晚到:丟掉,不可以交上去
+    _mwPendingToken = { key, token };
+    Promise.resolve(metroWaitBind(token, key)).catch(() => {});
+  });
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) metroWaitSyncFromNative(); });
+  setInterval(metroWaitSyncFromNative, 60000);
+  metroWaitSyncFromNative();
 }
 
 // ── 尖峰流量分析 ──
@@ -19807,6 +20794,19 @@ const HELP_GROUPS = [
       one: '跟著車的時候可以排提醒，快到站前手機會響。',
       steps: ['先跟一班車', '卡片上的「提醒」選要提醒的站', '「更多」→「已排提醒」可以查看與取消'],
       tip: '提醒依時刻表與即時誤點推算，實際到站請以現場為準。', try: 'notify' },
+    // 小工具與等車卡拆兩節:使用者要問的是兩個不同的問題(桌面上那張卡怎麼來／在月台上等車怎麼用),
+    // 而且一個要出 App 去主畫面設定、一個在 App 內按一顆鈕。avail 都掛 metroWaitEnabled()——
+    // 小工具 extension 與 RailMetroWait plugin 同一顆 App 建置一起進來,舊版 App 與網頁端兩節都不長。
+    // 刻意不寫「長按 → ＋ → …」的逐步:加入小工具的入口在 iOS 18 從左上角「＋」改成「編輯 ▸ 加入小工具」,
+    // 寫死會對一半使用者是錯的(本 App 最低支援 iOS 15),故只講「加入小工具的入口」。
+    { key: 'metrowidget', ic: '桌', nm: '捷運小工具（主畫面／鎖定畫面）', badge: 'App', avail: () => metroWaitEnabled(),
+      one: '把捷運站放上主畫面或鎖定畫面，不開 App 就看得到下一班往哪裡、還有幾分鐘。',
+      steps: ['長按主畫面空白處進入編輯，從加入小工具的入口搜尋「軌島」', '選捷運小工具，再挑一個車站；鎖定畫面也放得下', '想放多站，或用「自動（最近的站）」讓它跟著你移動換站，需要軌島通行證（免費可設定一站）'],
+      tip: '還有一張「鐵路＋捷運看板」大卡，把台鐵、高鐵與捷運的發車資訊列在同一張。點小工具會直接開啟軌島到那一站。' },
+    { key: 'metrowait', ic: '候', nm: '在這站等車：鎖定畫面倒數', badge: 'App', avail: () => metroWaitEnabled(),
+      one: '在月台上等車時，把這一站的下一班倒數放上鎖定畫面與動態島，不用一直把 App 開著。',
+      steps: ['點北捷、高捷或機捷的車站打開看板', '按站名下方的「追蹤這站」，選方向與要追蹤多久（30／60／90 分鐘）', '車進站自動換成下一班，時間到自動收起'],
+      tip: '倒數依官方即時到站資訊更新。這項不需要通行證。', try: 'board' },
     { key: 'xing', ic: '平', nm: '平交道', tg: 'xingBtn',
       one: '全台 415 處台鐵平交道，看接下來哪班車會通過。',
       steps: ['「更多」→ 打開「平交道記號」', '把地圖拉近就看得到記號', '點任一平交道，看接下來通過的列車與倒數'],
@@ -19818,7 +20818,7 @@ const HELP_GROUPS = [
       steps: ['桌面按工具列的「通行證」、手機從「更多」→「軌島通行證」，看裡面有哪些內容',
         '訂閱在軌島 App 內完成，網站不收費',
         '在網站用同一個軌島帳號登入，App 訂的資格就會生效（面板裡的「已經在 App 訂閱了？登入以同步」）'],
-      tip: '通行證內容：台鐵列車的誤點履歷（回溯 90 天的逐日紀錄）、收藏與完乘紀錄跨裝置雲端同步、行程分享、在 App 匯入 Google Maps 已儲存清單、App 非跟車時的衛星高解析圖磚，以及 iOS 17.6 以上可用的跟車鎖定畫面與動態島即時動態。',
+      tip: '通行證內容：台鐵列車的誤點履歷（回溯 90 天的逐日紀錄）、iPhone 桌面與鎖定畫面的捷運小工具放多站或用「自動（最近的站）」跟著你移動換站（免費可設定一站）、收藏與完乘紀錄跨裝置雲端同步、行程分享、在 App 匯入 Google Maps 已儲存清單、App 非跟車時的衛星高解析圖磚，以及 iOS 17.6 以上可用的跟車鎖定畫面與動態島即時動態。',
       try: 'plus' },
   ]},
   { key: 'c', name: '模式與外觀', open: false, secs: [
@@ -20494,6 +21494,7 @@ function setupMapTools() {
       state.basemap = state.basemap === 'sat' ? 'map' : 'sat';
       try { localStorage.setItem('trainmap-basemap', state.basemap); } catch (e) {}
       setBasemap();
+      maybeSatPlusNotice(); // 只掛在【點擊】上:setBasemap() 開機還原時也會跑,掛那裡等於一開 App 就跳
     };
   } else satBtn.style.display = 'none';
   // 軌道顯示三段(自動/淡化/隱藏)住進「軌道與路線」告示卡;「軌」鈕改為開關面板
@@ -20785,6 +21786,7 @@ async function boot() {
   // 開機自動定位(原生 App)要盡早發起,才能與底下整串資料載入並行、把等待藏起來。
   // 不 await:定位回不回得來、幾秒回來都不該卡住開機;結果晚點在落點決定處接。
   startBootGeo();
+  ensureMetroWaitListener(); // 捷運等車卡(Task 6)深連結監聽,boot 時掛(僅原生殼有此 plugin,web/PWA 無操作)
   cv = document.getElementById('overlay'); ctx = cv.getContext('2d');
   // zoomAnimation:true —— 縮放走 Leaflet 250ms CSS 平滑補間(舊圖磚縮放到位、新圖磚淡入),不再「瞬間跳格→
   // 舊圖磚被丟、新圖磚還沒到→畫面消失一下下」(TestFlight 回報)。overlay 畫布在 Leaflet pane 體系外、以
@@ -21335,6 +22337,12 @@ async function boot() {
   state.stnClassMap = await fetchJSON('./data/tra_station_class.json') || {};
   // 台鐵各站地址(TDX Rail/TRA/Station);key 為「台」正規化站名,feature 欄之後補
   state.stnInfoMap = await fetchJSON('./data/tra_station_info.json') || {};
+  // 台鐵各站月台幾何(scripts/fetch_tra_platforms.mjs 由 OSM 產):單站打卡判「人在不在這座站」用。
+  // 缺檔 → checkinJudge 全數退回站等半徑,行為與 2026-08-14 之前完全相同。
+  // stations＝OSM 實測到的月台幾何;derived＝OSM 沒畫月台的站,用列車停車點沿路線走「該站等的
+  // 中位月台長」推出來的。判定不分兩者——反正都與站等半徑取聯集,推歪的代價有上界(只會多給章)。
+  const pf = await fetchJSON('./data/tra_platforms.json');
+  state.stnPlatforms = pf ? { ...pf.stations, ...pf.derived } : null;
   // StationID → 站名反查表(stnInfoMap 是站名→資訊,方向相反):今日台鐵動態的 sta 欄位是 StationID,靠這張表轉中文站名
   state.stnIdToName = {};
   for (const s of Object.values(state.stnInfoMap)) if (s && s.id) state.stnIdToName[s.id] = s.name;
@@ -21771,6 +22779,9 @@ document.getElementById('fpEnd').onclick = (e) => { e.stopPropagation(); setAuto
 document.getElementById('fcEnd').onclick = (e) => { e.stopPropagation(); clearFreqFollow(); };
 document.getElementById('followPanel').addEventListener('click', (e) => {
   const fp = e.currentTarget;
+  // 🔴 必須排在 .fp-dhlink 那條【前面】:跟車鎖屏 CTA 借用同一個 .fp-dhlink 樣式類(同一種
+  //    視覺語彙),不先攔就會被下一行當成「誤點履歷 ›」導去誤點履歷卡。
+  if (e.target.closest('#fpLaCta')) { e.stopPropagation(); plusGateOpen('live-activity', renderLaCta); return; }
   if (e.target.closest('.fp-dhlink')) { e.stopPropagation(); openDelayHist(state.followTrain); return; } // 準點列尾端「誤點履歷 ›」
   // 手機全畫面:點跟隨小卡(非結束/收合/分享鈕)→ 展開「列車」sheet(桌面走原 fp-min 展開;直播/放空不攔,維持既有行為)
   if (window.matchMedia(MOBILE_MQ).matches && document.body.classList.contains('fs') && state.followTrain
@@ -21822,6 +22833,36 @@ document.getElementById('favPanel').onclick = e => {
   const row = e.target.closest('.row.fv');
   if (row) { closeFavPanel(); followTrainNo(row.dataset.no, { sys: row.dataset.sys }); }
 };
+// 「追蹤這站」選單接線(時長段選了不關單;方向/開始追蹤選項立即開卡;取消/關閉/Esc/點背景都只收選單)。
+(function () {
+  const modal = document.getElementById('metroWaitPicker'), choices = document.getElementById('metroWaitPickerChoices');
+  if (!modal || !choices) return;
+  const close = () => metroWaitClosePicker();
+  document.getElementById('metroWaitPickerX').onclick = close;
+  document.getElementById('metroWaitPickerCancel').onclick = close;
+  const durs = document.getElementById('metroWaitDurs');
+  if (durs) durs.onclick = e => {
+    const btn = e.target.closest('.metro-wait-dur');
+    if (!btn || !metroWaitPickerDraft) return;
+    metroWaitPickerDraft.durationMin = Number(btn.dataset.waitDur) || 30;
+    for (const x of durs.querySelectorAll('.metro-wait-dur')) x.classList.toggle('on', x === btn);
+  };
+  choices.onclick = e => {
+    const btn = e.target.closest('.metro-wait-choice');
+    const draft = metroWaitPickerDraft;
+    if (!btn || !draft) return;
+    let dest = null;
+    if (btn.dataset.waitChoice !== 'all') {
+      const direction = draft.directions[Number(btn.dataset.waitChoice)];
+      if (!direction) return;
+      dest = direction.dest;
+    }
+    metroWaitClosePicker();
+    metroWaitStartFor(draft.sys, draft.st, draft.lines, draft.isDeco, dest, draft.bundle, draft.durationMin);
+  };
+  modal.addEventListener('click', e => { if (e.target === modal) close(); });
+  document.addEventListener('keydown', e => { if (e.key === 'Escape' && !modal.hidden) close(); });
+})();
 // 命名地點對話框接線(儲存/取消/關閉/Enter 存/Esc 關/點背景關)
 document.getElementById('pinNameSave').onclick = confirmPinName;
 document.getElementById('pinNameCancel').onclick = closePinNameDialog;
