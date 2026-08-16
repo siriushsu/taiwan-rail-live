@@ -3808,14 +3808,14 @@
            內容 li 上限 8 條(li.grp 是標題不算)。 -->
       <ul class="foot-list foot-recent">
         <li class="grp">最近更新</li>
+        <li data-cl-of="orangebranch"><span class="d">8/16</span><span>中和新蘆線共線段不再冒出重複列車與沒有車號的車</span></li>
+        <li data-cl-of="badgescope"><span class="d">8/16</span><span>「台」「高」不再顯示捷運的「官方即時」標示；捷運收班後改標「已收班」</span></li>
         <li data-cl-of="zuoyingalias"><span class="d">8/16</span><span>台鐵左營站不再分成「左營」與「左營(舊城)」兩顆，看板正常顯示；新城站同步修正（謝謝網友回報）</span></li>
         <li data-cl-of="danhaifireworks"><span class="d">8/15</span><span>淡水漁人碼頭煙火的三個週日（8/16、8/23、8/30），淡海輕軌畫面依官方公告調整：傍晚起綠山線班距拉長、五點後崁頂那一段停駛，藍海線改跑密集班距</span></li>
         <li data-cl-of="trtcoutage"><span class="d">8/15</span><span>台北捷運訊號中斷時會明白告知位置與倒數不準，並修好位置愈跑愈偏、冒出無車號幽靈車的問題</span></li>
         <li data-cl-of="metrowaitcard"><span class="d">8/14</span><span>iPhone 新增捷運等車卡與捷運小工具：鎖定畫面倒數下一班，北捷、高捷、機捷；下次 App 更新生效</span></li>
         <li data-cl-of="tymcexpress"><span class="d">8/14</span><span>機場捷運直達車路線修正：南下會開到環北站，北上不再多出老街溪站</span></li>
         <li data-cl-of="linecomplete"><span class="d">8/14</span><span>縱貫線北段完乘率卡在 99% 已修好，不用重搭就會自動補滿（謝謝網友回報）</span></li>
-        <li data-cl-of="checkinplatform"><span class="d">8/14</span><span>月台特別長的車站（例如汐科），現在站在月台任何一端都蓋得到章（謝謝網友回報）</span></li>
-        <li data-cl-of="trtcofficialroster"><span class="d">8/14</span><span>台北捷運列車改以官方站牌倒數逐班追蹤：從發車到終點依各站時間顯示位置，同一班車在多站的資訊會自動合併，車次與方向跟著實際行程；文湖線沒有車次時顯示 BR 路線牌。</span></li>
       </ul>
       <!-- 第二層:完整歷史。刻意不掛 .foot-box 類名——placeFootBoxes() 用
            `.site-foot .foot-box` 搬移面板,巢狀同名會被當成另一個盒子一起搬走。 -->
@@ -3835,6 +3835,7 @@
         <li><span class="d">7/10</span><span>高鐵、桃園機捷、淡海輕軌、安坑輕軌加入路網</span></li>
         <li><span class="d">7/10</span><span>環島觀光列車一分為二：往東「山海號」、往西「平原號」</span></li>
         <li class="grp">即時動態與誤點</li>
+        <li data-cl="badgescope"><span class="d">8/16</span><span>時鐘旁的狀態標示修正：切到「台」「高」時不再顯示台北捷運的「官方即時」（那兩頁本來就沒有捷運）；捷運全部收班後，標示也從「離峰」改成「已收班」</span></li>
         <li data-cl="danhaifireworks"><span class="d">8/15</span><span>新北市在淡水漁人碼頭辦煙火的三個週日（8/16、8/23、8/30），淡海輕軌的畫面會照官方公告走：下午四點起綠山線改成每三十分鐘一班，五點起濱海沙崙到崁頂那一段停駛（官方另有免費接駁公車），車全部集中到藍海線跑三到六分鐘的密集班距。只有這三天這樣，其他日子照常</span></li>
         <li data-cl="trtcoutage"><span class="d">8/15</span><span>台北捷運官方即時資料中斷時，畫面原本完全不說（8/15 早上斷了約半小時）：列車各自照最後量到的速度往前推，兩班車擠在一起、甚至互相超車，車站倒數則整個找不到車。現在三件事一起改了——中斷一發生，頂端就會跳出提示告訴你是北捷訊號中斷、列車位置與車站倒數都可能不準，捷運徽章與車站看板上也會標示；中斷期間的推估改成照每段站與站之間的固定行車時間走，全線同一個節奏，不會再有車超過前面那班；官方資料恢復時，畫面會重新對齊官方位置，部分列車會因此往前跳或往後退，並跳出訊息說明為什麼會跳。環狀線走的是新北捷運另一條資料線路，兩邊各自判斷，一邊斷不會誤報另一邊。同一批還修好了一個更早的毛病：同一個起點同時排兩班發車時，我們會整輪讀不進官方資料而沿用上一份，位置因此愈跑愈偏，訊號恢復後還會冒出沒有車號的車跟著跑（謝謝網友回報）——現在讀得進來了，車數也回到正常。同一個起點同時有往兩個終點的班次時（例如板南線的頂埔與亞東醫院），也會被認成同一班而認錯車，留下沒有車號的幽靈車、車號在兩班之間跳——現在照終點分開認，發車後身分接得上第一站</span></li>
         <li data-cl="trtcofficialroster"><span class="d">8/14</span><span>台北捷運列車改以官方站牌倒數逐班追蹤：從發車到終點依各站時間顯示位置，同一班車在多站的資訊會自動合併，車次與方向跟著實際行程；文湖線沒有車次時顯示 BR 路線牌。</span></li>
@@ -3848,7 +3849,7 @@
         <li data-cl="metromotion"><span class="d">8/5</span><span>所有捷運與輕軌共用平順運動模型：每站間用加速、巡航、減速曲線，收到新的即時校正時速度也限制在正常推演的 0.25～2 倍，不再為了追資料停住或突然衝刺。8/9 修正：巡航與追趕兩件事會相乘，少數列車一度被畫得過快，現在已一併算進上限</span></li>
         <li data-cl="trtcpos"><span class="d">8/5</span><span>北捷列車有官方到站倒數時，現在直接用「站間行駛時間與剩餘秒數」算出列車在兩站之間的位置；班表仍是唯一車輛名冊，沒有可靠錨點時才回到原本的平順推估</span></li>
         <li data-cl="trtcmotion"><span class="d">8/5</span><span>北捷列車每次收到新的官方到站資料時，原本會為了校正位置先停住、再突然加速追趕；現在把差距分散到接下來的移動中慢慢吸收，兩站之間會持續前進，追趕速度也有上限</span></li>
-        <li data-cl="orangebranch"><span class="d">8/4</span><span>橘線列車進入大橋頭以南的共線路段後，會延續它原本來自蘆洲或迴龍的支線身分，不再把往南勢角的蘆洲線列車誤算成新莊線；當日班表的車數不受影響</span></li>
+        <li data-cl="orangebranch"><span class="d">8/16</span><span>橘線列車進入大橋頭以南的共線路段後，會延續它原本來自蘆洲或迴龍的支線身分，不再把往南勢角的蘆洲線列車誤算成新莊線；當日班表的車數不受影響。8/16 再修一輪：共線段上兩支的站名完全相同，同一班車有時會被兩邊各認一次，於是景安到南勢角那一小段會同時擠著四五台車，而且多半只顯示一個光禿禿的「O」沒有車號。現在支線身分只認得出分支的路段說了算（往蘆洲、往迴龍的班次由終點站直接判定），共線段上的資料不再回頭改寫它</span></li>
         <li data-cl="hazardwatch"><span class="d">8/4</span><span>颱風、地震、雷雨、豪雨等示警生效時，軌島會立即重查台鐵、高鐵與捷運的官方營運公告並持續複查。示警本身不代表停駛，也不會讓地圖上的車消失；以各營運單位公告為準</span></li>
         <li data-cl="brheadway"><span class="d">8/4</span><span>文湖線車數修正：官方沒有公開逐班時刻，我們原本照公告的班距範圍取中間值推算，實測發現全時段都比實際疏，畫面上少了約三成的車；改用累積八萬筆到站觀測的實際班距重算</span></li>
         <li data-cl="yboard"><span class="d">8/4</span><span>環狀線也改吃官方到站倒數逐班校正，位置跟著實際車況走；當下沒對到的班次改用全線平均誤點量，不再假裝準點</span></li>
@@ -6096,7 +6097,9 @@ function drawTrtcOfficialVehicle(ln, item, showTrain, inView, collectHit, nowEpo
     ln, vehicleId: item.vehicleId, officialNo: label });
 }
 
-function updateCount() {
+// 目前畫面上真的在跑的班次數。updateCount 與「已收班」判定共用同一個數字——
+// 班距合成線收班後 ln.n 本來就是 0,故 n===0 等同「這個群組現在一台車都沒有」。
+function runningCount() {
   let n = 0;
   if (state.mode === 'sched') {
     for (const tr of state.trains) if (state.visible.has(tr.typeName) && trainPos(tr, state.simSec)) n++;
@@ -6113,7 +6116,11 @@ function updateCount() {
       else n += ln.n;
     });
   }
-  document.getElementById('count').textContent = `${n} 班奔跑中`;
+  return n;
+}
+
+function updateCount() {
+  document.getElementById('count').textContent = `${runningCount()} 班奔跑中`;
 }
 
 function drawFreq(w, h) {
@@ -9826,6 +9833,8 @@ function tickCore(now) {
       if (state._trtcOfficialCountActive !== active) { state._trtcOfficialCountActive = active; updateCount(); }
     }
     updateLiveBadge(); updateMetroBadge(); refreshTrtcOfficialBoardCountdown();
+    // 捷運「已收班 ↔ 尖峰/離峰」在首班/末班當下就要換,不能等下一次整點才刷(refreshBadge 平時只在換小時觸發)
+    if (state.mode !== 'sched' && state.lines.length && (runningCount() > 0) !== !!state._freqRunning) { refreshBadge(); updateCount(); }
     if (OFFICIAL_ROSTER_ENABLED) trtcOfficialResyncTick(Date.now() / 1000); // 斷訊回歸 → 跳訊息說明為何跳動
     if (state.liveMode && !state.director) liveClockTick(); else if (state.director) directorClockTick(); else clockDriftGuard();
   } // 導播現在也是 1× 貼真實時刻,只是用不含深夜重播替代的簡化版;兩徽章同秒刷,快轉跨門檻時同步轉推估
@@ -9901,10 +9910,16 @@ function refreshBadge() {
     p.classList.add('sim'); p.style.background = ''; p.style.color = '';
   } else {
     clock.textContent = fmtHM(state.simSec);
-    const peak = isPeak(state.hour);
-    p.textContent = peak ? '尖峰' : '離峰';
-    p.classList.remove('sim'); // 捷運「尖峰」維持 hot() 紅(真尖峰語意)、離峰藍,皆 inline
-    peak ? hot() : cool();
+    // 收班時段標「已收班」:尖峰/離峰是時段標,一台車都沒有時寫「離峰」會被讀成「還在跑,只是班次少」。
+    // 判定用實際在跑的班次數(已含各系統營運時段),不是寫死時間;未勾選任何系統時 lines 為空,不算收班。
+    const closed = state.lines.length > 0 && runningCount() === 0;
+    state._freqRunning = !closed;
+    const peak = !closed && isPeak(state.hour);
+    p.textContent = closed ? '已收班' : peak ? '尖峰' : '離峰';
+    // 已收班=非營運,借「時刻表模擬」同一套灰藍靜態外觀(非即時/非警報);尖峰紅、離峰藍維持 inline
+    p.classList.toggle('sim', closed);
+    if (closed) { p.style.background = ''; p.style.color = ''; }
+    else peak ? hot() : cool();
   }
   updateLiveBadge(); // 模式切換即時同步 LIVE 徽章與標籤,不等 tick
 }
@@ -18044,7 +18059,10 @@ function metroAlertFor(ln) {
 function updateMetroBadge() {
   const el = document.getElementById('metroBadge');
   if (!el) return;
-  if (OFFICIAL_ROSTER_ENABLED) {
+  // 🔴 名冊分支要與 pollTrtcLive 用同一道群組閘門:名冊會留在 state 裡跨群組存活,少了這道閘門,
+  //    切到「台」「高」(畫面上一條捷運都沒有)仍會顯示「官方即時」,北捷斷訊時甚至在高鐵分頁跳「官方中斷 N 分」。
+  //    閘門不成立時不是隱藏而是往下走舊路徑——「捷」只勾高捷時仍要看得到它自己的「看板校正」。
+  if (OFFICIAL_ROSTER_ENABLED && metroLivePool().some(isTrtcBoardLine)) {
     const roster = state.trtcOfficialRoster;
     if (!roster) { el.hidden = true; return; }
     const official = trtcOfficialRosterLive();
