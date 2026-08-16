@@ -113,6 +113,23 @@ const TOAST_REVIEWED = new Map([
   [`t.toast`, '使用說明「試一次」:t 必為 HELP_TRY 成員,其 toast 全是寫死字面字串,無插入'],
   ["j.why===''?'':`${st.name}${Math.round(j.distM)},(${j.r})`", '單站打卡:st.name 來自內建班表/路線資料;distM 是 haversineKm 計算值,r 是 CHECKIN_RADIUS_M 數字常數'],
   ['`${st.name}`', '單站打卡:st 只由 nearbyStationCandidates 的內建班表/路線車站產生,站名不可由使用者編輯'],
+  // 2026-08-15 登記:北捷官方訊號恢復通知(trtcOfficialResyncTick,index.html:5059,斷訊挽救批次)。
+  // msg 是本地變數,由三個插值組成、全部是數字:
+  //   mins    = Math.max(1, Math.round(r.outageSec / 60));r.outageSec 唯一寫入點是
+  //             `Math.max(Number(...) || 0, coastedFor)`(index.html:5197)⇒ 數字
+  //   count   = r.count,唯一寫入點是 `(Number(...) || 0) + 1`(index.html:5198)⇒ 數字
+  //   removed = Number(rec.removed),且被 `Number(rec.removed) > 0` 守著 ⇒ 有限正數
+  // rec 來自自家 /api/trtc-live 的 recovery 物件,但即使上游吐 HTML 字串,Number() 也會變 NaN
+  // 而被 >0 擋掉。三處皆無字串路徑進 innerHTML;句中的 <b> 是刻意的粗體排版。
+  [`msg,{wrap:true}`, '官方訊號恢復通知:三個插值(分鐘/台數/移除台數)全經 Number()/Math.* 收斂為數字,無字串來源'],
+  // 2026-08-16 登記:通行證提示批次的兩發說明型 toast(看板的小工具引導、衛星的高解析說明)。
+  // 這個指紋是**偵測器的已知假陽性**,不是「有插入但我判斷安全」:blankLiterals 把整段字面字串
+  // 換成 '',於是只剩選項物件 `{wrap:true}` 裡的識別字 `wrap` 被 toastHasInjection 認成插入。
+  // 這一格涵蓋的呼叫形狀是【單一字串字面值 ＋ {wrap:true}】,結構上不存在插入點:
+  //   · 若有人日後改成 showToast('前綴' + name, {wrap:true}),blankLiterals 後是 ''+name,{wrap:true}
+  //     ⇒ 指紋不同 ⇒ 仍會被擋下來(這一格【不會】順便放行拼接版本)。
+  //   · 若改成樣板字串帶插值,指紋也會帶著 ${...} 而不同,同樣擋得住。
+  [`'',{wrap:true}`, '純字面字串＋{wrap:true} 選項:指紋裡的 wrap 是選項名不是插值,無任何值進 innerHTML'],
   // 2026-08-14 登記:捷運等車卡(Task 6)。
   [`res&&res.why===''?'':''`, '等車卡開卡失敗:兩個寫死字串二選一(why===disabled 與否),無插入'],
   [`''+escHtml(String(station||''))+''`, '等車卡深連結找不到站:station 來自小工具深連結(外部輸入),已 escHtml 逸出;verify_metro_wait_entry.mjs H 組實測覆蓋'],
