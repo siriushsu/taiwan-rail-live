@@ -2627,8 +2627,9 @@
     body.fs.recording:not(.rec-panel):not(.live):not(.ambient) .record-bar .rb-stop {
       flex: none; min-height: 28px; padding-top: 2px; padding-bottom: 2px;
     }
-    /* 時鐘徽章讓位頂列:移到頂列下方(safe-area 隨動態島下移,與頂列一致) */
-    .badge { top: calc(58px + var(--sa-t)); left: 10px; gap: 9px; padding: 5px 11px 6px; }
+    /* 時鐘徽章讓位頂列:64px 是 JS 實測定位前的首繪保底；完成 layout 後 placeBadge 會依
+       軌島牌真正底緣再加 8px，Android 系統字級放大也不會讓「基隆—高雄」壓到時鐘。 */
+    .badge { top: calc(64px + var(--sa-t)); left: 10px; gap: 9px; padding: 5px 11px 6px; }
     .badge .clock { font-size: 17px; }
     .badge .count { font-size: 12px; }
     /* 行程連結的追蹤橫幅原本固定 top:56，會整片壓住這列時鐘。接收行程時先把非必要的
@@ -3817,14 +3818,14 @@
            內容 li 上限 8 條(li.grp 是標題不算)。 -->
       <ul class="foot-list foot-recent">
         <li class="grp">最近更新</li>
+        <li data-cl-of="androidtopgap"><span class="d">8/16</span><span>Android 手機放大系統字級時，左上「基隆—高雄」不再和下方時間欄黏在一起或重疊（謝謝網友回報）</span></li>
+        <li data-cl-of="androidwidgets"><span class="d">8/16</span><span>Android App 補上捷運桌面小工具與鎖定畫面等車資訊卡，顯示官方下一班、方向、倒數與北捷車廂鬆緊</span></li>
         <li data-cl-of="androidcoarse"><span class="d">8/16</span><span>Android App 改成只詢問模糊位置，不再要求精確位置</span></li>
         <li data-cl-of="androidinsets"><span class="d">8/16</span><span>Android App 的放空模式底部按鈕不再被系統導覽列蓋住，窄螢幕的「全／台／高／捷」也會完整顯示</span></li>
         <li data-cl-of="orangebranch"><span class="d">8/16</span><span>中和新蘆線共線段不再冒出重複列車與沒有車號的車</span></li>
         <li data-cl-of="badgescope"><span class="d">8/16</span><span>「台」「高」不再顯示捷運的「官方即時」標示；捷運收班後改標「已收班」</span></li>
         <li data-cl-of="zuoyingalias"><span class="d">8/16</span><span>台鐵左營站不再分成「左營」與「左營(舊城)」兩顆，看板正常顯示；新城站同步修正（謝謝網友回報）</span></li>
         <li data-cl-of="plusctas"><span class="d">8/16</span><span>衛星高解析與跟車鎖定畫面現在會直接說明屬於通行證，使用說明也補上捷運小工具與等車卡</span></li>
-        <li data-cl-of="androidbars"><span class="d">8/15</span><span>修正 Android App 上下多出白色空白，地圖重新貼齊手機畫面</span></li>
-        <li data-cl-of="danhaifireworks"><span class="d">8/15</span><span>淡水漁人碼頭煙火的三個週日（8/16、8/23、8/30），淡海輕軌畫面依官方公告調整：傍晚起綠山線班距拉長、五點後崁頂那一段停駛，藍海線改跑密集班距</span></li>
       </ul>
       <!-- 第二層:完整歷史。刻意不掛 .foot-box 類名——placeFootBoxes() 用
            `.site-foot .foot-box` 搬移面板,巢狀同名會被當成另一個盒子一起搬走。 -->
@@ -3875,6 +3876,7 @@
         <li><span class="d">7/16</span><span>捷運準確度升級：六家捷運依官方到站看板即時校正，國定假日自動改跑假日班表</span></li>
         <li><span class="d">7/9</span><span>台鐵即時誤點上線——介接交通部 TDX 平臺每分鐘更新；7/11 起開站即真實時刻、捷運改逐班推演</span></li>
         <li class="grp">跟車、搜尋與車站看板</li>
+        <li data-cl="androidwidgets"><span class="d">8/16</span><span>Android App 現在也有捷運桌面小工具：選一個車站就能在主畫面看官方下一班、兩個方向的倒數與北捷車廂鬆緊，點卡片可直接開啟「追蹤這站」；追蹤後，鎖定畫面會持續顯示下一班與再下一班、方向、倒數和結束按鈕，Android 16 以上會以即時資訊卡優先呈現，較舊版本則顯示同內容的持續通知。免費可設定一站，多站與自動選最近車站沿用通行證規則</span></li>
         <li data-cl="plusctas"><span class="d">8/16</span><span>通行證的內容改成在用得到的地方直接講：跟車面板可把倒數放上鎖定畫面、切到衛星影像時會說明有更清楚的高解析版本；使用說明中心也補上「捷運小工具」與「在這站等車」兩節</span></li>
         <li data-cl="metrowidgetpass"><span class="d">8/15</span><span>捷運小工具的方案定了：免費可以設定一個捷運站，想同時放好幾站、或用「自動（最近的站）」讓小工具跟著你移動換站，就需要軌島通行證。設定超過一站時，小工具上會直接寫清楚原因、點一下就能看方案，不會只給你一張空白卡。等車卡（鎖定畫面倒數）維持免費。下次 App 更新生效</span></li>
         <li data-cl="metrowaitcard"><span class="d">8/14</span><span>iPhone 捷運車站看板新增「在這站等車」：下一班倒數放上鎖定畫面與動態島，班次照官方即時資訊，車進站了自動換下一班、追蹤時間到了自動收起；北捷、高捷、機捷都支援，桌面也有捷運小工具可一點直達開卡，下次 App 更新生效</span></li>
@@ -3927,6 +3929,7 @@
         <li><span class="d">7/9</span><span>旅程護照與 16 枚成就徽章、「探」今日亮點面板上線</span></li>
         <li class="grp">手機與操作</li>
         <li data-cl="androidcoarse"><span class="d">8/16</span><span>Android App 的定位權限改成只詢問模糊位置，不再要求精確位置；附近車站、藍點與需要定位的操作仍可照常使用</span></li>
+        <li data-cl="androidtopgap"><span class="d">8/16</span><span>Android 手機把系統字級放大後，地圖左上的「軌島／基隆—高雄」牌會跟著變高，原本寫死位置的時間欄沒有讓位，兩欄因此黏住甚至重疊；現在時間欄會量牌子的實際底緣並固定留出間距，轉向與一般字級也一起適用（謝謝網友回報）</span></li>
         <li data-cl="androidinsets"><span class="d">8/16</span><span>Android App 在部分手機使用手勢或三鍵導覽時，放空模式的「離開放空／視角」會被系統導覽列壓住；現在所有手機安全區都會照原生系統回報讓位。窄螢幕若同時有營運公告，頂部最右邊的「捷」也不會再被裁掉</span></li>
         <li data-cl="androidbars"><span class="d">8/15</span><span>Android App 更新後，地圖上下曾多出兩塊白色空白；現在移除重複計算的手機安全區，地圖與底部導覽列會重新貼齊整個畫面</span></li>
         <li data-cl="land04c"><span class="d">8/12</span><span>手機橫放第二輪重排（接 8/11 的側邊欄）：時鐘徽章併進頂列、不再浮在地圖上；右下角的「回到列車、隨機跟隨、附近車站、跟隨鎖」收成貼右緣的一疊；跟車資訊欄固定在左側、上下貼齊螢幕，收合成小膠囊時不擋地圖；搜尋改成右半邊全高的面板，打字時鏡頭不會亂跑；停靠站名牌與速度膠囊對齊露出地圖的中線。跟車鏡頭全面改用「露出地圖」置中——把被面板、按鈕、資訊欄蓋住的部分扣掉，列車永遠在看得到的那塊地圖正中央，還會朝行進方向偏一點、提前看到前方路線。這套鏡頭直放也生效：面板展開、跟車小卡浮著時，列車不會再躲到卡片底下</span></li>
@@ -4338,7 +4341,7 @@
 // v0816f：本批＝上面兩條線合併——北捷共線段分支歸屬鎖＋捷運徽章群組閘門，合入 build 61 的小工具線。
 //         a/b/c/d/e 都已被別的分支用掉，跨分支撞號見心得 16。
 // v0816g：Android v7 合入 v0816f，並把原生定位權限收斂為只請求模糊位置。
-const BUILD = 'v0816g';
+const BUILD = 'v0816h';
 // 2026-08-13 起預設開啟（使用者親試預覽後裁示上線）：北捷畫車依官方即時名冊，班表只是備案。
 // 保留 ?officialroster=0 當逃生口——要退回班表路徑不必回滾部署，加個參數即可對照。
 // 🔴 這個函式會被 verify_official_roster_frontend 抽出來丟進 VM 單獨執行——
@@ -20091,8 +20094,9 @@ async function metroWaitStartFor(sys, st, lines, isDeco, dest = null, sourceBund
   if (!rows.length) { showToast('這一站現在沒有官方班次資訊'); return; }
   const payload = metroWaitPayload(sys, st, { rows, dataAt: bundle.dataAt });
   payload.durationMin = durationMin;
-  // dest 一併送給原生只是為了原樣回傳給 JS 的 waitPushToken 比對?不是——原生不需要它。
-  // 真正需要它的是【伺服器】,而它從 state.metroWait 拿(見 metroWaitBind)。這裡不送。
+  // Android 沒有 ActivityKit push token；把方向明確交給原生，讓系統在下一班到站後可自行重抓
+  // 同方向班次並更新 Live Update。iOS plugin 會安全忽略這個額外欄位，伺服器綁定仍走下方 state。
+  payload.selectedDest = dest;
   // key:認出「等一下回來的那顆 token 屬於哪一張卡」。換站很快時舊卡的 token 可能晚到,
   // 沒有 key 就會把舊 token 交上去、伺服器推到一張已經被收掉的卡(RailLiveActivityPlugin 走過)。
   const key = sys + '|' + st.name + '|' + (dest == null ? '' : dest) + '|' + Date.now();
@@ -20627,9 +20631,32 @@ function placeBadge() {
   if (!_badgeHomeAnchor) { _badgeHomeAnchor = document.createComment('badge-home'); badge.parentNode.insertBefore(_badgeHomeAnchor, badge); }
   // 直播例外:live 的頂列整條 display:none,徽章搬進去會跟著消失,而 live 恰恰要大字時鐘——留在老家
   if (sheetIsSideRail() && !document.body.classList.contains('live')) {
+    badge.style.top = '';
     if (badge.parentNode !== bar) bar.insertBefore(badge, document.getElementById('alertChip'));
   } else if (badge.parentNode !== _badgeHomeAnchor.parentNode || badge.previousSibling !== _badgeHomeAnchor) {
     _badgeHomeAnchor.parentNode.insertBefore(badge, _badgeHomeAnchor.nextSibling);
+  }
+  // 直式 App 的時鐘不能再靠寫死 top 猜軌島牌高度：Android 的系統字級／顯示大小會讓 WebView
+  // 文字實際盒高改變。每次搬家後直接量 tb-plate 底緣，保證兩欄保留 8px；桌面、橫式併列與
+  // 直播大徽章都清掉 inline 值，交回各自既有 CSS。
+  const positionPortrait = () => {
+    const mobile = window.matchMedia(MOBILE_MQ).matches;
+    const portraitShell = mobile && !sheetIsSideRail() && !document.body.classList.contains('live');
+    const plate = bar.querySelector('.tb-plate');
+    const stage = document.querySelector('.stage');
+    if (!portraitShell || badge.parentNode !== stage || !plate || !plate.getClientRects().length) {
+      badge.style.top = '';
+      return;
+    }
+    const pr = plate.getBoundingClientRect(), sr = stage.getBoundingClientRect();
+    badge.style.top = Math.ceil(pr.bottom - sr.top + 8) + 'px';
+    invalidateMapInsets();
+  };
+  requestAnimationFrame(positionPortrait);
+  if (!placeBadge._plateObserver && window.ResizeObserver) {
+    placeBadge._plateObserver = new ResizeObserver(positionPortrait);
+    const plate = bar.querySelector('.tb-plate');
+    if (plate) placeBadge._plateObserver.observe(plate);
   }
   invalidateMapInsets(); // 徽章換家=上界量法換(獨立徽章 vs 併入頂列),露出地圖重算
 }
