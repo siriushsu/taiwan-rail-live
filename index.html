@@ -3800,7 +3800,7 @@
 
   <footer class="site-foot">
     <details class="foot-box">
-      <summary><span>更新紀錄</span><span class="foot-sub">最後更新：2026/8/16</span></summary>
+      <summary><span>更新紀錄</span><span class="foot-sub">最後更新：2026/8/17</span></summary>
       <!-- 第一層是「最近更新」的檢視,不是正本:每一條都用 data-cl-of 指向第二層某條的 data-cl。
            要把一條擠出第一層之前,它的正本必須已經在第二層存在——2026-08-03 就踩過一次:8/1 的
            衛星計費那條只活在第一層(第二層只有一句夾在 7/25 條目裡、日期對不上的附帶說明),
@@ -3808,6 +3808,7 @@
            內容 li 上限 8 條(li.grp 是標題不算)。 -->
       <ul class="foot-list foot-recent">
         <li class="grp">最近更新</li>
+        <li data-cl-of="thsrwindow"><span class="d">8/17</span><span>高鐵班表不再停在前一天：當天才有的班次看得到，前一天才有的也不會變成幽靈車（謝謝網友回報）</span></li>
         <li data-cl-of="trtczombie"><span class="d">8/17</span><span>台北捷運不再出現停在原地、好幾台疊在一起的重複列車（謝謝網友回報）</span></li>
         <li data-cl-of="orangebranch"><span class="d">8/16</span><span>中和新蘆線共線段不再冒出重複列車與沒有車號的車</span></li>
         <li data-cl-of="badgescope"><span class="d">8/16</span><span>「台」「高」不再顯示捷運的「官方即時」標示；捷運收班後改標「已收班」</span></li>
@@ -3815,7 +3816,6 @@
         <li data-cl-of="danhaifireworks"><span class="d">8/15</span><span>淡水漁人碼頭煙火的三個週日（8/16、8/23、8/30），淡海輕軌畫面依官方公告調整：傍晚起綠山線班距拉長、五點後崁頂那一段停駛，藍海線改跑密集班距</span></li>
         <li data-cl-of="trtcoutage"><span class="d">8/15</span><span>台北捷運訊號中斷時會明白告知位置與倒數不準，並修好位置愈跑愈偏、冒出無車號幽靈車的問題</span></li>
         <li data-cl-of="metrowaitcard"><span class="d">8/14</span><span>iPhone 新增捷運等車卡與捷運小工具：鎖定畫面倒數下一班，北捷、高捷、機捷；下次 App 更新生效</span></li>
-        <li data-cl-of="tymcexpress"><span class="d">8/14</span><span>機場捷運直達車路線修正：南下會開到環北站，北上不再多出老街溪站</span></li>
       </ul>
       <!-- 第二層:完整歷史。刻意不掛 .foot-box 類名——placeFootBoxes() 用
            `.site-foot .foot-box` 搬移面板,巢狀同名會被當成另一個盒子一起搬走。 -->
@@ -3835,6 +3835,7 @@
         <li><span class="d">7/10</span><span>高鐵、桃園機捷、淡海輕軌、安坑輕軌加入路網</span></li>
         <li><span class="d">7/10</span><span>環島觀光列車一分為二：往東「山海號」、往西「平原號」</span></li>
         <li class="grp">即時動態與誤點</li>
+        <li data-cl="thsrwindow"><span class="d">8/17</span><span>高鐵班表曾經停在前一天（8/17 早上）：當天才有的班次整批看不到，前一天才有的則變成停不下來的幽靈車。現在班表一次抓七天，並且每五分鐘自動檢查一次今天的班表在不在，不在就立刻補抓（謝謝網友回報）</span></li>
         <li data-cl="trtczombie"><span class="d">8/17</span><span>台北捷運畫面上會冒出停在原地、好幾台疊在一起的重複列車：一台車在半路失去官方追蹤之後，我們原本沒有任何辦法讓它離開畫面——退場的唯一條件是「抵達終點」，而這種車的官方時間表永遠停在半路，算不出終點時刻，於是就一整天卡在那裡愈積愈多（8/17 早上實測文湖線同時畫出 88 台，官方當下其實只有 33 台在跑）。現在改成依這台車自己的官方到站時間判斷：如果它連自己走一站的時間都停滯了好幾倍、而這條線其他車都還在正常回報，就代表它早已不在那裡，直接收掉。整條線一起沒有資料時（訊號中斷）不會誤判，那種情況照舊等資料回來（謝謝網友回報）</span></li>
         <li data-cl="badgescope"><span class="d">8/16</span><span>時鐘旁的狀態標示修正：切到「台」「高」時不再顯示台北捷運的「官方即時」（那兩頁本來就沒有捷運）；捷運全部收班後，標示也從「離峰」改成「已收班」</span></li>
         <li data-cl="danhaifireworks"><span class="d">8/15</span><span>新北市在淡水漁人碼頭辦煙火的三個週日（8/16、8/23、8/30），淡海輕軌的畫面會照官方公告走：下午四點起綠山線改成每三十分鐘一班，五點起濱海沙崙到崁頂那一段停駛（官方另有免費接駁公車），車全部集中到藍海線跑三到六分鐘的密集班距。只有這三天這樣，其他日子照常</span></li>
@@ -4319,7 +4320,11 @@
 // v0815f：北捷斷訊挽救(v0815e)與 App 1.4.4 線(v0815b)合批。
 // v0816c：台鐵左營／新城通過站正名（同座標兩顆站合一）＋班表 14 天重抓，合入 v0815f 出貨線。
 //         （v0816b 讓給並行的 feat/metro-widget 分支，同號不同內容會害人辨識不出線上版本）
-const BUILD = 'v0816c';
+// v0817b：救回 08-17 08:44 被一發 main 部署整包退掉的 ship/v0817a（62 顆，含殘骸列車退場、
+//         中和新蘆線分支鎖、捷運徽章範圍、App 那整批 index.html 內容），並合入高鐵班表抓取窗
+//         2→7 天與每 5 分鐘自我檢查。v0816d／v0817a 兩條 ship 分支的 index.html 都還掛著
+//         v0816c，本批內容與它們都不同 ⇒ 推一個誰都沒用過的號。
+const BUILD = 'v0817b';
 // 2026-08-13 起預設開啟（使用者親試預覽後裁示上線）：北捷畫車依官方即時名冊，班表只是備案。
 // 保留 ?officialroster=0 當逃生口——要退回班表路徑不必回滾部署，加個參數即可對照。
 // 🔴 這個函式會被 verify_official_roster_frontend 抽出來丟進 VM 單獨執行——
