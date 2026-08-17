@@ -1502,10 +1502,18 @@ struct RailBoardLiveClient {
                 return [:]
             }
             let live = try JSONDecoder().decode(LiveResponse.self, from: data)
+            // 🔴 delay == 0 也要收。它是「官方有這班車的即時讀數，而且準點」——與
+            //    「查無讀數」（鍵不存在：還沒發車、或高鐵這種沒有逐車誤點的系統）是兩件事。
+            //    舊版只收 > 0，兩者都變成 nil ⇒ 畫面上永遠畫不出「準點」，而設計稿把它
+            //    列為臺鐵卡的核心元素（沒有它，使用者無法分辨「準點」與「我們不知道」）。
+            //    仍然不收負值（早到）：max(0, …) 只用在推遲倒數，顯示層自己會講「早到」。
             return live.trains.reduce(into: [String: Int]()) { delays, train in
-                if train.delay > 0 {
-                    delays[train.no] = max(delays[train.no] ?? 0, train.delay)
+                guard let existing = delays[train.no] else {
+                    delays[train.no] = train.delay
+                    return
                 }
+                // 同一個車次出現兩次（跨日班次）時取較嚴重的那個讀數。
+                delays[train.no] = max(existing, train.delay)
             }
         } catch {
             return [:]

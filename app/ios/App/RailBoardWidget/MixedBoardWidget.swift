@@ -229,14 +229,20 @@ private struct MixedRailSection: View {
                     .font(.headline)
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
             } else {
-                ForEach(snapshot.rows.prefix(4)) { row in
-                    MediumTrainRow(row: row, snapshot: snapshot, entryDate: displayDate)
+                // 整張混合卡的改版是另一個批次；這裡先跟著 BoardRowView 的新介面走。
+                // 列高從 22 變成 28（次列）⇒ 少列一班才放得下。
+                let rows = Array(snapshot.rows.prefix(3))
+                ForEach(Array(rows.enumerated()), id: \.offset) { index, row in
+                    BoardRowView(row: row, snapshot: snapshot, entryDate: displayDate,
+                                 role: .follow,
+                                 lineAbove: index > 0,
+                                 lineBelow: index < rows.count - 1)
                 }
                 Spacer(minLength: 0)
             }
 
             if let notice = snapshot.notice {
-                NoticeView(notice: notice, compact: false)
+                BoardNotice(notice: notice)
             }
         }
     }

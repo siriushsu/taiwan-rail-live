@@ -429,6 +429,10 @@ struct RailCountdownText: View {
 
     let value: RailCountdown
     var size: Size = .row
+    /// `.arriving` 的字樣。預設「進站」（車站看板）；「我的地點」是落在鐵路旁的一根釘子、
+    /// 沒有月台可進 ⇒ 那裡要傳「經過」。
+    /// 🔴 這是【字樣】不是狀態：實心色塊、字級、槽位都不變，所以不必多開一個 case。
+    var arrivingWord: String = "進站"
     var scale: RailScale = RailScale(k: 1)
 
     @Environment(\.colorScheme) private var scheme
@@ -502,7 +506,7 @@ struct RailCountdownText: View {
     /// 設計稿：「只有『進站』因為要當主角才給實心」。
     private var arriving: some View {
         let c = RailTokens.colors(scheme)
-        return Text("進站")
+        return Text(arrivingWord)
             .font(.system(size: isHero ? max(scale.pt(19), numberSize * 0.48) : numberSize,
                           weight: .semibold))
             .foregroundStyle(mono ? Color.primary : Color.white)
@@ -618,6 +622,9 @@ struct RailTrainMark: View {
     /// 車種色。來源是 App 寫出的 meta.json.types，不是這一層的常數。
     var color: Color? = nil
     var fontSize: CGFloat = 13
+    /// 車次字級。預設比車種標大兩級；主角列要傳 20（與旁邊的「往 X」同級——設計稿的示範裡
+    /// 「0814」與「往 南港」是同一個大小，而車種標明顯比它們小）。
+    var numberSize: CGFloat? = nil
     var scale: RailScale = RailScale(k: 1)
 
     @Environment(\.railMonochrome) private var mono
@@ -633,7 +640,12 @@ struct RailTrainMark: View {
                     .fill(mono ? Color.primary.opacity(0.18) : (color ?? Color.secondary)))
                 .lineLimit(1).fixedSize()
             if let n = number, !n.isEmpty {
-                Text(n).font(.system(size: scale.pt(fontSize + 2), weight: .medium))
+                // 🔴 車次也 fixedSize（不准縮、不准截）。曾經改成 minimumScaleFactor 想讓
+                //    三欄的「我的地點」擠得下最長車種，結果是【所有卡】的車次都被旁邊的
+                //    資料時刻壓成「08…」「4…」，甚至整個消失（算繪實看抓到）——車次是識別，
+                //    截一碼就變成另一班車。窄欄要靠字級（那裡的車種標是 10pt）與欄寬去解，
+                //    不是靠讓識別縮水。
+                Text(n).font(.system(size: scale.pt(numberSize ?? fontSize + 2), weight: .medium))
                     .monospacedDigit().lineLimit(1).fixedSize()
             }
         }
@@ -667,7 +679,12 @@ struct RailStatusTag: View {
     private var text: String {
         switch kind {
         case .onTime:        return "準點"
-        case .delay(let m):  return m >= 0 ? "誤點 +\(m) 分" : "早到 \(-m) 分"
+        // 🔴 `delay(0)` 是「官方讀數＝零分誤點」也就是準點，不是「誤點 +0 分」。
+        //    tint 早就把 0 判成 ok 色了，文字卻還在講誤點——顏色與字互相矛盾。
+        //    交給這裡統一，呼叫端就不必自己先把 0 換成 .onTime（漏換就會出現綠色的「誤點」）。
+        case .delay(let m):
+            if m == 0 { return "準點" }
+            return m > 0 ? "誤點 +\(m) 分" : "早到 \(-m) 分"
         case .lastTrain:     return "末班車"
         case .lastTrainAt(let t): return "末班 \(t)"
         case .suspended:     return "停駛"
@@ -799,12 +816,15 @@ struct RailStamp: View {
 
     var body: some View {
         // 單色模式下警示色失效 ⇒ 靠「⚠」這個形狀承擔（設計稿：每個狀態都要有形狀或文字備援）。
-        Text((warn ? "⚠ " : "") + text + " " + suffix)
+        Text((warn ? "⚠ " : "") + text + (suffix.isEmpty ? "" : " " + suffix))
             .font(.system(size: scale.pt(11)))
             .monospacedDigit()
             .foregroundStyle(warn && !mono ? AnyShapeStyle(RailTokens.colors(scheme).warn)
                                            : AnyShapeStyle(HierarchicalShapeStyle.secondary))
             .lineLimit(1)
+            // suffix 省掉時（138pt 的識別列放不下「更新」那兩個字）畫面上只剩一個裸時刻，
+            // 而同一張卡上還有發車時刻 ⇒ 至少讓旁白講清楚這是哪一個時間。
+            .accessibilityLabel(suffix.isEmpty ? "資料時刻 \(text)" : "\(text) \(suffix)")
     }
 }
 
