@@ -4981,15 +4981,21 @@ function trtcCensusVehicles(trains, nowEpoch, day) {
     // 只准前進。兩個位置來源的新鮮度差很大（CarWeight 的 stn 實測落後 96–265 秒、
     // TrackInfo 的 path 約 25 秒），同一台車在有／沒有 path 之間切換時會在兩者間跳，
     // 往回跳就是倒退。落到上一輪後面就維持上一輪，等官方資料自己追上。
-    const prev = prior.get(vehicleId);
+    // 🔴 2026-08-18 使用者裁示:「真實資訊一回來,就是要用真實的資訊去判斷車子在哪,
+    // 跑過頭的就慢下來等 不到退。」⇒ 建車層**永遠採用官方最新一輪**,不得因為「比上一輪落後」
+    // 而拒收。原本這裡有一道 no-backward hold(整包 {...prev} 沿用上一輪、含舊 timeline),
+    // 它有三個致命性質,已永久作廢,不准以任何形式復活(改名/只對某些線/包裝成平滑處理都不行):
+    //   1. 被 hold 的車不是停住,是**照舊 timeline 繼續往前跑**(畫位置時 timeline 優先於
+    //      arrEpoch,那個被 bump 的 arrEpoch 根本沒被讀到),離真值愈來愈遠;舊計畫跑完再接
+    //      coast 用固定班表秒續推。方向與裁示相反(裁示要「停下來等」)。
+    //   2. 門檻釘在 prev.to 而 prev 每輪又換成自己 ⇒ 無輪數上限、無時間上限,可永久卡住。
+    //   3. 它為了消一個**視覺抖動**(位置來源在新舊之間切換造成的假倒退)而拒收官方資料,
+    //      違反 08-14「車子有官方數據就是在」。
+    // 「不倒退」這件事本來就由顯示層 trtcOfficialDisplayPosition 負責(progress <= prior 就凍座標),
+    // 那才是正確的層:它凍的是**畫面位置**,不是**資料**,官方修訂照樣被吸收。建車層再擋一次
+    // 純屬重複,而且是把資料一起凍掉的那種重複。
     let vehicle;
-    if (prev && prev.line === hit.line && prev.dir === dirOut &&
-        !prev.terminal && !terminal && (to - prev.to) * step < 0) {
-      // source/holdReason 必須明寫:{...prev} 會把上一輪的值原封帶過來,前一輪若是別的原因
-      // hold 的,這一輪就會回報一個假原因(實測回報 unresolved-station,而該台其實解析成功)。
-      vehicle = { ...prev, arrEpoch: Math.max(prev.arrEpoch, nowEpoch), observedEpoch: nowEpoch,
-        source: 'census-hold', holdReason: 'no-backward' };
-    } else {
+    {
       const timeline = [];
       let cur = from;
       for (const p of (terminal ? [] : path.slice(pi))) {
@@ -5436,12 +5442,58 @@ function trtcOfficialVehicleInfo(ln, vehicle, nowEpoch) {
   return { pos, ln, vehicle, loop: false, nextName: next ? next.name : '', termName: term ? term.name : '',
     nextSec: trtcServiceSec(arrAt), officialNo: String(vehicle.officialNo || ''), done: false };
 }
+// 🔴 2026-08-18 使用者裁示契約 5/6:「不會有超車的情況,兩列車之間也不能黏在一起」。
+// 在此之前**整份程式沒有任何一行在管兩台車的相對關係**——每台各自算各自的,兩台各自單調前進
+// 照樣可以靠到重疊(單車不變量推不出跨車保序)。這是疊車的直接根因。
+// 間距用公尺定義再換算成站序單位:每個區間長度不同(47-172 秒不等),用固定的站序差會讓長區間
+// 太鬆、短區間太緊。100 公尺＝每小時巡檢判定「同向疊車」的同一個門檻,兩邊用同一個定義。
+const TRTC_MIN_GAP_KM = 0.1;
+function trtcGapUnitsAt(ln, progress, step) {
+  // progress 是有號站序(dir1 為負向);取它所在區間的實際長度換算 100 公尺等於多少站序單位。
+  const physical = Number(progress) / step, i = Math.floor(physical);
+  const a = ln.stations[Math.max(0, Math.min(ln.stations.length - 1, i))];
+  const b = ln.stations[Math.max(0, Math.min(ln.stations.length - 1, i + 1))];
+  const km = a && b && Number.isFinite(Number(a.d)) && Number.isFinite(Number(b.d))
+    ? Math.abs(Number(b.d) - Number(a.d)) : 0;
+  return km > 1e-6 ? TRTC_MIN_GAP_KM / km : 0; // 量不到長度就不設限,不要瞎猜一個數字
+}
 function trtcOfficialRenderItems(ln, boardPos, nowEpoch, enabled) {
   if (!trtcOfficialRosterActive(boardPos, enabled, nowEpoch)) return null;
-  return trtcOfficialRosterForLine(boardPos, ln && ln.id).map(vehicle => ({
+  const items = trtcOfficialRosterForLine(boardPos, ln && ln.id).map(vehicle => ({
     vehicle, vehicleId: String(vehicle.vehicleId || ''), officialNo: String(vehicle.officialNo || ''),
     extension: !!vehicle.extension, pos: trtcOfficialDisplayPosition(ln, vehicle, nowEpoch),
   })).filter(item => item.vehicleId && item.pos); // ROSTER_FRONTEND_RENDER
+  return trtcOfficialSeparate(ln, items, nowEpoch);
+}
+// 同線同向:由最前面那台往後掃,後車不得超過「前車 − 最小間距」。
+// 🔴 只往後夾、且絕不低於這台車上一格已經畫到的位置(契約 3「不到退」)——已經重疊的情況
+// 凍後車、等前車自己分離,不把後車往回拉(往回拉會變成畫面倒退,那是另一個使用者看得到的缺陷)。
+function trtcOfficialSeparate(ln, items, nowEpoch) {
+  if (!ln || !Array.isArray(ln.stations) || items.length < 2) return items;
+  for (const dir of [1, 2]) {
+    const step = dir === 2 ? 1 : -1;
+    const group = items.filter(it => Number(it.vehicle && it.vehicle.dir) === dir)
+      .map(it => ({ it, p: trtcOfficialPositionProgress(ln, it.vehicle, it.pos) }))
+      .filter(x => Number.isFinite(x.p))
+      .sort((a, b) => b.p - a.p); // progress 已是有號行進量 ⇒ 大的在前
+    for (let i = 1; i < group.length; i++) {
+      const lead = group[i - 1], back = group[i];
+      const gap = trtcGapUnitsAt(ln, back.p, step);
+      if (!(gap > 0)) continue;
+      const allowed = lead.p - gap;
+      if (back.p <= allowed) continue;              // 間距夠,不動
+      const key = `${ln.id}|${back.it.vehicleId}`;
+      const prior = _trtcOfficialDisplay.get(key);
+      const floor = prior && Number.isFinite(Number(prior.progress)) ? Number(prior.progress) : -Infinity;
+      const shown = Math.max(allowed, floor);       // 夾到 allowed,但不得低於已畫到的位置
+      if (shown >= back.p - 1e-9) continue;         // 夾不動(已被 floor 頂住)⇒ 維持原位等前車走
+      const pos = trtcOfficialPositionAtProgress(ln, back.it.vehicle, shown, back.it.pos);
+      if (!pos) continue;
+      back.it.pos = pos; back.p = shown;
+      if (prior) _trtcOfficialDisplay.set(key, { ...prior, epoch: nowEpoch, progress: shown, pos });
+    }
+  }
+  return items;
 }
 function trtcOfficialVehicleGlyph(officialNo, lineAbbr) {
   const official = String(officialNo || ''), fallback = String(lineAbbr || '');

@@ -65,6 +65,8 @@ const UNIT_FUNCTIONS = [
   'trtcOfficialDirectionPrevious', 'trtcOfficialDirectionAnchor',
   'trtcOfficialDisplayPosition', 'trtcOfficialVehicleInfo',
   'trtcOfficialRenderItems', 'trtcOfficialVehicleGlyph', 'trtcOfficialSameTarget', 'dirAngOf',
+  // 契約 5/6(2026-08-18):跨車順序與最小間距。放進同一個 bundle,否則 renderItems 會 ReferenceError。
+  'trtcGapUnitsAt', 'trtcOfficialSeparate',
 ];
 
 function buildUnitApi(overrides = {}, label = 'unit') {
@@ -78,6 +80,7 @@ function buildUnitApi(overrides = {}, label = 'unit') {
     ${extractConst(INDEX, 'TRTC_OFFICIAL_RESYNC_MIN_COAST_SEC')}
     ${extractConst(INDEX, '_trtcOfficialResync')}
     ${extractConst(INDEX, '_trtcOfficialDisplay')}
+    ${extractConst(INDEX, 'TRTC_MIN_GAP_KM')}
     ${extractFunction(INDEX, 'runBetween')}
     ${extractFunction(INDEX, 'posAlongShape')}
     ${extractFunction(INDEX, 'posBetweenStations')}
@@ -258,6 +261,7 @@ function buildIngestApi(holdOverride = null, label = 'ingest') {
     const OFFICIAL_ROSTER_ENABLED = true;
     ${extractConst(INDEX, 'TRTC_BOARD_LINES')}
     ${extractConst(INDEX, '_trtcOfficialDisplay')}
+    ${extractConst(INDEX, 'TRTC_MIN_GAP_KM')}
     const state = { systems:[{id:'mrt',data:{lines:globalThis.__lines}}], lines:[], decoLines:[],
       trtcOfficialRoster:null, trtcOfficialRosterRevisionHighWater:null, freqFollow:null };
     function clearFreqFollow(){ state.freqFollow = null; }
@@ -265,6 +269,11 @@ function buildIngestApi(holdOverride = null, label = 'ingest') {
     ${extractFunction(INDEX, 'trtcOfficialRosterGeometryLine')}
     ${extractFunction(INDEX, 'trtcOfficialRosterPayloadValid')}
     ${extractFunction(INDEX, 'trtcOfficialRosterOutage')}
+    // 🔴 2026-08-18 補:這支腳本在 origin/main 上就已經整個拋 ReferenceError 中止
+    // (applyTrtcOfficialRoster 會呼叫 trtcOfficialRosterRepairRun,但它從沒被放進這個 bundle)。
+    // 症狀與「跑過且全過」幾乎同形——A~J 單元閘門照印綠字,只有最後才炸,很容易被當成環境問題。
+    // 同族見 memory metro-shift-drags-trains-backwards 第三節(五支量畫面座標的 verify 全死在 import)。
+    ${extractFunction(INDEX, 'trtcOfficialRosterRepairRun')}
     ${holdSource}
     ${extractFunction(INDEX, 'applyTrtcOfficialRoster')}
     globalThis.__api={state,apply:applyTrtcOfficialRoster};
