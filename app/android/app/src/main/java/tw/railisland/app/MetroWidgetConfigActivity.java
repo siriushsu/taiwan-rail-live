@@ -3,13 +3,17 @@ package tw.railisland.app;
 import android.appwidget.AppWidgetManager;
 import android.content.Context;
 import android.content.Intent;
-import android.graphics.Color;
+import android.content.SharedPreferences;
+import android.net.Uri;
 import android.os.Bundle;
 import android.view.View;
+import android.view.ViewGroup;
 import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
 import android.widget.Button;
+import android.widget.FrameLayout;
 import android.widget.LinearLayout;
+import android.widget.ScrollView;
 import android.widget.Spinner;
 import android.widget.TextView;
 
@@ -24,6 +28,10 @@ public final class MetroWidgetConfigActivity extends AppCompatActivity {
     private Spinner systemSpinner;
     private Spinner stationSpinner;
     private Spinner directionSpinner;
+    private Spinner layoutSpinner;
+    private Spinner freqSpinner;
+    private FrameLayout preview;
+    private TextView passNote;
     private final List<MetroWidgetData.StationInfo> visibleStations = new ArrayList<>();
 
     @Override
@@ -42,18 +50,25 @@ public final class MetroWidgetConfigActivity extends AppCompatActivity {
         LinearLayout root = new LinearLayout(this);
         root.setOrientation(LinearLayout.VERTICAL);
         root.setPadding(dp(24), dp(28), dp(24), dp(24));
-        root.setBackgroundColor(Color.rgb(245, 248, 247));
+        root.setBackgroundColor(getColor(R.color.wg_paper));
 
-        TextView title = text("捷運看板小工具", 24, Color.rgb(13, 45, 48));
+        TextView title = text("捷運看板小工具", 24, getColor(R.color.wg_ink));
         title.setTypeface(title.getTypeface(), android.graphics.Typeface.BOLD);
         root.addView(title, matchWrap(0));
-        TextView hint = text("選一個車站。放上桌面後會顯示官方下一班，點卡片可在鎖定畫面開始倒數。", 14,
-            Color.rgb(71, 90, 91));
+        TextView hint = text("選一個車站，桌面就會顯示官方的下一班還有幾分鐘。", 14, getColor(R.color.wg_ink_soft));
         LinearLayout.LayoutParams hintLp = matchWrap(dp(8));
-        hintLp.bottomMargin = dp(22);
+        hintLp.bottomMargin = dp(18);
         root.addView(hint, hintLp);
 
-        root.addView(label("系統"), matchWrap(dp(0)));
+        // 預覽卡：直接把真的 RemoteViews 貼進來，不畫一張假的示意圖——
+        // 設定頁看到的就是桌面上會長出來的那張版面（版型與路線色都是即時的）。
+        preview = new FrameLayout(this);
+        LinearLayout.LayoutParams previewLp = new LinearLayout.LayoutParams(
+            LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
+        previewLp.bottomMargin = dp(20);
+        root.addView(preview, previewLp);
+
+        root.addView(label("系統"), matchWrap(0));
         systemSpinner = new Spinner(this);
         List<String> systemLabels = new ArrayList<>();
         for (MetroWidgetData.SystemInfo system : catalog.systems) systemLabels.add(system.label);
@@ -68,28 +83,80 @@ public final class MetroWidgetConfigActivity extends AppCompatActivity {
         directionSpinner = new Spinner(this);
         root.addView(directionSpinner, matchWrap(dp(4)));
 
+        root.addView(label("版型"), matchWrap(dp(16)));
+        layoutSpinner = new Spinner(this);
+        layoutSpinner.setAdapter(adapter(java.util.Arrays.asList("琺瑯站牌（一站一班）", "夜行看板（多方向並排）")));
+        root.addView(layoutSpinner, matchWrap(dp(4)));
+
+        root.addView(label("更新頻率"), matchWrap(dp(16)));
+        freqSpinner = new Spinner(this);
+        freqSpinner.setAdapter(adapter(java.util.Arrays.asList(
+            "省電（5 分鐘，進站前 2 分鐘）", "標準（1 分鐘，進站前 30 秒）", "積極（30 秒）")));
+        root.addView(freqSpinner, matchWrap(dp(4)));
+
+        passNote = text("", 13, getColor(R.color.wg_warn));
+        LinearLayout.LayoutParams noteLp = matchWrap(dp(16));
+        root.addView(passNote, noteLp);
+
         Button done = new Button(this);
-        done.setText("加入主畫面");
+        done.setText("加到桌面");
         done.setTextSize(16);
-        done.setTextColor(Color.WHITE);
+        done.setTextColor(getColor(R.color.wg_on_accent));
         done.setAllCaps(false);
-        done.setBackgroundColor(Color.rgb(16, 96, 87));
+        done.setBackgroundColor(getColor(R.color.wg_navy));
         LinearLayout.LayoutParams buttonLp = new LinearLayout.LayoutParams(
             LinearLayout.LayoutParams.MATCH_PARENT, dp(52));
-        buttonLp.topMargin = dp(28);
+        buttonLp.topMargin = dp(24);
         root.addView(done, buttonLp);
 
         systemSpinner.setOnItemSelectedListener(new SimpleSelection() {
             @Override public void selected(int position) { updateStations(position); }
         });
         stationSpinner.setOnItemSelectedListener(new SimpleSelection() {
-            @Override public void selected(int position) { updateDirections(position); }
+            @Override public void selected(int position) { updateDirections(position); refreshPreview(); }
+        });
+        directionSpinner.setOnItemSelectedListener(new SimpleSelection() {
+            @Override public void selected(int position) { refreshPreview(); }
+        });
+        layoutSpinner.setOnItemSelectedListener(new SimpleSelection() {
+            @Override public void selected(int position) { refreshPreview(); }
         });
         done.setOnClickListener(v -> save());
-        setContentView(root);
-        int trtc = 0;
-        for (int i = 0; i < catalog.systems.size(); i++) if ("trtc".equals(catalog.systems.get(i).id)) trtc = i;
-        systemSpinner.setSelection(trtc);
+
+        ScrollView scroll = new ScrollView(this);
+        scroll.addView(root, new FrameLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+        setContentView(scroll);
+        restore();
+    }
+
+    /** 重設既有小工具時，把它現在的選擇讀回來——不要每次都跳回台北車站。 */
+    private void restore() {
+        SharedPreferences prefs = getSharedPreferences(MetroWidgetProvider.PREFS, Context.MODE_PRIVATE);
+        String sys = prefs.getString("sys_" + widgetId, "trtc");
+        int sysIndex = 0;
+        for (int i = 0; i < catalog.systems.size(); i++) if (catalog.systems.get(i).id.equals(sys)) sysIndex = i;
+        systemSpinner.setSelection(sysIndex);
+        updateStations(sysIndex);
+        String station = prefs.getString("station_" + widgetId, null);
+        if (station != null) {
+            if (MetroWidgetData.AUTO.equals(station)) stationSpinner.setSelection(0);
+            else for (int i = 0; i < visibleStations.size(); i++) {
+                if (visibleStations.get(i).name.equals(station)) stationSpinner.setSelection(i + 1);
+            }
+        }
+        layoutSpinner.setSelection(MetroWidgetProvider.LAYOUT_BOARD
+            .equals(prefs.getString("layout_" + widgetId, MetroWidgetProvider.LAYOUT_PLATE)) ? 1 : 0);
+        String freq = prefs.getString("freq_" + widgetId, "std");
+        freqSpinner.setSelection("eco".equals(freq) ? 0 : "max".equals(freq) ? 2 : 1);
+        boolean plus = prefs.getBoolean("plus_active", false);
+        String free = prefs.getString("free_station", null);
+        passNote.setText(plus ? "通行證已啟用：可以放多站，也可以用自動選站。"
+            : (free == null ? "免費版可以固定一站；多站與自動選站需要軌島通行證。"
+                            : "免費版的那一站已經在用了。要再加一站請開通軌島通行證。")
+              + "（點這裡看通行證）");
+        passNote.setOnClickListener(plus ? null : v -> openPass());
+        refreshPreview();
     }
 
     private void updateStations(int systemIndex) {
@@ -114,28 +181,84 @@ public final class MetroWidgetConfigActivity extends AppCompatActivity {
         directionSpinner.setAdapter(adapter(directions));
     }
 
+    /** 預覽用的示範值：站名／站號／英文名／路線色都是真的，只有「還有幾分鐘」是示範用的 4 分。 */
+    private void refreshPreview() {
+        if (preview == null) return;
+        preview.removeAllViews();
+        int sysIndex = systemSpinner.getSelectedItemPosition();
+        int stationIndex = stationSpinner.getSelectedItemPosition();
+        MetroWidgetData.SystemInfo system = sysIndex >= 0 && sysIndex < catalog.systems.size()
+            ? catalog.systems.get(sysIndex) : null;
+        MetroWidgetData.StationInfo info = stationIndex > 0 && stationIndex - 1 < visibleStations.size()
+            ? visibleStations.get(stationIndex - 1) : null;
+        String dest = selectedDirection();
+
+        MetroWidgetPlate.Input in = new MetroWidgetPlate.Input();
+        in.nowEpochSec = System.currentTimeMillis() / 1000.0;
+        in.station = info == null ? "自動選站" : info.name;
+        in.stationEn = info == null ? null : info.en;
+        in.dest = dest;
+        in.etaEpochSec = in.nowEpochSec + 4 * 60 + 20;
+        in.secondMinutes = 9;
+        in.thirdMinutes = 15;
+        in.dataAtEpochSec = in.nowEpochSec;
+        if (info != null && system != null && !info.lineIds.isEmpty()) {
+            String lineId = info.lineIds.get(0);
+            in.stationCode = info.codeForLine(lineId);
+            in.lineLabel = system.lineLabels.get(lineId);
+            in.lineColor = system.lineColors.get(lineId);
+            String[] neighbors = system.neighbors(info.name, lineId);
+            in.prevStation = neighbors[0];
+            in.nextStation = neighbors[1];
+            // 沒指定方向時，示範用「這條線的遠端終點」——不要取跨線合併的 destinations[0]，
+            // 那會讓淡水信義線的徽章配上板南線的終點站。
+            if (in.dest.isEmpty()) {
+                java.util.List<String> order = system.lineOrder.get(lineId);
+                if (order != null && order.size() > 1) {
+                    int at = order.indexOf(info.name);
+                    in.dest = at < order.size() / 2 ? order.get(order.size() - 1) : order.get(0);
+                }
+            }
+        }
+        MetroWidgetPlate plate = MetroWidgetPlate.of(in);
+        boolean board = layoutSpinner.getSelectedItemPosition() == 1;
+        android.widget.RemoteViews views = board
+            ? MetroWidgetPlateRender.board(this, R.layout.widget_board_4x2,
+                new MetroWidgetPlate[] { plate, plate }, 2,
+                (plate.badge == null ? "" : plate.badge + " ") + plate.station,
+                "單位分鐘", plate.footRight, null, false)
+            : MetroWidgetPlateRender.plate(this, R.layout.widget_plate_4x2, plate);
+        preview.addView(views.apply(this, preview));
+    }
+
+    private String selectedDirection() {
+        int index = directionSpinner == null ? 0 : directionSpinner.getSelectedItemPosition();
+        if (index <= 0) return "";
+        String label = String.valueOf(directionSpinner.getSelectedItem());
+        return label.startsWith("往 ") ? label.substring(2) : label;
+    }
+
     private void save() {
         int sysIndex = systemSpinner.getSelectedItemPosition();
         int stationIndex = stationSpinner.getSelectedItemPosition();
         if (sysIndex < 0 || sysIndex >= catalog.systems.size() || stationIndex < 0) return;
         MetroWidgetData.SystemInfo system = catalog.systems.get(sysIndex);
         String station = stationIndex == 0 ? MetroWidgetData.AUTO : visibleStations.get(stationIndex - 1).name;
-        String direction = "";
-        int directionIndex = directionSpinner.getSelectedItemPosition();
-        if (directionIndex > 0) {
-            String label = String.valueOf(directionSpinner.getSelectedItem());
-            direction = label.startsWith("往 ") ? label.substring(2) : label;
-        }
-        android.content.SharedPreferences prefs = getSharedPreferences(MetroWidgetProvider.PREFS, Context.MODE_PRIVATE);
+        String direction = selectedDirection();
+        SharedPreferences prefs = getSharedPreferences(MetroWidgetProvider.PREFS, Context.MODE_PRIVATE);
         String previousSys = prefs.getString("sys_" + widgetId, null);
         String previousStation = prefs.getString("station_" + widgetId, null);
         String previousKey = previousSys == null || previousStation == null || MetroWidgetData.AUTO.equals(previousStation)
             ? null : previousSys + "|" + previousStation;
         String selectedKey = MetroWidgetData.AUTO.equals(station) ? null : system.id + "|" + station;
-        android.content.SharedPreferences.Editor editor = prefs.edit()
+        SharedPreferences.Editor editor = prefs.edit()
             .putString("sys_" + widgetId, system.id)
             .putString("station_" + widgetId, station)
-            .putString("direction_" + widgetId, direction);
+            .putString("direction_" + widgetId, direction)
+            .putString("layout_" + widgetId, layoutSpinner.getSelectedItemPosition() == 1
+                ? MetroWidgetProvider.LAYOUT_BOARD : MetroWidgetProvider.LAYOUT_PLATE)
+            .putString("freq_" + widgetId, freqSpinner.getSelectedItemPosition() == 0 ? "eco"
+                : freqSpinner.getSelectedItemPosition() == 2 ? "max" : "std");
         // 使用者重設的正是免費站時，名額跟著同一顆小工具搬到新站，不殘留在舊站。
         if (previousKey != null && previousKey.equals(prefs.getString("free_station", null))) {
             if (selectedKey == null) editor.remove("free_station");
@@ -150,6 +273,12 @@ public final class MetroWidgetConfigActivity extends AppCompatActivity {
         finish();
     }
 
+    /** 免費版想再加一站時，設定頁直接把通行證入口給出來（不要只寫「需要通行證」就沒有下一步）。 */
+    void openPass() {
+        Uri uri = new Uri.Builder().scheme("railisland").authority("pass").build();
+        startActivity(new Intent(Intent.ACTION_VIEW, uri, this, MainActivity.class));
+    }
+
     private ArrayAdapter<String> adapter(List<String> values) {
         ArrayAdapter<String> adapter = new ArrayAdapter<>(this, android.R.layout.simple_spinner_dropdown_item, values);
         adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
@@ -157,7 +286,7 @@ public final class MetroWidgetConfigActivity extends AppCompatActivity {
     }
 
     private TextView label(String value) {
-        TextView label = text(value, 13, Color.rgb(71, 90, 91));
+        TextView label = text(value, 13, getColor(R.color.wg_ink_soft));
         label.setTypeface(label.getTypeface(), android.graphics.Typeface.BOLD);
         return label;
     }

@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 站號徽章底。顏色在 runtime 用 setColorFilter 換成路線色（一個 drawable 走全部路線）。 -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="rectangle">
+    <corners android:radius="4dp" />
+    <solid android:color="#FFFFFFFF" />
+    <size android:width="34dp" android:height="18dp" />
+</shape>

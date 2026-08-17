@@ -1,0 +1,374 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 1b 夜行看板 · 2×2（160×158dp）。
+     設計稿：「家裡和公司兩三站一起看。左邊是路線色軌，右邊是三班車的時間列。
+     資訊多 · 路線圖主導 · 低調融入桌布。」
+     取捨（設計稿明文）：1a 在 2 公尺外也讀得到但一格只服務一段通勤；1b 一眼掌握整天的路網，
+     代價是最大字級只有 25px。兩者是同一個 provider 的兩種版型，設定畫面切換。
+
+     🔴 三列【永遠都在版面裡】，該尺寸顯示幾列由 provider 明確傳 maxRows 給 binder 決定
+        （4×2 兩列、4×3 三列、2×2 兩列且無副標）。不讓 binder 自己猜尺寸：它讀不到版面，
+        猜錯的症狀是「某個尺寸多一列被裁掉」，而那在算繪與程式碼裡都看不出來。 -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/wb_root"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@drawable/wg_card"
+    android:orientation="vertical"
+    android:paddingStart="12dp"
+    android:paddingEnd="12dp"
+    android:paddingTop="11dp"
+    android:paddingBottom="10dp">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:baselineAligned="false"
+        android:gravity="center_vertical"
+        android:orientation="horizontal">
+
+        <TextView
+            android:id="@+id/wb_head"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:ellipsize="end"
+            android:maxLines="1"
+            android:text="台北車站"
+            android:textColor="@color/wg_ink"
+            android:textSize="12sp"
+            android:textStyle="bold" />
+
+        <ImageView
+            android:id="@+id/wb_chip_dot"
+            android:layout_width="6dp"
+            android:layout_height="6dp"
+            android:contentDescription="@null"
+            android:src="@drawable/widget_dot" />
+
+        <TextView
+            android:id="@+id/wb_chip"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="4dp"
+            android:maxLines="1"
+            android:text="LIVE"
+            android:textColor="@color/wg_ok"
+            android:textSize="10sp"
+            android:textStyle="bold" android:visibility="gone"
+            />
+
+        <TextView
+            android:id="@+id/wb_stamp"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="6dp"
+            android:maxLines="1"
+            android:text="09:41"
+            android:textColor="@color/wg_ink_faint"
+            android:textSize="10sp" android:visibility="gone"
+            />
+    </LinearLayout>
+
+    <LinearLayout
+        android:id="@+id/wb_rows"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_marginTop="6dp"
+        android:layout_weight="1"
+        android:orientation="vertical">
+
+        <LinearLayout
+            android:id="@+id/wb_r1"
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1"
+            android:baselineAligned="false"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+
+            <ImageView
+                android:id="@+id/wb_r1_bar"
+                android:layout_width="3dp"
+                android:layout_height="match_parent"
+                android:layout_marginTop="3dp"
+                android:layout_marginBottom="3dp"
+                android:contentDescription="@null"
+                android:scaleType="fitXY"
+                android:src="@drawable/wg_meter_block" />
+
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="8dp"
+                android:layout_weight="1"
+                android:orientation="vertical">
+
+                <TextView
+                    android:id="@+id/wb_r1_title"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:ellipsize="end"
+                    android:maxLines="1"
+                    android:text="台北車站 · 往淡水"
+                    android:textColor="@color/wg_ink"
+                    android:textSize="13sp"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:id="@+id/wb_r1_sub"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:ellipsize="end"
+                    android:maxLines="1"
+                    android:text="列車在台大醫院"
+                    android:textColor="@color/wg_ink_faint"
+                    android:textSize="9sp" android:visibility="gone"
+            />
+            </LinearLayout>
+
+            <TextView
+                android:id="@+id/wb_r1_a"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:includeFontPadding="false"
+                android:maxLines="1"
+                android:text="2"
+                android:textColor="@color/wg_ink"
+                android:textSize="21sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/wb_r1_b"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="5dp"
+                android:maxLines="1"
+                android:text="7"
+                android:textColor="@color/wg_ink_soft"
+                android:textSize="13sp" />
+
+            <TextView
+                android:id="@+id/wb_r1_c"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="4dp"
+                android:maxLines="1"
+                android:text="14"
+                android:textColor="@color/wg_ink_faint"
+                android:textSize="13sp" android:visibility="gone"
+            />
+        </LinearLayout>
+
+        <LinearLayout
+            android:id="@+id/wb_r2"
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1"
+            android:baselineAligned="false"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+
+            <ImageView
+                android:id="@+id/wb_r2_bar"
+                android:layout_width="3dp"
+                android:layout_height="match_parent"
+                android:layout_marginTop="3dp"
+                android:layout_marginBottom="3dp"
+                android:contentDescription="@null"
+                android:scaleType="fitXY"
+                android:src="@drawable/wg_meter_block" />
+
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="8dp"
+                android:layout_weight="1"
+                android:orientation="vertical">
+
+                <TextView
+                    android:id="@+id/wb_r2_title"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:ellipsize="end"
+                    android:maxLines="1"
+                    android:text="市政府 · 往南港展覽館"
+                    android:textColor="@color/wg_ink"
+                    android:textSize="13sp"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:id="@+id/wb_r2_sub"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:ellipsize="end"
+                    android:maxLines="1"
+                    android:text="列車在永春"
+                    android:textColor="@color/wg_ink_faint"
+                    android:textSize="9sp" android:visibility="gone"
+            />
+            </LinearLayout>
+
+            <TextView
+                android:id="@+id/wb_r2_a"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:includeFontPadding="false"
+                android:maxLines="1"
+                android:text="3"
+                android:textColor="@color/wg_ink"
+                android:textSize="21sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/wb_r2_b"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="5dp"
+                android:maxLines="1"
+                android:text="8"
+                android:textColor="@color/wg_ink_soft"
+                android:textSize="13sp" />
+
+            <TextView
+                android:id="@+id/wb_r2_c"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="4dp"
+                android:maxLines="1"
+                android:text="13"
+                android:textColor="@color/wg_ink_faint"
+                android:textSize="13sp" android:visibility="gone"
+            />
+        </LinearLayout>
+
+        <LinearLayout
+            android:id="@+id/wb_r3"
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1"
+            android:baselineAligned="false"
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:visibility="gone">
+
+            <ImageView
+                android:id="@+id/wb_r3_bar"
+                android:layout_width="3dp"
+                android:layout_height="match_parent"
+                android:layout_marginTop="3dp"
+                android:layout_marginBottom="3dp"
+                android:contentDescription="@null"
+                android:scaleType="fitXY"
+                android:src="@drawable/wg_meter_block" />
+
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="8dp"
+                android:layout_weight="1"
+                android:orientation="vertical">
+
+                <TextView
+                    android:id="@+id/wb_r3_title"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:ellipsize="end"
+                    android:maxLines="1"
+                    android:text="台北車站 · 往象山"
+                    android:textColor="@color/wg_ink"
+                    android:textSize="13sp"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:id="@+id/wb_r3_sub"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:ellipsize="end"
+                    android:maxLines="1"
+                    android:text="列車在中山"
+                    android:textColor="@color/wg_ink_faint"
+                    android:textSize="9sp" android:visibility="gone"
+            />
+            </LinearLayout>
+
+            <TextView
+                android:id="@+id/wb_r3_a"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:includeFontPadding="false"
+                android:maxLines="1"
+                android:text="4"
+                android:textColor="@color/wg_ink"
+                android:textSize="21sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/wb_r3_b"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="5dp"
+                android:maxLines="1"
+                android:text="9"
+                android:textColor="@color/wg_ink_soft"
+                android:textSize="13sp" />
+
+            <TextView
+                android:id="@+id/wb_r3_c"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="4dp"
+                android:maxLines="1"
+                android:text="16"
+                android:textColor="@color/wg_ink_faint"
+                android:textSize="13sp" android:visibility="gone"
+            />
+        </LinearLayout>
+    </LinearLayout>
+
+    <TextView
+        android:id="@+id/wb_band"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="3dp"
+        android:background="@drawable/wg_band_bad"
+        android:ellipsize="end"
+        android:maxLines="2"
+        android:paddingStart="9dp"
+        android:paddingEnd="8dp"
+        android:paddingTop="4dp"
+        android:paddingBottom="4dp"
+        android:text="中山—淡水 區間電力事故"
+        android:textColor="@color/wg_bad"
+        android:textSize="10sp"
+        android:visibility="gone" />
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="5dp"
+        android:baselineAligned="false"
+        android:gravity="center_vertical"
+        android:orientation="horizontal">
+
+        <TextView
+            android:id="@+id/wb_foot_left"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:ellipsize="end"
+            android:maxLines="1"
+            android:text="09:41 更新 · 單位分鐘"
+            android:textColor="@color/wg_ink_faint"
+            android:textSize="10sp" />
+
+        <TextView
+            android:id="@+id/wb_foot_right"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:maxLines="1"
+            android:text="2 站 · 已釘選"
+            android:textColor="@color/wg_ink_faint"
+            android:textSize="10sp" android:visibility="gone"
+            />
+    </LinearLayout>
+</LinearLayout>
