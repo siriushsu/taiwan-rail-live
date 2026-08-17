@@ -4884,7 +4884,23 @@ function trtcCensusResolve(stn, nextName, destName) {
     if (di >= 0 && di !== Number(c.i)) score += 1;
     return { line: c.ln, i: Number(c.i), score };
   }).sort((a, b) => b.score - a.score);
-  if (!scored[0].score || (scored[1] && scored[1].score === scored[0].score)) return null;
+  if (!scored[0].score) return null;
+  // 平手不一定等於歧義。中和新蘆線的共線段（南勢角↔大橋頭）被拆成蘆洲、新莊兩條線，
+  // 那一段兩條的站序完全一樣 ⇒ 評分必然平手，實測每輪 5 台南下車因此整台不畫。
+  // 但共線段就是同一條實體軌道：只要「從這裡到終點站」的站序兩邊相同，選哪條畫出來
+  // 都是同一條線，那不是猜，是這個選擇本身沒有差別。站序真的分岔才叫歧義。
+  if (scored[1] && scored[1].score === scored[0].score) {
+    const tied = scored.filter(c => c.score === scored[0].score);
+    const routeOf = c => {
+      const ln = trtcCensusLine(c.line), arr = ln ? trtcCensusNames(ln) : [];
+      const di = dest ? arr.indexOf(dest) : -1;
+      if (di < 0) return null;                      // 終點不在這條線上：無從比對，維持歧義
+      return (di >= c.i ? arr.slice(c.i, di + 1) : arr.slice(di, c.i + 1).reverse()).join('>');
+    };
+    const routes = tied.map(routeOf);
+    if (routes.some(r => r == null) || routes.some(r => r !== routes[0])) return null;
+    return tied.slice().sort((a, b) => String(a.line) < String(b.line) ? -1 : 1)[0];
+  }
   return scored[0];
 }
 let _trtcCensusPrior = new Map();

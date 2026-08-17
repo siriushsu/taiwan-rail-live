@@ -40,7 +40,22 @@ function resolveStation(model, names, stn, nextName, destName) {
     return { ...c, score };
   }).sort((a, b) => b.score - a.score);
   if (!scored[0].score) return null;                       // 全部對不上：不猜，交給呼叫端記為 dropped
-  if (scored[1] && scored[1].score === scored[0].score) return null;
+  // 平手不一定等於歧義。中和新蘆線共線段（南勢角↔大橋頭）在模型裡被拆成蘆洲、新莊兩條線，
+  // 那一段站序完全相同 ⇒ 必然平手，實測每輪 5 台南下車因此整台不畫。共線段是同一條實體
+  // 軌道：只要「從這裡到終點」的站序兩邊相同，選哪條畫出來都一樣，這不是猜。真的分岔才叫歧義。
+  if (scored[1] && scored[1].score === scored[0].score) {
+    const tied = scored.filter(c => c.score === scored[0].score);
+    const routeOf = c => {
+      const arr = names.get(c.line) || [];
+      const di = dest ? arr.indexOf(dest) : -1;
+      if (di < 0) return null;                             // 終點不在這條線上：無從比對，維持歧義
+      return (di >= c.i ? arr.slice(c.i, di + 1) : arr.slice(di, c.i + 1).reverse()).join('>');
+    };
+    const routes = tied.map(routeOf);
+    if (routes.some(r => r == null) || routes.some(r => r !== routes[0])) return null;
+    const pick = tied.slice().sort((a, b) => String(a.line) < String(b.line) ? -1 : 1)[0];
+    return { line: pick.line, i: pick.i, ambiguous: true };
+  }
   return { line: scored[0].line, i: scored[0].i, ambiguous: true };
 }
 
