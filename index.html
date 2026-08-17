@@ -4911,11 +4911,23 @@ function trtcCensusVehicles(trains, nowEpoch, day) {
     const no = String((t && t.no) || '').trim();
     if (!no) continue;
     const sys = t.sys === 'br' ? 'br' : 'hw', at = Number(t.at);
-    if (Number.isFinite(at) && nowEpoch - at > 900) continue; // 連粗位置都不可信，這輪略過
+    const vid = 'cs:' + day + ':' + sys + ':' + no;
+    // 🔴 08-14 契約:官方清單還列著這台車就代表它在,缺訊只 hold、沒有退場。
+    // 所以「這一輪算不出位置」不准丟車——沿用上一輪的位置等資料追上。丟了才是
+    // 「API 每 15 秒都正常,車卻自己不見」。認不出來留白,但不因此不畫。
+    // 唯一例外是連 no 都沒有(上面已擋):那連身分都構不成,沒有可沿用的對象。
+    const holdPrev = why => {
+      const p0 = prior.get(vid);
+      if (!p0 || seen.has(vid)) return false;
+      seen.add(vid);
+      const held = { ...p0, source: 'census-hold', holdReason: why, observedEpoch: nowEpoch };
+      next.set(vid, held); out.push(held); return true;
+    };
+    if (Number.isFinite(at) && nowEpoch - at > 900) { holdPrev('stale-at'); continue; }
     const path = Array.isArray(t.path) ? t.path : [];
     const hit = trtcCensusResolve(t.stn, path.find(x => Number(x.eta) > nowEpoch)?.name, t.dest);
-    if (!hit) continue;
-    const ln = trtcCensusLine(hit.line); if (!ln) continue;
+    if (!hit) { holdPrev('unresolved-station'); continue; }
+    const ln = trtcCensusLine(hit.line); if (!ln) { holdPrev('line-missing'); continue; }
     const arr = trtcCensusNames(ln);
     // 方向優先從 path 推：dir 欄位在終點站折返時會落後（實測 66 筆有 path 的樣本中 3 筆），
     // 照抄 dir 就會把剛掉頭的車畫成反向。
@@ -4928,7 +4940,7 @@ function trtcCensusVehicles(trains, nowEpoch, day) {
     let step = null, nextIdx = head ? arr.indexOf(_trtcCensusNorm(head.name)) : -1;
     if (nextIdx >= 0 && nextIdx !== hit.i) step = Math.sign(nextIdx - hit.i);
     if (step == null) {
-      if (Number(t.dir) !== 1 && Number(t.dir) !== 2) continue;
+      if (Number(t.dir) !== 1 && Number(t.dir) !== 2) { holdPrev('no-direction'); continue; }
       step = Number(t.dir) === 1 ? -1 : 1;
     }
     let from, to;
@@ -4956,7 +4968,7 @@ function trtcCensusVehicles(trains, nowEpoch, day) {
     const dirOut = terminal
       ? (from <= 0 ? 2 : (from >= arr.length - 1 ? 1 : (step > 0 ? 2 : 1)))
       : (step > 0 ? 2 : 1);
-    const vehicleId = 'cs:' + day + ':' + sys + ':' + no;
+    const vehicleId = vid;
     if (seen.has(vehicleId)) continue;
     seen.add(vehicleId);
     // 只准前進。兩個位置來源的新鮮度差很大（CarWeight 的 stn 實測落後 96–265 秒、
@@ -18162,7 +18174,14 @@ async function pollTrtcLive() {
               if (built) {
                 const covered = new Set(built.map(v => v.line));
                 const kept = (d.boardPos.vehicles || []).filter(v => !covered.has(v.line));
-                applyTrtcOfficialRoster({ ...d.boardPos, vehicles: built.concat(kept), feedMode: 'official' });
+                // 退回舊綁定器這件事不可以是靜默的：Y 與兩條支線是預期的（逐車清單本來就沒有
+                // 它們），但如果某條「逐車清單有涵蓋」的主線這一輪建成 0 台而退回看板來源，
+                // 那是異常——舊綁定器的幽靈車風險會在那條線上回來。留成可觀測的欄位，
+                // 由巡檢掃描器當警告報出來（不是缺陷：退回＝回到現行行為，不比今天差）。
+                const expected = new Set(['Y', 'G_XBT', 'R_XBT']);
+                const fallbackLines = [...new Set(kept.map(v => v.line))].filter(id => !expected.has(id));
+                applyTrtcOfficialRoster({ ...d.boardPos, vehicles: built.concat(kept),
+                  feedMode: 'official', censusFallbackLines: fallbackLines });
               }
             } else applyTrtcOfficialRoster(d.boardPos);
           }

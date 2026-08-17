@@ -99,10 +99,21 @@ export function buildCensusRoster({ model, trains, nowEpoch, day, prior = null, 
     const no = String((t && t.no) || '').trim();
     const sys = t && t.sys === 'br' ? 'br' : 'hw';
     if (!no) { diag.unresolved++; continue; }
-    // at 太舊表示這台車的逐車回報已經斷了很久。這不是「資料齡退場」——名冊仍以官方清單為準，
-    // 只是這一筆連粗位置都不可信，畫出來會是亂跳的車，所以整筆略過（下一輪它回來就回來）。
     const at = Number(t.at);
-    if (Number.isFinite(at) && nowEpoch - at > maxStaleSec) { diag.stale++; continue; }
+    const vid = `cs:${day}:${sys}:${no}`;
+    // 🔴 08-14 契約：官方清單還列著這台車就代表它在，缺訊只 hold、沒有退場。
+    // 「這一輪算不出位置」不准丟車——沿用上一輪等資料追上。丟了才是「API 每 15 秒
+    // 都正常，車卻自己不見」。唯一例外是連 no 都沒有：那連身分都構不成。
+    const holdPrev = why => {
+      const p0 = priorById.get(vid);
+      if (!p0 || seen.has(vid)) return false;
+      seen.add(vid);
+      vehicles.push({ ...p0, source: 'census-hold', holdReason: why, observedEpoch: nowEpoch });
+      diag.held++; diag.built++;
+      diag.byLine[p0.line] = (diag.byLine[p0.line] || 0) + 1;
+      return true;
+    };
+    if (Number.isFinite(at) && nowEpoch - at > maxStaleSec) { diag.stale++; holdPrev('stale-at'); continue; }
 
     // path 的前幾筆常常已是過去式：官方對「列車進站」給的倒數是 0，換算出的 eta 等於這份
     // payload 的時戳，下一輪就過期了。照抄第一筆會讓車卡在那一站、前後班疊在同一點上。
@@ -111,10 +122,11 @@ export function buildCensusRoster({ model, trains, nowEpoch, day, prior = null, 
     while (pi < rawPath.length && Number(rawPath[pi].eta) <= nowEpoch) pi++;
     const path = rawPath.slice(pi);
     const hit = resolveStation(model, names, t.stn, path[0] && path[0].name, t.dest);
-    if (!hit) { (model.codeMap && model.codeMap.get(String(t.stn))) ? diag.unresolved++ : diag.noCode++; continue; }
+    if (!hit) { (model.codeMap && model.codeMap.get(String(t.stn))) ? diag.unresolved++ : diag.noCode++;
+      holdPrev('unresolved-station'); continue; }
     const line = model.lines.get(hit.line);
     const arr = names.get(hit.line) || [];
-    if (!line || !arr.length) { diag.unresolved++; continue; }
+    if (!line || !arr.length) { diag.unresolved++; holdPrev('line-missing'); continue; }
 
     // 方向：有 path 就從 path 推（折返時 dir 欄位會落後，實測 3/66）
     let dirStep = null;
@@ -128,7 +140,7 @@ export function buildCensusRoster({ model, trains, nowEpoch, day, prior = null, 
       }
     }
     if (dirStep == null) {
-      if (Number(t.dir) !== 1 && Number(t.dir) !== 2) { diag.unresolved++; continue; }
+      if (Number(t.dir) !== 1 && Number(t.dir) !== 2) { diag.unresolved++; holdPrev('no-direction'); continue; }
       dirStep = Number(t.dir) === 1 ? -1 : 1;               // 實測 63/66 筆成立的慣例
       diag.dirFromField++;
       diag.noPath++;
@@ -180,7 +192,7 @@ export function buildCensusRoster({ model, trains, nowEpoch, day, prior = null, 
     if (!timeline.length) timeline.push({ from, to, depEpoch: arrEpoch - run, arrEpoch, terminal });
 
     // 身分＝官方給的那個編號本身，跨輪穩定，不需要任何綁定或推論。
-    const vehicleId = `cs:${day}:${sys}:${no}`;
+    const vehicleId = vid;
     if (seen.has(vehicleId)) { diag.duplicates++; continue; }
     seen.add(vehicleId);
 

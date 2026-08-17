@@ -88,7 +88,8 @@ const SAMPLE = () => {
       sys: typeof freqSysIdOf === 'function' ? freqSysIdOf(ln) : null,
     });
   }
-  return { at: Date.now(), simSec: state.simSec, zoom: map.getZoom(), n: out.length, hits: out };
+  return { at: Date.now(), simSec: state.simSec, zoom: map.getZoom(), n: out.length, hits: out,
+    censusFallbackLines: (state.trtcOfficialRoster || {}).censusFallbackLines || null };
 };
 
 const browser = await chromium.launch();
@@ -152,6 +153,10 @@ if (!s1.n || !s2.n) {
   process.exit(2);
 }
 if (pageErrors.length) note('warn', `頁面拋錯 ${pageErrors.length} 次`, pageErrors.slice(0, 3));
+// 逐車名冊模式下，某條「本該由逐車清單接管」的主線退回舊綁定器＝那條線的幽靈車風險回來了。
+// 環狀線與兩條支線是預期的退回（逐車清單沒有它們），前端已經先排除掉。
+if (s2.censusFallbackLines && s2.censusFallbackLines.length)
+  note('warn', `這些線退回舊綁定器：${s2.censusFallbackLines.join('、')}`, s2.censusFallbackLines);
 
 // 1. 同向疊車（先分線再分方向；對向交會是正常的）
 const groups = new Map();
@@ -226,12 +231,31 @@ if (frozen.length) note('bad', `疑似整線凍結：${frozen.join('、')}`);
 
 // 4. 車數（只對北捷比；官方逐車是獨立來源）
 if (official && !official.error) {
-  const drawnTrtc = s2.hits.filter(h => h.sys === 'mrt').length;
+  // 🔴 分子分母必須對齊：官方逐車清單是「臺北捷運」的，只涵蓋高運量與文湖線。
+  // 環狀線（新北捷運公司）與小碧潭／新北投兩條支線它一台都沒有，把它們算進分子
+  // 會讓比值天生虛高（實測量到 112%），上界再怎麼收都是虛的。
+  const censusCovered = h => h.sys === 'mrt' && h.line !== 'Y' && !(h.stations != null && h.stations <= 2);
+  const drawnTrtc = s2.hits.filter(censusCovered).length;
   const expect = official.hw + official.br;
   const ratio = expect ? drawnTrtc / expect : 0;
-  const ok = ratio >= .6 && ratio <= 1.6;
-  console.log(`${ok ? '✅' : '❌'} 車數：畫面北捷 ${drawnTrtc} 台 vs 官方逐車 ${expect} 台（${(ratio * 100).toFixed(0)}%）`);
-  if (!ok) note('bad', `車數比例異常 ${(ratio * 100).toFixed(0)}%`, { drawnTrtc, expect });
+  // 下界寬、上界緊，兩邊的理由不對稱：
+  //   少畫有一堆正當理由——停在終點站的依裁示本來就不畫（實測每輪約 5 台）、共線段真歧義
+  //   解不出的 1–3 台、剛折返還沒配到方向的。實測正式站 83%、census 85%，取 .7 留餘裕；
+  //   而「逐線流失」由第五條判準（整條線不見）接手，那條比一個總量比值敏感得多。
+  //   多畫則沒有正當理由——分子分母對齊之後，畫面上不該出現官方沒說的車，所以上界收到
+  //   1.1（只留給「官方那份比畫面舊幾秒」的抖動）。Codex 複審指出舊的 1.6 讓 59 台幽靈車
+  //   仍全綠，那是對的。
+  const ok = ratio >= .7 && ratio <= 1.1;
+  // 分子的組成也印出來——「兩邊對齊」是這條判準的前提，不可以只寫在註解裡靠信任
+  const numByLine = {};
+  for (const h of s2.hits) if (censusCovered(h)) numByLine[h.line] = (numByLine[h.line] || 0) + 1;
+  const excluded = {};
+  for (const h of s2.hits) if (h.sys === 'mrt' && !censusCovered(h)) excluded[h.line] = (excluded[h.line] || 0) + 1;
+  console.log(`${ok ? '✅' : '❌'} 車數：${drawnTrtc} 台 vs 官方逐車 ${expect} 台（${(ratio * 100).toFixed(0)}%）` +
+    `　［兩邊都只算高運量＋文湖線］`);
+  console.log(`     分子 ${JSON.stringify(numByLine)}`);
+  console.log(`     兩邊都不算（不在官方逐車清單裡）${JSON.stringify(excluded)}`);
+  if (!ok) note('bad', `車數比例異常 ${(ratio * 100).toFixed(0)}%`, { drawnTrtc, expect, numByLine });
 }
 
 // 5. 整條線不見（官方那份名冊說這條線有車，畫面卻一台都沒有）
