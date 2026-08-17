@@ -18143,7 +18143,17 @@ async function pollTrtcLive() {
               // 還在飛，若當輪直接放棄就要等下一次輪詢（60 秒）畫面才會有車。
               await trtcCodesEnsure();
               const built = trtcCensusVehicles(d.trains, Date.now() / 1000, todayStr());
-              if (built) applyTrtcOfficialRoster({ ...d.boardPos, vehicles: built, feedMode: 'official' });
+              // 🔴 逐車清單是「臺北捷運」的，只涵蓋高運量與文湖線。環狀線(Y，新北捷運公司營運)
+              // 與小碧潭(G_XBT)、新北投(R_XBT)兩條支線它一台都沒有——整份名冊直接換掉，
+              // 那三條線的車就會整條消失(實測 Y 12 台、G_XBT 3 台、R_XBT 2 台)。
+              // 故只換掉逐車清單真的建出車來的線，其餘維持原本由站牌倒數建的名冊。
+              // 判準用「這一輪有沒有建出車」而不是寫死線別清單：支線永遠 0 台就永遠走看板，
+              // 而某條線臨時 0 台時退回看板也只是回到現行行為，不會比今天差。
+              if (built) {
+                const covered = new Set(built.map(v => v.line));
+                const kept = (d.boardPos.vehicles || []).filter(v => !covered.has(v.line));
+                applyTrtcOfficialRoster({ ...d.boardPos, vehicles: built.concat(kept), feedMode: 'official' });
+              }
             } else applyTrtcOfficialRoster(d.boardPos);
           }
           else trtcOfficialRosterHold('missing-boardPos');

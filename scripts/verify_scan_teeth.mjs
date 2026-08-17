@@ -5,6 +5,9 @@
 // 注射兩種（都用 metroShiftSec，因為上午的真根因就是它——k×班距 的錯配校正量）：
 //   clump    ：一半的車套 900 秒校正 ⇒ 被拖回起點與另一半疊在一起（使用者的截圖形態）
 //   backward ：校正量隨牆鐘增長 ⇒ 位置隨時間往回走（使用者說的「倒退跑」）
+//   lineGone ：名冊整包換成逐車清單而不保留它蓋不到的線 ⇒ 環狀線整條消失
+//              （2026-08-17 使用者實際回報「現在環狀線都沒車」的那個缺陷；當時四項判準
+//               全綠，總車數只掉 17 台也在容許區間內——所以它必須自己是一條判準）
 // 兩種都必須讓 scan 以離開碼 1 收場；任一種沒被抓到，就是掃描器在那個維度上是瞎的。
 import fs from 'node:fs';
 import path from 'node:path';
@@ -27,6 +30,10 @@ const INJECT = {
   backward: `function metroShiftSec(ln, tr) { if (trtcPureSchedule(ln))
     return 200 + (Date.now() / 1000 * 3) % 1200; // `,
 };
+
+// 這一發要走 ?census=1 才碰得到合併那段碼，且改的是別的錨點。
+const CENSUS_ANCHOR = 'const covered = new Set(built.map(v => v.line));';
+const CENSUS_INJECT = 'const covered = new Set(((state.lines||[]).concat(state.decoLines||[])).map(l => l.id));';
 
 const MIME = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript', '.mjs': 'text/javascript',
   '.json': 'application/json', '.css': 'text/css', '.png': 'image/png', '.svg': 'image/svg+xml',
@@ -78,14 +85,19 @@ const check = (pass, label, detail = '') => {
 };
 
 // 對照組：未突變的原始碼必須全綠。它若也是紅的，後面兩個紅就沒有鑑別力。
-const cases = [['對照組（原始碼）', INDEX, 0], ...Object.entries(INJECT).map(([k, v]) =>
-  [`突變：${k}`, INDEX.replace(ANCHOR, v), 1])];
+const cases = [
+  ['對照組（原始碼）', INDEX, 0, ''],
+  ...Object.entries(INJECT).map(([k, v]) => [`突變：${k}`, INDEX.replace(ANCHOR, v), 1, '']),
+  // 對照組也要跑一次 census 版，證明紅的是突變不是 census 本身
+  ['對照組（census）', INDEX, 0, '?census=1'],
+  ['突變：lineGone', INDEX.replace(CENSUS_ANCHOR, CENSUS_INJECT), 1, '?census=1'],
+];
 
-for (const [name, html, wantCode] of cases) {
+for (const [name, html, wantCode, qs] of cases) {
   if (html === INDEX && wantCode === 1) { check(false, `${name}：突變沒套上（anchor 找不到）`); continue; }
   const server = serve(html);
   await new Promise((r, j) => { server.once('error', j); server.listen(0, '127.0.0.1', r); });
-  const url = `http://127.0.0.1:${server.address().port}/`;
+  const url = `http://127.0.0.1:${server.address().port}/${qs}`;
   const { code, out } = await runScan(url);
   server.close();
   const summary = out.split('\n').filter(l => /^[✅❌]/.test(l)).join('　');

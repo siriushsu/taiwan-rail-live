@@ -126,8 +126,17 @@ try {
   const base = new URL(URL_ARG); base.pathname = '/api/trtc-live'; base.search = '';
   const live = await (await fetch(base.href, { headers: { 'cache-control': 'no-cache' } })).json();
   const feed = live.trains || [];
+  // 逐線車數也留下來。2026-08-17 踩到:名冊來源換成官方逐車清單時,那份清單只涵蓋北捷
+  // (高運量＋文湖線),環狀線與兩條支線一台都沒有 ⇒ 整份名冊換掉就讓那三條線整條消失,
+  // 而總車數只掉 17 台、疊車倒退全綠,四項判準沒有一項會紅。整條線不見必須自己成為一條判準。
+  // 分母只算「會動的車」:停在終點站的車依裁示本來就不畫(到終點就收車),把它們算進去
+  // 會讓兩條支線(小碧潭、新北投)每次都假紅——那是兩站區間車,多數時間就停在端點,
+  // 實測 G_XBT／R_XBT 名冊上各 2 台全是 terminal、在跑的 0 台。
+  const bpv = (live.boardPos?.vehicles || []).filter(v => !v.terminal);
+  const byLine = {};
+  for (const v of bpv) byLine[v.line] = (byLine[v.line] || 0) + 1;
   official = { hw: feed.filter(t => t.sys === 'hw').length, br: feed.filter(t => t.sys === 'br').length,
-    roster: (live.boardPos?.vehicles || []).length, age: Math.round(Date.now() / 1000 - (live.boardPos?.sourceRevision || 0)) };
+    roster: (live.boardPos?.vehicles || []).length, running: bpv.length, byLine, age: Math.round(Date.now() / 1000 - (live.boardPos?.sourceRevision || 0)) };
 } catch (e) { official = { error: e.message }; }
 
 await browser.close();
@@ -217,6 +226,18 @@ if (official && !official.error) {
   const ok = ratio >= .6 && ratio <= 1.6;
   console.log(`${ok ? '✅' : '❌'} 車數：畫面北捷 ${drawnTrtc} 台 vs 官方逐車 ${expect} 台（${(ratio * 100).toFixed(0)}%）`);
   if (!ok) note('bad', `車數比例異常 ${(ratio * 100).toFixed(0)}%`, { drawnTrtc, expect });
+}
+
+// 5. 整條線不見（官方那份名冊說這條線有車，畫面卻一台都沒有）
+// 真值取 API 的 boardPos.vehicles——那是完全獨立於前端狀態的來源；用前端自己的
+// state.trtcOfficialRoster 當分母會與缺陷同源（名冊被換掉時它自己也沒有那條線）。
+if (official && !official.error && official.byLine) {
+  const drawnLines = new Set(s2.hits.map(h => h.line));
+  const emptyLines = Object.entries(official.byLine)
+    .filter(([id, n]) => n > 0 && !drawnLines.has(id))
+    .map(([id, n]) => `${id}(官方 ${n} 台在跑)`);
+  console.log(`${emptyLines.length ? '❌' : '✅'} 整條線不見：${emptyLines.length ? emptyLines.join('、') : `官方 ${Object.keys(official.byLine).length} 條線畫面上都有車`}`);
+  if (emptyLines.length) note('bad', `整條線不見：${emptyLines.join('、')}`, official.byLine);
 }
 
 const bad = problems.filter(p => p.level === 'bad');
