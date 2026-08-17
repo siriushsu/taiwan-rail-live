@@ -343,17 +343,22 @@ struct MetroBoardView: View {
                 }
                 .frame(height: scale.pt(20))
 
+                // accented 模式：站名、方向與倒數是主角（設計稿「主角與倒數加
+                // .widgetAccentable()」），識別列與註腳留在 base 群組。
                 stationName(scale, size: 20)
                     .frame(height: scale.pt(24), alignment: .leading)
+                    .widgetAccentable()
 
                 Text("往 \(lead.dest)")
                     .font(.system(size: scale.pt(15)))
                     .foregroundStyle(.secondary)
                     .lineLimit(1).minimumScaleFactor(0.85)
                     .frame(height: scale.pt(19), alignment: .leading)
+                    .widgetAccentable()
 
                 RailCountdownText(value: countdown(lead), size: .heroCard, scale: scale)
                     .frame(height: scale.pt(44), alignment: .leading)
+                    .widgetAccentable()
 
                 // 註腳：擁擠度＋同方向的再下一班。兩者都沒有時整列留空（不寫佔位文字）。
                 HStack(spacing: scale.pt(6)) {
@@ -583,9 +588,13 @@ struct MetroRowView: View {
                 numberWidth: isHero ? RailNumberColumn.wide : RailNumberColumn.narrow,
                 scale: scale) {
             if isHero {
+                // 設計稿：「主角與倒數加 .widgetAccentable()，其餘留在 base 群組」——
+                // accented 模式下系統把 accentable 群組染上使用者選的色、其餘壓成白，
+                // 所以這裡只點名「往 X」與倒數，副標那一行（線名＋擁擠度）留在 base。
                 Text("往 \(row.dest)")
                     .font(.system(size: scale.pt(20), weight: .semibold))
                     .lineLimit(1).minimumScaleFactor(0.8)
+                    .widgetAccentable()
                 HStack(spacing: scale.pt(6)) {
                     if let name = ln.name {
                         RailLineMark(name: name, color: ln.color, fontSize: 13, scale: scale)
@@ -617,6 +626,7 @@ struct MetroRowView: View {
         } trailing: {
             RailCountdownText(value: MetroCountdown.of(row: row, precision: precision, at: entryDate),
                               size: isHero ? .heroRow : .row, scale: scale)
+                .widgetAccentable()
         }
     }
 }
