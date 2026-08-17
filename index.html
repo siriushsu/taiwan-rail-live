@@ -4325,7 +4325,7 @@
 //         中和新蘆線分支鎖、捷運徽章範圍、App 那整批 index.html 內容），並合入高鐵班表抓取窗
 //         2→7 天與每 5 分鐘自我檢查。v0816d／v0817a 兩條 ship 分支的 index.html 都還掛著
 //         v0816c，本批內容與它們都不同 ⇒ 推一個誰都沒用過的號。
-const BUILD = 'v0818a';
+const BUILD = 'v0818b';
 // 2026-08-13 起預設開啟（使用者親試預覽後裁示上線）：北捷畫車依官方即時名冊，班表只是備案。
 // 保留 ?officialroster=0 當逃生口——要退回班表路徑不必回滾部署，加個參數即可對照。
 // 🔴 這個函式會被 verify_official_roster_frontend 抽出來丟進 VM 單獨執行——
@@ -5471,10 +5471,20 @@ function trtcGapUnitsAt(ln, progress, step) {
 }
 function trtcOfficialRenderItems(ln, boardPos, nowEpoch, enabled) {
   if (!trtcOfficialRosterActive(boardPos, enabled, nowEpoch)) return null;
-  const items = trtcOfficialRosterForLine(boardPos, ln && ln.id).map(vehicle => ({
-    vehicle, vehicleId: String(vehicle.vehicleId || ''), officialNo: String(vehicle.officialNo || ''),
-    extension: !!vehicle.extension, pos: trtcOfficialDisplayPosition(ln, vehicle, nowEpoch),
-  })).filter(item => item.vehicleId && item.pos); // ROSTER_FRONTEND_RENDER
+  const items = trtcOfficialRosterForLine(boardPos, ln && ln.id).map(vehicle => {
+    // 🔴 floor 必須在 trtcOfficialDisplayPosition 之前抓。那個函式每一條路徑都會把「本格算出來
+    // 的 progress」寫回 _trtcOfficialDisplay,所以在它之後才讀,拿到的底線就等於本格位置本身,
+    // 下面的分離永遠 shown === back.p ⇒ 一台都夾不動(2026-08-18 Codex 複審抓到)。
+    // 單元測試手工造 items、沒走這條呼叫順序,所以 10/10 全綠也照不到——判準落在受測物下游。
+    const key = `${ln && ln.id}|${vehicle && vehicle.vehicleId}`;
+    const prev = _trtcOfficialDisplay.get(key);
+    return {
+      vehicle, vehicleId: String(vehicle.vehicleId || ''), officialNo: String(vehicle.officialNo || ''),
+      extension: !!vehicle.extension,
+      floor: prev && Number.isFinite(Number(prev.progress)) ? Number(prev.progress) : -Infinity,
+      pos: trtcOfficialDisplayPosition(ln, vehicle, nowEpoch),
+    };
+  }).filter(item => item.vehicleId && item.pos); // ROSTER_FRONTEND_RENDER
   return trtcOfficialSeparate(ln, items, nowEpoch);
 }
 // 同線同向:由最前面那台往後掃,後車不得超過「前車 − 最小間距」。
@@ -5494,14 +5504,15 @@ function trtcOfficialSeparate(ln, items, nowEpoch) {
       if (!(gap > 0)) continue;
       const allowed = lead.p - gap;
       if (back.p <= allowed) continue;              // 間距夠,不動
-      const key = `${ln.id}|${back.it.vehicleId}`;
-      const prior = _trtcOfficialDisplay.get(key);
-      const floor = prior && Number.isFinite(Number(prior.progress)) ? Number(prior.progress) : -Infinity;
-      const shown = Math.max(allowed, floor);       // 夾到 allowed,但不得低於已畫到的位置
+      // floor = 這台車**上一格**畫到的位置(在 renderItems 裡、寫入之前抓的),不是本格算出來的。
+      const floor = Number(back.it.floor);
+      const shown = Math.max(allowed, Number.isFinite(floor) ? floor : -Infinity);
       if (shown >= back.p - 1e-9) continue;         // 夾不動(已被 floor 頂住)⇒ 維持原位等前車走
       const pos = trtcOfficialPositionAtProgress(ln, back.it.vehicle, shown, back.it.pos);
       if (!pos) continue;
       back.it.pos = pos; back.p = shown;
+      const key = `${ln.id}|${back.it.vehicleId}`;
+      const prior = _trtcOfficialDisplay.get(key);
       if (prior) _trtcOfficialDisplay.set(key, { ...prior, epoch: nowEpoch, progress: shown, pos });
     }
   }
