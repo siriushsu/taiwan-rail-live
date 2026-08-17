@@ -320,7 +320,8 @@ func place(_ lines: [PlaceLineSnapshot]) -> PlaceBoardSnapshot {
 
 @MainActor
 func pngData<V: View>(_ view: V, family: WidgetFamily? = nil, width: CGFloat, height: CGFloat,
-                      scheme: ColorScheme = .light, mono: Bool = false) -> Data {
+                      scheme: ColorScheme = .light, mono: Bool = false,
+                      readable: Bool = false) -> Data {
     // 🔴 這裡【不】補 16pt 內容邊距：這個小工具 contentMarginsDisabled()，邊距由 View 自己
     //    帶（RailBoardInsets）。補第二層會讓算繪出來的內容框比出貨窄一圈——
     //    與捷運那支腳本相反的錯誤方向，一樣是「圖看起來沒問題但不是出貨的版面」。
@@ -334,6 +335,7 @@ func pngData<V: View>(_ view: V, family: WidgetFamily? = nil, width: CGFloat, he
             .environment(\\.colorScheme, scheme)
             .environment(\\.railMonochrome, mono)
             .environment(\\.railFamilyOverride, family)
+            .environment(\\.railReadable, readable)
             // macOS 的 WidgetFamily 沒有鎖屏那個 case（WidgetKit 明文標為 unavailable）
             // ⇒ 鎖屏那兩個 View 傳 nil：它們不讀 family，靠 mono 與 inset 0 就還原得了
             // 鎖屏的顯示條件。previewContext 只吃非 nil，給它一個不影響結果的值。
@@ -492,11 +494,19 @@ func familyGate() {
 /// 會對一個過期的值斷言並繼續全綠（心得 35「判準綁在會漂移的量上」）。
 @MainActor
 func slotGate() {
-    func slot(_ size: RailCountdownText.Size) -> (CGFloat, CGFloat) {
+    // 🔴 兩種模式各量一遍。好讀版把每個字級放大 1.25–1.5 倍,只驗標準版等於沒驗到
+    //    「開了大字之後倒數會不會爆欄」——而那正是好讀版最可能出事的地方。
+    func slot(_ size: RailCountdownText.Size, _ readable: Bool) -> (CGFloat, CGFloat) {
+        let s = RailScale(k: 1, readable: readable)
         switch size {
-        case .heroRow:  return (RailNumberColumn.wide, RailRowHeight.hero)
-        case .heroCard: return (RailScale.smallReference, RailCountdownText.Size.heroCard.pt)
-        case .row, .minor: return (RailNumberColumn.narrow, RailRowHeight.follow)
+        case .heroRow:  return (RailNumberColumn.wide(s),
+                                readable ? RailRowHeight.heroReadable : RailRowHeight.hero)
+        case .heroCard: return (RailScale.smallReference,
+                                readable ? RailCountdownText.Size.heroCard.readablePt
+                                         : RailCountdownText.Size.heroCard.pt)
+        case .row, .minor: return (RailNumberColumn.narrow(s),
+                                   readable ? RailRowHeight.followReadable
+                                            : RailRowHeight.follow)
         }
     }
     // 🔴 「經過」也要窮舉：我的地點用它取代「進站」，字寬不同（都是兩個字，但實心色塊的
@@ -512,15 +522,24 @@ func slotGate() {
     ]
     var bad: [String] = []
     var n = 0
-    for size in RailCountdownText.Size.allCases {
-        let (maxW, maxH) = slot(size)
-        for (label, form, word) in forms {
-            n += 1
-            guard let s = inkSize(RailCountdownText(value: form, size: size, arrivingWord: word)) else {
-                bad.append("\\(size)／\\(label)：量不到墨跡"); continue
+    for readable in [false, true] {
+        let tag = readable ? "好讀" : "標準"
+        for size in RailCountdownText.Size.allCases {
+            let (maxW, maxH) = slot(size, readable)
+            for (label, form, word) in forms {
+                n += 1
+                guard let s = inkSize(RailCountdownText(
+                    value: form, size: size, arrivingWord: word,
+                    scale: RailScale(k: 1, readable: readable))) else {
+                    bad.append("\\(tag)／\\(size)／\\(label)：量不到墨跡"); continue
+                }
+                if s.w > maxW {
+                    bad.append("\\(tag)／\\(size)／\\(label)：寬 \\(Int(s.w)) > 槽 \\(Int(maxW))")
+                }
+                if s.h > maxH {
+                    bad.append("\\(tag)／\\(size)／\\(label)：高 \\(Int(s.h)) > 列高 \\(Int(maxH))")
+                }
             }
-            if s.w > maxW { bad.append("\\(size)／\\(label)：寬 \\(Int(s.w)) > 槽 \\(Int(maxW))") }
-            if s.h > maxH { bad.append("\\(size)／\\(label)：高 \\(Int(s.h)) > 列高 \\(Int(maxH))") }
         }
     }
     if !bad.isEmpty {
@@ -608,9 +627,10 @@ func timelineGate() {
 @MainActor
 func render<V: View>(_ view: V, family: WidgetFamily? = nil, width: CGFloat, height: CGFloat,
                      scheme: ColorScheme = .light, mono: Bool = false,
+                     readable: Bool = false,
                      inset: CGFloat = 16, to path: String) {
     let png = pngData(view, family: family, width: width, height: height,
-                      scheme: scheme, mono: mono)
+                      scheme: scheme, mono: mono, readable: readable)
     try! png.write(to: URL(fileURLWithPath: path))
     let name = (path as NSString).lastPathComponent
     guard let b = inkBounds(png, scale: 3) else {
@@ -701,6 +721,20 @@ struct Harness {
                to: out + "/board-large-dark.png")
         render(LargeBoardView(snapshot: fullBoard, entryDate: clockNow),
                family: .systemLarge, width: 338, height: 354, to: out + "/board-large-393.png")
+
+        // 好讀版（大字）：同一組樣本、同一組 View,只換 railReadable。
+        render(SmallBoardView(snapshot: taipeiWatch, entryDate: clockNow),
+               family: .systemSmall, width: 170, height: 170, readable: true,
+               to: out + "/board-small-readable.png")
+        render(MediumBoardView(snapshot: fullBoard, entryDate: clockNow),
+               family: .systemMedium, width: 364, height: 170, readable: true,
+               to: out + "/board-medium-readable.png")
+        render(MediumBoardView(snapshot: commute, entryDate: clockNow),
+               family: .systemMedium, width: 338, height: 158, readable: true,
+               to: out + "/board-medium-readable-worst.png")
+        render(LargeBoardView(snapshot: fullBoard, entryDate: clockNow),
+               family: .systemLarge, width: 364, height: 382, readable: true,
+               to: out + "/board-large-readable.png")
         render(LargeBoardView(snapshot: taipeiWatch, entryDate: clockNow),
                family: .systemLarge, width: 364, height: 382, to: out + "/board-large-short.png")
         render(LargeBoardView(snapshot: farAway, entryDate: clockNow),

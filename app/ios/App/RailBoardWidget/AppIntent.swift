@@ -305,6 +305,11 @@ struct ConfigurationAppIntent: WidgetConfigurationIntent {
     // 兩者共用一個入口，勾選之間是 OR。
     @Parameter(title: "只看這些（可留空）", optionsProvider: BoardFilterOptionsProvider())
     var filters: [String]?
+
+    // 好讀版：系統放大字級（AX1 以上）會自動切，這個開關是給「系統字級正常但仍想要大字看板」
+    // 的人（設計檔明列的需求）。兩者是 OR ⇒ 打開之後不受系統字級影響。
+    @Parameter(title: "大字好讀版", default: false)
+    var readable: Bool
 }
 
 @available(iOS 17.0, *)

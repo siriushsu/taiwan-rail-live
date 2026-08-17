@@ -54,8 +54,20 @@ enum RailTokens {
         dusk:  Color(.sRGB, red: 0xE8 / 255, green: 0xB8 / 255, blue: 0x4B / 255),
         brand: Color(.sRGB, red: 0x7F / 255, green: 0xA6 / 255, blue: 0xE0 / 255))
 
-    static func colors(_ scheme: ColorScheme) -> RailStateColors {
-        scheme == .dark ? dark : light
+    /// 好讀版自帶一組深色票。設計檔：「全部在各自底色上達 5:1 以上；標準版的色票不動。」
+    /// 🔴 準點的標準色 #34C759 在白底只有 1.9:1——老花眼看不清低對比的細字，而狀態詞
+    ///    （準點／誤點）正是好讀版最需要讀到的東西。深色模式沿用標準深色票：那組在
+    ///    深底上本來就過得了 5:1，換成更深只會更看不見。
+    static let lightReadable = RailStateColors(
+        ok:    Color(.sRGB, red: 0x1B / 255, green: 0x6E / 255, blue: 0x5C / 255),
+        warn:  Color(.sRGB, red: 0x8F / 255, green: 0x4E / 255, blue: 0x08 / 255),
+        bad:   Color(.sRGB, red: 0xB3 / 255, green: 0x26 / 255, blue: 0x1E / 255),
+        dusk:  Color(.sRGB, red: 0x8A / 255, green: 0x53 / 255, blue: 0x14 / 255),
+        brand: Color(.sRGB, red: 0x1E / 255, green: 0x37 / 255, blue: 0x56 / 255))
+
+    static func colors(_ scheme: ColorScheme, readable: Bool = false) -> RailStateColors {
+        if scheme == .dark { return dark }
+        return readable ? lightReadable : light
     }
 
     /// 官方擁擠度等級 → 狀態色。數值語意由官方定義，我們只上色不重新分級。
@@ -143,16 +155,30 @@ struct RailScale {
 
     let k: CGFloat
 
+    /// 好讀版（大字）。設計檔：「好讀版不是獨立的 widget，是同一個 provider 的第二套版型」
+    /// ⇒ 這個 flag 跟著 scale 一起傳，字級由 `pt(_:readable:)` 逐處決定，不複製一套 View。
+    /// 複製 View 的話兩套版面一定會分岔，而分岔的症狀是「只有開了大字的人看到舊版面」。
+    var readable: Bool = false
+
     /// 下限 0.86 是 393pt 機型（338/364 ≈ 0.928）再留一點餘裕；上限 1 不放大，
     /// 因為設計稿的字級是「這個版面容得下的最大值」，放大只會讓長站名更早截斷。
-    init(width: CGFloat, reference: CGFloat) {
+    init(width: CGFloat, reference: CGFloat, readable: Bool = false) {
+        self.readable = readable
         guard width > 0, reference > 0 else { self.k = 1; return }
         self.k = min(1, max(0.86, width / reference))
     }
 
-    init(k: CGFloat) { self.k = min(1, max(0.86, k)) }
+    init(k: CGFloat, readable: Bool = false) {
+        self.k = min(1, max(0.86, k))
+        self.readable = readable
+    }
 
     func pt(_ v: CGFloat) -> CGFloat { (v * k).rounded() }
+
+    /// 標準版與好讀版兩個字級，由 flag 選一個再乘寬度係數。
+    /// 對照表（設計檔）：主角倒數 44→52、主角終點站 26→30、次列終點站 17→22、
+    /// 次列分鐘 17→24、車種標 12→15、狀態 12→18、更新時間 11→15。
+    func pt(_ v: CGFloat, readable r: CGFloat) -> CGFloat { pt(self.readable ? r : v) }
 
     /// 主角倒數的下限。設計稿：`.minimumScaleFactor(0.85)`，下限不低於 34pt。
     static let heroFloor: CGFloat = 34
@@ -165,10 +191,19 @@ struct RailScale {
 /// 呼叫端不必在每個地方各判一次。
 private struct RailMonochromeKey: EnvironmentKey { static let defaultValue = false }
 
+/// 好讀版開關。由最外層的 entry view 決定（系統放大字級 或 小工具設定裡的開關），
+/// 各個版面 View 讀它來建 RailScale ⇒ 字級、列高、列數、色票一次全套切換。
+private struct RailReadableKey: EnvironmentKey { static let defaultValue = false }
+
 extension EnvironmentValues {
     var railMonochrome: Bool {
         get { self[RailMonochromeKey.self] }
         set { self[RailMonochromeKey.self] = newValue }
+    }
+
+    var railReadable: Bool {
+        get { self[RailReadableKey.self] }
+        set { self[RailReadableKey.self] = newValue }
     }
 }
 
@@ -550,6 +585,17 @@ struct RailCountdownText: View {
             }
         }
 
+        /// 好讀版字級。設計檔對照表給了兩個定錨：主角倒數 44→52、次列分鐘 17→24；
+        /// heroRow 與 minor 按同一比例外推（40→48、13→18）。
+        var readablePt: CGFloat {
+            switch self {
+            case .heroCard: return 52
+            case .heroRow:  return 48
+            case .row:      return 24
+            case .minor:    return 18
+            }
+        }
+
         var isHero: Bool { self == .heroCard || self == .heroRow }
     }
 
@@ -565,15 +611,16 @@ struct RailCountdownText: View {
     @Environment(\.railMonochrome) private var mono
 
     private var numberSize: CGFloat {
-        size.isHero ? max(RailScale.heroFloor, scale.pt(size.pt)) : scale.pt(size.pt)
+        let base = scale.pt(size.pt, readable: size.readablePt)
+        return size.isHero ? max(RailScale.heroFloor, base) : base
     }
 
     /// 單位字（分／秒）比數字小一階。設計稿的 mock 是數字大、單位小且貼在右下。
     private var unitSize: CGFloat {
         switch size {
-        case .heroCard, .heroRow: return max(scale.pt(13), numberSize * 0.32)
-        case .row:                return scale.pt(11)
-        case .minor:              return scale.pt(10)
+        case .heroCard, .heroRow: return max(scale.pt(13, readable: 17), numberSize * 0.32)
+        case .row:                return scale.pt(11, readable: 15)
+        case .minor:              return scale.pt(10, readable: 13)
         }
     }
 
@@ -766,7 +813,9 @@ struct RailTrainMark: View {
     var body: some View {
         HStack(spacing: scale.pt(5)) {
             Text(kind)
-                .font(.system(size: scale.pt(fontSize), weight: .semibold))
+                // 車種標 12→15（設計檔對照表）＝×1.25
+                .font(.system(size: scale.pt(fontSize, readable: fontSize * 1.25),
+                              weight: .semibold))
                 .foregroundStyle(mono ? Color.primary : Color.white)
                 .padding(.horizontal, scale.pt(5))
                 .padding(.vertical, scale.pt(1.5))
@@ -779,7 +828,8 @@ struct RailTrainMark: View {
                 //    資料時刻壓成「08…」「4…」，甚至整個消失（算繪實看抓到）——車次是識別，
                 //    截一碼就變成另一班車。窄欄要靠字級（那裡的車種標是 10pt）與欄寬去解，
                 //    不是靠讓識別縮水。
-                Text(n).font(.system(size: scale.pt(numberSize ?? fontSize + 2), weight: .medium))
+                let n0 = numberSize ?? fontSize + 2
+                Text(n).font(.system(size: scale.pt(n0, readable: n0 * 1.25), weight: .medium))
                     .monospacedDigit().lineLimit(1).fixedSize()
                     .frame(minWidth: numberWidth.map { scale.pt($0) }, alignment: .leading)
             }
@@ -822,7 +872,8 @@ struct RailHeadingMark: View {
         Triangle(pointingUp: heading == .north)
             .fill(.tertiary)
             // 正三角的高＝邊長 × √3/2。設計檔的 mock 是 9pt 底、約 7pt 高，比值一致。
-            .frame(width: scale.pt(side), height: scale.pt(side * 0.78))
+            .frame(width: scale.pt(side, readable: side * 1.22),
+                   height: scale.pt(side * 0.78, readable: side * 0.95))
             .accessibilityLabel(heading == .north ? "北上" : "南下")
     }
 
@@ -865,6 +916,7 @@ struct RailStatusTag: View {
 
     let kind: Kind
     var fontSize: CGFloat = 13
+    var readableSize: CGFloat? = nil
     var scale: RailScale = RailScale(k: 1)
 
     @Environment(\.colorScheme) private var scheme
@@ -889,7 +941,7 @@ struct RailStatusTag: View {
 
     private var tint: Color {
         if mono { return .secondary }
-        let c = RailTokens.colors(scheme)
+        let c = RailTokens.colors(scheme, readable: scale.readable)
         switch kind {
         case .onTime:     return c.ok
         case .delay(let m): return m == 0 ? c.ok : c.warn
@@ -901,7 +953,10 @@ struct RailStatusTag: View {
 
     var body: some View {
         Text(text)
-            .font(.system(size: scale.pt(fontSize), weight: .medium))
+            // 好讀版字級：設計檔對照表的定錨是「狀態 12→18」＝×1.5，同一個比例套到
+            // 副標那些 13pt 的標上（→19.5）。呼叫端要例外時傳 readableSize。
+            .font(.system(size: scale.pt(fontSize, readable: readableSize ?? fontSize * 1.5),
+                          weight: .medium))
             .foregroundStyle(tint)
             .lineLimit(1).fixedSize()
     }
@@ -939,6 +994,12 @@ enum RailRowHeight {
     static let followLarge: CGFloat = 32
     static let sectionHeader: CGFloat = 16
     static let cardTitle: CGFloat = 21
+
+    // 好讀版列高。字級是設計檔對照表的值（主角倒數 52、次列終點站 22／分鐘 24），
+    // 列高則由「裝得下那個字級」反推，再由 slotGate 實際量過才算數。
+    static let heroReadable: CGFloat = 52
+    static let followReadable: CGFloat = 30
+    static let followLargeReadable: CGFloat = 40
 }
 
 /// 數字欄寬。v2 設計稿：卡上沒有圖形欄了，「等距的數字欄本身就是一把尺」——
@@ -956,6 +1017,14 @@ enum RailNumberColumn {
     ///    再加 4pt 餘裕，不是手感調的；改字級或改單位字樣時那道 gate 會再算一次。
     ///    代價是 Medium 內容欄從 232 縮到 224pt，量過仍放得下最長的「往 南港展覽館」＋線名＋六節＋詞。
     static let wide: CGFloat = 84
+
+    /// 好讀版：字級放大 ⇒ 欄寬按同比例放大（次列 17→24 ⇒ 50×24/17≈72；主角 44→52 ⇒ 84×52/44≈100）。
+    /// 🔴 這兩個值同樣由 slotGate 當裁判，它會兩種模式各量一遍最寬形。
+    static let narrowReadable: CGFloat = 72
+    static let wideReadable: CGFloat = 100
+
+    static func narrow(_ scale: RailScale) -> CGFloat { scale.readable ? narrowReadable : narrow }
+    static func wide(_ scale: RailScale) -> CGFloat { scale.readable ? wideReadable : wide }
 }
 
 /// 一列的三欄骨架：軌脊 → 內容（彈性）→ 數字（固定寬靠右）。

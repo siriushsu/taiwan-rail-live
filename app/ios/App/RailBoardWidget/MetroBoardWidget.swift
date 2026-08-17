@@ -593,7 +593,7 @@ struct MetroRowView: View {
                                  lineCode: row.lineCode, trainNo: row.trainNo)
         } ?? (color: nil, name: nil)
         RailRow(height: height,
-                numberWidth: isHero ? RailNumberColumn.wide : RailNumberColumn.narrow,
+                numberWidth: isHero ? RailNumberColumn.wide(scale) : RailNumberColumn.narrow(scale),
                 scale: scale) {
             if isHero {
                 // 設計稿：「主角與倒數加 .widgetAccentable()，其餘留在 base 群組」——
