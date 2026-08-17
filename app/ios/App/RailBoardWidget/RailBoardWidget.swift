@@ -20,6 +20,8 @@ struct BoardRow: Identifiable {
     let relation: JourneyRelation
     let delay: Int?
     let isLastOfDay: Bool
+    /// 離站往北還是往南。nil ＝算不出來（終到列車、舊 payload 沒座標、兩站同緯度）⇒ 不畫三角。
+    var heading: RailHeading? = nil
 
     var id: String {
         "\(scheduledDate.timeIntervalSince1970)-\(relation.rawValue)-\(trainNumber)"
@@ -655,7 +657,8 @@ struct Provider: AppIntentTimelineProvider {
                 relation: journey.relation,
                 delay: prepared.isLive(systemID: journey.systemID)
                     ? delays[journey.trainNumber] : nil,
-                isLastOfDay: journey.isLastOfDay
+                isLastOfDay: journey.isLastOfDay,
+                heading: journey.heading
             )
         }
 
@@ -837,6 +840,9 @@ struct SmallBoardView: View {
                 //    讓給第二班車。「班表過期」這種真的會害人錯過車的狀況仍然畫得出來
                 //    （見下面的底列優先序），被拿掉的只有例行的更新時刻。
                 HStack(spacing: scale.pt(5)) {
+                    if let heading = row.heading {
+                        RailHeadingMark(heading: heading, scale: scale)
+                    }
                     RailTrainMark(kind: row.trainType, number: row.trainNumber,
                                   color: trainColor(row.trainType), fontSize: 12,
                                   numberSize: 13, scale: scale)
@@ -979,6 +985,9 @@ struct SmallSecondRow: View {
 
     var body: some View {
         HStack(spacing: scale.pt(5)) {
+            if let heading = row.heading {
+                RailHeadingMark(heading: heading, side: 8, scale: scale)
+            }
             RailTrainMark(kind: row.trainType, number: nil,
                           color: BoardPalette.trainColor(row.trainType, in: snapshot.typeColors),
                           fontSize: 11, scale: scale)
@@ -1102,6 +1111,9 @@ struct BoardRowView: View {
                 HStack(spacing: scale.pt(7)) {
                     // v2 設計稿的主角階：車種標 12pt、車次 15pt、終點站 26pt。
                     // 拿掉軌脊省下的 21pt 全給終點站——26pt 的「往 潮州」不再需要截字。
+                    if let heading = row.heading {
+                        RailHeadingMark(heading: heading, scale: scale)
+                    }
                     RailTrainMark(kind: row.trainType, number: row.trainNumber,
                                   color: color, fontSize: 12, numberSize: 15, scale: scale)
                     Text(row.watchingDestinationText)
@@ -1113,6 +1125,9 @@ struct BoardRowView: View {
                 if showsDepartureLine { subtitle }
             } else {
                 HStack(spacing: scale.pt(7)) {
+                    if let heading = row.heading {
+                        RailHeadingMark(heading: heading, side: 8, scale: scale)
+                    }
                     RailTrainMark(kind: row.trainType, number: row.trainNumber,
                                   color: color, fontSize: 11.5, numberSize: 15,
                                   numberWidth: 38, scale: scale)

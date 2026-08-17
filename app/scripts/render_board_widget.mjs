@@ -78,6 +78,10 @@ const dataSource = readFileSync(join(widgetDir, 'RailBoardData.swift'), 'utf8');
 const pieces = [
   extractDeclaration(dataSource, 'enum RailBoardClock'),
   extractDeclaration(dataSource, 'enum JourneyRelation'),
+  // RailHeading.between(...) 吃 StationRecord ⇒ 兩個要一起抽,不然「方向從哪來」
+  // 這件事在 harness 裡會被換成別的實作（判準與出貨程式碼分岔）。
+  extractDeclaration(dataSource, 'struct StationRecord'),
+  extractDeclaration(dataSource, 'enum RailHeading'),
   extractDeclaration(dataSource, 'enum ScheduleNotice'),
   extractDeclaration(widgetSource, 'extension Color'),
   // 資料模型（BoardRow 裡有「倒數已含誤點」的 effectiveDate 與三種關係詞，都是版面在讀的）
@@ -140,7 +144,8 @@ func boardRow(
     relation: JourneyRelation = .departure,
     delay: Int? = nil,
     arrivalMinutes: Int? = nil,
-    lastOfDay: Bool = false
+    lastOfDay: Bool = false,
+    heading: RailHeading? = .south
 ) -> BoardRow {
     let date = clockNow.addingTimeInterval(TimeInterval(minutesFromNow * 60))
     let cal = RailBoardClock.calendar
@@ -157,7 +162,8 @@ func boardRow(
         destinationName: destination,
         relation: relation,
         delay: delay,
-        isLastOfDay: lastOfDay
+        isLastOfDay: lastOfDay,
+        heading: relation == .arrival ? nil : heading
     )
 }
 
@@ -177,15 +183,15 @@ func snapshot(
 // 🔴 delay 刻意三種都有：0（官方讀數＝準點）、6（誤點，倒數要含它）、nil（沒有讀數，
 //    不准畫「準點」）——這三者在畫面上必須長得不一樣，那正是這批改版的重點之一。
 let taipeiWatch = snapshot(title: "臺北", watching: true, rows: [
-    boardRow("0814", "高鐵", to: "南港", minutesFromNow: 5, delay: 0),
+    boardRow("0814", "高鐵", to: "南港", minutesFromNow: 5, delay: 0, heading: .north),
     boardRow("420", "自強", to: "臺東", minutesFromNow: 7, delay: 6),
-    boardRow("1168", "區間車", to: "基隆", minutesFromNow: 12),
+    boardRow("1168", "區間車", to: "基隆", minutesFromNow: 12, heading: .north),
 ])
 
 // 主角誤點（設計稿：「11:35 開 → 11:41」＋「誤點 · 倒數已含誤點」）。
 let taipeiLate = snapshot(title: "臺北", watching: true, rows: [
     boardRow("420", "自強", to: "臺東", minutesFromNow: -2, delay: 6),
-    boardRow("1168", "區間車", to: "基隆", minutesFromNow: 12),
+    boardRow("1168", "區間車", to: "基隆", minutesFromNow: 12, heading: .north),
     boardRow("4037", "區間快", to: "桃園", minutesFromNow: 19),
 ])
 
@@ -193,14 +199,15 @@ let taipeiLate = snapshot(title: "臺北", watching: true, rows: [
 // 最壞情況也塞在這裡：最長的車種名（莒光/復興）、4 碼車次、最長的終點站名（臺北-環島）。
 let commute = snapshot(title: "竹北 → 臺北", watching: false, rows: [
     boardRow("1234", "莒光/復興", to: "臺北-環島", minutesFromNow: 9,
-             delay: 3, arrivalMinutes: 64),
-    boardRow("152", "自強", to: "臺北", minutesFromNow: 26, arrivalMinutes: 81),
-    boardRow("1112", "區間車", to: "基隆", minutesFromNow: 38, delay: 0, arrivalMinutes: 96),
+             delay: 3, arrivalMinutes: 64, heading: .north),
+    boardRow("152", "自強", to: "臺北", minutesFromNow: 26, arrivalMinutes: 81, heading: .north),
+    boardRow("1112", "區間車", to: "基隆", minutesFromNow: 38, delay: 0, arrivalMinutes: 96,
+             heading: .north),
 ])
 
 // 通過不停靠＋今日末班：兩個「漏讀就會錯過一班車」的標記同時出現。
 let passing = snapshot(title: "花壇", watching: true, rows: [
-    boardRow("2", "自強", to: "臺北", minutesFromNow: 4, relation: .pass),
+    boardRow("2", "自強", to: "臺北", minutesFromNow: 4, relation: .pass, heading: .north),
     boardRow("1284", "區間車", to: "彰化", minutesFromNow: 21, delay: 0, lastOfDay: true),
     boardRow("3", "自強", to: "潮州", minutesFromNow: 33, relation: .pass),
 ])
@@ -216,17 +223,17 @@ let terminating = snapshot(title: "潮州", watching: true, rows: [
 // delay 一律 nil：出貨路徑只在「下一班在 30 分鐘內」才去抓即時誤點（liveWindow），
 // 3.5 小時後的班次不可能有讀數 ⇒ 樣本給 0 會畫出一個生產環境不存在的「準點」。
 let farAway = snapshot(title: "臺東", watching: true, rows: [
-    boardRow("310", "自強", to: "臺北", minutesFromNow: 214),
-    boardRow("704", "區間車", to: "花蓮", minutesFromNow: 260),
+    boardRow("310", "自強", to: "臺北", minutesFromNow: 214, heading: .north),
+    boardRow("704", "區間車", to: "花蓮", minutesFromNow: 260, heading: .north),
 ])
 
 // 班表過期警示（Medium 少列一班、Small 的註腳讓位給它）。
 let expiring = snapshot(
     title: "臺北", watching: true,
     rows: [
-        boardRow("0814", "高鐵", to: "南港", minutesFromNow: 5, delay: 0),
+        boardRow("0814", "高鐵", to: "南港", minutesFromNow: 5, delay: 0, heading: .north),
         boardRow("420", "自強", to: "臺東", minutesFromNow: 7, delay: 6),
-        boardRow("1168", "區間車", to: "基隆", minutesFromNow: 12),
+        boardRow("1168", "區間車", to: "基隆", minutesFromNow: 12, heading: .north),
     ],
     notice: .expiring(until: clockNow.addingTimeInterval(2 * 86_400))
 )
@@ -239,11 +246,11 @@ let emptyBoard = snapshot(title: "花壇", watching: true, rows: [], empty: "今
 //    車種名換成本專案的官方字面值（「區間」→「區間車」）。
 let fullBoard = snapshot(title: "臺北車站", watching: true, rows: [
     boardRow("371", "自強", to: "潮州", minutesFromNow: 2, delay: 0),
-    boardRow("2178", "區間車", to: "基隆", minutesFromNow: 8, delay: 3),
+    boardRow("2178", "區間車", to: "基隆", minutesFromNow: 8, delay: 3, heading: .north),
     boardRow("408", "普悠瑪", to: "臺東", minutesFromNow: 12),
     boardRow("2154", "區間快", to: "竹南", minutesFromNow: 18),
     boardRow("152", "自強", to: "樹林", minutesFromNow: 24),
-    boardRow("2190", "區間車", to: "蘇澳", minutesFromNow: 31),
+    boardRow("2190", "區間車", to: "蘇澳", minutesFromNow: 31, heading: .north),
     boardRow("176", "自強", to: "高雄", minutesFromNow: 38),
     boardRow("2206", "區間車", to: "桃園", minutesFromNow: 46, lastOfDay: true),
 ])
@@ -376,6 +383,78 @@ func componentPNG<V: View>(_ v: V) -> Data? {
 func inkSize<V: View>(_ v: V) -> (w: CGFloat, h: CGFloat)? {
     guard let png = componentPNG(v), let b = inkBounds(png, scale: 3) else { return nil }
     return (b.x1 - b.x0, b.y1 - b.y0)
+}
+
+/// 🔴 gate 0：方向三角。
+///
+/// 這個圖形有一種【全綠也可能整批畫反】的失效方式：三角照樣畫、大小照樣對、版面照樣不破，
+/// 只有尖端朝哪邊錯了，而破版與槽位那些 gate 對它一律無感。所以這裡驗兩層：
+///
+/// (a) 真值表——RailHeading.between 是純函式（反引號在這支腳本裡會提早關掉樣板字串,別加），用【真的車站緯度】斷言它算對，
+///     並窮舉四種「算不出來」（缺座標、站號越界、同緯度、沒有 headingID）。
+///     緯度取自維基與 TDX 都查得到的公開值，只用到一位小數的差異，不依賴精確值。
+/// (b) 朝向——朝上的三角底邊在下 ⇒ 墨跡重心【偏下】；朝下的反之。這一條才抓得到「畫反」，
+///     只比對「兩張圖不一樣」抓不到（把 north 與 south 對調也會不一樣）。
+@MainActor
+func headingGate() {
+    func station(_ name: String, _ la: Double?) -> StationRecord {
+        StationRecord(n: name, s: "tra", c: nil, la: la, lo: la == nil ? nil : 121.5)
+    }
+    // 0 臺北 25.048、1 基隆 25.131、2 高雄 22.639、3 沒座標、4 與臺北同緯度
+    let stations = [
+        station("臺北", 25.048), station("基隆", 25.131), station("高雄", 22.639),
+        station("無座標站", nil), station("同緯站", 25.048),
+    ]
+    var bad: [String] = []
+    func expect(_ label: String, _ got: RailHeading?, _ want: String) {
+        let word = got.map { $0 == .north ? "north" : "south" } ?? "nil"
+        if word != want { bad.append("\\(label)：算出 \\(word)，應為 \\(want)") }
+    }
+    expect("臺北→基隆（北）", RailHeading.between(from: 0, to: 1, stations: stations), "north")
+    expect("臺北→高雄（南）", RailHeading.between(from: 0, to: 2, stations: stations), "south")
+    expect("高雄→臺北（北）", RailHeading.between(from: 2, to: 0, stations: stations), "north")
+    expect("終到（沒有 headingID）", RailHeading.between(from: 0, to: nil, stations: stations), "nil")
+    expect("目標站缺座標", RailHeading.between(from: 0, to: 3, stations: stations), "nil")
+    expect("本站缺座標", RailHeading.between(from: 3, to: 0, stations: stations), "nil")
+    expect("同緯度", RailHeading.between(from: 0, to: 4, stations: stations), "nil")
+    expect("站號越界", RailHeading.between(from: 0, to: 99, stations: stations), "nil")
+
+    // (b) 朝向：量墨跡重心相對於墨跡框中線的位置。
+    func centroidRatio(_ heading: RailHeading) -> CGFloat? {
+        guard let png = componentPNG(RailHeadingMark(heading: heading, side: 24)),
+              let rep = NSBitmapImageRep(data: png) else { return nil }
+        let w = rep.pixelsWide, h = rep.pixelsHigh
+        guard let bg = rep.colorAt(x: 1, y: 1) else { return nil }
+        var sum = 0.0, n = 0.0, y0 = h, y1 = -1
+        for y in 0..<h {
+            for x in 0..<w {
+                guard let c = rep.colorAt(x: x, y: y) else { continue }
+                let d = abs(c.redComponent - bg.redComponent)
+                    + abs(c.greenComponent - bg.greenComponent)
+                    + abs(c.blueComponent - bg.blueComponent)
+                if d > 0.08 {
+                    sum += Double(y); n += 1
+                    y0 = min(y0, y); y1 = max(y1, y)
+                }
+            }
+        }
+        guard n > 0, y1 > y0 else { return nil }
+        // 0 ＝墨跡全在框頂、1 ＝全在框底
+        return CGFloat((sum / n - Double(y0)) / Double(y1 - y0))
+    }
+    guard let up = centroidRatio(.north), let down = centroidRatio(.south) else {
+        FileHandle.standardError.write(Data("方向三角量不到墨跡\\n".utf8)); exit(1)
+    }
+    if up <= 0.5 { bad.append("北上三角的墨跡重心 \\(up) 不在下半（尖端沒有朝上）") }
+    if down >= 0.5 { bad.append("南下三角的墨跡重心 \\(down) 不在上半（尖端沒有朝下）") }
+
+    if !bad.isEmpty {
+        FileHandle.standardError.write(Data(("方向三角錯了：\\n  "
+            + bad.joined(separator: "\\n  ") + "\\n").utf8))
+        exit(1)
+    }
+    print("gate 通過：方向真值表 8 條（含四種算不出來）＋三角朝向"
+        + "（北上重心 \\(String(format: "%.2f", up))／南下 \\(String(format: "%.2f", down))）")
 }
 
 /// 🔴 gate 1：證明 family 真的傳進去了。
@@ -555,6 +634,7 @@ struct Harness {
     @MainActor
     static func main() {
         let out = CommandLine.arguments.count > 1 ? CommandLine.arguments[1] : "."
+        headingGate()
         familyGate()
         slotGate()
         delayGate()

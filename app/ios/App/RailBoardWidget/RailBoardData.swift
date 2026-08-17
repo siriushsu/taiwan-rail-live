@@ -774,6 +774,35 @@ enum JourneyRelation: String {
     case pass
 }
 
+/// 這班車離開本站之後往北還是往南。
+///
+/// 🔴 為什麼用【緯度】而不是官方的方向欄位：台鐵的官方值是「順行／逆行」，而順行在南迴線
+///    是由東往西、在北迴線是由北往南——換算成南北要靠人判斷，而這個專案的鐵則是官方值
+///    照抄、不自己判斷。緯度不必換算：它【就是】南北。高鐵的官方值本身就是南下／北上，
+///    兩邊用同一條規則算出來的結果一致。
+///
+/// 資料來源是小工具檔案裡已經有的 `StationRecord.la`（v3／2026-07-30 起），
+/// 不需要動抓取管線、不需要重抓 TDX、不需要升 payload 版本。
+enum RailHeading {
+    case north
+    case south
+
+    /// 🔴 判準是「緯度誰高」，沒有門檻值。曾想過「緯差太小就不畫」，但那個門檻是手打的
+    ///    魔術數字、每次改支線資料都得重調；而三角只宣稱「北邊／南邊」這件事本身——
+    ///    緯差 2 公里的支線畫出來仍然是對的，只是資訊量小，不會是錯的。
+    ///
+    /// 缺座標（舊 App 寫的 payload 沒有 la）、站號越界、或兩站同緯度時回 nil ⇒ 不畫三角。
+    /// 「不畫」是刻意的：寧可少一個圖形，不要畫一個猜的方向。
+    static func between(from: Int, to: Int?, stations: [StationRecord]) -> RailHeading? {
+        guard let to,
+              stations.indices.contains(from), stations.indices.contains(to),
+              let a = stations[from].la, let b = stations[to].la,
+              a.isFinite, b.isFinite, a != b
+        else { return nil }
+        return b > a ? .north : .south
+    }
+}
+
 struct JourneyTemplate {
     let trainNumber: String
     let trainType: String
@@ -781,6 +810,9 @@ struct JourneyTemplate {
     let daysMask: Int
     let arrivalSecond: Int?
     let destinationID: Int?
+    /// 定義方向的那一站：發車取【下一個停靠站】（那才是「離站往哪走」），
+    /// 通過取終點站，終到是 nil（車在這裡就結束，沒有往哪走這件事）。
+    let headingID: Int?
     let relation: JourneyRelation
 }
 
@@ -793,6 +825,8 @@ struct ScheduledJourney {
     let arrivalDate: Date?
     let destinationName: String?
     let relation: JourneyRelation
+    /// 離站往北還是往南（算不出來就是 nil：終到列車、舊版 payload 沒座標、或兩站同緯度）。
+    let heading: RailHeading?
     /// 🔴 這班車屬於哪個系統。共站的一張看板同時含台鐵與高鐵，而只有台鐵有即時誤點
     ///    ⇒「要不要掛誤點」必須逐班問，不能問整張看板（問整張＝把高鐵的車也拿去查
     ///    台鐵誤點表，車次號還會撞號）。
@@ -1276,6 +1310,7 @@ struct RailBoardEngine {
                     templates: templates,
                     system: system,
                     stations: stations,
+                    originID: originID,
                     actualServiceDay: serviceDay
                 )
             )
@@ -1370,6 +1405,7 @@ struct RailBoardEngine {
                     daysMask: departure.days,
                     arrivalSecond: destination[1],
                     destinationID: destinationID,
+                    headingID: departure.to.first?.first,
                     relation: .departure
                 )
             }
@@ -1383,6 +1419,7 @@ struct RailBoardEngine {
                 daysMask: departure.days,
                 arrivalSecond: nil,
                 destinationID: departure.to.last?.first,
+                headingID: departure.to.first?.first,
                 relation: .departure
             )
         }
@@ -1395,6 +1432,8 @@ struct RailBoardEngine {
                     daysMask: arrival.days,
                     arrivalSecond: nil,
                     destinationID: nil,
+                    // 終到列車沒有「往哪走」⇒ 不畫方向三角（不是缺資料,是這件事不存在）。
+                    headingID: nil,
                     relation: .arrival
                 )
             }
@@ -1408,6 +1447,8 @@ struct RailBoardEngine {
                     daysMask: passing.days,
                     arrivalSecond: nil,
                     destinationID: passing.en,
+                    // 通過的班次沒有「下一個停靠站」這筆資料(它在本站不停) ⇒ 退用終點站。
+                    headingID: passing.en,
                     relation: .pass
                 )
             }
@@ -1424,6 +1465,7 @@ struct RailBoardEngine {
         templates: [JourneyTemplate],
         system: SystemMetadata,
         stations: [StationRecord],
+        originID: Int,
         actualServiceDay: Date
     ) -> [ScheduledJourney] {
         guard let sourceDay = scheduleSourceDay(for: actualServiceDay, system: system) else {
@@ -1475,6 +1517,11 @@ struct RailBoardEngine {
                 arrivalDate: arrivalDate,
                 destinationName: destinationName,
                 relation: template.relation,
+                heading: RailHeading.between(
+                    from: originID,
+                    to: template.headingID,
+                    stations: stations
+                ),
                 systemID: system.id,
                 isLastOfDay: false
             )

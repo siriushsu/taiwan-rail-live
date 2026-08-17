@@ -787,6 +787,50 @@ struct RailTrainMark: View {
     }
 }
 
+// MARK: - RailHeadingMark 方向三角
+
+/// 北上／南下的方向三角。v2 設計檔：「邊長 9pt……它接手了原本軌脊圓點的位置，但指的是
+/// 行駛方向而不是站，而且各列獨立、不成一條線。」
+///
+/// 🔴 設計檔寫的是「上＝逆行、下＝順行」，實際做成【上＝北上、下＝南下】——使用者裁示
+///    「火車與高鐵北上南下是需要的」。順行／逆行在南迴線是東西向，換算成南北要靠人判斷；
+///    緯度不必換算（見 RailHeading 的紅字）。
+///
+/// 🔴 各列獨立、不連成線是這個元件存在的理由：它取代的軌脊圓點正是因為「連成一條線」
+///    才被讀成連續車站。所以這裡【不准】加任何貫穿列的線、不准把相鄰兩顆三角對齊成軌跡。
+struct RailHeadingMark: View {
+    let heading: RailHeading
+    var side: CGFloat = 9
+    var scale: RailScale = RailScale(k: 1)
+
+    var body: some View {
+        Triangle(pointingUp: heading == .north)
+            .fill(.tertiary)
+            // 正三角的高＝邊長 × √3/2。設計檔的 mock 是 9pt 底、約 7pt 高，比值一致。
+            .frame(width: scale.pt(side), height: scale.pt(side * 0.78))
+            .accessibilityLabel(heading == .north ? "北上" : "南下")
+    }
+
+    private struct Triangle: Shape {
+        let pointingUp: Bool
+
+        func path(in rect: CGRect) -> Path {
+            var path = Path()
+            if pointingUp {
+                path.move(to: CGPoint(x: rect.midX, y: rect.minY))
+                path.addLine(to: CGPoint(x: rect.maxX, y: rect.maxY))
+                path.addLine(to: CGPoint(x: rect.minX, y: rect.maxY))
+            } else {
+                path.move(to: CGPoint(x: rect.midX, y: rect.maxY))
+                path.addLine(to: CGPoint(x: rect.maxX, y: rect.minY))
+                path.addLine(to: CGPoint(x: rect.minX, y: rect.minY))
+            }
+            path.closeSubpath()
+            return path
+        }
+    }
+}
+
 // MARK: - RailStatusTag 狀態標
 
 /// 準點／誤點／末班／停駛／過期。設計稿：「純文字，沒有底色膠囊。」
