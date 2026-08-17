@@ -4,7 +4,7 @@ import {
   attachOfficialTimelines,
   bindTracksToTrips, buildTripSetsByLineDir, joinBoardRowsToTrips, planTrtcTripBindingPersistence,
 } from './scripts/trtc_board_ledger.mjs';
-import { reduceOfficialRoster } from './scripts/trtc_official_roster.mjs';
+import { reduceOfficialRosterSelfHealing } from './scripts/trtc_official_roster.mjs';
 import { laNextIdx, laObsIdx, laSchedIdx, laArrivalEpoch, laJwt, laJwtReset } from './scripts/la_push_core.mjs';
 import {
   mwTrtcRows, mwLiveRows, mwCrowdByDest, mwContentState, mwStaleDate, mwShouldPush, mwTrtcDataAt,
@@ -525,6 +525,21 @@ async function fetchTymcNewsAlerts(token) {
   }
 }
 
+// 🔴 2026-08-17 使用者指示：北捷列車位置暫時改用班表推估,並發公告說明。
+// 走既有的「本站觀測」自訂公告管道（前端 renderAlertDetail 認 self / sig）：
+// sig 固定 ⇒ 使用者按掉之後不會每 5 分鐘又彈一次。位置邏輯修好後把這個陣列清空即可。
+const TRTC_SCHEDULE_MODE_NOTICE = [{
+  self: true,
+  sig: 'trtc-schedule-position-20260817',
+  status: 0,
+  sys: 'mrt',
+  sysLabel: '臺北捷運',
+  title: '列車位置暫時改用班表推估',
+  desc: '目前畫面上臺北捷運（含環狀線）列車的位置是依班表推估的，不是列車的實際位置。'
+    + '車站的到站倒數不受影響，與月台顯示的倒數相同，均來自官方即時資料。'
+    + '位置邏輯調整完成後會恢復依即時資料定位。',
+  reason: '', effect: '', start: '', end: '', lines: [],
+}];
 let metroAlertMem = null, metroAlertMemAt = 0;
 async function metroAlert(request, env) {
   const cacheKey = new Request(new URL('/api/metro-alert', request.url), { method: 'GET' });
@@ -562,7 +577,8 @@ async function metroAlert(request, env) {
         })),
         fetchTymcNewsAlerts(token),
       ]);
-      metroAlertMem = { at: new Date().toISOString(), alerts: parts.flat().concat(newsAlerts) };
+      metroAlertMem = { at: new Date().toISOString(),
+        alerts: TRTC_SCHEDULE_MODE_NOTICE.concat(parts.flat(), newsAlerts) };
       metroAlertMemAt = Date.now();
     }
     const res = jsonRes(metroAlertMem, 200, 'public, s-maxage=110, stale-while-revalidate=600');
@@ -1167,6 +1183,14 @@ const TRTC_OFFICIAL_OUTAGE_KEY = 'official_outage_v1';
 // 官方正常 15～60 秒一輪；3 分鐘沒動就是真的斷了——與前端 TRTC_FEED_STALE_SEC 同一個推導，
 // 刻意共用同一個數字，不另外發明門檻。落差小於它的空白屬正常跳拍，照舊 carry。
 const TRTC_OFFICIAL_REALIGN_SEC = 180;
+// 🔴 2026-08-17 使用者訂正：「發車的第一段路,我們在下一站也會看到兩個倒數時間,那就可以有兩台啊」
+// ——同一段軌道上有幾台車，官方的倒數自己會說；用「幾台算太多」去猜只會誤殺合法的兩台。
+// 規則收斂成一條：一個倒數就是一台車（TRTC_OFFICIAL_ONLY）。故段擠自癒設 0 停用，
+// 機制與驗收保留，日後若真需要「結果荒謬就重排」的後備再開。
+const TRTC_OFFICIAL_CROWD_LIMIT = 0;
+// 有倒數才畫：2026-08-17 一度啟用,但使用者訂正——有編號就代表車在,不該從畫面消失。
+// 改由「失去倒數的車繼續沿線往前跑、到終點收車」解決疊車,故關閉。機制與驗收保留。
+const TRTC_OFFICIAL_ONLY = false;
 // 恢復通知在名冊裡帶多久。夠久讓斷訊後才開頁面的人也看得到跳動的原因，又不會久到變成常駐雜訊。
 const TRTC_OFFICIAL_RECOVERY_NOTICE_SEC = 600;
 
@@ -1299,7 +1323,10 @@ function trtcOfficialRowsForJoin(rosterRows) {
 
 function trtcOfficialRosterSnapshot(model, rows, prior, day, nowEpoch, sourceRevision,
   sourceFrameKey = trtcOfficialFrameKey(rows), realignSec = TRTC_OFFICIAL_REALIGN_SEC) {
-  const roster = reduceOfficialRoster({ model, rows, prior, day, nowEpoch, sourceRevision, realignSec });
+  // 自我察覺重置（2026-08-17 使用者要求「迅速重置」）：這一輪若畫出「同一段軌道 ≥3 台車」
+  // 這種物理上不可能的畫面，就對那幾條線用同一輪的官方資料重跑一次、依當下官方名單重建。
+  const roster = reduceOfficialRosterSelfHealing({ model, rows, prior, day, nowEpoch, sourceRevision,
+    realignSec, crowdLimit: TRTC_OFFICIAL_CROWD_LIMIT, officialOnly: TRTC_OFFICIAL_ONLY });
   // rows 也進同一 CAS blob：若較舊 PoP 輸給較新的 D1 revision，回應必須採較新 snapshot
   // 自己的 row↔vehicleId 對應，不能把舊 request rows 與新 roster 混成不存在的組合。
   return { ...roster, sourceFrameKey, sourceFrameOrder: trtcOfficialFrameOrder(rows, sourceFrameKey),
@@ -1318,7 +1345,17 @@ function trtcOfficialNextState(model, rows, priorState, day, nowEpoch, sourceRev
   }
   const next = trtcOfficialRosterSnapshot(model, rows, priorState, day, nowEpoch, sourceRevision, sourceFrameKey);
   next.sourceObservedEpoch = sourceObservedEpoch;
-  const realignedLines = (next.diagnostics && next.diagnostics.realignedLines) || [];
+  const crowdHealed = (next.diagnostics && next.diagnostics.crowdHealedLines) || [];
+  // 🔴 前端把 recovery.lines 說成「即時訊號已恢復」。走重排路徑的原因有三種，只有一種是斷訊：
+  //   斷訊恢復（gapRealignedLines）＝這條線真的消失過一段時間 ⇒ 該通知
+  //   自我察覺重置／有倒數才畫    ＝上游一直在報,是我們自己的畫法在收斂 ⇒ 通知就是謊話
+  // 「有倒數才畫」每輪都會重排每一條有官方列的線,若不分開,恢復橫幅會永遠掛著。
+  const realignedLines = (next.diagnostics && next.diagnostics.gapRealignedLines) || [];
+  if (crowdHealed.length > 0) {
+    console.warn(`[trtc official roster] 自我察覺重置：${crowdHealed.join('、')}`
+      + `（重排前最擠一段 ${next.diagnostics.crowdWorstBefore} 台、重排後 ${next.diagnostics.crowdWorst} 台、`
+      + `清掉 ${next.diagnostics.realigned || 0} 台、補回 ${next.diagnostics.recoveryBirths || 0} 台）`);
+  }
   if (realignedLines.length > 0) {
     // 訊號回來的那一輪：把「為什麼畫面會跳」記在名冊裡帶給前端。
     // partial＝同一輪還有別條線一直正常在報 ⇒ 一定是上游那幾條線斷了，不可能是「沒人來查」。
@@ -1330,10 +1367,15 @@ function trtcOfficialNextState(model, rows, priorState, day, nowEpoch, sourceRev
       atEpoch: Number(nowEpoch), lines: realignedLines.slice(),
       outageSec: lastSeen.length ? Math.max(0, Number(nowEpoch) - Math.max(...lastSeen)) : null,
       partial: realignedLines.length < (Number(next.diagnostics.linesWithRows) || realignedLines.length),
-      removed: Number(next.diagnostics.realigned) || 0, after: next.vehicles.length,
+      // 只算斷訊那幾條線清掉／補回的車：同一輪若還有別條線被自我察覺重置，
+      // 那些車與「訊號恢復」無關，算進來會讓使用者看到的數字對不上畫面。
+      removed: realignedLines.reduce((sum, line) =>
+        sum + (Number((next.diagnostics.realignedByLine || {})[line]) || 0), 0),
+      after: next.vehicles.length,
       // 恢復輪同時會做兩件方向相反的事：清掉配不到的推估車、以及把官方此刻報的站間列補成車。
       // 只回報前者會讓「車數怎麼變的」對不起來（實測 −9／+11）。
-      restored: Number(next.diagnostics.recoveryBirths) || 0,
+      restored: realignedLines.reduce((sum, line) =>
+        sum + (Number((next.diagnostics.recoveryBirthsByLine || {})[line]) || 0), 0),
       before: Array.isArray(priorState && priorState.vehicles) ? priorState.vehicles.length : null,
     };
   } else if (priorState && priorState.recovery &&
@@ -4893,7 +4935,14 @@ async function ingestDelayHistory(env) {
 // 12 站座標表不重新投影幾何(那需要 THSR_Shape.json,cron 沒有那份輸入):直接借用現行
 // data/thsr_schedule_dense.json 裡已經投影好的站名→座標(12 站固定不變,見 thsrBuildStationMap)。
 const THSR_SCHED_BLOB_KEY = 'thsr_sched';
-const THSR_SCHED_KEEP_DAYS = 3;   // days 物件最多保留幾個日鍵(依 YYYYMMDD 字串序留最新)
+// 抓「今天起幾天」。原本是 2 天(今天＋明天),緩衝只有一天:2026-08-16 那發 cron 拋例外沒寫入,
+// 8/16 靠 8/15 抓的『明天』撐過去、當天完全看不出異狀,到 8/17 就整份退回昨天的班表——
+// 週日班表拿來畫週一,16 班平日車次(含使用者回報的 1504)整批消失、41 班週日車次變成幽靈車。
+// 拉到 7 天後,連續一週抓不到才會見底。實測 TDX 這支端點未來四週都給得出資料(2026-08-17 驗)。
+const THSR_SCHED_FETCH_DAYS = 7;
+const THSR_SCHED_KEEP_DAYS = 8;   // days 物件最多保留幾個日鍵(依 YYYYMMDD 字串序留最新)
+// 寫入 D1 前的自我設限,見 ingestThsrSchedule 末段。留 20% 給 D1 硬上限(2,000,000 bytes)。
+const THSR_BLOB_MAX_BYTES = 1_600_000;
 const THSR_COLOR = '#E85D0D';     // 高鐵企業橘,與 scripts/build_thsr_schedule.mjs 一致
 
 // "HH:MM" 或 "HH:MM:SS" → 午夜起算秒(語意同 build_thsr_schedule.mjs 的 hmsToSec)
@@ -5003,13 +5052,15 @@ async function thsrStationMap(env) {
   return thsrStationMapMem;
 }
 
-// scheduled handler 的高鐵班表 ingest:抓「今天＋明天」,轉換失敗的那天保留既有值(console.warn),
-// 兩天都失敗就整體不覆寫既有 blob(冪等,下次 cron 續補)。days 只留最新 THSR_SCHED_KEEP_DAYS 個
-// 日鍵;skip 統計放進 blob 的 _meta(不進 denseDoc 本體,denseDoc 頂層鍵須與現行靜態檔完全一致)。
+// scheduled handler 的高鐵班表 ingest:抓「今天起 THSR_SCHED_FETCH_DAYS 天」,轉換失敗的那天
+// 保留既有值(console.warn),全部失敗就整體不覆寫既有 blob(冪等,下次 cron 續補)。days 只留最新
+// THSR_SCHED_KEEP_DAYS 個日鍵;skip 統計放進 blob 的 _meta(不進 denseDoc 本體,denseDoc 頂層鍵
+// 須與現行靜態檔完全一致)。
 async function ingestThsrSchedule(env) {
   const db = env.DELAY_DB;
   const today = twToday();
-  const tomorrow = addDays(today, 1);
+  const wanted = [];
+  for (let i = 0; i < THSR_SCHED_FETCH_DAYS; i++) wanted.push(addDays(today, i));
   const stationMap = await thsrStationMap(env);
 
   let days = {}, metas = {};
@@ -5024,9 +5075,13 @@ async function ingestThsrSchedule(env) {
 
   const results = {};
   let token = null;
-  for (const dateIso of [today, tomorrow]) {
+  for (let i = 0; i < wanted.length; i++) {
+    const dateIso = wanted[i];
     try {
       if (!token) token = await getToken(env);
+      // TDX 金鑰與即時代理共用,上限 5 req/s。逐日之間隔 250ms(同 ingestDelayHistory 的 sleep 慣例,
+      // 只是這支端點輕得多所以不必到 2 秒);整窗 7 天約 1.5 秒,遠在 cron 預算內。
+      if (i > 0) await sleep(250);
       const daily = await fetchThsrDaily(env, token, dateIso);
       const { doc, meta } = thsrConvertDaily(daily, dateIso, stationMap);
       const dayKey = dateIso.replace(/-/g, '');
@@ -5040,17 +5095,52 @@ async function ingestThsrSchedule(env) {
   }
 
   if (!Object.values(results).some(r => r.ok)) {
-    console.warn('[cron thsr-sched] 今天與明天皆失敗,不覆寫既有 blob:', JSON.stringify(results));
+    console.warn(`[cron thsr-sched] ${wanted.length} 天全部失敗,不覆寫既有 blob:`, JSON.stringify(results));
     return { results, written: false };
   }
 
   const keys = Object.keys(days).sort();   // YYYYMMDD 字串序=時間序,見 thsrKeyToMs 註解
   while (keys.length > THSR_SCHED_KEEP_DAYS) { const drop = keys.shift(); delete days[drop]; delete metas[drop]; }
 
-  const json = JSON.stringify({ fetchedAt: new Date().toISOString(), days, _meta: metas });
+  // D1 單列上限 2,000,000 bytes(官方 limits 表:「Maximum string, BLOB or table row size」)。
+  // 一天的 dense 文件約 160KB,7 天約 1.1MB——還有餘裕,但班表會長(加開日更多車次),而超過上限
+  // 的後果是 INSERT 整個失敗 ⇒ 那天起靜默停更,正是 2026-08-17 那次事故的形狀。寧可少留幾天:
+  // 從最舊的日鍵開始丟到塞得下為止(最舊的＝過去的日子,對「今天要畫什麼車」毫無用處)。
+  let json = JSON.stringify({ fetchedAt: new Date().toISOString(), days, _meta: metas });
+  while (json.length > THSR_BLOB_MAX_BYTES && Object.keys(days).length > 1) {
+    const drop = Object.keys(days).sort()[0];
+    console.warn(`[cron thsr-sched] blob ${json.length} bytes 超過上限,丟棄最舊日鍵 ${drop}`);
+    delete days[drop]; delete metas[drop];
+    json = JSON.stringify({ fetchedAt: new Date().toISOString(), days, _meta: metas });
+  }
   await db.prepare("INSERT OR REPLACE INTO kv_blobs(k,v,updated) VALUES(?,?,datetime('now'))").bind(THSR_SCHED_BLOB_KEY, json).run();
   console.log(`[cron thsr-sched] 完成: ${JSON.stringify(results)}, 保留日鍵 ${JSON.stringify(Object.keys(days))}, bytes=${json.length}`);
   return { results, written: true, dayKeys: Object.keys(days) };
+}
+
+// ── 高鐵班表自我檢查(掛每分鐘 cron)────────────────────────────────────────────
+// 每日 ingest 一天只有一發(15 1 * * *＝台北 09:15);第二發(12:15)是 owner 2026-07-29 刻意停用的,
+// 所以那一發若拋例外或上游不通,整天就沒有補救——站上靜默退回舊日鍵,把昨天的班表當今天畫。
+// 這裡每 THSR_HEAL_EVERY_MIN 分鐘問一句「今天的日鍵在不在」,缺了就當場補抓(ingestThsrSchedule
+// 冪等:抓得到才寫,全失敗連碰都不碰既有 blob)。沒缺的成本＝一次 json_type 查詢,不打 TDX、不寫 D1。
+const THSR_HEAL_EVERY_MIN = 5;
+const THSR_HEAL_FROM_HOUR = 5;   // 台北 05:00 起才檢查(高鐵首班約 06:00,更早沒有畫車需求)
+async function thsrSelfHeal(event, env) {
+  const tw = new Date(((event && event.scheduledTime) || Date.now()) + 8 * 3600 * 1000);
+  if (tw.getUTCMinutes() % THSR_HEAL_EVERY_MIN !== 0) return { skipped: 'cadence' };
+  if (tw.getUTCHours() < THSR_HEAL_FROM_HOUR) return { skipped: 'off-hours' };
+  const todayKey = twToday().replace(/-/g, '');
+  // json_type 回 'object'＝那天在 blob 裡,回 NULL＝缺。用它而不是把 v 撈出來 parse:blob 是 MB 級,
+  // 每 5 分鐘搬一次純屬浪費(讀的是同一列、rows_read 一樣是 1,但回傳量差三個數量級)。
+  const row = await env.DELAY_DB.prepare(
+    "SELECT json_type(v, '$.days.' || ?) AS t FROM kv_blobs WHERE k = ?"
+  ).bind(todayKey, THSR_SCHED_BLOB_KEY).first();
+  if (row && row.t === 'object') return { ok: true, present: true };
+  console.warn(`[thsr 自癒] blob 裡沒有今天(${todayKey})的班表——每日 cron 應該是失敗了,現在補抓`);
+  const rt = await ingestThsrSchedule(env);
+  const healed = !!(rt && rt.written && (rt.dayKeys || []).includes(todayKey));
+  console.log(`[thsr 自癒] 補抓結束 written=${rt && rt.written} 今天補上了=${healed} dayKeys=${JSON.stringify((rt && rt.dayKeys) || [])}`);
+  return { ok: true, present: false, healed, written: !!(rt && rt.written) };
 }
 
 // /api/thsr-schedule:唯讀吐回台北「今天」的高鐵班表(cron 寫好的 D1 blob)。無今天退最近日鍵
@@ -5187,6 +5277,13 @@ export default {
         return { error: String((e && e.message) || e) };
       });
       if (ctx && typeof ctx.waitUntil === 'function') ctx.waitUntil(mwTask);
+      // 高鐵班表自我檢查:與帳本、推播都無關,自帶 .catch ⇒ 不可能改變 scheduled 的成功/失敗契約
+      // (同 hazardTask/laTask)。絕大多數 tick 會在第一行就 return(不到檢查週期),不碰 D1。
+      const thsrHealTask = thsrSelfHeal(event, env).catch(e => {
+        console.error('[thsr 自癒] 失敗:', (e && e.stack) || String(e));
+        return { error: String((e && e.message) || e) };
+      });
+      if (ctx && typeof ctx.waitUntil === 'function') ctx.waitUntil(thsrHealTask);
       try {
         const ledger = await trtcLedgerScheduled(event, env);
         // 🔴 最終複審 A-I7:laPushAll 的存活時間本來只靠 ctx.waitUntil 撐著,而
@@ -5201,6 +5298,9 @@ export default {
         // 牆鐘是 max(45s, 40s) 不是兩者相加。
         await laTask;
         await mwTask;
+        // 同理 await:北捷營運窗外(約 01:00–06:00)trtcLedgerScheduled 會立刻早退,handler 一 return
+        // 就可能把 waitUntil 截斷——而 05:00–06:00 正是自癒該把今天班表準備好的時段。
+        await thsrHealTask;
         return ledger; // 維持原本 scheduled 回傳 shape，避免帳本驗收/觀測端因加觸發器而變契約
       }
       catch (e) {
@@ -5410,4 +5510,6 @@ export const _thsr = {
   thsrConvertDaily, thsrBuildStationMap, thsrSelectServedDay, thsrKeyToMs, thsrScheduleUrl,
   fetchThsrDaily, thsrStationMap, ingestThsrSchedule, thsrSchedule, authUrl,
   thsrConvertFreeSeat, thsrFreeSeatUrl, thsrFreeSeat,
+  // 自我檢查:測試要自備 env(DELAY_DB/ASSETS/TDX 覆寫)與 event.scheduledTime(節奏閘門看它,不看真時鐘)。
+  thsrSelfHeal, THSR_SCHED_FETCH_DAYS, THSR_SCHED_KEEP_DAYS, THSR_HEAL_EVERY_MIN, THSR_HEAL_FROM_HOUR,
 };

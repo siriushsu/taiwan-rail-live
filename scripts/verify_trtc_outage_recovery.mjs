@@ -55,7 +55,11 @@ async function loadPipeline({ rosterMutation = null } = {}) {
   let roster;
   if (rosterMutation) {
     const file = path.join(HERE, `.tmp-outagerec-${tempSeq++}.mjs`);
-    fs.writeFileSync(file, rosterMutation(fs.readFileSync(ROSTER_PATH, 'utf8')));
+    const before = fs.readFileSync(ROSTER_PATH, 'utf8');
+    const after = rosterMutation(before);
+    // 突變的 replace 對不上（實作改了字面）＝突變根本沒套用，會偽裝成「這條判準沒有牙」。
+    if (after === before) throw new Error('突變沒有改到任何字元＝突變失效，不是判準沒有牙');
+    fs.writeFileSync(file, after);
     temps.push(file);
     roster = await import(pathToFileURL(file).href);
   } else {
@@ -280,7 +284,7 @@ pipeline.cleanup();
 // ---- 7. 突變：每條斷言都要有牙 ----
 const MUTATIONS = [
   ['no-realign', '整個逐線對齊拿掉（回到只會沿用的舊行為）',
-    source => source.replace('if (realignLines.has(old.line)) { realigned++; continue; }', '')],
+    source => source.replace(/if \(realignLines\.has\(old\.line\)\) \{\s*realigned\+\+;[^}]*continue;\s*\}/, '')],
   ['global-gap-instead', '改用「全域資料落差」判斷斷訊（第一版設計，對部分斷訊全盲）',
     source => source.replace(
       /for \(const line of linesWithRows\) \{\s*const last = Number\(priorSeen\[line\]\);\s*if \(Number\.isFinite\(last\) && epoch - last >= realignSec\) realignLines\.add\(line\);\s*\}/,
@@ -315,6 +319,12 @@ for (const [tag, label, mutate] of MUTATIONS) {
     const leftovers = incident.state.vehicles.filter(vehicle =>
       EXPECTED.deadLines.includes(vehicle.line) && vehicle.carried === true);
     if (leftovers.length > 0) reasons.push(`六條線留下 ${leftovers.length} 台推估殘留`);
+    // 2026-08-17：殘骸退場地板也會清掉這些停滯很久的車，於是「還有沒有殘留」這個結果面判準
+    // 對 no-realign 突變失去牙齒（兩個機制殊途同歸）。改直接斷言恢復動作**本身**有發生——
+    // 地板做不到這件事：它要停滯滿 3 個週期才動手，realign 是恢復當輪立即收斂。
+    if (!(Number(incident.state.diagnostics.realigned) > 0)) {
+      reasons.push('恢復輪完全沒有執行逐線對齊（realigned=0）');
+    }
     const missing = undrawnRows(incident.rows, incident.state.vehicles);
     if (missing.length > 0) reasons.push(`恢復輪有 ${missing.length} 筆官方列畫不出車`);
     const ids = incident.state.vehicles.map(vehicle => String(vehicle.vehicleId));

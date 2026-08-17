@@ -26,7 +26,11 @@ const EXPECTED = {
   // 2026-08-15 起點身分修法（ledger 同終點才合併＋起點列／第一段以時間軸自洽判同車；reducer 起點前進
   // 一站一律可達、起點列終點不同不配、同位置 arr 遞減排）之前為 106／99–109／138：
   // 少掉的 2 次出生＝起點被吃掉又翻回來的倒數不再重生、末輪少 2 台＝不再有釘死起點的舊 ID。
-  finalVehicles: 104, minVehicles: 99, maxVehicles: 107, births: 136,
+  // 2026-08-17 殘骸退場地板（carriedVehicle 的 projectedRetireEpoch）之後 104→103：
+  // 少的那一台是 ov:2026-08-15:00001e（O_LUZHOU d1 13>12、車次 439），末輪已**停滯 932 秒**
+  // ＝5.8 倍它自己的站間週期（161 秒），而 O_LUZHOU 當輪有官方列（線是活的）。
+  // 逐輪上下界 99–107 與累計出生 136 都沒變 ⇒ 只收掉這一台殭屍，沒有動到任何正常車。
+  finalVehicles: 103, minVehicles: 99, maxVehicles: 107, births: 136,
   ghostDuplicateGroups: 5, ghostExtraVehicles: 9,
 };
 
