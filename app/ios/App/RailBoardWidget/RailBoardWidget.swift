@@ -799,10 +799,17 @@ struct BoardNotice: View {
     }
 }
 
-// MARK: - 發車看板 · Small（單班大卡）
+// MARK: - 發車看板 · Small（一主一從）
 
-/// 設計稿 A：「138pt 高只放得下五列：識別 20、站名 24、方向 19、倒數 44、註腳 16」。
-/// 五列是硬預算，想加第六列必須先砍一列。
+/// v2 設計稿：Small 是【兩班車】。
+///
+/// 高度預算 20（識別）＋4＋31（終點站 26pt）＋2＋44（倒數）＋彈簧＋22（第二班）＝ 123／138。
+/// 設計稿的原話：「Small 是誤讀最嚴重的尺寸，也是最容易解決的：只有兩列，把 12pt 的軌脊欄
+/// 拿掉之後，站名與方向都往左推 21pt，26pt 的終點站不再需要截字。省下的橫向空間讓第二列
+/// 裝得下車種標，第一列裝得下『準點』。」
+///
+/// 兩個角色跟 v1 對調了：站名降到 11pt（那是這張卡自己的站，使用者知道），終點站升到 26pt
+/// （那才是「這班車去哪」）。
 struct SmallBoardView: View {
     let snapshot: BoardSnapshot
     let entryDate: Date
@@ -825,43 +832,42 @@ struct SmallBoardView: View {
                 // 🔴 資料時刻不掛在這一列（設計稿的示範是這樣，但它的車種只有兩個字）：
                 //    「莒光/復興」那顆標本身就要 64pt、四碼車次 38pt，加上時刻就溢出 14pt
                 //    （破版 gate 在直達那張抓到）。車種標依設計稿【不准縮】，所以是時刻讓位。
+                // 識別 20：車種標＋車次，站名擠到右端 11pt。
+                // 🔴 資料時刻在 v2 的 Small 上【沒有位置】：它的右端讓給站名，底下那一列
+                //    讓給第二班車。「班表過期」這種真的會害人錯過車的狀況仍然畫得出來
+                //    （見下面的底列優先序），被拿掉的只有例行的更新時刻。
                 HStack(spacing: scale.pt(5)) {
                     RailTrainMark(kind: row.trainType, number: row.trainNumber,
                                   color: trainColor(row.trainType), fontSize: 12,
-                                  numberSize: 16, scale: scale)
-                    Spacer(minLength: 0)
+                                  numberSize: 13, scale: scale)
+                    Spacer(minLength: scale.pt(4))
+                    // 🔴 這個角落只給【車站模式】的站名。直達模式的標題是一組起訖對
+                    //    （「竹北 → 臺北」），最長的車種標（莒光/復興 64pt）加四碼車次之後
+                    //    它會被截成「竹…」——一個字的站名比沒有站名更糟（同
+                    //    RailCountdownText 對「暫無資料」的判斷）。這裡用的是語意判準
+                    //    「標題是一站還是一組對」，不是量出來的斷點寬度。
+                    //    直達模式本來就不缺識別：主角那一列寫著「往 臺北-環島」。
+                    if snapshot.isWatching {
+                        Text(snapshot.title)
+                            .font(.system(size: scale.pt(11)))
+                            .foregroundStyle(.tertiary)
+                            .lineLimit(1).minimumScaleFactor(0.75)
+                            .layoutPriority(-1)
+                    }
                 }
                 .frame(height: scale.pt(20))
 
-                // 站名 24 ＋右側資料時刻。與 Medium 的 RailCardTitle 同一個安排：
-                // 時刻 fixedSize 佔死、站名先縮（直達模式的「竹北 → 臺北」是最長的那個）。
-                // 🔴 時刻【沒有】「更新」後綴：加上去要 61pt，這一列放不下（Small 只有 138）。
-                //    設計稿的 Small 也是裸時刻；歧義由旁白（RailStamp 的 accessibilityLabel）
-                //    與註腳的動詞承擔——註腳寫「14:33 開」，右上那個沒有動詞。
-                HStack(alignment: .firstTextBaseline, spacing: scale.pt(5)) {
-                    Text(snapshot.title)
-                        .font(.system(size: scale.pt(20), weight: .semibold))
-                        .lineLimit(1).minimumScaleFactor(0.8)
-                    Spacer(minLength: scale.pt(2))
-                    RailStamp(text: RailBoardClock.updateTimeString(snapshot.generatedAt),
-                              suffix: "", scale: scale)
-                        .fixedSize()
-                }
-                .frame(height: scale.pt(24))
-
-                // 方向 19：「往 臺東」／終到列車是「終點」。
-                // 🔴 通過標掛在這一列不是識別列：138pt 的識別列放不下「車種標＋車次＋通過＋
-                //    資料時刻」四件東西（實測資料時刻被截成「14:28…」），而「這班車不會停」
-                //    講的正是這個方向的這一班，掛在方向旁邊讀起來也更順。
+                // 終點站 26：v2 把它從 15pt 升上來——拿掉軌脊欄省下的 21pt 就是給它的。
+                // 🔴 通過標掛在這一列不是識別列：識別列放不下「車種標＋車次＋通過＋站名」
+                //    四件東西（實測站名被截），而「這班車不會停」講的正是這個方向的這一班。
                 HStack(spacing: scale.pt(5)) {
                     Text(row.watchingDestinationText)
-                        .font(.system(size: scale.pt(15)))
-                        .foregroundStyle(.secondary)
-                        .lineLimit(1).minimumScaleFactor(0.85)
+                        .font(.system(size: scale.pt(26), weight: .semibold))
+                        .lineLimit(1).minimumScaleFactor(0.7)
                     if row.isPassing { PassBadge(scale: scale) }
                     Spacer(minLength: 0)
                 }
-                .frame(height: scale.pt(19), alignment: .leading)
+                .frame(height: scale.pt(31), alignment: .leading)
 
                 // 倒數 44 ＋右側狀態。設計稿：誤點永遠是 13pt 純文字，不做膠囊、不進主角區。
                 HStack(alignment: .lastTextBaseline, spacing: scale.pt(4)) {
@@ -880,8 +886,24 @@ struct SmallBoardView: View {
                 }
                 .frame(height: scale.pt(44))
 
-                footer(row, scale)
-                    .frame(height: scale.pt(16), alignment: .leading)
+                Spacer(minLength: 0)
+
+                // 🔴 底列只有一位，三種內容互斥，優先序是硬的：
+                //    班表過期 ＞ 第二班車 ＞ 這一班幾點開。
+                //    「班表過期」排第一是因為這張卡上每一個數字都是那份班表算出來的；
+                //    第二班車排在「幾點開」前面是 v2 的裁示（「只有兩列」），而主角的
+                //    發車時刻在倒數退成靜態時刻時本來就已經畫在數字欄了。
+                if snapshot.notice != nil {
+                    footer(row, scale)
+                        .frame(height: scale.pt(22), alignment: .leading)
+                } else if let second = snapshot.rows.dropFirst().first {
+                    SmallSecondRow(row: second, snapshot: snapshot, entryDate: entryDate,
+                                   scale: scale)
+                        .frame(height: scale.pt(22), alignment: .leading)
+                } else {
+                    footer(row, scale)
+                        .frame(height: scale.pt(22), alignment: .leading)
+                }
             }
         } else {
             VStack(alignment: .leading, spacing: scale.pt(6)) {
@@ -940,6 +962,35 @@ struct SmallBoardView: View {
 
     private func trainColor(_ type: String) -> Color {
         BoardPalette.trainColor(type, in: snapshot.typeColors)
+    }
+}
+
+/// Small 的第二班。設計稿給的是一套獨立的（更小的）字級：車種標 11pt、終點站 13pt、
+/// 分鐘 15pt——170pt 寬只有 138pt 可用，Medium 次列那套 11.5/17/17 放不下。
+///
+/// 🔴 這裡【不用】RailRow：那個骨架的數字欄是固定寬 50pt（Medium 的尺），塞進 138pt
+///    的卡只剩 88pt 給車種標＋終點站，「莒光/復興」一顆標就吃掉 64pt。這一列改成
+///    「終點站彈性、分鐘 fixedSize 貼右」——同一把尺在 Small 上量不出兩班車。
+struct SmallSecondRow: View {
+    let row: BoardRow
+    let snapshot: BoardSnapshot
+    var entryDate: Date = Date()
+    var scale: RailScale = RailScale(k: 1)
+
+    var body: some View {
+        HStack(spacing: scale.pt(5)) {
+            RailTrainMark(kind: row.trainType, number: nil,
+                          color: BoardPalette.trainColor(row.trainType, in: snapshot.typeColors),
+                          fontSize: 11, scale: scale)
+            Text(row.watchingDestinationText)
+                .font(.system(size: scale.pt(13)))
+                .foregroundStyle(.secondary)
+                .lineLimit(1).minimumScaleFactor(0.8)
+            Spacer(minLength: scale.pt(4))
+            RailCountdownText(value: BoardCountdown.of(row: row, at: entryDate),
+                              size: .minor, scale: scale)
+                .fixedSize()
+        }
     }
 }
 

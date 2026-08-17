@@ -95,6 +95,7 @@ const pieces = [
   extractDeclaration(widgetSource, 'enum PlaceDistance'),
   extractDeclaration(widgetSource, 'struct PassBadge'),
   extractDeclaration(widgetSource, 'struct SmallBoardView'),
+  extractDeclaration(widgetSource, 'struct SmallSecondRow'),
   extractDeclaration(widgetSource, 'struct MediumBoardView'),
   extractDeclaration(widgetSource, 'struct BoardRowView'),
   extractDeclaration(widgetSource, 'struct RectangularBoardView'),
