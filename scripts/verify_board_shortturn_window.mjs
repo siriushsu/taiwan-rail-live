@@ -4,10 +4,20 @@
 // 而官方看板那一輪對該站只給 5 列（松山／新店／蘆洲／迴龍／南勢角，倒數全在 5 分內）。
 // 那兩列是班表補列，補列窗原本是 7200 秒（兩小時）。
 //
-// 判準：北捷看板列的倒數不得超過該線當下班距的三倍（不寫死分鐘數）；同時官方那幾列
-// 一列都不准被這道窗連帶砍掉——只砍班表補列，不砍官方即時列。
+// 2026-08-17 使用者續報「藍線同樣有加班車提前排進班表的問題」⇒ 窗改成**兩級**。
+//
+// 判準（不寫死分鐘數，兩級都從當下班距推導）：
+//   目的地是該線正常終點（線的頭尾兩站）⇒ 倒數不得超過 3×班距；
+//   目的地是短程／加班車終點          ⇒ 倒數不得超過 1×班距。
+// 同時官方那幾列一列都不准被這道窗連帶砍掉——只砍班表補列，不砍官方即時列。
+//
+// 🔴 這支腳本原本主判準寫死 `3 * hw`（單一窗），在兩級窗上線後就過期了：短程車在 2 倍
+// 班距時違反新規則卻照樣過 ⇒ 它守不住使用者實際回報的那個缺陷。凡產品的窗改成分級，
+// 這裡的判準必須同一輪改成同樣分級，否則 gate 會用舊規則放行。
 import { chromium } from 'playwright';
-const URL = process.argv[2] || 'http://127.0.0.1:5399/?census=1';
+// 預設不帶 ?census=1：正式站的北捷位置走班表推估，逐車名冊路徑預設關閉，
+// 判準的環境要對齊正式站（要驗名冊路徑就自己在參數帶 ?census=1）。
+const URL = process.argv[2] || 'http://127.0.0.1:5399/';
 const STATION = process.argv[3] || '松江南京';
 let pass = 0, fail = 0;
 const ok = (name, cond, got) => { cond ? pass++ : fail++; console.log(`${cond ? '✅' : '❌'} ${name}${cond ? '' : '　實測：' + got}`); };
@@ -30,13 +40,24 @@ const r = await p.evaluate(name => {
   if (!st) return { err: '找不到站：' + name };
   const view = trtcOfficialBoardView(st, lines, false);
   if (!view) return { err: '看板 view 是 null（官方看板可能不在即時模式）' };
+  // 「短程／加班車終點」＝目的地不是該線頭尾兩站。這個判別要與產品端同一個定義
+  // （index.html 的 BOARD_LEGACY_SHORTTURN_WINDOW），但**不共用實作**：這裡自己從
+  // ln.stations 兩端算，產品端算錯時判準才照得到（判準與實作同源會一起錯）。
+  const isShortTurn = (ln, destName) => {
+    const sts = ln.stations || [];
+    const a = sts[0] && trtcOfficialStationName(sts[0].name);
+    const z = sts[sts.length - 1] && trtcOfficialStationName(sts[sts.length - 1].name);
+    const d = trtcOfficialStationName(destName);
+    return d !== a && d !== z;
+  };
   const rows = [];
   for (const g of view.groups) {
     const hw = headwayOf(g.ln, state.simSec / 3600) || 600;
+    const shortTurn = isShortTurn(g.ln, g.destName);
     if (g.kind === 'official') for (const rec of g.rows)
-      rows.push({ kind: 'official', line: g.ln.id, dest: g.destName, sec: Math.round(rec.left), hw });
+      rows.push({ kind: 'official', line: g.ln.id, dest: g.destName, sec: Math.round(rec.left), hw, shortTurn });
     else for (const row of g.rows)
-      rows.push({ kind: 'legacy', line: g.ln.id, dest: g.destName, sec: Math.round(row.dtm), hw });
+      rows.push({ kind: 'legacy', line: g.ln.id, dest: g.destName, sec: Math.round(row.dtm), hw, shortTurn });
   }
   // 控制組：直接從班表算「這一站有哪些終點的下一班還在舊窗（7200s）內、但超出新窗」。
   // 這證明輸入資料裡真的有那種列、舊窗會收它、是新窗把它排除的——不是資料剛好沒有而假綠。
@@ -57,23 +78,29 @@ const r = await p.evaluate(name => {
       if (dtm < -30 || dtm > 7200) continue;
       if (!best.has(destName) || dtm < best.get(destName)) best.set(destName, dtm);
     }
-    for (const [destName, dtm] of best)
-      if (dtm > 3 * hw) wouldShow.push({ line: ln.id, dest: destName, sec: Math.round(dtm), hw });
+    for (const [destName, dtm] of best) {
+      const shortTurn = isShortTurn(ln, destName);
+      if (dtm > (shortTurn ? 1 : 3) * hw)
+        wouldShow.push({ line: ln.id, dest: destName, sec: Math.round(dtm), hw, shortTurn });
+    }
   }
   return { rows, wouldShow };
 }, STATION);
 
 if (r.err) { console.log('❌ ' + r.err); await b.close(); process.exit(2); }
-for (const x of r.rows) console.log(`   ${x.kind === 'official' ? '官方' : '班表'} ${x.line} 往${x.dest} ${Math.round(x.sec / 60)}分（${x.sec}s，班距 ${x.hw}s）`);
+const capOf = x => (x.shortTurn ? 1 : 3) * x.hw;
+for (const x of r.rows) console.log(`   ${x.kind === 'official' ? '官方' : '班表'} ${x.line} 往${x.dest}` +
+  `${x.shortTurn ? '［短程終點］' : ''} ${Math.round(x.sec / 60)}分（${x.sec}s，班距 ${x.hw}s，窗 ${Math.round(capOf(x) / 60)}分）`);
 
-const far = r.rows.filter(x => x.kind === 'legacy' && x.sec > 3 * x.hw);
-ok(`${STATION}：班表補列不得超過三班班距`, far.length === 0,
-  far.map(x => `往${x.dest} ${Math.round(x.sec / 60)}分 > ${Math.round(3 * x.hw / 60)}分`).join('、'));
+const far = r.rows.filter(x => x.kind === 'legacy' && x.sec > capOf(x));
+ok(`${STATION}：班表補列不得超窗（正常終點 3×班距／短程終點 1×班距）`, far.length === 0,
+  far.map(x => `往${x.dest}${x.shortTurn ? '［短程］' : ''} ${Math.round(x.sec / 60)}分 > ${Math.round(capOf(x) / 60)}分`).join('、'));
 const official = r.rows.filter(x => x.kind === 'official');
 ok('官方即時列仍在（這道窗只砍班表補列）', official.length > 0, `官方列 ${official.length} 列`);
 ok('看板至少有一列可看', r.rows.length > 0, `共 ${r.rows.length} 列`);
 // 控制組：舊窗會收、新窗排除的那些列，必須真的存在（否則這條判準是空的）並且真的不在看板上
-for (const x of r.wouldShow) console.log(`   ［舊窗會收］${x.line} 往${x.dest} ${Math.round(x.sec / 60)}分`);
+for (const x of r.wouldShow) console.log(`   ［舊窗會收］${x.line} 往${x.dest}` +
+  `${x.shortTurn ? '［短程終點，窗 ' + Math.round(x.hw / 60) + '分］' : '［正常終點，窗 ' + Math.round(3 * x.hw / 60) + '分］'} ${Math.round(x.sec / 60)}分`);
 // 控制組只在「這一站這個時刻真的有那種列」時才成立——多數車站沒有短程車終點，
 // 無條件要求它存在會讓大部分車站假紅（把「這裡沒東西可驗」誤報成「產品壞了」）。
 if (r.wouldShow.length === 0)
