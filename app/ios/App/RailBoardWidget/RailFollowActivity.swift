@@ -263,7 +263,7 @@ struct RailFollowActivityWidget: Widget {
     private func display(_ ctx: ActivityViewContext<RailFollowAttributes>) -> RailFollowDisplay {
         RailFollowDisplay.make(
             kind: ctx.attributes.kind, trainNo: ctx.attributes.trainNo,
-            colorHex: ctx.attributes.color, terminus: ctx.attributes.terminus,
+            colorHex: ctx.attributes.color, terminus: ctx.state.terminus,
             nextStop: ctx.state.nextStop, prevStop: ctx.state.prevStop,
             arrivalDate: ctx.state.arrivalDate, departedDate: ctx.state.departedDate,
             delaySec: ctx.state.delaySec, stopping: ctx.state.stopping ?? false,

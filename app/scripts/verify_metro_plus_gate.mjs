@@ -37,8 +37,19 @@ const autoBranch = widgetSrc.match(/case \.needPassAuto:[\s\S]*?case \.needPassM
 ok('S2 needPassAuto 帶 CTA 文案', !!autoBranch && /passCTA:\s*"/.test(autoBranch[0]));
 const multiBranch = widgetSrc.match(/case \.needPassMulti[\s\S]*?case \.allowed/);
 ok('S3 needPassMulti 帶 CTA 文案', !!multiBranch && /passCTA:/.test(multiBranch[0]));
-ok('S4 檢視真的畫得出 passCTA',
-   /if let cta = entry\.passCTA[\s\S]{0,400}Text\(cta\)/.test(widgetSrc));
+// 🔴 這條原本綁「if let cta = entry.passCTA … Text(cta)」這個寫法，08-17 改版把判定收進
+//    MetroEntry.emptyBody（就是為了讓混合大卡也講同一句，它以前完全不講）之後就變成假紅。
+//    改成驗資料流與去處，不綁寫法：CTA 從 emptyBody 出來 → 有人畫成 Text → 而且與錯誤訊息
+//    在視覺上分得開（isCTA 分支）→ 且兩張卡都走這個出口。
+const emptyBodyFn = widgetSrc.match(/func emptyBody\(at date: Date\)[\s\S]*?\n    \}/);
+ok('S4a passCTA 會從 emptyBody 流出來',
+   !!emptyBodyFn && /passCTA/.test(emptyBodyFn[0]) && /true\)/.test(emptyBodyFn[0]));
+ok('S4b 有人把 emptyBody 的字畫成 Text',
+   /emptyBody\(at: entry\.date\)/.test(widgetSrc) && /Text\(body\.text\)/.test(widgetSrc));
+ok('S4c CTA 與錯誤訊息視覺分得開', /body\.isCTA \?/.test(widgetSrc));
+ok('S4d 混合大卡走同一個出口(它曾經完全不講付費被擋)',
+   /emptyBody\(at: entry\.date\)/.test(readFileSync(
+     join(ROOT, 'app/ios/App/RailBoardWidget/MixedBoardWidget.swift'), 'utf8')));
 ok('S5 擋下時給得出去處(deepLink 指向通行證頁)',
    /passLink\(\)/.test(widgetSrc) && /host = "pass"/.test(widgetSrc));
 // 閘門必須在抓取與定位之前:否則被擋的人照樣打官方 API、照樣叫醒定位。

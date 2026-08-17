@@ -89,9 +89,17 @@ struct MetroBoardProvider: AppIntentTimelineProvider {
         if let rows = e.snapshot?.rows {
             let now = Date().timeIntervalSince1970
             let etas = Set(rows.compactMap(\.etaEpoch)).sorted().prefix(8)
-            let bounds = Set(etas.flatMap { eta in
-                (1...12).map { eta - Double($0) * 60 + 1 } + [eta + 31]
-            }.filter { $0 > now }).sorted().prefix(60)
+            // 🔴 這一段刻意寫成明確型別的迴圈，不要收回 flatMap 一行式：
+            //    `Set(etas.flatMap { (1...12).map { … } + [eta + 31] })` 會讓 Swift 對
+            //    「Double 算式 × 陣列相加 × Set/sorted/prefix」的多載組合爆搜，回
+            //    "the compiler is unable to type-check this expression in reasonable time"
+            //    ⇒ 整個 widget target 編不過（實測 arm64-apple-ios17.6 必現）。
+            var raw: [Double] = []
+            for eta in etas {
+                for k in 1...12 { raw.append(eta - Double(k) * 60.0 + 1.0) }
+                raw.append(eta + 31.0)
+            }
+            let bounds = Set(raw.filter { $0 > now }).sorted().prefix(60)
             hasBounds = !bounds.isEmpty
             entries += bounds.map { t in
                 MetroEntry(date: Date(timeIntervalSince1970: t), title: e.title,
