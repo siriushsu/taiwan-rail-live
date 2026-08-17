@@ -4324,7 +4324,7 @@
 //         中和新蘆線分支鎖、捷運徽章範圍、App 那整批 index.html 內容），並合入高鐵班表抓取窗
 //         2→7 天與每 5 分鐘自我檢查。v0816d／v0817a 兩條 ship 分支的 index.html 都還掛著
 //         v0816c，本批內容與它們都不同 ⇒ 推一個誰都沒用過的號。
-const BUILD = 'v0817b';
+const BUILD = 'v0817c';
 // 2026-08-13 起預設開啟（使用者親試預覽後裁示上線）：北捷畫車依官方即時名冊，班表只是備案。
 // 保留 ?officialroster=0 當逃生口——要退回班表路徑不必回滾部署，加個參數即可對照。
 // 🔴 這個函式會被 verify_official_roster_frontend 抽出來丟進 VM 單獨執行——
@@ -4340,6 +4340,9 @@ function trtcOfficialRosterEnabled(search) {
 }
 // URL 開關必須在開機初始就固定；clearFollow() 會整理 query string，不可在後面重讀。
 const OFFICIAL_ROSTER_ENABLED = trtcOfficialRosterEnabled(location.search);
+// 官方名冊關著的期間,北捷位置＝純班表：不套誤點校正、不做官方看板錨定（見 metroLiveOn）。
+// 兩件事一起翻面才自洽——名冊關掉卻留著校正,畫出來的既不是官方位置也不是班表。
+const TRTC_PURE_SCHEDULE_POSITION = !OFFICIAL_ROSTER_ENABLED;
 // 🔴 2026-08-14 最終裁示：一台車取得官方倒數並分配 ID 後，沿已知每站時間跑到終點。
 // 沒有資料齡、600 秒或「太久沒消息」的退場判定；到已知 dest 才收車。
 // 續推時每一段的節奏：優先用這台車自己相鄰兩筆官方到站的間隔（含停站），
@@ -16935,6 +16938,12 @@ function metroLiveGate() { // 每秒記憶化:未來方向(含快轉)持續套�
 function metroLiveOn(ln) { // 偏移套用中(未必新鮮):資料齡放寬到 30 分,防 API 停擺套陳舊 shift
   // 北捷同樣吃 30 分資料齡。這關的是「校正量還算不算數」不是「車存不存在」:
   // 關掉只讓 metroShiftSec 回 0(車退回班表位置),freqTrainPosAt 的名冊判定完全不看它。
+  // 🔴 2026-08-17 使用者裁示「位置都是班表並非實際位置」⇒ 北捷各線純班表,校正量一律 0。
+  //    不關掉的話畫出來的不是班表,是「班表減掉誤點校正」:實測新莊線每台車都被往回拖
+  //    1069～1098 秒(約 18 分鐘),09:26 發的車在 09:50 被畫回起點迴龍、和 09:35 那班疊在一起;
+  //    校正量每輪重算又會讓車前後跳(使用者回報的「倒退跑」)。
+  //    只影響位置:車站到站倒數走 boardPos.rows,不經這裡,與月台顯示同源。
+  if (TRTC_PURE_SCHEDULE_POSITION && isTrtcBoardLine(ln)) return false;
   if (ln._trtcBoard) return !!(Date.now() - ln._trtcBoard.at < 1800e3 && metroLiveGate());
   const s = ln._liveShift;
   return !!(s && Date.now() - s.at < 1800e3 && metroLiveGate());
