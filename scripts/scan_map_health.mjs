@@ -130,6 +130,13 @@ const SAMPLE = () => {
     // 名冊本身的新鮮度：整包被驗證器退掉時車還是會照舊時間線往前跑，位置全綠、
     // 卻是在演一份舊快照（2026-08-17 實測連續 148 秒）。這兩個值是唯一照得到的證據。
     rosterFeed: R.feedMode || null, rosterRecv: R.receivedEpoch || null,
+    // 🔴 被擋的原因存在**兩個地方**，只讀一個會在冷啟動時全瞎：
+    //    已有一份好名冊時被擋 ⇒ trtcOfficialRosterHold() 寫 state.trtcOfficialRosterHold；
+    //    還沒有名冊（或已在 outage）時被擋 ⇒ 走 trtcOfficialRosterOutage()，原因寫在
+    //    state.trtcOfficialRoster.reason，而 trtcOfficialRosterHold 從頭到尾不會被設。
+    //    2026-08-17 的 rosterStale 突變就是這樣連三輪假綠：整包從第一輪就被退 ⇒ 永遠沒有
+    //    好名冊 ⇒ 永遠走 outage 那條 ⇒ 判準讀不到 'malformed'，把它當成上游斷訊放行。
+    rosterReason: R.reason || null,
     rosterN: (R.vehicles || []).length,
     // 名冊路徑沒啟用時「沒有名冊」是正常的，不是缺陷 ⇒ 判準要先看這顆旗標。
     rosterEnabled: typeof OFFICIAL_ROSTER_ENABLED !== 'undefined' ? !!OFFICIAL_ROSTER_ENABLED : null,
@@ -211,21 +218,24 @@ const ROSTER_STALE_SEC = 120;      // 官方 15–60 秒一輪；兩分鐘沒換
 {
   const ageSec = s2.rosterRecv ? Math.round((s2.at - s2.rosterRecv * 1000) / 1000) : null;
   const held = s2.rosterHold ? s2.rosterHold.reason : null;
+  // 兩個來源取聯集：feedMode 不是 official 時，原因在 roster.reason 上（見 SAMPLE 的註解）
+  const heldReason = held || (s2.rosterFeed !== 'official' ? s2.rosterReason : null);
   if (!s2.rosterEnabled)
     noteLoud('info', '官方名冊路徑未啟用（純班表模式），本條不適用', { rosterEnabled: s2.rosterEnabled });
   // 🔴 **先看 hold 原因，再看 feedMode**——順序反了會把牙齒拔掉：整包被退（malformed）若從第一輪
   //    就發生，`state.trtcOfficialRoster` 根本沒建立過 ⇒ feedMode 是 null ⇒ 會掉進下面那條
   //    「上游斷訊」的警告而放行（2026-08-17 實測踩到：rosterStale 突變因此以 exit 0 通過）。
   //    只有 `feed-outage` 是環境條件，其餘任何 hold 原因都是我們這邊的管線問題。
-  else if (held && held !== 'feed-outage')
-    noteLoud('bad', `官方名冊被前端擋掉（${held}）＝這一輪的官方資料沒套上，畫面在演舊快照`,
-      { held, rosterFeed: s2.rosterFeed, rosterN: s2.rosterN, ageSec });
+  else if (heldReason && heldReason !== 'feed-outage')
+    noteLoud('bad', `官方名冊被前端擋掉（${heldReason}）＝這一輪的官方資料沒套上，` +
+      '畫面在演舊快照或整條線沒車', { heldReason, held, rosterReason: s2.rosterReason,
+      rosterFeed: s2.rosterFeed, rosterN: s2.rosterN, ageSec });
   // 上游真的沒給官方資料是**環境條件不是我們畫錯**——每小時排程若為此變紅，就會在每次北捷／TDX
   // 斷訊時發假警報，久了整支巡檢就沒人看了（同族教訓見 memory [[trtc-outage-badge-false-alarm]]：
   // 徽章量的是「我手上名冊多舊」不是「上游掛沒掛」）。站內本來就有斷訊徽章負責告知使用者，
   // 這裡只要大聲印出來、並明說這一輪驗不到什麼。
   else if (s2.rosterFeed !== 'official')
-    noteLoud('warn', `官方名冊不在 official 模式（${s2.rosterFeed}${held ? `／${held}` : ''}）＝上游這輪` +
+    noteLoud('warn', `官方名冊不在 official 模式（${s2.rosterFeed}${heldReason ? `／${heldReason}` : ''}）＝上游這輪` +
       '沒給官方位置。屬環境條件不計入離開碼；代價是這一輪驗不到「名冊有沒有換新」',
       { rosterFeed: s2.rosterFeed, rosterN: s2.rosterN, held });
   else if (ageSec == null)

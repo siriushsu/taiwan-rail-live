@@ -58,10 +58,12 @@ const MIME = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript', '.
 // （2026-08-17 Codex 複審抓到：正常 census 對照被誤判整線凍結，整套 exit 1）。
 let livePayload = '{}';
 // 整套要跑七分鐘，中間一次暫時性的網路失誤就 exit 2 ⇒ 整輪判不出「環境」還是「回歸」。重試三次。
+let liveAt = 0;
 const refreshLive = async () => {
   for (let i = 1; i <= 3; i++) {
     try {
       livePayload = await (await fetch(LIVE_URL, { headers: { 'cache-control': 'no-cache' } })).text();
+      liveAt = Date.now();
       return;
     } catch (e) {
       console.log(`⚠️ 取 ${LIVE_URL} 第 ${i} 次失敗：${e.message}`);
@@ -73,9 +75,14 @@ const refreshLive = async () => {
 await refreshLive();
 
 function serve(html) {
-  return createServer((req, res) => {
+  return createServer(async (req, res) => {
     const url = new URL(req.url, 'http://local');
     if (url.pathname === '/api/trtc-live') {
+      // 🔴 不可以整個案例都餵同一份 payload。頁面每 60 秒重抓一次，若每次都拿到同一份，
+      //    car 的 arrEpoch 全部凍在過去而牆鐘一直走 ⇒ census builder 會推出驗證器不收的幾何，
+      //    未突變的對照組也會被判 malformed（2026-08-17 實測：凍結時控制組紅，同一份程式碼
+      //    對真上游跑則全綠 ⇒ 那個紅是 harness 造的，不是產品）。所以逾時就重抓。
+      if (Date.now() - liveAt > 20000) await refreshLive();
       res.setHeader('content-type', 'application/json'); return res.end(livePayload);
     }
     if (url.pathname.startsWith('/api/')) {
@@ -123,6 +130,13 @@ const check = (pass, label, detail = '') => {
 //    現行預設＝純班表（位置維持班表推估，名冊路徑要 ?census=1 才開）。
 const PURE = '';            // 預設就是純班表
 const CENSUS = '?census=1'; // 逐車名冊路徑
+// 🔴 已知狀態（2026-08-17 晚）：`對照組（?census=1 逐車名冊）` **目前預期會紅**，原因是
+//    逐車名冊路徑有一個未解的同向疊車（防倒退把前車 hold 住、後車追上）。那條路徑
+//    **沒有出貨**（正式站預設純班表），根因正在另案追。判讀規則：
+//      - `對照組（預設＝純班表）` 紅 ⇒ 真的有回歸，出貨路徑壞了，停手。
+//      - `對照組（?census=1）` 紅且訊息是疊車 ⇒ 已知未解，不是新回歸。
+//      - `對照組（?census=1）` 紅但訊息**不是**疊車（例如 malformed）⇒ 新問題，要查。
+//    疊車修好後把這段註解刪掉，並要求該對照組轉綠。
 const cases = [
   ['對照組（預設＝純班表）', INDEX, 0, PURE],
   ...Object.entries(INJECT).map(([k, v]) => [`突變：${k}`, INDEX.replace(ANCHOR, v), 1, PURE]),
@@ -134,7 +148,12 @@ const cases = [
 for (const [label, anchor] of [['ANCHOR', ANCHOR], ['CENSUS_ANCHOR', CENSUS_ANCHOR], ['REPAIR_ANCHOR', REPAIR_ANCHOR]])
   if (!INDEX.includes(anchor)) { console.log(`❌ ${label} 在 index.html 找不到，突變不會生效`); process.exit(2); }
 
-for (const [name, html, wantCode, qs] of cases) {
+// 迭代用：--only <子字串> 只跑名稱含該字串的案例（整套要七分鐘,改一條判準不必全跑）。
+// 🔴 只跑一條時**必須**連對照組一起跑,否則「紅」分不出是突變被抓到還是整體壞了。
+const ONLY = (() => { const i = process.argv.indexOf('--only'); return i >= 0 ? process.argv[i + 1] : null; })();
+const picked = ONLY ? cases.filter(c => c[0].includes(ONLY) || c[0].includes('對照組')) : cases;
+if (ONLY) console.log(`（--only ${ONLY}：跑 ${picked.length} 個案例，含對照組）`);
+for (const [name, html, wantCode, qs] of picked) {
   if (html === INDEX && wantCode === 1) { check(false, `${name}：突變沒套上（anchor 找不到）`); continue; }
   await refreshLive();
   const server = serve(html);
