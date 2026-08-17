@@ -5,11 +5,19 @@
 // 不是管線算出來的中間量。08-17 稽核的教訓：量 lastShift 中位數／roster.positions
 // 這類與實作同源的量，實作錯了判準會跟著一起錯，38 項全綠也看不到 4 倍超衝。
 //
-// 量四件事（都是使用者真的會看到的形態）：
+// 量七件事（都是使用者真的會看到的形態；編號與下面的小節一致）：
+//   0. 名冊有沒有在換新：整包被驗證器退掉時，車會照舊時間線繼續跑（動得很順），
+//      下面 1–5 全部照不到——只有 receivedEpoch 照得到（08-17 那次疊車事故的唯一證人）。
 //   1. 同向疊車：同線同方向的車在畫面上重疊。對向交會是正常的，必須先分方向再算。
+//   1b. 同站堆積：同一站同方向擠 3 台以上（被拖回站上的形態）。
 //   2. 倒退：兩次取樣之間沿線位移為負。
-//   3. 車數：與官方逐車清單比，過多（幽靈）或過少（掉車）。
-//   4. 停滯：整段觀測窗完全沒動，而同線其他車有動。
+//   3. 停滯：整段觀測窗完全沒動，而同線其他車有動。
+//   4. 車數：與官方逐車清單比，過多（幽靈）或過少（掉車）。
+//   5. 整條線不見：官方名冊說這條線有車，畫面上卻一台都沒有。
+//
+// 不計入離開碼的兩類（都會大聲印出來，理由寫在各自的程式碼旁）：
+//   ⚠️ KNOWN_OPEN_CLUMP 列出的「已知未解、使用者裁示另案追」的線；
+//   ⚠️ 上游沒給官方資料（feedMode≠official）＝環境條件，不是我們畫錯。
 //
 // 用法：
 //   node scripts/scan_map_health.mjs [url] [--json out.json] [--gap 20]
@@ -36,6 +44,17 @@ const AT_STATION_M = 60;    // 離最近車站這麼近就算「停在站上」�
 // 同向同站最多 2 台（一台停靠、一台進站中）；3 台以上物理上不可能。
 const AT_STATION_MAX_PER_STOP = 2;   // 同一站同一方向的車數上限
 const AT_STATION_MAX_PAIRS = 3;      // 全系統同站疊車對數上限（正常營運實測 0–1 對）
+
+// 🔴 已知未解、且使用者已裁示「另案追」的缺陷 → 印成「已知未解」而不計入離開碼。
+// 理由不是「數字小可以當噪音」（那是明文禁止的），而是這支每小時跑一次：
+// 一條永遠紅的判準會讓它對「新出現的問題」永久失去通報能力。
+// 例外只按「線 × 缺陷類別」開，**不按數量**——寫死數量就是下次一改動就被推翻的魔術數字；
+// 實測數字一律照原樣印出來。那條線修好就把它從這裡刪掉（留著＝繼續瞎）。
+const KNOWN_OPEN_CLUMP = {
+  Y: '環狀線不在逐車名冊（census）覆蓋內、走舊帳本路徑。08-17 把北捷位置切回官方即時後，'
+    + '這個既有缺陷被曝光（同一份程式碼在 ?census=0 純班表模式下實測 0 對）。使用者裁示「另案追」。',
+};
+const knownOpenClump = g => KNOWN_OPEN_CLUMP[String(g).split('|')[0]];
 // 刻意不用像素門檻：像素會隨縮放漂移，而這支掃描是把整個路網框在一個畫面裡跑的，
 // 密集路段（文湖線彎道）沿線 500 公尺在畫面上本來就只有幾個像素。
 const BACKWARD_M = 15;      // 沿線負位移超過這個距離才算倒退（低於此為投影抖動）
@@ -183,8 +202,15 @@ const ROSTER_STALE_SEC = 120;      // 官方 15–60 秒一輪；兩分鐘沒換
   const held = s2.rosterHold ? s2.rosterHold.reason : null;
   if (!s2.rosterEnabled)
     noteLoud('info', '官方名冊路徑未啟用（純班表模式），本條不適用', { rosterEnabled: s2.rosterEnabled });
+  // 🔴 上游真的沒給官方資料（held='feed-outage'）是**環境條件不是我們畫錯**——每小時排程若為此
+  //    變紅，就會在每次北捷／TDX 斷訊時發假警報，久了整支巡檢就沒人看了（同族教訓見 memory
+  //    [[trtc-outage-badge-false-alarm]]：徽章量的是「我手上名冊多舊」不是「上游掛沒掛」）。
+  //    站內本來就有斷訊徽章負責告知使用者，這裡只要大聲印出來、並明說這一輪驗不到什麼。
+  //    ⚠️ 整包被退（held='malformed'）不走這條：那時前端沿用上一份名冊、feedMode 仍是 official，
+  //    會落到下面 ageSec 超標那條，維持硬失敗——那才是這條判準要抓的缺陷。
   else if (s2.rosterFeed !== 'official')
-    noteLoud('bad', `官方名冊不在 official 模式（${s2.rosterFeed}）＝這輪沒有官方位置可用`,
+    noteLoud('warn', `官方名冊不在 official 模式（${s2.rosterFeed}${held ? `／${held}` : ''}）＝上游這輪` +
+      '沒給官方位置。屬環境條件不計入離開碼；代價是這一輪驗不到「名冊有沒有換新」',
       { rosterFeed: s2.rosterFeed, rosterN: s2.rosterN, held });
   else if (ageSec == null)
     noteLoud('bad', '官方名冊沒有 receivedEpoch，無法判斷它有沒有換新', { rosterN: s2.rosterN });
@@ -204,7 +230,7 @@ for (const h of s2.hits) {
   groups.get(g).push(h);
 }
 const clumps = [], nearPairs = [];
-let atStationPairs = 0;
+let atStationPairs = 0, atStationPairsReal = 0;
 const stationStack = new Map();   // "line|dir@站序" → 同站疊車對數
 for (const [g, arr] of groups) {
   for (let i = 0; i < arr.length; i++) for (let j = i + 1; j < arr.length; j++) {
@@ -216,6 +242,7 @@ for (const [g, arr] of groups) {
       arr[i].nearM < AT_STATION_M && arr[j].nearM < AT_STATION_M && arr[i].nearIdx === arr[j].nearIdx;
     if (bothAtSameStation) {
       atStationPairs++;
+      if (!knownOpenClump(g)) atStationPairsReal++;
       const sk = `${g}@${arr[i].nearIdx}`;
       stationStack.set(sk, (stationStack.get(sk) || 0) + 1);
       continue;
@@ -224,18 +251,33 @@ for (const [g, arr] of groups) {
     (m < OVERLAP_BAD_M ? clumps : nearPairs).push(rec);
   }
 }
-console.log(`${clumps.length ? '❌' : '✅'} 同向疊車（<${OVERLAP_BAD_M}m）：${clumps.length} 對` +
-  (clumps.length ? `　例：${clumps.slice(0, 4).map(c => `${c.group} ${c.m}m`).join('、')}`
+const clumpsKnown = clumps.filter(c => knownOpenClump(c.group));
+const clumpsReal = clumps.filter(c => !knownOpenClump(c.group));
+console.log(`${clumpsReal.length ? '❌' : '✅'} 同向疊車（<${OVERLAP_BAD_M}m）：${clumpsReal.length} 對` +
+  (clumpsReal.length ? `　例：${clumpsReal.slice(0, 4).map(c => `${c.group} ${c.m}m`).join('、')}`
     : `（靠近 <${OVERLAP_WARN_M}m ${nearPairs.length} 對、同站 ${atStationPairs} 對，皆屬正常範圍）`));
-if (clumps.length) note('bad', `同向疊車 ${clumps.length} 對`, clumps.slice(0, 10));
+if (clumpsReal.length) note('bad', `同向疊車 ${clumpsReal.length} 對`, clumpsReal.slice(0, 10));
 if (nearPairs.length) note('warn', `同向靠近 ${nearPairs.length} 對（<${OVERLAP_WARN_M}m）`, nearPairs.slice(0, 6));
 // 同站疊車：1 對＝一停靠一進站，正常；3 台以上擠在同一站、或全系統成堆，就是被拖回站上的形態
-const overStop = [...stationStack.entries()].filter(([, pairs]) => pairs + 1 > AT_STATION_MAX_PER_STOP);
-const stationBad = overStop.length > 0 || atStationPairs > AT_STATION_MAX_PAIRS;
-console.log(`${stationBad ? '❌' : '✅'} 同站堆積：${atStationPairs} 對` +
+const overStopAll = [...stationStack.entries()].filter(([, pairs]) => pairs + 1 > AT_STATION_MAX_PER_STOP);
+const overStop = overStopAll.filter(([k]) => !knownOpenClump(k));
+const overStopKnown = overStopAll.filter(([k]) => knownOpenClump(k));
+const stationBad = overStop.length > 0 || atStationPairsReal > AT_STATION_MAX_PAIRS;
+console.log(`${stationBad ? '❌' : '✅'} 同站堆積：${atStationPairsReal} 對` +
   (overStop.length ? `　超載車站：${overStop.slice(0, 4).map(([k, n]) => `${k}=${n + 1}台`).join('、')}` : '（每站最多 2 台，正常）'));
-if (stationBad) note('bad', `同站堆積 ${atStationPairs} 對`,
-  { overStop: overStop.slice(0, 6), atStationPairs });
+if (stationBad) note('bad', `同站堆積 ${atStationPairsReal} 對`,
+  { overStop: overStop.slice(0, 6), atStationPairs: atStationPairsReal });
+// 已知未解的那幾條：照原樣印出實測數字，但不計入離開碼（理由見 KNOWN_OPEN_CLUMP）
+for (const [line, why] of Object.entries(KNOWN_OPEN_CLUMP)) {
+  const c = clumpsKnown.filter(x => String(x.group).split('|')[0] === line);
+  const s = overStopKnown.filter(([k]) => String(k).split('|')[0] === line);
+  if (!c.length && !s.length) continue;
+  const detail = [c.length ? `疊車 ${c.length} 對（${c.slice(0, 3).map(x => `${x.group} ${x.m}m`).join('、')}）` : '',
+    s.length ? `超載車站 ${s.slice(0, 3).map(([k, n]) => `${k}=${n + 1}台`).join('、')}` : ''].filter(Boolean).join('；');
+  console.log(`⚠️ 已知未解（不計入離開碼）${line}：${detail}`);
+  console.log(`   ↳ ${why}`);
+  note('warn', `已知未解 ${line}：${detail}`, { line, clumps: c.slice(0, 6), overStop: s.slice(0, 6) });
+}
 
 // 2. 倒退
 const before = new Map(s1.hits.map(h => [h.key, h]));

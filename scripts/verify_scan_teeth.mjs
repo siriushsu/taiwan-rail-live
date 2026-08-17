@@ -40,7 +40,14 @@ const CENSUS_INJECT = 'const covered = new Set(((state.lines||[]).concat(state.d
 // 五條全綠，只有「名冊有沒有換新」照得到（2026-08-17 實測全綠 148 秒的那個缺陷）。
 const REPAIR_ANCHOR = '  if (Array.isArray(boardPos.vehicles)) // ROSTER_FRONTEND_REPAIR_RUN\n' +
   '    boardPos = { ...boardPos, vehicles: boardPos.vehicles.map(trtcOfficialRosterRepairRun) };';
-const REPAIR_INJECT = '  // 突變：不補 run';
+// 🔴 光是「不補 run」是**資料相依**的突變：那一刻兩台支線車若都剛好停在端點（from===to），
+// payload 本來就合法 ⇒ 突變零效果 ⇒ 案例以對照組的身分假綠通過（2026-08-17 實測踩到一次：
+// 同一支突變 16:0x 抓得到、17:1x 抓不到）。改成「不補 run ＋ 保證有一台 from≠to 而 run=0 的車」，
+// 讓它與上游此刻剛好有幾台支線車在跑無關。
+// 這一發同時仍在驗「補值有沒有接上」：補值若還在，它會把這台合成違規車一併補好 ⇒ 綠。
+const REPAIR_INJECT = '  if (Array.isArray(boardPos.vehicles) && boardPos.vehicles.length)\n' +
+  '    boardPos = { ...boardPos, vehicles: boardPos.vehicles.map((v, i) =>\n' +
+  '      i === 0 ? { ...v, from: 0, to: 1, run: 0 } : v) };';
 
 const MIME = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript', '.mjs': 'text/javascript',
   '.json': 'application/json', '.css': 'text/css', '.png': 'image/png', '.svg': 'image/svg+xml',
@@ -50,9 +57,18 @@ const MIME = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript', '.
 // 後段案例拿到的是老掉好幾分鐘的快照——車全部續推到很遠、支線全停，對照組會無故變紅
 // （2026-08-17 Codex 複審抓到：正常 census 對照被誤判整線凍結，整套 exit 1）。
 let livePayload = '{}';
+// 整套要跑七分鐘，中間一次暫時性的網路失誤就 exit 2 ⇒ 整輪判不出「環境」還是「回歸」。重試三次。
 const refreshLive = async () => {
-  try { livePayload = await (await fetch(LIVE_URL, { headers: { 'cache-control': 'no-cache' } })).text(); }
-  catch (e) { console.log(`❌ 取不到 ${LIVE_URL}：${e.message}`); process.exit(2); }
+  for (let i = 1; i <= 3; i++) {
+    try {
+      livePayload = await (await fetch(LIVE_URL, { headers: { 'cache-control': 'no-cache' } })).text();
+      return;
+    } catch (e) {
+      console.log(`⚠️ 取 ${LIVE_URL} 第 ${i} 次失敗：${e.message}`);
+      if (i === 3) { console.log('❌ 三次都取不到，環境問題，非產品回歸'); process.exit(2); }
+      await new Promise(r => setTimeout(r, 4000));
+    }
+  }
 };
 await refreshLive();
 
@@ -98,13 +114,17 @@ const check = (pass, label, detail = '') => {
 };
 
 // 對照組：未突變的原始碼必須全綠。它若也是紅的，後面兩個紅就沒有鑑別力。
+//
+// 🔴 2026-08-17 16:3x 起逐車名冊【預設開啟】⇒「不帶參數」的意思整個換了一面。
+//    clump／backward 兩發是注射到 metroShiftSec 的 `trtcPureSchedule(ln)` 分支裡的，
+//    預設既然已不走純班表，不帶參數跑那兩發等於什麼都沒改，會以對照組的身分假綠通過
+//    ——所以它們現在一律帶 ?census=0（那也是這次刻意留下的免部署退路）。
 const cases = [
-  ['對照組（原始碼）', INDEX, 0, ''],
-  ...Object.entries(INJECT).map(([k, v]) => [`突變：${k}`, INDEX.replace(ANCHOR, v), 1, '']),
-  // 對照組也要跑一次 census 版，證明紅的是突變不是 census 本身
-  ['對照組（census）', INDEX, 0, '?census=1'],
-  ['突變：lineGone', INDEX.replace(CENSUS_ANCHOR, CENSUS_INJECT), 1, '?census=1'],
-  ['突變：rosterStale', INDEX.replace(REPAIR_ANCHOR, REPAIR_INJECT), 1, '?census=1'],
+  ['對照組（預設＝逐車名冊）', INDEX, 0, ''],
+  ['對照組（?census=0 純班表）', INDEX, 0, '?census=0'],
+  ...Object.entries(INJECT).map(([k, v]) => [`突變：${k}`, INDEX.replace(ANCHOR, v), 1, '?census=0']),
+  ['突變：lineGone', INDEX.replace(CENSUS_ANCHOR, CENSUS_INJECT), 1, ''],
+  ['突變：rosterStale', INDEX.replace(REPAIR_ANCHOR, REPAIR_INJECT), 1, ''],
 ];
 // 錨點打錯字＝突變其實沒注射進去，案例會以「對照組」的身分假綠通過（心得 37 同族）。
 for (const [label, anchor] of [['ANCHOR', ANCHOR], ['CENSUS_ANCHOR', CENSUS_ANCHOR], ['REPAIR_ANCHOR', REPAIR_ANCHOR]])
