@@ -1,7 +1,7 @@
 import {
   TRTC_LEDGER_SCHEMA, buildTrtcModel, buildLedgerFromRaw,
   trtcOperatingState, trtcServiceDay, resolveBoardRows, claimBoardRows, collapseClaims,
-  attachOfficialTimelines,
+  attachOfficialTimelines, segmentVehiclesFromCountdowns,
   bindTracksToTrips, buildTripSetsByLineDir, joinBoardRowsToTrips, planTrtcTripBindingPersistence,
 } from './scripts/trtc_board_ledger.mjs';
 import { reduceOfficialRosterSelfHealing } from './scripts/trtc_official_roster.mjs';
@@ -882,8 +882,51 @@ async function trtcLive(request, env) {
         trains.push({ no: String(r.TrainNumber), sys: 'hw', dir: +r.CID, stn: r.StationID,
           at: trtcEpoch(r.utime), dest: m ? m.dest : null, path: m ? m.path : [], ...(cars ? { cars } : {}) });
       }
+      // ── BR 位置改由官方每站倒數決定（2026-08-18 使用者裁示）────────────────────
+      // 「不可能拿什麼carweight慢那麼多的時間去顯示給人看」。TrackInfo 的 NowDateTime 落後約
+      // 15 秒，CarWeightBR 的 UpdateTime 落後 96–265 秒，而前端在有 path 時就用 path 的
+      // 下一站定位（index.html 的 `to = nextIdx; from = to - step`），沒 path 才吃 stn。
+      // ⇒ 把切段還原出來的 path 填進去，位置就自動換成新鮮來源，前端零改動。
+      // 配對用「順序」不用距離：同向不能超車 ⇒ 兩份清單沿行進方向的排列必然一致，
+      // 這比拿落後兩到四分鐘的站碼去比距離穩得多（使用者裁示：順序是物理不變量）。
+      // 車數不一致時不硬配也不刪車，只記進 cd.brSeg 供每小時巡檢與晨間觀察比對。
+      let brSegStat = { derived: 0, matched: 0, cwRows: br.length, groups: 0, originRows: 0 };
+      const brPathByNo = new Map();
+      try {
+        const model = await trtcBoardModel(env);
+        const seg = segmentVehiclesFromCountdowns(model,
+          resolveBoardRows(model, tk, trtcEpoch, new Map()).rows, { lines: ['BR'] });
+        brSegStat.derived = seg.vehicles.length;
+        brSegStat.groups = seg.diagnostics.groups;
+        brSegStat.originRows = seg.diagnostics.originRows;
+        const line = model.lines.get('BR');
+        // BRxx → 站序。用官方站碼表反查，不要憑 `BR` + 序號的規律硬拼（實測目前恰好吻合，
+        // 但那是巧合不是契約，站碼表才是唯一來源）。
+        const idxOfCode = new Map();
+        for (const [code, rec] of model.codeMap) {
+          const on = (rec.on || []).find(x => x.line === 'BR');
+          if (on) idxOfCode.set(code, on.i);
+        }
+        for (const dir of [1, 2]) {
+          const step = dir === 2 ? 1 : -1;
+          const derived = seg.vehicles.filter(v => v.dir === dir)
+            .sort((a, b) => (a.to - b.to) * step);
+          const cw = br.filter(r => Number(r.CID) === dir && idxOfCode.has(String(r.StationID)))
+            .sort((a, b) => (idxOfCode.get(String(a.StationID)) - idxOfCode.get(String(b.StationID))) * step);
+          // 只在兩邊台數一致時才逐位對應；不一致代表其中一邊有殘影或漏抓，硬配會貼錯標籤。
+          if (derived.length && derived.length === cw.length) {
+            for (let i = 0; i < cw.length; i++) {
+              brPathByNo.set(String(cw[i].TrainNumber), derived[i]);
+              brSegStat.matched++;
+            }
+          }
+        }
+      } catch (e) {
+        console.warn('[trtc br-seg] 倒數切段失敗(退回原路徑):', (e && e.message) || String(e));
+      }
       for (const r of br) {
         const no = String(r.TrainNumber);
+        const segHit = brPathByNo.get(no);
         // meta 的鍵全部來自 TrackInfo 的 TrainNumber;TrackInfo 對文湖線只給站名/倒數,
         // 該線各列 TrainNumber 恆為空字串(上面建 meta 時已被 `if (!r.TrainNumber) continue`
         // 濾掉),⇒ meta 裡不可能存在任何合法的文湖線鍵。舊寫法多一層
@@ -893,13 +936,22 @@ async function trtcLive(request, env) {
         const m = meta.get(no);
         const cars = carsOf(r, ['Car1', 'Car2', 'Car3', 'Car4']);
         if (!cars) carsRejected++; // 同上,hw/br 合計一個計數器即可(不分系統),只加計數不改行為
-        trains.push({ no, sys: 'br', dir: +r.CID, stn: r.StationID,
-          at: trtcEpoch(r.UpdateTime), dest: m ? m.dest : null, path: m ? m.path : [], ...(cars ? { cars } : {}) });
+        // dest/path 優先取倒數切段（新鮮）；沒配到才退回 meta（BR 恆為 undefined ⇒ 空）。
+        // `at` 一併換成 TrackInfo 的基準時刻：它是這條 path 的時間基準，留著 CarWeightBR 的
+        // UpdateTime 會讓前端的 stale-at 閘門拿兩個不同來源的時鐘互比。
+        trains.push({ no, sys: 'br', dir: segHit ? segHit.dir : +r.CID, stn: r.StationID,
+          at: segHit && Number.isFinite(segHit.baseEpoch) ? segHit.baseEpoch : trtcEpoch(r.UpdateTime),
+          dest: segHit ? segHit.destName : (m ? m.dest : null),
+          path: segHit ? segHit.path : (m ? m.path : []), ...(cars ? { cars } : {}) });
       }
       const legacy = { at: new Date().toISOString(), src: 'trtc',
         trains: trains.filter(t => t.at != null && /^[A-Z]+\d+$/.test(t.stn) && (t.dir === 1 || t.dir === 2)),
         board, cd: { rows: tk.length, dropped: cdDropped, dateDropped: boardDateDropped,
-          pathDropped: pathCdDropped, pathDateDropped, pathNoTrainNo, carsRejected } };
+          pathDropped: pathCdDropped, pathDateDropped, pathNoTrainNo, carsRejected,
+          // 倒數切段的觀測性：derived＝從倒數還原出幾台、cwRows＝CarWeightBR 去重後幾列、
+          // matched＝實際配上的台數。derived 與 cwRows 是**兩個獨立來源**的車數，
+          // 差很多就是有一邊在騙人（晨間觀察與每小時巡檢都讀這三個數）。
+          brSeg: brSegStat } };
       // TrackInfo collapsed rows 同時是位置錨點與唯一官方名冊；站名正規化、支線／終點消歧、
       // 身分延續皆在 Worker 完成。trip join 只附標籤，不決定任何車的存在。
       let boardPos = { at: null, feedMode: tkResult.ok ? 'official' : 'outage', rows: [], extensions: [],

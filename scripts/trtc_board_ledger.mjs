@@ -236,6 +236,107 @@ export function resolveBoardRows(model, rows, epochOf, seedLineHints = new Map()
     branch: { hinted, fallback, conflicts: conflicts.size, learned: directLines.size } };
 }
 
+// ── 從官方每站倒數切段還原逐車位置（2026-08-18 使用者裁示）─────────────────────
+// 裁示原文：「BR你車號沒認出來就算了，我們就有倒數時間 知道車子在哪兩站之間 知道有多少車
+// 所以就算沒有編號 有資訊就一定要對 不可能拿什麼carweight慢那麼多的時間去顯示給人看」
+//
+// 文湖線在 TrackInfo 的 TrainNumber 恆為空字串 ⇒ 建不出 per-vehicle path，舊做法只好退回
+// CarWeightBR 的粗站碼畫車（`UpdateTime` 實測落後 96–265 秒，而 TrackInfo 的 NowDateTime
+// 只落後約 15 秒）——把最新的資料拿去畫看板、把最舊的拿去畫車，方向是反的。
+//
+// 幾何推導（本函式的全部依據，不含任何經驗常數）：
+//   同向不能超車 ⇒ 車沿線有序 p1 < p2 < …（以行進方向為序）。
+//   某站 s 的「下一班」＝ s 後方最近的那台車 ⇒ 在同一台車的責任區內，站愈遠到站時刻愈晚；
+//   跨過下一台車的位置時，責任者換成更近的那台 ⇒ 到站時刻**跌回小值**。
+//   ⇒ 沿行進方向掃過各站，一段「到站時刻遞增」＝一台車；跌值處＝分界。
+//   ⇒ 該台車就在「該段第一站的前一站」與「該段第一站」之間，且 arrEpoch 秒後到第一站。
+// 段數＝車數，可與 CarWeightBR 去重後的列數交叉檢核（兩個獨立來源，判準不同源）。
+//
+// 🔴 只對「TrackInfo 不給 TrainNumber」的線使用（目前只有 BR）。高運量本來就有 per-vehicle
+// path 且同樣新鮮，不要順手改掉——那會把一條已驗證的路徑換成未驗證的。
+// 🔴 起點列不生車：官方每個終點各有一筆「下一班」列，它的進站時刻不是發車錨點，直接採信
+// 就是幽靈車來源（見 memory trtc-origin-identity-ghosts）。段首落在線端 ⇒ from 會掉出線外，
+// 本函式據此丟棄並計入 diagnostics，不另設經驗門檻。
+export const SAME_TRAIN_MIN_RUN_RATIO = 0.5;
+
+// 沿行進方向累加 a→b 的區間行車秒；任一段缺值就回 null（不猜、不用距離頂替），
+// 呼叫端在 null 時只靠「嚴格遞增」判斷。環狀線 Y 的 segs 全缺就是走這條退路。
+function cumulativeRunSec(line, a, b, step) {
+  let total = 0;
+  for (let i = a; i !== b; i += step) {
+    const sec = line.runs && line.runs.get(step > 0 ? `${i}>${i + 1}` : `${i}>${i - 1}`);
+    if (!(sec > 0)) return null;
+    total += sec;
+  }
+  return total;
+}
+
+export function segmentVehiclesFromCountdowns(model, resolvedRows, opts = {}) {
+  const only = new Set(opts.lines || []);
+  const groups = new Map(); // `${line}|${dir}` → rows[]
+  for (const r of resolvedRows || []) {
+    if (only.size && !only.has(r.line)) continue;
+    const key = `${r.line}|${r.dir}`;
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key).push(r);
+  }
+  const vehicles = [], diagnostics = { originRows: 0, groups: 0, rowsUsed: 0, duplicateStations: 0 };
+  for (const [key, rows] of groups) {
+    const sep = key.lastIndexOf('|');
+    const lineId = key.slice(0, sep), dir = Number(key.slice(sep + 1));
+    const line = model && model.lines && model.lines.get(lineId);
+    if (!line || !Array.isArray(line.stations) || !line.stations.length) continue;
+    const step = dir === 2 ? 1 : -1;
+    // 同一站同方向理論上只有一列（官方限制：一個目的地一班）；真的多列就取最早到站那筆，
+    // 因為「下一班」的定義就是最近的那台。
+    const byStation = new Map();
+    for (const r of rows) {
+      const prev = byStation.get(r.stationIdx);
+      if (prev) diagnostics.duplicateStations++;
+      if (!prev || r.arrEpoch < prev.arrEpoch) byStation.set(r.stationIdx, r);
+    }
+    const ordered = [...byStation.values()].sort((a, b) => (a.stationIdx - b.stationIdx) * step);
+    if (!ordered.length) continue;
+    diagnostics.groups++;
+    diagnostics.rowsUsed += ordered.length;
+    let run = [];
+    const flush = () => {
+      if (!run.length) return;
+      const head = run[0], from = head.stationIdx - step;
+      if (from < 0 || from >= line.stations.length) { diagnostics.originRows++; run = []; return; }
+      vehicles.push({
+        line: lineId, dir, from, to: head.stationIdx, arrEpoch: head.arrEpoch,
+        // 這條 path 的時間基準＝官方自己的 NowDateTime，不是我方 fetch 時刻。下游拿它當
+        // 新鮮度判準，才不會用 CarWeight 的時鐘去量 TrackInfo 的資料。
+        baseEpoch: head.baseEpoch,
+        destIdx: head.destIdx, destName: head.destName, observed: run.length,
+        // 與高運量 meta.path 同形狀（{name, eta}，行進方向排序），下游一行都不用改。
+        path: run.map(r => ({ name: line.stations[r.stationIdx].name, eta: r.arrEpoch })),
+      });
+      run = [];
+    };
+    for (const r of ordered) {
+      const prev = run.length ? run[run.length - 1] : null;
+      if (prev) {
+        // 條件一：嚴格遞增。同一台車到相鄰兩站至少差一個區間行車秒，不可能相等或變小。
+        // 條件二：**跑得到**。遞增還不夠——起點列（「下一班」）的時刻可能比後方真車還早，
+        // 兩者會被「遞增」誤併成同一段，把真車整台吃掉（本函式初版實測踩到）。
+        // 同一台車從 prev 站走到 r 站至少要花該區間的行車秒；差額遠小於它就是物理上跑不到，
+        // 必為另一台車。門檻取「線上已知區間秒」的一半：實測區間秒 47–172，真車與公告值的
+        // 偏差不會到一半，而誤併案例的比值只有 7%（25 秒 vs 應走 360 秒）——(0.3, 0.9) 之間
+        // 任何值都能分開，取中點。🔴 這個比例要在營運時段用實測倒數校正（見 memory
+        // trtc-position-from-countdown 的待驗項），不是永久常數。
+        const expected = cumulativeRunSec(line, prev.stationIdx, r.stationIdx, step);
+        const tooFast = expected != null && (r.arrEpoch - prev.arrEpoch) < expected * SAME_TRAIN_MIN_RUN_RATIO;
+        if (r.arrEpoch <= prev.arrEpoch || tooFast) flush();
+      }
+      run.push(r);
+    }
+    flush();
+  }
+  return { vehicles, diagnostics };
+}
+
 // 橘線車進入大橋頭以南共線段後，站碼與終點「南勢角」都無法再分出蘆洲／新莊。
 // 看板官方車號才是跨輪身分；這份 hint 只改錨點屬於哪一支，不參與列車存在性。
 export function branchLineHintsFromLedger(priorTracks = [], aliases = []) {
