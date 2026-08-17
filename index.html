@@ -5194,14 +5194,24 @@ function trtcOfficialVehiclePosition(ln, vehicle, nowEpoch) {
   const timeline = trtcOfficialTimelinePosition(ln, vehicle, now);
   if (timeline.handled) return timeline.pos;
   if (from === to) return trtcOfficialDeparturePosition(ln, vehicle, now, from, arrEpoch);
-  if (!(run > 0)) return null;
+  // 🔴 小碧潭與新北投兩條支線只有兩站,於是看板每一列的「前一站」都掉出線外
+  // (北投 0→-1、小碧潭 1→2) ⇒ 帳本一律判成起點列 run=0,推進成 from≠to 之後 run 仍是 0。
+  // 舊碼在這裡整台回 null＝那台車一發車就消失,畫面上永遠只剩下一台停在起點的,
+  // 看起來就是「車一直停在站上不會動」(2026-08-17 使用者回報)。
+  // run 不是官方值、是我們自己推的區間秒,而線形資料本來就有(七張↔小碧潭 203 秒),
+  // 缺了就用它補回來;補不到才放棄。其他線一律 run>0,不受這條影響。
+  const segRun = run > 0 ? run : (() => {
+    const seg = ln.segs && ln.segs[Math.min(from, to)];
+    return Number(seg && seg.run) > 0 ? Number(seg.run) : 0;
+  })();
+  if (!(segRun > 0)) return null;
   const explicitDep = vehicle.depEpoch == null ? NaN : Number(vehicle.depEpoch);
-  const depEpoch = Number.isFinite(explicitDep) ? explicitDep : arrEpoch - run;
+  const depEpoch = Number.isFinite(explicitDep) ? explicitDep : arrEpoch - segRun;
   if (!(depEpoch < arrEpoch)) return null; // OFFICIAL_POSITION_AXIS_GUARD
   // 端點直接回傳站點原值，不用 A+(B-A)*1；arrEpoch 當格必須 bit-exact 抵達 to。
   if (now <= depEpoch) return { lat: A.lat, lon: A.lon, fraction: 0, atStation: true,
     motionFrom: from, motionTo: to };
-  if (now >= arrEpoch) return trtcOfficialCoastPosition(ln, vehicle, now, from, to, run, arrEpoch); // ROSTER_FRONTEND_POSITION
+  if (now >= arrEpoch) return trtcOfficialCoastPosition(ln, vehicle, now, from, to, segRun, arrEpoch); // ROSTER_FRONTEND_POSITION
   const fraction = Math.max(0, Math.min(1, (now - depEpoch) / (arrEpoch - depEpoch)));
   const pos = posBetweenStations(ln, from, to, fraction);
   return pos ? { ...pos, fraction, atStation: false, motionFrom: from, motionTo: to } : null;

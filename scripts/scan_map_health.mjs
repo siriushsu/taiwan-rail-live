@@ -84,6 +84,7 @@ const SAMPLE = () => {
       // 位移與疊車判定全部失效）
       key: h.vehicleId ? `${ln.id}#${h.vehicleId}` : (tr ? `${ln.id}#tr${(ln._tt || []).indexOf(tr)}` : `${ln.id}#k${h.k}`),
       line: ln.id, abbr: ln.abbr, dir, x: h.x, y: h.y, d, nearM, nearIdx,
+      stations: Array.isArray(ln.stations) ? ln.stations.length : null,
       sys: typeof freqSysIdOf === 'function' ? freqSysIdOf(ln) : null,
     });
   }
@@ -213,7 +214,12 @@ const stallByLine = {};
 for (const k of stalled) { const ln = k.split('#')[0]; stallByLine[ln] = (stallByLine[ln] || 0) + 1; }
 const totalByLine = {};
 for (const h of s2.hits) totalByLine[h.line] = (totalByLine[h.line] || 0) + 1;
-const frozen = Object.entries(stallByLine).filter(([ln, n]) => n / (totalByLine[ln] || 1) > STALL_RATIO)
+// 兩站區間車（小碧潭、新北投）的常態就是兩台各停一端等發車 ⇒ 「整條線都沒動」對它們
+// 恆真，不是故障訊號。線＝單一區間時，這個統計量本來就沒有意義（整條線不見那條判準
+// 仍然守著它們：真的全消失照樣會紅）。
+const shuttleLines = new Set(s2.hits.filter(h => h.stations != null && h.stations <= 2).map(h => h.line));
+const frozen = Object.entries(stallByLine).filter(([ln]) => !shuttleLines.has(ln))
+  .filter(([ln, n]) => n / (totalByLine[ln] || 1) > STALL_RATIO)
   .map(([ln, n]) => `${ln} ${n}/${totalByLine[ln]}`);
 console.log(`${frozen.length ? '❌' : '✅'} 整線凍結：${frozen.length ? frozen.join('、') : '無'}（單台停站 ${stalled.length} 台，正常）`);
 if (frozen.length) note('bad', `疑似整線凍結：${frozen.join('、')}`);
