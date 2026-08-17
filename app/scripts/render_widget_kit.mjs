@@ -134,9 +134,9 @@ private struct Gallery: View {
                 }
                 Cell(title: "RailSpineTrack（LA 水平進度三態）") {
                     VStack(alignment: .leading, spacing: 12) {
-                        RailSpineTrack(progress: 0.42).frame(height: 12)
-                        RailSpineTrack(progress: 0.62, arriving: true).frame(height: 12)
-                        RailSpineTrack(progress: 0.62, stopping: true).frame(height: 12)
+                        RailSpineTrack(progress: 0.42, phase: .running).frame(height: 12)
+                        RailSpineTrack(progress: 0.96, phase: .arriving).frame(height: 12)
+                        RailSpineTrack(progress: 1, phase: .stopping).frame(height: 12)
                     }
                 }
             }

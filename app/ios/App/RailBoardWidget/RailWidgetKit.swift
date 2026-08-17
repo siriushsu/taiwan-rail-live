@@ -92,6 +92,43 @@ enum RailTokens {
     }
 }
 
+// MARK: - 色碼
+
+/// Live Activity 兩張卡共用的色碼與文字整理。
+/// 🔴 解不出來一律回 nil，絕不猜一個顏色兜底：卡片上出現一個與地圖不一致的顏色，
+///    比沒有顏色更難察覺也更誤導（版面一律備有不帶顏色的走法）。
+enum RailHex {
+    private static func components(_ raw: String?) -> (UInt32, UInt32, UInt32)? {
+        guard var s = raw?.trimmingCharacters(in: .whitespacesAndNewlines), !s.isEmpty else { return nil }
+        if s.hasPrefix("#") { s.removeFirst() }
+        guard s.count == 6, let v = UInt32(s, radix: 16) else { return nil }
+        return ((v >> 16) & 0xFF, (v >> 8) & 0xFF, v & 0xFF)
+    }
+
+    static func color(_ raw: String?) -> Color? {
+        guard let (r, g, b) = components(raw) else { return nil }
+        return Color(.sRGB, red: Double(r) / 255, green: Double(g) / 255, blue: Double(b) / 255)
+    }
+
+    /// 深底上當【文字】用的提亮版：同一個色當文字會偏暗（自強 #C0392B 尤其明顯），
+    /// 往白色混三成半再用。圓點與進度條維持原色——那是色塊，提了反而與地圖對不起來。
+    static func ink(_ raw: String?) -> Color? {
+        guard let (r, g, b) = components(raw) else { return nil }
+        let mix = { (c: UInt32) -> Double in
+            let base = Double(c) / 255
+            return base + (1 - base) * 0.35
+        }
+        return Color(.sRGB, red: mix(r), green: mix(g), blue: mix(b))
+    }
+
+    /// 空字串視同沒有——後端正常時送 null，但不要讓「送了空字串」變成一行看不見的空白
+    /// 把版面撐開。
+    static func trimmed(_ raw: String?) -> String? {
+        guard let raw, !raw.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return nil }
+        return raw
+    }
+}
+
 // MARK: - 比例（430pt 機型是設計基準，其餘機型等比縮）
 
 /// 設計稿的字級與列高全部標在 430pt 寬機型（15／16 Pro Max）上。
@@ -157,6 +194,31 @@ extension EnvironmentValues {
     var railFamilyOverride: WidgetFamily? {
         get { self[RailFamilyOverrideKey.self] }
         set { self[RailFamilyOverrideKey.self] = newValue }
+    }
+}
+
+// MARK: - 靜態進度條（只給算繪驗收用）
+
+/// 🔴 2026-08-17 算繪實測：`ProgressView(timerInterval:)` 在 macOS 的 ImageRenderer 底下
+///    【畫不出來】——AppKit 沒有靜態時刻可以取，於是整條畫成一塊亮黃色佔位方塊、中間一個
+///    ⊘ 符號，`.tint()` 也不吃。那塊方塊比真正的條粗好幾倍，把它下面的端點標籤一起遮掉
+///    ⇒ 這條軌道與它周圍的版面在 harness 裡【完全看不到】，而圖本身看起來「有東西」。
+///
+///    修法比照 railFamilyOverride：出貨路徑照舊走會自走的 ProgressView（那是整張 LA 唯一
+///    會自己動的東西），另開一個【只在 harness 設定】的哨兵，把同一條軌道畫成靜態兩節
+///    capsule。版面高度兩條路徑一致（都被外層 `.frame(height: 9pt)` 夾住、垂直居中），
+///    所以 harness 量到的版面是真的；差別只在這條的粗細與會不會動。
+///
+///    對應的 harness 端必須有一道「出貨路徑真的傳了 interval 進來」的來源碼 gate，
+///    否則哪天有人把 interval 拿掉，harness 這邊照樣一片綠。
+private struct RailStaticProgressKey: EnvironmentKey {
+    static let defaultValue: Bool = false
+}
+
+extension EnvironmentValues {
+    var railStaticProgress: Bool {
+        get { self[RailStaticProgressKey.self] }
+        set { self[RailStaticProgressKey.self] = newValue }
     }
 }
 
@@ -294,76 +356,113 @@ struct Triangle: Shape {
     }
 }
 
-/// LA 的水平行程進度：一條 2pt 線，兩端與中間站點。
+/// LA 的水平行程軌：一條 2pt 線、兩端站點，狀態畫在【終點那一顆】。
 /// 設計稿：「行程進度是一條 2pt 線，兩端站名 11pt——存在但不搶」。
+///
+/// 🔴 與設計稿的一處偏離（ActivityKit 的硬限制，不是取捨）：設計稿把三種狀態畫在
+///    「軌脊上的列車點」，而那顆點要沿著軌脊移動。Live Activity 裡只有
+///    `ProgressView(timerInterval:)` 與 `Text(timerInterval:)` 會自己動——
+///    `withAnimation`／`.repeatForever` 等修飾子被 ActivityKit 明文忽略。
+///    於是一顆用 progress 算位置的點只能在收到推播時【跳】一格，而會自走的填色條會
+///    繼續前進、把那顆點甩在後面，看起來像壞掉。
+///    所以：填色交給會自走的 ProgressView，三種狀態形狀改畫在終點站那一顆——
+///    它同時就是設計稿說的「代表你站的位置」那一顆，狀態語意沒有損失。
 struct RailSpineTrack: View {
-    /// 0…1，列車在整段行程上的位置。超出範圍會被夾。
-    let progress: Double
+    /// 設計稿的三種形狀：實心圓（行駛中）→ 綠實心（即將進站）→ 空心環（停靠中）。
+    enum Phase {
+        case running, arriving, stopping
+    }
+
+    /// 自走填色的區間（上一站發車…下一站到站）。nil ⇒ 退回用 progress 畫靜態填色。
+    var interval: ClosedRange<Date>? = nil
+    /// 0…1，超出範圍會被夾。interval 為 nil 時是唯一的填色依據；有 interval 時只有
+    /// 算繪 harness（railStaticProgress）會用到它 ⇒ 呼叫端【兩種情形都要給真值】，
+    /// 不可以塞 0/1 當佔位，否則 harness 量到的填色比例是假的。
+    var progress: Double = 0
+    var phase: Phase = .running
     var lineColor: Color? = nil
-    /// 停靠中＝空心環（設計稿：實心圓 → 綠實心 → 空心環＝停靠）
-    var stopping: Bool = false
-    /// 即將進站＝綠實心
-    var arriving: Bool = false
     var scale: RailScale = RailScale(k: 1)
 
     @Environment(\.colorScheme) private var scheme
     @Environment(\.railMonochrome) private var mono
+    @Environment(\.railStaticProgress) private var staticProgress
 
     private var spineColor: Color {
         mono ? Color.primary.opacity(0.45) : RailTokens.colors(scheme).brand.opacity(0.55)
     }
 
+    private var dotSize: CGFloat { scale.pt(9) }
+
     var body: some View {
-        GeometryReader { geo in
-            let w = geo.size.width
-            let h = geo.size.height
-            let t = min(1, max(0, progress))
-            let d = scale.pt(9)
-            let x = d / 2 + (w - d) * t
-            ZStack(alignment: .leading) {
-                Capsule().fill(spineColor.opacity(0.35))
-                    .frame(width: w, height: scale.pt(2))
-                    .offset(y: h / 2 - scale.pt(1))
-                Capsule().fill(spineColor)
-                    .frame(width: max(0, x), height: scale.pt(2))
-                    .offset(y: h / 2 - scale.pt(1))
-                // 兩端站點
-                Circle().fill(spineColor).frame(width: scale.pt(5), height: scale.pt(5))
-                    .offset(x: 0, y: h / 2 - scale.pt(2.5))
-                Circle().strokeBorder(spineColor, lineWidth: scale.pt(1.4))
-                    .frame(width: scale.pt(6), height: scale.pt(6))
-                    .offset(x: w - scale.pt(6), y: h / 2 - scale.pt(3))
-                marker.frame(width: d, height: d)
-                    .offset(x: x - d / 2, y: h / 2 - d / 2)
+        HStack(spacing: scale.pt(5)) {
+            // 起點（上一站）：小實心，不表意狀態。
+            Circle().fill(spineColor)
+                .frame(width: scale.pt(5), height: scale.pt(5))
+            bar
+            endDot.frame(width: dotSize, height: dotSize)
+        }
+        .frame(height: dotSize)
+    }
+
+    @ViewBuilder private var bar: some View {
+        let tint = mono ? Color.primary.opacity(0.55) : (lineColor ?? RailTokens.colors(scheme).brand)
+        if let interval, interval.upperBound > interval.lowerBound, interval.upperBound > Date(),
+           !staticProgress {
+            // 🔴 這條是整張 LA 唯一會自己動的東西（見型別註解）。高度由系統決定，
+            //    比設計稿的 2pt 略粗——換成自畫的 2pt 就等於換掉「會動」這個唯一的優點。
+            ProgressView(timerInterval: interval, countsDown: false)
+                .labelsHidden()
+                .progressViewStyle(.linear)
+                .tint(tint)
+        } else {
+            // 沒有可用區間（例：高捷沒有官方到站時刻）或算繪 harness 要靜態版。
+            GeometryReader { geo in
+                let w = geo.size.width
+                let t = min(1, max(0, progress))
+                ZStack(alignment: .leading) {
+                    Capsule().fill(spineColor.opacity(0.35))
+                        .frame(width: w, height: scale.pt(2))
+                    Capsule().fill(tint)
+                        .frame(width: max(0, w * t), height: scale.pt(2))
+                }
+                .frame(height: geo.size.height, alignment: .center)
             }
+            .frame(height: scale.pt(2))
         }
     }
 
-    @ViewBuilder private var marker: some View {
+    /// 終點站那一顆＝狀態指示。三種形狀都畫在同一個 9pt 圓內，靠環的粗細與填色分辨。
+    ///
+    /// 🔴 環【不可以】用 scaleEffect 往外放：scaleEffect 不進版面計算，而這一顆是 HStack 的
+    ///    最後一個元素 ⇒ 放大的環會直接畫到卡片邊緣外（算繪實測溢出 2.3pt，鎖屏圓角會裁掉）。
+    /// 🔴 單色模式下 running 與 arriving 只剩環的粗細差（primary 在深色模式是白的，
+    ///    填色分不出來）。這是可以接受的，因為設計稿要的「另有形狀或文字備援」在這張卡上
+    ///    另外有兩處：倒數的形態（「4 分」vs 實心「進站」）與底部狀態詞——狀態不靠這顆點獨撐。
+    @ViewBuilder private var endDot: some View {
         let c = RailTokens.colors(scheme)
-        if stopping {
-            // 停靠中：空心環。環色與 RailSpineCell.train 同理用固定深色，不用 Color.primary
-            // （白盤＋深色模式的 primary＝白環，等於整顆消失）。
+        // 環色與 RailSpineCell.train 同理用【固定深色】，不可用 Color.primary：
+        // primary 在深色模式是白的，白心配白環等於整顆消失。
+        let ink = mono ? Color(white: 0.15) : (lineColor ?? c.brand)
+        switch phase {
+        case .running:
+            // 還沒到：路線色實心＋細白環（設計稿：「候車版的終點圓點吃路線色並加白環，
+            // 代表你站的位置」）。
+            ZStack {
+                Circle().fill(mono ? Color.primary : (lineColor ?? c.brand))
+                Circle().strokeBorder(Color.white.opacity(0.9), lineWidth: scale.pt(1.4))
+            }
+        case .arriving:
+            // 車到了：綠實心＋粗白環（單色時填色與 running 同樣是白，靠這圈粗環分辨）。
+            ZStack {
+                Circle().fill(mono ? Color.primary : c.ok)
+                Circle().strokeBorder(Color.white.opacity(0.9), lineWidth: scale.pt(2.8))
+            }
+        case .stopping:
+            // 停靠中：空心環（設計稿三形狀的第三個）。
             ZStack {
                 Circle().fill(Color.white)
-                Circle().strokeBorder(mono ? Color(white: 0.15) : (lineColor ?? c.brand),
-                                      lineWidth: scale.pt(2))
+                Circle().strokeBorder(ink, lineWidth: scale.pt(2.4))
             }
-        } else if arriving {
-            // 🔴 單色模式必須加形狀備援：「即將進站」與「行駛中」在設計稿裡只靠綠 vs 藏青區分，
-            //    顏色被系統吃掉後兩態長得【一模一樣】（放大量測抓到）。設計稿自己的規則是
-            //    「每個狀態都必須另有形狀或文字備援」⇒ 單色時多一圈外環，全彩維持原樣。
-            if mono {
-                ZStack {
-                    Circle().fill(Color.primary)
-                    Circle().strokeBorder(Color.primary.opacity(0.45), lineWidth: scale.pt(2))
-                        .scaleEffect(1.7)
-                }
-            } else {
-                Circle().fill(c.ok)
-            }
-        } else {
-            Circle().fill(mono ? Color.primary : (lineColor ?? c.brand))
         }
     }
 }
@@ -406,6 +505,20 @@ enum RailCountdown: Equatable {
     static func from(secondsLeft s: Double, surface: Surface) -> RailCountdown {
         if s < 60 { return surface == .widget ? .arriving : .seconds(max(0, Int(s.rounded(.down)))) }
         return .minutes(Int(s / 60))
+    }
+
+    /// 純文字形態。給【第三層】用——設計稿：「第二班車降到第三層：13pt、和擁擠度同一行、
+    /// 沒有獨立倒數樣式」，所以那裡是一句話裡的一段字，不是 RailCountdownText 那個元件。
+    /// 🔴 主角倒數不准走這條：它少了實心「進站」色塊與數字／單位的兩級字階。
+    var plainText: String {
+        switch self {
+        case .minutes(let m):       return "\(m) 分"
+        case .approxMinutes(let m): return "約 \(m) 分"
+        case .seconds(let s):       return "\(s) 秒"
+        case .arriving:             return "進站"
+        case .noData:               return "暫無資料"
+        case .scheduled(let t):     return t
+        }
     }
 }
 
