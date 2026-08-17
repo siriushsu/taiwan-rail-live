@@ -413,13 +413,15 @@ struct MetroBoardView: View {
                     .frame(height: scale.pt(18), alignment: .leading)
                 Spacer().frame(height: scale.pt(4))
             } else {
-                Spacer().frame(height: scale.pt(8))
+                Spacer().frame(height: scale.pt(4))
             }
             if let lead = rows.first {
                 MetroRowView(row: lead, precision: entry.precision, role: .hero,
                              entryDate: entry.date, sys: entry.sys, station: entry.title,
                              scale: scale)
-                RailRowGap(scale: scale)
+                // 主班與從班之間沒有分隔線也沒有固定間距（v2：看板類卡片不畫分列線），
+                // 剩下的高度全推到這裡，從班貼著卡底對齊。
+                Spacer(minLength: 0)
                 ForEach(Array(follows.enumerated()), id: \.offset) { i, r in
                     MetroRowView(row: r, precision: entry.precision,
                                  role: family == .systemLarge ? .followLarge : .follow,
@@ -428,21 +430,24 @@ struct MetroBoardView: View {
                 }
             } else {
                 emptyBody(scale)
+                // 🔴 空狀態才在末尾補彈簧。有班次時末尾【不能】再放一個——兩個 Spacer
+                //    會把剩餘高度對半分，從班就浮在卡片中間而不是貼著卡底。
+                Spacer(minLength: 0)
             }
-            Spacer(minLength: 0)
         }
     }
 
     /// 從班列數上限。從【實測的內容框高度】推，不是手打的常數：
-    ///   Medium 內容框 138：卡頭 21 ＋ 8 ＋ 主班 43 ＋ hairline 9 ＝ 81 ⇒ 剩 57 ÷ 28 ＝ 2 列
-    ///   Large  內容框 350：同上 81 ⇒ 剩 269 ÷ 32 ＝ 8 列
-    /// 🔴 末班車那一行把「8pt 間距」換成「18＋4」＝多吃 14pt ⇒ 依設計稿「超出先砍列不縮字」
+    ///   Medium 內容框 138：卡頭 21 ＋ 4 ＋ 主班 44 ＝ 69 ⇒ 剩 69 ÷ 22 ＝ 3 列（共四班）
+    ///   Large  內容框 350：同上 69 ⇒ 剩 281 ÷ 32 ＝ 8 列
+    /// 🔴 v2 把 Medium 從三班改成四班：分隔線那 9pt 與列高的 6pt 都拿去換一列。
+    /// 🔴 末班車那一行把「4pt 間距」換成「18＋4」＝多吃 18pt ⇒ 依設計稿「超出先砍列不縮字」
     ///    少列一班，不是把列高壓小（壓小會讓同一張卡在兩種狀態下列高不同，縱向對齊當場破掉）。
     /// 🔴 Large 一開始寫 6 是照設計稿字面，但實測那樣底部會空 77pt——正是設計稿自己批評的
     ///    「留大片空白」。官方視野約 12 分鐘、台北車站這種大站排得滿，8 列排得下就排。
     private var followLimit: Int {
         let hasLast = entry.lastTrain != nil
-        return family == .systemLarge ? (hasLast ? 7 : 8) : (hasLast ? 1 : 2)
+        return family == .systemLarge ? (hasLast ? 7 : 8) : (hasLast ? 2 : 3)
     }
 
     // MARK: - 零件
