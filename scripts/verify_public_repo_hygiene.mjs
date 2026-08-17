@@ -138,6 +138,9 @@ ok(missing.length === 0 && RULES.length === CONTROLS.length,
 function scanDiffText(text) {
   let commit = '', file = '', addedLines = 0, allowed = 0, lastOld = '';
   const found = [];
+  // 豁免行的來源檔:光有數量守不住「有人拿這個標記在別處藏東西」——數量會隨分支飄
+  // (本檔沒被改的分支就是 0),來源不會。下面那條斷言判的是來源,不是數量。
+  const allowedFiles = [];
   // commits = 這支解析器**實際走過**的 commit 集合。與 files 同樣的用途:讓「掃描範圍」
   // 這件事有一個從受測物本身讀出來的量,可以拿去跟外部錨點(ANCHOR)比對。
   const commits = new Set();
@@ -155,10 +158,10 @@ function scanDiffText(text) {
     addedLines++;
     // 對照樣本用的逐行豁免:與歷史掃描共用,否則本檔的樣本會被算成「洩漏 commit」,
     // 待處理 commit 數比實際多一顆,照文件操作的人會對不上而困惑。
-    if (t.includes(ALLOW)) { allowed++; continue; }
+    if (t.includes(ALLOW)) { allowed++; allowedFiles.push(file); continue; }
     for (const r of RULES) if (r.re.test(t)) found.push({ commit, file, rule: r.name, text: t.trim().slice(0, 160) });
   }
-  return { found, addedLines, allowed, files, commits };
+  return { found, addedLines, allowed, allowedFiles, files, commits };
 }
 // commit message 是第三個資料面,不帶 `+` 前綴 ⇒ 走另一條解析路徑,所以它也要有自己的自檢。
 function scanMessageText(msg) {
@@ -262,7 +265,7 @@ try {
   anchorCommits = execFileSync('git', ['rev-list', `${ANCHOR}..HEAD`], { encoding: 'utf8' }).trim().split('\n').filter(Boolean);
 } catch (e) { anchorErr = String(e).replace(/\s+/g, ' ').slice(0, 140); }
 
-const { found: hits, addedLines, allowed, files: mainFilesSeen } = scanDiffText(diff);
+const { found: hits, addedLines, allowed, allowedFiles, files: mainFilesSeen } = scanDiffText(diff);
 
 // 掃描器本身也要證明有在掃:新增行為 0 表示 base 選錯或分支是空的,
 // 那樣「零命中」同樣沒有意義(形態 11 的另一半——量測器沒在量)。
@@ -270,11 +273,18 @@ ok(addedLines > 0, `掃描器有讀到新增行(base=${BASE}) — ${addedLines} 
 
 // 豁免行要印出數量:豁免是給對照樣本用的,數量應該恰好等於 CONTROLS 的長度。
 // 多出來就代表有人拿這個標記在藏東西——豁免機制本身也要看得見,不然它就是後門。
-// ⏳ 已知的到期條件:這條假設「diff 裡一定含本檔那幾行對照樣本」,而那只在**本檔還沒進 base**
-//    的時候成立。本檔一旦合併進 origin/main,下一條 feature 分支跑它就會拿到 `豁免 0 行`
-//    而為了不相干的理由變紅。合併那一輪要把它改成條件式(本檔有出現在 diff 裡才要求相等),
-//    現在不改是因為改了就沒有東西守著「有人拿標記藏東西」這件事。
-ok(allowed === CONTROLS.length, `豁免行數量符合對照樣本數 — 豁免 ${allowed} 行 / 對照 ${CONTROLS.length} 條`);
+// ✅ 2026-08-09:上面預告的到期條件到了(本檔已在 origin/main,feature 分支的 diff 裡當然
+//    沒有那 7 行對照樣本 ⇒ 豁免 0 行、為不相干的理由變紅,而且是**每一條分支**都紅)。
+//    改法沒有照原註解寫的「本檔在 diff 才要求相等」——那等於在絕大多數分支上把這道守備關掉。
+//    改成判**來源**而不是判**數量**:豁免標記只准出現在本檔(它存在的唯一理由就是本檔的對照
+//    樣本),出現在任何其他檔案就是有人拿它藏東西,當場具名。數量會隨分支飄,來源不會。
+//    這條的正向對照是上面那個 in-memory 解析器自檢(它用假 diff 餵一行帶標記的新增行,
+//    要求豁免恰 1)——所以「零違規」不是空過的:收集器證明過自己數得到豁免行。
+const SELF = 'scripts/verify_public_repo_hygiene.mjs';
+const allowedElsewhere = (allowedFiles || []).filter(f => !String(f).endsWith(SELF));
+ok(allowedElsewhere.length === 0,
+   `豁免標記只出現在本檔的對照樣本裡 — 豁免 ${allowed} 行`
+   + (allowedElsewhere.length ? `,違規來源:${[...new Set(allowedElsewhere)].join(', ')}` : '(零違規)'));
 
 // 覆蓋自檢(主掃描):同樣的三種形態也會讓主掃描無聲漏檔——.gitattributes 是全域設定,
 // 不會只影響歷史那一半。只補歷史、不補主掃描,等於把同一個洞留了一半。

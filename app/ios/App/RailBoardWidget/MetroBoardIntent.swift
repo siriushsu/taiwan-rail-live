@@ -13,9 +13,11 @@ struct MetroBoardIntent: AppIntent, WidgetConfigurationIntent {
     static var title: LocalizedStringResource = "捷運看板"
     static var description = IntentDescription("選一個捷運站，看下一班還有多久。")
 
-    /// 免費層可設定的車站數。nil ＝全免費(現行預設)。
-    /// 定價未決(見設計書 §7)——要改成「免費一站」就把這裡改成 1，其餘程式碼不必動。
-    static let freeStationLimit: Int? = nil
+    /// 免費層可設定的車站數。nil ＝全免費。
+    /// 🔴 2026-08-15 定價落地:改成 1(免費一站)。同批必須有明講的 CTA——
+    /// 判定在 MetroPlusGate/MetroPlusCore,擋下時卡上畫升級說明並可點進通行證面板,
+    /// 不做靜默空白卡(這個專案已經有三個「不給用也不說」的付費功能,不再加第四個)。
+    static let freeStationLimit: Int? = 1
 
     // 🔴 真機實測(08-14):String 參數【沒掛 optionsProvider 就是自由輸入框】——
     //    使用者看到空白格要自己打字。三格每一格都要有 provider,少一個就漏一格。
@@ -102,12 +104,21 @@ struct MetroWidgetCatalog {
     let systems: [System]
     let alias: [String: [String: String]]
     let lastTrain: [String: String]
-    /// "<sys>|<站名>" → 該站所屬路線的色票(hex)。同站多線取第一條——顏色只是識別,不是資料。
+    /// "<sys>|<站名>" → 該站所有路線的色票(hex,去重、依線序)。
+    /// 🔴 不可以只留第一條:台北車站同時是紅線與藍線,只留第一條會讓卡上畫紅點、
+    ///    底下卻列著藍線的班次(真機回饋 08-15)。顏色是識別,識別不了就不畫,不能亂指一條。
     /// 只能在這裡(struct 本體)宣告,extension 放不了 stored property;
-    /// 真正的查詢方法 `lineColorHex` 放在 MetroBoardWidget.swift 的 extension。
-    let lineColors: [String: String]
+    /// 真正的查詢方法 `lineColorHexes` 放在 MetroBoardWidget.swift 的 extension。
+    let lineColors: [String: [String]]
+    /// "<sys>|<站名>" → 該站所有路線的 id(去重、依線序)。
+    /// 為什麼不能只用色票:板南線與文湖線顏色不同、色票集合也是兩解,但只有「線 id 恰為
+    /// {BL,BR}」這個條件才可以套用「沒車號＝文湖線」那條規則(見 MetroBoardModel.resolveLine)。
+    let lineIDs: [String: [String]]
     /// "<sys>|<站名>" → 站座標(自動選站的最近站計算用)。同站多線座標相同,取第一筆。
     let coords: [String: Coord]
+    /// "<sys>|<線 id>" → 該線色票。官方 `trains[].stn` 的字母前綴就是線 id(BL13 → BL),
+    /// 用來把看板每一列對回它真正的路線色(見 MetroPalette.rowColor)。
+    let lineColorByID: [String: String]
 
     static let shared: MetroWidgetCatalog = load()
 
@@ -117,11 +128,14 @@ struct MetroWidgetCatalog {
               let obj = try? JSONSerialization.jsonObject(with: raw) as? [String: Any] else {
             // 🔴 讀不到就回空目錄,讓 provider 走「照樣給選項」那條(空 systems 時 use 也是空,
             //    ItemCollection 會是空的——這是唯一真的沒東西可列的情況,與 .empty 的語意不同)。
-            return MetroWidgetCatalog(systems: [], alias: [:], lastTrain: [:], lineColors: [:], coords: [:])
+            return MetroWidgetCatalog(systems: [], alias: [:], lastTrain: [:], lineColors: [:],
+                                      lineIDs: [:], coords: [:], lineColorByID: [:])
         }
         var out: [System] = []
-        var colors: [String: String] = [:]
+        var colors: [String: [String]] = [:]
+        var ids: [String: [String]] = [:]
         var coords: [String: Coord] = [:]
+        var byLineID: [String: String] = [:]
         for s in (obj["systems"] as? [[String: Any]] ?? []) {
             let sysID = s["id"] as? String ?? ""
             let lines = s["lines"] as? [[String: Any]] ?? []
@@ -144,16 +158,24 @@ struct MetroWidgetCatalog {
                               stationNames: names, destinations: dests.sorted()))
             for line in lines {
                 guard let color = line["color"] as? String else { continue }
+                if let lid = line["id"] as? String { byLineID["\(sysID)|\(lid)"] = color }
                 for st in (line["stations"] as? [[String: Any]] ?? []) {
                     guard let n = st["name"] as? String else { continue }
                     let key = "\(sysID)|\(n)"
-                    if colors[key] == nil { colors[key] = color }
+                    // 去重但保留線序:同一條線在目錄裡可能拆成多段(中和新蘆線的迴龍/蘆洲兩支
+                    // 共用同一個色票),重複收進來會讓「單色才畫」的判準誤判成多線。
+                    if !(colors[key] ?? []).contains(color) { colors[key, default: []].append(color) }
+                    // 線 id 與色票分開收:同色的分支線(迴龍/蘆洲)在色票集合會塌成一項,
+                    // 但候選路線的判定要看得到它們是兩條。
+                    if let lid = line["id"] as? String, !(ids[key] ?? []).contains(lid) {
+                        ids[key, default: []].append(lid)
+                    }
                 }
             }
         }
         return MetroWidgetCatalog(systems: out,
                                   alias: obj["alias"] as? [String: [String: String]] ?? [:],
                                   lastTrain: obj["lastTrain"] as? [String: String] ?? [:],
-                                  lineColors: colors, coords: coords)
+                                  lineColors: colors, lineIDs: ids, coords: coords, lineColorByID: byLineID)
     }
 }

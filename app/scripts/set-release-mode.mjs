@@ -93,9 +93,45 @@ const MODES = {
   //    .empty 就把選單直接收掉)。修正現已進 feat/la-push(`69a65a5`)與 main(`ff408ae`),
   //    ⇒ 進 build 32,而且必須從含 `69a65a5` 的 tip 出,否則這個修正又會漏掉第五顆 build。
   //    marketing 維持 1.4.1(線上仍是 1.4.0)。
+  // 2026-08-10：build 33＝背景音樂續播（Info.plist 宣告 UIBackgroundModes audio＋錄影混音閘門
+  //    加 RECORDING_ENABLED＋背景化 1.5 秒窗補播），基底改用含 v0809a 速度上界修正的
+  //    preview/speed-ceiling-0809 一線（32 從 9c6718c 出、沒有那顆修正）。
+  // 2026-08-10 之二：build 34＝跟車 LA minimal 小圓改顯示下一站（與背景音樂並存被系統縮到
+  //    最小時，車次號沒資訊量——使用者實測「下一站直接看不到了」）；殺 App 卡片殘留裁示維持現狀。
+  // 2026-08-10 之三：build 35＝minimal 小圓改兩行「站名＋到站倒數」（使用者裁示「車站倒數
+  //    才是重點」）；音樂圓外觀是系統畫的動不了、鎖屏完全合併做不到，皆已對使用者說明。
+  // 2026-08-10 之四：build 36＝MediaSession 曲目資訊——鎖定畫面/控制中心封面全用軌島 icon
+  //    （favicon-512/192）、曲名=檔名去副檔名；只設 metadata 不接 action handler。
+  // 2026-08-10 之五：build 37＝音樂隱形化 spike（AppDelegate 全域 mixWithOthers）——實測失敗，
+  //    WKWebView 播 <audio> 時 WebKit 用自己的 session 蓋掉 App 層設定，音樂圓仍在。
+  // 2026-08-10 之六：build 38＝音樂改走原生 AVPlayer（RailAudioPlugin），分時讓位：
+  //    跟車中 mixWithOthers＋清 NowPlaying（跟車獨占動態島），沒跟車正常播放卡
+  //    （曲名＋軌島封面＋暫停/換首）；佇列與自動接下一首在原生層（背景 JS 凍結也走得動）；
+  //    App 內音量滑桿隨之修復（AVPlayer.volume 可控，music-volume-unavailable 解除）。
+  // 2026-08-10 之七：build 39＝38 的一行修復——RailAudioPlugin 沒在 RailBridgeViewController
+  //    .capacitorDidLoad() 註冊（App 內自製 plugin 不自動發現），音樂全滅；補 registerPluginInstance。
+  // 2026-08-10 之八：build 40/41＝MUSDIAG 臨時診斷顆（不上傳）。41 實測結論：原生鏈全通
+  //    （setQueue29→play rate=1.0→ramp→喇叭出聲），按鈕互動正常；「39 仍壞」極可能是
+  //    裝機時舊行程(38)未終止、使用者測到的是舊版。42＝拆診斷的乾淨顆。
+  // 2026-08-11：build 43＝**1.4.2**，不是 1.4.1 的又一顆。1.4.1(32) 送審中(等待審查)、
+  //    已綁訂閱群組，刻意不去動它——移除重送會把排隊位置歸零，而創始期(8/10 12:00 起 30 天)
+  //    的窗不會因此延後。43 是「1.4.1 一過就能立刻送」的後手，內容＝la-push 的音樂/動態島
+  //    ＋origin/main 的批次A(轉乘提示、附近車站互斥、B19 讓位、v0809a 速度上界)
+  //    ＋App 更新提示與評分。
+  //    🔴 marketing 必須推到 1.4.2：ASC 只讓「短版本字串等於版本號」的 build 被選進該版本，
+  //    掛 1.4.1 的 build 之後選不進 1.4.2 的版本紀錄。
+  // 2026-08-11 之二：build 44＝43 的內容再加上橫式版面修正。43 使用者已上傳 ASC ⇒ 那個號燒掉了。
+  //    橫式那批是真使用者回報的缺陷（橫放跟車時列車不在畫面裡、資訊卡互相阻擋），修完又收了
+  //    實機回報的三件（「回到列車」撞「隨機跟隨」、停靠站名牌吃掉整個寬度、動態島擋住文字），
+  //    正式站已上（v0811c）；App 這一顆是同一批的原生版，網頁 BUILD 進 v0811d（合併後的內容
+  //    與 43 的 v0811a、正式站的 v0811c 都不同，不共用號）。marketing 維持 1.4.2——ASC 上
+  //    1.4.2 的版本紀錄還沒送出，換掉底下的 build 即可，不必再推版本字串。
+  // 2026-08-14：1.4.3 (50) 上傳時 App Store Connect 明確回覆該 train 已關閉，
+  //    因此本輪改開 1.4.4，build 續增到 51；不可再產出任何 1.4.3 新 build。
+  //    內容＝48 的旋轉尺寸過期自癒（P0）再加上北捷官方即時名冊（origin/main dab284a 併入）。
   feature: {
-    marketing: '1.4.1', build: '32', music: true,
-    why: '軌島 1.4.1：跟車即時動態改由後端推播（鎖屏自動換站）＋卡片強化（停靠中、進度條、車種顏色、上一站與終點站）、高鐵自由座車廂、我的車・準點、準點排行；production 資格，TestFlight Sandbox 通道維持關閉。',
+    marketing: '1.4.4', build: '51', music: true,
+    why: '軌島 1.4.4：台北捷運列車改以官方站牌倒數逐班追蹤，從發車到終點依各站時間顯示位置，同班資訊自動合併，車次與方向跟著實際行程；保留橫放版面、背景音樂續播與 App 更新提示；production 資格，TestFlight Sandbox 通道維持關閉。',
   },
   // 2026-08-06：build 20、21、22 已上 TestFlight；22 專門驗收 Sandbox 購買後的
   // 軌島通行證客端功能、雲端同步與伺服器付費牆。這顆不可選去正式送審；正式版必須另推 build 號，

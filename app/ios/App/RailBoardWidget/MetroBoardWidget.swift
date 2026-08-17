@@ -12,6 +12,32 @@ struct MetroEntry: TimelineEntry {
     var deepLink: URL? = nil   // 點小工具 → App 開這一站的等車卡(railisland://metro-wait)
     var auto: Bool = false     // 這一站是「自動(最近的站)」解析出來的,標頭掛小徽章
     var autoHint: String? = nil // 自動選站解析失敗時的空狀態指引(蓋過通用的「沒有資料」)
+    // 通行證閘門擋下時的明講 CTA(2026-08-15)。🔴 這個專案已經有三個「不給用也不說」的付費
+    // 功能,這裡一律講清楚「為什麼看不到、去哪裡買」,不做靜默空白卡。
+    var passCTA: String? = nil
+    // 每一列的線色要靠「系統＋本站＋該列終點」推(見 MetroPalette.rowColor),故 entry 要帶系統 id。
+    var sys: String? = nil
+}
+
+extension MetroEntry {
+    /// 這張卡畫的資料已經幾秒了。dataAt 取自官方回應自帶的時刻(MetroBoardModel.payloadTime),
+    /// 所以這是「資料的年紀」,不是「距離上次刷新多久」——後者對被快取餵舊主體的情況恆為 0。
+    func dataAge(at date: Date) -> Double? {
+        snapshot.map { date.timeIntervalSince1970 - $0.dataAt }
+    }
+
+    /// 🔴 空白看板的四種原因必須分得出來。以前「連不上」「資料過舊」「真的沒車」印同一句,
+    ///    使用者回報「沒有班次資訊」時,查修的人無從判斷是哪一種,只能從頭猜——2026-08-15
+    ///    小工具整天每一站都空白就卡在這裡,最後是靠把手機上的 URLCache 拉下來才定案。
+    ///    門檻取 180 秒:大於邊緣快取最長的 s-maxage(機捷 110 秒)並留餘裕,正常刷新不會誤觸;
+    ///    真被某層快取餵了舊主體時,畫面直說過舊,不再偽裝成「官方沒有班次」。
+    ///    小卡與混合大卡共用這一份,兩張卡的說法不會分岔。
+    func emptyText(at date: Date) -> String {
+        if failed { return "連不上官方資料，稍後自動再試" }
+        guard snapshot != nil else { return "沒有資料" }
+        if let age = dataAge(at: date), age > 180 { return "資料過舊，打開軌島即更新" }
+        return "官方目前沒有這一站的班次資訊"
+    }
 }
 
 struct MetroBoardProvider: AppIntentTimelineProvider {
@@ -45,7 +71,7 @@ struct MetroBoardProvider: AppIntentTimelineProvider {
                 MetroEntry(date: Date(timeIntervalSince1970: t), title: e.title,
                            lineColor: e.lineColor, snapshot: e.snapshot, precision: e.precision,
                            lastTrain: e.lastTrain, failed: e.failed, deepLink: e.deepLink,
-                           auto: e.auto, autoHint: e.autoHint)
+                           auto: e.auto, autoHint: e.autoHint, passCTA: e.passCTA, sys: e.sys)
             }
         }
         // 🔴 刷新策略(真機回饋 08-14 第五輪:「只剩一兩班看起來像沒車」):有預排邊界時用 .atEnd
@@ -64,6 +90,26 @@ struct MetroBoardProvider: AppIntentTimelineProvider {
         //    "auto",查表必落空;方向格是為手選站挑的,對自動解析出來的站不一定成立,一併忽略。
         var isAuto = false
         var sysID: String?, stationName: String?
+        // 通行證閘門在【定位與抓取之前】:被擋下時不打官方 API、也不叫醒定位,
+        // 卡上直接畫明講的升級說明(deepLink 指向 App 的通行證頁,點卡就能買)。
+        let gate = await MetroPlusGate.evaluate(stationKey: cfg.station,
+                                                isAuto: cfg.station == MetroNearest.sentinel)
+        switch gate {
+        case .needPassAuto:
+            return MetroEntry(date: Date(), title: "自動選站", lineColor: nil, snapshot: nil,
+                              precision: "sec", lastTrain: nil, failed: false,
+                              deepLink: Self.passLink(), auto: true,
+                              passCTA: "自動選最近的站是通行證功能。點一下開啟軌島看方案，或改選一個固定車站。")
+        case .needPassMulti(let claimedName):
+            return MetroEntry(date: Date(), title: "再加一站", lineColor: nil, snapshot: nil,
+                              precision: "sec", lastTrain: nil, failed: false,
+                              deepLink: Self.passLink(),
+                              passCTA: claimedName.isEmpty
+                                ? "免費版可設定一站。點一下開啟軌島，用通行證解鎖多站。"
+                                : "免費版可設定一站（目前是「\(claimedName)」）。點一下開啟軌島，用通行證解鎖多站。")
+        case .allowed, .claimFree:
+            break
+        }
         if cfg.station == MetroNearest.sentinel {
             isAuto = true
             if let hit = await MetroNearest.resolve(catalog: catalog) {
@@ -91,7 +137,10 @@ struct MetroBoardProvider: AppIntentTimelineProvider {
             snap = sys.precision == "sec"
                 ? try MetroBoardModel.trtc(json: data, station: station, alias: alias, now: now)
                 : try MetroBoardModel.minuteSystem(json: data, station: station, alias: alias, now: now)
-            MetroFetcher.cache(snap!, sys: sys.id, station: station)
+            // 🔴 只快取「真的有班次」的結果:零班次是合法但短暫的狀態(收班後、官方視野空窗),
+            //    把它寫進去會污染退路——之後每次抓取失敗都拿這份空的出來,畫面就永遠是
+            //    「官方目前沒有這一站的班次資訊」,而且看不出是失敗還是真的沒車。
+            if !(snap?.rows.isEmpty ?? true) { MetroFetcher.cache(snap!, sys: sys.id, station: station) }
         } catch {
             // 🔴 抓取失敗顯示上次成功的資料＋當時的時刻,不清空、不留白。
             snap = MetroFetcher.cached(sys: sys.id, station: station)
@@ -108,11 +157,16 @@ struct MetroBoardProvider: AppIntentTimelineProvider {
                                                                station: station, now: now),
                           failed: failed,
                           deepLink: Self.deepLink(sys: sys.id, station: station),
-                          auto: isAuto)
+                          auto: isAuto, sys: sys.id)
     }
 
     // 🔴 站名是中文:URL(string:) 對非 ASCII 插值會回 nil ⇒ 深連結整條靜默死掉。
     //    一律走 URLComponents 讓它做 percent-encoding。
+    // 被閘門擋下時點卡的去處:App 開通行證方案頁(railisland://pass)。與站別無關,故不帶參數。
+    private static func passLink() -> URL? {
+        var c = URLComponents(); c.scheme = "railisland"; c.host = "pass"; return c.url
+    }
+
     private static func deepLink(sys: String, station: String) -> URL? {
         var c = URLComponents()
         c.scheme = "railisland"
@@ -147,6 +201,12 @@ enum MetroFetcher {
         var req = URLRequest(url: url(sys: sys))
         // 小工具的刷新機會很少,寧可失敗得快也不要卡住整條 timeline。
         req.timeoutInterval = 8
+        // 🔴 端點回 `max-age=14400`(給瀏覽器離線退路用),但這是即時看板:用戶端只要拿到
+        //    一份四小時內的舊回應,裡面每一班的到站時刻都已經過去 ⇒ 每一站都空。
+        //    網頁自己那三個消費者早就寫死 `cache: 'no-store'`(index.html 的 trtc-live／
+        //    metro-live／ntmetro-live),Swift 這側漏了同一道防護,在此補齊。
+        //    邊緣快取(s-maxage=15)不受影響,伺服器負載不變。
+        req.cachePolicy = .reloadIgnoringLocalCacheData
         req.setValue("RailIsland-Widget", forHTTPHeaderField: "User-Agent")
         let (data, resp) = try await URLSession.shared.data(for: req)
         guard let http = resp as? HTTPURLResponse, http.statusCode == 200 else {
@@ -166,6 +226,10 @@ enum MetroFetcher {
             if let e = r.etaEpoch { d["eta"] = e }
             if let m = r.minutes { d["min"] = m }
             if let c = r.crowd { d["crowd"] = c }
+            // 線代碼與車號要一起存,否則抓取失敗改畫退路那份時每一列都掉色
+            // (車號是「板南／文湖」那一種列唯一的判別依據,見 MetroBoardModel.resolveLine)。
+            if let l = r.lineCode { d["line"] = l }
+            if let n = r.trainNo { d["no"] = n }
             return d
         }
         suite?.set(["at": s.dataAt, "rows": rows, "stale": s.stale], forKey: key(sys, station))
@@ -176,7 +240,8 @@ enum MetroFetcher {
               let at = o["at"] as? Double, let raw = o["rows"] as? [[String: Any]] else { return nil }
         let rows = raw.map { r in
             MetroRow(dest: r["dest"] as? String ?? "", etaEpoch: r["eta"] as? Double,
-                     minutes: r["min"] as? Int, crowd: r["crowd"] as? [Int])
+                     minutes: r["min"] as? Int, crowd: r["crowd"] as? [Int],
+                     lineCode: r["line"] as? String, trainNo: r["no"] as? String)
         }
         // 🔴 Swift 的 memberwise init 必須照【宣告順序】給參數,不能重排:
         //    MetroSnapshot 是 station → dataAt → rows → stale。
@@ -213,15 +278,24 @@ struct MetroBoardView: View {
                 ForEach(Array(visibleRows.prefix(rowLimit).enumerated()), id: \.offset) { _, r in
                     MetroRowView(row: r, precision: entry.precision,
                                  showCrowd: family != .systemSmall,
-                                 entryDate: entry.date)
+                                 entryDate: entry.date,
+                                 lineColor: entry.sys.flatMap {
+                                     MetroPalette.rowColor(sys: $0, station: entry.title,
+                                                           dest: r.dest, lineCode: r.lineCode,
+                                                           trainNo: r.trainNo)
+                                 })
                 }
             } else if entry.snapshot?.rows.isEmpty == false {
                 // 有資料但全被「到站+30秒退場」濾光=資料視野(≈12分鐘)用完了,WidgetKit 還沒給
                 // 下一次刷新——這不是「官方沒班次」,寫成那樣會被讀成末班已過(真機回饋 08-14)。
                 Text("資料過舊，打開軌島即更新").font(.caption).foregroundStyle(.secondary)
+            } else if let cta = entry.passCTA {
+                // 通行證閘門:明講「為什麼看不到、點下去去哪」。用主色而非 secondary——
+                // 它是行動邀請不是錯誤訊息;小卡容得下三行,大卡更寬鬆,故不設 lineLimit。
+                Text(cta).font(.caption).foregroundStyle(.primary)
             } else {
                 // autoHint:自動選站解析失敗的指引(定位權限/從沒定位過),比通用文案可行動。
-                Text(entry.autoHint ?? (entry.snapshot != nil ? "官方目前沒有這一站的班次資訊" : "沒有資料"))
+                Text(entry.autoHint ?? entry.emptyText(at: entry.date))
                     .font(.caption).foregroundStyle(.secondary)
             }
             Spacer(minLength: 0)
@@ -256,10 +330,18 @@ struct MetroRowView: View {
     // 混合大卡(systemLarge)整列等比放大用;預設 1=北捷卡原樣(既有呼叫端零變化)。
     // 字級與槽寬(56pt trailing 槽、38pt 擁擠欄)一起縮放,對齊鐵則才不會在放大後破掉。
     var fontScale: CGFloat = 1
+    /// 這一班所屬路線的色票。推不出唯一解時為 nil ⇒ 不畫點(見 MetroPalette.rowColor)。
+    var lineColor: Color? = nil
 
     var body: some View {
         HStack(spacing: 6) {
-            Text("往 \(row.dest)").font(.system(size: 13 * fontScale)).lineLimit(1)
+            // 🔴 轉乘站(台北車站=紅+藍)的每一列各屬不同路線,線色必須逐列畫;
+            //    站別標頭那顆點只在單線站出現。沒有色票時佔位保持不變,列與列的文字仍對齊。
+            Circle().fill(lineColor ?? .clear).frame(width: 7 * fontScale, height: 7 * fontScale)
+            // 🔴 小尺寸卡的可用寬本來就緊(「往 南港展覽館」＋倒數槽幾乎填滿),多了色點更緊 ⇒
+            //    允許小幅縮字,寧可字小一點也不要把站名截成「往 南港展覽…」。
+            Text("往 \(row.dest)").font(.system(size: 13 * fontScale))
+                .lineLimit(1).minimumScaleFactor(0.8)
             Spacer(minLength: 4)
             if precision == "sec", let eta = row.etaEpoch {
                 // 🔴 真機回饋(08-14):倒數歸零後停在 0:00 是殭屍——已到點的列改顯示「進站」。
@@ -306,13 +388,51 @@ struct MetroRowView: View {
 }
 
 enum MetroPalette {
-    /// 站所屬路線的代表色。跨線轉乘站取第一條——顏色只是識別,不是資料。
-    static func color(sys: String, station: String) -> Color? {
-        guard let raw = MetroWidgetCatalog.shared.lineColorHex(sys: sys, station: station) else { return nil }
+    /// 線代碼 → 色票。官方 `stn` 給的是主代碼(O),目錄裡卻可能拆成子線(O_XINZHUANG／
+    /// O_LUZHOU,共用同一個色票) ⇒ 先找完全相同的 id,沒有再收所有 `<code>_` 開頭的子線;
+    /// 子線色票不一致就回 nil(例:R 與 R_XBT 顏色不同,但 R 本身存在故走第一條,不受影響)。
+    private static func lineHex(sys: String, code: String) -> String? {
+        let table = MetroWidgetCatalog.shared.lineColorByID
+        if let exact = table["\(sys)|\(code)"] { return exact }
+        let kids = Set(table.filter { $0.key.hasPrefix("\(sys)|\(code)_") }.map(\.value))
+        return kids.count == 1 ? kids.first : nil
+    }
+
+    private static func parse(_ raw: String) -> Color? {
         var s = raw; if s.hasPrefix("#") { s.removeFirst() }
         guard s.count == 6, let v = UInt32(s, radix: 16) else { return nil }
         return Color(.sRGB, red: Double((v >> 16) & 0xFF) / 255,
                             green: Double((v >> 8) & 0xFF) / 255, blue: Double(v & 0xFF) / 255)
+    }
+
+    /// 站別標頭的點:【只有單一路線的站才畫】。
+    /// 🔴 真機回饋(08-15):台北車站原本畫紅點,底下卻列著藍線(板南線)的班次——
+    ///    轉乘站取第一條線等於隨機指定一條,是錯的識別而不是不精確的識別。
+    ///    識別不了就不畫;每一列自己的線色由 rowColor 負責,資訊不會因此消失。
+    static func color(sys: String, station: String) -> Color? {
+        let hexes = MetroWidgetCatalog.shared.lineColorHexes(sys: sys, station: station)
+        guard hexes.count == 1 else { return nil }
+        return parse(hexes[0])
+    }
+
+    /// 單一班次的線色。路線本身怎麼判在 `MetroBoardModel.resolveLine`(純函式,被驗收腳本
+    /// 逐案測);這裡只負責把線 id 換成色票,以及最後那層「路線分不出、但候選路線同色」的退路。
+    static func rowColor(sys: String, station: String, dest: String, lineCode: String?,
+                         trainNo: String?) -> Color? {
+        let cat = MetroWidgetCatalog.shared
+        if let code = MetroBoardModel.resolveLine(joined: lineCode, trainNo: trainNo,
+                                                  station: station, dest: dest,
+                                                  stationLines: cat.lineIDsAt(sys: sys, station: station),
+                                                  destLines: cat.lineIDsAt(sys: sys, station: dest)),
+           let hex = lineHex(sys: sys, code: code) { return parse(hex) }
+        // 退路:路線分不出唯一解,但候選路線【色票相同】時照樣上色——中和新蘆線在目錄裡
+        // 拆成迴龍/蘆洲兩支、共用同一個色票(實測 300 種真實組合中有 11 種是這樣)。
+        // 色票也不唯一就回 nil、那一列不畫點,寧可不畫也不猜。
+        let here = cat.lineColorHexes(sys: sys, station: station)
+        let there = cat.lineColorHexes(sys: sys, station: dest)
+        let shared = here.filter(there.contains)
+        guard shared.count == 1 else { return nil }
+        return parse(shared[0])
     }
     /// 官方擁擠度等級。數值語意由官方定義,我們只上色不重新分級。
     static func crowd(_ v: Int) -> Color {
@@ -355,5 +475,6 @@ enum MetroLastTrain {
 }
 
 extension MetroWidgetCatalog {
-    func lineColorHex(sys: String, station: String) -> String? { lineColors["\(sys)|\(station)"] }
+    func lineColorHexes(sys: String, station: String) -> [String] { lineColors["\(sys)|\(station)"] ?? [] }
+    func lineIDsAt(sys: String, station: String) -> [String] { lineIDs["\(sys)|\(station)"] ?? [] }
 }

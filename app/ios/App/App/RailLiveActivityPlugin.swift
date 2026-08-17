@@ -1,6 +1,8 @@
 import ActivityKit
 import Capacitor
 import Foundation
+import StoreKit
+import UIKit
 
 @objc(RailLiveActivityPlugin)
 public final class RailLiveActivityPlugin: CAPPlugin, CAPBridgedPlugin {
@@ -68,6 +70,8 @@ public final class RailLiveActivityPlugin: CAPPlugin, CAPBridgedPlugin {
         for act in Activity<RailFollowAttributes>.activities {
             await act.end(nil, dismissalPolicy: .immediate)
         }
+        // 告知音樂端「跟車讓位」結束：RailAudioPlugin 據此把播放卡掛回鎖定畫面。
+        NotificationCenter.default.post(name: Notification.Name("railFollowChanged"), object: nil, userInfo: ["active": false])
     }
 
     override public func load() {
@@ -98,6 +102,8 @@ public final class RailLiveActivityPlugin: CAPPlugin, CAPBridgedPlugin {
                     pushType: .token          // 🔴 少了這個參數就拿不到 token,卡片只能靠前景更新
                 )
                 self.current = act
+                // 跟車卡上島了:通知音樂端讓位(收播放卡、轉混音模式),跟車獨占動態島。
+                NotificationCenter.default.post(name: Notification.Name("railFollowChanged"), object: nil, userInfo: ["active": true])
                 // pushTokenUpdates 是 AsyncSequence,token 會【多次】輪替,不是拿一次就結束。
                 // 這條 Task 的生命週期綁在 endAll()——換車時先 cancel,否則舊卡的 token 會被當成新卡的送上去。
                 let key = call.getString("key") ?? ""
@@ -133,5 +139,40 @@ public final class RailLiveActivityPlugin: CAPPlugin, CAPBridgedPlugin {
     @objc func end(_ call: CAPPluginCall) {
         guard #available(iOS 17.6, *) else { call.resolve(["ok": true]); return }
         enqueue { await self.endAll(); call.resolve(["ok": true]) }
+    }
+}
+
+// ── 評分邀請 ────────────────────────────────────────────────────────────────
+// 🔴 刻意寫在這個檔案裡、不另開 .swift：往 App/ 加新檔而沒手改 project.pbxproj，
+// 檔案不會被編進去而 build 照樣 SUCCEEDED（小工具那顆修正就是這樣連漏四顆 build）。
+// Capacitor 靠 Objective-C runtime 掃描註冊 plugin，與檔名無關，同檔多 class 完全成立。
+//
+// 只負責「請求」——顯不顯示由 Apple 決定（一年最多 3 次，且不保證出現），
+// 我們收不到結果回報，所以 resolve 的 requested 只代表「我們請求過了」。
+// 節流全部做在 JS 端（index.html 的 reviewShouldAsk）。
+@objc(RailReviewPlugin)
+public final class RailReviewPlugin: CAPPlugin, CAPBridgedPlugin {
+    public let identifier = "RailReviewPlugin"
+    public let jsName = "RailReview"
+    public let pluginMethods: [CAPPluginMethod] = [
+        CAPPluginMethod(name: "requestReview", returnType: CAPPluginReturnPromise),
+    ]
+
+    @objc func requestReview(_ call: CAPPluginCall) {
+        DispatchQueue.main.async {
+            guard let scene = UIApplication.shared.connectedScenes
+                .first(where: { $0.activationState == .foregroundActive }) as? UIWindowScene else {
+                call.resolve(["requested": false])
+                return
+            }
+            if #available(iOS 18.0, *) {
+                AppStore.requestReview(in: scene)
+            } else if #available(iOS 16.0, *) {
+                SKStoreReviewController.requestReview(in: scene)
+            } else {
+                SKStoreReviewController.requestReview()
+            }
+            call.resolve(["requested": true])
+        }
     }
 }

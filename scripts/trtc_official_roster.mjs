@@ -5,6 +5,17 @@
 
 export const OFFICIAL_ROSTER_SCHEMA = 4;
 export const OFFICIAL_COAST_DWELL_DEFAULT_SEC = 25;
+// 「這台車自己的官方資料，證明它早該離開這裡了」——殘骸退場地板（2026-08-17）。
+// 單位是**這台車自己的站間週期**（coastCycle，由它自己的官方到站時刻量出來、且不得低於
+// 這條線該段的實際行車秒）。停滯超過這麼多個週期 ⇒ 依它自己的官方資料，它不可能還在原地。
+//
+// 🔴 這不是「缺訊 timeout」也不是「資料齡」，那兩條仍然永久廢棄——差別是量的東西不同：
+//   * 資料齡量「我們有沒有收到」：同一條線別台車在不在報都會影響它，斷線就整批誤殺。
+//   * 這條量「這台車自己的官方到站時刻有沒有前進」：官方還在報它，配對就會用掉這個 ID，
+//     結構上根本走不到這道地板；斷訊時全線一起停滯，也只會等它恢復（realignLines 另管）。
+// 用週期倍數而不是固定秒數：各線站距不同（BR 約 104 秒／站、BL 更長），寫死秒數就是
+// 下次改點會被推翻的魔術數字（心得 35）。
+export const OFFICIAL_STALL_RETIRE_CYCLES = 3;
 
 function finite(value, label) {
   const number = Number(value);
@@ -289,10 +300,43 @@ function segmentRun(model, lineId, from, to) {
   return Number.isFinite(run) && run > 0 ? run : null;
 }
 
+// 從 from 走到 dest 還需要多少秒，逐段取這條線的實際行車秒（不是班表）。
+// 任何一段缺秒數就回 null——寧可維持現行「不退場」也不用猜出來的數字推估退場。
+function remainingRun(model, lineId, from, dest, step) {
+  let total = 0;
+  for (let station = Number(from); station !== Number(dest); station += step) {
+    const run = segmentRun(model, lineId, station, station + step);
+    if (!(run > 0)) return null;
+    total += run + OFFICIAL_COAST_DWELL_DEFAULT_SEC;
+  }
+  return total > 0 ? total : null;
+}
+
+// 這台車自己的官方到站時刻 + 它自己的站間週期 × 允許停滯的週期數。
+// 另外壓一道物理天花板：不論如何都不會活過「走完剩餘里程所需的實際行車秒」的兩倍——
+// 週期量不出來（單筆 timeline）時由它兜底。
+// 🔴 只給 carriedVehicle() 當地板用，觀測到的車永遠不受它影響——結構上不可能刪掉
+// 官方正在報的車（「車子有官方數據就是在」）。
+function projectedRetireOf(model, row, step, coastCycle) {
+  const anchor = Number(row.arrEpoch);
+  if (!Number.isFinite(anchor)) return null;
+  // 🔴 週期必須有物理下限。coastCycle 在單筆 timeline 時會退化成 OFFICIAL_COAST_DWELL_DEFAULT_SEC
+  // （25 秒）——停在起點等發車的車 run=0 正是這種，門檻會被壓成 75 秒而誤殺真車
+  // （2026-08-15 語料實測：環狀線兩台只停滯 104／238 秒的真車被收掉）。
+  // 取「這台車下一段的實際行車秒」當地板：捷運不可能 25 秒跑完一站。
+  const nextRun = segmentRun(model, row.line, Number(row.to), Number(row.to) + step);
+  const cycle = Math.max(Number(coastCycle) || 0, Number(nextRun) || 0);
+  const byStall = cycle > 0 ? anchor + cycle * OFFICIAL_STALL_RETIRE_CYCLES : null;
+  const remaining = remainingRun(model, row.line, Number(row.to), Number(row.dest), step);
+  const byJourney = remaining > 0 ? anchor + remaining * 2 : null;
+  const candidates = [byStall, byJourney].filter(value => value != null && Number.isFinite(value));
+  return candidates.length ? Math.min(...candidates) : null;
+}
+
 function coastTiming(model, row, history, timeline) {
   const step = Number(row.dir) === 2 ? 1 : -1;
   const legs = (Number(row.dest) - Number(row.to)) * step;
-  if (!(legs >= 0)) return { coastCycle: null, departureRun: null, retireEpoch: null };
+  if (!(legs >= 0)) return { coastCycle: null, departureRun: null, retireEpoch: null, projectedRetireEpoch: null };
   const officialArrivals = (timeline || []).filter(item => !item.terminal)
     .sort((a, b) => step * (Number(a.to) - Number(b.to)) || Number(a.arrEpoch) - Number(b.arrEpoch));
   const own = officialArrivals.length >= 2
@@ -307,6 +351,8 @@ function coastTiming(model, row, history, timeline) {
   const measuredCycle = Number.isFinite(own) && own > 0
     ? Math.max(own, Number(physicalFloor) > 0 ? Number(physicalFloor) : 0)
     : Number(row.run) + OFFICIAL_COAST_DWELL_DEFAULT_SEC;
+  // 殘骸退場地板：用這台車自己量出來的站間週期，不是資料齡（見常數宣告處）。
+  const projectedRetireEpoch = projectedRetireOf(model, row, step, measuredCycle);
   const exactDestination = (timeline || []).filter(item => !item.terminal && Number(item.to) === Number(row.dest))
     .sort((a, b) => Number(b.arrEpoch) - Number(a.arrEpoch))[0];
   const exactRetireEpoch = exactDestination ? Number(exactDestination.arrEpoch) : null;
@@ -317,13 +363,13 @@ function coastTiming(model, row, history, timeline) {
     const departureRun = exactFirst
       ? Number(exactFirst.arrEpoch) - Number(exactFirst.depEpoch)
       : segmentRun(model, row.line, Number(row.to), next);
-    if (!(departureRun > 0)) return { coastCycle: null, departureRun: null, retireEpoch: null };
+    if (!(departureRun > 0)) return { coastCycle: null, departureRun: null, retireEpoch: null, projectedRetireEpoch };
     const coastCycle = measuredCycle > 0 ? measuredCycle : departureRun + OFFICIAL_COAST_DWELL_DEFAULT_SEC;
     const count = stationCount(model, row.line);
     // 一段式路線永遠等不到對端到站列，才使用唯一明示的 segment fallback。
     const retireEpoch = Number.isFinite(exactRetireEpoch) ? exactRetireEpoch :
       (/_XBT$/.test(row.line) || count <= 2 ? Number(row.arrEpoch) + departureRun : null);
-    return { coastCycle, departureRun, retireEpoch };
+    return { coastCycle, departureRun, retireEpoch, projectedRetireEpoch };
   }
   const coastCycle = measuredCycle;
   const penultimate = Number(row.dest) - step;
@@ -333,7 +379,7 @@ function coastTiming(model, row, history, timeline) {
   // 補唯一最後一段。這不是缺訊 timeout，也不拿整條班表推存在；XBT 則走上面的單段專用分支。
   const inferredTerminal = penultimateEvent && coastCycle > 0
     ? Number(penultimateEvent.arrEpoch) + coastCycle : null;
-  return { coastCycle, departureRun: null,
+  return { coastCycle, departureRun: null, projectedRetireEpoch,
     retireEpoch: Number.isFinite(exactRetireEpoch) ? exactRetireEpoch : inferredTerminal };
 }
 
@@ -367,17 +413,43 @@ function officialVehicle(model, row, vehicleId, base, sourceRevision, nowEpoch) 
   };
 }
 
-function carriedVehicle(model, vehicle, sourceRevision, nowEpoch, numberContradicted = false) {
+function carriedVehicle(model, vehicle, sourceRevision, nowEpoch, numberContradicted = false,
+  lineAlive = false) {
+  // 已有 retireEpoch 就沿用既存值（原始短路路徑，不得因為新欄位而改變既有行為）。
+  // projectedRetireEpoch 錨在「這台車最後一次官方到站」上，carried 期間那個錨不會變，
+  // 所以直接沿用；D1 舊名冊沒有這一欄時才補算，且只呼叫不會擲例外的那支。
   const timing = vehicle.retireEpoch != null && Number.isFinite(Number(vehicle.retireEpoch))
     ? { coastCycle: Number(vehicle.coastCycle), departureRun: vehicle.departureRun == null
-      ? null : Number(vehicle.departureRun), retireEpoch: Number(vehicle.retireEpoch) }
+      ? null : Number(vehicle.departureRun), retireEpoch: Number(vehicle.retireEpoch),
+      projectedRetireEpoch: vehicle.projectedRetireEpoch ?? projectedRetireOf(model, vehicle,
+        Number(vehicle.dir) === 2 ? 1 : -1, vehicle.coastCycle) }
     : coastTiming(model, vehicle, Array.isArray(vehicle.history) ? vehicle.history : [],
       Array.isArray(vehicle.timeline) ? vehicle.timeline : []);
   // 這是「到已知終點」的時刻，不是資料齡或缺訊 timeout。
   if (timing.retireEpoch != null && Number.isFinite(Number(timing.retireEpoch)) &&
       nowEpoch >= Number(timing.retireEpoch)) return null;
-  return { ...vehicle, ...timing, sourceRevision, extension: false, carried: true,
-    ...(numberContradicted ? { officialNo: null, officialNoLockedOut: true } : {}) };
+  // 🔴 退場地板（2026-08-17）：官方 timeline 半途中斷的車永遠等不到終點事件 ⇒ retireEpoch
+  // 恆為 null ⇒ 上面那道退場檢查結構上永遠不成立，殘骸整天只進不出（實測早上 1.5 小時
+  // 累積 37 台原地不動的車，畫面上就是使用者看到的「重複的車」）。
+  //
+  // 三道前提缺一不可，每一道都對應一個被實測打臉過的失效：
+  //   (1) lineAlive：**這條線這一輪確實有官方列**。斷訊時整條線一起沉默，這時停滯是
+  //       「我們沒收到」不是「車不在」——沒有這道閘，verify_trtc_ghost_fix 的整輪無列情境
+  //       一次殺掉 58 台車，正是永久廢棄的「缺訊 timeout」。有這道閘才是在問
+  //       「別的車都在報，就它不動」，量的是真實世界不是傳輸狀態。
+  //   (2) retireEpoch 尚不可得：已經算得出確切終點時刻的車（含 XBT 兩站接駁的單段特例）
+  //       由上面那道精確判斷處理，地板不得搶在它前面收車。
+  //   (3) 停滯超過它自己的站間週期 × N。
+  if (!lineAlive) return carried(timing);
+  if (timing.retireEpoch != null && Number.isFinite(Number(timing.retireEpoch))) return carried(timing);
+  if (timing.projectedRetireEpoch != null && Number.isFinite(Number(timing.projectedRetireEpoch)) &&
+      nowEpoch >= Number(timing.projectedRetireEpoch)) return null;
+  return carried(timing);
+
+  function carried(t) {
+    return { ...vehicle, ...t, sourceRevision, extension: false, carried: true,
+      ...(numberContradicted ? { officialNo: null, officialNoLockedOut: true } : {}) };
+  }
 }
 
 function compareVehicles(a, b) {
@@ -536,7 +608,7 @@ export function reduceOfficialRoster({ model, rows, prior = null, day, nowEpoch,
     // 合法地暫時離板（實測 carried 10–17／121），誤殺它們才是災難。
     if (realignLines.has(old.line)) { realigned++; continue; }
     const contradicted = numberContradictions.has(String(old.vehicleId));
-    const alive = carriedVehicle(model, old, sourceRevision, epoch, contradicted);
+    const alive = carriedVehicle(model, old, sourceRevision, epoch, contradicted, linesWithRows.has(old.line));
     if (alive) {
       vehicles.push(alive); usedIds.add(String(alive.vehicleId)); carried++;
       if (contradicted && old.officialNo) { carriedNumberConflicts++; numberConflicts++; }

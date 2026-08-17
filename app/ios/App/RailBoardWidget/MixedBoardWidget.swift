@@ -333,17 +333,26 @@ private struct MixedMetroSection: View {
             }
 
             if visibleRows.isEmpty {
-                Text(entry.snapshot != nil ? "官方目前沒有這一站的班次資訊" : "沒有資料")
+                // 空白的原因分四種,判準與小卡同源(MetroBoardView.emptyText);混合卡以前只講
+                // 「官方沒有班次」,同一個誤導在這裡也要修掉。
+                Text(entry.emptyText(at: displayDate))
                     .font(.callout)
                     .foregroundStyle(.secondary)
             } else {
-                ForEach(Array(visibleRows.prefix(3).enumerated()), id: \.offset) { _, row in
+                // 真機回饋(08-15):台北車站這種多線大站班次很多,大卡下半還有空位卻只列三班。
+                // 大卡的捷運半邊與台鐵半邊等高,台鐵那邊排四列仍有餘裕 ⇒ 捷運放到五列。
+                ForEach(Array(visibleRows.prefix(5).enumerated()), id: \.offset) { _, row in
                     MetroRowView(
                         row: row,
                         precision: entry.precision,
                         showCrowd: true,
                         entryDate: displayDate,
-                        fontScale: 1.2   // 大卡等比放大;槽寬跟著縮放,對齊不破(見 MetroRowView)
+                        fontScale: 1.2,  // 大卡等比放大;槽寬跟著縮放,對齊不破(見 MetroRowView)
+                        lineColor: entry.sys.flatMap {
+                            MetroPalette.rowColor(sys: $0, station: entry.title,
+                                                  dest: row.dest, lineCode: row.lineCode,
+                                                  trainNo: row.trainNo)
+                        }
                     )
                 }
             }

@@ -22,6 +22,7 @@
 //   metro-small.png         systemSmall ,十四張(環狀線,無擁擠度)——測 2 列上限與短版面
 //   metro-medium.png        systemMedium,台北車站(有擁擠度)——測擁擠度色塊會不會換行
 //   metro-large.png         systemLarge ,哈瑪星(高捷,整數分鐘)——測「約 N 分」靜態文字與 6 列上限
+//   metro-medium-interchange.png systemMedium,忠孝復興(文湖/板南轉乘)——逐列線點的唯一難例
 //   metro-medium-lastcall.png systemMedium,台北車站,now 撥到官方視野以外逼近末班窗——
 //                            測「板面空白訊息＋末班列」同時出現時版面不會破(這是本 task
 //                            標題「含末班車列」的招牌情境,三個一般樣本的時間點都在下午,
@@ -94,6 +95,9 @@ const dataPath = join(widgetDir, 'MetroWidgetData.json');
 const pieces = [
   extractDeclaration(intentSource, 'struct MetroWidgetCatalog'),
   extractDeclaration(widgetSource, 'struct MetroEntry'),
+  // 空狀態文案(連不上／資料過舊／官方沒班次)住在這個 extension 裡,MetroBoardView 直接呼叫它;
+  // 沒抽進來的話 harness 一編就是「has no member 'emptyText'」。
+  extractDeclaration(widgetSource, 'extension MetroEntry'),
   extractDeclaration(widgetSource, 'enum MetroPalette'),
   extractDeclaration(widgetSource, 'enum MetroLastTrain'),
   extractDeclaration(widgetSource, 'extension MetroWidgetCatalog'),
@@ -136,12 +140,15 @@ func precisionOf(_ sys: String) -> String {
     catalog.systems.first(where: { $0.id == sys })?.precision ?? "sec"
 }
 
+// 🔴 sys 一定要帶:每一列的線色是 MetroBoardView 用 entry.sys.flatMap { rowColor(...) } 算的,
+//    entry.sys 是 nil 就等於整張卡的逐列線點【一顆都不會畫】——算繪出來的圖會漂亮地通過
+//    肉眼檢查,卻完全照不到線色這件事(2026-08-15 補:這正是使用者回報的那個缺陷所在的圖層)。
 func makeEntry(sys: String, station: String, snapshot: MetroSnapshot?, now: Double) -> MetroEntry {
     MetroEntry(date: Date(), title: station,
                lineColor: MetroPalette.color(sys: sys, station: station),
                snapshot: snapshot, precision: precisionOf(sys),
                lastTrain: MetroLastTrain.within60min(catalog: catalog, sys: sys, station: station, now: now),
-               failed: false)
+               failed: false, sys: sys)
 }
 
 // 🔴 算繪專用的整體時間平移:Text(timerInterval:) 讀的是【真實牆鐘】,凍結樣本的 eta 全在
@@ -152,9 +159,12 @@ func makeEntry(sys: String, station: String, snapshot: MetroSnapshot?, now: Doub
 func shiftedToWallClock(_ s: MetroSnapshot, sampleNow: Double) -> MetroSnapshot {
     let delta = Date().timeIntervalSince1970 - sampleNow
     return MetroSnapshot(station: s.station, dataAt: s.dataAt,
+                         // 🔴 只平移時刻,其餘欄位【逐欄照抄】——漏抄 lineCode/trainNo 會讓
+                         //    逐列線點在算繪路徑上永遠不出現,圖看起來正常但那一層沒被驗到。
                          rows: s.rows.map { MetroRow(dest: $0.dest,
                                                      etaEpoch: $0.etaEpoch.map { $0 + delta },
-                                                     minutes: $0.minutes, crowd: $0.crowd) },
+                                                     minutes: $0.minutes, crowd: $0.crowd,
+                                                     lineCode: $0.lineCode, trainNo: $0.trainNo) },
                          stale: s.stale)
 }
 
@@ -176,6 +186,15 @@ let taipeiSnap = shiftedToWallClock(
     snap(kind: "trtc", station: "台北車站", now: taipeiNow, fixture: "${trtcFixture}", sys: "trtc"),
     sampleNow: taipeiNow)
 let taipeiEntry = makeEntry(sys: "trtc", station: "台北車站", snapshot: taipeiSnap, now: taipeiNow)
+
+// 忠孝復興(文湖線與板南線的轉乘站,而且兩條線都開往南港展覽館——全線唯一一組
+// 「站與終點都分不出線」的組合)。這張圖要看的是:兩列各自拿到自己的線點(棕/藍),
+// 站名旁邊【不】畫站別點(轉乘站取第一條線等於亂指,見 MetroPalette.color)。
+let zxfxNow = 1786690589.0 - 60   // 樣本裡那兩列的 at
+let zxfxSnap = shiftedToWallClock(
+    snap(kind: "trtc", station: "忠孝復興", now: zxfxNow, fixture: "${trtcFixture}", sys: "trtc"),
+    sampleNow: zxfxNow)
+let zxfxEntry = makeEntry(sys: "trtc", station: "忠孝復興", snapshot: zxfxSnap, now: zxfxNow)
 
 // 十四張(環狀線 Y 線,官方對這條線沒有車廂擁擠度)
 let szSnap = shiftedToWallClock(
@@ -272,6 +291,8 @@ struct Harness {
                width: 364, height: 382, to: outDir + "/metro-large.png")
         render(MetroBoardView(entry: taipeiLateEntry), family: .systemMedium,
                width: 364, height: 170, to: outDir + "/metro-medium-lastcall.png")
+        render(MetroBoardView(entry: zxfxEntry), family: .systemMedium,
+               width: 364, height: 170, to: outDir + "/metro-medium-interchange.png")
         render(MetroBoardView(entry: szAutoEntry), family: .systemSmall,
                width: 170, height: 170, to: outDir + "/metro-small-auto.png")
         render(MetroBoardView(entry: autoFailEntry), family: .systemSmall,

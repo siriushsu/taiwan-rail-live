@@ -55,6 +55,12 @@
 	<string>軌島會在開啟時將地圖移到你附近，並在你使用「附近車站」時列出周邊車站與列車。系統定位取得的原始座標只在裝置內使用，不會上傳；拒絕授權仍可手動探索地圖。</string>
 	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
 	<string>軌島只在你使用 App 時取得位置：開啟時將地圖移到你附近，並在「附近車站」列出周邊車站與列車。App 不會在背景持續定位，也不會主動要求「永遠允許」；原始座標只在裝置內使用，不會上傳，拒絕授權仍可手動探索地圖。</string>
+	<!-- 背景音訊：使用者開著背景音樂把 App 收起或鎖定螢幕時繼續播放（比照一般音樂 App）。
+	     只有 <audio> 實際在播時系統才保持 App 活躍，沒開音樂時不影響正常休眠。 -->
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>audio</string>
+	</array>
 	<key>UILaunchStoryboardName</key>
 	<string>LaunchScreen</string>
 	<key>UIMainStoryboardFile</key>

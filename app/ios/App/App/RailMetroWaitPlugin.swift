@@ -1,6 +1,7 @@
 import ActivityKit
 import Capacitor
 import Foundation
+import WidgetKit
 
 // 捷運等車卡:全手動開卡(使用者裁示)——零定位。倒數靠 Text(timerInterval:) 自走,
 // staleDate=下一班到站整點,isStale 翻真=view 畫「進站」。
@@ -16,6 +17,7 @@ public final class RailMetroWaitPlugin: CAPPlugin, CAPBridgedPlugin {
         CAPPluginMethod(name: "start", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "stop", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "status", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "setPlus", returnType: CAPPluginReturnPromise),
     ]
 
     // ── 深連結轉運(小工具 railisland://metro-wait?sys=…&station=…) ──
@@ -26,8 +28,10 @@ public final class RailMetroWaitPlugin: CAPPlugin, CAPBridgedPlugin {
     private static weak var shared: RailMetroWaitPlugin?
     private static var pendingOpenURL: URL?
 
+    // 通行證閘門擋下時,小工具的 widgetURL 是 railisland://pass ——同樣沒有 appUrlOpen 可聽,
+    // 一併由本 plugin 轉運成 "waitOpen" 事件(帶 view:"pass"),JS 端收到就開通行證面板。
     public static func handleOpen(url: URL) -> Bool {
-        guard url.scheme == "railisland", url.host == "metro-wait" else { return false }
+        guard url.scheme == "railisland", url.host == "metro-wait" || url.host == "pass" else { return false }
         if let p = shared { p.forwardOpen(url) } else { pendingOpenURL = url }
         return true
     }
@@ -36,6 +40,7 @@ public final class RailMetroWaitPlugin: CAPPlugin, CAPBridgedPlugin {
         guard let comps = URLComponents(url: url, resolvingAgainstBaseURL: false) else { return }
         var data: [String: Any] = [:]
         for item in comps.queryItems ?? [] { data[item.name] = item.value ?? "" }
+        if comps.host == "pass" { data["view"] = "pass" }
         notifyListeners("waitOpen", data: data, retainUntilConsumed: true)
     }
 
@@ -144,6 +149,17 @@ public final class RailMetroWaitPlugin: CAPPlugin, CAPBridgedPlugin {
     @objc func stop(_ call: CAPPluginCall) {
         guard #available(iOS 17.6, *) else { call.resolve(["ok": true]); return }
         enqueue { await self.endAll(); call.resolve(["ok": true]) }
+    }
+
+    // 通行證資格同步給小工具(App Group)。widget extension 拿不到 RevenueCat 的資格,
+    // 由 JS 在資格變動時(登入/購買/還原/每次 plusRefresh)推過來;鍵不存在＝未購買,
+    // 所以「裝了 App 從沒開過」的人看到的是免費層行為——CTA 文案要把「開一次 App」講出來。
+    @objc func setPlus(_ call: CAPPluginCall) {
+        let active = call.getBool("active") ?? false
+        UserDefaults(suiteName: "group.tw.railisland.app")?.set(active, forKey: "metro.plusActive")
+        // 資格變了要讓已裝的小工具重畫,否則買完還要等下一次 timeline 才解鎖。
+        WidgetCenter.shared.reloadAllTimelines()
+        call.resolve(["ok": true])
     }
 
     // JS 回前景對帳用:「結束」鈕(LiveActivityIntent)與鎖屏左滑清除都不經 JS,
