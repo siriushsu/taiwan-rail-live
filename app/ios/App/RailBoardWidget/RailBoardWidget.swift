@@ -725,7 +725,9 @@ struct RailBoardWidgetEntryView: View {
                 unavailableView(message)
             case .place(let snapshot):
                 switch family {
-                case .systemMedium:
+                // 🔴「我的地點」沒有 large 專屬版面 ⇒ 退回 Medium 那張三欄卡（它撐得起 large
+                //    的寬，只是下半留白）。設計檔的 large 規格是給車站看板的，這裡不硬套。
+                case .systemMedium, .systemLarge:
                     MediumPlaceBoardView(snapshot: snapshot, entryDate: entry.date)
                 case .accessoryRectangular:
                     RectangularPlaceBoardView(snapshot: snapshot, entryDate: entry.date)
@@ -734,6 +736,8 @@ struct RailBoardWidgetEntryView: View {
                 }
             case .board(let snapshot):
                 switch family {
+                case .systemLarge:
+                    LargeBoardView(snapshot: snapshot, entryDate: entry.date)
                 case .systemMedium:
                     MediumBoardView(snapshot: snapshot, entryDate: entry.date)
                 case .accessoryRectangular:
@@ -971,6 +975,72 @@ struct SmallBoardView: View {
     }
 }
 
+// MARK: - 發車看板 · Large（一主七從）
+
+/// v2 設計檔的 LARGE：364×382、八列、多一個發車時刻欄。
+///
+/// 使用者裁示「台鐵也可以加一個大的卡片」（2026-08-17）——在那之前這個小工具只支援
+/// Small／Medium／accessoryRectangular，設計檔畫的 large 無處可去。
+///
+/// 高度預算 21（標題）＋4＋64（主角含副標）＋32×8 ＝ 345／350。
+/// 列高 32 是設計檔 large 那張 mock 的字面值（height:32px）；列數見下面 followLimit 的紅字。
+struct LargeBoardView: View {
+    let snapshot: BoardSnapshot
+    let entryDate: Date
+
+    var body: some View {
+        GeometryReader { geo in
+            let scale = RailScale(width: geo.size.width, reference: RailScale.mediumReference)
+            content(scale)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        }
+        .padding(RailBoardInsets.content)
+    }
+
+    /// 🔴 八班（共九列），比設計檔字面的「8 列」多一列。
+    ///    設計檔的 large mock 是 7 從班＋主角，但實測那樣主角與從班之間會空 37pt——
+    ///    正是設計檔自己批評的「留大片空白」。算式：21（標題）＋4＋64（主角含副標）
+    ///    ＋32×8 ＝ 345／350，多這一列剛好把卡填滿。捷運看板 2026-08 也做過同一個判斷
+    ///    （MetroBoardWidget 的 followLimit 紅字：「Large 一開始寫 6 是照設計稿字面，
+    ///    但實測那樣底部會空 77pt」），兩張卡的取捨一致。
+    /// 班表警示那一行多吃 18pt ⇒ 少一班（同 Medium 的取捨：砍列不縮字）。
+    private var followLimit: Int { snapshot.notice == nil ? 8 : 7 }
+
+    @ViewBuilder
+    private func content(_ scale: RailScale) -> some View {
+        let follows = Array(snapshot.rows.dropFirst().prefix(followLimit))
+        VStack(alignment: .leading, spacing: 0) {
+            RailCardTitle(title: snapshot.title, scale: scale) {
+                RailStamp(text: RailBoardClock.updateTimeString(snapshot.generatedAt), scale: scale)
+            }
+            if let notice = snapshot.notice {
+                BoardNotice(notice: notice, scale: scale)
+                    .frame(height: scale.pt(18), alignment: .leading)
+                Spacer().frame(height: scale.pt(4))
+            } else {
+                Spacer().frame(height: scale.pt(4))
+            }
+
+            if let lead = snapshot.rows.first {
+                // large 是唯一畫主角副標的尺寸：「發車時刻與月台那一行讓給 large」。
+                BoardRowView(row: lead, snapshot: snapshot, entryDate: entryDate,
+                             role: .hero, scale: scale)
+                Spacer(minLength: 0)
+                ForEach(Array(follows.enumerated()), id: \.offset) { index, row in
+                    BoardRowView(row: row, snapshot: snapshot, entryDate: entryDate,
+                                 role: .followLarge, scale: scale)
+                }
+            } else {
+                Text(snapshot.emptyMessage ?? "查無班次")
+                    .font(.system(size: scale.pt(15)))
+                    .foregroundStyle(.secondary)
+                    .frame(maxWidth: .infinity, alignment: .center)
+                Spacer(minLength: 0)
+            }
+        }
+    }
+}
+
 /// Small 的第二班。設計稿給的是一套獨立的（更小的）字級：車種標 11pt、終點站 13pt、
 /// 分鐘 15pt——170pt 寬只有 138pt 可用，Medium 次列那套 11.5/17/17 放不下。
 ///
@@ -1134,10 +1204,30 @@ struct BoardRowView: View {
                     Text(row.watchingDestinationText)
                         .font(.system(size: scale.pt(17)))
                         .foregroundStyle(.secondary)
-                        .lineLimit(1).minimumScaleFactor(0.85)
+                        // 🔴 下限 0.7 不是 0.85：large 那一列同時有狀態、發車時刻與分鐘三個
+                        //    固定欄,誤點時 0.85 會讓終點站被截成「往…」——一個字都沒有的
+                        //    終點站等於這一列沒用（同 Small 站名那條）。設計檔說終點站是唯一
+                        //    可截的欄,但「可截」的前提是截完還讀得出來。
+                        .lineLimit(1).minimumScaleFactor(0.7)
                     if row.isPassing { PassBadge(scale: scale) }
                     Spacer(minLength: scale.pt(4))
                     followStatus
+                    // large 才有的發車時刻欄。設計檔：「large 多一個發車時刻欄；長等待用時刻
+                    // 回答比用分鐘準」——40 分鐘後那班，「12:04」比「38 分」好用。
+                    // 🔴 倒數已經退成靜態時刻（>90 分鐘）時不畫：那時數字欄畫的就是這個時刻，
+                    //    畫兩次會讓人以為是兩個不同的時間。
+                    if role == .followLarge, !showsClock {
+                        // 🔴 用 scheduledTime 不用 departureText：後者在誤點時是
+                        //    「21:43 開 → 21:46」的雙時刻長句（實測 110pt），塞進 40pt 的欄
+                        //    不會被裁掉——SwiftUI 的 frame 不裁切，它會直接畫到隔壁的狀態上面
+                        //    （算繪實看到兩串字疊在一起）。這一欄按設計檔就是一個乾淨的時刻。
+                        Text(sameDay ? row.scheduledTime : "明天 " + row.scheduledTime)
+                            .font(.system(size: scale.pt(13)))
+                            .foregroundStyle(.tertiary)
+                            .monospacedDigit()
+                            .lineLimit(1).fixedSize()
+                            .frame(width: scale.pt(40), alignment: .trailing)
+                    }
                 }
             }
         } trailing: {
@@ -1189,7 +1279,9 @@ struct BoardRowView: View {
             RailStatusTag(kind: .delay(delay), fontSize: 12, scale: scale)
         } else if row.isLastOfDay, sameDay {
             RailStatusTag(kind: .lastTrain, fontSize: 12, scale: scale)
-        } else {
+        } else if role != .followLarge {
+            // 🔴 這個 else 只留給【沒有發車時刻欄】的尺寸（Medium）。large 有自己那一欄，
+            //    兩邊都畫的話同一個時刻會在同一列印兩次並且互相疊上去（算繪實看抓到）。
             Text(sameDay ? row.scheduledTime : "明天 " + row.scheduledTime)
                 .font(.system(size: scale.pt(12)))
                 .monospacedDigit()
@@ -1859,7 +1951,7 @@ struct RailBoardWidget: Widget {
         }
         .configurationDisplayName("發車看板")
         .description("查看台鐵或高鐵接下來的直達、停靠、終到與通過列車。")
-        .supportedFamilies([.systemSmall, .systemMedium, .accessoryRectangular])
+        .supportedFamilies([.systemSmall, .systemMedium, .systemLarge, .accessoryRectangular])
         .contentMarginsDisabled()
     }
 }

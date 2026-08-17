@@ -81,7 +81,7 @@ const pieces = [
   // RailHeading.between(...) 吃 StationRecord ⇒ 兩個要一起抽,不然「方向從哪來」
   // 這件事在 harness 裡會被換成別的實作（判準與出貨程式碼分岔）。
   extractDeclaration(dataSource, 'struct StationRecord'),
-  extractDeclaration(dataSource, 'enum RailHeading'),
+  extractDeclaration(dataSource, 'extension RailHeading'),
   extractDeclaration(dataSource, 'enum ScheduleNotice'),
   extractDeclaration(widgetSource, 'extension Color'),
   // 資料模型（BoardRow 裡有「倒數已含誤點」的 effectiveDate 與三種關係詞，都是版面在讀的）
@@ -101,6 +101,7 @@ const pieces = [
   extractDeclaration(widgetSource, 'struct SmallBoardView'),
   extractDeclaration(widgetSource, 'struct SmallSecondRow'),
   extractDeclaration(widgetSource, 'struct MediumBoardView'),
+  extractDeclaration(widgetSource, 'struct LargeBoardView'),
   extractDeclaration(widgetSource, 'struct BoardRowView'),
   extractDeclaration(widgetSource, 'struct RectangularBoardView'),
   extractDeclaration(widgetSource, 'struct SmallPlaceBoardView'),
@@ -252,7 +253,10 @@ let fullBoard = snapshot(title: "臺北車站", watching: true, rows: [
     boardRow("152", "自強", to: "樹林", minutesFromNow: 24),
     boardRow("2190", "區間車", to: "蘇澳", minutesFromNow: 31, heading: .north),
     boardRow("176", "自強", to: "高雄", minutesFromNow: 38),
-    boardRow("2206", "區間車", to: "桃園", minutesFromNow: 46, lastOfDay: true),
+    boardRow("2206", "區間車", to: "桃園", minutesFromNow: 46),
+    boardRow("122", "自強", to: "臺東", minutesFromNow: 52),
+    boardRow("2222", "區間車", to: "基隆", minutesFromNow: 58, heading: .north),
+    boardRow("4048", "區間快", to: "苗栗", minutesFromNow: 64, lastOfDay: true),
 ])
 
 // ── 我的地點 ────────────────────────────────────────────────────────────────
@@ -688,6 +692,21 @@ struct Harness {
                family: .systemMedium, width: 338, height: 158, to: out + "/board-medium-full4-393.png")
         render(SmallBoardView(snapshot: fullBoard, entryDate: clockNow),
                family: .systemSmall, width: 170, height: 170, to: out + "/board-small-full.png")
+
+        // Large（2026-08-17 使用者裁示「台鐵也可以加一個大的卡片」）：八列＋發車時刻欄。
+        render(LargeBoardView(snapshot: fullBoard, entryDate: clockNow),
+               family: .systemLarge, width: 364, height: 382, to: out + "/board-large.png")
+        render(LargeBoardView(snapshot: fullBoard, entryDate: clockNow),
+               family: .systemLarge, width: 364, height: 382, scheme: .dark,
+               to: out + "/board-large-dark.png")
+        render(LargeBoardView(snapshot: fullBoard, entryDate: clockNow),
+               family: .systemLarge, width: 338, height: 354, to: out + "/board-large-393.png")
+        render(LargeBoardView(snapshot: taipeiWatch, entryDate: clockNow),
+               family: .systemLarge, width: 364, height: 382, to: out + "/board-large-short.png")
+        render(LargeBoardView(snapshot: farAway, entryDate: clockNow),
+               family: .systemLarge, width: 364, height: 382, to: out + "/board-large-far.png")
+        render(LargeBoardView(snapshot: emptyBoard, entryDate: clockNow),
+               family: .systemLarge, width: 364, height: 382, to: out + "/board-large-empty.png")
 
         // 鎖屏：家族自己就是單色，且沒有內容邊距。
         render(RectangularBoardView(snapshot: taipeiWatch, entryDate: clockNow),
