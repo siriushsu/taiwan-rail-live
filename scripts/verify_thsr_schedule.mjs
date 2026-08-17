@@ -606,22 +606,32 @@ async function runWindowAndSelfHeal() {
     }
 
     // ── V7b:blob 超過自我設限時,從最舊的日鍵開始丟,今天必須留下 ──
-    // 沒有這道保護,班表一長到寫不進 D1(硬上限 2MB)就會 INSERT 失敗 ⇒ 靜默停更,正是事故的形狀。
+    // 沒有這道保護,班表一長到寫不進 D1(硬上限 2,000,000 bytes)就會 INSERT 整筆失敗 ⇒ 靜默停更,
+    // 正是這次事故的形狀。
+    // 🔴 種子只放【一個】超大舊日鍵,不是很多個小的:1 舊 + 7 天窗 = 8 = KEEP_DAYS,日鍵數修剪
+    // 這條路徑碰不到它 ⇒ 剪掉它的只可能是大小保護。第一版寫成 5 個 300KB,結果 KEEP_DAYS 先把
+    // 它們剪光、總量從來沒超過上限,判準卻仍全綠——突變測試(把上限放到 99MB)一驗就露餡。
     {
       hits.length = 0; failAll = false;
-      // 每個假日鍵灌到約 300KB,五個就 1.5MB,加上真窗的 7 天必定超過 1.6MB 的自我設限。
-      const bulk = 'x'.repeat(300_000);
-      const oldKeys = ['20200101', '20200102', '20200103', '20200104', '20200105'];
-      const oldDays = Object.fromEntries(oldKeys.map(k => [k, { system: '高鐵時刻表', date: k, trains: [], pad: bulk }]));
-      const seedBlob = JSON.stringify({ fetchedAt: '2000-01-01T00:00:00Z', days: oldDays, _meta: {} });
+      const oldKey = '20200101';
+      const seedBlob = JSON.stringify({
+        fetchedAt: '2000-01-01T00:00:00Z',
+        days: { [oldKey]: { system: '高鐵時刻表', date: oldKey, trains: [], pad: 'x'.repeat(1_200_000) } },
+        _meta: {},
+      });
       const { DELAY_DB } = openTestDb();
       await DELAY_DB.prepare('INSERT INTO kv_blobs (k,v,updated) VALUES (?,?,?)').bind('thsr_sched', seedBlob, '2000-01-01').run();
       await ingestThsrSchedule({ ...envBase, DELAY_DB });
       const row = await DELAY_DB.prepare('SELECT v FROM kv_blobs WHERE k=?').bind('thsr_sched').first();
       const keys = Object.keys(JSON.parse(row.v).days).sort();
-      ok('V7b 超量時仍寫得進去(未因超過 D1 單列上限而整筆失敗)', row.v.length <= 1_600_000, `bytes=${row.v.length}`);
-      ok('V7b 丟掉的是最舊的,今天與整個抓取窗都留著', windowIso.every(d => keys.includes(d.replace(/-/g, ''))), JSON.stringify(keys));
-      ok('V7b 正向對照(種子確實大到會觸發修剪)', seedBlob.length > 1_400_000, `seed=${seedBlob.length} bytes`);
+      // 判準用 D1 的硬上限(外部事實,與實作的自我設限無關),不用 THSR_BLOB_MAX_BYTES ——
+      // 拿實作自己的常數當判準,常數被改大時判準會跟著放寬,等於沒驗。
+      ok('V7b 寫進去的量沒有超過 D1 單列硬上限(2,000,000 bytes)', row.v.length < 2_000_000, `bytes=${row.v.length}`);
+      ok(`V7b 剪掉的是那個超大舊日鍵(剩 ${KEEP_WINDOW} 個 < KEEP_DAYS=${KEEP_MAX} ⇒ 確實是大小保護動的手,不是日鍵數修剪)`,
+        !keys.includes(oldKey) && keys.length === KEEP_WINDOW && keys.length < KEEP_MAX, JSON.stringify(keys));
+      ok('V7b 今天與整個抓取窗都留著', windowIso.every(d => keys.includes(d.replace(/-/g, ''))), JSON.stringify(keys));
+      ok('V7b 正向對照(種子＋抓取窗確實超過上限,不然這組是空跑)',
+        seedBlob.length + FA.daily.length * 1500 * KEEP_WINDOW > 2_000_000, `seed=${seedBlob.length} bytes`);
     }
 
     // ── V8a:blob 已有今天 → 不補抓、零上游呼叫 ──
