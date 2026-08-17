@@ -939,10 +939,18 @@ async function trtcLive(request, env) {
         // dest/path 優先取倒數切段（新鮮）；沒配到才退回 meta（BR 恆為 undefined ⇒ 空）。
         // `at` 一併換成 TrackInfo 的基準時刻：它是這條 path 的時間基準，留著 CarWeightBR 的
         // UpdateTime 會讓前端的 stale-at 閘門拿兩個不同來源的時鐘互比。
+        // 🔴 BR 一律不送 cars(2026-08-18)。看板與桌面小工具的擁擠度 join 都是
+        // 「同終點、有 cars 的第一台」(index.html applyTrtcOfficialBoard / MetroBoardModel.crowdFor),
+        // 鍵只有終點。本批之前 BR 的 dest 恆為 null ⇒ 那條 join 對 BR 結構上不可能命中;
+        // 現在補了 dest,若再送 cars,「往動物園」的每一列都會被貼上同一台 BR 車的擁擠度——
+        // 那是拿官方值去講一件官方沒說的事(哪一站的下一班是哪台車),違反「不畫假資料、不猜」。
+        // dest 不能不送:trtcCensusVehicles 要求它是合法站序整數,null 會讓整包 payload 判 malformed。
+        // 正解是把 join 改成逐車(看板 no ↔ trains[].stn 前綴),那是另一批;在那之前維持原狀。
+        // ⚠️ 小工具吃同一份 payload 且 1.4.6(63) 已送審改不動 ⇒ 這道閘門只能放在伺服器端。
         trains.push({ no, sys: 'br', dir: segHit ? segHit.dir : +r.CID, stn: r.StationID,
           at: segHit && Number.isFinite(segHit.baseEpoch) ? segHit.baseEpoch : trtcEpoch(r.UpdateTime),
           dest: segHit ? segHit.destName : (m ? m.dest : null),
-          path: segHit ? segHit.path : (m ? m.path : []), ...(cars ? { cars } : {}) });
+          path: segHit ? segHit.path : (m ? m.path : []) });
       }
       const legacy = { at: new Date().toISOString(), src: 'trtc',
         trains: trains.filter(t => t.at != null && /^[A-Z]+\d+$/.test(t.stn) && (t.dir === 1 || t.dir === 2)),

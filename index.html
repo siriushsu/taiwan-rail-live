@@ -17837,7 +17837,11 @@ function applyTrtcOfficialBoard(rows, receivedAt = Date.now(), trains = null) {
   // 車廂擁擠度:同一 payload 的 trains[].cars(官方逐節資料,只有北捷高運量/文湖有)。
   // join 語意與小工具 MetroBoardModel.crowdFor 完全同一套——同終點、有 cars 的第一台;
   // 兩個介面(桌面小工具 vs App 看板)看到的必須是同一份,改 join 要兩邊一起改。
-  // 官方沒給就是沒有(文湖線 trains 無 dest 可 join,恆缺),不補、不猜。
+  // 官方沒給就是沒有,不補、不猜。
+  // 🔴 這條 join 的鍵只有終點,所以它答的是「往這個終點的某一台車多擠」,不是「這一站的下一班多擠」
+  // ——同終點的每一列都會拿到同一台車的值。文湖線 2026-08-18 起有了 dest(位置改吃官方倒數),
+  // 因此改由 worker 端不送 BR 的 cars 來維持原狀;正解是逐車 join(看板 no ↔ trains[].stn 前綴),
+  // 見 [[interchange-needs-per-train-key]]。改這裡要連桌面小工具 MetroBoardModel.crowdFor 一起改。
   const crowdByDest = {};
   for (const t of Array.isArray(trains) ? trains : []) {
     const dest = t && typeof t.dest === 'string' ? t.dest : '';
