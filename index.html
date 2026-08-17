@@ -4324,7 +4324,7 @@
 //         中和新蘆線分支鎖、捷運徽章範圍、App 那整批 index.html 內容），並合入高鐵班表抓取窗
 //         2→7 天與每 5 分鐘自我檢查。v0816d／v0817a 兩條 ship 分支的 index.html 都還掛著
 //         v0816c，本批內容與它們都不同 ⇒ 推一個誰都沒用過的號。
-const BUILD = 'v0817c';
+const BUILD = 'v0817d';
 // 2026-08-13 起預設開啟（使用者親試預覽後裁示上線）：北捷畫車依官方即時名冊，班表只是備案。
 // 保留 ?officialroster=0 當逃生口——要退回班表路徑不必回滾部署，加個參數即可對照。
 // 🔴 這個函式會被 verify_official_roster_frontend 抽出來丟進 VM 單獨執行——
@@ -17868,9 +17868,17 @@ function applyTrtcBoard(rows, observedEpoch, trips) {
       else if (motion.clamped === 'high') stat.clampedHigh++;
       // endpoint path 遮住畫面期間可直接把同一 physical eased channel 對齊 backend shift；
       // visualShift 精確對齊 freqTrainPosRaw 真正到站的秒值；release 下一格自然從同一站出發。
-      const ek = trtcEasedMotionKey(ln, tr, physicalKey), old = _easedShift.get(ek);
-      if (old) { old.cur = visualShift; old.sim = motionSec; old.at = performance.now(); }
-      else _easedShift.set(ek, { cur: visualShift, at: performance.now(), sim: motionSec, ep: _metroGateEp.ep });
+      // 🔴 2026-08-17 這道閘門補得比較晚,踩過一次：這裡是【直接寫 _easedShift】的旁路,
+      //    不經 metroShiftSec 的 `on` 判斷。北捷改純班表之後只擋了 metroShiftSec 的 target,
+      //    這條旁路照樣把校正量灌進同一個 eased channel ⇒ 實測正式站仍有 23 台車帶著校正、
+      //    位置偏離班表最多 589 公尺,「純班表」根本不純。與 trtcBoardPosition 用同一道閘門
+      //    (metroLiveOn),兩處才會一起翻面。不可改用 !TRTC_PURE_SCHEDULE_POSITION(那對其他
+      //    營運者恆真)、也不可讓 metroShiftSec 硬 return 0(高捷/輕軌/機捷/新北捷會瞬移)。
+      if (metroLiveOn(ln)) {
+        const ek = trtcEasedMotionKey(ln, tr, physicalKey), old = _easedShift.get(ek);
+        if (old) { old.cur = visualShift; old.sim = motionSec; old.at = performance.now(); }
+        else _easedShift.set(ek, { cur: visualShift, at: performance.now(), sim: motionSec, ep: _metroGateEp.ep });
+      }
     }
     if (motion && motion.clamped === 'pastTarget') stat.pastTarget++;
     if (motion && motion.clamped === 'offShape') stat.offShape++;
