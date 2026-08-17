@@ -4335,11 +4335,19 @@ const BUILD = 'v0817d';
 // ⇒ 官方名冊【預設關閉】,北捷/環狀線的車回到班表推演（站牌倒數不受影響,那條走 boardPos.rows）。
 //   要驗證名冊改動用 ?officialroster=1；後端照常算、照常寫 D1,所以要開回來只是改這一行。
 function trtcOfficialRosterEnabled(search) {
-  try { return new URLSearchParams(search == null ? location.search : search).get('officialroster') === '1'; }
+  try {
+    const q = new URLSearchParams(search == null ? location.search : search);
+    // ?census=1 是 2026-08-17 的新名冊來源（官方逐車清單），它同樣要走名冊繪製路徑。
+    return q.get('officialroster') === '1' || q.get('census') === '1';
+  } catch (e) { return false; }
+}
+function trtcCensusRosterEnabled(search) {
+  try { return new URLSearchParams(search == null ? location.search : search).get('census') === '1'; }
   catch (e) { return false; }
 }
 // URL 開關必須在開機初始就固定；clearFollow() 會整理 query string，不可在後面重讀。
 const OFFICIAL_ROSTER_ENABLED = trtcOfficialRosterEnabled(location.search);
+const CENSUS_ROSTER_ENABLED = trtcCensusRosterEnabled(location.search);
 // 官方名冊關著的期間,北捷位置＝純班表：不套誤點校正、不做官方看板錨定（見 metroLiveOn）。
 // 兩件事一起翻面才自洽——名冊關掉卻留著校正,畫出來的既不是官方位置也不是班表。
 const TRTC_PURE_SCHEDULE_POSITION = !OFFICIAL_ROSTER_ENABLED;
@@ -4831,6 +4839,126 @@ function trtcOfficialRosterActive(boardPos, enabled, nowEpoch) {
 function trtcOfficialRosterForLine(boardPos, lineId) {
   if (!boardPos || !Array.isArray(boardPos.vehicles)) return [];
   return boardPos.vehicles.filter(vehicle => vehicle && String(vehicle.line) === String(lineId));
+}
+
+// ── 逐車名冊 (?census=1)：名冊來源＝官方逐車清單，站牌倒數只負責時刻 ──────────────
+// 2026-08-17 架構調整。舊名冊由站牌倒數列反推「有幾台車、誰是誰」，但站牌逐輪只提到一部分車
+// （實測 67 個車號 vs 逐車清單 76 台），於是「認不出車號」被升級成「位置不確定」——
+// 綁定器配錯班 ⇒ shift≈k×班距 ⇒ 使用者看到的疊車與倒退。逐車清單本身就帶穩定身分，不必綁定。
+// 詳細契約與判準見 scripts/trtc_census_roster.mjs 與 verify_census_roster.mjs（同一套規則）。
+const _trtcCensusNorm = s => String(s == null ? '' : s).trim().replace(/站$/, '');
+let _trtcCodes = null, _trtcCodesLoading = null;
+function trtcCodesEnsure() {
+  if (_trtcCodes || _trtcCodesLoading) return _trtcCodesLoading;
+  _trtcCodesLoading = fetch('./data/trtc_codes.json').then(r => r.json())
+    .then(j => { _trtcCodes = j; return j; }).catch(() => { _trtcCodesLoading = null; return null; });
+  return _trtcCodesLoading;
+}
+function trtcCensusLine(id) {
+  for (const ln of state.lines || []) if (ln && ln.id === id) return ln;
+  for (const ln of state.decoLines || []) if (ln && ln.id === id) return ln;
+  return null;
+}
+function trtcCensusNames(ln) {
+  if (!ln._censusNames) ln._censusNames = (ln.stations || []).map(s => _trtcCensusNorm(s && s.name));
+  return ln._censusNames;
+}
+function trtcCensusRun(ln, from, to) {
+  const seg = ln.segs && ln.segs[Math.min(from, to)];
+  const v = seg && Number(seg.run);
+  return v > 0 ? v : 90;
+}
+// 站碼 → {line, i}。分支點（R22 同時是 R 第 20 站與 R_XBT 第 0 站）用「下一站／終點站在哪條線上」
+// 決定，不用車號猜——用車號猜正是舊綁定器那個無錨點回饋迴圈的來源。
+function trtcCensusResolve(stn, nextName, destName) {
+  const rec = _trtcCodes && _trtcCodes[String(stn)];
+  const on = (rec && rec.on) || [];
+  if (!on.length) return null;
+  if (on.length === 1) return { line: on[0].ln, i: Number(on[0].i) };
+  const next = _trtcCensusNorm(nextName), dest = _trtcCensusNorm(destName);
+  const scored = on.map(c => {
+    const ln = trtcCensusLine(c.ln), arr = ln ? trtcCensusNames(ln) : [];
+    const ni = next ? arr.indexOf(next) : -1, di = dest ? arr.indexOf(dest) : -1;
+    let score = 0;
+    if (ni >= 0) score += 2 + (Math.abs(ni - Number(c.i)) <= 2 ? 2 : 0);
+    if (di >= 0 && di !== Number(c.i)) score += 1;
+    return { line: c.ln, i: Number(c.i), score };
+  }).sort((a, b) => b.score - a.score);
+  if (!scored[0].score || (scored[1] && scored[1].score === scored[0].score)) return null;
+  return scored[0];
+}
+let _trtcCensusPrior = new Map();
+function trtcCensusVehicles(trains, nowEpoch, day) {
+  if (!_trtcCodes) { trtcCodesEnsure(); return null; } // 站碼表還沒到：這一輪不動名冊
+  const out = [], seen = new Set(), prior = _trtcCensusPrior, next = new Map();
+  for (const t of trains || []) {
+    const no = String((t && t.no) || '').trim();
+    if (!no) continue;
+    const sys = t.sys === 'br' ? 'br' : 'hw', at = Number(t.at);
+    if (Number.isFinite(at) && nowEpoch - at > 900) continue; // 連粗位置都不可信，這輪略過
+    const path = Array.isArray(t.path) ? t.path : [];
+    const hit = trtcCensusResolve(t.stn, path.find(x => Number(x.eta) > nowEpoch)?.name, t.dest);
+    if (!hit) continue;
+    const ln = trtcCensusLine(hit.line); if (!ln) continue;
+    const arr = trtcCensusNames(ln);
+    // 方向優先從 path 推：dir 欄位在終點站折返時會落後（實測 66 筆有 path 的樣本中 3 筆），
+    // 照抄 dir 就會把剛掉頭的車畫成反向。
+    // path 的前幾筆常常已經是過去式——官方對「列車進站」給的倒數是 0，換算出來的 eta
+    // 就等於這份 payload 的時戳，下一輪輪詢時它早就過期了。若照抄第一筆，車會卡在那一站，
+    // 前後兩班就疊在同一個站點上（實測疊車 3 對全是這樣來的）。取第一個還沒到的站當目標。
+    let pi = 0;
+    while (pi < path.length && Number(path[pi].eta) <= nowEpoch) pi++;
+    const head = pi < path.length ? path[pi] : null;
+    let step = null, nextIdx = head ? arr.indexOf(_trtcCensusNorm(head.name)) : -1;
+    if (nextIdx >= 0 && nextIdx !== hit.i) step = Math.sign(nextIdx - hit.i);
+    if (step == null) {
+      if (Number(t.dir) !== 1 && Number(t.dir) !== 2) continue;
+      step = Number(t.dir) === 1 ? -1 : 1;
+    }
+    let from, to;
+    if (nextIdx >= 0 && nextIdx !== hit.i) { to = nextIdx; from = to - step; }
+    else { from = hit.i; to = hit.i + step; }
+    if (from < 0 || to < 0 || from >= arr.length || to >= arr.length) from = to = hit.i;
+    const terminal = from === to, run = terminal ? 0 : trtcCensusRun(ln, from, to);
+    const firstEta = head ? Number(head.eta) : NaN;
+    const arrEpoch = Number.isFinite(firstEta) && !terminal ? firstEta
+      : (Number.isFinite(at) ? at + run : nowEpoch + run);
+    // dest 不是裝飾：名冊驗證要求它是合法站序整數，null 會讓整包 payload 被判 malformed。
+    // 官方沒給終點（文湖線全部、高運量約一成）就用行進方向上的線末站——語意也對。
+    const di0 = arr.indexOf(_trtcCensusNorm(t.dest));
+    const di = di0 >= 0 ? di0 : (step > 0 ? arr.length - 1 : 0);
+    const vehicleId = 'cs:' + day + ':' + sys + ':' + no;
+    if (seen.has(vehicleId)) continue;
+    seen.add(vehicleId);
+    // 只准前進。兩個位置來源的新鮮度差很大（CarWeight 的 stn 實測落後 96–265 秒、
+    // TrackInfo 的 path 約 25 秒），同一台車在有／沒有 path 之間切換時會在兩者間跳，
+    // 往回跳就是倒退。落到上一輪後面就維持上一輪，等官方資料自己追上。
+    const prev = prior.get(vehicleId);
+    let vehicle;
+    if (prev && prev.line === hit.line && prev.dir === (step > 0 ? 2 : 1) &&
+        !prev.terminal && !terminal && (to - prev.to) * step < 0) {
+      vehicle = { ...prev, arrEpoch: Math.max(prev.arrEpoch, nowEpoch), observedEpoch: nowEpoch };
+    } else {
+      const timeline = [];
+      let cur = from;
+      for (const p of (terminal ? [] : path.slice(pi))) {
+        const idx = arr.indexOf(_trtcCensusNorm(p.name));
+        if (idx < 0 || idx === cur || Math.sign(idx - cur) !== step) break;
+        const eta = Number(p.eta); if (!Number.isFinite(eta)) break;
+        const r = trtcCensusRun(ln, cur, idx);
+        timeline.push({ from: cur, to: idx, depEpoch: eta - r, arrEpoch: eta, terminal: false });
+        cur = idx;
+      }
+      if (!timeline.length) timeline.push({ from, to, depEpoch: arrEpoch - run, arrEpoch, terminal });
+      vehicle = { vehicleId, line: hit.line, dir: step > 0 ? 2 : 1, dest: di,
+        from, to, run, arrEpoch, terminal, officialNo: sys === 'hw' ? no : null,
+        source: 'census', observedEpoch: nowEpoch, timeline };
+    }
+    next.set(vehicleId, vehicle);
+    out.push(vehicle);
+  }
+  _trtcCensusPrior = next;
+  return out;
 }
 // 官方看板中斷多久了。後端沒有送 held 旗標（2026-08-15 斷線 33 分鐘期間 boardPos.held 全程 undefined），
 // 所以資料齡一律由前端自己從名冊的 observedEpoch 算。
@@ -17978,7 +18106,17 @@ async function pollTrtcLive() {
         (OFFICIAL_ROSTER_ENABLED || ln._tt));
       if (animationEligible) {
         if (OFFICIAL_ROSTER_ENABLED) {
-          if (d && d.boardPos) applyTrtcOfficialRoster(d.boardPos);
+          if (d && d.boardPos) {
+            // 逐車名冊模式：名冊整包換成從官方逐車清單建的，其餘（時刻、看板、繪製）全部照舊。
+            // 站牌倒數那條路徑完全不動——它本來就直接來自官方，與名冊無關。
+            if (CENSUS_ROSTER_ENABLED && Array.isArray(d.trains)) {
+              // 站碼表是這條路徑的硬前提，沒有它一台車都建不出來。首輪 fetch 回來時它多半
+              // 還在飛，若當輪直接放棄就要等下一次輪詢（60 秒）畫面才會有車。
+              await trtcCodesEnsure();
+              const built = trtcCensusVehicles(d.trains, Date.now() / 1000, todayStr());
+              if (built) applyTrtcOfficialRoster({ ...d.boardPos, vehicles: built, feedMode: 'official' });
+            } else applyTrtcOfficialRoster(d.boardPos);
+          }
           else trtcOfficialRosterHold('missing-boardPos');
           clearTrtcBoard(); // 官方名冊不吃舊 trip shift；outage 時原班表路徑也由乾淨基線接手。
         } else if (validBoardPos) applyTrtcBoard(d.boardPos.rows, Number(d.boardPos.at), d.boardPos.trips);

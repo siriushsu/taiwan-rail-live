@@ -25,7 +25,10 @@ const GAP_SEC = Number((() => { const i = args.indexOf('--gap'); return i >= 0 ?
 
 // 門檻。刻意寫成「結構性質」而不是魔術數字：疊車用車號牌的實際半寬，
 // 倒退用 0（任何負位移都不該有），車數用相對比例。
-const OVERLAP_PX = 16;      // 車號牌寬度量級：比這近就是視覺上疊在一起
+const OVERLAP_M = 250;      // 沿線間距。用實際距離不用像素——像素門檻會隨縮放漂移，
+                            // 同一份資料在不同 zoom 下會給出不同結論。250m 是物理下限量級：
+                            // 捷運最小班距下兩台車不可能靠這麼近（尖峰 2 分鐘班距≈2km）。
+const OVERLAP_PX = 8;       // 另外守一條視覺線：不管實際距離，畫面上疊在一起就是缺陷
 const BACKWARD_M = 15;      // 沿線負位移超過這個距離才算倒退（低於此為投影抖動）
 const STALL_RATIO = .9;     // 幾乎整條線的車都沒動才算凍結。停站本身就會讓車不動，
                             // 門檻抓一半會把「正常停站」誤判成凍結（實測 8 秒觀測窗下 BL 10/19 全在停站）
@@ -48,13 +51,22 @@ const SAMPLE = () => {
       const pr = projectOntoShape(ln, ll.lat, ll.lng);
       d = pr && pr.d != null ? pr.d : null;
     } catch (e) {}
-    // 方向：有班表車就用它的首末站里程判，示意車用 k 槽（同一槽恆定方向）
+    // 方向。三種畫車路徑各有各的 hit 形狀，取不到就是 0（後面的位移判定會跳過）：
+    //   班表車 {ln,tr}／示意車 {ln,k}／名冊車 {ln,vehicleId}（?census=1 與 ?officialroster=1 走這條）
     let dir = 0;
     try {
-      if (tr && ln.stations) dir = Math.sign(ln.stations[tr[tr.length - 2]].d - ln.stations[tr[0]].d) || 0;
+      if (h.vehicleId) {
+        const v = ((state.trtcOfficialRoster || {}).vehicles || [])
+          .find(x => String(x.vehicleId) === String(h.vehicleId));
+        if (v) dir = v.dir === 2 ? 1 : -1;   // 統一成「里程遞增為 +1」
+      } else if (tr && ln.stations) {
+        dir = Math.sign(ln.stations[tr[tr.length - 2]].d - ln.stations[tr[0]].d) || 0;
+      }
     } catch (e) {}
     out.push({
-      key: tr ? `${ln.id}#tr${(ln._tt || []).indexOf(tr)}` : `${ln.id}#k${h.k}`,
+      // 名冊車的身分是 vehicleId（hit 裡沒有 tr／k，用舊寫法會讓整條線塌成同一個 key，
+      // 位移與疊車判定全部失效）
+      key: h.vehicleId ? `${ln.id}#${h.vehicleId}` : (tr ? `${ln.id}#tr${(ln._tt || []).indexOf(tr)}` : `${ln.id}#k${h.k}`),
       line: ln.id, abbr: ln.abbr, dir, x: h.x, y: h.y, d,
       sys: typeof freqSysIdOf === 'function' ? freqSysIdOf(ln) : null,
     });
@@ -126,11 +138,14 @@ const clumps = [];
 for (const [g, arr] of groups) {
   for (let i = 0; i < arr.length; i++) for (let j = i + 1; j < arr.length; j++) {
     const px = Math.hypot(arr[i].x - arr[j].x, arr[i].y - arr[j].y);
-    if (px < OVERLAP_PX) clumps.push({ group: g, px: Math.round(px), a: arr[i].key, b: arr[j].key });
+    const m = (arr[i].d != null && arr[j].d != null) ? Math.abs(arr[i].d - arr[j].d) * 1000 : null;
+    const tooClose = (m != null ? m < OVERLAP_M : false) || px < OVERLAP_PX;
+    if (tooClose) clumps.push({ group: g, px: Math.round(px), m: m == null ? null : Math.round(m),
+      a: arr[i].key, b: arr[j].key });
   }
 }
 console.log(`${clumps.length ? '❌' : '✅'} 同向疊車：${clumps.length} 對` +
-  (clumps.length ? `　例：${clumps.slice(0, 4).map(c => `${c.group} ${c.px}px`).join('、')}` : ''));
+  (clumps.length ? `　例：${clumps.slice(0, 4).map(c => `${c.group} ${c.m}m/${c.px}px`).join('、')}` : ''));
 if (clumps.length) note('bad', `同向疊車 ${clumps.length} 對`, clumps.slice(0, 10));
 
 // 2. 倒退
