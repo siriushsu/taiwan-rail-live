@@ -221,6 +221,12 @@ public final class MetroWidgetConfigActivity extends AppCompatActivity {
             }
         }
         MetroWidgetPlate plate = MetroWidgetPlate.of(in);
+        // 🔴 預覽卡不准長得像即時資料：站名／站號／英文名／路線色都是官方真值，但「還有幾分鐘」
+        //    是示範用的。掛著綠色 LIVE 會讓人以為這一站真的有車 4 分鐘後到 ⇒ chip 換成灰色「預覽」、
+        //    時戳清掉。這是設定頁的顯示層決定，不進共用的 MetroWidgetPlate（桌面上那張仍是 LIVE）。
+        plate.chip = MetroWidgetPlate.Chip.PLAIN;
+        plate.chipText = "預覽";
+        plate.stamp = "";
         boolean board = layoutSpinner.getSelectedItemPosition() == 1;
         android.widget.RemoteViews views = board
             ? MetroWidgetPlateRender.board(this, R.layout.widget_board_4x2,
