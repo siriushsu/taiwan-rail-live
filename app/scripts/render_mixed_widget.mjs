@@ -175,9 +175,13 @@ func minEta(_ path: String) -> Double {
 
 // 🔴 把整份快照平移到現在。樣本是 2026-08-14 下午擷取的，直接用會全部被判成過站而畫面空白；
 //    平移後每列的【剩餘秒數】與擷取當下逐秒相同（不是手捏 rows），dataAt 保持樣本值。
-func shiftedToWallClock(_ s: MetroSnapshot, sampleNow: Double) -> MetroSnapshot {
-    let delta = Date().timeIntervalSince1970 - sampleNow
-    return MetroSnapshot(station: s.station, dataAt: s.dataAt,
+//    🔴 shiftStamp：平移到「不是現在」的目標時（送審圖的 14:56）連 dataAt 也要一起挪，
+//    否則資料時刻仍留在樣本那天 ⇒ 卡片算出資料是四天前的，整個捷運半邊被
+//    「資料過舊，打開軌島即更新」蓋掉（實看抓到）。
+func shiftedToWallClock(_ s: MetroSnapshot, sampleNow: Double,
+                       to target: Date = Date(), shiftStamp: Bool = false) -> MetroSnapshot {
+    let delta = target.timeIntervalSince1970 - sampleNow
+    return MetroSnapshot(station: s.station, dataAt: shiftStamp ? s.dataAt + delta : s.dataAt,
                          rows: s.rows.map { MetroRow(dest: $0.dest,
                                                      etaEpoch: $0.etaEpoch.map { $0 + delta },
                                                      minutes: $0.minutes, crowd: $0.crowd,
@@ -190,11 +194,15 @@ let taipeiRaw = try! MetroBoardModel.trtc(
     json: try! Data(contentsOf: URL(fileURLWithPath: "${trtcFixture}")),
     station: "台北車站", alias: aliasTable["trtc"] ?? [:], now: taipeiNow)
 let taipeiSnap = shiftedToWallClock(taipeiRaw, sampleNow: taipeiNow)
+// 送審圖：整張卡只能有一個時鐘。捷運快照、捷運 entry、混合 entry 與臺鐵各列時刻
+// 全部挪到 clockNow（不設 RAIL_SHOT_NOW 時 clockNow 就是現在，與上面那份等價）。
+let storeSnap = shiftedToWallClock(taipeiRaw, sampleNow: taipeiNow, to: clockNow, shiftStamp: true)
+let metroStore = metroEntry(station: "台北車站", snapshot: storeSnap, at: clockNow)
 
 // 🔴 sys 一定要帶：逐列線色與線名是 MetroRowView 用 sys＋station 算的，nil 就一顆都不畫。
 func metroEntry(station: String, snapshot: MetroSnapshot?, lastTrain: String? = nil,
-                passCTA: String? = nil, auto: Bool = false) -> MetroEntry {
-    MetroEntry(date: Date(), title: station,
+                passCTA: String? = nil, auto: Bool = false, at: Date = Date()) -> MetroEntry {
+    MetroEntry(date: at, title: station,
                lineColor: MetroPalette.color(sys: "trtc", station: station),
                snapshot: snapshot, precision: "sec", lastTrain: lastTrain,
                failed: false, auto: auto, passCTA: passCTA, sys: "trtc")
@@ -218,7 +226,14 @@ let sampleTypeColors: [String: String] = [
     "高鐵": "#E85D0D",
     "其他": "#8E44AD",
 ]
-let clockNow = Date()
+// 送審圖要「有車的時段」的樣子：時鐘可用 RAIL_SHOT_NOW（epoch 秒）覆寫,
+// 這樣更新時間、各列時刻與倒數是同一個時鐘算出來的（不覆寫就用真實時間,驗收行為不變）。
+let clockNow: Date = {
+    if let raw = ProcessInfo.processInfo.environment["RAIL_SHOT_NOW"], let t = Double(raw) {
+        return Date(timeIntervalSince1970: t)
+    }
+    return Date()
+}()
 
 func boardRow(_ number: String, _ type: String, to destination: String?,
               minutesFromNow: Int, relation: JourneyRelation = .departure,
@@ -242,10 +257,13 @@ func board(title: String, rows: [BoardRow], empty: String? = nil,
 }
 
 // 台北站的一長串：兩區都排得滿才驗得到「次列名額對半分」與底部不留白。
+// 🔴 列的順序就是畫面的順序（view 不排序，排序是資料源的責任）。420 誤點 6 分之後
+//    實際發車是 15:09，比 1168 的 15:08 晚 ⇒ 它必須排在 1168 後面，否則畫面上會出現
+//    「13 分」在「12 分」上面這種真實看板不會有的順序。
 let railTaipei = board(title: "臺北", rows: [
     boardRow("0814", "高鐵", to: "南港", minutesFromNow: 5, delay: 0),
-    boardRow("420", "自強", to: "臺東", minutesFromNow: 7, delay: 6),
     boardRow("1168", "區間車", to: "基隆", minutesFromNow: 12),
+    boardRow("420", "自強", to: "臺東", minutesFromNow: 7, delay: 6),
     boardRow("4037", "區間快", to: "桃園", minutesFromNow: 19),
     boardRow("152", "自強", to: "臺北", minutesFromNow: 26),
     boardRow("1112", "區間車", to: "基隆", minutesFromNow: 38, delay: 0),
@@ -285,9 +303,14 @@ let railPlace = PlaceBoardSnapshot(title: "家", lines: [
     ]),
 ], typeColors: sampleTypeColors, generatedAt: clockNow)
 
-func mixed(_ metro: MetroEntry, _ rail: RailBoardEntryContent) -> MixedBoardEntry {
-    MixedBoardEntry(date: Date(), configuration: MixedBoardIntent(),
-                    rail: RailBoardEntry(date: Date(), configuration: ConfigurationAppIntent(),
+/// 🔴 at 就是 entryDate，必須與「各列時刻」用同一個時鐘。平時兩者都是真實現在所以
+///    不必傳；送審圖把時刻挪到 14:56 時就一定要一起挪——否則 entryDate 落在各列時刻的
+///    十幾小時前，臺鐵每一列都會被 BoardCountdown 判成「>90 分鐘」而退成靜態時刻，
+///    畫出「時刻寫 15:09、旁邊標表定」但那班其實 13 分鐘後就到的假版面。
+func mixed(_ metro: MetroEntry, _ rail: RailBoardEntryContent,
+           at: Date = Date()) -> MixedBoardEntry {
+    MixedBoardEntry(date: at, configuration: MixedBoardIntent(),
+                    rail: RailBoardEntry(date: at, configuration: ConfigurationAppIntent(),
                                          content: rail),
                     metro: metro)
 }
@@ -384,56 +407,12 @@ func render(_ entry: MixedBoardEntry, width: CGFloat, height: CGFloat,
 
 // ── gate ────────────────────────────────────────────────────────────────────
 
-/// 🔴 gate：軌脊必須是【一條連續的線】貫穿兩區（設計稿 C 的整個立論）。
-///
-/// 為什麼要量像素：漏一個 lineAbove/lineBelow、或分區 hairline 那一列忘了放軌脊欄，
-/// 畫面上只是「中間空一小段」——縮圖看不出來，而破版 gate 完全照不到（墨跡邊界不變）。
-/// 判準：掃軌脊中心那一欄（內距 16 ＋ 半個軌脊欄），從第一段線到最後一段線之間，
-/// 連續空白不得超過 6pt。站點圓點上下各留 1.5pt 缺口是設計本身，8pt 以上就是斷開。
-///
-/// 🔴 掃描範圍要從【卡片標題以下】起算：站名的字就壓在軌脊那一欄上，把它算進來的話
-///    「標題底部到第一段軌脊」那段本來就該空的距離會被讀成斷點（第一次跑就是這樣紅的）。
-func spineGate(_ png: Data, name: String) {
-    guard let rep = NSBitmapImageRep(data: png) else {
-        FileHandle.standardError.write(Data("軌脊 gate：讀不到圖\\n".utf8)); exit(1)
-    }
-    let scale: CGFloat = 3
-    let cx = Int((RailBoardInsets.content + RailSpineCell.column / 2) * scale)
-    let top = Int((RailBoardInsets.content + RailRowHeight.cardTitle) * scale)
-    guard let bg = rep.colorAt(x: 1, y: 1) else { exit(1) }
-    var rows: [Bool] = Array(repeating: false, count: top)
-    for y in top..<rep.pixelsHigh {
-        var hit = false
-        // 軌線寬 2pt；容許 ±2px 的抗鋸齒偏移。
-        for dx in -3...3 {
-            guard let c = rep.colorAt(x: cx + dx, y: y) else { continue }
-            let d = abs(c.redComponent - bg.redComponent) + abs(c.greenComponent - bg.greenComponent)
-                  + abs(c.blueComponent - bg.blueComponent)
-            if d > 0.07 { hit = true; break }
-        }
-        rows.append(hit)
-    }
-    guard let first = rows.firstIndex(of: true), let last = rows.lastIndex(of: true) else {
-        FileHandle.standardError.write(Data("軌脊 gate 失敗：\\(name) 整條軌脊都沒畫出來\\n".utf8))
-        exit(1)
-    }
-    var worst = 0, run = 0, worstAt = 0
-    for y in first...last {
-        if rows[y] { run = 0 } else {
-            run += 1
-            if run > worst { worst = run; worstAt = y }
-        }
-    }
-    let gapPt = CGFloat(worst) / scale
-    if gapPt > 6 {
-        let msg = "軌脊 gate 失敗：\\(name) 軌脊在 y≈\\(Int(CGFloat(worstAt) / scale))pt 斷了 "
-            + "\\(gapPt)pt（>6）。設計稿 C 的立論就是「一條軌脊貫穿兩區」——"
-            + "分區標題與分區 hairline 那兩列必須自己帶 RailSpineCell(kind: .line)。\\n"
-        FileHandle.standardError.write(Data(msg.utf8))
-        exit(1)
-    }
-    print("gate 通過：\\(name) 軌脊連續貫穿兩區（最大缺口 \\(gapPt)pt ≤ 6）")
-}
+// 🔴 2026-08-17 這裡原本有一支 spineGate,判準是「軌脊必須是一條連續的線貫穿兩區」
+//    ——那是設計稿 C 的立論。「發車看板 軌道圖形改版」把整條軌脊撤掉了（看板是時間序,
+//    一列一個車次,畫線等於宣告上下兩列是同一條軌道的前後站）,所以那支 gate 的【前提】
+//    已經不存在,它照樣掃那一欄只會量到站名與車種標的墨跡,報出來的「斷了 17pt」是
+//    判準過期而不是回歸。已改成下面 JS 端的反向判準（noSpineGate）:證明軌脊【不在】。
+//    留這段字是為了下一個人不要看到「沒有軌脊 gate」就以為漏做了。
 
 /// 🔴 gate：兩區都排滿時，底部不准留一整列以上的空白。
 ///
@@ -483,20 +462,25 @@ struct Harness {
 
         let main = render(mixed(metroTaipei, .board(railTaipei)), width: 364, height: 382,
                           to: outDir + "/mixed-large.png")
-        spineGate(main, name: "mixed-large.png")
         fillGate(main, height: 382, name: "mixed-large.png")
 
         let narrow = render(mixed(metroTaipei, .board(railTaipei)), width: 338, height: 354,
                             to: outDir + "/mixed-large-393.png")
-        spineGate(narrow, name: "mixed-large-393.png")
         fillGate(narrow, height: 354, name: "mixed-large-393.png")
 
         _ = render(mixed(metroTaipei, .board(railTaipei)), width: 364, height: 382,
                    scheme: .dark, mono: true, to: outDir + "/mixed-large-mono.png")
+        // 深色（非 mono）：桌面深色模式的實際長相,送審圖要用這張去合成使用者的主畫面截圖。
+        _ = render(mixed(metroTaipei, .board(railTaipei)), width: 364, height: 382,
+                   scheme: .dark, to: outDir + "/mixed-large-dark.png")
+        // 送審圖用：使用者那台是 402pt 機型,量到的大卡實際是 350×364pt(不是 364×382)。
+        let store = render(mixed(metroStore, .board(railTaipei), at: clockNow),
+                           width: 350, height: 364,
+                           scheme: .dark, to: outDir + "/mixed-large-store.png")
+        fillGate(store, height: 364, name: "mixed-large-store.png")
         // 末班車＋班表告示同時出現：兩行額外資訊各吃 18pt，次列要自己讓位。
         let busy = render(mixed(metroWithLast, .board(railWorst)), width: 364, height: 382,
                           to: outDir + "/mixed-large-extras.png")
-        spineGate(busy, name: "mixed-large-extras.png")
         // 捷運半邊被通行證擋下 ⇒ 名額全讓給臺鐵。
         _ = render(mixed(metroGated, .board(railTaipei)), width: 364, height: 382,
                    to: outDir + "/mixed-large-gated.png")
@@ -508,7 +492,6 @@ struct Harness {
         // 臺鐵半邊是「我的地點」：分區標題改講「經過」。
         let placeShot = render(mixed(metroTaipei, .place(railPlace)), width: 364, height: 382,
                                to: outDir + "/mixed-large-place.png")
-        spineGate(placeShot, name: "mixed-large-place.png")
         // 兩半設在不同車站：分區標題要把臺鐵那一站的名字講出來。
         _ = render(mixed(metroEntry(station: "板橋", snapshot: taipeiSnap), .board(railWorst)),
                    width: 364, height: 382, to: outDir + "/mixed-large-diffstation.png")
@@ -531,3 +514,70 @@ execFileSync(
   { stdio: 'inherit' }
 );
 execFileSync(binPath, [outDir], { stdio: 'inherit' });
+
+// ── 反向判準：軌脊必須【不在】 ────────────────────────────────────────────
+// 取代舊的 spineGate（前提已被「軌道圖形改版」推翻，見上面 Swift 段的註解）。
+// 兩層一起驗，缺一層都會被某一類退化穿過：
+//   (a) 原始碼層：混合卡不得再建構 RailSpineCell——它是唯一畫得出那條線的元件。
+//   (b) 像素層：原本軌脊那一欄不得有「長條連續墨跡」。真軌脊會貫穿卡片高度的 ~90%，
+//       而站名／車種標那些字最長也只有一列高（22–44pt）⇒ 門檻取卡片高度的 40%，
+//       從「軌脊本來多長、字最長多長」之間推導，不是手打的魔術數字。
+// 突變測試（本檔最後自己跑）：把一條 2pt 寬的線畫回那一欄 ⇒ (b) 必須變紅。
+const sharp = (await import('sharp')).default;
+
+const SPINE_COL_PT = 16 + 9;            // RailBoardInsets.content + 半個軌脊欄
+async function longestInkRun(file) {
+  const img = sharp(file);
+  const { width, height } = await img.metadata();
+  const scale = width / 364;             // 產物是 @3x（364pt 寬）
+  const cx = Math.round(SPINE_COL_PT * scale);
+  const { data, info } = await img.raw().toBuffer({ resolveWithObject: true });
+  const at = (x, y) => { const i = (y * info.width + x) * info.channels; return [data[i], data[i+1], data[i+2]]; };
+  const bg = at(1, 1);
+  let best = 0, run = 0;
+  for (let y = Math.round(60 * scale); y < info.height; y++) {   // 從卡片標題以下起算
+    let hit = false;
+    for (let dx = -3; dx <= 3; dx++) {
+      const c = at(cx + dx, y);
+      if (Math.abs(c[0]-bg[0]) + Math.abs(c[1]-bg[1]) + Math.abs(c[2]-bg[2]) > 18) { hit = true; break; }
+    }
+    if (hit) { run++; if (run > best) best = run; } else run = 0;
+  }
+  return { best, height: info.height, scale };
+}
+
+const mixedSrc = readFileSync(resolve(here, '../ios/App/RailBoardWidget/MixedBoardWidget.swift'), 'utf8');
+if (/RailSpineCell/.test(mixedSrc)) {
+  console.error('軌脊 gate 失敗：MixedBoardWidget.swift 又出現 RailSpineCell——看板類卡片不畫左側圖形');
+  process.exit(1);
+}
+
+const SHOTS = ['mixed-large.png', 'mixed-large-extras.png', 'mixed-large-place.png', 'mixed-large-dark.png'];
+let worst = 0;
+for (const f of SHOTS) {
+  const { best, height } = await longestInkRun(join(outDir, f));
+  worst = Math.max(worst, best / height);
+  if (best / height >= 0.40) {
+    console.error(`軌脊 gate 失敗：${f} 在軌脊那一欄量到連續墨跡 ${best}px／${height}px（${(best/height*100).toFixed(0)}%）——那條線回來了`);
+    process.exit(1);
+  }
+}
+console.log(`gate 通過：軌脊確實不在（原始碼無 RailSpineCell；四張圖在那一欄的最長連續墨跡 ${(worst*100).toFixed(0)}% < 40%）`);
+
+// 突變測試：把線畫回去，確認上面那條判準真的有牙（不是恆綠）。
+{
+  const f = join(outDir, 'mixed-large.png');
+  const m = await sharp(f).metadata();
+  const scale = m.width / 364;
+  const line = Buffer.from(`<svg width="${m.width}" height="${m.height}" xmlns="http://www.w3.org/2000/svg">
+    <rect x="${Math.round((SPINE_COL_PT - 1) * scale)}" y="${Math.round(70 * scale)}"
+          width="${Math.round(2 * scale)}" height="${Math.round((382 - 90) * scale)}" fill="#8a7c62"/></svg>`);
+  const mutated = join(outDir, '_mutation-spine-back.png');
+  await sharp(f).composite([{ input: line, left: 0, top: 0 }]).png().toFile(mutated);
+  const { best, height } = await longestInkRun(mutated);
+  if (best / height < 0.40) {
+    console.error(`突變測試失敗：把軌脊畫回去之後判準仍然綠（量到 ${best}/${height}）⇒ 這條 gate 沒有牙`);
+    process.exit(1);
+  }
+  console.log(`突變測試通過：軌脊畫回去 ⇒ 量到 ${(best/height*100).toFixed(0)}% ≥ 40%，判準會變紅`);
+}

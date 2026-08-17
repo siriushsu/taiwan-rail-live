@@ -133,7 +133,14 @@ let sampleTypeColors: [String: String] = [
     "其他": "#8E44AD",
 ]
 
-let clockNow = Date()
+// 送審圖要「有車的時段」的樣子：時鐘可用 RAIL_SHOT_NOW（epoch 秒）覆寫,
+// 更新時間、各列時刻與倒數都從同一個時鐘算（不覆寫＝真實時間,驗收行為不變）。
+let clockNow: Date = {
+    if let raw = ProcessInfo.processInfo.environment["RAIL_SHOT_NOW"], let t = Double(raw) {
+        return Date(timeIntervalSince1970: t)
+    }
+    return Date()
+}()
 
 /// 一列。minutesFromNow 是【表定】相對現在的分鐘數；delay 走真正的欄位，
 /// 所以「倒數已含誤點」這件事是由出貨程式碼算的，不是這裡手捏的。
@@ -687,6 +694,12 @@ struct Harness {
         render(MediumBoardView(snapshot: taipeiWatch, entryDate: clockNow),
                family: .systemMedium, width: 364, height: 170, scheme: .dark,
                to: out + "/board-medium-dark.png")
+        // 送審圖用：使用者那台是 402pt 機型,量到的中卡實際是 350×164pt(不是 364×170)。
+        // 🔴 用通勤那張不用臺北那張：同一張送審圖裡的大卡已經是台北車站,同一站兩張卡會
+        //    各報一組不同的「下一班」,看圖的人只會覺得其中一張是錯的。
+        render(MediumBoardView(snapshot: commute, entryDate: clockNow),
+               family: .systemMedium, width: 350, height: 164, scheme: .dark,
+               to: out + "/board-medium-store.png")
         render(MediumBoardView(snapshot: taipeiWatch, entryDate: clockNow),
                family: .systemMedium, width: 364, height: 170, scheme: .dark, mono: true,
                to: out + "/board-medium-mono.png")

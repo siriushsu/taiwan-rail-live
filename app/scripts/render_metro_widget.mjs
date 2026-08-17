@@ -487,6 +487,15 @@ struct Harness {
                width: 170, height: 170, to: outDir + "/metro-small.png")
         render(MetroBoardView(entry: taipeiEntry), family: .systemMedium,
                width: 364, height: 170, to: outDir + "/metro-medium.png")
+        // 深色（非 mono）：桌面深色模式的實際長相,送審圖合成用。
+        render(MetroBoardView(entry: taipeiEntry), family: .systemMedium,
+               width: 364, height: 170, scheme: .dark, to: outDir + "/metro-medium-dark.png")
+        // 送審圖用：使用者那台是 402pt 機型,量到的卡片實際是 350×164pt。
+        // 拿 364pt 的圖去縮會讓字級整體小 4%,直接照那台的點數渲染才是它真的長相。
+        // 🔴 用忠孝復興不用台北車站：同一張送審圖裡下面那張混合大卡已經是台北車站,
+        //    兩張卡同一站會看起來像同一個小工具擺兩次;忠孝復興還順便帶到轉乘站兩條線。
+        render(MetroBoardView(entry: zxfxEntry), family: .systemMedium,
+               width: 350, height: 164, scheme: .dark, to: outDir + "/metro-medium-store.png")
         render(MetroBoardView(entry: hmxEntry), family: .systemLarge,
                width: 364, height: 382, to: outDir + "/metro-large.png")
         render(MetroBoardView(entry: taipeiLateEntry), family: .systemMedium,
@@ -498,6 +507,9 @@ struct Harness {
                to: outDir + "/metro-medium-interchange-mono.png")
         render(MetroBoardView(entry: crowdEntry), family: .systemMedium,
                width: 364, height: 170, to: outDir + "/metro-medium-crowd.png")
+        // 深色（非 mono）：送審圖合成用,同上。
+        render(MetroBoardView(entry: crowdEntry), family: .systemMedium,
+               width: 364, height: 170, scheme: .dark, to: outDir + "/metro-medium-crowd-dark.png")
         // 🔴 393pt 機型（iPhone 15／16 非 Max）：medium 小工具 338×158 ⇒ 內容框 306×126,
         //    k＝306/332≈0.92。RailScale 的下限就是為這個機型存在的,不驗它等於沒驗縮放路徑
         //    ——而 430pt 那張永遠看不出來（改版前兩支算繪腳本都只有 430pt 一種寬度）。
