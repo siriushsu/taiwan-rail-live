@@ -4922,13 +4922,12 @@ function trtcCensusVehicles(trains, nowEpoch, day) {
     let terminal = from === to;
     let run = terminal ? 0 : trtcCensusRun(ln, from, to);
     const firstEta = head ? Number(head.eta) : NaN;
-    // 沒有未來 ETA 時只能用 CarWeight 的 at 推，而它落後最多 265 秒 ⇒ 算出來的到站時刻常常
-    // 已經是過去式。繪製端對「到站時刻在過去且沒有續推軌跡」的車回 null＝那台車整個不見
-    // （實測 10 台，含 6 台停在終點站的）。官方說這台車在，就不能因為我們的時刻推不準而不畫它
-    // ⇒ 過期一律夾到現在，畫成「正要進站」。
-    const rawArr = Number.isFinite(firstEta) && !terminal ? firstEta
+    // 🔴 不可把過期的到站時刻夾到現在。續推是「從到站時刻起算 25 秒停站再開」，
+    // 夾到現在等於每輪都把它重設成剛到站 ⇒ 車永遠在停站，實測文湖線 22/24 台整線凍結
+    // （文湖線在 TrackInfo 沒有 path，只能靠落後的 at 推，全線都吃這個路徑）。
+    // 過去的到站時刻是正確資訊，續推會據此把車往前推到該在的位置。
+    const arrEpoch = Number.isFinite(firstEta) && !terminal ? firstEta
       : (Number.isFinite(at) ? at + run : nowEpoch + run);
-    const arrEpoch = Math.max(rawArr, nowEpoch + 1);
     // dest 不是裝飾：名冊驗證要求它是合法站序整數，null 會讓整包 payload 被判 malformed。
     // 官方沒給終點（文湖線全部、高運量約一成）就用行進方向上的線末站——語意也對。
     const di0 = arr.indexOf(_trtcCensusNorm(t.dest));

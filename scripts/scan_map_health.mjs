@@ -25,11 +25,17 @@ const GAP_SEC = Number((() => { const i = args.indexOf('--gap'); return i >= 0 ?
 
 // 門檻。刻意寫成「結構性質」而不是魔術數字：疊車用車號牌的實際半寬，
 // 倒退用 0（任何負位移都不該有），車數用相對比例。
-const OVERLAP_M = 250;      // 沿線間距。用實際距離不用像素——像素門檻會隨縮放漂移，
-                            // 同一份資料在不同 zoom 下會給出不同結論。250m 是物理下限量級：
-                            // 捷運最小班距下兩台車不可能靠這麼近（尖峰 2 分鐘班距≈2km）。
-const AT_STATION_M = 60;    // 離最近車站這麼近就算「停在站上」。兩台車同時停在同一個終點站
-                            // 是正常的（月台不只一個、折返中），那不是缺陷；疊在站與站之間才是。
+// 疊車分兩級。使用者回報的症狀是「好幾台疊在同一個點」，那在物理上不可能；
+// 但兩百多公尺是可能的——前車在月台停靠、後車進站前被號誌擋住就是這個量級。
+// 把兩者混成一個門檻，不是漏掉真缺陷就是每四輪吵一次假警報。
+const OVERLAP_BAD_M = 100;  // 物理上不可能：號誌不會讓兩台車靠這麼近 ⇒ 判缺陷
+const OVERLAP_WARN_M = 250; // 罕見但可能（前車停靠、後車進站中）⇒ 只記警告不判缺陷
+const AT_STATION_M = 60;    // 離最近車站這麼近就算「停在站上」。
+// 同站疊車不能無條件豁免——使用者回報的截圖正是「好幾台疊在站附近」，而突變測試也證實
+// 把校正量灌壞時，車全部被拖回站上疊成一堆（13 對），無條件豁免會讓這條判準完全沒有牙。
+// 同向同站最多 2 台（一台停靠、一台進站中）；3 台以上物理上不可能。
+const AT_STATION_MAX_PER_STOP = 2;   // 同一站同一方向的車數上限
+const AT_STATION_MAX_PAIRS = 3;      // 全系統同站疊車對數上限（正常營運實測 0–1 對）
 // 刻意不用像素門檻：像素會隨縮放漂移，而這支掃描是把整個路網框在一個畫面裡跑的，
 // 密集路段（文湖線彎道）沿線 500 公尺在畫面上本來就只有幾個像素。
 const BACKWARD_M = 15;      // 沿線負位移超過這個距離才算倒退（低於此為投影抖動）
@@ -144,23 +150,39 @@ for (const h of s2.hits) {
   if (!groups.has(g)) groups.set(g, []);
   groups.get(g).push(h);
 }
-const clumps = [];
+const clumps = [], nearPairs = [];
 let atStationPairs = 0;
+const stationStack = new Map();   // "line|dir@站序" → 同站疊車對數
 for (const [g, arr] of groups) {
   for (let i = 0; i < arr.length; i++) for (let j = i + 1; j < arr.length; j++) {
     const px = Math.hypot(arr[i].x - arr[j].x, arr[i].y - arr[j].y);
     const m = (arr[i].d != null && arr[j].d != null) ? Math.abs(arr[i].d - arr[j].d) * 1000 : null;
-    if (m == null || m >= OVERLAP_M) continue;
+    if (m == null || m >= OVERLAP_WARN_M) continue;
     // 兩台都停在同一個車站＝正常（多月台／折返），不算疊車
     const bothAtSameStation = arr[i].nearM != null && arr[j].nearM != null &&
       arr[i].nearM < AT_STATION_M && arr[j].nearM < AT_STATION_M && arr[i].nearIdx === arr[j].nearIdx;
-    if (bothAtSameStation) { atStationPairs++; continue; }
-    clumps.push({ group: g, px: Math.round(px), m: Math.round(m), a: arr[i].key, b: arr[j].key });
+    if (bothAtSameStation) {
+      atStationPairs++;
+      const sk = `${g}@${arr[i].nearIdx}`;
+      stationStack.set(sk, (stationStack.get(sk) || 0) + 1);
+      continue;
+    }
+    const rec = { group: g, px: Math.round(px), m: Math.round(m), a: arr[i].key, b: arr[j].key };
+    (m < OVERLAP_BAD_M ? clumps : nearPairs).push(rec);
   }
 }
-console.log(`${clumps.length ? '❌' : '✅'} 同向疊車：${clumps.length} 對` +
-  (clumps.length ? `　例：${clumps.slice(0, 4).map(c => `${c.group} ${c.m}m`).join('、')}` : `（另有 ${atStationPairs} 對同時停在同一站，正常）`));
+console.log(`${clumps.length ? '❌' : '✅'} 同向疊車（<${OVERLAP_BAD_M}m）：${clumps.length} 對` +
+  (clumps.length ? `　例：${clumps.slice(0, 4).map(c => `${c.group} ${c.m}m`).join('、')}`
+    : `（靠近 <${OVERLAP_WARN_M}m ${nearPairs.length} 對、同站 ${atStationPairs} 對，皆屬正常範圍）`));
 if (clumps.length) note('bad', `同向疊車 ${clumps.length} 對`, clumps.slice(0, 10));
+if (nearPairs.length) note('warn', `同向靠近 ${nearPairs.length} 對（<${OVERLAP_WARN_M}m）`, nearPairs.slice(0, 6));
+// 同站疊車：1 對＝一停靠一進站，正常；3 台以上擠在同一站、或全系統成堆，就是被拖回站上的形態
+const overStop = [...stationStack.entries()].filter(([, pairs]) => pairs + 1 > AT_STATION_MAX_PER_STOP);
+const stationBad = overStop.length > 0 || atStationPairs > AT_STATION_MAX_PAIRS;
+console.log(`${stationBad ? '❌' : '✅'} 同站堆積：${atStationPairs} 對` +
+  (overStop.length ? `　超載車站：${overStop.slice(0, 4).map(([k, n]) => `${k}=${n + 1}台`).join('、')}` : '（每站最多 2 台，正常）'));
+if (stationBad) note('bad', `同站堆積 ${atStationPairs} 對`,
+  { overStop: overStop.slice(0, 6), atStationPairs });
 
 // 2. 倒退
 const before = new Map(s1.hits.map(h => [h.key, h]));

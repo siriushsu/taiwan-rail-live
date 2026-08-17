@@ -139,9 +139,10 @@ export function buildCensusRoster({ model, trains, nowEpoch, day, prior = null, 
     const firstEta = path.length ? Number(path[0].eta) : NaN;
     // 沒有未來 ETA 時只能用 CarWeight 的 at 推，而它落後最多 265 秒 ⇒ 常常算出過去的到站時刻，
     // 繪製端對那種車回 null＝整台不見（實測 10 台）。官方說車在就要畫 ⇒ 過期夾到現在。
-    const rawArr = Number.isFinite(firstEta) && !terminal ? firstEta
+    // 🔴 過期的到站時刻不可夾到現在：續推從到站時刻起算停站，夾了就等於每輪重設成
+    // 「剛到站」⇒ 車永遠停著（實測文湖線 22/24 台凍結）。
+    const arrEpoch = Number.isFinite(firstEta) && !terminal ? firstEta
       : (Number.isFinite(at) ? at + run : nowEpoch + run);
-    const arrEpoch = Math.max(rawArr, nowEpoch + 1);
     // 官方沒給終點（文湖線全部、高運量約一成）就用行進方向上的線末站。
     // 不可留 null——前端名冊驗證要求 dest 是合法站序整數，null 會讓整包被判 malformed。
     const destIdx = (() => {
