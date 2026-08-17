@@ -39,9 +39,15 @@ const MIME = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript', '.
   '.json': 'application/json', '.css': 'text/css', '.png': 'image/png', '.svg': 'image/svg+xml',
   '.mp3': 'audio/mpeg', '.woff2': 'font/woff2', '.webmanifest': 'application/manifest+json' };
 
+// 🔴 每個案例各抓一份新的。整套跑完要五分鐘以上，若共用啟動時抓的那一份，
+// 後段案例拿到的是老掉好幾分鐘的快照——車全部續推到很遠、支線全停，對照組會無故變紅
+// （2026-08-17 Codex 複審抓到：正常 census 對照被誤判整線凍結，整套 exit 1）。
 let livePayload = '{}';
-try { livePayload = await (await fetch(LIVE_URL, { headers: { 'cache-control': 'no-cache' } })).text(); }
-catch (e) { console.log(`❌ 取不到 ${LIVE_URL}：${e.message}`); process.exit(2); }
+const refreshLive = async () => {
+  try { livePayload = await (await fetch(LIVE_URL, { headers: { 'cache-control': 'no-cache' } })).text(); }
+  catch (e) { console.log(`❌ 取不到 ${LIVE_URL}：${e.message}`); process.exit(2); }
+};
+await refreshLive();
 
 function serve(html) {
   return createServer((req, res) => {
@@ -95,6 +101,7 @@ const cases = [
 
 for (const [name, html, wantCode, qs] of cases) {
   if (html === INDEX && wantCode === 1) { check(false, `${name}：突變沒套上（anchor 找不到）`); continue; }
+  await refreshLive();
   const server = serve(html);
   await new Promise((r, j) => { server.once('error', j); server.listen(0, '127.0.0.1', r); });
   const url = `http://127.0.0.1:${server.address().port}/${qs}`;
