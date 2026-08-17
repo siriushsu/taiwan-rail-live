@@ -79,7 +79,15 @@ function wrap(db) {
 // 依檔名排序套用 schema/*.sql。排序是刻意的：0001 先於 0002，日後新增 0003 自動接在後面。
 export function applySchemaFiles(db) {
   for (const f of readdirSync(SCHEMA_DIR).filter(n => n.endsWith('.sql')).sort()) {
-    db.exec(readFileSync(join(SCHEMA_DIR, f), 'utf8'));
+    try {
+      db.exec(readFileSync(join(SCHEMA_DIR, f), 'utf8'));
+    } catch (e) {
+      // SQLite 沒有 ADD COLUMN IF NOT EXISTS(0004 的註解自己就寫了這件事)。0003 後來
+      // 就地補上 fail_streak/last_obs_idx/last_notice 三欄 ⇒ 全新庫依序套到 0004/0005/0006
+      // 一定撞「duplicate column name」,整套 openTestDb 驗收就此開不了庫。那是「這一欄
+      // 已經在了」的正常結果,不是 schema 壞掉;只吞這一種訊息,其餘照拋(真寫錯 SQL 不掩蓋)。
+      if (!/duplicate column name/i.test(String((e && e.message) || e))) throw e;
+    }
   }
 }
 
