@@ -141,8 +141,11 @@ function evaluateUnit(api) {
   // 🔴 2026-08-17 使用者裁示：北捷列車位置暫時改用班表 ⇒ 官方名冊【出貨預設關閉】,
   //    只有 ?officialroster=1 才開。兩側都驗：關的那側必須真的關,開的那側必須真的開。
   //    位置邏輯修好要開回來時,這裡跟 index.html 那行一起改,不會有一邊改一邊沒改。
-  const A = !api.trtcOfficialRosterEnabled('') && api.trtcOfficialRosterEnabled('?officialroster=1') &&
-    !api.trtcOfficialRosterEnabled('?officialroster=0') && active(board, true, 100000) &&
+  // 🔴 2026-08-18 使用者裁示：北捷位置回到官方即時 ⇒ 預設【開】。兩側都要驗，只驗開的那側
+  // 會讓「乾脆永遠回 true、逃生口失效」也全綠（judgment 心得 39(b)）。
+  const A = api.trtcOfficialRosterEnabled('') && api.trtcOfficialRosterEnabled('?officialroster=1') &&
+    !api.trtcOfficialRosterEnabled('?officialroster=0') && !api.trtcOfficialRosterEnabled('?census=0') &&
+    active(board, true, 100000) &&
     !active({ ...board, feedMode: 'outage' }, true, 1000) && !active(board, false, 1000);
 
   const before = api.trtcOfficialVehiclePosition(LINE, timelineVehicle, 990);

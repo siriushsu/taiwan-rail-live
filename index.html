@@ -3808,8 +3808,9 @@
            內容 li 上限 8 條(li.grp 是標題不算)。 -->
       <ul class="foot-list foot-recent">
         <li class="grp">最近更新</li>
+        <li data-cl-of="trtccountdown"><span class="d">8/18</span><span>台北捷運列車位置改回官方即時：不再是班表推估。文湖線因為官方沒給車號，改用各站的官方倒數推算車在哪兩站之間，比原本的來源新兩到四分鐘；同向前後車也不會再互相穿越或黏在一起</span></li>
         <li data-cl-of="thsrwindow"><span class="d">8/17</span><span>高鐵班表不再停在前一天：當天才有的班次看得到，前一天才有的也不會變成幽靈車（謝謝網友回報）</span></li>
-        <li data-cl-of="trtczombie"><span class="d">8/17</span><span>台北捷運車站看板不再把尖峰加開的短程車提早列成「另一條線」；列車位置目前仍為班表推估，車站倒數是官方即時（改用官方逐車資料認車的做法還在測試，謝謝網友回報）</span></li>
+        <li data-cl-of="trtczombie"><span class="d">8/17</span><span>台北捷運車站看板不再把尖峰加開的短程車提早列成「另一條線」（謝謝網友回報）</span></li>
         <li data-cl-of="orangebranch"><span class="d">8/16</span><span>中和新蘆線共線段不再冒出重複列車與沒有車號的車</span></li>
         <li data-cl-of="badgescope"><span class="d">8/16</span><span>「台」「高」不再顯示捷運的「官方即時」標示；捷運收班後改標「已收班」</span></li>
         <li data-cl-of="zuoyingalias"><span class="d">8/16</span><span>台鐵左營站不再分成「左營」與「左營(舊城)」兩顆，看板正常顯示；新城站同步修正（謝謝網友回報）</span></li>
@@ -4324,7 +4325,7 @@
 //         中和新蘆線分支鎖、捷運徽章範圍、App 那整批 index.html 內容），並合入高鐵班表抓取窗
 //         2→7 天與每 5 分鐘自我檢查。v0816d／v0817a 兩條 ship 分支的 index.html 都還掛著
 //         v0816c，本批內容與它們都不同 ⇒ 推一個誰都沒用過的號。
-const BUILD = 'v0817i';
+const BUILD = 'v0818a';
 // 2026-08-13 起預設開啟（使用者親試預覽後裁示上線）：北捷畫車依官方即時名冊，班表只是備案。
 // 保留 ?officialroster=0 當逃生口——要退回班表路徑不必回滾部署，加個參數即可對照。
 // 🔴 這個函式會被 verify_official_roster_frontend 抽出來丟進 VM 單獨執行——
@@ -4342,15 +4343,26 @@ const BUILD = 'v0817i';
 function trtcOfficialRosterEnabled(search) {
   try {
     const q = new URLSearchParams(search == null ? location.search : search);
-    // 名冊繪製路徑有兩個來源：逐車清單(?census=1)與舊帳本(?officialroster=1),兩者都預設關。
     // 🔴 這裡刻意把 census 的判斷抄一份而不呼叫 trtcCensusRosterEnabled——本函式會被
     //    verify_official_roster_frontend 單獨抽進 VM 跑,引用外部符號會 ReferenceError。
-    return q.get('officialroster') === '1' || q.get('census') === '1';
-  } catch (e) { return false; }
+    // 🔴 2026-08-18 使用者裁示改為【預設開啟】:北捷位置回到官方即時,班表只在斷訊時當備案。
+    //    同批已修掉三個把它擋回去的東西:文湖線改由官方每站倒數定位(不再吃 CarWeight 慢
+    //    96-265 秒的站碼)、作廢會讓車照舊計畫飄走的 no-backward hold、補上跨車順序與最小間距。
+    //    `?officialroster=0` / `?census=0` 是逃生口——單一使用者要退回班表不必等部署。
+    //    全站退回班表則是改這裡的預設值再部署(晨間觀察若出現疊車或消失就這樣退)。
+    if (q.get('officialroster') === '0' || q.get('census') === '0') return false;
+    return true;
+  } catch (e) { return true; }
 }
 function trtcCensusRosterEnabled(search) {
-  try { return new URLSearchParams(search == null ? location.search : search).get('census') === '1'; }
-  catch (e) { return false; }
+  // 逐車清單路徑同樣改為預設開啟：文湖線的倒數定位就掛在這條上（worker 把切段結果填進
+  // payload.trains[].path，前端有 path 就用 path 定位）。關掉它 = BR 又退回 CarWeight 的粗站碼。
+  // Y／G_XBT／R_XBT 逐車清單本來就沒有，會自動維持舊路徑（見下方 covered/kept 的處理）。
+  try {
+    const q = new URLSearchParams(search == null ? location.search : search);
+    if (q.get('census') === '0' || q.get('officialroster') === '0') return false;
+    return true;
+  } catch (e) { return true; }
 }
 // URL 開關必須在開機初始就固定；clearFollow() 會整理 query string，不可在後面重讀。
 const OFFICIAL_ROSTER_ENABLED = trtcOfficialRosterEnabled(location.search);
