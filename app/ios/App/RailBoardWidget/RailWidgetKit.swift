@@ -18,7 +18,8 @@ import WidgetKit
 //  1. 一個主角——RailCountdown 的 .hero 尺寸只給主角列用，次列走 .row，兩者字級差一倍以上
 //  2. 分鐘優先——RailCountdown 不提供 m:ss 形態，想畫碼表格式在這裡就找不到 API
 //  3. 顏色不獨立表意——RailLineMark 一定同時畫點與線名；單色模式自動退成純文字
-//  4. 軌脊代替分隔線——RailSpineCell 是每一列的固定寬子元素，列高改變不會脫位
+//  4. 看板類卡片【沒有左側圖形】——欄序固定、列高固定、分鐘欄右對齊等寬就足夠分列
+//     （2026-08-17 改版：軌脊會被讀成「同一條線上的連續車站」，理由見 RailRow 的註解）
 
 // MARK: - 色票（狀態色三層，互不借用）
 
@@ -243,6 +244,13 @@ extension View {
 /// 🔴 與設計稿的一處實作偏離（視覺結果相同）：設計稿寫「環心填卡片底色把軌線遮住」，
 ///    但 widget 的底色由系統的 containerBackground 決定，玻璃／tinted 模式下拿不到那個顏色 ⇒
 ///    改成【軌脊線在圓點處斷開】（上下兩段各留缺口），不依賴任何背景色，四種顯示模式都成立。
+/// 🔴 目前【沒有任何卡片在用它】，這是刻意的，不是漏刪。
+///
+/// 發車看板已經把它撤掉（理由見 `RailRow`）。它的新家是設計檔指定的**跟車小工具**：
+/// 那張卡的列是同一班車接下來會停的站，順序就是路線順序，相鄰是真的地理相鄰
+/// ⇒ 連續的線、線上的圓點、列車在區間中的位置全部成立。那張卡還沒實作
+/// （缺「單班車逐站時刻」的資料檔，見 docs/superpowers/specs/2026-08-17-*）。
+/// 在那之前不要把它接回任何看板類卡片。
 struct RailSpineCell: View {
     enum Kind {
         /// 主角列：11pt 實心圓，吃路線色（單色模式退成 primary）
@@ -253,9 +261,6 @@ struct RailSpineCell: View {
         case passed
         /// 列車現在的位置：白色圓標＋方向三角
         case train(Color?)
-        /// 只有軌線、沒有站點。Large 混合卡的分區標題與分區 hairline 用它讓
-        /// 「一條軌脊貫穿兩區」成立——那兩列不是站，所以不可以長出圓點。
-        case line
     }
 
     let kind: Kind
@@ -279,16 +284,11 @@ struct RailSpineCell: View {
         case .follow: return scale.pt(8)
         case .passed: return scale.pt(6)
         case .train:  return scale.pt(13)
-        case .line:   return 0
         }
     }
 
-    /// 軌線在圓點處讓出的缺口。`.line` 必須是 0——留 1.5pt 缺口就會在分區標題那一列
-    /// 出現一段 3pt 的斷點，「一條連續的軌脊」當場破掉（那正是這個 kind 存在的理由）。
-    private var lineGap: CGFloat {
-        if case .line = kind { return 0 }
-        return dotDiameter / 2 + scale.pt(1.5)
-    }
+    /// 軌線在圓點處讓出的缺口——不要貼著圓點邊緣收尾。
+    private var lineGap: CGFloat { dotDiameter / 2 + scale.pt(1.5) }
 
     var body: some View {
         GeometryReader { geo in
@@ -319,8 +319,6 @@ struct RailSpineCell: View {
 
     @ViewBuilder private var dot: some View {
         switch kind {
-        case .line:
-            EmptyView()
         case .lead(let c):
             Circle().fill(mono ? Color.primary : (c ?? RailTokens.colors(scheme).brand))
         case .follow:
@@ -884,10 +882,19 @@ enum RailNumberColumn {
 ///
 /// 🔴 破版防線（設計稿）：數字欄固定寬並取得 layoutPriority，內容欄先截；
 ///    每一列都給定高度，超出就先砍列而不是縮字。
+/// 🔴 這一列【沒有】左側圖形，而且不可以再加回來。
+///
+/// 改版前這裡是 `RailSpineCell`：一條 2pt 軌線貫穿所有列、每列一個圓點。使用者回報它會被
+/// 讀成「同一條線上的連續車站」——而發車看板的列編碼的是**時間順序**（同一站的接續班次，
+/// 每列是不同車次、不同終點），不是空間順序。畫線＝宣告相鄰，而這裡的相鄰是「時間上下一班」
+/// 不是「地理上下一站」，圖形表達不了這個差別。
+///
+/// 設計檔（`軌島 發車看板 軌道圖形改版.dc.html`）的判準值得抄在這裡：
+/// **「把第 2 列和第 3 列交換位置，資料還對嗎？」** 發車看板交換了只是時間先後錯，
+/// 沒有東西被切斷 ⇒ 不需要線；跟車卡交換等於路線被改寫、線會被扭斷 ⇒ 那裡才畫線。
+///
+/// 分列靠的是：固定列高、欄序固定、右對齊等寬的分鐘欄。沒有分隔線也沒有底色。
 struct RailRow<Content: View, Trailing: View>: View {
-    let spine: RailSpineCell.Kind
-    var lineAbove: Bool = true
-    var lineBelow: Bool = true
     var height: CGFloat = RailRowHeight.follow
     var numberWidth: CGFloat = RailNumberColumn.narrow
     var scale: RailScale = RailScale(k: 1)
@@ -896,7 +903,6 @@ struct RailRow<Content: View, Trailing: View>: View {
 
     var body: some View {
         HStack(spacing: scale.pt(6)) {
-            RailSpineCell(kind: spine, lineAbove: lineAbove, lineBelow: lineBelow, scale: scale)
             VStack(alignment: .leading, spacing: 0) { content() }
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .layoutPriority(0)
@@ -961,17 +967,18 @@ struct RailStamp: View {
 /// 「兩區只是它的兩段」這個講法的全部。
 /// 玻璃／透明模式下設計稿要求「去掉所有 hairline 以外的分隔」——這就是那條 hairline 本身，
 /// 所以它在所有顯示模式都畫。
-struct RailHairline: View {
-    /// 高度預算裡的那個 9pt（Medium：21＋8＋43＋9＋28＋28＝137）。
+/// 主角列與次列之間的留白。
+///
+/// 🔴 這裡【只有留白，沒有線】。2026-08-17 改版前它是一條 hairline，設計檔明訂
+///    「主角那一區與次列之間只靠字級與留白分層，沒有分隔線也沒有底色」——分隔線與軌脊
+///    是同一件事的兩種形式：都在宣告「這些列是一組連續的東西」，而發車看板的列彼此無關。
+///    9pt 這個高度預算保留不動（Medium：21＋8＋43＋9＋28＋28＝137），拿掉的只有那 1px。
+struct RailRowGap: View {
     var height: CGFloat = 9
     var scale: RailScale = RailScale(k: 1)
 
     var body: some View {
-        HStack(spacing: 0) {
-            Spacer().frame(width: RailSpineCell.column + scale.pt(6))
-            Rectangle().fill(Color.primary.opacity(0.12)).frame(height: 1)
-        }
-        .frame(height: scale.pt(height))
+        Spacer().frame(height: scale.pt(height))
     }
 }
 

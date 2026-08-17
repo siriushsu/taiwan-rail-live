@@ -980,13 +980,11 @@ struct MediumBoardView: View {
 
             if let lead = snapshot.rows.first {
                 BoardRowView(row: lead, snapshot: snapshot, entryDate: entryDate,
-                             role: .hero, lineAbove: false, lineBelow: !follows.isEmpty,
-                             scale: scale)
-                RailHairline(scale: scale)
+                             role: .hero, scale: scale)
+                RailRowGap(scale: scale)
                 ForEach(Array(follows.enumerated()), id: \.offset) { index, row in
                     BoardRowView(row: row, snapshot: snapshot, entryDate: entryDate,
-                                 role: .follow, lineBelow: index < follows.count - 1,
-                                 scale: scale)
+                                 role: .follow,                                  scale: scale)
                 }
             } else {
                 Text(snapshot.emptyMessage ?? "查無班次")
@@ -1010,8 +1008,6 @@ struct BoardRowView: View {
     let snapshot: BoardSnapshot
     var entryDate: Date = Date()
     var role: Role = .follow
-    var lineAbove: Bool = true
-    var lineBelow: Bool = true
     var scale: RailScale = RailScale(k: 1)
 
     private var isHero: Bool { role == .hero }
@@ -1038,9 +1034,7 @@ struct BoardRowView: View {
     }
 
     var body: some View {
-        RailRow(spine: isHero ? .lead(color) : .follow,
-                lineAbove: lineAbove, lineBelow: lineBelow,
-                height: height,
+        RailRow(height: height,
                 numberWidth: isHero ? RailNumberColumn.wide : RailNumberColumn.narrow,
                 scale: scale) {
             if isHero {
@@ -1337,11 +1331,11 @@ struct MediumPlaceBoardView: View {
             if let lead = rows.first {
                 PlaceRowView(row: lead, typeColors: snapshot.typeColors, entryDate: entryDate,
                              role: .hero, lineColor: Color(hex: line.color),
-                             lineAbove: false, lineBelow: !follows.isEmpty, scale: scale)
-                RailHairline(scale: scale)
+                             scale: scale)
+                RailRowGap(scale: scale)
                 ForEach(Array(follows.enumerated()), id: \.offset) { index, row in
                     PlaceRowView(row: row, typeColors: snapshot.typeColors, entryDate: entryDate,
-                                 role: .follow, lineBelow: index < follows.count - 1, scale: scale)
+                                 role: .follow, scale: scale)
                 }
             } else {
                 Text("60 分鐘內無車")
@@ -1479,8 +1473,6 @@ struct PlaceRowView: View {
     var entryDate: Date = Date()
     var role: Role = .follow
     var lineColor: Color? = nil
-    var lineAbove: Bool = true
-    var lineBelow: Bool = true
     var scale: RailScale = RailScale(k: 1)
 
     private var isHero: Bool { role == .hero }
@@ -1502,9 +1494,7 @@ struct PlaceRowView: View {
     }
 
     var body: some View {
-        RailRow(spine: isHero ? .lead(lineColor) : .follow,
-                lineAbove: lineAbove, lineBelow: lineBelow,
-                height: height,
+        RailRow(height: height,
                 numberWidth: isHero ? RailNumberColumn.wide : RailNumberColumn.narrow,
                 scale: scale) {
             HStack(spacing: scale.pt(6)) {

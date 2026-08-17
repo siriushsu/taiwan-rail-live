@@ -418,14 +418,13 @@ struct MetroBoardView: View {
             if let lead = rows.first {
                 MetroRowView(row: lead, precision: entry.precision, role: .hero,
                              entryDate: entry.date, sys: entry.sys, station: entry.title,
-                             lineAbove: false, lineBelow: !follows.isEmpty, scale: scale)
-                RailHairline(scale: scale)
+                             scale: scale)
+                RailRowGap(scale: scale)
                 ForEach(Array(follows.enumerated()), id: \.offset) { i, r in
                     MetroRowView(row: r, precision: entry.precision,
                                  role: family == .systemLarge ? .followLarge : .follow,
                                  entryDate: entry.date, sys: entry.sys, station: entry.title,
-                                 lineBelow: i < follows.count - 1,
-                                 disambiguate: ambiguousDests.contains(r.dest), scale: scale)
+                                                                  disambiguate: ambiguousDests.contains(r.dest), scale: scale)
                 }
             } else {
                 emptyBody(scale)
@@ -562,8 +561,6 @@ struct MetroRowView: View {
     /// 線別要靠「系統＋本站＋該列終點」推，故兩者都要帶（見 MetroPalette.rowLine）。
     var sys: String? = nil
     var station: String = ""
-    var lineAbove: Bool = true
-    var lineBelow: Bool = true
     /// 這一列的終點在【同一張卡上看得見的其他列】裡也出現過 ⇒ 次列要補線名才分得出來。
     ///
     /// 🔴 設計稿的次列刻意【不畫線名、軌脊環也是灰的】（「主角有副標，次列沒有」），
@@ -590,9 +587,7 @@ struct MetroRowView: View {
             MetroPalette.rowLine(sys: $0, station: station, dest: row.dest,
                                  lineCode: row.lineCode, trainNo: row.trainNo)
         } ?? (color: nil, name: nil)
-        RailRow(spine: isHero ? .lead(ln.color) : .follow,
-                lineAbove: lineAbove, lineBelow: lineBelow,
-                height: height,
+        RailRow(height: height,
                 numberWidth: isHero ? RailNumberColumn.wide : RailNumberColumn.narrow,
                 scale: scale) {
             if isHero {

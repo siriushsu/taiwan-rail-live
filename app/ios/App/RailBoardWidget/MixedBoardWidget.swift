@@ -252,12 +252,12 @@ private struct MixedBoardCard: View {
             }
             Spacer().frame(height: scale.pt(MixedMetrics.titleGap))
 
-            sectionHeader(metroHeader, lineAbove: false)
+            sectionHeader(metroHeader)
             metroSection(follows: plan.metroFollows)
 
-            spineDivider
+            sectionDivider
 
-            sectionHeader(railHeader, lineAbove: true)
+            sectionHeader(railHeader)
             railSection(follows: plan.railFollows)
 
             Spacer(minLength: 0)
@@ -270,7 +270,7 @@ private struct MixedBoardCard: View {
         if let last = metro.lastTrain {
             // 末班車是【車站層】的事實，不屬於任何一列 ⇒ 掛在分區標題底下，
             // 不掛進某一列的內容欄（掛進去會被讀成「那一班是末班車」）。
-            spineLine(height: MixedMetrics.extraLine) {
+            plainLine(height: MixedMetrics.extraLine) {
                 RailStatusTag(kind: .lastTrainAt(last), fontSize: 12, scale: scale)
             }
         }
@@ -280,11 +280,10 @@ private struct MixedBoardCard: View {
             let shown = Array(metroRows.dropFirst().prefix(follows))
             MetroRowView(row: metroRows[0], precision: metro.precision, role: .hero,
                          entryDate: entry.date, sys: metro.sys, station: metro.title,
-                         lineAbove: true, lineBelow: true, scale: scale)
+                         scale: scale)
             ForEach(Array(shown.enumerated()), id: \.offset) { _, row in
                 MetroRowView(row: row, precision: metro.precision, role: .followLarge,
                              entryDate: entry.date, sys: metro.sys, station: metro.title,
-                             lineAbove: true, lineBelow: true,
                              disambiguate: ambiguousDests.contains(row.dest), scale: scale)
             }
         }
@@ -294,18 +293,17 @@ private struct MixedBoardCard: View {
         switch entry.rail.content {
         case .board(let snapshot):
             if let notice = snapshot.notice {
-                spineLine(height: MixedMetrics.extraLine) { BoardNotice(notice: notice, scale: scale) }
+                plainLine(height: MixedMetrics.extraLine) { BoardNotice(notice: notice, scale: scale) }
             }
             if snapshot.rows.isEmpty {
                 emptyLine((snapshot.emptyMessage ?? "今天沒有更晚的班次了", false))
             } else {
                 let shown = Array(snapshot.rows.dropFirst().prefix(follows))
                 BoardRowView(row: snapshot.rows[0], snapshot: snapshot, entryDate: entry.date,
-                             role: .hero, lineAbove: true, lineBelow: !shown.isEmpty, scale: scale)
+                             role: .hero, scale: scale)
                 ForEach(Array(shown.enumerated()), id: \.offset) { index, row in
                     BoardRowView(row: row, snapshot: snapshot, entryDate: entry.date,
-                                 role: .followLarge, lineAbove: true,
-                                 lineBelow: index < shown.count - 1, scale: scale)
+                                 role: .followLarge,                                  scale: scale)
                 }
             }
         case .place(let snapshot):
@@ -315,11 +313,11 @@ private struct MixedBoardCard: View {
                 let shown = Array(placeRows.dropFirst().prefix(follows))
                 PlaceRowView(row: placeRows[0].row, typeColors: snapshot.typeColors,
                              entryDate: entry.date, role: .hero, lineColor: placeRows[0].color,
-                             lineAbove: true, lineBelow: !shown.isEmpty, scale: scale)
+                             scale: scale)
                 ForEach(Array(shown.enumerated()), id: \.offset) { index, item in
                     PlaceRowView(row: item.row, typeColors: snapshot.typeColors,
                                  entryDate: entry.date, role: .followLarge, lineColor: item.color,
-                                 lineAbove: true, lineBelow: index < shown.count - 1, scale: scale)
+                                 scale: scale)
                 }
             }
         case .unavailable(let message):
@@ -327,31 +325,25 @@ private struct MixedBoardCard: View {
         }
     }
 
-    // MARK: - 分區骨架（軌脊在這幾列只有線、沒有站點）
+    // MARK: - 分區骨架
 
-    private func sectionHeader(_ text: String, lineAbove: Bool) -> some View {
-        spineLine(height: RailRowHeight.sectionHeader, lineAbove: lineAbove) {
+    private func sectionHeader(_ text: String) -> some View {
+        plainLine(height: RailRowHeight.sectionHeader) {
             RailSectionHeader(text: text, scale: scale)
         }
     }
 
-    /// 分區之間的內縮 hairline。軌脊照樣穿過去（它左邊那一欄），所以不能用 RailHairline
-    /// ——那一個沒有軌脊欄，畫出來軌脊會斷 8pt。
-    private var spineDivider: some View {
-        HStack(spacing: scale.pt(6)) {
-            RailSpineCell(kind: .line, scale: scale)
-            Rectangle().fill(Color.primary.opacity(0.12)).frame(height: 1)
-        }
-        .frame(height: scale.pt(MixedMetrics.divider))
+    /// 分區之間的內縮 hairline。軌脊已撤除（見 RailRow 的註解）⇒ 不再需要替它讓出左欄。
+    private var sectionDivider: some View {
+        Rectangle().fill(Color.primary.opacity(0.12)).frame(height: 1)
+            .frame(height: scale.pt(MixedMetrics.divider))
     }
 
-    private func spineLine<Content: View>(
+    private func plainLine<Content: View>(
         height: CGFloat,
-        lineAbove: Bool = true,
         @ViewBuilder content: () -> Content
     ) -> some View {
         HStack(spacing: scale.pt(6)) {
-            RailSpineCell(kind: .line, lineAbove: lineAbove, lineBelow: true, scale: scale)
             content()
             Spacer(minLength: 0)
         }
@@ -359,7 +351,7 @@ private struct MixedBoardCard: View {
     }
 
     private func emptyLine(_ body: (text: String, isCTA: Bool)) -> some View {
-        spineLine(height: MixedMetrics.message) {
+        plainLine(height: MixedMetrics.message) {
             Text(body.text)
                 .font(.system(size: scale.pt(13)))
                 .foregroundStyle(body.isCTA ? AnyShapeStyle(HierarchicalShapeStyle.primary)
