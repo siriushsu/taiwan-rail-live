@@ -101,7 +101,8 @@ const pieces = [
   extractDeclaration(widgetSource, 'struct SmallPlaceBoardView'),
   extractDeclaration(widgetSource, 'struct MediumPlaceBoardView'),
   extractDeclaration(widgetSource, 'private struct PlaceColumnView'),
-  extractDeclaration(widgetSource, 'private struct PlaceRowView'),
+  // 混合大卡也用它 ⇒ 已改為 internal（不再是 private）。
+  extractDeclaration(widgetSource, 'struct PlaceRowView'),
   extractDeclaration(widgetSource, 'struct RectangularPlaceBoardView'),
 ];
 

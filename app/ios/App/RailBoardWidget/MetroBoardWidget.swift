@@ -38,6 +38,19 @@ extension MetroEntry {
         if let age = dataAge(at: date), age > 180 { return "資料過舊，打開軌島即更新" }
         return "官方目前沒有這一站的班次資訊"
     }
+
+    /// 空白看板要顯示的那一行，以及它是不是「行動邀請」（通行證 CTA 用主色，不是錯誤訊息）。
+    ///
+    /// 🔴 小卡與混合大卡共用這一份。改版前混合卡自己只印一句 emptyText，於是通行證閘門
+    ///    （needPassAuto／needPassMulti）與自動選站失敗的指引在大卡上【完全不講】——
+    ///    「付費功能被擋住卻不說」是這個專案反覆踩的坑，兩張卡的說法一律走同一個出口。
+    func emptyBody(at date: Date) -> (text: String, isCTA: Bool) {
+        // 有資料但全被「到站+30 秒退場」濾光＝資料視野用完了，不是官方沒班次。
+        if snapshot?.rows.isEmpty == false { return ("資料過舊，打開軌島即更新", false) }
+        if let cta = passCTA { return (cta, true) }
+        // autoHint：自動選站解析失敗的指引（定位權限／從沒定位過），比通用文案可行動。
+        return (autoHint ?? emptyText(at: date), false)
+    }
 }
 
 struct MetroBoardProvider: AppIntentTimelineProvider {
@@ -440,21 +453,15 @@ struct MetroBoardView: View {
             .fixedSize()
     }
 
+    /// 四種空白原因＋通行證 CTA 的判準住在 MetroEntry.emptyBody（混合大卡共用同一份）。
+    /// 這裡只負責畫：CTA 用主色（它是行動邀請不是錯誤訊息），其餘 secondary。
+    /// 小卡容得下三行、大卡更寬鬆，故不設 lineLimit。
     @ViewBuilder private func emptyBody(_ scale: RailScale) -> some View {
-        if entry.snapshot?.rows.isEmpty == false {
-            // 有資料但全被「到站+30秒退場」濾光=資料視野(≈12分鐘)用完了,WidgetKit 還沒給
-            // 下一次刷新——這不是「官方沒班次」,寫成那樣會被讀成末班已過(真機回饋 08-14)。
-            Text("資料過舊，打開軌島即更新")
-                .font(.system(size: scale.pt(13))).foregroundStyle(.secondary)
-        } else if let cta = entry.passCTA {
-            // 通行證閘門:明講「為什麼看不到、點下去去哪」。用主色而非 secondary——
-            // 它是行動邀請不是錯誤訊息;小卡容得下三行,大卡更寬鬆,故不設 lineLimit。
-            Text(cta).font(.system(size: scale.pt(13))).foregroundStyle(.primary)
-        } else {
-            // autoHint:自動選站解析失敗的指引(定位權限/從沒定位過),比通用文案可行動。
-            Text(entry.autoHint ?? entry.emptyText(at: entry.date))
-                .font(.system(size: scale.pt(13))).foregroundStyle(.secondary)
-        }
+        let body = entry.emptyBody(at: entry.date)
+        Text(body.text)
+            .font(.system(size: scale.pt(13)))
+            .foregroundStyle(body.isCTA ? AnyShapeStyle(HierarchicalShapeStyle.primary)
+                                        : AnyShapeStyle(HierarchicalShapeStyle.secondary))
     }
 
     /// 依 entry 時刻過濾:到站超過 30 秒的列整列退場(timeline 在 eta+31 有預排邊界 entry)。

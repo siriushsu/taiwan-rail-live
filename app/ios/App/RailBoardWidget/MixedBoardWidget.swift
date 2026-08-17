@@ -171,23 +171,30 @@ struct MixedBoardProvider: AppIntentTimelineProvider {
     }
 }
 
+// MARK: - Large 混合卡（設計稿 C · LARGE 364×382 · 內容框 332×346）
+
+/// 「為什麼不是兩張表疊起來：軌脊是連續的一條，兩區只是它的兩段，分區靠 11pt 標題與
+/// 一條內縮 hairline，不用第二層卡片或色塊。兩區的欄寬相同，但節奏刻意不同——
+/// 捷運列有擁擠度、沒有時刻；臺鐵列有車種標與時刻、沒有擁擠度。」
+///
+/// 閱讀順序（設計稿）：站名 → 捷運主角 → 次要 → 臺鐵主角 → 次要。每一區只有一個大字。
 struct MixedBoardEntryView: View {
     let entry: MixedBoardEntry
+    @Environment(\.widgetRenderingMode) private var renderingMode
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            MixedRailSection(entry: entry.rail, displayDate: entry.date)
-                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-
-            Divider()
-
-            MixedMetroSection(entry: entry.metro, displayDate: entry.date)
-                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        GeometryReader { geo in
+            MixedBoardCard(
+                entry: entry,
+                scale: RailScale(width: geo.size.width, reference: RailScale.mediumReference),
+                box: geo.size.height
+            )
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         }
-        .padding(.horizontal, 16)
-        // 08-14 真機回饋:contentMarginsDisabled 下上緣只留 12pt,首行貼著圓角——頂部要多讓。
-        .padding(.top, 18)
-        .padding(.bottom, 12)
+        // 內距在 view 內部（與其他卡同一套）：算繪 harness 量到的就是上線版面。
+        // 16 是 WidgetKit 的預設內距，contentMarginsDisabled 後由我們自己補回來。
+        .padding(RailBoardInsets.content)
+        .railRenderingMode(renderingMode)
         .widgetURL(entry.metro.deepLink)
         .containerBackground(for: .widget) {
             Color(uiColor: .systemBackground)
@@ -195,195 +202,252 @@ struct MixedBoardEntryView: View {
     }
 }
 
-private struct MixedRailSection: View {
-    let entry: RailBoardEntry
-    let displayDate: Date
+private enum MixedMetrics {
+    /// 卡片標題與第一個分區標題之間
+    static let titleGap: CGFloat = 5
+    /// 分區之間那條內縮 hairline 佔的高
+    static let divider: CGFloat = 8
+    /// 末班車這種「車站層級」的單行
+    static let extraLine: CGFloat = 18
+    /// 空狀態訊息（通行證 CTA 可能兩行）
+    static let message: CGFloat = 34
+}
 
-    var body: some View {
-        switch entry.content {
-        case .board(let snapshot):
-            board(snapshot)
-        case .place(let snapshot):
-            place(snapshot)
-        case .unavailable(let message):
-            VStack(alignment: .leading, spacing: 8) {
-                header(title: "台鐵／高鐵", stamp: "—")
-                Text(message)
-                    .font(.headline)
-                    .foregroundStyle(.secondary)
-                    .minimumScaleFactor(0.75)
-                Spacer(minLength: 0)
-            }
-        }
-    }
+/// 兩區共用一份次列名額。
+///
+/// 🔴 設計稿畫的是「每區主角＋兩班次要」，但 08-15 真機回饋是大卡下半留白太多
+///    （「台北車站這種多線大站班次很多，大卡下半還有空位卻只列三班」）⇒ 名額改從
+///    【實測內容框高】推：有餘裕就多列，餘裕被末班車／告示／空狀態吃掉就少列。
+///    依設計稿「超出先砍列不縮字」，這裡只動列數，不動任何字級或列高。
+private struct MixedPlan {
+    let metroFollows: Int
+    let railFollows: Int
 
-    private func board(_ snapshot: BoardSnapshot) -> some View {
-        VStack(alignment: .leading, spacing: 4) {
-            header(
-                title: snapshot.title,
-                stamp: "\(RailBoardClock.updateTimeString(snapshot.generatedAt)) 更新"
-            )
-
-            if snapshot.rows.isEmpty, let emptyMessage = snapshot.emptyMessage {
-                Text(emptyMessage)
-                    .font(.headline)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
-            } else {
-                // 整張混合卡的改版是另一個批次；這裡先跟著 BoardRowView 的新介面走。
-                // 列高從 22 變成 28（次列）⇒ 少列一班才放得下。
-                let rows = Array(snapshot.rows.prefix(3))
-                ForEach(Array(rows.enumerated()), id: \.offset) { index, row in
-                    BoardRowView(row: row, snapshot: snapshot, entryDate: displayDate,
-                                 role: .follow,
-                                 lineAbove: index > 0,
-                                 lineBelow: index < rows.count - 1)
-                }
-                Spacer(minLength: 0)
-            }
-
-            if let notice = snapshot.notice {
-                BoardNotice(notice: notice)
-            }
-        }
-    }
-
-    private func place(_ snapshot: PlaceBoardSnapshot) -> some View {
-        // 08-14 真機回饋:大卡空間夠,字要放大——這一段是混合卡自己的列渲染,
-        // 字級直接抬,不動共用的 MediumTrainRow(那是 medium 卡的)。
-        VStack(alignment: .leading, spacing: 5) {
-            header(
-                title: snapshot.title,
-                stamp: "\(RailBoardClock.updateTimeString(snapshot.generatedAt)) 更新"
-            )
-
-            ForEach(Array(snapshot.lines.prefix(2))) { line in
-                ForEach(line.rows.prefix(snapshot.lines.count == 1 ? 3 : 2)) { row in
-                    HStack(spacing: 6) {
-                        Text(row.scheduledTime)
-                            .font(.system(size: 16, weight: .semibold))
-                            .monospacedDigit()
-                            .frame(width: 50, alignment: .leading)
-                        Capsule()
-                            .fill(Color(hex: line.color))
-                            .frame(width: 14, height: 6)
-                        // 08-14 真機回饋:比照捷運半邊的欄位紀律——車種+車次是變寬文字
-                        // (高鐵 0690 vs 區間車 1280),不給固定槽的話「往Ｘ」起點逐列參差。
-                        Text("\(row.trainType) \(row.trainNumber)")
-                            .font(.system(size: 13, weight: .medium))
-                            .foregroundStyle(trainColor(row.trainType, in: snapshot))
-                            .lineLimit(1)
-                            .minimumScaleFactor(0.85)
-                            .frame(width: 88, alignment: .leading)
-                        Text("往 \(row.destinationName)")
-                            .font(.system(size: 12.5))
-                            .foregroundStyle(.secondary)
-                            .lineLimit(1)
-                        Spacer(minLength: 2)
-                        Text(row.scheduledDate, style: .relative)
-                            .font(.system(size: 12, weight: .semibold))
-                            .monospacedDigit()
-                            .lineLimit(1)
-                    }
-                    .frame(minHeight: 26)
-                }
-            }
-            Spacer(minLength: 0)
-        }
-    }
-
-    private func trainColor(_ type: String, in snapshot: PlaceBoardSnapshot) -> Color {
-        Color(hex: snapshot.typeColors[type] ?? snapshot.typeColors["其他"] ?? "#8E44AD")
-    }
-
-    private func header(title: String, stamp: String) -> some View {
-        HStack(spacing: 8) {
-            Text(title)
-                .font(.system(size: 16, weight: .semibold))
-                .lineLimit(1)
-            Spacer(minLength: 4)
-            Text(stamp)
-                .font(.system(size: 11.5))
-                .foregroundStyle(.secondary)
-                .monospacedDigit()
-                .fixedSize()
-        }
+    init(box: CGFloat, fixed: CGFloat, metroAvailable: Int, railAvailable: Int) {
+        let slots = max(0, Int((box - fixed) / RailRowHeight.followLarge))
+        // 對半分，奇數時多的一格給捷運（它在前，而且是兩區裡唯一即時的一半）；
+        // 另一區用不到的名額讓出來——單線小站不該讓對面空著。
+        let wanted = min(metroAvailable, (slots + 1) / 2)
+        self.railFollows = min(railAvailable, max(0, slots - wanted))
+        self.metroFollows = min(metroAvailable, max(0, slots - railFollows))
     }
 }
 
-private struct MixedMetroSection: View {
-    let entry: MetroEntry
-    let displayDate: Date
+private struct MixedBoardCard: View {
+    let entry: MixedBoardEntry
+    let scale: RailScale
+    let box: CGFloat
+
+    private var metro: MetroEntry { entry.metro }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            HStack(spacing: 5) {
-                if let color = entry.lineColor {
-                    Circle().fill(color).frame(width: 9, height: 9)
-                }
-                Text(entry.title)
-                    .font(.system(size: 16, weight: .semibold))
-                    .lineLimit(1)
-                Spacer(minLength: 4)
-                Text(stampText)
-                    .font(.system(size: 11.5))
-                    .foregroundStyle(.secondary)
-                    .monospacedDigit()
-                    .fixedSize()
+        // 列高全走 scale.pt() ⇒ 預算要換回設計點再算，否則小機型會以為自己還有餘裕。
+        let plan = MixedPlan(box: box / max(scale.k, 0.01),
+                             fixed: fixedHeight,
+                             metroAvailable: max(0, metroRows.count - 1),
+                             railAvailable: max(0, railCount - 1))
+        VStack(alignment: .leading, spacing: 0) {
+            RailCardTitle(title: metro.title, scale: scale) {
+                RailStamp(text: stamp.text, suffix: stamp.suffix, warn: stamp.warn, scale: scale)
             }
+            Spacer().frame(height: scale.pt(MixedMetrics.titleGap))
 
-            if let lastTrain = entry.lastTrain {
-                Text("末班 \(lastTrain)")
-                    .font(.caption)
-                    .foregroundStyle(.orange)
-                    .lineLimit(1)
-            }
+            sectionHeader(metroHeader, lineAbove: false)
+            metroSection(follows: plan.metroFollows)
 
-            if visibleRows.isEmpty {
-                // 空白的原因分四種,判準與小卡同源(MetroBoardView.emptyText);混合卡以前只講
-                // 「官方沒有班次」,同一個誤導在這裡也要修掉。
-                Text(entry.emptyText(at: displayDate))
-                    .font(.callout)
-                    .foregroundStyle(.secondary)
-            } else {
-                // 真機回饋(08-15):台北車站這種多線大站班次很多,大卡下半還有空位卻只列三班。
-                // 大卡的捷運半邊與台鐵半邊等高,台鐵那邊排四列仍有餘裕 ⇒ 捷運放到五列。
-                //
-                // 🔴 2026-08-17 改版:這裡只跟著 MetroRowView 的新介面走(它現在自己查線色＋線名),
-                //    混合卡【整張的】改版(一條軌脊貫穿兩區＋11pt 分區標題)是另一個批次。
-                //    列高從舊版的隱含 ~19pt 變成 28pt ⇒ 五列會超出捷運半邊,依設計稿
-                //    「超出先砍列不縮字」在有末班車那一行時少列一班。
-                VStack(alignment: .leading, spacing: 0) {
-                    let cap = entry.lastTrain == nil ? 5 : 4
-                    let shown = Array(visibleRows.prefix(cap))
-                    ForEach(Array(shown.enumerated()), id: \.offset) { i, row in
-                        MetroRowView(
-                            row: row,
-                            precision: entry.precision,
-                            role: .follow,
-                            entryDate: displayDate,
-                            sys: entry.sys,
-                            station: entry.title,
-                            lineAbove: i > 0,
-                            lineBelow: i < shown.count - 1
-                        )
-                    }
-                }
-            }
+            spineDivider
+
+            sectionHeader(railHeader, lineAbove: true)
+            railSection(follows: plan.railFollows)
+
             Spacer(minLength: 0)
         }
     }
 
-    private var visibleRows: [MetroRow] {
-        guard let rows = entry.snapshot?.rows else { return [] }
-        return rows.filter {
-            $0.etaEpoch == nil || $0.etaEpoch! + 30 > displayDate.timeIntervalSince1970
+    // MARK: - 兩區
+
+    @ViewBuilder private func metroSection(follows: Int) -> some View {
+        if let last = metro.lastTrain {
+            // 末班車是【車站層】的事實，不屬於任何一列 ⇒ 掛在分區標題底下，
+            // 不掛進某一列的內容欄（掛進去會被讀成「那一班是末班車」）。
+            spineLine(height: MixedMetrics.extraLine) {
+                RailStatusTag(kind: .lastTrainAt(last), fontSize: 12, scale: scale)
+            }
+        }
+        if metroRows.isEmpty {
+            emptyLine(metro.emptyBody(at: entry.date))
+        } else {
+            let shown = Array(metroRows.dropFirst().prefix(follows))
+            MetroRowView(row: metroRows[0], precision: metro.precision, role: .hero,
+                         entryDate: entry.date, sys: metro.sys, station: metro.title,
+                         lineAbove: true, lineBelow: true, scale: scale)
+            ForEach(Array(shown.enumerated()), id: \.offset) { _, row in
+                MetroRowView(row: row, precision: metro.precision, role: .followLarge,
+                             entryDate: entry.date, sys: metro.sys, station: metro.title,
+                             lineAbove: true, lineBelow: true,
+                             disambiguate: ambiguousDests.contains(row.dest), scale: scale)
+            }
         }
     }
 
-    private var stampText: String {
-        guard let timestamp = entry.snapshot?.dataAt else { return "—" }
-        let time = RailBoardClock.updateTimeString(Date(timeIntervalSince1970: timestamp))
-        return entry.failed ? "上次 \(time) 更新" : "\(time) 更新"
+    @ViewBuilder private func railSection(follows: Int) -> some View {
+        switch entry.rail.content {
+        case .board(let snapshot):
+            if let notice = snapshot.notice {
+                spineLine(height: MixedMetrics.extraLine) { BoardNotice(notice: notice, scale: scale) }
+            }
+            if snapshot.rows.isEmpty {
+                emptyLine((snapshot.emptyMessage ?? "今天沒有更晚的班次了", false))
+            } else {
+                let shown = Array(snapshot.rows.dropFirst().prefix(follows))
+                BoardRowView(row: snapshot.rows[0], snapshot: snapshot, entryDate: entry.date,
+                             role: .hero, lineAbove: true, lineBelow: !shown.isEmpty, scale: scale)
+                ForEach(Array(shown.enumerated()), id: \.offset) { index, row in
+                    BoardRowView(row: row, snapshot: snapshot, entryDate: entry.date,
+                                 role: .followLarge, lineAbove: true,
+                                 lineBelow: index < shown.count - 1, scale: scale)
+                }
+            }
+        case .place(let snapshot):
+            if placeRows.isEmpty {
+                emptyLine(("這個地點附近今天沒有更晚的班次", false))
+            } else {
+                let shown = Array(placeRows.dropFirst().prefix(follows))
+                PlaceRowView(row: placeRows[0].row, typeColors: snapshot.typeColors,
+                             entryDate: entry.date, role: .hero, lineColor: placeRows[0].color,
+                             lineAbove: true, lineBelow: !shown.isEmpty, scale: scale)
+                ForEach(Array(shown.enumerated()), id: \.offset) { index, item in
+                    PlaceRowView(row: item.row, typeColors: snapshot.typeColors,
+                                 entryDate: entry.date, role: .followLarge, lineColor: item.color,
+                                 lineAbove: true, lineBelow: index < shown.count - 1, scale: scale)
+                }
+            }
+        case .unavailable(let message):
+            emptyLine((message, false))
+        }
+    }
+
+    // MARK: - 分區骨架（軌脊在這幾列只有線、沒有站點）
+
+    private func sectionHeader(_ text: String, lineAbove: Bool) -> some View {
+        spineLine(height: RailRowHeight.sectionHeader, lineAbove: lineAbove) {
+            RailSectionHeader(text: text, scale: scale)
+        }
+    }
+
+    /// 分區之間的內縮 hairline。軌脊照樣穿過去（它左邊那一欄），所以不能用 RailHairline
+    /// ——那一個沒有軌脊欄，畫出來軌脊會斷 8pt。
+    private var spineDivider: some View {
+        HStack(spacing: scale.pt(6)) {
+            RailSpineCell(kind: .line, scale: scale)
+            Rectangle().fill(Color.primary.opacity(0.12)).frame(height: 1)
+        }
+        .frame(height: scale.pt(MixedMetrics.divider))
+    }
+
+    private func spineLine<Content: View>(
+        height: CGFloat,
+        lineAbove: Bool = true,
+        @ViewBuilder content: () -> Content
+    ) -> some View {
+        HStack(spacing: scale.pt(6)) {
+            RailSpineCell(kind: .line, lineAbove: lineAbove, lineBelow: true, scale: scale)
+            content()
+            Spacer(minLength: 0)
+        }
+        .frame(height: scale.pt(height))
+    }
+
+    private func emptyLine(_ body: (text: String, isCTA: Bool)) -> some View {
+        spineLine(height: MixedMetrics.message) {
+            Text(body.text)
+                .font(.system(size: scale.pt(13)))
+                .foregroundStyle(body.isCTA ? AnyShapeStyle(HierarchicalShapeStyle.primary)
+                                            : AnyShapeStyle(HierarchicalShapeStyle.secondary))
+                .lineLimit(2)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+    }
+
+    // MARK: - 資料
+
+    /// 依 entry 時刻過濾：到站超過 30 秒的列整列退場（與小卡同一個判準）。
+    private var metroRows: [MetroRow] {
+        guard let rows = metro.snapshot?.rows else { return [] }
+        return rows.filter {
+            $0.etaEpoch == nil || $0.etaEpoch! + 30 > entry.date.timeIntervalSince1970
+        }
+    }
+
+    /// 這張卡上看得見的列裡出現過兩次以上的終點 ⇒ 只有這些次列要補線名。
+    private var ambiguousDests: Set<String> {
+        var seen: [String: Int] = [:]
+        for row in metroRows { seen[row.dest, default: 0] += 1 }
+        return Set(seen.filter { $0.value > 1 }.keys)
+    }
+
+    /// 「我的地點」在混合卡上攤平成一串：半張卡塞不下設計稿的多欄版面，而這裡的閱讀
+    /// 重點是「下一班什麼時候經過」⇒ 各線合併後按時刻排，線色留在軌脊點上。
+    private var placeRows: [(row: PlaceBoardRow, color: Color)] {
+        guard case .place(let snapshot) = entry.rail.content else { return [] }
+        return snapshot.lines
+            .flatMap { line in line.rows.map { (row: $0, color: Color(hex: line.color)) } }
+            .sorted { $0.row.scheduledDate < $1.row.scheduledDate }
+    }
+
+    private var railCount: Int {
+        switch entry.rail.content {
+        case .board(let s):  return s.rows.count
+        case .place:         return placeRows.count
+        case .unavailable:   return 0
+        }
+    }
+
+    private var railTitle: String? {
+        switch entry.rail.content {
+        case .board(let s):  return s.title
+        case .place(let s):  return s.title
+        case .unavailable:   return nil
+        }
+    }
+
+    private var metroHeader: String {
+        metro.auto ? "捷運 · 自動選站" : "捷運 · 倒數"
+    }
+
+    /// 兩半可以設在不同車站（板橋台鐵＋板橋捷運是常態，但設成不同站也合法）。
+    /// 站名不同時分區標題就是唯一講得清楚的地方 ⇒ 站名優先於「時刻／經過」這種量度字。
+    private var railHeader: String {
+        if let name = railTitle, name != metro.title { return "臺鐵・高鐵 · \(name)" }
+        if case .place = entry.rail.content { return "臺鐵・高鐵 · 經過" }
+        return "臺鐵・高鐵 · 時刻"
+    }
+
+    /// 卡片只放一個資料時刻。取捷運那一份：它是官方回應自帶的時刻（會真的變舊），
+    /// 而發車看板的 generatedAt 只是這張卡上次重建的時間（班表本身不會過期）。
+    private var stamp: (text: String, suffix: String, warn: Bool) {
+        if let at = metro.snapshot?.dataAt {
+            let time = RailBoardClock.updateTimeString(Date(timeIntervalSince1970: at))
+            return (time, metro.failed ? "上次更新" : "更新", metro.failed)
+        }
+        switch entry.rail.content {
+        case .board(let s):
+            return (RailBoardClock.updateTimeString(s.generatedAt), "更新", false)
+        case .place(let s):
+            return (RailBoardClock.updateTimeString(s.generatedAt), "更新", false)
+        case .unavailable:
+            return ("—", "", false)
+        }
+    }
+
+    private var fixedHeight: CGFloat {
+        var h = RailRowHeight.cardTitle + MixedMetrics.titleGap + MixedMetrics.divider
+            + 2 * RailRowHeight.sectionHeader
+        if metro.lastTrain != nil { h += MixedMetrics.extraLine }
+        h += metroRows.isEmpty ? MixedMetrics.message : RailRowHeight.hero
+        if case .board(let s) = entry.rail.content, s.notice != nil { h += MixedMetrics.extraLine }
+        h += railCount == 0 ? MixedMetrics.message : RailRowHeight.hero
+        return h
     }
 }
 

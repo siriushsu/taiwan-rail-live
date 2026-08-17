@@ -977,7 +977,7 @@ struct MediumBoardView: View {
 /// 設計稿「拉開重量的三個手段」：主角列 20/40pt、次列 17/20pt；主角有副標、次列沒有；
 /// 主角的軌脊點是 11pt 實心車種色，次列是灰環。
 struct BoardRowView: View {
-    enum Role { case hero, follow }
+    enum Role { case hero, follow, followLarge }
 
     let row: BoardRow
     let snapshot: BoardSnapshot
@@ -988,6 +988,14 @@ struct BoardRowView: View {
     var scale: RailScale = RailScale(k: 1)
 
     private var isHero: Bool { role == .hero }
+
+    private var height: CGFloat {
+        switch role {
+        case .hero:        return RailRowHeight.hero
+        case .follow:      return RailRowHeight.follow
+        case .followLarge: return RailRowHeight.followLarge
+        }
+    }
 
     private var color: Color {
         BoardPalette.trainColor(row.trainType, in: snapshot.typeColors)
@@ -1005,7 +1013,7 @@ struct BoardRowView: View {
     var body: some View {
         RailRow(spine: isHero ? .lead(color) : .follow,
                 lineAbove: lineAbove, lineBelow: lineBelow,
-                height: isHero ? RailRowHeight.hero : RailRowHeight.follow,
+                height: height,
                 numberWidth: isHero ? RailNumberColumn.wide : RailNumberColumn.narrow,
                 scale: scale) {
             if isHero {
@@ -1436,8 +1444,8 @@ private struct PlaceColumnView: View {
 
 /// 單線地點的軌脊列。與 BoardRowView 同一個骨架，差別只在地點沒有誤點資料，
 /// 而「經過時刻」佔用臺鐵列的狀態槽。
-private struct PlaceRowView: View {
-    enum Role { case hero, follow }
+struct PlaceRowView: View {
+    enum Role { case hero, follow, followLarge }
 
     let row: PlaceBoardRow
     let typeColors: [String: String]
@@ -1450,6 +1458,14 @@ private struct PlaceRowView: View {
 
     private var isHero: Bool { role == .hero }
 
+    private var height: CGFloat {
+        switch role {
+        case .hero:        return RailRowHeight.hero
+        case .follow:      return RailRowHeight.follow
+        case .followLarge: return RailRowHeight.followLarge
+        }
+    }
+
     private var sameDay: Bool {
         RailBoardClock.calendar.isDate(row.scheduledDate, inSameDayAs: entryDate)
     }
@@ -1461,7 +1477,7 @@ private struct PlaceRowView: View {
     var body: some View {
         RailRow(spine: isHero ? .lead(lineColor) : .follow,
                 lineAbove: lineAbove, lineBelow: lineBelow,
-                height: isHero ? RailRowHeight.hero : RailRowHeight.follow,
+                height: height,
                 numberWidth: isHero ? RailNumberColumn.wide : RailNumberColumn.narrow,
                 scale: scale) {
             HStack(spacing: scale.pt(6)) {

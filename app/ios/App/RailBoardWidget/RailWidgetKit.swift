@@ -191,6 +191,9 @@ struct RailSpineCell: View {
         case passed
         /// 列車現在的位置：白色圓標＋方向三角
         case train(Color?)
+        /// 只有軌線、沒有站點。Large 混合卡的分區標題與分區 hairline 用它讓
+        /// 「一條軌脊貫穿兩區」成立——那兩列不是站，所以不可以長出圓點。
+        case line
     }
 
     let kind: Kind
@@ -214,7 +217,15 @@ struct RailSpineCell: View {
         case .follow: return scale.pt(8)
         case .passed: return scale.pt(6)
         case .train:  return scale.pt(13)
+        case .line:   return 0
         }
+    }
+
+    /// 軌線在圓點處讓出的缺口。`.line` 必須是 0——留 1.5pt 缺口就會在分區標題那一列
+    /// 出現一段 3pt 的斷點，「一條連續的軌脊」當場破掉（那正是這個 kind 存在的理由）。
+    private var lineGap: CGFloat {
+        if case .line = kind { return 0 }
+        return dotDiameter / 2 + scale.pt(1.5)
     }
 
     var body: some View {
@@ -223,8 +234,8 @@ struct RailSpineCell: View {
             let cx = RailSpineCell.column / 2
             let cy = h / 2
             let d = dotDiameter
-            // 缺口＝圓點半徑再加 1.5pt，讓線不要貼著圓點邊緣收尾。
-            let gap = d / 2 + scale.pt(1.5)
+            // 缺口＝圓點半徑再加 1.5pt，讓線不要貼著圓點邊緣收尾（`.line` 為 0，見 lineGap）。
+            let gap = lineGap
             let w = scale.pt(2)
 
             ZStack(alignment: .topLeading) {
@@ -246,6 +257,8 @@ struct RailSpineCell: View {
 
     @ViewBuilder private var dot: some View {
         switch kind {
+        case .line:
+            EmptyView()
         case .lead(let c):
             Circle().fill(mono ? Color.primary : (c ?? RailTokens.colors(scheme).brand))
         case .follow:
