@@ -251,29 +251,43 @@ struct Provider: AppIntentTimelineProvider {
                 )
             }
 
-            let originSelection = try RailBoardStore.shared.stationSelection(forKey: originKey)
-            let destinationSelection = try configuration.destination.flatMap {
-                try RailBoardStore.shared.stationSelection(forKey: $0)
-            }
-            let destinationLost = configuration.destination != nil && destinationSelection == nil
-            guard let originSelection, !destinationLost else {
-                let entry = RailBoardEntry(
-                    date: now,
-                    configuration: configuration,
-                    content: .unavailable("找不到這個車站，請重新設定")
-                )
-                return Timeline(entries: [entry], policy: .never)
-            }
-
             let filters = BoardFilterSet(keys: configuration.filters)
-            let prepared = try engine.prepare(
-                originID: originSelection.station.index,
-                destinationID: destinationSelection?.station.index,
-                originDisplayName: originSelection.displayName,
-                destinationDisplayName: destinationSelection?.displayName,
-                filters: filters,
-                now: now
-            )
+            let prepared: PreparedBoard
+            if RailBoardStore.shared.isCompositeKey(originKey) {
+                // 🔴 共站走成員站的官方發車看板。舊格式（沒有成員站）就明說要開一次 App，
+                //    不准退回幾何共站看板——那條路會把有月台的車站寫成「經過」。
+                guard let composite = RailBoardStore.shared.compositeSelection(forKey: originKey) else {
+                    let entry = RailBoardEntry(
+                        date: now,
+                        configuration: configuration,
+                        content: .unavailable("開啟軌島一次以更新共站班表")
+                    )
+                    return Timeline(entries: [entry], policy: .after(now.addingTimeInterval(15 * 60)))
+                }
+                prepared = try engine.prepare(composite: composite, filters: filters, now: now)
+            } else {
+                let originSelection = try RailBoardStore.shared.stationSelection(forKey: originKey)
+                let destinationSelection = try configuration.destination.flatMap {
+                    try RailBoardStore.shared.stationSelection(forKey: $0)
+                }
+                let destinationLost = configuration.destination != nil && destinationSelection == nil
+                guard let originSelection, !destinationLost else {
+                    let entry = RailBoardEntry(
+                        date: now,
+                        configuration: configuration,
+                        content: .unavailable("找不到這個車站，請重新設定")
+                    )
+                    return Timeline(entries: [entry], policy: .never)
+                }
+                prepared = try engine.prepare(
+                    originID: originSelection.station.index,
+                    destinationID: destinationSelection?.station.index,
+                    originDisplayName: originSelection.displayName,
+                    destinationDisplayName: destinationSelection?.displayName,
+                    filters: filters,
+                    now: now
+                )
+            }
             guard !prepared.journeys.isEmpty || filters.isEmpty else {
                 let entry = RailBoardEntry(
                     date: now,
@@ -284,7 +298,7 @@ struct Provider: AppIntentTimelineProvider {
             }
 
             let nextJourney = prepared.journeys.first
-            let shouldFetchLive = prepared.system.live
+            let shouldFetchLive = prepared.anyLive
                 && nextJourney.map {
                     $0.scheduledDate.timeIntervalSince(now) <= RailBoardConstants.liveWindow
                 } == true
@@ -339,28 +353,39 @@ struct Provider: AppIntentTimelineProvider {
                 )
             }
 
-            let originSelection = try RailBoardStore.shared.stationSelection(forKey: originKey)
-            let destinationSelection = try configuration.destination.flatMap {
-                try RailBoardStore.shared.stationSelection(forKey: $0)
-            }
-            let destinationLost = configuration.destination != nil && destinationSelection == nil
-            guard let originSelection, !destinationLost else {
-                return RailBoardEntry(
-                    date: now,
-                    configuration: configuration,
-                    content: .unavailable("找不到這個車站，請重新設定")
+            let filters = BoardFilterSet(keys: configuration.filters)
+            let prepared: PreparedBoard
+            if RailBoardStore.shared.isCompositeKey(originKey) {
+                guard let composite = RailBoardStore.shared.compositeSelection(forKey: originKey) else {
+                    return RailBoardEntry(
+                        date: now,
+                        configuration: configuration,
+                        content: .unavailable("開啟軌島一次以更新共站班表")
+                    )
+                }
+                prepared = try engine.prepare(composite: composite, filters: filters, now: now)
+            } else {
+                let originSelection = try RailBoardStore.shared.stationSelection(forKey: originKey)
+                let destinationSelection = try configuration.destination.flatMap {
+                    try RailBoardStore.shared.stationSelection(forKey: $0)
+                }
+                let destinationLost = configuration.destination != nil && destinationSelection == nil
+                guard let originSelection, !destinationLost else {
+                    return RailBoardEntry(
+                        date: now,
+                        configuration: configuration,
+                        content: .unavailable("找不到這個車站，請重新設定")
+                    )
+                }
+                prepared = try engine.prepare(
+                    originID: originSelection.station.index,
+                    destinationID: destinationSelection?.station.index,
+                    originDisplayName: originSelection.displayName,
+                    destinationDisplayName: destinationSelection?.displayName,
+                    filters: filters,
+                    now: now
                 )
             }
-
-            let filters = BoardFilterSet(keys: configuration.filters)
-            let prepared = try engine.prepare(
-                originID: originSelection.station.index,
-                destinationID: destinationSelection?.station.index,
-                originDisplayName: originSelection.displayName,
-                destinationDisplayName: destinationSelection?.displayName,
-                filters: filters,
-                now: now
-            )
             guard !prepared.journeys.isEmpty || filters.isEmpty else {
                 return RailBoardEntry(
                     date: now,
@@ -369,7 +394,7 @@ struct Provider: AppIntentTimelineProvider {
                 )
             }
 
-            let shouldFetchLive = prepared.system.live
+            let shouldFetchLive = prepared.anyLive
                 && prepared.journeys.first.map {
                     $0.scheduledDate.timeIntervalSince(now) <= RailBoardConstants.liveWindow
                 } == true
@@ -403,7 +428,8 @@ struct Provider: AppIntentTimelineProvider {
         let anchors = prepared.journeys
             .prefix(RailBoardConstants.maximumEntries)
             .map { journey -> Date in
-                let late = max(0, prepared.system.live ? (delays[journey.trainNumber] ?? 0) : 0)
+                let late = max(0, prepared.isLive(systemID: journey.systemID)
+                    ? (delays[journey.trainNumber] ?? 0) : 0)
                 return journey.scheduledDate.addingTimeInterval(Double(late) * 60)
             }
         let transitionDates = BoardCountdown
@@ -627,7 +653,8 @@ struct Provider: AppIntentTimelineProvider {
                 arrivalDate: journey.arrivalDate,
                 destinationName: journey.destinationName,
                 relation: journey.relation,
-                delay: prepared.system.live ? delays[journey.trainNumber] : nil,
+                delay: prepared.isLive(systemID: journey.systemID)
+                    ? delays[journey.trainNumber] : nil,
                 isLastOfDay: journey.isLastOfDay
             )
         }
@@ -644,11 +671,11 @@ struct Provider: AppIntentTimelineProvider {
         let snapshot = BoardSnapshot(
             title: prepared.title,
             isWatching: prepared.isWatching,
-            isLive: prepared.system.live,
+            isLive: prepared.anyLive,
             typeColors: prepared.typeColors,
             rows: rows,
             emptyMessage: emptyMessage,
-            notice: engine.notice(for: entryDate, system: prepared.system),
+            notice: engine.notice(for: entryDate, systems: prepared.systems),
             generatedAt: generatedAt
         )
         return RailBoardEntry(

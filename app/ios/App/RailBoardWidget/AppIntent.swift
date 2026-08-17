@@ -208,7 +208,27 @@ struct BoardFilterOptionsProvider: DynamicOptionsProvider {
         let options: (types: [FilterOption], trains: [FilterOption])
         // 方向只有地點看板有：車站看板本來就是「這一站的發車」，方向由目的站決定。
         var directions: [FilterOption] = []
-        if let placeBoard = RailBoardStore.shared.placeLikeBoard(forKey: origin) {
+        if let composite = RailBoardStore.shared.compositeSelection(forKey: origin) {
+            // 🔴 共站改吃官方發車看板之後，這一格是「兩站的車種與車次聯集」。
+            //    方向那一刀跟著消失：官方發車看板的方向就是終點站，而共站這個入口不吃目的站。
+            //    既有設定裡若還存著方向鍵，`BoardFilterSet.matches(_ template:)` 只看車種與車次
+            //    ⇒ 那些鍵變成無效但不會把看板篩成空的。
+            let engine = RailBoardEngine()
+            var types: [FilterOption] = []
+            var trains: [FilterOption] = []
+            var seen = Set<String>()
+            for member in composite.members {
+                let part = try engine.filterOptions(originID: member.st, destinationID: nil)
+                for option in part.types + part.trains where seen.insert(option.key).inserted {
+                    if option.key.hasPrefix(BoardFilter.trainTypePrefix) {
+                        types.append(option)
+                    } else {
+                        trains.append(option)
+                    }
+                }
+            }
+            options = (types: types, trains: trains)
+        } else if let placeBoard = RailBoardStore.shared.placeLikeBoard(forKey: origin) {
             let engine = RailBoardEngine()
             options = try engine.filterOptions(placeBoard: placeBoard)
             directions = engine.directionOptions(placeBoard: placeBoard)
