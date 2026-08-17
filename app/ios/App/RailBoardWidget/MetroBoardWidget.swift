@@ -398,7 +398,8 @@ struct MetroBoardView: View {
                     MetroRowView(row: r, precision: entry.precision,
                                  role: family == .systemLarge ? .followLarge : .follow,
                                  entryDate: entry.date, sys: entry.sys, station: entry.title,
-                                 lineBelow: i < follows.count - 1, scale: scale)
+                                 lineBelow: i < follows.count - 1,
+                                 disambiguate: ambiguousDests.contains(r.dest), scale: scale)
                 }
             } else {
                 emptyBody(scale)
@@ -461,6 +462,15 @@ struct MetroBoardView: View {
     private var visibleRows: [MetroRow] {
         guard let rows = entry.snapshot?.rows else { return [] }
         return rows.filter { $0.etaEpoch == nil || $0.etaEpoch! + 30 > entry.date.timeIntervalSince1970 }
+    }
+
+    /// 這張卡上看得見的列裡,出現過兩次以上的終點。只有這些列的次列要補線名。
+    /// 判準取【看得見的那幾列】不是全部 rows:第七列也叫「往 南港展覽館」不會讓第二列變得難讀。
+    private var ambiguousDests: Set<String> {
+        let visible = Array(visibleRows.prefix(1 + followLimit))
+        var seen: [String: Int] = [:]
+        for r in visible { seen[r.dest, default: 0] += 1 }
+        return Set(seen.filter { $0.value > 1 }.keys)
     }
 
     private func line(_ r: MetroRow) -> (color: Color?, name: String?) {
@@ -534,6 +544,15 @@ struct MetroRowView: View {
     var station: String = ""
     var lineAbove: Bool = true
     var lineBelow: Bool = true
+    /// 這一列的終點在【同一張卡上看得見的其他列】裡也出現過 ⇒ 次列要補線名才分得出來。
+    ///
+    /// 🔴 設計稿的次列刻意【不畫線名、軌脊環也是灰的】（「主角有副標，次列沒有」），
+    ///    而規則 3「路線色一定伴隨線名」在那裡是空成立的——次列根本不上路線色。
+    ///    但設計稿的 Medium 示範用的是台北車站，三列三個不同終點；忠孝復興那張兩列
+    ///    都寫「往 南港展覽館」（文湖線與板南線都到），照設計稿字面畫，次列會完全無從分辨
+    ///    ——那正是這次改版要解決的那個缺陷。所以只在【真的撞名】時補線名，
+    ///    常見情況維持設計稿的乾淨次列。
+    var disambiguate: Bool = false
     var scale: RailScale = RailScale(k: 1)
 
     private var isHero: Bool { role == .hero }
@@ -576,12 +595,16 @@ struct MetroRowView: View {
                     Text("往 \(row.dest)")
                         .font(.system(size: scale.pt(17), weight: .medium))
                         .lineLimit(1).minimumScaleFactor(0.85)
-                    if let name = ln.name {
+                    if disambiguate, let name = ln.name {
                         RailLineMark(name: name, color: ln.color, fontSize: 11, scale: scale)
                             .foregroundStyle(.secondary)
                     }
-                    // 從班列不畫擁擠度：28pt 的列高放不下六節色塊＋詞，硬塞就是設計稿說的
-                    // 「全卡視覺重量一致」重演。擁擠度只給主角列。
+                    Spacer(minLength: scale.pt(4))
+                    // 次列的擁擠度【去詞留節】：設計稿的次列是單行,放不下詞;
+                    // 色塊靠右貼著數字欄,與主角列的色塊左緣不同源是刻意的(主角有副標那一行)。
+                    if let c = row.crowd, !c.isEmpty {
+                        RailCarriageMeter(levels: c, showWord: false, scale: scale)
+                    }
                 }
             }
         } trailing: {

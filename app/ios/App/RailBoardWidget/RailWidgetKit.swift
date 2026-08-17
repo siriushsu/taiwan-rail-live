@@ -409,7 +409,8 @@ struct RailCountdownText: View {
         case heroCard
         /// 主角·列表首列：Medium／Large 的 40pt
         case heroRow
-        /// 次列：17pt
+        /// 次列：20pt（設計稿「拉開重量的三個手段」：主角列 20/40pt、次列 17/20pt
+        /// ——斜線前是內容欄字級、後面是數字欄字級，所以次列的【數字】是 20pt 不是 17pt）
         case row
         /// 第三層（LA 的第二班、compact 島）：13pt
         case minor
@@ -418,7 +419,7 @@ struct RailCountdownText: View {
             switch self {
             case .heroCard: return 44
             case .heroRow:  return 40
-            case .row:      return 17
+            case .row:      return 20
             case .minor:    return 13
             }
         }
