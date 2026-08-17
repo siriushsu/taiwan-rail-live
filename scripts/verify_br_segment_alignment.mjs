@@ -50,41 +50,62 @@ ok('讀到的是真模型（24 站、正反向各 23 個區間秒齊全）',
 // 站序 0..23、往南港（step=+1）。CarWeight 落後 200 秒 ⇒ 最多可能前進 200/78+2 ≈ 4.5 站。
 const V = (idx, lagSec) => ({ idx, at: 1000 - lagSec });
 const D = to => ({ to, baseEpoch: 1000 });
+// 回傳形狀改成 { dOff, vOff, n }（兩側都可能長）；壓成字串方便斷言
+const fit = (d, v, step) => {
+  const f = alignSegmentsToVehicles(d, v, step, MEDIAN_RUN);
+  return f ? `d${f.dOff}/v${f.vOff}/n${f.n}` : 'null';
+};
 
 console.log('\n【1】台數相等且位置吻合 ⇒ 位移 0');
-ok('三對三、各前進 2 站', alignSegmentsToVehicles(
-  [D(5), D(11), D(17)], [V(3, 200), V(9, 200), V(15, 200)], 1, MEDIAN_RUN) === 0);
+ok('三對三、各前進 2 站', fit([D(5), D(11), D(17)], [V(3, 200), V(9, 200), V(15, 200)], 1) === 'd0/v0/n3',
+  fit([D(5), D(11), D(17)], [V(3, 200), V(9, 200), V(15, 200)], 1));
 
 console.log('\n【2】🔴 少一台（頭或尾觀測不到）⇒ 仍要對得起來，且選對視窗');
-ok('少的是【頭】(最靠終點那台) ⇒ 位移 0',
-  alignSegmentsToVehicles([D(5), D(11)], [V(3, 200), V(9, 200), V(15, 200)], 1, MEDIAN_RUN) === 0,
-  String(alignSegmentsToVehicles([D(5), D(11)], [V(3, 200), V(9, 200), V(15, 200)], 1, MEDIAN_RUN)));
-ok('少的是【尾】(剛發車那台) ⇒ 位移 1',
-  alignSegmentsToVehicles([D(11), D(17)], [V(3, 200), V(9, 200), V(15, 200)], 1, MEDIAN_RUN) === 1,
-  String(alignSegmentsToVehicles([D(11), D(17)], [V(3, 200), V(9, 200), V(15, 200)], 1, MEDIAN_RUN)));
+ok('少的是【頭】(最靠終點那台) ⇒ 車列位移 0',
+  fit([D(5), D(11)], [V(3, 200), V(9, 200), V(15, 200)], 1) === 'd0/v0/n2',
+  fit([D(5), D(11)], [V(3, 200), V(9, 200), V(15, 200)], 1));
+ok('少的是【尾】(剛發車那台) ⇒ 車列位移 1',
+  fit([D(11), D(17)], [V(3, 200), V(9, 200), V(15, 200)], 1) === 'd0/v1/n2',
+  fit([D(11), D(17)], [V(3, 200), V(9, 200), V(15, 200)], 1));
 
 console.log('\n【3】🔴 反向控制：推導位置在站碼【後方】＝不可能（車不會倒退）⇒ 必須拒絕');
-ok('全部落後 3 站 ⇒ 回 -1（寧可不配也不貼錯）',
-  alignSegmentsToVehicles([D(0), D(6), D(12)], [V(3, 200), V(9, 200), V(15, 200)], 1, MEDIAN_RUN) === -1);
+ok('全部落後 3 站 ⇒ 回 null（寧可不配也不貼錯）',
+  fit([D(0), D(6), D(12)], [V(3, 200), V(9, 200), V(15, 200)], 1) === 'null');
 ok('落後 1 站仍接受（站碼整站量化誤差）',
-  alignSegmentsToVehicles([D(2), D(8), D(14)], [V(3, 200), V(9, 200), V(15, 200)], 1, MEDIAN_RUN) === 0);
+  fit([D(2), D(8), D(14)], [V(3, 200), V(9, 200), V(15, 200)], 1) === 'd0/v0/n3');
 
 console.log('\n【4】🔴 反向控制：前進得比「落後秒數 × 速度」還多 ⇒ 不可能，必須拒絕');
-ok('站碼只落後 0 秒卻前進 8 站 ⇒ 回 -1',
-  alignSegmentsToVehicles([D(11)], [V(3, 0)], 1, MEDIAN_RUN) === -1);
+ok('站碼只落後 0 秒卻前進 8 站 ⇒ 回 null',
+  fit([D(11)], [V(3, 0)], 1) === 'null');
 ok('同樣前進 8 站，但站碼落後 600 秒 ⇒ 接受',
-  alignSegmentsToVehicles([D(11)], [V(3, 600)], 1, MEDIAN_RUN) === 0);
+  fit([D(11)], [V(3, 600)], 1) === 'd0/v0/n1');
 
 console.log('\n【5】方向 1（站序遞減）也要成立 — 心得 4：有序資料必驗兩個方向');
-ok('dir1 少一台（尾）⇒ 位移 1', alignSegmentsToVehicles(
-  [D(12), D(6)], [V(20, 200), V(14, 200), V(8, 200)], -1, MEDIAN_RUN) === 1,
-  String(alignSegmentsToVehicles([D(12), D(6)], [V(20, 200), V(14, 200), V(8, 200)], -1, MEDIAN_RUN)));
+ok('dir1 少一台（尾）⇒ 車列位移 1',
+  fit([D(12), D(6)], [V(20, 200), V(14, 200), V(8, 200)], -1) === 'd0/v1/n2',
+  fit([D(12), D(6)], [V(20, 200), V(14, 200), V(8, 200)], -1));
 
-console.log('\n【6】邊界：段數多於車數／空輸入 ⇒ 一律不配（不准無中生有）');
-ok('段數 3 > 車數 2 ⇒ -1', alignSegmentsToVehicles([D(5), D(11), D(17)], [V(3, 200), V(9, 200)], 1, MEDIAN_RUN) === -1);
-ok('空的段 ⇒ -1', alignSegmentsToVehicles([], [V(3, 200)], 1, MEDIAN_RUN) === -1);
-ok('空的車列 ⇒ -1', alignSegmentsToVehicles([D(5)], [], 1, MEDIAN_RUN) === -1);
-ok('medianRun 無效 ⇒ -1（不要用壞掉的尺去量）', alignSegmentsToVehicles([D(5)], [V(3, 200)], 1, 0) === -1);
+console.log('\n【6】🔴 段數【多於】車數也要對得起來（2026-08-18 06:15 正式站實測:切段 15 vs 車 14）');
+// 舊版在這一側直接放棄整個方向 ⇒ 首班車時段 BR 配對率 0%,全部退回落後的站碼。
+// 兩串都由「最後面」排到「最前面」(step=+1 時即站序遞增)。兩台真車在 idx 9/15、落後 200 秒
+// ⇒ 它們的真實位置約在 11/17。多出來的那一段分別擺在最前(23)與最後(3)。
+ok('多出來的段在【最前面】⇒ 取後兩段配滿 2 台',
+  fit([D(11), D(17), D(23)], [V(9, 200), V(15, 200)], 1) === 'd0/v0/n2',
+  fit([D(11), D(17), D(23)], [V(9, 200), V(15, 200)], 1));
+ok('多出來的段在【最後面】⇒ 跳過它、配滿 2 台',
+  fit([D(3), D(11), D(17)], [V(9, 200), V(15, 200)], 1) === 'd1/v0/n2',
+  fit([D(3), D(11), D(17)], [V(9, 200), V(15, 200)], 1));
+// 站碼一點都沒落後(lag=0)⇒ 上限＝0/78+2＝2 站；把真車放在 idx 3/9 而段在 11/17/23，
+// 任何視窗都要求前進 ≥8 站 ⇒ 說不通，必須整個方向拒絕而不是硬配一組出來。
+ok('🔴 多出來的段擺在【落後秒數解釋不了】的位置 ⇒ 整個方向拒絕(不硬配)',
+  fit([D(11), D(17), D(23)], [V(3, 0), V(9, 0)], 1) === 'null',
+  fit([D(11), D(17), D(23)], [V(3, 0), V(9, 0)], 1));
+
+console.log('\n【6b】邊界：空輸入／壞尺 ⇒ 一律不配（不准無中生有）');
+ok('空的段 ⇒ null', fit([], [V(3, 200)], 1) === 'null');
+ok('空的車列 ⇒ null', fit([D(5)], [], 1) === 'null');
+ok('medianRun 無效 ⇒ null（不要用壞掉的尺去量）',
+  alignSegmentsToVehicles([D(5)], [V(3, 200)], 1, 0) === null);
 
 // ── 實況語料重播：新舊閘門同一次執行併排比較 ──────────────────────
 console.log('\n【7】🔴 08-15 實況語料重播：新對齊 vs 舊「全等才配」（同一次執行的對照組）');
@@ -118,12 +139,12 @@ for (const f of files) {
     // 舊閘門：全等才配
     if (derived.length && derived.length === cw.length) { oldOK++; oldTrains += derived.length; }
     // 新對齊
-    const off = alignSegmentsToVehicles(derived, cw, step, MEDIAN_RUN);
-    if (off >= 0) {
-      newOK++; newTrains += derived.length;
+    const fitted = alignSegmentsToVehicles(derived, cw, step, MEDIAN_RUN);
+    if (fitted) {
+      newOK++; newTrains += fitted.n;
       const used = new Set();
-      for (let i = 0; i < derived.length; i++) {
-        const no = cw[off + i].no;
+      for (let i = 0; i < fitted.n; i++) {
+        const no = cw[fitted.vOff + i].no;
         if (used.has(no)) dupNo.push(`${f} dir${dir} ${no}`);
         used.add(no);
       }

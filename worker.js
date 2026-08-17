@@ -922,14 +922,15 @@ async function trtcLive(request, env) {
           // −2(14%)，**一次都沒有多出來**。少的那 1–2 台是端點附近觀測不到的（跑最後一段沒有
           // 前方站可報、剛要發車的起點列被丟），必定落在頭或尾 ⇒ 正確的對應只可能是 cw 裡的一段
           // **連續視窗**，候選僅 N−M+1 個（實測 ≤3）。逐一評分取最佳，比全等閘門多救回 62% 的方向。
-          const off = alignSegmentsToVehicles(derived,
+          const fit = alignSegmentsToVehicles(derived,
             cw.map(r => ({ idx: idxOfCode.get(String(r.StationID)), at: trtcEpoch(r.UpdateTime) })),
             step, medianRun);
-          if (off < 0) { brSegStat.unaligned += derived.length; continue; }
-          for (let i = 0; i < derived.length; i++) {
-            brPathByNo.set(String(cw[off + i].TrainNumber), derived[i]);
+          if (!fit) { brSegStat.unaligned += derived.length; continue; }
+          for (let i = 0; i < fit.n; i++) {
+            brPathByNo.set(String(cw[fit.vOff + i].TrainNumber), derived[fit.dOff + i]);
             brSegStat.matched++;
           }
+          brSegStat.unaligned += derived.length - fit.n; // 多出來、沒配上的段（診斷用）
         }
       } catch (e) {
         console.warn('[trtc br-seg] 倒數切段失敗(退回原路徑):', (e && e.message) || String(e));

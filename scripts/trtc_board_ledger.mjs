@@ -282,21 +282,29 @@ function cumulativeRunSec(line, a, b, step) {
 // 落後多少秒直接量（段的基準時刻 − 該列的 UpdateTime），除以中位區間秒得到「最多可能前進幾站」。
 // 容忍 −1 是站碼本身的整站量化誤差（車已過站但站碼還沒跳，或反之）。
 // 回傳最佳位移；沒有任何視窗說得通就回 -1（寧可整個方向不配，也不貼錯位置）。
+// 🔴 2026-08-18 06:15 正式站實測訂正：段數**也會多**（切段 15 vs CarWeight 14）。
+// 先前「只會少不會多」是拿 fixture 的 `.board`（**清洗後**的看板列）反推 TrackInfo 量的，
+// 而產品是對**原始** TrackInfo 切段——判準的輸入與產品不同源，於是量不到這一側。
+// ⇒ 兩側都要能滑：哪一邊長就在哪一邊開視窗，短的那串保持完整（與原本同一個假設：
+// 缺／多的都在端點）。回傳 { dOff, vOff, n }；沒有任何視窗說得通就回 null。
 export function alignSegmentsToVehicles(derived, vehicles, step, medianRun) {
-  if (!Array.isArray(derived) || !Array.isArray(vehicles)) return -1;
-  if (!derived.length || derived.length > vehicles.length) return -1;
-  if (!(medianRun > 0)) return -1;
-  let best = -1, bestScore = Infinity;
-  for (let off = 0; off + derived.length <= vehicles.length; off++) {
-    let score = 0, ok = true;
-    for (let i = 0; i < derived.length; i++) {
-      const d = derived[i], v = vehicles[off + i];
-      const lag = Math.max(0, Number(d.baseEpoch) - Number(v.at));
-      const ahead = (Number(d.to) - Number(v.idx)) * step;
-      if (!Number.isFinite(ahead) || ahead < -1 || ahead > lag / medianRun + 2) { ok = false; break; }
-      score += Math.abs(ahead);
+  if (!Array.isArray(derived) || !Array.isArray(vehicles)) return null;
+  if (!derived.length || !vehicles.length || !(medianRun > 0)) return null;
+  const n = Math.min(derived.length, vehicles.length);
+  const dMax = derived.length - n, vMax = vehicles.length - n; // 其中一個必為 0
+  let best = null, bestScore = Infinity;
+  for (let dOff = 0; dOff <= dMax; dOff++) {
+    for (let vOff = 0; vOff <= vMax; vOff++) {
+      let score = 0, ok = true;
+      for (let i = 0; i < n; i++) {
+        const d = derived[dOff + i], v = vehicles[vOff + i];
+        const lag = Math.max(0, Number(d.baseEpoch) - Number(v.at));
+        const ahead = (Number(d.to) - Number(v.idx)) * step;
+        if (!Number.isFinite(ahead) || ahead < -1 || ahead > lag / medianRun + 2) { ok = false; break; }
+        score += Math.abs(ahead);
+      }
+      if (ok && score < bestScore) { bestScore = score; best = { dOff, vOff, n }; }
     }
-    if (ok && score < bestScore) { bestScore = score; best = off; }
   }
   return best;
 }
