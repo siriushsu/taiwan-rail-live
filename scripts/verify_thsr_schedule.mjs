@@ -322,13 +322,22 @@ async function runV4() {
   const BASE = `https://127.0.0.1:${WORKER_PORT}`;
   // 乾淨 detached worktree:wrangler dev 若從本工作樹啟動,assets.directory:"." 監看整棵樹(含未追蹤檔)
   // 會陷入重載風暴(見 wrangler-local-verification-traps 心得7),把處理中的請求殺掉。
-  const VTREE = path.join('/private/tmp/claude-501/-Users-xuxiang-Code------/01f4b0da-08b2-49ab-96d5-c4141b6268f2/scratchpad', 'thsr-v4-vtree');
+  // 路徑放 repo 的 .cache/(gitignore＋assetsignore 皆已涵蓋);原本釘死某個 session 的 scratchpad,
+  // 那個目錄早就不存在,每跑一次就在別處留一棵孤兒樹。
+  const VTREE = path.join(ROOT, '.cache/thsr-v4-vtree');
   let fixtureProc, workerProc;
   try {
     rmSync(VTREE, { recursive: true, force: true });
     execSync(`git worktree add --detach "${VTREE}" HEAD`, { cwd: ROOT, stdio: 'pipe' });
     execSync(`ln -s "${path.join(ROOT, 'node_modules')}" "${path.join(VTREE, 'node_modules')}"`, { stdio: 'pipe' });
     rmSync(path.join(VTREE, '.wrangler'), { recursive: true, force: true });
+    // 🔴 這棵樹是從 HEAD 建的 ⇒ V4 驗的是「已 commit 的版本」,不是工作樹。工作樹有未 commit 的
+    // worker.js 改動時,V4 會安靜地驗舊程式碼並全綠(2026-08-17 實際踩到:改完抓取窗跑出 89/89,
+    // 其中 V4 那組驗的其實是舊的兩天版)。先比對再往下跑,不符就當場 FAIL 並說清楚。
+    const md5 = p => execFileSync('/sbin/md5', ['-q', p], { encoding: 'utf8' }).trim();
+    const sameCode = md5(path.join(VTREE, 'worker.js')) === md5(path.join(ROOT, 'worker.js'));
+    ok('V4 前置:驗的是當前工作樹的 worker.js(HEAD 與工作樹一致)', sameCode,
+      sameCode ? '' : '工作樹有未 commit 的 worker.js 改動——V4 這組跑的是 HEAD 版本,先 commit 再跑');
 
     fixtureProc = spawn(process.execPath, [path.join(ROOT, 'scripts/fixture_thsr_tdx.mjs'), String(FIXTURE_PORT)],
       { cwd: ROOT, stdio: ['ignore', 'pipe', 'pipe'] });
@@ -378,7 +387,7 @@ async function runV4() {
     let blob = null;
     if (blobRow) { try { blob = JSON.parse(blobRow.v); } catch (e) {} }
     const dayKeys = blob ? Object.keys(blob.days || {}) : [];
-    ok('V4 blob.days 含 2 個日鍵(今天+明天)', dayKeys.length === 2, `dayKeys=${JSON.stringify(dayKeys)}`);
+    ok(`V4 blob.days 含 ${KEEP_WINDOW} 個日鍵(今天起的抓取窗)`, dayKeys.length === KEEP_WINDOW, `dayKeys=${JSON.stringify(dayKeys)}`);
     const anyDoc = blob && dayKeys.length ? blob.days[dayKeys[0]] : null;
     ok(`V4 轉出文件車數=fixture 車數(${FA.daily.length})`, anyDoc && anyDoc.trains.length === FA.daily.length, anyDoc ? `trains=${anyDoc.trains.length}` : 'anyDoc=null');
 
@@ -392,8 +401,8 @@ async function runV4() {
     const onlyLocal = state.calls.every(c => true); // fixture server 本身只可能被本機呼叫到(見下方 host 檢查)
     const scheduleCalls = state.calls.filter(c => c.path.startsWith('/Rail/THSR/DailyTimetable/TrainDate/'));
     const authCalls = state.calls.filter(c => c.path === '/auth/token');
-    ok('V4 全程零真上游(fixture server 收到 2 次班表請求+≥1 次 token 請求,皆為本機呼叫)',
-      scheduleCalls.length === 2 && authCalls.length >= 1, `state=${JSON.stringify(state.calls)}`);
+    ok(`V4 全程零真上游(fixture server 收到 ${KEEP_WINDOW} 次班表請求+≥1 次 token 請求,皆為本機呼叫)`,
+      scheduleCalls.length === KEEP_WINDOW && authCalls.length >= 1, `state=${JSON.stringify(state.calls)}`);
 
     // 冪等/續補檢查:未覆寫既有值——重跑一次應仍是 2 個日鍵(不是無限累積),且失敗重試安全
     curl(`${BASE}/cdn-cgi/handler/scheduled?cron=${encodeURIComponent('15 1 * * *')}`);
@@ -405,7 +414,7 @@ async function runV4() {
       catch (e) {}
       finally { db.close(); }
     }
-    ok('V4 重跑 scheduled 仍保留 2 個日鍵(不無限累積)', blob2 && Object.keys(blob2.days).length === 2, blob2 ? JSON.stringify(Object.keys(blob2.days)) : 'null');
+    ok(`V4 重跑 scheduled 仍保留 ${KEEP_WINDOW} 個日鍵(不無限累積)`, blob2 && Object.keys(blob2.days).length === KEEP_WINDOW, blob2 ? JSON.stringify(Object.keys(blob2.days)) : 'null');
   } finally {
     if (workerProc && !workerProc.killed) workerProc.kill('SIGTERM');
     if (fixtureProc && !fixtureProc.killed) fixtureProc.kill('SIGTERM');
@@ -572,6 +581,16 @@ async function runWindowAndSelfHeal() {
   const forbiddenDb = { prepare() { throw new Error('不該碰 D1'); } };
 
   try {
+    // ── V7 契約條:這兩個數字本身就是修法的內容,刻意寫死 ──
+    // 其他判準都從 _thsr 導出的常數推導(旋鈕一調不會假紅),代價是它們對「常數本身被改小」
+    // 完全免疫——2026-08-17 的突變測試實證:把窗改回 2 天,V7a 照樣全綠。要有這一條才擋得住。
+    // 7 天＝撐得過一次上游故障再加一個週末;KEEP≥FETCH＝抓回來的不會當場被修剪掉。
+    ok('V7 契約:抓取窗 ≥7 天,且保留上限不小於窗',
+      KEEP_WINDOW >= 7 && KEEP_MAX >= KEEP_WINDOW, `FETCH_DAYS=${KEEP_WINDOW} KEEP_DAYS=${KEEP_MAX}`);
+    ok('V8 契約:自我檢查間隔 ≤15 分,且台北 06:00(高鐵首班)之前就會檢查',
+      _thsr.THSR_HEAL_EVERY_MIN <= 15 && _thsr.THSR_HEAL_FROM_HOUR <= 6,
+      `EVERY_MIN=${_thsr.THSR_HEAL_EVERY_MIN} FROM_HOUR=${_thsr.THSR_HEAL_FROM_HOUR}`);
+
     // ── V7a:一發抓的是今天起連續 KEEP_WINDOW 天 ──
     {
       hits.length = 0; failAll = false;
