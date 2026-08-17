@@ -35,6 +35,13 @@ const INJECT = {
 const CENSUS_ANCHOR = 'const covered = new Set(built.map(v => v.line));';
 const CENSUS_INJECT = 'const covered = new Set(((state.lines||[]).concat(state.decoLines||[])).map(l => l.id));';
 
+// rosterStale：拿掉支線 run 補值 ⇒ 兩站支線車一前進成 from≠to，run 仍是 0，名冊驗證器
+// 整包退掉 payload ⇒ 車照舊時間線繼續跑（動得很順），疊車／倒退／凍結／車數／整條線不見
+// 五條全綠，只有「名冊有沒有換新」照得到（2026-08-17 實測全綠 148 秒的那個缺陷）。
+const REPAIR_ANCHOR = '  if (Array.isArray(boardPos.vehicles)) // ROSTER_FRONTEND_REPAIR_RUN\n' +
+  '    boardPos = { ...boardPos, vehicles: boardPos.vehicles.map(trtcOfficialRosterRepairRun) };';
+const REPAIR_INJECT = '  // 突變：不補 run';
+
 const MIME = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript', '.mjs': 'text/javascript',
   '.json': 'application/json', '.css': 'text/css', '.png': 'image/png', '.svg': 'image/svg+xml',
   '.mp3': 'audio/mpeg', '.woff2': 'font/woff2', '.webmanifest': 'application/manifest+json' };
@@ -97,7 +104,11 @@ const cases = [
   // 對照組也要跑一次 census 版，證明紅的是突變不是 census 本身
   ['對照組（census）', INDEX, 0, '?census=1'],
   ['突變：lineGone', INDEX.replace(CENSUS_ANCHOR, CENSUS_INJECT), 1, '?census=1'],
+  ['突變：rosterStale', INDEX.replace(REPAIR_ANCHOR, REPAIR_INJECT), 1, '?census=1'],
 ];
+// 錨點打錯字＝突變其實沒注射進去，案例會以「對照組」的身分假綠通過（心得 37 同族）。
+for (const [label, anchor] of [['ANCHOR', ANCHOR], ['CENSUS_ANCHOR', CENSUS_ANCHOR], ['REPAIR_ANCHOR', REPAIR_ANCHOR]])
+  if (!INDEX.includes(anchor)) { console.log(`❌ ${label} 在 index.html 找不到，突變不會生效`); process.exit(2); }
 
 for (const [name, html, wantCode, qs] of cases) {
   if (html === INDEX && wantCode === 1) { check(false, `${name}：突變沒套上（anchor 找不到）`); continue; }

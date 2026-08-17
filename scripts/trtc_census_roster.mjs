@@ -202,8 +202,11 @@ export function buildCensusRoster({ model, trains, nowEpoch, day, prior = null, 
     if (prev && prev.line === hit.line && prev.dir === dirOut &&
         !prev.terminal && !terminal && (to - prev.to) * dirStep < 0) {
       from = prev.from; to = prev.to; diag.held++;
+      // holdReason 必須明寫：{...prev} 會把上一輪的原因原封帶過來，前一輪若是別的原因 hold 的，
+      // 這一輪就會回報一個假原因（實測回報 unresolved-station，而該台其實解析成功）。
       vehicles.push({ ...prev, run: prev.run, arrEpoch: Math.max(prev.arrEpoch, nowEpoch),
-        source: 'census-hold', censusEpoch: Number.isFinite(at) ? at : null, observedEpoch: nowEpoch });
+        source: 'census-hold', holdReason: 'no-backward',
+        censusEpoch: Number.isFinite(at) ? at : null, observedEpoch: nowEpoch });
       diag.built++;
       diag.byLine[hit.line] = (diag.byLine[hit.line] || 0) + 1;
       continue;

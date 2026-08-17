@@ -4978,7 +4978,10 @@ function trtcCensusVehicles(trains, nowEpoch, day) {
     let vehicle;
     if (prev && prev.line === hit.line && prev.dir === dirOut &&
         !prev.terminal && !terminal && (to - prev.to) * step < 0) {
-      vehicle = { ...prev, arrEpoch: Math.max(prev.arrEpoch, nowEpoch), observedEpoch: nowEpoch };
+      // source/holdReason 必須明寫:{...prev} 會把上一輪的值原封帶過來,前一輪若是別的原因
+      // hold 的,這一輪就會回報一個假原因(實測回報 unresolved-station,而該台其實解析成功)。
+      vehicle = { ...prev, arrEpoch: Math.max(prev.arrEpoch, nowEpoch), observedEpoch: nowEpoch,
+        source: 'census-hold', holdReason: 'no-backward' };
     } else {
       const timeline = [];
       let cur = from;
@@ -17614,6 +17617,21 @@ function trtcOfficialRosterGeometryLine(lineId) {
   }
   return null;
 }
+// 🔴 支線（小碧潭 G_XBT、新北投 R_XBT）只有兩站,看板每一列的「前一站」都掉出線外 ⇒ 帳本一律
+// 判成起點列 run=0;它一旦前進成 from≠to,run 仍是 0,而下面的幾何規則要求「非同站必須 run>0」
+// ⇒ 一顆支線車不合格就整包 payload 退掉(這個驗證器是 return false,不是逐台過濾),那一輪全北捷
+// 一百台的官方資料都不更新,頁面拿上一份快照繼續往前外推。
+// 實測 2026-08-17 15:35–15:37 連續 10 輪全退,名冊 113 台連 148 秒一字不變:402 照著兩分半前的
+// 計畫繼續開進古亭、432 停在原地不動,兩台就撞在一起（使用者回報「432 提前跑到這邊」的真來源）。
+// run 是可以從線形算回來的量,缺值就補回；其餘欄位一律不動,也不放寬驗證規則本身。
+function trtcOfficialRosterRepairRun(vehicle) {
+  const from = Number(vehicle && vehicle.from), to = Number(vehicle && vehicle.to);
+  if (!Number.isInteger(from) || !Number.isInteger(to) || from === to || Number(vehicle.run) > 0) return vehicle;
+  const line = trtcOfficialRosterGeometryLine(vehicle.line);
+  const seg = line && line.segs && line.segs[Math.min(from, to)];
+  const run = Number(seg && seg.run);
+  return run > 0 ? { ...vehicle, run } : vehicle;
+}
 function trtcOfficialRosterPayloadValid(boardPos) {
   if (!boardPos || boardPos.feedMode !== 'official' || !Array.isArray(boardPos.vehicles) ||
       typeof boardPos.sourceRevision !== 'number' || !Number.isFinite(boardPos.sourceRevision)) return false;
@@ -17659,6 +17677,8 @@ function applyTrtcOfficialRoster(boardPos) {
   if (!boardPos || boardPos.feedMode !== 'official') {
     return trtcOfficialRosterHold('feed-outage');
   }
+  if (Array.isArray(boardPos.vehicles)) // ROSTER_FRONTEND_REPAIR_RUN
+    boardPos = { ...boardPos, vehicles: boardPos.vehicles.map(trtcOfficialRosterRepairRun) };
   if (!trtcOfficialRosterPayloadValid(boardPos)) return trtcOfficialRosterHold('malformed');
   const revision = Number(boardPos.sourceRevision), highWater = state.trtcOfficialRosterRevisionHighWater;
   if (highWater != null && Number.isFinite(Number(highWater)) && revision < Number(highWater)) // ROSTER_FRONTEND_REVISION_HIGH_WATER
@@ -19728,6 +19748,12 @@ function trtcOfficialLegacyGroups(st, lines, isDeco, includeTrtc = false, offici
       let dtm = t - state.simSec;
       if (dtm > 43200) dtm -= 86400; else if (dtm < -43200) dtm += 86400;
       if (dtm < -30 || dtm > 7200) return;
+      // 🔴 北捷看板的其他列都是官方即時倒數（實測全在 5 分內）。班表補列進來的目的地若排到
+      // 一小時後，就會被當成「另一條線」提早列出來——實測松江南京同時出現兩列「往台電大樓」
+      // 61 分／77 分，而那是尖峰加開的短程車（官方看板那一輪只給 5 列，沒有它們）。
+      // 使用者裁示：尖峰加開的不用提早列出來。窗綁該線當下班距（三班內才算「下一班」），
+      // 不寫死分鐘數——班距改了它自己跟著改。
+      if (isTrtcBoardLine(ln) && dtm > 3 * (headwayOf(ln, state.simSec / 3600) || 600)) return;
       if (!byDir.has(destName)) byDir.set(destName, []);
       byDir.get(destName).push({ t, dtm, ci });
     });

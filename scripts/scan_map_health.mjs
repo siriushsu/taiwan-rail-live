@@ -88,8 +88,17 @@ const SAMPLE = () => {
       sys: typeof freqSysIdOf === 'function' ? freqSysIdOf(ln) : null,
     });
   }
+  const R = state.trtcOfficialRoster || {};
   return { at: Date.now(), simSec: state.simSec, zoom: map.getZoom(), n: out.length, hits: out,
-    censusFallbackLines: (state.trtcOfficialRoster || {}).censusFallbackLines || null };
+    censusFallbackLines: R.censusFallbackLines || null,
+    // 名冊本身的新鮮度：整包被驗證器退掉時車還是會照舊時間線往前跑，位置全綠、
+    // 卻是在演一份舊快照（2026-08-17 實測連續 148 秒）。這兩個值是唯一照得到的證據。
+    rosterFeed: R.feedMode || null, rosterRecv: R.receivedEpoch || null,
+    rosterN: (R.vehicles || []).length,
+    // 名冊路徑沒啟用時「沒有名冊」是正常的，不是缺陷 ⇒ 判準要先看這顆旗標。
+    rosterEnabled: typeof OFFICIAL_ROSTER_ENABLED !== 'undefined' ? !!OFFICIAL_ROSTER_ENABLED : null,
+    rosterHold: state.trtcOfficialRosterHold
+      ? { reason: state.trtcOfficialRosterHold.reason, epoch: state.trtcOfficialRosterHold.epoch } : null };
 };
 
 const browser = await chromium.launch();
@@ -157,6 +166,29 @@ if (pageErrors.length) note('warn', `頁面拋錯 ${pageErrors.length} 次`, pag
 // 環狀線與兩條支線是預期的退回（逐車清單沒有它們），前端已經先排除掉。
 if (s2.censusFallbackLines && s2.censusFallbackLines.length)
   note('warn', `這些線退回舊綁定器：${s2.censusFallbackLines.join('、')}`, s2.censusFallbackLines);
+
+// 0. 名冊本身有沒有在換新。
+// 🔴 這條是 2026-08-17 補的：支線車 run=0 讓驗證器整包退掉 payload，車照舊時間線繼續跑
+//    ⇒ 疊車、倒退、凍結、車數、整條線不見這五條全綠了 148 秒，因為它們量的都是「畫面上的車
+//    動不動」，而演一份舊快照的車動得非常順。名冊的 receivedEpoch 是唯一照得到的證據。
+const ROSTER_STALE_SEC = 120;      // 官方 15–60 秒一輪；兩分鐘沒換新＝整包被退或上游真的斷了
+{
+  const ageSec = s2.rosterRecv ? Math.round((s2.at - s2.rosterRecv * 1000) / 1000) : null;
+  const held = s2.rosterHold ? s2.rosterHold.reason : null;
+  if (!s2.rosterEnabled)
+    note('info', '官方名冊路徑未啟用（純班表模式），本條不適用', { rosterEnabled: s2.rosterEnabled });
+  else if (s2.rosterFeed !== 'official')
+    note('bad', `官方名冊不在 official 模式（${s2.rosterFeed}）＝這輪沒有官方位置可用`,
+      { rosterFeed: s2.rosterFeed, rosterN: s2.rosterN, held });
+  else if (ageSec == null)
+    note('bad', '官方名冊沒有 receivedEpoch，無法判斷它有沒有換新', { rosterN: s2.rosterN });
+  else if (ageSec > ROSTER_STALE_SEC)
+    note('bad', `官方名冊 ${ageSec} 秒沒換新（上限 ${ROSTER_STALE_SEC}s）＝畫面在演舊快照` +
+      (held ? `，最近一次被擋原因：${held}` : ''), { ageSec, held, rosterN: s2.rosterN });
+  else
+    note('info', `官方名冊 ${s2.rosterN} 台、${ageSec} 秒前換新` + (held ? `（曾被擋：${held}）` : ''),
+      { ageSec, held, rosterN: s2.rosterN });
+}
 
 // 1. 同向疊車（先分線再分方向；對向交會是正常的）
 const groups = new Map();
