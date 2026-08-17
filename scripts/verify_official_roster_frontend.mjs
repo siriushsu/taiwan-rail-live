@@ -135,7 +135,10 @@ function evaluateUnit(api) {
   const sameStation = (pos, line, index) => !!pos && pos.lat === line.stations[index].lat &&
     pos.lon === line.stations[index].lon;
   const active = api.trtcOfficialRosterActive;
-  const A = api.trtcOfficialRosterEnabled('') && api.trtcOfficialRosterEnabled('?officialroster=1') &&
+  // 🔴 2026-08-17 使用者裁示：北捷列車位置暫時改用班表 ⇒ 官方名冊【出貨預設關閉】,
+  //    只有 ?officialroster=1 才開。兩側都驗：關的那側必須真的關,開的那側必須真的開。
+  //    位置邏輯修好要開回來時,這裡跟 index.html 那行一起改,不會有一邊改一邊沒改。
+  const A = !api.trtcOfficialRosterEnabled('') && api.trtcOfficialRosterEnabled('?officialroster=1') &&
     !api.trtcOfficialRosterEnabled('?officialroster=0') && active(board, true, 100000) &&
     !active({ ...board, feedMode: 'outage' }, true, 1000) && !active(board, false, 1000);
 
@@ -495,7 +498,10 @@ async function browserMatrix(baseUrl) {
         if (!tapTarget) throw new Error('找不到可見的手機觸控目標');
         await page.tap(`#${tapTarget}`);
         // 點擊可能打開 sheet／抽屜；重載回預設態後再做全控件碰撞掃描。
-        await page.reload({ waitUntil:'domcontentloaded' });
+        // 🔴 不可用 page.reload()：開機時 clearFollow() 的 replaceState 會把 query string 整條抹掉
+        //    （實測 location.search 開機後即為 ''），reload 等於重載成「沒有旗標」的那一版。
+        //    官方名冊 2026-08-17 起出貨預設關閉，旗標一掉這裡就永遠等不到 feedMode==='official'。
+        await page.goto(`${baseUrl}?officialroster=1`, { waitUntil:'domcontentloaded' });
         await page.waitForFunction(() => typeof state !== 'undefined' && state.ready === true, null, { timeout:60000 });
         await page.waitForFunction(() => state.trtcOfficialRoster?.feedMode === 'official', null, { timeout:30000 });
         const layout = await page.evaluate(() => {

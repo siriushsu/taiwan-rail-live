@@ -525,6 +525,21 @@ async function fetchTymcNewsAlerts(token) {
   }
 }
 
+// 🔴 2026-08-17 使用者指示：北捷列車位置暫時改用班表推估,並發公告說明。
+// 走既有的「本站觀測」自訂公告管道（前端 renderAlertDetail 認 self / sig）：
+// sig 固定 ⇒ 使用者按掉之後不會每 5 分鐘又彈一次。位置邏輯修好後把這個陣列清空即可。
+const TRTC_SCHEDULE_MODE_NOTICE = [{
+  self: true,
+  sig: 'trtc-schedule-position-20260817',
+  status: 0,
+  sys: 'mrt',
+  sysLabel: '臺北捷運',
+  title: '列車位置暫時改用班表推估',
+  desc: '目前畫面上臺北捷運（含環狀線）列車的位置是依班表推估的,不是列車的實際位置。'
+    + '車站的到站倒數不受影響,與月台顯示的倒數相同,均來自官方即時資料。'
+    + '位置邏輯調整完成後會恢復依即時資料定位。',
+  reason: '', effect: '', start: '', end: '', lines: [],
+}];
 let metroAlertMem = null, metroAlertMemAt = 0;
 async function metroAlert(request, env) {
   const cacheKey = new Request(new URL('/api/metro-alert', request.url), { method: 'GET' });
@@ -562,7 +577,8 @@ async function metroAlert(request, env) {
         })),
         fetchTymcNewsAlerts(token),
       ]);
-      metroAlertMem = { at: new Date().toISOString(), alerts: parts.flat().concat(newsAlerts) };
+      metroAlertMem = { at: new Date().toISOString(),
+        alerts: TRTC_SCHEDULE_MODE_NOTICE.concat(parts.flat(), newsAlerts) };
       metroAlertMemAt = Date.now();
     }
     const res = jsonRes(metroAlertMem, 200, 'public, s-maxage=110, stale-while-revalidate=600');
@@ -1167,10 +1183,6 @@ const TRTC_OFFICIAL_OUTAGE_KEY = 'official_outage_v1';
 // 官方正常 15～60 秒一輪；3 分鐘沒動就是真的斷了——與前端 TRTC_FEED_STALE_SEC 同一個推導，
 // 刻意共用同一個數字，不另外發明門檻。落差小於它的空白屬正常跳拍，照舊 carry。
 const TRTC_OFFICIAL_REALIGN_SEC = 180;
-// 🔴 2026-08-17 09:06 使用者指示：文湖線的車先全部不畫（車站車次資訊照舊）。
-// 只影響「畫在軌道上的車」,不影響看板 rows/trips,也不影響 D1 名冊本身。
-// 要放回來就把這個集合清空重新部署,不需要重置名冊。
-const TRTC_HIDDEN_LINES = new Set(['BR']);
 // 🔴 2026-08-17 使用者訂正：「發車的第一段路,我們在下一站也會看到兩個倒數時間,那就可以有兩台啊」
 // ——同一段軌道上有幾台車，官方的倒數自己會說；用「幾台算太多」去猜只會誤殺合法的兩台。
 // 規則收斂成一條：一個倒數就是一台車（TRTC_OFFICIAL_ONLY）。故段擠自癒設 0 停用，
@@ -1533,15 +1545,10 @@ async function trtcBoardPositionAnchors(env, rows, feedMode = 'official',
   }
   const tripByVehicleId = tripSets && dyn ? trtcOfficialTripDecorations({ tripSets, rosterRows: officialRows,
     bindings: dyn.bindings, aliasByHwNo }) : new Map();
-  const vehicles = official.roster.vehicles
-    // 🔴 2026-08-17 使用者指示：「你先把文湖線的車都拿掉 車站的車次資訊不要動」。
-    // 只在回應這一層濾掉,名冊照常在 D1 裡跑（身分、逐站 timeline、到終點收車全部不動）,
-    // 所以看板的 rows/trips 完全不受影響,拿掉這條線也不會讓車隊要重新認一次。
-    .filter(vehicle => !TRTC_HIDDEN_LINES.has(String(vehicle.line)))
-    .map(vehicle => {
-      const tripKey = tripByVehicleId.get(String(vehicle.vehicleId));
-      return tripKey == null ? vehicle : { ...vehicle, tripKey };
-    });
+  const vehicles = official.roster.vehicles.map(vehicle => {
+    const tripKey = tripByVehicleId.get(String(vehicle.vehicleId));
+    return tripKey == null ? vehicle : { ...vehicle, tripKey };
+  });
   const identityAudit = official.roster.diagnostics || {};
   if (Number(identityAudit.rejectedNumberJumps) > 0 || Number(identityAudit.numberConflicts) > 0) {
     console.warn('[trtc official roster] 車號身分矛盾已安全退牌:', JSON.stringify({

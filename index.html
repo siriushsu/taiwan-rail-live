@@ -3800,7 +3800,7 @@
 
   <footer class="site-foot">
     <details class="foot-box">
-      <summary><span>更新紀錄</span><span class="foot-sub">最後更新：2026/8/16</span></summary>
+      <summary><span>更新紀錄</span><span class="foot-sub">最後更新：2026/8/17</span></summary>
       <!-- 第一層是「最近更新」的檢視,不是正本:每一條都用 data-cl-of 指向第二層某條的 data-cl。
            要把一條擠出第一層之前,它的正本必須已經在第二層存在——2026-08-03 就踩過一次:8/1 的
            衛星計費那條只活在第一層(第二層只有一句夾在 7/25 條目裡、日期對不上的附帶說明),
@@ -3808,7 +3808,7 @@
            內容 li 上限 8 條(li.grp 是標題不算)。 -->
       <ul class="foot-list foot-recent">
         <li class="grp">最近更新</li>
-        <li data-cl-of="trtczombie"><span class="d">8/17</span><span>台北捷運不再出現停在原地、好幾台疊在一起的重複列車（謝謝網友回報）</span></li>
+        <li data-cl-of="trtczombie"><span class="d">8/17</span><span>台北捷運列車位置暫時改用班表推估，畫面不再出現疊在一起的重複列車；車站倒數不受影響（謝謝網友回報）</span></li>
         <li data-cl-of="orangebranch"><span class="d">8/16</span><span>中和新蘆線共線段不再冒出重複列車與沒有車號的車</span></li>
         <li data-cl-of="badgescope"><span class="d">8/16</span><span>「台」「高」不再顯示捷運的「官方即時」標示；捷運收班後改標「已收班」</span></li>
         <li data-cl-of="zuoyingalias"><span class="d">8/16</span><span>台鐵左營站不再分成「左營」與「左營(舊城)」兩顆，看板正常顯示；新城站同步修正（謝謝網友回報）</span></li>
@@ -3835,7 +3835,7 @@
         <li><span class="d">7/10</span><span>高鐵、桃園機捷、淡海輕軌、安坑輕軌加入路網</span></li>
         <li><span class="d">7/10</span><span>環島觀光列車一分為二：往東「山海號」、往西「平原號」</span></li>
         <li class="grp">即時動態與誤點</li>
-        <li data-cl="trtczombie"><span class="d">8/17</span><span>台北捷運畫面上會冒出停在原地、好幾台疊在一起的重複列車：一台車在半路失去官方追蹤之後，我們原本沒有任何辦法讓它離開畫面——退場的唯一條件是「抵達終點」，而這種車的官方時間表永遠停在半路，算不出終點時刻，於是就一整天卡在那裡愈積愈多（8/17 早上實測文湖線同時畫出 88 台，官方當下其實只有 33 台在跑）。現在改成依這台車自己的官方到站時間判斷：如果它連自己走一站的時間都停滯了好幾倍、而這條線其他車都還在正常回報，就代表它早已不在那裡，直接收掉。整條線一起沒有資料時（訊號中斷）不會誤判，那種情況照舊等資料回來（謝謝網友回報）</span></li>
+        <li data-cl="trtczombie"><span class="d">8/17</span><span>台北捷運畫面上會冒出停在原地、好幾台疊在一起的重複列車（8/17 早上實測文湖線同時畫出 88 台，官方當下其實只有 33 台在跑）。8/17 起台北捷運（含環狀線）的列車位置改用班表推估：畫面上不會再有重複的車，但位置是依班表推算的，不是列車的實際位置，頂端也會有公告說明。車站的到站倒數不受影響，仍來自官方即時資料，與月台顯示的倒數相同。位置邏輯調整完成後會恢復依即時資料定位（謝謝網友回報）</span></li>
         <li data-cl="badgescope"><span class="d">8/16</span><span>時鐘旁的狀態標示修正：切到「台」「高」時不再顯示台北捷運的「官方即時」（那兩頁本來就沒有捷運）；捷運全部收班後，標示也從「離峰」改成「已收班」</span></li>
         <li data-cl="danhaifireworks"><span class="d">8/15</span><span>新北市在淡水漁人碼頭辦煙火的三個週日（8/16、8/23、8/30），淡海輕軌的畫面會照官方公告走：下午四點起綠山線改成每三十分鐘一班，五點起濱海沙崙到崁頂那一段停駛（官方另有免費接駁公車），車全部集中到藍海線跑三到六分鐘的密集班距。只有這三天這樣，其他日子照常</span></li>
         <li data-cl="trtcoutage"><span class="d">8/15</span><span>台北捷運官方即時資料中斷時，畫面原本完全不說（8/15 早上斷了約半小時）：列車各自照最後量到的速度往前推，兩班車擠在一起、甚至互相超車，車站倒數則整個找不到車。現在三件事一起改了——中斷一發生，頂端就會跳出提示告訴你是北捷訊號中斷、列車位置與車站倒數都可能不準，捷運徽章與車站看板上也會標示；中斷期間的推估改成照每段站與站之間的固定行車時間走，全線同一個節奏，不會再有車超過前面那班；官方資料恢復時，畫面會重新對齊官方位置，部分列車會因此往前跳或往後退，並跳出訊息說明為什麼會跳。環狀線走的是新北捷運另一條資料線路，兩邊各自判斷，一邊斷不會誤報另一邊。同一批還修好了一個更早的毛病：同一個起點同時排兩班發車時，我們會整輪讀不進官方資料而沿用上一份，位置因此愈跑愈偏，訊號恢復後還會冒出沒有車號的車跟著跑（謝謝網友回報）——現在讀得進來了，車數也回到正常。同一個起點同時有往兩個終點的班次時（例如板南線的頂埔與亞東醫院），也會被認成同一班而認錯車，留下沒有車號的幽靈車、車號在兩班之間跳——現在照終點分開認，發車後身分接得上第一站</span></li>
@@ -4324,9 +4324,14 @@ const BUILD = 'v0816c';
 // 保留 ?officialroster=0 當逃生口——要退回班表路徑不必回滾部署，加個參數即可對照。
 // 🔴 這個函式會被 verify_official_roster_frontend 抽出來丟進 VM 單獨執行——
 //    不可引用任何模組層常數（引用了會 ReferenceError，驗收器直接中止）。預設值寫死在這裡。
+// 🔴 2026-08-17 09:20 使用者指示：「你直接把台北捷運的列車顯示換成班表,不要都空的,
+//    然後發公告通知現在所有車輛位置都是班表並非實際位置,車站倒數時間則與月台倒數相同。
+//    我們把位置邏輯弄好之前就是先這樣跑」
+// ⇒ 官方名冊【預設關閉】,北捷/環狀線的車回到班表推演（站牌倒數不受影響,那條走 boardPos.rows）。
+//   要驗證名冊改動用 ?officialroster=1；後端照常算、照常寫 D1,所以要開回來只是改這一行。
 function trtcOfficialRosterEnabled(search) {
-  try { return new URLSearchParams(search == null ? location.search : search).get('officialroster') !== '0'; }
-  catch (e) { return true; }
+  try { return new URLSearchParams(search == null ? location.search : search).get('officialroster') === '1'; }
+  catch (e) { return false; }
 }
 // URL 開關必須在開機初始就固定；clearFollow() 會整理 query string，不可在後面重讀。
 const OFFICIAL_ROSTER_ENABLED = trtcOfficialRosterEnabled(location.search);
