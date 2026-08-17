@@ -271,6 +271,36 @@ function cumulativeRunSec(line, a, b, step) {
   return total;
 }
 
+// 把「倒數切出來的段」對應到「CarWeight 的逐車列」。
+//
+// 兩邊都必須先依行進方向由前到後排好。倒數切段**只會少不會多**（實測 08-15 語料 80 個方向：
+// 差 0 佔 38%、−1 佔 49%、−2 佔 14%，+1／+2 各 0 次），少的那 1–2 台是端點附近結構上觀測不到的
+// （跑最後一段沒有前方站可報、剛要發車的起點列被丟），必定落在頭或尾 ⇒ 正確對應只可能是
+// vehicles 裡的一段**連續視窗**，候選僅 N−M+1 個。
+//
+// 評分：CarWeight 的站碼落後（實測 96–265 秒），所以推導位置應該在它**前方**；
+// 落後多少秒直接量（段的基準時刻 − 該列的 UpdateTime），除以中位區間秒得到「最多可能前進幾站」。
+// 容忍 −1 是站碼本身的整站量化誤差（車已過站但站碼還沒跳，或反之）。
+// 回傳最佳位移；沒有任何視窗說得通就回 -1（寧可整個方向不配，也不貼錯位置）。
+export function alignSegmentsToVehicles(derived, vehicles, step, medianRun) {
+  if (!Array.isArray(derived) || !Array.isArray(vehicles)) return -1;
+  if (!derived.length || derived.length > vehicles.length) return -1;
+  if (!(medianRun > 0)) return -1;
+  let best = -1, bestScore = Infinity;
+  for (let off = 0; off + derived.length <= vehicles.length; off++) {
+    let score = 0, ok = true;
+    for (let i = 0; i < derived.length; i++) {
+      const d = derived[i], v = vehicles[off + i];
+      const lag = Math.max(0, Number(d.baseEpoch) - Number(v.at));
+      const ahead = (Number(d.to) - Number(v.idx)) * step;
+      if (!Number.isFinite(ahead) || ahead < -1 || ahead > lag / medianRun + 2) { ok = false; break; }
+      score += Math.abs(ahead);
+    }
+    if (ok && score < bestScore) { bestScore = score; best = off; }
+  }
+  return best;
+}
+
 export function segmentVehiclesFromCountdowns(model, resolvedRows, opts = {}) {
   const only = new Set(opts.lines || []);
   const groups = new Map(); // `${line}|${dir}` → rows[]

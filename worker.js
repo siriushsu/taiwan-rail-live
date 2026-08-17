@@ -1,7 +1,7 @@
 import {
   TRTC_LEDGER_SCHEMA, buildTrtcModel, buildLedgerFromRaw,
   trtcOperatingState, trtcServiceDay, resolveBoardRows, claimBoardRows, collapseClaims,
-  attachOfficialTimelines, segmentVehiclesFromCountdowns,
+  attachOfficialTimelines, segmentVehiclesFromCountdowns, alignSegmentsToVehicles,
   bindTracksToTrips, buildTripSetsByLineDir, joinBoardRowsToTrips, planTrtcTripBindingPersistence,
 } from './scripts/trtc_board_ledger.mjs';
 import { reduceOfficialRosterSelfHealing } from './scripts/trtc_official_roster.mjs';
@@ -890,7 +890,7 @@ async function trtcLive(request, env) {
       // 配對用「順序」不用距離：同向不能超車 ⇒ 兩份清單沿行進方向的排列必然一致，
       // 這比拿落後兩到四分鐘的站碼去比距離穩得多（使用者裁示：順序是物理不變量）。
       // 車數不一致時不硬配也不刪車，只記進 cd.brSeg 供每小時巡檢與晨間觀察比對。
-      let brSegStat = { derived: 0, matched: 0, cwRows: br.length, groups: 0, originRows: 0 };
+      let brSegStat = { derived: 0, matched: 0, cwRows: br.length, groups: 0, originRows: 0, unaligned: 0 };
       const brPathByNo = new Map();
       try {
         const model = await trtcBoardModel(env);
@@ -907,18 +907,28 @@ async function trtcLive(request, env) {
           const on = (rec.on || []).find(x => x.line === 'BR');
           if (on) idxOfCode.set(code, on.i);
         }
+        // 一台車跨越一個區間要多久（中位數）。用來把「站碼落後幾秒」換算成「落後幾個區間」，
+        // 不寫死魔術數字（judgment 心得 35：門檻要從當下量到的東西推導）。
+        const runs = [...(line.runs || new Map()).values()].filter(v => v > 0).sort((a, b) => a - b);
+        const medianRun = runs.length ? runs[Math.floor(runs.length / 2)] : 78;
         for (const dir of [1, 2]) {
           const step = dir === 2 ? 1 : -1;
           const derived = seg.vehicles.filter(v => v.dir === dir)
             .sort((a, b) => (a.to - b.to) * step);
           const cw = br.filter(r => Number(r.CID) === dir && idxOfCode.has(String(r.StationID)))
             .sort((a, b) => (idxOfCode.get(String(a.StationID)) - idxOfCode.get(String(b.StationID))) * step);
-          // 只在兩邊台數一致時才逐位對應；不一致代表其中一邊有殘影或漏抓，硬配會貼錯標籤。
-          if (derived.length && derived.length === cw.length) {
-            for (let i = 0; i < cw.length; i++) {
-              brPathByNo.set(String(cw[i].TrainNumber), derived[i]);
-              brSegStat.matched++;
-            }
+          // 🔴 舊寫法要求兩邊台數全等才配對，否則整個方向零配對、全部退回落後 96–265 秒的站碼
+          // ——那正是使用者禁止的事。實測 08-15 語料 80 個方向：段數−車數 只有 0(38%)／−1(49%)／
+          // −2(14%)，**一次都沒有多出來**。少的那 1–2 台是端點附近觀測不到的（跑最後一段沒有
+          // 前方站可報、剛要發車的起點列被丟），必定落在頭或尾 ⇒ 正確的對應只可能是 cw 裡的一段
+          // **連續視窗**，候選僅 N−M+1 個（實測 ≤3）。逐一評分取最佳，比全等閘門多救回 62% 的方向。
+          const off = alignSegmentsToVehicles(derived,
+            cw.map(r => ({ idx: idxOfCode.get(String(r.StationID)), at: trtcEpoch(r.UpdateTime) })),
+            step, medianRun);
+          if (off < 0) { brSegStat.unaligned += derived.length; continue; }
+          for (let i = 0; i < derived.length; i++) {
+            brPathByNo.set(String(cw[off + i].TrainNumber), derived[i]);
+            brSegStat.matched++;
           }
         }
       } catch (e) {
