@@ -43,6 +43,11 @@ const GAP_SEC = Number((() => { const i = args.indexOf('--gap'); return i >= 0 ?
 // 但兩百多公尺是可能的——前車在月台停靠、後車進站前被號誌擋住就是這個量級。
 // 把兩者混成一個門檻，不是漏掉真缺陷就是每四輪吵一次假警報。
 const OVERLAP_BAD_M = 100;  // 物理上不可能：號誌不會讓兩台車靠這麼近 ⇒ 判缺陷
+// 🔴 產品的分離守則就是把後車夾到「剛好 OVERLAP_BAD_M」，浮點運算會讓結果落在 99.999…，
+// 於是 `m < 100` 對每一對被正常夾住的車都成立 ⇒ 守則越正常，這條判準叫得越大聲（08-18 實測
+// 改用精確座標後第一輪就報 G|1 100m）。判準的門檻不能等於受測物的目標值，要留數值餘裕。
+// 2m 是餘裕不是放寬：真疊車是「守則沒生效」，那種對子的間距是 0–70m，不會落在 98–100m。
+const CLAMP_EPS_M = 2;
 const OVERLAP_WARN_M = 250; // 罕見但可能（前車停靠、後車進站中）⇒ 只記警告不判缺陷
 const AT_STATION_M = 60;    // 離最近車站這麼近就算「停在站上」。
 // 同站疊車不能無條件豁免——使用者回報的截圖正是「好幾台疊在站附近」，而突變測試也證實
@@ -89,9 +94,28 @@ const SAMPLE = () => {
     const tr = h.tr;
     // 沿線里程：用畫面座標反投影回線形，這是與繪製同一組座標，但比對的是
     // 「同一台車前後兩次」，不涉及與別條管線的真值比較，所以不受同源問題影響。
-    let d = null, nearM = null, nearIdx = -1;
+    let d = null, nearM = null, nearIdx = -1, dsrc = 'px';
     try {
-      const ll = map.containerPointToLatLng([h.x, h.y]);
+      // 🔴 名冊車優先讀「產品自己寫下的最終浮點座標」，不要用畫面整數像素反投影。
+      // 疊車門檻 100m 在這支掃描的視野只有 1.45 像素 ⇒ 像素來源帶 ±35m 量化誤差：
+      // 分離守則就是把後車夾到剛好 100m，那個真值被反推回來會長成 64–98m，
+      // 於是「守則正常運作」與「真疊車」在這條判準底下完全同形（08-18 實測 G 69m、
+      // Y 64/69/92m 全是這樣來的，同一刻直接量沿線里程都是 100m）。
+      // `_trtcOfficialDisplay` 是每格繪製後寫回的最終位置（含分離守則夾過的結果），純讀不改。
+      // 🔴 但這個來源靠一個不變式：「產品寫進 _trtcOfficialDisplay 的就是它畫出來的」。
+      // 若哪天有人在寫入之後又動了位置，這支掃描會安靜地量到舊值、全線報綠。
+      // 所以浮點值一律回投影成畫面座標與真正畫出來的 h.x/h.y 對一次；對不上就退回像素並記錄，
+      // 那本身就是要吵的缺陷（判準不能建立在沒被驗證的不變式上）。
+      let ll = null;
+      if (h.vehicleId && typeof _trtcOfficialDisplay !== 'undefined') {
+        const rec = _trtcOfficialDisplay.get(`${ln.id}|${h.vehicleId}`);
+        if (rec && rec.pos && Number.isFinite(rec.pos.lat) && Number.isFinite(rec.pos.lon)) {
+          const cp = map.latLngToContainerPoint([rec.pos.lat, rec.pos.lon]);
+          if (Math.hypot(cp.x - h.x, cp.y - h.y) <= 2) { ll = { lat: rec.pos.lat, lng: rec.pos.lon }; dsrc = 'float'; }
+          else dsrc = 'mismatch';
+        }
+      }
+      if (!ll) ll = map.containerPointToLatLng([h.x, h.y]);
       const pr = projectOntoShape(ln, ll.lat, ll.lng);
       d = pr && pr.d != null ? pr.d : null;
       if (d != null && ln.stations) {
@@ -118,7 +142,7 @@ const SAMPLE = () => {
       // 名冊車的身分是 vehicleId（hit 裡沒有 tr／k，用舊寫法會讓整條線塌成同一個 key，
       // 位移與疊車判定全部失效）
       key: h.vehicleId ? `${ln.id}#${h.vehicleId}` : (tr ? `${ln.id}#tr${(ln._tt || []).indexOf(tr)}` : `${ln.id}#k${h.k}`),
-      line: ln.id, abbr: ln.abbr, dir, x: h.x, y: h.y, d, nearM, nearIdx,
+      line: ln.id, abbr: ln.abbr, dir, x: h.x, y: h.y, d, dsrc, nearM, nearIdx,
       stations: Array.isArray(ln.stations) ? ln.stations.length : null,
       sys: typeof freqSysIdOf === 'function' ? freqSysIdOf(ln) : null,
     });
@@ -368,17 +392,33 @@ for (const [g, arr] of groups) {
       stationStack.set(sk, (stationStack.get(sk) || 0) + 1);
       continue;
     }
-    const rec = { group: g, px: Math.round(px), m: Math.round(m), a: arr[i].key, b: arr[j].key };
-    (m < OVERLAP_BAD_M ? clumps : nearPairs).push(rec);
+    // 兩邊都是產品浮點座標才算精確；只要有一邊靠像素反推，這個公尺值就帶 ±半像素量化誤差
+    const exact = arr[i].dsrc === 'float' && arr[j].dsrc === 'float';
+    const rec = { group: g, px: Math.round(px), m: Math.round(m), exact, a: arr[i].key, b: arr[j].key };
+    // 精確座標才享有夾持餘裕；像素來源本來就帶 ±半像素，多扣 2m 沒有意義也不該扣
+    (m < (exact ? OVERLAP_BAD_M - CLAMP_EPS_M : OVERLAP_BAD_M) ? clumps : nearPairs).push(rec);
   }
 }
 // 解析度自證：疊車判準用的公尺值是從整數畫面座標反投影回來的，一個像素就是它的解析度上限。
 // 門檻若不到 2 個像素，公尺值只能當「相距一兩個像素」讀，不可當精確距離；
 // 若連 100m 都遠小於一個像素（例如忘了 fitBounds 的全台視野），這條判準等於沒有解析度，
 // 一律標成「無法判定」而不是報 0 對——報 0 對會把「量不到」講成「沒問題」。
+// 名冊車已改讀產品浮點座標（見 SAMPLE 的 dsrc），那些對子完全不受像素解析度影響；
+// 下面的解析度閘門只對「還有像素來源參與」的對子才有意義，全浮點時套用等於自嚇自己。
+const nFloat = s2.hits.filter(h => h.dsrc === 'float').length;
+const nMismatch = s2.hits.filter(h => h.dsrc === 'mismatch').length;
+const nPx = s2.hits.length - nFloat;
+// 不變式壞掉＝掃描的位置來源不可信，這比任何一條位置判準都嚴重，要單獨吵。
+if (nMismatch)
+  noteLoud('bad', `位置來源不一致：${nMismatch} 台的 _trtcOfficialDisplay 座標與實際畫出的位置差超過 2 像素` +
+    '（產品在寫入顯示座標之後又動了位置？此輪這些車退回像素反投影，公尺值帶量化誤差）',
+    { nMismatch, sample: s2.hits.filter(h => h.dsrc === 'mismatch').slice(0, 6).map(h => h.key) });
 const mppNow = Number(s2.mpp);
 const thresholdPx = Number.isFinite(mppNow) && mppNow > 0 ? OVERLAP_BAD_M / mppNow : null;
-if (thresholdPx == null)
+if (nPx === 0 && s2.hits.length)
+  console.log(`ℓ 解析度：${nFloat} 台全部取產品最終浮點座標（非畫面像素）⇒ ` +
+    `${OVERLAP_BAD_M}m 門檻不受 zoom ${s2.zoom}／每像素 ${Math.round(mppNow)}m 的量化誤差影響`);
+else if (thresholdPx == null)
   noteLoud('warn', '取不到每像素公尺數，疊車公尺值的解析度未知', { mpp: s2.mpp, zoom: s2.zoom });
 else if (thresholdPx < 0.5)
   noteLoud('bad', `疊車判準在此視野無解析度：zoom ${s2.zoom}／每像素 ${Math.round(mppNow)}m ⇒ ` +
@@ -387,12 +427,13 @@ else if (thresholdPx < 0.5)
 else
   console.log(`ℓ 解析度：zoom ${s2.zoom}／每像素 ${Math.round(mppNow)}m ⇒ ${OVERLAP_BAD_M}m 門檻＝` +
     `${thresholdPx.toFixed(2)} 像素，公尺值量化誤差約 ±${Math.round(mppNow / 2)}m` +
-    `${thresholdPx < 2 ? '（門檻與解析度同一量級：公尺值只能當「相距一兩個像素」讀）' : ''}`);
+    `${thresholdPx < 2 ? '（門檻與解析度同一量級：公尺值只能當「相距一兩個像素」讀）' : ''}` +
+    `｜其中 ${nFloat} 台取產品浮點座標不受此限、${nPx} 台仍靠像素反推`);
 
 const clumpsKnown = clumps.filter(c => knownOpenClump(c.group));
 const clumpsReal = clumps.filter(c => !knownOpenClump(c.group));
 console.log(`${clumpsReal.length ? '❌' : '✅'} 同向疊車（<${OVERLAP_BAD_M}m）：${clumpsReal.length} 對` +
-  (clumpsReal.length ? `　例：${clumpsReal.slice(0, 4).map(c => `${c.group} ${c.m}m`).join('、')}`
+  (clumpsReal.length ? `　例：${clumpsReal.slice(0, 4).map(c => `${c.group} ${c.m}m${c.exact ? '' : '(±像素)'}`).join('、')}`
     : `（靠近 <${OVERLAP_WARN_M}m ${nearPairs.length} 對、同站 ${atStationPairs} 對，皆屬正常範圍）`));
 if (clumpsReal.length) note('bad', `同向疊車 ${clumpsReal.length} 對`, clumpsReal.slice(0, 10));
 if (nearPairs.length) note('warn', `同向靠近 ${nearPairs.length} 對（<${OVERLAP_WARN_M}m）`, nearPairs.slice(0, 6));
@@ -421,17 +462,26 @@ for (const [line, why] of Object.entries(KNOWN_OPEN_CLUMP)) {
 // 解析度地板：低於兩個像素的負位移分不出是真倒退還是整數座標抖動（見 BACKWARD_M 上方註解）
 const backCap = Math.max(BACKWARD_M, Number.isFinite(mppNow) && mppNow > 0 ? 2 * mppNow : 0);
 const before = new Map(s1.hits.map(h => [h.key, h]));
-let moved = 0, back = [], stalled = [];
+let moved = 0, back = [], stalled = [], turned = 0;
 for (const h of s2.hits) {
   const b = before.get(h.key);
   if (!b || h.d == null || b.d == null || !h.dir) continue;
+  // 🔴 到終點折返：同一台車 dir 變號，兩筆之間的位移沿「新方向」看必然是大負值。
+  // 這是合法行為不是倒退（08-18 實測 BR 22>23 折返為 23>23，dir 2→1，
+  // 被算成 −214m）；舊版靠 138m 解析度地板把它蓋住，量準了才浮出來。
+  if (b.dir && b.dir !== h.dir) { turned++; continue; }
   const delta = (h.d - b.d) * h.dir * 1000; // 公尺，沿行進方向為正
-  if (delta < -backCap) back.push({ key: h.key, m: Math.round(delta) });
+  // 門檻跟著「這台車這兩筆是怎麼量到的」走：兩筆都是產品浮點座標就沒有像素抖動，
+  // 套 2×每像素的地板等於把 138m 以內的真倒退全部藏起來（守則第 3 條：絕不倒退）。
+  const cap = (h.dsrc === 'float' && b.dsrc === 'float') ? BACKWARD_M : backCap;
+  if (delta < -cap) back.push({ key: h.key, m: Math.round(delta), cap: Math.round(cap) });
   else if (Math.abs(delta) < 1) stalled.push(h.key);
   else moved++;
 }
-console.log(`${back.length ? '❌' : '✅'} 倒退：${back.length} 台（門檻 ${Math.round(backCap)}m＝解析度地板）` +
-  (back.length ? `　例：${back.slice(0, 4).map(b => `${b.key} ${b.m}m`).join('、')}` : `（${moved} 台正常前進）`));
+console.log(`${back.length ? '❌' : '✅'} 倒退：${back.length} 台（浮點座標門檻 ${BACKWARD_M}m、` +
+  `像素來源門檻 ${Math.round(backCap)}m＝解析度地板）` +
+  (back.length ? `　例：${back.slice(0, 4).map(b => `${b.key} ${b.m}m(門檻 ${b.cap})`).join('、')}`
+    : `（${moved} 台正常前進${turned ? `、${turned} 台終點折返不計` : ''}）`));
 if (back.length) note('bad', `倒退 ${back.length} 台`, back.slice(0, 10));
 
 // 3. 停滯（同線多數不動＝疑似凍結，單台不動可能只是停站）
