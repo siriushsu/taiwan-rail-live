@@ -63,18 +63,18 @@ private struct Gallery: View {
         VStack(alignment: .leading, spacing: 18) {
 
             HStack(alignment: .top, spacing: 20) {
-                Cell(title: "RailCountdown · hero 44 / 40") {
+                Cell(title: "RailCountdown · heroCard 44 ／ heroRow 40") {
                     HStack(alignment: .bottom, spacing: 16) {
-                        RailCountdownText(value: .minutes(3), size: .hero(44))
-                        RailCountdownText(value: .minutes(12), size: .hero(40))
-                        RailCountdownText(value: .arriving, size: .hero(44))
+                        RailCountdownText(value: .minutes(3), size: .heroCard)
+                        RailCountdownText(value: .minutes(12), size: .heroRow)
+                        RailCountdownText(value: .arriving, size: .heroCard)
                     }
                 }
                 Cell(title: "RailCountdown · 秒（LA 專用）/ 過期 / 表定") {
                     HStack(alignment: .bottom, spacing: 14) {
-                        RailCountdownText(value: .seconds(52), size: .hero(44))
-                        RailCountdownText(value: .noData, size: .hero(44))
-                        RailCountdownText(value: .scheduled("11:38"), size: .hero(40))
+                        RailCountdownText(value: .seconds(52), size: .heroCard)
+                        RailCountdownText(value: .noData, size: .heroCard)
+                        RailCountdownText(value: .scheduled("11:38"), size: .heroRow)
                     }
                 }
                 Cell(title: "RailCountdown · 次列 17 / 第三層 13") {
@@ -88,7 +88,7 @@ private struct Gallery: View {
             }
 
             HStack(alignment: .top, spacing: 20) {
-                Cell(title: "RailCarriageMeter · 三級（六節，車頭圓鼻在上）") {
+                Cell(title: "RailCarriageMeter · 三級（六節，逐節上色＋整列一個詞）") {
                     VStack(alignment: .leading, spacing: 7) {
                         RailCarriageMeter(levels: [1, 1, 1, 1, 2, 1])
                         RailCarriageMeter(levels: [2, 3, 3, 2, 3, 2])
@@ -161,7 +161,7 @@ private struct Gallery: View {
                                 RailCarriageMeter(levels: [1, 1, 2, 1, 1, 1])
                             }
                         } trailing: {
-                            RailCountdownText(value: .minutes(2), size: .hero(40))
+                            RailCountdownText(value: .minutes(2), size: .heroRow)
                         }
                         RailRow(spine: .follow) {
                             Text("往 亞東醫院").font(.system(size: 17, weight: .medium)).lineLimit(1)

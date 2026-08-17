@@ -15,7 +15,7 @@ struct MetroEntry: TimelineEntry {
     // 通行證閘門擋下時的明講 CTA(2026-08-15)。🔴 這個專案已經有三個「不給用也不說」的付費
     // 功能,這裡一律講清楚「為什麼看不到、去哪裡買」,不做靜默空白卡。
     var passCTA: String? = nil
-    // 每一列的線色要靠「系統＋本站＋該列終點」推(見 MetroPalette.rowColor),故 entry 要帶系統 id。
+    // 每一列的線色要靠「系統＋本站＋該列終點」推(見 MetroPalette.rowLine),故 entry 要帶系統 id。
     var sys: String? = nil
 }
 
@@ -56,16 +56,29 @@ struct MetroBoardProvider: AppIntentTimelineProvider {
         // 系統不保證照做——所以版面一律顯示資料時刻,不假裝即時。
         // 🔴 真機回饋(08-14):單一 entry ⇒ 倒數走完【全卡僵在 0:00】直到下次刷新。
         //    WidgetKit 的 timeline 可以預排未來 entries(Live Activity 做不到的,這裡做得到)。
-        //    每個到站時刻排【兩個】邊界:eta+1(該列換「進站」)、eta+31(該列退場)——
-        //    第二輪真機回饋:只排 +1 的話已到的車永遠掛著「進站」,整排都是進站。
-        //    30 秒停留與 App 看板 TRTC_OFFICIAL_BOARD_ARRIVING_GRACE_SEC 同值。
-        //    etas 不濾掉已過去的:剛到 10 秒的車還要它的 +31 退場邊界。只取前 8 個到站點。
+        //
+        // 🔴 改版後(2026-08-17)邊界從兩個變成一整排。原因:改版前倒數是 Text(timerInterval:),
+        //    系統自己逐秒重畫,所以只需要「進站」與「退場」兩個轉折;改版後畫的是
+        //    RailCountdown 的靜態「N 分」(設計稿明令不做 m:ss 碼錶格式),而靜態文字【不會自己變】
+        //    ⇒ 每一次分鐘翻頁都必須有一個 entry,否則卡上那個數字會停在原地不動,
+        //    正是設計稿說的「停住的數字比空白更危險」。
+        //    每個到站時刻要排:
+        //      · 分鐘翻頁 eta − 60k + 1(k=1…12):此刻 floor((eta−t)/60) 恰好翻成 k−1。
+        //        k=1 給的 eta−59 就是換「進站」的那一刻(RailCountdown.from 在 <60 秒進 arriving),
+        //        所以不必再排舊版的 eta+1。
+        //      · eta+31 該列退場。30 秒停留與 App 看板 TRTC_OFFICIAL_BOARD_ARRIVING_GRACE_SEC 同值。
+        //    etas 不濾掉已過去的:剛到 10 秒的車還要它的 +31 退場邊界。
+        //    entries 上限 60:官方視野約 12 分鐘、8 個到站點各 12 個翻頁點會超過 90 個,
+        //    而 policy 是 .atEnd ⇒ 被截掉的尾段會由「用完就重新要一輪」自動補上,
+        //    不是靜默漏畫(截斷點取【時間最早的 60 個】,近未來完整、遠未來交給下一輪)。
         var entries = [e]
         var hasBounds = false
         if let rows = e.snapshot?.rows {
             let now = Date().timeIntervalSince1970
             let etas = Set(rows.compactMap(\.etaEpoch)).sorted().prefix(8)
-            let bounds = Set(etas.flatMap { [$0 + 1, $0 + 31] }.filter { $0 > now }).sorted()
+            let bounds = Set(etas.flatMap { eta in
+                (1...12).map { eta - Double($0) * 60 + 1 } + [eta + 31]
+            }.filter { $0 > now }).sorted().prefix(60)
             hasBounds = !bounds.isEmpty
             entries += bounds.map { t in
                 MetroEntry(date: Date(timeIntervalSince1970: t), title: e.title,
@@ -250,60 +263,197 @@ enum MetroFetcher {
     }
 }
 
+// ── 改版後的版面（2026-08-17，依 Claude Design「軌島 iOS Widget 與 Live Activity」）─────
+//
+// 設計稿對改版前這張卡的三個具體批評，逐條對應在下面：
+//  1.「2:37」這種碼錶格式讀不出「還有多久」——`Text(timerInterval:)` 的格式由系統定死成
+//     m:ss，而「1:30」在候車情境會被讀成一小時半。改成一個大數字＋小單位（「3 分」），
+//     由 timeline 預排的【分鐘邊界】推進（見 provider 的 minuteBounds）。
+//  2. 忠孝復興那張兩列都寫「往 南港展覽館」，只靠咖啡點與藍點區分文湖線與板南線 ⇒ 讀不出來，
+//     而且 tinted 模式下顏色整個失效。改成路線色一定伴隨線名（RailLineMark）。
+//  3. 全卡視覺重量一致、留大片空白 ⇒ 一主多從：主班用 hero 字級，後續班次小一號。
+//
+// 版面高度預算（設計稿的硬約束，超出一律【砍列】不縮字）：
+//  Small  內容 138×138：識別 20 ／站名 24 ／方向 19 ／倒數 44 ／註腳 16 ＝ 123＋間距
+//  Medium 內容 332×138：卡頭 21 ＋ 8 ＋ 主班 43 ＋ hairline 9 ＋ 從班 28×2 ＝ 137
+//  Large  內容 332×346：同骨架，從班 32pt、最多 6 列
+//
+// 🔴 Small 從「兩列列表」改成「單班大卡」是【內容減量】：改版前小卡列兩列（可能是兩個方向），
+//    改版後只講一班。設計稿的取捨是「小卡上兩列都讀不清，不如一班讀得準」，而代價是
+//    雙向站的小卡使用者少看到一個方向。已在交付時明講給使用者裁示。
+
 struct MetroBoardView: View {
     let entry: MetroEntry
-    @Environment(\.widgetFamily) var family
+    @Environment(\.widgetFamily) var widgetFamily
+    @Environment(\.widgetRenderingMode) var renderingMode
+    // 🔴 算繪 harness 的覆寫哨兵。出貨路徑恆為 nil ⇒ 一律讀真正的 \.widgetFamily。
+    //    為什麼需要它見 RailWidgetKit.swift 的 railFamilyOverride（previewContext 對裸執行檔無效）。
+    @Environment(\.railFamilyOverride) var familyOverride
 
-    private var rowLimit: Int { family == .systemSmall ? 2 : (family == .systemMedium ? 4 : 6) }
+    private var family: WidgetFamily { familyOverride ?? widgetFamily }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            HStack(spacing: 5) {
-                if let c = entry.lineColor { Circle().fill(c).frame(width: 8, height: 8) }
-                Text(entry.title).font(.headline).lineLimit(1)
-                if entry.auto {
-                    // 自動解析出來的站掛小徽章,跟手選站區分(文字徽章,UI 控件不用 emoji)。
-                    Text("自動").font(.system(size: 9)).foregroundStyle(.secondary)
-                        .padding(.horizontal, 4).padding(.vertical, 1)
-                        .background(Capsule().fill(.quaternary))
+        GeometryReader { geo in
+            let scale = RailScale(width: geo.size.width,
+                                  reference: family == .systemSmall ? RailScale.smallReference
+                                                                    : RailScale.mediumReference)
+            Group {
+                if family == .systemSmall {
+                    smallCard(scale)
+                } else {
+                    listCard(scale)
                 }
-                Spacer(minLength: 4)
-                // 🔴 資料時刻永遠顯示。WidgetKit 不保證刷新頻率,不標時刻就是在假裝即時。
-                Text(stampText).font(.caption2).foregroundStyle(.secondary)
             }
-            if let last = entry.lastTrain {
-                Text("末班 \(last)").font(.caption2).foregroundStyle(.orange).lineLimit(1)
-            }
-            if !visibleRows.isEmpty {
-                ForEach(Array(visibleRows.prefix(rowLimit).enumerated()), id: \.offset) { _, r in
-                    MetroRowView(row: r, precision: entry.precision,
-                                 showCrowd: family != .systemSmall,
-                                 entryDate: entry.date,
-                                 lineColor: entry.sys.flatMap {
-                                     MetroPalette.rowColor(sys: $0, station: entry.title,
-                                                           dest: r.dest, lineCode: r.lineCode,
-                                                           trainNo: r.trainNo)
-                                 })
-                }
-            } else if entry.snapshot?.rows.isEmpty == false {
-                // 有資料但全被「到站+30秒退場」濾光=資料視野(≈12分鐘)用完了,WidgetKit 還沒給
-                // 下一次刷新——這不是「官方沒班次」,寫成那樣會被讀成末班已過(真機回饋 08-14)。
-                Text("資料過舊，打開軌島即更新").font(.caption).foregroundStyle(.secondary)
-            } else if let cta = entry.passCTA {
-                // 通行證閘門:明講「為什麼看不到、點下去去哪」。用主色而非 secondary——
-                // 它是行動邀請不是錯誤訊息;小卡容得下三行,大卡更寬鬆,故不設 lineLimit。
-                Text(cta).font(.caption).foregroundStyle(.primary)
-            } else {
-                // autoHint:自動選站解析失敗的指引(定位權限/從沒定位過),比通用文案可行動。
-                Text(entry.autoHint ?? entry.emptyText(at: entry.date))
-                    .font(.caption).foregroundStyle(.secondary)
-            }
-            Spacer(minLength: 0)
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         }
-        .padding(.horizontal, 2)
+        .railRenderingMode(renderingMode)
         // 點小工具 → App 直開這一站的等車卡。未選站時 deepLink 為 nil,widgetURL(nil) 就是
         // 預設行為(單純開 App),不必分支。
         .widgetURL(entry.deepLink)
+    }
+
+    // MARK: - Small：單班大卡
+
+    @ViewBuilder private func smallCard(_ scale: RailScale) -> some View {
+        if let lead = visibleRows.first {
+            let ln = line(lead)
+            VStack(alignment: .leading, spacing: scale.pt(3)) {
+                // 識別列：路線標（點＋線名）＋資料時刻。線名認不出來時整顆撤掉，不畫沒標籤的點。
+                HStack(spacing: scale.pt(4)) {
+                    if let name = ln.name {
+                        RailLineMark(name: name, color: ln.color, fontSize: 12, scale: scale)
+                    }
+                    Spacer(minLength: scale.pt(2))
+                    // 🔴 suffix 不可省成裸時刻:「15:33」單獨出現會被讀成【發車時刻】,
+                    //    而它是資料時刻。量過寬度:「環狀線」46＋「15:33 更新」55＝101,138pt 放得下。
+                    RailStamp(text: stampTime, warn: entry.failed, scale: scale)
+                }
+                .frame(height: scale.pt(20))
+
+                stationName(scale, size: 20)
+                    .frame(height: scale.pt(24), alignment: .leading)
+
+                Text("往 \(lead.dest)")
+                    .font(.system(size: scale.pt(15)))
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1).minimumScaleFactor(0.85)
+                    .frame(height: scale.pt(19), alignment: .leading)
+
+                RailCountdownText(value: countdown(lead), size: .heroCard, scale: scale)
+                    .frame(height: scale.pt(44), alignment: .leading)
+
+                // 註腳：擁擠度＋同方向的再下一班。兩者都沒有時整列留空（不寫佔位文字）。
+                HStack(spacing: scale.pt(6)) {
+                    if let c = lead.crowd, !c.isEmpty {
+                        RailCarriageMeter(levels: c, scale: scale)
+                    }
+                    if let nxt = nextSameDirection(after: lead) {
+                        Text(nextText(nxt)).font(.system(size: scale.pt(12)))
+                            .foregroundStyle(.secondary).lineLimit(1).fixedSize()
+                    }
+                    Spacer(minLength: 0)
+                }
+                .frame(height: scale.pt(16))
+            }
+        } else {
+            VStack(alignment: .leading, spacing: scale.pt(6)) {
+                HStack(spacing: scale.pt(4)) {
+                    stationName(scale, size: 17)
+                    Spacer(minLength: scale.pt(2))
+                }
+                .frame(height: scale.pt(21))
+                emptyBody(scale)
+                Spacer(minLength: 0)
+            }
+        }
+    }
+
+    // MARK: - Medium／Large：一主多從
+
+    @ViewBuilder private func listCard(_ scale: RailScale) -> some View {
+        let rows = visibleRows
+        let follows = Array(rows.dropFirst().prefix(followLimit))
+        VStack(alignment: .leading, spacing: 0) {
+            RailCardTitle(title: entry.title, scale: scale) {
+                HStack(spacing: scale.pt(4)) {
+                    if entry.auto { autoBadge(scale) }
+                    RailStamp(text: stampTime, warn: entry.failed, scale: scale)
+                }
+            }
+            if let last = entry.lastTrain {
+                // 末班車是【車站層】的事實，不屬於任何一列 ⇒ 掛在標題底下、與標題同一個左緣，
+                // 不掛進某一列的內容欄（掛進去會被讀成「那一班是末班車」）。
+                RailStatusTag(kind: .lastTrainAt(last), fontSize: 12, scale: scale)
+                    .frame(height: scale.pt(18), alignment: .leading)
+                Spacer().frame(height: scale.pt(4))
+            } else {
+                Spacer().frame(height: scale.pt(8))
+            }
+            if let lead = rows.first {
+                MetroRowView(row: lead, precision: entry.precision, role: .hero,
+                             entryDate: entry.date, sys: entry.sys, station: entry.title,
+                             lineAbove: false, lineBelow: !follows.isEmpty, scale: scale)
+                RailHairline(scale: scale)
+                ForEach(Array(follows.enumerated()), id: \.offset) { i, r in
+                    MetroRowView(row: r, precision: entry.precision,
+                                 role: family == .systemLarge ? .followLarge : .follow,
+                                 entryDate: entry.date, sys: entry.sys, station: entry.title,
+                                 lineBelow: i < follows.count - 1, scale: scale)
+                }
+            } else {
+                emptyBody(scale)
+            }
+            Spacer(minLength: 0)
+        }
+    }
+
+    /// 從班列數上限。從【實測的內容框高度】推，不是手打的常數：
+    ///   Medium 內容框 138：卡頭 21 ＋ 8 ＋ 主班 43 ＋ hairline 9 ＝ 81 ⇒ 剩 57 ÷ 28 ＝ 2 列
+    ///   Large  內容框 350：同上 81 ⇒ 剩 269 ÷ 32 ＝ 8 列
+    /// 🔴 末班車那一行把「8pt 間距」換成「18＋4」＝多吃 14pt ⇒ 依設計稿「超出先砍列不縮字」
+    ///    少列一班，不是把列高壓小（壓小會讓同一張卡在兩種狀態下列高不同，縱向對齊當場破掉）。
+    /// 🔴 Large 一開始寫 6 是照設計稿字面，但實測那樣底部會空 77pt——正是設計稿自己批評的
+    ///    「留大片空白」。官方視野約 12 分鐘、台北車站這種大站排得滿，8 列排得下就排。
+    private var followLimit: Int {
+        let hasLast = entry.lastTrain != nil
+        return family == .systemLarge ? (hasLast ? 7 : 8) : (hasLast ? 1 : 2)
+    }
+
+    // MARK: - 零件
+
+    private func stationName(_ scale: RailScale, size: CGFloat) -> some View {
+        HStack(spacing: scale.pt(4)) {
+            Text(entry.title)
+                .font(.system(size: scale.pt(size), weight: .semibold))
+                .lineLimit(1).minimumScaleFactor(0.8)
+            if entry.auto { autoBadge(scale) }
+        }
+    }
+
+    /// 自動解析出來的站掛小徽章,跟手選站區分(文字徽章,UI 控件不用 emoji)。
+    private func autoBadge(_ scale: RailScale) -> some View {
+        Text("自動").font(.system(size: scale.pt(9)))
+            .foregroundStyle(.secondary)
+            .padding(.horizontal, scale.pt(4)).padding(.vertical, scale.pt(1))
+            .background(Capsule().fill(.quaternary))
+            .fixedSize()
+    }
+
+    @ViewBuilder private func emptyBody(_ scale: RailScale) -> some View {
+        if entry.snapshot?.rows.isEmpty == false {
+            // 有資料但全被「到站+30秒退場」濾光=資料視野(≈12分鐘)用完了,WidgetKit 還沒給
+            // 下一次刷新——這不是「官方沒班次」,寫成那樣會被讀成末班已過(真機回饋 08-14)。
+            Text("資料過舊，打開軌島即更新")
+                .font(.system(size: scale.pt(13))).foregroundStyle(.secondary)
+        } else if let cta = entry.passCTA {
+            // 通行證閘門:明講「為什麼看不到、點下去去哪」。用主色而非 secondary——
+            // 它是行動邀請不是錯誤訊息;小卡容得下三行,大卡更寬鬆,故不設 lineLimit。
+            Text(cta).font(.system(size: scale.pt(13))).foregroundStyle(.primary)
+        } else {
+            // autoHint:自動選站解析失敗的指引(定位權限/從沒定位過),比通用文案可行動。
+            Text(entry.autoHint ?? entry.emptyText(at: entry.date))
+                .font(.system(size: scale.pt(13))).foregroundStyle(.secondary)
+        }
     }
 
     /// 依 entry 時刻過濾:到站超過 30 秒的列整列退場(timeline 在 eta+31 有預排邊界 entry)。
@@ -313,76 +463,130 @@ struct MetroBoardView: View {
         return rows.filter { $0.etaEpoch == nil || $0.etaEpoch! + 30 > entry.date.timeIntervalSince1970 }
     }
 
-    private var stampText: String {
+    private func line(_ r: MetroRow) -> (color: Color?, name: String?) {
+        guard let sys = entry.sys else { return (nil, nil) }
+        return MetroPalette.rowLine(sys: sys, station: entry.title, dest: r.dest,
+                                    lineCode: r.lineCode, trainNo: r.trainNo)
+    }
+
+    private func countdown(_ r: MetroRow) -> RailCountdown {
+        MetroCountdown.of(row: r, precision: entry.precision, at: entry.date)
+    }
+
+    /// 小卡註腳的「再 N 分」＝【同一個方向】的下一班。
+    /// 🔴 不能取「下一列」：沒設方向的雙向站，下一列很可能是反方向，寫成「再 3 分」等於謊報。
+    private func nextSameDirection(after lead: MetroRow) -> MetroRow? {
+        visibleRows.dropFirst().first { $0.dest == lead.dest }
+    }
+
+    private func nextText(_ r: MetroRow) -> String {
+        switch countdown(r) {
+        case .minutes(let m):       return "· 再 \(m) 分"
+        case .approxMinutes(let m): return "· 再約 \(m) 分"
+        case .seconds:              return "· 下一班即將進站"
+        case .arriving:             return "· 下一班進站"
+        case .noData, .scheduled:   return ""
+        }
+    }
+
+    /// 資料時刻(HH:mm)。時區錨定 Asia/Taipei,不用裝置時鐘(timezone-anchor 契約;
+    /// 人在國外看家鄉班次時尤其重要)。⚠ 前綴與警示色由 RailStamp 依 warn 負責。
+    private var stampTime: String {
         guard let at = entry.snapshot?.dataAt else { return "—" }
         let f = DateFormatter(); f.dateFormat = "HH:mm"
-        // 時區錨定 Asia/Taipei,不用裝置時鐘(timezone-anchor 契約;人在國外看家鄉班次時尤其重要)。
         f.timeZone = TimeZone(identifier: "Asia/Taipei")
-        return (entry.failed ? "⚠ " : "") + f.string(from: Date(timeIntervalSince1970: at)) + " 更新"
+        return f.string(from: Date(timeIntervalSince1970: at))
     }
 }
 
+/// 一列的倒數形態。抽成獨立型別，讓小卡、列表列與混合大卡走同一條規則
+/// （改版前這段邏輯在 MetroRowView 與 MixedBoardWidget 各寫一份）。
+enum MetroCountdown {
+    static func of(row r: MetroRow, precision: String, at date: Date) -> RailCountdown {
+        // 🔴 判準用 entry 的時刻,不用 Date():body 是被封存(archive)起來的,Date() 只會是
+        //    封存那一刻,不會隨時間重算。timeline 已在每個分鐘邊界預排 entry。
+        if precision == "sec", let eta = r.etaEpoch {
+            return .from(secondsLeft: eta - date.timeIntervalSince1970, surface: .widget)
+        }
+        // 🔴 官方只給整數分鐘的系統走 .approxMinutes（畫面上多一個「約」字）——
+        //    那個字是秒級與分鐘級精度差異在畫面上的唯一顯形處，不可省。
+        //    🔴 但 0 分要畫「進站」不是「約 0 分」：官方給的 0 就是「現在到」，
+        //    而「約 0 分」是讀不出意思的（哈瑪星那張實際算出來就是這個字樣）。
+        //    這是官方值的【顯示對映】不是改值，與秒級 <60 秒進 arriving 同一條規則。
+        if let m = r.minutes { return m <= 0 ? .arriving : .approxMinutes(m) }
+        return .noData
+    }
+}
+
+/// 看板的一列。三欄骨架由 RailRow 提供（軌脊 12 ／內容彈性 ／數字靠右）。
+///
+/// 🔴 線色與線名在這裡【一起查】(MetroPalette.rowLine)，呼叫端拿不到「只有顏色」的路徑——
+///    設計稿規則 3「路線色一定伴隨線名」要靠介面讓它難以違反，不是靠註解提醒。
 struct MetroRowView: View {
+    enum Role { case hero, follow, followLarge }
+
     let row: MetroRow
     let precision: String
-    let showCrowd: Bool
+    var role: Role = .follow
     var entryDate: Date = Date()
-    // 混合大卡(systemLarge)整列等比放大用;預設 1=北捷卡原樣(既有呼叫端零變化)。
-    // 字級與槽寬(56pt trailing 槽、38pt 擁擠欄)一起縮放,對齊鐵則才不會在放大後破掉。
-    var fontScale: CGFloat = 1
-    /// 這一班所屬路線的色票。推不出唯一解時為 nil ⇒ 不畫點(見 MetroPalette.rowColor)。
-    var lineColor: Color? = nil
+    /// 線別要靠「系統＋本站＋該列終點」推，故兩者都要帶（見 MetroPalette.rowLine）。
+    var sys: String? = nil
+    var station: String = ""
+    var lineAbove: Bool = true
+    var lineBelow: Bool = true
+    var scale: RailScale = RailScale(k: 1)
+
+    private var isHero: Bool { role == .hero }
+
+    private var height: CGFloat {
+        switch role {
+        case .hero:        return RailRowHeight.hero
+        case .follow:      return RailRowHeight.follow
+        case .followLarge: return RailRowHeight.followLarge
+        }
+    }
 
     var body: some View {
-        HStack(spacing: 6) {
-            // 🔴 轉乘站(台北車站=紅+藍)的每一列各屬不同路線,線色必須逐列畫;
-            //    站別標頭那顆點只在單線站出現。沒有色票時佔位保持不變,列與列的文字仍對齊。
-            Circle().fill(lineColor ?? .clear).frame(width: 7 * fontScale, height: 7 * fontScale)
-            // 🔴 小尺寸卡的可用寬本來就緊(「往 南港展覽館」＋倒數槽幾乎填滿),多了色點更緊 ⇒
-            //    允許小幅縮字,寧可字小一點也不要把站名截成「往 南港展覽…」。
-            Text("往 \(row.dest)").font(.system(size: 13 * fontScale))
-                .lineLimit(1).minimumScaleFactor(0.8)
-            Spacer(minLength: 4)
-            if precision == "sec", let eta = row.etaEpoch {
-                // 🔴 真機回饋(08-14):倒數歸零後停在 0:00 是殭屍——已到點的列改顯示「進站」。
-                //    判準用 entry.date(timeline 在每個到站時刻+1s 預排了 entry),
-                //    不用 Date()(封存時刻,不會隨時間重算)。
-                // 🔴 進站字樣與倒數共用同一個 56pt trailing 槽——真機回饋(08-14 第三輪):
-                //    倒數有 frame、進站沒有 ⇒ 兩種列的右緣對不齊。
-                if eta <= entryDate.timeIntervalSince1970 + 1 {
-                    Text("進站").font(.system(size: 13 * fontScale, weight: .semibold))
-                        .foregroundStyle(Color(.sRGB, red: 0.29, green: 0.87, blue: 0.50))
-                        .frame(maxWidth: 56 * fontScale, alignment: .trailing)
-                } else {
-                    // 北捷是絕對時刻 ⇒ 交給系統自走,刷新之間也是對的。
-                    // 🔴 range 起點必須 clamp:模型層濾掉 eta<=now 用的是「entry 建立時」的 now,
-                    //    body 實際被封存(archive)可能晚幾秒;ClosedRange 下界大於上界會當場 crash。
-                    let end = Date(timeIntervalSince1970: eta)
-                    Text(timerInterval: min(Date(), end)...end, countsDown: true)
-                        .monospacedDigit().font(.system(size: 14 * fontScale, design: .rounded))
-                        .multilineTextAlignment(.trailing)
-                        .frame(maxWidth: 56 * fontScale, alignment: .trailing)
-                }
-            } else if let m = row.minutes {
-                // 🔴 官方只給整數分鐘 ⇒ 顯示「約 N 分」的靜態文字,不換算成秒、不自走。
-                Text("約 \(m) 分").monospacedDigit().font(.system(size: 14 * fontScale, design: .rounded))
-            }
-            if showCrowd {
-                // 使用者真機回饋(08-14):同一張卡混到沒有擁擠度的線(北捷卡的文湖線)時,
-                // 那一列的時間被推到最右、跟其他列的時間欄對不齊。
-                // ⇒ 擁擠區固定寬佔位:沒資料的列維持【透明空白】(不畫灰格,
-                //    灰格會被讀成「量到了但沒人」),但佔住等寬讓每列時間縱向對齊。
-                HStack(spacing: 1.5) {
+        let ln = sys.map {
+            MetroPalette.rowLine(sys: $0, station: station, dest: row.dest,
+                                 lineCode: row.lineCode, trainNo: row.trainNo)
+        } ?? (color: nil, name: nil)
+        RailRow(spine: isHero ? .lead(ln.color) : .follow,
+                lineAbove: lineAbove, lineBelow: lineBelow,
+                height: height,
+                numberWidth: isHero ? RailNumberColumn.wide : RailNumberColumn.narrow,
+                scale: scale) {
+            if isHero {
+                Text("往 \(row.dest)")
+                    .font(.system(size: scale.pt(20), weight: .semibold))
+                    .lineLimit(1).minimumScaleFactor(0.8)
+                HStack(spacing: scale.pt(6)) {
+                    if let name = ln.name {
+                        RailLineMark(name: name, color: ln.color, fontSize: 13, scale: scale)
+                    }
                     if let c = row.crowd, !c.isEmpty {
-                        ForEach(Array(c.enumerated()), id: \.offset) { _, v in
-                            RoundedRectangle(cornerRadius: 1.5)
-                                .fill(MetroPalette.crowd(v)).frame(width: 5 * fontScale, height: 9 * fontScale)
-                        }
+                        // 🔴 showWord 一律 true：設計稿規則 3「顏色不獨立表意」，六節色塊在
+                        //    tinted／單色模式只剩深淺三階，那個詞是唯一還讀得出來的東西。
+                        //    量過寬度：內容欄 232pt，「淡水信義線」＋六節＋「舒適」約 152pt，放得下。
+                        RailCarriageMeter(levels: c, showWord: true, scale: scale)
                     }
                 }
-                .frame(width: 38 * fontScale, alignment: .trailing)
+            } else {
+                HStack(spacing: scale.pt(6)) {
+                    Text("往 \(row.dest)")
+                        .font(.system(size: scale.pt(17), weight: .medium))
+                        .lineLimit(1).minimumScaleFactor(0.85)
+                    if let name = ln.name {
+                        RailLineMark(name: name, color: ln.color, fontSize: 11, scale: scale)
+                            .foregroundStyle(.secondary)
+                    }
+                    // 從班列不畫擁擠度：28pt 的列高放不下六節色塊＋詞，硬塞就是設計稿說的
+                    // 「全卡視覺重量一致」重演。擁擠度只給主角列。
+                }
             }
-            // showCrowd=false 的整卡(高捷/機捷)全卡都沒有擁擠欄,時間本來就對齊,不佔位。
+        } trailing: {
+            RailCountdownText(value: MetroCountdown.of(row: row, precision: precision, at: entryDate),
+                              size: isHero ? .heroRow : .row, scale: scale)
         }
     }
 }
@@ -408,32 +612,42 @@ enum MetroPalette {
     /// 站別標頭的點:【只有單一路線的站才畫】。
     /// 🔴 真機回饋(08-15):台北車站原本畫紅點,底下卻列著藍線(板南線)的班次——
     ///    轉乘站取第一條線等於隨機指定一條,是錯的識別而不是不精確的識別。
-    ///    識別不了就不畫;每一列自己的線色由 rowColor 負責,資訊不會因此消失。
+    ///    識別不了就不畫;每一列自己的線色由 rowLine 負責,資訊不會因此消失。
     static func color(sys: String, station: String) -> Color? {
         let hexes = MetroWidgetCatalog.shared.lineColorHexes(sys: sys, station: station)
         guard hexes.count == 1 else { return nil }
         return parse(hexes[0])
     }
 
-    /// 單一班次的線色。路線本身怎麼判在 `MetroBoardModel.resolveLine`(純函式,被驗收腳本
-    /// 逐案測);這裡只負責把線 id 換成色票,以及最後那層「路線分不出、但候選路線同色」的退路。
-    static func rowColor(sys: String, station: String, dest: String, lineCode: String?,
-                         trainNo: String?) -> Color? {
+    /// 一列的路線識別：色票與線名【一起回】。
+    ///
+    /// 🔴 刻意合成一個回傳值而不是兩個查詢：改版後的規則是「路線色一定伴隨線名」
+    ///    (設計稿規則 3)。拆成 rowColor()／rowName() 兩支，就會有呼叫端只叫其中一支、
+    ///    畫出一顆沒有標籤的色點——那正是改版前忠孝復興那張讀不出線別的成因。
+    ///    名字查不到時 name 為 nil，畫面層要連點一起不畫（見 MetroRowView）。
+    static func rowLine(sys: String, station: String, dest: String, lineCode: String?,
+                        trainNo: String?) -> (color: Color?, name: String?) {
         let cat = MetroWidgetCatalog.shared
         if let code = MetroBoardModel.resolveLine(joined: lineCode, trainNo: trainNo,
                                                   station: station, dest: dest,
                                                   stationLines: cat.lineIDsAt(sys: sys, station: station),
-                                                  destLines: cat.lineIDsAt(sys: sys, station: dest)),
-           let hex = lineHex(sys: sys, code: code) { return parse(hex) }
+                                                  destLines: cat.lineIDsAt(sys: sys, station: dest)) {
+            let name = cat.lineNameByID["\(sys)|\(code)"]
+            if let hex = lineHex(sys: sys, code: code) { return (parse(hex), name) }
+            return (nil, name)
+        }
         // 退路:路線分不出唯一解,但候選路線【色票相同】時照樣上色——中和新蘆線在目錄裡
         // 拆成迴龍/蘆洲兩支、共用同一個色票(實測 300 種真實組合中有 11 種是這樣)。
         // 色票也不唯一就回 nil、那一列不畫點,寧可不畫也不猜。
         let here = cat.lineColorHexes(sys: sys, station: station)
         let there = cat.lineColorHexes(sys: sys, station: dest)
         let shared = here.filter(there.contains)
-        guard shared.count == 1 else { return nil }
-        return parse(shared[0])
+        guard shared.count == 1 else { return (nil, nil) }
+        // 走到這裡代表線 id 不唯一（例：迴龍/蘆洲），色票相同但【線名不同】⇒ 名字一律不給。
+        // 猜一個線名比不寫更糟：它是識別，錯的識別比沒有識別危險（同 color(sys:station:) 的理由）。
+        return (parse(shared[0]), nil)
     }
+
     /// 官方擁擠度等級。數值語意由官方定義,我們只上色不重新分級。
     static func crowd(_ v: Int) -> Color {
         switch v {

@@ -117,8 +117,13 @@ struct MetroWidgetCatalog {
     /// "<sys>|<站名>" → 站座標(自動選站的最近站計算用)。同站多線座標相同,取第一筆。
     let coords: [String: Coord]
     /// "<sys>|<線 id>" → 該線色票。官方 `trains[].stn` 的字母前綴就是線 id(BL13 → BL),
-    /// 用來把看板每一列對回它真正的路線色(見 MetroPalette.rowColor)。
+    /// 用來把看板每一列對回它真正的路線色(見 MetroPalette.rowLine)。
     let lineColorByID: [String: String]
+    /// "<sys>|<線 id>" → 官方線名(如 "BL" → "板南線")。
+    /// 🔴 為什麼需要它:改版後的看板規則是「路線色一定伴隨線名」——改版前只畫一顆色點,
+    ///    忠孝復興那張兩列都寫「往 南港展覽館」、只靠咖啡點與藍點區分文湖線與板南線,
+    ///    實際上讀不出來是哪一條(而 tinted 模式下顏色還會整個失效)。線名是那顆點的必要搭檔。
+    let lineNameByID: [String: String]
 
     static let shared: MetroWidgetCatalog = load()
 
@@ -129,13 +134,15 @@ struct MetroWidgetCatalog {
             // 🔴 讀不到就回空目錄,讓 provider 走「照樣給選項」那條(空 systems 時 use 也是空,
             //    ItemCollection 會是空的——這是唯一真的沒東西可列的情況,與 .empty 的語意不同)。
             return MetroWidgetCatalog(systems: [], alias: [:], lastTrain: [:], lineColors: [:],
-                                      lineIDs: [:], coords: [:], lineColorByID: [:])
+                                      lineIDs: [:], coords: [:], lineColorByID: [:],
+                                      lineNameByID: [:])
         }
         var out: [System] = []
         var colors: [String: [String]] = [:]
         var ids: [String: [String]] = [:]
         var coords: [String: Coord] = [:]
         var byLineID: [String: String] = [:]
+        var byLineName: [String: String] = [:]
         for s in (obj["systems"] as? [[String: Any]] ?? []) {
             let sysID = s["id"] as? String ?? ""
             let lines = s["lines"] as? [[String: Any]] ?? []
@@ -158,7 +165,13 @@ struct MetroWidgetCatalog {
                               stationNames: names, destinations: dests.sorted()))
             for line in lines {
                 guard let color = line["color"] as? String else { continue }
-                if let lid = line["id"] as? String { byLineID["\(sysID)|\(lid)"] = color }
+                if let lid = line["id"] as? String {
+                    byLineID["\(sysID)|\(lid)"] = color
+                    // 線名缺就不收(查不到時畫面層不畫這個元件,而不是畫一顆沒標籤的點)。
+                    if let lname = line["name"] as? String, !lname.isEmpty {
+                        byLineName["\(sysID)|\(lid)"] = lname
+                    }
+                }
                 for st in (line["stations"] as? [[String: Any]] ?? []) {
                     guard let n = st["name"] as? String else { continue }
                     let key = "\(sysID)|\(n)"
@@ -176,6 +189,7 @@ struct MetroWidgetCatalog {
         return MetroWidgetCatalog(systems: out,
                                   alias: obj["alias"] as? [String: [String: String]] ?? [:],
                                   lastTrain: obj["lastTrain"] as? [String: String] ?? [:],
-                                  lineColors: colors, lineIDs: ids, coords: coords, lineColorByID: byLineID)
+                                  lineColors: colors, lineIDs: ids, coords: coords,
+                                  lineColorByID: byLineID, lineNameByID: byLineName)
     }
 }

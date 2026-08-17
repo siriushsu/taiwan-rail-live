@@ -134,12 +134,41 @@ extension EnvironmentValues {
     }
 }
 
+// MARK: - family 覆寫（只給算繪驗收用）
+
+/// 🔴 2026-08-17 受控實驗結果：`previewContext(WidgetPreviewContext(family:))` 在
+///    swiftc 編出的裸 macOS 執行檔裡【完全沒有作用】——三種 family 分別要求一次，
+///    `@Environment(\.widgetFamily)` 讀回來都是 `.systemMedium`
+///    （探針：畫一個把 family 印成字的 View，三張圖文字一模一樣）。
+///    後果是 app/scripts/render_*.mjs 的 `family:` 參數一直是裝飾品：Small 與 Large
+///    的版面【從來沒有被真的算繪過】，畫出來的一律是 Medium 分支套在小／大畫布上。
+///    改版前那兩支腳本因此照不到 rowLimit(2/4/6) 與 showCrowd 的任何差異，而圖看起來
+///    完全正常——這是心得 32「驗收腳本驗到的不是產物」的同一種假綠。
+///
+///    修法：出貨路徑照舊讀 `\.widgetFamily`（那是唯一正確的來源），另開一個【只在算繪
+///    harness 設定】的覆寫值。用 Optional 當哨兵，nil＝不覆寫，所以出貨時不可能誤觸。
+///    對應的 harness 端必須有一道「Small 與 Medium 算出來的圖必須不同」的 gate，
+///    否則這個機制哪天再壞掉，症狀又會是一片全綠。
+private struct RailFamilyOverrideKey: EnvironmentKey {
+    static let defaultValue: WidgetFamily? = nil
+}
+
+extension EnvironmentValues {
+    var railFamilyOverride: WidgetFamily? {
+        get { self[RailFamilyOverrideKey.self] }
+        set { self[RailFamilyOverrideKey.self] = newValue }
+    }
+}
+
 extension View {
     /// 掛在每個 widget／LA 的根 View 上，把 `\.widgetRenderingMode` 翻譯成 railMonochrome。
     /// 🔴 不在元件內部各自讀 widgetRenderingMode：Live Activity 的鎖定畫面不吃那個環境值，
     ///    但它同樣有「系統會調色」的情形，統一由根 View 決定才不會兩邊行為分岔。
     func railRenderingMode(_ mode: WidgetRenderingMode) -> some View {
-        environment(\.railMonochrome, mode != .fullColor)
+        // 🔴 用 transformEnvironment 做 OR 而不是直接 environment 覆寫：覆寫會在 fullColor 時
+        //    把外部設好的 true 洗成 false，驗收腳本就沒辦法算繪單色版面（那正是四個缺陷裡
+        //    兩個只在單色現形的地方）。
+        transformEnvironment(\.railMonochrome) { v in if mode != .fullColor { v = true } }
     }
 }
 
@@ -339,6 +368,10 @@ struct RailSpineTrack: View {
 enum RailCountdown: Equatable {
     /// ≥60 秒。value 已經是分鐘整數。
     case minutes(Int)
+    /// 官方只給整數分鐘的系統（高捷／機捷）。
+    /// 🔴 必須與 `.minutes` 分開：把整數分鐘畫成跟秒級絕對時刻一樣的樣子＝製造假精度。
+    ///    畫面上多一個「約」字是精度差異的唯一顯形處，不可省。
+    case approxMinutes(Int)
     /// <60 秒。🔴 只有 Live Activity 用——widget 不做秒級（見 `from(secondsLeft:surface:)`）。
     case seconds(Int)
     /// 已到站／即將進站。設計稿唯一給實心色塊的形態。
@@ -365,13 +398,32 @@ enum RailCountdown: Equatable {
 
 /// 倒數文字。
 struct RailCountdownText: View {
-    enum Size {
-        /// 主角：Small 與 LA 44pt、Medium／Large 首列 40pt
-        case hero(CGFloat)
+    /// 🔴 字級住在型別裡，呼叫端【沒有】自由指定 pt 的路徑（原本是帶 CGFloat 參數的 hero case）。
+    ///    理由是突變測試實測到的盲點：呼叫端傳 40 時，驗收 gate 也只能自己寫 40 去測
+    ///    ——那是 gate 自己供的值，不是生產程式碼傳的值。於是把呼叫端改成 96
+    ///    （數字被固定寬欄位裁掉、版面實際上壞了）所有 gate 依然全綠。改成列舉之後，
+    ///    gate 窮舉 Size 的每一個 case，量的就是出貨路徑真正會用到的字級。
+    ///    設計稿只有兩種主角字級（單班大卡 44、列表首列 40），開放 CGFloat 只是邀請漂移。
+    enum Size: CaseIterable {
+        /// 主角·單班大卡：Small 與 Live Activity 的 44pt
+        case heroCard
+        /// 主角·列表首列：Medium／Large 的 40pt
+        case heroRow
         /// 次列：17pt
         case row
         /// 第三層（LA 的第二班、compact 島）：13pt
         case minor
+
+        var pt: CGFloat {
+            switch self {
+            case .heroCard: return 44
+            case .heroRow:  return 40
+            case .row:      return 17
+            case .minor:    return 13
+            }
+        }
+
+        var isHero: Bool { self == .heroCard || self == .heroRow }
     }
 
     let value: RailCountdown
@@ -382,27 +434,24 @@ struct RailCountdownText: View {
     @Environment(\.railMonochrome) private var mono
 
     private var numberSize: CGFloat {
-        switch size {
-        case .hero(let pt): return max(RailScale.heroFloor, scale.pt(pt))
-        case .row:          return scale.pt(17)
-        case .minor:        return scale.pt(13)
-        }
+        size.isHero ? max(RailScale.heroFloor, scale.pt(size.pt)) : scale.pt(size.pt)
     }
 
     /// 單位字（分／秒）比數字小一階。設計稿的 mock 是數字大、單位小且貼在右下。
     private var unitSize: CGFloat {
         switch size {
-        case .hero: return max(scale.pt(13), numberSize * 0.32)
-        case .row:  return scale.pt(11)
-        case .minor: return scale.pt(10)
+        case .heroCard, .heroRow: return max(scale.pt(13), numberSize * 0.32)
+        case .row:                return scale.pt(11)
+        case .minor:              return scale.pt(10)
         }
     }
 
-    private var isHero: Bool { if case .hero = size { return true }; return false }
+    private var isHero: Bool { size.isHero }
 
     var body: some View {
         switch value {
         case .minutes(let m): number("\(m)", unit: "分")
+        case .approxMinutes(let m): number("\(m)", unit: "分", prefix: "約")
         case .seconds(let s): number("\(s)", unit: "秒")
         case .noData:
             // 🔴 尺寸【刻意不隨 hero 放大】：主角倒數的槽只有 76pt 寬，「暫無資料」四個字
@@ -410,8 +459,11 @@ struct RailCountdownText: View {
             //    比沒有提示更糟，所以這裡一律 17pt＋fixedSize（永不出現刪節號）。
             //    設計稿那張把「暫無資料」畫得很大是因為它同時把整卡降級、讓那行獨佔內容欄；
             //    要那個效果由版面層決定（把 noData 放進內容欄而不是數字欄），不由元件放大。
+            // 🔴 次列（56pt 槽）要再降一階到 13pt：17pt 的「暫無資料」實測 65pt 寬，
+            //    而 frame 修飾詞不裁切 ⇒ 那 9pt 會直接畫到終點站名上面（slotGate 抓到）。
+            //    主角欄 84／138pt 放得下 17pt，維持不動。
             Text("暫無資料")
-                .font(.system(size: scale.pt(17), weight: .medium))
+                .font(.system(size: scale.pt(size.isHero ? 17 : 13), weight: .medium))
                 .foregroundStyle(.secondary)
                 .lineLimit(1).fixedSize()
         case .scheduled(let t):
@@ -427,8 +479,11 @@ struct RailCountdownText: View {
         }
     }
 
-    private func number(_ n: String, unit: String) -> some View {
+    private func number(_ n: String, unit: String, prefix: String? = nil) -> some View {
         HStack(alignment: .lastTextBaseline, spacing: scale.pt(2)) {
+            if let p = prefix {
+                Text(p).font(.system(size: unitSize, weight: .medium)).foregroundStyle(.secondary)
+            }
             Text(n)
                 .font(.system(size: numberSize,
                               weight: isHero ? .semibold : .medium,
@@ -462,18 +517,23 @@ struct RailCountdownText: View {
 
 // MARK: - RailCarriageMeter 車廂擁擠度
 
-/// 六節車廂逐節上色，車頭那節帶圓鼻。
+/// 六節車廂逐節上色。
 ///
 /// 設計稿：「六節＝六節車廂，依編組順序排列，車頭那節帶圓鼻標出行進方向。逐節上色才用得到
 /// 既有的車廂資料；整列的一個詞放在旁邊，讓顏色不必獨立表意。」
 ///
 /// 🔴 `levels` 一律照官方 `trains[].cars[]` 的順序畫，不重排。節數也照官方——文湖線是四節，
 ///    不補到六節（補格會被讀成「量到了但沒人」）。
-/// 🔴 `headIsFirst` 是【未經官方資料證實的假設】：官方只給編組順序，沒給哪一端是車頭。
-///    預設 true，並把它做成參數而不是寫死，等有方向資料再接。
+///
+/// 🔴 【與設計稿的偏離】「車頭那節帶圓鼻標出行進方向」沒有實作。兩個獨立理由，任一都足夠：
+///    1. 尺寸上做不到：一節是 5×9pt，圓鼻與其他節的差別只有 1pt 圓角半徑
+///       ——實際算繪放大 2 倍實看，六節【完全一模一樣】，那個線索傳不出去。
+///    2. 資料上不該做：官方 `cars[]` 只給編組順序，【沒有】哪一端是車頭。畫圓鼻等於主張
+///       一件我們不知道的事，而使用者會照著它站月台。看不見的裝飾只是白費，
+///       看得見卻是猜的方向指示會害人走錯月台頭尾。
+///    等官方（或實測）給得出車頭方向再加，那時也要一併把節寬放大到看得出圓鼻。
 struct RailCarriageMeter: View {
     let levels: [Int]
-    var headIsFirst: Bool = true
     /// 設計稿：顏色不獨立表意 ⇒ 旁邊固定附一個詞。AX1 放大字體時才允許去詞留節。
     var showWord: Bool = true
     var scale: RailScale = RailScale(k: 1)
@@ -485,10 +545,12 @@ struct RailCarriageMeter: View {
     private var carH: CGFloat { scale.pt(9) }
 
     var body: some View {
-        HStack(spacing: scale.pt(1.5)) {
+        // 🔴 外層間距【不可】沿用節與節之間的 1.5pt:那會讓擁擠度詞緊貼最後一節色塊,
+        //    讀起來像第七節車廂(算繪放大實看抓到)。節距 1.5、詞距 5,兩者語意不同。
+        HStack(spacing: scale.pt(5)) {
             HStack(spacing: scale.pt(1.5)) {
-                ForEach(Array(levels.enumerated()), id: \.offset) { i, v in
-                    car(level: v, isHead: headIsFirst ? i == 0 : i == levels.count - 1)
+                ForEach(Array(levels.enumerated()), id: \.offset) { _, v in
+                    car(level: v)
                 }
             }
             if showWord, let w = RailTokens.crowdWord(levels) {
@@ -509,19 +571,9 @@ struct RailCarriageMeter: View {
         }
     }
 
-    @ViewBuilder private func car(level: Int, isHead: Bool) -> some View {
-        let r = scale.pt(1.5)
-        let nose = carW / 2
-        if isHead {
-            // 車頭：行進方向那一端做圓鼻。方向＝列表往前，所以圓鼻在上緣。
-            UnevenRoundedRectangle(topLeadingRadius: nose, bottomLeadingRadius: r,
-                                   bottomTrailingRadius: r, topTrailingRadius: nose,
-                                   style: .continuous)
-                .fill(fill(level)).frame(width: carW, height: carH)
-        } else {
-            RoundedRectangle(cornerRadius: r, style: .continuous)
-                .fill(fill(level)).frame(width: carW, height: carH)
-        }
+    private func car(level: Int) -> some View {
+        RoundedRectangle(cornerRadius: scale.pt(1.5), style: .continuous)
+            .fill(fill(level)).frame(width: carW, height: carH)
     }
 }
 
@@ -596,6 +648,8 @@ struct RailStatusTag: View {
         /// 誤點分鐘（正＝誤點、負＝早到）
         case delay(Int)
         case lastTrain
+        /// 末班車＋官方時刻字串（照抄不重排）
+        case lastTrainAt(String)
         case suspended
         /// 資料時刻（如「11:28 資料」）
         case stamp(String)
@@ -614,6 +668,7 @@ struct RailStatusTag: View {
         case .onTime:        return "準點"
         case .delay(let m):  return m >= 0 ? "誤點 +\(m) 分" : "早到 \(-m) 分"
         case .lastTrain:     return "末班車"
+        case .lastTrainAt(let t): return "末班 \(t)"
         case .suspended:     return "停駛"
         case .stamp(let s):  return s
         case .custom(let s): return s
@@ -626,7 +681,7 @@ struct RailStatusTag: View {
         switch kind {
         case .onTime:     return c.ok
         case .delay(let m): return m == 0 ? c.ok : c.warn
-        case .lastTrain:  return c.dusk
+        case .lastTrain, .lastTrainAt: return c.dusk
         case .suspended:  return c.bad
         case .stamp, .custom: return .secondary
         }
@@ -672,8 +727,13 @@ enum RailRowHeight {
 enum RailNumberColumn {
     /// Small 與次列
     static let narrow: CGFloat = 56
-    /// Medium／Large 主角列（40pt 數字＋單位放得下）
-    static let wide: CGFloat = 76
+    /// Medium／Large 主角列。
+    /// 🔴 84 不是設計稿的 76：76 只夠「12 分」，但整數分鐘系統（高捷／機捷）畫的是
+    ///    「約 12 分」——多出來的「約」字讓最寬形【實測 80pt】，76 會把數字裁掉。
+    ///    這個值是從 app/scripts/render_metro_widget.mjs 的 slotGate 量出來的最寬形
+    ///    再加 4pt 餘裕，不是手感調的；改字級或改單位字樣時那道 gate 會再算一次。
+    ///    代價是 Medium 內容欄從 232 縮到 224pt，量過仍放得下最長的「往 南港展覽館」＋線名＋六節＋詞。
+    static let wide: CGFloat = 84
 }
 
 /// 一列的三欄骨架：軌脊 → 內容（彈性）→ 數字（固定寬靠右）。
@@ -744,6 +804,27 @@ struct RailStamp: View {
             .foregroundStyle(warn && !mono ? AnyShapeStyle(RailTokens.colors(scheme).warn)
                                            : AnyShapeStyle(HierarchicalShapeStyle.secondary))
             .lineLimit(1)
+    }
+}
+
+/// 分區之間的內縮 hairline。
+///
+/// 設計稿：「分區靠留白與一條 hairline，不用重框」；Large 是「一條軌脊貫穿兩區」，
+/// 所以 hairline 必須【從內容欄才開始】——畫滿整寬會把軌脊切斷，那條連續的線正是
+/// 「兩區只是它的兩段」這個講法的全部。
+/// 玻璃／透明模式下設計稿要求「去掉所有 hairline 以外的分隔」——這就是那條 hairline 本身，
+/// 所以它在所有顯示模式都畫。
+struct RailHairline: View {
+    /// 高度預算裡的那個 9pt（Medium：21＋8＋43＋9＋28＋28＝137）。
+    var height: CGFloat = 9
+    var scale: RailScale = RailScale(k: 1)
+
+    var body: some View {
+        HStack(spacing: 0) {
+            Spacer().frame(width: RailSpineCell.column + scale.pt(6))
+            Rectangle().fill(Color.primary.opacity(0.12)).frame(height: 1)
+        }
+        .frame(height: scale.pt(height))
     }
 }
 

@@ -341,19 +341,26 @@ private struct MixedMetroSection: View {
             } else {
                 // 真機回饋(08-15):台北車站這種多線大站班次很多,大卡下半還有空位卻只列三班。
                 // 大卡的捷運半邊與台鐵半邊等高,台鐵那邊排四列仍有餘裕 ⇒ 捷運放到五列。
-                ForEach(Array(visibleRows.prefix(5).enumerated()), id: \.offset) { _, row in
-                    MetroRowView(
-                        row: row,
-                        precision: entry.precision,
-                        showCrowd: true,
-                        entryDate: displayDate,
-                        fontScale: 1.2,  // 大卡等比放大;槽寬跟著縮放,對齊不破(見 MetroRowView)
-                        lineColor: entry.sys.flatMap {
-                            MetroPalette.rowColor(sys: $0, station: entry.title,
-                                                  dest: row.dest, lineCode: row.lineCode,
-                                                  trainNo: row.trainNo)
-                        }
-                    )
+                //
+                // 🔴 2026-08-17 改版:這裡只跟著 MetroRowView 的新介面走(它現在自己查線色＋線名),
+                //    混合卡【整張的】改版(一條軌脊貫穿兩區＋11pt 分區標題)是另一個批次。
+                //    列高從舊版的隱含 ~19pt 變成 28pt ⇒ 五列會超出捷運半邊,依設計稿
+                //    「超出先砍列不縮字」在有末班車那一行時少列一班。
+                VStack(alignment: .leading, spacing: 0) {
+                    let cap = entry.lastTrain == nil ? 5 : 4
+                    let shown = Array(visibleRows.prefix(cap))
+                    ForEach(Array(shown.enumerated()), id: \.offset) { i, row in
+                        MetroRowView(
+                            row: row,
+                            precision: entry.precision,
+                            role: .follow,
+                            entryDate: displayDate,
+                            sys: entry.sys,
+                            station: entry.title,
+                            lineAbove: i > 0,
+                            lineBelow: i < shown.count - 1
+                        )
+                    }
                 }
             }
             Spacer(minLength: 0)
