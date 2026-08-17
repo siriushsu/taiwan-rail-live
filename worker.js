@@ -1167,9 +1167,18 @@ const TRTC_OFFICIAL_OUTAGE_KEY = 'official_outage_v1';
 // 官方正常 15～60 秒一輪；3 分鐘沒動就是真的斷了——與前端 TRTC_FEED_STALE_SEC 同一個推導，
 // 刻意共用同一個數字，不另外發明門檻。落差小於它的空白屬正常跳拍，照舊 carry。
 const TRTC_OFFICIAL_REALIGN_SEC = 180;
-// 一段行進中的軌道最多容得下幾台車（號誌閉塞的物理事實）。超過就對那條線依當下官方資料重排。
-// 設 0 可整個關掉自我察覺重置，只留斷訊恢復。
-const TRTC_OFFICIAL_CROWD_LIMIT = 3;
+// 🔴 2026-08-17 09:06 使用者指示：文湖線的車先全部不畫（車站車次資訊照舊）。
+// 只影響「畫在軌道上的車」,不影響看板 rows/trips,也不影響 D1 名冊本身。
+// 要放回來就把這個集合清空重新部署,不需要重置名冊。
+const TRTC_HIDDEN_LINES = new Set(['BR']);
+// 🔴 2026-08-17 使用者訂正：「發車的第一段路,我們在下一站也會看到兩個倒數時間,那就可以有兩台啊」
+// ——同一段軌道上有幾台車，官方的倒數自己會說；用「幾台算太多」去猜只會誤殺合法的兩台。
+// 規則收斂成一條：一個倒數就是一台車（TRTC_OFFICIAL_ONLY）。故段擠自癒設 0 停用，
+// 機制與驗收保留，日後若真需要「結果荒謬就重排」的後備再開。
+const TRTC_OFFICIAL_CROWD_LIMIT = 0;
+// 有倒數才畫：2026-08-17 一度啟用,但使用者訂正——有編號就代表車在,不該從畫面消失。
+// 改由「失去倒數的車繼續沿線往前跑、到終點收車」解決疊車,故關閉。機制與驗收保留。
+const TRTC_OFFICIAL_ONLY = false;
 // 恢復通知在名冊裡帶多久。夠久讓斷訊後才開頁面的人也看得到跳動的原因，又不會久到變成常駐雜訊。
 const TRTC_OFFICIAL_RECOVERY_NOTICE_SEC = 600;
 
@@ -1305,7 +1314,7 @@ function trtcOfficialRosterSnapshot(model, rows, prior, day, nowEpoch, sourceRev
   // 自我察覺重置（2026-08-17 使用者要求「迅速重置」）：這一輪若畫出「同一段軌道 ≥3 台車」
   // 這種物理上不可能的畫面，就對那幾條線用同一輪的官方資料重跑一次、依當下官方名單重建。
   const roster = reduceOfficialRosterSelfHealing({ model, rows, prior, day, nowEpoch, sourceRevision,
-    realignSec, crowdLimit: TRTC_OFFICIAL_CROWD_LIMIT });
+    realignSec, crowdLimit: TRTC_OFFICIAL_CROWD_LIMIT, officialOnly: TRTC_OFFICIAL_ONLY });
   // rows 也進同一 CAS blob：若較舊 PoP 輸給較新的 D1 revision，回應必須採較新 snapshot
   // 自己的 row↔vehicleId 對應，不能把舊 request rows 與新 roster 混成不存在的組合。
   return { ...roster, sourceFrameKey, sourceFrameOrder: trtcOfficialFrameOrder(rows, sourceFrameKey),
@@ -1324,11 +1333,12 @@ function trtcOfficialNextState(model, rows, priorState, day, nowEpoch, sourceRev
   }
   const next = trtcOfficialRosterSnapshot(model, rows, priorState, day, nowEpoch, sourceRevision, sourceFrameKey);
   next.sourceObservedEpoch = sourceObservedEpoch;
-  const allRealigned = (next.diagnostics && next.diagnostics.realignedLines) || [];
   const crowdHealed = (next.diagnostics && next.diagnostics.crowdHealedLines) || [];
-  // 🔴 前端把 recovery.lines 說成「即時訊號已恢復」。自我察覺重置不是斷訊——上游一直在報，
-  // 是我們自己畫錯了——混進去等於對使用者說謊。只有「這條線真的消失過一段時間」才進 recovery。
-  const realignedLines = allRealigned.filter(line => !crowdHealed.includes(line));
+  // 🔴 前端把 recovery.lines 說成「即時訊號已恢復」。走重排路徑的原因有三種，只有一種是斷訊：
+  //   斷訊恢復（gapRealignedLines）＝這條線真的消失過一段時間 ⇒ 該通知
+  //   自我察覺重置／有倒數才畫    ＝上游一直在報,是我們自己的畫法在收斂 ⇒ 通知就是謊話
+  // 「有倒數才畫」每輪都會重排每一條有官方列的線,若不分開,恢復橫幅會永遠掛著。
+  const realignedLines = (next.diagnostics && next.diagnostics.gapRealignedLines) || [];
   if (crowdHealed.length > 0) {
     console.warn(`[trtc official roster] 自我察覺重置：${crowdHealed.join('、')}`
       + `（重排前最擠一段 ${next.diagnostics.crowdWorstBefore} 台、重排後 ${next.diagnostics.crowdWorst} 台、`
@@ -1523,10 +1533,15 @@ async function trtcBoardPositionAnchors(env, rows, feedMode = 'official',
   }
   const tripByVehicleId = tripSets && dyn ? trtcOfficialTripDecorations({ tripSets, rosterRows: officialRows,
     bindings: dyn.bindings, aliasByHwNo }) : new Map();
-  const vehicles = official.roster.vehicles.map(vehicle => {
-    const tripKey = tripByVehicleId.get(String(vehicle.vehicleId));
-    return tripKey == null ? vehicle : { ...vehicle, tripKey };
-  });
+  const vehicles = official.roster.vehicles
+    // 🔴 2026-08-17 使用者指示：「你先把文湖線的車都拿掉 車站的車次資訊不要動」。
+    // 只在回應這一層濾掉,名冊照常在 D1 裡跑（身分、逐站 timeline、到終點收車全部不動）,
+    // 所以看板的 rows/trips 完全不受影響,拿掉這條線也不會讓車隊要重新認一次。
+    .filter(vehicle => !TRTC_HIDDEN_LINES.has(String(vehicle.line)))
+    .map(vehicle => {
+      const tripKey = tripByVehicleId.get(String(vehicle.vehicleId));
+      return tripKey == null ? vehicle : { ...vehicle, tripKey };
+    });
   const identityAudit = official.roster.diagnostics || {};
   if (Number(identityAudit.rejectedNumberJumps) > 0 || Number(identityAudit.numberConflicts) > 0) {
     console.warn('[trtc official roster] 車號身分矛盾已安全退牌:', JSON.stringify({

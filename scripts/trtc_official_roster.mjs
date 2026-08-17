@@ -139,6 +139,11 @@ function birthSignature(evidence) {
 // 一台車從起點到終點只有一個身分。官方修訂終點標示時，不得因 dest 換群而重發 ID。
 function groupKey(item) { return `${item.line}|${Number(item.dir)}`; }
 
+function previousDormant(prior, day) {
+  if (!prior || String(prior.day || '') !== String(day)) return [];
+  return Array.isArray(prior.dormant) ? prior.dormant.filter(Boolean) : [];
+}
+
 function previousVehicles(prior, day) {
   if (!prior || String(prior.day || '') !== String(day)) return [];
   return Array.isArray(prior.vehicles) ? prior.vehicles.filter(Boolean) : [];
@@ -420,6 +425,29 @@ function officialVehicle(model, row, vehicleId, base, sourceRevision, nowEpoch) 
   };
 }
 
+// 🔴 2026-08-17 使用者：「我們都有給編號 就知道那台車子是在的 為什麼又要變成不見」
+// 一台車沒有出現在這一輪的倒數裡，不代表它停下來了——它只是暫時不是任何一站的「下一班」。
+// 它要**繼續往前跑**：到站時刻過了就過站，用這條線該段的實際行車秒推到現在的位置，
+// 到終點就收車。凍在原地才是錯的——後面每 90 秒一班真車就會疊在那個殘影上，
+// 那正是使用者看到的「連在一起的車」（實測正式站 180 台裡有 24 台的到站時刻早就過了，
+// 中位 136 秒、最久 452 秒）。
+function coastForward(model, vehicle, nowEpoch) {
+  const dest = Number(vehicle.dest), step = Number(vehicle.dir) === 2 ? 1 : -1;
+  let from = Number(vehicle.from), to = Number(vehicle.to), arr = Number(vehicle.arrEpoch);
+  if (!Number.isFinite(arr) || !Number.isFinite(dest) || !Number.isFinite(to)) return null;
+  let moved = 0;
+  // 上限只是防呆：正常一輪最多前進一兩站，走到終點就停。
+  while (to !== dest && nowEpoch >= arr + OFFICIAL_COAST_DWELL_DEFAULT_SEC && moved < 64) {
+    const next = to + step;
+    let run = 0;
+    try { run = segmentRun(model, vehicle.line, to, next); } catch { run = 0; }
+    if (!(run > 0)) break;
+    arr += OFFICIAL_COAST_DWELL_DEFAULT_SEC + run;
+    from = to; to = next; moved++;
+  }
+  return moved > 0 ? { from, to, arrEpoch: arr, coasted: true } : null;
+}
+
 function carriedVehicle(model, vehicle, sourceRevision, nowEpoch, numberContradicted = false,
   lineAlive = false) {
   // 已有 retireEpoch 就沿用既存值（原始短路路徑，不得因為新欄位而改變既有行為）。
@@ -454,7 +482,9 @@ function carriedVehicle(model, vehicle, sourceRevision, nowEpoch, numberContradi
   return carried(timing);
 
   function carried(t) {
-    return { ...vehicle, ...t, sourceRevision, extension: false, carried: true,
+    // 位置往前推到「照它自己的官方到站時刻，此刻應該在哪裡」。沒有可推的就維持原位。
+    const ahead = coastForward(model, vehicle, nowEpoch) || {};
+    return { ...vehicle, ...t, ...ahead, sourceRevision, extension: false, carried: true,
       ...(numberContradicted ? { officialNo: null, officialNoLockedOut: true } : {}) };
   }
 }
@@ -473,12 +503,19 @@ function compareVehicles(a, b) {
  * model 只讀路線站序與一段路程缺少到站時刻時所需的段秒，不以班表決定車的存在。
  */
 export function reduceOfficialRoster({ model, rows, prior = null, day, nowEpoch, sourceRevision,
-  realignSec = 0, forceRealignLines = null }) {
+  realignSec = 0, forceRealignLines = null, officialOnly = false }) {
   const normalizedDay = String(day || '').trim();
   const epoch = finite(nowEpoch, 'nowEpoch');
   if (!normalizedDay) throw new TypeError('official roster day 不可為空');
   const { rows: current, duplicateRowsObserved } = canonicalRows(model, rows);
   const priorVehicles = previousVehicles(prior, normalizedDay);
+  // 🔴 2026-08-17 使用者：「為什麼會有那種停在站上就要重新換身份的事情？」
+  // 畫不畫由官方倒數決定,身分不由它決定。一台車暫時從所有站的倒數裡消失（過了站、
+  // 又還不是下一站的「下一班」）只是不畫,身分要留著,再出現時用回同一個 vehicleId——
+  // 否則跟車會被中斷,也牴觸 08-14「從他早上一發車就認得他」。
+  // 休眠車與在畫的車一起進配對候選池,唯一差別是它這一輪沒有被畫出來。
+  const dormantVehicles = previousDormant(prior, normalizedDay);
+  const matchPool = priorVehicles.concat(dormantVehicles);
   const coldStart = !prior || String(prior.day || '') !== normalizedDay;
   const noCounts = new Map();
   const noKey = row => `${row.line}|${Number(row.dir)}|${String(row.sourceNo || row.officialNo || '')}`;
@@ -510,11 +547,22 @@ export function reduceOfficialRoster({ model, rows, prior = null, day, nowEpoch,
   const forced = forceRealignLines instanceof Set ? forceRealignLines
     : Array.isArray(forceRealignLines) ? new Set(forceRealignLines.map(String)) : null;
   if (forced && !coldStart) for (const line of linesWithRows) if (forced.has(line)) realignLines.add(line);
+  // 🔴 2026-08-17 使用者重新釐清的模型（同一天講了三次,這是裁示不是假設）：
+  //   「我們有每一站的倒數,有車子到站的時間,有出現倒數的車子,我們才畫在那一段軌道上,
+  //     然後每十五秒會看一次他現在倒數的狀態。」
+  //   「有倒數資料才有車 同一列車出現在多站倒數不要重複出現」
+  // 亦即:這一輪的倒數沒報到的車就不畫。這條取代 08-14「缺訊只 hold」的沿用規則——
+  // 那條當時是為了防止車子憑空消失,代價卻是半路失去倒數的車永遠留在原地當殘影
+  // (實測正式站 180 台裡 27 台是殘影,其中 24 台的到站時刻早就過了,中位 136 秒),
+  // 後面的真車一班班疊上去就是使用者看到的「連在一起的車」。
+  // 實作上與斷訊恢復共用同一條路徑:清掉沒被官方確認的車 + 放行站間官方列生車。
+  // 仍然只作用在「這一輪真的有官方列」的線——整條線沉默時照舊 hold,那是傳輸問題不是車不在。
+  if (officialOnly && !coldStart) for (const line of linesWithRows) realignLines.add(line);
   for (const line of linesWithRows) feedSeen[line] = epoch;
 
   const state = { day: normalizedDay, nextSequence: initialSequence(prior, normalizedDay),
-    reservedIds: new Set(priorVehicles.map(x => String(x.vehicleId || '')).filter(Boolean)) };
-  const assigned = new Map(), usedIds = new Set(), priorById = new Map(priorVehicles.map(x => [String(x.vehicleId), x]));
+    reservedIds: new Set(matchPool.map(x => String(x.vehicleId || '')).filter(Boolean)) };
+  const assigned = new Map(), usedIds = new Set(), priorById = new Map(matchPool.map(x => [String(x.vehicleId), x]));
   const numberContradictions = new Map();
   let hardNoMatches = 0;
 
@@ -523,7 +571,7 @@ export function reduceOfficialRoster({ model, rows, prior = null, day, nowEpoch,
   for (let index = 0; index < current.length; index++) {
     const row = current[index];
     if (!row.displayNo) continue;
-    const sameNumber = priorVehicles.filter(vehicle => !usedIds.has(String(vehicle.vehicleId)) &&
+    const sameNumber = matchPool.filter(vehicle => !usedIds.has(String(vehicle.vehicleId)) &&
       vehicle.line === row.line && Number(vehicle.dir) === Number(row.dir) &&
       String(vehicle.officialNo || '') === row.displayNo);
     for (const vehicle of sameNumber) {
@@ -557,7 +605,7 @@ export function reduceOfficialRoster({ model, rows, prior = null, day, nowEpoch,
     const currentGroup = current.map((row, index) => ({ row, index }))
       .filter(x => !assigned.has(x.index) && groupKey(x.row) === key)
       .sort((a, b) => routePosition(a.row) - routePosition(b.row) || laterFirst(a.row, b.row) || compareRows(a.row, b.row));
-    const priorGroup = priorVehicles
+    const priorGroup = matchPool
       .filter(x => x && !usedIds.has(String(x.vehicleId)) && groupKey(x) === key)
       .sort((a, b) => Number(a.routePosition ?? routePosition(a)) - Number(b.routePosition ?? routePosition(b)) ||
         laterFirst(a, b) || String(a.vehicleId).localeCompare(String(b.vehicleId)));
@@ -572,7 +620,7 @@ export function reduceOfficialRoster({ model, rows, prior = null, day, nowEpoch,
   // 已離開起點、配對判為不可行，同一列就會第二次生車＝幽靈車。這道閘只認證據，
   // 官方同時報的兩台車 occurrence 不同 ⇒ 證據不同 ⇒ 照樣各自出生，不受影響。
   // 比對範圍含已退場的 prior：證據用掉就是用掉，車到終點收了更不該被重放復活。
-  const priorBirthSignatures = new Set(priorVehicles
+  const priorBirthSignatures = new Set(matchPool
     .map(vehicle => vehicle && vehicle.birthEvidence)
     .filter(evidence => evidence && evidence.source === 'official-board')
     .map(birthSignature));
@@ -623,14 +671,19 @@ export function reduceOfficialRoster({ model, rows, prior = null, day, nowEpoch,
   }
 
   let carried = 0, exits = 0, carriedNumberConflicts = 0, realigned = 0;
-  for (const old of priorVehicles.slice().sort(compareVehicles)) {
+  const dormant = [];
+  for (const old of matchPool.slice().sort(compareVehicles)) {
     if (!old.vehicleId || usedIds.has(String(old.vehicleId))) continue;
     // 🔴 訊號回來就以訊號為準（2026-08-15 使用者裁示）：這條線斷訊期間續推出來的位置是虛構的，
     // 官方名單沒有的車一律不留，畫面上不能有多的。判準是「這條線剛從長時間消失中回來」，
     // 不是資料齡——那條規則仍然永久廢棄。只清剛回來的那幾條線：正常輪每輪都有十幾台真車
     // 合法地暫時離板（實測 carried 10–17／121），誤殺它們才是災難。
     if (realignLines.has(old.line)) {
-      realigned++; realignedByLine[old.line] = (realignedByLine[old.line] || 0) + 1; continue;
+      // 不畫,但身分留著（見上方 dormantVehicles 的說明）。到終點或早該到終點的才真的收掉。
+      realigned++; realignedByLine[old.line] = (realignedByLine[old.line] || 0) + 1;
+      const rest = carriedVehicle(model, old, sourceRevision, epoch, false, false);
+      if (rest) dormant.push({ ...rest, carried: true, dormant: true });
+      continue;
     }
     const contradicted = numberContradictions.has(String(old.vehicleId));
     const alive = carriedVehicle(model, old, sourceRevision, epoch, contradicted, linesWithRows.has(old.line));
@@ -643,6 +696,9 @@ export function reduceOfficialRoster({ model, rows, prior = null, day, nowEpoch,
 
   vehicles.sort(compareVehicles);
   if (vehicles.length !== accepted - completed + carried) throw new Error('official roster 名冊基數不守恆');
+  if (vehicles.some(v => dormant.some(d => String(d.vehicleId) === String(v.vehicleId)))) {
+    throw new Error('official roster 同一身分不得同時在畫與休眠');
+  }
   // 「剛回來的線不得留下未經官方確認的車」是結構不變量（realigned 與 carried 互斥分支），
   // 資料無法觸發它，所以**不在這裡擲例外**——今天正是 reducer 擲例外每天丟掉 22/38 輪。
   // 這條由 verify_trtc_outage_recovery.mjs 在測試期把關，執行期只把數字送出去讓人看得到。
@@ -667,6 +723,8 @@ export function reduceOfficialRoster({ model, rows, prior = null, day, nowEpoch,
     // 逐線最後見到官方列的時刻要跟著名冊一起持久化，否則每個 isolate 都從零開始記，
     // 「這條線消失多久了」永遠算不出來。
     nextSequence: state.nextSequence, feedSeen, vehicles,
+    // 有身分但這一輪沒有倒數報到 ⇒ 不畫,只留著等它回來（不進 vehicles,前端看不到）。
+    dormant,
     aliases: vehicles.filter(vehicle => vehicle.officialNo).map(vehicle => ({ line: vehicle.line,
       dir: Number(vehicle.dir), no: String(vehicle.officialNo), vehicleId: String(vehicle.vehicleId) }))
       .sort((a, b) => a.line.localeCompare(b.line) || a.dir - b.dir || a.no.localeCompare(b.no) ||
@@ -674,11 +732,14 @@ export function reduceOfficialRoster({ model, rows, prior = null, day, nowEpoch,
     diagnostics: {
       rows: current.length, accepted, ignoredObservations, replayBirthsBlocked,
       extensions: 0, carried, completed, births, realigned, recoveryBirths,
-      realignedByLine, recoveryBirthsByLine,
+      realignedByLine, recoveryBirthsByLine, dormantCount: dormant.length,
       realignedLines: [...realignLines].sort(), linesWithRows: linesWithRows.size,
       // 「這條線是被斷訊恢復自動抓到的，還是被外部指定重置的」要分得開，
       // 否則自動重置每觸發一次就會被 worker 當成一次斷訊恢復告警（語意污染）。
-      // 真的斷訊過的線即使同時超標，也算斷訊恢復（那句通知是真的，不能被自癒吞掉）。
+      // 「這條線消失夠久又回來了」是唯一該對使用者說「即時訊號已恢復」的情況。
+      // 外部指定重置與『有倒數才畫』都會走同一條重排路徑，但它們不是斷訊——
+      // 上游一直在報，混進去就是每輪都跳一次不存在的中斷通知。
+      gapRealignedLines: [...gapRealigned].sort(),
       forcedRealignLines: forced
         ? [...realignLines].filter(line => forced.has(line) && !gapRealigned.has(line)).sort() : [],
       matches: accepted - births, hardNoMatches, exits, numberConflicts, carriedNumberConflicts,
