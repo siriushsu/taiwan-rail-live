@@ -945,7 +945,9 @@ struct SmallBoardView: View {
 
 // MARK: - 發車看板 · Medium（一主兩從）
 
-/// 設計稿 B 的高度預算：21（標題）＋8＋43（主角）＋9（hairline）＋28＋28 ＝ 137，留 1pt。
+/// v2 設計稿的高度預算：21（標題）＋4＋44（主角）＋22×3 ＝ 138 ＝ Medium 內容區高度，
+/// 剛好四班車。原本的 9pt 分隔線與主角副標那一行都拿去換第四班車了——設計稿的原話是
+/// 「Medium 是主力尺寸，138pt 高的預算選擇留給列數」。
 struct MediumBoardView: View {
     let snapshot: BoardSnapshot
     let entryDate: Date
@@ -959,9 +961,9 @@ struct MediumBoardView: View {
         .padding(RailBoardInsets.content)
     }
 
-    /// 🔴 班表警示那一行把 8pt 間距換成 18＋4（多吃 14pt）⇒ 依設計稿「超出先砍列而不是縮字」
+    /// 🔴 班表警示那一行把 4pt 間距換成 18＋4（多吃 18pt）⇒ 依設計稿「超出先砍列而不是縮字」
     ///    少列一班。壓列高會讓同一張卡在兩種狀態下縱向對齊不同，那比少一班難看得多。
-    private var followLimit: Int { snapshot.notice == nil ? 2 : 1 }
+    private var followLimit: Int { snapshot.notice == nil ? 3 : 2 }
 
     @ViewBuilder
     private func content(_ scale: RailScale) -> some View {
@@ -975,13 +977,15 @@ struct MediumBoardView: View {
                     .frame(height: scale.pt(18), alignment: .leading)
                 Spacer().frame(height: scale.pt(4))
             } else {
-                Spacer().frame(height: scale.pt(8))
+                Spacer().frame(height: scale.pt(4))
             }
 
             if let lead = snapshot.rows.first {
                 BoardRowView(row: lead, snapshot: snapshot, entryDate: entryDate,
-                             role: .hero, scale: scale)
-                RailRowGap(scale: scale)
+                             role: .hero, showsDepartureLine: false, scale: scale)
+                // 主角區與次列之間沒有分隔線也沒有固定間距：剩下的高度全推到這裡，
+                // 三個次列貼著卡底對齊（設計稿的 margin-top:auto）。
+                Spacer(minLength: 0)
                 ForEach(Array(follows.enumerated()), id: \.offset) { index, row in
                     BoardRowView(row: row, snapshot: snapshot, entryDate: entryDate,
                                  role: .follow,                                  scale: scale)
@@ -991,8 +995,10 @@ struct MediumBoardView: View {
                     .font(.system(size: scale.pt(15)))
                     .foregroundStyle(.secondary)
                     .frame(maxWidth: .infinity, alignment: .center)
+                // 🔴 空狀態才在末尾補彈簧。有班次時末尾【不能】再放一個——兩個 Spacer
+                //    會把剩餘高度對半分，次列就浮在卡片中間而不是貼著卡底。
+                Spacer(minLength: 0)
             }
-            Spacer(minLength: 0)
         }
     }
 }
@@ -1008,6 +1014,10 @@ struct BoardRowView: View {
     let snapshot: BoardSnapshot
     var entryDate: Date = Date()
     var role: Role = .follow
+    /// 主角列的「11:35 開 · 準點 · 第 4 月台」那一行要不要畫。
+    /// v2 設計稿把它**只留給 large**：「發車時刻與月台那一行讓給 large——這個尺寸先回答
+    /// 『接下來有哪幾班』」。Medium 拿那一行的高度換第四班車（138pt 預算只夠選一個）。
+    var showsDepartureLine: Bool = true
     var scale: RailScale = RailScale(k: 1)
 
     private var isHero: Bool { role == .hero }
@@ -1038,22 +1048,23 @@ struct BoardRowView: View {
                 numberWidth: isHero ? RailNumberColumn.wide : RailNumberColumn.narrow,
                 scale: scale) {
             if isHero {
-                HStack(spacing: scale.pt(6)) {
-                    // 車次與「往 X」同級 20pt、車種標 13pt——設計稿的示範裡「0814」與
-                    // 「往 南港」是同一個大小，只有車種標明顯小一階。
+                HStack(spacing: scale.pt(7)) {
+                    // v2 設計稿的主角階：車種標 12pt、車次 15pt、終點站 26pt。
+                    // 拿掉軌脊省下的 21pt 全給終點站——26pt 的「往 潮州」不再需要截字。
                     RailTrainMark(kind: row.trainType, number: row.trainNumber,
-                                  color: color, fontSize: 13, numberSize: 20, scale: scale)
+                                  color: color, fontSize: 12, numberSize: 15, scale: scale)
                     Text(row.watchingDestinationText)
-                        .font(.system(size: scale.pt(20), weight: .medium))
+                        .font(.system(size: scale.pt(26), weight: .semibold))
                         .lineLimit(1).minimumScaleFactor(0.7)
                     if row.isPassing { PassBadge(scale: scale) }
                 }
                 .widgetAccentable()
-                subtitle
+                if showsDepartureLine { subtitle }
             } else {
-                HStack(spacing: scale.pt(6)) {
+                HStack(spacing: scale.pt(7)) {
                     RailTrainMark(kind: row.trainType, number: row.trainNumber,
-                                  color: color, fontSize: 12, scale: scale)
+                                  color: color, fontSize: 11.5, numberSize: 15,
+                                  numberWidth: 38, scale: scale)
                     Text(row.watchingDestinationText)
                         .font(.system(size: scale.pt(17)))
                         .foregroundStyle(.secondary)

@@ -533,8 +533,10 @@ struct RailCountdownText: View {
         case heroCard
         /// 主角·列表首列：Medium／Large 的 40pt
         case heroRow
-        /// 次列：20pt（設計稿「拉開重量的三個手段」：主角列 20/40pt、次列 17/20pt
-        /// ——斜線前是內容欄字級、後面是數字欄字級，所以次列的【數字】是 20pt 不是 17pt）
+        /// 次列：17pt。
+        /// 🔴 v2 設計稿把它從 20 壓到 17（原話：「次列全部 17pt、列高 22pt」）——列高
+        ///    22pt 裝不下 20pt 的「進站」（實測墨跡 27pt，slotGate 當場轉紅）。
+        ///    這是「多一班車」的代價之一：字級與列數在 138pt 的預算裡是同一塊錢。
         case row
         /// 第三層（LA 的第二班、compact 島）：13pt
         case minor
@@ -543,7 +545,7 @@ struct RailCountdownText: View {
             switch self {
             case .heroCard: return 44
             case .heroRow:  return 40
-            case .row:      return 20
+            case .row:      return 17
             case .minor:    return 13
             }
         }
@@ -635,7 +637,10 @@ struct RailCountdownText: View {
                           weight: .semibold))
             .foregroundStyle(mono ? Color.primary : Color.white)
             .padding(.horizontal, scale.pt(isHero ? 10 : 6))
-            .padding(.vertical, scale.pt(isHero ? 5 : 2))
+            // 🔴 次列的上下內距只有 1pt：v2 的次列高 22pt，而「進站」是我們自己加的實心塊
+            //    （不是設計稿的元件）——17pt 的字加 2+2 內距實測墨跡 23pt，剛好爆一列。
+            //    要改回 2 就得先把列高要回來，而那等於少一班車（slotGate 會擋）。
+            .padding(.vertical, scale.pt(isHero ? 5 : 1))
             .background(
                 RoundedRectangle(cornerRadius: scale.pt(isHero ? 9 : 6), style: .continuous)
                     .fill(mono ? Color.primary.opacity(0.18) : c.ok))
@@ -749,6 +754,11 @@ struct RailTrainMark: View {
     /// 車次字級。預設比車種標大兩級；主角列要傳 20（與旁邊的「往 X」同級——設計稿的示範裡
     /// 「0814」與「往 南港」是同一個大小，而車種標明顯比它們小）。
     var numberSize: CGFloat? = nil
+    /// 車次欄的對齊寬度。v2 設計稿在次列給車次一個固定 38pt 的欄，好讓下面幾列的
+    /// 終點站左緣對齊成一直線（沒有軌脊之後，欄的對齊就是唯一的分欄線索）。
+    /// 🔴 這裡實作成 minWidth 不是 width：固定寬會裁字，而車次是識別
+    ///    （見下面那條紅字）。五碼車次寧可把後面的終點站推窄一點也不准截。
+    var numberWidth: CGFloat? = nil
     var scale: RailScale = RailScale(k: 1)
 
     @Environment(\.railMonochrome) private var mono
@@ -771,6 +781,7 @@ struct RailTrainMark: View {
                 //    不是靠讓識別縮水。
                 Text(n).font(.system(size: scale.pt(numberSize ?? fontSize + 2), weight: .medium))
                     .monospacedDigit().lineLimit(1).fixedSize()
+                    .frame(minWidth: numberWidth.map { scale.pt($0) }, alignment: .leading)
             }
         }
     }
@@ -858,17 +869,27 @@ struct RailSectionHeader: View {
 /// 設計稿「間距與高度預算」的列高。
 /// 🔴「不靠 flex 壓縮」：每一列都給定高度，總和必須小於內容框，否則先砍一行而不是縮字。
 enum RailRowHeight {
-    static let hero: CGFloat = 43
-    static let follow: CGFloat = 28
+    static let hero: CGFloat = 44
+    /// 🔴 22 是 v2 設計稿的值，來自它自己算的 Medium 預算：
+    ///    21（標題）＋4＋44（主角）＋22×3 ＝ 138 ＝ Medium 內容區高度，剛好四班車。
+    ///    這一格是「多一班車」與「列間留白」的取捨點，設計稿明白選了列數
+    ///    （原 28 只放得下三班）。壓到 22 之後列與列之間沒有分隔線也沒有底色，
+    ///    靠固定列高本身的節奏切開——所以不要為了「看起來鬆一點」把它調回去，
+    ///    那會直接少一班車。
+    static let follow: CGFloat = 22
     static let followLarge: CGFloat = 32
     static let sectionHeader: CGFloat = 16
     static let cardTitle: CGFloat = 21
 }
 
-/// 數字欄寬。設計稿「三欄對齊」：軌脊欄 12pt、內容欄彈性、數字欄靠右 56／76pt。
+/// 數字欄寬。v2 設計稿：卡上沒有圖形欄了，「等距的數字欄本身就是一把尺」——
+/// 2／8／12／18 右對齊等寬排下來，等候長短用讀的就看得出來，所以這一欄寬度是固定的。
 enum RailNumberColumn {
-    /// Small 與次列
-    static let narrow: CGFloat = 56
+    /// Small 與次列。v2 設計稿給 50（v1 是 56）；次列字級 17pt，最寬形是「約 12 分」。
+    /// 🔴 這個值由 render_metro_widget.mjs 的 slotGate 當裁判：它會實際量最寬形，
+    ///    裁掉就轉紅。不要用手感調——整數分鐘系統（高捷／機捷）畫的是「約 N 分」，
+    ///    比台鐵的「N 分」多一個字。
+    static let narrow: CGFloat = 50
     /// Medium／Large 主角列。
     /// 🔴 84 不是設計稿的 76：76 只夠「12 分」，但整數分鐘系統（高捷／機捷）畫的是
     ///    「約 12 分」——多出來的「約」字讓最寬形【實測 80pt】，76 會把數字裁掉。

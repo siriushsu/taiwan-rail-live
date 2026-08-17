@@ -232,6 +232,21 @@ let expiring = snapshot(
 
 let emptyBoard = snapshot(title: "花壇", watching: true, rows: [], empty: "今天沒有列車經過")
 
+// 🔴 滿載八班。v2 設計稿把列數改成 2／4／8，而在這個 fixture 進來之前【全部樣本都只有
+//    三班】——Medium 的第四列與 Large 的第五～八列一次都沒有被算繪過，破版 gate 也就
+//    永遠照不到（少列只會讓卡變矮，不可能轉紅）。資料照設計稿 large 那張的示範班次，
+//    車種名換成本專案的官方字面值（「區間」→「區間車」）。
+let fullBoard = snapshot(title: "臺北車站", watching: true, rows: [
+    boardRow("371", "自強", to: "潮州", minutesFromNow: 2, delay: 0),
+    boardRow("2178", "區間車", to: "基隆", minutesFromNow: 8, delay: 3),
+    boardRow("408", "普悠瑪", to: "臺東", minutesFromNow: 12),
+    boardRow("2154", "區間快", to: "竹南", minutesFromNow: 18),
+    boardRow("152", "自強", to: "樹林", minutesFromNow: 24),
+    boardRow("2190", "區間車", to: "蘇澳", minutesFromNow: 31),
+    boardRow("176", "自強", to: "高雄", minutesFromNow: 38),
+    boardRow("2206", "區間車", to: "桃園", minutesFromNow: 46, lastOfDay: true),
+])
+
 // ── 我的地點 ────────────────────────────────────────────────────────────────
 
 func placeRow(
@@ -585,6 +600,13 @@ struct Harness {
         // 最壞情況 × 最窄機型：車種標不准縮，這張是內容欄預算的下界證明。
         render(MediumBoardView(snapshot: commute, entryDate: clockNow),
                family: .systemMedium, width: 338, height: 158, to: out + "/board-medium-worst-393.png")
+        // v2 的列數改版：Medium 四列。八班的名冊餵進來，第四列以後必須被砍掉而不是壓縮列高。
+        render(MediumBoardView(snapshot: fullBoard, entryDate: clockNow),
+               family: .systemMedium, width: 364, height: 170, to: out + "/board-medium-full4.png")
+        render(MediumBoardView(snapshot: fullBoard, entryDate: clockNow),
+               family: .systemMedium, width: 338, height: 158, to: out + "/board-medium-full4-393.png")
+        render(SmallBoardView(snapshot: fullBoard, entryDate: clockNow),
+               family: .systemSmall, width: 170, height: 170, to: out + "/board-small-full.png")
 
         // 鎖屏：家族自己就是單色，且沒有內容邊距。
         render(RectangularBoardView(snapshot: taipeiWatch, entryDate: clockNow),
