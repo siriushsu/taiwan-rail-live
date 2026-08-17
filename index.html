@@ -4343,6 +4343,10 @@ const OFFICIAL_ROSTER_ENABLED = trtcOfficialRosterEnabled(location.search);
 // 官方名冊關著的期間,北捷位置＝純班表：不套誤點校正、不做官方看板錨定（見 metroLiveOn）。
 // 兩件事一起翻面才自洽——名冊關掉卻留著校正,畫出來的既不是官方位置也不是班表。
 const TRTC_PURE_SCHEDULE_POSITION = !OFFICIAL_ROSTER_ENABLED;
+// 純班表期間唯一的判斷來源。凡是「會把車移離班表位置」的路徑都要問過它。
+// metroShiftSec 與 trtcBoardPosition 是透過 metroLiveOn 間接問到的(它們各自有早退)，
+// trtcHeadwayPosition 則兩者都沒有，是唯一要自己問的一條。
+function trtcPureSchedule(ln) { return TRTC_PURE_SCHEDULE_POSITION && isTrtcBoardLine(ln); }
 // 🔴 2026-08-14 最終裁示：一台車取得官方倒數並分配 ID 後，沿已知每站時間跑到終點。
 // 沒有資料齡、600 秒或「太久沒消息」的退場判定；到已知 dest 才收車。
 // 續推時每一段的節奏：優先用這台車自己相鄰兩筆官方到站的間隔（含停站），
@@ -16943,7 +16947,7 @@ function metroLiveOn(ln) { // 偏移套用中(未必新鮮):資料齡放寬到 3
   //    1069～1098 秒(約 18 分鐘),09:26 發的車在 09:50 被畫回起點迴龍、和 09:35 那班疊在一起;
   //    校正量每輪重算又會讓車前後跳(使用者回報的「倒退跑」)。
   //    只影響位置:車站到站倒數走 boardPos.rows,不經這裡,與月台顯示同源。
-  if (TRTC_PURE_SCHEDULE_POSITION && isTrtcBoardLine(ln)) return false;
+  if (trtcPureSchedule(ln)) return false;
   if (ln._trtcBoard) return !!(Date.now() - ln._trtcBoard.at < 1800e3 && metroLiveGate());
   const s = ln._liveShift;
   return !!(s && Date.now() - s.at < 1800e3 && metroLiveGate());
@@ -17188,6 +17192,9 @@ function trtcHeadwayMemoRead(board, tr, simSec, liveState) {
 // applyTrtcBoard 會在換入新 snapshot 前記住相鄰車距與前後順序；兩車仍各自照倒數／梯形推進，
 // 車距可自然增減，只有推算結果要穿越時才擋住。約束沿線一維里程，不拿經緯度直線距離猜前後。
 function trtcHeadwayPosition(ln, tr, simSec, pos, seen) {
+  // 純班表期間班表本身就是順序真值，防穿越的 hold 只會把車往後推離班表位置。
+  // 其他營運者（高捷／輕軌／機捷／新北捷）不受影響——它們不在 isTrtcBoardLine 裡。
+  if (trtcPureSchedule(ln)) return pos;
   const board = ln && ln._trtcBoard, link = board && board.headways && board.headways.get(tr);
   const rec = board && board.positions && board.positions.get(tr), leadRec = link && board.positions.get(link.lead);
   const memo = trtcHeadwayMemoSlot(board, simSec, true, metroLiveOn(ln));
