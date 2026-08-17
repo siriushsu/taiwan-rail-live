@@ -28,17 +28,45 @@ for (let r = 1; r <= ROUNDS; r++) {
     const R = state.trtcOfficialRoster || {};
     const byId = new Map((R.vehicles || []).map(v => [`${v.line}|${v.vehicleId}`, v]));
     const hits = [];
+    // 🔴 不准跳過沒有 vehicleId 的車。掃描器數的是**全部** _freqHits（含班表／示意畫法的車），
+    //    第一版探針只收官方名冊車 ⇒ 22 輪量到 0 對，而掃描器同時段抓到 BL 一對＝探針比受測物少
+    //    看一群車（心得 29／32：測不出來先懷疑探針，不要先懷疑受測物）。
+    // 🔴 量法必須逐字抄 scan_map_health 的 SAMPLE()：`_freqHits` 裡**沒有** d 欄位，
+    //    里程要用「畫面座標反投影回線形」算（containerPointToLatLng → projectOntoShape），
+    //    dir 也要正規化成 ±1（名冊車看 roster.dir，班表車看該趟頭尾里程差）。
+    //    第一版探針直接讀 h.d／h.dir ⇒ m 恆為 null ⇒ 30 輪「0 對」全是零資訊，
+    //    而掃描器同一份程式碼同一時段抓得到 BR 一對（心得 29／32：先懷疑探針）。
     for (const h of (state._freqHits || [])) {
-      if (!h || !h.ln || h.vehicleId == null) continue;
-      const ln = h.ln, sts = ln.stations || [];
-      // 沿線里程與最近車站：與 scan_map_health 同一組量法（畫面座標＋沿線 d）
-      let nearIdx = null, nearM = null;
-      for (let i = 0; i < sts.length; i++) {
-        const dm = Math.abs((sts[i].d != null ? sts[i].d : NaN) - h.d) * 1000;
-        if (Number.isFinite(dm) && (nearM == null || dm < nearM)) { nearM = dm; nearIdx = i; }
-      }
-      hits.push({ key: `${ln.id}|${h.vehicleId}`, line: ln.id, dir: h.dir, d: h.d, x: h.x, y: h.y,
-        nearIdx, nearM, nearName: nearIdx != null && sts[nearIdx] ? sts[nearIdx].name : null,
+      if (!h || !h.ln) continue;
+      const ln = h.ln, tr = h.tr;
+      let d = null, nearM = null, nearIdx = -1;
+      try {
+        const ll = map.containerPointToLatLng([h.x, h.y]);
+        const pr = projectOntoShape(ln, ll.lat, ll.lng);
+        d = pr && pr.d != null ? pr.d : null;
+        if (d != null && ln.stations) {
+          let best = Infinity, bi = -1;
+          ln.stations.forEach((st, i) => {
+            if (st && st.d != null) { const gap = Math.abs(st.d - d); if (gap < best) { best = gap; bi = i; } }
+          });
+          nearM = best * 1000; nearIdx = bi;
+        }
+      } catch (e) {}
+      let dir = 0;
+      try {
+        if (h.vehicleId) {
+          const v = ((state.trtcOfficialRoster || {}).vehicles || [])
+            .find(x => String(x.vehicleId) === String(h.vehicleId));
+          if (v) dir = v.dir === 2 ? 1 : -1;
+        } else if (tr && ln.stations) {
+          dir = Math.sign(ln.stations[tr[tr.length - 2]].d - ln.stations[tr[0]].d) || 0;
+        }
+      } catch (e) {}
+      hits.push({ key: h.vehicleId ? `${ln.id}|${h.vehicleId}`
+          : (tr ? `${ln.id}|tr${(ln._tt || []).indexOf(tr)}` : `${ln.id}|k${h.k}`),
+        rosterKey: h.vehicleId ? `${ln.id}|${h.vehicleId}` : null,
+        sched: !h.vehicleId, line: ln.id, dir, d, x: h.x, y: h.y,
+        nearIdx, nearM, nearName: nearIdx >= 0 && ln.stations[nearIdx] ? ln.stations[nearIdx].name : null,
         label: h.officialNo || null });
     }
     const groups = new Map();
@@ -47,10 +75,11 @@ for (let r = 1; r <= ROUNDS; r++) {
     for (const [g, arr] of groups) for (let i = 0; i < arr.length; i++) for (let j = i + 1; j < arr.length; j++) {
       const m = (arr[i].d != null && arr[j].d != null) ? Math.abs(arr[i].d - arr[j].d) * 1000 : null;
       if (m == null || m >= BAD_M) continue;
-      const both = arr[i].nearM < AT_STATION_M && arr[j].nearM < AT_STATION_M && arr[i].nearIdx === arr[j].nearIdx;
+      const both = arr[i].nearM != null && arr[j].nearM != null && arr[i].nearM < AT_STATION_M &&
+        arr[j].nearM < AT_STATION_M && arr[i].nearIdx === arr[j].nearIdx;
       const pick = h => {
-        const v = byId.get(h.key) || {};
-        return { key: h.key, label: h.label, near: `${h.nearName}(#${h.nearIdx}, ${Math.round(h.nearM)}m)`,
+        const v = (h.rosterKey && byId.get(h.rosterKey)) || {};
+        return { key: h.key, sched: h.sched, label: h.label, near: `${h.nearName}(#${h.nearIdx}, ${Math.round(h.nearM)}m)`,
           px: [Math.round(h.x), Math.round(h.y)],
           off: { from: v.from, to: v.to, run: v.run, dir: v.dir, dest: v.dest,
             no: v.officialNo != null ? v.officialNo : null, src: v.source || null,
@@ -59,17 +88,19 @@ for (let r = 1; r <= ROUNDS; r++) {
       pairs.push({ group: g, m: Math.round(m), bothAtStation: both, a: pick(arr[i]), b: pick(arr[j]) });
     }
     return { at: new Date().toTimeString().slice(0, 8), feed: R.feedMode || null,
+      fallback: R.censusFallbackLines || null,
       recvAgo: R.receivedEpoch ? Math.round(Date.now() / 1000 - R.receivedEpoch) : null,
       rosterN: (R.vehicles || []).length, hitN: hits.length,
       hold: state.trtcOfficialRosterHold ? state.trtcOfficialRosterHold.reason : null, pairs };
   }, { BAD_M, AT_STATION_M });
 
   console.log(`\n[${snap.at}] feed=${snap.feed} 名冊 ${snap.rosterN} 台（${snap.recvAgo}s 前換新）` +
-    `　畫面 ${snap.hitN} 台　hold=${snap.hold || '—'}　<${BAD_M}m 同向對數 ${snap.pairs.length}`);
+    `　畫面 ${snap.hitN} 台　hold=${snap.hold || '—'}　退回舊綁定器=${(snap.fallback || []).join(',') || '無'}` +
+    `　<${BAD_M}m 同向對數 ${snap.pairs.length}`);
   for (const q of snap.pairs) {
     console.log(`  ▸ ${q.group} 相距 ${q.m}m${q.bothAtStation ? '（兩台都在同一站）' : ''}`);
     for (const s of [q.a, q.b])
-      console.log(`     ${s.key} 牌=${s.label || '—'} 最近站=${s.near} px=${s.px}\n` +
+      console.log(`     ${s.key}${s.sched ? '［班表車］' : ''} 牌=${s.label || '—'} 最近站=${s.near} px=${s.px}\n` +
         `        官方 from=${s.off.from}→to=${s.off.to} run=${s.off.run} dir=${s.off.dir} ` +
         `dest=${s.off.dest} no=${s.off.no || '—'} src=${s.off.src || '—'} hold=${s.off.hold || '—'}`);
   }

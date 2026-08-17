@@ -114,7 +114,14 @@ const SAMPLE = () => {
     });
   }
   const R = state.trtcOfficialRoster || {};
-  return { at: Date.now(), simSec: state.simSec, zoom: map.getZoom(), n: out.length, hits: out,
+  // 每像素幾公尺：疊車判準的公尺值是「畫面整數座標→反投影→沿線里程」推回來的，
+  // 所以它的解析度上限就是一個像素。這個值必須跟著回報，否則公尺值會被過度解讀
+  // （實測 zoom 11／69m 一像素 ⇒ 100m 門檻只有 1.45 像素、公尺值帶 ±35m 量化誤差；
+  //  而在沒有 fitBounds 的全台視野下是 1121m 一像素 ⇒ 同一套判準完全沒有解析度）。
+  let mpp = null;
+  try { mpp = map.distance(map.containerPointToLatLng([100, 300]), map.containerPointToLatLng([101, 300])); }
+  catch (e) {}
+  return { at: Date.now(), simSec: state.simSec, zoom: map.getZoom(), n: out.length, hits: out, mpp,
     censusFallbackLines: R.censusFallbackLines || null,
     // 名冊本身的新鮮度：整包被驗證器退掉時車還是會照舊時間線往前跑，位置全綠、
     // 卻是在演一份舊快照（2026-08-17 實測連續 148 秒）。這兩個值是唯一照得到的證據。
@@ -202,12 +209,17 @@ const ROSTER_STALE_SEC = 120;      // 官方 15–60 秒一輪；兩分鐘沒換
   const held = s2.rosterHold ? s2.rosterHold.reason : null;
   if (!s2.rosterEnabled)
     noteLoud('info', '官方名冊路徑未啟用（純班表模式），本條不適用', { rosterEnabled: s2.rosterEnabled });
-  // 🔴 上游真的沒給官方資料（held='feed-outage'）是**環境條件不是我們畫錯**——每小時排程若為此
-  //    變紅，就會在每次北捷／TDX 斷訊時發假警報，久了整支巡檢就沒人看了（同族教訓見 memory
-  //    [[trtc-outage-badge-false-alarm]]：徽章量的是「我手上名冊多舊」不是「上游掛沒掛」）。
-  //    站內本來就有斷訊徽章負責告知使用者，這裡只要大聲印出來、並明說這一輪驗不到什麼。
-  //    ⚠️ 整包被退（held='malformed'）不走這條：那時前端沿用上一份名冊、feedMode 仍是 official，
-  //    會落到下面 ageSec 超標那條，維持硬失敗——那才是這條判準要抓的缺陷。
+  // 🔴 **先看 hold 原因，再看 feedMode**——順序反了會把牙齒拔掉：整包被退（malformed）若從第一輪
+  //    就發生，`state.trtcOfficialRoster` 根本沒建立過 ⇒ feedMode 是 null ⇒ 會掉進下面那條
+  //    「上游斷訊」的警告而放行（2026-08-17 實測踩到：rosterStale 突變因此以 exit 0 通過）。
+  //    只有 `feed-outage` 是環境條件，其餘任何 hold 原因都是我們這邊的管線問題。
+  else if (held && held !== 'feed-outage')
+    noteLoud('bad', `官方名冊被前端擋掉（${held}）＝這一輪的官方資料沒套上，畫面在演舊快照`,
+      { held, rosterFeed: s2.rosterFeed, rosterN: s2.rosterN, ageSec });
+  // 上游真的沒給官方資料是**環境條件不是我們畫錯**——每小時排程若為此變紅，就會在每次北捷／TDX
+  // 斷訊時發假警報，久了整支巡檢就沒人看了（同族教訓見 memory [[trtc-outage-badge-false-alarm]]：
+  // 徽章量的是「我手上名冊多舊」不是「上游掛沒掛」）。站內本來就有斷訊徽章負責告知使用者，
+  // 這裡只要大聲印出來、並明說這一輪驗不到什麼。
   else if (s2.rosterFeed !== 'official')
     noteLoud('warn', `官方名冊不在 official 模式（${s2.rosterFeed}${held ? `／${held}` : ''}）＝上游這輪` +
       '沒給官方位置。屬環境條件不計入離開碼；代價是這一輪驗不到「名冊有沒有換新」',
@@ -251,6 +263,23 @@ for (const [g, arr] of groups) {
     (m < OVERLAP_BAD_M ? clumps : nearPairs).push(rec);
   }
 }
+// 解析度自證：疊車判準用的公尺值是從整數畫面座標反投影回來的，一個像素就是它的解析度上限。
+// 門檻若不到 2 個像素，公尺值只能當「相距一兩個像素」讀，不可當精確距離；
+// 若連 100m 都遠小於一個像素（例如忘了 fitBounds 的全台視野），這條判準等於沒有解析度，
+// 一律標成「無法判定」而不是報 0 對——報 0 對會把「量不到」講成「沒問題」。
+const mppNow = Number(s2.mpp);
+const thresholdPx = Number.isFinite(mppNow) && mppNow > 0 ? OVERLAP_BAD_M / mppNow : null;
+if (thresholdPx == null)
+  noteLoud('warn', '取不到每像素公尺數，疊車公尺值的解析度未知', { mpp: s2.mpp, zoom: s2.zoom });
+else if (thresholdPx < 0.5)
+  noteLoud('bad', `疊車判準在此視野無解析度：zoom ${s2.zoom}／每像素 ${Math.round(mppNow)}m ⇒ ` +
+    `${OVERLAP_BAD_M}m 門檻只有 ${thresholdPx.toFixed(2)} 像素。此輪疊車與同站堆積一律無法判定` +
+    '（多半是忘了把視野收到目標區域）', { mpp: mppNow, zoom: s2.zoom, thresholdPx });
+else
+  console.log(`ℓ 解析度：zoom ${s2.zoom}／每像素 ${Math.round(mppNow)}m ⇒ ${OVERLAP_BAD_M}m 門檻＝` +
+    `${thresholdPx.toFixed(2)} 像素，公尺值量化誤差約 ±${Math.round(mppNow / 2)}m` +
+    `${thresholdPx < 2 ? '（門檻與解析度同一量級：公尺值只能當「相距一兩個像素」讀）' : ''}`);
+
 const clumpsKnown = clumps.filter(c => knownOpenClump(c.group));
 const clumpsReal = clumps.filter(c => !knownOpenClump(c.group));
 console.log(`${clumpsReal.length ? '❌' : '✅'} 同向疊車（<${OVERLAP_BAD_M}m）：${clumpsReal.length} 對` +
