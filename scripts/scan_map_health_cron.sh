@@ -28,9 +28,32 @@ if [ -z "$NODE" ]; then
   printf '%s exit=2 找不到 node\n' "$(date '+%F %T')" >> "$LOG"; exit 2
 fi
 
+# 🔴 追 main。2026-08-17 實測發現這裡原本**完全沒有 pull**：巡檢樹停在 e72553d，當天下午
+# 之後的四項判準改動一項都沒生效——包含唯一能抓到「整批官方資料停更、畫面照舊快照繼續演」
+# 的第七條（那個狀態實測可持續 148 秒，而其餘六條判準全綠），以及倒退門檻的解析度地板
+# （一像素＝69m 遠大於舊門檻 15m ⇒ 會誠實地誤報倒退）。而日誌看起來一切正常。
+# ＝心得 32 的重演：巡檢跑到釘死的舊樹，全綠驗的是舊檔案。
+# ff-only：這棵樹若有本機未推的 commit 就不硬併，記一行警告、照舊跑手上這版，不要靜默失敗。
+if ! { git -C "$ROOT" fetch --quiet origin 2>/dev/null && \
+       git -C "$ROOT" merge --ff-only --quiet origin/main 2>/dev/null; }; then
+  printf '%s ⚠️ 巡檢樹沒能追上 origin/main，跑的是 %s\n' "$(date '+%F %T')" \
+    "$(git -C "$ROOT" rev-parse --short HEAD 2>/dev/null || echo '?')" >> "$LOG"
+fi
+
+# 網路類失敗不是產品異常。2026-08-17 17:20 實例：本機網路斷一下 ⇒ page.goto 拋
+# ERR_INTERNET_DISCONNECTED ⇒ node 未捕捉例外 ⇒ exit=1 ⇒ 通知標題寫「偵測到異常」。
+# 假警報會磨掉告警本身的可信度（同族教訓：北捷斷訊徽章量錯對象也是假警報）。
+# ⇒ 重試一次；仍是網路類失敗就回 2（「掃描沒跑起來」），不冒充產品異常。
+NETFAIL='net::ERR_|ERR_INTERNET_DISCONNECTED|ERR_NAME_NOT_RESOLVED|ERR_CONNECTION_|ERR_TIMED_OUT|getaddrinfo'
 # 尾端不接管道，保留真實離開碼（管道會把它換成最後一段的）
 OUT="$("$NODE" "$ROOT/scripts/scan_map_health.mjs" "$URL" --json "$JSON" --gap 25 2>&1)"
 CODE=$?
+if [ "$CODE" -ne 0 ] && printf '%s' "$OUT" | grep -qE "$NETFAIL"; then
+  sleep 30
+  OUT="$("$NODE" "$ROOT/scripts/scan_map_health.mjs" "$URL" --json "$JSON" --gap 25 2>&1)"
+  CODE=$?
+  if [ "$CODE" -ne 0 ] && printf '%s' "$OUT" | grep -qE "$NETFAIL"; then CODE=2; fi
+fi
 
 SUMMARY="$(printf '%s\n' "$OUT" | grep -E '^[✅❌]' | tr '\n' ' ')"
 printf '%s exit=%s %s\n' "$(date '+%F %T')" "$CODE" "$SUMMARY" >> "$LOG"
