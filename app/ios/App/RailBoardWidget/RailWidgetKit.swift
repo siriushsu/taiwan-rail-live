@@ -980,13 +980,14 @@ struct RailHairline: View {
 /// LA 的「結束」膠囊。設計稿：30pt 高，只在 Live Activity 出現。
 struct RailEndButton<Label: View>: View {
     var scale: RailScale = RailScale(k: 1)
+    var height: CGFloat = 30
     @ViewBuilder var label: () -> Label
 
     var body: some View {
         label()
             .font(.system(size: scale.pt(13), weight: .semibold))
             .padding(.horizontal, scale.pt(14))
-            .frame(height: scale.pt(30))
+            .frame(height: scale.pt(height))
             .background(Capsule().fill(Color.primary.opacity(0.12)))
     }
 }

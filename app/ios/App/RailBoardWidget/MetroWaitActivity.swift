@@ -126,11 +126,13 @@ struct MetroWaitLockView: View {
                 Spacer(minLength: 0)
             }
 
-            Text("下一班")
-                .font(.system(size: scale.pt(11)))
-                .foregroundStyle(.secondary)
-
             HStack(alignment: .center, spacing: scale.pt(8)) {
+                // 🔴 「下一班」跟主角同一列，不獨立一列：鎖屏 Live Activity 只有 160pt 高
+                //    （官方：超過就被系統截掉），而這張卡量到 198–216pt ⇒ 使用者看到的是
+                //    上下緣被切掉。跟車卡與動態島本來就是「小標＋大站名」同列。
+                Text("下一班")
+                    .font(.system(size: scale.pt(11)))
+                    .foregroundStyle(.secondary)
                 Text("往 \(display.dest ?? "—")")
                     .font(.system(size: scale.pt(26), weight: .semibold))
                     .lineLimit(1).minimumScaleFactor(0.7)
@@ -138,15 +140,14 @@ struct MetroWaitLockView: View {
                 RailCountdownText(value: display.countdown, size: .heroCard, scale: scale)
             }
 
-            RailSpineTrack(interval: display.track,
-                           progress: display.progress,
-                           phase: display.arriving ? .arriving : .running,
-                           lineColor: display.color, scale: scale)
-
+            // 端點標籤挪到軌脊同一列的尾端——它標的就是右端那顆圓點（＝你站的位置），
+            // 貼著圓點比在整列下方更接近設計意圖，也省下 18pt。
             HStack(spacing: scale.pt(6)) {
-                Spacer(minLength: 0)
-                // 終點那一顆的標籤＝你站的位置。進站時明講「進站中」——設計稿把狀態同時
-                // 放在倒數、軌脊圓點與底部狀態詞三處，這是第三處。
+                RailSpineTrack(interval: display.track,
+                               progress: display.progress,
+                               phase: display.arriving ? .arriving : .running,
+                               lineColor: display.color, scale: scale)
+                // 進站時明講「進站中」——設計稿把狀態同時放在倒數、軌脊圓點與這裡三處。
                 Text(display.arriving ? "\(display.station) 進站中" : display.station)
                     .font(.system(size: scale.pt(11)))
                     .foregroundStyle(display.arriving
@@ -155,7 +156,21 @@ struct MetroWaitLockView: View {
                     .lineLimit(1)
             }
 
-            if display.crowd != nil || display.secondText != nil {
+            // 🔴 這一列只有一位——三種內容互斥，不准疊。理由是硬的：鎖屏 Live Activity 只有
+            //    160pt 高（官方：超過就被系統截掉），而主角列 52pt＋抬頭＋軌脊＋底列已經吃掉
+            //    ~139pt ⇒ 全卡只剩一列的預算。優先序＝服務異常 ＞ 進站後怎麼辦 ＞ 加值資訊。
+            //    每一句都保持一行（最窄 330pt 機型的可用寬 302pt，17–21 字的中文放得下），
+            //    不然折行又會把上下緣吃掉。
+            if let notice = display.notice {
+                Text("⚠ " + notice)
+                    .font(.system(size: scale.pt(11), weight: .medium))
+                    .foregroundStyle(RailTokens.colors(scheme).warn)
+                    .lineLimit(1).minimumScaleFactor(0.8)
+            } else if let hint = display.staleHint {
+                Text(hint)
+                    .font(.system(size: scale.pt(11))).foregroundStyle(.secondary)
+                    .lineLimit(1).minimumScaleFactor(0.8)
+            } else if display.crowd != nil || display.secondText != nil {
                 HStack(spacing: scale.pt(6)) {
                     if let c = display.crowd, !c.isEmpty {
                         RailCarriageMeter(levels: c, showWord: true, scale: scale)
@@ -170,17 +185,6 @@ struct MetroWaitLockView: View {
                 }
             }
 
-            if let hint = display.staleHint {
-                Text(hint).font(.system(size: scale.pt(11))).foregroundStyle(.secondary)
-                    .lineLimit(2).fixedSize(horizontal: false, vertical: true)
-            }
-            if let notice = display.notice {
-                Text("⚠ " + notice)
-                    .font(.system(size: scale.pt(11), weight: .medium))
-                    .foregroundStyle(RailTokens.colors(scheme).warn)
-                    .lineLimit(2).fixedSize(horizontal: false, vertical: true)
-            }
-
             HStack(spacing: scale.pt(6)) {
                 if let footer = display.footer {
                     Text(footer)
@@ -189,13 +193,14 @@ struct MetroWaitLockView: View {
                         .monospacedDigit().lineLimit(1).minimumScaleFactor(0.8)
                 }
                 Spacer(minLength: scale.pt(4))
-                MetroWaitEndButton(scale: scale)
+                MetroWaitEndButton(scale: scale, height: 24)
             }
         }
         // 🔴 水平邊距不能省：鎖屏 Live Activity 的內容區沒有系統預設 margins，
-        //    模擬器實測左緣會被卡片圓角裁掉半個字。
+        //    模擬器實測左緣會被卡片圓角裁掉半個字。8pt 仍大於圓角吃掉的量
+        //    （半徑 r 的圓角要求邊距 ≥ 0.293r，r=22 ⇒ 6.4pt）。
         .padding(.horizontal, scale.pt(14))
-        .padding(.vertical, scale.pt(10))
+        .padding(.vertical, scale.pt(8))
         // 設計稿：資料過期時全卡降到 secondary（唯一會整卡降級的狀態）。
         .opacity(display.expired ? 0.62 : 1)
     }
@@ -212,6 +217,8 @@ struct MetroWaitEndButton: View {
     var scale: RailScale = RailScale(k: 1)
     /// 動態島用的小尺寸（島上沒有鎖屏那麼多餘裕）。
     var compact: Bool = false
+    /// 膠囊高度。鎖屏那張卡的總高有 160pt 硬上限，這顆是唯一可以讓的核心列。
+    var height: CGFloat = 30
 
     @ViewBuilder var body: some View {
         if #available(iOS 17.6, *) {
@@ -222,7 +229,7 @@ struct MetroWaitEndButton: View {
                 .buttonStyle(.bordered).controlSize(.mini).tint(.secondary)
             } else {
                 Button(intent: MetroWaitEndIntent()) {
-                    RailEndButton(scale: scale) { Text("結束") }
+                    RailEndButton(scale: scale, height: height) { Text("結束") }
                 }
                 .buttonStyle(.plain)
             }
