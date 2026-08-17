@@ -21,7 +21,11 @@ await p.evaluate(() => {
   const g = (typeof GROUPS !== 'undefined' ? GROUPS : []).find(x => (x.members || []).includes('mrt'));
   if (g) selectGroup(g);
 });
-await p.waitForTimeout(4000);
+await p.waitForTimeout(2500);
+// 🔴 必須逐字抄 scan_map_health.mjs:157 的視野。不設視野的話 zoom 7／每像素 1121 公尺，
+// 文湖線整條壓成 7×9 像素 ⇒ 量出 38–51 對「相距 0m」的假疊車（實際踩過）。
+await p.evaluate(() => map.fitBounds([[24.90, 121.30], [25.25, 121.75]], { animate: false }));
+await p.waitForTimeout(3000);
 
 for (let r = 1; r <= ROUNDS; r++) {
   const snap = await p.evaluate(({ BAD_M, AT_STATION_M }) => {
@@ -87,7 +91,11 @@ for (let r = 1; r <= ROUNDS; r++) {
       };
       pairs.push({ group: g, m: Math.round(m), bothAtStation: both, a: pick(arr[i]), b: pick(arr[j]) });
     }
+    let mpp = null;
+    try { mpp = map.distance(map.containerPointToLatLng([100, 300]), map.containerPointToLatLng([101, 300])); }
+    catch (e) {}
     return { at: new Date().toTimeString().slice(0, 8), feed: R.feedMode || null,
+      zoom: map.getZoom(), mpp: mpp != null ? +mpp.toFixed(1) : null,
       fallback: R.censusFallbackLines || null,
       recvAgo: R.receivedEpoch ? Math.round(Date.now() / 1000 - R.receivedEpoch) : null,
       rosterN: (R.vehicles || []).length, hitN: hits.length,
@@ -95,7 +103,7 @@ for (let r = 1; r <= ROUNDS; r++) {
   }, { BAD_M, AT_STATION_M });
 
   console.log(`\n[${snap.at}] feed=${snap.feed} 名冊 ${snap.rosterN} 台（${snap.recvAgo}s 前換新）` +
-    `　畫面 ${snap.hitN} 台　hold=${snap.hold || '—'}　退回舊綁定器=${(snap.fallback || []).join(',') || '無'}` +
+    `　畫面 ${snap.hitN} 台　zoom ${snap.zoom}／${snap.mpp}m一像素　hold=${snap.hold || '—'}　退回舊綁定器=${(snap.fallback || []).join(',') || '無'}` +
     `　<${BAD_M}m 同向對數 ${snap.pairs.length}`);
   for (const q of snap.pairs) {
     console.log(`  ▸ ${q.group} 相距 ${q.m}m${q.bothAtStation ? '（兩台都在同一站）' : ''}`);

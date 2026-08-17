@@ -57,7 +57,11 @@ const KNOWN_OPEN_CLUMP = {
 const knownOpenClump = g => KNOWN_OPEN_CLUMP[String(g).split('|')[0]];
 // 刻意不用像素門檻：像素會隨縮放漂移，而這支掃描是把整個路網框在一個畫面裡跑的，
 // 密集路段（文湖線彎道）沿線 500 公尺在畫面上本來就只有幾個像素。
-const BACKWARD_M = 15;      // 沿線負位移超過這個距離才算倒退（低於此為投影抖動）
+// 🔴 這個 15 公尺是「投影抖動」的估值，但抖動的真實下限是**一個像素**：實測掃描器視野
+// 每像素 69 公尺 ⇒ 一像素的整數座標抖動就是 69m 的假倒退（實測 `BL#…hw:216 −69m`
+// 正好等於一像素）。門檻必須從當下量到的解析度推導，不能寫死公尺數，否則這條判準
+// 在報雜訊、每小時排程會狼來了。下面用 max(BACKWARD_M, 2×每像素公尺)。
+const BACKWARD_M = 15;      // 地板值；實際門檻見 backCap（取 max(此值, 2×每像素公尺)）
 const STALL_RATIO = .9;     // 幾乎整條線的車都沒動才算凍結。停站本身就會讓車不動，
                             // 門檻抓一半會把「正常停站」誤判成凍結（實測 8 秒觀測窗下 BL 10/19 全在停站）
 const MIN_GAP_SEC = 20;     // 觀測窗要長過停站時間，否則「沒動」分不出是停站還是凍結
@@ -309,17 +313,19 @@ for (const [line, why] of Object.entries(KNOWN_OPEN_CLUMP)) {
 }
 
 // 2. 倒退
+// 解析度地板：低於兩個像素的負位移分不出是真倒退還是整數座標抖動（見 BACKWARD_M 上方註解）
+const backCap = Math.max(BACKWARD_M, Number.isFinite(mppNow) && mppNow > 0 ? 2 * mppNow : 0);
 const before = new Map(s1.hits.map(h => [h.key, h]));
 let moved = 0, back = [], stalled = [];
 for (const h of s2.hits) {
   const b = before.get(h.key);
   if (!b || h.d == null || b.d == null || !h.dir) continue;
   const delta = (h.d - b.d) * h.dir * 1000; // 公尺，沿行進方向為正
-  if (delta < -BACKWARD_M) back.push({ key: h.key, m: Math.round(delta) });
+  if (delta < -backCap) back.push({ key: h.key, m: Math.round(delta) });
   else if (Math.abs(delta) < 1) stalled.push(h.key);
   else moved++;
 }
-console.log(`${back.length ? '❌' : '✅'} 倒退：${back.length} 台` +
+console.log(`${back.length ? '❌' : '✅'} 倒退：${back.length} 台（門檻 ${Math.round(backCap)}m＝解析度地板）` +
   (back.length ? `　例：${back.slice(0, 4).map(b => `${b.key} ${b.m}m`).join('、')}` : `（${moved} 台正常前進）`));
 if (back.length) note('bad', `倒退 ${back.length} 台`, back.slice(0, 10));
 
