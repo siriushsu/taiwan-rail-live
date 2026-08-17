@@ -358,8 +358,13 @@ function sourceAudit(source) {
     // 產品碼必須接**自癒版**：光接 reduceOfficialRoster 等於 2026-08-17 的重置機制沒上線。
     reducerImport: /import \{ reduceOfficialRosterSelfHealing \}/.test(source),
     crowdSelfHeal: /crowdLimit: TRTC_OFFICIAL_CROWD_LIMIT/.test(source),
+    // 有倒數才畫的開關必須真的接到 reducer 上（只有常數存在不算接上）。
+    // 🔴 只驗接線不驗值：值是產品決定的（08-17 使用者訂正後為 false），寫死當下的值
+    // 會在下次翻面時讓整支集體假紅——本支就這樣紅過 17 項，而產品完全正常。
+    officialOnly: /officialOnly: TRTC_OFFICIAL_ONLY/.test(source) &&
+      /const TRTC_OFFICIAL_ONLY = (?:true|false);/.test(source),
     // 自我察覺重置不得混進「即時訊號已恢復」的通知——上游沒斷，那樣是對使用者說謊。
-    recoveryExcludesSelfHeal: /realignedLines = allRealigned\.filter\(line => !crowdHealed\.includes\(line\)\)/.test(source),
+    recoveryExcludesSelfHeal: /realignedLines = \(next\.diagnostics && next\.diagnostics\.gapRealignedLines\) \|\| \[\]/.test(source),
     officialFeedGate: /feedMode !== 'official'/.test(source),
     stateKey: /official_roster_v4/.test(source),
     optimisticCas: /UPDATE trtc_state SET v=\? WHERE k=\? AND v=\?/.test(source),
@@ -381,8 +386,9 @@ check(Object.values(baselineSourceAudit).every(Boolean),
 const sourceMutations = [
   ['reducerImport', "import { reduceOfficialRosterSelfHealing }", 'import { reduceOfficialRosterSelfHealingOff }'],
   ['crowdSelfHeal', 'crowdLimit: TRTC_OFFICIAL_CROWD_LIMIT', 'crowdLimit: 0'],
-  ['recoveryExcludesSelfHeal', 'realignedLines = allRealigned.filter(line => !crowdHealed.includes(line))',
-    'realignedLines = allRealigned'],
+  ['officialOnly', 'officialOnly: TRTC_OFFICIAL_ONLY', 'officialOnly: false'],
+  ['recoveryExcludesSelfHeal', 'realignedLines = (next.diagnostics && next.diagnostics.gapRealignedLines) || []',
+    'realignedLines = (next.diagnostics && next.diagnostics.realignedLines) || []'],
   ['officialFeedGate', "feedMode !== 'official'", "feedMode === 'official'"],
   ['stateKey', 'official_roster_v4', 'official_roster_DISABLED'],
   ['optimisticCas', 'WHERE k=? AND v=?', 'WHERE k=?'],

@@ -244,6 +244,46 @@ console.log('\n---- 9. 冷啟動 ----');
   check(cold.vehicles.length > 0, '冷啟動仍接回整批車', `${cold.vehicles.length} 台`);
 }
 
+// ---- 9b. 有倒數才畫（使用者 2026-08-17 裁示）----
+// 「有出現倒數的車子,我們才畫在那一段軌道上,然後每十五秒會看一次他現在倒數的狀態」
+console.log('\n---- 9b. 有倒數才畫 ----');
+{
+  for (const snap of rounds) {
+    const { rows } = pipeline.rowsOf(snap.board);
+    const args = { model: pipeline.model, rows, prior: priorOf(snap.boardPos), day: DAY,
+      nowEpoch: pipeline.rowsOf(snap.board).nowEpoch, sourceRevision: String(snap.boardPos.sourceRevision),
+      realignSec: REALIGN_SEC };
+    const off = pipeline.roster.reduceOfficialRosterSelfHealing(args);
+    const on = pipeline.roster.reduceOfficialRosterSelfHealing({ ...args, officialOnly: true });
+    const t = snap.at.slice(11, 19);
+    // (a) 這一輪倒數沒報到的車不得留在畫面上（線是活的才算——整條線沉默時照舊 hold）
+    const live = new Set(rows.map(r => r.line));
+    const ghosts = on.vehicles.filter(v => v.carried && live.has(v.line));
+    check(ghosts.length === 0, `${t} 沒有「這輪倒數沒報、卻還畫著」的車`,
+      ghosts.length ? `殘留 ${ghosts.length} 台：${ghosts.slice(0, 3).map(v => `${v.line} ${v.from}>${v.to}`).join(' ')}` : '');
+    // (b) 官方報的每一列都要有車（收車不得靠刪真車達成）
+    const drawn = new Set(on.vehicles.map(rowKey));
+    const miss = rows.filter(r => !drawn.has(rowKey(r)));
+    check(miss.length === 0, `${t} 官方 ${rows.length} 列全部有車`,
+      miss.length ? `缺 ${miss.length} 列` : '');
+    // (c) 連在一起的車要比舊行為少（這就是使用者看到的症狀）
+    const co = crowdOf(off.vehicles), cn = crowdOf(on.vehicles);
+    check(cn.worst <= co.worst, `${t} 同段疊車未惡化`, `舊 ${co.worst} 台 → 新 ${cn.worst} 台`);
+  }
+  // (d) 整條線沉默時仍然 hold——這是 08-14 裁示的底線,不得被本開關推翻
+  const snap = rounds[0];
+  const { rows, nowEpoch } = pipeline.rowsOf(snap.board);
+  const prior = priorOf(snap.boardPos);
+  const victim = [...new Set(prior.vehicles.map(v => v.line))].find(l => rows.some(r => r.line === l));
+  const silent = rows.filter(r => r.line !== victim);
+  const before = prior.vehicles.filter(v => v.line === victim).length;
+  const st = pipeline.roster.reduceOfficialRosterSelfHealing({ model: pipeline.model, rows: silent, prior,
+    day: DAY, nowEpoch, sourceRevision: 'x', realignSec: REALIGN_SEC, officialOnly: true });
+  const after = st.vehicles.filter(v => v.line === victim).length;
+  check(before > 0 && after === before, `🔴 ${victim} 整條線沒有倒數時仍然保留（不是缺訊就刪車）`,
+    `${before} → ${after} 台`);
+}
+
 // ---- 10. 突變控制組：每條斷言都要有牙 ----
 console.log('\n---- 10. 突變控制組 ----');
 const MUTATIONS = [
@@ -259,6 +299,12 @@ const MUTATIONS = [
   ['force-any-line', '強制重排不檢查該線這輪有沒有官方列',
     src => src.replace('if (forced && !coldStart) for (const line of linesWithRows) if (forced.has(line)) realignLines.add(line);',
       'if (forced && !coldStart) for (const line of forced) realignLines.add(line);')],
+  ['officialOnly-noop', '有倒數才畫的開關沒接上（沒倒數的車照樣留著）',
+    src => src.replace('if (officialOnly && !coldStart) for (const line of linesWithRows) realignLines.add(line);',
+      '')],
+  ['officialOnly-kills-silent-line', '有倒數才畫誤及整條沉默的線（缺訊就刪車）',
+    src => src.replace('if (officialOnly && !coldStart) for (const line of linesWithRows) realignLines.add(line);',
+      'if (officialOnly && !coldStart) for (const v of priorVehicles) realignLines.add(v.line);')],
   ['dishonest-diagnostics', '自癒自己另算一份「重置了哪幾條線」而不採信 reducer 的回報',
     src => src.replace("healed.diagnostics.crowdHealedLines = (healed.diagnostics.forcedRealignLines || []).slice();",
       'healed.diagnostics.crowdHealedLines = [...before.lines].sort();')],
@@ -292,6 +338,24 @@ for (const [tag, label, mutate] of MUTATIONS) {
         realignSec: REALIGN_SEC, forceRealignLines: new Set([victim]) });
       const after = state.vehicles.filter(v => v.line === victim).length;
       if (before > 0 && after < before * 0.5) reasons.push(`${victim} 沒有官方列卻被清空 ${before}→${after}`);
+    }
+    // 判準 E：有倒數才畫——沒報到的不留、沉默的線要留
+    {
+      const snap = rounds[0];
+      const prior = priorOf(snap.boardPos);
+      const { rows, nowEpoch } = mutPipeline.rowsOf(snap.board);
+      const on = mutPipeline.roster.reduceOfficialRosterSelfHealing({ model: mutPipeline.model, rows,
+        prior, day: DAY, nowEpoch, sourceRevision: 'm', realignSec: REALIGN_SEC, officialOnly: true });
+      const live = new Set(rows.map(r => r.line));
+      const ghosts = on.vehicles.filter(v => v.carried && live.has(v.line)).length;
+      if (ghosts > 0) reasons.push(`有倒數才畫沒生效：仍有 ${ghosts} 台沒被倒數報到卻畫著`);
+      const victim = [...new Set(prior.vehicles.map(v => v.line))].find(l => live.has(l));
+      const silent = rows.filter(r => r.line !== victim);
+      const before = prior.vehicles.filter(v => v.line === victim).length;
+      const st2 = mutPipeline.roster.reduceOfficialRosterSelfHealing({ model: mutPipeline.model,
+        rows: silent, prior, day: DAY, nowEpoch, sourceRevision: 'm', realignSec: REALIGN_SEC, officialOnly: true });
+      const after = st2.vehicles.filter(v => v.line === victim).length;
+      if (before > 0 && after < before) reasons.push(`整條沉默的 ${victim} 被刪了 ${before}→${after}`);
     }
     // 判準 D：自癒不得清空「這輪沒有官方列」的線
     {
