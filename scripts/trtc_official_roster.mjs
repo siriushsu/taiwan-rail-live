@@ -16,6 +16,13 @@ export const OFFICIAL_COAST_DWELL_DEFAULT_SEC = 25;
 // 用週期倍數而不是固定秒數：各線站距不同（BR 約 104 秒／站、BL 更長），寫死秒數就是
 // 下次改點會被推翻的魔術數字（心得 35）。
 export const OFFICIAL_STALL_RETIRE_CYCLES = 3;
+// 「兩站之間有兩台車就已經要懷疑了，我們一堆三台連在一起的」——使用者 2026-08-17 給的判準。
+// 一個行進中的區間（from!=to）同時容納幾台車是**物理事實**：號誌閉塞讓兩台車不可能貼在
+// 同一段軌道上，三台更不可能。端點（from==to，車停在起訖站等發車）本來就會排隊，不算。
+//
+// 這個數字量的是**我們畫出來的結果荒不荒謬**，不是任何一台車的資料多舊——所以它不是
+// 廢棄的資料齡規則，而是「拿官方現在說的重排一次」的觸發條件（使用者 08-17 明示要的重置）。
+export const OFFICIAL_CROWD_SEGMENT_LIMIT = 3;
 
 function finite(value, label) {
   const number = Number(value);
@@ -466,7 +473,7 @@ function compareVehicles(a, b) {
  * model 只讀路線站序與一段路程缺少到站時刻時所需的段秒，不以班表決定車的存在。
  */
 export function reduceOfficialRoster({ model, rows, prior = null, day, nowEpoch, sourceRevision,
-  realignSec = 0 }) {
+  realignSec = 0, forceRealignLines = null }) {
   const normalizedDay = String(day || '').trim();
   const epoch = finite(nowEpoch, 'nowEpoch');
   if (!normalizedDay) throw new TypeError('official roster day 不可為空');
@@ -493,6 +500,16 @@ export function reduceOfficialRoster({ model, rows, prior = null, day, nowEpoch,
       if (Number.isFinite(last) && epoch - last >= realignSec) realignLines.add(line);
     }
   }
+  // 外部指定的立即重排（2026-08-17 使用者要求的「迅速重置」）。與斷訊恢復共用同一條路徑：
+  // 清掉這條線上官方沒報到的車、放行站間官方列生車＝完全照當下官方資料重建這條線。
+  // 🔴 只認**這一輪真的有官方列**的線：對沒有官方列的線重排＝把整條線清空又補不回來，
+  // 那正是永久廢棄的「缺訊就刪車」。冷啟動本來就整批接回，不需要也不應該再重排。
+  // 先記下「因為斷訊而重排」的那幾條，再疊上外部指定的——兩者在 realignLines 裡混在一起之後
+  // 就分不出來了，而 worker 要靠這個分辨才知道該不該對使用者說「即時訊號已恢復」。
+  const gapRealigned = new Set(realignLines);
+  const forced = forceRealignLines instanceof Set ? forceRealignLines
+    : Array.isArray(forceRealignLines) ? new Set(forceRealignLines.map(String)) : null;
+  if (forced && !coldStart) for (const line of linesWithRows) if (forced.has(line)) realignLines.add(line);
   for (const line of linesWithRows) feedSeen[line] = epoch;
 
   const state = { day: normalizedDay, nextSequence: initialSequence(prior, normalizedDay),
@@ -561,6 +578,9 @@ export function reduceOfficialRoster({ model, rows, prior = null, day, nowEpoch,
     .map(birthSignature));
 
   let births = 0, ignoredObservations = 0, replayBirthsBlocked = 0, recoveryBirths = 0;
+  // 逐線分開記：同一輪可能既有斷訊恢復、又有自我察覺重置，兩者要能拆開算，
+  // 否則前端那句「訊號恢復、清掉 N 台」會把重置清掉的車一起算進去（數字對使用者不誠實）。
+  const realignedByLine = {}, recoveryBirthsByLine = {};
   for (let index = 0; index < current.length; index++) {
     if (assigned.has(index)) continue;
     // 正常營運時只有起點倒數能生車；半途站間列只能更新既有 ID，配不到也不得複製一台。
@@ -580,7 +600,10 @@ export function reduceOfficialRoster({ model, rows, prior = null, day, nowEpoch,
     assigned.set(index, vehicleId); usedIds.add(vehicleId); births++;
     // 只數「恢復例外放行的」那些：冷啟動本來就整批放行站間列，算進來會讓每天第一輪
     // 看起來像剛從斷訊恢復（實測健康語料誤報 82 台）。
-    if (recoverable && !current[index].terminal) recoveryBirths++;
+    if (recoverable && !current[index].terminal) {
+      recoveryBirths++;
+      recoveryBirthsByLine[current[index].line] = (recoveryBirthsByLine[current[index].line] || 0) + 1;
+    }
   }
 
   const vehicles = [];
@@ -606,7 +629,9 @@ export function reduceOfficialRoster({ model, rows, prior = null, day, nowEpoch,
     // 官方名單沒有的車一律不留，畫面上不能有多的。判準是「這條線剛從長時間消失中回來」，
     // 不是資料齡——那條規則仍然永久廢棄。只清剛回來的那幾條線：正常輪每輪都有十幾台真車
     // 合法地暫時離板（實測 carried 10–17／121），誤殺它們才是災難。
-    if (realignLines.has(old.line)) { realigned++; continue; }
+    if (realignLines.has(old.line)) {
+      realigned++; realignedByLine[old.line] = (realignedByLine[old.line] || 0) + 1; continue;
+    }
     const contradicted = numberContradictions.has(String(old.vehicleId));
     const alive = carriedVehicle(model, old, sourceRevision, epoch, contradicted, linesWithRows.has(old.line));
     if (alive) {
@@ -649,7 +674,13 @@ export function reduceOfficialRoster({ model, rows, prior = null, day, nowEpoch,
     diagnostics: {
       rows: current.length, accepted, ignoredObservations, replayBirthsBlocked,
       extensions: 0, carried, completed, births, realigned, recoveryBirths,
+      realignedByLine, recoveryBirthsByLine,
       realignedLines: [...realignLines].sort(), linesWithRows: linesWithRows.size,
+      // 「這條線是被斷訊恢復自動抓到的，還是被外部指定重置的」要分得開，
+      // 否則自動重置每觸發一次就會被 worker 當成一次斷訊恢復告警（語意污染）。
+      // 真的斷訊過的線即使同時超標，也算斷訊恢復（那句通知是真的，不能被自癒吞掉）。
+      forcedRealignLines: forced
+        ? [...realignLines].filter(line => forced.has(line) && !gapRealigned.has(line)).sort() : [],
       matches: accepted - births, hardNoMatches, exits, numberConflicts, carriedNumberConflicts,
       rejectedNumberJumps: numberContradictions.size,
       rejectedNumberJumpDetails: [...numberContradictions.values()].sort((a, b) =>
@@ -658,4 +689,64 @@ export function reduceOfficialRoster({ model, rows, prior = null, day, nowEpoch,
       duplicateRowsObserved, duplicateBirthSignatures,
     },
   };
+}
+
+/**
+ * 一段行進中的軌道上塞了幾台車——使用者 2026-08-17 的判準。
+ * 回傳 { lines:Set<線代碼>, worst:最擠的那一段有幾台, over:超標的區間清單 }。
+ * 端點（from==to）排隊合法，不計入。
+ */
+export function segmentCrowding(vehicles, limit = OFFICIAL_CROWD_SEGMENT_LIMIT) {
+  const counts = new Map();
+  for (const vehicle of vehicles || []) {
+    const from = Number(vehicle.from), to = Number(vehicle.to);
+    if (!Number.isFinite(from) || !Number.isFinite(to) || from === to) continue;
+    const key = `${vehicle.line}|${Number(vehicle.dir)}|${from}|${to}`;
+    counts.set(key, (counts.get(key) || 0) + 1);
+  }
+  const lines = new Set(), over = [];
+  let worst = 0, suspicious = 0;
+  for (const [key, count] of counts) {
+    if (count > worst) worst = count;
+    if (count >= 2) suspicious++;
+    if (count >= limit) { lines.add(key.split('|')[0]); over.push({ segment: key, count }); }
+  }
+  over.sort((a, b) => b.count - a.count || a.segment.localeCompare(b.segment));
+  return { lines, worst, suspicious, over };
+}
+
+/**
+ * reduceOfficialRoster ＋ 自我察覺重置（使用者 2026-08-17：「我們需要一個迅速重置的方式，
+ * 就像我昨天要求的斷訊後回歸，依照現在當下的北捷資訊來判斷現在路線上有哪些車」）。
+ *
+ * 先照常推進一輪；若結果出現「同一行進中區間 >= crowdLimit 台車」這種物理上不可能的畫面，
+ * 就對**那幾條線**用同一輪的資料重跑一次、強制走斷訊恢復那條路徑。因為是拿同一份 prior
+ * 與同一輪 rows 重跑，結果具決定性、可重放，也不會與 worker 的 CAS 重試打架。
+ *
+ * 只重排一次、不迴圈：重排後仍然超標代表官方自己就這樣報，那是資料不是我們的錯，
+ * 記進 diagnostics 讓人看得到，不再繼續動它（避免每輪反覆清空同一條線）。
+ */
+export function reduceOfficialRosterSelfHealing({ crowdLimit = OFFICIAL_CROWD_SEGMENT_LIMIT, ...args }) {
+  const first = reduceOfficialRoster(args);
+  if (!(Number(crowdLimit) > 0)) return first;
+  const before = segmentCrowding(first.vehicles, Number(crowdLimit));
+  if (!before.lines.size) {
+    first.diagnostics.crowdWorst = before.worst;
+    first.diagnostics.crowdSuspicious = before.suspicious;
+    first.diagnostics.crowdHealedLines = [];
+    first.diagnostics.crowdUnhealable = [];
+    return first;
+  }
+  const healed = reduceOfficialRoster({ ...args, forceRealignLines: before.lines });
+  const after = segmentCrowding(healed.vehicles, Number(crowdLimit));
+  // 🔴 真正被重排了哪幾條線由 reducer 自己回報（它會擋掉「這輪沒有官方列」的線——
+  // 對那種線重排＝把整條線清空又補不回來）。這裡不得自己另算一份，否則診斷會謊報。
+  healed.diagnostics.crowdHealedLines = (healed.diagnostics.forcedRealignLines || []).slice();
+  healed.diagnostics.crowdUnhealable = [...before.lines]
+    .filter(line => !healed.diagnostics.crowdHealedLines.includes(line)).sort();
+  healed.diagnostics.crowdWorst = after.worst;
+  healed.diagnostics.crowdSuspicious = after.suspicious;
+  healed.diagnostics.crowdWorstBefore = before.worst;
+  healed.diagnostics.crowdRemaining = after.over.slice(0, 10);
+  return healed;
 }

@@ -4,7 +4,7 @@ import {
   attachOfficialTimelines,
   bindTracksToTrips, buildTripSetsByLineDir, joinBoardRowsToTrips, planTrtcTripBindingPersistence,
 } from './scripts/trtc_board_ledger.mjs';
-import { reduceOfficialRoster } from './scripts/trtc_official_roster.mjs';
+import { reduceOfficialRosterSelfHealing } from './scripts/trtc_official_roster.mjs';
 import { laNextIdx, laObsIdx, laSchedIdx, laArrivalEpoch, laJwt, laJwtReset } from './scripts/la_push_core.mjs';
 import {
   mwTrtcRows, mwLiveRows, mwCrowdByDest, mwContentState, mwStaleDate, mwShouldPush, mwTrtcDataAt,
@@ -1167,6 +1167,9 @@ const TRTC_OFFICIAL_OUTAGE_KEY = 'official_outage_v1';
 // 官方正常 15～60 秒一輪；3 分鐘沒動就是真的斷了——與前端 TRTC_FEED_STALE_SEC 同一個推導，
 // 刻意共用同一個數字，不另外發明門檻。落差小於它的空白屬正常跳拍，照舊 carry。
 const TRTC_OFFICIAL_REALIGN_SEC = 180;
+// 一段行進中的軌道最多容得下幾台車（號誌閉塞的物理事實）。超過就對那條線依當下官方資料重排。
+// 設 0 可整個關掉自我察覺重置，只留斷訊恢復。
+const TRTC_OFFICIAL_CROWD_LIMIT = 3;
 // 恢復通知在名冊裡帶多久。夠久讓斷訊後才開頁面的人也看得到跳動的原因，又不會久到變成常駐雜訊。
 const TRTC_OFFICIAL_RECOVERY_NOTICE_SEC = 600;
 
@@ -1299,7 +1302,10 @@ function trtcOfficialRowsForJoin(rosterRows) {
 
 function trtcOfficialRosterSnapshot(model, rows, prior, day, nowEpoch, sourceRevision,
   sourceFrameKey = trtcOfficialFrameKey(rows), realignSec = TRTC_OFFICIAL_REALIGN_SEC) {
-  const roster = reduceOfficialRoster({ model, rows, prior, day, nowEpoch, sourceRevision, realignSec });
+  // 自我察覺重置（2026-08-17 使用者要求「迅速重置」）：這一輪若畫出「同一段軌道 ≥3 台車」
+  // 這種物理上不可能的畫面，就對那幾條線用同一輪的官方資料重跑一次、依當下官方名單重建。
+  const roster = reduceOfficialRosterSelfHealing({ model, rows, prior, day, nowEpoch, sourceRevision,
+    realignSec, crowdLimit: TRTC_OFFICIAL_CROWD_LIMIT });
   // rows 也進同一 CAS blob：若較舊 PoP 輸給較新的 D1 revision，回應必須採較新 snapshot
   // 自己的 row↔vehicleId 對應，不能把舊 request rows 與新 roster 混成不存在的組合。
   return { ...roster, sourceFrameKey, sourceFrameOrder: trtcOfficialFrameOrder(rows, sourceFrameKey),
@@ -1318,7 +1324,16 @@ function trtcOfficialNextState(model, rows, priorState, day, nowEpoch, sourceRev
   }
   const next = trtcOfficialRosterSnapshot(model, rows, priorState, day, nowEpoch, sourceRevision, sourceFrameKey);
   next.sourceObservedEpoch = sourceObservedEpoch;
-  const realignedLines = (next.diagnostics && next.diagnostics.realignedLines) || [];
+  const allRealigned = (next.diagnostics && next.diagnostics.realignedLines) || [];
+  const crowdHealed = (next.diagnostics && next.diagnostics.crowdHealedLines) || [];
+  // 🔴 前端把 recovery.lines 說成「即時訊號已恢復」。自我察覺重置不是斷訊——上游一直在報，
+  // 是我們自己畫錯了——混進去等於對使用者說謊。只有「這條線真的消失過一段時間」才進 recovery。
+  const realignedLines = allRealigned.filter(line => !crowdHealed.includes(line));
+  if (crowdHealed.length > 0) {
+    console.warn(`[trtc official roster] 自我察覺重置：${crowdHealed.join('、')}`
+      + `（重排前最擠一段 ${next.diagnostics.crowdWorstBefore} 台、重排後 ${next.diagnostics.crowdWorst} 台、`
+      + `清掉 ${next.diagnostics.realigned || 0} 台、補回 ${next.diagnostics.recoveryBirths || 0} 台）`);
+  }
   if (realignedLines.length > 0) {
     // 訊號回來的那一輪：把「為什麼畫面會跳」記在名冊裡帶給前端。
     // partial＝同一輪還有別條線一直正常在報 ⇒ 一定是上游那幾條線斷了，不可能是「沒人來查」。
@@ -1330,10 +1345,15 @@ function trtcOfficialNextState(model, rows, priorState, day, nowEpoch, sourceRev
       atEpoch: Number(nowEpoch), lines: realignedLines.slice(),
       outageSec: lastSeen.length ? Math.max(0, Number(nowEpoch) - Math.max(...lastSeen)) : null,
       partial: realignedLines.length < (Number(next.diagnostics.linesWithRows) || realignedLines.length),
-      removed: Number(next.diagnostics.realigned) || 0, after: next.vehicles.length,
+      // 只算斷訊那幾條線清掉／補回的車：同一輪若還有別條線被自我察覺重置，
+      // 那些車與「訊號恢復」無關，算進來會讓使用者看到的數字對不上畫面。
+      removed: realignedLines.reduce((sum, line) =>
+        sum + (Number((next.diagnostics.realignedByLine || {})[line]) || 0), 0),
+      after: next.vehicles.length,
       // 恢復輪同時會做兩件方向相反的事：清掉配不到的推估車、以及把官方此刻報的站間列補成車。
       // 只回報前者會讓「車數怎麼變的」對不起來（實測 −9／+11）。
-      restored: Number(next.diagnostics.recoveryBirths) || 0,
+      restored: realignedLines.reduce((sum, line) =>
+        sum + (Number((next.diagnostics.recoveryBirthsByLine || {})[line]) || 0), 0),
       before: Array.isArray(priorState && priorState.vehicles) ? priorState.vehicles.length : null,
     };
   } else if (priorState && priorState.recovery &&

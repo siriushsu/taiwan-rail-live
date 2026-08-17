@@ -55,7 +55,11 @@ async function loadPipeline({ rosterMutation = null } = {}) {
   let roster;
   if (rosterMutation) {
     const file = path.join(HERE, `.tmp-outagerec-${tempSeq++}.mjs`);
-    fs.writeFileSync(file, rosterMutation(fs.readFileSync(ROSTER_PATH, 'utf8')));
+    const before = fs.readFileSync(ROSTER_PATH, 'utf8');
+    const after = rosterMutation(before);
+    // 突變的 replace 對不上（實作改了字面）＝突變根本沒套用，會偽裝成「這條判準沒有牙」。
+    if (after === before) throw new Error('突變沒有改到任何字元＝突變失效，不是判準沒有牙');
+    fs.writeFileSync(file, after);
     temps.push(file);
     roster = await import(pathToFileURL(file).href);
   } else {
@@ -280,7 +284,7 @@ pipeline.cleanup();
 // ---- 7. 突變：每條斷言都要有牙 ----
 const MUTATIONS = [
   ['no-realign', '整個逐線對齊拿掉（回到只會沿用的舊行為）',
-    source => source.replace('if (realignLines.has(old.line)) { realigned++; continue; }', '')],
+    source => source.replace(/if \(realignLines\.has\(old\.line\)\) \{\s*realigned\+\+;[^}]*continue;\s*\}/, '')],
   ['global-gap-instead', '改用「全域資料落差」判斷斷訊（第一版設計，對部分斷訊全盲）',
     source => source.replace(
       /for \(const line of linesWithRows\) \{\s*const last = Number\(priorSeen\[line\]\);\s*if \(Number\.isFinite\(last\) && epoch - last >= realignSec\) realignLines\.add\(line\);\s*\}/,

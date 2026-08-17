@@ -355,7 +355,11 @@ check(replayDb.updateAttempts === 2 && replaySeed.roster.vehicles.length === 1 &
 // 每個 mutation 都要只打紅自己的 wiring property，不能靠「整體 gate 反正已紅」假裝有牙。
 function sourceAudit(source) {
   return {
-    reducerImport: /import \{ reduceOfficialRoster \}/.test(source),
+    // 產品碼必須接**自癒版**：光接 reduceOfficialRoster 等於 2026-08-17 的重置機制沒上線。
+    reducerImport: /import \{ reduceOfficialRosterSelfHealing \}/.test(source),
+    crowdSelfHeal: /crowdLimit: TRTC_OFFICIAL_CROWD_LIMIT/.test(source),
+    // 自我察覺重置不得混進「即時訊號已恢復」的通知——上游沒斷，那樣是對使用者說謊。
+    recoveryExcludesSelfHeal: /realignedLines = allRealigned\.filter\(line => !crowdHealed\.includes\(line\)\)/.test(source),
     officialFeedGate: /feedMode !== 'official'/.test(source),
     stateKey: /official_roster_v4/.test(source),
     optimisticCas: /UPDATE trtc_state SET v=\? WHERE k=\? AND v=\?/.test(source),
@@ -375,7 +379,10 @@ const baselineSourceAudit = sourceAudit(source);
 check(Object.values(baselineSourceAudit).every(Boolean),
   'source 正向控制：reducer／缺訊 hold／CAS／frame／extensions 均接入產品碼');
 const sourceMutations = [
-  ['reducerImport', "import { reduceOfficialRoster }", 'import { reduceOfficialRosterDisabled }'],
+  ['reducerImport', "import { reduceOfficialRosterSelfHealing }", 'import { reduceOfficialRosterSelfHealingOff }'],
+  ['crowdSelfHeal', 'crowdLimit: TRTC_OFFICIAL_CROWD_LIMIT', 'crowdLimit: 0'],
+  ['recoveryExcludesSelfHeal', 'realignedLines = allRealigned.filter(line => !crowdHealed.includes(line))',
+    'realignedLines = allRealigned'],
   ['officialFeedGate', "feedMode !== 'official'", "feedMode === 'official'"],
   ['stateKey', 'official_roster_v4', 'official_roster_DISABLED'],
   ['optimisticCas', 'WHERE k=? AND v=?', 'WHERE k=?'],
