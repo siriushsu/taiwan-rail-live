@@ -45,6 +45,12 @@ const MIN_GAP_SEC = 20;     // 觀測窗要長過停站時間，否則「沒動�
 
 let problems = [];
 const note = (level, msg, detail) => problems.push({ level, msg, detail });
+// 有專屬 console.log 的判準用 note()；沒有的用 noteLoud()——否則收尾只印「1 項超標」，
+// 看不出是哪一項，要開 JSON 才知道（Codex 08-17 複審指出的「日誌太安靜」）。
+const noteLoud = (level, msg, detail) => {
+  console.log(`${level === 'bad' ? '❌' : level === 'warn' ? '⚠️' : 'ℓ'} ${msg}`);
+  note(level, msg, detail);
+};
 
 const SAMPLE = () => {
   const hits = state._freqHits || [];
@@ -126,7 +132,7 @@ await page.evaluate(() => map.fitBounds([[24.90, 121.30], [25.25, 121.75]], { an
 await page.waitForTimeout(3000);
 
 if (GAP_SEC < MIN_GAP_SEC)
-  note('warn', `觀測窗 ${GAP_SEC}s 短於停站時間，凍結判定不可靠`, { MIN_GAP_SEC });
+  noteLoud('warn', `觀測窗 ${GAP_SEC}s 短於停站時間，凍結判定不可靠`, { MIN_GAP_SEC });
 const s1 = await page.evaluate(SAMPLE);
 await page.waitForTimeout(GAP_SEC * 1000);
 const s2 = await page.evaluate(SAMPLE);
@@ -161,11 +167,11 @@ if (!s1.n || !s2.n) {
   console.log('❌ 畫面上一台車都沒有——掃描沒有意義，先查頁面');
   process.exit(2);
 }
-if (pageErrors.length) note('warn', `頁面拋錯 ${pageErrors.length} 次`, pageErrors.slice(0, 3));
+if (pageErrors.length) noteLoud('warn', `頁面拋錯 ${pageErrors.length} 次`, pageErrors.slice(0, 3));
 // 逐車名冊模式下，某條「本該由逐車清單接管」的主線退回舊綁定器＝那條線的幽靈車風險回來了。
 // 環狀線與兩條支線是預期的退回（逐車清單沒有它們），前端已經先排除掉。
 if (s2.censusFallbackLines && s2.censusFallbackLines.length)
-  note('warn', `這些線退回舊綁定器：${s2.censusFallbackLines.join('、')}`, s2.censusFallbackLines);
+  noteLoud('warn', `這些線退回舊綁定器：${s2.censusFallbackLines.join('、')}`, s2.censusFallbackLines);
 
 // 0. 名冊本身有沒有在換新。
 // 🔴 這條是 2026-08-17 補的：支線車 run=0 讓驗證器整包退掉 payload，車照舊時間線繼續跑
@@ -176,17 +182,17 @@ const ROSTER_STALE_SEC = 120;      // 官方 15–60 秒一輪；兩分鐘沒換
   const ageSec = s2.rosterRecv ? Math.round((s2.at - s2.rosterRecv * 1000) / 1000) : null;
   const held = s2.rosterHold ? s2.rosterHold.reason : null;
   if (!s2.rosterEnabled)
-    note('info', '官方名冊路徑未啟用（純班表模式），本條不適用', { rosterEnabled: s2.rosterEnabled });
+    noteLoud('info', '官方名冊路徑未啟用（純班表模式），本條不適用', { rosterEnabled: s2.rosterEnabled });
   else if (s2.rosterFeed !== 'official')
-    note('bad', `官方名冊不在 official 模式（${s2.rosterFeed}）＝這輪沒有官方位置可用`,
+    noteLoud('bad', `官方名冊不在 official 模式（${s2.rosterFeed}）＝這輪沒有官方位置可用`,
       { rosterFeed: s2.rosterFeed, rosterN: s2.rosterN, held });
   else if (ageSec == null)
-    note('bad', '官方名冊沒有 receivedEpoch，無法判斷它有沒有換新', { rosterN: s2.rosterN });
+    noteLoud('bad', '官方名冊沒有 receivedEpoch，無法判斷它有沒有換新', { rosterN: s2.rosterN });
   else if (ageSec > ROSTER_STALE_SEC)
-    note('bad', `官方名冊 ${ageSec} 秒沒換新（上限 ${ROSTER_STALE_SEC}s）＝畫面在演舊快照` +
+    noteLoud('bad', `官方名冊 ${ageSec} 秒沒換新（上限 ${ROSTER_STALE_SEC}s）＝畫面在演舊快照` +
       (held ? `，最近一次被擋原因：${held}` : ''), { ageSec, held, rosterN: s2.rosterN });
   else
-    note('info', `官方名冊 ${s2.rosterN} 台、${ageSec} 秒前換新` + (held ? `（曾被擋：${held}）` : ''),
+    noteLoud('info', `官方名冊 ${s2.rosterN} 台、${ageSec} 秒前換新` + (held ? `（曾被擋：${held}）` : ''),
       { ageSec, held, rosterN: s2.rosterN });
 }
 
@@ -303,7 +309,7 @@ if (official && !official.error && official.byLine) {
 }
 
 const bad = problems.filter(p => p.level === 'bad');
-console.log(`\n${bad.length ? `❌ ${bad.length} 項超標` : '✅ 全部在門檻內'}｜警告 ${problems.length - bad.length} 項`);
+console.log(`\n${bad.length ? `❌ ${bad.length} 項超標` : '✅ 全部在門檻內'}｜警告 ${problems.filter(p => p.level === 'warn').length} 項`);
 if (JSON_OUT) {
   fs.writeFileSync(JSON_OUT, JSON.stringify({ url: URL_ARG, at: new Date().toISOString(), official,
     counts: { s1: s1.n, s2: s2.n }, clumps, back, frozen, problems }, null, 1));
