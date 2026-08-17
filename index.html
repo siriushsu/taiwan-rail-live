@@ -3809,7 +3809,7 @@
       <ul class="foot-list foot-recent">
         <li class="grp">最近更新</li>
         <li data-cl-of="thsrwindow"><span class="d">8/17</span><span>高鐵班表不再停在前一天：當天才有的班次看得到，前一天才有的也不會變成幽靈車（謝謝網友回報）</span></li>
-        <li data-cl-of="trtczombie"><span class="d">8/17</span><span>台北捷運不再出現停在原地、好幾台疊在一起的重複列車，列車位置回到官方即時資料；車站看板也不再把尖峰加開的短程車提早列成「另一條線」（謝謝網友回報）</span></li>
+        <li data-cl-of="trtczombie"><span class="d">8/17</span><span>台北捷運車站看板不再把尖峰加開的短程車提早列成「另一條線」；列車位置目前仍為班表推估，車站倒數是官方即時（謝謝網友回報）</span></li>
         <li data-cl-of="orangebranch"><span class="d">8/16</span><span>中和新蘆線共線段不再冒出重複列車與沒有車號的車</span></li>
         <li data-cl-of="badgescope"><span class="d">8/16</span><span>「台」「高」不再顯示捷運的「官方即時」標示；捷運收班後改標「已收班」</span></li>
         <li data-cl-of="zuoyingalias"><span class="d">8/16</span><span>台鐵左營站不再分成「左營」與「左營(舊城)」兩顆，看板正常顯示；新城站同步修正（謝謝網友回報）</span></li>
@@ -4324,7 +4324,7 @@
 //         中和新蘆線分支鎖、捷運徽章範圍、App 那整批 index.html 內容），並合入高鐵班表抓取窗
 //         2→7 天與每 5 分鐘自我檢查。v0816d／v0817a 兩條 ship 分支的 index.html 都還掛著
 //         v0816c，本批內容與它們都不同 ⇒ 推一個誰都沒用過的號。
-const BUILD = 'v0817f';
+const BUILD = 'v0817g';
 // 2026-08-13 起預設開啟（使用者親試預覽後裁示上線）：北捷畫車依官方即時名冊，班表只是備案。
 // 保留 ?officialroster=0 當逃生口——要退回班表路徑不必回滾部署，加個參數即可對照。
 // 🔴 這個函式會被 verify_official_roster_frontend 抽出來丟進 VM 單獨執行——
@@ -4332,24 +4332,25 @@ const BUILD = 'v0817f';
 // 🔴 2026-08-17 09:20 使用者指示：「你直接把台北捷運的列車顯示換成班表,不要都空的,
 //    然後發公告通知現在所有車輛位置都是班表並非實際位置,車站倒數時間則與月台倒數相同。
 //    我們把位置邏輯弄好之前就是先這樣跑」⇒ 當天上午起官方名冊【預設關閉】,北捷回班表推演。
-// 🔴 2026-08-17 16:3x 使用者裁示「先切換」⇒ 那個過渡狀態結束,逐車名冊【預設開啟】。
-//    位置邏輯這輪修好了:名冊來源改成官方逐車清單(身分＝官方編號本身,不需要綁定器,
-//    所以上午那個「配錯班 ⇒ 校正量≈k×班距 ⇒ 疊車與倒退」的迴圈結構上不存在),
-//    並修掉「兩站支線 run=0 讓整包名冊被驗證器退掉、畫面演舊快照」那條(見
-//    trtcOfficialRosterRepairRun)。
-//    退路刻意留成 URL 參數:`?census=0` 就回到 09:20 那個純班表狀態,不必重新部署。
+// 🔴 2026-08-17 16:3x 使用者曾裁示「先切換」(逐車名冊改預設開),但當晚 19:0x 前提被推翻:
+//    我當時報給他的代價是「只有環狀線會間歇疊車」,實測後發現文湖線與松山新店線也會,
+//    而且抓到可指認的機制——防倒退把前車 hold 在原地,後車照官方資料前進就追上疊在一起
+//    (現場:G hw:312 是 census-hold/no-backward、hw:334 正常前進,兩台同在 from=1→to=2)。
+//    ⇒ 使用者改裁示「只出看板修正,位置維持班表」,逐車名冊【維持預設關閉】,
+//    疊車根因另案追。要切回官方即時位置的前提是那個機制修好並驗過。
+//    測試入口:`?census=1`(逐車清單)或 `?officialroster=1`(舊帳本),不必重新部署。
 function trtcOfficialRosterEnabled(search) {
   try {
     const q = new URLSearchParams(search == null ? location.search : search);
-    // 名冊繪製路徑有兩個來源：逐車清單(census,預設開)與舊帳本(?officialroster=1)。
+    // 名冊繪製路徑有兩個來源：逐車清單(?census=1)與舊帳本(?officialroster=1),兩者都預設關。
     // 🔴 這裡刻意把 census 的判斷抄一份而不呼叫 trtcCensusRosterEnabled——本函式會被
     //    verify_official_roster_frontend 單獨抽進 VM 跑,引用外部符號會 ReferenceError。
-    return q.get('officialroster') === '1' || q.get('census') !== '0';
-  } catch (e) { return true; }
+    return q.get('officialroster') === '1' || q.get('census') === '1';
+  } catch (e) { return false; }
 }
 function trtcCensusRosterEnabled(search) {
-  try { return new URLSearchParams(search == null ? location.search : search).get('census') !== '0'; }
-  catch (e) { return true; }
+  try { return new URLSearchParams(search == null ? location.search : search).get('census') === '1'; }
+  catch (e) { return false; }
 }
 // URL 開關必須在開機初始就固定；clearFollow() 會整理 query string，不可在後面重讀。
 const OFFICIAL_ROSTER_ENABLED = trtcOfficialRosterEnabled(location.search);
@@ -10263,7 +10264,7 @@ const GROUPS = [
   { id: 'hsr', label: '高鐵', short: '高', tab: true, mode: 'sched', members: ['thsr_sched'] },
   { id: 'metro', label: '捷運與輕軌', short: '捷', tab: true, mode: 'freq', members: ['mrt', 'tymc', 'ntdlrt', 'ntalrt', 'sanying', 'tmrt', 'krtc'],
     plate: { plateL: '台北', plateR: '高雄', sub: 'METRO & LRT · TAIWAN',
-      lead: '台北捷運、桃園機捷、新北捷運（環狀・淡海・安坑・三鶯）、台中捷運與高雄捷運（含輕軌）同框運行，營運時段依官方即時資訊校正（文湖線、三鶯線與台中捷運為班距推算）— 可在上方勾選要同時顯示的系統。' } },
+      lead: '台北捷運、桃園機捷、新北捷運（環狀・淡海・安坑・三鶯）、台中捷運與高雄捷運（含輕軌）同框運行，營運時段依官方即時資訊校正（台北捷運與環狀線目前位置為班表推估，車站倒數仍是官方即時；文湖線、三鶯線與台中捷運為班距推算）— 可在上方勾選要同時顯示的系統。' } },
   // ↓ 以下三個只為相容既有連結與記憶而留，不再出現在任何頁籤列（見上方註解）
   { id: 'nat', label: '國家鐵路', mode: 'sched', members: ['tra_sched', 'thsr_sched', 'afr_sched'],
     plate: { plateL: '基隆', plateR: '枋寮', sub: '台灣鐵道即時軌跡',

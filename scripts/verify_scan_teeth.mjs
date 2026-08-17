@@ -115,16 +115,20 @@ const check = (pass, label, detail = '') => {
 
 // 對照組：未突變的原始碼必須全綠。它若也是紅的，後面兩個紅就沒有鑑別力。
 //
-// 🔴 2026-08-17 16:3x 起逐車名冊【預設開啟】⇒「不帶參數」的意思整個換了一面。
-//    clump／backward 兩發是注射到 metroShiftSec 的 `trtcPureSchedule(ln)` 分支裡的，
-//    預設既然已不走純班表，不帶參數跑那兩發等於什麼都沒改，會以對照組的身分假綠通過
-//    ——所以它們現在一律帶 ?census=0（那也是這次刻意留下的免部署退路）。
+// 🔴 每個案例的 query string 必須跟「這一發注射的那段碼現在跑不跑得到」對齊，否則突變是空包彈：
+//    clump／backward 注射在 metroShiftSec 的 `trtcPureSchedule(ln)` 分支 ⇒ 要**純班表**模式；
+//    lineGone／rosterStale 注射在逐車名冊的合併與 run 補值 ⇒ 要 `?census=1`。
+//    2026-08-17 這顆旗標的預設值當天翻了兩次（早上關→傍晚開→晚上又關），每翻一次都要
+//    重新問一遍這件事；當天就踩過一次「預設開啟後 clump 那兩發等於什麼都沒改」的假綠。
+//    現行預設＝純班表（位置維持班表推估，名冊路徑要 ?census=1 才開）。
+const PURE = '';            // 預設就是純班表
+const CENSUS = '?census=1'; // 逐車名冊路徑
 const cases = [
-  ['對照組（預設＝逐車名冊）', INDEX, 0, ''],
-  ['對照組（?census=0 純班表）', INDEX, 0, '?census=0'],
-  ...Object.entries(INJECT).map(([k, v]) => [`突變：${k}`, INDEX.replace(ANCHOR, v), 1, '?census=0']),
-  ['突變：lineGone', INDEX.replace(CENSUS_ANCHOR, CENSUS_INJECT), 1, ''],
-  ['突變：rosterStale', INDEX.replace(REPAIR_ANCHOR, REPAIR_INJECT), 1, ''],
+  ['對照組（預設＝純班表）', INDEX, 0, PURE],
+  ...Object.entries(INJECT).map(([k, v]) => [`突變：${k}`, INDEX.replace(ANCHOR, v), 1, PURE]),
+  ['對照組（?census=1 逐車名冊）', INDEX, 0, CENSUS],
+  ['突變：lineGone', INDEX.replace(CENSUS_ANCHOR, CENSUS_INJECT), 1, CENSUS],
+  ['突變：rosterStale', INDEX.replace(REPAIR_ANCHOR, REPAIR_INJECT), 1, CENSUS],
 ];
 // 錨點打錯字＝突變其實沒注射進去，案例會以「對照組」的身分假綠通過（心得 37 同族）。
 for (const [label, anchor] of [['ANCHOR', ANCHOR], ['CENSUS_ANCHOR', CENSUS_ANCHOR], ['REPAIR_ANCHOR', REPAIR_ANCHOR]])
