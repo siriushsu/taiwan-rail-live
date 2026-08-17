@@ -5,9 +5,15 @@
 // 不是管線算出來的中間量。08-17 稽核的教訓：量 lastShift 中位數／roster.positions
 // 這類與實作同源的量，實作錯了判準會跟著一起錯，38 項全綠也看不到 4 倍超衝。
 //
-// 量七件事（都是使用者真的會看到的形態；編號與下面的小節一致）：
+// 量九件事（都是使用者真的會看到的形態；編號與下面的小節一致）：
+//  -1. 每日 cron（台北 09:15）有沒有跑：它一天只有一次機會、無重試無告警，掛掉會讓高鐵班表
+//      停在前一天（當天新增班次看不到、取消的畫成幽靈車）。主指紋取誤點統計的 generated
+//      ＝那發自己寫的時戳，故**同日**就抓得到；只看高鐵班表日期會晚一天。
+//  -2. 官方即時資料源新不新：站牌倒數在純班表模式下**仍然是官方即時**，所以上游停更照樣
+//      是使用者看得到的傷害。這條不依賴任何前端旗標，是純班表模式下唯一照得到上游停更的。
 //   0. 名冊有沒有在換新：整包被驗證器退掉時，車會照舊時間線繼續跑（動得很順），
 //      下面 1–5 全部照不到——只有 receivedEpoch 照得到（08-17 那次疊車事故的唯一證人）。
+//      ⚠️ 正式站走純班表 ⇒ 這條恆為「不適用」，它只在掃 `?census=1` 時有牙。
 //   1. 同向疊車：同線同方向的車在畫面上重疊。對向交會是正常的，必須先分方向再算。
 //   1b. 同站堆積：同一站同方向擠 3 台以上（被拖回站上的形態）。
 //   2. 倒退：兩次取樣之間沿線位移為負。
@@ -193,6 +199,34 @@ try {
     roster: (live.boardPos?.vehicles || []).length, running: bpv.length, byLine, age: Math.round(Date.now() / 1000 - (live.boardPos?.sourceRevision || 0)) };
 } catch (e) { official = { error: e.message }; }
 
+// 每日 cron（台北 09:15 那發）到底有沒有跑。
+// 🔴 2026-08-17 事故：那發掛掉 ⇒ 高鐵班表停在前一天（16 班看不到＋41 班畫成幽靈車）、
+//    台鐵誤點統計停更，而**沒有任何機制會告訴我們**——靠使用者回報「有 1504 高鐵，地圖上沒有」
+//    才發現。第二發 `15 4 * * *` 是 owner 刻意停用的（不得自行加回），所以一天只有一次機會、
+//    失敗無重試無告警。這裡補的就是那個缺掉的告警。
+// 為什麼取 `/api/delay-stats` 的 `_meta.generated` 當主指紋：它是**那發 cron 自己寫的時戳**，
+//    掛掉當天就對不上 ⇒ 同日抓到。只驗高鐵班表的 `date` 會晚一天才顯形（ingest 抓「今天＋明天」，
+//    所以今天掛掉要到明天才見底）。`?date=` 參數上游忽略，問不到明天，故只能這樣拆。
+let daily = null;
+try {
+  const at = u => { const b = new URL(URL_ARG); b.pathname = u; b.search = 'cb=' + Date.now(); return b.href; };
+  const get = async u => (await fetch(at(u), { headers: { 'cache-control': 'no-cache' } })).json();
+  const [ds, thsr, tb] = await Promise.all([
+    get('/api/delay-stats').catch(e => ({ _err: e.message })),
+    get('/api/thsr-schedule').catch(e => ({ _err: e.message })),
+    get('/api/today-board').catch(e => ({ _err: e.message })),
+  ]);
+  daily = {
+    statsGen: ds?._meta?.generated || null,          // 那發 cron 的直接指紋
+    statsRange: ds?._meta?.date_range || null,
+    thsrDate: thsr?.date || null,                    // 20260817 這種緊湊格式
+    thsrServed: thsr?.served_date || null,           // 有值＝退回舊日鍵（本身就是健康指標）
+    thsrN: (thsr?.trains || []).length,
+    boardDate: tb?.date || null,
+    errs: [ds?._err, thsr?._err, tb?._err].filter(Boolean),
+  };
+} catch (e) { daily = { error: e.message }; }
+
 await browser.close();
 
 // ── 判讀 ──────────────────────────────────────────────────────────────────────
@@ -207,8 +241,69 @@ if (!s1.n || !s2.n) {
 if (pageErrors.length) noteLoud('warn', `頁面拋錯 ${pageErrors.length} 次`, pageErrors.slice(0, 3));
 // 逐車名冊模式下，某條「本該由逐車清單接管」的主線退回舊綁定器＝那條線的幽靈車風險回來了。
 // 環狀線與兩條支線是預期的退回（逐車清單沒有它們），前端已經先排除掉。
-if (s2.censusFallbackLines && s2.censusFallbackLines.length)
-  noteLoud('warn', `這些線退回舊綁定器：${s2.censusFallbackLines.join('、')}`, s2.censusFallbackLines);
+// 🔴 判準寫成**條件式**（心得 34）：名冊路徑沒啟用時「退回舊綁定器」是常態不是缺陷，
+//    此時判紅＝每小時假警報；啟用時它才是真缺陷，而原本只 warn＝exit 0 ⇒ 排程不會通知人。
+if (!s2.rosterEnabled)
+  noteLoud('info', '「退回舊綁定器」本條不適用（名冊路徑未啟用，全線本來就走舊路徑）',
+    { rosterEnabled: s2.rosterEnabled, censusFallbackLines: s2.censusFallbackLines });
+else if (s2.censusFallbackLines && s2.censusFallbackLines.length)
+  noteLoud('bad', `這些線退回舊綁定器：${s2.censusFallbackLines.join('、')}＝那幾條線的幽靈車風險回來了`,
+    s2.censusFallbackLines);
+
+// -1. 每日 cron（台北 09:15）有沒有跑。詳細動機見上面 daily 的抓取註解。
+const CRON_TW_HOUR = 9;            // wrangler.jsonc 的 `15 1 * * *`（UTC）＝台北 09:15
+{
+  const twDay = ms => new Date(ms).toLocaleDateString('sv-SE', { timeZone: 'Asia/Taipei' });   // YYYY-MM-DD
+  const today = twDay(Date.now());
+  const twHour = Number(new Date().toLocaleString('en-GB',
+    { timeZone: 'Asia/Taipei', hour: '2-digit', hour12: false }));
+  // 只有在那發 cron 的預定時刻**過了一小時**之後才要求「必須是今天」——否則每天 06–09 點的
+  // 掃描都會因為「今天那發還沒跑」而假紅。這個門檻是從 cron 時刻推導的，不是手打的魔術數字。
+  const due = twHour >= CRON_TW_HOUR + 1;
+  const compact = d => (d || '').replace(/-/g, '');
+  if (!daily || daily.error) noteLoud('warn', `每日 cron 哨兵抓不到資料（${daily?.error || '無回應'}）`, daily);
+  else if (daily.errs.length) noteLoud('warn', `每日 cron 哨兵有端點失敗：${daily.errs.join('；')}`, daily);
+  else {
+    const statsDay = daily.statsGen ? twDay(Date.parse(daily.statsGen)) : null;
+    const stale = [];
+    if (statsDay !== today) stale.push(`誤點統計 generated=${statsDay || '無'}`);
+    if (compact(daily.thsrDate) !== compact(today)) stale.push(`高鐵班表 date=${daily.thsrDate || '無'}`);
+    if (daily.thsrServed) stale.push(`高鐵班表退回舊日鍵 served_date=${daily.thsrServed}`);
+    if (compact(daily.boardDate) !== compact(today)) stale.push(`今日看板 date=${daily.boardDate || '無'}`);
+    const detail = { today, twHour, due, ...daily };
+    if (!stale.length)
+      noteLoud('info', `每日 cron 已跑（誤點統計 ${statsDay}、高鐵班表 ${daily.thsrDate}／${daily.thsrN} 班、` +
+        `今日看板 ${daily.boardDate}）`, detail);
+    else if (!due)
+      noteLoud('info', `每日 cron 這些還是舊值，但台北 ${twHour} 點還沒過 ${CRON_TW_HOUR + 1} 點` +
+        `＝今天那發還沒跑，本條先不判：${stale.join('、')}`, detail);
+    else
+      noteLoud('bad', `每日 cron（台北 ${CRON_TW_HOUR}:15 那發）看起來沒跑成功：${stale.join('、')}。` +
+        '⚠️ 它沒有第二發、沒有重試、沒有其他告警；高鐵班表過期會讓當天新增班次看不到、' +
+        '取消的班次畫成幽靈車。手動補跑法見 memory daily-cron-single-run-silent-failure', detail);
+  }
+}
+
+// -2. 官方即時資料源本身新不新（站牌倒數的來源）。
+// 🔴 這條與第 0 條「名冊有沒有換新」的差別：第 0 條量的是**我們的名冊**，正式站走純班表時
+//    恆為「不適用」；而站牌倒數在純班表模式下**仍然是官方即時**，所以上游停更照樣是使用者
+//    看得到的傷害。這條不依賴任何前端旗標，是純班表模式下唯一照得到上游停更的判準。
+const FEED_WARN_SEC = 300;         // 官方 15–60 秒一輪；五分鐘＝短暫斷訊（常態，屬環境條件）
+const FEED_BAD_SEC = 1800;         // 半小時＝已經不是短暫斷訊，站牌倒數在騙人
+{
+  if (!official || official.error)
+    noteLoud('warn', `官方即時資料源抓不到（${official?.error || '無回應'}）`, official);
+  else if (!(official.age >= 0) || !Number.isFinite(official.age))
+    noteLoud('bad', '官方即時資料源沒有 sourceRevision，無法判斷它新不新', official);
+  else if (official.age > FEED_BAD_SEC)
+    noteLoud('bad', `官方即時資料源 ${Math.round(official.age / 60)} 分鐘沒更新（上限 ` +
+      `${FEED_BAD_SEC / 60} 分）＝車站倒數在騙人`, { age: official.age });
+  else if (official.age > FEED_WARN_SEC)
+    noteLoud('warn', `官方即時資料源 ${official.age} 秒沒更新（>${FEED_WARN_SEC}s）＝上游短暫斷訊，` +
+      '屬環境條件不計入離開碼', { age: official.age });
+  else
+    noteLoud('info', `官方即時資料源 ${official.age} 秒前更新`, { age: official.age });
+}
 
 // 0. 名冊本身有沒有在換新。
 // 🔴 這條是 2026-08-17 補的：支線車 run=0 讓驗證器整包退掉 payload，車照舊時間線繼續跑
