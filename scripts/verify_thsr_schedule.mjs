@@ -690,6 +690,19 @@ async function runWindowAndSelfHeal() {
       try { await thsrSelfHeal({ scheduledTime: schedAt(9, 5) }, { ...envBase, DELAY_DB: forbiddenDb }); } catch (e) { threw = /不該碰 D1/.test(String(e && e.message)); }
       ok('V8d 正向對照(到週期時 forbiddenDb 確實會被碰到並拋錯)', threw);
     }
+    // ── V9:布線——自我檢查真的掛在每分鐘 cron 分支上,而且在 handler return 前被 await ──
+    // 這條是【靜態檢查】,誠實標明:要真跑那條分支就得執行 trtcLedgerScheduled(會打北捷上游)
+    // 與兩條推播迴圈,不是驗收腳本該有的副作用。函式本身的行為由 V8 四組真跑覆蓋,這裡只補
+    // 「它有沒有被接上去」——V8 全綠但忘了接線的話,線上依然一點自癒都不會發生。
+    {
+      const src = readFileSync(path.join(ROOT, 'worker.js'), 'utf8');
+      const from = src.indexOf("event.cron === '* * * * *'");
+      const to = src.indexOf('return ledger;', from);
+      const minuteBranch = from >= 0 && to > from ? src.slice(from, to) : '';
+      ok('V9 布線:thsrSelfHeal 掛在每分鐘 cron 分支內', /thsrSelfHeal\(event, env\)/.test(minuteBranch), `branch=${minuteBranch.length} bytes`);
+      ok('V9 布線:自帶 .catch(不會改變 scheduled 的成功/失敗契約)', /thsrSelfHeal\(event, env\)\.catch\(/.test(minuteBranch));
+      ok('V9 布線:return 前有 await(帳本在營運窗外早退時 waitUntil 可能被截斷)', /await thsrHealTask;/.test(minuteBranch));
+    }
   } finally {
     server.close();
   }
