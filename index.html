@@ -4919,14 +4919,28 @@ function trtcCensusVehicles(trains, nowEpoch, day) {
     if (nextIdx >= 0 && nextIdx !== hit.i) { to = nextIdx; from = to - step; }
     else { from = hit.i; to = hit.i + step; }
     if (from < 0 || to < 0 || from >= arr.length || to >= arr.length) from = to = hit.i;
-    const terminal = from === to, run = terminal ? 0 : trtcCensusRun(ln, from, to);
+    let terminal = from === to;
+    let run = terminal ? 0 : trtcCensusRun(ln, from, to);
     const firstEta = head ? Number(head.eta) : NaN;
-    const arrEpoch = Number.isFinite(firstEta) && !terminal ? firstEta
+    // 沒有未來 ETA 時只能用 CarWeight 的 at 推，而它落後最多 265 秒 ⇒ 算出來的到站時刻常常
+    // 已經是過去式。繪製端對「到站時刻在過去且沒有續推軌跡」的車回 null＝那台車整個不見
+    // （實測 10 台，含 6 台停在終點站的）。官方說這台車在，就不能因為我們的時刻推不準而不畫它
+    // ⇒ 過期一律夾到現在，畫成「正要進站」。
+    const rawArr = Number.isFinite(firstEta) && !terminal ? firstEta
       : (Number.isFinite(at) ? at + run : nowEpoch + run);
+    const arrEpoch = Math.max(rawArr, nowEpoch + 1);
     // dest 不是裝飾：名冊驗證要求它是合法站序整數，null 會讓整包 payload 被判 malformed。
     // 官方沒給終點（文湖線全部、高運量約一成）就用行進方向上的線末站——語意也對。
     const di0 = arr.indexOf(_trtcCensusNorm(t.dest));
     const di = di0 >= 0 ? di0 : (step > 0 ? arr.length - 1 : 0);
+    // 已經開到終點站：繪製端的契約是「到 dest 就收車」（使用者裁示），但官方逐車清單仍說
+    // 這台車在——它只是停在終點站等著折返。改標成「停在終點站」而不是讓它整台消失。
+    if (!terminal && to === di && arrEpoch <= nowEpoch + 1) { from = to; terminal = true; run = 0; }
+    // 停在端點的車，方向必須指向線內：端點繪製會算 next = from + step，指向線外就得到
+    // 不存在的站而整台回 null（實測 6 台停在終點站的車就是這樣不見的）。
+    const dirOut = terminal
+      ? (from <= 0 ? 2 : (from >= arr.length - 1 ? 1 : (step > 0 ? 2 : 1)))
+      : (step > 0 ? 2 : 1);
     const vehicleId = 'cs:' + day + ':' + sys + ':' + no;
     if (seen.has(vehicleId)) continue;
     seen.add(vehicleId);
@@ -4935,7 +4949,7 @@ function trtcCensusVehicles(trains, nowEpoch, day) {
     // 往回跳就是倒退。落到上一輪後面就維持上一輪，等官方資料自己追上。
     const prev = prior.get(vehicleId);
     let vehicle;
-    if (prev && prev.line === hit.line && prev.dir === (step > 0 ? 2 : 1) &&
+    if (prev && prev.line === hit.line && prev.dir === dirOut &&
         !prev.terminal && !terminal && (to - prev.to) * step < 0) {
       vehicle = { ...prev, arrEpoch: Math.max(prev.arrEpoch, nowEpoch), observedEpoch: nowEpoch };
     } else {
@@ -4950,7 +4964,7 @@ function trtcCensusVehicles(trains, nowEpoch, day) {
         cur = idx;
       }
       if (!timeline.length) timeline.push({ from, to, depEpoch: arrEpoch - run, arrEpoch, terminal });
-      vehicle = { vehicleId, line: hit.line, dir: step > 0 ? 2 : 1, dest: di,
+      vehicle = { vehicleId, line: hit.line, dir: dirOut, dest: di,
         from, to, run, arrEpoch, terminal, officialNo: sys === 'hw' ? no : null,
         source: 'census', observedEpoch: nowEpoch, timeline };
     }

@@ -28,7 +28,10 @@ const GAP_SEC = Number((() => { const i = args.indexOf('--gap'); return i >= 0 ?
 const OVERLAP_M = 250;      // 沿線間距。用實際距離不用像素——像素門檻會隨縮放漂移，
                             // 同一份資料在不同 zoom 下會給出不同結論。250m 是物理下限量級：
                             // 捷運最小班距下兩台車不可能靠這麼近（尖峰 2 分鐘班距≈2km）。
-const OVERLAP_PX = 8;       // 另外守一條視覺線：不管實際距離，畫面上疊在一起就是缺陷
+const AT_STATION_M = 60;    // 離最近車站這麼近就算「停在站上」。兩台車同時停在同一個終點站
+                            // 是正常的（月台不只一個、折返中），那不是缺陷；疊在站與站之間才是。
+// 刻意不用像素門檻：像素會隨縮放漂移，而這支掃描是把整個路網框在一個畫面裡跑的，
+// 密集路段（文湖線彎道）沿線 500 公尺在畫面上本來就只有幾個像素。
 const BACKWARD_M = 15;      // 沿線負位移超過這個距離才算倒退（低於此為投影抖動）
 const STALL_RATIO = .9;     // 幾乎整條線的車都沒動才算凍結。停站本身就會讓車不動，
                             // 門檻抓一半會把「正常停站」誤判成凍結（實測 8 秒觀測窗下 BL 10/19 全在停站）
@@ -45,11 +48,18 @@ const SAMPLE = () => {
     const tr = h.tr;
     // 沿線里程：用畫面座標反投影回線形，這是與繪製同一組座標，但比對的是
     // 「同一台車前後兩次」，不涉及與別條管線的真值比較，所以不受同源問題影響。
-    let d = null;
+    let d = null, nearM = null, nearIdx = -1;
     try {
       const ll = map.containerPointToLatLng([h.x, h.y]);
       const pr = projectOntoShape(ln, ll.lat, ll.lng);
       d = pr && pr.d != null ? pr.d : null;
+      if (d != null && ln.stations) {
+        let best = Infinity, bi = -1;
+        ln.stations.forEach((st, i) => {
+          if (st && st.d != null) { const gap = Math.abs(st.d - d); if (gap < best) { best = gap; bi = i; } }
+        });
+        nearM = best * 1000; nearIdx = bi;
+      }
     } catch (e) {}
     // 方向。三種畫車路徑各有各的 hit 形狀，取不到就是 0（後面的位移判定會跳過）：
     //   班表車 {ln,tr}／示意車 {ln,k}／名冊車 {ln,vehicleId}（?census=1 與 ?officialroster=1 走這條）
@@ -67,7 +77,7 @@ const SAMPLE = () => {
       // 名冊車的身分是 vehicleId（hit 裡沒有 tr／k，用舊寫法會讓整條線塌成同一個 key，
       // 位移與疊車判定全部失效）
       key: h.vehicleId ? `${ln.id}#${h.vehicleId}` : (tr ? `${ln.id}#tr${(ln._tt || []).indexOf(tr)}` : `${ln.id}#k${h.k}`),
-      line: ln.id, abbr: ln.abbr, dir, x: h.x, y: h.y, d,
+      line: ln.id, abbr: ln.abbr, dir, x: h.x, y: h.y, d, nearM, nearIdx,
       sys: typeof freqSysIdOf === 'function' ? freqSysIdOf(ln) : null,
     });
   }
@@ -135,17 +145,21 @@ for (const h of s2.hits) {
   groups.get(g).push(h);
 }
 const clumps = [];
+let atStationPairs = 0;
 for (const [g, arr] of groups) {
   for (let i = 0; i < arr.length; i++) for (let j = i + 1; j < arr.length; j++) {
     const px = Math.hypot(arr[i].x - arr[j].x, arr[i].y - arr[j].y);
     const m = (arr[i].d != null && arr[j].d != null) ? Math.abs(arr[i].d - arr[j].d) * 1000 : null;
-    const tooClose = (m != null ? m < OVERLAP_M : false) || px < OVERLAP_PX;
-    if (tooClose) clumps.push({ group: g, px: Math.round(px), m: m == null ? null : Math.round(m),
-      a: arr[i].key, b: arr[j].key });
+    if (m == null || m >= OVERLAP_M) continue;
+    // 兩台都停在同一個車站＝正常（多月台／折返），不算疊車
+    const bothAtSameStation = arr[i].nearM != null && arr[j].nearM != null &&
+      arr[i].nearM < AT_STATION_M && arr[j].nearM < AT_STATION_M && arr[i].nearIdx === arr[j].nearIdx;
+    if (bothAtSameStation) { atStationPairs++; continue; }
+    clumps.push({ group: g, px: Math.round(px), m: Math.round(m), a: arr[i].key, b: arr[j].key });
   }
 }
 console.log(`${clumps.length ? '❌' : '✅'} 同向疊車：${clumps.length} 對` +
-  (clumps.length ? `　例：${clumps.slice(0, 4).map(c => `${c.group} ${c.m}m/${c.px}px`).join('、')}` : ''));
+  (clumps.length ? `　例：${clumps.slice(0, 4).map(c => `${c.group} ${c.m}m`).join('、')}` : `（另有 ${atStationPairs} 對同時停在同一站，正常）`));
 if (clumps.length) note('bad', `同向疊車 ${clumps.length} 對`, clumps.slice(0, 10));
 
 // 2. 倒退

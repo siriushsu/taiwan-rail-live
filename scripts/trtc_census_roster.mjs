@@ -134,17 +134,29 @@ export function buildCensusRoster({ model, trains, nowEpoch, day, prior = null, 
       from = to = Math.max(0, Math.min(arr.length - 1, hit.i));
     }
 
-    const terminal = from === to;
-    const run = terminal ? 0 : (runSec(line, from, to) || 90);
+    let terminal = from === to;
+    let run = terminal ? 0 : (runSec(line, from, to) || 90);
     const firstEta = path.length ? Number(path[0].eta) : NaN;
-    const arrEpoch = Number.isFinite(firstEta) && !terminal ? firstEta
+    // 沒有未來 ETA 時只能用 CarWeight 的 at 推，而它落後最多 265 秒 ⇒ 常常算出過去的到站時刻，
+    // 繪製端對那種車回 null＝整台不見（實測 10 台）。官方說車在就要畫 ⇒ 過期夾到現在。
+    const rawArr = Number.isFinite(firstEta) && !terminal ? firstEta
       : (Number.isFinite(at) ? at + run : nowEpoch + run);
+    const arrEpoch = Math.max(rawArr, nowEpoch + 1);
     // 官方沒給終點（文湖線全部、高運量約一成）就用行進方向上的線末站。
     // 不可留 null——前端名冊驗證要求 dest 是合法站序整數，null 會讓整包被判 malformed。
     const destIdx = (() => {
       const i = arr.indexOf(norm(t.dest));
       return i >= 0 ? i : (dirStep > 0 ? arr.length - 1 : 0);
     })();
+
+    // 已經開到終點站：繪製端的契約是「到 dest 就收車」，但官方逐車清單仍說這台車在——
+    // 它只是停在終點站等折返。標成「停在終點站」而不是讓它整台消失。
+    if (!terminal && to === destIdx && arrEpoch <= nowEpoch + 1) { from = to; terminal = true; run = 0; }
+    // 停在端點的車方向必須指向線內：端點繪製會算 next = from + step，指向線外就得到不存在的站
+    // 而整台回 null（實測 6 台停在終點站的車就是這樣不見的）。
+    const dirOut = terminal
+      ? (from <= 0 ? 2 : (from >= arr.length - 1 ? 1 : (dirStep > 0 ? 2 : 1)))
+      : (dirStep > 0 ? 2 : 1);
 
     const timeline = terminal
       ? [{ from, to, depEpoch: arrEpoch, arrEpoch, terminal: true }]
@@ -159,7 +171,7 @@ export function buildCensusRoster({ model, trains, nowEpoch, day, prior = null, 
     // 只准前進：同一台車、同一條線、同一個方向時，位置不得落到上一輪後面。
     // 折返（dir 改變）與換線是合法的，不套這條。
     const prev = priorById.get(vehicleId);
-    if (prev && prev.line === hit.line && prev.dir === (dirStep > 0 ? 2 : 1) &&
+    if (prev && prev.line === hit.line && prev.dir === dirOut &&
         !prev.terminal && !terminal && (to - prev.to) * dirStep < 0) {
       from = prev.from; to = prev.to; diag.held++;
       vehicles.push({ ...prev, run: prev.run, arrEpoch: Math.max(prev.arrEpoch, nowEpoch),
@@ -170,7 +182,7 @@ export function buildCensusRoster({ model, trains, nowEpoch, day, prior = null, 
     }
 
     vehicles.push({
-      vehicleId, line: hit.line, dir: dirStep > 0 ? 2 : 1,
+      vehicleId, line: hit.line, dir: dirOut,
       dest: destIdx, from, to, run, arrEpoch, terminal,
       // 文湖線的 no 是車廂組編號不是車次，不可當車次顯示 ⇒ 留白（使用者裁示允許）
       officialNo: sys === 'hw' ? no : null,
