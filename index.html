@@ -1389,6 +1389,19 @@
     opacity: 0; transform: translateY(-10px); transition: opacity .4s ease, transform .4s ease;
   }
   .toast.show { opacity: 1; transform: none; }
+  /* ── 角落小提示 ── 使用者裁示(2026-08-18):內部對帳類的訊息(例:位置依官方校正)不要用
+     置中大卡擋住整個畫面,收到角落小字即可。刻意獨立成一個容器:原本的 .toasts 是置中欄,
+     在裡面翻轉定位會跟它的 flex 置中打架。 */
+  .toasts.corner {
+    top: auto; bottom: 14px; left: 12px;
+    transform: none; align-items: flex-start; max-width: min(64vw, 300px); z-index: 719;
+  }
+  .toasts.corner .toast {
+    padding: 5px 10px; font-size: 12px; font-weight: 700; border-radius: 8px;
+    border-width: 1px; box-shadow: 0 2px 0 rgba(163,100,26,.22); opacity: 0;
+    background: color-mix(in srgb, var(--paper) 88%, transparent);
+  }
+  .toasts.corner .toast.show { opacity: .92; }
   /* 說明型 toast（訊號恢復、位置為什麼會跳…）本來就是一整句話，單行截斷等於沒通知：
      2026-08-15 實測手機 390px 只看得到前 20 個字、「有幾台被移除」整句被 … 吃掉。
      這類改成可換行、靠左讀，一般的短提示（完乘、蓋章）維持原本的單行置中。 */
@@ -3531,6 +3544,7 @@
       </div>
     </div>
     <div class="toasts" id="toasts"></div>
+    <div class="toasts corner" id="toastsCorner"></div>
     <div class="alert-banner" id="alertBanner" hidden></div>
     <div class="alert-detail" id="alertDetail" hidden></div>
     <!-- App 版本提示橫幅(只有 App 會顯示;網站的 RAIL_APP_VERSION 不存在,appUpdateInit 立刻 return)。
@@ -5668,13 +5682,17 @@ function trtcOfficialCorrectTick(nowEpoch) {
   const count = r.count, maxM = Math.round(r.maxM);
   r.notifiedAt = r.at; r.count = 0; r.maxM = 0;
   if (!count) return null;
-  // 變數刻意取專屬名字(不叫 msg):發版閘門的注入指紋是「拿掉字串內容後的程式結構」,
-  // 沿用通用變數名等於讓帳本一次放行所有同形的呼叫點,閘門就鈍掉;專屬名字只涵蓋這一處。
-  // ⚠️ 註解裡也不要寫出呼叫的字面語法——那個掃描器是文字括號配對、不剔除註解,會把註解當成呼叫點。
-  const correctMsg = `官方訂正位置　北捷剛更新了 <b>${count} 台</b>列車的到站時刻（最多差 <b>${maxM} 公尺</b>），`
-    + `畫面已依最新的官方資料校正。`;
-  showToast(correctMsg, { wrap: true });
-  return { count, maxM, msg: correctMsg };
+  // 🔴 2026-08-18 兩處改動,都來自使用者:
+  // (1) 文案:原本寫「官方訂正位置／北捷剛更新了…」是錯的因果。觸發條件是
+  //     behindM =(官方位置 - 我們畫的位置)為正 ⇒ 方向是**我們落後**官方 ≥150 公尺要往前追,
+  //     不是官方倒退訂正。使用者:「官方的時間不會一直跳,是我們認錯車的問題」——他是對的。
+  // (2) 樣式:「太煩人了,請放成一個角落的小通知,不要擋整個畫面」⇒ 改走 corner 容器、不換行。
+  // ⚠️ 底下那個「我們會落後最多 1184 公尺」的問題**沒有修好**,只是不再誤報成官方在訂正;
+  //    要修的是認車,不是這則通知。
+  // 變數專屬名字的理由見發版閘門 TOAST_REVIEWED(通用名會讓帳本一次放行所有同形呼叫點)。
+  const correctChip = `位置已校正 <b>${count}</b> 台`;
+  showToast(correctChip, { corner: true });
+  return { count, maxM };
 }
 // 斷訊回歸事件（由 trtcOfficialDisplayPosition 記錄、UI 每秒 tick 消費後跳訊息）。
 // 刻意不在位置函式裡直接呼叫 showToast——那會讓純函式驗收得連 DOM 一起搬進沙盒。
@@ -13408,6 +13426,20 @@ function unlockedAchievements(rides) {
 // 手機:把暫態通知(收集/工具吐司、平交道說明)塞進「頂列控件之下、跟隨資訊卡之上」的空檔,
 // 免得蓋住左上時鐘或左下列車資訊卡(使用者回報「省電/釘的說明跟列車資訊疊在一起」)。
 // 全用即時 getBoundingClientRect,螢幕/卡片大小不同都自動避讓;桌機清掉 inline 覆寫,維持原本頂端置中。
+// 角落小提示的桌面落點:左下角會壓到底部常駐控件列(.controls)。用它實際渲染的 rect 讓開,
+// 不寫死高度——控件列會因為換行/多一顆按鈕而變高(站台帶寬度預算那份記過)。
+// 手機不走這裡:placeMobileNotice() 已經用 inline top 把它放到左上角並避開時鐘與列車資訊卡。
+function placeCornerNotice(el) {
+  if (!el) return;
+  if (window.matchMedia(MOBILE_MQ).matches) return;
+  const par = el.offsetParent; if (!par) return;
+  const bar = document.querySelector('.controls');
+  const pr = par.getBoundingClientRect();
+  const br = bar && bar.offsetParent ? bar.getBoundingClientRect() : null;
+  const clear = br && br.height > 0 ? Math.max(0, pr.bottom - br.top) : 0;
+  el.style.bottom = (clear + 14) + 'px';
+  el.style.top = 'auto';
+}
 function placeMobileNotice(el) {
   if (!el) return;
   const mob = window.matchMedia(MOBILE_MQ).matches;
@@ -13610,7 +13642,7 @@ function maybeAskReview(delayMs, rideCount) {
 }
 
 // wrap=true 給「一整句說明」用（訊號恢復之類）。預設維持單行截斷，短提示的版面不受影響。
-function showToast(msg, { wrap = false } = {}) {
+function showToast(msg, { wrap = false, corner = false } = {}) {
   // #recordScreen(詳細面板)在 body 層(z2400)，全站 toast 卻在 .stage(z1000)的堆疊脈絡內——
   // 只有面板真的整片接管畫面時才會蓋住 #toasts，這時才需要繞道 #recHint(z2450,蓋得過黑幕)。
   // 🔴 規格覆審 2026-07-28：條件從單純的 state.recording 收窄成「還要面板真的開著」——錄製期
@@ -13634,13 +13666,16 @@ function showToast(msg, { wrap = false } = {}) {
       return;
     }
   }
-  const box = document.getElementById('toasts');
+  const box = document.getElementById(corner ? 'toastsCorner' : 'toasts');
   if (!box) return;
   const el = document.createElement('div');
   el.className = wrap ? 'toast wrap' : 'toast'; el.innerHTML = msg;
   box.appendChild(el);
   while (box.children.length > 3) box.firstChild.remove(); // 疊太多先擠掉最舊
   placeMobileNotice(box); // 手機:避開時鐘/列車資訊卡/常駐錄製列
+  // 🔴 必須排在 placeMobileNotice 之後:它在桌面分支會把 inline top/bottom 清空,
+  //    排在前面等於白設(實測 inline 變回「無」,角落提示又壓回 .controls 上)。
+  if (corner) placeCornerNotice(box);
   requestAnimationFrame(() => el.classList.add('show'));
   setTimeout(() => { el.classList.remove('show'); setTimeout(() => el.remove(), 450); }, 5000);
 }

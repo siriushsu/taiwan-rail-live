@@ -128,7 +128,7 @@ const TOAST_REVIEWED = new Map([
   // 沒有任何官方或使用者字串進得來;<b> 是刻意的排版。
   // 🔴 變數名故意不叫 `msg`:指紋是「拿掉字串內容後的結構」,登記 `msg,{wrap:true}` 等於放行
   //    未來所有同形呼叫。取專屬名字讓這兩條只涵蓋這兩個呼叫點,新的通用 msg 仍會被擋下來。
-  [`correctMsg,{wrap:true}`, 'trtcOfficialCorrectTick:只插入 count(整數台數)與 maxM(Math.round 後的公尺數)'],
+  [`correctChip,{corner:true}`, 'trtcOfficialCorrectTick:只插入 count(整數台數);角落小提示,不擋畫面'],
   [`resyncMsg,{wrap:true}`, 'trtcOfficialResyncTick:只插入 mins/count/removed,三者皆先經 Math 收斂為數字'],
 ]);
 
