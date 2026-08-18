@@ -1,0 +1,41 @@
+{
+  "generatedAt": "2026-08-12T03:21:01.196Z",
+  "targetDescription": {
+    "attached": true,
+    "empty": false,
+    "height": 2201,
+    "never_attached": false,
+    "screenX": 0,
+    "screenY": 136,
+    "visible": false,
+    "width": 1080
+  },
+  "result": {
+    "platform": "android",
+    "isNativeApp": true,
+    "plusEnabled": false,
+    "toolbarEntry": {
+      "exists": false,
+      "visible": false
+    },
+    "moreEntry": {
+      "exists": false,
+      "visible": false
+    },
+    "helpPlusAvailableCount": 0,
+    "visiblePaidCtaCount": 0,
+    "delay30": {
+      "visible": true,
+      "text": "近30天平均誤點 2分・準點 90%（30天）",
+      "paidLinkCount": 0,
+      "cardPaidEntryHidden": true
+    },
+    "free": {
+      "ready": true,
+      "trainCount": 1116,
+      "mapPresent": true,
+      "leafletPresent": true
+    }
+  },
+  "failures": []
+}

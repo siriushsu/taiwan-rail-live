@@ -112,6 +112,36 @@ ok(!failState || failState.state.showBanner === false, '查詢失敗 → 不顯�
 ok(await appPage.evaluate(() => !!document.getElementById('map')), '🔴 查詢失敗不得擋住頁面（地圖仍在）');
 await appPage.close();
 
+console.log('\n【C-Android】不查 Apple，但保留軌島／評分入口');
+const androidPage = await browser.newPage();
+const androidAppleReqs = [];
+androidPage.on('request', r => { if (r.url().includes('itunes.apple.com')) androidAppleReqs.push(r.url()); });
+androidPage.on('pageerror', e => console.log('  ⚠ Android pageerror: ' + e.message));
+await androidPage.setViewportSize({ width: 390, height: 844 });
+await androidPage.addInitScript(() => {
+  window.RAIL_APP_VERSION = '1.4.2';
+  window.Capacitor = { getPlatform: () => 'android', Plugins: {} };
+  try { localStorage.setItem('trainmap-howto-seen', '1'); } catch (e) {}
+});
+await androidPage.goto(BASE + '/index.html', { waitUntil: 'domcontentloaded' });
+const androidState = await androidPage.waitForFunction(() => window.__appverLast || null, { timeout: 20000 })
+  .then(h => h.jsonValue()).catch(() => null);
+ok(androidAppleReqs.length === 0, '🔴 Android 完全不打 itunes.apple.com');
+ok(!!androidState && androidState.platform === 'android' && androidState.latest === null,
+   'Android 回傳專屬 UI 狀態，latest 維持 null');
+ok(!!androidState && androidState.state.hasUpdate === false && androidState.state.showBanner === false,
+   'Android 不宣稱有新版，也不顯示更新橫幅');
+// Android 不打網路，__appverLast 會比既有 iOS 路徑早很多出現；等到真實可操作的 boot-ready
+// 再點「更多」，避免把尚未綁 onclick 的解析中間態誤當產品不可見。
+await androidPage.waitForFunction(() => { try { return typeof state !== 'undefined' && state.ready; } catch (e) { return false; } }, { timeout: 30000 });
+await androidPage.locator('#tabMore').click().catch(() => {});
+await androidPage.waitForTimeout(400);
+ok(await androidPage.locator('#msAppSec').isVisible().catch(() => false), 'Android「軌島」段可見');
+ok(await androidPage.locator('.ms-row[data-act="rate"]').isVisible().catch(() => false), 'Android 評分列可見');
+ok(!(await androidPage.locator('.ms-row[data-act="update"]').isVisible().catch(() => false)), '🔴 Android 更新列不出現');
+ok(!(await androidPage.locator('#updBanner').isVisible().catch(() => false)), '🔴 Android 更新橫幅不出現');
+await androidPage.close();
+
 console.log('\n【D】UI:橫幅、更多面板那一列、更新內容卡片');
 // 開「更多」面板:setMore 是閉包內的 const,不是全域 ⇒ 走真實入口(手機 #tabMore / 桌面 #toolsFab)
 async function appPageWith(mine, latest, opts = {}) {

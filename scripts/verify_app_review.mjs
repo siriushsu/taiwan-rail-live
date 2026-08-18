@@ -129,6 +129,58 @@ ok(await page.evaluate(() => window.reviewShouldAsk(99, Date.now(),
    { asked: null, done: !!JSON.parse(localStorage.getItem('trainmap-review-done') || 'false'), ver: '1.4.1' })) === false,
    '🔴 端到端:點過常駐入口之後,節流判定確實變成「不再問」');
 
+console.log('\n【D】Android：Play 評分連結與原生邀請 no-op');
+const androidP = await browser.newPage();
+const androidAppleReqs = [];
+androidP.on('request', r => { if (r.url().includes('itunes.apple.com')) androidAppleReqs.push(r.url()); });
+androidP.on('pageerror', e => console.log('  ⚠ Android pageerror: ' + e.message));
+await androidP.setViewportSize({ width: 390, height: 844 });
+await androidP.addInitScript(() => {
+  window.RAIL_APP_VERSION = '1.4.2';
+  window.Capacitor = {
+    getPlatform: () => 'android',
+    Plugins: { RailReview: { requestReview: async () => { window.__androidReviewCalls++; } } },
+  };
+  window.__androidReviewCalls = 0;
+  try { localStorage.setItem('trainmap-howto-seen', '1'); } catch (e) {}
+});
+await androidP.goto(BASE + '/index.html', { waitUntil: 'domcontentloaded' });
+await androidP.waitForFunction(() => window.__appverLast || null, { timeout: 20000 }).catch(() => {});
+await androidP.waitForFunction(() => { try { return typeof state !== 'undefined' && state.ready; } catch (e) { return false; } }, { timeout: 30000 });
+await androidP.locator('#tabMore').click().catch(() => {});
+await androidP.waitForTimeout(400);
+const androidRate = androidP.locator('.ms-row[data-act="rate"]');
+ok(androidAppleReqs.length === 0, 'Android 評分情境沒有 Apple lookup 請求');
+ok(await androidP.locator('#msAppSec').isVisible().catch(() => false), 'Android「軌島」段可見');
+ok(await androidRate.isVisible().catch(() => false), 'Android 評分列可見');
+const rateStyle = await androidP.locator('.rate-cta').evaluate(el => {
+  const cs = getComputedStyle(el);
+  const probe = document.createElement('span');
+  probe.style.color = 'var(--red)';
+  document.body.appendChild(probe);
+  const brandRed = getComputedStyle(probe).color;
+  probe.remove();
+  return { text: el.textContent || '', color: cs.color, brandRed, weight: Number(cs.fontWeight) || 0 };
+}).catch(() => null);
+ok(!!rateStyle && rateStyle.text.trim() === '給軌島評分', 'Android 評分文案沒有 emoji');
+ok(!!rateStyle && rateStyle.color === rateStyle.brandRed && rateStyle.weight >= 700,
+   `Android 評分文案為品牌紅粗體（實得 ${rateStyle ? `${rateStyle.color}/${rateStyle.weight}，token=${rateStyle.brandRed}` : '無'}）`);
+await androidP.evaluate(() => { window.__opened = []; window.open = u => { window.__opened.push(u); return null; }; });
+await androidRate.click();
+await androidP.waitForTimeout(300);
+const androidUrls = await androidP.evaluate(() => window.__opened || []);
+ok(androidUrls.length === 1 && androidUrls[0] === 'https://play.google.com/store/apps/details?id=tw.railisland.app',
+   `🔴 Android 點評分列開 Google Play（實得：${androidUrls[0] || '無'}）`);
+await androidP.evaluate(() => {
+  localStorage.removeItem('trainmap-review-asked');
+  localStorage.removeItem('trainmap-review-done');
+  window.maybeAskReview(0, 99);
+});
+await androidP.waitForTimeout(400);
+ok(await androidP.evaluate(() => window.__androidReviewCalls) === 0,
+   '🔴 Android 即使誤掛同名 plugin，自動評分邀請仍明確 no-op');
+await androidP.close();
+
 await siteP.close();
 await browser.close();
 console.log(`\n總計：${pass} 通過 / ${fail} 失敗`);

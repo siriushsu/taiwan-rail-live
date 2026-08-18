@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 只有 debug build 有這支：小工具狀態畫廊（截圖驗收用）。正式版不含此 activity。 -->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <application>
+        <activity
+            android:name=".WidgetGalleryActivity"
+            android:exported="true"
+            android:label="小工具狀態畫廊" />
+    </application>
+</manifest>

@@ -1,0 +1,59 @@
+{
+  "api": 35,
+  "appPid": "4719",
+  "permissionLines": [
+    "android.permission.ACCESS_FINE_LOCATION",
+    "android.permission.ACCESS_COARSE_LOCATION",
+    "android.permission.ACCESS_FINE_LOCATION: granted=true, flags=[ USER_SET|USER_FIXED|USER_SENSITIVE_WHEN_GRANTED|USER_SENSITIVE_WHEN_DENIED]",
+    "android.permission.ACCESS_COARSE_LOCATION: granted=true, flags=[ USER_SET|USER_SENSITIVE_WHEN_GRANTED|USER_SENSITIVE_WHEN_DENIED|524288]"
+  ],
+  "watchId": "14278449",
+  "foregroundCount": 0,
+  "resumedCount": 2,
+  "countAtClear": 3,
+  "countAfterClearMove": 3,
+  "events": [
+    {
+      "at": 1785889077181,
+      "phase": "background",
+      "hidden": false,
+      "coords": {
+        "latitude": 25.0339983,
+        "longitude": 121.5664,
+        "accuracy": 5
+      },
+      "error": null
+    },
+    {
+      "at": 1785889085966,
+      "phase": "foreground-resumed",
+      "hidden": false,
+      "coords": {
+        "latitude": 25.036,
+        "longitude": 121.5683983,
+        "accuracy": 5
+      },
+      "error": null
+    },
+    {
+      "at": 1785889097877,
+      "phase": "screen-on-resumed",
+      "hidden": false,
+      "coords": {
+        "latitude": 25.038,
+        "longitude": 121.5704,
+        "accuracy": 5
+      },
+      "error": null
+    }
+  ],
+  "summary": {
+    "receivedForegroundFix": true,
+    "receivedAfterBackgroundResume": true,
+    "receivedAfterScreenOnResume": true,
+    "clearStoppedCallbacks": true,
+    "backgroundCallbacks": 0,
+    "screenOffCallbacks": 0,
+    "foregroundTransitionCallbacks": 1
+  }
+}

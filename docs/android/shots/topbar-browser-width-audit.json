@@ -1,0 +1,620 @@
+{
+  "generatedAt": "2026-08-09T10:42:28.151Z",
+  "sourceUrl": "http://127.0.0.1:4174/",
+  "fixture": "Temporary local copy of app/www; one local-only active alert injected so #alertChip is measurable. No source or release asset changed.",
+  "sizes": [
+    {
+      "viewport": {
+        "dpr": 1,
+        "height": 900,
+        "width": 360
+      },
+      "topbarVisible": true,
+      "controls": [
+        {
+          "key": "alert",
+          "visual": {
+            "height": 36,
+            "width": 39,
+            "x": 114,
+            "y": 8
+          },
+          "effective": {
+            "width": 44,
+            "height": 44
+          },
+          "position": "relative",
+          "pseudoAfter": {
+            "height": "44px",
+            "position": "absolute",
+            "width": "44px"
+          }
+        },
+        {
+          "key": "全",
+          "visual": {
+            "height": 36,
+            "width": 44,
+            "x": 161,
+            "y": 8
+          },
+          "effective": {
+            "width": 44,
+            "height": 44
+          },
+          "position": "relative",
+          "pseudoAfter": {
+            "height": "44px",
+            "position": "absolute",
+            "width": "44px"
+          }
+        },
+        {
+          "key": "台",
+          "visual": {
+            "height": 36,
+            "width": 44,
+            "x": 211,
+            "y": 8
+          },
+          "effective": {
+            "width": 44,
+            "height": 44
+          },
+          "position": "relative",
+          "pseudoAfter": {
+            "height": "44px",
+            "position": "absolute",
+            "width": "44px"
+          }
+        },
+        {
+          "key": "高",
+          "visual": {
+            "height": 36,
+            "width": 44,
+            "x": 261,
+            "y": 8
+          },
+          "effective": {
+            "width": 44,
+            "height": 44
+          },
+          "position": "relative",
+          "pseudoAfter": {
+            "height": "44px",
+            "position": "absolute",
+            "width": "44px"
+          }
+        },
+        {
+          "key": "捷",
+          "visual": {
+            "height": 36,
+            "width": 44,
+            "x": 311,
+            "y": 8
+          },
+          "effective": {
+            "width": 44,
+            "height": 44
+          },
+          "position": "relative",
+          "pseudoAfter": {
+            "height": "44px",
+            "position": "absolute",
+            "width": "44px"
+          }
+        }
+      ],
+      "adjacentGaps": [
+        {
+          "pair": "alert/全",
+          "effectiveGap": 5.5,
+          "midpointOwner": null
+        },
+        {
+          "pair": "全/台",
+          "effectiveGap": 6,
+          "midpointOwner": null
+        },
+        {
+          "pair": "台/高",
+          "effectiveGap": 6,
+          "midpointOwner": null
+        },
+        {
+          "pair": "高/捷",
+          "effectiveGap": 6,
+          "midpointOwner": null
+        }
+      ],
+      "summary": {
+        "clipped": [],
+        "overlaps": [],
+        "plateOverlap": false,
+        "pointFailures": [],
+        "visibleKeys": [
+          "alert",
+          "全",
+          "台",
+          "高",
+          "捷"
+        ]
+      }
+    },
+    {
+      "viewport": {
+        "dpr": 1,
+        "height": 900,
+        "width": 375
+      },
+      "topbarVisible": true,
+      "controls": [
+        {
+          "key": "alert",
+          "visual": {
+            "height": 36,
+            "width": 39,
+            "x": 124,
+            "y": 8
+          },
+          "effective": {
+            "width": 44,
+            "height": 44
+          },
+          "position": "relative",
+          "pseudoAfter": {
+            "height": "44px",
+            "position": "absolute",
+            "width": "44px"
+          }
+        },
+        {
+          "key": "全",
+          "visual": {
+            "height": 36,
+            "width": 44,
+            "x": 171,
+            "y": 8
+          },
+          "effective": {
+            "width": 44,
+            "height": 44
+          },
+          "position": "relative",
+          "pseudoAfter": {
+            "height": "44px",
+            "position": "absolute",
+            "width": "44px"
+          }
+        },
+        {
+          "key": "台",
+          "visual": {
+            "height": 36,
+            "width": 44,
+            "x": 221,
+            "y": 8
+          },
+          "effective": {
+            "width": 44,
+            "height": 44
+          },
+          "position": "relative",
+          "pseudoAfter": {
+            "height": "44px",
+            "position": "absolute",
+            "width": "44px"
+          }
+        },
+        {
+          "key": "高",
+          "visual": {
+            "height": 36,
+            "width": 44,
+            "x": 271,
+            "y": 8
+          },
+          "effective": {
+            "width": 44,
+            "height": 44
+          },
+          "position": "relative",
+          "pseudoAfter": {
+            "height": "44px",
+            "position": "absolute",
+            "width": "44px"
+          }
+        },
+        {
+          "key": "捷",
+          "visual": {
+            "height": 36,
+            "width": 44,
+            "x": 321,
+            "y": 8
+          },
+          "effective": {
+            "width": 44,
+            "height": 44
+          },
+          "position": "relative",
+          "pseudoAfter": {
+            "height": "44px",
+            "position": "absolute",
+            "width": "44px"
+          }
+        }
+      ],
+      "adjacentGaps": [
+        {
+          "pair": "alert/全",
+          "effectiveGap": 5.5,
+          "midpointOwner": null
+        },
+        {
+          "pair": "全/台",
+          "effectiveGap": 6,
+          "midpointOwner": null
+        },
+        {
+          "pair": "台/高",
+          "effectiveGap": 6,
+          "midpointOwner": null
+        },
+        {
+          "pair": "高/捷",
+          "effectiveGap": 6,
+          "midpointOwner": null
+        }
+      ],
+      "summary": {
+        "clipped": [],
+        "overlaps": [],
+        "plateOverlap": false,
+        "pointFailures": [],
+        "visibleKeys": [
+          "alert",
+          "全",
+          "台",
+          "高",
+          "捷"
+        ]
+      }
+    },
+    {
+      "viewport": {
+        "dpr": 1,
+        "height": 900,
+        "width": 414
+      },
+      "topbarVisible": true,
+      "controls": [
+        {
+          "key": "alert",
+          "visual": {
+            "height": 36,
+            "width": 39,
+            "x": 163,
+            "y": 8
+          },
+          "effective": {
+            "width": 44,
+            "height": 44
+          },
+          "position": "relative",
+          "pseudoAfter": {
+            "height": "44px",
+            "position": "absolute",
+            "width": "44px"
+          }
+        },
+        {
+          "key": "全",
+          "visual": {
+            "height": 36,
+            "width": 44,
+            "x": 210,
+            "y": 8
+          },
+          "effective": {
+            "width": 44,
+            "height": 44
+          },
+          "position": "relative",
+          "pseudoAfter": {
+            "height": "44px",
+            "position": "absolute",
+            "width": "44px"
+          }
+        },
+        {
+          "key": "台",
+          "visual": {
+            "height": 36,
+            "width": 44,
+            "x": 260,
+            "y": 8
+          },
+          "effective": {
+            "width": 44,
+            "height": 44
+          },
+          "position": "relative",
+          "pseudoAfter": {
+            "height": "44px",
+            "position": "absolute",
+            "width": "44px"
+          }
+        },
+        {
+          "key": "高",
+          "visual": {
+            "height": 36,
+            "width": 44,
+            "x": 310,
+            "y": 8
+          },
+          "effective": {
+            "width": 44,
+            "height": 44
+          },
+          "position": "relative",
+          "pseudoAfter": {
+            "height": "44px",
+            "position": "absolute",
+            "width": "44px"
+          }
+        },
+        {
+          "key": "捷",
+          "visual": {
+            "height": 36,
+            "width": 44,
+            "x": 360,
+            "y": 8
+          },
+          "effective": {
+            "width": 44,
+            "height": 44
+          },
+          "position": "relative",
+          "pseudoAfter": {
+            "height": "44px",
+            "position": "absolute",
+            "width": "44px"
+          }
+        }
+      ],
+      "adjacentGaps": [
+        {
+          "pair": "alert/全",
+          "effectiveGap": 5.5,
+          "midpointOwner": null
+        },
+        {
+          "pair": "全/台",
+          "effectiveGap": 6,
+          "midpointOwner": null
+        },
+        {
+          "pair": "台/高",
+          "effectiveGap": 6,
+          "midpointOwner": null
+        },
+        {
+          "pair": "高/捷",
+          "effectiveGap": 6,
+          "midpointOwner": null
+        }
+      ],
+      "summary": {
+        "clipped": [],
+        "overlaps": [],
+        "plateOverlap": false,
+        "pointFailures": [],
+        "visibleKeys": [
+          "alert",
+          "全",
+          "台",
+          "高",
+          "捷"
+        ]
+      }
+    },
+    {
+      "viewport": {
+        "dpr": 1,
+        "height": 900,
+        "width": 768
+      },
+      "topbarVisible": true,
+      "controls": [
+        {
+          "key": "alert",
+          "visual": {
+            "height": 36,
+            "width": 39,
+            "x": 517,
+            "y": 8
+          },
+          "effective": {
+            "width": 44,
+            "height": 44
+          },
+          "position": "relative",
+          "pseudoAfter": {
+            "height": "44px",
+            "position": "absolute",
+            "width": "44px"
+          }
+        },
+        {
+          "key": "全",
+          "visual": {
+            "height": 36,
+            "width": 44,
+            "x": 564,
+            "y": 8
+          },
+          "effective": {
+            "width": 44,
+            "height": 44
+          },
+          "position": "relative",
+          "pseudoAfter": {
+            "height": "44px",
+            "position": "absolute",
+            "width": "44px"
+          }
+        },
+        {
+          "key": "台",
+          "visual": {
+            "height": 36,
+            "width": 44,
+            "x": 614,
+            "y": 8
+          },
+          "effective": {
+            "width": 44,
+            "height": 44
+          },
+          "position": "relative",
+          "pseudoAfter": {
+            "height": "44px",
+            "position": "absolute",
+            "width": "44px"
+          }
+        },
+        {
+          "key": "高",
+          "visual": {
+            "height": 36,
+            "width": 44,
+            "x": 664,
+            "y": 8
+          },
+          "effective": {
+            "width": 44,
+            "height": 44
+          },
+          "position": "relative",
+          "pseudoAfter": {
+            "height": "44px",
+            "position": "absolute",
+            "width": "44px"
+          }
+        },
+        {
+          "key": "捷",
+          "visual": {
+            "height": 36,
+            "width": 44,
+            "x": 714,
+            "y": 8
+          },
+          "effective": {
+            "width": 44,
+            "height": 44
+          },
+          "position": "relative",
+          "pseudoAfter": {
+            "height": "44px",
+            "position": "absolute",
+            "width": "44px"
+          }
+        }
+      ],
+      "adjacentGaps": [
+        {
+          "pair": "alert/全",
+          "effectiveGap": 5.5,
+          "midpointOwner": null
+        },
+        {
+          "pair": "全/台",
+          "effectiveGap": 6,
+          "midpointOwner": null
+        },
+        {
+          "pair": "台/高",
+          "effectiveGap": 6,
+          "midpointOwner": null
+        },
+        {
+          "pair": "高/捷",
+          "effectiveGap": 6,
+          "midpointOwner": null
+        }
+      ],
+      "summary": {
+        "clipped": [],
+        "overlaps": [],
+        "plateOverlap": false,
+        "pointFailures": [],
+        "visibleKeys": [
+          "alert",
+          "全",
+          "台",
+          "高",
+          "捷"
+        ]
+      }
+    },
+    {
+      "viewport": {
+        "dpr": 1,
+        "height": 900,
+        "width": 1280
+      },
+      "topbarVisible": false,
+      "controls": [
+        {
+          "key": "alert",
+          "visible": false
+        },
+        {
+          "key": "全",
+          "visible": false
+        },
+        {
+          "key": "台",
+          "visible": false
+        },
+        {
+          "key": "高",
+          "visible": false
+        },
+        {
+          "key": "捷",
+          "visible": false
+        }
+      ],
+      "adjacentGaps": [],
+      "summary": {
+        "clipped": [],
+        "overlaps": [],
+        "plateOverlap": false,
+        "pointFailures": [],
+        "visibleKeys": []
+      }
+    }
+  ],
+  "summary": {
+    "mobileTabletWidths": [
+      360,
+      375,
+      414,
+      768
+    ],
+    "desktopWidth": 1280,
+    "allFiveVisibleAtMobileTablet": true,
+    "pointFailures": [],
+    "clipped": [],
+    "overlaps": [],
+    "plateOverlaps": [],
+    "desktopMobileTopbarHidden": true
+  }
+}

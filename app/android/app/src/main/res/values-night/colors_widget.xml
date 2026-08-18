@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 夜行（暗）。設計稿：低調融入桌布，紙感換成深藏青，墨色反轉成淺藍白。 -->
+<resources>
+    <color name="wg_paper">#101C2E</color>
+    <color name="wg_paper_edge">#26527F</color>
+    <color name="wg_shadow">#33000000</color>
+    <color name="wg_ink">#CFE0F8</color>
+    <color name="wg_ink_soft">#9FB4CE</color>
+    <color name="wg_ink_faint">#7A8CA3</color>
+    <color name="wg_navy">#7FA6E0</color>
+    <color name="wg_rule">#24405F</color>
+    <color name="wg_ok">#3DBF77</color>
+    <color name="wg_warn">#E8B84B</color>
+    <color name="wg_bad">#F0564A</color>
+    <color name="wg_bad_wash">#3A1F1C</color>
+    <color name="wg_warn_wash">#332A16</color>
+    <color name="wg_chip_wash">#1B2F49</color>
+    <color name="wg_badge_ink">#3A3226</color>
+    <color name="wg_on_accent">#FFFFFF</color>
+    <color name="wg_meter_low">#3DBF77</color>
+    <color name="wg_meter_mid">#E8B84B</color>
+    <color name="wg_meter_high">#F0564A</color>
+    <color name="wg_meter_empty">#2A3E58</color>
+</resources>

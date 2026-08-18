@@ -1,0 +1,30 @@
+{
+  "installedPackage": {
+    "id": "tw.railisland.app",
+    "versionCode": 3,
+    "versionName": "1.4.2",
+    "minSdk": 24,
+    "targetSdk": 36
+  },
+  "webView": {
+    "platform": "android",
+    "appVersion": "1.4.2",
+    "build": "v0812a"
+  },
+  "appUpdate": {
+    "hasUpdate": false,
+    "showBanner": false,
+    "showWhatsNew": false,
+    "showUpdateRow": false,
+    "latest": null,
+    "updateRowDisplay": "none",
+    "updateRowVisible": false
+  },
+  "ratingIntent": {
+    "action": "android.intent.action.VIEW",
+    "url": "https://play.google.com/store/apps/details?id=tw.railisland.app",
+    "appStoreUrl": false
+  },
+  "crashKeywordMatches": [],
+  "failures": []
+}

@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 琺瑯卡片：紙面＋一圈邊、外加一層硬投影（設計稿的「硬投影」＝不模糊的位移影，
+     用 layer-list 疊一層位移的深色矩形做出來，RemoteViews 不能用 elevation）。 -->
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:left="2dp" android:top="3dp">
+        <shape android:shape="rectangle">
+            <corners android:radius="16dp" />
+            <solid android:color="@color/wg_shadow" />
+        </shape>
+    </item>
+    <item android:right="2dp" android:bottom="3dp">
+        <shape android:shape="rectangle">
+            <corners android:radius="16dp" />
+            <solid android:color="@color/wg_paper" />
+            <stroke android:width="1dp" android:color="@color/wg_paper_edge" />
+        </shape>
+    </item>
+</layer-list>

@@ -117,20 +117,28 @@ enum RailBoardScheduleWriter {
                     uniqueKeysWithValues: systemInputs.map { ($0.id, $0.label) }
                 )
             )
-            let compositeBoards = buildPlaceBoards(
-                places: composites.map(\.place)
-            )
+            // 🔴 共站【不再】走 buildPlaceBoards：那是幾何管線（把座標投影到軌道、算幾點跨過
+            //    那個里程），對「我的地點」是對的，對共站是錯的——台北車站有月台，車會停，
+            //    而幾何時刻不含停靠時間，畫面上還得寫「經過」才對得上資料，等於告訴使用者
+            //    這班車不停（2026-08-17 使用者在真機回報）。共站改成記下成員站，讓看板端
+            //    直接讀那些站的官方發車看板。
             try publish(
                 builder: builder,
                 placeBoards: placeBoards,
-                compositeBoards: compositeBoards,
-                compositeRecords: zip(composites, compositeBoards).map {
-                    CompositeStationRecord(
-                        i: $0.1.i,
-                        label: $0.0.place.label,
-                        subtitle: $0.0.subtitle,
-                        lat: $0.0.place.lat,
-                        lon: $0.0.place.lon
+                compositeRecords: composites.enumerated().compactMap { offset, composite in
+                    let members = composite.members.compactMap { station -> CompositeMember? in
+                        guard let index = builder.stations.firstIndex(of: station) else { return nil }
+                        return CompositeMember(sys: station.s, st: index)
+                    }
+                    // 少一個系統就不是共站了 ⇒ 整筆不出（寧可少一個入口，不要半套看板）。
+                    guard members.count == composite.members.count else { return nil }
+                    return CompositeStationRecord(
+                        i: offset,
+                        label: composite.place.label,
+                        subtitle: composite.subtitle,
+                        lat: composite.place.lat,
+                        lon: composite.place.lon,
+                        sts: members
                     )
                 },
                 rootURL: rootURL,
@@ -207,7 +215,9 @@ enum RailBoardScheduleWriter {
     /// 但那要靠人記得。改成把版本寫在格式旁邊，改格式的那一手就會看到它。
     ///
     /// 2＝加入 `PlaceBoardPass.dir` 與 composite-board（2026-07-31）。
-    private static let boardFormatVersion = 2
+    /// 3＝共站改吃官方發車看板：`composites.json` 加 `sts`，`composite-board/` 整個廢除
+    ///    （2026-08-17，使用者在真機看到共站寫「經過」）。
+    private static let boardFormatVersion = 3
 
     private static func shouldRebuild(
         rootURL: URL,
@@ -315,7 +325,6 @@ enum RailBoardScheduleWriter {
     private static func publish(
         builder: BoardBuilder,
         placeBoards: [PlaceBoardDocument],
-        compositeBoards: [PlaceBoardDocument],
         compositeRecords: [CompositeStationRecord],
         rootURL: URL,
         appBuild: String,
@@ -334,10 +343,6 @@ enum RailBoardScheduleWriter {
             "place-board",
             isDirectory: true
         )
-        let stagingCompositeBoardURL = stagingURL.appendingPathComponent(
-            "composite-board",
-            isDirectory: true
-        )
 
         try fileManager.createDirectory(
             at: stagingBoardURL,
@@ -345,10 +350,6 @@ enum RailBoardScheduleWriter {
         )
         try fileManager.createDirectory(
             at: stagingPlaceBoardURL,
-            withIntermediateDirectories: true
-        )
-        try fileManager.createDirectory(
-            at: stagingCompositeBoardURL,
             withIntermediateDirectories: true
         )
         defer {
@@ -403,15 +404,7 @@ enum RailBoardScheduleWriter {
                 options: .atomic
             )
         }
-        for compositeBoard in compositeBoards {
-            try placeEncoder.encode(compositeBoard).write(
-                to: stagingCompositeBoardURL.appendingPathComponent(
-                    "\(compositeBoard.i).json"
-                ),
-                options: .atomic
-            )
-        }
-        // 索引與看板檔在同一次發布裡一起產生，所以 `i` 永遠對得上；
+        // 共站索引指的是「成員站的官方看板」，那些檔在上面的 board 迴圈裡已經全部寫好；
         // 設定裡存的是 label 不是 i，站增減造成的索引位移影響不到既有設定。
         let compositesData = try placeEncoder.encode(compositeRecords)
         try compositesData.write(
@@ -424,10 +417,6 @@ enum RailBoardScheduleWriter {
             "place-board",
             isDirectory: true
         )
-        let compositeBoardURL = rootURL.appendingPathComponent(
-            "composite-board",
-            isDirectory: true
-        )
         try fileManager.createDirectory(
             at: boardURL,
             withIntermediateDirectories: true
@@ -436,9 +425,10 @@ enum RailBoardScheduleWriter {
             at: placeBoardURL,
             withIntermediateDirectories: true
         )
-        try fileManager.createDirectory(
-            at: compositeBoardURL,
-            withIntermediateDirectories: true
+        // 舊版留下的幾何共站看板整個清掉：它已經沒有讀者，留著只會讓下一個人以為
+        // 共站還有第二條資料路可走（那條正是「經過」的來源）。
+        try? fileManager.removeItem(
+            at: rootURL.appendingPathComponent("composite-board", isDirectory: true)
         )
 
         // 每一站都是獨立原子替換；既有站索引永不改指向，因此發布途中讀到的
@@ -467,26 +457,6 @@ enum RailBoardScheduleWriter {
             includingPropertiesForKeys: nil
         ) where staleURL.pathExtension == "json"
             && !validPlaceBoardNames.contains(staleURL.lastPathComponent)
-        {
-            try fileManager.removeItem(at: staleURL)
-        }
-        for compositeBoard in compositeBoards {
-            try atomicallyInstall(
-                stagedURL: stagingCompositeBoardURL.appendingPathComponent(
-                    "\(compositeBoard.i).json"
-                ),
-                destinationURL: compositeBoardURL.appendingPathComponent(
-                    "\(compositeBoard.i).json"
-                ),
-                fileManager: fileManager
-            )
-        }
-        let validCompositeNames = Set(compositeBoards.map { "\($0.i).json" })
-        for staleURL in try fileManager.contentsOfDirectory(
-            at: compositeBoardURL,
-            includingPropertiesForKeys: nil
-        ) where staleURL.pathExtension == "json"
-            && !validCompositeNames.contains(staleURL.lastPathComponent)
         {
             try fileManager.removeItem(at: staleURL)
         }
@@ -702,6 +672,12 @@ extension RailBoardScheduleWriter {
         let dir: Int
     }
 
+    /// 共站的一個成員站：`st` 就是 `board/<st>.json` 的索引。
+    struct CompositeMember: Encodable {
+        let sys: String
+        let st: Int
+    }
+
     /// 共站（台鐵與高鐵同一個地方）的一筆。
     struct CompositeStationRecord: Encodable {
         let i: Int
@@ -709,6 +685,10 @@ extension RailBoardScheduleWriter {
         let subtitle: String
         let lat: Double
         let lon: Double
+        /// 🔴 成員站的官方看板索引。看板端只認這個欄位——共站的時刻一律取官方發車看板，
+        ///    不再用座標算幾何通過時刻（2026-08-17 改）。缺這個欄位的舊資料要被當成
+        ///    「還沒重算」處理，不可以退回幾何那條路。
+        let sts: [CompositeMember]
     }
 
     /// 找出「不同系統但實際上在同一個地方」的車站，做成一筆合併入口。
@@ -727,11 +707,16 @@ extension RailBoardScheduleWriter {
             name.replacingOccurrences(of: "臺", with: "台")
         }
 
+        /// 🔴 `members` 是共站真正的成員站（每個系統一個代表），一定要跟著回傳：
+        ///    共站看板要讀這些站的**官方發車看板**，而站名反推做不到——12 個高鐵站有 8 個
+        ///    與台鐵共站、其中 5 個名字不一樣（六家／新竹、豐富／苗栗、新烏日／台中、
+        ///    沙崙／台南、新左營／左營），靠 label 拆字比對會漏掉一半。這裡是唯一
+        ///    同時握有「哪些站被判為共站」與「它們的 Station 身分」的地方。
         static func find(
             coordinates: [Station: (lat: Double, lon: Double)],
             systemOrder: [String],
             systemLabels: [String: String]
-        ) -> [(place: PlaceInput, subtitle: String)] {
+        ) -> [(place: PlaceInput, subtitle: String, members: [Station])] {
             let entries = coordinates.map {
                 (station: $0.key, lat: $0.value.lat, lon: $0.value.lon)
             }.sorted {
@@ -769,7 +754,8 @@ extension RailBoardScheduleWriter {
                 groups[root(index), default: []].append(index)
             }
 
-            return groups.keys.sorted().compactMap { key -> (PlaceInput, String)? in
+            return groups.keys.sorted().compactMap {
+                key -> (PlaceInput, String, [Station])? in
                 guard let members = groups[key] else { return nil }
                 let systems = Set(members.map { entries[$0].station.s })
                 guard systems.count > 1 else { return nil }
@@ -808,9 +794,11 @@ extension RailBoardScheduleWriter {
                 let lon = representatives.reduce(0.0) { $0 + entries[$1].lon }
                     / Double(representatives.count)
                 // manual 只影響「我的地點」在選單裡的排序，共站不走那條路徑、值不被讀。
+                // 座標留著：選單副標與排序仍用得到，只是不再拿去算幾何通過時刻。
                 return (
                     PlaceInput(label: label, lat: lat, lon: lon, manual: false),
-                    subtitle
+                    subtitle,
+                    representatives.map { entries[$0].station }
                 )
             }
         }
