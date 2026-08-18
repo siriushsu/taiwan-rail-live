@@ -5061,10 +5061,14 @@ function trtcBrVehiclesFromBoard(lineId, board, nowEpoch, day) {
   }
   if (hopObs.length >= 6) {
     const s = hopObs.slice().sort((a, b) => a - b), med = s[Math.floor(s.length / 2)];
-    // 判準寫在物理量上,不是寫在「med 要是正的」——沒有 segs 的線 med 本來就會是負的。
-    // 推出來的站到站秒要落在 40–240 秒才採用(捷運站間的合理範圍)。
+    // 🔴 有實測區間的線(BR)一律沿用 main 的判準,這批不准動到它既有行為:
+    //    停站秒物理上不可能是負的,med<0 只代表模型 run 偏長,不該被折進停站秒。
+    //    沒有 segs 的線(Y)run 是常數 90,med 本來就會是負的來抵銷那個常數 ⇒
+    //    對它改判「推出來的站到站秒落在 40–240 秒」這個物理量。
+    const hasSegs = !!(ln && ln.segs && ln.segs.length);
     const impliedHop = trtcCensusRun(ln, 0, 1) + med;
-    if (impliedHop >= 40 && impliedHop <= 240) _trtcCdDwell.set(lineId, med);
+    const ok = hasSegs ? (med > 0 && med < 180) : (impliedHop >= 40 && impliedHop <= 240);
+    if (ok) _trtcCdDwell.set(lineId, med);
   }
   return out;
 }
