@@ -5,7 +5,7 @@ import {
   bindTracksToTrips, buildTripSetsByLineDir, joinBoardRowsToTrips, planTrtcTripBindingPersistence,
 } from './scripts/trtc_board_ledger.mjs';
 import { reduceOfficialRosterSelfHealing } from './scripts/trtc_official_roster.mjs';
-import { laNextIdx, laObsIdx, laSchedIdx, laArrivalEpoch, laJwt, laJwtReset } from './scripts/la_push_core.mjs';
+import { laNextIdx, laObsIdx, laSchedIdx, laArrivalEpoch, laStaleDate, laJwt, laJwtReset } from './scripts/la_push_core.mjs';
 import {
   mwTrtcRows, mwLiveRows, mwCrowdByDest, mwContentState, mwStaleDate, mwShouldPush, mwTrtcDataAt,
   MW_LIVE_MAX_AGE_SEC,
@@ -3351,9 +3351,15 @@ async function laPushAll(env, ctx, baseUrl) {
                       // 熔斷分母只算這裡遞增過的列,不算上面兩個 continue 跳過的。
       const st = stops[idx];
       const prev = idx > 0 ? stops[idx - 1] : null;
+      const arrivalDate = laArrivalEpoch(st.at, delaySec, now);
       const body = {
         aps: {
           timestamp: now, event: 'update',
+          // 🔴 這一份內容的保鮮期(＝到站再過 150 秒)。沒有它的話,零推播的那一段
+          //    鎖屏卡會停在「0 秒／行駛中」——視圖端的過期判斷要【重繪】才會被算到一次,
+          //    而零推播正好就是不會重繪;staleDate 到期是那時唯一還會發生的重繪。
+          //    每一發都要帶:content 是整包取代,少送一次就把保鮮期清掉了(同 metroWaitPushAll)。
+          'stale-date': Math.round(laStaleDate(arrivalDate, now)),
           'content-state': {
             nextStop: st.name,
             // st.at 已是絕對 epoch(前端換算好),後端零時區運算。
@@ -3362,7 +3368,7 @@ async function laPushAll(env, ctx, baseUrl) {
             // Decodable,解的是 timeIntervalSinceReferenceDate(2001 起算),不是 ISO 8601。
             // 送字串會在裝置端解碼失敗(NSCocoaErrorDomain 4864)且伺服器端完全看不到。
             // 到站時刻已過 ⇒ laArrivalEpoch 回 null,卡片只剩站名不畫假倒數。
-            arrivalDate: laArrivalEpoch(st.at, delaySec, now),
+            arrivalDate,
             departedDate: prev ? prev.at + delaySec : null,
             delaySec, terminus: stops[stops.length - 1].name,
             // 🔴 工項 A:上游整批失效時老實說「這個位置是推估的」。Swift 端是 Optional String,

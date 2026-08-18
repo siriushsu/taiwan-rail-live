@@ -1,6 +1,39 @@
 import ActivityKit
 import Foundation
 
+/// 跟車卡內容的保鮮期,以及它算出來的 ActivityKit `staleDate`。
+///
+/// 🔴 為什麼住在這個檔:它同屬 App 與 RailBoardWidgetExtension 兩個 target(見下方註解),
+///    所以【結構上】保證兩側同值——寫卡的那側(RailLiveActivityPlugin 設 staleDate)與
+///    畫卡的那側(RailFollowDisplay 判「資料未更新」)拿的是同一個常數,不是兩個碰巧相等的字面值。
+///    各寫一份的失敗形態很安靜:改了一邊,卡片會在「系統說過期」與「版面說還在跑」之間打架。
+/// 🔴 後端 worker.js 送的 `stale-date` 也必須是同一個寬限(它是另一個語言、抄不到這裡),
+///    那條跨語言的一致性由 scripts/verify_la_push_loop.mjs 的常數斷言守著。
+enum RailFollowStale {
+    /// 到站時刻【再過這麼久】仍然沒有任何新推播 ⇒ 手上這份必定是舊的。
+    ///
+    /// 跟車卡的 state 裡沒有資料時戳(候車卡有 dataAt),所以拿「預計到站已經過去多久」當代理:
+    /// 車真的到了會推「停靠中」,誤點會推新的 arrivalDate,兩者都沒來就是沒有新資料。
+    /// 取 150 秒不取 90:臺鐵 ETA 本身是分鐘級、且到站瞬間的推播有延遲,90 秒會讓正常的
+    /// 最後一哩路誤報過期。這是代理指標的必要保守,不是把設計稿的門檻放寬。
+    static let graceSeconds: Double = 150
+
+    /// 算不出 ETA 時的兜底。它的職責只有一個:讓「App 被系統終止後遺留的孤兒卡」不會永遠留在
+    /// 鎖定畫面上。有 ETA 時一律用 ETA 那條,因為它才是這份內容真正的保鮮期。
+    static let orphanFallbackSeconds: Double = 8 * 3600
+
+    /// 這一份內容該在什麼時候被系統標成 stale。
+    ///
+    /// - Parameter arrival: 預計到站(epoch 秒)。nil＝這台車此刻算不出 ETA。
+    /// 🔴 取 min 而不是「有 ETA 就用 ETA」:兜底的 8 小時是上界,不可以被一個遠得離譜的
+    ///    到站時刻(資料異常)頂過去,那會讓孤兒卡的保護消失。
+    static func date(arrival: Double?, now: Date = Date()) -> Date {
+        let cap = now.addingTimeInterval(orphanFallbackSeconds)
+        guard let arrival else { return cap }
+        return min(cap, Date(timeIntervalSince1970: arrival + graceSeconds))
+    }
+}
+
 // 🔴 這個檔同時屬於 App target 與 RailBoardWidgetExtension target(見 project.pbxproj)。
 //    兩邊必須是「同一個型別」,ActivityKit 才配得起來——不可各複製一份。
 @available(iOS 17.6, *)

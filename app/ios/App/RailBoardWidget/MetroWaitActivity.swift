@@ -306,15 +306,28 @@ struct RailIslandMinimal: View {
         }
     }
 
+    /// 這一顆該不該畫成實心（＝「車到了／可以上車了」）。
+    ///
+    /// 🔴 `.until` 那一項是修一個真的會發生的空白：自走文字只畫在「到站還沒到」的前提下
+    ///    （下面那個 `d > Date()`），而 `inner` 對 `.until` 又固定是 nil ⇒ 倒數走完之後，
+    ///    這顆圓圈裡【既沒有數字也沒有實心】，只剩一個空環，看起來像元件壞掉。
+    ///    倒數走完的語意就是「到了」，與 `.arriving` 同一個形態，不必也不該另造第三種樣子。
+    private var solid: Bool {
+        switch countdown {
+        case .arriving, .seconds: return true
+        case .until(let d):       return d <= Date()
+        default:                  return false
+        }
+    }
+
     var body: some View {
         let c = RailTokens.colors(scheme)
         let ring = mono ? Color.primary : (color ?? c.brand)
         ZStack {
-            switch countdown {
-            case .arriving, .seconds:
+            if solid {
                 // 快到了／已到＝實心。綠色是「可以上車了」，不是路線色。
                 Circle().fill(mono ? Color.primary : c.ok)
-            default:
+            } else {
                 Circle().strokeBorder(ring, lineWidth: scale.pt(2))
             }
             if let inner {
