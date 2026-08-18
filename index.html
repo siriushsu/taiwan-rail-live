@@ -30,6 +30,11 @@
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css" integrity="sha512-h9FcoyWjHcOcmEVkxOfTLnmZFWIH0iZhZT1H2TbOq55xssQGEJHEaIm+PgoUaZbRvQTNTluNOEfb1ZRy6D3BOw==" crossorigin="anonymous" />
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js" integrity="sha512-puJW3E/qXDqYp9IfhAI54BJEaWIfloJ7JWs7OeD5i6ruC9JZL1gERT1wjtwXFlh7CjE7ZJ+/vcRZRkIYIb6p4g==" crossorigin="anonymous"></script>
 <!-- APP_REPLACE_END leaflet-cdn -->
+<!-- OSM 向量底圖(OpenFreeMap)用:MapLibre GL 當成一個 Leaflet 圖層,Leaflet 仍是地圖引擎。
+     自架不吃 CDN——底圖是首屏必需品,不想再多一個第三方單點。只在 ?basemap=ofm 時才會被用到。 -->
+<link rel="stylesheet" href="vendor/maplibre-gl.css" />
+<script src="vendor/maplibre-gl.js"></script>
+<script src="vendor/leaflet-maplibre-gl.js"></script>
 <script src="firebase-config.js"></script>
 <script src="revenuecat-config.js"></script>
 <style>
@@ -4661,6 +4666,24 @@ function zaParseMat(el) { // computed transform → {k(等比縮放),ux,uy(平�
   const v = t.slice(t.indexOf('(') + 1, -1).split(',').map(Number);
   return t.startsWith('matrix3d') ? { k: v[0], ux: v[12], uy: v[13] } : { k: v[0], ux: v[4], uy: v[5] };
 }
+// MapLibre 圖層版的等效相似變換:直接量「底圖畫布實際被排到螢幕上的矩形」,相對地圖容器。
+// 為什麼不沿用上面的 zaParseMat:GL 圖層的 transform 掛在 canvas 上、位置卻掛在它的父容器上
+// (leaflet-maplibre-gl 的 _update 對 container 做 setPosition、_animateZoom 對 canvas 做 setTransform),
+// 只讀 canvas 的 computed transform 會漏掉父層那段位移,縮放時誤差隨 (scale-1) 放大。
+// 量 rect 則把整條祖先鏈的變換一次算進來,而且判準來源是「實際佈局」不是任何投影公式(刻意不同源)。
+// 目前掛在地圖上的 OSM 向量底圖畫布(沒走向量就回 null)。縮放同步標定要認得動的是哪個元素。
+function ofmActiveCanvas() {
+  if (!map) return null;
+  for (const k of ['light', 'dark']) {
+    const l = baseLayers[k];
+    if (l && l._glMap && map.hasLayer(l)) return l._glMap._actualCanvas || (l._glMap.getCanvas && l._glMap.getCanvas()) || null;
+  }
+  return null;
+}
+function zaRectBox(el) {
+  const r = el.getBoundingClientRect(), c = map.getContainer().getBoundingClientRect();
+  return { w: r.width, x: r.left - c.left, y: r.top - c.top };
+}
 function zoomAnimFrame() {
   const Z = state._zaCal;
   if (!Z) return;
@@ -4670,9 +4693,16 @@ function zoomAnimFrame() {
   // 累積多次縮放後=目標基準,實測 4× 超衝抓到),且 retarget/並行平移都會改基準——逐幀從量測解變換,
   // 對任何基準時序都正確。dst=圖磚容器當下矩陣算出的探針渲染位置(q 在 zoomstart 對齊時刻標定),
   // src=當下原生投影(暫時關掉仿射讀 raw),s/t 兩點即解(等比無旋轉)。
-  const m = zaParseMat(Z.el), pp = map._getMapPanePos();
-  const d1x = m.k * Z.q1x + m.ux + pp.x, d1y = m.k * Z.q1y + m.uy + pp.y;
-  const d2x = m.k * Z.q2x + m.ux + pp.x, d2y = m.k * Z.q2y + m.uy + pp.y;
+  let d1x, d1y, d2x, d2y;
+  if (Z.gl) { // MapLibre 圖層:q 已是「畫布局部座標」,乘上畫布當下的縮放與原點即得渲染位置(容器座標,不加 panePos)
+    const g = zaRectBox(Z.el), k0 = g.w / Z.g0w;
+    d1x = g.x + k0 * Z.q1x; d1y = g.y + k0 * Z.q1y;
+    d2x = g.x + k0 * Z.q2x; d2y = g.y + k0 * Z.q2y;
+  } else {
+    const m = zaParseMat(Z.el), pp = map._getMapPanePos();
+    d1x = m.k * Z.q1x + m.ux + pp.x; d1y = m.k * Z.q1y + m.uy + pp.y;
+    d2x = m.k * Z.q2x + m.ux + pp.x; d2y = m.k * Z.q2y + m.uy + pp.y;
+  }
   const A0 = state._zaAff; state._zaAff = null; // 讀 raw 投影(wrapper 依 _zaAff 疊仿射,取樣時要關)
   const s1 = map.latLngToContainerPoint(Z.w1), s2 = map.latLngToContainerPoint(Z.w2);
   state._zaAff = A0;
@@ -8078,6 +8108,27 @@ const FORCE_BREATH = (() => { try { return new URLSearchParams(location.search).
 // 行程分享(暗啟動):v1 建置完成、旗標關閉出貨,訂閱上線才開(比照 RECORDING_ENABLED 模式)。只鎖「發起端」入口;
 // 接收端 ?trip= 解碼永遠作用(payload 本來就公開,不鎖)。?tripshare=1 當次開發起端測試(比照 ?breath=1,僅該次頁面生效)。
 const TRIP_SHARE_ENABLED = (() => { try { return new URLSearchParams(location.search).get('tripshare') === '1'; } catch (e) { return false; } })();
+// ── 網站街道底圖來源(亮/暗一般地圖;衛星不受此影響) ─────────────────────────────
+// 'carto' = 現況。⚠️ 合規破口:CARTO 2025-10 起把 hosted 圖磚限定給 enterprise 客戶與非營利 grants
+//           (LICENSE.md 逐字 "not available for free public use"),而我們在賣通行證 ⇒ 落在 commercial。
+// 'ofm'   = OpenFreeMap 向量(OSM 資料,免金鑰、無用量上限、明文可商用)。經 maplibre-gl-leaflet
+//           當成一個 Leaflet 圖層掛進來,Leaflet 與既有的 155 處綁定、投影包裝層都不動。
+// ?basemap=ofm|carto 供驗證用(僅該次頁面生效,不改預設)。
+const WEB_STREET_SRC = (() => {
+  try { const v = new URLSearchParams(location.search).get('basemap'); if (v === 'ofm' || v === 'carto') return v; } catch (e) {}
+  return 'carto';
+})();
+const OFM_STYLE = { light: 'vendor/ofm-positron.json', dark: 'vendor/ofm-dark.json' };
+const OFM_ATTRIBUTION = '&copy; <a href="https://openfreemap.org/" target="_blank">OpenFreeMap</a> &copy; <a href="https://www.openmaptiles.org/" target="_blank">OpenMapTiles</a> &copy; <a href="https://www.openstreetmap.org/copyright" target="_blank">OpenStreetMap</a>';
+// 跨層對齊量測用的探針(僅 ?aligndot=<lat>,<lng> 時開啟):同一個經緯度同時交給
+// 底圖引擎與 overlay 各畫一顆點,兩顆的螢幕像素距離就是「底圖與列車圖層錯開多少」。
+// 判準刻意不共用任何投影假設——量的是最終合成畫面上的兩個亮點(見 verify_basemap_align.mjs)。
+const ALIGN_DOT = (() => {
+  try {
+    const v = new URLSearchParams(location.search).get('aligndot'); if (!v) return null;
+    const [a, b] = v.split(',').map(Number); return isFinite(a) && isFinite(b) ? { lat: a, lng: b } : null;
+  } catch (e) { return null; }
+})();
 // 行程分享發起端＝Plus。這支只管「鈕要不要出現」,不等於放行——
 // ?tripshare=1 是開發測試通道,它點亮入口讓版面看得到,但按下去仍會被 plusGateOpen 攔去訂閱。
 // 兩段式(顯示 vs 放行)是刻意的:URL 參數可以被轉貼,不能讓它變成公開後門。
@@ -21204,7 +21255,7 @@ function setBasemap() {
     if (k === want) { if (!map.hasLayer(baseLayers[k])) baseLayers[k].addTo(map); }
     else if (map.hasLayer(baseLayers[k])) map.removeLayer(baseLayers[k]);
   }
-  if (baseLayers[want]) baseLayers[want].bringToBack();
+  if (baseLayers[want] && baseLayers[want].bringToBack) baseLayers[want].bringToBack(); // MapLibre 圖層沒有 bringToBack(它本來就在 tilePane 最底)
   if (state.offlineLand) state.offlineLand.setStyle(offlineLandStyle());
   const satBtn = document.getElementById('satBtn');
   if (satBtn && online) {
@@ -22446,6 +22497,19 @@ async function boot() {
   };
   await setupOfflineLand();
   window.__map = map; // 驗證腳本用的把手(map 為閉包變數,外部拿不到)
+  // 跨層對齊探針(只在 ?aligndot=lat,lng 時存在):同一個經緯度,底圖引擎畫一顆、overlay 畫一顆。
+  // 兩顆在最終畫面上的像素距離＝底圖與列車圖層錯開多少。overlay 這顆刻意走 latLngToContainerPoint
+  // (＝列車用的同一條路徑),底圖那顆交給底圖引擎自己算,兩邊沒有共用的投影假設。
+  if (ALIGN_DOT) {
+    const _drawOrig = draw;
+    draw = function () {
+      _drawOrig.apply(this, arguments);
+      const p = map.latLngToContainerPoint([ALIGN_DOT.lat, ALIGN_DOT.lng]);
+      ctx.save(); ctx.fillStyle = '#00ffff';
+      ctx.beginPath(); ctx.arc(p.x, p.y, 5, 0, Math.PI * 2); ctx.fill(); ctx.restore();
+    };
+    window.__alignDot = ALIGN_DOT;
+  }
   window.__state = state; // 同上:唯讀給驗證腳本讀命中快取/模擬時鐘(平交道等)
   map.zoomControl.setPosition('bottomright'); // 右上讓給車站時刻板
   // 這是台灣鐵道圖:把可視範圍鎖在台灣周遭,不讓人縮到看見全世界、也不讓人平移把台灣拖出畫面去看
@@ -22742,6 +22806,8 @@ async function boot() {
   // 網站沒有注入→用下方 WEB_TILES 免費層預設。WEB_TILES 以 APP_STRIP 錨點包住,App build 整段拔除
   // (App 包內不得殘留 CARTO/舊 Esri 免費層網址——CARTO 條款不允許包進上架 App,verify-release 有硬檢查)。
   let TILES = APP_CFG.tiles || null;
+  // 只有網站(App 殼由 prepare-web 注入自己的授權圖磚)、且旗標選了 ofm、且函式庫真的載進來了才走向量
+  const useOfmStreet = !APP_CFG.tiles && WEB_STREET_SRC === 'ofm' && typeof L.maplibreGL === 'function';
   // APP_STRIP_START web-tiles
   if (!TILES) TILES = {
     light: { url: 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', subdomains: 'abcd', maxZoom: 20, attribution: '&copy; OpenStreetMap &copy; CARTO' },
@@ -22758,6 +22824,25 @@ async function boot() {
     // 衛星圖沒有 @2x 選項,detectRetina 改抓高一階 zoom 的圖磚合成顯示,治 Retina 螢幕拉伸糊化;
     // 只開 sat——light/dark(Stadia,付費)刻意不開,同 @2x 全流量曝險教訓(見 monetization-cost-decisions)
     if (k === 'sat') opt.detectRetina = SAT_RETINA;
+    // 街道底圖(亮/暗)走 OSM 向量:MapLibre 只當成一個 Leaflet 圖層,Leaflet 仍是地圖引擎,
+    // 155 處 map.* 綁定與投影包裝層一行都不用動。衛星維持 raster 不受影響。
+    if (useOfmStreet && (k === 'light' || k === 'dark')) {
+      baseLayers[k] = L.maplibreGL({ style: OFM_STYLE[k], attribution: OFM_ATTRIBUTION, interactive: false });
+      if (ALIGN_DOT) { // 底圖那半的對齊探針:交給底圖引擎自己依經緯度畫,不經過我們任何投影程式碼
+        // _glMap 要等圖層真的被加進地圖(onAdd→_initGL)才存在,所以掛在 'add' 事件上
+        baseLayers[k].on('add', function () {
+          const gl = this._glMap; if (!gl) return;
+          window.__ofmGl = gl; // 驗證腳本的把手
+          const put = () => {
+            if (gl.getLayer && gl.getLayer('aligndot')) return;
+            gl.addSource('aligndot', { type: 'geojson', data: { type: 'Feature', properties: {}, geometry: { type: 'Point', coordinates: [ALIGN_DOT.lng, ALIGN_DOT.lat] } } });
+            gl.addLayer({ id: 'aligndot', type: 'circle', source: 'aligndot', paint: { 'circle-radius': 18, 'circle-color': '#ff00ff' } });
+          };
+          gl.isStyleLoaded && gl.isStyleLoaded() ? put() : gl.once('load', put);
+        });
+      }
+      continue;
+    }
     baseLayers[k] = L.tileLayer(t.url, opt);
     // 跟車鏡頭連續平移時 detectRetina 的 4 倍圖磚量會讓載入明顯變慢,跟車中改用這份無 detectRetina 版本
     // (setBasemap 依 state.followTrain 二選一;detectRetina 是 Leaflet 建構時就烘進 zoomOffset,無法動態切換單一圖層,故養兩份)
@@ -22842,14 +22927,25 @@ async function boot() {
   map.on('zoomstart', () => {
     if (state._zoomAnim) return; // 連續縮放 retarget:沿用原標定(q 是容器局部常數,仍有效)
     if (state._breathStage) { state._zaCalPend = null; return; } // 呼吸幕投影非 raw 不可標定(正常已被更早的 zoomstart listener 交還,此為防禦)
+    const size = map.getSize();
+    const w1 = map.containerPointToLatLng([size.x * 0.25, size.y * 0.25]);
+    const w2 = map.containerPointToLatLng([size.x * 0.75, size.y * 0.75]);
+    // 街道底圖走 MapLibre 時,被動畫的是 GL 畫布(class leaflet-gl-layer 內的 canvas),不是圖磚容器
+    const glCanvas = ofmActiveCanvas();
+    if (glCanvas) {
+      const p1 = map.latLngToContainerPoint(w1), p2 = map.latLngToContainerPoint(w2); // _zaAff=null ⇒ raw
+      const g0 = zaRectBox(glCanvas);
+      state._zaCalPend = { el: glCanvas, gl: true, w1, w2, g0w: g0.w,
+        q1x: p1.x - g0.x, q1y: p1.y - g0.y,
+        q2x: p2.x - g0.x, q2y: p2.y - g0.y };
+      return;
+    }
     let el = null, best = -1;
     for (const c of map.getPane('tilePane').querySelectorAll('.leaflet-tile-container')) {
       if (c.childElementCount > best) { best = c.childElementCount; el = c; }
     }
     if (!el || !best) { state._zaCalPend = null; return; } // 無圖磚:本輪放棄同步(overlay 靜止 ~250ms,zoomend 重繪仍對齊)
-    const size = map.getSize(), m = zaParseMat(el), pp = map._getMapPanePos();
-    const w1 = map.containerPointToLatLng([size.x * 0.25, size.y * 0.25]);
-    const w2 = map.containerPointToLatLng([size.x * 0.75, size.y * 0.75]);
+    const m = zaParseMat(el), pp = map._getMapPanePos();
     const p1 = map.latLngToContainerPoint(w1), p2 = map.latLngToContainerPoint(w2); // 此刻 _zaAff=null,讀到的就是 raw
     state._zaCalPend = { el, w1, w2,
       q1x: (p1.x - pp.x - m.ux) / m.k, q1y: (p1.y - pp.y - m.uy) / m.k,
