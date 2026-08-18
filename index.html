@@ -3805,7 +3805,7 @@
 
   <footer class="site-foot">
     <details class="foot-box">
-      <summary><span>更新紀錄</span><span class="foot-sub">最後更新：2026/8/18</span></summary>
+      <summary><span>更新紀錄</span><span class="foot-sub">最後更新：2026/8/19</span></summary>
       <!-- 第一層是「最近更新」的檢視,不是正本:每一條都用 data-cl-of 指向第二層某條的 data-cl。
            要把一條擠出第一層之前,它的正本必須已經在第二層存在——2026-08-03 就踩過一次:8/1 的
            衛星計費那條只活在第一層(第二層只有一句夾在 7/25 條目裡、日期對不上的附帶說明),
@@ -3813,6 +3813,7 @@
            內容 li 上限 8 條(li.grp 是標題不算)。 -->
       <ul class="foot-list foot-recent">
         <li class="grp">最近更新</li>
+        <li data-cl-of="trainoverrail"><span class="d">8/19</span><span>全台同框畫面裡，捷運列車不再被台鐵、高鐵的軌道壓過去，車一律浮在所有軌道之上</span></li>
         <li data-cl-of="osmbasemap"><span class="d">8/18</span><span>街道底圖換成 OpenStreetMap 的圖資：地名改成中文單行、路名與公路編號牌不再蓋滿畫面，看起來跟以前一樣安靜，但列車、路線與站點的位置完全沒變</span></li>
         <li data-cl-of="hsrcoast"><span class="d">8/18</span><span>高鐵列車跑起來更接近真的：中段跑得比以前快（依實際搭車讀到的車廂時速表校正），快到站前幾公里就開始減速滑行，不再拖到最後才急煞；發車也不再比真車早開。每一站的到站時刻仍與時刻表分秒一致</span></li>
         <li data-cl-of="trtccountdown"><span class="d">8/18</span><span>台北捷運列車位置改回官方即時：不再是班表推估。文湖線因為官方沒給車號，改用各站的官方倒數推算車在哪兩站之間，比原本的來源新兩到四分鐘；同向前後車也不會再互相穿越或黏在一起。車會一路跟到終點站才收車，不會在快到終點的那一段提早不見。北捷訂正到站倒數時，畫面會在幾秒內對回官方位置並跟你說一聲。（8/18 傍晚先暫時退回班表推估：位置每十幾秒會跳一次，等根因修好再開回來）</span></li>
@@ -3823,7 +3824,6 @@
         <li data-cl-of="zuoyingalias"><span class="d">8/16</span><span>台鐵左營站不再分成「左營」與「左營(舊城)」兩顆，看板正常顯示；新城站同步修正（謝謝網友回報）</span></li>
         <li data-cl-of="danhaifireworks"><span class="d">8/15</span><span>淡水漁人碼頭煙火的三個週日（8/16、8/23、8/30），淡海輕軌畫面依官方公告調整：傍晚起綠山線班距拉長、五點後崁頂那一段停駛，藍海線改跑密集班距</span></li>
         <li data-cl-of="trtcoutage"><span class="d">8/15</span><span>台北捷運訊號中斷時會明白告知位置與倒數不準，並修好位置愈跑愈偏、冒出無車號幽靈車的問題</span></li>
-        <li data-cl-of="metrowaitcard"><span class="d">8/14</span><span>iPhone 新增捷運等車卡與捷運小工具：鎖定畫面倒數下一班，北捷、高捷、機捷；下次 App 更新生效</span></li>
       </ul>
       <!-- 第二層:完整歷史。刻意不掛 .foot-box 類名——placeFootBoxes() 用
            `.site-foot .foot-box` 搬移面板,巢狀同名會被當成另一個盒子一起搬走。 -->
@@ -3956,6 +3956,7 @@
         <li><span class="d">7/21</span><span>手機大改版：打開就是全螢幕地圖，面板都住進底部；新增「捷」分頁，北中高捷運一張圖同框</span></li>
         <li><span class="d">7/13</span><span>新增「省電」模式（手機預設開啟）：降到 30fps；手機一次只開一個面板</span></li>
         <li class="grp">外觀與品牌</li>
+        <li data-cl="trainoverrail"><span class="d">8/19</span><span>全台同框（「全」）畫面裡，捷運列車經過台鐵或高鐵的軌道時會被軌道壓過去，看起來像從軌道底下鑽過；現在改成所有軌道都畫完才畫車，任何一台車都浮在所有軌道之上</span></li>
         <li data-cl="satretina"><span class="d">8/2</span><span>在 App 裡訂閱通行證後，衛星底圖會換成高解析度圖磚，在 Retina 螢幕上更銳利；沒訂閱的人維持標準解析度，畫面內容一樣</span></li>
         <li data-cl="satbilling"><span class="d">8/1</span><span>衛星底圖換成比較省的計費方式：計費從「看了幾張圖磚」改成「看得夠多才算一次時段費」，看到的畫面完全一樣，只是我們付給圖資供應商的錢少很多</span></li>
         <li><span class="d">7/30</span><span>外觀設定新增「面板半透明」開關（預設關閉）：打開後車站看板、跟車小卡、跟隨面板會透出底下的地圖並加上模糊，關掉就回到原本的實心底。半透明時原本偏淡的次要文字會自動加深一階，疊在路網上仍然看得清楚；跟車小卡收合成一條（只剩車號與時速）時維持實心底，不跟著透明。7/30 再補一輪（透明度與模糊程度都沒動）：字外圍加了一圈紙色描邊，疊在衛星影像或密集路網上也不會融進背景；全程速度曲線加粗、加一層淡底板，暗色主題的線色改亮，看得出哪一段跑得快；手機的「列車」面板縮到最小那段也維持實心底</span></li>
@@ -7108,11 +7109,15 @@ function updateFreqFollowCamera(immediate) {
 // 全台同框的裝飾層:所有捷運/輕軌路線與列車,墊在台鐵/高鐵底下(有時刻檔跟 simSec 推演並吃看板校正 shift)
 // 樣式與各捷運分頁(drawFreq)一致:knockout 軌道+站點圓+zoom 分級車號牌,不再預混淡化
 let decoLabels = [];
-function drawDeco(w, h) {
+// ── 疊層鐵則(2026-08-18)：所有軌道畫完，才准畫任何一台車 ──────────────────────────
+// 裝飾層(捷運)的車若跟著自己的軌道一起畫完，後面 drawSched 的台鐵/高鐵軌道就會蓋在它上面，
+// 畫面上看起來就是捷運的車從別條線的軌道底下鑽過去。故拆成 base(軌道+站點圓)與 trains(車)
+// 兩段，由 draw() 把 trains 那段夾到 drawSched 的軌道/車站圖示之後、台鐵列車之前呼叫。
+function drawDecoBase(w, h) {
   if (!state.decoLines) return;
   const P = pal();
   const z = map.getZoom();
-  const showStation = z >= 13, showTrain = z >= 12, showStop = z >= 11; // 遠景不畫站點:短線會糊成串珠
+  const showStation = z >= 13, showStop = z >= 11; // 遠景不畫站點:短線會糊成串珠(showTrain 移到 drawDecoTrains)
   const inView = p => p.x >= -40 && p.x <= w + 40 && p.y >= -20 && p.y <= h + 20;
   const offLine = ln => ln._bbox && (ln._bbox[2] < -40 || ln._bbox[0] > w + 40 || ln._bbox[3] < -40 || ln._bbox[1] > h + 40); // 整條離屏
   ctx.lineCap = 'round'; ctx.lineJoin = 'round';
@@ -7142,6 +7147,14 @@ function drawDeco(w, h) {
       });
     });
   }
+}
+// 裝飾層(捷運)列車：等所有軌道(裝飾層＋台鐵/高鐵)都描完才呼叫，見 drawDecoBase 檔頭鐵則
+function drawDecoTrains(w, h) {
+  if (!state.decoLines) return;
+  const z = map.getZoom();
+  const showTrain = z >= 12;
+  const inView = p => p.x >= -40 && p.x <= w + 40 && p.y >= -20 && p.y <= h + 20;
+  const offLine = ln => ln._bbox && (ln._bbox[2] < -40 || ln._bbox[0] > w + 40 || ln._bbox[3] < -40 || ln._bbox[1] > h + 40); // 整條離屏
   const tau = state.decoElapsed * state.speedMult;
   const ff = state.freqFollow;
   const officialNow = Date.now() / 1000;
@@ -7276,7 +7289,7 @@ function drawCollectSegs(w, h) {
   }
 }
 
-function drawSched(w, h) {
+function drawSched(w, h, paintDecoTrains) {
   const P = pal();
   const z = map.getZoom();
   const showTrain = z >= 11;
@@ -7347,6 +7360,9 @@ function drawSched(w, h) {
     if (z >= 10 || tier <= 2) drawStationIcon(cp, tier);
     labelCands.push({ cp, st, tier });
   }
+  // 軌道、平交道、車站圖示都畫完了，這裡才輪到列車：先補畫裝飾層(捷運)的車，再畫台鐵/高鐵的車。
+  // 順序＝所有軌道 → 捷運列車 → 台鐵/高鐵列車 → 站名，任何一台車都浮在所有軌道之上(見疊層鐵則)
+  if (paintDecoTrains) paintDecoTrains();
   let n = 0;
   for (const tr of state.trains) {
     if (state.collectMap) break; // 收集地圖是一張靜態的「你走過哪裡」,跑動的車只是雜訊
@@ -10481,7 +10497,7 @@ function draw() {
   state._sugarHits = [];
   labelBoxes = [];
   ctx.lineCap = 'round'; ctx.lineJoin = 'round';
-  if (state.mode === 'sched') { if (state.deco) drawDeco(w, h); drawSched(w, h); if (state.deco) drawDecoLabels(); } else drawFreq(w, h);
+  if (state.mode === 'sched') { if (state.deco) drawDecoBase(w, h); drawSched(w, h, state.deco ? () => drawDecoTrains(w, h) : null); if (state.deco) drawDecoLabels(); } else drawFreq(w, h);
   drawMe(); // 「我的位置」畫最後=在所有軌道與列車之上,不會被蓋掉
   ctx.globalAlpha = 1; ctx.textAlign = 'start'; ctx.textBaseline = 'alphabetic';
 }
