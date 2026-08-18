@@ -13,7 +13,8 @@
 //      是使用者看得到的傷害。這條不依賴任何前端旗標，是純班表模式下唯一照得到上游停更的。
 //   0. 名冊有沒有在換新：整包被驗證器退掉時，車會照舊時間線繼續跑（動得很順），
 //      下面 1–5 全部照不到——只有 receivedEpoch 照得到（08-17 那次疊車事故的唯一證人）。
-//      ⚠️ 正式站走純班表 ⇒ 這條恆為「不適用」，它只在掃 `?census=1` 時有牙。
+//      ⚠️ 2026-08-18 訂正：舊註解寫「正式站走純班表 ⇒ 這條恆為不適用」是**錯的**。實測正式站
+//      不帶參數時 OFFICIAL_ROSTER_ENABLED / CENSUS_ROSTER_ENABLED 都是 true，這條一直有牙。
 //   1. 同向疊車：同線同方向的車在畫面上重疊。對向交會是正常的，必須先分方向再算。
 //   1b. 同站堆積：同一站同方向擠 3 台以上（被拖回站上的形態）。
 //   2. 倒退：兩次取樣之間沿線位移為負。
@@ -309,9 +310,9 @@ const CRON_TW_HOUR = 9;            // wrangler.jsonc 的 `15 1 * * *`（UTC）�
 }
 
 // -2. 官方即時資料源本身新不新（站牌倒數的來源）。
-// 🔴 這條與第 0 條「名冊有沒有換新」的差別：第 0 條量的是**我們的名冊**，正式站走純班表時
-//    恆為「不適用」；而站牌倒數在純班表模式下**仍然是官方即時**，所以上游停更照樣是使用者
-//    看得到的傷害。這條不依賴任何前端旗標，是純班表模式下唯一照得到上游停更的判準。
+// 🔴 這條與第 0 條「名冊有沒有換新」的差別：第 0 條量的是**我們的名冊**（旗標關掉時才不適用，
+//    正式站現況是開的）；這條量的是**上游站牌倒數本身**，不依賴任何前端旗標 ⇒ 旗標怎麼設定
+//    都照得到上游停更，而上游停更是使用者看得到的傷害。
 const FEED_WARN_SEC = 300;         // 官方 15–60 秒一輪；五分鐘＝短暫斷訊（常態，屬環境條件）
 const FEED_BAD_SEC = 1800;         // 半小時＝已經不是短暫斷訊，站牌倒數在騙人
 {
@@ -430,8 +431,29 @@ else
     `${thresholdPx < 2 ? '（門檻與解析度同一量級：公尺值只能當「相距一兩個像素」讀）' : ''}` +
     `｜其中 ${nFloat} 台取產品浮點座標不受此限、${nPx} 台仍靠像素反推`);
 
-const clumpsKnown = clumps.filter(c => knownOpenClump(c.group));
-const clumpsReal = clumps.filter(c => !knownOpenClump(c.group));
+// 🔴 疊車要「兩次取樣都成立」才判缺陷。分離守則把後車夾到剛好 100m，資料進來時若兩台
+// 已經比 100m 近，守則依設計不把後車往回拉（只凍住等前車走開）⇒ 會出現一兩輪 93-96m 的
+// 瞬態，那是設計行為不是缺陷。持續存在的才是守則失效（08-18 實測單次瞬態每半小時一兩次，
+// 而突變測試造出來的真疊車在兩次取樣都成立）。
+const clumpKey = c => `${c.group}|${[c.a, c.b].sort().join('|')}`;
+const s1Clumped = new Set();
+{
+  const g1 = new Map();
+  for (const h of s1.hits) { const g = `${h.line}|${h.dir}`; if (!g1.has(g)) g1.set(g, []); g1.get(g).push(h); }
+  for (const [g, arr] of g1) for (let i = 0; i < arr.length; i++) for (let j = i + 1; j < arr.length; j++) {
+    const m = (arr[i].d != null && arr[j].d != null) ? Math.abs(arr[i].d - arr[j].d) * 1000 : null;
+    const exact = arr[i].dsrc === 'float' && arr[j].dsrc === 'float';
+    if (m != null && m < (exact ? OVERLAP_BAD_M - CLAMP_EPS_M : OVERLAP_BAD_M))
+      s1Clumped.add(`${g}|${[arr[i].key, arr[j].key].sort().join('|')}`);
+  }
+}
+const clumpsTransient = clumps.filter(c => !s1Clumped.has(clumpKey(c)));
+const clumpsBoth = clumps.filter(c => s1Clumped.has(clumpKey(c)));
+const clumpsKnown = clumpsBoth.filter(c => knownOpenClump(c.group));
+const clumpsReal = clumpsBoth.filter(c => !knownOpenClump(c.group));
+if (clumpsTransient.length)
+  console.log(`ℓ 單次取樣才出現的靠近 ${clumpsTransient.length} 對（20 秒後已解，屬守則的凍結瞬態，不判缺陷）：` +
+    clumpsTransient.slice(0, 4).map(c => `${c.group} ${c.m}m`).join('、'));
 console.log(`${clumpsReal.length ? '❌' : '✅'} 同向疊車（<${OVERLAP_BAD_M}m）：${clumpsReal.length} 對` +
   (clumpsReal.length ? `　例：${clumpsReal.slice(0, 4).map(c => `${c.group} ${c.m}m${c.exact ? '' : '(±像素)'}`).join('、')}`
     : `（靠近 <${OVERLAP_WARN_M}m ${nearPairs.length} 對、同站 ${atStationPairs} 對，皆屬正常範圍）`));
