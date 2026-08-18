@@ -528,7 +528,9 @@ struct MetroBoardView: View {
         case .approxMinutes(let m): return "· 再約 \(m) 分"
         case .seconds:              return "· 下一班即將進站"
         case .arriving:             return "· 下一班進站"
-        case .noData, .scheduled:   return ""
+        // .until 只有跟車 Live Activity 會產生（`countdown(_:)` 這條路徑走不到），
+        // 這裡只是讓 switch 窮盡；真要畫也不能畫成靜態字串（那正是 .until 要修的東西）。
+        case .noData, .scheduled, .until: return ""
         }
     }
 

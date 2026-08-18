@@ -525,6 +525,17 @@ enum RailCountdown: Equatable {
     case noData
     /// 官方視野外，退回班表。照抄官方原字串（如「11:38」）並另標「表定」。
     case scheduled(String)
+    /// 🔴 Live Activity 專用：**自走**的分鐘倒數，錨定絕對到站時刻。
+    ///
+    /// 為什麼非有這個 case 不可：Live Activity 的視圖只在收到新 ContentState 時才重繪一次。
+    /// `.minutes(Int)` 是「算好的整數」，兩次更新之間畫面上那個數字【不會變】——而 App 交班給
+    /// 伺服器之後就停送本機 update、伺服器又只在下一站／誤點／告知／停靠變動時才推播，
+    /// 準點車跑完一整段可以零推播 ⇒ 分鐘數凍在最後一次推播算出的值，
+    /// 旁邊的 `ProgressView(timerInterval:)` 卻照樣爬到 90%（兩個欄位各自「正確」、畫面互相矛盾）。
+    /// 這個 case 把倒數交給系統自己重排重繪（見 `railLiveCountdownStyle`），零推播也會遞減。
+    ///
+    /// 只給 LA 用：Home Screen widget 有 timeline reload，`.minutes` 在那裡本來就會被重算。
+    case until(Date)
 
     enum Surface {
         /// Widget：分鐘制。<60 秒直接進「進站」，不顯示會凍住的秒數。
@@ -551,8 +562,37 @@ enum RailCountdown: Equatable {
         case .arriving:             return "進站"
         case .noData:               return "暫無資料"
         case .scheduled(let t):     return t
+        // 🔴 靜態快照，只給不自走的第三層文字用。主角倒數走 RailCountdownText 的自走路徑，
+        //    落到這裡就等於把 .until 退化回 .minutes（也就是這次要修的那個 bug）。
+        case .until(let d):
+            let left = d.timeIntervalSinceNow
+            return left < 60 ? "進站" : "\(Int(left / 60)) 分"
         }
     }
+}
+
+/// 自走倒數文字的共用建構子。
+///
+/// 🔴🔴 **只准用 SwiftUI 內建的時間格式型別，不准自訂 `FormatStyle`。**
+///    Live Activity 的畫面會被封存成 archive，交給系統行程 `WidgetRenderer_Activities`
+///    還原後才上鎖定畫面／動態島；**那個行程載不到我們這個 extension 的程式碼**。
+///    自訂型別一進 archive 就解不出來，整張卡（含所有跟這次改動無關的文字）會整片
+///    退成灰色 placeholder。實測 log（見 la-impl-log.md S6-a）：
+///      `Failed to return view entry from archive … Errors.noType(mangledName:
+///       …TimeDataFormatting.Resolvable<…, RailBoardWidgetExtension.RailLiveMinutesStyle>)`
+///      `Evaluated inner view with result: PLACEHOLDER`
+///    ——三個 surface（expanded／compactTrailing／compactMinimal）同時中，症狀是
+///    「卡片還在、每一格文字都變灰塊」，很容易被誤讀成權限或隱私遮蔽。
+///
+/// 用 `maxFieldCount: 1, maxPrecision: .seconds(1)`（zh-Hant 實測，見 probe/timerstyle.swift）：
+///   960s→「16分鐘」 900s→「15分鐘」 …… 60s→「1分鐘」 59s→「59秒」 5s→「5秒」 0s→「0秒」
+/// 🔴 刻意不用規格建議的 `.seconds(60)`：那個在最後一分鐘會**凍在「0分鐘」**並永遠不再變，
+///    等於在最關鍵的進站前一分鐘重演這次要修的「數字凍住」症狀。
+@available(iOS 18.0, macOS 15.0, *)
+func railLiveCountdownStyle(until arrival: Date) -> SystemFormatStyle.Timer {
+    // 下界必須 ≤ 上界，否則 Range 建構會 crash；到站時刻已過的情況由呼叫端先擋掉。
+    .timer(countingDownIn: min(Date(), arrival)..<arrival,
+           showsHours: false, maxFieldCount: 1, maxPrecision: .seconds(1))
 }
 
 /// 倒數文字。
@@ -626,6 +666,21 @@ struct RailCountdownText: View {
 
     private var isHero: Bool { size.isHero }
 
+    /// 自走倒數的字級。
+    ///
+    /// 🔴 不能跟 `.minutes` 共用 `numberSize`：自走文字是「15分鐘」整串（單位由系統補，
+    ///    見 `railLiveCountdownStyle`），比「15」寬一倍以上，照 hero 的 44pt 畫會爆槽。
+    /// 🔴 也**不能一律乘同一個係數**：×0.52 對 hero 剛好，但 `.minor`（compact 島，13pt）
+    ///    會變 6.8pt、`.row`（島展開，17pt）會變 8.8pt——都到了看不見的程度。
+    ///    小字級本來就沒有可壓縮的餘裕，係數要隨字級回升。
+    private var liveCountdownSize: CGFloat {
+        switch size {
+        case .heroCard, .heroRow: return numberSize * 0.6   // 44→26.4pt，與 26pt 站名同高
+        case .row:                return numberSize * 0.85  // 17→14.5pt
+        case .minor:              return numberSize * 0.9   // 13→11.7pt；compact 槽 52pt 放得下
+        }
+    }
+
     var body: some View {
         switch value {
         case .minutes(let m): number("\(m)", unit: "分")
@@ -654,6 +709,41 @@ struct RailCountdownText: View {
                 .foregroundStyle(.secondary)
                 .lineLimit(1).fixedSize()
         case .arriving: arriving
+        case .until(let d): liveMinutes(d)
+        }
+    }
+
+    /// 自走的倒數。
+    ///
+    /// 🔴 與 `number()` 的兩級字階（數字大、單位小一階）**做不到一致**：字串是系統在
+    ///    另一個行程算出來的，「16分鐘」是一整串、我方拿不到「值」與「單位」的分界去分別上字級。
+    ///    這是用內建型別換來的代價（自訂 FormatStyle 會讓整張卡變灰塊，見 railLiveCountdownStyle）。
+    ///
+    /// 🔴 `.multilineTextAlignment(.trailing)` 不可省：自走文字的 frame 會被系統**預留成
+    ///    「這個區間內最寬的那個字串」**的寬度（「125分鐘」比「15分鐘」寬一截），字形預設
+    ///    靠在 frame 左緣 ⇒ 短字串時整個數字往左飄、右邊空一大片，與設計稿的右對齊差很多。
+    @ViewBuilder
+    private func liveMinutes(_ arrival: Date) -> some View {
+        if arrival <= Date() {
+            // 到站時刻已過：沒有可倒數的區間（空 Range 會讓系統畫「0秒」），直接畫進站。
+            arriving
+        } else if #available(iOS 18.0, macOS 15.0, *) {
+            Text(.currentDate, format: railLiveCountdownStyle(until: arrival))
+                .font(.system(size: liveCountdownSize,
+                              weight: isHero ? .semibold : .medium, design: .rounded))
+                .monospacedDigit()
+                .lineLimit(1)
+                .minimumScaleFactor(0.6)
+                .multilineTextAlignment(.trailing)
+        } else {
+            // iOS 17.6–17.x 沒有 Text(.currentDate, format:)。這一版唯一會自走的文字是系統
+            // relative（zh-Hant 畫「16 分鐘」，單位與字級都由系統決定，做不到兩級字階）。
+            // 🔴 寧可字級不完美也要會動——凍住的數字是在說一件不成立的事。
+            Text(arrival, style: .relative)
+                .font(.system(size: liveCountdownSize,
+                              weight: isHero ? .semibold : .medium, design: .rounded))
+                .monospacedDigit().lineLimit(1).minimumScaleFactor(0.6)
+                .multilineTextAlignment(.trailing)
         }
     }
 

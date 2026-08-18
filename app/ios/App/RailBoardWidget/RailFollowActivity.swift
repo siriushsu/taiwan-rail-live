@@ -65,10 +65,16 @@ struct RailFollowDisplay {
         } else if stale {
             // 設計稿：唯一會拿掉主角數字的狀態。凍住的「0 分」比空白更糟——它看起來還在跑。
             countdown = .noData
-        } else if let left {
-            // 🔴 走 .widget 那條分界【不是】因為這裡是 widget，而是因為臺鐵 ETA 只有分鐘級：
-            //    不足一分鐘顯示「37 秒」等於把 ±2 分的推估講成秒級精度。
-            countdown = RailCountdown.from(secondsLeft: left, surface: .widget)
+        } else if let left, let a = arrivalDate {
+            // 🔴 分界仍是 60 秒（＝`.widget` 那條）：**不是**因為這裡是 widget，而是因為臺鐵 ETA
+            //    只有分鐘級，不足一分鐘顯示「37 秒」等於把 ±2 分的推估講成秒級精度。
+            // 🔴 ≥60 秒交給 `.until`（自走）而不是 `.minutes`（算好的死數字）：
+            //    這張卡在交班給伺服器之後就沒有本機 update 了，而伺服器「四個量都沒變就不推」
+            //    ⇒ 準點車跑完整段可以零推播。`.minutes` 會凍在最後一次推播算出的分鐘數，
+            //    旁邊的進度條卻自己爬到 90%——使用者實機回報的正是這個畫面。
+            //    <60 秒維持 `.arriving`：實心「進站」色塊是重繪時才畫得出的形態（見 railLiveCountdownStyle）。
+            countdown = left < arrivingSeconds ? .arriving
+                                               : .until(Date(timeIntervalSince1970: a))
         } else {
             // 算不出 ETA ⇒ 不畫 0、不畫 1970，整個倒數不出現。
             countdown = nil

@@ -302,6 +302,7 @@ struct RailIslandMinimal: View {
         case .arriving:  return nil
         case .noData:    return "—"
         case .scheduled: return nil
+        case .until:     return nil   // 走下面的自走 Text，不進這個靜態字串路徑
         }
     }
 
@@ -321,6 +322,23 @@ struct RailIslandMinimal: View {
                     .font(.system(size: scale.pt(11), weight: .semibold))
                     .monospacedDigit()
                     .lineLimit(1).minimumScaleFactor(0.7)
+            }
+            // 🔴 .until 必須也走自走路徑，否則 minimal 上的數字會跟鎖屏卡一起凍住。
+            //    已知取捨：環只有約 22pt，塞不下系統給的「16分鐘」全字串 ⇒ 字級壓到 7pt
+            //    再交給 minimumScaleFactor；不足一分鐘時系統自己會換成「59秒」。
+            //    （不准改用自訂 FormatStyle 省字：那會讓整張卡變灰塊，見 railLiveCountdownStyle。）
+            if case .until(let d) = countdown, d > Date() {
+                if #available(iOS 18.0, macOS 15.0, *) {
+                    Text(.currentDate, format: railLiveCountdownStyle(until: d))
+                        .font(.system(size: scale.pt(7), weight: .semibold))
+                        .monospacedDigit().lineLimit(1).minimumScaleFactor(0.5)
+                        .multilineTextAlignment(.trailing)
+                } else {
+                    Text(d, style: .relative)
+                        .font(.system(size: scale.pt(7), weight: .semibold))
+                        .monospacedDigit().lineLimit(1).minimumScaleFactor(0.5)
+                        .multilineTextAlignment(.trailing)
+                }
             }
         }
     }
