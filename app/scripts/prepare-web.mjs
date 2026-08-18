@@ -135,6 +135,12 @@ await cp(join(appRoot, 'node_modules/leaflet/dist/leaflet.css'), join(vendor, 'l
 await cp(join(appRoot, 'node_modules/leaflet/dist/leaflet.js'), join(vendor, 'leaflet/leaflet.js'));
 await cp(join(appRoot, 'node_modules/leaflet/dist/images'), join(vendor, 'leaflet/images'), { recursive: true });
 await cp(join(appRoot, 'node_modules/fflate/umd/index.js'), join(vendor, 'fflate.js'));
+// OSM 向量底圖(OpenFreeMap):函式庫與樣式檔都自存在 repo 的 vendor/,不吃 CDN——底圖是首屏必需品,
+// 不想再多一個第三方單點。index.html 的 <script src="vendor/maplibre-gl.js"> 三個標籤網站/App 共用,
+// 所以這幾個檔非複製不可:少了它們 L.maplibreGL 不存在 ⇒ useOfmStreet 靜默變 false ⇒ App 悄悄
+// 退回計費的 Stadia,build 卻照樣成功(所以下面另有正向斷言)。
+// 樣式 JSON 內的圖磚/sprite/glyphs 仍指向 tiles.openfreemap.org(免金鑰、無用量上限、明文可商用)。
+for (const f of ['maplibre-gl.js', 'maplibre-gl.css', 'leaflet-maplibre-gl.js', 'ofm-positron.json', 'ofm-dark.json']) await cp(join(repoRoot, 'vendor', f), join(vendor, f));
 
 await build({
   entryPoints: [join(appRoot, 'src/native-bridge.mjs')],
@@ -178,7 +184,9 @@ html = stripJsRegion(html, 'web-tiles');
 // (4) 頁尾底圖來源文字換成本 build 的實況
 html = replaceHtmlRegion(html, 'basemap-credit',
   includeLicensedBasemaps
-    ? 'Stadia Maps（© Stadia Maps © OpenMapTiles © OpenStreetMap）、Esri World Imagery（衛星影像）與內政部「直轄市、縣市界線」（離線海陸輪廓，政府資料開放授權條款第1版）'
+    // 街道圖兩個來源都要列:哪一個在跑是 runtime 才決定的(L1 遠端開關/L2 自動退場),
+    // 而頁尾文字是 build 期烘死的,只列其中一個必然有一種情況署名不實。
+    ? 'OpenFreeMap（© OpenFreeMap © OpenMapTiles © OpenStreetMap，街道圖）、Stadia Maps（© Stadia Maps © OpenMapTiles © OpenStreetMap，街道圖退路）、Esri World Imagery（衛星影像）與內政部「直轄市、縣市界線」（離線海陸輪廓，政府資料開放授權條款第1版）'
     : '內政部「直轄市、縣市界線」（離線海陸輪廓，政府資料開放授權條款第1版；線上底圖未納入此版本）');
 // (4b) 狀態頁連結:App 包內沒有 status.html(其相對 /api 呼叫在 Capacitor 本機來源也不通),換成正式站絕對網址外開
 html = replaceHtmlRegion(html, 'status-link',
@@ -196,6 +204,11 @@ const appConfig = includeLicensedBasemaps ? {
   // capacitor://localhost 實測可直接開（2026-08-01 正負對照驗過）。
   // 值與下面 tiles.sat.url 裡的是同一把，不是新的金鑰、不增加曝險面。
   esriKey: esriApiKeyRaw,
+  // 這顆 build 的街道底圖預設來源。runtime 還有兩層可以蓋過它:L1(Worker 的 /api/basemap-src,
+  // 存進 localStorage、下次開機生效)與 L2(載不動就當場退回 raster)。
+  // 這裡留一個 build 期開關,是為了「送審期間 OFM 出事」這種等不到 L1 生效的情境能直接出一顆
+  // 以 Stadia 為預設的版本,而不必動 index.html。
+  streetSrc: 'ofm',
   tiles: {
     light: { url: `https://tiles.stadiamaps.com/tiles/alidade_smooth/{z}/{x}/{y}.png?api_key=${stadiaApiKey}`, maxZoom: 20, attribution: STADIA_ATTRIBUTION },
     dark: { url: `https://tiles.stadiamaps.com/tiles/alidade_smooth_dark/{z}/{x}/{y}.png?api_key=${stadiaApiKey}`, maxZoom: 20, attribution: STADIA_ATTRIBUTION },
@@ -231,6 +244,12 @@ html = html
 if (!html.includes('vendor/leaflet/leaflet.js') || !html.includes('native-bridge.js')) throw new Error('App index vendor/native bridge injection failed');
 if (/ko-fi|PayPal|111010691056|web-only-donation-log|贊助方式更新/i.test(html) || html.includes('id="donateCopy"') || html.includes('class="foot-box foot-donate"')) throw new Error('External donation content leaked into native App');
 if (/cartocdn\.com|arcgisonline\.com/i.test(html)) throw new Error('App index still contains unlicensed CARTO/Esri tile URLs');
+// 正向斷言:上面那條反向的「不該有的網址不在」照不到「該有的檔沒進來」。OFM 資產漏複製時
+// build 一樣成功、App 一樣能開,只是靜默退回計費底圖——那正是這批要消滅的成本,不能靠肉眼發現。
+for (const f of ['maplibre-gl.js', 'maplibre-gl.css', 'leaflet-maplibre-gl.js', 'ofm-positron.json', 'ofm-dark.json']) {
+  try { await stat(join(vendor, f)); }
+  catch { throw new Error(`www/vendor/${f} 沒進 bundle——OFM 街道底圖會靜默退回計費的 Stadia`); }
+}
 await writeFile(indexPath, html);
 
 await verifyRelease({

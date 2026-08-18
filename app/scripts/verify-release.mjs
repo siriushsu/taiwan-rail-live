@@ -12,6 +12,9 @@ const assert = (condition, message) => { if (!condition) fail(message); };
 
 // Stadia 官方要求的逐字署名(prepare-web 注入、本檔驗證,單一事實來源)
 export const STADIA_ATTRIBUTION = '&copy; <a href="https://stadiamaps.com/" target="_blank">Stadia Maps</a> &copy; <a href="https://openmaptiles.org/" target="_blank">OpenMapTiles</a> &copy; <a href="https://www.openstreetmap.org/copyright" target="_blank">OpenStreetMap</a>';
+// OpenFreeMap 要求的逐字署名(index.html 內就有這個常數,本檔驗它沒被改動,單一事實來源)。
+// 署名是**生效要件**不是禮貌:ODbL 與 OpenFreeMap 的使用條件都要求標示,拿掉就不再是合法使用。
+export const OFM_ATTRIBUTION = '&copy; <a href="https://openfreemap.org/" target="_blank">OpenFreeMap</a> &copy; <a href="https://www.openmaptiles.org/" target="_blank">OpenMapTiles</a> &copy; <a href="https://www.openstreetmap.org/copyright" target="_blank">OpenStreetMap</a>';
 
 async function walk(root) {
   const files = [];
@@ -395,9 +398,9 @@ export async function verifyRelease({
     assert(html.includes('window.RAIL_APP_CONFIG='), 'App 缺少 RAIL_APP_CONFIG 設定注入');
     assert(html.includes('APP_CFG.tiles'), 'index.html 的 APP_CFG.tiles 圖磚設定機制消失——注入的授權底圖不會被使用');
     assert(/tiles\.stadiamaps\.com\/tiles\/alidade_smooth\/\{z\}\/\{x\}\/\{y\}\.png\?api_key=[^'"\s]+/.test(html),
-      '亮色底圖不是含 api_key 的 Stadia alidade_smooth');
+      '亮色底圖退路不是含 api_key 的 Stadia alidade_smooth——L2 退場時會沒有東西可退');
     assert(/tiles\.stadiamaps\.com\/tiles\/alidade_smooth_dark\/\{z\}\/\{x\}\/\{y\}\.png\?api_key=[^'"\s]+/.test(html),
-      '暗色底圖不是含 api_key 的 Stadia alidade_smooth_dark');
+      '暗色底圖退路不是含 api_key 的 Stadia alidade_smooth_dark——L2 退場時會沒有東西可退');
     const satTokenMatch = html.match(/ibasemaps-api\.arcgis\.com\/arcgis\/rest\/services\/World_Imagery\/MapServer\/tile\/\{z\}\/\{y\}\/\{x\}\?token=([^'"\s]+)/);
     assert(satTokenMatch, '衛星底圖必須是含 token 的授權 Esri ibasemaps');
     // 2026-08-02:衛星本體維持免費(satLine 那條顧),但高解析(Retina)是 Plus。
@@ -425,8 +428,27 @@ export async function verifyRelease({
       '跟車進場 followEntryZoom 呼叫點少於 3 處——台鐵／高鐵／捷運跟車 zoom 上限未完整覆蓋');
     assert(html.includes(JSON.stringify(STADIA_ATTRIBUTION)),
       'Stadia 圖磚署名不是官方要求的三組連結逐字內容');
-    assert(html.includes('Stadia Maps（© Stadia Maps © OpenMapTiles © OpenStreetMap）、Esri World Imagery（衛星影像）與內政部「直轄市、縣市界線」（離線海陸輪廓，政府資料開放授權條款第1版）'),
-      'App 頁尾底圖來源未包含 Esri 衛星或離線輪廓的內政部署名');
+    // ── OSM 向量街道底圖(OpenFreeMap)與它的兩層退路 ─────────────────────────
+    // 這批把 App 街道圖從計量的 Stadia 換成不計量的 OpenFreeMap(Stadia 降為退路)。
+    // 下面每一條驗的都是「主來源真的裝上去了」——漏掉任何一件,App 會**靜默**退回 Stadia:
+    // build 成功、地圖照畫、使用者無感,只有一個月後的帳單知道。所以這裡全部是正向斷言。
+    for (const f of ['maplibre-gl.js', 'maplibre-gl.css', 'leaflet-maplibre-gl.js', 'ofm-positron.json', 'ofm-dark.json']) {
+      assert(relativeFiles.includes('vendor/' + f), `bundle 缺 vendor/${f}——OFM 街道底圖會靜默退回計費的 Stadia`);
+    }
+    assert(html.includes(OFM_ATTRIBUTION), 'OpenFreeMap 圖磚署名不是官方要求的三組連結逐字內容（署名是生效要件）');
+    assert(html.includes('"streetSrc":"ofm"'), 'RAIL_APP_CONFIG 未載明 streetSrc:"ofm"——這顆 build 的街道底圖預設不是 OpenFreeMap');
+    assert(html.includes('APP_CFG.streetSrc'), 'index.html 的 APP_CFG.streetSrc 消費機制消失——注入的預設來源不會被讀取');
+    assert(/const useOfmStreet = \(APP_CFG\.tiles \?/.test(html),
+      'useOfmStreet 沒有 App 分支——App 會永遠用不到 OFM(舊版是 !APP_CFG.tiles,對 App 恆假)');
+    // L1/L2 是「OpenFreeMap 沒有 SLA、而 App 改一行要等審查」的唯一保險,少一層等於沒有。
+    assert(html.includes("apiUrl('api/basemap-src')"),
+      'L1 遠端來源開關的讀取端消失——OFM 出事時將無法不出版本就切回 Stadia');
+    assert(/function ofmWatch\s*\(/.test(html),
+      'L2 健康監看 ofmWatch() 消失——OFM 半死時不會有人踩煞車');
+    assert(/function ofmFallToRaster\s*\(/.test(html),
+      'L2 本地自動退場 ofmFallToRaster() 消失——OFM 載不動時會停在空白地圖');
+    assert(html.includes('OpenFreeMap（© OpenFreeMap © OpenMapTiles © OpenStreetMap，街道圖）、Stadia Maps（© Stadia Maps © OpenMapTiles © OpenStreetMap，街道圖退路）、Esri World Imagery（衛星影像）與內政部「直轄市、縣市界線」（離線海陸輪廓，政府資料開放授權條款第1版）'),
+      'App 頁尾底圖來源未同時包含 OpenFreeMap(主)、Stadia(退路)、Esri 衛星與內政部離線輪廓的署名');
     // 放在本區塊最後:上面全是免費的本機檢查,先讓它們失敗;這一項要連外,擺最後才不會為了
     // 一個過期產物白等網路。驗的是**實際打包進這個 build 的那把金鑰**(不是 .env 當下的值——
     // 兩者可能已經分岔),所以送審包裡的金鑰死活,這裡是最後一道、也是唯一一道會發現的閘門。

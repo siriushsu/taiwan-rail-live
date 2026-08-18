@@ -3686,6 +3686,26 @@ async function basemapToken(request, env) {
   return jsonRes({ esri: env.ESRI_WEB_TOKEN }, 200, 'public, max-age=300, s-maxage=300');
 }
 
+// ── 街道底圖來源開關(L1 遠端退路)────────────────────────────────────────────
+// 為什麼要有這條:App 的底圖來源若寫死在 bundle 裡,OpenFreeMap 一旦停擺/變慢/改條款,
+// 使用者手上就是一片空白地圖,而修法要出版本＋等審查(以天計)。這條讓來源變成「開機問一句」,
+// 改一個環境變數就能把所有已裝機的 App 換回 Stadia raster,不必出版本。
+//
+// 刻意做成極小回應並放邊緣快取:它每次開機都會被呼叫,但同一個 colo 5 分鐘只回源一次。
+// max-age 取 300 而不是更長——這條的存在意義就是「出事時快速反應」,快取越長反應越慢,
+// 而回應只有幾十 bytes,短快取的成本可以忽略(同 basemap-token 的取捨)。
+//
+// 🔴 前端契約:這條**永遠不可以擋住地圖**。App 端一律先用本地快取(或 bundle 內建預設)把地圖畫出來,
+// 這個請求只在背景更新快取、下次開機才生效——否則我們自己就變成新的單點故障,
+// 那比 OpenFreeMap 掛掉還糟(至少 OFM 掛掉只影響底圖,這條掛掉會影響開機)。
+async function basemapSrc(request, env) {
+  // 只認得這兩個值,其餘(含未設定、拼錯、被改成奇怪的字)一律回 'ofm'。
+  // 預設必須是「不計費的那個」:環境變數手滑不該把所有裝置靜默切到計量底圖上,
+  // 那種錯誤沒有任何畫面訊號,只會在一個月後變成帳單。
+  const street = env.BASEMAP_STREET_SRC === 'stadia' ? 'stadia' : 'ofm';
+  return jsonRes({ street }, 200, 'public, max-age=300, s-maxage=300');
+}
+
 // ── 衛星底圖的第二種計費方式：basemap session ────────────────────────────────
 // Esri 兩種計價擇一：按張數，或按 session（一顆管 12 小時、期間圖磚無限）。
 // 兩者有個損益兩平點：一顆 session 要涵蓋夠多張圖磚才划算——所以前端刻意
@@ -3848,7 +3868,7 @@ const API_POST_ALLOWED = new Set(['/api/account-delete', '/api/bounty-claim', '/
 const API_ENDPOINTS = new Set([
   'tra-live', 'tra-alert', 'thsr-alert', 'metro-alert', 'hazard-alert', 'metro-live', 'ntmetro-live', 'trtc-live',
   'klrt-position',
-  'delay-stats', 'delay-history', 'thsr-schedule', 'thsr-freeseat', 'station-events', 'today-board', 'basemap-token', 'basemap-session', 'account-delete',
+  'delay-stats', 'delay-history', 'thsr-schedule', 'thsr-freeseat', 'station-events', 'today-board', 'basemap-token', 'basemap-session', 'basemap-src', 'account-delete',
   'bounty-board', 'bounty-claim', 'bounty-submit', 'bounty-me', 'bounty-merge', 'plus-status', 'revenuecat-webhook',
   'la/bind', 'la/unbind', 'metro-wait/bind', 'metro-wait/unbind',
 ]);
@@ -5475,6 +5495,7 @@ export default {
     else if (url.pathname === '/api/station-events') res = await stationEvents(request, env);
     else if (url.pathname === '/api/today-board') res = await todayBoard(request, env);
     else if (url.pathname === '/api/basemap-token') res = await basemapToken(request, env);
+    else if (url.pathname === '/api/basemap-src') res = await basemapSrc(request, env);
     else if (url.pathname === '/api/basemap-session') res = await basemapSession(request, env);
     else if (url.pathname === '/api/account-delete') res = await deleteAccountData(request, env);
     else if (url.pathname === '/api/plus-status') res = await plusStatus(request, env);

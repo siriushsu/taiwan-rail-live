@@ -4498,6 +4498,7 @@ const state = {
 };
 let map, cv, ctx;
 let baseLayers = {}; // light / dark / sat Leaflet 圖層
+let ofmRasterFallback = null; // L2 退場用:把 Stadia raster 該怎麼建記在這裡(見 boot 內建層處)
 // 網站版衛星圖磚的 Esri token 改由 Worker 的 /api/basemap-token 下發(不寫進這個公開 repo,見 boot 內註解)。
 // 'ready'=可切衛星(App 殼與離線版恆 ready,金鑰由 build 直接注入);'pending'=還在要 token,先不切過去
 // 免得送出無 token 的圖磚請求吃 401;'failed'=要不到,衛星鈕整顆藏掉。
@@ -8152,6 +8153,19 @@ const WEB_STREET_SRC = (() => {
 })();
 const OFM_STYLE = { light: 'vendor/ofm-positron.json', dark: 'vendor/ofm-dark.json' };
 const OFM_ATTRIBUTION = '&copy; <a href="https://openfreemap.org/" target="_blank">OpenFreeMap</a> &copy; <a href="https://www.openmaptiles.org/" target="_blank">OpenMapTiles</a> &copy; <a href="https://www.openstreetmap.org/copyright" target="_blank">OpenStreetMap</a>';
+// ── App 殼的街道底圖來源(L1 遠端開關的客戶端半邊)───────────────────────────────
+// App 不能像網站那樣「改一行部署就換底圖」:出版本要等審查,以天計。所以來源做成可遠端切換——
+// 值由 Worker 的 /api/basemap-src 下發、存進 localStorage,而**開機時只讀快取、絕不等網路**。
+// 這條要是會擋住開機,我們就是拿一個自製的單點故障換掉 OpenFreeMap 的單點故障,更糟。
+// 遠端值一律下一次開機才生效,這也是刻意的:圖層建好後中途換來源,等於把使用者正在看的地圖抽掉。
+const APP_STREET_KEY = 'trainmap-app-street-src';
+const APP_STREET_SRC = (() => {
+  if (!APP_CFG.tiles) return null; // 網站不走這條(網站看上面的 WEB_STREET_SRC)
+  try { const v = localStorage.getItem(APP_STREET_KEY); if (v === 'ofm' || v === 'stadia') return v; } catch (e) {}
+  // bundle 內建預設(prepare-web 注入):拿不到快取(首次開機、清過資料)就用它。
+  // 認不得的值一律當 'ofm'——預設必須是不計費的那個,設定手滑不該靜默變成每月帳單。
+  return APP_CFG.streetSrc === 'stadia' ? 'stadia' : 'ofm';
+})();
 // 跨層對齊量測用的探針(僅 ?aligndot=<lat>,<lng> 時開啟):同一個經緯度同時交給
 // 底圖引擎與 overlay 各畫一顆點,兩顆的螢幕像素距離就是「底圖與列車圖層錯開多少」。
 // 判準刻意不共用任何投影假設——量的是最終合成畫面上的兩個亮點(見 verify_basemap_align.mjs)。
@@ -21272,6 +21286,39 @@ function satTileLoaded() {
 
 // ── 底圖切換(亮 CARTO Positron / 暗 Dark Matter / 衛星 Esri) ──
 function onlineBasemapsAvailable() { return window.RAIL_ONLINE_BASEMAPS_AVAILABLE !== false; }
+// ── L2:OpenFreeMap 本地自動退場 ────────────────────────────────────────────
+// 判準刻意**不是**「有沒有 error」:OFM 半死的時候是**慢**不是錯,錯誤事件一個都不會來,
+// 症狀只有「第一批圖磚遲遲載不完」。所以主訊號是「上場後 T 秒內有沒有 load」,error 只是副訊號。
+// 退場只在本次 session 生效、**不寫 localStorage**——一次網路抖動不該讓使用者永久留在計費底圖上
+// (那是每個月真金白銀的差別);下次開機自己重試 OFM。這條是「回得去」的唯一保證。
+const OFM_HEALTH_MS = 8000, OFM_ERROR_LIMIT = 4;
+function ofmWatch(layer) {
+  if (!APP_CFG.tiles) return; // 只有 App 有 raster 退路可退
+  let settled = false, errors = 0, timer = null;
+  const stop = () => { settled = true; if (timer) clearTimeout(timer); };
+  // 逾時**只在圖層真的上場後**起算:亮/暗兩層只有一層會被加進地圖,
+  // 若一建好就起算,沒上場的那層必然逾時 ⇒ 每次開機都假退場。
+  layer.on('add', function () {
+    if (settled || timer) return; // 只看第一次上場
+    timer = setTimeout(() => { if (!settled) { stop(); ofmFallToRaster('slow'); } }, OFM_HEALTH_MS);
+    const gl = this._glMap;
+    if (!gl) return; // 拿不到 gl 把手就只靠逾時判定
+    gl.on('error', () => { if (!settled && ++errors >= OFM_ERROR_LIMIT) { stop(); ofmFallToRaster('error'); } });
+    if (gl.isStyleLoaded && gl.isStyleLoaded()) stop(); else gl.once('load', stop);
+  });
+}
+function ofmFallToRaster(why) {
+  if (!ofmRasterFallback) return; // 已經退過(或沒備退路)就不再退:只退一次,不來回跳
+  const built = ofmRasterFallback; ofmRasterFallback = null;
+  for (const k of ['light', 'dark']) {
+    if (!built[k]) continue;
+    const old = baseLayers[k];
+    if (old && map && map.hasLayer(old)) map.removeLayer(old);
+    baseLayers[k] = built[k]();
+  }
+  try { console.warn('[basemap] OpenFreeMap 退場改用 raster:' + why); } catch (e) {}
+  setBasemap(); // 把該顯示的那層重新掛上去(署名也會跟著換成 raster 那份)
+}
 function setBasemap() {
   if (!map) return;
   const stage = document.querySelector('.stage');
@@ -22839,7 +22886,8 @@ async function boot() {
   // (App 包內不得殘留 CARTO/舊 Esri 免費層網址——CARTO 條款不允許包進上架 App,verify-release 有硬檢查)。
   let TILES = APP_CFG.tiles || null;
   // 只有網站(App 殼由 prepare-web 注入自己的授權圖磚)、且旗標選了 ofm、且函式庫真的載進來了才走向量
-  const useOfmStreet = !APP_CFG.tiles && WEB_STREET_SRC === 'ofm' && typeof L.maplibreGL === 'function';
+  // App 看 APP_STREET_SRC(遠端可切),網站看 WEB_STREET_SRC;兩邊都要函式庫真的載進來才算數。
+  const useOfmStreet = (APP_CFG.tiles ? APP_STREET_SRC === 'ofm' : WEB_STREET_SRC === 'ofm') && typeof L.maplibreGL === 'function';
   // APP_STRIP_START web-tiles
   if (!TILES) TILES = {
     light: { url: 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', subdomains: 'abcd', maxZoom: 20, attribution: '&copy; OpenStreetMap &copy; CARTO' },
@@ -22859,7 +22907,12 @@ async function boot() {
     // 街道底圖(亮/暗)走 OSM 向量:MapLibre 只當成一個 Leaflet 圖層,Leaflet 仍是地圖引擎,
     // 155 處 map.* 綁定與投影包裝層一行都不用動。衛星維持 raster 不受影響。
     if (useOfmStreet && (k === 'light' || k === 'dark')) {
+      // L2 退路先備好:用「raster 路徑原本就會建的那份設定」包成 thunk,退場時直接叫它,
+      // 不重抄一次 maxZoom/keepBuffer/attribution(抄一次就多一個會走樣的地方)。
+      // 只有 App 備:網站的 raster 退路是 CARTO,那正是這批要離開的東西。
+      if (APP_CFG.tiles) { if (!ofmRasterFallback) ofmRasterFallback = {}; ofmRasterFallback[k] = () => L.tileLayer(t.url, opt); }
       baseLayers[k] = L.maplibreGL({ style: OFM_STYLE[k], attribution: OFM_ATTRIBUTION, interactive: false });
+      ofmWatch(baseLayers[k]);
       if (ALIGN_DOT) { // 底圖那半的對齊探針:交給底圖引擎自己依經緯度畫,不經過我們任何投影程式碼
         // _glMap 要等圖層真的被加進地圖(onAdd→_initGL)才存在,所以掛在 'add' 事件上
         baseLayers[k].on('add', function () {
@@ -22914,6 +22967,18 @@ async function boot() {
         if (state.basemap === 'sat') { state.basemap = 'map'; try { localStorage.setItem('trainmap-basemap', 'map'); } catch (e) {} }
       })
       .then(() => { if (map) setBasemap(); }); // 成功/失敗都要重跑一次:成功=把衛星切回來,失敗=確保停在一般地圖
+  }
+  // L1 遠端來源開關:只更新快取給**下一次**開機用,本次一律照 APP_STREET_SRC 走。
+  // 問不到、逾時、回了認不得的值 —— 全部沿用現有快取,這條永遠不影響開機。
+  if (APP_CFG.tiles) {
+    fetch(apiUrl('api/basemap-src'), { cache: 'no-store' })
+      .then(r => r.ok ? r.json() : null)
+      .then(d => {
+        const v = d && d.street;
+        if (v !== 'ofm' && v !== 'stadia') return; // 認不得就當沒問過,不要拿壞值蓋掉好快取
+        try { localStorage.setItem(APP_STREET_KEY, v); } catch (e) {}
+      })
+      .catch(() => {});
   }
   // 外觀三段(亮/暗/自動;自動=跟隨系統)。舊鍵 trainmap-theme(light/dark)沿用為固定亮/暗
   try {
