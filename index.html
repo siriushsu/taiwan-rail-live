@@ -3956,6 +3956,7 @@
         <li><span class="d">7/13</span><span>收集章可以重複點，換搭不同班次回味</span></li>
         <li><span class="d">7/9</span><span>旅程護照與 16 枚成就徽章、「探」今日亮點面板上線</span></li>
         <li class="grp">手機與操作</li>
+        <li data-cl="appwhatsnewlag"><span class="d">8/19</span><span>App 剛更新完跳出的「更新了什麼」不再拿上一版的說明冒充：商店資料還沒追上新版時先不顯示，等追上再補給你</span></li>
         <li data-cl="androidcoarse"><span class="d">8/16</span><span>Android App 的定位權限改成只詢問模糊位置，不再要求精確位置；附近車站、藍點與需要定位的操作仍可照常使用</span></li>
         <li data-cl="androidtopgap"><span class="d">8/16</span><span>Android 手機把系統字級放大後，地圖左上的「軌島／基隆—高雄」牌會跟著變高，原本寫死位置的時間欄沒有讓位，兩欄因此黏住甚至重疊；現在時間欄會量牌子的實際底緣並固定留出間距，轉向與一般字級也一起適用（謝謝網友回報）</span></li>
         <li data-cl="androidinsets"><span class="d">8/16</span><span>Android App 在部分手機使用手勢或三鍵導覽時，放空模式的「離開放空／視角」會被系統導覽列壓住；現在所有手機安全區都會照原生系統回報讓位。窄螢幕若同時有營運公告，頂部最右邊的「捷」也不會再被裁掉</span></li>
@@ -13627,6 +13628,11 @@ function appUpdateState(mine, latest, st) {
   const c = cmpVer(mine, latest);
   if (c === null) return none;
   if (c < 0) return { hasUpdate: true, showBanner: st.dismissed !== latest, showWhatsNew: false };
+  // 🔴 手上這顆比商店查到的還新(審查中的 build、TestFlight、或 lookup 的 CDN 快取還沒追上新版——
+  // 實測 lookup 裸查會落後數小時):這時「剛更新完」的卡片會拿**上一版**的 releaseNotes 冒充本版說明
+  // (使用者實機回報:裝 1.4.8 卻跳出「軌島 1.4.6 更新了什麼」)。所以商店沒追上就不顯示,
+  // 並回 pending 讓呼叫端先不要把 seen 推進到本版——等商店追上,下一次開機才把正確那版的說明補給他。
+  if (c > 0) return { ...none, pending: st.seen !== mine };
   return { hasUpdate: false, showBanner: false,
            showWhatsNew: !!st.seen && st.seen !== mine && st.whatsnewSeen !== mine };
 }
@@ -13693,7 +13699,9 @@ async function appUpdateInit() {
   }
   const latest = await fetchLatestAppVersion();
   const state = appUpdateState(mine, latest ? latest.v : null, st);
-  appverWrite(APPVER_KEYS.seen, mine);   // 🔴 必須在判定之後才寫,否則「剛更新完」永遠不成立
+  // 🔴 必須在判定之後才寫,否則「剛更新完」永遠不成立;商店還沒追上本版(pending)時也先不寫,
+  // 否則下次商店追上時 seen 已等於本版,「更新了什麼」永遠不會補出來。
+  if (!state.pending) appverWrite(APPVER_KEYS.seen, mine);
   window.__appverLast = { state, latest, platform, showUpdateRow: true };   // 驗收用;不影響行為
   return window.__appverLast;
 }

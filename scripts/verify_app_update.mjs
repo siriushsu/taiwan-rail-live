@@ -65,6 +65,13 @@ r = await S('1.4.1', '1.4.1', { seen: null, dismissed: null, whatsnewSeen: null 
 ok(!!r && r.showWhatsNew === false, '🔴 第一次裝(seen 不存在) → 不可迎面丟一張卡片');
 r = await S('1.4.1', '1.4.1', { seen: '1.4.0', dismissed: null, whatsnewSeen: '1.4.1' });
 ok(!!r && r.showWhatsNew === false, '同一版的更新卡片看過就不再出現');
+r = await S('1.4.8', '1.4.6', { seen: '1.4.6', dismissed: null, whatsnewSeen: null });
+ok(!!r && r.showWhatsNew === false && r.hasUpdate === false && r.showBanner === false && r.pending === true,
+   '🔴 A4 手上比商店新(審查中/lookup 落後):不可拿上一版的說明冒充,且回 pending 讓 seen 先不推進');
+r = await S('1.4.8', '1.4.6', { seen: '1.4.8', dismissed: null, whatsnewSeen: null });
+ok(!!r && r.showWhatsNew === false && r.pending === false, 'A4b 手上比商店新但 seen 已是本版 → 不 pending(避免每次開機都被擋著不寫)');
+r = await S('1.4.8', '1.4.8', { seen: '1.4.6', dismissed: null, whatsnewSeen: null });
+ok(!!r && r.showWhatsNew === true, 'A4c 商店追上之後(seen 仍是舊版)→ 這時才顯示本版「更新了什麼」');
 r = await S('1.4.1', null, { seen: '1.4.0', dismissed: null, whatsnewSeen: null });
 ok(!!r && r.hasUpdate === false && r.showBanner === false && r.showWhatsNew === false,
    '查詢失敗(latest 為 null) → 全部安靜');
