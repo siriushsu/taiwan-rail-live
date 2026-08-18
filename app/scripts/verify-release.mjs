@@ -102,14 +102,6 @@ export async function assertLicensedBuildAllowed({ includeLicensedMusic, include
 // 指紋＝呼叫參數拿掉「所有字串literal內容」與空白之後剩下的程式結構。
 // 這樣改文案不會動到指紋（不會為了改一句話就紅燈），改結構才會。
 const TOAST_REVIEWED = new Map([
-  // 2026-08-18 登記:北捷「官方訂正位置」(trtcOfficialCorrectTick)與「官方訊號恢復」
-  // (trtcOfficialResyncTick)兩則通知。兩處的 msg 都是樣板字串,插值只有 count／maxM／mins／
-  // removed 四個,全部由 Math.round()／Number() 產生的數字,無使用者資料、無外部輸入;
-  // 字串裡的 <b> 是刻意要的粗體,所以不能整段 escHtml。
-  // ⚠️ 這個指紋是「變數名＋選項」的形狀,不綁呼叫點:日後若出現**新的**
-  // showToast(msg, { wrap: true }),會被這一筆自動放行 ⇒ 新增這種呼叫時必須回來重審,
-  // 不要因為帳本裡已經有這個指紋就當作有人審過。
-  ['msg,{wrap:true}', '北捷官方訂正/訊號恢復通知:插值只有 count/maxM/mins/removed 四個數字,無使用者資料'],
   [`info.done?'':''`, '兩個寫死字串二選一,無插入'],
   [`on?'':''`, '兩個寫死字串二選一,無插入'],
   [`''+note+''`, 'onLocateFail:note 只可能是四個寫死常數之一,無使用者資料'],
@@ -134,6 +126,12 @@ const TOAST_REVIEWED = new Map([
   [`''+(j.error===''?'':'')`, '懸賞 API 的 error 只用來選擇兩個寫死字串,API 回傳內容本身沒有插入'],
   ['`${pts}`', '懸賞認領落盤失敗提示:pts 已先經 bountyNum 收斂為有限非負整數'],
   ['`${escHtml(r.train)},`', '搭乘衝突提示:r.train 從 localStorage 還原,已在進入 innerHTML 前逸出'],
+  // 2026-08-18 登記:北捷官方位置的兩則說明。兩者插入的**全部是我們自己算出來的數字**
+  // (count/maxM 經 Math.round、mins/count/removed 經 Math.max/Math.round/Number),
+  // 沒有任何官方或使用者字串進得來;<b> 是刻意的排版。
+  // 🔴 變數名故意不叫 `msg`:指紋是「拿掉字串內容後的結構」,登記 `msg,{wrap:true}` 等於放行
+  //    未來所有同形呼叫。取專屬名字讓這兩條只涵蓋這兩個呼叫點,新的通用 msg 仍會被擋下來。
+  [`resyncMsg,{wrap:true}`, 'trtcOfficialResyncTick:只插入 mins/count/removed,三者皆先經 Math 收斂為數字'],
 ]);
 
 // 掃出每一個 showToast( 呼叫的完整參數（括號配對，不是 regex 抓一行）。

@@ -41,12 +41,13 @@ const DEPS = ['trtcOfficialRosterEnabled', 'trtcOfficialRosterActive', 'trtcOffi
   'trtcOfficialCoastCycle', 'trtcOfficialCoastByCycle', 'trtcOfficialCoastPosition',
   'trtcOfficialDeparturePosition', 'trtcOfficialTimelinePosition', 'trtcOfficialVehiclePosition',
   'trtcOfficialMotionStep', 'trtcOfficialPositionProgress', 'trtcOfficialPositionAtProgress',
-  'trtcOfficialSegmentSeconds', 'trtcOfficialForwardLimit', 'trtcOfficialDisplayPosition',
+  'trtcOfficialSegmentSeconds', 'trtcOfficialForwardLimit', 'trtcOfficialDwellAt',
+  'trtcOfficialArrivalTarget', 'trtcOfficialDwellUntil', 'trtcOfficialStopState', 'trtcOfficialDisplayPosition',
   'trtcGapUnitsAt', 'trtcOfficialSeparate', 'trtcOfficialRenderItems'];
 const CONSTS = ['OFFICIAL_ROSTER_ENABLED', 'TRTC_OFFICIAL_COAST_DWELL_MIN_SEC',
   'TRTC_OFFICIAL_COAST_DWELL_DEFAULT_SEC', 'TRTC_OFFICIAL_COAST_DWELL_SEC',
   'TRTC_OFFICIAL_RESYNC_MIN_COAST_SEC', 'TRTC_OFFICIAL_CATCHUP_FACTOR',
-  'TRTC_OFFICIAL_SNAP_FORWARD_M', 'TRTC_OFFICIAL_SNAP_TAU_SEC', 'TRTC_RESYNC_TOAST_SETTLE_SEC',
+  'TRTC_OFFICIAL_SNAP_FORWARD_M', 'TRTC_RESYNC_TOAST_SETTLE_SEC',
   '_trtcOfficialCorrect', '_trtcOfficialResync', '_trtcOfficialDisplay',
   'TRTC_MIN_GAP_KM'];
 
