@@ -1,7 +1,7 @@
 import {
   TRTC_LEDGER_SCHEMA, buildTrtcModel, buildLedgerFromRaw,
   trtcOperatingState, trtcServiceDay, resolveBoardRows, claimBoardRows, collapseClaims,
-  attachOfficialTimelines,
+  attachOfficialTimelines, segmentVehiclesFromCountdowns, alignSegmentsToVehicles,
   bindTracksToTrips, buildTripSetsByLineDir, joinBoardRowsToTrips, planTrtcTripBindingPersistence,
 } from './scripts/trtc_board_ledger.mjs';
 import { reduceOfficialRosterSelfHealing } from './scripts/trtc_official_roster.mjs';
@@ -882,8 +882,62 @@ async function trtcLive(request, env) {
         trains.push({ no: String(r.TrainNumber), sys: 'hw', dir: +r.CID, stn: r.StationID,
           at: trtcEpoch(r.utime), dest: m ? m.dest : null, path: m ? m.path : [], ...(cars ? { cars } : {}) });
       }
+      // ── BR 位置改由官方每站倒數決定（2026-08-18 使用者裁示）────────────────────
+      // 「不可能拿什麼carweight慢那麼多的時間去顯示給人看」。TrackInfo 的 NowDateTime 落後約
+      // 15 秒，CarWeightBR 的 UpdateTime 落後 96–265 秒，而前端在有 path 時就用 path 的
+      // 下一站定位（index.html 的 `to = nextIdx; from = to - step`），沒 path 才吃 stn。
+      // ⇒ 把切段還原出來的 path 填進去，位置就自動換成新鮮來源，前端零改動。
+      // 配對用「順序」不用距離：同向不能超車 ⇒ 兩份清單沿行進方向的排列必然一致，
+      // 這比拿落後兩到四分鐘的站碼去比距離穩得多（使用者裁示：順序是物理不變量）。
+      // 車數不一致時不硬配也不刪車，只記進 cd.brSeg 供每小時巡檢與晨間觀察比對。
+      let brSegStat = { derived: 0, matched: 0, cwRows: br.length, groups: 0, originRows: 0, unaligned: 0 };
+      const brPathByNo = new Map();
+      try {
+        const model = await trtcBoardModel(env);
+        const seg = segmentVehiclesFromCountdowns(model,
+          resolveBoardRows(model, tk, trtcEpoch, new Map()).rows, { lines: ['BR'] });
+        brSegStat.derived = seg.vehicles.length;
+        brSegStat.groups = seg.diagnostics.groups;
+        brSegStat.originRows = seg.diagnostics.originRows;
+        const line = model.lines.get('BR');
+        // BRxx → 站序。用官方站碼表反查，不要憑 `BR` + 序號的規律硬拼（實測目前恰好吻合，
+        // 但那是巧合不是契約，站碼表才是唯一來源）。
+        const idxOfCode = new Map();
+        for (const [code, rec] of model.codeMap) {
+          const on = (rec.on || []).find(x => x.line === 'BR');
+          if (on) idxOfCode.set(code, on.i);
+        }
+        // 一台車跨越一個區間要多久（中位數）。用來把「站碼落後幾秒」換算成「落後幾個區間」，
+        // 不寫死魔術數字（judgment 心得 35：門檻要從當下量到的東西推導）。
+        const runs = [...(line.runs || new Map()).values()].filter(v => v > 0).sort((a, b) => a - b);
+        const medianRun = runs.length ? runs[Math.floor(runs.length / 2)] : 78;
+        for (const dir of [1, 2]) {
+          const step = dir === 2 ? 1 : -1;
+          const derived = seg.vehicles.filter(v => v.dir === dir)
+            .sort((a, b) => (a.to - b.to) * step);
+          const cw = br.filter(r => Number(r.CID) === dir && idxOfCode.has(String(r.StationID)))
+            .sort((a, b) => (idxOfCode.get(String(a.StationID)) - idxOfCode.get(String(b.StationID))) * step);
+          // 🔴 舊寫法要求兩邊台數全等才配對，否則整個方向零配對、全部退回落後 96–265 秒的站碼
+          // ——那正是使用者禁止的事。實測 08-15 語料 80 個方向：段數−車數 只有 0(38%)／−1(49%)／
+          // −2(14%)，**一次都沒有多出來**。少的那 1–2 台是端點附近觀測不到的（跑最後一段沒有
+          // 前方站可報、剛要發車的起點列被丟），必定落在頭或尾 ⇒ 正確的對應只可能是 cw 裡的一段
+          // **連續視窗**，候選僅 N−M+1 個（實測 ≤3）。逐一評分取最佳，比全等閘門多救回 62% 的方向。
+          const fit = alignSegmentsToVehicles(derived,
+            cw.map(r => ({ idx: idxOfCode.get(String(r.StationID)), at: trtcEpoch(r.UpdateTime) })),
+            step, medianRun);
+          if (!fit) { brSegStat.unaligned += derived.length; continue; }
+          for (let i = 0; i < fit.n; i++) {
+            brPathByNo.set(String(cw[fit.vOff + i].TrainNumber), derived[fit.dOff + i]);
+            brSegStat.matched++;
+          }
+          brSegStat.unaligned += derived.length - fit.n; // 多出來、沒配上的段（診斷用）
+        }
+      } catch (e) {
+        console.warn('[trtc br-seg] 倒數切段失敗(退回原路徑):', (e && e.message) || String(e));
+      }
       for (const r of br) {
         const no = String(r.TrainNumber);
+        const segHit = brPathByNo.get(no);
         // meta 的鍵全部來自 TrackInfo 的 TrainNumber;TrackInfo 對文湖線只給站名/倒數,
         // 該線各列 TrainNumber 恆為空字串(上面建 meta 時已被 `if (!r.TrainNumber) continue`
         // 濾掉),⇒ meta 裡不可能存在任何合法的文湖線鍵。舊寫法多一層
@@ -893,13 +947,30 @@ async function trtcLive(request, env) {
         const m = meta.get(no);
         const cars = carsOf(r, ['Car1', 'Car2', 'Car3', 'Car4']);
         if (!cars) carsRejected++; // 同上,hw/br 合計一個計數器即可(不分系統),只加計數不改行為
-        trains.push({ no, sys: 'br', dir: +r.CID, stn: r.StationID,
-          at: trtcEpoch(r.UpdateTime), dest: m ? m.dest : null, path: m ? m.path : [], ...(cars ? { cars } : {}) });
+        // dest/path 優先取倒數切段（新鮮）；沒配到才退回 meta（BR 恆為 undefined ⇒ 空）。
+        // `at` 一併換成 TrackInfo 的基準時刻：它是這條 path 的時間基準，留著 CarWeightBR 的
+        // UpdateTime 會讓前端的 stale-at 閘門拿兩個不同來源的時鐘互比。
+        // 🔴 BR 一律不送 cars(2026-08-18)。看板與桌面小工具的擁擠度 join 都是
+        // 「同終點、有 cars 的第一台」(index.html applyTrtcOfficialBoard / MetroBoardModel.crowdFor),
+        // 鍵只有終點。本批之前 BR 的 dest 恆為 null ⇒ 那條 join 對 BR 結構上不可能命中;
+        // 現在補了 dest,若再送 cars,「往動物園」的每一列都會被貼上同一台 BR 車的擁擠度——
+        // 那是拿官方值去講一件官方沒說的事(哪一站的下一班是哪台車),違反「不畫假資料、不猜」。
+        // dest 不能不送:trtcCensusVehicles 要求它是合法站序整數,null 會讓整包 payload 判 malformed。
+        // 正解是把 join 改成逐車(看板 no ↔ trains[].stn 前綴),那是另一批;在那之前維持原狀。
+        // ⚠️ 小工具吃同一份 payload 且 1.4.6(63) 已送審改不動 ⇒ 這道閘門只能放在伺服器端。
+        trains.push({ no, sys: 'br', dir: segHit ? segHit.dir : +r.CID, stn: r.StationID,
+          at: segHit && Number.isFinite(segHit.baseEpoch) ? segHit.baseEpoch : trtcEpoch(r.UpdateTime),
+          dest: segHit ? segHit.destName : (m ? m.dest : null),
+          path: segHit ? segHit.path : (m ? m.path : []) });
       }
       const legacy = { at: new Date().toISOString(), src: 'trtc',
         trains: trains.filter(t => t.at != null && /^[A-Z]+\d+$/.test(t.stn) && (t.dir === 1 || t.dir === 2)),
         board, cd: { rows: tk.length, dropped: cdDropped, dateDropped: boardDateDropped,
-          pathDropped: pathCdDropped, pathDateDropped, pathNoTrainNo, carsRejected } };
+          pathDropped: pathCdDropped, pathDateDropped, pathNoTrainNo, carsRejected,
+          // 倒數切段的觀測性：derived＝從倒數還原出幾台、cwRows＝CarWeightBR 去重後幾列、
+          // matched＝實際配上的台數。derived 與 cwRows 是**兩個獨立來源**的車數，
+          // 差很多就是有一邊在騙人（晨間觀察與每小時巡檢都讀這三個數）。
+          brSeg: brSegStat } };
       // TrackInfo collapsed rows 同時是位置錨點與唯一官方名冊；站名正規化、支線／終點消歧、
       // 身分延續皆在 Worker 完成。trip join 只附標籤，不決定任何車的存在。
       let boardPos = { at: null, feedMode: tkResult.ok ? 'official' : 'outage', rows: [], extensions: [],

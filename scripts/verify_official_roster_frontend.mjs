@@ -65,6 +65,8 @@ const UNIT_FUNCTIONS = [
   'trtcOfficialDirectionPrevious', 'trtcOfficialDirectionAnchor',
   'trtcOfficialDisplayPosition', 'trtcOfficialVehicleInfo',
   'trtcOfficialRenderItems', 'trtcOfficialVehicleGlyph', 'trtcOfficialSameTarget', 'dirAngOf',
+  // 契約 5/6(2026-08-18):跨車順序與最小間距。放進同一個 bundle,否則 renderItems 會 ReferenceError。
+  'trtcGapUnitsAt', 'trtcOfficialSeparate',
 ];
 
 function buildUnitApi(overrides = {}, label = 'unit') {
@@ -76,14 +78,21 @@ function buildUnitApi(overrides = {}, label = 'unit') {
     ${extractConst(INDEX, 'TRTC_OFFICIAL_COAST_DWELL_DEFAULT_SEC')}
     ${extractConst(INDEX, 'TRTC_OFFICIAL_COAST_DWELL_SEC')}
     ${extractConst(INDEX, 'TRTC_OFFICIAL_RESYNC_MIN_COAST_SEC')}
+    ${extractConst(INDEX, 'TRTC_OFFICIAL_CATCHUP_FACTOR')}
+    ${extractConst(INDEX, 'TRTC_OFFICIAL_SNAP_FORWARD_M')}
+    ${extractConst(INDEX, 'TRTC_OFFICIAL_SNAP_TAU_SEC')}
+    ${extractConst(INDEX, 'TRTC_RESYNC_TOAST_SETTLE_SEC')}
+    ${extractConst(INDEX, '_trtcOfficialCorrect')}
     ${extractConst(INDEX, '_trtcOfficialResync')}
     ${extractConst(INDEX, '_trtcOfficialDisplay')}
+    ${extractConst(INDEX, 'TRTC_MIN_GAP_KM')}
     ${extractFunction(INDEX, 'runBetween')}
     ${extractFunction(INDEX, 'posAlongShape')}
     ${extractFunction(INDEX, 'posBetweenStations')}
     ${extractFunction(INDEX, 'trtcServiceSec')}
     ${UNIT_FUNCTIONS.filter(name => name !== 'trtcOfficialRosterEnabled').map(sourceOf).join('\n')}
-    globalThis.__api = { ${UNIT_FUNCTIONS.join(',')}, displayCache:_trtcOfficialDisplay };
+    globalThis.__api = { ${UNIT_FUNCTIONS.join(',')}, displayCache:_trtcOfficialDisplay,
+      catchupFactor: TRTC_OFFICIAL_CATCHUP_FACTOR };
   `;
   const context = { URLSearchParams, location: { search: '?officialroster=1' }, Date, Math, Number,
     String, Array, Map, Set };
@@ -134,12 +143,20 @@ const board = { feedMode: 'official', sourceRevision: 1000, vehicles: [timelineV
 function evaluateUnit(api) {
   const sameStation = (pos, line, index) => !!pos && pos.lat === line.stations[index].lat &&
     pos.lon === line.stations[index].lon;
+  // 官方往前修訂時「要漸進靠過去、不准瞬移」的上限。原本寫死 .51／.6，那是照一倍站間速度
+  // 算出來的常數；追趕倍率一改就整組假紅（2026-08-18 改成 2 倍即如此）。改成從 fixture 的
+  // 區間秒數(run=60)與產品常數推導，倍率再變也跟著走；另外獨立保留「fraction < 1」＝
+  // 沒有直接瞬移到官方修訂後的位置，那一條與倍率無關，是這組斷言真正的牙。
+  const easeCap = seconds => api.catchupFactor * seconds / 60;
   const active = api.trtcOfficialRosterActive;
   // 🔴 2026-08-17 使用者裁示：北捷列車位置暫時改用班表 ⇒ 官方名冊【出貨預設關閉】,
   //    只有 ?officialroster=1 才開。兩側都驗：關的那側必須真的關,開的那側必須真的開。
   //    位置邏輯修好要開回來時,這裡跟 index.html 那行一起改,不會有一邊改一邊沒改。
-  const A = !api.trtcOfficialRosterEnabled('') && api.trtcOfficialRosterEnabled('?officialroster=1') &&
-    !api.trtcOfficialRosterEnabled('?officialroster=0') && active(board, true, 100000) &&
+  // 🔴 2026-08-18 使用者裁示：北捷位置回到官方即時 ⇒ 預設【開】。兩側都要驗，只驗開的那側
+  // 會讓「乾脆永遠回 true、逃生口失效」也全綠（judgment 心得 39(b)）。
+  const A = api.trtcOfficialRosterEnabled('') && api.trtcOfficialRosterEnabled('?officialroster=1') &&
+    !api.trtcOfficialRosterEnabled('?officialroster=0') && !api.trtcOfficialRosterEnabled('?census=0') &&
+    active(board, true, 100000) &&
     !active({ ...board, feedMode: 'outage' }, true, 1000) && !active(board, false, 1000);
 
   const before = api.trtcOfficialVehiclePosition(LINE, timelineVehicle, 990);
@@ -179,11 +196,13 @@ function evaluateUnit(api) {
     heldAgain && heldAgain.lat === held.lat && heldAgain.lon === held.lon && heldAgain.coastArrEpoch === 1150 &&
     beforeLongFrame && afterLongFrame && afterLongFrame.lat === beforeLongFrame.lat &&
       afterLongFrame.lon === beforeLongFrame.lon &&
-    eased && eased.fraction > .5 && eased.fraction < .51 &&
-    deadlineShown && deadlineShown.fraction > eased.fraction && deadlineShown.fraction < .6 &&
-    reverseEased && reverseEased.fraction > .5 && reverseEased.fraction < .51 &&
+    eased && eased.fraction > .5 && eased.fraction <= .5 + easeCap(.2) + 1e-9 &&
+    deadlineShown && deadlineShown.fraction > eased.fraction &&
+      deadlineShown.fraction <= eased.fraction + easeCap(4.8) + 1e-9 && deadlineShown.fraction < 1 &&
+    reverseEased && reverseEased.fraction > .5 && reverseEased.fraction <= .5 + easeCap(.2) + 1e-9 &&
     reverseDeadlineShown && reverseDeadlineShown.fraction > reverseEased.fraction &&
-      reverseDeadlineShown.fraction < .6;
+      reverseDeadlineShown.fraction <= reverseEased.fraction + easeCap(4.8) + 1e-9 &&
+      reverseDeadlineShown.fraction < 1;
 
   const rendered = api.trtcOfficialRenderItems(LINE, board, 1030, true) || [];
   const numbered = rendered.find(item => item.vehicleId === 'timeline');
@@ -258,6 +277,7 @@ function buildIngestApi(holdOverride = null, label = 'ingest') {
     const OFFICIAL_ROSTER_ENABLED = true;
     ${extractConst(INDEX, 'TRTC_BOARD_LINES')}
     ${extractConst(INDEX, '_trtcOfficialDisplay')}
+    ${extractConst(INDEX, 'TRTC_MIN_GAP_KM')}
     const state = { systems:[{id:'mrt',data:{lines:globalThis.__lines}}], lines:[], decoLines:[],
       trtcOfficialRoster:null, trtcOfficialRosterRevisionHighWater:null, freqFollow:null };
     function clearFreqFollow(){ state.freqFollow = null; }
@@ -265,6 +285,11 @@ function buildIngestApi(holdOverride = null, label = 'ingest') {
     ${extractFunction(INDEX, 'trtcOfficialRosterGeometryLine')}
     ${extractFunction(INDEX, 'trtcOfficialRosterPayloadValid')}
     ${extractFunction(INDEX, 'trtcOfficialRosterOutage')}
+    // 🔴 2026-08-18 補:這支腳本在 origin/main 上就已經整個拋 ReferenceError 中止
+    // (applyTrtcOfficialRoster 會呼叫 trtcOfficialRosterRepairRun,但它從沒被放進這個 bundle)。
+    // 症狀與「跑過且全過」幾乎同形——A~J 單元閘門照印綠字,只有最後才炸,很容易被當成環境問題。
+    // 同族見 memory metro-shift-drags-trains-backwards 第三節(五支量畫面座標的 verify 全死在 import)。
+    ${extractFunction(INDEX, 'trtcOfficialRosterRepairRun')}
     ${holdSource}
     ${extractFunction(INDEX, 'applyTrtcOfficialRoster')}
     globalThis.__api={state,apply:applyTrtcOfficialRoster};
@@ -306,6 +331,46 @@ const baseline = evaluateUnit(baselineApi);
 for (const [gate, pass] of Object.entries(baseline)) check(pass, `${gate} gate`);
 check(ingestAudit() && sourceHoldAudit(), 'H gate：失敗、畸形、舊版本都保留既有名冊；只有時光機退回班表');
 
+// K gate：使用者裁示第 4 條「跑慢的就追上去」。
+// 🔴 這一條只有在「官方位置也在以站間速度前進」時才驗得出來——官方靜止的話連一倍速都會收斂，
+// 那種情境全綠也證明不了任何事（2026-08-18 早尖峰實測 BR 有車恆定落後 877m 連 4 次取樣一公尺沒縮，
+// 就是因為兩邊同速）。所以下面讓官方與顯示都跟著時間走，只有追趕倍率 >1 才可能收斂。
+{
+  const api = buildUnitApi({}, 'catchup');
+  const veh = { ...timelineVehicle, timeline: [{ from: 0, to: 1, depEpoch: 1000, arrEpoch: 1060, terminal: false }] };
+  // 種一個「落後官方 0.3 個站距」的顯示狀態(產品裡是由斷訊續推/名冊修訂造成的)
+  // 顯示層停在起點(progress 0)、官方此刻已走到 1/3 ⇒ 起始落後約 0.32 個站距。
+  api.displayCache.set(`${LINE.id}|${veh.vehicleId}`,
+    { epoch: 1020, progress: 0, pos: api.trtcOfficialVehiclePosition(LINE, veh, 1000), coasted: false, coastSince: null });
+  const gaps = [];
+  for (let t = 1021; t <= 1050; t++) {
+    const shown = api.trtcOfficialDisplayPosition(LINE, veh, t);
+    const official = api.trtcOfficialVehiclePosition(LINE, veh, t);
+    if (!shown || !official) { gaps.push(NaN); continue; }
+    gaps.push(Number((official.fraction - shown.fraction).toFixed(6)));
+  }
+  const first = gaps[0], last = gaps[gaps.length - 1];
+  const monotonic = gaps.every((g, i) => i === 0 || g <= gaps[i - 1] + 1e-9);
+  const converged = last <= 1e-6;
+  const noOvershoot = gaps.every(g => g >= -1e-9);   // 追趕不准超過官方位置
+  check(first > .3 && monotonic && converged && noOvershoot,
+    `K gate：落後的車會追上去（起始落後 ${first}、30 秒後 ${last}、單調收斂 ${monotonic}、零超越 ${noOvershoot}）`);
+  // 控制組：把追趕倍率壓回 1（＝改動前的行為），同一情境必須**追不上**，否則這條判準沒有牙
+  const oneX = extractFunction(INDEX, 'trtcOfficialDisplayPosition')
+    .replace('dt * TRTC_OFFICIAL_CATCHUP_FACTOR', 'dt');
+  const api1 = buildUnitApi({ trtcOfficialDisplayPosition: oneX }, 'catchup-control');
+  api1.displayCache.set(`${LINE.id}|${veh.vehicleId}`,
+    { epoch: 1020, progress: 0, pos: api1.trtcOfficialVehiclePosition(LINE, veh, 1000), coasted: false, coastSince: null });
+  let ctlGap = null;
+  for (let t = 1021; t <= 1050; t++) {
+    const shown = api1.trtcOfficialDisplayPosition(LINE, veh, t);
+    const official = api1.trtcOfficialVehiclePosition(LINE, veh, t);
+    if (shown && official) ctlGap = Number((official.fraction - shown.fraction).toFixed(6));
+  }
+  check(ctlGap != null && ctlGap > .3 - 1e-6,
+    `K gate 控制組：倍率 1 時追不上（30 秒後仍落後 ${ctlGap}）`);
+}
+
 const forbidden = ['TRTC_OFFICIAL_COAST_MAX_SEC', 'TRTC_OFFICIAL_ROSTER_MAX_AGE_SEC',
   'OFFICIAL_CARRY_MAX_SEC', 'unmatchedPriorExited'];
 check(forbidden.every(value => !INDEX.includes(value)), '錯誤的時間刪車／配不到刪車識別字已從前端清除');
@@ -339,7 +404,7 @@ await mutation('畫面停頓超過五秒就退回修訂後方', 'B', 'trtcOffici
   'if (!prior || now < prior.epoch) {',
   'if (!prior || now < prior.epoch || now - prior.epoch > 5) {');
 await mutation('每十秒追一站並在 deadline 瞬移到站', 'B', 'trtcOfficialDisplayPosition',
-  'const shown = Math.min(progress, trtcOfficialForwardLimit(ln, vehicle, prior.progress, dt));',
+  'const shown = Math.min(progress, Math.max(eased,\n    trtcOfficialForwardLimit(ln, vehicle, prior.progress, dt * TRTC_OFFICIAL_CATCHUP_FACTOR)));',
   'let shown = Math.min(progress, prior.progress + 0.1 * dt);\n  if (raw.atStation) shown = progress;');
 await mutation('續推超過任意秒數就消失', 'G', 'trtcOfficialCoastPosition',
   'const elapsed = now - arrEpoch;', 'const elapsed = now - arrEpoch;\n  if (elapsed > 600) return null;');
