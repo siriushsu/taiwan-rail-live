@@ -10,7 +10,9 @@ import fs from 'node:fs';
 // --local <index.html>：主文件餵本機這一份，API 仍走同網域正式站 ⇒ 同一份即時資料只換程式碼
 const li = process.argv.indexOf('--local');
 const LOCAL = li > 0 ? process.argv[li + 1] : null;
-const URL = process.argv[2] || 'https://railisland.tw/';
+// 同樣用「找」不用「位置」：舊寫法 process.argv[2] 在 `--local x` 之後會拿到旗標名 `--local`,
+// Playwright 直接報 Cannot navigate to invalid URL(2026-08-18 踩到)。
+const URL = process.argv.slice(2).find(a => /^https?:\/\//.test(a)) || 'https://railisland.tw/';
 // 🔴 參數用「找」不用「位置」：舊寫法 Number(process.argv[3]) 在 `--local x` 之後拿到旗標名,
 // 得到 NaN,slice(0,NaN) 回空陣列 ⇒ 印出「分母為 0」的假故障(2026-08-18 連中兩次)。
 // 取不到合法值就直接失敗,不要靜默用 NaN。
