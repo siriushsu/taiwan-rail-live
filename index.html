@@ -4379,9 +4379,9 @@ function trtcOfficialRosterEnabled(search) {
     // 🔴 2026-08-18 17:1x 使用者裁示「先把正式站回歸到官方班表」——實測「官方訂正位置」
     //    每十幾秒跳一次(環狀線 16 台車兩分鐘觸發 1099 次,是其他線的 150-340 倍),
     //    位置模型本身會造出 100-500m 的落差。退回班表推估,根因修好再開。
-    if (q.get('officialroster') === '1' || q.get('census') === '1') return true;
-    return false;
-  } catch (e) { return false; }
+    if (q.get('officialroster') === '0' || q.get('census') === '0') return false;
+    return true;
+  } catch (e) { return true; }
 }
 function trtcCensusRosterEnabled(search) {
   // 逐車清單路徑同樣改為預設開啟：文湖線的倒數定位就掛在這條上（worker 把切段結果填進
@@ -4389,10 +4389,13 @@ function trtcCensusRosterEnabled(search) {
   // Y／G_XBT／R_XBT 逐車清單本來就沒有，會自動維持舊路徑（見下方 covered/kept 的處理）。
   try {
     const q = new URLSearchParams(search == null ? location.search : search);
-    if (q.get('census') === '1' || q.get('officialroster') === '1') return true;
-    return false;
-  } catch (e) { return false; }
+    if (q.get('census') === '0' || q.get('officialroster') === '0') return false;
+    return true;
+  } catch (e) { return true; }
 }
+// 🔴🔴 這棵樹是【手機 build 專用】(branch build/trtc-y-device):旗標已開回官方即時,
+//    好讓 App 帶著修法上真機做晨間觀察。**這個分支不准拿去部署網站**——網站要開回官方即時
+//    的前提是尖峰時段的驗收先綠(見 scripts/verify_correct_toast.mjs 的 G1 分母閘門)。
 // URL 開關必須在開機初始就固定；clearFollow() 會整理 query string，不可在後面重讀。
 const OFFICIAL_ROSTER_ENABLED = trtcOfficialRosterEnabled(location.search);
 const CENSUS_ROSTER_ENABLED = trtcCensusRosterEnabled(location.search);
