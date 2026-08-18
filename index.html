@@ -5632,10 +5632,13 @@ function trtcOfficialCorrectTick(nowEpoch) {
   const count = r.count, maxM = Math.round(r.maxM);
   r.notifiedAt = r.at; r.count = 0; r.maxM = 0;
   if (!count) return null;
-  const msg = `官方訂正位置　北捷剛更新了 <b>${count} 台</b>列車的到站時刻（最多差 <b>${maxM} 公尺</b>），`
+  // 變數刻意取專屬名字(不叫 msg):發版閘門的注入指紋是「拿掉字串內容後的程式結構」,
+  // 沿用通用變數名等於讓帳本一次放行所有同形的呼叫點,閘門就鈍掉;專屬名字只涵蓋這一處。
+  // ⚠️ 註解裡也不要寫出呼叫的字面語法——那個掃描器是文字括號配對、不剔除註解,會把註解當成呼叫點。
+  const correctMsg = `官方訂正位置　北捷剛更新了 <b>${count} 台</b>列車的到站時刻（最多差 <b>${maxM} 公尺</b>），`
     + `畫面已依最新的官方資料校正。`;
-  showToast(msg, { wrap: true });
-  return { count, maxM, msg };
+  showToast(correctMsg, { wrap: true });
+  return { count, maxM, msg: correctMsg };
 }
 // 斷訊回歸事件（由 trtcOfficialDisplayPosition 記錄、UI 每秒 tick 消費後跳訊息）。
 // 刻意不在位置函式裡直接呼叫 showToast——那會讓純函式驗收得連 DOM 一起搬進沙盒。
@@ -5656,12 +5659,12 @@ function trtcOfficialResyncTick(nowEpoch) {
   const removed = rec && Number(rec.removed) > 0 && Number(rec.atEpoch) !== Number(r.removedFor)
     ? Number(rec.removed) : 0;
   if (removed) r.removedFor = Number(rec.atEpoch);
-  const msg = `官方訊號恢復　北捷即時資料中斷約 <b>${mins} 分鐘</b>後恢復，`
+  const resyncMsg = `官方訊號恢復　北捷即時資料中斷約 <b>${mins} 分鐘</b>後恢復，`
     + `<b>${count} 台</b>列車已重新對齊官方位置——中斷期間畫面上的位置是推估的，`
     + `所以這些車會往前跳或往後退。`
     + (removed ? `另有 <b>${removed} 台</b>推估中的列車因為不在官方名單上而移除，這不代表它們停駛。` : '');
-  showToast(msg, { wrap: true });   // 整句說明，不能被單行截斷（實測手機只看得到前 20 字）
-  return { mins, count, removed, msg };
+  showToast(resyncMsg, { wrap: true });   // 整句說明，不能被單行截斷（實測手機只看得到前 20 字）
+  return { mins, count, removed, msg: resyncMsg };
 }
 // dir 是名冊身分欄位，可能在重配或舊資料接回時落後一輪；畫面位置已經知道自己正走哪一段，
 // 所以位置軸與箭頭一律先採 motionFrom→motionTo。這使錯誤 dir 不能再把正向移動解讀成反向。

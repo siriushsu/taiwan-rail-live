@@ -123,6 +123,13 @@ const TOAST_REVIEWED = new Map([
   [`''+(j.error===''?'':'')`, '懸賞 API 的 error 只用來選擇兩個寫死字串,API 回傳內容本身沒有插入'],
   ['`${pts}`', '懸賞認領落盤失敗提示:pts 已先經 bountyNum 收斂為有限非負整數'],
   ['`${escHtml(r.train)},`', '搭乘衝突提示:r.train 從 localStorage 還原,已在進入 innerHTML 前逸出'],
+  // 2026-08-18 登記:北捷官方位置的兩則說明。兩者插入的**全部是我們自己算出來的數字**
+  // (count/maxM 經 Math.round、mins/count/removed 經 Math.max/Math.round/Number),
+  // 沒有任何官方或使用者字串進得來;<b> 是刻意的排版。
+  // 🔴 變數名故意不叫 `msg`:指紋是「拿掉字串內容後的結構」,登記 `msg,{wrap:true}` 等於放行
+  //    未來所有同形呼叫。取專屬名字讓這兩條只涵蓋這兩個呼叫點,新的通用 msg 仍會被擋下來。
+  [`correctMsg,{wrap:true}`, 'trtcOfficialCorrectTick:只插入 count(整數台數)與 maxM(Math.round 後的公尺數)'],
+  [`resyncMsg,{wrap:true}`, 'trtcOfficialResyncTick:只插入 mins/count/removed,三者皆先經 Math 收斂為數字'],
 ]);
 
 // 掃出每一個 showToast( 呼叫的完整參數（括號配對，不是 regex 抓一行）。
