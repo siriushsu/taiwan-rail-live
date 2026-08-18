@@ -4927,6 +4927,135 @@ function trtcCensusResolve(stn, nextName, destName) {
   }
   return scored[0];
 }
+// 🔴 文湖線(BR)的車直接來自官方每站倒數,完全不經過 CarWeightBR(2026-08-18 使用者裁示:
+// 「car weight 直接丟掉也沒有關係啊,我們要的就是車子是對的,就算編號是我們給的也沒關係,
+//  因為每站都有倒數時間 不會跟丟」「有倒數才有車」)。
+//
+// 改之前的實況(正式站 worker 自己的診斷 cd.brSeg,連三輪相同):
+//   derived 25 台(官方倒數切出來) / matched 12 台(配得上車廂編號) / unaligned 13 台(整台丟掉)
+//   而畫面上畫的是另一份 cwRows 29 台的 CarWeightBR 清單,其中只有 26/32 拿得到新鮮位置,
+//   剩下 5–6 台用落後 134–314 秒的站碼定位——正是裁示點名不准的事。
+// 量測佐證:原始倒數資料齡 中位 17 秒、p90 22 秒;每輪每方向 23/24 站都有回報(缺的只有該方向
+// 的終點站本身,因為到終點那一段前方沒有站可報)。
+//
+// 切法與伺服器端 segmentVehiclesFromCountdowns 同一套(scripts/trtc_board_ledger.mjs):
+// 每站取最早的一筆倒數 → 依行進方向排開 → 倒數不再遞增、或「快到物理上跑不到」就切一台。
+// 使用者對這個模型的描述即為其自我修正機制:「前一台離站就會出現在下一站的倒數,
+// 然後這站倒數就是下一輛」——同區段兩台同向車在前車離站前結構上看不見,誤差上限一個站間車程。
+const TRTC_BR_FROM_COUNTDOWN = true;      // 出事就把這行改 false,回到 CarWeightBR 路徑
+const TRTC_BR_SAME_TRAIN_RATIO = 0.5;     // 與伺服器端 SAME_TRAIN_MIN_RUN_RATIO 同值
+function trtcBrVehiclesFromBoard(board, nowEpoch, day) {
+  const ln = trtcCensusLine('BR');
+  if (!ln || !Array.isArray(ln.stations) || !ln.stations.length) return null;
+  const names = trtcCensusNames(ln), idxOf = n => names.indexOf(_trtcCensusNorm(n));
+  const rows = [];
+  for (const b of board || []) {
+    const i = idxOf(b && b.name), d = idxOf(b && b.dest), eta = Number(b && b.eta);
+    if (i < 0 || d < 0 || d === i || !Number.isFinite(eta)) continue;
+    rows.push({ i, d, eta, step: Math.sign(d - i) });
+  }
+  if (!rows.length) return null;
+  const out = [];
+  for (const step of [1, -1]) {
+    const byStation = new Map();
+    for (const r of rows) {
+      if (r.step !== step) continue;
+      const prev = byStation.get(r.i);
+      if (!prev || r.eta < prev.eta) byStation.set(r.i, r); // 同站多筆取最早到的那台
+    }
+    const ordered = [...byStation.values()].sort((a, b) => (a.i - b.i) * step);
+    let group = [];
+    const flush = () => {
+      const g = group; group = [];
+      if (!g.length) return;
+      const head = g[0], from = head.i - step;
+      if (from < 0 || from >= names.length) return; // 起點列:前方站在線外,不是一台在跑的車
+      const timeline = [];
+      let cur = from;
+      for (const r of g) {
+        const rr = trtcCensusRun(ln, cur, r.i);
+        timeline.push({ from: cur, to: r.i, depEpoch: r.eta - rr, arrEpoch: r.eta, terminal: false });
+        cur = r.i;
+      }
+      out.push({ vehicleId: 'brseg:' + day + ':' + (step > 0 ? 2 : 1) + ':' + head.i,
+        line: 'BR', dir: step > 0 ? 2 : 1, dest: head.d, from, to: head.i,
+        run: trtcCensusRun(ln, from, head.i), arrEpoch: head.eta, terminal: false,
+        officialNo: null, source: 'board-seg', observedEpoch: nowEpoch, timeline });
+    };
+    for (const r of ordered) {
+      const prev = group.length ? group[group.length - 1] : null;
+      if (prev) {
+        let expected = 0;
+        for (let k = prev.i; k !== r.i; k += step) expected += trtcCensusRun(ln, k, k + step);
+        // 倒數沒有遞增,或遞增得比「這段最少要跑多久」還快 ⇒ 不可能是同一台,切開。
+        if (r.eta <= prev.eta || (r.eta - prev.eta) < expected * TRTC_BR_SAME_TRAIN_RATIO) flush();
+      }
+      group.push(r);
+    }
+    flush();
+  }
+  return out;
+}
+// 🔴 文湖線(BR)的身分改跟隨「位置與順序」,不跟隨車廂編號。
+// 2026-08-18 使用者裁示:「BR你車號沒認出來就算了,我們就有倒數時間 知道車子在哪兩站之間
+// 知道有多少車 所以就算沒有編號 有資訊就一定要對」,以及該裁示的「識別靠位置與順序不靠編號」。
+//
+// 為什麼非改不可:BR 沒有官方車次,位置來自官方倒數切出來的**區段**(落後約 15 秒),
+// 而 vehicleId 來自 CarWeightBR 的**車廂組編號**(落後 96–265 秒)。後端每一輪把這兩串清單
+// 各自重算一次滑動視窗配對、完全不記得上一輪配過什麼(worker.js 的 alignSegmentsToVehicles),
+// 於是端點附近多一台或少一台,整個視窗就滑一格 ⇒ **全線的編號同時被綁到後一個區段**。
+// 2026-08-18 09:4x 正式站實測:倒退的 13 台次裡有 10 次(77%)落點正是「另一台車上一輪的位置」,
+// 而新一輪 654 個位置有 619 個(95%)上一輪就有車在那 ⇒ **位置根本沒動,動的是名字**。
+// 使用者一看就說「車子不可能是這樣跑的」,並指出該假設「整批認錯車」——資料證實了。
+//
+// 為什麼可以這樣改:那個編號**從來不畫給使用者看**(drawTrtcOfficialVehicle 對 officialNo 為空的
+// 一律畫通用 BR 橢圓牌,且伺服器端已明令 BR 不送 cars),它唯一的職責就是當一個穩定的身分——
+// 而它不穩定。改用我們自己上一輪的位置來接身分,接的是同一條線同一個方向的順序,
+// 順序是物理不變量(契約第 5 條:同線同向不得超車)。
+//
+// 🔴 這不是那條已作廢的 no-backward hold:位置**全部照官方最新一輪**,一格都不改、一台都不拒收;
+// 只有「哪個名字貼在哪一台」用上一輪接回去。拒收資料的是 hold,這裡沒有任何資料被拒收。
+//
+// 配對法不設任何門檻:兩串都依行進方向排好,取「總位移最小」的對位。整批滑一格的代價是
+// n × 班距(約 1.5–3 個站序單位),正確對位的代價是 n × 一輪的行進量(約 0.2),差兩個數量級,
+// 用總位移就足以把錯的視窗篩掉,不需要魔術數字。
+const _trtcBrIdentity = { prior: new Map(), seq: 0, day: '' };
+function trtcCensusRestampBr(list, nowEpoch, day) {
+  const brs = (list || []).filter(v => String(v.line) === 'BR');
+  if (!brs.length) return;
+  if (_trtcBrIdentity.day !== day) { _trtcBrIdentity.prior = new Map(); _trtcBrIdentity.seq = 0; _trtcBrIdentity.day = day; }
+  // 沿行進方向的連續座標(站序 + 未走完的比例),兩個方向各自比較。
+  const along = v => {
+    const step = Number(v.dir) === 2 ? 1 : -1, run = Number(v.run);
+    if (v.terminal || !(run > 0)) return Number(v.from) * step;
+    const left = Math.max(0, Math.min(1, (Number(v.arrEpoch) - nowEpoch) / run));
+    return (Number(v.to) - step * left) * step;
+  };
+  const prior = _trtcBrIdentity.prior, next = new Map();
+  for (const dir of [1, 2]) {
+    const cur = brs.filter(v => Number(v.dir) === dir).map(v => ({ v, p: along(v) })).sort((a, b) => a.p - b.p);
+    if (!cur.length) continue;
+    const old = [...prior.entries()].filter(([, r]) => r.dir === dir)
+      .map(([id, r]) => ({ id, p: r.p })).sort((a, b) => a.p - b.p);
+    if (old.length) {
+      const n = Math.min(cur.length, old.length);
+      let best = null, bestScore = Infinity;
+      for (let cOff = 0; cOff <= cur.length - n; cOff++)
+        for (let oOff = 0; oOff <= old.length - n; oOff++) {
+          let score = 0;
+          for (let i = 0; i < n; i++) score += Math.abs(cur[cOff + i].p - old[oOff + i].p);
+          if (score < bestScore) { bestScore = score; best = { cOff, oOff }; }
+        }
+      if (best) for (let i = 0; i < n; i++) cur[best.cOff + i].id = old[best.oOff + i].id;
+    }
+    for (const c of cur) {
+      if (!c.id) c.id = 'brseg:' + day + ':' + (++_trtcBrIdentity.seq).toString(36);
+      c.v.vehicleId = c.id;
+      next.set(c.id, { p: c.p, dir });
+    }
+  }
+  _trtcBrIdentity.prior = next;
+}
 let _trtcCensusPrior = new Map();
 function trtcCensusVehicles(trains, nowEpoch, day) {
   if (!_trtcCodes) { trtcCodesEnsure(); return null; } // 站碼表還沒到：這一輪不動名冊
@@ -18348,7 +18477,17 @@ async function pollTrtcLive() {
               // 判準用「這一輪有沒有建出車」而不是寫死線別清單：支線永遠 0 台就永遠走看板，
               // 而某條線臨時 0 台時退回看板也只是回到現行行為，不會比今天差。
               if (built) {
-                const covered = new Set(built.map(v => v.line));
+                // 🔴 文湖線改由官方每站倒數直接切出車輛,CarWeightBR 不再決定它有幾台車、
+                // 車在哪(2026-08-18 裁示:「car weight 直接丟掉也沒有關係」「有倒數才有車」)。
+                // 切不出來(倒數整批沒回來)才退回原本的 CarWeightBR 路徑,不是硬要空著。
+                const nowSec = Date.now() / 1000, dayKey = todayStr();
+                const brSeg = TRTC_BR_FROM_COUNTDOWN && Array.isArray(d.board)
+                  ? trtcBrVehiclesFromBoard(d.board, nowSec, dayKey) : null;
+                const useBr = brSeg && brSeg.length ? brSeg : null;
+                const mine = useBr ? built.filter(v => v.line !== 'BR').concat(useBr) : built;
+                // 編號是我們自己給的(裁示允許),所以必須自己維持跨輪穩定:依位置與順序接上一輪。
+                trtcCensusRestampBr(mine, nowSec, dayKey);
+                const covered = new Set(mine.map(v => v.line));
                 const kept = (d.boardPos.vehicles || []).filter(v => !covered.has(v.line));
                 // 退回舊綁定器這件事不可以是靜默的：Y 與兩條支線是預期的（逐車清單本來就沒有
                 // 它們），但如果某條「逐車清單有涵蓋」的主線這一輪建成 0 台而退回看板來源，
@@ -18356,7 +18495,7 @@ async function pollTrtcLive() {
                 // 由巡檢掃描器當警告報出來（不是缺陷：退回＝回到現行行為，不比今天差）。
                 const expected = new Set(['Y', 'G_XBT', 'R_XBT']);
                 const fallbackLines = [...new Set(kept.map(v => v.line))].filter(id => !expected.has(id));
-                applyTrtcOfficialRoster({ ...d.boardPos, vehicles: built.concat(kept),
+                applyTrtcOfficialRoster({ ...d.boardPos, vehicles: mine.concat(kept),
                   feedMode: 'official', censusFallbackLines: fallbackLines });
               }
             } else applyTrtcOfficialRoster(d.boardPos);

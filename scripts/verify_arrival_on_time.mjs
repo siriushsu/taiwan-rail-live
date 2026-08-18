@@ -11,7 +11,12 @@ import fs from 'node:fs';
 const li = process.argv.indexOf('--local');
 const LOCAL = li > 0 ? process.argv[li + 1] : null;
 const URL = process.argv[2] || 'https://railisland.tw/';
-const WANT = Number(process.argv[3] || 8);
+// 🔴 參數用「找」不用「位置」：舊寫法 Number(process.argv[3]) 在 `--local x` 之後拿到旗標名,
+// 得到 NaN,slice(0,NaN) 回空陣列 ⇒ 印出「分母為 0」的假故障(2026-08-18 連中兩次)。
+// 取不到合法值就直接失敗,不要靜默用 NaN。
+const _args = process.argv.slice(2).filter((a, i, arr) => a !== '--local' && arr[i - 1] !== '--local');
+const WANT = Number(_args.find(a => /^\d+$/.test(a)) || 8);
+if (!Number.isInteger(WANT) || WANT <= 0) { console.log('❌ 取樣筆數參數不合法:', WANT); process.exit(2); }
 const NEAR_M = 250;          // 判「在這一站」的半徑。站距最短約 600m,250m 不會跨到鄰站
 const WIN_LO = 45, WIN_HI = 200;  // 只取這個倒數區間:太短來不及佈署觀測,太長期間會換班次
 

@@ -430,8 +430,29 @@ else
     `${thresholdPx < 2 ? '（門檻與解析度同一量級：公尺值只能當「相距一兩個像素」讀）' : ''}` +
     `｜其中 ${nFloat} 台取產品浮點座標不受此限、${nPx} 台仍靠像素反推`);
 
-const clumpsKnown = clumps.filter(c => knownOpenClump(c.group));
-const clumpsReal = clumps.filter(c => !knownOpenClump(c.group));
+// 🔴 疊車要「兩次取樣都成立」才判缺陷。分離守則把後車夾到剛好 100m，資料進來時若兩台
+// 已經比 100m 近，守則依設計不把後車往回拉（只凍住等前車走開）⇒ 會出現一兩輪 93-96m 的
+// 瞬態，那是設計行為不是缺陷。持續存在的才是守則失效（08-18 實測單次瞬態每半小時一兩次，
+// 而突變測試造出來的真疊車在兩次取樣都成立）。
+const clumpKey = c => `${c.group}|${[c.a, c.b].sort().join('|')}`;
+const s1Clumped = new Set();
+{
+  const g1 = new Map();
+  for (const h of s1.hits) { const g = `${h.line}|${h.dir}`; if (!g1.has(g)) g1.set(g, []); g1.get(g).push(h); }
+  for (const [g, arr] of g1) for (let i = 0; i < arr.length; i++) for (let j = i + 1; j < arr.length; j++) {
+    const m = (arr[i].d != null && arr[j].d != null) ? Math.abs(arr[i].d - arr[j].d) * 1000 : null;
+    const exact = arr[i].dsrc === 'float' && arr[j].dsrc === 'float';
+    if (m != null && m < (exact ? OVERLAP_BAD_M - CLAMP_EPS_M : OVERLAP_BAD_M))
+      s1Clumped.add(`${g}|${[arr[i].key, arr[j].key].sort().join('|')}`);
+  }
+}
+const clumpsTransient = clumps.filter(c => !s1Clumped.has(clumpKey(c)));
+const clumpsBoth = clumps.filter(c => s1Clumped.has(clumpKey(c)));
+const clumpsKnown = clumpsBoth.filter(c => knownOpenClump(c.group));
+const clumpsReal = clumpsBoth.filter(c => !knownOpenClump(c.group));
+if (clumpsTransient.length)
+  console.log(`ℓ 單次取樣才出現的靠近 ${clumpsTransient.length} 對（20 秒後已解，屬守則的凍結瞬態，不判缺陷）：` +
+    clumpsTransient.slice(0, 4).map(c => `${c.group} ${c.m}m`).join('、'));
 console.log(`${clumpsReal.length ? '❌' : '✅'} 同向疊車（<${OVERLAP_BAD_M}m）：${clumpsReal.length} 對` +
   (clumpsReal.length ? `　例：${clumpsReal.slice(0, 4).map(c => `${c.group} ${c.m}m${c.exact ? '' : '(±像素)'}`).join('、')}`
     : `（靠近 <${OVERLAP_WARN_M}m ${nearPairs.length} 對、同站 ${atStationPairs} 對，皆屬正常範圍）`));
