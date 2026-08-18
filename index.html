@@ -3813,6 +3813,7 @@
            內容 li 上限 8 條(li.grp 是標題不算)。 -->
       <ul class="foot-list foot-recent">
         <li class="grp">最近更新</li>
+        <li data-cl-of="osmbasemap"><span class="d">8/18</span><span>街道底圖換成 OpenStreetMap 的圖資：地名改成中文單行、路名與公路編號牌不再蓋滿畫面，看起來跟以前一樣安靜，但列車、路線與站點的位置完全沒變</span></li>
         <li data-cl-of="hsrcoast"><span class="d">8/18</span><span>高鐵列車跑起來更接近真的：中段跑得比以前快，快到站前幾公里開始滑行減速，最後才煞車進站；發車也不再比真車早開。每一站的到站時刻仍與時刻表分秒一致</span></li>
         <li data-cl-of="trtccountdown"><span class="d">8/18</span><span>台北捷運列車位置改回官方即時：不再是班表推估。文湖線因為官方沒給車號，改用各站的官方倒數推算車在哪兩站之間，比原本的來源新兩到四分鐘；同向前後車也不會再互相穿越或黏在一起。車會一路跟到終點站才收車，不會在快到終點的那一段提早不見。北捷訂正到站倒數時，畫面會在幾秒內對回官方位置並跟你說一聲。（8/18 傍晚先暫時退回班表推估：位置每十幾秒會跳一次，等根因修好再開回來）</span></li>
         <li data-cl-of="thsrwindow"><span class="d">8/17</span><span>高鐵班表不再停在前一天：當天才有的班次看得到，前一天才有的也不會變成幽靈車（謝謝網友回報）</span></li>
@@ -4343,7 +4344,7 @@
 // 使用者親試回饋調到 c=0.54／ρ=0.45(巡航中位 208→223、56 段頂到 300 線速);另外高鐵表定
 // 只到分,照分秒整放行等於每站比真車早開最多一分鐘,離站改取那一分的中點(+30 秒)。
 // 兩項都不動到離站時刻,台鐵/捷運剖面逐點零變化(對照組 20114 段全等)。
-const BUILD = 'v0818j';
+const BUILD = 'v0818k';
 // 2026-08-13 起預設開啟（使用者親試預覽後裁示上線）：北捷畫車依官方即時名冊，班表只是備案。
 // 保留 ?officialroster=0 當逃生口——要退回班表路徑不必回滾部署，加個參數即可對照。
 // 🔴 這個函式會被 verify_official_roster_frontend 抽出來丟進 VM 單獨執行——
@@ -8119,7 +8120,7 @@ const TRIP_SHARE_ENABLED = (() => { try { return new URLSearchParams(location.se
 // ?basemap=ofm|carto 供驗證用(僅該次頁面生效,不改預設)。
 const WEB_STREET_SRC = (() => {
   try { const v = new URLSearchParams(location.search).get('basemap'); if (v === 'ofm' || v === 'carto') return v; } catch (e) {}
-  return 'carto';
+  return 'ofm';
 })();
 const OFM_STYLE = { light: 'vendor/ofm-positron.json', dark: 'vendor/ofm-dark.json' };
 const OFM_ATTRIBUTION = '&copy; <a href="https://openfreemap.org/" target="_blank">OpenFreeMap</a> &copy; <a href="https://www.openmaptiles.org/" target="_blank">OpenMapTiles</a> &copy; <a href="https://www.openstreetmap.org/copyright" target="_blank">OpenStreetMap</a>';
