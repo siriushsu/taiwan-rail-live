@@ -2873,10 +2873,12 @@
     /* 全畫面:tab bar 疊在地圖上,底欄元素上移讓開 */
     body.fs .leaflet-bottom.leaflet-right { bottom: calc(var(--tabbar-clear) + 6px); } /* =原 64+env */
     body.fs .follow-panel, body.fs .freq-card { width: 176px; }
-    /* 版權字抬到速度膠囊「上方」留 ≥8px:膠囊置中、版權右對齊,窄寬(≤414)兩者水平重疊,故用垂直分離一次治好所有寬度。
-       膠囊 slim 底=tabbar-clear+10、高約41→頂約 tabbar-clear+51;版權底放 tabbar-clear+62(高14)→間距約 11px(留緩衝防跨引擎字高差)。
-       只在互動態(非放空/直播)套用;放空/直播另有 attribution 規則(bottom:0 等)。 */
-    body.fs:not(.ambient):not(.live) .leaflet-bottom.leaflet-right { bottom: calc(var(--tabbar-clear) + 62px); }
+    /* 版權字放**最下角**、膠囊疊在它上方(v0819a 使用者裁決:原本把版權抬到膠囊上方,那行字看起來像浮在畫面中間)。
+       仍然是垂直分離——膠囊置中、版權右對齊,窄寬(≤414)兩者水平必然重疊(實測 360/375/414 都疊),
+       所以只能靠上下錯開,不能靠左右讓位。這裡刻意**不另寫規則**,直接讓上面那條 body.fs 的
+       tabbar-clear+6px 生效(與放空/直播態同高),順序改由膠囊上抬達成,見下方 .controls 那條。
+       🔴 不要再把版權往上抬:跟隨小卡的讓位(placeFsOverlays 的 lift)只認膠囊當下緣家具的最高點,
+       版權不在那本帳裡,抬高它不會讓卡跟著讓,只會讓它自己漂到畫面中央。 */
     /* 展開態(cexp):完整帶佔滿下緣會壓住版權角→比照 sheet-open 淡出版權(短暫互動態,收合即回,不影響授權常態顯示) */
     body.cexp .leaflet-control-attribution { opacity: 0; pointer-events: none; }
     /* 同理:App 內建瀏覽器逃生提示(bottom:74px、z713)整片壓在展開帶上。cexp 是使用者主動點出、
@@ -2903,7 +2905,9 @@
       content: ''; position: absolute; left: 50%; top: 50%;
       width: 100%; height: max(100%, 44px); transform: translate(-50%, -50%); z-index: -2;
     }
-    body.fs:not(.ambient):not(.live):not(.cexp) .controls { bottom: calc(var(--tabbar-clear) + 10px); } /* =原 68+env */
+    /* +30 而不是原本的 +10:下面要讓出「版權字(高 14,底 tabbar-clear+6 ⇒ 頂 tabbar-clear+20)+ 約 10px 間距」。
+       跟隨小卡不必跟著改——placeFsOverlays 是依膠囊實測 top 動態算 lift,膠囊上抬多少,卡就跟著抬多少。 */
+    body.fs:not(.ambient):not(.live):not(.cexp) .controls { bottom: calc(var(--tabbar-clear) + 30px); }
     body:not(.ambient):not(.live):not(.cexp) .controls #ppTxt,
     body:not(.ambient):not(.live):not(.cexp) .controls .speedrail,
     body:not(.ambient):not(.live):not(.cexp) .controls .band-div,
