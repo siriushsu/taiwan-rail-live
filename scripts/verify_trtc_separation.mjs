@@ -45,7 +45,9 @@ const DEPS = ['trtcOfficialRosterEnabled', 'trtcOfficialRosterActive', 'trtcOffi
   'trtcGapUnitsAt', 'trtcOfficialSeparate', 'trtcOfficialRenderItems'];
 const CONSTS = ['OFFICIAL_ROSTER_ENABLED', 'TRTC_OFFICIAL_COAST_DWELL_MIN_SEC',
   'TRTC_OFFICIAL_COAST_DWELL_DEFAULT_SEC', 'TRTC_OFFICIAL_COAST_DWELL_SEC',
-  'TRTC_OFFICIAL_RESYNC_MIN_COAST_SEC', '_trtcOfficialResync', '_trtcOfficialDisplay',
+  'TRTC_OFFICIAL_RESYNC_MIN_COAST_SEC', 'TRTC_OFFICIAL_CATCHUP_FACTOR',
+  'TRTC_OFFICIAL_SNAP_FORWARD_M', 'TRTC_OFFICIAL_SNAP_TAU_SEC', 'TRTC_RESYNC_TOAST_SETTLE_SEC',
+  '_trtcOfficialCorrect', '_trtcOfficialResync', '_trtcOfficialDisplay',
   'TRTC_MIN_GAP_KM'];
 
 function api(mutate = s => s) {

@@ -6,6 +6,10 @@
 //
 // 用法: node scripts/verify_arrival_on_time.mjs [url] [取樣數]
 import { chromium } from 'playwright';
+import fs from 'node:fs';
+// --local <index.html>：主文件餵本機這一份，API 仍走同網域正式站 ⇒ 同一份即時資料只換程式碼
+const li = process.argv.indexOf('--local');
+const LOCAL = li > 0 ? process.argv[li + 1] : null;
 const URL = process.argv[2] || 'https://railisland.tw/';
 const WANT = Number(process.argv[3] || 8);
 const NEAR_M = 250;          // 判「在這一站」的半徑。站距最短約 600m,250m 不會跨到鄰站
@@ -13,6 +17,12 @@ const WIN_LO = 45, WIN_HI = 200;  // 只取這個倒數區間:太短來不及佈
 
 const b = await chromium.launch(); const p = await b.newPage();
 p.on('pageerror', e => console.log('  ⚠️ pageerror:', String(e).slice(0, 160)));
+if (LOCAL) {
+  const html = fs.readFileSync(LOCAL, 'utf8');
+  await p.route(u => { const x = new globalThis.URL(u); return x.origin + x.pathname === new globalThis.URL(URL).origin + '/'; },
+    r => r.fulfill({ status: 200, contentType: 'text/html; charset=utf-8', body: html }));
+  console.log(`（主文件改用本機 ${LOCAL}）`);
+}
 await p.goto(URL, { waitUntil: 'domcontentloaded' });
 await p.waitForFunction(() => typeof state !== 'undefined' && state.ready === true, null, { timeout: 90000 });
 await p.evaluate(() => { const g = GROUPS.find(x => (x.members || []).includes('mrt')); if (g) selectGroup(g); });
@@ -97,13 +107,35 @@ for (const c of cands.sort((a, x) => a.dueEpoch - x.dueEpoch)) {
     // 只要「有車依那個時間到站」。有官方車號的線維持嚴格判準(同一台車要到)。
     const lenient = lnId === 'BR';
     const m = lenient ? (best && best.m) : self;
-    return { station: st.name, self, nearest: best, lenient, ok: m != null && m <= nearM };
+    // 🔴 沒到站有兩種完全不同的原因,修法相反,必須在同一刻分開量:
+    //   (a) 官方自己把 ETA 往後改了(車誤點) ⇒ 站牌照官方就是對的,不是我們的錯
+    //   (b) 我們畫的位置落後官方算出來的位置 ⇒ 追趕沒生效,是我們的錯
+    let revisedEta = null, lagUnits = null, lagM = null;
+    if (want) {
+      const now = Date.now() / 1000;
+      const t = (want.timeline || []).find(x => Number(x.to) === stationIdx);
+      if (t) revisedEta = Math.round(Number(t.arrEpoch) - now);
+      const rawPos = trtcOfficialVehiclePosition(ln, want, now);
+      const op = rawPos ? trtcOfficialPositionProgress(ln, want, rawPos) : null;
+      const disp = _trtcOfficialDisplay.get(`${lnId}|${vid}`);
+      const dp = disp ? Number(disp.progress) : null;
+      if (Number.isFinite(op) && Number.isFinite(dp)) {
+        lagUnits = +(op - dp).toFixed(4);
+        const step = Number(want.dir) === 2 ? 1 : -1;
+        const need = trtcGapUnitsAt(ln, dp, step);          // 100m = need 個站序單位
+        if (need > 0) lagM = Math.round(lagUnits * (100 / need));
+      }
+    }
+    return { station: st.name, self, nearest: best, lenient, revisedEta, lagM,
+      ok: m != null && m <= nearM };
   }, { lnId: c.lnId, stationIdx: c.stationIdx, nearM: NEAR_M, vid: c.vid });
   const ts = new Date().toTimeString().slice(0, 8);
   const tag = r.err ? '⚠️' : r.ok ? '✅' : '❌';
   console.log(`${tag} [${ts}] ${c.lnId} 站牌說 ${c.etaSec}s 後到「${r.station || '?'}」` +
     (r.err ? `　${r.err}` : `　那一刻該車距站 ${r.self == null ? '車已不在名冊' : r.self + 'm'}` +
-      (r.nearest ? `（同向最近的車 ${r.nearest.m}m${r.lenient ? '←BR 用這個判' : ''}）` : '（同向無車）')));
+      (r.nearest ? `（同向最近的車 ${r.nearest.m}m${r.lenient ? '←BR 用這個判' : ''}）` : '（同向無車）') +
+      (r.ok ? '' : `　【那一刻官方改口說還要 ${r.revisedEta == null ? '?' : r.revisedEta}s；` +
+        `我們畫的比官方位置落後 ${r.lagM == null ? '?' : r.lagM}m】`)));
   results.push({ ...c, ...r });
 }
 const done = results.filter(r => !r.err);

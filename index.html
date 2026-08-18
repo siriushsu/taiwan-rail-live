@@ -3800,7 +3800,7 @@
 
   <footer class="site-foot">
     <details class="foot-box">
-      <summary><span>更新紀錄</span><span class="foot-sub">最後更新：2026/8/17</span></summary>
+      <summary><span>更新紀錄</span><span class="foot-sub">最後更新：2026/8/18</span></summary>
       <!-- 第一層是「最近更新」的檢視,不是正本:每一條都用 data-cl-of 指向第二層某條的 data-cl。
            要把一條擠出第一層之前,它的正本必須已經在第二層存在——2026-08-03 就踩過一次:8/1 的
            衛星計費那條只活在第一層(第二層只有一句夾在 7/25 條目裡、日期對不上的附帶說明),
@@ -3808,7 +3808,7 @@
            內容 li 上限 8 條(li.grp 是標題不算)。 -->
       <ul class="foot-list foot-recent">
         <li class="grp">最近更新</li>
-        <li data-cl-of="trtccountdown"><span class="d">8/18</span><span>台北捷運列車位置改回官方即時：不再是班表推估。文湖線因為官方沒給車號，改用各站的官方倒數推算車在哪兩站之間，比原本的來源新兩到四分鐘；同向前後車也不會再互相穿越或黏在一起</span></li>
+        <li data-cl-of="trtccountdown"><span class="d">8/18</span><span>台北捷運列車位置改回官方即時：不再是班表推估。文湖線因為官方沒給車號，改用各站的官方倒數推算車在哪兩站之間，比原本的來源新兩到四分鐘；同向前後車也不會再互相穿越或黏在一起。北捷訂正到站倒數時，畫面會在幾秒內對回官方位置並跟你說一聲</span></li>
         <li data-cl-of="thsrwindow"><span class="d">8/17</span><span>高鐵班表不再停在前一天：當天才有的班次看得到，前一天才有的也不會變成幽靈車（謝謝網友回報）</span></li>
         <li data-cl-of="trtczombie"><span class="d">8/17</span><span>台北捷運車站看板不再把尖峰加開的短程車提早列成「另一條線」（謝謝網友回報）</span></li>
         <li data-cl-of="orangebranch"><span class="d">8/16</span><span>中和新蘆線共線段不再冒出重複列車與沒有車號的車</span></li>
@@ -3836,6 +3836,7 @@
         <li><span class="d">7/10</span><span>高鐵、桃園機捷、淡海輕軌、安坑輕軌加入路網</span></li>
         <li><span class="d">7/10</span><span>環島觀光列車一分為二：往東「山海號」、往西「平原號」</span></li>
         <li class="grp">即時動態與誤點</li>
+        <li data-cl="trtccountdown"><span class="d">8/18</span><span>台北捷運列車位置改回官方即時：之前因為位置會疊車、會不見，曾暫時退回用班表推估；現在回到官方資料。文湖線官方沒有給車號，改用各站的官方倒數推算車在哪兩站之間，比原本那個來源新兩到四分鐘；同向前後車也不會再互相穿越或黏在一起。北捷隨時在修正到站倒數，改得多的時候畫面會在幾秒內把車對回官方位置，並跟你說一聲是官方訂正。另外修好一個毛病：只要有一台車的資料不完整，整張列車名單就會被丟掉、全網的車一起停在舊畫面（實測每十一輪會發生一次），現在不會了</span></li>
         <li data-cl="thsrwindow"><span class="d">8/17</span><span>高鐵班表曾經停在前一天（8/17 早上）：當天才有的班次整批看不到，前一天才有的則變成停不下來的幽靈車。現在班表一次抓七天，並且每五分鐘自動檢查一次今天的班表在不在，不在就立刻補抓（謝謝網友回報）</span></li>
         <li data-cl="trtczombie"><span class="d">8/17</span><span>台北捷運畫面上會冒出停在原地、好幾台疊在一起的重複列車（8/17 早上實測文湖線同時畫出 88 台，官方當下其實只有 33 台在跑）。當天上午起列車位置改用班表推估，把重複的車擋掉；車站的到站倒數一直都是官方即時資料，與月台顯示的倒數相同。「改用官方逐車資料認車」的新做法傍晚上線試了一輪，實測其他路線也還會疊車，當晚先退回班表推估，等根因修好再上。另外修掉車站看板的一個困擾：尖峰才加開的短程車（板南線往昆陽、往亞東醫院，淡水信義線往北投、往大安，松山新店線往台電大樓）本來會被提早列出來，看起來像多了一條線——實測松江南京同時出現兩列「往台電大樓」61 分與 77 分、忠孝復興出現「往昆陽 20 分」。現在這類短程車只在一班班距內（也就是真的是下一班）才會列出來，馬上要到的仍照樣顯示，官方即時倒數一律照官方（謝謝網友回報）</span></li>
         <li data-cl="badgescope"><span class="d">8/16</span><span>時鐘旁的狀態標示修正：切到「台」「高」時不再顯示台北捷運的「官方即時」（那兩頁本來就沒有捷運）；捷運全部收班後，標示也從「離峰」改成「已收班」</span></li>
@@ -5260,6 +5261,41 @@ const _trtcOfficialDisplay = new Map();
 // 續推持續超過這麼久才算「長時間斷訊」，回歸時才允許倒退／跳動（見 trtcOfficialDisplayPosition）。
 // 官方看板正常是 15～60 秒一輪，這裡取 5 分鐘：短暫缺幾輪的偏差本來就小，不值得讓畫面跳。
 const TRTC_OFFICIAL_RESYNC_MIN_COAST_SEC = 300;
+// 使用者裁示第 4 條「跑慢的就追上去」。前進上限原本恰好等於實際站間速度 ⇒ 落後官方的車
+// 與官方同速前進、差距永遠不收斂（2026-08-18 早尖峰實測 BR 有車恆定落後 877m／654m，
+// 連續取樣 4 次一公尺都沒縮）。追趕時允許到兩倍站間速度：`shown` 仍取 min(官方位置, 上限)
+// 所以絕不會超過官方位置，只是在落後時收斂得回去；兩倍是「看得出在追、但不像瞬移」的量級
+// （文湖線一段約 78 秒／800m ⇒ 額外 10m/s，877m 約 90 秒收斂）。
+const TRTC_OFFICIAL_CATCHUP_FACTOR = 2;
+// 落後官方太多就直接接上官方位置,不要用兩倍速慢慢追。
+// 依據(2026-08-18 早尖峰對正式站實測):
+//   官方位置逐秒偏差 中位 0m／95 分位 13m ⇒ 平時本來就是平滑的,不需要平滑處理;
+//   但每 40 秒出現數十次 >300m 的大跳動,追蹤 15/30 秒後 60/67 次留在跳後的軌跡上
+//   ⇒ 那些跳動是真修正,不是雜訊,不該被當抖動吸收掉。
+// 兩倍速追一整段要 60-100 秒,而站牌倒數常常只剩 45-60 秒 ⇒ 車還沒追到就該進站,
+// 我們畫的到站時間就偏晚(08-18 早上七筆未準時到站,全部是「車還沒到、差 344-436m」)。
+// 這違反 08-07 裁示「站牌時間完全照官方,車依那個時間到站」。
+// 🔴 只往前接,絕不往後:契約第 3 條「跑過頭的停下來等、絕不倒退」由上面的凍結分支處理,
+// 這裡走不到(那條分支先 return)。150m ≈ 逐秒雜訊 95 分位的 10 倍,兩者不會混淆。
+const TRTC_OFFICIAL_SNAP_FORWARD_M = 150;
+// 追上的時間常數。使用者裁示:「速度上限放高一點,甚至讓他五秒內追上都沒關係,
+// 但是發生的時候需要跳一個小通知表示是官方訊號訂正位置。」
+// 用指數逼近,τ=1.7s ⇒ 5 秒收掉 95%;不做瞬移,因為瞬移在畫面上讀起來像閃爍。
+const TRTC_OFFICIAL_SNAP_TAU_SEC = 1.7;
+// 位置被官方訂正的累計(逐台一次),與斷訊恢復分開:那個是「我們推估了很久」,
+// 這個是「官方自己修訂了它報的位置」——不是我們算錯,文案不要往自己身上攬。
+const _trtcOfficialCorrect = { at: 0, count: 0, maxM: 0, notifiedAt: 0 };
+function trtcOfficialCorrectTick(nowEpoch) {
+  const r = _trtcOfficialCorrect, now = Number.isFinite(Number(nowEpoch)) ? Number(nowEpoch) : Date.now() / 1000;
+  if (!(r.at > r.notifiedAt) || now - r.at < TRTC_RESYNC_TOAST_SETTLE_SEC) return null;
+  const count = r.count, maxM = Math.round(r.maxM);
+  r.notifiedAt = r.at; r.count = 0; r.maxM = 0;
+  if (!count) return null;
+  const msg = `官方訂正位置　北捷剛更新了 <b>${count} 台</b>列車的到站時刻（最多差 <b>${maxM} 公尺</b>），`
+    + `畫面已依最新的官方資料校正。`;
+  showToast(msg, { wrap: true });
+  return { count, maxM, msg };
+}
 // 斷訊回歸事件（由 trtcOfficialDisplayPosition 記錄、UI 每秒 tick 消費後跳訊息）。
 // 刻意不在位置函式裡直接呼叫 showToast——那會讓純函式驗收得連 DOM 一起搬進沙盒。
 const _trtcOfficialResync = { at: 0, outageSec: 0, count: 0, notifiedAt: 0, removedFor: 0 };
@@ -5437,9 +5473,27 @@ function trtcOfficialDisplayPosition(ln, vehicle, nowEpoch) {
     return pos;
   }
   const dt = now - prior.epoch;
-  const shown = Math.min(progress, trtcOfficialForwardLimit(ln, vehicle, prior.progress, dt));
+  // 落後超過 TRTC_OFFICIAL_SNAP_FORWARD_M 就直接接上官方位置（見該常數的實測依據）。
+  const step = Number(vehicle && vehicle.dir) === 2 ? 1 : -1;
+  const unitsPer100m = trtcGapUnitsAt(ln, prior.progress, step);
+  const behindM = unitsPer100m > 0 ? (progress - prior.progress) * (100 / unitsPer100m) : 0;
+  if (behindM >= TRTC_OFFICIAL_SNAP_FORWARD_M && !prior.correcting) {
+    _trtcOfficialCorrect.at = now;
+    _trtcOfficialCorrect.count = (Number(_trtcOfficialCorrect.count) || 0) + 1;
+    _trtcOfficialCorrect.maxM = Math.max(Number(_trtcOfficialCorrect.maxM) || 0, behindM);
+  }
+  // 追趕（見 TRTC_OFFICIAL_CATCHUP_FACTOR）：min() 保證不會超過官方位置 progress，
+  // 所以放寬上限只影響「落後時多久追回來」，不會讓車跑到官方位置前面。
+  // 落後超過門檻時另給一條 5 秒收斂的逼近（見 TRTC_OFFICIAL_SNAP_TAU_SEC），
+  // 取兩者較寬鬆者——平時仍是兩倍速的平順追趕，只有真的被官方大幅訂正時才快速接上。
+  const eased = behindM >= TRTC_OFFICIAL_SNAP_FORWARD_M
+    ? prior.progress + (progress - prior.progress) * Math.min(1, dt / TRTC_OFFICIAL_SNAP_TAU_SEC)
+    : -Infinity;
+  const shown = Math.min(progress, Math.max(eased,
+    trtcOfficialForwardLimit(ln, vehicle, prior.progress, dt * TRTC_OFFICIAL_CATCHUP_FACTOR)));
   const pos = trtcOfficialPositionAtProgress(ln, vehicle, shown, raw);
-  _trtcOfficialDisplay.set(key, { epoch: now, progress: shown, pos, coasted, coastSince });
+  _trtcOfficialDisplay.set(key, { epoch: now, progress: shown, pos, coasted, coastSince,
+    correcting: behindM >= TRTC_OFFICIAL_SNAP_FORWARD_M });
   return pos;
 }
 function trtcOfficialVehicleInfo(ln, vehicle, nowEpoch) {
@@ -10118,6 +10172,7 @@ function tickCore(now) {
     // 捷運「已收班 ↔ 尖峰/離峰」在首班/末班當下就要換,不能等下一次整點才刷(refreshBadge 平時只在換小時觸發)
     if (state.mode !== 'sched' && state.lines.length && (runningCount() > 0) !== !!state._freqRunning) { refreshBadge(); updateCount(); }
     if (OFFICIAL_ROSTER_ENABLED) trtcOfficialResyncTick(Date.now() / 1000); // 斷訊回歸 → 跳訊息說明為何跳動
+    if (OFFICIAL_ROSTER_ENABLED) trtcOfficialCorrectTick(Date.now() / 1000); // 官方訂正位置 → 說明是官方更新，不是我們算錯
     if (state.liveMode && !state.director) liveClockTick(); else if (state.director) directorClockTick(); else clockDriftGuard();
   } // 導播現在也是 1× 貼真實時刻,只是用不含深夜重播替代的簡化版;兩徽章同秒刷,快轉跨門檻時同步轉推估
   // 省電三板斧(繪製節流,不動上面的時間積分):
@@ -17712,7 +17767,18 @@ function trtcOfficialRosterRepairRun(vehicle) {
   const line = trtcOfficialRosterGeometryLine(vehicle.line);
   const seg = line && line.segs && line.segs[Math.min(from, to)];
   const run = Number(seg && seg.run);
-  return run > 0 ? { ...vehicle, run } : vehicle;
+  if (run > 0) return { ...vehicle, run };
+  // 🔴 有些線的線形沒帶站間行駛秒(2026-08-18 實測環狀線 Y 就是),於是上面補不到 run,
+  // 驗證器的 ROSTER_FRONTEND_GEOMETRY 是全有全無 ⇒ 一台補不到就整包名冊被擋掉、
+  // 全網的車一起停在舊快照(實測 260 輪有 23 輪如此,使用者看到的就是「車不會動/不見了」)。
+  // 官方自己就給了這一跳的 dep→arr,trtcOfficialSegmentSeconds 一直在用它當候選(見上方同名函式),
+  // 這裡沿用同一個官方來源把 run 補回來,不是另外推估一個值。
+  for (const item of Array.isArray(vehicle && vehicle.timeline) ? vehicle.timeline : []) {
+    if (Number(item.from) !== from || Number(item.to) !== to) continue;
+    const span = Number(item.arrEpoch) - Number(item.depEpoch); // ROSTER_FRONTEND_REPAIR_RUN_TIMELINE
+    if (Number.isFinite(span) && span > 0) return { ...vehicle, run: span };
+  }
+  return vehicle;
 }
 function trtcOfficialRosterPayloadValid(boardPos) {
   if (!boardPos || boardPos.feedMode !== 'official' || !Array.isArray(boardPos.vehicles) ||
