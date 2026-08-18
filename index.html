@@ -5046,13 +5046,18 @@ function trtcBrVehiclesFromBoard(lineId, board, nowEpoch, day) {
   const names = trtcCensusNames(ln), idxOf = n => names.indexOf(_trtcCensusNorm(n));
   const shared = _trtcBrSharedIdx(ln, names);
   const rows = [];
+  let dropped = 0;
   for (const b of board || []) {
     const i = idxOf(b && b.name), d = idxOf(b && b.dest), eta = Number(b && b.eta);
     if (i < 0 || d < 0 || d === i || !Number.isFinite(eta)) continue;
     if (shared.has(i) && String((b && b.no) || '').trim()) continue; // 共站上帶車號的是別條線的車
-    rows.push({ i, d, eta, step: Math.sign(d - i) });
+    // 🔴 裁示:時間一旦推到前一站之前,就直接忽略這個倒數(見 trtcCountdownFitsSegment)。
+    const st = Math.sign(d - i);
+    if (!trtcCountdownFitsSegment(ln, i - st, i, eta - nowEpoch)) { dropped++; continue; }
+    rows.push({ i, d, eta, step: st });
   }
   if (!rows.length) return null;
+  _trtcCdDropped.set(lineId, dropped);
   const out = [], hopObs = [];
   // 一台車的「切法」:依行進方向排開 → 倒數不再遞增、或遞增得比這段最少要跑多久還快就切一台。
   const cutInto = (ordered, step, tag) => {
@@ -5513,8 +5518,11 @@ function trtcOfficialDeparturePosition(ln, vehicle, now, origin, departureEpoch)
   const step = Number(vehicle && vehicle.dir) === 2 ? 1 : -1;
   const next = origin + step, A = ln.stations[origin], B = ln.stations[next];
   if (!A || !B) return null;
-  if (now < departureEpoch) return { lat: A.lat, lon: A.lon, fraction: 1, atStation: true,
-    motionFrom: origin, motionTo: next, coastTo: origin, coastArrEpoch: departureEpoch };
+  // 🔴 裁示:「車站沒有到站倒數的車子就是不存在」。起點列給的是**發車**倒數不是到站倒數,
+  // 還沒發車的那一筆是「下一班」公告,不是一台在線上的車。舊碼把它畫成停在起點月台的車,
+  // 於是真的進站的那台一到就變成同站兩台(實測每一輪都抓得到,例:七張 823 秒後才發車那筆)。
+  // 發車時刻一到就照常畫,所以車不會少,只是不提早出現。
+  if (now < departureEpoch) return null;
   const explicit = Number(vehicle && vehicle.departureRun);
   const departureRun = Number.isFinite(explicit) && explicit > 0 ? explicit : runBetween(ln, origin, next);
   if (!(departureRun > 0)) return null;
@@ -5563,6 +5571,34 @@ function trtcOfficialTimelinePosition(ln, vehicle, now) {
   const last = moving[moving.length - 1];
   return { handled: true, pos: trtcOfficialCoastPosition(ln, vehicle, now,
     last.from, last.to, last.arrEpoch - last.depEpoch, last.arrEpoch) };
+}
+// 使用者裁示的位置模型(2026-08-18):每個區段各自獨立,某站的倒數對應的是「進這站的那一段」;
+// 倒數若大於那一段的行駛秒,車就還沒進這一段——要往回退一段(並扣掉退到的那一站的官方停靠秒),
+// 退到剩下的秒數塞得進某一段為止。舊碼是把車「停在前一站等」,於是一台還要五分鐘才到的車會被
+// 畫成停在月台上,後面照常前進的車開進來就成了同站兩台(實測四對疊車有三對的前車是這樣來的)。
+// 只用在「發車時刻是我們自己由倒數推出來」的情況;官方明講了 depEpoch 的一律照官方,不套這條。
+const _trtcCdDropped = new Map(); // 診斷用:每條線這一輪忽略了幾列倒數
+function trtcOfficialDwellAt(ln, i) {
+  const arr = ln && ln.dwellSec;
+  const v = Array.isArray(arr) ? Number(arr[i]) : NaN;
+  return v > 0 ? v : TRTC_OFFICIAL_COAST_DWELL_SEC;
+}
+// 🔴 使用者裁示(2026-08-18):「不要用下一站的時間去生車子出來」。
+// 每一站的倒數對應的是「進這一站的那一段」。倒數若大於那一段的行駛秒(再加上退回去那一站的
+// 官方停靠秒),代表這台車根本還沒進這一段——它還在更後面,而更近的那一站會用自己的倒數把它
+// 生出來;在這裡再生一台就是同一台車被複製成兩台,畫面上就是同區段兩台。
+// (先做過「往回退去畫」的版本,實測少 6 台假停站但疊車 1 對→3 對:位置更誠實、畫面更糟,
+//  因為退回去正好壓在後面那台身上。所以是「不生」,不是「退著畫」。)
+function trtcOfficialDwellAt(ln, i) {
+  const arr = ln && ln.dwellSec;
+  const v = Array.isArray(arr) ? Number(arr[i]) : NaN;
+  return v > 0 ? v : TRTC_OFFICIAL_COAST_DWELL_SEC;
+}
+function trtcCountdownFitsSegment(ln, from, to, remainSec) {
+  if (!(remainSec > 0)) return true; // 倒數已過:那是到站/停站,交給既有的續推處理
+  const run = runBetween(ln, from, to);
+  if (!(run > 0)) return true; // 量不到這段多長就不判,不要靠猜把車刪掉
+  return remainSec <= run + trtcOfficialDwellAt(ln, from);
 }
 function trtcOfficialVehiclePosition(ln, vehicle, nowEpoch) {
   if (!ln || !Array.isArray(ln.stations) || !vehicle) return null;
