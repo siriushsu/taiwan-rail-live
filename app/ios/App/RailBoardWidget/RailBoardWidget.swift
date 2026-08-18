@@ -20,6 +20,8 @@ struct BoardRow: Identifiable {
     let relation: JourneyRelation
     let delay: Int?
     let isLastOfDay: Bool
+    /// 離站往北還是往南。nil ＝算不出來（終到列車、舊 payload 沒座標、兩站同緯度）⇒ 不畫三角。
+    var heading: RailHeading? = nil
 
     var id: String {
         "\(scheduledDate.timeIntervalSince1970)-\(relation.rawValue)-\(trainNumber)"
@@ -251,29 +253,43 @@ struct Provider: AppIntentTimelineProvider {
                 )
             }
 
-            let originSelection = try RailBoardStore.shared.stationSelection(forKey: originKey)
-            let destinationSelection = try configuration.destination.flatMap {
-                try RailBoardStore.shared.stationSelection(forKey: $0)
-            }
-            let destinationLost = configuration.destination != nil && destinationSelection == nil
-            guard let originSelection, !destinationLost else {
-                let entry = RailBoardEntry(
-                    date: now,
-                    configuration: configuration,
-                    content: .unavailable("找不到這個車站，請重新設定")
-                )
-                return Timeline(entries: [entry], policy: .never)
-            }
-
             let filters = BoardFilterSet(keys: configuration.filters)
-            let prepared = try engine.prepare(
-                originID: originSelection.station.index,
-                destinationID: destinationSelection?.station.index,
-                originDisplayName: originSelection.displayName,
-                destinationDisplayName: destinationSelection?.displayName,
-                filters: filters,
-                now: now
-            )
+            let prepared: PreparedBoard
+            if RailBoardStore.shared.isCompositeKey(originKey) {
+                // 🔴 共站走成員站的官方發車看板。舊格式（沒有成員站）就明說要開一次 App，
+                //    不准退回幾何共站看板——那條路會把有月台的車站寫成「經過」。
+                guard let composite = RailBoardStore.shared.compositeSelection(forKey: originKey) else {
+                    let entry = RailBoardEntry(
+                        date: now,
+                        configuration: configuration,
+                        content: .unavailable("開啟軌島一次以更新共站班表")
+                    )
+                    return Timeline(entries: [entry], policy: .after(now.addingTimeInterval(15 * 60)))
+                }
+                prepared = try engine.prepare(composite: composite, filters: filters, now: now)
+            } else {
+                let originSelection = try RailBoardStore.shared.stationSelection(forKey: originKey)
+                let destinationSelection = try configuration.destination.flatMap {
+                    try RailBoardStore.shared.stationSelection(forKey: $0)
+                }
+                let destinationLost = configuration.destination != nil && destinationSelection == nil
+                guard let originSelection, !destinationLost else {
+                    let entry = RailBoardEntry(
+                        date: now,
+                        configuration: configuration,
+                        content: .unavailable("找不到這個車站，請重新設定")
+                    )
+                    return Timeline(entries: [entry], policy: .never)
+                }
+                prepared = try engine.prepare(
+                    originID: originSelection.station.index,
+                    destinationID: destinationSelection?.station.index,
+                    originDisplayName: originSelection.displayName,
+                    destinationDisplayName: destinationSelection?.displayName,
+                    filters: filters,
+                    now: now
+                )
+            }
             guard !prepared.journeys.isEmpty || filters.isEmpty else {
                 let entry = RailBoardEntry(
                     date: now,
@@ -284,7 +300,7 @@ struct Provider: AppIntentTimelineProvider {
             }
 
             let nextJourney = prepared.journeys.first
-            let shouldFetchLive = prepared.system.live
+            let shouldFetchLive = prepared.anyLive
                 && nextJourney.map {
                     $0.scheduledDate.timeIntervalSince(now) <= RailBoardConstants.liveWindow
                 } == true
@@ -339,28 +355,39 @@ struct Provider: AppIntentTimelineProvider {
                 )
             }
 
-            let originSelection = try RailBoardStore.shared.stationSelection(forKey: originKey)
-            let destinationSelection = try configuration.destination.flatMap {
-                try RailBoardStore.shared.stationSelection(forKey: $0)
-            }
-            let destinationLost = configuration.destination != nil && destinationSelection == nil
-            guard let originSelection, !destinationLost else {
-                return RailBoardEntry(
-                    date: now,
-                    configuration: configuration,
-                    content: .unavailable("找不到這個車站，請重新設定")
+            let filters = BoardFilterSet(keys: configuration.filters)
+            let prepared: PreparedBoard
+            if RailBoardStore.shared.isCompositeKey(originKey) {
+                guard let composite = RailBoardStore.shared.compositeSelection(forKey: originKey) else {
+                    return RailBoardEntry(
+                        date: now,
+                        configuration: configuration,
+                        content: .unavailable("開啟軌島一次以更新共站班表")
+                    )
+                }
+                prepared = try engine.prepare(composite: composite, filters: filters, now: now)
+            } else {
+                let originSelection = try RailBoardStore.shared.stationSelection(forKey: originKey)
+                let destinationSelection = try configuration.destination.flatMap {
+                    try RailBoardStore.shared.stationSelection(forKey: $0)
+                }
+                let destinationLost = configuration.destination != nil && destinationSelection == nil
+                guard let originSelection, !destinationLost else {
+                    return RailBoardEntry(
+                        date: now,
+                        configuration: configuration,
+                        content: .unavailable("找不到這個車站，請重新設定")
+                    )
+                }
+                prepared = try engine.prepare(
+                    originID: originSelection.station.index,
+                    destinationID: destinationSelection?.station.index,
+                    originDisplayName: originSelection.displayName,
+                    destinationDisplayName: destinationSelection?.displayName,
+                    filters: filters,
+                    now: now
                 )
             }
-
-            let filters = BoardFilterSet(keys: configuration.filters)
-            let prepared = try engine.prepare(
-                originID: originSelection.station.index,
-                destinationID: destinationSelection?.station.index,
-                originDisplayName: originSelection.displayName,
-                destinationDisplayName: destinationSelection?.displayName,
-                filters: filters,
-                now: now
-            )
             guard !prepared.journeys.isEmpty || filters.isEmpty else {
                 return RailBoardEntry(
                     date: now,
@@ -369,7 +396,7 @@ struct Provider: AppIntentTimelineProvider {
                 )
             }
 
-            let shouldFetchLive = prepared.system.live
+            let shouldFetchLive = prepared.anyLive
                 && prepared.journeys.first.map {
                     $0.scheduledDate.timeIntervalSince(now) <= RailBoardConstants.liveWindow
                 } == true
@@ -403,7 +430,8 @@ struct Provider: AppIntentTimelineProvider {
         let anchors = prepared.journeys
             .prefix(RailBoardConstants.maximumEntries)
             .map { journey -> Date in
-                let late = max(0, prepared.system.live ? (delays[journey.trainNumber] ?? 0) : 0)
+                let late = max(0, prepared.isLive(systemID: journey.systemID)
+                    ? (delays[journey.trainNumber] ?? 0) : 0)
                 return journey.scheduledDate.addingTimeInterval(Double(late) * 60)
             }
         let transitionDates = BoardCountdown
@@ -627,8 +655,10 @@ struct Provider: AppIntentTimelineProvider {
                 arrivalDate: journey.arrivalDate,
                 destinationName: journey.destinationName,
                 relation: journey.relation,
-                delay: prepared.system.live ? delays[journey.trainNumber] : nil,
-                isLastOfDay: journey.isLastOfDay
+                delay: prepared.isLive(systemID: journey.systemID)
+                    ? delays[journey.trainNumber] : nil,
+                isLastOfDay: journey.isLastOfDay,
+                heading: journey.heading
             )
         }
 
@@ -644,11 +674,11 @@ struct Provider: AppIntentTimelineProvider {
         let snapshot = BoardSnapshot(
             title: prepared.title,
             isWatching: prepared.isWatching,
-            isLive: prepared.system.live,
+            isLive: prepared.anyLive,
             typeColors: prepared.typeColors,
             rows: rows,
             emptyMessage: emptyMessage,
-            notice: engine.notice(for: entryDate, system: prepared.system),
+            notice: engine.notice(for: entryDate, systems: prepared.systems),
             generatedAt: generatedAt
         )
         return RailBoardEntry(
@@ -684,9 +714,19 @@ struct RailBoardWidgetEntryView: View {
     // 🔴 算繪 harness 的覆寫哨兵，出貨路徑恆為 nil。為什麼需要它見 RailWidgetKit.swift 的
     //    railFamilyOverride（previewContext 對 swiftc 裸執行檔設不了 \.widgetFamily）。
     @Environment(\.railFamilyOverride) private var familyOverride
+    // 好讀版的自動切換源。設計檔：「iOS 讀 sizeCategory ≥ .accessibilityMedium 自動切」——
+    // 對應到現行 API 的 DynamicTypeSize 就是 .accessibility1（sizeCategory 已 deprecated）。
+    @Environment(\.dynamicTypeSize) private var typeSize
     let entry: Provider.Entry
 
     private var family: WidgetFamily { familyOverride ?? widgetFamily }
+
+    /// 系統放大字級 或 小工具設定裡的開關，兩者是 OR。
+    /// 🔴 不是「取代」而是「或」：把系統字級調到 AX1 的人已經表達過需求，不該還要再去
+    ///    小工具設定裡打開一次；而開關是給系統字級正常、單獨想要大字看板的人。
+    private var readable: Bool {
+        entry.configuration.readable || typeSize >= .accessibility1
+    }
 
     var body: some View {
         Group {
@@ -695,7 +735,9 @@ struct RailBoardWidgetEntryView: View {
                 unavailableView(message)
             case .place(let snapshot):
                 switch family {
-                case .systemMedium:
+                // 🔴「我的地點」沒有 large 專屬版面 ⇒ 退回 Medium 那張三欄卡（它撐得起 large
+                //    的寬，只是下半留白）。設計檔的 large 規格是給車站看板的，這裡不硬套。
+                case .systemMedium, .systemLarge:
                     MediumPlaceBoardView(snapshot: snapshot, entryDate: entry.date)
                 case .accessoryRectangular:
                     RectangularPlaceBoardView(snapshot: snapshot, entryDate: entry.date)
@@ -704,6 +746,8 @@ struct RailBoardWidgetEntryView: View {
                 }
             case .board(let snapshot):
                 switch family {
+                case .systemLarge:
+                    LargeBoardView(snapshot: snapshot, entryDate: entry.date)
                 case .systemMedium:
                     MediumBoardView(snapshot: snapshot, entryDate: entry.date)
                 case .accessoryRectangular:
@@ -716,6 +760,7 @@ struct RailBoardWidgetEntryView: View {
         // 單色（tinted／accented）模式：鎖屏那個家族恆為單色，路線色與狀態色全部失效
         // ⇒ 由元件層的 railMonochrome 統一把顏色換成文字與深淺（設計稿規則）。
         .railRenderingMode(renderingMode)
+        .environment(\.railReadable, readable)
         .containerBackground(for: .widget) {
             Color(uiColor: .systemBackground)
         }
@@ -772,17 +817,26 @@ struct BoardNotice: View {
     }
 }
 
-// MARK: - 發車看板 · Small（單班大卡）
+// MARK: - 發車看板 · Small（一主一從）
 
-/// 設計稿 A：「138pt 高只放得下五列：識別 20、站名 24、方向 19、倒數 44、註腳 16」。
-/// 五列是硬預算，想加第六列必須先砍一列。
+/// v2 設計稿：Small 是【兩班車】。
+///
+/// 高度預算 20（識別）＋4＋31（終點站 26pt）＋2＋44（倒數）＋彈簧＋22（第二班）＝ 123／138。
+/// 設計稿的原話：「Small 是誤讀最嚴重的尺寸，也是最容易解決的：只有兩列，把 12pt 的軌脊欄
+/// 拿掉之後，站名與方向都往左推 21pt，26pt 的終點站不再需要截字。省下的橫向空間讓第二列
+/// 裝得下車種標，第一列裝得下『準點』。」
+///
+/// 兩個角色跟 v1 對調了：站名降到 11pt（那是這張卡自己的站，使用者知道），終點站升到 26pt
+/// （那才是「這班車去哪」）。
 struct SmallBoardView: View {
     let snapshot: BoardSnapshot
     let entryDate: Date
+    @Environment(\.railReadable) private var readable
 
     var body: some View {
         GeometryReader { geo in
-            let scale = RailScale(width: geo.size.width, reference: RailScale.smallReference)
+            let scale = RailScale(width: geo.size.width, reference: RailScale.smallReference,
+                                  readable: readable)
             content(scale)
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         }
@@ -798,43 +852,48 @@ struct SmallBoardView: View {
                 // 🔴 資料時刻不掛在這一列（設計稿的示範是這樣，但它的車種只有兩個字）：
                 //    「莒光/復興」那顆標本身就要 64pt、四碼車次 38pt，加上時刻就溢出 14pt
                 //    （破版 gate 在直達那張抓到）。車種標依設計稿【不准縮】，所以是時刻讓位。
+                // 識別 20：車種標＋車次，站名擠到右端 11pt。
+                // 🔴 資料時刻在 v2 的 Small 上【沒有位置】：它的右端讓給站名，底下那一列
+                //    讓給第二班車。「班表過期」這種真的會害人錯過車的狀況仍然畫得出來
+                //    （見下面的底列優先序），被拿掉的只有例行的更新時刻。
                 HStack(spacing: scale.pt(5)) {
-                    RailTrainMark(kind: row.trainType, number: row.trainNumber,
+                    if let heading = row.heading {
+                        RailHeadingMark(heading: heading, scale: scale)
+                    }
+                    // 🔴 好讀版不畫車次號（設計檔規則四「車次號與月台在 small／medium
+                    //    直接不顯示」）。Small 的識別列本來就只有 20pt 高，車次讓位給站名。
+                    RailTrainMark(kind: row.trainType,
+                                  number: scale.readable ? nil : row.trainNumber,
                                   color: trainColor(row.trainType), fontSize: 12,
-                                  numberSize: 16, scale: scale)
-                    Spacer(minLength: 0)
+                                  numberSize: 13, scale: scale)
+                    Spacer(minLength: scale.pt(4))
+                    // 🔴 這個角落只給【車站模式】的站名。直達模式的標題是一組起訖對
+                    //    （「竹北 → 臺北」），最長的車種標（莒光/復興 64pt）加四碼車次之後
+                    //    它會被截成「竹…」——一個字的站名比沒有站名更糟（同
+                    //    RailCountdownText 對「暫無資料」的判斷）。這裡用的是語意判準
+                    //    「標題是一站還是一組對」，不是量出來的斷點寬度。
+                    //    直達模式本來就不缺識別：主角那一列寫著「往 臺北-環島」。
+                    if snapshot.isWatching {
+                        Text(snapshot.title)
+                            .font(.system(size: scale.pt(11, readable: 15)))
+                            .foregroundStyle(.tertiary)
+                            .lineLimit(1).minimumScaleFactor(0.75)
+                            .layoutPriority(-1)
+                    }
                 }
-                .frame(height: scale.pt(20))
+                .frame(height: scale.pt(20, readable: 24))
 
-                // 站名 24 ＋右側資料時刻。與 Medium 的 RailCardTitle 同一個安排：
-                // 時刻 fixedSize 佔死、站名先縮（直達模式的「竹北 → 臺北」是最長的那個）。
-                // 🔴 時刻【沒有】「更新」後綴：加上去要 61pt，這一列放不下（Small 只有 138）。
-                //    設計稿的 Small 也是裸時刻；歧義由旁白（RailStamp 的 accessibilityLabel）
-                //    與註腳的動詞承擔——註腳寫「14:33 開」，右上那個沒有動詞。
-                HStack(alignment: .firstTextBaseline, spacing: scale.pt(5)) {
-                    Text(snapshot.title)
-                        .font(.system(size: scale.pt(20), weight: .semibold))
-                        .lineLimit(1).minimumScaleFactor(0.8)
-                    Spacer(minLength: scale.pt(2))
-                    RailStamp(text: RailBoardClock.updateTimeString(snapshot.generatedAt),
-                              suffix: "", scale: scale)
-                        .fixedSize()
-                }
-                .frame(height: scale.pt(24))
-
-                // 方向 19：「往 臺東」／終到列車是「終點」。
-                // 🔴 通過標掛在這一列不是識別列：138pt 的識別列放不下「車種標＋車次＋通過＋
-                //    資料時刻」四件東西（實測資料時刻被截成「14:28…」），而「這班車不會停」
-                //    講的正是這個方向的這一班，掛在方向旁邊讀起來也更順。
+                // 終點站 26：v2 把它從 15pt 升上來——拿掉軌脊欄省下的 21pt 就是給它的。
+                // 🔴 通過標掛在這一列不是識別列：識別列放不下「車種標＋車次＋通過＋站名」
+                //    四件東西（實測站名被截），而「這班車不會停」講的正是這個方向的這一班。
                 HStack(spacing: scale.pt(5)) {
                     Text(row.watchingDestinationText)
-                        .font(.system(size: scale.pt(15)))
-                        .foregroundStyle(.secondary)
-                        .lineLimit(1).minimumScaleFactor(0.85)
+                        .font(.system(size: scale.pt(26, readable: 30), weight: .semibold))
+                        .lineLimit(1).minimumScaleFactor(0.7)
                     if row.isPassing { PassBadge(scale: scale) }
                     Spacer(minLength: 0)
                 }
-                .frame(height: scale.pt(19), alignment: .leading)
+                .frame(height: scale.pt(31, readable: 36), alignment: .leading)
 
                 // 倒數 44 ＋右側狀態。設計稿：誤點永遠是 13pt 純文字，不做膠囊、不進主角區。
                 HStack(alignment: .lastTextBaseline, spacing: scale.pt(4)) {
@@ -851,10 +910,38 @@ struct SmallBoardView: View {
                         RailStatusTag(kind: kind, fontSize: 12, scale: scale)
                     }
                 }
+                // 🔴 好讀版的倒數字級是 52（設計檔 44→52）,但這個槽【不跟著長高】：
+                //    52 的字在 44 的槽裡是上下各溢 4pt,而它上下都是留白（Spacer 與列距）,
+                //    溢出去不會壓到任何東西；槽真的長到 56 反而讓整張卡溢出下緣 9.7pt
+                //    （破版 gate 抓到）。「不裁切」在這裡是幫手不是陷阱——前提是鄰居是留白。
                 .frame(height: scale.pt(44))
 
-                footer(row, scale)
-                    .frame(height: scale.pt(16), alignment: .leading)
+                Spacer(minLength: 0)
+
+                // 🔴 底列只有一位，三種內容互斥，優先序是硬的：
+                //    班表過期 ＞ 第二班車 ＞ 這一班幾點開。
+                //    「班表過期」排第一是因為這張卡上每一個數字都是那份班表算出來的；
+                //    第二班車排在「幾點開」前面是 v2 的裁示（「只有兩列」），而主角的
+                //    發車時刻在倒數退成靜態時刻時本來就已經畫在數字欄了。
+                if snapshot.notice != nil {
+                    footer(row, scale)
+                        .frame(height: scale.pt(22, readable: 26), alignment: .leading)
+                } else if scale.readable {
+                    // 🔴 好讀版的 Small 只有【一班】（設計檔「列數減半：small 只留下一班」）：
+                    //    第二班那一列放不進去（破版 gate 抓到墨跡溢出上緣 1.3pt）。
+                    //    但底列不留白——換成註腳「幾點開／幾點更新」：設計檔好讀版的字級表
+                    //    給了「更新時間 11→15」,表示這一行在好讀版是留著的,而它回答的
+                    //    「這些數字有多舊」在只剩一班車的卡上更重要。
+                    footer(row, scale)
+                        .frame(height: scale.pt(22, readable: 26), alignment: .leading)
+                } else if let second = snapshot.rows.dropFirst().first {
+                    SmallSecondRow(row: second, snapshot: snapshot, entryDate: entryDate,
+                                   scale: scale)
+                        .frame(height: scale.pt(22), alignment: .leading)
+                } else {
+                    footer(row, scale)
+                        .frame(height: scale.pt(22, readable: 26), alignment: .leading)
+                }
             }
         } else {
             VStack(alignment: .leading, spacing: scale.pt(6)) {
@@ -881,7 +968,7 @@ struct SmallBoardView: View {
             BoardNotice(notice: notice, scale: scale)
         } else {
             Text(footerText(row))
-                .font(.system(size: scale.pt(12)))
+                .font(.system(size: scale.pt(12, readable: 15)))
                 .foregroundStyle(.secondary)
                 .monospacedDigit()
                 .lineLimit(1).minimumScaleFactor(0.7)
@@ -916,29 +1003,47 @@ struct SmallBoardView: View {
     }
 }
 
-// MARK: - 發車看板 · Medium（一主兩從）
+// MARK: - 發車看板 · Large（一主七從）
 
-/// 設計稿 B 的高度預算：21（標題）＋8＋43（主角）＋9（hairline）＋28＋28 ＝ 137，留 1pt。
-struct MediumBoardView: View {
+/// v2 設計檔的 LARGE：364×382、八列、多一個發車時刻欄。
+///
+/// 使用者裁示「台鐵也可以加一個大的卡片」（2026-08-17）——在那之前這個小工具只支援
+/// Small／Medium／accessoryRectangular，設計檔畫的 large 無處可去。
+///
+/// 高度預算 21（標題）＋4＋64（主角含副標）＋32×8 ＝ 345／350。
+/// 列高 32 是設計檔 large 那張 mock 的字面值（height:32px）；列數見下面 followLimit 的紅字。
+struct LargeBoardView: View {
     let snapshot: BoardSnapshot
     let entryDate: Date
+    @Environment(\.railReadable) private var readable
 
     var body: some View {
         GeometryReader { geo in
-            let scale = RailScale(width: geo.size.width, reference: RailScale.mediumReference)
+            let scale = RailScale(width: geo.size.width, reference: RailScale.mediumReference,
+                                  readable: readable)
             content(scale)
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         }
         .padding(RailBoardInsets.content)
     }
 
-    /// 🔴 班表警示那一行把 8pt 間距換成 18＋4（多吃 14pt）⇒ 依設計稿「超出先砍列而不是縮字」
-    ///    少列一班。壓列高會讓同一張卡在兩種狀態下縱向對齊不同，那比少一班難看得多。
-    private var followLimit: Int { snapshot.notice == nil ? 2 : 1 }
+    /// 🔴 八班（共九列），比設計檔字面的「8 列」多一列。
+    ///    設計檔的 large mock 是 7 從班＋主角，但實測那樣主角與從班之間會空 37pt——
+    ///    正是設計檔自己批評的「留大片空白」。算式：21（標題）＋4＋64（主角含副標）
+    ///    ＋32×8 ＝ 345／350，多這一列剛好把卡填滿。捷運看板 2026-08 也做過同一個判斷
+    ///    （MetroBoardWidget 的 followLimit 紅字：「Large 一開始寫 6 是照設計稿字面，
+    ///    但實測那樣底部會空 77pt」），兩張卡的取捨一致。
+    /// 班表警示那一行多吃 18pt ⇒ 少一班（同 Medium 的取捨：砍列不縮字）。
+    private func followLimit(_ scale: RailScale) -> Int {
+        // 好讀版：21＋4＋76（主角含副標,倒數 52）＋40×6 ＝ 341／350 ⇒ 六班。
+        // 設計檔的對照表寫「large 列數 8 → 5」,但五班會空 89pt（同標準版那條紅字的理由）。
+        let full = scale.readable ? 6 : 8
+        return snapshot.notice == nil ? full : full - 1
+    }
 
     @ViewBuilder
     private func content(_ scale: RailScale) -> some View {
-        let follows = Array(snapshot.rows.dropFirst().prefix(followLimit))
+        let follows = Array(snapshot.rows.dropFirst().prefix(followLimit(scale)))
         VStack(alignment: .leading, spacing: 0) {
             RailCardTitle(title: snapshot.title, scale: scale) {
                 RailStamp(text: RailBoardClock.updateTimeString(snapshot.generatedAt), scale: scale)
@@ -948,26 +1053,124 @@ struct MediumBoardView: View {
                     .frame(height: scale.pt(18), alignment: .leading)
                 Spacer().frame(height: scale.pt(4))
             } else {
-                Spacer().frame(height: scale.pt(8))
+                Spacer().frame(height: scale.pt(4))
             }
 
             if let lead = snapshot.rows.first {
+                // large 是唯一畫主角副標的尺寸：「發車時刻與月台那一行讓給 large」。
                 BoardRowView(row: lead, snapshot: snapshot, entryDate: entryDate,
-                             role: .hero, lineAbove: false, lineBelow: !follows.isEmpty,
-                             scale: scale)
-                RailHairline(scale: scale)
+                             role: .hero, scale: scale)
+                Spacer(minLength: 0)
                 ForEach(Array(follows.enumerated()), id: \.offset) { index, row in
                     BoardRowView(row: row, snapshot: snapshot, entryDate: entryDate,
-                                 role: .follow, lineBelow: index < follows.count - 1,
-                                 scale: scale)
+                                 role: .followLarge, scale: scale)
                 }
             } else {
                 Text(snapshot.emptyMessage ?? "查無班次")
                     .font(.system(size: scale.pt(15)))
                     .foregroundStyle(.secondary)
                     .frame(maxWidth: .infinity, alignment: .center)
+                Spacer(minLength: 0)
             }
-            Spacer(minLength: 0)
+        }
+    }
+}
+
+/// Small 的第二班。設計稿給的是一套獨立的（更小的）字級：車種標 11pt、終點站 13pt、
+/// 分鐘 15pt——170pt 寬只有 138pt 可用，Medium 次列那套 11.5/17/17 放不下。
+///
+/// 🔴 這裡【不用】RailRow：那個骨架的數字欄是固定寬 50pt（Medium 的尺），塞進 138pt
+///    的卡只剩 88pt 給車種標＋終點站，「莒光/復興」一顆標就吃掉 64pt。這一列改成
+///    「終點站彈性、分鐘 fixedSize 貼右」——同一把尺在 Small 上量不出兩班車。
+struct SmallSecondRow: View {
+    let row: BoardRow
+    let snapshot: BoardSnapshot
+    var entryDate: Date = Date()
+    var scale: RailScale = RailScale(k: 1)
+
+    var body: some View {
+        HStack(spacing: scale.pt(5)) {
+            if let heading = row.heading {
+                RailHeadingMark(heading: heading, side: 8, scale: scale)
+            }
+            RailTrainMark(kind: row.trainType, number: nil,
+                          color: BoardPalette.trainColor(row.trainType, in: snapshot.typeColors),
+                          fontSize: 11, scale: scale)
+            Text(row.watchingDestinationText)
+                .font(.system(size: scale.pt(13)))
+                .foregroundStyle(.secondary)
+                .lineLimit(1).minimumScaleFactor(0.8)
+            Spacer(minLength: scale.pt(4))
+            RailCountdownText(value: BoardCountdown.of(row: row, at: entryDate),
+                              size: .minor, scale: scale)
+                .fixedSize()
+        }
+    }
+}
+
+// MARK: - 發車看板 · Medium（一主兩從）
+
+/// v2 設計稿的高度預算：21（標題）＋4＋44（主角）＋22×3 ＝ 138 ＝ Medium 內容區高度，
+/// 剛好四班車。原本的 9pt 分隔線與主角副標那一行都拿去換第四班車了——設計稿的原話是
+/// 「Medium 是主力尺寸，138pt 高的預算選擇留給列數」。
+struct MediumBoardView: View {
+    let snapshot: BoardSnapshot
+    let entryDate: Date
+    @Environment(\.railReadable) private var readable
+
+    var body: some View {
+        GeometryReader { geo in
+            let scale = RailScale(width: geo.size.width, reference: RailScale.mediumReference,
+                                  readable: readable)
+            content(scale)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        }
+        .padding(RailBoardInsets.content)
+    }
+
+    /// 🔴 班表警示那一行把 4pt 間距換成 18＋4（多吃 18pt）⇒ 依設計稿「超出先砍列而不是縮字」
+    ///    少列一班。壓列高會讓同一張卡在兩種狀態下縱向對齊不同，那比少一班難看得多。
+    private func followLimit(_ scale: RailScale) -> Int {
+        // 好讀版：21（標題）＋4＋52（主角倒數）＋30×2 ＝ 137／138 ⇒ 兩班（共三列），
+        // 與設計檔對照表的「medium 列數 4 → 3」一致。
+        let full = scale.readable ? 2 : 3
+        return snapshot.notice == nil ? full : full - 1
+    }
+
+    @ViewBuilder
+    private func content(_ scale: RailScale) -> some View {
+        let follows = Array(snapshot.rows.dropFirst().prefix(followLimit(scale)))
+        VStack(alignment: .leading, spacing: 0) {
+            RailCardTitle(title: snapshot.title, scale: scale) {
+                RailStamp(text: RailBoardClock.updateTimeString(snapshot.generatedAt), scale: scale)
+            }
+            if let notice = snapshot.notice {
+                BoardNotice(notice: notice, scale: scale)
+                    .frame(height: scale.pt(18), alignment: .leading)
+                Spacer().frame(height: scale.pt(4))
+            } else {
+                Spacer().frame(height: scale.pt(4))
+            }
+
+            if let lead = snapshot.rows.first {
+                BoardRowView(row: lead, snapshot: snapshot, entryDate: entryDate,
+                             role: .hero, showsDepartureLine: false, scale: scale)
+                // 主角區與次列之間沒有分隔線也沒有固定間距：剩下的高度全推到這裡，
+                // 三個次列貼著卡底對齊（設計稿的 margin-top:auto）。
+                Spacer(minLength: 0)
+                ForEach(Array(follows.enumerated()), id: \.offset) { index, row in
+                    BoardRowView(row: row, snapshot: snapshot, entryDate: entryDate,
+                                 role: .follow,                                  scale: scale)
+                }
+            } else {
+                Text(snapshot.emptyMessage ?? "查無班次")
+                    .font(.system(size: scale.pt(15)))
+                    .foregroundStyle(.secondary)
+                    .frame(maxWidth: .infinity, alignment: .center)
+                // 🔴 空狀態才在末尾補彈簧。有班次時末尾【不能】再放一個——兩個 Spacer
+                //    會把剩餘高度對半分，次列就浮在卡片中間而不是貼著卡底。
+                Spacer(minLength: 0)
+            }
         }
     }
 }
@@ -983,17 +1186,30 @@ struct BoardRowView: View {
     let snapshot: BoardSnapshot
     var entryDate: Date = Date()
     var role: Role = .follow
-    var lineAbove: Bool = true
-    var lineBelow: Bool = true
+    /// 主角列的「11:35 開 · 準點 · 第 4 月台」那一行要不要畫。
+    /// v2 設計稿把它**只留給 large**：「發車時刻與月台那一行讓給 large——這個尺寸先回答
+    /// 『接下來有哪幾班』」。Medium 拿那一行的高度換第四班車（138pt 預算只夠選一個）。
+    var showsDepartureLine: Bool = true
     var scale: RailScale = RailScale(k: 1)
 
     private var isHero: Bool { role == .hero }
 
+    /// 好讀版：車次號只留在 large 的主角列。
+    /// 設計檔規則四「砍欄不砍字」有兩句話，各管一半：
+    /// 「車次號與月台在 small／medium 直接不顯示」⇒ 按尺寸砍；
+    /// 而它的好讀版 mock 連 large 的從班也沒有車次（只有主角那列印「371」）⇒ 按角色砍。
+    /// 兩句合起來就是「只有 large 的主角留車次」。`showsDepartureLine` 只有 large 的主角
+    /// 是 true（發車時刻副標是 large 獨有），所以拿它當「我是不是 large 的主角」。
+    /// 實測也支持這條：large 從班在好讀字級下六欄全開會往右溢出 15.7pt（破版 gate 抓到）。
+    private var hidesTrainNumber: Bool { scale.readable && !(isHero && showsDepartureLine) }
+
     private var height: CGFloat {
         switch role {
-        case .hero:        return RailRowHeight.hero
-        case .follow:      return RailRowHeight.follow
-        case .followLarge: return RailRowHeight.followLarge
+        case .hero:        return scale.readable ? RailRowHeight.heroReadable : RailRowHeight.hero
+        case .follow:      return scale.readable ? RailRowHeight.followReadable
+                                                 : RailRowHeight.follow
+        case .followLarge: return scale.readable ? RailRowHeight.followLargeReadable
+                                                 : RailRowHeight.followLarge
         }
     }
 
@@ -1011,35 +1227,70 @@ struct BoardRowView: View {
     }
 
     var body: some View {
-        RailRow(spine: isHero ? .lead(color) : .follow,
-                lineAbove: lineAbove, lineBelow: lineBelow,
-                height: height,
-                numberWidth: isHero ? RailNumberColumn.wide : RailNumberColumn.narrow,
+        RailRow(height: height,
+                numberWidth: isHero ? RailNumberColumn.wide(scale) : RailNumberColumn.narrow(scale),
                 scale: scale) {
             if isHero {
-                HStack(spacing: scale.pt(6)) {
-                    // 車次與「往 X」同級 20pt、車種標 13pt——設計稿的示範裡「0814」與
-                    // 「往 南港」是同一個大小，只有車種標明顯小一階。
-                    RailTrainMark(kind: row.trainType, number: row.trainNumber,
-                                  color: color, fontSize: 13, numberSize: 20, scale: scale)
+                HStack(spacing: scale.pt(7)) {
+                    // v2 設計稿的主角階：車種標 12pt、車次 15pt、終點站 26pt。
+                    // 拿掉軌脊省下的 21pt 全給終點站——26pt 的「往 潮州」不再需要截字。
+                    if let heading = row.heading {
+                        RailHeadingMark(heading: heading, scale: scale)
+                    }
+                    // 🔴 好讀版砍欄不砍字：車次號在 small／medium 直接不顯示（設計檔
+                    //    「它們是進站後才需要的資訊，不是『該不該現在走』需要的」）。
+                    //    large 有空間 ⇒ 留著。
+                    RailTrainMark(kind: row.trainType,
+                                  number: hidesTrainNumber ? nil : row.trainNumber,
+                                  color: color, fontSize: 12, numberSize: 15, scale: scale)
                     Text(row.watchingDestinationText)
-                        .font(.system(size: scale.pt(20), weight: .medium))
+                        .font(.system(size: scale.pt(26, readable: 30), weight: .semibold))
                         .lineLimit(1).minimumScaleFactor(0.7)
                     if row.isPassing { PassBadge(scale: scale) }
                 }
                 .widgetAccentable()
-                subtitle
+                if showsDepartureLine { subtitle }
             } else {
-                HStack(spacing: scale.pt(6)) {
-                    RailTrainMark(kind: row.trainType, number: row.trainNumber,
-                                  color: color, fontSize: 12, scale: scale)
+                HStack(spacing: scale.pt(7)) {
+                    if let heading = row.heading {
+                        RailHeadingMark(heading: heading, side: 8, scale: scale)
+                    }
+                    RailTrainMark(kind: row.trainType,
+                                  number: hidesTrainNumber ? nil : row.trainNumber,
+                                  color: color, fontSize: 11.5, numberSize: 15,
+                                  numberWidth: 38, scale: scale)
                     Text(row.watchingDestinationText)
-                        .font(.system(size: scale.pt(17)))
-                        .foregroundStyle(.secondary)
-                        .lineLimit(1).minimumScaleFactor(0.85)
+                        .font(.system(size: scale.pt(17, readable: 22)))
+                        // 設計檔好讀版色表：「次要灰 60% → 85%」。SwiftUI 的 .secondary 是
+                        // 階層色（約 60%），好讀版改用明確的 85% 才吃得到那一條。
+                        .foregroundStyle(scale.readable ? AnyShapeStyle(.primary.opacity(0.85))
+                                                        : AnyShapeStyle(.secondary))
+                        // 🔴 下限 0.7 不是 0.85：large 那一列同時有狀態、發車時刻與分鐘三個
+                        //    固定欄,誤點時 0.85 會讓終點站被截成「往…」——一個字都沒有的
+                        //    終點站等於這一列沒用（同 Small 站名那條）。設計檔說終點站是唯一
+                        //    可截的欄,但「可截」的前提是截完還讀得出來。
+                        .lineLimit(1).minimumScaleFactor(0.7)
                     if row.isPassing { PassBadge(scale: scale) }
                     Spacer(minLength: scale.pt(4))
                     followStatus
+                    // large 才有的發車時刻欄。設計檔：「large 多一個發車時刻欄；長等待用時刻
+                    // 回答比用分鐘準」——40 分鐘後那班，「12:04」比「38 分」好用。
+                    // 🔴 倒數已經退成靜態時刻（>90 分鐘）時不畫：那時數字欄畫的就是這個時刻，
+                    //    畫兩次會讓人以為是兩個不同的時間。
+                    // 🔴 好讀版不畫這一欄：字級放大後六欄放不下（破版 gate 抓到），而設計檔
+                    //    好讀版的 mock 也沒有發車時刻欄。分鐘欄已經回答了「還要多久」。
+                    if role == .followLarge, !showsClock, !scale.readable {
+                        // 🔴 用 scheduledTime 不用 departureText：後者在誤點時是
+                        //    「21:43 開 → 21:46」的雙時刻長句（實測 110pt），塞進 40pt 的欄
+                        //    不會被裁掉——SwiftUI 的 frame 不裁切，它會直接畫到隔壁的狀態上面
+                        //    （算繪實看到兩串字疊在一起）。這一欄按設計檔就是一個乾淨的時刻。
+                        Text(sameDay ? row.scheduledTime : "明天 " + row.scheduledTime)
+                            .font(.system(size: scale.pt(13, readable: 17)))
+                            .foregroundStyle(.tertiary)
+                            .monospacedDigit()
+                            .lineLimit(1).fixedSize()
+                            .frame(width: scale.pt(40, readable: 52), alignment: .trailing)
+                    }
                 }
             }
         } trailing: {
@@ -1091,7 +1342,12 @@ struct BoardRowView: View {
             RailStatusTag(kind: .delay(delay), fontSize: 12, scale: scale)
         } else if row.isLastOfDay, sameDay {
             RailStatusTag(kind: .lastTrain, fontSize: 12, scale: scale)
-        } else {
+        } else if role != .followLarge, !scale.readable {
+            // 🔴 這個 else 只留給【沒有發車時刻欄】的尺寸（Medium）。large 有自己那一欄，
+            //    兩邊都畫的話同一個時刻會在同一列印兩次並且互相疊上去（算繪實看抓到）。
+            // 🔴 好讀版也不畫：設計檔好讀版的 mock 從班只有誤點才出現狀態，準點那幾列是空的；
+            //    而這行是 12pt 的固定字級，放在放大的版面裡本來就讀不到（要嘛放大要嘛砍，
+            //    「砍欄不砍字」⇒ 砍）。分鐘欄已經回答了「還要多久」。
             Text(sameDay ? row.scheduledTime : "明天 " + row.scheduledTime)
                 .font(.system(size: scale.pt(12)))
                 .monospacedDigit()
@@ -1310,11 +1566,11 @@ struct MediumPlaceBoardView: View {
             if let lead = rows.first {
                 PlaceRowView(row: lead, typeColors: snapshot.typeColors, entryDate: entryDate,
                              role: .hero, lineColor: Color(hex: line.color),
-                             lineAbove: false, lineBelow: !follows.isEmpty, scale: scale)
-                RailHairline(scale: scale)
+                             scale: scale)
+                RailRowGap(scale: scale)
                 ForEach(Array(follows.enumerated()), id: \.offset) { index, row in
                     PlaceRowView(row: row, typeColors: snapshot.typeColors, entryDate: entryDate,
-                                 role: .follow, lineBelow: index < follows.count - 1, scale: scale)
+                                 role: .follow, scale: scale)
                 }
             } else {
                 Text("60 分鐘內無車")
@@ -1452,8 +1708,6 @@ struct PlaceRowView: View {
     var entryDate: Date = Date()
     var role: Role = .follow
     var lineColor: Color? = nil
-    var lineAbove: Bool = true
-    var lineBelow: Bool = true
     var scale: RailScale = RailScale(k: 1)
 
     private var isHero: Bool { role == .hero }
@@ -1475,10 +1729,8 @@ struct PlaceRowView: View {
     }
 
     var body: some View {
-        RailRow(spine: isHero ? .lead(lineColor) : .follow,
-                lineAbove: lineAbove, lineBelow: lineBelow,
-                height: height,
-                numberWidth: isHero ? RailNumberColumn.wide : RailNumberColumn.narrow,
+        RailRow(height: height,
+                numberWidth: isHero ? RailNumberColumn.wide(scale) : RailNumberColumn.narrow(scale),
                 scale: scale) {
             HStack(spacing: scale.pt(6)) {
                 RailTrainMark(kind: row.trainType, number: row.trainNumber,
@@ -1765,7 +2017,7 @@ struct RailBoardWidget: Widget {
         }
         .configurationDisplayName("發車看板")
         .description("查看台鐵或高鐵接下來的直達、停靠、終到與通過列車。")
-        .supportedFamilies([.systemSmall, .systemMedium, .accessoryRectangular])
+        .supportedFamilies([.systemSmall, .systemMedium, .systemLarge, .accessoryRectangular])
         .contentMarginsDisabled()
     }
 }

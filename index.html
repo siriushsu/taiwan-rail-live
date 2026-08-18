@@ -3810,7 +3810,7 @@
 
   <footer class="site-foot">
     <details class="foot-box">
-      <summary><span>更新紀錄</span><span class="foot-sub">最後更新：2026/8/16</span></summary>
+      <summary><span>更新紀錄</span><span class="foot-sub">最後更新：2026/8/17</span></summary>
       <!-- 第一層是「最近更新」的檢視,不是正本:每一條都用 data-cl-of 指向第二層某條的 data-cl。
            要把一條擠出第一層之前,它的正本必須已經在第二層存在——2026-08-03 就踩過一次:8/1 的
            衛星計費那條只活在第一層(第二層只有一句夾在 7/25 條目裡、日期對不上的附帶說明),
@@ -3818,14 +3818,14 @@
            內容 li 上限 8 條(li.grp 是標題不算)。 -->
       <ul class="foot-list foot-recent">
         <li class="grp">最近更新</li>
+        <li data-cl-of="widgetredesign"><span class="d">8/17</span><span>iPhone 發車看板小工具改版：拿掉會讓人誤會的軌道示意，改放北上／南下方向與更大的字；台鐵新增大尺寸卡片，並新增「大字好讀版」（下次 App 更新生效）</span></li>
+        <li data-cl-of="thsrwindow"><span class="d">8/17</span><span>高鐵班表不再停在前一天：當天才有的班次看得到，前一天才有的也不會變成幽靈車（謝謝網友回報）</span></li>
+        <li data-cl-of="trtczombie"><span class="d">8/17</span><span>台北捷運車站看板不再把尖峰加開的短程車提早列成「另一條線」；列車位置目前仍為班表推估，車站倒數是官方即時（改用官方逐車資料認車的做法還在測試，謝謝網友回報）</span></li>
         <li data-cl-of="androidtopgap"><span class="d">8/16</span><span>Android 手機放大系統字級時，左上「基隆—高雄」不再和下方時間欄黏在一起或重疊（謝謝網友回報）</span></li>
         <li data-cl-of="androidwidgets"><span class="d">8/16</span><span>Android App 補上捷運桌面小工具與鎖定畫面等車資訊卡，顯示官方下一班、方向、倒數與北捷車廂鬆緊</span></li>
         <li data-cl-of="androidcoarse"><span class="d">8/16</span><span>Android App 改成只詢問模糊位置，不再要求精確位置</span></li>
         <li data-cl-of="androidinsets"><span class="d">8/16</span><span>Android App 的放空模式底部按鈕不再被系統導覽列蓋住，窄螢幕的「全／台／高／捷」也會完整顯示</span></li>
         <li data-cl-of="orangebranch"><span class="d">8/16</span><span>中和新蘆線共線段不再冒出重複列車與沒有車號的車</span></li>
-        <li data-cl-of="badgescope"><span class="d">8/16</span><span>「台」「高」不再顯示捷運的「官方即時」標示；捷運收班後改標「已收班」</span></li>
-        <li data-cl-of="zuoyingalias"><span class="d">8/16</span><span>台鐵左營站不再分成「左營」與「左營(舊城)」兩顆，看板正常顯示；新城站同步修正（謝謝網友回報）</span></li>
-        <li data-cl-of="plusctas"><span class="d">8/16</span><span>衛星高解析與跟車鎖定畫面現在會直接說明屬於通行證，使用說明也補上捷運小工具與等車卡</span></li>
       </ul>
       <!-- 第二層:完整歷史。刻意不掛 .foot-box 類名——placeFootBoxes() 用
            `.site-foot .foot-box` 搬移面板,巢狀同名會被當成另一個盒子一起搬走。 -->
@@ -3845,6 +3845,8 @@
         <li><span class="d">7/10</span><span>高鐵、桃園機捷、淡海輕軌、安坑輕軌加入路網</span></li>
         <li><span class="d">7/10</span><span>環島觀光列車一分為二：往東「山海號」、往西「平原號」</span></li>
         <li class="grp">即時動態與誤點</li>
+        <li data-cl="thsrwindow"><span class="d">8/17</span><span>高鐵班表曾經停在前一天（8/17 早上）：當天才有的班次整批看不到，前一天才有的則變成停不下來的幽靈車。現在班表一次抓七天，並且每五分鐘自動檢查一次今天的班表在不在，不在就立刻補抓（謝謝網友回報）</span></li>
+        <li data-cl="trtczombie"><span class="d">8/17</span><span>台北捷運畫面上會冒出停在原地、好幾台疊在一起的重複列車（8/17 早上實測文湖線同時畫出 88 台，官方當下其實只有 33 台在跑）。當天上午起列車位置改用班表推估，把重複的車擋掉；車站的到站倒數一直都是官方即時資料，與月台顯示的倒數相同。「改用官方逐車資料認車」的新做法傍晚上線試了一輪，實測其他路線也還會疊車，當晚先退回班表推估，等根因修好再上。另外修掉車站看板的一個困擾：尖峰才加開的短程車（板南線往昆陽、往亞東醫院，淡水信義線往北投、往大安，松山新店線往台電大樓）本來會被提早列出來，看起來像多了一條線——實測松江南京同時出現兩列「往台電大樓」61 分與 77 分、忠孝復興出現「往昆陽 20 分」。現在這類短程車只在一班班距內（也就是真的是下一班）才會列出來，馬上要到的仍照樣顯示，官方即時倒數一律照官方（謝謝網友回報）</span></li>
         <li data-cl="badgescope"><span class="d">8/16</span><span>時鐘旁的狀態標示修正：切到「台」「高」時不再顯示台北捷運的「官方即時」（那兩頁本來就沒有捷運）；捷運全部收班後，標示也從「離峰」改成「已收班」</span></li>
         <li data-cl="danhaifireworks"><span class="d">8/15</span><span>新北市在淡水漁人碼頭辦煙火的三個週日（8/16、8/23、8/30），淡海輕軌的畫面會照官方公告走：下午四點起綠山線改成每三十分鐘一班，五點起濱海沙崙到崁頂那一段停駛（官方另有免費接駁公車），車全部集中到藍海線跑三到六分鐘的密集班距。只有這三天這樣，其他日子照常</span></li>
         <li data-cl="trtcoutage"><span class="d">8/15</span><span>台北捷運官方即時資料中斷時，畫面原本完全不說（8/15 早上斷了約半小時）：列車各自照最後量到的速度往前推，兩班車擠在一起、甚至互相超車，車站倒數則整個找不到車。現在三件事一起改了——中斷一發生，頂端就會跳出提示告訴你是北捷訊號中斷、列車位置與車站倒數都可能不準，捷運徽章與車站看板上也會標示；中斷期間的推估改成照每段站與站之間的固定行車時間走，全線同一個節奏，不會再有車超過前面那班；官方資料恢復時，畫面會重新對齊官方位置，部分列車會因此往前跳或往後退，並跳出訊息說明為什麼會跳。環狀線走的是新北捷運另一條資料線路，兩邊各自判斷，一邊斷不會誤報另一邊。同一批還修好了一個更早的毛病：同一個起點同時排兩班發車時，我們會整輪讀不進官方資料而沿用上一份，位置因此愈跑愈偏，訊號恢復後還會冒出沒有車號的車跟著跑（謝謝網友回報）——現在讀得進來了，車數也回到正常。同一個起點同時有往兩個終點的班次時（例如板南線的頂埔與亞東醫院），也會被認成同一班而認錯車，留下沒有車號的幽靈車、車號在兩班之間跳——現在照終點分開認，發車後身分接得上第一站</span></li>
@@ -3876,6 +3878,7 @@
         <li><span class="d">7/16</span><span>捷運準確度升級：六家捷運依官方到站看板即時校正，國定假日自動改跑假日班表</span></li>
         <li><span class="d">7/9</span><span>台鐵即時誤點上線——介接交通部 TDX 平臺每分鐘更新；7/11 起開站即真實時刻、捷運改逐班推演</span></li>
         <li class="grp">跟車、搜尋與車站看板</li>
+        <li data-cl="widgetredesign"><span class="d">8/17</span><span>iPhone 的發車看板小工具改版：拿掉左側那條軌道示意——它會讓人以為上下兩列是同一條軌道上的前後站，其實每一列是不同車次；空出來的位置改放北上／南下方向三角、更大的終點站與倒數。台鐵看板新增大尺寸卡片（一次看九班，並多一欄發車時刻），中尺寸從三班改四班、小尺寸改成兩班。另新增「大字好讀版」：字放大、對比加深、列數相應減少，可在小工具設定裡開啟，系統字級調到輔助使用級別時也會自動切換。下次 App 更新生效</span></li>
         <li data-cl="androidwidgets"><span class="d">8/16</span><span>Android App 現在也有捷運桌面小工具：選一個車站就能在主畫面看官方下一班、兩個方向的倒數與北捷車廂鬆緊，點卡片可直接開啟「追蹤這站」；追蹤後，鎖定畫面會持續顯示下一班與再下一班、方向、倒數和結束按鈕，Android 16 以上會以即時資訊卡優先呈現，較舊版本則顯示同內容的持續通知。免費可設定一站，多站與自動選最近車站沿用通行證規則</span></li>
         <li data-cl="plusctas"><span class="d">8/16</span><span>通行證的內容改成在用得到的地方直接講：跟車面板可把倒數放上鎖定畫面、切到衛星影像時會說明有更清楚的高解析版本；使用說明中心也補上「捷運小工具」與「在這站等車」兩節</span></li>
         <li data-cl="metrowidgetpass"><span class="d">8/15</span><span>捷運小工具的方案定了：免費可以設定一個捷運站，想同時放好幾站、或用「自動（最近的站）」讓小工具跟著你移動換站，就需要軌島通行證。設定超過一站時，小工具上會直接寫清楚原因、點一下就能看方案，不會只給你一張空白卡。等車卡（鎖定畫面倒數）維持免費。下次 App 更新生效</span></li>
@@ -4338,20 +4341,53 @@
 // v0816c：台鐵左營／新城通過站正名（同座標兩顆站合一）＋班表 14 天重抓，合入 v0815f 出貨線。
 //         （v0816b 讓給並行的 feat/metro-widget 分支，同號不同內容會害人辨識不出線上版本）
 // v0816e：小工具通行證閘門兩個洞＋四處付費提示＋小工具說明改寫（feat/metro-widget 線，build 61）。
-// v0816f：本批＝上面兩條線合併——北捷共線段分支歸屬鎖＋捷運徽章群組閘門，合入 build 61 的小工具線。
+// v0816f：北捷共線段分支歸屬鎖＋捷運徽章群組閘門，合入 build 61 的小工具線。
 //         a/b/c/d/e 都已被別的分支用掉，跨分支撞號見心得 16。
 // v0816g：Android v7 合入 v0816f，並把原生定位權限收斂為只請求模糊位置。
-const BUILD = 'v0816h';
+// v0817b：救回 08-17 08:44 被一發 main 部署整包退掉的 ship/v0817a（62 顆，含殘骸列車退場、
+//         中和新蘆線分支鎖、捷運徽章範圍、App 那整批 index.html 內容），並合入高鐵班表抓取窗
+//         2→7 天與每 5 分鐘自我檢查。
+// v0817h：小工具改版線（發車看板撤軌脊、方向三角、Large、大字好讀版）合入 main 的 v0817g，
+//         index.html 全部取 main 一側，只有更新紀錄第一層取聯集（Android 那四條擠掉
+//         zuoyingalias 與 plusctas，兩者的正本都在第二層）。a～g 都被別的分支用掉了。
+const BUILD = 'v0817h';
 // 2026-08-13 起預設開啟（使用者親試預覽後裁示上線）：北捷畫車依官方即時名冊，班表只是備案。
 // 保留 ?officialroster=0 當逃生口——要退回班表路徑不必回滾部署，加個參數即可對照。
 // 🔴 這個函式會被 verify_official_roster_frontend 抽出來丟進 VM 單獨執行——
 //    不可引用任何模組層常數（引用了會 ReferenceError，驗收器直接中止）。預設值寫死在這裡。
+// 🔴 2026-08-17 09:20 使用者指示：「你直接把台北捷運的列車顯示換成班表,不要都空的,
+//    然後發公告通知現在所有車輛位置都是班表並非實際位置,車站倒數時間則與月台倒數相同。
+//    我們把位置邏輯弄好之前就是先這樣跑」⇒ 當天上午起官方名冊【預設關閉】,北捷回班表推演。
+// 🔴 2026-08-17 16:3x 使用者曾裁示「先切換」(逐車名冊改預設開),但當晚 19:0x 前提被推翻:
+//    我當時報給他的代價是「只有環狀線會間歇疊車」,實測後發現文湖線與松山新店線也會,
+//    而且抓到可指認的機制——防倒退把前車 hold 在原地,後車照官方資料前進就追上疊在一起
+//    (現場:G hw:312 是 census-hold/no-backward、hw:334 正常前進,兩台同在 from=1→to=2)。
+//    ⇒ 使用者改裁示「只出看板修正,位置維持班表」,逐車名冊【維持預設關閉】,
+//    疊車根因另案追。要切回官方即時位置的前提是那個機制修好並驗過。
+//    測試入口:`?census=1`(逐車清單)或 `?officialroster=1`(舊帳本),不必重新部署。
 function trtcOfficialRosterEnabled(search) {
-  try { return new URLSearchParams(search == null ? location.search : search).get('officialroster') !== '0'; }
-  catch (e) { return true; }
+  try {
+    const q = new URLSearchParams(search == null ? location.search : search);
+    // 名冊繪製路徑有兩個來源：逐車清單(?census=1)與舊帳本(?officialroster=1),兩者都預設關。
+    // 🔴 這裡刻意把 census 的判斷抄一份而不呼叫 trtcCensusRosterEnabled——本函式會被
+    //    verify_official_roster_frontend 單獨抽進 VM 跑,引用外部符號會 ReferenceError。
+    return q.get('officialroster') === '1' || q.get('census') === '1';
+  } catch (e) { return false; }
+}
+function trtcCensusRosterEnabled(search) {
+  try { return new URLSearchParams(search == null ? location.search : search).get('census') === '1'; }
+  catch (e) { return false; }
 }
 // URL 開關必須在開機初始就固定；clearFollow() 會整理 query string，不可在後面重讀。
 const OFFICIAL_ROSTER_ENABLED = trtcOfficialRosterEnabled(location.search);
+const CENSUS_ROSTER_ENABLED = trtcCensusRosterEnabled(location.search);
+// 官方名冊關著的期間,北捷位置＝純班表：不套誤點校正、不做官方看板錨定（見 metroLiveOn）。
+// 兩件事一起翻面才自洽——名冊關掉卻留著校正,畫出來的既不是官方位置也不是班表。
+const TRTC_PURE_SCHEDULE_POSITION = !OFFICIAL_ROSTER_ENABLED;
+// 純班表期間唯一的判斷來源。凡是「會把車移離班表位置」的路徑都要問過它。
+// metroShiftSec 與 trtcBoardPosition 是透過 metroLiveOn 間接問到的(它們各自有早退)，
+// trtcHeadwayPosition 則兩者都沒有，是唯一要自己問的一條。
+function trtcPureSchedule(ln) { return TRTC_PURE_SCHEDULE_POSITION && isTrtcBoardLine(ln); }
 // 🔴 2026-08-14 最終裁示：一台車取得官方倒數並分配 ID 後，沿已知每站時間跑到終點。
 // 沒有資料齡、600 秒或「太久沒消息」的退場判定；到已知 dest 才收車。
 // 續推時每一段的節奏：優先用這台車自己相鄰兩筆官方到站的間隔（含停站），
@@ -4837,6 +4873,170 @@ function trtcOfficialRosterForLine(boardPos, lineId) {
   if (!boardPos || !Array.isArray(boardPos.vehicles)) return [];
   return boardPos.vehicles.filter(vehicle => vehicle && String(vehicle.line) === String(lineId));
 }
+
+// ── 逐車名冊 (?census=1)：名冊來源＝官方逐車清單，站牌倒數只負責時刻 ──────────────
+// 2026-08-17 架構調整。舊名冊由站牌倒數列反推「有幾台車、誰是誰」，但站牌逐輪只提到一部分車
+// （實測 67 個車號 vs 逐車清單 76 台），於是「認不出車號」被升級成「位置不確定」——
+// 綁定器配錯班 ⇒ shift≈k×班距 ⇒ 使用者看到的疊車與倒退。逐車清單本身就帶穩定身分，不必綁定。
+// 詳細契約與判準見 scripts/trtc_census_roster.mjs 與 verify_census_roster.mjs（同一套規則）。
+const _trtcCensusNorm = s => String(s == null ? '' : s).trim().replace(/站$/, '');
+let _trtcCodes = null, _trtcCodesLoading = null;
+function trtcCodesEnsure() {
+  if (_trtcCodes || _trtcCodesLoading) return _trtcCodesLoading;
+  _trtcCodesLoading = fetch('./data/trtc_codes.json').then(r => r.json())
+    .then(j => { _trtcCodes = j; return j; }).catch(() => { _trtcCodesLoading = null; return null; });
+  return _trtcCodesLoading;
+}
+function trtcCensusLine(id) {
+  for (const ln of state.lines || []) if (ln && ln.id === id) return ln;
+  for (const ln of state.decoLines || []) if (ln && ln.id === id) return ln;
+  return null;
+}
+function trtcCensusNames(ln) {
+  if (!ln._censusNames) ln._censusNames = (ln.stations || []).map(s => _trtcCensusNorm(s && s.name));
+  return ln._censusNames;
+}
+function trtcCensusRun(ln, from, to) {
+  const seg = ln.segs && ln.segs[Math.min(from, to)];
+  const v = seg && Number(seg.run);
+  return v > 0 ? v : 90;
+}
+// 站碼 → {line, i}。分支點（R22 同時是 R 第 20 站與 R_XBT 第 0 站）用「下一站／終點站在哪條線上」
+// 決定，不用車號猜——用車號猜正是舊綁定器那個無錨點回饋迴圈的來源。
+function trtcCensusResolve(stn, nextName, destName) {
+  const rec = _trtcCodes && _trtcCodes[String(stn)];
+  const on = (rec && rec.on) || [];
+  if (!on.length) return null;
+  if (on.length === 1) return { line: on[0].ln, i: Number(on[0].i) };
+  const next = _trtcCensusNorm(nextName), dest = _trtcCensusNorm(destName);
+  const scored = on.map(c => {
+    const ln = trtcCensusLine(c.ln), arr = ln ? trtcCensusNames(ln) : [];
+    const ni = next ? arr.indexOf(next) : -1, di = dest ? arr.indexOf(dest) : -1;
+    let score = 0;
+    if (ni >= 0) score += 2 + (Math.abs(ni - Number(c.i)) <= 2 ? 2 : 0);
+    if (di >= 0 && di !== Number(c.i)) score += 1;
+    return { line: c.ln, i: Number(c.i), score };
+  }).sort((a, b) => b.score - a.score);
+  if (!scored[0].score) return null;
+  // 平手不一定等於歧義。中和新蘆線的共線段（南勢角↔大橋頭）被拆成蘆洲、新莊兩條線，
+  // 那一段兩條的站序完全一樣 ⇒ 評分必然平手，實測每輪 5 台南下車因此整台不畫。
+  // 但共線段就是同一條實體軌道：只要「從這裡到終點站」的站序兩邊相同，選哪條畫出來
+  // 都是同一條線，那不是猜，是這個選擇本身沒有差別。站序真的分岔才叫歧義。
+  if (scored[1] && scored[1].score === scored[0].score) {
+    const tied = scored.filter(c => c.score === scored[0].score);
+    const routeOf = c => {
+      const ln = trtcCensusLine(c.line), arr = ln ? trtcCensusNames(ln) : [];
+      const di = dest ? arr.indexOf(dest) : -1;
+      if (di < 0) return null;                      // 終點不在這條線上：無從比對，維持歧義
+      return (di >= c.i ? arr.slice(c.i, di + 1) : arr.slice(di, c.i + 1).reverse()).join('>');
+    };
+    const routes = tied.map(routeOf);
+    if (routes.some(r => r == null) || routes.some(r => r !== routes[0])) return null;
+    return tied.slice().sort((a, b) => String(a.line) < String(b.line) ? -1 : 1)[0];
+  }
+  return scored[0];
+}
+let _trtcCensusPrior = new Map();
+function trtcCensusVehicles(trains, nowEpoch, day) {
+  if (!_trtcCodes) { trtcCodesEnsure(); return null; } // 站碼表還沒到：這一輪不動名冊
+  const out = [], seen = new Set(), prior = _trtcCensusPrior, next = new Map();
+  for (const t of trains || []) {
+    const no = String((t && t.no) || '').trim();
+    if (!no) continue;
+    const sys = t.sys === 'br' ? 'br' : 'hw', at = Number(t.at);
+    const vid = 'cs:' + day + ':' + sys + ':' + no;
+    // 🔴 08-14 契約:官方清單還列著這台車就代表它在,缺訊只 hold、沒有退場。
+    // 所以「這一輪算不出位置」不准丟車——沿用上一輪的位置等資料追上。丟了才是
+    // 「API 每 15 秒都正常,車卻自己不見」。認不出來留白,但不因此不畫。
+    // 唯一例外是連 no 都沒有(上面已擋):那連身分都構不成,沒有可沿用的對象。
+    const holdPrev = why => {
+      const p0 = prior.get(vid);
+      if (!p0 || seen.has(vid)) return false;
+      seen.add(vid);
+      const held = { ...p0, source: 'census-hold', holdReason: why, observedEpoch: nowEpoch };
+      next.set(vid, held); out.push(held); return true;
+    };
+    if (Number.isFinite(at) && nowEpoch - at > 900) { holdPrev('stale-at'); continue; }
+    const path = Array.isArray(t.path) ? t.path : [];
+    const hit = trtcCensusResolve(t.stn, path.find(x => Number(x.eta) > nowEpoch)?.name, t.dest);
+    if (!hit) { holdPrev('unresolved-station'); continue; }
+    const ln = trtcCensusLine(hit.line); if (!ln) { holdPrev('line-missing'); continue; }
+    const arr = trtcCensusNames(ln);
+    // 方向優先從 path 推：dir 欄位在終點站折返時會落後（實測 66 筆有 path 的樣本中 3 筆），
+    // 照抄 dir 就會把剛掉頭的車畫成反向。
+    // path 的前幾筆常常已經是過去式——官方對「列車進站」給的倒數是 0，換算出來的 eta
+    // 就等於這份 payload 的時戳，下一輪輪詢時它早就過期了。若照抄第一筆，車會卡在那一站，
+    // 前後兩班就疊在同一個站點上（實測疊車 3 對全是這樣來的）。取第一個還沒到的站當目標。
+    let pi = 0;
+    while (pi < path.length && Number(path[pi].eta) <= nowEpoch) pi++;
+    const head = pi < path.length ? path[pi] : null;
+    let step = null, nextIdx = head ? arr.indexOf(_trtcCensusNorm(head.name)) : -1;
+    if (nextIdx >= 0 && nextIdx !== hit.i) step = Math.sign(nextIdx - hit.i);
+    if (step == null) {
+      if (Number(t.dir) !== 1 && Number(t.dir) !== 2) { holdPrev('no-direction'); continue; }
+      step = Number(t.dir) === 1 ? -1 : 1;
+    }
+    let from, to;
+    if (nextIdx >= 0 && nextIdx !== hit.i) { to = nextIdx; from = to - step; }
+    else { from = hit.i; to = hit.i + step; }
+    if (from < 0 || to < 0 || from >= arr.length || to >= arr.length) from = to = hit.i;
+    let terminal = from === to;
+    let run = terminal ? 0 : trtcCensusRun(ln, from, to);
+    const firstEta = head ? Number(head.eta) : NaN;
+    // 🔴 不可把過期的到站時刻夾到現在。續推是「從到站時刻起算 25 秒停站再開」，
+    // 夾到現在等於每輪都把它重設成剛到站 ⇒ 車永遠在停站，實測文湖線 22/24 台整線凍結
+    // （文湖線在 TrackInfo 沒有 path，只能靠落後的 at 推，全線都吃這個路徑）。
+    // 過去的到站時刻是正確資訊，續推會據此把車往前推到該在的位置。
+    const arrEpoch = Number.isFinite(firstEta) && !terminal ? firstEta
+      : (Number.isFinite(at) ? at + run : nowEpoch + run);
+    // dest 不是裝飾：名冊驗證要求它是合法站序整數，null 會讓整包 payload 被判 malformed。
+    // 官方沒給終點（文湖線全部、高運量約一成）就用行進方向上的線末站——語意也對。
+    const di0 = arr.indexOf(_trtcCensusNorm(t.dest));
+    const di = di0 >= 0 ? di0 : (step > 0 ? arr.length - 1 : 0);
+    // 已經開到終點站：繪製端的契約是「到 dest 就收車」（使用者裁示），但官方逐車清單仍說
+    // 這台車在——它只是停在終點站等著折返。改標成「停在終點站」而不是讓它整台消失。
+    if (!terminal && to === di && arrEpoch <= nowEpoch + 1) { from = to; terminal = true; run = 0; }
+    // 停在端點的車，方向必須指向線內：端點繪製會算 next = from + step，指向線外就得到
+    // 不存在的站而整台回 null（實測 6 台停在終點站的車就是這樣不見的）。
+    const dirOut = terminal
+      ? (from <= 0 ? 2 : (from >= arr.length - 1 ? 1 : (step > 0 ? 2 : 1)))
+      : (step > 0 ? 2 : 1);
+    const vehicleId = vid;
+    if (seen.has(vehicleId)) continue;
+    seen.add(vehicleId);
+    // 只准前進。兩個位置來源的新鮮度差很大（CarWeight 的 stn 實測落後 96–265 秒、
+    // TrackInfo 的 path 約 25 秒），同一台車在有／沒有 path 之間切換時會在兩者間跳，
+    // 往回跳就是倒退。落到上一輪後面就維持上一輪，等官方資料自己追上。
+    const prev = prior.get(vehicleId);
+    let vehicle;
+    if (prev && prev.line === hit.line && prev.dir === dirOut &&
+        !prev.terminal && !terminal && (to - prev.to) * step < 0) {
+      // source/holdReason 必須明寫:{...prev} 會把上一輪的值原封帶過來,前一輪若是別的原因
+      // hold 的,這一輪就會回報一個假原因(實測回報 unresolved-station,而該台其實解析成功)。
+      vehicle = { ...prev, arrEpoch: Math.max(prev.arrEpoch, nowEpoch), observedEpoch: nowEpoch,
+        source: 'census-hold', holdReason: 'no-backward' };
+    } else {
+      const timeline = [];
+      let cur = from;
+      for (const p of (terminal ? [] : path.slice(pi))) {
+        const idx = arr.indexOf(_trtcCensusNorm(p.name));
+        if (idx < 0 || idx === cur || Math.sign(idx - cur) !== step) break;
+        const eta = Number(p.eta); if (!Number.isFinite(eta)) break;
+        const r = trtcCensusRun(ln, cur, idx);
+        timeline.push({ from: cur, to: idx, depEpoch: eta - r, arrEpoch: eta, terminal: false });
+        cur = idx;
+      }
+      if (!timeline.length) timeline.push({ from, to, depEpoch: arrEpoch - run, arrEpoch, terminal });
+      vehicle = { vehicleId, line: hit.line, dir: dirOut, dest: di,
+        from, to, run, arrEpoch, terminal, officialNo: sys === 'hw' ? no : null,
+        source: 'census', observedEpoch: nowEpoch, timeline };
+    }
+    next.set(vehicleId, vehicle);
+    out.push(vehicle);
+  }
+  _trtcCensusPrior = next;
+  return out;
+}
 // 官方看板中斷多久了。後端沒有送 held 旗標（2026-08-15 斷線 33 分鐘期間 boardPos.held 全程 undefined），
 // 所以資料齡一律由前端自己從名冊的 observedEpoch 算。
 // 🔴 逐「上游」各自算，不把各家混成一個數字——環狀線走新北捷另一支上游，北捷斷 33 分鐘的當下環狀線是
@@ -5042,14 +5242,24 @@ function trtcOfficialVehiclePosition(ln, vehicle, nowEpoch) {
   const timeline = trtcOfficialTimelinePosition(ln, vehicle, now);
   if (timeline.handled) return timeline.pos;
   if (from === to) return trtcOfficialDeparturePosition(ln, vehicle, now, from, arrEpoch);
-  if (!(run > 0)) return null;
+  // 🔴 小碧潭與新北投兩條支線只有兩站,於是看板每一列的「前一站」都掉出線外
+  // (北投 0→-1、小碧潭 1→2) ⇒ 帳本一律判成起點列 run=0,推進成 from≠to 之後 run 仍是 0。
+  // 舊碼在這裡整台回 null＝那台車一發車就消失,畫面上永遠只剩下一台停在起點的,
+  // 看起來就是「車一直停在站上不會動」(2026-08-17 使用者回報)。
+  // run 不是官方值、是我們自己推的區間秒,而線形資料本來就有(七張↔小碧潭 203 秒),
+  // 缺了就用它補回來;補不到才放棄。其他線一律 run>0,不受這條影響。
+  const segRun = run > 0 ? run : (() => {
+    const seg = ln.segs && ln.segs[Math.min(from, to)];
+    return Number(seg && seg.run) > 0 ? Number(seg.run) : 0;
+  })();
+  if (!(segRun > 0)) return null;
   const explicitDep = vehicle.depEpoch == null ? NaN : Number(vehicle.depEpoch);
-  const depEpoch = Number.isFinite(explicitDep) ? explicitDep : arrEpoch - run;
+  const depEpoch = Number.isFinite(explicitDep) ? explicitDep : arrEpoch - segRun;
   if (!(depEpoch < arrEpoch)) return null; // OFFICIAL_POSITION_AXIS_GUARD
   // 端點直接回傳站點原值，不用 A+(B-A)*1；arrEpoch 當格必須 bit-exact 抵達 to。
   if (now <= depEpoch) return { lat: A.lat, lon: A.lon, fraction: 0, atStation: true,
     motionFrom: from, motionTo: to };
-  if (now >= arrEpoch) return trtcOfficialCoastPosition(ln, vehicle, now, from, to, run, arrEpoch); // ROSTER_FRONTEND_POSITION
+  if (now >= arrEpoch) return trtcOfficialCoastPosition(ln, vehicle, now, from, to, segRun, arrEpoch); // ROSTER_FRONTEND_POSITION
   const fraction = Math.max(0, Math.min(1, (now - depEpoch) / (arrEpoch - depEpoch)));
   const pos = posBetweenStations(ln, from, to, fraction);
   return pos ? { ...pos, fraction, atStation: false, motionFrom: from, motionTo: to } : null;
@@ -10143,7 +10353,7 @@ const GROUPS = [
   { id: 'hsr', label: '高鐵', short: '高', tab: true, mode: 'sched', members: ['thsr_sched'] },
   { id: 'metro', label: '捷運與輕軌', short: '捷', tab: true, mode: 'freq', members: ['mrt', 'tymc', 'ntdlrt', 'ntalrt', 'sanying', 'tmrt', 'krtc'],
     plate: { plateL: '台北', plateR: '高雄', sub: 'METRO & LRT · TAIWAN',
-      lead: '台北捷運、桃園機捷、新北捷運（環狀・淡海・安坑・三鶯）、台中捷運與高雄捷運（含輕軌）同框運行，營運時段依官方即時資訊校正（文湖線、三鶯線與台中捷運為班距推算）— 可在上方勾選要同時顯示的系統。' } },
+      lead: '台北捷運、桃園機捷、新北捷運（環狀・淡海・安坑・三鶯）、台中捷運與高雄捷運（含輕軌）同框運行，營運時段依官方即時資訊校正（台北捷運與環狀線目前位置為班表推估，車站倒數仍是官方即時；文湖線、三鶯線與台中捷運為班距推算）— 可在上方勾選要同時顯示的系統。' } },
   // ↓ 以下三個只為相容既有連結與記憶而留，不再出現在任何頁籤列（見上方註解）
   { id: 'nat', label: '國家鐵路', mode: 'sched', members: ['tra_sched', 'thsr_sched', 'afr_sched'],
     plate: { plateL: '基隆', plateR: '枋寮', sub: '台灣鐵道即時軌跡',
@@ -17058,6 +17268,12 @@ function metroLiveGate() { // 每秒記憶化:未來方向(含快轉)持續套�
 function metroLiveOn(ln) { // 偏移套用中(未必新鮮):資料齡放寬到 30 分,防 API 停擺套陳舊 shift
   // 北捷同樣吃 30 分資料齡。這關的是「校正量還算不算數」不是「車存不存在」:
   // 關掉只讓 metroShiftSec 回 0(車退回班表位置),freqTrainPosAt 的名冊判定完全不看它。
+  // 🔴 2026-08-17 使用者裁示「位置都是班表並非實際位置」⇒ 北捷各線純班表,校正量一律 0。
+  //    不關掉的話畫出來的不是班表,是「班表減掉誤點校正」:實測新莊線每台車都被往回拖
+  //    1069～1098 秒(約 18 分鐘),09:26 發的車在 09:50 被畫回起點迴龍、和 09:35 那班疊在一起;
+  //    校正量每輪重算又會讓車前後跳(使用者回報的「倒退跑」)。
+  //    只影響位置:車站到站倒數走 boardPos.rows,不經這裡,與月台顯示同源。
+  if (trtcPureSchedule(ln)) return false;
   if (ln._trtcBoard) return !!(Date.now() - ln._trtcBoard.at < 1800e3 && metroLiveGate());
   const s = ln._liveShift;
   return !!(s && Date.now() - s.at < 1800e3 && metroLiveGate());
@@ -17302,6 +17518,9 @@ function trtcHeadwayMemoRead(board, tr, simSec, liveState) {
 // applyTrtcBoard 會在換入新 snapshot 前記住相鄰車距與前後順序；兩車仍各自照倒數／梯形推進，
 // 車距可自然增減，只有推算結果要穿越時才擋住。約束沿線一維里程，不拿經緯度直線距離猜前後。
 function trtcHeadwayPosition(ln, tr, simSec, pos, seen) {
+  // 純班表期間班表本身就是順序真值，防穿越的 hold 只會把車往後推離班表位置。
+  // 其他營運者（高捷／輕軌／機捷／新北捷）不受影響——它們不在 isTrtcBoardLine 裡。
+  if (trtcPureSchedule(ln)) return pos;
   const board = ln && ln._trtcBoard, link = board && board.headways && board.headways.get(tr);
   const rec = board && board.positions && board.positions.get(tr), leadRec = link && board.positions.get(link.lead);
   const memo = trtcHeadwayMemoSlot(board, simSec, true, metroLiveOn(ln));
@@ -17542,6 +17761,21 @@ function trtcOfficialRosterGeometryLine(lineId) {
   }
   return null;
 }
+// 🔴 支線（小碧潭 G_XBT、新北投 R_XBT）只有兩站,看板每一列的「前一站」都掉出線外 ⇒ 帳本一律
+// 判成起點列 run=0;它一旦前進成 from≠to,run 仍是 0,而下面的幾何規則要求「非同站必須 run>0」
+// ⇒ 一顆支線車不合格就整包 payload 退掉(這個驗證器是 return false,不是逐台過濾),那一輪全北捷
+// 一百台的官方資料都不更新,頁面拿上一份快照繼續往前外推。
+// 實測 2026-08-17 15:35–15:37 連續 10 輪全退,名冊 113 台連 148 秒一字不變:402 照著兩分半前的
+// 計畫繼續開進古亭、432 停在原地不動,兩台就撞在一起（使用者回報「432 提前跑到這邊」的真來源）。
+// run 是可以從線形算回來的量,缺值就補回；其餘欄位一律不動,也不放寬驗證規則本身。
+function trtcOfficialRosterRepairRun(vehicle) {
+  const from = Number(vehicle && vehicle.from), to = Number(vehicle && vehicle.to);
+  if (!Number.isInteger(from) || !Number.isInteger(to) || from === to || Number(vehicle.run) > 0) return vehicle;
+  const line = trtcOfficialRosterGeometryLine(vehicle.line);
+  const seg = line && line.segs && line.segs[Math.min(from, to)];
+  const run = Number(seg && seg.run);
+  return run > 0 ? { ...vehicle, run } : vehicle;
+}
 function trtcOfficialRosterPayloadValid(boardPos) {
   if (!boardPos || boardPos.feedMode !== 'official' || !Array.isArray(boardPos.vehicles) ||
       typeof boardPos.sourceRevision !== 'number' || !Number.isFinite(boardPos.sourceRevision)) return false;
@@ -17587,6 +17821,8 @@ function applyTrtcOfficialRoster(boardPos) {
   if (!boardPos || boardPos.feedMode !== 'official') {
     return trtcOfficialRosterHold('feed-outage');
   }
+  if (Array.isArray(boardPos.vehicles)) // ROSTER_FRONTEND_REPAIR_RUN
+    boardPos = { ...boardPos, vehicles: boardPos.vehicles.map(trtcOfficialRosterRepairRun) };
   if (!trtcOfficialRosterPayloadValid(boardPos)) return trtcOfficialRosterHold('malformed');
   const revision = Number(boardPos.sourceRevision), highWater = state.trtcOfficialRosterRevisionHighWater;
   if (highWater != null && Number.isFinite(Number(highWater)) && revision < Number(highWater)) // ROSTER_FRONTEND_REVISION_HIGH_WATER
@@ -17982,9 +18218,17 @@ function applyTrtcBoard(rows, observedEpoch, trips) {
       else if (motion.clamped === 'high') stat.clampedHigh++;
       // endpoint path 遮住畫面期間可直接把同一 physical eased channel 對齊 backend shift；
       // visualShift 精確對齊 freqTrainPosRaw 真正到站的秒值；release 下一格自然從同一站出發。
-      const ek = trtcEasedMotionKey(ln, tr, physicalKey), old = _easedShift.get(ek);
-      if (old) { old.cur = visualShift; old.sim = motionSec; old.at = performance.now(); }
-      else _easedShift.set(ek, { cur: visualShift, at: performance.now(), sim: motionSec, ep: _metroGateEp.ep });
+      // 🔴 2026-08-17 這道閘門補得比較晚,踩過一次：這裡是【直接寫 _easedShift】的旁路,
+      //    不經 metroShiftSec 的 `on` 判斷。北捷改純班表之後只擋了 metroShiftSec 的 target,
+      //    這條旁路照樣把校正量灌進同一個 eased channel ⇒ 實測正式站仍有 23 台車帶著校正、
+      //    位置偏離班表最多 589 公尺,「純班表」根本不純。與 trtcBoardPosition 用同一道閘門
+      //    (metroLiveOn),兩處才會一起翻面。不可改用 !TRTC_PURE_SCHEDULE_POSITION(那對其他
+      //    營運者恆真)、也不可讓 metroShiftSec 硬 return 0(高捷/輕軌/機捷/新北捷會瞬移)。
+      if (metroLiveOn(ln)) {
+        const ek = trtcEasedMotionKey(ln, tr, physicalKey), old = _easedShift.get(ek);
+        if (old) { old.cur = visualShift; old.sim = motionSec; old.at = performance.now(); }
+        else _easedShift.set(ek, { cur: visualShift, at: performance.now(), sim: motionSec, ep: _metroGateEp.ep });
+      }
     }
     if (motion && motion.clamped === 'pastTarget') stat.pastTarget++;
     if (motion && motion.clamped === 'offShape') stat.offShape++;
@@ -18077,7 +18321,34 @@ async function pollTrtcLive() {
         (OFFICIAL_ROSTER_ENABLED || ln._tt));
       if (animationEligible) {
         if (OFFICIAL_ROSTER_ENABLED) {
-          if (d && d.boardPos) applyTrtcOfficialRoster(d.boardPos);
+          if (d && d.boardPos) {
+            // 逐車名冊模式：名冊整包換成從官方逐車清單建的，其餘（時刻、看板、繪製）全部照舊。
+            // 站牌倒數那條路徑完全不動——它本來就直接來自官方，與名冊無關。
+            if (CENSUS_ROSTER_ENABLED && Array.isArray(d.trains)) {
+              // 站碼表是這條路徑的硬前提，沒有它一台車都建不出來。首輪 fetch 回來時它多半
+              // 還在飛，若當輪直接放棄就要等下一次輪詢（60 秒）畫面才會有車。
+              await trtcCodesEnsure();
+              const built = trtcCensusVehicles(d.trains, Date.now() / 1000, todayStr());
+              // 🔴 逐車清單是「臺北捷運」的，只涵蓋高運量與文湖線。環狀線(Y，新北捷運公司營運)
+              // 與小碧潭(G_XBT)、新北投(R_XBT)兩條支線它一台都沒有——整份名冊直接換掉，
+              // 那三條線的車就會整條消失(實測 Y 12 台、G_XBT 3 台、R_XBT 2 台)。
+              // 故只換掉逐車清單真的建出車來的線，其餘維持原本由站牌倒數建的名冊。
+              // 判準用「這一輪有沒有建出車」而不是寫死線別清單：支線永遠 0 台就永遠走看板，
+              // 而某條線臨時 0 台時退回看板也只是回到現行行為，不會比今天差。
+              if (built) {
+                const covered = new Set(built.map(v => v.line));
+                const kept = (d.boardPos.vehicles || []).filter(v => !covered.has(v.line));
+                // 退回舊綁定器這件事不可以是靜默的：Y 與兩條支線是預期的（逐車清單本來就沒有
+                // 它們），但如果某條「逐車清單有涵蓋」的主線這一輪建成 0 台而退回看板來源，
+                // 那是異常——舊綁定器的幽靈車風險會在那條線上回來。留成可觀測的欄位，
+                // 由巡檢掃描器當警告報出來（不是缺陷：退回＝回到現行行為，不比今天差）。
+                const expected = new Set(['Y', 'G_XBT', 'R_XBT']);
+                const fallbackLines = [...new Set(kept.map(v => v.line))].filter(id => !expected.has(id));
+                applyTrtcOfficialRoster({ ...d.boardPos, vehicles: built.concat(kept),
+                  feedMode: 'official', censusFallbackLines: fallbackLines });
+              }
+            } else applyTrtcOfficialRoster(d.boardPos);
+          }
           else trtcOfficialRosterHold('missing-boardPos');
           clearTrtcBoard(); // 官方名冊不吃舊 trip shift；outage 時原班表路徑也由乾淨基線接手。
         } else if (validBoardPos) applyTrtcBoard(d.boardPos.rows, Number(d.boardPos.at), d.boardPos.trips);
@@ -19621,6 +19892,27 @@ function trtcOfficialLegacyGroups(st, lines, isDeco, includeTrtc = false, offici
       let dtm = t - state.simSec;
       if (dtm > 43200) dtm -= 86400; else if (dtm < -43200) dtm += 86400;
       if (dtm < -30 || dtm > 7200) return;
+      // 🔴 北捷看板的其他列都是官方即時倒數（實測全在 5 分內）。班表補列進來的目的地若排到
+      // 一小時後，就會被當成「另一條線」提早列出來——實測松江南京同時出現兩列「往台電大樓」
+      // 61 分／77 分，而那是尖峰加開的短程車（官方看板那一輪只給 5 列，沒有它們）。
+      // 使用者裁示：尖峰加開的不用提早列出來。窗綁該線當下班距（三班內才算「下一班」），
+      // 不寫死分鐘數——班距改了它自己跟著改。
+      // 🔴 短程／加班車的終點用**更緊的窗**（2026-08-17 使用者回報「藍線同樣有加班車提前排進
+      // 班表的問題，這個需要你全部檢查一次」後加）。
+      // 逐站盤查實測：正式站舊窗會列出「忠孝復興往昆陽 20 分」這類，那就是使用者說的
+      // 「當作另外一條線那樣提早列出來」；但同一批裡也有倒數 0–2 分的往昆陽／往台電大樓，
+      // 那是馬上要到的車，藏掉它是幫倒忙（先寫成「一律不補非正常終點」，控制組量出會砍掉
+      // R／G／BL 共 60 列、其中含倒數 0 分的，過頭了，故改成兩級窗）。
+      // 兩級都從班距推導，不寫死分鐘：正常終點三班內、短程終點一班內才算「下一班」。
+      if (isTrtcBoardLine(ln)) {
+        const hw = headwayOf(ln, state.simSec / 3600) || 600;
+        const sts = ln.stations || [];
+        const first = sts[0] && trtcOfficialStationName(sts[0].name);
+        const last = sts[sts.length - 1] && trtcOfficialStationName(sts[sts.length - 1].name);
+        const dn = trtcOfficialStationName(destName);
+        const shortTurn = dn !== first && dn !== last;   // BOARD_LEGACY_SHORTTURN_WINDOW
+        if (dtm > (shortTurn ? 1 : 3) * hw) return;
+      }
       if (!byDir.has(destName)) byDir.set(destName, []);
       byDir.get(destName).push({ t, dtm, ci });
     });

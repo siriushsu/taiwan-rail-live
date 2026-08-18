@@ -146,9 +146,18 @@ struct MetroBoardProvider: AppIntentTimelineProvider {
         }
         if cfg.station == MetroNearest.sentinel {
             isAuto = true
-            if let hit = await MetroNearest.resolve(catalog: catalog) {
-                sysID = hit.sys; stationName = hit.station
-            } else {
+            switch await MetroNearest.resolve(catalog: catalog) {
+            case .some(.serviceable(let sys, let station)):
+                sysID = sys; stationName = station
+            // 定位到了但最近的站太遠(出了雙北／高雄／機捷沿線)。硬解析下去只會畫出一張
+            // 幾十公里外那一站的秒級倒數——看起來正常但對使用者零意義,故直說範圍外並
+            // 給出路(改選固定車站)。這一支不打官方 API。
+            case .some(.outOfRange(let station, let meters)):
+                return MetroEntry(date: Date(), title: "不在服務範圍", lineColor: nil,
+                                  snapshot: nil, precision: "sec", lastTrain: nil, failed: false,
+                                  autoHint: MetroNearestMath.outOfRangeHint(station: station,
+                                                                            meters: meters))
+            case .none:
                 return MetroEntry(date: Date(), title: "自動選站", lineColor: nil, snapshot: nil,
                                   precision: "sec", lastTrain: nil, failed: false,
                                   autoHint: "開啟 App 一次，或到「設定 › 軌島」允許取用位置")
@@ -413,37 +422,41 @@ struct MetroBoardView: View {
                     .frame(height: scale.pt(18), alignment: .leading)
                 Spacer().frame(height: scale.pt(4))
             } else {
-                Spacer().frame(height: scale.pt(8))
+                Spacer().frame(height: scale.pt(4))
             }
             if let lead = rows.first {
                 MetroRowView(row: lead, precision: entry.precision, role: .hero,
                              entryDate: entry.date, sys: entry.sys, station: entry.title,
-                             lineAbove: false, lineBelow: !follows.isEmpty, scale: scale)
-                RailHairline(scale: scale)
+                             scale: scale)
+                // 主班與從班之間沒有分隔線也沒有固定間距（v2：看板類卡片不畫分列線），
+                // 剩下的高度全推到這裡，從班貼著卡底對齊。
+                Spacer(minLength: 0)
                 ForEach(Array(follows.enumerated()), id: \.offset) { i, r in
                     MetroRowView(row: r, precision: entry.precision,
                                  role: family == .systemLarge ? .followLarge : .follow,
                                  entryDate: entry.date, sys: entry.sys, station: entry.title,
-                                 lineBelow: i < follows.count - 1,
-                                 disambiguate: ambiguousDests.contains(r.dest), scale: scale)
+                                                                  disambiguate: ambiguousDests.contains(r.dest), scale: scale)
                 }
             } else {
                 emptyBody(scale)
+                // 🔴 空狀態才在末尾補彈簧。有班次時末尾【不能】再放一個——兩個 Spacer
+                //    會把剩餘高度對半分，從班就浮在卡片中間而不是貼著卡底。
+                Spacer(minLength: 0)
             }
-            Spacer(minLength: 0)
         }
     }
 
     /// 從班列數上限。從【實測的內容框高度】推，不是手打的常數：
-    ///   Medium 內容框 138：卡頭 21 ＋ 8 ＋ 主班 43 ＋ hairline 9 ＝ 81 ⇒ 剩 57 ÷ 28 ＝ 2 列
-    ///   Large  內容框 350：同上 81 ⇒ 剩 269 ÷ 32 ＝ 8 列
-    /// 🔴 末班車那一行把「8pt 間距」換成「18＋4」＝多吃 14pt ⇒ 依設計稿「超出先砍列不縮字」
+    ///   Medium 內容框 138：卡頭 21 ＋ 4 ＋ 主班 44 ＝ 69 ⇒ 剩 69 ÷ 22 ＝ 3 列（共四班）
+    ///   Large  內容框 350：同上 69 ⇒ 剩 281 ÷ 32 ＝ 8 列
+    /// 🔴 v2 把 Medium 從三班改成四班：分隔線那 9pt 與列高的 6pt 都拿去換一列。
+    /// 🔴 末班車那一行把「4pt 間距」換成「18＋4」＝多吃 18pt ⇒ 依設計稿「超出先砍列不縮字」
     ///    少列一班，不是把列高壓小（壓小會讓同一張卡在兩種狀態下列高不同，縱向對齊當場破掉）。
     /// 🔴 Large 一開始寫 6 是照設計稿字面，但實測那樣底部會空 77pt——正是設計稿自己批評的
     ///    「留大片空白」。官方視野約 12 分鐘、台北車站這種大站排得滿，8 列排得下就排。
     private var followLimit: Int {
         let hasLast = entry.lastTrain != nil
-        return family == .systemLarge ? (hasLast ? 7 : 8) : (hasLast ? 1 : 2)
+        return family == .systemLarge ? (hasLast ? 7 : 8) : (hasLast ? 2 : 3)
     }
 
     // MARK: - 零件
@@ -562,8 +575,6 @@ struct MetroRowView: View {
     /// 線別要靠「系統＋本站＋該列終點」推，故兩者都要帶（見 MetroPalette.rowLine）。
     var sys: String? = nil
     var station: String = ""
-    var lineAbove: Bool = true
-    var lineBelow: Bool = true
     /// 這一列的終點在【同一張卡上看得見的其他列】裡也出現過 ⇒ 次列要補線名才分得出來。
     ///
     /// 🔴 設計稿的次列刻意【不畫線名、軌脊環也是灰的】（「主角有副標，次列沒有」），
@@ -590,10 +601,8 @@ struct MetroRowView: View {
             MetroPalette.rowLine(sys: $0, station: station, dest: row.dest,
                                  lineCode: row.lineCode, trainNo: row.trainNo)
         } ?? (color: nil, name: nil)
-        RailRow(spine: isHero ? .lead(ln.color) : .follow,
-                lineAbove: lineAbove, lineBelow: lineBelow,
-                height: height,
-                numberWidth: isHero ? RailNumberColumn.wide : RailNumberColumn.narrow,
+        RailRow(height: height,
+                numberWidth: isHero ? RailNumberColumn.wide(scale) : RailNumberColumn.narrow(scale),
                 scale: scale) {
             if isHero {
                 // 設計稿：「主角與倒數加 .widgetAccentable()，其餘留在 base 群組」——

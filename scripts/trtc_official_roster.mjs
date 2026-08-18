@@ -5,6 +5,24 @@
 
 export const OFFICIAL_ROSTER_SCHEMA = 4;
 export const OFFICIAL_COAST_DWELL_DEFAULT_SEC = 25;
+// 「這台車自己的官方資料，證明它早該離開這裡了」——殘骸退場地板（2026-08-17）。
+// 單位是**這台車自己的站間週期**（coastCycle，由它自己的官方到站時刻量出來、且不得低於
+// 這條線該段的實際行車秒）。停滯超過這麼多個週期 ⇒ 依它自己的官方資料，它不可能還在原地。
+//
+// 🔴 這不是「缺訊 timeout」也不是「資料齡」，那兩條仍然永久廢棄——差別是量的東西不同：
+//   * 資料齡量「我們有沒有收到」：同一條線別台車在不在報都會影響它，斷線就整批誤殺。
+//   * 這條量「這台車自己的官方到站時刻有沒有前進」：官方還在報它，配對就會用掉這個 ID，
+//     結構上根本走不到這道地板；斷訊時全線一起停滯，也只會等它恢復（realignLines 另管）。
+// 用週期倍數而不是固定秒數：各線站距不同（BR 約 104 秒／站、BL 更長），寫死秒數就是
+// 下次改點會被推翻的魔術數字（心得 35）。
+export const OFFICIAL_STALL_RETIRE_CYCLES = 3;
+// 「兩站之間有兩台車就已經要懷疑了，我們一堆三台連在一起的」——使用者 2026-08-17 給的判準。
+// 一個行進中的區間（from!=to）同時容納幾台車是**物理事實**：號誌閉塞讓兩台車不可能貼在
+// 同一段軌道上，三台更不可能。端點（from==to，車停在起訖站等發車）本來就會排隊，不算。
+//
+// 這個數字量的是**我們畫出來的結果荒不荒謬**，不是任何一台車的資料多舊——所以它不是
+// 廢棄的資料齡規則，而是「拿官方現在說的重排一次」的觸發條件（使用者 08-17 明示要的重置）。
+export const OFFICIAL_CROWD_SEGMENT_LIMIT = 3;
 
 function finite(value, label) {
   const number = Number(value);
@@ -120,6 +138,11 @@ function birthSignature(evidence) {
 
 // 一台車從起點到終點只有一個身分。官方修訂終點標示時，不得因 dest 換群而重發 ID。
 function groupKey(item) { return `${item.line}|${Number(item.dir)}`; }
+
+function previousDormant(prior, day) {
+  if (!prior || String(prior.day || '') !== String(day)) return [];
+  return Array.isArray(prior.dormant) ? prior.dormant.filter(Boolean) : [];
+}
 
 function previousVehicles(prior, day) {
   if (!prior || String(prior.day || '') !== String(day)) return [];
@@ -289,10 +312,43 @@ function segmentRun(model, lineId, from, to) {
   return Number.isFinite(run) && run > 0 ? run : null;
 }
 
+// 從 from 走到 dest 還需要多少秒，逐段取這條線的實際行車秒（不是班表）。
+// 任何一段缺秒數就回 null——寧可維持現行「不退場」也不用猜出來的數字推估退場。
+function remainingRun(model, lineId, from, dest, step) {
+  let total = 0;
+  for (let station = Number(from); station !== Number(dest); station += step) {
+    const run = segmentRun(model, lineId, station, station + step);
+    if (!(run > 0)) return null;
+    total += run + OFFICIAL_COAST_DWELL_DEFAULT_SEC;
+  }
+  return total > 0 ? total : null;
+}
+
+// 這台車自己的官方到站時刻 + 它自己的站間週期 × 允許停滯的週期數。
+// 另外壓一道物理天花板：不論如何都不會活過「走完剩餘里程所需的實際行車秒」的兩倍——
+// 週期量不出來（單筆 timeline）時由它兜底。
+// 🔴 只給 carriedVehicle() 當地板用，觀測到的車永遠不受它影響——結構上不可能刪掉
+// 官方正在報的車（「車子有官方數據就是在」）。
+function projectedRetireOf(model, row, step, coastCycle) {
+  const anchor = Number(row.arrEpoch);
+  if (!Number.isFinite(anchor)) return null;
+  // 🔴 週期必須有物理下限。coastCycle 在單筆 timeline 時會退化成 OFFICIAL_COAST_DWELL_DEFAULT_SEC
+  // （25 秒）——停在起點等發車的車 run=0 正是這種，門檻會被壓成 75 秒而誤殺真車
+  // （2026-08-15 語料實測：環狀線兩台只停滯 104／238 秒的真車被收掉）。
+  // 取「這台車下一段的實際行車秒」當地板：捷運不可能 25 秒跑完一站。
+  const nextRun = segmentRun(model, row.line, Number(row.to), Number(row.to) + step);
+  const cycle = Math.max(Number(coastCycle) || 0, Number(nextRun) || 0);
+  const byStall = cycle > 0 ? anchor + cycle * OFFICIAL_STALL_RETIRE_CYCLES : null;
+  const remaining = remainingRun(model, row.line, Number(row.to), Number(row.dest), step);
+  const byJourney = remaining > 0 ? anchor + remaining * 2 : null;
+  const candidates = [byStall, byJourney].filter(value => value != null && Number.isFinite(value));
+  return candidates.length ? Math.min(...candidates) : null;
+}
+
 function coastTiming(model, row, history, timeline) {
   const step = Number(row.dir) === 2 ? 1 : -1;
   const legs = (Number(row.dest) - Number(row.to)) * step;
-  if (!(legs >= 0)) return { coastCycle: null, departureRun: null, retireEpoch: null };
+  if (!(legs >= 0)) return { coastCycle: null, departureRun: null, retireEpoch: null, projectedRetireEpoch: null };
   const officialArrivals = (timeline || []).filter(item => !item.terminal)
     .sort((a, b) => step * (Number(a.to) - Number(b.to)) || Number(a.arrEpoch) - Number(b.arrEpoch));
   const own = officialArrivals.length >= 2
@@ -307,6 +363,8 @@ function coastTiming(model, row, history, timeline) {
   const measuredCycle = Number.isFinite(own) && own > 0
     ? Math.max(own, Number(physicalFloor) > 0 ? Number(physicalFloor) : 0)
     : Number(row.run) + OFFICIAL_COAST_DWELL_DEFAULT_SEC;
+  // 殘骸退場地板：用這台車自己量出來的站間週期，不是資料齡（見常數宣告處）。
+  const projectedRetireEpoch = projectedRetireOf(model, row, step, measuredCycle);
   const exactDestination = (timeline || []).filter(item => !item.terminal && Number(item.to) === Number(row.dest))
     .sort((a, b) => Number(b.arrEpoch) - Number(a.arrEpoch))[0];
   const exactRetireEpoch = exactDestination ? Number(exactDestination.arrEpoch) : null;
@@ -317,13 +375,13 @@ function coastTiming(model, row, history, timeline) {
     const departureRun = exactFirst
       ? Number(exactFirst.arrEpoch) - Number(exactFirst.depEpoch)
       : segmentRun(model, row.line, Number(row.to), next);
-    if (!(departureRun > 0)) return { coastCycle: null, departureRun: null, retireEpoch: null };
+    if (!(departureRun > 0)) return { coastCycle: null, departureRun: null, retireEpoch: null, projectedRetireEpoch };
     const coastCycle = measuredCycle > 0 ? measuredCycle : departureRun + OFFICIAL_COAST_DWELL_DEFAULT_SEC;
     const count = stationCount(model, row.line);
     // 一段式路線永遠等不到對端到站列，才使用唯一明示的 segment fallback。
     const retireEpoch = Number.isFinite(exactRetireEpoch) ? exactRetireEpoch :
       (/_XBT$/.test(row.line) || count <= 2 ? Number(row.arrEpoch) + departureRun : null);
-    return { coastCycle, departureRun, retireEpoch };
+    return { coastCycle, departureRun, retireEpoch, projectedRetireEpoch };
   }
   const coastCycle = measuredCycle;
   const penultimate = Number(row.dest) - step;
@@ -333,7 +391,7 @@ function coastTiming(model, row, history, timeline) {
   // 補唯一最後一段。這不是缺訊 timeout，也不拿整條班表推存在；XBT 則走上面的單段專用分支。
   const inferredTerminal = penultimateEvent && coastCycle > 0
     ? Number(penultimateEvent.arrEpoch) + coastCycle : null;
-  return { coastCycle, departureRun: null,
+  return { coastCycle, departureRun: null, projectedRetireEpoch,
     retireEpoch: Number.isFinite(exactRetireEpoch) ? exactRetireEpoch : inferredTerminal };
 }
 
@@ -367,17 +425,68 @@ function officialVehicle(model, row, vehicleId, base, sourceRevision, nowEpoch) 
   };
 }
 
-function carriedVehicle(model, vehicle, sourceRevision, nowEpoch, numberContradicted = false) {
+// 🔴 2026-08-17 使用者：「我們都有給編號 就知道那台車子是在的 為什麼又要變成不見」
+// 一台車沒有出現在這一輪的倒數裡，不代表它停下來了——它只是暫時不是任何一站的「下一班」。
+// 它要**繼續往前跑**：到站時刻過了就過站，用這條線該段的實際行車秒推到現在的位置，
+// 到終點就收車。凍在原地才是錯的——後面每 90 秒一班真車就會疊在那個殘影上，
+// 那正是使用者看到的「連在一起的車」（實測正式站 180 台裡有 24 台的到站時刻早就過了，
+// 中位 136 秒、最久 452 秒）。
+function coastForward(model, vehicle, nowEpoch) {
+  const dest = Number(vehicle.dest), step = Number(vehicle.dir) === 2 ? 1 : -1;
+  let from = Number(vehicle.from), to = Number(vehicle.to), arr = Number(vehicle.arrEpoch);
+  if (!Number.isFinite(arr) || !Number.isFinite(dest) || !Number.isFinite(to)) return null;
+  let moved = 0;
+  // 上限只是防呆：正常一輪最多前進一兩站，走到終點就停。
+  while (to !== dest && nowEpoch >= arr + OFFICIAL_COAST_DWELL_DEFAULT_SEC && moved < 64) {
+    const next = to + step;
+    let run = 0;
+    try { run = segmentRun(model, vehicle.line, to, next); } catch { run = 0; }
+    if (!(run > 0)) break;
+    arr += OFFICIAL_COAST_DWELL_DEFAULT_SEC + run;
+    from = to; to = next; moved++;
+  }
+  return moved > 0 ? { from, to, arrEpoch: arr, coasted: true } : null;
+}
+
+function carriedVehicle(model, vehicle, sourceRevision, nowEpoch, numberContradicted = false,
+  lineAlive = false) {
+  // 已有 retireEpoch 就沿用既存值（原始短路路徑，不得因為新欄位而改變既有行為）。
+  // projectedRetireEpoch 錨在「這台車最後一次官方到站」上，carried 期間那個錨不會變，
+  // 所以直接沿用；D1 舊名冊沒有這一欄時才補算，且只呼叫不會擲例外的那支。
   const timing = vehicle.retireEpoch != null && Number.isFinite(Number(vehicle.retireEpoch))
     ? { coastCycle: Number(vehicle.coastCycle), departureRun: vehicle.departureRun == null
-      ? null : Number(vehicle.departureRun), retireEpoch: Number(vehicle.retireEpoch) }
+      ? null : Number(vehicle.departureRun), retireEpoch: Number(vehicle.retireEpoch),
+      projectedRetireEpoch: vehicle.projectedRetireEpoch ?? projectedRetireOf(model, vehicle,
+        Number(vehicle.dir) === 2 ? 1 : -1, vehicle.coastCycle) }
     : coastTiming(model, vehicle, Array.isArray(vehicle.history) ? vehicle.history : [],
       Array.isArray(vehicle.timeline) ? vehicle.timeline : []);
   // 這是「到已知終點」的時刻，不是資料齡或缺訊 timeout。
   if (timing.retireEpoch != null && Number.isFinite(Number(timing.retireEpoch)) &&
       nowEpoch >= Number(timing.retireEpoch)) return null;
-  return { ...vehicle, ...timing, sourceRevision, extension: false, carried: true,
-    ...(numberContradicted ? { officialNo: null, officialNoLockedOut: true } : {}) };
+  // 🔴 退場地板（2026-08-17）：官方 timeline 半途中斷的車永遠等不到終點事件 ⇒ retireEpoch
+  // 恆為 null ⇒ 上面那道退場檢查結構上永遠不成立，殘骸整天只進不出（實測早上 1.5 小時
+  // 累積 37 台原地不動的車，畫面上就是使用者看到的「重複的車」）。
+  //
+  // 三道前提缺一不可，每一道都對應一個被實測打臉過的失效：
+  //   (1) lineAlive：**這條線這一輪確實有官方列**。斷訊時整條線一起沉默，這時停滯是
+  //       「我們沒收到」不是「車不在」——沒有這道閘，verify_trtc_ghost_fix 的整輪無列情境
+  //       一次殺掉 58 台車，正是永久廢棄的「缺訊 timeout」。有這道閘才是在問
+  //       「別的車都在報，就它不動」，量的是真實世界不是傳輸狀態。
+  //   (2) retireEpoch 尚不可得：已經算得出確切終點時刻的車（含 XBT 兩站接駁的單段特例）
+  //       由上面那道精確判斷處理，地板不得搶在它前面收車。
+  //   (3) 停滯超過它自己的站間週期 × N。
+  if (!lineAlive) return carried(timing);
+  if (timing.retireEpoch != null && Number.isFinite(Number(timing.retireEpoch))) return carried(timing);
+  if (timing.projectedRetireEpoch != null && Number.isFinite(Number(timing.projectedRetireEpoch)) &&
+      nowEpoch >= Number(timing.projectedRetireEpoch)) return null;
+  return carried(timing);
+
+  function carried(t) {
+    // 位置往前推到「照它自己的官方到站時刻，此刻應該在哪裡」。沒有可推的就維持原位。
+    const ahead = coastForward(model, vehicle, nowEpoch) || {};
+    return { ...vehicle, ...t, ...ahead, sourceRevision, extension: false, carried: true,
+      ...(numberContradicted ? { officialNo: null, officialNoLockedOut: true } : {}) };
+  }
 }
 
 function compareVehicles(a, b) {
@@ -394,12 +503,19 @@ function compareVehicles(a, b) {
  * model 只讀路線站序與一段路程缺少到站時刻時所需的段秒，不以班表決定車的存在。
  */
 export function reduceOfficialRoster({ model, rows, prior = null, day, nowEpoch, sourceRevision,
-  realignSec = 0 }) {
+  realignSec = 0, forceRealignLines = null, officialOnly = false }) {
   const normalizedDay = String(day || '').trim();
   const epoch = finite(nowEpoch, 'nowEpoch');
   if (!normalizedDay) throw new TypeError('official roster day 不可為空');
   const { rows: current, duplicateRowsObserved } = canonicalRows(model, rows);
   const priorVehicles = previousVehicles(prior, normalizedDay);
+  // 🔴 2026-08-17 使用者：「為什麼會有那種停在站上就要重新換身份的事情？」
+  // 畫不畫由官方倒數決定,身分不由它決定。一台車暫時從所有站的倒數裡消失（過了站、
+  // 又還不是下一站的「下一班」）只是不畫,身分要留著,再出現時用回同一個 vehicleId——
+  // 否則跟車會被中斷,也牴觸 08-14「從他早上一發車就認得他」。
+  // 休眠車與在畫的車一起進配對候選池,唯一差別是它這一輪沒有被畫出來。
+  const dormantVehicles = previousDormant(prior, normalizedDay);
+  const matchPool = priorVehicles.concat(dormantVehicles);
   const coldStart = !prior || String(prior.day || '') !== normalizedDay;
   const noCounts = new Map();
   const noKey = row => `${row.line}|${Number(row.dir)}|${String(row.sourceNo || row.officialNo || '')}`;
@@ -421,11 +537,32 @@ export function reduceOfficialRoster({ model, rows, prior = null, day, nowEpoch,
       if (Number.isFinite(last) && epoch - last >= realignSec) realignLines.add(line);
     }
   }
+  // 外部指定的立即重排（2026-08-17 使用者要求的「迅速重置」）。與斷訊恢復共用同一條路徑：
+  // 清掉這條線上官方沒報到的車、放行站間官方列生車＝完全照當下官方資料重建這條線。
+  // 🔴 只認**這一輪真的有官方列**的線：對沒有官方列的線重排＝把整條線清空又補不回來，
+  // 那正是永久廢棄的「缺訊就刪車」。冷啟動本來就整批接回，不需要也不應該再重排。
+  // 先記下「因為斷訊而重排」的那幾條，再疊上外部指定的——兩者在 realignLines 裡混在一起之後
+  // 就分不出來了，而 worker 要靠這個分辨才知道該不該對使用者說「即時訊號已恢復」。
+  const gapRealigned = new Set(realignLines);
+  const forced = forceRealignLines instanceof Set ? forceRealignLines
+    : Array.isArray(forceRealignLines) ? new Set(forceRealignLines.map(String)) : null;
+  if (forced && !coldStart) for (const line of linesWithRows) if (forced.has(line)) realignLines.add(line);
+  // 🔴 2026-08-17 使用者重新釐清的模型（同一天講了三次,這是裁示不是假設）：
+  //   「我們有每一站的倒數,有車子到站的時間,有出現倒數的車子,我們才畫在那一段軌道上,
+  //     然後每十五秒會看一次他現在倒數的狀態。」
+  //   「有倒數資料才有車 同一列車出現在多站倒數不要重複出現」
+  // 亦即:這一輪的倒數沒報到的車就不畫。這條取代 08-14「缺訊只 hold」的沿用規則——
+  // 那條當時是為了防止車子憑空消失,代價卻是半路失去倒數的車永遠留在原地當殘影
+  // (實測正式站 180 台裡 27 台是殘影,其中 24 台的到站時刻早就過了,中位 136 秒),
+  // 後面的真車一班班疊上去就是使用者看到的「連在一起的車」。
+  // 實作上與斷訊恢復共用同一條路徑:清掉沒被官方確認的車 + 放行站間官方列生車。
+  // 仍然只作用在「這一輪真的有官方列」的線——整條線沉默時照舊 hold,那是傳輸問題不是車不在。
+  if (officialOnly && !coldStart) for (const line of linesWithRows) realignLines.add(line);
   for (const line of linesWithRows) feedSeen[line] = epoch;
 
   const state = { day: normalizedDay, nextSequence: initialSequence(prior, normalizedDay),
-    reservedIds: new Set(priorVehicles.map(x => String(x.vehicleId || '')).filter(Boolean)) };
-  const assigned = new Map(), usedIds = new Set(), priorById = new Map(priorVehicles.map(x => [String(x.vehicleId), x]));
+    reservedIds: new Set(matchPool.map(x => String(x.vehicleId || '')).filter(Boolean)) };
+  const assigned = new Map(), usedIds = new Set(), priorById = new Map(matchPool.map(x => [String(x.vehicleId), x]));
   const numberContradictions = new Map();
   let hardNoMatches = 0;
 
@@ -434,7 +571,7 @@ export function reduceOfficialRoster({ model, rows, prior = null, day, nowEpoch,
   for (let index = 0; index < current.length; index++) {
     const row = current[index];
     if (!row.displayNo) continue;
-    const sameNumber = priorVehicles.filter(vehicle => !usedIds.has(String(vehicle.vehicleId)) &&
+    const sameNumber = matchPool.filter(vehicle => !usedIds.has(String(vehicle.vehicleId)) &&
       vehicle.line === row.line && Number(vehicle.dir) === Number(row.dir) &&
       String(vehicle.officialNo || '') === row.displayNo);
     for (const vehicle of sameNumber) {
@@ -468,7 +605,7 @@ export function reduceOfficialRoster({ model, rows, prior = null, day, nowEpoch,
     const currentGroup = current.map((row, index) => ({ row, index }))
       .filter(x => !assigned.has(x.index) && groupKey(x.row) === key)
       .sort((a, b) => routePosition(a.row) - routePosition(b.row) || laterFirst(a.row, b.row) || compareRows(a.row, b.row));
-    const priorGroup = priorVehicles
+    const priorGroup = matchPool
       .filter(x => x && !usedIds.has(String(x.vehicleId)) && groupKey(x) === key)
       .sort((a, b) => Number(a.routePosition ?? routePosition(a)) - Number(b.routePosition ?? routePosition(b)) ||
         laterFirst(a, b) || String(a.vehicleId).localeCompare(String(b.vehicleId)));
@@ -483,12 +620,15 @@ export function reduceOfficialRoster({ model, rows, prior = null, day, nowEpoch,
   // 已離開起點、配對判為不可行，同一列就會第二次生車＝幽靈車。這道閘只認證據，
   // 官方同時報的兩台車 occurrence 不同 ⇒ 證據不同 ⇒ 照樣各自出生，不受影響。
   // 比對範圍含已退場的 prior：證據用掉就是用掉，車到終點收了更不該被重放復活。
-  const priorBirthSignatures = new Set(priorVehicles
+  const priorBirthSignatures = new Set(matchPool
     .map(vehicle => vehicle && vehicle.birthEvidence)
     .filter(evidence => evidence && evidence.source === 'official-board')
     .map(birthSignature));
 
   let births = 0, ignoredObservations = 0, replayBirthsBlocked = 0, recoveryBirths = 0;
+  // 逐線分開記：同一輪可能既有斷訊恢復、又有自我察覺重置，兩者要能拆開算，
+  // 否則前端那句「訊號恢復、清掉 N 台」會把重置清掉的車一起算進去（數字對使用者不誠實）。
+  const realignedByLine = {}, recoveryBirthsByLine = {};
   for (let index = 0; index < current.length; index++) {
     if (assigned.has(index)) continue;
     // 正常營運時只有起點倒數能生車；半途站間列只能更新既有 ID，配不到也不得複製一台。
@@ -508,7 +648,10 @@ export function reduceOfficialRoster({ model, rows, prior = null, day, nowEpoch,
     assigned.set(index, vehicleId); usedIds.add(vehicleId); births++;
     // 只數「恢復例外放行的」那些：冷啟動本來就整批放行站間列，算進來會讓每天第一輪
     // 看起來像剛從斷訊恢復（實測健康語料誤報 82 台）。
-    if (recoverable && !current[index].terminal) recoveryBirths++;
+    if (recoverable && !current[index].terminal) {
+      recoveryBirths++;
+      recoveryBirthsByLine[current[index].line] = (recoveryBirthsByLine[current[index].line] || 0) + 1;
+    }
   }
 
   const vehicles = [];
@@ -528,15 +671,22 @@ export function reduceOfficialRoster({ model, rows, prior = null, day, nowEpoch,
   }
 
   let carried = 0, exits = 0, carriedNumberConflicts = 0, realigned = 0;
-  for (const old of priorVehicles.slice().sort(compareVehicles)) {
+  const dormant = [];
+  for (const old of matchPool.slice().sort(compareVehicles)) {
     if (!old.vehicleId || usedIds.has(String(old.vehicleId))) continue;
     // 🔴 訊號回來就以訊號為準（2026-08-15 使用者裁示）：這條線斷訊期間續推出來的位置是虛構的，
     // 官方名單沒有的車一律不留，畫面上不能有多的。判準是「這條線剛從長時間消失中回來」，
     // 不是資料齡——那條規則仍然永久廢棄。只清剛回來的那幾條線：正常輪每輪都有十幾台真車
     // 合法地暫時離板（實測 carried 10–17／121），誤殺它們才是災難。
-    if (realignLines.has(old.line)) { realigned++; continue; }
+    if (realignLines.has(old.line)) {
+      // 不畫,但身分留著（見上方 dormantVehicles 的說明）。到終點或早該到終點的才真的收掉。
+      realigned++; realignedByLine[old.line] = (realignedByLine[old.line] || 0) + 1;
+      const rest = carriedVehicle(model, old, sourceRevision, epoch, false, false);
+      if (rest) dormant.push({ ...rest, carried: true, dormant: true });
+      continue;
+    }
     const contradicted = numberContradictions.has(String(old.vehicleId));
-    const alive = carriedVehicle(model, old, sourceRevision, epoch, contradicted);
+    const alive = carriedVehicle(model, old, sourceRevision, epoch, contradicted, linesWithRows.has(old.line));
     if (alive) {
       vehicles.push(alive); usedIds.add(String(alive.vehicleId)); carried++;
       if (contradicted && old.officialNo) { carriedNumberConflicts++; numberConflicts++; }
@@ -546,6 +696,9 @@ export function reduceOfficialRoster({ model, rows, prior = null, day, nowEpoch,
 
   vehicles.sort(compareVehicles);
   if (vehicles.length !== accepted - completed + carried) throw new Error('official roster 名冊基數不守恆');
+  if (vehicles.some(v => dormant.some(d => String(d.vehicleId) === String(v.vehicleId)))) {
+    throw new Error('official roster 同一身分不得同時在畫與休眠');
+  }
   // 「剛回來的線不得留下未經官方確認的車」是結構不變量（realigned 與 carried 互斥分支），
   // 資料無法觸發它，所以**不在這裡擲例外**——今天正是 reducer 擲例外每天丟掉 22/38 輪。
   // 這條由 verify_trtc_outage_recovery.mjs 在測試期把關，執行期只把數字送出去讓人看得到。
@@ -570,6 +723,8 @@ export function reduceOfficialRoster({ model, rows, prior = null, day, nowEpoch,
     // 逐線最後見到官方列的時刻要跟著名冊一起持久化，否則每個 isolate 都從零開始記，
     // 「這條線消失多久了」永遠算不出來。
     nextSequence: state.nextSequence, feedSeen, vehicles,
+    // 有身分但這一輪沒有倒數報到 ⇒ 不畫,只留著等它回來（不進 vehicles,前端看不到）。
+    dormant,
     aliases: vehicles.filter(vehicle => vehicle.officialNo).map(vehicle => ({ line: vehicle.line,
       dir: Number(vehicle.dir), no: String(vehicle.officialNo), vehicleId: String(vehicle.vehicleId) }))
       .sort((a, b) => a.line.localeCompare(b.line) || a.dir - b.dir || a.no.localeCompare(b.no) ||
@@ -577,7 +732,16 @@ export function reduceOfficialRoster({ model, rows, prior = null, day, nowEpoch,
     diagnostics: {
       rows: current.length, accepted, ignoredObservations, replayBirthsBlocked,
       extensions: 0, carried, completed, births, realigned, recoveryBirths,
+      realignedByLine, recoveryBirthsByLine, dormantCount: dormant.length,
       realignedLines: [...realignLines].sort(), linesWithRows: linesWithRows.size,
+      // 「這條線是被斷訊恢復自動抓到的，還是被外部指定重置的」要分得開，
+      // 否則自動重置每觸發一次就會被 worker 當成一次斷訊恢復告警（語意污染）。
+      // 「這條線消失夠久又回來了」是唯一該對使用者說「即時訊號已恢復」的情況。
+      // 外部指定重置與『有倒數才畫』都會走同一條重排路徑，但它們不是斷訊——
+      // 上游一直在報，混進去就是每輪都跳一次不存在的中斷通知。
+      gapRealignedLines: [...gapRealigned].sort(),
+      forcedRealignLines: forced
+        ? [...realignLines].filter(line => forced.has(line) && !gapRealigned.has(line)).sort() : [],
       matches: accepted - births, hardNoMatches, exits, numberConflicts, carriedNumberConflicts,
       rejectedNumberJumps: numberContradictions.size,
       rejectedNumberJumpDetails: [...numberContradictions.values()].sort((a, b) =>
@@ -586,4 +750,64 @@ export function reduceOfficialRoster({ model, rows, prior = null, day, nowEpoch,
       duplicateRowsObserved, duplicateBirthSignatures,
     },
   };
+}
+
+/**
+ * 一段行進中的軌道上塞了幾台車——使用者 2026-08-17 的判準。
+ * 回傳 { lines:Set<線代碼>, worst:最擠的那一段有幾台, over:超標的區間清單 }。
+ * 端點（from==to）排隊合法，不計入。
+ */
+export function segmentCrowding(vehicles, limit = OFFICIAL_CROWD_SEGMENT_LIMIT) {
+  const counts = new Map();
+  for (const vehicle of vehicles || []) {
+    const from = Number(vehicle.from), to = Number(vehicle.to);
+    if (!Number.isFinite(from) || !Number.isFinite(to) || from === to) continue;
+    const key = `${vehicle.line}|${Number(vehicle.dir)}|${from}|${to}`;
+    counts.set(key, (counts.get(key) || 0) + 1);
+  }
+  const lines = new Set(), over = [];
+  let worst = 0, suspicious = 0;
+  for (const [key, count] of counts) {
+    if (count > worst) worst = count;
+    if (count >= 2) suspicious++;
+    if (count >= limit) { lines.add(key.split('|')[0]); over.push({ segment: key, count }); }
+  }
+  over.sort((a, b) => b.count - a.count || a.segment.localeCompare(b.segment));
+  return { lines, worst, suspicious, over };
+}
+
+/**
+ * reduceOfficialRoster ＋ 自我察覺重置（使用者 2026-08-17：「我們需要一個迅速重置的方式，
+ * 就像我昨天要求的斷訊後回歸，依照現在當下的北捷資訊來判斷現在路線上有哪些車」）。
+ *
+ * 先照常推進一輪；若結果出現「同一行進中區間 >= crowdLimit 台車」這種物理上不可能的畫面，
+ * 就對**那幾條線**用同一輪的資料重跑一次、強制走斷訊恢復那條路徑。因為是拿同一份 prior
+ * 與同一輪 rows 重跑，結果具決定性、可重放，也不會與 worker 的 CAS 重試打架。
+ *
+ * 只重排一次、不迴圈：重排後仍然超標代表官方自己就這樣報，那是資料不是我們的錯，
+ * 記進 diagnostics 讓人看得到，不再繼續動它（避免每輪反覆清空同一條線）。
+ */
+export function reduceOfficialRosterSelfHealing({ crowdLimit = OFFICIAL_CROWD_SEGMENT_LIMIT, ...args }) {
+  const first = reduceOfficialRoster(args);
+  if (!(Number(crowdLimit) > 0)) return first;
+  const before = segmentCrowding(first.vehicles, Number(crowdLimit));
+  if (!before.lines.size) {
+    first.diagnostics.crowdWorst = before.worst;
+    first.diagnostics.crowdSuspicious = before.suspicious;
+    first.diagnostics.crowdHealedLines = [];
+    first.diagnostics.crowdUnhealable = [];
+    return first;
+  }
+  const healed = reduceOfficialRoster({ ...args, forceRealignLines: before.lines });
+  const after = segmentCrowding(healed.vehicles, Number(crowdLimit));
+  // 🔴 真正被重排了哪幾條線由 reducer 自己回報（它會擋掉「這輪沒有官方列」的線——
+  // 對那種線重排＝把整條線清空又補不回來）。這裡不得自己另算一份，否則診斷會謊報。
+  healed.diagnostics.crowdHealedLines = (healed.diagnostics.forcedRealignLines || []).slice();
+  healed.diagnostics.crowdUnhealable = [...before.lines]
+    .filter(line => !healed.diagnostics.crowdHealedLines.includes(line)).sort();
+  healed.diagnostics.crowdWorst = after.worst;
+  healed.diagnostics.crowdSuspicious = after.suspicious;
+  healed.diagnostics.crowdWorstBefore = before.worst;
+  healed.diagnostics.crowdRemaining = after.over.slice(0, 10);
+  return healed;
 }

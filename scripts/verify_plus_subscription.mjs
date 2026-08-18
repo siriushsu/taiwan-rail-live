@@ -36,7 +36,9 @@ console.log(`[G0] index.html md5=${createHash('md5').update(readFileSync(path.jo
 // 可推導,不寫死 session scratchpad 路徑(每個 session 都要手改一次的坑,2026-08-02)。
 const SHOT_DIR = process.env.SHOT_DIR || path.join(os.tmpdir(), 'rail-plus-shots');
 mkdirSync(SHOT_DIR, { recursive: true });
-const PORT = 5207;
+// 🔴 硬編埠位在 30+ 並行 worktree 的環境幾乎一定撞車（實測 EADDRINUSE:5207 讓整支腳本直接爆掉,
+//    看起來像「腳本壞了」而不是「埠被別人佔了」）。預設沿用 5207 保持既有行為,可用 VERIFY_PORT 讓開。
+const PORT = Number(process.env.VERIFY_PORT) || 5207;
 const MIME = { '.html': 'text/html', '.js': 'text/javascript', '.mjs': 'text/javascript', '.json': 'application/json', '.css': 'text/css', '.png': 'image/png', '.jpg': 'image/jpeg', '.svg': 'image/svg+xml', '.mp3': 'audio/mpeg', '.ico': 'image/x-icon', '.webmanifest': 'application/manifest+json' };
 const server = createServer((req, res) => {
   const url = new URL(req.url, 'http://x');

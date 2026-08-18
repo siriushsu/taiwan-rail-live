@@ -35,6 +35,7 @@
 //                            湊不出末班窗,必須刻意撥時鐘才看得到)
 //   metro-small-auto.png     systemSmall ,十四張＋auto 徽章——測「自動」徽章在最窄卡不擠爆標頭
 //   metro-small-auto-fail.png systemSmall,自動選站解析失敗的 autoHint 空狀態(定位指引文案)
+//   metro-small-out-of-range.png systemSmall,定位到了但最近的站在服務範圍外(台中→老街溪站 107km)
 
 import { execFileSync } from 'node:child_process';
 import { copyFileSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
@@ -103,6 +104,9 @@ const dataPath = join(widgetDir, 'MetroWidgetData.json');
 // 與 Widget 外殼)刻意不抽——組 entry 這裡改吃凍結樣本,不打真的網路(見上方檔頭說明)。
 const pieces = [
   extractDeclaration(intentSource, 'struct MetroWidgetCatalog'),
+  // 服務範圍外那張卡的文案要走【真的那一支】,不在這裡重打字面值(文案改了會無聲分岔)。
+  extractDeclaration(readFileSync(join(widgetDir, 'MetroNearest.swift'), 'utf8'),
+                     'enum MetroNearestMath'),
   extractDeclaration(widgetSource, 'struct MetroEntry'),
   // 空狀態文案(連不上／資料過舊／官方沒班次)住在這個 extension 裡,MetroBoardView 直接呼叫它;
   // 沒抽進來的話 harness 一編就是「has no member 'emptyText'」。
@@ -271,6 +275,16 @@ let szAutoEntry = MetroEntry(date: szEntry.date, title: szEntry.title, lineColor
 let autoFailEntry = MetroEntry(date: Date(), title: "自動選站", lineColor: nil, snapshot: nil,
                                precision: "sec", lastTrain: nil, failed: false,
                                autoHint: "開啟 App 一次，或到「設定 › 軌島」允許取用位置")
+// (3) 定位到了但最近的站在服務範圍外(2026-08-18)。探針放台中車站——最近站是 106 公里外的
+//     機捷老街溪站,是實際會遇到的案例裡站名最長的那一種(四個字),文案最長也就這樣。
+//     站名、距離、整句都走【真的】MetroNearestMath,不手捏字面值:這張圖要能證明的是
+//     「出貨的那句話在最窄的卡上排得下」,重打一份就只證明了我打的那句排得下。
+let farHit = MetroNearestMath.nearest(catalog: MetroWidgetCatalog.shared,
+                                      lat: 24.1369, lon: 120.6851)!
+let outOfRangeEntry = MetroEntry(date: Date(), title: "不在服務範圍", lineColor: nil,
+                                 snapshot: nil, precision: "sec", lastTrain: nil, failed: false,
+                                 autoHint: MetroNearestMath.outOfRangeHint(station: farHit.station,
+                                                                           meters: farHit.meters))
 
 @MainActor
 func pngData<V: View>(_ view: V, family: WidgetFamily, width: CGFloat, height: CGFloat,
@@ -487,6 +501,15 @@ struct Harness {
                width: 170, height: 170, to: outDir + "/metro-small.png")
         render(MetroBoardView(entry: taipeiEntry), family: .systemMedium,
                width: 364, height: 170, to: outDir + "/metro-medium.png")
+        // 深色（非 mono）：桌面深色模式的實際長相,送審圖合成用。
+        render(MetroBoardView(entry: taipeiEntry), family: .systemMedium,
+               width: 364, height: 170, scheme: .dark, to: outDir + "/metro-medium-dark.png")
+        // 送審圖用：使用者那台是 402pt 機型,量到的卡片實際是 350×164pt。
+        // 拿 364pt 的圖去縮會讓字級整體小 4%,直接照那台的點數渲染才是它真的長相。
+        // 🔴 用忠孝復興不用台北車站：同一張送審圖裡下面那張混合大卡已經是台北車站,
+        //    兩張卡同一站會看起來像同一個小工具擺兩次;忠孝復興還順便帶到轉乘站兩條線。
+        render(MetroBoardView(entry: zxfxEntry), family: .systemMedium,
+               width: 350, height: 164, scheme: .dark, to: outDir + "/metro-medium-store.png")
         render(MetroBoardView(entry: hmxEntry), family: .systemLarge,
                width: 364, height: 382, to: outDir + "/metro-large.png")
         render(MetroBoardView(entry: taipeiLateEntry), family: .systemMedium,
@@ -498,6 +521,9 @@ struct Harness {
                to: outDir + "/metro-medium-interchange-mono.png")
         render(MetroBoardView(entry: crowdEntry), family: .systemMedium,
                width: 364, height: 170, to: outDir + "/metro-medium-crowd.png")
+        // 深色（非 mono）：送審圖合成用,同上。
+        render(MetroBoardView(entry: crowdEntry), family: .systemMedium,
+               width: 364, height: 170, scheme: .dark, to: outDir + "/metro-medium-crowd-dark.png")
         // 🔴 393pt 機型（iPhone 15／16 非 Max）：medium 小工具 338×158 ⇒ 內容框 306×126,
         //    k＝306/332≈0.92。RailScale 的下限就是為這個機型存在的,不驗它等於沒驗縮放路徑
         //    ——而 430pt 那張永遠看不出來（改版前兩支算繪腳本都只有 430pt 一種寬度）。
@@ -514,6 +540,8 @@ struct Harness {
                width: 170, height: 170, to: outDir + "/metro-small-auto.png")
         render(MetroBoardView(entry: autoFailEntry), family: .systemSmall,
                width: 170, height: 170, to: outDir + "/metro-small-auto-fail.png")
+        render(MetroBoardView(entry: outOfRangeEntry), family: .systemSmall,
+               width: 170, height: 170, to: outDir + "/metro-small-out-of-range.png")
     }
 }
 `;

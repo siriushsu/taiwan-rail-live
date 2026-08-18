@@ -133,6 +133,7 @@ import SwiftUI
 struct MetroWaitEndButton: View {
     var scale: RailScale = RailScale(k: 1)
     var compact: Bool = false
+    var height: CGFloat = 30
 
     @ViewBuilder var body: some View {
         if compact {
@@ -142,7 +143,7 @@ struct MetroWaitEndButton: View {
                 .frame(height: scale.pt(20))
                 .background(RoundedRectangle(cornerRadius: scale.pt(5)).fill(Color.primary.opacity(0.12)))
         } else {
-            RailEndButton(scale: scale) { Text("結束") }
+            RailEndButton(scale: scale, height: height) { Text("結束") }
         }
     }
 }
@@ -248,16 +249,31 @@ func pngData<V: View>(_ view: V, width: CGFloat, height: CGFloat?,
 }
 
 /// 墨跡邊界（非底色像素這個物理事實，不用 SwiftUI 自己的量測值）。
+///
+/// 🔴 底色一律取【窗內眾數色】，不可取角落像素：ImageRenderer 在某些尺寸會留一圈
+///    完全透明（α=0）的 1px 邊，取 (1,1) 當底色就等於拿透明去比每一個像素 ⇒ 墨跡邊界
+///    整張攤開、報出假破版（2026-08-17 實例：等車卡 411px 高那張，x 量成 0–359.67）。
+///    α<0.5 的像素也一併跳過——那不是畫出來的東西。
 func inkBounds(_ png: Data, scale: CGFloat) -> (x0: CGFloat, x1: CGFloat, y0: CGFloat, y1: CGFloat, w: CGFloat, h: CGFloat)? {
     guard let rep = NSBitmapImageRep(data: png) else { return nil }
     let w = rep.pixelsWide, h = rep.pixelsHigh
-    guard let bg = rep.colorAt(x: 1, y: 1) else { return nil }
+    var hist: [String: Int] = [:]
+    for y in stride(from: 0, to: h, by: 3) {
+        for x in stride(from: 0, to: w, by: 3) {
+            guard let c = rep.colorAt(x: x, y: y), c.alphaComponent > 0.5 else { continue }
+            hist[String(format: "%.2f,%.2f,%.2f", c.redComponent, c.greenComponent, c.blueComponent),
+                 default: 0] += 1
+        }
+    }
+    guard let mode = hist.max(by: { $0.value < $1.value })?.key else { return nil }
+    let p = mode.split(separator: ",").compactMap { Double($0) }
+    guard p.count == 3 else { return nil }
     var x0 = w, x1 = -1, y0 = h, y1 = -1
     for y in 0..<h {
         for x in 0..<w {
-            guard let c = rep.colorAt(x: x, y: y) else { continue }
-            let d = abs(c.redComponent - bg.redComponent) + abs(c.greenComponent - bg.greenComponent)
-                  + abs(c.blueComponent - bg.blueComponent)
+            guard let c = rep.colorAt(x: x, y: y), c.alphaComponent > 0.5 else { continue }
+            let d = abs(c.redComponent - p[0]) + abs(c.greenComponent - p[1])
+                  + abs(c.blueComponent - p[2])
             if d > 0.07 {
                 if x < x0 { x0 = x }; if x > x1 { x1 = x }
                 if y < y0 { y0 = y }; if y > y1 { y1 = y }
@@ -269,9 +285,23 @@ func inkBounds(_ png: Data, scale: CGFloat) -> (x0: CGFloat, x1: CGFloat, y0: CG
             CGFloat(w) / scale, CGFloat(h) / scale)
 }
 
+/// 系統給的高度上限（Apple HIG，verbatim）：
+///   鎖屏 "The system may truncate a Live Activity on the Lock Screen if its height
+///   exceeds 160 points (≈213 px)."
+///   動態島展開 "The height of the extended view in the Dynamic Island can't exceed
+///   144 points (≈192 px)"
+///
+/// 🔴 這兩個數字是外部常數，不是我手打的門檻——超過就是【使用者會看到上下緣被切掉】，
+///    而不是「稍微擠了一點」。2026-08-17 使用者回報「通知卡片邊緣被卡掉了」的根因正是
+///    等車卡自然高度 198–216pt、跟車卡 162–180pt，全部超過 160。
+///    這支腳本以前【結構上照不到】：算繪時 height 傳 nil（自然高度、想長多高長多高），
+///    而破版判定只比左右兩邊，上下一次都沒驗（原註解卻寫著「只驗左右與上下有沒有貼邊」）。
+let lockScreenMaxHeight: CGFloat = 160
+let islandExpandedMaxHeight: CGFloat = 144
+
 @MainActor
-func render<V: View>(_ view: V, width: CGFloat, height: CGFloat? = nil,
-                     dark: Bool = true, mono: Bool = false,
+func render<V: View>(_ view: V, width: CGFloat, maxHeight: CGFloat? = nil,
+                     height: CGFloat? = nil, dark: Bool = true, mono: Bool = false,
                      inset: CGFloat = 13.5, to path: String) -> Data {
     let png = pngData(view, width: width, height: height, dark: dark, mono: mono)
     try! png.write(to: URL(fileURLWithPath: path))
@@ -288,7 +318,13 @@ func render<V: View>(_ view: V, width: CGFloat, height: CGFloat? = nil,
             Data("破版：\\(name) 墨跡貼到卡片邊緣——\\(over.joined(separator: "、"))（圓角會裁掉）\\n".utf8))
         exit(1)
     }
-    print("寫出 \\(name)（\\(Int(b.w))×\\(Int(b.h)) pt @3x，墨跡 x \\(Int(b.x0))–\\(Int(b.x1))）")
+    if let cap = maxHeight, b.h > cap {
+        FileHandle.standardError.write(Data(
+            "破版：\\(name) 高 \\(Int(b.h))pt 超過系統上限 \\(Int(cap))pt ⇒ 實機會被截掉上下緣\\n".utf8))
+        exit(1)
+    }
+    let room = maxHeight.map { "，上限 \\(Int($0))、餘 \\(Int($0 - b.h))pt" } ?? ""
+    print("寫出 \\(name)（\\(Int(b.w))×\\(Int(b.h)) pt @3x，墨跡 x \\(Int(b.x0))–\\(Int(b.x1))\\(room)）")
     return png
 }
 
@@ -434,51 +470,58 @@ struct Harness {
         precisionGate()
 
         // 臺鐵跟車：三態＋準點＋中斷＋最壞值
-        _ = render(RailFollowLockView(display: followRunning), width: 360,
+        _ = render(RailFollowLockView(display: followRunning), width: 360, maxHeight: lockScreenMaxHeight,
                    to: outDir + "/la-follow-running.png")
-        _ = render(RailFollowLockView(display: followArriving), width: 360,
+        _ = render(RailFollowLockView(display: followArriving), width: 360, maxHeight: lockScreenMaxHeight,
                    to: outDir + "/la-follow-arriving.png")
-        _ = render(RailFollowLockView(display: followStopping), width: 360,
+        _ = render(RailFollowLockView(display: followStopping), width: 360, maxHeight: lockScreenMaxHeight,
                    to: outDir + "/la-follow-stopping.png")
-        _ = render(RailFollowLockView(display: followOnTime), width: 360,
+        _ = render(RailFollowLockView(display: followOnTime), width: 360, maxHeight: lockScreenMaxHeight,
                    to: outDir + "/la-follow-ontime.png")
-        _ = render(RailFollowLockView(display: followNotice), width: 360,
+        _ = render(RailFollowLockView(display: followNotice), width: 360, maxHeight: lockScreenMaxHeight,
                    to: outDir + "/la-follow-notice.png")
-        _ = render(RailFollowLockView(display: followStale), width: 360,
+        _ = render(RailFollowLockView(display: followStale), width: 360, maxHeight: lockScreenMaxHeight,
                    to: outDir + "/la-follow-stale.png")
-        _ = render(RailFollowLockView(display: followWorst), width: 330,
+        _ = render(RailFollowLockView(display: followWorst), width: 330, maxHeight: lockScreenMaxHeight,
                    to: outDir + "/la-follow-worst-393.png")
-        _ = render(RailFollowLockView(display: followArriving), width: 360, mono: true,
+        _ = render(RailFollowLockView(display: followArriving), width: 360, maxHeight: lockScreenMaxHeight, mono: true,
                    to: outDir + "/la-follow-arriving-mono.png")
 
         // 捷運候車：正常／進站／未接推播／過期／整數分鐘／最壞值
-        _ = render(MetroWaitLockView(display: waitNormal), width: 360,
+        _ = render(MetroWaitLockView(display: waitNormal), width: 360, maxHeight: lockScreenMaxHeight,
                    to: outDir + "/la-wait-normal.png")
-        _ = render(MetroWaitLockView(display: waitMinutes), width: 360,
+        _ = render(MetroWaitLockView(display: waitMinutes), width: 360, maxHeight: lockScreenMaxHeight,
                    to: outDir + "/la-wait-minutes.png")
-        _ = render(MetroWaitLockView(display: waitArriving), width: 360,
+        _ = render(MetroWaitLockView(display: waitArriving), width: 360, maxHeight: lockScreenMaxHeight,
                    to: outDir + "/la-wait-arriving.png")
-        _ = render(MetroWaitLockView(display: waitArrivingNoPush), width: 360,
+        _ = render(MetroWaitLockView(display: waitArrivingNoPush), width: 360, maxHeight: lockScreenMaxHeight,
                    to: outDir + "/la-wait-arriving-nopush.png")
-        _ = render(MetroWaitLockView(display: waitExpired), width: 360,
+        _ = render(MetroWaitLockView(display: waitExpired), width: 360, maxHeight: lockScreenMaxHeight,
                    to: outDir + "/la-wait-expired.png")
-        _ = render(MetroWaitLockView(display: waitApprox), width: 360,
+        _ = render(MetroWaitLockView(display: waitApprox), width: 360, maxHeight: lockScreenMaxHeight,
                    to: outDir + "/la-wait-approx.png")
-        _ = render(MetroWaitLockView(display: waitWorst), width: 330,
+        _ = render(MetroWaitLockView(display: waitWorst), width: 330, maxHeight: lockScreenMaxHeight,
                    to: outDir + "/la-wait-worst-393.png")
+        // 🔴 300pt 比任何在賣的機型都窄（最窄的 iPhone 13 mini 內容區約 315pt）。
+        //    等車卡在 360pt 只剩 3pt 餘裕，而【變窄會讓字折行、折行就長高】⇒ 只掃 360/330
+        //    等於把最容易破的方向留在盲區。這兩張是安全邊界，不是機型。
+        _ = render(MetroWaitLockView(display: waitNormal), width: 300, maxHeight: lockScreenMaxHeight,
+                   to: outDir + "/la-wait-normal-narrow300.png")
+        _ = render(MetroWaitLockView(display: waitWorst), width: 300, maxHeight: lockScreenMaxHeight,
+                   to: outDir + "/la-wait-worst-narrow300.png")
 
         // 動態島展開版的下半（識別列由 region builder 提供，那一層 ActivityKit only）。
         // 島上沒有 14pt 邊距，內縮只有 10pt ⇒ inset 放寬到 9.5。
-        _ = render(RailFollowIslandBottom(display: followRunning), width: 360, inset: 9.5,
+        _ = render(RailFollowIslandBottom(display: followRunning), width: 360, maxHeight: islandExpandedMaxHeight, inset: 9.5,
                    to: outDir + "/island-follow-bottom.png")
-        _ = render(RailFollowIslandBottom(display: followStopping), width: 360, inset: 9.5,
+        _ = render(RailFollowIslandBottom(display: followStopping), width: 360, maxHeight: islandExpandedMaxHeight, inset: 9.5,
                    to: outDir + "/island-follow-bottom-stopping.png")
-        _ = render(MetroWaitIslandBottom(display: waitNormal), width: 360, inset: 9.5,
+        _ = render(MetroWaitIslandBottom(display: waitNormal), width: 360, maxHeight: islandExpandedMaxHeight, inset: 9.5,
                    to: outDir + "/island-wait-bottom.png")
-        _ = render(MetroWaitIslandBottom(display: waitWorst), width: 360, inset: 9.5,
+        _ = render(MetroWaitIslandBottom(display: waitWorst), width: 360, maxHeight: islandExpandedMaxHeight, inset: 9.5,
                    to: outDir + "/island-wait-bottom-worst.png")
         // 進站時島上捨棄「再下一班」保住擁擠度（見 MetroWaitIslandBottom 的註解）。
-        _ = render(MetroWaitIslandBottom(display: waitArriving), width: 360, inset: 9.5,
+        _ = render(MetroWaitIslandBottom(display: waitArriving), width: 360, maxHeight: islandExpandedMaxHeight, inset: 9.5,
                    to: outDir + "/island-wait-bottom-arriving.png")
 
         // minimal：只剩一顆圓（22pt）。四種形態各一張，證明「只剩一顆圓時仍答得出

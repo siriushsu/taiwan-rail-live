@@ -9,11 +9,17 @@
 // GET /__state → {calls:[{method,path,at}]},供「全程零真上游」佐證(host 恆為 127.0.0.1)。
 // 用法: node scripts/fixture_thsr_tdx.mjs <port>
 import { createServer } from 'node:http';
-import { readFileSync } from 'node:fs';
+import { readFileSync, readdirSync } from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 const PORT = Number(process.argv[2] || 43991);
-const FIXTURE_PATH = '/private/tmp/claude-501/-Users-xuxiang-Code------/01f4b0da-08b2-49ab-96d5-c4141b6268f2/scratchpad/thsr_td_2026-08-07.json';
-const FIXTURE_BODY = readFileSync(FIXTURE_PATH, 'utf8');
+// fixture 目錄同 verify_thsr_schedule.mjs(THSR_FIXTURE_DIR 可覆寫,預設 repo 的 .cache/thsr_fixtures);
+// 取檔名最早的那份即可——這支伺服器對任何 :date 都回同一份,見上面註解。
+const FIXTURE_DIR = process.env.THSR_FIXTURE_DIR || path.join(path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..'), '.cache/thsr_fixtures');
+const FIXTURE_NAME = readdirSync(FIXTURE_DIR).filter(f => /^thsr_td_\d{4}-\d{2}-\d{2}\.json$/.test(f)).sort()[0];
+if (!FIXTURE_NAME) { console.error(`[fixture] ${FIXTURE_DIR} 沒有 thsr_td_<YYYY-MM-DD>.json,見 verify_thsr_schedule.mjs 的重建說明`); process.exit(1); }
+const FIXTURE_BODY = readFileSync(path.join(FIXTURE_DIR, FIXTURE_NAME), 'utf8');
 
 const calls = [];
 

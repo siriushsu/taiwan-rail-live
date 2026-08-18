@@ -152,11 +152,14 @@ struct RailFollowLockView: View {
                 RailStatusTag(kind: .delay(display.delayMinutes), fontSize: 13, scale: scale)
             }
 
-            Text(display.stopLabel)
-                .font(.system(size: scale.pt(11)))
-                .foregroundStyle(.secondary)
-
             HStack(alignment: .center, spacing: scale.pt(8)) {
+                // 🔴 `stopLabel`（下一停靠站／終點站…）刻意跟站名同一列，不獨立一列：
+                //    鎖屏 Live Activity 只有 160pt 高（官方：超過就被系統截掉），而這張卡
+                //    量到 162–180pt ⇒ 使用者看到的是上下緣被切掉。動態島那版本來就是這樣排
+                //    （見下方 RailFollowIslandBottom），兩處一致。
+                Text(display.stopLabel)
+                    .font(.system(size: scale.pt(11)))
+                    .foregroundStyle(.secondary)
                 Text(display.stopName)
                     .font(.system(size: scale.pt(26), weight: .semibold))
                     .lineLimit(1).minimumScaleFactor(0.7)
@@ -186,19 +189,22 @@ struct RailFollowLockView: View {
             .monospacedDigit()
             .lineLimit(1)
 
-            if let notice = display.notice {
-                // 🔴 文案整句由後端決定（改字不必重出 App）。放在倒數與站名之後，
-                //    橫幅高度自適應，主角的版面完全不動。
-                Text("⚠ " + notice)
-                    .font(.system(size: scale.pt(11), weight: .medium))
-                    .foregroundStyle(.orange)
-                    .lineLimit(2).minimumScaleFactor(0.85)
-                    .fixedSize(horizontal: false, vertical: true)
+            // 狀態詞與通知同一列：兩者都是 11pt 的一句話，分兩列會讓有通知的狀態多吃 18pt，
+            // 那正是 160pt 上限唯一守不住的狀態（量到 180pt）。狀態詞短、通知長，通知吃剩下的寬。
+            HStack(alignment: .firstTextBaseline, spacing: scale.pt(6)) {
+                Text(display.stateWord)
+                    .font(.system(size: scale.pt(11)))
+                    .foregroundStyle(.secondary)
+                if let notice = display.notice {
+                    // 🔴 文案整句由後端決定（改字不必重出 App）。
+                    Text("⚠ " + notice)
+                        .font(.system(size: scale.pt(11), weight: .medium))
+                        .foregroundStyle(.orange)
+                        .lineLimit(2).minimumScaleFactor(0.85)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                Spacer(minLength: 0)
             }
-
-            Text(display.stateWord)
-                .font(.system(size: scale.pt(11)))
-                .foregroundStyle(.secondary)
         }
         .padding(.horizontal, scale.pt(14))
         .padding(.vertical, scale.pt(10))

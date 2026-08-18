@@ -98,21 +98,32 @@ struct DirectionHarness {
                 RailBoardScheduleWriter.Station(n: record.n, s: record.s)
             ] = (record.lat, record.lon)
         }
+        // 共站【不再】走 PlaceBoardBuilder（2026-08-17 改吃官方發車看板）。這裡要驗的
+        // 是「共站有沒有正確認出它的成員站」——那是官方看板索引的唯一來源，錯了就會
+        // 指到別站的班次，而站名反推救不了（5 對共站兩系統名字不一樣）。
         let composites = RailBoardScheduleWriter.CompositeStationFinder.find(
             coordinates: coordinates,
             systemOrder: ["tra", "thsr"],
             systemLabels: ["tra": "台鐵", "thsr": "高鐵"]
         )
-        let compositeBoards = RailBoardScheduleWriter.PlaceBoardBuilder.build(
-            places: composites.map(\\.place),
-            index: index,
-            trackLines: tra.lines + thsr.lines
-        )
-        try encoder.encode(compositeBoards).write(
-            to: URL(fileURLWithPath: work + "/composite-boards.json"),
+        struct CompositeOut: Encodable {
+            let label: String
+            let subtitle: String
+            let members: [[String]]
+        }
+        try encoder.encode(
+            composites.map {
+                CompositeOut(
+                    label: $0.place.label,
+                    subtitle: $0.subtitle,
+                    members: $0.members.map { [$0.s, $0.n] }
+                )
+            }
+        ).write(
+            to: URL(fileURLWithPath: work + "/composites.json"),
             options: .atomic
         )
-        print("寫出 \\(boards.count) 份地點看板、\\(compositeBoards.count) 份共站看板")
+        print("寫出 \\(boards.count) 份地點看板、\\(composites.count) 筆共站")
     }
 }
 `;
@@ -143,22 +154,50 @@ execFileSync(
 
 // ── 路徑 B：從原始索引重新判方向 ─────────────────────────────
 const index = JSON.parse(readFileSync(join(repoRoot, 'data/place_index.json'), 'utf8'));
-const compositeBoards = JSON.parse(readFileSync(join(work, 'composite-boards.json'), 'utf8'));
-// 共站看板也一起做方向比對——它們走的是同一支 builder，但座標來源不同。
-const boards = [
-  ...JSON.parse(readFileSync(join(work, 'boards.json'), 'utf8')),
-  ...compositeBoards,
-];
+const composites = JSON.parse(readFileSync(join(work, 'composites.json'), 'utf8'));
+const boards = JSON.parse(readFileSync(join(work, 'boards.json'), 'utf8'));
 
 console.log('');
-console.log('【共站看板：選了它要真的同時看到兩個系統】');
+console.log('【共站：成員站要認得出來，而且兩個系統各一個】');
 const compositeProblems = [];
-for (const board of compositeBoards) {
-  const systems = [...new Set(board.lines.map(line => line.sys))];
-  const detail = board.lines.map(line => `${line.name}(${line.perp}m)`).join('、');
-  console.log(`  ${board.label}：${systems.join('＋')} — ${detail}`);
+// 🔴 這五對是「靠站名比對一定會漏掉」的那一半（高鐵新竹在台鐵六家…）。把它們寫成
+//    具名期望，是為了讓這條判準真的有牙：只要成員站認錯，這裡就會紅，而不是靠
+//    「有 8 筆」這種數量判準（數量對、成員錯，官方看板就會指到別站的班次）。
+const expectedPairs = {
+  新竹: { tra: '六家', thsr: '新竹' },
+  苗栗: { tra: '豐富', thsr: '苗栗' },
+  台中: { tra: '新烏日', thsr: '台中' },
+  台南: { tra: '沙崙', thsr: '台南' },
+  左營: { tra: '新左營', thsr: '左營' },
+};
+const byThsrName = new Map();
+for (const composite of composites) {
+  const bySystem = Object.fromEntries(composite.members.map(([sys, name]) => [sys, name]));
+  const systems = Object.keys(bySystem);
+  console.log(
+    `  ${composite.label}（${composite.subtitle}）：`
+    + composite.members.map(([sys, name]) => `${sys}=${name}`).join('、')
+  );
   if (systems.length < 2) {
-    compositeProblems.push(`${board.label} 只有 ${systems.join('') || '零'} 一個系統`);
+    compositeProblems.push(`${composite.label} 只有 ${systems.join('') || '零'} 一個系統`);
+  }
+  if (new Set(systems).size !== composite.members.length) {
+    compositeProblems.push(`${composite.label} 同一個系統出現兩個代表站`);
+  }
+  if (bySystem.thsr) byThsrName.set(bySystem.thsr, bySystem);
+}
+for (const [thsrName, expected] of Object.entries(expectedPairs)) {
+  const actual = byThsrName.get(thsrName);
+  if (!actual) {
+    compositeProblems.push(`高鐵${thsrName} 沒有被判成共站`);
+    continue;
+  }
+  for (const [sys, name] of Object.entries(expected)) {
+    if (actual[sys] !== name) {
+      compositeProblems.push(
+        `高鐵${thsrName} 的 ${sys} 成員應該是 ${name}，實際 ${actual[sys] ?? '缺'}`
+      );
+    }
   }
 }
 
@@ -213,8 +252,8 @@ console.log('');
 console.log(`  比對 ${checked} 班`);
 
 const problems = [...compositeProblems];
-if (compositeBoards.length !== 8) {
-  problems.push(`共站看板應該有 8 份，實際 ${compositeBoards.length}`);
+if (composites.length !== 8) {
+  problems.push(`共站應該有 8 筆，實際 ${composites.length}`);
 }
 if (checked === 0) problems.push('一班車都沒比到（座標選錯或索引是空的？）');
 if (withoutDir > 0) problems.push(`${withoutDir} 班沒有 dir 欄位`);
