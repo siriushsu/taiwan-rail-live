@@ -146,9 +146,18 @@ struct MetroBoardProvider: AppIntentTimelineProvider {
         }
         if cfg.station == MetroNearest.sentinel {
             isAuto = true
-            if let hit = await MetroNearest.resolve(catalog: catalog) {
-                sysID = hit.sys; stationName = hit.station
-            } else {
+            switch await MetroNearest.resolve(catalog: catalog) {
+            case .some(.serviceable(let sys, let station)):
+                sysID = sys; stationName = station
+            // 定位到了但最近的站太遠(出了雙北／高雄／機捷沿線)。硬解析下去只會畫出一張
+            // 幾十公里外那一站的秒級倒數——看起來正常但對使用者零意義,故直說範圍外並
+            // 給出路(改選固定車站)。這一支不打官方 API。
+            case .some(.outOfRange(let station, let meters)):
+                return MetroEntry(date: Date(), title: "不在服務範圍", lineColor: nil,
+                                  snapshot: nil, precision: "sec", lastTrain: nil, failed: false,
+                                  autoHint: MetroNearestMath.outOfRangeHint(station: station,
+                                                                            meters: meters))
+            case .none:
                 return MetroEntry(date: Date(), title: "自動選站", lineColor: nil, snapshot: nil,
                                   precision: "sec", lastTrain: nil, failed: false,
                                   autoHint: "開啟 App 一次，或到「設定 › 軌島」允許取用位置")

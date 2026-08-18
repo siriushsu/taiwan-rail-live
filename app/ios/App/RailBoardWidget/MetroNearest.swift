@@ -3,7 +3,8 @@ import CoreLocation
 import Foundation
 
 // 自動選站(最近的站)。站台選單的哨兵值 "auto",解析發生在 timeline 生成當下:
-// 取定位 → 對目錄座標做全站最近距離 → 當成那一站續走原本的看板流程。
+// 取定位 → 對目錄座標做全站最近距離 → 在服務範圍內就當成那一站續走原本的看板流程,
+// 太遠(見 MetroNearestMath.serviceRadiusMeters)則畫「不在服務範圍」而不是硬解析一個遠站。
 // 🔴 授權來源是【App】的 WhenInUse(App/Info.plist 已有文案)＋widget Info.plist 的
 //    NSWidgetWantsLocation;widget 自己不能發授權請求,拿不到就走快取退路。
 enum MetroNearest {
@@ -19,25 +20,32 @@ enum MetroNearest {
         ])
     }
 
-    /// 解析哨兵值。定位到手就算最近站並記快取;拿不到定位退上次解析結果——
-    /// 最近站短時間內幾乎不變,舊站名比整卡空白有用;一次都沒解析過才回 nil。
-    static func resolve(catalog: MetroWidgetCatalog) async -> (sys: String, station: String)? {
+    /// 解析哨兵值。三態:回 `.serviceable` 就照常走看板流程、`.outOfRange` 由卡面明講範圍外、
+    /// nil ＝ 沒授權或定位失敗【且一次都沒成功解析過】(沒有快取可退)。
+    ///
+    /// 定位到手就算最近站並記快取;拿不到定位退上次解析結果——最近站短時間內幾乎不變,
+    /// 舊站名比整卡空白有用。
+    static func resolve(catalog: MetroWidgetCatalog) async -> MetroNearestMath.Outcome? {
         if let fix = await OneShotLocation.shared.fix(),
-           let hit = nearest(catalog: catalog,
-                             lat: fix.coordinate.latitude, lon: fix.coordinate.longitude) {
-            suite?.set("\(hit.sys)|\(hit.station)", forKey: cacheKey)
-            return hit
+           let outcome = MetroNearestMath.classify(catalog: catalog,
+                                                   lat: fix.coordinate.latitude,
+                                                   lon: fix.coordinate.longitude) {
+            switch outcome {
+            case .serviceable(let sys, let station):
+                suite?.set("\(sys)|\(station)", forKey: cacheKey)
+            case .outOfRange:
+                // 🔴 確認人在範圍外就要【清掉】快取。留著的話下一輪定位失敗會退回舊站,
+                //    卡上繼續畫幾百公里外那一站的倒數——那比直說「範圍外」更隱蔽,
+                //    因為畫面看起來完全正常(2026-08-18 回報的同一個問題的另一半)。
+                suite?.removeObject(forKey: cacheKey)
+            }
+            return outcome
         }
         if let cached = suite?.string(forKey: cacheKey) {
             let p = cached.split(separator: "|", maxSplits: 1).map(String.init)
-            if p.count == 2 { return (p[0], p[1]) }
+            if p.count == 2 { return .serviceable(sys: p[0], station: p[1]) }
         }
         return nil
-    }
-
-    static func nearest(catalog: MetroWidgetCatalog, lat: Double, lon: Double)
-        -> (sys: String, station: String)? {
-        MetroNearestMath.nearest(catalog: catalog, lat: lat, lon: lon)
     }
 }
 
@@ -45,16 +53,55 @@ enum MetroNearest {
 //    ——verify_metro_nearest.mjs 用大括號抽取把它跟 MetroWidgetCatalog 一起裸編譯,
 //    對 JS 獨立實作的 haversine 做差分驗證;塞回 MetroNearest 裡它就抽不出來了。
 enum MetroNearestMath {
-    /// 跨系統全站掃描取大圓距離最小者。
+    /// 一次定位的判定結果。🔴 「夠不夠近」這個比較【刻意住在純函式層】——
+    ///    放在 resolve() 裡的話它依賴 CoreLocation/UserDefaults、抽不出來裸編譯,
+    ///    verify 就只驗得到「距離算得對」與「門檻常數是多少」這兩個分支的上游,
+    ///    把 `<=` 寫成 `>=` 也照樣全綠(判準落在受測物下游)。
+    enum Outcome {
+        case serviceable(sys: String, station: String)
+        /// 最近站在服務範圍外。附站名與距離,讓卡面講得出「最近的是誰、多遠」。
+        case outOfRange(station: String, meters: Double)
+    }
+
+    /// 自動選站的服務範圍半徑。最近站在這之外時,那一站的倒數對使用者沒有意義
+    /// ——他不會走過去搭,而卡上照常畫著秒級倒數(2026-08-18 使用者回報)。
+    ///
+    /// 12,000 取自對目錄裡 trtc/krtc/tymc 三系統實算的天然斷點:
+    ///   合理   桃園藝文特區 8.4km→環北、桃園車站 9.2km→體育大學、烏來 10.6km→新店
+    ///   不合理 屏東車站 11.2km→大寮(屏東人搭台鐵進高雄)、基隆車站 14.8km→東湖(隔一座山)
+    /// 🔴 偏寬是刻意的:自動選站是通行證功能,擋錯＝付費使用者的卡整片空白,代價遠高於
+    ///    多顯示一個沒用的站名;而範圍外的卡面會明講最近站與距離,資訊仍然誠實。
+    /// 🔴 姊妹功能(發車看板「我的地點」RailBoardPlaces.maximumDistanceMeters)是 5km,
+    ///    刻意不共用:台鐵站密度遠高於捷運,5km 會把三峽/鶯歌/桃園全境一起誤擋。
+    static let serviceRadiusMeters = 12_000.0
+
+    /// 範圍外時卡面那一行。距離【無條件進位】到公里:四捨五入會印出「約 12 公里」,
+    /// 而 12 公里正好是門檻值,使用者看了會覺得自己明明在範圍內卻被擋。
+    /// 🔴 放在純函式層是為了讓 render_metro_widget.mjs 算繪那張卡時能呼叫【真的這一支】
+    ///    ——在算繪器裡重打一份字面值,文案改了就會無聲分岔(那張圖照樣好看)。
+    static func outOfRangeHint(station: String, meters: Double) -> String {
+        "最近的捷運站是\(station)，約 \(Int(ceil(meters / 1000))) 公里。可改選一個固定車站。"
+    }
+
+    /// 取最近站並判服務範圍。目錄一站都沒有(座標全缺)才回 nil。
+    static func classify(catalog: MetroWidgetCatalog, lat: Double, lon: Double) -> Outcome? {
+        guard let hit = nearest(catalog: catalog, lat: lat, lon: lon) else { return nil }
+        return hit.meters <= serviceRadiusMeters
+            ? .serviceable(sys: hit.sys, station: hit.station)
+            : .outOfRange(station: hit.station, meters: hit.meters)
+    }
+
+    /// 跨系統全站掃描取大圓距離最小者。【不套】服務範圍門檻——
+    /// 「誰最近」與「夠不夠近」分成兩支:範圍外的文案還要靠這一支拿最近站名與距離。
     static func nearest(catalog: MetroWidgetCatalog, lat: Double, lon: Double)
-        -> (sys: String, station: String)? {
-        var best: (sys: String, station: String)? = nil
+        -> (sys: String, station: String, meters: Double)? {
+        var best: (sys: String, station: String, meters: Double)? = nil
         var bestMeters = Double.greatestFiniteMagnitude
         for s in catalog.systems {
             for name in s.stationNames {
                 guard let c = catalog.coords["\(s.id)|\(name)"] else { continue }
                 let d = haversineMeters(lat1: lat, lon1: lon, lat2: c.lat, lon2: c.lon)
-                if d < bestMeters { bestMeters = d; best = (s.id, name) }
+                if d < bestMeters { bestMeters = d; best = (s.id, name, d) }
             }
         }
         return best
