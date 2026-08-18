@@ -111,12 +111,44 @@ function staticProgressGate() {
 
 staticProgressGate();
 
+/**
+ * 🔴 原始碼層 gate：Live Activity 的兩張卡都不准用 `RailCountdown.from(secondsLeft:)`。
+ *
+ * 那個建構子在【組 ContentState 的當下】把秒數折成 `.seconds(52)`／`.minutes(3)` 這種
+ * 算好的死數字，而 Live Activity 的視圖只在收到新 ContentState 時重繪一次 ⇒ 兩次推播之間
+ * 畫面上那個數字不會變。08-17 小工具改版就是這樣讓跟車卡與等車卡雙雙凍住的
+ * （使用者實機回報：鎖屏「16 分」整段不動，旁邊的進度條卻爬到 90%）。
+ * LA 一律走 `.until(絕對到站時刻)` 讓系統自己重排重繪。
+ *
+ * 🔴 這道 gate 補的是值層 gate 照不到的洞：值層只驗得到 fixture 走過的那幾條分支，
+ *    而「某條冷門分支又折回死數字」（例如次班、或某個系統的退路）它看不到。
+ *    Home Screen widget 不在管轄內——那裡有 timeline reload，`.from` 本來就會被重算。
+ */
+function selfRunningCountdownGate() {
+  const bad = [];
+  for (const [name, src] of [['跟車卡', followSource], ['候車卡', waitSource]]) {
+    // 只看程式碼行：這兩個檔的註解裡就寫著 `.from(secondsLeft:)` 在解釋為什麼不用它。
+    const code = src.split('\n').filter((l) => !/^\s*(\/\/|\*|\/\*)/.test(l)).join('\n');
+    const hits = code.match(/\.from\(secondsLeft:/g)?.length ?? 0;
+    if (hits) {
+      bad.push(`${name}還有 ${hits} 處 RailCountdown.from(secondsLeft:)`
+             + '——那是「算好的死數字」，Live Activity 在兩次推播之間不重繪，畫面會凍住；'
+             + 'LA 一律用 .until(絕對到站時刻) 交給系統自走');
+    }
+  }
+  if (bad.length) throw new Error('自走倒數 gate 失敗：\n' + bad.map((b) => '  ' + b).join('\n'));
+  console.log('gate 通過：兩張 Live Activity 都沒有把倒數折成死數字（一律 .until 自走）');
+}
+
+selfRunningCountdownGate();
+
 const pieces = [
   extractDeclaration(dataSource, 'enum RailBoardClock'),
   extractDeclaration(followSource, 'struct RailFollowDisplay'),
   extractDeclaration(followSource, 'struct RailFollowLockView'),
   extractDeclaration(followSource, 'struct RailFollowIslandBottom'),
   extractDeclaration(waitSource, 'struct MetroWaitDisplay'),
+  extractDeclaration(waitSource, 'struct MetroWaitSecondLine'),
   extractDeclaration(waitSource, 'struct MetroWaitLockView'),
   extractDeclaration(waitSource, 'struct MetroWaitIslandBottom'),
   extractDeclaration(waitSource, 'struct RailIslandMinimal'),
@@ -448,14 +480,102 @@ func precisionGate() {
         FileHandle.standardError.write(Data(msg.utf8))
         exit(1)
     }
-    let metro = wait(secondsToArrive: 52)
-    if metro.countdown != .seconds(52) {
-        let msg = "精度 gate 失敗：捷運在剩 52 秒時畫了 \\(metro.countdown.plainText)，"
-            + "而官方給的是秒級絕對時刻（設計稿的示範就是「52 秒」）。\\n"
-        FileHandle.standardError.write(Data(msg.utf8))
+    // 🔴 捷運那半移到 liveCountdownGate()：改版後捷運的倒數是自走的（「.until」），
+    //    「有沒有畫到秒」問列舉的形狀已經問不出來——形狀只說「交給系統」。
+    //    那邊改問系統實際算出來的字串，順便把「會不會自己走」一起量了。
+    print("gate 通過：臺鐵不足一分鐘收斂成「進站」（捷運那半見 liveCountdownGate）")
+}
+
+/// 自走倒數在某個時刻【使用者實際看到的那串字】。
+///
+/// 🔴 判準取系統算出來的字串、不取列舉的形狀：「.until」 只說「交給系統算」，說不出使用者
+///    看到的是幾——把期望值寫成 「== .until」 就只是覆述實作，連「秒數被畫成分鐘」都攔不到。
+///    這裡與版面共用同一個 format style（「railLiveCountdownStyle」），但字串的【值】是
+///    Foundation 算的，不是判準自己算的。
+@available(macOS 15.0, *)
+func liveShown(_ c: RailCountdown, at t: Date) -> String? {
+    guard case .until(let d) = c else { return nil }
+    return String(railLiveCountdownStyle(until: d).format(t).characters)
+}
+
+/// 🔴 gate：等車卡上使用者看得到的倒數，必須真的會隨時間改變。
+///
+/// 這是 2026-08-19 那個缺陷的判準化。08-17 的小工具改版把倒數折成【組 ContentState 當下】
+/// 算好的死數字（「.seconds(52)」），而 Live Activity 的視圖只在收到新 ContentState 時重繪
+/// ⇒ 鎖屏上的秒數整段不動。伺服器那側的遲滯不是元兇也不該改：worker 的註解白紙黑字寫著
+/// 「卡片的 Text(timerInterval:) 本來就自己在走」——改版讓那個前提失效，修法在客戶端。
+///
+/// 判準不問「型別是不是 「.until」」，問「同一張卡在 t 與 t+N 秒看到的字一不一樣」。
+@MainActor
+func liveCountdownGate() {
+    func fail(_ msg: String) -> Never {
+        FileHandle.standardError.write(Data(("自走倒數 gate 失敗：" + msg + "\\n").utf8))
         exit(1)
     }
-    print("gate 通過：臺鐵不足一分鐘收斂成「進站」，捷運照官方秒級顯示秒")
+    guard #available(macOS 15.0, *) else {
+        fail("這台 macOS < 15，量不到自走倒數的字串。判準沒跑到就不算通過")
+    }
+    // 主角：官方是秒級絕對時刻 ⇒ 不足一分鐘要真的看得到秒（設計稿的示範就是「52 秒」）。
+    let metro = wait(secondsToArrive: 52)
+    guard let sec0 = liveShown(metro.countdown, at: now) else {
+        fail("捷運主角在剩 52 秒時畫的是「\\(metro.countdown.plainText)」——那是算繪當下折好的"
+           + "死數字，卡片在下一次推播之前不會重繪，鎖屏上會整段不動")
+    }
+    if !sec0.contains("秒") {
+        fail("捷運主角在剩 52 秒時顯示「\\(sec0)」。官方給的是秒級絕對時刻，這裡不准收斂成分鐘")
+    }
+    guard let sec1 = liveShown(metro.countdown, at: now.addingTimeInterval(50)) else {
+        fail("捷運主角倒數在 50 秒後算不出字串")
+    }
+    // 「會自己走」的可觀測定義：同一張卡、不同時刻，字串必須不同。
+    if sec0 == sec1 {
+        fail("捷運主角倒數過了 50 秒仍然是「\\(sec0)」——這個倒數不會自己走")
+    }
+    // 分鐘區間：畫「N 分鐘」，不准出現 m:ss（設計稿：「1:30」在候車情境會被讀成 1 小時 30 分）。
+    let metroMin = wait(secondsToArrive: 195)
+    guard let min0 = liveShown(metroMin.countdown, at: now) else {
+        fail("捷運主角在剩 195 秒時不是自走倒數（畫的是「\\(metroMin.countdown.plainText)」）")
+    }
+    if !min0.contains("分") || min0.contains(":") {
+        fail("捷運主角在剩 195 秒時顯示「\\(min0)」——分鐘區間要畫「N 分鐘」，不准 m:ss")
+    }
+    // 🔴 第三層那一句的倒數也要自走。它同樣是官方絕對時刻，而改版前是被【拼進一整串
+    //    String】裡的——句子裡的死數字比主角那個大數字更不容易被發現。
+    guard let second = metro.second else { fail("fixture 沒有次班，這道 gate 量不到第三層") }
+    guard let sn0 = liveShown(second.countdown, at: now),
+          let sn1 = liveShown(second.countdown, at: now.addingTimeInterval(80)) else {
+        fail("第三層「再下一班」的倒數不是自走的（畫的是「\\(second.countdown.plainText)」）")
+    }
+    if sn0 == sn1 {
+        fail("第三層「再下一班」的倒數過了 80 秒仍然是「\\(sn0)」——它不會自己走")
+    }
+    // 🔴 反向對照：整數分鐘系統（高捷／機捷）刻意【不】自走。官方只給「約 N 分」，沒有絕對
+    //    時刻可錨，硬換算成逐秒倒數就是製造假精度。把它釘成明示的例外，免得日後被當成
+    //    漏網之魚一起「修掉」；也讓上面那幾條不會被「乾脆全部都自走」矇混過關。
+    if liveShown(waitApprox.countdown, at: now) != nil {
+        fail("整數分鐘系統被畫成秒級自走倒數——官方只給「約 N 分」，那是假精度")
+    }
+    // 🔴 動態島 minimal 那顆圓：不足一分鐘要與改版前的「.seconds」畫得【完全一樣】
+    //    （實心綠、不塞字）。設計稿：「形狀本身就是狀態，不必塞字」。
+    //    只驗字串的話，把「快到了＝實心綠」整個拿掉（環一路空心到進站）照樣全綠
+    //    ——改版把 <60 秒從 .seconds 換成 .until，那個訊號是最容易無聲掉的一個。
+    let ringColor = Color(.sRGB, red: 0, green: 0.44, blue: 0.74)
+    let soon = pngData(RailIslandMinimal(countdown: .until(now.addingTimeInterval(40)), color: ringColor),
+                       width: 30, height: 30)
+    let asSeconds = pngData(RailIslandMinimal(countdown: .seconds(40), color: ringColor),
+                            width: 30, height: 30)
+    let far = pngData(RailIslandMinimal(countdown: .until(now.addingTimeInterval(195)), color: ringColor),
+                      width: 30, height: 30)
+    if soon != asSeconds {
+        fail("動態島 minimal：不足一分鐘的自走倒數畫得跟改版前的「40 秒」不一樣"
+           + "——「快到了＝實心綠、不塞字」這個訊號掉了")
+    }
+    if soon == far {
+        fail("動態島 minimal：不足一分鐘與還有三分鐘畫成同一張圖——那顆圓不再說得出狀態")
+    }
+    print("gate 通過：等車卡主角與第三層的倒數都會自己走（52 秒→秒、195 秒→分鐘），"
+        + "整數分鐘系統維持「約 N 分」不假裝有秒級精度，"
+        + "動態島 minimal 不足一分鐘仍是實心綠")
 }
 
 // 鎖屏 Live Activity 的內容寬：430pt 機型約 360pt，393pt 機型約 330pt。
@@ -468,6 +588,7 @@ struct Harness {
         stateGate()
         expiryGate()
         precisionGate()
+        liveCountdownGate()
 
         // 臺鐵跟車：三態＋準點＋中斷＋最壞值
         _ = render(RailFollowLockView(display: followRunning), width: 360, maxHeight: lockScreenMaxHeight,
@@ -526,9 +647,14 @@ struct Harness {
 
         // minimal：只剩一顆圓（22pt）。四種形態各一張，證明「只剩一顆圓時仍答得出
         // 哪條線、還有幾分」。
+        // 🔴 「.until」兩張都要有：等車卡改成自走倒數之後，minimal 走的就是這條路徑
+        //    ——「環裡塞得下系統給的整串字嗎」與「不足一分鐘還是不是實心綠」都只有
+        //    真的算繪一次才看得到（live 是空心＋自走字，livesoon 是實心＋不塞字）。
         for (name, value) in [("min", RailCountdown.minutes(3)),
                               ("approx", RailCountdown.approxMinutes(12)),
                               ("sec", RailCountdown.seconds(40)),
+                              ("live", RailCountdown.until(now.addingTimeInterval(195))),
+                              ("livesoon", RailCountdown.until(now.addingTimeInterval(40))),
                               ("nodata", RailCountdown.noData)] {
             _ = render(RailIslandMinimal(countdown: value, color: Color(.sRGB, red: 0, green: 0.44, blue: 0.74))
                         .frame(width: 22, height: 22).padding(4),

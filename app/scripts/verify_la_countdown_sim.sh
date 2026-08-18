@@ -1,5 +1,6 @@
 #!/bin/bash
-# 跟車 Live Activity「到站倒數」自走驗收（iOS 模擬器，可重跑）
+# Live Activity「到站倒數」自走驗收（iOS 模擬器，可重跑）
+# 兩張卡共用：LA_CARD=follow（臺鐵跟車，預設）／LA_CARD=wait（捷運等車）。
 #
 # 要證的事【不是】「卡片開得起來」，而是：
 #   在【零推播、而且 App 已經被終止】的狀態下，鎖定畫面上的分鐘數會不會自己往下掉。
@@ -23,9 +24,15 @@
 #       xcodebuild -workspace App.xcworkspace -scheme App -configuration Debug \
 #         -sdk iphonesimulator -destination "id=$UDID" -derivedDataPath "$DD" ENABLE_PREVIEWS=NO build
 #    失敗的樣子很惡毒：build 綠、App 跑得好好的、只有卡片安靜地不存在。
-# 2. 🔴 跟車卡沒有深連結，而且 liveActivityAllowed() 要通行證資格 ⇒ 走 UI 開不了卡。
-#    改注入模擬器容器內那份 index.html，直接呼叫 window.RAIL_NATIVE_LIVEACTIVITY.start(...)。
-#    被繞過的只有「誰有資格開卡」，卡片怎麼畫仍然是出貨的原生程式碼。
+# 2. 🔴 兩張卡走 UI 都開不了：跟車卡沒有深連結而且 liveActivityAllowed() 要通行證資格；
+#    等車卡雖然有深連結（railisland://metro-wait，AppDelegate.swift:66-70 → RailMetroWaitPlugin
+#    .handleOpen），但那條路只是把事件轉給 JS，開卡前仍要過 metroWaitEnabled() 的資格閘門，
+#    而且卡片內容取決於當下真的有沒有官方班次（深夜／上游中斷就開不成，量到的會是假紅）。
+#    ⇒ 兩張都改注入模擬器容器內那份 index.html 直接呼叫 plugin：
+#      follow → window.RAIL_NATIVE_LIVEACTIVITY.start(...)
+#      wait   → window.Capacitor.Plugins.RailMetroWait.start(...)（JS 端的正式呼叫點同一個，
+#               見 index.html 的 metroWaitStartFor()）
+#    被繞過的只有「誰有資格開卡」與「這一刻有沒有班次」，卡片怎麼畫仍然是出貨的原生程式碼。
 # 3. 🔴 這台不能用 osascript 送 ⌘L 鎖屏（System Events 回 1002「不允許傳送按鍵」），
 #    simctl 也沒有鎖屏指令 ⇒ 鎖屏這一步必須由呼叫端做，所以拆成 arm／shots 兩段。
 #    呼叫端可用 Claude Code iOS Simulator MCP 的 `button LOCK`，或人工按 ⌘L。
@@ -41,13 +48,21 @@
 #   SIM_UDID                模擬器 UDID（預設取第一台 booted）
 #   DERIVED_DATA            xcodebuild 的 -derivedDataPath（install 用）
 #   SHOT_DIR                截圖輸出目錄（預設 app/tmp/la-shots）
+#   LA_CARD                 follow（臺鐵跟車，預設）或 wait（捷運等車）
 #   LA_ARRIVAL_OFFSET_SEC   到站＝現在＋這麼多秒（預設 960＝16 分；邊界情境用 75 與 -30）
-#   LA_DEPARTED_OFFSET_SEC  上一站發車＝現在＋這麼多秒（預設 -660）
+#   LA_DEPARTED_OFFSET_SEC  上一站發車＝現在＋這麼多秒（預設 -660）；只有 follow 用
+#   LA_SECOND_OFFSET_SEC    次班到站＝現在＋這麼多秒（預設 ARR+300）；只有 wait 用
 #   LA_WAIT1 / LA_WAIT2     t0→t1、t1→t2 的間隔秒（預設 65 / 60）
 set -euo pipefail
 
 CMD="${1:-}"
 TAG="${2:-run}"
+CARD="${LA_CARD:-follow}"
+case "$CARD" in
+  follow) ATTRS=RailFollowAttributes ;;
+  wait)   ATTRS=MetroWaitAttributes ;;
+  *) echo "LA_CARD 只能是 follow 或 wait，收到：$CARD"; exit 1 ;;
+esac
 BUNDLE=tw.railisland.app
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 SHOT_DIR="${SHOT_DIR:-$HERE/../tmp/la-shots}"
@@ -55,6 +70,7 @@ UDID="${SIM_UDID:-$(xcrun simctl list devices booted -j | /usr/bin/python3 -c 'i
 
 ARR="${LA_ARRIVAL_OFFSET_SEC:-960}"
 DEP="${LA_DEPARTED_OFFSET_SEC:--660}"
+SEC="${LA_SECOND_OFFSET_SEC:-$((ARR + 300))}"
 W1="${LA_WAIT1:-65}"
 W2="${LA_WAIT2:-60}"
 
@@ -106,19 +122,27 @@ arm)
   [ -f "$IDX" ] || { echo "找不到 $IDX"; exit 1; }
   # 只保留一份原稿；重跑先還原，否則注入層層疊加、第二輪起分不清跑的是哪一版。
   if [ -f "$IDX.orig" ]; then cp "$IDX.orig" "$IDX"; else cp "$IDX" "$IDX.orig"; fi
-  echo "[harness] udid=$UDID tag=$TAG arrival=+${ARR}s departed=${DEP}s"
+  echo "[harness] udid=$UDID tag=$TAG card=$CARD arrival=+${ARR}s departed=${DEP}s second=+${SEC}s"
   echo "[harness] bundle=$APPDIR"
   echo "[harness] web $(grep -o "BUILD *= *'[^']*'" "$IDX" | head -1) index.md5=$(md5 -q "$IDX")"
 
-  /usr/bin/python3 - "$IDX" "$ARR" "$DEP" <<'PY'
+  /usr/bin/python3 - "$IDX" "$ARR" "$DEP" "$SEC" "$CARD" <<'PY'
 import sys, io
-path, arr, dep = sys.argv[1], sys.argv[2], sys.argv[3]
-# payload 欄位以 RailLiveActivityPlugin.swift:46-60,82-121 為準（notice 刻意不帶，那是後端欄位）。
-snippet = """
+path, arr, dep, sec, card = sys.argv[1:6]
+# payload 欄位：
+#   follow → RailLiveActivityPlugin.swift:46-60,82-121（notice 刻意不帶，那是後端欄位）
+#   wait   → RailMetroWaitPlugin.swift:93-116（欄位名與 index.html 的 metroWaitPayload 一致）
+#
+# 🔴 wait 這邊刻意【只帶 nextEta／secondEta 不帶 nextMinutes】：北捷走的就是官方秒級絕對
+#    時刻那條路，帶了分鐘數會落到「整數分鐘系統」那條退路，量到的就不是要驗的東西。
+# 🔴 dataAt 給「現在」：卡片的過期判定是 dataAt 超過 90 秒（MetroWaitDisplay.expirySeconds），
+#    給舊值會讓主角在測試中途變成「暫無資料」，那時倒數不動是【設計】不是缺陷，控制組
+#    與修後會長得一樣而分不出勝負。
+FOLLOW = """
 <script>
 // ── 驗收注入（verify_la_countdown_sim.sh）：直接開一張跟車 Live Activity ──
 (function () {
-  var ARR = %s, DEP = %s, tries = 0;
+  var ARR = %(arr)s, DEP = %(dep)s, tries = 0;
   function iso(off) { return new Date(Date.now() + off * 1000).toISOString(); }
   function go() {
     // 🔴 不要等 window.load：首次安裝時 146MB bundle 的 load 事件可能拖過一分鐘
@@ -139,7 +163,35 @@ snippet = """
   setTimeout(go, 500);
 })();
 </script>
-</body>"""  % (arr, dep)
+</body>"""
+WAIT = """
+<script>
+// ── 驗收注入（verify_la_countdown_sim.sh）：直接開一張捷運等車 Live Activity ──
+(function () {
+  var ARR = %(arr)s, SEC = %(sec)s, tries = 0;
+  function epoch(off) { return Math.round(Date.now() / 1000) + off; }
+  function go() {
+    // 同 follow：不等 window.load（見上）。等車卡走 Capacitor 自製 plugin，
+    // 註冊時機沒有 window.RAIL_NATIVE_* 那種同步保證 ⇒ 一樣輪詢到手為止。
+    var p = window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.RailMetroWait;
+    if (!p) { if (++tries < 600) return setTimeout(go, 100); console.log('[LAHARNESS] no plugin'); return; }
+    var payload = {
+      key: 'harness', sys: 'trtc', station: '龍山寺', lineLabel: '板南線', color: '#0070BD',
+      durationMin: 90,
+      nextDest: '頂埔', nextEta: epoch(ARR),
+      secondDest: '南港展覽館', secondEta: epoch(SEC),
+      crowd: [1, 1, 2, 2, 1, 1], dataAt: epoch(0),
+    };
+    console.log('[LAHARNESS] start ' + JSON.stringify(payload));
+    Promise.resolve(p.start(payload))
+      .then(function (r) { console.log('[LAHARNESS] result ' + JSON.stringify(r)); })
+      .catch(function (e) { console.log('[LAHARNESS] failed ' + e); });
+  }
+  setTimeout(go, 500);
+})();
+</script>
+</body>"""
+snippet = (WAIT if card == 'wait' else FOLLOW) % {'arr': arr, 'dep': dep, 'sec': sec}
 src = io.open(path, encoding='utf-8').read()
 i = src.rfind('</body>')
 if i < 0: raise SystemExit('index.html 裡找不到 </body>，注入點不存在')
@@ -174,10 +226,10 @@ PY
     if grep -q "does not specify an APS environment name" "$STREAM_LOG"; then
       echo "[harness] ✗ entitlement 缺 aps-environment ⇒ 卡片沒建立。先跑 install 再重來。"; exit 1
     fi
-    if grep -q "Requesting an activity.*RailFollowAttributes" "$STREAM_LOG"; then ok=1; break; fi
+    if grep -q "Requesting an activity.*$ATTRS" "$STREAM_LOG"; then ok=1; break; fi
   done
-  [ "$ok" = 1 ] || { echo "[harness] ✗ 120 秒內沒看到 RailFollowAttributes 的 activity request，卡片沒開成"; exit 1; }
-  echo "[harness] ✓ ActivityKit 收到 RailFollowAttributes 的 request"
+  [ "$ok" = 1 ] || { echo "[harness] ✗ 120 秒內沒看到 $ATTRS 的 activity request，卡片沒開成"; exit 1; }
+  echo "[harness] ✓ ActivityKit 收到 $ATTRS 的 request"
   sleep 3
   shot di0     # 解鎖態（動態島 compact）
 

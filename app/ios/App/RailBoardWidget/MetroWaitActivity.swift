@@ -26,8 +26,26 @@ struct MetroWaitDisplay {
     /// 資料過期（設計稿：唯一會拿掉主角數字的狀態）⇒ 全卡降到 secondary。
     let expired: Bool
     let crowd: [Int]?
-    /// 第三層那一句：「舒適 · 再下一班 往 南港展覽館 2 分」的後半段。
-    let secondText: String?
+    /// 第三層那一句：「舒適 · 再下一班 往 南港展覽館 2 分鐘」的後半段。
+    let second: SecondTrain?
+
+    /// 第三層那一句拆成兩塊：「再下一班 往 南港展覽館」＋倒數。
+    ///
+    /// 🔴 為什麼不再是一整串 String（改版前是）：那個倒數也必須會自走。字串在被組出來的
+    ///    那一刻就凍住了，而這張卡在交班給伺服器之後【可以整段沒有任何推播】——
+    ///    worker 的 `mwShouldPush` 對 eta 有 20 秒遲滯（scripts/metro_wait_core.mjs），
+    ///    綁定失敗（沒網路／伺服器拒收）時更是零推播。要自走就只能交給 Text 自己算，
+    ///    而 Text 拿到的必須是【絕對到站時刻】而不是拼好的句子。
+    /// 🔴 也【不可以】用 `Text(前綴) + Text(.currentDate, format:)` 把它串回一句：
+    ///    WidgetKit 的自走時間文字不支援 `+`，串起來會退化成組字當下的靜態快照
+    ///    ——那正是這次要修的東西。畫法見 `MetroWaitSecondLine`。
+    struct SecondTrain: Equatable {
+        /// 「再下一班 往 南港展覽館」
+        let lead: String
+        /// 句尾的倒數。設計稿：第三層「沒有獨立倒數樣式」⇒ 由 `MetroWaitSecondLine` 畫成
+        /// 句子裡的一段字，不走 `RailCountdownText`（那個會畫實心色塊與兩級字階）。
+        let countdown: RailCountdown
+    }
     /// 底部左側：「追蹤至 12:03 · 11:33 更新」
     let footer: String?
     let notice: String?
@@ -58,7 +76,17 @@ struct MetroWaitDisplay {
             countdown = .noData
         } else if let eta = nextEta {
             // 北捷是官方秒級絕對時刻 ⇒ LA 可以逐秒自走（設計稿的示範就是「52 秒」）。
-            countdown = RailCountdown.from(secondsLeft: eta - nowSec, surface: .liveActivity)
+            // 🔴 交給 `.until`（錨定絕對到站時刻、由系統自走）而不是 `.from(secondsLeft:)`
+            //    （在組 ContentState 的那一刻折成 `.seconds(52)`／`.minutes(3)` 的死數字）：
+            //    Live Activity 的視圖只在收到新 ContentState 時重繪一次，而這張卡的更新
+            //    全靠伺服器推播——`mwShouldPush` 對 eta 有 20 秒遲滯，綁定失敗時是零推播，
+            //    App 又不在背景做任何事 ⇒ 鎖屏上那個「52 秒」會整段不動。
+            //    （worker 的遲滯本身是對的：它的註解寫著「卡片的 Text(timerInterval:)
+            //     本來就自己在走」——08-17 小工具改版把自走文字換成靜態字串之後，
+            //     那個前提才失效。修在客戶端，不要去改成每分鐘硬推。）
+            //    不足一分鐘系統自己會換成「52 秒」，不必也不可以在這裡分支
+            //    （分支＝又把它折回死數字）。到站時刻已過由 RailCountdownText 畫「進站」。
+            countdown = .until(Date(timeIntervalSince1970: eta))
         } else if let m = nextMinutes {
             countdown = .approxMinutes(m)
         } else {
@@ -72,14 +100,15 @@ struct MetroWaitDisplay {
             progress = min(1, max(0, (nowSec - at) / (eta - at)))
         }
 
-        // 第三層：再下一班。設計稿要它「沒有獨立倒數樣式」⇒ 一段純文字。
+        // 第三層：再下一班。設計稿要它「沒有獨立倒數樣式」⇒ 讀起來是一句話
+        // （但畫的時候是前綴＋倒數兩個 Text，理由見 SecondTrain）。
         // 🔴 用「再下一班」不是設計稿寫的「再下班」：後者在中文裡會先被讀成「下班」。
-        var secondText: String?
+        var second: SecondTrain?
         if let dest = secondDest {
-            let c: RailCountdown? = secondEta.map {
-                RailCountdown.from(secondsLeft: $0 - nowSec, surface: .liveActivity)
-            } ?? secondMinutes.map { .approxMinutes($0) }
-            if let c { secondText = "再下一班 往 \(dest) \(c.plainText)" }
+            // 🔴 與主角同一個理由走 `.until`：次班的 eta 也是官方絕對時刻，折成字串就會凍住。
+            let c: RailCountdown? = secondEta.map { RailCountdown.until(Date(timeIntervalSince1970: $0)) }
+                ?? secondMinutes.map { RailCountdown.approxMinutes($0) }
+            if let c { second = SecondTrain(lead: "再下一班 往 \(dest)", countdown: c) }
         }
 
         var footerParts: [String] = []
@@ -97,10 +126,53 @@ struct MetroWaitDisplay {
             lineLabel: lineLabel, station: station, color: RailHex.color(colorHex),
             dest: nextDest, countdown: countdown, track: track, progress: progress,
             arriving: isStale, expired: expired, crowd: crowd,
-            secondText: secondText,
+            second: second,
             footer: footerParts.isEmpty ? nil : footerParts.joined(separator: " · "),
             notice: RailHex.trimmed(notice), staleHint: hint
         )
+    }
+}
+
+/// 第三層那一句：「· 再下一班 往 南港展覽館 2 分」。鎖屏與動態島展開版共用。
+///
+/// 🔴 這裡是 HStack 拼句子，不是一個 Text——倒數那一段必須是【獨立的一個 Text】才會自走，
+///    而 WidgetKit 的自走時間文字不支援 `+` 串接（見 `MetroWaitDisplay.SecondTrain`）。
+/// 設計稿：第三層「沒有獨立倒數樣式」⇒ 全句同一個字級、同一個 secondary 色；
+///    不畫實心「進站」色塊、不做數字／單位兩級字階（那兩件是主角 `RailCountdownText` 的事）。
+struct MetroWaitSecondLine: View {
+    let second: MetroWaitDisplay.SecondTrain
+    /// 擁擠度排在前面時的分隔符。鎖屏與島上用同一個，兩處讀起來才是同一句話。
+    var separator: String = ""
+    let fontSize: CGFloat
+
+    var body: some View {
+        // spacing 0：分界由 lead 尾端那個空格給，避免與「· 」的間距疊成兩倍。
+        HStack(spacing: 0) {
+            Text(separator + second.lead + " ")
+            countdownText
+        }
+        .font(.system(size: fontSize))
+        .foregroundStyle(.secondary)
+        .lineLimit(1)
+        .minimumScaleFactor(0.8)
+    }
+
+    @ViewBuilder
+    private var countdownText: some View {
+        if case .until(let d) = second.countdown, d > Date() {
+            if #available(iOS 18.0, macOS 15.0, *) {
+                Text(.currentDate, format: railLiveCountdownStyle(until: d)).monospacedDigit()
+            } else {
+                // iOS 17.6–17.x：唯一會自走的是系統 relative（zh-Hant 畫「2 分鐘」）。
+                Text(d, style: .relative).monospacedDigit()
+            }
+        } else {
+            // 🔴 落到這裡只有兩種：(a) `.until` 的到站時刻已過 ⇒ plainText 回「進站」；
+            //    (b) 整數分鐘系統（高捷／機捷）的 `.approxMinutes`——官方只給「約 N 分」、
+            //    沒有絕對時刻可錨，硬換算成倒數就是製造假精度（精度誠實見 RailCountdown）。
+            //    這一種確實不會自走，是資料的限制不是畫法的限制。
+            Text(second.countdown.plainText).monospacedDigit()
+        }
     }
 }
 
@@ -170,16 +242,16 @@ struct MetroWaitLockView: View {
                 Text(hint)
                     .font(.system(size: scale.pt(11))).foregroundStyle(.secondary)
                     .lineLimit(1).minimumScaleFactor(0.8)
-            } else if display.crowd != nil || display.secondText != nil {
+            } else if display.crowd != nil || display.second != nil {
                 HStack(spacing: scale.pt(6)) {
                     if let c = display.crowd, !c.isEmpty {
                         RailCarriageMeter(levels: c, showWord: true, scale: scale)
                     }
-                    if let second = display.secondText {
-                        Text((display.crowd?.isEmpty == false ? "· " : "") + second)
-                            .font(.system(size: scale.pt(13)))
-                            .foregroundStyle(.secondary)
-                            .lineLimit(1).minimumScaleFactor(0.8)
+                    if let second = display.second {
+                        MetroWaitSecondLine(
+                            second: second,
+                            separator: display.crowd?.isEmpty == false ? "· " : "",
+                            fontSize: scale.pt(13))
                     }
                     Spacer(minLength: 0)
                 }
@@ -265,12 +337,12 @@ struct MetroWaitIslandBottom: View {
                 // 🔴 島上這一列還要塞「結束」鈕，位置比鎖屏少一截 ⇒ 車正在進站時捨棄「再下一班」
                 //    而不是捨棄擁擠度：車就在眼前的那幾秒，該往哪節車廂走比下一班幾分到重要，
                 //    而下一班的資訊在鎖屏那張卡上完整保留。
-                if let second = display.secondText, !display.arriving {
+                if let second = display.second, !display.arriving {
                     // 與鎖屏那張同一個分隔符，兩處讀起來才是同一句話。
-                    Text((display.crowd?.isEmpty == false ? "· " : "") + second)
-                        .font(.system(size: scale.pt(12)))
-                        .foregroundStyle(.secondary)
-                        .lineLimit(1).minimumScaleFactor(0.8)
+                    MetroWaitSecondLine(
+                        second: second,
+                        separator: display.crowd?.isEmpty == false ? "· " : "",
+                        fontSize: scale.pt(12))
                 }
                 Spacer(minLength: scale.pt(4))
                 MetroWaitEndButton(scale: scale, compact: true)
@@ -306,15 +378,30 @@ struct RailIslandMinimal: View {
         }
     }
 
+    /// 快到了／已到＝實心（設計稿：「形狀本身就是狀態」）。
+    ///
+    /// 🔴 `.until` 也要算進來，否則等車卡改成自走倒數之後，「不足一分鐘變實心綠」這個訊號會
+    ///    【靜默消失】——改版前 <60 秒走的是 `.seconds`，本來就在這一格。
+    /// 🔴 已知取捨：填色不是自走型別，所以這是「算繪當下為真」而不是「永遠為真」：
+    ///    在 T-16 分算繪的那張卡，到 T-30 秒時環仍是空心、而環裡的字已經自己走到「30 秒」。
+    ///    最遲在到站那一刻 `staleDate` 會讓 ActivityKit 翻 isStale 重繪成 `.arriving` 補上。
+    ///    不因為「填色補不上」就整個放棄實心：那等於為了消滅一個時間差而拿掉一個狀態。
+    private var nearlyHere: Bool {
+        switch countdown {
+        case .arriving, .seconds: return true
+        case .until(let d):       return d.timeIntervalSinceNow < 60
+        default:                  return false
+        }
+    }
+
     var body: some View {
         let c = RailTokens.colors(scheme)
         let ring = mono ? Color.primary : (color ?? c.brand)
         ZStack {
-            switch countdown {
-            case .arriving, .seconds:
-                // 快到了／已到＝實心。綠色是「可以上車了」，不是路線色。
+            if nearlyHere {
+                // 綠色是「可以上車了」，不是路線色。
                 Circle().fill(mono ? Color.primary : c.ok)
-            default:
+            } else {
                 Circle().strokeBorder(ring, lineWidth: scale.pt(2))
             }
             if let inner {
@@ -327,7 +414,9 @@ struct RailIslandMinimal: View {
             //    已知取捨：環只有約 22pt，塞不下系統給的「16分鐘」全字串 ⇒ 字級壓到 7pt
             //    再交給 minimumScaleFactor；不足一分鐘時系統自己會換成「59秒」。
             //    （不准改用自訂 FormatStyle 省字：那會讓整張卡變灰塊，見 railLiveCountdownStyle。）
-            if case .until(let d) = countdown, d > Date() {
+            // 🔴 `!nearlyHere`：實心那一格照設計稿【不印字】（「形狀本身就是狀態，不必塞字」），
+            //    在綠底上再疊一串 7pt 的「52 秒」既讀不到也把那個訊號弄糊了。
+            if case .until(let d) = countdown, d > Date(), !nearlyHere {
                 if #available(iOS 18.0, macOS 15.0, *) {
                     Text(.currentDate, format: railLiveCountdownStyle(until: d))
                         .font(.system(size: scale.pt(7), weight: .semibold))
