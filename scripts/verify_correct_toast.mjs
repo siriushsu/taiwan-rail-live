@@ -71,6 +71,11 @@ async function run(html, label) {
   const t = await p.evaluate(() => ({ toasts: window.__t.toasts, trig: window.__t.trig, byLine: window.__t.byLine,
     mis: window.__t.mis, good: window.__t.good, ticks: window.__t.ticks, frames: window.__t.frames,
     lines: [...new Set(((state.trtcOfficialRoster && state.trtcOfficialRoster.vehicles) || []).map(v => String(v.line)))],
+    // 🔴 歸因閘門完全靠 observedEpoch。它不在 payload 必填欄位裡(也【不該】加進去——
+    //    那個驗證器是全有全無,一台缺欄就整包名冊被擋、全網停在舊快照),所以改在這裡盯覆蓋率:
+    //    schema 一退化,閘門會靜悄悄整批擋掉通知,只有這條會叫。
+    obsHave: ((state.trtcOfficialRoster && state.trtcOfficialRoster.vehicles) || [])
+      .filter(v => Number.isFinite(Number(v.observedEpoch))).length,
     veh: ((state.trtcOfficialRoster && state.trtcOfficialRoster.vehicles) || []).length }));
   await b.close();
   if (errs.length) say(`   ⚠️ ${label} 頁面例外: ${errs[0]}`);
@@ -78,7 +83,7 @@ async function run(html, label) {
   const gaps = [];
   for (let i = 1; i < t.toasts.length; i++) gaps.push(t.toasts[i].t - t.toasts[i - 1].t);
   gaps.sort((a, b) => a - b);
-  const r = { label, toasts: t.toasts.length, trig, veh: t.veh, mis: t.mis, good: t.good, byLine: t.byLine,
+  const r = { label, toasts: t.toasts.length, trig, veh: t.veh, obsHave: t.obsHave, mis: t.mis, good: t.good, byLine: t.byLine,
     ticks: t.ticks, frames: t.frames, log: L,
     medGap: gaps.length ? gaps[gaps.length >> 1] : null };
   say(`  ${label.padEnd(20)} ${SEC}s 內跳 ${String(r.toasts).padStart(3)} 次通知`
@@ -109,6 +114,10 @@ for (const r of res) if (!(r.ticks >= maxTick * 0.85))
   fail.push(`G0 算力不均:${r.label} 只跑到 ${r.ticks} tick(最高 ${maxTick})⇒ 三組不可比,本輪結果作廢`);
 // G3 正向對照:不可以是「乾脆都不發」——內部觸發與使用者真的看得到的通知都要有
 if (fix.trig === 0) fail.push('G3 正向對照:修法組完全零觸發 ⇒ 可能整個關掉了');
+// 🔴 G3c:分母有戲時,環狀線自己也必須還會通知。少了這條,「Y 永久靜音、別線觸發一次」會全綠——
+//    而 Y 正是這批要修的那條線,拿別線的觸發替它背書等於沒驗。
+if (yOf(ctl) >= 15 && yOf(fix) === 0)
+  fail.push('G3c 正向對照:環狀線在修法組完全靜音(對照組有 ' + yOf(ctl) + ' 次)⇒ 不是修好是關掉');
 if (fix.toasts === 0) fail.push('G3b 正向對照:修法組 150s 內一則通知都沒發給使用者 ⇒ 使用者可見層被關死');
 // G4 🔴 核心性質:修法組不得再把「官方根本沒再看到那台車」報成官方訂正
 if (fix.mis > 0) fail.push(`G4 修法組仍有 ${fix.mis} 次錯誤歸因`);
@@ -119,6 +128,9 @@ if (mut.mis === 0) console.log('   ⚠️ G4b 本輪沒有樣本可驗閘門（�
   + '閘門有牙的證據見腳本註解（19:5x 突變 17 次 vs 修法 0 次）');
 // G5 名冊分母
 for (const r of res) if (r.veh < 80) fail.push(`G5 分母:${r.label} 名冊只有 ${r.veh} 台`);
+// G6 閘門的燃料:observedEpoch 覆蓋率掉下來 = 閘門會靜悄悄整批擋掉通知
+for (const r of res) if (r.veh >= 80 && r.obsHave / r.veh < 0.9)
+  fail.push(`G6 ${r.label} 只有 ${r.obsHave}/${r.veh} 台帶 observedEpoch ⇒ 歸因閘門沒燃料,會整批靜音`);
 if (fail.length) { console.log('❌ 未通過：'); for (const f of fail) console.log('   - ' + f); process.exit(1); }
 console.log(`✅ 觸發台次 ${ctl.trig} → ${fix.trig}／${SEC}s（減 ${(100 - fix.trig / ctl.trig * 100).toFixed(1)}%）`);
 console.log(`   環狀線 ${yOf(ctl)} → ${yOf(mut)}（重建之功）→ ${yOf(fix)}（再加歸因閘門）`);

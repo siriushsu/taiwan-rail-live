@@ -5059,7 +5059,7 @@ function trtcBrVehiclesFromBoard(lineId, board, nowEpoch, day) {
     //  過濾掉之後同站同向不再出現第二筆,所以沒有這條路徑。)
     cutInto([...byStation.values()].map(l => l[0]).sort((a, b) => (a.i - b.i) * step), step, 'a');
   }
-  if (hopObs.length >= 6) {
+  if (hopObs.length >= 8) {
     const s = hopObs.slice().sort((a, b) => a - b), med = s[Math.floor(s.length / 2)];
     // 🔴 有實測區間的線(BR)一律沿用 main 的判準,這批不准動到它既有行為:
     //    停站秒物理上不可能是負的,med<0 只代表模型 run 偏長,不該被折進停站秒。
@@ -18729,8 +18729,13 @@ async function pollTrtcLive() {
                   ? built.filter(v => !cdSeg.has(String(v.line))).concat(...cdSeg.values())
                   : built;
                 // 編號是我們自己給的(裁示允許),所以必須自己維持跨輪穩定:依位置與順序接上一輪。
-                for (const id of TRTC_CD_LINES)
+                for (const id of TRTC_CD_LINES) {
+                  // 🔴 「這一輪切不出車」≠「不走倒數路徑」。前者是缺訊,依官方逐班追蹤契約只 hold;
+                  //    把它當成換路徑而清掉名冊,下一輪整線會拿到全新 id ⇒ 跟車中斷、位置整批跳。
+                  //    只有整條倒數路徑被關掉時才清。
+                  if (TRTC_BR_FROM_COUNTDOWN && !cdSeg.has(id)) continue;
                   trtcCensusRestampBr(id, mine, nowSec, dayKey, cdSeg.has(id));
+                }
                 const covered = new Set(mine.map(v => v.line));
                 const kept = (d.boardPos.vehicles || []).filter(v => !covered.has(v.line));
                 // 退回舊綁定器這件事不可以是靜默的：Y 與兩條支線是預期的（逐車清單本來就沒有
