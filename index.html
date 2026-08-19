@@ -3841,6 +3841,7 @@
            內容 li 上限 8 條(li.grp 是標題不算)。 -->
       <ul class="foot-list foot-recent">
         <li class="grp">最近更新</li>
+        <li data-cl-of="trtccdonly"><span class="d">8/19</span><span>台北捷運不再有「站牌寫著車要進站、地圖上卻沒那台車」：官方的逐車資料偶爾會整趟漏掉一列車（實測有一台往蘆洲的連續六分鐘都不在裡面），現在只要各站的官方倒數看得到它，就照樣把車畫出來，位置跟其他車一樣準</span></li>
         <li data-cl-of="mapsync"><span class="d">8/19</span><span>拖曳地圖時，軌道與列車不再比底圖慢半拍；手機兩指縮放放手時，軌道也不會先跳回去再彈回來</span></li>
         <li data-cl-of="trainoverrail"><span class="d">8/19</span><span>列車不再被別條線的軌道壓過去，一律浮在所有軌道之上；兩條線立體交叉、各有一台車同時經過時，也照現實決定誰在上面（例如忠孝復興的文湖線在松山新店線之上）</span></li>
         <li data-cl-of="osmbasemap"><span class="d">8/18</span><span>街道底圖換成 OpenStreetMap 的圖資：地名改成中文單行、路名與公路編號牌不再蓋滿畫面，看起來跟以前一樣安靜，但列車、路線與站點的位置完全沒變</span></li>
@@ -4000,6 +4001,7 @@
         <li><span class="d">7/21</span><span>手機大改版：打開就是全螢幕地圖，面板都住進底部；新增「捷」分頁，北中高捷運一張圖同框</span></li>
         <li><span class="d">7/13</span><span>新增「省電」模式（手機預設開啟）：降到 30fps；手機一次只開一個面板</span></li>
         <li class="grp">外觀與品牌</li>
+        <li data-cl="trtccdonly"><span class="d">8/19</span><span>台北捷運的列車名冊本來只認官方的「逐車清單」（那份同時帶車廂擁擠度），但它會整趟漏掉車——2026/8/19 下午實測，一台往蘆洲的列車連續 17 輪（六分鐘）都不在清單裡，而各站的官方到站倒數一路都報得出它，於是站牌寫著 0:21 進站、地圖上整趟卻沒有這台車。現在改成：只要官方倒數看得到某個車號，就用它在各站的倒數把車建出來，行進、往回推算它在哪一段、到終點收車全部沿用原本同一套規則（實測補回來的車與原本位置分毫不差）。另外，逐車清單偶爾會漏填終點站，車若正好在中和新蘆線兩條路線共用的那段軌道上，就會因為分不出屬於哪一條而整台被丟掉，現在改用官方站牌上的終點站補回去。車廂擁擠度仍然來自逐車清單，沒有變動</span></li>
         <li data-cl="trainoverrail"><span class="d">8/19</span><span>全台同框（「全」）畫面裡，捷運列車經過台鐵或高鐵的軌道時會被軌道壓過去，看起來像從軌道底下鑽過；現在改成所有軌道都畫完才畫車，任何一台車都浮在所有軌道之上。另外，兩條線立體交叉、各有一台車同時經過那個路口時，以前是誰先畫誰在下面（等於隨機），現在依實際的高低關係決定——高低取自 OpenStreetMap 標註的橋樑、隧道與樓層，全台 31 處立體交叉都建了表，例如忠孝復興的文湖線在松山新店線之上、松江南京的松山新店線在中和新蘆線之上</span></li>
         <li data-cl="osmbasemap"><span class="d">8/18</span><span>街道底圖換成 OpenStreetMap 的圖資：地名改成中文單行、路名與公路編號牌不再蓋滿畫面，看起來跟以前一樣安靜，但列車、路線與站點的位置完全沒變</span></li>
         <li data-cl="satretina"><span class="d">8/2</span><span>在 App 裡訂閱通行證後，衛星底圖會換成高解析度圖磚，在 Retina 螢幕上更銳利；沒訂閱的人維持標準解析度，畫面內容一樣</span></li>
@@ -4407,7 +4409,10 @@
 //         停站秒改吃官方逐站資料、速度用剩餘距離÷剩餘倒數即時算、拆掉不倒退地板與間距夾)
 //         ②OSM 向量底圖的兩個跨層同步修法(拖曳慢半拍、捏合放手跳回)
 //         ③等車卡鎖屏後倒數自走 ④跟車卡零推播靠保鮮期自救。小工具改版線已在 ② 之前併入。
-const BUILD = 'v0819d';
+// v0819f：1.4.8 (68) 出貨——併入 origin/main fb1de23:官方倒數看得到的車一律畫出來
+//         (CarWeight 整趟漏車與漏填終點站兩種「車不見」)。網站同批已上正式站,那邊的
+//         版本字串是 v0819e;並行的 Android 線也用了 v0819e,辨識版本一律用內容 hash。
+const BUILD = 'v0819f';
 // 2026-08-13 起預設開啟（使用者親試預覽後裁示上線）：北捷畫車依官方即時名冊，班表只是備案。
 // 保留 ?officialroster=0 當逃生口——要退回班表路徑不必回滾部署，加個參數即可對照。
 // 🔴 這個函式會被 verify_official_roster_frontend 抽出來丟進 VM 單獨執行——
@@ -5362,6 +5367,113 @@ function trtcCensusRestampBr(lineId, list, nowEpoch, day, fromCountdown) {
   R.at = nowEpoch;
 }
 let _trtcCensusPrior = new Map();
+// ── CarWeight 漏掉、但官方倒數看得到的車 ──────────────────────────────────────
+// 🔴 使用者裁示(2026-08-19):「car weight 沒有的車子但是倒數有 那我們一樣要做出來」。
+// 逐車清單(CarWeight)會【整趟】漏掉車:2026-08-19 14:5x 對正式站實測,車號 437(往蘆洲)
+// 連續 17/17 輪不在 CarWeight,而官方看板一路報它的倒數(伺服器 ledger 自己標 evidence:'board')
+// ⇒ 地圖上整趟不存在,使用者在頂溪看到「往蘆洲少一台」而看板寫著 0:21 進站。
+// 高運量的看板列本來就帶官方車號 ⇒ 同一個車號在各站的倒數列依 eta 排序就是它的 path。
+// 合成一筆與 CarWeight 同形狀的逐車列餵進 trtcCensusVehicles,建車／往回推段／到終點收車
+// 全部沿用同一套規則,不另立第二套模型。
+// (BR/Y 的看板列沒有車號 ⇒ 不會進來;它們早就走 trtcBrVehiclesFromBoard 的倒數建車。)
+let _trtcCodeIdx = null;
+function _trtcCodeAt(lineId, i) {
+  if (!_trtcCodes) return null;
+  if (!_trtcCodeIdx) {
+    _trtcCodeIdx = new Map();
+    for (const code of Object.keys(_trtcCodes))
+      for (const o of (_trtcCodes[code] && _trtcCodes[code].on) || [])
+        if (!_trtcCodeIdx.has(o.ln + '|' + o.i)) _trtcCodeIdx.set(o.ln + '|' + o.i, code);
+  }
+  return _trtcCodeIdx.get(lineId + '|' + i) || null;
+}
+// 這台車在哪條線、行進方向,以及它「後方那一站」的站序(＝合成列的 stn 要指的位置)。
+// 🔴 stn 必須指後方站:trtcCensusVehicles 用 `to = nextIdx; from = to - step` 定位,
+//    指到它正在接近的那一站會讓 nextIdx === hit.i、改走 `from = hit.i` 分支,
+//    車就被畫到過站之後(整整差一個站間)。
+function _trtcCdOnlyResolve(rows, head) {
+  const hn = _trtcCensusNorm(head.name), dn = _trtcCensusNorm(head.dest);
+  let best = null;
+  for (const ln of [...(state.lines || []), ...(state.decoLines || [])]) {
+    if (!ln || !Array.isArray(ln.stations) || !ln.stations.length) continue;
+    const names = trtcCensusNames(ln);
+    const i = names.indexOf(hn); if (i < 0) continue;
+    const d = names.indexOf(dn); if (d < 0 || d === i) continue;
+    const step = Math.sign(d - i);
+    const p = i - step;
+    // 後方沒有站 ⇒ 這是起點站的「下一班」公告,不是一台在跑的車(2026-08-18 裁示)。
+    if (p < 0 || p >= names.length) continue;
+    // 同名站會撞線(民權西路在 R 與 O 各一顆站碼):要求這條線能解釋它其餘的倒數列
+    // 都落在行進方向上,分數最高者勝。共線段兩條線同分時取任一條——那一段是同一條實體軌道。
+    let score = 0;
+    for (const r of rows) {
+      const k = names.indexOf(_trtcCensusNorm(r.name));
+      if (k < 0) { score -= 2; continue; }
+      score += (k === i || Math.sign(k - i) === step) ? 1 : -2;
+    }
+    if (!best || score > best.score) best = { ln, p, step, score };
+  }
+  return best && best.score > 0 ? best : null;
+}
+const _trtcCdOnlyPrior = new Map();     // 車號 → { entry, seenEpoch }
+const TRTC_CD_ONLY_CARRY_SEC = 120;     // 看板這一輪沒提到它:缺訊只 hold,不當成車消失
+let _trtcCdOnlyCount = 0;               // 巡檢／驗收讀它:這一輪補了幾台 CarWeight 沒有的車
+let _trtcCdDestRepaired = 0;            // 這一輪替 CarWeight 補回幾個缺的終點站
+function trtcCountdownOnlyTrains(board, trains, nowEpoch) {
+  const list = Array.isArray(trains) ? trains : [];
+  if (!_trtcCodes || !Array.isArray(board) || !board.length) return list;
+  const have = new Set();
+  for (const t of list) { const n = String((t && t.no) || '').trim(); if (n) have.add(n); }
+  const byNo = new Map();
+  for (const b of board) {
+    const no = String((b && b.no) || '').trim();
+    if (!no || have.has(no)) continue;
+    const eta = Number(b && b.eta); if (!Number.isFinite(eta)) continue;
+    if (!byNo.has(no)) byNo.set(no, []);
+    byNo.get(no).push({ name: String(b.name || ''), dest: String(b.dest || ''), eta, at: Number(b.at) });
+  }
+  // 🔴 CarWeight 偶爾整列漏給 dest(實測 2026-08-19 高運量 75 台裡有這種列)。若這台車正好在
+  // 共線段的站碼上(中和新蘆線 O01–O11 兩條線共用一顆站碼),trtcCensusResolve 的兩個候選
+  // 都拿 0 分 ⇒ 回 null ⇒ 整台車被丟掉(實測車號 402 就是這樣不見的)。官方看板知道它的終點,
+  // 補回去即可;已經有 dest 的列一個字都不動。
+  const destByNo = new Map();
+  for (const b of board) {
+    const no = String((b && b.no) || '').trim();
+    if (no && b.dest && !destByNo.has(no)) destByNo.set(no, String(b.dest));
+  }
+  let repaired = 0;
+  const base = list.map(t => {
+    const n = String((t && t.no) || '').trim();
+    if (!t || t.dest || !n || !destByNo.has(n)) return t;
+    repaired++;
+    return { ...t, dest: destByNo.get(n) };
+  });
+  _trtcCdDestRepaired = repaired;
+  const extra = [];
+  for (const [no, rows] of byNo) {
+    rows.sort((a, c) => a.eta - c.eta);
+    const head = rows[0];
+    const hit = _trtcCdOnlyResolve(rows, head);
+    if (!hit) continue;
+    const stn = _trtcCodeAt(hit.ln.id, hit.p);
+    if (!stn) continue;
+    const entry = { no, sys: 'hw', dir: hit.step > 0 ? 2 : 1, stn,
+      at: Number.isFinite(head.at) ? head.at : nowEpoch, dest: head.dest,
+      path: rows.map(r => ({ name: r.name, eta: r.eta })) };
+    extra.push(entry);
+    _trtcCdOnlyPrior.set(no, { entry, seenEpoch: nowEpoch });
+  }
+  // 這一輪看板沒提到、但剛才還在的:沿用上一次的合成列,讓既有續推接手(官方逐班追蹤契約
+  // 「缺訊只 hold、沒有退場」)。CarWeight 自己補上了、或超過保留窗,就交還原本的路徑。
+  for (const no of [..._trtcCdOnlyPrior.keys()]) {
+    if (byNo.has(no)) continue;
+    const p = _trtcCdOnlyPrior.get(no);
+    if (have.has(no) || nowEpoch - p.seenEpoch > TRTC_CD_ONLY_CARRY_SEC) { _trtcCdOnlyPrior.delete(no); continue; }
+    extra.push(p.entry);
+  }
+  _trtcCdOnlyCount = extra.length;
+  return extra.length ? base.concat(extra) : base;
+}
 function trtcCensusVehicles(trains, nowEpoch, day) {
   if (!_trtcCodes) { trtcCodesEnsure(); return null; } // 站碼表還沒到：這一輪不動名冊
   const out = [], seen = new Set(), prior = _trtcCensusPrior, next = new Map();
@@ -19331,7 +19443,11 @@ async function pollTrtcLive() {
               // 站碼表是這條路徑的硬前提，沒有它一台車都建不出來。首輪 fetch 回來時它多半
               // 還在飛，若當輪直接放棄就要等下一次輪詢（60 秒）畫面才會有車。
               await trtcCodesEnsure();
-              const built = trtcCensusVehicles(d.trains, Date.now() / 1000, todayStr());
+              // 🔴 CarWeight 漏掉、只有官方倒數看得到的車,在這裡補成同形狀的逐車列
+              //    (使用者裁示 2026-08-19:「car weight 沒有的車子但是倒數有 那我們一樣要做出來」)。
+              const _cdNow = Date.now() / 1000;
+              const built = trtcCensusVehicles(
+                trtcCountdownOnlyTrains(d.board, d.trains, _cdNow), _cdNow, todayStr());
               // 🔴 逐車清單是「臺北捷運」的，只涵蓋高運量與文湖線。環狀線(Y，新北捷運公司營運)
               // 與小碧潭(G_XBT)、新北投(R_XBT)兩條支線它一台都沒有——整份名冊直接換掉，
               // 那三條線的車就會整條消失(實測 Y 12 台、G_XBT 3 台、R_XBT 2 台)。
