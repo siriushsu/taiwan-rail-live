@@ -1,0 +1,25 @@
+{
+  "device": "RailIsland_API35_Pixel7",
+  "android": 15,
+  "api": 35,
+  "sample": "local 440 Hz PCM tone, 44100 Hz, true adb tap",
+  "events": [
+    { "event": "play-resolved-1.0", "atMs": 53679, "currentTime": 0.002, "volume": 1, "paused": false },
+    { "event": "before-set-0.3", "atMs": 61681, "currentTime": 7.922, "volume": 1, "paused": false },
+    { "event": "immediate-readback-0.3", "atMs": 61681, "currentTime": 7.922, "volume": 0.3, "paused": false },
+    { "event": "delayed-readback-0.3", "atMs": 62432, "currentTime": 8.674, "volume": 0.3, "paused": false }
+  ],
+  "audioFlinger": {
+    "route": "AUDIO_DEVICE_OUT_SPEAKER",
+    "sampleRateHz": 48000,
+    "volume1PowerDb": -47.6,
+    "volume03PowerDb": -58.0,
+    "measuredDeltaDb": -10.4,
+    "expectedDeltaDb": -10.46,
+    "evidence": [
+      "c1-audioflinger-volume-1.0.txt",
+      "c1-audioflinger-volume-0.3.txt"
+    ]
+  },
+  "decision": "Android WebView honors HTMLMediaElement.volume; keep the unavailable class iOS-only."
+}

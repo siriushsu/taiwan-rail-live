@@ -1471,14 +1471,15 @@ async function deviceSuite(browser, eng) {
   ok(`L15b ${eng} 動態島清單每一項都真的被量到`, never.length === 0, never.length ? `從沒量到：${never.join('、')}` : `${ISLAND_SEL.length}/${ISLAND_SEL.length}`);
 }
 
-// G3：原始碼斷言——那兩個變數必須是 env() 包出來的。
+// G3：原始碼斷言——四邊安全區必須優先讀 Capacitor Android fallback，再退回標準 env()。
 // 只有 L15 的話，把 --sa-l 寫成常數 0px 也會全綠（注入時被測試自己覆寫掉），實機上完全沒作用。
 {
   const src = readFileSync(path.join(ROOT, 'index.html'), 'utf8');
-  const hasL = /--sa-l:\s*env\(\s*safe-area-inset-left/.test(src);
-  const hasR = /--sa-r:\s*env\(\s*safe-area-inset-right/.test(src);
-  ok('L15c 原始碼：--sa-l／--sa-r 由 env(safe-area-inset-left/right) 定義', hasL && hasR,
-    `--sa-l=${hasL}／--sa-r=${hasR}`);
+  const edges = [['t', 'top'], ['r', 'right'], ['b', 'bottom'], ['l', 'left']];
+  const safeArea = Object.fromEntries(edges.map(([short, edge]) => [short,
+    new RegExp(`--sa-${short}:\\s*var\\(--safe-area-inset-${edge},\\s*env\\(safe-area-inset-${edge},\\s*0px\\)\\)`).test(src)]));
+  ok('L15c 原始碼：四邊安全區由 Capacitor fallback → env() 定義', Object.values(safeArea).every(Boolean),
+    JSON.stringify(safeArea));
   // L13d：工具欄讓位「以右緣起算常數 44」的契約（回到列車膠囊是暫態，不推相機）。
   // 行為面照不到：膠囊只在解鎖態出現，而解鎖態相機本來就不動；能觀測到差異的只有「解鎖瞬間
   // 一幀的抽動」，非同步渲染下量不穩。比照 L15c 用原始碼斷言把守這一格（模擬式判準的盲區）。

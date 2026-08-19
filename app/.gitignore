@@ -1,7 +1,19 @@
 node_modules/
 www/
-android/
 .DS_Store
+
+# Android 原生專案本體進版控——CI 從 git clone 就能建置，也避免多工作樹環境遺失未追蹤專案。
+# 以下只忽略建置產物、本機設定與機密；Firebase 設定檔與簽章由發行環境安全注入。
+android/build/
+android/app/build/
+android/.gradle/
+android/local.properties
+android/app/google-services.json
+android/app/*.jks
+android/app/*.keystore
+android/.idea/
+android/captures/
+**/.cxx/
 
 # iOS 原生專案本體進版控——Xcode Cloud 從 git clone 建置，缺了就跑不起來。
 # 以下是建置產物與機密：產物由 CI 現場產生，機密由 Xcode Cloud 加密環境變數注入

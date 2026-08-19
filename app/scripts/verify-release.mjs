@@ -10,6 +10,56 @@ const defaultOut = join(appRoot, 'www');
 const fail = message => { throw new Error(`App 發行檢查失敗：${message}`); };
 const assert = (condition, message) => { if (!condition) fail(message); };
 
+export function assertNativeBridgeLoggingDisabled(capacitorConfig) {
+  assert(capacitorConfig?.loggingBehavior === 'none',
+    'capacitor.config.json loggingBehavior 必須是 none——Firebase 原生登入結果含憑證，不可寫入 Android logcat');
+}
+
+// Android v5 曾在 MainActivity.super.onCreate() 之前呼叫 EdgeToEdge.enable()。那一步會提早把
+// SplashScreen theme 的 ActionBar 建出來；Capacitor BridgeActivity 隨後才切 NoActionBar 已經來不及，
+// WebView 因而被上下各擠出一塊系統底色。Capacitor 8 自帶 SystemBars/insets handling，殼不應再手動開一次。
+export function assertAndroidMainActivityDoesNotPreInitWindow(mainActivity) {
+  assert(!/\bEdgeToEdge\s*\.\s*enable\s*\(/.test(mainActivity),
+    'Android MainActivity 不可手動呼叫 EdgeToEdge.enable()——會在 Capacitor 套用 NoActionBar 前初始化 launch theme，讓上下白帶回歸');
+}
+
+// Android v7 的定位契約：只宣告／請求模糊位置。enableHighAccuracy:false 只是取樣偏好，
+// 不能拿來代替權限 alias；所有一次性與連續定位都必須先明確請 coarseLocation，並在 bridge
+// 再把呼叫端傳進來的 true 壓回 false。iOS 維持既有精度與權限流程。
+export function assertAndroidCoarseLocationContract({ nativeBridgeSource, packagedBridge, androidManifest }) {
+  assert(androidManifest.includes('android.permission.ACCESS_COARSE_LOCATION'),
+    'Android manifest 必須宣告 ACCESS_COARSE_LOCATION');
+  assert(!androidManifest.includes('android.permission.ACCESS_FINE_LOCATION'),
+    'Android v7 只使用模糊位置，manifest 不可再宣告 ACCESS_FINE_LOCATION');
+  assert(/ANDROID_COARSE_LOCATION\s*=\s*Object\.freeze\(\{\s*permissions:\s*\['coarseLocation'\]\s*\}\)/s.test(nativeBridgeSource),
+    'Android 定位 bridge 必須把 coarseLocation 寫成唯一的權限請求 alias');
+  assert(/Geolocation\.requestPermissions\(ANDROID_COARSE_LOCATION\)/.test(nativeBridgeSource),
+    'Android 定位 bridge 沒有明確呼叫 Geolocation.requestPermissions(coarseLocation)');
+  assert(/platform\s*===\s*'android'[\s\S]*enableHighAccuracy:\s*false/.test(nativeBridgeSource),
+    'Android 定位 bridge 必須強制 enableHighAccuracy:false，不能讓其他入口再要求精確位置');
+  assert(/Geolocation\.getCurrentPosition\(androidGeoOptions\(options\)\)/.test(nativeBridgeSource),
+    '一次性定位沒有經過 Android 模糊精度收斂');
+  assert(/Geolocation\.watchPosition\(androidGeoOptions\(options\)/.test(nativeBridgeSource),
+    '連續定位沒有經過 Android 模糊精度收斂');
+  assert(packagedBridge.includes('coarseLocation'),
+    '打包後 native-bridge.js 不含 coarseLocation——原始碼修正沒有進入發行包');
+}
+
+// Android WebView <140 的 env(safe-area-inset-*) 有已知錯誤；Capacitor 8 會把正確值注入
+// --safe-area-inset-*。所有版面只准從 --sa-* 別名取值，否則三鍵導覽／手勢條會再次蓋住貼底控制。
+export function assertAndroidSafeAreaCssContract(html) {
+  for (const [short, edge] of [['t', 'top'], ['r', 'right'], ['b', 'bottom'], ['l', 'left']]) {
+    const pattern = new RegExp(`--sa-${short}:\\s*var\\(--safe-area-inset-${edge},\\s*env\\(safe-area-inset-${edge},\\s*0px\\)\\)`);
+    assert(pattern.test(html),
+      `CSS --sa-${short} 必須優先讀 Capacitor --safe-area-inset-${edge}，再退回 env(safe-area-inset-${edge})`);
+  }
+  assert(/body\.ambient \.controls\s*\{[^}]*bottom:\s*calc\(8px \+ var\(--sa-b\)\)/s.test(html),
+    'Android 放空模式底部控制未避讓 --sa-b——系統導覽列會再次蓋住「離開放空」');
+  assert(/\.topbar \.grouptabs \.gtab\s*\{[^}]*width:\s*36px[^}]*height:\s*36px/s.test(html)
+      && /\.topbar \.alert-chip\s*\{[^}]*width:\s*36px[^}]*height:\s*36px/s.test(html),
+    'Android 手機頂列必須維持緊湊 36px 幾何——360dp＋營運公告時「捷」會被裁掉');
+}
+
 // Stadia 官方要求的逐字署名(prepare-web 注入、本檔驗證,單一事實來源)
 export const STADIA_ATTRIBUTION = '&copy; <a href="https://stadiamaps.com/" target="_blank">Stadia Maps</a> &copy; <a href="https://openmaptiles.org/" target="_blank">OpenMapTiles</a> &copy; <a href="https://www.openstreetmap.org/copyright" target="_blank">OpenStreetMap</a>';
 // OpenFreeMap 要求的逐字署名(index.html 內就有這個常數,本檔驗它沒被改動,單一事實來源)。
@@ -65,6 +115,24 @@ export function assertPlusSandboxTestBuild(html, expectedBuild) {
     `TestFlight Sandbox 包的測試通道 build 標記不是 ${build}`);
 }
 
+export const ANDROID_PLUS_GATE_LINE =
+  "  if (IS_NATIVE_APP && window.Capacitor?.getPlatform?.() === 'android') return false;";
+
+export function assertAndroidPlusGate(html) {
+  const exactInitializer = [
+    'const PLUS_ENABLED = (() => { try {',
+    ANDROID_PLUS_GATE_LINE,
+    '  if (window.Capacitor && Capacitor.isNativePlatform && Capacitor.isNativePlatform()) return true;',
+    "  return new URLSearchParams(location.search).get('plus') === '1';",
+    '} catch (e) { return false; } })();',
+  ].join('\n');
+  assert(html.includes(exactInitializer),
+    'PLUS_ENABLED 必須先對原生 Android fail closed，再逐字保留既有 iOS 原生與 Web ?plus=1 分支；'
+    + '不得只藏單一入口或重寫共享判定式');
+  assert(html.split(ANDROID_PLUS_GATE_LINE).length === 2,
+    'Android 通行證平台 gate 必須且只能出現一次');
+}
+
 export async function assertLicensedBuildAllowed({ includeLicensedMusic, includeLicensedBasemaps }) {
   const policy = await readReleasePolicy();
   if (includeLicensedMusic) {
@@ -102,14 +170,6 @@ export async function assertLicensedBuildAllowed({ includeLicensedMusic, include
 // 指紋＝呼叫參數拿掉「所有字串literal內容」與空白之後剩下的程式結構。
 // 這樣改文案不會動到指紋（不會為了改一句話就紅燈），改結構才會。
 const TOAST_REVIEWED = new Map([
-  // 2026-08-18 登記:北捷「官方訂正位置」(trtcOfficialCorrectTick)與「官方訊號恢復」
-  // (trtcOfficialResyncTick)兩則通知。兩處的 msg 都是樣板字串,插值只有 count／maxM／mins／
-  // removed 四個,全部由 Math.round()／Number() 產生的數字,無使用者資料、無外部輸入;
-  // 字串裡的 <b> 是刻意要的粗體,所以不能整段 escHtml。
-  // ⚠️ 這個指紋是「變數名＋選項」的形狀,不綁呼叫點:日後若出現**新的**
-  // showToast(msg, { wrap: true }),會被這一筆自動放行 ⇒ 新增這種呼叫時必須回來重審,
-  // 不要因為帳本裡已經有這個指紋就當作有人審過。
-  ['msg,{wrap:true}', '北捷官方訂正/訊號恢復通知:插值只有 count/maxM/mins/removed 四個數字,無使用者資料'],
   [`info.done?'':''`, '兩個寫死字串二選一,無插入'],
   [`on?'':''`, '兩個寫死字串二選一,無插入'],
   [`''+note+''`, 'onLocateFail:note 只可能是四個寫死常數之一,無使用者資料'],
@@ -124,6 +184,23 @@ const TOAST_REVIEWED = new Map([
   [`t.toast`, '使用說明「試一次」:t 必為 HELP_TRY 成員,其 toast 全是寫死字面字串,無插入'],
   ["j.why===''?'':`${st.name}${Math.round(j.distM)},(${j.r})`", '單站打卡:st.name 來自內建班表/路線資料;distM 是 haversineKm 計算值,r 是 CHECKIN_RADIUS_M 數字常數'],
   ['`${st.name}`', '單站打卡:st 只由 nearbyStationCandidates 的內建班表/路線車站產生,站名不可由使用者編輯'],
+  // 2026-08-15 登記:北捷官方訊號恢復通知(trtcOfficialResyncTick,index.html:5059,斷訊挽救批次)。
+  // msg 是本地變數,由三個插值組成、全部是數字:
+  //   mins    = Math.max(1, Math.round(r.outageSec / 60));r.outageSec 唯一寫入點是
+  //             `Math.max(Number(...) || 0, coastedFor)`(index.html:5197)⇒ 數字
+  //   count   = r.count,唯一寫入點是 `(Number(...) || 0) + 1`(index.html:5198)⇒ 數字
+  //   removed = Number(rec.removed),且被 `Number(rec.removed) > 0` 守著 ⇒ 有限正數
+  // rec 來自自家 /api/trtc-live 的 recovery 物件,但即使上游吐 HTML 字串,Number() 也會變 NaN
+  // 而被 >0 擋掉。三處皆無字串路徑進 innerHTML;句中的 <b> 是刻意的粗體排版。
+  [`msg,{wrap:true}`, '官方訊號恢復通知:三個插值(分鐘/台數/移除台數)全經 Number()/Math.* 收斂為數字,無字串來源'],
+  // 2026-08-16 登記:通行證提示批次的兩發說明型 toast(看板的小工具引導、衛星的高解析說明)。
+  // 這個指紋是**偵測器的已知假陽性**,不是「有插入但我判斷安全」:blankLiterals 把整段字面字串
+  // 換成 '',於是只剩選項物件 `{wrap:true}` 裡的識別字 `wrap` 被 toastHasInjection 認成插入。
+  // 這一格涵蓋的呼叫形狀是【單一字串字面值 ＋ {wrap:true}】,結構上不存在插入點:
+  //   · 若有人日後改成 showToast('前綴' + name, {wrap:true}),blankLiterals 後是 ''+name,{wrap:true}
+  //     ⇒ 指紋不同 ⇒ 仍會被擋下來(這一格【不會】順便放行拼接版本)。
+  //   · 若改成樣板字串帶插值,指紋也會帶著 ${...} 而不同,同樣擋得住。
+  [`'',{wrap:true}`, '純字面字串＋{wrap:true} 選項:指紋裡的 wrap 是選項名不是插值,無任何值進 innerHTML'],
   // 2026-08-14 登記:捷運等車卡(Task 6)。
   [`res&&res.why===''?'':''`, '等車卡開卡失敗:兩個寫死字串二選一(why===disabled 與否),無插入'],
   [`''+escHtml(String(station||''))+''`, '等車卡深連結找不到站:station 來自小工具深連結(外部輸入),已 escHtml 逸出;verify_metro_wait_entry.mjs H 組實測覆蓋'],
@@ -252,6 +329,10 @@ export async function verifyRelease({
   const relativeFiles = files.map(file => relative(output, file).replaceAll('\\', '/'));
   const indexPath = join(output, 'index.html');
   const html = await readFile(indexPath, 'utf8');
+  const nativeBridgeSource = await readFile(join(appRoot, 'src/native-bridge.mjs'), 'utf8');
+  const packagedBridge = await readFile(join(output, 'native-bridge.js'), 'utf8');
+  const androidManifest = await readFile(join(appRoot, 'android/app/src/main/AndroidManifest.xml'), 'utf8');
+  assertAndroidCoarseLocationContract({ nativeBridgeSource, packagedBridge, androidManifest });
 
   // ── 創始會員截止時刻的「上線錨點」(B-4,2026-08-03 裁示)───────────────────────
   // 創始價視窗＝上線錨點時刻起算固定 30 天。上線錨點由 revenuecat-config.js 的
@@ -328,6 +409,7 @@ export async function verifyRelease({
 
   if (expectPlusSandboxBuild !== null) assertPlusSandboxTestBuild(html, expectPlusSandboxBuild);
   else assertPlusSandboxOff(html);
+  assertAndroidPlusGate(html);
 
   await assertLicensedBuildAllowed({
     includeLicensedMusic: musicEnabled,
@@ -493,6 +575,7 @@ export async function verifyRelease({
   const repoIndex = await readFile(join(repoRoot, 'index.html'), 'utf8');
   const repoBuild = extractBuild(repoIndex);
   assert(repoBuild, '根目錄 index.html 找不到 BUILD 版本戳記');
+  assertAndroidSafeAreaCssContract(repoIndex);
 
   // 金鑰不得寫死進公開 repo（稽核 2026-07-26）：2026-07-25 的 commit 5aab5c4 把網站用的 Esri
   // token 直接寫進 index.html，於是隨 public repo 推上 GitHub、也印在 railisland.tw 的網頁原始碼裡。
@@ -509,11 +592,14 @@ export async function verifyRelease({
   // 原生內嵌資產一致性：iOS／Android 打包的 public/ 必須與 app/www 同版。
   // build 結尾呼叫時 cap sync 尚未跑,故 skipNativeSyncCheck=true;獨立 npm run verify 才做此比對。
   if (!skipNativeSyncCheck) {
+    const nativeTarget = String(process.env.RAIL_VERIFY_NATIVE || 'all').toLowerCase();
+    assert(['all', 'ios', 'android'].includes(nativeTarget),
+      'RAIL_VERIFY_NATIVE 只接受 all、ios 或 android');
     const nativeIndexes = [
-      ['iOS', join(appRoot, 'ios/App/App/public/index.html')]
-      // Android 生成後補上 ['Android', join(appRoot, 'android/app/src/main/assets/public/index.html')]
-    ];
-    for (const [label, nativeIndex] of nativeIndexes) {
+      ['ios', 'iOS', join(appRoot, 'ios/App/App/public/index.html')],
+      ['android', 'Android', join(appRoot, 'android/app/src/main/assets/public/index.html')]
+    ].filter(([platform]) => nativeTarget === 'all' || nativeTarget === platform);
+    for (const [, label, nativeIndex] of nativeIndexes) {
       let nativeHtml;
       try { nativeHtml = await readFile(nativeIndex, 'utf8'); }
       catch {
@@ -527,6 +613,16 @@ export async function verifyRelease({
       const nativeBuild = extractBuild(nativeHtml);
       assert(nativeBuild === wwwBuild,
         `${label} 內嵌資產版本不一致：${relative(repoRoot, nativeIndex)} 為 ${nativeBuild},app/www 為 ${wwwBuild};請執行 npm run sync（build + cap sync）`);
+    }
+    if (nativeTarget === 'all' || nativeTarget === 'android') {
+      const mainActivityPath = join(appRoot, 'android/app/src/main/java/tw/railisland/app/MainActivity.java');
+      let mainActivity = null;
+      try { mainActivity = await readFile(mainActivityPath, 'utf8'); }
+      catch {
+        assert(!process.env.RAIL_REQUIRE_NATIVE,
+          `Android MainActivity 不存在（${relative(repoRoot, mainActivityPath)}）——無法驗證 launch theme 不會重生 ActionBar`);
+      }
+      if (mainActivity !== null) assertAndroidMainActivityDoesNotPreInitWindow(mainActivity);
     }
   }
 
@@ -584,6 +680,12 @@ export async function verifyRelease({
     assert(/window\.RAIL_APPLE_LOGIN\s*=\s*true/.test(firebaseConfig),
       '登入鈕可能被畫出(Firebase 已配置)但 RAIL_APPLE_LOGIN 不是 true——半套登入（有 Google 無 Apple）會被 App Store 4.8 退件');
   }
+
+  // Capacitor 的 production logging 是「正式版也開啟」，Bridge 會把 plugin call/result
+  // 完整序列化到 logcat。FirebaseAuthentication 回傳含 access token 與 ID token，
+  // 因此不能只依賴「不手動 console.log」：發行閣門必須強制關閉原生橋接日誌。
+  const capacitorConfig = JSON.parse(await readFile(join(appRoot, 'capacitor.config.json'), 'utf8'));
+  assertNativeBridgeLoggingDisabled(capacitorConfig);
 
   const textExtensions = new Set(['.html', '.js', '.mjs', '.json', '.css', '.webmanifest', '.txt', '.md']);
   const suspiciousSecretPatterns = [

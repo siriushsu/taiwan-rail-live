@@ -299,4 +299,3 @@ const pass = results.filter(result => result.ok).length;
 const fail = results.length - pass;
 console.log(`\n驗證總計：PASS ${pass}，FAIL ${fail}`);
 if (fail) process.exitCode = 1;
-

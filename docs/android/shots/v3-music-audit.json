@@ -1,0 +1,43 @@
+{
+  "device": "RailIsland_API35_Pixel7",
+  "android": 15,
+  "api": 35,
+  "interaction": "ADB taps on the visible More > background-music row",
+  "playing": {
+    "available": true,
+    "enabled": true,
+    "paused": false,
+    "file": "Untitled-2.mp3",
+    "src": "https://localhost/suno musics/Untitled-2.mp3",
+    "durationSeconds": 102.384,
+    "firstCurrentTimeSeconds": 22.74,
+    "secondCurrentTimeSeconds": 57.558,
+    "volume": 0.5,
+    "readyState": 4,
+    "toolbarPlayingClass": true,
+    "moreRowToggle": "on"
+  },
+  "audioFlinger": {
+    "package": "tw.railisland.app",
+    "pid": 4532,
+    "uid": 10207,
+    "trackId": 56,
+    "active": true,
+    "sampleRateHz": 48000,
+    "route": "AUDIO_DEVICE_OUT_SPEAKER",
+    "signalPower": "non-silent samples, approximately -55 to -70 dB"
+  },
+  "stopped": {
+    "enabled": false,
+    "paused": true,
+    "volume": 0,
+    "toolbarPlayingClass": false,
+    "moreRowToggle": "off"
+  },
+  "evidence": [
+    "v3-music-playing.png",
+    "v3-music-stopped.png",
+    "v3-music-audioflinger.txt"
+  ],
+  "failures": []
+}

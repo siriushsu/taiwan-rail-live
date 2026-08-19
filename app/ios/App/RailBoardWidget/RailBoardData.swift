@@ -311,31 +311,38 @@ final class RailBoardStore {
         )) ?? []
     }
 
+    /// 共站鍵 → 成員站（每個系統一個代表）。
+    ///
     /// 鍵存的是站名而不是索引：共站清單會隨班表重建，索引會位移、站名不會
     /// （站名真的改了就當作這個入口消失，退回「找不到這個車站」而不是靜默指到別站）。
-    func compositeBoard(forKey key: String) -> PlaceBoardDocument? {
+    ///
+    /// 🔴 `sts` 缺就回 nil，不准退回舊的幾何共站看板：那條路會讓畫面寫「經過」，
+    ///    對有月台的車站是錯的訊息。舊資料的正解是讓 App 重算一次（boardFormat 3
+    ///    會強制重算），在那之前這個入口就當作暫時不可用。
+    func compositeSelection(forKey key: String) -> CompositeSelection? {
         guard key.hasPrefix(Self.compositeKeyPrefix) else { return nil }
         let label = String(key.dropFirst(Self.compositeKeyPrefix.count))
         guard !label.isEmpty else { return nil }
         let matches = composites().filter { $0.label == label }
-        guard matches.count == 1 else { return nil }
-        let document = try? decode(
-            PlaceBoardDocument.self,
-            relativePath: "composite-board/\(matches[0].i).json"
-        )
-        guard let document, document.v == 1 else { return nil }
-        return document
+        guard matches.count == 1, let members = matches[0].sts, !members.isEmpty else {
+            return nil
+        }
+        return CompositeSelection(label: label, members: members)
+    }
+
+    /// 這個鍵是不是共站入口（不管資料齊不齊）。用來把「資料還沒重算」與「根本不是共站」
+    /// 分開講：前者要叫使用者開一次 App，後者是設定壞了。
+    func isCompositeKey(_ key: String) -> Bool {
+        key.hasPrefix(Self.compositeKeyPrefix)
     }
 
     static let compositeKeyPrefix = "xsta|"
     static let placeKeyPrefix = "place|"
 
-    /// 「我的地點」與「共站」在顯示與篩選上完全一樣，只差看板檔從哪個目錄讀。
-    /// 集中在這裡判前綴，呼叫端就不會有人漏掉其中一種（時間軸、快照、篩選清單三處都要）。
+    /// 只有「我的地點」走地點看板。
+    /// 🔴 共站曾經也走這裡（因為顯示與篩選長得一樣），2026-08-17 拆掉——它有月台，
+    ///    要的是官方發車時刻，不是幾何通過時刻。加新入口前先問「那裡站得上月台嗎」。
     func placeLikeBoard(forKey key: String) -> PlaceBoardDocument? {
-        if key.hasPrefix(Self.compositeKeyPrefix) {
-            return compositeBoard(forKey: key)
-        }
         guard key.hasPrefix(Self.placeKeyPrefix) else { return nil }
         return (try? placeBoard(forKey: key)) ?? nil
     }
@@ -546,6 +553,12 @@ struct StationSelection {
     let displayName: String?
 }
 
+/// 共站的一個成員站：`st` 就是 `board/<st>.json` 的索引。
+struct CompositeMember: Decodable {
+    let sys: String
+    let st: Int
+}
+
 /// 一個使用者地點解析到既有車站鍵後的選單捷徑。
 /// 共站入口的一筆。`i` 只在同一次發布內有效，設定裡存的是 `label`。
 struct CompositeStationRecord: Decodable {
@@ -554,8 +567,16 @@ struct CompositeStationRecord: Decodable {
     let subtitle: String
     let lat: Double
     let lon: Double
+    /// 成員站的官方看板索引。boardFormat 2 及更早的資料沒有這一欄 ⇒ 可選。
+    let sts: [CompositeMember]?
 
     var key: String { RailBoardStore.compositeKeyPrefix + label }
+}
+
+/// 解析好的共站選擇：要畫哪幾站的官方發車看板。
+struct CompositeSelection {
+    let label: String
+    let members: [CompositeMember]
 }
 
 struct PlaceStationOption {
@@ -753,6 +774,25 @@ enum JourneyRelation: String {
     case pass
 }
 
+// RailHeading 本身宣告在 RailWidgetKit.swift（元件層要用它畫三角，而元件層不可以依賴
+// 這個檔案——捷運那支算繪 harness 只編 kit）。這裡只放「怎麼從車站資料算出方向」。
+extension RailHeading {
+    /// 🔴 判準是「緯度誰高」，沒有門檻值。曾想過「緯差太小就不畫」，但那個門檻是手打的
+    ///    魔術數字、每次改支線資料都得重調；而三角只宣稱「北邊／南邊」這件事本身——
+    ///    緯差 2 公里的支線畫出來仍然是對的，只是資訊量小，不會是錯的。
+    ///
+    /// 缺座標（舊 App 寫的 payload 沒有 la）、站號越界、或兩站同緯度時回 nil ⇒ 不畫三角。
+    /// 「不畫」是刻意的：寧可少一個圖形，不要畫一個猜的方向。
+    static func between(from: Int, to: Int?, stations: [StationRecord]) -> RailHeading? {
+        guard let to,
+              stations.indices.contains(from), stations.indices.contains(to),
+              let a = stations[from].la, let b = stations[to].la,
+              a.isFinite, b.isFinite, a != b
+        else { return nil }
+        return b > a ? .north : .south
+    }
+}
+
 struct JourneyTemplate {
     let trainNumber: String
     let trainType: String
@@ -760,6 +800,9 @@ struct JourneyTemplate {
     let daysMask: Int
     let arrivalSecond: Int?
     let destinationID: Int?
+    /// 定義方向的那一站：發車取【下一個停靠站】（那才是「離站往哪走」），
+    /// 通過取終點站，終到是 nil（車在這裡就結束，沒有往哪走這件事）。
+    let headingID: Int?
     let relation: JourneyRelation
 }
 
@@ -772,6 +815,12 @@ struct ScheduledJourney {
     let arrivalDate: Date?
     let destinationName: String?
     let relation: JourneyRelation
+    /// 離站往北還是往南（算不出來就是 nil：終到列車、舊版 payload 沒座標、或兩站同緯度）。
+    let heading: RailHeading?
+    /// 🔴 這班車屬於哪個系統。共站的一張看板同時含台鐵與高鐵，而只有台鐵有即時誤點
+    ///    ⇒「要不要掛誤點」必須逐班問，不能問整張看板（問整張＝把高鐵的車也拿去查
+    ///    台鐵誤點表，車次號還會撞號）。
+    let systemID: String
     var isLastOfDay: Bool
 }
 
@@ -794,12 +843,23 @@ struct PreparedBoard {
     let destinationName: String?
     let originDisplayName: String?
     let destinationDisplayName: String?
-    let system: SystemMetadata
+    /// 🔴 一張看板可以有多個系統（共站＝台鐵＋高鐵同一個地方），所以這裡是複數。
+    ///    刻意不留 `system` 單數的捷徑：拿第一個系統代表整張看板，在共站上會把高鐵的車
+    ///    當成台鐵去查誤點、也會用錯的班表窗算「請更新軌島」。
+    let systems: [SystemMetadata]
     let typeColors: [String: String]
     let stations: [StationRecord]
     let templates: [JourneyTemplate]
     let journeys: [ScheduledJourney]
     let meta: MetaDocument
+
+    /// 這張看板上有沒有任何一個系統提供即時誤點（只有它為真才值得打即時 API）。
+    var anyLive: Bool { systems.contains { $0.live } }
+
+    /// 這一班車所屬的系統有沒有即時誤點。
+    func isLive(systemID: String) -> Bool {
+        systems.first { $0.id == systemID }?.live ?? false
+    }
 
     var title: String {
         if let destinationName {
@@ -859,9 +919,12 @@ enum BoardFilter: Hashable {
     /// 方向綁在線上：同一個地點可能同時有台鐵與高鐵，兩條線的「順里程」是不同的方向。
     case direction(line: String, forward: Bool)
 
+    /// 車種鍵的前綴。共站要把兩站的選項聯集後重新分段，需要從鍵反推它是哪一類。
+    static let trainTypePrefix = "ty|"
+
     var key: String {
         switch self {
-        case .trainType(let value): return "ty|\(value)"
+        case .trainType(let value): return "\(Self.trainTypePrefix)\(value)"
         case .trainNumber(let value): return "no|\(value)"
         case .direction(let line, let forward): return "dir|\(line)|\(forward ? 1 : 0)"
         }
@@ -1237,6 +1300,7 @@ struct RailBoardEngine {
                     templates: templates,
                     system: system,
                     stations: stations,
+                    originID: originID,
                     actualServiceDay: serviceDay
                 )
             )
@@ -1264,12 +1328,54 @@ struct RailBoardEngine {
             destinationName: destinationName,
             originDisplayName: originDisplayName,
             destinationDisplayName: destinationDisplayName,
-            system: system,
+            systems: [system],
             typeColors: meta.types,
             stations: stations,
             templates: templates,
             journeys: visibleJourneys,
             meta: meta
+        )
+    }
+
+    /// 共站：把每個成員站的**官方發車看板**各自備好，再按時刻合成一張。
+    ///
+    /// 🔴 為什麼不是把座標丟給地點看板那套（2026-08-17 前的做法）：那條路是幾何的
+    ///    （把座標投影到軌道、算幾點跨過那個里程），對「我的地點」正確，對共站錯——
+    ///    台北車站有月台、車會停，而幾何時刻不含停靠時間，畫面上還得寫「經過」才對得上
+    ///    資料，等於告訴使用者這班車不停。官方發車看板才是這一站真正的開車時刻。
+    ///
+    /// 🔴 `markLastJourneysByCalendarDay` 刻意不在合併後重跑：「今天最後一班」是各系統
+    ///    各自的事實（台鐵末班與高鐵末班是兩件事），各成員在自己的 prepare 裡已經標好。
+    func prepare(
+        composite: CompositeSelection,
+        filters: BoardFilterSet = BoardFilterSet(keys: nil),
+        now: Date
+    ) throws -> PreparedBoard {
+        let parts = try composite.members.map {
+            try prepare(originID: $0.st, destinationID: nil, filters: filters, now: now)
+        }
+        guard let first = parts.first else { throw RailBoardDataError.invalidStation }
+
+        var journeys = parts.flatMap(\.journeys)
+        journeys.sort { lhs, rhs in
+            if lhs.scheduledDate == rhs.scheduledDate {
+                if lhs.systemID != rhs.systemID { return lhs.systemID < rhs.systemID }
+                return lhs.trainNumber.localizedStandardCompare(rhs.trainNumber) == .orderedAscending
+            }
+            return lhs.scheduledDate < rhs.scheduledDate
+        }
+
+        return PreparedBoard(
+            originName: composite.label,
+            destinationName: nil,
+            originDisplayName: composite.label,
+            destinationDisplayName: nil,
+            systems: parts.flatMap(\.systems),
+            typeColors: first.typeColors,
+            stations: first.stations,
+            templates: parts.flatMap(\.templates),
+            journeys: journeys,
+            meta: first.meta
         )
     }
 
@@ -1289,6 +1395,7 @@ struct RailBoardEngine {
                     daysMask: departure.days,
                     arrivalSecond: destination[1],
                     destinationID: destinationID,
+                    headingID: departure.to.first?.first,
                     relation: .departure
                 )
             }
@@ -1302,6 +1409,7 @@ struct RailBoardEngine {
                 daysMask: departure.days,
                 arrivalSecond: nil,
                 destinationID: departure.to.last?.first,
+                headingID: departure.to.first?.first,
                 relation: .departure
             )
         }
@@ -1314,6 +1422,8 @@ struct RailBoardEngine {
                     daysMask: arrival.days,
                     arrivalSecond: nil,
                     destinationID: nil,
+                    // 終到列車沒有「往哪走」⇒ 不畫方向三角（不是缺資料,是這件事不存在）。
+                    headingID: nil,
                     relation: .arrival
                 )
             }
@@ -1327,6 +1437,8 @@ struct RailBoardEngine {
                     daysMask: passing.days,
                     arrivalSecond: nil,
                     destinationID: passing.en,
+                    // 通過的班次沒有「下一個停靠站」這筆資料(它在本站不停) ⇒ 退用終點站。
+                    headingID: passing.en,
                     relation: .pass
                 )
             }
@@ -1343,6 +1455,7 @@ struct RailBoardEngine {
         templates: [JourneyTemplate],
         system: SystemMetadata,
         stations: [StationRecord],
+        originID: Int,
         actualServiceDay: Date
     ) -> [ScheduledJourney] {
         guard let sourceDay = scheduleSourceDay(for: actualServiceDay, system: system) else {
@@ -1394,9 +1507,31 @@ struct RailBoardEngine {
                 arrivalDate: arrivalDate,
                 destinationName: destinationName,
                 relation: template.relation,
+                heading: RailHeading.between(
+                    from: originID,
+                    to: template.headingID,
+                    stations: stations
+                ),
+                systemID: system.id,
                 isLastOfDay: false
             )
         }
+    }
+
+    /// 多系統看板（共站）取最該講的那一則：只要有一個系統的班表已過期，整張看板就不能
+    /// 假裝沒事；都只是快到期時取最早到期的那個。
+    func notice(for date: Date, systems: [SystemMetadata]) -> ScheduleNotice? {
+        let notices = systems.compactMap { notice(for: date, system: $0) }
+        let expired = notices.compactMap { notice -> Date? in
+            if case .expired(let source) = notice { return source }
+            return nil
+        }
+        if let earliestExpired = expired.min() { return .expired(source: earliestExpired) }
+        let expiring = notices.compactMap { notice -> Date? in
+            if case .expiring(let until) = notice { return until }
+            return nil
+        }
+        return expiring.min().map { ScheduleNotice.expiring(until: $0) }
     }
 
     func notice(for date: Date, system: SystemMetadata) -> ScheduleNotice? {
@@ -1502,10 +1637,18 @@ struct RailBoardLiveClient {
                 return [:]
             }
             let live = try JSONDecoder().decode(LiveResponse.self, from: data)
+            // 🔴 delay == 0 也要收。它是「官方有這班車的即時讀數，而且準點」——與
+            //    「查無讀數」（鍵不存在：還沒發車、或高鐵這種沒有逐車誤點的系統）是兩件事。
+            //    舊版只收 > 0，兩者都變成 nil ⇒ 畫面上永遠畫不出「準點」，而設計稿把它
+            //    列為臺鐵卡的核心元素（沒有它，使用者無法分辨「準點」與「我們不知道」）。
+            //    仍然不收負值（早到）：max(0, …) 只用在推遲倒數，顯示層自己會講「早到」。
             return live.trains.reduce(into: [String: Int]()) { delays, train in
-                if train.delay > 0 {
-                    delays[train.no] = max(delays[train.no] ?? 0, train.delay)
+                guard let existing = delays[train.no] else {
+                    delays[train.no] = train.delay
+                    return
                 }
+                // 同一個車次出現兩次（跨日班次）時取較嚴重的那個讀數。
+                delays[train.no] = max(existing, train.delay)
             }
         } catch {
             return [:]
