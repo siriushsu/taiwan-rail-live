@@ -5376,6 +5376,12 @@ function trtcCensusVehicles(trains, nowEpoch, day) {
       to = from; from = prev;
     }
     if (walked.length) run = trtcCensusRun(ln, from, to);
+    // 🔴 使用者裁示(2026-08-18):「倒數塞不進區段就整列忽略」「起點列是發車倒數,未發車不畫」。
+    // 一路回推到線頭仍塞不進 ⇒ 這台車根本還沒發車,不該畫。實測中和新蘆線車號 410 停在起點站,
+    // 站 1 的倒數 256 秒而那一段只要 90 秒,舊碼用「發車 = 到站 − 行駛秒」把它畫成一台在月台上
+    // 罰站 159 秒的車(2026-08-19 使用者:「只要出現車子卡住停住疊在一起,那絕對不是我給的規則
+    // 有問題,要從你的規則去找」)。文湖線那條路徑早就有這條規則,逐車名冊這條漏了。
+    if (!terminal && step && !trtcCountdownFitsSegment(ln, from, to, arrEpoch - nowEpoch)) continue;
     // dest 不是裝飾：名冊驗證要求它是合法站序整數，null 會讓整包 payload 被判 malformed。
     // 官方沒給終點（文湖線全部、高運量約一成）就用行進方向上的線末站——語意也對。
     const di0 = arr.indexOf(_trtcCensusNorm(t.dest));
@@ -5617,6 +5623,19 @@ function trtcOfficialTimelinePosition(ln, vehicle, now) {
       from: Number(item.from), to: Number(item.to), depEpoch: Number(item.depEpoch), arrEpoch: Number(item.arrEpoch) }))
     .sort((a, b) => a.depEpoch - b.depEpoch || a.arrEpoch - b.arrEpoch);
   if (!moving.length) return { handled: false, pos: null };
+  // 🔴 使用者規則 R6:「平常過站,就是秒數到就出發」「到站後用停站秒數加進去判斷,時間到之後由
+  // 下一站的倒數接手出發」。官方每站的倒數各自獨立,timeline 每一段的 depEpoch 原本一律是
+  //「該站倒數 − 我們算的行駛秒」,段與段之間沒有任何東西接起來 ⇒ 上一段到站到這一段發車之間
+  // 會開一個洞(實測環狀線一台車 4->5 段的洞有 126 秒,車就停在站上罰站);洞的另一面是只停
+  // 12 秒就彈出去(比我們資料裡的停靠秒還短)。發車時刻一律改由「上一段到站 + 該站停靠秒」決定,
+  // arrEpoch 維持官方值不動 ⇒ 照停站秒發車、再用梯形速度準時到下一站。
+  // 放在這裡是因為 census 與 board-seg 兩條產車路徑都走這個函式 ⇒ 每條線每一站一致套用。
+  for (let i = 1; i < moving.length; i++) {
+    const prev = moving[i - 1], cur = moving[i];
+    if (cur.from !== prev.to) continue;                 // 段不相接就不動它
+    const dep = prev.arrEpoch + trtcOfficialDwellAt(ln, cur.from);
+    cur.depEpoch = Math.min(dep, cur.arrEpoch - 1);     // 發車不得晚於官方到站時刻
+  }
   const dest = Number(vehicle && vehicle.dest);
   const destination = moving.filter(item => item.to === dest).sort((a, b) => b.arrEpoch - a.arrEpoch)[0];
   if (destination && now >= destination.arrEpoch) return { handled: true, pos: null };
@@ -6014,14 +6033,12 @@ function trtcOfficialDisplayPosition(ln, vehicle, nowEpoch) {
   // 這與昨晚那個 bug 同病:把錨點掛在一個會被改的值上。
   // 修法:到站時刻用我們自己 latch 住的那一刻(prior.arrivedAt),停站秒一到就**自己用該段的
   // 行駛秒推出發**,不等官方換列;官方換列後 plan 自然回到官方倒數,位置就被校正回去。
-  let shown = prior.progress;
-  if (plan && plan.progress > prior.progress + 1e-9 && now >= trtcOfficialDwellUntil(ln, vehicle, prior, plan)) {
-    const remain = plan.arrEpoch - prior.epoch;
-    const ratio = remain > dt ? dt / remain : 1;   // 剩餘時間已經不到一格 ⇒ 這一格就該到站
-    // 物理上限仍在:官方倒數若突然只剩兩秒而我們還差一整段,寧可晚到也不瞬移。
-    shown = Math.min(prior.progress + (plan.progress - prior.progress) * ratio,
-      trtcOfficialForwardLimit(ln, vehicle, prior.progress, dt * TRTC_OFFICIAL_CATCHUP_FACTOR));
-  }
+  // 🔴 2026-08-19 使用者裁示:「前面不對的東西都要拿掉,那些都是你自己加上去的判斷。」
+  // 拆掉「不倒退地板」:shown 原本從 prior.progress(上一格畫到哪)起算、只准往前爬。官方倒數一
+  // 修訂,重算出來的位置就落在地板後面,車只能站在原地等真實位置追上來——實測環狀線一台畫面
+  // 超前真實位置 0.64 段,接下來 57 秒動也不動;另一台卡在離站心 0.01 段處逾 200 秒。
+  // 位置直接用官方時刻算出來的 raw,不再由上一格的畫面位置決定。
+  const shown = progress;
   const pos = trtcOfficialPositionAtProgress(ln, vehicle, shown, raw);
   _trtcOfficialDisplay.set(key, { epoch: now, progress: shown, pos, coasted, coastSince, anchor, obs, step, dr,
     ...trtcOfficialStopState(plan, shown, prior, now),
@@ -6077,6 +6094,11 @@ function trtcOfficialRenderItems(ln, boardPos, nowEpoch, enabled) {
 // 🔴 只往後夾、且絕不低於這台車上一格已經畫到的位置(契約 3「不到退」)——已經重疊的情況
 // 凍後車、等前車自己分離,不把後車往回拉(往回拉會變成畫面倒退,那是另一個使用者看得到的缺陷)。
 function trtcOfficialSeparate(ln, items, nowEpoch) {
+  // 🔴 2026-08-19 使用者裁示:「前面不對的東西都要拿掉。」拆掉最小間距夾——後車被夾到「上一格
+  // 自己畫到的位置」時就整台凍在原地等前車走,而前車若也被凍住,整串就一起卡死。疊車是名冊算
+  // 錯的徵狀,不該在畫面上壓;壓了只是把一個看得見的錯換成另一個看得見的錯。
+  return items;
+  /* eslint-disable no-unreachable */
   if (!ln || !Array.isArray(ln.stations) || items.length < 2) return items;
   for (const dir of [1, 2]) {
     const step = dir === 2 ? 1 : -1;
@@ -6103,6 +6125,7 @@ function trtcOfficialSeparate(ln, items, nowEpoch) {
     }
   }
   return items;
+  /* eslint-enable no-unreachable */
 }
 function trtcOfficialVehicleGlyph(officialNo, lineAbbr) {
   const official = String(officialNo || ''), fallback = String(lineAbbr || '');
