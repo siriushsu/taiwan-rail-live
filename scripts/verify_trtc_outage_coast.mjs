@@ -66,10 +66,12 @@ const FUNCTIONS = [
   'trtcOfficialDeparturePosition',
   'trtcOfficialTimelinePosition', 'trtcOfficialVehiclePosition',
   'trtcOfficialPositionProgress', 'trtcOfficialMotionStep', 'trtcOfficialPositionAtProgress',
-  'trtcOfficialSegmentSeconds', 'trtcOfficialForwardLimit', 'trtcOfficialDisplayPosition',
+  'trtcOfficialSegmentSeconds', 'trtcOfficialForwardLimit', 'trtcOfficialDwellAt', 'trtcGapUnitsAt',
+  'trtcOfficialArrivalTarget', 'trtcOfficialDwellUntil', 'trtcOfficialStopState', 'trtcOfficialDisplayPosition',
 ];
 const CONSTS = ['TRTC_OFFICIAL_COAST_DWELL_MIN_SEC', 'TRTC_OFFICIAL_COAST_DWELL_DEFAULT_SEC',
-  'TRTC_OFFICIAL_COAST_DWELL_SEC', 'TRTC_OFFICIAL_RESYNC_MIN_COAST_SEC', '_trtcOfficialResync'];
+  'TRTC_OFFICIAL_COAST_DWELL_SEC', 'TRTC_OFFICIAL_RESYNC_MIN_COAST_SEC', '_trtcOfficialResync',
+  'TRTC_MIN_GAP_KM', 'TRTC_OFFICIAL_SNAP_FORWARD_M', 'TRTC_OFFICIAL_CATCHUP_FACTOR', '_trtcOfficialCorrect'];
 
 function buildApi(source = INDEX) {
   const consts = CONSTS.map(n => { try { return extractConst(source, n); } catch { return ''; } }).join('\n');
@@ -234,7 +236,9 @@ const api = buildApi();
       const seg = api.runBetween(ln, arrivals[i - 1].station, arrivals[i].station);
       if (!(seg > 0)) continue;
       const gap = arrivals[i].at - arrivals[i - 1].at;
-      const expect = seg + 25;                               // 固定段秒 + 固定停站秒
+      // 停站秒取該站的官方值(臺北捷運「相鄰兩站間之行駛時間及停靠站時間」),沒有才退回 25。
+      const dw = Array.isArray(ln.dwellSec) ? Number(ln.dwellSec[arrivals[i - 1].station]) : NaN;
+      const expect = seg + (dw > 0 ? dw : 25);                // 固定段秒 + 該站官方停站秒
       if (Math.abs(gap - expect) > 2)
         bad.push(`${v.line} ${v.officialNo || v.vehicleId} 第${i}段 實測${gap}s 應為${expect}s（段秒${seg}）`);
     }
@@ -284,11 +288,14 @@ const api = buildApi();
 {
   const y = vehicles.filter(v => v.line === 'Y');
   const ln = LINES.get('Y');
-  const drawn = y.filter(v => api.trtcOfficialVehiclePosition(ln, v, SAMPLE_AT + 60));
-  check(!!ln && (!ln.segs || !ln.segs.length), '前提：環狀線 Y 確實沒有段秒資料',
-    `segs=${ln && ln.segs ? ln.segs.length : 0}`);
+  // 🔴 2026-08-18:環狀線當天補進了官方段秒,原本「Y 沒有段秒」的前提就此消失。
+  // 這條測的契約是「線上沒有段秒資料時不准整條車消失」,所以改成自己把段秒拿掉來測,
+  // 判準不再綁在「某條線剛好缺資料」這個會漂移的事實上(judgment 心得 35)。
+  const bare = { ...ln, segs: [] };
+  const drawn = y.filter(v => api.trtcOfficialVehiclePosition(bare, v, SAMPLE_AT + 60));
+  check(!bare.segs.length, '前提：反向對照用的線物件已把段秒清空', `segs=${bare.segs.length}`);
   check(drawn.length > 0,
-    '環狀線 Y 無段秒仍走原路徑、不整條消失',
+    '線上沒有段秒資料時仍走原路徑、不整條消失（以環狀線車輛實測）',
     `${drawn.length}/${y.length} 台仍畫得出來`);
 }
 
