@@ -3979,6 +3979,7 @@
         <li class="grp">外觀與品牌</li>
         <li data-cl="trtccdonly"><span class="d">8/19</span><span>台北捷運的列車名冊本來只認官方的「逐車清單」（那份同時帶車廂擁擠度），但它會整趟漏掉車——2026/8/19 下午實測，一台往蘆洲的列車連續 17 輪（六分鐘）都不在清單裡，而各站的官方到站倒數一路都報得出它，於是站牌寫著 0:21 進站、地圖上整趟卻沒有這台車。現在改成：只要官方倒數看得到某個車號，就用它在各站的倒數把車建出來，行進、往回推算它在哪一段、到終點收車全部沿用原本同一套規則（實測補回來的車與原本位置分毫不差）。另外，逐車清單偶爾會漏填終點站，車若正好在中和新蘆線兩條路線共用的那段軌道上，就會因為分不出屬於哪一條而整台被丟掉，現在改用官方站牌上的終點站補回去。車廂擁擠度仍然來自逐車清單，沒有變動</span></li>
         <li data-cl="trainoverrail"><span class="d">8/19</span><span>全台同框（「全」）畫面裡，捷運列車經過台鐵或高鐵的軌道時會被軌道壓過去，看起來像從軌道底下鑽過；現在改成所有軌道都畫完才畫車，任何一台車都浮在所有軌道之上。另外，兩條線立體交叉、各有一台車同時經過那個路口時，以前是誰先畫誰在下面（等於隨機），現在依實際的高低關係決定——高低取自 OpenStreetMap 標註的橋樑、隧道與樓層，全台 31 處立體交叉都建了表，例如忠孝復興的文湖線在松山新店線之上、松江南京的松山新店線在中和新蘆線之上</span></li>
+        <li data-cl="osmbasemap"><span class="d">8/18</span><span>街道底圖換成 OpenStreetMap 的圖資（向量圖磚由 OpenFreeMap 提供）：地名改成中文單行、路名與公路編號牌不再蓋滿畫面，看起來跟以前一樣安靜，但列車、路線與站點的位置完全沒變。8/19 一併把頁尾「資料來源」的底圖署名改成實際在用的來源：OpenFreeMap／OpenMapTiles／© OpenStreetMap 貢獻者</span></li>
         <li data-cl="satretina"><span class="d">8/2</span><span>在 App 裡訂閱通行證後，衛星底圖會換成高解析度圖磚，在 Retina 螢幕上更銳利；沒訂閱的人維持標準解析度，畫面內容一樣</span></li>
         <li data-cl="satbilling"><span class="d">8/1</span><span>衛星底圖換成比較省的計費方式：計費從「看了幾張圖磚」改成「看得夠多才算一次時段費」，看到的畫面完全一樣，只是我們付給圖資供應商的錢少很多</span></li>
         <li><span class="d">7/30</span><span>外觀設定新增「面板半透明」開關（預設關閉）：打開後車站看板、跟車小卡、跟隨面板會透出底下的地圖並加上模糊，關掉就回到原本的實心底。半透明時原本偏淡的次要文字會自動加深一階，疊在路網上仍然看得清楚；跟車小卡收合成一條（只剩車號與時速）時維持實心底，不跟著透明。7/30 再補一輪（透明度與模糊程度都沒動）：字外圍加了一圈紙色描邊，疊在衛星影像或密集路網上也不會融進背景；全程速度曲線加粗、加一層淡底板，暗色主題的線色改亮，看得出哪一段跑得快；手機的「列車」面板縮到最小那段也維持實心底</span></li>
@@ -4039,7 +4040,7 @@
         <li><span class="d">北捷</span><span>臺北捷運各線與環狀線的秒級到站倒數取自臺北大眾捷運股份有限公司「臺北捷運 API」（會員申請制），依「政府資料開放授權條款」使用</span></li>
         <li><span class="d">新北捷</span><span>淡海輕軌・安坑輕軌的即時列車動態引用自新北大眾捷運股份有限公司官網「列車動態」公開頁面，著作權屬該公司所有</span></li>
         <li><span class="d">軌道</span><span>台鐵軌道及阿里山林鐵的 TDX 缺口補線取自 © OpenStreetMap 貢獻者（ODbL），經 Overpass／OSM API</span></li>
-        <li><span class="d">底圖</span><span><!-- APP_REPLACE_START basemap-credit（App 換 Stadia/Esri 授權版文字，prepare-web.mjs 替換） -->CARTO basemaps（© OpenStreetMap）、Esri World Imagery（衛星影像）與內政部「直轄市、縣市界線」（離線海陸輪廓，政府資料開放授權條款第1版）<!-- APP_REPLACE_END basemap-credit --></span></li>
+        <li><span class="d">底圖</span><span><!-- APP_REPLACE_START basemap-credit（App 換 OpenFreeMap/Stadia/Esri 授權版文字，prepare-web.mjs 替換） -->OpenFreeMap（© OpenFreeMap © OpenMapTiles © OpenStreetMap 貢獻者，街道圖）、Esri World Imagery（衛星影像）與內政部「直轄市、縣市界線」（離線海陸輪廓，政府資料開放授權條款第1版）<!-- APP_REPLACE_END basemap-credit --></span></li>
         <!-- APP_REPLACE_START status-link:App 包內沒有 status.html 且其相對 API 呼叫在本機來源不通,App build 換成正式站絕對網址外開 -->
         <li><span class="d">狀態</span><a href="status.html">資料源連線狀態頁</a></li>
         <!-- APP_REPLACE_END status-link -->
@@ -4374,7 +4375,7 @@
 //         排點最緊的三條段保留 2.7 的煞車退路,退回線性維持 0 段。到站時刻完全不動。
 // v0818m：街道底圖從 CARTO 換成 OpenStreetMap／OpenFreeMap(向量,MapLibre 當 Leaflet 圖層)。
 //         CSP 的 connect-src 要一起放行 tiles.openfreemap.org——向量圖磚走 fetch 不走 img。
-const BUILD = 'v0819e';
+const BUILD = 'v0819f';
 // 2026-08-13 起預設開啟（使用者親試預覽後裁示上線）：北捷畫車依官方即時名冊，班表只是備案。
 // 保留 ?officialroster=0 當逃生口——要退回班表路徑不必回滾部署，加個參數即可對照。
 // 🔴 這個函式會被 verify_official_roster_frontend 抽出來丟進 VM 單獨執行——
