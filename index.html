@@ -3831,6 +3831,7 @@
            內容 li 上限 8 條(li.grp 是標題不算)。 -->
       <ul class="foot-list foot-recent">
         <li class="grp">最近更新</li>
+        <li data-cl-of="trtcorigindir"><span class="d">8/19</span><span>台北捷運停在起點站等發車的列車不會再憑空消失，也不會朝反方向開：等發車的車就畫在起點站上，時間到了自己開出去；行進方向改看官方的到站倒數，不再誤用折返時會慢半拍的方向欄位</span></li>
         <li data-cl-of="trtccdonly"><span class="d">8/19</span><span>台北捷運不再有「站牌寫著車要進站、地圖上卻沒那台車」：官方的逐車資料偶爾會整趟漏掉一列車（實測有一台往蘆洲的連續六分鐘都不在裡面），現在只要各站的官方倒數看得到它，就照樣把車畫出來，位置跟其他車一樣準</span></li>
         <li data-cl-of="trainoverrail"><span class="d">8/19</span><span>列車不再被別條線的軌道壓過去，一律浮在所有軌道之上；兩條線立體交叉、各有一台車同時經過時，也照現實決定誰在上面（例如忠孝復興的文湖線在松山新店線之上）</span></li>
         <li data-cl-of="osmbasemap"><span class="d">8/18</span><span>街道底圖換成 OpenStreetMap 的圖資：地名改成中文單行、路名與公路編號牌不再蓋滿畫面，看起來跟以前一樣安靜，但列車、路線與站點的位置完全沒變</span></li>
@@ -3977,6 +3978,7 @@
         <li><span class="d">7/21</span><span>手機大改版：打開就是全螢幕地圖，面板都住進底部；新增「捷」分頁，北中高捷運一張圖同框</span></li>
         <li><span class="d">7/13</span><span>新增「省電」模式（手機預設開啟）：降到 30fps；手機一次只開一個面板</span></li>
         <li class="grp">外觀與品牌</li>
+        <li data-cl="trtcorigindir"><span class="d">8/19</span><span>台北捷運兩種「車該在卻不在、或方向相反」的狀況一起修掉。其一：停在起點站還沒發車的列車，因為官方倒數的秒數比第一段路程長，被「倒數塞不進這一段就往回推」的規則一路推出線外而整台丟掉——實測一台停在蘆洲的車，站牌還寫著 287 秒後到徐匯中學，地圖上卻沒有它；現在起點站免除這條規則，等發車的車就畫在起點站上，到了發車時刻自己開出去。其二：官方的逐車資料把車報在某一站、而同一站的倒數說車正朝著它開時，程式推不出行進方向，只好去讀官方的方向欄位，但那個欄位在終點站折返時會慢半拍——實測一台停在新店、終點寫著松山的車被畫成往新店開，接著整台被丟掉；現在方向改從官方倒數的先後順序推，推不出來才看終點站，方向欄位降為最後手段。同時修正「倒數的那一站剛好是官方報的站」時會把到站時刻套到下一站、讓車超前一整段的算法</span></li>
         <li data-cl="trtccdonly"><span class="d">8/19</span><span>台北捷運的列車名冊本來只認官方的「逐車清單」（那份同時帶車廂擁擠度），但它會整趟漏掉車——2026/8/19 下午實測，一台往蘆洲的列車連續 17 輪（六分鐘）都不在清單裡，而各站的官方到站倒數一路都報得出它，於是站牌寫著 0:21 進站、地圖上整趟卻沒有這台車。現在改成：只要官方倒數看得到某個車號，就用它在各站的倒數把車建出來，行進、往回推算它在哪一段、到終點收車全部沿用原本同一套規則（實測補回來的車與原本位置分毫不差）。另外，逐車清單偶爾會漏填終點站，車若正好在中和新蘆線兩條路線共用的那段軌道上，就會因為分不出屬於哪一條而整台被丟掉，現在改用官方站牌上的終點站補回去。車廂擁擠度仍然來自逐車清單，沒有變動</span></li>
         <li data-cl="trainoverrail"><span class="d">8/19</span><span>全台同框（「全」）畫面裡，捷運列車經過台鐵或高鐵的軌道時會被軌道壓過去，看起來像從軌道底下鑽過；現在改成所有軌道都畫完才畫車，任何一台車都浮在所有軌道之上。另外，兩條線立體交叉、各有一台車同時經過那個路口時，以前是誰先畫誰在下面（等於隨機），現在依實際的高低關係決定——高低取自 OpenStreetMap 標註的橋樑、隧道與樓層，全台 31 處立體交叉都建了表，例如忠孝復興的文湖線在松山新店線之上、松江南京的松山新店線在中和新蘆線之上</span></li>
         <li data-cl="osmbasemap"><span class="d">8/18</span><span>街道底圖換成 OpenStreetMap 的圖資（向量圖磚由 OpenFreeMap 提供）：地名改成中文單行、路名與公路編號牌不再蓋滿畫面，看起來跟以前一樣安靜，但列車、路線與站點的位置完全沒變。8/19 一併把頁尾「資料來源」的底圖署名改成實際在用的來源：OpenFreeMap／OpenMapTiles／© OpenStreetMap 貢獻者</span></li>
@@ -4375,7 +4377,9 @@
 //         排點最緊的三條段保留 2.7 的煞車退路,退回線性維持 0 段。到站時刻完全不動。
 // v0818m：街道底圖從 CARTO 換成 OpenStreetMap／OpenFreeMap(向量,MapLibre 當 Leaflet 圖層)。
 //         CSP 的 connect-src 要一起放行 tiles.openfreemap.org——向量圖磚走 fetch 不走 img。
-const BUILD = 'v0819f';
+// v0819g：北捷起點站等發車的車不再被回推規則丟掉；行進方向改由官方倒數順序決定(dest 次之、
+//         dir 欄位最後)；倒數站＝官方報的站時，到站時刻不再被套到下一站(超前一整段)。
+const BUILD = 'v0819g';
 // 2026-08-13 起預設開啟（使用者親試預覽後裁示上線）：北捷畫車依官方即時名冊，班表只是備案。
 // 保留 ?officialroster=0 當逃生口——要退回班表路徑不必回滾部署，加個參數即可對照。
 // 🔴 這個函式會被 verify_official_roster_frontend 抽出來丟進 VM 單獨執行——
@@ -5456,12 +5460,33 @@ function trtcCensusVehicles(trains, nowEpoch, day) {
     const head = pi < path.length ? path[pi] : null;
     let step = null, nextIdx = head ? arr.indexOf(_trtcCensusNorm(head.name)) : -1;
     if (nextIdx >= 0 && nextIdx !== hit.i) step = Math.sign(nextIdx - hit.i);
+    // 倒數還有後面幾站時,方向直接從倒數的先後順序看得出來——這才是「用倒數來修」的第一順位,
+    // 比 dest、比 dir 都可靠(它就是官方對這台車連續幾站的觀測)。
+    if (step == null) {
+      for (let j = pi + 1; j < path.length; j++) {
+        const k = arr.indexOf(_trtcCensusNorm(path[j].name));
+        if (k >= 0 && k !== hit.i) { step = Math.sign(k - hit.i); break; }
+      }
+    }
+    // 🔴 2026-08-19 使用者裁示:「方向確實可以用倒數來修」。CarWeight 的站碼剛好等於倒數那一站時
+    // (車就停在該站/剛進站),上面推不出方向,舊碼直接退回 t.dir——而 t.dir 在終點站折返時會落後
+    // (這個函式自己上面的註解就寫了這件事)。方向一反,下面的回推就一路推到線外把整台車丟掉:
+    // 實測車號 307 停在新店(stn=G02、dest=松山),dir=1 推出「往新店」的反方向 ⇒ 官方看板還有
+    // 136 秒的倒數,畫面上卻完全沒有這台車。dest 同樣是官方給的,用它推方向比 dir 可靠。
+    if (step == null) {
+      const dstIdx = arr.indexOf(_trtcCensusNorm(t.dest));
+      if (dstIdx >= 0 && dstIdx !== hit.i) step = Math.sign(dstIdx - hit.i);
+    }
     if (step == null) {
       if (Number(t.dir) !== 1 && Number(t.dir) !== 2) { holdPrev('no-direction'); continue; }
       step = Number(t.dir) === 1 ? -1 : 1;
     }
     let from, to;
     if (nextIdx >= 0 && nextIdx !== hit.i) { to = nextIdx; from = to - step; }
+    // 🔴 倒數那一站剛好等於 CarWeight 的站碼(車還沒到、正朝著它開)。舊碼在這裡當成「已經在
+    // 那一站、朝下一站去」,可是下面的 arrEpoch 用的是**這一站**的倒數 ⇒ 官方說「136 秒後到 A」,
+    // 我們卻寫成「136 秒後到 A 的下一站」,整台車被畫超前一整段。正解是照倒數字面:到站站是 A。
+    else if (head && nextIdx === hit.i) { to = hit.i; from = hit.i - step; }
     else { from = hit.i; to = hit.i + step; }
     if (from < 0 || to < 0 || from >= arr.length || to >= arr.length) from = to = hit.i;
     let terminal = from === to;
@@ -5482,10 +5507,11 @@ function trtcCensusVehicles(trains, nowEpoch, day) {
     // 違反「車子有官方數據就是在」。改成照秒數往回推算它真正在哪一段:每往回一段就扣掉
     // 「該段行駛秒＋該站停靠秒」,扣到塞得進去為止。
     const walked = [];
+    let atLineHead = false;
     for (let back = 0; back < arr.length && !terminal && step; back++) {
       if (trtcCountdownFitsSegment(ln, from, to, arrEpoch - nowEpoch)) break;
       const prev = from - step;
-      if (prev < 0 || prev >= arr.length) break;
+      if (prev < 0 || prev >= arr.length) { atLineHead = true; break; }
       const legRun = trtcCensusRun(ln, from, to);
       if (!(legRun > 0)) break;
       walked.unshift({ from, to, arrEpoch });
@@ -5498,7 +5524,13 @@ function trtcCensusVehicles(trains, nowEpoch, day) {
     // 站 1 的倒數 256 秒而那一段只要 90 秒,舊碼用「發車 = 到站 − 行駛秒」把它畫成一台在月台上
     // 罰站 159 秒的車(2026-08-19 使用者:「只要出現車子卡住停住疊在一起,那絕對不是我給的規則
     // 有問題,要從你的規則去找」)。文湖線那條路徑早就有這條規則,逐車名冊這條漏了。
-    if (!terminal && step && !trtcCountdownFitsSegment(ln, from, to, arrEpoch - nowEpoch)) continue;
+    // 🔴 2026-08-19 使用者裁示:「起點站要免除推超過前站的規則」。一路回推到線頭仍塞不進,代表
+    // 這台車就停在起點站等發車——它是官方逐車清單裡有車號的實體車(不是「下一班」那種無車號的
+    // 起點列),丟掉就變成「看板有倒數、畫面沒車」(實測車號 449 停在蘆洲、看板還有 287 秒到徐匯
+    // 中學,整台不見)。留在線頭那一段即可:depEpoch = arrEpoch - run 還在未來 ⇒ 位置函式會把它
+    // 畫在起點站上不動,到了發車時刻自己開出去,不需要另外做「停在月台」的狀態。
+    if (!terminal && step && !atLineHead &&
+        !trtcCountdownFitsSegment(ln, from, to, arrEpoch - nowEpoch)) continue;
     // dest 不是裝飾：名冊驗證要求它是合法站序整數，null 會讓整包 payload 被判 malformed。
     // 官方沒給終點（文湖線全部、高運量約一成）就用行進方向上的線末站——語意也對。
     const di0 = arr.indexOf(_trtcCensusNorm(t.dest));
