@@ -5354,8 +5354,28 @@ function trtcCensusVehicles(trains, nowEpoch, day) {
     // 夾到現在等於每輪都把它重設成剛到站 ⇒ 車永遠在停站，實測文湖線 22/24 台整線凍結
     // （文湖線在 TrackInfo 沒有 path，只能靠落後的 at 推，全線都吃這個路徑）。
     // 過去的到站時刻是正確資訊，續推會據此把車往前推到該在的位置。
-    const arrEpoch = Number.isFinite(firstEta) && !terminal ? firstEta
+    let arrEpoch = Number.isFinite(firstEta) && !terminal ? firstEta
       : (Number.isFinite(at) ? at + run : nowEpoch + run);
+    // 🔴 使用者裁示:「倒數塞不進區段就忽略」(2026-08-18)＋「全部整個,連其他的捷運,請都套用
+    // 相同的規則,只要有逐站倒數的都能用」(2026-08-19)。倒數名冊那條路徑(BR/Y)早就有
+    // trtcCountdownFitsSegment,逐車名冊(BL/R/G/O)一直沒有 ⇒ 倒數塞不進這一段的車被畫在段頭,
+    // 貼著剛到站的另一台(實測綠線車號306 倒數 309 秒、該段只需 138+25 秒,被畫在南京三民出站處,
+    // 與剛到站的 307 相距 208 公尺)。
+    // 逐車路徑不可照 BR 那樣「整列忽略」——這一列就是一台有車號的實體車,忽略等於讓它消失,
+    // 違反「車子有官方數據就是在」。改成照秒數往回推算它真正在哪一段:每往回一段就扣掉
+    // 「該段行駛秒＋該站停靠秒」,扣到塞得進去為止。
+    const walked = [];
+    for (let back = 0; back < arr.length && !terminal && step; back++) {
+      if (trtcCountdownFitsSegment(ln, from, to, arrEpoch - nowEpoch)) break;
+      const prev = from - step;
+      if (prev < 0 || prev >= arr.length) break;
+      const legRun = trtcCensusRun(ln, from, to);
+      if (!(legRun > 0)) break;
+      walked.unshift({ from, to, arrEpoch });
+      arrEpoch = arrEpoch - legRun - trtcOfficialDwellAt(ln, from);
+      to = from; from = prev;
+    }
+    if (walked.length) run = trtcCensusRun(ln, from, to);
     // dest 不是裝飾：名冊驗證要求它是合法站序整數，null 會讓整包 payload 被判 malformed。
     // 官方沒給終點（文湖線全部、高運量約一成）就用行進方向上的線末站——語意也對。
     const di0 = arr.indexOf(_trtcCensusNorm(t.dest));
@@ -5391,6 +5411,17 @@ function trtcCensusVehicles(trains, nowEpoch, day) {
     {
       const timeline = [];
       let cur = from;
+      // 往回推算過的車:先把「走回來的那幾段」按行進順序排進 timeline,否則後面接官方 path 時
+      // 會把跨好幾站當成一段直線內插。沒往回推就完全走原本的路徑,行為逐字不變。
+      if (walked.length) {
+        timeline.push({ from, to, depEpoch: arrEpoch - run, arrEpoch, terminal: false });
+        cur = to;
+        for (const w of walked) {
+          timeline.push({ from: w.from, to: w.to, terminal: false,
+            depEpoch: w.arrEpoch - trtcCensusRun(ln, w.from, w.to), arrEpoch: w.arrEpoch });
+          cur = w.to;
+        }
+      }
       for (const p of (terminal ? [] : path.slice(pi))) {
         const idx = arr.indexOf(_trtcCensusNorm(p.name));
         if (idx < 0 || idx === cur || Math.sign(idx - cur) !== step) break;
