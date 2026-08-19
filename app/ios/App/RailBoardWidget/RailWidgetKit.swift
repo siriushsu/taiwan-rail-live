@@ -588,6 +588,23 @@ enum RailCountdown: Equatable {
 ///   960s→「16分鐘」 900s→「15分鐘」 …… 60s→「1分鐘」 59s→「59秒」 5s→「5秒」 0s→「0秒」
 /// 🔴 刻意不用規格建議的 `.seconds(60)`：那個在最後一分鐘會**凍在「0分鐘」**並永遠不再變，
 ///    等於在最關鍵的進站前一分鐘重演這次要修的「數字凍住」症狀。
+///
+/// ── 「分鐘」能不能改成設計稿的「分」：**不能，三條路全部真機試過**（2026-08-19）──
+/// 一開始寫成「系統寫法、拿不到」是漏查；實際查完是三個限制夾死，不是拿不到：
+///   ① `SystemFormatStyle.Timer`：沒有 unit width 旋鈕，zh-Hant 固定「分鐘」。
+///   ② `Duration.UnitsFormatStyle(width: .narrow)`＋`TimeDataSource.durationOffset(to:)`：
+///      字樣真的變成「分」（**真機確認 width 有生效**），但 `durationOffset` 算的是
+///      「現在 − 錨點」⇒ 未到站是負的，鎖屏實際畫出「**-16分**」。UnitsFormatStyle 沒有
+///      sign 旋鈕；而 Duration 型的自走來源只有 durationOffset 一個，沒有正號版本。
+///   ③ `SystemFormatStyle.DateOffset(maxFieldCount: 1, sign: .never).locale("ja")`：
+///      行程內 `format()` 確實吐「16分」（ja 的 wide 型剛好是分／秒），但**真機還是「16分鐘」**
+///      ——`WidgetRenderer_Activities` 用**裝置 locale** 重算，我們封進 archive 的 `.locale()`
+///      不算數（width 算數、locale 不算數）。
+///      🔴 這一條特別毒：行程內量的 gate 會**全綠**，裝置上是錯的。凡要驗自走文字的**字樣**，
+///         唯一有效的判準是真機／模擬器 LA 截圖，`format()` 的回傳值只證得了 width 那一半。
+///   ④ `Date.ComponentsFormatStyle(style: .narrow)`＋`.dateRange(endingAt:)`：號對、字樣對，
+///      但**沒有 maxFieldCount** ⇒ 195 秒變「3分15秒」兩段，寬度還會跳。
+/// ⇒ 現況維持 ①。要再挑戰請先重測 ③ 的 locale 是否仍被忽略——那是唯一可能鬆動的一環。
 @available(iOS 18.0, macOS 15.0, *)
 func railLiveCountdownStyle(until arrival: Date) -> SystemFormatStyle.Timer {
     // 下界必須 ≤ 上界，否則 Range 建構會 crash；到站時刻已過的情況由呼叫端先擋掉。
@@ -715,9 +732,16 @@ struct RailCountdownText: View {
 
     /// 自走的倒數。
     ///
-    /// 🔴 與 `number()` 的兩級字階（數字大、單位小一階）**做不到一致**：字串是系統在
-    ///    另一個行程算出來的，「16分鐘」是一整串、我方拿不到「值」與「單位」的分界去分別上字級。
-    ///    這是用內建型別換來的代價（自訂 FormatStyle 會讓整張卡變灰塊，見 railLiveCountdownStyle）。
+    /// 🔴 與 `number()` 的兩級字階（數字大、單位小一階）**做不到一致**。
+    ///    ⚠️ 理由**不是**「拿不到值／單位的分界」（原本這樣寫，是錯的）：那個拿得到——
+    ///    `format()` 回的是 AttributedString，「16」標 `MeasurementAttribute.value`、
+    ///    「分鐘」標 `.unit`（probe/runs.swift 實測印得出來）。
+    ///    真正的原因是**那串字不經過我方程式**：要照標記分別上字級，只有兩條路，都堵死——
+    ///      · 自己呼叫 `format()` 組 AttributedString ＝ 組字當下的靜態快照 ⇒ 凍住
+    ///        （正是這次修的 bug）；
+    ///      · 把自訂 FormatStyle／`TextRenderer` 放進 archive ＝ 整卡灰塊
+    ///        （`Errors.noType`，見 railLiveCountdownStyle）。
+    ///    所以整串同一個字級。字級本身則是寬度決定的（見 liveCountdownSize）。
     ///
     /// 🔴 `.multilineTextAlignment(.trailing)` 不可省：自走文字的 frame 會被系統**預留成
     ///    「這個區間內最寬的那個字串」**的寬度（「125分鐘」比「15分鐘」寬一截），字形預設
