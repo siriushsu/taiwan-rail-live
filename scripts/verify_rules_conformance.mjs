@@ -14,6 +14,12 @@ const U = 'https://railisland.tw/';
 const b = await chromium.launch(); const p = await b.newPage();
 await p.route(u => { const x = new URL(u); return x.origin + x.pathname === new URL(U).origin + '/'; },
   r => r.fulfill({ status: 200, contentType: 'text/html; charset=utf-8', body: html }));
+// 資料檔也用本機的:harness 預設只換 index.html,其餘走正式站 ⇒ 量到的是正式站的舊資料。
+if (process.env.LOCAL_DATA === '1') await p.route(u => {
+  const x = new URL(u); return x.origin === new URL(U).origin && x.pathname.startsWith('/data/');
+}, r => { const f = '.' + new URL(r.request().url()).pathname;
+  if (!fs.existsSync(f)) return r.continue();
+  r.fulfill({ status: 200, contentType: 'application/json; charset=utf-8', body: fs.readFileSync(f) }); });
 await p.goto(U + '?g=metro', { waitUntil: 'domcontentloaded' });
 await p.waitForFunction(() => typeof state !== 'undefined' && state.ready === true, null, { timeout: 120000 });
 const R = await p.evaluate(async (SEC) => {

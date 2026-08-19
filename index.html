@@ -5672,6 +5672,14 @@ const _trtcCdDropped = new Map(); // 診斷用:每條線這一輪忽略了幾列
 // (先做過「往回退去畫」的版本,實測少 6 台假停站但疊車 1 對→3 對:位置更誠實、畫面更糟,
 //  因為退回去正好壓在後面那台身上。所以是「不生」,不是「退著畫」。)
 function trtcOfficialDwellAt(ln, i) {
+  // 🔴 2026-08-19 使用者:「確認往前推的每段路程、停靠時間,都是依照官方那份資料在跑。」
+  // 查出來是沒有:資料檔每一站本來就帶 `dwell`(臺北捷運公司「相鄰兩站間之行駛時間及停靠站
+  // 時間」,2025-06-03 生效),但這裡讀的是 `ln.dwellSec[i]` 這個從來不存在的陣列 ⇒ 九條線
+  // 每一站的停靠秒實際上都是常數 25。使用者的規則「停的時間依照我們的資料,二十幾~四十幾秒」
+  // 從頭到尾沒有真的套用過。改讀 stations[i].dwell;dwellSec 保留當第二來源,都沒有才用常數。
+  const st = ln && Array.isArray(ln.stations) ? ln.stations[i] : null;
+  const d = st ? Number(st.dwell) : NaN;
+  if (d > 0) return d;
   const arr = ln && ln.dwellSec;
   const v = Array.isArray(arr) ? Number(arr[i]) : NaN;
   return v > 0 ? v : TRTC_OFFICIAL_COAST_DWELL_SEC;
