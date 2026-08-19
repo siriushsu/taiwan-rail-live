@@ -50,6 +50,8 @@
 #   SHOT_DIR                截圖輸出目錄（預設 app/tmp/la-shots）
 #   LA_CARD                 follow（臺鐵跟車，預設）或 wait（捷運等車）
 #   LA_ARRIVAL_OFFSET_SEC   到站＝現在＋這麼多秒（預設 960＝16 分；邊界情境用 75 與 -30）
+#                           驗「保鮮期到期會自己脫困」用 90：arm 會印出到站與到期的絕對時刻，
+#                           照它排 shots（LA_WAIT1／LA_WAIT2）截到期前後各一張
 #   LA_DEPARTED_OFFSET_SEC  上一站發車＝現在＋這麼多秒（預設 -660）；只有 follow 用
 #   LA_SECOND_OFFSET_SEC    次班到站＝現在＋這麼多秒（預設 ARR+300）；只有 wait 用
 #   LA_WAIT1 / LA_WAIT2     t0→t1、t1→t2 的間隔秒（預設 65 / 60）
@@ -155,10 +157,23 @@ FOLLOW = """
       terminus: '左營', nextStop: '台中', prevStop: '新竹',
       arrivalIso: iso(ARR), departedIso: iso(DEP), delaySec: 0, stopping: false,
     };
-    console.log('[LAHARNESS] start ' + JSON.stringify(p));
-    Promise.resolve(api.start(p))
-      .then(function (r) { console.log('[LAHARNESS] result ' + JSON.stringify(r)); })
-      .catch(function (e) { console.log('[LAHARNESS] failed ' + e); });
+    // 🔴 先收掉等車卡（RailMetroWait）再開跟車卡。兩張 Live Activity 並存時鎖定畫面會把
+    //    它們【疊成一落】，只有最上面那張看得到內容 —— 而 App 一啟動就會自動恢復等車卡，
+    //    於是整輪觀測拍到的全是等車卡，跟車卡只露出一條邊。實際踩過：
+    //    07:17:22 App[44122] 建 MetroWaitAttributes → 07:17:59 App[44838] 建 RailFollowAttributes
+    //    ⇒ t0/t1 兩張截圖都是「板南線 龍山寺 10 分」，跟這支腳本要驗的東西毫無關係。
+    //    stop() 失敗不擋流程（可能本來就沒在等車），但要把結果印出來，否則下次又是靜默的假結果。
+    var mw = window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.RailMetroWait;
+    var pre = mw ? Promise.resolve(mw.stop()).then(
+                     function (r) { console.log('[LAHARNESS] metrowait.stop ' + JSON.stringify(r)); },
+                     function (e) { console.log('[LAHARNESS] metrowait.stop failed ' + e); })
+                 : Promise.resolve(console.log('[LAHARNESS] metrowait bridge 不存在，略過'));
+    pre.then(function () {
+      console.log('[LAHARNESS] start ' + JSON.stringify(p));
+      return Promise.resolve(api.start(p))
+        .then(function (r) { console.log('[LAHARNESS] result ' + JSON.stringify(r)); })
+        .catch(function (e) { console.log('[LAHARNESS] failed ' + e); });
+    });
   }
   setTimeout(go, 500);
 })();
@@ -230,6 +245,40 @@ PY
   done
   [ "$ok" = 1 ] || { echo "[harness] ✗ 120 秒內沒看到 $ATTRS 的 activity request，卡片沒開成"; exit 1; }
   echo "[harness] ✓ ActivityKit 收到 $ATTRS 的 request"
+  # 保鮮期到期時刻表(來自 fix/la-staledate):只有跟車卡有 staleDate
+  if [ "$ATTRS" = "RailFollowAttributes" ]; then
+
+  # 卡片的【絕對】到站時刻。沒有它就排不出「保鮮期到期之後」要在什麼時候截圖——而那正是
+  # 唯一問得出「零推播的卡會不會自己脫困」的時點（到站之後、下一發推播永遠不來的那一段，
+  # 卡片停在「0 秒／行駛中」，要等 staleDate 到期讓系統重繪一次才會換成「資料未更新」）。
+  # 🔴 寬限直接讀出貨程式碼那一顆共享常數，不在這裡抄一份數字：抄了就會有一天對不上，
+  #    而對不上的症狀是「截圖時機差幾秒」——看起來像修法沒生效。
+  GRACE="$(grep -oE 'static let graceSeconds: Double = [0-9.]+' \
+    "$HERE/../ios/App/App/RailFollowAttributes.swift" 2>/dev/null | grep -oE '[0-9.]+$' | head -1)"
+  /usr/bin/python3 - "$STREAM_LOG" "${GRACE:-}" <<'PY'
+import io, re, sys, time, datetime
+log, grace = sys.argv[1], sys.argv[2]
+if not grace:
+    print("[harness] ⚠ 讀不到 RailFollowStale.graceSeconds（檔案搬家或改名？）——"
+          "不印時刻表，請自行確認寬限值再排截圖時點")
+    raise SystemExit(0)
+grace = float(grace)
+txt = io.open(log, encoding='utf-8', errors='replace').read()
+m = re.search(r'"arrivalIso":"([^"]+)"', txt)
+if not m:
+    print("[harness] ⚠ log 裡抓不到 arrivalIso（webview 的 console 沒被轉發到 os_log？）——"
+          "請改以「arm 結束時刻＋LA_ARRIVAL_OFFSET_SEC」估算截圖時點")
+    raise SystemExit(0)
+iso = m.group(1)
+t = datetime.datetime.strptime(iso.replace("Z", "+0000"), "%Y-%m-%dT%H:%M:%S.%f%z").timestamp()
+now = time.time()
+fmt = lambda x: time.strftime("%H:%M:%S", time.localtime(x))
+print(f"[harness] 到站 {fmt(t)}（{t - now:+.0f} 秒）")
+print(f"[harness] 保鮮期到期 arrival+{grace:.0f}s = {fmt(t + grace)}（{t + grace - now:+.0f} 秒）")
+print(f"[harness] ⇒ 驗「零推播也會自己脫困」：{fmt(t + grace)} 之後截的那張應該是「資料未更新」；"
+      f"{fmt(t)}～{fmt(t + grace)} 之間那張則應該還是倒數（那一段正是舊碼會永遠停住的畫面）")
+PY
+  fi
   sleep 3
   shot di0     # 解鎖態（動態島 compact）
 

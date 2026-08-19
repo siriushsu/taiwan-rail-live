@@ -37,27 +37,28 @@ struct RailFollowDisplay {
     /// 收斂成「進站」，與 widget 那一側同一條分界（RailCountdown.Surface.widget）。
     static let arrivingSeconds: Double = 60
 
-    /// 資料過期的寬限。
-    ///
-    /// 🔴 這張卡的 state 裡【沒有】資料時戳（候車卡有 dataAt，跟車卡沒有），所以設計稿那條
-    ///    「超過 90 秒沒有新資料 → 暫無資料」在這裡沒有東西可以量。改用手上唯一的時間事實
-    ///    當代理：預計到站時刻【已經過去】這麼久而沒有任何一發新推播進來 ⇒ 手上這份必定是舊的
-    ///    （車真的到了會推「停靠中」，誤點會推新的 arrivalDate）。
-    ///    取 150 秒不取 90：臺鐵 ETA 本身是分鐘級、且到站瞬間的推播有延遲，90 秒會讓正常
-    ///    的最後一哩路誤報過期。這是代理指標的必要保守，不是把設計稿的門檻放寬。
-    static let staleGraceSeconds: Double = 150
+    /// 資料過期的寬限。定義與理由在 `RailFollowStale`（那個檔同屬 App 與 widget 兩個 target，
+    /// 所以「設 staleDate 的人」與「畫過期樣式的人」拿的是同一個值）。
+    static var staleGraceSeconds: Double { RailFollowStale.graceSeconds }
 
     static func make(
         kind: String, trainNo: String, colorHex: String?, terminus: String,
         nextStop: String, prevStop: String?,
         arrivalDate: Double?, departedDate: Double?,
-        delaySec: Int, stopping: Bool, notice: String?, now: Date
+        delaySec: Int, stopping: Bool, notice: String?, isStale: Bool, now: Date
     ) -> RailFollowDisplay {
         let nowSec = now.timeIntervalSince1970
         let left = arrivalDate.map { $0 - nowSec }
 
-        // 到站時刻早就過去而沒有新推播 ⇒ 手上這份是舊的（理由見 staleGraceSeconds）。
-        let stale = !stopping && (left.map { $0 < -staleGraceSeconds } ?? false)
+        // 過期的兩條路，任一成立就算過期：
+        // 1. `isStale`：ActivityKit 依 staleDate 翻的旗標。🔴 它才是【零推播】情境唯一有效的
+        //    那一條——下面第 2 條要「有人重繪」才會被算到一次，而零推播正好就是沒有重繪
+        //    （實機症狀：到站時刻過去之後，卡片停在「0 秒／行駛中」直到下一發推播進來）。
+        //    staleDate 到期會讓系統主動重繪一次，這個分支就是那一次重繪要顯示的東西。
+        // 2. 到站時刻早就過去（代理指標，見 RailFollowStale.graceSeconds）：涵蓋
+        //    「有在重繪、但手上內容已經舊了」，例如前景每分鐘 update 卻拿不到新 ETA。
+        //    刻意保留兩條而不是只留 isStale：staleDate 是 nil 的舊卡（App 更新前開的）沒有第 1 條。
+        let stale = isStale || (!stopping && (left.map { $0 < -RailFollowStale.graceSeconds } ?? false))
 
         let countdown: RailCountdown?
         if stopping {
@@ -279,7 +280,11 @@ struct RailFollowActivityWidget: Widget {
             nextStop: ctx.state.nextStop, prevStop: ctx.state.prevStop,
             arrivalDate: ctx.state.arrivalDate, departedDate: ctx.state.departedDate,
             delaySec: ctx.state.delaySec, stopping: ctx.state.stopping ?? false,
-            notice: ctx.state.notice, now: Date()
+            notice: ctx.state.notice,
+            // 🔴 這張卡的 staleDate 是「預計到站＋寬限」（RailLiveActivityPlugin／worker 兩側
+            //    都送同一個值）⇒ isStale 的語意就是「資料過期」。候車卡的 staleDate 是
+            //    「下一班到站整點」，那裡的 isStale 語意是「列車進站」——兩張卡不可互抄。
+            isStale: ctx.isStale, now: Date()
         )
     }
 

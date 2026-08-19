@@ -51,6 +51,10 @@ const kitPath = join(widgetDir, 'RailWidgetKit.swift');
 const dataSource = readFileSync(join(widgetDir, 'RailBoardData.swift'), 'utf8');
 const followSource = readFileSync(join(widgetDir, 'RailFollowActivity.swift'), 'utf8');
 const waitSource = readFileSync(join(widgetDir, 'MetroWaitActivity.swift'), 'utf8');
+// 🔴 這個檔【不在】widget 目錄裡：它同屬 App 與 widget extension 兩個 target，是
+//    「設 staleDate 的那側」與「畫過期樣式的那側」唯一的共同祖先。把它抽進來，這支
+//    harness 驗到的就是出貨路徑真正用的那個常數與算式，而不是 harness 自己抄的一份。
+const attrSource = readFileSync(resolve(here, '../ios/App/App/RailFollowAttributes.swift'), 'utf8');
 
 /**
  * 🔴 原始碼層 gate：harness 用替身畫「結束」鈕，所以它照不到 intent 有沒有真的接上。
@@ -144,6 +148,7 @@ selfRunningCountdownGate();
 
 const pieces = [
   extractDeclaration(dataSource, 'enum RailBoardClock'),
+  extractDeclaration(attrSource, 'enum RailFollowStale'),
   extractDeclaration(followSource, 'struct RailFollowDisplay'),
   extractDeclaration(followSource, 'struct RailFollowLockView'),
   extractDeclaration(followSource, 'struct RailFollowIslandBottom'),
@@ -191,13 +196,15 @@ let nowSec = now.timeIntervalSince1970
 
 // 臺鐵跟車三態（設計稿 D）。車種色用班表裡自強的實際值。
 func follow(minutesToArrive: Double, stopping: Bool = false, delaySec: Int = 180,
-            prevStop: String? = "臺北", notice: String? = nil) -> RailFollowDisplay {
+            prevStop: String? = "臺北", notice: String? = nil,
+            isStale: Bool = false) -> RailFollowDisplay {
     RailFollowDisplay.make(
         kind: "自強", trainNo: "420", colorHex: "#C0392B", terminus: "臺東",
         nextStop: "板橋", prevStop: prevStop,
         arrivalDate: nowSec + minutesToArrive * 60,
         departedDate: nowSec - 7 * 60,
-        delaySec: delaySec, stopping: stopping, notice: notice, now: now)
+        delaySec: delaySec, stopping: stopping, notice: notice,
+        isStale: isStale, now: now)
 }
 
 let followRunning = follow(minutesToArrive: 4)
@@ -213,7 +220,7 @@ let followWorst = RailFollowDisplay.make(
     kind: "莒光/復興", trainNo: "1234", colorHex: "#D4A017", terminus: "臺北-環島",
     nextStop: "新左營", prevStop: "臺北-環島",
     arrivalDate: nowSec + 23 * 60, departedDate: nowSec - 11 * 60,
-    delaySec: 1_260, stopping: false, notice: nil, now: now)
+    delaySec: 1_260, stopping: false, notice: nil, isStale: false, now: now)
 
 // 捷運候車兩態（設計稿 E）＋兩個極端值。
 func wait(secondsToArrive: Double?, minutes: Int? = nil, isStale: Bool = false,
@@ -443,10 +450,19 @@ func expiryGate() {
             "過期 gate 失敗：列車進站被畫成資料過期（isStale 的語意是「車到了」不是「資料舊了」）\\n".utf8))
         exit(1)
     }
-    // 跟車卡那側：沒有 dataAt，用「到站時刻已經過去這麼久」當代理（見 staleGraceSeconds）。
-    if RailFollowDisplay.staleGraceSeconds != 150 {
+    // 跟車卡那側：沒有 dataAt，用「到站時刻已經過去這麼久」當代理（見 RailFollowStale）。
+    if RailFollowStale.graceSeconds != 150 {
         FileHandle.standardError.write(Data(
-            "過期 gate 失敗：跟車卡的過站寬限被改成 \\(RailFollowDisplay.staleGraceSeconds) 秒（訂為 150）\\n".utf8))
+            "過期 gate 失敗：跟車卡的過站寬限被改成 \\(RailFollowStale.graceSeconds) 秒（訂為 150）\\n".utf8))
+        exit(1)
+    }
+    // 🔴 版面讀的必須【就是】那顆共享常數：把 RailFollowDisplay.staleGraceSeconds 改回自己的
+    //    字面值時，上面那條照樣全綠（它問的是共享常數），而 plugin 設的 staleDate 與版面畫的
+    //    過期界線就此各走各的——症狀是卡片在「系統說過期」與「版面說還在跑」之間打架。
+    if RailFollowDisplay.staleGraceSeconds != RailFollowStale.graceSeconds {
+        let msg = "過期 gate 失敗：版面的寬限（\\(RailFollowDisplay.staleGraceSeconds)）與 plugin／後端"
+            + "共用的 RailFollowStale.graceSeconds（\\(RailFollowStale.graceSeconds)）不是同一個值\\n"
+        FileHandle.standardError.write(Data(msg.utf8))
         exit(1)
     }
     let late = follow(minutesToArrive: -3)
@@ -465,6 +481,151 @@ func expiryGate() {
         exit(1)
     }
     print("gate 通過：90 秒界線兩側可分辨，「車進站」不會被誤畫成「資料過期」，跟車卡的過站寬限也對")
+}
+
+/// 🔴 gate：零推播時，卡片要靠 ActivityKit 的 staleDate 自己脫困。
+///
+/// 守的是【三方共用同一個約定】：plugin 設 staleDate、後端 worker 送 stale-date、版面畫過期樣式。
+/// 前兩者不在這支 harness 的編譯範圍（一個要 ActivityKit、一個是 JS），所以這裡驗它們共同依賴
+/// 的那個算式，以及「旗標翻真時版面真的會變」——後者是整個修法的意義所在：staleDate 到期會
+/// 讓系統重繪一次，如果那一次重繪畫出來的東西跟原本一樣，這個機制等於沒接上。
+func staleDateGate() {
+    let base = Date(timeIntervalSince1970: 1_800_000_000)
+    let grace = RailFollowStale.graceSeconds
+    let cap = RailFollowStale.orphanFallbackSeconds
+
+    // (1) 有 ETA ⇒ 到站再過寬限。
+    let withEta = RailFollowStale.date(arrival: base.timeIntervalSince1970 + 600, now: base)
+    if abs(withEta.timeIntervalSince(base) - (600 + grace)) > 0.001 {
+        let msg = "staleDate gate 失敗：到站在 600 秒後，保鮮期卻算成 \\(withEta.timeIntervalSince(base)) 秒"
+            + "（該是 600＋\\(grace)）\\n"
+        FileHandle.standardError.write(Data(msg.utf8))
+        exit(1)
+    }
+    // (2) 算不出 ETA ⇒ 退回孤兒兜底，【不是】沒有保鮮期。少了它，App 被系統終止後遺留的卡
+    //     會永遠留在鎖定畫面上。
+    let noEta = RailFollowStale.date(arrival: nil, now: base)
+    if abs(noEta.timeIntervalSince(base) - cap) > 0.001 {
+        let msg = "staleDate gate 失敗：算不出 ETA 時的保鮮期是 \\(noEta.timeIntervalSince(base)) 秒，"
+            + "該是孤兒兜底的 \\(cap) 秒\\n"
+        FileHandle.standardError.write(Data(msg.utf8))
+        exit(1)
+    }
+    // (3) 遠得離譜的到站時刻（資料異常）不可以把孤兒保護頂過去。
+    let absurd = RailFollowStale.date(arrival: base.timeIntervalSince1970 + 30 * 24 * 3600, now: base)
+    if absurd.timeIntervalSince(base) > cap {
+        let msg = "staleDate gate 失敗：到站時刻在 30 天後時，保鮮期被拉到 \\(absurd.timeIntervalSince(base)) 秒，"
+            + "超過孤兒兜底的上界 \\(cap)\\n"
+        FileHandle.standardError.write(Data(msg.utf8))
+        exit(1)
+    }
+
+    // (4) 旗標翻真 ⇒ 主角數字必須消失。
+    //     🔴 到站【還在未來】：這正是實機那個畫面——推播斷了，倒數卻還在自己往下走，
+    //     走到 0 就凍在「0 秒／行駛中」。版面手上唯一知道「沒有新資料」的證據就是這個旗標。
+    let stalled = follow(minutesToArrive: 3, isStale: true)
+    if stalled.countdown != .noData || stalled.stateWord != "資料未更新" || !stalled.expired {
+        let msg = "staleDate gate 失敗：系統已經把這張卡標成過期（isStale），"
+            + "版面卻還畫著 \\(stalled.countdown?.plainText ?? "nil")／狀態詞「\\(stalled.stateWord)」。"
+            + "staleDate 到期那一次重繪什麼都沒改變＝這個機制沒有接上。\\n"
+        FileHandle.standardError.write(Data(msg.utf8))
+        exit(1)
+    }
+    // (5) 反向對照：除了 isStale 之外【逐格相同】的那一張必須還是正常的倒數。
+    //     少了這一條，「乾脆全部畫成資料未更新」也會讓上面那條全綠。
+    let live = follow(minutesToArrive: 3, isStale: false)
+    if live.countdown == .noData || live.stateWord != "行駛中" || live.expired {
+        let msg = "staleDate gate 失敗：沒有被標成過期的卡也被畫成"
+            + "\\(live.countdown?.plainText ?? "nil")／「\\(live.stateWord)」"
+            + "——過期樣式吃掉了正常狀態\\n"
+        FileHandle.standardError.write(Data(msg.utf8))
+        exit(1)
+    }
+    print("gate 通過：staleDate 的算式三種情況都對，旗標翻真時版面真的換成「資料未更新」")
+}
+
+/// 🔴 gate：動態島 minimal 的那一顆圓，在倒數走完之後不可以是空的。
+///
+/// 用像素量，不看程式碼：until 那個 case 的自走文字只畫在「還沒到站」的前提下，而環裡的
+/// 靜態字對它固定是 nil ⇒ 倒數走完之後那一顆圓【既沒有數字也沒有實心】。這種空白在型別層與
+/// computed 值上都照不出來，只有真的畫一次、量中心那幾個像素才看得見。
+@MainActor
+func minimalArrivedGate() {
+    let blue = Color(.sRGB, red: 0, green: 0.44, blue: 0.74)
+    // 🔴 判準是【填色面積】不是中心那一點：中心會被自走文字蓋住，於是「量中心」實際上量的是
+    //    「有沒有字」而不是「實不實心」——第一版就是這樣寫的，把 solid 改成恆真的突變照樣全綠
+    //    （實測）。改數整張圖裡有多少像素是那個進站綠：實心≈整個圓，空心環≈零（環是路線色）。
+    func shot(_ cd: RailCountdown) -> NSBitmapImageRep {
+        let png = pngData(RailIslandMinimal(countdown: cd, color: blue)
+                            .frame(width: 22, height: 22).padding(4),
+                          width: 30, height: nil)
+        guard let rep = NSBitmapImageRep(data: png) else {
+            FileHandle.standardError.write(Data("minimal gate 失敗：算繪不出點陣圖\\n".utf8)); exit(1)
+        }
+        return rep
+    }
+    /// 進站綠取自 .arriving 自己的圓心，不硬編色碼 ⇒ 改配色不會讓這道 gate 假紅。
+    let ref = shot(.arriving)
+    guard let refColor = ref.colorAt(x: ref.pixelsWide / 2, y: ref.pixelsHigh / 2),
+          // 角落一定是底色（元件外圍有 padding），拿它當「這顆圓到底有沒有填色」的外部參照。
+          let bgColor = ref.colorAt(x: 3, y: 3) else {
+        FileHandle.standardError.write(Data("minimal gate 失敗：取不到「進站」的基準色\\n".utf8)); exit(1)
+    }
+    // 🔴 基準色是從受測物自己身上取的 ⇒ 受測物整個壞掉時它會退化成底色，而「數出一堆同色像素」
+    //    看起來仍然很正常（實測：把 solid 改成恆假，三張圖的「綠像素」全變成背景像素數，
+    //    下面兩條比較照樣有數字可比，紅在錯的條款上）。所以先用一個【與受測物無關】的事實把關：
+    //    圓心與角落底色必須明顯不同，否則這張圖上根本沒有一顆填了色的圓。
+    let refVsBg = abs(refColor.redComponent - bgColor.redComponent)
+                + abs(refColor.greenComponent - bgColor.greenComponent)
+                + abs(refColor.blueComponent - bgColor.blueComponent)
+    if refVsBg < 0.3 {
+        let msg = "minimal gate 失敗：「進站」那一顆的圓心與角落底色幾乎同色（色差 \\(refVsBg)）"
+            + "——實心圓根本沒畫出來，接下來的像素比較全是在數背景\\n"
+        FileHandle.standardError.write(Data(msg.utf8))
+        exit(1)
+    }
+    func greenPixels(_ rep: NSBitmapImageRep) -> Int {
+        var n = 0
+        for y in 0..<rep.pixelsHigh {
+            for x in 0..<rep.pixelsWide {
+                guard let c = rep.colorAt(x: x, y: y), c.alphaComponent > 0.5 else { continue }
+                let d = abs(c.redComponent - refColor.redComponent)
+                      + abs(c.greenComponent - refColor.greenComponent)
+                      + abs(c.blueComponent - refColor.blueComponent)
+                if d < 0.12 { n += 1 }
+            }
+        }
+        return n
+    }
+    let total = ref.pixelsWide * ref.pixelsHigh
+    let arriving = greenPixels(ref)
+    let passed = greenPixels(shot(.until(Date().addingTimeInterval(-30))))
+    let future = greenPixels(shot(.until(Date().addingTimeInterval(600))))
+
+    // (0) 正向對照：基準本身要真的是一顆實心圓。少了這條，「三張都是空白」也會讓下面兩條成立。
+    //     下界從幾何推導（22pt 的圓佔 30pt 見方畫布約 42%），取一半當保守門檻，不是手打的數字。
+    if Double(arriving) < Double(total) * 0.21 {
+        let msg = "minimal gate 失敗：「進站」那一顆根本不是實心圓（綠像素 \\(arriving)/\\(total)）"
+            + "——基準壞了，下面兩條的比較沒有意義\\n"
+        FileHandle.standardError.write(Data(msg.utf8))
+        exit(1)
+    }
+    // (1) 倒數走完＝車到了，與 .arriving 同一顆實心（形狀本身就是狀態，不必也放不下字）。
+    if Double(passed) < Double(arriving) * 0.85 {
+        let msg = "minimal gate 失敗：倒數走完的那一顆圓只有 \\(passed) 個進站綠像素，"
+            + "「進站」那一顆有 \\(arriving) 個——舊碼在這裡什麼都不畫，環裡是空的\\n"
+        FileHandle.standardError.write(Data(msg.utf8))
+        exit(1)
+    }
+    // (2) 反向對照：還沒到站的那一顆【不可以】也是實心，否則上面那條用「一律畫實心」就能通過。
+    if Double(future) > Double(arriving) * 0.15 {
+        let msg = "minimal gate 失敗：還有 10 分鐘的那一顆圓有 \\(future) 個進站綠像素"
+            + "（「進站」是 \\(arriving)）——實心色塊吃掉了「還在等」這個狀態\\n"
+        FileHandle.standardError.write(Data(msg.utf8))
+        exit(1)
+    }
+    print("gate 通過：minimal 的圓在倒數走完後畫成「進站」實心（\\(passed)/\\(arriving) 綠像素），"
+          + "還沒到站時仍是空心環（\\(future)）")
 }
 
 /// 🔴 gate：臺鐵不准畫秒數（TDX 是分鐘級），捷運不准畫 m:ss。
@@ -587,6 +748,8 @@ struct Harness {
         let outDir = CommandLine.arguments.count > 1 ? CommandLine.arguments[1] : "."
         stateGate()
         expiryGate()
+        staleDateGate()
+        minimalArrivedGate()
         precisionGate()
         liveCountdownGate()
 
