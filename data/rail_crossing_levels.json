@@ -1,0 +1,690 @@
+{
+ "_readme": "交叉點高低表：兩條不同路線立體交叉處誰在上。來源＝OSM layer/bridge/tunnel。above/below 各是 {id, sys}：捷運各線用 id 認、台鐵/高鐵/林鐵只認得到 sys。重建：node scripts/build_crossing_levels.mjs（--refresh 重抓 OSM）",
+ "generated": "2026-08-19",
+ "source": "OpenStreetMap (layer / bridge / tunnel) via Overpass API",
+ "minAngleDeg": 25,
+ "crossings": [
+  {
+   "lat": 24.993508,
+   "lon": 121.504983,
+   "above": {
+    "id": "Y",
+    "sys": "mrt"
+   },
+   "below": {
+    "id": "O_XINZHUANG",
+    "sys": "mrt"
+   },
+   "levels": {
+    "O_XINZHUANG": -4,
+    "Y": 3
+   },
+   "explicit": {
+    "O_XINZHUANG": true,
+    "Y": true
+   },
+   "note": "台北捷運中和新蘆線（迴龍） × 台北捷運環狀線",
+   "angle": 84.1
+  },
+  {
+   "lat": 25.039025,
+   "lon": 121.460609,
+   "above": {
+    "id": "Y",
+    "sys": "mrt"
+   },
+   "below": {
+    "id": "O_XINZHUANG",
+    "sys": "mrt"
+   },
+   "levels": {
+    "O_XINZHUANG": -2,
+    "Y": 1
+   },
+   "explicit": {
+    "O_XINZHUANG": true,
+    "Y": true
+   },
+   "note": "台北捷運中和新蘆線（迴龍） × 台北捷運環狀線",
+   "angle": 73.1
+  },
+  {
+   "lat": 25.055356,
+   "lon": 121.482546,
+   "above": {
+    "id": "A",
+    "sys": "tymc"
+   },
+   "below": {
+    "id": "O_XINZHUANG",
+    "sys": "mrt"
+   },
+   "levels": {
+    "O_XINZHUANG": -2,
+    "A": 1
+   },
+   "explicit": {
+    "O_XINZHUANG": true,
+    "A": true
+   },
+   "note": "台北捷運中和新蘆線（迴龍） × 桃園機捷機場捷運",
+   "angle": 81.1
+  },
+  {
+   "lat": 24.993508,
+   "lon": 121.504983,
+   "above": {
+    "id": "Y",
+    "sys": "mrt"
+   },
+   "below": {
+    "id": "O_LUZHOU",
+    "sys": "mrt"
+   },
+   "levels": {
+    "O_LUZHOU": -4,
+    "Y": 3
+   },
+   "explicit": {
+    "O_LUZHOU": true,
+    "Y": true
+   },
+   "note": "台北捷運中和新蘆線（蘆洲） × 台北捷運環狀線",
+   "angle": 84.1
+  },
+  {
+   "lat": 25.051881,
+   "lon": 121.54403,
+   "above": {
+    "id": "BR",
+    "sys": "mrt"
+   },
+   "below": {
+    "id": "G",
+    "sys": "mrt"
+   },
+   "levels": {
+    "BR": 1,
+    "G": -1
+   },
+   "explicit": {
+    "BR": true,
+    "G": true
+   },
+   "note": "台北捷運文湖線 × 台北捷運松山新店線",
+   "angle": 89.9
+  },
+  {
+   "lat": 25.033384,
+   "lon": 121.543596,
+   "above": {
+    "id": "BR",
+    "sys": "mrt"
+   },
+   "below": {
+    "id": "R",
+    "sys": "mrt"
+   },
+   "levels": {
+    "BR": 1,
+    "R": -2
+   },
+   "explicit": {
+    "BR": true,
+    "R": true
+   },
+   "note": "台北捷運文湖線 × 台北捷運淡水信義線",
+   "angle": 89.7
+  },
+  {
+   "lat": 25.052057,
+   "lon": 121.533013,
+   "above": {
+    "id": "G",
+    "sys": "mrt"
+   },
+   "below": {
+    "id": "O_XINZHUANG",
+    "sys": "mrt"
+   },
+   "levels": {
+    "G": -1,
+    "O_XINZHUANG": -3
+   },
+   "explicit": {
+    "G": true,
+    "O_XINZHUANG": true
+   },
+   "note": "台北捷運松山新店線 × 台北捷運中和新蘆線（迴龍）",
+   "angle": 89.9
+  },
+  {
+   "lat": 25.052057,
+   "lon": 121.533013,
+   "above": {
+    "id": "G",
+    "sys": "mrt"
+   },
+   "below": {
+    "id": "O_LUZHOU",
+    "sys": "mrt"
+   },
+   "levels": {
+    "G": -1,
+    "O_LUZHOU": -3
+   },
+   "explicit": {
+    "G": true,
+    "O_LUZHOU": true
+   },
+   "note": "台北捷運松山新店線 × 台北捷運中和新蘆線（蘆洲）",
+   "angle": 89.9
+  },
+  {
+   "lat": 25.046792,
+   "lon": 121.509853,
+   "above": {
+    "id": "BL",
+    "sys": "mrt"
+   },
+   "below": {
+    "id": "G",
+    "sys": "mrt"
+   },
+   "levels": {
+    "G": -3,
+    "BL": -2
+   },
+   "explicit": {
+    "G": true,
+    "BL": true
+   },
+   "note": "台北捷運松山新店線 × 台北捷運板南線",
+   "angle": 26.3
+  },
+  {
+   "lat": 25.049895,
+   "lon": 121.510389,
+   "above": {
+    "id": "A",
+    "sys": "tymc"
+   },
+   "below": {
+    "id": "G",
+    "sys": "mrt"
+   },
+   "levels": {
+    "G": -3,
+    "A": -1
+   },
+   "explicit": {
+    "G": true,
+    "A": true
+   },
+   "note": "台北捷運松山新店線 × 桃園機捷機場捷運",
+   "angle": 90
+  },
+  {
+   "lat": 25.015749,
+   "lon": 121.463789,
+   "above": {
+    "id": "Y",
+    "sys": "mrt"
+   },
+   "below": {
+    "id": "BL",
+    "sys": "mrt"
+   },
+   "levels": {
+    "BL": -3,
+    "Y": 1
+   },
+   "explicit": {
+    "BL": true,
+    "Y": true
+   },
+   "note": "台北捷運板南線 × 台北捷運環狀線",
+   "angle": 70.1
+  },
+  {
+   "lat": 25.03205,
+   "lon": 121.522486,
+   "above": {
+    "id": "R",
+    "sys": "mrt"
+   },
+   "below": {
+    "id": "O_XINZHUANG",
+    "sys": "mrt"
+   },
+   "levels": {
+    "R": -2,
+    "O_XINZHUANG": -3
+   },
+   "explicit": {
+    "R": true,
+    "O_XINZHUANG": true
+   },
+   "note": "台北捷運淡水信義線 × 台北捷運中和新蘆線（迴龍）",
+   "angle": 30.5
+  },
+  {
+   "lat": 25.062907,
+   "lon": 121.519338,
+   "above": {
+    "id": "R",
+    "sys": "mrt"
+   },
+   "below": {
+    "id": "O_XINZHUANG",
+    "sys": "mrt"
+   },
+   "levels": {
+    "R": -1,
+    "O_XINZHUANG": -2
+   },
+   "explicit": {
+    "R": true,
+    "O_XINZHUANG": true
+   },
+   "note": "台北捷運淡水信義線 × 台北捷運中和新蘆線（迴龍）",
+   "angle": 68.3
+  },
+  {
+   "lat": 25.03205,
+   "lon": 121.522486,
+   "above": {
+    "id": "R",
+    "sys": "mrt"
+   },
+   "below": {
+    "id": "O_LUZHOU",
+    "sys": "mrt"
+   },
+   "levels": {
+    "R": -2,
+    "O_LUZHOU": -3
+   },
+   "explicit": {
+    "R": true,
+    "O_LUZHOU": true
+   },
+   "note": "台北捷運淡水信義線 × 台北捷運中和新蘆線（蘆洲）",
+   "angle": 30.5
+  },
+  {
+   "lat": 25.062907,
+   "lon": 121.519338,
+   "above": {
+    "id": "R",
+    "sys": "mrt"
+   },
+   "below": {
+    "id": "O_LUZHOU",
+    "sys": "mrt"
+   },
+   "levels": {
+    "R": -1,
+    "O_LUZHOU": -2
+   },
+   "explicit": {
+    "R": true,
+    "O_LUZHOU": true
+   },
+   "note": "台北捷運淡水信義線 × 台北捷運中和新蘆線（蘆洲）",
+   "angle": 68.3
+  },
+  {
+   "lat": 25.052648,
+   "lon": 121.52036,
+   "above": {
+    "id": "G",
+    "sys": "mrt"
+   },
+   "below": {
+    "id": "R",
+    "sys": "mrt"
+   },
+   "levels": {
+    "R": -4,
+    "G": -3
+   },
+   "explicit": {
+    "R": true,
+    "G": true
+   },
+   "note": "台北捷運淡水信義線 × 台北捷運松山新店線",
+   "angle": 78.9
+  },
+  {
+   "lat": 25.046185,
+   "lon": 121.5175,
+   "above": {
+    "id": "BL",
+    "sys": "mrt"
+   },
+   "below": {
+    "id": "R",
+    "sys": "mrt"
+   },
+   "levels": {
+    "R": -4,
+    "BL": -2
+   },
+   "explicit": {
+    "R": true,
+    "BL": true
+   },
+   "note": "台北捷運淡水信義線 × 台北捷運板南線",
+   "angle": 85.3
+  },
+  {
+   "lat": 24.182086,
+   "lon": 120.702288,
+   "above": {
+    "id": "TG",
+    "sys": "tmrt"
+   },
+   "below": {
+    "id": "山線",
+    "sys": "tra_sched"
+   },
+   "levels": {
+    "山線": 2,
+    "TG": 3
+   },
+   "explicit": {
+    "山線": true,
+    "TG": true
+   },
+   "note": "台鐵山線（竹南–彰化） × 台中捷運綠線",
+   "angle": 55.3
+  },
+  {
+   "lat": 24.951978,
+   "lon": 121.351441,
+   "above": {
+    "id": "LB",
+    "sys": "sanying"
+   },
+   "below": {
+    "id": "縱貫線北段",
+    "sys": "tra_sched"
+   },
+   "levels": {
+    "縱貫線北段": 0,
+    "LB": 2
+   },
+   "explicit": {
+    "縱貫線北段": false,
+    "LB": true
+   },
+   "note": "台鐵縱貫線北段（基隆–竹南） × 三鶯線三鶯線",
+   "angle": 52.7
+  },
+  {
+   "lat": 25.047662,
+   "lon": 121.509945,
+   "above": {
+    "id": "縱貫線北段",
+    "sys": "tra_sched"
+   },
+   "below": {
+    "id": "G",
+    "sys": "mrt"
+   },
+   "levels": {
+    "縱貫線北段": -2,
+    "G": -5
+   },
+   "explicit": {
+    "縱貫線北段": true,
+    "G": true
+   },
+   "note": "台鐵縱貫線北段（基隆–竹南） × 台北捷運松山新店線",
+   "angle": 40
+  },
+  {
+   "lat": 25.004153,
+   "lon": 121.455002,
+   "above": {
+    "id": "縱貫線北段",
+    "sys": "tra_sched"
+   },
+   "below": {
+    "id": "BL",
+    "sys": "mrt"
+   },
+   "levels": {
+    "縱貫線北段": -2,
+    "BL": -4
+   },
+   "explicit": {
+    "縱貫線北段": true,
+    "BL": true
+   },
+   "note": "台鐵縱貫線北段（基隆–竹南） × 台北捷運板南線",
+   "angle": 39.8
+  },
+  {
+   "lat": 25.035997,
+   "lon": 121.506262,
+   "above": {
+    "id": "BL",
+    "sys": "mrt"
+   },
+   "below": {
+    "id": "縱貫線北段",
+    "sys": "tra_sched"
+   },
+   "levels": {
+    "縱貫線北段": -3,
+    "BL": -2
+   },
+   "explicit": {
+    "縱貫線北段": true,
+    "BL": true
+   },
+   "note": "台鐵縱貫線北段（基隆–竹南） × 台北捷運板南線",
+   "angle": 28.1
+  },
+  {
+   "lat": 25.047809,
+   "lon": 121.518386,
+   "above": {
+    "id": "縱貫線北段",
+    "sys": "tra_sched"
+   },
+   "below": {
+    "id": "R",
+    "sys": "mrt"
+   },
+   "levels": {
+    "縱貫線北段": -2,
+    "R": -4
+   },
+   "explicit": {
+    "縱貫線北段": true,
+    "R": true
+   },
+   "note": "台鐵縱貫線北段（基隆–竹南） × 台北捷運淡水信義線",
+   "angle": 69.3
+  },
+  {
+   "lat": 25.014785,
+   "lon": 121.465227,
+   "above": {
+    "id": "Y",
+    "sys": "mrt"
+   },
+   "below": {
+    "id": "縱貫線北段",
+    "sys": "tra_sched"
+   },
+   "levels": {
+    "縱貫線北段": -2,
+    "Y": 1
+   },
+   "explicit": {
+    "縱貫線北段": true,
+    "Y": true
+   },
+   "note": "台鐵縱貫線北段（基隆–竹南） × 台北捷運環狀線",
+   "angle": 71.6
+  },
+  {
+   "lat": 23.328529,
+   "lon": 120.336978,
+   "above": {
+    "id": "THSR",
+    "sys": "thsr_sched"
+   },
+   "below": {
+    "id": "縱貫線南段",
+    "sys": "tra_sched"
+   },
+   "levels": {
+    "縱貫線南段": 1,
+    "THSR": 4
+   },
+   "explicit": {
+    "縱貫線南段": true,
+    "THSR": true
+   },
+   "note": "台鐵縱貫線南段（彰化–高雄） × 高鐵高鐵",
+   "angle": 40.4
+  },
+  {
+   "lat": 22.619905,
+   "lon": 120.281242,
+   "above": {
+    "id": "C",
+    "sys": "krtc"
+   },
+   "below": {
+    "id": "KO",
+    "sys": "krtc"
+   },
+   "levels": {
+    "KO": -2,
+    "C": 0
+   },
+   "explicit": {
+    "KO": true,
+    "C": false
+   },
+   "note": "高雄捷運橘線 × 高雄捷運環狀輕軌",
+   "angle": 70
+  },
+  {
+   "lat": 22.629865,
+   "lon": 120.323176,
+   "above": {
+    "id": "C",
+    "sys": "krtc"
+   },
+   "below": {
+    "id": "KO",
+    "sys": "krtc"
+   },
+   "levels": {
+    "KO": -2,
+    "C": 0
+   },
+   "explicit": {
+    "KO": true,
+    "C": false
+   },
+   "note": "高雄捷運橘線 × 高雄捷運環狀輕軌",
+   "angle": 57.8
+  },
+  {
+   "lat": 25.047485,
+   "lon": 121.509933,
+   "above": {
+    "id": "THSR",
+    "sys": "thsr_sched"
+   },
+   "below": {
+    "id": "G",
+    "sys": "mrt"
+   },
+   "levels": {
+    "THSR": -2,
+    "G": -5
+   },
+   "explicit": {
+    "THSR": true,
+    "G": true
+   },
+   "note": "高鐵高鐵 × 台北捷運松山新店線",
+   "angle": 36.5
+  },
+  {
+   "lat": 25.004018,
+   "lon": 121.454925,
+   "above": {
+    "id": "THSR",
+    "sys": "thsr_sched"
+   },
+   "below": {
+    "id": "BL",
+    "sys": "mrt"
+   },
+   "levels": {
+    "THSR": -2,
+    "BL": -4
+   },
+   "explicit": {
+    "THSR": true,
+    "BL": true
+   },
+   "note": "高鐵高鐵 × 台北捷運板南線",
+   "angle": 34.1
+  },
+  {
+   "lat": 25.036113,
+   "lon": 121.506376,
+   "above": {
+    "id": "BL",
+    "sys": "mrt"
+   },
+   "below": {
+    "id": "THSR",
+    "sys": "thsr_sched"
+   },
+   "levels": {
+    "THSR": -3,
+    "BL": -2
+   },
+   "explicit": {
+    "THSR": true,
+    "BL": true
+   },
+   "note": "高鐵高鐵 × 台北捷運板南線",
+   "angle": 27.6
+  },
+  {
+   "lat": 25.047431,
+   "lon": 121.518152,
+   "above": {
+    "id": "THSR",
+    "sys": "thsr_sched"
+   },
+   "below": {
+    "id": "R",
+    "sys": "mrt"
+   },
+   "levels": {
+    "THSR": -2,
+    "R": -4
+   },
+   "explicit": {
+    "THSR": true,
+    "R": true
+   },
+   "note": "高鐵高鐵 × 台北捷運淡水信義線",
+   "angle": 73.6
+  }
+ ]
+}
