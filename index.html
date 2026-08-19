@@ -3823,7 +3823,7 @@
 
   <footer class="site-foot">
     <details class="foot-box">
-      <summary><span>更新紀錄</span><span class="foot-sub">最後更新：2026/8/19</span></summary>
+      <summary><span>更新紀錄</span><span class="foot-sub">最後更新：2026/8/20</span></summary>
       <!-- 第一層是「最近更新」的檢視,不是正本:每一條都用 data-cl-of 指向第二層某條的 data-cl。
            要把一條擠出第一層之前,它的正本必須已經在第二層存在——2026-08-03 就踩過一次:8/1 的
            衛星計費那條只活在第一層(第二層只有一句夾在 7/25 條目裡、日期對不上的附帶說明),
@@ -3831,6 +3831,7 @@
            內容 li 上限 8 條(li.grp 是標題不算)。 -->
       <ul class="foot-list foot-recent">
         <li class="grp">最近更新</li>
+        <li data-cl-of="livefresh"><span class="d">8/20</span><span>台鐵的「LIVE」標示不再在官方資料中斷時繼續宣稱即時：資料超過五分鐘沒更新就改標灰色「推估」，超過三十分鐘不再套用那份過期的誤點；裝置時鐘明顯不準時也會改標「推估」</span></li>
         <li data-cl-of="cdarrivestamp"><span class="d">8/19</span><span>文湖線與環狀線的列車不會再整批往前跳一站、下一輪又整批退回來：被退回的那台會凍在原地等，後面的車追上來就擠成一團，現在這個來回跳沒有了</span></li>
         <li data-cl-of="brsametrain"><span class="d">8/19</span><span>文湖線不會再把前後兩台車併成一台：併掉的那台會補回地圖上，原本被併的那台也不會再卡在原地被後車追上、擠成一團</span></li>
         <li data-cl-of="stationonline"><span class="d">8/19</span><span>停靠中的列車不會再被畫到自己那條線的外面：大安站的文湖線車以前會出現在信義路上（離棕線 123 公尺），現在全台 45 個站點座標一律貼回自己路線的軌道上，車停哪一站就畫在那一站</span></li>
@@ -3847,7 +3848,6 @@
         <li data-cl-of="badgescope"><span class="d">8/16</span><span>「台」「高」不再顯示捷運的「官方即時」標示；捷運收班後改標「已收班」</span></li>
         <li data-cl-of="zuoyingalias"><span class="d">8/16</span><span>台鐵左營站不再分成「左營」與「左營(舊城)」兩顆，看板正常顯示；新城站同步修正（謝謝網友回報）</span></li>
         <li data-cl-of="danhaifireworks"><span class="d">8/15</span><span>淡水漁人碼頭煙火的三個週日（8/16、8/23、8/30），淡海輕軌畫面依官方公告調整：傍晚起綠山線班距拉長、五點後崁頂那一段停駛，藍海線改跑密集班距</span></li>
-        <li data-cl-of="trtcoutage"><span class="d">8/15</span><span>台北捷運訊號中斷時會明白告知位置與倒數不準，並修好位置愈跑愈偏、冒出無車號幽靈車的問題</span></li>
       </ul>
       <!-- 第二層:完整歷史。刻意不掛 .foot-box 類名——placeFootBoxes() 用
            `.site-foot .foot-box` 搬移面板,巢狀同名會被當成另一個盒子一起搬走。 -->
@@ -3868,6 +3868,7 @@
         <li><span class="d">7/10</span><span>高鐵、桃園機捷、淡海輕軌、安坑輕軌加入路網</span></li>
         <li><span class="d">7/10</span><span>環島觀光列車一分為二：往東「山海號」、往西「平原號」</span></li>
         <li class="grp">即時動態與誤點</li>
+        <li data-cl="livefresh"><span class="d">8/20</span><span>台鐵即時誤點的「LIVE」標示改看資料本身的時間戳：以前只要每分鐘還連得上伺服器就一直亮綠燈，但官方資料來源偶爾會整批中斷一個多小時（近期實測三次，每次 65 到 95 分鐘、都在週一早尖峰），那段期間畫面套的其實是一小時前的誤點、標示卻仍寫著即時。現在資料超過五分鐘沒更新就改標灰色「推估」，超過三十分鐘就不再套用，列車回到時刻表上的位置；把游標移到標示上會說明是哪一種情況。另外，如果裝置本身的時鐘和實際時間差超過一分半，也會改標「推估」——那種時候「現在幾點」本身就是錯的，誤點再準也對不上</span></li>
         <li data-cl="trtccountdown"><span class="d">8/18</span><span>台北捷運列車位置改回官方即時：之前因為位置會疊車、會不見，曾暫時退回用班表推估；現在回到官方資料。文湖線官方沒有給車號，改用各站的官方倒數推算車在哪兩站之間，比原本那個來源新兩到四分鐘；同向前後車也不會再互相穿越或黏在一起。車會一路跟到終點站才收車，不會在快到終點的那一段提早不見。北捷隨時在修正到站倒數，改得多的時候畫面會在幾秒內把車對回官方位置，並跟你說一聲是官方訂正。另外修好一個毛病：只要有一台車的資料不完整，整張列車名單就會被丟掉、全網的車一起停在舊畫面（實測每十一輪會發生一次），現在不會了。（8/18 傍晚先暫時退回班表推估：實測位置每十幾秒會跳一次、跳幅 100–500 公尺，等根因修好再開回來，車站到站倒數一直都是官方即時不受影響）</span></li>
         <li data-cl="thsrwindow"><span class="d">8/17</span><span>高鐵班表曾經停在前一天（8/17 早上）：當天才有的班次整批看不到，前一天才有的則變成停不下來的幽靈車。現在班表一次抓七天，並且每五分鐘自動檢查一次今天的班表在不在，不在就立刻補抓（謝謝網友回報）</span></li>
         <li data-cl="trtczombie"><span class="d">8/17</span><span>台北捷運畫面上會冒出停在原地、好幾台疊在一起的重複列車（8/17 早上實測文湖線同時畫出 88 台，官方當下其實只有 33 台在跑）。當天上午起列車位置改用班表推估，把重複的車擋掉；車站的到站倒數一直都是官方即時資料，與月台顯示的倒數相同。「改用官方逐車資料認車」的新做法傍晚上線試了一輪，實測其他路線也還會疊車，當晚先退回班表推估，等根因修好再上。另外修掉車站看板的一個困擾：尖峰才加開的短程車（板南線往昆陽、往亞東醫院，淡水信義線往北投、往大安，松山新店線往台電大樓）本來會被提早列出來，看起來像多了一條線——實測松江南京同時出現兩列「往台電大樓」61 分與 77 分、忠孝復興出現「往昆陽 20 分」。現在這類短程車只在一班班距內（也就是真的是下一班）才會列出來，馬上要到的仍照樣顯示，官方即時倒數一律照官方（謝謝網友回報）</span></li>
@@ -4385,7 +4386,7 @@
 //         CSP 的 connect-src 要一起放行 tiles.openfreemap.org——向量圖磚走 fetch 不走 img。
 // v0819g：北捷起點站等發車的車不再被回推規則丟掉；行進方向改由官方倒數順序決定(dest 次之、
 //         dir 欄位最後)；倒數站＝官方報的站時，到站時刻不再被套到下一站(超前一整段)。
-const BUILD = 'v0819j';
+const BUILD = 'v0820a';
 // 2026-08-13 起預設開啟（使用者親試預覽後裁示上線）：北捷畫車依官方即時名冊，班表只是備案。
 // 保留 ?officialroster=0 當逃生口——要退回班表路徑不必回滾部署，加個參數即可對照。
 // 🔴 這個函式會被 verify_official_roster_frontend 抽出來丟進 VM 單獨執行——
@@ -16537,7 +16538,7 @@ function renderTodayEvents(no) {
   // 只有即時名單裡的車才給跟車鈕。只看資料鮮度,不用 liveActive()——它綁著「當前分頁是時刻表＋時間軸沒回看」
   // 的地圖徽章語意,切到捷運分頁或暫停/重播過就把鈕全滅;跟車動作本身會自行切系統,不需要那些前提。
   const lv = state.live;
-  const live = lv && lv.map && lv.map.has(no) && Date.now() - lv.at < 1800e3;
+  const live = lv && lv.map && lv.map.has(no) && liveDataAgeMs() < 1800e3; // 齡走 liveDataAgeMs(上游時戳),同 liveActive
   return rows + (live ? `<button class="td-follow" data-follow="${no}">跟這班車 →</button>` : '');
 }
 function renderTodayPanel() {
@@ -18181,13 +18182,52 @@ function evalTraAnomaly(total, d10, maxDelay) {
 // 修正語意:誤點 N 分的車=照時刻表晚 N 分跑,trainPos 等函式把該車的查詢時間回撥 N 分。
 // 套用政策:未來方向(含高倍速快轉)持續投射最後已知誤點,只有模擬時鐘回看過去 >120 秒才退場;
 // 偏移一律經 easedShift 平滑進出,不硬切。Δ=simSec−nowSecOfDay 用普通減法,不處理跨午夜(盲區同現行)。
+// 🔴 資料齡一律走這裡,不准直接寫 Date.now() - state.live.at。
+// state.live.at 是【我們收到回應的時刻】,不是資料本身的時刻。TDX TrainLiveBoard 掛掉時
+// worker.js 的 traLive() catch 分支會把上一份快照以 HTTP 200 回下來,前端每分鐘照樣「收到」
+// 新回應 ⇒ 用 at 量出來的齡永遠接近 0 ⇒ 徽章持續綠色「LIVE」,實際套的是幾十分鐘前的誤點。
+// 不是假想:TrainLiveBoard 實測 22 天內三次整批斷線 65–95 分鐘,三次全在週一早高峰。
+// 取兩者最大值的理由(雙向都要守得住):
+//   ・srcAge 抓得到「上游凍結」(at 不動,srcAge 一路長大),但會被裝置時鐘偏移污染
+//     ——裝置時鐘慢的話 srcAge 會被低估、甚至為負。
+//   ・localAge 是同一個時鐘的兩次讀數相減,對時鐘偏移免疫,守得住下界,但上游凍結時它不會長。
+//   兩者取大 ⇒ 任何一邊說「舊」就算舊。srcAt 缺漏或不可解析時退回舊行為(只看 localAge)。
+function liveDataAgeMs() {
+  if (!state.live) return Infinity;
+  const localAge = Date.now() - state.live.at;
+  if (state.live.srcMs == null) return localAge;
+  return Math.max(localAge, Date.now() - state.live.srcMs);
+}
+// ── 裝置時鐘偏差(裝置 − 伺服器,毫秒;正值=裝置快) ──
+// nowSecOfDay() 完全信任裝置時鐘,裝置錯 N 分鐘 ⇒ 全台鐵/高鐵位置、倒數、看板整體偏 N 分鐘,
+// 而我們永遠不會知道。/api/tra-live 的 srv 欄是免費的伺服器時鐘(worker 回應當下寫的)。
+// 單筆取樣一定被「網路延遲＋邊緣快取重播」墊高,但那兩項只會讓值變大不會變小 ⇒ 取近 N 筆最小值
+// 就逼近真實偏差(NTP 的 min filter 同理)。門檻取 90 秒:低於這個量級的偏差被模型自身誤差蓋掉,
+// 高於它就足以讓使用者看到「車跟站牌對不上」而我們卻查不出原因。
+const CLOCK_SKEW_WARN_MS = 90e3, CLOCK_SKEW_KEEP = 10;
+const _clockSkewSamples = [];
+function noteClockSkew(srvMs) {
+  if (!(srvMs > 0)) return;                       // 舊版 worker/離線 fixture 沒有 srv → 不取樣,維持「未知」
+  _clockSkewSamples.push(Date.now() - srvMs);
+  if (_clockSkewSamples.length > CLOCK_SKEW_KEEP) _clockSkewSamples.shift();
+}
+// 回 null=沒有樣本(未知);有樣本才回估計值。裝置慢(負偏差)時最小值同樣是最接近真值的那一筆。
+function clockSkewMs() {
+  if (!_clockSkewSamples.length) return null;
+  let m = _clockSkewSamples[0];
+  for (const v of _clockSkewSamples) if (v < m) m = v;
+  return m;
+}
+function clockSkewBad() { const s = clockSkewMs(); return s != null && Math.abs(s) >= CLOCK_SKEW_WARN_MS; }
 function liveActive() { // 語意=偏移套用中(未必新鮮):資料齡放寬到 30 分(防 API 停擺套陳舊誤點),只往過去退場
   return !!(state.live && state.mode === 'sched' && state.schedSystems && state.schedSystems.some(s => s.live) &&
-    Date.now() - state.live.at < 1800e3 &&
+    liveDataAgeMs() < 1800e3 &&
     state.simSec - nowSecOfDay() >= -120);
 }
-function liveFresh() { // 新鮮 tier(校正中):資料 5 分內且模擬時鐘貼近現在;liveActive 但非 fresh=推估 tier
-  return liveActive() && Date.now() - state.live.at < 300e3 && Math.abs(state.simSec - nowSecOfDay()) <= 120;
+// 新鮮 tier(校正中):資料 5 分內且模擬時鐘貼近現在;liveActive 但非 fresh=推估 tier。
+// 時鐘偏差超標也一律降成推估——那種狀態下「即時校正」這四個字是假的:我們把誤點套在一個錯的「現在」上。
+function liveFresh() {
+  return liveActive() && liveDataAgeMs() < 300e3 && Math.abs(state.simSec - nowSecOfDay()) <= 120 && !clockSkewBad();
 }
 function liveDelaySec(tr) {
   let target = 0;
@@ -18216,7 +18256,11 @@ async function pollLive() {
     if (!Array.isArray(d.trains)) throw new Error('bad payload');
     const m = new Map(); let delayed = 0, d10 = 0, maxDelay = 0;
     for (const t of d.trains) { const dl = t.delay || 0; m.set(String(t.no), dl); if (dl > 0) delayed++; if (dl >= 10) d10++; if (dl > maxDelay) maxDelay = dl; }
-    state.live = { map: m, at: Date.now(), delayed, srcAt: d.at };
+    // srcMs=上游資料時戳(TDX UpdateTime)解析成 epoch ms,供 liveDataAgeMs 判齡;
+    // 解析不出來就留 null,liveDataAgeMs 會退回舊行為(只看 at),不讓格式意外變成「資料永遠過期」。
+    const srcMs = Date.parse(d.at);
+    state.live = { map: m, at: Date.now(), delayed, srcAt: d.at, srcMs: isNaN(srcMs) ? null : srcMs };
+    noteClockSkew(d.srv);
     evalTraAnomaly(d.trains.length, d10, maxDelay); // 大面積誤點自家觀測(2 進 2 出遲滯;判定只看誤點≥10 分的 d10,delayed 仍供 badge 用)
   } catch (e) { /* 失敗保留舊資料;超過 30 分鐘未更新由 liveActive 自動停用 */ }
   updateLiveBadge();
@@ -18230,9 +18274,16 @@ function updateLiveBadge() {
     const fresh = liveFresh(); // fresh=校正中綠 LIVE;推估 tier(高倍速投射/資料稍舊)灰化改「推估」,不誤稱即時
     el.textContent = fresh ? 'LIVE' : '推估';
     el.classList.toggle('est', !fresh);
-    el.title = fresh
+    // 非 fresh 時把「為什麼」寫進 title:資料舊、裝置時鐘錯、時間軸離開現在,三者的處置完全不同,
+    // 只寫「推估」會讓現場回報無從分辨(而分辨不出來的成本我們付過太多次了)。
+    const skew = clockSkewMs(), why = [];
+    if (liveDataAgeMs() >= 300e3) why.push(`資料已 ${Math.round(liveDataAgeMs() / 60e3)} 分鐘未更新`);
+    if (clockSkewBad()) why.push(`裝置時鐘與伺服器差 ${Math.round(skew / 1000)} 秒`);
+    if (Math.abs(state.simSec - nowSecOfDay()) > 120) why.push('時間軸不在現在');
+    el.title = (fresh
       ? `台鐵即時誤點已套用(每分鐘更新)· ${state.live.delayed} 班誤點中 · 來源 ${String(state.live.srcAt).slice(11, 16)}`
-      : `台鐵誤點推估(依 ${String(state.live.srcAt).slice(11, 16)} 即時資料投射)· ${state.live.delayed} 班誤點中`;
+      : `台鐵誤點推估(依 ${String(state.live.srcAt).slice(11, 16)} 即時資料投射)· ${state.live.delayed} 班誤點中`)
+      + (why.length ? ' · ' + why.join('、') : '');
   }
   // LIVE 亮起時收掉「時刻表模擬」標籤,兩者並排語意矛盾;熄滅後每秒刷新會自動恢復
   document.getElementById('peak').hidden = on && !state.nightReplay;
@@ -22097,7 +22148,7 @@ const HELP_GROUPS = [
     { key: 'board', ic: '<span class="hw-stnbox"><i></i></span>', nm: '點車站＝接下來的班次看板',
       one: '看板由近到遠列出接下來要進站的車，還有幾分鐘到。',
       steps: ['點地圖上任一車站', '看板列出接下來的班次與倒數', '點其中一班可以直接跟車；標題右邊的收藏鈕把這站加進最愛'],
-      tip: '台鐵套用官方即時誤點；北捷依官方秒級到站倒數逐班校正，高捷、機捷、高雄輕軌依官方到站看板校正。', try: 'board' },
+      tip: '台鐵套用官方即時誤點；北捷依官方秒級到站倒數逐班校正，高捷、機捷、高雄輕軌依官方到站看板校正。官方資料中斷或你的裝置時鐘明顯不準時，上方的「LIVE」會轉成灰色「推估」，表示畫面是依稍早的資料投射。', try: 'board' },
     { key: 'rand', ic: '⤮', nm: '隨機跟隨', one: '不知道要看哪班，交給它挑一班。',
       steps: ['按地圖上的「隨機跟隨」', '不喜歡再按一次換一班', '小卡的 × 結束'], try: 'follow' },
     { key: 'time', ic: '❚❚', nm: '時間軸：暫停、快轉、回看',
@@ -22450,8 +22501,34 @@ function setupMapTools() {
     try { localStorage.setItem('trainmap-diagstrip', on ? '1' : '0'); } catch (e) {}
     let el = document.getElementById('diagStrip');
     if (!on) { clearInterval(state._diagT); if (el) el.remove(); return; }
+    // 兩行:上=位置管線(只有跟車時才有內容)、下=渲染健康(既有那行,逐字未動)。
+    // 容器錨在 bottom ⇒ 新增的行往【上】長,渲染健康那行的位置與內容零變化;沒跟車時上行整個
+    // display:none ⇒ 與改動前逐像素相同。每行各自 nowrap、由容器的 overflow:hidden 裁掉尾端(既有規則)。
     if (!el) { el = document.createElement('div'); el.id = 'diagStrip'; document.body.appendChild(el); }
+    while (el.childElementCount < 2) el.appendChild(document.createElement('div'));
+    const [posLine, healthLine] = el.children;
     clearInterval(state._diagT);
+    // 位置管線的每幀交代(建議書 §10.1 constraintReason):這台車現在在這裡,是表定、即時偏移、
+    // 還是防追撞夾持造成的?本專案反覆在「位置不對」的誤判上整輪空轉,而這些量全都算得出來、只是沒露出。
+    // 欄位鍵:lv=即時層(f 校正/e 推估/- 關) ds=誤點回撥秒 bh=防追撞回撥秒 rn=約束原因
+    //         cr=曲線種類(obs 實測剖面/prof 梯形或惰行/lin 退等速) da=資料齡秒 sk=裝置時鐘偏差秒 km=沿線里程
+    const fmtPos = () => {
+      const tr = state.followTrain;
+      if (!tr) return '';
+      const ds = liveDelaySec(tr), bh = blockHoldSec(tr);
+      const g = trainSeg(tr, state.simSec - ds - bh);
+      const capped = !!(state._block && state._block.capped && state._block.capped.has(blockKeyOf(tr)));
+      const rn = capped ? 'cap' : bh > 0 ? 'hold' : (g && g.dwell) ? 'dwell' : '-';
+      const cr = !g ? '-' : g.dwell ? 'dwell' : (g.seg && g.seg.rp) ? (g.seg.rp.obs ? 'obs' : 'prof') : 'lin';
+      const sk = clockSkewMs();
+      return 'pos ' + (tr.sys || '?') + ':' + tr.train
+        + ' lv:' + (liveFresh() ? 'f' : liveActive() ? 'e' : '-')
+        + ' ds' + ds.toFixed(0) + ' bh' + bh.toFixed(0)
+        + ' rn:' + rn + ' cr:' + cr
+        + ' da' + (state.live ? Math.round(liveDataAgeMs() / 1000) : '-')
+        + ' sk' + (sk == null ? '?' : (sk > 0 ? '+' : '') + Math.round(sk / 1000))
+        + (g && g.d != null ? ' km' + g.d.toFixed(1) : '');
+    };
     const fmt = () => {
       try {
         const now = performance.now();
@@ -22483,8 +22560,15 @@ function setupMapTools() {
           + (errs.length ? ' ' + String(errs[0]).slice(0, 34) : (state._weFirst ? ' ' + state._weFirst.slice(0, 34) : ''));
       } catch (e) { return 'diag err: ' + String(e).slice(0, 60); }
     };
-    el.textContent = fmt();
-    state._diagT = setInterval(() => { const d = document.getElementById('diagStrip'); if (d) d.textContent = fmt(); }, 1000);
+    const paint = () => {
+      let p = '';
+      try { p = fmtPos(); } catch (e) { p = 'pos err: ' + String(e).slice(0, 40); } // 診斷欄自己不准把頁面弄壞
+      posLine.textContent = p;
+      posLine.style.display = p ? '' : 'none';
+      healthLine.textContent = fmt();
+    };
+    paint();
+    state._diagT = setInterval(() => { if (document.getElementById('diagStrip')) paint(); }, 1000);
   }
   try { if (localStorage.getItem('trainmap-diagstrip') === '1') setDiagStrip(true); } catch (e) {}
   const MS_STATE = {

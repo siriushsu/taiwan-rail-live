@@ -130,11 +130,17 @@ async function traLive(request, env, ctx) {
       // 逐站觀測事件擷取:只搭「真的刷新上游」這班順風車(cache 命中/mem 未過期都到不了這裡),零新增 TDX 呼叫
       recordStationEvents(mem, env, ctx);
     }
-    const res = jsonRes(mem, 200, 'public, s-maxage=55, stale-while-revalidate=300');
+    // srv=本次回應產生當下的伺服器時鐘(epoch ms)。前端拿它跟 Date.now() 相減、取多次取樣的最小值,
+    // 就量得出「裝置時鐘偏差」——裝置時鐘錯 N 分鐘會讓全部台鐵/高鐵位置與倒數整體偏 N 分鐘,
+    // 而在此之前沒有任何訊號會告訴我們(nowSecOfDay 完全信任裝置時鐘)。
+    // 🔴 刻意放在回應層而不是 mem 裡:上游掛掉時走下面的 catch 分支回舊 mem,那時 at 是舊的、
+    // srv 仍是現在 ⇒ 前端才分得出「資料舊」與「時鐘錯」是兩件不同的事。
+    // 邊緣快取重播只會讓 srv 落後(偏差被高估),不會領先 ⇒ 前端取最小值即可濾掉。
+    const res = jsonRes({ ...mem, srv: Date.now() }, 200, 'public, s-maxage=55, stale-while-revalidate=300');
     await edge.put(cacheKey, res.clone());
     return res;
   } catch (e) {
-    if (mem) return jsonRes(mem, 200, 'public, s-maxage=15');
+    if (mem) return jsonRes({ ...mem, srv: Date.now() }, 200, 'public, s-maxage=15');
     return jsonRes({ error: String(e.message || e) }, 502, 'no-store');
   }
 }
