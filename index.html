@@ -5855,8 +5855,9 @@ function trtcOfficialArrivalTarget(ln, vehicle, raw) {
 // 停站:剛到站的車依「該站的官方停靠秒」停一下再開(使用者:「停的時間依照我們的資料,二十幾~四十幾秒」)。
 // 但不能停到來不及準時到下一站——先留下這一段的行駛秒,倒數太緊就立刻開走。
 function trtcOfficialDwellUntil(ln, vehicle, prior, plan) {
-  const arrivedAt = Number(prior && prior.arrivedAt), station = Number(prior && prior.arrivedStation);
-  if (!plan || !Number.isFinite(arrivedAt) || !Number.isInteger(station)) return -Infinity;
+  const arrivedAt = prior && prior.arrivedAt != null && Number.isFinite(prior.arrivedAt) ? prior.arrivedAt : null;
+  const station = prior && prior.arrivedStation;
+  if (!plan || arrivedAt == null || !Number.isInteger(station)) return -Infinity;
   const run = trtcOfficialSegmentSeconds(ln, vehicle, station, station + plan.step);
   return Math.min(arrivedAt + trtcOfficialDwellAt(ln, station), plan.arrEpoch - (run > 0 ? run : 0));
 }
@@ -5864,9 +5865,11 @@ function trtcOfficialDwellUntil(ln, vehicle, prior, plan) {
 function trtcOfficialStopState(plan, progress, prior, now) {
   if (!plan) return { arrivedAt: null, arrivedStation: null };
   const physical = progress / plan.step, station = Math.round(physical);
-  if (Math.abs(physical - station) > 1e-6) return { arrivedAt: null, arrivedStation: null };
-  const was = Number(prior && prior.arrivedAt);
-  return Number(prior && prior.arrivedStation) === station && Number.isFinite(was)
+  // 容差不是寬鬆,是必要:每格的前進上限會讓車停在離站心不到 1% 段長的地方,
+  // 用嚴格相等判「到站」的話,那些車永遠 latch 不到到站時刻,停站與出發邏輯整套不會啟動。
+  if (Math.abs(physical - station) > 0.01) return { arrivedAt: null, arrivedStation: null };
+  const was = prior && prior.arrivedAt != null && Number.isFinite(prior.arrivedAt) ? prior.arrivedAt : null;
+  return was != null && prior.arrivedStation === station
     ? { arrivedAt: was, arrivedStation: station } : { arrivedAt: now, arrivedStation: station };
 }
 // ETA 修訂只改目標，不准讓同一 vehicleId 在畫面倒退，也不准為了追 ETA 而超速。
@@ -5884,12 +5887,13 @@ function trtcOfficialDisplayPosition(ln, vehicle, nowEpoch) {
   const anchor = `${vehicle && vehicle.from}>${vehicle && vehicle.to}@${vehicle && vehicle.arrEpoch}`;
   const obs = Number(vehicle && vehicle.observedEpoch);
   const coasted = !!raw.coasted;
+  const step = Number(vehicle && vehicle.dir) === 2 ? 1 : -1;
   // 這台車從哪一刻開始進入續推（用來判斷「長時間斷訊」；不是續推就沒有起點）
   const coastSince = coasted
     ? (prior && prior.coasted && Number.isFinite(Number(prior.coastSince)) ? prior.coastSince : now)
     : null;
   if (!prior || now < prior.epoch) {
-    _trtcOfficialDisplay.set(key, { epoch: now, progress, pos: raw, coasted, coastSince, anchor, obs,
+    _trtcOfficialDisplay.set(key, { epoch: now, progress, pos: raw, coasted, coastSince, anchor, obs, step,
       ...trtcOfficialStopState(trtcOfficialArrivalTarget(ln, vehicle, raw), progress, null, now) });
     return raw;
   }
@@ -5907,13 +5911,21 @@ function trtcOfficialDisplayPosition(ln, vehicle, nowEpoch) {
       _trtcOfficialResync.at = now;
       _trtcOfficialResync.outageSec = Math.max(Number(_trtcOfficialResync.outageSec) || 0, coastedFor);
       _trtcOfficialResync.count = (Number(_trtcOfficialResync.count) || 0) + 1;
-      _trtcOfficialDisplay.set(key, { epoch: now, progress, pos: raw, coasted, coastSince, anchor, obs,
+      _trtcOfficialDisplay.set(key, { epoch: now, progress, pos: raw, coasted, coastSince, anchor, obs, step,
         ...trtcOfficialStopState(trtcOfficialArrivalTarget(ln, vehicle, raw), progress, null, now) });
       return raw;
     }
   }
+  // 🔴 2026-08-19：終點折返／方向翻面。progress 是**帶方向正負號**的（step×站序），方向一翻,
+  // 舊符號的 prior.progress 跟新目標永遠比不出「前進」⇒ 只准前進的護欄把車永久凍在原地。
+  // 實測一台車名冊段 19->20 折返成 20->19 之後,raw 進度變 -19.8、顯示進度還卡在 +19.945,
+  // 連續 200 秒動也不動。方向換了就是新的一趟,直接錨定到官方位置重來,不套護欄。
+  if (Number(prior.step) !== step) {
+    _trtcOfficialDisplay.set(key, { epoch: now, progress, pos: raw, coasted, coastSince, anchor, obs, step,
+      ...trtcOfficialStopState(trtcOfficialArrivalTarget(ln, vehicle, raw), progress, null, now) });
+    return raw;
+  }
   const dt = now - prior.epoch;
-  const step = Number(vehicle && vehicle.dir) === 2 ? 1 : -1;
   const unitsPer100m = trtcGapUnitsAt(ln, prior.progress, step);
   const behindM = unitsPer100m > 0 ? (progress - prior.progress) * (100 / unitsPer100m) : 0;
   // 官方這一輪真的重新看到這台車(observedEpoch 前進)且給的錨點與上次不同 ⇒ 才算「官方訂正」。
@@ -5936,7 +5948,38 @@ function trtcOfficialDisplayPosition(ln, vehicle, nowEpoch) {
   // 改成:目標=官方倒數指定的下一站,期限=它給的到站時刻,每一格只重算「還剩多少路÷還剩多少秒」。
   // ⇒ 倒數被修訂時只改速度,位置永遠連續;而且一定準時到站(這正是 08-07 裁示「站牌時間完全
   //   照官方,車依那個時間到站」)。位置只會往前:目標在後面(跑過頭)就停下來等,絕不倒退。
-  const plan = trtcOfficialArrivalTarget(ln, vehicle, raw);
+  let plan = trtcOfficialArrivalTarget(ln, vehicle, raw);
+  // 到站狀態:用「上一格 latch 到的那一站」當基準,不要拿浮點進度去跟目標比大小——
+  // 前進上限會讓進度停在離站心 0.01 段的地方,浮點比較會判成「官方目標還在前面」而永遠不出發。
+  const atSt = prior.arrivedAt != null && Number.isFinite(prior.arrivedAt)
+    && Number.isInteger(prior.arrivedStation) ? prior.arrivedStation : null;
+  const officialAhead = !!(plan && (atSt == null
+    ? plan.progress > prior.progress + 1e-9 : plan.progress > step * atSt + 1e-9));
+  // 🔴 使用者裁示(2026-08-19)：「到站後用停站秒數加進去判斷,時間到之後由下一站的倒數接手出發;
+  // 如果是同路段第二輛,就先用秒數推出發,等前面那輛離開相同路段再去用倒數秒數校正位置。」
+  // 官方每站每方向只給一筆倒數 ⇒ 前面有車擋著時,後面這台整段路都拿不到屬於自己的倒數;倒數
+  // 一過期,顯示層就把車貼到站上、再也沒有下一個目標 ⇒ 車停在站上不動(實測 166–201 秒)。
+  // 這個「自己開出去」的決定必須**存下來**:只在當下這一格推的話,車一離站到站狀態就不成立,
+  // 下一格又退回原地(實測只前進 0.01 段就凍住,整段續推形同沒寫)。
+  let dr = prior.dr && Number(prior.dr.step) === step && Number.isFinite(Number(prior.dr.arrEpoch))
+    && prior.dr.progress > prior.progress + 1e-9 ? prior.dr : null;
+  if (!dr && atSt != null && !officialAhead) {
+    const next = atSt + step;
+    const dep = prior.arrivedAt + trtcOfficialDwellAt(ln, atSt);
+    const run = trtcOfficialSegmentSeconds(ln, vehicle, atSt, next);
+    if (now >= dep && run > 0 && ln.stations[next])
+      dr = { progress: next * step, arrEpoch: dep + run, station: next, step };
+  }
+  // 官方給的目標比我們前面 ⇒ 交還給倒數(它會把自走推出來的位置校正回官方時刻)。
+  if (dr && (!plan || dr.progress > plan.progress)) plan = dr;
+  // 🔴 使用者裁示(2026-08-19 08:10):「到站後用停站秒數加進去判斷,時間到之後由下一站的倒數接手
+  // 出發;如果是同路段第二輛,就先用秒數推出發,等前面那輛離開相同路段再去用倒數秒數校正位置。」
+  // 為什麼需要這條:官方那一列的到站時刻**會被一直往後改**——實測文湖線一台車的倒數是
+  // -42→-37→-32→-26(往上爬),代表 arrEpoch 每輪都被挪到「大約 30 秒前」。而停站結束時刻是
+  // 用 arrEpoch + 停站秒 算的 ⇒ 發車時刻跟著一路後退,車就被釘在站上(實測停住 190 秒)。
+  // 這與昨晚那個 bug 同病:把錨點掛在一個會被改的值上。
+  // 修法:到站時刻用我們自己 latch 住的那一刻(prior.arrivedAt),停站秒一到就**自己用該段的
+  // 行駛秒推出發**,不等官方換列;官方換列後 plan 自然回到官方倒數,位置就被校正回去。
   let shown = prior.progress;
   if (plan && plan.progress > prior.progress + 1e-9 && now >= trtcOfficialDwellUntil(ln, vehicle, prior, plan)) {
     const remain = plan.arrEpoch - prior.epoch;
@@ -5946,7 +5989,7 @@ function trtcOfficialDisplayPosition(ln, vehicle, nowEpoch) {
       trtcOfficialForwardLimit(ln, vehicle, prior.progress, dt * TRTC_OFFICIAL_CATCHUP_FACTOR));
   }
   const pos = trtcOfficialPositionAtProgress(ln, vehicle, shown, raw);
-  _trtcOfficialDisplay.set(key, { epoch: now, progress: shown, pos, coasted, coastSince, anchor, obs,
+  _trtcOfficialDisplay.set(key, { epoch: now, progress: shown, pos, coasted, coastSince, anchor, obs, step, dr,
     ...trtcOfficialStopState(plan, shown, prior, now),
     correcting: behindM >= TRTC_OFFICIAL_SNAP_FORWARD_M });
   return pos;
