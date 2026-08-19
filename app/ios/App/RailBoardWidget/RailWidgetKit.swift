@@ -690,9 +690,18 @@ struct RailCountdownText: View {
     /// 🔴 也**不能一律乘同一個係數**：×0.52 對 hero 剛好，但 `.minor`（compact 島，13pt）
     ///    會變 6.8pt、`.row`（島展開，17pt）會變 8.8pt——都到了看不見的程度。
     ///    小字級本來就沒有可壓縮的餘裕，係數要隨字級回升。
+    ///
+    /// hero 的 0.73 是**量出來的**，不是調到順眼為止（probe/w2.swift，兩張卡的 hero 列
+    /// 結構相同：11pt 小標＋26pt 站名＋Spacer＋倒數，HStack spacing 8、卡片內容寬 332pt）：
+    ///   最壞情況「往 南港展覽館」站名一格不縮 ⇒ 倒數可用 117.1pt；
+    ///   「90分鐘」在 26.4pt 佔 87.7pt、32pt 佔 105.9pt、34pt 佔 112.5pt（只剩 4.6pt）。
+    /// ⇒ 取 32pt（44 × 0.73）：最壞情況仍有 11pt 餘裕，比原本的 26.4pt 大兩成。
+    /// 🔴 上限不是版面 gate 守得住的：`liveMinutes` 帶 `.minimumScaleFactor(0.6)`，字級開太大
+    ///    只會讓系統自己縮回去（畫面不爆、gate 全綠、字卻沒變大）⇒ 改這個值要量**算繪出來的
+    ///    墨跡**有沒有真的變大，不能只看 gate 綠不綠。
     private var liveCountdownSize: CGFloat {
         switch size {
-        case .heroCard, .heroRow: return numberSize * 0.6   // 44→26.4pt，與 26pt 站名同高
+        case .heroCard, .heroRow: return numberSize * 0.73  // 44→32.1pt
         case .row:                return numberSize * 0.85  // 17→14.5pt
         case .minor:              return numberSize * 0.9   // 13→11.7pt；compact 槽 52pt 放得下
         }
