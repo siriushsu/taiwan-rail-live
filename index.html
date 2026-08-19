@@ -6033,12 +6033,20 @@ function trtcOfficialDisplayPosition(ln, vehicle, nowEpoch) {
   // 這與昨晚那個 bug 同病:把錨點掛在一個會被改的值上。
   // 修法:到站時刻用我們自己 latch 住的那一刻(prior.arrivedAt),停站秒一到就**自己用該段的
   // 行駛秒推出發**,不等官方換列;官方換列後 plan 自然回到官方倒數,位置就被校正回去。
-  // 🔴 2026-08-19 使用者裁示:「前面不對的東西都要拿掉,那些都是你自己加上去的判斷。」
-  // 拆掉「不倒退地板」:shown 原本從 prior.progress(上一格畫到哪)起算、只准往前爬。官方倒數一
-  // 修訂,重算出來的位置就落在地板後面,車只能站在原地等真實位置追上來——實測環狀線一台畫面
-  // 超前真實位置 0.64 段,接下來 57 秒動也不動;另一台卡在離站心 0.01 段處逾 200 秒。
-  // 位置直接用官方時刻算出來的 raw,不再由上一格的畫面位置決定。
-  const shown = progress;
+  // 🔴 位置只由使用者的三條規則決定,沒有別的判準(2026-08-19 全線掃描後定版):
+  //   R6 到站後停「該站的停靠秒」,停滿就發車——不看官方換不換列,也不設任何額外閘門。
+  //   R7 每一格從「現在畫到哪」重新算速度,朝官方到站時刻前進 ⇒ 倒數被修訂時只改速度,
+  //      位置永遠連續。(直接用 raw 會倒退:raw 的發車時刻是 arrEpoch − 行駛秒,倒數改 Δ 秒
+  //      整個窗平移 Δ ⇒ 實測九條線全部倒退,單次最大 0.54 段≈540 公尺。)
+  //   R8 下一段被前車佔住、官方沒有屬於自己的倒數 ⇒ 用我們資料裡的區間秒自己推出去(dr)。
+  // 這裡刻意沒有:前進上限、追趕倍率、最小間距夾——那些是我自己加的,已於本批拆除。
+  const dwellDone = atSt == null || !Number.isFinite(Number(prior.arrivedAt)) ||
+    now >= Number(prior.arrivedAt) + trtcOfficialDwellAt(ln, atSt);
+  let shown = prior.progress;
+  if (plan && plan.progress > prior.progress + 1e-9 && dwellDone) {
+    const remain = plan.arrEpoch - prior.epoch;
+    shown = prior.progress + (plan.progress - prior.progress) * (remain > dt ? dt / remain : 1);
+  }
   const pos = trtcOfficialPositionAtProgress(ln, vehicle, shown, raw);
   _trtcOfficialDisplay.set(key, { epoch: now, progress: shown, pos, coasted, coastSince, anchor, obs, step, dr,
     ...trtcOfficialStopState(plan, shown, prior, now),
