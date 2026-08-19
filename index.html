@@ -5920,7 +5920,10 @@ function trtcOfficialDisplayPosition(ln, vehicle, nowEpoch) {
   // 舊符號的 prior.progress 跟新目標永遠比不出「前進」⇒ 只准前進的護欄把車永久凍在原地。
   // 實測一台車名冊段 19->20 折返成 20->19 之後,raw 進度變 -19.8、顯示進度還卡在 +19.945,
   // 連續 200 秒動也不動。方向換了就是新的一趟,直接錨定到官方位置重來,不套護欄。
-  if (Number(prior.step) !== step) {
+  // ⚠️ 只有「確實知道上一格的方向、而且不同」才算翻面。舊記錄沒有 step(升版第一格、
+  // 或測試注入的替身)時 Number(undefined) 是 NaN、NaN !== step 恆真 ⇒ 每一格都重錨,
+  // 會把「不倒退」整條護欄洗掉(驗收器 B/K gate 就是這樣連帶紅掉的)。方向不明 ≠ 方向改變。
+  if (Number.isFinite(Number(prior.step)) && Number(prior.step) !== step) {
     _trtcOfficialDisplay.set(key, { epoch: now, progress, pos: raw, coasted, coastSince, anchor, obs, step,
       ...trtcOfficialStopState(trtcOfficialArrivalTarget(ln, vehicle, raw), progress, null, now) });
     return raw;
