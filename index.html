@@ -3831,6 +3831,7 @@
            內容 li 上限 8 條(li.grp 是標題不算)。 -->
       <ul class="foot-list foot-recent">
         <li class="grp">最近更新</li>
+        <li data-cl-of="cdarrivestamp"><span class="d">8/19</span><span>文湖線與環狀線的列車不會再整批往前跳一站、下一輪又整批退回來：被退回的那台會凍在原地等，後面的車追上來就擠成一團，現在這個來回跳沒有了</span></li>
         <li data-cl-of="brsametrain"><span class="d">8/19</span><span>文湖線不會再把前後兩台車併成一台：併掉的那台會補回地圖上，原本被併的那台也不會再卡在原地被後車追上、擠成一團</span></li>
         <li data-cl-of="stationonline"><span class="d">8/19</span><span>停靠中的列車不會再被畫到自己那條線的外面：大安站的文湖線車以前會出現在信義路上（離棕線 123 公尺），現在全台 45 個站點座標一律貼回自己路線的軌道上，車停哪一站就畫在那一站</span></li>
         <li data-cl-of="trtcorigindir"><span class="d">8/19</span><span>台北捷運停在起點站等發車的列車不會再憑空消失，也不會朝反方向開：等發車的車就畫在起點站上，時間到了自己開出去；行進方向改看官方的到站倒數，不再誤用折返時會慢半拍的方向欄位</span></li>
@@ -3980,6 +3981,7 @@
         <li><span class="d">7/21</span><span>手機大改版：打開就是全螢幕地圖，面板都住進底部；新增「捷」分頁，北中高捷運一張圖同框</span></li>
         <li><span class="d">7/13</span><span>新增「省電」模式（手機預設開啟）：降到 30fps；手機一次只開一個面板</span></li>
         <li class="grp">外觀與品牌</li>
+        <li data-cl="cdarrivestamp"><span class="d">8/19</span><span>使用者回報「還是會有推到疊在一起，通常是前車位置不對沒有被認走」。查出官方看板上「列車進站」那一列的到站時刻，每一輪都會被官方重新標成「當下」——連錄 16 輪、107 條進站中的列全部如此，沒有一條保留真正的到站時刻。我們原本拿這個值去算「這台車停站多久了、該不該開走」，展開之後等於在算「我們手上這份資料是幾秒前抓到的」；而抓到的資料新舊本來就會在 2 到 30 秒之間跳，只要超過停站秒數（多數站 25 秒），畫面上所有停靠中的車就同時被推進下一站，下一輪抓到新資料又整批退回來——而畫面只准前進不准倒退，被退的那台就凍在原地等，後車追上來就疊住。回放兩段各 22 輪的真實官方資料實測：基準版分別退站 6 次與 14 次，集中在 2 輪與 3 輪、每次都是整整一站，單輪最多 5 台同時退，第二段還真的出現一對疊在 100 公尺內的車。改成用「第一次看到它進站」的那一刻當真正的到站時刻，同一批官方資料回放：兩段的退站都降到 0 次、那對疊車消失，車數與車輛編號的變動一台都沒少</span></li>
         <li data-cl="brsametrain"><span class="d">8/19</span><span>文湖線的列車是從官方各站的到站倒數切出來的：相鄰兩站的倒數差得夠多才算同一台車。原本的門檻只要求「差距達到該段行駛時間的一半」，於是明明是兩台的車會被併成一台——例如大直站還有 41 秒到站、松山機場站 150 秒，而大直開到松山機場光行駛就要 172 秒，物理上不可能是同一台。併掉之後不只少一台車，那一台的位置還會在兩站的倒數之間來回跳（實測 5 秒內倒退半個站距），而畫面只准前進、不准倒退，車就凍在原地（最遠與官方差 1669 公尺），後面的車追上來就疊在一起。門檻改成物理下限「差距至少要有該段的行駛時間」：實測 161 組相鄰站對，合理是同一台的那 96 組最小恰好等於行駛時間，不可能是同一台的那側最大只有 0.875 倍，兩群乾淨分開。同一份官方資料實測，修正後補回被併掉的車、沒有任何一台消失</span></li>
         <li data-cl="stationonline"><span class="d">8/19</span><span>使用者回報「大安站有奇怪的堆疊、這邊的棕線應該是南北向」，查出文湖線大安站登記的座標其實是淡水信義線那座月台的位置，離文湖線自己的軌道 123 公尺。行進中的列車本來就沿著軌道走，但「停在站上」的車與站點圖示用的是站點座標，於是停靠大安的車被畫到信義路上，兩台停站的車還一起擠在那個線外的點。全台共 45 個站有這個毛病（大安 123 公尺、機場第一航廈 96 公尺、頭前庄 85 公尺、松江南京 71 公尺、車埕 83 公尺、高鐵板橋 78 公尺…）。每個站在自己路線上的里程資料本身是對的，所以直接用它把站點拉回軌道上，讓「車停的位置」與「站的位置」永遠是同一點</span></li>
         <li data-cl="trtcorigindir"><span class="d">8/19</span><span>台北捷運兩種「車該在卻不在、或方向相反」的狀況一起修掉。其一：停在起點站還沒發車的列車，因為官方倒數的秒數比第一段路程長，被「倒數塞不進這一段就往回推」的規則一路推出線外而整台丟掉——實測一台停在蘆洲的車，站牌還寫著 287 秒後到徐匯中學，地圖上卻沒有它；現在起點站免除這條規則，等發車的車就畫在起點站上，到了發車時刻自己開出去。其二：官方的逐車資料把車報在某一站、而同一站的倒數說車正朝著它開時，程式推不出行進方向，只好去讀官方的方向欄位，但那個欄位在終點站折返時會慢半拍——實測一台停在新店、終點寫著松山的車被畫成往新店開，接著整台被丟掉；現在方向改從官方倒數的先後順序推，推不出來才看終點站，方向欄位降為最後手段。同時修正「倒數的那一站剛好是官方報的站」時會把到站時刻套到下一站、讓車超前一整段的算法</span></li>
@@ -4383,7 +4385,7 @@
 //         CSP 的 connect-src 要一起放行 tiles.openfreemap.org——向量圖磚走 fetch 不走 img。
 // v0819g：北捷起點站等發車的車不再被回推規則丟掉；行進方向改由官方倒數順序決定(dest 次之、
 //         dir 欄位最後)；倒數站＝官方報的站時，到站時刻不再被套到下一站(超前一整段)。
-const BUILD = 'v0819i';
+const BUILD = 'v0819j';
 // 2026-08-13 起預設開啟（使用者親試預覽後裁示上線）：北捷畫車依官方即時名冊，班表只是備案。
 // 保留 ?officialroster=0 當逃生口——要退回班表路徑不必回滾部署，加個參數即可對照。
 // 🔴 這個函式會被 verify_official_roster_frontend 抽出來丟進 VM 單獨執行——
@@ -5102,6 +5104,25 @@ function _trtcBrSharedIdx(ln, names) {
   ln._cdShared = set;
   return set;
 }
+// 🔴 官方「列車進站」那一列的到站時刻,每一輪都會被往前刷。
+// 2026-08-19 對正式站連錄 16 輪(跨 3 分鐘):107 條進站中的列**全部**是 eta − at ≡ −1、
+// eta 絕對值與 at 同步前進(比值 1.00,零條凍住)⇒ 那個值恆等於「現在」,不帶「到站多久」的資訊;
+// 而同一批取樣裡我們自己的 payload 年齡在 2.2～30.5 秒之間跳。
+// 舊碼直接拿它當到站時刻去算停站秒(nowEpoch > eta + dwell),展開就是「這份 payload 幾秒前抓的
+// > 停站秒」——payload 舊就把車往前推一站、下一輪抓到新的又退回來,整批進站中的車一起前後跳,
+// 前車一退、跟在後面的車就撞上去(使用者回報「還是會有推到疊在一起,通常是前車位置不對」)。
+// 真正的到站時刻是「第一次看到它進站中」的那個 eta;進站中期間 eta 只會往前刷 ⇒ 取最小值。
+// 回到正倒數(下一班進場)就丟掉重來;掛太久代表中間換了班車而我們沒看到正倒數,也重新起算。
+const _trtcCdArrived = new Map();
+const TRTC_CD_ARRIVED_MAX_SEC = 300;
+function trtcCdArrivalEpoch(lineId, i, d, step, eta, obsAt) {
+  if (!Number.isFinite(obsAt)) return eta;         // 沒有官方觀測時刻就不判,維持原值
+  const key = lineId + '|' + i + '|' + d + '|' + step;
+  if (eta > obsAt) { _trtcCdArrived.delete(key); return eta; }   // 還在倒數:車還沒到
+  const prev = _trtcCdArrived.get(key);
+  if (!Number.isFinite(prev) || eta - prev > TRTC_CD_ARRIVED_MAX_SEC) { _trtcCdArrived.set(key, eta); return eta; }
+  return prev;
+}
 function trtcBrVehiclesFromBoard(lineId, board, nowEpoch, day) {
   const ln = trtcCensusLine(lineId);
   if (!ln || !Array.isArray(ln.stations) || !ln.stations.length) return null;
@@ -5116,7 +5137,7 @@ function trtcBrVehiclesFromBoard(lineId, board, nowEpoch, day) {
     // 🔴 裁示:時間一旦推到前一站之前,就直接忽略這個倒數(見 trtcCountdownFitsSegment)。
     const st = Math.sign(d - i);
     if (!trtcCountdownFitsSegment(ln, i - st, i, eta - nowEpoch)) { dropped++; continue; }
-    rows.push({ i, d, eta, step: st });
+    rows.push({ i, d, eta: trtcCdArrivalEpoch(lineId, i, d, st, eta, Number(b && b.at)), step: st });
   }
   if (!rows.length) return null;
   _trtcCdDropped.set(lineId, dropped);
