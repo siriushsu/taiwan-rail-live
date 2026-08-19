@@ -268,6 +268,34 @@ ok('PSWIFT(跨行程契約)notice 在 Swift 側宣告成 Optional(String?)——
   /^var\s+notice\s*:\s*String\?$/.test(noticeDecl), noticeDecl);
 
 // ══════════════════════════════════════════════════════════════════
+// PSTALECONST(跨語言常數):卡片的保鮮期由【兩方】各寫一次——plugin 設 Activity 的 staleDate
+// (Swift 的 RailFollowStale)、cron 送 APNs 的 stale-date(本 repo 的 LA_STALE_GRACE_SEC)。
+// 兩邊抄不到對方,而且【不一致的症狀完全沉默】:卡片會在「系統說過期」與「版面說還在跑」之間
+// 漂移,取決於這一輪是誰最後寫的。照 PSWIFT 的手法直接讀 Swift 原始碼解出數字來核對。
+// 分母閘門:解不出數字(改名、搬家、regex 失配)一律 FAIL,不可以因為解出 null 而假綠。
+// ══════════════════════════════════════════════════════════════════
+// 🔴 從【被測的那棵樹】拿 JS 側常數(與 worker.js 同一個 WT),不是從本檔所在的樹 import——
+//    否則會變成「拿手上這棵樹的常數去驗另一棵樹的 worker」(心得 32 的同族坑)。
+const { LA_STALE_GRACE_SEC, LA_ORPHAN_FALLBACK_SEC } = await import(`${WT}/scripts/la_push_core.mjs`);
+const swiftStale = (() => {
+  try {
+    const src = readFileSync(SWIFT_ATTRS_PATH, 'utf8');
+    const g = src.match(/static\s+let\s+graceSeconds\s*:\s*Double\s*=\s*([0-9.]+)/);
+    const o = src.match(/static\s+let\s+orphanFallbackSeconds\s*:\s*Double\s*=\s*([0-9.]+)\s*\*\s*([0-9.]+)/);
+    return {
+      grace: g ? Number(g[1]) : null,
+      orphan: o ? Number(o[1]) * Number(o[2]) : null,
+    };
+  } catch (e) { return { grace: null, orphan: null }; }
+})();
+ok('PSTALECONST 前置(分母閘門):從 RailFollowAttributes.swift 解得出 RailFollowStale 的兩個常數(解不出＝這條跨語言核對等於沒有)',
+  swiftStale.grace != null && swiftStale.orphan != null, JSON.stringify(swiftStale));
+ok('PSTALECONST(跨語言)Swift 的 RailFollowStale.graceSeconds === worker 的 LA_STALE_GRACE_SEC——不一致時卡片會在「系統說過期」與「版面說還在跑」之間漂移,而且兩端都不會報錯',
+  swiftStale.grace === LA_STALE_GRACE_SEC, `swift=${swiftStale.grace} js=${LA_STALE_GRACE_SEC}`);
+ok('PSTALECONST(跨語言)Swift 的 RailFollowStale.orphanFallbackSeconds === worker 的 LA_ORPHAN_FALLBACK_SEC(算不出 ETA 時的兜底上界)',
+  swiftStale.orphan === LA_ORPHAN_FALLBACK_SEC, `swift=${swiftStale.orphan} js=${LA_ORPHAN_FALLBACK_SEC}`);
+
+// ══════════════════════════════════════════════════════════════════
 // PNOTICE1(複審 N(把關1)):last_notice 只存布林(0/1),而布林只夠表達「目前全系統只有一句
 // 告知」。這條約束的形態是「未來有人新增第二句文案」,而寫在 schema 註解裡的警告只在那個人
 // 剛好讀到時才生效。照 PSWIFT 的手法直接讀 worker.js 原始碼數告知常數,把它變成機器核對:
@@ -331,6 +359,13 @@ ok('PNOTICE1(把關1)worker.js 的 LA_NOTICE_* 告知常數恰好 1 個——出
       String(body.aps['content-state'].arrivalDate));
     ok('P1 departedDate=null(idx=0 無前一站)', body.aps['content-state'].departedDate === null, String(body.aps['content-state'].departedDate));
     ok('P1 terminus=板橋(最後一站)', body.aps['content-state'].terminus === '板橋', body.aps['content-state'].terminus);
+    // 🔴 stale-date:這一發內容的保鮮期。缺了它,零推播的那一段(準點車跑完整段可以一發都不推)
+    //    鎖屏卡會停在「0 秒／行駛中」——版面的過期判斷要【重繪】才算得到一次,而零推播正好
+    //    就是不會重繪;staleDate 到期是那時唯一還會發生的重繪。
+    //    期望值用 Swift 側解出來的 grace 獨立算(心得29:不呼叫 laStaleDate 自己來對答案)。
+    ok('P1(零推播脫困)aps.stale-date = 到站時刻＋Swift 側的保鮮寬限,且是整數 epoch 秒',
+      body.aps['stale-date'] === expectArrival + swiftStale.grace && Number.isInteger(body.aps['stale-date']),
+      `stale-date=${body.aps['stale-date']} expect=${expectArrival + swiftStale.grace}`);
   } else {
     // 🔴 最終複審 C1-Minor-5:這個條件式區塊原本【沒有 else】,APNs 呼叫數不是 1 的時候
     // 裡面 10 條斷言(含守 Swift ContentState 欄位契約的那條)會【無聲消失】,總計行的分母
@@ -341,7 +376,8 @@ ok('PNOTICE1(把關1)worker.js 的 LA_NOTICE_* 告知常數恰好 1 個——出
       'P1(Important9)content-state 欄位集合與 Swift ContentState 契約完全一致(不多不少)',
       'P1(工項A 反向)高鐵列(無即時資料來源)的 notice 必須是 null,不可誤掛斷線告知',
       'P1 arrivalDate 是 epoch 秒數字且獨立算術核對(未過站)',
-      'P1 departedDate=null(idx=0 無前一站)', 'P1 terminus=板橋(最後一站)'])
+      'P1 departedDate=null(idx=0 無前一站)', 'P1 terminus=板橋(最後一站)',
+      'P1(零推播脫困)aps.stale-date = 到站時刻＋Swift 側的保鮮寬限,且是整數 epoch 秒'])
       ok(n, false, `(APNs 呼叫數=${apnsCalls1.length},結構性略過)`);
   }
   const row1 = await getRow(T);
@@ -2310,12 +2346,73 @@ const csOfTok = (tk) => {
   await resetTable();
 }
 
+// ══════════════════════════════════════════════════════════════════
+// PSTALE(保鮮期的另一半):到站時刻【已經過去】時 laArrivalEpoch 回 null(卡片不畫假倒數),
+// 那一發的 stale-date 必須退回孤兒兜底——【不可以】變成「沒有保鮮期」。推播的 content 是
+// 整包取代:少送這一項等於把上一發設好的保鮮期清掉,那張卡從此再也不會被系統標成過期,
+// 而症狀完全沉默(APNs 照樣回 200、卡片照樣在,只是永遠不會自己脫困)。
+//
+// 兩格除了「S0 的表定時刻在過去還是未來」之外【逐格相同】(心得39(b)):少了對照,
+// 「一律送兜底」與「一律送 arrival+grace」各自都能讓單邊全綠。
+// 期望值一律用【Swift 側解出來的】常數算,不用本語言的 LA_* 自己來對答案(心得29)。
+// ══════════════════════════════════════════════════════════════════
+{
+  const mkStale = async (T, s0Offset) => {
+    const base = mockNowSec;
+    await insRow({
+      token: T, sys: 'tra_sched', train_no: '902',
+      stops: [{ name: 'S0', at: base + s0Offset }, { name: 'S1', at: base + 900 }],
+      staMap: { C0: 0, C1: 1 }, stopCodes: ['C0', 'C1'],
+      last_idx: -1, last_obs_idx: -1, last_delay: 0, apns_env: 'prod',
+      bound_at: base, expire_at: base + 7200,
+    });
+  };
+  const soleBody = () => {
+    const c = calls.filter(x => x.url.includes(APNS_FRAG));
+    return c.length === 1 ? JSON.parse(c[0].init.body) : null;
+  };
+
+  // ① 到站時刻已經過去 300 秒:誤點而 TDX 的 DelayTime 還沒更新（laArrivalEpoch 的註解
+  //    點名的三種情況之一）⇒ arrivalDate=null ⇒ 這一發沒有「到站」可以拿來算保鮮期。
+  await resetTable();
+  mockNowSec = H_BASE + useSlot(23000, 'PSTALE①');
+  await mkStale(tok('pstalea'), -300);
+  tdxBoard = [{ TrainNo: '902', DelayTime: 0, StationID: 'C0', TrainStationStatus: 0 }];
+  calls.length = 0; apnsNextStatus = 200;
+  await laPushAll(env, fakeCtx, BASE_URL);
+  const bodyA = soleBody();
+  ok('PSTALE① 前置:到站已過的那一列真的推出去了,且 arrivalDate=null(卡片不畫假倒數)',
+    !!bodyA && bodyA.aps['content-state'].arrivalDate === null,
+    bodyA ? `arrivalDate=${bodyA.aps['content-state'].arrivalDate}` : '(APNs 呼叫數不是 1)');
+  ok('PSTALE①(兜底)算不出 ETA 時 stale-date = 現在＋孤兒兜底,而不是省略這一項(省略＝把保鮮期清掉,卡片再也不會被標成過期)',
+    !!bodyA && bodyA.aps['stale-date'] === mockNowSec + swiftStale.orphan,
+    bodyA ? `stale-date=${bodyA.aps['stale-date']} expect=${mockNowSec + swiftStale.orphan}` : '(APNs 呼叫數不是 1)');
+
+  // ② 反向對照:同一形狀、同一份看板,只把 S0 的表定挪到【未來】300 秒。
+  //    🔴 mockNowSec 要前進 >55 秒,否則 traLive 的 isolate 快取會讓這一格吃到 ① 的看板。
+  await resetTable();
+  mockNowSec += 100;
+  await mkStale(tok('pstaleb'), 300);
+  tdxBoard = [{ TrainNo: '902', DelayTime: 0, StationID: 'C0', TrainStationStatus: 0 }];
+  calls.length = 0; apnsNextStatus = 200;
+  await laPushAll(env, fakeCtx, BASE_URL);
+  const bodyB = soleBody();
+  const expectB = mockNowSec + 300;   // ＝S0 的表定到站(delaySec=0),獨立算術
+  ok('PSTALE② 前置:除了 S0 的表定挪到未來之外與 ① 逐格相同,arrivalDate 是那個到站時刻',
+    !!bodyB && bodyB.aps['content-state'].arrivalDate === expectB,
+    bodyB ? `arrivalDate=${bodyB.aps['content-state'].arrivalDate} expect=${expectB}` : '(APNs 呼叫數不是 1)');
+  ok('PSTALE②(對照)算得出 ETA 時 stale-date = 到站＋保鮮寬限(不是兜底)——少了這一格,「一律送兜底」也會讓 ① 全綠',
+    !!bodyB && bodyB.aps['stale-date'] === expectB + swiftStale.grace,
+    bodyB ? `stale-date=${bodyB.aps['stale-date']} expect=${expectB + swiftStale.grace}` : '(APNs 呼叫數不是 1)');
+  await resetTable();
+}
+
 // 🔴 覆蓋率 gate(最終複審 C1-Minor-5,心得 37(d)):總斷言數本來只印在總計行、從無斷言。
 // 條件式區塊被跳過(例如「APNs 呼叫數不是 1」而該區塊沒寫 else 回填)會讓分母【無聲縮水】:
 // 實測某一發突變讓總計從 139 掉到 128,11 條斷言消失而沒有任何人報警。
 // 這條把「每一格都真的跑到了」變成具名斷言。改動本檔的斷言數時要一併更新這個常數。
 {
-  const EXPECT_TOTAL = 245;   // 不含本條;本條自己會讓總計 +1(2026-08-08 工項 A/B:181 → 199;複審修復輪次1:→ 218;輪次2(N-1/N-2＋三個把關):→ 231;PTOK token 長度三條:→ 234;PSTOP 停靠中五條:→ 239;PENV 雙環境退路六條:→ 245)
+  const EXPECT_TOTAL = 253;   // 不含本條;本條自己會讓總計 +1(2026-08-08 工項 A/B:181 → 199;複審修復輪次1:→ 218;輪次2(N-1/N-2＋三個把關):→ 231;PTOK token 長度三條:→ 234;PSTOP 停靠中五條:→ 239;PENV 雙環境退路六條:→ 245;2026-08-19 stale-date：PSTALECONST 跨語言常數三條＋P1 一條＋PSTALE 兩格四條:→ 253)
   ok(`COV 覆蓋率 gate:本輪斷言總數必須恰好等於預期 ${EXPECT_TOTAL}(區塊被跳過或條件式吞掉會讓分母無聲縮水)`,
     results.length === EXPECT_TOTAL, `actual=${results.length}`);
 }

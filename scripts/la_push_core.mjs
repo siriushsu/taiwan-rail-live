@@ -56,6 +56,27 @@ export function laArrivalEpoch(atSec, delaySec, nowSec) {
   return arrive > nowSec ? arrive : null;
 }
 
+// ── 卡片內容的保鮮期(APNs 的 `stale-date`)────────────────────────────────────
+// 🔴 這兩個常數與 app/ios/App/App/RailFollowAttributes.swift 的 `RailFollowStale` 必須同值。
+//    抄不到對方(不同語言),所以那條一致性由 scripts/verify_la_push_loop.mjs 的斷言守著——
+//    它直接讀那個 .swift 檔比對數字,改一邊沒改另一邊會當場轉紅。
+// 為什麼非要送這一項:卡片交班給伺服器之後就沒有本機 update,而這條迴圈「四個量都沒變就不推」
+//    ⇒ 準點車可以整段零推播。到站時刻過去而沒有新推播時,唯一還會發生的事就是 ActivityKit
+//    依 staleDate 把 isStale 翻真並【觸發一次重繪】;沒有它,鎖屏卡會停在「0 秒／行駛中」
+//    直到下一發推播進來(token 死掉或上游斷線時＝一直停著)。
+export const LA_STALE_GRACE_SEC = 150;
+// 算不出 ETA 時的兜底,只負責讓孤兒卡不會永遠留在鎖定畫面上(與 plugin 的 request 同值)。
+export const LA_ORPHAN_FALLBACK_SEC = 8 * 3600;
+
+// APNs `stale-date`(epoch 秒)。語意與 Swift 的 RailFollowStale.date(arrival:now:) 逐字相同:
+// 有 ETA ⇒ 到站再過寬限,但不得超過孤兒兜底那條上界;算不出 ETA ⇒ 就是那條上界。
+// 🔴 每一發都要送:推播的 content 會【整包取代】舊 content,少送這一項＝把保鮮期清掉。
+export function laStaleDate(arrivalEpoch, nowSec) {
+  const cap = nowSec + LA_ORPHAN_FALLBACK_SEC;
+  if (arrivalEpoch == null) return cap;
+  return Math.min(cap, arrivalEpoch + LA_STALE_GRACE_SEC);
+}
+
 // APNs 的 provider token(ES256 JWT)。Apple 規定至少 20 分鐘才可換新、最長 60 分鐘,
 // 所以快取 50 分鐘——每次都重簽會被 Apple 當濫用擋掉。
 // 🔴 修復輪次1(Important 4):快取鍵加上 KEY_ID/TEAM_ID——金鑰輪替時舊快取不會被誤用;
