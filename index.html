@@ -5082,16 +5082,35 @@ function trtcBrVehiclesFromBoard(lineId, board, nowEpoch, day) {
       if (!g.length) return;
       const head = g[0], from = head.i - step;
       if (from < 0 || from >= names.length) return; // 起點列:前方站在線外,不是一台在跑的車
+      // 🔴 使用者裁示(2026-08-19)：「到站倒數結束變成進站中,這輛車就交給這站的停站時間跟
+      // 下一站的倒數去領;如果下一站已經有另一輛車在倒數中,那這輛車依然是依照停站時間到就
+      // 推出去,下一站那輛車到站之後,就可以用倒數時間領這邊推出去的車子了。」
+      // 官方那一列的倒數過期＝車已經到站了,過了停站秒數它就該發車。舊碼沒有這一步,過期的列
+      // 會把車永遠釘在站上——實測環狀線中原站兩個方向各一台,倒數 -19→-44 秒一路「在站」不動,
+      // 而停靠 25 秒的資料從頭到尾沒被用到。推到線外就是到終點,收車。
+      let hFrom = from, hTo = head.i, hArr = head.eta;
+      for (let guard = 0; guard < names.length; guard++) {
+        const dwell = trtcOfficialDwellAt(ln, hTo);
+        if (!(nowEpoch > hArr + dwell)) break;        // 還在跑、或還在停站 ⇒ 就用這一段
+        const nxt = hTo + step;
+        if (nxt < 0 || nxt >= names.length) return;   // 推出線外 ⇒ 到終點,收車
+        const rr = trtcCensusRun(ln, hTo, nxt);
+        if (!(rr > 0)) break;
+        hFrom = hTo; hTo = nxt; hArr = hArr + dwell + rr;
+      }
       const timeline = [];
-      let cur = from;
+      let cur = hFrom;
       for (const r of g) {
+        if (Math.sign(r.i - cur) !== step) continue;   // 已經走過的站不再排進 timeline
         const rr = trtcCensusRun(ln, cur, r.i);
         timeline.push({ from: cur, to: r.i, depEpoch: r.eta - rr, arrEpoch: r.eta, terminal: false });
         cur = r.i;
       }
+      const hRun = trtcCensusRun(ln, hFrom, hTo);
+      if (!timeline.length) timeline.push({ from: hFrom, to: hTo, depEpoch: hArr - hRun, arrEpoch: hArr, terminal: false });
       out.push({ vehicleId: _trtcCdPrefix(lineId) + day + ':' + tag + ':' + (step > 0 ? 2 : 1) + ':' + head.i,
-        line: lineId, dir: step > 0 ? 2 : 1, dest: head.d, from, to: head.i,
-        run: trtcCensusRun(ln, from, head.i), arrEpoch: head.eta, terminal: false,
+        line: lineId, dir: step > 0 ? 2 : 1, dest: head.d, from: hFrom, to: hTo,
+        run: hRun, arrEpoch: hArr, terminal: false,
         officialNo: null, source: 'board-seg', observedEpoch: nowEpoch, timeline });
     };
     for (const r of ordered) {
@@ -5385,6 +5404,14 @@ function trtcCensusVehicles(trains, nowEpoch, day) {
         from, to, run, arrEpoch, terminal, officialNo: sys === 'hw' ? no : null,
         source: 'census', observedEpoch: nowEpoch, timeline };
     }
+    // 🔴 使用者裁示:「到終點站車子就拿掉」「車子到站就要放掉,你不放掉當然都撞在一起了,
+    // 那我給你到站的停站時間還有什麼意義」(2026-08-19)。上面 `to === di` 那一行的舊註解
+    // 明寫著把裁示改成「標成停在終點站而不是讓它整台消失」——那個改動就是現在的病灶:
+    // 車釘在終點站不走(實測松山 131 秒、淡水 84 秒、象山 58 秒、新店 14 秒),後面那台進站
+    // 就跟它疊在一起(七組疊車裡有五組的其中一台正是這種車)。停住與疊車是同一個 bug 兩面。
+    // 到站後只留我們資料裡的停站秒數(看得到它進站),然後放掉;回程要出現時,官方會用回程
+    // 第一站的倒數重新生它。
+    if (terminal && nowEpoch > arrEpoch + trtcOfficialDwellAt(ln, from)) continue;
     next.set(vehicleId, vehicle);
     out.push(vehicle);
   }
