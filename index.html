@@ -3842,7 +3842,7 @@
       <ul class="foot-list foot-recent">
         <li class="grp">最近更新</li>
         <li data-cl-of="mapsync"><span class="d">8/19</span><span>拖曳地圖時，軌道與列車不再比底圖慢半拍；手機兩指縮放放手時，軌道也不會先跳回去再彈回來</span></li>
-        <li data-cl-of="trainoverrail"><span class="d">8/19</span><span>全台同框畫面裡，捷運列車不再被台鐵、高鐵的軌道壓過去，車一律浮在所有軌道之上</span></li>
+        <li data-cl-of="trainoverrail"><span class="d">8/19</span><span>列車不再被別條線的軌道壓過去，一律浮在所有軌道之上；兩條線立體交叉、各有一台車同時經過時，也照現實決定誰在上面（例如忠孝復興的文湖線在松山新店線之上）</span></li>
         <li data-cl-of="osmbasemap"><span class="d">8/18</span><span>街道底圖換成 OpenStreetMap 的圖資：地名改成中文單行、路名與公路編號牌不再蓋滿畫面，看起來跟以前一樣安靜，但列車、路線與站點的位置完全沒變</span></li>
         <li data-cl-of="hsrcoast"><span class="d">8/18</span><span>高鐵列車跑起來更接近真的：中段跑得比以前快（依實際搭車讀到的車廂時速表校正），快到站前幾公里就開始減速滑行，不再拖到最後才急煞；發車也不再比真車早開。每一站的到站時刻仍與時刻表分秒一致</span></li>
         <li data-cl-of="trtcanchor"><span class="d">8/18</span><span>台北捷運列車不再每十幾秒跳一下：以前是每一輪拿最新的到站倒數反推「車現在應該在哪」，官方倒數只要修訂幾秒，畫面上的車就整個位移一次。現在改成車到站先停二十幾到四十幾秒（各站的官方停靠時間），再照官方倒數的時間開向下一站——倒數變了只改速度，位置一路連續，而且照樣在官方說的時間分秒不差地到站</span></li>
@@ -4000,7 +4000,7 @@
         <li><span class="d">7/21</span><span>手機大改版：打開就是全螢幕地圖，面板都住進底部；新增「捷」分頁，北中高捷運一張圖同框</span></li>
         <li><span class="d">7/13</span><span>新增「省電」模式（手機預設開啟）：降到 30fps；手機一次只開一個面板</span></li>
         <li class="grp">外觀與品牌</li>
-        <li data-cl="trainoverrail"><span class="d">8/19</span><span>全台同框（「全」）畫面裡，捷運列車經過台鐵或高鐵的軌道時會被軌道壓過去，看起來像從軌道底下鑽過；現在改成所有軌道都畫完才畫車，任何一台車都浮在所有軌道之上</span></li>
+        <li data-cl="trainoverrail"><span class="d">8/19</span><span>全台同框（「全」）畫面裡，捷運列車經過台鐵或高鐵的軌道時會被軌道壓過去，看起來像從軌道底下鑽過；現在改成所有軌道都畫完才畫車，任何一台車都浮在所有軌道之上。另外，兩條線立體交叉、各有一台車同時經過那個路口時，以前是誰先畫誰在下面（等於隨機），現在依實際的高低關係決定——高低取自 OpenStreetMap 標註的橋樑、隧道與樓層，全台 31 處立體交叉都建了表，例如忠孝復興的文湖線在松山新店線之上、松江南京的松山新店線在中和新蘆線之上</span></li>
         <li data-cl="osmbasemap"><span class="d">8/18</span><span>街道底圖換成 OpenStreetMap 的圖資：地名改成中文單行、路名與公路編號牌不再蓋滿畫面，看起來跟以前一樣安靜，但列車、路線與站點的位置完全沒變</span></li>
         <li data-cl="satretina"><span class="d">8/2</span><span>在 App 裡訂閱通行證後，衛星底圖會換成高解析度圖磚，在 Retina 螢幕上更銳利；沒訂閱的人維持標準解析度，畫面內容一樣</span></li>
         <li data-cl="satbilling"><span class="d">8/1</span><span>衛星底圖換成比較省的計費方式：計費從「看了幾張圖磚」改成「看得夠多才算一次時段費」，看到的畫面完全一樣，只是我們付給圖資供應商的錢少很多</span></li>
@@ -7073,6 +7073,72 @@ function applySchedSystems(sysList) {
   pollLive();  // 逐車即時誤點(schedSystems 中有 live 的系統,台鐵限定)
   if (sysList.some(s => s.id === 'tra_sched')) ensureCrossings(); // 含台鐵才 lazy fetch 平交道(一次快取)
 }
+// ── 交叉點高低:立體交叉處,兩條線的車依現實決定誰蓋誰 ────────────────────────────
+// 列車已經一律浮在所有軌道之上(drawDecoBase 檔頭的疊層鐵則);剩下的是「兩條交叉線各有
+// 一台車同時經過」時誰蓋誰——先前看的是陣列順序,那是隨機的,不是事實。實測台北車站一天
+// 約 32% 的取樣格會遇到,不是罕見情形。高低來源＝OSM 的 layer/bridge/tunnel,
+// 見 data/rail_crossing_levels.json 與 scripts/build_crossing_levels.mjs(可重建)。
+let crossLevels = [];
+async function ensureCrossLevels() {
+  if (crossLevels.length || state._clPending) return;
+  state._clPending = true;
+  const d = await fetchJSON('./data/rail_crossing_levels.json');
+  crossLevels = (d && d.crossings) || [];
+  state._clPending = false;
+}
+// 離交叉口這麼近才算「在這座立體交叉上」(公尺,不是像素——像素會隨縮放變意思)。
+// 150 的來由:實測全部 31 處交叉口一整天的疊車事件,真正發生在交叉structure 上的
+// (忠孝復興 45m、台北車站 46m、松江南京 13m、中山 39m、機場捷運×新蘆 63m…)都在百公尺內;
+// 而幾百公尺外的疊車其實是「兩條平行走廊上的兩台車剛好靠近」(板南×松山新店 537m、
+// 紅線×新蘆 524m、台鐵×板南 655m),那裡沒有「誰在上面」這個事實可言,維持原本的順序。
+const CROSS_NEAR_M = 150;
+// 這台車對上交叉口的哪一側:捷運各線認 lineId(跨系統唯一),台鐵/高鐵/林鐵的班次會跨好幾條線、
+// 只帶 tr.sys,所以那三個系統認到系統就夠(同一個交叉口不會有同系統的兩條線,建表時已排除)。
+function crossSideOf(c, it) {
+  const m = side => it.lineId != null ? side.id === it.lineId : side.sys === it.sys;
+  return m(c.above) ? 1 : m(c.below) ? -1 : 0;
+}
+// 畫車工作佇列:非 null 時,畫車的地方改成把工作收進來,等這一幀的車收齊、排完序再一起畫。
+let trainPaintQ = null;
+function paintTrain(x, y, sys, lineId, fn) {
+  if (trainPaintQ) trainPaintQ.push({ x, y, sys, lineId, fn });
+  else fn();                                   // 沒開佇列(例如舊路徑或例外後)就照舊直接畫
+}
+function flushTrainPaint() {
+  const q = trainPaintQ; trainPaintQ = null;
+  if (!q || !q.length) return;
+  // 視野內的交叉口通常 0–3 個;一個都沒有就完全不排序,平時零成本
+  if (crossLevels.length && q.length > 1) {
+    const w = cv.width / state.dpr, h = cv.height / state.dpr;
+    const cen = map.getCenter();
+    const a = map.latLngToContainerPoint(cen), b = map.latLngToContainerPoint([cen.lat + 0.001, cen.lng]);
+    const pxPerM = Math.abs(b.y - a.y) / 111.32;          // 0.001 度緯度 ≈ 111.32 公尺
+    const rPx = CROSS_NEAR_M * pxPerM;
+    const near = [];
+    for (const c of crossLevels) {
+      const p = map.latLngToContainerPoint([c.lat, c.lon]);
+      if (p.x < -rPx || p.y < -rPx || p.x > w + rPx || p.y > h + rPx) continue;
+      near.push({ c, p });
+    }
+    if (near.length) {
+      let any = false;
+      for (const it of q) {
+        let bd = Infinity, z = 0;
+        for (const n of near) {
+          const d = Math.hypot(it.x - n.p.x, it.y - n.p.y);
+          if (d > rPx || d >= bd) continue;
+          const sd = crossSideOf(n.c, it);
+          if (sd) { bd = d; z = sd; }                     // 取最近且認得出側別的那個交叉口
+        }
+        if (z) { it.z = z; any = true; }
+      }
+      // 穩定排序:沒被任何交叉口點到的車 z 為 undefined→0,彼此維持原本的先後
+      if (any) q.sort((x, y) => (x.z || 0) - (y.z || 0));
+    }
+  }
+  for (const it of q) it.fn();
+}
+
 // 台鐵平交道資料:首次進入含台鐵的 sched 模式時抓一次,之後常駐快取
 async function ensureCrossings() {
   if (state.crossings || state._crossPending) return;
@@ -7200,12 +7266,16 @@ function drawFreq(w, h) {
   const tau = state.elapsed * state.speedMult;
   const ff = state.freqFollow;
   const officialNow = Date.now() / 1000;
+  trainPaintQ = []; // 這一幀的車先收集,交叉口高低排序後才畫(見 flushTrainPaint)
   if (!state.collectMap) state.lines.forEach(ln => { // 收集地圖不畫跑動的車(比照 drawSched)
     if (!state.visible.has(ln.id)) return;
     const tc = textColorFor(ln.color);
     const official = trtcOfficialItemsForLine(ln, officialNow);
     if (official !== null) {
-      for (const item of official) drawTrtcOfficialVehicle(ln, item, showTrain, inView, true, officialNow);
+      for (const item of official) {
+        const cp = map.latLngToContainerPoint([item.pos.lat, item.pos.lon]); // 只為排序取位置,實際還是由該函式自己算
+        paintTrain(cp.x, cp.y, null, ln.id, () => drawTrtcOfficialVehicle(ln, item, showTrain, inView, true, officialNow));
+      }
       return;
     }
     if (ln._tt) { // 實際時刻:當日班表逐班定位(跟 simSec 時鐘)
@@ -7213,12 +7283,14 @@ function drawFreq(w, h) {
         const pos = freqTrainPosAt(ln, tr, state.simSec);
         if (!pos) continue; // 未發車/已到終點
         const cp = map.latLngToContainerPoint([pos.lat, pos.lon]);
-        if (ff && ff.ln === ln && ff.tr === tr) drawFreqRing(cp, ln.color);
-        if (showTrain && inView(cp)) {
-          drawTag(cp, ln.abbr, ln.color, tc);
-          if (state.dirArrow) drawFreqDirArrow(cp, ln, tr, freqTrainPosAt(ln, tr, state.simSec - DIR_DT_SEC));
-        } else drawDot(cp, ln.color);
-        if (inView(cp)) state._freqHits.push({ x: cp.x, y: cp.y, ln, tr });
+        paintTrain(cp.x, cp.y, null, ln.id, () => {
+          if (ff && ff.ln === ln && ff.tr === tr) drawFreqRing(cp, ln.color);
+          if (showTrain && inView(cp)) {
+            drawTag(cp, ln.abbr, ln.color, tc);
+            if (state.dirArrow) drawFreqDirArrow(cp, ln, tr, freqTrainPosAt(ln, tr, state.simSec - DIR_DT_SEC));
+          } else drawDot(cp, ln.color);
+        });
+        if (inView(cp)) state._freqHits.push({ x: cp.x, y: cp.y, ln, tr }); // 命中測試與畫的順序無關,照舊即時收
       }
       return;
     }
@@ -7226,17 +7298,20 @@ function drawFreq(w, h) {
     for (let k = 0; k < ln.n; k++) {
       const pos = posPeriodic(ln, tau + k * ln.period / ln.n);
       const cp = map.latLngToContainerPoint([pos.lat, pos.lon]);
-      if (ff && ff.ln === ln && ff.k === k) drawFreqRing(cp, ln.color); // 跟隨中的幽靈車:高亮環(畫在牌下)
-      if (showTrain && inView(cp)) {
-        drawTag(cp, ln.abbr, ln.color, tc);
-        if (state.dirArrow) { // 幽靈車無穩定物件,角度狀態落在 per-line per-k 槽
-          const sl = (ln._dirSlots || (ln._dirSlots = {}))[k] || (ln._dirSlots[k] = {});
-          drawFreqDirArrow(cp, ln, sl, posPeriodic(ln, tau - DIR_DT_SEC + k * ln.period / ln.n));
-        }
-      } else drawDot(cp, ln.color);
+      paintTrain(cp.x, cp.y, null, ln.id, () => {
+        if (ff && ff.ln === ln && ff.k === k) drawFreqRing(cp, ln.color); // 跟隨中的幽靈車:高亮環(畫在牌下)
+        if (showTrain && inView(cp)) {
+          drawTag(cp, ln.abbr, ln.color, tc);
+          if (state.dirArrow) { // 幽靈車無穩定物件,角度狀態落在 per-line per-k 槽
+            const sl = (ln._dirSlots || (ln._dirSlots = {}))[k] || (ln._dirSlots[k] = {});
+            drawFreqDirArrow(cp, ln, sl, posPeriodic(ln, tau - DIR_DT_SEC + k * ln.period / ln.n));
+          }
+        } else drawDot(cp, ln.color);
+      });
       if (inView(cp)) state._freqHits.push({ x: cp.x, y: cp.y, ln, k }); // 點擊/hover 命中測試(每幀重建;裝飾層不參加)
     }
   });
+  flushTrainPaint(); // 車在這裡才真的畫出來:交叉口附近依真實高低排序,其餘維持原順序
   // 站名最後畫(蓋在列車上層),錨點推到軌道側邊
   ctx.textAlign = 'center';
   for (const { p, name, pa, pb } of freqLabels) {
@@ -7480,7 +7555,10 @@ function drawDecoTrains(w, h) {
     const tc = textColorFor(ln.color);
     const official = trtcOfficialItemsForLine(ln, officialNow);
     if (official !== null) {
-      for (const item of official) drawTrtcOfficialVehicle(ln, item, showTrain, inView, showTrain, officialNow);
+      for (const item of official) {
+        const cp = map.latLngToContainerPoint([item.pos.lat, item.pos.lon]); // 只為排序取位置
+        paintTrain(cp.x, cp.y, null, ln.id, () => drawTrtcOfficialVehicle(ln, item, showTrain, inView, showTrain, officialNow));
+      }
       continue;
     }
     if (ln._tt) { // 實際時刻:與台鐵/高鐵共用 simSec 時鐘,同框時間軸一致
@@ -7489,12 +7567,14 @@ function drawDecoTrains(w, h) {
         if (!pos) continue;
         const cp = map.latLngToContainerPoint([pos.lat, pos.lon]);
         if (!inView(cp)) continue;
-        if (ff && ff.ln === ln && ff.tr === tr) drawFreqRing(cp, ln.color);
-        if (showTrain) {
-          drawTag(cp, ln.abbr, ln.color, tc);
-          if (state.dirArrow) drawFreqDirArrow(cp, ln, tr, freqTrainPosAt(ln, tr, state.simSec - DIR_DT_SEC));
-          state._freqHits.push({ x: cp.x, y: cp.y, ln, tr });
-        } else drawDot(cp, ln.color);
+        if (showTrain) state._freqHits.push({ x: cp.x, y: cp.y, ln, tr }); // 命中測試與畫的順序無關,照舊即時收
+        paintTrain(cp.x, cp.y, null, ln.id, () => {
+          if (ff && ff.ln === ln && ff.tr === tr) drawFreqRing(cp, ln.color);
+          if (showTrain) {
+            drawTag(cp, ln.abbr, ln.color, tc);
+            if (state.dirArrow) drawFreqDirArrow(cp, ln, tr, freqTrainPosAt(ln, tr, state.simSec - DIR_DT_SEC));
+          } else drawDot(cp, ln.color);
+        });
       }
       continue;
     }
@@ -7503,16 +7583,18 @@ function drawDecoTrains(w, h) {
       const pos = posPeriodic(ln, tau + k * ln.period / ln.n);
       const cp = map.latLngToContainerPoint([pos.lat, pos.lon]);
       if (!inView(cp)) continue;
-      if (ff && ff.ln === ln && ff.k === k) drawFreqRing(cp, ln.color); // 跟隨中的示意車:高亮環(畫在牌下)
-      if (showTrain) {
-        drawTag(cp, ln.abbr, ln.color, tc);
-        if (state.dirArrow) {
-          const sl = (ln._dirSlots || (ln._dirSlots = {}))[k] || (ln._dirSlots[k] = {});
-          drawFreqDirArrow(cp, ln, sl, posPeriodic(ln, tau - DIR_DT_SEC + k * ln.period / ln.n));
-        }
-        // 全台同框的捷運也可點擊跟隨;只在畫車號牌的縮放才收命中(遠景是密集小點,誤點率太高)
-        state._freqHits.push({ x: cp.x, y: cp.y, ln, k });
-      } else drawDot(cp, ln.color);
+      // 全台同框的捷運也可點擊跟隨;只在畫車號牌的縮放才收命中(遠景是密集小點,誤點率太高)
+      if (showTrain) state._freqHits.push({ x: cp.x, y: cp.y, ln, k });
+      paintTrain(cp.x, cp.y, null, ln.id, () => {
+        if (ff && ff.ln === ln && ff.k === k) drawFreqRing(cp, ln.color); // 跟隨中的示意車:高亮環(畫在牌下)
+        if (showTrain) {
+          drawTag(cp, ln.abbr, ln.color, tc);
+          if (state.dirArrow) {
+            const sl = (ln._dirSlots || (ln._dirSlots = {}))[k] || (ln._dirSlots[k] = {});
+            drawFreqDirArrow(cp, ln, sl, posPeriodic(ln, tau - DIR_DT_SEC + k * ln.period / ln.n));
+          }
+        } else drawDot(cp, ln.color);
+      });
     }
   }
   ctx.globalAlpha = 1;
@@ -7679,6 +7761,7 @@ function drawSched(w, h, paintDecoTrains) {
   }
   // 軌道、平交道、車站圖示都畫完了，這裡才輪到列車：先補畫裝飾層(捷運)的車，再畫台鐵/高鐵的車。
   // 順序＝所有軌道 → 捷運列車 → 台鐵/高鐵列車 → 站名，任何一台車都浮在所有軌道之上(見疊層鐵則)
+  trainPaintQ = []; // 這一段的車先入列,末端 flushTrainPaint() 依交叉點高低排序後才真的畫
   if (paintDecoTrains) paintDecoTrains();
   let n = 0;
   for (const tr of state.trains) {
@@ -7689,20 +7772,23 @@ function drawSched(w, h, paintDecoTrains) {
     if (state.visible.has(tr.typeName)) n++;
     const cp = map.latLngToContainerPoint([pos.lat, pos.lon]);
     const sh = blockSideShift(tr, pos, cp, showTrain); // 同線同向貼太近 → 兩顆標記各往軌道法線偏一半
-    if (isFollow) { drawFollowMarker(cp, tr); state._trainHits.push({ x: cp.x, y: cp.y, tr }); continue; }
+    if (isFollow) { state._trainHits.push({ x: cp.x, y: cp.y, tr }); paintTrain(cp.x, cp.y, tr.sys, null, () => drawFollowMarker(cp, tr)); continue; }
     if (sh) { cp.x += sh.x; cp.y += sh.y; }
     if (!inView(cp)) continue;
     state._trainHits.push({ x: cp.x, y: cp.y, tr }); // 供點擊/hover 命中測試(每幀重建)
     const glowC = isHSR(tr) ? HSR_ORANGE : tr.color;
-    drawTrail(dt => trainPos(tr, state.simSec - dt), cp, glowC, sh);
-    // 兩環互斥:準點排行(綠)比今日之最(金)難得,同時中選只畫綠環;drawFeaturedRing 本體與既有金環零變化
-    if (state._punctual.has(tr)) drawPunctualRing(cp);
-    else if (state._featured.has(tr)) drawFeaturedRing(cp); // 今日之最(探索面板推薦)→ 地圖上加繪金色光環識別
-    glowUnder(cp, glowC, showTrain ? 10 : 3.5); // 車號牌模式:光暈放大到繞出牌緣,近看也發亮
-    if (showTrain) isHSR(tr) ? drawHSRTag(cp, tr.train) : drawTag(cp, tr.train, tr.color, textColorFor(tr.color));
-    else isHSR(tr) ? drawHSRDot(cp) : drawDot(cp, tr.color);
-    if (state.dirArrow && showTrain) drawDirArrow(cp, tr, glowC, sh); // 車號牌前緣加行進方向箭頭(遠景圓點不畫,避免密集小點雜亂)
+    paintTrain(cp.x, cp.y, tr.sys, null, () => {
+      drawTrail(dt => trainPos(tr, state.simSec - dt), cp, glowC, sh);
+      // 兩環互斥:準點排行(綠)比今日之最(金)難得,同時中選只畫綠環;drawFeaturedRing 本體與既有金環零變化
+      if (state._punctual.has(tr)) drawPunctualRing(cp);
+      else if (state._featured.has(tr)) drawFeaturedRing(cp); // 今日之最(探索面板推薦)→ 地圖上加繪金色光環識別
+      glowUnder(cp, glowC, showTrain ? 10 : 3.5); // 車號牌模式:光暈放大到繞出牌緣,近看也發亮
+      if (showTrain) isHSR(tr) ? drawHSRTag(cp, tr.train) : drawTag(cp, tr.train, tr.color, textColorFor(tr.color));
+      else isHSR(tr) ? drawHSRDot(cp) : drawDot(cp, tr.color);
+      if (state.dirArrow && showTrain) drawDirArrow(cp, tr, glowC, sh); // 車號牌前緣加行進方向箭頭(遠景圓點不畫,避免密集小點雜亂)
+    });
   }
+  flushTrainPaint(); // 捷運＋台鐵＋高鐵的車一起排序後畫:交叉口依真實高低,其餘維持原順序
   // 站名標籤:大站先取位、字級隨站等、蓋在列車上層;錨點放軌道側邊(法線方向)——
   // 列車沿軌道跑就壓不到字,標籤與車號牌位置都固定不動(對列車做避讓會讓牌亂跳,已撤)
   ctx.textAlign = 'center';
@@ -10886,6 +10972,7 @@ function draw() {
   state._crossHits = [];
   state._sugarHits = [];
   labelBoxes = [];
+  trainPaintQ = null; // 上一幀若中途拋例外,殘留佇列不可帶進這一幀(否則車會被收進去卻沒人畫)
   ctx.lineCap = 'round'; ctx.lineJoin = 'round';
   if (state.mode === 'sched') { if (state.deco) drawDecoBase(w, h); drawSched(w, h, state.deco ? () => drawDecoTrains(w, h) : null); if (state.deco) drawDecoLabels(); } else drawFreq(w, h);
   drawMe(); // 「我的位置」畫最後=在所有軌道與列車之上,不會被蓋掉
@@ -23077,6 +23164,7 @@ async function boot() {
   // 不 await:定位回不回得來、幾秒回來都不該卡住開機;結果晚點在落點決定處接。
   startBootGeo();
   ensureMetroWaitListener(); // 捷運等車卡(Task 6)深連結監聽,boot 時掛(僅原生殼有此 plugin,web/PWA 無操作)
+  ensureCrossLevels(); // 立體交叉高低表(小檔、不 await):沒載到就退回原順序,不擋開機
   cv = document.getElementById('overlay'); ctx = cv.getContext('2d');
   // zoomAnimation:true —— 縮放走 Leaflet 250ms CSS 平滑補間(舊圖磚縮放到位、新圖磚淡入),不再「瞬間跳格→
   // 舊圖磚被丟、新圖磚還沒到→畫面消失一下下」(TestFlight 回報)。overlay 畫布在 Leaflet pane 體系外、以
