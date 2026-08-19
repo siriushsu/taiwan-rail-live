@@ -61,7 +61,8 @@ const UNIT_FUNCTIONS = [
   'trtcOfficialCoastCycle', 'trtcOfficialCoastByCycle', 'trtcOfficialCoastPosition',
   'trtcOfficialDeparturePosition',
   'trtcOfficialTimelinePosition', 'trtcOfficialVehiclePosition', 'trtcOfficialPositionProgress',
-  'trtcOfficialMotionStep', 'trtcOfficialPositionAtProgress', 'trtcOfficialSegmentSeconds', 'trtcOfficialForwardLimit',
+  'trtcOfficialMotionStep', 'trtcOfficialPositionAtProgress', 'trtcOfficialSegmentSeconds', 'trtcOfficialForwardLimit', 'trtcOfficialDwellAt',
+  'trtcOfficialArrivalTarget', 'trtcOfficialDwellUntil', 'trtcOfficialStopState',
   'trtcOfficialDirectionPrevious', 'trtcOfficialDirectionAnchor',
   'trtcOfficialDisplayPosition', 'trtcOfficialVehicleInfo',
   'trtcOfficialRenderItems', 'trtcOfficialVehicleGlyph', 'trtcOfficialSameTarget', 'dirAngOf',
@@ -80,7 +81,6 @@ function buildUnitApi(overrides = {}, label = 'unit') {
     ${extractConst(INDEX, 'TRTC_OFFICIAL_RESYNC_MIN_COAST_SEC')}
     ${extractConst(INDEX, 'TRTC_OFFICIAL_CATCHUP_FACTOR')}
     ${extractConst(INDEX, 'TRTC_OFFICIAL_SNAP_FORWARD_M')}
-    ${extractConst(INDEX, 'TRTC_OFFICIAL_SNAP_TAU_SEC')}
     ${extractConst(INDEX, 'TRTC_RESYNC_TOAST_SETTLE_SEC')}
     ${extractConst(INDEX, '_trtcOfficialCorrect')}
     ${extractConst(INDEX, '_trtcOfficialResync')}
@@ -188,14 +188,30 @@ function evaluateUnit(api) {
     { from:4,to:3,depEpoch:1000,arrEpoch:1035,terminal:false } ] };
   const reverseEased = api.trtcOfficialDisplayPosition(LINE, reverseRevisedForward, 1030.2);
   const reverseDeadlineShown = api.trtcOfficialDisplayPosition(LINE, reverseRevisedForward, 1035);
-  const B = sameStation(before, LINE, 0) && half && Math.abs(half.fraction - .5) < 1e-9 &&
+  // 🔴 契約 3「跑過頭的停下來等、絕不倒退」——2026-08-19 補:整組 B gate 原本沒有任何情境
+  // 讓目標站落在顯示位置**後方**(所有情境的官方修訂都只改時刻、不改目標站),於是「位置跟著
+  // 倒退」的突變無論怎麼寫都攔不到。這裡直接種一個已經開過頭的顯示狀態。
+  api.displayCache.clear();
+  const overshootSeed = api.trtcOfficialVehiclePosition(LINE, timelineVehicle, 1030);
+  api.displayCache.set(`${LINE.id}|${timelineVehicle.vehicleId}`,
+    { epoch: 1030, progress: 1.5, pos: api.trtcOfficialPositionAtProgress(LINE, timelineVehicle, 1.5, overshootSeed),
+      coasted: false, coastSince: null });
+  const overshot = api.trtcOfficialDisplayPosition(LINE, timelineVehicle, 1031);
+  const overshotProgress = overshot ? api.trtcOfficialPositionProgress(LINE, timelineVehicle, overshot) : null;
+  api.displayCache.clear();
+  const B = overshotProgress === 1.5 && sameStation(before, LINE, 0) && half && Math.abs(half.fraction - .5) < 1e-9 &&
     sameStation(at1, LINE, 1) && at1.atStation && sameStation(dwell, LINE, 1) &&
     sameStation(at2, LINE, 2) && reverseHalf && Math.abs(reverseHalf.fraction - .5) < 1e-9 &&
     terminal === null && info.pos && info.nextName === 'L2' && Number.isFinite(info.nextSec) &&
-    shown && held && held.lat === shown.lat && held.lon === shown.lon && held.coastArrEpoch === 1150 &&
+    // ETA 被往後修(1060→1150)⇒ 車不准倒退,但也不該凍住:照新模型它會放慢,慢慢開向同一站。
+    // 上界取「照修訂後的速度走這段時間該走多遠」的兩倍,超過就是沒有真的放慢。
+    shown && held && held.fraction >= shown.fraction - 1e-9 &&
+      held.fraction <= shown.fraction + 2 * (1 - shown.fraction) * (0.1 / (1150 - 1030)) + 1e-9 &&
+      held.coastArrEpoch === 1150 &&
     heldAgain && heldAgain.lat === held.lat && heldAgain.lon === held.lon && heldAgain.coastArrEpoch === 1150 &&
-    beforeLongFrame && afterLongFrame && afterLongFrame.lat === beforeLongFrame.lat &&
-      afterLongFrame.lon === beforeLongFrame.lon &&
+    beforeLongFrame && afterLongFrame && afterLongFrame.fraction >= beforeLongFrame.fraction - 1e-9 &&
+      afterLongFrame.fraction <= beforeLongFrame.fraction +
+        2 * (1 - beforeLongFrame.fraction) * (6 / (1150 - 1030)) + 1e-9 &&
     eased && eased.fraction > .5 && eased.fraction <= .5 + easeCap(.2) + 1e-9 &&
     deadlineShown && deadlineShown.fraction > eased.fraction &&
       deadlineShown.fraction <= eased.fraction + easeCap(4.8) + 1e-9 && deadlineShown.fraction < 1 &&
@@ -343,18 +359,24 @@ check(ingestAudit() && sourceHoldAudit(), 'H gate：失敗、畸形、舊版本�
   api.displayCache.set(`${LINE.id}|${veh.vehicleId}`,
     { epoch: 1020, progress: 0, pos: api.trtcOfficialVehiclePosition(LINE, veh, 1000), coasted: false, coastSince: null });
   const gaps = [];
-  for (let t = 1021; t <= 1050; t++) {
+  let arrived = null;
+  for (let t = 1021; t <= 1060; t++) {
     const shown = api.trtcOfficialDisplayPosition(LINE, veh, t);
     const official = api.trtcOfficialVehiclePosition(LINE, veh, t);
     if (!shown || !official) { gaps.push(NaN); continue; }
     gaps.push(Number((official.fraction - shown.fraction).toFixed(6)));
+    arrived = shown;
   }
   const first = gaps[0], last = gaps[gaps.length - 1];
   const monotonic = gaps.every((g, i) => i === 0 || g <= gaps[i - 1] + 1e-9);
-  const converged = last <= 1e-6;
+  // 🔴 判準是**結果**不是機制:落後的車要在「官方說的到站時刻」出現在那一站上(1060 是官方 arrEpoch)。
+  // 舊判準寫的是「30 秒內收斂到官方的瞬時位置」——那是舊棘輪+兩倍速追趕的形狀,不是使用者的要求;
+  // 使用者要的是「站牌時間完全照官方,車依那個時間到站」(08-07 裁示)。
+  const converged = !!arrived && arrived.atStation === true &&
+    arrived.lat === LINE.stations[1].lat && arrived.lon === LINE.stations[1].lon;
   const noOvershoot = gaps.every(g => g >= -1e-9);   // 追趕不准超過官方位置
   check(first > .3 && monotonic && converged && noOvershoot,
-    `K gate：落後的車會追上去（起始落後 ${first}、30 秒後 ${last}、單調收斂 ${monotonic}、零超越 ${noOvershoot}）`);
+    `K gate：落後的車準時到站（起始落後 ${first}、到站時刻在站上 ${converged}、單調收斂 ${monotonic}、零超越 ${noOvershoot}）`);
   // 控制組：把追趕倍率壓回 1（＝改動前的行為），同一情境必須**追不上**，否則這條判準沒有牙
   const oneX = extractFunction(INDEX, 'trtcOfficialDisplayPosition')
     .replace('dt * TRTC_OFFICIAL_CATCHUP_FACTOR', 'dt');
@@ -362,7 +384,7 @@ check(ingestAudit() && sourceHoldAudit(), 'H gate：失敗、畸形、舊版本�
   api1.displayCache.set(`${LINE.id}|${veh.vehicleId}`,
     { epoch: 1020, progress: 0, pos: api1.trtcOfficialVehiclePosition(LINE, veh, 1000), coasted: false, coastSince: null });
   let ctlGap = null;
-  for (let t = 1021; t <= 1050; t++) {
+  for (let t = 1021; t <= 1060; t++) {
     const shown = api1.trtcOfficialDisplayPosition(LINE, veh, t);
     const official = api1.trtcOfficialVehiclePosition(LINE, veh, t);
     if (shown && official) ctlGap = Number((official.fraction - shown.fraction).toFixed(6));
@@ -395,17 +417,17 @@ await mutation('終點站仍停著不退場', 'B', 'trtcOfficialTimelinePosition
   'if (destination && now >= destination.arrEpoch) return { handled: true, pos: null };',
   'if (false) return { handled: true, pos: null };');
 await mutation('ETA 回修時位置跟著倒退', 'B', 'trtcOfficialDisplayPosition',
-  'const pos = progress < prior.progress - 1e-9 ? { ...raw, lat: prior.pos.lat, lon: prior.pos.lon,\n      fraction: prior.pos.fraction, atStation: prior.pos.atStation,\n      motionFrom: prior.pos.motionFrom, motionTo: prior.pos.motionTo } : raw;',
-  'const pos = raw;');
+  'plan && plan.progress > prior.progress + 1e-9 &&', 'plan &&');
 await mutation('同一畫格第二個讀者繞過防倒退', 'B', 'trtcOfficialDisplayPosition',
   'if (!prior || now < prior.epoch) {',
   'if (!prior || now <= prior.epoch) {');
 await mutation('畫面停頓超過五秒就退回修訂後方', 'B', 'trtcOfficialDisplayPosition',
   'if (!prior || now < prior.epoch) {',
   'if (!prior || now < prior.epoch || now - prior.epoch > 5) {');
-await mutation('每十秒追一站並在 deadline 瞬移到站', 'B', 'trtcOfficialDisplayPosition',
-  'const shown = Math.min(progress, Math.max(eased,\n    trtcOfficialForwardLimit(ln, vehicle, prior.progress, dt * TRTC_OFFICIAL_CATCHUP_FACTOR)));',
-  'let shown = Math.min(progress, prior.progress + 0.1 * dt);\n  if (raw.atStation) shown = progress;');
+await mutation('拿掉物理上限,deadline 一到就瞬移到站', 'B', 'trtcOfficialDisplayPosition',
+  `    shown = Math.min(prior.progress + (plan.progress - prior.progress) * ratio,
+      trtcOfficialForwardLimit(ln, vehicle, prior.progress, dt * TRTC_OFFICIAL_CATCHUP_FACTOR));`,
+  '    shown = prior.progress + (plan.progress - prior.progress) * ratio;');
 await mutation('續推超過任意秒數就消失', 'G', 'trtcOfficialCoastPosition',
   'const elapsed = now - arrEpoch;', 'const elapsed = now - arrEpoch;\n  if (elapsed > 600) return null;');
 await mutation('移除 XBT 單段 fallback', 'D', 'trtcOfficialDeparturePosition',

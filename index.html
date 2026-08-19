@@ -1389,6 +1389,19 @@
     opacity: 0; transform: translateY(-10px); transition: opacity .4s ease, transform .4s ease;
   }
   .toast.show { opacity: 1; transform: none; }
+  /* ── 角落小提示 ── 使用者裁示(2026-08-18):內部對帳類的訊息(例:位置依官方校正)不要用
+     置中大卡擋住整個畫面,收到角落小字即可。刻意獨立成一個容器:原本的 .toasts 是置中欄,
+     在裡面翻轉定位會跟它的 flex 置中打架。 */
+  .toasts.corner {
+    top: auto; bottom: 14px; left: 12px;
+    transform: none; align-items: flex-start; max-width: min(64vw, 300px); z-index: 719;
+  }
+  .toasts.corner .toast {
+    padding: 5px 10px; font-size: 12px; font-weight: 700; border-radius: 8px;
+    border-width: 1px; box-shadow: 0 2px 0 rgba(163,100,26,.22); opacity: 0;
+    background: color-mix(in srgb, var(--paper) 88%, transparent);
+  }
+  .toasts.corner .toast.show { opacity: .92; }
   /* 說明型 toast（訊號恢復、位置為什麼會跳…）本來就是一整句話，單行截斷等於沒通知：
      2026-08-15 實測手機 390px 只看得到前 20 個字、「有幾台被移除」整句被 … 吃掉。
      這類改成可換行、靠左讀，一般的短提示（完乘、蓋章）維持原本的單行置中。 */
@@ -3535,6 +3548,7 @@
       </div>
     </div>
     <div class="toasts" id="toasts"></div>
+    <div class="toasts corner" id="toastsCorner"></div>
     <div class="alert-banner" id="alertBanner" hidden></div>
     <div class="alert-detail" id="alertDetail" hidden></div>
     <!-- App 版本提示橫幅(只有 App 會顯示;網站的 RAIL_APP_VERSION 不存在,appUpdateInit 立刻 return)。
@@ -3820,6 +3834,7 @@
         <li data-cl-of="trainoverrail"><span class="d">8/19</span><span>全台同框畫面裡，捷運列車不再被台鐵、高鐵的軌道壓過去，車一律浮在所有軌道之上</span></li>
         <li data-cl-of="osmbasemap"><span class="d">8/18</span><span>街道底圖換成 OpenStreetMap 的圖資：地名改成中文單行、路名與公路編號牌不再蓋滿畫面，看起來跟以前一樣安靜，但列車、路線與站點的位置完全沒變</span></li>
         <li data-cl-of="hsrcoast"><span class="d">8/18</span><span>高鐵列車跑起來更接近真的：中段跑得比以前快（依實際搭車讀到的車廂時速表校正），快到站前幾公里就開始減速滑行，不再拖到最後才急煞；發車也不再比真車早開。每一站的到站時刻仍與時刻表分秒一致</span></li>
+        <li data-cl-of="trtcmotion"><span class="d">8/18</span><span>台北捷運列車不再每十幾秒跳一下：以前是每一輪拿最新的到站倒數反推「車現在應該在哪」，官方倒數只要修訂幾秒，畫面上的車就整個位移一次。現在改成車到站先停二十幾到四十幾秒（各站的官方停靠時間），再照官方倒數的時間開向下一站——倒數變了只改速度，位置一路連續，而且照樣在官方說的時間分秒不差地到站</span></li>
         <li data-cl-of="trtccountdown"><span class="d">8/18</span><span>台北捷運列車位置改回官方即時：不再是班表推估。文湖線因為官方沒給車號，改用各站的官方倒數推算車在哪兩站之間，比原本的來源新兩到四分鐘；同向前後車也不會再互相穿越或黏在一起。車會一路跟到終點站才收車，不會在快到終點的那一段提早不見。北捷訂正到站倒數時，畫面會在幾秒內對回官方位置並跟你說一聲。（8/18 傍晚先暫時退回班表推估：位置每十幾秒會跳一次，等根因修好再開回來）</span></li>
         <li data-cl-of="thsrwindow"><span class="d">8/17</span><span>高鐵班表不再停在前一天：當天才有的班次看得到，前一天才有的也不會變成幽靈車（謝謝網友回報）</span></li>
         <li data-cl-of="trtczombie"><span class="d">8/17</span><span>台北捷運車站看板不再把尖峰加開的短程車提早列成「另一條線」（謝謝網友回報）</span></li>
@@ -4384,9 +4399,9 @@ function trtcOfficialRosterEnabled(search) {
     // 🔴 2026-08-18 17:1x 使用者裁示「先把正式站回歸到官方班表」——實測「官方訂正位置」
     //    每十幾秒跳一次(環狀線 16 台車兩分鐘觸發 1099 次,是其他線的 150-340 倍),
     //    位置模型本身會造出 100-500m 的落差。退回班表推估,根因修好再開。
-    if (q.get('officialroster') === '1' || q.get('census') === '1') return true;
-    return false;
-  } catch (e) { return false; }
+    if (q.get('officialroster') === '0' || q.get('census') === '0') return false;
+    return true;
+  } catch (e) { return true; }
 }
 function trtcCensusRosterEnabled(search) {
   // 逐車清單路徑同樣改為預設開啟：文湖線的倒數定位就掛在這條上（worker 把切段結果填進
@@ -4394,10 +4409,13 @@ function trtcCensusRosterEnabled(search) {
   // Y／G_XBT／R_XBT 逐車清單本來就沒有，會自動維持舊路徑（見下方 covered/kept 的處理）。
   try {
     const q = new URLSearchParams(search == null ? location.search : search);
-    if (q.get('census') === '1' || q.get('officialroster') === '1') return true;
-    return false;
-  } catch (e) { return false; }
+    if (q.get('census') === '0' || q.get('officialroster') === '0') return false;
+    return true;
+  } catch (e) { return true; }
 }
+// 🔴🔴 這棵樹是【手機 build 專用】(branch build/trtc-y-device):旗標已開回官方即時,
+//    好讓 App 帶著修法上真機做晨間觀察。**這個分支不准拿去部署網站**——網站要開回官方即時
+//    的前提是尖峰時段的驗收先綠(見 scripts/verify_correct_toast.mjs 的 G1 分母閘門)。
 // URL 開關必須在開機初始就固定；clearFollow() 會整理 query string，不可在後面重讀。
 const OFFICIAL_ROSTER_ENABLED = trtcOfficialRosterEnabled(location.search);
 const CENSUS_ROSTER_ENABLED = trtcCensusRosterEnabled(location.search);
@@ -4998,12 +5016,27 @@ function trtcCensusResolve(stn, nextName, destName) {
 // 使用者對這個模型的描述即為其自我修正機制:「前一台離站就會出現在下一站的倒數,
 // 然後這站倒數就是下一輛」——同區段兩台同向車在前車離站前結構上看不見,誤差上限一個站間車程。
 const TRTC_BR_FROM_COUNTDOWN = true;      // 出事就把這行改 false,回到 CarWeightBR 路徑
+// 🔴 2026-08-18 傍晚:同一套推廣到環狀線(Y)。BR 與 Y 是全系統唯二沒有官方車號的線,
+// 也正是伺服器端配不到觀測、只能長時間續推的兩條——實測觀測齡 p90 BR 1095s／Y 435s
+// (最遠一台走了 13 站沒被官方看見),而有車號的 BL/G/R/O 中位是 0 秒。
+// 長時間純推估累積出來的誤差,會在官方下一次看到那台車時一次現形 ⇒ 就是使用者看到的
+// 「官方訂正位置」狂跳(環狀線一條線佔全部觸發的 79-96%)。
+// Y 的倒數列結構與 BR 完全相同:21 個(站,方向)各恰好一筆、零車號 ⇒ 沿用同一條路徑。
+const TRTC_CD_LINES = ['BR', 'Y'];
+// 既有車輛 id 前綴不改(brseg:),避免跨版本名冊與驗收腳本對不上。
+const _trtcCdPrefix = id => (id === 'BR' ? 'brseg:' : String(id).toLowerCase() + 'seg:');
 const TRTC_BR_SAME_TRAIN_RATIO = 0.5;     // 與伺服器端 SAME_TRAIN_MIN_RUN_RATIO 同值
 // 幾何的 segs[].run 是「開車到到站」不含停站:2026-08-18 對正式站 151 個相鄰站對實測,
 // 官方倒數的站到站中位 104 秒、幾何 run 中位 78 秒,差 29 秒(p10 15、p90 48)。續推若直接用
 // run 會系統性偏快 ⇒ 每輪從當下的官方倒數自己量停站秒,樣本不足才用這個實測中位當退路。
 const TRTC_BR_DWELL_FALLBACK = 29;
-let _trtcBrDwell = TRTC_BR_DWELL_FALLBACK;
+// 逐線各自量:BR 有幾何 segs,量出來的就是停站秒;Y 沒有 segs(run 一律退到常數 90),
+// 量出來的是「實際站到站 − 90」,**可能為負**,舊的 med > 0 門檻會把它整個丟掉。
+const _trtcCdDwell = new Map();
+const _trtcCdDwellOf = id => {
+  const v = _trtcCdDwell.get(id);
+  return Number.isFinite(v) ? v : TRTC_BR_DWELL_FALLBACK;
+};
 // 沿行進方向的連續座標(站序 + 已走完的比例)。兩個方向各自比較,數值一律隨行進遞增。
 function _trtcBrAlong(v, nowEpoch) {
   const step = Number(v.dir) === 2 ? 1 : -1, run = Number(v.run);
@@ -5017,30 +5050,35 @@ function _trtcBrAlong(v, nowEpoch) {
 // 唯一帶車號(215)的那筆正是板南線。只在共站上套這條 ⇒ 就算哪天官方給文湖線車號,
 // 獨有站那 20 站照樣建得出車,不會整條線消失。
 function _trtcBrSharedIdx(ln, names) {
-  if (ln._brShared) return ln._brShared;
+  if (ln._cdShared) return ln._cdShared;
   const other = new Set();
   for (const l of [...(state.lines || []), ...(state.decoLines || [])]) {
-    if (!l || l.id === 'BR') continue;
+    if (!l || l.id === ln.id) continue;
     for (const st of l.stations || []) other.add(_trtcCensusNorm(st && st.name));
   }
   const set = new Set();
   names.forEach((n, i) => { if (other.has(n)) set.add(i); });
-  ln._brShared = set;
+  ln._cdShared = set;
   return set;
 }
-function trtcBrVehiclesFromBoard(board, nowEpoch, day) {
-  const ln = trtcCensusLine('BR');
+function trtcBrVehiclesFromBoard(lineId, board, nowEpoch, day) {
+  const ln = trtcCensusLine(lineId);
   if (!ln || !Array.isArray(ln.stations) || !ln.stations.length) return null;
   const names = trtcCensusNames(ln), idxOf = n => names.indexOf(_trtcCensusNorm(n));
   const shared = _trtcBrSharedIdx(ln, names);
   const rows = [];
+  let dropped = 0;
   for (const b of board || []) {
     const i = idxOf(b && b.name), d = idxOf(b && b.dest), eta = Number(b && b.eta);
     if (i < 0 || d < 0 || d === i || !Number.isFinite(eta)) continue;
     if (shared.has(i) && String((b && b.no) || '').trim()) continue; // 共站上帶車號的是別條線的車
-    rows.push({ i, d, eta, step: Math.sign(d - i) });
+    // 🔴 裁示:時間一旦推到前一站之前,就直接忽略這個倒數(見 trtcCountdownFitsSegment)。
+    const st = Math.sign(d - i);
+    if (!trtcCountdownFitsSegment(ln, i - st, i, eta - nowEpoch)) { dropped++; continue; }
+    rows.push({ i, d, eta, step: st });
   }
   if (!rows.length) return null;
+  _trtcCdDropped.set(lineId, dropped);
   const out = [], hopObs = [];
   // 一台車的「切法」:依行進方向排開 → 倒數不再遞增、或遞增得比這段最少要跑多久還快就切一台。
   const cutInto = (ordered, step, tag) => {
@@ -5050,16 +5088,35 @@ function trtcBrVehiclesFromBoard(board, nowEpoch, day) {
       if (!g.length) return;
       const head = g[0], from = head.i - step;
       if (from < 0 || from >= names.length) return; // 起點列:前方站在線外,不是一台在跑的車
+      // 🔴 使用者裁示(2026-08-19)：「到站倒數結束變成進站中,這輛車就交給這站的停站時間跟
+      // 下一站的倒數去領;如果下一站已經有另一輛車在倒數中,那這輛車依然是依照停站時間到就
+      // 推出去,下一站那輛車到站之後,就可以用倒數時間領這邊推出去的車子了。」
+      // 官方那一列的倒數過期＝車已經到站了,過了停站秒數它就該發車。舊碼沒有這一步,過期的列
+      // 會把車永遠釘在站上——實測環狀線中原站兩個方向各一台,倒數 -19→-44 秒一路「在站」不動,
+      // 而停靠 25 秒的資料從頭到尾沒被用到。推到線外就是到終點,收車。
+      let hFrom = from, hTo = head.i, hArr = head.eta;
+      for (let guard = 0; guard < names.length; guard++) {
+        const dwell = trtcOfficialDwellAt(ln, hTo);
+        if (!(nowEpoch > hArr + dwell)) break;        // 還在跑、或還在停站 ⇒ 就用這一段
+        const nxt = hTo + step;
+        if (nxt < 0 || nxt >= names.length) return;   // 推出線外 ⇒ 到終點,收車
+        const rr = trtcCensusRun(ln, hTo, nxt);
+        if (!(rr > 0)) break;
+        hFrom = hTo; hTo = nxt; hArr = hArr + dwell + rr;
+      }
       const timeline = [];
-      let cur = from;
+      let cur = hFrom;
       for (const r of g) {
+        if (Math.sign(r.i - cur) !== step) continue;   // 已經走過的站不再排進 timeline
         const rr = trtcCensusRun(ln, cur, r.i);
         timeline.push({ from: cur, to: r.i, depEpoch: r.eta - rr, arrEpoch: r.eta, terminal: false });
         cur = r.i;
       }
-      out.push({ vehicleId: 'brseg:' + day + ':' + tag + ':' + (step > 0 ? 2 : 1) + ':' + head.i,
-        line: 'BR', dir: step > 0 ? 2 : 1, dest: head.d, from, to: head.i,
-        run: trtcCensusRun(ln, from, head.i), arrEpoch: head.eta, terminal: false,
+      const hRun = trtcCensusRun(ln, hFrom, hTo);
+      if (!timeline.length) timeline.push({ from: hFrom, to: hTo, depEpoch: hArr - hRun, arrEpoch: hArr, terminal: false });
+      out.push({ vehicleId: _trtcCdPrefix(lineId) + day + ':' + tag + ':' + (step > 0 ? 2 : 1) + ':' + head.i,
+        line: lineId, dir: step > 0 ? 2 : 1, dest: head.d, from: hFrom, to: hTo,
+        run: hRun, arrEpoch: hArr, terminal: false,
         officialNo: null, source: 'board-seg', observedEpoch: nowEpoch, timeline });
     };
     for (const r of ordered) {
@@ -5090,7 +5147,14 @@ function trtcBrVehiclesFromBoard(board, nowEpoch, day) {
   }
   if (hopObs.length >= 8) {
     const s = hopObs.slice().sort((a, b) => a - b), med = s[Math.floor(s.length / 2)];
-    if (med > 0 && med < 180) _trtcBrDwell = med;
+    // 🔴 有實測區間的線(BR)一律沿用 main 的判準,這批不准動到它既有行為:
+    //    停站秒物理上不可能是負的,med<0 只代表模型 run 偏長,不該被折進停站秒。
+    //    沒有 segs 的線(Y)run 是常數 90,med 本來就會是負的來抵銷那個常數 ⇒
+    //    對它改判「推出來的站到站秒落在 40–240 秒」這個物理量。
+    const hasSegs = !!(ln && ln.segs && ln.segs.length);
+    const impliedHop = trtcCensusRun(ln, 0, 1) + med;
+    const ok = hasSegs ? (med > 0 && med < 180) : (impliedHop >= 40 && impliedHop <= 240);
+    if (ok) _trtcCdDwell.set(lineId, med);
   }
   return out;
 }
@@ -5110,16 +5174,22 @@ function trtcBrVehiclesFromBoard(board, nowEpoch, day) {
 // 缺訊車就是中間少掉的那幾個,舊的連續視窗對位遇到中間缺一台會整段滑掉,正是要修的病。
 // 對位的合法範圍由物理決定,不是魔術數字:一輪最多前進 elapsed / 最短站間時間(站),
 // 往回容許半個站間(along 座標本身的量化就是一個站間,ETA 被訂正時比例會抖)。
-const _trtcBrRoster = { prior: new Map(), seq: 0, day: '' };
-function trtcCensusRestampBr(list, nowEpoch, day, fromCountdown) {
+const _trtcCdRosters = new Map();
+const _trtcCdRoster = id => {
+  let r = _trtcCdRosters.get(id);
+  if (!r) { r = { prior: new Map(), seq: 0, day: '' }; _trtcCdRosters.set(id, r); }
+  return r;
+};
+function trtcCensusRestampBr(lineId, list, nowEpoch, day, fromCountdown) {
+  const R = _trtcCdRoster(lineId);
   if (!Array.isArray(list)) return;                                // 邊界防護:拿不到可寫的陣列就整段不做
-  if (!fromCountdown) { _trtcBrRoster.prior = new Map(); return; } // 走回 CarWeightBR 路徑:不留續推
-  const ln = trtcCensusLine('BR');
+  if (!fromCountdown) { R.prior = new Map(); return; }             // 走回舊路徑:不留續推
+  const ln = trtcCensusLine(lineId);
   if (!ln || !Array.isArray(ln.stations) || !ln.stations.length) return;
   const names = trtcCensusNames(ln);
   // 跨日只換新 id 的日期與序號,**不清名冊**:午夜那一刻還在跑最後一段的車必須繼續推到終點。
-  if (_trtcBrRoster.day !== day) { _trtcBrRoster.seq = 0; _trtcBrRoster.day = day; }
-  const dwell = _trtcBrDwell;
+  if (R.day !== day) { R.seq = 0; R.day = day; }
+  const dwell = _trtcCdDwellOf(lineId);
   let minHop = Infinity, sumHop = 0, nHop = 0;
   for (let k = 0; k + 1 < names.length; k++) {
     const h = trtcCensusRun(ln, k, k + 1) + dwell;
@@ -5128,8 +5198,8 @@ function trtcCensusRestampBr(list, nowEpoch, day, fromCountdown) {
   }
   if (!(minHop > 0)) minHop = 60;
   const medHop = nHop ? sumHop / nHop : 100;
-  const prior = _trtcBrRoster.prior, next = new Map();
-  const brs = (list || []).filter(v => String(v.line) === 'BR');
+  const prior = R.prior, next = new Map();
+  const brs = (list || []).filter(v => String(v.line) === lineId);
   // 缺訊車往下推:到站時刻過了就進下一段,到官方講的終點站就收車(回 null)。
   const coast = (e, ceil) => {
     const step = e.dir === 2 ? 1 : -1;
@@ -5145,11 +5215,11 @@ function trtcCensusRestampBr(list, nowEpoch, day, fromCountdown) {
     }
     const run = trtcCensusRun(ln, from, to);
     if (held || arrEpoch <= nowEpoch) arrEpoch = nowEpoch + 1;
-    return { vehicleId: e.id, line: 'BR', dir: e.dir, dest: e.dest, from, to, run, arrEpoch,
+    return { vehicleId: e.id, line: lineId, dir: e.dir, dest: e.dest, from, to, run, arrEpoch,
       terminal: false, officialNo: null, source: 'board-coast', observedEpoch: e.observedEpoch,
       timeline: [{ from, to, depEpoch: arrEpoch - run, arrEpoch, terminal: false }] };
   };
-  const elapsed = Math.max(0, nowEpoch - (_trtcBrRoster.at || nowEpoch));
+  const elapsed = Math.max(0, nowEpoch - (R.at || nowEpoch));
   for (const dir of [1, 2]) {
     const cur = brs.filter(v => Number(v.dir) === dir)
       .map(v => ({ v, p: _trtcBrAlong(v, nowEpoch) })).sort((a, b) => a.p - b.p);
@@ -5197,7 +5267,7 @@ function trtcCensusRestampBr(list, nowEpoch, day, fromCountdown) {
       }
     }
     for (const c of cur) {
-      if (!c.id) c.id = 'brseg:' + day + ':' + (++_trtcBrRoster.seq).toString(36);
+      if (!c.id) c.id = _trtcCdPrefix(lineId) + day + ':' + (++R.seq).toString(36);
       c.v.vehicleId = c.id;
     }
     // 官方這一輪沒提到的車:往下推。不准跨過前面那台(同向不得超車),沒有前車就不設上限。
@@ -5236,8 +5306,8 @@ function trtcCensusRestampBr(list, nowEpoch, day, fromCountdown) {
       dest: Number(c.v.dest), observedEpoch: Number(c.v.observedEpoch) || nowEpoch });
     }
   }
-  _trtcBrRoster.prior = next;
-  _trtcBrRoster.at = nowEpoch;
+  R.prior = next;
+  R.at = nowEpoch;
 }
 let _trtcCensusPrior = new Map();
 function trtcCensusVehicles(trains, nowEpoch, day) {
@@ -5290,8 +5360,34 @@ function trtcCensusVehicles(trains, nowEpoch, day) {
     // 夾到現在等於每輪都把它重設成剛到站 ⇒ 車永遠在停站，實測文湖線 22/24 台整線凍結
     // （文湖線在 TrackInfo 沒有 path，只能靠落後的 at 推，全線都吃這個路徑）。
     // 過去的到站時刻是正確資訊，續推會據此把車往前推到該在的位置。
-    const arrEpoch = Number.isFinite(firstEta) && !terminal ? firstEta
+    let arrEpoch = Number.isFinite(firstEta) && !terminal ? firstEta
       : (Number.isFinite(at) ? at + run : nowEpoch + run);
+    // 🔴 使用者裁示:「倒數塞不進區段就忽略」(2026-08-18)＋「全部整個,連其他的捷運,請都套用
+    // 相同的規則,只要有逐站倒數的都能用」(2026-08-19)。倒數名冊那條路徑(BR/Y)早就有
+    // trtcCountdownFitsSegment,逐車名冊(BL/R/G/O)一直沒有 ⇒ 倒數塞不進這一段的車被畫在段頭,
+    // 貼著剛到站的另一台(實測綠線車號306 倒數 309 秒、該段只需 138+25 秒,被畫在南京三民出站處,
+    // 與剛到站的 307 相距 208 公尺)。
+    // 逐車路徑不可照 BR 那樣「整列忽略」——這一列就是一台有車號的實體車,忽略等於讓它消失,
+    // 違反「車子有官方數據就是在」。改成照秒數往回推算它真正在哪一段:每往回一段就扣掉
+    // 「該段行駛秒＋該站停靠秒」,扣到塞得進去為止。
+    const walked = [];
+    for (let back = 0; back < arr.length && !terminal && step; back++) {
+      if (trtcCountdownFitsSegment(ln, from, to, arrEpoch - nowEpoch)) break;
+      const prev = from - step;
+      if (prev < 0 || prev >= arr.length) break;
+      const legRun = trtcCensusRun(ln, from, to);
+      if (!(legRun > 0)) break;
+      walked.unshift({ from, to, arrEpoch });
+      arrEpoch = arrEpoch - legRun - trtcOfficialDwellAt(ln, from);
+      to = from; from = prev;
+    }
+    if (walked.length) run = trtcCensusRun(ln, from, to);
+    // 🔴 使用者裁示(2026-08-18):「倒數塞不進區段就整列忽略」「起點列是發車倒數,未發車不畫」。
+    // 一路回推到線頭仍塞不進 ⇒ 這台車根本還沒發車,不該畫。實測中和新蘆線車號 410 停在起點站,
+    // 站 1 的倒數 256 秒而那一段只要 90 秒,舊碼用「發車 = 到站 − 行駛秒」把它畫成一台在月台上
+    // 罰站 159 秒的車(2026-08-19 使用者:「只要出現車子卡住停住疊在一起,那絕對不是我給的規則
+    // 有問題,要從你的規則去找」)。文湖線那條路徑早就有這條規則,逐車名冊這條漏了。
+    if (!terminal && step && !trtcCountdownFitsSegment(ln, from, to, arrEpoch - nowEpoch)) continue;
     // dest 不是裝飾：名冊驗證要求它是合法站序整數，null 會讓整包 payload 被判 malformed。
     // 官方沒給終點（文湖線全部、高運量約一成）就用行進方向上的線末站——語意也對。
     const di0 = arr.indexOf(_trtcCensusNorm(t.dest));
@@ -5327,6 +5423,17 @@ function trtcCensusVehicles(trains, nowEpoch, day) {
     {
       const timeline = [];
       let cur = from;
+      // 往回推算過的車:先把「走回來的那幾段」按行進順序排進 timeline,否則後面接官方 path 時
+      // 會把跨好幾站當成一段直線內插。沒往回推就完全走原本的路徑,行為逐字不變。
+      if (walked.length) {
+        timeline.push({ from, to, depEpoch: arrEpoch - run, arrEpoch, terminal: false });
+        cur = to;
+        for (const w of walked) {
+          timeline.push({ from: w.from, to: w.to, terminal: false,
+            depEpoch: w.arrEpoch - trtcCensusRun(ln, w.from, w.to), arrEpoch: w.arrEpoch });
+          cur = w.to;
+        }
+      }
       for (const p of (terminal ? [] : path.slice(pi))) {
         const idx = arr.indexOf(_trtcCensusNorm(p.name));
         if (idx < 0 || idx === cur || Math.sign(idx - cur) !== step) break;
@@ -5340,6 +5447,14 @@ function trtcCensusVehicles(trains, nowEpoch, day) {
         from, to, run, arrEpoch, terminal, officialNo: sys === 'hw' ? no : null,
         source: 'census', observedEpoch: nowEpoch, timeline };
     }
+    // 🔴 使用者裁示:「到終點站車子就拿掉」「車子到站就要放掉,你不放掉當然都撞在一起了,
+    // 那我給你到站的停站時間還有什麼意義」(2026-08-19)。上面 `to === di` 那一行的舊註解
+    // 明寫著把裁示改成「標成停在終點站而不是讓它整台消失」——那個改動就是現在的病灶:
+    // 車釘在終點站不走(實測松山 131 秒、淡水 84 秒、象山 58 秒、新店 14 秒),後面那台進站
+    // 就跟它疊在一起(七組疊車裡有五組的其中一台正是這種車)。停住與疊車是同一個 bug 兩面。
+    // 到站後只留我們資料裡的停站秒數(看得到它進站),然後放掉;回程要出現時,官方會用回程
+    // 第一站的倒數重新生它。
+    if (terminal && nowEpoch > arrEpoch + trtcOfficialDwellAt(ln, from)) continue;
     next.set(vehicleId, vehicle);
     out.push(vehicle);
   }
@@ -5468,7 +5583,7 @@ function trtcOfficialCoastPosition(ln, vehicle, now, from, to, run, arrEpoch) {
     const next = here + step, P = ln.stations[here], Q = ln.stations[next];
     if (!P || !Q) return atTo;
     const legSec = legSecs[leg];
-    const departure = arrivedAt + TRTC_OFFICIAL_COAST_DWELL_SEC;
+    const departure = arrivedAt + trtcOfficialDwellAt(ln, here);
     if (now < departure) return { lat: P.lat, lon: P.lon, fraction: 1, atStation: true, coasted: true,
       motionFrom: here - step, motionTo: here, coastTo: here, coastArrEpoch: arrivedAt };
     const arrival = departure + legSec;
@@ -5488,8 +5603,11 @@ function trtcOfficialDeparturePosition(ln, vehicle, now, origin, departureEpoch)
   const step = Number(vehicle && vehicle.dir) === 2 ? 1 : -1;
   const next = origin + step, A = ln.stations[origin], B = ln.stations[next];
   if (!A || !B) return null;
-  if (now < departureEpoch) return { lat: A.lat, lon: A.lon, fraction: 1, atStation: true,
-    motionFrom: origin, motionTo: next, coastTo: origin, coastArrEpoch: departureEpoch };
+  // 🔴 裁示:「車站沒有到站倒數的車子就是不存在」。起點列給的是**發車**倒數不是到站倒數,
+  // 還沒發車的那一筆是「下一班」公告,不是一台在線上的車。舊碼把它畫成停在起點月台的車,
+  // 於是真的進站的那台一到就變成同站兩台(實測每一輪都抓得到,例:七張 823 秒後才發車那筆)。
+  // 發車時刻一到就照常畫,所以車不會少,只是不提早出現。
+  if (now < departureEpoch) return null;
   const explicit = Number(vehicle && vehicle.departureRun);
   const departureRun = Number.isFinite(explicit) && explicit > 0 ? explicit : runBetween(ln, origin, next);
   if (!(departureRun > 0)) return null;
@@ -5511,6 +5629,19 @@ function trtcOfficialTimelinePosition(ln, vehicle, now) {
       from: Number(item.from), to: Number(item.to), depEpoch: Number(item.depEpoch), arrEpoch: Number(item.arrEpoch) }))
     .sort((a, b) => a.depEpoch - b.depEpoch || a.arrEpoch - b.arrEpoch);
   if (!moving.length) return { handled: false, pos: null };
+  // 🔴 使用者規則 R6:「平常過站,就是秒數到就出發」「到站後用停站秒數加進去判斷,時間到之後由
+  // 下一站的倒數接手出發」。官方每站的倒數各自獨立,timeline 每一段的 depEpoch 原本一律是
+  //「該站倒數 − 我們算的行駛秒」,段與段之間沒有任何東西接起來 ⇒ 上一段到站到這一段發車之間
+  // 會開一個洞(實測環狀線一台車 4->5 段的洞有 126 秒,車就停在站上罰站);洞的另一面是只停
+  // 12 秒就彈出去(比我們資料裡的停靠秒還短)。發車時刻一律改由「上一段到站 + 該站停靠秒」決定,
+  // arrEpoch 維持官方值不動 ⇒ 照停站秒發車、再用梯形速度準時到下一站。
+  // 放在這裡是因為 census 與 board-seg 兩條產車路徑都走這個函式 ⇒ 每條線每一站一致套用。
+  for (let i = 1; i < moving.length; i++) {
+    const prev = moving[i - 1], cur = moving[i];
+    if (cur.from !== prev.to) continue;                 // 段不相接就不動它
+    const dep = prev.arrEpoch + trtcOfficialDwellAt(ln, cur.from);
+    cur.depEpoch = Math.min(dep, cur.arrEpoch - 1);     // 發車不得晚於官方到站時刻
+  }
   const dest = Number(vehicle && vehicle.dest);
   const destination = moving.filter(item => item.to === dest).sort((a, b) => b.arrEpoch - a.arrEpoch)[0];
   if (destination && now >= destination.arrEpoch) return { handled: true, pos: null };
@@ -5538,6 +5669,32 @@ function trtcOfficialTimelinePosition(ln, vehicle, now) {
   const last = moving[moving.length - 1];
   return { handled: true, pos: trtcOfficialCoastPosition(ln, vehicle, now,
     last.from, last.to, last.arrEpoch - last.depEpoch, last.arrEpoch) };
+}
+const _trtcCdDropped = new Map(); // 診斷用:每條線這一輪忽略了幾列倒數
+// 🔴 使用者裁示(2026-08-18):「不要用下一站的時間去生車子出來」。
+// 每一站的倒數對應的是「進這一站的那一段」。倒數若大於那一段的行駛秒(再加上退回去那一站的
+// 官方停靠秒),代表這台車根本還沒進這一段——它還在更後面,而更近的那一站會用自己的倒數把它
+// 生出來;在這裡再生一台就是同一台車被複製成兩台,畫面上就是同區段兩台。
+// (先做過「往回退去畫」的版本,實測少 6 台假停站但疊車 1 對→3 對:位置更誠實、畫面更糟,
+//  因為退回去正好壓在後面那台身上。所以是「不生」,不是「退著畫」。)
+function trtcOfficialDwellAt(ln, i) {
+  // 🔴 2026-08-19 使用者:「確認往前推的每段路程、停靠時間,都是依照官方那份資料在跑。」
+  // 查出來是沒有:資料檔每一站本來就帶 `dwell`(臺北捷運公司「相鄰兩站間之行駛時間及停靠站
+  // 時間」,2025-06-03 生效),但這裡讀的是 `ln.dwellSec[i]` 這個從來不存在的陣列 ⇒ 九條線
+  // 每一站的停靠秒實際上都是常數 25。使用者的規則「停的時間依照我們的資料,二十幾~四十幾秒」
+  // 從頭到尾沒有真的套用過。改讀 stations[i].dwell;dwellSec 保留當第二來源,都沒有才用常數。
+  const st = ln && Array.isArray(ln.stations) ? ln.stations[i] : null;
+  const d = st ? Number(st.dwell) : NaN;
+  if (d > 0) return d;
+  const arr = ln && ln.dwellSec;
+  const v = Array.isArray(arr) ? Number(arr[i]) : NaN;
+  return v > 0 ? v : TRTC_OFFICIAL_COAST_DWELL_SEC;
+}
+function trtcCountdownFitsSegment(ln, from, to, remainSec) {
+  if (!(remainSec > 0)) return true; // 倒數已過:那是到站/停站,交給既有的續推處理
+  const run = runBetween(ln, from, to);
+  if (!(run > 0)) return true; // 量不到這段多長就不判,不要靠猜把車刪掉
+  return remainSec <= run + trtcOfficialDwellAt(ln, from);
 }
 function trtcOfficialVehiclePosition(ln, vehicle, nowEpoch) {
   if (!ln || !Array.isArray(ln.stations) || !vehicle) return null;
@@ -5594,10 +5751,6 @@ const TRTC_OFFICIAL_CATCHUP_FACTOR = 2;
 // 🔴 只往前接,絕不往後:契約第 3 條「跑過頭的停下來等、絕不倒退」由上面的凍結分支處理,
 // 這裡走不到(那條分支先 return)。150m ≈ 逐秒雜訊 95 分位的 10 倍,兩者不會混淆。
 const TRTC_OFFICIAL_SNAP_FORWARD_M = 150;
-// 追上的時間常數。使用者裁示:「速度上限放高一點,甚至讓他五秒內追上都沒關係,
-// 但是發生的時候需要跳一個小通知表示是官方訊號訂正位置。」
-// 用指數逼近,τ=1.7s ⇒ 5 秒收掉 95%;不做瞬移,因為瞬移在畫面上讀起來像閃爍。
-const TRTC_OFFICIAL_SNAP_TAU_SEC = 1.7;
 // 位置被官方訂正的累計(逐台一次),與斷訊恢復分開:那個是「我們推估了很久」,
 // 這個是「官方自己修訂了它報的位置」——不是我們算錯,文案不要往自己身上攬。
 const _trtcOfficialCorrect = { at: 0, count: 0, maxM: 0, notifiedAt: 0 };
@@ -5607,10 +5760,20 @@ function trtcOfficialCorrectTick(nowEpoch) {
   const count = r.count, maxM = Math.round(r.maxM);
   r.notifiedAt = r.at; r.count = 0; r.maxM = 0;
   if (!count) return null;
-  const msg = `官方訂正位置　北捷剛更新了 <b>${count} 台</b>列車的到站時刻（最多差 <b>${maxM} 公尺</b>），`
-    + `畫面已依最新的官方資料校正。`;
-  showToast(msg, { wrap: true });
-  return { count, maxM, msg };
+  // 🔴 2026-08-18 兩處改動,都來自使用者:
+  // (1) 文案:原本寫「官方訂正位置／北捷剛更新了…」是錯的因果。觸發條件是
+  //     behindM =(官方位置 - 我們畫的位置)為正 ⇒ 方向是**我們落後**官方 ≥150 公尺要往前追,
+  //     不是官方倒退訂正。使用者:「官方的時間不會一直跳,是我們認錯車的問題」——他是對的。
+  // (2) 樣式:「太煩人了,請放成一個角落的小通知,不要擋整個畫面」⇒ 改走 corner 容器、不換行。
+  // ⚠️ 底下那個「我們會落後最多 1184 公尺」的問題**沒有修好**,只是不再誤報成官方在訂正;
+  //    要修的是認車,不是這則通知。
+  // 🔴 2026-08-18 23:5x 拿掉這則通知(事件與計數保留給驗收腳本)。
+  // 使用者:「現在仍然一直在跳出位置校正 每十幾秒」。查了它實際在數什麼:每一輪官方輪詢後,
+  // 有幾台車被重新定位到我們畫的位置前方 >=150 公尺。全網 110 台、每 15 秒一輪,
+  // 有兩三台被往前挪是資料的常態擾動——**一個每十幾秒就成立的條件不是異常,不該做成通知**。
+  // 真正要修的是「我們為什麼會落後」(顯示層那個只准前進+兩倍速追趕的棘輪),不是這則通知;
+  // 落後幅度由 scripts/verify_peak_rules.mjs 的 R5 量,明早尖峰有數字再決定要不要拆棘輪。
+  return { count, maxM };
 }
 // 斷訊回歸事件（由 trtcOfficialDisplayPosition 記錄、UI 每秒 tick 消費後跳訊息）。
 // 刻意不在位置函式裡直接呼叫 showToast——那會讓純函式驗收得連 DOM 一起搬進沙盒。
@@ -5631,12 +5794,12 @@ function trtcOfficialResyncTick(nowEpoch) {
   const removed = rec && Number(rec.removed) > 0 && Number(rec.atEpoch) !== Number(r.removedFor)
     ? Number(rec.removed) : 0;
   if (removed) r.removedFor = Number(rec.atEpoch);
-  const msg = `官方訊號恢復　北捷即時資料中斷約 <b>${mins} 分鐘</b>後恢復，`
+  const resyncMsg = `官方訊號恢復　北捷即時資料中斷約 <b>${mins} 分鐘</b>後恢復，`
     + `<b>${count} 台</b>列車已重新對齊官方位置——中斷期間畫面上的位置是推估的，`
     + `所以這些車會往前跳或往後退。`
     + (removed ? `另有 <b>${removed} 台</b>推估中的列車因為不在官方名單上而移除，這不代表它們停駛。` : '');
-  showToast(msg, { wrap: true });   // 整句說明，不能被單行截斷（實測手機只看得到前 20 字）
-  return { mins, count, removed, msg };
+  showToast(resyncMsg, { wrap: true });   // 整句說明，不能被單行截斷（實測手機只看得到前 20 字）
+  return { mins, count, removed, msg: resyncMsg };
 }
 // dir 是名冊身分欄位，可能在重配或舊資料接回時落後一輪；畫面位置已經知道自己正走哪一段，
 // 所以位置軸與箭頭一律先採 motionFrom→motionTo。這使錯誤 dir 不能再把正向移動解讀成反向。
@@ -5743,6 +5906,36 @@ function trtcOfficialDirectionAnchor(mapRef, cp, current, previous) {
   const scale = 8 / distance;
   return { x:Number(cp.x) - dx * scale, y:Number(cp.y) - dy * scale };
 }
+// 這一格「要開到哪、幾點到」:官方倒數指定的下一站與它給的到站時刻(續推中則是續推推出來的)。
+function trtcOfficialArrivalTarget(ln, vehicle, raw) {
+  if (!ln || !Array.isArray(ln.stations) || !raw) return null;
+  const step = trtcOfficialMotionStep(vehicle, raw);
+  const to = Number.isInteger(Number(raw.coastTo)) ? Number(raw.coastTo) : Number(raw.motionTo);
+  const arrEpoch = Number.isFinite(Number(raw.coastArrEpoch)) ? Number(raw.coastArrEpoch)
+    : Number(vehicle && vehicle.arrEpoch);
+  if (!Number.isInteger(to) || !ln.stations[to] || !Number.isFinite(arrEpoch)) return null;
+  return { progress: step * to, arrEpoch, station: to, step };
+}
+// 停站:剛到站的車依「該站的官方停靠秒」停一下再開(使用者:「停的時間依照我們的資料,二十幾~四十幾秒」)。
+// 但不能停到來不及準時到下一站——先留下這一段的行駛秒,倒數太緊就立刻開走。
+function trtcOfficialDwellUntil(ln, vehicle, prior, plan) {
+  const arrivedAt = prior && prior.arrivedAt != null && Number.isFinite(prior.arrivedAt) ? prior.arrivedAt : null;
+  const station = prior && prior.arrivedStation;
+  if (!plan || arrivedAt == null || !Number.isInteger(station)) return -Infinity;
+  const run = trtcOfficialSegmentSeconds(ln, vehicle, station, station + plan.step);
+  return Math.min(arrivedAt + trtcOfficialDwellAt(ln, station), plan.arrEpoch - (run > 0 ? run : 0));
+}
+// 記住「停在哪一站、幾點到的」——停站秒要從真正到站那一刻起算,不是從資料更新那一刻。
+function trtcOfficialStopState(plan, progress, prior, now) {
+  if (!plan) return { arrivedAt: null, arrivedStation: null };
+  const physical = progress / plan.step, station = Math.round(physical);
+  // 容差不是寬鬆,是必要:每格的前進上限會讓車停在離站心不到 1% 段長的地方,
+  // 用嚴格相等判「到站」的話,那些車永遠 latch 不到到站時刻,停站與出發邏輯整套不會啟動。
+  if (Math.abs(physical - station) > 0.01) return { arrivedAt: null, arrivedStation: null };
+  const was = prior && prior.arrivedAt != null && Number.isFinite(prior.arrivedAt) ? prior.arrivedAt : null;
+  return was != null && prior.arrivedStation === station
+    ? { arrivedAt: was, arrivedStation: station } : { arrivedAt: now, arrivedStation: station };
+}
 // ETA 修訂只改目標，不准讓同一 vehicleId 在畫面倒退，也不准為了追 ETA 而超速。
 // 每一畫格最多只能按實際站間秒數往前；分頁睡眠、輪詢間隔與到站 deadline 都不能繞過。
 function trtcOfficialDisplayPosition(ln, vehicle, nowEpoch) {
@@ -5752,13 +5945,20 @@ function trtcOfficialDisplayPosition(ln, vehicle, nowEpoch) {
   const progress = trtcOfficialPositionProgress(ln, vehicle, raw);
   if (!Number.isFinite(progress) || !Number.isFinite(now)) return raw;
   const prior = _trtcOfficialDisplay.get(key);
+  // 🔴 2026-08-18 傍晚:官方錨點的指紋。下面的「官方訂正」累計要靠它判斷官方到底有沒有改東西——
+  // 舊碼只看 behindM(我們落後官方多遠),那個量對「官方訂正了」與「我們自己追不上」一視同仁,
+  // 於是通知把我們自己的落差報成官方訂正,文案還寫著「不是我們算錯」。實測最大宗正是後者。
+  const anchor = `${vehicle && vehicle.from}>${vehicle && vehicle.to}@${vehicle && vehicle.arrEpoch}`;
+  const obs = Number(vehicle && vehicle.observedEpoch);
   const coasted = !!raw.coasted;
+  const step = Number(vehicle && vehicle.dir) === 2 ? 1 : -1;
   // 這台車從哪一刻開始進入續推（用來判斷「長時間斷訊」；不是續推就沒有起點）
   const coastSince = coasted
     ? (prior && prior.coasted && Number.isFinite(Number(prior.coastSince)) ? prior.coastSince : now)
     : null;
   if (!prior || now < prior.epoch) {
-    _trtcOfficialDisplay.set(key, { epoch: now, progress, pos: raw, coasted, coastSince });
+    _trtcOfficialDisplay.set(key, { epoch: now, progress, pos: raw, coasted, coastSince, anchor, obs, step,
+      ...trtcOfficialStopState(trtcOfficialArrivalTarget(ln, vehicle, raw), progress, null, now) });
     return raw;
   }
   // 同一畫格會被地圖 renderer 與跟隨資訊各讀一次；第二個讀者必須拿到同一個顯示位置。
@@ -5775,40 +5975,95 @@ function trtcOfficialDisplayPosition(ln, vehicle, nowEpoch) {
       _trtcOfficialResync.at = now;
       _trtcOfficialResync.outageSec = Math.max(Number(_trtcOfficialResync.outageSec) || 0, coastedFor);
       _trtcOfficialResync.count = (Number(_trtcOfficialResync.count) || 0) + 1;
-      _trtcOfficialDisplay.set(key, { epoch: now, progress, pos: raw, coasted, coastSince });
+      _trtcOfficialDisplay.set(key, { epoch: now, progress, pos: raw, coasted, coastSince, anchor, obs, step,
+        ...trtcOfficialStopState(trtcOfficialArrivalTarget(ln, vehicle, raw), progress, null, now) });
       return raw;
     }
   }
-  if (progress <= prior.progress + 1e-9) {
-    // 只凍結座標與進度；coastTo/coastArrEpoch 等官方時間欄位仍採本輪最新修訂。
-    const pos = progress < prior.progress - 1e-9 ? { ...raw, lat: prior.pos.lat, lon: prior.pos.lon,
-      fraction: prior.pos.fraction, atStation: prior.pos.atStation,
-      motionFrom: prior.pos.motionFrom, motionTo: prior.pos.motionTo } : raw;
-    _trtcOfficialDisplay.set(key, { epoch: now, progress: Math.max(progress, prior.progress),
-      pos, coasted, coastSince });
-    return pos;
+  // 🔴 2026-08-19：終點折返／方向翻面。progress 是**帶方向正負號**的（step×站序），方向一翻,
+  // 舊符號的 prior.progress 跟新目標永遠比不出「前進」⇒ 只准前進的護欄把車永久凍在原地。
+  // 實測一台車名冊段 19->20 折返成 20->19 之後,raw 進度變 -19.8、顯示進度還卡在 +19.945,
+  // 連續 200 秒動也不動。方向換了就是新的一趟,直接錨定到官方位置重來,不套護欄。
+  // ⚠️ 只有「確實知道上一格的方向、而且不同」才算翻面。舊記錄沒有 step(升版第一格、
+  // 或測試注入的替身)時 Number(undefined) 是 NaN、NaN !== step 恆真 ⇒ 每一格都重錨,
+  // 會把「不倒退」整條護欄洗掉(驗收器 B/K gate 就是這樣連帶紅掉的)。方向不明 ≠ 方向改變。
+  if (Number.isFinite(Number(prior.step)) && Number(prior.step) !== step) {
+    _trtcOfficialDisplay.set(key, { epoch: now, progress, pos: raw, coasted, coastSince, anchor, obs, step,
+      ...trtcOfficialStopState(trtcOfficialArrivalTarget(ln, vehicle, raw), progress, null, now) });
+    return raw;
   }
   const dt = now - prior.epoch;
-  // 落後超過 TRTC_OFFICIAL_SNAP_FORWARD_M 就直接接上官方位置（見該常數的實測依據）。
-  const step = Number(vehicle && vehicle.dir) === 2 ? 1 : -1;
   const unitsPer100m = trtcGapUnitsAt(ln, prior.progress, step);
   const behindM = unitsPer100m > 0 ? (progress - prior.progress) * (100 / unitsPer100m) : 0;
-  if (behindM >= TRTC_OFFICIAL_SNAP_FORWARD_M && !prior.correcting) {
+  // 官方這一輪真的重新看到這台車(observedEpoch 前進)且給的錨點與上次不同 ⇒ 才算「官方訂正」。
+  // 續推中的車 observedEpoch 不動,它的 arrEpoch 是我們自己推的,不該算在官方頭上。
+  const officialMoved = prior.anchor !== anchor &&
+    Number.isFinite(obs) && Number.isFinite(Number(prior.obs)) && obs > Number(prior.obs);
+  if (behindM >= TRTC_OFFICIAL_SNAP_FORWARD_M && !prior.correcting && officialMoved) {
     _trtcOfficialCorrect.at = now;
     _trtcOfficialCorrect.count = (Number(_trtcOfficialCorrect.count) || 0) + 1;
     _trtcOfficialCorrect.maxM = Math.max(Number(_trtcOfficialCorrect.maxM) || 0, behindM);
   }
-  // 追趕（見 TRTC_OFFICIAL_CATCHUP_FACTOR）：min() 保證不會超過官方位置 progress，
-  // 所以放寬上限只影響「落後時多久追回來」，不會讓車跑到官方位置前面。
-  // 落後超過門檻時另給一條 5 秒收斂的逼近（見 TRTC_OFFICIAL_SNAP_TAU_SEC），
-  // 取兩者較寬鬆者——平時仍是兩倍速的平順追趕，只有真的被官方大幅訂正時才快速接上。
-  const eased = behindM >= TRTC_OFFICIAL_SNAP_FORWARD_M
-    ? prior.progress + (progress - prior.progress) * Math.min(1, dt / TRTC_OFFICIAL_SNAP_TAU_SEC)
-    : -Infinity;
-  const shown = Math.min(progress, Math.max(eased,
-    trtcOfficialForwardLimit(ln, vehicle, prior.progress, dt * TRTC_OFFICIAL_CATCHUP_FACTOR)));
+  // 🔴 2026-08-18 深夜 使用者定義的行進模型(逐字):「前一站到站後,我們讓他停的時間依照我們的
+  // 資料,二十幾~四十幾秒,然後車子啟動,同時,下一站出現倒數之後…讓他以那一段路程應有的秒速前進…
+  // 所以我們能夠讓車子在離站之後,準時到下一站,中間應該不會需要跳動。」
+  // 舊碼不是這樣做的:它每一輪都拿倒數往回推「現在應該在哪」(depEpoch = arrEpoch - run),
+  // 於是官方倒數只要修訂 Δ 秒,整個時間窗就平移 Δ,畫面位置當場跳 Δ/段(實測跳幅中位 124m、
+  // P90 322m)。為了擋這種跳,上面又疊了只准前進的棘輪+兩倍速追趕+落後 150m 直接接上,
+  // 結果車被凍在官方後面(實測板南線一台落後 1029 公尺連續 111 秒)——那個落差就是使用者
+  // 看到的「一直在校正」。跳動與校正是同一個 bug 的兩面。
+  // 改成:目標=官方倒數指定的下一站,期限=它給的到站時刻,每一格只重算「還剩多少路÷還剩多少秒」。
+  // ⇒ 倒數被修訂時只改速度,位置永遠連續;而且一定準時到站(這正是 08-07 裁示「站牌時間完全
+  //   照官方,車依那個時間到站」)。位置只會往前:目標在後面(跑過頭)就停下來等,絕不倒退。
+  let plan = trtcOfficialArrivalTarget(ln, vehicle, raw);
+  // 到站狀態:用「上一格 latch 到的那一站」當基準,不要拿浮點進度去跟目標比大小——
+  // 前進上限會讓進度停在離站心 0.01 段的地方,浮點比較會判成「官方目標還在前面」而永遠不出發。
+  const atSt = prior.arrivedAt != null && Number.isFinite(prior.arrivedAt)
+    && Number.isInteger(prior.arrivedStation) ? prior.arrivedStation : null;
+  const officialAhead = !!(plan && (atSt == null
+    ? plan.progress > prior.progress + 1e-9 : plan.progress > step * atSt + 1e-9));
+  // 🔴 使用者裁示(2026-08-19)：「到站後用停站秒數加進去判斷,時間到之後由下一站的倒數接手出發;
+  // 如果是同路段第二輛,就先用秒數推出發,等前面那輛離開相同路段再去用倒數秒數校正位置。」
+  // 官方每站每方向只給一筆倒數 ⇒ 前面有車擋著時,後面這台整段路都拿不到屬於自己的倒數;倒數
+  // 一過期,顯示層就把車貼到站上、再也沒有下一個目標 ⇒ 車停在站上不動(實測 166–201 秒)。
+  // 這個「自己開出去」的決定必須**存下來**:只在當下這一格推的話,車一離站到站狀態就不成立,
+  // 下一格又退回原地(實測只前進 0.01 段就凍住,整段續推形同沒寫)。
+  let dr = prior.dr && Number(prior.dr.step) === step && Number.isFinite(Number(prior.dr.arrEpoch))
+    && prior.dr.progress > prior.progress + 1e-9 ? prior.dr : null;
+  if (!dr && atSt != null && !officialAhead) {
+    const next = atSt + step;
+    const dep = prior.arrivedAt + trtcOfficialDwellAt(ln, atSt);
+    const run = trtcOfficialSegmentSeconds(ln, vehicle, atSt, next);
+    if (now >= dep && run > 0 && ln.stations[next])
+      dr = { progress: next * step, arrEpoch: dep + run, station: next, step };
+  }
+  // 官方給的目標比我們前面 ⇒ 交還給倒數(它會把自走推出來的位置校正回官方時刻)。
+  if (dr && (!plan || dr.progress > plan.progress)) plan = dr;
+  // 🔴 使用者裁示(2026-08-19 08:10):「到站後用停站秒數加進去判斷,時間到之後由下一站的倒數接手
+  // 出發;如果是同路段第二輛,就先用秒數推出發,等前面那輛離開相同路段再去用倒數秒數校正位置。」
+  // 為什麼需要這條:官方那一列的到站時刻**會被一直往後改**——實測文湖線一台車的倒數是
+  // -42→-37→-32→-26(往上爬),代表 arrEpoch 每輪都被挪到「大約 30 秒前」。而停站結束時刻是
+  // 用 arrEpoch + 停站秒 算的 ⇒ 發車時刻跟著一路後退,車就被釘在站上(實測停住 190 秒)。
+  // 這與昨晚那個 bug 同病:把錨點掛在一個會被改的值上。
+  // 修法:到站時刻用我們自己 latch 住的那一刻(prior.arrivedAt),停站秒一到就**自己用該段的
+  // 行駛秒推出發**,不等官方換列;官方換列後 plan 自然回到官方倒數,位置就被校正回去。
+  // 🔴 位置只由使用者的三條規則決定,沒有別的判準(2026-08-19 全線掃描後定版):
+  //   R6 到站後停「該站的停靠秒」,停滿就發車——不看官方換不換列,也不設任何額外閘門。
+  //   R7 每一格從「現在畫到哪」重新算速度,朝官方到站時刻前進 ⇒ 倒數被修訂時只改速度,
+  //      位置永遠連續。(直接用 raw 會倒退:raw 的發車時刻是 arrEpoch − 行駛秒,倒數改 Δ 秒
+  //      整個窗平移 Δ ⇒ 實測九條線全部倒退,單次最大 0.54 段≈540 公尺。)
+  //   R8 下一段被前車佔住、官方沒有屬於自己的倒數 ⇒ 用我們資料裡的區間秒自己推出去(dr)。
+  // 這裡刻意沒有:前進上限、追趕倍率、最小間距夾——那些是我自己加的,已於本批拆除。
+  const dwellDone = atSt == null || !Number.isFinite(Number(prior.arrivedAt)) ||
+    now >= Number(prior.arrivedAt) + trtcOfficialDwellAt(ln, atSt);
+  let shown = prior.progress;
+  if (plan && plan.progress > prior.progress + 1e-9 && dwellDone) {
+    const remain = plan.arrEpoch - prior.epoch;
+    shown = prior.progress + (plan.progress - prior.progress) * (remain > dt ? dt / remain : 1);
+  }
   const pos = trtcOfficialPositionAtProgress(ln, vehicle, shown, raw);
-  _trtcOfficialDisplay.set(key, { epoch: now, progress: shown, pos, coasted, coastSince,
+  _trtcOfficialDisplay.set(key, { epoch: now, progress: shown, pos, coasted, coastSince, anchor, obs, step, dr,
+    ...trtcOfficialStopState(plan, shown, prior, now),
     correcting: behindM >= TRTC_OFFICIAL_SNAP_FORWARD_M });
   return pos;
 }
@@ -5861,6 +6116,11 @@ function trtcOfficialRenderItems(ln, boardPos, nowEpoch, enabled) {
 // 🔴 只往後夾、且絕不低於這台車上一格已經畫到的位置(契約 3「不到退」)——已經重疊的情況
 // 凍後車、等前車自己分離,不把後車往回拉(往回拉會變成畫面倒退,那是另一個使用者看得到的缺陷)。
 function trtcOfficialSeparate(ln, items, nowEpoch) {
+  // 🔴 2026-08-19 使用者裁示:「前面不對的東西都要拿掉。」拆掉最小間距夾——後車被夾到「上一格
+  // 自己畫到的位置」時就整台凍在原地等前車走,而前車若也被凍住,整串就一起卡死。疊車是名冊算
+  // 錯的徵狀,不該在畫面上壓;壓了只是把一個看得見的錯換成另一個看得見的錯。
+  return items;
+  /* eslint-disable no-unreachable */
   if (!ln || !Array.isArray(ln.stations) || items.length < 2) return items;
   for (const dir of [1, 2]) {
     const step = dir === 2 ? 1 : -1;
@@ -5887,6 +6147,7 @@ function trtcOfficialSeparate(ln, items, nowEpoch) {
     }
   }
   return items;
+  /* eslint-enable no-unreachable */
 }
 function trtcOfficialVehicleGlyph(officialNo, lineAbbr) {
   const official = String(officialNo || ''), fallback = String(lineAbbr || '');
@@ -10614,7 +10875,10 @@ function tickCore(now) {
     // 捷運「已收班 ↔ 尖峰/離峰」在首班/末班當下就要換,不能等下一次整點才刷(refreshBadge 平時只在換小時觸發)
     if (state.mode !== 'sched' && state.lines.length && (runningCount() > 0) !== !!state._freqRunning) { refreshBadge(); updateCount(); }
     if (OFFICIAL_ROSTER_ENABLED) trtcOfficialResyncTick(Date.now() / 1000); // 斷訊回歸 → 跳訊息說明為何跳動
-    if (OFFICIAL_ROSTER_ENABLED) trtcOfficialCorrectTick(Date.now() / 1000); // 官方訂正位置 → 說明是官方更新，不是我們算錯
+    // 🔴 與 pollTrtcLive／updateMetroBadge 用同一道群組閘門:名冊會跨群組留在 state 裡,
+    //    少了這道閘門,人在「台」「高」分頁(畫面上一條捷運都沒有)照樣被北捷的通知打斷。
+    if (OFFICIAL_ROSTER_ENABLED && metroLivePool().some(isTrtcBoardLine))
+      trtcOfficialCorrectTick(Date.now() / 1000); // 官方訂正位置 → 說明是官方更新，不是我們算錯
     if (state.liveMode && !state.director) liveClockTick(); else if (state.director) directorClockTick(); else clockDriftGuard();
   } // 導播現在也是 1× 貼真實時刻,只是用不含深夜重播替代的簡化版;兩徽章同秒刷,快轉跨門檻時同步轉推估
   // 省電三板斧(繪製節流,不動上面的時間積分):
@@ -13358,6 +13622,20 @@ function unlockedAchievements(rides) {
 // 手機:把暫態通知(收集/工具吐司、平交道說明)塞進「頂列控件之下、跟隨資訊卡之上」的空檔,
 // 免得蓋住左上時鐘或左下列車資訊卡(使用者回報「省電/釘的說明跟列車資訊疊在一起」)。
 // 全用即時 getBoundingClientRect,螢幕/卡片大小不同都自動避讓;桌機清掉 inline 覆寫,維持原本頂端置中。
+// 角落小提示的桌面落點:左下角會壓到底部常駐控件列(.controls)。用它實際渲染的 rect 讓開,
+// 不寫死高度——控件列會因為換行/多一顆按鈕而變高(站台帶寬度預算那份記過)。
+// 手機不走這裡:placeMobileNotice() 已經用 inline top 把它放到左上角並避開時鐘與列車資訊卡。
+function placeCornerNotice(el) {
+  if (!el) return;
+  if (window.matchMedia(MOBILE_MQ).matches) return;
+  const par = el.offsetParent; if (!par) return;
+  const bar = document.querySelector('.controls');
+  const pr = par.getBoundingClientRect();
+  const br = bar && bar.offsetParent ? bar.getBoundingClientRect() : null;
+  const clear = br && br.height > 0 ? Math.max(0, pr.bottom - br.top) : 0;
+  el.style.bottom = (clear + 14) + 'px';
+  el.style.top = 'auto';
+}
 function placeMobileNotice(el) {
   if (!el) return;
   const mob = window.matchMedia(MOBILE_MQ).matches;
@@ -13560,7 +13838,7 @@ function maybeAskReview(delayMs, rideCount) {
 }
 
 // wrap=true 給「一整句說明」用（訊號恢復之類）。預設維持單行截斷，短提示的版面不受影響。
-function showToast(msg, { wrap = false } = {}) {
+function showToast(msg, { wrap = false, corner = false } = {}) {
   // #recordScreen(詳細面板)在 body 層(z2400)，全站 toast 卻在 .stage(z1000)的堆疊脈絡內——
   // 只有面板真的整片接管畫面時才會蓋住 #toasts，這時才需要繞道 #recHint(z2450,蓋得過黑幕)。
   // 🔴 規格覆審 2026-07-28：條件從單純的 state.recording 收窄成「還要面板真的開著」——錄製期
@@ -13584,13 +13862,16 @@ function showToast(msg, { wrap = false } = {}) {
       return;
     }
   }
-  const box = document.getElementById('toasts');
+  const box = document.getElementById(corner ? 'toastsCorner' : 'toasts');
   if (!box) return;
   const el = document.createElement('div');
   el.className = wrap ? 'toast wrap' : 'toast'; el.innerHTML = msg;
   box.appendChild(el);
   while (box.children.length > 3) box.firstChild.remove(); // 疊太多先擠掉最舊
   placeMobileNotice(box); // 手機:避開時鐘/列車資訊卡/常駐錄製列
+  // 🔴 必須排在 placeMobileNotice 之後:它在桌面分支會把 inline top/bottom 清空,
+  //    排在前面等於白設(實測 inline 變回「無」,角落提示又壓回 .controls 上)。
+  if (corner) placeCornerNotice(box);
   requestAnimationFrame(() => el.classList.add('show'));
   setTimeout(() => { el.classList.remove('show'); setTimeout(() => el.remove(), 450); }, 5000);
 }
@@ -18790,12 +19071,24 @@ async function pollTrtcLive() {
                 // 車在哪(2026-08-18 裁示:「car weight 直接丟掉也沒有關係」「有倒數才有車」)。
                 // 切不出來(倒數整批沒回來)才退回原本的 CarWeightBR 路徑,不是硬要空著。
                 const nowSec = Date.now() / 1000, dayKey = todayStr();
-                const brSeg = TRTC_BR_FROM_COUNTDOWN && Array.isArray(d.board)
-                  ? trtcBrVehiclesFromBoard(d.board, nowSec, dayKey) : null;
-                const useBr = brSeg && brSeg.length ? brSeg : null;
-                const mine = useBr ? built.filter(v => v.line !== 'BR').concat(useBr) : built;
+                const cdSeg = new Map();
+                if (TRTC_BR_FROM_COUNTDOWN && Array.isArray(d.board))
+                  for (const id of TRTC_CD_LINES) {
+                    const seg = trtcBrVehiclesFromBoard(id, d.board, nowSec, dayKey);
+                    if (seg && seg.length) cdSeg.set(id, seg);
+                  }
+                // 切不出來(倒數整批沒回來)的線就維持原路徑,不是硬要空著。
+                const mine = cdSeg.size
+                  ? built.filter(v => !cdSeg.has(String(v.line))).concat(...cdSeg.values())
+                  : built;
                 // 編號是我們自己給的(裁示允許),所以必須自己維持跨輪穩定:依位置與順序接上一輪。
-                trtcCensusRestampBr(mine, nowSec, dayKey, !!useBr);
+                for (const id of TRTC_CD_LINES) {
+                  // 🔴 「這一輪切不出車」≠「不走倒數路徑」。前者是缺訊,依官方逐班追蹤契約只 hold;
+                  //    把它當成換路徑而清掉名冊,下一輪整線會拿到全新 id ⇒ 跟車中斷、位置整批跳。
+                  //    只有整條倒數路徑被關掉時才清。
+                  if (TRTC_BR_FROM_COUNTDOWN && !cdSeg.has(id)) continue;
+                  trtcCensusRestampBr(id, mine, nowSec, dayKey, cdSeg.has(id));
+                }
                 const covered = new Set(mine.map(v => v.line));
                 const kept = (d.boardPos.vehicles || []).filter(v => !covered.has(v.line));
                 // 退回舊綁定器這件事不可以是靜默的：Y 與兩條支線是預期的（逐車清單本來就沒有
