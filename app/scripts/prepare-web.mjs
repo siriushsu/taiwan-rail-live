@@ -11,6 +11,9 @@ const repoRoot = resolve(appRoot, '..');
 const out = join(appRoot, 'www');
 const includeLicensedMusic = process.env.RAIL_INCLUDE_LICENSED_MUSIC === '1';
 const includeLicensedBasemaps = process.env.RAIL_INCLUDE_LICENSED_BASEMAPS === '1';
+// Metro Core 的公開 client 已隨 index.html 打包；這顆旗標只決定是否切到 Private Worker snapshot。
+// 首次切換仍要出一顆 App build，此後模型更新只動 Worker，不必再改 App。
+const enableMetroCore = process.env.RAIL_ENABLE_METRO_CORE === '1';
 
 async function readRequiredEnv(name) {
   let source;
@@ -240,7 +243,7 @@ const appVersion = pbxVers[0];
 
 html = html
   .replace('<span class="ver" id="buildVer"></span>', '<a href="third-party-notices.txt" target="_blank" rel="noopener" style="min-height:44px;display:inline-flex;align-items:center;padding:0 4px">第三方軟體授權</a>\n      <span class="ver" id="buildVer"></span>')
-  .replace('<script src="revenuecat-config.js"></script>', `<script src="revenuecat-config.js"></script>\n<script>window.RAIL_MUSIC_AVAILABLE=${includeLicensedMusic};window.RAIL_ONLINE_BASEMAPS_AVAILABLE=${includeLicensedBasemaps};window.RAIL_APP_VERSION=${JSON.stringify(appVersion)};window.RAIL_PLUS_SANDBOX_OK=${plusSandboxOk};window.RAIL_PLUS_SANDBOX_BUILD=${plusSandboxOk ? JSON.stringify(plusSandboxBuild) : 'null'}${appConfig ? `;window.RAIL_APP_CONFIG=${JSON.stringify(appConfig)}` : ''}</script>\n<script src="native-bridge.js"></script>`);
+  .replace('<script src="revenuecat-config.js"></script>', `<script src="revenuecat-config.js"></script>\n<script>window.RAIL_MUSIC_AVAILABLE=${includeLicensedMusic};window.RAIL_ONLINE_BASEMAPS_AVAILABLE=${includeLicensedBasemaps};window.RAIL_METRO_CORE_ENABLED=${enableMetroCore};window.RAIL_APP_VERSION=${JSON.stringify(appVersion)};window.RAIL_PLUS_SANDBOX_OK=${plusSandboxOk};window.RAIL_PLUS_SANDBOX_BUILD=${plusSandboxOk ? JSON.stringify(plusSandboxBuild) : 'null'}${appConfig ? `;window.RAIL_APP_CONFIG=${JSON.stringify(appConfig)}` : ''}</script>\n<script src="native-bridge.js"></script>`);
 if (!html.includes('vendor/leaflet/leaflet.js') || !html.includes('native-bridge.js')) throw new Error('App index vendor/native bridge injection failed');
 if (/ko-fi|PayPal|111010691056|web-only-donation-log|贊助方式更新/i.test(html) || html.includes('id="donateCopy"') || html.includes('class="foot-box foot-donate"')) throw new Error('External donation content leaked into native App');
 if (/cartocdn\.com|arcgisonline\.com/i.test(html)) throw new Error('App index still contains unlicensed CARTO/Esri tile URLs');
@@ -256,8 +259,9 @@ await verifyRelease({
   out,
   expectLicensedMusic: includeLicensedMusic,
   expectLicensedBasemaps: includeLicensedBasemaps,
+  expectMetroCore: enableMetroCore,
   expectPlusSandboxBuild: plusSandboxOk ? plusSandboxBuild : null,
   // cap sync 在 build 之後才跑,此刻原生內嵌資產必然還是舊版;原生同步的比對留給獨立的 npm run verify。
   skipNativeSyncCheck: true
 });
-console.log(`App web assets ready: ${out} (licensed music: ${includeLicensedMusic ? 'included' : 'excluded'}, licensed basemaps: ${includeLicensedBasemaps ? 'enabled' : 'disabled'})`);
+console.log(`App web assets ready: ${out} (licensed music: ${includeLicensedMusic ? 'included' : 'excluded'}, licensed basemaps: ${includeLicensedBasemaps ? 'enabled' : 'disabled'}, Metro Core: ${enableMetroCore ? 'enabled' : 'disabled'})`);

@@ -3832,7 +3832,7 @@
 
   <footer class="site-foot">
     <details class="foot-box">
-      <summary><span>更新紀錄</span><span class="foot-sub">最後更新：2026/8/20</span></summary>
+      <summary><span>更新紀錄</span><span class="foot-sub">最後更新：2026/8/21</span></summary>
       <!-- 第一層是「最近更新」的檢視,不是正本:每一條都用 data-cl-of 指向第二層某條的 data-cl。
            要把一條擠出第一層之前,它的正本必須已經在第二層存在——2026-08-03 就踩過一次:8/1 的
            衛星計費那條只活在第一層(第二層只有一句夾在 7/25 條目裡、日期對不上的附帶說明),
@@ -3840,6 +3840,7 @@
            內容 li 上限 8 條(li.grp 是標題不算)。 -->
       <ul class="foot-list foot-recent">
         <li class="grp">最近更新</li>
+        <li data-cl-of="metrocorebridge"><span class="d">8/21</span><span>北捷與高捷的下一代即時動畫先加入試跑入口：站台預告與地圖上的車可以共用同一個身分與時間軸，點站牌就能跟到那一台車；資料過期或連線中斷時會自動回到原本模式。一般畫面目前仍沿用既有來源，不受這次試跑影響</span></li>
         <li data-cl-of="trtcpeakstable"><span class="d">8/20</span><span>北捷即時動畫再穩定一輪：官方資料每次更新時，列車會在原路段內逐步追上，不再整批往前跳或停在兩站之間；文湖線與環狀線也不會讓失聯身分搶走下一班車。車站看板只有在車真的進入站點時才顯示「列車進站」，並依各站實際停靠秒數結束，不會車已開走還繼續顯示</span></li>
         <li data-cl-of="krtctrip"><span class="d">8/20</span><span>高捷紅橘線改成逐班接續官方看板：同一班車在不同車站的到站資訊會接回原本班次，不再用整條線同一個平均值把相鄰列車擠在一起；資料不夠確定時會保守沿用原本推估，不會硬認成隔壁班。紅橘兩線的最後一段也都會依實際路段時間一路跑到終點才收車</span></li>
         <li data-cl-of="trtcidentity2"><span class="d">8/20</span><span>文湖線與環狀線的認車再加一道保護：同一班車的倒數換到下一個路段時會接回原本的身分，兩筆資料若曾擠到 100 公尺內也只留較早的那筆，不再留下第二顆車點追著後車跑。環狀線可提早出現在起點等發車，但倒數縮到該段行車時間才會開；最後一段則一路留到真正抵達終點才收車</span></li>
@@ -3847,7 +3848,6 @@
         <li data-cl-of="tradaily"><span class="d">8/20</span><span>台鐵今日官方公告停駛的班次不再出現在地圖上，車站看板仍會列出並標示「停駛」</span></li>
         <li data-cl-of="livefresh"><span class="d">8/20</span><span>台鐵的「LIVE」標示不再在官方資料中斷時繼續宣稱即時：資料超過五分鐘沒更新就改標灰色「推估」，超過三十分鐘不再套用那份過期的誤點；裝置時鐘明顯不準時也會改標「推估」</span></li>
         <li data-cl-of="cdarrivestamp"><span class="d">8/19</span><span>文湖線與環狀線的列車不會再整批往前跳一站、下一輪又整批退回來：被退回的那台會凍在原地等，後面的車追上來就擠成一團，現在這個來回跳沒有了</span></li>
-        <li data-cl-of="brsametrain"><span class="d">8/19</span><span>文湖線不會再把前後兩台車併成一台：併掉的那台會補回地圖上，原本被併的那台也不會再卡在原地被後車追上、擠成一團</span></li>
       </ul>
       <!-- 第二層:完整歷史。刻意不掛 .foot-box 類名——placeFootBoxes() 用
            `.site-foot .foot-box` 搬移面板,巢狀同名會被當成另一個盒子一起搬走。 -->
@@ -3868,6 +3868,7 @@
         <li><span class="d">7/10</span><span>高鐵、桃園機捷、淡海輕軌、安坑輕軌加入路網</span></li>
         <li><span class="d">7/10</span><span>環島觀光列車一分為二：往東「山海號」、往西「平原號」</span></li>
         <li class="grp">即時動態與誤點</li>
+        <li data-cl="metrocorebridge"><span class="d">8/21</span><span>北捷與高捷的下一代即時動畫新增試跑入口：伺服器先把匿名站牌資料接成穩定的列車身分，再把每台車的行駛、停站、下一站與退場整理成同一份時間軸；地圖與車站看板只讀這份結果，因此從站牌點下去會跟到同一台車，不必在公開頁面重新認車。這一輪已用保存的尖峰資料同時重播北捷與高捷 114 台車，兩個方向都沒有倒退，並通過手機 Chromium／WebKit、資料過期、斷線降級與重複快照測試。入口目前預設關閉，一般訪客仍走既有模式；等實際尖峰試跑通過後才會切換</span></li>
         <li data-cl="trtcpeakstable"><span class="d">8/20</span><span>實際晚尖峰監測發現，北捷官方資料每十五至三十秒刷新時，原本會直接把車搬到新倒數推算的位置，造成 73 至 284 公尺的前跳；某些車則在離站還有數百公尺時停住。現在官方訂正只會改變追趕速度：車仍沿原路段連續前進，落後時至少維持半速、追趕最多兩倍速，兩方向都不倒退。文湖線與環狀線的既有活躍身分不再互換或合併，失聯超過 45 秒的身分槽也不能回頭搶走新觀測；環狀線起點只在發車前 20 秒出現，倒數歸零才離站。車站看板另改用列車實際位置判斷文字：25 公尺內才顯示「列車進站」，尚未進站則顯示「即將進站」，到站後依該站實際停靠秒數退場，不再一律多留 30 秒</span></li>
         <li data-cl="krtctrip"><span class="d">8/20</span><span>高捷紅橘線的官方即時看板只有「哪一站、往哪個終點、還有幾分鐘」，沒有車號或衛星位置；以前只能把整條線取一個平均誤點，單一列車慢一點時，相鄰班次就可能一起被搬動、在短區間擠近。現在以當日逐站班表作固定名冊，把同一份全線看板的多站證據接回既有班次：新身分必須先在起點站被看到，中途站只能接續已確認的班次，同一份重複快照不能算兩次確認；每個共享車站都會檢查前後順序，不讓相鄰班交換身分或互相超車。證據不足時寧可維持同方向的線級推估，不憑空新增列車。另以紅線 321 班、橘線 304 班的實際平日班表跑 20 組尖峰壓測，並重播五輪真實晚尖峰訊號；已確認零錯認、零幽靈、位置不倒退也不大幅前跳，兩方向最後一段皆依該段實際時間跑到終點才退場</span></li>
         <li data-cl="trtcidentity2"><span class="d">8/20</span><span>文湖線與環狀線沒有官方車號，必須靠每十五秒更新的各站倒數接續身分；畫面本身卻每秒都在前進，所以兩個身分有時會在兩次資料更新之間先擠到一起，等下一批資料來時又已經拉開，舊邏輯完全看不到這次重疊。現在會記住「同方向、同終點的兩筆資料曾在 100 公尺內」這項證據，下一批只保留較早建立的身分；若新倒數的官方車位已經接到舊身分所在的下一段，也直接把倒數交回舊身分，不讓同一班車留下兩個標記。這些判斷只決定哪個身分存活，不會挪動車子或交換兩台車的位置。環狀線可以在發車前最多一個停站時間先出現在起點，但仍要等「剩餘倒數等於該段行車時間」才開出去；文湖線與環狀線的最後一段也不再被固定 45 秒提早截斷，而是依那一班已知的終點到站時刻收車</span></li>
@@ -4400,7 +4401,17 @@
 //         並以資料本身時戳校正，不再整線一起平移或把重複快照算成兩輪證據。
 // v0820f：北捷 ETA 刷新只改速度、不再瞬移／停格；BR／Y 活躍身分鎖定，起終點與進站文字
 //         依真實發車、到站位置及逐站停靠秒數處理。
-const BUILD = 'v0820f';
+// v0821a：公開端加入 Private Metro Core shadow client；同份 canonical snapshot 驅動北捷／高捷車位、
+//         站牌與 vehicle ID 跟隨，含 ETag、時效閘門及失效自動降級。旗標預設關閉，不切正式流量。
+const BUILD = 'v0821a';
+// clearFollow() 會在開機途中清掉 query string；Private Metro Core 的試跑旗標必須像官方名冊旗標一樣
+// 在最前面先鎖住，不能等資料輪詢區才重讀 location.search，否則 ?metrocore=1 會靜默失效。
+const METRO_CORE_QUERY_ENABLED = (() => {
+  try {
+    const value = new URLSearchParams(location.search).get('metrocore');
+    return value === '1' || value === 'preview';
+  } catch (e) { return false; }
+})();
 // 2026-08-13 起預設開啟（使用者親試預覽後裁示上線）：北捷畫車依官方即時名冊，班表只是備案。
 // 保留 ?officialroster=0 當逃生口——要退回班表路徑不必回滾部署，加個參數即可對照。
 // 🔴 這個函式會被 verify_official_roster_frontend 抽出來丟進 VM 單獨執行——
@@ -4524,7 +4535,7 @@ const state = {
 
   followTrain: null, followId: null,
   followWrapStops: null, // setFollow 刻意回放的跨午夜 stops；只供 schedWrapT 解開該班的 _noPrevWrap
-  freqFollow: null, // 捷運跟隨三形:{ln,tr}／{ln,k}／{official:true,lineId,vehicleId}；獨立於 followTrain
+  freqFollow: null, // 捷運跟隨四形:{ln,tr}／{ln,k}／official vehicleId／{core:true,systemId,lineId,vehicleId}；獨立於 followTrain
   followLock: true, // 跟隨鎖:true=每幀置中;拖曳地圖自動解鎖(Google 導航式),按「回到列車」恢復
   mapDark: false, basemap: 'map', trackData: null, offlineLand: null,
   trackStyle: 'auto', // 軌道顯示:auto(亮色原色/夜間衛星自動淡化)、faint(一律更淡)、hidden(只留列車與車站)
@@ -4532,6 +4543,9 @@ const state = {
   trtcOfficialBoard: null, // 北捷官方逐列到站時間；只供車站看板，不得寫入動畫校正／班表名冊
   trtcOfficialRoster: null, // ?officialroster=1 影子路徑；boardPos 整包換入，vehicleId 是畫車／跟隨身分
   trtcOfficialRosterRevisionHighWater: null, // 只記最後成功接受版本；outage／malformed 不得把它倒退
+  metroCore: { snapshot: null, etag: null, fetchedAt: 0, lastOkAt: 0, polling: false, error: null },
+  // Private Metro Core 的 client cache。只保存 Worker 已完成身分／速度／停站判斷後的 canonical snapshot；
+  // 公開前端只做 trajectory 線性補間，失效或過期就自動退回下方既有即時／班表路徑。
   traAnomaly: null, // 台鐵系統級大面積誤點的自家觀測 {d10, maxDelay, since} 或 null(非官方公告;d10=誤點≥10 分的班數)
   hazardWatch: null, // NCDR 生效中災害示警；只觸發重查與文字提示，不參與列車名冊/位置
   liveMode: false, director: false, liveReplay: false, // 直播模式(?live=1 即時 / ?live=2 導播)與其深夜重播段(00:45–05:15 重播 08:00 起)
@@ -7912,7 +7926,9 @@ function recomputeTrains() {
   if (state.freqFollow && state.mode !== 'sched') {
     const f = state.freqFollow;
     if (f.vehicleId != null) {
-      if (!state.lines.some(ln => ln.id === f.lineId && isTrtcBoardLine(ln))) clearFreqFollow();
+      if (f.core) {
+        if (!state.lines.some(ln => ln.id === f.lineId && metroCoreSystemIdForLine(ln) === f.systemId)) clearFreqFollow();
+      } else if (!state.lines.some(ln => ln.id === f.lineId && isTrtcBoardLine(ln))) clearFreqFollow();
     } else if (state.lines.indexOf(f.ln) < 0) clearFreqFollow();
     else if (f.k != null && f.k >= f.ln.n) { clearFreqFollow(); showToast('班距改變，已結束跟隨'); }
   }
@@ -7965,12 +7981,16 @@ function runningCount() {
   if (state.mode === 'sched') {
     for (const tr of state.trains) if (state.visible.has(tr.typeName) && trainPos(tr, state.simSec)) n++;
     if (state.deco && state.decoLines) for (const ln of state.decoLines) {
+      const core = metroCoreItemsForLine(ln, Date.now() / 1000);
+      if (core !== null) { n += core.length; continue; }
       const official = trtcOfficialItemsForLine(ln, Date.now() / 1000);
       if (official !== null) n += official.length;
     }
   } else {
     state.lines.forEach(ln => {
       if (!state.visible.has(ln.id)) return;
+      const core = metroCoreItemsForLine(ln, Date.now() / 1000);
+      if (core !== null) { n += core.length; return; }
       const official = trtcOfficialItemsForLine(ln, Date.now() / 1000);
       if (official !== null) n += official.length;
       else if (ln._tt) { for (const tr of ln._tt) if (freqTrainTime(tr, state.simSec) != null) n++; }
@@ -8023,6 +8043,14 @@ function drawFreq(w, h) {
   if (!state.collectMap) state.lines.forEach(ln => { // 收集地圖不畫跑動的車(比照 drawSched)
     if (!state.visible.has(ln.id)) return;
     const tc = textColorFor(ln.color);
+    const core = metroCoreItemsForLine(ln, officialNow);
+    if (core !== null) {
+      for (const item of core) {
+        const cp = map.latLngToContainerPoint([item.pos.lat, item.pos.lon]);
+        paintTrain(cp.x, cp.y, null, ln.id, () => drawMetroCoreVehicle(ln, item, showTrain, inView, true, officialNow));
+      }
+      return;
+    }
     const official = trtcOfficialItemsForLine(ln, officialNow);
     if (official !== null) {
       for (const item of official) {
@@ -8150,13 +8178,20 @@ function trtcOfficialHitFromTimetable(hit) {
 function applyFreqFollow(hit) { // hit = {ln,tr}／{ln,k}／{ln,vehicleId};不動 autoTour/hotspot，供導播輪車重用
   const target = trtcOfficialHitFromTimetable(hit);
   if (!target) { showToast('這列車目前沒有可唯一確認的官方身分'); return false; }
-  if (target.vehicleId != null && !trtcOfficialFollowRecord({ lineId: target.ln.id, vehicleId: target.vehicleId }, Date.now() / 1000)) {
+  const identity = target.vehicleId != null
+    ? (target.core
+      ? metroCoreFollowRecord({ core: true, systemId: target.systemId, lineId: target.ln.id, vehicleId: target.vehicleId }, Date.now() / 1000)
+      : trtcOfficialFollowRecord({ lineId: target.ln.id, vehicleId: target.vehicleId }, Date.now() / 1000))
+    : true;
+  if (target.vehicleId != null && !identity) {
     showToast('這列車已離開官方即時名冊'); return false;
   }
   if (state.followTrain) clearFollow(); // 全台同框:與台鐵/高鐵跟隨互斥(此刻 freqFollow 尚未設,級聯清不到自己)
   closeBoard();
   state.freqFollow = target.vehicleId != null
-    ? { official: true, lineId: String(target.ln.id), vehicleId: String(target.vehicleId) }
+    ? (target.core
+      ? { core: true, systemId: String(target.systemId), lineId: String(target.ln.id), vehicleId: String(target.vehicleId) }
+      : { official: true, lineId: String(target.ln.id), vehicleId: String(target.vehicleId) })
     : target.tr ? { ln: target.ln, tr: target.tr } : { ln: target.ln, k: target.k };
   state.followLock = true;
   syncPanFence(); // 捷運起跟:確保平移硬牆維持開啟(跟車不再解牆,見 syncPanFence 註解;冪等)
@@ -8165,7 +8200,7 @@ function applyFreqFollow(hit) { // hit = {ln,tr}／{ln,k}／{ln,vehicleId};不�
   updateFollowLockUI();
   return true;
 }
-function setFreqFollow(hit) { // hit = 實際時刻班次／班距幽靈車／官方 vehicleId
+function setFreqFollow(hit) { // hit = 實際時刻班次／班距幽靈車／官方或 Core vehicleId
   if (state.autoTour) setAutoTour(false); // 手動點車即接手,退出隨機模式(比照 setFollow)
   if (state.ambient && state.ambientStyle === 'hotspot') hotspotStop(); // 群車放空中點車=接手跟隨
   applyFreqFollow(hit);
@@ -8195,8 +8230,9 @@ function updateFreqCard(info) {
   const st = document.getElementById('fcStatus');
   let txt, cls = '';
   // 官方訊號中斷時這張卡不能還寫「依北捷官方秒級資料」——那正是使用者盯著看的那一行
-  const fStale = f.vehicleId != null ? trtcOfficialStaleFor(ln.id) : null;
-  if (metroAlertFor(ln)) { txt = f.vehicleId != null
+  const fStale = f.vehicleId != null && !f.core ? trtcOfficialStaleFor(ln.id) : null;
+  if (f.core) { txt = '● 車輛位置與站台預告共用同一份即時推演'; cls = 'on'; }
+  else if (metroAlertFor(ln)) { txt = f.vehicleId != null
     ? (fStale ? '營運異常公告中；官方訊號亦中斷，位置與時刻皆為推估' : '營運異常公告中；到站時刻仍依官方即時資料')
     : '營運異常公告中，位置僅供參考'; cls = 'warn'; }
   else if (fStale) { txt = `官方訊號中斷 ${trtcStaleMins(fStale)} 分鐘；位置與到站時刻皆為推估，僅供參考`; cls = 'warn'; }
@@ -8224,9 +8260,11 @@ function updateFreqCard(info) {
 function updateFreqFollowCamera(immediate) {
   const f = state.freqFollow; if (!f) return;
   if (f.vehicleId != null) {
-    const rec = trtcOfficialFollowRecord(f, Date.now() / 1000);
+    const rec = f.core ? metroCoreFollowRecord(f, Date.now() / 1000)
+      : trtcOfficialFollowRecord(f, Date.now() / 1000);
     if (!rec) { clearFreqFollow(); showToast('官方名冊已更新，已結束這台車的跟隨'); return; }
-    const info = trtcOfficialVehicleInfo(rec.ln, rec.vehicle, Date.now() / 1000);
+    const info = f.core ? metroCoreVehicleInfo(rec)
+      : trtcOfficialVehicleInfo(rec.ln, rec.vehicle, Date.now() / 1000);
     if (!info.pos) { clearFreqFollow(); return; }
     if (immediate) map.setView([info.pos.lat, info.pos.lon], followEntryZoom(), { animate: false });
     else if (state.followLock) recenterTo(info.pos.lat, info.pos.lon);
@@ -8306,6 +8344,15 @@ function drawDecoTrains(w, h) {
   for (const ln of (state.collectMap ? [] : state.decoLines)) { // 收集地圖不畫跑動的車(比照 drawSched)
     if (offLine(ln)) continue; // 整條離屏:線上的示意列車也在屏外,跳過
     const tc = textColorFor(ln.color);
+    const core = metroCoreItemsForLine(ln, officialNow);
+    if (core !== null) {
+      for (const item of core) {
+        const cp = map.latLngToContainerPoint([item.pos.lat, item.pos.lon]);
+        if (!inView(cp)) continue;
+        paintTrain(cp.x, cp.y, null, ln.id, () => drawMetroCoreVehicle(ln, item, showTrain, inView, showTrain, officialNow));
+      }
+      continue;
+    }
     const official = trtcOfficialItemsForLine(ln, officialNow);
     if (official !== null) {
       for (const item of official) {
@@ -12341,7 +12388,7 @@ function rebuildFreqLines(g) {
 }
 
 function toggleFreqMember(id) {
-  // 舊兩形存 line 物件，rebuild 前必須解除；official 第三形只存 lineId+vehicleId，可跨物件重建。
+  // 舊兩形存 line 物件，rebuild 前必須解除；official／Core 身分只存 lineId+vehicleId，可跨物件重建。
   if (!state.freqFollow || state.freqFollow.vehicleId == null) clearFreqFollow();
   if (!state.freqSel) state.freqSel = new Set();
   if (state.freqSel.has(id)) state.freqSel.delete(id);
@@ -12717,6 +12764,14 @@ function pickTourMetro() {
   if (!state.decoLines) return null;
   const cands = [];
   for (const ln of state.decoLines) {
+    const core = metroCoreItemsForLine(ln, Date.now() / 1000);
+    if (core !== null) {
+      if (core.length) {
+        const item = core[Math.floor(Math.random() * core.length)];
+        cands.push({ ln, core: true, systemId: item.systemId, vehicleId: item.vehicleId });
+      }
+      continue;
+    }
     const official = trtcOfficialItemsForLine(ln, Date.now() / 1000);
     if (official !== null) {
       if (official.length) {
@@ -18095,8 +18150,10 @@ function setFollowLock(on) {
   } else if (on && state.freqFollow) {
     const f = state.freqFollow;
     if (f.vehicleId != null) {
-      const rec = trtcOfficialFollowRecord(f, Date.now() / 1000);
-      const info = rec && trtcOfficialVehicleInfo(rec.ln, rec.vehicle, Date.now() / 1000);
+      const rec = f.core ? metroCoreFollowRecord(f, Date.now() / 1000)
+        : trtcOfficialFollowRecord(f, Date.now() / 1000);
+      const info = rec && (f.core ? metroCoreVehicleInfo(rec)
+        : trtcOfficialVehicleInfo(rec.ln, rec.vehicle, Date.now() / 1000));
       if (info && info.pos) recenterTo(info.pos.lat, info.pos.lon);
     } else if (f.ln.sched && f.k < f.ln.n) {
       // 時間基準與 updateFreqFollowCamera 一致:全台同框走 decoElapsed
@@ -18903,6 +18960,202 @@ setInterval(pollLive, 60e3);
 document.addEventListener('visibilitychange', () => { if (!document.hidden) pollLive(); });
 pollLive();
 
+// ── Private Metro Core client（只做 canonical trajectory 線性補間） ────────
+// rollout 閘門預設關：網站用 ?metrocore=1 試跑；App 下一次 build 可注入
+// window.RAIL_METRO_CORE_ENABLED=true。Worker／snapshot 失敗、過期或時鐘離開現在時，所有讀者都得到 null，
+// 立即退回既有北捷／高捷即時與班表路徑，不留下半套混合狀態。
+const METRO_CORE_SCHEMA = 'metro-snapshot/v1';
+const METRO_CORE_ENDPOINT = APP_CFG.metroCoreUrl ||
+  'https://railisland-metro-core-preview.sirius1984.workers.dev/v1/metro/snapshot';
+const METRO_CORE_POLL_MS = 15e3;
+function metroCoreFlag(search) {
+  try {
+    const value = new URLSearchParams(search == null ? location.search : search).get('metrocore');
+    if (value === '0') return false;
+    if (value === '1' || value === 'preview') return true;
+  } catch (e) {}
+  return METRO_CORE_QUERY_ENABLED || window.RAIL_METRO_CORE_ENABLED === true || APP_CFG.metroCore === true;
+}
+const METRO_CORE_ENABLED = METRO_CORE_QUERY_ENABLED || metroCoreFlag(location.search);
+
+function metroCoreValidateSnapshot(snapshot) {
+  if (!snapshot || snapshot.schema !== METRO_CORE_SCHEMA || !String(snapshot.revision || '').trim()) return false;
+  const generatedAt = Number(snapshot.generatedAt), validUntil = Number(snapshot.validUntil);
+  if (!(generatedAt > 0) || !(validUntil >= generatedAt) || !Array.isArray(snapshot.systems)) return false;
+  const ids = new Set();
+  for (const system of snapshot.systems) {
+    if (!system || !String(system.systemId || '').trim() || !Array.isArray(system.trains) || !Array.isArray(system.boards)) return false;
+    for (const train of system.trains) {
+      if (!train || !String(train.vehicleId || '').trim() || !String(train.lineId || '').trim() ||
+          (train.direction !== 1 && train.direction !== 2) || !Array.isArray(train.trajectory) || !train.trajectory.length ||
+          ids.has(String(train.vehicleId))) return false;
+      ids.add(String(train.vehicleId));
+      const step = train.direction === 2 ? 1 : -1;
+      let prior = null;
+      for (const point of train.trajectory) {
+        if (!point || !Number.isFinite(Number(point.epoch)) || !Number.isFinite(Number(point.progress)) ||
+            (prior && (Number(point.epoch) <= Number(prior.epoch) ||
+              (Number(point.progress) - Number(prior.progress)) * step < -1e-9))) return false;
+        prior = point;
+      }
+    }
+  }
+  for (const system of snapshot.systems) for (const board of system.boards) {
+    if (!board || !String(board.lineId || '').trim() || !Number.isInteger(Number(board.stationIndex)) || !Array.isArray(board.rows)) return false;
+    for (const row of board.rows) if (!row || !Number.isFinite(Number(row.arrivalEpoch)) ||
+        (row.vehicleId != null && !ids.has(String(row.vehicleId)))) return false;
+  }
+  return true;
+}
+function metroCoreSampleTrajectory(trajectory, epoch) {
+  if (!Array.isArray(trajectory) || !trajectory.length || !Number.isFinite(Number(epoch))) return null;
+  const now = Number(epoch), first = trajectory[0];
+  if (now <= Number(first.epoch)) return { ...first, epoch: now, clamped: now < Number(first.epoch) };
+  for (let i = 0; i + 1 < trajectory.length; i++) {
+    const from = trajectory[i], to = trajectory[i + 1], start = Number(from.epoch), end = Number(to.epoch);
+    if (now > end) continue;
+    const f = end > start ? Math.max(0, Math.min(1, (now - start) / (end - start))) : 1;
+    return { epoch: now, progress: Number(from.progress) + (Number(to.progress) - Number(from.progress)) * f,
+      stateAfter: now === end ? to.stateAfter : from.stateAfter, clamped: false };
+  }
+  const last = trajectory[trajectory.length - 1];
+  return { ...last, epoch: now, clamped: now > Number(last.epoch) };
+}
+function metroCoreSampleTrain(train, epoch) {
+  if (!train || !Number.isFinite(Number(epoch)) ||
+      (train.retireAt != null && Number(epoch) >= Number(train.retireAt))) return null;
+  const motion = metroCoreSampleTrajectory(train.trajectory, epoch);
+  return motion ? { vehicleId: String(train.vehicleId), lineId: String(train.lineId),
+    direction: Number(train.direction), ...motion } : null;
+}
+function metroCoreSystemIdForLine(ln) {
+  const sys = freqSysIdOf(ln), id = String(ln && ln.id || '');
+  if (sys === 'mrt' && TRTC_BOARD_LINES.has(id)) return 'trtc';
+  if (sys === 'krtc' && (id === 'KR' || id === 'KO')) return 'krtc';
+  return null;
+}
+function metroCoreSystem(systemId) {
+  const snapshot = state.metroCore && state.metroCore.snapshot;
+  return snapshot && Array.isArray(snapshot.systems)
+    ? snapshot.systems.find(system => system && system.systemId === systemId) || null : null;
+}
+function metroCoreSnapshotLive(nowEpoch = Date.now() / 1000) {
+  const snapshot = state.metroCore && state.metroCore.snapshot;
+  // 完整 schema 只在 poll 收包時驗一次；這支函式在 draw 熱路徑每線每幀都會呼叫，不能重掃全部列車軌跡。
+  return !!(METRO_CORE_ENABLED && snapshot && snapshot.schema === METRO_CORE_SCHEMA &&
+    Number(snapshot.generatedAt) <= Number(nowEpoch) + 30 && Number(snapshot.validUntil) >= Number(nowEpoch) &&
+    trtcOfficialBoardRealNow());
+}
+function metroCoreLineForId(systemId, lineId) {
+  const seen = new Set();
+  for (const pool of [metroLivePool(), state.lines, state.decoLines]) for (const ln of (pool || [])) {
+    if (!ln || seen.has(ln)) continue;
+    seen.add(ln);
+    if (metroCoreSystemIdForLine(ln) === systemId && String(ln.id) === String(lineId)) return ln;
+  }
+  return null;
+}
+function metroCorePositionAt(ln, train, epoch) {
+  const sampled = metroCoreSampleTrain(train, epoch);
+  if (!sampled || !ln || !Array.isArray(ln.stations) || !ln.stations.length) return null;
+  const max = ln.stations.length - 1, progress = Math.max(0, Math.min(max, Number(sampled.progress)));
+  const stationIndex = Math.round(progress);
+  if (Math.abs(progress - stationIndex) < 1e-9 && ln.stations[stationIndex]) {
+    const station = ln.stations[stationIndex];
+    return { ...sampled, progress, lat: station.lat, lon: station.lon, atStation: true };
+  }
+  const from = Math.floor(progress), to = Math.ceil(progress);
+  if (!ln.stations[from] || !ln.stations[to] || from === to) return null;
+  const pos = posBetweenStations(ln, from, to, progress - from);
+  return pos ? { ...sampled, ...pos, progress, atStation: false, motionFrom: from, motionTo: to } : null;
+}
+function metroCoreItemsForLine(ln, nowEpoch = Date.now() / 1000) {
+  const systemId = metroCoreSystemIdForLine(ln);
+  if (!systemId || !metroCoreSnapshotLive(nowEpoch)) return null;
+  const system = metroCoreSystem(systemId);
+  if (!system) return [];
+  const out = [];
+  for (const train of system.trains) {
+    if (String(train.lineId) !== String(ln.id)) continue;
+    const pos = metroCorePositionAt(ln, train, nowEpoch);
+    if (pos) out.push({ systemId, vehicleId: String(train.vehicleId), publicLabel: String(train.publicLabel || ''), train, pos });
+  }
+  return out;
+}
+function metroCoreFollowRecord(follow, nowEpoch = Date.now() / 1000) {
+  if (!follow || !follow.core || follow.vehicleId == null || !metroCoreSnapshotLive(nowEpoch)) return null;
+  const systemId = String(follow.systemId || ''), system = metroCoreSystem(systemId);
+  const train = system && system.trains.find(item => String(item.vehicleId) === String(follow.vehicleId) &&
+    String(item.lineId) === String(follow.lineId));
+  const ln = train && metroCoreLineForId(systemId, follow.lineId);
+  const pos = ln && train ? metroCorePositionAt(ln, train, nowEpoch) : null;
+  return pos ? { systemId, train, ln, pos } : null;
+}
+function metroCoreEpochSecOfDay(epoch) {
+  const value = (Number(epoch) + 8 * 3600) % 86400;
+  return value < 0 ? value + 86400 : value;
+}
+function metroCoreVehicleInfo(rec) {
+  if (!rec) return { pos: null };
+  const { ln, train, pos } = rec, step = Number(train.direction) === 2 ? 1 : -1;
+  const nextIndex = train.nextCall && Number.isInteger(Number(train.nextCall.stationIndex))
+    ? Number(train.nextCall.stationIndex) : Math.max(0, Math.min(ln.stations.length - 1,
+      step > 0 ? Math.ceil(pos.progress) : Math.floor(pos.progress)));
+  const terminal = ln.stations[Number(train.destinationStationIndex)];
+  const next = ln.stations[nextIndex];
+  return { ln, pos, loop: false, termName: terminal && terminal.name || '', nextName: next && next.name || '',
+    nextSec: train.nextCall && Number.isFinite(Number(train.nextCall.arrivalEpoch))
+      ? metroCoreEpochSecOfDay(train.nextCall.arrivalEpoch) : null };
+}
+function drawMetroCoreVehicle(ln, item, showTrain, inView, collectHit, nowEpoch) {
+  const cp = map.latLngToContainerPoint([item.pos.lat, item.pos.lon]);
+  const label = item.publicLabel || ln.abbr;
+  if (trtcOfficialSameTarget(state.freqFollow, { ln, vehicleId: item.vehicleId })) drawFreqRing(cp, ln.color);
+  if (showTrain && inView(cp)) drawTag(cp, label, ln.color, textColorFor(ln.color));
+  else drawDot(cp, ln.color);
+  if (state.dirArrow && showTrain && inView(cp)) {
+    const previous = metroCorePositionAt(ln, item.train, nowEpoch - DIR_DT_SEC);
+    drawFreqDirArrow(cp, ln, item.train, previous);
+  }
+  if (collectHit && inView(cp)) state._freqHits.push({ x: cp.x, y: cp.y, ln, core: true,
+    systemId: item.systemId, vehicleId: item.vehicleId, halfW: showTrain ? Math.max(6, trtcOfficialTagHalfWidth(label)) : 6, halfH: 8 });
+}
+async function pollMetroCore() {
+  if (!METRO_CORE_ENABLED || document.hidden || state.metroCore.polling) return false;
+  state.metroCore.polling = true;
+  try {
+    const headers = { accept: 'application/json' };
+    if (state.metroCore.etag) headers['if-none-match'] = state.metroCore.etag;
+    const response = await fetch(METRO_CORE_ENDPOINT, { cache: 'no-store', headers });
+    if (response.status === 304) {
+      state.metroCore.lastOkAt = Date.now(); state.metroCore.error = null; return true;
+    }
+    if (!response.ok) throw new Error('snapshot ' + response.status);
+    const snapshot = await response.json();
+    if (!metroCoreValidateSnapshot(snapshot)) throw new Error('snapshot schema');
+    const prior = state.metroCore.snapshot;
+    if (prior && Number(snapshot.generatedAt) < Number(prior.generatedAt)) throw new Error('snapshot rollback');
+    state.metroCore.snapshot = snapshot;
+    state.metroCore.etag = `"${String(snapshot.revision)}"`;
+    state.metroCore.fetchedAt = state.metroCore.lastOkAt = Date.now();
+    state.metroCore.error = null;
+    if (state.boardStation) renderBoard();
+    updateCount(); updateMetroBadge();
+    return true;
+  } catch (error) {
+    state.metroCore.error = String(error && error.message || error);
+    return false;
+  } finally { state.metroCore.polling = false; }
+}
+setInterval(pollMetroCore, METRO_CORE_POLL_MS);
+if (METRO_CORE_ENABLED) pollMetroCore();
+window.__railMetroCore = { enabled: METRO_CORE_ENABLED, endpoint: METRO_CORE_ENDPOINT,
+  poll: pollMetroCore, sampleTrajectory: metroCoreSampleTrajectory,
+  status: () => ({ revision: state.metroCore.snapshot && state.metroCore.snapshot.revision,
+    generatedAt: state.metroCore.snapshot && state.metroCore.snapshot.generatedAt,
+    validUntil: state.metroCore.snapshot && state.metroCore.snapshot.validUntil,
+    fetchedAt: state.metroCore.fetchedAt, lastOkAt: state.metroCore.lastOkAt, error: state.metroCore.error }) };
+
 // ── 捷運即時校正(TDX Metro LiveBoard,經 /api/metro-live 代理,約每分鐘) ──
 // 「準」的使用者標準=跟月台官方看板一致。對每列看板資料(某站往某方向下一班倒數),
 // 找模型該站該方向「最近的一次到離站事件」(過去或未來皆可),差值=該班較表定的早晚;
@@ -19643,7 +19896,7 @@ function trtcOfficialRosterPayloadValid(boardPos) {
 function trtcOfficialRosterOutage(reason, sourceRevision) {
   state.trtcOfficialRoster = { feedMode: 'outage', vehicles: [], sourceRevision,
     receivedEpoch: Date.now() / 1000, reason: reason || 'outage' };
-  if (state.freqFollow && state.freqFollow.vehicleId != null) clearFreqFollow();
+  if (state.freqFollow && state.freqFollow.vehicleId != null && !state.freqFollow.core) clearFreqFollow();
   return false;
 }
 // 🔴 讀取失敗（網路斷、這次 payload 沒帶 boardPos、套用時丟例外）不是「車不在那邊」的證據。
@@ -19678,7 +19931,7 @@ function applyTrtcOfficialRoster(boardPos) {
   const activeDisplay = new Set(state.trtcOfficialRoster.vehicles.map(vehicle =>
     `${vehicle.line}|${vehicle.vehicleId}`));
   for (const key of _trtcOfficialDisplay.keys()) if (!activeDisplay.has(key)) _trtcOfficialDisplay.delete(key);
-  if (state.freqFollow && state.freqFollow.vehicleId != null &&
+  if (state.freqFollow && state.freqFollow.vehicleId != null && !state.freqFollow.core &&
       !state.trtcOfficialRoster.vehicles.some(vehicle => String(vehicle.vehicleId) === String(state.freqFollow.vehicleId))) {
     clearFreqFollow(); showToast('列車已離開官方即時名冊');
   }
@@ -20397,6 +20650,15 @@ function metroAlertFor(ln) {
 function updateMetroBadge() {
   const el = document.getElementById('metroBadge');
   if (!el) return;
+  const corePool = metroLivePool().filter(ln => metroCoreSystemIdForLine(ln));
+  if (corePool.length && metroCoreSnapshotLive()) {
+    const trains = corePool.reduce((sum, ln) => sum + (metroCoreItemsForLine(ln) || []).length, 0);
+    el.classList.remove('anom', 'est');
+    el.hidden = trains === 0;
+    el.textContent = '官方即時';
+    el.title = `車站預告與地圖上的 ${trains} 台列車共用同一份即時身分與時間軸`;
+    return;
+  }
   // 🔴 名冊分支要與 pollTrtcLive 用同一道群組閘門:名冊會留在 state 裡跨群組存活,少了這道閘門,
   //    切到「台」「高」(畫面上一條捷運都沒有)仍會顯示「官方即時」,北捷斷訊時甚至在高鐵分頁跳「官方中斷 N 分」。
   //    閘門不成立時不是隱藏而是往下走舊路徑——「捷」只勾高捷時仍要看得到它自己的「看板校正」。
@@ -20448,7 +20710,7 @@ setInterval(pollTrtcLive, 15e3); // 北捷上游實測約 15 秒換值,與 Worke
 // 徽章刷新走 draw 的 1 秒 tick(與台鐵 LIVE 同步),資料過期/時間旅行/快轉跨門檻都會即時轉態
 document.addEventListener('visibilitychange', () => {
   if (document.hidden) clearTrtcBoard();
-  else { pollTrtcLive(); pollMetroLive(); pollNtmLive(); pollKlrtPos(); }
+  else { pollMetroCore(); pollTrtcLive(); pollMetroLive(); pollNtmLive(); pollKlrtPos(); }
 });
 
 // ── 新北捷即時校正(官方列車動態 trainstatus.ntmetro.com.tw,經 /api/ntmetro-live 代理,約每分鐘) ──
@@ -21761,6 +22023,143 @@ function renderBoard() {
 // 捷運沒有車次號,跟隨走 setFreqFollow({ln,tr}) (tr=ln._tt 裡的那班陣列本身,不是台鐵的 followTrainNo)。
 // lines:資料來源陣列——各捷運分頁傳 state.lines,全台同框裝飾層傳 state.decoLines。
 // isDeco:裝飾層沒有 state.visible 個別開關(全開),跳過該項篩選;分頁模式仍照使用者勾選的系統過濾。
+function metroCoreArrivalState(rec, nowEpoch = Date.now() / 1000) {
+  if (!rec || !rec.vehicleId) return { near: false, departed: false, matched: false, distanceM: null };
+  const system = metroCoreSystem(rec.systemId);
+  const train = system && system.trains.find(item => String(item.vehicleId) === String(rec.vehicleId));
+  const station = rec.ln && rec.ln.stations && rec.ln.stations[rec.stationIndex];
+  const pos = train && station ? metroCorePositionAt(rec.ln, train, nowEpoch) : null;
+  if (!pos) return { near: false, departed: true, matched: false, distanceM: null };
+  const distanceM = haversineKm(station, pos) * 1000;
+  const step = Number(train.direction) === 2 ? 1 : -1;
+  return { near: distanceM <= 25, departed: (Number(pos.progress) - rec.stationIndex) * step > .02 && distanceM > 25,
+    matched: true, distanceM, vehicleId: String(train.vehicleId) };
+}
+function metroCoreCountdownText(rec, nowEpoch = Date.now() / 1000) {
+  const left = Number(rec.arrivalEpoch) - Number(nowEpoch);
+  if (!Number.isFinite(left)) return '';
+  if (left <= 0) {
+    const arrival = metroCoreArrivalState(rec, nowEpoch);
+    rec.arrival = arrival;
+    return arrival.near || (!rec.vehicleId && (rec.state === 'arriving' || rec.state === 'dwelling'))
+      ? '列車進站' : '即將進站';
+  }
+  const sec = Math.max(0, Math.ceil(left));
+  return Math.floor(sec / 60) + ':' + String(sec % 60).padStart(2, '0');
+}
+function metroCoreBoardView(st, lines, isDeco, nowEpoch = Date.now() / 1000) {
+  if (!metroCoreSnapshotLive(nowEpoch)) return null;
+  const stationKey = st.name.replace(/臺/g, '台'), stationLines = [];
+  (lines || []).forEach((ln, li) => {
+    if ((!isDeco && !state.visible.has(ln.id)) || !Array.isArray(ln.stations)) return;
+    const si = ln.stations.findIndex(s => s.name.replace(/臺/g, '台') === stationKey);
+    if (si >= 0) stationLines.push({ ln, li, si, systemId: metroCoreSystemIdForLine(ln) });
+  });
+  if (!stationLines.some(entry => entry.systemId)) return null;
+  const groups = [];
+  for (const entry of stationLines) {
+    if (entry.systemId) {
+      const system = metroCoreSystem(entry.systemId), board = system && system.boards.find(item =>
+        String(item.lineId) === String(entry.ln.id) && Number(item.stationIndex) === entry.si);
+      const byDest = new Map();
+      for (const row of board && board.rows || []) {
+        if (row.state === 'departed') continue;
+        const destIndex = Number(row.destinationStationIndex), dest = entry.ln.stations[destIndex];
+        const dtm = Number(row.arrivalEpoch) - nowEpoch;
+        if (!dest || !Number.isFinite(dtm) || dtm > 7200) continue;
+        const rec = { kind: 'core', ...entry, stationIndex: entry.si, row, state: row.state, destinationStationIndex: destIndex,
+          destName: dest.name, direction: Number(row.direction), arrivalEpoch: Number(row.arrivalEpoch),
+          vehicleId: row.vehicleId == null ? null : String(row.vehicleId), match: String(row.match || 'unmatched'), dtm };
+        const arrival = metroCoreArrivalState(rec, nowEpoch);
+        const dwell = Math.max(1, trtcOfficialDwellAt(entry.ln, entry.si) || TRTC_OFFICIAL_BOARD_ARRIVING_GRACE_SEC);
+        if (arrival.departed || (dtm < -dwell && !arrival.near)) continue;
+        const key = `${rec.direction}|${destIndex}`;
+        if (!byDest.has(key)) byDest.set(key, []);
+        byDest.get(key).push(rec);
+      }
+      for (const rows of byDest.values()) {
+        rows.sort((a, b) => a.dtm - b.dtm);
+        groups.push({ kind: 'core', ...entry, destName: rows[0].destName, rows: rows.slice(0, 2) });
+      }
+      continue;
+    }
+    if (!entry.ln._tt) continue;
+    const byDest = new Map();
+    entry.ln._tt.forEach((trip, ci) => {
+      let k = -1;
+      for (let i = 0; i < trip.length; i += 2) if (trip[i] === entry.si) { k = i; break; }
+      if (k < 0 || k === trip.length - 2) return;
+      const t = trip[k + 1] + metroShiftSec(entry.ln, trip);
+      let dtm = t - state.simSec;
+      if (dtm > 43200) dtm -= 86400; else if (dtm < -43200) dtm += 86400;
+      if (dtm < -30 || dtm > 7200) return;
+      const destName = entry.ln.stations[trip[trip.length - 2]].name;
+      if (!byDest.has(destName)) byDest.set(destName, []);
+      byDest.get(destName).push({ kind: 'legacy', ...entry, ci, t, dtm, destName });
+    });
+    for (const [destName, rows] of byDest) {
+      rows.sort((a, b) => a.dtm - b.dtm);
+      groups.push({ kind: 'legacy', ...entry, destName, rows: rows.slice(0, 2) });
+    }
+  }
+  groups.sort((a, b) => a.li - b.li || ((a.rows[0] && a.rows[0].dtm) || 0) - ((b.rows[0] && b.rows[0].dtm) || 0));
+  return { groups, stationLines, linked: groups.flatMap(group => group.rows).filter(row => row.kind === 'core' && row.vehicleId).length };
+}
+function renderMetroCoreFreqBoard(el, st, lines, isDeco, view) {
+  delete el.dataset.trtcOfficial;
+  el.dataset.metroCore = '1';
+  const records = [];
+  const body = view.groups.map(group => group.rows.map(rec => {
+    const lineLabel = (group.ln._sysLabel ? group.ln._sysLabel + ' ' : '') + (group.ln.name || group.ln.abbr || '');
+    if (rec.kind === 'core') {
+      const index = records.push(rec) - 1, followable = !!rec.vehicleId;
+      const train = followable && metroCoreSystem(rec.systemId).trains.find(item => String(item.vehicleId) === rec.vehicleId);
+      const label = train && String(train.publicLabel || '').trim();
+      return `<div class="row" data-core-record="${index}"${followable
+        ? ` data-core-vehicle="${escHtml(rec.vehicleId)}" data-core-system="${escHtml(rec.systemId)}" data-core-line="${escHtml(group.ln.id)}" data-li="${group.li}" title="跟隨 往${escHtml(rec.destName)} 班次"` : ''}>` +
+        `<span class="dot" style="background:${group.ln.color}"></span><b>往 ${escHtml(rec.destName)}</b>` +
+        `<span class="dest">${escHtml(lineLabel)}${label ? '　' + escHtml(label) : ''}</span>` +
+        `<span class="t">${trtcOfficialAbsoluteHM(rec.arrivalEpoch)}</span><span class="min">${metroCoreCountdownText(rec)}</span></div>`;
+    }
+    const min = rec.dtm < 60 ? '即將進站' : Math.round(rec.dtm / 60) + ' 分';
+    return `<div class="row" data-li="${group.li}" data-ci="${rec.ci}" title="跟隨 往${escHtml(rec.destName)} 班次">` +
+      `<span class="dot" style="background:${group.ln.color}"></span><b>往 ${escHtml(rec.destName)}</b>` +
+      `<span class="dest">${escHtml(lineLabel)}</span><span class="t">${fmtHM(rec.t % 86400)}</span><span class="min">${min}</span></div>`;
+  }).join('')).join('');
+  const fav = isFavStation(st), sysNames = [];
+  for (const entry of view.stationLines) if (entry.ln._sysLabel && !sysNames.includes(entry.ln._sysLabel)) sysNames.push(entry.ln._sysLabel);
+  const waitSys = metroWaitSysForStation(st, lines, isDeco);
+  el.innerHTML = `<h3>${escHtml(st.name)}${sysNames.map(name => `<span class="sys-chip">${escHtml(name)}</span>`).join('')}` +
+    metroWaitBoardHtml(st, waitSys) +
+    `<button class="board-star${fav ? ' on' : ''}" id="boardStar" title="${fav ? '移除最愛車站' : '加入最愛車站'}" aria-label="${fav ? '移除最愛車站' : '加入最愛車站'}">${railIcon('ui-favorite', fav ? 'ri-icon--fill' : '')}</button>` +
+    `<button class="close" id="boardClose">×</button></h3>` + stnMetaHtml(st) + eventRowsHtml(st) +
+    `<div class="sub">站台預告與地圖列車共用同一份即時身分與時間軸 · ${view.linked ? '可點選已連結的班次跟隨動畫' : '目前班次未連結動畫'}</div>` +
+    (body || '<div class="empty">此時段無停靠班次</div>');
+  el._metroCoreRecords = records;
+  el.hidden = false;
+  updateSheetOpenClass();
+  el.querySelector('#boardClose').onclick = closeBoard;
+  el.querySelector('#boardStar').onclick = () => toggleFavStation(st);
+  bindMetroWaitBoard(el, st, waitSys, lines, isDeco);
+  el.onpointerdown = event => {
+    const row = event.target.closest('.row[data-core-vehicle],.row[data-ci]');
+    el._metroCoreDown = row ? {
+      vehicleId: row.dataset.coreVehicle || null, systemId: row.dataset.coreSystem || null,
+      lineId: row.dataset.coreLine || null, li: Number(row.dataset.li), ci: row.dataset.ci == null ? null : Number(row.dataset.ci)
+    } : null;
+  };
+  el.onclick = event => {
+    const row = event.target.closest('.row[data-core-vehicle],.row[data-ci]');
+    const pick = row ? { vehicleId: row.dataset.coreVehicle || null, systemId: row.dataset.coreSystem || null,
+      lineId: row.dataset.coreLine || null, li: Number(row.dataset.li), ci: row.dataset.ci == null ? null : Number(row.dataset.ci) }
+      : el._metroCoreDown;
+    el._metroCoreDown = null;
+    if (!pick || !Number.isInteger(pick.li)) return;
+    const ln = lines[pick.li];
+    if (ln && pick.vehicleId) { closeBoard(); setFreqFollow({ ln, core: true, systemId: pick.systemId, vehicleId: pick.vehicleId }); }
+    else if (ln && Number.isInteger(pick.ci) && ln._tt && ln._tt[pick.ci]) { closeBoard(); setFreqFollow({ ln, tr: ln._tt[pick.ci] }); }
+  };
+}
 function trtcOfficialAbsoluteHM(epoch) {
   const d = new Date(Number(epoch) * 1000 + 8 * 3600e3);
   if (!Number.isFinite(d.getTime())) return '';
@@ -22003,6 +22402,21 @@ function renderTrtcOfficialFreqBoard(el, st, lines, isDeco, view) {
 function refreshTrtcOfficialBoardCountdown(nowMs = Date.now()) {
   const el = document.getElementById('board');
   if (!el || el.hidden || !state.boardStation) return;
+  if (el.dataset.metroCore === '1') {
+    if (!metroCoreSnapshotLive(nowMs / 1000)) { renderBoard(); return; }
+    let rerender = false;
+    el.querySelectorAll('.row[data-core-record]').forEach(row => {
+      const rec = el._metroCoreRecords && el._metroCoreRecords[Number(row.dataset.coreRecord)];
+      if (!rec) { rerender = true; return; }
+      const arrival = metroCoreArrivalState(rec, nowMs / 1000);
+      const dwell = Math.max(1, trtcOfficialDwellAt(rec.ln, rec.stationIndex) || TRTC_OFFICIAL_BOARD_ARRIVING_GRACE_SEC);
+      if (arrival.departed || Number(rec.arrivalEpoch) - nowMs / 1000 < -dwell) { rerender = true; return; }
+      const out = row.querySelector('.min');
+      if (out) out.textContent = metroCoreCountdownText(rec, nowMs / 1000);
+    });
+    if (rerender) renderBoard();
+    return;
+  }
   const liveGate = trtcOfficialBoardRealNow();
   if (el.dataset.trtcOfficial !== '1') {
     if (el._trtcOfficialGate !== liveGate) {
@@ -22032,6 +22446,9 @@ function refreshTrtcOfficialBoardCountdown(nowMs = Date.now()) {
   if (rerender) renderBoard();
 }
 function renderFreqBoard(el, st, lines, isDeco) {
+  const core = metroCoreBoardView(st, lines, isDeco);
+  if (core) { renderMetroCoreFreqBoard(el, st, lines, isDeco, core); return; }
+  delete el.dataset.metroCore;
   const official = trtcOfficialBoardView(st, lines, isDeco);
   if (official) { renderTrtcOfficialFreqBoard(el, st, lines, isDeco, official); return; }
   delete el.dataset.trtcOfficial;
