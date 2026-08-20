@@ -13,15 +13,19 @@ const between = (start, end) => {
 const builder = between('const _trtcCdArrived = new Map();', '// 🔴 文湖線(BR)的身分與存續:');
 const along = between('function _trtcBrAlong(v, nowEpoch) {', '// 文湖線有 4 個與別條線共用的站');
 const resolver = between('const _trtcCdRosters = new Map();', 'let _trtcCensusPrior = new Map();');
+const coast = between('function trtcOfficialCoastCycle(vehicle, run) {', 'const _trtcCdDropped = new Map();');
+const vehiclePosition = between('function trtcOfficialVehiclePosition(ln, vehicle, nowEpoch) {',
+  'const _trtcOfficialDisplay = new Map();');
 
 const prelude = `
 const BUILD = 'test', window = {}, navigator = {}, state = { lines: [], decoLines: [] };
 const document = { createElement: () => ({ style: {}, click() {}, remove() {} }), body: { appendChild() {} } };
 function showToast() {}
-const _trtcCdDwell = new Map(), _trtcCdDropped = new Map();
+const _trtcCdDwell = new Map(), _trtcCdDropped = new Map(), _trtcOfficialDisplay = new Map();
 const TRTC_BR_DWELL_FALLBACK = 25, TRTC_BR_SAME_TRAIN_RATIO = 1;
 const _trtcCdDwellOf = id => _trtcCdDwell.has(id) ? _trtcCdDwell.get(id) : TRTC_BR_DWELL_FALLBACK;
-const line = { id: 'Y', stations: Array.from({ length: 5 }, (_, i) => ({ name: 'S' + i, dwell: 25 })), segs: [] };
+const line = { id: 'Y', stations: Array.from({ length: 5 }, (_, i) =>
+  ({ name: 'S' + i, dwell: 25, lat: 0, lon: i / 100, d: i / 20 })), segs: [] };
 state.lines = [line];
 function _trtcCensusNorm(v) { return String(v || '').trim(); }
 function trtcCensusLine(id) { return id === line.id ? line : null; }
@@ -29,17 +33,25 @@ function trtcCensusNames(ln) { return ln.stations.map(s => s.name); }
 function trtcCensusRun(ln, from, to) { return from === to ? 0 : 75; }
 function trtcOfficialDwellAt() { return 25; }
 function trtcCountdownFitsSegment() { return true; }
+function runBetween(ln, from, to) { return trtcCensusRun(ln, from, to); }
+function posBetweenStations(ln, from, to, fraction) {
+  const a = ln.stations[from], b = ln.stations[to];
+  return { lat: a.lat + (b.lat - a.lat) * fraction, lon: a.lon + (b.lon - a.lon) * fraction };
+}
 function _trtcBrSharedIdx() { return new Set(); }
 function _trtcCdPrefix(id) { return 'mrt:' + id + ':'; }
 `;
 const expose = `
 this.api = { trtcBrVehiclesFromBoard, trtcCensusRestampBr, trtcCdDiagPush,
+  position: trtcOfficialVehiclePosition, line,
   snapshot: trtcEntityDiagnosticsSnapshot, frames: _trtcCdDiagFrames, rosters: _trtcCdRosters,
+  displays: _trtcOfficialDisplay,
   constants: { grace: TRTC_CD_MISSING_GRACE_SEC, confirm: TRTC_CD_CANDIDATE_CONFIRM_FRAMES } };
 `;
 const context = vm.createContext({ console, Date, JSON, Math, Map, Set, Number, String, Array,
   Blob, File, URL, setTimeout, clearTimeout });
-vm.runInContext(prelude + '\n' + along + '\n' + builder + '\n' + resolver + '\n' + expose, context);
+vm.runInContext(prelude + '\n' + coast + '\n' + vehiclePosition + '\n' + along + '\n' + builder + '\n' +
+  resolver + '\n' + expose, context);
 const api = context.api;
 
 let failures = 0;
@@ -52,7 +64,7 @@ const vehicle = ({ from, to, dest = 4, arr, observed, dir = 2 }) => ({
   terminal: false, officialNo: null, source: 'board-seg', observedEpoch: observed,
   timeline: [{ from, to, depEpoch: arr - 75, arrEpoch: arr, terminal: false }],
 });
-const reset = () => { api.rosters.clear(); api.frames.splice(0); };
+const reset = () => { api.rosters.clear(); api.frames.splice(0); api.displays.clear(); };
 const lastResolve = () => [...api.frames].reverse().find(x => x.kind === 'resolve');
 
 console.log('BR／Y Entity Resolver 驗收：\n');
@@ -70,7 +82,8 @@ api.trtcCensusRestampBr('Y', revised, 1015, '2026-08-20', true);
 const rescueAudit = lastResolve();
 check(revised.length === 1 && revised[0].vehicleId === stableId,
   '有界救援：ETA 跳動後仍接回同一個 ID、不另生車', `id=${revised[0]?.vehicleId}`);
-check(rescueAudit.directions.some(d => d.rescued.length === 1), '診斷：記下 bounded-rescue 的配對理由');
+check(rescueAudit.output.some(x => x.id === stableId),
+  '診斷：解析後名冊仍記住同一個 ID');
 
 // 3. 缺訊可短暫續推，但 45 秒仍無官方證據就退場，不留下永久幽靈。
 reset();
@@ -84,31 +97,63 @@ check(grace.length === 1 && grace[0].vehicleId === missingId && grace[0].source 
 const expired = [];
 api.trtcCensusRestampBr('Y', expired, 2046, '2026-08-20', true);
 check(expired.length === 0, '有限退場：缺訊超過 45 秒不再保留舊車');
-check(lastResolve().directions.some(d => d.retired.some(x => x.reason === 'missing-expired')),
-  '診斷：退場原因記為 missing-expired');
+check(lastResolve().directions.some(d => d.carried.some(x => x.id === missingId && x.dormant)),
+  '診斷：畫面退場後短暫保留不可見身分槽，不讓後車前補');
+const identityExpired = [];
+api.trtcCensusRestampBr('Y', identityExpired, 2146, '2026-08-20', true);
+check(!api.rosters.get('Y')?.prior.has(missingId) &&
+  lastResolve().directions.some(d => d.retired.some(x => x.reason === 'identity-expired')),
+  '身分槽有上限：超過一個最慢站間週期仍無觀測就真正刪除');
 
-// 4. 舊車前進會撞進新鮮官方車區間時，不再把舊車 arrEpoch 改成 now+1 永久釘站。
+// 4. 連續訊號下，舊車前進會撞進新鮮車區間時只保留不可見 ID 槽位；期限到仍會收，
+//    不把兩台畫在同一區間，也不回到永久釘站。
 reset();
 const old = [vehicle({ from: 0, to: 1, dest: 4, arr: 2990, observed: 3000 })];
 api.trtcCensusRestampBr('Y', old, 3000, '2026-08-20', true);
-const conflict = [vehicle({ from: 1, to: 2, dest: 3, arr: 3075, observed: 3015 })];
+const blockedId = old[0].vehicleId;
+const conflict = [vehicle({ from: 1, to: 2, dest: 4, arr: 3020, observed: 3015 })];
 api.trtcCensusRestampBr('Y', conflict, 3015, '2026-08-20', true);
 const conflictAudit = lastResolve();
-check(!conflict.some(v => v.source === 'board-coast'), '衝突退場：被新鮮車擋住的舊車不再卡站');
-check(conflictAudit.directions.some(d => d.retired.some(x => x.reason === 'blocked-by-fresh')),
-  '診斷：卡站舊車記為 blocked-by-fresh');
+check(conflict.some(v => v.vehicleId === blockedId && v.source === 'board-seg') &&
+  !conflict.some(v => v.vehicleId === blockedId && v.source === 'board-coast'),
+  '身分交接：重疊的新鮮觀測沿用舊 ID，不另畫 coast 車或讓跟隨換號');
+check(conflictAudit.output.filter(x => x.id === blockedId).length === 1,
+  '診斷：交接後名冊只保留一個舊 ID 槽位');
+
+// 4b. 兩個都已存在的 ID 在下一輪收斂到同一個物理車位時，也只能留一個。
+//     這是壓測抓到的 BR 真實失敗形狀：舊版只會擋新候選，擋不住兩個既有 ID 後來重疊。
+reset();
+const existing = [
+  vehicle({ from: 0, to: 1, dest: 4, arr: 3150, observed: 3100 }),
+  vehicle({ from: 3, to: 4, dest: 4, arr: 3150, observed: 3100 }),
+];
+api.trtcCensusRestampBr('Y', existing, 3100, '2026-08-20', true);
+const olderId = existing[0].vehicleId, newerId = existing[1].vehicleId;
+api.displays.set(`Y|${olderId}`, { progress: 2, epoch: 3100 });
+api.displays.set(`Y|${newerId}`, { progress: 2.1, epoch: 3100 });
+const converged = [
+  vehicle({ from: 0, to: 1, dest: 4, arr: 3165, observed: 3115 }),
+  vehicle({ from: 3, to: 4, dest: 4, arr: 3165, observed: 3115 }),
+];
+api.trtcCensusRestampBr('Y', converged, 3115, '2026-08-20', true);
+check(converged.length === 1 && converged[0].vehicleId === olderId,
+  '既有 ID 去重：100m 內只留較早建立的身份、不交換 ID',
+  `kept=${converged[0]?.vehicleId} dropped=${newerId}`);
+check(lastResolve().directions.some(d => d.retired.some(x =>
+  x.id === newerId && x.reason === 'fresh-overlap' && x.into === olderId)),
+  '診斷：既有重疊身份記為 fresh-overlap');
 
 // 5. 同方向仍有失聯舊車時，無法接上的新觀測需連續兩輪才出生。
 reset();
-const activeOld = [vehicle({ from: 0, to: 1, dest: 3, arr: 4060, observed: 4000 })];
+const activeOld = [vehicle({ from: 2, to: 3, dest: 4, arr: 4060, observed: 4000 })];
 api.trtcCensusRestampBr('Y', activeOld, 4000, '2026-08-20', true);
-const candidate1 = [vehicle({ from: 3, to: 4, dest: 4, arr: 4050, observed: 4015 })];
+const candidate1 = [vehicle({ from: 0, to: 1, dest: 4, arr: 4090, observed: 4015 })];
 api.trtcCensusRestampBr('Y', candidate1, 4015, '2026-08-20', true);
 check(candidate1.length === 1 && candidate1[0].source === 'board-coast',
   '候選第一輪：只保留原實體，新觀測暫不另生一台');
 check(lastResolve().directions.some(d => d.candidates.some(x => x.action === 'wait')),
   '診斷：候選第一輪記為 wait');
-const candidate2 = [vehicle({ from: 3, to: 4, dest: 4, arr: 4065, observed: 4030 })];
+const candidate2 = [vehicle({ from: 0, to: 1, dest: 4, arr: 4105, observed: 4030 })];
 api.trtcCensusRestampBr('Y', candidate2, 4030, '2026-08-20', true);
 check(candidate2.some(v => v.source === 'board-seg' && v.vehicleId !== 'temp'),
   '候選第二輪：確認為新實體後才出生');
@@ -133,11 +178,39 @@ api.trtcCensusRestampBr('Y', reverseCold, 6000, '2026-08-20', true);
 const reverseId = reverseCold[0].vehicleId;
 const reverseRevised = [vehicle({ from: 3, to: 2, dest: 0, arr: 6060, observed: 6015, dir: 1 })];
 api.trtcCensusRestampBr('Y', reverseRevised, 6015, '2026-08-20', true);
-check(reverseRevised.length === 1 && reverseRevised[0].vehicleId === reverseId &&
-  lastResolve().directions.find(d => d.dir === 1)?.rescued.length === 1,
-  '反向驗收：里程遞減方向同樣以 bounded-rescue 保住 ID', `id=${reverseId}`);
+check(reverseRevised.some(v => v.vehicleId === reverseId && v.source === 'board-coast') &&
+  !reverseRevised.some(v => v.source === 'board-seg'),
+  '反向驗收：單輪跨整站的觀測不得搬動舊 ID，原槽位繼續有限保留', `id=${reverseId}`);
 
-// 8. 環形紀錄硬上限十分鐘。
+// 8. 最後一段不受固定 45 秒提前收車：保留到已知終點 arrEpoch，到點即收。
+for (const dir of [1, 2]) {
+  reset();
+  const last = dir === 2
+    ? [vehicle({ from: 3, to: 4, dest: 4, arr: 7120, observed: 7000, dir })]
+    : [vehicle({ from: 1, to: 0, dest: 0, arr: 7120, observed: 7000, dir })];
+  api.trtcCensusRestampBr('Y', last, 7000, '2026-08-20', true);
+  const id = last[0].vehicleId, beforeArrival = [];
+  api.trtcCensusRestampBr('Y', beforeArrival, 7060, '2026-08-20', true);
+  check(beforeArrival.some(v => v.vehicleId === id),
+    `終點退場：${dir === 2 ? '里程遞增' : '里程遞減'}方向超過 45 秒仍保留`, `until=7120`);
+  const arrived = [];
+  api.trtcCensusRestampBr('Y', arrived, 7121, '2026-08-20', true);
+  check(!arrived.some(v => v.vehicleId === id),
+    `終點退場：${dir === 2 ? '里程遞增' : '里程遞減'}方向到站後立即收車`);
+}
+
+// 9. Y 起點允許在一個停站窗內提前出現，但只能在「倒數=該段行車秒」時發車。
+reset();
+const predeparture = api.trtcBrVehiclesFromBoard('Y',
+  [{ name: 'S1', dest: 'S4', eta: 8095, at: 8000, no: '' }], 8000, '2026-08-20');
+const waiting = predeparture && api.position(api.line, predeparture[0], 8019);
+const departed = predeparture && api.position(api.line, predeparture[0], 8021);
+check(waiting?.atStation && waiting.lon === api.line.stations[0].lon,
+  'Y 起點：可提前出現，發車時刻前仍在月台');
+check(departed && !departed.atStation && departed.lon > api.line.stations[0].lon,
+  'Y 起點：倒數縮到區間行車秒後才出發');
+
+// 10. 環形紀錄硬上限十分鐘。
 api.frames.splice(0);
 api.trtcCdDiagPush('test', 'Y', 100, { n: 1 });
 api.trtcCdDiagPush('test', 'Y', 701, { n: 2 });

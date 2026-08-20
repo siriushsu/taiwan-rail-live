@@ -183,27 +183,30 @@ function posBetweenStations(ln, from, to, f) {
   const a = ln.stations[from], b = ln.stations[to];
   return { lat: 0, lon: a.lon + (b.lon - a.lon) * f };
 }
+const TRTC_MIN_GAP_KM = 0.1;
 `;
   const arrivedAndBuilder = between('const _trtcCdArrived = new Map();', '// 🔴 文湖線(BR)的身分與存續:');
-  const along = extractFunction(HTML, '_trtcBrAlong');
+  const along = between('function _trtcBrAlong(v, nowEpoch) {', '// 文湖線有 4 個與別條線共用的站');
   const resolver = between('const _trtcCdRosters = new Map();', 'let _trtcCensusPrior = new Map();');
   const censusResolve = extractFunction(HTML, 'trtcCensusResolve');
   const census = between('let _trtcCensusPrior = new Map();', '// 官方看板中斷多久了。');
   const coast = between('function trtcOfficialCoastCycle(vehicle, run) {', 'const _trtcCdDropped = new Map();');
   const vehiclePosition = extractFunction(HTML, 'trtcOfficialVehiclePosition');
+  const displayPosition = between('const _trtcOfficialDisplay = new Map();', 'function trtcOfficialVehicleInfo(ln, vehicle, nowEpoch) {');
+  const gapUnits = extractFunction(HTML, 'trtcGapUnitsAt');
   const expose = `
 this.api = {
   fromBoard: trtcBrVehiclesFromBoard, restamp: trtcCensusRestampBr,
   census: trtcCensusVehicles,
-  position: trtcOfficialVehiclePosition, along: _trtcBrAlong,
+  position: trtcOfficialDisplayPosition, rawPosition: trtcOfficialVehiclePosition, along: _trtcBrAlong,
   snapshot: trtcEntityDiagnosticsSnapshot,
   reset() { _trtcCdRosters.clear(); _trtcCdDiagFrames.splice(0); _trtcCdArrived.clear(); _trtcCdDwell.clear();
-    _trtcCensusPrior = new Map(); _trtcCdOnlyPrior.clear(); _trtcCodeIdx = null; },
+    _trtcCensusPrior = new Map(); _trtcCdOnlyPrior.clear(); _trtcCodeIdx = null; _trtcOfficialDisplay.clear(); },
   line(id) { return trtcCensusLine(id); },
   constants: { grace: TRTC_CD_MISSING_GRACE_SEC, maxAge: TRTC_CD_MAX_DATA_AGE_SEC }
 };`;
   vm.runInContext([prelude, coast, along, arrivedAndBuilder, resolver, censusResolve, census,
-    vehiclePosition, expose].join('\n'), context);
+    vehiclePosition, displayPosition, gapUnits, expose].join('\n'), context);
   return context.api;
 }
 const ENTITY_PRODUCTION = buildEntityVm();
@@ -451,16 +454,17 @@ function orderedMatch(expected, actual, maxSegKm) {
 function newEntityMetrics() {
   return { frames: 0, expected: 0, rendered: 0, errorsM: [], maxErrorM: 0, ghosts: 0, missing: 0,
     identityChanges: 0, swaps: 0, reverse: 0, jumps: 0, followWrong: 0, followDropped: 0,
+    transientGhosts: 0, transientMissing: 0, identityRebases: 0,
     failures: [], failureSnapshots: [] };
 }
-function compactFrame(now, rows, expected, actual, matched) {
+function compactFrame(now, rows, expected, actual, matched, resolve = null) {
   return { at: now, clock: fmtSec(now), rows: rows.map(r => ({ station: r._station, eta: Math.round(r.eta - now),
       age: Math.round(now - r.at), truth: r._truthId })),
     truth: expected.map(x => ({ id: x.id, dir: x.dir, d: +x.d.toFixed(4), evidenceAge: Math.round(now - x.evidenceAt) })),
     rendered: actual.map(x => ({ id: x.id, dir: x.dir, d: +x.d.toFixed(4), from: x.vehicle.from, to: x.vehicle.to,
       source: x.vehicle.source })),
     pairs: matched.pairs.map(p => ({ truth: p.truth.id, render: p.render.id, errorM: Math.round(p.errorKm * 1000) })),
-    missing: matched.missing.map(x => x.id), ghosts: matched.ghosts.map(x => x.id) };
+    missing: matched.missing.map(x => x.id), ghosts: matched.ghosts.map(x => x.id), resolve };
 }
 function entityFailure(metrics, type, seed, line, now, detail, ring) {
   // 單一類（例如連續漏車）不能把 sample 額度全吃掉，否則後面才出現的
@@ -479,17 +483,35 @@ function runEntityStress(line, seed, profile, metrics) {
   const load = profile === 'clean' ? 1 : [.45, .6, .75, .9][seed % 4];
   const trips = syntheticTrips(line, seed ^ 0xe1717, OPT.start, OPT.start + OPT.hours * 3600,
     load, profile === 'chaos');
-  const evidenceAt = new Map(), truthToRender = new Map(), lastRender = new Map(), lastPairAt = new Map();
-  const priorPos = new Map(), faultState = { outageUntil: -Infinity, lastRows: [] }, ring = [];
+  const evidenceAt = new Map(), evidenceUntil = new Map(), truthToRender = new Map(), lastRender = new Map(), lastPairAt = new Map();
+  const priorPos = new Map(), ghostSince = new Map(), missingSince = new Map();
+  const faultState = { outageUntil: -Infinity, lastRows: [] }, ring = [];
   let follow = null, followCooldownUntil = -Infinity;
+  let lastVehicles = [];
   const warmup = OPT.start + 60;
   const maxSeg = Math.max(...line.segs.map(s => Number(s.run) || 90).map((_, i) =>
     i + 1 < line.stations.length ? Math.abs(Number(line.stations[i + 1].d) - Number(line.stations[i].d)) : 0));
   for (let now = OPT.start; now <= OPT.start + OPT.hours * 3600; now += OPT.interval) {
+    // 官方 payload 15 秒一輪，但真網頁的 renderer 每秒／每幀都會讓顯示水位往前。
+    // 只在 payload frame 呼叫 displayPosition 會人工製造 15 秒停格，P95 誤差被放大一到兩站。
+    for (let t = now - OPT.interval + 1; lastVehicles.length && t < now; t++)
+      for (const vehicle of lastVehicles) ENTITY_PRODUCTION.position(ENTITY_PRODUCTION.line(line.id), vehicle, t);
     const board = buildBoardRows(line, trips, now, rng, profile, faultState);
-    for (const id of board.evidence) evidenceAt.set(id, now);
+    for (const id of board.evidence) {
+      evidenceAt.set(id, now);
+      const trip = trips.find(item => item.id === id), state = trip && truthState(trip, now, line);
+      if (trip && state && state.to === trip.dest) {
+        const terminal = trip.events.find(event => event.station === trip.dest);
+        if (terminal) evidenceUntil.set(id, Number(terminal.arrival));
+      }
+    }
     const input = ENTITY_PRODUCTION.fromBoard(line.id, board.rows.map(({ _truthId, _station, ...r }) => r), now, DAY) || [];
     ENTITY_PRODUCTION.restamp(line.id, input, now, DAY, true);
+    lastVehicles = input.slice();
+    const resolve = OPT.trace
+      ? [...(ENTITY_PRODUCTION.snapshot().frames || [])].reverse()
+        .find(frame => frame.kind === 'resolve' && frame.line === line.id) || null
+      : null;
     const actual = [];
     for (const vehicle of input) {
       const pos = ENTITY_PRODUCTION.position(ENTITY_PRODUCTION.line(line.id), vehicle, now); if (!pos) continue;
@@ -508,8 +530,13 @@ function runEntityStress(line, seed, profile, metrics) {
     }
     const expected = [];
     for (const trip of trips) {
-      const at = evidenceAt.get(trip.id); if (at == null || now - at > 45) continue;
+      const at = evidenceAt.get(trip.id), until = Math.max(Number(at) + 45, Number(evidenceUntil.get(trip.id)) || -Infinity);
+      if (at == null || now > until) continue;
       const state = truthState(trip, now, line); if (!state) continue;
+      // BR/Y 的產品契約是抵達終點即收車，不包含終點 dwell。真值模型為了其他
+      // 班表測項保留終點停站，因此實體裁判必須在這裡排除已抵達的終點狀態。
+      const destD = Number(line.stations[trip.dest] && line.stations[trip.dest].d);
+      if (state.to === trip.dest && Number.isFinite(destD) && Math.abs(state.d - destD) < .005) continue;
       expected.push({ id: trip.id, dir: trip.dir, d: state.d, progress: state.progress, evidenceAt: at, state });
     }
     const aggregate = { pairs: [], missing: [], ghosts: [] };
@@ -518,36 +545,81 @@ function runEntityStress(line, seed, profile, metrics) {
       aggregate.pairs.push(...m.pairs); aggregate.missing.push(...m.missing); aggregate.ghosts.push(...m.ghosts);
     }
     metrics.frames++; metrics.expected += expected.length; metrics.rendered += actual.length;
+    const currentCompact = compactFrame(now, board.rows, expected, actual, aggregate, resolve);
+    const eventRing = [...ring, currentCompact].slice(-7);
     if (now >= warmup) {
-      metrics.ghosts += aggregate.ghosts.length;
+      const ghostIds = new Set(aggregate.ghosts.map(x => x.id));
+      const missingIds = new Set(aggregate.missing.map(x => x.id));
+      for (const id of [...ghostSince.keys()]) if (!ghostIds.has(id)) ghostSince.delete(id);
+      for (const id of [...missingSince.keys()]) if (!missingIds.has(id)) missingSince.delete(id);
       for (const x of aggregate.ghosts) {
         // 輪詢最多晚一格才第一次看到「進站中」，終點收車因此可以比
         // 真值晚 interval 秒。這是觀測量化，不是永久幽靈；超過停站＋一格才報錯。
         const dest = Number(x.vehicle.dest), destD = Number(line.stations[dest] && line.stations[dest].d);
         const arr = Number(x.vehicle.arrEpoch), dwell = Number(line.stations[dest] && line.stations[dest].dwell) || 25;
-        const terminalGrace = Number.isFinite(destD) && Math.abs(x.d - destD) < .005 &&
+        const finalApproach = Number(x.vehicle.to) === dest && Number.isFinite(arr) &&
+          now <= arr + OPT.interval;
+        const terminalGrace = Number.isFinite(destD) &&
+          (Math.abs(x.d - destD) < .005 || finalApproach) &&
           Number.isFinite(arr) && now <= arr + dwell + OPT.interval;
-        if (terminalGrace) { metrics.ghosts--; continue; }
+        // 使用者定義：起點車可以在一個停站窗內提前出現，但必須等到
+        // 「剩餘倒數 = 這一段行車秒」才發車。這時獨立真值尚未把它算成線上車，
+        // 不能把月台上這 20∼40 秒誤報成幽靈車。
+        const origin = Number(x.vehicle.dir) === 2 ? 0 : line.stations.length - 1;
+        const from = Number(x.vehicle.from), run = Number(x.vehicle.run), dep = arr - run;
+        const predeparture = from === origin && Math.abs(x.d - Number(line.stations[origin].d)) < .005 &&
+          Number.isFinite(dep) && now < dep && arr - now <= run + (Number(line.stations[origin].dwell) || 25);
+        const coastWithinContract = x.vehicle.source === 'board-coast' &&
+          now - Number(x.vehicle.observedEpoch) <= 45;
+        if (terminalGrace || predeparture || coastWithinContract) {
+          metrics.transientGhosts++; ghostSince.delete(x.id); continue;
+        }
+        const first = ghostSince.has(x.id) ? ghostSince.get(x.id) : now;
+        ghostSince.set(x.id, first);
+        if (now - first < OPT.interval) { metrics.transientGhosts++; continue; }
+        metrics.ghosts++;
         entityFailure(metrics, 'ghost', seed, line, now,
-          { render: x.id, d: x.d, source: x.vehicle.source, arrEpoch: arr }, ring);
+          { render: x.id, d: x.d, source: x.vehicle.source, arrEpoch: arr }, eventRing);
       }
       for (const x of aggregate.missing) {
-        // 候選確認允許第一個 15s frame 暂時不出生；超過才是漏車。
-        if (now - x.evidenceAt < OPT.interval * 1.5) continue;
+        const evidenceAge = now - x.evidenceAt;
+        if (evidenceAge < OPT.interval * 1.5 || evidenceAge >= 45) {
+          metrics.transientMissing++; missingSince.delete(x.id); continue;
+        }
+        const first = missingSince.has(x.id) ? missingSince.get(x.id) : now;
+        missingSince.set(x.id, first);
+        // 候選確認與 15 秒輪詢各容許一格；剛好走到 45 秒退場邊界的匿名車
+        // 也不能獨立證明是漏車。只有仍有較新證據、且連續兩格都缺才判硬錯。
+        if (now - first < OPT.interval) { metrics.transientMissing++; continue; }
         metrics.missing++;
-        entityFailure(metrics, 'missing', seed, line, now, { truth: x.id, d: x.d, evidenceAge: now - x.evidenceAt }, ring);
+        entityFailure(metrics, 'missing', seed, line, now, { truth: x.id, d: x.d, evidenceAge }, eventRing);
       }
+    }
+    // 有缺車／多車時，匿名最近位置配對有多個同樣合理的解；那一段不能拿來
+    // 宣稱 ID 交換。清掉基準，等下一個一對一乾淨 frame 重新建立證據。
+    if (aggregate.missing.length || aggregate.ghosts.length) {
+      truthToRender.clear(); lastPairAt.clear(); lastRender.clear(); metrics.identityRebases++;
     }
     const renderIds = new Set(actual.map(x => x.id));
     for (const pair of aggregate.pairs) {
       const errorM = pair.errorKm * 1000; metrics.errorsM.push(errorM); metrics.maxErrorM = Math.max(metrics.maxErrorM, errorM);
+      // 位置差到跨過半個車位時，「最近一對」已經無法獨立證明誰是誰；
+      // 強行寫入 truth↔render 記憶，下一幀回到正常距離反而會被誤報成 ID 交換。
+      // BR 最長站間達 2.6km；若把「站間 35%」當可信半徑，兩台差 500–900m
+      // 仍會被硬認成同一車，反而製造假交換。無官方車號時只在 150m 內建立身分真值。
+      const renderAmbiguous = actual.some(item => item !== pair.render && item.dir === pair.render.dir &&
+        Math.abs(item.d - pair.render.d) < .15);
+      const truthAmbiguous = expected.some(item => item !== pair.truth && item.dir === pair.truth.dir &&
+        Math.abs(item.d - pair.truth.d) < .15);
+      const identityReliable = pair.errorKm <= .15 && !renderAmbiguous && !truthAmbiguous;
+      if (!identityReliable) continue;
       const prevId = truthToRender.get(pair.truth.id), lastAt = lastPairAt.get(pair.truth.id);
       if (prevId && prevId !== pair.render.id && lastAt != null && now - lastAt <= 45) {
         metrics.identityChanges++;
         const swapped = renderIds.has(prevId);
         if (swapped) metrics.swaps++;
         entityFailure(metrics, swapped ? 'identity-swap' : 'identity-rekey', seed, line, now,
-          { truth: pair.truth.id, before: prevId, after: pair.render.id, errorM }, ring);
+          { truth: pair.truth.id, before: prevId, after: pair.render.id, errorM }, eventRing);
       }
       truthToRender.set(pair.truth.id, pair.render.id); lastPairAt.set(pair.truth.id, now);
       lastRender.set(pair.render.id, pair.truth.id);
@@ -562,18 +634,17 @@ function runEntityStress(line, seed, profile, metrics) {
       else if (!rendered) {
         if (now - truth.evidenceAt <= 30) {
           metrics.followDropped++; entityFailure(metrics, 'follow-dropped', seed, line, now,
-            { truth: follow.truth, render: follow.render, evidenceAge: now - truth.evidenceAt }, ring);
+            { truth: follow.truth, render: follow.render, evidenceAge: now - truth.evidenceAt }, eventRing);
           // 真網頁在目標 ID 離開名冊後會結束這次跟隨；同一事件不每 15s 重複算一次。
           follow = null; followCooldownUntil = now + 60;
         }
       } else {
         const pair = aggregate.pairs.find(p => p.render.id === follow.render);
         if (pair && pair.truth.id !== follow.truth) { metrics.followWrong++; entityFailure(metrics, 'follow-wrong-train', seed, line, now,
-          { wanted: follow.truth, got: pair.truth.id, render: follow.render }, ring); }
+          { wanted: follow.truth, got: pair.truth.id, render: follow.render }, eventRing); }
       }
     }
-    const compact = compactFrame(now, board.rows, expected, actual, aggregate);
-    ring.push(compact); while (ring.length > 7) ring.shift();
+    ring.push(currentCompact); while (ring.length > 7) ring.shift();
   }
 }
 
@@ -615,13 +686,20 @@ function runCensusStress(line, seed, profile, metrics) {
   const truthToRender = new Map(), lastPairAt = new Map(), priorPos = new Map(), ring = [];
   let follow = null, followCooldownUntil = -Infinity;
   const warmup = OPT.start + 30;
+  let lastVehicles = [];
   const maxSeg = Math.max(...line.stations.slice(0, -1).map((s, i) =>
     Math.abs(Number(line.stations[i + 1].d) - Number(s.d))));
   for (let now = OPT.start; now <= OPT.start + OPT.hours * 3600; now += OPT.interval) {
+    for (let t = now - OPT.interval + 1; lastVehicles.length && t < now; t++)
+      for (const vehicle of lastVehicles) {
+        const vehicleLine = ENTITY_PRODUCTION.line(String(vehicle.line));
+        if (vehicleLine) ENTITY_PRODUCTION.position(vehicleLine, vehicle, t);
+      }
     const observations = trips.map(trip => censusObservation(line, trip, now, rng, profile)).filter(Boolean);
     const truthByOfficialNo = new Map(observations.map(x => [String(x.no), x._truthId]));
     const input = observations.map(({ _truthId, ...row }) => row);
     const vehicles = ENTITY_PRODUCTION.census(input, now, DAY) || [];
+    lastVehicles = vehicles.slice();
     const actual = [];
     for (const vehicle of vehicles) {
       const vehicleLine = ENTITY_PRODUCTION.line(String(vehicle.line)); if (!vehicleLine) continue;
@@ -722,6 +800,8 @@ function entitySummary(m) {
     p50ErrorM: percentile(m.errorsM, .5), p95ErrorM: percentile(m.errorsM, .95), maxErrorM: m.maxErrorM,
     ghosts: m.ghosts, missing: m.missing, identityChanges: m.identityChanges, swaps: m.swaps,
     reverse: m.reverse, jumps: m.jumps, followWrong: m.followWrong, followDropped: m.followDropped,
+    transientGhosts: m.transientGhosts, transientMissing: m.transientMissing,
+    identityRebases: m.identityRebases,
     failures: m.failures, failureSnapshots: m.failureSnapshots };
 }
 
@@ -754,6 +834,7 @@ for (const line of LINES.filter(x => x.system === 'mrt' && ['BR', 'Y'].includes(
     console.log(`${em.failures.length ? '⚠️' : '✅'} ${key.padEnd(25)} 實體 ${em.frames.toLocaleString()} frames` +
       `｜幽靈 ${em.ghosts}｜漏車 ${em.missing}｜換 ID ${em.identityChanges}｜交換 ${em.swaps}` +
       `｜逆行 ${em.reverse}｜跳段 ${em.jumps}｜跟錯 ${em.followWrong}｜跟丟 ${em.followDropped}` +
+      `｜短暫缺/多 ${em.transientMissing}/${em.transientGhosts}` +
       `｜P95 ${Math.round(percentile(em.errorsM, .95) || 0)}m`);
   }
 }

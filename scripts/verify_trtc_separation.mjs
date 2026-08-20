@@ -42,7 +42,8 @@ const DEPS = ['trtcOfficialRosterEnabled', 'trtcOfficialRosterActive', 'trtcOffi
   'trtcOfficialDeparturePosition', 'trtcOfficialTimelinePosition', 'trtcOfficialVehiclePosition',
   'trtcOfficialMotionStep', 'trtcOfficialPositionProgress', 'trtcOfficialPositionAtProgress',
   'trtcOfficialSegmentSeconds', 'trtcOfficialForwardLimit', 'trtcOfficialDwellAt',
-  'trtcOfficialArrivalTarget', 'trtcOfficialDwellUntil', 'trtcOfficialStopState', 'trtcOfficialDisplayPosition',
+  'trtcOfficialArrivalTarget', 'trtcOfficialDwellUntil', 'trtcOfficialStopState',
+  'trtcCdTrackDisplayOverlap', 'trtcOfficialDisplaySet', 'trtcOfficialDisplayPosition',
   'trtcGapUnitsAt', 'trtcOfficialSeparate', 'trtcOfficialRenderItems'];
 const CONSTS = ['OFFICIAL_ROSTER_ENABLED', 'TRTC_OFFICIAL_COAST_DWELL_MIN_SEC',
   'TRTC_OFFICIAL_COAST_DWELL_DEFAULT_SEC', 'TRTC_OFFICIAL_COAST_DWELL_SEC',
