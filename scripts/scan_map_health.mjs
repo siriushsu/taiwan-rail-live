@@ -33,6 +33,8 @@
 import fs from 'node:fs';
 import { chromium } from 'playwright';
 
+import { traDailyVerdict } from './lib/tra_daily_verdict.mjs';
+
 const args = process.argv.slice(2);
 const URL_ARG = args.find(a => !a.startsWith('--')) || process.env.TRTC_SCAN_URL || 'https://railisland.tw/';
 const JSON_OUT = (() => { const i = args.indexOf('--json'); return i >= 0 ? args[i + 1] : null; })();
@@ -328,6 +330,24 @@ const FEED_BAD_SEC = 1800;         // 半小時＝已經不是短暫斷訊，站
       '屬環境條件不計入離開碼', { age: official.age });
   else
     noteLoud('info', `官方即時資料源 ${official.age} 秒前更新`, { age: official.age });
+}
+
+// -1.5 台鐵今日官方車次名冊（/api/tra-daily-trains,停駛偵測的資料源）。
+// 🔴 為什麼要有這條:這個功能壞掉的樣子是**靜默的**——端點掛掉或格式變了,前端 fail-open
+//    照原樣全畫,畫面「看起來完全正常」,只是官方停駛的車又變回幽靈車。沒有哨兵就沒有人會發現。
+//    判定寫在 scripts/lib/tra_daily_verdict.mjs（獨立純函式,才做得了突變測試,見
+//    scripts/verify_tra_daily_sentinel.mjs）。
+{
+  const at = u => { const b = new URL(URL_ARG); b.pathname = u; b.search = 'cb=' + Date.now(); return b.href; };
+  const twToday = new Date(Date.now() + 8 * 3600e3).toISOString().slice(0, 10);
+  let td = null, tdStatus = null;
+  try {
+    const r = await fetch(at('/api/tra-daily-trains'), { headers: { 'cache-control': 'no-cache' } });
+    tdStatus = r.status;
+    td = await r.json();
+  } catch (e) { td = { error: e.message }; }
+  const v = traDailyVerdict(td, twToday, tdStatus);
+  noteLoud(v.level, v.msg, { status: tdStatus, date: td && td.date, count: td && td.count, updateTime: td && td.updateTime });
 }
 
 // 0. 名冊本身有沒有在換新。

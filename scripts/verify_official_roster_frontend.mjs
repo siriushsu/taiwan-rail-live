@@ -64,6 +64,7 @@ const UNIT_FUNCTIONS = [
   'trtcOfficialMotionStep', 'trtcOfficialPositionAtProgress', 'trtcOfficialSegmentSeconds', 'trtcOfficialForwardLimit', 'trtcOfficialDwellAt',
   'trtcOfficialArrivalTarget', 'trtcOfficialDwellUntil', 'trtcOfficialStopState',
   'trtcOfficialDirectionPrevious', 'trtcOfficialDirectionAnchor',
+  'trtcCdTrackDisplayOverlap', 'trtcOfficialDisplaySet',
   'trtcOfficialDisplayPosition', 'trtcOfficialVehicleInfo',
   'trtcOfficialRenderItems', 'trtcOfficialVehicleGlyph', 'trtcOfficialSameTarget', 'dirAngOf',
   // 契約 5/6(2026-08-18):跨車順序與最小間距。放進同一個 bundle,否則 renderItems 會 ReferenceError。

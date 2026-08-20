@@ -17,7 +17,11 @@ const ck = (ok, msg) => { console.log((ok ? '  ✓ ' : '  ✗ ') + msg); if (!ok
 const br = await chromium.launch();
 
 // 兩邊看到完全一樣的即時名單：固定 payload，且刻意不含我們要驗的車次（＝該車誤點 0）
-const LIVE = { at: '2026-07-31T00:00:00+08:00', trains: [{ no: '__none__', delay: 3 }] };
+// 🔴 at 必須是「現在」，不能寫死一個過去的日期：2026-08-20 起 liveDataAgeMs() 改用上游時戳
+// （at）判資料齡，寫死的舊日期會讓 liveActive() 直接關掉，變成「兩邊都沒有即時校正」的假通過
+// （同本檔上方那條「撥到過去會把即時校正整層關掉」的理由，只是換成從資料齡那一側發生）。
+// 兩棵樹共用同一顆 LIVE 物件 ⇒ A/B 仍然公平。
+const LIVE = { at: new Date().toISOString(), trains: [{ no: '__none__', delay: 3 }] };
 
 async function capture(url, pin) {
   const pg = await br.newPage({ viewport: { width: 1280, height: 800 } });

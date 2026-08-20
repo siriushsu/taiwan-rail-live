@@ -320,6 +320,7 @@ export async function verifyRelease({
   out = defaultOut,
   expectLicensedMusic,
   expectLicensedBasemaps,
+  expectMetroCore,
   expectPlusSandboxBuild = process.env.RAIL_PLUS_SANDBOX_OK === '1'
     ? String(process.env.RAIL_PLUS_SANDBOX_BUILD || '') : null,
   skipNativeSyncCheck = false
@@ -392,6 +393,9 @@ export async function verifyRelease({
 
   const musicEnabled = html.includes('window.RAIL_MUSIC_AVAILABLE=true');
   const basemapsEnabled = html.includes('window.RAIL_ONLINE_BASEMAPS_AVAILABLE=true');
+  const metroCoreMatch = /window\.RAIL_METRO_CORE_ENABLED=(true|false)/.exec(html);
+  assert(metroCoreMatch, '所有 build 都必須明確注入 window.RAIL_METRO_CORE_ENABLED');
+  const metroCoreEnabled = metroCoreMatch[1] === 'true';
 
   if (expectLicensedMusic !== undefined) {
     assert(musicEnabled === expectLicensedMusic, '音樂功能旗標與本次 build 模式不一致');
@@ -399,6 +403,11 @@ export async function verifyRelease({
   if (expectLicensedBasemaps !== undefined) {
     assert(basemapsEnabled === expectLicensedBasemaps, '線上底圖旗標與本次 build 模式不一致');
   }
+  if (expectMetroCore !== undefined) {
+    assert(metroCoreEnabled === expectMetroCore, 'Metro Core 旗標與本次 build 模式不一致');
+  }
+  assert(html.includes('window.RAIL_METRO_CORE_ENABLED === true'),
+    'App 內的 index.html 沒有讀取 Metro Core 發版旗標');
 
   // 版本號對**所有** build 模式都必須注入(不是只有授權底圖 build)——App 內的更新提示與評分
   // 全靠它判斷「手上這顆是哪一版」。刻意寫在模式分支之外:放進安全 build 的條件裡就漏掉另一半。

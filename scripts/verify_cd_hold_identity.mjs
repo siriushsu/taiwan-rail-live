@@ -1,5 +1,6 @@
-// 官方逐班追蹤契約:「這一輪切不出車」是缺訊,只能 hold,不准清名冊。
-// 清掉的後果是下一輪整線拿到全新 id ⇒ 跟車中斷、位置整批跳,正是使用者最在意的那個病。
+// 有限缺訊契約：一兩輪（<=30 秒）切不出車時保留名冊，恢復後仍接回原 ID；
+// 超過 45 秒則由 verify_trtc_entity_lifecycle.mjs 驗證退場，避免舊車永久卡站。
+// 短缺批立刻清掉的後果是下一輪整線拿到全新 id ⇒ 跟車中斷、位置整批跳。
 // 兩組同時跑、同一份正式站即時資料,只差程式碼:
 //   對照 = ce9bb79(有這個 bug)   修法 = 本工作樹
 // 做法:實際把某線的倒數建車 stub 成回空陣列一輪以上,再恢復,比對「車還是不是同一批」。
@@ -8,7 +9,7 @@ import { chromium } from 'playwright';
 import fs from 'node:fs';
 import { execFileSync } from 'node:child_process';
 const LINE = process.argv.find(a => /^(BR|Y)$/.test(a)) || 'Y';
-const PHASE = Number(process.argv.find(a => /^\d+$/.test(a)) || 75);
+const PHASE = Number(process.argv.find(a => /^\d+$/.test(a)) || 30);
 // 停站秒樣本數的量測掛鉤由腳本注入,不留在正式程式碼裡。兩組都注入才比得了。
 const HOOK_AT = '  if (hopObs.length >= ';
 const withHook = src => {
@@ -56,7 +57,7 @@ async function run(html, label) {
   if (hop) say(`     停站秒樣本數：${Object.entries(hop).map(([k, v]) => k + ':' + v).join('  ')}`);
   return { label, A: A.length, B: B.length, inter, ratio, hop, log: L };
 }
-console.log(`缺訊只 hold、不清名冊：兩組同時跑，${LINE} 線 stub 成空 ${PHASE}s 再恢復 ${PHASE}s`);
+console.log(`短缺訊保身分：兩組同時跑，${LINE} 線 stub 成空 ${PHASE}s 再恢復 ${PHASE}s`);
 const res = await Promise.all([['對照(ce9bb79)', BASE], ['修法', CUR]].map(([l, h]) => run(h, l)));
 for (const r of res) for (const s of r.log) console.log(s);
 const [c, f] = res;

@@ -67,7 +67,8 @@ const FUNCTIONS = [
   'trtcOfficialTimelinePosition', 'trtcOfficialVehiclePosition',
   'trtcOfficialPositionProgress', 'trtcOfficialMotionStep', 'trtcOfficialPositionAtProgress',
   'trtcOfficialSegmentSeconds', 'trtcOfficialForwardLimit', 'trtcOfficialDwellAt', 'trtcGapUnitsAt',
-  'trtcOfficialArrivalTarget', 'trtcOfficialDwellUntil', 'trtcOfficialStopState', 'trtcOfficialDisplayPosition',
+  'trtcOfficialArrivalTarget', 'trtcOfficialDwellUntil', 'trtcOfficialStopState',
+  'trtcCdTrackDisplayOverlap', 'trtcOfficialDisplaySet', 'trtcOfficialDisplayPosition',
 ];
 const CONSTS = ['TRTC_OFFICIAL_COAST_DWELL_MIN_SEC', 'TRTC_OFFICIAL_COAST_DWELL_DEFAULT_SEC',
   'TRTC_OFFICIAL_COAST_DWELL_SEC', 'TRTC_OFFICIAL_RESYNC_MIN_COAST_SEC', '_trtcOfficialResync',
