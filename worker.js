@@ -5294,7 +5294,10 @@ async function traDailyTrains(request, env) {
   const today = twToday();                                   // 台北營運日(時區錨定契約)
   const ymd = today.replace(/-/g, '');
   try {
-    if (!traDailyMem || traDailyMem.date !== today || Date.now() - traDailyMemAt > traDailyTtlMs(env)) {
+    // `>=` 而不是 `>`:TTL=0 的語意是「不要記憶、每次都重抓」,用 `>` 的話同一毫秒內的第二次呼叫
+    // (0 > 0 為假)會靜默走記憶體快取——驗收腳本正是靠 TTL=0 去測「上游掛掉退回舊名冊」那條分支,
+    // 而本機 fixture 快到常常同毫秒 ⇒ 那條斷言五次裡有四次根本沒測到它以為在測的東西。
+    if (!traDailyMem || traDailyMem.date !== today || Date.now() - traDailyMemAt >= traDailyTtlMs(env)) {
       const ua = { 'user-agent': 'railisland/1.0 (+https://railisland.tw)' };
       const lr = await fetch(traOdsListUrl(env), { headers: ua, redirect: 'manual' });
       if (!lr.ok) throw new Error('ods list ' + lr.status);
@@ -5315,9 +5318,17 @@ async function traDailyTrains(request, env) {
       traDailyMem = { date: today, updateTime: String((raw && raw.UpdateTime) || ''), count: trains.length, trains };
       traDailyMemAt = Date.now();
     }
-    const res = jsonRes(traDailyMem, 200, 'public, s-maxage=1800, stale-while-revalidate=21600');
-    await edge.put(cacheKey, res.clone());
-    return res;
+    // 🔴 不可以用 `edge.put(cacheKey, res.clone())` 再 `return res`:clone 是把同一條 body
+    // 串流【分流】給兩個讀者,快取那一份還沒寫完時,緊接著進來的請求 edge.match 就會拿到
+    // **半寫入的空 body**(2026-08-20 升正式站當下實測到:冷啟填快取後 151ms 的下一發回空字串,
+    // 前端 JSON.parse 失敗 ⇒ 整個停駛偵測那一輪靜默不生效)。
+    // 正解:先把 body 定成一個不可變字串,再各自造兩個獨立 Response——完全沒有分流。
+    const body = JSON.stringify(traDailyMem);
+    const mk = () => new Response(body, { status: 200, headers: {
+      'content-type': 'application/json; charset=utf-8',
+      'cache-control': 'public, s-maxage=1800, stale-while-revalidate=21600' } });
+    await edge.put(cacheKey, mk());
+    return mk();
   } catch (e) {
     // 同一天稍早抓到的舊名冊仍然可用:官方一天最多改幾次,舊名冊頂多少掉「今天剛加開的那班」,
     // 不會把在跑的車誤判成停駛(誤判方向是安全的那一側)。跨日或從未抓到 → 502,前端 fail-open。

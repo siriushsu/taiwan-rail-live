@@ -5,12 +5,19 @@
 //
 // TRA_DAILY_TTL_MS_OVERRIDE=0 讓每次呼叫都重抓,否則 30 分鐘的 mem 會讓第 2 個情境之後全部走快取,
 // 「上游掛掉退回舊名冊」那條分支永遠測不到(批次 1 學到的:等 TTL 到期不是辦法)。
+import { readFileSync } from 'node:fs';
 import { createServer } from 'node:http';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-globalThis.caches = { default: { match: async () => undefined, put: async () => {} } };
+// 會真的把 body 讀出來存起來的假快取。真 Workers 的 cache.put 也會讀 body,
+// 用「永遠回 undefined、put 什麼都不做」的假物件,等於整條快取路徑一次都沒被執行過。
+const putLog = [];
+globalThis.caches = { default: {
+  match: async () => undefined,                       // 保持 miss,讓每個情境都走完整路徑
+  put: async (_k, res) => { putLog.push(await res.text()); },
+} };
 const worker = (await import(path.join(ROOT, 'worker.js'))).default;
 
 let fail = 0;
@@ -96,6 +103,18 @@ ck(good.count === 120 && good.trains.length === 120, `count=${good.count} 與 tr
 ck(good.updateTime === '2026-08-18 14:38:08', `updateTime 原樣帶出=${good.updateTime}`);
 ck(good.trains[0] === '1000' && typeof good.trains[0] === 'string', `車次是字串「${good.trains[0]}」`);
 ck(/s-maxage=1800/.test(r.cc || ''), `快取標頭 ${r.cc}`);
+// 🔴 2026-08-20 正式站實測到的 bug:原本是 `edge.put(key, res.clone())` 然後 `return res`,
+// clone 是把同一條 body 串流【分流】給兩個讀者 ⇒ 冷啟填快取後緊接著的請求會拿到半寫入的空 body
+// (實測 151ms 後那一發回空字串,前端 JSON.parse 失敗、停駛偵測整輪靜默不生效)。
+// 這兩條守的是「交給快取的那份與回給使用者的那份,都是完整且相同的內容」。
+{
+  const cached = putLog[putLog.length - 1];
+  ck(!!cached && cached.length > 0, `交給快取的 body 非空(${cached ? cached.length : 0} bytes)`);
+  let parsed = null; try { parsed = JSON.parse(cached); } catch (e) {}
+  ck(parsed && parsed.count === 120 && parsed.trains.length === 120,
+    `交給快取的 body 是完整的同一份(count=${parsed ? parsed.count : '解析失敗'})`);
+  ck(cached === JSON.stringify(r.body), `快取那份與回給使用者那份逐字相同`);
+}
 
 // W4 上游逐日檔 500 → 退回同日舊名冊(200),內容逐字相同
 mode = 'day-500';
@@ -114,5 +133,23 @@ r = await call();
 ck(r.status === 200 && r.body.count === 120, `空回應沒有污染 mem(仍是 120 班,不是 0 班)`);
 
 srv.close();
+// 🔴 結構性斷言。上面那三條在 Node 裡對「舊的 clone 寫法」也會通過——Node 的 clone 分流是好的,
+// 測不出 Workers 執行期的行為。真正擋得住回歸的是「原始碼裡不准再出現那個寫法」:
+// 交給 cache.put 的必須是獨立造出來的 Response,不能是回給使用者那顆的 clone。
+{
+  const src = readFileSync(new URL('../worker.js', import.meta.url), 'utf8');
+  const raw = src.slice(src.indexOf('async function traDailyTrains'),
+                        src.indexOf('async function thsrSchedule'));
+  // 🔴 先把註解剝掉再比對。第一版沒剝,結果比中的是【我自己寫在註解裡的那句反例】
+  // (「不可以用 edge.put(cacheKey, res.clone())」),程式碼其實早就改對了 ⇒ 假紅。
+  const fn = raw.split('\n').filter(l => !/^\s*\/\//.test(l)).join('\n');
+  ck(fn.length > 200, `抓得到 traDailyTrains 函式本體(剝註解後 ${fn.length} bytes)`);
+  ck(/clone\(\)/.test(raw) && !/clone\(\)/.test(fn), '註解確實被剝掉了(反例句子只在註解裡)');
+  ck(!/edge\.put\([^)]*\.clone\(\)/.test(fn),
+    '沒有把回給使用者那顆的 clone 交給快取(clone 會分流同一條 body 串流)');
+  ck(/const body = JSON\.stringify/.test(fn) && /await edge\.put\(cacheKey, mk\(\)\)/.test(fn),
+    '走的是「body 先定成不可變字串、再各造兩個獨立 Response」');
+}
+
 console.log(fail ? `\nFAIL ${fail}` : '\n✅ worker 側全部通過');
 process.exit(fail ? 1 : 0);
