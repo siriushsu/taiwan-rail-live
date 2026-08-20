@@ -1749,6 +1749,15 @@
   .board .row:first-of-type { border-top: 0; }
   .board .row[data-no], .board .row[data-rand], .board .row[data-li], .board .row[data-guide], .board .row[data-ev] { cursor: pointer; }
   .board .row[data-no]:hover, .board .row[data-rand]:hover, .board .row[data-li]:hover, .board .row[data-guide]:hover, .board .row[data-ev]:hover { background: var(--bg-stage); }
+  /* 停駛列(台鐵):官方今日名冊裡沒有這班(見 applyTraDailyDelta)。車已從地圖名冊移除,看板仍列出來——
+     整班消失跟「這時段本來就沒車」長得一樣,使用者分不出「我要搭那班停駛了」。刻意不掛 data-no,
+     上面兩條規則因此自動不給 cursor:pointer 與 hover 底色,不必另寫關閉規則。 */
+  .board .row.off { opacity: .66; }
+  .board .row.off .t { text-decoration: line-through; text-decoration-thickness: 1.5px; }
+  .board .row.off .min {
+    color: var(--warn-ink); font-weight: 800; background: var(--warn-bg);
+    border: 1px solid var(--warn-line); border-radius: 3px; padding: 0 4px 1px;
+  }
   /* 活動列(車站看板):整列是連往官方原文的 <a>,故不用 .row 的 JS 點擊路徑 */
   .board .ev-rows { margin: 6px 0 2px; }
   .board .ev-row { display: flex; flex-wrap: wrap; align-items: baseline; gap: 3px 7px; padding: 6px 8px; margin-bottom: 4px;
@@ -3831,6 +3840,7 @@
            內容 li 上限 8 條(li.grp 是標題不算)。 -->
       <ul class="foot-list foot-recent">
         <li class="grp">最近更新</li>
+        <li data-cl-of="tradaily"><span class="d">8/20</span><span>台鐵今日官方公告停駛的班次不再出現在地圖上，車站看板仍會列出並標示「停駛」</span></li>
         <li data-cl-of="livefresh"><span class="d">8/20</span><span>台鐵的「LIVE」標示不再在官方資料中斷時繼續宣稱即時：資料超過五分鐘沒更新就改標灰色「推估」，超過三十分鐘不再套用那份過期的誤點；裝置時鐘明顯不準時也會改標「推估」</span></li>
         <li data-cl-of="cdarrivestamp"><span class="d">8/19</span><span>文湖線與環狀線的列車不會再整批往前跳一站、下一輪又整批退回來：被退回的那台會凍在原地等，後面的車追上來就擠成一團，現在這個來回跳沒有了</span></li>
         <li data-cl-of="brsametrain"><span class="d">8/19</span><span>文湖線不會再把前後兩台車併成一台：併掉的那台會補回地圖上，原本被併的那台也不會再卡在原地被後車追上、擠成一團</span></li>
@@ -3847,7 +3857,6 @@
         <li data-cl-of="orangebranch"><span class="d">8/16</span><span>中和新蘆線共線段不再冒出重複列車與沒有車號的車</span></li>
         <li data-cl-of="badgescope"><span class="d">8/16</span><span>「台」「高」不再顯示捷運的「官方即時」標示；捷運收班後改標「已收班」</span></li>
         <li data-cl-of="zuoyingalias"><span class="d">8/16</span><span>台鐵左營站不再分成「左營」與「左營(舊城)」兩顆，看板正常顯示；新城站同步修正（謝謝網友回報）</span></li>
-        <li data-cl-of="danhaifireworks"><span class="d">8/15</span><span>淡水漁人碼頭煙火的三個週日（8/16、8/23、8/30），淡海輕軌畫面依官方公告調整：傍晚起綠山線班距拉長、五點後崁頂那一段停駛，藍海線改跑密集班距</span></li>
       </ul>
       <!-- 第二層:完整歷史。刻意不掛 .foot-box 類名——placeFootBoxes() 用
            `.site-foot .foot-box` 搬移面板,巢狀同名會被當成另一個盒子一起搬走。 -->
@@ -3868,6 +3877,7 @@
         <li><span class="d">7/10</span><span>高鐵、桃園機捷、淡海輕軌、安坑輕軌加入路網</span></li>
         <li><span class="d">7/10</span><span>環島觀光列車一分為二：往東「山海號」、往西「平原號」</span></li>
         <li class="grp">即時動態與誤點</li>
+        <li data-cl="tradaily"><span class="d">8/20</span><span>台鐵今天官方公告停駛的車不會再出現在地圖上：打包的台鐵班表是預先抓好的快照，官方之後宣布停駛我們看不到，那班車照樣在地圖上跑完全程。現在開機時會跟官方今日班表對一次，停駛的車不畫；車站看板仍然把它列出來、標成「停駛」並把時刻畫掉，你才分得出「我要搭的那班取消了」和「這個時段本來就沒車」。官方當天才加開的班次目前只記錄不畫——實測那些多半是只給起訖兩站的專列，硬畫出來會變成一台在兩個遠站之間亂走的車</span></li>
         <li data-cl="livefresh"><span class="d">8/20</span><span>台鐵即時誤點的「LIVE」標示改看資料本身的時間戳：以前只要每分鐘還連得上伺服器就一直亮綠燈，但官方資料來源偶爾會整批中斷一個多小時（近期實測三次，每次 65 到 95 分鐘、都在週一早尖峰），那段期間畫面套的其實是一小時前的誤點、標示卻仍寫著即時。現在資料超過五分鐘沒更新就改標灰色「推估」，超過三十分鐘就不再套用，列車回到時刻表上的位置；把游標移到標示上會說明是哪一種情況。另外，如果裝置本身的時鐘和實際時間差超過一分半，也會改標「推估」——那種時候「現在幾點」本身就是錯的，誤點再準也對不上</span></li>
         <li data-cl="trtccountdown"><span class="d">8/18</span><span>台北捷運列車位置改回官方即時：之前因為位置會疊車、會不見，曾暫時退回用班表推估；現在回到官方資料。文湖線官方沒有給車號，改用各站的官方倒數推算車在哪兩站之間，比原本那個來源新兩到四分鐘；同向前後車也不會再互相穿越或黏在一起。車會一路跟到終點站才收車，不會在快到終點的那一段提早不見。北捷隨時在修正到站倒數，改得多的時候畫面會在幾秒內把車對回官方位置，並跟你說一聲是官方訂正。另外修好一個毛病：只要有一台車的資料不完整，整張列車名單就會被丟掉、全網的車一起停在舊畫面（實測每十一輪會發生一次），現在不會了。（8/18 傍晚先暫時退回班表推估：實測位置每十幾秒會跳一次、跳幅 100–500 公尺，等根因修好再開回來，車站到站倒數一直都是官方即時不受影響）</span></li>
         <li data-cl="thsrwindow"><span class="d">8/17</span><span>高鐵班表曾經停在前一天（8/17 早上）：當天才有的班次整批看不到，前一天才有的則變成停不下來的幽靈車。現在班表一次抓七天，並且每五分鐘自動檢查一次今天的班表在不在，不在就立刻補抓（謝謝網友回報）</span></li>
@@ -4386,7 +4396,7 @@
 //         CSP 的 connect-src 要一起放行 tiles.openfreemap.org——向量圖磚走 fetch 不走 img。
 // v0819g：北捷起點站等發車的車不再被回推規則丟掉；行進方向改由官方倒數順序決定(dest 次之、
 //         dir 欄位最後)；倒數站＝官方報的站時，到站時刻不再被套到下一站(超前一整段)。
-const BUILD = 'v0820a';
+const BUILD = 'v0820b';
 // 2026-08-13 起預設開啟（使用者親試預覽後裁示上線）：北捷畫車依官方即時名冊，班表只是備案。
 // 保留 ?officialroster=0 當逃生口——要退回班表路徑不必回滾部署，加個參數即可對照。
 // 🔴 這個函式會被 verify_official_roster_frontend 抽出來丟進 VM 單獨執行——
@@ -11540,7 +11550,11 @@ function loadSystem(sys) {
       : sys.live
       ? ('資料來源：台鐵官方 OpenData（ods.railway.gov.tw）每日時刻表' + (sys.data.date ? '（' + sys.data.date + '）' : '') +
         '，共 ' + state.trains.length + ' 車次；即時誤點資料介接「交通部TDX平臺」（每分鐘更新，回到現在時刻自動套用）。' +
-        '列車依真實時刻表運行，沿實際路線經過中途各站（少數支線區段為直線近似）。點地圖上的車站可看即將停靠的班次。')
+        '列車依真實時刻表運行，沿實際路線經過中途各站（少數支線區段為直線近似）。點地圖上的車站可看即將停靠的班次。' +
+        // 打包的班表是預抓快照,官方之後停駛的車我們原本會照畫;現在開機時對一次官方今日名冊把它們拿掉。
+        // 只在真的有停駛時出現 ⇒ 平常這句文案逐字與改動前相同。
+        (state.traDaily && state.traDaily.cancelled
+          ? '本日官方公告停駛 ' + state.traDaily.cancelled + ' 班，已不在地圖上運行，車站看板仍會列出並標示「停駛」。' : ''))
       : ('資料來源：交通部TDX平臺 高鐵每日時刻表' + (sys.data.date ? '（' + sys.data.date + '）' : '') +
         '，共 ' + state.trains.length + ' 車次；列車依當日真實時刻表運行，沿高鐵路線行駛（南港－左營）。' +
         '停駛／營運異常時上方橫幅會顯示高鐵公告。點地圖上的車站可看即將停靠的班次。');
@@ -20841,20 +20855,25 @@ function renderBoard() {
   if (state.mode !== 'sched') { renderFreqBoard(el, st, state.lines, false); return; } // 捷運/輕軌分頁走獨立邏輯,sched(台鐵/高鐵)以下維持原樣
   if (st.sys === 'deco') { renderFreqBoard(el, st, state.decoLines, true); return; } // 全台同框:點裝飾層捷運站,同款看板但讀 decoLines(無 state.visible 個別開關)
   const rows = [];
-  for (const tr of state.trains) {
+  // 停駛車已從 state.trains 移除(地圖完全不畫),看板這邊再併回來標「停駛」。
+  // 只在台鐵板併,而且是新陣列,不動 state.trains 本身。
+  const pool = (st.sys === 'tra_sched' && state.traCancelled && state.traCancelled.length)
+    ? state.trains.concat(state.traCancelled) : state.trains;
+  for (const tr of pool) {
     const stops = tr.stops;
     for (let i = 0; i < stops.length; i++) {
       const s = stops[i];
       if (s.name !== st.name || s.stop === false || tr.sys !== st.sys) continue; // 同框:只列該站所屬系統的班次
       const isLast = i === stops.length - 1;
       if (tr.loop && isLast) continue; // 環島車的末站=起點,同站已有發車列,不重複列「終點到達」
-      const dl = Math.round(liveDelaySec(tr) / 60);
+      const off = tr._cancelled === true;
+      const dl = off ? 0 : Math.round(liveDelaySec(tr) / 60);   // 停駛車不談誤點
       // 山海/平原號一輪來回 12 小時=同站每日多個時刻(去程/回程×兩輪),每個都要上看板
       for (const t of (tr.loop ? [s.depSec, s.depSec + tr.loopSec] : [isLast ? s.arrSec : s.depSec])) {
         let dtm = t + dl * 60 - state.simSec; // 誤點車以估計實際時刻排序/倒數
         if (dtm > 43200) dtm -= 86400; else if (dtm < -43200) dtm += 86400; // 跨午夜換日對齊
         if (dtm < -30 || dtm > 3 * 3600) continue; // 未來 3 小時內
-        rows.push({ tr, t, dtm, dl, isLast, dest: stops[stops.length - 1].name,
+        rows.push({ tr, t, dtm, dl, isLast, off, dest: stops[stops.length - 1].name,
           loopDest: tr.loop ? (i < tr.loopApexIdx ? stops[tr.loopApexIdx].name : stops[0].name) : null });
       }
     }
@@ -20862,13 +20881,14 @@ function renderBoard() {
   rows.sort((a, b) => a.dtm - b.dtm);
   // 拉到大段(88%)就多給班次:否則多出來的高度只是一片空白紙(段高切換時 setSheetSize 會重繪本板)
   const list = rows.slice(0, el.classList.contains('expand') ? 24 : 12).map(r => {
-    const min = r.dtm < 60 ? '即將' : Math.round(r.dtm / 60) + ' 分';
+    const min = r.off ? '停駛' : r.dtm < 60 ? '即將' : Math.round(r.dtm / 60) + ' 分';
     const dest = r.tr.loop ? '往 ' + r.loopDest : (r.isLast ? '（終點到達）' : '往 ' + r.dest);
-    return `<div class="row" data-no="${r.tr.train}" data-sys="${r.tr.sys || ''}" title="跟隨 ${r.tr.train} 次"><span class="dot" style="background:${r.tr.color}"></span>` +
+    // 停駛列不掛 data-no/title:點了不該去跟一台不存在的車(followTrainNo 也找不到它)
+    return `<div class="row${r.off ? ' off' : ''}"${r.off ? '' : ` data-no="${r.tr.train}" data-sys="${r.tr.sys || ''}" title="跟隨 ${r.tr.train} 次"`}><span class="dot" style="background:${r.tr.color}"></span>` +
       // 「推算」標貼著時刻放(被推算的是時間不是路線),與 lateTag 同位、不會同時出現(est 車無誤點資料);
       // 放 dest 欄會把「（終點到達）」擠成「(…」(280px 看板實測)。
       `<b>${r.tr.train}</b><span class="dest">${r.tr.loop ? r.tr.loopName : r.tr.typeName}　${dest}</span>` +
-      `<span class="t">${fmtHM(r.t % 86400)}${r.tr.est ? '<span class="estTag">推算</span>' : r.dl > 0 ? `<span class="lateTag">+${r.dl}</span>` : ''}</span><span class="min">${min}</span></div>`;
+      `<span class="t">${fmtHM(r.t % 86400)}${r.off ? '' : r.tr.est ? '<span class="estTag">推算</span>' : r.dl > 0 ? `<span class="lateTag">+${r.dl}</span>` : ''}</span><span class="min">${min}</span></div>`;
   }).join('');
   const fav = isFavStation(st);
   // 共構站(台北/板橋/南港…)台鐵/高鐵各自成板,標題標系統才分得清這張是誰的
@@ -20882,7 +20902,10 @@ function renderBoard() {
     `<button class="close" id="boardClose">×</button></h3>` + stnMetaHtml(st) + eventRowsHtml(st) +
     // 林鐵站不可沿用台鐵誤點文案:群組視圖 liveActive 為真(台鐵 live 在場)但林鐵根本無即時介接,
     // 顯示「已依即時誤點推估」等於謊稱有校正(使用者截圖抓到);觀日列車另以列上「推算」標記標示。
-    `<div class="sub">接下來 3 小時會有誰來 · ${st.sys === 'afr_sched' ? '依林鐵官方時刻表（無即時資訊）' : liveFresh() ? '已套用台鐵即時誤點' : liveActive() ? '已依即時誤點推估' : '依時刻表（無誤點資訊）'} · 點班次跟隨</div>` +
+    `<div class="sub">接下來 3 小時會有誰來 · ${st.sys === 'afr_sched' ? '依林鐵官方時刻表（無即時資訊）' : liveFresh() ? '已套用台鐵即時誤點' : liveActive() ? '已依即時誤點推估' : '依時刻表（無誤點資訊）'}${
+      // 有停駛才多這一段;零停駛時整條副標與改動前逐字相同
+      st.sys === 'tra_sched' && state.traDaily && state.traDaily.cancelled
+        ? ' · 今日官方停駛 ' + state.traDaily.cancelled + ' 班' : ''} · 點班次跟隨</div>` +
     (list || '<div class="empty">此時段無停靠班次</div>');
   el.hidden = false;
   updateSheetOpenClass();
@@ -21820,6 +21843,77 @@ function resolveScheduleDay(data) {
   return { ...data, trains, date: key, _schedDay: key, _schedStale: stale };
 }
 
+// ── 台鐵今日停駛偵測(2026-08-20)────────────────────────────────────────────────
+// 打包的台鐵班表是 npm run fetch-schedule 預抓 14 天的快照。官方在那之後停駛的車,我們照樣
+// 畫完全程——畫面上就是一台不存在的車。/api/tra-daily-trains 回官方「今天」的車次名冊
+// (只有車次號,約 5KB;官方原始檔是 2MB),差集就是停駛與加開。
+//
+// 刻意的邊界,每一條都是「少做」而不是「猜」:
+//  - **只處理停駛**(不畫車＋看板標示)。加開只計數不畫:實測官方加開多是 Type=4 專列,
+//    只給起訖兩站、Line=0,合成幾何會畫出一台在兩個遠站之間亂走的車,那是製造新的錯。
+//  - **只在 bundle 挑到的營運日就是今天時才套用**。班表過期退到「同週幾最近日」時,官方
+//    今日名冊與畫面上的名冊根本不是同一天,差集沒有意義。
+//  - **跨午夜借進來的昨夜車(_prevNight)不判**:官方清單頁只列今天起的日子,昨天的名冊拿不到。
+//  - **守門驗的是「這份檔是不是同一個路網的」,不是「停駛幾班」**(心得 35:判準寫是什麼、
+//    不寫有幾個)。官方名冊有一半以上車次我們認得,才承認它;真的大量停駛(颱風)就照官方套用,
+//    不用比例上限把它擋掉——那等於用魔術數字否決官方資料。
+//    唯一的量級守門是「官方名冊小於 100 班一律當檔案有問題」:真的全線停駛時公告橫幅會講,
+//    而畫多(有車卻沒開)與畫少(整片消失)相比,後者使用者無從察覺,寧可錯在前者。
+const TRA_DAILY_MIN_COUNT = 100;     // 官方名冊少於這個量級 → 視為檔案有問題,不套用
+const TRA_DAILY_MIN_OVERLAP = 0.5;   // 官方名冊至少這個比例我們認得 → 才承認是同一個路網
+
+// 純函式,抽出來讓驗收不必起瀏覽器就能餵各種名冊組合。
+// roster＝畫面上的今日名冊(sys.data.trains);daily＝/api/tra-daily-trains 回應;schedDay＝名冊的營運日。
+function traDailyDelta(roster, daily, schedDay) {
+  const no = r => ({ ok: false, reason: r, cancelled: [], added: [] });
+  if (!daily || !Array.isArray(daily.trains) || !daily.trains.length) return no('沒有官方名冊');
+  if (!schedDay || daily.date !== schedDay) return no('營運日對不上(官方 ' + daily.date + '、畫面 ' + schedDay + ')');
+  if (daily.trains.length < TRA_DAILY_MIN_COUNT) return no('官方名冊只有 ' + daily.trains.length + ' 班,視為檔案有問題');
+  if (!Array.isArray(roster) || !roster.length) return no('畫面上沒有名冊');
+  const off = new Set(daily.trains.map(String));
+  // 🔴 排除我們自己合成的虛構班次(山海號 8888／平原號 8889,buildLoopTrains 造的 loop 車):
+  // 官方名冊裡永遠不會有它們,不排除就會每天被判成「停駛」而消失。目前 buildLoopTrains 恰好在
+  // 本函式之後才跑,所以現況不會中——但那是**順序上的巧合**,不是保證,順序一改就靜默壞掉。
+  const own = roster.filter(t => t && t.stops && !t.stops._prevNight && !t.loop);
+  const ownNo = new Set(own.map(t => String(t.train)));
+  let hit = 0;
+  for (const n of off) if (ownNo.has(n)) hit++;
+  if (hit / off.size < TRA_DAILY_MIN_OVERLAP)
+    return no('官方名冊只認得 ' + hit + '/' + off.size + ' 班,格式或路網可能已變');
+  return {
+    ok: true, reason: '',
+    cancelled: own.filter(t => !off.has(String(t.train))),
+    added: [...off].filter(n => !ownNo.has(n)),
+    stats: { roster: own.length, official: off.size, hit },
+  };
+}
+
+// 套用:停駛車從名冊整個移除,另存一份給看板列。**刻意不留在 state.trains 裡加旗標**——
+// 那會讓每一條畫車/數車/跟車/成就路徑都得記得跳過它,漏一處就是幽靈車(本專案踩過的整個家族)。
+function applyTraDailyDelta(sys, daily) {
+  state.traDaily = { date: daily && daily.date, updateTime: (daily && daily.updateTime) || '',
+    ok: false, reason: '', cancelled: 0, added: 0 };
+  state.traCancelled = [];
+  if (!sys || !sys.data || !Array.isArray(sys.data.trains)) return;
+  const r = traDailyDelta(sys.data.trains, daily, sys.data._schedDay);
+  state.traDaily.ok = r.ok; state.traDaily.reason = r.reason;
+  if (!r.ok) { if (daily) console.warn('[台鐵今日名冊] 不套用:' + r.reason); return; }
+  state.traDaily.cancelled = r.cancelled.length;
+  state.traDaily.added = r.added.length;
+  state.traDaily.addedNos = r.added.slice(0, 20);
+  if (r.cancelled.length) {
+    const dead = new Set(r.cancelled);
+    sys.data.trains = sys.data.trains.filter(t => !dead.has(t));
+    // applySchedSystems 只對留在名冊裡的車補 tr.sys,這批已經被移出去了,自己補(看板要用它分系統)
+    for (const t of r.cancelled) { t.sys = sys.id; t._cancelled = true; }
+    state.traCancelled = r.cancelled;
+  }
+  console.info('[台鐵今日名冊] ' + daily.date + '(官方更新 ' + (daily.updateTime || '?') + '):'
+    + '名冊 ' + r.stats.roster + '、官方 ' + r.stats.official
+    + ' → 停駛 ' + r.cancelled.length + (r.cancelled.length ? '(' + r.cancelled.map(t => t.train).slice(0, 20).join(',') + ')' : '')
+    + '、加開 ' + r.added.length + (r.added.length ? '(' + r.added.slice(0, 20).join(',') + ',不繪製)' : ''));
+}
+
 // App 殼專用:打包進 bundle 的台鐵班表只在「送審」時才會更新,而台鐵 ODS 只發佈未來 14 天
 // ⇒ 那個窗必然會過期,而且是靜默的——上面 resolveScheduleDay 只退「同週幾最近日」再 console.warn,
 // 畫面照常有車,但連假/國定假日/加班車/改點全部會錯,一路錯到下次送審為止。
@@ -22148,7 +22242,7 @@ const HELP_GROUPS = [
     { key: 'board', ic: '<span class="hw-stnbox"><i></i></span>', nm: '點車站＝接下來的班次看板',
       one: '看板由近到遠列出接下來要進站的車，還有幾分鐘到。',
       steps: ['點地圖上任一車站', '看板列出接下來的班次與倒數', '點其中一班可以直接跟車；標題右邊的收藏鈕把這站加進最愛'],
-      tip: '台鐵套用官方即時誤點；北捷依官方秒級到站倒數逐班校正，高捷、機捷、高雄輕軌依官方到站看板校正。官方資料中斷或你的裝置時鐘明顯不準時，上方的「LIVE」會轉成灰色「推估」，表示畫面是依稍早的資料投射。', try: 'board' },
+      tip: '台鐵套用官方即時誤點；北捷依官方秒級到站倒數逐班校正，高捷、機捷、高雄輕軌依官方到站看板校正。官方資料中斷或你的裝置時鐘明顯不準時，上方的「LIVE」會轉成灰色「推估」，表示畫面是依稍早的資料投射。台鐵當日官方公告停駛的班次不會出現在地圖上，但看板仍會列出並標成「停駛」。', try: 'board' },
     { key: 'rand', ic: '⤮', nm: '隨機跟隨', one: '不知道要看哪班，交給它挑一班。',
       steps: ['按地圖上的「隨機跟隨」', '不喜歡再按一次換一班', '小卡的 × 結束'], try: 'follow' },
     { key: 'time', ic: '❚❚', nm: '時間軸：暫停、快轉、回看',
@@ -23825,6 +23919,9 @@ async function boot() {
   // 網站版直接 return,不影響開機時序。
   await initDataFreshness();
 
+  // 台鐵官方今日車次名冊(停駛偵測):與班表載入並行發出,不擋開機;抓不到就 null ⇒ 維持原行為全畫。
+  const traDailyP = fetchJSONAt(apiUrl('api/tra-daily-trains'));
+
   for (const d of SYS_DEFS) {
     let raw = await fetchJSON(d.url);
     if (!raw && d.fallbackUrl) raw = await fetchJSON(d.fallbackUrl); // API 失敗(非 2xx/網路錯)退回打包靜態檔,目前僅高鐵設有 fallbackUrl
@@ -23832,6 +23929,8 @@ async function boot() {
     day = await refreshStaleSchedule(d, day);             // 保險:清單機制沒生效時,台鐵這一份仍會自救
     if (day) state.systems.push({ ...d, data: day });
   }
+  // 停駛套用必須在 loadSystem 之前:它把名冊複製進 state.trains,之後再改 data.trains 就沒有用了。
+  applyTraDailyDelta(state.systems.find(x => x.id === 'tra_sched'), await traDailyP);
   // 各 sched 系統的軌道底圖幾何(台鐵 tra.json / 高鐵 thsr_track.json)掛在該系統上,loadSystem 依系統取用
   for (const s of state.systems) if (s.track) s._track = await fetchJSON(s.track);
   addSunriseTrains(); // 要在 _track 載完後(站座標取自軌道資料,與其餘班表同源)、任何 loadSystem 之前

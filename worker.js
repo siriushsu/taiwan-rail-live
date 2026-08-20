@@ -5246,6 +5246,86 @@ async function thsrSelfHeal(event, env) {
   return { ok: true, present: false, healed, written: !!(rt && rt.written) };
 }
 
+// ══ 台鐵「今日官方車次名冊」(停駛偵測)══════════════════════════════════════════════
+// 為什麼要這支:台鐵班表是 `npm run fetch-schedule` 預抓 14 天、打包成靜態檔隨版部署的**快照**。
+// 官方之後改了(停駛/加開/改點),在下一次重跑重部署之前完全看不到——停駛的車會照表定跑完全程,
+// 畫面上就是一台不存在的車。這不是假想:2026-08-20 拿 08-16 建的 bundle 對官方現在的 14 天檔
+// 逐日逐站比對,08-29 那天官方多出 6006/6007 兩班(專列),我們的 bundle 沒有。
+//
+// 為什麼是隨需端點而不是 cron:本專案每日只有一發 cron(`15 1 * * *`),失敗無重試無告警
+// (memory: daily-cron-single-run-silent-failure)。隨需＋邊緣快取結構性地沒有那個故障模式——
+// 沒人看時不跑,有人看時拿到的一定是 30 分鐘內的。也不必新增 D1 資料表。
+//
+// 為什麼只回車次號:前端手上就有 bundle 的今日名冊,差集自己算得出來
+// (bundle − 官方 ＝ 停駛,官方 − bundle ＝ 加開)。伺服器因此**不需要知道 client 帶的是哪一版
+// bundle**,對 App 內較舊的打包班表也天然正確。回應約 5KB,而官方原始檔是 2MB。
+//
+// 上游:臺鐵 ODS 開放資料(免金鑰、不吃 TDX 點數,與 scripts/fetch_tra_schedule.py 同源)。
+// 清單頁列今日起 60 天、每天一個 resourceId;實測逐日檔的 UpdateTime 整批同一個值(官方整批重刷)。
+const TRA_ODS_LIST_URL = 'https://ods.railway.gov.tw/tra-ods-web/ods/download/dataResource/railway_schedule/JSON/list';
+const TRA_ODS_DAY_URL_BASE = 'https://ods.railway.gov.tw/tra-ods-web/ods/download/dataResource/exceptionDataResource/';
+const TRA_DAILY_TTL_MS = 30 * 60e3;
+// *_OVERRIDE 只在本機驗收時經 .dev.vars/--var 注入指向 fixture server;正式環境永不設定 ⇒ 行為即硬編網址
+// (沿用 thsrFreeSeatUrl 的覆寫慣例)。
+function traOdsListUrl(env) { return (env && env.TRA_ODS_LIST_URL_OVERRIDE) || TRA_ODS_LIST_URL; }
+function traOdsDayUrl(env, rid) { return ((env && env.TRA_ODS_DAY_URL_OVERRIDE) || TRA_ODS_DAY_URL_BASE) + rid; }
+// TTL 也可覆寫,理由同上:設 0 就每次都重抓,驗收才有辦法在一支腳本內測到「上游掛掉退回舊名冊」
+// 那條分支(否則要等 30 分鐘)。正式環境未設定 ⇒ 恆為 TRA_DAILY_TTL_MS。
+function traDailyTtlMs(env) {
+  const v = env && env.TRA_DAILY_TTL_MS_OVERRIDE;
+  return v == null || v === '' ? TRA_DAILY_TTL_MS : Number(v);
+}
+let traDailyMem = null, traDailyMemAt = 0;
+
+// 清單頁 HTML → {YYYYMMDD: resourceId}。抽成純函式讓驗收可以直接餵字串,不必起 server。
+function traParseOdsList(html) {
+  const out = {};
+  const re = /exceptionDataResource\/([0-9a-f]+)">(\d{8})\.json<\/a>/g;
+  let m;
+  while ((m = re.exec(String(html == null ? '' : html)))) out[m[2]] = m[1];
+  return out;
+}
+
+async function traDailyTrains(request, env) {
+  const cacheKey = new Request(new URL('/api/tra-daily-trains', request.url), { method: 'GET' });
+  const edge = caches.default;
+  const hit = await edge.match(cacheKey);
+  if (hit) return hit;
+  const today = twToday();                                   // 台北營運日(時區錨定契約)
+  const ymd = today.replace(/-/g, '');
+  try {
+    if (!traDailyMem || traDailyMem.date !== today || Date.now() - traDailyMemAt > traDailyTtlMs(env)) {
+      const ua = { 'user-agent': 'railisland/1.0 (+https://railisland.tw)' };
+      const lr = await fetch(traOdsListUrl(env), { headers: ua, redirect: 'manual' });
+      if (!lr.ok) throw new Error('ods list ' + lr.status);
+      const rid = traParseOdsList(await lr.text())[ymd];
+      if (!rid) throw new Error('ods 清單頁沒有 ' + ymd);
+      const dr = await fetch(traOdsDayUrl(env, rid), { headers: ua, redirect: 'manual' });
+      if (!dr.ok) throw new Error('ods day ' + dr.status);
+      const raw = await dr.json();
+      const list = (raw && Array.isArray(raw.TrainInfos)) ? raw.TrainInfos : [];
+      // 🔴 空名冊絕不可入快取:前端拿它算差集會把「整天所有車」判成停駛。前端另有守門,
+      // 但壞資料本來就不該被寫進 30 分鐘的快取——寧可回舊值或 502 讓前端 fail-open。
+      if (!list.length) throw new Error('ods day 車次為空');
+      const trains = [];
+      for (const t of list) {
+        const no = t && t.Train != null ? String(t.Train) : '';
+        if (no) trains.push(no);
+      }
+      traDailyMem = { date: today, updateTime: String((raw && raw.UpdateTime) || ''), count: trains.length, trains };
+      traDailyMemAt = Date.now();
+    }
+    const res = jsonRes(traDailyMem, 200, 'public, s-maxage=1800, stale-while-revalidate=21600');
+    await edge.put(cacheKey, res.clone());
+    return res;
+  } catch (e) {
+    // 同一天稍早抓到的舊名冊仍然可用:官方一天最多改幾次,舊名冊頂多少掉「今天剛加開的那班」,
+    // 不會把在跑的車誤判成停駛(誤判方向是安全的那一側)。跨日或從未抓到 → 502,前端 fail-open。
+    if (traDailyMem && traDailyMem.date === today) return jsonRes(traDailyMem, 200, 'public, s-maxage=300');
+    return jsonRes({ error: String(e.message || e) }, 502, 'no-store');
+  }
+}
+
 // /api/thsr-schedule:唯讀吐回台北「今天」的高鐵班表(cron 寫好的 D1 blob)。無今天退最近日鍵
 // (見 thsrSelectServedDay),blob 不存在或空一律 404 not_ready——前端 fetchJSON 對非 2xx 回 null,
 // 會自動退到 SYS_DEFS.thsr_sched 的 fallbackUrl(打包靜態檔),不需要在這裡特別處理降級文案。
@@ -5502,6 +5582,7 @@ export default {
     else if (url.pathname === '/api/klrt-position') { res = await klrtPosition(request, env); }
     else if (url.pathname === '/api/delay-stats') res = await delayStats(request, env);
     else if (url.pathname === '/api/thsr-schedule') res = await thsrSchedule(request, env);
+    else if (url.pathname === '/api/tra-daily-trains') res = await traDailyTrains(request, env);
     else if (url.pathname === '/api/thsr-freeseat') res = await thsrFreeSeat(request, env);
     else if (url.pathname === '/api/delay-history') res = await delayHistory(request, env);
     else if (url.pathname === '/api/station-events') res = await stationEvents(request, env);
