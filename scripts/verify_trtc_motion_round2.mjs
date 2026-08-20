@@ -557,7 +557,9 @@ for (const [name, html] of Object.entries({ position_off: positionOffHtml, offic
   output.mutations[name] = await replay(NEW_ROOT, `mutation_${name}`, 'chromium', port++, html);
 const secondC = output.models.second_chromium, firstC = output.models.first_chromium;
 for (const [name, rec] of Object.entries(output.mutations)) {
-  const accuracyRed = (rec.accuracy.all.p90 || 0) > (secondC.accuracy.all.p90 || 0) + 50;
+  // 2026-08-20 顯示層已另外以逐格物理上限吸收 ETA 刷新，關掉底層倒數位置後不再會惡化 50m；
+  // 語料仍有穩定約 8m 的 P90 退步。5m 門檻比舊 50m 更嚴，不會把這個 mutation 放過。
+  const accuracyRed = (rec.accuracy.all.p90 || 0) > (secondC.accuracy.all.p90 || 0) + 5;
   const floorRed = (rec.saturation.floor.durationSec.max || 0) > (secondC.saturation.floor.durationSec.max || 0) + 30;
   const jumpRed = (rec.pollCorrectionJumps.meters.p90 || 0) > (secondC.pollCorrectionJumps.meters.p90 || 0) + 50;
   const gateRed = name === 'official_25m_gate' &&

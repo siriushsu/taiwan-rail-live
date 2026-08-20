@@ -19,6 +19,12 @@ const BASE_COMMIT = process.env.TRTC_DIRECT_BASE || 'f8a79ae';
 const BASE_INDEX = execFileSync('git', ['show', `${BASE_COMMIT}:index.html`], {
   cwd: ROOT, encoding: 'utf8', maxBuffer: 4 * 1024 * 1024,
 });
+// 8/20 進站狀態批次以前的實際出貨點。歷史 f8a79ae 繼續守名冊／motion 承重牆；
+// 看板其餘函式則應與本批開工前的 v0820e 相同，避免把 8/15～8/20 已核准的改動誤報成紅燈。
+const ARRIVAL_BASE_COMMIT = process.env.TRTC_DIRECT_ARRIVAL_BASE || '16ae913';
+const ARRIVAL_BASE_INDEX = execFileSync('git', ['show', `${ARRIVAL_BASE_COMMIT}:index.html`], {
+  cwd: ROOT, encoding: 'utf8', maxBuffer: 4 * 1024 * 1024,
+});
 const OUTPUT = path.resolve(process.env.TRTC_DIRECT_OUTPUT || path.join(ROOT, 'tmp/verify_trtc_direct_board-output.json'));
 const result = { assertions: [], mutations: [], browser: [], metrics: {}, baseCommit: BASE_COMMIT };
 let failures = 0;
@@ -85,14 +91,14 @@ mutation('動畫名冊函式任何一 byte 改動都會被抓到',
 
 const directFunctionNames = [
   'trtcOfficialStationName', 'trtcOfficialRowFresh', 'trtcOfficialBoardRealNow',
-  'trtcOfficialCountdownText', 'applyTrtcOfficialBoard', 'clearTrtcOfficialBoard',
+  'trtcOfficialCountdownText', 'trtcOfficialBoardDwellSec', 'trtcOfficialBoardArrivalState',
+  'applyTrtcOfficialBoard', 'clearTrtcOfficialBoard',
   'trtcOfficialAbsoluteHM', 'trtcOfficialStationLines', 'trtcOfficialLineCandidates',
   'trtcOfficialScheduledArrival', 'trtcOfficialTripJoin', 'trtcOfficialLegacyGroups',
   'trtcOfficialBoardView', 'renderTrtcOfficialFreqBoard',
   'refreshTrtcOfficialBoardCountdown', 'renderFreqBoard',
 ];
 const directSource = directFunctionNames.map(name => extractFunction(INDEX, name)).join('\n');
-const directBaselineSource = directFunctionNames.map(name => extractFunction(BASE_INDEX, name)).join('\n');
 const directConstants = ['TRTC_OFFICIAL_BOARD_MAX_AGE_MS', 'TRTC_OFFICIAL_BOARD_FUTURE_SKEW_MS',
   'TRTC_OFFICIAL_BOARD_ARRIVING_GRACE_SEC'];
 // 🔴 兩層釘基線(2026-08-15 重釘):等車卡批次(蓄意、已審)改了下面三支——CTA(追蹤這站)、
@@ -114,18 +120,26 @@ const OUTAGE_BASE_INDEX = execFileSync('git', ['show', `${OUTAGE_BASE_COMMIT}:in
   cwd: ROOT, encoding: 'utf8', maxBuffer: 4 * 1024 * 1024,
 });
 const outageEraFunctionNames = ['renderFreqBoard'];
-const waitEraFunctionNames = ['applyTrtcOfficialBoard', 'renderTrtcOfficialFreqBoard'];
+const arrivalEraFunctionNames = ['trtcOfficialCountdownText', 'trtcOfficialBoardDwellSec',
+  'trtcOfficialBoardArrivalState', 'trtcOfficialBoardView', 'renderTrtcOfficialFreqBoard',
+  'refreshTrtcOfficialBoardCountdown'];
+const waitEraFunctionNames = ['applyTrtcOfficialBoard'];
 const stillFrozenNames = directFunctionNames.filter(name =>
-  !waitEraFunctionNames.includes(name) && !outageEraFunctionNames.includes(name));
+  !arrivalEraFunctionNames.includes(name) && !waitEraFunctionNames.includes(name) &&
+  !outageEraFunctionNames.includes(name));
 const stillSource = stillFrozenNames.map(name => extractFunction(INDEX, name)).join('\n');
-const stillBaseline = stillFrozenNames.map(name => extractFunction(BASE_INDEX, name)).join('\n');
+const stillBaseline = stillFrozenNames.map(name => extractFunction(ARRIVAL_BASE_INDEX, name)).join('\n');
 check(stillSource === stillBaseline && directConstants.every(name => extractConst(INDEX, name) === extractConst(BASE_INDEX, name)),
-  `官方看板核心 ${stillFrozenNames.length} 支＋常數對 f8a79ae byte-exact`, `${sha(stillSource)} / ${sha(stillBaseline)}`);
+  `官方看板未改區 ${stillFrozenNames.length} 支對 ${ARRIVAL_BASE_COMMIT} byte-exact`, `${sha(stillSource)} / ${sha(stillBaseline)}`);
 const waitSource = waitEraFunctionNames.map(name => extractFunction(INDEX, name)).join('\n');
-const waitBaseline = waitEraFunctionNames.map(name => extractFunction(WAIT_BASE_INDEX, name)).join('\n');
+const waitBaseline = waitEraFunctionNames.map(name => extractFunction(ARRIVAL_BASE_INDEX, name)).join('\n');
 check(waitSource === waitBaseline,
-  `等車卡時代 ${waitEraFunctionNames.length} 支 renderer 對 ${WAIT_BASE_COMMIT} byte-exact`,
+  `官方資料落地 ${waitEraFunctionNames.length} 支對 ${ARRIVAL_BASE_COMMIT} byte-exact`,
   `${sha(waitSource)} / ${sha(waitBaseline)}`);
+const arrivalSource = arrivalEraFunctionNames.map(name => extractFunction(INDEX, name)).join('\n');
+check(/distanceM <= 25/.test(arrivalSource) && /left < -dwellSec/.test(arrivalSource) &&
+  /arrival\.departed/.test(arrivalSource),
+  '進站顯示改由 25m 實際位置＋逐站 dwell／離站狀態控制');
 const outageSource = outageEraFunctionNames.map(name => extractFunction(INDEX, name)).join('\n');
 const outageBaseline = outageEraFunctionNames.map(name => extractFunction(OUTAGE_BASE_INDEX, name)).join('\n');
 check(outageSource === outageBaseline,
@@ -192,7 +206,8 @@ mutation('Worker 若把 at 改成收件時間會被抓到',
 // ── 2. 實際純函式／view model 回放 ───────────────────────────────────────
 const officialFns = [
   'trtcServiceSec', 'trtcOfficialStationName', 'trtcOfficialRowFresh',
-  'trtcOfficialBoardRealNow', 'trtcOfficialCountdownText', 'applyTrtcOfficialBoard',
+  'trtcOfficialBoardRealNow', 'trtcOfficialCountdownText', 'trtcOfficialBoardDwellSec',
+  'trtcOfficialBoardArrivalState', 'applyTrtcOfficialBoard',
   'clearTrtcOfficialBoard', 'trtcOfficialStationLines', 'trtcOfficialLineCandidates',
   'trtcOfficialScheduledArrival', 'trtcOfficialTripJoin', 'trtcOfficialLegacyGroups',
   'trtcOfficialBoardView', 'trtcOfficialAbsoluteHM',
@@ -200,7 +215,7 @@ const officialFns = [
 const harnessContext = {
   console,
   __state: { simSec: 43200, clockAtNow: true, playing: true, speedMult: 1, _scrubTime: false,
-    visible: new Set(), trtcOfficialBoard: null },
+    visible: new Set(), trtcOfficialBoard: null, trtcOfficialRoster: null },
   __nowSec: 43200,
   __shift: 0,
   __shiftCalls: 0,
@@ -209,6 +224,7 @@ vm.createContext(harnessContext);
 vm.runInContext(`
   const state = globalThis.__state;
   const _trtcNoTrip = new Map();
+  const _trtcOfficialDisplay = new Map();
   ${extractConst(INDEX, 'TRTC_OFFICIAL_BOARD_MAX_AGE_MS')}
   ${extractConst(INDEX, 'TRTC_OFFICIAL_BOARD_FUTURE_SKEW_MS')}
   ${extractConst(INDEX, 'TRTC_OFFICIAL_BOARD_ARRIVING_GRACE_SEC')}
@@ -216,10 +232,13 @@ vm.runInContext(`
   function isTrtcBoardLine(ln){ return !!ln.isTrtc; }
   function freqTrainTime(){ return {}; }
   function runBetween(){ return 60; }
+  function headwayOf(){ return 600; }
+  function trtcOfficialDwellAt(ln,i){ return Number(ln&&ln.stations&&ln.stations[i]&&ln.stations[i].dwell)||30; }
+  function haversineKm(a,b){ return Math.hypot(Number(a.lat||0)-Number(b.lat||0),Number(a.lon||0)-Number(b.lon||0))*111.195; }
   function freqTripKey(ln, tr){ return ln.id + '|' + (tr._key || tr.join(',')); }
   function metroShiftSec(){ globalThis.__shiftCalls++; return globalThis.__shift; }
   ${officialFns.map(name => extractFunction(INDEX, name)).join('\n')}
-  globalThis.API = { state, _trtcNoTrip, ${officialFns.join(',')},
+  globalThis.API = { state, _trtcNoTrip, _trtcOfficialDisplay, ${officialFns.join(',')},
     maxAge: TRTC_OFFICIAL_BOARD_MAX_AGE_MS, future: TRTC_OFFICIAL_BOARD_FUTURE_SKEW_MS };
 `, harnessContext);
 const A = harnessContext.API;
@@ -344,6 +363,26 @@ const arriving = [
 view = viewFixture(arriving, [both]);
 check(view && view.groups[0].rows.length === 1 && A.trtcOfficialCountdownText(view.groups[0].rows[0].row.eta, baseEpoch) === '列車進站',
   '進站窗含 -30 秒；超過即移除');
+
+// 新契約：文字要和畫面上的官方實體一致，生命週期用本站 dwell，不再固定 30 秒。
+both.stations.forEach((st, i) => Object.assign(st, { lat: 0, lon: i / 1000, dwell: i === 1 ? 23 : 30 }));
+A.state.trtcOfficialRoster = { feedMode: 'official', vehicles: [
+  { line: 'BL', vehicleId: 'v42', officialNo: '42', dir: 2, dest: 2 },
+] };
+A._trtcOfficialDisplay.set('BL|v42', { progress: 1, pos: { lat: 0, lon: .001 } });
+const atPlatform = [{ name: '中間', dest: '東端', at: baseEpoch, eta: baseEpoch - 5, no: '42' }];
+view = viewFixture(atPlatform, [both]);
+const atRec = view && view.groups[0].rows[0];
+check(atRec && atRec.arrival.near &&
+  A.trtcOfficialCountdownText(atRec.row.eta, baseEpoch, atRec.arrival.near) === '列車進站',
+  '精確車號在站點 25m 內才顯示「列車進站」');
+A._trtcOfficialDisplay.set('BL|v42', { progress: 1.2, pos: { lat: 0, lon: .0013 } });
+view = viewFixture(atPlatform, [both]);
+check(view === null, '精確車號已離站就立即撤列，不等固定 30 秒');
+A.state.trtcOfficialRoster = null; A._trtcOfficialDisplay.clear();
+view = viewFixture([{ name: '中間', dest: '東端', at: baseEpoch, eta: baseEpoch - 23, no: '' }], [both]);
+const expiredDwell = viewFixture([{ name: '中間', dest: '東端', at: baseEpoch, eta: baseEpoch - 23.001, no: '' }], [both]);
+check(view && expiredDwell === null, '無法唯一連車時以本站 23 秒 dwell 為上限，不沿用 30 秒');
 
 const bl = line('BL', ['南港展覽館', '昆陽'], true, []);
 const br = line('BR', ['南港展覽館', '南港軟體園區'], true, []);
@@ -556,7 +595,8 @@ mutation('無 _tt 若仍觸碰動畫校正會被抓到', calls.boardApply === 1 
 const styleText = [...INDEX.matchAll(/<style[^>]*>([\s\S]*?)<\/style>/g)].map(m => m[1]).join('\n');
 const rendererFns = [
   'trtcServiceSec', 'trtcOfficialStationName', 'trtcOfficialRowFresh',
-  'trtcOfficialBoardRealNow', 'trtcOfficialCountdownText', 'trtcOfficialAbsoluteHM',
+  'trtcOfficialBoardRealNow', 'trtcOfficialCountdownText', 'trtcOfficialBoardDwellSec',
+  'trtcOfficialBoardArrivalState', 'trtcOfficialAbsoluteHM',
   'trtcOfficialStationLines', 'trtcOfficialLineCandidates', 'trtcOfficialScheduledArrival',
   'trtcOfficialTripJoin', 'trtcOfficialLegacyGroups', 'trtcOfficialBoardView',
   // 2026-08-15 斷線提示讓 renderFreqBoard 多依賴這兩支。抽真函式而不是塞 stub：
@@ -569,8 +609,9 @@ const currentRendererSource = rendererFns.map(name => extractFunction(INDEX, nam
 const baselineRenderer = extractFunction(BASE_INDEX, 'renderFreqBoard').replace('function renderFreqBoard(', 'function renderFreqBoardBaseline(');
 const browserHarness = `
   const state = { simSec:43200, clockAtNow:true, playing:true, speedMult:1, _scrubTime:false,
-    visible:new Set(), trtcOfficialBoard:null, boardStation:{name:'中間'} };
+    visible:new Set(), trtcOfficialBoard:null, trtcOfficialRoster:null, boardStation:{name:'中間'} };
   const _trtcNoTrip = new Map();
+  const _trtcOfficialDisplay = new Map();
   ${extractConst(INDEX, 'TRTC_OFFICIAL_BOARD_MAX_AGE_MS')}
   ${extractConst(INDEX, 'TRTC_OFFICIAL_BOARD_FUTURE_SKEW_MS')}
   ${extractConst(INDEX, 'TRTC_OFFICIAL_BOARD_ARRIVING_GRACE_SEC')}
@@ -580,6 +621,9 @@ const browserHarness = `
   function isTrtcBoardLine(ln){ return !!ln.isTrtc; }
   function freqTrainTime(){ return {}; }
   function runBetween(){ return 60; }
+  function headwayOf(){ return 600; }
+  function trtcOfficialDwellAt(ln,i){ return Number(ln&&ln.stations&&ln.stations[i]&&ln.stations[i].dwell)||30; }
+  function haversineKm(a,b){ return Math.hypot(Number(a.lat||0)-Number(b.lat||0),Number(a.lon||0)-Number(b.lon||0))*111.195; }
   function freqTripKey(ln,tr){ return ln.id+'|'+(tr._key||tr.join(',')); }
   function metroShiftSec(){ return __shift; }
   function metroLiveOn(){ return false; }

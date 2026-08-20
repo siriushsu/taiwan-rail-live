@@ -98,12 +98,28 @@ const expired = [];
 api.trtcCensusRestampBr('Y', expired, 2046, '2026-08-20', true);
 check(expired.length === 0, '有限退場：缺訊超過 45 秒不再保留舊車');
 check(lastResolve().directions.some(d => d.carried.some(x => x.id === missingId && x.dormant)),
-  '診斷：畫面退場後短暫保留不可見身分槽，不讓後車前補');
+  '診斷：畫面退場後短暫保留不可配對墓碑，供生命週期稽核');
 const identityExpired = [];
 api.trtcCensusRestampBr('Y', identityExpired, 2146, '2026-08-20', true);
 check(!api.rosters.get('Y')?.prior.has(missingId) &&
   lastResolve().directions.some(d => d.retired.some(x => x.reason === 'identity-expired')),
   '身分槽有上限：超過一個最慢站間週期仍無觀測就真正刪除');
+
+// 3b. 45 秒後留在名冊裡的是不可見墓碑，只防舊 ID 復活搶車；生命週期已結束，
+//     不能把同位置的新鮮官方觀測永遠擋在 near-existing。
+reset();
+const tombstoneStart = [vehicle({ from: 1, to: 2, arr: 2020, observed: 2000 })];
+api.trtcCensusRestampBr('Y', tombstoneStart, 2000, '2026-08-20', true);
+const tombstoneId = tombstoneStart[0].vehicleId;
+api.trtcCensusRestampBr('Y', [], 2046, '2026-08-20', true);
+const returningFresh = [vehicle({ from: 2, to: 3, arr: 2100, observed: 2047 })];
+api.trtcCensusRestampBr('Y', returningFresh, 2047, '2026-08-20', true);
+check(returningFresh.length === 1 && returningFresh[0].source === 'board-seg' &&
+  returningFresh[0].vehicleId !== tombstoneId,
+  '失聯墓碑：不阻擋同位置的新鮮觀測立即出生',
+  `old=${tombstoneId} fresh=${returningFresh[0]?.vehicleId}`);
+check(!lastResolve().directions.some(d => d.candidates.some(x => x.action === 'near-existing')),
+  '診斷：超過 45 秒的墓碑不再產生 near-existing 卡候選');
 
 // 4. 連續訊號下，舊車前進會撞進新鮮車區間時只保留不可見 ID 槽位；期限到仍會收，
 //    不把兩台畫在同一區間，也不回到永久釘站。
@@ -120,8 +136,8 @@ check(conflict.some(v => v.vehicleId === blockedId && v.source === 'board-seg') 
 check(conflictAudit.output.filter(x => x.id === blockedId).length === 1,
   '診斷：交接後名冊只保留一個舊 ID 槽位');
 
-// 4b. 兩個都已存在的 ID 在下一輪收斂到同一個物理車位時，也只能留一個。
-//     這是壓測抓到的 BR 真實失敗形狀：舊版只會擋新候選，擋不住兩個既有 ID 後來重疊。
+// 4b. 兩個都已跨批存在且活躍的 ID，即使短暫靠近也禁止互換／合併。
+//     只有 dormant 舊槽或本格剛出生的臨時 ID 可隱藏；真實前後車可能短暫接近。
 reset();
 const existing = [
   vehicle({ from: 0, to: 1, dest: 4, arr: 3150, observed: 3100 }),
@@ -136,12 +152,13 @@ const converged = [
   vehicle({ from: 3, to: 4, dest: 4, arr: 3165, observed: 3115 }),
 ];
 api.trtcCensusRestampBr('Y', converged, 3115, '2026-08-20', true);
-check(converged.length === 1 && converged[0].vehicleId === olderId,
-  '既有 ID 去重：100m 內只留較早建立的身份、不交換 ID',
-  `kept=${converged[0]?.vehicleId} dropped=${newerId}`);
-check(lastResolve().directions.some(d => d.retired.some(x =>
-  x.id === newerId && x.reason === 'fresh-overlap' && x.into === olderId)),
-  '診斷：既有重疊身份記為 fresh-overlap');
+check(converged.length === 2 && converged.some(v => v.vehicleId === olderId) &&
+  converged.some(v => v.vehicleId === newerId),
+  '既有活躍 ID：100m 內仍各自保留，禁止互換／合併',
+  `ids=${converged.map(v => v.vehicleId).join(',')}`);
+check(!lastResolve().directions.some(d => d.retired.some(x =>
+  [olderId, newerId].includes(x.id) && x.reason === 'fresh-overlap')),
+  '診斷：兩個成立過的活躍 ID 不產生 fresh-overlap 合併');
 
 // 5. 同方向仍有失聯舊車時，無法接上的新觀測需連續兩輪才出生。
 reset();
@@ -159,6 +176,22 @@ check(candidate2.some(v => v.source === 'board-seg' && v.vehicleId !== 'temp'),
   '候選第二輪：確認為新實體後才出生');
 check(lastResolve().directions.some(d => d.births.some(x => x.confirmed === 2)),
   '診斷：新實體記下連續兩輪確認');
+
+// 5b. 同一批官方倒數已明確形成同 from→to 的兩個分離位置，就是同路段兩班的直接證據；
+//     若仍各等一輪，短倒數那班會白白少 15 秒、之後兩倍速也追不到站。
+reset();
+const peerDistances = api.line.stations.map(st => st.d);
+api.line.stations.forEach((st, i) => { st.d = i; });
+const peerBlocker = [vehicle({ from: 0, to: 1, dest: 4, arr: 5075, observed: 5000 })];
+api.trtcCensusRestampBr('Y', peerBlocker, 5000, '2026-08-20', true);
+const sameSegment = [
+  vehicle({ from: 2, to: 3, dest: 4, arr: 5080, observed: 5050 }),
+  vehicle({ from: 2, to: 3, dest: 4, arr: 5140, observed: 5050 }),
+];
+api.trtcCensusRestampBr('Y', sameSegment, 5050, '2026-08-20', true);
+check(sameSegment.filter(v => v.source === 'board-seg').length === 2,
+  '同路段雙車：兩個相隔四分之一段以上的官方觀測第一輪都出生');
+api.line.stations.forEach((st, i) => { st.d = peerDistances[i]; });
 
 // 6. 使用上游觀測時戳，超過 60 秒的舊列不再被當成剛看到的新車。
 reset();
@@ -209,6 +242,26 @@ check(waiting?.atStation && waiting.lon === api.line.stations[0].lon,
   'Y 起點：可提前出現，發車時刻前仍在月台');
 check(departed && !departed.atStation && departed.lon > api.line.stations[0].lon,
   'Y 起點：倒數縮到區間行車秒後才出發');
+
+// 9b. 路線起點自己的倒數列沒有「前一站」，舊版 flush 直接丟掉，造成動物園看板歸零時
+//     畫面只剩第二段的舊車可被誤認。最後 20 秒應另立月台實體，且不可借用已在前方的 ID。
+reset();
+const tooEarlyOrigin = api.trtcBrVehiclesFromBoard('Y',
+  [{ name: 'S0', dest: 'S4', eta: 9021, at: 9000, no: '' }], 9000, '2026-08-20');
+check(!tooEarlyOrigin || !tooEarlyOrigin.length, '起點列：超過 20 秒不提早畫成在線車');
+const origin = api.trtcBrVehiclesFromBoard('Y',
+  [{ name: 'S0', dest: 'S4', eta: 9020, at: 9000, no: '' }], 9000, '2026-08-20');
+check(origin?.length === 1 && origin[0].originDeparture && origin[0].depEpoch === 9020,
+  '起點列：最後 20 秒建立月台實體，倒數歸零才發車');
+const oldAhead = [vehicle({ from: 1, to: 2, dest: 4, arr: 9060, observed: 9000 })];
+api.trtcCensusRestampBr('Y', oldAhead, 9000, '2026-08-20', true);
+const aheadId = oldAhead[0].vehicleId;
+const originNow = api.trtcBrVehiclesFromBoard('Y',
+  [{ name: 'S0', dest: 'S4', eta: 9015, at: 9005, no: '' }], 9005, '2026-08-20');
+api.trtcCensusRestampBr('Y', originNow, 9005, '2026-08-20', true);
+check(originNow.some(v => v.originDeparture && v.vehicleId !== aheadId),
+  '起點拓撲：月台新車不借用已離開第一段的舊 ID',
+  `ahead=${aheadId} origin=${originNow.find(v => v.originDeparture)?.vehicleId}`);
 
 // 10. 環形紀錄硬上限十分鐘。
 api.frames.splice(0);

@@ -3840,6 +3840,7 @@
            內容 li 上限 8 條(li.grp 是標題不算)。 -->
       <ul class="foot-list foot-recent">
         <li class="grp">最近更新</li>
+        <li data-cl-of="trtcpeakstable"><span class="d">8/20</span><span>北捷即時動畫再穩定一輪：官方資料每次更新時，列車會在原路段內逐步追上，不再整批往前跳或停在兩站之間；文湖線與環狀線也不會讓失聯身分搶走下一班車。車站看板只有在車真的進入站點時才顯示「列車進站」，並依各站實際停靠秒數結束，不會車已開走還繼續顯示</span></li>
         <li data-cl-of="krtctrip"><span class="d">8/20</span><span>高捷紅橘線改成逐班接續官方看板：同一班車在不同車站的到站資訊會接回原本班次，不再用整條線同一個平均值把相鄰列車擠在一起；資料不夠確定時會保守沿用原本推估，不會硬認成隔壁班。紅橘兩線的最後一段也都會依實際路段時間一路跑到終點才收車</span></li>
         <li data-cl-of="trtcidentity2"><span class="d">8/20</span><span>文湖線與環狀線的認車再加一道保護：同一班車的倒數換到下一個路段時會接回原本的身分，兩筆資料若曾擠到 100 公尺內也只留較早的那筆，不再留下第二顆車點追著後車跑。環狀線可提早出現在起點等發車，但倒數縮到該段行車時間才會開；最後一段則一路留到真正抵達終點才收車</span></li>
         <li data-cl-of="trtcentity"><span class="d">8/20</span><span>文湖線與環狀線偶爾出現的卡站車、短區間擠好幾台再修一輪：失去官方資料的舊車不再永久留在站上，疑似同一台的新舊資料也不會立刻同時畫出；「診斷資訊」可匯出最近十分鐘的捷運判讀，方便下次異常直接還原</span></li>
@@ -3847,7 +3848,6 @@
         <li data-cl-of="livefresh"><span class="d">8/20</span><span>台鐵的「LIVE」標示不再在官方資料中斷時繼續宣稱即時：資料超過五分鐘沒更新就改標灰色「推估」，超過三十分鐘不再套用那份過期的誤點；裝置時鐘明顯不準時也會改標「推估」</span></li>
         <li data-cl-of="cdarrivestamp"><span class="d">8/19</span><span>文湖線與環狀線的列車不會再整批往前跳一站、下一輪又整批退回來：被退回的那台會凍在原地等，後面的車追上來就擠成一團，現在這個來回跳沒有了</span></li>
         <li data-cl-of="brsametrain"><span class="d">8/19</span><span>文湖線不會再把前後兩台車併成一台：併掉的那台會補回地圖上，原本被併的那台也不會再卡在原地被後車追上、擠成一團</span></li>
-        <li data-cl-of="stationonline"><span class="d">8/19</span><span>停靠中的列車不會再被畫到自己那條線的外面：大安站的文湖線車以前會出現在信義路上（離棕線 123 公尺），現在全台 45 個站點座標一律貼回自己路線的軌道上，車停哪一站就畫在那一站</span></li>
       </ul>
       <!-- 第二層:完整歷史。刻意不掛 .foot-box 類名——placeFootBoxes() 用
            `.site-foot .foot-box` 搬移面板,巢狀同名會被當成另一個盒子一起搬走。 -->
@@ -3868,6 +3868,7 @@
         <li><span class="d">7/10</span><span>高鐵、桃園機捷、淡海輕軌、安坑輕軌加入路網</span></li>
         <li><span class="d">7/10</span><span>環島觀光列車一分為二：往東「山海號」、往西「平原號」</span></li>
         <li class="grp">即時動態與誤點</li>
+        <li data-cl="trtcpeakstable"><span class="d">8/20</span><span>實際晚尖峰監測發現，北捷官方資料每十五至三十秒刷新時，原本會直接把車搬到新倒數推算的位置，造成 73 至 284 公尺的前跳；某些車則在離站還有數百公尺時停住。現在官方訂正只會改變追趕速度：車仍沿原路段連續前進，落後時至少維持半速、追趕最多兩倍速，兩方向都不倒退。文湖線與環狀線的既有活躍身分不再互換或合併，失聯超過 45 秒的身分槽也不能回頭搶走新觀測；環狀線起點只在發車前 20 秒出現，倒數歸零才離站。車站看板另改用列車實際位置判斷文字：25 公尺內才顯示「列車進站」，尚未進站則顯示「即將進站」，到站後依該站實際停靠秒數退場，不再一律多留 30 秒</span></li>
         <li data-cl="krtctrip"><span class="d">8/20</span><span>高捷紅橘線的官方即時看板只有「哪一站、往哪個終點、還有幾分鐘」，沒有車號或衛星位置；以前只能把整條線取一個平均誤點，單一列車慢一點時，相鄰班次就可能一起被搬動、在短區間擠近。現在以當日逐站班表作固定名冊，把同一份全線看板的多站證據接回既有班次：新身分必須先在起點站被看到，中途站只能接續已確認的班次，同一份重複快照不能算兩次確認；每個共享車站都會檢查前後順序，不讓相鄰班交換身分或互相超車。證據不足時寧可維持同方向的線級推估，不憑空新增列車。另以紅線 321 班、橘線 304 班的實際平日班表跑 20 組尖峰壓測，並重播五輪真實晚尖峰訊號；已確認零錯認、零幽靈、位置不倒退也不大幅前跳，兩方向最後一段皆依該段實際時間跑到終點才退場</span></li>
         <li data-cl="trtcidentity2"><span class="d">8/20</span><span>文湖線與環狀線沒有官方車號，必須靠每十五秒更新的各站倒數接續身分；畫面本身卻每秒都在前進，所以兩個身分有時會在兩次資料更新之間先擠到一起，等下一批資料來時又已經拉開，舊邏輯完全看不到這次重疊。現在會記住「同方向、同終點的兩筆資料曾在 100 公尺內」這項證據，下一批只保留較早建立的身分；若新倒數的官方車位已經接到舊身分所在的下一段，也直接把倒數交回舊身分，不讓同一班車留下兩個標記。這些判斷只決定哪個身分存活，不會挪動車子或交換兩台車的位置。環狀線可以在發車前最多一個停站時間先出現在起點，但仍要等「剩餘倒數等於該段行車時間」才開出去；文湖線與環狀線的最後一段也不再被固定 45 秒提早截斷，而是依那一班已知的終點到站時刻收車</span></li>
         <li data-cl="trtcentity"><span class="d">8/20</span><span>文湖線與環狀線沒有官方車次編號，只能從各站到站倒數跨批認車；某一批倒數跳動或漏掉一台時，舊資料可能沒接上新資料，變成「舊車留在站上、新車繼續前進」，幾輪後就在很短的區間擠出好幾台。現在新舊資料若在同方向、同終點與一輪可到達的範圍內，會先接回同一個身分；仍有失聯舊車時，無法接上的新觀測要連續兩輪才加入。單車失去官方證據最多短暫續推 45 秒，若被新鮮官方車擋住就讓舊身分退場，不再每輪把到站時間改成「現在加一秒」而永久卡在月台。這些規則只決定身分存續，不會為了拉開車距而移動任何列車。另在「更多 → 診斷資訊」加入捷運診斷匯出，平常持續保留最近十分鐘的官方倒數、身分接續與退場原因，看到異常後可以直接匯出 JSON 還原當時發生什麼</span></li>
@@ -4397,7 +4398,9 @@
 //         最後一段依已知終點到站時刻退場，Y 起點可提前出現但不提前發車。
 // v0820e：高捷紅橘線匿名看板保守綁回固定班次；起點出生、多站／跨輪確認、逐站順序門檻，
 //         並以資料本身時戳校正，不再整線一起平移或把重複快照算成兩輪證據。
-const BUILD = 'v0820e';
+// v0820f：北捷 ETA 刷新只改速度、不再瞬移／停格；BR／Y 活躍身分鎖定，起終點與進站文字
+//         依真實發車、到站位置及逐站停靠秒數處理。
+const BUILD = 'v0820f';
 // 2026-08-13 起預設開啟（使用者親試預覽後裁示上線）：北捷畫車依官方即時名冊，班表只是備案。
 // 保留 ?officialroster=0 當逃生口——要退回班表路徑不必回滾部署，加個參數即可對照。
 // 🔴 這個函式會被 verify_official_roster_frontend 抽出來丟進 VM 單獨執行——
@@ -5189,6 +5192,10 @@ function _trtcBrSharedIdx(ln, names) {
 // 回到正倒數(下一班進場)就丟掉重來;掛太久代表中間換了班車而我們沒看到正倒數,也重新起算。
 const _trtcCdArrived = new Map();
 const TRTC_CD_ARRIVED_MAX_SEC = 300;
+// 起點列沒有前一個營運站可產生一般 segment，但倒數進入 20 秒內已是可見的月台發車事件。
+// 太早畫會把「下一班」當成在線車；完全丟掉則會重現 8/20 尖峰動物園看板歸零、畫面卻抓到
+// 第二段既有車的 1.09km 錯位。只在最後 20 秒出生，倒數歸零才依第一段秒數發車。
+const TRTC_CD_ORIGIN_PREVIEW_SEC = 20;
 // BR／Y 沒有官方車次 ID，身分只能跨批倒數推回來；間歇性錯配若沒有「當批看到了什麼、
 // 為什麼接上／出生／續推／退場」的完整鏈，事後只剩一張截圖便無法還原。這份環形紀錄
 // 平常就寫、只留最近十分鐘；不含定位或使用者資料，開啟「診斷資訊」後可匯出 JSON。
@@ -5286,7 +5293,34 @@ function trtcBrVehiclesFromBoard(lineId, board, nowEpoch, day) {
       const g = group; group = [];
       if (!g.length) return;
       const head = g[0], from = head.i - step;
-      if (from < 0 || from >= names.length) return; // 起點列:前方站在線外,不是一台在跑的車
+      if (from < 0 || from >= names.length) {
+        const origin = step > 0 ? 0 : names.length - 1;
+        if (head.i !== origin || head.eta - nowEpoch > TRTC_CD_ORIGIN_PREVIEW_SEC) return;
+        const next = origin + step, rr = trtcCensusRun(ln, origin, next);
+        if (!ln.stations[next] || !(rr > 0)) return;
+        const nextRow = g.find(r => r.i === next && r.eta > head.eta);
+        const firstArrival = nextRow && nextRow.eta - head.eta >= rr
+          ? nextRow.eta : head.eta + rr;
+        const timeline = [{ from: origin, to: next, depEpoch: head.eta,
+          arrEpoch: firstArrival, terminal: false }];
+        let cur = next;
+        for (const r of g) {
+          if (r.i === origin || Math.sign(r.i - cur) !== step) continue;
+          const run = trtcCensusRun(ln, cur, r.i);
+          timeline.push({ from: cur, to: r.i, depEpoch: r.eta - run,
+            arrEpoch: r.eta, terminal: false });
+          cur = r.i;
+        }
+        const observedEpoch = g.reduce((latest, r) => Number.isFinite(r.obsAt)
+          ? Math.max(latest, r.obsAt) : latest, 0) || nowEpoch;
+        out.push({ vehicleId: _trtcCdPrefix(lineId) + day + ':' + tag + ':' +
+            (step > 0 ? 2 : 1) + ':origin',
+          line: lineId, dir: step > 0 ? 2 : 1, dest: head.d, from: origin, to: next,
+          run: firstArrival - head.eta, depEpoch: head.eta, arrEpoch: firstArrival,
+          terminal: false, originDeparture: true,
+          officialNo: null, source: 'board-seg', observedEpoch, timeline });
+        return;
+      }
       // 🔴 使用者裁示(2026-08-19)：「到站倒數結束變成進站中,這輛車就交給這站的停站時間跟
       // 下一站的倒數去領;如果下一站已經有另一輛車在倒數中,那這輛車依然是依照停站時間到就
       // 推出去,下一站那輛車到站之後,就可以用倒數時間領這邊推出去的車子了。」
@@ -5405,6 +5439,7 @@ function _trtcCdForgetOverlap(lineId, vehicleId) {
 const TRTC_CD_MISSING_GRACE_SEC = 45;
 const TRTC_CD_CANDIDATE_CONFIRM_FRAMES = 2;
 const TRTC_CD_NEAR_DUPLICATE_KM = 0.1;
+const TRTC_CD_BACKWARD_MATCH_LIMIT = 0.5;
 // 通用的「最後一段不提前收車」規則：一般缺訊仍只保留 45 秒，但這台車
 // 已經明確在開往它的 dest，就至少保留到已知 arrEpoch。用「到站期限」而不是
 // 從最後觀測再加完整一段，才不會把已經跑到半路的車多留一整段。有官方車號的線
@@ -5488,10 +5523,9 @@ function trtcCensusRestampBr(lineId, list, nowEpoch, day, fromCountdown) {
     const oldAll = [...prior.entries()].filter(([, r]) => r.dir === dir
         && !(Number(r.to) === Number(r.dest) && nowEpoch >= Number(r.arrEpoch)))
       .map(([id, r]) => ({ id, r, p: r.p })).sort((a, b) => a.p - b.p);
-    // 畫面退場與身分槽位分開：45 秒後可以不畫這台缺訊車，但不能同時把 ID 槽位
-    // 刪掉，否則下一個觀測會讓後面整串前補。槽位只多保留「全線最慢一個站間週期
-    // + 正常缺訊寬限」，期間不進畫面；這是前車取走唯一倒數後，後車最遟應在下一站重現
-    // 的物理上限。超過才真正刪 ID，避免長斷訊後借屍還魂。
+    // 畫面退場與診斷墓碑分開：45 秒後不再畫這台缺訊車，也不准它重新配對或阻擋新觀測；
+    // 但墓碑仍多保留「全線最慢一個站間週期＋正常缺訊寬限」，供驗收分辨活躍 ID 交換與
+    // 退場後的新生命週期。超過才真正刪除，避免診斷資料無限累積。
     const old = [];
     for (const o of oldAll) {
       const age = nowEpoch - Number(o.r.observedEpoch);
@@ -5503,11 +5537,13 @@ function trtcCensusRestampBr(lineId, list, nowEpoch, day, fromCountdown) {
     da.current = cur.length; da.old = old.length;
     const matched = new Array(old.length).fill(false);
     let tol = 0.5;
+    let backwardCompatible = (_c, _o, delta) => delta >= -TRTC_CD_BACKWARD_MATCH_LIMIT;
     if (cur.length && old.length) {
       // 對位對的是「預測位置」不是上一輪的位置:每台車帶自己的速度(站/秒),缺就用全線平均。
       // 2026-08-18 實測 15 秒一輪的位移 中位 0.12 站、p95 0.40、最大 0.61、從不往回,
       // 直接拿上一輪位置比對就會有 18% 的車超過物理上限被判成別台 ⇒ 每輪整批重生(實測 4–5 台)。
       for (const o of old) o.pred = o.r.p + (Number(o.r.v) > 0 ? o.r.v : 1 / medHop) * elapsed;
+      for (const o of old) o.shadowedDormant = !!o.r.dormant;
       // 容許誤差由當下的實際車距推導,不是魔術數字:只要小於「車距的一半」就不可能滑到隔壁那台,
       // 而預測後的殘差遠小於此。車距量不到(只有一台)時退到半個站間。
       let spacing = 0, sn = 0;
@@ -5525,7 +5561,19 @@ function trtcCensusRestampBr(lineId, list, nowEpoch, day, fromCountdown) {
         if (base === INF) continue;
         if (i < n && j < m) {
           const d = Math.abs(cur[i].p - old[j].pred);
-          if (Number(cur[i].v.dest) === Number(old[j].r.dest) && d <= tol && dp[i + 1][j + 1] > base + d) {
+          const originClaim = !!cur[i].v.originDeparture;
+          const oldOrigin = !!old[j].r.originDeparture;
+          const topologyStep = Math.abs(Number(cur[i].v.from) - Number(old[j].r.from)) <= 1 &&
+            Math.abs(Number(cur[i].v.to) - Number(old[j].r.to)) <= 1;
+          const delta = cur[i].p - old[j].pred;
+          // 起點最後 20 秒出生的是一個新的月台實體；不可只因預測位置碰巧接近，就把已經離開
+          // 第一段的舊 ID 搬回起點。舊起點 ID 尚在第一段時可以續接，等下一站倒數接手後亦可
+          // 正常由非 origin observation 往前交班。
+          const originCompatible = !originClaim || oldOrigin;
+          if (!old[j].shadowedDormant && originCompatible && topologyStep &&
+              Number(cur[i].v.dest) === Number(old[j].r.dest) &&
+              backwardCompatible(cur[i], old[j], delta) && d <= tol &&
+              dp[i + 1][j + 1] > base + d) {
             dp[i + 1][j + 1] = base + d; bt[i + 1][j + 1] = 1;
           }
         }
@@ -5549,19 +5597,25 @@ function trtcCensusRestampBr(lineId, list, nowEpoch, day, fromCountdown) {
     }
     // 第一輪 DP 沒接上時，先用較寬但仍受拓撲與順序約束的走廊救回舊 ID。這一層只改「誰是誰」，
     // 不改官方算出的 from/to/arrEpoch；同終點、同方向、保序且一輪物理上走得到才可接。
-    // 連續訊號下的寬鬆救援也不得跨過一個車位。舊上限 1.5 站會讓剛好換列的
-    // 觀測直接跨過前後車，等於用「救回 ID」的名義做 ID 交換。正常一輪只放寬到
-    // 半個站間，超出就保留舊槽、把新觀測當成後車候選，不拿舊 ID 瞬移過去。
-    const rescueTol = Math.min(0.75, Math.max(0.5, 0.5 + elapsed / minHop));
+    // 連續訊號下的寬鬆救援也不得跨過一個車位。一般只放寬半個站間；但官方 ETA 換列會讓
+    // 同一個 from→to raw 位置在一輪內改近一整段。2026-08-20 Y clean
+    // seed 8543437：同一趟從 4→3 的 raw 殘差 0.98 段，舊 ID 因 0.75 上限被留成 coast，
+    // 新觀測另生 ID，跟隨當格中斷。這種「拓撲仍是完全同一段」可接舊 ID，但 renderer
+    // 仍受逐格物理速度上限，絕不把 0.98 段直接畫出來；身分交接不再等於位置瞬移。
+    const rescueTol = 0.5;
     const crossesMatched = (ci, oi) => cur.some((c, mi) => c.oldIndex != null && (ci - mi) * (oi - c.oldIndex) < 0);
     for (let ci = 0; ci < cur.length; ci++) {
       const c = cur[ci]; if (c.id) continue;
       let best = null;
       for (let oi = 0; oi < old.length; oi++) {
-        if (matched[oi] || Number(old[oi].r.dest) !== Number(c.v.dest) || crossesMatched(ci, oi)) continue;
+        if (matched[oi] || old[oi].shadowedDormant || Number(old[oi].r.dest) !== Number(c.v.dest) || crossesMatched(ci, oi) ||
+            (c.v.originDeparture && !old[oi].r.originDeparture)) continue;
         const pred = Number.isFinite(old[oi].pred) ? old[oi].pred : old[oi].p;
         const delta = c.p - pred;
-        if (delta < -0.5 || delta > rescueTol) continue;
+        const sameSegment = Number(c.v.from) === Number(old[oi].r.from) &&
+          Number(c.v.to) === Number(old[oi].r.to);
+        const forwardLimit = sameSegment ? 1.25 : rescueTol;
+        if (!backwardCompatible(c, old[oi], delta) || delta > forwardLimit) continue;
         if (!best || Math.abs(delta) < Math.abs(best.delta)) best = { oi, pred, delta };
       }
       if (!best) continue;
@@ -5572,7 +5626,11 @@ function trtcCensusRestampBr(lineId, list, nowEpoch, day, fromCountdown) {
     // 避免一次 ETA 跳動讓同一實體同時變成舊 ID 與新 ID。冷啟動／該方向原本沒車不延遲。
     const pendingPrev = (R.pending || []).filter(p => Number(p.dir) === dir);
     const pendingUsed = new Set();
-    const hasLiveUnmatchedOld = old.some((o, oi) => !matched[oi]);
+    // 超過 45 秒的 dormant 只是一個供生命週期稽核的診斷墓碑，不是還在線上的車。
+    // 它既不能重新配對，也不能讓真正的新鮮觀測永遠卡在 candidate：8/20 晚尖峰 BR
+    // 內湖站就是 p≈18 的新車連續五輪被 p≈18 的失聯墓碑擋掉，倒數歸零時畫面只剩
+    // 已到下一站的前車。候選延遲只看仍在 grace 內、確實可能是同一實體的舊車。
+    const hasLiveUnmatchedOld = old.some((o, oi) => !matched[oi] && !o.shadowedDormant);
     for (const c of cur) {
       if (c.id) { c.v.vehicleId = c.id; continue; }
       let pending = null;
@@ -5580,17 +5638,25 @@ function trtcCensusRestampBr(lineId, list, nowEpoch, day, fromCountdown) {
         for (let pi = 0; pi < pendingPrev.length; pi++) {
           const p = pendingPrev[pi]; if (pendingUsed.has(pi) || Number(p.dest) !== Number(c.v.dest)) continue;
           const delta = c.p - Number(p.p);
-          if (delta < -0.5 || delta > rescueTol) continue;
+          if (delta < -TRTC_CD_BACKWARD_MATCH_LIMIT || delta > rescueTol) continue;
           if (!pending || Math.abs(delta) < Math.abs(pending.delta)) pending = { p, pi, delta };
         }
       }
       const seen = pending ? Number(pending.p.seen || 1) + 1 : 1;
       if (pending) pendingUsed.add(pending.pi);
+      // 同一批官方列若同時建立兩台同 from→to、且 raw 位置相隔至少四分之一段，已是
+      // 「同路段確有兩班」的直接證據，不必再等第二輪。8/20 晚尖峰 BR 大直曾同時有
+      // p=12.10／12.69 兩台；把後者當候選等 15 秒，剩餘 54 秒就被吃掉一輪，之後即使
+      // 兩倍速也無法準時到站。只略過候選等待；100m 舊 ID 去重仍照常執行。
+      const sameSegmentPeer = cur.some(other => other !== c &&
+        Number(other.v.dest) === Number(c.v.dest) && Number(other.v.from) === Number(c.v.from) &&
+        Number(other.v.to) === Number(c.v.to) && Math.abs(Number(other.p) - Number(c.p)) >= 0.25);
       // 連續兩輪只能證明「這筆倒數持續存在」，不能證明它是另一台車。若它仍落在
       // 任何既有同向、同終點 ID 的 100m 內，最保守且符合不黏車契約的作法是繼續
       // 等待，不另立 ID。等兩者真的拉開後，既有 pending 計數仍在，可以立即出生。
       const candidateKm = _trtcBrKmAtAlong(ln, c.p, dir);
-      const nearExisting = Number.isFinite(candidateKm) && old.some(o => {
+      const nearExisting = !c.v.originDeparture && Number.isFinite(candidateKm) && old.some(o => {
+        if (o.shadowedDormant) return false;
         if (Number(o.r.dest) !== Number(c.v.dest)) return false;
         const oldP = _trtcBrRememberedAlong(lineId, o.id, Number(o.p));
         const oldKm = _trtcBrKmAtAlong(ln, oldP, dir);
@@ -5602,7 +5668,8 @@ function trtcCensusRestampBr(lineId, list, nowEpoch, day, fromCountdown) {
         da.candidates.push({ dest: Number(c.v.dest), p: c.p, seen, action: 'near-existing' });
         continue;
       }
-      if (hasLiveUnmatchedOld && seen < TRTC_CD_CANDIDATE_CONFIRM_FRAMES) {
+      if (hasLiveUnmatchedOld && !c.v.originDeparture && !sameSegmentPeer &&
+          seen < TRTC_CD_CANDIDATE_CONFIRM_FRAMES) {
         c.suppressed = true;
         pendingNext.push({ dir, dest: Number(c.v.dest), p: c.p, at: nowEpoch, seen });
         da.candidates.push({ dest: Number(c.v.dest), p: c.p, seen, action: 'wait' });
@@ -5626,8 +5693,8 @@ function trtcCensusRestampBr(lineId, list, nowEpoch, day, fromCountdown) {
       const coasted = coast({ ...o.r, id: o.id }, ahead ? Number(ahead.v.from) : null);
       if (!coasted) { da.retired.push({ id: o.id, reason: 'terminal' }); continue; } // 到終點:收車
       const kept = coasted.vehicle;
-      // 45 秒或這一段的已知到站期限過後，畫面不再留這台車；但身分槽位還在
-      // 上面的一站週期內，後續倒數若回來可以繼續沿用原 ID，不讓後車前補。
+      // 45 秒或這一段的已知到站期限過後，畫面不再留這台車；只保留不可配對的
+      // 診斷墓碑。後續倒數若回來會建立新生命週期，不得借用這個已退場 ID。
       if (_trtcCdMissingExpired(o.r, nowEpoch)) {
         const p = _trtcBrAlong(kept, nowEpoch);
         next.set(o.id, { v: Number(o.r.v) > 0 ? Number(o.r.v) : 1 / medHop, p, dir,
@@ -5636,6 +5703,25 @@ function trtcCensusRestampBr(lineId, list, nowEpoch, day, fromCountdown) {
           bornEpoch: Number(o.r.bornEpoch) || Number(o.r.observedEpoch), bornSeq: Number(o.r.bornSeq) || 0 });
         da.carried.push({ id: o.id, from: kept.from, to: kept.to, age: missingAge, dormant: true });
         continue;
+      }
+      // coast 沒有被前車的區間上限 held，也仍可能在畫面上追到 fresh 車的同一位置。
+      // 之前只在 coasted.held 分支去重，BR clean seed 9224471 因此把 6／7 兩個成立過的
+      // ID 連續兩輪畫在相差不到 1m 的位置。這裡同樣只把 coast 槽位隱藏，不交換任何 ID。
+      if (ahead && ahead.id && ahead.keep && Number(ahead.v.dest) === Number(o.r.dest)) {
+        const coastDisplayP = _trtcBrRememberedAlong(lineId, o.id, _trtcBrAlong(coasted.vehicle, nowEpoch));
+        const aheadDisplayP = _trtcBrRememberedAlong(lineId, ahead.id, Number(ahead.p));
+        const coastKm = _trtcBrKmAtAlong(ln, coastDisplayP, dir);
+        const aheadKm0 = _trtcBrKmAtAlong(ln, aheadDisplayP, dir);
+        const recentOverlap0 = _trtcCdRecentOverlap(lineId, o.id, ahead.id, nowEpoch);
+        if ((Number.isFinite(coastKm) && Number.isFinite(aheadKm0) &&
+              Math.abs(aheadKm0 - coastKm) < TRTC_CD_NEAR_DUPLICATE_KM) || recentOverlap0) {
+          next.set(o.id, { ...o.r, dormant: true, holdReason: 'following-fresh',
+            bornEpoch: Number(o.r.bornEpoch) || Number(o.r.observedEpoch),
+            bornSeq: Number(o.r.bornSeq) || 0 });
+          da.carried.push({ id: o.id, from: kept.from, to: kept.to, age: missingAge,
+            dormant: true, ahead: { from: Number(ahead.v.from), to: Number(ahead.v.to) } });
+          continue;
+        }
       }
       // 連續訊號時「被新車擋住」不能直接刪 ID。尖峰期前車會拿走某站唯一一筆
       // 倒數，後車暫時不可見是正常的；若依最後時刻續推後與前車仍有實際間距，就照常
@@ -5660,30 +5746,34 @@ function trtcCensusRestampBr(lineId, list, nowEpoch, day, fromCountdown) {
         // 100m 內就代表「倒數已交接到下一段」，應把 fresh observation 掛回舊 ID。
         const sameOfficialSlot = Number.isFinite(keptKm) && Number.isFinite(aheadRawKm) &&
           Math.abs(aheadRawKm - keptKm) < TRTC_CD_NEAR_DUPLICATE_KM;
-        if (tooClose || sameOfficialSlot) {
+        if (sameOfficialSlot && ahead && ahead.id && ahead.v && ahead.v.source === 'board-seg' &&
+            !ahead.keep && Number(ahead.v.dest) === Number(o.r.dest)) {
           // 新鮮觀測與舊 ID 畫面位置已在同一 100m，代表這是同一身分的換站交接。
-          // 保留較早的 ID，把 fresh vehicle 直接掛回它；若反過來隱藏舊 ID、留下
-          // fresh 的臨時 ID，跟隨會在這一格無故 rekey。這裡只換 ID，不改 fresh 位置。
-          if (ahead && ahead.id && ahead.v && ahead.v.source === 'board-seg' &&
-              Number(ahead.v.dest) === Number(o.r.dest)) {
-            const replacedId = ahead.id;
-            ahead.id = o.id;
-            ahead.v.vehicleId = o.id;
-            ahead.keep = o.r;
-            da.retired.push({ id: replacedId,
-              reason: sameOfficialSlot && !tooClose ? 'official-slot-handoff' : 'overlap-handoff', into: o.id });
-            _trtcCdForgetOverlap(lineId, replacedId);
-          } else {
-            const p = _trtcBrRememberedAlong(lineId, o.id, Number(o.r.p));
-            next.set(o.id, { v: Number(o.r.v) > 0 ? Number(o.r.v) : 1 / medHop, p, dir,
-              from: Number(o.r.from), to: Number(o.r.to), run: Number(o.r.run), arrEpoch: Number(o.r.arrEpoch),
-              dest: Number(o.r.dest), observedEpoch: Number(o.r.observedEpoch), dormant: true,
-              bornEpoch: Number(o.r.bornEpoch) || Number(o.r.observedEpoch),
-              bornSeq: Number(o.r.bornSeq) || 0,
-              holdReason: 'following-fresh' });
-          }
+          // 只准接「本格才出生、尚未沿用過任何既有身分」的臨時 ID。兩個都已經跨批存在的 ID
+          // 就算後來靠近也可能是真實前後車；2026-08-20 BR clean seed 8828521 正是因此把
+          // truth 12 從 1c 換成 w。成立過的 ID 之間一律禁止交換／合併。
+          const replacedId = ahead.id;
+          ahead.id = o.id;
+          ahead.v.vehicleId = o.id;
+          ahead.keep = o.r;
+          da.retired.push({ id: replacedId, reason: 'official-slot-handoff', into: o.id });
+          _trtcCdForgetOverlap(lineId, replacedId);
           da.carried.push({ id: o.id, from: kept.from, to: kept.to, age: missingAge, held: true,
-            dormant: !(ahead && ahead.id === o.id), ahead: ahead ? { from: Number(ahead.v.from), to: Number(ahead.v.to) } : null });
+            dormant: false, ahead: { from: Number(ahead.v.from), to: Number(ahead.v.to) } });
+          continue;
+        }
+        if ((tooClose || sameOfficialSlot) && ahead && ahead.id && ahead.keep &&
+            Number(ahead.v.dest) === Number(o.r.dest)) {
+          // 兩個成立過的 ID 不互換；舊 coast 槽位先轉成不可見，等它自己的官方列回來再復原。
+          // 這可避免同一官方車位同時畫 fresh＋coast 幽靈，又不會把 ahead 的 ID 改名。
+          const p = _trtcBrRememberedAlong(lineId, o.id, Number(o.r.p));
+          next.set(o.id, { v: Number(o.r.v) > 0 ? Number(o.r.v) : 1 / medHop, p, dir,
+            from: Number(o.r.from), to: Number(o.r.to), run: Number(o.r.run), arrEpoch: Number(o.r.arrEpoch),
+            dest: Number(o.r.dest), observedEpoch: Number(o.r.observedEpoch), dormant: true,
+            bornEpoch: Number(o.r.bornEpoch) || Number(o.r.observedEpoch), bornSeq: Number(o.r.bornSeq) || 0,
+            holdReason: 'same-official-slot' });
+          da.carried.push({ id: o.id, from: kept.from, to: kept.to, age: missingAge, held: true,
+            dormant: true, ahead: { from: Number(ahead.v.from), to: Number(ahead.v.to) } });
           continue;
         }
         kept.holdReason = 'following-fresh';
@@ -5722,11 +5812,30 @@ function trtcCensusRestampBr(lineId, list, nowEpoch, day, fromCountdown) {
       const progressGap = Number.isFinite(akm) && Number.isFinite(bkm) ? Math.abs(bkm - akm) : NaN;
       const displayGap = _trtcBrDisplayGapKm(lineId, a.id, b.id, progressGap);
       const recentOverlap = _trtcCdRecentOverlap(lineId, a.id, b.id, nowEpoch);
+      const adjacentHandoff = Math.abs(Number(a.v.from) - Number(b.v.from)) <= 1 &&
+        Math.abs(Number(a.v.to) - Number(b.v.to)) <= 1 &&
+        (Math.abs(ap - Number(a.p)) > 0.2 || Math.abs(bp - Number(b.p)) > 0.2) &&
+        Number.isFinite(displayGap) && displayGap < 0.25;
       if (Number.isFinite(displayGap) && displayGap < 0.2)
         da.overlapChecks.push({ a: a.id, b: b.id, ap, bp,
           distanceM: Math.round(displayGap * 1000), progressDistanceM: Math.round(progressGap * 1000),
           recentDistanceM: recentOverlap ? Math.round(Number(recentOverlap.distanceKm) * 1000) : null });
-      if ((!Number.isFinite(displayGap) || displayGap >= TRTC_CD_NEAR_DUPLICATE_KM) && !recentOverlap) continue;
+      if ((!Number.isFinite(displayGap) || displayGap >= TRTC_CD_NEAR_DUPLICATE_KM) &&
+          !recentOverlap && !adjacentHandoff) continue;
+      const aDormant = !!(a.keep && a.keep.dormant), bDormant = !!(b.keep && b.keep.dormant);
+      if (a.keep && b.keep && aDormant !== bDormant) {
+        // 一個長時間 dormant 的槽剛恢復、卻落到持續有新鮮觀測的既有 ID 上：保留活躍 ID，
+        // dormant ID 繼續隱藏。禁止像 seed 9224471 那樣把活躍 1m 併入復活的 6。
+        const drop = aDormant ? a : b, keep = drop === a ? b : a;
+        drop.suppressed = true;
+        next.set(drop.id, { ...drop.keep, dormant: true, holdReason: 'fresh-overlap-dormant' });
+        da.retired.push({ id: drop.id, reason: 'fresh-overlap-dormant', kept: keep.id,
+          distanceM: Math.round(Number(recentOverlap ? recentOverlap.distanceKm : displayGap) * 1000) });
+        continue;
+      }
+      // 兩個都已跨批成立且都活躍時，不因靠近就交換／合併 ID；只有本格剛出生的臨時 ID
+      // 才能被去重。真實前後車可短暫接近，身分穩定優先於視覺上的強制合併。
+      if (a.keep && b.keep) continue;
       const aBorn = Number(a.keep && a.keep.bornEpoch) || Number(a.keep && a.keep.observedEpoch) || nowEpoch;
       const bBorn = Number(b.keep && b.keep.bornEpoch) || Number(b.keep && b.keep.observedEpoch) || nowEpoch;
       const aSeq = Number(a.keep && a.keep.bornSeq) || Number(a.bornSeq) || Infinity;
@@ -5736,7 +5845,7 @@ function trtcCensusRestampBr(lineId, list, nowEpoch, day, fromCountdown) {
       drop.suppressed = true;
       da.retired.push({ id: drop.id, reason: 'fresh-overlap', into: keep.id,
         distanceM: Math.round(Number(recentOverlap ? recentOverlap.distanceKm : displayGap) * 1000),
-        evidence: recentOverlap ? 'between-refreshes' : 'current' });
+        evidence: recentOverlap ? 'between-refreshes' : adjacentHandoff ? 'adjacent-handoff' : 'current' });
       _trtcCdForgetOverlap(lineId, drop.id);
     }
     // 待確認的新觀測與上面淘汰的重複既有 ID 都不進畫面，也不進下一輪正式名冊。
@@ -5759,6 +5868,7 @@ function trtcCensusRestampBr(lineId, list, nowEpoch, day, fromCountdown) {
       next.set(c.id, { v: sp, p, dir,
       from: Number(c.v.from), to: Number(c.v.to), run: Number(c.v.run), arrEpoch: Number(c.v.arrEpoch),
       dest: Number(c.v.dest), observedEpoch: Number(c.v.observedEpoch) || nowEpoch,
+      originDeparture: !!c.v.originDeparture,
       bornEpoch: Number(c.keep && c.keep.bornEpoch) || nowEpoch,
       bornSeq: Number(c.keep && c.keep.bornSeq) || Number(c.bornSeq) || 0 });
     }
@@ -5767,10 +5877,14 @@ function trtcCensusRestampBr(lineId, list, nowEpoch, day, fromCountdown) {
   R.pending = pendingNext;
   R.at = nowEpoch;
   audit.output = [...next].map(([id, r]) => ({ id, dir: r.dir, dest: r.dest, from: r.from, to: r.to,
-    p: r.p, observedEpoch: r.observedEpoch }));
+    p: r.p, observedEpoch: r.observedEpoch, dormant: !!r.dormant }));
   trtcCdDiagPush('resolve', lineId, nowEpoch, audit);
 }
 let _trtcCensusPrior = new Map();
+// 高運量官方車號會在終點折返後沿用。vehicleId 若只等於車號，renderer 會把折返前後兩趟
+// 當成同一實體：2026-08-20 尖峰實測 G 326／311 在刷新格直接跨 368–874m、甚至翻方向。
+// 每個車號另記「目前這一趟」；只有舊趟已經實際走完才准換方向並開新 trip ID。
+const _trtcCensusTrips = new Map();
 // ── CarWeight 漏掉、但官方倒數看得到的車 ──────────────────────────────────────
 // 🔴 使用者裁示(2026-08-19):「car weight 沒有的車子但是倒數有 那我們一樣要做出來」。
 // 逐車清單(CarWeight)會【整趟】漏掉車:2026-08-19 14:5x 對正式站實測,車號 437(往蘆洲)
@@ -5885,17 +5999,19 @@ function trtcCensusVehicles(trains, nowEpoch, day) {
     const no = String((t && t.no) || '').trim();
     if (!no) continue;
     const sys = t.sys === 'br' ? 'br' : 'hw', at = Number(t.at);
-    const vid = 'cs:' + day + ':' + sys + ':' + no;
+    const baseVid = 'cs:' + day + ':' + sys + ':' + no;
     // 🔴 08-14 契約:官方清單還列著這台車就代表它在,缺訊只 hold、沒有退場。
     // 所以「這一輪算不出位置」不准丟車——沿用上一輪的位置等資料追上。丟了才是
     // 「API 每 15 秒都正常,車卻自己不見」。認不出來留白,但不因此不畫。
     // 唯一例外是連 no 都沒有(上面已擋):那連身分都構不成,沒有可沿用的對象。
     const holdPrev = why => {
-      const p0 = prior.get(vid);
-      if (!p0 || seen.has(vid)) return false;
-      seen.add(vid);
+      const active = _trtcCensusTrips.get(baseVid);
+      const activeId = active && active.id ? active.id : baseVid;
+      const p0 = prior.get(activeId);
+      if (!p0 || seen.has(activeId)) return false;
+      seen.add(activeId);
       const held = { ...p0, source: 'census-hold', holdReason: why, observedEpoch: nowEpoch };
-      next.set(vid, held); out.push(held); return true;
+      next.set(activeId, held); out.push(held); return true;
     };
     if (Number.isFinite(at) && nowEpoch - at > 900) { holdPrev('stale-at'); continue; }
     const path = Array.isArray(t.path) ? t.path : [];
@@ -5996,7 +6112,25 @@ function trtcCensusVehicles(trains, nowEpoch, day) {
     const dirOut = terminal
       ? (from <= 0 ? 2 : (from >= arr.length - 1 ? 1 : (step > 0 ? 2 : 1)))
       : (step > 0 ? 2 : 1);
-    const vehicleId = vid;
+    let trip = _trtcCensusTrips.get(baseVid);
+    if (trip && Number(trip.dir) !== dirOut) {
+      const old = prior.get(trip.id);
+      const oldLn = old && trtcCensusLine(old.line);
+      const oldPos = old && oldLn ? trtcOfficialVehiclePosition(oldLn, old, nowEpoch) : null;
+      const oldAtDest = !!(old && Number(old.from) === Number(old.dest) && old.terminal) ||
+        !!(old && Number(old.to) === Number(old.dest) && nowEpoch >= Number(old.arrEpoch));
+      // 方向欄／path 偶發回送上一趟資料時，舊車仍在路上：直接沿用舊趟，禁止同一 ID
+      // 跨線段或翻面。等它真的抵達終點（位置已 null 或到達已知 dest）才承認折返。
+      if (old && oldPos && !oldAtDest) { holdPrev('direction-conflict'); continue; }
+      const seq = Number(trip.seq || 0) + 1;
+      trip = { dir: dirOut, seq, id: `${baseVid}:trip${seq}` };
+      _trtcCensusTrips.set(baseVid, trip);
+    }
+    if (!trip) {
+      trip = { dir: dirOut, seq: 0, id: baseVid };
+      _trtcCensusTrips.set(baseVid, trip);
+    }
+    const vehicleId = trip.id;
     if (seen.has(vehicleId)) continue;
     seen.add(vehicleId);
     // 只准前進。兩個位置來源的新鮮度差很大（CarWeight 的 stn 實測落後 96–265 秒、
@@ -6684,17 +6818,57 @@ function trtcOfficialDisplayPosition(ln, vehicle, nowEpoch) {
   //      位置永遠連續。(直接用 raw 會倒退:raw 的發車時刻是 arrEpoch − 行駛秒,倒數改 Δ 秒
   //      整個窗平移 Δ ⇒ 實測九條線全部倒退,單次最大 0.54 段≈540 公尺。)
   //   R8 下一段被前車佔住、官方沒有屬於自己的倒數 ⇒ 用我們資料裡的區間秒自己推出去(dr)。
-  // 這裡刻意沒有:前進上限、追趕倍率、最小間距夾——那些是我自己加的,已於本批拆除。
+  // 2026-08-20 尖峰實測補正：上句「位置永遠連續」原本並沒有成立。當刷新後的 arrEpoch
+  // 已落到這一格以前，舊式 `(remain > dt ? dt/remain : 1)` 會把整段剩餘距離一次吃完，
+  // 實測單格前跳 52–230m；反過來，新錨點落在顯示水位後方時，shown 完全不變，正好每
+  // 15 秒凍一輪。兩者是同一個 deadline 重錨 bug。現在每格位移硬封頂於該區間速度的 2 倍；
+  // deadline 已不可能達成時寧可晚到也不瞬移。錨點落後時則沿目前區段續行到下一站，不原地等。
+  // ETA 大幅後延也只准把速度降到區間基準的一半，避免「有目標但十五秒幾乎不動」；這個下限
+  // 只改移動中的速度，不繞過停站秒。最小間距仍不做視覺位移，身分／保序由 resolver 處理。
   const dwellDone = atSt == null || !Number.isFinite(Number(prior.arrivedAt)) ||
     now >= Number(prior.arrivedAt) + trtcOfficialDwellAt(ln, atSt);
-  let shown = prior.progress;
-  if (plan && plan.progress > prior.progress + 1e-9 && dwellDone) {
-    const remain = plan.arrEpoch - prior.epoch;
-    shown = prior.progress + (plan.progress - prior.progress) * (remain > dt ? dt / remain : 1);
+  // 到站 latch 的容差可達 0.01 段；停站期間必須把這個「距站心數公尺」的近似值正規化成
+  // 真正站點，否則畫面看似在非站區停住 20–40 秒，監測也會誤判成行進中假死。
+  let shown = !dwellDone && atSt != null ? Math.max(prior.progress, step * atSt) : prior.progress;
+  let statePlan = plan;
+  if (dwellDone) {
+    const physical = prior.progress / step;
+    const nextStation = atSt != null ? atSt + step
+      : step > 0 ? Math.floor(physical + 1e-9) + 1 : Math.ceil(physical - 1e-9) - 1;
+    const planAhead = !!(plan && plan.progress > prior.progress + 1e-9);
+    const fallbackAhead = Number.isInteger(nextStation) && ln.stations[nextStation]
+      ? { progress: step * nextStation, arrEpoch: now, station: nextStation, step } : null;
+    const target = planAhead ? plan : fallbackAhead;
+    if (target && target.progress > prior.progress + 1e-9) {
+      const baseLimit = trtcOfficialForwardLimit(ln, vehicle, prior.progress, dt);
+      const catchupLimit = trtcOfficialForwardLimit(ln, vehicle, prior.progress,
+        dt * TRTC_OFFICIAL_CATCHUP_FACTOR);
+      const baseAdvance = Math.max(0, baseLimit - prior.progress);
+      const maxAdvance = Math.max(baseAdvance, catchupLimit - prior.progress);
+      const gap = target.progress - prior.progress;
+      const remain = planAhead ? Number(target.arrEpoch) - prior.epoch : 0;
+      const etaAdvance = remain > dt ? gap * dt / remain : maxAdvance;
+      const minAdvance = baseAdvance * 0.5;
+      // ETA 快到時可平滑追到 2× 區間速度，但仍是逐格連續位移；不再以一格吃完整段的方式「準時」。
+      const advance = Math.min(maxAdvance, Math.max(minAdvance, etaAdvance));
+      shown = Math.min(target.progress, prior.progress + advance);
+      statePlan = target;
+    }
   }
-  const pos = trtcOfficialPositionAtProgress(ln, vehicle, shown, raw);
+  let pos = trtcOfficialPositionAtProgress(ln, vehicle, shown, raw);
+  if (!dwellDone && atSt != null && ln.stations[atSt]) {
+    const station = ln.stations[atSt];
+    // progress 保留單調水位，座標狀態則要誠實表示正在站內停靠。兩者最多只差 stopState 的
+    // 0.01 段容差（尖峰實測 3–15m），可避免正常停站被判成「非站區卡死」。
+    const stationProgress = step * atSt;
+    // 已經因浮點容差越過站心數公尺時不可把座標拉回去；只正規化停站狀態，維持實際座標單調。
+    pos = shown <= stationProgress + 1e-9
+      ? { ...pos, lat: station.lat, lon: station.lon, fraction: 1, atStation: true,
+          motionFrom: atSt, motionTo: atSt }
+      : { ...pos, atStation: true, motionFrom: atSt, motionTo: atSt };
+  }
   trtcOfficialDisplaySet(key, { epoch: now, progress: shown, pos, coasted, coastSince, anchor, obs, step, dr,
-    ...trtcOfficialStopState(plan, shown, prior, now),
+    ...trtcOfficialStopState(statePlan, shown, prior, now),
     correcting: behindM >= TRTC_OFFICIAL_SNAP_FORWARD_M }, ln, vehicle, now);
   return pos;
 }
@@ -19530,12 +19704,50 @@ function trtcOfficialBoardRealNow(nowSec = nowSecOfDay()) {
   if (delta > 43200) delta -= 86400; else if (delta < -43200) delta += 86400;
   return !!(state.clockAtNow && state.playing && state.speedMult === 1 && !state._scrubTime && Math.abs(delta) <= 120);
 }
-function trtcOfficialCountdownText(etaEpoch, nowEpoch = Date.now() / 1000) {
+function trtcOfficialCountdownText(etaEpoch, nowEpoch = Date.now() / 1000, atPlatform = true) {
   const left = Number(etaEpoch) - Number(nowEpoch);
   if (!Number.isFinite(left)) return '';
-  if (left <= 0) return '列車進站';
+  if (left <= 0) return atPlatform ? '列車進站' : '即將進站';
   const sec = Math.max(0, Math.ceil(left));
   return Math.floor(sec / 60) + ':' + String(sec % 60).padStart(2, '0');
+}
+function trtcOfficialBoardDwellSec(ln, stationIndex) {
+  const dwell = trtcOfficialDwellAt(ln, stationIndex);
+  return dwell > 0 ? dwell : TRTC_OFFICIAL_BOARD_ARRIVING_GRACE_SEC;
+}
+// 「列車進站」是動畫狀態，不只是 ETA<=0 的同義詞。尖峰實測中官方 ETA 已歸零、車卻因
+// 錨點修訂仍在 1km 外；舊 UI 仍固定寫 30 秒「列車進站」，造成 299 筆裡只有 133 筆全程
+// 真正在站旁。這裡只讀 renderer 已畫出的官方身分水位，不推動車、不改 ID：有車號就精確
+// 對車，BR/Y 無車號才在同線同向終點中取離本站最近者。25m 內才顯示進站；精確車號已通過
+// 本站則立刻撤列。匿名列無法證明「哪台已通過」，只用該站實際 dwell 作生命週期上限。
+function trtcOfficialBoardArrivalState(ln, stationIndex, row, nowEpoch = Date.now() / 1000) {
+  const station = ln && ln.stations && ln.stations[stationIndex];
+  const roster = state.trtcOfficialRoster;
+  const vehicles = roster && roster.feedMode === 'official' && Array.isArray(roster.vehicles)
+    ? roster.vehicles : [];
+  if (!station || !vehicles.length) return { near: false, departed: false, matched: false, distanceM: null };
+  const no = String(row && row.no || ''), destKey = trtcOfficialStationName(row && row.dest);
+  let best = null;
+  for (const vehicle of vehicles) {
+    if (String(vehicle && vehicle.line) !== String(ln.id)) continue;
+    if (no && String(vehicle.officialNo || '') !== no) continue;
+    const dest = ln.stations[Number(vehicle.dest)];
+    if (destKey && trtcOfficialStationName(dest && dest.name) !== destKey) continue;
+    const rec = _trtcOfficialDisplay.get(`${ln.id}|${vehicle.vehicleId}`);
+    const pos = rec && rec.pos;
+    if (!pos || ![Number(pos.lat), Number(pos.lon)].every(Number.isFinite)) continue;
+    const distanceM = haversineKm(station, pos) * 1000;
+    if (!best || distanceM < best.distanceM) best = { vehicle, rec, distanceM };
+  }
+  if (!best) return { near: false, departed: false, matched: false, distanceM: null };
+  const near = best.distanceM <= 25;
+  let departed = false;
+  if (no) {
+    const progress = Number(best.rec.progress), step = Number(best.vehicle.dir) === 2 ? 1 : -1;
+    departed = Number.isFinite(progress) && progress > step * stationIndex + 0.02 && !near;
+  }
+  return { near, departed, matched: true, distanceM: best.distanceM,
+    vehicleId: String(best.vehicle.vehicleId || ''), checkedAt: Number(nowEpoch) };
 }
 // 官方擁擠度等級→色。分級語意由官方定義,我們只上色不重新分級;
 // 色票與小工具 MetroPalette.crowd 同值(sRGB 換算 hex),兩個介面要長一樣。
@@ -21665,7 +21877,7 @@ function trtcOfficialBoardView(st, lines, isDeco, nowMs = Date.now()) {
   for (const row of board.rows) {
     if (trtcOfficialStationName(row.name) !== stationKey || !trtcOfficialRowFresh(row, nowMs)) continue;
     const left = Number(row.eta) - nowMs / 1000;
-    if (left < -TRTC_OFFICIAL_BOARD_ARRIVING_GRACE_SEC || left > 7200) continue;
+    if (left > 7200) continue;
     const exactKey = [row.name, row.dest, row.eta, row.at, row.no].join('\u001f');
     if (seen.has(exactKey)) continue;
     seen.add(exactKey);
@@ -21675,10 +21887,18 @@ function trtcOfficialBoardView(st, lines, isDeco, nowMs = Date.now()) {
     const candidates = allCandidates.filter(ent => visibleIds.has(ent.ln.id));
     if (allCandidates.length && !candidates.length) continue; // 此列只屬於使用者已關閉的路線
     const display = allCandidates.length === 1 && candidates.length === 1 ? candidates[0] : (candidates[0] || stationLines[0]);
+    const stationIndex = display && display.ln && display.ln.stations
+      ? display.ln.stations.findIndex(item => trtcOfficialStationName(item && item.name) === stationKey) : -1;
+    const dwellSec = trtcOfficialBoardDwellSec(display && display.ln, stationIndex);
+    const arrival = left <= 0 && stationIndex >= 0
+      ? trtcOfficialBoardArrivalState(display.ln, stationIndex, row, nowMs / 1000)
+      : { near: false, departed: false, matched: false, distanceM: null };
+    if (left < -dwellSec || arrival.departed) continue;
     let join = null;
     try { if (allCandidates.length === 1 && candidates.length === 1) join = trtcOfficialTripJoin(row, candidates); }
     catch (e) { /* join 永遠是附加能力；失敗時列照顯示、只拿掉點擊 */ }
-    directRows.push({ row, left, candidates, display, ambiguousLine: allCandidates.length !== 1, join });
+    directRows.push({ row, left, candidates, display, stationIndex, dwellSec, arrival,
+      ambiguousLine: allCandidates.length !== 1, join });
   }
   if (!directRows.length) return null;
   const byDir = new Map();
@@ -21715,11 +21935,13 @@ function renderTrtcOfficialFreqBoard(el, st, lines, isDeco, view) {
   el._trtcDown = null;
   el._downKey = null; // 不讓 legacy 看板先前的 pointerdown 穿越到官方列
   const hasEstimated = view.groups.some(g => g.kind === 'legacy' && g.ln.times && g.ln.times.estimated);
+  const officialRecords = [];
   const body = view.groups.map(group => {
     // 標籤只寫線名不掛系統前綴(08-14 使用者:擁擠度格進來後「台北捷運」四個字把空間吃掉,
     // 線名本身已足夠辨識)——這裡是北捷官方板,線名(淡水信義線/安坑輕軌/機場捷運)不會歧義。
     const lineLabel = group.ln.name || group.ln.abbr || group.ln._sysLabel || '';
     if (group.kind === 'official') return group.rows.map(rec => {
+      officialRecords.push(rec);
       const join = rec.join;
       const followAttrs = join ? ` data-li="${join.li}" data-ci="${join.ci}" title="跟隨 往${escHtml(group.destName)} 班次"`
         : ' aria-disabled="true" title="官方到站時間；目前無法唯一對應動畫班次"';
@@ -21733,7 +21955,7 @@ function renderTrtcOfficialFreqBoard(el, st, lines, isDeco, view) {
       return `<div class="row${crowdHtml ? ' has-crowd' : ''}" data-trtc-eta="${rec.row.eta}" data-trtc-at="${rec.row.at}"${followAttrs}><span class="dot" style="background:${rec.ambiguousLine ? '#8fa8c6' : group.ln.color}"></span>` +
         `<b>往 ${escHtml(group.destName)}</b><span class="dest">${escHtml(genericLine)}${linkNote}</span>` +
         crowdHtml +
-        `<span class="t">${trtcOfficialAbsoluteHM(rec.row.eta)}</span><span class="min">${trtcOfficialCountdownText(rec.row.eta, view.nowMs / 1000)}</span></div>`;
+        `<span class="t">${trtcOfficialAbsoluteHM(rec.row.eta)}</span><span class="min">${trtcOfficialCountdownText(rec.row.eta, view.nowMs / 1000, rec.arrival && rec.arrival.near)}</span></div>`;
     }).join('');
     return group.rows.map(row => {
       const min = row.dtm < 60 ? '即將進站' : Math.round(row.dtm / 60) + ' 分';
@@ -21756,6 +21978,7 @@ function renderTrtcOfficialFreqBoard(el, st, lines, isDeco, view) {
     `<button class="close" id="boardClose">×</button></h3>` + stnMetaHtml(st) + eventRowsHtml(st) +
     `<div class="sub">北捷班次直接顯示官方即時倒數 · ${canFollow ? '可點選的班次可跟隨動畫' : '目前班次未連結動畫'}${hasEstimated ? '（其他系統部分路線為班距推算）' : ''}</div>` +
     (body || '<div class="empty">此時段無停靠班次</div>');
+  el.querySelectorAll('.row[data-trtc-eta]').forEach((node, i) => { node._trtcOfficialRecord = officialRecords[i] || null; });
   el.hidden = false;
   updateSheetOpenClass();
   el.querySelector('#boardClose').onclick = closeBoard;
@@ -21793,11 +22016,18 @@ function refreshTrtcOfficialBoardCountdown(nowMs = Date.now()) {
   el.querySelectorAll('.row[data-trtc-eta]').forEach(row => {
     const src = { eta: Number(row.dataset.trtcEta), at: Number(row.dataset.trtcAt) };
     const left = src.eta - nowMs / 1000;
-    if (!trtcOfficialRowFresh(src, nowMs) || left < -TRTC_OFFICIAL_BOARD_ARRIVING_GRACE_SEC || left > 7200) {
+    const rec = row._trtcOfficialRecord;
+    const dwellSec = Number(rec && rec.dwellSec) > 0
+      ? Number(rec.dwellSec) : TRTC_OFFICIAL_BOARD_ARRIVING_GRACE_SEC;
+    const arrival = left <= 0 && rec && rec.display && rec.stationIndex >= 0
+      ? trtcOfficialBoardArrivalState(rec.display.ln, rec.stationIndex, rec.row, nowMs / 1000)
+      : { near: false, departed: false };
+    if (!trtcOfficialRowFresh(src, nowMs) || left < -dwellSec || left > 7200 || arrival.departed) {
       rerender = true; return;
     }
     const out = row.querySelector('.min');
-    if (out) out.textContent = trtcOfficialCountdownText(src.eta, nowMs / 1000);
+    if (out) out.textContent = trtcOfficialCountdownText(src.eta, nowMs / 1000, arrival.near);
+    if (rec) rec.arrival = arrival;
   });
   if (rerender) renderBoard();
 }

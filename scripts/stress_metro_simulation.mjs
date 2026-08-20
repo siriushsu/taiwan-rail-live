@@ -201,7 +201,8 @@ this.api = {
   position: trtcOfficialDisplayPosition, rawPosition: trtcOfficialVehiclePosition, along: _trtcBrAlong,
   snapshot: trtcEntityDiagnosticsSnapshot,
   reset() { _trtcCdRosters.clear(); _trtcCdDiagFrames.splice(0); _trtcCdArrived.clear(); _trtcCdDwell.clear();
-    _trtcCensusPrior = new Map(); _trtcCdOnlyPrior.clear(); _trtcCodeIdx = null; _trtcOfficialDisplay.clear(); },
+    _trtcCensusPrior = new Map(); _trtcCensusTrips.clear(); _trtcCdOnlyPrior.clear();
+    _trtcCodeIdx = null; _trtcOfficialDisplay.clear(); },
   line(id) { return trtcCensusLine(id); },
   constants: { grace: TRTC_CD_MISSING_GRACE_SEC, maxAge: TRTC_CD_MAX_DATA_AGE_SEC }
 };`;
@@ -454,7 +455,7 @@ function orderedMatch(expected, actual, maxSegKm) {
 function newEntityMetrics() {
   return { frames: 0, expected: 0, rendered: 0, errorsM: [], maxErrorM: 0, ghosts: 0, missing: 0,
     identityChanges: 0, swaps: 0, reverse: 0, jumps: 0, followWrong: 0, followDropped: 0,
-    transientGhosts: 0, transientMissing: 0, identityRebases: 0,
+    transientGhosts: 0, transientMissing: 0, identityRebases: 0, postRetirementRekeys: 0,
     failures: [], failureSnapshots: [] };
 }
 function compactFrame(now, rows, expected, actual, matched, resolve = null) {
@@ -484,6 +485,7 @@ function runEntityStress(line, seed, profile, metrics) {
   const trips = syntheticTrips(line, seed ^ 0xe1717, OPT.start, OPT.start + OPT.hours * 3600,
     load, profile === 'chaos');
   const evidenceAt = new Map(), evidenceUntil = new Map(), truthToRender = new Map(), lastRender = new Map(), lastPairAt = new Map();
+  const identityPending = new Map();
   const priorPos = new Map(), ghostSince = new Map(), missingSince = new Map();
   const faultState = { outageUntil: -Infinity, lastRows: [] }, ring = [];
   let follow = null, followCooldownUntil = -Infinity;
@@ -508,10 +510,10 @@ function runEntityStress(line, seed, profile, metrics) {
     const input = ENTITY_PRODUCTION.fromBoard(line.id, board.rows.map(({ _truthId, _station, ...r }) => r), now, DAY) || [];
     ENTITY_PRODUCTION.restamp(line.id, input, now, DAY, true);
     lastVehicles = input.slice();
-    const resolve = OPT.trace
-      ? [...(ENTITY_PRODUCTION.snapshot().frames || [])].reverse()
-        .find(frame => frame.kind === 'resolve' && frame.line === line.id) || null
-      : null;
+    // 判斷「活躍 ID 換車」與「45 秒退場後新生命週期」本身就需要 production 的
+    // dormant 狀態，不能只在 --trace 才讀；trace 僅控制是否把完整 frame 寫進輸出。
+    const resolve = [...(ENTITY_PRODUCTION.snapshot().frames || [])].reverse()
+      .find(frame => frame.kind === 'resolve' && frame.line === line.id) || null;
     const actual = [];
     for (const vehicle of input) {
       const pos = ENTITY_PRODUCTION.position(ENTITY_PRODUCTION.line(line.id), vehicle, now); if (!pos) continue;
@@ -545,7 +547,8 @@ function runEntityStress(line, seed, profile, metrics) {
       aggregate.pairs.push(...m.pairs); aggregate.missing.push(...m.missing); aggregate.ghosts.push(...m.ghosts);
     }
     metrics.frames++; metrics.expected += expected.length; metrics.rendered += actual.length;
-    const currentCompact = compactFrame(now, board.rows, expected, actual, aggregate, resolve);
+    const currentCompact = compactFrame(now, board.rows, expected, actual, aggregate,
+      OPT.trace ? resolve : null);
     const eventRing = [...ring, currentCompact].slice(-7);
     if (now >= warmup) {
       const ghostIds = new Set(aggregate.ghosts.map(x => x.id));
@@ -598,29 +601,67 @@ function runEntityStress(line, seed, profile, metrics) {
     // 有缺車／多車時，匿名最近位置配對有多個同樣合理的解；那一段不能拿來
     // 宣稱 ID 交換。清掉基準，等下一個一對一乾淨 frame 重新建立證據。
     if (aggregate.missing.length || aggregate.ghosts.length) {
-      truthToRender.clear(); lastPairAt.clear(); lastRender.clear(); metrics.identityRebases++;
+      truthToRender.clear(); lastPairAt.clear(); lastRender.clear(); identityPending.clear(); metrics.identityRebases++;
     }
     const renderIds = new Set(actual.map(x => x.id));
+    const reliableIdentityPair = candidate => {
+      if (!candidate || candidate.errorKm > .15) return false;
+      const renderAmbiguous = actual.some(item => item !== candidate.render && item.dir === candidate.render.dir &&
+        Math.abs(item.d - candidate.render.d) < .15);
+      const truthAmbiguous = expected.some(item => item !== candidate.truth && item.dir === candidate.truth.dir &&
+        Math.abs(item.d - candidate.truth.d) < .15);
+      return !renderAmbiguous && !truthAmbiguous;
+    };
     for (const pair of aggregate.pairs) {
       const errorM = pair.errorKm * 1000; metrics.errorsM.push(errorM); metrics.maxErrorM = Math.max(metrics.maxErrorM, errorM);
       // 位置差到跨過半個車位時，「最近一對」已經無法獨立證明誰是誰；
       // 強行寫入 truth↔render 記憶，下一幀回到正常距離反而會被誤報成 ID 交換。
       // BR 最長站間達 2.6km；若把「站間 35%」當可信半徑，兩台差 500–900m
       // 仍會被硬認成同一車，反而製造假交換。無官方車號時只在 150m 內建立身分真值。
-      const renderAmbiguous = actual.some(item => item !== pair.render && item.dir === pair.render.dir &&
-        Math.abs(item.d - pair.render.d) < .15);
-      const truthAmbiguous = expected.some(item => item !== pair.truth && item.dir === pair.truth.dir &&
-        Math.abs(item.d - pair.truth.d) < .15);
-      const identityReliable = pair.errorKm <= .15 && !renderAmbiguous && !truthAmbiguous;
-      if (!identityReliable) continue;
+      const identityReliable = reliableIdentityPair(pair);
+      if (!identityReliable) { identityPending.delete(pair.truth.id); continue; }
       const prevId = truthToRender.get(pair.truth.id), lastAt = lastPairAt.get(pair.truth.id);
-      if (prevId && prevId !== pair.render.id && lastAt != null && now - lastAt <= 45) {
-        metrics.identityChanges++;
-        const swapped = renderIds.has(prevId);
-        if (swapped) metrics.swaps++;
-        entityFailure(metrics, swapped ? 'identity-swap' : 'identity-rekey', seed, line, now,
-          { truth: pair.truth.id, before: prevId, after: pair.render.id, errorM }, eventRing);
+      if (prevId && prevId !== pair.render.id && lastAt != null) {
+        const continuityAge = now - lastAt;
+        // 產品明確只保證匿名身分在 45 秒 grace 內連續；超過整個 grace 後，舊實體已從
+        // 畫面退場，後來的官方觀測是新生命週期，不能再算成「兩台在線車交換 ID」。
+        // 仍把這種重建獨立計數，避免測試把它靜默藏掉。8/20 真實 BR 也證明：若為了
+        // 追求跨墓碑同 ID 而壓住新觀測，倒數歸零時反而會整台缺車。
+        const retiredSlot = !!(resolve && Array.isArray(resolve.output) &&
+          resolve.output.some(item => item.id === prevId && item.dormant));
+        if (continuityAge < ENTITY_PRODUCTION.constants.grace && !retiredSlot) {
+          // 舊 ID 還在畫面、但沒有另一個「可靠真值」與它互換時，只能證明獨立裁判器
+          // 在匿名車暫缺後重建了最近位置配對，不能證明 production 交換身分。真正交換
+          // 必須同時看到 A→B、B→A 兩條可靠交叉證據；否則重新建立裁判基準並保留計數。
+          const previousTruthForNewId = lastRender.get(pair.render.id);
+          const reciprocal = previousTruthForNewId && previousTruthForNewId !== pair.truth.id
+            ? aggregate.pairs.find(item => item.truth.id === previousTruthForNewId && item.render.id === prevId)
+            : null;
+          if (renderIds.has(prevId) && !reliableIdentityPair(reciprocal)) {
+            metrics.identityRebases++;
+            identityPending.delete(pair.truth.id);
+            truthToRender.set(pair.truth.id, pair.render.id); lastPairAt.set(pair.truth.id, now);
+            lastRender.set(pair.render.id, pair.truth.id);
+            continue;
+          }
+          // 匿名列沒有官方車號；單一 frame 的最近位置翻轉，尤其在 150m 信賴邊界，
+          // 不能獨立證明 production 真的交換 ID。必須連續兩輪都由同一個新 ID
+          // 可靠地對到同一真值，才列為硬錯。若下一輪回到舊 ID，候選即取消。
+          const pending = identityPending.get(pair.truth.id);
+          const consecutive = !!(pending && pending.id === pair.render.id &&
+            now - Number(pending.at) === OPT.interval);
+          if (!consecutive) {
+            identityPending.set(pair.truth.id, { id: pair.render.id, at: now });
+            continue;
+          }
+          metrics.identityChanges++;
+          const swapped = renderIds.has(prevId);
+          if (swapped) metrics.swaps++;
+          entityFailure(metrics, swapped ? 'identity-swap' : 'identity-rekey', seed, line, now,
+            { truth: pair.truth.id, before: prevId, after: pair.render.id, errorM, continuityAge }, eventRing);
+        } else metrics.postRetirementRekeys++;
       }
+      identityPending.delete(pair.truth.id);
       truthToRender.set(pair.truth.id, pair.render.id); lastPairAt.set(pair.truth.id, now);
       lastRender.set(pair.render.id, pair.truth.id);
     }
@@ -714,11 +755,16 @@ function runCensusStress(line, seed, profile, metrics) {
         truthId: truthByOfficialNo.get(String(vehicle.officialNo || '')) || null,
         dir: Number(vehicle.dir), d, progress, vehicle, vehicleLine: vehicle.line });
       const old = priorPos.get(String(vehicle.vehicleId));
-      if (old && old.dir === Number(vehicle.dir) && progress < old.progress - 1e-6) {
+      // O 線共線段可由任一支線容器繪製；chaos 省略終點時容器可能在兩支線間切換，
+      // 而兩份模型過分岔後的 d 軸不同，不能把跨容器的數值差誤判成同一路徑倒退。
+      // 同一容器內仍維持嚴格單調 gate。
+      if (old && old.line === String(vehicle.line) && old.dir === Number(vehicle.dir) &&
+          progress < old.progress - 1e-6) {
         metrics.reverse++; entityFailure(metrics, 'census-reverse', seed, line, now,
           { render: vehicle.vehicleId, deltaKm: progress - old.progress }, ring);
       }
-      priorPos.set(String(vehicle.vehicleId), { progress, dir: Number(vehicle.dir), at: now });
+      priorPos.set(String(vehicle.vehicleId), { progress, dir: Number(vehicle.dir),
+        line: String(vehicle.line), at: now });
     }
     const expected = [];
     for (const trip of trips) {
@@ -801,7 +847,7 @@ function entitySummary(m) {
     ghosts: m.ghosts, missing: m.missing, identityChanges: m.identityChanges, swaps: m.swaps,
     reverse: m.reverse, jumps: m.jumps, followWrong: m.followWrong, followDropped: m.followDropped,
     transientGhosts: m.transientGhosts, transientMissing: m.transientMissing,
-    identityRebases: m.identityRebases,
+    identityRebases: m.identityRebases, postRetirementRekeys: m.postRetirementRekeys,
     failures: m.failures, failureSnapshots: m.failureSnapshots };
 }
 
@@ -833,6 +879,7 @@ for (const line of LINES.filter(x => x.system === 'mrt' && ['BR', 'Y'].includes(
     const key = `${line.key}:${profile}`; output.entity[key] = entitySummary(em);
     console.log(`${em.failures.length ? '⚠️' : '✅'} ${key.padEnd(25)} 實體 ${em.frames.toLocaleString()} frames` +
       `｜幽靈 ${em.ghosts}｜漏車 ${em.missing}｜換 ID ${em.identityChanges}｜交換 ${em.swaps}` +
+      `｜退場後重建 ${em.postRetirementRekeys}` +
       `｜逆行 ${em.reverse}｜跳段 ${em.jumps}｜跟錯 ${em.followWrong}｜跟丟 ${em.followDropped}` +
       `｜短暫缺/多 ${em.transientMissing}/${em.transientGhosts}` +
       `｜P95 ${Math.round(percentile(em.errorsM, .95) || 0)}m`);
