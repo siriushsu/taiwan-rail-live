@@ -3840,6 +3840,7 @@
            內容 li 上限 8 條(li.grp 是標題不算)。 -->
       <ul class="foot-list foot-recent">
         <li class="grp">最近更新</li>
+        <li data-cl-of="krtctrip"><span class="d">8/20</span><span>高捷紅橘線改成逐班接續官方看板：同一班車在不同車站的到站資訊會接回原本班次，不再用整條線同一個平均值把相鄰列車擠在一起；資料不夠確定時會保守沿用原本推估，不會硬認成隔壁班。紅橘兩線的最後一段也都會依實際路段時間一路跑到終點才收車</span></li>
         <li data-cl-of="trtcidentity2"><span class="d">8/20</span><span>文湖線與環狀線的認車再加一道保護：同一班車的倒數換到下一個路段時會接回原本的身分，兩筆資料若曾擠到 100 公尺內也只留較早的那筆，不再留下第二顆車點追著後車跑。環狀線可提早出現在起點等發車，但倒數縮到該段行車時間才會開；最後一段則一路留到真正抵達終點才收車</span></li>
         <li data-cl-of="trtcentity"><span class="d">8/20</span><span>文湖線與環狀線偶爾出現的卡站車、短區間擠好幾台再修一輪：失去官方資料的舊車不再永久留在站上，疑似同一台的新舊資料也不會立刻同時畫出；「診斷資訊」可匯出最近十分鐘的捷運判讀，方便下次異常直接還原</span></li>
         <li data-cl-of="tradaily"><span class="d">8/20</span><span>台鐵今日官方公告停駛的班次不再出現在地圖上，車站看板仍會列出並標示「停駛」</span></li>
@@ -3847,7 +3848,6 @@
         <li data-cl-of="cdarrivestamp"><span class="d">8/19</span><span>文湖線與環狀線的列車不會再整批往前跳一站、下一輪又整批退回來：被退回的那台會凍在原地等，後面的車追上來就擠成一團，現在這個來回跳沒有了</span></li>
         <li data-cl-of="brsametrain"><span class="d">8/19</span><span>文湖線不會再把前後兩台車併成一台：併掉的那台會補回地圖上，原本被併的那台也不會再卡在原地被後車追上、擠成一團</span></li>
         <li data-cl-of="stationonline"><span class="d">8/19</span><span>停靠中的列車不會再被畫到自己那條線的外面：大安站的文湖線車以前會出現在信義路上（離棕線 123 公尺），現在全台 45 個站點座標一律貼回自己路線的軌道上，車停哪一站就畫在那一站</span></li>
-        <li data-cl-of="trtcorigindir"><span class="d">8/19</span><span>台北捷運停在起點站等發車的列車不會再憑空消失，也不會朝反方向開：等發車的車就畫在起點站上，時間到了自己開出去；行進方向改看官方的到站倒數，不再誤用折返時會慢半拍的方向欄位</span></li>
       </ul>
       <!-- 第二層:完整歷史。刻意不掛 .foot-box 類名——placeFootBoxes() 用
            `.site-foot .foot-box` 搬移面板,巢狀同名會被當成另一個盒子一起搬走。 -->
@@ -3868,6 +3868,7 @@
         <li><span class="d">7/10</span><span>高鐵、桃園機捷、淡海輕軌、安坑輕軌加入路網</span></li>
         <li><span class="d">7/10</span><span>環島觀光列車一分為二：往東「山海號」、往西「平原號」</span></li>
         <li class="grp">即時動態與誤點</li>
+        <li data-cl="krtctrip"><span class="d">8/20</span><span>高捷紅橘線的官方即時看板只有「哪一站、往哪個終點、還有幾分鐘」，沒有車號或衛星位置；以前只能把整條線取一個平均誤點，單一列車慢一點時，相鄰班次就可能一起被搬動、在短區間擠近。現在以當日逐站班表作固定名冊，把同一份全線看板的多站證據接回既有班次：新身分必須先在起點站被看到，中途站只能接續已確認的班次，同一份重複快照不能算兩次確認；每個共享車站都會檢查前後順序，不讓相鄰班交換身分或互相超車。證據不足時寧可維持同方向的線級推估，不憑空新增列車。另以紅線 321 班、橘線 304 班的實際平日班表跑 20 組尖峰壓測，並重播五輪真實晚尖峰訊號；已確認零錯認、零幽靈、位置不倒退也不大幅前跳，兩方向最後一段皆依該段實際時間跑到終點才退場</span></li>
         <li data-cl="trtcidentity2"><span class="d">8/20</span><span>文湖線與環狀線沒有官方車號，必須靠每十五秒更新的各站倒數接續身分；畫面本身卻每秒都在前進，所以兩個身分有時會在兩次資料更新之間先擠到一起，等下一批資料來時又已經拉開，舊邏輯完全看不到這次重疊。現在會記住「同方向、同終點的兩筆資料曾在 100 公尺內」這項證據，下一批只保留較早建立的身分；若新倒數的官方車位已經接到舊身分所在的下一段，也直接把倒數交回舊身分，不讓同一班車留下兩個標記。這些判斷只決定哪個身分存活，不會挪動車子或交換兩台車的位置。環狀線可以在發車前最多一個停站時間先出現在起點，但仍要等「剩餘倒數等於該段行車時間」才開出去；文湖線與環狀線的最後一段也不再被固定 45 秒提早截斷，而是依那一班已知的終點到站時刻收車</span></li>
         <li data-cl="trtcentity"><span class="d">8/20</span><span>文湖線與環狀線沒有官方車次編號，只能從各站到站倒數跨批認車；某一批倒數跳動或漏掉一台時，舊資料可能沒接上新資料，變成「舊車留在站上、新車繼續前進」，幾輪後就在很短的區間擠出好幾台。現在新舊資料若在同方向、同終點與一輪可到達的範圍內，會先接回同一個身分；仍有失聯舊車時，無法接上的新觀測要連續兩輪才加入。單車失去官方證據最多短暫續推 45 秒，若被新鮮官方車擋住就讓舊身分退場，不再每輪把到站時間改成「現在加一秒」而永久卡在月台。這些規則只決定身分存續，不會為了拉開車距而移動任何列車。另在「更多 → 診斷資訊」加入捷運診斷匯出，平常持續保留最近十分鐘的官方倒數、身分接續與退場原因，看到異常後可以直接匯出 JSON 還原當時發生什麼</span></li>
         <li data-cl="tradaily"><span class="d">8/20</span><span>台鐵今天官方公告停駛的車不會再出現在地圖上：打包的台鐵班表是預先抓好的快照，官方之後宣布停駛我們看不到，那班車照樣在地圖上跑完全程。現在開機時會跟官方今日班表對一次，停駛的車不畫；車站看板仍然把它列出來、標成「停駛」並把時刻畫掉，你才分得出「我要搭的那班取消了」和「這個時段本來就沒車」。官方當天才加開的班次目前只記錄不畫——實測那些多半是只給起訖兩站的專列，硬畫出來會變成一台在兩個遠站之間亂走的車</span></li>
@@ -4394,7 +4395,9 @@
 //         退場，新觀測在有衝突舊車時需連兩輪確認；只改身分存續，不改列車物理位置。
 // v0820d：BR／Y 的倒數換段接回原 ID，記住兩次刷新間曾發生的 100m 重疊並淘汰較新 ID；
 //         最後一段依已知終點到站時刻退場，Y 起點可提前出現但不提前發車。
-const BUILD = 'v0820d';
+// v0820e：高捷紅橘線匿名看板保守綁回固定班次；起點出生、多站／跨輪確認、逐站順序門檻，
+//         並以資料本身時戳校正，不再整線一起平移或把重複快照算成兩輪證據。
+const BUILD = 'v0820e';
 // 2026-08-13 起預設開啟（使用者親試預覽後裁示上線）：北捷畫車依官方即時名冊，班表只是備案。
 // 保留 ?officialroster=0 當逃生口——要退回班表路徑不必回滾部署，加個參數即可對照。
 // 🔴 這個函式會被 verify_official_roster_frontend 抽出來丟進 VM 單獨執行——
@@ -19128,7 +19131,7 @@ function trtcHeadwayLinksForMotions(perLine, simSec) {
   }
   return out;
 }
-function metroShiftSec(ln, tr) { // 正=實際比表定晚跑(誤點);北捷逐班,其他現行資料源維持逐線;經 easedShift 平滑進出
+function metroShiftSec(ln, tr) { // 正=實際比表定晚跑(誤點);北捷／高捷紅橘線逐班,其他資料源維持逐線;經 easedShift 平滑進出
   const s = ln._liveShift, on = metroLiveOn(ln);
   let target = 0, dch; // 方向字元 f/b/a:eased 偏移逐線逐方向共用(非逐車)
   if (tr && ln._trtcTripMode) {
@@ -19137,6 +19140,13 @@ function metroShiftSec(ln, tr) { // 正=實際比表定晚跑(誤點);北捷逐�
     // 這班有認到就吃自己的錨點,沒認到退回全線中位數(不是 0):同一時刻整條線多半一起誤點,
     // 給 0 等於宣告「這班準點」,會讓沒被看板認到的車與旁邊認到的車對不齊。
     if (ln._trtcBoard && on) { const v = ln._trtcBoard.shifts.get(tr); target = v != null ? v : ln._trtcBoard.all; }
+  } else if (tr && freqSysIdOf(ln) === 'krtc' && !ln.loop) {
+    // 高捷紅橘線沒有官方車號或 GPS，但有逐站班表。看板證據足夠時，每一班各自沿用自己的
+    // 偏移；證據不足／逾時只退回同方向中位數，不新增車、不換成隔壁班的身份。
+    const live = krtcTripLive(ln, tr, Date.now());
+    const dir = tr[0] <= tr[tr.length - 2] ? 1 : -1;
+    target = on ? (live ? live.target : krtcLineShift(ln, dir)) : 0;
+    dch = 'krtc:' + krtcTripKey(ln, tr);
   } else if (tr && on && ln._gpsShifts && s && s.src === 'klrt') {
     // 輕軌 GPS 逐班:配到 GPS 的班次用自己的偏移,沒配到的退全線中位數(不是 0——同一時刻多半一起誤點)。
     // easedShift 的 key 帶 trip 維度,才不會讓所有班次共用一條緩動而互相拉扯。
@@ -19180,6 +19190,166 @@ function nearestArrDiff(idx, si, dir, t) { // 官方預期到站時刻 t vs 最�
     }
   }
   return best ? best.diff : null;
+}
+
+// ── 高捷紅橘線匿名看板的逐班綁定 ──────────────────────────────────────────
+// KRTC LiveBoard 只有站名、終點與整數分鐘倒數，沒有車號與逐車 GPS。班表仍是唯一名冊；
+// 這一層只把同一份全線看板的多站證據綁回既有班次，絕不依 row 建車。新身份須由起點站出生，
+// 中途資料只可續接舊身份；相鄰班在每一個共享車站都保留最少間隔，避免車庫插入班次互換身份。
+const KRTC_BIND_TTL = 8 * 60e3;
+const KRTC_BIND_RESID = 105;
+const KRTC_BIND_BIRTH_RESID = 45;
+const KRTC_BIND_CONFIRM = 75;
+const KRTC_BIND_MIN_GAP = 45;
+const _krtcTripLive = new Map();
+const _krtcTripKeys = new WeakMap();
+const _krtcSourceByLine = new Map(); // 同一上游快照不得重複當成第二輪確認
+
+function krtcTripKey(ln, tr) {
+  let key = _krtcTripKeys.get(tr);
+  if (key) return key;
+  const n = tr.length, dir = tr[0] <= tr[n - 2] ? 'f' : 'b';
+  key = freqSysIdOf(ln) + ':' + ln.id + ':' + dir + ':' + tr[0] + ':' + tr[1] + ':'
+    + tr[n - 2] + ':' + tr[n - 1] + ':' + n;
+  _krtcTripKeys.set(tr, key);
+  return key;
+}
+function krtcTripLive(ln, tr, nowAbs) {
+  const key = krtcTripKey(ln, tr), e = _krtcTripLive.get(key);
+  return e && e.target != null && nowAbs - e.at < KRTC_BIND_TTL ? { key, target: e.target, at: e.at } : null;
+}
+function krtcLineShift(ln, dir) {
+  const s = ln._liveShift;
+  if (!s) return 0;
+  const v = dir > 0 ? s.f : s.b;
+  return v != null ? v : (s.all || 0);
+}
+function buildKrtcTripIdx(ln) {
+  if (ln._krtcTripIdx && ln._krtcTripIdxTT === ln._tt) return ln._krtcTripIdx;
+  const byStop = new Map();
+  for (const tr of ln._tt || []) {
+    const n = tr.length, dir = tr[0] <= tr[n - 2] ? 1 : -1;
+    const info = { tr, dir, key: krtcTripKey(ln, tr) };
+    for (let k = 0; k < n; k += 2) {
+      const mapKey = tr[k] * 4 + (dir + 1);
+      let a = byStop.get(mapKey); if (!a) byStop.set(mapKey, a = []);
+      a.push({ ...info, t: tr[k + 1] });
+    }
+  }
+  for (const a of byStop.values()) a.sort((x, y) => x.t - y.t);
+  ln._krtcTripIdxTT = ln._tt;
+  return (ln._krtcTripIdx = { byStop });
+}
+function krtcLocalHeadway(ln, dir, nowSec) {
+  const idx = buildKrtcTripIdx(ln), center = Math.floor(ln.stations.length / 2);
+  const a = idx.byStop.get(center * 4 + (dir + 1)) || [], gaps = [];
+  for (let i = 1; i < a.length; i++) {
+    const gap = a[i].t - a[i - 1].t, mid = (a[i].t + a[i - 1].t) / 2;
+    if (gap >= 120 && gap <= 600 && Math.abs(mid - nowSec) <= 5400) gaps.push(gap);
+  }
+  if (!gaps.length) return null;
+  gaps.sort((x, y) => x - y);
+  return gaps[gaps.length >> 1];
+}
+function krtcUnwrapLineShift(ln, dir, raw, previous, nowSec) {
+  if (raw == null) return raw;
+  const hw = krtcLocalHeadway(ln, dir, nowSec);
+  if (!hw) return raw;
+  const anchor = previous == null ? 0 : previous;
+  let best = null, bestDist = Infinity;
+  // 延誤超過半個班距時，最近事件會繞到隔壁班（例如 +210s 變 -30s）；展回同一相位。
+  for (let k = -3; k <= 3; k++) {
+    const v = raw + k * hw;
+    if (v < -90 || v > 900) continue;
+    const d = Math.abs(v - anchor);
+    if (d < bestDist) { best = v; bestDist = d; }
+  }
+  return best == null ? Math.max(-90, Math.min(900, raw)) : best;
+}
+function krtcNearestTrip(ln, si, dir, observed, nowAbs) {
+  const a = buildKrtcTripIdx(ln).byStop.get(si * 4 + (dir + 1));
+  if (!a || !a.length) return null;
+  const base = krtcLineShift(ln, dir);
+  let best = null;
+  for (const ev of a) {
+    const live = krtcTripLive(ln, ev.tr, nowAbs), expected = live ? live.target : base;
+    for (const day of [-86400, 0, 86400]) {
+      const sched = ev.t + day, diff = observed - sched, resid = Math.abs(diff - expected);
+      if (!best || resid < best.resid) best = { ...ev, sched, diff, resid, expected, bound: !!live };
+    }
+  }
+  const limit = best && best.bound ? KRTC_BIND_RESID : KRTC_BIND_BIRTH_RESID;
+  return best && best.resid <= limit ? best : null;
+}
+function krtcNeighborBounds(ln, tr, nowAbs) {
+  const idx = buildKrtcTripIdx(ln), n = tr.length, dir = tr[0] <= tr[n - 2] ? 1 : -1;
+  const key = krtcTripKey(ln, tr);
+  let lo = -600, hi = 600;
+  const adjusted = ev => {
+    const live = krtcTripLive(ln, ev.tr, nowAbs);
+    return ev.t + (live ? live.target : krtcLineShift(ln, dir));
+  };
+  for (let k = 0; k < n; k += 2) {
+    const a = idx.byStop.get(tr[k] * 4 + (dir + 1)); if (!a) continue;
+    const at = a.findIndex(x => x.key === key); if (at < 0) continue;
+    const t = tr[k + 1];
+    if (at > 0) lo = Math.max(lo, adjusted(a[at - 1]) + KRTC_BIND_MIN_GAP - t);
+    if (at + 1 < a.length) hi = Math.min(hi, adjusted(a[at + 1]) - KRTC_BIND_MIN_GAP - t);
+  }
+  return { lo, hi };
+}
+function applyKrtcTripBinding(ln, observations, nowAbs, sourceToken) {
+  const lineKey = freqSysIdOf(ln) + ':' + ln.id;
+  const previousSource = _krtcSourceByLine.get(lineKey);
+  if (sourceToken != null && previousSource != null && sourceToken <= previousSource) {
+    return { assignments: [], accepted: 0, pending: 0, duplicate: true };
+  }
+  if (sourceToken != null) _krtcSourceByLine.set(lineKey, sourceToken);
+  const agg = new Map(), assignments = [];
+  for (const o of observations) {
+    const hit = krtcNearestTrip(ln, o.si, o.dir, o.t, nowAbs);
+    if (!hit) { assignments.push({ truth: o.truth, key: null, resid: null }); continue; }
+    let a = agg.get(hit.key);
+    if (!a) agg.set(hit.key, a = { tr: hit.tr, vals: [], hasOrigin: false });
+    a.vals.push(hit.diff);
+    if (o.si === hit.tr[0]) a.hasOrigin = true;
+    assignments.push({ truth: o.truth, key: hit.key, resid: hit.resid, bound: hit.bound,
+      diff: hit.diff, expected: hit.expected, si: o.si });
+  }
+  let accepted = 0, pending = 0;
+  const acceptedKeys = new Set();
+  for (const [key, a] of agg) {
+    const vals = a.vals.slice().sort((x, y) => x - y), observed = Math.round(vals[vals.length >> 1]);
+    const strong = vals.length >= 2 && madSec(vals) <= KRTC_BIND_CONFIRM;
+    let e = _krtcTripLive.get(key);
+    if (!e) { e = { target: null, at: 0, pending: null, hits: 0 }; _krtcTripLive.set(key, e); }
+    const close = e.target != null && Math.abs(observed - e.target) <= KRTC_BIND_CONFIRM;
+    let commit = strong && a.hasOrigin && e.target == null;
+    if (close) commit = true;
+    if (!commit) {
+      if (e.pending != null && nowAbs - e.pendingAt < 4 * 60e3 &&
+          Math.abs(observed - e.pending) <= KRTC_BIND_CONFIRM && e.pendingSource !== sourceToken) {
+        e.pending = Math.round((e.pending + observed) / 2); e.hits++;
+        e.pendingOrigin = e.pendingOrigin || a.hasOrigin;
+      } else {
+        e.pending = observed; e.pendingAt = nowAbs; e.pendingSource = sourceToken;
+        e.hits = 1; e.pendingOrigin = a.hasOrigin;
+      }
+      if (e.hits >= 2 && (e.target != null || (strong && e.pendingOrigin))) commit = true;
+    }
+    if (!commit) { pending++; continue; }
+    const proposed = e.pending != null && e.hits >= 2 ? e.pending : observed;
+    const bounds = krtcNeighborBounds(ln, a.tr, nowAbs);
+    if (bounds.lo > bounds.hi) { pending++; continue; }
+    e.target = Math.round(Math.max(bounds.lo, Math.min(bounds.hi, proposed)));
+    e.at = nowAbs; e.pending = null; e.pendingAt = 0; e.pendingSource = null;
+    e.pendingOrigin = false; e.hits = 0; accepted++; acceptedKeys.add(key);
+  }
+  if (_krtcTripLive.size > 1000) for (const [key, e] of _krtcTripLive) {
+    if (nowAbs - Math.max(e.at || 0, e.pendingAt || 0) > 2 * 3600e3) _krtcTripLive.delete(key);
+  }
+  for (const a of assignments) a.committed = acceptedKeys.has(a.key);
+  return { assignments, accepted, pending, duplicate: false };
 }
 
 // ── 舊班表動畫的北捷秒級看板校正（只算 shift，不是官方車生命週期）──
@@ -19904,8 +20074,9 @@ async function pollTrtcLive() {
   updateMetroBadge();
 }
 
-function applyMetroLive(sysId, rows) {
-  const nowSec = nowSecOfDay(), nowAbs = Date.now();
+function applyMetroLive(sysId, rows, atSec, atAbs, sourceToken) {
+  const nowSec = atSec == null ? nowSecOfDay() : atSec;
+  const nowAbs = atAbs == null ? Date.now() : atAbs;
   // C 線(高雄環狀輕軌)在真 GPS 生效期間排除:兩條來源同時寫 _liveShift 會互相蓋掉
   // (比照 pollNtmLive 對 Y 線的 isTrtcBoardLine 排除)。GPS 一失效就放行,LiveBoard 是退路。
   // 同系統的紅橘線沒有 GPS,任何時候都走 LiveBoard。
@@ -19918,6 +20089,7 @@ function applyMetroLive(sysId, rows) {
     }
   }
   const perLine = new Map();
+  const krtcObs = new Map(); // ln → [{si,dir,t,truth}]；truth 只由壓測注入
   const anomStat = new Map(); // ln → {rej, st2}:異常偵測統計,不影響既有取樣
   const stat = ln => { let s = anomStat.get(ln); if (!s) anomStat.set(ln, s = { rej: 0, st2: 0 }); return s; };
   for (const row of rows) {
@@ -19944,14 +20116,28 @@ function applyMetroLive(sysId, rows) {
     let rec = perLine.get(ln); if (!rec) perLine.set(ln, rec = { f: [], b: [], all: [] });
     if (dir > 0) rec.f.push(diff); else if (dir < 0) rec.b.push(diff);
     rec.all.push(diff);
+    if (sysId === 'krtc' && row.op === 'KRTC' && !ln.loop) {
+      let a = krtcObs.get(ln); if (!a) krtcObs.set(ln, a = []);
+      a.push({ si, dir, t: nowSec + row.e * 60 + 30, truth: row._truth });
+    }
   }
   const med = a => { if (a.length < 3) return null; const s = a.slice().sort((x, y) => x - y); return Math.round(s[s.length >> 1]); };
   for (const [ln, rec] of perLine) {
-    const all = med(rec.all);
+    let f = med(rec.f), b = med(rec.b), all = med(rec.all);
     if (all == null) continue; // 樣本不足:保留舊 shift,>30 分鐘未更新由 metroLiveOn 自動停用
-    ln._liveShift = { f: med(rec.f), b: med(rec.b), all, at: nowAbs, n: rec.all.length };
+    if (sysId === 'krtc') {
+      f = krtcUnwrapLineShift(ln, 1, f, ln._liveShift && ln._liveShift.f, nowSec);
+      b = krtcUnwrapLineShift(ln, -1, b, ln._liveShift && ln._liveShift.b, nowSec);
+      const both = [f, b].filter(x => x != null).sort((x, y) => x - y);
+      if (both.length) all = both[both.length >> 1];
+    }
+    ln._liveShift = { f, b, all, at: nowAbs, n: rec.all.length };
   }
+  const bindReports = [];
+  for (const [ln, obs] of krtcObs) bindReports.push({ ln: ln.id,
+    ...applyKrtcTripBinding(ln, obs, nowAbs, sourceToken == null ? nowAbs : sourceToken) });
   for (const ln of mine) { const rec = perLine.get(ln), s = anomStat.get(ln); evalLineAnomaly(ln, rec ? rec.all : [], s ? s.rej : 0, s ? s.st2 : 0); } // 逐線異常評估
+  return bindReports; // production 不使用；尖峰壓測讀配對明細驗身份不交換
 }
 async function pollMetroLive() {
   const pool = metroLivePool();
@@ -19964,7 +20150,13 @@ async function pollMetroLive() {
       const r = await fetch(apiUrl('api/metro-live?sys=' + id), { cache: 'no-store' });
       if (!r.ok) throw new Error(r.status);
       const d = await r.json();
-      if (Array.isArray(d.rows)) applyMetroLive(id, d.rows);
+      if (Array.isArray(d.rows)) {
+        if (id === 'krtc') {
+          const sourceSec = feedSecOfDay(d.at), sourceMs = Date.parse(d.at);
+          applyMetroLive(id, d.rows, sourceSec, Number.isFinite(sourceMs) ? sourceMs : null,
+            Number.isFinite(sourceMs) ? sourceMs : d.at);
+        } else applyMetroLive(id, d.rows);
+      }
       // 等車卡(Task 6)沿用同一次輪詢的原始回應(不另發 fetch);applyMetroLive 只取 shift 中位數,
       // 逐列 dest/分鐘會被丟棄,這裡另存一份供開卡取值。
       if (Array.isArray(d.rows)) state._metroLiveRaw[id] = { at: d.at, rows: d.rows, receivedAt: Date.now() };
