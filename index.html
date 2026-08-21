@@ -20910,11 +20910,49 @@ function updateMetroBadge() {
   if (!el) return;
   const corePool = metroLivePool().filter(ln => metroCoreSystemIdForLine(ln));
   if (corePool.length && metroCoreSnapshotLive()) {
-    const trains = corePool.reduce((sum, ln) => sum + (metroCoreItemsForLine(ln) || []).length, 0);
-    el.classList.remove('anom', 'est');
-    el.hidden = trains === 0;
-    el.textContent = '官方即時';
-    el.title = `車站預告與地圖上的 ${trains} 台列車共用同一份即時身分與時間軸`;
+    const lists = corePool.map(ln => metroCoreItemsForLine(ln));
+    const serving = lists.filter(list => list !== null);
+    const trains = serving.reduce((sum, list) => sum + list.length, 0);
+    const warn = metroCoreDegradedSummary();
+    if (trains > 0) {
+      const fallen = corePool.length - serving.length; // 已退回既有路徑的線數
+      el.classList.remove('est');
+      el.classList.toggle('anom', fallen > 0 || !!(warn && warn.error)); // 部分退回不是正常狀態
+      el.hidden = false;
+      el.textContent = fallen > 0 ? `官方即時（${fallen} 線改用備案）` : '官方即時';
+      el.title = `車站預告與地圖上的 ${trains} 台列車共用同一份即時身分與時間軸`
+        + (fallen > 0 ? `；另有 ${fallen} 條線的即時資料異常，已改用官方名冊或班表` : '')
+        + (warn && warn.error ? `；最近一次更新失敗：${warn.error}` : '');
+      return;
+    }
+    // 🔴 P0-5：一台車都生不出來時【絕不】把徽章藏起來，也不准繼續寫「官方即時」。
+    //    舊版是 `el.hidden = trains === 0`，畫面空白＋徽章消失＝使用者分不出「這個時段沒車」
+    //    與「壞了」，那正是 08-21 當天沒有人及時發現的原因之一。
+    //    判「是不是壞了」刻意用【不同來源】的對照：既有路徑（官方名冊／實際時刻表／班距）
+    //    在這一刻本來會畫幾台車。兩邊都 0 ⇒ 收班，讓下面既有的徽章邏輯照舊處理；
+    //    備案有車而 Core 沒有 ⇒ 這是故障，明講。
+    const legacy = corePool.reduce((sum, ln) => sum + metroCoreLegacyCountForLine(ln), 0);
+    if (legacy > 0) {
+      el.hidden = false;
+      el.classList.add('anom');
+      el.classList.remove('est');
+      el.textContent = '即時資料異常';
+      el.title = '即時模型這一輪一台列車都沒有回報，已改用官方名冊或班表繼續顯示'
+        + (warn && warn.error ? `；最近一次更新失敗：${warn.error}` : '');
+      return;
+    }
+    // 兩邊都沒車＝真的收班了，往下走既有徽章邏輯（它會顯示「班表備案」等既有狀態）。
+  }
+  // 🔴 P1-8：Core 驗證／連線失敗時要有使用者看得到的訊號。舊版只把訊息寫進 state.metroCore.error，
+  //    畫面上完全沒有痕跡——全有全無的 schema 閘門一退包，使用者只看到「車怎麼變少了」。
+  //    只在【持續】失敗時才講（從沒成功過，或最後一次成功已超過一分鐘），單次抖動不閃徽章。
+  if (METRO_CORE_ENABLED && corePool.length && state.metroCore.error && !metroCoreSnapshotLive() &&
+      (!state.metroCore.lastOkAt || Date.now() - state.metroCore.lastOkAt > 60000)) {
+    el.hidden = false;
+    el.classList.add('anom');
+    el.classList.remove('est');
+    el.textContent = '即時資料異常';
+    el.title = '統一即時模型暫時無法使用，已改用官方名冊或班表：' + state.metroCore.error;
     return;
   }
   // 🔴 名冊分支要與 pollTrtcLive 用同一道群組閘門:名冊會留在 state 裡跨群組存活,少了這道閘門,
