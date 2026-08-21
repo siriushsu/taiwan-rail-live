@@ -406,8 +406,8 @@ export async function verifyRelease({
   if (expectMetroCore !== undefined) {
     assert(metroCoreEnabled === expectMetroCore, 'Metro Core 旗標與本次 build 模式不一致');
   }
-  assert(html.includes('window.RAIL_METRO_CORE_ENABLED === true'),
-    'App 內的 index.html 沒有讀取 Metro Core 發版旗標');
+  assert(html.includes("typeof window.RAIL_METRO_CORE_ENABLED === 'boolean'"),
+    'App 內的 index.html 沒有把 Metro Core 發版旗標當成顯式布林覆寫');
 
   // 版本號對**所有** build 模式都必須注入(不是只有授權底圖 build)——App 內的更新提示與評分
   // 全靠它判斷「手上這顆是哪一版」。刻意寫在模式分支之外:放進安全 build 的條件裡就漏掉另一半。
