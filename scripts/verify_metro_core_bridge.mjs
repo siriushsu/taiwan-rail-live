@@ -34,8 +34,9 @@ check(sandbox.sample(increasing, 90).progress === 2, '發車前應鉗在第一�
 check(sandbox.sample(decreasing, 130).progress === 4, '退場前應鉗在最後一個軌跡點');
 
 const contracts = [
-  ['旗標預設關閉', /const METRO_CORE_ENABLED = METRO_CORE_QUERY_ENABLED \|\| metroCoreFlag\(location\.search\)/],
-  ['App 可注入獨立啟用旗標', /window\.RAIL_METRO_CORE_ENABLED === true/],
+  ['網站預設開啟且保留顯式關閉', /if \(METRO_CORE_QUERY_MODE === 'off'\) return false;[\s\S]*?return true;[\s\S]*?const METRO_CORE_ENABLED = metroCoreFlag\(location\.search\)/],
+  ['App 可注入獨立布林旗標', /typeof window\.RAIL_METRO_CORE_ENABLED === 'boolean'/],
+  ['正式 endpoint 不再指向 Preview', /https:\/\/railisland-metro-core\.sirius1984\.workers\.dev\/v1\/metro\/snapshot/],
   ['snapshot 有 schema 驗證', /snapshot\.schema !== METRO_CORE_SCHEMA/],
   ['snapshot 過期會降級', /Number\(snapshot\.validUntil\) >= Number\(nowEpoch\)/],
   ['非真實現在會降級', /trtcOfficialBoardRealNow\(\)/],
