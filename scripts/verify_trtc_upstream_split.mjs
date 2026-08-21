@@ -84,6 +84,7 @@ const FAKE = {
 
 function startFakeUpstream() {
   const hits = { CarWeight: 0, CarWeightBR: 0, TrackInfo: 0 };
+  let down = false;                                    // true = 三支官方端點全掛
   const srv = http.createServer((req, res) => {
     const m = /\/metroapi\/(\w+)\.asmx/.exec(req.url || '');
     let body = '';
@@ -91,6 +92,7 @@ function startFakeUpstream() {
     req.on('end', () => {
       if (!m || !(m[1] in FAKE)) { res.writeHead(404).end(); return; }
       hits[m[1]]++;
+      if (down) { res.writeHead(503).end('upstream down'); return; }
       const json = JSON.stringify(FAKE[m[1]]);
       // CarWeightBR 走 <...Result> 包裹那條路徑，其餘走「JSON 在前、SOAP 在後」，
       // 兩條 trtcParse 分支都要被真的走過一次。
@@ -106,6 +108,7 @@ function startFakeUpstream() {
       hits,
       total: () => hits.CarWeight + hits.CarWeightBR + hits.TrackInfo,
       reset: () => { hits.CarWeight = 0; hits.CarWeightBR = 0; hits.TrackInfo = 0; },
+      setDown: value => { down = value; },
       close: () => new Promise(r => srv.close(r)),
     }));
   });
@@ -169,7 +172,7 @@ async function startServer(label, ref, upstreamBase, workerSource = null) {
 
 const getJson = async (base, p) => {
   const r = await fetch(`${base}${p}?bust=${Date.now()}${Math.random()}`, { signal: AbortSignal.timeout(20000) });
-  return { status: r.status, body: await r.json() };
+  return { status: r.status, cc: r.headers.get('cache-control') || '', body: await r.json() };
 };
 
 // ── 主流程 ────────────────────────────────────────────────────────────────
@@ -225,6 +228,13 @@ try {
   const leaked = modelKeys.filter(k => k in raw.body);
   check(leaked.length === 0, '不含任何模型輸出欄位',
     leaked.length ? `外洩：${leaked.join(', ')}` : `已檢查 ${modelKeys.join('／')}`);
+  // 🔴 帶金鑰閘門的端點絕不可以回 public：`caches.default` 與任何中介快取的鍵都只有網址，
+  // 存進去的授權回應會被餵給沒帶金鑰的人，閘門形同虛設。
+  check(/no-store/.test(raw.cc) && !/public/.test(raw.cc),
+    'cache-control 是 no-store 且不含 public（授權過的回應不可進任何共用快取）', `實際：${raw.cc}`);
+  const live = await getJson(newSrv.base, '/api/trtc-live');
+  check(/public/.test(live.cc),
+    '正向對照：不帶閘門的 /api/trtc-live 仍是 public（上一條不是恆真）', `實際：${live.cc}`);
 
   console.log('\n── 判準 3：多這一支端點不會讓官方端的請求量翻倍 ──');
   // 重開一台，確保 memo 是冷的；同一台上先後打兩支端點，數上游被打幾次。
@@ -237,16 +247,40 @@ try {
   check(shared === 3, '兩支端點合計只打上游 3 次（三支官方端點各一次）',
     `實測 ${shared} 次：CarWeight=${up.hits.CarWeight} BR=${up.hits.CarWeightBR} TrackInfo=${up.hits.TrackInfo}`);
 
+  console.log('\n── 判準 4：三支上游全掛時，/api/trtc-raw 回 200 空殼而不是 500 ──');
+  // 🔴 這條路徑沒有別的判準蓋到,而它正是 `return await` 在保護的東西:少了 await,
+  // jsonResCached 內 edge.put 丟出的例外會逃出 try,症狀從「回空殼」變成 unhandled rejection。
+  // 私有 Metro Core 靠 src:null／tkOk:false 分辨「上游沒資料」與「代理掛了」,回 500 會讓
+  // 影子那輪只看得到一個 fetch 失敗,分不出是哪一種。
+  const downSrv = await startServer('斷線', 'HEAD', up.base, workingSource);
+  servers.push(downSrv);
+  up.setDown(true);
+  const down = await getJson(downSrv.base, '/api/trtc-raw');
+  check(down.status === 200, '上游全掛時仍回 200（不是 500）', `status=${down.status}`);
+  check(down.body && down.body.src === null && down.body.tkOk === false,
+    '空殼標明 src:null 與 tkOk:false，讀者分得出「上游沒資料」與「代理掛了」',
+    JSON.stringify({ src: down.body && down.body.src, tkOk: down.body && down.body.tkOk }));
+  check(Array.isArray(down.body.tk) && down.body.tk.length === 0 &&
+    Array.isArray(down.body.hw) && Array.isArray(down.body.br), '三個陣列都在且是空的');
+  // 正向對照：同一台 server 換回正常上游後要真的回得出資料，證明上面的 200 不是因為
+  // 這台從頭到尾就壞掉（心得：`=== 0` 一律要配正向對照）。
+  up.setDown(false);
+  // 不必等快取到期：這支不進共用快取，而失敗那輪也不會寫進 trtcUpMem，所以下一發直接重抓。
+  await new Promise(r => setTimeout(r, 500));
+  const back = await getJson(downSrv.base, '/api/trtc-raw');
+  check(back.body && back.body.src === 'trtc' && back.body.tk.length > 0,
+    '正向對照：上游恢復後同一台真的回得出資料',
+    `src=${back.body && back.body.src} tk=${back.body && back.body.tk && back.body.tk.length}`);
+
   if (runMutation) {
     console.log('\n── 突變對照：把 trtcRaw 改成自己直接打上游，判準 3 必須轉紅 ──');
-    const mutated = workingSource.replace(
-      '    const up = await trtcUpstream(env);\n    const make = mk(JSON.stringify({ at: new Date(up.at).toISOString(), src: \'trtc\',',
+    const NEEDLE = '    const up = await trtcUpstream(env);';
+    const mutated = workingSource.replace(NEEDLE,
       '    const up = await (async () => { const [hw, br, tk] = await Promise.all([\n'
       + '      trtcCall(trtcApiUrl(env, \'CarWeight\'), \'getCarWeightByInfoEx\', env).catch(() => []),\n'
       + '      trtcCall(trtcApiUrl(env, \'CarWeightBR\'), \'getCarWeightBRInfo\', env).catch(() => []),\n'
       + '      trtcCall(trtcApiUrl(env, \'TrackInfo\'), \'getTrackInfo\', env).catch(() => []),\n'
-      + '    ]); return { at: Date.now(), startedAt: Date.now(), tkOk: true, hw, br, tk }; })();\n'
-      + '    const make = mk(JSON.stringify({ at: new Date(up.at).toISOString(), src: \'trtc\',');
+      + '    ]); return { at: Date.now(), startedAt: Date.now(), tkOk: true, hw, br, tk }; })();');
     check(mutated !== workingSource, '突變真的套用了（沒套用就是零資訊的假綠）');
     const mutSrv = await startServer('突變', 'HEAD', up.base, mutated);
     servers.push(mutSrv);

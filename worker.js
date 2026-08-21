@@ -828,30 +828,22 @@ async function trtcRaw(request, env) {
       request.headers.get('x-metro-core-key') !== env.METRO_CORE_KEY) {
     return jsonRes({ error: 'not_found' }, 404, 'no-store');
   }
-  const cacheKey = new Request(new URL('/api/trtc-raw', request.url), { method: 'GET' });
-  const edge = caches.default;
-  const hit = await edge.match(cacheKey);
-  if (hit) return hit;
-  // 🔴 body 先定成不可變字串再造兩個獨立 Response:cache.put(res.clone()) 會把同一條
-  // body 串流分流給兩個讀者,冷啟填完快取後緊接那一發會拿到半寫入的空 body
-  // (2026-08-20 在 /api/tra-daily-trains 實測到)。
-  const mk = body => () => new Response(body, { status: 200,
-    headers: { 'content-type': 'application/json; charset=utf-8',
-      'cache-control': 'public, s-maxage=15, stale-while-revalidate=120' } });
+  // 🔴 這支**不進共用邊緣快取**,也不回 `public`。它是帶金鑰閘門的端點,
+  // 而 `caches.default` 的鍵只有網址——一旦把授權過的那份存進去,任何中介快取或日後在 zone
+  // 上加的 Cache Rule 都可能把它餵給沒帶金鑰的人,閘門形同虛設。
+  // 少了快取也不吃虧:trtcUpMem 的新鮮度窗本來就是同樣的 15 秒,而這支的唯一讀者是每分鐘
+  // 一輪的私有 Metro Core;同一顆 isolate 內它與 /api/trtc-live 仍共用同一份上游。
+  const CC = 'private, no-store';
   try {
     const up = await trtcUpstream(env);
-    const make = mk(JSON.stringify({ at: new Date(up.at).toISOString(), src: 'trtc',
+    return jsonRes({ at: new Date(up.at).toISOString(), src: 'trtc',
       startedAt: Math.floor(up.startedAt / 1000), tkOk: up.tkOk,
-      hw: up.hw, br: up.br, tk: up.tk }));
-    await edge.put(cacheKey, make());
-    return make();
+      hw: up.hw, br: up.br, tk: up.tk }, 200, CC);
   } catch (e) {
     // 上游全掛:回 200 + src:null,讓讀者能分辨「上游沒資料」與「我們掛了」。
-    // 負向結果也快取 15 秒,免得上游持續掛時每個請求 1:1 重打官方端。
-    const make = mk(JSON.stringify({ at: new Date().toISOString(), src: null,
-      startedAt: null, tkOk: false, hw: [], br: [], tk: [] }));
-    await edge.put(cacheKey, make());
-    return make();
+    // 私有側靠這兩個欄位決定該 hold 名冊還是照常推進;回 500 它只看得到一個 fetch 失敗。
+    return jsonRes({ at: new Date().toISOString(), src: null,
+      startedAt: null, tkOk: false, hw: [], br: [], tk: [] }, 200, CC);
   }
 }
 
