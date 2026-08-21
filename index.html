@@ -3850,6 +3850,7 @@
            內容 li 上限 8 條(li.grp 是標題不算)。 -->
       <ul class="foot-list foot-recent">
         <li class="grp">最近更新</li>
+        <li data-cl-of="metrocorelive"><span class="d">8/21</span><span>北捷與高捷即時動畫正式換成同一套時間軸：地圖上的車、站台預告與點選跟隨現在會對到同一班車；官方資料更新時不會整批跳位或交換身分，後車在站外也不會貼到前車 100 公尺內。若新資料不完整或服務暫時中斷，畫面會自動沿用通過檢查的上一段動畫或退回原本模式，不會留下卡住的車</span></li>
         <li data-cl-of="metrocorebridge"><span class="d">8/21</span><span>北捷與高捷的下一代即時動畫先加入試跑入口：站台預告與地圖上的車可以共用同一個身分與時間軸，點站牌就能跟到那一台車；資料過期或連線中斷時會自動回到原本模式。一般畫面目前仍沿用既有來源，不受這次試跑影響</span></li>
         <li data-cl-of="trtcpeakstable"><span class="d">8/20</span><span>北捷即時動畫再穩定一輪：官方資料每次更新時，列車會在原路段內逐步追上，不再整批往前跳或停在兩站之間；文湖線與環狀線也不會讓失聯身分搶走下一班車。車站看板只有在車真的進入站點時才顯示「列車進站」，並依各站實際停靠秒數結束，不會車已開走還繼續顯示</span></li>
         <li data-cl-of="krtctrip"><span class="d">8/20</span><span>高捷紅橘線改成逐班接續官方看板：同一班車在不同車站的到站資訊會接回原本班次，不再用整條線同一個平均值把相鄰列車擠在一起；資料不夠確定時會保守沿用原本推估，不會硬認成隔壁班。紅橘兩線的最後一段也都會依實際路段時間一路跑到終點才收車</span></li>
@@ -3857,7 +3858,6 @@
         <li data-cl-of="trtcentity"><span class="d">8/20</span><span>文湖線與環狀線偶爾出現的卡站車、短區間擠好幾台再修一輪：失去官方資料的舊車不再永久留在站上，疑似同一台的新舊資料也不會立刻同時畫出；「診斷資訊」可匯出最近十分鐘的捷運判讀，方便下次異常直接還原</span></li>
         <li data-cl-of="tradaily"><span class="d">8/20</span><span>台鐵今日官方公告停駛的班次不再出現在地圖上，車站看板仍會列出並標示「停駛」</span></li>
         <li data-cl-of="livefresh"><span class="d">8/20</span><span>台鐵的「LIVE」標示不再在官方資料中斷時繼續宣稱即時：資料超過五分鐘沒更新就改標灰色「推估」，超過三十分鐘不再套用那份過期的誤點；裝置時鐘明顯不準時也會改標「推估」</span></li>
-        <li data-cl-of="cdarrivestamp"><span class="d">8/19</span><span>文湖線與環狀線的列車不會再整批往前跳一站、下一輪又整批退回來：被退回的那台會凍在原地等，後面的車追上來就擠成一團，現在這個來回跳沒有了</span></li>
       </ul>
       <!-- 第二層:完整歷史。刻意不掛 .foot-box 類名——placeFootBoxes() 用
            `.site-foot .foot-box` 搬移面板,巢狀同名會被當成另一個盒子一起搬走。 -->
@@ -3878,6 +3878,7 @@
         <li><span class="d">7/10</span><span>高鐵、桃園機捷、淡海輕軌、安坑輕軌加入路網</span></li>
         <li><span class="d">7/10</span><span>環島觀光列車一分為二：往東「山海號」、往西「平原號」</span></li>
         <li class="grp">即時動態與誤點</li>
+        <li data-cl="metrocorelive"><span class="d">8/21</span><span>北捷與高捷即時動畫正式切換到統一時間軸：Private Metro Core 先把官方逐站訊號整理成穩定的車輛身分，再由同一份軌跡驅動地圖、站台預告、到站狀態與列車跟隨。每批更新都會檢查倒退、跳位與站外 100 公尺車距，不合格的候選不會覆蓋畫面；短暫上游失敗、邊緣快取延遲或新候選被拒時，也只會使用重新驗證過的上一份軌跡。上線前以真實訊號連續驗收 13 個更新版本，12,007 筆已配對到站事件全部與地圖列車落在同一站</span></li>
         <li data-cl="metrocorebridge"><span class="d">8/21</span><span>北捷與高捷的下一代即時動畫新增試跑入口：伺服器先把匿名站牌資料接成穩定的列車身分，再把每台車的行駛、停站、下一站與退場整理成同一份時間軸；地圖與車站看板只讀這份結果，因此從站牌點下去會跟到同一台車，不必在公開頁面重新認車。這一輪已用保存的尖峰資料同時重播北捷與高捷 114 台車，兩個方向都沒有倒退，並通過手機 Chromium／WebKit、資料過期、斷線降級與重複快照測試。入口目前預設關閉，一般訪客仍走既有模式；等實際尖峰試跑通過後才會切換</span></li>
         <li data-cl="trtcpeakstable"><span class="d">8/20</span><span>實際晚尖峰監測發現，北捷官方資料每十五至三十秒刷新時，原本會直接把車搬到新倒數推算的位置，造成 73 至 284 公尺的前跳；某些車則在離站還有數百公尺時停住。現在官方訂正只會改變追趕速度：車仍沿原路段連續前進，落後時至少維持半速、追趕最多兩倍速，兩方向都不倒退。文湖線與環狀線的既有活躍身分不再互換或合併，失聯超過 45 秒的身分槽也不能回頭搶走新觀測；環狀線起點只在發車前 20 秒出現，倒數歸零才離站。車站看板另改用列車實際位置判斷文字：25 公尺內才顯示「列車進站」，尚未進站則顯示「即將進站」，到站後依該站實際停靠秒數退場，不再一律多留 30 秒</span></li>
         <li data-cl="krtctrip"><span class="d">8/20</span><span>高捷紅橘線的官方即時看板只有「哪一站、往哪個終點、還有幾分鐘」，沒有車號或衛星位置；以前只能把整條線取一個平均誤點，單一列車慢一點時，相鄰班次就可能一起被搬動、在短區間擠近。現在以當日逐站班表作固定名冊，把同一份全線看板的多站證據接回既有班次：新身分必須先在起點站被看到，中途站只能接續已確認的班次，同一份重複快照不能算兩次確認；每個共享車站都會檢查前後順序，不讓相鄰班交換身分或互相超車。證據不足時寧可維持同方向的線級推估，不憑空新增列車。另以紅線 321 班、橘線 304 班的實際平日班表跑 20 組尖峰壓測，並重播五輪真實晚尖峰訊號；已確認零錯認、零幽靈、位置不倒退也不大幅前跳，兩方向最後一段皆依該段實際時間跑到終點才退場</span></li>
@@ -4429,14 +4430,18 @@
 //         依真實發車、到站位置及逐站停靠秒數處理。
 // v0821a：公開端加入 Private Metro Core shadow client；同份 canonical snapshot 驅動北捷／高捷車位、
 //         站牌與 vehicle ID 跟隨，含 ETag、時效閘門及失效自動降級。旗標預設關閉，不切正式流量。
-const BUILD = 'v0821a';
-// clearFollow() 會在開機途中清掉 query string；Private Metro Core 的試跑旗標必須像官方名冊旗標一樣
-// 在最前面先鎖住，不能等資料輪詢區才重讀 location.search，否則 ?metrocore=1 會靜默失效。
-const METRO_CORE_QUERY_ENABLED = (() => {
+// v0821b：北捷／高捷正式改讀 production Private Metro Core；網站預設開啟，App 可明確注入布林旗標，
+//         保留 ?metrocore=0 即時退回舊模型。看板到站時刻與 canonical trajectory 使用同一站點事件。
+const BUILD = 'v0821b';
+// clearFollow() 會在開機途中清掉 query string；Private Metro Core 的 rollout 模式必須在最前面先鎖住，
+// 否則 ?metrocore=0／1 可能在資料輪詢區重讀時已消失。
+const METRO_CORE_QUERY_MODE = (() => {
   try {
     const value = new URLSearchParams(location.search).get('metrocore');
-    return value === '1' || value === 'preview';
-  } catch (e) { return false; }
+    if (value === '0' || value === 'off') return 'off';
+    if (value === '1' || value === 'preview') return 'on';
+  } catch (e) {}
+  return null;
 })();
 // 2026-08-13 起預設開啟（使用者親試預覽後裁示上線）：北捷畫車依官方即時名冊，班表只是備案。
 // 保留 ?officialroster=0 當逃生口——要退回班表路徑不必回滾部署，加個參數即可對照。
@@ -19136,22 +19141,26 @@ document.addEventListener('visibilitychange', () => { if (!document.hidden) poll
 pollLive();
 
 // ── Private Metro Core client（只做 canonical trajectory 線性補間） ────────
-// rollout 閘門預設關：網站用 ?metrocore=1 試跑；App 下一次 build 可注入
-// window.RAIL_METRO_CORE_ENABLED=true。Worker／snapshot 失敗、過期或時鐘離開現在時，所有讀者都得到 null，
-// 立即退回既有北捷／高捷即時與班表路徑，不留下半套混合狀態。
+// 網站預設開啟；?metrocore=0 是不需回滾部署的逃生口。App build 明確注入布林旗標，舊 App 因
+// prepare-web 注入 false 仍維持原模型，新 build 才切換。Worker／snapshot 失敗、過期或時鐘離開現在時，
+// 所有讀者都得到 null，立即退回既有北捷／高捷即時與班表路徑，不留下半套混合狀態。
 const METRO_CORE_SCHEMA = 'metro-snapshot/v1';
 const METRO_CORE_ENDPOINT = APP_CFG.metroCoreUrl ||
-  'https://railisland-metro-core-preview.sirius1984.workers.dev/v1/metro/snapshot';
+  'https://railisland-metro-core.sirius1984.workers.dev/v1/metro/snapshot';
 const METRO_CORE_POLL_MS = 15e3;
 function metroCoreFlag(search) {
   try {
     const value = new URLSearchParams(search == null ? location.search : search).get('metrocore');
-    if (value === '0') return false;
+    if (value === '0' || value === 'off') return false;
     if (value === '1' || value === 'preview') return true;
   } catch (e) {}
-  return METRO_CORE_QUERY_ENABLED || window.RAIL_METRO_CORE_ENABLED === true || APP_CFG.metroCore === true;
+  if (METRO_CORE_QUERY_MODE === 'off') return false;
+  if (METRO_CORE_QUERY_MODE === 'on') return true;
+  if (typeof window.RAIL_METRO_CORE_ENABLED === 'boolean') return window.RAIL_METRO_CORE_ENABLED;
+  if (typeof APP_CFG.metroCore === 'boolean') return APP_CFG.metroCore;
+  return true;
 }
-const METRO_CORE_ENABLED = METRO_CORE_QUERY_ENABLED || metroCoreFlag(location.search);
+const METRO_CORE_ENABLED = metroCoreFlag(location.search);
 
 function metroCoreValidateSnapshot(snapshot) {
   if (!snapshot || snapshot.schema !== METRO_CORE_SCHEMA || !String(snapshot.revision || '').trim()) return false;
