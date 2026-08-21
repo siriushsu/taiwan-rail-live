@@ -1,10 +1,10 @@
 {
   "scripts": {
-    "fetch-schedule": "python3 scripts/fetch_tra_schedule.py && python3 scripts/densify_schedule.py && node scripts/build_pass_obs.mjs && node scripts/build_data_manifest.mjs",
+    "fetch-schedule": "python3 scripts/fetch_tra_schedule.py && python3 scripts/densify_schedule.py && node scripts/build_pass_obs.mjs && node scripts/build_data_manifest.mjs && node scripts/build_data_provenance.mjs",
     "build-bounty-units": "node scripts/build_bounty_units.mjs",
     "check-schedule": "python3 scripts/check_schedule.py",
-    "build-manifest": "node scripts/build_data_manifest.mjs",
-    "check-manifest": "node scripts/verify_data_manifest.mjs"
+    "build-manifest": "node scripts/build_data_manifest.mjs && node scripts/build_data_provenance.mjs",
+    "check-manifest": "node scripts/verify_data_manifest.mjs && node scripts/verify_data_provenance.mjs"
   },
   "dependencies": {
     "playwright": "^1.61.1",
