@@ -8286,9 +8286,15 @@ function updateFreqCard(info) {
 function updateFreqFollowCamera(immediate) {
   const f = state.freqFollow; if (!f) return;
   if (f.vehicleId != null) {
-    const rec = f.core ? metroCoreFollowRecord(f, Date.now() / 1000)
+    const rec = f.core ? metroCoreFollowRecordWithGrace(f, Date.now() / 1000)
       : trtcOfficialFollowRecord(f, Date.now() / 1000);
-    if (!rec) { clearFreqFollow(); showToast('官方名冊已更新，已結束這台車的跟隨'); return; }
+    if (!rec) {
+      const core = !!f.core;
+      clearFreqFollow();
+      showToast(core ? '這台車已連續兩批不在即時模型中，已結束跟隨'
+        : '官方名冊已更新，已結束這台車的跟隨');
+      return;
+    }
     const info = f.core ? metroCoreVehicleInfo(rec)
       : trtcOfficialVehicleInfo(rec.ln, rec.vehicle, Date.now() / 1000);
     if (!info.pos) { clearFreqFollow(); return; }
@@ -18182,7 +18188,7 @@ function setFollowLock(on) {
   } else if (on && state.freqFollow) {
     const f = state.freqFollow;
     if (f.vehicleId != null) {
-      const rec = f.core ? metroCoreFollowRecord(f, Date.now() / 1000)
+      const rec = f.core ? metroCoreFollowRecordWithGrace(f, Date.now() / 1000)
         : trtcOfficialFollowRecord(f, Date.now() / 1000);
       const info = rec && (f.core ? metroCoreVehicleInfo(rec)
         : trtcOfficialVehicleInfo(rec.ln, rec.vehicle, Date.now() / 1000));
@@ -19176,6 +19182,22 @@ function metroCoreFollowRecord(follow, nowEpoch = Date.now() / 1000) {
   const ln = train && metroCoreLineForId(systemId, follow.lineId);
   const pos = ln && train ? metroCorePositionAt(ln, train, nowEpoch) : null;
   return pos ? { systemId, train, ln, pos } : null;
+}
+// 🔴 P0-4 跟隨寬限(移植 9bc4348)。updateFreqFollowCamera 是【每幀】跑的,零寬限的版本
+// 只要單一幀解不出記錄就 clearFreqFollow(),使用者體感＝跟車隨機被踢掉。
+function metroCoreFollowRecordWithGrace(follow, nowEpoch = Date.now() / 1000) {
+  const current = metroCoreFollowRecord(follow, nowEpoch);
+  if (current) {
+    // lastRecord 只屬於目前這個 follow 物件；換車會建立新物件，不會把前一台的軌跡帶過來。
+    follow.lastRecord = { systemId: current.systemId, train: current.train, ln: current.ln };
+    follow.lastSeenAt = Number(nowEpoch);
+    return current;
+  }
+  const last = follow && follow.lastRecord;
+  if (!last || !Number.isFinite(Number(follow.lastSeenAt)) ||
+      Number(nowEpoch) - Number(follow.lastSeenAt) > METRO_CORE_FOLLOW_GRACE_SEC) return null;
+  const pos = metroCorePositionAt(last.ln, last.train, nowEpoch);
+  return pos ? { ...last, pos, grace: true } : null;
 }
 function metroCoreEpochSecOfDay(epoch) {
   const value = (Number(epoch) + 8 * 3600) % 86400;
