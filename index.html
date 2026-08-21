@@ -7796,9 +7796,18 @@ function applySchedSystems(sysList) {
   state.data = sysList[0] ? sysList[0].data : null;
   state.lines = []; // 清掉可能殘留的 freq 線
   for (const sys of sysList) if (sys.special) buildLoopTrains(sys.data); // 環島號(台鐵限定,冪等)
-  // 列車:每班標來源系統 tr.sys
+  // 列車:每班標來源系統 tr.sys 與名冊日 tr._rday
+  // _rday=這班是從哪一天的名冊挑出來的(resolveScheduleDay 的 _schedDay;非逐日班表的系統為空字串)。
+  // 給 liveDelaySec 的漸變鍵當身分維度用:台鐵名冊每天換一份,而 _easedShift 是模組級 Map、
+  // 頁面不重載就一直活著 ⇒ 鍵不帶名冊日的話,跨過午夜再切一次系統(loadSystem 會重跑
+  // resolveScheduleDay)就會讓今天的同號車讀到昨天那班留下的漸變值(實測畫面偏 6.3 公里,
+  // 而且只能以 ≤1× 模擬時間慢慢滑回來)。刻意不用 state.wallDay:它每秒跟著裝置時鐘走,00:00
+  // 一到就換值而名冊還是昨天那份 ⇒ 正在跨夜行駛的車會在午夜當下掉條目、誤點瞬間歸零再爬回來。
+  // 名冊日只在真的換名冊時才變,正是我們要的那條線。
   state.trains = [];
-  for (const sys of sysList) for (const tr of sys.data.trains) { tr.sys = sys.id; state.trains.push(tr); }
+  for (const sys of sysList) for (const tr of sys.data.trains) {
+    tr.sys = sys.id; tr._rday = sys.data._schedDay || ''; state.trains.push(tr);
+  }
   // 軌道底圖:每條標來源系統 ln.sys
   state.trackLines = [];
   for (const sys of sysList) if (sys._track) for (const ln of sys._track.lines) { ln.sys = sys.id; state.trackLines.push(ln); }
@@ -18923,7 +18932,9 @@ function liveDelaySec(tr) {
   // 兩班共用同一個漸變條目——easedShift 有狀態,條目存在時不看 target 是誰傳的,於是林鐵那班讀到台鐵的
   // 誤點被推走(實測 730m),它自己的 target=0 又反過來把條目往 0 拉,兩班互相拉扯(台鐵誤點也跟著失真)。
   // 比照下方 metroShiftSec 的鍵作法。tr.sys 是穩定字串 id,跨 rebuild 不變。
-  return easedShift((tr.sys || 'tra_sched') + ':' + tr.train, target, gateEpoch(_traGateEp, on), TRA_MOTION_PROFILE); // 退場也經漸變滑出,不在門檻關閉時提前 return 0
+  // 鍵再帶名冊日(tr._rday,由 applySchedSystems 標):同一個車次號每天都會再開一班,而漸變條目
+  // 活得比名冊久 ⇒ 不帶日期的話跨日換名冊後今天的同號車會繼承昨天那班的偏移(實測 6.3 公里)。
+  return easedShift((tr._rday || '') + '|' + (tr.sys || 'tra_sched') + ':' + tr.train, target, gateEpoch(_traGateEp, on), TRA_MOTION_PROFILE); // 退場也經漸變滑出,不在門檻關閉時提前 return 0
 }
 async function pollLive() {
   const ls = state.schedSystems && state.schedSystems.find(s => s.live);
