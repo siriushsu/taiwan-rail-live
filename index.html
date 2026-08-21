@@ -4551,7 +4551,10 @@ const state = {
   trtcOfficialBoard: null, // 北捷官方逐列到站時間；只供車站看板，不得寫入動畫校正／班表名冊
   trtcOfficialRoster: null, // ?officialroster=1 影子路徑；boardPos 整包換入，vehicleId 是畫車／跟隨身分
   trtcOfficialRosterRevisionHighWater: null, // 只記最後成功接受版本；outage／malformed 不得把它倒退
-  metroCore: { snapshot: null, etag: null, fetchedAt: 0, lastOkAt: 0, polling: false, error: null },
+  metroCore: { snapshot: null, etag: null, fetchedAt: 0, lastOkAt: 0, polling: false, error: null,
+    // 三道退回閘門的判定結果。blockedLines 的鍵是 `systemId:lineId`,blockedSystems 的鍵是 systemId;
+    // 值都是給徽章與診斷看的原因物件。lineIdWarn 收 P0-3 的命名契約落差。
+    blockedLines: {}, blockedSystems: {}, lineIdWarn: null, matchRatio: {}, selfCheck: null },
   // Private Metro Core 的 client cache。只保存 Worker 已完成身分／速度／停站判斷後的 canonical snapshot；
   // 公開前端只做 trajectory 線性補間，失效或過期就自動退回下方既有即時／班表路徑。
   traAnomaly: null, // 台鐵系統級大面積誤點的自家觀測 {d10, maxDelay, since} 或 null(非官方公告;d10=誤點≥10 分的班數)
@@ -12408,6 +12411,11 @@ function rebuildFreqLines(g) {
   state.lines = lines;
   state.visible = new Set(lines.map(l => l.id));
   state.data = { lines }; // reproject 只判斷真值,不讀內容
+  // P0-3 開機／換群組自檢:手上的線 id 與 METRO_CORE_LINE_IDS 契約表對不對得起來。
+  // 對不上時 Core 即使完全正常,那條線也會比對不到而變空——所以要在這裡就講出來。
+  // try/catch:這支引用了在檔案後段才初始化的 const(TRTC_BOARD_LINES),
+  // 萬一在初始化前被呼叫也只是自檢跳過,不能讓它把整條建線流程打斷。
+  try { metroCoreSelfCheckLineIds(); } catch (e) {}
 }
 
 function toggleFreqMember(id) {
@@ -18994,6 +19002,30 @@ const METRO_CORE_SCHEMA = 'metro-snapshot/v1';
 const METRO_CORE_ENDPOINT = APP_CFG.metroCoreUrl ||
   'https://railisland-metro-core.sirius1984.workers.dev/v1/metro/snapshot';
 const METRO_CORE_POLL_MS = 15e3;
+// 🔴 P0-3 命名契約:Core 的 train.lineId／board.lineId 必須逐字是這 11 個之一。
+//    真值來源已逐字比對過:data/trtc.json 的九條線 id ＝ TRTC_BOARD_LINES;
+//    data/krtc.json 的 KR/KO(C 線是輕軌,不歸 Core 管)。命名一改而前端不知道,
+//    受影響的線會安靜地變成空陣列——那正是 08-21 事故的三個可能形態之一。
+const METRO_CORE_LINE_IDS = {
+  trtc: ['BR', 'R', 'R_XBT', 'G', 'G_XBT', 'O_XINZHUANG', 'O_LUZHOU', 'BL', 'Y'],
+  krtc: ['KR', 'KO'],
+};
+const METRO_CORE_LINE_ID_SET = new Map(Object.keys(METRO_CORE_LINE_IDS)
+  .map(sysId => [sysId, new Set(METRO_CORE_LINE_IDS[sysId])]));
+const METRO_CORE_FOLLOW_GRACE_SEC = 30; // 瞬間漏一批不拆跟隨；兩輪(2×15 秒)仍找不到才確認退場
+// P0-2 每線車數異常閘門。沿用 self-anomaly-detection 的「相對自己近況」設計:
+// 判的是幅度(腰斬)不是名次(破新低)——破新低是 rank statistic,對「這條線有多穩」免疫,
+// 2026-08-04 實測誤報率高到不可用,已在該記憶檔裡明文廢棄,不要再走回去。
+const METRO_CORE_COUNT_SAMPLES = 20;    // 相對基線的取樣長度(15 秒一輪 ⇒ 約 5 分鐘)
+const METRO_CORE_COUNT_MIN_SAMPLES = 4; // 樣本不足＝不判定(不是異常)
+const METRO_CORE_COUNT_MIN_BASE = 4;    // 基線太小不判:1→0 不叫腰斬,只是離峰
+const METRO_CORE_COUNT_DROP = 0.5;      // 相對基線腰斬
+const METRO_CORE_COUNT_STRIKES = 2;     // 防抖:連兩輪才進、連兩輪才出
+// P2-9 看板列身分覆蓋率的「寬鬆觀測閘門」(逐系統)。Core 自家 shadow 報告實測北捷 70–76%、
+// 高捷 0–5%,所以門檻設在 0.5:北捷正常時過得去,高捷那種整批匿名會被擋下退回班表。
+// 嚴格版(100%)是伺服端的發布閘門,不放在這裡——單一壞列不該讓整包退掉。
+const METRO_CORE_MATCH_MIN = 0.5;
+const METRO_CORE_BOARD_WINDOW_SEC = 7200; // 與 metroCoreBoardView 取用列的窗一致
 function metroCoreFlag(search) {
   try {
     const value = new URLSearchParams(search == null ? location.search : search).get('metrocore');
@@ -19099,18 +19131,42 @@ function metroCorePositionAt(ln, train, epoch) {
   const pos = posBetweenStations(ln, from, to, progress - from);
   return pos ? { ...sampled, ...pos, progress, atStation: false, motionFrom: from, motionTo: to } : null;
 }
+// 🔴 P0-1/P0-2/P0-3/P2-9 的統一出口:這條線這一刻能不能用 Core?回原因字串或 null。
+// 只有這一支說「可以」時,消費端才准跳過 legacy 與班表。
+function metroCoreLineBlocked(systemId, lineId) {
+  const core = state.metroCore;
+  if (!core) return null;
+  const sys = core.blockedSystems && core.blockedSystems[String(systemId)];
+  if (sys) return sys.reason;
+  const line = core.blockedLines && core.blockedLines[String(systemId) + ':' + String(lineId)];
+  return line ? line.reason : null;
+}
+// 這條線改用既有路徑時會畫出幾台車。刻意複製 runningCount 的同一條退路鏈
+// (官方名冊 → 實際時刻表 → 班距合成),讓「Core 說 0 台」有一個【不同來源】的對照:
+// 兩邊都 0 ⇒ 這個時段本來就沒車;備案有車而 Core 沒有 ⇒ 是故障,要講出來。
+function metroCoreLegacyCountForLine(ln, nowEpoch = Date.now() / 1000) {
+  const official = trtcOfficialItemsForLine(ln, nowEpoch);
+  if (official !== null) return official.length;
+  if (ln._tt) { let n = 0; for (const tr of ln._tt) if (freqTrainTime(tr, state.simSec) != null) n++; return n; }
+  return Number(ln.n) || 0;
+}
 function metroCoreItemsForLine(ln, nowEpoch = Date.now() / 1000) {
   const systemId = metroCoreSystemIdForLine(ln);
   if (!systemId || !metroCoreSnapshotLive(nowEpoch)) return null;
+  if (metroCoreLineBlocked(systemId, ln.id)) return null; // P0-2/P0-3/P2-9:這條線已判退回
   const system = metroCoreSystem(systemId);
-  if (!system) return [];
+  if (!system) return null; // 🔴 P0-1:snapshot 裡沒有這個系統 ⇒ 讓路給既有路徑,不是「這系統沒車」
   const out = [];
   for (const train of system.trains) {
     if (String(train.lineId) !== String(ln.id)) continue;
     const pos = metroCorePositionAt(ln, train, nowEpoch);
     if (pos) out.push({ systemId, vehicleId: String(train.vehicleId), publicLabel: String(train.publicLabel || ''), train, pos });
   }
-  return out;
+  // 🔴 P0-1:空陣列【不得】短路 legacy。[] 是 truthy 的非 null 值,四個消費端都寫
+  //    `if (core !== null) { …; return; }`,所以回 [] 等於宣告「這條線現在真的一台車都沒有」
+  //    並跳過官方名冊與班表——而依 08-14 官方逐班追蹤契約,「車子怎麼可能會不見」,
+  //    空快照從來不是「這條線沒車」的證據。0 台一律回 null,把決定權交還給既有路徑。
+  return out.length ? out : null;
 }
 function metroCoreFollowRecord(follow, nowEpoch = Date.now() / 1000) {
   if (!follow || !follow.core || follow.vehicleId == null || !metroCoreSnapshotLive(nowEpoch)) return null;
@@ -19150,6 +19206,141 @@ function drawMetroCoreVehicle(ln, item, showTrain, inView, collectHit, nowEpoch)
   if (collectHit && inView(cp)) state._freqHits.push({ x: cp.x, y: cp.y, ln, core: true,
     systemId: item.systemId, vehicleId: item.vehicleId, halfW: showTrain ? Math.max(6, trtcOfficialTagHalfWidth(label)) : 6, halfH: 8 });
 }
+// ── Core snapshot 的三道前端退回閘門(每收到一份新 snapshot 跑一次) ──────────
+// 模組級的相對基線與防抖計數器,鍵用穩定的 `systemId:lineId`(跨 rebuildFreqLines 存活)。
+const metroCoreCountHistory = new Map();
+const metroCoreCountStrikes = new Map();
+function metroCoreMedian(values) {
+  if (!values.length) return 0;
+  const sorted = values.slice().sort((a, b) => a - b), mid = sorted.length >> 1;
+  return sorted.length % 2 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2;
+}
+function metroCoreResetGates() { metroCoreCountHistory.clear(); metroCoreCountStrikes.clear(); }
+// P0-3:snapshot 的 lineId 是否守住命名契約。只檢查【前端會消費】的兩個系統,
+// 其他 systemId 一律略過(Core 之後多接一家不該讓現有兩家整包退掉)。
+function metroCoreLineIdIssues(snapshot) {
+  const unknown = [], missing = [];
+  for (const system of (snapshot && snapshot.systems) || []) {
+    const sysId = String(system && system.systemId || ''), allow = METRO_CORE_LINE_ID_SET.get(sysId);
+    if (!allow) continue;
+    const seen = new Set();
+    for (const train of system.trains || []) {
+      const id = String(train && train.lineId || '');
+      seen.add(id);
+      if (!allow.has(id)) unknown.push(sysId + ':' + id);
+    }
+    for (const board of system.boards || []) {
+      const id = String(board && board.lineId || '');
+      if (!allow.has(id)) unknown.push(sysId + ':' + id);
+    }
+    for (const id of allow) if (!seen.has(id)) missing.push(sysId + ':' + id);
+  }
+  return { unknown: Array.from(new Set(unknown)), missing };
+}
+// P2-9:看板列有多少比例對得到車輛身分(逐系統)。分母＝尚未離站、且到站時刻落在展示窗內的列,
+// 與 metroCoreBoardView 的取用條件對齊——避免驗到畫面上根本不顯示的列。
+// 🔴 `matched === 0` 這種比例判準一定要配正向對照:total 為 0 時【不判定】(回 null),
+//    否則「一列都沒有」會變成 0/0 通過,整條閘門靜靜地失去牙齒。
+function metroCoreMatchRatios(snapshot, nowEpoch) {
+  const out = {};
+  for (const system of (snapshot && snapshot.systems) || []) {
+    const sysId = String(system && system.systemId || '');
+    if (!METRO_CORE_LINE_ID_SET.has(sysId)) continue;
+    const ids = new Set((system.trains || []).map(train => String(train.vehicleId)));
+    let total = 0, matched = 0;
+    for (const board of system.boards || []) for (const row of board.rows || []) {
+      if (!row || row.state === 'departed') continue;
+      const left = Number(row.arrivalEpoch) - Number(nowEpoch);
+      if (!Number.isFinite(left) || left > METRO_CORE_BOARD_WINDOW_SEC) continue;
+      total++;
+      // 🔴 P2-9:`row.match` 原本只被賦值、全檔沒有任何地方讀它。這裡把它接進來當條件之一,
+      //    但真正算數的是「vehicleId 指得到一台真的存在的車」——伺服器宣告 matched 卻指不到車,
+      //    對畫面來說就是沒有身分,兩者矛盾時以解得出身分為準。
+      const declared = row.match == null ? null : String(row.match);
+      if (declared !== 'unmatched' && row.vehicleId != null && ids.has(String(row.vehicleId))) matched++;
+    }
+    out[sysId] = { total, matched, ratio: total ? matched / total : null };
+  }
+  return out;
+}
+// P0-2:逐線車數相對自己近況腰斬 ⇒ 那條線退回 legacy。
+function metroCoreEvaluateCounts(snapshot, nowEpoch, prior) {
+  const counts = new Map();
+  for (const sysId of METRO_CORE_LINE_ID_SET.keys()) for (const id of METRO_CORE_LINE_IDS[sysId]) counts.set(sysId + ':' + id, 0);
+  for (const system of (snapshot && snapshot.systems) || []) {
+    const sysId = String(system && system.systemId || '');
+    if (!METRO_CORE_LINE_ID_SET.has(sysId)) continue;
+    for (const train of system.trains || []) {
+      if (train && train.retireAt != null && Number(nowEpoch) >= Number(train.retireAt)) continue;
+      const key = sysId + ':' + String(train && train.lineId);
+      if (counts.has(key)) counts.set(key, counts.get(key) + 1);
+    }
+  }
+  const blocked = {};
+  for (const [key, cur] of counts) {
+    const history = metroCoreCountHistory.get(key) || [];
+    const base = metroCoreMedian(history);
+    const strikes = metroCoreCountStrikes.get(key) || { bad: 0, good: 0 };
+    const judgeable = history.length >= METRO_CORE_COUNT_MIN_SAMPLES && base >= METRO_CORE_COUNT_MIN_BASE;
+    if (judgeable && cur < base * METRO_CORE_COUNT_DROP) { strikes.bad++; strikes.good = 0; }
+    else { strikes.good++; strikes.bad = 0; }
+    const was = !!(prior && prior[key]);
+    const now = was ? !(strikes.good >= METRO_CORE_COUNT_STRIKES) : strikes.bad >= METRO_CORE_COUNT_STRIKES;
+    metroCoreCountStrikes.set(key, strikes);
+    if (now) blocked[key] = { reason: 'count', cur, base: Math.round(base * 10) / 10 };
+    // 🔴 判為異常的那一輪【不進基線】。否則腰斬會把基線自己拉下來,再過幾輪門檻就落到
+    //    壞掉的水位、閘門無聲失效——這正是「相對基線」最容易踩的自我漂移。
+    else { history.push(cur); while (history.length > METRO_CORE_COUNT_SAMPLES) history.shift(); metroCoreCountHistory.set(key, history); }
+  }
+  return blocked;
+}
+function metroCoreApplyGates(snapshot, nowEpoch = Date.now() / 1000) {
+  const core = state.metroCore;
+  const issues = metroCoreLineIdIssues(snapshot);
+  const ratios = metroCoreMatchRatios(snapshot, nowEpoch);
+  const blockedSystems = {};
+  for (const sysId in ratios) {
+    const r = ratios[sysId];
+    if (r.ratio != null && r.ratio < METRO_CORE_MATCH_MIN) {
+      blockedSystems[sysId] = { reason: 'match', matched: r.matched, total: r.total,
+        ratio: Math.round(r.ratio * 1000) / 1000 };
+    }
+  }
+  // P0-3 的「缺少預期 id」不另外硬擋:那條線本來就會因為 0 台走 P0-1 回 null 退回 legacy。
+  // 這裡只把落差記下來給徽章／診斷,真正硬擋的是「出現未知 id」(在 pollMetroCore 直接退包)。
+  core.lineIdWarn = (issues.unknown.length || issues.missing.length) ? issues : null;
+  core.matchRatio = ratios;
+  core.blockedSystems = blockedSystems;
+  core.blockedLines = metroCoreEvaluateCounts(snapshot, nowEpoch, core.blockedLines);
+  return core;
+}
+function metroCoreDegradedSummary() {
+  const core = state.metroCore;
+  if (!core) return null;
+  const lines = Object.keys(core.blockedLines || {}), systems = Object.keys(core.blockedSystems || {});
+  if (!lines.length && !systems.length && !core.error && !(core.lineIdWarn && core.lineIdWarn.unknown.length)) return null;
+  return { lines, systems, error: core.error || null,
+    unknown: (core.lineIdWarn && core.lineIdWarn.unknown) || [] };
+}
+// P0-3 開機自檢:前端自己手上的線 id 與上面那張契約表對不對得起來。
+// 對不上代表 data/*.json 已經改名而這張表沒跟上——那時 Core 即使完全正常,
+// 這裡也會整條線比對不到而變空,所以要在開機就講出來,不要等到畫面沒車才查。
+function metroCoreSelfCheckLineIds() {
+  const missing = [], extra = [];
+  for (const [sysId, allow] of METRO_CORE_LINE_ID_SET) {
+    const seen = new Set();
+    for (const pool of [state.lines, state.decoLines]) for (const ln of (pool || [])) {
+      if (metroCoreSystemIdForLine(ln) === sysId) seen.add(String(ln.id));
+    }
+    if (!seen.size) continue; // 這個系統的線還沒載進來,不判定
+    for (const id of allow) if (!seen.has(id)) missing.push(sysId + ':' + id);
+    for (const id of seen) if (!allow.has(id)) extra.push(sysId + ':' + id);
+  }
+  const result = { missing, extra, ok: !missing.length && !extra.length };
+  state.metroCore.selfCheck = result;
+  if (!result.ok) console.warn('[metro-core] 線 id 契約自檢不符', result);
+  return result;
+}
 async function pollMetroCore() {
   if (!METRO_CORE_ENABLED || document.hidden || state.metroCore.polling) return false;
   state.metroCore.polling = true;
@@ -19163,17 +19354,27 @@ async function pollMetroCore() {
     if (!response.ok) throw new Error('snapshot ' + response.status);
     const snapshot = await response.json();
     if (!metroCoreValidateSnapshot(snapshot)) throw new Error('snapshot schema');
+    // 🔴 P0-3:出現契約外的 lineId ＝ 命名約定已經改了而前端不知道。這種情況下就算 snapshot
+    //    通過 schema 驗證,受影響的線也只會安靜地變成空的,所以整包退回、保留舊 snapshot,
+    //    並在 error 裡寫清楚是哪幾條——這是「畫面沒車」與「命名對不上」唯一可分辨的地方。
+    const lineIdIssues = metroCoreLineIdIssues(snapshot);
+    if (lineIdIssues.unknown.length) {
+      state.metroCore.lineIdWarn = lineIdIssues;
+      throw new Error('lineId 契約外：' + lineIdIssues.unknown.join('、'));
+    }
     const prior = state.metroCore.snapshot;
     if (prior && Number(snapshot.generatedAt) < Number(prior.generatedAt)) throw new Error('snapshot rollback');
     state.metroCore.snapshot = snapshot;
     state.metroCore.etag = `"${String(snapshot.revision)}"`;
     state.metroCore.fetchedAt = state.metroCore.lastOkAt = Date.now();
     state.metroCore.error = null;
+    metroCoreApplyGates(snapshot, Date.now() / 1000); // P0-2／P0-3／P2-9 逐輪重算退回名單
     if (state.boardStation) renderBoard();
     updateCount(); updateMetroBadge();
     return true;
   } catch (error) {
     state.metroCore.error = String(error && error.message || error);
+    updateMetroBadge(); // 🔴 P1-8:驗證／連線失敗必須有使用者看得到的訊號,不能只存在 state 裡
     return false;
   } finally { state.metroCore.polling = false; }
 }
@@ -19181,10 +19382,15 @@ setInterval(pollMetroCore, METRO_CORE_POLL_MS);
 if (METRO_CORE_ENABLED) pollMetroCore();
 window.__railMetroCore = { enabled: METRO_CORE_ENABLED, endpoint: METRO_CORE_ENDPOINT,
   poll: pollMetroCore, sampleTrajectory: metroCoreSampleTrajectory,
+  selfCheck: metroCoreSelfCheckLineIds, resetGates: metroCoreResetGates,
+  lineIds: METRO_CORE_LINE_IDS,
   status: () => ({ revision: state.metroCore.snapshot && state.metroCore.snapshot.revision,
     generatedAt: state.metroCore.snapshot && state.metroCore.snapshot.generatedAt,
     validUntil: state.metroCore.snapshot && state.metroCore.snapshot.validUntil,
-    fetchedAt: state.metroCore.fetchedAt, lastOkAt: state.metroCore.lastOkAt, error: state.metroCore.error }) };
+    fetchedAt: state.metroCore.fetchedAt, lastOkAt: state.metroCore.lastOkAt, error: state.metroCore.error,
+    blockedLines: state.metroCore.blockedLines, blockedSystems: state.metroCore.blockedSystems,
+    matchRatio: state.metroCore.matchRatio, lineIdWarn: state.metroCore.lineIdWarn,
+    lineIdSelfCheck: state.metroCore.selfCheck }) };
 
 // ── 捷運即時校正(TDX Metro LiveBoard,經 /api/metro-live 代理,約每分鐘) ──
 // 「準」的使用者標準=跟月台官方看板一致。對每列看板資料(某站往某方向下一班倒數),
@@ -22108,7 +22314,11 @@ function metroCoreBoardView(st, lines, isDeco, nowEpoch = Date.now() / 1000) {
   (lines || []).forEach((ln, li) => {
     if ((!isDeco && !state.visible.has(ln.id)) || !Array.isArray(ln.stations)) return;
     const si = ln.stations.findIndex(s => s.name.replace(/臺/g, '台') === stationKey);
-    if (si >= 0) stationLines.push({ ln, li, si, systemId: metroCoreSystemIdForLine(ln) });
+    if (si < 0) return;
+    // 退回閘門開著的線,看板也要一起走既有時刻表路徑(systemId 給 null 就會落到下面的 _tt 分支);
+    // 否則會出現「地圖上這條線用班表、看板卻還在讀空的 Core」這種一半一半的狀態。
+    const systemId = metroCoreSystemIdForLine(ln);
+    stationLines.push({ ln, li, si, systemId: systemId && !metroCoreLineBlocked(systemId, ln.id) ? systemId : null });
   });
   if (!stationLines.some(entry => entry.systemId)) return null;
   const groups = [];
