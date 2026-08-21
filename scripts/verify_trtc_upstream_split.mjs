@@ -122,7 +122,7 @@ const freePort = () => new Promise((resolve, reject) => {
 
 // 起一台乾淨 worktree 的 wrangler dev。ref 決定樹的內容；workerSource 若給就覆蓋 worker.js
 // （突變測試用）。回傳 { base, stop }。
-async function startServer(label, ref, upstreamBase, workerSource = null) {
+async function startServer(label, ref, upstreamBase, workerSource = null, extraVars = []) {
   const dir = mkdtempSync(path.join(os.tmpdir(), 'trtc-split-'));
   const tree = path.join(dir, 'vtree');
   execFileSync('git', ['-C', ROOT, 'worktree', 'add', '--detach', tree, ref], { stdio: 'ignore' });
@@ -141,7 +141,8 @@ async function startServer(label, ref, upstreamBase, workerSource = null) {
   const inspectorPort = await freePort();
   const proc = spawn('arch', ['-arm64', 'node', path.join(ROOT, 'node_modules/wrangler/bin/wrangler.js'),
     'dev', '--local-protocol', 'https', '--port', String(port), '--inspector-port', String(inspectorPort),
-    '--var', `TRTC_API_BASE:${upstreamBase}`, '--var', 'TRTC_API_USER:fake', '--var', 'TRTC_API_PASS:fake'],
+    '--var', `TRTC_API_BASE:${upstreamBase}`, '--var', 'TRTC_API_USER:fake', '--var', 'TRTC_API_PASS:fake',
+    ...extraVars.flatMap(v => ['--var', v])],
   { cwd: tree, stdio: ['ignore', 'pipe', 'pipe'], env: { ...process.env, CI: '1' } });
   let log = '';
   proc.stdout.on('data', d => { log += d; });
@@ -170,8 +171,9 @@ async function startServer(label, ref, upstreamBase, workerSource = null) {
   throw new Error(`[${label}] wrangler dev 240 秒內沒起來\n${log.slice(-2000)}`);
 }
 
-const getJson = async (base, p) => {
-  const r = await fetch(`${base}${p}?bust=${Date.now()}${Math.random()}`, { signal: AbortSignal.timeout(20000) });
+const getJson = async (base, p, headers = undefined) => {
+  const r = await fetch(`${base}${p}?bust=${Date.now()}${Math.random()}`,
+    { headers, signal: AbortSignal.timeout(20000) });
   return { status: r.status, cc: r.headers.get('cache-control') || '', body: await r.json() };
 };
 
@@ -271,6 +273,39 @@ try {
   check(back.body && back.body.src === 'trtc' && back.body.tk.length > 0,
     '正向對照：上游恢復後同一台真的回得出資料',
     `src=${back.body && back.body.src} tk=${back.body && back.body.tk && back.body.tk.length}`);
+
+  console.log('\n── 判準 5：正式站設了 METRO_CORE_KEY 之後，閘門真的關得起來 ──');
+  // 🔴 前面四條判準都跑在**沒設金鑰**的環境（閘門開著），證不出閘門本身有沒有作用。
+  // 正式站設了 secret 才是真實形態，這條就是補那一格：沒帶／帶錯一律 404，帶對才 200。
+  const GATE = 'gate-secret-for-verify';
+  const gateSrv = await startServer('閘門', 'HEAD', up.base, workingSource, [`METRO_CORE_KEY:${GATE}`]);
+  servers.push(gateSrv);
+  const noKey = await getJson(gateSrv.base, '/api/trtc-raw');
+  check(noKey.status === 404 && noKey.body && noKey.body.error === 'not_found',
+    '不帶金鑰 → 404 not_found（且不透露端點存在）',
+    `status=${noKey.status} body=${JSON.stringify(noKey.body)}`);
+  const badKey = await getJson(gateSrv.base, '/api/trtc-raw', { 'x-metro-core-key': 'wrong' });
+  check(badKey.status === 404, '帶錯金鑰 → 404', `status=${badKey.status}`);
+  const okKey = await getJson(gateSrv.base, '/api/trtc-raw', { 'x-metro-core-key': GATE });
+  check(okKey.status === 200 && okKey.body && okKey.body.src === 'trtc' && okKey.body.tk.length > 0,
+    '正向對照：帶對金鑰真的拿得到資料（上面兩個 404 不是因為端點壞了）',
+    `status=${okKey.status} tk=${okKey.body && okKey.body.tk && okKey.body.tk.length}`);
+  const liveWithGate = await getJson(gateSrv.base, '/api/trtc-live');
+  check(liveWithGate.status === 200 && Array.isArray(liveWithGate.body.board),
+    '正向對照：設了金鑰不會誤傷其他端點', `status=${liveWithGate.status}`);
+
+  if (runMutation) {
+    console.log('\n── 突變對照：把閘門拿掉，判準 5 必須轉紅 ──');
+    const GATE_NEEDLE = `  if (env && env.METRO_CORE_KEY &&`;
+    check(workingSource.includes(GATE_NEEDLE), '找得到閘門那一行（找不到就是這條突變在空轉）');
+    const noGate = workingSource.replace(GATE_NEEDLE, `  if (false &&`);
+    check(noGate !== workingSource, '閘門突變真的套用了');
+    const noGateSrv = await startServer('無閘門', 'HEAD', up.base, noGate, [`METRO_CORE_KEY:${GATE}`]);
+    servers.push(noGateSrv);
+    const leaked = await getJson(noGateSrv.base, '/api/trtc-raw');
+    check(leaked.status === 200, '拿掉閘門後不帶金鑰就拿得到 ⇒ 判準 5 有牙，不是恆真',
+      `status=${leaked.status}`);
+  }
 
   if (runMutation) {
     console.log('\n── 突變對照：把 trtcRaw 改成自己直接打上游，判準 3 必須轉紅 ──');
