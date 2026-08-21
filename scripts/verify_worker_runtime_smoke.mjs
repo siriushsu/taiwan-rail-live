@@ -58,6 +58,7 @@ const ENDPOINTS = [
   { path: '/api/klrt-position', 上游: 'TDX（高雄輕軌逐車 GPS）' },
   { path: '/api/ntmetro-live?sys=ntm', 上游: '新北捷（公開端點，具名豁免）' },
   { path: '/api/trtc-live', 上游: '北捷會員 API' },
+  { path: '/api/trtc-raw', 上游: '北捷會員 API（原始上游代理，私有 Metro Core 讀這支）' },
   { path: '/api/hazard-alert', 上游: 'NCDR（公開端點，具名豁免）' },
 ];
 

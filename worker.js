@@ -787,6 +787,74 @@ let trtcMem = null; // { data, at }
 // 記憶體層門檻抽成獨立可測函式(task-11):驗收腳本要直接量這個條件式的邊界(14999/15001ms),
 // 不透過真的等待 15 秒,也不靠讀常數字面值反推——見 verify_trtc_freshness.mjs。
 function trtcMemoStale(stale, now) { return !stale || now - stale.at > 15e3; }
+// ── 上游接取層：帶帳密抓官方三支端點，到此為止一行模型推算都沒有 ────────────
+// 這一層與「名冊／身分／位置」是兩件事,刻意分開:帳密只能放 Worker secret 故接取留在
+// 公開端,推算則整批搬進私有 Metro Core。/api/trtc-raw 與 /api/trtc-live 共用同一個
+// 記憶體層,兩支加起來對官方端的請求量與只有一支時完全相同——不會因為多開一個端點
+// 就讓上游用量翻倍。
+let trtcUpMem = null; // { hw, br, tk, tkOk, tkError, startedAt, at }
+async function trtcUpstream(env) {
+  if (!trtcMemoStale(trtcUpMem, Date.now())) return trtcUpMem;
+  // 在發出三支上游 request 前取 acquisition order；慢回的舊 request 不得因完成較晚
+  // 反過來覆蓋較晚開始、已成功寫入的 fresh official frame。
+  const startedAt = Date.now();
+  // 三支各自保留成敗：CarWeight 任一支抖動不拖垮 TrackInfo 官方名冊；反過來
+  // TrackInfo 失敗也不能被 CarWeight 的位置列偽裝成仍有官方存在性資料。
+  const [hwRaw, brRaw, tkResult] = await Promise.all([
+    trtcCall(trtcApiUrl(env, 'CarWeight'), 'getCarWeightByInfoEx', env).catch(() => []),
+    trtcCall(trtcApiUrl(env, 'CarWeightBR'), 'getCarWeightBRInfo', env).catch(() => []),
+    // TrackInfo 是官方名冊本體；必須保留「成功但合法空列」與「請求失敗」的差別，
+    // 不能都壓成 [] 後讓前端猜某線是不是該拿班表補車。
+    trtcCall(trtcApiUrl(env, 'TrackInfo'), 'getTrackInfo', env)
+      .then(rows => ({ ok: true, rows: Array.isArray(rows) ? rows : [] }))
+      .catch(error => ({ ok: false, rows: [], error: (error && error.message) || String(error) })),
+  ]);
+  // official-first：TrackInfo 成功（包含合法空列）就是可發布的權威名冊；CarWeight
+  // 只供 legacy trains／擁擠度裝飾，兩支同時空也不可把官方名冊拖成 outage。
+  if (!tkResult.ok && hwRaw.length === 0 && brRaw.length === 0) {
+    throw new Error('trtc TrackInfo/hw/br 全部失敗');
+  }
+  trtcUpMem = { hw: hwRaw, br: brRaw, tk: tkResult.rows, tkOk: tkResult.ok,
+    tkError: tkResult.error || null, startedAt, at: Date.now() };
+  return trtcUpMem;
+}
+
+// 原始上游代理:回的就是官方三支端點的原始列,零推算、零身分、零位置。
+// 私有 Metro Core 讀這一支自己跑模型,公開端因此不必知道那些規則長什麼樣。
+// 內容不比 /api/trtc-live 已經公開的 trains/board 多——那兩者本來就是從這份推出來的,
+// 所以這支預設不設閘門;要鎖起來只需在兩邊各設一個 METRO_CORE_KEY,程式已經備好。
+async function trtcRaw(request, env) {
+  if (env && env.METRO_CORE_KEY &&
+      request.headers.get('x-metro-core-key') !== env.METRO_CORE_KEY) {
+    return jsonRes({ error: 'not_found' }, 404, 'no-store');
+  }
+  const cacheKey = new Request(new URL('/api/trtc-raw', request.url), { method: 'GET' });
+  const edge = caches.default;
+  const hit = await edge.match(cacheKey);
+  if (hit) return hit;
+  // 🔴 body 先定成不可變字串再造兩個獨立 Response:cache.put(res.clone()) 會把同一條
+  // body 串流分流給兩個讀者,冷啟填完快取後緊接那一發會拿到半寫入的空 body
+  // (2026-08-20 在 /api/tra-daily-trains 實測到)。
+  const mk = body => () => new Response(body, { status: 200,
+    headers: { 'content-type': 'application/json; charset=utf-8',
+      'cache-control': 'public, s-maxage=15, stale-while-revalidate=120' } });
+  try {
+    const up = await trtcUpstream(env);
+    const make = mk(JSON.stringify({ at: new Date(up.at).toISOString(), src: 'trtc',
+      startedAt: Math.floor(up.startedAt / 1000), tkOk: up.tkOk,
+      hw: up.hw, br: up.br, tk: up.tk }));
+    await edge.put(cacheKey, make());
+    return make();
+  } catch (e) {
+    // 上游全掛:回 200 + src:null,讓讀者能分辨「上游沒資料」與「我們掛了」。
+    // 負向結果也快取 15 秒,免得上游持續掛時每個請求 1:1 重打官方端。
+    const make = mk(JSON.stringify({ at: new Date().toISOString(), src: null,
+      startedAt: null, tkOk: false, hw: [], br: [], tk: [] }));
+    await edge.put(cacheKey, make());
+    return make();
+  }
+}
+
 async function trtcLive(request, env) {
   const cacheKey = new Request(new URL('/api/trtc-live', request.url), { method: 'GET' });
   const edge = caches.default;
@@ -795,26 +863,10 @@ async function trtcLive(request, env) {
   const stale = trtcMem;
   try {
     if (trtcMemoStale(stale, Date.now())) {
-      // 在發出三支上游 request 前取 acquisition order；慢回的舊 request 不得因完成較晚
-      // 反過來覆蓋較晚開始、已成功寫入的 fresh official frame。
-      const officialRequestStartedAt = Date.now();
-      // 三支各自保留成敗：CarWeight 任一支抖動不拖垮 TrackInfo 官方名冊；反過來
-      // TrackInfo 失敗也不能被 CarWeight 的位置列偽裝成仍有官方存在性資料。
-      const [hwRaw, brRaw, tkResult] = await Promise.all([
-        trtcCall(trtcApiUrl(env, 'CarWeight'), 'getCarWeightByInfoEx', env).catch(() => []),
-        trtcCall(trtcApiUrl(env, 'CarWeightBR'), 'getCarWeightBRInfo', env).catch(() => []),
-        // TrackInfo 是官方名冊本體；必須保留「成功但合法空列」與「請求失敗」的差別，
-        // 不能都壓成 [] 後讓前端猜某線是不是該拿班表補車。
-        trtcCall(trtcApiUrl(env, 'TrackInfo'), 'getTrackInfo', env)
-          .then(rows => ({ ok: true, rows: Array.isArray(rows) ? rows : [] }))
-          .catch(error => ({ ok: false, rows: [], error: (error && error.message) || String(error) })),
-      ]);
-      const tk = tkResult.rows;
-      // official-first：TrackInfo 成功（包含合法空列）就是可發布的權威名冊；CarWeight
-      // 只供 legacy trains／擁擠度裝飾，兩支同時空也不可把官方名冊拖成 outage。
-      if (!tkResult.ok && hwRaw.length === 0 && brRaw.length === 0) {
-        throw new Error('trtc TrackInfo/hw/br 全部失敗');
-      }
+      const up = await trtcUpstream(env);
+      const hwRaw = up.hw, brRaw = up.br, tk = up.tk;
+      const tkResult = { ok: up.tkOk, rows: up.tk, error: up.tkError };
+      const officialRequestStartedAt = up.startedAt;
       const hw = dedupeLatest(hwRaw, 'utime');
       const br = dedupeLatest(brRaw, 'UpdateTime');
       // 車次 → { dest, path[] }。TrackInfo 一台車在前方數站各一筆。
@@ -5561,6 +5613,7 @@ export default {
       res = NTM_LIVE_SYS.has(sys) ? await ntmetroLive(request, env, sys) : jsonRes({ error: 'bad sys' }, 400, 'no-store');
     }
     else if (url.pathname === '/api/trtc-live') { res = await trtcLive(request, env); }
+    else if (url.pathname === '/api/trtc-raw') { res = await trtcRaw(request, env); }
     else if (url.pathname === '/api/klrt-position') { res = await klrtPosition(request, env); }
     else if (url.pathname === '/api/delay-stats') res = await delayStats(request, env);
     else if (url.pathname === '/api/thsr-schedule') res = await thsrSchedule(request, env);
