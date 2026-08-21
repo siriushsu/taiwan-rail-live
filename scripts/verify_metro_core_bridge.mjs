@@ -67,6 +67,15 @@ const contracts = [
   ['P2-9 match 欄位真的被讀（不再只賦值）', /const declared = row\.match == null \? null : String\(row\.match\);/],
   ['P2-9 比例判準配正向對照（total 為 0 不判定）', /ratio: total \? matched \/ total : null/],
   ['退回閘門同時作用在看板路徑', /systemId: systemId && !metroCoreLineBlocked\(systemId, ln\.id\) \? systemId : null/],
+  // ── 共站辨線（#7 9bc4348 的前端保護，以 v0821b 資料結構重寫）──
+  ['共站辨線：看板列的線／方向／終點都要對得上它指到的車',
+    /function metroCoreRowVehicleId\(system, board, row\)[\s\S]*?String\(train\.lineId\) !== String\(board\.lineId\)[\s\S]*?Number\(train\.direction\) !== Number\(row\.direction\)[\s\S]*?Number\(train\.destinationStationIndex\) !== Number\(row\.destinationStationIndex\)/],
+  ['共站辨線：對不上只讓那一列失去身分，不整包退回',
+    /const vehicleId = metroCoreRowVehicleId\(system, board, row\);[\s\S]*?vehicleId, match: vehicleId == null \? 'unmatched' :/],
+  ['共站辨線：誤配的列不得算進 P2-9 分子',
+    /if \(declared !== 'unmatched' && metroCoreRowVehicleId\(system, board, row\) != null\) matched\+\+;/],
+  ['地圖點車保留 Core 身分（否則 applyFreqFollow 會拿 Core 的 vehicleId 去查 legacy 名冊）',
+    /if \(inside\) hits\.push\(\{ ln: h\.ln, k: h\.k, tr: h\.tr, core: !!h\.core,\s*\n\s*systemId: h\.systemId, vehicleId: h\.vehicleId/],
 ];
 for (const [label, pattern] of contracts) check(pattern.test(html), label);
 const appContracts = [

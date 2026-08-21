@@ -35,6 +35,23 @@ const MUTATED_HTML = REAL_HTML
   .replace('  return out.length ? out : null;', '  return out; // MUTATION P0-1');
 if (MUTATED_HTML === REAL_HTML) throw new Error('P0-1 突變沒有命中——先確認那兩行還在');
 
+// 突變體 2：把 freqTrainsAt 改回 3dad2e5 的形狀（不往外傳 core／systemId）。
+const MUTATED_HIT_HTML = REAL_HTML
+  .replace(`    if (inside) hits.push({ ln: h.ln, k: h.k, tr: h.tr, core: !!h.core,
+      systemId: h.systemId, vehicleId: h.vehicleId, officialNo: h.officialNo || '', dist: d });`,
+    `    if (inside) hits.push({ ln: h.ln, k: h.k, tr: h.tr, vehicleId: h.vehicleId,
+      officialNo: h.officialNo || '', dist: d }); // MUTATION freqTrainsAt`)
+  .replace(`    return best ? [{ ln: best.ln, k: best.k, tr: best.tr, core: !!best.core,
+      systemId: best.systemId, vehicleId: best.vehicleId, officialNo: best.officialNo || '', dist: bd }] : [];`,
+    `    return best ? [{ ln: best.ln, k: best.k, tr: best.tr, dist: bd }] : []; // MUTATION freqTrainsAt`);
+if (MUTATED_HIT_HTML === REAL_HTML) throw new Error('freqTrainsAt 突變沒有命中');
+
+// 突變體 3：拿掉共站辨線那道「看板列的線必須等於車的線」檢查。
+const MUTATED_XLINE_HTML = REAL_HTML
+  .replace('  if (!train || String(train.lineId) !== String(board.lineId)) return null;',
+    '  if (!train) return null; // MUTATION crossline');
+if (MUTATED_XLINE_HTML === REAL_HTML) throw new Error('共站辨線突變沒有命中');
+
 // 🔴 Leaflet 刻意【不】攔截，走真 CDN：index.html 對它掛了 SRI integrity，
 //    塞本機那份 leaflet.js 進去會因為雜湊不符被瀏覽器擋掉，`L` undefined ⇒ boot 拋錯 ⇒
 //    這支腳本從寫出來的那一刻就不可能綠（2026-08-10 已經踩過一次同款）。
@@ -123,9 +140,34 @@ function buildSnapshot(variant) {
     }
     return snapshot;
   }
+  if (variant === 'crossLine') { // 共站辨線：板南線看板的某一列，指到文湖線的車
+    const sys = snapshot.systems.find(s => s.systemId === 'trtc');
+    const br = sys.trains.find(t => String(t.lineId) === 'BR');
+    // 佈題的兩列都要落在「看板顯示窗」與「P2-9 統計窗」的交集內：太近會在跑測試的幾秒內
+    // 變成已到站而消失，太遠(>2 小時)則兩邊都不收 ⇒ I3/I4 會變成量不到東西的空判準。
+    const near = Number(snapshot.generatedAt) + 90, far = Number(snapshot.generatedAt) + 3000;
+    for (const board of sys.boards) {
+      if (String(board.lineId) !== 'BL') continue;
+      const seen = new Map(); // 每個 (方向|終點) 取最早那一列——一定會被 byDest 的 slice(0,2) 留下
+      for (const row of board.rows) {
+        if (row.vehicleId == null || row.state === 'departed' ||
+            Number(row.arrivalEpoch) < near || Number(row.arrivalEpoch) > far) continue;
+        const key = `${row.direction}|${row.destinationStationIndex}`;
+        if (!seen.has(key)) seen.set(key, row);
+      }
+      if (seen.size < 2) continue;
+      const [bad, good] = [...seen.values()];
+      crossLineCase = { stationIndex: Number(board.stationIndex), badRowId: String(bad.rowId),
+        goodRowId: String(good.rowId), goodVehicleId: String(good.vehicleId), brVehicleId: String(br.vehicleId) };
+      bad.vehicleId = crossLineCase.brVehicleId; bad.match = 'inferred';
+      return snapshot;
+    }
+    throw new Error('語料裡找不到可用的 BL 看板（需要兩個不同方向／終點且未來到站的已配對列）');
+  }
   if (variant === 'dropFollow') return snapshot; // 由呼叫端在 evaluate 內指定要拿掉哪一台
   throw new Error('unknown variant ' + variant);
 }
+let crossLineCase = null;
 
 let currentVariant = 'healthy';
 let dropVehicleId = null;
@@ -214,6 +256,7 @@ const lineStats = page => page.evaluate(() => {
   })() };
 });
 
+let healthyMatched = null; // (a) 量到的 trtc 已配對列數；(i) 的 I4 拿它當對照基準
 async function main() {
   const diskMd5 = createHash('md5').update(fs.readFileSync(path.join(ROOT, 'index.html'))).digest('hex');
   const server = await serve(PORT);
@@ -243,6 +286,7 @@ async function main() {
       const hits = await page.evaluate(() => (state._freqHits || []).filter(h => h.core).length);
       check('A4 畫面命中清單裡真的有 Core 車（不是只在資料層）', hits > 0, `_freqHits core=${hits}`);
       const ratio = s.status.matchRatio || {};
+      healthyMatched = ratio.trtc && ratio.trtc.matched;
       check('A5 P2-9 逐系統身分覆蓋率算得出來且分母>0',
         ratio.trtc && ratio.trtc.total > 0 && ratio.krtc && ratio.krtc.total > 0,
         `trtc ${ratio.trtc && ratio.trtc.matched}/${ratio.trtc && ratio.trtc.total}、krtc ${ratio.krtc && ratio.krtc.matched}/${ratio.krtc && ratio.krtc.total}`);
@@ -429,6 +473,98 @@ async function main() {
       allErrors = allErrors.concat(errors);
       await page.close();
     }
+
+    // ── (h) 地圖點車：命中結果要保留 Core 身分，跟隨才建得起來（含突變對照）──
+    //    3dad2e5 的 freqTrainsAt 只回 {ln,k,tr,vehicleId}，而 applyFreqFollow 讀 target.core
+    //    決定查 Core 還是 legacy 名冊 ⇒ Core 的 vehicleId 被拿去查舊名冊，必然查無此車，
+    //    地圖上點任何一台 Core 車都只會吐「這列車已離開官方即時名冊」。
+    currentVariant = 'healthy';
+    const clickFollow = async () => {
+      const { page, errors } = await newPage(browser);
+      await pollOnce(page);
+      await page.evaluate(() => map.setView([25.048, 121.545], 12, { animate: false }));
+      await page.waitForTimeout(1200);
+      const out = await page.evaluate(() => {
+        const hit = (state._freqHits || []).find(h => h.core && h.vehicleId != null);
+        if (!hit) return { picked: null };
+        const got = freqTrainsAt({ x: hit.x, y: hit.y })[0] || null;
+        window.__toasts.length = 0;
+        clearFreqFollow();
+        setFreqFollow(got);
+        const f = state.freqFollow;
+        return { picked: { vehicleId: String(hit.vehicleId), systemId: String(hit.systemId) },
+          hit: got && { core: !!got.core, systemId: got.systemId || null, vehicleId: got.vehicleId || null },
+          follow: f && { core: !!f.core, systemId: f.systemId || null, vehicleId: f.vehicleId || null },
+          toasts: window.__toasts.slice() };
+      });
+      await page.close();
+      return { out, errors };
+    };
+    {
+      const { out, errors } = await clickFollow();
+      check('H1 佈題：地圖上點得到一台 Core 車，命中結果帶回 core／systemId／vehicleId',
+        !!out.hit && out.hit.core === true && out.hit.systemId === out.picked.systemId &&
+        out.hit.vehicleId === out.picked.vehicleId, JSON.stringify(out.hit));
+      check('H2 端到端：點下去真的跟起來，且走的是 Core 身分（不是 legacy 名冊）',
+        !!out.follow && out.follow.core === true && out.follow.vehicleId === out.picked.vehicleId &&
+        !out.toasts.some(t => /名冊/.test(t)), JSON.stringify({ follow: out.follow, toasts: out.toasts }));
+      allErrors = allErrors.concat(errors);
+    }
+    {
+      servedHtml = MUTATED_HIT_HTML;
+      const { out, errors } = await clickFollow();
+      check('H3 突變對照：freqTrainsAt 不傳 core／systemId 時，H2 必須轉紅',
+        !out.follow || out.follow.core !== true,
+        `舊行為下 follow=${JSON.stringify(out.follow)} toasts=${JSON.stringify(out.toasts)}`);
+      allErrors = allErrors.concat(errors.filter(e => !/MUTATION/.test(e)));
+      servedHtml = REAL_HTML;
+    }
+
+    // ── (i) 共站辨線：看板列指到別條線的車 ⇒ 只留時刻、不連結（含正向對照與突變）──
+    currentVariant = 'crossLine';
+    const crossLineProbe = async () => {
+      if (!crossLineCase) buildSnapshot('crossLine'); // 佈題參數由工廠算出，先確保它已產生
+      const { page, errors } = await newPage(browser);
+      await pollOnce(page);
+      const out = await page.evaluate(kase => {
+        const ln = state.lines.find(l => String(l.id) === 'BL');
+        const st = ln && ln.stations[kase.stationIndex];
+        const view = st && metroCoreBoardView(st, state.lines, false);
+        const rows = view ? view.groups.filter(g => g.kind === 'core' && String(g.ln.id) === 'BL')
+          .flatMap(g => g.rows) : [];
+        const pick = id => {
+          const rec = rows.find(r => r.row && String(r.row.rowId) === id);
+          return rec ? { vehicleId: rec.vehicleId, match: rec.match } : null;
+        };
+        return { stationName: st && st.name, rowCount: rows.length,
+          bad: pick(kase.badRowId), good: pick(kase.goodRowId),
+          matched: (__railMetroCore.status().matchRatio.trtc || {}).matched };
+      }, crossLineCase);
+      await page.close();
+      return { out, errors };
+    };
+    {
+      const { out, errors } = await crossLineProbe();
+      check('I1 佈題：那張看板真的讀得到、被動手腳與沒動的兩列都在畫面上',
+        out.rowCount > 0 && !!out.bad && !!out.good, JSON.stringify({ st: out.stationName, rows: out.rowCount }));
+      check('I2 正向對照：同一張看板沒動過的列仍連得到車（否則 I3 只是「整張板都不連」）',
+        !!out.good && out.good.vehicleId === crossLineCase.goodVehicleId, JSON.stringify(out.good));
+      check('I3 指到別條線的車 ⇒ 那一列失去身分、標記 unmatched（時刻仍在，不亂標）',
+        !!out.bad && out.bad.vehicleId === null && out.bad.match === 'unmatched', JSON.stringify(out.bad));
+      check('I4 誤配的列被算進 P2-9 分子外（覆蓋率不得把它當已配對）',
+        out.matched === healthyMatched - 1, `crossLine matched=${out.matched}、healthy matched=${healthyMatched}`);
+      allErrors = allErrors.concat(errors);
+    }
+    {
+      servedHtml = MUTATED_XLINE_HTML;
+      const { out, errors } = await crossLineProbe();
+      check('I5 突變對照：拿掉辨線檢查後，I3 必須轉紅',
+        !!out.bad && out.bad.vehicleId === crossLineCase.brVehicleId,
+        `舊行為下 bad=${JSON.stringify(out.bad)}`);
+      allErrors = allErrors.concat(errors.filter(e => !/MUTATION/.test(e)));
+      servedHtml = REAL_HTML;
+    }
+    currentVariant = 'healthy';
 
     check('Z1 全程零未捕捉 pageerror', allErrors.length === 0, allErrors.slice(0, 3).join(' | ') || '0');
   } finally {

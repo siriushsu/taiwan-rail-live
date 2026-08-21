@@ -11707,14 +11707,17 @@ function freqTrainsAt(cp) {
       const d = Math.hypot(h.x - cp.x, h.y - cp.y);
       if (d < bd) { bd = d; best = h; }
     }
-    return best ? [{ ln: best.ln, k: best.k, tr: best.tr, dist: bd }] : [];
+    return best ? [{ ln: best.ln, k: best.k, tr: best.tr, core: !!best.core,
+      systemId: best.systemId, vehicleId: best.vehicleId, officialNo: best.officialNo || '', dist: bd }] : [];
   }
   const hits = [];
   for (const h of source) {
     const dx = h.x - cp.x, dy = h.y - cp.y, d = Math.hypot(dx, dy);
     const inside = contains(h);
-    if (inside) hits.push({ ln: h.ln, k: h.k, tr: h.tr, vehicleId: h.vehicleId,
-      officialNo: h.officialNo || '', dist: d });
+    // 🔴 core／systemId 一定要往外傳:applyFreqFollow 讀 target.core 決定走 Core 還是 legacy 名冊,
+    //    漏傳就會拿 Core 的 vehicleId 去查舊名冊,地圖上點任何一台 Core 車都跟不起來。
+    if (inside) hits.push({ ln: h.ln, k: h.k, tr: h.tr, core: !!h.core,
+      systemId: h.systemId, vehicleId: h.vehicleId, officialNo: h.officialNo || '', dist: d });
   }
   return hits.sort((a, b) => a.dist - b.dist || String(a.vehicleId || '').localeCompare(String(b.vehicleId || '')) ||
     Number(a.k ?? -1) - Number(b.k ?? -1));
@@ -19075,6 +19078,21 @@ function metroCoreValidateSnapshot(snapshot) {
   }
   return true;
 }
+// 共站辨線的前端守門:看板列宣告的路線／方向／終點,必須與它指到的那台車一致。忠孝復興、
+// 東門這類共站,伺服端一旦把板南線的列連到文湖線的車,使用者點站牌就會跟到另一條線的車,
+// 而且位置會用錯誤路線的線形算 ⇒ 車被畫到別條軌道上。
+// 🔴 刻意不整包退回:單列不一致只讓那一列失去身分(到站時刻照顯示、不亂標),並計入 P2-9
+//    誤配率交給既有的逐系統閘門判斷;一列壞掉就丟掉整份 snapshot 正是本批要防的放大效應。
+function metroCoreRowVehicleId(system, board, row) {
+  if (!row || row.vehicleId == null || !system || !board) return null;
+  const id = String(row.vehicleId);
+  const train = (system.trains || []).find(item => String(item.vehicleId) === id);
+  if (!train || String(train.lineId) !== String(board.lineId)) return null;
+  if (row.direction != null && Number(train.direction) !== Number(row.direction)) return null;
+  if (row.destinationStationIndex != null &&
+      Number(train.destinationStationIndex) !== Number(row.destinationStationIndex)) return null;
+  return id;
+}
 function metroCoreSampleTrajectory(trajectory, epoch) {
   if (!Array.isArray(trajectory) || !trajectory.length || !Number.isFinite(Number(epoch))) return null;
   const now = Number(epoch), first = trajectory[0];
@@ -19268,7 +19286,6 @@ function metroCoreMatchRatios(snapshot, nowEpoch) {
   for (const system of (snapshot && snapshot.systems) || []) {
     const sysId = String(system && system.systemId || '');
     if (!METRO_CORE_LINE_ID_SET.has(sysId)) continue;
-    const ids = new Set((system.trains || []).map(train => String(train.vehicleId)));
     let total = 0, matched = 0;
     for (const board of system.boards || []) for (const row of board.rows || []) {
       if (!row || row.state === 'departed') continue;
@@ -19276,10 +19293,10 @@ function metroCoreMatchRatios(snapshot, nowEpoch) {
       if (!Number.isFinite(left) || left > METRO_CORE_BOARD_WINDOW_SEC) continue;
       total++;
       // 🔴 P2-9:`row.match` 原本只被賦值、全檔沒有任何地方讀它。這裡把它接進來當條件之一,
-      //    但真正算數的是「vehicleId 指得到一台真的存在的車」——伺服器宣告 matched 卻指不到車,
-      //    對畫面來說就是沒有身分,兩者矛盾時以解得出身分為準。
+      //    但真正算數的是「vehicleId 指得到一台真的存在、而且同線同方向同終點的車」——伺服器宣告
+      //    matched 卻指不到車(或指到別條線的車),對畫面來說就是沒有身分,矛盾時以解得出身分為準。
       const declared = row.match == null ? null : String(row.match);
-      if (declared !== 'unmatched' && row.vehicleId != null && ids.has(String(row.vehicleId))) matched++;
+      if (declared !== 'unmatched' && metroCoreRowVehicleId(system, board, row) != null) matched++;
     }
     out[sysId] = { total, matched, ratio: total ? matched / total : null };
   }
@@ -22392,9 +22409,11 @@ function metroCoreBoardView(st, lines, isDeco, nowEpoch = Date.now() / 1000) {
         const destIndex = Number(row.destinationStationIndex), dest = entry.ln.stations[destIndex];
         const dtm = Number(row.arrivalEpoch) - nowEpoch;
         if (!dest || !Number.isFinite(dtm) || dtm > 7200) continue;
+        // 共站辨線:身分對不上這條線就只留時刻、不連結車輛(見 metroCoreRowVehicleId)
+        const vehicleId = metroCoreRowVehicleId(system, board, row);
         const rec = { kind: 'core', ...entry, stationIndex: entry.si, row, state: row.state, destinationStationIndex: destIndex,
           destName: dest.name, direction: Number(row.direction), arrivalEpoch: Number(row.arrivalEpoch),
-          vehicleId: row.vehicleId == null ? null : String(row.vehicleId), match: String(row.match || 'unmatched'), dtm };
+          vehicleId, match: vehicleId == null ? 'unmatched' : String(row.match || 'unmatched'), dtm };
         const arrival = metroCoreArrivalState(rec, nowEpoch);
         const dwell = Math.max(1, trtcOfficialDwellAt(entry.ln, entry.si) || TRTC_OFFICIAL_BOARD_ARRIVING_GRACE_SEC);
         if (arrival.departed || (dtm < -dwell && !arrival.near)) continue;
