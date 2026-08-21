@@ -7370,8 +7370,14 @@ function assignRunProfiles(s, perf, obs) {
       for (let i = k0; i < k1; i++) {
         s[i].rp = rp; s[i].rpDep = runDep; s[i].rpOff = cum * 1000; s[i].rpSegKm = segKm[i - k0];
         cum += segKm[i - k0];
-        if (i + 1 < k1 && s[i + 1].stop === false)             // 通過站到離時刻依曲線回填,對齊按時選段
-          s[i + 1].arrSec = s[i + 1].depSec = Math.round(runDep + profProgToTime(rp, cum / runKm));
+        // 通過站到離時刻依曲線回填,對齊按時選段。
+        // 🔴 不可以取整:trainSeg 拿這個值當「此刻在第 i 段還是第 i+1 段」的分界,而真正通過該站
+        //    的時刻是曲線解出來的小數,兩者差最多 0.5 秒 ⇒ t 落在中間時還被判在前一段、段內進度
+        //    夾到 1(位置凍在站點),一過整秒才換段、位置一次跳掉 0.5 秒的路程。台鐵最快 150 km/h
+        //    ⇒ 單幀跳 20.86 公尺(2026-08-21 實測最遠 18.86 公尺,verify_tra_pass_continuity.mjs)。
+        //    小數不影響任何顯示:通過站不上時刻表、不上看板、不進到站卡(消費端一律 stop===false 跳過)。
+        if (i + 1 < k1 && s[i + 1].stop === false)
+          s[i + 1].arrSec = s[i + 1].depSec = runDep + profProgToTime(rp, cum / runKm);
       }
     }
     k0 = k1;
