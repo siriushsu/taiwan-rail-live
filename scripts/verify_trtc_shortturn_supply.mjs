@@ -69,7 +69,8 @@ function pipelineRows(board, nowEpoch) {
 function replay(R, rounds) {
   let prior = null;
   const out = { rounds: 0, thrown: 0, dest: new Map(), unclaimed: [], crowd: [], shortTurnBirths: 0,
-    dupBirthSig: 0, idRuns: new Map(), noToIds: new Map(), byDirDest: new Map(), sameRoundNoClash: 0 };
+    dupBirthSig: 0, idRuns: new Map(), noToIds: new Map(), byDirDest: new Map(), sameRoundNoClash: 0,
+    byLine: {}, series: [] };
   for (const round of rounds) {
     const { rows, unclaimed } = pipelineRows(round.b, round.at);
     let roster;
@@ -82,9 +83,14 @@ function replay(R, rounds) {
     out.crowd.push(R.segmentCrowding(roster.vehicles, 3).worst);
     out.shortTurnBirths += Number(roster.diagnostics.shortTurnBirths) || 0;
     out.dupBirthSig += Number(roster.diagnostics.duplicateBirthSignatures) || 0;
+    for (const [line, n] of Object.entries(roster.diagnostics.shortTurnBirthsByLine || {})) {
+      out.byLine[line] = (out.byLine[line] || 0) + Number(n);
+    }
+    let roundDaan = 0, roundBeitou = 0;
     const seenThisRound = new Set();
     for (const v of roster.vehicles) {
       out.dest.set(label(v), (out.dest.get(label(v)) || 0) + 1);
+      if (v.line === 'R') { if (Number(v.dest) === DAAN) roundDaan++; else if (Number(v.dest) === BEITOU) roundBeitou++; }
       if (!out.idRuns.has(v.vehicleId)) out.idRuns.set(v.vehicleId, { first: out.rounds, label: label(v) });
       if (v.officialNo) {
         const key = `${v.line}|${v.dir}|${v.officialNo}`;
@@ -96,6 +102,7 @@ function replay(R, rounds) {
       const dk = `${v.line}|${v.dir}|${v.dest}`;
       out.byDirDest.set(dk, (out.byDirDest.get(dk) || 0) + 1);
     }
+    out.series.push(`${roundDaan},${roundBeitou}`);
   }
   out.lastRoster = prior;
   return out;
@@ -234,6 +241,77 @@ ok('A13 生車不失控：短程起點例外全程只放行少量出生（不是
   ok('A14 既有車 ID 不因補入而變動：同一份 warm prior 下，補入版只多不少、交集逐台完全相同',
     missing.length === 0 && changed.length === 0,
     `基準 ${aById.size} 台、補入 ${bById.size} 台（新增 ${added.length}、消失 ${missing.length}、內容變動 ${changed.length}）`);
+}
+
+// ── 三個放行條件各自要有判準守著（2026-08-22 獨立驗收補洞）──────────────────
+// 獨立驗收量到：弱化 (1)a `numberHeld`／(1)b `!!displayNo`／(3) `atMidLineTurnBack`
+// 任一條，上面 16 項照樣全綠。機制是 A9 把 R→大安／R→北投 兩格整個豁免掉，而這三條的
+// 作用範圍恰好只在那兩格內；A5（>0 即可）、A6（±35%）、A13（只看總量）都太鬆接不住。
+// 下面三條各自對準一個沒被守住的面向。
+const GOLDEN = {
+  byLine: { R: 12 },        // 短程起點例外只該在 R 線放行（BR／Y 沒車號，其他線沒有線中間折返）
+  daan: 1360, beitou: 2087, // 逐輪台次總和
+  seriesMd5: '2f6579392aa0dc63ce45e7ced70697b9', // 536 輪「大安,北投」逐輪序列的 md5
+};
+
+const byLineKeys = Object.keys(cur.byLine).sort();
+ok('A15 短程起點例外只在 R 線放行：shortTurnBirthsByLine 的鍵集合與台數都釘死',
+  byLineKeys.join(',') === Object.keys(GOLDEN.byLine).sort().join(',') &&
+  byLineKeys.every(k => cur.byLine[k] === GOLDEN.byLine[k]),
+  `實測 ${JSON.stringify(cur.byLine)}、釘死 ${JSON.stringify(GOLDEN.byLine)}`);
+
+// 語料是釘死的 536 輪、reducer 對它是純函式（同一份輸入跑兩次逐輪 md5 相同，已實測），
+// 所以逐輪值可以當 golden 釘住——這是唯一接得住「只在 R→大安／R→北投 兩格內多生幾台」
+// 那種變化的判準（A9 豁免那兩格、A6 的 ±35% 吸收得掉，門檻式判準結構上照不到）。
+// 數字變了不代表一定是壞的，但**必須有人來重新解釋**（心得 35）。
+{
+  const md5 = createHash('md5').update(cur.series.join('|')).digest('hex');
+  const [daan, beitou] = cur.series.reduce((acc, x) => {
+    const [d, b] = x.split(',').map(Number); return [acc[0] + d, acc[1] + b];
+  }, [0, 0]);
+  const firstDiff = md5 === GOLDEN.seriesMd5 ? -1
+    : cur.series.findIndex((v, i) => v !== (GOLDEN.series ? GOLDEN.series[i] : v));
+  ok('A16 R→大安／R→北投 逐輪台數對釘死語料完全相同（golden：唯一接得住兩格內變化的判準）',
+    md5 === GOLDEN.seriesMd5 && daan === GOLDEN.daan && beitou === GOLDEN.beitou,
+    `md5 ${md5}${md5 === GOLDEN.seriesMd5 ? '（相符）' : ` ≠ 釘死 ${GOLDEN.seriesMd5}`}、` +
+    `總台次 大安 ${daan}/${GOLDEN.daan}、北投 ${beitou}/${GOLDEN.beitou}` +
+    (firstDiff >= 0 ? `、首個不同的輪次 #${firstDiff + 1}` : ''));
+}
+
+// A17 專門守 (1)a `numberHeld`。這一條在這 536 輪上是 inert 的（獨立驗收量到弱化它之後
+// 逐輪指紋 md5 一字不差）⇒ 任何**跨語料統計式**判準結構上都接不住它，只能造一個真的會
+// 踩到它的情境：把同線同向最遠處的一台車掛上「即將出生那台」的官方車號，讓它變成
+// 「這個號已經有人拿著」。挑最遠的那台是為了讓 hardNoMatches 的 matchFeasible 過不了
+// ——否則那一列會被配走，兩種結果都是「沒出生」，判準就分不出來了；
+// 所以除了台數，還要驗那一列真的走進 ignoredObservations（＝被閘門擋下，不是被配走）。
+{
+  let prior = null, hit = -1, before = null;
+  for (let i = 0; i < rounds.length; i++) {
+    const { rows } = pipelineRows(rounds[i].b, rounds[i].at);
+    const next = CUR.reduceOfficialRosterSelfHealing({ model, rows, prior, day: rounds[i].day,
+      nowEpoch: rounds[i].at, sourceRevision: rounds[i].rev, realignSec: 180, crowdLimit: 0, officialOnly: false });
+    if (i > 0 && Number(next.diagnostics.shortTurnBirths) === 1) { hit = i; before = prior; break; }
+    prior = next;
+  }
+  const round = rounds[hit];
+  const { rows } = pipelineRows(round.b, round.at);
+  const args = { model, rows, prior: before, day: round.day, nowEpoch: round.at,
+    sourceRevision: round.rev, realignSec: 180, crowdLimit: 0, officialOnly: false };
+  const control = CUR.reduceOfficialRosterSelfHealing(args);
+  const had = new Set(before.vehicles.map(v => String(v.vehicleId)));
+  const born = control.vehicles.find(v => !had.has(String(v.vehicleId)));
+  const clone = JSON.parse(JSON.stringify(before));
+  const far = clone.vehicles.filter(v => v.line === born.line && Number(v.dir) === Number(born.dir))
+    .sort((a, b) => Math.abs(Number(b.to) - Number(born.to)) - Math.abs(Number(a.to) - Number(born.to)))[0];
+  if (far) far.officialNo = String(born.officialNo);
+  const held = CUR.reduceOfficialRosterSelfHealing({ ...args, prior: clone });
+  ok('A17 車號已被同線同向的車持有 ⇒ 不得再生一台（正向對照：不動車號時同一輪真的會生 1 台）',
+    !!born && !!born.officialNo && !!far && Number(control.diagnostics.shortTurnBirths) === 1 &&
+    Number(held.diagnostics.shortTurnBirths) === 0 &&
+    Number(held.diagnostics.ignoredObservations) === Number(control.diagnostics.ignoredObservations) + 1,
+    `第 ${hit + 1} 輪 ${born && born.line}/${born && born.dir} 車號 ${born && born.officialNo}：` +
+    `正向對照生 ${control.diagnostics.shortTurnBirths} 台 → 掛號後生 ${held.diagnostics.shortTurnBirths} 台、` +
+    `ignoredObservations ${control.diagnostics.ignoredObservations}→${held.diagnostics.ignoredObservations}`);
 }
 
 // ── B 殭屍尖峰語料重放（repo 內既有兩份 fixture）─────────────────────────────
