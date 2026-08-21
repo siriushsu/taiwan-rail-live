@@ -537,21 +537,9 @@ async function fetchTymcNewsAlerts(token) {
   }
 }
 
-// 🔴 2026-08-17 使用者指示：北捷列車位置暫時改用班表推估,並發公告說明。
-// 走既有的「本站觀測」自訂公告管道（前端 renderAlertDetail 認 self / sig）：
-// sig 固定 ⇒ 使用者按掉之後不會每 5 分鐘又彈一次。位置邏輯修好後把這個陣列清空即可。
-const TRTC_SCHEDULE_MODE_NOTICE = [{
-  self: true,
-  sig: 'trtc-schedule-position-20260817',
-  status: 0,
-  sys: 'mrt',
-  sysLabel: '臺北捷運',
-  title: '列車位置暫時改用班表推估',
-  desc: '目前畫面上臺北捷運（含環狀線）列車的位置是依班表推估的，不是列車的實際位置。'
-    + '車站的到站倒數不受影響，與月台顯示的倒數相同，均來自官方即時資料。'
-    + '位置邏輯調整完成後會恢復依即時資料定位。',
-  reason: '', effect: '', start: '', end: '', lines: [],
-}];
+// 自訂公告管道（前端 renderAlertDetail 認 self / sig；sig 固定 ⇒ 按掉不會重彈）。
+// 2026-08-17 的「班表推估」公告已於 2026-08-22 撤除（正式站早已恢復官方即時名冊，公告與現況矛盾）。
+const TRTC_SCHEDULE_MODE_NOTICE = [];
 let metroAlertMem = null, metroAlertMemAt = 0;
 async function metroAlert(request, env) {
   const cacheKey = new Request(new URL('/api/metro-alert', request.url), { method: 'GET' });
