@@ -3840,6 +3840,7 @@
            內容 li 上限 8 條(li.grp 是標題不算)。 -->
       <ul class="foot-list foot-recent">
         <li class="grp">最近更新</li>
+        <li data-cl-of="metrosamename"><span class="d">8/21</span><span>不同城市恰好同名的捷運站不再共用同一張看板：台北與台中的「市政府」現在只會顯示各自系統的路線與班次，其他跨系統同名站也一併分開</span></li>
         <li data-cl-of="metrocorelive"><span class="d">8/21</span><span>北捷與高捷即時動畫正式換成同一套時間軸：地圖上的車、站台預告與點選跟隨現在會對到同一班車；官方資料更新時不會整批跳位或交換身分，後車在站外也不會貼到前車 100 公尺內。若新資料不完整或服務暫時中斷，畫面會自動沿用通過檢查的上一段動畫或退回原本模式，不會留下卡住的車</span></li>
         <li data-cl-of="metrocorebridge"><span class="d">8/21</span><span>北捷與高捷的下一代即時動畫先加入試跑入口：站台預告與地圖上的車可以共用同一個身分與時間軸，點站牌就能跟到那一台車；資料過期或連線中斷時會自動回到原本模式。一般畫面目前仍沿用既有來源，不受這次試跑影響</span></li>
         <li data-cl-of="trtcpeakstable"><span class="d">8/20</span><span>北捷即時動畫再穩定一輪：官方資料每次更新時，列車會在原路段內逐步追上，不再整批往前跳或停在兩站之間；文湖線與環狀線也不會讓失聯身分搶走下一班車。車站看板只有在車真的進入站點時才顯示「列車進站」，並依各站實際停靠秒數結束，不會車已開走還繼續顯示</span></li>
@@ -3847,7 +3848,6 @@
         <li data-cl-of="trtcidentity2"><span class="d">8/20</span><span>文湖線與環狀線的認車再加一道保護：同一班車的倒數換到下一個路段時會接回原本的身分，兩筆資料若曾擠到 100 公尺內也只留較早的那筆，不再留下第二顆車點追著後車跑。環狀線可提早出現在起點等發車，但倒數縮到該段行車時間才會開；最後一段則一路留到真正抵達終點才收車</span></li>
         <li data-cl-of="trtcentity"><span class="d">8/20</span><span>文湖線與環狀線偶爾出現的卡站車、短區間擠好幾台再修一輪：失去官方資料的舊車不再永久留在站上，疑似同一台的新舊資料也不會立刻同時畫出；「診斷資訊」可匯出最近十分鐘的捷運判讀，方便下次異常直接還原</span></li>
         <li data-cl-of="tradaily"><span class="d">8/20</span><span>台鐵今日官方公告停駛的班次不再出現在地圖上，車站看板仍會列出並標示「停駛」</span></li>
-        <li data-cl-of="livefresh"><span class="d">8/20</span><span>台鐵的「LIVE」標示不再在官方資料中斷時繼續宣稱即時：資料超過五分鐘沒更新就改標灰色「推估」，超過三十分鐘不再套用那份過期的誤點；裝置時鐘明顯不準時也會改標「推估」</span></li>
       </ul>
       <!-- 第二層:完整歷史。刻意不掛 .foot-box 類名——placeFootBoxes() 用
            `.site-foot .foot-box` 搬移面板,巢狀同名會被當成另一個盒子一起搬走。 -->
@@ -3855,6 +3855,7 @@
         <summary>完整更新歷史（依主題分類）</summary>
         <ul class="foot-list">
         <li class="grp">路網與車站</li>
+        <li data-cl="metrosamename"><span class="d">8/21</span><span>捷運站看板原本只用站名找路線，沒有同時確認所屬系統，因此台北捷運與台中捷運都有的「市政府」會被誤認成同一站，混入另一座城市的路線與班次。現在從搜尋、地圖點擊、活動與最愛開站都會保留車站所屬系統；舊收藏若沒有這項資料，也會依車站座標找到正確系統。所有跨系統同名站都套用同一項修正</span></li>
         <li data-cl="metropos819"><span class="d">8/19</span><span>台北捷運各線與環狀線的列車位置整個重做：車子到站後會照官方公布的停靠秒數停一下再開，往下一站的速度改成用「還剩多少路、官方說還剩多少秒」即時算，所以會準時到站，也不會再出現車卡在月台上不動、兩班車黏在一起、或位置突然往回跳。環狀線另外補上官方的逐站行駛時間與停靠時間，之前那條線是用估算的固定秒數在跑</span></li>
         <li data-cl="zuoyingalias"><span class="d">8/16</span><span>台鐵左營站點開會跳出「左營」與「左營(舊城)」兩個選項，後者看板永遠沒班次——其實是同一座站；現在合併成一顆、看板正常。新城站同一問題一併修好（謝謝網友回報）</span></li>
         <li data-cl="tymcexpress"><span class="d">8/14</span><span>桃園機場捷運直達車的行駛區間修正：南下現在會一路開到底站環北，北上也從環北發車，不再多出一站老街溪</span></li>
@@ -4406,7 +4407,8 @@
 //         站牌與 vehicle ID 跟隨，含 ETag、時效閘門及失效自動降級。旗標預設關閉，不切正式流量。
 // v0821b：北捷／高捷正式改讀 production Private Metro Core；網站預設開啟，App 可明確注入布林旗標，
 //         保留 ?metrocore=0 即時退回舊模型。看板到站時刻與 canonical trajectory 使用同一站點事件。
-const BUILD = 'v0821b';
+// v0821g：捷運看板改用站名＋系統身分，跨城市同名站不再合併班次。
+const BUILD = 'v0821g';
 // clearFollow() 會在開機途中清掉 query string；Private Metro Core 的 rollout 模式必須在最前面先鎖住，
 // 否則 ?metrocore=0／1 可能在資料輪詢區重讀時已消失。
 const METRO_CORE_QUERY_MODE = (() => {
@@ -14269,13 +14271,14 @@ function toggleFavStation(st) {
     if (metro) { // 標籤取第一條經過本站的線(北捷 板南線…),找不到就通稱
       const src = st.sys === 'deco' ? state.decoLines : state.lines;
       const k = st.name.replace(/臺/g, '台');
-      const ln = (src || []).find(l => l.stations && l.stations.some(s => s.name.replace(/臺/g, '台') === k));
+      const ln = metroBoardLines(st, src).find(l => l.stations && l.stations.some(s => s.name.replace(/臺/g, '台') === k));
       label = ln ? ((ln._sysLabel ? ln._sysLabel + ' ' : '') + (ln.name || ln.abbr || '')) : '捷運/輕軌';
     } else {
       const s = state.systems.find(x => x.id === st.sys);
       label = s ? s.label : '';
     }
-    favs.push({ name: st.name, lat: st.lat, lon: st.lon, sys: metro ? 'metro' : st.sys, group: state.group, label });
+    favs.push({ name: st.name, lat: st.lat, lon: st.lon, sys: metro ? 'metro' : st.sys, group: state.group, label,
+      ...(metro ? { metroSysId: metroStationSystemId(st, st.sys === 'deco' ? state.decoLines : state.lines) } : {}) });
     showToast('已加入最愛車站');
   }
   userDataSaveCollection('stations', favs);
@@ -14303,8 +14306,8 @@ function gotoFavStationKey(key) {
   closeFavPanel();
   map.setView([f.lat, f.lon], Math.max(map.getZoom(), 13), { animate: false });
   let st = null;
-  if (state.mode !== 'sched') st = { name: f.name, lat: f.lat, lon: f.lon, sys: 'freq' };
-  else if (f.sys === 'metro') st = state.deco ? { name: f.name, lat: f.lat, lon: f.lon, sys: 'deco' } : null;
+  if (state.mode !== 'sched') st = { name: f.name, lat: f.lat, lon: f.lon, sys: 'freq', metroSysId: f.metroSysId };
+  else if (f.sys === 'metro') st = state.deco ? { name: f.name, lat: f.lat, lon: f.lon, sys: 'deco', metroSysId: f.metroSysId } : null;
   else st = state.schedStations.find(s => s.name === f.name && s.sys === f.sys) || null; // 看板靠 name+sys 過濾班次,用活體站物件
   if (st) openBoard(st);
   else showToast('目前的檢視沒有「' + escHtml(f.name) + '」，請切到含該站的分頁再點');
@@ -14315,11 +14318,11 @@ function favStationHere(f) { // 解析目前檢視能開板的站物件;開不�
   const k = f.name.replace(/臺/g, '台');
   if (state.mode !== 'sched') {
     return state.lines.some(l => l.stations && l.stations.some(s => s.name.replace(/臺/g, '台') === k))
-      ? { name: f.name, lat: f.lat, lon: f.lon, sys: 'freq' } : null;
+      ? { name: f.name, lat: f.lat, lon: f.lon, sys: 'freq', metroSysId: f.metroSysId } : null;
   }
   if (f.sys === 'metro') {
     return (state.deco && state.decoLines.some(l => l.stations && l.stations.some(s => s.name.replace(/臺/g, '台') === k)))
-      ? { name: f.name, lat: f.lat, lon: f.lon, sys: 'deco' } : null;
+      ? { name: f.name, lat: f.lat, lon: f.lon, sys: 'deco', metroSysId: f.metroSysId } : null;
   }
   return state.schedStations.find(s => s.name === f.name && s.sys === f.sys) || null;
 }
@@ -21685,10 +21688,10 @@ function stnNavResolve(e) {
     // v0727c:改切到該系統自己的分頁(台鐵/林鐵→台、高鐵→高),不再切到已無頁籤的 nat——否則四顆籤沒一顆亮
     return { group: here ? null : groupOf(e.sysId), st: { name: e.name, lat: e.lat, lon: e.lon, sys: e.sysId } };
   }
-  if (state.group === 'all') return { group: null, st: { name: e.name, lat: e.lat, lon: e.lon, sys: 'deco' } };
+  if (state.group === 'all') return { group: null, st: { name: e.name, lat: e.lat, lon: e.lon, sys: 'deco', metroSysId: e.sysId } };
   const here = state.mode === 'freq' && (state.lines || []).some(l => l._sys === e.sysId);
   const mother = GROUPS.find(g => g.mode === 'freq' && g.members.includes(e.sysId));
-  return { group: here ? null : mother, st: { name: e.name, lat: e.lat, lon: e.lon, sys: 'freq' } };
+  return { group: here ? null : mother, st: { name: e.name, lat: e.lat, lon: e.lon, sys: 'freq', metroSysId: e.sysId } };
 }
 function gotoStn(e) {
   const r = stnNavResolve(e);
@@ -21820,14 +21823,14 @@ function eventStation(ev) {
     if (state.deco) for (const ln of (state.decoLines || [])) { // 全台同框:捷運站在裝飾層
       if (freqSysIdOf(ln) !== a.sys) continue;
       const s = pick(ln);
-      if (s) return { name: s.name, lat: s.lat, lon: s.lon, sys: 'deco' };
+      if (s) return { name: s.name, lat: s.lat, lon: s.lon, sys: 'deco', metroSysId: a.sys };
     }
     return null;
   }
   for (const ln of (state.lines || [])) {
     if (freqSysIdOf(ln) !== a.sys) continue;
     const s = pick(ln);
-    if (s) return { name: s.name, lat: s.lat, lon: s.lon, sys: 'freq' };
+    if (s) return { name: s.name, lat: s.lat, lon: s.lon, sys: 'freq', metroSysId: a.sys };
   }
   return null;
 }
@@ -21945,13 +21948,38 @@ function stationIntroText(name) {
   if (tierLabel) return `<span class="dp-intro-lbl">站等</span>台鐵${tierLabel}　鐵路運輸的重要節點`;
   return null;
 }
+
+// 捷運看板必須同時認「站名＋所屬系統」。同名站在不同城市很常見（例如台北／台中的市政府），
+// 只比站名會把兩座城市的路線、官方看板與班次混在一起。新入口直接帶 metroSysId；舊收藏或舊深連結
+// 沒有這欄時，依同名站與看板座標的最近距離補認，既能相容舊資料，也不會拆散同系統內的轉乘線。
+function metroStationSystemId(st, lines) {
+  if (st && st.metroSysId) return String(st.metroSysId);
+  if (!st || !Number.isFinite(Number(st.lat)) || !Number.isFinite(Number(st.lon))) return null;
+  const key = String(st.name || '').replace(/臺/g, '台');
+  let bestId = null, bestKm = Infinity;
+  for (const ln of lines || []) {
+    const id = freqSysIdOf(ln);
+    if (!id || !ln.stations) continue;
+    for (const s of ln.stations) {
+      if (String(s.name || '').replace(/臺/g, '台') !== key) continue;
+      const km = haversineKm(st, s);
+      if (km < bestKm) { bestKm = km; bestId = id; }
+    }
+  }
+  return bestKm <= EV_SAME_STATION_KM ? bestId : null;
+}
+function metroBoardLines(st, lines) {
+  const source = lines || [];
+  const sysId = metroStationSystemId(st, source);
+  return sysId ? source.filter(ln => freqSysIdOf(ln) === sysId) : source;
+}
 function renderBoard() {
   const el = document.getElementById('board'), st = state.boardStation;
   if (!st) { el.hidden = true; updateSheetOpenClass(); return; }
   state.boardRenderedAt = state.simSec;
   ensureEvents(); // 首次載入時資料還在路上,ensureEvents 載到後會自己再叫一次 renderBoard
-  if (state.mode !== 'sched') { renderFreqBoard(el, st, state.lines, false); return; } // 捷運/輕軌分頁走獨立邏輯,sched(台鐵/高鐵)以下維持原樣
-  if (st.sys === 'deco') { renderFreqBoard(el, st, state.decoLines, true); return; } // 全台同框:點裝飾層捷運站,同款看板但讀 decoLines(無 state.visible 個別開關)
+  if (state.mode !== 'sched') { renderFreqBoard(el, st, metroBoardLines(st, state.lines), false); return; } // 捷運/輕軌分頁走獨立邏輯；同名站只讀自己所屬系統
+  if (st.sys === 'deco') { renderFreqBoard(el, st, metroBoardLines(st, state.decoLines), true); return; } // 全台同框同樣依系統分開，避免跨城市同名站合併
   const rows = [];
   // 停駛車已從 state.trains 移除(地圖完全不畫),看板這邊再併回來標「停駛」。
   // 只在台鐵板併,而且是新陣列,不動 state.trains 本身。
@@ -24778,15 +24806,15 @@ async function boot() {
       // 捷運 freq:點列車跟隨(再點同一台=取消、點另一台=換車);優先序同 sched:先試列車,沒點中再試車站開時刻板。
       // 車與站黏在一起分不出(列車停靠中)→ 彈小選單,兩個都點得到。
       const fhs = freqTrainsAt(cp), fh = fhs[0];
-      let bestSt = null, bdSt = 1e9;
+      let bestSt = null, bestStLine = null, bdSt = 1e9;
       state.lines.forEach(ln => {
         if (!state.visible.has(ln.id) || !ln.pts) return;
         ln.pts.forEach((p, idx) => {
           const d = Math.hypot(p.x - cp.x, p.y - cp.y);
-          if (d < bdSt) { bdSt = d; bestSt = ln.stations[idx]; }
+          if (d < bdSt) { bdSt = d; bestSt = ln.stations[idx]; bestStLine = ln; }
         });
       });
-      const stHit = bestSt && bdSt <= 16 ? { name: bestSt.name, lat: bestSt.lat, lon: bestSt.lon, sys: 'freq' } : null;
+      const stHit = bestSt && bdSt <= 16 ? { name: bestSt.name, lat: bestSt.lat, lon: bestSt.lon, sys: 'freq', metroSysId: freqSysIdOf(bestStLine) } : null;
       if (fhs.length > 1) {
         const items = fhs.map(tapPickFreqTrain);
         if (stHit && Math.abs(fh.dist - bdSt) < TAP_AMBIG_PX) items.push(tapPickStation(stHit));
@@ -24820,15 +24848,15 @@ async function boot() {
     // 全台同框:裝飾層(捷運示意層)最近站先併入候選——共構點(台鐵/高鐵/捷運的「台北」)的疊站選單要一次列齊,
     // 不能等真車歧義判定之後才補(真車停靠共構站時會走上面那條路,捷運顆漏列)。同距時 sched 顆排前(排序穩定)。
     if (state.deco) {
-      let bestDeco = null, bdDeco = 1e9;
+      let bestDeco = null, bestDecoLine = null, bdDeco = 1e9;
       state.decoLines.forEach(ln => {
         if (!ln.pts) return;
         ln.pts.forEach((p, idx) => {
           const d = Math.hypot(p.x - cp.x, p.y - cp.y);
-          if (d < bdDeco) { bdDeco = d; bestDeco = ln.stations[idx]; }
+          if (d < bdDeco) { bdDeco = d; bestDeco = ln.stations[idx]; bestDecoLine = ln; }
         });
       });
-      if (bestDeco && bdDeco <= 16) stCands.push({ st: { name: bestDeco.name, lat: bestDeco.lat, lon: bestDeco.lon, sys: 'deco' }, d: bdDeco });
+      if (bestDeco && bdDeco <= 16) stCands.push({ st: { name: bestDeco.name, lat: bestDeco.lat, lon: bestDeco.lon, sys: 'deco', metroSysId: freqSysIdOf(bestDecoLine) }, d: bdDeco });
     }
     stCands.sort((a, b) => a.d - b.d);
     // 與最近顆距離差 <TAP_AMBIG_PX 的視為疊站,選單一次列出(含系統名)讓使用者分開開板
