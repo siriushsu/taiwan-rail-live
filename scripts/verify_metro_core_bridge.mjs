@@ -50,6 +50,23 @@ const contracts = [
   ['跟隨保存 Core 身分形狀', /\{ core: true, systemId: String\(target\.systemId\), lineId: String\(target\.ln\.id\), vehicleId: String\(target\.vehicleId\) \}/],
   ['進站文字查驗實際距離', /distanceM <= 25/],
   ['失效時回到既有站牌', /if \(core\) \{ renderMetroCoreFreqBoard[\s\S]*?const official = trtcOfficialBoardView/],
+  // ── 2026-08-21 復原批次補上的九道基底防線（行為面另有 verify_metro_core_defense.mjs）──
+  ['P0-1 某線 0 台回 null，不得用空陣列短路 legacy', /return out\.length \? out : null;/],
+  ['P0-1 snapshot 缺該系統也回 null', /if \(!system\) return null; \/\/ 🔴 P0-1/],
+  ['P0-2 逐線車數相對基線腰斬閘門', /const METRO_CORE_COUNT_DROP = 0\.5;[\s\S]*?function metroCoreEvaluateCounts\(/],
+  ['P0-2 判為異常那一輪不進基線（防自我漂移）', /else \{ history\.push\(cur\);/],
+  ['P0-3 十一個合法 lineId 寫成常數', /const METRO_CORE_LINE_IDS = \{[\s\S]*?trtc: \['BR', 'R', 'R_XBT', 'G', 'G_XBT', 'O_XINZHUANG', 'O_LUZHOU', 'BL', 'Y'\][\s\S]*?krtc: \['KR', 'KO'\]/],
+  ['P0-3 未知 lineId 整包退回並指名', /if \(lineIdIssues\.unknown\.length\) \{[\s\S]*?throw new Error\('lineId 契約外：'/],
+  ['P0-3 建線時做 id 契約自檢', /function metroCoreSelfCheckLineIds\(\)[\s\S]*?state\.metroCore\.selfCheck = result/],
+  ['P0-4 跟隨 30 秒寬限常數', /const METRO_CORE_FOLLOW_GRACE_SEC = 30;/],
+  ['P0-4 每幀跟隨判定走寬限版', /function updateFreqFollowCamera[\s\S]*?metroCoreFollowRecordWithGrace\(f, Date\.now\(\) \/ 1000\)/],
+  ['P0-4 退場文案講真因', /連續兩批不在即時模型中，已結束跟隨/],
+  ['P0-5 徽章不再以 hidden 表示 0 台', /el\.textContent = '即時資料異常';/],
+  ['P0-5 0 台的判準取自不同來源（既有路徑會畫幾台）', /const legacy = corePool\.reduce\(\(sum, ln\) => sum \+ metroCoreLegacyCountForLine\(ln\), 0\);/],
+  ['P1-8 錯誤要推到徽章，不只存在 state', /state\.metroCore\.error = String\(error && error\.message \|\| error\);\s*\n\s*updateMetroBadge\(\);/],
+  ['P2-9 match 欄位真的被讀（不再只賦值）', /const declared = row\.match == null \? null : String\(row\.match\);/],
+  ['P2-9 比例判準配正向對照（total 為 0 不判定）', /ratio: total \? matched \/ total : null/],
+  ['退回閘門同時作用在看板路徑', /systemId: systemId && !metroCoreLineBlocked\(systemId, ln\.id\) \? systemId : null/],
 ];
 for (const [label, pattern] of contracts) check(pattern.test(html), label);
 const appContracts = [
