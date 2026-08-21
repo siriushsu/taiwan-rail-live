@@ -28,7 +28,7 @@ const pbxproj = join(appRoot, 'ios/App/App.xcodeproj/project.pbxproj');
 // 只是改挑新的 build，不發行含 XSS 的 build 9），「後續功能版」＝ 1.0.2。
 const MODES = {
   hotfix: {
-    marketing: '1.0.1', build: '12', music: false,
+    marketing: '1.0.1', build: '12', music: false, metroCore: false,
     why: '隱私＋安全修正版：與線上 build 8 相同的功能範圍（本來就沒有音樂），只多修正。差異最小＝審查風險最小。',
   },
   // 2026-07-30 更新：使用者裁示這一輪走 1.3.0 (15)。
@@ -158,15 +158,18 @@ const MODES = {
   // 2026-08-21：1.4.8 (68) 已是正式版，下一顆開 1.4.9、build 69。這顆把網站已驗收的
   // v0821b Private Metro Core 一併打入 App，並由 prepare-web 明確注入啟用旗標；網站與 App
   // 因此共用同一份北捷／高捷列車身分、軌跡、到站事件與降級規則。
+  // 2026-08-21 之二：69 已上傳 App Store Connect，定位改成前景持續追蹤且 Android 恢復
+  // 精確位置後必須另出 build 70。這顆同時包含 v0821c 共站辨線／跟隨寬限／斷訊判斷修正，
+  // 不得沿用已燒掉的 69；marketing 維持尚未關閉的 1.4.9。
   feature: {
-    marketing: '1.4.9', build: '69', music: true, // 68 已是正式版；69 首次把統一捷運動畫正式打進 App
-    why: '軌島 1.4.9：北捷與高捷的地圖列車、站台預告、到站狀態與點選跟隨改用同一份即時身分和時間軸。官方資料更新時不再整批跳位或交換身分，後車也不會在站外貼近前車；資料暫時不完整時會沿用最後一段通過檢查的動畫或安全退回原本模式。網站與 App 從這一版開始會同步吃到同一套伺服器模型更新。',
+    marketing: '1.4.9', build: '70', music: true, metroCore: true, // 69 已上傳；70 補共站／跟隨修正與前景持續精確定位
+    why: '軌島 1.4.9：承接統一捷運動畫，再補上共站路線辨識、短暫漏批不中斷跟隨與正確的北捷斷訊判斷。定位改為 App 前景持續更新藍點與所在地鏡頭，Android 恢復精確位置；進入背景或鎖屏即停止取樣。',
   },
   // 2026-08-06：build 20、21、22 已上 TestFlight；22 專門驗收 Sandbox 購買後的
   // 軌島通行證客端功能、雲端同步與伺服器付費牆。這顆不可選去正式送審；正式版必須另推 build 號，
   // 回到 feature 模式並由 assertPlusSandboxOff 驗證測試通道確實關閉。
   testflight: {
-    marketing: '1.3.2', build: '22', music: true, plusSandboxBuild: '22',
+    marketing: '1.3.2', build: '22', music: true, metroCore: false, plusSandboxBuild: '22',
     why: 'TestFlight 軌島通行證端到端測試版：Sandbox 月票／年票完成後，完整開放通行證與雲端功能驗收。',
   },
 };
@@ -220,6 +223,12 @@ if (cfg.plusSandboxBuild) console.log(`  Plus Sandbox 開啟（僅 TestFlight bu
 const env = { ...process.env, LANG: 'en_US.UTF-8', RAIL_INCLUDE_LICENSED_BASEMAPS: '1', RAIL_REQUIRE_NATIVE: '1' };
 if (cfg.music) env.RAIL_INCLUDE_LICENSED_MUSIC = '1';
 else delete env.RAIL_INCLUDE_LICENSED_MUSIC;
+// 發行模式必須明確決定 Metro Core，不能只靠 prepare-web 的預設 false。1.4.9 build 69 就因為
+// 註解寫「啟用」但環境變數沒送進去，整顆包安靜退回舊模型；RAIL_EXPECT_METRO_CORE 讓同步後
+// 的獨立 verify 再比一次實際內嵌資產，避免 build 階段與 cap sync 階段各說各話。
+env.RAIL_EXPECT_METRO_CORE = cfg.metroCore ? '1' : '0';
+if (cfg.metroCore) env.RAIL_ENABLE_METRO_CORE = '1';
+else delete env.RAIL_ENABLE_METRO_CORE;
 if (cfg.plusSandboxBuild) {
   env.RAIL_PLUS_SANDBOX_OK = '1';
   env.RAIL_PLUS_SANDBOX_BUILD = cfg.plusSandboxBuild;

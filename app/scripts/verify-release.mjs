@@ -320,7 +320,8 @@ export async function verifyRelease({
   out = defaultOut,
   expectLicensedMusic,
   expectLicensedBasemaps,
-  expectMetroCore,
+  expectMetroCore = process.env.RAIL_EXPECT_METRO_CORE === '1' ? true
+    : process.env.RAIL_EXPECT_METRO_CORE === '0' ? false : undefined,
   expectPlusSandboxBuild = process.env.RAIL_PLUS_SANDBOX_OK === '1'
     ? String(process.env.RAIL_PLUS_SANDBOX_BUILD || '') : null,
   skipNativeSyncCheck = false
