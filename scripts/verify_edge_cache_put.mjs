@@ -11,6 +11,15 @@
 // G3 守的是另一件事——整條快取路徑真的被跑過,且交給快取那份與回給使用者那份完整且逐字相同。
 // (原本各驗收腳本的假快取是 `{ match: async()=>undefined, put: async()=>{} }`,body 一次都沒被讀過,
 //  等於整條快取路徑從來沒有被執行過;這裡的假快取會真的把 body 讀出來存起來。)
+//
+// ⚠️ 要對【正式站】驗這個 bug 有沒有復發:判準是「HTTP 200 但 body 是空字串」,不是「有沒有 502」。
+// 兩件事會在同一個時間窗重疊,拿錯判準會把別人的問題當成這個 bug 復發:
+//   * 本 bug 的顯形 = 冷啟填完快取後緊接的那一發回 **200 + 空 body**(前端 JSON.parse 失敗)。
+//   * promote 當下各 colo 冷啟會同時換 TDX token ⇒ 撞 `tdx auth 429`,那是 **502 + 有內容的
+//     錯誤 body**,十秒內自行恢復(2026-08-21 升 v0821e 當下的單次觀測,無對照組:第一發
+//     /api/tra-live 回 502 {"error":"tdx auth 429"},接著 10 發全 200;/api/metro-live?sys=mrt
+//     前 7 發 502、第 8 發 200)。是不是每次 promote 都這樣還沒被證實。
+// ⇒ 對正式站量測請避開升版後前 30 秒,並且只用「200 而 body 為空」開火。
 import { readFileSync, writeFileSync, mkdtempSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
 import { tmpdir } from 'node:os';
