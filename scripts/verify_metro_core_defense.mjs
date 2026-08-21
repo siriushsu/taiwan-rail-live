@@ -52,6 +52,13 @@ const MUTATED_XLINE_HTML = REAL_HTML
     '  if (!train) return null; // MUTATION crossline');
 if (MUTATED_XLINE_HTML === REAL_HTML) throw new Error('共站辨線突變沒有命中');
 
+// 突變體 4：拿掉 P0-2 的收班豁免（回到「只看自己腰斬」）。(j) 的 J3 必須因此轉紅——
+// 少了這一發，J3 有可能只是因為收班時段根本沒走到判定而全綠（假綠）。
+const MUTATED_WINDDOWN_HTML = REAL_HTML
+  .replace('    if (judgeable && !windingDown && cur < base * METRO_CORE_COUNT_DROP)',
+    '    if (/* MUTATION winddown */ judgeable && cur < base * METRO_CORE_COUNT_DROP)');
+if (MUTATED_WINDDOWN_HTML === REAL_HTML) throw new Error('收班豁免突變沒有命中');
+
 // 🔴 Leaflet 刻意【不】攔截，走真 CDN：index.html 對它掛了 SRI integrity，
 //    塞本機那份 leaflet.js 進去會因為雜湊不符被瀏覽器擋掉，`L` undefined ⇒ boot 拋錯 ⇒
 //    這支腳本從寫出來的那一刻就不可能綠（2026-08-10 已經踩過一次同款）。
@@ -101,9 +108,26 @@ function shiftSnapshot(source, deltaSec) {
   }
   return clone;
 }
+// 🔴 頁面時鐘位移（2026-08-22）。原本整支腳本吃真實牆鐘，於是 B2（「既有路徑真的有車可畫」
+//    這個正向對照）與 D4（徽章要顯示異常態）**只有在營運時段跑才會綠**——深夜跑就假紅，
+//    而深夜正是需要驗「末班收車」的時候。改成把頁面的 Date 整個平移到指定的一天中時刻，
+//    伺服端語料也用同一個位移產生，兩邊對得起來；時間照樣往前流（不是凍結），
+//    輪詢與 30 秒寬限那些計時邏輯全都照常。
+let CLOCK_SHIFT_SEC = 0;
+const PEAK_SEC = 8 * 3600 + 30 * 60;   // 08:30：兩家都在營運，備案一定有車
+const CLOSED_SEC = 2 * 3600 + 30 * 60; // 02:30：北捷末班早已收完，備案一定 0 台
+const pageNowSec = () => Math.floor(Date.now() / 1000) + CLOCK_SHIFT_SEC;
+// 把「現在」平移到今天的 secOfDay（台北時間）。回傳實際用到的位移。
+function shiftClockToSecOfDay(secOfDay) {
+  const now = new Date();
+  const taipei = new Date(now.toLocaleString('en-US', { timeZone: 'Asia/Taipei' }));
+  const cur = taipei.getHours() * 3600 + taipei.getMinutes() * 60 + taipei.getSeconds();
+  CLOCK_SHIFT_SEC = Math.round(secOfDay - cur);
+  return CLOCK_SHIFT_SEC;
+}
 let serial = 0;
 function buildSnapshot(variant) {
-  const now = Math.floor(Date.now() / 1000);
+  const now = pageNowSec();
   const snapshot = shiftSnapshot(BASE_SNAPSHOT, now - Number(BASE_SNAPSHOT.generatedAt));
   snapshot.validUntil = now + 300;              // 語料只給 95 秒有效期，測試期間要撐得住
   snapshot.revision = `test-${now}-${serial++}`; // 每次不同，避免 ETag/304 讓 poll 提早返回
@@ -192,10 +216,21 @@ async function newPage(browser) {
   const page = await browser.newPage({ viewport: { width: 1280, height: 900 } });
   const errors = [];
   page.on('pageerror', e => errors.push(String(e && e.message || e)));
-  await page.addInitScript(() => {
+  await page.addInitScript(shiftMs => {
     localStorage.setItem('trainmap-howto-seen', '1'); // 首訪教學卡會蓋住地圖與看板
     window.__toasts = [];
-  });
+    if (shiftMs) { // 平移頁面時鐘（時間照常流動，只是原點被搬到指定時刻）
+      const Real = Date;
+      const Fake = function (...args) {
+        if (!(this instanceof Fake)) return new Real(Real.now() + shiftMs).toString();
+        return args.length === 0 ? new Real(Real.now() + shiftMs) : new Real(...args);
+      };
+      Fake.prototype = Real.prototype;
+      Fake.now = () => Real.now() + shiftMs;
+      Fake.parse = Real.parse; Fake.UTC = Real.UTC;
+      window.Date = Fake;
+    }
+  }, CLOCK_SHIFT_SEC * 1000);
   await page.route('**/*', route => {
     const u = new URL(route.request().url());
     if (u.pathname.endsWith('/v1/metro/snapshot')) {
@@ -267,6 +302,10 @@ async function main() {
 
   const browser = await chromium.launch({ headless: true });
   let allErrors = [];
+  // 全部情境都跑在同一個「營運中」的時刻（08:30 台北），不吃跑測試當下的牆鐘：
+  // 這支腳本裡有兩條判準（B2 的正向對照、D4 的異常徽章）依賴「這個時段真的有車」，
+  // 深夜跑會假紅。(j) 會自己把時鐘搬到收班時段再搬回來。
+  console.log(`G0' 頁面時鐘釘在 08:30（位移 ${shiftClockToSecOfDay(PEAK_SEC)} 秒）`);
   try {
     // ── (a) 健康快照 → core 路徑畫車 ────────────────────────────────────
     currentVariant = 'healthy';
@@ -397,8 +436,12 @@ async function main() {
         return { following: !!state.freqFollow, toasts: window.__toasts.slice() };
       });
       check('E2 超過寬限才退場', expired.following === false, JSON.stringify(expired));
+      // 只綁真因（即時模型找不到這台車）＋排除舊的錯誤歸因，不綁確切措辭：
+      // 994a9ce 已把「連續兩批」改成「超過 30 秒」（實際條件是 GRACE_SEC=30），
+      // 綁措辭會讓每次改文案都假紅一次。
       check('E3 退場文案講的是真因（不是「官方名冊已更新」）',
-        expired.toasts.some(t => t.includes('連續兩批不在即時模型中')), JSON.stringify(expired.toasts));
+        expired.toasts.some(t => /不在即時模型中，已結束跟隨/.test(t)) &&
+        !expired.toasts.some(t => t.includes('官方名冊已更新')), JSON.stringify(expired.toasts));
       dropVehicleId = null; currentVariant = 'healthy';
       allErrors = allErrors.concat(errors);
       await page.close();
@@ -565,6 +608,61 @@ async function main() {
       servedHtml = REAL_HTML;
     }
     currentVariant = 'healthy';
+
+    // ── (j) 深夜正常末班收車：Core 與 legacy 同時歸零 ⇒ P0-2 不得判成少車 ────
+    //    兩組情境除了「頁面時鐘」以外每一個輸入都逐格相同（同一份語料、同樣 6 輪建基線、
+    //    同樣切 allEmpty 再跑兩輪）——唯一的變因就是備案在那個時刻有沒有車。
+    //    少了反向對照，「乾脆別擋了」也會全綠（心得 39(b)）。
+    {
+      const run = async label => {
+        const { page, errors } = await newPage(browser);
+        currentVariant = 'healthy';
+        for (let i = 0; i < 6; i++) await pollOnce(page);   // 建基線
+        const base = await lineStats(page);
+        currentVariant = 'allEmpty';
+        await pollOnce(page); await pollOnce(page);          // 連兩輪 0 台（防抖門檻）
+        const after = await lineStats(page);
+        allErrors = allErrors.concat(errors);
+        await page.close();
+        return { label, base, after };
+      };
+
+      shiftClockToSecOfDay(CLOSED_SEC);
+      const night = await run('收班');
+      shiftClockToSecOfDay(PEAK_SEC);
+      const peak = await run('營運中');
+
+      const nightLegacy = Object.values(night.base.lines).reduce((s, v) => s + v.legacy, 0);
+      const peakLegacy = Object.values(peak.base.lines).reduce((s, v) => s + v.legacy, 0);
+      check('J1 佈題成立：收班時段備案 0 台、營運時段備案有車（否則 J2/J3 是空判準）',
+        nightLegacy === 0 && peakLegacy > 0, `收班 legacy=${nightLegacy}、營運中 legacy=${peakLegacy}`);
+      check('J2 佈題成立：兩組的基線都建起來了（Core 兩邊都有車可掉）',
+        Object.values(night.base.lines).some(v => v.core > 4) && Object.values(peak.base.lines).some(v => v.core > 4),
+        `收班 BL=${JSON.stringify(night.base.lines['trtc:BL'])}、營運中 BL=${JSON.stringify(peak.base.lines['trtc:BL'])}`);
+      check('J3 收班：Core 歸零但備案也歸零 ⇒ 一條線都不判退回（不是每天深夜整批假警報）',
+        Object.keys(night.after.status.blockedLines).length === 0,
+        `blocked=${JSON.stringify(night.after.status.blockedLines)}`);
+      check('J4 收班：徽章講的是「收班」不是「即時資料異常」',
+        !!night.after.badge && !/異常/.test(night.after.badge.text),
+        JSON.stringify(night.after.badge));
+      check('J5 控制組：同一套輸入換成營運時段（備案有車）⇒ 照舊判退回，豁免沒有把牙拔掉',
+        Object.keys(peak.after.status.blockedLines).length > 0 &&
+        Object.values(peak.after.status.blockedLines).every(v => v && v.reason === 'count'),
+        `blocked=${Object.keys(peak.after.status.blockedLines).join(',')}`);
+      check('J6 控制組：營運時段 Core 0 台時徽章明講異常（P0-5 沒被豁免蓋掉）',
+        !!peak.after.badge && peak.after.badge.anom === true && /異常/.test(peak.after.badge.text),
+        JSON.stringify(peak.after.badge));
+
+      shiftClockToSecOfDay(CLOSED_SEC);
+      servedHtml = MUTATED_WINDDOWN_HTML;
+      const mutated = await run('收班（突變：拿掉豁免）');
+      servedHtml = REAL_HTML;
+      shiftClockToSecOfDay(PEAK_SEC);
+      check('J7 突變對照：拿掉收班豁免後，J3 必須轉紅（證明 J3 不是「反正那時段不判定」）',
+        Object.keys(mutated.after.status.blockedLines).length > 0,
+        `舊行為下 blocked=${Object.keys(mutated.after.status.blockedLines).join(',') || '(空)'}`);
+      currentVariant = 'healthy';
+    }
 
     check('Z1 全程零未捕捉 pageerror', allErrors.length === 0, allErrors.slice(0, 3).join(' | ') || '0');
   } finally {

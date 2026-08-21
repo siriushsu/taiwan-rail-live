@@ -35,7 +35,10 @@ check(sandbox.sample(increasing, 90).progress === 2, '發車前應鉗在第一�
 check(sandbox.sample(decreasing, 130).progress === 4, '退場前應鉗在最後一個軌跡點');
 
 const contracts = [
-  ['網站預設開啟且保留顯式關閉', /if \(METRO_CORE_QUERY_MODE === 'off'\) return false;[\s\S]*?return true;[\s\S]*?const METRO_CORE_ENABLED = metroCoreFlag\(location\.search\)/],
+  // 2026-08-22 網站預設翻成 shadow（return false）；App 的兩個注入點必須在 return 之前，
+  // 否則網站的預設值會蓋掉 App v13 的原生恆開。這條同時把「順序」釘住。
+  ['網站預設關閉（shadow）且 App 注入點在預設值之前', /if \(METRO_CORE_QUERY_MODE === 'off'\) return false;[\s\S]*?typeof window\.RAIL_METRO_CORE_ENABLED === 'boolean'[\s\S]*?typeof APP_CFG\.metroCore === 'boolean'[\s\S]*?\n  return false;\n\}[\s\S]*?const METRO_CORE_ENABLED = metroCoreFlag\(location\.search\)/],
+  ['?metrocore=1 仍可顯式開啟（預覽站的開關）', /if \(value === '1' \|\| value === 'preview'\) return true;/],
   ['App 可注入獨立布林旗標', /typeof window\.RAIL_METRO_CORE_ENABLED === 'boolean'/],
   ['正式 endpoint 不再指向 Preview', /https:\/\/railisland-metro-core\.sirius1984\.workers\.dev\/v1\/metro\/snapshot/],
   ['snapshot 有 schema 驗證', /snapshot\.schema !== METRO_CORE_SCHEMA/],
@@ -60,7 +63,10 @@ const contracts = [
   ['P0-3 建線時做 id 契約自檢', /function metroCoreSelfCheckLineIds\(\)[\s\S]*?state\.metroCore\.selfCheck = result/],
   ['P0-4 跟隨 30 秒寬限常數', /const METRO_CORE_FOLLOW_GRACE_SEC = 30;/],
   ['P0-4 每幀跟隨判定走寬限版', /function updateFreqFollowCamera[\s\S]*?metroCoreFollowRecordWithGrace\(f, Date\.now\(\) \/ 1000\)/],
-  ['P0-4 退場文案講真因', /連續兩批不在即時模型中，已結束跟隨/],
+  // 文案在 994a9ce 改成「超過 30 秒」（實際條件是 METRO_CORE_FOLLOW_GRACE_SEC=30 秒，
+  // 不是「兩批」）。判準只綁「講的是即時模型找不到這台車」這個真因，不綁確切措辭，
+  // 否則每改一次文案就假紅一次；同時排除舊的錯誤歸因「官方名冊已更新」。
+  ['P0-4 退場文案講真因', /不在即時模型中，已結束跟隨/],
   ['P0-5 徽章不再以 hidden 表示 0 台', /el\.textContent = '即時資料異常';/],
   ['P0-5 0 台的判準取自不同來源（既有路徑會畫幾台）', /const legacy = corePool\.reduce\(\(sum, ln\) => sum \+ metroCoreLegacyCountForLine\(ln\), 0\);/],
   ['P1-8 錯誤要推到徽章，不只存在 state', /state\.metroCore\.error = String\(error && error\.message \|\| error\);\s*\n\s*updateMetroBadge\(\);/],

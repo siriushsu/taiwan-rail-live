@@ -19006,8 +19006,9 @@ document.addEventListener('visibilitychange', () => { if (!document.hidden) poll
 pollLive();
 
 // ── Private Metro Core client（只做 canonical trajectory 線性補間） ────────
-// 網站預設開啟；?metrocore=0 是不需回滾部署的逃生口。App build 明確注入布林旗標，舊 App 因
-// prepare-web 注入 false 仍維持原模型，新 build 才切換。Worker／snapshot 失敗、過期或時鐘離開現在時，
+// 網站預設關閉（shadow，2026-08-22）；?metrocore=1 才接管，?metrocore=0 是顯式關的逃生口。
+// App build 明確注入布林旗標（v13 原生恆開），網站的預設值管不到它。
+// Worker／snapshot 失敗、過期或時鐘離開現在時，
 // 所有讀者都得到 null，立即退回既有北捷／高捷即時與班表路徑，不留下半套混合狀態。
 const METRO_CORE_SCHEMA = 'metro-snapshot/v1';
 const METRO_CORE_ENDPOINT = APP_CFG.metroCoreUrl ||
@@ -19047,7 +19048,13 @@ function metroCoreFlag(search) {
   if (METRO_CORE_QUERY_MODE === 'on') return true;
   if (typeof window.RAIL_METRO_CORE_ENABLED === 'boolean') return window.RAIL_METRO_CORE_ENABLED;
   if (typeof APP_CFG.metroCore === 'boolean') return APP_CFG.metroCore;
-  return true;
+  // 🔴 2026-08-22 起網站預設【關閉】＝shadow：出貨走既有 legacy 路徑，Core 只在
+  //    ?metrocore=1（或預覽站加同一個參數）時才接管。理由：伺服端的逐線 hard gate
+  //    還沒綠，把預設留在 Core 等於讓未驗收的供應鏈直接對到使用者；預設在這一層之後，
+  //    Metro 要回退＝翻旗標，不必回退程式碼、不必再處理「53 檔混批」那種整包回捲。
+  //    上面兩個 App 注入點在這一行【之前】就回傳，所以 App（v13 原生恆開）不受影響。
+  //    伺服端逐線 hard gate 綠了之後，把這行改回 true 就是網站的正式切換點。
+  return false;
 }
 const METRO_CORE_ENABLED = metroCoreFlag(location.search);
 
@@ -19317,13 +19324,29 @@ function metroCoreEvaluateCounts(snapshot, nowEpoch, prior) {
       if (counts.has(key)) counts.set(key, counts.get(key) + 1);
     }
   }
+  // 🔴 收班豁免（2026-08-22）。基線是「自己近五分鐘的中位數」,末班收車時 Core 的車數本來
+  //    就會相對它腰斬 ⇒ 每天深夜整批線被判成「即時資料異常」並退回備案,那是假警報。
+  //    判準沿用徽章那條已經在用的【不同來源】對照(metroCoreLegacyCountForLine:官方名冊 →
+  //    實際時刻表 → 班距):備案也一起掉到基線一半以下 ⇒ 這個時段本來就在收班,不是故障;
+  //    備案還有車而 Core 沒有 ⇒ 照舊觸發。豁免的那一輪會走下面的 else 把 cur 推進 history,
+  //    基線於是隨營運時段自然衰減——這正是「基線隨營運時段衰減」該有的形狀,而且只在
+  //    獨立來源同意時才衰減,不會讓真故障把基線自己拉下來(自我漂移)。
+  //    取不到對照時(使用者不在捷運分頁 ⇒ metroLivePool 沒有這些線、也就沒有 _tt)維持原判準,
+  //    不放寬也不收緊。
+  const legacyByKey = new Map();
+  for (const ln of metroLivePool()) {
+    const sysId = metroCoreSystemIdForLine(ln);
+    if (sysId) legacyByKey.set(sysId + ':' + String(ln.id), metroCoreLegacyCountForLine(ln, nowEpoch));
+  }
   const blocked = {};
   for (const [key, cur] of counts) {
     const history = metroCoreCountHistory.get(key) || [];
     const base = metroCoreMedian(history);
     const strikes = metroCoreCountStrikes.get(key) || { bad: 0, good: 0 };
     const judgeable = history.length >= METRO_CORE_COUNT_MIN_SAMPLES && base >= METRO_CORE_COUNT_MIN_BASE;
-    if (judgeable && cur < base * METRO_CORE_COUNT_DROP) { strikes.bad++; strikes.good = 0; }
+    const legacyNow = legacyByKey.has(key) ? legacyByKey.get(key) : null;
+    const windingDown = legacyNow != null && legacyNow < base * METRO_CORE_COUNT_DROP;
+    if (judgeable && !windingDown && cur < base * METRO_CORE_COUNT_DROP) { strikes.bad++; strikes.good = 0; }
     else { strikes.good++; strikes.bad = 0; }
     const was = !!(prior && prior[key]);
     const now = was ? !(strikes.good >= METRO_CORE_COUNT_STRIKES) : strikes.bad >= METRO_CORE_COUNT_STRIKES;
