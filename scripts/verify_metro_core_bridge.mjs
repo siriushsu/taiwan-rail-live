@@ -7,6 +7,7 @@ import { fileURLToPath } from 'node:url';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const html = fs.readFileSync(path.resolve(HERE, '..', 'index.html'), 'utf8');
+const headers = fs.readFileSync(path.resolve(HERE, '..', '_headers'), 'utf8');
 const prepareWeb = fs.readFileSync(path.resolve(HERE, '..', 'app/scripts/prepare-web.mjs'), 'utf8');
 const verifyRelease = fs.readFileSync(path.resolve(HERE, '..', 'app/scripts/verify-release.mjs'), 'utf8');
 const failures = [];
@@ -52,6 +53,7 @@ const contracts = [
 ];
 for (const [label, pattern] of contracts) check(pattern.test(html), label);
 const appContracts = [
+  ['正式站 CSP 放行 Core endpoint', /connect-src[^\n]*https:\/\/railisland-metro-core\.sirius1984\.workers\.dev/, headers],
   ['App build 有明確環境旗標', /process\.env\.RAIL_ENABLE_METRO_CORE === '1'/, prepareWeb],
   ['App bundle 注入 Core 旗標', /window\.RAIL_METRO_CORE_ENABLED=\$\{enableMetroCore\}/, prepareWeb],
   ['App 發行閘門核對 Core 旗標', /expectMetroCore/, verifyRelease],
