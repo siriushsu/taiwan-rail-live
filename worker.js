@@ -96,6 +96,24 @@ const jsonRes = (obj, status, cc) => new Response(JSON.stringify(obj), {
   headers: { 'content-type': 'application/json; charset=utf-8', 'cache-control': cc },
 });
 
+// 🔴 交給邊緣快取那一份,與回給使用者那一份,必須是【兩個各自獨立】的 Response——絕不可以
+// `await edge.put(k, res.clone()); return res;`:clone 是把同一條 body 串流【分流】給兩個讀者,
+// 快取那一份還沒寫完時,緊接著進來的請求 edge.match 就會讀走**半寫入的空 body**
+// (2026-08-20 升正式站當下實測:冷啟填完快取後 151ms 的下一發回空字串,前端 JSON.parse 直接失敗)。
+// 先把 body 定成一個不可變字串,再各自造一個 Response,就完全沒有分流。
+// 🔴 呼叫端一律用 `return await ...` 而不是 `return ...`:這些呼叫幾乎都在 try 裡,少了 await,
+// edge.put 丟出來的例外不會被同一層的 catch 接住,「上游掛掉退回舊值」那條退路就此失效。
+const bodyResCached = async (edge, cacheKey, body, status, cc) => {
+  const mk = () => new Response(body, {
+    status,
+    headers: { 'content-type': 'application/json; charset=utf-8', 'cache-control': cc },
+  });
+  await edge.put(cacheKey, mk());
+  return mk();
+};
+// jsonRes 的「同時寫進邊緣快取」版本;參數順序刻意與 jsonRes 對齊,只在前面多了 edge 與 cacheKey。
+const jsonResCached = (edge, cacheKey, obj, status, cc) => bodyResCached(edge, cacheKey, JSON.stringify(obj), status, cc);
+
 async function traLive(request, env, ctx) {
   // 用量埋點:前景分鐘計數器(cam/z 由前端輪詢帶,cache 命中與否都要記到)。觀測絕不可影響服務,例外整段吞掉。
   // 🔴 修復輪次1(Important 6):cron(laPushAll)內部呼叫帶 _src=cron,不是真人前景使用,
@@ -136,9 +154,7 @@ async function traLive(request, env, ctx) {
     // 🔴 刻意放在回應層而不是 mem 裡:上游掛掉時走下面的 catch 分支回舊 mem,那時 at 是舊的、
     // srv 仍是現在 ⇒ 前端才分得出「資料舊」與「時鐘錯」是兩件不同的事。
     // 邊緣快取重播只會讓 srv 落後(偏差被高估),不會領先 ⇒ 前端取最小值即可濾掉。
-    const res = jsonRes({ ...mem, srv: Date.now() }, 200, 'public, s-maxage=55, stale-while-revalidate=300');
-    await edge.put(cacheKey, res.clone());
-    return res;
+    return await jsonResCached(edge, cacheKey, { ...mem, srv: Date.now() }, 200, 'public, s-maxage=55, stale-while-revalidate=300');
   } catch (e) {
     if (mem) return jsonRes({ ...mem, srv: Date.now() }, 200, 'public, s-maxage=15');
     return jsonRes({ error: String(e.message || e) }, 502, 'no-store');
@@ -235,9 +251,7 @@ async function traAlert(request, env) {
       };
       alertMemAt = Date.now();
     }
-    const res = jsonRes(alertMem, 200, 'public, s-maxage=110, stale-while-revalidate=600');
-    await edge.put(cacheKey, res.clone());
-    return res;
+    return await jsonResCached(edge, cacheKey, alertMem, 200, 'public, s-maxage=110, stale-while-revalidate=600');
   } catch (e) {
     if (alertMem) return jsonRes(alertMem, 200, 'public, s-maxage=30');
     return jsonRes({ error: String(e.message || e) }, 502, 'no-store');
@@ -272,9 +286,7 @@ async function thsrAlert(request, env) {
       };
       thsrAlertMemAt = Date.now();
     }
-    const res = jsonRes(thsrAlertMem, 200, 'public, s-maxage=110, stale-while-revalidate=600');
-    await edge.put(cacheKey, res.clone());
-    return res;
+    return await jsonResCached(edge, cacheKey, thsrAlertMem, 200, 'public, s-maxage=110, stale-while-revalidate=600');
   } catch (e) {
     if (thsrAlertMem) return jsonRes(thsrAlertMem, 200, 'public, s-maxage=30');
     return jsonRes({ error: String(e.message || e) }, 502, 'no-store');
@@ -393,9 +405,7 @@ async function hazardAlert(request, env) {
       if (!hazardMem && hazardFailAt && Date.now() - hazardFailAt < HAZARD_FAIL_TTL_MS) throw new Error('ncdr cooldown');
       await refreshHazardMem(env);
     }
-    const res = jsonRes(hazardMem, 200, 'public, s-maxage=60, stale-while-revalidate=60');
-    await edge.put(cacheKey, res.clone());
-    return res;
+    return await jsonResCached(edge, cacheKey, hazardMem, 200, 'public, s-maxage=60, stale-while-revalidate=60');
   } catch (e) {
     // NCDR 短暫失敗時沿用 isolate 內最後成功狀態並明標 stale；不要因一輪 429 就把仍生效的監看關掉。
     if (hazardMem) {
@@ -404,14 +414,10 @@ async function hazardAlert(request, env) {
         const expires = ncdrTimeMs(h.expiresAt || h.expires);
         return Number.isFinite(expires) && expires > now;
       });
-      const res = jsonRes({ ...hazardMem, stale: true, hazards }, 200, 'public, s-maxage=30');
-      await edge.put(cacheKey, res.clone());
-      return res;
+      return await jsonResCached(edge, cacheKey, { ...hazardMem, stale: true, hazards }, 200, 'public, s-maxage=30');
     }
     // 冷啟動失敗也短暫負向快取；仍回 502，前端會保留舊狀態，不把「來源掛掉」解讀成「災害解除」。
-    const res = jsonRes({ error: 'hazard_not_ready' }, 502, 'public, s-maxage=30');
-    await edge.put(cacheKey, res.clone());
-    return res;
+    return await jsonResCached(edge, cacheKey, { error: 'hazard_not_ready' }, 502, 'public, s-maxage=30');
   }
 }
 
@@ -587,9 +593,7 @@ async function metroAlert(request, env) {
         alerts: TRTC_SCHEDULE_MODE_NOTICE.concat(parts.flat(), newsAlerts) };
       metroAlertMemAt = Date.now();
     }
-    const res = jsonRes(metroAlertMem, 200, 'public, s-maxage=110, stale-while-revalidate=600');
-    await edge.put(cacheKey, res.clone());
-    return res;
+    return await jsonResCached(edge, cacheKey, metroAlertMem, 200, 'public, s-maxage=110, stale-while-revalidate=600');
   } catch (e) {
     if (metroAlertMem) return jsonRes(metroAlertMem, 200, 'public, s-maxage=30');
     return jsonRes({ error: String(e.message || e) }, 502, 'no-store');
@@ -630,9 +634,7 @@ async function metroLive(request, env, sys) {
       }));
       metroLiveMem.set(sys, { data: { at: new Date().toISOString(), rows: parts.flat() }, at: Date.now() });
     }
-    const res = jsonRes(metroLiveMem.get(sys).data, 200, 'public, s-maxage=110, stale-while-revalidate=240');
-    await edge.put(cacheKey, res.clone());
-    return res;
+    return await jsonResCached(edge, cacheKey, metroLiveMem.get(sys).data, 200, 'public, s-maxage=110, stale-while-revalidate=240');
   } catch (e) {
     if (stale) return jsonRes(stale.data, 200, 'public, s-maxage=15');
     return jsonRes({ error: String(e.message || e) }, 502, 'no-store');
@@ -661,17 +663,13 @@ async function ntmetroLive(request, env, sys) {
       const d = await r.json();
       ntmLiveMem.set(sys, { data: { at: new Date().toISOString(), src: d && d.data != null ? d.data : null }, at: Date.now() });
     }
-    const res = jsonRes(ntmLiveMem.get(sys).data, 200, 'public, s-maxage=50, stale-while-revalidate=120');
-    await edge.put(cacheKey, res.clone());
-    return res;
+    return await jsonResCached(edge, cacheKey, ntmLiveMem.get(sys).data, 200, 'public, s-maxage=50, stale-while-revalidate=120');
   } catch (e) {
     if (stale) return jsonRes(stale.data, 200, 'public, s-maxage=15');
     // 軟失敗:回 200+src:null(前端 applyNtmLive 對 null 直接 no-op,退回時刻表推演),不回 5xx 免得訪客 console 留紅字。
     // 負向結果也快取 15s:白名單收緊後雖已無繞過放大,但合法 sys 遇上游持續 5xx 時,無此快取會讓每個請求 1:1 重打上游,
     // 上游越掛我們打越兇。不帶 error 字串進 body,免洩內部訊息。
-    const res = jsonRes({ at: new Date().toISOString(), src: null }, 200, 'public, s-maxage=15');
-    await edge.put(cacheKey, res.clone());
-    return res;
+    return await jsonResCached(edge, cacheKey, { at: new Date().toISOString(), src: null }, 200, 'public, s-maxage=15');
   }
 }
 
@@ -706,18 +704,14 @@ async function klrtPosition(request, env) {
       })).filter(x => Number.isFinite(x.lat) && Number.isFinite(x.lon));
       klrtPosMem = { data: { at: new Date().toISOString(), src: 'tdx', up: d && d.UpdateTime, rows }, at: Date.now() };
     }
-    const res = jsonRes(klrtPosMem.data, 200, 'public, s-maxage=20, stale-while-revalidate=60');
-    await edge.put(cacheKey, res.clone());
-    return res;
+    return await jsonResCached(edge, cacheKey, klrtPosMem.data, 200, 'public, s-maxage=20, stale-while-revalidate=60');
   } catch (e) {
     // 🔴 舊資料只在「還算新」的期間頂替,不可無限期回舊的:前端看到 src 有值就會採用,
     //    上游長時間掛掉會讓 C 線一直用陳舊 GPS,而 LiveBoard 被 klrtGpsLive 擋著永遠接不了手。
     //    超過 3 分鐘就讓它走下面的軟失敗(src:null),前端才會放行 LiveBoard。
     if (stale && Date.now() - stale.at < 180e3) return jsonRes(stale.data, 200, 'public, s-maxage=15');
     // 軟失敗:200+src:null(前端 no-op、退回時刻表推演),並負向快取 15s 免得上游越掛我們打越兇
-    const res = jsonRes({ at: new Date().toISOString(), src: null, rows: [] }, 200, 'public, s-maxage=15');
-    await edge.put(cacheKey, res.clone());
-    return res;
+    return await jsonResCached(edge, cacheKey, { at: new Date().toISOString(), src: null, rows: [] }, 200, 'public, s-maxage=15');
   }
 }
 
@@ -995,9 +989,7 @@ async function trtcLive(request, env) {
       catch (e) { console.error('[trtc ledger] API 組裝失敗:', (e && e.stack) || String(e)); }
       trtcMem = { data: { ...legacy, boardPos, ledger }, raw: { hw: hwRaw, br: brRaw, tk }, at: Date.now() };
     }
-    const res = jsonRes(trtcMem.data, 200, 'public, s-maxage=15, stale-while-revalidate=120');
-    await edge.put(cacheKey, res.clone());
-    return res;
+    return await jsonResCached(edge, cacheKey, trtcMem.data, 200, 'public, s-maxage=15, stale-while-revalidate=120');
   } catch (e) {
     // 上游失敗只能讓 legacy 資訊降級，不能把已經從官方站牌建立的車全數清掉。
     // 持久名冊沒有缺訊時限；位置由各車 timeline 續推並在已知終點退場。
@@ -1012,11 +1004,9 @@ async function trtcLive(request, env) {
     // 把「上游掛掉」這個環境問題指成程式缺陷(Re-review-2 P-5)。
     let ledger = [];
     try { ledger = await trtcLedgerMaterialized(env, Math.floor(Date.now() / 1000)); } catch (e) {}
-    const res = jsonRes({ at: new Date().toISOString(), src: null, trains: [], board: [],
+    return await jsonResCached(edge, cacheKey, { at: new Date().toISOString(), src: null, trains: [], board: [],
       boardPos: heldBoardPos,
       cd: { rows: 0, dropped: 0, dateDropped: 0, pathDropped: 0, pathDateDropped: 0, pathNoTrainNo: 0 }, ledger }, 200, 'public, s-maxage=15');
-    await edge.put(cacheKey, res.clone());
-    return res;
   }
 }
 
@@ -1870,15 +1860,8 @@ async function delayStats(request, env) {
   try {
     const row = await env.DELAY_DB.prepare("SELECT v FROM kv_blobs WHERE k='tra_delay_stats_30d'").first();
     if (!row) return jsonRes({ error: 'not_ready' }, 503, 'public, s-maxage=60');
-    const res = new Response(row.v, {
-      status: 200,
-      headers: {
-        'content-type': 'application/json; charset=utf-8',
-        'cache-control': 'public, max-age=300, s-maxage=3600, stale-while-revalidate=86400',
-      },
-    });
-    await edge.put(cacheKey, res.clone());
-    return res;
+    // row.v 本來就是 D1 存的 JSON 字串,原樣送出不再 parse/stringify(免費方案 10ms CPU 預算)。
+    return await bodyResCached(edge, cacheKey, row.v, 200, 'public, max-age=300, s-maxage=3600, stale-while-revalidate=86400');
   } catch (e) {
     return jsonRes({ error: 'not_ready' }, 503, 'public, s-maxage=60');
   }
@@ -2551,9 +2534,7 @@ async function delayHistory(request, env) {
       rows = rs.results || [];
     }
     const body = buildDelayHistoryBody(train, rows, DELAY_HISTORY_WINDOW_DAYS, win, utcStamp());
-    const res = jsonRes(body, 200, 'public, max-age=300, s-maxage=3600, stale-while-revalidate=86400');
-    await edge.put(cacheKey, res.clone());
-    return res;
+    return await jsonResCached(edge, cacheKey, body, 200, 'public, max-age=300, s-maxage=3600, stale-while-revalidate=86400');
   } catch (e) {
     return jsonRes({ error: 'not_ready' }, 503, 'public, s-maxage=60');
   }
@@ -2752,9 +2733,7 @@ async function stationEvents(request, env) {
       'SELECT sta, status, delay, delay_max, obs_at FROM tra_station_events WHERE service_date=? AND train_no=? ORDER BY obs_at ASC'
     ).bind(date, train).all();
     const events = (rs.results || []).map(r => ({ sta: r.sta, status: r.status, delay: r.delay, delayMax: r.delay_max, at: r.obs_at }));
-    const res = jsonRes({ date, train, events }, 200, 'public, s-maxage=30, stale-while-revalidate=120');
-    await edge.put(cacheKey, res.clone());
-    return res;
+    return await jsonResCached(edge, cacheKey, { date, train, events }, 200, 'public, s-maxage=30, stale-while-revalidate=120');
   } catch (e) {
     return jsonRes({ error: 'not_ready' }, 503, 'public, s-maxage=30');
   }
@@ -3670,9 +3649,7 @@ async function todayBoard(request, env) {
       ') WHERE rn=1 ORDER BY train_no'
     ).bind(date).all();
     const trains = (rs.results || []).map(r => ({ no: r.train_no, sta: r.sta, status: r.status, delay: r.delay, delayMax: r.dmax, at: r.obs_at }));
-    const res = jsonRes({ date, trains }, 200, 'public, s-maxage=120, stale-while-revalidate=300');
-    await edge.put(cacheKey, res.clone());
-    return res;
+    return await jsonResCached(edge, cacheKey, { date, trains }, 200, 'public, s-maxage=120, stale-while-revalidate=300');
   } catch (e) {
     return jsonRes({ error: 'not_ready' }, 503, 'public, s-maxage=30');
   }
@@ -4039,9 +4016,7 @@ async function bountyBoard(request, env) {
       [`${r.seg_key}|${r.train_kind}|${r.dir}|${r.kind}|${r.slot || ''}`, Number(r.n) || 0]));
     const cards = groupBoardRows(rs.results || [], counts, rules.coverN);
     // 板一天只重算一次，但 claimers 會隨時變——5 分鐘是「認領人數夠新」與「別把 D1 打爆」的折衷
-    const res = jsonRes({ at: now, coverN: rules.coverN, cards }, 200, 'public, s-maxage=300, stale-while-revalidate=900');
-    await edge.put(cacheKey, res.clone());
-    return res;
+    return await jsonResCached(edge, cacheKey, { at: now, coverN: rules.coverN, cards }, 200, 'public, s-maxage=300, stale-while-revalidate=900');
   } catch (e) {
     return jsonRes({ error: 'not_ready' }, 503, 'public, s-maxage=60');
   }
@@ -5353,9 +5328,7 @@ async function thsrSchedule(request, env) {
   try { blob = JSON.parse(row.v); } catch (e) { return jsonRes({ error: 'not_ready' }, 404, 'public, s-maxage=60'); }
   const picked = thsrSelectServedDay((blob && blob.days) || {}, twToday().replace(/-/g, ''));
   if (!picked) return jsonRes({ error: 'not_ready' }, 404, 'public, s-maxage=60');
-  const res = jsonRes(picked.doc, 200, 'public, s-maxage=300, stale-while-revalidate=3600');
-  await edge.put(cacheKey, res.clone());
-  return res;
+  return await jsonResCached(edge, cacheKey, picked.doc, 200, 'public, s-maxage=300, stale-while-revalidate=3600');
 }
 
 // ══ 高鐵自由座車廂(免費功能)═══════════════════════════════════════════════════════
@@ -5414,9 +5387,7 @@ async function thsrFreeSeat(request, env) {
       thsrFreeSeatMemAt = Date.now();
       thsrFreeSeatMemDate = today;
     }
-    const res = jsonRes(thsrFreeSeatMem, 200, 'public, s-maxage=3600, stale-while-revalidate=21600');
-    await edge.put(cacheKey, res.clone());
-    return res;
+    return await jsonResCached(edge, cacheKey, thsrFreeSeatMem, 200, 'public, s-maxage=3600, stale-while-revalidate=21600');
   } catch (e) {
     if (thsrFreeSeatMem && thsrFreeSeatMemDate === today) return jsonRes(thsrFreeSeatMem, 200, 'public, s-maxage=60');
     return jsonRes({ error: String(e.message || e) }, 502, 'no-store');
