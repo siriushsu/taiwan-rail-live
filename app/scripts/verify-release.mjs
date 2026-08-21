@@ -23,26 +23,25 @@ export function assertAndroidMainActivityDoesNotPreInitWindow(mainActivity) {
     'Android MainActivity 不可手動呼叫 EdgeToEdge.enable()——會在 Capacitor 套用 NoActionBar 前初始化 launch theme，讓上下白帶回歸');
 }
 
-// Android v7 的定位契約：只宣告／請求模糊位置。enableHighAccuracy:false 只是取樣偏好，
-// 不能拿來代替權限 alias；所有一次性與連續定位都必須先明確請 coarseLocation，並在 bridge
-// 再把呼叫端傳進來的 true 壓回 false。iOS 維持既有精度與權限流程。
-export function assertAndroidCoarseLocationContract({ nativeBridgeSource, packagedBridge, androidManifest }) {
+// Android 前景定位契約：同時宣告 coarse/fine，並明確請求 location alias，讓系統提供「精確位置」
+// 選項。一次性與連續定位都必須保留呼叫端的 enableHighAccuracy，不可在 bridge 偷壓回 false。
+export function assertAndroidPreciseLocationContract({ nativeBridgeSource, packagedBridge, androidManifest }) {
   assert(androidManifest.includes('android.permission.ACCESS_COARSE_LOCATION'),
     'Android manifest 必須宣告 ACCESS_COARSE_LOCATION');
-  assert(!androidManifest.includes('android.permission.ACCESS_FINE_LOCATION'),
-    'Android v7 只使用模糊位置，manifest 不可再宣告 ACCESS_FINE_LOCATION');
-  assert(/ANDROID_COARSE_LOCATION\s*=\s*Object\.freeze\(\{\s*permissions:\s*\['coarseLocation'\]\s*\}\)/s.test(nativeBridgeSource),
-    'Android 定位 bridge 必須把 coarseLocation 寫成唯一的權限請求 alias');
-  assert(/Geolocation\.requestPermissions\(ANDROID_COARSE_LOCATION\)/.test(nativeBridgeSource),
-    'Android 定位 bridge 沒有明確呼叫 Geolocation.requestPermissions(coarseLocation)');
-  assert(/platform\s*===\s*'android'[\s\S]*enableHighAccuracy:\s*false/.test(nativeBridgeSource),
-    'Android 定位 bridge 必須強制 enableHighAccuracy:false，不能讓其他入口再要求精確位置');
-  assert(/Geolocation\.getCurrentPosition\(androidGeoOptions\(options\)\)/.test(nativeBridgeSource),
-    '一次性定位沒有經過 Android 模糊精度收斂');
-  assert(/Geolocation\.watchPosition\(androidGeoOptions\(options\)/.test(nativeBridgeSource),
-    '連續定位沒有經過 Android 模糊精度收斂');
-  assert(packagedBridge.includes('coarseLocation'),
-    '打包後 native-bridge.js 不含 coarseLocation——原始碼修正沒有進入發行包');
+  assert(androidManifest.includes('android.permission.ACCESS_FINE_LOCATION'),
+    'Android manifest 必須宣告 ACCESS_FINE_LOCATION，否則無法提供精確位置');
+  assert(/ANDROID_PRECISE_LOCATION\s*=\s*Object\.freeze\(\{\s*permissions:\s*\['location'\]\s*\}\)/s.test(nativeBridgeSource),
+    'Android 定位 bridge 必須以 location alias 請求精確位置');
+  assert(/Geolocation\.requestPermissions\(ANDROID_PRECISE_LOCATION\)/.test(nativeBridgeSource),
+    'Android 定位 bridge 沒有明確呼叫 Geolocation.requestPermissions(location)');
+  assert(!/androidGeoOptions|enableHighAccuracy:\s*false/.test(nativeBridgeSource),
+    'Android 定位 bridge 不可強制降為模糊位置');
+  assert(/Geolocation\.getCurrentPosition\(options\)/.test(nativeBridgeSource),
+    '一次性定位沒有原樣保留精確定位選項');
+  assert(/Geolocation\.watchPosition\(options,/.test(nativeBridgeSource),
+    '連續定位沒有原樣保留精確定位選項');
+  assert(/permissions:\[?["']location["']\]?/.test(packagedBridge),
+    '打包後 native-bridge.js 不含精確位置契約——原始碼修正沒有進入發行包');
 }
 
 // Android WebView <140 的 env(safe-area-inset-*) 有已知錯誤；Capacitor 8 會把正確值注入
@@ -172,6 +171,7 @@ export async function assertLicensedBuildAllowed({ includeLicensedMusic, include
 const TOAST_REVIEWED = new Map([
   [`info.done?'':''`, '兩個寫死字串二選一,無插入'],
   [`on?'':''`, '兩個寫死字串二選一,無插入'],
+  [`core?'':''`, 'Core 跟隨失聯提示:core 只在兩個寫死字串間二選一,無插入'],
   [`''+note+''`, 'onLocateFail:note 只可能是四個寫死常數之一,無使用者資料'],
   [`m`, 'announceCollections:msgs 每個插值都已 escHtml;此處刻意傳 <b> 做粗體'],
   ['`${escHtml(item.title)}`', '眾包校正提示,已逸出'],
@@ -333,7 +333,7 @@ export async function verifyRelease({
   const nativeBridgeSource = await readFile(join(appRoot, 'src/native-bridge.mjs'), 'utf8');
   const packagedBridge = await readFile(join(output, 'native-bridge.js'), 'utf8');
   const androidManifest = await readFile(join(appRoot, 'android/app/src/main/AndroidManifest.xml'), 'utf8');
-  assertAndroidCoarseLocationContract({ nativeBridgeSource, packagedBridge, androidManifest });
+  assertAndroidPreciseLocationContract({ nativeBridgeSource, packagedBridge, androidManifest });
 
   // ── 創始會員截止時刻的「上線錨點」(B-4,2026-08-03 裁示)───────────────────────
   // 創始價視窗＝上線錨點時刻起算固定 30 天。上線錨點由 revenuecat-config.js 的

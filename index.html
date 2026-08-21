@@ -3850,6 +3850,7 @@
            內容 li 上限 8 條(li.grp 是標題不算)。 -->
       <ul class="foot-list foot-recent">
         <li class="grp">最近更新</li>
+        <li data-cl-of="geofollow"><span class="d">8/21</span><span>App 的藍點現在會在你移動時持續更新，所在地鏡頭也會像一般地圖 App 一樣跟著走，不再停在開啟 App 時的位置；手動拖地圖或改跟列車時會讓出鏡頭，但定位仍持續，按「附近車站」即可回到自己。Android 同時恢復精確位置選項；App 收到背景或鎖屏就停止定位，回到前景才繼續</span></li>
         <li data-cl-of="metrocoreidentity"><span class="d">8/21</span><span>忠孝復興等共站的到站資訊改用同一批到站時間、方向與終點分辨路線，無法確認時暫時不亂標；這套規則也會處理其他共用車站的路線。從地圖或站牌點車現在都會跟到同一班，官方資料短暫漏一輪不會立刻中斷跟隨。北捷中斷提示也改看畫面實際使用的即時資料，App 從背景回來不再把暫停更新的舊資料誤報成斷訊</span></li>
         <li data-cl-of="metrocorelive"><span class="d">8/21</span><span>北捷與高捷即時動畫正式換成同一套時間軸：地圖上的車、站台預告與點選跟隨現在會對到同一班車；官方資料更新時不會整批跳位或交換身分，後車在站外也不會貼到前車 100 公尺內。若新資料不完整或服務暫時中斷，畫面會自動沿用通過檢查的上一段動畫或退回原本模式，不會留下卡住的車</span></li>
         <li data-cl-of="metrocorebridge"><span class="d">8/21</span><span>北捷與高捷的下一代即時動畫先加入試跑入口：站台預告與地圖上的車可以共用同一個身分與時間軸，點站牌就能跟到那一台車；資料過期或連線中斷時會自動回到原本模式。一般畫面目前仍沿用既有來源，不受這次試跑影響</span></li>
@@ -3857,7 +3858,6 @@
         <li data-cl-of="krtctrip"><span class="d">8/20</span><span>高捷紅橘線改成逐班接續官方看板：同一班車在不同車站的到站資訊會接回原本班次，不再用整條線同一個平均值把相鄰列車擠在一起；資料不夠確定時會保守沿用原本推估，不會硬認成隔壁班。紅橘兩線的最後一段也都會依實際路段時間一路跑到終點才收車</span></li>
         <li data-cl-of="trtcidentity2"><span class="d">8/20</span><span>文湖線與環狀線的認車再加一道保護：同一班車的倒數換到下一個路段時會接回原本的身分，兩筆資料若曾擠到 100 公尺內也只留較早的那筆，不再留下第二顆車點追著後車跑。環狀線可提早出現在起點等發車，但倒數縮到該段行車時間才會開；最後一段則一路留到真正抵達終點才收車</span></li>
         <li data-cl-of="trtcentity"><span class="d">8/20</span><span>文湖線與環狀線偶爾出現的卡站車、短區間擠好幾台再修一輪：失去官方資料的舊車不再永久留在站上，疑似同一台的新舊資料也不會立刻同時畫出；「診斷資訊」可匯出最近十分鐘的捷運判讀，方便下次異常直接還原</span></li>
-        <li data-cl-of="tradaily"><span class="d">8/20</span><span>台鐵今日官方公告停駛的班次不再出現在地圖上，車站看板仍會列出並標示「停駛」</span></li>
       </ul>
       <!-- 第二層:完整歷史。刻意不掛 .foot-box 類名——placeFootBoxes() 用
            `.site-foot .foot-box` 搬移面板,巢狀同名會被當成另一個盒子一起搬走。 -->
@@ -3974,6 +3974,7 @@
         <li><span class="d">7/13</span><span>收集章可以重複點，換搭不同班次回味</span></li>
         <li><span class="d">7/9</span><span>旅程護照與 16 枚成就徽章、「探」今日亮點面板上線</span></li>
         <li class="grp">手機與操作</li>
+        <li data-cl="geofollow"><span class="d">8/21</span><span>App 定位改成前景持續更新：只要 App 留在畫面上，藍點會隨你移動，所在地鏡頭也會像一般地圖 App 一樣持續跟著，不再只記住開啟那一刻的位置。手動拖地圖會解除所在地鏡頭，點列車、隨機跟隨或放空時則由那些模式接管，但 GPS 藍點仍持續更新；按一次「附近車站」就會回到目前位置並重新跟隨。Android 恢復要求精確位置，若你在系統選擇概略位置仍可使用、只是準確度較低。App 進入背景或鎖屏會立即停止定位，回到前景才重新開始，原始座標仍只留在裝置內</span></li>
         <li data-cl="mapsync"><span class="d">8/19</span><span>換成 OpenStreetMap 向量底圖後的兩個同步問題：拖曳地圖時軌道與列車會比底圖慢半拍（Safari／App 特別明顯），現在改成底圖每動一下就同一拍重畫軌道；手機兩指縮放放手的那一瞬，軌道會先跳回捏合前的位置再彈回來，現在放手那一拍重新對準底圖，不再跳動。衛星底圖與列車、站點位置一律不受影響</span></li>
         <li data-cl="appwhatsnewlag"><span class="d">8/19</span><span>App 剛更新完跳出的「更新了什麼」不再拿上一版的說明冒充：商店資料還沒追上新版時先不顯示，等追上再補給你</span></li>
         <li data-cl="androidcoarse"><span class="d">8/16</span><span>Android App 的定位權限改成只詢問模糊位置，不再要求精確位置；附近車站、藍點與需要定位的操作仍可照常使用</span></li>
@@ -4435,7 +4436,8 @@
 //         保留 ?metrocore=0 即時退回舊模型。看板到站時刻與 canonical trajectory 使用同一站點事件。
 // v0821c：共站看板依車號、方向、終點及同批軌跡 ETA 通用消歧；地圖點車保留 Core 身分，短暫漏批
 //         續跟 30 秒；北捷斷訊提示改看實際使用的 Core 新鮮度，避免背景喚回誤報。
-const BUILD = 'v0821c';
+// v0821d：App 前景定位改為持續更新藍點與所在地鏡頭；Android 恢復精確位置，退背景即停取樣。
+const BUILD = 'v0821d';
 // clearFollow() 會在開機途中清掉 query string；Private Metro Core 的 rollout 模式必須在最前面先鎖住，
 // 否則 ?metrocore=0／1 可能在資料輪詢區重讀時已消失。
 const METRO_CORE_QUERY_MODE = (() => {
@@ -4571,6 +4573,9 @@ const state = {
   followWrapStops: null, // setFollow 刻意回放的跨午夜 stops；只供 schedWrapT 解開該班的 _noPrevWrap
   freqFollow: null, // 捷運跟隨四形:{ln,tr}／{ln,k}／official vehicleId／{core:true,systemId,lineId,vehicleId}；獨立於 followTrain
   followLock: true, // 跟隨鎖:true=每幀置中;拖曳地圖自動解鎖(Google 導航式),按「回到列車」恢復
+  geoLoc: null, meLoc: null, geoFollow: false, // 前景 GPS 最新點／附近卡使用點／是否讓所在地鏡頭持續置中
+  _geoTrackingWanted: false, _geoWatchId: null, _geoWatchStarting: false, _geoWatchBlocked: false,
+  _geoWatchToken: 0, _geoWatchFirst: null, _geoWatchResolve: null, _geoWatchTimer: null,
   mapDark: false, basemap: 'map', trackData: null, offlineLand: null,
   trackStyle: 'auto', // 軌道顯示:auto(亮色原色/夜間衛星自動淡化)、faint(一律更淡)、hidden(只留列車與車站)
   live: null, // 台鐵即時誤點 {map: 車次→誤點分, at: 抓取時刻, delayed, srcAt}
@@ -8238,6 +8243,7 @@ function applyFreqFollow(hit) { // hit = {ln,tr}／{ln,k}／{ln,vehicleId};不�
     showToast('這列車已離開官方即時名冊'); return false;
   }
   if (state.followTrain) clearFollow(); // 全台同框:與台鐵/高鐵跟隨互斥(此刻 freqFollow 尚未設,級聯清不到自己)
+  state.geoFollow = false; // 車輛跟隨接管鏡頭；GPS 藍點仍在前景持續更新
   closeBoard();
   state.freqFollow = target.vehicleId != null
     ? (target.core
@@ -9248,9 +9254,9 @@ function renderSugarCard() {
   document.getElementById('sugarCard').hidden = false;
   document.getElementById('sgClose').onclick = closeSugarCard;
 }
-// ── 定位我 → 立刻移到我的位置,列出附近的車站/捷運站 ─────────────────────────────
-// 一次性 geolocation(getCurrentPosition,不持續追蹤、座標純留本機不上傳)。成功後:先停掉所有會搶
-// 相機的模式(跟車/捷運跟車/隨機巡航/放空),再飛到所在地、標藍點+精度圈,並列出最近幾座車站/捷運站
+// ── 定位我 → 前景持續更新我的位置,列出附近的車站/捷運站 ───────────────────────────
+// 原生 App 用 watchPosition 持續更新、座標純留本機不上傳；進背景／鎖屏即停止。主動回到所在地時先停掉
+// 所有會搶相機的模式(跟車/捷運跟車/隨機巡航/放空),再飛到所在地、標藍點+精度圈,並列出最近幾座車站/捷運站
 // (依距離排序;點站→開該站看板)。不再找平交道——平交道仍是獨立的「平」圖層功能,與定位無關。
 // 定位我暫緩(2026-07-14):iOS「加到主畫面」standalone PWA 無法取用定位(系統限制),而使用者主力情境正是主畫面 App;
 // 延到原生 App(Capacitor 原生定位)階段再啟用。以下程式(locateMe/onLocated/onLocateFail/renderNearbyStations…)全部保留,
@@ -9306,18 +9312,42 @@ try {
 } catch (e) {}
 // 開機自動定位的驗收 mock:只在「非原生網頁 + 明確帶參數」時注入(比照上面的 notifymock)。正式網頁/PWA 不帶參數
 // 就不注入,LOCATE_ENABLED 維持 false、行為零變化;原生 App 有真 bridge,這段被 !window.RAIL_APP 擋掉。
-// ?geomock=<lat>,<lon> 假裝定位到該座標;&geodelay=<ms> 模擬 GPS 慢;&geofail=1 模擬拒絕權限。
+// ?geomock=<lat>,<lon> 假裝第一筆定位；&geoseq=<lat>,<lon>;<lat>,<lon> 模擬持續移動；
+// &geodelay=<ms> 模擬首筆 GPS 慢；&geointerval=<ms> 控制後續更新；&geofail=1 模擬拒絕權限。
 try {
   const gp = new URLSearchParams(location.search);
   const gm = /^(-?\d+(?:\.\d+)?),(-?\d+(?:\.\d+)?)$/.exec(gp.get('geomock') || '');
   if (!window.RAIL_APP && (gm || gp.get('geofail') === '1')) {
     const gDelay = Math.max(0, parseInt(gp.get('geodelay'), 10) || 0);
+    const gInterval = Math.max(80, parseInt(gp.get('geointerval'), 10) || 1000);
     const gAcc = Math.max(1, parseInt(gp.get('geoacc'), 10) || 65);
+    const gPoints = gm ? [{ latitude: parseFloat(gm[1]), longitude: parseFloat(gm[2]), accuracy: gAcc }] : [];
+    for (const raw of (gp.get('geoseq') || '').split(';')) {
+      const m = /^(-?\d+(?:\.\d+)?),(-?\d+(?:\.\d+)?)$/.exec(raw.trim());
+      if (m) gPoints.push({ latitude: parseFloat(m[1]), longitude: parseFloat(m[2]), accuracy: gAcc });
+    }
+    let gWatchSeq = 0;
+    const gWatches = new Map();
+    window.__geoMockLog = [];
     window.RAIL_NATIVE_GEOLOCATION = {
       getCurrentPosition: () => new Promise((res, rej) => setTimeout(() => {
-        if (!gm) rej({ code: 1, message: 'mock：使用者拒絕定位' });
-        else res({ coords: { latitude: parseFloat(gm[1]), longitude: parseFloat(gm[2]), accuracy: gAcc } });
+        if (!gPoints.length) rej({ code: 1, message: 'mock：使用者拒絕定位' });
+        else res({ coords: gPoints[0] });
       }, gDelay)),
+      watchPosition: (_opts, cb) => {
+        const id = 'geo-mock-' + (++gWatchSeq), timers = [];
+        window.__geoMockLog.push({ op: 'watch', id });
+        if (!gPoints.length) timers.push(setTimeout(() => cb(null, { code: 1, message: 'mock：使用者拒絕定位' }), gDelay));
+        else gPoints.forEach((coords, i) => timers.push(setTimeout(() => cb({ coords }, null), gDelay + i * gInterval)));
+        gWatches.set(id, timers);
+        return Promise.resolve(id);
+      },
+      clearWatch: id => {
+        const timers = gWatches.get(id) || [];
+        timers.forEach(clearTimeout); gWatches.delete(id);
+        window.__geoMockLog.push({ op: 'clear', id });
+        return Promise.resolve();
+      },
     };
   }
 } catch (e) {}
@@ -9572,9 +9602,112 @@ function drawMe() {
   ctx.fillStyle = GPS_BLUE; ctx.fill();
   ctx.restore();
 }
-// ── 開機自動定位(原生 App):越早發起越好,與資料載入並行,使用者感覺不到等待 ──────────────
-// 兩段式:(1) 低精度(wifi/基地台)換速度——開機只要知道「你在台灣哪一帶」,不必等 GPS 收斂到公尺級;
-//        (2) 使用者主動開「附近車站」時才用高精度,那時精度才真的重要。
+// ── App 前景持續定位:越早發起越好,與資料載入並行,使用者感覺不到等待 ──────────────────
+// Google Maps 式語意分成兩層：watchPosition 永遠更新藍點與本機座標；geoFollow=true 時鏡頭才跟著人。
+// 手動拖圖會解除所在地鏡頭，但 GPS 不停；點車／隨機／放空改由那些模式接管鏡頭。App 進背景或鎖屏
+// 立即 clearWatch，回前景再接回——全程只用 When-in-use，不要求背景定位。
+const GEO_WATCH_OPTS = { enableHighAccuracy: true, timeout: 12000, maximumAge: 0, minimumUpdateInterval: 1000 };
+function geoPermissionDenied(err) {
+  return !!err && (err.code === 1 || /permission|denied|拒絕|權限/i.test(String(err.message || err)));
+}
+function geoCameraCanFollow() {
+  return !!(state.geoFollow && state.ready && map && !document.hidden && !state.followTrain && !state.freqFollow &&
+    !state.autoTour && !state.ambient && !state.liveMode && !state._transition);
+}
+function updateGeoCamera(loc) {
+  if (!geoCameraCanFollow()) return;
+  const now = performance.now(), prev = state._geoCameraLoc;
+  if (prev && now - (state._geoCameraAt || 0) < 1000 && haversineKm(prev, loc) < .003) return;
+  state._geoCameraAt = now; state._geoCameraLoc = loc;
+  const z = map.getZoom();
+  map.setView(focusCenter(loc.lat, loc.lon, z), z, { animate: false });
+}
+function acceptGeoFix(coords) {
+  if (!coords || !inTaiwan(coords.latitude, coords.longitude)) return null;
+  const loc = { lat: +coords.latitude, lon: +coords.longitude, acc: Math.max(0, +coords.accuracy || 0) };
+  state.geoLoc = loc;
+  showMeMarker(loc.lat, loc.lon, loc.acc);
+  const now = Date.now(), saved = state._geoSavedLoc;
+  if (!saved || now - (state._geoSavedAt || 0) >= 15000 || haversineKm(saved, loc) >= .1) {
+    saveGeoCache(loc.lat, loc.lon, loc.acc);
+    state._geoSavedAt = now; state._geoSavedLoc = loc;
+  }
+  const card = document.getElementById('nearCard');
+  if (card && !card.hidden) {
+    state.meLoc = loc; // 蓋章判定永遠吃最新點，不等清單重排節流。
+    const old = state._nearRenderLoc;
+    if (!old || now - (state._nearRenderAt || 0) >= 10000 ||
+        (now - (state._nearRenderAt || 0) >= 2000 && haversineKm(old, loc) >= .02)) {
+      state._nearRenderAt = now; state._nearRenderLoc = loc; renderNearbyStations();
+    }
+  }
+  updateGeoCamera(loc);
+  return coords;
+}
+function stopForegroundGeoWatch() {
+  const bridge = window.RAIL_NATIVE_GEOLOCATION;
+  const id = state._geoWatchId;
+  const resolve = state._geoWatchResolve;
+  if (resolve) resolve(null);
+  state._geoWatchToken++;
+  state._geoWatchId = null; state._geoWatchStarting = false; state._geoWatchFirst = null;
+  if (state._geoWatchTimer) clearTimeout(state._geoWatchTimer);
+  state._geoWatchTimer = null;
+  state._geoWatchResolve = null;
+  if (id != null && bridge && bridge.clearWatch) Promise.resolve(bridge.clearWatch(id)).catch(() => {});
+}
+function startForegroundGeoWatch({ force = false } = {}) {
+  const bridge = window.RAIL_NATIVE_GEOLOCATION;
+  if (!LOCATE_ENABLED || !bridge || document.hidden || !state._geoTrackingWanted) return Promise.resolve(null);
+  if (force) state._geoWatchBlocked = false;
+  if (state._geoWatchBlocked) return Promise.resolve(null);
+  // 首次 watch 已逾時但仍沒有任何 fix 時，使用者主動按「附近車站」要能重開一次，不能只拿到
+  // 那顆已經 resolve(null) 的舊 Promise。自動流程不重試，避免權限／收訊異常時反覆喚醒 GPS。
+  if (force && state._geoWatchFirst && !state._geoWatchResolve && !state.geoLoc) stopForegroundGeoWatch();
+  if (state._geoWatchFirst) return state._geoWatchFirst;
+  // 舊橋接／測試替身若沒有 watchPosition，仍保留一次性定位退路，不讓整個入口失效。
+  if (typeof bridge.watchPosition !== 'function') {
+    return requestGeo(GEO_WATCH_OPTS).then(c => acceptGeoFix(c)).catch(err => {
+      state._geoLastError = err; if (geoPermissionDenied(err)) state._geoWatchBlocked = true; return null;
+    });
+  }
+  const token = ++state._geoWatchToken;
+  state._geoWatchStarting = true; state._geoLastError = null;
+  let resolveFirst;
+  state._geoWatchFirst = new Promise(resolve => { resolveFirst = resolve; });
+  state._geoWatchResolve = value => {
+    if (token !== state._geoWatchToken || !resolveFirst) return;
+    const done = resolveFirst; resolveFirst = null; state._geoWatchResolve = null;
+    if (state._geoWatchTimer) clearTimeout(state._geoWatchTimer);
+    state._geoWatchTimer = null; done(value);
+  };
+  state._geoWatchTimer = setTimeout(() => state._geoWatchResolve && state._geoWatchResolve(null), 13000);
+  Promise.resolve(bridge.watchPosition(GEO_WATCH_OPTS, (pos, err) => {
+    if (token !== state._geoWatchToken) return;
+    if (pos && pos.coords) {
+      const accepted = acceptGeoFix(pos.coords);
+      if (accepted && state._geoWatchResolve) state._geoWatchResolve(accepted);
+    }
+    if (err) {
+      state._geoLastError = err;
+      if (state._geoWatchResolve) state._geoWatchResolve(null);
+      if (geoPermissionDenied(err)) { state._geoWatchBlocked = true; stopForegroundGeoWatch(); }
+    }
+  })).then(id => {
+    if (token !== state._geoWatchToken || document.hidden) {
+      if (bridge.clearWatch) Promise.resolve(bridge.clearWatch(id)).catch(() => {});
+      return;
+    }
+    state._geoWatchId = id; state._geoWatchStarting = false;
+  }).catch(err => {
+    if (token !== state._geoWatchToken) return;
+    state._geoWatchStarting = false; state._geoLastError = err;
+    if (geoPermissionDenied(err)) state._geoWatchBlocked = true;
+    if (state._geoWatchResolve) state._geoWatchResolve(null);
+    state._geoWatchFirst = null;
+  });
+  return state._geoWatchFirst;
+}
 // 落點優先序 深連結 > 預設啟動地點 > 定位 > 上次視野(見 boot);故這裡先擋掉前兩者——
 // 分享連結進來的訪客不定位也不彈權限詢問,設了預設啟動地點的人同理。
 function startBootGeo() {
@@ -9584,51 +9717,42 @@ function startBootGeo() {
     if (qs.get('train') || qs.get('at') || qs.get('g') || qs.get('trip') || qs.get('live')) return;
   } catch (e) {}
   if (loadDefaultPlace()) return;
-  state._bootGeo = requestGeo({ enableHighAccuracy: false, timeout: 8000 })
-    .then(c => { saveGeoCache(c.latitude, c.longitude, c.accuracy); return c; })
-    .catch(() => null); // 拒絕權限/逾時都不吵使用者:開機自動定位是加分項,失敗就安靜退回原本的落點
+  state._geoTrackingWanted = true;
+  state._bootGeo = startForegroundGeoWatch();
 }
 // 定位回來時才決定要不要動鏡頭:使用者已經自己在操作(拖地圖/跟車/放空)就不搶,寧可不動也不要把畫面拉走。
 function applyBootGeo(c) {
   if (!c || !inTaiwan(c.latitude, c.longitude)) return; // 海外:維持原落點(地圖本來就鎖台灣,飛過去只會撞硬牆)
   if (state._userMoved || state.followTrain || state.freqFollow || state.autoTour || state.liveMode) return;
+  state.geoFollow = true;
   showMeMarker(c.latitude, c.longitude, c.accuracy);
   // 已經用快取落過點:同一帶的微調,靜靜換位置不做動畫(動畫會讓人以為地圖自己亂跑);
   // 沒落過點(首開):從全台同框飛過去,讓使用者看得出「地圖正在移到我這裡」。
   const t = focusCenter(c.latitude, c.longitude, GEO_BOOT_ZOOM);
   if (state._geoLanded) map.setView(t, GEO_BOOT_ZOOM, { animate: false });
   else map.flyTo(t, GEO_BOOT_ZOOM, { duration: .8 });
+  state._geoCameraAt = performance.now(); state._geoCameraLoc = { lat: c.latitude, lon: c.longitude };
   state._geoLanded = true;
 }
 async function locateMe() {
   showToast('正在定位你的位置…');
-  try {
-    const c = await requestGeo({ enableHighAccuracy: true });
-    saveGeoCache(c.latitude, c.longitude, c.accuracy);
-    await onLocated(c.latitude, c.longitude, c.accuracy);
-  } catch (e) { onLocateFail(e); }
+  state._geoTrackingWanted = true;
+  const c = await startForegroundGeoWatch({ force: true });
+  if (c) await onLocated(c.latitude, c.longitude, c.accuracy);
+  else onLocateFail(state._geoLastError);
 }
-// 「附近車站」鈕:定位已改成開機自動做掉,所以這顆鈕的職責只剩「我附近有哪些車站」——
-// 手上已經有位置(開機定位或上次定位)就直接開清單,不再讓使用者為了看清單再等一次定位。
+// 「附近車站」鈕同時是「回到我的位置」：用最新前景定位立即開卡並重啟所在地鏡頭。
 async function showNearby() {
-  const loc = state.meLoc || loadGeoCache();
+  state._geoTrackingWanted = true;
+  const loc = state.geoLoc || loadGeoCache();
   if (!loc) { locateMe(); return; } // 完全沒有位置(權限沒給/首開還沒定到):走完整流程,含權限詢問與失敗退路
-  const fresh = !!state.meLoc;
   openNearbyStations(loc.lat, loc.lon, loc.acc);
   showMeMarker(loc.lat, loc.lon, loc.acc || 0);
   // 先開卡再算鏡頭:卡開了才知道地圖被遮掉多少,藍點才落在「露出來的那塊」中央而不是被卡片吃掉
   const nz = Math.max(map.getZoom(), GEO_BOOT_ZOOM);
   map.flyTo(focusCenter(loc.lat, loc.lon, nz), nz, { duration: .6 });
-  if (fresh) return;
-  // 位置來自快取(可能是上次開 App 記下的):背景抓一次高精度定位,到了就把藍點與清單換成真的。
-  try {
-    const c = await requestGeo({ enableHighAccuracy: true });
-    saveGeoCache(c.latitude, c.longitude, c.accuracy);
-    if (!document.getElementById('nearCard').hidden) {
-      showMeMarker(c.latitude, c.longitude, c.accuracy);
-      openNearbyStations(c.latitude, c.longitude, c.accuracy);
-    }
-  } catch (e) {} // 背景校正失敗不吵使用者:清單已經用快取位置出來了,還可用
+  // 快取可先顯示，但一定接回前景 watch；新 fix 到了會自動更新藍點、鏡頭與清單。
+  void startForegroundGeoWatch({ force: true });
 }
 // 定位失敗不留死路:給對平台正確的說明(手機沒有「網址列鎖頭」),並自動切到『釘』——免任何權限,
 // 直接在地圖上點自己的位置就能看附近火車。iPhone「加到主畫面」的 App 常常根本不跳權限詢問就被拒
@@ -9657,6 +9781,7 @@ async function onLocated(lat, lon, accM) {
   // 立刻停掉所有會搶相機的模式(跟車/捷運跟車/隨機巡航/放空),否則 flyTo 會被下一幀的鏡頭拉回。
   // 使用者要的是「不管是否正在跟隨車輛,都立刻移到我的位置」。clearFollow 內部已一併清捷運跟車。
   setAmbient(false); setAutoTour(false); clearFollow();
+  state.geoFollow = true; state._userMoved = false;
   showMeMarker(lat, lon, accM);
   openNearbyStations(lat, lon, accM); // 先出資訊卡,不讓相機動畫的任何意外吞掉清單
   const t = focusCenter(lat, lon, 15); // 卡片遮掉的地圖不算:藍點落在露出來那塊的中央
@@ -9668,6 +9793,7 @@ function openNearbyStations(lat, lon, acc) {
   // onLocated() 走的是另一條路徑,它自己已經先清過一次,這裡重複執行被守衛擋掉,無副作用。
   if (state.autoTour) setAutoTour(false);
   if (state.followTrain || state.followId || state.freqFollow) clearFollow();
+  state.geoFollow = true; state._userMoved = false;
   soloPanel('near');
   closeBoard(); closeCrossingCard(); closePinCard(); closeSugarCard();
   // acc(公尺)給單站打卡判定用:地下站精度動輒數百公尺,沒有它就沒辦法決定要不要放行(見 checkinJudge)
@@ -12692,6 +12818,7 @@ function placeTrainCard() {
 function setFollow(tr, isAuto, noJump, opts) {
   if (!tr) return;
   opts = opts || {};
+  state.geoFollow = false; // 車輛跟隨接管鏡頭；GPS watcher 不停，解除後可再按「附近車站」回到自己
   clearFreqFollow(); // 全台同框:接手台鐵/高鐵跟隨前先解除捷運示意車跟隨(互斥)
   if (!isAuto && state.autoTour) setAutoTour(false); // 使用者手動選車即接手,退出隨機模式
   if (state.ambient && state.ambientStyle === 'hotspot') hotspotStop(); // 群車放空中點車=接手跟隨,導演讓位(取消跟隨即恢復)
@@ -12993,6 +13120,7 @@ function fadeSwitchMetro(pick) {
 }
 function setAutoTour(on) {
   if (on) closeNearbyStations();
+  if (on) state.geoFollow = false;
   if (on && state.mode !== 'sched') {
     const s = state.systems.find(x => x.mode === 'sched');
     if (!s) return;
@@ -13356,6 +13484,7 @@ function releaseWakeLock() {
 }
 document.addEventListener('visibilitychange', () => {
   if (document.hidden) {
+    stopForegroundGeoWatch(); // When-in-use：退背景／鎖屏立刻停 GPS，回前景再接回
     // 進背景前記下「當下是否正貼著真實時刻」,回前景才知道該不該重錨(見下)。
     // 判斷改看 clockAtNow 旗標,不看「與現在的差距 ≤120 秒」:那個寫法是單向陷阱——
     // 時鐘一旦因故漂超過 120 秒(裝置休眠、rAF 長期凍結),就被判定「不是即時」而永遠不再重錨,
@@ -13364,6 +13493,7 @@ document.addEventListener('visibilitychange', () => {
       state.clockAtNow;
     return;
   }
+  if (state._geoTrackingWanted) void startForegroundGeoWatch();
   // 錄製模式也要重取:iOS 切走再切回來 wakeLock 會被釋放且**不會自動恢復**,
   // 漏掉的話一小時的錄製會在使用者接一通電話之後螢幕就開始自己暗掉(規格 §10)。
   if (state.ambient || state.recording) acquireWakeLock();
@@ -13447,6 +13577,7 @@ function ambientIdleReset() {
 
 function setAmbient(on) {
   if (on === !!state.ambient) return;
+  if (on) state.geoFollow = false;
   state.ambient = on;
   document.body.classList.toggle('ambient', on); // 供 CSS 做放空專屬版面(手機迷你化)
   const b = document.getElementById('ambientBtn');
@@ -23818,8 +23949,8 @@ const HELP_GROUPS = [
   ]},
   { key: 'b', name: '我的', open: false, secs: [
     { key: 'locate', ic: '<span style="color:var(--gps)">◎</span>', nm: '定位與附近車站', badge: 'App', avail: () => LOCATE_ENABLED,
-      one: '開 App 就落在你附近；「附近車站」告訴你最近的車站與下一班車還有幾分鐘。',
-      steps: ['首次會問一次定位權限', '按地圖上的「附近車站」', '點清單裡的站直接開看板'],
+      one: 'App 留在前景時藍點與所在地鏡頭會持續跟著你；「附近車站」告訴你最近的車站與下一班車還有幾分鐘。',
+      steps: ['首次會問定位權限；Android 建議開啟「精確位置」', '手動拖圖會解除所在地鏡頭，定位藍點仍持續更新', '按「附近車站」回到目前位置，點清單裡的站直接開看板'],
       tip: '你的位置只在這台裝置上用來顯示，不會上傳、也不會在背景取用。不給權限也能用，改用下面的「儲存地點」。', try: 'near' },
     { key: 'pin', ic: '釘', nm: '儲存地點', tg: 'pinBtn',
       one: '把家、公司、拍車點存下來，看有哪些火車會經過那裡。',
@@ -25218,6 +25349,7 @@ async function boot() {
   // 拖曳地圖=解鎖(Google 導航式);縮放不解鎖
   // 放空模式不解鎖:鈕是藏的,解了鎖沒辦法鎖回,鏡頭會永久漂走;隨機跟隨鈕有顯示,可解鎖也可點回置中
   map.on('dragstart', () => {
+    if (state.geoFollow) state.geoFollow = false; // Google Maps 式：手動拖圖只解所在地鏡頭，不關前景 GPS／藍點
     if ((state.followTrain || state.freqFollow) && state.followLock && !document.body.classList.contains('ambient')) setFollowLock(false);
     if (state.ambient && state.ambientStyle === 'hotspot' && !state.followTrain) {
       state._hotNext = performance.now() + 45000; // 使用者動手看地圖:這一幕延長,巡航讓位幾秒再接手
@@ -25601,6 +25733,8 @@ async function boot() {
       map.setView([defPlace.lat, defPlace.lon], defPlace.z, { animate: false }); // 預設啟動地點:置中到儲存地點(全台同框群組已載入)
     } else if (geoCache) {
       map.setView([geoCache.lat, geoCache.lon], GEO_BOOT_ZOOM, { animate: false }); // 上次定位到的地方:0 秒落點,真定位回來再校正
+      state.geoLoc = { lat: geoCache.lat, lon: geoCache.lon, acc: geoCache.acc || 0 };
+      state.geoFollow = true; showMeMarker(geoCache.lat, geoCache.lon, geoCache.acc || 0);
       state._geoLanded = true;
     } else if (lastView) {
       map.setView([lastView.lat, lastView.lon], lastView.z, { animate: false }); // 回到上次離開的位置(群組已於上面一併還原)
@@ -25608,7 +25742,7 @@ async function boot() {
   }
   map.on('moveend', saveLastView); // 記住使用者最後看的畫面;守門條件都在 saveLastView 內(巡航/跟車/直播皆不寫)
   // 使用者一開始自己拖地圖,開機定位就別再搶鏡頭(dragstart 只有真的手動拖曳才發,程式化的 setView/flyTo 不會)
-  map.on('dragstart', () => { state._userMoved = true; });
+  map.on('dragstart', () => { state._userMoved = true; state.geoFollow = false; });
   if (geoBoot) state._bootGeo.then(applyBootGeo);
   state.ready = true;
   setupNativePlacesSync();
