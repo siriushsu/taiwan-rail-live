@@ -2158,9 +2158,117 @@ async function sectionU(browser, engine) {
     diff(L && L.now, D && D.now), JSON.stringify({ 亮: L && L.now, 暗: D && D.now }));
 }
 
+
+// ── V 段:設計 16b 捷運看板每條線一個組標題 ───────────────────────────────────
+// 🔴 前提是「捷運正在營運且有官方資料」——深夜跑 V1 會紅,那是環境不是回歸(判準刻意做成
+//    正向對照先紅,而不是靜靜地全部略過:沒有列可量時「每個標題都配對正確」恆真)。
+// 🔴 V4 刻意【不】要求「兩個分支同時出現在板上」:那取決於當下有沒有車,手機窄板每組又只
+//    列得下 1 列(實測踩過,同一支腳本在 webkit/393 假紅)。改成「板上出現的每一列 O 分支,
+//    標題都必須恰好是去掉括號的線名」,前提弱得多而且照樣抓得到沒去括號的實作。
+async function sectionV(browser, engine) {
+  const OPEN = `async (n) => {
+    const k = n.replace(/臺/g, '台');
+    let st = null;
+    const pool = state.mode === 'sched' ? (state.decoLines || []) : (state.lines || []);
+    for (const ln of pool) { const s = (ln.stations || []).find(x => x.name.replace(/臺/g, '台') === k); if (s) { st = { name: s.name, lat: s.lat, lon: s.lon, sys: 'deco' }; break; } }
+    if (!st) return false;
+    openBoard(st); await new Promise(r => setTimeout(r, 700)); return true;
+  }`;
+  const READ = `() => {
+    const el = document.getElementById('board');
+    const pool = state.mode === 'sched' ? (state.decoLines || []) : (state.lines || []);
+    const hex = c => { const t = String(c || '').trim().toLowerCase();
+      if (t.startsWith('#')) return t.length === 4 ? '#' + [...t.slice(1)].map(x => x + x).join('') : t;
+      const m = t.match(/[0-9]+/g); return m ? '#' + m.slice(0, 3).map(x => (+x).toString(16).padStart(2, '0')).join('') : ''; };
+    const out = []; let cur = null;
+    for (const e of el.querySelectorAll('.grp, .row')) {
+      if (e.classList.contains('grp')) {
+        const d = e.querySelector('.gdot'), cs = getComputedStyle(d);
+        cur = { label: e.querySelector('b').textContent, dot: hex(cs.backgroundColor), radius: cs.borderTopLeftRadius,
+          fs: parseFloat(getComputedStyle(e.querySelector('b')).fontSize), first: e.classList.contains('first'),
+          bt: parseFloat(getComputedStyle(e).borderTopWidth), right: Math.round(e.getBoundingClientRect().right), rows: [] };
+        out.push(cur);
+      } else {
+        const rd = e.querySelector('.dot');
+        const rec = { dest: (e.querySelector('.dest') || {}).textContent || '',
+          bt: parseFloat(getComputedStyle(e).borderTopWidth), fs: parseFloat(getComputedStyle(e).fontSize),
+          radius: rd ? getComputedStyle(rd).borderTopLeftRadius : '', right: Math.round(e.getBoundingClientRect().right) };
+        if (cur) cur.rows.push(rec); else out.push({ label: null, rows: [rec] });
+      }
+    }
+    const colors = {};
+    for (const ln of pool) {
+      const lab = String(ln.name || ln.abbr || '').replace(/（[^（）]*）\\s*$/, '');
+      if (lab && !colors[lab]) colors[lab] = hex(ln.color);
+    }
+    return { groups: out, colors, winW: document.documentElement.clientWidth };
+  }`;
+  for (const width of [1280, 393]) {
+    const { page, errs, close } = await boot(browser, { width });
+    await page.waitForTimeout(2500);   // 官方即時名冊要多等一輪才切得出組
+    const tag = `${engine}/${width}`;
+    const open = n => page.evaluate(([s, n]) => eval('(' + s + ')')(n), [OPEN, n]);
+    const read = () => page.evaluate(s => eval('(' + s + ')')(), READ);
+    if (!await open('古亭')) { ok(`V1 ${tag} 正向對照:開得了古亭看板`, false, '找不到站'); await close(); continue; }
+    const r = await read(), named = r.groups.filter(g => g.label);
+    ok(`V1 ${tag} 正向對照:古亭看板有列可量(深夜收班會紅,那是環境)`,
+      r.groups.reduce((a, g) => a + g.rows.length, 0) >= 2, JSON.stringify(r.groups.map(g => [g.label, g.rows.length])));
+    ok(`V2 ${tag} 轉乘站長出 ≥2 個組標題`, named.length >= 2, JSON.stringify(named.map(g => g.label)));
+    ok(`V3 ${tag} 🔴 每個標題底下的列,線名都真的屬於那條線(標題沒配錯組)`,
+      named.length > 0 && named.every(g => g.rows.length > 0 && g.rows.every(x => x.dest.includes(g.label))),
+      JSON.stringify(named.map(g => ({ 標題: g.label, 列: g.rows.map(x => x.dest) }))));
+    const oRows = named.flatMap(g => g.rows.filter(x => /中和新蘆線（/.test(x.dest)).map(() => g.label));
+    ok(`V4 ${tag} 🔴 O 分支列的標題恰為「中和新蘆線」且只有一個(兩個分支不切成兩條線)`,
+      oRows.length >= 1 && oRows.every(l => l === '中和新蘆線') && named.filter(g => g.label === '中和新蘆線').length === 1,
+      JSON.stringify({ 分支列數: oRows.length, 它們的標題: [...new Set(oRows)], 全部標題: named.map(g => g.label) }));
+    ok(`V4b ${tag} 標題字兩兩不重複`, new Set(named.map(g => g.label)).size === named.length, JSON.stringify(named.map(g => g.label)));
+    ok(`V5 ${tag} 🔴 色點逐字等於該線的官方線色(不是「有顏色就好」)`,
+      named.length > 0 && named.every(g => r.colors[g.label] && g.dot === r.colors[g.label]),
+      JSON.stringify(named.map(g => ({ [g.label]: g.dot, 官方: r.colors[g.label] }))));
+    ok(`V6 ${tag} 第一組沒有上分隔線、之後每組都有;組內第一列不再畫列間分隔`,
+      !!named[0] && named[0].first && named[0].bt === 0 && named.slice(1).every(g => g.bt > 0) &&
+      named.every(g => g.rows[0] && g.rows[0].bt === 0),
+      JSON.stringify(named.map(g => ({ f: g.first, bt: g.bt, r0: g.rows[0] && g.rows[0].bt }))));
+    ok(`V7 ${tag} 標題與列都沒有溢出視窗`,
+      r.groups.every(g => (g.right == null || g.right <= r.winW + 1) && g.rows.every(x => x.right <= r.winW + 1)),
+      JSON.stringify({ winW: r.winW, 標題右緣: named.map(g => g.right) }));
+    ok(`V12 ${tag} 標題字比列小(組標題是層級,不是又一列)`,
+      named.length > 0 && named.every(g => g.rows[0] && g.fs < g.rows[0].fs),
+      JSON.stringify(named.map(g => ({ 標題: g.fs, 列: g.rows[0] && g.rows[0].fs }))));
+    ok(`V13 ${tag} 標題色點是圓角方塊、列的是圓——兩者形狀分得開`,
+      named.length > 0 && named.every(g => g.radius !== '50%' && parseFloat(g.radius) > 0 && g.rows[0] && g.rows[0].radius === '50%'),
+      JSON.stringify(named.map(g => ({ 標題: g.radius, 列: g.rows[0] && g.rows[0].radius }))));
+    const click = await page.evaluate(async () => {
+      const el = document.getElementById('board'), g = el.querySelector('.grp');
+      const before = { open: !el.hidden, follow: !!state.freqFollow };
+      g.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true })); g.click();
+      await new Promise(r => setTimeout(r, 300));
+      const midHead = { open: !document.getElementById('board').hidden, follow: !!state.freqFollow };
+      const row = document.querySelector('#board .row[data-core-vehicle], #board .row[data-ci]');
+      let after = null;
+      if (row) { row.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true })); row.click();
+        await new Promise(r => setTimeout(r, 400)); after = { open: !document.getElementById('board').hidden, follow: !!state.freqFollow }; }
+      return { before, midHead, after, hadRow: !!row };
+    });
+    ok(`V8 ${tag} 🔴 點組標題不跟車、看板不關(標題不是可點的東西)`,
+      click.midHead.open === true && click.midHead.follow === click.before.follow, JSON.stringify(click));
+    ok(`V9 ${tag} 正向對照:點列仍然跟得到車(看板關閉＝跟隨接手)`,
+      !click.hadRow || !!(click.after && click.after.open === false), JSON.stringify(click.after));
+    await page.evaluate(() => closeBoard());
+    if (await open('永安市場')) {
+      const s = await read();
+      ok(`V10 ${tag} 🔴 單線站完全不長標題(每列的線名已經寫著同一條線)`,
+        s.groups.every(g => !g.label) && s.groups.reduce((a, g) => a + g.rows.length, 0) > 0,
+        JSON.stringify(s.groups.map(g => [g.label, g.rows.length])));
+    } else ok(`V10 ${tag} 單線站不長標題`, false, '開不了永安市場');
+    ok(`V11 ${tag} 零 pageerror`, errs.length === 0, errs.slice(0, 1).join(''));
+    await close();
+  }
+}
+
 await assertTarget();
 // SECTIONS=H,I 只跑指定段(突變測試用);不設就跑全部——預設永遠是「全跑」,不能靠環境變數才完整。
-const ALL = { A: sectionA, B: sectionB, C: sectionC, D: sectionD, E: sectionE, F: sectionF, G: sectionG, H: sectionH, I: sectionI, J: sectionJ, K: sectionK, L: sectionL, M: sectionM, MX: sectionMx, N: sectionN, NX: sectionNx, O: sectionO, P: sectionP, Q: sectionQ, R: sectionR, S: sectionS, T: sectionT, U: sectionU };
+const ALL = { A: sectionA, B: sectionB, C: sectionC, D: sectionD, E: sectionE, F: sectionF, G: sectionG, H: sectionH, I: sectionI, J: sectionJ, K: sectionK, L: sectionL, M: sectionM, MX: sectionMx, N: sectionN, NX: sectionNx, O: sectionO, P: sectionP, Q: sectionQ, R: sectionR, S: sectionS, T: sectionT, U: sectionU, V: sectionV };
 const want = (process.env.SECTIONS || '').split(',').map(x => x.trim().toUpperCase()).filter(Boolean);
 const run = want.length ? want : Object.keys(ALL);
 for (const k of run) if (!ALL[k]) { console.error(`未知段別 ${k}`); process.exit(2); }

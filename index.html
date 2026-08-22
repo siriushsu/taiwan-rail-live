@@ -1815,6 +1815,13 @@
     border-radius: 7px; padding: 6px 8px; font-size: calc(12px * var(--uis)); font-weight: 700; line-height: 1.45; }
   .board .row { display: flex; align-items: baseline; gap: 8px; padding: 6px 0; border-top: 1px dashed var(--line-faint); font-size: calc(13px * var(--ui)); }
   .board .row:first-of-type { border-top: 0; }
+  /* 設計 16b:轉乘站每條線各自成組,組標題掛官方線色。單線站不長標題——那裡每一列的
+     .dest 本來就寫著線名,再加一條只寫同一個線名的標題是純噪音。 */
+  .board .grp { display: flex; align-items: center; gap: 7px; margin-top: 9px; padding: 9px 0 3px; border-top: 1.5px dashed var(--line-dash); }
+  .board .grp.first { margin-top: 2px; padding-top: 0; border-top: 0; }
+  .board .grp .gdot { width: 9px; height: 9px; border-radius: 3px; background: var(--c); flex: none; }
+  .board .grp b { font-size: calc(11.5px * var(--uis)); font-weight: 800; letter-spacing: 1px; color: var(--ink-strong); }
+  .board .grp + .row { border-top: 0; }   /* 組內第一列不再畫列間分隔(標題自己那條就是分隔) */
   /* 設計 6b 的「›」:平常完全不存在(標準/大都不收欄位,不需要出口),只有特大才長出來 */
   .board .row .rmore { display: none; }
 
@@ -23113,11 +23120,31 @@ function metroCoreBoardView(st, lines, isDeco, nowEpoch = Date.now() / 1000) {
   groups.sort((a, b) => a.li - b.li || ((a.rows[0] && a.rows[0].dtm) || 0) - ((b.rows[0] && b.rows[0].dtm) || 0));
   return { groups, stationLines, linked: groups.flatMap(group => group.rows).filter(row => row.kind === 'core' && row.vehicleId).length };
 }
+// ── 設計 16b:捷運看板的每條線一個組標題 ─────────────────────────────────────
+// 標題字去掉線名尾端的括號分支:中和新蘆線在我方是 O_XINZHUANG／O_LUZHOU 兩個 line 物件
+// (共線段分支歸屬的產物),但官方站內標示就是一條「中和新蘆線」,兩條標題並排會讓人以為
+// 古亭有兩條不同的線。全網只有這一對線名帶括號;新北投支線與小碧潭支線各有自己的名字,
+// 不會被誤併。列上的 .dest 仍寫完整的「中和新蘆線（迴龍）」,分支資訊沒有消失。
+function metroBoardGroupLabel(ln) {
+  return String((ln && (ln.name || ln.abbr || ln._sysLabel)) || '').replace(/（[^（）]*）\s*$/, '');
+}
+// 回傳每組的標題字;整張板只有一種線名時回 null(＝不加標題)。
+function metroBoardGroupHeads(groups) {
+  const labels = (groups || []).map(g => metroBoardGroupLabel(g.ln));
+  return new Set(labels.filter(Boolean)).size >= 2 ? labels : null;
+}
+// 同一條線的組是連續的(三支 renderer 的 groups 都先照 li 排序),所以只要跟前一組不同字就換組。
+function metroBoardHeadHtml(heads, gi, ln) {
+  if (!heads || heads[gi] === heads[gi - 1]) return '';
+  return `<div class="grp${gi ? '' : ' first'}"><span class="gdot" style="--c:${(ln && ln.color) || 'transparent'}"></span>` +
+    `<b>${escHtml(heads[gi])}</b></div>`;
+}
 function renderMetroCoreFreqBoard(el, st, lines, isDeco, view) {
   delete el.dataset.trtcOfficial;
   el.dataset.metroCore = '1';
   const records = [];
-  const body = view.groups.map(group => group.rows.map(rec => {
+  const heads = metroBoardGroupHeads(view.groups);
+  const body = view.groups.map((group, gi) => metroBoardHeadHtml(heads, gi, group.ln) + group.rows.map(rec => {
     const lineLabel = (group.ln._sysLabel ? group.ln._sysLabel + ' ' : '') + (group.ln.name || group.ln.abbr || '');
     if (rec.kind === 'core') {
       const index = records.push(rec) - 1, followable = !!rec.vehicleId;
@@ -23343,11 +23370,13 @@ function renderTrtcOfficialFreqBoard(el, st, lines, isDeco, view) {
   el._downKey = null; // 不讓 legacy 看板先前的 pointerdown 穿越到官方列
   const hasEstimated = view.groups.some(g => g.kind === 'legacy' && g.ln.times && g.ln.times.estimated);
   const officialRecords = [];
-  const body = view.groups.map(group => {
+  const heads = metroBoardGroupHeads(view.groups);
+  const body = view.groups.map((group, gi) => {
+    const head = metroBoardHeadHtml(heads, gi, group.ln);
     // 標籤只寫線名不掛系統前綴(08-14 使用者:擁擠度格進來後「台北捷運」四個字把空間吃掉,
     // 線名本身已足夠辨識)——這裡是北捷官方板,線名(淡水信義線/安坑輕軌/機場捷運)不會歧義。
     const lineLabel = group.ln.name || group.ln.abbr || group.ln._sysLabel || '';
-    if (group.kind === 'official') return group.rows.map(rec => {
+    if (group.kind === 'official') return head + group.rows.map(rec => {
       officialRecords.push(rec);
       const join = rec.join;
       const followAttrs = join ? ` data-li="${join.li}" data-ci="${join.ci}" title="跟隨 往${escHtml(group.destName)} 班次"`
@@ -23364,7 +23393,7 @@ function renderTrtcOfficialFreqBoard(el, st, lines, isDeco, view) {
         crowdHtml +
         `<span class="t">${trtcOfficialAbsoluteHM(rec.row.eta)}</span><span class="min">${trtcOfficialCountdownText(rec.row.eta, view.nowMs / 1000, rec.arrival && rec.arrival.near)}</span></div>`;
     }).join('');
-    return group.rows.map(row => {
+    return head + group.rows.map(row => {
       const min = row.dtm < 60 ? '即將進站' : Math.round(row.dtm / 60) + ' 分';
       return `<div class="row" data-li="${group.li}" data-ci="${row.ci}" title="跟隨 往${escHtml(group.destName)} 班次"><span class="dot" style="background:${group.ln.color}"></span>` +
         `<b>往 ${escHtml(group.destName)}</b><span class="dest">${escHtml(lineLabel)}</span>` +
@@ -23489,9 +23518,10 @@ function renderFreqBoard(el, st, lines, isDeco) {
   const hasEstimated = groups.some(g => g.ln.times && g.ln.times.estimated);
   const hasLive = groups.some(g => metroLiveOn(g.ln));
   const allFresh = hasLive && groups.filter(g => metroLiveOn(g.ln)).every(g => metroFresh(g.ln)); // 有任一線非 fresh(高倍速投射/資料稍舊)整體改推估措辭,同 updateMetroBadge
-  const body = groups.map(g => {
+  const heads = metroBoardGroupHeads(groups);
+  const body = groups.map((g, gi) => {
     const lineLabel = (g.ln._sysLabel ? g.ln._sysLabel + ' ' : '') + (g.ln.name || g.ln.abbr || '');
-    return g.rows.map(r => {
+    return metroBoardHeadHtml(heads, gi, g.ln) + g.rows.map(r => {
       const min = r.dtm < 60 ? '即將進站' : Math.round(r.dtm / 60) + ' 分';
       return `<div class="row" data-li="${g.li}" data-ci="${r.ci}" title="跟隨 往${g.destName} 班次"><span class="dot" style="background:${g.ln.color}"></span>` +
         `<b>往 ${g.destName}</b><span class="dest">${lineLabel}</span>` +
