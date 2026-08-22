@@ -2011,8 +2011,26 @@
   #favPanel .row.fvpin { cursor: pointer; }
   #favPanel .row.fvpin:hover { background: var(--bg-stage); }
   #favPanel .row.fvpin .ico { flex: none; font-size: calc(13px * var(--ui)); line-height: 1; }
-  #favPanel .row .rm { margin-left: auto; color: var(--faint); font-weight: 700; padding: 0 4px; }
-  #favPanel .row .rm:hover { color: var(--red); }
+  /* 設計 3f:右欄一顆實心星＝唯一的移除入口(不做編輯模式)。
+     🔴 舊的是 `<span>×</span>` 只有左右 4px 內距,實測熱區約 13×20 —— 遠低於觸控標準,
+        而且它是這張面板唯一的破壞性操作。現在整顆是 44 格(跟著 --uit 一起長)。
+     🔴 .board .row 是 align-items:baseline,按鈕不自己 align-self:center 會被基線拉下去。
+     星是實心的(符號本身只有描邊,這裡補 fill)——實心＝已收藏,按下去就取消,與看板的 ☆ 同語意。 */
+  #favPanel .row .rm {
+    margin-left: auto; flex: none; align-self: center;
+    display: grid; place-items: center;
+    width: calc(44px * var(--uit)); height: calc(44px * var(--uit));
+    padding: 0; background: none; border: 0; border-radius: 8px;
+    font-size: calc(17px * var(--ui)); color: #d2a12a; cursor: pointer;
+  }
+  #favPanel .row .rm .ri-icon { fill: currentColor; }
+  #favPanel .row .rm:hover { color: var(--red); background: var(--bg-stage); }
+  /* 44 的星塞進 6px 上下內距的列會變成 56 高;收成 2px ⇒ 48,正是設計的列高。
+     只套在有星的列(:has),我的車(.row.myt)那種沒有星的列不受影響。
+     🔴 同時要改 align-items:.board .row 是 baseline 對齊——列被 44 的星撐到 48 之後,
+        文字仍釘在頂端、星卻置中,看起來就是「字在上、星掛在右下」(實測截圖如此)。
+        有星的列一律改置中,整列的名稱/標籤/狀態與星才在同一條水平線上。 */
+  #favPanel .row:has(.rm) { padding: 2px 0; align-items: center; }
   /* 我的車(通行證專屬:favPanel 收藏的台鐵列車準點總覽,見 myTrainSection)。列本身的 cursor/hover
      吃通用的 .board .row[data-no] 規則(不必再寫一次);這裡只補 teaser 遮罩——結構比照誤點履歷卡
      的 dh-lock/dh-cta(模糊+置中CTA),換一套自己的類名,不共用 .delayhist-panel 專屬作用域。 */
@@ -14838,22 +14856,43 @@ function renderFavPanel() {
   const el = document.getElementById('favPanel');
   if (el.hidden) return;
   const favs = loadFavs(), stns = loadFavStations(), pins = loadPins();
-  el.innerHTML = `<h3>我的最愛<button class="close" id="favClose">×</button></h3><div class="sub">點車站開看板 · 點列車跟隨 · 點地點看附近火車 · × 移除</div>` +
+  // 設計 3f:標題下面是**清點**(幾班車幾站幾個地點),不是操作說明——操作已經自己講清楚了
+  // (整列可點、右欄星星按了就移除),說明留在使用說明中心。
+  const counts = [favs.length ? favs.length + ' 班車' : '', stns.length ? stns.length + ' 站' : '',
+    pins.length ? pins.length + ' 個地點' : ''].filter(Boolean).join(' · ');
+  // 設計 3f:右欄一顆星就是唯一的移除入口(不做「編輯模式」)。星是**實心的**——它代表「已收藏」,
+  // 按下去就取消。整顆是 44 觸控格(舊的 × 只有 4px 內距,實測連 20px 都不到)。
+  // data-* 與類名逐字沿用,favPanel 的處理常式(closest('.rm') 讀 dataset)一行都不用改。
+  const rmStar = attrs => `<button type="button" class="rm" ${attrs} aria-label="移除收藏" title="移除收藏">` +
+    railIcon('ui-favorite') + `</button>`;
+  el.innerHTML = `<h3>我的最愛<button class="close" id="favClose">×</button></h3>` +
+    (counts ? `<div class="sub">${counts}</div>` : '') +
     (stns.length
       ? `<div class="sec">車站</div>` + stns.map(f => {
           const key = escHtml(f.sys + '|' + f.name);
+          // 下一班:台鐵/高鐵讀**看板同一份**計算(schedBoardRows);捷運/輕軌的到站時刻來自官方
+          // 即時看板、不是班表,這裡不自己推一份 ⇒ **留白**(寧可不寫,也不寫一個可能不對的時間)。
+          // 另:切到別的群組時 state.trains 裡沒有這個系統的車,同樣自然留白。
+          const nx = (f.sys === 'tra_sched' || f.sys === 'thsr_sched') ? schedBoardRows({ name: f.name, sys: f.sys })[0] : null;
+          const nxTxt = nx ? `下一班 ${fmtHM(nx.t % 86400)}${nx.off ? '（停駛）' : nx.dl > 0 ? ` +${nx.dl}` : ''}` : '';
           return `<div class="row fvst" data-stkey="${key}"><span class="ico"></span>` +
-            `<b>${escHtml(f.name)}</b><span class="dest">${escHtml(f.label)}</span><span class="rm" data-stkey="${key}" title="移除">×</span></div>`;
+            `<b>${escHtml(f.name)}</b><span class="dest">${escHtml(f.label)}</span>` +
+            (nxTxt ? `<span class="min">${nxTxt}</span>` : '') + rmStar(`data-stkey="${key}"`) + `</div>`;
         }).join('')
       : '') +
     (favs.length
       ? (stns.length ? `<div class="sec">列車</div>` : '') + favs.map(f => {
           const no = escHtml(f.train);
           const sys = favTrainSys(f), reminderSys = sys === 'thsr_sched' ? 'thsr' : (sys === 'tra_sched' ? 'tra' : '');
+          // 設計 3f:每列右側標它此刻在不在跑(與亮點面板同一支 trainStatusTxt,不另寫一套判斷)。
+          // 找不到這班車(換群組/停駛/隔日班表)就留白,不猜。
+          const tr = (state.trains || []).find(t => String(t.train) === String(f.train) && (t.sys || '') === sys);
+          const stat = tr ? trainStatusTxt(tr) : '';
           return `<div class="row fv" data-no="${no}" data-sys="${escHtml(sys)}"><span class="dot" style="background:#d2a12a"></span>` +
             `<b>${no}</b><span class="dest">${escHtml(f.label)}</span>` +
+            (stat ? `<span class="min">${stat}</span>` : '') +
             (NOTIFY_LOCAL_ENABLED && findLocalReminderTrain(f.train, reminderSys) ? `<button class="fv-notify" type="button" data-notify-no="${no}" data-notify-sys="${reminderSys}" aria-label="管理到站提醒">${railIcon('ui-notify')}</button>` : '') +
-            `<span class="rm" data-no="${no}" data-sys="${escHtml(sys)}" title="移除">×</span></div>`;
+            rmStar(`data-no="${no}" data-sys="${escHtml(sys)}"`) + `</div>`;
         }).join('')
       : '') +
     myTrainSection() +
@@ -14865,7 +14904,7 @@ function renderFavPanel() {
             return `<div class="row fvpin" data-pin="${key}"><span class="ico"></span>` +
               `<b>${escHtml(p.label || '未命名地點')}</b>` +
               `<button class="fv-default${isDef ? ' on' : ''}" type="button" data-defpin="${key}" title="${isDef ? '取消預設啟動地點' : '設為預設啟動地點（開啟時直接來這裡）'}">${isDef ? '預設' : '設為預設'}</button>` +
-              `<span class="rm" data-pin="${key}" title="移除">×</span></div>`;
+              rmStar(`data-pin="${key}"`) + `</div>`;
           }).join('');
         })()
       : '') +
@@ -17502,11 +17541,16 @@ function buildPunctual() {
   ensurePunctualData();
   state._punctual = new Set(punctualTrainList());
 }
+// 一班車此刻的狀態字樣。原本 hlRow/punctualRow 各寫一份一模一樣的三行,現在加上「我的最愛」
+// 共三處要用,抽出來(改判斷只改一處,三處不會分岔)。
+function trainStatusTxt(tr) {
+  const last = tr.stops[tr.stops.length - 1];
+  if (trainPos(tr, state.simSec)) return '行駛中';
+  return state.simSec > last.arrSec ? '重播' : fmtHM(tr.stops[0].depSec % 86400) + ' 發';
+}
 function hlRow(h) {
   const tr = h.tr, last = tr.stops[tr.stops.length - 1];
-  const running = !!trainPos(tr, state.simSec);
-  const status = running ? '行駛中'
-    : (state.simSec > last.arrSec ? '重播' : fmtHM(tr.stops[0].depSec % 86400) + ' 發');
+  const status = trainStatusTxt(tr);
   return `<div class="row" data-no="${tr.train}" data-sys="${tr.sys || ''}" title="跟隨 ${tr.train} 次"><span class="dot" style="background:${tr.color}"></span>` +
     `<b>${h.title}</b><span class="dest">${tr.train}次 ${tr.stops[0].name}→${last.name}${h.sub ? ' · ' + h.sub : ''}</span>` +
     `<span class="min">${status}</span></div>`;
@@ -17518,9 +17562,7 @@ function hlRow(h) {
 // state.delayStats,查得到、對得上,不靠通則。a/m 沿用 renderDelayRow 既有的「整數不補小數」格式慣例。
 function punctualRow(tr) {
   const last = tr.stops[tr.stops.length - 1];
-  const running = !!trainPos(tr, state.simSec);
-  const status = running ? '行駛中'
-    : (state.simSec > last.arrSec ? '重播' : fmtHM(tr.stops[0].depSec % 86400) + ' 發');
+  const status = trainStatusTxt(tr);
   const s = (state.delayStats || {})[String(tr.train)] || {};
   const fmt1 = v => (v == null ? '?' : (Number.isInteger(v) ? String(v) : v.toFixed(1)));
   const mTxt = fmt1(s.m), aTxt = fmt1(s.a), dTxt = s.d != null ? s.d : '?';
@@ -22724,20 +22766,11 @@ function stationIntroText(name) {
   if (tierLabel) return `<span class="dp-intro-lbl">站等</span>台鐵${tierLabel}　鐵路運輸的重要節點`;
   return null;
 }
-function renderBoard() {
-  const el = document.getElementById('board'), st = state.boardStation;
-  // 換站要把捲動歸零(下面 el.scrollTop 那段);同一站的重繪則什麼都不做——見該處說明。
-  const stnKey = st ? (st.name + '|' + st.sys) : '';
-  const sameStn = !!stnKey && el._stnKey === stnKey && !el.hidden;
-  // 🔴 整合卡:重繪會 `el.innerHTML = …` 把整個內容換掉——搬進去的 #followPanel 會**跟著被銷毀**
-  //    (實測:跟車卡整顆消失、showFollowPanel 之後對 null 取 .hidden 拋錯)。所以一律先搬回家,
-  //    render 完再由尾端的 syncUniCard() 搬進來。renderFreqBoard 由本函式委派,同樣被這行涵蓋。
-  unmountUniCard();
-  if (!st) { el.hidden = true; updateSheetOpenClass(); return; }
-  state.boardRenderedAt = state.simSec;
-  ensureEvents(); // 首次載入時資料還在路上,ensureEvents 載到後會自己再叫一次 renderBoard
-  if (state.mode !== 'sched') { renderFreqBoard(el, st, state.lines, false); return; } // 捷運/輕軌分頁走獨立邏輯,sched(台鐵/高鐵)以下維持原樣
-  if (st.sys === 'deco') { renderFreqBoard(el, st, state.decoLines, true); return; } // 全台同框:點裝飾層捷運站,同款看板但讀 decoLines(無 state.visible 個別開關)
+// 台鐵/高鐵看板的班次列:某站未來 3 小時內、依「估計實際時刻」排序。
+// 🔴 抽成函式是為了讓「我的最愛」的『下一班』與看板讀**同一份**計算(誤點修正、跨午夜換日、
+//    環島車一日兩輪、停駛車併回來標停駛)。同一個時刻兩個地方各算一次遲早會分岔——而分岔的
+//    後果是使用者看到兩個不一樣的時間,不知道信哪個。捷運/輕軌不走這裡(它們讀官方即時看板)。
+function schedBoardRows(st) {
   const rows = [];
   // 停駛車已從 state.trains 移除(地圖完全不畫),看板這邊再併回來標「停駛」。
   // 只在台鐵板併,而且是新陣列,不動 state.trains 本身。
@@ -22763,6 +22796,23 @@ function renderBoard() {
     }
   }
   rows.sort((a, b) => a.dtm - b.dtm);
+  return rows;
+}
+function renderBoard() {
+  const el = document.getElementById('board'), st = state.boardStation;
+  // 換站要把捲動歸零(下面 el.scrollTop 那段);同一站的重繪則什麼都不做——見該處說明。
+  const stnKey = st ? (st.name + '|' + st.sys) : '';
+  const sameStn = !!stnKey && el._stnKey === stnKey && !el.hidden;
+  // 🔴 整合卡:重繪會 `el.innerHTML = …` 把整個內容換掉——搬進去的 #followPanel 會**跟著被銷毀**
+  //    (實測:跟車卡整顆消失、showFollowPanel 之後對 null 取 .hidden 拋錯)。所以一律先搬回家,
+  //    render 完再由尾端的 syncUniCard() 搬進來。renderFreqBoard 由本函式委派,同樣被這行涵蓋。
+  unmountUniCard();
+  if (!st) { el.hidden = true; updateSheetOpenClass(); return; }
+  state.boardRenderedAt = state.simSec;
+  ensureEvents(); // 首次載入時資料還在路上,ensureEvents 載到後會自己再叫一次 renderBoard
+  if (state.mode !== 'sched') { renderFreqBoard(el, st, state.lines, false); return; } // 捷運/輕軌分頁走獨立邏輯,sched(台鐵/高鐵)以下維持原樣
+  if (st.sys === 'deco') { renderFreqBoard(el, st, state.decoLines, true); return; } // 全台同框:點裝飾層捷運站,同款看板但讀 decoLines(無 state.visible 個別開關)
+  const rows = schedBoardRows(st);
   // 拉到大段(88%)就多給班次:否則多出來的高度只是一片空白紙(段高切換時 setSheetSize 會重繪本板)
   const list = rows.slice(0, el.classList.contains('expand') ? 24 : 12).map(r => {
     const min = r.off ? '停駛' : r.dtm < 60 ? '即將' : Math.round(r.dtm / 60) + ' 分';

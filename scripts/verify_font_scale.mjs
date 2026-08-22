@@ -1456,9 +1456,169 @@ async function sectionN(browser, engine, tier = 'std') {
 }
 async function sectionNx(browser, engine) { await sectionN(browser, engine, 'xlarge'); }
 
+// ── O 段:設計 3f 我的最愛——清點、每列狀態、右欄一顆星就是唯一的移除入口 ──────────
+// 🔴 這一段**必須自己種資料**:全新的瀏覽器 profile 一筆收藏都沒有,不種就是對著空面板
+//    跑斷言——每一條都恆真,最典型的假綠。種法一律走 app 自己的 API(userDataSaveCollection/
+//    saveFavs/savePins),不自己捏 localStorage 結構:結構會變,捏錯了種出來的形狀真使用者
+//    身上永遠不會出現。
+const O_SEED = () => {
+  const idx = buildStnIndex();
+  const sts = [];
+  for (const n of ['板橋', '花蓮', '宜蘭']) {
+    const e = idx.find(x => x.sysId === 'tra_sched' && x.name === n);
+    if (e) sts.push({ name: e.name, lat: e.lat, lon: e.lon, sys: 'tra_sched', group: state.group, label: '台鐵' });
+  }
+  // 🔴 再種一站「此刻真的有班次」的——不然深夜跑的時候每一站都留白,O6 的「有班次就要對得上」
+  //    那一半永遠踩不到(判準看起來全綠,其實只驗了空的那一半)。從班表挑最近一班發車的站,
+  //    有就種、沒有(全線收班)就算了,O6 會自己說它走的是哪一半。
+  let soon = null;
+  for (const tr of (state.trains || [])) {
+    if ((tr.sys || '') !== 'tra_sched') continue;
+    for (const st of tr.stops) {
+      const dtm = st.depSec - state.simSec;
+      if (dtm > 90 && dtm < 3 * 3600 && (!soon || dtm < soon.dtm)) soon = { name: st.name, dtm };
+    }
+  }
+  if (soon && !sts.some(x => x.name === soon.name)) {
+    const e = idx.find(x => x.sysId === 'tra_sched' && x.name === soon.name);
+    if (e) sts.push({ name: e.name, lat: e.lat, lon: e.lon, sys: 'tra_sched', group: state.group, label: '台鐵' });
+  }
+  sts.push({ name: '永安市場', lat: 24.9908, lon: 121.5115, sys: 'metro', group: state.group, label: '台北捷運 中和新蘆線' });
+  userDataSaveCollection('stations', sts);
+  const trs = (state.trains || []).slice(0, 3).map(t => ({ train: String(t.train), sys: t.sys || 'tra_sched',
+    label: t.stops[0].name + '→' + t.stops[t.stops.length - 1].name }));
+  saveFavs(trs);
+  savePins([{ lat: 25.0478, lon: 121.5170, label: '台北車站前' }]);
+  return { st: sts.length, tr: trs.length, pin: 1, trNos: trs.map(t => t.train), soon: soon ? soon.name : null };
+};
+const O_SNAP = () => {
+  const el = document.getElementById('favPanel');
+  const rows = [...el.querySelectorAll('.row')];
+  const info = r => {
+    const b = r.querySelector('.rm');
+    let star = null;
+    if (b) {
+      // 🔴 面板是 46% 的 sheet,一半的列在摺線以下——不先捲進來就對著被裁掉的位置做命中測試,
+      //    量到的是「首屏看不到」而不是「點不到」(心得 19)。捲一下再問,才是使用者真的會做的事。
+      r.scrollIntoView({ block: 'center' });
+      const q = b.getBoundingClientRect(), rr = r.getBoundingClientRect();
+      const hit = document.elementFromPoint(q.left + q.width / 2, q.top + q.height / 2);
+      const svg = b.querySelector('svg');
+      star = { w: +q.width.toFixed(1), h: +q.height.toFixed(1), tag: b.tagName,
+        // 「點得到嗎」只有命中測試答得出來(心得 33/37):rect 對不代表點得到
+        hit: !!(hit && hit.closest('.rm') === b),
+        // 實心＝已收藏。符號本身是純描邊(.ri-icon{fill:none}),要靠 CSS 補 fill 才讀得出「已收藏」
+        fill: svg ? getComputedStyle(svg).fill : '',
+        gapRight: +(rr.right - q.right).toFixed(1),
+        // 🔴 列名與星要在同一條水平線上。.board .row 是 align-items:baseline,列被 44 的星撐高之後
+        //    文字會釘在頂端、星卻置中 ⇒ 看起來是「字在上、星掛在右下」(實測截圖如此)。
+        //    量兩個中心的落差,不量列高——列高再對,歪掉還是歪掉。
+        dy: (() => { const nb = r.querySelector('b'); if (!nb) return 0;
+          const nr = nb.getBoundingClientRect();
+          return +Math.abs((nr.top + nr.height / 2) - (q.top + q.height / 2)).toFixed(1); })() };
+    }
+    return { cls: r.className, txt: r.textContent.replace(/\s+/g, ' ').trim(),
+      h: +r.getBoundingClientRect().height.toFixed(1), star,
+      min: ((r.querySelector('.min') || {}).textContent || '').trim() };
+  };
+  return { open: !el.hidden, sub: ((el.querySelector('.sub') || {}).textContent || '').trim(),
+    rows: rows.map(info),
+    // 反向對照:整張面板不該再有第二個移除入口(舊的 × 或「編輯」模式)
+    otherRm: [...el.querySelectorAll('.row *')].filter(x => /^[×✕✖]$/.test((x.textContent || '').trim())).length +
+      [...el.querySelectorAll('.row button')].filter(x => /編輯/.test(x.textContent || '')).length };
+};
+async function sectionO(browser, engine) {
+  const tag = `${engine} 393pt`;
+  const { page, errs, close } = await boot(browser, { width: 393 });
+  await page.evaluate(() => { if (state.playing) togglePlay(); });
+  // 🔴 把時鐘撥到早上 8:15 再種資料。理由:深夜跑的時候全網一班車都沒有 ⇒ 「下一班」每一站都留白,
+  //    O6 的「有班次就要對得上」那一半**永遠踩不到**(只驗到空的那一半,看起來卻是全綠)。
+  //    撥鐘是這支腳本唯一能讓正向那一半在任何時間都跑得到的辦法;契約本身與時間無關。
+  //    直接寫 state.simSec 一定要同時關 clockAtNow,否則下一個 tick 會把它拉回「現在」。
+  await page.evaluate(() => { setSimSec(8 * 3600 + 15 * 60); state.clockAtNow = false; });
+  await page.waitForTimeout(600);
+  const seed = await page.evaluate(c => eval('(' + c + ')')(), O_SEED.toString());
+  await page.evaluate(() => document.getElementById('tabFav').click());
+  await page.waitForTimeout(1200);
+  const snap = () => page.evaluate(c => eval('(' + c + ')')(), O_SNAP.toString());
+  const A = await snap();
+  const stRows = A.rows.filter(r => /fvst/.test(r.cls)), trRows = A.rows.filter(r => /\bfv\b/.test(r.cls)),
+    pinRows = A.rows.filter(r => /fvpin/.test(r.cls));
+  ok(`O1 ${tag} 正向對照:面板開著,種進去的站/車/地點三種列都在`,
+    A.open && stRows.length === seed.st && trRows.length === seed.tr && pinRows.length === seed.pin,
+    JSON.stringify({ open: A.open, 站: stRows.length, 車: trRows.length, 地點: pinRows.length, 種: seed }));
+  // 清點列:數字要跟著實際筆數走(拿當下量到的列數推導,不寫死字串)
+  const wantSub = [`${seed.tr} 班車`, `${seed.st} 站`, `${seed.pin} 個地點`].join(' · ');
+  ok(`O2 ${tag} 標題下面是清點,而且數字＝實際筆數`, A.sub === wantSub, `實際「${A.sub}」應為「${wantSub}」`);
+  const starBad = A.rows.filter(r => !r.star || r.star.w < 44 || r.star.h < 44 || !r.star.hit ||
+    // fill 必須是「真的有顏色」:'none'(只有描邊)與 ''(根本沒有圖示,例如退回打字的 ×)都不算實心星
+    r.star.tag !== 'BUTTON' || !/^rgb/.test(r.star.fill) || r.star.gapRight > 20);
+  ok(`O3 ${tag} 每一列右欄都有一顆實心星:44 觸控格·真的命中自己·是 button·貼在最右`,
+    A.rows.length > 0 && starBad.length === 0,
+    starBad.length ? JSON.stringify(starBad.slice(0, 2)) : `${A.rows.length} 列全過(星 ${A.rows[0].star.w}×${A.rows[0].star.h} fill=${A.rows[0].star.fill})`);
+  ok(`O4 ${tag} 反向對照:星是唯一的移除入口(沒有第二顆 × 也沒有編輯模式)`,
+    A.otherRm === 0, `另外找到 ${A.otherRm} 個移除入口`);
+  ok(`O5 ${tag} 每一列高 ≥44(整列都是觸控目標)`,
+    A.rows.every(r => r.h >= 44), JSON.stringify(A.rows.map(r => r.h)));
+  const skew = A.rows.filter(r => r.star && r.star.dy > 2);
+  ok(`O5b ${tag} 星與列名在同一條水平線上(不是字在上、星掛右下)`,
+    A.rows.length > 0 && skew.length === 0,
+    skew.length ? JSON.stringify(skew.map(r => ({ txt: r.txt.slice(0, 12), dy: r.star.dy }))) : `最大落差 ${Math.max(...A.rows.map(r => (r.star || {}).dy || 0))}px`);
+  // 🔴 下一班:面板與看板必須是同一個時刻。判準寫成**雙向**契約,才不會在深夜(沒有班次可列)
+  //    變成恆真:面板有寫時刻 ⇒ 看板第一列同一個時刻;面板留白 ⇒ 看板也真的沒有班次可列。
+  const cmp = await page.evaluate(() => {
+    const el = document.getElementById('favPanel');
+    const rows = [...el.querySelectorAll('.row.fvst')].filter(x => /台鐵/.test(x.textContent));
+    // 有寫時刻的優先(那是要驗的正向那一半);全部留白才退回驗「兩邊都空」
+    const r = rows.find(x => ((x.querySelector('.min') || {}).textContent || '').trim()) || rows[0];
+    if (!r) return { skip: '沒有台鐵站列' };
+    const panel = ((r.querySelector('.min') || {}).textContent || '').trim();
+    const name = (r.querySelector('b') || {}).textContent || '';
+    const e = buildStnIndex().find(x => x.sysId === 'tra_sched' && x.name === name);
+    if (!e) return { skip: '站索引找不到 ' + name };
+    openBoard({ name: e.name, sys: e.sysId, lat: e.lat, lon: e.lon });
+    const bd = document.getElementById('board');
+    const first = bd.querySelector('.row .hm');
+    const late = bd.querySelector('.row .lateTag');
+    return { name, panel, boardRows: bd.querySelectorAll('.row').length,
+      boardFirst: first ? first.textContent.trim() : '', boardLate: late ? late.textContent.trim() : '' };
+  });
+  const okNext = cmp.skip ? false
+    : cmp.panel ? (cmp.boardRows > 0 && cmp.panel.includes(cmp.boardFirst))
+                : cmp.boardRows === 0;
+  ok(`O6 ${tag} 「下一班」與車站看板是同一個時刻(${cmp.panel ? '走到正向那一半:有班次,要對得上' : '此刻全線無班次可列,只驗兩邊都留白'})`,
+    okNext, JSON.stringify(cmp));
+  // 捷運站:官方到站時刻不走班表,我方不自己推一份 ⇒ 留白(而不是寫 0 或 --)
+  const metroRow = A.rows.find(r => /捷運/.test(r.txt));
+  ok(`O7 ${tag} 捷運站不猜下一班(留白,不是 0 或 --)`,
+    !!metroRow && metroRow.min === '', metroRow ? `min=「${metroRow.min}」` : '沒有捷運站列');
+  // 🔴 O6 的 openBoard 走 soloPanel ⇒ **最愛面板已經被收掉了**(第一版沒發現,O8 的「點不到」
+  //    其實是面板不在,不是星壞掉——長得跟真缺陷一模一樣)。重新開回來,並重新取一次基準。
+  await page.evaluate(() => { closeBoard(); document.getElementById('tabFav').click(); });
+  await page.waitForTimeout(1000);
+  const A2 = await snap();
+  const stRows2 = A2.rows.filter(r => /fvst/.test(r.cls));
+  ok(`O8a ${tag} 從看板回到最愛,四種列原封不動`,
+    A2.open && stRows2.length === stRows.length && A2.sub === A.sub, `站 ${stRows2.length} sub「${A2.sub}」`);
+  // 真的點一下星:那一筆消失、其餘留著、清點跟著減一(只驗 DOM 不驗行為 = 沒驗,心得 37)
+  const before = stRows2.map(r => r.txt);
+  const clicked = await page.locator('#favPanel .row.fvst .rm').first().click({ timeout: 5000 })
+    .then(() => true, () => false);
+  await page.waitForTimeout(700);
+  const B = await snap();
+  const stAfter = B.rows.filter(r => /fvst/.test(r.cls));
+  ok(`O8 ${tag} 真的點星 ⇒ 那一筆被移除,其他列原封不動,清點跟著減一`,
+    clicked && stAfter.length === stRows2.length - 1 &&
+    !stAfter.some(r => r.txt === before[0]) &&
+    B.sub === [`${seed.tr} 班車`, `${seed.st - 1} 站`, `${seed.pin} 個地點`].join(' · '),
+    `點到=${clicked} 站 ${stRows2.length}→${stAfter.length} sub「${B.sub}」`);
+  ok(`O9 ${tag} 零 pageerror`, errs.length === 0, errs.slice(0, 1).join(''));
+  await close();
+}
+
 await assertTarget();
 // SECTIONS=H,I 只跑指定段(突變測試用);不設就跑全部——預設永遠是「全跑」,不能靠環境變數才完整。
-const ALL = { A: sectionA, B: sectionB, C: sectionC, D: sectionD, E: sectionE, F: sectionF, G: sectionG, H: sectionH, I: sectionI, J: sectionJ, K: sectionK, L: sectionL, M: sectionM, MX: sectionMx, N: sectionN, NX: sectionNx };
+const ALL = { A: sectionA, B: sectionB, C: sectionC, D: sectionD, E: sectionE, F: sectionF, G: sectionG, H: sectionH, I: sectionI, J: sectionJ, K: sectionK, L: sectionL, M: sectionM, MX: sectionMx, N: sectionN, NX: sectionNx, O: sectionO };
 const want = (process.env.SECTIONS || '').split(',').map(x => x.trim().toUpperCase()).filter(Boolean);
 const run = want.length ? want : Object.keys(ALL);
 for (const k of run) if (!ALL[k]) { console.error(`未知段別 ${k}`); process.exit(2); }
