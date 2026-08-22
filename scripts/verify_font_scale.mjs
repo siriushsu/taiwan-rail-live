@@ -235,6 +235,69 @@ async function sectionD(browser, engine) {
   await close();
 }
 
+// ── E 段:車站看板列三階(設計 6b)——「最會撞版的一列」 ─────────────────────────
+// 設計原文:標準單行、大改兩行(六個欄位一個都不收)、特大才收欄位,且收掉的欄位一定有可達路徑。
+// 三條判準各對一種壞法:字被切掉(E1)、欄位收了卻回不來(E3/E4)、出口把跟車熱區吃掉(E5)。
+async function sectionE(browser, engine) {
+  const openBoard = async page => page.evaluate(() => {
+    const e = buildStnIndex().find(s => s.sysId === 'tra_sched' && s.name === '板橋')
+      || buildStnIndex().find(s => s.sysId === 'tra_sched');
+    if (!e) return false;
+    openBoard({ name: e.name, sys: e.sysId, lat: e.lat, lon: e.lon });
+    return true;
+  });
+  for (const tier of ['std', 'large', 'xlarge']) {
+    for (const width of [360, 393]) {
+      const { page, close } = await boot(browser, { width, tier });
+      const okBoard = await openBoard(page);
+      await page.waitForTimeout(500);
+      const r = await page.evaluate(() => {
+        const rows = [...document.querySelectorAll('#board .row[data-no]')];
+        // 🔴 不能用 .dest 的 offsetParent 判可見:大檔的 .dest 是 display:contents(自己沒有盒),
+        //    offsetParent 恆為 null,拿它當判準會把「排得好好的」誤判成「被收起來」(本支第一版實際踩到)。
+        //    量真正承載文字的 .ty／.to 才問得到「這個欄位在不在畫面上」。
+        const shown = el => !!(el && el.getClientRects().length);
+        const clipped = rows.filter(row => [...row.querySelectorAll('.ty, .to')]
+          .some(e => shown(e) && e.scrollWidth > e.clientWidth + 1)).length;
+        const full = rows.filter(row => shown(row.querySelector('.ty')) && shown(row.querySelector('.to'))).length;
+        const anyField = rows.filter(row => shown(row.querySelector('.ty')) || shown(row.querySelector('.to'))).length;
+        return { n: rows.length, clipped, full, anyField };
+      });
+      const tag = `${engine} ${tier} ${width}pt`;
+      ok(`E1 ${tag} 正向對照:看板列量得到`, okBoard && r.n > 0, `n=${r.n}`);
+      ok(`E2 ${tag} 沒有任何一列的車種／方向被切字`, r.clipped === 0, `clipped=${r.clipped}`);
+      // 大不收欄位(設計明文:長者最常抱怨「功能不見了」);特大才收
+      if (tier !== 'xlarge') ok(`E3 ${tag} 標準／大不收任何欄位(車種與方向都在)`, r.full === r.n, `${r.full}/${r.n}`);
+      else ok(`E3 ${tag} 特大預設收起車種與方向`, r.anyField === 0, `${r.anyField}/${r.n}`);
+      await close();
+    }
+  }
+  // 可達路徑與熱區:只在特大有意義
+  const { page, errs, close } = await boot(browser, { tier: 'xlarge' });
+  await openBoard(page); await page.waitForTimeout(500);
+  const chev = page.locator('#board .row[data-no] .rmore').first();
+  ok(`E4a ${engine} 特大時列尾有「›」出口`, await chev.isVisible());
+  await chev.tap(); await page.waitForTimeout(300);
+  const after = await page.evaluate(() => {
+    const row = document.querySelector('#board .row[data-no]');
+    const to = row && row.querySelector('.to'), ty = row && row.querySelector('.ty');
+    const shown = el => !!(el && el.getClientRects().length);
+    return { boardOpen: !document.getElementById('board').hidden, following: !!state.followTrain,
+      destShown: shown(to) && shown(ty), txt: to ? to.textContent.trim() : '' };
+  });
+  // 收掉的欄位一定有可達路徑——點開就是原本那三個欄位
+  ok(`E4b ${engine} 點「›」把車種與方向叫回來`, after.destShown && /往/.test(after.txt), JSON.stringify(after));
+  // 🔴 整列本來就是「跟隨這班」的熱區,出口若沒把事件擋住,點展開會直接跟車並關掉看板
+  ok(`E5 ${engine} 點「›」不會誤觸跟車(看板還開著、沒有跟車)`,
+    after.boardOpen && !after.following, JSON.stringify(after));
+  // 反向對照:同一張看板點「列」本身仍然要跟車——否則上面那條用「什麼都不會發生」也能過
+  await page.locator('#board .row[data-no] b').first().tap(); await page.waitForTimeout(600);
+  const followed = await page.evaluate(() => ({ following: !!state.followTrain, boardOpen: !document.getElementById('board').hidden }));
+  ok(`E6 ${engine} 反向對照:點列本身仍然會跟車`, followed.following && !followed.boardOpen, JSON.stringify(followed));
+  ok(`E7 ${engine} 全程零 pageerror`, errs.length === 0, errs.slice(0, 1).join(''));
+  await close();
+}
+
 await assertTarget();
 for (const [engine, launcher] of [['chromium', chromium], ['webkit', webkit]]) {
   const browser = await launcher.launch();
@@ -242,6 +305,7 @@ for (const [engine, launcher] of [['chromium', chromium], ['webkit', webkit]]) {
   await sectionB(browser, engine);
   await sectionC(browser, engine);
   await sectionD(browser, engine);
+  await sectionE(browser, engine);
   await browser.close();
 }
 const pass = results.filter(r => r.pass).length;

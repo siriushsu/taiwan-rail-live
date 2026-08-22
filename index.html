@@ -1756,6 +1756,75 @@
     border-radius: 7px; padding: 6px 8px; font-size: calc(12px * var(--ui)); font-weight: 700; line-height: 1.45; }
   .board .row { display: flex; align-items: baseline; gap: 8px; padding: 6px 0; border-top: 1px dashed var(--line-faint); font-size: calc(13px * var(--ui)); }
   .board .row:first-of-type { border-top: 0; }
+  /* 設計 6b 的「›」:平常完全不存在(標準/大都不收欄位,不需要出口),只有特大才長出來 */
+  .board .row .rmore { display: none; }
+
+  /* ── 設計 6b 車站看板列 · 三階實際塞法 ──────────────────────────────────────
+     這是全站最會撞版的一列(實測:板橋台鐵板在大/特大 360pt 就把「區間車　往 蘇澳」切掉)。
+     大 ×1.25:同樣六個欄位一個都不收,只換排法——時刻上行、方向與誤點下行。
+     特大 ×1.5:只留 車次·時刻·倒數,誤點縮成一顆琥珀點,車種與方向收進列尾「›」。
+     🔴 標準檔完全不進這兩塊(選擇器帶 html[data-fs=…]),幾何一格不動。 */
+  html[data-fs=large] .board .row[data-no] {
+    display: grid; align-items: baseline;
+    grid-template-columns: auto auto 1fr auto;
+    grid-template-areas: "dot no ty t" ". to late min";
+    column-gap: 8px; row-gap: 2px;
+  }
+  html[data-fs=large] .board .row[data-no] .dot { grid-area: dot; align-self: center; }
+  html[data-fs=large] .board .row[data-no] > b { grid-area: no; }
+  html[data-fs=large] .board .row[data-no] .dest { display: contents; }
+  html[data-fs=large] .board .row[data-no] .ty { grid-area: ty; }
+  html[data-fs=large] .board .row[data-no] .to { grid-area: to; }
+  html[data-fs=large] .board .row[data-no] .t { display: contents; }
+  html[data-fs=large] .board .row[data-no] .hm { grid-area: t; justify-self: end; }
+  html[data-fs=large] .board .row[data-no] .min { grid-area: min; justify-self: end; }
+  /* 誤點/推算標在兩行版跟著方向走(設計 6b:方向與誤點同一行) */
+  html[data-fs=large] .board .row[data-no] .lateTag,
+  html[data-fs=large] .board .row[data-no] .estTag { grid-area: late; justify-self: start; align-self: center; }
+  /* 兩行版有橫向餘裕,誤點寫完整的「誤點 N 分」(設計 6b),不必再用 +N 這種省略寫法。
+     用 attr() 換字樣而不動 DOM:標準檔那顆徽章的文字節點原封不動,零變化對照才守得住。 */
+  html[data-fs=large] .board .row[data-no] .lateTag { font-size: 0; letter-spacing: 0; }
+  html[data-fs=large] .board .row[data-no] .lateTag::after {
+    content: '誤點 ' attr(data-min) ' 分'; font-size: calc(11px * var(--ui)); letter-spacing: normal;
+  }
+
+  html[data-fs=xlarge] .board .row[data-no] {
+    display: grid; align-items: baseline;
+    grid-template-columns: auto auto 1fr auto auto;
+    grid-template-areas: "dot no t min more" "sub sub sub sub sub";
+    column-gap: 10px; row-gap: 3px;
+  }
+  html[data-fs=xlarge] .board .row[data-no] .dot { grid-area: dot; align-self: center; }
+  html[data-fs=xlarge] .board .row[data-no] > b { grid-area: no; }
+  html[data-fs=xlarge] .board .row[data-no] .t { grid-area: t; justify-self: start; }
+  html[data-fs=xlarge] .board .row[data-no] .min { grid-area: min; justify-self: end; }
+  html[data-fs=xlarge] .board .row[data-no] .dest { grid-area: sub; display: none; }
+  html[data-fs=xlarge] .board .row[data-no].rx .dest { display: block; }
+  /* 誤點縮成一顆琥珀點(設計 6b),字樣進到展開層才看得到 */
+  html[data-fs=xlarge] .board .row[data-no] .lateTag {
+    font-size: 0; letter-spacing: 0; padding: 0; margin-left: 0;
+    background: none; border: 0; color: var(--warn-ink);
+  }
+  html[data-fs=xlarge] .board .row[data-no] .lateTag::before {
+    content: '●'; font-size: calc(11px * var(--ui)); margin-left: 5px;
+  }
+  html[data-fs=xlarge] .board .row[data-no].rx .lateTag { font-size: calc(11px * var(--ui)); }
+  html[data-fs=xlarge] .board .row[data-no].rx .lateTag::before { content: none; }
+  html[data-fs=xlarge] .board .row .rmore {
+    display: grid; place-items: center; grid-area: more;
+    font: inherit; font-size: calc(15px * var(--ui)); font-weight: 700; color: var(--faint);
+    background: none; border: 0; padding: 0; margin: 0;
+    min-width: 28px; min-height: 28px; cursor: pointer; align-self: center;
+  }
+  /* 觸控目標 44px:靠透明 ::after 撐,不撐列高(設計要的是列高 80px,不是 88px)。
+     🔴 錨點要用 relative——static 會把 ::after 的 containing block 交給更上層的 absolute 祖先,
+     熱區會撐成整條列並蓋掉「跟隨這班」(memory 心得 33 實際踩過)。 */
+  html[data-fs=xlarge] .board .row .rmore { position: relative; }
+  html[data-fs=xlarge] .board .row .rmore::after {
+    content: ''; position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);
+    width: 44px; height: 44px;
+  }
+  html[data-fs=xlarge] .board .row[data-no].rx .rmore { transform: rotate(90deg); }
   .board .row[data-no], .board .row[data-rand], .board .row[data-li], .board .row[data-guide], .board .row[data-ev] { cursor: pointer; }
   .board .row[data-no]:hover, .board .row[data-rand]:hover, .board .row[data-li]:hover, .board .row[data-guide]:hover, .board .row[data-ev]:hover { background: var(--bg-stage); }
   /* 停駛列(台鐵):官方今日名冊裡沒有這班(見 applyTraDailyDelta)。車已從地圖名冊移除,看板仍列出來——
@@ -22242,8 +22311,14 @@ function renderBoard() {
     return `<div class="row${r.off ? ' off' : ''}"${r.off ? '' : ` data-no="${r.tr.train}" data-sys="${r.tr.sys || ''}" title="跟隨 ${r.tr.train} 次"`}><span class="dot" style="background:${r.tr.color}"></span>` +
       // 「推算」標貼著時刻放(被推算的是時間不是路線),與 lateTag 同位、不會同時出現(est 車無誤點資料);
       // 放 dest 欄會把「（終點到達）」擠成「(…」(280px 看板實測)。
-      `<b>${r.tr.train}</b><span class="dest">${r.tr.loop ? r.tr.loopName : r.tr.typeName}　${dest}</span>` +
-      `<span class="t">${fmtHM(r.t % 86400)}${r.off ? '' : r.tr.est ? '<span class="estTag">推算</span>' : r.dl > 0 ? `<span class="lateTag">+${r.dl}</span>` : ''}</span><span class="min">${min}</span></div>`;
+      // 設計 6b:大改兩行、特大把車種與方向收進列尾「›」——兩者都要能各自定位,故各包一層。
+      // 標準檔的字元(含中間那個全形空格)與包之前逐字相同,幾何零變化。
+      `<b>${r.tr.train}</b><span class="dest"><span class="ty">${r.tr.loop ? r.tr.loopName : r.tr.typeName}</span>　<span class="to">${dest}</span></span>` +
+      // 時刻本身另包一層 .hm:大檔要把「誤點/推算」標排到第二行的方向後面(設計 6b),
+      // 那需要 .t 交出排版權(display:contents),交出去之後裸文字節點就抓不到了。標準檔字元不變。
+      `<span class="t"><span class="hm">${fmtHM(r.t % 86400)}</span>${r.off ? '' : r.tr.est ? '<span class="estTag">推算</span>' : r.dl > 0 ? `<span class="lateTag" data-min="${r.dl}">+${r.dl}</span>` : ''}</span><span class="min">${min}</span>` +
+      // 收掉的欄位一定要有可達路徑(設計 6b 明文):這顆只在特大出現,點開就是原本那三個欄位。
+      `<button class="rmore" type="button" tabindex="-1" aria-label="顯示車種與方向">›</button></div>`;
   }).join('');
   const fav = isFavStation(st);
   // 共構站(台北/板橋/南港…)台鐵/高鐵各自成板,標題標系統才分得清這張是誰的
@@ -22271,11 +22346,18 @@ function renderBoard() {
   // 看板每 20 模擬秒重繪(高倍速=不到半秒),按下到放開之間列可能被換掉、click 目標變成容器,
   // 所以 pointerdown 先把車次記在持久的 el 上,click 撈不到列時用記下的補。
   el.onpointerdown = e => {
+    if (e.target.closest('.rmore')) { el._downNo = null; el._downSys = null; return; } // 展開鈕不是跟車熱區
     const row = e.target.closest('.row[data-no]');
     el._downNo = row ? row.dataset.no : null;
     el._downSys = row ? row.dataset.sys : null;   // 車次補記的同時也補記系統,否則重號時補回來的是別家的車
   };
   el.onclick = e => {
+    const more = e.target.closest('.rmore');
+    if (more) { // 設計 6b:特大時車種與方向收進「›」,點它展開該列(不跟車)
+      e.stopPropagation();
+      const r = more.closest('.row'); if (r) r.classList.toggle('rx');
+      return;
+    }
     const row = e.target.closest('.row[data-no]');
     const no = row ? row.dataset.no : el._downNo;
     const sys = row ? row.dataset.sys : el._downSys;
