@@ -141,7 +141,16 @@ public final class RailMetroWaitPlugin: CAPPlugin, CAPBridgedPlugin {
                 }
                 call.resolve(["ok": true, "id": act.id, "endAt": endAt])
             } catch {
-                call.resolve(["ok": false, "why": error.localizedDescription])
+                // 🔴 localizedDescription 對 ActivityAuthorizationError 是一句籠統英文,
+                //    分不出「背景不能開卡(visibility)」「使用者關了即時動態(denied)」
+                //    「同時開太多張(targetMaximumExceeded)」——真機失敗時查不出原因。
+                //    String(describing:) 印得出 case 名,NSError 的 domain/code 是後路;
+                //    刻意不寫 case 比對,免得 SDK 改名就編不過。
+                call.resolve(["ok": false,
+                              "why": String(describing: error),
+                              "detail": error.localizedDescription,
+                              "domain": (error as NSError).domain,
+                              "code": (error as NSError).code])
             }
         }
     }
@@ -167,7 +176,16 @@ public final class RailMetroWaitPlugin: CAPPlugin, CAPBridgedPlugin {
     @objc func status(_ call: CAPPluginCall) {
         guard #available(iOS 17.6, *) else { call.resolve(["active": false]); return }
         enqueue {
-            guard let act = Activity<MetroWaitAttributes>.activities.first else {
+            // 🔴 一定要濾 activityState:`activities` 連【已結束/已關閉】的卡都還留在列表裡,
+            //    照收就會回報「還在追蹤」⇒ 看板鈕變「結束追蹤」⇒ 使用者以為在重新追蹤,
+            //    實際執行的是 metroWaitStop(),零提示、零新卡,要再點第二次才開得成。
+            //    (真機回報「打開 App 重新追蹤有時也不會出現」的其中一條路徑。)
+            //    .stale 必須算數:本卡刻意用 staleDate 把語意翻成「列車進站」,
+            //    那段時間卡片還在螢幕上,當成沒卡就會把它悄悄收掉。
+            let alive = Activity<MetroWaitAttributes>.activities.first {
+                $0.activityState == .active || $0.activityState == .stale
+            }
+            guard let act = alive else {
                 call.resolve(["active": false]); return
             }
             var data: [String: Any] = ["active": true, "sys": act.attributes.sys, "station": act.attributes.station]
