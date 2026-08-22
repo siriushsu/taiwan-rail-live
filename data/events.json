@@ -1,5 +1,5 @@
 {
-  "updated": "2026-08-15",
+  "updated": "2026-08-21",
   "events": [
     {
       "id": "trtc-20260811-pokemon10",
@@ -50,6 +50,16 @@
       "end": "2026-08-23",
       "anchor": { "kind": "station", "sys": "ntdlrt", "name": "淡水漁人碼頭" },
       "url": "https://www.ntmetro.com.tw/basic/?mode=detail&node=891"
+    },
+    {
+      "id": "afr-20260819-starry-train",
+      "source": "official",
+      "title": "林鐵星空列車觀星趣",
+      "note": "夜間林鐵開上祝山，在小笠原平台看夏季星空，8/28 上午 10 點開放網路訂票",
+      "start": "2026-09-13",
+      "end": "2026-09-14",
+      "anchor": { "kind": "station", "sys": "afr_sched", "name": "嘉義" },
+      "url": "https://afrch.forest.gov.tw/AllNews/0079019"
     }
   ]
 }

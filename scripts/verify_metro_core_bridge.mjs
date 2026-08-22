@@ -48,7 +48,10 @@ check(graceSandbox.followGrace(follow, 129)?.grace === true, 'Core 短暫漏一�
 check(graceSandbox.followGrace(follow, 131) === null, 'Core 漏超過兩批後仍未結束寬限');
 
 const contracts = [
-  ['網站預設開啟且保留顯式關閉', /if \(METRO_CORE_QUERY_MODE === 'off'\) return false;[\s\S]*?return true;[\s\S]*?const METRO_CORE_ENABLED = metroCoreFlag\(location\.search\)/],
+  // 2026-08-22 網站預設翻成 shadow（return false）；App 的兩個注入點必須在 return 之前，
+  // 否則網站的預設值會蓋掉 App v13 的原生恆開。這條同時把「順序」釘住。
+  ['網站預設關閉（shadow）且 App 注入點在預設值之前', /if \(METRO_CORE_QUERY_MODE === 'off'\) return false;[\s\S]*?typeof window\.RAIL_METRO_CORE_ENABLED === 'boolean'[\s\S]*?typeof APP_CFG\.metroCore === 'boolean'[\s\S]*?\n  return false;\n\}[\s\S]*?const METRO_CORE_ENABLED = metroCoreFlag\(location\.search\)/],
+  ['?metrocore=1 仍可顯式開啟（預覽站的開關）', /if \(value === '1' \|\| value === 'preview'\) return true;/],
   ['App 可注入獨立布林旗標', /typeof window\.RAIL_METRO_CORE_ENABLED === 'boolean'/],
   ['正式 endpoint 不再指向 Preview', /https:\/\/railisland-metro-core\.sirius1984\.workers\.dev\/v1\/metro\/snapshot/],
   ['snapshot 有 schema 驗證', /snapshot\.schema !== METRO_CORE_SCHEMA/],
@@ -67,6 +70,35 @@ const contracts = [
   ['Core 上線後斷訊判斷不再讀背景 legacy 時戳', /function metroCoreTrtcFeedState[\s\S]*?failedFor >= 30[\s\S]*?ageSec >= TRTC_FEED_STALE_SEC/],
   ['進站文字查驗實際距離', /distanceM <= 25/],
   ['失效時回到既有站牌', /if \(core\) \{ renderMetroCoreFreqBoard[\s\S]*?const official = trtcOfficialBoardView/],
+  // ── 2026-08-21 復原批次補上的九道基底防線（行為面另有 verify_metro_core_defense.mjs）──
+  ['P0-1 某線 0 台回 null，不得用空陣列短路 legacy', /return out\.length \? out : null;/],
+  ['P0-1 snapshot 缺該系統也回 null', /if \(!system\) return null; \/\/ 🔴 P0-1/],
+  ['P0-2 逐線車數相對基線腰斬閘門', /const METRO_CORE_COUNT_DROP = 0\.5;[\s\S]*?function metroCoreEvaluateCounts\(/],
+  ['P0-2 判為異常那一輪不進基線（防自我漂移）', /else \{ history\.push\(cur\);/],
+  ['P0-3 十一個合法 lineId 寫成常數', /const METRO_CORE_LINE_IDS = \{[\s\S]*?trtc: \['BR', 'R', 'R_XBT', 'G', 'G_XBT', 'O_XINZHUANG', 'O_LUZHOU', 'BL', 'Y'\][\s\S]*?krtc: \['KR', 'KO'\]/],
+  ['P0-3 未知 lineId 整包退回並指名', /if \(lineIdIssues\.unknown\.length\) \{[\s\S]*?throw new Error\('lineId 契約外：'/],
+  ['P0-3 建線時做 id 契約自檢', /function metroCoreSelfCheckLineIds\(\)[\s\S]*?state\.metroCore\.selfCheck = result/],
+  ['P0-4 跟隨 30 秒寬限常數', /const METRO_CORE_FOLLOW_GRACE_SEC = 30;/],
+  ['P0-4 每幀跟隨判定走寬限版', /function updateFreqFollowCamera[\s\S]*?metroCoreFollowRecordWithGrace\(f, Date\.now\(\) \/ 1000\)/],
+  // 文案在 994a9ce 改成「超過 30 秒」（實際條件是 METRO_CORE_FOLLOW_GRACE_SEC=30 秒，
+  // 不是「兩批」）。判準只綁「講的是即時模型找不到這台車」這個真因，不綁確切措辭，
+  // 否則每改一次文案就假紅一次；同時排除舊的錯誤歸因「官方名冊已更新」。
+  ['P0-4 退場文案講真因', /不在即時模型中，已結束跟隨/],
+  ['P0-5 徽章不再以 hidden 表示 0 台', /el\.textContent = '即時資料異常';/],
+  ['P0-5 0 台的判準取自不同來源（既有路徑會畫幾台）', /const legacy = corePool\.reduce\(\(sum, ln\) => sum \+ metroCoreLegacyCountForLine\(ln\), 0\);/],
+  ['P1-8 錯誤要推到徽章，不只存在 state', /state\.metroCore\.error = String\(error && error\.message \|\| error\);\s*\n\s*updateMetroBadge\(\);/],
+  ['P2-9 match 欄位真的被讀（不再只賦值）', /const declared = row\.match == null \? null : String\(row\.match\);/],
+  ['P2-9 比例判準配正向對照（total 為 0 不判定）', /ratio: total \? matched \/ total : null/],
+  ['退回閘門同時作用在看板路徑', /systemId: systemId && !metroCoreLineBlocked\(systemId, ln\.id\) \? systemId : null/],
+  // ── 共站辨線（#7 9bc4348 的前端保護，以 v0821b 資料結構重寫）──
+  ['共站辨線：看板列的線／方向／終點都要對得上它指到的車',
+    /function metroCoreRowVehicleId\(system, board, row\)[\s\S]*?String\(train\.lineId\) !== String\(board\.lineId\)[\s\S]*?Number\(train\.direction\) !== Number\(row\.direction\)[\s\S]*?Number\(train\.destinationStationIndex\) !== Number\(row\.destinationStationIndex\)/],
+  ['共站辨線：對不上只讓那一列失去身分，不整包退回',
+    /const vehicleId = metroCoreRowVehicleId\(system, board, row\);[\s\S]*?vehicleId, match: vehicleId == null \? 'unmatched' :/],
+  ['共站辨線：誤配的列不得算進 P2-9 分子',
+    /if \(declared !== 'unmatched' && metroCoreRowVehicleId\(system, board, row\) != null\) matched\+\+;/],
+  ['地圖點車保留 Core 身分（否則 applyFreqFollow 會拿 Core 的 vehicleId 去查 legacy 名冊）',
+    /if \(inside\) hits\.push\(\{ ln: h\.ln, k: h\.k, tr: h\.tr, core: !!h\.core,\s*\n\s*systemId: h\.systemId, vehicleId: h\.vehicleId/],
 ];
 for (const [label, pattern] of contracts) check(pattern.test(html), label);
 const appContracts = [

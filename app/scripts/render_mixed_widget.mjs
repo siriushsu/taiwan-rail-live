@@ -80,7 +80,8 @@ const dataPath = join(widgetDir, 'MetroWidgetData.json');
 const boardSource = readFileSync(join(widgetDir, 'RailBoardWidget.swift'), 'utf8');
 const dataSource = readFileSync(join(widgetDir, 'RailBoardData.swift'), 'utf8');
 const metroSource = readFileSync(join(widgetDir, 'MetroBoardWidget.swift'), 'utf8');
-const intentSource = readFileSync(join(widgetDir, 'MetroBoardIntent.swift'), 'utf8');
+// 🔴 MetroWidgetCatalog 與它的查詢 extension 2026-08-22 搬到 App/MetroWidgetShared.swift。
+const sharedSource = readFileSync(join(widgetDir, '..', 'App', 'MetroWidgetShared.swift'), 'utf8');
 const mixedSource = readFileSync(join(widgetDir, 'MixedBoardWidget.swift'), 'utf8');
 
 /**
@@ -127,12 +128,13 @@ const pieces = [
   extractDeclaration(boardSource, 'struct BoardRowView'),
   extractDeclaration(boardSource, 'struct PlaceRowView'),
   // 捷運半邊
-  extractDeclaration(intentSource, 'struct MetroWidgetCatalog'),
+  extractDeclaration(sharedSource, 'struct MetroWidgetCatalog'),
   extractDeclaration(metroSource, 'struct MetroEntry'),
+  extractDeclaration(metroSource, 'struct MetroWaitTarget'),
   extractDeclaration(metroSource, 'extension MetroEntry'),
   extractDeclaration(metroSource, 'enum MetroPalette'),
   extractDeclaration(metroSource, 'enum MetroLastTrain'),
-  extractDeclaration(metroSource, 'extension MetroWidgetCatalog'),
+  extractDeclaration(sharedSource, 'extension MetroWidgetCatalog'),
   extractDeclaration(metroSource, 'enum MetroCountdown'),
   extractDeclaration(metroSource, 'struct MetroRowView'),
   // 混合卡本體
@@ -145,6 +147,7 @@ const pieces = [
 const trtcFixture = join(fixtureDir, 'trtc-live.json');
 
 const harness = `
+import AppIntents
 import AppKit
 import Foundation
 import SwiftUI
@@ -154,6 +157,21 @@ import WidgetKit
 // 版面【完全不讀】configuration（只讀 rail／metro 兩個 entry）⇒ 空殼不影響算繪結果。
 struct ConfigurationAppIntent {}
 struct MixedBoardIntent {}
+
+// 🔴 MetroWaitStartIntent 的【替身】(同 render_metro_widget.mjs):真品是 LiveActivityIntent,
+//    macOS 裸執行檔編不起來。本 harness 的情境 waitTarget 全為 nil ⇒ Button 分支不會被畫到,
+//    版面會不會被 Button 改變要看真的小工具截圖(模擬器)。
+struct MetroWaitStartIntent: AppIntent {
+    static let title: LocalizedStringResource = "追蹤這一站的車"
+    @Parameter(title: "系統", default: "") var sys: String
+    @Parameter(title: "車站", default: "") var station: String
+    @Parameter(title: "方向") var dest: String?
+    init() {}
+    init(sys: String, station: String, dest: String?) {
+        self.sys = sys; self.station = station; self.dest = dest
+    }
+    func perform() async throws -> some IntentResult { .result() }
+}
 
 ${pieces.join('\n\n')}
 

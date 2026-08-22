@@ -40,6 +40,13 @@ if ! { git -C "$ROOT" fetch --quiet origin 2>/dev/null && \
     "$(git -C "$ROOT" rev-parse --short HEAD 2>/dev/null || echo '?')" >> "$LOG"
 fi
 
+# manifest 閘門（2026-08-22）：捷運快照同步曾兩次動了 data/ 沒重產 manifest（6e515e4、a7fbe17），
+# 閘門紅著躺在 main 上沒人看得到——它不在任何 cron 也不在 hook。這裡是唯一每小時醒來的地方，
+# 掛在 ff-only 之後＝驗的就是 origin/main 現況。本地純雜湊、零網路，斷網時它的紅仍可信。
+# 綠也要印一行（「沒發現」不能跟「沒跑」長一樣）；紅不擋地圖掃描——兩者是獨立維度。
+MANI_OUT="$("$NODE" "$ROOT/scripts/verify_data_manifest.mjs" 2>&1 && "$NODE" "$ROOT/scripts/verify_data_provenance.mjs" 2>&1)"
+MANI_CODE=$?
+
 # 網路類失敗不是產品異常。2026-08-17 17:20 實例：本機網路斷一下 ⇒ page.goto 拋
 # ERR_INTERNET_DISCONNECTED ⇒ node 未捕捉例外 ⇒ exit=1 ⇒ 通知標題寫「偵測到異常」。
 # 假警報會磨掉告警本身的可信度（同族教訓：北捷斷訊徽章量錯對象也是假警報）。
@@ -53,6 +60,16 @@ if [ "$CODE" -ne 0 ] && printf '%s' "$OUT" | grep -qE "$NETFAIL"; then
   OUT="$("$NODE" "$ROOT/scripts/scan_map_health.mjs" "$URL" --json "$JSON" --gap 25 2>&1)"
   CODE=$?
   if [ "$CODE" -ne 0 ] && printf '%s' "$OUT" | grep -qE "$NETFAIL"; then CODE=2; fi
+fi
+
+if [ "$MANI_CODE" -ne 0 ]; then
+  OUT="${OUT}
+❌ manifest 閘門紅：main 的 data/ 與清單不同步（改 data/ 那輪要跑 npm run build-manifest；紅行見明細）
+${MANI_OUT}"
+  CODE=1  # 本地雜湊的紅是可信異常，優先於「掃描沒跑起來」
+else
+  OUT="${OUT}
+✅ manifest 閘門一致"
 fi
 
 SUMMARY="$(printf '%s\n' "$OUT" | grep -E '^[✅❌]' | tr '\n' ' ')"

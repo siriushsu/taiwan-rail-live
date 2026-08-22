@@ -1,3 +1,4 @@
+import AppIntents
 import WidgetKit
 import SwiftUI
 
@@ -17,6 +18,17 @@ struct MetroEntry: TimelineEntry {
     var passCTA: String? = nil
     // 每一列的線色要靠「系統＋本站＋該列終點」推(見 MetroPalette.rowLine),故 entry 要帶系統 id。
     var sys: String? = nil
+    // 點這張卡要在背景開等車卡的目標。nil ＝這一格沒有站可追(還沒選站、自動選站解析失敗、
+    // 或被通行證閘門擋下要導去方案頁)⇒ 照舊走 widgetURL 深連結,見 MetroBoardView.body。
+    var waitTarget: MetroWaitTarget? = nil
+}
+
+/// 「點卡就在背景開等車卡」的目標。dest ＝小工具那格選的方向(終點站名),沒選就是 nil
+/// (不限方向,與網頁端 dest===null 同語意)。
+struct MetroWaitTarget: Hashable {
+    let sys: String
+    let station: String
+    let dest: String?
 }
 
 extension MetroEntry {
@@ -105,7 +117,8 @@ struct MetroBoardProvider: AppIntentTimelineProvider {
                 MetroEntry(date: Date(timeIntervalSince1970: t), title: e.title,
                            lineColor: e.lineColor, snapshot: e.snapshot, precision: e.precision,
                            lastTrain: e.lastTrain, failed: e.failed, deepLink: e.deepLink,
-                           auto: e.auto, autoHint: e.autoHint, passCTA: e.passCTA, sys: e.sys)
+                           auto: e.auto, autoHint: e.autoHint, passCTA: e.passCTA, sys: e.sys,
+                           waitTarget: e.waitTarget)
             }
         }
         // 🔴 刷新策略(真機回饋 08-14 第五輪:「只剩一兩班看起來像沒車」):有預排邊界時用 .atEnd
@@ -200,7 +213,11 @@ struct MetroBoardProvider: AppIntentTimelineProvider {
                                                                station: station, now: now),
                           failed: failed,
                           deepLink: Self.deepLink(sys: sys.id, station: station),
-                          auto: isAuto, sys: sys.id)
+                          auto: isAuto, sys: sys.id,
+                          // 自動選站解析出來的站不套方向格(方向是為手選的那一站挑的),
+                          // 與上面 filtered 的條件同源,免得卡上列的與追蹤的不是同一批。
+                          waitTarget: MetroWaitTarget(sys: sys.id, station: station,
+                                                      dest: isAuto ? nil : cfg.dir))
     }
 
     // 🔴 站名是中文:URL(string:) 對非 ASCII 插值會回 nil ⇒ 深連結整條靜默死掉。
@@ -232,69 +249,9 @@ struct MetroBoardWidget: Widget {
     }
 }
 
-enum MetroFetcher {
-    // 端點已存在,Worker 零改動。edge cache s-maxage=15 ⇒ 小工具的請求絕大多數打在快取上。
-    static func url(sys: String) -> URL {
-        sys == "trtc"
-            ? URL(string: "https://railisland.tw/api/trtc-live")!
-            : URL(string: "https://railisland.tw/api/metro-live?sys=\(sys)")!
-    }
-
-    static func fetch(sys: String) async throws -> Data {
-        var req = URLRequest(url: url(sys: sys))
-        // 小工具的刷新機會很少,寧可失敗得快也不要卡住整條 timeline。
-        req.timeoutInterval = 8
-        // 🔴 端點回 `max-age=14400`(給瀏覽器離線退路用),但這是即時看板:用戶端只要拿到
-        //    一份四小時內的舊回應,裡面每一班的到站時刻都已經過去 ⇒ 每一站都空。
-        //    網頁自己那三個消費者早就寫死 `cache: 'no-store'`(index.html 的 trtc-live／
-        //    metro-live／ntmetro-live),Swift 這側漏了同一道防護,在此補齊。
-        //    邊緣快取(s-maxage=15)不受影響,伺服器負載不變。
-        req.cachePolicy = .reloadIgnoringLocalCacheData
-        req.setValue("RailIsland-Widget", forHTTPHeaderField: "User-Agent")
-        let (data, resp) = try await URLSession.shared.data(for: req)
-        guard let http = resp as? HTTPURLResponse, http.statusCode == 200 else {
-            throw URLError(.badServerResponse)
-        }
-        return data
-    }
-
-    // 🔴 快取放 App Group 的 UserDefaults,鍵前綴 metro.snapshot.——
-    //    刻意不寫看板檔目錄,也不碰 meta.json／boardFormatVersion(那是發車看板的地盤)。
-    private static let suite = UserDefaults(suiteName: "group.tw.railisland.app")
-    private static func key(_ sys: String, _ station: String) -> String { "metro.snapshot.\(sys)|\(station)" }
-
-    static func cache(_ s: MetroSnapshot, sys: String, station: String) {
-        let rows = s.rows.map { r -> [String: Any] in
-            var d: [String: Any] = ["dest": r.dest]
-            if let e = r.etaEpoch { d["eta"] = e }
-            if let m = r.minutes { d["min"] = m }
-            if let c = r.crowd { d["crowd"] = c }
-            // 線代碼與車號要一起存,否則抓取失敗改畫退路那份時每一列都掉色
-            // (車號是「板南／文湖」那一種列唯一的判別依據,見 MetroBoardModel.resolveLine)。
-            if let l = r.lineCode { d["line"] = l }
-            if let n = r.trainNo { d["no"] = n }
-            // approx 不存就會在退路那份掉旗標——合成的「約」列會被畫成秒級倒數冒充官方精度。
-            if r.approx { d["approx"] = true }
-            return d
-        }
-        suite?.set(["at": s.dataAt, "rows": rows, "stale": s.stale], forKey: key(sys, station))
-    }
-
-    static func cached(sys: String, station: String) -> MetroSnapshot? {
-        guard let o = suite?.dictionary(forKey: key(sys, station)),
-              let at = o["at"] as? Double, let raw = o["rows"] as? [[String: Any]] else { return nil }
-        let rows = raw.map { r in
-            MetroRow(dest: r["dest"] as? String ?? "", etaEpoch: r["eta"] as? Double,
-                     minutes: r["min"] as? Int, crowd: r["crowd"] as? [Int],
-                     lineCode: r["line"] as? String, trainNo: r["no"] as? String,
-                     approx: r["approx"] as? Bool ?? false)
-        }
-        // 🔴 Swift 的 memberwise init 必須照【宣告順序】給參數,不能重排:
-        //    MetroSnapshot 是 station → dataAt → rows → stale。
-        return MetroSnapshot(station: station, dataAt: at, rows: rows,
-                             stale: o["stale"] as? Bool ?? false)
-    }
-}
+// 🔴 MetroFetcher(官方看板抓取與 App Group 快取,含 approx 旗標的往返)已搬到
+//    App/MetroWidgetShared.swift,MetroWidgetCatalog 的查詢 extension 也一併過去了——
+//    等車卡的背景開卡走 App target,那邊沒有本檔(WidgetKit 畫面層)。呼叫方式零變化。
 
 // ── 改版後的版面（2026-08-17，依 Claude Design「軌島 iOS Widget 與 Live Activity」）─────
 //
@@ -325,7 +282,7 @@ struct MetroBoardView: View {
 
     private var family: WidgetFamily { familyOverride ?? widgetFamily }
 
-    var body: some View {
+    private var cardBody: some View {
         GeometryReader { geo in
             let scale = RailScale(width: geo.size.width,
                                   reference: family == .systemSmall ? RailScale.smallReference
@@ -340,9 +297,24 @@ struct MetroBoardView: View {
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         }
         .railRenderingMode(renderingMode)
-        // 點小工具 → App 直開這一站的等車卡。未選站時 deepLink 為 nil,widgetURL(nil) 就是
-        // 預設行為(單純開 App),不必分支。
-        .widgetURL(entry.deepLink)
+    }
+
+    var body: some View {
+        // 🔴 點整張卡 ＝ 在【背景】開等車卡,不打開 App(MetroWaitStartIntent)。
+        //    舊做法是 widgetURL 深連結,得先把 App 叫到前景才開得了卡——而使用者「點完小工具
+        //    就鎖屏、一直沒回 App」時,App 永遠停在背景,iOS 就永遠拒絕 Activity.request。
+        // 沒有 waitTarget 的兩種卡照舊走深連結:通行證 CTA 要把人送到方案頁(railisland://pass),
+        // 未選站時 deepLink 為 nil、widgetURL(nil) 就是預設行為(單純開 App)。
+        if let t = entry.waitTarget {
+            Button(intent: MetroWaitStartIntent(sys: t.sys, station: t.station, dest: t.dest)) {
+                cardBody
+            }
+            // 🔴 .plain:不加的話 button 的 UA 樣式會把整張卡染成強調色並加上按壓底,
+            //    版面與現況不再逐像素相同。
+            .buttonStyle(.plain)
+        } else {
+            cardBody.widgetURL(entry.deepLink)
+        }
     }
 
     // MARK: - Small：單班大卡
@@ -661,14 +633,10 @@ struct MetroRowView: View {
 }
 
 enum MetroPalette {
-    /// 線代碼 → 色票。官方 `stn` 給的是主代碼(O),目錄裡卻可能拆成子線(O_XINZHUANG／
-    /// O_LUZHOU,共用同一個色票) ⇒ 先找完全相同的 id,沒有再收所有 `<code>_` 開頭的子線;
-    /// 子線色票不一致就回 nil(例:R 與 R_XBT 顏色不同,但 R 本身存在故走第一條,不受影響)。
+    /// 線代碼 → 色票。規則(含主/子線退路)搬到 MetroWidgetCatalog.lineHex —— 等車卡的背景
+    /// 開卡在 App target 也要同一條規則,不可以兩邊各留一份會各自漂移的複本。
     private static func lineHex(sys: String, code: String) -> String? {
-        let table = MetroWidgetCatalog.shared.lineColorByID
-        if let exact = table["\(sys)|\(code)"] { return exact }
-        let kids = Set(table.filter { $0.key.hasPrefix("\(sys)|\(code)_") }.map(\.value))
-        return kids.count == 1 ? kids.first : nil
+        MetroWidgetCatalog.shared.lineHex(sys: sys, code: code)
     }
 
     private static func parse(_ raw: String) -> Color? {
@@ -755,9 +723,4 @@ enum MetroLastTrain {
         if t < now { t += 86_400 }
         return t
     }
-}
-
-extension MetroWidgetCatalog {
-    func lineColorHexes(sys: String, station: String) -> [String] { lineColors["\(sys)|\(station)"] ?? [] }
-    func lineIDsAt(sys: String, station: String) -> [String] { lineIDs["\(sys)|\(station)"] ?? [] }
 }

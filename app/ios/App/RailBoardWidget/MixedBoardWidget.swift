@@ -252,8 +252,7 @@ private struct MixedBoardCard: View {
             }
             Spacer().frame(height: scale.pt(MixedMetrics.titleGap))
 
-            sectionHeader(metroHeader)
-            metroSection(follows: plan.metroFollows)
+            metroHalf(follows: plan.metroFollows)
 
             sectionDivider
 
@@ -265,6 +264,26 @@ private struct MixedBoardCard: View {
     }
 
     // MARK: - 兩區
+
+    /// 捷運那半點下去 ＝ 在背景直接開等車卡,不打開 App(同小卡,見 MetroBoardView.body)。
+    /// 🔴 只包捷運那半:整張卡都包起來的話,鐵路那半也會變成「開捷運等車卡」的按鈕;
+    ///    鐵路那半維持整卡的 widgetURL 深連結(見 MixedBoardEntryView)。
+    /// 🔴 內層 VStack 與外層同參數(.leading／spacing 0),包 Button(.plain) 不改變幾何——
+    ///    Button 的 label 若直接收兩個子 view 會被塞進隱式橫排,分區標題就跑到列的旁邊去。
+    @ViewBuilder private func metroHalf(follows: Int) -> some View {
+        let content = VStack(alignment: .leading, spacing: 0) {
+            sectionHeader(metroHeader)
+            metroSection(follows: follows)
+        }
+        if let t = metro.waitTarget {
+            Button(intent: MetroWaitStartIntent(sys: t.sys, station: t.station, dest: t.dest)) {
+                content
+            }
+            .buttonStyle(.plain)
+        } else {
+            content
+        }
+    }
 
     @ViewBuilder private func metroSection(follows: Int) -> some View {
         if let last = metro.lastTrain {

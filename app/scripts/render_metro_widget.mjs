@@ -96,24 +96,26 @@ const modelPath = join(widgetDir, 'MetroBoardModel.swift');
 // 共用元件層直接交給 swiftc 一起編（不抽宣告）：抽取會有「抽到舊版」的風險，而這一層是
 // 七個畫面的地基，抽錯的症狀是「算繪出來的版面不是出貨的版面」這種不會報錯的假象。
 const kitPath = join(widgetDir, 'RailWidgetKit.swift');
-const intentSource = readFileSync(join(widgetDir, 'MetroBoardIntent.swift'), 'utf8');
+// 🔴 MetroWidgetCatalog 與它的查詢 extension 2026-08-22 搬到 App/MetroWidgetShared.swift。
+const sharedSource = readFileSync(join(widgetDir, '..', 'App', 'MetroWidgetShared.swift'), 'utf8');
 const widgetSource = readFileSync(join(widgetDir, 'MetroBoardWidget.swift'), 'utf8');
 const dataPath = join(widgetDir, 'MetroWidgetData.json');
 
 // 只抽版面真正會用到的型別/邏輯:MetroBoardProvider／MetroFetcher／MetroBoardWidget(連網
 // 與 Widget 外殼)刻意不抽——組 entry 這裡改吃凍結樣本,不打真的網路(見上方檔頭說明)。
 const pieces = [
-  extractDeclaration(intentSource, 'struct MetroWidgetCatalog'),
+  extractDeclaration(sharedSource, 'struct MetroWidgetCatalog'),
   // 服務範圍外那張卡的文案要走【真的那一支】,不在這裡重打字面值(文案改了會無聲分岔)。
   extractDeclaration(readFileSync(join(widgetDir, 'MetroNearest.swift'), 'utf8'),
                      'enum MetroNearestMath'),
   extractDeclaration(widgetSource, 'struct MetroEntry'),
+  extractDeclaration(widgetSource, 'struct MetroWaitTarget'),
   // 空狀態文案(連不上／資料過舊／官方沒班次)住在這個 extension 裡,MetroBoardView 直接呼叫它;
   // 沒抽進來的話 harness 一編就是「has no member 'emptyText'」。
   extractDeclaration(widgetSource, 'extension MetroEntry'),
   extractDeclaration(widgetSource, 'enum MetroPalette'),
   extractDeclaration(widgetSource, 'enum MetroLastTrain'),
-  extractDeclaration(widgetSource, 'extension MetroWidgetCatalog'),
+  extractDeclaration(sharedSource, 'extension MetroWidgetCatalog'),
   extractDeclaration(widgetSource, 'struct MetroBoardView'),
   // 倒數形態的判定(秒級→分鐘/進站、分鐘級→約 N 分)住在這裡,小卡與列表列共用同一條規則。
   extractDeclaration(widgetSource, 'enum MetroCountdown'),
@@ -128,10 +130,28 @@ const yFixture = join(fixtureDir, 'trtc-live-y.json');
 const krtcFixture = join(fixtureDir, 'krtc-live.json');
 
 const harness = `
+import AppIntents
 import AppKit
 import Foundation
 import SwiftUI
 import WidgetKit
+
+// 🔴 MetroWaitStartIntent 的【替身】。真品是 LiveActivityIntent,而 ActivityKit 是 iOS 限定,
+//    這支 harness 是 macOS 裸執行檔,抽真品進來根本編不過。
+//    這裡只要它能讓 MetroBoardView 的 Button(intent:) 編譯——本 harness 每個情境的
+//    waitTarget 都是 nil ⇒ 執行時一律走 else 那條(widgetURL),替身連畫都不會被畫到。
+//    版面會不會被 Button 改變,要看真的小工具截圖(模擬器),不是看這裡。
+struct MetroWaitStartIntent: AppIntent {
+    static let title: LocalizedStringResource = "追蹤這一站的車"
+    @Parameter(title: "系統", default: "") var sys: String
+    @Parameter(title: "車站", default: "") var station: String
+    @Parameter(title: "方向") var dest: String?
+    init() {}
+    init(sys: String, station: String, dest: String?) {
+        self.sys = sys; self.station = station; self.dest = dest
+    }
+    func perform() async throws -> some IntentResult { .result() }
+}
 
 ${pieces.join('\n\n')}
 

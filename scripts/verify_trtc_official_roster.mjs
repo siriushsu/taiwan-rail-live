@@ -633,9 +633,11 @@ async function mutatedReducer(kind) {
       "    evidence.arrEpoch, evidence.observedEpoch, Number(evidence.occurrence) || 0].join('|');",
       "    evidence.observedEpoch, Number(evidence.occurrence) || 0].join('|');", kind);
   } else if (kind === 'birth-mid-route') {
+    // 2026-08-21 短程車補入後閘門多了 `&& !shortTurnOrigin`，錨點跟著搬（突變意圖不變：
+    // 把「營運中站間列不得生車」整道閘關掉）。
     source = replaceExactly(source,
-      'if (!coldStart && !current[index].terminal && !recoverable) { ignoredObservations++; continue; }',
-      'if (false && !coldStart && !current[index].terminal && !recoverable) { ignoredObservations++; continue; }', kind);
+      'if (!coldStart && !current[index].terminal && !recoverable && !shortTurnOrigin) {',
+      'if (false && !coldStart && !current[index].terminal && !recoverable && !shortTurnOrigin) {', kind);
   } else if (kind === 'allow-number-jump') {
     source = replaceExactly(source,
       '  return physicallyReachable(model, prior, current, nowEpoch);',

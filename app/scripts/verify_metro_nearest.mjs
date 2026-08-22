@@ -143,10 +143,12 @@ const probes = [
 ];
 
 // ---- 組 Swift harness、編譯、執行 ----
-const intentSource = readFileSync(join(widgetDir, 'MetroBoardIntent.swift'), 'utf8');
+// 🔴 MetroWidgetCatalog 2026-08-22 搬到 App/MetroWidgetShared.swift(App target 也要用它:
+//    等車卡從小工具背景開卡時,perform() 在 App 行程裡跑)。
+const sharedSource = readFileSync(join(widgetDir, '..', 'App', 'MetroWidgetShared.swift'), 'utf8');
 const harness = `
 import Foundation
-${extractDeclaration(intentSource, 'struct MetroWidgetCatalog')}
+${extractDeclaration(sharedSource, 'struct MetroWidgetCatalog')}
 ${extractDeclaration(nearestSource, 'enum MetroNearestMath')}
 let probesPath = CommandLine.arguments[1]
 let raw = try! Data(contentsOf: URL(fileURLWithPath: probesPath))
