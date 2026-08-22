@@ -298,6 +298,77 @@ async function sectionE(browser, engine) {
   await close();
 }
 
+// ── F 段:「更多」抽屜三階(設計 6c)＋兩條倍率的契約 ────────────────────────────
+// 設計檔 TURN 5/6 的對照表不是一顆倍率:主文 1／1.25／1.5,小標籤與次要說明只有
+// 1／1.14／1.29。F4 就是在守這件事——少了它,把 --uis 直接設成 --ui 也能全綠。
+const F_ROWH = { std: 48, large: 68, xlarge: 80 };   // 設計對照表「列高」那一列
+const F_SECPX = { std: 11, large: 12.5, xlarge: 14 }; // 設計對照表「小標籤」那一列
+
+async function sectionF(browser, engine) {
+  // F0 結構性:掃原始碼,確認兩條倍率沒有互相跑錯邊(數值判準抓不到「某一處忘了改」)
+  if (engine === 'chromium') {
+    const src = readFileSync(path.join(ROOT, 'index.html'), 'utf8');
+    const strayMain = [...src.matchAll(/font-size:\s*calc\(((?:\d(?:\.5)?|10(?:\.5)?|11(?:\.5)?|12)px)\s*\*\s*var\(--ui\)\)/g)];
+    const straySmall = [...src.matchAll(/font-size:\s*calc\((1[2-9]\.5px|1[3-9]px|[2-9]\d[\d.]*px)\s*\*\s*var\(--uis\)\)/g)];
+    ok('F0a 12px 以下的字級沒有一處還留在主倍率 --ui 上', strayMain.length === 0,
+      strayMain.slice(0, 3).map(m => m[1]).join(','));
+    ok('F0b 12.5px 以上的字級沒有一處跑到小倍率 --uis 上', straySmall.length === 0,
+      straySmall.slice(0, 3).map(m => m[1]).join(','));
+    ok('F0c 兩條倍率三檔都宣告齊全',
+      /--uis:\s*1;/.test(src) && /html\[data-fs=large\][^}]*--uis:\s*1\.14/.test(src)
+      && /html\[data-fs=xlarge\][^}]*--uis:\s*1\.29/.test(src));
+  }
+
+  for (const tier of ['std', 'large', 'xlarge']) {
+    for (const width of [360, 393]) {
+      const tag = `${engine} ${tier} ${width}pt`;
+      const { page, errs, close } = await boot(browser, { width, tier });
+      const r = await page.evaluate(() => {
+        document.getElementById('tabMore').click();
+        const sheet = document.querySelector('.more-sheet');
+        const vis = el => el && el.getClientRects().length > 0;
+        const rows = [...sheet.querySelectorAll('.ms-row')].filter(vis);
+        const sec = [...sheet.querySelectorAll('.ms-sec')].filter(vis)[0];
+        const px = el => +getComputedStyle(el).fontSize.replace('px', '');
+        const R = el => { const b = el.getBoundingClientRect(); return { x: +b.x.toFixed(1), y: +b.y.toFixed(1), w: +b.width.toFixed(1), h: +b.height.toFixed(1) }; };
+        const fsRow = sheet.querySelector('.ms-row[data-act="fontscale"]');
+        const lab = R(fsRow.firstElementChild), val = R(fsRow.querySelector('#msFontVal')),
+          chev = R(fsRow.querySelector('.ms-tail .chev')), rr = R(fsRow);
+        return {
+          n: rows.length,
+          minH: Math.min(...rows.map(x => x.getBoundingClientRect().height)),
+          secPx: sec ? px(sec) : null,
+          labPx: px(fsRow.firstElementChild),
+          stacked: val.y >= lab.y + lab.h - 1,
+          inline: Math.abs(val.y - lab.y) < 3,
+          valLeft: Math.abs(val.x - lab.x) < 3,
+          chevRight: chev.x + chev.w >= rr.x + rr.w - 26,
+          chevMid: Math.abs((chev.y + chev.h / 2) - (rr.y + rr.h / 2)) < 6,
+        };
+      });
+
+      // 正向對照:先證明列與段標題都真的量得到——不然下面每一條在「面板沒開」時也成立
+      ok(`F1 ${tag} 正向對照:抽屜列與段標題都量得到`, r.n >= 12 && r.secPx > 0, `n=${r.n} sec=${r.secPx}`);
+      // 列高吃設計對照表,不是吃「目前量到多少」:特大原本只有 49px,連 60px 觸控目標都不到
+      ok(`F2 ${tag} 每一列都不低於設計列高 ${F_ROWH[tier]}px`, r.minH >= F_ROWH[tier] - 0.5, `minH=${r.minH}`);
+      ok(`F3 ${tag} 段標題字級 ≈ ${F_SECPX[tier]}px(小倍率)`, Math.abs(r.secPx - F_SECPX[tier]) <= 0.6, `secPx=${r.secPx}`);
+      // 兩條倍率必須真的不一樣:小標籤的放大幅度要明顯小於主文,否則就是又退回一顆倍率
+      const smallRatio = r.secPx / F_SECPX.std, mainRatio = r.labPx / 13.5;
+      ok(`F4 ${tag} 小字倍率確實比主倍率溫和(${smallRatio.toFixed(2)}× vs ${mainRatio.toFixed(2)}×)`,
+        tier === 'std' ? Math.abs(smallRatio - mainRatio) < 0.02 : mainRatio - smallRatio > 0.1,
+        `small=${smallRatio.toFixed(3)} main=${mainRatio.toFixed(3)}`);
+      // 值的位置:特大掉第二行、其餘同一行——兩個方向都寫死,少收或多收都會轉紅
+      ok(`F5 ${tag} 目前值${tier === 'xlarge' ? '掉到第二行並切齊標籤左緣' : '與標籤同一行'}`,
+        tier === 'xlarge' ? (r.stacked && r.valLeft && !r.inline) : (r.inline && !r.stacked),
+        JSON.stringify({ inline: r.inline, stacked: r.stacked, valLeft: r.valLeft }));
+      ok(`F6 ${tag} 「›」始終留在右緣且垂直置中`, r.chevRight && r.chevMid,
+        JSON.stringify({ chevRight: r.chevRight, chevMid: r.chevMid }));
+      ok(`F7 ${tag} 零 pageerror`, errs.length === 0, errs.slice(0, 1).join(''));
+      await close();
+    }
+  }
+}
+
 await assertTarget();
 for (const [engine, launcher] of [['chromium', chromium], ['webkit', webkit]]) {
   const browser = await launcher.launch();
@@ -306,6 +377,7 @@ for (const [engine, launcher] of [['chromium', chromium], ['webkit', webkit]]) {
   await sectionC(browser, engine);
   await sectionD(browser, engine);
   await sectionE(browser, engine);
+  await sectionF(browser, engine);
   await browser.close();
 }
 const pass = results.filter(r => r.pass).length;

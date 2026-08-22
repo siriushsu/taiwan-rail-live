@@ -48,6 +48,11 @@
        改這一顆就整個介面跟著放大;padding/gap/圓角刻意不吃倍率——設計要的是「同一份版面塞進更多字」,
        不是整體放大鏡(見設計檔 TURN 10/12「欄位一個都沒收」)。?live=1 直播殼強制 1(OBS 契約)。 */
     --ui: 1;
+    /* 設計檔 TURN 5/6 的字級對照表不是單一倍率:主文與主要數值走 1／1.25／1.5,
+       但小標籤(11→12.5→14)與次要說明(11.5→13→15)只走 1／1.14／1.29——它們本來就小,
+       照主倍率放大會比設計大 18%,反而把「同一份版面塞進更多字」吃回去。
+       全檔 12px 以下的 font-size 走這一顆,12.5px 以上走 --ui。 */
+    --uis: 1;
     /* 橫放時動態島／瀏海吃掉左右各一條(14 Pro 起 59pt、X 世代 44pt)。直向時兩者都是 0，
        所以加了也不動任何直向與桌面版面。包成變數而不是各處直接寫 env()：驗收要能把它覆寫成
        59px 來模擬實機(Playwright 設不了 env())，而「值真的來自 env()」由原始碼斷言 L15c 把守。 */
@@ -89,8 +94,8 @@
   }
   /* 字級三階:大 x1.25、特大 x1.5(設計檔 TURN 10 / TURN 12 的倍率)。
      只掛在 html 上,任何子樹都拿得到;沒有 data-fs 就是標準(--ui:1)。 */
-  html[data-fs=large]  { --ui: 1.25; }
-  html[data-fs=xlarge] { --ui: 1.5; }
+  html[data-fs=large]  { --ui: 1.25; --uis: 1.14; }
+  html[data-fs=xlarge] { --ui: 1.5;  --uis: 1.29; }
 
   html[data-theme=dark]{
     color-scheme:dark;
@@ -181,7 +186,7 @@
   }
   /* 議題5:副標 8px→10px 可讀(動態文案機制不變;.plate grid 與 .plate-foot 鄰站帶不動) */
   .plate-sub {
-    margin: 0; font-size: calc(10px * var(--ui)); letter-spacing: 2.5px; text-indent: 2.5px;
+    margin: 0; font-size: calc(10px * var(--uis)); letter-spacing: 2.5px; text-indent: 2.5px;
     color: var(--plate-ink); font-weight: 800; opacity: .85;
   }
   /* 藏青反白鄰站帶:負邊距吃回 padding 貼齊牌內緣收底——真站名牌的雙色構造 */
@@ -192,10 +197,10 @@
     border-radius: 0 0 6px 6px;
     display: flex; justify-content: space-between; align-items: center; gap: 12px;
   }
-  .plate-foot .stn:first-child::before { content: "◀"; font-size: calc(8px * var(--ui)); margin-right: 6px; position: relative; top: -1px; opacity: .9; }
-  .plate-foot .stn:last-child::after { content: "▶"; font-size: calc(8px * var(--ui)); margin-left: 6px; position: relative; top: -1px; opacity: .9; }
+  .plate-foot .stn:first-child::before { content: "◀"; font-size: calc(8px * var(--uis)); margin-right: 6px; position: relative; top: -1px; opacity: .9; }
+  .plate-foot .stn:last-child::after { content: "▶"; font-size: calc(8px * var(--uis)); margin-left: 6px; position: relative; top: -1px; opacity: .9; }
   .plate-foot .stn {
-    font-size: calc(10px * var(--ui)); font-weight: 800; letter-spacing: 2px; text-indent: 2px;
+    font-size: calc(10px * var(--uis)); font-weight: 800; letter-spacing: 2px; text-indent: 2px;
     color: #fff8ec; white-space: nowrap;
   }
   .plate-arrow { width: 52px; height: 9px; display: block; margin: 0 6px; color: #fff8ec; }
@@ -203,7 +208,7 @@
   /* min-height:導言長短不一會多折一行、把整張地圖上下推(v0727c 使用者回報「按鈕下方文字行數不同也會跳」)。
      四顆分頁的導言在 901–1680px 之間最多折三行(12px × 1.55 × 3 ≈ 56px),一律先留滿三行的位子。
      同一個值也吃掉首屏 CLS 的殘量(#lead 靜態預置文案與 boot 換上的文案長短不同)。 */
-  header #lead { margin: 0; color: var(--faint); font-size: calc(12px * var(--ui)); line-height: 1.55; min-height: 56px; max-width: 640px; text-wrap: pretty; }
+  header #lead { margin: 0; color: var(--faint); font-size: calc(12px * var(--uis)); line-height: 1.55; min-height: 56px; max-width: 640px; text-wrap: pretty; }
 
   /* ── 系統切換:群組頁籤(互斥)+縣市+群內成員——pill 家族 ── */
   .systems { margin: 0; }
@@ -252,10 +257,10 @@
   .groupmembers .mem.on { background: var(--bg-stage); color: var(--ink); }
   .groupmembers .mem.on .memck { background: var(--red); border-color: var(--red); color: #fffdf6; }
   .groupmembers .mem.off { opacity: .6; }
-  .groupmembers .allcap { font-size: calc(12px * var(--ui)); color: var(--faint); padding: 4px 3px; line-height: 1.4; }
+  .groupmembers .allcap { font-size: calc(12px * var(--uis)); color: var(--faint); padding: 4px 3px; line-height: 1.4; }
   .groupmembers .mem .memck {
     width: 13px; height: 13px; border-radius: 3px; border: 1.5px solid currentColor;
-    display: inline-flex; align-items: center; justify-content: center; font-size: calc(10px * var(--ui)); line-height: 1;
+    display: inline-flex; align-items: center; justify-content: center; font-size: calc(10px * var(--uis)); line-height: 1;
   }
 
   /* ── 搜尋+跟隨票(移入 header 右側;側欄已取消) ── */
@@ -278,7 +283,7 @@
   .followbar b { color: var(--ink-strong); font-size: calc(14px * var(--ui)); }
   .followbar .dot { width: 9px; height: 9px; border-radius: 50%; }
   .followbar button {
-    font: inherit; font-size: calc(12px * var(--ui)); font-weight: 700; cursor: pointer;
+    font: inherit; font-size: calc(12px * var(--uis)); font-weight: 700; cursor: pointer;
     background: var(--red); color: #fff8ec;
     border: 1px solid var(--red-deep); border-radius: 4px; padding: 3px 9px;
     margin-left: auto;
@@ -388,7 +393,7 @@
   .speedrail input::-moz-range-thumb { width: 38px; height: 19px; background: var(--red); border: 1.5px solid var(--red-deep); border-radius: 4px 10px 10px 4px; box-shadow: var(--shadow-red); }
   .speedrail .post { position: absolute; top: 4px; height: 18px; border-left: 2px solid var(--line); z-index: 1; }
   .speedrail .post.end { border-color: var(--navy); }
-  .speedrail .tick { position: absolute; top: 26px; font-size: calc(9px * var(--ui)); color: var(--faint); transform: translateX(-50%); font-variant-numeric: tabular-nums; }
+  .speedrail .tick { position: absolute; top: 26px; font-size: calc(9px * var(--uis)); color: var(--faint); transform: translateX(-50%); font-variant-numeric: tabular-nums; }
   /* v0718i 觸控熱區:整條可拖曳帶(非拇指本身)命中框補到 ≥44px 高,置中擴張、z-index 墊底不擋 input/刻度 */
   .speedrail::after {
     content: ''; position: absolute; left: 50%; top: 50%;
@@ -408,7 +413,7 @@
   .timerail .tod-wrap { grid-column: 2; }
   .tr-delta {
     grid-column: 3; justify-self: start; padding-left: 3px; overflow: hidden; white-space: nowrap;
-    font-size: calc(10px * var(--ui)); font-weight: 800; color: var(--red); font-variant-numeric: tabular-nums;
+    font-size: calc(10px * var(--uis)); font-weight: 800; color: var(--red); font-variant-numeric: tabular-nums;
   }
   /* 讀數的透明時刻輸入:桌面收成讀數本身大小——原本 ≥44px 的觸控熱區會蓋住下方刻度尺讓它拖不動;手機在 ≤900 區塊還原 */
   .timerail .tod-wrap input[type=time] { left: 0; top: 0; width: 100%; height: 100%; transform: none; }
@@ -443,7 +448,7 @@
   button.pp.on { background: var(--navy); color: var(--on-navy); }
   /* 現在/放空/視角:次階小鈕(帶上不與播放鍵搶重量) */
   button.pp.sub {
-    font-size: calc(12px * var(--ui)); font-weight: 700; color: var(--muted);
+    font-size: calc(12px * var(--uis)); font-weight: 700; color: var(--muted);
     border: 1.5px solid var(--line); border-radius: var(--r-pill); box-shadow: none;
     padding: 4px 12px; min-height: 32px;
   }
@@ -479,7 +484,7 @@
   /* 停播:等化器留在原位凍結(不佔位變化=鈕寬不跳動),條子壓底、淡出存在感 */
   #musicBtn:not(.playing) .eq i { animation: none; height: 4px; opacity: .45; }
   #musicNextBtn { padding: 5px 9px; }
-  .kbd-hint { margin: 8px 2px 0; color: var(--faint); font-size: calc(12px * var(--ui)); line-height: 1.9; }
+  .kbd-hint { margin: 8px 2px 0; color: var(--faint); font-size: calc(12px * var(--uis)); line-height: 1.9; }
   .kbd-hint b {
     color: var(--muted); font-weight: 700; background: var(--bg-stage);
     border: 1px solid var(--line); border-radius: 4px; padding: 0 5px; margin: 0 2px;
@@ -501,7 +506,7 @@
     font-size: calc(15px * var(--ui)); font-weight: 700; line-height: 1.1; color: var(--navy);
   }
   .stage-tools button .ti .ri-icon, button.tmini .ti .ri-icon { width: 16px; height: 16px; vertical-align: 0; }
-  .stage-tools button .tl, button.tmini .tl { font-size: calc(11px * var(--ui)); color: var(--faint); white-space: nowrap; font-weight: 600; letter-spacing: .3px; }
+  .stage-tools button .tl, button.tmini .tl { font-size: calc(11px * var(--uis)); color: var(--faint); white-space: nowrap; font-weight: 600; letter-spacing: .3px; }
   #ppTxt { display: none; } /* 帶上播放鍵只出圖示(mock §02);字留在 DOM 給 JS 更新與無障礙 */
   #favRow { display: none !important; } /* 側欄最愛常駐列已取消(統一住 ★ 面板);renderFavs 仍寫這個 stub */
   #favBtn .ti { color: var(--gold); }
@@ -529,9 +534,9 @@
   .topbar .tb-plate { padding: 3px 10px 0; border-width: 2px; flex: none; align-self: flex-start; }
   .topbar .tb-plate h1 { font-size: calc(14px * var(--ui)); font-weight: 900; letter-spacing: 4px; text-indent: 4px; color: var(--plate-ink); margin: 0; line-height: 1.2; }
   .topbar .tb-plate .plate-foot { margin: 2px -10px 0; padding: 1px 7px 2px; gap: 8px; }
-  .topbar .tb-plate .plate-foot .stn { font-size: calc(9.5px * var(--ui)); letter-spacing: 1px; text-indent: 1px; }
+  .topbar .tb-plate .plate-foot .stn { font-size: calc(9.5px * var(--uis)); letter-spacing: 1px; text-indent: 1px; }
   .topbar .tb-plate .plate-foot .stn:first-child::before,
-  .topbar .tb-plate .plate-foot .stn:last-child::after { font-size: calc(6px * var(--ui)); margin: 0 3px; }
+  .topbar .tb-plate .plate-foot .stn:last-child::after { font-size: calc(6px * var(--uis)); margin: 0 3px; }
 
   /* 錄影中浮條(地圖頂部置中):唯一的錄影狀態指示,點它停止並下載。 */
   .rec-pill {
@@ -544,7 +549,7 @@
   }
   .rec-pill[hidden] { display: none; }
   .rec-pill .rd { width: 9px; height: 9px; border-radius: 50%; background: var(--red); animation: recBlink 1.1s steps(2, start) infinite; }
-  .rec-pill .rstop { font-weight: 700; font-size: calc(12px * var(--ui)); opacity: .85; border-left: 1px solid var(--line); padding-left: 8px; color: var(--muted); }
+  .rec-pill .rstop { font-weight: 700; font-size: calc(12px * var(--uis)); opacity: .85; border-left: 1px solid var(--line); padding-left: 8px; color: var(--muted); }
   .rec-pill:hover { background: var(--bg-stage); }
   @keyframes recBlink { to { opacity: 0; } }
   /* ── 劇場模式提示膠囊(獨立 class,亮暗雙主題走 CSS 變數;不被 body.idle 隱藏) ── */
@@ -574,11 +579,11 @@
     font-variant-numeric: tabular-nums; white-space: nowrap;
   }
   .collect-bar .cb-ttl { font-size: calc(13px * var(--ui)); font-weight: 900; letter-spacing: 1px; }
-  .collect-bar .cb-stat { font-size: calc(11.5px * var(--ui)); font-weight: 600; opacity: .88; overflow: hidden; text-overflow: ellipsis; }
+  .collect-bar .cb-stat { font-size: calc(11.5px * var(--uis)); font-weight: 600; opacity: .88; overflow: hidden; text-overflow: ellipsis; }
   .collect-bar .cb-exit {
     flex: none; background: var(--on-navy); color: var(--navy); border: 0; border-radius: var(--r-pill);
     padding: 4px 14px; min-height: 30px; min-width: 56px; /* 這是本模式唯一的出口,觸控尺寸不能省 */
-    font-size: calc(12px * var(--ui)); font-weight: 800; cursor: pointer; font-family: inherit;
+    font-size: calc(12px * var(--uis)); font-weight: 800; cursor: pointer; font-family: inherit;
   }
   .collect-bar .cb-exit:hover { opacity: .86; }
   /* 懸賞層切換:平時是描邊淡出的次要鈕,開啟時填地圖上同一顆懸賞色(#ffd60a)呼應——
@@ -587,7 +592,7 @@
     flex: none; background: transparent; color: var(--on-navy); border: 1.5px solid var(--on-navy);
     border-radius: var(--r-pill); opacity: .8;
     padding: 4px 12px; min-height: 30px; min-width: 44px;
-    font-size: calc(12px * var(--ui)); font-weight: 800; cursor: pointer; font-family: inherit;
+    font-size: calc(12px * var(--uis)); font-weight: 800; cursor: pointer; font-family: inherit;
   }
   .collect-bar .cb-tgl:hover { opacity: 1; }
   .collect-bar .cb-tgl.on { background: #ffd60a; border-color: #ffd60a; color: #1a1400; opacity: 1; }
@@ -616,7 +621,7 @@
   .record-bar .rb-row1, .record-bar .rb-row2 { display: contents; }
   .record-bar .rb-dot { flex: none; width: 9px; height: 9px; border-radius: 50%; background: #fffdf6; animation: rcblink 1.6s infinite; }
   .record-bar .rb-ttl { font-size: calc(13px * var(--ui)); font-weight: 900; letter-spacing: 1px; }
-  .record-bar .rb-stat { font-size: calc(11.5px * var(--ui)); font-weight: 700; opacity: .92; }
+  .record-bar .rb-stat { font-size: calc(11.5px * var(--uis)); font-weight: 700; opacity: .92; }
   /* 訊號燈色階跟 .rc-quality::before(詳細面板裡的那顆)同一套映射，不重造一份判準 */
   .record-bar .rb-sig { flex: none; width: 9px; height: 9px; border-radius: 50%; background: #ff3b30; border: 1.5px solid rgba(255,255,255,.55); }
   .record-bar .rb-sig[data-q="good"] { background: #34c759; }
@@ -625,13 +630,13 @@
   .record-bar .rb-detail {
     flex: none; background: transparent; color: #fffdf6; border: 1.5px solid rgba(255,253,246,.75);
     border-radius: var(--r-pill); padding: 4px 12px; min-height: 30px; min-width: 44px;
-    font-size: calc(12px * var(--ui)); font-weight: 800; cursor: pointer; font-family: inherit;
+    font-size: calc(12px * var(--uis)); font-weight: 800; cursor: pointer; font-family: inherit;
   }
   .record-bar .rb-detail:hover { opacity: .86; }
   .record-bar .rb-stop {
     flex: none; background: #fffdf6; color: var(--red-deep); border: 0; border-radius: var(--r-pill);
     padding: 4px 14px; min-height: 30px; min-width: 56px; /* 隨時可及的出口,觸控尺寸不能省(比照 .cb-exit) */
-    font-size: calc(12px * var(--ui)); font-weight: 800; cursor: pointer; font-family: inherit;
+    font-size: calc(12px * var(--uis)); font-weight: 800; cursor: pointer; font-family: inherit;
   }
   .record-bar .rb-stop:hover { opacity: .86; }
   /* 收集地圖是靜態檢視:播放/倍速/時刻尺對一張「你走過哪裡」毫無意義,留著只會讓人以為壞了。
@@ -739,7 +744,7 @@
     border-top: 1.5px dashed var(--line-dash);
   }
   .dwell-plate .dp-intro .dp-intro-lbl {
-    font-size: calc(10.5px * var(--ui)); font-weight: 800; letter-spacing: 1px;
+    font-size: calc(10.5px * var(--uis)); font-weight: 800; letter-spacing: 1px;
     color: var(--warn-ink); margin-right: 7px;
   }
   .dwell-plate b {
@@ -755,8 +760,8 @@
     display: flex; align-items: baseline; gap: 6px;
     font-size: calc(12.5px * var(--ui)); font-weight: 800; color: #fff8ec; white-space: nowrap;
   }
-  .dwell-plate .side .arr { font-size: calc(11px * var(--ui)); opacity: .9; }
-  .dwell-plate .side .km { font-size: calc(10.5px * var(--ui)); font-weight: 600; opacity: .78; font-variant-numeric: tabular-nums; }
+  .dwell-plate .side .arr { font-size: calc(11px * var(--uis)); opacity: .9; }
+  .dwell-plate .side .km { font-size: calc(10.5px * var(--uis)); font-weight: 600; opacity: .78; font-variant-numeric: tabular-nums; }
 
   /* 平交道通過預測卡(點地圖上的平交道記號時彈出;面板家族,右上角同看板欄) */
   .xing-card {
@@ -775,21 +780,21 @@
   .xing-card .xc-ico { flex: none; display: flex; opacity: .9; }
   .xing-card .xc-ttl { flex: 1; min-width: 0; display: flex; flex-direction: column; line-height: 1.25; }
   .xing-card .xc-ttl b { font-size: calc(15px * var(--ui)); font-weight: 900; letter-spacing: 1px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .xing-card .xc-meta { font-size: calc(11px * var(--ui)); font-weight: 600; opacity: .85; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .xing-card .xc-meta { font-size: calc(11px * var(--uis)); font-weight: 600; opacity: .85; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .xing-card .xc-close { flex: none; background: none; border: 0; color: var(--on-navy); font-size: calc(15px * var(--ui)); line-height: 1; cursor: pointer; opacity: .82; padding: 2px 4px; }
   .xing-card .xc-close:hover { opacity: 1; }
   .xing-card .xc-list { padding: 2px 0; }
   .xing-card .xc-row { display: flex; align-items: baseline; gap: 8px; padding: 6px 12px; border-top: 1px dashed var(--line-faint); font-size: calc(12.5px * var(--ui)); }
   .xing-card .xc-row:first-child { border-top: 0; }
   .xing-card .xc-no { font-weight: 800; color: var(--ink-strong); min-width: 40px; }
-  .xing-card .xc-kind { font-size: calc(11px * var(--ui)); color: var(--muted); flex: none; }
+  .xing-card .xc-kind { font-size: calc(11px * var(--uis)); color: var(--muted); flex: none; }
   .xing-card .xc-dir { flex: 1; min-width: 0; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .xing-card .xc-time { font-weight: 700; color: var(--navy); white-space: nowrap; }
-  .xing-card .xc-dl { font-size: calc(10.5px * var(--ui)); font-weight: 800; color: var(--red); margin-left: 2px; }
+  .xing-card .xc-dl { font-size: calc(10.5px * var(--uis)); font-weight: 800; color: var(--red); margin-left: 2px; }
   .xing-card .xc-cd { font-weight: 800; color: var(--warn-ink); min-width: 44px; text-align: right; }
   .xing-card .xc-empty { padding: 15px 12px; text-align: center; color: var(--muted); font-size: calc(12.5px * var(--ui)); }
-  .xing-card .xc-foot { padding: 8px 12px 10px; background: var(--bg-stage); border-top: 1.5px dashed var(--line-dash); color: var(--faint); font-size: calc(10.5px * var(--ui)); line-height: 1.5; }
-  .xing-card .xc-save { flex: none; background: rgba(255,255,255,.16); border: 0; color: var(--on-navy); font-size: calc(11.5px * var(--ui)); font-weight: 800; cursor: pointer; padding: 3px 9px; border-radius: var(--r-pill); white-space: nowrap; }
+  .xing-card .xc-foot { padding: 8px 12px 10px; background: var(--bg-stage); border-top: 1.5px dashed var(--line-dash); color: var(--faint); font-size: calc(10.5px * var(--uis)); line-height: 1.5; }
+  .xing-card .xc-save { flex: none; background: rgba(255,255,255,.16); border: 0; color: var(--on-navy); font-size: calc(11.5px * var(--uis)); font-weight: 800; cursor: pointer; padding: 3px 9px; border-radius: var(--r-pill); white-space: nowrap; }
   .xing-card .xc-save:hover { background: rgba(255,255,255,.3); }
   .xing-card .xc-row[data-no] { cursor: pointer; }
   .xing-card .xc-row[data-no]:hover { background: var(--bg-stage); }
@@ -808,8 +813,8 @@
   .xing-card .nx-row:hover { background: var(--bg-stage); }
   .xing-card .nx-top { display: flex; align-items: baseline; gap: 8px; }
   .xing-card .nx-name { flex: 1; min-width: 0; font-weight: 800; color: var(--ink-strong); font-size: calc(13px * var(--ui)); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .xing-card .nx-km { flex: none; font-weight: 800; color: var(--warn-ink); font-size: calc(11px * var(--ui)); }
-  .xing-card .nx-sub { margin-top: 2px; font-size: calc(11.5px * var(--ui)); color: var(--muted); display: flex; align-items: baseline; gap: 6px; }
+  .xing-card .nx-km { flex: none; font-weight: 800; color: var(--warn-ink); font-size: calc(11px * var(--uis)); }
+  .xing-card .nx-sub { margin-top: 2px; font-size: calc(11.5px * var(--uis)); color: var(--muted); display: flex; align-items: baseline; gap: 6px; }
   .xing-card .nx-sub b { color: var(--ink-strong); font-weight: 800; }
   .xing-card .nx-cd { margin-left: auto; font-weight: 800; color: var(--warn-ink); }
   .xing-card .nx-none { color: var(--faint); }
@@ -818,7 +823,7 @@
     margin-left: auto; align-self: center; flex: none; cursor: pointer;
     padding: 5px 10px; min-height: 30px; border-radius: 999px;
     border: 1.5px solid var(--red); background: transparent; color: var(--red);
-    font: 800 11.5px/1 inherit; font-size: calc(11.5px * var(--ui)); font-family: inherit; letter-spacing: .3px; white-space: nowrap;
+    font: 800 11.5px/1 inherit; font-size: calc(11.5px * var(--uis)); font-family: inherit; letter-spacing: .3px; white-space: nowrap;
   }
   .xing-card .nx-ck:hover { background: color-mix(in srgb, var(--red) 10%, transparent); }
   .xing-card .nx-ck.far { border-color: var(--line); color: var(--faint); border-style: dashed; }
@@ -826,15 +831,15 @@
   /* 釘卡 meta(線名+距離)較長,允許換行不截尾——平交道卡不受影響 */
   .xing-card.pin-card .xc-meta { white-space: normal; overflow: visible; text-overflow: clip; line-height: 1.3; }
   /* 釘卡多線分組:範圍內並行線各成一組(線色點+線名+距離),組間虛線分隔 */
-  .xing-card .xc-grp { display: flex; align-items: center; gap: 6px; padding: 8px 12px 3px; font-size: calc(11.5px * var(--ui)); font-weight: 800; color: var(--navy); border-top: 1.5px dashed var(--line-dash); }
+  .xing-card .xc-grp { display: flex; align-items: center; gap: 6px; padding: 8px 12px 3px; font-size: calc(11.5px * var(--uis)); font-weight: 800; color: var(--navy); border-top: 1.5px dashed var(--line-dash); }
   .xing-card .xc-grp:first-child { border-top: 0; }
   .xing-card .xc-grp-dot { width: 8px; height: 8px; border-radius: 50%; flex: none; box-shadow: 0 0 0 1px rgba(0,0,0,.12); }
-  .xing-card .xc-grp-km { margin-left: auto; font-weight: 700; color: var(--warn-ink); font-size: calc(10.5px * var(--ui)); white-space: nowrap; }
+  .xing-card .xc-grp-km { margin-left: auto; font-weight: 700; color: var(--warn-ink); font-size: calc(10.5px * var(--uis)); white-space: nowrap; }
   .xing-card .xc-grp + .xc-row { border-top: 0; }
-  .xing-card .xc-empty-s { padding: 6px 12px 10px; text-align: left; font-size: calc(12px * var(--ui)); }
+  .xing-card .xc-empty-s { padding: 6px 12px 10px; text-align: left; font-size: calc(12px * var(--uis)); }
   /* 台糖五分車園區卡:景點標記點擊後的簡介(靜態內容,不模擬班次) */
   .sugar-card .sg-body { padding: 10px 12px 4px; font-size: calc(12.5px * var(--ui)); line-height: 1.7; color: var(--ink-strong); }
-  .sugar-card .sg-hours { padding: 6px 12px 10px; font-size: calc(12px * var(--ui)); font-weight: 700; color: var(--navy); line-height: 1.6; }
+  .sugar-card .sg-hours { padding: 6px 12px 10px; font-size: calc(12px * var(--uis)); font-weight: 700; color: var(--navy); line-height: 1.6; }
   .alert-banner:not([hidden]) ~ .xing-card { top: 54px; }
 
   /* 平交道使用說明卡(開關打開時浮出、約 8 秒自動淡出;純吐司不擋點擊) */
@@ -867,11 +872,11 @@
   .follow-panel .fp-head b { font-size: calc(15px * var(--ui)); color: var(--ink-strong); }
   /* 車種名獨佔第二行、可折行、全名永不截(全域):卡高只隨換車變,不隨時速位數變 */
   .follow-panel .fp-head .kind {
-    font-size: calc(12px * var(--ui)); color: var(--faint); font-weight: 600;
+    font-size: calc(12px * var(--uis)); color: var(--faint); font-weight: 600;
     order: 9; flex: 1 1 100%; min-width: 0; margin-top: 1px;
   }
   .follow-panel .fp-head .spd {
-    margin-left: auto; font-size: calc(11px * var(--ui)); color: var(--muted); font-weight: 700;
+    margin-left: auto; font-size: calc(11px * var(--uis)); color: var(--muted); font-weight: 700;
     font-variant-numeric: tabular-nums; white-space: nowrap; align-self: baseline;
   }
   .follow-panel .fp-head .spd b {
@@ -895,7 +900,7 @@
     display: flex; align-items: baseline; gap: 7px; flex-wrap: wrap; row-gap: 3px;
     margin-top: 7px; padding-top: 7px; border-top: 1.5px dashed var(--line-dash);
   }
-  .follow-panel .fp-next .lbl { font-size: calc(11px * var(--ui)); color: var(--faint); font-weight: 800; letter-spacing: 2px; flex: none; }
+  .follow-panel .fp-next .lbl { font-size: calc(11px * var(--uis)); color: var(--faint); font-weight: 800; letter-spacing: 2px; flex: none; }
   .follow-panel .fp-next .stn { font-size: calc(16px * var(--ui)); font-weight: 900; color: var(--ink-strong); letter-spacing: 1px; white-space: nowrap; }
   .follow-panel .fp-next .eta { margin-left: auto; font-size: calc(13px * var(--ui)); font-weight: 700; color: var(--navy); text-align: right; white-space: nowrap; }
   .follow-panel .fp-next .eta b { color: var(--navy); } /* 倒數分鐘是行程資訊不是警示,紅色會被誤讀成誤點(v0718f) */
@@ -906,11 +911,11 @@
   }
   .follow-panel .fp-prog .bar i { display: block; height: 100%; width: 0; background: var(--red); border-radius: 3px; }
   .follow-panel .fp-prog .txt {
-    font-size: calc(10.5px * var(--ui)); color: var(--faint); font-weight: 700;
+    font-size: calc(10.5px * var(--uis)); color: var(--faint); font-weight: 700;
     white-space: nowrap; font-variant-numeric: tabular-nums;
   }
-  .follow-panel .fp-dest { margin-top: 5px; font-size: calc(11.5px * var(--ui)); color: var(--muted); }
-  .follow-panel .fp-status { margin-top: 7px; font-size: calc(12px * var(--ui)); font-weight: 700; color: var(--warn-ink); border-top: 1px dashed var(--line-faint); padding-top: 6px; }
+  .follow-panel .fp-dest { margin-top: 5px; font-size: calc(11.5px * var(--uis)); color: var(--muted); }
+  .follow-panel .fp-status { margin-top: 7px; font-size: calc(12px * var(--uis)); font-weight: 700; color: var(--warn-ink); border-top: 1px dashed var(--line-faint); padding-top: 6px; }
   .follow-panel .fp-status.run { color: var(--ok); }
   /* 資訊卡收合(×):跟隨不中斷,縮成小膠囊——點膠囊本體展開,「結束」才取消跟隨 */
   .follow-panel.fp-min { width: auto; max-width: 190px; padding: 6px 12px; cursor: pointer; border-radius: var(--r-pill); }
@@ -920,7 +925,7 @@
   .follow-panel.fp-min .fp-head .spd b { font-size: calc(15px * var(--ui)); }
   .follow-panel .fp-end {
     margin-left: 6px; background: none; border: 1px solid var(--line); border-radius: 6px;
-    color: var(--faint); font-size: calc(10px * var(--ui)); font-weight: 700; padding: 2px 6px;
+    color: var(--faint); font-size: calc(10px * var(--uis)); font-weight: 700; padding: 2px 6px;
     cursor: pointer; display: none; flex: none;
   }
   .follow-panel.fp-min .fp-end { display: inline-block; }
@@ -936,15 +941,15 @@
   .freq-card .fc-head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
   .freq-card .fc-head .dot { width: 9px; height: 9px; border-radius: 50%; flex: none; }
   .freq-card .fc-head b { font-size: calc(15px * var(--ui)); color: var(--ink-strong); }
-  .freq-card .fc-dir { font-size: calc(12px * var(--ui)); color: var(--faint); font-weight: 600; order: 9; flex: 1 1 100%; min-width: 0; margin-top: 1px; }
+  .freq-card .fc-dir { font-size: calc(12px * var(--uis)); color: var(--faint); font-weight: 600; order: 9; flex: 1 1 100%; min-width: 0; margin-top: 1px; }
   .freq-card .fc-end {
     margin-left: auto; background: none; border: 1px solid var(--line); border-radius: 6px;
-    color: var(--faint); font-size: calc(10px * var(--ui)); font-weight: 700; padding: 2px 6px; cursor: pointer; flex: none;
+    color: var(--faint); font-size: calc(10px * var(--uis)); font-weight: 700; padding: 2px 6px; cursor: pointer; flex: none;
   }
   .freq-card .fc-next { display: flex; align-items: baseline; gap: 8px; row-gap: 4px; flex-wrap: wrap; margin-top: 7px; }
-  .freq-card .fc-next .lbl { font-size: calc(11px * var(--ui)); color: var(--faint); font-weight: 800; letter-spacing: 2px; flex: none; }
+  .freq-card .fc-next .lbl { font-size: calc(11px * var(--uis)); color: var(--faint); font-weight: 800; letter-spacing: 2px; flex: none; }
   .freq-card .fc-next .stn { font-size: calc(16px * var(--ui)); font-weight: 900; color: var(--ink-strong); letter-spacing: 1px; }
-  .freq-card .fc-status { margin-top: 6px; font-size: calc(11px * var(--ui)); color: var(--faint); font-weight: 600; }
+  .freq-card .fc-status { margin-top: 6px; font-size: calc(11px * var(--uis)); color: var(--faint); font-weight: 600; }
   .freq-card .fc-status:empty { display: none; }
   .freq-card .fc-status.on { color: #0f7fa8; }
   .freq-card .fc-status.warn { color: var(--red); }
@@ -964,7 +969,7 @@
     flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
   }
   .traincard .tc-tt {
-    margin-left: auto; font: inherit; font-size: calc(12px * var(--ui)); font-weight: 700; cursor: pointer;
+    margin-left: auto; font: inherit; font-size: calc(12px * var(--uis)); font-weight: 700; cursor: pointer;
     background: var(--paper); color: var(--navy);
     border: 1.5px solid var(--line); border-radius: 5px; padding: 3px 9px;
     box-shadow: 0 1.5px 0 var(--line); align-self: center; flex: none;
@@ -979,7 +984,7 @@
   /* sheet 態關閉鈕:僅手機「列車」sheet 顯示(見 ≤900 區塊);桌面/桌面 fs 併卡皆不出現 */
   .traincard .tc-x { display: none; }
   .traincard .tc-sparkwrap { margin-top: 9px; padding-top: 7px; border-top: 1.5px dashed var(--line-dash); }
-  .traincard .tc-sparkwrap .lbl { font-size: calc(11px * var(--ui)); font-weight: 800; letter-spacing: 3px; color: var(--faint); margin-bottom: 4px; }
+  .traincard .tc-sparkwrap .lbl { font-size: calc(11px * var(--uis)); font-weight: 800; letter-spacing: 3px; color: var(--faint); margin-bottom: 4px; }
   .traincard .tc-sparkwrap canvas { display: block; width: 100%; height: 46px; }
   .traincard .tc-stops { margin-top: 9px; padding-top: 8px; border-top: 1.5px dashed var(--line-dash); }
   .traincard .tc-st {
@@ -1005,10 +1010,10 @@
      手機叫不出 title、使用者也試不出點下去會怎樣——正是「不知道何時會用到」的翻版。全列出來。 */
   .xfer-tag {
     flex: 0 1 auto; min-width: 0; max-width: 100%;
-    font-size: calc(11px * var(--ui)); font-weight: 800; color: var(--red); white-space: normal; overflow-wrap: anywhere;
+    font-size: calc(11px * var(--uis)); font-weight: 800; color: var(--red); white-space: normal; overflow-wrap: anywhere;
     padding: 1px 5px; border: 1.5px solid var(--red); border-radius: 6px; line-height: 1.5;
   }
-  .traincard .tc-st.hd { font-weight: 800; color: var(--faint); border-top: 0; cursor: default; font-size: calc(11px * var(--ui)); letter-spacing: 1px; }
+  .traincard .tc-st.hd { font-weight: 800; color: var(--faint); border-top: 0; cursor: default; font-size: calc(11px * var(--uis)); letter-spacing: 1px; }
   .traincard .tc-st.hd:hover { background: none; }
   .traincard .tc-st.past { opacity: .45; }
   .traincard .tc-st.cur { color: var(--red); font-weight: 800; }
@@ -1039,14 +1044,14 @@
   .traincard .tc-intro .amen-item { display: inline-flex; align-items: center; gap: 3px; white-space: nowrap; }
   .traincard .tc-intro .amen-item + .amen-item::before { content: '·'; margin: 0 6px 0 3px; color: var(--faint); }
   .traincard .tc-intro .amen .ri-icon { width: 14px; height: 14px; vertical-align: 0; }
-  .traincard .tc-events .lbl { font-size: calc(11px * var(--ui)); font-weight: 800; letter-spacing: 3px; color: var(--faint); margin-bottom: 4px; }
+  .traincard .tc-events .lbl { font-size: calc(11px * var(--uis)); font-weight: 800; letter-spacing: 3px; color: var(--faint); margin-bottom: 4px; }
   .traincard .tc-ev {
     font-size: calc(12.5px * var(--ui)); color: var(--muted); padding: 2.5px 0; display: flex; gap: 8px;
     border-top: 1px dashed var(--line-faint);
   }
   .traincard .tc-ev .tt { color: var(--faint); font-variant-numeric: tabular-nums; flex: none; }
   .traincard .tc-empty { font-size: calc(12.5px * var(--ui)); color: var(--faint); }
-  .traincard .tc-intro .fact { display: block; margin-top: 5px; color: var(--faint); font-size: calc(12px * var(--ui)); }
+  .traincard .tc-intro .fact { display: block; margin-top: 5px; color: var(--faint); font-size: calc(12px * var(--uis)); }
 
   /* ── 旅程護照(地圖下方;完乘記錄+圖鑑收集——章=真印章) ── */
   .passport {
@@ -1056,8 +1061,8 @@
   }
   .passport .ph-head { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; cursor: pointer; user-select: none; }
   .passport .ph-head > b { font-size: calc(16px * var(--ui)); font-weight: 900; letter-spacing: 3px; color: var(--ink-strong); }
-  .passport .ph-tgl { font-size: calc(12px * var(--ui)); color: var(--faint); margin-left: auto; }
-  .passport .ph-sub { font-size: calc(11px * var(--ui)); color: var(--faint); flex: 1 1 100%; order: 3; line-height: 1.55; }
+  .passport .ph-tgl { font-size: calc(12px * var(--uis)); color: var(--faint); margin-left: auto; }
+  .passport .ph-sub { font-size: calc(11px * var(--uis)); color: var(--faint); flex: 1 1 100%; order: 3; line-height: 1.55; }
   .passport.closed .ph-sub, .passport.closed .ph-body { display: none; }
   .passport .ph-stats { flex: 1 1 100%; order: 2; font-size: calc(12.5px * var(--ui)); color: var(--muted); font-variant-numeric: tabular-nums; }
   .passport .ph-stats b { color: var(--red); }
@@ -1071,12 +1076,12 @@
                           font-weight:900; font-size: calc(15px * var(--ui)); color:var(--paper); background:var(--gold); }
   .ph-founding .pf-txt { display:flex; flex-direction:column; line-height:1.35; }
   .ph-founding .pf-txt b { font-size: calc(13.5px * var(--ui)); color:var(--ink-strong); }
-  .ph-founding .pf-txt i { font-style:normal; font-size: calc(11.5px * var(--ui)); color:var(--faint); }
+  .ph-founding .pf-txt i { font-style:normal; font-size: calc(11.5px * var(--uis)); color:var(--faint); }
   /* .ph-* 家族(Batch B):新增 #ridePanel 一起匹配,護照 sheet 與桌面 #passport 共用同一套骨架;
      .passport 分支不變=桌面零變化 */
   .passport .ph-sec, #ridePanel .ph-sec {
     display: flex; align-items: baseline; gap: 6px;
-    font-size: calc(11px * var(--ui)); font-weight: 800; letter-spacing: 3px; color: var(--faint);
+    font-size: calc(11px * var(--uis)); font-weight: 800; letter-spacing: 3px; color: var(--faint);
     margin: 13px 0 8px; padding-bottom: 3px; border-bottom: 1.5px dashed var(--line-dash);
   }
   .passport .ph-sec b, #ridePanel .ph-sec b { color: var(--navy); letter-spacing: 0; }
@@ -1088,7 +1093,7 @@
   /* 分節收合(2026-07-26):標題列整條可點,箭頭放在**最前面**——「路線完乘」那節的收集地圖鈕
      已經吃掉 margin-left:auto,箭頭再搶一次靠右會讓兩者平分剩餘空間、把鈕推到中間。 */
   .passport .ph-sec[data-sec], #ridePanel .ph-sec[data-sec] { cursor: pointer; user-select: none; }
-  .ph-sec .ph-caret { flex: none; width: 11px; letter-spacing: 0; color: var(--faint); font-size: calc(10px * var(--ui)); }
+  .ph-sec .ph-caret { flex: none; width: 11px; letter-spacing: 0; color: var(--faint); font-size: calc(10px * var(--uis)); }
   .ph-sec .ph-caret::before { content: '▾'; }
   .ph-sec.closed .ph-caret::before { content: '▸'; }
   /* 每一節的形狀固定是「標題 + 緊接一個內容 div」,收起就是把那個相鄰兄弟藏掉 */
@@ -1098,7 +1103,7 @@
     flex: none; align-self: center; font-family: inherit; cursor: pointer;
     background: transparent; color: var(--navy); border: 1.5px dashed var(--line-dash);
     border-radius: var(--r-pill); padding: 6px 12px; min-height: 32px;
-    font-size: calc(11px * var(--ui)); font-weight: 800; letter-spacing: .5px; white-space: nowrap;
+    font-size: calc(11px * var(--uis)); font-weight: 800; letter-spacing: .5px; white-space: nowrap;
   }
   .stn-more:hover { border-color: var(--navy); }
   .passport .ph-stamps, #ridePanel .ph-stamps { display: flex; flex-wrap: wrap; gap: 10px 10px; align-items: flex-start; }
@@ -1109,8 +1114,8 @@
     transform: rotate(-8deg); background: transparent; flex: none; cursor: pointer;
     text-align: center; overflow: hidden; padding: 3px;
   }
-  .seal b { font-size: calc(10px * var(--ui)); font-weight: 900; letter-spacing: .5px; line-height: 1.2; }
-  .seal small { font-size: calc(7.5px * var(--ui)); font-weight: 700; letter-spacing: .3px; opacity: .85; font-variant-numeric: tabular-nums; line-height: 1; }
+  .seal b { font-size: calc(10px * var(--uis)); font-weight: 900; letter-spacing: .5px; line-height: 1.2; }
+  .seal small { font-size: calc(7.5px * var(--uis)); font-weight: 700; letter-spacing: .3px; opacity: .85; font-variant-numeric: tabular-nums; line-height: 1; }
   /* 原本 11px:實測(Noto 單色字形與線稿都比過)在 11px 已經糊到 21 枚難以分辨,14px 才讀得出來。 */
   .seal small .ri-icon { width: 14px; height: 14px; display: block; }
   .seal.gold { border-color: var(--gold); color: var(--warn-ink); }
@@ -1126,18 +1131,18 @@
     background: transparent; flex: none; text-align: center; overflow: hidden; padding: 2px;
     font-variant-numeric: tabular-nums; cursor: default;
   }
-  .stn-seal b { font-size: calc(11px * var(--ui)); font-weight: 900; letter-spacing: .2px; line-height: 1.1; }
-  .stn-seal small { font-size: calc(7.5px * var(--ui)); font-weight: 700; opacity: .85; letter-spacing: .2px; }
+  .stn-seal b { font-size: calc(11px * var(--uis)); font-weight: 900; letter-spacing: .2px; line-height: 1.1; }
+  .stn-seal small { font-size: calc(7.5px * var(--uis)); font-weight: 700; opacity: .85; letter-spacing: .2px; }
   /* 雙圈用 inset shadow 疊,不動 border 寬度(免得 50px 盒被 border-box 吃掉內容空間) */
   .stn-seal.visit { transform: rotate(-7deg); box-shadow: inset 0 0 0 1.5px var(--paper), inset 0 0 0 3px currentColor; }
   .stn-seal.follow { border-color: var(--line); color: var(--faint); border-style: dashed; }
   /* 站等升級只在「真的去過」時才亮金：沒去過的特等站仍是灰虛線,
      免得金色壓過「有沒有去過」這個更重要的狀態區分（金＝獎勵,不是分類標籤）。 */
   .stn-seal.t0:not(.follow) { border-color: var(--gold); color: var(--gold); }
-  .stn-seal .cnt { font-size: calc(8px * var(--ui)); font-weight: 900; opacity: .95; }
+  .stn-seal .cnt { font-size: calc(8px * var(--uis)); font-weight: 900; opacity: .95; }
   /* 各線完乘率:線名 + 進度條 + 百分比,一行一條線 */
   .ph-lines { display: flex; flex-direction: column; gap: 4px; margin: 2px 0 4px; }
-  .ph-line { display: flex; align-items: center; gap: 8px; font-size: calc(11.5px * var(--ui)); }
+  .ph-line { display: flex; align-items: center; gap: 8px; font-size: calc(11.5px * var(--uis)); }
   .ph-line .pl-name { flex: none; width: 92px; font-weight: 800; color: var(--ink-strong); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .ph-line .pl-bar { flex: 1; min-width: 0; height: 6px; border-radius: 3px; background: var(--line-faint); overflow: hidden; }
   .ph-line .pl-bar i { display: block; height: 100%; border-radius: 3px; }
@@ -1147,7 +1152,7 @@
   .ph-sec .pl-map {
     margin-left: auto; flex: none; align-self: center; font-family: inherit;
     background: var(--navy); color: var(--on-navy); border: 0; border-radius: var(--r-pill);
-    padding: 5px 11px; min-height: 28px; font-size: calc(11px * var(--ui)); font-weight: 800; letter-spacing: .5px;
+    padding: 5px 11px; min-height: 28px; font-size: calc(11px * var(--uis)); font-weight: 800; letter-spacing: .5px;
     cursor: pointer; white-space: nowrap;
   }
   .ph-sec .pl-map:hover { opacity: .86; }
@@ -1194,17 +1199,17 @@
      線名含括號里程可以到 10 字以上,塞進圓章會裁到看不出是哪條線(見 buildCorrectSection() 的
      同一則註解)。沿用 .pl-map 同一組 navy/pill 語彙但反轉成淺底:這裡是唯讀資訊,不是可點的鈕。 */
   .ph-correct .corr-line {
-    display: inline-flex; align-items: baseline; gap: 5px; font-size: calc(12px * var(--ui)); font-weight: 800;
+    display: inline-flex; align-items: baseline; gap: 5px; font-size: calc(12px * var(--uis)); font-weight: 800;
     color: var(--navy); background: var(--line-faint); border-radius: var(--r-pill); padding: 5px 11px;
   }
   .ph-correct .corr-line small { font-weight: 600; opacity: .8; }
   .ph-correct .corr-why {
-    margin-top: 8px; font-size: calc(12px * var(--ui)); line-height: 1.5; opacity: .85;
+    margin-top: 8px; font-size: calc(12px * var(--uis)); line-height: 1.5; opacity: .85;
     padding-left: 8px; border-left: 2px solid var(--line);
   }
-  .ph-correct .corr-first { margin-top: 6px; font-size: calc(12px * var(--ui)); color: var(--muted); }
+  .ph-correct .corr-first { margin-top: 6px; font-size: calc(12px * var(--uis)); color: var(--muted); }
   .datestamp {
-    display: inline-block; font-family: var(--mono); font-size: calc(11px * var(--ui)); font-weight: 700;
+    display: inline-block; font-family: var(--mono); font-size: calc(11px * var(--uis)); font-weight: 700;
     color: var(--navy); border: 1.5px solid var(--navy); border-radius: 3px; padding: 0 5px;
     transform: rotate(-4deg); opacity: .85; font-variant-numeric: tabular-nums;
   }
@@ -1212,7 +1217,7 @@
     display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 8px; font-size: calc(12.5px * var(--ui)); color: var(--muted);
     padding: 5px 2px; border-top: 1px dashed var(--line-faint); font-variant-numeric: tabular-nums;
   }
-  .passport .ph-row .d, #ridePanel .ph-row .d { color: var(--faint); flex: none; font-family: var(--mono); font-size: calc(11px * var(--ui)); }
+  .passport .ph-row .d, #ridePanel .ph-row .d { color: var(--faint); flex: none; font-family: var(--mono); font-size: calc(11px * var(--uis)); }
   .passport .ph-row b, #ridePanel .ph-row b { color: var(--ink-strong); flex: none; min-width: 44px; }
   .passport .ph-row .k, #ridePanel .ph-row .k { flex: none; color: var(--navy); font-weight: 600; }
   .passport .ph-row .r, #ridePanel .ph-row .r { flex: 1 1 6em; min-width: 6em; }
@@ -1220,7 +1225,7 @@
   .passport .ph-empty, #ridePanel .ph-empty { font-size: calc(12.5px * var(--ui)); color: var(--faint); }
   /* 成就 chips(Batch B,護照 sheet 專屬,mock C):桌面護照仍用 .seal 金章,故 chip 只在 #ridePanel */
   #ridePanel .achv-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 2px; }
-  #ridePanel .achv-chip { display: inline-flex; align-items: center; gap: 3px; font-size: calc(11px * var(--ui)); font-weight: 700; color: var(--faint); border: 1px dashed var(--line); border-radius: 999px; padding: 3px 10px; }
+  #ridePanel .achv-chip { display: inline-flex; align-items: center; gap: 3px; font-size: calc(11px * var(--uis)); font-weight: 700; color: var(--faint); border: 1px dashed var(--line); border-radius: 999px; padding: 3px 10px; }
   #ridePanel .achv-chip.on { color: var(--warn-ink); background: var(--warn-bg); border-style: solid; border-color: var(--warn-line); }
   #ridePanel .achv-chip .ri-icon { width: 14px; height: 14px; vertical-align: 0; }
 
@@ -1234,7 +1239,7 @@
     padding: 6px 12px 7px; font-size: calc(12.5px * var(--ui)); font-weight: 700; cursor: pointer;
   }
   .alert-banner .ab-title { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .alert-banner .ab-more { flex: none; font-size: calc(11px * var(--ui)); font-weight: 600; opacity: .9; white-space: nowrap; }
+  .alert-banner .ab-more { flex: none; font-size: calc(11px * var(--uis)); font-weight: 600; opacity: .9; white-space: nowrap; }
   /* 關閉鈕(2026-07-30):橫幅一直掛在那裡會擋事,按 × 收起來,同一批公告本次瀏覽不再跳出(換新公告會再出現)。
      手機不走這條——手機的橫幅已整個換成頂列的 .alert-chip,不佔版面故不需要關閉。 */
   .alert-banner .ab-close {
@@ -1258,7 +1263,7 @@
   .upd-banner[hidden] { display: none; }
   .upd-banner .ub-title { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .upd-banner .ub-act {
-    flex: none; font-size: calc(11px * var(--ui)); font-weight: 700; text-decoration: underline;
+    flex: none; font-size: calc(11px * var(--uis)); font-weight: 700; text-decoration: underline;
     background: none; border: 0; padding: 0; color: inherit; cursor: pointer;
     font-family: inherit; min-height: 24px;
   }
@@ -1280,30 +1285,30 @@
   .alert-detail .ad-row { padding: 7px 0; border-top: 1.5px dashed var(--line-dash); }
   .alert-detail .ad-row:first-child { border-top: 0; padding-top: 0; }
   .alert-detail .ad-row b { color: var(--warn-ink); }
-  .alert-detail .ad-self { display: inline-block; font-size: calc(10px * var(--ui)); font-weight: 800; color: var(--warn-ink); border: 1px solid var(--warn-line); border-radius: 4px; padding: 0 5px; margin-right: 5px; vertical-align: 1px; }
-  .alert-detail .ad-time { color: var(--faint); font-size: calc(11.5px * var(--ui)); }
-  .alert-detail .ad-src { margin-top: 8px; padding-top: 6px; border-top: 1.5px dashed var(--line-dash); color: var(--faint); font-size: calc(11px * var(--ui)); }
+  .alert-detail .ad-self { display: inline-block; font-size: calc(10px * var(--uis)); font-weight: 800; color: var(--warn-ink); border: 1px solid var(--warn-line); border-radius: 4px; padding: 0 5px; margin-right: 5px; vertical-align: 1px; }
+  .alert-detail .ad-time { color: var(--faint); font-size: calc(11.5px * var(--uis)); }
+  .alert-detail .ad-src { margin-top: 8px; padding-top: 6px; border-top: 1.5px dashed var(--line-dash); color: var(--faint); font-size: calc(11px * var(--uis)); }
   /* 公告橫幅開著時:同側的看板退到橫幅下方,不再互疊 */
   .alert-banner:not([hidden]) ~ .board { top: 54px; max-height: calc(100% - 216px); }
   /* 跟隨面板的通阻警示列(跟隨中的車行經公告影響路線時顯示) */
   .follow-panel .fp-alert {
     margin-top: 7px; padding: 5px 8px;
     background: var(--warn-bg); border: 1.5px solid var(--warn-line); border-radius: 5px;
-    color: var(--warn-ink); font-size: calc(12px * var(--ui)); font-weight: 700; line-height: 1.45;
+    color: var(--warn-ink); font-size: calc(12px * var(--uis)); font-weight: 700; line-height: 1.45;
   }
 
   /* ── 行程分享:跟隨面板發起入口(暗啟動,TRIP_SHARE_ENABLED 才顯示) ── */
   .follow-panel .fp-tripshare {
     margin-top: 8px; width: 100%; text-align: center;
     background: var(--navy); color: var(--on-navy); border: 0; border-radius: var(--r-pill);
-    font-size: calc(12px * var(--ui)); font-weight: 800; letter-spacing: 1px; padding: 6px 10px; cursor: pointer;
+    font-size: calc(12px * var(--uis)); font-weight: 800; letter-spacing: 1px; padding: 6px 10px; cursor: pointer;
   }
   .follow-panel .fp-tripshare:hover { background: var(--red); }
   .follow-panel.fp-min .fp-tripshare { display: none; }
   .follow-panel .fp-notify {
     margin-top: 8px; width: 100%; min-height: 44px; text-align: center;
     background: var(--paper); color: var(--navy); border: 1.5px solid var(--line); border-radius: var(--r-pill);
-    font: inherit; font-size: calc(12px * var(--ui)); font-weight: 800; letter-spacing: 1px; cursor: pointer;
+    font: inherit; font-size: calc(12px * var(--uis)); font-weight: 800; letter-spacing: 1px; cursor: pointer;
   }
   .follow-panel .fp-notify .ri-icon { width: 14px; height: 14px; margin-right: 3px; vertical-align: -.2em; }
   .follow-panel .fp-notify:hover { background: var(--bg-stage); }
@@ -1312,20 +1317,20 @@
   .follow-panel .fp-ride {
     margin-top: 8px; width: 100%; min-height: 44px; text-align: center;
     background: var(--paper); color: var(--red); border: 1.5px solid var(--red); border-radius: var(--r-pill);
-    font: inherit; font-size: calc(12px * var(--ui)); font-weight: 800; letter-spacing: 1px; cursor: pointer;
+    font: inherit; font-size: calc(12px * var(--uis)); font-weight: 800; letter-spacing: 1px; cursor: pointer;
   }
   .follow-panel .fp-ride.on { background: var(--red); color: var(--paper); border-color: var(--red); }
   .follow-panel .fp-ride.busy { background: var(--bg-stage); color: var(--faint); border-color: var(--line); border-style: dashed; }
   .follow-panel.fp-min .fp-ride, .follow-panel.fp-min .fp-ridebox { display: none !important; }
   .follow-panel .fp-ridebox { margin-top: 8px; display: flex; flex-direction: column; gap: 6px; }
   .follow-panel .fp-ridebox-r { display: flex; align-items: center; gap: 6px; }
-  .follow-panel .fp-ridebox-r > span { flex: none; font-size: calc(11.5px * var(--ui)); font-weight: 800; color: var(--muted); }
+  .follow-panel .fp-ridebox-r > span { flex: none; font-size: calc(11.5px * var(--uis)); font-weight: 800; color: var(--muted); }
   .follow-panel .fp-ridebox select {
-    flex: 1; min-width: 0; min-height: 40px; font: inherit; font-size: calc(12px * var(--ui)); font-weight: 700;
+    flex: 1; min-width: 0; min-height: 40px; font: inherit; font-size: calc(12px * var(--uis)); font-weight: 700;
     color: var(--ink-strong); background: var(--paper); border: 1.5px solid var(--line); border-radius: var(--r-pill); padding: 4px 8px;
   }
   .follow-panel .fp-ridebox button {
-    flex: 1; min-height: 40px; font: inherit; font-size: calc(12px * var(--ui)); font-weight: 800; letter-spacing: 1px;
+    flex: 1; min-height: 40px; font: inherit; font-size: calc(12px * var(--uis)); font-weight: 800; letter-spacing: 1px;
     border-radius: var(--r-pill); cursor: pointer; border: 1.5px solid var(--red); background: var(--red); color: var(--paper);
   }
   .follow-panel .fp-ridebox button#fpRideCancel { background: var(--paper); color: var(--muted); border-color: var(--line); }
@@ -1342,17 +1347,17 @@
     color: var(--faint); font-size: calc(16px * var(--ui)); line-height: 1; padding: 2px 5px;
   }
   .trip-banner .tb-state {
-    display: inline-block; font-size: calc(10.5px * var(--ui)); font-weight: 800; letter-spacing: 2px;
+    display: inline-block; font-size: calc(10.5px * var(--uis)); font-weight: 800; letter-spacing: 2px;
     color: var(--on-navy); background: var(--navy); border-radius: var(--r-pill); padding: 1px 9px 2px;
   }
   .trip-banner .tb-state.arrived { background: var(--ok); }
   .trip-banner .tb-state.ended { background: var(--muted); }
   .trip-banner .tb-route { margin-top: 6px; font-size: calc(17px * var(--ui)); font-weight: 900; color: var(--ink-strong); letter-spacing: .5px; }
-  .trip-banner .tb-route .kind { margin-left: 8px; font-size: calc(12px * var(--ui)); font-weight: 700; color: var(--faint); letter-spacing: 0; white-space: nowrap; }
+  .trip-banner .tb-route .kind { margin-left: 8px; font-size: calc(12px * var(--uis)); font-weight: 700; color: var(--faint); letter-spacing: 0; white-space: nowrap; }
   .trip-banner .tb-eta { margin-top: 3px; font-size: calc(13px * var(--ui)); font-weight: 700; color: var(--navy); min-height: 1px; }
   .trip-banner .tb-eta b { color: var(--navy); font-size: calc(15px * var(--ui)); }
   .trip-banner .tb-eta:empty { display: none; }
-  .trip-banner .tb-cta { margin-top: 6px; padding-top: 5px; border-top: 1.5px dashed var(--line-dash); font-size: calc(10.5px * var(--ui)); color: var(--faint); font-weight: 600; }
+  .trip-banner .tb-cta { margin-top: 6px; padding-top: 5px; border-top: 1.5px dashed var(--line-dash); font-size: calc(10.5px * var(--uis)); color: var(--faint); font-weight: 600; }
   /* 橫幅出現時,停靠站名牌讓位到下方(比照 .alert-banner ~ .dwell-plate 既有讓位慣例) */
   .trip-banner:not([hidden]) ~ .dwell-plate { top: 160px; }
   .trip-panel .row { cursor: pointer; }
@@ -1374,7 +1379,7 @@
     color: var(--faint); font-size: calc(17px * var(--ui)); line-height: 1; padding: 0;
   }
   .iab-hint .ih-title { font-weight: 800; color: var(--ink-strong); }
-  .iab-hint .ih-note { margin-top: 6px; font-size: calc(11.5px * var(--ui)); color: var(--faint); overflow-wrap: anywhere; }
+  .iab-hint .ih-note { margin-top: 6px; font-size: calc(11.5px * var(--uis)); color: var(--faint); overflow-wrap: anywhere; }
   .iab-hint .ih-note:empty { display: none; }
   .iab-hint .ih-btns { display: flex; gap: 8px; margin-top: 9px; }
   .iab-hint .ih-btns button {
@@ -1406,7 +1411,7 @@
     transform: none; align-items: flex-start; max-width: min(64vw, 300px); z-index: 719;
   }
   .toasts.corner .toast {
-    padding: 5px 10px; font-size: calc(12px * var(--ui)); font-weight: 700; border-radius: 8px;
+    padding: 5px 10px; font-size: calc(12px * var(--uis)); font-weight: 700; border-radius: 8px;
     border-width: 1px; box-shadow: 0 2px 0 rgba(163,100,26,.22); opacity: 0;
     background: color-mix(in srgb, var(--paper) 88%, transparent);
   }
@@ -1480,9 +1485,9 @@
   body.live .leaflet-bottom.leaflet-right { bottom: 0; }
   .live-hud { position: absolute; top: 64px; left: 12px; z-index: 600; pointer-events: none; display: flex; flex-direction: column; align-items: flex-start; gap: 5px; }
   .live-hud[hidden] { display: none; }
-  .live-wm { font-size: calc(11.5px * var(--ui)); font-weight: 800; letter-spacing: .8px; color: rgba(30,44,64,.55); padding-left: 2px; }
+  .live-wm { font-size: calc(11.5px * var(--uis)); font-weight: 800; letter-spacing: .8px; color: rgba(30,44,64,.55); padding-left: 2px; }
   html[data-theme=dark] .live-wm { color: rgba(236,240,248,.5); }
-  .badge .replay { font-size: calc(11px * var(--ui)); font-weight: 900; color: #fffdf6; background: var(--red); border-radius: 3px; padding: 0 5px; letter-spacing: .5px; }
+  .badge .replay { font-size: calc(11px * var(--uis)); font-weight: 900; color: #fffdf6; background: var(--red); border-radius: 3px; padding: 0 5px; letter-spacing: .5px; }
 
   /* 直播訊號資訊欄放大(僅 body.live):1080p 實尺——時鐘 46/LIVE 22/REPLAY 20/浮水印 24/attribution 16 */
   body.live .badge { padding: 14px 26px 15px; gap: 18px; }
@@ -1581,16 +1586,16 @@
     box-shadow: var(--shadow-1);
   }
   .badge .clock { font-size: calc(20px * var(--ui)); font-weight: 900; color: var(--ink-strong); }
-  .badge .peak { font-size: calc(12px * var(--ui)); font-weight: 800; padding: 2px 9px; border-radius: 3px; }
+  .badge .peak { font-size: calc(12px * var(--uis)); font-weight: 800; padding: 2px 9px; border-radius: 3px; }
   /* 議題4:「時刻表模擬／深夜重播」＝非即時但非警報。與捷運「尖峰」共用的 hot() 紅(--red=真異常)分流,
      單獨掛 .sim＝灰藍低彩度描邊,一眼可辨「這不是即時資料」又不撞警報色;亮暗都給值。 */
   .badge .peak.sim { background: #E4E9F2; color: #3A5680; border: 1px solid #B9C6DC; }
   html[data-theme=dark] .badge .peak.sim { background: rgba(127,166,224,.16); color: #B9CEF0; border: 1px solid rgba(127,166,224,.42); }
   .badge .count { font-size: calc(13px * var(--ui)); color: var(--faint); font-weight: 600; }
-  .foot-links .ver { margin-left: auto; align-self: center; font-size: calc(11px * var(--ui)); color: var(--faint); font-weight: 600; letter-spacing: .5px; }
-  .badge .live { font-size: calc(11px * var(--ui)); font-weight: 800; color: var(--ok); letter-spacing: .5px; cursor: help; }
+  .foot-links .ver { margin-left: auto; align-self: center; font-size: calc(11px * var(--uis)); color: var(--faint); font-weight: 600; letter-spacing: .5px; }
+  .badge .live { font-size: calc(11px * var(--uis)); font-weight: 800; color: var(--ok); letter-spacing: .5px; cursor: help; }
   .badge .live::before { content: '●'; margin-right: 3px; animation: livePulse 2s infinite; }
-  .badge .mlive { font-size: calc(11px * var(--ui)); font-weight: 800; color: #0f7fa8; letter-spacing: .5px; cursor: help; }
+  .badge .mlive { font-size: calc(11px * var(--uis)); font-weight: 800; color: #0f7fa8; letter-spacing: .5px; cursor: help; }
   .badge .mlive::before { content: '●'; margin-right: 3px; animation: livePulse 2s infinite; }
   /* 推估 tier(快轉投射未來/資料稍舊):灰化+靜止圓點,與 fresh 校正的綠/藍脈動視覺區分 */
   .badge .live.est, .badge .mlive.est { color: var(--muted); }
@@ -1601,18 +1606,18 @@
   @keyframes livePulse { 0%, 100% { opacity: 1; } 50% { opacity: .35; } }
   /* 祝山線觀日列車「推算」小標:時刻是本站依官方日出表推算的,不是官方公告值 */
   .estTag {
-    color: var(--ink-soft, #8a8577); font-weight: 700; font-size: calc(9.5px * var(--ui)); margin-left: 4px;
+    color: var(--ink-soft, #8a8577); font-weight: 700; font-size: calc(9.5px * var(--uis)); margin-left: 4px;
     border: 1px solid currentColor; border-radius: 3px; padding: 0 3px 1px;
     white-space: nowrap; opacity: .85; vertical-align: 1px;
   }
   .lateTag {
-    color: var(--warn-ink); font-weight: 800; font-size: calc(10.5px * var(--ui)); margin-left: 4px;
+    color: var(--warn-ink); font-weight: 800; font-size: calc(10.5px * var(--uis)); margin-left: 4px;
     background: var(--warn-bg); border: 1px solid var(--warn-line); border-radius: 3px;
     padding: 0 4px 1px; white-space: nowrap;
   }
   /* 準點標(lateTag 的 ok 版:同結構、綠框透明底,亮暗雙主題安全) */
   .okTag {
-    color: var(--ok); font-weight: 800; font-size: calc(10.5px * var(--ui)); margin-left: 4px;
+    color: var(--ok); font-weight: 800; font-size: calc(10.5px * var(--uis)); margin-left: 4px;
     background: none; border: 1px solid var(--ok); border-radius: 3px;
     padding: 0 4px 1px; white-space: nowrap; opacity: .9;
   }
@@ -1746,14 +1751,14 @@
   }
   .board h3 .sys-chip { /* 共構站(台北/板橋/南港…)看板標題的系統徽章:標清楚這張板是台鐵還是高鐵/哪個捷運 */
     display: inline-block; margin-left: 7px; padding: 0 7px 1px;
-    font-size: calc(10.5px * var(--ui)); font-weight: 700; letter-spacing: 1px; line-height: 1.5;
+    font-size: calc(10.5px * var(--uis)); font-weight: 700; letter-spacing: 1px; line-height: 1.5;
     color: var(--on-navy); border: 1px solid var(--on-navy); opacity: .8;
     border-radius: 999px; vertical-align: 1px; white-space: nowrap;
   }
-  .board .sub { color: var(--faint); font-size: calc(11px * var(--ui)); margin-bottom: 7px; }
+  .board .sub { color: var(--faint); font-size: calc(11px * var(--uis)); margin-bottom: 7px; }
   /* 官方即時中斷:倒數這時候是推估的,必須比 .sub 更搶眼——.sub 是 --faint 的小字,使用者不會看 */
   .board .sub.stale { color: var(--warn-ink); background: var(--warn-bg); border: 1px solid var(--warn-line);
-    border-radius: 7px; padding: 6px 8px; font-size: calc(12px * var(--ui)); font-weight: 700; line-height: 1.45; }
+    border-radius: 7px; padding: 6px 8px; font-size: calc(12px * var(--uis)); font-weight: 700; line-height: 1.45; }
   .board .row { display: flex; align-items: baseline; gap: 8px; padding: 6px 0; border-top: 1px dashed var(--line-faint); font-size: calc(13px * var(--ui)); }
   .board .row:first-of-type { border-top: 0; }
   /* 設計 6b 的「›」:平常完全不存在(標準/大都不收欄位,不需要出口),只有特大才長出來 */
@@ -1785,7 +1790,7 @@
      用 attr() 換字樣而不動 DOM:標準檔那顆徽章的文字節點原封不動,零變化對照才守得住。 */
   html[data-fs=large] .board .row[data-no] .lateTag { font-size: 0; letter-spacing: 0; }
   html[data-fs=large] .board .row[data-no] .lateTag::after {
-    content: '誤點 ' attr(data-min) ' 分'; font-size: calc(11px * var(--ui)); letter-spacing: normal;
+    content: '誤點 ' attr(data-min) ' 分'; font-size: calc(11px * var(--uis)); letter-spacing: normal;
   }
 
   html[data-fs=xlarge] .board .row[data-no] {
@@ -1806,9 +1811,9 @@
     background: none; border: 0; color: var(--warn-ink);
   }
   html[data-fs=xlarge] .board .row[data-no] .lateTag::before {
-    content: '●'; font-size: calc(11px * var(--ui)); margin-left: 5px;
+    content: '●'; font-size: calc(11px * var(--uis)); margin-left: 5px;
   }
-  html[data-fs=xlarge] .board .row[data-no].rx .lateTag { font-size: calc(11px * var(--ui)); }
+  html[data-fs=xlarge] .board .row[data-no].rx .lateTag { font-size: calc(11px * var(--uis)); }
   html[data-fs=xlarge] .board .row[data-no].rx .lateTag::before { content: none; }
   html[data-fs=xlarge] .board .row .rmore {
     display: grid; place-items: center; grid-area: more;
@@ -1846,10 +1851,10 @@
   .board .ev-row b { flex: none; }
   /* 備註擠不下就整條換行,不要被壓成 0 寬:桌面看板比手機窄,flex:1 會讓它先犧牲(實測剩 4px) */
   .board .ev-note { flex: 1 1 7em; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .board .ev-tag { flex: none; padding: 0 5px; border-radius: 4px; background: var(--line-faint); font-size: calc(10.5px * var(--ui)); }
+  .board .ev-tag { flex: none; padding: 0 5px; border-radius: 4px; background: var(--line-faint); font-size: calc(10.5px * var(--uis)); }
   .board .ev-go { flex: none; margin-left: auto; color: var(--faint); }
   /* 觀光列車圖鑑列(無固定車次的山嵐/鳴日/環島之星…):純介紹入口,右側標「圖鑑」淺底徽章 */
-  #explorePanel .row[data-guide] .gchip { flex: none; margin-left: auto; padding: 0 7px 1px; font-size: calc(10.5px * var(--ui)); font-weight: 700;
+  #explorePanel .row[data-guide] .gchip { flex: none; margin-left: auto; padding: 0 7px 1px; font-size: calc(10.5px * var(--uis)); font-weight: 700;
     letter-spacing: 1px; line-height: 1.5; color: var(--navy); border: 1px solid var(--line); border-radius: 999px; white-space: nowrap; }
   .board .row b { color: var(--ink-strong); }
   .board .row .dot { width: 8px; height: 8px; border-radius: 50%; flex: none; align-self: center; }
@@ -1919,41 +1924,41 @@
     box-shadow: var(--shadow-navy); padding: 3px 13px 9px;
     scrollbar-width: thin; scrollbar-color: var(--line) transparent;
   }
-  #searchDrop .sd-sec { color: var(--faint); font-size: calc(11px * var(--ui)); font-weight: 800; letter-spacing: 2px; padding: 9px 0 3px; }
+  #searchDrop .sd-sec { color: var(--faint); font-size: calc(11px * var(--uis)); font-weight: 800; letter-spacing: 2px; padding: 9px 0 3px; }
   #searchDrop .row { display: flex; align-items: center; gap: 8px; padding: 7px 0; border-top: 1px dashed var(--line-faint); font-size: calc(13px * var(--ui)); cursor: pointer; }
   #searchDrop .sd-sec + .row { border-top: 0; } /* 區段標題後第一列不畫上框線 */
   #searchDrop .row:hover { background: var(--bg-stage); }
   #searchDrop .row .nm { font-weight: 800; color: var(--ink-strong); white-space: nowrap; font-variant-numeric: tabular-nums; }
   #searchDrop .sys-chip {
-    margin-left: 7px; padding: 0 7px 1px; font-size: calc(10.5px * var(--ui)); font-weight: 700; letter-spacing: 1px;
+    margin-left: 7px; padding: 0 7px 1px; font-size: calc(10.5px * var(--uis)); font-weight: 700; letter-spacing: 1px;
     line-height: 1.5; color: var(--navy); border: 1px solid var(--line); border-radius: 999px; white-space: nowrap; flex: none;
   }
   #searchDrop .tr-meta { color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
   #searchDrop .ldots { margin-left: auto; display: inline-flex; align-items: center; gap: 3px; flex: none; }
   #searchDrop .ldots .dot { width: 8px; height: 8px; border-radius: 50%; }
-  #searchDrop .stn-count { color: var(--faint); font-size: calc(11px * var(--ui)); padding: 8px 0 2px; }
+  #searchDrop .stn-count { color: var(--faint); font-size: calc(11px * var(--uis)); padding: 8px 0 2px; }
   #searchDrop .empty { color: var(--faint); font-size: calc(13px * var(--ui)); padding: 10px 2px; }
   /* 觀光列車介紹卡(named-row 點開,無固定車次的山嵐/鳴日等在站上唯一的內容入口) */
   #searchDrop .sd-named { padding: 8px 2px 6px; }
   #searchDrop .sd-named .tn { color: var(--ink-strong); font-size: calc(14px * var(--ui)); }
   #searchDrop .sd-named p { margin: 7px 0 0; color: var(--muted); font-size: calc(12.5px * var(--ui)); line-height: 1.75; }
-  #searchDrop .sd-named .sd-note { margin-top: 8px; color: var(--faint); font-size: calc(11px * var(--ui)); }
+  #searchDrop .sd-named .sd-note { margin-top: 8px; color: var(--faint); font-size: calc(11px * var(--uis)); }
   /* 亮點 sheet 骨架(Batch B):#note 遷入的註腳桌面不顯示(桌面另有頁尾 .note) */
-  #explorePanel .exp-note { margin: 8px -14px 0; padding: 10px 14px 12px; border-top: 1.5px dashed var(--line-dash); font-size: calc(10.5px * var(--ui)); line-height: 1.7; color: var(--faint); }
+  #explorePanel .exp-note { margin: 8px -14px 0; padding: 10px 14px 12px; border-top: 1.5px dashed var(--line-dash); font-size: calc(10.5px * var(--uis)); line-height: 1.7; color: var(--faint); }
   @media (min-width: 901px) and (min-height: 501px) { #explorePanel .exp-note { display: none; } }
   .board .empty { color: var(--faint); font-size: calc(13px * var(--ui)); padding: 8px 0; }
   .board .stnMeta { margin: 1px 0 8px; padding-bottom: 8px; border-bottom: 1.5px dashed var(--line-dash); }
-  .board .stnMeta .addr { font-size: calc(12px * var(--ui)); color: var(--muted); line-height: 1.5; }
-  .board .stnMeta .feat { font-size: calc(12px * var(--ui)); color: var(--muted); line-height: 1.5; margin-top: 3px; }
-  .board .stnMeta .xfer { font-size: calc(12px * var(--ui)); color: var(--red); font-weight: 700; line-height: 1.5; margin-top: 3px; }
+  .board .stnMeta .addr { font-size: calc(12px * var(--uis)); color: var(--muted); line-height: 1.5; }
+  .board .stnMeta .feat { font-size: calc(12px * var(--uis)); color: var(--muted); line-height: 1.5; margin-top: 3px; }
+  .board .stnMeta .xfer { font-size: calc(12px * var(--uis)); color: var(--red); font-weight: 700; line-height: 1.5; margin-top: 3px; }
   .board .stnMeta .xfer .k { color: var(--faint); font-weight: 800; letter-spacing: 1px; margin-right: 5px; }
   .board .stnMeta .mapLink {
     display: inline-flex; align-items: center; gap: 3px; margin-top: 6px;
-    font-size: calc(12px * var(--ui)); font-weight: 700; color: var(--navy); text-decoration: none;
+    font-size: calc(12px * var(--uis)); font-weight: 700; color: var(--navy); text-decoration: none;
   }
   .board .stnMeta .mapLink:hover { text-decoration: underline; }
   .board .sec {
-    color: var(--faint); font-size: calc(11px * var(--ui)); font-weight: 800; letter-spacing: 3px;
+    color: var(--faint); font-size: calc(11px * var(--uis)); font-weight: 800; letter-spacing: 3px;
     margin: 10px 0 1px; padding-bottom: 3px; border-bottom: 1.5px dashed var(--line-dash);
   }
   #favPanel .row.fv { cursor: pointer; }
@@ -1972,7 +1977,7 @@
     position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center;
     gap: 8px; text-align: center; padding: 12px; background: var(--paper-tr); border-radius: 8px;
   }
-  #favPanel .myt-cta-txt { font-size: calc(11.5px * var(--ui)); font-weight: 700; color: var(--muted); }
+  #favPanel .myt-cta-txt { font-size: calc(11.5px * var(--uis)); font-weight: 700; color: var(--muted); }
   #favPanel .myt-cta-btn {
     font-size: calc(13px * var(--ui)); font-weight: 800; color: var(--on-navy); background: var(--navy);
     border: 0; border-radius: 8px; padding: 8px 16px; cursor: pointer; box-shadow: var(--shadow-navy);
@@ -1982,35 +1987,35 @@
   .board .ride-stats b { color: var(--red); font-variant-numeric: tabular-nums; }
   .board .ride-kinds { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 7px; }
   .board .kindchip {
-    font-size: calc(10.5px * var(--ui)); font-weight: 700; color: var(--navy);
+    font-size: calc(10.5px * var(--uis)); font-weight: 700; color: var(--navy);
     background: var(--bg-stage); border: 1px solid var(--line); border-radius: 4px; padding: 1px 6px;
   }
 
   /* ── 今日台鐵動態看板(全台鐵當日誤點排行＋逐站歷程;todayBtn 開啟) ── */
-  #todayPanel .sub .td-hint { color: var(--faint); font-size: calc(10.5px * var(--ui)); }
+  #todayPanel .sub .td-hint { color: var(--faint); font-size: calc(10.5px * var(--uis)); }
   #todayPanel .td-row { align-items: center; gap: 6px; }
-  #todayPanel .td-type { flex: none; font-size: calc(10.5px * var(--ui)); font-weight: 700; color: var(--navy); background: var(--bg-stage); border: 1px solid var(--line-faint); border-radius: 4px; padding: 0 5px 1px; }
-  #todayPanel .td-last { flex: 1; min-width: 0; color: var(--muted); font-size: calc(12px * var(--ui)); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  #todayPanel .td-past { flex: none; color: var(--faint); font-size: calc(10px * var(--ui)); white-space: nowrap; }
-  #todayPanel .td-badge { flex: none; font-size: calc(10.5px * var(--ui)); font-weight: 800; border-radius: 3px; padding: 0 5px 1px; white-space: nowrap; }
+  #todayPanel .td-type { flex: none; font-size: calc(10.5px * var(--uis)); font-weight: 700; color: var(--navy); background: var(--bg-stage); border: 1px solid var(--line-faint); border-radius: 4px; padding: 0 5px 1px; }
+  #todayPanel .td-last { flex: 1; min-width: 0; color: var(--muted); font-size: calc(12px * var(--uis)); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  #todayPanel .td-past { flex: none; color: var(--faint); font-size: calc(10px * var(--uis)); white-space: nowrap; }
+  #todayPanel .td-badge { flex: none; font-size: calc(10.5px * var(--uis)); font-weight: 800; border-radius: 3px; padding: 0 5px 1px; white-space: nowrap; }
   #todayPanel .td-badge.hi { color: #fffdf6; background: var(--red); }
   #todayPanel .td-badge.mid { color: var(--warn-ink); background: var(--warn-bg); border: 1px solid var(--warn-line); }
   #todayPanel .td-badge.ok { color: var(--ok); background: var(--bg-stage); border: 1px solid var(--line-faint); }
   #todayPanel .td-row.open { background: var(--bg-stage); }
   #todayPanel .td-detail { padding: 1px 0 8px; margin-bottom: 2px; border-bottom: 1px dashed var(--line-dash); }
-  #todayPanel .td-ev { display: flex; align-items: baseline; gap: 7px; padding: 3px 0 3px 8px; font-size: calc(12px * var(--ui)); }
+  #todayPanel .td-ev { display: flex; align-items: baseline; gap: 7px; padding: 3px 0 3px 8px; font-size: calc(12px * var(--uis)); }
   #todayPanel .td-ev-t { flex: none; font-variant-numeric: tabular-nums; color: var(--ink-strong); font-weight: 700; }
   #todayPanel .td-ev-st { flex: none; color: var(--ink); font-weight: 700; }
   #todayPanel .td-ev-stat { flex: 1; min-width: 0; color: var(--faint); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   #todayPanel .td-ev-d { flex: none; color: var(--muted); }
   #todayPanel .td-ev-d.late { color: var(--warn-ink); font-weight: 700; }
-  #todayPanel .td-peak { flex: none; color: var(--red-deep); font-size: calc(10px * var(--ui)); font-weight: 700; }
-  #todayPanel .td-loading { color: var(--faint); font-size: calc(12px * var(--ui)); padding: 6px 0 6px 8px; }
+  #todayPanel .td-peak { flex: none; color: var(--red-deep); font-size: calc(10px * var(--uis)); font-weight: 700; }
+  #todayPanel .td-loading { color: var(--faint); font-size: calc(12px * var(--uis)); padding: 6px 0 6px 8px; }
   /* 失敗文字比共用 .board .empty(--faint)深一級,不動共用規則(v0718i);.td-detail 內縮排比照 .td-loading */
   #todayPanel .td-fail { color: var(--muted); font-size: calc(13px * var(--ui)); padding: 8px 0; }
-  #todayPanel .td-detail .td-fail { font-size: calc(12px * var(--ui)); padding: 6px 0 6px 8px; }
-  #todayPanel .td-fail-meta { color: var(--faint); font-size: calc(10.5px * var(--ui)); padding: 2px 0 6px; }
-  #todayPanel .td-follow { margin: 5px 0 3px 8px; font-size: calc(11.5px * var(--ui)); font-weight: 700; color: var(--navy); background: var(--bg-stage); border: 1px solid var(--line); border-radius: 6px; padding: 3px 10px; cursor: pointer; }
+  #todayPanel .td-detail .td-fail { font-size: calc(12px * var(--uis)); padding: 6px 0 6px 8px; }
+  #todayPanel .td-fail-meta { color: var(--faint); font-size: calc(10.5px * var(--uis)); padding: 2px 0 6px; }
+  #todayPanel .td-follow { margin: 5px 0 3px 8px; font-size: calc(11.5px * var(--uis)); font-weight: 700; color: var(--navy); background: var(--bg-stage); border: 1px solid var(--line); border-radius: 6px; padding: 3px 10px; cursor: pointer; }
   #todayPanel .td-follow:hover { background: var(--paper); }
 
   /* ── 誤點履歷卡(Plus 頭牌;delayHistPanel,沿用 .board 家族的浮動卡/手機 sheet) ── */
@@ -2020,29 +2025,29 @@
   }
   .fp-dhlink { margin-left: 6px; }                 /* 承接 .fp-dest(11.5px)字級:inline span 不改父行高 */
   .fp-dhlink:hover, .tc-dhlink:hover { text-decoration: underline; }
-  .tc-dhlink { display: inline-block; margin-top: 8px; font-size: calc(12px * var(--ui)); }
+  .tc-dhlink { display: inline-block; margin-top: 8px; font-size: calc(12px * var(--uis)); }
   .delayhist-panel .dh-stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin: 2px 0 10px; }
   .delayhist-panel .dh-stat { text-align: center; background: var(--bg-stage); border: 1px solid var(--line-faint); border-radius: 7px; padding: 6px 2px 5px; }
   .delayhist-panel .dh-stat b { display: block; font-size: calc(16px * var(--ui)); font-weight: 900; color: var(--ink-strong); font-variant-numeric: tabular-nums; line-height: 1.1; }
-  .delayhist-panel .dh-stat span { display: block; font-size: calc(9.5px * var(--ui)); color: var(--faint); margin-top: 2px; line-height: 1.25; }
-  .delayhist-panel .dh-sec { color: var(--faint); font-size: calc(11px * var(--ui)); font-weight: 800; letter-spacing: 2px; margin: 8px 0 4px; }
+  .delayhist-panel .dh-stat span { display: block; font-size: calc(9.5px * var(--uis)); color: var(--faint); margin-top: 2px; line-height: 1.25; }
+  .delayhist-panel .dh-sec { color: var(--faint); font-size: calc(11px * var(--uis)); font-weight: 800; letter-spacing: 2px; margin: 8px 0 4px; }
   .delayhist-panel .dh-bars { display: block; width: 100%; height: auto; }
   .delayhist-panel .dh-bar.ok { fill: var(--ok); }
   .delayhist-panel .dh-bar.hi { fill: var(--red); }
   .delayhist-panel .dh-bar.none { fill: var(--line-faint); }
   .delayhist-panel .dh-grid { stroke: var(--line-faint); stroke-width: .6; }
   .delayhist-panel .dh-ref { stroke: var(--line); stroke-width: .6; stroke-dasharray: 2 2; opacity: .8; }
-  .delayhist-panel .dh-axis { fill: var(--faint); font-size: calc(9px * var(--ui)); font-variant-numeric: tabular-nums; }
+  .delayhist-panel .dh-axis { fill: var(--faint); font-size: calc(9px * var(--uis)); font-variant-numeric: tabular-nums; }
   .delayhist-panel .dh-wd { display: flex; align-items: flex-end; gap: 4px; height: 72px; margin-bottom: 2px; }
   .delayhist-panel .dh-wd-col { flex: 1; min-width: 0; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; height: 100%; }
   .delayhist-panel .dh-wd-bar { width: 62%; min-height: 2px; border-radius: 2px 2px 0 0; background: var(--ok); }
   .delayhist-panel .dh-wd-bar.hi { background: var(--red); }
   .delayhist-panel .dh-wd-bar.none { background: var(--line-faint); }
-  .delayhist-panel .dh-wd-col span { font-size: calc(10px * var(--ui)); color: var(--muted); margin-top: 3px; font-weight: 700; }
-  .delayhist-panel .dh-wd-col em { font-size: calc(8.5px * var(--ui)); color: var(--faint); font-style: normal; font-variant-numeric: tabular-nums; }
-  .delayhist-panel .dh-src { margin-top: 9px; padding-top: 7px; border-top: 1px dashed var(--line-faint); font-size: calc(10px * var(--ui)); color: var(--faint); line-height: 1.55; }
+  .delayhist-panel .dh-wd-col span { font-size: calc(10px * var(--uis)); color: var(--muted); margin-top: 3px; font-weight: 700; }
+  .delayhist-panel .dh-wd-col em { font-size: calc(8.5px * var(--uis)); color: var(--faint); font-style: normal; font-variant-numeric: tabular-nums; }
+  .delayhist-panel .dh-src { margin-top: 9px; padding-top: 7px; border-top: 1px dashed var(--line-faint); font-size: calc(10px * var(--uis)); color: var(--faint); line-height: 1.55; }
   .delayhist-panel .dh-msg { color: var(--muted); font-size: calc(12.5px * var(--ui)); padding: 10px 2px; line-height: 1.6; }
-  .delayhist-panel .dh-retry { margin: 0 0 6px; font-size: calc(12px * var(--ui)); font-weight: 700; color: var(--navy); background: var(--bg-stage); border: 1px solid var(--line); border-radius: 6px; padding: 4px 12px; cursor: pointer; }
+  .delayhist-panel .dh-retry { margin: 0 0 6px; font-size: calc(12px * var(--uis)); font-weight: 700; color: var(--navy); background: var(--bg-stage); border: 1px solid var(--line); border-radius: 6px; padding: 4px 12px; cursor: pointer; }
   .delayhist-panel .dh-retry:hover { background: var(--paper); }
   /* Plus 分層:未訂閱→圖表區模糊+置中 CTA;stats 列與資料標示仍可見當 teaser */
   .delayhist-panel .dh-lock { position: relative; }
@@ -2051,7 +2056,7 @@
     position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center;
     gap: 8px; text-align: center; padding: 12px; background: var(--paper-tr); border-radius: 8px;
   }
-  .delayhist-panel .dh-cta-txt { font-size: calc(11.5px * var(--ui)); font-weight: 700; color: var(--muted); }
+  .delayhist-panel .dh-cta-txt { font-size: calc(11.5px * var(--uis)); font-weight: 700; color: var(--muted); }
   .delayhist-panel .dh-cta-btn {
     font-size: calc(13px * var(--ui)); font-weight: 800; color: var(--on-navy); background: var(--navy);
     border: 0; border-radius: 8px; padding: 8px 16px; cursor: pointer; box-shadow: var(--shadow-navy);
@@ -2065,7 +2070,7 @@
   }
   .seg { display: inline-flex; border: 1px solid var(--line); border-radius: 6px; overflow: hidden; }
   .seg button {
-    font: inherit; font-size: calc(11.5px * var(--ui)); color: var(--muted); background: none; border: 0;
+    font: inherit; font-size: calc(11.5px * var(--uis)); color: var(--muted); background: none; border: 0;
     padding: 4px 12px; cursor: pointer; border-left: 1px solid var(--line);
   }
   .seg button:first-child { border-left: 0; }
@@ -2084,29 +2089,29 @@
   /* ── 顯示與字級面板(設計檔 6a) ──
      刻意全部用 calc(Npx * var(--ui)):這張面板本身就是字級的預覽場,它不跟著放大就等於在說謊。
      虛線分隔沿用 .ms-row 的 --line-faint,不另造一種分隔線。 */
-  .font-panel .fsp-note { margin: 0 0 10px; font-size: calc(11.5px * var(--ui)); line-height: 1.65; color: var(--muted); }
+  .font-panel .fsp-note { margin: 0 0 10px; font-size: calc(11.5px * var(--uis)); line-height: 1.65; color: var(--muted); }
   .font-panel .fsp-row {
     display: flex; align-items: flex-start; justify-content: space-between; gap: 12px;
     padding: 10px 0; border-top: 1px dashed var(--line-faint);
   }
   .font-panel .fsp-lbl { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
   .font-panel .fsp-lbl b { font-size: calc(13px * var(--ui)); font-weight: 800; color: var(--ink); }
-  .font-panel .fsp-lbl small { font-size: calc(11px * var(--ui)); line-height: 1.5; color: var(--muted); }
+  .font-panel .fsp-lbl small { font-size: calc(11px * var(--uis)); line-height: 1.5; color: var(--muted); }
   .font-panel .fsp-row .toggle { margin-top: calc(2px * var(--ui)); }
   .font-panel .fsp-sec {
     padding: 9px 0 5px; border-top: 1px dashed var(--line-faint);
-    font-size: calc(11px * var(--ui)); font-weight: 800; letter-spacing: 3px; color: var(--faint);
+    font-size: calc(11px * var(--uis)); font-weight: 800; letter-spacing: 3px; color: var(--faint);
   }
   .font-panel .fsp-prev {
     border: 1px solid var(--line); border-radius: var(--r-m); padding: 9px 12px 10px;
     background: var(--bg-stage);
   }
   .font-panel .fsp-prev-top { display: flex; align-items: baseline; gap: 8px; }
-  .font-panel .fsp-prev-top .l { font-size: calc(11.5px * var(--ui)); color: var(--muted); font-weight: 700; }
+  .font-panel .fsp-prev-top .l { font-size: calc(11.5px * var(--uis)); color: var(--muted); font-weight: 700; }
   .font-panel .fsp-prev-top .stn { font-size: calc(19px * var(--ui)); font-weight: 900; color: var(--ink-strong); letter-spacing: 1px; }
   .font-panel .fsp-prev-top .eta { margin-left: auto; font-size: calc(13px * var(--ui)); font-weight: 800; color: var(--navy); }
-  .font-panel .fsp-prev-sub { margin-top: 4px; font-size: calc(11.5px * var(--ui)); color: var(--muted); font-variant-numeric: tabular-nums; }
-  .font-panel .fsp-foot { margin: 10px 0 0; font-size: calc(10.5px * var(--ui)); line-height: 1.6; color: var(--faint); }
+  .font-panel .fsp-prev-sub { margin-top: 4px; font-size: calc(11.5px * var(--uis)); color: var(--muted); font-variant-numeric: tabular-nums; }
+  .font-panel .fsp-foot { margin: 10px 0 0; font-size: calc(10.5px * var(--uis)); line-height: 1.6; color: var(--faint); }
   .font-panel .fsp-foot b { color: var(--muted); font-weight: 800; }
 
   /* ── 圖例票根(車種/路線篩選 chips,在軌道面板內) ── */
@@ -2122,7 +2127,7 @@
   .chip.off { opacity: .45; text-decoration: line-through; }
   .legend-sep { flex-basis: 100%; height: 0; }
   .legend-lbl {
-    flex-basis: 100%; color: var(--faint); font-size: calc(11px * var(--ui)); font-weight: 800;
+    flex-basis: 100%; color: var(--faint); font-size: calc(11px * var(--uis)); font-weight: 800;
     letter-spacing: 3px; margin: 8px 2px -2px;
     padding-bottom: 3px; border-bottom: 1.5px dashed var(--line-dash);
   }
@@ -2138,7 +2143,7 @@
     border-radius: var(--r-l); box-shadow: var(--shadow-1);
   }
   .howto .hw-head { padding: 16px 18px 6px; text-align: center; }
-  .howto .hw-head .lbl { font-size: calc(11px * var(--ui)); font-weight: 800; letter-spacing: 3px; color: var(--faint); }
+  .howto .hw-head .lbl { font-size: calc(11px * var(--uis)); font-weight: 800; letter-spacing: 3px; color: var(--faint); }
   .howto .hw-head .ttl { font-size: calc(20px * var(--ui)); font-weight: 900; letter-spacing: 4px; color: var(--plate-ink); margin-top: 2px; }
   .howto .hw-rows { padding: 8px 18px 4px; display: flex; flex-direction: column; gap: 11px; }
   .howto .hw-row { display: flex; gap: 11px; align-items: center; font-size: calc(13px * var(--ui)); color: var(--ink); }
@@ -2149,8 +2154,8 @@
     color: #fffdf6; background: var(--red); border: 1.5px solid var(--red-deep);
     border-radius: var(--r-pill); box-shadow: var(--shadow-red); padding: 9px 16px; min-height: 42px;
   }
-  .howto .hw-skip { font-size: calc(11px * var(--ui)); color: var(--faint); text-decoration: underline; cursor: pointer; background: none; border: 0; font-family: inherit; }
-  .hw-tag { font-size: calc(10.5px * var(--ui)); font-weight: 800; color: #fff; border-radius: var(--r-s); padding: 1px 7px; background: #c0392b; }
+  .howto .hw-skip { font-size: calc(11px * var(--uis)); color: var(--faint); text-decoration: underline; cursor: pointer; background: none; border: 0; font-family: inherit; }
+  .hw-tag { font-size: calc(10.5px * var(--uis)); font-weight: 800; color: #fff; border-radius: var(--r-s); padding: 1px 7px; background: #c0392b; }
   .hw-stnbox { width: 26px; height: 17px; border: 2px solid var(--red); border-radius: 4px; display: flex; align-items: center; justify-content: center; }
   .hw-stnbox i { width: 5px; height: 5px; border-radius: 50%; background: var(--red); }
 
@@ -2171,7 +2176,7 @@
   .foot-box > summary::after { content: '▾'; margin-left: auto; color: var(--faint); font-weight: 400; }
   .foot-box[open] > summary::after { content: '▴'; }
   .foot-box > summary:hover { color: var(--ink); }
-  .foot-sub { font-size: calc(12px * var(--ui)); font-weight: 400; color: var(--faint); }
+  .foot-sub { font-size: calc(12px * var(--uis)); font-weight: 400; color: var(--faint); }
   .foot-list {
     margin: 0; padding: 0 14px 12px; list-style: none;
     display: grid; gap: 6px; font-size: calc(13px * var(--ui)); color: var(--muted); line-height: 1.6;
@@ -2196,7 +2201,7 @@
   .foot-more[open] > summary::after { content: '▴'; }
   .foot-more > summary:hover { color: var(--ink); }
   .foot-more .foot-list { padding: 0 12px 10px; }
-  .foot-note { margin: 0; padding: 0 14px 12px; font-size: calc(12px * var(--ui)); color: var(--faint); line-height: 1.6; }
+  .foot-note { margin: 0; padding: 0 14px 12px; font-size: calc(12px * var(--uis)); color: var(--faint); line-height: 1.6; }
   .foot-links { display: flex; flex-wrap: wrap; gap: 8px 20px; padding: 0 2px; font-size: calc(13px * var(--ui)); }
   .foot-links a { color: var(--navy); text-decoration: none; }
   .foot-links a:hover { color: var(--red); text-decoration: underline; }
@@ -2211,7 +2216,7 @@
     border-radius: 8px; text-decoration: none; box-shadow: var(--shadow-red);
   }
   .donate-kofi:hover { opacity: .92; }
-  .donate-bank p { margin: 0 0 6px; font-size: calc(12px * var(--ui)); color: var(--faint); }
+  .donate-bank p { margin: 0 0 6px; font-size: calc(12px * var(--uis)); color: var(--faint); }
   .acct {
     display: inline-flex; align-items: center; gap: 10px;
     background: var(--paper); border: 1px solid var(--line); border-radius: 8px; padding: 8px 12px;
@@ -2219,7 +2224,7 @@
   }
   .acct b { font-family: var(--mono); letter-spacing: .5px; color: var(--ink); }
   .acct button {
-    font: inherit; font-size: calc(12px * var(--ui)); cursor: pointer; color: var(--muted);
+    font: inherit; font-size: calc(12px * var(--uis)); cursor: pointer; color: var(--muted);
     background: var(--bg-stage); border: 1px solid var(--line); border-radius: 5px; padding: 2px 9px;
   }
   .acct button:hover { background: var(--line-faint); }
@@ -2249,12 +2254,12 @@
     border: 0; background: transparent; color: var(--on-navy); font-size: calc(24px * var(--ui)); line-height: 1;
     cursor: pointer; min-width: 44px; min-height: 44px;
   }
-  .bounty-modal .tk-sub { padding: 12px 16px 0; font-size: calc(12px * var(--ui)); color: var(--muted); line-height: 1.6; flex: none; }
+  .bounty-modal .tk-sub { padding: 12px 16px 0; font-size: calc(12px * var(--uis)); color: var(--muted); line-height: 1.6; flex: none; }
   .bounty-modal .tk-body { padding: 6px 16px 14px; overflow-y: auto; overscroll-behavior: contain; }
   .bounty-modal .bt-card { display: grid; grid-template-columns: 1fr auto; gap: 4px 10px;
     align-items: center; padding: 10px 12px; border-bottom: 1px dashed var(--line); }
   .bounty-modal .bt-r { grid-column: 1; font-weight: 700; }
-  .bounty-modal .bt-meta { grid-column: 1; font-size: calc(12px * var(--ui)); opacity: .75; }
+  .bounty-modal .bt-meta { grid-column: 1; font-size: calc(12px * var(--uis)); opacity: .75; }
   .bounty-modal .bt-pt { grid-column: 2; grid-row: 1 / span 2; font-size: calc(20px * var(--ui)); font-weight: 800; }
   /* 審查 M7：這顆先前零外觀樣式，吃瀏覽器預設 button，手機實測只有 69.3×25px，
      低於專案 ≥28 高×44 寬的觸控門檻（.ph-sec .pl-map 那條註解訂的同一個門檻）。
@@ -2281,7 +2286,7 @@
   .bounty-modal .bb-sec p { margin: 0; font-size: calc(13px * var(--ui)); line-height: 1.7; }
   .bounty-modal .bb-sec ol, .bounty-modal .bb-sec ul { margin: 0; padding-left: 1.3em; font-size: calc(13px * var(--ui)); line-height: 1.7; }
   .bounty-modal .bb-sec li { margin-bottom: 4px; }
-  .bounty-modal .bb-how { display: inline-block; margin-top: 2px; font-size: calc(12px * var(--ui)); color: var(--muted); }
+  .bounty-modal .bb-how { display: inline-block; margin-top: 2px; font-size: calc(12px * var(--uis)); color: var(--muted); }
   .bounty-modal #bountyOpenSettings {
     margin-left: 8px; min-height: 32px; padding: 3px 10px; border: 1px solid var(--line); border-radius: 6px;
     background: var(--paper); color: var(--navy); font: inherit; font-weight: 700; cursor: pointer;
@@ -2307,7 +2312,7 @@
   .takeout-head h2 { flex: 1; margin: 0; font-size: calc(16px * var(--ui)); font-weight: 900; letter-spacing: 3px; }
   .takeout-head button { border: 0; background: transparent; color: var(--on-navy); font-size: calc(24px * var(--ui)); line-height: 1; cursor: pointer; min-width: 44px; min-height: 44px; }
   .takeout-body { padding: 14px 16px; overflow-y: auto; overscroll-behavior: contain; }
-  .takeout-help { margin: 0 0 10px; color: var(--muted); font-size: calc(12px * var(--ui)); line-height: 1.6; }
+  .takeout-help { margin: 0 0 10px; color: var(--muted); font-size: calc(12px * var(--uis)); line-height: 1.6; }
   .metro-wait-picker-dialog { width: min(460px, 100%); }
   .metro-wait-picker-body { display: grid; gap: 8px; }
   .metro-wait-choice {
@@ -2321,7 +2326,7 @@
   .metro-wait-choice-dash { color: currentColor; opacity: .55; }
   .metro-wait-choice-time { flex: none; font-family: var(--mono); font-variant-numeric: tabular-nums; }
   .metro-wait-picker-hint { margin: 0; color: var(--muted); font-size: calc(12.5px * var(--ui)); line-height: 1.6; }
-  .metro-wait-picker-sec { font-size: calc(12px * var(--ui)); font-weight: 800; letter-spacing: .5px; color: var(--muted); margin: 2px 0 -2px; }
+  .metro-wait-picker-sec { font-size: calc(12px * var(--uis)); font-weight: 800; letter-spacing: .5px; color: var(--muted); margin: 2px 0 -2px; }
   .metro-wait-durs { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
   .metro-wait-dur {
     min-height: 40px; padding: 8px 0; border: 1.5px solid var(--line); border-radius: 9px;
@@ -2337,7 +2342,7 @@
     display: block; width: 100%; box-sizing: border-box; margin-bottom: 12px; padding: 16px 10px;
     border: 2px dashed var(--line); border-radius: 10px; background: var(--bg-stage); color: var(--ink);
   }
-  .takeout-status { min-height: 20px; color: var(--muted); font-size: calc(12px * var(--ui)); }
+  .takeout-status { min-height: 20px; color: var(--muted); font-size: calc(12px * var(--uis)); }
   .takeout-status.err { color: var(--red); font-weight: 700; }
 
   /* ── 使用說明中心(Modal 家族;入口=更多 sheet 首列/首訪卡/頁尾/?help=1) ──
@@ -2350,7 +2355,7 @@
   .help-qstep { display: flex; gap: 9px; align-items: center; font-size: calc(12.5px * var(--ui)); margin: 7px 0; }
   .help-qstep .no {
     flex: none; width: 19px; height: 19px; border-radius: 50%; background: var(--navy); color: var(--on-navy);
-    font-size: calc(11px * var(--ui)); font-weight: 900; display: grid; place-items: center;
+    font-size: calc(11px * var(--uis)); font-weight: 900; display: grid; place-items: center;
   }
   .help-qstep .tx { flex: 1; }
   .help-grp { border: 1px solid var(--line); border-radius: 11px; margin-bottom: 9px; overflow: hidden; }
@@ -2359,7 +2364,7 @@
     background: var(--bg-stage); border: 0; font: inherit; color: var(--ink); text-align: left; cursor: pointer;
   }
   .help-grph b { flex: 1; font-size: calc(13.5px * var(--ui)); letter-spacing: 1.5px; }
-  .help-grph .cnt { font-size: calc(11px * var(--ui)); color: var(--faint); font-weight: 700; }
+  .help-grph .cnt { font-size: calc(11px * var(--uis)); color: var(--faint); font-weight: 700; }
   .help-grph .chev { font-size: calc(13px * var(--ui)); color: var(--faint); transition: transform .16s; }
   .help-grp.open .help-grph .chev { transform: rotate(90deg); }
   .help-grpb { display: none; padding: 2px 11px 8px; }
@@ -2370,17 +2375,17 @@
   .help-ic { flex: none; width: 30px; display: flex; justify-content: center; font-size: calc(14px * var(--ui)); font-weight: 900; color: var(--navy); }
   .help-nm { flex: 1; font-size: calc(13px * var(--ui)); font-weight: 900; letter-spacing: .8px; color: var(--ink-strong, var(--ink)); }
   .help-badge {
-    font-size: calc(10px * var(--ui)); font-weight: 800; letter-spacing: .5px; padding: 1px 6px; border-radius: var(--r-pill);
+    font-size: calc(10px * var(--uis)); font-weight: 800; letter-spacing: .5px; padding: 1px 6px; border-radius: var(--r-pill);
     background: var(--paper); color: var(--navy); border: 1px solid var(--line);
   }
   .help-sec .one { font-size: calc(12.5px * var(--ui)); margin: 0 0 6px; line-height: 1.7; }
-  .help-sec ol { margin: 0 0 7px; padding-left: 19px; font-size: calc(12px * var(--ui)); color: var(--muted); line-height: 1.75; }
-  .help-sec .tip { font-size: calc(11.5px * var(--ui)); color: var(--faint); margin: 0 0 7px; line-height: 1.7; }
+  .help-sec ol { margin: 0 0 7px; padding-left: 19px; font-size: calc(12px * var(--uis)); color: var(--muted); line-height: 1.75; }
+  .help-sec .tip { font-size: calc(11.5px * var(--uis)); color: var(--faint); margin: 0 0 7px; line-height: 1.7; }
   .help-sec .tip b, .help-tail b { color: var(--muted); }
   .help-foot { display: flex; align-items: center; gap: 8px; }
   .help-foot .sp { flex: 1; }
   .help-try {
-    font: inherit; font-size: calc(11.5px * var(--ui)); font-weight: 800; letter-spacing: .5px; cursor: pointer; min-height: 32px;
+    font: inherit; font-size: calc(11.5px * var(--uis)); font-weight: 800; letter-spacing: .5px; cursor: pointer; min-height: 32px;
     background: var(--paper); color: var(--plate-ink); border: 1.5px solid var(--navy);
     border-radius: var(--r-pill); padding: 4px 12px;
   }
@@ -2389,14 +2394,14 @@
   .help-tail .one { font-size: calc(12.5px * var(--ui)); margin: 0 0 6px; }
   .help-tail a { color: var(--navy); font-weight: 700; }
   .takeout-summary { display: flex; flex-wrap: wrap; gap: 6px; margin: 10px 0; }
-  .takeout-summary span { padding: 3px 8px; border: 1px solid var(--line); border-radius: var(--r-pill); background: var(--bg-stage); font-size: calc(11px * var(--ui)); }
+  .takeout-summary span { padding: 3px 8px; border: 1px solid var(--line); border-radius: var(--r-pill); background: var(--bg-stage); font-size: calc(11px * var(--uis)); }
   .takeout-summary .ok { color: var(--ok); border-color: var(--ok); background: transparent; }
   .takeout-summary .warn { color: var(--warn-ink); border-color: var(--warn-line); background: var(--warn-bg); }
   .takeout-sec { margin-top: 12px; }
   .takeout-sec h3 { margin: 0 0 5px; color: var(--navy); font-size: calc(13px * var(--ui)); letter-spacing: 1px; }
   .takeout-row {
     display: grid; grid-template-columns: 28px minmax(0,1fr) auto; align-items: center; gap: 8px;
-    min-height: 42px; padding: 5px 0; border-top: 1px dashed var(--line-dash); font-size: calc(12px * var(--ui));
+    min-height: 42px; padding: 5px 0; border-top: 1px dashed var(--line-dash); font-size: calc(12px * var(--uis));
   }
   .takeout-row input { width: 18px; height: 18px; }
   .takeout-row .name { min-width: 0; }
@@ -2414,8 +2419,8 @@
   .takeout-bulk span { min-width: 0; }
   .takeout-bulk b, .takeout-bulk small { display: block; }
   .takeout-bulk b { color: var(--navy); font-size: calc(12.5px * var(--ui)); }
-  .takeout-bulk small { margin-top: 2px; color: var(--faint); font-size: calc(11px * var(--ui)); line-height: 1.45; }
-  .takeout-more { color: var(--faint); font-size: calc(11px * var(--ui)); margin-top: 5px; }
+  .takeout-bulk small { margin-top: 2px; color: var(--faint); font-size: calc(11px * var(--uis)); line-height: 1.45; }
+  .takeout-more { color: var(--faint); font-size: calc(11px * var(--uis)); margin-top: 5px; }
   .takeout-actions {
     display: flex; justify-content: flex-end; gap: 8px; padding: 10px 14px;
     border-top: 1px solid var(--line-dash); background: var(--bg-stage);
@@ -2429,10 +2434,10 @@
   .notify-dialog { width: min(520px, 100%); }
   .notify-body { display: grid; gap: 13px; }
   .notify-train { display: flex; align-items: center; gap: 9px; color: var(--ink-strong); font-weight: 900; }
-  .notify-sys { padding: 2px 8px; border: 1px solid var(--line); border-radius: var(--r-pill); color: var(--navy); font-size: calc(11px * var(--ui)); }
+  .notify-sys { padding: 2px 8px; border: 1px solid var(--line); border-radius: var(--r-pill); color: var(--navy); font-size: calc(11px * var(--uis)); }
   .notify-field { display: grid; grid-template-columns: 112px minmax(0, 1fr); align-items: center; gap: 10px; }
-  .notify-field > span:first-child { color: var(--muted); font-size: calc(12px * var(--ui)); font-weight: 800; }
-  .notify-field .notify-mode { display: block; margin-top: 2px; color: var(--faint); font-size: calc(10px * var(--ui)); }
+  .notify-field > span:first-child { color: var(--muted); font-size: calc(12px * var(--uis)); font-weight: 800; }
+  .notify-field .notify-mode { display: block; margin-top: 2px; color: var(--faint); font-size: calc(10px * var(--uis)); }
   .notify-field select, .notify-field input[type=number] {
     width: 100%; min-height: 44px; padding: 7px 10px; border: 1.5px solid var(--line); border-radius: 8px;
     background: var(--paper); color: var(--ink); font: inherit; font-size: calc(16px * var(--ui));
@@ -2442,12 +2447,12 @@
   .notify-offsets input { position: absolute; opacity: 0; pointer-events: none; }
   .notify-offsets span {
     display: grid; place-items: center; min-height: 44px; border: 1.5px solid var(--line); border-radius: 8px;
-    color: var(--muted); font-size: calc(12px * var(--ui)); font-weight: 800;
+    color: var(--muted); font-size: calc(12px * var(--uis)); font-weight: 800;
   }
   .notify-offsets input:checked + span { background: var(--navy); border-color: var(--navy); color: var(--on-navy); }
   /* 開車前｜到達前 分段切換(每鈕 ≥44px);沿用 offset seg 的 navy 高亮 */
   .notify-basis { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; }
-  .notify-basis button { min-height: 44px; border: 1.5px solid var(--line); border-radius: 8px; background: var(--paper); color: var(--muted); font: inherit; font-size: calc(12px * var(--ui)); font-weight: 800; cursor: pointer; }
+  .notify-basis button { min-height: 44px; border: 1.5px solid var(--line); border-radius: 8px; background: var(--paper); color: var(--muted); font: inherit; font-size: calc(12px * var(--uis)); font-weight: 800; cursor: pointer; }
   .notify-basis button.on { background: var(--navy); border-color: var(--navy); color: var(--on-navy); }
   .notify-basis button:disabled { opacity: .4; cursor: not-allowed; }
   /* 三檢視共用同一 modal:總覽模式只留清單、藏草稿表單;末班車模式藏基準切換 */
@@ -2462,17 +2467,17 @@
   .notify-modal[data-notify-view="overview"] .notify-list > b { display: none; }
   .notify-modal[data-notify-view="lasttrain"] #notifyBasisField { display: none; }
   .notify-walk { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 7px; }
-  .notify-walk span { color: var(--muted); font-size: calc(12px * var(--ui)); }
+  .notify-walk span { color: var(--muted); font-size: calc(12px * var(--uis)); }
   .notify-preview { padding: 10px 12px; border: 1.5px dashed var(--line-dash); border-radius: 8px; color: var(--navy); font-size: calc(13px * var(--ui)); font-weight: 800; line-height: 1.55; }
-  .notify-permission { padding: 9px 11px; border: 1.5px solid var(--warn-line); border-radius: 8px; background: var(--warn-bg); color: var(--warn-ink); font-size: calc(12px * var(--ui)); font-weight: 700; line-height: 1.5; }
+  .notify-permission { padding: 9px 11px; border: 1.5px solid var(--warn-line); border-radius: 8px; background: var(--warn-bg); color: var(--warn-ink); font-size: calc(12px * var(--uis)); font-weight: 700; line-height: 1.5; }
   .notify-permission button { display: block; min-height: 44px; margin-top: 6px; padding: 5px 11px; border: 1px solid var(--warn-line); border-radius: 7px; background: var(--paper); color: var(--warn-ink); font: inherit; font-weight: 800; cursor: pointer; }
   .notify-primary { width: 100%; min-height: 48px; border: 1.5px solid var(--red-deep); border-radius: var(--r-pill); background: var(--red); color: #fffdf6; font: inherit; font-weight: 900; cursor: pointer; box-shadow: var(--shadow-red); }
   .notify-list { padding-top: 3px; border-top: 1.5px dashed var(--line-dash); }
-  .notify-list > b { display: block; margin-bottom: 4px; color: var(--faint); font-size: calc(11px * var(--ui)); letter-spacing: 2px; }
-  .notify-reminder-row { display: flex; align-items: center; gap: 7px; min-height: 44px; border-top: 1px dashed var(--line-faint); font-size: calc(12px * var(--ui)); }
+  .notify-list > b { display: block; margin-bottom: 4px; color: var(--faint); font-size: calc(11px * var(--uis)); letter-spacing: 2px; }
+  .notify-reminder-row { display: flex; align-items: center; gap: 7px; min-height: 44px; border-top: 1px dashed var(--line-faint); font-size: calc(12px * var(--uis)); }
   .notify-reminder-row:first-child { border-top: 0; }
   .notify-reminder-row .notify-reminder-main { flex: 1; min-width: 0; color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .notify-reminder-row .notify-standby { flex: none; color: var(--warn-ink); font-size: calc(10.5px * var(--ui)); font-weight: 800; }
+  .notify-reminder-row .notify-standby { flex: none; color: var(--warn-ink); font-size: calc(10.5px * var(--uis)); font-weight: 800; }
   .notify-reminder-row button { flex: none; width: 44px; height: 44px; border: 0; background: transparent; color: var(--faint); font-size: calc(18px * var(--ui)); cursor: pointer; }
   .notify-primer { position: absolute; inset: 0; z-index: 2; display: grid; place-items: center; padding: 18px; background: rgba(20,29,42,.66); }
   .notify-primer-card { width: min(400px, 100%); padding: 18px; border: 2px solid var(--navy); border-radius: 14px; background: var(--paper); box-shadow: 0 12px 40px rgba(15,25,40,.32); }
@@ -2486,7 +2491,7 @@
   #favPanel .fv-notify .ri-icon { width: 16px; height: 16px; display: block; margin: auto; }
   #favPanel .fv-notify:hover { background: var(--bg-stage); }
   /* 地點列的「設為預設」啟動地點鈕:平時淺底膠囊,已設為預設時深底標記 */
-  #favPanel .fv-default { flex: none; margin-left: auto; padding: 3px 9px; font: 700 11px var(--font); font-size: calc(11px * var(--ui)); white-space: nowrap;
+  #favPanel .fv-default { flex: none; margin-left: auto; padding: 3px 9px; font: 700 11px var(--font); font-size: calc(11px * var(--uis)); white-space: nowrap;
     background: transparent; color: var(--muted); border: 1.5px solid var(--line); border-radius: 999px; cursor: pointer; }
   #favPanel .fv-default:hover { background: var(--bg-stage); }
   #favPanel .fv-default.on { background: var(--navy); color: var(--on-navy); border-color: var(--navy); }
@@ -2506,41 +2511,41 @@
   .account-avatar img { width: 100%; height: 100%; object-fit: cover; }
   .account-profile b, .account-profile small { display: block; }
   .account-profile small { margin-top: 2px; color: var(--faint); overflow-wrap: anywhere; }
-  .account-syncbox { margin-top: 12px; padding: 10px; border: 1px solid var(--line-dash); border-radius: 8px; font-size: calc(12px * var(--ui)); line-height: 1.55; }
+  .account-syncbox { margin-top: 12px; padding: 10px; border: 1px solid var(--line-dash); border-radius: 8px; font-size: calc(12px * var(--uis)); line-height: 1.55; }
   .account-syncbox b { display: block; color: var(--navy); margin-bottom: 2px; }
   .account-user-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 12px; }
   .account-user-actions .wide { grid-column: 1 / -1; }
   .account-user-actions .danger { color: var(--red-deep); border-color: var(--warn-line); }
-  .account-error { margin-top: 10px; color: var(--red); font-size: calc(12px * var(--ui)); font-weight: 700; line-height: 1.5; }
-  .account-note { margin-top: 10px; color: var(--faint); font-size: calc(11px * var(--ui)); line-height: 1.55; }
+  .account-error { margin-top: 10px; color: var(--red); font-size: calc(12px * var(--uis)); font-weight: 700; line-height: 1.5; }
+  .account-note { margin-top: 10px; color: var(--faint); font-size: calc(11px * var(--uis)); line-height: 1.55; }
   .plus-hero { text-align: center; padding: 6px 4px 12px; }
   .plus-mark { display: inline-grid; place-items: center; width: 64px; height: 64px; border-radius: 50%; border: 2.5px solid var(--gold); color: var(--gold); background: transparent; font-size: calc(15px * var(--ui)); font-weight: 900; transform: rotate(-8deg); }
   .plus-hero h3 { margin: 11px 0 4px; color: var(--ink-strong); font-size: calc(19px * var(--ui)); letter-spacing: 2px; }
-  .plus-hero p { margin: 0; color: var(--muted); font-size: calc(12px * var(--ui)); line-height: 1.55; }
+  .plus-hero p { margin: 0; color: var(--muted); font-size: calc(12px * var(--uis)); line-height: 1.55; }
   .plus-features { display: grid; gap: 0; margin: 4px 0 14px; }
   .plus-feature { display: flex; gap: 10px; padding: 9px 2px; border-bottom: 1px dashed var(--line-faint); font-size: calc(13px * var(--ui)); align-items: flex-start; }
   .plus-feature span { color: var(--navy); font-weight: 900; }
   .plus-buy { width: 100%; min-height: 48px; border: 1.5px solid var(--red-deep); border-radius: var(--r-pill); background: var(--red); color: #fffdf6; font: inherit; font-weight: 900; cursor: pointer; box-shadow: var(--shadow-red); }
   .plus-buy:disabled { opacity: .5; cursor: default; }
-  .plus-restore { display: block; margin: 9px auto 0; min-height: 44px; border: 0; background: transparent; color: var(--navy); font: inherit; font-size: calc(12px * var(--ui)); font-weight: 800; cursor: pointer; text-decoration: underline; }
+  .plus-restore { display: block; margin: 9px auto 0; min-height: 44px; border: 0; background: transparent; color: var(--navy); font: inherit; font-size: calc(12px * var(--uis)); font-weight: 800; cursor: pointer; text-decoration: underline; }
   .plus-owned { padding: 13px; border: 1.5px solid var(--ok); border-radius: 9px; color: var(--ok); text-align: center; font-weight: 800; }
   .plus-plans { display: grid; gap: 10px; margin: 6px 0 12px; }
   .plus-plan { position: relative; display: flex; align-items: center; justify-content: space-between; gap: 10px; width: 100%; min-height: 52px; padding: 13px 16px; border: 1.5px solid var(--line); border-radius: var(--r-l); background: var(--paper); color: var(--ink-strong); font: inherit; text-align: left; cursor: pointer; }
   .plus-plan:disabled { opacity: .55; cursor: default; }
   .plus-plan-primary { border-color: var(--red-deep); background: var(--red); color: #fffdf6; box-shadow: var(--shadow-red); }
-  .plus-plan-badge { position: absolute; top: -9px; left: 14px; padding: 2px 9px; border-radius: var(--r-pill); background: var(--gold); color: #2a2413; font-size: calc(10px * var(--ui)); font-weight: 900; letter-spacing: 1px; }
+  .plus-plan-badge { position: absolute; top: -9px; left: 14px; padding: 2px 9px; border-radius: var(--r-pill); background: var(--gold); color: #2a2413; font-size: calc(10px * var(--uis)); font-weight: 900; letter-spacing: 1px; }
   .plus-plan-name { font-weight: 900; font-size: calc(14px * var(--ui)); letter-spacing: 1px; }
   .plus-plan-price { font-weight: 900; font-size: calc(15px * var(--ui)); white-space: nowrap; }
-  .plus-trust { margin: 2px 0 0; padding: 9px 2px 0; color: var(--muted); font-size: calc(11px * var(--ui)); line-height: 1.55; }
-  .plus-manage { display: block; margin: 10px auto 0; min-height: 44px; line-height: 44px; text-align: center; color: var(--navy); font-size: calc(12px * var(--ui)); font-weight: 800; text-decoration: underline; }
-  .plus-legal { margin-top: 12px; padding-top: 10px; border-top: 1px dashed var(--line-faint); color: var(--faint); font-size: calc(11px * var(--ui)); line-height: 1.6; }
+  .plus-trust { margin: 2px 0 0; padding: 9px 2px 0; color: var(--muted); font-size: calc(11px * var(--uis)); line-height: 1.55; }
+  .plus-manage { display: block; margin: 10px auto 0; min-height: 44px; line-height: 44px; text-align: center; color: var(--navy); font-size: calc(12px * var(--uis)); font-weight: 800; text-decoration: underline; }
+  .plus-legal { margin-top: 12px; padding-top: 10px; border-top: 1px dashed var(--line-faint); color: var(--faint); font-size: calc(11px * var(--uis)); line-height: 1.6; }
   .plus-legal p { margin: 0 0 6px; }
   .plus-legal a { color: var(--navy); font-weight: 700; }
 
   /* ── 流量圖 ── */
   .flow { margin: 14px 2px 0; }
   .flow canvas { display: block; width: 100%; height: 64px; cursor: crosshair; border: 1.5px solid var(--line); border-radius: 6px; background: var(--paper); }
-  .flow .lbl { color: var(--faint); font-size: calc(12px * var(--ui)); margin-top: 5px; font-variant-numeric: tabular-nums; }
+  .flow .lbl { color: var(--faint); font-size: calc(12px * var(--uis)); margin-top: 5px; font-variant-numeric: tabular-nums; }
 
   /* ── 手機 tab bar(≤640 常駐;搜尋/亮點/最愛/護照/更多)＋「更多」sheet ── */
   .tabbar {
@@ -2561,7 +2566,7 @@
   /* 搜尋用平面線稿放大鏡(不用 emoji 🔍:iOS 會渲染成彩色立體字符,與其餘單字圖示不同調);
      display:block 消行內基線縫隙,18px 對齊單字圖示的 17px×1.1 行高;描邊吃 currentColor 故選中態自動轉深藍 */
   .tabbar .ti svg { display: block; width: calc(18px * var(--ui)); height: calc(18px * var(--ui)); }
-  .tabbar .tl { font-size: calc(11px * var(--ui)); color: var(--faint); }
+  .tabbar .tl { font-size: calc(11px * var(--uis)); color: var(--faint); }
   .tabbar button.active .ti, .tabbar button.active .tl { color: var(--navy); font-weight: 800; }
   /* 「更多」sheet:承接原 ☰ 抽屜全部條目(外觀/圖層/動作) */
   .more-sheet {
@@ -2595,21 +2600,37 @@
     font-family: inherit; text-align: inherit; width: 100%;
   }
   .more-sheet .ms-row:last-child { border-bottom: 0; }
-  .more-sheet .ms-row .chev { font-size: calc(12px * var(--ui)); color: var(--faint); font-weight: 600; }
+  .more-sheet .ms-row .chev { font-size: calc(12px * var(--uis)); color: var(--faint); font-weight: 600; }
   /* 設計 6c 的列尾:目前值 + ›(值在特大時會掉到第二行,那是後續 6c 整列改版的事,這裡先做同一行) */
   .more-sheet .ms-row .ms-tail { display: flex; align-items: center; gap: 8px; min-width: 0; }
-  .more-sheet .ms-row .ms-tail b { font-size: calc(12px * var(--ui)); font-weight: 700; color: var(--faint); }
-  .more-sheet .ms-sec { padding: 9px 14px 3px; font-size: calc(11px * var(--ui)); font-weight: 800; letter-spacing: 3px; color: var(--faint); border-bottom: 1px dashed var(--line-faint); }
+  .more-sheet .ms-row .ms-tail b { font-size: calc(12px * var(--uis)); font-weight: 700; color: var(--faint); }
+  /* ── 設計 6c「更多 · 特大」──────────────────────────────────────────────
+     列高吃設計檔 TURN 5/6 對照表的「列高」那一列(48→68→80):字級倍率只放大字,
+     盒高不會自己跟著長——特大實測只有 49px,連設計要的 60px 觸控目標都不到。
+     值(標準／大／特大)在特大掉到第二行、右邊只留「›」:.ms-tail 用 display:contents
+     把 b 與 chev 交給外層 grid,不必動 DOM(標準與大兩檔完全不進這裡)。 */
+  html[data-fs=large]  .more-sheet .ms-row { min-height: 68px; }
+  html[data-fs=xlarge] .more-sheet .ms-row { min-height: 80px; }
+  html[data-fs=xlarge] .more-sheet .ms-row:has(.ms-tail) {
+    display: grid; grid-template-columns: 1fr auto;
+    grid-template-areas: "lab chev" "val chev";
+    align-items: center; row-gap: 2px;
+  }
+  html[data-fs=xlarge] .more-sheet .ms-row .ms-tail { display: contents; }
+  html[data-fs=xlarge] .more-sheet .ms-row:has(.ms-tail) > span:first-child { grid-area: lab; }
+  html[data-fs=xlarge] .more-sheet .ms-row .ms-tail b { grid-area: val; justify-self: start; }
+  html[data-fs=xlarge] .more-sheet .ms-row .ms-tail .chev { grid-area: chev; }
+  .more-sheet .ms-sec { padding: 9px 14px 3px; font-size: calc(11px * var(--uis)); font-weight: 800; letter-spacing: 3px; color: var(--faint); border-bottom: 1px dashed var(--line-faint); }
   .more-sheet .ms-row.warnrow { background: var(--warn-bg); color: var(--warn-ink); font-weight: 800; }
   /* 評分列不用 emoji(2026-08-12 使用者裁決:更多選單不放 emoji),改品牌紅粗體強調 */
   .more-sheet .ms-row .rate-cta { color: var(--red); font-weight: 800; }
-  .more-sheet .ms-note { margin: 10px 14px 0; font-size: calc(10.5px * var(--ui)); color: var(--faint); flex: none; }
+  .more-sheet .ms-note { margin: 10px 14px 0; font-size: calc(10.5px * var(--uis)); color: var(--faint); flex: none; }
   .more-scrim { position: fixed; inset: 0; z-index: 1105; background: rgba(30,44,64,.26); display: none; }
   /* 診斷條(setDiagStrip):左下角單行小字,壓過一切但不吃指標;等寬數字方便逐秒比對截圖 */
   #diagStrip {
     position: fixed; left: calc(4px + var(--sa-l)); bottom: calc(2px + env(safe-area-inset-bottom, 0px));
     z-index: 3000; pointer-events: none;
-    font: 600 10px/1.4 ui-monospace, Menlo, monospace; font-size: calc(10px * var(--ui)); letter-spacing: 0;
+    font: 600 10px/1.4 ui-monospace, Menlo, monospace; font-size: calc(10px * var(--uis)); letter-spacing: 0;
     color: var(--ink); background: var(--paper-tr); border-radius: 4px; padding: 1px 5px;
     /* 鎖單行:直式 393px 折兩行會壓到 tab bar(核心數值排前面,截掉的只會是尾端例外文字) */
     white-space: nowrap; max-width: calc(100vw - 8px); overflow: hidden;
@@ -2646,8 +2667,8 @@
     header h1 { font-size: calc(17px * var(--ui)); letter-spacing: 5px; text-indent: 5px; }
     .plate-sub { display: none; } /* 手機牌面只留站名+鄰站帶(mock §04) */
     .plate-foot { margin: 3px -12px 0; padding: 1px 8px 2px; }
-    .plate-foot .stn { font-size: calc(8px * var(--ui)); letter-spacing: 1px; text-indent: 1px; }
-    .plate-foot .stn:first-child::before, .plate-foot .stn:last-child::after { font-size: calc(7px * var(--ui)); }
+    .plate-foot .stn { font-size: calc(8px * var(--uis)); letter-spacing: 1px; text-indent: 1px; }
+    .plate-foot .stn:first-child::before, .plate-foot .stn:last-child::after { font-size: calc(7px * var(--uis)); }
     .plate-arrow { width: 34px; height: 7px; margin: 0 4px; }
     /* 議題2:單列橫捲頁籤——右緣漸層淡出提示「還有更多」(半截籤自然暗示保留);
        遮罩釘在可視右緣、隨捲不動。硬約束5:不加標準 scrollbar-width/color(此處既有的 none 是隱藏原生軸,非工具帶自訂軸)。 */
@@ -2656,9 +2677,9 @@
       mask-image: linear-gradient(90deg, #000 calc(100% - 30px), transparent); }
     .grouptabs::-webkit-scrollbar { display: none; }
     .grouptabs .gtab, .grouptabs .citysel { flex: none; white-space: nowrap; }
-    .grouptabs .gtab { font-size: calc(12px * var(--ui)); padding: 6px 13px; min-height: 36px; }
-    .grouptabs .citysel { font-size: calc(12px * var(--ui)); padding: 6px 26px 6px 13px; min-height: 36px; background-position: right 10px center; }
-    .groupmembers .mem { font-size: calc(12px * var(--ui)); padding: 5px 11px; }
+    .grouptabs .gtab { font-size: calc(12px * var(--uis)); padding: 6px 13px; min-height: 36px; }
+    .grouptabs .citysel { font-size: calc(12px * var(--uis)); padding: 6px 26px 6px 13px; min-height: 36px; background-position: right 10px center; }
+    .groupmembers .mem { font-size: calc(12px * var(--uis)); padding: 5px 11px; }
     .search { flex: 1 1 100%; min-width: 0; margin: 0; }
     /* iOS 聚焦時字級 <16px 會自動放大整頁(WKWebView 同):可打字的輸入框手機一律 16px。
        時刻輸入要連 :focus-within 態一起蓋——聚焦態規則特異性較高,只蓋常態蓋不住。 */
@@ -2686,7 +2707,7 @@
     #msAbout .foot-recent { max-height: none; overflow: visible; }
     .ms-about-links { display: flex; align-items: center; gap: 14px; padding: 8px 14px 4px; font-size: calc(13px * var(--ui)); }
     .ms-about-links a { color: var(--navy); text-decoration: none; }
-    .ms-about-links .ver { margin-left: auto; font-size: calc(11px * var(--ui)); color: var(--faint); font-weight: 600; letter-spacing: .5px; }
+    .ms-about-links .ver { margin-left: auto; font-size: calc(11px * var(--uis)); color: var(--faint); font-weight: 600; letter-spacing: .5px; }
     /* 跟隨票手機不出(地圖上的跟隨小卡已有同資訊):它多佔一行會把 stage 推破視窗底 */
     #followBar { display: none !important; }
     .stage { height: calc(100dvh - 252px); min-height: 380px; }
@@ -2768,7 +2789,7 @@
     body.fs.recording:not(.rec-panel):not(.live):not(.ambient) .record-bar .rb-row2 {
       display: flex; align-items: center; gap: 5px;
     }
-    body.fs.recording:not(.rec-panel):not(.live):not(.ambient) .record-bar .rb-ttl { font-size: calc(11px * var(--ui)); }
+    body.fs.recording:not(.rec-panel):not(.live):not(.ambient) .record-bar .rb-ttl { font-size: calc(11px * var(--uis)); }
     body.fs.recording:not(.rec-panel):not(.live):not(.ambient) .record-bar .rb-detail { display: none; }
     body.fs.recording:not(.rec-panel):not(.live):not(.ambient) .record-bar .rb-stat {
       flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis;
@@ -2787,7 +2808,7 @@
        只掛在 html[data-fs]:標準檔一格都不動。 */
     html[data-fs] .badge { top: calc(8px + env(safe-area-inset-top, 0px) + var(--tb-h, 40px) + 10px); }
     .badge .clock { font-size: calc(17px * var(--ui)); }
-    .badge .count { font-size: calc(12px * var(--ui)); }
+    .badge .count { font-size: calc(12px * var(--uis)); }
     /* 行程連結的追蹤橫幅原本固定 top:56，會整片壓住這列時鐘。接收行程時先把非必要的
        地圖動作列收起，橫幅排到時鐘下方；關閉橫幅後 body.trip-open 移除，兩者自然復原。 */
     body.trip-open .map-actions { opacity: 0; pointer-events: none; }
@@ -2797,7 +2818,7 @@
        「看板校正」縮成純脈動藍點(400px 以上字樣不變) */
     @media (max-width: 400px) {
       .badge .mlive { font-size: 0; letter-spacing: 0; }
-      .badge .mlive::before { font-size: calc(11px * var(--ui)); }
+      .badge .mlive::before { font-size: calc(11px * var(--uis)); }
     }
     /* 手機:工具全部住在 tab bar「更多」sheet;帶收成速度膠囊(見下) */
     .tabbar { display: flex; }
@@ -2805,7 +2826,7 @@
     /* 版權字單行省略且讓開左下跟隨卡(卡寬 176+邊距):抬到膠囊上方後與卡同高,不截寬會相撞 */
     .leaflet-control-attribution {
       max-width: calc(100vw - 216px); white-space: nowrap;
-      overflow: hidden; text-overflow: ellipsis; font-size: calc(10px * var(--ui));
+      overflow: hidden; text-overflow: ellipsis; font-size: calc(10px * var(--uis));
     }
     /* 手機改用雙指縮放,隱藏 Leaflet +/- 鈕 */
     .leaflet-control-zoom { display: none; }
@@ -2834,15 +2855,15 @@
     }
     .xing-card .xc-head { padding: 6px 8px 6px 10px; gap: 7px; }
     .xing-card .xc-ttl b { font-size: calc(14px * var(--ui)); }
-    .xing-card .xc-meta { font-size: calc(10px * var(--ui)); }
+    .xing-card .xc-meta { font-size: calc(10px * var(--uis)); }
     .xing-card .xc-close { font-size: calc(14px * var(--ui)); }
-    .xing-card .xc-row { padding: 5px 10px; font-size: calc(11.5px * var(--ui)); gap: 6px; }
+    .xing-card .xc-row { padding: 5px 10px; font-size: calc(11.5px * var(--uis)); gap: 6px; }
     .xing-card .xc-no { min-width: 34px; }
     .xing-card .xc-kind { display: none; }
-    .xing-card .xc-dl { font-size: calc(10px * var(--ui)); }
+    .xing-card .xc-dl { font-size: calc(10px * var(--uis)); }
     .xing-card .xc-cd { min-width: 40px; }
-    .xing-card .xc-foot { padding: 6px 10px 8px; font-size: calc(10px * var(--ui)); }
-    .xing-card .xc-empty { padding: 12px 10px; font-size: calc(11.5px * var(--ui)); }
+    .xing-card .xc-foot { padding: 6px 10px 8px; font-size: calc(10px * var(--uis)); }
+    .xing-card .xc-empty { padding: 12px 10px; font-size: calc(11.5px * var(--uis)); }
     /* 站名牌手機靠左橫條:下移到動作列之下(整寬顯示;fs 殼 ⛶ 已廢止,右側不再需讓位) */
     .dwell-plate { top: calc(141px + env(safe-area-inset-top, 0px)); left: 8px; right: 8px; min-width: 0; max-width: none; }
     .dwell-plate .dp-intro { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
@@ -2896,7 +2917,7 @@
       position: static; max-height: none; margin-top: 6px;
       border: 0; box-shadow: none; background: none; border-radius: 0; padding: 0 12px 10px;
     }
-    #searchPanel .sp-hint { margin: 0; padding: 2px 14px 12px; font-size: calc(11.5px * var(--ui)); line-height: 1.7; color: var(--faint); }
+    #searchPanel .sp-hint { margin: 0; padding: 2px 14px 12px; font-size: calc(11.5px * var(--uis)); line-height: 1.7; color: var(--faint); }
     /* 有結果就收起提示(提示是空狀態的引導,不該墊在結果下面);:has 不支援的舊瀏覽器只是提示留著,無害 */
     #searchSlot:has(#searchDrop:not([hidden])) + .sp-hint { display: none; }
     /* 🔴 padding 要讓開安全區(2026-07-28 首次 App build 實機看到):place-items 在手機是 stretch,
@@ -2930,18 +2951,18 @@
     .follow-panel .fp-head { gap: 6px; }
     .follow-panel .fp-head .dot { width: 7px; height: 7px; }
     .follow-panel .fp-head b { font-size: calc(13px * var(--ui)); }
-    .follow-panel .fp-head .kind { font-size: calc(10.5px * var(--ui)); }
+    .follow-panel .fp-head .kind { font-size: calc(10.5px * var(--uis)); }
     .follow-panel .fp-head .fp-close { font-size: calc(13px * var(--ui)); }
     .follow-panel .fp-next { margin-top: 5px; padding-top: 5px; gap: 5px; }
-    .follow-panel .fp-next .lbl { font-size: calc(9.5px * var(--ui)); letter-spacing: 1px; }
+    .follow-panel .fp-next .lbl { font-size: calc(9.5px * var(--uis)); letter-spacing: 1px; }
     .follow-panel .fp-next .stn { font-size: calc(13px * var(--ui)); }
-    .follow-panel .fp-next .eta { font-size: calc(11px * var(--ui)); }
+    .follow-panel .fp-next .eta { font-size: calc(11px * var(--uis)); }
     .follow-panel .fp-prog { gap: 6px; margin-top: 5px; }
-    .follow-panel .fp-prog .txt { font-size: calc(9px * var(--ui)); }
-    .follow-panel .fp-dest { font-size: calc(10px * var(--ui)); }
-    .follow-panel .fp-status { font-size: calc(10.5px * var(--ui)); margin-top: 5px; }
+    .follow-panel .fp-prog .txt { font-size: calc(9px * var(--uis)); }
+    .follow-panel .fp-dest { font-size: calc(10px * var(--uis)); }
+    .follow-panel .fp-status { font-size: calc(10.5px * var(--uis)); margin-top: 5px; }
     /* 時速大字手機縮級:窄卡遇 4 位數車次+3 位數時速也不撐爆標題列 */
-    .follow-panel .fp-head .spd { font-size: calc(9.5px * var(--ui)); }
+    .follow-panel .fp-head .spd { font-size: calc(9.5px * var(--uis)); }
     .follow-panel .fp-head .spd b { font-size: calc(16px * var(--ui)); }
     /* sheet 開啟時跟隨小卡讓道到 sheet 上方(!important:fs 時 placeFsOverlays 會寫 inline bottom,必須蓋過) */
     body.sheet-open .follow-panel, body.sheet-open .freq-card { bottom: calc(46% + 16px) !important; max-height: calc(54% - 84px); }
@@ -2985,7 +3006,7 @@
     .traincard.tc-sheet .tc-head .tc-live {
       display: flex !important; flex: 0 0 100%; align-items: center; flex-wrap: wrap; gap: 3px 10px;
       margin-top: 7px; padding-top: 7px; border-top: 1px dashed var(--line-faint);
-      font-size: calc(12px * var(--ui)); color: var(--faint);
+      font-size: calc(12px * var(--uis)); color: var(--faint);
     }
     .traincard.tc-sheet .tc-head .tl-spd b { font-size: calc(15px * var(--ui)); font-weight: 900; color: var(--ink-strong); }
     .traincard.tc-sheet .tc-head .tl-next { font-weight: 800; color: var(--navy); }
@@ -3179,7 +3200,7 @@
     /* 標籤 chip(首次進場 2 秒＋長按):錨在按鈕左緣外側 */
     .map-actions .mt-tip {
       position: absolute; right: calc(100% + 8px); top: 50%; transform: translateY(-50%);
-      background: var(--navy); color: #fff8ec; font-size: calc(12px * var(--ui)); font-weight: 700;
+      background: var(--navy); color: #fff8ec; font-size: calc(12px * var(--uis)); font-weight: 700;
       padding: 4px 9px; border-radius: 7px; white-space: nowrap; pointer-events: none; z-index: 5;
     }
     /* 首訪卡手機貼齊 mock */
@@ -3382,10 +3403,10 @@
     }
     body.fs .dwell-plate b { font-size: calc(18px * var(--ui)); letter-spacing: 6px; text-indent: 6px; padding: 6px 14px 5px; }
     body.fs .dwell-plate .dp-strip { padding: 3px 10px 4px; gap: 10px; }
-    body.fs .dwell-plate .side { font-size: calc(11px * var(--ui)); }
-    body.fs .dwell-plate .side .arr { font-size: calc(10px * var(--ui)); }
-    body.fs .dwell-plate .side .km { font-size: calc(9.5px * var(--ui)); }
-    body.fs .dwell-plate .dp-intro { font-size: calc(11px * var(--ui)); line-height: 1.45; padding: 5px 12px 6px; -webkit-line-clamp: 1; }
+    body.fs .dwell-plate .side { font-size: calc(11px * var(--uis)); }
+    body.fs .dwell-plate .side .arr { font-size: calc(10px * var(--uis)); }
+    body.fs .dwell-plate .side .km { font-size: calc(9.5px * var(--uis)); }
+    body.fs .dwell-plate .dp-intro { font-size: calc(11px * var(--uis)); line-height: 1.45; padding: 5px 12px 6px; -webkit-line-clamp: 1; }
 
     /* 🔴 側欄是「右邊多了一塊不透明的東西」,所有**整寬或右錨**的浮層都會鑽到它底下。
        這是結構性的一族,不是個案:只修被測到的那一個,下次換個狀態(有公告、停靠中、平交道接近)
@@ -3418,7 +3439,7 @@
       background: none; border: 0; box-shadow: none;
     }
     .topbar .badge .clock { font-size: calc(17px * var(--ui)); }
-    .topbar .badge .count { font-size: calc(12px * var(--ui)); }
+    .topbar .badge .count { font-size: calc(12px * var(--uis)); }
 
     /* ── §04c 契約9:搜尋橫放形態 .search-land——右半全高,輸入框釘頂,結果自捲。
        橫放鍵盤 ~190–210px,440 高只剩 230–250 可用:側欄槽的 340px 寬塞不下有意義的結果列,
