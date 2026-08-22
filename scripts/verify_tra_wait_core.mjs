@@ -47,6 +47,20 @@ const live = (trains, at = AT_ISO) => ({ at, srv: NOW * 1000, trains });
   // 官方值照抄字面(使用者長期裁示):負值不夾正。
   const neg = twDelayFor(live([{ no: '123', delay: -2 }]), '123', NOW);
   ok('A5 負誤點照抄不夾正', neg.known === true && neg.delayMin === -2, JSON.stringify(neg));
+  // 🔴 A6/A6r 是【呼叫端能不能分辨兩種 known=false】的唯一依據。少了它,worker 只能自己
+  //    再算一次資料齡(門檻存兩份必漂),或把兩種一視同仁(南迴那種站間長跑會讓主角時刻
+  //    在 18:35↔18:32 之間跳)。兩條要一起看:一條證明有標記,另一條證明標記不是恆真。
+  ok('A6 看板新鮮但查無此車 ⇒ fresh=true(呼叫端據此 hold,不翻成無資訊)',
+    c.fresh === true && c.known === false, JSON.stringify(c));
+  ok('A6r 查得到的那一筆也是 fresh=true', a.fresh === true);
+  // 🔴 A7:同一車次兩筆是【實測到的上游形狀】,不是假想。取樣自 2026-08-22 23:15 的
+  //    /api/tra-live:3782 兩筆(誤點 5、6),23:17 那份 288 也兩筆(0、1)。
+  //    期望值 6 是照【前端看板的規則】獨立推出來的(Map.set 後蓋前 ⇒ 最後一筆),
+  //    不是照實作推的——判準與實作不同源(心得 29)。
+  const dup = twDelayFor(live([{ no: '3782', delay: 5, sta: '4190', status: 2 },
+                               { no: '3782', delay: 6, sta: '4190', status: 2 }]), '3782', NOW);
+  ok('A7 同一車次多筆 ⇒ 取最後一筆(與看板 Map.set 後蓋前同規則)',
+    dup.known === true && dup.delayMin === 6, JSON.stringify(dup));
 }
 
 // ── B 資料齡:太舊就當作沒有即時資訊(不是當作準點) ──────────────────────
@@ -65,6 +79,10 @@ const live = (trains, at = AT_ISO) => ({ at, srv: NOW * 1000, trains });
   ok('B4 上游時刻比我方快幾秒【不】當成壞資料(未來側刻意無門檻)',
     twDelayFor(live(trains), '123', AT_SEC - 30).known === true);
   ok('B5 dataAt 取上游 UpdateTime,不是我方 now', twDelayFor(live(trains), '123', NOW).dataAt === AT_SEC);
+  // 🔴 B6 是 A6 的反面:資料過舊那一種 known=false 必須 fresh=false,呼叫端才會把卡片
+  //    翻成「目前無即時誤點資訊」而不是無限期沿用一個 30 分鐘前的誤點。
+  ok('B6 齡 1801 秒 ⇒ fresh=false(與「查無此車」分得開)', tooOld.fresh === false, JSON.stringify(tooOld));
+  ok('B6r 解不出資料時刻也是 fresh=false', twDelayFor(live(trains, 'not-a-date'), '123', NOW).fresh === false);
 }
 
 // ── C 實際約到站 = 表訂 + 誤點 ────────────────────────────────────────────

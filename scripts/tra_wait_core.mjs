@@ -53,29 +53,47 @@ export function twLiveDataAt(live) {
   return Number.isFinite(ms) ? Math.round(ms / 1000) : null;
 }
 
-// 取這一班車的官方誤點分鐘。回 { delayMin, known, dataAt }。
+// 取這一班車的官方誤點分鐘。回 { delayMin, known, dataAt, fresh }。
 // known=false 有三種來源,卡片上一律寫「目前無即時誤點資訊」(不可寫成準點):
 //   (a) 整份資料太舊(上游掛掉時 worker 會沿用舊 mem 回 200,那份 at 是舊的)
 //   (b) 解不出資料時刻
 //   (c) 這班車不在官方動態窗裡——TDX 的 TrainLiveBoard 只給「動態前後 30 分鐘的車次」,
 //       所以還沒發車的車根本不會出現。前端 state.live.map 對【每一班在窗內的車】都會
 //       set 一筆(含 delay=0),所以「在不在這份清單裡」本身就是有意義的訊號。
+//
+// 🔴 fresh 存在的唯一理由是把 (c) 與 (a)(b) 分開,而這兩者的正確處置【相反】:
+//    · fresh 且找不到 ⇒ 這一份看板是新的,只是這班車這一刻沒有事件(南迴那種站間跑三十分鐘
+//      的區段會整段掉出動態窗)。把卡片翻成「無即時誤點資訊」會讓主角時刻在 18:35 與 18:32
+//      之間來回跳——呼叫端應該 hold,沿用上次推出去的內容。
+//    · 不 fresh ⇒ 上游真的掛了/資料過舊。這時繼續宣稱「誤點 3 分」才是說謊,該翻成無資訊
+//      (與前端 liveActive() 超過 30 分就不再套用誤點是同一條界線)。
+//    ⚠️ 不可以在呼叫端自己拿 dataAt 重算一次新鮮度:門檻會在兩個地方各存一份,改一邊就漂。
 export function twDelayFor(live, trainNo, nowSec) {
   const dataAt = twLiveDataAt(live);
-  const miss = { delayMin: null, known: false, dataAt };
-  if (dataAt == null) return miss;
+  const stale = { delayMin: null, known: false, dataAt, fresh: false };
+  if (dataAt == null) return stale;
   const now = num(nowSec);
-  if (now == null || now - dataAt > TW_DELAY_MAX_AGE_SEC) return miss;
+  if (now == null || now - dataAt > TW_DELAY_MAX_AGE_SEC) return stale;
+  const miss = { delayMin: null, known: false, dataAt, fresh: true };
   const key = String(trainNo == null ? '' : trainNo).trim();
   if (!key) return miss;
+  // 🔴 同一個車次號在 trains[] 裡【真的會出現兩筆】,而且誤點值不一樣。
+  //    2026-08-22 23:15/23:17 兩次取樣實測:3782 兩筆都是 sta=4190 status=2,誤點 5 與 6;
+  //    23:17 那份連 288 也是(0 與 1)。上游 TrainLiveBoards 就是這樣給的,兩次取樣都在,
+  //    不是瞬間抖動。
+  //    ⚠️ 取【最後一筆】不是隨便選的:前端看板走 `m.set(String(t.no), dl)`(index.html:10674),
+  //    Map.set 後蓋前 ⇒ 看板顯示的是最後一筆。這裡若取第一筆,同一個畫面上看板寫「誤點 6 分」、
+  //    卡片寫「誤點 5 分」——兩個都號稱是官方值,而使用者會看到我們自相矛盾。
+  //    要改成別的挑法(例如取最大)必須【兩邊一起改】,不可以只改這裡。
+  let found = null;
   for (const t of Array.isArray(live && live.trains) ? live.trains : []) {
     if (String((t && t.no) == null ? '' : t.no) !== key) continue;
     const d = Number(t && t.delay);
     // 官方值照抄字面(使用者長期裁示):不夾正、不取絕對值。上游若真的給了負數,
     // 那是官方在說「早到」,由視圖決定怎麼講,不在這裡偷偷改掉。
-    return { delayMin: Number.isFinite(d) ? Math.round(d) : 0, known: true, dataAt };
+    found = { delayMin: Number.isFinite(d) ? Math.round(d) : 0, known: true, dataAt, fresh: true };
   }
-  return miss;
+  return found || miss;
 }
 
 // 實際約到站 = 表訂 + 誤點。誤點未知時就是表訂本人(那是當下唯一有的官方值)。

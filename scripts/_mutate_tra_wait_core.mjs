@@ -46,15 +46,15 @@ const MUTATIONS = [
     to: `  const key = String(trainNo == null ? '' : trainNo).trim();
   if (!key) return miss;
   const fallback = { delayMin: 0, known: true, dataAt };`,
-    to2: { from: `  return miss;\n}\n\n// 實際約到站`, to: `  return fallback;\n}\n\n// 實際約到站` },
+    to2: { from: `  return found || miss;`, to: `  return found || fallback;` },
     expect: ['A2'],
   },
   {
     id: 'M3 不看資料齡',
     why: '上游掛掉時 worker 沿用舊 mem 回 200,不看齡就會把半小時前的誤點畫成現在的事實。',
-    from: `  if (now == null || now - dataAt > TW_DELAY_MAX_AGE_SEC) return miss;`,
-    to: `  if (now == null) return miss;`,
-    expect: ['B2'],
+    from: `  if (now == null || now - dataAt > TW_DELAY_MAX_AGE_SEC) return stale;`,
+    to: `  if (now == null) return stale;`,
+    expect: ['B2', 'B6'],
   },
   {
     id: 'M4 誤點未知時照抄髒值',
@@ -100,6 +100,35 @@ const MUTATIONS = [
     to: `  const cap = want;`,
     expect: ['G4'],
   },
+  {
+    id: 'M9 兩種 known=false 併掉(往「都不新鮮」那邊倒)',
+    why: '沒想到「看板新鮮但這班車不在窗裡」是常態時最自然的寫法:只有一個 miss 物件。\n'
+       + '     後果是南迴那種站間長跑的區段會讓主角時刻在 18:35↔18:32 之間來回跳。',
+    from: `  const miss = { delayMin: null, known: false, dataAt, fresh: true };`,
+    to: `  const miss = stale;`,
+    expect: ['A6'],
+  },
+  {
+    id: 'M10 兩種 known=false 併掉(往「都新鮮」那邊倒)',
+    why: '反方向的併法:上游掛掉 30 分鐘以上時,呼叫端會無限期沿用一個過期的誤點,\n'
+       + '     卡片繼續宣稱「誤點 3 分」——這正是「有資訊就一定要對」要擋的事。\n'
+       + '     兩個方向各一發是刻意的:單向併只證明得了其中一條判準有牙。',
+    from: `  const stale = { delayMin: null, known: false, dataAt, fresh: false };`,
+    to: `  const stale = { delayMin: null, known: false, dataAt, fresh: true };`,
+    expect: ['B6', 'B6r'],
+  },
+  {
+    id: 'M11 同一車次多筆時取第一筆(還原成「找到就 return」)',
+    why: '沒實測過上游會給重複列時,最自然的寫法就是找到就回傳。實測(08-22 23:15/23:17)\n'
+       + '     3782 與 288 都是兩筆且誤點值不同 ⇒ 卡片會與看板差一分鐘,兩個都號稱官方值。',
+    from: `    found = { delayMin: Number.isFinite(d) ? Math.round(d) : 0, known: true, dataAt, fresh: true };
+  }
+  return found || miss;`,
+    to: `    return { delayMin: Number.isFinite(d) ? Math.round(d) : 0, known: true, dataAt, fresh: true };
+  }
+  return miss;`,
+    expect: ['A7'],
+  },
 ];
 
 // 跑一次判準,回傳「轉紅的判準代號」集合(代號＝每行 FAIL 後面那個空白前的 token)。
@@ -109,7 +138,10 @@ function runVerify() {
     return [];
   } catch (e) {
     const out = String((e.stdout || '') + (e.stderr || ''));
-    return [...out.matchAll(/^FAIL (\S+)/gm)].map(m => m[1]);
+    // 🔴 只取【代號】那一段:判準名稱後面常常緊接著中文說明而沒有空白(例:
+    //    「FAIL C6(精度)誤點未知 ⇒ …」),用 \S+ 會抓成 `C6(精度)誤點未知`,
+    //    於是預期的 C6 永遠對不上 ⇒ 有牙的判準被誤判成沒抓到。
+    return [...out.matchAll(/^FAIL ([A-Z]+[0-9]+[a-z]*)/gm)].map(m => m[1]);
   }
 }
 
