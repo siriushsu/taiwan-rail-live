@@ -169,6 +169,7 @@ export async function assertLicensedBuildAllowed({ includeLicensedMusic, include
 // 指紋＝呼叫參數拿掉「所有字串literal內容」與空白之後剩下的程式結構。
 // 這樣改文案不會動到指紋（不會為了改一句話就紅燈），改結構才會。
 const TOAST_REVIEWED = new Map([
+  [`res&&res.why===''?'':res&&res.why===''?'':''`, '等車卡開卡失敗提示:res.why 只被比較,三個寫死字串三選一,無插入'],
   [`info.done?'':''`, '兩個寫死字串二選一,無插入'],
   [`on?'':''`, '兩個寫死字串二選一,無插入'],
   [`core?'':''`, 'Core 跟隨失聯提示:core 只在兩個寫死字串間二選一,無插入'],
