@@ -182,6 +182,11 @@ const hit = (out, r) => out.find(x => `${x.s}|${x.d}` === keyOf(r));
   ]);
   check('T12e 同鍵不同值 ⇒ 毒化雙留白', n2 === 0 && b2[0].eta2 == null && b2[1].eta2 == null,
     JSON.stringify({ n2, b2 }));
+  // (f) 反向洩漏（BR 長出車號 ⇒ pickBoardCandidate 會把兩列都解析成 BL、兩列都帶號）
+  //     ⇒ 合法形狀（1帶號+1無號／單列帶號）已破，整組不產
+  const rBLn2 = rowAt('BL', blS, blDest, 90, '117');
+  const outF = deriveSecondArrivals(model, [rBLn, rBLn2], fleet);
+  check('T12f 兩列都帶號 ⇒ 消歧前提已破,整組留白', outF.length === 0, JSON.stringify(outF));
 }
 // T13 applyNext2ToBoard 一般情形：正規化站名 join＋只在 eta2>eta 時裝飾
 {
@@ -270,7 +275,7 @@ const hit = (out, r) => out.find(x => `${x.s}|${x.d}` === keyOf(r));
 }
 // T11 覆蓋率具名斷言：本檔案應執行的斷言數（心得37d：分母自己要被 gate）
 {
-  const EXPECTED_MIN = 27;
+  const EXPECTED_MIN = 28;
   check('T11 斷言分母未縮水', pass + fail >= EXPECTED_MIN, `ran=${pass + fail}`);
 }
 

@@ -461,8 +461,10 @@ export function deriveSecondArrivals(model, resolvedRows, vehicles, calibrations
     const sName = stationNameOf(r);
     if (blbrGroup.size) {
       const g = blbrGroup.get(sName + '|' + r.destName);
-      // 無車號列要有「帶車號的同組列」作證才可信為 BR；帶車號列恆可信（BL）。
-      if (g && !r.no && g.numbered === 0) continue;
+      // 合法形狀只有「1 帶號＋1 無號」或「單列帶號」：
+      // 無車號列要有「帶車號的同組列」作證才可信為 BR；
+      // 同組出現兩列帶號＝消歧前提（BR 恆無號）已破，整組不可信。
+      if (g && (g.numbered > 1 || (!r.no && g.numbered === 0))) continue;
     }
     const step = r.dir === 2 ? 1 : -1;
     if ((r.destIdx - r.stationIdx) * step < 0) continue;
