@@ -18,7 +18,10 @@
 3. `env JAVA_HOME=/opt/homebrew/Cellar/openjdk@21/21.0.12/libexec/openjdk.jdk/Contents/Home ANDROID_HOME=/Users/xuxiang/Library/Android/sdk ./gradlew --version` 走得通（**必須 JDK 21**，不可用系統 Java 8、不可用 Android Studio JBR）。
 4. 需要抓網路資源時先抓一次試試：`curl -s 'https://railisland.tw/api/trtc-live' | head -c 300`
    （**主站網域直掛 /api/，沒有 api. 子網域**——上一輪派工書寫錯害你空跑，這條已實測 200）。
-   抓不到就回報，不要拿「連不到」推論成「資料不存在」。
+   **就算你的 shell 解不了 DNS 也不再是停手理由**：eta2 契約的實抓快照已放在
+   `docs/android/fixtures/trtc-live-sample-20260822.json`（439KB，board[] 318 列、225 帶 eta2），
+   解析與渲染開發用它；模擬器內 App 的網路與你的 shell 是兩回事，E2E 照做，
+   真的做不到的項目在回報裡寫明即可。
 
 ## 一、目標與動機
 
