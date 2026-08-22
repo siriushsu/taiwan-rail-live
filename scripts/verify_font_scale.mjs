@@ -119,19 +119,28 @@ async function sectionB(browser, engine) {
     ui: getComputedStyle(document.documentElement).getPropertyValue('--ui').trim(),
     fs: document.documentElement.getAttribute('data-fs'),
     ls: localStorage.getItem('trainmap-fontscale'),
+    lsFollow: localStorage.getItem('trainmap-fontfollow'),
     rowPx: parseFloat(getComputedStyle(document.querySelector('.more-sheet .ms-row')).fontSize),
+    // 面板自己就是字級的預覽場:量「預覽卡的站名」比量 --ui 誠實——--ui 對了但沒人吃它一樣是壞的
+    prevPx: (() => { const e = document.querySelector('.fsp-prev-top .stn'); return e ? parseFloat(getComputedStyle(e).fontSize) : 0; })(),
+    msVal: (document.getElementById('msFontVal') || {}).textContent,
+    panelOpen: !document.getElementById('fontPanel').hidden,
+    follow: document.getElementById('fsFollowTg').classList.contains('on'),
     on: [...document.querySelectorAll('#msFontSeg button')].filter(b => b.classList.contains('on')).map(b => b.dataset.v),
   }));
   const base = await read();
   ok(`B1 ${engine} 沒選過時是標準檔`, base.ui === '1' && base.fs === null, JSON.stringify(base));
   await page.tap('#tabMore'); await page.waitForTimeout(400);
-  ok(`B2 ${engine} 「更多」抽屜裡看得到字級三段`,
-    await page.locator('#msFontSeg button[data-v="xlarge"]').isVisible());
+  // 設計 6c:字級是「更多」裡的 `›` 子頁,不是抽屜裡的一排鈕。真的點那一列、真的把面板開起來,
+  // 不是查 CSS 算出什麼——elementFromPoint／computed style 答得出「命中誰」,答不出「做得到嗎」。
+  await page.tap('.ms-row[data-act="fontscale"]'); await page.waitForTimeout(500);
+  const opened = await read();
+  ok(`B2 ${engine} 「更多」→ 字級 開得起「顯示與字級」面板`, opened.panelOpen && opened.prevPx > 0, JSON.stringify(opened));
   await page.tap('#msFontSeg button[data-v="xlarge"]'); await page.waitForTimeout(500);
   const big = await read();
-  // 量「抽屜列的字真的變大了」,不是只量 --ui:--ui 對了但沒有人吃它,一樣是壞的
-  ok(`B3 ${engine} 點特大 → 倍率 1.5 且抽屜列字真的變大`,
-    big.ui === '1.5' && big.rowPx > base.rowPx * 1.4, JSON.stringify(big));
+  // 量「面板預覽卡的站名真的變大了」,不是只量 --ui
+  ok(`B3 ${engine} 點特大 → 倍率 1.5 且預覽卡的字真的變大`,
+    big.ui === '1.5' && big.prevPx > opened.prevPx * 1.4, JSON.stringify(big));
   ok(`B4 ${engine} 選中態回饋在那一顆鈕上`, JSON.stringify(big.on) === '["xlarge"]', JSON.stringify(big.on));
   ok(`B5 ${engine} 偏好寫進 localStorage`, big.ls === 'xlarge');
   await page.tap('#msFontSeg button[data-v="std"]'); await page.waitForTimeout(400);
@@ -139,6 +148,7 @@ async function sectionB(browser, engine) {
   // 反向對照:很多「開得起來」的設定其實關不回去(單向閥),要明確驗回程
   ok(`B6 ${engine} 點回標準真的回得去(不是單向閥)`,
     back.ui === '1' && back.fs === null && back.ls === 'std', JSON.stringify(back));
+  ok(`B6b ${engine} 「更多」那一列顯示目前的階`, back.msVal === '標準', 'msVal=' + back.msVal);
   await page.tap('#msFontSeg button[data-v="large"]'); await page.waitForTimeout(300);
   await page.reload({ waitUntil: 'domcontentloaded' });
   await page.waitForFunction(() => typeof state !== 'undefined' && state.ready, null, { timeout: 45000 }).catch(() => {});
@@ -180,12 +190,58 @@ async function sectionC(browser, engine) {
   await close();
 }
 
+// ── D 段:跟隨系統字級的開關(設計 6a)——這一條的反向對照是整段的重點 ──────────────
+// 使用者自己選了特大時,關掉跟隨看不出任何差別(兩條路都給特大)。要驗這顆開關真的有作用,
+// 必須把「系統推的」與「使用者選的」拆開:使用者維持標準、系統推到輔助使用級別,
+// 這時開關的開/關才是唯一變因。
+async function sectionD(browser, engine) {
+  const { page, errs, close } = await boot(browser, { tier: 'std' });
+  const setSysFont = px => page.evaluate(v => {
+    document.getElementById('__fsprobe')?.remove();
+    const st = document.createElement('style');
+    st.id = '__fsprobe'; st.textContent = 'span{font-size:' + v + 'px !important}';
+    document.head.appendChild(st);
+  }, px);
+  const state1 = () => page.evaluate(() => ({
+    fs: document.documentElement.getAttribute('data-fs'),
+    follow: document.getElementById('fsFollowTg').classList.contains('on'),
+    msVal: (document.getElementById('msFontVal') || {}).textContent,
+    lsFollow: localStorage.getItem('trainmap-fontfollow'),
+  }));
+  await page.tap('#tabMore'); await page.waitForTimeout(350);
+  await page.tap('.ms-row[data-act="fontscale"]'); await page.waitForTimeout(450);
+  ok(`D0 ${engine} 跟隨系統字級預設是開的`, (await state1()).follow);
+  await setSysFont(30);
+  await page.evaluate(() => document.dispatchEvent(new Event('visibilitychange')));
+  await page.waitForTimeout(350);
+  const onSt = await state1();
+  ok(`D1 ${engine} 開關【開】+ 系統輔助使用級別 → 自動切到特大`, onSt.fs === 'xlarge', JSON.stringify(onSt));
+  // 使用者選的仍是標準,抽屜列要說清楚「這是跟隨系統來的」,否則會以為自己的設定沒生效
+  ok(`D2 ${engine} 抽屜列標示「跟隨系統」`, /跟隨系統/.test(onSt.msVal || ''), 'msVal=' + onSt.msVal);
+  await page.tap('#fsFollowTg'); await page.waitForTimeout(400);
+  const offSt = await state1();
+  // 反向對照:關掉之後系統字級還是 30px,唯一變因是這顆開關
+  ok(`D3 ${engine} 開關【關】+ 同一個系統字級 → 退回標準(反向對照)`,
+    offSt.fs === null && offSt.follow === false, JSON.stringify(offSt));
+  ok(`D4 ${engine} 關掉的偏好寫進 localStorage`, offSt.lsFollow === '0', 'lsFollow=' + offSt.lsFollow);
+  await page.reload({ waitUntil: 'domcontentloaded' });
+  await page.waitForFunction(() => typeof state !== 'undefined' && state.ready, null, { timeout: 45000 }).catch(() => {});
+  await setSysFont(30);
+  await page.evaluate(() => document.dispatchEvent(new Event('visibilitychange')));
+  await page.waitForTimeout(400);
+  const afterReload = await page.evaluate(() => document.documentElement.getAttribute('data-fs'));
+  ok(`D5 ${engine} 重新載入後仍然是關的(不會自己開回來)`, afterReload === null, 'data-fs=' + afterReload);
+  ok(`D6 ${engine} 全程零 pageerror`, errs.length === 0, errs.slice(0, 1).join(''));
+  await close();
+}
+
 await assertTarget();
 for (const [engine, launcher] of [['chromium', chromium], ['webkit', webkit]]) {
   const browser = await launcher.launch();
   await sectionA(browser, engine);
   await sectionB(browser, engine);
   await sectionC(browser, engine);
+  await sectionD(browser, engine);
   await browser.close();
 }
 const pass = results.filter(r => r.pass).length;

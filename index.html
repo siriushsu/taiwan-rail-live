@@ -1990,7 +1990,7 @@
   .delayhist-panel .dh-cta-btn:hover { background: var(--red); }
 
   /* ── 軌道與路線面板(「軌」告示卡:軌道顯示三段+車種/路線篩選——側欄取消後的新家) ── */
-  .track-panel .seg-row {
+  .track-panel .seg-row, .font-panel .seg-row {
     display: flex; justify-content: space-between; align-items: center; gap: 10px;
     padding: 4px 0 9px; font-size: calc(13px * var(--ui)); font-weight: 700; color: var(--ink);
   }
@@ -2011,6 +2011,34 @@
   }
   .toggle.on { background: var(--navy); border-color: var(--navy); }
   .toggle.on::after { left: auto; right: 2px; border-color: transparent; background: #fffdf6; }
+
+  /* ── 顯示與字級面板(設計檔 6a) ──
+     刻意全部用 calc(Npx * var(--ui)):這張面板本身就是字級的預覽場,它不跟著放大就等於在說謊。
+     虛線分隔沿用 .ms-row 的 --line-faint,不另造一種分隔線。 */
+  .font-panel .fsp-note { margin: 0 0 10px; font-size: calc(11.5px * var(--ui)); line-height: 1.65; color: var(--muted); }
+  .font-panel .fsp-row {
+    display: flex; align-items: flex-start; justify-content: space-between; gap: 12px;
+    padding: 10px 0; border-top: 1px dashed var(--line-faint);
+  }
+  .font-panel .fsp-lbl { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+  .font-panel .fsp-lbl b { font-size: calc(13px * var(--ui)); font-weight: 800; color: var(--ink); }
+  .font-panel .fsp-lbl small { font-size: calc(11px * var(--ui)); line-height: 1.5; color: var(--muted); }
+  .font-panel .fsp-row .toggle { margin-top: calc(2px * var(--ui)); }
+  .font-panel .fsp-sec {
+    padding: 9px 0 5px; border-top: 1px dashed var(--line-faint);
+    font-size: calc(11px * var(--ui)); font-weight: 800; letter-spacing: 3px; color: var(--faint);
+  }
+  .font-panel .fsp-prev {
+    border: 1px solid var(--line); border-radius: var(--r-m); padding: 9px 12px 10px;
+    background: var(--bg-stage);
+  }
+  .font-panel .fsp-prev-top { display: flex; align-items: baseline; gap: 8px; }
+  .font-panel .fsp-prev-top .l { font-size: calc(11.5px * var(--ui)); color: var(--muted); font-weight: 700; }
+  .font-panel .fsp-prev-top .stn { font-size: calc(19px * var(--ui)); font-weight: 900; color: var(--ink-strong); letter-spacing: 1px; }
+  .font-panel .fsp-prev-top .eta { margin-left: auto; font-size: calc(13px * var(--ui)); font-weight: 800; color: var(--navy); }
+  .font-panel .fsp-prev-sub { margin-top: 4px; font-size: calc(11.5px * var(--ui)); color: var(--muted); font-variant-numeric: tabular-nums; }
+  .font-panel .fsp-foot { margin: 10px 0 0; font-size: calc(10.5px * var(--ui)); line-height: 1.6; color: var(--faint); }
+  .font-panel .fsp-foot b { color: var(--muted); font-weight: 800; }
 
   /* ── 圖例票根(車種/路線篩選 chips,在軌道面板內) ── */
   .lines { display: flex; flex-wrap: wrap; gap: 7px; margin: 4px 0 0; }
@@ -2499,6 +2527,9 @@
   }
   .more-sheet .ms-row:last-child { border-bottom: 0; }
   .more-sheet .ms-row .chev { font-size: calc(12px * var(--ui)); color: var(--faint); font-weight: 600; }
+  /* 設計 6c 的列尾:目前值 + ›(值在特大時會掉到第二行,那是後續 6c 整列改版的事,這裡先做同一行) */
+  .more-sheet .ms-row .ms-tail { display: flex; align-items: center; gap: 8px; min-width: 0; }
+  .more-sheet .ms-row .ms-tail b { font-size: calc(12px * var(--ui)); font-weight: 700; color: var(--faint); }
   .more-sheet .ms-sec { padding: 9px 14px 3px; font-size: calc(11px * var(--ui)); font-weight: 800; letter-spacing: 3px; color: var(--faint); border-bottom: 1px dashed var(--line-faint); }
   .more-sheet .ms-row.warnrow { background: var(--warn-bg); color: var(--warn-ink); font-weight: 800; }
   /* 評分列不用 emoji(2026-08-12 使用者裁決:更多選單不放 emoji),改品牌紅粗體強調 */
@@ -3759,6 +3790,24 @@
       <div class="seg-row"><span>軌道顯示</span><span class="seg" id="trackSeg"><button data-v="auto">自動</button><button data-v="faint">淡化</button><button data-v="hidden">隱藏</button></span></div>
       <div class="lines" id="lineToggles"></div>
     </div>
+    <!-- 顯示與字級(設計檔 6a):三段字級 + 跟隨系統字級開關 + 即時預覽。
+         走 .board 家族與軌道面板同一套殼(sticky h3、SHEET_PANEL_IDS 三段高、soloPanel 互斥),
+         不另造一種面板形狀;設計 6c 的「更多」把它畫成 `›` 子頁,那正是軌道面板的既有形態。 -->
+    <div class="board font-panel" id="fontPanel" hidden>
+      <h3>顯示與字級<button class="close" id="fontClose" title="關閉">×</button></h3>
+      <div class="seg-row"><span>字級</span><span class="seg" id="msFontSeg"><button data-v="std">標準</button><button data-v="large">大</button><button data-v="xlarge">特大</button></span></div>
+      <p class="fsp-note">「大」只放大字級與列高，功能位置不變。「特大」會把誤點、方向這類次要欄位收進列的「更多」。</p>
+      <div class="fsp-row">
+        <span class="fsp-lbl"><b>跟隨系統字級</b><small>系統字級調到輔助使用級別時自動切到特大，調回來就跟著回來</small></span>
+        <button class="toggle" id="fsFollowTg" type="button" role="switch" aria-label="跟隨系統字級"></button>
+      </div>
+      <div class="fsp-sec">預覽</div>
+      <div class="fsp-prev">
+        <div class="fsp-prev-top"><span class="l">下一站</span><b class="stn">宜蘭</b><span class="eta">還有 4 分</span></div>
+        <div class="fsp-prev-sub">花蓮 → 樹林 · 終點 19:25 抵達</div>
+      </div>
+      <p class="fsp-foot">階數＝<b>標準 1.0</b>／<b>大 1.25</b>／<b>特大 1.5</b>，同一顆倍率同時吃字級、列高與觸控目標，所以不會出現「字大了但按鈕沒變大」。</p>
+    </div>
     <!-- 首訪「怎麼玩」卡:僅首次(localStorage 記憶),setupHowto 決定顯示 -->
     <div class="howto-wrap" id="howtoWrap" hidden>
       <div class="howto" role="dialog" aria-modal="true" aria-labelledby="howtoTitle">
@@ -3902,7 +3951,7 @@
            內容 li 上限 8 條(li.grp 是標題不算)。 -->
       <ul class="foot-list foot-recent">
         <li class="grp">最近更新</li>
-        <li data-cl-of="fontscale"><span class="d">8/22</span><span>字級多了三階（標準／大／特大）：從「更多」裡選一個，整個介面的字、列高與可點範圍會一起放大，欄位一個都不會被收掉。手機把系統字級調到輔助使用級別時，軌島也會自動跟著放大</span></li>
+        <li data-cl-of="fontscale"><span class="d">8/22</span><span>字級多了三階（標準／大／特大）：「更多」→ 字級打開「顯示與字級」，選一個，整個介面的字、列高與可點範圍會一起放大，欄位一個都不會被收掉，面板下方有即時預覽。手機把系統字級調到輔助使用級別時，軌島也會自動跟著放大到特大——不想要的話，同一張面板裡可以把「跟隨系統字級」關掉</span></li>
         <li data-cl-of="metrowaitfix"><span class="d">8/22</span><span>等車卡修好三種「點了卻沒出現」：一是從桌面小工具點進來又馬上鎖屏時，會先把要追蹤的那一站記下來，等你回到 App 自動補開（iOS 不允許 App 在背景開啟即時動態，之前那一次點擊就這樣沒了），而且不會再先空等二十秒；二是動過播放速度或拖過時刻尺之後再追蹤，會自動把時間帶回「現在」再開卡，不會再誤說「這一站現在沒有官方班次資訊」；三是已經結束的舊卡不再被當成還在追蹤，按鈕不會變成「結束追蹤」害你白點一次。另外，萬一系統遲遲沒有回應，現在會明白告訴你再點一次，不會停在那裡沒反應。下次 App 更新生效</span></li>
         <li data-cl-of="trapassjump"><span class="d">8/21</span><span>台鐵列車經過不停靠的小站時，會有一瞬間停在站上、下一瞬間往前跳出去——車速愈快跳得愈遠，自強、太魯閣這類最快的車一次跳將近二十公尺。現在通過那一刻改成連續移動，不再停頓也不再跳。順手修掉另一個少見的狀況：頁面開著跨過午夜、再切換一次系統時，同編號的車會沿用前一天那班的誤點，最遠會把車畫到六公里外</span></li>
         <li data-cl-of="metrocoreidentity"><span class="d">8/21</span><span>忠孝復興等共站的到站資訊改用同一批到站時間、方向與終點分辨路線，無法確認時暫時不亂標；這套規則也會處理其他共用車站的路線。從地圖或站牌點車現在都會跟到同一班，官方資料短暫漏一輪不會立刻中斷跟隨。北捷中斷提示也改看畫面實際使用的即時資料，App 從背景回來不再把暫停更新的舊資料誤報成斷訊</span></li>
@@ -4343,7 +4392,7 @@
     <button class="ms-row" data-act="help" data-close="1"><span>使用說明</span><span class="chev">›</span></button>
     <div class="ms-sec">地圖顯示</div>
     <div class="ms-row" data-act="theme"><span>◐ 外觀</span><span class="seg" id="msThemeSeg"><button data-v="light">亮</button><button data-v="dark">暗</button><button data-v="auto">自動</button></span></div>
-    <div class="ms-row" data-act="fontscale"><span>字級</span><span class="seg" id="msFontSeg"><button data-v="std">標準</button><button data-v="large">大</button><button data-v="xlarge">特大</button></span></div>
+    <button class="ms-row" data-act="fontscale"><span>字級</span><span class="ms-tail"><b id="msFontVal">標準</b><span class="chev">›</span></span></button>
     <button class="ms-row" data-act="panelOpacity"><span>面板半透明</span><span class="toggle" data-tg="panelOpacity"></span></button>
     <!-- 實機取證(TestFlight 試用期):左下角小字條顯示 rAF/相機/旗標即時狀態,截圖即可回報;正式上架前評估拔除 -->
     <button class="ms-row" data-act="diagStrip"><span>診斷資訊</span><span class="toggle" data-tg="diagStrip"></span></button>
@@ -21536,7 +21585,7 @@ function jumpToNow() {
 // 手機底部 sheet 家族(看板/最愛/旅程/探索/軌道/今日/誤點履歷 + 「列車」sheet):互斥開啟。
 // nearCard(附近車站)2026-07-25 起併入 sheet 家族:它原本是上錨卡(頂緣 y=152、高 462),
 // 手機上直接把地圖中心埋在卡內 274px——藍點必然看不到。改成底部 sheet 後與看板/列車同一組幾何與三段高。
-const SHEET_PANEL_IDS = ['board', 'favPanel', 'ridePanel', 'explorePanel', 'searchPanel', 'trackPanel', 'todayPanel', 'delayHistPanel', 'nearCard'];
+const SHEET_PANEL_IDS = ['board', 'favPanel', 'ridePanel', 'explorePanel', 'searchPanel', 'trackPanel', 'fontPanel', 'todayPanel', 'delayHistPanel', 'nearCard'];
 // 目前開啟中的那張 sheet(至多一張;含「列車」sheet)——供三段高定位
 function activeSheetEl() {
   const tc = document.getElementById('trainCard');
@@ -21689,6 +21738,36 @@ function closeTrackPanel() {
 }
 function syncTrackSeg() {
   document.querySelectorAll('#trackSeg button').forEach(b => b.classList.toggle('on', b.dataset.v === state.trackStyle));
+}
+// ── 顯示與字級面板(設計檔 6a) ──
+// 開關與軌道面板同形態:soloPanel 互斥、updateSheetOpenClass 走三段高。差別只在它沒有工具列鈕
+// (入口只有「更多」那一列),所以不必同步任何 .active 態。
+const FS_TIER_LABEL = { std: '標準', large: '大', xlarge: '特大' };
+function openFontPanel() {
+  soloPanel('font');
+  closeBoard(); closeFavPanel(); closeRidePanel(); closeExplorePanel(); closeTodayPanel(); closeDelayHist();
+  document.getElementById('fontPanel').hidden = false;
+  syncFontPanel();
+  updateSheetOpenClass();
+}
+function closeFontPanel() {
+  const el = document.getElementById('fontPanel');
+  if (!el || el.hidden) return;
+  el.hidden = true;
+  updateSheetOpenClass();
+}
+function syncFontPanel() {
+  const user = state.fontScale || 'std';
+  document.querySelectorAll('#msFontSeg button').forEach(b => b.classList.toggle('on', b.dataset.v === user));
+  const tg = document.getElementById('fsFollowTg');
+  if (tg) { const on = state.fontFollowSys !== false; tg.classList.toggle('on', on); tg.setAttribute('aria-checked', String(on)); }
+  // 「更多」那一列顯示的是**實際生效**的階(跟隨系統可能把它推到特大),不是使用者選的那個——
+  // 否則系統字級推上去之後,抽屜寫「標準」而畫面是特大,使用者會以為設定沒生效。
+  const val = document.getElementById('msFontVal');
+  if (val) {
+    const eff = document.documentElement.getAttribute('data-fs') || 'std';
+    val.textContent = FS_TIER_LABEL[eff] + (eff !== user ? '(跟隨系統)' : '');
+  }
 }
 
 // ── 搜尋車站(跨全部九系統) ──
@@ -21892,6 +21971,7 @@ function soloPanel(keep) {
   if (keep !== 'explore') closeExplorePanel();
   if (keep !== 'search') closeSearchPanel();
   if (keep !== 'track') closeTrackPanel();
+  if (keep !== 'font') closeFontPanel();
   if (keep !== 'today') closeTodayPanel();
   if (keep !== 'delayhist') closeDelayHist();
   if (keep !== 'train') closeTrainSheet();
@@ -23839,8 +23919,8 @@ const HELP_GROUPS = [
       steps: ['「更多」→ 衛星影像'], tip: '拉太近時衛星影像可能還沒有那麼清晰的圖資。', try: 'sat' },
     { key: 'theme', ic: '◐', nm: '外觀：亮／暗／自動', one: '自動＝跟著系統的深色模式走。', seg: true },
     { key: 'fontscale', ic: '字', nm: '字級', one: '三階字級與跟隨系統字級。',
-      steps: ['「更多」→ 字級：標準／大／特大', '字級、列高與可點範圍一起放大，版面不會因此收掉任何欄位'],
-      tip: '手機把系統字級調到輔助使用級別時，軌島會自動跟著放大到特大，不必再自己設定一次。' },
+      steps: ['「更多」→ 字級，開啟「顯示與字級」', '選標準／大／特大，面板下方會即時預覽', '「跟隨系統字級」可以關掉——手機字調大、但這一頁想維持資訊密度時用'],
+      tip: '「大」只放大字級與列高，功能位置完全不變；跟隨系統只在字級進到輔助使用級別才介入。' },
     { key: 'panelopacity', ic: '▧', nm: '面板半透明', tg: 'panelOpacity',
       one: '讓看板、列車卡與跟隨面板透出後方地圖，面板底下的路線、車站都看得到。',
       steps: ['「更多」→ 打開「面板半透明」', '再按一次就恢復原本的實色紙面'],
@@ -24201,16 +24281,20 @@ function setupMapTools() {
     });
     document.querySelectorAll('#msThemeSeg button').forEach(b =>
       b.classList.toggle('on', b.dataset.v === (state.appearance || 'auto')));
-    document.querySelectorAll('#msFontSeg button').forEach(b =>
-      b.classList.toggle('on', b.dataset.v === (state.fontScale || 'std')));
+    try { syncFontPanel(); } catch (e) {} // 字級的三段鈕與抽屜列的目前值都在這支裡
   }
   state._syncMoreSheet = syncMoreSheet;
   state._msState = MS_STATE; // 使用說明中心的開關狀態也讀這份,避免「這功能開著沒」有兩套判斷
+  // 字級面板的事件(面板在 .stage 裡、不在 moreBody,故自成一組)
+  document.getElementById('fontPanel').addEventListener('click', e => {
+    const seg = e.target.closest('#msFontSeg button');
+    if (seg) { setFontScale(seg.dataset.v); return; }
+    if (e.target.closest('#fsFollowTg')) { setFontFollowSys(state.fontFollowSys === false); return; }
+    if (e.target.closest('#fontClose')) { closeFontPanel(); return; }
+  });
   document.getElementById('moreBody').addEventListener('click', e => {
     const segBtn = e.target.closest('#msThemeSeg button');
     if (segBtn) { setAppearance(segBtn.dataset.v); syncMoreSheet(); return; }
-    const fsBtn = e.target.closest('#msFontSeg button');
-    if (fsBtn) { setFontScale(fsBtn.dataset.v); syncMoreSheet(); return; }
     const chip = e.target.closest('#msCities button[data-city]'); // 縣市 chip:飛過去並關 sheet
     if (chip) { flyToCity(chip.dataset.city); setMore(false); return; }
     const row = e.target.closest('.ms-row'); if (!row) return;
@@ -24226,6 +24310,7 @@ function setupMapTools() {
     }
     if (row.dataset.act === 'help') { setMore(false); openHelp(); return; }
     if (row.dataset.act === 'track') { setMore(false); openTrackPanel(); return; }
+    if (row.dataset.act === 'fontscale') { setMore(false); openFontPanel(); return; } // 設計 6c:字級是 `›` 子頁
     if (row.dataset.act === 'notify') { setMore(false); openLocalReminderOverview(); return; } // 已排提醒總覽
     if (row.dataset.act === 'panelOpacity') { setPanelTranslucent(!state.panelTranslucent); syncMoreSheet(); return; }
     if (row.dataset.act === 'diagStrip') { setDiagStrip(!state.diagStrip); syncMoreSheet(); return; }
@@ -24561,14 +24646,23 @@ function setupMapTools() {
     try { localStorage.setItem('trainmap-fontscale', state.fontScale); } catch (e) {}
     applyFontScale();
   }
+  function setFontFollowSys(on) {
+    state.fontFollowSys = !!on;
+    try { localStorage.setItem('trainmap-fontfollow', on ? '1' : '0'); } catch (e) {}
+    applyFontScale();
+  }
   function applyFontScale() {
     const user = state.fontScale || 'std';
+    // 設計 6a 的「跟隨系統字級」是可關的開關(預設開)。關掉之後系統字級再大也不介入——
+    // 有人只是把整支手機的字調大、但希望地圖這一頁維持資訊密度,那是合理的選擇。
+    const sysTier = state.fontFollowSys === false ? 'std' : systemFontTier();
     // ?live=1 的直播殼版面是對外契約(OBS 場景固定裁切),字級恆定標準
     const eff = state.liveMode ? 'std'
-      : (FS_SCALE[systemFontTier()] > FS_SCALE[user] ? systemFontTier() : user);
+      : (FS_SCALE[sysTier] > FS_SCALE[user] ? sysTier : user);
     if (eff === 'std') document.documentElement.removeAttribute('data-fs');
     else document.documentElement.setAttribute('data-fs', eff);
     if (state.ready) { try { map.invalidateSize({ pan: false }); } catch (e) {} } // 字級改變會動到面板高度,地圖尺寸快取要重量
+    try { syncFontPanel(); } catch (e) {} // 面板與抽屜列的選中態/目前值一律跟著實際生效的階走
   }
   // 頂列實高 → --tb-h(上緣堆疊的唯一事實來源)。量「高度」不量「底緣座標」是刻意的:
   // 高度是尺寸,ResizeObserver 正好在它變的時候開火(字級換檔、牌換行、分頁長高都算);
@@ -24584,6 +24678,7 @@ function setupMapTools() {
     if (window.ResizeObserver) new ResizeObserver(sync).observe(bar); else sync();
   })();
   state._setFontScale = setFontScale;
+  state._setFontFollowSys = setFontFollowSys;
   applyFontScale();
   try { // 從背景回來時重測一次:使用者可能中途去系統設定改了字級
     document.addEventListener('visibilitychange', () => { if (!document.hidden) applyFontScale(); });
@@ -25335,6 +25430,8 @@ async function boot() {
     const fz = localStorage.getItem('trainmap-fontscale');
     state.fontScale = (fz === 'large' || fz === 'xlarge') ? fz : 'std';
   } catch (e) { state.fontScale = 'std'; }
+  // 跟隨系統字級:預設開(沒存過即開),使用者關過才記 '0'——與方向箭頭同一套慣例
+  try { state.fontFollowSys = localStorage.getItem('trainmap-fontfollow') !== '0'; } catch (e) { state.fontFollowSys = true; }
   try { const ts = localStorage.getItem('trainmap-track'); if (ts === 'faint' || ts === 'hidden') state.trackStyle = ts; } catch (e) {}
   try { state.basemap = onlineBasemapsAvailable() && localStorage.getItem('trainmap-basemap') === 'sat' ? 'sat' : 'map'; } catch (e) {}
   try { state.immersive = localStorage.getItem('trainmap-immersive') === '1'; } catch (e) {}
