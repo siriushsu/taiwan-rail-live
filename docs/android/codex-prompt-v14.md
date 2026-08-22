@@ -6,10 +6,15 @@
 
 ## 第 0 步：環境自檢（打不到就回報停手，不要硬做）
 
-你只是執行者，先驗自己的環境，任何一項不成立就在回報裡寫明並停手：
+**你的工作樹已經開好**：`/Users/xuxiang/Code/捷運小動畫/.claude/worktrees/android-v14`
+（分支 `codex/android-1.4.9-v14` 已建好並 checkout，基底 `4ae2cf1`；`app/node_modules` 已實體
+複製；`key.properties`／`google-services.json` 已就位）。**cd 進去直接開工，不要自己
+`git switch`／`git worktree`，主工作樹（repo root）任何檔案不准建立／修改／刪除。**
 
-1. 可寫根：本任務的工作樹（派工時會告訴你路徑）。**樹外任何檔案不准建立／修改／刪除。**
-2. `git switch -c`、`git commit` 打得動（若 `.git` 唯讀＝環境沒配好，回報停手，不是任務失敗）。
+先驗自己的環境，任何一項不成立就在回報裡寫明並停手：
+
+1. `pwd` 確認在上述工作樹內；`git branch --show-current` 應回 `codex/android-1.4.9-v14`。
+2. `git commit` 打得動（若 `.git` 唯讀＝環境沒配好，回報停手，不是任務失敗）。
 3. `env JAVA_HOME=/opt/homebrew/Cellar/openjdk@21/21.0.12/libexec/openjdk.jdk/Contents/Home ANDROID_HOME=/Users/xuxiang/Library/Android/sdk ./gradlew --version` 走得通（**必須 JDK 21**，不可用系統 Java 8、不可用 Android Studio JBR）。
 4. 需要抓網路資源時先抓一次試試（例如 `curl -s https://api.railisland.tw/api/metro-live?sys=trtc | head -c 200`），抓不到就回報，不要拿「連不到」推論成「資料不存在」。
 
@@ -87,8 +92,7 @@
 ## 四、建置流程（逐條照做）
 
 ```bash
-# 1) 分支（從 app/1.4.9-71-waitcard 最新 tip 起）
-git switch -c codex/android-1.4.9-v14 app/1.4.9-71-waitcard
+# 1) 分支已開好（codex/android-1.4.9-v14，見第 0 步）——直接從第 2 步開始
 
 # 2) versionCode 13 → 14（app/android/app/build.gradle；versionName 維持 "1.4.9"）
 
