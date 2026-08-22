@@ -1924,9 +1924,89 @@ async function sectionR(browser, engine) {
   await close();
 }
 
+// ── S 段:設計 14g 落釘模式常駐提示條 ────────────────────────────────────────────
+// 🔴 這一段驗的是「點它會發生什麼」,不是「它長什麼樣」:一個只把提示條藏起來、卻沒有真的退出
+//    模式的實作(很像樣的錯誤)在畫面上完全看不出差別——S8 因為連旗標、地圖游標與「釘」鈕的
+//    標籤一起驗,才擋得住它(突變實測)。
+async function sectionS(browser, engine) {
+  for (const width of [393, 1280]) {
+    const { page, errs, close } = await boot(browser, { width });
+    await page.evaluate(() => { if (state.playing) togglePlay(); });
+    const tag = `${engine} ${width}pt`;
+
+    // 反向對照先做:沒開模式時它不該在——少了這條,「永遠顯示」也會讓下面整批全綠。
+    const off0 = await page.evaluate(() => {
+      const el = document.getElementById('pinHint');
+      return { hidden: el.hidden, rects: el.getClientRects().length, drop: !!state.dropMode };
+    });
+    ok(`S1 ${tag} 反向對照:沒開落釘模式時提示條不存在於畫面上`,
+      off0.hidden && off0.rects === 0 && !off0.drop, JSON.stringify(off0));
+
+    await page.evaluate(() => state._setDropMode(true, true));
+    await page.waitForTimeout(350);
+    const on = await page.evaluate(() => {
+      const el = document.getElementById('pinHint'), b = el.getBoundingClientRect();
+      const ex = document.getElementById('pinHintExit'), eb = ex.getBoundingClientRect();
+      const hit = document.elementFromPoint(eb.x + eb.width / 2, eb.y + eb.height / 2);
+      const inter = (a, sel) => {
+        const o = document.querySelector(sel); if (!o || !o.getClientRects().length) return false;
+        const r = o.getBoundingClientRect();
+        return !(a.right <= r.left || a.left >= r.right || a.bottom <= r.top || a.top >= r.bottom);
+      };
+      return { shown: !el.hidden && el.getClientRects().length > 0,
+        txt: (el.textContent || '').replace(/\s+/g, ''), w: Math.round(b.width),
+        inView: b.top >= 0 && b.bottom <= innerHeight && b.left >= 0 && b.right <= innerWidth,
+        exW: Math.round(eb.width), exH: Math.round(eb.height),
+        exHit: !!(hit && (hit === ex || ex.contains(hit))),
+        hitTopbar: inter(b, '#topbar'), hitTabbar: inter(b, '#tabbar') };
+    });
+    ok(`S2 ${tag} 開了模式就有常駐提示,整條在視窗內`, on.shown && on.inView,
+      JSON.stringify({ shown: on.shown, inView: on.inView, w: on.w }));
+    ok(`S3 ${tag} 說明講明白「點地圖」與「不會收起面板」這個 1a 的例外`,
+      on.txt.includes('落釘模式進行中') && on.txt.includes('點地圖') && on.txt.includes('不會收起面板'),
+      on.txt.slice(0, 40));
+    ok(`S4 ${tag} 出口鈕 ≥44 而且命中自己(沒被別的東西蓋住)`,
+      on.exH >= 44 && on.exW >= 44 && on.exHit, JSON.stringify({ w: on.exW, h: on.exH, hit: on.exHit }));
+    ok(`S5 ${tag} 提示條沒有壓到頂列或分頁列`, !on.hitTopbar && !on.hitTabbar,
+      JSON.stringify({ 頂列: on.hitTopbar, 分頁列: on.hitTabbar }));
+
+    // 卡與提示條共用同一個槽位(見 #pinHint 的 class),必須互斥而不是疊在一起
+    await page.evaluate(() => openPinAt(23.50, 121.05));   // 中央山脈:1.5 km 內沒有鐵路
+    await page.waitForTimeout(350);
+    const withCard = await page.evaluate(() => ({
+      card: !document.getElementById('pinCard').hidden,
+      hint: !document.getElementById('pinHint').hidden, drop: !!state.dropMode }));
+    ok(`S6 ${tag} 落釘之後卡接手、提示條讓位(同一個槽位不重疊)`,
+      withCard.card && !withCard.hint && withCard.drop, JSON.stringify(withCard));
+
+    await page.evaluate(() => closePinCard());
+    await page.waitForTimeout(300);
+    const back = await page.evaluate(() => ({
+      hint: !document.getElementById('pinHint').hidden, drop: !!state.dropMode }));
+    ok(`S7 ${tag} 收掉卡之後提示條回來(模式還開著)`, back.hint && back.drop, JSON.stringify(back));
+
+    const eb = await page.evaluate(() => {
+      const b = document.getElementById('pinHintExit').getBoundingClientRect();
+      return { x: b.x + b.width / 2, y: b.y + b.height / 2 };
+    });
+    await page.mouse.click(eb.x, eb.y);          // 真的點下去
+    await page.waitForTimeout(350);
+    const after = await page.evaluate(() => ({
+      drop: !!state.dropMode, hidden: document.getElementById('pinHint').hidden,
+      cursor: map.getContainer().style.cursor,
+      btn: document.querySelector('#pinBtn .tl').textContent }));
+    ok(`S8 ${tag} 點「結束」真的退出落釘模式(旗標、地圖游標、鈕的標籤全部跟著回去)`,
+      after.drop === false && after.hidden && after.cursor !== 'crosshair' && after.btn === '儲存',
+      JSON.stringify(after));
+
+    ok(`S9 ${tag} 零 pageerror`, errs.length === 0, errs.slice(0, 1).join(''));
+    await close();
+  }
+}
+
 await assertTarget();
 // SECTIONS=H,I 只跑指定段(突變測試用);不設就跑全部——預設永遠是「全跑」,不能靠環境變數才完整。
-const ALL = { A: sectionA, B: sectionB, C: sectionC, D: sectionD, E: sectionE, F: sectionF, G: sectionG, H: sectionH, I: sectionI, J: sectionJ, K: sectionK, L: sectionL, M: sectionM, MX: sectionMx, N: sectionN, NX: sectionNx, O: sectionO, P: sectionP, Q: sectionQ, R: sectionR };
+const ALL = { A: sectionA, B: sectionB, C: sectionC, D: sectionD, E: sectionE, F: sectionF, G: sectionG, H: sectionH, I: sectionI, J: sectionJ, K: sectionK, L: sectionL, M: sectionM, MX: sectionMx, N: sectionN, NX: sectionNx, O: sectionO, P: sectionP, Q: sectionQ, R: sectionR, S: sectionS };
 const want = (process.env.SECTIONS || '').split(',').map(x => x.trim().toUpperCase()).filter(Boolean);
 const run = want.length ? want : Object.keys(ALL);
 for (const k of run) if (!ALL[k]) { console.error(`未知段別 ${k}`); process.exit(2); }

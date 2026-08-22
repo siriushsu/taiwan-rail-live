@@ -792,6 +792,25 @@
     font-variant-numeric: tabular-nums;
     scrollbar-width: thin; scrollbar-color: var(--line) transparent;
   }
+  /* 設計 14g:落釘模式常駐提示條。槽位吃 .xing-card,skin 換成琥珀警示族(--warn-bg／line／ink,
+     與 .followbar.miss、成就 chip 同一族)——不照抄設計稿的裸色碼,那些色在暗色主題下沒有對應。
+     隱藏交給全域的 [hidden]{display:none!important}(見檔頭那條規則的說明),這裡不必自己再寫一條。 */
+  .pin-hint {
+    display: flex; align-items: center; gap: 11px; padding: 11px 13px;
+    background: var(--warn-bg); border: 1.5px solid var(--warn-line); color: var(--warn-ink);
+    overflow: visible;
+  }
+  .pin-hint .pn-ic { flex: none; }
+  .pin-hint .pn-txt { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+  .pin-hint .pn-txt b { font-size: calc(13.5px * var(--ui)); font-weight: 800; }
+  .pin-hint .pn-txt i { font-style: normal; font-size: calc(11.5px * var(--uis)); line-height: 1.6; color: var(--muted); }
+  .pin-hint .pn-exit { /* 這是這個模式在畫面上唯一的出口,觸控尺寸不能省(比照 .collect-bar .cb-exit) */
+    flex: none; min-height: calc(44px * var(--uit)); padding: 0 13px;
+    background: none; border: 1.5px solid var(--warn-line); border-radius: var(--r-pill);
+    color: var(--warn-ink); font-size: calc(12.5px * var(--uis)); font-weight: 800;
+    font-family: inherit; cursor: pointer;
+  }
+  .pin-hint .pn-exit:hover { background: var(--warn-line); }
   .xing-card .xc-head {
     display: flex; align-items: center; gap: 9px; position: sticky; top: 0; z-index: 1;
     background: var(--navy); color: var(--on-navy); padding: 8px 10px 8px 12px;
@@ -3047,6 +3066,9 @@
       width: 200px; max-width: calc(100% - 16px);
       max-height: calc(100% - 313px);
     }
+    /* 設計 14g:提示條共用上面的槽位(垂直位置與卡一致),但它不是清單卡——一行標題＋一行說明＋
+       一顆 44 高的出口鈕,擠在 200px 的卡寬裡會把說明折成四五行。讓它橫向撐滿。 */
+    .pin-hint { left: 8px; right: 8px; width: auto; max-width: none; max-height: none; }
     .xing-card .xc-head { padding: 6px 8px 6px 10px; gap: 7px; }
     .xing-card .xc-ttl b { font-size: calc(14px * var(--ui)); }
     .xing-card .xc-meta { font-size: calc(10px * var(--uis)); }
@@ -4119,6 +4141,15 @@
     <div class="xing-card" id="xingCard" hidden></div>
     <div class="xing-card sugar-card" id="sugarCard" hidden></div>
     <div class="xing-card pin-card" id="pinCard" hidden></div>
+    <!-- 設計 14g:落釘模式進行中的常駐提示。原本的線索只有開模式那一瞬間的 toast ＋「釘」鈕標籤,
+         而手機的「釘」鈕住在【更多】抽屜裡,抽屜一關就完全沒有任何東西說明「現在點地圖是落釘」。
+         🔴 一起掛 .xing-card 是為了直接沿用它的槽位與所有 RWD／半透明覆寫,不另寫一套定位——
+            頂列下方那疊 HUD 的 top 全是寫死常數,新增一個自帶定位的浮層就是在那疊上再疊一層。 -->
+    <div class="xing-card pin-hint" id="pinHint" hidden>
+      <svg class="pn-ic" width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 21s7-6.4 7-11a7 7 0 1 0-14 0c0 4.6 7 11 7 11Z"/><circle cx="12" cy="10" r="2.4"/></svg>
+      <span class="pn-txt"><b>落釘模式進行中</b><i>點地圖任一處查附近火車，拖曳釘子可微調；此時點空白處不會收起面板。</i></span>
+      <button type="button" class="pn-exit" id="pinHintExit">結束</button>
+    </div>
     <div class="xing-card" id="nearCard" hidden></div>
     <div class="xing-help" id="xingHelp" hidden>顯示全台 415 處台鐵平交道（官方公開資料）。圖示比照官方交叉標誌：雙線以上於紅叉下加人字、閃電＝電化（拉近顯示）。點擊任一平交道，可查看接下來通過的列車與倒數；貨運／專用線上的道口僅標示位置。預測依時刻表與即時誤點推算，遮斷機通常提前 30–60 秒動作，請以現場號誌為準。平交道位置以台鐵官方資料為準，可能與現場實際略有落差，歡迎透過頁尾「回報問題或建議」提供修正。</div>
     <div class="board" id="favPanel" hidden></div>
@@ -12049,11 +12080,21 @@ function openPinAt(lat, lon) { // 落/移釘 → 開卡(右上欄諸卡擇一)
   pinDraft = { lat, lon, marker: mk };
   mk.on('dragend', () => { const ll = mk.getLatLng(); pinDraft.lat = ll.lat; pinDraft.lon = ll.lon; renderPinCard(); });
   renderPinCard();
+  syncPinHint();   // 卡開起來了 ⇒ 提示條讓位(同一個槽位)
 }
 function closePinCard() {
   if (pinDraft && pinDraft.marker) map.removeLayer(pinDraft.marker);
   pinDraft = null;
   const el = document.getElementById('pinCard'); if (el) { el.hidden = true; el.innerHTML = ''; }
+  syncPinHint();
+}
+// 設計 14g:落釘模式進行中的常駐提示,只在「模式開著、而且此刻沒有落釘卡」時出現——
+// 卡開著時使用者剛剛才點過地圖、卡上就寫著怎麼微調,不需要再被告知自己在落釘模式;卡一收就回來。
+// 兩者共用同一個槽位(見 #pinHint 的 class),所以是互斥而不是疊在一起。
+function syncPinHint() {
+  const el = document.getElementById('pinHint'); if (!el) return;
+  const card = document.getElementById('pinCard');
+  el.hidden = !(state.dropMode && (!card || card.hidden));
 }
 function renderPinCard() {
   const el = document.getElementById('pinCard'); if (!el || !pinDraft) return;
@@ -25482,8 +25523,10 @@ function setupMapTools() {
     pinBtn.title = on ? '儲存地點模式：點地圖標記位置、看附近火車（再按一次關閉）' : '儲存地點，看附近經過的火車';
     const cnt = map.getContainer(); if (cnt) cnt.style.cursor = on ? 'crosshair' : '';
     if (on && !silent) showToast('儲存地點：點地圖標記你要記住的位置、看附近火車，按「存」收藏；再按一次關閉');
+    syncPinHint();   // 設計 14g:toast 會消失,常駐提示條才是這個模式在畫面上的持續標示
   }
   pinBtn.onclick = () => setDropMode(!state.dropMode);
+  document.getElementById('pinHintExit').onclick = () => setDropMode(false);
   state._setDropMode = setDropMode; // 供 boot 內地圖點擊處理器跨作用域呼叫(比照 state._setFs)
 
   // ── 定位我:一次性瀏覽器定位 → 飛到所在地、標藍點、開附近平交道清單 ──
