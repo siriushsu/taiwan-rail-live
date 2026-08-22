@@ -2,6 +2,7 @@ import {
   TRTC_LEDGER_SCHEMA, buildTrtcModel, buildLedgerFromRaw,
   trtcOperatingState, trtcServiceDay, resolveBoardRows, claimBoardRows, collapseClaims,
   attachOfficialTimelines, segmentVehiclesFromCountdowns, alignSegmentsToVehicles,
+  deriveSecondArrivals, normStationName,
   bindTracksToTrips, buildTripSetsByLineDir, joinBoardRowsToTrips, planTrtcTripBindingPersistence,
 } from './scripts/trtc_board_ledger.mjs';
 import { reduceOfficialRosterSelfHealing } from './scripts/trtc_official_roster.mjs';
@@ -970,6 +971,16 @@ async function trtcLive(request, env) {
         // 我方組裝錯誤也不是刪掉上一份官方車的證據；保留 D1 已知名冊續推。
         boardPos = await trtcOfficialHeldPayload(env, 'assembly-error');
       }
+      // 「再下一班」裝飾進看板列（2026-08-22 裁示）：eta2 只增欄不動 board 既有欄位與列數，
+      // 消費端（小工具/等車卡）沒解這個欄位就完全無感。key 兩側都過 normStationName，
+      // 與 resolveBoardRows 的站名正規化同一套。held/outage 模式沒有 next2 ⇒ 整段自然跳過。
+      if (Array.isArray(boardPos && boardPos.next2) && boardPos.next2.length) {
+        const n2 = new Map(boardPos.next2.map(x => [x.s + '|' + x.d, x.eta2]));
+        for (const b of board) {
+          const eta2 = n2.get(normStationName(b.name) + '|' + normStationName(b.dest));
+          if (eta2 != null && eta2 > b.eta) b.eta2 = eta2;
+        }
+      }
       // legacy 的 at/src/trains/board/cd 產生路徑與欄位順序不動；帳本預覽失敗一律
       // 回空陣列，不能拖垮原本逐車 API。
       let ledger = [];
@@ -1612,6 +1623,11 @@ async function trtcBoardPositionAnchors(env, rows, feedMode = 'official',
       details: identityAudit.rejectedNumberJumpDetails || [],
     }));
   }
+  // 小工具「再下一班」（2026-08-22 裁示）：只從在途官方名冊推導，推不出留白。
+  // 失敗只影響 next2 自己（回空陣列），絕不拖垮名冊與看板本體。
+  let next2 = [];
+  try { next2 = deriveSecondArrivals(model, resolved.rows, vehicles); }
+  catch (e) { console.error('[trtc next2] 第二班推導失敗(留白):', (e && e.stack) || String(e)); }
   return {
     at: official.roster.nowEpoch,
     feedMode,
@@ -1623,7 +1639,7 @@ async function trtcBoardPositionAnchors(env, rows, feedMode = 'official',
     ...(official.roster.recovery ? { recovery: official.roster.recovery } : {}),
     rows: officialRows,
     extensions: vehicles.filter(vehicle => vehicle.extension),
-    vehicles, identityAudit,
+    vehicles, identityAudit, next2,
     dropped: { ...resolved.dropped, unclaimed: claimed.unclaimed.length,
       collapsed: claimed.claims.length - collapsed.length,
       branchHinted: resolved.branch.hinted, branchFallback: resolved.branch.fallback,

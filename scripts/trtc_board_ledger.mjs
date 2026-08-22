@@ -401,6 +401,54 @@ export function runSeconds(model, lineId, dir, from, to, calibrations) {
   return line && Number(line.runs.get(`${from}>${to}`)) > 0 ? Number(line.runs.get(`${from}>${to}`)) : null;
 }
 
+// ── 小工具「再下一班」：從在途官方名冊推導第二班到站時刻（2026-08-22 使用者裁示）────
+// 裁示原文：「下一班我覺得可以寫『約N分』每條線每個方向都可以做到這樣。當小工具選擇某
+// 方向的時候至少要有兩班車」「但還沒發車的時候 離峰的時候 確實可以留白」。
+// ⇒ 官方看板每（站,終點）只給一列「下一班」；第二班只從**已發車在途**的官方名冊車推導
+//   （未發車起點列不算車，08-18 裁示），推不出就留白——不用班表補（08-14 裁示：班表只是
+//   斷訊備案），第一列的官方原文一個字不動。
+// 候選＝同線同向**同終點**且本站仍在其剩餘路徑上的在途車（同終點才能掛在該列下面而不說謊；
+// 區間車會出現在官方自己的另一列，不歸這裡）。到站時刻＝候選車下一站 arrEpoch 沿線累加
+// （停靠秒＋區間行車秒），任一段 run 缺值就放棄該候選（不猜、不用距離頂替；環狀線 Y 的
+// runs 全缺 ⇒ 整線自然留白）。第一班自己必然以 ≈0 間隔出現在候選裡，靠 MIN_GAP 濾掉——
+// 北捷最密實際班距 ≥66 秒，30 秒只會濾掉自己，不會誤殺真第二班。
+export const NEXT2_MIN_GAP_SEC = 30;
+export const NEXT2_MAX_HORIZON_SEC = 60 * 60; // 超過一小時的投影不出手（跨半條路網的累積誤差）
+export function deriveSecondArrivals(model, resolvedRows, vehicles, calibrations = new Map()) {
+  const inTransit = (vehicles || []).filter(v =>
+    !(v.from === v.to && v.terminal === true && Number(v.run) === 0));
+  const out = [];
+  for (const r of resolvedRows || []) {
+    const line = model.lines.get(r.line);
+    if (!line) continue;
+    const step = r.dir === 2 ? 1 : -1;
+    if ((r.destIdx - r.stationIdx) * step < 0) continue;
+    let best = null;
+    for (const v of inTransit) {
+      if (v.line !== r.line || Number(v.dir) !== r.dir || Number(v.dest) !== r.destIdx) continue;
+      const to = Number(v.to);
+      if (!Number.isFinite(to) || (r.stationIdx - to) * step < 0) continue; // 已駛過本站
+      let eta = Number(v.arrEpoch);
+      if (!Number.isFinite(eta)) continue;
+      let ok = true;
+      for (let i = to; i !== r.stationIdx; i += step) {
+        const run = runSeconds(model, r.line, r.dir, i, i + step, calibrations);
+        if (!(run > 0)) { ok = false; break; }
+        eta += ((line.stations[i] && line.stations[i].dwell) || DEFAULT_DWELL_SEC) + run;
+      }
+      if (!ok) continue;
+      if (eta <= r.arrEpoch + NEXT2_MIN_GAP_SEC) continue;
+      if (eta - r.baseEpoch > NEXT2_MAX_HORIZON_SEC) continue;
+      if (!best || eta < best.eta2) best = { eta2: Math.round(eta), v2: String(v.vehicleId) };
+    }
+    if (best) {
+      const st = line.stations[r.stationIdx];
+      out.push({ s: st ? st.name : String(r.stationIdx), d: r.destName, eta2: best.eta2, v2: best.v2 });
+    }
+  }
+  return out;
+}
+
 export function claimBoardRows(model, resolvedRows, nowEpoch, calibrations) {
   const claims = [], unclaimed = [];
   const claimOne = (row, allowBehind = false) => {
