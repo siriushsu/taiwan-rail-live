@@ -1992,6 +1992,17 @@
   #explorePanel .exp-note { margin: 8px -14px 0; padding: 10px 14px 12px; border-top: 1.5px dashed var(--line-dash); font-size: calc(10.5px * var(--uis)); line-height: 1.7; color: var(--faint); }
   @media (min-width: 901px) and (min-height: 501px) { #explorePanel .exp-note { display: none; } }
   .board .empty { color: var(--faint); font-size: calc(13px * var(--ui)); padding: 8px 0; }
+  /* 設計 14c:空狀態一律 1.5px 虛線框——跟有內容的實線卡一眼分得開,不用灰字大標「無資料」。
+     四處(釘選卡/護照/車站看板/搜尋)共用這一條,各自原有的字級、顏色、對齊都不動,只多一個框。
+     🔴 虛線色沿用專案既有的 --line-dash(.stnMeta／.xc-foot／.exp-note 都是它),不另發明一種虛線;
+        本規則必須排在那四條各自的規則之後——同特異度靠源序決勝,搬到前面 padding 會被吃掉。 */
+  .xing-card .xc-empty, .passport .ph-empty, #ridePanel .ph-empty,
+  .board .empty, #searchDrop .empty {
+    border: 1.5px dashed var(--line-dash); border-radius: 10px; padding: 12px;
+  }
+  /* 釘選卡的空狀態自己就是整個卡身,外層沒有內距 ⇒ 框會貼齊卡緣(實測左右各只剩 2px、下緣 4px)。
+     補一圈外距讓它落在 12/12/14,與另外三處(看板 16、搜尋 12)同一個家族;其餘三處容器自帶內距不必補。 */
+  .xing-card .xc-empty { margin: 0 10px 10px; }
   .board .stnMeta { margin: 1px 0 8px; padding-bottom: 8px; border-bottom: 1.5px dashed var(--line-dash); }
   .board .stnMeta .addr { font-size: calc(12px * var(--uis)); color: var(--muted); line-height: 1.5; }
   .board .stnMeta .feat { font-size: calc(12px * var(--uis)); color: var(--muted); line-height: 1.5; margin-top: 3px; }

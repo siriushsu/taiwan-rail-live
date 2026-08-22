@@ -1820,9 +1820,113 @@ async function sectionQ(browser, engine) {
   await close();
 }
 
+// ── R 段:設計 14c 空狀態——四處一律 1.5px 虛線框 ──────────────────────────────
+// 🔴 「有沒有框」與「框有沒有貼齊容器邊緣」是兩件事:borderStyle 對後者完全盲(貼邊的框看起來像破圖,
+//    computed 值卻一切正常)。R5 量的就是後者,實測釘選卡第一版左右只剩 2px,只有 R5 抓得到。
+const R_INSET = (sel, csel) => {
+  const e = document.querySelector(sel), c = e && e.closest(csel);
+  if (!e || !c) return null;
+  const a = e.getBoundingClientRect(), b = c.getBoundingClientRect();
+  return { l: +(a.left - b.left).toFixed(1), r: +(b.right - a.right).toFixed(1) };
+};
+const R_FRAME = () => {
+  const g = el => {
+    if (!el || !el.getClientRects().length) return null;
+    const cs = getComputedStyle(el);
+    return { style: cs.borderTopStyle, w: parseFloat(cs.borderTopWidth), r: parseFloat(cs.borderRadius),
+      padL: parseFloat(cs.paddingLeft), txt: (el.textContent || '').slice(0, 12) };
+  };
+  return {
+    pin: g(document.querySelector('#pinCard .xc-empty')),
+    pass: g(document.querySelector('#ridePanel .ph-empty, .passport .ph-empty')),
+    board: g(document.querySelector('#board .empty')),
+    search: g(document.querySelector('#searchDrop .empty')),
+  };
+};
+async function sectionR(browser, engine) {
+  const { page, errs, close } = await boot(browser, { width: 393 });
+  await page.evaluate(() => { if (state.playing) togglePlay(); });
+
+  // 🔴 宣告值逐字讀樣式表:1.5px 的 computed 值 chromium 量成 1px、webkit 給 1.5(M/N 段同款教訓),
+  //    跨引擎比絕對值必假紅。這裡改比「樣式表裡宣告了什麼」,引擎無關。
+  const decl = await page.evaluate(() => {
+    for (const sh of document.styleSheets) {
+      let rs; try { rs = sh.cssRules; } catch { continue; }
+      for (const r of rs) {
+        const sel = (r.selectorText || '').replace(/["']/g, '');
+        if (sel.includes('.xc-empty') && sel.includes('.ph-empty') && sel.includes('#searchDrop .empty'))
+          return r.style.cssText;
+      }
+    }
+    return null;
+  });
+  ok(`R1 ${engine} 四處共用同一條規則,宣告 1.5px dashed 且沿用專案既有的 --line-dash`,
+    !!decl && /1\.5px\s+dashed\s+var\(--line-dash\)/.test(decl), decl || '找不到規則');
+
+  // ① 釘選卡:落在中央山脈(1.5 km 內沒有鐵路)
+  // 🔴 要在開護照【之前】量:openRidePanel() 走 soloPanel,會把釘選卡關掉(右上欄諸卡擇一)
+  await page.evaluate(() => openPinAt(23.50, 121.05));
+  await page.waitForTimeout(400);
+  const s0 = await page.evaluate(R_FRAME);
+  const i0 = await page.evaluate(f => eval('(' + f + ')')('#pinCard .xc-empty', '.xing-card'), R_INSET.toString());
+  // ② 護照:全新裝置沒有完乘記錄
+  await page.evaluate(() => openRidePanel());
+  await page.waitForTimeout(400);
+  const s1 = await page.evaluate(R_FRAME);
+  // ③ 車站看板:用 app 自己的計算找一個此刻真的沒有班次的站,不猜站名也不寫死時刻
+  const pick = await page.evaluate(() => {
+    setSimSec(3 * 3600 + 20 * 60); state.clockAtNow = false;
+    for (const e of buildStnIndex().filter(s => s.sysId === 'tra_sched')) {
+      if (schedBoardRows({ name: e.name, sys: e.sysId }).length === 0) {
+        openBoard({ name: e.name, sys: e.sysId, lat: e.lat, lon: e.lon });
+        return e.name;
+      }
+    }
+    return null;
+  });
+  await page.waitForTimeout(500);
+  const s2 = await page.evaluate(R_FRAME);
+  const i2 = await page.evaluate(f => eval('(' + f + ')')('#board .empty', '#board'), R_INSET.toString());
+  // ④ 搜尋:打一個不存在的車次(手機的搜尋框在 sheet 裡,沒開就不可見)
+  await page.evaluate(() => openSearchPanel());
+  await page.waitForTimeout(400);
+  await page.fill('#trainSearch', '99999');
+  await page.waitForTimeout(500);
+  const s3 = await page.evaluate(R_FRAME);
+  const i3 = await page.evaluate(f => eval('(' + f + ')')('#searchDrop .empty', '#searchDrop'), R_INSET.toString());
+
+  for (const [k, v] of Object.entries({ 釘選卡: s0.pin, 護照: s1.pass, 看板: s2.board, 搜尋: s3.search })) {
+    ok(`R2 ${engine} ${k} 空狀態量得到,而且長出虛線框`,
+      !!v && v.style === 'dashed' && v.w > 0 && v.r > 0 && v.padL >= 10, JSON.stringify(v));
+  }
+  ok(`R3 ${engine} 正向對照:看板真的挑到一個沒有班次的站`, !!pick, `站=${pick}`);
+
+  const insets = { 釘選卡: i0, 看板: i2, 搜尋: i3 };
+  ok(`R5 ${engine} 三處的框都沒有貼齊容器邊緣(左右各 ≥8px)`,
+    Object.values(insets).every(v => v && v.l >= 8 && v.r >= 8), JSON.stringify(insets));
+
+  // 反向對照:有內容時不該長框——少了這條,「不分空不空一律加框」也會全綠。
+  const rev = await page.evaluate(() => {
+    setSimSec(8 * 3600 + 15 * 60); state.clockAtNow = false;
+    const e = buildStnIndex().find(s => s.sysId === 'tra_sched' && s.name === '板橋')
+      || buildStnIndex().find(s => s.sysId === 'tra_sched');
+    openBoard({ name: e.name, sys: e.sysId, lat: e.lat, lon: e.lon });
+    const rows = document.querySelectorAll('#board .row[data-no]').length;
+    // 🔴 班次列本來就有虛線【分隔】(border-bottom),不能拿 borderTopStyle 判「有沒有被加框」;
+    //    要判的是「有沒有長出四邊都在的框」,故量左緣——border 簡寫錯套會讓左緣也變虛線。
+    return { rows, em: document.querySelectorAll('#board .empty').length,
+      rowCs: rows ? getComputedStyle(document.querySelector('#board .row[data-no]')).borderLeftStyle : '' };
+  });
+  ok(`R4 ${engine} 反向對照:看板有班次時沒有空狀態框,班次列也沒被套上四邊框`,
+    rev.rows > 0 && rev.em === 0 && rev.rowCs !== 'dashed', JSON.stringify(rev));
+
+  ok(`R6 ${engine} 零 pageerror`, errs.length === 0, errs.slice(0, 1).join(''));
+  await close();
+}
+
 await assertTarget();
 // SECTIONS=H,I 只跑指定段(突變測試用);不設就跑全部——預設永遠是「全跑」,不能靠環境變數才完整。
-const ALL = { A: sectionA, B: sectionB, C: sectionC, D: sectionD, E: sectionE, F: sectionF, G: sectionG, H: sectionH, I: sectionI, J: sectionJ, K: sectionK, L: sectionL, M: sectionM, MX: sectionMx, N: sectionN, NX: sectionNx, O: sectionO, P: sectionP, Q: sectionQ };
+const ALL = { A: sectionA, B: sectionB, C: sectionC, D: sectionD, E: sectionE, F: sectionF, G: sectionG, H: sectionH, I: sectionI, J: sectionJ, K: sectionK, L: sectionL, M: sectionM, MX: sectionMx, N: sectionN, NX: sectionNx, O: sectionO, P: sectionP, Q: sectionQ, R: sectionR };
 const want = (process.env.SECTIONS || '').split(',').map(x => x.trim().toUpperCase()).filter(Boolean);
 const run = want.length ? want : Object.keys(ALL);
 for (const k of run) if (!ALL[k]) { console.error(`未知段別 ${k}`); process.exit(2); }
