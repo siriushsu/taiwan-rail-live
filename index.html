@@ -2678,6 +2678,14 @@
     }
     /* 時鐘徽章讓位頂列:移到頂列下方(safe-area 隨動態島下移,與頂列一致) */
     .badge { top: calc(58px + env(safe-area-inset-top, 0px)); left: 10px; gap: 9px; padding: 5px 11px 6px; }
+    /* 🔴 上緣堆疊的規則是「頂列底 + 間距」,58 只是照標準檔頂列實高(~40)凍結下來的快照
+       (同一句話 body.fs .follow-panel 那條註解已經寫過)。字級一放大,分頁的 min-height 跟著長,
+       頂列變高 45→54px,寫死的 58 就被壓在頂列底下(實測:特大三個寬度兩引擎全中,大在 360pt 中)。
+       這裡改成從**量到的頂列實高**推:--tb-h 由 ResizeObserver 寫,env() 留在 CSS 裡保持符號式——
+       安全區之後才被注入(Capacitor 8 開機後才給 --safe-area-inset-*)也不會失準,這正是 App 分支
+       同一族缺陷的成因(那邊把整個 top 算成一個絕對 px 寫進 inline style,安全區一注入就對不上)。
+       只掛在 html[data-fs]:標準檔一格都不動。 */
+    html[data-fs] .badge { top: calc(8px + env(safe-area-inset-top, 0px) + var(--tb-h, 40px) + 10px); }
     .badge .clock { font-size: calc(17px * var(--ui)); }
     .badge .count { font-size: calc(12px * var(--ui)); }
     /* 行程連結的追蹤橫幅原本固定 top:56，會整片壓住這列時鐘。接收行程時先把非必要的
@@ -24562,6 +24570,19 @@ function setupMapTools() {
     else document.documentElement.setAttribute('data-fs', eff);
     if (state.ready) { try { map.invalidateSize({ pan: false }); } catch (e) {} } // 字級改變會動到面板高度,地圖尺寸快取要重量
   }
+  // 頂列實高 → --tb-h(上緣堆疊的唯一事實來源)。量「高度」不量「底緣座標」是刻意的:
+  // 高度是尺寸,ResizeObserver 正好在它變的時候開火(字級換檔、牌換行、分頁長高都算);
+  // 底緣座標會被安全區推動,而安全區在 Capacitor 是開機後才注入、又不觸發 resize/ResizeObserver
+  // ⇒ 量底緣就會留下一個對不上的舊值(App 分支頂列與時鐘重疊就是這麼來的)。env() 因此留在 CSS。
+  (function () {
+    const bar = document.getElementById('topbar');
+    if (!bar) return;
+    const sync = () => {
+      const h = bar.getBoundingClientRect().height;
+      if (h > 0) document.documentElement.style.setProperty('--tb-h', h.toFixed(1) + 'px');
+    };
+    if (window.ResizeObserver) new ResizeObserver(sync).observe(bar); else sync();
+  })();
   state._setFontScale = setFontScale;
   applyFontScale();
   try { // 從背景回來時重測一次:使用者可能中途去系統設定改了字級

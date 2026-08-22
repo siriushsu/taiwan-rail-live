@@ -78,7 +78,16 @@ async function sectionA(browser, engine) {
         const selfClipped = tabs.filter(t => t.scrollWidth > t.clientWidth + 1 || t.scrollHeight > t.clientHeight + 1)
           .map(t => t.textContent.trim());
         const tl = document.querySelector('.tabbar .tl').getBoundingClientRect();
-        return { n: tabs.length, outside, selfClipped, labelInside: tl.bottom <= innerHeight + 0.5 };
+        // 上緣堆疊:頂列與時鐘徽章。判準用「rect 相交面積」而不是「徽章 top >= 某常數」——
+        // 常數會隨頂列高度漂移,正是這條缺陷的成因。
+        const bar = document.getElementById('topbar'), bg = document.querySelector('.badge');
+        const br = bar.getBoundingClientRect(), gr = bg.getBoundingClientRect();
+        const ix = Math.min(br.right, gr.right) - Math.max(br.left, gr.left);
+        const iy = Math.min(br.bottom, gr.bottom) - Math.max(br.top, gr.top);
+        return { n: tabs.length, outside, selfClipped, labelInside: tl.bottom <= innerHeight + 0.5,
+          bothVisible: br.height > 0 && gr.height > 0,
+          topStackOverlap: +(Math.max(0, ix) * Math.max(0, iy)).toFixed(0),
+          badgeInlineTop: bg.style.top };
       });
       const tag = `${engine} ${tier} ${width}pt`;
       ok(`A1 ${tag} 正向對照:四顆群組分頁都量得到`, r.n === 4, `n=${r.n}`);
@@ -90,6 +99,13 @@ async function sectionA(browser, engine) {
       ok(`A3 ${tag} 分頁的字沒有被自己的框切掉`, r.selfClipped.length === 0, r.selfClipped.join(','));
       ok(`A4 ${tag} tab bar 的文字標籤沒有被切在畫面外`, r.labelInside);
       ok(`A5 ${tag} 零 pageerror`, errs.length === 0, errs.slice(0, 1).join(''));
+      // 正向對照:`相交=0` 在「其中一個根本沒渲染」時也會成立,先證明兩者都真的量得到
+      ok(`A6 ${tag} 正向對照:頂列與時鐘徽章都量得到`, r.bothVisible);
+      ok(`A7 ${tag} 頂列與時鐘徽章不重疊`, r.topStackOverlap === 0, 'overlap=' + r.topStackOverlap);
+      // 結構性判準:徽章的上緣位置必須留在 CSS(env() 保持符號式)。一旦有人把它算成一個絕對 px
+      // 寫進 inline style,安全區晚一步注入(Capacitor 8)就會留下對不上的舊值——App 1.4.9 頂列
+      // 與時鐘重疊即此。這一條擋的是「修法形狀」,不是某一次的數值。
+      ok(`A8 ${tag} 徽章位置不是 JS 寫死的絕對 px`, r.badgeInlineTop === '', 'inline top=' + r.badgeInlineTop);
       await close();
     }
   }
