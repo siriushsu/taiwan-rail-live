@@ -34,6 +34,19 @@ check(sandbox.sample(decreasing, 110).progress === 4.5, '里程遞減方向補�
 check(sandbox.sample(increasing, 90).progress === 2, '發車前應鉗在第一個軌跡點');
 check(sandbox.sample(decreasing, 130).progress === 4, '退場前應鉗在最後一個軌跡點');
 
+const graceSandbox = {
+  METRO_CORE_FOLLOW_GRACE_SEC: 30,
+  metroCoreFollowRecord: () => graceSandbox.current,
+  metroCorePositionAt: (ln, train, epoch) => epoch < train.retireAt ? { lat: epoch, lon: 0 } : null,
+  current: { systemId: 'trtc', train: { retireAt: 1000 }, ln: { id: 'BL' }, pos: { lat: 0, lon: 0 } }
+};
+vm.runInNewContext(`${extractFunction('metroCoreFollowRecordWithGrace')}; this.followGrace = metroCoreFollowRecordWithGrace;`, graceSandbox);
+const follow = {};
+check(graceSandbox.followGrace(follow, 100) === graceSandbox.current, 'Core 跟隨首次命中未保存身分');
+graceSandbox.current = null;
+check(graceSandbox.followGrace(follow, 129)?.grace === true, 'Core 短暫漏一批時未沿用已確認軌跡');
+check(graceSandbox.followGrace(follow, 131) === null, 'Core 漏超過兩批後仍未結束寬限');
+
 const contracts = [
   // 2026-08-22 網站預設翻成 shadow（return false）；App 的兩個注入點必須在 return 之前，
   // 否則網站的預設值會蓋掉 App v13 的原生恆開。這條同時把「順序」釘住。
@@ -51,6 +64,10 @@ const contracts = [
   ['全台裝飾層讀取 Core', /function drawDecoTrains[\s\S]*?metroCoreItemsForLine\(ln, officialNow\)/],
   ['站牌共用 vehicle ID', /data-core-vehicle/],
   ['跟隨保存 Core 身分形狀', /\{ core: true, systemId: String\(target\.systemId\), lineId: String\(target\.ln\.id\), vehicleId: String\(target\.vehicleId\) \}/],
+  ['地圖命中保留 Core 來源', /hits\.push\(\{ ln: h\.ln, k: h\.k, tr: h\.tr, core: !!h\.core,[\s\S]*?systemId: h\.systemId/],
+  ['snapshot 看板與車強制同線同向同終點', /String\(train\.lineId\) !== String\(board\.lineId\)[\s\S]*?Number\(train\.direction\) !== Number\(row\.direction\)[\s\S]*?Number\(train\.destinationStationIndex\) !== Number\(row\.destinationStationIndex\)/],
+  ['Core 跟隨有兩批寬限', /METRO_CORE_FOLLOW_GRACE_SEC = 30/],
+  ['Core 上線後斷訊判斷不再讀背景 legacy 時戳', /function metroCoreTrtcFeedState[\s\S]*?failedFor >= 30[\s\S]*?ageSec >= TRTC_FEED_STALE_SEC/],
   ['進站文字查驗實際距離', /distanceM <= 25/],
   ['失效時回到既有站牌', /if \(core\) \{ renderMetroCoreFreqBoard[\s\S]*?const official = trtcOfficialBoardView/],
   // ── 2026-08-21 復原批次補上的九道基底防線（行為面另有 verify_metro_core_defense.mjs）──
@@ -97,4 +114,4 @@ if (failures.length) {
   for (const failure of failures) console.error(`- ${failure}`);
   process.exit(1);
 }
-console.log(`Metro Core bridge 靜態契約通過：${contracts.length + appContracts.length} 項，雙方向補間 4 項`);
+console.log(`Metro Core bridge 靜態契約通過：${contracts.length + appContracts.length} 項，雙方向補間 4 項、跟隨寬限 3 項`);
