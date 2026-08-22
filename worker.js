@@ -20,8 +20,23 @@ import {
 // 金鑰只存在 Worker 環境變數(dashboard Variables and Secrets),前端不直連 TDX。
 // 雙層快取護住 TDX 用量:PoP 邊緣快取 55 秒(workers.dev 網域上 Cache API 無效,
 // 屆時靠 isolate 記憶體快取,約每 isolate 每分鐘 1 次)——用量恆定,不隨訪客數增加。
+// ⚠️ 「不隨訪客數增加」只在「單一 colo」內成立:caches.default 與 isolate 記憶體都是
+// 每個資料中心各一份,活躍 colo 每多一個,下面整組輪詢就再跑一份 ⇒ TDX 點數隨
+// 「使用者地理分佈的廣度」線性上升,而不是隨「使用者人數」上升。2026-08-21 實測 /api/tra-live:
+// 用戶全在台灣,卻分佈在 SJC 24,568／SIN 16,839／TPE 15,056／HKG 14,976／KHH 1,064 五個 colo。
+// 2026-08-16:TDX 銅級 400 點在月中就燒到 80%(105% 即當月斷線),故對兩支流量大戶加 $select。
+// $select 實測(2026-08-22 17:16 金鑰實打複驗):TrainLiveBoard 省 54.5%、Metro/LiveBoard 省
+// 33.0~38.7%,筆數不變、巢狀 StationName.Zh_tw 等子欄位完整保留、外層 UpdateTime 照給。
+// 公告類三支「不」加 $select——實測省 0~18%(公告本體才 0.2~0.4KB,流量不是它的成本;
+// 它的成本在次數),加了只是徒增漏欄位風險。
+// 🔴 這段止血原本是 a59cb81(2026-08-16 02:51 上線),4 小時 37 分後就被一次整包替換式部署
+// 靜默退掉(那顆從未併進 main),之後約 90 次部署都沒有它 ⇒ 改動這幾行前先確認你的 base
+// 有沒有落後 origin/main(git log HEAD..origin/main),它被退過一次。
 const AUTH_URL = 'https://tdx.transportdata.tw/auth/realms/TDXConnect/protocol/openid-connect/token';
-const API_URL = 'https://tdx.transportdata.tw/api/basic/v3/Rail/TRA/TrainLiveBoard?%24format=JSON';
+// $select 欄位必須與下方 traLive() 取用的欄位一致:TrainNo/DelayTime/StationID/TrainStationStatus。
+// 改這行前先確認消費端沒有新增欄位,否則會靜默拿到 undefined。外層 UpdateTime 不受 $select 影響
+// (實測照給),mem.at 與前端的新鮮度診斷仍讀得到上游時戳。
+const API_URL = 'https://tdx.transportdata.tw/api/basic/v3/Rail/TRA/TrainLiveBoard?%24select=TrainNo%2CDelayTime%2CStationID%2CTrainStationStatus&%24format=JSON';
 const ALERT_URL = 'https://tdx.transportdata.tw/api/basic/v3/Rail/TRA/Alert?%24format=JSON';
 // 高鐵營運狀態:TDX 僅 v2 有 Rail/THSR/AlertInfo(v3 為 404),回頂層陣列,正常時單筆「全線營運正常(Normal)」
 const THSR_ALERT_URL = 'https://tdx.transportdata.tw/api/basic/v2/Rail/THSR/AlertInfo?%24format=JSON';
@@ -235,7 +250,9 @@ async function traAlert(request, env) {
   const hit = await edge.match(cacheKey);
   if (hit) return hit;
   try {
-    if (!alertMem || Date.now() - alertMemAt > 110e3) {
+    // TTL 300s(2026-08-16 自 110s 上調,TDX 點數止血):公告變化以分鐘計,且本端點成本在
+    // 「次數」不在流量(實測公告本體僅 0.2KB)。110→300s 省 63% 呼叫次數。
+    if (!alertMem || Date.now() - alertMemAt > 300e3) {
       const r = await fetch(ALERT_URL, { headers: { authorization: 'Bearer ' + await getToken(env) }, redirect: 'manual' });
       if (r.status === 401) { tok = null; throw new Error('tdx 401'); }
       if (!r.ok) throw new Error('tdx api ' + r.status);
@@ -252,7 +269,7 @@ async function traAlert(request, env) {
       };
       alertMemAt = Date.now();
     }
-    return await jsonResCached(edge, cacheKey, alertMem, 200, 'public, s-maxage=110, stale-while-revalidate=600');
+    return await jsonResCached(edge, cacheKey, alertMem, 200, 'public, s-maxage=300, stale-while-revalidate=600');
   } catch (e) {
     if (alertMem) return jsonRes(alertMem, 200, 'public, s-maxage=30');
     return jsonRes({ error: String(e.message || e) }, 502, 'no-store');
@@ -268,7 +285,7 @@ async function thsrAlert(request, env) {
   const hit = await edge.match(cacheKey);
   if (hit) return hit;
   try {
-    if (!thsrAlertMem || Date.now() - thsrAlertMemAt > 110e3) {
+    if (!thsrAlertMem || Date.now() - thsrAlertMemAt > 300e3) {   // 2026-08-16 自 110s 上調(同 tra-alert)
       const r = await fetch(THSR_ALERT_URL, { headers: { authorization: 'Bearer ' + await getToken(env) }, redirect: 'manual' });
       if (r.status === 401) { tok = null; throw new Error('tdx 401'); }
       if (!r.ok) throw new Error('tdx api ' + r.status);
@@ -287,7 +304,7 @@ async function thsrAlert(request, env) {
       };
       thsrAlertMemAt = Date.now();
     }
-    return await jsonResCached(edge, cacheKey, thsrAlertMem, 200, 'public, s-maxage=110, stale-while-revalidate=600');
+    return await jsonResCached(edge, cacheKey, thsrAlertMem, 200, 'public, s-maxage=300, stale-while-revalidate=600');
   } catch (e) {
     if (thsrAlertMem) return jsonRes(thsrAlertMem, 200, 'public, s-maxage=30');
     return jsonRes({ error: String(e.message || e) }, 502, 'no-store');
@@ -548,7 +565,9 @@ async function metroAlert(request, env) {
   const hit = await edge.match(cacheKey);
   if (hit) return hit;
   try {
-    if (!metroAlertMem || Date.now() - metroAlertMemAt > 110e3) {
+    // TTL 300s(2026-08-16 自 110s 上調):本端點是次數最大單項——每輪對 5 個營運者各發一次,
+    // 110s 時 3,925 次/日(佔我方 TDX 呼叫 29%),300s 後降到 1,440 次/日。
+    if (!metroAlertMem || Date.now() - metroAlertMemAt > 300e3) {
       const token = await getToken(env);
       const [parts, newsAlerts] = await Promise.all([
         Promise.all(METRO_ALERT_OPS.map(async ({ op, sys, label }) => {
@@ -582,7 +601,7 @@ async function metroAlert(request, env) {
         alerts: TRTC_SCHEDULE_MODE_NOTICE.concat(parts.flat(), newsAlerts) };
       metroAlertMemAt = Date.now();
     }
-    return await jsonResCached(edge, cacheKey, metroAlertMem, 200, 'public, s-maxage=110, stale-while-revalidate=600');
+    return await jsonResCached(edge, cacheKey, metroAlertMem, 200, 'public, s-maxage=300, stale-while-revalidate=600');
   } catch (e) {
     if (metroAlertMem) return jsonRes(metroAlertMem, 200, 'public, s-maxage=30');
     return jsonRes({ error: String(e.message || e) }, 502, 'no-store');
@@ -607,7 +626,11 @@ async function metroLive(request, env, sys) {
     if (!stale || Date.now() - stale.at > 115e3) {
       const token = await getToken(env);
       const parts = await Promise.all(METRO_LIVE_OPS[sys].map(async op => {
-        const r = await fetch(`https://tdx.transportdata.tw/api/basic/v2/Rail/Metro/LiveBoard/${op}?%24top=5000&%24format=JSON`,
+        // $select 欄位須與下方 map() 取用的一致(LineID/StationName/DestinationStationName/
+        // EstimateTime/ServiceStatus);巢狀的 .Zh_tw 子欄位選父層即可,實測完整保留。
+        // ⚠️ TDX 對本端點的 EstimateTime 直接無視 $select(列不列都照回)⇒ 針對它做的突變測試
+        // 不會變紅,那不代表判準沒牙,是上游根本不理你。
+        const r = await fetch(`https://tdx.transportdata.tw/api/basic/v2/Rail/Metro/LiveBoard/${op}?%24top=5000&%24select=LineID%2CStationName%2CDestinationStationName%2CEstimateTime%2CServiceStatus&%24format=JSON`,
           { headers: { authorization: 'Bearer ' + token }, redirect: 'manual' });
         if (r.status === 401) { tok = null; throw new Error('tdx 401'); }
         if (!r.ok) throw new Error('tdx api ' + r.status);
@@ -676,7 +699,10 @@ async function klrtPosition(request, env) {
   if (hit) return hit;
   const stale = klrtPosMem;
   try {
-    if (!stale || Date.now() - stale.at > 25e3) {
+    // TTL 35s(2026-08-16 自 25s 上調):上游 KLRT GPS 本來就約 30 秒才更新一次(資料齡實測
+    // 17–45 秒),25s 去拉比上游產出還勤 ⇒ 有一部分呼叫必然拿到同一份資料。35s 省 29% 次數,
+    // 且仍短於「資料齡上界」,逐班校正的新鮮度不變。
+    if (!stale || Date.now() - stale.at > 35e3) {
       const token = await getToken(env);
       const r = await fetch('https://tdx.transportdata.tw/api/basic/v2/Rail/Metro/LivePosition/KLRT?%24format=JSON',
         { headers: { authorization: 'Bearer ' + token }, redirect: 'manual' }); // 🔴 絕不可用 'error'(見檔頭 08-04 事故)
@@ -693,7 +719,7 @@ async function klrtPosition(request, env) {
       })).filter(x => Number.isFinite(x.lat) && Number.isFinite(x.lon));
       klrtPosMem = { data: { at: new Date().toISOString(), src: 'tdx', up: d && d.UpdateTime, rows }, at: Date.now() };
     }
-    return await jsonResCached(edge, cacheKey, klrtPosMem.data, 200, 'public, s-maxage=20, stale-while-revalidate=60');
+    return await jsonResCached(edge, cacheKey, klrtPosMem.data, 200, 'public, s-maxage=30, stale-while-revalidate=60');
   } catch (e) {
     // 🔴 舊資料只在「還算新」的期間頂替,不可無限期回舊的:前端看到 src 有值就會採用,
     //    上游長時間掛掉會讓 C 線一直用陳舊 GPS,而 LiveBoard 被 klrtGpsLive 擋著永遠接不了手。
