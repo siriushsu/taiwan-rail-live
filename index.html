@@ -22234,10 +22234,11 @@ function soloPanel(keep) {
   if (keep !== 'train') closeTrainSheet();
 }
 // 整合卡(設計狀態機 tapStation):點站＝切到「這一站」,跟車不中斷。
-function openBoard(st) { soloPanel('board'); closeFavPanel(); closeRidePanel(); closeExplorePanel(); closeTrackPanel(); closeTodayPanel(); closeDelayHist(); closePinCard(); closeNearbyStations(); closeSugarCard(); state.boardStation = st; uniTab = 'station'; uniUncollapseForBoard(); renderBoard(); }
+function openBoard(st) { soloPanel('board'); closeFavPanel(); closeRidePanel(); closeExplorePanel(); closeTrackPanel(); closeTodayPanel(); closeDelayHist(); closePinCard(); closeNearbyStations(); closeSugarCard(); boardRxOpen.clear(); state.boardStation = st; uniTab = 'station'; uniUncollapseForBoard(); renderBoard(); }
 function closeBoard() {
   unmountUniCard(); // 先把跟車卡搬回家,再清 innerHTML——否則它會跟著被清掉
   state.boardStation = null;
+  boardRxOpen.clear(); // 展開態屬於這一張看板,關掉就結束
   const el = document.getElementById('board');
   el.hidden = true; el.innerHTML = '';
   updateSheetOpenClass();
@@ -22594,6 +22595,12 @@ function stationIntroText(name) {
   if (tierLabel) return `<span class="dp-intro-lbl">站等</span>台鐵${tierLabel}　鐵路運輸的重要節點`;
   return null;
 }
+// 設計 6b 的「›」展開態:看板每 20 模擬秒 `el.innerHTML = …` 整個重繪一次,只掛在 DOM 上的
+// .rx 會被洗掉——使用者剛叫回來的車種與方向自己收回去(高倍速下不到半秒)。記在這裡,重繪時原樣掛回;
+// 換站(openBoard)與關看板(closeBoard)清空,展開態不跨站沿用。
+// 🔴 鍵要帶系統:台鐵/高鐵跨系統重號,只拿車次當鍵會把別家的同號列一起掀開(同 el._downSys 的理由)。
+const boardRxOpen = new Set();
+const boardRxKey = (no, sys) => `${no}|${sys || ''}`;
 function renderBoard() {
   const el = document.getElementById('board'), st = state.boardStation;
   // 🔴 整合卡:重繪會 `el.innerHTML = …` 把整個內容換掉——搬進去的 #followPanel 會**跟著被銷毀**
@@ -22635,7 +22642,9 @@ function renderBoard() {
     const min = r.off ? '停駛' : r.dtm < 60 ? '即將' : Math.round(r.dtm / 60) + ' 分';
     const dest = r.tr.loop ? '往 ' + r.loopDest : (r.isLast ? '（終點到達）' : '往 ' + r.dest);
     // 停駛列不掛 data-no/title:點了不該去跟一台不存在的車(followTrainNo 也找不到它)
-    return `<div class="row${r.off ? ' off' : ''}"${r.off ? '' : ` data-no="${r.tr.train}" data-sys="${r.tr.sys || ''}" title="跟隨 ${r.tr.train} 次"`}><span class="dot" style="background:${r.tr.color}"></span>` +
+    // 重繪要把使用者展開中的那一列掛回去(見 boardRxOpen);停駛列沒有 data-no,CSS 也不吃 .rx
+    const rx = !r.off && boardRxOpen.has(boardRxKey(r.tr.train, r.tr.sys)) ? ' rx' : '';
+    return `<div class="row${r.off ? ' off' : ''}${rx}"${r.off ? '' : ` data-no="${r.tr.train}" data-sys="${r.tr.sys || ''}" title="跟隨 ${r.tr.train} 次"`}><span class="dot" style="background:${r.tr.color}"></span>` +
       // 「推算」標貼著時刻放(被推算的是時間不是路線),與 lateTag 同位、不會同時出現(est 車無誤點資料);
       // 放 dest 欄會把「（終點到達）」擠成「(…」(280px 看板實測)。
       // 設計 6b:大改兩行、特大把車種與方向收進列尾「›」——兩者都要能各自定位,故各包一層。
@@ -22685,7 +22694,16 @@ function renderBoard() {
     const more = e.target.closest('.rmore');
     if (more) { // 設計 6b:特大時車種與方向收進「›」,點它展開該列(不跟車)
       e.stopPropagation();
-      const r = more.closest('.row'); if (r) r.classList.toggle('rx');
+      const r = more.closest('.row');
+      if (r) {
+        const on = r.classList.toggle('rx');
+        // 記下來,下一次重繪才掛得回去(看板每 20 模擬秒 innerHTML 重繪一次)。
+        // 停駛列沒有 data-no,CSS 的 .rx 規則也不吃它,展開對它沒有意義,不記。
+        if (r.dataset.no) {
+          const k = boardRxKey(r.dataset.no, r.dataset.sys);
+          if (on) boardRxOpen.add(k); else boardRxOpen.delete(k);
+        }
+      }
       return;
     }
     const row = e.target.closest('.row[data-no]');
