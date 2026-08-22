@@ -592,6 +592,8 @@ async function sectionH(browser, engine) {
     return false;
   });
   await s2.page.waitForTimeout(2200);
+  // 開看板**之前**先量一次可視窗——H7 要比的是兩個狀態,不是拿看板自己的位置驗看板自己(見下)。
+  const P = await s2.page.evaluate(c => eval('(' + c + ')')(), H_CENSUS.toString());
   await s2.page.evaluate(() => {
     const e = buildStnIndex().find(x => x.sysId === 'tra_sched' && x.name === '板橋');
     if (e) openBoard({ name: e.name, sys: e.sysId, lat: e.lat, lon: e.lon });
@@ -607,13 +609,29 @@ async function sectionH(browser, engine) {
     const pt = map.latLngToContainerPoint(L.latLng(pos.lat, pos.lon));
     const hit = document.elementFromPoint(mc.left + pt.x, mc.top + pt.y);
     const chrome = hit && hit.closest('.topbar,.badge,.tabbar,.controls,#followPanel,#freqCard,.sheet,#mapActions');
+    // 🔴 看板是「內容撐高、上限 46%」不是固定 46%:深夜班次少的時候整張只有 187px(實測 00:35 的
+    //    板橋只剩 1 班),可視窗下緣自然掉到 550。所以下面那條判準不能寫死一個 px 門檻。
+    const bd = document.getElementById('board'), br = bd.getBoundingClientRect();
     return { ...r, ok: true, py: +pt.y.toFixed(1), sheetUp: r.seen.includes('sheet'),
       inBand: pt.y >= r.bandTop && pt.y <= r.bandBot,
+      sheetTop: Math.round(br.top - mc.top), sheetH: Math.round(br.height), rows: bd.querySelectorAll('.row').length,
       covered: !!chrome, hit: hit ? (hit.id || String(hit.className).slice(0, 28)) : 'none' };
   }, H_CENSUS.toString());
-  // 正向對照:看板真的開著、而且它真的把可視窗壓掉一大塊(否則這一格跟 H2 是同一個情境)
-  ok(`H7 ${tag} 正向對照:跟車中開得起看板,且看板真的壓掉可視窗`,
-    started && S.ok && S.sheetUp && S.bandBot < 520, `${S.why || ''} sheet=${S.sheetUp} 下緣=${S.bandBot}`);
+  // 正向對照:看板真的開著、而且它真的吃進「開板前看得到的地圖」(否則這一格跟 H2 是同一個情境)。
+  // 🔴 兩個寫法都試過、都不能用:
+  //   ① 手打 `bandBot < 520` —— 看板是**內容撐高、上限 46%**,深夜班次少時整張只有 187px
+  //      (實測 00:35 的板橋只剩 1 班,下緣自然掉到 550) ⇒ 判準跟著環境假紅(同 G6 那次)。
+  //   ② 改成「下緣 ≤ 看板頂緣」—— **那是恆真的**:census 的 bandBot 本來就是從看板頂緣算出來的
+  //      (bandBot = 頂緣 − 8),等於拿看板自己的位置驗看板自己(心得 29 同源)。實測把看板整個
+  //      translateY(100%) 推出畫面,②照樣綠。
+  // 所以判準改成**跨狀態比較**:看板頂緣要落在「開板前的可視窗下緣」之上(真的侵入原本看得到的
+  // 地圖),而且下緣真的縮了。兩個數字來自兩次獨立量測,沒有共用推導。
+  ok(`H7 ${tag} 正向對照:跟車中開得起看板,而且看板真的吃進開板前看得到的地圖`,
+    // (班次列數只印不判:深夜 0 班、白天十幾班都是正常的營運狀態,不是版面回歸)
+    started && S.ok && S.sheetUp && P.bandBot > 0 &&
+    S.sheetTop < P.bandBot && S.bandBot < P.bandBot,
+    `${S.why || ''} sheet=${S.sheetUp} 開板前下緣=${P.bandBot} 開板後下緣=${S.bandBot} ` +
+    `看板頂緣=${S.sheetTop} 看板高=${S.sheetH}(班次列 ${S.rows})`);
   ok(`H8 ${tag} 看板開著時跟車目標仍在可視窗內(${S.bandTop}~${S.bandBot})`, S.ok && S.inBand, `車y=${S.py}`);
   ok(`H9 ${tag} 看板開著時跟車目標沒有被卡片蓋住`, S.ok && !S.covered, `命中 ${S.hit}`);
   ok(`H10 ${tag} 零 pageerror`, s2.errs.length === 0, s2.errs.slice(0, 1).join(''));
@@ -1294,9 +1312,11 @@ const M_SNAP = () => {
     //    (逐字,引擎無關),而畫面上**真的有**一條實線邊框且背景透明。
     borderUsed: cs ? parseFloat(cs.borderTopWidth) : 0,
     borderStyle: cs ? cs.borderTopStyle : '',
+    // 讀 cssText:帶 var() 的簡寫在 CSSOM 會序列化成空字串(見 N 段同款註解)
     borderDecl: (() => { for (const sh of document.styleSheets) {
         let rules; try { rules = sh.cssRules; } catch (e) { continue; }
-        for (const r of rules || []) if (r.selectorText === '#explorePanel .hl-card') return r.style.borderWidth || r.style.border || '';
+        for (const r of rules || []) if (r.selectorText === '#explorePanel .hl-card')
+          return (r.cssText.match(/border:\s*[^;]+/) || [''])[0] || r.style.borderWidth || '';
       } return ''; })(),
     bgAlpha: cs ? (cs.backgroundColor.match(/[\d.]+\)$/) ? parseFloat(cs.backgroundColor.match(/([\d.]+)\)$/)[1]) : 1) : 1,
     // 🔴 橫向溢出要量**真正在捲的那個容器**:#expBody 是 overflow:visible,永遠不捲,拿它量
@@ -1348,9 +1368,97 @@ async function sectionM(browser, engine, tier = 'std') {
 }
 async function sectionMx(browser, engine) { await sectionM(browser, engine, 'xlarge'); }
 
+// ── N 段:搜尋 3h(聚焦藏青框／清除鈕 44 熱區／查無結果的下一步)──────────────
+// 設計 -前段3 TURN 3 的 3h:「輸入框給 2px 藏青框＝聚焦態,跟未聚焦的 1.5px 中性框分開。
+// 清除鈕 20px 但熱區 44px」。46% peek 那半刻意不跟:我方搜尋 sheet 是**上錨**的(iOS 鍵盤會
+// 蓋掉底部 sheet 的輸入框與結果),那是既有決定,見 #searchPanel 的 CSS 註解。
+const N_SNAP = () => {
+  const inp = document.getElementById('trainSearch'), clr = document.getElementById('searchClear');
+  const cs = getComputedStyle(inp), r = inp.getBoundingClientRect();
+  const cr = clr ? clr.getBoundingClientRect() : null;
+  const hit = cr && cr.width > 2 ? (() => { const q = document.elementFromPoint(cr.left + cr.width / 2, (cr.top + cr.bottom) / 2);
+    return !!(q && q.id === 'searchClear'); })() : false;
+  return {
+    open: !document.getElementById('searchPanel').hidden,
+    fontPx: parseFloat(cs.fontSize), inH: Math.round(r.height),
+    border: parseFloat(cs.borderTopWidth), borderCol: cs.borderTopColor, outline: cs.outlineStyle,
+    navy: getComputedStyle(document.documentElement).getPropertyValue('--navy').trim(),
+    clrW: cr ? Math.round(cr.width) : 0, clrH: cr ? Math.round(cr.height) : 0, clrHit: hit,
+    padR: parseFloat(cs.paddingRight),
+    // 清除鈕不可以蓋到輸入的文字:padding 要讓開它
+    clrInside: cr ? (cr.right <= r.right + 1 && cr.left >= r.left) : false,
+    val: inp.value, focusId: (document.activeElement || {}).id || '',
+    dropHidden: !!document.getElementById('searchDrop').hidden,
+    emptyTip: (document.querySelector('#searchDrop .empty .sd-tip') || {}).textContent || '',
+  };
+};
+async function sectionN(browser, engine, tier = 'std') {
+  const tag = `${engine} 393pt${tier === 'std' ? '' : ' ' + tier}`;
+  const { page, errs, close } = await boot(browser, { width: 393, tier });
+  await page.evaluate(() => { if (state.playing) togglePlay(); });
+  const snap = () => page.evaluate(c => eval('(' + c + ')')(), N_SNAP.toString());
+  await page.evaluate(() => document.getElementById('tabSearch').click());
+  await page.waitForTimeout(900);
+  await page.evaluate(() => document.getElementById('trainSearch').blur());
+  await page.waitForTimeout(200);
+  const A = await snap();
+  ok(`N1 ${tag} 正向對照:搜尋面板開著,輸入框 16px 起跳(iOS 聚焦不放大),空欄沒有清除鈕`,
+    A.open && A.fontPx >= 16 && A.clrW === 0, JSON.stringify({ open: A.open, 字級: A.fontPx, 清除鈕寬: A.clrW }));
+  const rgbNavy = await page.evaluate(() => { const d = document.createElement('div');
+    d.style.color = getComputedStyle(document.documentElement).getPropertyValue('--navy').trim();
+    document.body.appendChild(d); const c = getComputedStyle(d).color; d.remove(); return c; });
+  // 🔴 不用 computed 寬度當絕對判準:chromium 把宣告的 1.5px 量成 1(webkit 給 1.5),
+  //    這個數字永遠對不齊兩個引擎。未聚焦這條只判「顏色是中性、不是藏青」＋樣式表宣告 1.5px。
+  // 🔴 讀 cssText 不讀 style.border:簡寫裡只要有 var()(border-color: var(--line)),CSSOM 就把
+  //    整個簡寫與它的所有 longhand 序列化成空字串(pending-substitution),對不對都會變成「查無宣告」。
+  const declBorder = await page.evaluate(() => { for (const sh of document.styleSheets) {
+      let rules; try { rules = sh.cssRules; } catch (e) { continue; }
+      // CSSOM 會把 [type=text] 正規化成 [type="text"],逐字比對選擇器會查無 ⇒ 去引號再比
+      for (const r of rules || []) if ((r.selectorText || '').replace(/["']/g, '') === '.search input[type=text]')
+        return (r.cssText.match(/border:\s*[^;]+/) || [''])[0];
+    } return ''; });
+  ok(`N2 ${tag} 未聚焦是中性框(樣式表宣告 1.5px,顏色不是藏青)`,
+    /1\.5px/.test(declBorder) && A.border > 0 && A.borderCol !== rgbNavy,
+    JSON.stringify({ 宣告: declBorder, 用到: A.border, 顏色: A.borderCol }));
+  await page.locator('#trainSearch').click();
+  await page.locator('#trainSearch').fill('2');
+  await page.waitForTimeout(500);
+  const B = await snap();
+  // 聚焦態的重點是「跟未聚焦分得出來」:比同一個引擎自己的兩個狀態,不比跨引擎的絕對值。
+  ok(`N3 ${tag} 聚焦 ⇒ 藏青框、比未聚焦粗,而且不是全域那圈紅色 outline`,
+    B.borderCol === rgbNavy && B.border > A.border && B.outline === 'none',
+    JSON.stringify({ 未聚焦: A.border, 聚焦: B.border, 顏色: B.borderCol, 藏青: rgbNavy, outline: B.outline }));
+  ok(`N4 ${tag} 打字後清除鈕出現:熱區 ≥44、命中自己、貼在框內、文字讓開`,
+    B.clrW >= 44 && B.clrH >= 44 && B.clrHit && B.clrInside && B.padR >= 44,
+    JSON.stringify({ 寬: B.clrW, 高: B.clrH, 命中: B.clrHit, 在框內: B.clrInside, 右內距: B.padR }));
+  // 🔴 驗按鈕是驗「點它會發生什麼」:值要清掉、下拉要收、焦點要留著(手機鍵盤不能因為按清除就收)
+  await page.locator('#searchClear').click();
+  await page.waitForTimeout(400);
+  const C = await snap();
+  ok(`N5 ${tag} 點清除 ⇒ 值清空·下拉收起·焦點留在輸入框·鈕自己消失`,
+    C.val === '' && C.dropHidden && C.focusId === 'trainSearch' && C.clrW === 0,
+    JSON.stringify({ 值: C.val, 下拉收起: C.dropHidden, 焦點: C.focusId, 清除鈕寬: C.clrW }));
+  // 🔴 反向對照:**程式**寫進去的值也要讓鈕出現。這條專門守「顯示條件不是 JS 開關」——
+  //    這顆輸入框有十幾處程式在寫 value,用 JS 同步會漏掉其中一處而長出「空欄卻有鈕」。
+  await page.evaluate(() => { const i = document.getElementById('trainSearch'); i.value = '152'; i.blur(); });
+  await page.waitForTimeout(300); // 連焦點都拿掉:顯示條件只能看「有沒有值」,不能看聚焦也不能看事件
+  const D = await snap();
+  ok(`N6 ${tag} 反向對照:程式直接寫 value(不觸發 input 事件)⇒ 清除鈕照樣出現`,
+    D.clrW >= 44 && D.val === '152', JSON.stringify({ 清除鈕寬: D.clrW, 值: D.val }));
+  // 查無結果:設計 3h 的那句下一步
+  await page.locator('#trainSearch').fill('zzzz沒有這種車');
+  await page.waitForTimeout(600);
+  const E = await snap();
+  ok(`N7 ${tag} 查無結果時給下一步(不是只寫「查無」)`,
+    /今天的班次/.test(E.emptyTip) && /加班車/.test(E.emptyTip), E.emptyTip.slice(0, 40));
+  ok(`N8 ${tag} 零 pageerror`, errs.length === 0, errs.slice(0, 1).join(''));
+  await close();
+}
+async function sectionNx(browser, engine) { await sectionN(browser, engine, 'xlarge'); }
+
 await assertTarget();
 // SECTIONS=H,I 只跑指定段(突變測試用);不設就跑全部——預設永遠是「全跑」,不能靠環境變數才完整。
-const ALL = { A: sectionA, B: sectionB, C: sectionC, D: sectionD, E: sectionE, F: sectionF, G: sectionG, H: sectionH, I: sectionI, J: sectionJ, K: sectionK, L: sectionL, M: sectionM, MX: sectionMx };
+const ALL = { A: sectionA, B: sectionB, C: sectionC, D: sectionD, E: sectionE, F: sectionF, G: sectionG, H: sectionH, I: sectionI, J: sectionJ, K: sectionK, L: sectionL, M: sectionM, MX: sectionMx, N: sectionN, NX: sectionNx };
 const want = (process.env.SECTIONS || '').split(',').map(x => x.trim().toUpperCase()).filter(Boolean);
 const run = want.length ? want : Object.keys(ALL);
 for (const k of run) if (!ALL[k]) { console.error(`未知段別 ${k}`); process.exit(2); }

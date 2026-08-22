@@ -278,6 +278,22 @@
     border: 1.5px solid var(--line); border-radius: 6px; padding: 9px 14px; width: 100%; min-height: 42px;
   }
   .search input::placeholder { color: var(--faint); }
+  /* 設計 3h:「輸入框給 2px 藏青框＝聚焦態,跟未聚焦的 1.5px 中性框分開」。box-sizing:border-box
+     ⇒ 邊框變粗不動外框幾何。全域 :focus-visible 的紅框在這顆改由藏青框擔任焦點指示(同 .pinname-input 既有先例)。 */
+  .search input[type=text]:focus { outline: none; border-color: var(--navy); border-width: 2px; }
+  /* 清除鈕:字形 20px,但整顆鈕就是 44px 熱區(設計要的是熱區 44——直接把鈕做成 44 比用 ::after 撐更少一個坑,
+     ::after 的錨點會被 position 值影響,那是本專案踩過的並排熱區事故)。高度吃 .sf-in 的 100% ⇒ 跟著輸入框長高。 */
+  .sf-in { position: relative; display: block; }
+  /* 🔴 顯示條件用 :placeholder-shown 而不是 JS 開關:這顆輸入框有十幾處**程式**在寫 value
+     (跟車寫車次、取消跟隨清空、深連結、教學導覽…),用 JS 同步等於要在每一處補一行,漏一處就
+     出現「空欄卻有清除鈕」或反過來。:placeholder-shown 不管值是誰寫的都會跟著對。 */
+  .sf-in .sp-clr { display: none; position: absolute; top: 0; right: 0; height: 100%; width: calc(44px * var(--uit));
+    place-items: center; padding: 0 0 2px; background: none; border: 0; border-radius: 0 6px 6px 0;
+    color: var(--faint); font: inherit; font-size: calc(20px * var(--ui)); line-height: 1; cursor: pointer; }
+  .sf-in input[type=text]:not(:placeholder-shown) ~ .sp-clr { display: grid; }
+  .sf-in .sp-clr:hover { color: var(--ink); }
+  /* 有清除鈕時輸入的字不可以鑽到鈕底下 */
+  .sf-in:has(input[type=text]:not(:placeholder-shown)) input[type=text] { padding-right: calc(44px * var(--uit)); }
   .followbar {
     display: inline-flex; align-items: center; gap: 9px; flex-wrap: wrap; row-gap: 5px; font-size: calc(13px * var(--ui));
     background: var(--bg-stage); border: 1.5px solid var(--line); border-radius: var(--r-s);
@@ -1966,6 +1982,7 @@
   #searchDrop .ldots .dot { width: 8px; height: 8px; border-radius: 50%; }
   #searchDrop .stn-count { color: var(--faint); font-size: calc(11px * var(--uis)); padding: 8px 0 2px; }
   #searchDrop .empty { color: var(--faint); font-size: calc(13px * var(--ui)); padding: 10px 2px; }
+  #searchDrop .empty .sd-tip { display: block; margin-top: 5px; font-size: calc(11.5px * var(--uis)); line-height: 1.7; }
   /* 觀光列車介紹卡(named-row 點開,無固定車次的山嵐/鳴日等在站上唯一的內容入口) */
   #searchDrop .sd-named { padding: 8px 2px 6px; }
   #searchDrop .sd-named .tn { color: var(--ink-strong); font-size: calc(14px * var(--ui)); }
@@ -2723,7 +2740,8 @@
     /* ── Batch B:長頁內容遷入 sheet ── */
     /* B1 搜尋遷入「搜尋」sheet(v0726a 起;原住亮點 sheet #expSearch):.search 被 placeSearch 搬進 #searchSlot;整寬、16px 防 iOS 聚焦縮放 */
     body.fs #searchPanel .search { display: block; padding: 10px 12px 4px; margin: 0; min-width: 0; }
-    body.fs #searchPanel #trainSearch { width: 100%; font-size: calc(16px * var(--ui)); min-height: 40px; }
+    /* min-height 從 40 提到觸控下限那組(44/52/60):清除鈕的熱區高度跟著輸入框,40 差 4px 不到標準 */
+    body.fs #searchPanel #trainSearch { width: 100%; font-size: calc(16px * var(--ui)); min-height: calc(44px * var(--uit)); }
     body.fs #searchPanel #followBar { display: none !important; }
     /* B4-1 縣市 chip grid(seg/gtab 家族外觀) */
     .ms-cities { display: grid; grid-template-columns: repeat(auto-fill, minmax(66px, 1fr)); gap: 6px; padding: 8px 14px 10px; border-bottom: 1px dashed var(--line-faint); }
@@ -3867,7 +3885,12 @@
          .search-field 是下拉的相對錨(錨在輸入框正下方,不受 followbar 影響) -->
     <div class="search" id="searchRow">
       <div class="search-field">
-        <input type="text" id="trainSearch" placeholder="搜尋車站/車次/列車名" autocomplete="off" enterkeyhint="search" />
+        <!-- .sf-in 只包輸入框:清除鈕要貼齊輸入框右緣,而 #searchDrop 的定位錨**必須**留在 .search
+             (見 .search 的註解:跟車時 followbar 在第二列,錨在 input 下方會蓋住取消鈕)。 -->
+        <span class="sf-in">
+          <input type="text" id="trainSearch" placeholder="搜尋車站/車次/列車名" autocomplete="off" enterkeyhint="search" />
+          <button type="button" class="sp-clr" id="searchClear" aria-label="清除搜尋">×</button>
+        </span>
         <div class="search-drop" id="searchDrop" hidden></div>
       </div>
       <div class="followbar" id="followBar" hidden></div>
@@ -22235,7 +22258,9 @@ function renderSearchDrop() {
     }).join('');
     html += `<div class="stn-count">共 ${stns.length} 站符合${stns.length > SEARCH_STN_ROWS ? `（顯示前 ${SEARCH_STN_ROWS}）` : ''}</div>`;
   }
-  if (!trs.length && !stnShown.length && !named.infos.length) html = '<div class="empty">查無車站、車次或列車</div>';
+  // 設計 3h 的空結果文案:只講「查無」對使用者沒有下一步,補一句最常見的原因(誠實線的講法,不保證)
+  if (!trs.length && !stnShown.length && !named.infos.length)
+    html = '<div class="empty">查無車站、車次或列車<span class="sd-tip">找不到就檢查一下車次是不是今天的班次——停駛或加班車不一定在時刻表裡。</span></div>';
   drop.innerHTML = html;
   openSearchDrop();
 }
@@ -26780,6 +26805,11 @@ try { initMusic(); } catch (e) { console.error('initMusic 失敗', e); }
   // 只有車次號、不知道是台鐵還高鐵 → 切「全」(兩家真實時刻都在,findTrain 一定找得到);v0727c 前是已無頁籤的 nat
   const followNo = (no, sys) => { closeSearchHost(); if (state.mode !== 'sched') selectGroup(GROUPS.find(g => g.id === 'all')); followTrainNo(no, { sys }); };
   ts.addEventListener('input', renderSearchDrop);
+  const clr = document.getElementById('searchClear');
+  if (clr) clr.addEventListener('click', () => {
+    ts.value = ''; renderSearchDrop(); // 值一空,renderSearchDrop 自己會收下拉;鈕的顯示由 CSS 判斷
+    ts.focus(); // 清完還在輸入狀態:手機上鍵盤不該因為按了清除就收起來
+  });
   ts.addEventListener('focus', () => { if (ts.value.trim()) renderSearchDrop(); });
   ts.addEventListener('keydown', e => {
     if (e.key === 'Escape') { closeSearchDrop(); return; }
