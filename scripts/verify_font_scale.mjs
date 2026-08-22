@@ -1104,9 +1104,172 @@ async function sectionK(browser, engine) {
   await close();
 }
 
+const L_SNAP = () => {
+  const bd = document.getElementById('board');
+  const fp = document.getElementById('followPanel');
+  const tc = document.getElementById('trainCard');
+  const vis = e => !!e && e.getClientRects().length > 0;
+  const h = id => { const e = document.getElementById(id); const r = e && e.getBoundingClientRect();
+    return r ? Math.round(r.height) : 0; };
+  // 🔴 量「這一段在不在」要量整段(標題＋內容),不要量內層清單:旅程日誌的內層本來被釘成 88px
+  //    的捲動盒,拿它當基準等於把「憑空留 88px 白」寫進判準;拿掉那顆盒子之後空日誌只有一行。
+  const hSel = sel => { const e = document.querySelector(sel); const r = e && e.getBoundingClientRect();
+    return r ? Math.round(r.height) : 0; };
+  const hint = fp && fp.querySelector('.uni-more');
+  const hr = hint ? hint.getBoundingClientRect() : null;
+  return {
+    following: !!state.followTrain,
+    tabSel: (([...bd.querySelectorAll('.uni-tabs button')].find(b => b.getAttribute('aria-selected') === 'true')) || {}).textContent || '',
+    fpInSlot: !!(fp && fp.closest('.uni-slot')),
+    tcInFp: !!(tc && tc.closest('#followPanel')), tcVis: vis(tc),
+    intro: h('tcIntro'), events: hSel('#followPanel .tc-events'), spark: h('tcSpark'), stops: h('tcStops'),
+    eventsNote: !!document.querySelector('#followPanel #tcEvents')?.textContent.trim(),
+    stopRows: document.querySelectorAll('#tcStops .tc-st').length,
+    stopsHidden: !!(document.getElementById('tcStops') || {}).hidden,
+    // 單一捲軸:看板自己捲,卡不可以再捲一層
+    boardScroll: bd.scrollHeight - bd.clientHeight,
+    // 🔴 「卡自己不捲」要看它**能不能**捲(overflow/max-height),不是量 scrollHeight 差幾 px:
+    //    邊框與內距會讓它恆差 1–2px,拿數字當門檻只是換一個會漂移的魔術數字(心得 35)。
+    fpOverflowY: fp ? getComputedStyle(fp).overflowY : '',
+    fpMaxH: fp ? getComputedStyle(fp).maxHeight : '',
+    boardOverflowY: getComputedStyle(bd).overflowY,
+    // 🔴 巢狀捲動不是只看卡本身:卡**裡面**任何一個能捲的盒子都會截住手指(桌面併卡那條把
+    //    旅程日誌釘成 88px 的捲動盒,就是這樣躲過只看 #followPanel 的判準)。整個槽掃一遍。
+    nestedScrollers: (() => { const slot = bd.querySelector('.uni-slot'); if (!slot) return [];
+      // 判「能不能捲」而不是「此刻有沒有溢出」:日誌空著的時候那顆 88px 盒子量不到溢出,
+      // 但它還是會在日誌長出來的那天把手指截住——結構性的東西要用結構性判準(心得 35)。
+      return [...slot.querySelectorAll('*')].filter(e => {
+        const oy = getComputedStyle(e).overflowY;
+        return oy === 'auto' || oy === 'scroll';
+      }).map(e => e.id || e.className || e.tagName).slice(0, 4); })(),
+    boardTop: Math.round(bd.scrollTop),
+    size: bd.classList.contains('expand') ? 'large' : bd.classList.contains('sheet-small') ? 'small' : 'medium',
+    hintVis: vis(hint), hintH: hr ? Math.round(hr.height) : 0,
+    hintHit: hr && vis(hint) ? (() => { const q = document.elementFromPoint(hr.left + hr.width / 2, (hr.top + hr.bottom) / 2);
+      return !!(q && q.closest('.uni-more')); })() : false,
+    hintTxt: hint ? hint.textContent.replace(/\s+/g, ' ').trim() : '',
+    // 🔴 getClientRects().length>0 對 opacity:0 的元素照樣是真——契約③(body.sheet-full 把跟隨小卡
+    //    整張淡出)就是這樣穿過 L6 的:分頁列還在、卡也還在槽裡,只有內容看不見。改量兩件事:
+    //    卡到根的累乘不透明度、以及卡內容的中心點打到的是不是卡自己(淡出那條連 pointer-events 一起關)。
+    fpOpacity: fp ? (() => { let o = 1, n = fp; while (n && n.nodeType === 1) { o *= parseFloat(getComputedStyle(n).opacity || '1'); n = n.parentElement; } return +o.toFixed(3); })() : 0,
+    cardHit: (() => { const e = document.getElementById('tcIntro') || document.getElementById('fpProgTxt');
+      if (!e) return false; const r = e.getBoundingClientRect();
+      if (!(r.width > 2 && r.height > 2)) return false;
+      const x = Math.min(Math.max(r.left + r.width / 2, 1), innerWidth - 1);
+      const y = Math.min(Math.max(r.top + r.height / 2, 1), innerHeight - 1);
+      const q = document.elementFromPoint(x, y); return !!(q && q.closest('#followPanel')); })(),
+  };
+};
+
+// 🔴 像素證據(不需要解 PNG):同一塊區域拍兩張——原樣一張、把槽 visibility:hidden 一張。
+//    兩張逐 byte 相同 ⇒ 那塊區域根本沒有畫任何東西(整張透明/被蓋住)。visibility 不動版面,
+//    所以背景與周邊完全不變,差異只可能來自槽自己。L 段開頭已暫停播放,背景是靜止的。
+async function slotPaints(page) {
+  const r = await page.evaluate(() => { const s = document.querySelector('.uni-slot'); if (!s) return null;
+    const b = s.getBoundingClientRect();
+    return { x: Math.max(0, Math.round(b.x)), y: Math.max(0, Math.round(b.y)), w: Math.round(b.width), h: Math.round(b.height) }; });
+  if (!r || r.w < 8 || r.h < 8) return { painted: false, note: '槽量不到' };
+  const clip = { x: r.x, y: r.y, width: Math.min(r.w, 393 - r.x), height: Math.min(r.h, 852 - r.y) };
+  const a = await page.screenshot({ clip });
+  await page.evaluate(() => { const s = document.querySelector('.uni-slot'); if (s) s.style.visibility = 'hidden'; });
+  const b = await page.screenshot({ clip });
+  await page.evaluate(() => { const s = document.querySelector('.uni-slot'); if (s) s.style.visibility = ''; });
+  return { painted: Buffer.compare(a, b) !== 0, note: `${clip.width}×${clip.height}` };
+}
+
+// ── L 段:詳細資訊卡 3a(一個捲軸從摘要到停靠表)────────────────────────────
+// 設計 -前段3 TURN 3 的 3a:詳細＝88% 展開態,「一個捲軸從摘要到停靠表,不用學新導覽」,
+// 40%/46% 那兩段看不出下面還有東西 ⇒ 卡緣一條「往上拉看詳細」。
+async function sectionL(browser, engine) {
+  const tag = `${engine} 393pt`;
+  const { page, errs, close } = await boot(browser, { width: 393 });
+  const snap = () => page.evaluate(c => eval('(' + c + ')')(), L_SNAP.toString());
+  await page.evaluate(() => { if (state.playing) togglePlay(); }); // 重繪會洗掉手動狀態(E4b 教訓)
+
+  const started = await followSomeTrain(page);
+  await page.waitForTimeout(1500);
+  await page.evaluate(() => {
+    const e = buildStnIndex().find(x => x.sysId === 'tra_sched' && x.name === '板橋');
+    if (e) openBoard({ name: e.name, sys: e.sysId, lat: e.lat, lon: e.lon });
+  });
+  await page.waitForTimeout(1400);
+  await page.evaluate(() => document.querySelector('.uni-tabs button[data-t="train"]')?.click());
+  await page.waitForTimeout(900);
+  const A = await snap();
+  ok(`L1 ${tag} 正向對照:跟到車、在「這班車」那一頁、資訊卡併進卡裡`,
+    started && A.following && A.tabSel === '這班車' && A.fpInSlot && A.tcInFp && A.tcVis, JSON.stringify(A));
+  // 3a 的四段內容全部在同一頁裡量得到(逐段都要,少一段就是「有些東西沒搬過來」)
+  ok(`L2 ${tag} 詳細四段都在:車型介紹／旅程日誌／速度曲線／停靠時刻`,
+    A.intro > 20 && A.events > 20 && A.eventsNote && A.spark > 20 && A.stops > 80 && A.stopRows >= 4,
+    JSON.stringify({ intro: A.intro, events: A.events, 日誌有字: A.eventsNote, spark: A.spark, stops: A.stops, rows: A.stopRows }));
+  // 🔴 「一個捲軸」是這條的重點:卡自己不可以再捲一層,否則手指從卡上往上滑只捲得到卡的底
+  ok(`L3 ${tag} 一個捲軸:看板是捲動容器、卡沒有自己的捲軸也沒有限高`,
+    A.boardScroll > 100 && A.boardOverflowY === 'auto' && A.fpOverflowY === 'visible' && A.fpMaxH === 'none'
+      && A.nestedScrollers.length === 0,
+    JSON.stringify({ 看板可捲: A.boardScroll, 看板overflowY: A.boardOverflowY, 卡overflowY: A.fpOverflowY,
+      卡maxHeight: A.fpMaxH, 槽內還能捲的盒子: A.nestedScrollers }));
+  ok(`L4 ${tag} 停靠時刻表預設就是打開的(不用先找到那顆鈕)`,
+    !A.stopsHidden && A.stops > 80, JSON.stringify({ hidden: A.stopsHidden, h: A.stops }));
+
+  // 卡緣提示列:存在、觸控目標 44、真的命中自己
+  ok(`L5 ${tag} 卡緣有「往上拉看完整資料」提示,觸控目標 ≥44 且命中自己`,
+    A.hintVis && /往上拉/.test(A.hintTxt) && A.hintH >= 44 && A.hintHit,
+    JSON.stringify({ vis: A.hintVis, h: A.hintH, hit: A.hintHit, txt: A.hintTxt }));
+
+  // 點它 → 88%;提示列自己收掉(已經看得到了)
+  // 🔴 點不到不可以用拋例外收場:那會把整段帶走,L7 之後全部沒跑到而輸出只看得到幾條紅
+  //    (突變測試實測:把提示列藏起來 ⇒ 只剩 13 筆結果,L7 這條反向對照根本沒發言)。記一筆紅再往下走。
+  const clicked = await page.locator('.uni-more').click({ timeout: 5000 }).then(() => true, () => false);
+  await page.waitForTimeout(900);
+  const B = await snap();
+  const paint88 = await slotPaints(page);
+  ok(`L6 ${tag} 點提示列 ⇒ 段高變 88%,提示列自己收掉,而且那一頁真的畫得出來`,
+    clicked && B.size === 'large' && !B.hintVis && B.following && B.fpInSlot && paint88.painted,
+    JSON.stringify({ 點得到: clicked, 有畫東西: paint88.painted, 區域: paint88.note, ...B }));
+  // 🔴 第二種證據(心得 24 的雙證據):卡到根的累乘不透明度＝1,且卡內容中心點打到的是卡自己。
+  //    契約③ 淡出時 opacity 0＋pointer-events:none,兩者會同時倒——而 DOM 檢查全綠。
+  ok(`L12 ${tag} 88% 那一頁不是透明的:不透明度 1 且卡內容命中自己`,
+    B.fpOpacity === 1 && B.cardHit, JSON.stringify({ opacity: B.fpOpacity, 命中卡: B.cardHit }));
+  // 反向對照:回到中段提示列要回來——少了這半,「提示列永遠不顯示」也會讓 L6 過
+  await page.evaluate(() => setSheetSize(document.getElementById('board'), 'medium'));
+  await page.waitForTimeout(900);
+  const C = await snap();
+  ok(`L7 ${tag} 反向對照:回到中段提示列又出現`,
+    C.size === 'medium' && C.hintVis, JSON.stringify({ size: C.size, hintVis: C.hintVis }));
+
+  // 捲動位置保留:捲到停靠表之後重繪一次(看板每 20 模擬秒會自己來一發),不可以被彈回頂端
+  const scrolled = await page.evaluate(() => {
+    const bd = document.getElementById('board');
+    bd.scrollTop = bd.scrollHeight; return Math.round(bd.scrollTop);
+  });
+  await page.evaluate(() => renderBoard());
+  await page.waitForTimeout(700);
+  const D = await snap();
+  ok(`L8 ${tag} 捲到停靠表後重繪:捲動位置保留(詳細不會每 20 秒被彈回頂端)`,
+    scrolled > 50 && Math.abs(D.boardTop - scrolled) <= 8, `捲到 ${scrolled} → 重繪後 ${D.boardTop}`);
+  // 反向對照:換一站要歸零(不是無條件保留上一站的位置)
+  await page.evaluate(() => {
+    const e = buildStnIndex().find(x => x.sysId === 'tra_sched' && x.name === '台中')
+      || buildStnIndex().find(x => x.sysId === 'tra_sched' && x.name !== '板橋');
+    if (e) openBoard({ name: e.name, sys: e.sysId, lat: e.lat, lon: e.lon });
+  });
+  await page.waitForTimeout(1000);
+  const E = await snap();
+  ok(`L9 ${tag} 反向對照:換一站捲動歸零`, E.boardTop === 0, JSON.stringify({ top: E.boardTop }));
+
+  // 關看板 ⇒ 資訊卡搬回原位,而且在手機上重新隱藏(不能留在畫面上變孤兒)
+  await page.evaluate(() => closeBoard());
+  await page.waitForTimeout(900);
+  const F = await snap();
+  ok(`L10 ${tag} 反向對照:關看板 ⇒ 資訊卡搬回原位且重新隱藏、提示列不留`,
+    !F.tcInFp && !F.tcVis && !F.hintVis && F.following, JSON.stringify(F));
+  ok(`L11 ${tag} 零 pageerror`, errs.length === 0, errs.slice(0, 1).join(''));
+  await close();
+}
+
 await assertTarget();
 // SECTIONS=H,I 只跑指定段(突變測試用);不設就跑全部——預設永遠是「全跑」,不能靠環境變數才完整。
-const ALL = { A: sectionA, B: sectionB, C: sectionC, D: sectionD, E: sectionE, F: sectionF, G: sectionG, H: sectionH, I: sectionI, J: sectionJ, K: sectionK };
+const ALL = { A: sectionA, B: sectionB, C: sectionC, D: sectionD, E: sectionE, F: sectionF, G: sectionG, H: sectionH, I: sectionI, J: sectionJ, K: sectionK, L: sectionL };
 const want = (process.env.SECTIONS || '').split(',').map(x => x.trim().toUpperCase()).filter(Boolean);
 const run = want.length ? want : Object.keys(ALL);
 for (const k of run) if (!ALL[k]) { console.error(`未知段別 ${k}`); process.exit(2); }

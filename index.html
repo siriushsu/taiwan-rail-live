@@ -3009,7 +3009,11 @@
       color: var(--on-navy); background: var(--navy); border-color: var(--navy); font-weight: 900;
     }
     /* 搬進來的跟車卡要脫掉自己那層浮動小卡的外觀,變成分頁內容 */
+    /* 🔴 單一捲軸(設計 3a):槽裡的卡不可以自己再捲一層——基底 body.fs .follow-panel 帶
+       max-height＋overflow-y:auto,留著會變成「卡內一個捲軸、看板外面一個捲軸」的巢狀捲動,
+       手指從卡上往上滑只會捲到卡的底,永遠到不了停靠表。 */
     body.fs .board .uni-slot > .follow-panel {
+      max-height: none; overflow: visible;
       position: static; left: auto; right: auto; bottom: auto; top: auto;
       width: auto; max-width: none; margin: 0; z-index: auto;
       background: none; border: 0; border-radius: 0; box-shadow: none; backdrop-filter: none;
@@ -3023,6 +3027,35 @@
        而且點不動。站名牌與看板不再互相遮蔽,本來就不需要讓位。實測踩到:跟的車一停靠,
        膠囊/卡片就變成透明且吃不到點擊(Playwright 的 receives-events 檢查直接逾時)。 */
     body.dwell-show.sheet-open .board .uni-slot > .follow-panel { opacity: 1; pointer-events: auto; }
+    /* 🔴 契約③(上面 body.sheet-full 把跟隨小卡整張淡出)同理不成立:88% 那一段,卡**就是**那個
+       sheet 的內容,淡掉等於「點了『詳細』之後整張看板空白」——實測就是這樣,而且分頁列還在,
+       只有內容不見(DOM 檢查一律綠:卡還在槽裡、只是 opacity 0)。L6 因此改成量像素才抓得到。 */
+    body.sheet-full .board .uni-slot > .follow-panel { opacity: 1; pointer-events: auto; }
+
+    /* 設計 3a:詳細內容(車型介紹／旅程日誌／速度曲線／停靠時刻)接在同一個捲軸下面,
+       40%／46% 那兩段看不出下面還有東西 ⇒ 卡緣加一條「往上拉看完整資料」。
+       🔴 88% 時要收掉(已經看得到了),用 body.sheet-full 判——它是 updateSheetOpenClass
+          唯一掛「大段」的地方;特異性要比上面那條掛載規則高,否則收不掉。 */
+    body.fs .board .uni-slot .uni-more {
+      display: flex; align-items: center; gap: 9px; width: 100%;
+      margin: 9px 0 0; padding: 0 11px; min-height: calc(44px * var(--uit)); /* 觸控目標 44/52/60 */
+      background: none; border: 1.5px dashed var(--line-dash); border-radius: 10px;
+      color: var(--faint); font: inherit; text-align: left; cursor: pointer;
+    }
+    body.fs.sheet-full .board .uni-slot .uni-more { display: none; }
+    body.fs .board .uni-slot .uni-more .um-k {
+      font-size: calc(11px * var(--uis)); font-weight: 800; letter-spacing: 1px; color: var(--ink);
+    }
+    body.fs .board .uni-slot .uni-more .um-t { font-size: calc(11.5px * var(--uis)); flex: 1; }
+    body.fs .board .uni-slot .uni-more .um-c { font-size: calc(15px * var(--ui)); }
+    /* 手機 fs 平時把資訊卡整張藏起來(`body.fs .traincard:not(.tc-sheet)`,因為那時走的是「列車」sheet);
+       搬進整合卡的槽裡就要現身——它就是設計 3a 的「詳細」。✕ 不必另外處理:基底 `.traincard .tc-x`
+       本來就 display:none,只有 .tc-sheet 那條會把它叫出來。 */
+    body.fs .board .uni-slot .traincard { display: block; }
+    /* 🔴 「一個捲軸」也要管**卡裡面**:桌面併卡那條把旅程日誌釘成 88px 的捲動盒
+       (body.fs .follow-panel .tc-events #tcEvents),搬進 3a 就變成第二個捲軸,
+       而且日誌還空著時憑空留 88px 白。這一頁全部走同一個捲軸,高度交給內容。 */
+    body.fs .board .uni-slot .tc-events #tcEvents { height: auto; overflow: visible; }
     .board h3 { border-radius: 13px 13px 0 0; padding-top: 12px; }
     .board .close { top: 11px; }
     .board .board-star { top: 11px; }
@@ -12939,8 +12972,12 @@ function placeControls(following) {}
 // 全畫面跟隨:資訊卡搬進左下跟隨面板合併成一張;退出全畫面/取消跟隨還原到地圖下方
 function placeTrainCard() {
   const tc = document.getElementById('trainCard');
-  // 桌面全畫面:資訊卡併進左下跟隨面板。手機全畫面改走「列車」sheet(就地升格,不搬 DOM)——故手機不併卡,落到還原分支留在流內(平時 CSS 隱藏,開 sheet 才顯示)
-  if (document.body.classList.contains('fs') && state.followTrain && !window.matchMedia(MOBILE_MQ).matches) {
+  // 桌面全畫面:資訊卡併進左下跟隨面板。手機全畫面本來改走「列車」sheet(就地升格,不搬 DOM)——
+  // 🔴 但整合卡掛著時那條路走不通:卡本身就是看板的一頁,再開 sheet 會 soloPanel 把看板關掉。
+  //    設計 3a 要的是「一個捲軸從摘要到停靠表」,所以整合卡掛著時手機也併卡(uniCardOn)。
+  const uniCardOn = !!document.getElementById('followPanel').closest('.uni-slot');
+  if (document.body.classList.contains('fs') && state.followTrain
+      && (!window.matchMedia(MOBILE_MQ).matches || uniCardOn)) {
     document.getElementById('followPanel').appendChild(tc);
   } else if (tc.parentElement.classList.contains('follow-panel')) {
     document.querySelector('.stage').after(tc); // 還原到主欄地圖正下方(最愛列已移側欄,不能當錨點)
@@ -13016,6 +13053,7 @@ function setFollow(tr, isAuto, noJump, opts) {
   // 整合卡(設計狀態機 tapTrain):選車＝切到「這班車」;看板已經開著的話當場長出分頁列。
   uniTab = 'train';
   uniResetCollapse(); // tapTrain 帶 collapsed:false——收合中選了新的車要看得到卡
+  uniPrimed = false;  // 換車了:詳細那一段要重新備妥
   syncUniCard();
   // 列車 sheet 不自動彈出(2026-07-21 使用者裁決:預設收小卡、想看再點開)——展開入口只有點跟隨小卡(手機 fs)。
 }
@@ -13026,6 +13064,7 @@ function restoreFollowSpeed() {
 
 function clearFollow() {
   uniResetCollapse(); // 收合中結束跟車:旗標歸零,並把收合時收起來的看板當場還回去(見該函式註解)
+  uniPrimed = false;
   unmountUniCard(); // 整合卡:跟車結束 ⇒ 分頁列消失、跟車卡搬回原位(設計 D3)
   clearFreqFollow(); // 換系統/群組/進放空都經過這裡 → 一併清掉捷運幽靈車跟隨
   restoreFollowSpeed(); // 中途取消跟隨也要還原 fromStart 重播強制的速度
@@ -22263,11 +22302,32 @@ function uniEligible() {
 function unmountUniCard() {
   const fp = document.getElementById('followPanel');
   const el = document.getElementById('board');
+  if (fp) { const h = fp.querySelector('.uni-more'); if (h) h.remove(); } // 提示列屬於整合卡,搬回家不留
   if (fp && uniHome && fp.parentElement !== uniHome) uniHome.appendChild(fp);
+  if (typeof placeTrainCard === 'function') placeTrainCard(); // 資訊卡跟著回原位(手機:回到流內、CSS 隱藏)
   if (el) {
     el.classList.remove('uni-train', 'uni-station');
     el.querySelectorAll('.uni-tabs, .uni-slot').forEach(n => n.remove());
   }
+}
+let uniPrimed = false; // 這次跟車有沒有已經把「這班車」那一頁備妥(停靠表打開、曲線畫過)
+// 設計 3a 的「往上拉看完整資料」:40%／46% 兩段看不出下面還有東西,卡緣給一條明路。
+// 點它直接跳到 88%(與抓把同一個入口 setSheetSize,段高偏好也跟著記,不另立一套)。
+function uniDetailHint(fp) {
+  let h = fp.querySelector('.uni-more');
+  if (!h) {
+    h = document.createElement('button');
+    h.type = 'button';
+    h.className = 'uni-more';
+    h.innerHTML = '<span class="um-k">詳細</span><span class="um-t">往上拉看完整資料</span><span class="um-c">›</span>';
+    h.onclick = ev => {
+      ev.stopPropagation();
+      const bd = document.getElementById('board');
+      if (bd) setSheetSize(bd, 'large');
+    };
+  }
+  const tc = document.getElementById('trainCard');
+  if (tc && tc.parentElement === fp) fp.insertBefore(h, tc); else fp.appendChild(h);
 }
 function applyUniTab(el) {
   el.classList.toggle('uni-train', uniTab === 'train');
@@ -22298,12 +22358,25 @@ function mountUniCard() {
   //    同一個容器。在槽上截住,槽的後代自己的 handler 早就跑完了(冒泡由內而外),不影響卡內操作。
   slot.addEventListener('pointerdown', e => e.stopPropagation());
   slot.addEventListener('click', e => e.stopPropagation());
+  placeTrainCard(); // 設計 3a:詳細內容跟著卡一起搬進槽裡(它讀 .uni-slot 判定)
+  uniDetailHint(fp);
+  if (uniTab === 'train' && !uniPrimed) {
+    // 🔴 只在「進到這一頁」時做一次,不是每次 mount:看板每 20 模擬秒重繪都會重新 mount,
+    //    每次都掀開等於使用者按了「時刻表 ▾」也會被系統一直掀回來。
+    uniPrimed = true;
+    setStopsOpen(true); // 3a:一個捲軸從摘要到停靠表,不用先找到「時刻表」那顆鈕
+    requestAnimationFrame(() => { // canvas 現在才有寬度(同 openTrainSheet 的處理)
+      if (state.followTrain) drawSpark(state.followTrain, effTLive(state.followTrain));
+    });
+  }
   tabs.onclick = e => {
     const b = e.target.closest('button[data-t]');
     if (!b) return;
     e.stopPropagation();
     uniTab = b.dataset.t;
+    if (uniTab === 'train') uniPrimed = false; // 進這一頁重新備妥(停靠表打開、曲線補畫)
     applyUniTab(el);
+    syncUniCard();
     if (typeof reframeFocus === 'function') reframeFocus(); // 分頁換了內容高度就變,讓位要重算
   };
   applyUniTab(el);
@@ -22596,6 +22669,9 @@ function stationIntroText(name) {
 }
 function renderBoard() {
   const el = document.getElementById('board'), st = state.boardStation;
+  // 換站要把捲動歸零(下面 el.scrollTop 那段);同一站的重繪則什麼都不做——見該處說明。
+  const stnKey = st ? (st.name + '|' + st.sys) : '';
+  const sameStn = !!stnKey && el._stnKey === stnKey && !el.hidden;
   // 🔴 整合卡:重繪會 `el.innerHTML = …` 把整個內容換掉——搬進去的 #followPanel 會**跟著被銷毀**
   //    (實測:跟車卡整顆消失、showFollowPanel 之後對 null 取 .hidden 拋錯)。所以一律先搬回家,
   //    render 完再由尾端的 syncUniCard() 搬進來。renderFreqBoard 由本函式委派,同樣被這行涵蓋。
@@ -22669,6 +22745,13 @@ function renderBoard() {
   if (!(uniCollapsed && uniCollapsedBoard)) el.hidden = false;
   updateSheetOpenClass();
   syncUniCard();
+  el._stnKey = stnKey;
+  // 🔴 換站才歸零。`el.innerHTML = …` **不會**把 scrollTop 歸零(瀏覽器只是夾到新的可捲範圍),
+  //    所以換一站之後會留在上一站捲到的位置——實測 171px,看起來像「新看板一打開就已經捲到一半」。
+  //    反過來,同一站重繪不必自己「保留」:兩個引擎都自然留著(拿掉這整段的突變測試 L8 依舊綠),
+  //    寫一行沒有作用的還原只是把「內容變短之後的舊位置」硬塞回去。L8 守著「保留」這個行為本身,
+  //    真有哪個引擎/改動開始彈回頂端就會紅。要在 syncUniCard 之後做:卡搬回槽裡高度才確定。
+  if (!sameStn) el.scrollTop = 0;
   el.querySelector('#boardClose').onclick = closeBoard;
   el.querySelector('#boardStar').onclick = () => toggleFavStation(st);
   if (showNotify) { const nb = el.querySelector('#boardNotify'); if (nb) nb.onclick = e => { e.stopPropagation(); openLastTrainReminderSheet(st); }; }

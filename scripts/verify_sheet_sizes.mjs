@@ -144,8 +144,15 @@ for (const engineName of ENGINES) {
         c.back.h === c.medium.h, `${c.medium.h} → ${c.back.h}`);
       // 班次多的那站才驗「多給班次」：安靜的站本來就沒有第 13 班可列
       if (station === busy) {
-        ok(`G6 ${tag} 大段的看板多列班次（12 → 最多 24）`,
-          c.large.rows > c.medium.rows && c.large.rows <= 24 && c.medium.rows <= 12,
+        // 🔴 「多列班次」只有在中段真的被 12 筆上限截斷時才成立：深夜跑這支，臺北整站只剩 9 班，
+        //    三段都是 9 筆而紅——那是環境條件（此刻沒有第 13 班），不是回歸（同一條在 base a7fbe17
+        //    上逐字一樣紅）。把前提寫成條件式，不是把期望值改成當下實測的數字。
+        //    不足 12 筆時仍然有判準：三段筆數必須一致（大段少列了照樣會紅）。
+        const capped = c.medium.rows >= 12;
+        ok(`G6 ${tag} ${capped ? '大段的看板多列班次（12 → 最多 24）'
+            : `此刻不足 12 筆（無第 13 班可多列），改驗三段筆數一致`}`,
+          capped ? (c.large.rows > c.medium.rows && c.large.rows <= 24 && c.medium.rows <= 12)
+                 : (c.large.rows === c.medium.rows && c.small.rows === c.medium.rows),
           `中 ${c.medium.rows} 筆 → 大 ${c.large.rows} 筆 → 小 ${c.small.rows} 筆`);
       }
     }
