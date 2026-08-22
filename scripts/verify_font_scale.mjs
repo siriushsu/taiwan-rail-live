@@ -37,9 +37,10 @@ async function assertTarget() {
   if (disk !== served) { console.log('\n目標不符,後面全部不用看了。'); process.exit(1); }
 }
 
-async function boot(browser, { width = 393, tier = 'std', query = '' } = {}) {
+async function boot(browser, { width = 393, tier = 'std', query = '', scheme } = {}) {
   const ctx = await browser.newContext({
     viewport: { width, height: 852 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true,
+    ...(scheme ? { colorScheme: scheme } : {}),   // 不傳＝沿用 Playwright 預設,既有各段行為不變
   });
   const page = await ctx.newPage();
   const errs = [];
@@ -2060,9 +2061,106 @@ async function sectionT(browser, engine) {
   await close();
 }
 
+
+// ── U 段:設計 16e 全日流量圖——當下那根用印章紅、其餘藏青半透明,兩個主題各有色票 ─────
+// 判準量的是 canvas 的【實際像素】不是 CSS 宣告:色碼寫死的舊版在 CSS 上一樣「有設色」,
+// 差別只在畫出來是誰的顏色。🔴 U9/U10 是這段的重點——沒有它們,「暗色主題畫亮色色票」
+// (drawSpark 的註解說它修過一次的同一個病)會 32/32 全綠穿過去,突變實測確認。
+async function sectionU(browser, engine) {
+  const got = {};
+  for (const scheme of ['light', 'dark']) {
+    const { page, errs, close } = await boot(browser, { width: 1280, scheme });
+    const tag = `${engine}/${scheme}`;
+    await page.evaluate(() => { if (state.playing) togglePlay(); });
+    const st = await page.evaluate(() => ({
+      hidden: document.getElementById('flowWrap').hidden,
+      bins: state.flowBins ? state.flowBins.length : 0, max: state.flowMax,
+    }));
+    ok(`U1 ${tag} 正向對照:流量圖有顯示、有資料`, !st.hidden && st.bins > 0 && st.max > 1, JSON.stringify(st));
+    if (st.hidden || !st.bins) { await close(); continue; }
+
+    await page.evaluate(() => { setSimSec(17 * 3600 + 50 * 60); state.clockAtNow = false; drawFlow(); });
+    await page.waitForTimeout(250);
+    // 取第 i 根柱的柱身像素(避開頂緣抗鋸齒);柱高不足回 null
+    const at = i => page.evaluate(j => {
+      const c = document.getElementById('flowChart'), dpr = state.dpr || 1;
+      const cssW = c.clientWidth, cssH = c.clientHeight, bw = cssW / FLOW_BINS;
+      const h = state.flowBins[j] / state.flowMax * (cssH - 12);
+      if (h < 3) return null;
+      const d = c.getContext('2d').getImageData(
+        Math.round((j * bw + Math.max(1, bw - 0.6) / 2) * dpr), Math.round((cssH - h / 2) * dpr), 1, 1).data;
+      return [d[0], d[1], d[2], d[3]];
+    }, i);
+    const nowBin = await page.evaluate(() => Math.floor(state.simSec / 600) % FLOW_BINS);
+    const pNow = await at(nowBin), pOther = await at((nowBin + 30) % 144);
+
+    ok(`U2 ${tag} 當下那根是不透明的印章紅`,
+      !!pNow && pNow[3] > 240 && pNow[0] > pNow[2] + 60, JSON.stringify({ nowBin, px: pNow }));
+    ok(`U3 ${tag} 其餘的柱是藏青【半透明】(alpha 明顯低於飽和)`,
+      !!pOther && pOther[3] > 60 && pOther[3] < 200 && pOther[2] > pOther[0], JSON.stringify(pOther));
+    ok(`U4 ${tag} 🔴 兩者不同色(不是整排同色再疊東西上去)`,
+      !!pNow && !!pOther && (Math.abs(pNow[0] - pOther[0]) > 40 || Math.abs(pNow[3] - pOther[3]) > 40),
+      JSON.stringify({ 當下: pNow, 其餘: pOther }));
+    ok(`U5 ${tag} 柱色不再是寫死的 #8fa8c6(143,168,198)`,
+      !!pOther && !(pOther[0] === 143 && pOther[1] === 168 && pOther[2] === 198), JSON.stringify(pOther));
+
+    // 深夜台鐵幾乎沒車 ⇒ 當下那根柱高趨近 0(實測 0.5px)。設計稿是 17:50 畫的,柱夠高所以
+    // 看不到這個情況;照字面只塗紅、不留貫穿全高的游標線,「現在在哪」會整個消失。
+    await page.evaluate(() => { setSimSec(3 * 3600 + 30 * 60); state.clockAtNow = false; drawFlow(); });
+    await page.waitForTimeout(250);
+    const night = await page.evaluate(() => {
+      const c = document.getElementById('flowChart'), dpr = state.dpr || 1;
+      const cssW = c.clientWidth, cssH = c.clientHeight;
+      const i = Math.floor(state.simSec / 600) % FLOW_BINS;
+      const barH = state.flowBins[i] / state.flowMax * (cssH - 12);
+      const x = Math.round(state.simSec / 86400 * cssW * dpr);
+      const d = c.getContext('2d').getImageData(Math.max(0, x - 2), 0, 5, Math.round(cssH * dpr * 0.5)).data;
+      let red = 0;
+      for (let k = 0; k < d.length; k += 4) if (d[k + 3] > 100 && d[k] > d[k + 2] + 50) red++;
+      return { barH: +barH.toFixed(1), redPxUpperHalf: red };
+    });
+    ok(`U6 ${tag} 🔴 深夜柱高趨近 0 時「現在」仍找得到(上半部有貫穿的紅)`,
+      night.redPxUpperHalf > 5, JSON.stringify(night));
+
+    const jump = await page.evaluate(async () => {
+      const c = document.getElementById('flowChart'), b = c.getBoundingClientRect();
+      const before = state.simSec, mode = state.mode;
+      c.dispatchEvent(new MouseEvent('click', { bubbles: true, clientX: b.x + b.width * 0.5, clientY: b.y + b.height / 2 }));
+      await new Promise(r => setTimeout(r, 200));
+      return { mode, before, after: state.simSec, moved: Math.abs(state.simSec - before) > 600 };
+    });
+    ok(`U7 ${tag} 點圖表仍會跳到該時刻(mode=${jump.mode})`, jump.mode !== 'sched' || jump.moved, JSON.stringify(jump));
+
+    // 刻度色這輪也換成隨主題的值(原本暗色畫的是亮色的奶油色)。canvas 是透明底、紙色由
+    // CSS 畫在後面 ⇒「看不看得見」＝刻度色與 --paper 的亮度差。
+    const tick = await page.evaluate(() => {
+      const c = document.getElementById('flowChart'), dpr = state.dpr || 1;
+      const cssW = c.clientWidth, cssH = c.clientHeight;
+      const d = c.getContext('2d').getImageData(0, Math.round((cssH - 2) * dpr), Math.round(cssW * dpr), 1).data;
+      let best = null;
+      for (let k = 0; k < d.length; k += 4)
+        if (d[k + 3] > 200 && !(d[k] > 150 && d[k] > d[k + 2] + 60)) { best = [d[k], d[k + 1], d[k + 2], d[k + 3]]; break; }
+      const pap = getComputedStyle(c).backgroundColor.match(/\d+/g).map(Number);
+      const lum = ([r, g, b]) => 0.2126 * r + 0.7152 * g + 0.0722 * b;
+      return { tick: best, paper: pap, d: best ? Math.round(Math.abs(lum(best) - lum(pap))) : null };
+    });
+    ok(`U11 ${tag} 整點刻度與紙底有對比(暗色不能沿用亮色的奶油色,也不能低到看不見)`,
+      !!tick.tick && tick.d >= 30, JSON.stringify(tick));
+    ok(`U8 ${tag} 零 pageerror`, errs.length === 0, errs.slice(0, 1).join(''));
+    got[scheme] = { bar: pOther, now: pNow };
+    await close();
+  }
+  const L = got.light, D = got.dark;
+  const diff = (a, b) => !!a && !!b && a.some((v, i) => Math.abs(v - b[i]) > 20);
+  ok(`U9 ${engine} 🔴 兩個主題畫出來的柱色【真的不同】(色票有跟著主題翻面)`,
+    diff(L && L.bar, D && D.bar), JSON.stringify({ 亮: L && L.bar, 暗: D && D.bar }));
+  ok(`U10 ${engine} 🔴 兩個主題的「當下」色也不同`,
+    diff(L && L.now, D && D.now), JSON.stringify({ 亮: L && L.now, 暗: D && D.now }));
+}
+
 await assertTarget();
 // SECTIONS=H,I 只跑指定段(突變測試用);不設就跑全部——預設永遠是「全跑」,不能靠環境變數才完整。
-const ALL = { A: sectionA, B: sectionB, C: sectionC, D: sectionD, E: sectionE, F: sectionF, G: sectionG, H: sectionH, I: sectionI, J: sectionJ, K: sectionK, L: sectionL, M: sectionM, MX: sectionMx, N: sectionN, NX: sectionNx, O: sectionO, P: sectionP, Q: sectionQ, R: sectionR, S: sectionS, T: sectionT };
+const ALL = { A: sectionA, B: sectionB, C: sectionC, D: sectionD, E: sectionE, F: sectionF, G: sectionG, H: sectionH, I: sectionI, J: sectionJ, K: sectionK, L: sectionL, M: sectionM, MX: sectionMx, N: sectionN, NX: sectionNx, O: sectionO, P: sectionP, Q: sectionQ, R: sectionR, S: sectionS, T: sectionT, U: sectionU };
 const want = (process.env.SECTIONS || '').split(',').map(x => x.trim().toUpperCase()).filter(Boolean);
 const run = want.length ? want : Object.keys(ALL);
 for (const k of run) if (!ALL[k]) { console.error(`未知段別 ${k}`); process.exit(2); }

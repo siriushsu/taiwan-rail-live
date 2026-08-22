@@ -86,6 +86,10 @@
     --spark-line:#2A4A73; --spark-fill:rgba(42,74,115,.16); --spark-cursor:#D23C2A;
     --spark-axis:#6B5F4A; --spark-halo:#FFFDF6; --spark-w:1.4;
     --spark-plate:rgba(0,0,0,0);  /* 實色面板不需要底板；半透明時見 body.panel-translucent */
+    /* 全日流量圖（同樣畫在 canvas，理由同上）。設計 16e：當下時刻那根用印章紅、
+       其餘藏青半透明——柱本身就是游標，不是靠疊一條線 */
+    --flow-bar:rgba(42,74,115,.55); --flow-now:#D23C2A;
+    --flow-tick:#C9B98F; --flow-peak:rgba(210,60,42,.08);
     /* 影（硬投影＝簽名） */
     --shadow-1:0 2px 0 var(--line);
     --shadow-navy:0 3px 0 rgba(42,74,115,.22);
@@ -106,6 +110,8 @@
     --glass-halo:rgba(8,13,24,.95);
     --spark-line:#8FB4EC; --spark-fill:rgba(143,180,236,.18); --spark-cursor:#FF7B67;
     --spark-axis:#A5B4CE; --spark-halo:#0B1220;
+    --flow-bar:rgba(127,166,224,.55); --flow-now:#FF7B67;
+    --flow-tick:#7286A8; --flow-peak:rgba(240,86,74,.10);
     --bg-page:#0A0F1C; --bg-stage:#0E1526; --map-bg:#10141c;
     --line:#2A3B5C; --line-dash:#31456B; --line-faint:#22304C;
     --ink:#ECF0F8; --muted:#93A3C0; --faint:#7286A8; --ink-strong:#ECF0F8;
@@ -24033,26 +24039,36 @@ function drawFlow() {
   const g = c.getContext('2d');
   g.setTransform(dpr, 0, 0, dpr, 0, 0);
   g.clearRect(0, 0, cssW, cssH);
+  // 色票走 CSS 自訂屬性,理由與 drawSpark 同:原本四個顏色寫死在這裡,暗色主題畫的是
+  // 亮色主題的色(柱的 #8fa8c6 與刻度的奶油色都是照亮色底調的)。
+  const cs = getComputedStyle(c);
+  const tok = (n, d) => cs.getPropertyValue(n).trim() || d;
+  const cNow = tok('--flow-now', '#d23c2a');
   // 尖峰帶 07:00–09:00 / 17:00–19:30
-  g.fillStyle = 'rgba(210,60,42,0.08)';
+  g.fillStyle = tok('--flow-peak', 'rgba(210,60,42,0.08)');
   g.fillRect(7 / 24 * cssW, 0, 2 / 24 * cssW, cssH);
   g.fillRect(17 / 24 * cssW, 0, 2.5 / 24 * cssW, cssH);
-  // 柱
+  // 柱:設計 16e 要「當下時刻那根用印章紅、其餘藏青半透明」——當下那根柱本身就是讀數,
+  // 不是靠顏色以外的東西標出來。
+  const nowBin = Math.floor(state.simSec / 600) % FLOW_BINS;
+  const cBar = tok('--flow-bar', 'rgba(42,74,115,.55)');
   const bw = cssW / FLOW_BINS;
   for (let i = 0; i < FLOW_BINS; i++) {
     const h = state.flowBins[i] / state.flowMax * (cssH - 12);
-    g.fillStyle = '#8fa8c6';
+    g.fillStyle = (i === nowBin) ? cNow : cBar;
     g.fillRect(i * bw, cssH - h, Math.max(1, bw - 0.6), h);
   }
   // 整點刻度(00/06/12/18 較高)
-  g.fillStyle = '#c9b98f';
+  g.fillStyle = tok('--flow-tick', '#c9b98f');
   for (let hh = 0; hh < 24; hh++) {
     const tx = hh / 24 * cssW, th = (hh % 6 === 0) ? 7 : 4;
     g.fillRect(tx, cssH - th, 1, th);
   }
-  // 現在時刻游標
+  // 現在時刻游標:設計稿的那根紅柱是 17:50 畫的,柱夠高所以看得見;但深夜台鐵幾乎沒有車,
+  // 當下那根的高度會趨近 0 ⇒ 只塗紅色的話「現在在哪」整個消失。保留這條貫穿全高的細線,
+  // 同色,讀起來是同一個標記(這是設計的靜態稿照不到的情況)。
   const x = state.simSec / 86400 * cssW;
-  g.strokeStyle = '#d23c2a'; g.globalAlpha = 0.9; g.lineWidth = 1.5;
+  g.strokeStyle = cNow; g.globalAlpha = 0.9; g.lineWidth = 1.5;
   g.beginPath(); g.moveTo(x, 2); g.lineTo(x, cssH - 2); g.stroke(); g.globalAlpha = 1;
 }
 const FLOW_LBL_DEFAULT = '全日同時運行列車數（依時刻表）——點擊圖表跳到該時刻';
