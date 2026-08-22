@@ -74,19 +74,41 @@ async function sectionA(browser, engine) {
           const b = t.getBoundingClientRect();
           return b.right > innerWidth + 0.5 || b.left < -0.5;
         }).map(t => t.textContent.trim());
-        // 「框把自己的字切掉」與「跑出視窗」是兩種不同的壞法,要各自有判準
-        const selfClipped = tabs.filter(t => t.scrollWidth > t.clientWidth + 1 || t.scrollHeight > t.clientHeight + 1)
-          .map(t => t.textContent.trim());
+        // 「框把自己的字切掉」與「跑出視窗」是兩種不同的壞法,要各自有判準。
+        // 🔴 不能用 scrollWidth:絕對定位的 ::after 觸控熱區(比鈕大)也會算進 scrollWidth,
+        //    量到的是熱區溢出、不是字被切。改用 Range 量文字節點自己的墨跡框,對上內容框比。
+        const textBox = el => {
+          const n = [...el.childNodes].find(x => x.nodeType === 3 && x.textContent.trim());
+          if (!n) return null;
+          const rg = document.createRange(); rg.selectNodeContents(n);
+          const b = rg.getBoundingClientRect(); rg.detach && rg.detach();
+          return b;
+        };
+        const selfClipped = tabs.filter(t => {
+          const tb = textBox(t); if (!tb) return false;
+          const cs = getComputedStyle(t), b = t.getBoundingClientRect();
+          const iw = b.width - parseFloat(cs.borderLeftWidth) - parseFloat(cs.borderRightWidth);
+          const ih = b.height - parseFloat(cs.borderTopWidth) - parseFloat(cs.borderBottomWidth);
+          return tb.width > iw + 0.5 || tb.height > ih + 0.5;
+        }).map(t => t.textContent.trim());
         const tl = document.querySelector('.tabbar .tl').getBoundingClientRect();
         // 上緣堆疊:頂列與時鐘徽章。判準用「rect 相交面積」而不是「徽章 top >= 某常數」——
         // 常數會隨頂列高度漂移,正是這條缺陷的成因。
         const bar = document.getElementById('topbar'), bg = document.querySelector('.badge');
         const br = bar.getBoundingClientRect(), gr = bg.getBoundingClientRect();
-        const ix = Math.min(br.right, gr.right) - Math.max(br.left, gr.left);
-        const iy = Math.min(br.bottom, gr.bottom) - Math.max(br.top, gr.top);
+        const area = (a, b) => Math.max(0, Math.min(a.right, b.right) - Math.max(a.left, b.left))
+                             * Math.max(0, Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top));
+        // D4 排法B 之後徽章是頂列的子元素:此時「不重疊」要換成「完全裝得進頂列,且與同列的兄弟互不相疊」
+        const inBar = bar.contains(bg);
+        const contained = gr.left >= br.left - 0.5 && gr.right <= br.right + 0.5
+                       && gr.top >= br.top - 0.5 && gr.bottom <= br.bottom + 0.5;
+        const sibs = [...bar.querySelectorAll('.tb-logo,.alert-chip,.grouptabs .gtab,.tb-plate')]
+          .filter(e => e.getClientRects().length && +getComputedStyle(e).opacity >= 0.5);
+        const sibOverlap = +Math.max(0, ...sibs.map(e => area(gr, e.getBoundingClientRect())), 0).toFixed(0);
         return { n: tabs.length, outside, selfClipped, labelInside: tl.bottom <= innerHeight + 0.5,
           bothVisible: br.height > 0 && gr.height > 0,
-          topStackOverlap: +(Math.max(0, ix) * Math.max(0, iy)).toFixed(0),
+          topStackOverlap: +area(br, gr).toFixed(0),
+          badgeInBar: inBar, badgeContained: contained, sibOverlap, sibN: sibs.length,
           badgeInlineTop: bg.style.top };
       });
       const tag = `${engine} ${tier} ${width}pt`;
@@ -101,7 +123,13 @@ async function sectionA(browser, engine) {
       ok(`A5 ${tag} 零 pageerror`, errs.length === 0, errs.slice(0, 1).join(''));
       // 正向對照:`相交=0` 在「其中一個根本沒渲染」時也會成立,先證明兩者都真的量得到
       ok(`A6 ${tag} 正向對照:頂列與時鐘徽章都量得到`, r.bothVisible);
-      ok(`A7 ${tag} 頂列與時鐘徽章不重疊`, r.topStackOverlap === 0, 'overlap=' + r.topStackOverlap);
+      // A7 涵蓋兩種排法:徽章是獨立卡 ⇒ 與頂列零相交;徽章併進頂列(D4 排法B) ⇒ 必須整塊裝得進頂列,
+      // 且與同一列的 logo／公告鈕／群組分頁全部零相交。兩側都寫死,少了任何一半都會讓另一種排法無條件通過。
+      ok(`A7 ${tag} 時鐘徽章${r.badgeInBar ? '併入頂列:裝得進去且與同列控件互不相疊' : '獨立卡:與頂列不重疊'}`,
+        r.badgeInBar ? (r.badgeContained && r.sibOverlap === 0 && r.sibN >= 2)
+                     : r.topStackOverlap === 0,
+        r.badgeInBar ? `contained=${r.badgeContained} 與兄弟相疊=${r.sibOverlap} 兄弟數=${r.sibN}`
+                     : 'overlap=' + r.topStackOverlap);
       // 結構性判準:徽章的上緣位置必須留在 CSS(env() 保持符號式)。一旦有人把它算成一個絕對 px
       // 寫進 inline style,安全區晚一步注入(Capacitor 8)就會留下對不上的舊值——App 1.4.9 頂列
       // 與時鐘重疊即此。這一條擋的是「修法形狀」,不是某一次的數值。
@@ -424,16 +452,247 @@ async function sectionG(browser, engine) {
   }
 }
 
+// ── H 段:跟車置中機制(使用者 2026-08-22 點名:「之前有做讓列車或是車站置中 不被卡片擋住的機制 這個需要存留」) ──
+// D4 把時鐘徽章併進頂列 ⇒ 可視地圖窗的上界從 ~100px 縮到 58px,那套讓位記帳必須跟著變、而且只能變這麼多。
+// 🔴 判準刻意**不呼叫 mapInsets()**:自己逐一點名畫面上真的畫著的 chrome、量它們的 rect,
+//    目標落點則用 Leaflet 自己的 latLngToContainerPoint(外部真值)。兩邊不同源(心得 29)。
+// 🔴 「車在可視窗內」與「車沒被卡片蓋住」是兩件事:前者是幾何、後者要 elementFromPoint 才答得出來(心得 24)。
+const H_CENSUS = () => {
+  const mc = map.getContainer().getBoundingClientRect();
+  const vis = el => {
+    if (!el || el.hidden || !el.getClientRects().length) return false;
+    const cs = getComputedStyle(el);
+    return cs.visibility !== 'hidden' && +cs.opacity >= 0.5;
+  };
+  const N = [['topbar', document.getElementById('topbar')], ['badge', document.querySelector('.badge')],
+    ['tabbar', document.querySelector('.tabbar')], ['controls', document.querySelector('.controls')],
+    ['followPanel', document.getElementById('followPanel')], ['freqCard', document.getElementById('freqCard')],
+    ['sheet', (typeof activeSheetEl === 'function' ? activeSheetEl() : null)]];
+  let top = 0, bottom = 0; const seen = [];
+  for (const [n, el] of N) {
+    if (!vis(el)) continue;
+    const r = el.getBoundingClientRect();
+    if (!(r.width > 0.5 && r.height > 0.5)) continue;
+    seen.push(n);
+    // 🔴 跟車小卡/示意車卡是 176px 寬(≈45% 容器)的浮動卡,實測 app 也把它記在 left——
+    //    它擋住的是左半邊,不是一整條橫帶,不該吃上下界。判準用「有沒有橫跨大半個寬度」這個
+    //    物理事實,不是抄 app 的分類。(沒有這條的話,卡被抬到 sheet 上方時可視窗會被算成零高。)
+    if ((n === 'followPanel' || n === 'freqCard') && r.width < mc.width * 0.6) continue;
+    // 依「離哪一邊近」分類貼上緣/貼下緣,不用「top < 半高」——底部 sheet 的頂緣會落在半高以上
+    if (mc.bottom - r.bottom < r.top - mc.top) bottom = Math.max(bottom, mc.bottom - r.top + 8);
+    else top = Math.max(top, r.bottom - mc.top + 8);
+  }
+  return { mcH: mc.height, top: +top.toFixed(1), bottom: +bottom.toFixed(1), seen,
+    bandTop: top, bandBot: mc.height - bottom,
+    want: +((bottom - top) / 2).toFixed(1),
+    shiftY: state._focusShift ? +state._focusShift.y.toFixed(1) : null };
+};
+
+async function sectionH(browser, engine) {
+  const tag = `${engine} 393pt`;
+  const { page, errs, close } = await boot(browser, { width: 393 });
+  // 挑一台「畫在畫面中段、圖例沒關掉」的車來跟——太靠邊的車會被 maxBounds 夾住,夾住後的位移是另一條路徑
+  const picked = await page.evaluate(() => {
+    const mc = map.getContainer().getBoundingClientRect();
+    for (const t of (state.trains || [])) {
+      if (!state.visible.has(t.typeName)) continue;
+      const pos = trainPos(t, state.simSec);
+      if (!pos) continue;
+      const pt = map.latLngToContainerPoint(L.latLng(pos.lat, pos.lon));
+      if (pt.x > 60 && pt.x < mc.width - 60 && pt.y > 180 && pt.y < 600) {
+        setFollow(t, false);
+        return String(t.no || t.trainNo || t.typeName || '?');
+      }
+    }
+    return null;
+  });
+  await page.waitForTimeout(3000);
+  const F = await page.evaluate(c => {
+    const r = eval('(' + c + ')')();
+    const t = state.followTrain;
+    if (!t) return { ...r, ok: false, why: '沒跟到車' };
+    const pos = trainPos(t, state.simSec);
+    if (!pos) return { ...r, ok: false, why: '跟到的車算不出位置' };
+    const mc = map.getContainer().getBoundingClientRect();
+    const pt = map.latLngToContainerPoint(L.latLng(pos.lat, pos.lon));
+    const hit = document.elementFromPoint(mc.left + pt.x, mc.top + pt.y);
+    const chrome = hit && hit.closest('.topbar,.badge,.tabbar,.controls,#followPanel,#freqCard,.sheet,#mapActions');
+    const fp = document.getElementById('followPanel');
+    return { ...r, ok: true, py: +pt.y.toFixed(1),
+      inBand: pt.y >= r.bandTop && pt.y <= r.bandBot,
+      covered: !!chrome, hit: hit ? (hit.id || String(hit.className).slice(0, 28)) : 'none',
+      panelUp: !!fp && !fp.hidden && fp.getClientRects().length > 0 };
+  }, H_CENSUS.toString());
+
+  // 正向對照:先證明真的跟到了車、跟車卡真的開著。少了這條,下面每一條在「根本沒跟車」時都空成立
+  ok(`H1 ${tag} 正向對照:跟到車${picked ? `(${picked})` : ''}且跟車卡開著`,
+    !!picked && F.ok && F.panelUp, F.why || `picked=${picked} panel=${F.panelUp}`);
+  ok(`H2 ${tag} 跟車目標落在可視地圖窗內(上${F.top}~下緣${F.bandBot})`,
+    F.ok && F.inBand, `車y=${F.py}`);
+  ok(`H3 ${tag} 跟車目標沒有被任何卡片蓋住`, F.ok && !F.covered, `命中 ${F.hit}`);
+  // 徽章併進頂列之後,上界必須真的縮小(D4 的收益本身要有判準,不然改回去也全綠)
+  ok(`H4 ${tag} 上界已收到 ≤62px(徽章併入頂列)`, F.top > 0 && F.top <= 62, `上界=${F.top} chrome=[${F.seen}]`);
+
+  // 解除跟隨 → §04c 前瞻偏移退掉,只剩純讓位;此時記帳必須恰好等於我自己量到的 (下界−上界)/2。
+  // 這條是差量式的:它不吃任何常數,版面怎麼改都成立,改壞了才會紅。
+  await page.evaluate(() => { if (typeof clearFollow === 'function') clearFollow(); });
+  await page.waitForTimeout(1800);
+  const C = await page.evaluate(c => eval('(' + c + ')')(), H_CENSUS.toString());
+  ok(`H5 ${tag} 解除跟隨後讓位記帳 = 我獨立量到的 (下界−上界)/2`,
+    C.shiftY != null && Math.abs(C.shiftY - C.want) <= 2,
+    `shiftY=${C.shiftY} 應為 ${C.want} chrome=[${C.seen}] 上${C.top} 下${C.bottom}`);
+  ok(`H6 ${tag} 零 pageerror`, errs.length === 0, errs.slice(0, 1).join(''));
+  await close();
+
+  // ── H7:第二個情境——跟車中開站看板(可視窗下緣從 792 升到 392) ──
+  // 🔴 這一段的牙在 H5,不在 H8/H9。實測突變(computeMapInsets 恆回 NONE)只有 H5 轉紅:
+  //    沒有讓位時車停在容器中心再減前瞻 ≈ y370,而看板中尺寸的可視窗下緣是 392——**恰好還看得到**。
+  //    改用「大」尺寸看板也不行:那時 sheet 幾乎蓋滿地圖,app 的 MIN_MAP_STRIP 閘門本來就會放棄讓位。
+  //    所以 H8/H9 守的是「車被推到卡片底下」這個使用者看得到的症狀(仍會抓到真回歸),
+  //    「記帳有沒有算對」則由 H5 負責——不要把 H8/H9 當成機制的證明。
+  const s2 = await boot(browser, { width: 393 });
+  const started = await s2.page.evaluate(() => {
+    const mc = map.getContainer().getBoundingClientRect();
+    for (const t of (state.trains || [])) {
+      if (!state.visible.has(t.typeName)) continue;
+      const pos = trainPos(t, state.simSec);
+      if (!pos) continue;
+      const pt = map.latLngToContainerPoint(L.latLng(pos.lat, pos.lon));
+      if (pt.x > 60 && pt.x < mc.width - 60 && pt.y > 180 && pt.y < 600) { setFollow(t, false); return true; }
+    }
+    return false;
+  });
+  await s2.page.waitForTimeout(2200);
+  await s2.page.evaluate(() => {
+    const e = buildStnIndex().find(x => x.sysId === 'tra_sched' && x.name === '板橋');
+    if (e) openBoard({ name: e.name, sys: e.sysId, lat: e.lat, lon: e.lon });
+  });
+  await s2.page.waitForTimeout(2600);
+  const S = await s2.page.evaluate(c => {
+    const r = eval('(' + c + ')')();
+    const t = state.followTrain;
+    if (!t) return { ...r, ok: false, why: '開看板之後不再跟車' };
+    const pos = trainPos(t, state.simSec);
+    if (!pos) return { ...r, ok: false, why: '算不出位置' };
+    const mc = map.getContainer().getBoundingClientRect();
+    const pt = map.latLngToContainerPoint(L.latLng(pos.lat, pos.lon));
+    const hit = document.elementFromPoint(mc.left + pt.x, mc.top + pt.y);
+    const chrome = hit && hit.closest('.topbar,.badge,.tabbar,.controls,#followPanel,#freqCard,.sheet,#mapActions');
+    return { ...r, ok: true, py: +pt.y.toFixed(1), sheetUp: r.seen.includes('sheet'),
+      inBand: pt.y >= r.bandTop && pt.y <= r.bandBot,
+      covered: !!chrome, hit: hit ? (hit.id || String(hit.className).slice(0, 28)) : 'none' };
+  }, H_CENSUS.toString());
+  // 正向對照:看板真的開著、而且它真的把可視窗壓掉一大塊(否則這一格跟 H2 是同一個情境)
+  ok(`H7 ${tag} 正向對照:跟車中開得起看板,且看板真的壓掉可視窗`,
+    started && S.ok && S.sheetUp && S.bandBot < 520, `${S.why || ''} sheet=${S.sheetUp} 下緣=${S.bandBot}`);
+  ok(`H8 ${tag} 看板開著時跟車目標仍在可視窗內(${S.bandTop}~${S.bandBot})`, S.ok && S.inBand, `車y=${S.py}`);
+  ok(`H9 ${tag} 看板開著時跟車目標沒有被卡片蓋住`, S.ok && !S.covered, `命中 ${S.hit}`);
+  ok(`H10 ${tag} 零 pageerror`, s2.errs.length === 0, s2.errs.slice(0, 1).join(''));
+  await s2.close();
+}
+
+// ── I 段:D4 排法B——頂列收成一排 + 狀態字樣搬進「更多 · 資料狀態」 ──────────────
+// 使用者 2026-08-22 裁示:頂列排法B(兩層併一層)、狀態旗標全部收成色點、列車數也進「更多」。
+// 🔴 收成色點是「拿掉資訊」,所以這一段的重點不是色點好不好看,而是**那些字樣真的有新家**,
+//    而且新家的值是徽章的鏡射(不是另寫一份判斷,兩份遲早分岔)。
+// 🔴 每一條都配反向對照:只驗「該出現的出現了」時,「乾脆全部都出現」也會全綠(心得 39(b))。
+async function sectionI(browser, engine) {
+  const tag = `${engine} 393pt`;
+  const { page, errs, close } = await boot(browser, { width: 393 });
+
+  const top = await page.evaluate(() => {
+    const bar = document.getElementById('topbar');
+    const bg = document.querySelector('.badge');
+    const flag = id => {
+      const e = document.getElementById(id);
+      if (!e || e.hidden || !e.getClientRects().length) return null;
+      const b = e.getBoundingClientRect(), cs = getComputedStyle(e);
+      return { w: +b.width.toFixed(1), h: +b.height.toFixed(1), fs: parseFloat(cs.fontSize), br: cs.borderRadius };
+    };
+    const cnt = document.getElementById('count');
+    return {
+      isFs: document.body.classList.contains('fs'),
+      inBar: bar.contains(bg),
+      barH: +bar.getBoundingClientRect().height.toFixed(1),
+      clockPx: parseFloat(getComputedStyle(document.getElementById('clock')).fontSize),
+      live: flag('liveBadge'), mlive: flag('metroBadge'),
+      countText: cnt ? cnt.textContent.trim() : '',
+      countDrawn: !!cnt && cnt.getClientRects().length > 0,
+    };
+  });
+  ok(`I1 ${tag} 正向對照:手機殼、徽章併入頂列、時鐘還讀得到`,
+    top.isFs && top.inBar && top.clockPx >= 14, `fs=${top.isFs} inBar=${top.inBar} clock=${top.clockPx}`);
+  // 色點:寬高一致的小圓、字級歸零(字被收掉了)。只驗「有畫出來」會讓沒收成點的舊樣式照樣通過。
+  // 🔴 用 every 不用 ||:檔內早就有一條 @media(max-width:400px) 把 .mlive 收成 0 字級,
+  //    寫成 OR 的話「只剩那條舊規則在生效」也會全綠——實測突變(拿掉 D4 的 font-size:0)正是這樣溜過去的。
+  const dot = f => f && Math.abs(f.w - f.h) <= 1 && f.w <= 10 && f.fs === 0;
+  const flags = [top.live, top.mlive].filter(Boolean);
+  ok(`I2 ${tag} 亮著的狀態旗標全部收成色點(非文字)`,
+    flags.length >= 1 && flags.every(dot),
+    `亮著 ${flags.length} 顆 live=${JSON.stringify(top.live)} mlive=${JSON.stringify(top.mlive)}`);
+  // 列車數:資料有(textContent 非空)但頂列不畫——「沒資料」與「有資料但收起來」要分得開
+  ok(`I3 ${tag} 列車數有值但已從頂列收起`,
+    !!top.countText && !top.countDrawn, `text=「${top.countText}」drawn=${top.countDrawn}`);
+
+  // ── 「更多 · 資料狀態」:字樣的新家 ──
+  const open = async () => {
+    await page.evaluate(() => {
+      if (!document.body.classList.contains('tools-open')) document.getElementById('tabMore').click();
+      else { document.getElementById('tabMore').click(); document.getElementById('tabMore').click(); }
+    });
+    await page.waitForTimeout(600);
+    return page.evaluate(() => {
+      const sec = [...document.querySelectorAll('#moreBody .ms-sec')].find(x => x.textContent.trim() === '資料狀態');
+      const row = id => {
+        const r = document.getElementById(id);
+        return { drawn: !!r && r.getClientRects().length > 0,
+          h: r ? +r.getBoundingClientRect().height.toFixed(1) : -1,
+          val: r ? (r.querySelector('b') || {}).textContent || '' : '' };
+      };
+      const src = id => { const e = document.getElementById(id); return e && !e.hidden ? e.textContent.trim() : null; };
+      return { secDrawn: !!sec && sec.getClientRects().length > 0,
+        live: row('msStatLive'), metro: row('msStatMetro'), replay: row('msStatReplay'), count: row('msStatCount'),
+        srcLive: src('liveBadge'), srcMetro: src('metroBadge'), srcCount: src('count') };
+    });
+  };
+  const A = await open();
+  ok(`I4 ${tag} 正向對照:「資料狀態」段與至少兩列真的畫出來`,
+    A.secDrawn && [A.live, A.metro, A.count].filter(r => r.drawn).length >= 2,
+    `sec=${A.secDrawn} live=${A.live.drawn} metro=${A.metro.drawn} count=${A.count.drawn}`);
+  // 鏡射契約:值必須逐字等於徽章的字(徽章寫「官方即時」就顯示「官方即時」)。
+  // 這條擋的是「另寫一份判斷」——兩份判斷遲早跟徽章分岔,而分岔時畫面看起來完全正常。
+  const mirrored = (r, src) => !r.drawn || src == null || r.val === src || r.val === src + '・推算';
+  ok(`I5 ${tag} 資料狀態的值逐字鏡射徽章`,
+    mirrored(A.live, A.srcLive) && mirrored(A.metro, A.srcMetro) && mirrored(A.count, A.srcCount),
+    `live「${A.live.val}」vs「${A.srcLive}」metro「${A.metro.val}」vs「${A.srcMetro}」count「${A.count.val}」vs「${A.srcCount}」`);
+  // 反向對照①:徽章那顆藏起來 ⇒ 對應列必須整列消失(高度 0)。
+  // .ms-row 的 display:flex 蓋得過 [hidden],沒補規則的話這條會紅——正是它要擋的東西。
+  await page.evaluate(() => { document.getElementById('liveBadge').hidden = true; });
+  const B = await open();
+  ok(`I6 ${tag} 反向對照:徽章藏起來 ⇒ 該列整列消失`,
+    !B.live.drawn && B.live.h === 0, `drawn=${B.live.drawn} h=${B.live.h}`);
+  // 反向對照②:本來沒有的旗標亮起來 ⇒ 對應列必須出現
+  await page.evaluate(() => {
+    const r = document.getElementById('replayBadge');
+    r.hidden = false; r.textContent = 'REPLAY';
+  });
+  const C = await open();
+  ok(`I7 ${tag} 反向對照:旗標亮起來 ⇒ 該列出現`, C.replay.drawn && C.replay.h > 0,
+    `drawn=${C.replay.drawn} h=${C.replay.h}`);
+  ok(`I8 ${tag} 零 pageerror`, errs.length === 0, errs.slice(0, 1).join(''));
+  await close();
+}
+
 await assertTarget();
+// SECTIONS=H,I 只跑指定段(突變測試用);不設就跑全部——預設永遠是「全跑」,不能靠環境變數才完整。
+const ALL = { A: sectionA, B: sectionB, C: sectionC, D: sectionD, E: sectionE, F: sectionF, G: sectionG, H: sectionH, I: sectionI };
+const want = (process.env.SECTIONS || '').split(',').map(x => x.trim().toUpperCase()).filter(Boolean);
+const run = want.length ? want : Object.keys(ALL);
+for (const k of run) if (!ALL[k]) { console.error(`未知段別 ${k}`); process.exit(2); }
+if (want.length) console.log(`⚠ 只跑 ${run.join(',')} 段(SECTIONS 環境變數),這不是完整驗收`);
 for (const [engine, launcher] of [['chromium', chromium], ['webkit', webkit]]) {
   const browser = await launcher.launch();
-  await sectionA(browser, engine);
-  await sectionB(browser, engine);
-  await sectionC(browser, engine);
-  await sectionD(browser, engine);
-  await sectionE(browser, engine);
-  await sectionF(browser, engine);
-  await sectionG(browser, engine);
+  for (const k of run) await ALL[k](browser, engine);
   await browser.close();
 }
 const pass = results.filter(r => r.pass).length;

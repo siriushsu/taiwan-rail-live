@@ -2628,6 +2628,13 @@
   html[data-fs=xlarge] .more-sheet .ms-row:has(.ms-tail) > span:first-child { grid-area: lab; }
   html[data-fs=xlarge] .more-sheet .ms-row .ms-tail b { grid-area: val; justify-self: start; }
   html[data-fs=xlarge] .more-sheet .ms-row .ms-tail .chev { grid-area: chev; }
+  /* 資料狀態列是唯讀的:沒有「›」、不吃 hover/active,免得看起來像點得下去卻沒反應 */
+  .more-sheet .ms-row.ms-stat { cursor: default; }
+  /* 註:檔內幾處註解說「.ms-row 的 display:flex 蓋得過 [hidden],只能用 inline display:none」——
+     2026-08-22 受控實驗(chromium/webkit 各一)測得**已不成立**:兩家 UA 的 [hidden] 現在都是 !important,
+     動態建的 .ms-row 加上 hidden 後 computed display 就是 none。所以這幾列直接用 hidden 屬性即可,
+     不再補一條同義的 display:none(補了也是死碼)。既有那幾列的 inline style 不動,它們照樣有效。 */
+  .more-sheet .ms-row.ms-stat .ms-tail b { color: var(--ink); font-weight: 800; }
   .more-sheet .ms-sec { padding: 9px 14px 3px; font-size: calc(11px * var(--uis)); font-weight: 800; letter-spacing: 3px; color: var(--faint); border-bottom: 1px dashed var(--line-faint); }
   .more-sheet .ms-row.warnrow { background: var(--warn-bg); color: var(--warn-ink); font-weight: 800; }
   /* 評分列不用 emoji(2026-08-12 使用者裁決:更多選單不放 emoji),改品牌紅粗體強調 */
@@ -2728,6 +2735,97 @@
       z-index: 620; pointer-events: none;
     }
     .topbar .tb-plate, .topbar .grouptabs, .topbar .alert-chip { pointer-events: auto; }
+    /* ══ 設計 D4 排法B(2026-08-22 使用者拍板):頂列收成一排 42px,省 56px 全給地圖 ══
+       一排的組成:[logo 方牌 42] [時鐘膠囊(時鐘＋狀態色點)] ──auto── [公告 36 圓] [群組 4×36 圓]
+       徽章本體由 placeBadge() 搬進頂列(手機一律搬,live 除外),這裡只管樣式。 */
+    body.fs .topbar { align-items: center; flex-wrap: wrap; }
+    /* 🔴 大字檔一排塞不下:393pt 特大實測 膠囊118 + logo57 + 公告49 + 四顆214 + 間距 = 482 > 393。
+       解法選「換行」而不是「縮小圓鈕」——設計對照表的觸控目標 44/52/60 是硬需求,為了排成一排
+       把它縮回去等於用大字模式的使用者去換版面。群組分頁整組移到第二列,四顆仍是設計尺寸。
+       (這本來是設計 D7「大字模式」該回答的題目,那幾頁目前讀不到:TURN 3/4 與中段檔仍被 256KiB 截斷。) */
+    html[data-fs=large]  body.fs .topbar .grouptabs,
+    html[data-fs=xlarge] body.fs .topbar .grouptabs { flex-basis: 100%; justify-content: flex-end; margin-top: 3px; }
+    body.fs .topbar .tb-logo {
+      width: calc(42px * var(--uit)); height: calc(42px * var(--uit));
+      flex: none; display: block; border-radius: 9px; box-shadow: var(--shadow-1);
+    }
+    /* 文字版軌島牌整塊讓位:logo 圖本身就是那塊琺瑯牌。
+       🔴 起訖站帶(#tbPlateL/R)設計上是移到卡頭行先帶,而卡頭屬於還沒做的 D1–D3——
+       這裡先只隱藏、DOM 與寫入它的 JS(setGroupMeta)都留著,卡頭做好直接接過去。 */
+    body.fs .topbar .tb-plate { display: none; }
+
+    /* 時鐘膠囊:h42 的 pill,不再是浮在頂列下方的獨立卡 */
+    body.fs .topbar .badge {
+      position: static; flex: none; align-self: center; margin-right: auto;
+      height: calc(42px * var(--uit)); gap: 7px; padding: 0 12px;
+      align-items: center; border-radius: var(--r-pill);
+      background: var(--paper); border: 1.5px solid var(--line); box-shadow: var(--shadow-1);
+    }
+    body.fs .topbar .badge .clock { font-size: calc(16px * var(--ui)); font-weight: 900; }
+    /* 狀態一律收成 7px 脈動色點,字樣進「更多 → 資料狀態」(使用者 2026-08-22 裁示:全部收成色點)。
+       🔴 這四條刻意不宣告 display——[hidden] 的 UA display:none 才蓋得住(同 .ms-row 的既有教訓);
+       #peak 不是用 hidden 而是用空字串控制,所以另外用 :empty 收掉,否則沒有尖峰時會多一顆假色點。 */
+    body.fs .topbar .badge .live,
+    body.fs .topbar .badge .mlive,
+    body.fs .topbar .badge .replay,
+    body.fs .topbar .badge .peak {
+      width: 7px; height: 7px; flex: none; align-self: center;
+      border-radius: 50%; padding: 0; border: 0;
+      font-size: 0; line-height: 0; letter-spacing: 0; overflow: hidden;
+      background: currentColor; animation: livePulse 2s infinite;
+    }
+    body.fs .topbar .badge .live::before,
+    body.fs .topbar .badge .mlive::before { content: none; }
+    body.fs .topbar .badge .replay { color: var(--red); }
+    body.fs .topbar .badge .peak { color: var(--warn-ink); }
+    body.fs .topbar .badge .peak.sim { color: #3A5680; }
+    body.fs .topbar .badge .peak:empty { display: none; }
+    /* 推估(非即時)不脈動——與獨立卡時期的語意一致 */
+    body.fs .topbar .badge .live.est,
+    body.fs .topbar .badge .mlive.est { animation: none; opacity: .55; }
+    /* 列車數收進「更多 → 資料狀態」 */
+    body.fs .topbar .badge .count { display: none; }
+
+    /* 公告鈕:與群組頁籤同規格的 36 圓(數字塞不進,點開詳情就有) */
+    body.fs .topbar .alert-chip {
+      margin-left: 0; width: calc(36px * var(--uit)); height: calc(36px * var(--uit));
+      min-height: 0; padding: 0; border-radius: 50%;
+      display: grid; place-items: center;
+    }
+    body.fs .topbar .alert-chip .ac-n { display: none; }
+
+    /* 群組頁籤:36 圓,選中實心無框。🔴 36 < 44 觸控下限 ⇒ 用置中的 ::after 補熱區,
+       且鈕本身必須 position:relative(static 會把 ::after 的錨點交給 .topbar,兩顆熱區會互相蓋掉——
+       memory station-node 那條「並排鈕熱區」的教訓)。 */
+    body.fs .topbar .grouptabs { gap: 6px; align-items: center; }
+    body.fs .topbar .grouptabs .gtab {
+      position: relative;
+      width: calc(36px * var(--uit)); height: calc(36px * var(--uit));
+      min-height: 0; padding: 0; border-radius: 50%;
+      display: grid; place-items: center;
+      font-size: calc(15px * var(--ui)); font-weight: 800;
+    }
+    body.fs .topbar .grouptabs .gtab.active { font-weight: 900; }
+    body.fs .topbar .grouptabs .gtab::after {
+      content: ''; position: absolute; left: 50%; top: 50%;
+      width: calc(44px * var(--uit)); height: calc(44px * var(--uit));
+      transform: translate(-50%, -50%);
+    }
+    /* 窄機收斂:設計說「344pt 下四顆頁籤要降到 34px(熱區仍 44px)」,但那是沒有公告鈕的算法。
+       公告鈕在時整排會多 36+gap,所以門檻與尺寸都是量出來的不是抄的(見 verify H2/H3)。
+       ::after 的 44px 熱區不跟著縮——縮的是看得見的圓,點得到的範圍不動。 */
+    @media (max-width: 389px) {
+      body.fs .topbar { gap: 6px; }
+      body.fs .topbar .badge { padding: 0 9px; gap: 6px; }
+      body.fs .topbar .grouptabs { gap: 4px; }
+      body.fs .topbar .grouptabs .gtab { width: calc(33px * var(--uit)); height: calc(33px * var(--uit)); }
+    }
+    /* 再窄就照橫式那條「資訊密度遞減」的梯子:先摘尖峰徽章(列車數早就進「更多」了) */
+    @media (max-width: 359px) {
+      body.fs .topbar { gap: 5px; }
+      body.fs .topbar .badge .peak { display: none; }
+      body.fs .topbar .grouptabs .gtab { width: calc(30px * var(--uit)); height: calc(30px * var(--uit)); }
+    }
     /* 短標分頁不做橫捲與遮罩(mock 遷移表明定停用);.topbar .grouptabs 特異性壓過通案手機 .grouptabs 的 mask/overflow */
     .topbar .grouptabs { margin: 0; flex-wrap: nowrap; overflow: visible; -webkit-mask-image: none; mask-image: none; }
     .topbar .grouptabs .gtab { font-size: calc(13px * var(--ui)); padding: 6px 14px; min-height: calc(36px * var(--ui)); }
@@ -3497,6 +3595,9 @@
     .more-sheet .grab { display: none; } /* 拖曳把手是觸控隱喻,桌面不需要 */
     /* 列高:手機 48px 是觸控目標下限,桌面滑鼠不需要那麼高——收緊讓整份設定一屏看完 */
     .more-sheet .ms-row { min-height: 40px; padding: 8px 14px; font-size: calc(13px * var(--ui)); }
+    /* 「資料狀態」是手機限定:那些字樣只在手機被收成色點(設計 D4 排法B),桌面頂列徽章本來就寫著全文,
+       再列一次是純重複。DOM 留著、只在桌面藏起來——旗標/版面回到手機就自己回來。 */
+    .more-sheet #msSecStat, .more-sheet .ms-row.ms-stat { display: none; }
     .more-sheet .ms-sec { padding: 7px 14px 2px; }
     #toolsFab { display: inline-flex !important; } /* 桌面重新啟用抽屜開關(手機仍由 tab bar「更多」負責) */
     /* 偏好類設定收進抽屜(2026-07-25 使用者拍板):站介紹/方向/平交道/省電/外觀/軌道 帶上不再常駐。
@@ -3699,6 +3800,9 @@
     <!-- 地圖頂浮動列(手機 fs 專屬;桌面/直播/放空不顯示):左=軌島迷你牌(資訊),右=全/台/高/捷短標(動作)。
          topTabs 四顆為 CLS 靜態預置佔位,boot 的 renderSystemsBar→renderTopTabs 以同幾何重建(cls-static-placeholder) -->
     <div class="topbar" id="topbar">
+      <!-- 設計 D4 排法B:牌換成 42x42 的 logo 方牌(整個 logo 縮小,不是只留字)。
+           favicon-192.png 本來就是那塊琺瑯牌(含島形＋軌島＋起訖站帶),所以文字版的牌可以整個讓位。 -->
+      <img class="tb-logo" src="favicon-192.png" alt="軌島" width="42" height="42" decoding="async">
       <div class="plate tb-plate">
         <h1>軌島</h1>
         <div class="plate-foot">
@@ -4508,6 +4612,16 @@
     <!-- 縣市快速移動(Batch B):#citySel 縣市下拉的手機新家;點列展開 17 縣市 chip,點 chip 飛過去並關 sheet -->
     <button class="ms-row" data-act="cities"><span>縣 縣市快速移動</span><span class="chev">›</span></button>
     <div class="ms-cities" id="msCities" hidden></div>
+    <!-- 資料狀態(設計 D4 排法B 的代價償還):頂列徽章把 LIVE／看板校正／REPLAY／尖峰 收成色點、
+         班次數整個收起來之後,那些字樣需要一個看得到全文的家。使用者 2026-08-22 裁示「全部收成色點,
+         列車數也進更多」。🔴 這幾列的值一律**從徽章元素本身讀**(syncMoreDataStatus),不重算一份判斷——
+         徽章由既有程式維護,複製一份判斷邏輯遲早會跟它分岔。 -->
+    <div class="ms-sec" id="msSecStat">資料狀態</div>
+    <div class="ms-row ms-stat" id="msStatLive" hidden><span>即時資料</span><span class="ms-tail"><b id="msStatLiveVal"></b></span></div>
+    <div class="ms-row ms-stat" id="msStatMetro" hidden><span>捷運看板</span><span class="ms-tail"><b id="msStatMetroVal"></b></span></div>
+    <div class="ms-row ms-stat" id="msStatReplay" hidden><span>重播</span><span class="ms-tail"><b id="msStatReplayVal"></b></span></div>
+    <div class="ms-row ms-stat" id="msStatPeak" hidden><span>時段</span><span class="ms-tail"><b id="msStatPeakVal"></b></span></div>
+    <div class="ms-row ms-stat" id="msStatCount" hidden><span>目前車數</span><span class="ms-tail"><b id="msStatCountVal"></b></span></div>
     <div class="ms-sec">資訊</div>
     <!-- 已排提醒總覽:NOTIFY_LOCAL_ENABLED 才留(旗標關時 setupLocalNotifications 移除,比照 locateBtn) -->
     <button class="ms-row" data-act="notify" data-close="1"><span>已排提醒</span><span class="chev">›</span></button>
@@ -23830,15 +23944,17 @@ function placeControlRail() {
     updateFollowLockUI(); // 這裡會依跟隨狀態把容器 display 設回 ''/none,老家的藏匿自然解除
   }
 }
-// §04c 契約3:橫式時鐘徽章併入頂列(排在軌島牌之後、公告鈕之前的 flex 子項);直式/桌面搬回 .stage 原位
+// §04c 契約3 →(設計 D4 排法B 起)手機一律把時鐘徽章併入頂列(排在 logo 牌之後、公告鈕之前的 flex 子項)。
+// 原本只有橫式才併,直式讓它獨立浮在頂列下方;排法B 把整條頂列收成一排 42px,徽章就是那一排的一節。
+// 桌面(沒有 body.fs)仍搬回 .stage 原位,那裡的 .badge 是左上角獨立卡。
 let _badgeHomeAnchor = null;
 function placeBadge() {
   const badge = document.querySelector('.badge');
   const bar = document.getElementById('topbar');
   if (!badge || !bar) return;
   if (!_badgeHomeAnchor) { _badgeHomeAnchor = document.createComment('badge-home'); badge.parentNode.insertBefore(_badgeHomeAnchor, badge); }
-  // 直播例外:live 的頂列整條 display:none,徽章搬進去會跟著消失,而 live 恰恰要大字時鐘——留在老家
-  if (sheetIsSideRail() && !document.body.classList.contains('live')) {
+  // live 的頂列整條 display:none,徽章搬進去會跟著消失,而 live 恰恰要大字時鐘——留在老家
+  if ((document.body.classList.contains('fs') || sheetIsSideRail()) && !document.body.classList.contains('live')) {
     if (badge.parentNode !== bar) bar.insertBefore(badge, document.getElementById('alertChip'));
   } else if (badge.parentNode !== _badgeHomeAnchor.parentNode || badge.previousSibling !== _badgeHomeAnchor) {
     _badgeHomeAnchor.parentNode.insertBefore(badge, _badgeHomeAnchor.nextSibling);
@@ -24260,6 +24376,7 @@ function setupMapTools() {
     if (on) { syncMoreSheet(); positionMoreSheet(); }
     else collapseMsFlow(); // 關 sheet:走勢圖搬回原位(不留在隱藏 sheet 裡)
   };
+  watchBadgeForMoreSheet();
   document.getElementById('tabMore').onclick = () => setMore(!document.body.classList.contains('tools-open'));
   document.getElementById('toolsFab').onclick = () => setMore(!document.body.classList.contains('tools-open'));
   document.addEventListener('keydown', e => { if (e.key === 'Escape' && document.body.classList.contains('tools-open')) setMore(false); });
@@ -24376,7 +24493,42 @@ function setupMapTools() {
     powerBtn: () => !!state.powerSave,
     musicBtn: () => !!(state.music && state.music.enabled && state.music.audio && !state.music.audio.paused),
   };
+  // 資料狀態:值一律從時鐘徽章的那幾顆 span 讀回來(單一事實來源)。徽章那顆藏著 ⇒ 這裡整列不出現,
+  // 不寫「無」——「沒有這件事」與「這件事是關的」在畫面上該長得不一樣。
+  function syncMoreDataStatus() {
+    const shown = el => !!el && !el.hidden && !!el.textContent.trim();
+    const put = (rowId, valId, srcEl, text) => {
+      const row = document.getElementById(rowId), val = document.getElementById(valId);
+      if (!row || !val) return;
+      const on = shown(srcEl);
+      row.hidden = !on;
+      if (on) val.textContent = text;
+    };
+    // 值＝徽章自己的字,逐字照抄不另造詞(徽章寫「官方即時」就顯示「官方即時」);
+    // .est＝資料非官方/不新鮮,沿用檔內既有的「時刻推算」措辭當後綴,不發明新說法。
+    const mirror = el => el ? el.textContent.trim() + (el.classList.contains('est') ? '・推算' : '') : '';
+    const live = document.getElementById('liveBadge');
+    const mlive = document.getElementById('metroBadge');
+    const peak = document.getElementById('peak');
+    const cnt = document.getElementById('count');
+    put('msStatLive', 'msStatLiveVal', live, mirror(live));
+    put('msStatMetro', 'msStatMetroVal', mlive, mirror(mlive));
+    put('msStatReplay', 'msStatReplayVal', document.getElementById('replayBadge'), '重播中');
+    put('msStatPeak', 'msStatPeakVal', peak, mirror(peak));
+    put('msStatCount', 'msStatCountVal', cnt, mirror(cnt));
+  }
+  // 🔴 徽章的字由好幾處程式各自寫入(班次數每秒、捷運看板狀態非同步)。與其逐一找出寫入點掛鉤子,
+  //    不如直接觀察徽章這棵子樹:抽屜開著時才同步,關著時什麼都不做。少一份「漏掛某個寫入點」的風險。
+  function watchBadgeForMoreSheet() {
+    const badge = document.querySelector('.badge');
+    if (!badge || typeof MutationObserver !== 'function') return;
+    new MutationObserver(() => {
+      if (document.body.classList.contains('tools-open')) syncMoreDataStatus();
+    }).observe(badge, { subtree: true, childList: true, characterData: true,
+      attributes: true, attributeFilter: ['hidden', 'class'] });
+  }
   function syncMoreSheet() {
+    syncMoreDataStatus();
     document.querySelectorAll('#moreBody .ms-row').forEach(row => {
       const id = row.dataset.proxy, btn = id && document.getElementById(id);
       if (btn) {
