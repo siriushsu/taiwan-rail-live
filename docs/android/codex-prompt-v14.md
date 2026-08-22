@@ -16,7 +16,9 @@
 1. `pwd` 確認在上述工作樹內；`git branch --show-current` 應回 `codex/android-1.4.9-v14`。
 2. `git commit` 打得動（若 `.git` 唯讀＝環境沒配好，回報停手，不是任務失敗）。
 3. `env JAVA_HOME=/opt/homebrew/Cellar/openjdk@21/21.0.12/libexec/openjdk.jdk/Contents/Home ANDROID_HOME=/Users/xuxiang/Library/Android/sdk ./gradlew --version` 走得通（**必須 JDK 21**，不可用系統 Java 8、不可用 Android Studio JBR）。
-4. 需要抓網路資源時先抓一次試試（例如 `curl -s https://api.railisland.tw/api/metro-live?sys=trtc | head -c 200`），抓不到就回報，不要拿「連不到」推論成「資料不存在」。
+4. 需要抓網路資源時先抓一次試試：`curl -s 'https://railisland.tw/api/trtc-live' | head -c 300`
+   （**主站網域直掛 /api/，沒有 api. 子網域**——上一輪派工書寫錯害你空跑，這條已實測 200）。
+   抓不到就回報，不要拿「連不到」推論成「資料不存在」。
 
 ## 一、目標與動機
 
@@ -51,10 +53,13 @@
 
 ## 三、Android 小工具「再下一班・約 N 分」（本案唯一新原生功能）
 
-### 資料契約（伺服端已上線，欄位已存在）
+### 資料契約（伺服端已上線，欄位已存在——2026-08-22 19:05 實測）
 
-看板 API 的北捷列可能帶**額外欄位 `eta2`**（epoch 秒）：同月台「再下一班」的**伺服端推導值**，
-從在途官方車推導、推不出就沒有這個欄位。既有欄位語意完全不變（additive）。
+`GET https://railisland.tw/api/trtc-live` 回應的 **`board[]`** 陣列，每列形如
+`{"name":"松山機場站","dest":"南港展覽館站","eta":1787396890,"at":…,"no":"","eta2":1787397129}`——
+可能帶**額外欄位 `eta2`**（epoch 秒）：同月台「再下一班」的**伺服端推導值**，從在途官方車
+推導、推不出就沒有這個欄位（實測 318 列中 225 帶）。既有欄位語意完全不變（additive）。
+Android 端消費這份資料的現有解析在 `MetroWidgetData.java`，順著它接。
 
 ### 🔴 精度紅線（iOS 卡片在 build 73 踩過，當天被抓包重出——你不准再踩）
 
