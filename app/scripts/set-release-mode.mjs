@@ -161,9 +161,16 @@ const MODES = {
   // 2026-08-21 之二：69 已上傳 App Store Connect，定位改成前景持續追蹤且 Android 恢復
   // 精確位置後必須另出 build 70。這顆同時包含 v0821c 共站辨線／跟隨寬限／斷訊判斷修正，
   // 不得沿用已燒掉的 69；marketing 維持尚未關閉的 1.4.9。
+  // 2026-08-22：73 為等車卡合流顆（小工具直接開卡＋北捷「再下一班・約 N 分」），只裝過
+  // 真機沒上傳，但裝機當天就抓到等車卡把「約 N 分」推導列畫成秒級倒數的精度缺陷——
+  // 照「內容與已裝機顆不同就換號」慣例，修正後直接開 74，70–73 全部作廢不得上傳。
+  // 2026-08-22 之二：74 裝機後使用者抓到開機彈的「更新了什麼」還是 1.4.8 的文——那卡片
+  // 抓的是 iTunes lookup 的【線上版】releaseNotes，剛裝的版比線上新時必然彈到舊文。
+  // 修法＝把本模式的 why 經 RAIL_WHATS_NEW 注入 bundle 當本版內建文案（送審文字本來
+  // 每版都要寫 ⇒ 零額外維護），verify-release 加 gate 擋「版號升了 why 沒改」。開 75。
   feature: {
-    marketing: '1.4.9', build: '70', music: true, metroCore: true, // 69 已上傳；70 補共站／跟隨修正與前景持續精確定位
-    why: '軌島 1.4.9：承接統一捷運動畫，再補上共站路線辨識、短暫漏批不中斷跟隨與正確的北捷斷訊判斷。定位改為 App 前景持續更新藍點與所在地鏡頭，Android 恢復精確位置；進入背景或鎖屏即停止取樣。',
+    marketing: '1.4.9', build: '75', music: true, metroCore: true, // 75＝等車卡合流＋approx 精度修正＋本版內建更新內容
+    why: '軌島 1.4.9：捷運小工具可一鍵開啟等車卡，北捷看板補上「再下一班・約 N 分」並區分官方倒數與推估分鐘，等車卡沿用同一套精度規則。承接統一捷運動畫與共站路線辨識，定位維持 App 前景持續更新。',
   },
   // 2026-08-06：build 20、21、22 已上 TestFlight；22 專門驗收 Sandbox 購買後的
   // 軌島通行證客端功能、雲端同步與伺服器付費牆。這顆不可選去正式送審；正式版必須另推 build 號，
@@ -229,6 +236,9 @@ else delete env.RAIL_INCLUDE_LICENSED_MUSIC;
 env.RAIL_EXPECT_METRO_CORE = cfg.metroCore ? '1' : '0';
 if (cfg.metroCore) env.RAIL_ENABLE_METRO_CORE = '1';
 else delete env.RAIL_ENABLE_METRO_CORE;
+// 本版「更新了什麼」內建文案＝why 本人。iTunes lookup 的 releaseNotes 是【線上版】的,
+// 剛裝的版比線上新時(每次送審前必然)彈到的是上一版的文——1.4.9 (74) 實踩。
+env.RAIL_WHATS_NEW = cfg.why;
 if (cfg.plusSandboxBuild) {
   env.RAIL_PLUS_SANDBOX_OK = '1';
   env.RAIL_PLUS_SANDBOX_BUILD = cfg.plusSandboxBuild;

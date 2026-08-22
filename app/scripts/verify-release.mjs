@@ -418,6 +418,22 @@ export async function verifyRelease({
   assert(/^\d+(\.\d+)*$/.test(appVerMatch[1]),
     `RAIL_APP_VERSION 格式無法解析：${appVerMatch[1]}——版本比較會直接放棄,提示永遠不出現`);
 
+  // 本版「更新了什麼」內建文案:剛更新完的彈窗與「更多」面板的常駐入口都吃它。
+  // 判準刻意是「文案裡要出現本版版號」——擋的正是「版號升了、set-release-mode 的 why
+  // 忘了改」那個形狀(1.4.8 舊文頂著 1.4.9 出門,就是 build 74 被使用者當場抓到的事故)。
+  // sandbox 測試包豁免:那類 why 是測試說明,不跟行銷版號連動。
+  const whatsNewMatch = /window\.RAIL_APP_WHATS_NEW="((?:[^"\\]|\\.)*)"/.exec(html);
+  assert(whatsNewMatch, '發行包缺少 window.RAIL_APP_WHATS_NEW 注入——剛更新完的「更新了什麼」會整組消失。'
+    + '請經由 set-release-mode 出貨(它把發行模式的 why 傳給 prepare-web),不要手呼 prepare-web');
+  if (expectPlusSandboxBuild === null) {
+    const notes = JSON.parse(`"${whatsNewMatch[1]}"`);
+    assert(notes.trim().length > 0, 'RAIL_APP_WHATS_NEW 是空的——這一版的更新內容沒寫。'
+      + '請更新 set-release-mode.mjs 該模式的 why(它同時是送審 What’s New 與 App 內更新內容)');
+    assert(notes.includes(appVerMatch[1]),
+      `RAIL_APP_WHATS_NEW 文案裡沒有本版版號 ${appVerMatch[1]}——十之八九是版號升了、`
+      + 'set-release-mode.mjs 的 why 還是上一版的文。每一版都要重寫 why(=App 內「更新了什麼」)');
+  }
+
   if (expectPlusSandboxBuild !== null) assertPlusSandboxTestBuild(html, expectPlusSandboxBuild);
   else assertPlusSandboxOff(html);
   assertAndroidPlusGate(html);
