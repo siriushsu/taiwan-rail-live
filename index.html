@@ -1822,6 +1822,38 @@
   .board .grp .gdot { width: 9px; height: 9px; border-radius: 3px; background: var(--c); flex: none; }
   .board .grp b { font-size: calc(11.5px * var(--uis)); font-weight: 800; letter-spacing: 1px; color: var(--ink-strong); }
   .board .grp + .row { border-top: 0; }   /* 組內第一列不再畫列間分隔(標題自己那條就是分隔) */
+
+  /* ── 設計 16f 站內回報表單 ────────────────────────────────────────────── */
+  .report-dialog .rp-field { display: flex; flex-direction: column; gap: 7px; margin-bottom: 15px; }
+  .report-dialog .rp-lbl { font-size: calc(11px * var(--uis)); font-weight: 800; letter-spacing: 3px; color: var(--faint); }
+  .report-dialog .rp-kinds { display: flex; flex-wrap: wrap; gap: 7px; }
+  .report-dialog .rp-kinds button {
+    min-height: calc(44px * var(--uit)); padding: 0 13px; font: inherit; font-size: calc(12.5px * var(--uis));
+    font-weight: 700; color: var(--ink); background: var(--paper); cursor: pointer;
+    border: 1.5px solid var(--line); border-radius: var(--r-pill);
+  }
+  .report-dialog .rp-kinds button[aria-checked="true"] { background: var(--navy); color: var(--on-navy); border-color: var(--navy); font-weight: 900; }
+  /* 🔴 16px 不是排版偏好:iOS Safari 對小於 16px 的輸入框會在聚焦時放大整頁,而且退不回來 */
+  .report-dialog #rpText {
+    font: inherit; font-size: 16px; line-height: 1.5; color: var(--ink); background: var(--paper);
+    border: 1.5px solid var(--line); border-radius: var(--r-m); padding: 9px 11px; resize: vertical; min-height: 90px;
+  }
+  .report-dialog #rpText:focus { outline: none; border-color: var(--navy); border-width: 2px; }
+  .report-dialog .rp-row { display: flex; align-items: flex-start; gap: 9px; padding: 6px 0; border-top: 1px dashed var(--line-faint); }
+  .report-dialog .rp-row:first-child { border-top: 0; }
+  .report-dialog .rp-row input { width: 18px; height: 18px; margin: 2px 0 0; flex: none; accent-color: var(--navy); }
+  .report-dialog .rp-k { flex: none; width: 4.5em; font-size: calc(11.5px * var(--uis)); font-weight: 800; color: var(--muted); }
+  /* 設計:診斷欄位用等寬字——它是要被讀成「原始值」的東西,不是文案 */
+  .report-dialog .rp-v { flex: 1; min-width: 0; font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: calc(11.5px * var(--uis)); color: var(--ink); overflow-wrap: anywhere; }
+  /* 這裡的刪除線是對的:語意就是「這一項不會被送出」(與 16e 的車種 chip 不同,那裡是「暫時不看」) */
+  .report-dialog .rp-row.off .rp-k, .report-dialog .rp-row.off .rp-v { opacity: .45; text-decoration: line-through; }
+  .report-dialog .rp-note, .report-dialog .rp-foot { margin: 8px 0 0; font-size: calc(11.5px * var(--uis)); color: var(--faint); }
+  .report-dialog .rp-foot { color: var(--muted); margin-top: 14px; }
+  /* 🔴 這顆刻意是 <button> 不是 <a>:對話框本來就只在 JS 跑得動時才開得起來,<a> 的「無 JS 退路」
+     在這裡是假的;而 <a> 不吃 <button> 的 UA 字級,和並排的「取消」會對不齊——寫死數字也不行,
+     那個 UA 值 Chromium 是 13.3333px、WebKit 是 11px(實測),寫死等於在某個引擎一定歪。 */
+  .report-dialog .rp-go:disabled { opacity: .45; cursor: default; }
   /* 設計 6b 的「›」:平常完全不存在(標準/大都不收欄位,不需要出口),只有特大才長出來 */
   .board .row .rmore { display: none; }
 
@@ -4587,7 +4619,7 @@
     </details>
     <div class="foot-links">
       <a class="help-open" href="#" role="button">使用說明</a>
-      <a href="https://github.com/siriushsu/taiwan-rail-live/issues/new" target="_blank" rel="noopener noreferrer">回報問題或建議</a>
+      <a class="report-open" href="https://github.com/siriushsu/taiwan-rail-live/issues/new" target="_blank" rel="noopener noreferrer">回報問題或建議</a>
       <a href="https://github.com/siriushsu/taiwan-rail-live" target="_blank" rel="noopener noreferrer">原始碼公開，歡迎貢獻</a>
       <span class="ver" id="buildVer"></span>
     </div>
@@ -4652,6 +4684,31 @@
   <section class="takeout-dialog account-dialog" role="dialog" aria-modal="true" aria-labelledby="accountTitle">
     <div class="takeout-head"><h2 id="accountTitle">軌島帳號</h2><button id="accountX" type="button" aria-label="關閉">×</button></div>
     <div class="takeout-body" id="accountBody"><p class="account-intro">正在讀取登入狀態…</p></div>
+  </section>
+</div>
+<!-- 站內回報表單(設計 16f):夾帶的診斷資訊全部攤開、逐項可關。**刻意放 body 層**,理由同上。
+     這顆鍵帶著填好的內容開 GitHub 的新 issue 頁,由使用者自己按 GitHub 的送出,所以標籤寫
+     「前往 GitHub 開 issue」而不是「送出」——在這裡按下去並不會送出任何東西。 -->
+<div class="takeout-modal report-modal" id="reportModal" hidden>
+  <section class="takeout-dialog report-dialog" role="dialog" aria-modal="true" aria-labelledby="reportTitle">
+    <div class="takeout-head"><h2 id="reportTitle">回報問題或建議</h2><button id="reportX" type="button" aria-label="關閉">×</button></div>
+    <div class="takeout-body report-body">
+      <div class="rp-field">
+        <span class="rp-lbl">這是什麼問題</span>
+        <div class="rp-kinds" id="rpKinds" role="radiogroup" aria-label="這是什麼問題"></div>
+      </div>
+      <div class="rp-field">
+        <label class="rp-lbl" for="rpText">說明</label>
+        <textarea id="rpText" maxlength="1200" rows="4" placeholder="例：231 次在宜蘭站停很久沒動，實際上已經開了"></textarea>
+      </div>
+      <div class="rp-field">
+        <span class="rp-lbl">會一起送出</span>
+        <div class="rp-diag" id="rpDiag"></div>
+        <p class="rp-note">不含帳號與定位。想拿掉哪一項可以逐項關掉。</p>
+      </div>
+      <p class="rp-foot">按下去會開啟 GitHub 的新 issue 頁面，上面的內容已經幫你填好，送出前還可以再改。需要 GitHub 帳號。issue 是公開的。</p>
+    </div>
+    <div class="takeout-actions"><button class="cancel" id="rpCancel" type="button">取消</button><button class="confirm rp-go" id="rpGo" type="button" disabled>前往 GitHub 開 issue</button></div>
   </section>
 </div>
 <div class="takeout-modal plus-modal" id="plusModal" hidden>
@@ -4865,7 +4922,7 @@
     <div class="ms-about" id="msAbout"></div>
     <div class="ms-about-links">
       <a class="help-open" href="#" role="button">使用說明</a>
-      <a href="https://github.com/siriushsu/taiwan-rail-live/issues/new" target="_blank" rel="noopener noreferrer">回報問題或建議</a>
+      <a class="report-open" href="https://github.com/siriushsu/taiwan-rail-live/issues/new" target="_blank" rel="noopener noreferrer">回報問題或建議</a>
       <span class="ver" id="msBuildVer"></span>
     </div>
   </div>
@@ -24720,6 +24777,9 @@ const HELP_GROUPS = [
       tip: '分享行程只給班次與到站時間，不會分享你的位置。', try: 'share' },
     { key: 'fs', ic: '⛶', nm: '全畫面', one: '把介面收掉，只留地圖。',
       steps: ['按地圖右上的四角鈕', '桌面也可以按 F', '再按一次或 Esc 退出'] },
+    { key: 'report', ic: '回', nm: '回報問題或建議', one: '看到不對的地方，可以帶著當下的畫面資訊回報。',
+      steps: ['按頁尾（手機在「更多」的關於段）的「回報問題或建議」', '選一個類型、寫一句說明', '確認要一起附上的資訊——每一項都可以單獨關掉', '按「前往 GitHub 開 issue」，內容會幫你填好'],
+      tip: '附上的只有版本、目前畫面、地圖視角、跟隨中的列車與瀏覽器版本，不含帳號與定位。開 issue 需要 GitHub 帳號，issue 內容是公開的。' },
   ]},
 ];
 // 「試一次」：{ id 代點目標(也是可用性判準), run 自訂動作, ok 額外可用性, toast 執行後提示 }
@@ -24821,6 +24881,108 @@ function renderHelp() {
     + '<p class="tip">畫面上的列車位置是依<b>當日時刻表推演</b>並套用<b>即時誤點</b>校正，不是列車的實際 GPS 位置；'
     + '實際到離站時刻請以各營運機構官方資訊為準。</p></div>';
   body.innerHTML = h;
+}
+// ── 設計 16f 站內回報 ────────────────────────────────────────────────────
+// 收件端刻意走「帶著填好的內容開 GitHub 新 issue 頁」:零後端、零帳號綁定,而且使用者在按
+// GitHub 自己的送出鍵之前,看得到每一個字。這裡不送出任何東西(所以按鍵也不寫「送出」)。
+const REPORT_URL = 'https://github.com/siriushsu/taiwan-rail-live/issues/new';
+const REPORT_KINDS = ['位置不對', '時刻不對', '畫面壞了', '建議'];
+// 跟隨身分直接讀畫面上那條 followBar 的字:state.follow 在跟車時仍是 null(內部另有其人),
+// 而「螢幕上寫什麼」本來就是回報時最該附上的東西。按鍵的字要扣掉,不然會混進「取消跟隨」。
+function reportFollowText() {
+  const el = document.getElementById('followBar');
+  if (!el || el.hidden || !el.offsetParent) return '未跟隨任何列車';
+  const c = el.cloneNode(true);
+  c.querySelectorAll('button, .close, [role="button"]').forEach(x => x.remove());
+  return c.textContent.trim().replace(/\s+/g, ' ') || '未跟隨任何列車';
+}
+function reportDiagRows() {
+  const rows = [['版本', String(typeof BUILD === 'string' ? BUILD : '?')]];
+  const g = (typeof GROUPS !== 'undefined' && GROUPS.find(x => x.id === state.group)) || null;
+  rows.push(['畫面', [(g && (g.label || g.name)) || String(state.group || ''),
+    fmtHM(state.simSec % 86400) + (state.clockAtNow ? '（現在）' : '（模擬時刻）'),
+    state.speed + '×'].join(' · ')]);
+  try { const c = map.getCenter(); rows.push(['視角', c.lat.toFixed(4) + ', ' + c.lng.toFixed(4) + ' · z' + map.getZoom()]); } catch (e) {}
+  rows.push(['跟隨中', reportFollowText()]);
+  rows.push(['瀏覽器', navigator.userAgent]);
+  return rows;
+}
+function renderReportDiag() {
+  const box = document.getElementById('rpDiag'); if (!box) return;
+  const off = state._rpOff || (state._rpOff = new Set());
+  box.innerHTML = reportDiagRows().map(([k, v]) => {
+    const no = off.has(k);
+    return `<label class="rp-row${no ? ' off' : ''}"><input type="checkbox" data-k="${escHtml(k)}"${no ? '' : ' checked'}>` +
+      `<span class="rp-k">${escHtml(k)}</span><span class="rp-v">${escHtml(v)}</span></label>`;
+  }).join('');
+}
+// 🔴 診斷值一律【從畫面上那幾列讀】,不重新從 state 算一次:重算的話,畫面是開啟當下的快照、
+// 網址卻是按下去那一刻的值,時鐘/視角/跟隨只要動過就對不上(實測時鐘跨了一分鐘就抓到)。
+// 「看到什麼就送出什麼」要是結構上成立的,不能只是碰巧成立。
+function reportIssueUrl() {
+  const txt = (document.getElementById('rpText') || {}).value || '';
+  const kind = state._rpKind || REPORT_KINDS[0];
+  const diag = [...document.querySelectorAll('#rpDiag .rp-row')].filter(r => !r.classList.contains('off'))
+    .map(r => `- ${r.querySelector('.rp-k').textContent}：${r.querySelector('.rp-v').textContent}`);
+  const body = txt.trim() + (diag.length ? '\n\n---\n<!-- 以下由軌島自動帶入，可自行刪改 -->\n' + diag.join('\n') : '');
+  const head = txt.trim().split('\n')[0].slice(0, 50);
+  return REPORT_URL + '?title=' + encodeURIComponent(`[${kind}] ${head || '回報'}`) + '&body=' + encodeURIComponent(body);
+}
+function syncReportGo() {
+  const b = document.getElementById('rpGo'); if (!b) return;
+  const txt = ((document.getElementById('rpText') || {}).value || '').trim();
+  b.dataset.url = reportIssueUrl();   // 攤在 DOM 上:驗收讀得到,好奇的人也看得到會開哪一條網址
+  b.disabled = !txt;                  // 沒寫說明的回報幫不上忙,擋住
+  b.title = txt ? '' : '請先寫一句說明';
+}
+function openReport() {
+  const m = document.getElementById('reportModal'); if (!m) return;
+  state._rpOpener = document.activeElement;
+  if (!state._rpKind) state._rpKind = REPORT_KINDS[0];
+  const kb = document.getElementById('rpKinds');
+  if (kb) kb.innerHTML = REPORT_KINDS.map(k => `<button type="button" role="radio" data-k="${k}" aria-checked="${k === state._rpKind}">${k}</button>`).join('');
+  renderReportDiag(); syncReportGo();
+  m.hidden = false;
+  requestAnimationFrame(() => { const x = document.getElementById('rpText'); if (x) x.focus(); });
+}
+function closeReport() {
+  const m = document.getElementById('reportModal'); if (!m || m.hidden) return;
+  m.hidden = true;
+  const o = state._rpOpener; state._rpOpener = null;
+  if (o && typeof o.focus === 'function' && document.contains(o)) o.focus();
+}
+function setupReport() {
+  const m = document.getElementById('reportModal'); if (!m) return;
+  // 入口的 href 仍指向原本的 GitHub issues:這裡攔下來改開站內表單,JS 壞掉時退回原本的行為。
+  document.addEventListener('click', e => {
+    const a = e.target.closest('.report-open'); if (!a) return;
+    e.preventDefault(); openReport();
+  });
+  document.getElementById('reportX').onclick = closeReport;
+  document.getElementById('rpCancel').onclick = closeReport;
+  m.addEventListener('click', e => { if (e.target === m) closeReport(); });
+  document.addEventListener('keydown', e => { if (e.key === 'Escape' && !m.hidden) { e.stopPropagation(); closeReport(); } });
+  document.getElementById('rpKinds').addEventListener('click', e => {
+    const b = e.target.closest('button[data-k]'); if (!b) return;
+    state._rpKind = b.dataset.k;
+    [...e.currentTarget.querySelectorAll('button')].forEach(x => x.setAttribute('aria-checked', String(x === b)));
+    syncReportGo();
+  });
+  document.getElementById('rpText').addEventListener('input', syncReportGo);
+  document.getElementById('rpDiag').addEventListener('change', e => {
+    const c = e.target.closest('input[data-k]'); if (!c) return;
+    const off = state._rpOff || (state._rpOff = new Set());
+    if (c.checked) off.delete(c.dataset.k); else off.add(c.dataset.k);
+    c.closest('.rp-row').classList.toggle('off', !c.checked);
+    syncReportGo();
+  });
+  // 開著的時候畫面還在動(時刻、視角、跟隨都會變)——按下去前重算一次,免得帶走的是開啟那一刻的舊值
+  document.getElementById('rpGo').addEventListener('click', e => {
+    syncReportGo();   // 只是把說明欄的最新內容接上;診斷值來自畫面那幾列,不會在這裡變動
+    const url = e.currentTarget.dataset.url; if (!url) return;
+    const w = window.open(url, '_blank', 'noopener,noreferrer');
+    if (!w) showToast('瀏覽器擋下了新視窗，請允許彈出視窗後再按一次');   // 不改成整頁跳走:那會把畫面弄丟
+  });
 }
 function openHelp() {
   const m = document.getElementById('helpModal'); if (!m) return;
@@ -25167,6 +25329,7 @@ function setupMapTools() {
   setupBounty(); // GPS 路段收集懸賞板:關閉鈕與卡片點擊(接下這段／要用 App 才能接)
   setupBountyBrief(); // 出發前說明卡:關閉/等一下再說/開始錄製 三顆鈕(規格 §5 之四)
   setupRecordScreen(); // 極簡錄製畫面:停止錄製鈕(規格 §5 之一)
+  setupReport(); // 站內回報表單(設計 16f):兩顆「回報問題或建議」入口
   setupHelp(); // 使用說明中心的四個入口與 ?help=1(要排在 setupHowto 之後:兩張卡不疊,help 開了就收首訪卡)
   // 手機:下緣家具由下往上排成三層——tab bar → 速度膠囊 → 逃生提示 → 跟車卡,每層讓開它下面那層。
   // 桌面帶常駐 stage 下緣、跟隨卡 CSS 固定 bottom 86px 在帶上方,不需 JS 重排。

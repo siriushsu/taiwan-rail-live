@@ -2266,9 +2266,149 @@ async function sectionV(browser, engine) {
   }
 }
 
+// ── W 段:設計 16f 站內回報表單 → 預填好的 GitHub issue ───────────────────────────
+// 🔴 這段的核心宣稱是「夾帶的診斷資訊全部攤開、不偷偷送」,所以判準一律驗【真的產生出來的
+//    那條網址】,而不是畫面上有沒有把某一列變灰(W9/W10)。而 W15 再往下一層:W7 只證明
+//    dataset 上那條字串長得對,證明不了按下去會發生什麼——突變實測「按鍵改成開裸網址」
+//    (把使用者寫的全丟掉)時 W7 照樣全綠,只有 W15 紅。
+async function sectionW(browser, engine) {
+  for (const width of [393, 1280]) {
+    const { page, errs, close } = await boot(browser, { width, query: `?bust=w16f${width}` });
+    await page.waitForTimeout(700);
+    const tag = `${engine}/${width}`;
+
+    const ent = await page.evaluate(() => {
+      const as = [...document.querySelectorAll('a.report-open')];
+      return { n: as.length, hrefs: [...new Set(as.map(a => a.getAttribute('href')))] };
+    });
+    ok(`W1 ${tag} 兩顆入口都在,且【JS 壞掉時仍退回原本的 GitHub 連結】(href 沒被拿掉)`,
+      ent.n === 2 && ent.hrefs.length === 1 && /github\.com\/.+\/issues\/new$/.test(ent.hrefs[0]), JSON.stringify(ent));
+
+    const opened = await page.evaluate(async () => {
+      document.querySelector('a.report-open').click();
+      await new Promise(r => setTimeout(r, 350));
+      const m = document.getElementById('reportModal');
+      return { open: m && !m.hidden, kinds: [...document.querySelectorAll('#rpKinds button')].map(b => b.textContent),
+        checked: [...document.querySelectorAll('#rpKinds button')].filter(b => b.getAttribute('aria-checked') === 'true').length,
+        rows: [...document.querySelectorAll('#rpDiag .rp-row .rp-k')].map(e => e.textContent) };
+    });
+    ok(`W2 ${tag} 點入口開的是站內表單(不是直接跳走),四個類型齊、恰一個選中`,
+      opened.open && opened.kinds.length === 4 && opened.checked === 1, JSON.stringify(opened));
+    ok(`W3 ${tag} 診斷資訊【逐項攤開在畫面上】`, opened.rows.length >= 4, JSON.stringify(opened.rows));
+
+    const fs = await page.evaluate(() => {
+      const t = document.getElementById('rpText'), cs = getComputedStyle(t);
+      return { fs: parseFloat(cs.fontSize), mono: getComputedStyle(document.querySelector('#rpDiag .rp-v')).fontFamily };
+    });
+    ok(`W4 ${tag} 🔴 輸入框恰為 16px(iOS 對更小的輸入框聚焦會放大整頁且退不回來)`, fs.fs === 16, JSON.stringify(fs));
+    ok(`W5 ${tag} 診斷欄位用等寬字`, /mono|Menlo|SFMono/i.test(fs.mono), fs.mono);
+
+    const empty = await page.evaluate(() => document.getElementById('rpGo').disabled);
+    ok(`W6 ${tag} 沒寫說明時擋住(空的回報幫不上忙)`, empty === true, String(empty));
+
+    await page.fill('#rpText', '文湖線的車停在忠孝復興沒動');
+    await page.waitForTimeout(200);
+    const u1 = await page.evaluate(() => ({ href: document.getElementById('rpGo').dataset.url, dis: document.getElementById('rpGo').disabled }));
+    const q1 = new URL(u1.href), body1 = q1.searchParams.get('body') || '', title1 = q1.searchParams.get('title') || '';
+    ok(`W7 ${tag} 寫了說明就放行,網址是 GitHub 新 issue 且帶著標題與內文`,
+      u1.dis === false && /github\.com\/.+\/issues\/new$/.test(q1.origin + q1.pathname) &&
+      body1.includes('文湖線的車停在忠孝復興沒動') && title1.startsWith('['), JSON.stringify({ title: title1, dis: u1.dis }));
+
+    await page.evaluate(() => [...document.querySelectorAll('#rpKinds button')].find(b => b.textContent === '畫面壞了').click());
+    await page.waitForTimeout(150);
+    const t2 = new URL(await page.evaluate(() => document.getElementById('rpGo').dataset.url)).searchParams.get('title');
+    ok(`W8 ${tag} 換問題類型,標題跟著換`, t2.startsWith('[畫面壞了]'), t2);
+
+    // 🔴 關掉一項 → 必須真的從網址消失(不是只把畫面那一列變灰)
+    const before = new URL(await page.evaluate(() => document.getElementById('rpGo').dataset.url)).searchParams.get('body');
+    const gone = await page.evaluate(async () => {
+      const c = [...document.querySelectorAll('#rpDiag input[data-k]')].find(x => x.dataset.k === '瀏覽器');
+      c.click(); await new Promise(r => setTimeout(r, 200));
+      return { k: c.dataset.k, greyed: c.closest('.rp-row').classList.contains('off') };
+    });
+    const after = new URL(await page.evaluate(() => document.getElementById('rpGo').dataset.url)).searchParams.get('body');
+    ok(`W9 ${tag} 🔴 關掉某一項,它【真的從送出的網址裡消失】(不是只把畫面變灰)`,
+      gone.greyed && /瀏覽器/.test(before) && !/瀏覽器/.test(after) && /版本/.test(after),
+      JSON.stringify({ 關掉: gone.k, 關前有: /瀏覽器/.test(before), 關後有: /瀏覽器/.test(after) }));
+
+    // 🔴 反向:網址裡不得出現任何沒攤在畫面上的東西。這條要成立,網址就必須【讀畫面上那幾列】
+    //    而不是自己重算一次——重算的話畫面是開啟當下的快照、網址是按下去那一刻的值,時鐘跨一分鐘
+    //    就對不上(實測抓到過)。突變「偷夾一個畫面上沒有的值」只有這條紅。
+    const audit = await page.evaluate(() => {
+      const shown = [...document.querySelectorAll('#rpDiag .rp-row')].filter(r => !r.classList.contains('off'))
+        .map(r => r.querySelector('.rp-v').textContent);
+      const body = new URL(document.getElementById('rpGo').dataset.url).searchParams.get('body');
+      const tail = body.split('---')[1] || '';
+      const vals = tail.split('\n').filter(l => l.startsWith('- ')).map(l => l.slice(l.indexOf('：') + 1));
+      return { shown, vals };
+    });
+    ok(`W10 ${tag} 🔴 網址裡的每一個值都是畫面上攤開過的那一份(沒有夾帶沒顯示的東西)`,
+      audit.vals.length > 0 && audit.vals.every(v => audit.shown.includes(v)) && audit.vals.length === audit.shown.length,
+      JSON.stringify(audit));
+
+    // 🔴 取樣點刻意打在【tabbar 自己身上】,不是對話框底緣:底緣那個點在多數機身根本碰不到
+    //    tabbar,z-index 掉到 900 也照樣全綠(突變實測 0 紅)。對話框開著時整片 scrim 該吃掉所有
+    //    點擊,所以「去點 tabbar 會點到 scrim」才是真正的不變量。
+    const stack = await page.evaluate(() => {
+      const m = document.getElementById('reportModal');
+      const bar = document.querySelector('.tabbar');
+      const vis = bar && bar.getBoundingClientRect().height > 0 && getComputedStyle(bar).display !== 'none';
+      const b = vis ? bar.getBoundingClientRect()
+        : document.querySelector('#reportModal .takeout-dialog').getBoundingClientRect();
+      const hit = document.elementFromPoint(Math.round(b.x + b.width / 2), Math.round(b.y + b.height / 2));
+      const d = document.querySelector('#reportModal .takeout-dialog').getBoundingClientRect();
+      return { host: m.parentElement.tagName, tabbar: !!vis,
+        hit: hit && (hit.id || (typeof hit.className === 'string' ? hit.className : '') || hit.tagName),
+        inModal: !!(hit && hit.closest && hit.closest('#reportModal')),
+        dialogInView: d.top >= -1 && d.bottom <= innerHeight + 1 };
+    });
+    ok(`W11 ${tag} 🔴 對話框在 body 層;開著時連 tabbar 的位置都吃得到點擊(scrim 不是虛設)`,
+      stack.host === 'BODY' && stack.inModal, JSON.stringify(stack));
+    ok(`W11b ${tag} 對話框整個在視窗內(底部沒被切掉)`, stack.dialogInView, JSON.stringify(stack));
+
+    const closed = await page.evaluate(async () => {
+      document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+      await new Promise(r => setTimeout(r, 250));
+      return document.getElementById('reportModal').hidden;
+    });
+    ok(`W12 ${tag} Esc 關得掉`, closed === true, String(closed));
+
+    // 送出鍵刻意是 <button> 不是 <a>:<a> 不吃 button 的 UA 樣式,不明寫就會和並排的「取消」
+    // 大小/字重全對不上(實測 16px/400 vs 13.33/800);而 UA 字級 WebKit 11px、Chromium 13.33px,
+    // 寫死一個數字等於在某個引擎一定歪,所以這條比的是「與旁邊那顆一致」不是某個常數。
+    const pair = await page.evaluate(async () => {
+      document.querySelector('a.report-open').click(); await new Promise(r => setTimeout(r, 250));
+      const pick = el => { const c = getComputedStyle(el); return { fs: c.fontSize, fw: c.fontWeight, r: c.borderTopLeftRadius, h: Math.round(el.getBoundingClientRect().height) }; };
+      return { go: pick(document.getElementById('rpGo')), cancel: pick(document.getElementById('rpCancel')) };
+    });
+    ok(`W14 ${tag} 🔴 送出鍵與並排的「取消」在字級/字重/高度/圓角上一致(<a> 不吃 button 的 UA 樣式)`,
+      JSON.stringify(pair.go) === JSON.stringify(pair.cancel), JSON.stringify(pair));
+
+    // 🔴 真的按下去,接住它開的那個分頁。攔住往 github.com 的導覽有兩個理由:(a) 沒登入的話
+    //    GitHub 會先 302 到 /login,讀到的就不是我們送出的那條網址了(第一版判準這樣假紅過);
+    //    (b) 順便不要真的去打人家的伺服器。
+    const asked = [];
+    await page.context().route('https://github.com/**', r => { asked.push(r.request().url()); r.abort(); });
+    const [popup] = await Promise.all([
+      page.waitForEvent('popup', { timeout: 8000 }).catch(() => null),
+      page.evaluate(() => document.getElementById('rpGo').click()),
+    ]);
+    if (popup) await popup.close().catch(() => {});
+    const got = asked[0] || '';
+    ok(`W15 ${tag} 🔴 真的按下去會開一個分頁,而且它請求的就是那條 GitHub 新 issue 網址`,
+      !!popup && got.startsWith('https://github.com/siriushsu/taiwan-rail-live/issues/new?') &&
+      decodeURIComponent(got).includes('文湖線的車停在忠孝復興沒動'),
+      (got || '(沒有攔到請求)').slice(0, 110));
+    await page.context().unroute('https://github.com/**').catch(() => {});
+
+    ok(`W13 ${tag} 零 pageerror`, errs.length === 0, errs[0] || '');
+    await close();
+  }
+}
+
 await assertTarget();
 // SECTIONS=H,I 只跑指定段(突變測試用);不設就跑全部——預設永遠是「全跑」,不能靠環境變數才完整。
-const ALL = { A: sectionA, B: sectionB, C: sectionC, D: sectionD, E: sectionE, F: sectionF, G: sectionG, H: sectionH, I: sectionI, J: sectionJ, K: sectionK, L: sectionL, M: sectionM, MX: sectionMx, N: sectionN, NX: sectionNx, O: sectionO, P: sectionP, Q: sectionQ, R: sectionR, S: sectionS, T: sectionT, U: sectionU, V: sectionV };
+const ALL = { A: sectionA, B: sectionB, C: sectionC, D: sectionD, E: sectionE, F: sectionF, G: sectionG, H: sectionH, I: sectionI, J: sectionJ, K: sectionK, L: sectionL, M: sectionM, MX: sectionMx, N: sectionN, NX: sectionNx, O: sectionO, P: sectionP, Q: sectionQ, R: sectionR, S: sectionS, T: sectionT, U: sectionU, V: sectionV, W: sectionW };
 const want = (process.env.SECTIONS || '').split(',').map(x => x.trim().toUpperCase()).filter(Boolean);
 const run = want.length ? want : Object.keys(ALL);
 for (const k of run) if (!ALL[k]) { console.error(`未知段別 ${k}`); process.exit(2); }
