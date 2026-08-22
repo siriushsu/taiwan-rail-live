@@ -79,5 +79,72 @@ if (limitMatch && limitMatch[1] !== 'nil') {
 ok('L6 沒有 parameterSummary', !/\bvar\s+parameterSummary\b/.test(code),
    (src.match(/.*parameterSummary.*/) || ['(找不到)'])[0]);
 
+// ══════════ 7. 🔴 小工具 Button(intent:) 帶的參數值必須是純 ASCII ══════════
+// 2026-08-22 在 iOS 26.5 模擬器做單一變因對照(同一顆 build 只換 Button 綁的 intent 值):
+//   值 = ""(預設)               → 小工具正常畫出來
+//   值 = sys:"TRTC" station:"TESTASCII" → 正常畫出來
+//   值 = sys:"TRTC" station:"大安"      → 【整張小工具變佔位圖,連畫都畫不出來】
+// 壞掉那次 widget extension 的 log:
+//   -[INAppIntent linkAction] No LinkAction; returning nil (NSCocoaErrorDomain 4097)
+//   → Unable to get LNAction from intent → chronod 收到 CHSErrorDomain 1101
+//     「Returned view collection was either nil or empty.」整份畫面存檔被丟掉。
+// 對照組:同一顆 build 把 Button 換成無參數的 MetroWaitEndIntent 也正常
+// ⇒ 不是 Button、也不是 LiveActivityIntent 本身,就是【參數值的字元集】。
+// 站名／終點站名全是中文 ⇒ 唯一安全的走法是包成 Base64(全 ASCII)再當參數傳。
+{
+  const START = join(ROOT, 'app/ios/App/App/MetroWaitStartIntent.swift');
+  ok('L7-0 MetroWaitStartIntent.swift 存在', existsSync(START), START);
+  if (existsSync(START)) {
+    const rawStart = readFileSync(START, 'utf8');
+    const codeStart = rawStart.split('\n').map(l => l.replace(/\/\/.*$/, '')).join('\n');
+    const intentBody = (codeStart.match(/struct\s+MetroWaitStartIntent\s*:[\s\S]*?\n\}/) || [''])[0];
+    const params = [...intentBody.matchAll(/@Parameter\([^)]*\)\s*var\s+(\w+)\s*:\s*([\w?]+)/g)];
+    // 參數只准一個、只准 String——多一個中文欄位就會走回頭路(這條是本組的核心)。
+    ok('L7a 只宣告一個 @Parameter', params.length === 1, `找到 ${params.length}: ${params.map(m => m[1]).join(',')}`);
+    ok('L7b 那個參數是 payload: String', params[0]?.[1] === 'payload' && params[0]?.[2] === 'String',
+       JSON.stringify(params[0]?.slice(1)));
+    // 唯一寫入點必須是編碼函式,不能有人繞過去直接塞原字串。
+    const writes = [...intentBody.matchAll(/self\.payload\s*=\s*([^\n]+)/g)].map(m => m[1].trim());
+    ok('L7c payload 只由 Self.encode( 寫入', writes.length === 1 && writes[0].startsWith('Self.encode('),
+       JSON.stringify(writes));
+    ok('L7d encode 以 base64EncodedString() 收尾',
+       /static\s+func\s+encode\([^)]*\)\s*->\s*String\s*\{[^}]*base64EncodedString\(\)/.test(codeStart),
+       '(找不到 encode → base64EncodedString)');
+    // 呼叫端只准用便利 init,不准自己動 payload(動了就等於自己決定字元集)。
+    for (const f of ['app/ios/App/RailBoardWidget/MetroBoardWidget.swift',
+                     'app/ios/App/RailBoardWidget/MixedBoardWidget.swift']) {
+      const c = readFileSync(join(ROOT, f), 'utf8').split('\n').map(l => l.replace(/\/\/.*$/, '')).join('\n');
+      const calls = [...c.matchAll(/MetroWaitStartIntent\(([^)]*)\)/g)].map(m => m[1]);
+      const base = f.split('/').pop();
+      ok(`L7e-${base} 有綁 Button(intent: MetroWaitStartIntent(…))`, calls.length >= 1, `calls=${calls.length}`);
+      ok(`L7f-${base} 呼叫端一律走 sys:station:dest: 便利 init`,
+         calls.every(a => /^\s*sys\s*:/.test(a)), JSON.stringify(calls));
+      ok(`L7g-${base} 呼叫端不直接寫 payload`, !/\bpayload\s*:/.test(c) && !/\.payload\s*=/.test(c), f);
+    }
+    // 行為對照:把 Swift 的編碼規則在 JS 重做一次,拿【真的中文站名】跑一遍。
+    // 正向:編出來必須全 ASCII(這才是產品真正依賴的性質)。
+    // 負向:不編碼的原字串必須【不是】ASCII——證明這條斷言不是恆真的空過。
+    const enc = (sys, station, dest) => Buffer.from(`${sys}\t${station}\t${dest ?? ''}`, 'utf8').toString('base64');
+    const isAscii = t => /^[\x00-\x7F]*$/.test(t);
+    const sample = enc('TRTC', '大安', '象山');
+    ok('L7h 中文站名編出來全 ASCII', isAscii(sample), sample);
+    ok('L7i 負對照:未編碼的同一份內容不是 ASCII', !isAscii('TRTC\t大安\t象山'), '這條若過了代表 L7h 恆真');
+    // 解得回來才算數(dest 空字串＝不限方向)。
+    const dec = t => { const p = Buffer.from(t, 'base64').toString('utf8').split('\t');
+                       return p.length === 3 ? { sys: p[0], station: p[1], dest: p[2] || null } : null; };
+    const back = dec(sample);
+    ok('L7j round-trip 還原得回原值', back && back.sys === 'TRTC' && back.station === '大安' && back.dest === '象山',
+       JSON.stringify(back));
+    const noDest = dec(enc('TRTC', '大安', null));
+    ok('L7k 不限方向還原成 null', noDest && noDest.dest === null, JSON.stringify(noDest));
+    // 🔴 L7h–L7k 驗的是【格式契約】(JS 重做一遍),不是 Swift 實作本身;Swift 那邊 encode 與
+    //    decode 的分隔符若各改各的,上面四條照樣全綠。L7l 就是補這個縫:兩邊都必須是 tab。
+    ok('L7l encode/decode 分隔符都是 tab',
+       /static\s+func\s+encode\([\s\S]{0,200}?\\t/.test(codeStart) &&
+       /components\(separatedBy:\s*"\\t"\)/.test(codeStart),
+       '(encode 或 decode 沒用 \\t)');
+  }
+}
+
 console.log(`\n總計 PASS=${pass} FAIL=${fail}`);
 process.exit(fail ? 1 : 0);

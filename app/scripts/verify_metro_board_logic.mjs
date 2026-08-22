@@ -313,7 +313,8 @@ for (const [sys, file] of [['krtc', 'krtc-live.json'], ['tymc', 'tymc-live.json'
 // `cache: 'no-store'`,Swift 這側必須有等價防護。判準寫「是什麼」:接受停用快取的政策或
 // ephemeral session,不釘死某一行寫法。
 {
-  const src = readFileSync(join(ROOT, 'app/ios/App/RailBoardWidget/MetroBoardWidget.swift'), 'utf8')
+  // MetroFetcher 2026-08-22 搬到 App/MetroWidgetShared.swift(App target 的背景開卡也要抓班次)。
+  const src = readFileSync(join(ROOT, 'app/ios/App/App/MetroWidgetShared.swift'), 'utf8')
     .split('\n').map(l => l.replace(/\/\/.*$/, '')).join('\n');
   const fetchBlock = src.match(/static func fetch\(sys: String\)[\s\S]*?\n    \}/)?.[0] ?? '';
   ok('C0 真的抽到 fetch 區塊', fetchBlock.length > 0);
