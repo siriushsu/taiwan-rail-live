@@ -24,11 +24,16 @@ public struct MetroRow: Equatable {
     /// 只給 `resolveLine` 分辨「板南線與文湖線同時服務同一組站與終點」的那一種列用,
     /// 不作顯示用途——北捷的「車次」在文湖線其實是車廂編號,不是給人看的車次。
     public let trainNo: String?
+    /// 「再下一班」(2026-08-22 裁示):伺服端從【已發車在途】的官方名冊推導的第二班,
+    /// 沿線累加行車＋停靠秒的投影值,不是官方站牌原文 ⇒ 畫面必須帶「約」字
+    /// (MetroCountdown 對 approx 列一律走 .approxMinutes),絕不能畫成秒級倒數冒充官方精度。
+    /// 離峰第二班還沒發車時伺服端不給值 ⇒ 這裡就沒有這一列——留白是裁示的一部分,不是缺陷。
+    public let approx: Bool
 
     public init(dest: String, etaEpoch: Double?, minutes: Int?, crowd: [Int]?, lineCode: String? = nil,
-                trainNo: String? = nil) {
+                trainNo: String? = nil, approx: Bool = false) {
         self.dest = dest; self.etaEpoch = etaEpoch; self.minutes = minutes
-        self.crowd = crowd; self.lineCode = lineCode; self.trainNo = trainNo
+        self.crowd = crowd; self.lineCode = lineCode; self.trainNo = trainNo; self.approx = approx
     }
 }
 
@@ -46,7 +51,12 @@ public enum MetroBoardModel {
     // MARK: - 北捷(絕對 epoch)
 
     private struct TrtcResponse: Decodable {
-        struct BoardRow: Decodable { let name: String; let dest: String; let eta: Double; let no: String? }
+        struct BoardRow: Decodable {
+            let name: String; let dest: String; let eta: Double; let no: String?
+            /// 伺服端推導的「再下一班」到站時刻(epoch 秒)。舊版 worker 沒有這個欄位 ⇒ nil,
+            /// 整個第二班功能自然不存在——小工具不做任何退路推算(裁示:推不出就留白)。
+            let eta2: Double?
+        }
         struct Train: Decodable { let no: String?; let stn: String?; let cars: [Int]? }
         let board: [BoardRow]
         let trains: [Train]?
@@ -90,17 +100,36 @@ public enum MetroBoardModel {
             guard let no = t.no, !no.isEmpty, trainByNo[no] == nil else { continue }
             trainByNo[no] = t
         }
-        let rows = mine.map { b -> MetroRow in
+        var keyed: [(eta: Double, rawDest: String, row: MetroRow)] = []
+        keyed.reserveCapacity(mine.count * 2)
+        for b in mine {
             let train = b.no.flatMap { $0.isEmpty ? nil : trainByNo[$0] }
             let cars = train?.cars
-            return MetroRow(dest: alias[b.dest] ?? b.dest, etaEpoch: b.eta, minutes: nil,
-                            crowd: (cars?.isEmpty == false) ? cars : nil,
-                            lineCode: train?.stn.flatMap { stn in
-                                let code = String(stn.prefix(while: { $0.isLetter }))
-                                return code.isEmpty ? nil : code
-                            },
-                            trainNo: b.no.flatMap { $0.isEmpty ? nil : $0 })
+            let lineCode = train?.stn.flatMap { stn -> String? in
+                let code = String(stn.prefix(while: { $0.isLetter }))
+                return code.isEmpty ? nil : code
+            }
+            keyed.append((b.eta, b.dest,
+                MetroRow(dest: alias[b.dest] ?? b.dest, etaEpoch: b.eta, minutes: nil,
+                         crowd: (cars?.isEmpty == false) ? cars : nil,
+                         lineCode: lineCode,
+                         trainNo: b.no.flatMap { $0.isEmpty ? nil : $0 })))
+            // 「再下一班」合成列(2026-08-22 裁示:每條線每個方向至少兩班,第二班寫「約N分」)。
+            // 🔴 lineCode 繼承第一班 join 出來的線別——伺服端保證第二班同線同向同終點,
+            //    這是唯一能把忠孝復興 BL/BR 兩列的次班標對線色的來源(沒 join 到就 nil,
+            //    由 resolveLine 的 {BL,BR}+無車號 ⇒ BR 規則接手,恰好也是對的那一半)。
+            // 🔴 crowd/trainNo 一律 nil:那是第一班那台車的資料,拿來標第二班就是貼錯車。
+            if let e2 = b.eta2, e2 > now, e2 > b.eta {
+                keyed.append((e2, b.dest,
+                    MetroRow(dest: alias[b.dest] ?? b.dest, etaEpoch: e2, minutes: nil,
+                             crowd: nil, lineCode: lineCode, trainNo: nil, approx: true)))
+            }
         }
+        // 合成列插回時間順序。排序鍵與 `mine` 那次完全同一套(eta 平手比【原始】dest 字串)——
+        // 沒有 eta2 時輸出逐列等同改版前;平手規則絕不能換成 alias 後的字串
+        // (差分驗收的期望值用原始欄位算,鍵不同套會在平手案例假紅,也是無謂的行為改變)。
+        keyed.sort { $0.eta == $1.eta ? $0.rawDest < $1.rawDest : $0.eta < $1.eta }
+        let rows = keyed.map(\.row)
         return MetroSnapshot(station: station, dataAt: payloadTime(r.at, fallback: now),
                              rows: rows, stale: rows.isEmpty)
     }

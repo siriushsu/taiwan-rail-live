@@ -273,6 +273,8 @@ enum MetroFetcher {
             // (車號是「板南／文湖」那一種列唯一的判別依據,見 MetroBoardModel.resolveLine)。
             if let l = r.lineCode { d["line"] = l }
             if let n = r.trainNo { d["no"] = n }
+            // approx 不存就會在退路那份掉旗標——合成的「約」列會被畫成秒級倒數冒充官方精度。
+            if r.approx { d["approx"] = true }
             return d
         }
         suite?.set(["at": s.dataAt, "rows": rows, "stale": s.stale], forKey: key(sys, station))
@@ -284,7 +286,8 @@ enum MetroFetcher {
         let rows = raw.map { r in
             MetroRow(dest: r["dest"] as? String ?? "", etaEpoch: r["eta"] as? Double,
                      minutes: r["min"] as? Int, crowd: r["crowd"] as? [Int],
-                     lineCode: r["line"] as? String, trainNo: r["no"] as? String)
+                     lineCode: r["line"] as? String, trainNo: r["no"] as? String,
+                     approx: r["approx"] as? Bool ?? false)
         }
         // 🔴 Swift 的 memberwise init 必須照【宣告順序】給參數,不能重排:
         //    MetroSnapshot 是 station → dataAt → rows → stale。
@@ -550,6 +553,13 @@ enum MetroCountdown {
     static func of(row r: MetroRow, precision: String, at date: Date) -> RailCountdown {
         // 🔴 判準用 entry 的時刻,不用 Date():body 是被封存(archive)起來的,Date() 只會是
         //    封存那一刻,不會隨時間重算。timeline 已在每個分鐘邊界預排 entry。
+        // 🔴 approx 列(伺服端推導的「再下一班」)必須先攔在秒級路徑前面:它的 etaEpoch 是
+        //    投影值不是官方站牌原文,畫成 mm:ss 就是拿「約」的精度冒充官方精度。
+        //    對映規則與分鐘級系統同一條:>0 畫「約 N 分」,≤0 畫「進站」。
+        if r.approx, let eta = r.etaEpoch {
+            let m = Int(ceil((eta - date.timeIntervalSince1970) / 60))
+            return m <= 0 ? .arriving : .approxMinutes(m)
+        }
         if precision == "sec", let eta = r.etaEpoch {
             return .from(secondsLeft: eta - date.timeIntervalSince1970, surface: .widget)
         }
